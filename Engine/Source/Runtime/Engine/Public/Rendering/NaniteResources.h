@@ -475,15 +475,15 @@ class FGlobalResources : public FRenderResource
 public:
 	struct PassBuffers
 	{
-		TRefCountPtr<FPooledRDGBuffer> NodesBuffer;
+		TRefCountPtr<FRDGPooledBuffer> NodesBuffer;
 
 		// Used for statistics
-		TRefCountPtr<FPooledRDGBuffer> StatsRasterizeArgsSWHWBuffer;
-		TRefCountPtr<FPooledRDGBuffer> StatsCandidateClustersArgsBuffer;
+		TRefCountPtr<FRDGPooledBuffer> StatsRasterizeArgsSWHWBuffer;
+		TRefCountPtr<FRDGPooledBuffer> StatsCandidateClustersArgsBuffer;
 
 	#if NANITE_USE_SCRATCH_BUFFERS
 		// Used for scratch memory (transient only)
-		TRefCountPtr<FPooledRDGBuffer> ScratchCandidateClustersBuffer;
+		TRefCountPtr<FRDGPooledBuffer> ScratchCandidateClustersBuffer;
 	#endif
 	};
 
@@ -504,13 +504,13 @@ public:
 	inline PassBuffers& GetMainPassBuffers() { return MainPassBuffers; }
 	inline PassBuffers& GetPostPassBuffers() { return PostPassBuffers; }
 
-	TRefCountPtr<FPooledRDGBuffer>& GetStatsBufferRef() { return StatsBuffer; }
-	TRefCountPtr<FPooledRDGBuffer>& GetStructureBufferStride8() { return StructureBufferStride8; }
+	TRefCountPtr<FRDGPooledBuffer>& GetStatsBufferRef() { return StatsBuffer; }
+	TRefCountPtr<FRDGPooledBuffer>& GetStructureBufferStride8() { return StructureBufferStride8; }
 
 #if NANITE_USE_SCRATCH_BUFFERS
-	TRefCountPtr<FPooledRDGBuffer>& GetPrimaryVisibleClustersBufferRef() { return PrimaryVisibleClustersBuffer; }
-	TRefCountPtr<FPooledRDGBuffer>& GetScratchVisibleClustersBufferRef() { return ScratchVisibleClustersBuffer; }
-	TRefCountPtr<FPooledRDGBuffer>& GetScratchOccludedInstancesBufferRef() { return ScratchOccludedInstancesBuffer; }
+	TRefCountPtr<FRDGPooledBuffer>& GetPrimaryVisibleClustersBufferRef() { return PrimaryVisibleClustersBuffer; }
+	TRefCountPtr<FRDGPooledBuffer>& GetScratchVisibleClustersBufferRef() { return ScratchVisibleClustersBuffer; }
+	TRefCountPtr<FRDGPooledBuffer>& GetScratchOccludedInstancesBufferRef() { return ScratchOccludedInstancesBuffer; }
 #endif
 
 	FVertexFactory* GetVertexFactory() { return VertexFactory; }
@@ -522,16 +522,16 @@ private:
 	class FVertexFactory* VertexFactory = nullptr;
 
 	// Used for statistics
-	TRefCountPtr<FPooledRDGBuffer> StatsBuffer;
+	TRefCountPtr<FRDGPooledBuffer> StatsBuffer;
 
 	// Dummy structured buffer with stride8
-	TRefCountPtr<FPooledRDGBuffer> StructureBufferStride8;
+	TRefCountPtr<FRDGPooledBuffer> StructureBufferStride8;
 
 #if NANITE_USE_SCRATCH_BUFFERS
-	TRefCountPtr<FPooledRDGBuffer> PrimaryVisibleClustersBuffer;
+	TRefCountPtr<FRDGPooledBuffer> PrimaryVisibleClustersBuffer;
 	// Used for scratch memory (transient only)
-	TRefCountPtr<FPooledRDGBuffer> ScratchVisibleClustersBuffer;
-	TRefCountPtr<FPooledRDGBuffer> ScratchOccludedInstancesBuffer;
+	TRefCountPtr<FRDGPooledBuffer> ScratchVisibleClustersBuffer;
+	TRefCountPtr<FRDGPooledBuffer> ScratchOccludedInstancesBuffer;
 #endif
 };
 

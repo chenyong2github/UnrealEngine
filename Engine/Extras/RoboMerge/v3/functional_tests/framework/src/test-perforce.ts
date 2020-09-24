@@ -24,7 +24,7 @@ export class Perforce {
 	static readonly REGEX_NEWLINE = /\r\n|\n|\r/g
 
 	init() {
-		return this.exec(['login', '-s'])
+		return this.exec(process.platform === 'darwin' ? ['-plocalhost:1666', 'login', '-s'] : ['login', '-s'])
 	}
 
 	depot(depotType: string, spec: string)	{ return this.exec(['depot', '-t', depotType],	{stdin:spec}) }
@@ -87,7 +87,7 @@ export class Perforce {
 	async changes(client: string, stream: string, limit: number, pending?: boolean) {
 		const ztagResult = await this.exec(['-ztag', '-c', client, 'changes', '-l', '-m', limit.toString(), '-s', pending ? 'pending' : 'submitted', stream + '/...'])
 
-		const parseResult = ztag.parseZtagOutput(ztagResult, {expected: {change: 'integer', desc: 'string'}, optional: {oldChange: 'integer'}})
+		const parseResult = ztag.parseZtagOutput(ztagResult, 0, {expected: {change: 'integer', desc: 'string'}, optional: {oldChange: 'integer'}})
 		const result: Change[] = []
 		for (const entry of parseResult) {
 			result.push({change: entry.change as number, description: entry.desc as string})
@@ -97,7 +97,7 @@ export class Perforce {
 
 	async describe(cl: number) {
 		const ztagResult = await this.exec(['-ztag', 'describe', cl.toString()])
-		const parseResult = ztag.parseHeaderAndArray(ztagResult,
+		const parseResult = ztag.parseHeaderAndArray(ztagResult, 0,
 			{expected: {change: 'integer', user: 'string', client: 'string'}},
 			{expected: {action: 'string', rev: 'integer', depotFile: 'string'}}
 		)

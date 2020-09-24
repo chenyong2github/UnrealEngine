@@ -21,6 +21,7 @@ import { BlockageNodeOpUrls, OperationUrlHelper } from './roboserver';
 import { Settings } from './settings';
 import { Status } from './status';
 import { TickJournal } from './tick-journal';
+import { GraphAPI } from '../new/graph';
 
 // probably get the gist after 2000 characters
 const MAX_ERROR_LENGTH_TO_REPORT = 2000
@@ -95,7 +96,7 @@ export class GraphBot implements GraphInterface, BotEventHandler {
 		return branch && branch.bot ? branch.bot as NodeBot : undefined
 	}
 
-	initBots() {
+	initBots(ubergraph: GraphAPI) {
 		this.eventTriggers = new BotEventTriggers(this.branchGraph.botname, this.branchGraph.config)
 		this.eventTriggers.registerHandler(this)
 		const blockageUrlGenerator: NodeOpUrlGenerator = (blockage : Blockage | null) => { 
@@ -127,7 +128,7 @@ export class GraphBot implements GraphInterface, BotEventHandler {
 		for (const branch of this.branchGraph.branches) {
 			if (branch.enabled) {
 				const persistence = this.settings.getContext(branch.upperName)
-				branch.bot = new NodeBot(branch, this.mailer, this.externalUrl, this.eventTriggers, persistence)
+				branch.bot = new NodeBot(branch, this.mailer, this.externalUrl, this.eventTriggers, persistence, ubergraph)
 
 				if (branch.bot.getNumConflicts() > 0) {
 					hasConflicts = true
@@ -209,6 +210,7 @@ export class GraphBot implements GraphInterface, BotEventHandler {
 
 			for (const bot of this.botlist) {
 				bot.isActive = true
+				let ticked = false
 				try {
 					// crashMe API support - simulate a bot crashing and stopping the GraphBot instance
 					if (this.crashRequested) {
@@ -217,7 +219,7 @@ export class GraphBot implements GraphInterface, BotEventHandler {
 						throw new Error(errMsg)
 					}
 
-					await bot.tick()
+					ticked = await bot.tick()
 				}
 				catch (err) {
 					this._runningBots = false
@@ -225,6 +227,9 @@ export class GraphBot implements GraphInterface, BotEventHandler {
 					let errStr = err.toString()
 					if (errStr.length > MAX_ERROR_LENGTH_TO_REPORT) {
 						errStr = errStr.substr(0, MAX_ERROR_LENGTH_TO_REPORT) + ` ... (error length ${errStr.length})`
+					}
+					else {
+						errStr += err.stack
 					}
 					this.lastError = {
 						nodeBot: bot.fullName,
@@ -246,8 +251,8 @@ export class GraphBot implements GraphInterface, BotEventHandler {
 				}
 				bot.isActive = false
 
-				if (bot.tickJournal) {
-					const nodeBot = <NodeBot>bot
+				if (ticked && bot.tickJournal) {
+					const nodeBot = bot as NodeBot
 					bot.tickJournal.monitored = nodeBot.branch.isMonitored
 					activity.set(nodeBot.branch.upperName, bot.tickJournal)
 				}

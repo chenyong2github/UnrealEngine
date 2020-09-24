@@ -485,9 +485,30 @@ void UK2Node_GetClassDefaults::OnBlueprintClassModified(UBlueprint* TargetBluepr
 
 void UK2Node_GetClassDefaults::CreateOutputPins(UClass* InClass)
 {
+	TArray<FOptionalPinFromProperty> OldShowPins = MoveTemp(ShowPinForProperties);
+
 	// Create the set of output pins through the optional pin manager
 	FClassDefaultsOptionalPinManager OptionalPinManager(InClass, bExcludeObjectContainers, bExcludeObjectArrays_DEPRECATED);
 	OptionalPinManager.RebuildPropertyList(ShowPinForProperties, InClass);
+
+	// re-enable any old show pins
+	for (const FOptionalPinFromProperty& Pin : OldShowPins)
+	{
+		if (Pin.bShowPin)
+		{
+			FOptionalPinFromProperty* NewPin = ShowPinForProperties.FindByPredicate(
+				[&Pin](const FOptionalPinFromProperty& OtherPin)
+				{
+					return OtherPin.PropertyName == Pin.PropertyName && OtherPin.CategoryName == Pin.CategoryName;
+				});
+			
+			if (NewPin)
+			{
+				NewPin->bShowPin = true;
+			}
+		}
+	}
+
 	OptionalPinManager.CreateVisiblePins(ShowPinForProperties, InClass, EGPD_Output, this);
 
 	// Check for any advanced properties (outputs)
@@ -574,9 +595,6 @@ void UK2Node_GetClassDefaults::OnClassPinChanged()
 			Pins.Add(OldPin);
 		}
 	}
-
-	// Clear the current output pin settings (so they don't carry over to the new set)
-	ShowPinForProperties.Reset();
 
 	// Create output pins for the new class type
 	UClass* InputClass = GetInputClass();

@@ -299,6 +299,16 @@ FAutoConsoleCommand CmdDumpShadowDumpSetup(
 	);
 #endif // !UE_BUILD_SHIPPING
 
+/** Whether to round the shadow map up to power of two on mobile platform. */
+static TAutoConsoleVariable<int32> CVarMobileShadowmapRoundUpToPowerOfTwo(
+	TEXT("r.Mobile.ShadowmapRoundUpToPowerOfTwo"),
+	0,
+	TEXT("Round the shadow map up to power of two on mobile platform, in case there is any compatibility issue.\n")
+	TEXT(" 0: Disable (Default)\n")
+	TEXT(" 1: Enabled"),
+	ECVF_RenderThreadSafe
+);
+
 /**
  * Helper function to determine fade alpha value for shadows based on resolution. In the below ASCII art (1) is
  * the MinShadowResolution and (2) is the ShadowFadeResolution. Alpha will be 0 below the min resolution and 1
@@ -780,7 +790,7 @@ void FProjectedShadowInfo::SetupWholeSceneProjection(
 	checkf(MaxSubjectZ > MinSubjectZ, TEXT("MaxSubjectZ %f MinSubjectZ %f SubjectBounds.SphereRadius %f"), MaxSubjectZ, MinSubjectZ, Initializer.SubjectBounds.SphereRadius);
 
 	// TODO: That does this clamp achieve?
-	const float ClampedMaxLightW = FMath::Min(Initializer.MaxDistanceToCastInLightW, (float)HALF_WORLD_MAX);
+	const float ClampedMaxLightW = FMath::Min(MinSubjectZ + Initializer.MaxDistanceToCastInLightW, (float)HALF_WORLD_MAX);
 	MinPreSubjectZ = Initializer.MinLightW;
 
 	ViewToClip = ScaleMatrix * FShadowProjectionMatrix(MinSubjectZ, MaxSubjectZ, Initializer.WAxis);
@@ -1145,7 +1155,8 @@ bool FProjectedShadowInfo::ShouldDrawStaticMeshes(FViewInfo& InCurrentView, FPri
 			const int8 CurFirstLODIdx = InPrimitiveSceneInfo->Proxy->GetCurrentFirstLODIdx_RenderThread();
 
 			const FBoxSphereBounds& Bounds = InPrimitiveSceneInfo->Proxy->GetBounds();
-			ViewLODToRender = ComputeLODForMeshes(InPrimitiveSceneInfo->StaticMeshRelevances, InCurrentView, Bounds.Origin, Bounds.SphereRadius, ForcedLOD, MeshScreenSizeSquared, CurFirstLODIdx, InCurrentView.LODDistanceFactor);	
+			const float LODScale = InCurrentView.LODDistanceFactor * GetCachedScalabilityCVars().StaticMeshLODDistanceScale;
+			ViewLODToRender = ComputeLODForMeshes(InPrimitiveSceneInfo->StaticMeshRelevances, InCurrentView, Bounds.Origin, Bounds.SphereRadius, ForcedLOD, MeshScreenSizeSquared, CurFirstLODIdx, LODScale);
 
 			InCurrentView.PrimitivesLODMask[PrimitiveId] = ViewLODToRender;
 		}
@@ -1269,7 +1280,8 @@ bool FProjectedShadowInfo::ShouldDrawStaticMeshes_AnyThread(
 			const int8 CurFirstLODIdx = Proxy->GetCurrentFirstLODIdx_RenderThread();
 
 			const FBoxSphereBounds& Bounds = PrimitiveSceneInfoCompact.Bounds;
-			ViewLODToRender = ComputeLODForMeshes(PrimitiveSceneInfo->StaticMeshRelevances, CurrentView, Bounds.Origin, Bounds.SphereRadius, ForcedLOD, MeshScreenSizeSquared, CurFirstLODIdx, CurrentView.LODDistanceFactor);
+			const float LODScale = CurrentView.LODDistanceFactor * GetCachedScalabilityCVars().StaticMeshLODDistanceScale;
+			ViewLODToRender = ComputeLODForMeshes(PrimitiveSceneInfo->StaticMeshRelevances, CurrentView, Bounds.Origin, Bounds.SphereRadius, ForcedLOD, MeshScreenSizeSquared, CurFirstLODIdx, LODScale);
 
 			CurrentView.PrimitivesLODMask[PrimitiveId] = ViewLODToRender;
 		}
@@ -1491,7 +1503,8 @@ void FProjectedShadowInfo::AddSubjectPrimitive(FPrimitiveSceneInfo* PrimitiveSce
 
 					if (bWholeSceneShadow)
 					{
-						const bool bDrawShadowDepth = FMath::Square( Bounds.SphereRadius ) > FMath::Square( GMinScreenRadiusForShadowCaster ) * DistanceSquared * CurrentView.LODDistanceFactorSquared;
+						const float LODScaleSquared = FMath::Square(CurrentView.LODDistanceFactor * GetCachedScalabilityCVars().StaticMeshLODDistanceScale);
+						const bool bDrawShadowDepth = FMath::Square( Bounds.SphereRadius ) > FMath::Square( GMinScreenRadiusForShadowCaster ) * DistanceSquared * LODScaleSquared;
 						if( !bDrawShadowDepth )
 						{
 							// cull object if it's too small to be considered as shadow caster
@@ -1694,7 +1707,8 @@ uint64 FProjectedShadowInfo::AddSubjectPrimitive_AnyThread(
 				{
 					const FBoxSphereBounds& Bounds = PrimitiveSceneInfoCompact.Bounds;
 					const float DistanceSquared = (Bounds.Origin - CurrentView->ShadowViewMatrices.GetViewOrigin()).SizeSquared();
-					const bool bDrawShadowDepth = FMath::Square(Bounds.SphereRadius) > FMath::Square(GMinScreenRadiusForShadowCaster) * DistanceSquared * CurrentView->LODDistanceFactorSquared;
+					const float LODScaleSquared = FMath::Square(CurrentView->LODDistanceFactor * GetCachedScalabilityCVars().StaticMeshLODDistanceScale);
+					const bool bDrawShadowDepth = FMath::Square(Bounds.SphereRadius) > FMath::Square(GMinScreenRadiusForShadowCaster) * DistanceSquared * LODScaleSquared;
 					if (!bDrawShadowDepth)
 					{
 						// cull object if it's too small to be considered as shadow caster
@@ -2568,7 +2582,8 @@ void FSceneRenderer::CreatePerObjectProjectedShadow(
 		// Unless we're in the editor and need to preview an object without built lighting
 		&& (!PrimitiveSceneInfo->Proxy->HasStaticLighting() || !Interaction->IsShadowMapped())
 		// Disable preshadows from directional lights for primitives that use single sample shadowing, the shadow factor will be written into the precomputed shadow mask in the GBuffer instead
-		&& !(PrimitiveSceneInfo->Proxy->UseSingleSampleShadowFromStationaryLights() && LightSceneInfo->Proxy->GetLightType() == LightType_Directional);
+		&& !(PrimitiveSceneInfo->Proxy->UseSingleSampleShadowFromStationaryLights() && LightSceneInfo->Proxy->GetLightType() == LightType_Directional)
+		&& Scene->GetFeatureLevel() >= ERHIFeatureLevel::SM5;
 
 	if (bRenderPreShadow && ShouldUseCachePreshadows())
 	{
@@ -2684,8 +2699,7 @@ void FSceneRenderer::CreatePerObjectProjectedShadow(
 		// If the subject is visible in at least one view, create a preshadow for static primitives shadowing the subject.
 		if (MaxPreFadeAlpha > 1.0f / 256.0f 
 			&& bRenderPreShadow
-			&& bOpaque
-			&& Scene->GetFeatureLevel() >= ERHIFeatureLevel::SM5)
+			&& bOpaque)
 		{
 			// Round down to the nearest power of two so that resolution changes are always doubling or halving the resolution, which increases filtering stability.
 			int32 PreshadowSizeX = 1 << (FMath::CeilLogTwo(FMath::TruncToInt(MaxDesiredResolution * CVarPreShadowResolutionFactor.GetValueOnRenderThread())) - 1);
@@ -3911,7 +3925,8 @@ struct FGatherShadowPrimitivesPacket
 
 				{
 					const float DistanceSquared = (PrimitiveBounds.Origin - ProjectedShadowInfo->DependentView->ShadowViewMatrices.GetViewOrigin()).SizeSquared();
-					bScreenSpaceSizeCulled = FMath::Square(PrimitiveBounds.SphereRadius) < FMath::Square(MinScreenRadiusForShadowCaster) * DistanceSquared * ProjectedShadowInfo->DependentView->LODDistanceFactorSquared;
+					const float LODScaleSquared = FMath::Square(ProjectedShadowInfo->DependentView->LODDistanceFactor * GetCachedScalabilityCVars().StaticMeshLODDistanceScale);
+					bScreenSpaceSizeCulled = FMath::Square(PrimitiveBounds.SphereRadius) < FMath::Square(MinScreenRadiusForShadowCaster) * DistanceSquared * LODScaleSquared;
 				}
 
 				if (!bScreenSpaceSizeCulled
@@ -4364,7 +4379,9 @@ void FSceneRenderer::AllocateShadowDepthTargets(FRHICommandListImmediate& RHICmd
 	TArray<FProjectedShadowInfo*, SceneRenderingAllocator> RSMShadows;
 	// Cubemaps, can't be atlased
 	TArray<FProjectedShadowInfo*, SceneRenderingAllocator> WholeScenePointShadows;
+	TArray<FProjectedShadowInfo*, SceneRenderingAllocator> MobileWholeSceneDirectionalShadows;
 
+	const bool bMobile = FeatureLevel < ERHIFeatureLevel::SM5;
 	bool bCopyToCompleteShadowMaps = CVarCopyToCompleteShadowMaps.GetValueOnRenderThread() != 0;
 
 	for (TSparseArray<FLightSceneInfoCompact>::TConstIterator LightIt(Scene->Lights); LightIt; ++LightIt)
@@ -4411,13 +4428,6 @@ void FSceneRenderer::AllocateShadowDepthTargets(FRHICommandListImmediate& RHICmd
 				{
 					bShadowIsVisible = false;
 				}
-			}
-
-			if (FeatureLevel < ERHIFeatureLevel::SM5
-				// Mobile renderer only supports opaque per-object shadows or CSM
-				&& (!ProjectedShadowInfo->bPerObjectOpaqueShadow && !(ProjectedShadowInfo->bDirectionalLight && ProjectedShadowInfo->bWholeSceneShadow)))
-			{
-				bShadowIsVisible = false;
 			}
 
 			if (IsForwardShadingEnabled(ShaderPlatform)
@@ -4534,9 +4544,38 @@ void FSceneRenderer::AllocateShadowDepthTargets(FRHICommandListImmediate& RHICmd
 		VisibleLightInfo.RSMsToProject.Sort(FCompareFProjectedShadowInfoBySplitIndex());
 		VisibleLightInfo.CompleteProjectedShadows.Sort(FCompareFProjectedShadowInfoBySplitIndex());
 
-		AllocateCSMDepthTargets(RHICmdList, WholeSceneDirectionalShadows, SortedShadowsForShadowDepthPass.ShadowMapAtlases);
-		AllocateCSMDepthTargets(RHICmdList, WholeSceneCompleteDirectionalShadows,
-			bCopyToCompleteShadowMaps ? SortedShadowsForShadowDepthPass.CompleteShadowMapAtlases : SortedShadowsForShadowDepthPass.ShadowMapAtlases);
+		if (!bMobile)
+		{
+			AllocateCSMDepthTargets(RHICmdList, WholeSceneDirectionalShadows, SortedShadowsForShadowDepthPass.ShadowMapAtlases);
+			AllocateCSMDepthTargets(RHICmdList, WholeSceneCompleteDirectionalShadows,
+				bCopyToCompleteShadowMaps ? SortedShadowsForShadowDepthPass.CompleteShadowMapAtlases : SortedShadowsForShadowDepthPass.ShadowMapAtlases);
+		}
+		else
+		{
+			//Only one directional light could cast csm on mobile, so we could delay allocation for it and see if we could combine any spotlight shadow with it.
+			if (WholeSceneDirectionalShadows.Num() > 0)
+			{
+				MobileWholeSceneDirectionalShadows.Append(WholeSceneDirectionalShadows);
+			}
+		}
+	}
+
+	if (bMobile)
+	{
+		// AllocateMobileCSMAndSpotLightShadowDepthTargets would only allocate a single large render target for all shadows, so if the requirement exceeds the MaxTextureSize, the rest of the shadows will not get space for rendering
+		// So we sort spotlight shadows and append them at the last to make sure csm will get space in any case.
+		Shadows.Sort(FCompareFProjectedShadowInfoByResolution());
+
+		//Limit the number of spotlights shadow for performance reason
+		static const auto MobileMaxVisibleMovableSpotLightsShadowCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.MaxVisibleMovableSpotLightsShadow"));
+		if (MobileMaxVisibleMovableSpotLightsShadowCVar)
+		{
+			int32 MobileMaxVisibleMovableSpotLightsShadow = MobileMaxVisibleMovableSpotLightsShadowCVar->GetValueOnRenderThread();
+			Shadows.RemoveAt(MobileMaxVisibleMovableSpotLightsShadow, FMath::Max(Shadows.Num() - MobileMaxVisibleMovableSpotLightsShadow, 0), false);
+		}
+
+		MobileWholeSceneDirectionalShadows.Append(Shadows);
+		Shadows.Empty();
 	}
 
 	if (CachedPreShadows.Num() > 0)
@@ -4545,7 +4584,7 @@ void FSceneRenderer::AllocateShadowDepthTargets(FRHICommandListImmediate& RHICmd
 		{
 			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(SceneContext.GetPreShadowCacheTextureResolution(), PF_ShadowDepth, FClearValueBinding::None, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource, false));
 			Desc.AutoWritable = false;
-			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, Scene->PreShadowCacheDepthZ, TEXT("PreShadowCacheDepthZ"), true, ERenderTargetTransience::NonTransient);
+			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, Scene->PreShadowCacheDepthZ, TEXT("PreShadowCacheDepthZ"), ERenderTargetTransience::NonTransient);
 		}
 
 		SortedShadowsForShadowDepthPass.PreshadowCache.RenderTargets.DepthTarget = Scene->PreShadowCacheDepthZ;
@@ -4569,6 +4608,7 @@ void FSceneRenderer::AllocateShadowDepthTargets(FRHICommandListImmediate& RHICmd
 	AllocateAtlasedShadowDepthTargets(RHICmdList, CompleteShadows,
 		bCopyToCompleteShadowMaps ? SortedShadowsForShadowDepthPass.CompleteShadowMapAtlases : SortedShadowsForShadowDepthPass.ShadowMapAtlases);
 	AllocateTranslucentShadowDepthTargets(RHICmdList, TranslucentShadows);
+	AllocateMobileCSMAndSpotLightShadowDepthTargets(RHICmdList, MobileWholeSceneDirectionalShadows);
 
 	// Update translucent shadow map uniform buffers.
 	for (int32 TranslucentShadowIndex = 0; TranslucentShadowIndex < TranslucentShadows.Num(); ++TranslucentShadowIndex)
@@ -4696,7 +4736,7 @@ void FSceneRenderer::AllocateAtlasedShadowDepthTargets(
 
 		FPooledRenderTargetDesc ShadowMapDesc2D = FPooledRenderTargetDesc::Create2DDesc(AtlasSize, PF_ShadowDepth, FClearValueBinding::DepthOne, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource, false);
 		ShadowMapDesc2D.Flags |= GFastVRamConfig.ShadowPerObject;
-		GRenderTargetPool.FindFreeElement(RHICmdList, ShadowMapDesc2D, ShadowMapAtlas.RenderTargets.DepthTarget, TEXT("ShadowDepthAtlas"), true, ERenderTargetTransience::NonTransient);
+		GRenderTargetPool.FindFreeElement(RHICmdList, ShadowMapDesc2D, ShadowMapAtlas.RenderTargets.DepthTarget, TEXT("ShadowDepthAtlas"), ERenderTargetTransience::NonTransient);
 
 		for (int32 ShadowIndex = 0; ShadowIndex < CurrentLayout.Shadows.Num(); ShadowIndex++)
 		{
@@ -4722,7 +4762,7 @@ void FSceneRenderer::AllocateCachedSpotlightShadowDepthTargets(FRHICommandListIm
 
 		FIntPoint ShadowResolution(ProjectedShadowInfo->ResolutionX + ProjectedShadowInfo->BorderSize * 2, ProjectedShadowInfo->ResolutionY + ProjectedShadowInfo->BorderSize * 2);
 		FPooledRenderTargetDesc ShadowMapDesc2D = FPooledRenderTargetDesc::Create2DDesc(ShadowResolution, PF_ShadowDepth, FClearValueBinding::DepthOne, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource, false, 1, false);
-		GRenderTargetPool.FindFreeElement(RHICmdList, ShadowMapDesc2D, ShadowMap.RenderTargets.DepthTarget, TEXT("CachedShadowDepthMap"), true, ERenderTargetTransience::NonTransient);
+		GRenderTargetPool.FindFreeElement(RHICmdList, ShadowMapDesc2D, ShadowMap.RenderTargets.DepthTarget, TEXT("CachedShadowDepthMap"), ERenderTargetTransience::NonTransient);
 
 		check(ProjectedShadowInfo->CacheMode == SDCM_StaticPrimitivesOnly);
 		FCachedShadowMapData& CachedShadowMapData = Scene->CachedShadowMaps.FindChecked(ProjectedShadowInfo->GetLightSceneInfo().Id);
@@ -4855,17 +4895,17 @@ void FSceneRenderer::AllocateRSMDepthTargets(FRHICommandListImmediate& RHICmdLis
 
 		{
 			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(WholeSceneAtlasSize, PF_R8G8B8A8, FClearValueBinding::None, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
-			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ShadowMapAtlas.RenderTargets.ColorTargets[0], TEXT("RSMNormal"), true, ERenderTargetTransience::NonTransient );
+			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ShadowMapAtlas.RenderTargets.ColorTargets[0], TEXT("RSMNormal"), ERenderTargetTransience::NonTransient );
 		}
 
 		{
 			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(WholeSceneAtlasSize, PF_FloatR11G11B10, FClearValueBinding::None, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
-			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ShadowMapAtlas.RenderTargets.ColorTargets[1], TEXT("RSMDiffuse"), true, ERenderTargetTransience::NonTransient);
+			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ShadowMapAtlas.RenderTargets.ColorTargets[1], TEXT("RSMDiffuse"), ERenderTargetTransience::NonTransient);
 		}
 
 		{
 			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(WholeSceneAtlasSize, PF_DepthStencil, FClearValueBinding::None, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource, false));
-			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ShadowMapAtlas.RenderTargets.DepthTarget, TEXT("RSMDepth"), true, ERenderTargetTransience::NonTransient);
+			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ShadowMapAtlas.RenderTargets.DepthTarget, TEXT("RSMDepth"), ERenderTargetTransience::NonTransient);
 		}
 
 		for (int32 ShadowIndex = 0; ShadowIndex < RSMShadows.Num(); ShadowIndex++)
@@ -4907,7 +4947,7 @@ void FSceneRenderer::AllocateOnePassPointLightDepthTargets(FRHICommandListImmedi
 
 				FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::CreateCubemapDesc(ProjectedShadowInfo->ResolutionX, PF_ShadowDepth, FClearValueBinding::DepthFar, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_NoFastClear | TexCreate_ShaderResource, false, 1, 1, false));
 				Desc.Flags |= GFastVRamConfig.ShadowPointLight;
-				GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ShadowMapCubemap.RenderTargets.DepthTarget, TEXT("CubeShadowDepthZ"), true, ERenderTargetTransience::NonTransient );
+				GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ShadowMapCubemap.RenderTargets.DepthTarget, TEXT("CubeShadowDepthZ"), ERenderTargetTransience::NonTransient );
 
 				if (ProjectedShadowInfo->CacheMode == SDCM_StaticPrimitivesOnly)
 				{
@@ -5001,7 +5041,7 @@ void FSceneRenderer::AllocateTranslucentShadowDepthTargets(FRHICommandListImmedi
 				{
 					// Using PF_FloatRGBA because Fourier coefficients used by Fourier opacity maps have a large range and can be negative
 					FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(TranslucentShadowBufferResolution, PF_FloatRGBA, FClearValueBinding::None, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
-					GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ShadowMapAtlas.RenderTargets.ColorTargets[SurfaceIndex], GetTranslucencyShadowTransmissionName(SurfaceIndex), true, ERenderTargetTransience::NonTransient);
+					GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ShadowMapAtlas.RenderTargets.ColorTargets[SurfaceIndex], GetTranslucencyShadowTransmissionName(SurfaceIndex), ERenderTargetTransience::NonTransient);
 				}
 			}
 
@@ -5028,7 +5068,10 @@ void FSceneRenderer::InitDynamicShadows(FRHICommandListImmediate& RHICmdList, FG
 		bStaticSceneOnly = bStaticSceneOnly || View.bStaticSceneOnly;
 	}
 
-	const bool bProjectEnablePointLightShadows = Scene->ReadOnlyCVARCache.bEnablePointLightShadows;
+	const bool bProjectEnablePointLightShadows = Scene->ReadOnlyCVARCache.bEnablePointLightShadows && !bMobile; // Point light shadow is unsupported on mobile for now.
+	const bool bProjectEnableMovableDirectionLightShadows = !bMobile || Scene->ReadOnlyCVARCache.bMobileAllowMovableDirectionalLights;
+	const bool bProjectEnableMovableSpotLightShadows = !bMobile || Scene->ReadOnlyCVARCache.bMobileEnableMovableSpotlightsShadow;
+
 	uint32 NumPointShadowCachesUpdatedThisFrame = 0;
 	uint32 NumSpotShadowCachesUpdatedThisFrame = 0;
 
@@ -5075,6 +5118,8 @@ void FSceneRenderer::InitDynamicShadows(FRHICommandListImmediate& RHICmdList, FG
 					static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
 					const bool bAllowStaticLighting = (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnRenderThread() != 0);
 					const bool bPointLightShadow = LightSceneInfoCompact.LightType == LightType_Point || LightSceneInfoCompact.LightType == LightType_Rect;
+					const bool bDirectionalLightShadow = LightSceneInfoCompact.LightType == LightType_Directional;
+					const bool bSpotLightShadow = LightSceneInfoCompact.LightType == LightType_Spot;
 
 					// Only create whole scene shadows for lights that don't precompute shadowing (movable lights)
 					const bool bShouldCreateShadowForMovableLight = 
@@ -5083,7 +5128,9 @@ void FSceneRenderer::InitDynamicShadows(FRHICommandListImmediate& RHICmdList, FG
 
 					const bool bCreateShadowForMovableLight = 
 						bShouldCreateShadowForMovableLight
-						&& (!bPointLightShadow || bProjectEnablePointLightShadows);
+						&& (!bPointLightShadow || bProjectEnablePointLightShadows)
+						&& (!bDirectionalLightShadow || bProjectEnableMovableDirectionLightShadows)
+						&& (!bSpotLightShadow || bProjectEnableMovableSpotLightShadows);
 
 					// Also create a whole scene shadow for lights with precomputed shadows that are unbuilt
 					const bool bShouldCreateShadowToPreviewStaticLight =
@@ -5093,7 +5140,9 @@ void FSceneRenderer::InitDynamicShadows(FRHICommandListImmediate& RHICmdList, FG
 
 					const bool bCreateShadowToPreviewStaticLight = 
 						bShouldCreateShadowToPreviewStaticLight						
-						&& (!bPointLightShadow || bProjectEnablePointLightShadows);
+						&& (!bPointLightShadow || bProjectEnablePointLightShadows)
+						// Stationary point light and spot light shadow are unsupported on mobile
+						&& (!bMobile || bDirectionalLightShadow);
 
 					// Create a whole scene shadow for lights that want static shadowing but didn't get assigned to a valid shadowmap channel due to overlap
 					const bool bShouldCreateShadowForOverflowStaticShadowing =
@@ -5105,7 +5154,9 @@ void FSceneRenderer::InitDynamicShadows(FRHICommandListImmediate& RHICmdList, FG
 
 					const bool bCreateShadowForOverflowStaticShadowing =
 						bShouldCreateShadowForOverflowStaticShadowing
-						&& (!bPointLightShadow || bProjectEnablePointLightShadows);
+						&& (!bPointLightShadow || bProjectEnablePointLightShadows)
+						// Stationary point light and spot light shadow are unsupported on mobile
+						&& (!bMobile || bDirectionalLightShadow);
 
 					const bool bPointLightWholeSceneShadow = (bShouldCreateShadowForMovableLight || bShouldCreateShadowForOverflowStaticShadowing || bShouldCreateShadowToPreviewStaticLight) && bPointLightShadow;
 					if (bPointLightWholeSceneShadow)
@@ -5192,4 +5243,71 @@ void FSceneRenderer::InitDynamicShadows(FRHICommandListImmediate& RHICmdList, FG
 
 }
 
+void FSceneRenderer::AllocateMobileCSMAndSpotLightShadowDepthTargets(FRHICommandListImmediate& RHICmdList, const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& MobileCSMAndSpotLightShadows)
+{
+	if (MobileCSMAndSpotLightShadows.Num() > 0)
+	{
+		const int32 MaxTextureSize = 1 << (GMaxTextureMipCount - 1);
+		FLayoutAndAssignedShadows MobileCSMAndSpotLightShadowLayout(MaxTextureSize);
 
+		for (int32 ShadowIndex = 0; ShadowIndex < MobileCSMAndSpotLightShadows.Num(); ShadowIndex++)
+		{
+			FProjectedShadowInfo* ProjectedShadowInfo = MobileCSMAndSpotLightShadows[ShadowIndex];
+
+			// Atlased shadows need a border
+			checkSlow(ProjectedShadowInfo->BorderSize != 0);
+			checkSlow(!ProjectedShadowInfo->bAllocated);
+
+			if (MobileCSMAndSpotLightShadowLayout.TextureLayout.AddElement(
+				ProjectedShadowInfo->X,
+				ProjectedShadowInfo->Y,
+				ProjectedShadowInfo->ResolutionX + ProjectedShadowInfo->BorderSize * 2,
+				ProjectedShadowInfo->ResolutionY + ProjectedShadowInfo->BorderSize * 2)
+				)
+			{
+				ProjectedShadowInfo->bAllocated = true;
+				MobileCSMAndSpotLightShadowLayout.Shadows.Add(ProjectedShadowInfo);
+			}
+		}
+
+		if (MobileCSMAndSpotLightShadowLayout.TextureLayout.GetSizeX() > 0)
+		{
+			SortedShadowsForShadowDepthPass.ShadowMapAtlases.AddDefaulted();
+			FSortedShadowMapAtlas& ShadowMapAtlas = SortedShadowsForShadowDepthPass.ShadowMapAtlases.Last();
+
+			FIntPoint WholeSceneAtlasSize(MobileCSMAndSpotLightShadowLayout.TextureLayout.GetSizeX(), MobileCSMAndSpotLightShadowLayout.TextureLayout.GetSizeY());
+
+			if (CVarMobileShadowmapRoundUpToPowerOfTwo.GetValueOnRenderThread() != 0)
+			{
+				WholeSceneAtlasSize.X = 1 << FMath::CeilLogTwo(WholeSceneAtlasSize.X);
+				WholeSceneAtlasSize.Y = 1 << FMath::CeilLogTwo(WholeSceneAtlasSize.Y);
+			}
+
+			bool bResolutionChanged = Scene->MobileWholeSceneShadowAtlasSize != WholeSceneAtlasSize;
+
+			Scene->MobileWholeSceneShadowAtlasSize = WholeSceneAtlasSize;
+
+			FPooledRenderTargetDesc WholeSceneShadowMapDesc2D(FPooledRenderTargetDesc::Create2DDesc(WholeSceneAtlasSize, PF_ShadowDepth, FClearValueBinding::DepthOne, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource, false));
+			WholeSceneShadowMapDesc2D.Flags |= GFastVRamConfig.ShadowCSM;
+			GRenderTargetPool.FindFreeElement(RHICmdList, WholeSceneShadowMapDesc2D, ShadowMapAtlas.RenderTargets.DepthTarget, TEXT("MobileCSMAndSpotLightShadowmap"));
+
+			for (int32 ShadowIndex = 0; ShadowIndex < MobileCSMAndSpotLightShadowLayout.Shadows.Num(); ShadowIndex++)
+			{
+				FProjectedShadowInfo* ProjectedShadowInfo = MobileCSMAndSpotLightShadowLayout.Shadows[ShadowIndex];
+
+				if (ProjectedShadowInfo->bAllocated)
+				{
+					ProjectedShadowInfo->RenderTargets.CopyReferencesFromRenderTargets(ShadowMapAtlas.RenderTargets);
+					ProjectedShadowInfo->SetupShadowDepthView(RHICmdList, this);
+					ShadowMapAtlas.Shadows.Add(ProjectedShadowInfo);
+
+					if (bResolutionChanged)
+					{
+						FLightSceneInfo* LightSceneInfo = (FLightSceneInfo*)(&ProjectedShadowInfo->GetLightSceneInfo());
+						LightSceneInfo->Proxy->SetMobileMovablePointLightUniformBufferNeedsUpdate(true);
+					}
+				}
+			}
+		}
+	}
+}

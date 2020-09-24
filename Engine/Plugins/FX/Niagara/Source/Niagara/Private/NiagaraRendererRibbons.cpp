@@ -323,6 +323,12 @@ void FNiagaraRendererRibbons::GetDynamicMeshElements(const TArray<const FSceneVi
 			const FSceneView* View = Views[ViewIndex];
 			check(View);
 
+			if (View->bIsInstancedStereoEnabled && IStereoRendering::IsStereoEyeView(*View) && !IStereoRendering::IsAPrimaryView(*View))
+			{
+				// We don't have to generate batches for non-primary views in stereo instance rendering
+				continue;
+			}
+
 			FMeshBatch& MeshBatch = Collector.AllocateMesh();
 
 			FGlobalDynamicIndexBuffer::FAllocationEx DynamicIndexAllocation;

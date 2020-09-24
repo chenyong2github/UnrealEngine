@@ -375,11 +375,14 @@ namespace UnrealBuildTool
 				}
 			}
 
-			manifestApplicationComponentIconTranslation[] LocalizedIcons = new manifestApplicationComponentIconTranslation[LocalizedIconsDict.Count];
+			manifestApplicationComponentIconTranslation[] LocalizedIcons = (LocalizedIconsDict.Count > 0) ? new manifestApplicationComponentIconTranslation[LocalizedIconsDict.Count] : null;
 			int LocalizedIconIndex = 0;
-			foreach (KeyValuePair<string, manifestApplicationComponentIconTranslation> LocalizedIconKVP in LocalizedIconsDict)
+			if (LocalizedIcons != null)
 			{
-				LocalizedIcons[LocalizedIconIndex++] = LocalizedIconKVP.Value;
+				foreach (KeyValuePair<string, manifestApplicationComponentIconTranslation> LocalizedIconKVP in LocalizedIconsDict)
+				{
+					LocalizedIcons[LocalizedIconIndex++] = LocalizedIconKVP.Value;
+				}
 			}
 
 			RootComponent.Items[0] = new manifestApplicationComponentIcon();

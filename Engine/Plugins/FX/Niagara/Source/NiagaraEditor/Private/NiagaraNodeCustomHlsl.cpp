@@ -70,35 +70,33 @@ FLinearColor UNiagaraNodeCustomHlsl::GetNodeTitleColor() const
 	return UEdGraphSchema_Niagara::NodeTitleColor_CustomHlsl;
 }
 
-bool UNiagaraNodeCustomHlsl::GetTokens(TArray<FString>& OutTokens, bool IncludeComments) const
+bool UNiagaraNodeCustomHlsl::GetTokensFromString(const FString& InHlsl, TArray<FString>& OutTokens, bool IncludeComments)
 {
-	FString HlslData = *CustomHlsl;
-
-	if (HlslData.Len() == 0)
+	if (InHlsl.Len() == 0)
 	{
 		return false;
 	}
-	
+
 	FString Separators = TEXT(";/*+-=)(?:, []<>\"\t\n");
 	int32 TokenStart = 0;
-	int32 TargetLength = HlslData.Len();
+	int32 TargetLength = InHlsl.Len();
 	for (int32 i = 0; i < TargetLength; )
 	{
 		int32 Index = INDEX_NONE;
 
 		// Determine if we are a splitter character or a regular character.
-		if (Separators.FindChar(HlslData[i], Index) && Index != INDEX_NONE)
+		if (Separators.FindChar(InHlsl[i], Index) && Index != INDEX_NONE)
 		{
 			// Commit the current token, if any.
 			if (i > TokenStart)
 			{
-				OutTokens.Add(HlslData.Mid(TokenStart, i - TokenStart));
+				OutTokens.Add(InHlsl.Mid(TokenStart, i - TokenStart));
 			}
 
-			if (HlslData[i] == '/' && (i + 1 != TargetLength) && HlslData[i+1] == '/')
+			if (InHlsl[i] == '/' && (i + 1 != TargetLength) && InHlsl[i + 1] == '/')
 			{
 				// Single-line comment, everything up to the end of the line becomes a token (including the comment start and the newline).
-				int32 FoundEndIdx = HlslData.Find("\n", ESearchCase::CaseSensitive, ESearchDir::FromStart, i + 2);
+				int32 FoundEndIdx = InHlsl.Find("\n", ESearchCase::CaseSensitive, ESearchDir::FromStart, i + 2);
 				if (FoundEndIdx == INDEX_NONE)
 				{
 					FoundEndIdx = TargetLength - 1;
@@ -106,14 +104,14 @@ bool UNiagaraNodeCustomHlsl::GetTokens(TArray<FString>& OutTokens, bool IncludeC
 
 				if (IncludeComments)
 				{
-					OutTokens.Add(HlslData.Mid(i, FoundEndIdx - i + 1));
+					OutTokens.Add(InHlsl.Mid(i, FoundEndIdx - i + 1));
 				}
 				i = FoundEndIdx + 1;
 			}
-			else if (HlslData[i] == '/' && (i + 1 != TargetLength) && HlslData[i+1] == '*')
+			else if (InHlsl[i] == '/' && (i + 1 != TargetLength) && InHlsl[i + 1] == '*')
 			{
 				// Multi-line comment, all of it becomes a single token, including the start and end markers.
-				int32 FoundEndIdx = HlslData.Find("*/", ESearchCase::CaseSensitive, ESearchDir::FromStart, i + 2);
+				int32 FoundEndIdx = InHlsl.Find("*/", ESearchCase::CaseSensitive, ESearchDir::FromStart, i + 2);
 				if (FoundEndIdx != INDEX_NONE)
 				{
 					// Include both characters of the terminator.
@@ -127,31 +125,31 @@ bool UNiagaraNodeCustomHlsl::GetTokens(TArray<FString>& OutTokens, bool IncludeC
 
 				if (IncludeComments)
 				{
-					OutTokens.Add(HlslData.Mid(i, FoundEndIdx - i + 1));
+					OutTokens.Add(InHlsl.Mid(i, FoundEndIdx - i + 1));
 				}
 				i = FoundEndIdx + 1;
 			}
-			else if (HlslData[i] == '"')
+			else if (InHlsl[i] == '"')
 			{
 				// Strings in HLSL, what?
 				// This is an extension used to support calling DI functions which have specifiers. The syntax is:
 				//		DIName.Function<Specifier1="Value 1", Specifier2="Value 2">();
 				// The string is considered a single token, including the quotation marks.
-				int32 FoundEndIdx = HlslData.Find("\"", ESearchCase::CaseSensitive, ESearchDir::FromStart, i + 1);
+				int32 FoundEndIdx = InHlsl.Find("\"", ESearchCase::CaseSensitive, ESearchDir::FromStart, i + 1);
 				if (FoundEndIdx == INDEX_NONE)
 				{
 					// Unterminated string. A very weird compiler error will follow, but there's nothing we can do at this point.
 					FoundEndIdx = TargetLength - 1;
 				}
 
-				OutTokens.Add(HlslData.Mid(i, FoundEndIdx - i + 1));
+				OutTokens.Add(InHlsl.Mid(i, FoundEndIdx - i + 1));
 				i = FoundEndIdx + 1;
 
 			}
 			else
 			{
 				// The separator will be its own token.
-				OutTokens.Add(FString(1, &HlslData[i]));
+				OutTokens.Add(FString(1, &InHlsl[i]));
 				i++;
 			}
 
@@ -168,10 +166,15 @@ bool UNiagaraNodeCustomHlsl::GetTokens(TArray<FString>& OutTokens, bool IncludeC
 	// We may need to pull in the last chars from the end.
 	if (TokenStart < TargetLength)
 	{
-		OutTokens.Add(HlslData.Mid(TokenStart));
+		OutTokens.Add(InHlsl.Mid(TokenStart));
 	}
-
 	return true;
+}
+
+bool UNiagaraNodeCustomHlsl::GetTokens(TArray<FString>& OutTokens, bool IncludeComments) const
+{
+	FString HlslData = *CustomHlsl;
+	return UNiagaraNodeCustomHlsl::GetTokensFromString(HlslData, OutTokens, IncludeComments);
 }
 
 
@@ -329,10 +332,10 @@ void UNiagaraNodeCustomHlsl::BuildParameterMapHistory(FNiagaraParameterMapHistor
 	TArray<FString> Tokens;
 	GetTokens(Tokens);
 
-	TArray<UEdGraphPin*> InputPins;
+	FPinCollectorArray InputPins;
 	GetInputPins(InputPins);
 
-	TArray<UEdGraphPin*> OutputPins;
+	FPinCollectorArray OutputPins;
 	GetOutputPins(OutputPins);
 
 	int32 ParamMapIdx = INDEX_NONE;
@@ -474,8 +477,8 @@ void UNiagaraNodeCustomHlsl::RebuildSignatureFromPins()
 	Sig.Inputs.Empty();
 	Sig.Outputs.Empty();
 
-	TArray<UEdGraphPin*> InputPins;
-	TArray<UEdGraphPin*> OutputPins;
+	FPinCollectorArray InputPins;
+	FPinCollectorArray OutputPins;
 	GetInputPins(InputPins);
 	GetOutputPins(OutputPins);
 

@@ -378,6 +378,7 @@ struct FSimulationData
 		FSimTime EndMS;
 
 		int32 OutputFrame;
+		int32 LocalOffsetFrame;
 
 		// Analysis Data:
 

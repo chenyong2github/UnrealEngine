@@ -4,6 +4,7 @@
 
 #include "Misc/QualifiedFrameTime.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "MovieSceneObjectBindingID.h"
 #include "LevelSequenceEditorBlueprintLibrary.generated.h"
 
 class ISequencer;
@@ -12,8 +13,30 @@ class UMovieSceneFolder;
 class UMovieSceneSection;
 class UMovieSceneTrack;
 
+USTRUCT(BlueprintType)
+struct FSequencerChannelProxy
+{
+	GENERATED_BODY()
+
+	FSequencerChannelProxy()
+		: Section(nullptr)
+	{}
+
+	FSequencerChannelProxy(const FName& InChannelName, UMovieSceneSection* InSection)
+		: ChannelName(InChannelName)
+		, Section(InSection)
+	{}
+
+	UPROPERTY(BlueprintReadWrite, Category=Channel)
+	FName ChannelName;
+
+	UPROPERTY(BlueprintReadWrite, Category=Channel)
+	UMovieSceneSection* Section;
+};
+
+
 UCLASS()
-class ULevelSequenceEditorBlueprintLibrary : public UBlueprintFunctionLibrary
+class LEVELSEQUENCEEDITOR_API ULevelSequenceEditorBlueprintLibrary : public UBlueprintFunctionLibrary
 {
 public:
 
@@ -79,6 +102,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Level Sequence Editor")
 	static TArray<UMovieSceneSection*> GetSelectedSections();
 
+	/** Gets the currently selected channels. */
+	UFUNCTION(BlueprintPure, Category = "Level Sequence Editor")
+	static TArray<FSequencerChannelProxy> GetSelectedChannels();
+
 	/** Gets the currently selected folders. */
 	UFUNCTION(BlueprintPure, Category = "Level Sequence Editor")
 	static TArray<UMovieSceneFolder*> GetSelectedFolders();
@@ -95,6 +122,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
 	static void SelectSections(const TArray<UMovieSceneSection*>& Sections);
 
+	/** Select channels */
+	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
+	static void SelectChannels(const TArray<FSequencerChannelProxy>& Channels);
+
 	/** Select folders */
 	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
 	static void SelectFolders(const TArray<UMovieSceneFolder*>& Folders);
@@ -108,6 +139,9 @@ public:
 	static void EmptySelection();
 
 public:
+	/** Get the object bound to the given binding ID with the current level sequence editor */
+	UFUNCTION(BlueprintPure, Category="Level Sequence Editor")
+	static TArray<UObject*> GetBoundObjects(FMovieSceneObjectBindingID ObjectBinding);
 
 	/** Check whether the current level sequence and its descendants are locked for editing. */
 	UFUNCTION(BlueprintPure, Category = "Level Sequence Editor")

@@ -144,7 +144,8 @@ void FGameplayDebuggerShape::Draw(UWorld* World, FGameplayDebuggerCanvasContext&
 	case EGameplayDebuggerShape::Cone:
 		if (ShapeData.Num() == 3 && ShapeData[2].X > 0)
 		{
-			DrawDebugCone(World, ShapeData[0], ShapeData[1], ShapeData[2].X, PI * 0.5f, PI * 0.5f, 16, Color);
+			const float DefaultConeAngle = 0.25f; // ~ 15 degrees
+			DrawDebugCone(World, ShapeData[0], ShapeData[1], ShapeData[2].X, DefaultConeAngle, DefaultConeAngle, 16, Color);
 			DescLocation = ShapeData[0];
 		}
 		break;

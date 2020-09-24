@@ -37,17 +37,28 @@ void FGPULightmassModule::ShutdownModule()
 	}
 }
 
-IStaticLightingSystem* FGPULightmassModule::AllocateStaticLightingSystemForWorld(UWorld* InWorld)
+IStaticLightingSystem* FGPULightmassModule::AllocateStaticLightingSystemForWorldWithSettings(UWorld* InWorld, UGPULightmassSettings* Settings)
 {
 	check(StaticLightingSystems.Find(InWorld) == nullptr);
 
-	FGPULightmass* GPULightmass = new FGPULightmass(InWorld, this);
+	FGPULightmass* GPULightmass = new FGPULightmass(InWorld, this, Settings);
 
 	StaticLightingSystems.Add(InWorld, GPULightmass);
 
 	FlushRenderingCommands();
 
+	OnStaticLightingSystemsChanged.Broadcast();
+
 	return GPULightmass;
+}
+
+IStaticLightingSystem* FGPULightmassModule::AllocateStaticLightingSystemForWorld(UWorld* InWorld)
+{
+	// Gather settings from CVars
+	UGPULightmassSettings* Settings = NewObject<UGPULightmassSettings>(GetTransientPackage(), MakeUniqueObjectName(GetTransientPackage(), UGPULightmassSettings::StaticClass()));
+	Settings->GatherSettingsFromCVars();
+
+	return AllocateStaticLightingSystemForWorldWithSettings(InWorld, Settings);
 }
 
 void FGPULightmassModule::RemoveStaticLightingSystemForWorld(UWorld* InWorld)
@@ -63,6 +74,8 @@ void FGPULightmassModule::RemoveStaticLightingSystemForWorld(UWorld* InWorld)
 		ENQUEUE_RENDER_COMMAND(DeleteGPULightmassCmd)([GPULightmass](FRHICommandListImmediate& RHICmdList) { delete GPULightmass; });
 
 		FlushRenderingCommands();
+
+		OnStaticLightingSystemsChanged.Broadcast();
 	}
 }
 
@@ -79,7 +92,7 @@ void FGPULightmassModule::EditorTick()
 	{
 		FGPULightmass* GPULightmass = StaticLightingSystem.Value;
 		GPULightmass->EditorTick();
-		if (GPULightmass->LightBuildPercentage >= 100)
+		if (GPULightmass->LightBuildPercentage >= 100 && GPULightmass->Settings->Mode != EGPULightmassMode::BakeWhatYouSee)
 		{
 			FinishedStaticLightingSystems.Add(GPULightmass);
 		}

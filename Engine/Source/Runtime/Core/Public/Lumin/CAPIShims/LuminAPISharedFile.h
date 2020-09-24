@@ -10,27 +10,27 @@ LUMIN_THIRD_PARTY_INCLUDES_START
 #include <ml_sharedfile.h>
 LUMIN_THIRD_PARTY_INCLUDES_END
 
-namespace MLSDK_API
+namespace LUMIN_MLSDK_API
 {
 
 CREATE_FUNCTION_SHIM(ml_sharedfile, MLResult, MLSharedFileRead)
-#define MLSharedFileRead ::MLSDK_API::MLSharedFileReadShim
+#define MLSharedFileRead ::LUMIN_MLSDK_API::MLSharedFileReadShim
 CREATE_FUNCTION_SHIM(ml_sharedfile, MLResult, MLSharedFileWrite)
-#define MLSharedFileWrite ::MLSDK_API::MLSharedFileWriteShim
+#define MLSharedFileWrite ::LUMIN_MLSDK_API::MLSharedFileWriteShim
 CREATE_FUNCTION_SHIM(ml_sharedfile, MLResult, MLSharedFileListAccessibleFiles)
-#define MLSharedFileListAccessibleFiles ::MLSDK_API::MLSharedFileListAccessibleFilesShim
+#define MLSharedFileListAccessibleFiles ::LUMIN_MLSDK_API::MLSharedFileListAccessibleFilesShim
 CREATE_FUNCTION_SHIM(ml_sharedfile, MLResult, MLSharedFilePick)
-#define MLSharedFilePick ::MLSDK_API::MLSharedFilePickShim
+#define MLSharedFilePick ::LUMIN_MLSDK_API::MLSharedFilePickShim
 CREATE_FUNCTION_SHIM(ml_sharedfile, MLResult, MLSharedFileGetListLength)
-#define MLSharedFileGetListLength ::MLSDK_API::MLSharedFileGetListLengthShim
+#define MLSharedFileGetListLength ::LUMIN_MLSDK_API::MLSharedFileGetListLengthShim
 CREATE_FUNCTION_SHIM(ml_sharedfile, MLResult, MLSharedFileGetMLFileInfoByIndex)
-#define MLSharedFileGetMLFileInfoByIndex ::MLSDK_API::MLSharedFileGetMLFileInfoByIndexShim
+#define MLSharedFileGetMLFileInfoByIndex ::LUMIN_MLSDK_API::MLSharedFileGetMLFileInfoByIndexShim
 CREATE_FUNCTION_SHIM(ml_sharedfile, MLResult, MLSharedFileGetErrorCode)
-#define MLSharedFileGetErrorCode ::MLSDK_API::MLSharedFileGetErrorCodeShim
+#define MLSharedFileGetErrorCode ::LUMIN_MLSDK_API::MLSharedFileGetErrorCodeShim
 CREATE_FUNCTION_SHIM(ml_sharedfile, MLResult, MLSharedFileListRelease)
-#define MLSharedFileListRelease ::MLSDK_API::MLSharedFileListReleaseShim
+#define MLSharedFileListRelease ::LUMIN_MLSDK_API::MLSharedFileListReleaseShim
 CREATE_FUNCTION_SHIM(ml_sharedfile, const char*, MLSharedFileGetResultString)
-#define MLSharedFileGetResultString ::MLSDK_API::MLSharedFileGetResultStringShim
+#define MLSharedFileGetResultString ::LUMIN_MLSDK_API::MLSharedFileGetResultStringShim
 
 }
 

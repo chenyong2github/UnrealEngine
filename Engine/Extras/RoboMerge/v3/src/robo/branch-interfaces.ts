@@ -134,10 +134,6 @@ export type BranchStatus = Partial<NodeStatusFields> & {
 	branch_spec_cl: number
 }
 
-export function getChangePaths(branch: Branch) {
-	return branch.pathsToMonitor || [branch.rootPath]
-}
-
 export interface Branch extends BranchBase {
 	bot?: NodeBotInterface
 	parent: BranchGraphInterface
@@ -161,8 +157,9 @@ export interface Branch extends BranchBase {
 }
 
 export interface Target {
-	branch: Branch
+	branchName: string
 	mergeMode: string
+	otherBot?: string
 }
 
 export type MergeMode = 'safe' | 'normal' | 'null' | 'clobber' | 'skip'
@@ -198,11 +195,11 @@ export interface ChangeInfo extends TargetInfo {
 	authorTag?: string
 	source: string
 	description: string
-	numFiles: number // number of files, capped out at maxFilesPerIntegration
 
 	propagatingNullMerge: boolean
 	forceCreateAShelf: boolean
 	overriddenCommand: string
+	macros: string[]
 	hasOkForGithubTag: boolean
 }
 

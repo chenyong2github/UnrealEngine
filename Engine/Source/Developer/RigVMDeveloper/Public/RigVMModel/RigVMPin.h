@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
+#include "RigVMCore/RigVMRegistry.h"
 #include "RigVMPin.generated.h"
 
 class URigVMGraph;
@@ -11,21 +12,6 @@ class URigVMNode;
 class URigVMStructNode;
 class URigVMPin;
 class URigVMLink;
-
-/**
- * The Pin Direction is used to differentiate different kinds of 
- * pins in the data flow graph - inputs, outputs etc.
- */
-UENUM(BlueprintType)
-enum class ERigVMPinDirection : uint8
-{
-	Input, // A const input value
-	Output, // A mutable output value
-	IO, // A mutable input and output value
-	Visible, // A const value that cannot be connected to
-	Hidden, // A mutable hidden value (used for interal state)
-	Invalid // The max value for this enum - used for guarding.
-};
 
 /**
  * The Injected Info is used for injecting a node on a pin.
@@ -91,6 +77,9 @@ class RIGVMDEVELOPER_API URigVMPin : public UObject
 
 public:
 
+	// A map used to override pin default values
+	typedef TMap<URigVMPin*, FString> FDefaultValueOverride;
+
 	// Splits a PinPath at the start, so for example "Node.Color.R" becomes "Node" and "Color.R"
 	static bool SplitPinPathAtStart(const FString& InPinPath, FString& LeftMost, FString& Right);
 
@@ -135,9 +124,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
 	bool IsExpanded() const;
 
-	// Returns true if the pin is a constant value / literal
+	// Returns true if the pin is defined as a constant value / literal
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
-	bool IsConstant() const;
+	bool IsDefinedAsConstant() const;
 
 	// Returns true if the pin should be watched
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
@@ -158,6 +147,10 @@ public:
 	// Returns true if the Pin is a SubPin within an array
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
 	bool IsArrayElement() const;
+
+	// Returns true if this pin represents a dynamic array
+	UFUNCTION(BlueprintCallable, Category = RigVMPin)
+	bool IsDynamicArray() const;
 
 	// Returns the index of the Pin within the node / parent Pin
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
@@ -190,6 +183,9 @@ public:
 	// default values of the X, Y and Z SubPins.
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
 	FString GetDefaultValue() const;
+
+	// Returns the default value with an additional override ma
+	FString GetDefaultValue(const FDefaultValueOverride& InDefaultValueOverride) const;
 
 	// Returns the name of a custom widget to be used
 	// for editing the Pin.
@@ -300,6 +296,15 @@ public:
 		return Cast<T>(FindObjectFromCPPTypeObjectPath(InObjectPath));
 	}
 
+	// Returns the name of the context this pin belongs to
+	FName GetSliceContext(const FRigVMUserDataArray& InUserData);
+
+	// Returns the number of slices in memory exist for this pin
+	int32 GetNumSlices(const FRigVMUserDataArray& InUserData);
+
+	// Returns true if the pin should not show up on a node, but in the details panel
+	bool ShowInDetailsPanelOnly() const;
+
 private:
 
 	void UpdateCPPTypeObjectIfRequired() const;
@@ -319,6 +324,9 @@ private:
 
 	UPROPERTY(transient)
 	bool bRequiresWatch;
+
+	UPROPERTY()
+	bool bIsDynamicArray;
 
 	UPROPERTY()
 	FString CPPType;
@@ -346,4 +354,6 @@ private:
 
 	friend class URigVMController;
 	friend class URigVMGraph;
+	friend class URigVMNode;
+	friend class FRigVMParserAST;
 };

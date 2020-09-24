@@ -11,6 +11,7 @@
 #include "Misc/ScopedSlowTask.h"
 #include "SequenceRecorderUtils.h"
 #include "TakeRecorderSources.h"
+#include "TakeRecorderSourcesUtils.h"
 #include "Recorder/TakeRecorderParameters.h"
 #include "TakeRecorderSettings.h"
 #include "TakesUtils.h"
@@ -35,6 +36,10 @@
 #include "TrackRecorders/MovieScene3DTransformTrackRecorder.h"
 #include "TrackRecorders/MovieScenePropertyTrackRecorder.h"
 #include "TrackRecorders/MovieSceneTrackRecorderSettings.h"
+
+#include "MovieSceneTakeTrack.h"
+#include "MovieSceneTakeSection.h"
+#include "MovieSceneTakeSettings.h"
 
 DEFINE_LOG_CATEGORY(ActorSerialization);
 
@@ -606,6 +611,110 @@ void UTakeRecorderActorSource::StopRecording(ULevelSequence* InSequence)
 	ActorSerializer.Close();
 }
 
+void UTakeRecorderActorSource::ProcessRecordedTimes(ULevelSequence* InSequence)
+{
+	UMovieScene* MovieScene = InSequence->GetMovieScene();
+
+	TOptional<TRange<FFrameNumber> > FrameRange;
+	FMovieSceneBinding* Binding = MovieScene->FindBinding(CachedObjectBindingGuid);
+	if (Binding)
+	{
+		for (UMovieSceneTrack* Track : Binding->GetTracks())
+		{
+			for (UMovieSceneSection* Section : Track->GetAllSections())
+			{
+				if (Section->HasStartFrame() && Section->HasEndFrame())
+				{
+					if (!FrameRange.IsSet())
+					{
+						FrameRange = Section->GetRange();
+					}
+					else
+					{
+						FrameRange = TRange<FFrameNumber>::Hull(FrameRange.GetValue(), Section->GetRange());
+					}
+				}
+			}
+		}
+	}
+
+	UMovieSceneTakeTrack* TakeTrack = MovieScene->FindTrack<UMovieSceneTakeTrack>(CachedObjectBindingGuid);
+	if (!TakeTrack)
+	{
+		TakeTrack = InSequence->GetMovieScene()->AddTrack<UMovieSceneTakeTrack>(CachedObjectBindingGuid);
+	}
+	TakeTrack->RemoveAllAnimationData();
+
+	UMovieSceneTakeSection* TakeSection = Cast<UMovieSceneTakeSection>(TakeTrack->CreateNewSection());
+	TakeTrack->AddSection(*TakeSection);
+
+	if (FrameRange.IsSet())
+	{
+		TArray<int32> Hours, Minutes, Seconds, Frames;
+		TArray<FMovieSceneFloatValue> SubFrames;
+		TArray<FFrameNumber> Times;
+
+		const TArray<TPair<FQualifiedFrameTime, FTimecode>>& RecordedTimes = UTakeRecorderSources::RecordedTimes;
+
+		Hours.Reserve(RecordedTimes.Num());
+		Minutes.Reserve(RecordedTimes.Num());
+		Seconds.Reserve(RecordedTimes.Num());
+		Frames.Reserve(RecordedTimes.Num());
+		SubFrames.Reserve(RecordedTimes.Num());
+		Times.Reserve(RecordedTimes.Num());
+
+		FFrameRate TickResolution = MovieScene->GetTickResolution();
+		FFrameRate DisplayRate = MovieScene->GetDisplayRate();
+
+		for (const TPair<FQualifiedFrameTime, FTimecode>& RecordedTimePair : RecordedTimes)
+		{
+			FFrameNumber FrameNumber = RecordedTimePair.Key.Time.FrameNumber;
+			if (!FrameRange.GetValue().Contains(FrameNumber))
+			{
+				continue;
+			}
+
+			FFrameTime FrameTime = FFrameRate::TransformTime(RecordedTimePair.Key.Time, TickResolution, DisplayRate);
+
+			FTimecode Timecode = RecordedTimePair.Value;
+		
+			Hours.Add(Timecode.Hours);
+			Minutes.Add(Timecode.Minutes);
+			Seconds.Add(Timecode.Seconds);
+			Frames.Add(Timecode.Frames);
+
+			FMovieSceneFloatValue SubFrame;
+			SubFrame.Value = FrameTime.GetSubFrame();
+			SubFrame.InterpMode = ERichCurveInterpMode::RCIM_Linear;
+			SubFrames.Add(SubFrame);
+
+			Times.Add(FrameNumber);
+		}
+
+		Hours.Shrink();
+		Minutes.Shrink();
+		Seconds.Shrink();
+		Frames.Shrink();
+		SubFrames.Shrink();
+		Times.Shrink();
+
+		TakeSection->HoursCurve.Set(Times, Hours);
+		TakeSection->MinutesCurve.Set(Times, Minutes);
+		TakeSection->SecondsCurve.Set(Times, Seconds);
+		TakeSection->FramesCurve.Set(Times, Frames);
+		TakeSection->SubFramesCurve.Set(Times, SubFrames);
+	}
+
+	if (UTakeMetaData* TakeMetaData = InSequence->FindMetaData<UTakeMetaData>())
+	{
+		TakeSection->Slate.SetDefault(FString::Printf(TEXT("%s_%d"), *TakeMetaData->GetSlate(), TakeMetaData->GetTakeNumber()));
+	}
+
+	if (TakeSection->GetAutoSizeRange().IsSet())
+	{
+		TakeSection->SetRange(TakeSection->GetAutoSizeRange().GetValue());
+	}
+}
 
 TArray<UTakeRecorderSource*> UTakeRecorderActorSource::PostRecording(ULevelSequence* InSequence, class ULevelSequence* InMasterSequence)
 {
@@ -619,7 +728,7 @@ TArray<UTakeRecorderSource*> UTakeRecorderActorSource::PostRecording(ULevelSeque
 	// We need to do some post-processing tasks on the Track Recorders (such as animation motion source fixup) so we do this now before finalizing
 	{
 		SlowTask.EnterProgressFrame(0.1f, LOCTEXT("PostProcessingTrackRecorder", "Post Processing Track Recorders"));
-		PostProcessTrackRecorders();
+		PostProcessTrackRecorders(InSequence);
 	}
 
 	// Finalize each Section Recorder and allow it to write data into the Level Sequence.
@@ -632,6 +741,11 @@ TArray<UTakeRecorderSource*> UTakeRecorderActorSource::PostRecording(ULevelSeque
 		// takerecorder-todo: Section Recorders should have display names, update this to use those.
 		SlowTask.EnterProgressFrame(1.0f, FText::Format(LOCTEXT("FinalizingTrackRecorder", "Finalizing Section Recorder {0}/{1}"), SectionRecorderIndex, TrackRecorders.Num()));
 		SectionRecorder->FinalizeTrack();
+	}
+
+	if (Parameters.Project.bRecordTimecode)
+	{
+		ProcessRecordedTimes(InSequence);
 	}
 
 	// Expand the Movie Scene Playback Range to encompass all of the sections now that they've all been created.
@@ -675,8 +789,25 @@ TArray<UTakeRecorderSource*> UTakeRecorderActorSource::PostRecording(ULevelSeque
 	return AddedActorSources;
 }
 
-void UTakeRecorderActorSource::PostProcessTrackRecorders()
+void UTakeRecorderActorSource::PostProcessTrackRecorders(ULevelSequence* InSequence)
 {
+	FTakeRecorderParameters Parameters;
+	Parameters.User = GetDefault<UTakeRecorderUserSettings>()->Settings;
+	Parameters.Project = GetDefault<UTakeRecorderProjectSettings>()->Settings;
+
+	FString HoursName = GetDefault<UMovieSceneTakeSettings>()->HoursName;
+	FString MinutesName = GetDefault<UMovieSceneTakeSettings>()->MinutesName;
+	FString SecondsName = GetDefault<UMovieSceneTakeSettings>()->SecondsName;
+	FString FramesName = GetDefault<UMovieSceneTakeSettings>()->FramesName;
+	FString SubFramesName = GetDefault<UMovieSceneTakeSettings>()->SubFramesName;
+	FString SlateName = GetDefault<UMovieSceneTakeSettings>()->SlateName;
+				
+	FString Slate;
+	if (UTakeMetaData* TakeMetaData = InSequence->FindMetaData<UTakeMetaData>())
+	{
+		Slate = FString::Printf(TEXT("%s_%d"), *TakeMetaData->GetSlate(), TakeMetaData->GetTakeNumber());
+	}
+
 	// We want to look at all Animation Track recorders and remove root motion if the transform
 	// for that component is being recorded. We copy the animation out of the Animation Track
 	// so that we accurately capture the original motion.
@@ -715,9 +846,19 @@ void UTakeRecorderActorSource::PostProcessTrackRecorders()
 	// Remove root motion on all other animation track recorders
 	for (UMovieSceneTrackRecorder* TrackRecorder : TrackRecorders)
 	{
-		if (TrackRecorder->IsA<UMovieSceneAnimationTrackRecorder>() && TrackRecorder != FirstAnimationRecorder)
+		if (TrackRecorder->IsA<UMovieSceneAnimationTrackRecorder>())
 		{
-			Cast<UMovieSceneAnimationTrackRecorder>(TrackRecorder)->RemoveRootMotion();
+			UMovieSceneAnimationTrackRecorder* AnimationTrackRecorder = Cast<UMovieSceneAnimationTrackRecorder>(TrackRecorder);
+			
+			if (TrackRecorder != FirstAnimationRecorder)
+			{
+				AnimationTrackRecorder->RemoveRootMotion();
+			}
+			
+			if (Parameters.Project.bRecordTimecode)
+			{
+				AnimationTrackRecorder->ProcessRecordedTimes(HoursName, MinutesName, SecondsName, FramesName, SubFramesName, SlateName, Slate);
+			}
 		}
 	}
 }
@@ -1444,108 +1585,22 @@ void UTakeRecorderActorSource::CreateNewActorSourceForReferencedActors()
 
 bool UTakeRecorderActorSource::IsOtherActorBeingRecorded(AActor* OtherActor) const
 {
-	// If you're tripping this it means you constructed a UTakeRecorderActorSource without using a UTakeRecorderSources to create the instance.
-	// cbb: This implementation (and the associated interface) can probably be moved up to UTakeRecorderSources and not on this level.
-	UTakeRecorderSources* OwningSources = CastChecked<UTakeRecorderSources>(GetOuter());
-	for (UTakeRecorderSource* Source : OwningSources->GetSources())
-	{
-		if (UTakeRecorderActorSource* ActorSource = Cast<UTakeRecorderActorSource>(Source))
-		{
-			if (ActorSource->bEnabled && ActorSource->Target.Get() == OtherActor)
-			{
-				return true;
-			}
-		}
-	}
-
-	return false;
+	return TakeRecorderSourcesUtils::IsActorBeingRecorded(this, OtherActor);
 }
 
 FGuid UTakeRecorderActorSource::GetRecordedActorGuid(class AActor* OtherActor) const
 {
-	// If you're tripping this it means you constructed a UTakeRecorderActorSource without using a UTakeRecorderSources to create the instance.
-	// cbb: This implementation (and the associated interface) can probably be moved up to UTakeRecorderSources and not on this level.
-	UTakeRecorderSources* OwningSources = CastChecked<UTakeRecorderSources>(GetOuter());
-	for (UTakeRecorderSource* Source : OwningSources->GetSources())
-	{
-		if (UTakeRecorderActorSource* ActorSource = Cast<UTakeRecorderActorSource>(Source))
-		{
-			AActor* OtherTarget = ActorSource->Target.Get();
-			if (OtherTarget == OtherActor)
-			{
-				return ActorSource->GetObjectBindingGuid();
-			}
-		}
-	}
-
-	return FGuid();
+	return TakeRecorderSourcesUtils::GetRecordedActorGuid(this, OtherActor);
 }
 
 FTransform UTakeRecorderActorSource::GetRecordedActorAnimationInitialRootTransform(class AActor* OtherActor) const
 {
-	UTakeRecorderSources* OwningSources = CastChecked<UTakeRecorderSources>(GetOuter());
-	for (UTakeRecorderSource* Source : OwningSources->GetSources())
-	{
-		if (UTakeRecorderActorSource* ActorSource = Cast<UTakeRecorderActorSource>(Source))
-		{
-			AActor* OtherTarget = ActorSource->Target.Get();
-			if (OtherTarget && OtherActor && (OtherTarget == OtherActor || OtherTarget->GetName() == OtherActor->GetName()))
-			{
-				for (UMovieSceneTrackRecorder* TrackRecorder : ActorSource->TrackRecorders)
-				{
-					if (TrackRecorder->IsA<UMovieSceneAnimationTrackRecorder>())
-					{
-						return Cast<UMovieSceneAnimationTrackRecorder>(TrackRecorder)->GetInitialRootTransform();
-					}
-				}
-
-			}
-		}
-	}
-	return FTransform::Identity;
+	return TakeRecorderSourcesUtils::GetRecordedActorAnimationInitialRootTransform(this, OtherActor);
 }
 
 FMovieSceneSequenceID UTakeRecorderActorSource::GetLevelSequenceID(class AActor* OtherActor)
 {
-	FMovieSceneSequenceID OutSequenceID = MovieSceneSequenceID::Root;
-	UTakeRecorderSources* OwningSources = CastChecked<UTakeRecorderSources>(GetOuter());
-	for (UTakeRecorderSource* Source : OwningSources->GetSources())
-	{
-		if (UTakeRecorderActorSource* ActorSource = Cast<UTakeRecorderActorSource>(Source))
-		{
-			AActor* OtherTarget = ActorSource->Target.Get();
-			if (OtherTarget && OtherTarget->GetName() == OtherActor->GetName()) //at the end the target's may have changed.
-			{
-				if (ActorSource->TargetLevelSequence != MasterLevelSequence)
-				{
-					if (!ActorSource->SequenceID.IsSet()) // only compile if it's not set yet this rcording.
-					{
-						UMovieSceneCompiledDataManager::GetPrecompiledData()->Compile(MasterLevelSequence);
-
-						FMovieSceneCompiledDataID DataID = UMovieSceneCompiledDataManager::GetPrecompiledData()->GetDataID(MasterLevelSequence);
-						const FMovieSceneSequenceHierarchy* Hierarchy = UMovieSceneCompiledDataManager::GetPrecompiledData()->FindHierarchy(DataID);
-						if (Hierarchy)
-						{
-							for (const TTuple<FMovieSceneSequenceID, FMovieSceneSubSequenceData>& Pair : Hierarchy->AllSubSequenceData())
-							{
-								if (Pair.Value.Sequence == ActorSource->TargetLevelSequence)
-								{
-									ActorSource->SequenceID = OutSequenceID = Pair.Key;
-									break;
-
-								}
-							}
-						}
-					}
-					else
-					{
-						OutSequenceID = ActorSource->SequenceID.GetValue();
-					}
-				}
-			}
-		}
-	}
-	return OutSequenceID;
+	return TakeRecorderSourcesUtils::GetLevelSequenceID(this, OtherActor, MasterLevelSequence);
 }
 
 FTrackRecorderSettings UTakeRecorderActorSource::GetTrackRecorderSettings() const

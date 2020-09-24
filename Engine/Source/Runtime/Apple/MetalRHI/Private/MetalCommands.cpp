@@ -697,16 +697,6 @@ uint32 FMetalDynamicRHI::RHIGetGPUFrameCycles(uint32 GPUIndex)
 	return GGPUFrameTime;
 }
 
-void FMetalRHICommandContext::RHIAutomaticCacheFlushAfterComputeShader(bool bEnable)
-{
-	METAL_IGNORED(FMetalRHICommandContextRHIAutomaticCacheFlushAfterComputeShader);
-}
-
-void FMetalRHICommandContext::RHIFlushComputeShaderCache()
-{
-	METAL_IGNORED(FMetalRHICommandContextRHIFlushComputeShaderCache);
-}
-
 void FMetalDynamicRHI::RHIExecuteCommandList(FRHICommandList* RHICmdList)
 {
 	NOT_SUPPORTED("RHIExecuteCommandList");

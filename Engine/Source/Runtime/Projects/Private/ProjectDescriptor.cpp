@@ -7,6 +7,7 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "Interfaces/IProjectManager.h"
+#include "Misc/DataDrivenPlatformInfoRegistry.h"
 
 #define LOCTEXT_NAMESPACE "ProjectDescriptor"
 
@@ -125,7 +126,7 @@ bool FProjectDescriptor::Read(const FJsonObject& Object, const FString& PathToPr
 	const TArray< TSharedPtr<FJsonValue> >* AdditionalPluginDirectoriesValue;
 	if (Object.TryGetArrayField(TEXT("AdditionalPluginDirectories"), AdditionalPluginDirectoriesValue))
 	{
-#if WITH_EDITOR
+#if WITH_EDITOR || (IS_PROGRAM && WITH_PLUGIN_SUPPORT)
 		for (int32 Idx = 0; Idx < AdditionalPluginDirectoriesValue->Num(); Idx++)
 		{
 			FString AdditionalPluginDir;
@@ -179,6 +180,28 @@ bool FProjectDescriptor::Read(const FJsonObject& Object, const FString& PathToPr
 			{
 				TargetPlatforms.Add(*TargetPlatform);
 			}
+		}
+	}
+
+	// check if the project has directories for extended platforms, and assume support if it does
+	TArray<FString> ExtendedPlatforms;
+	IFileManager::Get().IterateDirectory(*(FPaths::Combine(PathToProject, TEXT("Platforms"))), [&ExtendedPlatforms](const TCHAR* InFilenameOrDirectory, const bool bInIsDirectory) -> bool
+	{
+		if (bInIsDirectory)
+		{
+			FString LastDirectory = FPaths::GetBaseFilename(FString(InFilenameOrDirectory));
+			ExtendedPlatforms.Emplace(LastDirectory);
+		}
+		return true;
+	});
+
+	const TMap<FName, FDataDrivenPlatformInfo>& AllPlatformInfos = FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos();
+	for (const FString& ExtendedPlatform : ExtendedPlatforms)
+	{
+		FName PlatformName(*ExtendedPlatform);
+		if (AllPlatformInfos.Contains(PlatformName))
+		{
+			TargetPlatforms.AddUnique(PlatformName);
 		}
 	}
 

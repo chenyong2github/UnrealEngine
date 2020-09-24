@@ -26,12 +26,12 @@ namespace UE
 namespace MovieScene
 {
 
-
+/** Task for generating blended and weighted results on blend outputs */
 struct FBlendTask
 {
 	TArray<FBlendResult>* ResultArray;
 
-	void ForEachAllocation(const FEntityAllocation* InAllocation, TRead<uint16> BlendID, TRead<float> FloatResult, TReadOptional<float> EasingWeight)
+	void ForEachAllocation(const FEntityAllocation* InAllocation, TRead<uint16> BlendID, TRead<float> FloatResult, TReadOptional<float> EasingAndWeightResult)
 	{
 		const int32 Num = InAllocation->Num();
 
@@ -39,22 +39,23 @@ struct FBlendTask
 		const float*  FloatResults  = FloatResult.Resolve(InAllocation);
 
 		// This is random access into the Blendables array
-		if (InAllocation->HasComponent(EasingWeight.ComponentType))
+		if (InAllocation->HasComponent(EasingAndWeightResult.ComponentType))
 		{
-			const float* EasingWeights = EasingWeight.Resolve(InAllocation);
+			// We have some easing/weight factors to multiply values with.
+			const float* EasingAndWeights = EasingAndWeightResult.Resolve(InAllocation);
 
 			for (int32 Index = 0; Index < Num; ++Index)
 			{
 				FBlendResult& Result = (*ResultArray)[BlendIDs[Index]];
 
-				const float Weight = EasingWeights[Index];
+				const float Weight = EasingAndWeights[Index];
 				Result.Total  += FloatResults[Index] * Weight;
 				Result.Weight += Weight;
 			}
 		}
 		else
 		{
-			// We don't care about the weight channel so don't do that work
+			// Faster path for when there's no weight to multiply values with.
 			for (int32 Index = 0; Index < Num; ++Index)
 			{
 				FBlendResult& Result = (*ResultArray)[BlendIDs[Index]];
@@ -65,7 +66,49 @@ struct FBlendTask
 	}
 };
 
+/** Same as the task above, but also reads a "base value" that is subtracted from all values.
+ *
+ *  Only used by entities with the "additive from base" blend type.
+ */
+struct FAdditiveFromBaseBlendTask
+{
+	TArray<FBlendResult>* ResultArray;
 
+	void ForEachAllocation(const FEntityAllocation* InAllocation, TRead<uint16> BlendID, TRead<float> BaseValue, TRead<float> FloatResult, TReadOptional<float> EasingAndWeightResult)
+	{
+		const int32 Num = InAllocation->Num();
+
+		const uint16* BlendIDs      = BlendID.Resolve(InAllocation);
+		const float*  BaseValues    = BaseValue.Resolve(InAllocation);
+		const float*  FloatResults  = FloatResult.Resolve(InAllocation);
+
+		// This is random access into the Blendables array
+		if (InAllocation->HasComponent(EasingAndWeightResult.ComponentType))
+		{
+			// We have some easing/weight factors to multiply values with.
+			const float* EasingAndWeights = EasingAndWeightResult.Resolve(InAllocation);
+
+			for (int32 Index = 0; Index < Num; ++Index)
+			{
+				FBlendResult& Result = (*ResultArray)[BlendIDs[Index]];
+
+				const float Weight = EasingAndWeights[Index];
+				Result.Total  += (FloatResults[Index] - BaseValues[Index]) * Weight;
+				Result.Weight += Weight;
+			}
+		}
+		else
+		{
+			// Faster path for when there's no weight to multiply values with.
+			for (int32 Index = 0; Index < Num; ++Index)
+			{
+				FBlendResult& Result = (*ResultArray)[BlendIDs[Index]];
+				Result.Total  += (FloatResults[Index] - BaseValues[Index]);
+				Result.Weight += 1.f;
+			}
+		}
+	}
+};
 
 struct FCombineBlendsWithInitialValues
 {
@@ -87,11 +130,14 @@ struct FCombineBlendsWithInitialValues
 		FBlendResult AbsoluteResult = TaskData->GetAbsoluteResult(BlendID);
 		FBlendResult RelativeResult = TaskData->GetRelativeResult(BlendID);
 		FBlendResult AdditiveResult = TaskData->GetAdditiveResult(BlendID);
+		FBlendResult AdditiveFromBaseResult = TaskData->GetAdditiveFromBaseResult(BlendID);
 
 		if (RelativeResult.Weight != 0)
 		{
 			RelativeResult.Total += InitialValue * RelativeResult.Weight;
 		}
+
+		FBlendResult TotalAdditiveResult = { AdditiveResult.Total + AdditiveFromBaseResult.Total, AdditiveResult.Weight + AdditiveFromBaseResult.Weight };
 
 		const float TotalWeight = AbsoluteResult.Weight + RelativeResult.Weight;
 		if (TotalWeight != 0)
@@ -108,12 +154,12 @@ struct FCombineBlendsWithInitialValues
 				AbsoluteResult.Total;
 			const float FinalTotalWeight = bInitialValueContributes ? (TotalWeight + (1.f - AbsoluteResult.Weight)) : TotalWeight;
 
-			const float Value = (AbsoluteBlendedValue + RelativeResult.Total) / FinalTotalWeight + AdditiveResult.Total;
+			const float Value = (AbsoluteBlendedValue + RelativeResult.Total) / FinalTotalWeight + TotalAdditiveResult.Total;
 			OutFinalBlendResult = Value;
 		}
-		else if (AdditiveResult.Weight != 0)
+		else if (TotalAdditiveResult.Weight != 0)
 		{
-			OutFinalBlendResult = AdditiveResult.Total + InitialValue;
+			OutFinalBlendResult = TotalAdditiveResult.Total + InitialValue;
 		}
 		else
 		{
@@ -167,10 +213,12 @@ void UMovieScenePiecewiseFloatBlenderSystem::OnLink()
 	using namespace UE::MovieScene;
 	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
 
-	for (TComponentTypeID<float> FloatResult : BuiltInComponents->FloatResult)
+	const size_t NumFloats = UE_ARRAY_COUNT(BuiltInComponents->FloatResult);
+	for (size_t Index = 0; Index < NumFloats; ++Index)
 	{
 		FChannelData& NewData = ChannelData.Emplace_GetRef();
-		NewData.ResultComponent = FloatResult;
+		NewData.ResultComponent = BuiltInComponents->FloatResult[Index];
+		NewData.BaseValueComponent = BuiltInComponents->BaseFloat[Index];
 	}
 }
 
@@ -212,12 +260,14 @@ void UMovieScenePiecewiseFloatBlenderSystem::OnRun(FSystemTaskPrerequisites& InP
 				Channel.bHasAbsolutes = false;
 				Channel.bHasRelatives = false;
 				Channel.bHasAdditives = false;
+				Channel.bHasAdditivesFromBase = false;
 			}
 			else
 			{
 				Channel.bHasAbsolutes = Linker->EntityManager.Contains(FEntityComponentFilter().All({ Channel.ResultComponent, BuiltInComponents->BlendChannelInput, BuiltInComponents->Tags.AbsoluteBlend }));
 				Channel.bHasRelatives = Linker->EntityManager.Contains(FEntityComponentFilter().All({ Channel.ResultComponent, BuiltInComponents->BlendChannelInput, BuiltInComponents->Tags.RelativeBlend }));
 				Channel.bHasAdditives = Linker->EntityManager.Contains(FEntityComponentFilter().All({ Channel.ResultComponent, BuiltInComponents->BlendChannelInput, BuiltInComponents->Tags.AdditiveBlend }));
+				Channel.bHasAdditivesFromBase = Linker->EntityManager.Contains(FEntityComponentFilter().All({ Channel.ResultComponent, BuiltInComponents->BlendChannelInput, BuiltInComponents->Tags.AdditiveFromBaseBlend }));
 			}
 		}
 
@@ -387,6 +437,52 @@ void UMovieScenePiecewiseFloatBlenderSystem::OnRun(FSystemTaskPrerequisites& InP
 			TaskData.Impl->Additives.Reset();
 		}
 
+		if (Channel.bHasAdditivesFromBase)
+		{
+			if (!TaskData.Impl->AdditivesFromBase)
+			{
+				TaskData.Impl->AdditivesFromBase.Emplace();
+			}
+			TaskData.Impl->AdditivesFromBase->SetNum(MaximumNumBlends);
+			FMemory::Memzero(TaskData.Impl->AdditivesFromBase.GetValue().GetData(), sizeof(FBlendResult)*MaximumNumBlends);
+
+			// Run a task that blends all absolutes into the AdditivesFromBase array
+			//
+			// This is a slightly different task than the other 3 tasks because it reads the base value from the entities
+			//
+			FGraphEventRef AdditivesFromBaseTask = FEntityTaskBuilder()
+
+				// Blend ID
+				.Read(BuiltInComponents->BlendChannelInput)
+
+				// Base value
+				.Read(Channel.BaseValueComponent)
+
+				// Evaluated float result
+				.Read(Channel.ResultComponent)
+
+				// Optional easing result component
+				.ReadOptional(BuiltInComponents->WeightAndEasingResult)
+
+				// Only include additive blends and active entities
+				.FilterAll({ BuiltInComponents->Tags.AdditiveFromBaseBlend })
+
+				.FilterNone({ BuiltInComponents->Tags.Ignored })
+
+				.SetStat(GET_STATID(MovieSceneEval_BlendFloatValues))
+
+				// Dispatch the task
+				.Dispatch_PerAllocation<FAdditiveFromBaseBlendTask>(&Linker->EntityManager, InPrerequisites, nullptr, &TaskData.Impl->AdditivesFromBase.GetValue());
+
+			if (AdditivesFromBaseTask)
+			{
+				SingleBlendTasks.Add(AdditivesFromBaseTask);
+			}
+		}
+		else
+		{
+			TaskData.Impl->AdditivesFromBase.Reset();
+		}
 
 		if (SingleBlendTasks.Num() > 0)
 		{

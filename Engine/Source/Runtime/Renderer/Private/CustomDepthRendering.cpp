@@ -39,16 +39,6 @@ FCustomDepthPassMeshProcessor::FCustomDepthPassMeshProcessor(const FScene* Scene
 {
 	PassDrawRenderState.SetViewUniformBuffer(Scene->UniformBuffers.CustomDepthViewUniformBuffer);
 	PassDrawRenderState.SetInstancedViewUniformBuffer(Scene->UniformBuffers.InstancedCustomDepthViewUniformBuffer);
-
-	if (FSceneInterface::GetShadingPath(FeatureLevel) == EShadingPath::Mobile)
-	{
-		PassDrawRenderState.SetPassUniformBuffer(Scene->UniformBuffers.MobileCustomDepthPassUniformBuffer);
-	}
-	else
-	{
-		PassDrawRenderState.SetPassUniformBuffer(Scene->UniformBuffers.CustomDepthPassUniformBuffer);
-	}
-
 	PassDrawRenderState.SetBlendState(TStaticBlendState<>::GetRHI());
 	PassDrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
 }

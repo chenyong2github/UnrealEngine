@@ -30,6 +30,7 @@ Texture2D<uint> PageTableTexture;
 
 Texture2D<float4> MinMaxTexture;
 SamplerState MinMaxTextureSampler;
+int MinMaxLevelOffset;
 
 Texture2D<float> OcclusionTexture;
 int OcclusionLevelOffset;
@@ -248,7 +249,8 @@ void CollectQuadsCS(
 			float2 UV0 = ((float2)Pos + float2(0, 0)) * Scale;
 			float2 UV1 = ((float2)Pos + float2(1, 1)) * Scale;
 			
-			float2 MinMaxHeight = UnPackMinMaxHeight(MinMaxTexture.SampleLevel(MinMaxTextureSampler, UV0, (float)Level));
+			float MinMaxTextureLevel = max((float)Level + (float)MinMaxLevelOffset, 0);
+			float2 MinMaxHeight = UnPackMinMaxHeight(MinMaxTexture.SampleLevel(MinMaxTextureSampler, UV0, MinMaxTextureLevel));
 			
 			float3 UVMin = float3(UV0, MinMaxHeight.x);
 			float3 UVMax = float3(UV1, MinMaxHeight.y);

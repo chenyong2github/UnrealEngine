@@ -500,12 +500,25 @@ FReply STiledLandscapeImportDlg::OnClickedSelectHeightmapTiles()
 				for (const FString& Filename : ImportSettings.HeightmapFileList)
 				{
 					FFormatNamedArguments Arguments;
-					Arguments.Add(TEXT("FileName"), FText::FromString(Filename));
 
-					FIntPoint TileCoordinate = ExtractTileCoordinates(FPaths::GetBaseFilename(Filename));
+					FString BaseFilename = FPaths::GetBaseFilename(Filename);
+					FString CleanFilename = FPaths::GetCleanFilename(Filename);
+
+					Arguments.Add(TEXT("FileName"), FText::FromString(CleanFilename));
+
+					FText FilenameError;
+					if (FPackageName::DoesPackageNameContainInvalidCharacters(BaseFilename, &FilenameError))
+					{
+						Arguments.Add(TEXT("FilenameError"), FilenameError);
+						StatusMessage = FText::Format(LOCTEXT("TiledLandscapeImport_HeightmapTileInvalidName", "File name ({FileName}) contains invalid characters. {FilenameError}"), Arguments);
+						bValidTiles = false;
+						break;
+					}
+
+					FIntPoint TileCoordinate = ExtractTileCoordinates(BaseFilename);
 					if (TileCoordinate.GetMin() < 0)
 					{
-						StatusMessage = FText::Format(LOCTEXT("TiledLandscapeImport_HeightmapTileInvalidName", "File name ({FileName}) should match pattern: <name>_X<number>_Y<number>."), Arguments);
+						StatusMessage = FText::Format(LOCTEXT("TiledLandscapeImport_HeightmapTileInvalidName", "File name ({FileName}) should match pattern: <name>_X<number>_Y<number>.<extension>"), Arguments);
 						bValidTiles = false;
 						break;
 					}

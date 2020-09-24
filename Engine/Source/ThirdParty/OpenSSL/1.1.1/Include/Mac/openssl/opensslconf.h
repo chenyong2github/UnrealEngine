@@ -39,6 +39,9 @@ extern "C" {
 #ifndef OPENSSL_RAND_SEED_OS
 # define OPENSSL_RAND_SEED_OS
 #endif
+#ifndef OPENSSL_NO_AFALGENG
+# define OPENSSL_NO_AFALGENG
+#endif
 #ifndef OPENSSL_NO_ASAN
 # define OPENSSL_NO_ASAN
 #endif
@@ -96,9 +99,6 @@ extern "C" {
 #ifndef OPENSSL_NO_STATIC_ENGINE
 # define OPENSSL_NO_STATIC_ENGINE
 #endif
-#ifndef OPENSSL_NO_AFALGENG
-# define OPENSSL_NO_AFALGENG
-#endif
 
 
 /*
@@ -117,6 +117,11 @@ extern "C" {
 # define DECLARE_DEPRECATED(f)   f;
 # ifdef __GNUC__
 #  if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ > 0)
+#   undef DECLARE_DEPRECATED
+#   define DECLARE_DEPRECATED(f)    f __attribute__ ((deprecated));
+#  endif
+# elif defined(__SUNPRO_C)
+#  if (__SUNPRO_C >= 0x5130)
 #   undef DECLARE_DEPRECATED
 #   define DECLARE_DEPRECATED(f)    f __attribute__ ((deprecated));
 #  endif

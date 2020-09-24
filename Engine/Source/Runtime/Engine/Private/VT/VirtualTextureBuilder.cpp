@@ -45,6 +45,7 @@ void UVirtualTextureBuilder::BuildTexture(FVirtualTextureBuildDesc const& BuildD
 	Texture->Settings.TileBorderSize = BuildDesc.TileBorderSize;
 	Texture->Settings.bEnableCompressCrunch = BuildDesc.bCrunchCompressed;
 
+	Texture->bContinuousUpdate = BuildDesc.bContinuousUpdate;
 	Texture->bSinglePhysicalSpace = BuildDesc.bSinglePhysicalSpace;
 
 	for (int32 Layer = 0; Layer < BuildDesc.LayerCount; Layer++)

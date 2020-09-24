@@ -87,7 +87,7 @@ struct FNiagaraScalabilityState
 		, bDirty(0)
 		, bCulled(0)
 #if DEBUG_SCALABILITY_STATE
-		, bCulledBySignificance(0)
+		, bCulledByDistance(0)
 		, bCulledByInstanceCount(0)
 		, bCulledByVisibility(0)
 #endif
@@ -99,7 +99,7 @@ struct FNiagaraScalabilityState
 	uint8 bCulled : 1;
 
 #if DEBUG_SCALABILITY_STATE
-	uint8 bCulledBySignificance : 1;
+	uint8 bCulledByDistance : 1;
 	uint8 bCulledByInstanceCount : 1;
 	uint8 bCulledByVisibility : 1;
 #endif
@@ -124,7 +124,7 @@ struct FNiagaraScalabilityManager
 
 	FNiagaraScalabilityManager();
 	~FNiagaraScalabilityManager();
-	void Update(FNiagaraWorldManager* Owner);
+	void Update(FNiagaraWorldManager* Owner, bool bNewOnly);
 	void Register(UNiagaraComponent* Component);
 	void Unregister(UNiagaraComponent* Component);
 

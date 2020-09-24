@@ -13,6 +13,7 @@
 #include "HAL/PlatformProcess.h"
 #include "UObject/FieldPath.h"
 #include "UObject/UObjectArray.h"
+#include "UObject/FastReferenceCollectorOptions.h"
 
 struct FStackEntry;
 
@@ -265,11 +266,29 @@ private:
 		 void ReturnToPool(FGCArrayStruct* ArrayStruct);
 	 };
  */
-template <bool bParallel, typename ReferenceProcessorType, typename CollectorType, typename ArrayPoolType, bool bAutoGenerateTokenStream = false, bool bIgnoreNoopTokens = false>
+
+template <typename ReferenceProcessorType, typename CollectorType, typename ArrayPoolType, EFastReferenceCollectorOptions Options = EFastReferenceCollectorOptions::None>
 class TFastReferenceCollector
 {
 private:
 
+	constexpr FORCEINLINE bool IsParallel() const
+	{
+		return !!(Options & EFastReferenceCollectorOptions::Parallel);
+	}
+	constexpr FORCEINLINE bool CanAutogenerateTokenStream() const
+	{
+		return !!(Options & EFastReferenceCollectorOptions::AutogenerateTokenStream);
+	}
+	constexpr FORCEINLINE bool ShouldProcessNoOpTokens() const
+	{
+		return !!(Options & EFastReferenceCollectorOptions::ProcessNoOpTokens);
+	}
+	constexpr FORCEINLINE bool ShouldProcessWeakReferences() const
+	{
+		return !!(Options & EFastReferenceCollectorOptions::ProcessWeakReferences);
+	}
+	
 	class FCollectorTaskQueue
 	{
 		TFastReferenceCollector*	Owner;
@@ -465,16 +484,22 @@ private:
 	struct FStackEntry
 	{
 		/** Current data pointer, incremented by stride */
-		uint8*	Data;
+		uint8* Data;
+		/** Current container property for data pointer. DO NOT rely on its value being initialized. Instead check ContainerType first. */
+		FProperty* ContainerProperty;
+		/** Pointer to the container being processed by GC. DO NOT rely on its value being initialized. Instead check ContainerType first. */
+		void* ContainerPtr;
+		/** Current index within the container. DO NOT rely on its value being initialized. Instead check ContainerType first. */
+		int32	ContainerIndex;
+		/** Current container helper type */
+		uint32	ContainerType : 5; // The number of bits needs to match FGCReferenceInfo::Type
 		/** Current stride */
-		int32		Stride;
+		uint32	Stride : 27; // This will always be bigger (8 bits more) than FGCReferenceInfo::Ofset which is the max offset GC can handle
 		/** Current loop count, decremented each iteration */
-		int32		Count;
+		int32	Count;
 		/** First token index in loop */
-		int32		LoopStartIndex;
+		int32	LoopStartIndex;
 	};
-
-
 
 public:
 	/** Default constructor, initializing all members. */
@@ -495,7 +520,7 @@ public:
 		TArray<UObject*>& ObjectsToCollectReferencesFor = ArrayStruct.ObjectsToSerialize;
 		if (ObjectsToCollectReferencesFor.Num())
 		{
-			if (!bParallel)
+			if (!IsParallel())
 			{
 				FGraphEventRef InvalidRef;
 				ProcessObjectArray(ArrayStruct, InvalidRef);
@@ -538,6 +563,40 @@ public:
 	}
 
 private:
+
+	FORCEINLINE bool MoveToNextContainerElementAndCheckIfValid(FStackEntry* StackEntry) const
+	{
+		switch (StackEntry->ContainerType)
+		{
+		case GCRT_AddTMapReferencedObjects:
+		{
+			FMapProperty* MapProperty = (FMapProperty*)StackEntry->ContainerProperty;
+			return MapProperty->IsValidIndex(StackEntry->ContainerPtr, ++StackEntry->ContainerIndex);
+		}
+		case GCRT_AddTSetReferencedObjects:
+		{
+			FSetProperty* SetProperty = (FSetProperty*)StackEntry->ContainerProperty;
+			return SetProperty->IsValidIndex(StackEntry->ContainerPtr, ++StackEntry->ContainerIndex);
+		}
+		default:
+		{
+			return true;
+		}
+		}
+	}
+
+	/**
+	 * Handles weak object pointer references
+	 * @param WeakPtr weak object pointer
+	 * @param NewObjectsToSerialize List of new objects to process as a result of processing this reference
+	 * @param CurrentObject current object being processed (owner of the weak object pointer)
+	 * @param ReferenceTokenStreamIndex GC token stream index (for debugging)
+	 */
+	FORCEINLINE void HandleWeakObjectPtr(FWeakObjectPtr& WeakPtr, TArray<UObject*>& NewObjectsToSerialize, UObject* CurrentObject, int32 ReferenceTokenStreamIndex)
+	{
+		UObject* WeakObject = WeakPtr.Get(true);
+		ReferenceProcessor.HandleTokenStreamObjectReference(NewObjectsToSerialize, CurrentObject, WeakObject, ReferenceTokenStreamIndex, true);
+	}
 
 	/**
 	 * Traverses UObject token stream to find existing references
@@ -593,7 +652,7 @@ private:
 				//@todo rtgc: we need to handle object references in struct defaults
 
 				// Make sure that token stream has been assembled at this point as the below code relies on it.
-				if (!bParallel && bAutoGenerateTokenStream)
+				if (!IsParallel() && CanAutogenerateTokenStream())
 				{
 					UClass* ObjectClass = CurrentObject->GetClass();
 					if (!ObjectClass->HasAnyClassFlags(CLASS_TokenStreamAssembled))
@@ -607,7 +666,7 @@ private:
 					UE_LOG(LogGarbage, Fatal, TEXT("%s does not yet have a token stream assembled."), *GetFullNameSafe(CurrentObject->GetClass()));
 				}
 #endif
-				if (!bParallel)
+				if (!IsParallel())
 				{
 					ReferenceProcessor.SetCurrentObject(CurrentObject);
 				}
@@ -622,6 +681,7 @@ private:
 				FStackEntry* RESTRICT StackEntry = Stack.GetData();
 				uint8* StackEntryData = (uint8*)CurrentObject;
 				StackEntry->Data = StackEntryData;
+				StackEntry->ContainerType = GCRT_None;
 				StackEntry->Stride = 0;
 				StackEntry->Count = -1;
 				StackEntry->LoopStartIndex = -1;
@@ -644,9 +704,23 @@ private:
 						// We pre-decrement as we're already through the loop once at this point.
 						if (--StackEntry->Count > 0)
 						{
-							// Point data to next entry.
-							StackEntryData = StackEntry->Data + StackEntry->Stride;
-							StackEntry->Data = StackEntryData;
+							if (StackEntry->ContainerType == GCRT_None)
+							{
+								// Fast path for TArrays of structs
+								// Point data to next entry.
+								StackEntryData = StackEntry->Data + StackEntry->Stride;
+								StackEntry->Data = StackEntryData;
+							}
+							else
+							{
+								// Slower path for other containers
+								// Point data to next valid entry.
+								do
+								{
+									StackEntryData = StackEntry->Data + StackEntry->Stride;
+									StackEntry->Data = StackEntryData;
+								} while (!MoveToNextContainerElementAndCheckIfValid(StackEntry));
+							}
 
 							// Jump back to the beginning of the loop.
 							TokenStreamIndex = StackEntry->LoopStartIndex;
@@ -656,6 +730,7 @@ private:
 						}
 						else
 						{
+							StackEntry->ContainerType = GCRT_None;
 							StackEntry--;
 							StackEntryData = StackEntry->Data;
 						}
@@ -669,7 +744,7 @@ private:
 					case GCRT_Object:
 					case GCRT_Class:
 					{
-						// We're dealing with an object reference (this code should be identical to GCRT_NoopClass if !bIgnoreNoopTokens)
+						// We're dealing with an object reference (this code should be identical to GCRT_NoopClass if ShouldProcessNoOpTokens())
 						UObject**	ObjectPtr = (UObject**)(StackEntryData + ReferenceInfo.Offset);
 						UObject*&	Object = *ObjectPtr;
 						TokenReturnCount = ReferenceInfo.ReturnCount;
@@ -707,6 +782,7 @@ private:
 						StackEntry->Data = StackEntryData;
 						StackEntry->Stride = TokenStream->ReadStride(TokenStreamIndex);
 						StackEntry->Count = Array.Num();
+						StackEntry->ContainerType = GCRT_None;
 
 						const FGCSkipInfo SkipInfo = TokenStream->ReadSkipInfo(TokenStreamIndex);
 						StackEntry->LoopStartIndex = TokenStreamIndex;
@@ -734,6 +810,7 @@ private:
 						StackEntry->Data = StackEntryData;
 						StackEntry->Stride = TokenStream->ReadStride(TokenStreamIndex);
 						StackEntry->Count = Array.Num();
+						StackEntry->ContainerType = GCRT_None;
 
 						const FGCSkipInfo SkipInfo = TokenStream->ReadSkipInfo(TokenStreamIndex);
 						StackEntry->LoopStartIndex = TokenStreamIndex;
@@ -754,7 +831,7 @@ private:
 					break;
 					case GCRT_PersistentObject:
 					{
-						// We're dealing with an object reference (this code should be identical to GCRT_NoopPersistentObject if !bIgnoreNoopTokens)
+						// We're dealing with an object reference (this code should be identical to GCRT_NoopPersistentObject if ShouldProcessNoOpTokens())
 						UObject**	ObjectPtr = (UObject**)(StackEntryData + ReferenceInfo.Offset);
 						UObject*&	Object = *ObjectPtr;
 						TokenReturnCount = ReferenceInfo.ReturnCount;
@@ -781,6 +858,7 @@ private:
 						StackEntry->Stride = TokenStream->ReadStride(TokenStreamIndex);
 						StackEntry->Count = TokenStream->ReadCount(TokenStreamIndex);
 						StackEntry->LoopStartIndex = TokenStreamIndex;
+						StackEntry->ContainerType = GCRT_None;
 						TokenReturnCount = 0;
 					}
 					break;
@@ -803,28 +881,92 @@ private:
 					break;
 					case GCRT_AddTMapReferencedObjects:
 					{
-						void*         Map = StackEntryData + ReferenceInfo.Offset;
+						void* MapPtr = StackEntryData + ReferenceInfo.Offset;
 						FMapProperty* MapProperty = (FMapProperty*)TokenStream->ReadPointer(TokenStreamIndex);
-						TokenReturnCount = ReferenceInfo.ReturnCount;
+						TokenStreamIndex++; // GCRT_EndOfPointer
 
-						FReferenceCollectorArchive& Ar = ReferenceCollector.GetVerySlowReferenceCollectorArchive();
-						checkSlow(Ar.GetSerializingObject() == nullptr);
-						Ar.SetSerializingObject(CurrentObject);
-						MapProperty->SerializeItem(FStructuredArchiveFromArchive(Ar).GetSlot(), Map, nullptr);
-						Ar.SetSerializingObject(nullptr);
+						StackEntry++;
+						StackEntry->ContainerType = GCRT_AddTMapReferencedObjects;
+						StackEntry->ContainerIndex = 0;
+						StackEntry->ContainerProperty = MapProperty;
+						StackEntry->ContainerPtr = MapPtr;
+						StackEntry->Stride = MapProperty->GetPairStride();
+						StackEntry->Count = MapProperty->GetNum(MapPtr);
+
+						const FGCSkipInfo SkipInfo = TokenStream->ReadSkipInfo(TokenStreamIndex);
+						StackEntry->LoopStartIndex = TokenStreamIndex;
+
+						if (StackEntry->Count == 0)
+						{
+							// The map is empty
+							StackEntryData = nullptr;
+							StackEntry->Data = StackEntryData;
+
+							// Skip empty map by jumping to skip index and set return count to the one about to be read in.
+							TokenStreamIndex = SkipInfo.SkipIndex;
+							TokenReturnCount = TokenStream->GetSkipReturnCount(SkipInfo);
+						}
+						else
+						{
+							// Skip any initial invalid entries in the map. We need a valid index for MapProperty->GetPairPtr()
+							int32 FirstValidIndex = 0;
+							while (!MapProperty->IsValidIndex(MapPtr, FirstValidIndex))
+							{
+								FirstValidIndex++;
+							}
+
+							StackEntry->ContainerIndex = FirstValidIndex;
+							StackEntryData = MapProperty->GetPairPtr(MapPtr, FirstValidIndex);
+							StackEntry->Data = StackEntryData;
+
+							// Loop again.
+							TokenReturnCount = 0;
+						}
 					}
 					break;
 					case GCRT_AddTSetReferencedObjects:
 					{
-						void*         Set = StackEntryData + ReferenceInfo.Offset;
+						void* SetPtr = StackEntryData + ReferenceInfo.Offset;
 						FSetProperty* SetProperty = (FSetProperty*)TokenStream->ReadPointer(TokenStreamIndex);
-						TokenReturnCount = ReferenceInfo.ReturnCount;
+						TokenStreamIndex++; // GCRT_EndOfPointer
 
-						FReferenceCollectorArchive& Ar = ReferenceCollector.GetVerySlowReferenceCollectorArchive();
-						checkSlow(Ar.GetSerializingObject() == nullptr);
-						Ar.SetSerializingObject(CurrentObject);
-						SetProperty->SerializeItem(FStructuredArchiveFromArchive(Ar).GetSlot(), Set, nullptr);
-						Ar.SetSerializingObject(nullptr);
+						StackEntry++;
+						StackEntry->ContainerProperty = SetProperty;
+						StackEntry->ContainerPtr = SetPtr;
+						StackEntry->ContainerType = GCRT_AddTSetReferencedObjects;
+						StackEntry->ContainerIndex = 0;
+						StackEntry->Stride = SetProperty->GetStride();
+						StackEntry->Count = SetProperty->GetNum(SetPtr);
+
+						const FGCSkipInfo SkipInfo = TokenStream->ReadSkipInfo(TokenStreamIndex);
+						StackEntry->LoopStartIndex = TokenStreamIndex;
+
+						if (StackEntry->Count == 0)
+						{
+							// The set is empty or it doesn't contain any valid elements
+							StackEntryData = nullptr;
+							StackEntry->Data = StackEntryData;
+
+							// Skip empty set by jumping to skip index and set return count to the one about to be read in.
+							TokenStreamIndex = SkipInfo.SkipIndex;
+							TokenReturnCount = TokenStream->GetSkipReturnCount(SkipInfo);
+						}
+						else
+						{
+							// Skip any initial invalid entries in the set. We need a valid index for SetProperty->GetElementPtr()
+							int32 FirstValidIndex = 0;
+							while (!SetProperty->IsValidIndex(SetPtr, FirstValidIndex))
+							{
+								FirstValidIndex++;
+							}
+
+							StackEntry->ContainerIndex = FirstValidIndex;
+							StackEntryData = SetProperty->GetElementPtr(SetPtr, FirstValidIndex);
+							StackEntry->Data = StackEntryData;
+
+							// Loop again.
+							TokenReturnCount = 0;
+						}
 					}
 					break;
 					case GCRT_AddFieldPathReferencedObject:
@@ -874,33 +1016,155 @@ private:
 					break;
 					case GCRT_NoopPersistentObject:
 					{
-						if (!bIgnoreNoopTokens)
+						TokenReturnCount = ReferenceInfo.ReturnCount;
+						if (ShouldProcessNoOpTokens())
 						{
 							// We're dealing with an object reference (this code should be identical to GCRT_PersistentObject)
 							UObject**	ObjectPtr = (UObject**)(StackEntryData + ReferenceInfo.Offset);
 							UObject*&	Object = *ObjectPtr;
-							TokenReturnCount = ReferenceInfo.ReturnCount;
 							ReferenceProcessor.HandleTokenStreamObjectReference(NewObjectsToSerialize, CurrentObject, Object, ReferenceTokenStreamIndex, false);
-						}
-						else
-						{
-							TokenReturnCount = ReferenceInfo.ReturnCount;
 						}
 					}
 					break;
 					case GCRT_NoopClass:
 					{
-						if (!bIgnoreNoopTokens)
+						TokenReturnCount = ReferenceInfo.ReturnCount;
+						if (ShouldProcessNoOpTokens())
 						{
 							// We're dealing with an object reference (this code should be identical to GCRT_Object and GCRT_Class)
 							UObject**	ObjectPtr = (UObject**)(StackEntryData + ReferenceInfo.Offset);
 							UObject*&	Object = *ObjectPtr;
-							TokenReturnCount = ReferenceInfo.ReturnCount;
 							ReferenceProcessor.HandleTokenStreamObjectReference(NewObjectsToSerialize, CurrentObject, Object, ReferenceTokenStreamIndex, true);
 						}
-						else
-						{
+					}
+					break;
+					case GCRT_WeakObject:
+					{
+						TokenReturnCount = ReferenceInfo.ReturnCount;
+						if (ShouldProcessWeakReferences())
+						{							
+							FWeakObjectPtr& WeakPtr = *(FWeakObjectPtr*)(StackEntryData + ReferenceInfo.Offset);
+							HandleWeakObjectPtr(WeakPtr, NewObjectsToSerialize, CurrentObject, ReferenceTokenStreamIndex);
+						}
+					}
+					break;
+					case GCRT_ArrayWeakObject:
+					{
+						TokenReturnCount = ReferenceInfo.ReturnCount;
+						if (ShouldProcessWeakReferences())
+						{							
+							TArray<FWeakObjectPtr>& WeakPtrArray = *((TArray<FWeakObjectPtr>*)(StackEntryData + ReferenceInfo.Offset));
+							for (FWeakObjectPtr& WeakPtr : WeakPtrArray)
+							{
+								HandleWeakObjectPtr(WeakPtr, NewObjectsToSerialize, CurrentObject, ReferenceTokenStreamIndex);
+							}
+						}
+					}
+					break;
+					case GCRT_LazyObject:
+					{
+						TokenReturnCount = ReferenceInfo.ReturnCount;
+						if (ShouldProcessWeakReferences())
+						{							
+							FLazyObjectPtr& LazyPtr = *(FLazyObjectPtr*)(StackEntryData + ReferenceInfo.Offset);
+							FWeakObjectPtr& WeakPtr = LazyPtr.WeakPtr;
+							HandleWeakObjectPtr(WeakPtr, NewObjectsToSerialize, CurrentObject, ReferenceTokenStreamIndex);
+						}
+					}
+					break;
+					case GCRT_ArrayLazyObject:
+					{
+						TokenReturnCount = ReferenceInfo.ReturnCount;
+						if (ShouldProcessWeakReferences())
+						{							
+							TArray<FLazyObjectPtr>& LazyPtrArray = *((TArray<FLazyObjectPtr>*)(StackEntryData + ReferenceInfo.Offset));
 							TokenReturnCount = ReferenceInfo.ReturnCount;
+							for (FLazyObjectPtr& LazyPtr : LazyPtrArray)
+							{
+								FWeakObjectPtr& WeakPtr = LazyPtr.WeakPtr;
+								HandleWeakObjectPtr(WeakPtr, NewObjectsToSerialize, CurrentObject, ReferenceTokenStreamIndex);
+							}
+						}
+					}
+					break;
+					case GCRT_SoftObject:
+					{
+						TokenReturnCount = ReferenceInfo.ReturnCount;
+						if (ShouldProcessWeakReferences())
+						{							
+							FSoftObjectPtr& SoftPtr = *(FSoftObjectPtr*)(StackEntryData + ReferenceInfo.Offset);
+							FWeakObjectPtr& WeakPtr = SoftPtr.WeakPtr;
+							HandleWeakObjectPtr(WeakPtr, NewObjectsToSerialize, CurrentObject, ReferenceTokenStreamIndex);
+						}
+					}
+					break;
+					case GCRT_ArraySoftObject:
+					{
+						TokenReturnCount = ReferenceInfo.ReturnCount;
+						if (ShouldProcessWeakReferences())
+						{							
+							TArray<FSoftObjectPtr>& SoftPtrArray = *((TArray<FSoftObjectPtr>*)(StackEntryData + ReferenceInfo.Offset));
+							for (FSoftObjectPtr& SoftPtr : SoftPtrArray)
+							{
+								FWeakObjectPtr& WeakPtr = SoftPtr.WeakPtr;
+								HandleWeakObjectPtr(WeakPtr, NewObjectsToSerialize, CurrentObject, ReferenceTokenStreamIndex);
+							}
+						}
+					}
+					break;
+					case GCRT_Delegate:
+					{
+						TokenReturnCount = ReferenceInfo.ReturnCount;
+						if (ShouldProcessWeakReferences())
+						{							
+							FScriptDelegate& Delegate = *(FScriptDelegate*)(StackEntryData + ReferenceInfo.Offset);
+							UObject* DelegateObject = Delegate.GetUObject();
+							ReferenceProcessor.HandleTokenStreamObjectReference(NewObjectsToSerialize, CurrentObject, DelegateObject, ReferenceTokenStreamIndex, false);
+						}
+					}
+					break;
+					case GCRT_ArrayDelegate:
+					{
+						TokenReturnCount = ReferenceInfo.ReturnCount;
+						if (ShouldProcessWeakReferences())
+						{							
+							TArray<FScriptDelegate>& DelegateArray = *((TArray<FScriptDelegate>*)(StackEntryData + ReferenceInfo.Offset));
+							for (FScriptDelegate& Delegate : DelegateArray)
+							{
+								UObject* DelegateObject = Delegate.GetUObject();
+								ReferenceProcessor.HandleTokenStreamObjectReference(NewObjectsToSerialize, CurrentObject, DelegateObject, ReferenceTokenStreamIndex, false);
+							}
+						}
+					}
+					break;
+					case GCRT_MulticastDelegate:
+					{
+						TokenReturnCount = ReferenceInfo.ReturnCount;
+						if (ShouldProcessWeakReferences())
+						{							
+							FMulticastScriptDelegate& Delegate = *(FMulticastScriptDelegate*)(StackEntryData + ReferenceInfo.Offset);
+							TArray<UObject*> DelegateObjects(Delegate.GetAllObjects());
+							for (UObject* DelegateObject : DelegateObjects)
+							{
+								ReferenceProcessor.HandleTokenStreamObjectReference(NewObjectsToSerialize, CurrentObject, DelegateObject, ReferenceTokenStreamIndex, false);
+							}
+						}
+					}
+					break;
+					case GCRT_ArrayMulticastDelegate:
+					{
+						TokenReturnCount = ReferenceInfo.ReturnCount;
+						if (ShouldProcessWeakReferences())
+						{							
+							TArray<FMulticastScriptDelegate>& DelegateArray = *((TArray<FMulticastScriptDelegate>*)(StackEntryData + ReferenceInfo.Offset));
+							for (FMulticastScriptDelegate& Delegate : DelegateArray)
+							{
+								TArray<UObject*> DelegateObjects(Delegate.GetAllObjects());
+								for (UObject* DelegateObject : DelegateObjects)
+								{
+									ReferenceProcessor.HandleTokenStreamObjectReference(NewObjectsToSerialize, CurrentObject, DelegateObject, ReferenceTokenStreamIndex, false);
+								}
+							}
 						}
 					}
 					break;
@@ -920,7 +1184,7 @@ private:
 EndLoop:
 				check(StackEntry == Stack.GetData());
 
-				if (bParallel && NewObjectsToSerialize.Num() >= MinDesiredObjectsPerSubTask)
+				if (IsParallel() && NewObjectsToSerialize.Num() >= MinDesiredObjectsPerSubTask)
 				{
 					// This will start queueing task with objects from the end of array until there's less objects than worth to queue
 					const int32 ObjectsPerSubTask = FMath::Max<int32>(MinDesiredObjectsPerSubTask, NewObjectsToSerialize.Num() / FTaskGraphInterface::Get().GetNumWorkerThreads());
@@ -942,12 +1206,12 @@ EndLoop:
 
 #if PERF_DETAILED_PER_CLASS_GC_STATS
 				// Detailed per class stats should not be performed when parallel GC is running
-				check(!bParallel);
+				check(!IsParallel());
 				ReferenceProcessor.UpdateDetailedStats(CurrentObject, FPlatformTime::Cycles() - StartCycles);
 #endif
 			}
 
-			if (bParallel && NewObjectsToSerialize.Num() >= MinDesiredObjectsPerSubTask)
+			if (IsParallel() && NewObjectsToSerialize.Num() >= MinDesiredObjectsPerSubTask)
 			{
 				const int32 ObjectsPerSubTask = FMath::Max<int32>(MinDesiredObjectsPerSubTask, NewObjectsToSerialize.Num() / FTaskGraphInterface::Get().GetNumWorkerThreads());
 				int32 StartIndex = 0;
@@ -981,7 +1245,7 @@ EndLoop:
 
 #if PERF_DETAILED_PER_CLASS_GC_STATS
 		// Detailed per class stats should not be performed when parallel GC is running
-		check(!bParallel);
+		check(!IsParallel());
 		ReferenceProcessor.LogDetailedStatsSummary();
 #endif
 

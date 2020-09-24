@@ -22,6 +22,7 @@
 #include "LightMapRendering.h"
 #include "MeshPassProcessor.inl"
 #include "SceneTextureReductions.h"
+#include "BasePassRendering.h"
 #include "Lumen/LumenSceneRendering.h"
 
 #define CULLING_PASS_NO_OCCLUSION		0
@@ -409,6 +410,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNaniteEmitGBufferParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>,  DbgBuffer32)
 
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)	// To access VTFeedbackBuffer
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FOpaqueBasePassUniformParameters, BasePass)
 
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
@@ -1831,7 +1833,7 @@ FMeshPassProcessor* CreateNaniteMeshProcessor(
 	FMeshPassDrawListContext* InDrawListContext
 	)
 {
-	FMeshPassProcessorRenderState PassDrawRenderState(Scene->UniformBuffers.ViewUniformBuffer, Scene->UniformBuffers.OpaqueBasePassUniformBuffer);
+	FMeshPassProcessorRenderState PassDrawRenderState(Scene->UniformBuffers.ViewUniformBuffer);
 	PassDrawRenderState.SetInstancedViewUniformBuffer(Scene->UniformBuffers.InstancedViewUniformBuffer);
 	PassDrawRenderState.SetNaniteUniformBuffer(Scene->UniformBuffers.NaniteUniformBuffer);
 
@@ -2277,7 +2279,7 @@ FCullingContext InitCullingContext(
 
 	// PersistentNodes: Starts out cleared to 0xFFFFFFFF. Only has to be cleared once as the hierarchy cull code clears nodes after they have been visited.	
 	{
-		TRefCountPtr<FPooledRDGBuffer>& MainPassNodesBufferRef = Nanite::GGlobalResources.GetMainPassBuffers().NodesBuffer;
+		TRefCountPtr<FRDGPooledBuffer>& MainPassNodesBufferRef = Nanite::GGlobalResources.GetMainPassBuffers().NodesBuffer;
 		if (MainPassNodesBufferRef.IsValid())
 		{
 			CullingContext.MainPass.Nodes = GraphBuilder.RegisterExternalBuffer( MainPassNodesBufferRef, TEXT("MainPass.NodesBuffer") );
@@ -2293,7 +2295,7 @@ FCullingContext InitCullingContext(
 	}
 
 	{
-		TRefCountPtr<FPooledRDGBuffer>& PostPassNodesBufferRef = Nanite::GGlobalResources.GetPostPassBuffers().NodesBuffer;
+		TRefCountPtr<FRDGPooledBuffer>& PostPassNodesBufferRef = Nanite::GGlobalResources.GetPostPassBuffers().NodesBuffer;
 		if (PostPassNodesBufferRef.IsValid())
 		{
 			CullingContext.PostPass.Nodes = GraphBuilder.RegisterExternalBuffer( PostPassNodesBufferRef, TEXT("PostPass.NodesBuffer") );
@@ -2927,11 +2929,11 @@ FRasterContext InitRasterContext(
 	#endif
 	}
 
-	RasterContext.DepthBuffer	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2DDesc(RasterContext.TextureSize, PF_R32_UINT, FClearValueBinding::None, TexCreate_None, TexCreate_ShaderResource | TexCreate_UAV, false ), TEXT("DepthBuffer32") );
-	RasterContext.VisBuffer64	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2DDesc(RasterContext.TextureSize, PF_R32G32_UINT, FClearValueBinding::None, TexCreate_None, TexCreate_ShaderResource | TexCreate_UAV, false ), TEXT("VisBuffer64") );
-	RasterContext.DbgBuffer64	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2DDesc(RasterContext.TextureSize, PF_R32G32_UINT, FClearValueBinding::None, TexCreate_None, TexCreate_ShaderResource | TexCreate_UAV, false), TEXT("DbgBuffer64") );
-	RasterContext.DbgBuffer32	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2DDesc(RasterContext.TextureSize, PF_R32_UINT, FClearValueBinding::None, TexCreate_None, TexCreate_ShaderResource | TexCreate_UAV, false), TEXT("DbgBuffer32") );
-	RasterContext.LockBuffer	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2DDesc(RasterContext.TextureSize, PF_R32_UINT, FClearValueBinding::None, TexCreate_None, TexCreate_UAV, false), TEXT("LockBuffer") );
+	RasterContext.DepthBuffer	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D(RasterContext.TextureSize, PF_R32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV), TEXT("DepthBuffer32") );
+	RasterContext.VisBuffer64	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D(RasterContext.TextureSize, PF_R32G32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV), TEXT("VisBuffer64") );
+	RasterContext.DbgBuffer64	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D(RasterContext.TextureSize, PF_R32G32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV), TEXT("DbgBuffer64") );
+	RasterContext.DbgBuffer32	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D(RasterContext.TextureSize, PF_R32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV), TEXT("DbgBuffer32") );
+	RasterContext.LockBuffer	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D(RasterContext.TextureSize, PF_R32_UINT, FClearValueBinding::None, TexCreate_UAV), TEXT("LockBuffer") );
 	
 	const uint32 ClearValue[4] = { 0, 0, 0, 0 };
 
@@ -3054,7 +3056,7 @@ void CullRasterizeInner(
 		CullingParameters.NumViews		= Views.Num();
 		CullingParameters.NumPrimaryViews = NumPrimaryViews;
 		CullingParameters.DisocclusionLodScaleFactor = (GNaniteDisocclusionHack && GLumenFastCameraMode) ? 0.01f : 1.0f;	// TODO: Get rid of this hack
-		CullingParameters.HZBTexture	= RegisterExternalTextureWithFallback(GraphBuilder, CullingContext.PrevHZB, GSystemTextures.BlackDummy, TEXT("PrevHZB"));
+		CullingParameters.HZBTexture	= RegisterExternalTextureWithFallback(GraphBuilder, CullingContext.PrevHZB, GSystemTextures.BlackDummy);
 		CullingParameters.HZBSize		= CullingContext.PrevHZB ? CullingContext.PrevHZB->GetDesc().Extent : FVector2D(0.0f);
 		CullingParameters.HZBViewSize	= CullingContext.PrevHZB ? FVector2D(CullingContext.PrevHZBViewRect.Size()) : FVector2D(0.0f);
 		CullingParameters.HZBSampler	= TStaticSamplerState< SF_Point, AM_Clamp, AM_Clamp, AM_Clamp >::GetRHI();
@@ -3068,10 +3070,10 @@ void CullRasterizeInner(
 	if (VirtualShadowMapArray)
 	{
 		VirtualTargetParameters.VirtualShadowMapCommon = VirtualShadowMapArray->CommonParameters;
-		VirtualTargetParameters.PageFlags = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(VirtualShadowMapArray->PageFlags, TEXT("PageFlags")), PF_R32_UINT);
-		VirtualTargetParameters.HPageFlags = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(VirtualShadowMapArray->HPageFlags, TEXT("HPageFlags")), PF_R32_UINT);
-		VirtualTargetParameters.PageTable = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(VirtualShadowMapArray->PageTable, TEXT("PageTable")));
-		VirtualTargetParameters.PageRectBounds = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(VirtualShadowMapArray->PageRectBounds, TEXT("PageRectBounds")));
+		VirtualTargetParameters.PageFlags = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(VirtualShadowMapArray->PageFlags), PF_R32_UINT);
+		VirtualTargetParameters.HPageFlags = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(VirtualShadowMapArray->HPageFlags), PF_R32_UINT);
+		VirtualTargetParameters.PageTable = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(VirtualShadowMapArray->PageTable));
+		VirtualTargetParameters.PageRectBounds = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(VirtualShadowMapArray->PageRectBounds));
 	}
 	FGPUSceneParameters GPUSceneParameters;
 	GPUSceneParameters.GPUSceneInstanceSceneData = Scene.GPUScene.InstanceDataBuffer.SRV;
@@ -3167,10 +3169,9 @@ void CullRasterizeInner(
 		{
 			RDG_EVENT_SCOPE(GraphBuilder, "BuildPreviousOccluderHZB");
 			
-			FSceneTextureParameters SceneTextures;
-			SetupSceneTextureParameters( GraphBuilder, &SceneTextures );
+			FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
 
-			FRDGTextureRef SceneDepth = SceneTextures.SceneDepthBuffer;
+			FRDGTextureRef SceneDepth = SceneTextures.SceneDepthTexture;
 			FRDGTextureRef RasterizedDepth = RasterContext.VisBuffer64;
 
 			if( RasterContext.RasterTechnique == ERasterTechnique::DepthOnly )
@@ -3508,20 +3509,20 @@ void ExtractResults(
 	RasterResults.MaxNodes		= Nanite::FGlobalResources::GetMaxNodes();
 	RasterResults.RenderFlags	= CullingContext.RenderFlags;
 #if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-	GraphBuilder.QueueBufferExtraction(CullingContext.InstanceDynamicData,	&RasterResults.InstanceDynamicData);
+	ConvertToExternalTexture(GraphBuilder, CullingContext.InstanceDynamicData, RasterResults.InstanceDynamicData);
 #endif
-	GraphBuilder.QueueBufferExtraction(CullingContext.VisibleClustersSWHW,	&RasterResults.VisibleClustersSWHW);
-	GraphBuilder.QueueTextureExtraction(RasterContext.VisBuffer64,			&RasterResults.VisBuffer64);
+	ConvertToExternalBuffer(GraphBuilder, CullingContext.VisibleClustersSWHW, RasterResults.VisibleClustersSWHW);
+	ConvertToExternalTexture(GraphBuilder, RasterContext.VisBuffer64, RasterResults.VisBuffer64);
 	
 	if (ShouldExportDebugBuffers())
 	{
-		GraphBuilder.QueueTextureExtraction(RasterContext.DbgBuffer64, &RasterResults.DbgBuffer64);
-		GraphBuilder.QueueTextureExtraction(RasterContext.DbgBuffer32, &RasterResults.DbgBuffer32);
+		ConvertToExternalTexture(GraphBuilder, RasterContext.DbgBuffer64, RasterResults.DbgBuffer64);
+		ConvertToExternalTexture(GraphBuilder, RasterContext.DbgBuffer32, RasterResults.DbgBuffer32);
 	}
 
 	if (CullingContext.RenderFlags & RENDER_FLAG_OUTPUT_STREAMING_REQUESTS)
 	{
-		GraphBuilder.QueueBufferExtraction(CullingContext.StreamingRequests, &GStreamingManager.GetStreamingRequestsBuffer());
+		ConvertToExternalBuffer(GraphBuilder, CullingContext.StreamingRequests, GStreamingManager.GetStreamingRequestsBuffer());
 	}
 }
 
@@ -3542,9 +3543,9 @@ void DrawHitProxies(
 
 	FRDGBuilder GraphBuilder(RHICmdList);
 
-	FRDGTextureRef HitProxyId  = RegisterExternalTextureWithFallback(GraphBuilder, HitProxyRT,					GSystemTextures.BlackDummy,	TEXT("HitProxyId"));
-	FRDGTextureRef SceneDepth  = RegisterExternalTextureWithFallback(GraphBuilder, HitProxyDepthRT,				GSystemTextures.BlackDummy,	TEXT("SceneDepth"));
-	FRDGTextureRef VisBuffer64 = RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.VisBuffer64,	GSystemTextures.BlackDummy,	TEXT("VisBuffer64"));
+	FRDGTextureRef HitProxyId  = RegisterExternalTextureWithFallback(GraphBuilder, HitProxyRT,					GSystemTextures.BlackDummy);
+	FRDGTextureRef SceneDepth  = RegisterExternalTextureWithFallback(GraphBuilder, HitProxyDepthRT,				GSystemTextures.BlackDummy);
+	FRDGTextureRef VisBuffer64 = RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.VisBuffer64,	GSystemTextures.BlackDummy);
 
 	FRDGBufferRef VisibleClustersSWHW = GraphBuilder.RegisterExternalBuffer(RasterResults.VisibleClustersSWHW, TEXT("VisibleClustersSWHW"));
 
@@ -3769,7 +3770,7 @@ void DrawPrePass(
 
 		FRDGBuilder GraphBuilder(RHICmdList);
 
-		FRDGTextureRef VisBuffer64 = RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.VisBuffer64, GSystemTextures.BlackDummy, TEXT("VisBuffer64"));
+		FRDGTextureRef VisBuffer64 = RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.VisBuffer64, GSystemTextures.BlackDummy);
 		FRDGTextureRef SceneDepth = GraphBuilder.RegisterExternalTexture(SceneTargets.SceneDepthZ, TEXT("SceneDepth"));
 
 		auto* PassParameters = GraphBuilder.AllocParameters<FEmitDepthPS::FParameters>();
@@ -3860,7 +3861,8 @@ static void BuildNaniteMaterialPassCommands(
 }
 
 void DrawBasePass(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
+	FRDGTextureRef SceneDepth,
 	const FScene& Scene,
 	const FViewInfo& View,
 	const FRasterResults& RasterResults
@@ -3869,10 +3871,10 @@ void DrawBasePass(
 	checkSlow(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
 
 	LLM_SCOPE(ELLMTag::Nanite);
-	SCOPED_DRAW_EVENT(RHICmdList, NaniteBasePass);
-	SCOPED_GPU_STAT(RHICmdList, NaniteMaterials);
+	RDG_EVENT_SCOPE(GraphBuilder, "NaniteBasePass");
+	RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteMaterials);
 
-	FSceneRenderTargets& SceneTargets = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneTargets = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
 	const ENaniteMeshPass::Type MeshPass = ENaniteMeshPass::BasePass;
 
 	const int32 ViewWidth		= View.ViewRect.Max.X - View.ViewRect.Min.X;
@@ -3882,14 +3884,10 @@ void DrawBasePass(
 	TRefCountPtr<IPooledRenderTarget> DebugVisualizationOutput;
 	TRefCountPtr<IPooledRenderTarget> MaterialDepthOutput; // Only used for visualizing material depth export
 
-	FRDGBuilder GraphBuilder(RHICmdList);
-
-	FRDGTextureRef SceneDepth = GraphBuilder.RegisterExternalTexture(SceneTargets.SceneDepthZ, TEXT("SceneDepth"));
-
 	if (UseComputeDepthExport())
 	{
 		// TODO: Force decompress depth buffer. This is a workaround for current lack of decompression support in the RHI when binding a compressed resource as UAV.
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, SceneTargets.SceneDepthZ->GetRenderTargetItem().TargetableTexture);
+		// RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, SceneTargets.SceneDepthZ->GetRenderTargetItem().TargetableTexture);
 	}
 	else if (GNaniteMaterialCulling == 1 || GNaniteMaterialCulling == 2)
 	{
@@ -3901,18 +3899,17 @@ void DrawBasePass(
 	}
 
 	int32 VelocityRTIndex = -1;
-	int32 TangentRTIndex = -1;
 	FRenderTargetBinding RenderTargets[MaxSimultaneousRenderTargets] = {};
-	int32 NumMRTs = SceneTargets.GetGBufferRenderTargets(GraphBuilder, ERenderTargetLoadAction::ELoad, RenderTargets, VelocityRTIndex, TangentRTIndex);
+	int32 NumMRTs = SceneTargets.GetGBufferRenderTargets(GraphBuilder, ERenderTargetLoadAction::ELoad, RenderTargets, VelocityRTIndex);
 
-	FRDGTextureRef VisBuffer64		= RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.VisBuffer64,		GSystemTextures.BlackDummy, TEXT("VisBuffer64"));
-	FRDGTextureRef DbgBuffer64		= RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.DbgBuffer64,		GSystemTextures.BlackDummy, TEXT("DbgBuffer64"));
-	FRDGTextureRef DbgBuffer32		= RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.DbgBuffer32,		GSystemTextures.BlackDummy, TEXT("DbgBuffer32"));
+	FRDGTextureRef VisBuffer64		= RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.VisBuffer64,		GSystemTextures.BlackDummy);
+	FRDGTextureRef DbgBuffer64		= RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.DbgBuffer64,		GSystemTextures.BlackDummy);
+	FRDGTextureRef DbgBuffer32		= RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.DbgBuffer32,		GSystemTextures.BlackDummy);
 	FRDGTextureRef MaterialDepth	= SceneDepth;
 #if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-	FRDGBufferRef InstanceDynamicData	= GraphBuilder.RegisterExternalBuffer(RasterResults.InstanceDynamicData,	TEXT("InstanceDynamicData"));
+	FRDGBufferRef InstanceDynamicData	= GraphBuilder.RegisterExternalBuffer(RasterResults.InstanceDynamicData);
 #endif
-	FRDGBufferRef VisibleClustersSWHW	= GraphBuilder.RegisterExternalBuffer(RasterResults.VisibleClustersSWHW,	TEXT("VisibleClustersSWHW"));
+	FRDGBufferRef VisibleClustersSWHW	= GraphBuilder.RegisterExternalBuffer(RasterResults.VisibleClustersSWHW);
 
 	const bool b32BitMaskCulling = (GNaniteMaterialCulling == 1 || GNaniteMaterialCulling == 2);
 
@@ -3924,7 +3921,7 @@ void DrawBasePass(
 	// If that's not used, then initialize all materials to visible.
 	AddClearUAVPass(GraphBuilder, VisibleMaterialsUAV, 0);
 
-	FRDGTextureDesc MaterialRangeDesc = FRDGTextureDesc::Create2DDesc(FMath::DivideAndRoundUp(ViewSize, { 64, 64 }), PF_R32G32_UINT, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_UAV, false);
+	FRDGTextureDesc MaterialRangeDesc = FRDGTextureDesc::Create2D(FMath::DivideAndRoundUp(ViewSize, { 64, 64 }), PF_R32G32_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
 	FRDGTextureRef  MaterialRange = GraphBuilder.CreateTexture(MaterialRangeDesc, TEXT("NaniteMaterialRange"));
 	FRDGTextureUAVRef  MaterialRangeUAV = GraphBuilder.CreateUAV(MaterialRange);
 	FRDGTextureSRVDesc MaterialRangeSRVDesc = FRDGTextureSRVDesc::Create(MaterialRange);
@@ -3945,13 +3942,11 @@ void DrawBasePass(
 #else
 		const FClearValueBinding MaterialDepthClear = FClearValueBinding::None; // Cleared explicitly in compute pass
 #endif
-		FRDGTextureDesc MaterialDepthDesc = FRDGTextureDesc::Create2DDesc(
+		FRDGTextureDesc MaterialDepthDesc = FRDGTextureDesc::Create2D(
 			SceneTargets.GetBufferSizeXY(),
 			PF_DepthStencil,
 			MaterialDepthClear,
-			TexCreate_None,
-			TexCreate_DepthStencilTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead | TexCreate_UAV,
-			false);
+			TexCreate_DepthStencilTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead | TexCreate_UAV);
 
 		MaterialDepth = GraphBuilder.CreateTexture(MaterialDepthDesc, TEXT("MaterialDepth"));
 
@@ -4132,6 +4127,7 @@ void DrawBasePass(
 		}
 
 		PassParameters->View = View.ViewUniformBuffer; // To get VTFeedbackBuffer
+		PassParameters->BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, nullptr, nullptr, 0);
 
 		switch (GNaniteMaterialCulling)
 		{
@@ -4299,17 +4295,13 @@ void DrawBasePass(
 		// TODO: Don't currently support offset views.
 		checkf(View.ViewRect.Min.X == 0 && View.ViewRect.Min.Y == 0, TEXT("Viewport offset support is not implemented."));
 
-		// TODO: Hook up to RDG pass
-		SCOPED_GPU_STAT(RHICmdList, NaniteDebug);
+		RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteDebug);
 
-		FRDGTextureDesc DebugOutputDesc = FRDGTextureDesc::Create2DDesc(
+		FRDGTextureDesc DebugOutputDesc = FRDGTextureDesc::Create2D(
 			View.ViewRect.Max,
 			PF_A32B32G32R32F,
 			FClearValueBinding::None,
-			TexCreate_None,
-			TexCreate_ShaderResource | TexCreate_UAV,
-			false);
-		DebugOutputDesc.DebugName = TEXT("NaniteDebug");
+			TexCreate_ShaderResource | TexCreate_UAV);
 
 		FRDGTextureRef DebugOutput = GraphBuilder.CreateTexture(
 			DebugOutputDesc,
@@ -4350,7 +4342,7 @@ void DrawBasePass(
 			FComputeShaderUtils::GetGroupCount(ViewSize, 8)
 		);
 
-		GraphBuilder.QueueTextureExtraction(DebugOutput, &DebugVisualizationOutput);
+		ConvertToExternalTexture(GraphBuilder, DebugOutput, DebugVisualizationOutput);
 	}
 
 	// Extract the textures to ensure RDG transitions them to readable as they exit the graph.
@@ -4361,12 +4353,11 @@ void DrawBasePass(
 			GNaniteDebugVisualize == VISUALIZE_MAT_HTILE_DELTAZ ||
 			GNaniteDebugVisualize == VISUALIZE_MAT_HTILE_ZMASK)
 		{
-			GraphBuilder.QueueTextureExtraction(MaterialDepth, &MaterialDepthOutput);
+			ConvertToExternalTexture(GraphBuilder, MaterialDepth, MaterialDepthOutput);
 		}
 	}
 
-	GraphBuilder.Execute();
-
+#if 0 // Still needed?
 	// TODO hack to enable triangle view in test mode
 	if (DebugVisualizationOutput)
 	{
@@ -4375,11 +4366,12 @@ void DrawBasePass(
 
 	// Scene depth buffer will be rendered to next, so we need to explicitly put it into depth write state.
 	RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToGfx, SceneTargets.SceneDepthZ->GetRenderTargetItem().UAV);
+#endif
 
 	if (GRHISupportsResummarizeHTile && GNaniteResummarizeHTile != 0 && !UseComputeDepthExport())
 	{
 		// Resummarize HTile meta data if the RHI supports it and the compute depth export path isn't active.
-		RHICmdList.ResummarizeHTile(SceneTargets.GetSceneDepthSurface());
+		AddResummarizeHTilePass(GraphBuilder, SceneDepth);
 	}
 
 	// Start a new graph builder (needed after explicitly inlining the resummarize depth command above)
@@ -4406,43 +4398,36 @@ void DrawBasePass(
 
 		if (HTileBufferRef != nullptr)
 		{
-			//TODO  - link errors.
-			//SCOPED_GPU_STAT(RHICmdList, NaniteDebug);
+			RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteDebug);
 
-			// TODO: Make this inline inside GraphBuilder instead of a new RDG instance.
-			FRDGBuilder GraphBuilder2(RHICmdList);
-
-			FRDGTextureRef DebugOutput = GraphBuilder2.CreateTexture(
-				FRDGTextureDesc::Create2DDesc(
+			FRDGTextureRef DebugOutput = GraphBuilder.CreateTexture(
+				FRDGTextureDesc::Create2D(
 					SceneTargets.GetBufferSizeXY(),
 					PF_A32B32G32R32F,
 					FClearValueBinding::None,
-					TexCreate_None,
-					TexCreate_ShaderResource | TexCreate_UAV,
-					false),
+					TexCreate_ShaderResource | TexCreate_UAV),
 				TEXT("NaniteDebug"));
 
-			FHTileVisualizeCS::FParameters* PassParameters = GraphBuilder2.AllocParameters<FHTileVisualizeCS::FParameters>();
+			FHTileVisualizeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHTileVisualizeCS::FParameters>();
 
 			const uint32 PlatformConfig = 0; // TODO: Platform config from depth target, queried from RHI
 			const uint32 PixelsWide = uint32(ViewSize.X);
 
 			PassParameters->HTileBuffer  = HTileBufferRef;
-			PassParameters->HTileDisplay = GraphBuilder2.CreateUAV(DebugOutput);
+			PassParameters->HTileDisplay = GraphBuilder.CreateUAV(DebugOutput);
 			PassParameters->HTileConfig  = FIntVector4(PlatformConfig, PixelsWide, GNaniteDebugVisualize, 0);
 
 			auto ComputeShader = View.ShaderMap->GetShader<FHTileVisualizeCS>();
 
 			FComputeShaderUtils::AddPass(
-				GraphBuilder2,
+				GraphBuilder,
 				RDG_EVENT_NAME("HTileVisualize"),
 				ComputeShader,
 				PassParameters,
 				FComputeShaderUtils::GetGroupCount(ViewSize, 8)
 			);
 
-			GraphBuilder2.QueueTextureExtraction(DebugOutput, &DebugVisualizationOutput);
-			GraphBuilder2.Execute();
+			ConvertToExternalTexture(GraphBuilder, DebugOutput, DebugVisualizationOutput);
 		}
 	}
 }
@@ -4483,9 +4468,9 @@ void DrawLumenMeshCapturePass(
 	LLM_SCOPE(ELLMTag::Nanite);
 	RDG_EVENT_SCOPE( GraphBuilder, "Nanite::DrawLumenMeshCapturePass" );
 
-	FRDGTextureRef Color0			= RegisterExternalTextureWithFallback(GraphBuilder, Color0RT, GSystemTextures.BlackDummy, TEXT("CardColor0"));
-	FRDGTextureRef Color1			= RegisterExternalTextureWithFallback(GraphBuilder, Color1RT, GSystemTextures.BlackDummy, TEXT("CardColor1"));
-	FRDGTextureRef CardDepth		= RegisterExternalTextureWithFallback(GraphBuilder, DepthRT, GSystemTextures.BlackDummy, TEXT("CardDepth"));
+	FRDGTextureRef Color0			= RegisterExternalTextureWithFallback(GraphBuilder, Color0RT, GSystemTextures.BlackDummy);
+	FRDGTextureRef Color1			= RegisterExternalTextureWithFallback(GraphBuilder, Color1RT, GSystemTextures.BlackDummy);
+	FRDGTextureRef CardDepth		= RegisterExternalTextureWithFallback(GraphBuilder, DepthRT, GSystemTextures.BlackDummy);
 	FRDGTextureRef MaterialDepth	= CardDepth;
 	FRDGTextureRef Black			= GraphBuilder.RegisterExternalTexture( GSystemTextures.BlackDummy, TEXT("Black") );
 
@@ -4800,8 +4785,8 @@ void GetEditorSelectionPassParameters(
 
 	LLM_SCOPE(ELLMTag::Nanite);
 
-	FRDGTextureRef VisBuffer64 = RegisterExternalTextureWithFallback(GraphBuilder, NaniteRasterResults->VisBuffer64, GSystemTextures.BlackDummy, TEXT("VisBuffer64"));
-	FRDGBufferRef VisibleClustersSWHW = GraphBuilder.RegisterExternalBuffer(NaniteRasterResults->VisibleClustersSWHW, TEXT("VisibleClustersSWHW"));
+	FRDGTextureRef VisBuffer64 = RegisterExternalTextureWithFallback(GraphBuilder, NaniteRasterResults->VisBuffer64, GSystemTextures.BlackDummy);
+	FRDGBufferRef VisibleClustersSWHW = GraphBuilder.RegisterExternalBuffer(NaniteRasterResults->VisibleClustersSWHW);
 
 	OutPassParameters->View						= View.ViewUniformBuffer;
 	OutPassParameters->VisibleClustersSWHW		= GraphBuilder.CreateSRV(VisibleClustersSWHW);
@@ -4868,8 +4853,8 @@ void GetEditorVisualizeLevelInstancePassParameters(
 
 	LLM_SCOPE(ELLMTag::Nanite);
 
-	FRDGTextureRef VisBuffer64 = RegisterExternalTextureWithFallback(GraphBuilder, NaniteRasterResults->VisBuffer64, GSystemTextures.BlackDummy, TEXT("VisBuffer64"));
-	FRDGBufferRef VisibleClustersSWHW = GraphBuilder.RegisterExternalBuffer(NaniteRasterResults->VisibleClustersSWHW, TEXT("VisibleClustersSWHW"));
+	FRDGTextureRef VisBuffer64 = RegisterExternalTextureWithFallback(GraphBuilder, NaniteRasterResults->VisBuffer64, GSystemTextures.BlackDummy);
+	FRDGBufferRef VisibleClustersSWHW = GraphBuilder.RegisterExternalBuffer(NaniteRasterResults->VisibleClustersSWHW);
 
 	OutPassParameters->View = View.ViewUniformBuffer;
 	OutPassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(VisibleClustersSWHW);

@@ -140,15 +140,16 @@ namespace GeometryCollectionTest
 			RestCollection->ParentTransforms(ParentIndex, ChildIndex);
 		}
 
-		TSharedPtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = MakeShared<Chaos::FChaosPhysicsMaterial>();
-		InitMaterialToZero(PhysicalMaterial.Get());
+		Chaos::FMaterialHandle NewHandle = Chaos::FPhysicalMaterialManager::Get().Create();
+		InitMaterialToZero(NewHandle.Get());
+		Chaos::FPhysicalMaterialManager::Get().UpdateMaterial(NewHandle);
 
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = GeometryCollectionToGeometryDynamicCollection(RestCollection.Get(), Params.DynamicState);
 
 		FSimulationParameters SimulationParams;
 		{
 			SimulationParams.RestCollection = RestCollection.Get();
-			SimulationParams.PhysicalMaterial = MakeSerializable(PhysicalMaterial);
+			SimulationParams.PhysicalMaterialHandle = NewHandle;
 			SimulationParams.Shared.Mass = Params.Mass;
 			SimulationParams.Shared.bMassAsDensity = Params.bMassAsDensity;
 			SimulationParams.Shared.SizeSpecificData[0].CollisionType = Params.CollisionType;
@@ -182,8 +183,8 @@ namespace GeometryCollectionTest
 		SimFilterData.Word1 = 0xFFFF; // this body channel
 		SimFilterData.Word3 = 0xFFFF; // collision candidate channels
 
-		TGeometryCollectionPhysicsProxy<Traits>* PhysObject =
-			new TGeometryCollectionPhysicsProxy<Traits>(
+		FGeometryCollectionPhysicsProxy* PhysObject =
+			new FGeometryCollectionPhysicsProxy(
 				nullptr,			// UObject owner
 				*DynamicCollection, // Game thread collection
 				SimulationParams,
@@ -192,7 +193,7 @@ namespace GeometryCollectionTest
 				nullptr,			// Init func
 				nullptr,			// Cache sync func
 				nullptr);			// Final sync func
-		return new TGeometryCollectionWrapper<Traits>(PhysicalMaterial, RestCollection, DynamicCollection, PhysObject);
+		return new TGeometryCollectionWrapper<Traits>(RestCollection, DynamicCollection, PhysObject);
 	}
 
 	template <>
@@ -283,10 +284,16 @@ namespace GeometryCollectionTest
 			{
 				Solver->UnregisterObject(BCW->Particle);
 			}
-			delete Object;
 		}
 		
 		FChaosSolversModule::GetModule()->DestroySolver(Solver);
+
+		//don't delete wrapper objects until solver is gone.
+		//can have callbacks that rely on wrapper objects
+		for (WrapperBase* Object : PhysicsObjects)
+		{
+			delete Object;
+		}
 	}
 
 	template<typename Traits>
@@ -298,8 +305,6 @@ namespace GeometryCollectionTest
 	template<typename Traits>
 	void TFramework<Traits>::Initialize()
 	{
-		Solver->SetEnabled(true);
-
 		for (WrapperBase* Object : PhysicsObjects)
 		{
 			if (TGeometryCollectionWrapper<Traits>* GCW = Object->As<TGeometryCollectionWrapper<Traits>>())
@@ -320,9 +325,6 @@ namespace GeometryCollectionTest
 	{
 		Solver->SyncEvents_GameThread();
 		Solver->AdvanceAndDispatch_External(Dt);
-
-		Solver->BufferPhysicsResults();
-		Solver->FlipBuffers();
 		Solver->UpdateGameThreadStructures();
 	}
 	

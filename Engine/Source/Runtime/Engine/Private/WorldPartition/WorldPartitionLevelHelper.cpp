@@ -79,7 +79,7 @@ ULevel* FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(const UWorld*
 	// Create Level package
 	FString PackageName = FPackageName::ObjectPathToPackageName(InWorldAssetName);
 	check(!FindObject<UPackage>(nullptr, *PackageName));
-	UPackage* NewPackage = CreatePackage(nullptr, *PackageName);
+	UPackage* NewPackage = CreatePackage(*PackageName);
 	NewPackage->SetPackageFlags(PKG_NewlyCreated);
 	if (InWorld->IsPlayInEditor())
 	{

@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "MovieSceneSection.h"
-#include "MovieSceneStringChannel.h"
+#include "Channels/MovieSceneStringChannel.h"
 #include "MovieSceneStringSection.generated.h"
 
 /**

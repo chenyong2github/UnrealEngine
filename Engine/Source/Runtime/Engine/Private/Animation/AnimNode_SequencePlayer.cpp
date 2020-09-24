@@ -108,7 +108,8 @@ void FAnimNode_SequencePlayer::Evaluate_AnyThread(FPoseContext& Output)
 			Output.LogMessage(EMessageSeverity::Warning, Message);
 		}
 
-		Sequence->GetAnimationPose(Output.Pose, Output.Curve, FAnimExtractContext(InternalTimeAccumulator, Output.AnimInstanceProxy->ShouldExtractRootMotion()));
+		FAnimationPoseData AnimationPoseData(Output);
+		Sequence->GetAnimationPose(AnimationPoseData, FAnimExtractContext(InternalTimeAccumulator, Output.AnimInstanceProxy->ShouldExtractRootMotion()));
 	}
 	else
 	{

@@ -11,6 +11,14 @@ class IHttpRouter : public TSharedFromThis<IHttpRouter>
 public:
 
 	/**
+	 * Query the router with a request.
+	 * @param Request the request to route.
+	 * @param OnComplete the callback called when 
+	 * @return	 An FHttpRouteHandle on success, nullptr otherwise.
+	 */
+	virtual bool Query(const TSharedPtr<FHttpServerRequest>& Request, const FHttpResultCallback& OnProcessingComplete) = 0;
+
+	/**
 	 * Binds the caller-supplied Uri to the caller-supplied handler
 	 *  @param  HttpPath   The respective http path to bind
 	 *  @param  HttpVerbs  The respective HTTP verbs to bind

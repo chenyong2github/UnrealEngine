@@ -4,17 +4,19 @@
 
 namespace UE
 {
-	bool RangesContain(const TSet<TRange<double>>& Ranges, const double Time)
+namespace MotionTrailEditor
+{
+
+bool RangesContain(const TSet<TRange<double>>& Ranges, const double Time)
+{
+	for (const TRange<double>& Range : Ranges)
 	{
-		for (const TRange<double>& Range : Ranges)
+		if (Range.Contains(Time))
 		{
-			if (Range.Contains(Time))
-			{
-				return true;
-			}
+			return true;
 		}
-		return false;
 	}
+	return false;
 }
 
 void FTrajectoryCache::UpdateCacheTimes(FTrailEvaluateTimes& InOutEvaluateTimes)
@@ -61,12 +63,18 @@ void FTrajectoryCache::UpdateCacheTimes(FTrailEvaluateTimes& InOutEvaluateTimes)
 		CoveredRanges.Remove(RangeToRemove);
 	}
 
-	const int32 BeginOff = int32((EvalRange.GetLowerBoundValue() - InOutEvaluateTimes.Range.GetLowerBoundValue()) / Spacing);
-	const int32 EndOff = FMath::Max(int32((InOutEvaluateTimes.Range.GetUpperBoundValue() - EvalRange.GetUpperBoundValue()) / Spacing), 0);
-
-	TArrayView<double> NewEvalTimes = InOutEvaluateTimes.EvalTimes.Slice(BeginOff, InOutEvaluateTimes.EvalTimes.Num() - EndOff - BeginOff);
-
-	InOutEvaluateTimes = FTrailEvaluateTimes(NewEvalTimes, Spacing);
+	const int32 BeginOff = int32(((EvalRange.GetLowerBoundValue() - InOutEvaluateTimes.Range.GetLowerBoundValue()) / Spacing) - KINDA_SMALL_NUMBER);
+	const int32 EndOff = FMath::Max(int32(((InOutEvaluateTimes.Range.GetUpperBoundValue() - EvalRange.GetUpperBoundValue()) / Spacing) - KINDA_SMALL_NUMBER), 0);
+	const int32 NumTimes = InOutEvaluateTimes.EvalTimes.Num() - EndOff - BeginOff;
+	if (NumTimes == 0)
+	{
+		InOutEvaluateTimes = FTrailEvaluateTimes();
+	}
+	else
+	{
+		TArrayView<double> NewEvalTimes = InOutEvaluateTimes.EvalTimes.Slice(BeginOff, NumTimes);
+		InOutEvaluateTimes = FTrailEvaluateTimes(NewEvalTimes, Spacing);
+	}
 }
 
 FTransform FArrayTrajectoryCache::GetInterp(const double InTime) const
@@ -91,11 +99,16 @@ TArray<double> FArrayTrajectoryCache::GetAllTimesInRange(const TRange<double>& I
 
 	TArray<double> AllTimesInRange;
 	AllTimesInRange.Reserve(int(GenRange.Size<double>() / Spacing) + 1);
-	const double FirstTick = FMath::FloorToDouble((GenRange.GetLowerBoundValue()) / Spacing) * Spacing;
-	for (double TickItr = FirstTick; TickItr < GenRange.GetUpperBoundValue(); TickItr += Spacing)
+	const double FirstTick = FMath::FloorToDouble((GenRange.GetLowerBoundValue() / Spacing) + KINDA_SMALL_NUMBER) * Spacing;
+	for (double TickItr = FirstTick + KINDA_SMALL_NUMBER; TickItr < GenRange.GetUpperBoundValue(); TickItr += Spacing)
 	{
 		AllTimesInRange.Add(TickItr);
 	}
 
+	AllTimesInRange.Add(GenRange.GetUpperBoundValue());
+
 	return AllTimesInRange;
 }
+
+} // namespace MovieScene
+} // namespace UE

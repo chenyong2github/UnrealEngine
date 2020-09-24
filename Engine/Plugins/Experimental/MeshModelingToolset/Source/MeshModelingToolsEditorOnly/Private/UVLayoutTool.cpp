@@ -114,6 +114,10 @@ void UUVLayoutTool::Setup()
 	}
 
 	UpdateVisualization();
+
+	GetToolManager()->DisplayMessage(LOCTEXT("OnStartUVLayoutTool", 
+		"Transform/Rotate/Scale existing UV Islands/Shells/Charts using various strategies"),
+		EToolMessageLevel::UserNotification);
 }
 
 

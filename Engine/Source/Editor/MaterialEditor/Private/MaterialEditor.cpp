@@ -5,6 +5,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "AI/NavigationSystemBase.h"
 #include "Engine/Engine.h"
+#include "EngineModule.h"
 #include "Misc/MessageDialog.h"
 #include "Modules/ModuleManager.h"
 #include "SlateOptMacros.h"
@@ -300,14 +301,10 @@ void FMaterialEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& I
 		.SetGroup(WorkspaceMenuCategoryRef)
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
 
-	IMaterialEditorModule* MaterialEditorModule = &FModuleManager::LoadModuleChecked<IMaterialEditorModule>("MaterialEditor");
-	if (MaterialEditorModule->MaterialLayersEnabled())
-	{
-		InTabManager->RegisterTabSpawner(LayerPropertiesTabId, FOnSpawnTab::CreateSP(this, &FMaterialEditor::SpawnTab_LayerProperties))
-			.SetDisplayName(LOCTEXT("LayerPropertiesTab", "Layer Parameters"))
-			.SetGroup(WorkspaceMenuCategoryRef)
-			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Layers"));
-	}
+	InTabManager->RegisterTabSpawner(LayerPropertiesTabId, FOnSpawnTab::CreateSP(this, &FMaterialEditor::SpawnTab_LayerProperties))
+		.SetDisplayName(LOCTEXT("LayerPropertiesTab", "Layer Parameters"))
+		.SetGroup(WorkspaceMenuCategoryRef)
+		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Layers"));
 
 	MaterialStatsManager->RegisterTabs();
 
@@ -842,6 +839,7 @@ void FMaterialEditor::GetAllMaterialExpressionGroups(TArray<FString>* OutGroups)
 		UMaterialExpression* MaterialExpression = Material->Expressions[ MaterialExpressionIndex ];
 		UMaterialExpressionParameter* Param = Cast<UMaterialExpressionParameter>(MaterialExpression);
 		UMaterialExpressionTextureSampleParameter* TextureS = Cast<UMaterialExpressionTextureSampleParameter>(MaterialExpression);
+		UMaterialExpressionRuntimeVirtualTextureSampleParameter* RVTS = Cast<UMaterialExpressionRuntimeVirtualTextureSampleParameter>(MaterialExpression);
 		UMaterialExpressionFontSampleParameter* FontS = Cast<UMaterialExpressionFontSampleParameter>(MaterialExpression);
 		if (Param)
 		{
@@ -874,6 +872,23 @@ void FMaterialEditor::GetAllMaterialExpressionGroups(TArray<FString>* OutGroups)
 				{
 					return GroupName == DataElement.GroupName;
 				});
+				UpdatedGroups.Add(FParameterGroupData(GroupName, ParameterGroupDataElement->GroupSortPriority));
+			}
+		}
+		else if (RVTS)
+		{
+			const FString& GroupName = RVTS->Group.ToString();
+			OutGroups->AddUnique(GroupName);
+			if (Material->AttemptInsertNewGroupName(GroupName))
+			{
+				UpdatedGroups.Add(FParameterGroupData(GroupName, 0));
+			}
+			else
+			{
+				FParameterGroupData* ParameterGroupDataElement = Material->ParameterGroupData.FindByPredicate([&GroupName](const FParameterGroupData& DataElement)
+					{
+						return GroupName == DataElement.GroupName;
+					});
 				UpdatedGroups.Add(FParameterGroupData(GroupName, ParameterGroupDataElement->GroupSortPriority));
 			}
 		}
@@ -969,6 +984,11 @@ void FMaterialEditor::CreateInternalWidgets()
 		LayoutExpressionParameterDetails
 		);
 
+	MaterialDetailsView->RegisterInstancedCustomPropertyLayout(
+		UMaterialExpressionRuntimeVirtualTextureSampleParameter::StaticClass(),
+		LayoutExpressionParameterDetails
+		);
+
 	FOnGetDetailCustomizationInstance LayoutLayerExpressionParameterDetails = FOnGetDetailCustomizationInstance::CreateStatic(
 		&FMaterialExpressionLayersParameterDetails::MakeInstance, FOnCollectParameterGroups::CreateSP(this, &FMaterialEditor::GetAllMaterialExpressionGroups));
 
@@ -1009,13 +1029,9 @@ void FMaterialEditor::CreateInternalWidgets()
 	Generator->OnRowsRefreshed().AddSP(this, &FMaterialEditor::GeneratorRowsRefreshed);
 	MaterialCustomPrimitiveDataWidget = SNew(SMaterialCustomPrimitiveDataPanel, MaterialEditorInstance);
 
-	IMaterialEditorModule* MaterialEditorModule = &FModuleManager::LoadModuleChecked<IMaterialEditorModule>("MaterialEditor");
-	if (MaterialEditorModule->MaterialLayersEnabled())
-	{
-		MaterialLayersFunctionsInstance = SNew(SMaterialLayersFunctionsMaterialWrapper)
-			.InMaterialEditorInstance(MaterialEditorInstance)
-			.InGenerator(Generator);
-	}
+	MaterialLayersFunctionsInstance = SNew(SMaterialLayersFunctionsMaterialWrapper)
+		.InMaterialEditorInstance(MaterialEditorInstance)
+		.InGenerator(Generator);
 
 	Palette = SNew(SMaterialPalette, SharedThis(this));
 
@@ -3757,6 +3773,8 @@ void FMaterialEditor::OnVectorParameterDefaultChanged(class UMaterialExpression*
 
 		OverriddenVectorParametersToRevert.AddUnique(ParameterName);
 	}
+
+	OnParameterDefaultChanged();
 }
 
 void FMaterialEditor::SetScalarParameterDefaultOnDependentMaterials(FName ParameterName, float Value, bool bOverride)
@@ -3832,6 +3850,20 @@ void FMaterialEditor::OnScalarParameterDefaultChanged(class UMaterialExpression*
 		SetScalarParameterDefaultOnDependentMaterials(ParameterName, Value, true);
 
 		OverriddenScalarParametersToRevert.AddUnique(ParameterName);
+	}
+
+	OnParameterDefaultChanged();
+}
+
+void FMaterialEditor::OnParameterDefaultChanged()
+{
+	// Brute force all flush virtual textures if this material writes to any runtime virtual texture.
+	if (Material->MaterialDomain == EMaterialDomain::MD_RuntimeVirtualTexture || Material->GetCachedExpressionData().bHasRuntimeVirtualTextureOutput)
+	{
+		ENQUEUE_RENDER_COMMAND(FlushVTCommand)([](FRHICommandListImmediate& RHICmdList)
+		{
+			GetRendererModule().FlushVirtualTextureCache(); 
+		});
 	}
 }
 

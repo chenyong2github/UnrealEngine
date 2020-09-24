@@ -77,9 +77,9 @@ bool FCameraShakeTrackEditor::HandleAssetAdded(UObject* Asset, const FGuid& Targ
 	if (TargetObjectGuid.IsValid())
 	{
 		UBlueprint* const SelectedObject = dynamic_cast<UBlueprint*>(Asset);
-		if (SelectedObject && SelectedObject->GeneratedClass && SelectedObject->GeneratedClass->IsChildOf(UCameraShake::StaticClass()))
+		if (SelectedObject && SelectedObject->GeneratedClass && SelectedObject->GeneratedClass->IsChildOf(UCameraShakeBase::StaticClass()))
 		{
-			TSubclassOf<UCameraShake> const ShakeClass = *(SelectedObject->GeneratedClass);
+			TSubclassOf<UCameraShakeBase> const ShakeClass = *(SelectedObject->GeneratedClass);
 
 			TArray<TWeakObjectPtr<>> OutObjects;
 			for (TWeakObjectPtr<> Object : GetSequencer()->FindObjectsInCurrentSequence(TargetObjectGuid))
@@ -183,9 +183,9 @@ void FCameraShakeTrackEditor::OnCameraShakeAssetSelected(const FAssetData& Asset
 	FSlateApplication::Get().DismissAllMenus();
 
 	UBlueprint* const SelectedObject = dynamic_cast<UBlueprint*>(AssetData.GetAsset());
-	if (SelectedObject && SelectedObject->GeneratedClass && SelectedObject->GeneratedClass->IsChildOf(UCameraShake::StaticClass()))
+	if (SelectedObject && SelectedObject->GeneratedClass && SelectedObject->GeneratedClass->IsChildOf(UCameraShakeBase::StaticClass()))
 	{
-		TSubclassOf<UCameraShake> const ShakeClass = *(SelectedObject->GeneratedClass);
+		TSubclassOf<UCameraShakeBase> const ShakeClass = *(SelectedObject->GeneratedClass);
 
 		TArray<TWeakObjectPtr<>> OutObjects;
 		for (FGuid ObjectBinding : ObjectBindings)
@@ -203,7 +203,7 @@ void FCameraShakeTrackEditor::OnCameraShakeAssetSelected(const FAssetData& Asset
 }
 
 
-FKeyPropertyResult FCameraShakeTrackEditor::AddKeyInternal(FFrameNumber KeyTime, const TArray<TWeakObjectPtr<UObject>> Objects, TSubclassOf<UCameraShake> ShakeClass)
+FKeyPropertyResult FCameraShakeTrackEditor::AddKeyInternal(FFrameNumber KeyTime, const TArray<TWeakObjectPtr<UObject>> Objects, TSubclassOf<UCameraShakeBase> ShakeClass)
 {
 	FKeyPropertyResult KeyPropertyResult;
 

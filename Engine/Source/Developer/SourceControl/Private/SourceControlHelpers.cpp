@@ -640,6 +640,10 @@ bool USourceControlHelpers::RevertFile(const FString& InFile, bool bSilent)
 
 bool USourceControlHelpers::RevertFiles(const TArray<FString>& InFiles,	bool bSilent)
 {
+	// Determine file types and ensure they are in form source control wants
+	TArray<FString> FilePaths;
+	SourceControlHelpersInternal::ConvertFilesToQualifiedPaths(InFiles, FilePaths, bSilent);
+
 	ISourceControlProvider* Provider = SourceControlHelpersInternal::VerifySourceControl(bSilent);
 
 	if (!Provider)
@@ -651,7 +655,7 @@ bool USourceControlHelpers::RevertFiles(const TArray<FString>& InFiles,	bool bSi
 	// This multi-file version could be made similarly more sophisticated.
 
 	// Revert files regardless of whether they've had any changes made
-	ECommandResult::Type Result = Provider->Execute(ISourceControlOperation::Create<FRevert>(), InFiles);
+	ECommandResult::Type Result = Provider->Execute(ISourceControlOperation::Create<FRevert>(), FilePaths);
 
 	return Result == ECommandResult::Succeeded;
 }
@@ -690,6 +694,10 @@ bool USourceControlHelpers::RevertUnchangedFile(const FString& InFile, bool bSil
 
 bool USourceControlHelpers::RevertUnchangedFiles(const TArray<FString>& InFiles, bool bSilent)
 {
+	// Determine file types and ensure they are in form source control wants
+	TArray<FString> FilePaths;
+	SourceControlHelpersInternal::ConvertFilesToQualifiedPaths(InFiles, FilePaths, bSilent);
+
 	ISourceControlProvider* Provider = SourceControlHelpersInternal::VerifySourceControl(bSilent);
 
 	if (!Provider)
@@ -701,7 +709,7 @@ bool USourceControlHelpers::RevertUnchangedFiles(const TArray<FString>& InFiles,
 	// This multi-file version could be made similarly more sophisticated.
 
 	// Only revert files if they haven't had any changes made
-	RevertUnchangedFiles(*Provider, InFiles);
+	RevertUnchangedFiles(*Provider, FilePaths);
 
 	// Assume it succeeded
 	return true;

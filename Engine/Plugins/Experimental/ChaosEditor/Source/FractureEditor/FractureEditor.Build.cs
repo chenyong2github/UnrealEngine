@@ -45,10 +45,10 @@ public class FractureEditor : ModuleRules
 				"EditorFramework",
 				"UnrealEd",
 				"LevelEditor",
-                "GeometryCollectionCore",
                 "GeometryCollectionEngine",
                 "GeometryCollectionEditor",
-				"PlanarCut"
+				"PlanarCut",
+				"Chaos"
 
 				// ... add private dependencies that you statically link with here ...	
 			}

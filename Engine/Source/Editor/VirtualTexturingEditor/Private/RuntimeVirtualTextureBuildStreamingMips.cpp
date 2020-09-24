@@ -39,18 +39,17 @@ namespace
 		//~ Begin FRenderResource Interface.
 		virtual void InitRHI() override
 		{
-			FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-
 			RenderTargets.Init(nullptr, NumLayers);
 			StagingTextures.Init(nullptr, NumLayers);
 
 			for (int32 Layer = 0; Layer < NumLayers; ++Layer)
 			{
 				FRHIResourceCreateInfo CreateInfo;
-				RenderTargets[Layer] = RHICmdList.CreateTexture2D(TileSize, TileSize, LayerFormats[Layer], 1, 1, TexCreate_RenderTargetable, CreateInfo);
-				StagingTextures[Layer] = RHICmdList.CreateTexture2D(TileSize, TileSize, LayerFormats[Layer], 1, 1, TexCreate_CPUReadback, CreateInfo);
+				RenderTargets[Layer] = RHICreateTexture2D(TileSize, TileSize, LayerFormats[Layer], 1, 1, TexCreate_RenderTargetable, CreateInfo);
+				StagingTextures[Layer] = RHICreateTexture2D(TileSize, TileSize, LayerFormats[Layer], 1, 1, TexCreate_CPUReadback, CreateInfo);
 			}
 
+			FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 			Fence = RHICmdList.CreateGPUFence(TEXT("Runtime Virtual Texture Build"));
 		}
 
@@ -63,10 +62,10 @@ namespace
 		//~ End FRenderResource Interface.
 
 		int32 GetNumLayers() const { return NumLayers; }
-		int32 GetTotalSizeBytes() const { return TotalSizeBytes; }
+		int64 GetTotalSizeBytes() const { return TotalSizeBytes; }
 
 		EPixelFormat GetLayerFormat(int32 Index) const { return LayerFormats[Index]; }
-		int32 GetLayerOffset(int32 Index) const { return LayerOffsets[Index]; }
+		int64 GetLayerOffset(int32 Index) const { return LayerOffsets[Index]; }
 
 		FRHITexture2D* GetRenderTarget(int32 Index) const { return Index < NumLayers ? RenderTargets[Index] : nullptr; }
 		FRHITexture2D* GetStagingTexture(int32 Index) const { return Index < NumLayers ? StagingTextures[Index] : nullptr; }
@@ -75,10 +74,10 @@ namespace
 	private:
 		int32 TileSize;
 		int32 NumLayers;
-		int32 TotalSizeBytes;
+		int64 TotalSizeBytes;
 
 		TArray<EPixelFormat> LayerFormats;
-		TArray<int32> LayerOffsets;
+		TArray<int64> LayerOffsets;
 
 		TArray<FTexture2DRHIRef> RenderTargets;
 		TArray<FTexture2DRHIRef> StagingTextures;
@@ -92,7 +91,7 @@ namespace
 		for (int32 y = 0; y < TileSize; y++)
 		{
 			memcpy(
-				DestPixels + DestStride * (DestPos[1] + y) + DestPos[0],
+				DestPixels + (SIZE_T)DestStride * (SIZE_T)(DestPos[1] + y) + DestPos[0],
 				SrcPixels + SrcStride * y,
 				TileSize * sizeof(T));
 		}
@@ -150,7 +149,7 @@ namespace RuntimeVirtualTexture
 		const FBox Bounds = InComponent->Bounds.GetBox();
 
 		FVTProducerDescription VTDesc;
-		RuntimeVirtualTexture->GetProducerDescription(VTDesc, Transform);
+		RuntimeVirtualTexture->GetProducerDescription(VTDesc, URuntimeVirtualTexture::FInitSettings(), Transform);
 
 		const int32 TileSize = VTDesc.TileSize;
 		const int32 TileBorderSize = VTDesc.TileBorderSize;
@@ -222,7 +221,7 @@ namespace RuntimeVirtualTexture
 					// Transition render targets for writing
 					for (int32 Layer = 0; Layer < NumLayers; Layer++)
 					{
-						RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, RenderTileResources.GetRenderTarget(Layer));
+						RHICmdList.Transition(FRHITransitionInfo(RenderTileResources.GetRenderTarget(Layer), ERHIAccess::Unknown, ERHIAccess::RTV));
 					}
 
 					RuntimeVirtualTexture::FRenderPageBatchDesc Desc;
@@ -250,7 +249,7 @@ namespace RuntimeVirtualTexture
 					// Transition render targets for copying
 					for (int32 Layer = 0; Layer < NumLayers; Layer++)
 					{
-						RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, RenderTileResources.GetRenderTarget(Layer));
+						RHICmdList.Transition(FRHITransitionInfo(RenderTileResources.GetRenderTarget(Layer), ERHIAccess::RTV, ERHIAccess::SRVGraphics));
 					}
 
 					// Copy to staging
@@ -272,7 +271,7 @@ namespace RuntimeVirtualTexture
 						check(TilePixels != nullptr);
 						check(OutHeight == TileSize);
 
-						const int32 LayerOffset = RenderTileResources.GetLayerOffset(Layer);
+						const int64 LayerOffset = RenderTileResources.GetLayerOffset(Layer);
 						const EPixelFormat LayerFormat = RenderTileResources.GetLayerFormat(Layer);
 						const FIntPoint DestPos(TileX * TileSize, TileY * TileSize);
 

@@ -141,7 +141,7 @@ bool ShouldRenderRayTracingTranslucency(const FViewInfo& View)
 }
 #endif // RHI_RAYTRACING
 
-void FDeferredShadingSceneRenderer::RenderRayTracingTranslucency(FRHICommandListImmediate& RHICmdList)
+void FDeferredShadingSceneRenderer::RenderRayTracingTranslucency(FRDGBuilder& GraphBuilder, FRDGTextureMSAA SceneColorTexture)
 {
 	if (!ShouldRenderTranslucency(ETranslucencyPass::TPT_StandardTranslucency)
 		&& !ShouldRenderTranslucency(ETranslucencyPass::TPT_TranslucencyAfterDOF)
@@ -152,14 +152,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingTranslucency(FRHICommandList
 		return; // Early exit if nothing needs to be done.
 	}
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-
-	FRDGBuilder GraphBuilder(RHICmdList);
-
-	FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor(), TEXT("SceneColor"));
-
-	FSceneTextureParameters SceneTextures;
-	SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
+	AddResolveSceneColorPass(GraphBuilder, Views, SceneColorTexture);
 
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "RayTracingTranslucency");
@@ -167,9 +160,14 @@ void FDeferredShadingSceneRenderer::RenderRayTracingTranslucency(FRHICommandList
 
 		for (int32 ViewIndex = 0, Num = Views.Num(); ViewIndex < Num; ViewIndex++)
 		{
-			FViewInfo& View = Views[ViewIndex];
+			const FViewInfo& View = Views[ViewIndex];
 
-			const FScreenPassRenderTarget Output(SceneColorTexture, View.ViewRect, ERenderTargetLoadAction::ELoad);
+			if (!View.ShouldRenderView() || !ShouldRenderRayTracingTranslucency(View))
+			{
+				continue;
+			}
+
+			const FScreenPassRenderTarget Output(SceneColorTexture.Target, View.ViewRect, ERenderTargetLoadAction::ELoad);
 
 			//#dxr_todo: UE-72581 do not use reflections denoiser structs but separated ones
 			IScreenSpaceDenoiser::FReflectionsInputs DenoiserInputs;
@@ -187,9 +185,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingTranslucency(FRHICommandList
 		}
 	}
 
-	GraphBuilder.Execute();
-
-	ResolveSceneColor(RHICmdList);
+	AddResolveSceneColorPass(GraphBuilder, Views, SceneColorTexture);
 }
 
 #endif // RHI_RAYTRACING

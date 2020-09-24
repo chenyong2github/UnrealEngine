@@ -269,7 +269,10 @@ class UBlendSpaceBase : public UAnimationAsset, public IInterpolationIndexProvid
 	/**
 	 * BlendSpace Get Animation Pose function
 	 */
+	UE_DEPRECATED(4.26, "Use GetAnimationPose with other signature")
 	ENGINE_API void GetAnimationPose(TArray<FBlendSampleData>& BlendSampleDataCache, /*out*/ FCompactPose& OutPose, /*out*/ FBlendedCurve& OutCurve);
+	
+	ENGINE_API void GetAnimationPose(TArray<FBlendSampleData>& BlendSampleDataCache, /*out*/ FAnimationPoseData& OutAnimationPoseData);
 
 	/** Accessor for blend parameter **/
 	ENGINE_API const FBlendParameter& GetBlendParameter(const int32 Index) const;

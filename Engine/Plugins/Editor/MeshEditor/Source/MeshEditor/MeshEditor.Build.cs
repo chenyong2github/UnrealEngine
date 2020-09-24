@@ -28,7 +28,7 @@ namespace UnrealBuildTool.Rules
 					"LevelEditor",
                     "MeshBuilder",
                     "BlastAuthoring",
-                    "GeometryCollectionCore",
+					"Chaos",
                     "GeometryCollectionEngine",
                 }
             );

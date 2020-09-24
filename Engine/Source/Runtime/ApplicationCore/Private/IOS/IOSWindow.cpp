@@ -30,7 +30,6 @@ void FIOSWindow::Initialize( class FIOSApplication* const Application, const TSh
 	if(InParent.Get() != NULL)
 	{
 		dispatch_async(dispatch_get_main_queue(),^ {
-#ifdef __IPHONE_8_0
 			if ([UIAlertController class])
 			{
 				UIAlertController* AlertController = [UIAlertController alertControllerWithTitle:@""
@@ -47,20 +46,6 @@ void FIOSWindow::Initialize( class FIOSApplication* const Application, const TSh
 
 				[AlertController addAction : okAction];
 				[[IOSAppDelegate GetDelegate].IOSController presentViewController : AlertController animated : YES completion : nil];
-			}
-			else
-#endif
-			{
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_9_0
-				UIAlertView* AlertView = [[UIAlertView alloc] initWithTitle:@""
-											message:@"Error: Only one UIWindow may be created on iOS."
-											delegate:nil
-											cancelButtonTitle:NSLocalizedString(@"Ok", nil)
-											otherButtonTitles:nil];
-
-				[AlertView show];
-				[AlertView release];
-#endif
 			}
 		} );
 	}

@@ -13,7 +13,10 @@
 #include "Insights/Table/ViewModels/Table.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/Table/ViewModels/TreeNodeSorting.h"
+#include "Insights/TimingProfilerManager.h"
+#include "Insights/ViewModels/TimerButterflyAggregation.h"
 #include "Insights/ViewModels/TimersViewColumnFactory.h"
+#include "Insights/Widgets/SAggregatorStatus.h"
 #include "Insights/Widgets/STimersViewTooltip.h"
 #include "Insights/Widgets/STimerTableRow.h"
 
@@ -51,6 +54,8 @@ void STimerTreeView::Construct(const FArguments& InArgs, const FText& InViewName
 {
 	ViewName = InViewName;
 
+	TSharedRef<Insights::FTimerButterflyAggregator> TimerButterflyAggregator = FTimingProfilerManager::Get()->GetTimerButterflyAggregator();
+
 	SAssignNew(ExternalScrollbar, SScrollBar)
 	.AlwaysShowScrollbar(true);
 
@@ -67,10 +72,16 @@ void STimerTreeView::Construct(const FArguments& InArgs, const FText& InViewName
 
 			+ SScrollBox::Slot()
 			[
-				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-				.Padding(0.0f)
+				SNew(SOverlay)
+
+				+ SOverlay::Slot()
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Fill)
 				[
+				//SNew(SBorder)
+				//.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				//.Padding(0.0f)
+				//[
 					SAssignNew(TreeView, STreeView<FTimerNodePtr>)
 					.ExternalScrollbar(ExternalScrollbar)
 					.SelectionMode(ESelectionMode::Multi)
@@ -86,6 +97,15 @@ void STimerTreeView::Construct(const FArguments& InArgs, const FText& InViewName
 						SAssignNew(TreeViewHeaderRow, SHeaderRow)
 						.Visibility(EVisibility::Visible)
 					)
+				//]
+				]
+
+				+ SOverlay::Slot()
+				.HAlign(HAlign_Right)
+				.VAlign(VAlign_Bottom)
+				.Padding(16.0f)
+				[
+					SAssignNew(AggregatorStatus, Insights::SAggregatorStatus, TimerButterflyAggregator)
 				]
 			]
 		]
@@ -363,15 +383,14 @@ TSharedRef<SWidget> STimerTreeView::TreeViewHeaderRow_GenerateColumnMenu(const I
 				FExecuteAction::CreateSP(this, &STimerTreeView::HideColumn, Column.GetId()),
 				FCanExecuteAction::CreateSP(this, &STimerTreeView::CanHideColumn, Column.GetId())
 			);
-
 			MenuBuilder.AddMenuEntry
 			(
 				LOCTEXT("TreeViewHeaderRow_HideColumn", "Hide"),
 				LOCTEXT("TreeViewHeaderRow_HideColumn_Desc", "Hides the selected column"),
 				FSlateIcon(), Action_HideColumn, NAME_None, EUserInterfaceActionType::Button
 			);
-			bIsMenuVisible = true;
 
+			bIsMenuVisible = true;
 			MenuBuilder.EndSection();
 		}
 
@@ -404,8 +423,8 @@ TSharedRef<SWidget> STimerTreeView::TreeViewHeaderRow_GenerateColumnMenu(const I
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending_Desc", "Sorts descending"),
 				FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortDescending"), Action_SortDescending, NAME_None, EUserInterfaceActionType::RadioButton
 			);
-			bIsMenuVisible = true;
 
+			bIsMenuVisible = true;
 			MenuBuilder.EndSection();
 		}
 	}

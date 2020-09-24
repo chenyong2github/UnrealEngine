@@ -51,7 +51,7 @@ namespace InternalEditorLevelLibrary
 		JoinOptions.bRenameComponentsFromSource = Options.bRenameComponentsFromSource;
 
 		return JoinOptions;
-	}
+		}
 
 	FMergeStaticMeshActorsOptions ConvertMergeStaticMeshActorsOptions(const FEditorScriptingMergeStaticMeshActorsOptions_Deprecated& Options)
 	{
@@ -112,7 +112,7 @@ void UEditorLevelLibrary::SetSelectedLevelActors(const TArray<class AActor*>& Ac
 	if (EditorActorSubsystem)
 	{
 		return EditorActorSubsystem->SetSelectedLevelActors(ActorsToSelect);
-	}
+		}
 }
 
 void UEditorLevelLibrary::PilotLevelActor(AActor* ActorToPilot)
@@ -151,7 +151,7 @@ void UEditorLevelLibrary::SetLevelViewportCameraInfo(FVector CameraLocation, FRo
 	if (UnrealEditorSubsystem)
 	{
 		return UnrealEditorSubsystem->SetLevelViewportCameraInfo(CameraLocation, CameraRotation);
-	}
+		}
 }
 
 void UEditorLevelLibrary::ClearActorSelectionSet()
@@ -209,6 +209,11 @@ void UEditorLevelLibrary::EditorPlaySimulate()
 	{
 		return LevelEditorSubsystem->EditorPlaySimulate();
 	}
+}
+
+void UEditorLevelLibrary::EditorEndPlay()
+{
+	GUnrealEd->RequestEndPlayMap();
 }
 
 void UEditorLevelLibrary::EditorInvalidateViewports()
@@ -375,7 +380,7 @@ TArray<class AActor*> UEditorLevelLibrary::ConvertActors(const TArray<class AAct
 AActor* UEditorLevelLibrary::JoinStaticMeshActors(const TArray<AStaticMeshActor*>& ActorsToMerge, const FEditorScriptingJoinStaticMeshActorsOptions_Deprecated& JoinOptions)
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
-	
+
 	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->JoinStaticMeshActors(ActorsToMerge, InternalEditorLevelLibrary::ConvertJoinStaticMeshActorsOptions(JoinOptions)) : nullptr;
 }
 

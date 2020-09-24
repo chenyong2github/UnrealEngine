@@ -48,17 +48,31 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Settings")
 	float FrameDelay = 0.f;
-	
+
 	/**
-	 * Return the frame number and the frame rate of the frame number at that moment. It may not be in sync with the current frame.
-	 * Depending on the implementation, it may or may not be valid only when GetSynchronizationState() is Synchronized.
+	 * Fetch current timecode from its source. e.g. From hardware/network/file/etc.
+	 * It is recommended to cache the fetched timecode.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Provider")
+	virtual bool FetchTimecode(FQualifiedFrameTime& OutFrameTime) { return false; };
+
+	/**
+	 * Update the state of the provider. Call it to ensure timecode and state are updated.
+	 * It is suggested to fetch timecode from its source and cache it for the getters.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Provider")
+	virtual void FetchAndUpdate() {}
+
+	/**
+	 * Return current frame time. 
+	 * Since it may be called several times per frame, it is suggested to return a cached value.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Provider")
 	virtual FQualifiedFrameTime GetQualifiedFrameTime() const PURE_VIRTUAL(UTimecodeProvider::GetQualifiedFrameTime, return FQualifiedFrameTime(););
 
 	/**
-	 * Return the frame number and the frame rate of the frame number with the Frame Delay applied. It may not be in sync with the current frame.
-	 * Depending on the implementation, it may or may not be valid only when GetSynchronizationState() is Synchronized.
+	 * Return current frame time with FrameDelay applied.
+	 * Only assume valid when GetSynchronizationState() returns Synchronized.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Provider")
 	FQualifiedFrameTime GetDelayedQualifiedFrameTime() const;
@@ -75,7 +89,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Provider")
 	FFrameRate GetFrameRate() const { return GetQualifiedFrameTime().Rate; }
 
-	/** The state of the TimecodeProvider and if it's currently synchronized and the Timecode and FrameRate are valid. */
+	/** The state of the TimecodeProvider and if it's currently synchronized and the Timecode and FrameRate getters are valid. */
 	UFUNCTION(BlueprintCallable, Category = "Provider")
 	virtual ETimecodeProviderSynchronizationState GetSynchronizationState() const PURE_VIRTUAL(UTimecodeProvider::IsSynchronized, return ETimecodeProviderSynchronizationState::Closed;);
 

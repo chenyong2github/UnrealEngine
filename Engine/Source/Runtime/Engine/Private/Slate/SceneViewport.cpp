@@ -1348,7 +1348,7 @@ void FSceneViewport::ResizeFrame(uint32 NewWindowSizeX, uint32 NewWindowSizeY, E
 				IHeadMountedDisplay::MonitorInfo MonitorInfo;
 				if (GEngine->XRSystem.IsValid() && GEngine->XRSystem->GetHMDDevice() && GEngine->XRSystem->GetHMDDevice()->GetHMDMonitorInfo(MonitorInfo))
 				{
-#if PLATFORM_PS4
+#if PLATFORM_PS4 || PLATFORM_ANDROID
 					// Only do the resolution check on PS4/Morpheus. On desktop, this breaks the mirror window logic.
 					if (MonitorInfo.DesktopX > 0 || MonitorInfo.DesktopY > 0 || MonitorInfo.ResolutionX > 0 || MonitorInfo.ResolutionY > 0)
 #else
@@ -1479,8 +1479,25 @@ bool FSceneViewport::IsStereoRenderingAllowed() const
 void FSceneViewport::ResizeViewport(uint32 NewSizeX, uint32 NewSizeY, EWindowMode::Type NewWindowMode)
 {
 	// Do not resize if the viewport is an invalid size or our UI should be responsive
-	if( NewSizeX > 0 && NewSizeY > 0 )
+	if( NewSizeX > 0 && NewSizeY > 0)
 	{
+		uint32 MaxSize = GetMax2DTextureDimension();
+		// When the size is larger than the biggest texture possible, we clamp it to the max size but still preserve aspect ratio
+		if (NewSizeX > MaxSize || NewSizeY > MaxSize)
+		{
+			float Ratio = (float)NewSizeX / (float)NewSizeY;
+			if (NewSizeX > NewSizeY)
+			{
+				NewSizeX = MaxSize;
+				NewSizeY = NewSizeX / Ratio;
+			}
+			else
+			{
+				NewSizeY = MaxSize;
+				NewSizeX = NewSizeY * Ratio;
+			}
+		}
+
 		bIsResizing = true;
 
 		UpdateViewportRHI(false, NewSizeX, NewSizeY, NewWindowMode, PF_Unknown);
@@ -1713,7 +1730,7 @@ void FSceneViewport::BeginRenderFrame(FRHICommandListImmediate& RHICmdList)
 	check( IsInRenderingThread() );
 	if (UseSeparateRenderTarget())
 	{		
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, RenderTargetTextureRenderThreadRHI);
+		RHICmdList.Transition(FRHITransitionInfo(RenderTargetTextureRenderThreadRHI, ERHIAccess::Unknown, ERHIAccess::RTV));
 	}
 	else if( IsValidRef( ViewportRHI ) ) 
 	{

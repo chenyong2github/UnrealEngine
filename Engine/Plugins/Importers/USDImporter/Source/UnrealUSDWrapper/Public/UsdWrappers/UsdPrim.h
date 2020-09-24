@@ -19,6 +19,7 @@ PXR_NAMESPACE_CLOSE_SCOPE
 namespace UE
 {
 	class FSdfPath;
+	class FUsdAttribute;
 	class FUsdStage;
 
 	namespace Internal
@@ -61,6 +62,9 @@ namespace UE
 	// Wrapped pxr::UsdPrim functions, refer to the USD SDK documentation
 	public:
 		bool IsValid() const;
+		bool IsPseudoRoot() const;
+		bool IsModel() const;
+		bool IsGroup() const;
 
 		const FSdfPath GetPrimPath() const;
 		FUsdStage GetStage() const;
@@ -80,6 +84,9 @@ namespace UE
 		bool IsLoaded() const;
 		void Load();
 		void Unload();
+
+		TArray< FUsdAttribute > GetAttributes() const;
+		FUsdAttribute GetAttribute(const TCHAR* AttrName) const;
 
 	private:
 		TUniquePtr< Internal::FUsdPrimImpl > Impl;

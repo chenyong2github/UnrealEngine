@@ -186,7 +186,6 @@ void UMoviePipelinePIEExecutor::OnPIEStartupFinished(bool)
 
 	// Listen for when the pipeline thinks it has finished.
 	ActiveMoviePipeline->OnMoviePipelineFinished().AddUObject(this, &UMoviePipelinePIEExecutor::OnPIEMoviePipelineFinished);
-	ActiveMoviePipeline->OnMoviePipelineErrored().AddUObject(this, &UMoviePipelinePIEExecutor::OnPipelineErrored);
 	
 	if (ExecutorSettings->InitialDelayFrameCount == 0)
 	{
@@ -222,8 +221,13 @@ void UMoviePipelinePIEExecutor::OnTick()
 	}
 }
 
-void UMoviePipelinePIEExecutor::OnPIEMoviePipelineFinished(UMoviePipeline* InMoviePipeline)
+void UMoviePipelinePIEExecutor::OnPIEMoviePipelineFinished(UMoviePipeline* InMoviePipeline, bool bFatalError)
 {
+	if (bFatalError)
+	{
+		OnPipelineErrored(InMoviePipeline, true, FText());
+	}
+
 	// Unsubscribe to the EndPIE event so we don't think the user canceled it.
 	FCoreDelegates::OnBeginFrame.RemoveAll(this);
 
@@ -247,8 +251,7 @@ void UMoviePipelinePIEExecutor::OnPIEEnded(bool)
 		UE_LOG(LogMovieRenderPipeline, Log, TEXT("PIE Ended while Movie Pipeline was still active. Stalling to do full shutdown."));
 
 		// This will flush any outstanding work on the movie pipeline (file writes) immediately
-		ActiveMoviePipeline->RequestShutdown(); // Set the Shutdown Requested flag.
-		ActiveMoviePipeline->Shutdown(); // Flush the shutdown.
+		ActiveMoviePipeline->Shutdown(true);
 		
 		UE_LOG(LogMovieRenderPipeline, Log, TEXT("MoviePipelinePIEExecutor: Stalling finished, pipeline has shut down."));
 	}
@@ -264,6 +267,9 @@ void UMoviePipelinePIEExecutor::OnPIEEnded(bool)
 
 void UMoviePipelinePIEExecutor::DelayedFinishNotification()
 {
+	OnIndividualJobFinishedImpl(Queue->GetJobs()[CurrentPipelineIndex]);
+
+	// Now that PIE has finished
 	UMoviePipeline* MoviePipeline = ActiveMoviePipeline;
 	
 	// Null these out now since OnIndividualPipelineFinished might invoke something that causes a GC

@@ -14,6 +14,8 @@
 #include "ChaosVehicleWheel.h"
 #include "SuspensionUtility.h"
 #include "SteeringUtility.h"
+#include "Chaos/ChaosEngineInterface.h"
+#include "Chaos/PBDSuspensionConstraintData.h"
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 #include "CanvasItem.h"
@@ -48,6 +50,7 @@ FAutoConsoleVariableRef CVarChaosVehiclesSteeringOverride(TEXT("p.Vehicle.Steeri
 
 FAutoConsoleVariableRef CVarChaosVehiclesResetMeasurements(TEXT("p.Vehicle.ResetMeasurements"), GWheeledVehicleDebugParams.ResetPerformanceMeasurements, TEXT("Reset Vehicle Performance Measurements."));
 
+FAutoConsoleVariableRef CVarChaosVehiclesDisableSuspensionConstraints(TEXT("p.Vehicle.DisableSuspensionConstraint"), GWheeledVehicleDebugParams.DisableSuspensionConstraint, TEXT("Enable/Disable Suspension Constraints."));
 
 FAutoConsoleCommand CVarCommandVehiclesNextDebugPage(
 	TEXT("p.Vehicle.NextDebugPage"),
@@ -130,6 +133,7 @@ void UChaosWheeledVehicleMovementComponent::FixupSkeletalMesh()
 
 							{
 								BodyInstanceWheel->SetInstanceSimulatePhysics(false);
+								//BodyInstanceWheel->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 							}
 
 							bool DeleteOriginalWheelConstraints = true;
@@ -144,6 +148,34 @@ void UChaosWheeledVehicleMovementComponent::FixupSkeletalMesh()
 									ConInst->TermConstraint();
 								}
 							}
+						}
+
+						if (!GWheeledVehicleDebugParams.DisableSuspensionConstraint)
+						{
+							FBodyInstance* TargetInstance = UpdatedPrimitive->GetBodyInstance();
+
+							FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)
+								{
+									const FVector LocalWheel = GetWheelRestingPosition(WheelSetup);
+									FPhysicsConstraintHandle ConstraintHandle = FPhysicsInterface::CreateSuspension(Chassis, LocalWheel);
+
+									if (ConstraintHandle.IsValid())
+									{
+										auto& SusSettings = PVehicle->GetSuspension(WheelIdx).Setup();
+										ConstraintHandles.Add(ConstraintHandle);
+										if (Chaos::FSuspensionConstraint* Constraint = static_cast<Chaos::FSuspensionConstraint*>(ConstraintHandle.Constraint))
+										{
+											Constraint->SetHardstopStiffness(1.0f);
+											Constraint->SetSpringStiffness(SusSettings.SpringRate * 0.25f);
+											Constraint->SetSpringPreload(SusSettings.SpringPreload);
+											Constraint->SetSpringDamping(SusSettings.DampingRatio * 5.0f);
+											Constraint->SetMinLength(-SusSettings.SuspensionMaxRaise);
+											Constraint->SetMaxLength(SusSettings.SuspensionMaxDrop);
+											Constraint->SetAxis(-SusSettings.SuspensionAxis);
+										}
+									}
+
+								});
 						}
 					}
 				}
@@ -231,9 +263,23 @@ void UChaosWheeledVehicleMovementComponent::OnDestroyPhysicsState()
 		}
 
 		DestroyWheels();
-	}
 
+		if (GetBodyInstance() && ConstraintHandles.Num() > 0)
+		{
+			FPhysicsCommand::ExecuteWrite(GetBodyInstance()->ActorHandle, [&](const FPhysicsActorHandle& Actor)
+				{
+					for (FPhysicsConstraintHandle ConstraintHandle : ConstraintHandles)
+					{
+						FPhysicsInterface::ReleaseConstraint(ConstraintHandle);
+					}
+
+				});
+		}
+		ConstraintHandles.Empty();
+	}
+	
 	Super::OnDestroyPhysicsState();
+	
 }
 
 void UChaosWheeledVehicleMovementComponent::TickVehicle(float DeltaTime)
@@ -803,6 +849,27 @@ void UChaosWheeledVehicleMovementComponent::ApplySuspensionForces(float DeltaTim
 		auto& PWheel = PVehicle->Wheels[WheelIdx];
 		auto& PSuspension = PVehicle->Suspension[WheelIdx];
 		float SuspensionMovePosition = -PSuspension.Setup().MaxLength;
+		
+		if (!GWheeledVehicleDebugParams.DisableSuspensionConstraint)
+		{
+			FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)
+			{
+				if (ConstraintHandles.Num() > 0)
+				{
+					auto& ConstraintHandle = ConstraintHandles[WheelIdx];
+					if (ConstraintHandle.IsValid())
+					{
+						if (Chaos::FSuspensionConstraint* Constraint = static_cast<Chaos::FSuspensionConstraint*>(ConstraintHandle.Constraint))
+						{
+							FVec3 P = HitResult.ImpactPoint + (PWheel.Setup().WheelRadius * VehicleState.VehicleUpAxis);
+							Constraint->SetTarget( P );
+							Constraint->SetEnabled(PWheel.InContact());
+						}
+					}
+
+				}
+			});
+		}
 
 		if (PWheel.InContact())
 		{
@@ -816,14 +883,16 @@ void UChaosWheeledVehicleMovementComponent::ApplySuspensionForces(float DeltaTim
 
 			float ForceMagnitude = PSuspension.GetSuspensionForce();
 
-
 			FVector GroundZVector = HitResult.Normal;
 			FVector SuspensionForceVector = VehicleState.VehicleUpAxis * ForceMagnitude;
 
 			FVector SusApplicationPoint = WheelState.WheelWorldLocation[WheelIdx] + PVehicle->Suspension[WheelIdx].Setup().SuspensionForceOffset;
 
 			check(PWheel.InContact());
-			AddForceAtPosition(SuspensionForceVector, SusApplicationPoint);
+			if (GWheeledVehicleDebugParams.DisableSuspensionConstraint)
+			{
+				AddForceAtPosition(SuspensionForceVector, SusApplicationPoint);
+			}
 
 			ForceMagnitude = PSuspension.Setup().WheelLoadRatio * ForceMagnitude + (1.f - PSuspension.Setup().WheelLoadRatio) * PSuspension.Setup().RestingForce;
 			PWheel.SetWheelLoadForce(ForceMagnitude);
@@ -835,7 +904,7 @@ void UChaosWheeledVehicleMovementComponent::ApplySuspensionForces(float DeltaTim
 			{
 				DrawDebugLine(GetWorld()
 					, SusApplicationPoint
-					, SusApplicationPoint + SuspensionForceVector * 0.0005f
+					, SusApplicationPoint + SuspensionForceVector * GVehicleDebugParams.ForceDebugScaling
 					, FColor::Blue, false, -1.0f, 0, 5);
 
 				DrawDebugLine(GetWorld()
@@ -845,6 +914,10 @@ void UChaosWheeledVehicleMovementComponent::ApplySuspensionForces(float DeltaTim
 			}
 #endif
 
+		}
+		else
+		{
+			PSuspension.SetSuspensionLength(PSuspension.GetTraceLength(PWheel.Setup().WheelRadius), PWheel.Setup().WheelRadius);
 		}
 
 	}
@@ -1642,7 +1715,7 @@ void UChaosWheeledVehicleMovementComponent::DrawDial(UCanvas* Canvas, FVector2D 
 
 FChaosWheelSetup::FChaosWheelSetup()
 	: WheelClass(UChaosVehicleWheel::StaticClass())
-	, SteeringBoneName(NAME_None)
+//	, SteeringBoneName(NAME_None)
 	, BoneName(NAME_None)
 	, AdditionalOffset(0.0f)
 {

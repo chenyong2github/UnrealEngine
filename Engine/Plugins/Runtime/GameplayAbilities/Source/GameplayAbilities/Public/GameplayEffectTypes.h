@@ -585,7 +585,7 @@ struct TStructOpsTypeTraits< FGameplayEffectContext > : public TStructOpsTypeTra
  * Handle that wraps a FGameplayEffectContext or subclass, to allow it to be polymorphic and replicate properly
  */
 USTRUCT(BlueprintType)
-struct FGameplayEffectContextHandle
+struct GAMEPLAYABILITIES_API FGameplayEffectContextHandle
 {
 	GENERATED_USTRUCT_BODY()
 

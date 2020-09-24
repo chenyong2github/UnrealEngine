@@ -349,7 +349,7 @@ class FTextureFormatPVR : public ITextureFormat
 		{
 			TArray64<uint8> CompressedSliceData;
 			bCompressionSucceeded = CompressImageUsingPVRTexTool(
-				Image.AsBGRA8() + SliceIndex * SliceSize,
+				(&Image.AsBGRA8()[0]) + SliceIndex * SliceSize,
 				CompressedPixelFormat,
 				Image.SizeX,
 				Image.SizeY,

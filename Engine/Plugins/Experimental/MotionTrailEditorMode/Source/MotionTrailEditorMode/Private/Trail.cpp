@@ -4,6 +4,11 @@
 #include "TrailHierarchy.h"
 #include "MotionTrailEditorMode.h"
 
+namespace UE
+{
+namespace MotionTrailEditor
+{
+
 ETrailCacheState FRootTrail::UpdateTrail(const FSceneContext& InSceneContext)
 {
 	if (bForceEvaluateNextTick)
@@ -17,8 +22,37 @@ ETrailCacheState FRootTrail::UpdateTrail(const FSceneContext& InSceneContext)
 	}
 }
 
+ETrailCacheState FConstantTrail::UpdateTrail(const FTrail::FSceneContext& InSceneContext)
+{
+	const TUniquePtr<FTrail>& Parent = InSceneContext.TrailHierarchy->GetAllTrails()[InSceneContext.TrailHierarchy->GetHierarchy()[InSceneContext.YourNode].Parents[0]];
 
-ETrailCacheState FConstantComponentTrail::UpdateTrail(const FTrail::FSceneContext& InSceneContext)
+	const ETrailCacheState CacheState = UpdateState(InSceneContext);
+	if (CacheState == ETrailCacheState::Dead)
+	{
+		return CacheState;
+	}
+
+	const bool bEvalRangeCached = TrajectoryCache->GetTrackRange().Contains(InSceneContext.EvalTimes.Range);
+
+	FTrailEvaluateTimes TempEvalTimes = InSceneContext.EvalTimes;
+	if (CacheState == ETrailCacheState::Stale)
+	{
+		double Spacing = InSceneContext.EvalTimes.Spacing.Get(InSceneContext.TrailHierarchy->GetSecondsPerSegment());
+		CachedEffectiveRange = Parent->GetEffectiveRange();
+		*TrajectoryCache = FArrayTrajectoryCache(Spacing, CachedEffectiveRange, GetConstantLocalTransform() * Parent->GetTrajectoryTransforms()->GetDefault());
+		TrajectoryCache->UpdateCacheTimes(TempEvalTimes);
+
+		for (const double Time : TempEvalTimes.EvalTimes)
+		{
+			const FTransform TempWorldTransform = GetConstantLocalTransform() * Parent->GetTrajectoryTransforms()->Get(Time);
+			TrajectoryCache->Set(Time, TempWorldTransform);
+		}
+	}
+	
+	return CacheState;
+}
+
+ETrailCacheState FConstantComponentTrail::UpdateState(const FSceneContext& InSceneContext)
 {
 	const TUniquePtr<FTrail>& Parent = InSceneContext.TrailHierarchy->GetAllTrails()[InSceneContext.TrailHierarchy->GetHierarchy()[InSceneContext.YourNode].Parents[0]];
 
@@ -42,26 +76,13 @@ ETrailCacheState FConstantComponentTrail::UpdateTrail(const FTrail::FSceneContex
 	}
 
 	const FTransform CurLocalTransform = WeakComponent->GetRelativeTransform();
-	const bool bParentChanged = CombinedParentStates != ETrailCacheState::Stale;
+	const bool bParentChanged = CombinedParentStates != ETrailCacheState::UpToDate;
 	const bool bLocalTransformChanged = !CurLocalTransform.Equals(LastLocalTransform);
-	const bool bEvalRangeCached = TrajectoryCache->GetTrackRange().Contains(InSceneContext.EvalTimes.Range);
-
-	FTrailEvaluateTimes TempEvalTimes = InSceneContext.EvalTimes;
+	
 	if (bLocalTransformChanged || bParentChanged || bForceEvaluateNextTick)
 	{
-		double Spacing = InSceneContext.EvalTimes.Spacing.Get(InSceneContext.TrailHierarchy->GetEditorMode()->GetTrailOptions()->SecondsPerSegment);
-		CachedEffectiveRange = Parent->GetEffectiveRange();
-		*TrajectoryCache = FArrayTrajectoryCache(Spacing, CachedEffectiveRange, CurLocalTransform * Parent->GetTrajectoryTransforms()->GetDefault());
-		TrajectoryCache->UpdateCacheTimes(TempEvalTimes);
 		LastLocalTransform = CurLocalTransform;
-
 		bForceEvaluateNextTick = false;
-
-		for (const double Time : TempEvalTimes.EvalTimes)
-		{
-			const FTransform TempWorldTransform = LastLocalTransform * Parent->GetTrajectoryTransforms()->Get(Time);
-			TrajectoryCache->Set(Time, TempWorldTransform);
-		}
 
 		return ETrailCacheState::Stale;
 	}
@@ -70,3 +91,6 @@ ETrailCacheState FConstantComponentTrail::UpdateTrail(const FTrail::FSceneContex
 		return ETrailCacheState::UpToDate;
 	}
 }
+
+} // namespace MovieScene
+} // namespace UE

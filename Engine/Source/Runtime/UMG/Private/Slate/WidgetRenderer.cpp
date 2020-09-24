@@ -7,6 +7,7 @@
 #include "Misc/App.h"
 #include "Modules/ModuleManager.h"
 #include "Rendering/SlateDrawBuffer.h"
+#include "TextureResource.h"
 #include "Engine/TextureRenderTarget2D.h"
 
 #if !UE_SERVER
@@ -82,13 +83,14 @@ UTextureRenderTarget2D* FWidgetRenderer::CreateTargetFor(FVector2D DrawSize, Tex
 	if ( LIKELY(FApp::CanEverRender()) )
 	{
 		const bool bIsLinearSpace = !bUseGammaCorrection;
+		const EPixelFormat requestedFormat = FSlateApplication::Get().GetRenderer()->GetSlateRecommendedColorFormat();
 
 		UTextureRenderTarget2D* RenderTarget = NewObject<UTextureRenderTarget2D>();
 		RenderTarget->Filter = InFilter;
 		RenderTarget->ClearColor = FLinearColor::Transparent;
 		RenderTarget->SRGB = bIsLinearSpace;
 		RenderTarget->TargetGamma = 1;
-		RenderTarget->InitCustomFormat(DrawSize.X, DrawSize.Y, PF_B8G8R8A8, bIsLinearSpace);
+		RenderTarget->InitCustomFormat(DrawSize.X, DrawSize.Y, requestedFormat, bIsLinearSpace);
 		RenderTarget->UpdateResourceImmediate(true);
 
 		return RenderTarget;
@@ -320,7 +322,7 @@ bool FWidgetRenderer::DrawInvalidationRoot(TSharedRef<SVirtualWindow>& VirtualWi
 				static_cast<float>(FApp::GetCurrentTime() - GStartTime),
 				static_cast<float>(FApp::GetDeltaTime()),
 				static_cast<float>(FPlatformTime::Seconds() - GStartTime),
-				(FRenderTarget*)RenderTarget->GameThread_GetRenderTargetResource(),
+				static_cast<FRenderTarget*>(RenderTarget->GameThread_GetRenderTargetResource()),
 				Renderer.Get(),
 				bClearTarget
 			};

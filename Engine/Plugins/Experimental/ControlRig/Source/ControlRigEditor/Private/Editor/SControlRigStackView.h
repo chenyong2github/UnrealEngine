@@ -94,7 +94,7 @@ private:
 	bool bSuspendModelNotifications;
 	bool bSuspendControllerSelection;
 	void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
-	void HandleControlRigInitializedEvent(UControlRig* InControlRig, const EControlRigState InState);
+	void HandleControlRigInitializedEvent(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName);
 	void HandlePreviewControlRigUpdated(FControlRigEditor* InEditor);
 
 	TSharedPtr<STreeView<TSharedPtr<FRigStackEntry>>> TreeView;

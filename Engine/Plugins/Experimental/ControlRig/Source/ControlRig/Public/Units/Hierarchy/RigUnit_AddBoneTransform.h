@@ -9,7 +9,7 @@
 /**
  * Offset Transform is used to perform a change in the hierarchy by setting a single bone's transform.
  */
-USTRUCT(meta=(DisplayName="Offset Transform", Category="Hierarchy", DocumentationPolicy="Strict", Keywords="Offset,AddToBoneTransform"))
+USTRUCT(meta=(DisplayName="Offset Transform", Category="Hierarchy", DocumentationPolicy="Strict", Keywords="Offset,AddToBoneTransform", Deprecated = "4.25"))
 struct FRigUnit_AddBoneTransform : public FRigUnitMutable
 {
 	GENERATED_BODY()
@@ -18,18 +18,16 @@ struct FRigUnit_AddBoneTransform : public FRigUnitMutable
 		: Weight(1.f)
 		, bPostMultiply(false)
 		, bPropagateToChildren(false)
-		, CachedBoneIndex(INDEX_NONE)
+		, CachedBone()
 	{}
 
-	virtual FString GetUnitLabel() const override;
-
-	virtual FName DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
+	virtual FRigElementKey DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
 	{
 		if (InPinPath.StartsWith(TEXT("Transform")))
 		{
-			return Bone;
+			return FRigElementKey(Bone, ERigElementType::Bone);
 		}
-		return NAME_None;
+		return FRigElementKey();
 	}
 
 	RIGVM_METHOD()
@@ -38,7 +36,7 @@ struct FRigUnit_AddBoneTransform : public FRigUnitMutable
 	/**
 	 * The name of the Bone to set the transform for.
 	 */
-	UPROPERTY(meta = (Input, CustomWidget = "BoneName", Constant))
+	UPROPERTY(meta = (Input))
 	FName Bone;
 
 	/**
@@ -70,6 +68,6 @@ struct FRigUnit_AddBoneTransform : public FRigUnitMutable
 	bool bPropagateToChildren;
 
 	// Used to cache the internally used bone index
-	UPROPERTY()
-	int32 CachedBoneIndex;
+	UPROPERTY(transient)
+	FCachedRigElement CachedBone;
 };

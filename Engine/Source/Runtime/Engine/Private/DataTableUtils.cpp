@@ -431,8 +431,11 @@ bool DataTableUtils::IsSupportedTableProperty(const FProperty* InProp)
 			InProp->IsA(FArrayProperty::StaticClass()) ||
 			InProp->IsA(FSetProperty::StaticClass()) ||
 			InProp->IsA(FMapProperty::StaticClass()) ||
-			InProp->IsA(FEnumProperty::StaticClass()))
-			);
+			InProp->IsA(FEnumProperty::StaticClass()) ||
+			InProp->IsA(FFieldPathProperty::StaticClass())
+			)
+		
+		);
 }
 
 FString DataTableUtils::GetPropertyExportName(const FProperty* Prop, const EDataTableExportFlags InDTExportFlags)

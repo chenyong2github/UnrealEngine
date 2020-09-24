@@ -19,9 +19,9 @@ struct FSkeletalMeshEditorParams
 
 #if WITH_EDITOR
 			bUpdateAnimationInEditor = InSkelMeshComp->GetUpdateAnimationInEditor();
-			//bUpdateClothInEditor = InSkelMeshComp->GetUpdateClothInEditor();
+			bUpdateClothInEditor = InSkelMeshComp->GetUpdateClothInEditor();
 			InSkelMeshComp->SetUpdateAnimationInEditor(true);
-			//InSkelMeshComp->SetUpdateClothInEditor(true);
+			InSkelMeshComp->SetUpdateClothInEditor(true);
 #endif
 		}
 	}
@@ -34,7 +34,7 @@ struct FSkeletalMeshEditorParams
 #if WITH_EDITOR
 
 			ChildSkelMesh->SetUpdateAnimationInEditor(bUpdateAnimationInEditor);
-			//ChildSkelMesh->SetUpdateClothInEditor(bUpdateClothInEditor);
+			ChildSkelMesh->SetUpdateClothInEditor(bUpdateClothInEditor);
 #endif
 		}
 	}
@@ -76,6 +76,6 @@ struct FSkeletalMeshRestoreState
 		}
 	}
 	TArray<FSkeletalMeshEditorParams> SkeletalMeshCompEditorParams;
-
+	
 };
 

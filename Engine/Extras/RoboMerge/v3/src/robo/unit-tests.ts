@@ -10,7 +10,6 @@ const unitTestsLogger = new ContextualLogger('Unit Tests')
 
 const tests = [
 	() => require('./notifications.js').runTests,
-	() => require('./branchgraph.js').runTests,
 	() => require('../new/graph.js').runTests,
 	() => require('../common/ztag.js').runTests,
 ]

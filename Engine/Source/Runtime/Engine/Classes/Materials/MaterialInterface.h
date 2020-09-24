@@ -32,6 +32,7 @@ class UPhysicalMaterial;
 class UPhysicalMaterialMask;
 class USubsurfaceProfile;
 class UTexture;
+class UMaterialInstance;
 struct FMaterialParameterInfo;
 struct FMaterialResourceLocOnDisk;
 #if WITH_EDITORONLY_DATA
@@ -332,6 +333,11 @@ public:
 	* @return	True if the material is dependent on TestDependency.
 	*/
 	virtual bool IsDependent(UMaterialInterface* TestDependency) { return TestDependency == this; }
+
+	/**
+	 * Same as above, but can be called concurrently
+	 */
+	virtual bool IsDependent_Concurrent(UMaterialInterface* TestDependency, TMicRecursionGuard RecursionGuard = TMicRecursionGuard()) { return TestDependency == this; }
 
 	/**
 	* Get this material dependencies.

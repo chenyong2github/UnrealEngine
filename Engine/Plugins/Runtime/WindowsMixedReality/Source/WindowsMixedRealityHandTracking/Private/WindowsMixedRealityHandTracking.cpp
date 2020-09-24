@@ -10,6 +10,7 @@
 #include "Engine/Engine.h"
 #include "Modules/ModuleManager.h"
 #include "Features/IModularFeatures.h"
+#include "WindowsMixedRealityStatics.h"
 #include "IWindowsMixedRealityHandTrackingPlugin.h"
 #include "ILiveLinkClient.h"
 #include "HeadMountedDisplayFunctionLibrary.h"
@@ -17,6 +18,7 @@
 #if WITH_INPUT_SIMULATION
 #include "WindowsMixedRealityInputSimulationEngineSubsystem.h"
 #endif
+#include "WindowsMixedRealityHandTrackingFunctionLibrary.h"
 
 #define LOCTEXT_NAMESPACE "WindowsMixedRealityHandTracking"
 
@@ -44,11 +46,41 @@ public:
 		// an earlier instantiation of the input device, and consequently, the custom keys.
 		TSharedPtr<FGenericApplicationMessageHandler> DummyMessageHandler(new FGenericApplicationMessageHandler());
 		CreateInputDevice(DummyMessageHandler.ToSharedRef());
+
+		WindowsMixedReality::FWindowsMixedRealityStatics::TogglePlayDelegateHandle = WindowsMixedReality::FWindowsMixedRealityStatics::OnTogglePlayDelegate.AddRaw(this, &FWindowsMixedRealityHandTrackingModule::OnTogglePlay);
+		WindowsMixedReality::FWindowsMixedRealityStatics::GetHandJointTransformDelegateHandle = WindowsMixedReality::FWindowsMixedRealityStatics::OnGetHandJointTransformDelegate.AddRaw(this, &FWindowsMixedRealityHandTrackingModule::OnGetHandJointTransform);
 	}
 
 	virtual void ShutdownModule() override
 	{
+		WindowsMixedReality::FWindowsMixedRealityStatics::OnTogglePlayDelegate.Remove(WindowsMixedReality::FWindowsMixedRealityStatics::TogglePlayDelegateHandle);
+		WindowsMixedReality::FWindowsMixedRealityStatics::TogglePlayDelegateHandle.Reset();
+
+		WindowsMixedReality::FWindowsMixedRealityStatics::OnGetHandJointTransformDelegate.Remove(WindowsMixedReality::FWindowsMixedRealityStatics::GetHandJointTransformDelegateHandle);
+		WindowsMixedReality::FWindowsMixedRealityStatics::GetHandJointTransformDelegateHandle.Reset();
+
 		IWindowsMixedRealityHandTrackingModule::ShutdownModule();
+	}
+
+
+	void OnTogglePlay(bool bOnOff)
+	{
+		if (bOnOff)
+		{
+			IWindowsMixedRealityHandTrackingModule::Get().AddLiveLinkSource();
+		}
+		else
+		{
+			IWindowsMixedRealityHandTrackingModule::Get().RemoveLiveLinkSource();
+		}
+	}
+
+	void OnGetHandJointTransform(EControllerHand Hand, EHandKeypoint Keypoint, FTransform& Transform, float& OutRadius, bool& bSuccess)
+	{
+		//static_assert((int32)EWMRHandKeypoint::MAX == (int32)EHandKeypoint::MAX);
+		check(EWMRHandKeypointCount == EHandKeypointCount);
+
+		bSuccess = IWindowsMixedRealityHandTrackingModule::Get().GetHandJointTransform(Hand, (EWMRHandKeypoint)Keypoint, Transform, OutRadius);
 	}
 
 	virtual TSharedPtr<class IInputDevice> CreateInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler) override
@@ -119,6 +151,12 @@ public:
 		bLiveLinkSourceRegistered = false;
 	}
 
+	virtual bool GetHandJointTransform(EControllerHand Hand, EWMRHandKeypoint Keypoint, FTransform& Transform, float& OutRadius) override
+	{
+		OutRadius = 0.0f;
+		return UWindowsMixedRealityHandTrackingFunctionLibrary::GetHandJointTransform(Hand, Keypoint, Transform, OutRadius);
+	}
+
 private:
 	TSharedPtr<FWindowsMixedRealityHandTracking> InputDevice;
 	bool bLiveLinkSourceRegistered;
@@ -145,10 +183,15 @@ FWindowsMixedRealityHandTracking::FWindowsMixedRealityHandTracking(const TShared
 	{
 		UE_LOG(LogWindowsMixedRealityHandTracking, Error, TEXT("Error - WMRHMDPlugin isn't available"));
 	}
+
+	WindowsMixedReality::FWindowsMixedRealityStatics::GetXRSystemFlagsHandle = WindowsMixedReality::FWindowsMixedRealityStatics::OnGetXRSystemFlagsDelegate.AddRaw(this, &FWindowsMixedRealityHandTracking::OnGetXRSystemFlags);
 }
 
 FWindowsMixedRealityHandTracking::~FWindowsMixedRealityHandTracking()
 {
+	WindowsMixedReality::FWindowsMixedRealityStatics::OnGetXRSystemFlagsDelegate.Remove(WindowsMixedReality::FWindowsMixedRealityStatics::GetXRSystemFlagsHandle);
+	WindowsMixedReality::FWindowsMixedRealityStatics::GetXRSystemFlagsHandle.Reset();
+
 	// Normally, the WindowsMixedRealityPlugin will be around during unload,
 	// but it isn't an assumption that we should make.
 	if (IWindowsMixedRealityHMDPlugin::IsAvailable())
@@ -353,6 +396,16 @@ bool FWindowsMixedRealityHandTracking::IsHandTrackingStateValid() const
 	return true;
 }
 
+
+void FWindowsMixedRealityHandTracking::OnGetXRSystemFlags(int32& XRFlags)
+{
+	if (UWindowsMixedRealityHandTrackingFunctionLibrary::SupportsHandTracking())
+	{
+		XRFlags |= EXRSystemFlags::SupportsHandTracking;
+	}
+}
+
+
 bool FWindowsMixedRealityHandTracking::GetKeypointTransform(EControllerHand Hand, EWMRHandKeypoint Keypoint, FTransform& OutTransform) const
 {
 	bool gotTransform = false;
@@ -365,7 +418,7 @@ bool FWindowsMixedRealityHandTracking::GetKeypointTransform(EControllerHand Hand
 	else
 #endif
 	{
-		const FWindowsMixedRealityHandTracking::FHandState& HandState = (Hand == EControllerHand::Left) ? GetLeftHandState() : GetRightHandState();
+	const FWindowsMixedRealityHandTracking::FHandState& HandState = (Hand == EControllerHand::Left) ? GetLeftHandState() : GetRightHandState();
 		gotTransform = HandState.GetTransform(Keypoint, OutTransform);
 		// Rotate to match UE space conventions (positive-x forward, positive-y right, positive-z up)
 		OutTransform.SetRotation(OutTransform.GetRotation() * FQuat(FVector::RightVector, PI));
@@ -395,7 +448,6 @@ bool FWindowsMixedRealityHandTracking::GetKeypointRadius(EControllerHand Hand, E
 		return HandState.ReceivedJointPoses;
 	}
 }
-
 
 void FWindowsMixedRealityHandTracking::UpdateTrackerData()
 {
@@ -444,11 +496,6 @@ void FWindowsMixedRealityHandTracking::UpdateTrackerData()
 
 void FWindowsMixedRealityHandTracking::AddKeys()
 {
-}
-
-void FWindowsMixedRealityHandTracking::ConditionallyEnable()
-{
-	// @TODO: fix
 }
 
 #undef LOCTEXT_NAMESPACE

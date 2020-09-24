@@ -153,9 +153,17 @@ namespace AutomationTool
 		public override bool IsScriptModuleSupported(string ModuleName)
 		{
 			// @todo: add more unsupported modules here
-			if (ModuleName.StartsWith("GauntletExtras", StringComparison.OrdinalIgnoreCase))
+			List<string> UnsupportedModules = new List<string>()
 			{
-				return false;
+				"GauntletExtras", "Anvil", "WinAnvil", "XboxCommonAnvil", "XboxOneAnvil", "MPX",
+				"FortniteGame",
+			};
+			foreach (string UnsupportedModule in UnsupportedModules)
+			{
+				if (ModuleName.StartsWith(UnsupportedModule, StringComparison.OrdinalIgnoreCase))
+				{
+					return false;
+				}
 			}
 			return true;
 		}

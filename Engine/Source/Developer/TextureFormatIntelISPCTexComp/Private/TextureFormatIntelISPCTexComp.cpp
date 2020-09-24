@@ -19,7 +19,7 @@
 DEFINE_LOG_CATEGORY_STATIC(LogTextureFormatIntelISPCTexComp, Log, All);
 
 // increment this if you change anything that will affect compression in this file, including FORCED_NORMAL_MAP_COMPRESSION_SIZE_VALUE
-#define BASE_ISPC_DX11_FORMAT_VERSION 3
+#define BASE_ISPC_DX11_FORMAT_VERSION 4
 
 // For debugging intermediate image results by saving them out as files.
 #define DEBUG_SAVE_INTERMEDIATE_IMAGES 0
@@ -379,7 +379,7 @@ static void IntelBC7CompressScans(bc7_enc_settings* pEncSettings, FImage* pInIma
 }
 
 #define MAX_QUALITY_BY_SIZE 4
-#define FORCED_NORMAL_MAP_COMPRESSION_SIZE_VALUE 4
+#define FORCED_NORMAL_MAP_COMPRESSION_SIZE_VALUE 3
 
 static uint16 GetDefaultCompressionBySizeValue()
 {

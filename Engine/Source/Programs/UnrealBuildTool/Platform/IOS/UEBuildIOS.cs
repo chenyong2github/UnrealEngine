@@ -229,42 +229,6 @@ namespace UnrealBuildTool
 		private readonly bool bSupportsIPad = true;
 
 		/// <summary>
-		/// Whether to target ArmV7
-		/// </summary>
-		[ConfigFile(ConfigHierarchyType.Engine, "/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bDevForArmV7")]
-		private readonly bool bDevForArmV7 = false;
-
-		/// <summary>
-		/// Whether to target Arm64
-		/// </summary>
-		[ConfigFile(ConfigHierarchyType.Engine, "/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bDevForArm64")]
-		private readonly bool bDevForArm64 = false;
-
-		/// <summary>
-		/// Whether to target ArmV7S
-		/// </summary>
-		[ConfigFile(ConfigHierarchyType.Engine, "/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bDevForArmV7S")]
-		private readonly bool bDevForArmV7S = false;
-
-		/// <summary>
-		/// Whether to target ArmV7 for shipping configurations
-		/// </summary>
-		[ConfigFile(ConfigHierarchyType.Engine, "/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bShipForArmV7")]
-		private readonly bool bShipForArmV7 = false;
-
-		/// <summary>
-		/// Whether to target Arm64 for shipping configurations
-		/// </summary>
-		[ConfigFile(ConfigHierarchyType.Engine, "/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bShipForArm64")]
-		private readonly bool bShipForArm64 = false;
-
-		/// <summary>
-		/// Whether to target ArmV7S for shipping configurations
-		/// </summary>
-		[ConfigFile(ConfigHierarchyType.Engine, "/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bShipForArmV7S")]
-		private readonly bool bShipForArmV7S = false;
-
-		/// <summary>
 		/// additional linker flags for shipping
 		/// </summary>
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/IOSRuntimeSettings.IOSRuntimeSettings", "AdditionalShippingLinkerFlags")]
@@ -356,18 +320,7 @@ namespace UnrealBuildTool
 		{
 			get
 			{
-				if(bDevForArmV7)
-				{
-					yield return "armv7";
-				}
-				if(bDevForArm64 || (!bDevForArmV7 && !bDevForArmV7S))
-				{
-					yield return "arm64";
-				}
-				if(bDevForArmV7S)
-				{
-					yield return "armv7s";
-				}
+				yield return "arm64";
 			}
 		}
 
@@ -378,18 +331,7 @@ namespace UnrealBuildTool
 		{
 			get
 			{
-				if(bShipForArmV7)
-				{
-					yield return "armv7";
-				}
-				if(bShipForArm64 || (!bShipForArmV7 && !bShipForArmV7S))
-				{
-					yield return "arm64";
-				}
-				if(bShipForArmV7S)
-				{
-					yield return "armv7s";
-				}
+				yield return "arm64";
 			}
 		}
 
@@ -493,28 +435,31 @@ namespace UnrealBuildTool
             string MobileProvision = ProjectSettings.MobileProvision;
 
 			FileReference ProjectFile = ProjectSettings.ProjectFile;
-            if (!string.IsNullOrEmpty(SigningCertificate))
+			FileReference IPhonePackager = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Binaries/DotNET/IOS/IPhonePackager.exe");
+
+			if (!string.IsNullOrEmpty(SigningCertificate))
             {
                 // verify the certificate
                 Process IPPProcess = new Process();
-                if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
+
+				string IPPCmd = "certificates " + ((ProjectFile != null) ? ("\"" + ProjectFile.ToString() + "\"") : "Engine") + " -bundlename " + ProjectSettings.BundleIdentifier + (bForDistribtion ? " -distribution" : "");
+				
+				IPPProcess.StartInfo.WorkingDirectory = UnrealBuildTool.EngineDirectory.ToString();
+				IPPProcess.OutputDataReceived += new DataReceivedEventHandler(IPPDataReceivedHandler);
+				IPPProcess.ErrorDataReceived += new DataReceivedEventHandler(IPPDataReceivedHandler);
+
+				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
                 {
-                    string IPPCmd = "\"" + UnrealBuildTool.EngineDirectory + "/Binaries/DotNET/IOS/IPhonePackager.exe\" certificates " + ((ProjectFile != null) ? ("\"" + ProjectFile.ToString() + "\"") : "Engine") + " -bundlename " + ProjectSettings.BundleIdentifier + (bForDistribtion ? " -distribution" : "");
-                    IPPProcess.StartInfo.WorkingDirectory = UnrealBuildTool.EngineDirectory.ToString();
-                    IPPProcess.StartInfo.FileName = UnrealBuildTool.EngineDirectory + "/Build/BatchFiles/Mac/RunMono.sh";
-                    IPPProcess.StartInfo.Arguments = IPPCmd;
-                    IPPProcess.OutputDataReceived += new DataReceivedEventHandler(IPPDataReceivedHandler);
-                    IPPProcess.ErrorDataReceived += new DataReceivedEventHandler(IPPDataReceivedHandler);
-                }
+                    IPPProcess.StartInfo.FileName = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Build/BatchFiles/Mac/RunMono.sh").FullName;
+					IPPProcess.StartInfo.Arguments = string.Format("\"{0}\" {1}", IPhonePackager ,IPPCmd);
+				}
                 else
                 {
-					string IPPCmd = "certificates " + ((ProjectFile != null) ? ("\"" + ProjectFile.ToString() + "\"") : "Engine") + " -bundlename " + ProjectSettings.BundleIdentifier + (bForDistribtion ? " -distribution" : "");
-                    IPPProcess.StartInfo.WorkingDirectory = UnrealBuildTool.EngineDirectory.ToString();
-                    IPPProcess.StartInfo.FileName = UnrealBuildTool.EngineDirectory + "\\Binaries\\DotNET\\IOS\\IPhonePackager.exe";
-                    IPPProcess.StartInfo.Arguments = IPPCmd;
-                    IPPProcess.OutputDataReceived += new DataReceivedEventHandler(IPPDataReceivedHandler);
-                    IPPProcess.ErrorDataReceived += new DataReceivedEventHandler(IPPDataReceivedHandler);
+					IPPProcess.StartInfo.FileName = IPhonePackager.FullName;
+					IPPProcess.StartInfo.Arguments = IPPCmd;
                 }
+
+				Log.TraceInformation("Getting certifcate information via {0} {1}", IPPProcess.StartInfo.FileName, IPPProcess.StartInfo.Arguments);
                 Utils.RunLocalProcess(IPPProcess);
             }
             else
@@ -550,25 +495,27 @@ namespace UnrealBuildTool
 				MobileProvisionFile = null;
                 Log.TraceLog("Provision not specified or not found for " + ((ProjectFile != null) ? ProjectFile.GetFileNameWithoutAnyExtensions() : "UnrealGame") + ", searching for compatible match...");
                 Process IPPProcess = new Process();
-                if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
-                {
-                    string IPPCmd = "\"" + UnrealBuildTool.EngineDirectory + "/Binaries/DotNET/IOS/IPhonePackager.exe\" signing_match " + ((ProjectFile != null) ? ("\"" + ProjectFile.ToString() + "\"") : "Engine") + " -bundlename " + ProjectSettings.BundleIdentifier + (bIsTVOS ? " -tvos" : "") + (bForDistribtion ? " -distribution" : "");
-                    IPPProcess.StartInfo.WorkingDirectory = UnrealBuildTool.EngineDirectory.ToString();
-                    IPPProcess.StartInfo.FileName = UnrealBuildTool.EngineDirectory + "/Build/BatchFiles/Mac/RunMono.sh";
-                    IPPProcess.StartInfo.Arguments = IPPCmd;
-                    IPPProcess.OutputDataReceived += new DataReceivedEventHandler(IPPDataReceivedHandler);
-                    IPPProcess.ErrorDataReceived += new DataReceivedEventHandler(IPPDataReceivedHandler);
-                }
-                else
-                {
-                    string IPPCmd = "signing_match " + ((ProjectFile != null) ? ("\"" + ProjectFile.ToString() + "\"") : "Engine") + " -bundlename " + ProjectSettings.BundleIdentifier + (bIsTVOS ? " -tvos" : "") + (bForDistribtion ? " -distribution" : "");
-                    IPPProcess.StartInfo.WorkingDirectory = UnrealBuildTool.EngineDirectory.ToString();
-                    IPPProcess.StartInfo.FileName = UnrealBuildTool.EngineDirectory + "\\Binaries\\DotNET\\IOS\\IPhonePackager.exe";
-                    IPPProcess.StartInfo.Arguments = IPPCmd;
-                    IPPProcess.OutputDataReceived += new DataReceivedEventHandler(IPPDataReceivedHandler);
-                    IPPProcess.ErrorDataReceived += new DataReceivedEventHandler(IPPDataReceivedHandler);
-                }
-                Utils.RunLocalProcess(IPPProcess);
+
+				IPPProcess.OutputDataReceived += new DataReceivedEventHandler(IPPDataReceivedHandler);
+				IPPProcess.ErrorDataReceived += new DataReceivedEventHandler(IPPDataReceivedHandler);
+				IPPProcess.StartInfo.WorkingDirectory = UnrealBuildTool.EngineDirectory.ToString();
+
+				string IPPCmd = "signing_match " + ((ProjectFile != null) ? ("\"" + ProjectFile.ToString() + "\"") : "Engine") + " -bundlename " + ProjectSettings.BundleIdentifier + (bIsTVOS ? " -tvos" : "") + (bForDistribtion ? " -distribution" : "");
+
+				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
+				{
+					IPPProcess.StartInfo.FileName = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Build/BatchFiles/Mac/RunMono.sh").FullName;
+					IPPProcess.StartInfo.Arguments = string.Format("\"{0}\" {1}", IPhonePackager, IPPCmd);
+				}
+				else
+				{
+					IPPProcess.StartInfo.FileName = IPhonePackager.FullName;
+					IPPProcess.StartInfo.Arguments = IPPCmd;
+				}
+
+				Log.TraceInformation("Getting signing information via {0} {1}", IPPProcess.StartInfo.FileName, IPPProcess.StartInfo.Arguments);
+
+				Utils.RunLocalProcess(IPPProcess);
 				if(MobileProvisionFile != null)
 				{
 					Log.TraceLog("Provision found for " + ((ProjectFile != null) ? ProjectFile.GetFileNameWithoutAnyExtensions() : "UnrealGame") + ", Provision: " + MobileProvisionFile + " Certificate: " + SigningCertificate);
@@ -956,8 +903,7 @@ namespace UnrealBuildTool
 		public override bool HasDefaultBuildConfig(UnrealTargetPlatform Platform, DirectoryReference ProjectDirectoryName)
 		{
 			string[] BoolKeys = new string[] {
-				"bDevForArmV7", "bDevForArm64", "bDevForArmV7S", "bShipForArmV7", 
-				"bShipForArm64", "bShipForArmV7S", "bShipForBitcode", "bGeneratedSYMFile",
+				"bShipForBitcode", "bGeneratedSYMFile",
 				"bGeneratedSYMBundle", "bEnableRemoteNotificationsSupport", "bEnableCloudKitSupport",
                 "bGenerateCrashReportSymbols", "bEnableBackgroundFetch"
             };
@@ -1027,6 +973,7 @@ namespace UnrealBuildTool
 						bBuildShaderFormats = true;
 						Rules.DynamicallyLoadedModuleNames.Add("TextureFormatPVR");
 						Rules.DynamicallyLoadedModuleNames.Add("TextureFormatASTC");
+						Rules.DynamicallyLoadedModuleNames.Add("TextureFormatETC2");
 						if (Target.bBuildDeveloperTools && Target.bCompileAgainstEngine)
 						{
 							Rules.DynamicallyLoadedModuleNames.Add("AudioFormatADPCM");

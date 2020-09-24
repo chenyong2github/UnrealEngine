@@ -134,7 +134,13 @@ void CreateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAs
 			TWeakObjectPtr<UPhysicsAsset> PhysicsAsset = PhysicsAssets[ComponentIndex];
 			if (PhysicsAsset.IsValid() && PhysicsAsset.Get() != nullptr)
 			{
-				const FReferenceSkeleton* RefSkeleton = &PhysicsAsset->GetPreviewMesh()->RefSkeleton;
+				USkeletalMesh* SkelMesh = PhysicsAsset->GetPreviewMesh();
+				if (!SkelMesh)
+				{
+					continue;
+				}
+
+				const FReferenceSkeleton* RefSkeleton = &SkelMesh->RefSkeleton;
 				if (RefSkeleton != nullptr)
 				{
 					if (RefSkeleton->GetNum() > 0)
@@ -184,7 +190,12 @@ void CreateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAs
 			TWeakObjectPtr<UPhysicsAsset> PhysicsAsset = PhysicsAssets[ComponentIndex];
 			if (PhysicsAsset.IsValid() && PhysicsAsset.Get() != nullptr)
 			{
-				const FReferenceSkeleton* RefSkeleton = &PhysicsAsset->GetPreviewMesh()->RefSkeleton;
+				USkeletalMesh* SkelMesh = PhysicsAsset->GetPreviewMesh();
+				if (!SkelMesh)
+				{
+					continue;
+				}
+				const FReferenceSkeleton* RefSkeleton = &SkelMesh->RefSkeleton;
 				if (RefSkeleton != nullptr)
 				{
 					TArray<FTransform> RestTransforms;
@@ -261,7 +272,13 @@ void UpdateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAs
 			TWeakObjectPtr<UPhysicsAsset> PhysicsAsset = PhysicsAssets[ComponentIndex];
 			if (PhysicsAsset.IsValid() && PhysicsAsset.Get() != nullptr)
 			{
-				const FReferenceSkeleton* RefSkeleton = &PhysicsAsset->GetPreviewMesh()->RefSkeleton;
+				USkeletalMesh* SkelMesh = PhysicsAsset->GetPreviewMesh();
+				if (!SkelMesh)
+				{
+					continue;
+				}
+				const FReferenceSkeleton* RefSkeleton = &SkelMesh->RefSkeleton;
+
 				if (RefSkeleton != nullptr)
 				{
 					TArray<FTransform> RestTransforms;

@@ -28,7 +28,7 @@ public:
 	/**
 	* Beginning and ending of the gestures capturing. 
 	*/
-	UFUNCTION(BlueprintCallable, Category = "WindowsMixedRealitySpatialInput", meta = (ToolTip = "Specify which gestures to capture."))
+	UFUNCTION(BlueprintCallable, Category = "WindowsMixedRealitySpatialInput", meta = (DeprecatedFunction, DeprecationMessage = "Use ARBlueprintFunctionLibrary::ConfigureGestures", ToolTip = "Specify which gestures to capture."))
 	static bool CaptureGestures(bool Tap = false, bool Hold = false, ESpatialInputAxisGestureType AxisGesture = ESpatialInputAxisGestureType::None, bool NavigationAxisX = true, bool NavigationAxisY = true, bool NavigationAxisZ = true);
 
 };

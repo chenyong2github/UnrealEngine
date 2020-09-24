@@ -2,15 +2,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
-
+using System.Threading.Tasks;
 using Autodesk.Revit.ApplicationServices;
 using Autodesk.Revit.DB;
-using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.DB.Events;
-using Autodesk.Revit.DB.Mechanical;
-using Autodesk.Revit.DB.Plumbing;
-using Autodesk.Revit.DB.Structure;
 using Autodesk.Revit.DB.Visual;
 
 namespace DatasmithRevitExporter
@@ -19,9 +16,9 @@ namespace DatasmithRevitExporter
 	public class FDatasmithRevitExportContext : IPhotoRenderContext
 	{
 		// Revit application information for Datasmith.
-		private const string HOST_NAME    = "Revit";
-		private const string VENDOR_NAME  = "Autodesk Inc.";
-		private const string PRODUCT_NAME = "Revit";
+		public const string HOST_NAME    = "Revit";
+		public const string VENDOR_NAME  = "Autodesk Inc.";
+		public const string PRODUCT_NAME = "Revit";
 
 		// Revit to Datasmith unit convertion factor.
 		private const float CENTIMETERS_PER_FOOT = 30.48F;
@@ -50,8 +47,14 @@ namespace DatasmithRevitExporter
 		// Stack of Revit document data being processed.
 		private Stack<FDocumentData> DocumentDataStack = new Stack<FDocumentData>();
 
+		// Cache exported document data for future reference (including the parenting (linked documents))
+		private List<FDocumentData> ExportedDocuments = new List<FDocumentData>();
+
 		// List of extra search paths for Revit texture files.
 		private IList<string> ExtraTexturePaths = new List<string>();
+
+		// HashSet of exported texture names, used to make sure we only export each texture once.
+		private HashSet<string> UniqueTextureNameSet = new HashSet<string>();
 
 		// List of messages generated during the export process.
 		private List<string> MessageList = new List<string>();
@@ -59,21 +62,11 @@ namespace DatasmithRevitExporter
 		// The file path for the view that is currently being exported.
 		private string CurrentDatasmithFilePath = null;
 
-		public FDatasmithRevitExportContext(
-			Application						InApplication,        // running Revit application
-			Document						InDocument,           // active Revit document
-			Dictionary<ElementId, string>	InDatasmithFilePaths, // Datasmith output file path
-			DatasmithRevitExportOptions		InExportOptions       // Unreal Datasmith export options
-		)
-		{
-			ProductVersion     = InApplication.VersionNumber;
-			RevitDocument      = InDocument;
-			DatasmithFilePaths = InDatasmithFilePaths;
+		private FDirectLink DirectLink;
 
-			// Get the Unreal Datasmith export options.
-			DebugLog            = InExportOptions.GetWriteLogFile() ? new FDatasmithFacadeLog() : null;
-			LevelOfTessellation = InExportOptions.GetLevelOfTessellation();
-		}
+		private FDatasmithRevitExportContext() {}
+
+		private bool CurrentElementSkipped = false;
 
 		// Progress bar callback.
 		public void HandleProgressChanged(
@@ -87,6 +80,24 @@ namespace DatasmithRevitExporter
 		public IList<string> GetMessages()
 		{
 			return MessageList;
+		}
+
+		public FDatasmithRevitExportContext(
+			Application						InApplication,        // running Revit application
+			Document						InDocument,           // active Revit document
+			Dictionary<ElementId, string>	InDatasmithFilePaths, // Datasmith output file path
+			DatasmithRevitExportOptions		InExportOptions,      // Unreal Datasmith export options
+			FDirectLink						InDirectLink		  // DirectLink manager
+		)
+		{
+			ProductVersion = InApplication.VersionNumber;
+			DatasmithFilePaths = InDatasmithFilePaths;
+			RevitDocument = InDocument;
+			DirectLink = InDirectLink;
+
+			// Get the Unreal Datasmith export options.
+			DebugLog = InExportOptions.GetWriteLogFile() ? new FDatasmithFacadeLog() : null;
+			LevelOfTessellation = InExportOptions.GetLevelOfTessellation();
 		}
 
 		//========================================================================================================================
@@ -107,6 +118,11 @@ namespace DatasmithRevitExporter
 			// Revit uses foot as internal system unit for all 3D coordinates.
 			FDatasmithFacadeElement.SetWorldUnitScale(CENTIMETERS_PER_FOOT);
 
+			if (DirectLink != null)
+			{
+				DirectLink.SyncRevitDocument();
+			}
+
 			// We are ready to proceed with the export.
 			return true;
 		}
@@ -114,7 +130,7 @@ namespace DatasmithRevitExporter
 		// Finish is called at the very end of the export process, after all entities were processed (or after the process was cancelled).
 		public void Finish()
 		{
-			if (DebugLog != null)
+			if (DebugLog != null && CurrentDatasmithFilePath != null)
 			{
 				DebugLog.WriteFile(CurrentDatasmithFilePath.Replace(".udatasmith", ".log"));
 			}
@@ -139,20 +155,29 @@ namespace DatasmithRevitExporter
 			WorldTransformStack.Push(Transform.Identity);
 
 			// Create an empty Datasmith scene.
-			DatasmithScene = new FDatasmithFacadeScene(HOST_NAME, VENDOR_NAME, PRODUCT_NAME, ProductVersion);
+			if (DirectLink != null)
+			{
+				DirectLink.OnBeginExport(RevitDocument);
+				DatasmithScene = DirectLink.DatasmithScene;
+			}
+			else
+			{
+				DatasmithScene = new FDatasmithFacadeScene(HOST_NAME, VENDOR_NAME, PRODUCT_NAME, ProductVersion);
+			}
+
 			DatasmithScene.PreExport();
 
 			View3D ViewToExport = RevitDocument.GetElement(InViewNode.ViewId) as View3D;
-			if (!DatasmithFilePaths.TryGetValue(ViewToExport.Id, out CurrentDatasmithFilePath))
+			if (DatasmithFilePaths != null && !DatasmithFilePaths.TryGetValue(ViewToExport.Id, out CurrentDatasmithFilePath))
 			{
 				return RenderNodeAction.Skip; // TODO log error?
 			}
 
-			// Add a new camera actor to the Datasmith scene for the 3D view camera.
-			AddCameraActor(ViewToExport, InViewNode.GetCameraInfo());
-
 			// Keep track of the active Revit document being exported.
 			PushDocument(RevitDocument);
+
+			// Add a new camera actor to the Datasmith scene for the 3D view camera.
+			AddCameraActor(ViewToExport, InViewNode.GetCameraInfo());
 
 			// We want to export the 3D view.
 			return RenderNodeAction.Proceed;
@@ -167,14 +192,19 @@ namespace DatasmithRevitExporter
 			// Forget the active Revit document being exported.
 			PopDocument();
 
-			// Optimize the Datasmith actor hierarchy by removing the intermediate single child actors.
-			DatasmithScene.Optimize();
+			// Check if this is regular file export.
+			if (DirectLink == null)
+			{
+				// Build and export the Datasmith scene instance and its scene element assets.
+				DatasmithScene.ExportScene(CurrentDatasmithFilePath);
 
-			// Build and export the Datasmith scene instance and its scene element assets.
-			DatasmithScene.ExportScene(CurrentDatasmithFilePath);
-
-			// Dispose of the Datasmith scene.
-			DatasmithScene = null;
+				// Dispose of the Datasmith scene.
+				DatasmithScene = null;
+			}
+			else
+			{
+				DirectLink.OnEndExport();
+			}
 
 			// Forget the 3D view world transform.
 			WorldTransformStack.Pop();
@@ -185,14 +215,20 @@ namespace DatasmithRevitExporter
 			ElementId InElementId // exported element ID
 		)
 		{
+			CurrentElementSkipped = true;
+
 			Element CurrentElement = GetElement(InElementId);
 
-			if (CurrentElement != null)
+			if (CurrentElement != null && !CurrentElement.IsTransient)
 			{
 				// Keep track of the element being processed.
-				PushElement(CurrentElement, WorldTransformStack.Peek(), "Element Begin");
+				if (!PushElement(CurrentElement, WorldTransformStack.Peek(), "Element Begin"))
+				{
+					return RenderNodeAction.Skip; // Cached element.
+				}
 
 				// We want to export the element.
+				CurrentElementSkipped = false;
 				return RenderNodeAction.Proceed;
 			}
 
@@ -217,14 +253,14 @@ namespace DatasmithRevitExporter
 			InstanceNode InInstanceNode // family instance output node
 		)
 		{
-			Element CurrentInstance = GetElement(InInstanceNode.GetSymbolId());
+			Element CurrentFamilySymbol = GetElement(InInstanceNode.GetSymbolId());
 
-			if (CurrentInstance != null)
+			if (CurrentFamilySymbol != null)
 			{
 				// Keep track of the world transform for the instance being processed.
 				WorldTransformStack.Push(WorldTransformStack.Peek().Multiply(InInstanceNode.GetTransform()));
 
-				ElementType CurrentInstanceType = CurrentInstance as ElementType;
+				ElementType CurrentInstanceType = CurrentFamilySymbol as ElementType;
 
 				// Keep track of the instance being processed.
 				if (CurrentInstanceType != null)
@@ -233,11 +269,11 @@ namespace DatasmithRevitExporter
 				}
 				else
 				{
-					PushElement(CurrentInstance, WorldTransformStack.Peek(), "Symbol Begin");
+					PushElement(CurrentFamilySymbol, WorldTransformStack.Peek(), "Symbol Begin");
 				}
 			}
 
-			// We always wanna proceed, because in certain cases where InInstanceNode is valid but CurrentInstance is not, 
+			// We always wanna proceed, because in certain cases where InInstanceNode is valid but CurrentInstance is not,
 			// what follows is valid geometry related to the instance previously exported.
             return RenderNodeAction.Proceed;
 		}
@@ -248,12 +284,12 @@ namespace DatasmithRevitExporter
 			InstanceNode InInstanceNode // family instance output node
 		)
 		{
-			Element CurrentInstance = GetElement(InInstanceNode.GetSymbolId());
+			Element CurrentFamilySymbol = GetElement(InInstanceNode.GetSymbolId());
 
-			if (CurrentInstance != null)
+			if (CurrentFamilySymbol != null)
 			{
 				// Forget the current instance being exported.
-				if (CurrentInstance as ElementType != null)
+				if (CurrentFamilySymbol as ElementType != null)
 				{
 					PopInstance("Instance End");
 				}
@@ -549,12 +585,23 @@ namespace DatasmithRevitExporter
 			bool bInAddLocationActors = true
 		)
 		{
-			DocumentDataStack.Push(new FDocumentData(InDocument, ref MessageList));
+			// Check if we have cache for this document.
+			FDocumentData DocumentData = new FDocumentData(InDocument, DatasmithScene, ref MessageList, DirectLink?.GetOrAddCache(InDocument) ?? null);
+
+			if (DirectLink != null)
+			{
+				// With DirectLink, we delay export of metadata for a faster initial export.
+				DocumentData.bSkipMetadataExport = true;
+			}
+
+			DocumentDataStack.Push(DocumentData);
 
 			if (bInAddLocationActors)
 			{
 				DocumentDataStack.Peek().AddLocationActors(WorldTransformStack.Peek());
 			}
+
+			ExportedDocuments.Add(DocumentData);
 		}
 
 		private void PopDocument()
@@ -563,31 +610,39 @@ namespace DatasmithRevitExporter
 
 			if (DocumentDataStack.Count == 0)
 			{
-				DocumentData.WrapupScene(DatasmithScene);
+				DocumentData.WrapupScene(DatasmithScene, DirectLink == null, UniqueTextureNameSet);
 			}
 			else
 			{
-				DocumentData.WrapupLink(DatasmithScene, DocumentDataStack.Peek().GetCurrentActor());
+				DocumentData.WrapupLink(DatasmithScene, DocumentDataStack.Peek().GetCurrentActor(), UniqueTextureNameSet);
 			}
-
 		}
 
-		private void PushElement(
+		private bool PushElement(
 			Element   InElement,
 			Transform InWorldTransform,
 			string    InLogLinePrefix
 		)
 		{
 			FDocumentData DocumentData = DocumentDataStack.Peek();
-
-			DocumentData.PushElement(InElement, InWorldTransform);
-			DocumentData.LogElement(DebugLog, InLogLinePrefix, +1);
+			if (DocumentData.PushElement(InElement, InWorldTransform))
+			{
+				DocumentData.LogElement(DebugLog, InLogLinePrefix, +1);
+				return true;
+			}
+			return false;
 		}
 
 		private void PopElement(
 			string InLogLinePrefix
 		)
 		{
+			if (CurrentElementSkipped)
+			{
+				CurrentElementSkipped = false;
+				return;
+			}
+
 			FDocumentData DocumentData = DocumentDataStack.Peek();
 
 			DocumentData.LogElement(DebugLog, InLogLinePrefix, -1);
@@ -670,11 +725,16 @@ namespace DatasmithRevitExporter
 			CameraInfo InViewCamera
 		)
 		{
-			// Create a new Datasmith camera actor.
-			FDatasmithFacadeActorCamera CameraActor = new FDatasmithFacadeActorCamera(InView3D.UniqueId, InView3D.Name);
+			if (DirectLink != null && DirectLink.IsActorCached(InView3D.Id))
+			{
+				return;
+			}
 
+			// Create a new Datasmith camera actor.
 			// Hash the Datasmith camera actor name to shorten it.
-			CameraActor.HashName();
+			string HashedName = FDatasmithFacadeElement.GetStringHash(InView3D.UniqueId);
+			FDatasmithFacadeActorCamera CameraActor = new FDatasmithFacadeActorCamera(HashedName);
+			CameraActor.SetLabel(InView3D.Name);
 
 			if (InView3D.Category != null)
 			{
@@ -687,13 +747,13 @@ namespace DatasmithRevitExporter
 
 			// Set the world position (in right-handed Z-up coordinates) of the Datasmith camera actor.
 			XYZ CameraPosition = ViewOrientation.EyePosition;
-			CameraActor.SetCameraPosition((float) CameraPosition.X, (float) CameraPosition.Y, (float) CameraPosition.Z);
+			CameraActor.SetCameraPosition((float)CameraPosition.X, (float)CameraPosition.Y, (float)CameraPosition.Z);
 
 			// Set the world rotation of the Datasmith camera actor with
 			// the camera world forward and up vectors (in right-handed Z-up coordinates).
 			XYZ CameraForward = ViewOrientation.ForwardDirection;
-			XYZ CameraUp      = ViewOrientation.UpDirection;
-			CameraActor.SetCameraRotation((float) CameraForward.X, (float) CameraForward.Y, (float) CameraForward.Z, (float) CameraUp.X, (float) CameraUp.Y, (float) CameraUp.Z);
+			XYZ CameraUp = ViewOrientation.UpDirection;
+			CameraActor.SetCameraRotation((float)CameraForward.X, (float)CameraForward.Y, (float)CameraForward.Z, (float)CameraUp.X, (float)CameraUp.Y, (float)CameraUp.Z);
 
 			// When the 3D view camera is not available, an orthographic view should be assumed.
 			if (InViewCamera != null)
@@ -701,19 +761,19 @@ namespace DatasmithRevitExporter
 				// Compute the aspect ratio (width/height) of the Revit 3D view camera, where
 				// HorizontalExtent is the distance between left and right planes on the target plane,
 				// VerticalExtent is the distance between top and bottom planes on the target plane.
-				float AspectRatio = (float) (InViewCamera.HorizontalExtent / InViewCamera.VerticalExtent);
+				float AspectRatio = (float)(InViewCamera.HorizontalExtent / InViewCamera.VerticalExtent);
 
 				// Set the aspect ratio of the Datasmith camera.
 				CameraActor.SetAspectRatio(AspectRatio);
 
-				if(InView3D.IsPerspective)
+				if (InView3D.IsPerspective)
 				{
 					// Set the sensor width of the Datasmith camera.
-					CameraActor.SetSensorWidth((float) (InViewCamera.HorizontalExtent * /* millimeters per foot */ 304.8));
+					CameraActor.SetSensorWidth((float)(InViewCamera.HorizontalExtent * /* millimeters per foot */ 304.8));
 
 					// Get the distance from eye point along view direction to target plane.
 					// This value is appropriate for perspective views only.
-					float TargetDistance = (float) InViewCamera.TargetDistance;
+					float TargetDistance = (float)InViewCamera.TargetDistance;
 
 					// Set the Datasmith camera focus distance.
 					CameraActor.SetFocusDistance(TargetDistance);
@@ -724,1202 +784,11 @@ namespace DatasmithRevitExporter
 			}
 
 			// Add the camera actor to the Datasmith scene.
-			DatasmithScene.AddElement(CameraActor);
-		}
-	}
+			DatasmithScene.AddActor(CameraActor);
 
-	public class FDocumentData
-	{
-		private class FElementData
-		{
-			private class FInstanceData
+			if (DirectLink != null)
 			{
-				public ElementType               InstanceType;
-				public FDatasmithFacadeMesh      InstanceMesh  = null;
-				public FDatasmithFacadeActorMesh InstanceActor = null;
-
-				public FInstanceData(
-					ElementType InInstanceType
-				)
-				{
-					InstanceType = InInstanceType;
-				}
-			}
-
-			public  Element                   CurrentElement;
-			private ElementType               CurrentElementType;
-			private Stack<FInstanceData>      InstanceDataStack		= new Stack<FInstanceData>();
-			public  FDatasmithFacadeMesh      ElementMesh			= null;
-			public  FDatasmithFacadeActorMesh ElementActor			= null;
-			public	Transform				  MeshPointsTransform	= null;
-
-			public FElementData(
-				Element   InElement,
-				Transform InWorldTransform
-			)
-			{
-				CurrentElement     = InElement;
-				CurrentElementType = InElement.Document.GetElement(InElement.GetTypeId()) as ElementType;
-
-				// If element has location, use it as a transform in order to have better pivot placement.
-				Transform PivotTransform = GetPivotTransform(CurrentElement);
-				if (PivotTransform != null)
-				{
-					if (!InWorldTransform.IsIdentity)
-					{
-						InWorldTransform = InWorldTransform * PivotTransform;
-					}
-					else
-					{
-						InWorldTransform = PivotTransform;
-					}
-
-					if (CurrentElement.GetType() == typeof(Wall)
-						|| CurrentElement.GetType() == typeof(ModelText)
-						|| CurrentElement.GetType().IsSubclassOf(typeof(MEPCurve)))
-					{
-						MeshPointsTransform = PivotTransform.Inverse;
-					}
-				}
-
-				CreateMeshActor(InWorldTransform, out ElementMesh, out ElementActor);
-			}
-
-			// Compute orthonormal basis, given the X vector.
-			static private void ComputeBasis(XYZ BasisX, ref XYZ BasisY, ref XYZ BasisZ)
-			{
-				BasisY = XYZ.BasisZ.CrossProduct(BasisX);
-				if (BasisY.GetLength() < 0.0001)
-				{
-					// BasisX is aligned with Z, use dot product to take direction in account
-					BasisY = BasisX.CrossProduct(BasisX.DotProduct(XYZ.BasisZ) * XYZ.BasisX).Normalize();
-					BasisZ = BasisX.CrossProduct(BasisY).Normalize();
-				}
-				else
-				{
-					BasisY = BasisY.Normalize();
-					BasisZ = BasisX.CrossProduct(BasisY).Normalize();
-				}
-			}
-
-			private Transform GetPivotTransform(Element InElement)
-			{
-				if (InElement.Location == null || (InElement as FamilyInstance) != null)
-				{
-					return null;
-				}
-
-				XYZ Translation = null;
-				XYZ BasisX = new XYZ();
-				XYZ BasisY = new XYZ();
-				XYZ BasisZ = new XYZ();
-
-				// Get pivot translation
-
-				if (InElement.Location.GetType() == typeof(LocationCurve))
-				{
-					LocationCurve CurveLocation = InElement.Location as LocationCurve;
-					if (CurveLocation.Curve != null && CurveLocation.Curve.IsBound)
-					{
-						Translation = CurveLocation.Curve.GetEndPoint(0);
-					}
-				}
-				else if (InElement.Location.GetType() == typeof(LocationPoint))
-				{
-					Translation = (InElement.Location as LocationPoint).Point;
-				}
-				else if (InElement.GetType() == typeof(Railing))
-				{
-					// Railings don't have valid location, so instead we need to get location from its path.
-					IList<Curve> Paths = (InElement as Railing).GetPath();
-					if (Paths.Count > 0 && Paths[0].IsBound)
-					{
-						Translation = Paths[0].GetEndPoint(0);
-					}
-				}
-
-				if (Translation == null)
-				{
-					return null; // Cannot get valid translation
-				}
-
-				// Get pivot basis
-
-				if (InElement.GetType() == typeof(Wall))
-				{
-					BasisY = (InElement as Wall).Orientation.Normalize();
-					BasisX = BasisY.CrossProduct(XYZ.BasisZ).Normalize();
-					BasisZ = BasisX.CrossProduct(BasisY).Normalize();
-				}
-				else if (InElement.GetType() == typeof(Railing))
-				{
-					IList<Curve> Paths = (InElement as Railing).GetPath();
-					if (Paths.Count > 0)
-					{
-						Curve FirstPath = Paths[0];
-						if (FirstPath.GetType() == typeof(Line))
-						{
-							BasisX = (FirstPath as Line).Direction.Normalize();
-							ComputeBasis(BasisX, ref BasisY, ref BasisZ);
-						}
-						else if (FirstPath.GetType() == typeof(Arc) && FirstPath.IsBound)
-						{
-							Transform Derivatives = (FirstPath as Arc).ComputeDerivatives(0f, true);
-							BasisX = Derivatives.BasisX.Normalize();
-							BasisY = Derivatives.BasisY.Normalize();
-							BasisZ = Derivatives.BasisZ.Normalize();
-						}
-					}
-				}
-				else if (InElement.GetType() == typeof(ModelText))
-				{
-					// Model text has no direction information!
-					BasisX = XYZ.BasisX;
-					BasisY = XYZ.BasisY;
-					BasisZ = XYZ.BasisZ;
-				}
-				else if (InElement.GetType() == typeof(FlexDuct))
-				{
-					BasisX = (InElement as FlexDuct).StartTangent;
-					ComputeBasis(BasisX, ref BasisY, ref BasisZ);
-				}
-				else if (InElement.GetType() == typeof(FlexPipe))
-				{
-					BasisX = (InElement as FlexPipe).StartTangent;
-					ComputeBasis(BasisX, ref BasisY, ref BasisZ);
-				}
-				else if (InElement.Location.GetType() == typeof(LocationCurve))
-				{
-					LocationCurve CurveLocation = InElement.Location as LocationCurve;
-
-					if (CurveLocation.Curve.GetType() == typeof(Line))
-					{
-						BasisX = (CurveLocation.Curve as Line).Direction;
-						ComputeBasis(BasisX, ref BasisY, ref BasisZ);
-					}
-					else if (CurveLocation.Curve.IsBound)
-					{
-						Transform Derivatives = CurveLocation.Curve.ComputeDerivatives(0f, true);
-						BasisX = Derivatives.BasisX.Normalize();
-						BasisY = Derivatives.BasisY.Normalize();
-						BasisZ = Derivatives.BasisZ.Normalize();
-					}
-					else
-					{
-						return null;
-					}
-				}
-				else
-				{
-					return null; // Cannot get valid basis
-				}
-
-				Transform PivotTransform = Transform.CreateTranslation(Translation);
-				PivotTransform.BasisX = BasisX;
-				PivotTransform.BasisY = BasisY;
-				PivotTransform.BasisZ = BasisZ;
-
-				return PivotTransform;
-			}
-
-			public void PushInstance(
-				ElementType InInstanceType,
-				Transform   InWorldTransform
-			)
-			{
-				FInstanceData InstanceData = new FInstanceData(InInstanceType);
-
-				InstanceDataStack.Push(InstanceData);
-
-				CreateMeshActor(InWorldTransform, out InstanceData.InstanceMesh, out InstanceData.InstanceActor);
-
-                // The Datasmith instance actor is a component in the hierarchy.
-                InstanceData.InstanceActor.SetIsComponent(true);
-            }
-
-            public FDatasmithFacadeMesh PopInstance()
-			{
-				FInstanceData InstanceData = InstanceDataStack.Pop();
-
-				FDatasmithFacadeMesh      InstanceMesh  = InstanceData.InstanceMesh;
-				FDatasmithFacadeActorMesh InstanceActor = InstanceData.InstanceActor;
-
-				if (InstanceMesh.GetVertexCount() > 0 && InstanceMesh.GetTriangleCount() > 0)
-				{
-					// Set the static mesh of the Datasmith instance actor.
-					InstanceActor.SetMesh(InstanceMesh.GetName());
-				}
-
-				// Add the instance mesh actor to the Datasmith actor hierarchy.
-				AddChildActor(InstanceActor);
-
-				return InstanceMesh;
-			}
-
-			public void AddLightActor(
-				Transform InWorldTransform,
-				Asset     InLightAsset
-			)
-			{
-				// Create a new Datasmith light actor.
-				FDatasmithFacadeActorLight LightActor = new FDatasmithFacadeActorLight("A:" + GetActorName(), GetActorLabel());
-
-				// Hash the Datasmith light actor name to shorten it.
-				LightActor.HashName();
-
-				// Set the world transform of the Datasmith light actor.
-				FDocumentData.SetActorTransform(InWorldTransform, LightActor);
-
-				// Set the base properties of the Datasmith light actor.
-				string LayerName = Category.GetCategory(CurrentElement.Document, BuiltInCategory.OST_LightingFixtureSource)?.Name ?? "Light Sources";
-				SetActorProperties(LayerName, LightActor);
-
-				// Set the Datasmith light actor layer to its predefined name.
-				string CategoryName = Category.GetCategory(CurrentElement.Document, BuiltInCategory.OST_LightingFixtureSource)?.Name ?? "Light Sources";
-				LightActor.SetLayer(CategoryName);
-
-				// Set the specific properties of the Datasmith light actor.
-				FDatasmithRevitLight.SetLightProperties(InLightAsset, CurrentElement, LightActor);
-
-				// Add the light actor to the Datasmith actor hierarchy.
-				AddChildActor(LightActor);
-			}
-
-			public FDatasmithFacadeMesh AddRPCActor(
-				Transform InWorldTransform,
-				Asset     InRPCAsset,
-				int       InMaterialIndex
-			)
-			{
-				// Create a new Datasmith RPC mesh.
-				FDatasmithFacadeMesh RPCMesh = new FDatasmithFacadeMesh("M:" + GetActorName(), GetActorLabel());
-
-				// Hash the Datasmith RPC mesh name to shorten it.
-				RPCMesh.HashName();
-
-				Transform AffineTransform = Transform.Identity;
-
-				LocationPoint RPCLocationPoint = CurrentElement.Location as LocationPoint;
-
-				if (RPCLocationPoint != null)
-				{
-					if (RPCLocationPoint.Rotation != 0.0)
-					{
-						AffineTransform = AffineTransform.Multiply(Transform.CreateRotation(XYZ.BasisZ, -RPCLocationPoint.Rotation));
-						AffineTransform = AffineTransform.Multiply(Transform.CreateTranslation(RPCLocationPoint.Point.Negate()));
-					}
-					else
-					{
-						AffineTransform = Transform.CreateTranslation(RPCLocationPoint.Point.Negate());
-					}
-				}
-
-				GeometryElement RPCGeometryElement = CurrentElement.get_Geometry(new Options());
-
-				foreach (GeometryObject RPCGeometryObject in RPCGeometryElement)
-				{
-					GeometryInstance RPCGeometryInstance = RPCGeometryObject as GeometryInstance;
-
-					if (RPCGeometryInstance != null)
-					{
-						GeometryElement RPCInstanceGeometry = RPCGeometryInstance.GetInstanceGeometry();
-
-						foreach (GeometryObject RPCInstanceGeometryObject in RPCInstanceGeometry)
-						{
-							Mesh RPCInstanceGeometryMesh = RPCInstanceGeometryObject as Mesh;
-
-							if (RPCInstanceGeometryMesh == null || RPCInstanceGeometryMesh.NumTriangles < 1)
-							{
-								continue;
-							}
-
-							// RPC geometry does not have normals nor UVs available through the Revit Mesh interface.
-							int InitialVertexCount = RPCMesh.GetVertexCount();
-							int TriangleCount      = RPCInstanceGeometryMesh.NumTriangles;
-
-							// Add the RPC geometry vertices to the Datasmith RPC mesh.
-							foreach (XYZ Vertex in RPCInstanceGeometryMesh.Vertices)
-							{
-								XYZ PositionedVertex = AffineTransform.OfPoint(Vertex);
-								RPCMesh.AddVertex((float)PositionedVertex.X, (float)PositionedVertex.Y, (float)PositionedVertex.Z);
-							}
-
-							// Add the RPC geometry triangles to the Datasmith RPC mesh.
-							for (int TriangleNo = 0; TriangleNo < TriangleCount; TriangleNo++)
-							{
-								MeshTriangle Triangle = RPCInstanceGeometryMesh.get_Triangle(TriangleNo);
-
-								try
-								{
-									int Index0 = Convert.ToInt32(Triangle.get_Index(0));
-									int Index1 = Convert.ToInt32(Triangle.get_Index(1));
-									int Index2 = Convert.ToInt32(Triangle.get_Index(2));
-
-									// Add triangles for both the front and back faces.
-									RPCMesh.AddTriangle(InitialVertexCount + Index0, InitialVertexCount + Index1, InitialVertexCount + Index2, InMaterialIndex);
-									RPCMesh.AddTriangle(InitialVertexCount + Index2, InitialVertexCount + Index1, InitialVertexCount + Index0, InMaterialIndex);
-								}
-								catch (OverflowException)
-								{
-									continue;
-								}
-							}
-						}
-					}
-				}
-
-				// Create a new Datasmith RPC mesh actor.
-				FDatasmithFacadeActorMesh RPCMeshActor = new FDatasmithFacadeActorMesh("A:" + GetActorName(), GetActorLabel());
-
-				// Hash the Datasmith RPC mesh actor name to shorten it.
-				RPCMeshActor.HashName();
-
-				// Prevent the Datasmith RPC mesh actor from being removed by optimization.
-				RPCMeshActor.KeepActor();
-
-				if (RPCMesh.GetVertexCount() > 0 && RPCMesh.GetTriangleCount() > 0)
-				{
-					RPCMeshActor.SetMesh(RPCMesh.GetName());
-				}
-
-				// Set the world transform of the Datasmith RPC mesh actor.
-				FDocumentData.SetActorTransform(InWorldTransform, RPCMeshActor);
-
-				// Set the base properties of the Datasmith RPC mesh actor.
-				string LayerName = GetCategoryName();
-				SetActorProperties(LayerName, RPCMeshActor);
-
-				// Add a Revit element RPC tag to the Datasmith RPC mesh actor.
-				RPCMeshActor.AddTag("Revit.Element.RPC");
-
-				// Add some Revit element RPC metadata to the Datasmith RPC mesh actor.
-				AssetProperty RPCTypeId   = InRPCAsset.FindByName("RPCTypeId");
-				AssetProperty RPCFilePath = InRPCAsset.FindByName("RPCFilePath");
-
-				if (RPCTypeId != null)
-				{
-					RPCMeshActor.AddMetadataString("Type*RPCTypeId", (RPCTypeId as AssetPropertyString).Value);
-				}
-
-				if (RPCFilePath != null)
-				{
-					RPCMeshActor.AddMetadataString("Type*RPCFilePath", (RPCFilePath as AssetPropertyString).Value);
-				}
-
-				// Add the RPC mesh actor to the Datasmith actor hierarchy.
-				AddChildActor(RPCMeshActor);
-
-				return RPCMesh;
-			}
-
-			public void AddChildActor(
-				FDatasmithFacadeActor InChildActor
-			)
-			{
-				if (InstanceDataStack.Count == 0)
-				{
-					ElementActor.AddChild(InChildActor);
-				}
-				else
-				{
-					InstanceDataStack.Peek().InstanceActor.AddChild(InChildActor);
-				}
-			}
-
-			public string GetCategoryName()
-			{
-				return CurrentElementType?.Category?.Name ?? CurrentElement.Category?.Name;
-			}
-
-			public bool IgnoreElementGeometry()
-			{
-				// Ignore elements that have unwanted geometry, such as level symbols.
-				return (CurrentElementType as LevelType) != null;
-			}
-
-			public FDatasmithFacadeMesh GetCurrentMesh()
-			{
-				if (InstanceDataStack.Count == 0)
-				{
-					return ElementMesh;
-				}
-				else
-				{
-					return InstanceDataStack.Peek().InstanceMesh;
-				}
-			}
-
-			public FDatasmithFacadeActorMesh GetCurrentActor()
-			{
-				if (InstanceDataStack.Count == 0)
-				{
-					return ElementActor;
-				}
-				else
-				{
-					return InstanceDataStack.Peek().InstanceActor;
-				}
-			}
-
-			public void Log(
-				FDatasmithFacadeLog InDebugLog,
-				string              InLinePrefix,
-				int                 InLineIndentation
-			)
-			{
-				if (InDebugLog != null)
-				{
-					if (InLineIndentation < 0)
-					{
-						InDebugLog.LessIndentation();
-					}
-
-					Element SourceElement = (InstanceDataStack.Count == 0) ? CurrentElement : InstanceDataStack.Peek().InstanceType;
-
-					InDebugLog.AddLine($"{InLinePrefix} {SourceElement.Id.IntegerValue} '{SourceElement.Name}' {SourceElement.GetType()}: '{GetActorLabel()}'");
-
-					if (InLineIndentation > 0)
-					{
-						InDebugLog.MoreIndentation();
-					}
-				}
-			}
-
-			private string GetActorName()
-			{
-				string DocumentName = Path.GetFileNameWithoutExtension(CurrentElement.Document.PathName);
-
-				if (InstanceDataStack.Count == 0)
-				{
-					return $"{DocumentName}:{CurrentElement.UniqueId}";
-				}
-				else
-				{
-					return $"{DocumentName}:{InstanceDataStack.Peek().InstanceType.UniqueId}";
-				}
-			}
-
-			private string GetActorLabel()
-			{
-				string CategoryName = GetCategoryName();
-				string FamilyName   = CurrentElementType?.FamilyName;
-				string TypeName     = CurrentElementType?.Name;
-				string InstanceName = (InstanceDataStack.Count > 1) ? InstanceDataStack.Peek().InstanceType?.Name : null;
-
-				string ActorLabel = "";
-
-				if (CurrentElement as Level != null)
-				{
-					ActorLabel += string.IsNullOrEmpty(FamilyName) ? "" : FamilyName + "*";
-					ActorLabel += string.IsNullOrEmpty(TypeName)   ? "" : TypeName + "*";
-					ActorLabel += CurrentElement.Name;
-				}
-				else
-				{
-					ActorLabel += string.IsNullOrEmpty(CategoryName) ? ""                  : CategoryName + "*";
-					ActorLabel += string.IsNullOrEmpty(FamilyName)   ? ""                  : FamilyName + "*";
-					ActorLabel += string.IsNullOrEmpty(TypeName)     ? CurrentElement.Name : TypeName;
-					ActorLabel += string.IsNullOrEmpty(InstanceName) ? ""                  : "*" + InstanceName;
-				}
-
-				return ActorLabel;
-			}
-
-			private void CreateMeshActor(
-				    Transform                 InWorldTransform,
-				out FDatasmithFacadeMesh      OutMesh,
-				out FDatasmithFacadeActorMesh OutMeshActor
-			)
-			{
-				// Create a new Datasmith mesh.
-				OutMesh = new FDatasmithFacadeMesh("M:" + GetActorName(), GetActorLabel());
-
-				// Hash the Datasmith mesh name to shorten it.
-				OutMesh.HashName();
-
-				// Create a new Datasmith mesh actor.
-				OutMeshActor = new FDatasmithFacadeActorMesh("A:" + GetActorName(), GetActorLabel());
-
-				// Hash the Datasmith mesh actor name to shorten it.
-				OutMeshActor.HashName();
-
-				// Set the world transform of the Datasmith mesh actor.
-				FDocumentData.SetActorTransform(InWorldTransform, OutMeshActor);
-
-				// Set the base properties of the Datasmith mesh actor.
-				string LayerName = GetCategoryName();
-				SetActorProperties(LayerName, OutMeshActor);
-			}
-
-			private void SetActorProperties(
-				string                InLayerName,
-				FDatasmithFacadeActor IOActor
-			)
-			{
-				// Set the Datasmith actor layer to the element type category name.
-				IOActor.SetLayer(InLayerName);
-
-				// Add the Revit element ID and Unique ID tags to the Datasmith actor.
-				IOActor.AddTag($"Revit.Element.Id.{CurrentElement.Id.IntegerValue}");
-				IOActor.AddTag($"Revit.Element.UniqueId.{CurrentElement.UniqueId}");
-
-				// For an hosted Revit family instance, add the host ID, Unique ID and Mirrored/Flipped flags as tags to the Datasmith actor.
-				FamilyInstance CurrentFamilyInstance = CurrentElement as FamilyInstance;
-				if (CurrentFamilyInstance != null)
-				{
-					IOActor.AddTag($"Revit.DB.FamilyInstance.Mirrored.{CurrentFamilyInstance.Mirrored}");
-					IOActor.AddTag($"Revit.DB.FamilyInstance.HandFlipped.{CurrentFamilyInstance.HandFlipped}");
-					IOActor.AddTag($"Revit.DB.FamilyInstance.FaceFlipped.{CurrentFamilyInstance.FacingFlipped}");
-
-					if (CurrentFamilyInstance.Host != null)
-					{
-						IOActor.AddTag($"Revit.Host.Id.{CurrentFamilyInstance.Host.Id.IntegerValue}");
-						IOActor.AddTag($"Revit.Host.UniqueId.{CurrentFamilyInstance.Host.UniqueId}");
-					}
-				}
-
-				// Add the Revit element category name metadata to the Datasmith actor.
-				string CategoryName = GetCategoryName();
-				if (!string.IsNullOrEmpty(CategoryName))
-				{
-					IOActor.AddMetadataString("Element*Category", CategoryName);
-				}
-
-				// Add the Revit element family name metadata to the Datasmith actor.
-				string FamilyName = CurrentElementType?.FamilyName;
-				if (!string.IsNullOrEmpty(FamilyName))
-				{
-					IOActor.AddMetadataString("Element*Family", FamilyName);
-				}
-
-				// Add the Revit element type name metadata to the Datasmith actor.
-				string TypeName = CurrentElementType?.Name;
-				if (!string.IsNullOrEmpty(TypeName))
-				{
-					IOActor.AddMetadataString("Element*Type", TypeName);
-				}
-
-				// Add Revit element metadata to the Datasmith actor.
-				FDocumentData.AddActorMetadata(CurrentElement, "Element*", IOActor);
-
-				if (CurrentElementType != null)
-				{
-					// Add Revit element type metadata to the Datasmith actor.
-					FDocumentData.AddActorMetadata(CurrentElementType, "Type*", IOActor);
-				}
-			}
-		}
-
-		private Document                                 CurrentDocument;
-		private Stack<FElementData>                      ElementDataStack         = new Stack<FElementData>();
-		private Dictionary<string, FDatasmithFacadeMesh> CollectedMeshMap         = new Dictionary<string, FDatasmithFacadeMesh>();
-		private Dictionary<int, FDatasmithFacadeActor>   CollectedActorMap        = new Dictionary<int, FDatasmithFacadeActor>();
-		private string                                   CurrentMaterialDataKey   = null;
-		private Dictionary<string, FMaterialData>        CollectedMaterialDataMap = new Dictionary<string, FMaterialData>();
-		private int                                      LatestMaterialIndex      = 0;
-		private List<string>                             MessageList              = null;
-
-		public FDocumentData(
-			Document         InDocument,
-			ref List<string> InMessageList
-		)
-		{
-			CurrentDocument = InDocument;
-			MessageList     = InMessageList;
-		}
-
-		public Element GetElement(
-			ElementId InElementId
-		)
-		{
-			return (InElementId != ElementId.InvalidElementId) ? CurrentDocument.GetElement(InElementId) : null;
-		}
-
-		public void PushElement(
-			Element   InElement,
-			Transform InWorldTransform
-		)
-		{
-			ElementDataStack.Push(new FElementData(InElement, InWorldTransform));
-		}
-
-		public void PopElement()
-		{
-			FElementData ElementData = ElementDataStack.Pop();
-
-			FDatasmithFacadeMesh      ElementMesh  = ElementData.ElementMesh;
-			FDatasmithFacadeActorMesh ElementActor = ElementData.ElementActor;
-
-			if (ElementMesh.GetVertexCount() > 0 && ElementMesh.GetTriangleCount() > 0)
-			{
-				// Set the static mesh of the Datasmith actor.
-				ElementActor.SetMesh(ElementMesh.GetName());
-			}
-
-			// Collect the element Datasmith mesh into the mesh dictionary.
-			CollectMesh(ElementMesh);
-
-			if (ElementDataStack.Count == 0)
-			{
-				int ElementId = ElementData.CurrentElement.Id.IntegerValue;
-
-				if (CollectedActorMap.ContainsKey(ElementId))
-				{
-					// Handle the spurious case of Revit Custom Exporter calling back more than once for the same element.
-					// These extra empty actors will be cleaned up later by the Datasmith actor hierarchy optimization.
-					CollectedActorMap[ElementId].AddChild(ElementActor);
-				}
-				else
-				{
-					// Collect the element mesh actor into the Datasmith actor dictionary.
-					CollectedActorMap[ElementId] = ElementActor;
-				}
-			}
-			else
-			{
-				// Add the element mesh actor to the Datasmith actor hierarchy.
-				ElementDataStack.Peek().AddChildActor(ElementActor);
-			}
-		}
-
-		public void PushInstance(
-			ElementType InInstanceType,
-			Transform   InWorldTransform
-		)
-		{
-			ElementDataStack.Peek().PushInstance(InInstanceType, InWorldTransform);
-		}
-
-		public void PopInstance()
-		{
-			FDatasmithFacadeMesh InstanceMesh = ElementDataStack.Peek().PopInstance();
-
-			// Collect the instance mesh into the Datasmith mesh dictionary.
-			CollectMesh(InstanceMesh);
-		}
-
-		public void AddLocationActors(
-			Transform InWorldTransform
-		)
-		{
-			// Add a new Datasmith placeholder actor for this document site location.
-			AddSiteLocation(CurrentDocument.SiteLocation);
-
-			// Add new Datasmith placeholder actors for the project base point and survey points.
-			// A project has one base point and at least one survey point. Linked documents also have their own points.
-			AddPointLocations(InWorldTransform);
-		}
-
-		public void AddLightActor(
-			Transform InWorldTransform,
-			Asset     InLightAsset
-		)
-		{
-			ElementDataStack.Peek().AddLightActor(InWorldTransform, InLightAsset);
-		}
-
-		public void AddRPCActor(
-			Transform InWorldTransform,
-			Asset     InRPCAsset
-		)
-		{
-			// Create a simple fallback material for the RPC mesh.
-			string RPCCategoryName = ElementDataStack.Peek().GetCategoryName();
-			bool   isRPCPlant      = !string.IsNullOrEmpty(RPCCategoryName) && RPCCategoryName == Category.GetCategory(CurrentDocument, BuiltInCategory.OST_Planting)?.Name;
-			string RPCMaterialName = isRPCPlant ? "RPC_Plant" : "RPC_Material";
-
-			if (!CollectedMaterialDataMap.ContainsKey(RPCMaterialName))
-			{
-				// Color reference: https://www.color-hex.com/color-palette/70002
-				Color RPCColor = isRPCPlant ? /* green */ new Color(88, 126, 96) : /* gray */ new Color(128, 128, 128);
-
-				// Keep track of a new RPC master material.
-				CollectedMaterialDataMap[RPCMaterialName] = new FMaterialData(RPCMaterialName, RPCColor, ++LatestMaterialIndex);
-			}
-
-			FMaterialData RPCMaterialData = CollectedMaterialDataMap[RPCMaterialName];
-
-			FDatasmithFacadeMesh RPCMesh = ElementDataStack.Peek().AddRPCActor(InWorldTransform, InRPCAsset, RPCMaterialData.MaterialIndex);
-
-			// Add the RPC master material name to the dictionary of material names utilized by the RPC mesh.
-			RPCMesh.AddMaterial(RPCMaterialData.MaterialIndex, RPCMaterialData.MasterMaterial.GetName());
-
-			// Collect the RPC mesh into the Datasmith mesh dictionary.
-			CollectMesh(RPCMesh);
-		}
-
-		public bool SetMaterial(
-			MaterialNode  InMaterialNode,
-			IList<string> InExtraTexturePaths
-		)
-		{
-			Material CurrentMaterial = GetElement(InMaterialNode.MaterialId) as Material;
-
-			CurrentMaterialDataKey = FMaterialData.GetMaterialName(InMaterialNode, CurrentMaterial);
-
-			if (!CollectedMaterialDataMap.ContainsKey(CurrentMaterialDataKey))
-			{
-				// Keep track of a new Datasmith master material.
-				CollectedMaterialDataMap[CurrentMaterialDataKey] = new FMaterialData(InMaterialNode, CurrentMaterial, ++LatestMaterialIndex, InExtraTexturePaths);
-
-				// A new Datasmith master material was created.
-				return true;
-			}
-
-			// No new Datasmith master material created.
-			return false;
-		}
-
-		public bool IgnoreElementGeometry()
-		{
-			return ElementDataStack.Peek().IgnoreElementGeometry();
-		}
-
-		public FDatasmithFacadeMesh GetCurrentMesh()
-		{
-			return ElementDataStack.Peek().GetCurrentMesh();
-		}
-
-		public Transform GetCurrentMeshPointsTransform()
-		{
-			return ElementDataStack.Peek().MeshPointsTransform;
-		}
-
-		public int GetCurrentMaterialIndex()
-		{
-			if (CollectedMaterialDataMap.ContainsKey(CurrentMaterialDataKey))
-			{
-				FMaterialData MaterialData = CollectedMaterialDataMap[CurrentMaterialDataKey];
-
-				// Add the current Datasmith master material name to the dictionary of material names utilized by the Datasmith mesh being processed.
-				GetCurrentMesh().AddMaterial(MaterialData.MaterialIndex, MaterialData.MasterMaterial.GetName());
-
-				// Return the index of the current material.
-				return MaterialData.MaterialIndex;
-			}
-
-			return 0;
-		}
-
-		public FDatasmithFacadeActorMesh GetCurrentActor()
-		{
-			return ElementDataStack.Peek().GetCurrentActor();
-		}
-
-		public void WrapupLink(
-			FDatasmithFacadeScene InDatasmithScene,
-			FDatasmithFacadeActor InLinkActor
-		)
-		{
-			// Add the collected meshes from the Datasmith mesh dictionary to the Datasmith scene.
-			AddCollectedMeshes(InDatasmithScene);
-
-			// Factor in the Datasmith actor hierarchy the Revit document host hierarchy.
-			AddHostHierarchy();
-
-			// Factor in the Datasmith actor hierarchy the Revit document level hierarchy.
-			AddLevelHierarchy();
-
-			if (CollectedActorMap.Count > 0)
-			{
-				// Prevent the Datasmith link actor from being removed by optimization.
-				InLinkActor.KeepActor();
-
-				// Add the collected actors from the Datasmith actor dictionary as children of the Datasmith link actor.
-				foreach (FDatasmithFacadeActor CollectedActor in CollectedActorMap.Values)
-				{
-					InLinkActor.AddChild(CollectedActor);
-				}
-			}
-
-			// Add the collected master materials from the material data dictionary to the Datasmith scene.
-			AddCollectedMaterials(InDatasmithScene);
-		}
-
-		public void WrapupScene(
-			FDatasmithFacadeScene InDatasmithScene
-		)
-		{
-			// Add the collected meshes from the Datasmith mesh dictionary to the Datasmith scene.
-			AddCollectedMeshes(InDatasmithScene);
-
-			// Factor in the Datasmith actor hierarchy the Revit document host hierarchy.
-			AddHostHierarchy();
-
-			// Factor in the Datasmith actor hierarchy the Revit document level hierarchy.
-			AddLevelHierarchy();
-
-			// Add the collected actors from the Datasmith actor dictionary to the Datasmith scene.
-			foreach (FDatasmithFacadeActor CollectedActor in CollectedActorMap.Values)
-			{
-				// Make sure all the actor names are unique and persistent in the Datasmith actor hierarchy.
-				CollectedActor.SanitizeActorHierarchyNames();
-
-				InDatasmithScene.AddElement(CollectedActor);
-			}
-
-			// Add the collected master materials from the material data dictionary to the Datasmith scene.
-			AddCollectedMaterials(InDatasmithScene);
-		}
-
-		public void LogElement(
-			FDatasmithFacadeLog InDebugLog,
-			string              InLinePrefix,
-			int                 InLineIndentation
-		)
-		{
-			ElementDataStack.Peek().Log(InDebugLog, InLinePrefix, InLineIndentation);
-		}
-
-		public void LogMaterial(
-			MaterialNode        InMaterialNode,
-			FDatasmithFacadeLog InDebugLog,
-			string              InLinePrefix
-		)
-		{
-			if (CollectedMaterialDataMap.ContainsKey(CurrentMaterialDataKey))
-			{
-				CollectedMaterialDataMap[CurrentMaterialDataKey].Log(InMaterialNode, InDebugLog, InLinePrefix);
-			}
-		}
-
-		private void AddSiteLocation(
-			SiteLocation InSiteLocation
-		)
-		{
-			if (InSiteLocation == null || !InSiteLocation.IsValidObject)
-			{
-				return;
-			}
-
-			// Create a new Datasmith placeholder actor for the site location.
-			FDatasmithFacadeActor SiteLocationActor = new FDatasmithFacadeActor("SiteLocation", "Site Location");
-
-			// Hash the Datasmith placeholder actor name to shorten it.
-			SiteLocationActor.HashName();
-
-			// Prevent the Datasmith placeholder actor from being removed by optimization.
-			SiteLocationActor.KeepActor();
-
-			// Set the Datasmith placeholder actor layer to the site location category name.
-			SiteLocationActor.SetLayer(InSiteLocation.Category.Name);
-
-			// Add the Revit element ID and Unique ID tags to the Datasmith placeholder actor.
-			SiteLocationActor.AddTag($"Revit.Element.Id.{InSiteLocation.Id.IntegerValue}");
-			SiteLocationActor.AddTag($"Revit.Element.UniqueId.{InSiteLocation.UniqueId}");
-
-			// Add a Revit element site location tag to the Datasmith placeholder actor.
-			SiteLocationActor.AddTag("Revit.Element.SiteLocation");
-
-			// Add site location metadata to the Datasmith placeholder actor.
-			const double RadiansToDegrees = 180.0 / Math.PI;
-			SiteLocationActor.AddMetadataFloat("SiteLocation*Latitude",  (float) (InSiteLocation.Latitude * RadiansToDegrees));
-			SiteLocationActor.AddMetadataFloat("SiteLocation*Longitude", (float) (InSiteLocation.Longitude * RadiansToDegrees));
-			SiteLocationActor.AddMetadataFloat("SiteLocation*Elevation", (float) InSiteLocation.Elevation);
-			SiteLocationActor.AddMetadataFloat("SiteLocation*TimeZone",  (float) InSiteLocation.TimeZone);
-			SiteLocationActor.AddMetadataString("SiteLocation*Place",    InSiteLocation.PlaceName);
-
-			// Collect the site location placeholder actor into the Datasmith actor dictionary.
-			CollectedActorMap[InSiteLocation.Id.IntegerValue] = SiteLocationActor;
-		}
-
-		private void AddPointLocations(
-			Transform InWorldTransform
-		)
-		{
-			FilteredElementCollector Collector = new FilteredElementCollector(CurrentDocument);
-			ICollection<Element> PointLocations = Collector.OfClass(typeof(BasePoint)).ToElements();
-
-			foreach (Element PointLocation in PointLocations)
-			{
-				BasePoint BasePointLocation = PointLocation as BasePoint;
-
-				if (BasePointLocation != null)
-				{
-					// Since BasePoint.Location is not a location point we cannot get a position from it; so we use a bounding box approach.
-					// Note that, as of Revit 2020, BasePoint has 2 new properties: Position for base point and SharedPosition for survey point.
-					BoundingBoxXYZ BasePointBoundingBox = BasePointLocation.get_BoundingBox(CurrentDocument.ActiveView);
-					if (BasePointBoundingBox == null)
-					{
-						continue;
-					}
-
-					// Create a new Datasmith placeholder actor for the base point.
-					string ActorName  = BasePointLocation.IsShared ? "SurveyPoint"  : "BasePoint";
-					string ActorLabel = BasePointLocation.IsShared ? "Survey Point" : "Base Point";
-					FDatasmithFacadeActor BasePointActor = new FDatasmithFacadeActor(ActorName, ActorLabel);
-
-					// Hash the Datasmith placeholder actor name to shorten it.
-					BasePointActor.HashName();
-
-					// Prevent the Datasmith placeholder actor from being removed by optimization.
-					BasePointActor.KeepActor();
-
-					// Set the world transform of the Datasmith placeholder actor.
-					XYZ BasePointPosition = BasePointBoundingBox.Min;
-
-					Transform TranslationMatrix = Transform.CreateTranslation(BasePointPosition);
-					FDocumentData.SetActorTransform(TranslationMatrix.Multiply(InWorldTransform), BasePointActor);
-
-					// Set the Datasmith placeholder actor layer to the base point category name.
-					BasePointActor.SetLayer(BasePointLocation.Category.Name);
-
-					// Add the Revit element ID and Unique ID tags to the Datasmith placeholder actor.
-					BasePointActor.AddTag($"Revit.Element.Id.{BasePointLocation.Id.IntegerValue}");
-					BasePointActor.AddTag($"Revit.Element.UniqueId.{BasePointLocation.UniqueId}");
-
-					// Add a Revit element base point tag to the Datasmith placeholder actor.
-					BasePointActor.AddTag("Revit.Element." + ActorName);
-
-					// Add base point metadata to the Datasmith actor.
-					string MetadataPrefix = BasePointLocation.IsShared ? "SurveyPointLocation*" : "BasePointLocation*";
-					BasePointActor.AddMetadataVector(MetadataPrefix + "Location", $"{BasePointPosition.X} {BasePointPosition.Y} {BasePointPosition.Z}");
-					FDocumentData.AddActorMetadata(BasePointLocation, MetadataPrefix, BasePointActor);
-
-					// Collect the base point placeholder actor into the Datasmith actor dictionary.
-					CollectedActorMap[BasePointLocation.Id.IntegerValue] = BasePointActor;
-				}
-			}
-		}
-
-		private void CollectMesh(
-			FDatasmithFacadeMesh InMesh
-		)
-		{
-			if (InMesh.GetVertexCount() > 0 && InMesh.GetTriangleCount() > 0)
-			{
-				string MeshName = InMesh.GetName();
-
-				if (!CollectedMeshMap.ContainsKey(MeshName))
-				{
-					// Keep track of the Datasmith mesh.
-					CollectedMeshMap[MeshName] = InMesh;
-				}
-			}
-		}
-
-		private void AddCollectedMeshes(
-			FDatasmithFacadeScene InDatasmithScene
-		)
-		{
-			// Add the collected meshes from the Datasmith mesh dictionary to the Datasmith scene.
-			foreach (FDatasmithFacadeMesh CollectedMesh in CollectedMeshMap.Values)
-			{
-				InDatasmithScene.AddElement(CollectedMesh);
-			}
-		}
-
-		private void AddHostHierarchy()
-		{
-			AddParentElementHierarchy(GetHostElement);
-		}
-
-		private void AddLevelHierarchy()
-		{
-			AddParentElementHierarchy(GetLevelElement);
-		}
-
-		private void AddCollectedMaterials(
-			FDatasmithFacadeScene InDatasmithScene
-		)
-		{
-			// Add the collected master materials from the material data dictionary to the Datasmith scene.
-			foreach (FMaterialData CollectedMaterialData in CollectedMaterialDataMap.Values)
-			{
-				InDatasmithScene.AddElement(CollectedMaterialData.MasterMaterial);
-
-				if (CollectedMaterialData.MessageList.Count > 0)
-				{
-					MessageList.AddRange(CollectedMaterialData.MessageList);
-				}
-			}
-		}
-
-		private Element GetHostElement(
-			int InElementId
-		)
-		{
-			Element SourceElement = CurrentDocument.GetElement(new ElementId(InElementId));
-
-			if (SourceElement as FamilyInstance != null)
-			{
-				return (SourceElement as FamilyInstance).Host;
-			}
-			else if (SourceElement as Wall != null)
-			{
-				return CurrentDocument.GetElement((SourceElement as Wall).StackedWallOwnerId);
-			}
-			else if (SourceElement as ContinuousRail != null)
-			{
-				return CurrentDocument.GetElement((SourceElement as ContinuousRail).HostRailingId);
-			}
-			else if (SourceElement.GetType().IsSubclassOf(typeof(InsulationLiningBase)))
-			{
-				return CurrentDocument.GetElement((SourceElement as InsulationLiningBase).HostElementId);
-			}
-
-			return null;
-		}
-
-		private Element GetLevelElement(
-			int InElementId
-		)
-		{
-			Element SourceElement = CurrentDocument.GetElement(new ElementId(InElementId));
-
-			return (SourceElement == null) ? null : CurrentDocument.GetElement(SourceElement.LevelId);
-		}
-
-		private void AddParentElementHierarchy(
-			Func<int, Element> InGetParentElement
-		)
-		{
-			Queue<int> ElementIdQueue = new Queue<int>(CollectedActorMap.Keys);
-
-			// Make sure the Datasmith actor dictionary contains actors for all the Revit parent elements.
-			while (ElementIdQueue.Count > 0)
-			{
-				Element ParentElement = InGetParentElement(ElementIdQueue.Dequeue());
-
-				if (ParentElement == null)
-				{
-					continue;
-				}
-
-				int ParentElementId = ParentElement.Id.IntegerValue;
-
-				if (CollectedActorMap.ContainsKey(ParentElementId))
-				{
-					continue;
-				}
-
-				// Create a new Datasmith actor for the Revit parent element.
-				PushElement(ParentElement, Transform.Identity);
-				PopElement();
-
-				ElementIdQueue.Enqueue(ParentElementId);
-			}
-
-			// Add the parented actors as children of the parent Datasmith actors.
-			foreach (int ElementId in new List<int>(CollectedActorMap.Keys))
-			{
-				Element ParentElement = InGetParentElement(ElementId);
-
-				if (ParentElement == null)
-				{
-					continue;
-				}
-
-				Element SourceElement = CurrentDocument.GetElement(new ElementId(ElementId));
-
-				if ((SourceElement as FamilyInstance != null && ParentElement as Truss != null) ||
-				    (SourceElement as Mullion != null) ||
-				    (SourceElement as Panel != null) ||
-				    (SourceElement as ContinuousRail != null))
-				{
-					// The Datasmith actor is a component in the hierarchy.
-					CollectedActorMap[ElementId].SetIsComponent(true);
-				}
-
-				int ParentElementId = ParentElement.Id.IntegerValue;
-
-				// Add the parented actor as child of the parent Datasmith actor.
-				CollectedActorMap[ParentElementId].AddChild(CollectedActorMap[ElementId]);
-
-				// Prevent the parent Datasmith actor from being removed by optimization.
-				CollectedActorMap[ParentElementId].KeepActor();
-			}
-
-			// Remove the parented child actors from the Datasmith actor dictionary.
-			foreach (int ElementId in new List<int>(CollectedActorMap.Keys))
-			{
-				Element ParentElement = InGetParentElement(ElementId);
-
-				if (ParentElement == null)
-				{
-					continue;
-				}
-
-				// Remove the parented child actor from the Datasmith actor dictionary.
-				CollectedActorMap.Remove(ElementId);
-			}
-		}
-
-		private static void SetActorTransform(
-			Transform             InWorldTransform,
-			FDatasmithFacadeActor IOActor
-		)
-		{
-			XYZ transformBasisX = InWorldTransform.BasisX;
-			XYZ transformBasisY = InWorldTransform.BasisY;
-			XYZ transformBasisZ = InWorldTransform.BasisZ;
-			XYZ transformOrigin = InWorldTransform.Origin;
-
-			float[] worldMatrix = new float[16];
-
-			worldMatrix[0]  = (float) transformBasisX.X;
-			worldMatrix[1]  = (float) transformBasisX.Y;
-			worldMatrix[2]  = (float) transformBasisX.Z;
-			worldMatrix[3]  = 0.0F;
-			worldMatrix[4]  = (float) transformBasisY.X;
-			worldMatrix[5]  = (float) transformBasisY.Y;
-			worldMatrix[6]  = (float) transformBasisY.Z;
-			worldMatrix[7]  = 0.0F;
-			worldMatrix[8]  = (float) transformBasisZ.X;
-			worldMatrix[9]  = (float) transformBasisZ.Y;
-			worldMatrix[10] = (float) transformBasisZ.Z;
-			worldMatrix[11] = 0.0F;
-			worldMatrix[12] = (float) transformOrigin.X;
-			worldMatrix[13] = (float) transformOrigin.Y;
-			worldMatrix[14] = (float) transformOrigin.Z;
-			worldMatrix[15] = 1.0F;
-
-			// Set the world transform of the Datasmith actor.
-			IOActor.SetWorldTransform(worldMatrix);
-		}
-
-		private static void AddActorMetadata(
-			Element               InSourceElement,
-			string                InMetadataPrefix,
-			FDatasmithFacadeActor IOActor
-		)
-		{
-			IList<Parameter> Parameters = InSourceElement.GetOrderedParameters();
-
-			if (Parameters != null)
-			{
-				foreach (Parameter Parameter in Parameters)
-				{
-					if (Parameter.HasValue)
-					{
-						string ParameterValue = Parameter.AsValueString();
-
-						if (string.IsNullOrEmpty(ParameterValue))
-						{
-							switch (Parameter.StorageType)
-							{
-								case StorageType.Integer:
-									ParameterValue = Parameter.AsInteger().ToString();
-									break;
-								case StorageType.Double:
-									ParameterValue = Parameter.AsDouble().ToString();
-									break;
-								case StorageType.String:
-									ParameterValue = Parameter.AsString();
-									break;
-								case StorageType.ElementId:
-									ParameterValue = Parameter.AsElementId().ToString();
-									break;
-							}
-						}
-
-						if (!string.IsNullOrEmpty(ParameterValue))
-						{
-							string MetadataKey = InMetadataPrefix + Parameter.Definition.Name;
-							IOActor.AddMetadataString(MetadataKey, ParameterValue);
-						}
-					}
-				}
+				DirectLink.CacheActor(RevitDocument, InView3D.Id, new FDocumentData.FBaseElementData(CameraActor, null, DocumentDataStack.Peek()));
 			}
 		}
 	}

@@ -124,7 +124,7 @@ void FAnimBlueprintCompilerHandler_Base::PostExpansionStep(const UEdGraph* InGra
 		{
 			for(FEvaluationHandlerRecord& HandlerRecord : ValidEvaluationHandlerList)
 			{
-				HandlerRecord.BuildFastPathCopyRecords(*this);
+				HandlerRecord.BuildFastPathCopyRecords(*this, InCompilationContext);
 
 				if(HandlerRecord.IsFastPath())
 				{
@@ -528,7 +528,6 @@ void FAnimBlueprintCompilerHandler_Base::CreateEvaluationHandler(IAnimBlueprintC
 				}
 				else
 				{
-					check(!TargetPin->PinType.IsContainer());
 					// Single property
 					if (SourceInfo->CopyRecords.Num() > 0 && SourceInfo->CopyRecords[0].DestPin != nullptr)
 					{
@@ -690,13 +689,13 @@ void FAnimBlueprintCompilerHandler_Base::FEvaluationHandlerRecord::RegisterPrope
 	Handler.CopyRecords.Emplace(InBinding.PropertyPath, DestPropertyPath);
 }
 
-void FAnimBlueprintCompilerHandler_Base::FEvaluationHandlerRecord::BuildFastPathCopyRecords(FAnimBlueprintCompilerHandler_Base& InHandler)
+void FAnimBlueprintCompilerHandler_Base::FEvaluationHandlerRecord::BuildFastPathCopyRecords(FAnimBlueprintCompilerHandler_Base& InHandler, IAnimBlueprintPostExpansionStepContext& InCompilationContext)
 {
 	typedef bool (FAnimBlueprintCompilerHandler_Base::FEvaluationHandlerRecord::*GraphCheckerFunc)(FCopyRecordGraphCheckContext&, UEdGraphPin*);
 
 	GraphCheckerFunc GraphCheckerFuncs[] =
 	{
-		&FAnimBlueprintCompilerHandler_Base::FEvaluationHandlerRecord::CheckForMakeStructAccess,
+		&FAnimBlueprintCompilerHandler_Base::FEvaluationHandlerRecord::CheckForSplitPinAccess,
 		&FAnimBlueprintCompilerHandler_Base::FEvaluationHandlerRecord::CheckForVariableGet,
 		&FAnimBlueprintCompilerHandler_Base::FEvaluationHandlerRecord::CheckForLogicalNot,
 		&FAnimBlueprintCompilerHandler_Base::FEvaluationHandlerRecord::CheckForStructMemberAccess,
@@ -715,7 +714,7 @@ void FAnimBlueprintCompilerHandler_Base::FEvaluationHandlerRecord::BuildFastPath
 				{
 					TArray<FPropertyCopyRecord> AdditionalCopyRecords;
 
-					FCopyRecordGraphCheckContext Context(CopyRecord, AdditionalCopyRecords);
+					FCopyRecordGraphCheckContext Context(CopyRecord, AdditionalCopyRecords, InCompilationContext.GetMessageLog());
 
 					for (GraphCheckerFunc& CheckFunc : GraphCheckerFuncs)
 					{
@@ -896,7 +895,7 @@ bool FAnimBlueprintCompilerHandler_Base::FEvaluationHandlerRecord::CheckForStruc
 	return false;
 }
 
-bool FAnimBlueprintCompilerHandler_Base::FEvaluationHandlerRecord::CheckForMakeStructAccess(FCopyRecordGraphCheckContext& Context, UEdGraphPin* DestPin)
+bool FAnimBlueprintCompilerHandler_Base::FEvaluationHandlerRecord::CheckForSplitPinAccess(FCopyRecordGraphCheckContext& Context, UEdGraphPin* DestPin)
 {
 	if(DestPin)
 	{
@@ -905,29 +904,11 @@ bool FAnimBlueprintCompilerHandler_Base::FEvaluationHandlerRecord::CheckForMakeS
 		UEdGraphPin* SourcePin = nullptr;
 		if(UK2Node_MakeStruct* MakeStructNode = Cast<UK2Node_MakeStruct>(FollowKnots(DestPin, SourcePin)))
 		{
-			return ForEachInputPin(MakeStructNode, [this, &Context, &OriginalRecord](UEdGraphPin* InputPin)
+			// Idea here is to account for split pins, so we want to narrow the scope to not also include user-placed makes
+			UObject* SourceObject = Context.MessageLog.FindSourceObject(MakeStructNode);
+			if(SourceObject && SourceObject->IsA<UAnimGraphNode_Base>())
 			{
-				Context.CopyRecord->SourcePropertyPath = OriginalRecord.SourcePropertyPath;
-				if(CheckForStructMemberAccess(Context, InputPin) || CheckForVariableGet(Context, InputPin) || CheckForArrayAccess(Context, InputPin))
-				{
-					check(Context.CopyRecord->DestPropertyPath.Num() > 0);
-					FPropertyCopyRecord RecordCopy = *Context.CopyRecord;
-					FPropertyCopyRecord& NewRecord = Context.AdditionalCopyRecords.Add_GetRef(MoveTemp(RecordCopy));
-
-					NewRecord.DestPropertyPath = OriginalRecord.DestPropertyPath; 
-					NewRecord.DestPropertyPath.Add(InputPin->PinName.ToString());
-					return true;
-				}
-
-				return false;
-			});
-		}
-		else if(UK2Node_CallFunction* NativeMakeNode = Cast<UK2Node_CallFunction>(FollowKnots(DestPin, SourcePin)))
-		{
-			UFunction* Function = NativeMakeNode->FunctionReference.ResolveMember<UFunction>(UKismetMathLibrary::StaticClass());
-			if(Function && Function->HasMetaData(TEXT("NativeMakeFunc")) && IsWhitelistedNativeMake(Function->GetFName()))
-			{
-				return ForEachInputPin(NativeMakeNode, [this, &Context, &OriginalRecord](UEdGraphPin* InputPin)
+				return ForEachInputPin(MakeStructNode, [this, &Context, &OriginalRecord](UEdGraphPin* InputPin)
 				{
 					Context.CopyRecord->SourcePropertyPath = OriginalRecord.SourcePropertyPath;
 					if(CheckForStructMemberAccess(Context, InputPin) || CheckForVariableGet(Context, InputPin) || CheckForArrayAccess(Context, InputPin))
@@ -936,13 +917,41 @@ bool FAnimBlueprintCompilerHandler_Base::FEvaluationHandlerRecord::CheckForMakeS
 						FPropertyCopyRecord RecordCopy = *Context.CopyRecord;
 						FPropertyCopyRecord& NewRecord = Context.AdditionalCopyRecords.Add_GetRef(MoveTemp(RecordCopy));
 
-						NewRecord.DestPropertyPath = OriginalRecord.DestPropertyPath;
+						NewRecord.DestPropertyPath = OriginalRecord.DestPropertyPath; 
 						NewRecord.DestPropertyPath.Add(InputPin->PinName.ToString());
 						return true;
 					}
 
 					return false;
 				});
+			}
+		}
+		else if(UK2Node_CallFunction* NativeMakeNode = Cast<UK2Node_CallFunction>(FollowKnots(DestPin, SourcePin)))
+		{
+			UFunction* Function = NativeMakeNode->FunctionReference.ResolveMember<UFunction>(UKismetMathLibrary::StaticClass());
+			if(Function && Function->HasMetaData(TEXT("NativeMakeFunc")) && IsWhitelistedNativeMake(Function->GetFName()))
+			{
+				// Idea here is to account for split pins, so we want to narrow the scope to not also include user-placed makes
+				UObject* SourceObject = Context.MessageLog.FindSourceObject(MakeStructNode);
+				if(SourceObject && SourceObject->IsA<UAnimGraphNode_Base>())
+				{
+					return ForEachInputPin(NativeMakeNode, [this, &Context, &OriginalRecord](UEdGraphPin* InputPin)
+					{
+						Context.CopyRecord->SourcePropertyPath = OriginalRecord.SourcePropertyPath;
+						if(CheckForStructMemberAccess(Context, InputPin) || CheckForVariableGet(Context, InputPin) || CheckForArrayAccess(Context, InputPin))
+						{
+							check(Context.CopyRecord->DestPropertyPath.Num() > 0);
+							FPropertyCopyRecord RecordCopy = *Context.CopyRecord;
+							FPropertyCopyRecord& NewRecord = Context.AdditionalCopyRecords.Add_GetRef(MoveTemp(RecordCopy));
+
+							NewRecord.DestPropertyPath = OriginalRecord.DestPropertyPath;
+							NewRecord.DestPropertyPath.Add(InputPin->PinName.ToString());
+							return true;
+						}
+
+						return false;
+					});
+				}
 			}
 		}
 	}

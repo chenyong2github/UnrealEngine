@@ -65,7 +65,7 @@ void FCotanSmoothingOp::Smooth()
 			double VertPower = GetSmoothPower(vid, false);
 			double Weight = (VertPower < FMathf::ZeroTolerance) ? 999999.0 : (1.0 / VertPower);
 
-			if (SmoothOptions.NormalOffset > 0)
+			if (SmoothOptions.NormalOffset != 0)
 			{
 				check(SmoothOptions.BaseNormals.IsValid());
 				Position += SmoothOptions.NormalOffset * SmoothOptions.BaseNormals->GetNormals()[vid];

@@ -7,13 +7,14 @@
 #include "Misc/PackageName.h"
 #include "UObject/Class.h"
 #include "AssetRegistryPrivate.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "AssetRegistry.h"
 
 FPackageReader::FPackageReader()
+	: Loader(nullptr)
+	, PackageFileSize(0)
+	, AssetRegistryDependencyDataOffset(INDEX_NONE)
 {
-	Loader = nullptr;
-	PackageFileSize = 0;
 	this->SetIsLoading(true);
 	this->SetIsPersistent(true);
 }
@@ -66,6 +67,7 @@ bool FPackageReader::OpenPackageFile(EOpenPackageResult* OutErrorCode)
 	if( PackageFileSummary.Tag != PACKAGE_FILE_TAG || IsError())
 	{
 		// Unrecognized or malformed package file
+		UE_LOG(LogAssetRegistry, Error, TEXT("Package %s has malformed tag"), *PackageFilename);
 		SetPackageErrorCode(EOpenPackageResult::MalformedTag);
 		return false;
 	}
@@ -73,6 +75,7 @@ bool FPackageReader::OpenPackageFile(EOpenPackageResult* OutErrorCode)
 	// Don't read packages that are too old
 	if( PackageFileSummary.GetFileVersionUE4() < VER_UE4_OLDEST_LOADABLE_PACKAGE )
 	{
+		UE_LOG(LogAssetRegistry, Error, TEXT("Package %s is too old"), *PackageFilename);
 		SetPackageErrorCode(EOpenPackageResult::VersionTooOld);
 		return false;
 	}
@@ -80,6 +83,7 @@ bool FPackageReader::OpenPackageFile(EOpenPackageResult* OutErrorCode)
 	// Don't read packages that were saved with an package version newer than the current one.
 	if( (PackageFileSummary.GetFileVersionUE4() > GPackageFileUE4Version) || (PackageFileSummary.GetFileVersionLicenseeUE4() > GPackageFileLicenseeUE4Version) )
 	{
+		UE_LOG(LogAssetRegistry, Error, TEXT("Package %s is too new"), *PackageFilename);
 		SetPackageErrorCode(EOpenPackageResult::VersionTooNew);
 		return false;
 	}
@@ -93,8 +97,15 @@ bool FPackageReader::OpenPackageFile(EOpenPackageResult* OutErrorCode)
 			SetPackageErrorCode(EOpenPackageResult::CustomVersionMissing);
 			return false;
 		}
+		else if (Diff.Type == ECustomVersionDifference::Invalid)
+		{
+			SetPackageErrorCode(EOpenPackageResult::CustomVersionInvalid);
+			return false;
+		}
 		else if (Diff.Type == ECustomVersionDifference::Newer)
 		{
+			UE_LOG(LogAssetRegistry, Error, TEXT("Package %s has newer custom version of %s"), *PackageFilename, *Diff.Version->GetFriendlyName().ToString());
+
 			SetPackageErrorCode(EOpenPackageResult::VersionTooNew);
 			return false;
 		}
@@ -134,7 +145,7 @@ bool FPackageReader::StartSerializeSection(int64 Offset)
 		FMessageLog("AssetRegistry").Warning(FText::Format(NSLOCTEXT("AssetRegistry", MessageKey, "Cannot read AssetRegistry Data in {FileName}, skipping it. Error: " MessageKey "."), CorruptPackageWarningArguments)); \
 	} while (false)
 
-bool FPackageReader::ReadAssetRegistryData (TArray<FAssetData*>& AssetDataList)
+bool FPackageReader::ReadAssetRegistryData(TArray<FAssetData*>& AssetDataList)
 {
 	if (!StartSerializeSection(PackageFileSummary.AssetRegistryDataOffset))
 	{
@@ -143,105 +154,54 @@ bool FPackageReader::ReadAssetRegistryData (TArray<FAssetData*>& AssetDataList)
 
 	// Determine the package name and path
 	FString PackageName = FPackageName::FilenameToLongPackageName(PackageFilename);
-	FString PackagePath = FPackageName::GetLongPackagePath(PackageName);
 
-	const bool bIsMapPackage = (PackageFileSummary.PackageFlags & PKG_ContainsMap) != 0;
+	using namespace UE::AssetRegistry;
 
-	// Load the object count
-	int32 ObjectCount = 0;
-	*this << ObjectCount;
-	const int32 MinBytesPerObject = 1;
-	if (IsError() || ObjectCount < 0 || PackageFileSize < Tell() + ObjectCount * MinBytesPerObject)
+	EReadPackageDataMainErrorCode ErrorCode;
+	if (!ReadPackageDataMain(*this, PackageName, PackageFileSummary, AssetRegistryDependencyDataOffset, AssetDataList, ErrorCode))
 	{
-		UE_PACKAGEREADER_CORRUPTPACKAGE_WARNING("ReadAssetRegistryDataInvalidObjectCount", PackageFilename);
+		switch (ErrorCode)
+		{
+		case EReadPackageDataMainErrorCode::InvalidObjectCount:
+			UE_PACKAGEREADER_CORRUPTPACKAGE_WARNING("EReadPackageDataMainErrorCode::InvalidObjectCount", PackageFilename);
+			break;
+		case EReadPackageDataMainErrorCode::InvalidTagCount:
+			UE_PACKAGEREADER_CORRUPTPACKAGE_WARNING("EReadPackageDataMainErrorCode::InvalidTagCount", PackageFilename);
+			break;
+		case EReadPackageDataMainErrorCode::InvalidTag:
+			UE_PACKAGEREADER_CORRUPTPACKAGE_WARNING("EReadPackageDataMainErrorCode::InvalidTag", PackageFilename);
+			break;
+		default:
+			UE_PACKAGEREADER_CORRUPTPACKAGE_WARNING("EReadPackageDataMainErrorCode::Unknown", PackageFilename);
+			break;
+		}
 		return false;
 	}
 
-	// Worlds that were saved before they were marked public do not have asset data so we will synthesize it here to make sure we see all legacy umaps
-	// We will also do this for maps saved after they were marked public but no asset data was saved for some reason. A bug caused this to happen for some maps.
-	if (bIsMapPackage)
+	return true;
+}
+
+bool FPackageReader::SerializeAssetRegistryDependencyData(FPackageDependencyData& DependencyData)
+{
+	if (AssetRegistryDependencyDataOffset == INDEX_NONE)
 	{
-		const bool bLegacyPackage = PackageFileSummary.GetFileVersionUE4() < VER_UE4_PUBLIC_WORLDS;
-		const bool bNoMapAsset = (ObjectCount == 0);
-		if (bLegacyPackage || bNoMapAsset)
-		{
-			FString AssetName = FPackageName::GetLongPackageAssetName(PackageName);
-			AssetDataList.Add(new FAssetData(FName(*PackageName), FName(*PackagePath), FName(*AssetName), FName(TEXT("World")), FAssetDataTagMap(), PackageFileSummary.ChunkIDs, PackageFileSummary.PackageFlags));
-		}
+		// For old package versions that did not write out the dependency flags, set default values of the flags
+		DependencyData.ImportUsedInGame.Init(true, DependencyData.ImportMap.Num());
+		DependencyData.SoftPackageUsedInGame.Init(true, DependencyData.SoftPackageReferenceList.Num());
+		return true;
 	}
 
-	const int32 MinBytesPerTag = 1;
-	// UAsset files usually only have one asset, maps and redirectors have multiple
-	for(int32 ObjectIdx = 0; ObjectIdx < ObjectCount; ++ObjectIdx)
+	if (!StartSerializeSection(AssetRegistryDependencyDataOffset))
 	{
-		FString ObjectPath;
-		FString ObjectClassName;
-		int32 TagCount = 0;
-		*this << ObjectPath;
-		*this << ObjectClassName;
-		*this << TagCount;
-		if (IsError() || TagCount < 0 || PackageFileSize < Tell() + TagCount * MinBytesPerTag)
-		{
-			UE_PACKAGEREADER_CORRUPTPACKAGE_WARNING("ReadAssetRegistryDataInvalidTagCount", PackageFilename);
-			return false;
-		}
-
-		FAssetDataTagMap TagsAndValues;
-		TagsAndValues.Reserve(TagCount);
-
-		for(int32 TagIdx = 0; TagIdx < TagCount; ++TagIdx)
-		{
-			FString Key;
-			FString Value;
-			*this << Key;
-			*this << Value;
-			if (IsError())
-			{
-				UE_PACKAGEREADER_CORRUPTPACKAGE_WARNING("ReadAssetRegistryDataInvalidTag", PackageFilename);
-				return false;
-			}
-
-			if (!Key.IsEmpty() && !Value.IsEmpty())
-			{
-				TagsAndValues.Add(FName(*Key), Value);
-			}
-		}
-
-		// Before worlds were RF_Public, other non-public assets were added to the asset data table in map packages.
-		// Here we simply skip over them
-		if (bIsMapPackage && PackageFileSummary.GetFileVersionUE4() < VER_UE4_PUBLIC_WORLDS)
-		{
-			if (ObjectPath != FPackageName::GetLongPackageAssetName(PackageName))
-			{
-				continue;
-			}
-		}
-
-		// if we have an object path that starts with the package then this asset is outer-ed to another package
-		const bool bFullObjectPath = ObjectPath.StartsWith(TEXT("/"), ESearchCase::CaseSensitive);
-
-		// if we do not have a full object path already, build it
-		if (!bFullObjectPath)
-		{
-			// if we do not have a full object path, ensure that we have a top level object for the package and not a sub object
-			if (!ensureMsgf(!ObjectPath.Contains(TEXT("."), ESearchCase::CaseSensitive), TEXT("Cannot make FAssetData for sub object %s in package %s!"), *ObjectPath, *PackageName))
-			{
-				UE_ASSET_LOG(LogAssetRegistry, Warning, *PackageName, TEXT("Cannot make FAssetData for sub object %s!"), *ObjectPath);
-				continue;
-			}
-			ObjectPath = PackageName + TEXT(".") + ObjectPath;			
-		}
-		// Previously export couldn't have its outer as an import
-		else if (PackageFileSummary.GetFileVersionUE4() < VER_UE4_NON_OUTER_PACKAGE_IMPORT)
-		{
-			UE_ASSET_LOG(LogAssetRegistry, Warning, *PackageName, TEXT("Package has invalid export %s, resave source package!"), *ObjectPath);
-			continue;
-		}
-
-		// Create a new FAssetData for this asset and update it with the gathered data
-		AssetDataList.Add(new FAssetData(PackageName, ObjectPath, FName(*ObjectClassName), MoveTemp(TagsAndValues), PackageFileSummary.ChunkIDs, PackageFileSummary.PackageFlags));
+		return false;
 	}
 
+	if (!UE::AssetRegistry::ReadPackageDataDependencies(*this, DependencyData.ImportUsedInGame, DependencyData.SoftPackageUsedInGame)
+		|| !DependencyData.IsValid())
+	{
+		UE_PACKAGEREADER_CORRUPTPACKAGE_WARNING("SerializeAssetRegistryDependencyData", PackageFilename);
+		return false;
+	}
 	return true;
 }
 
@@ -390,7 +350,12 @@ bool FPackageReader::ReadDependencyData(FPackageDependencyData& OutDependencyDat
 	{
 		return false;
 	}
+	if (!SerializeAssetRegistryDependencyData(OutDependencyData))
+	{
+		return false;
+	}
 
+	checkf(OutDependencyData.IsValid(), TEXT("We should have early exited above rather than creating invalid dependency data"));
 	return true;
 }
 
@@ -643,4 +608,138 @@ FArchive& FPackageReader::operator<<( FName& Name )
 	}
 
 	return *this;
+}
+
+namespace UE
+{
+namespace AssetRegistry
+{
+	// See the corresponding WritePackageData defined in SavePackageUtilities.cpp in CoreUObject module
+	bool ReadPackageDataMain(FArchive& BinaryArchive, const FString& PackageName, const FPackageFileSummary& PackageFileSummary, int64& OutDependencyDataOffset, TArray<FAssetData*>& OutAssetDataList, EReadPackageDataMainErrorCode& OutError)
+	{
+		OutError = EReadPackageDataMainErrorCode::Unknown;
+
+		const FString PackagePath = FPackageName::GetLongPackagePath(PackageName);
+		const int64 PackageFileSize = BinaryArchive.TotalSize();
+		const bool bIsMapPackage = (PackageFileSummary.PackageFlags & PKG_ContainsMap) != 0;
+
+		// To avoid large patch sizes, we have frozen cooked package format at the format before VER_UE4_ASSETREGISTRY_DEPENDENCYFLAGS
+		bool bPreDependencyFormat = PackageFileSummary.GetFileVersionUE4() < VER_UE4_ASSETREGISTRY_DEPENDENCYFLAGS || !!(PackageFileSummary.PackageFlags & PKG_FilterEditorOnly);
+
+		// Load offsets to optionally-read data
+		if (bPreDependencyFormat)
+		{
+			OutDependencyDataOffset = INDEX_NONE;
+		}
+		else
+		{
+			BinaryArchive << OutDependencyDataOffset;
+		}
+
+		// Load the object count
+		int32 ObjectCount = 0;
+		BinaryArchive << ObjectCount;
+		const int32 MinBytesPerObject = 1;
+		if (BinaryArchive.IsError() || ObjectCount < 0 || PackageFileSize < BinaryArchive.Tell() + ObjectCount * MinBytesPerObject)
+		{
+			OutError = EReadPackageDataMainErrorCode::InvalidObjectCount;
+			return false;
+		}
+
+		// Worlds that were saved before they were marked public do not have asset data so we will synthesize it here to make sure we see all legacy umaps
+		// We will also do this for maps saved after they were marked public but no asset data was saved for some reason. A bug caused this to happen for some maps.
+		if (bIsMapPackage)
+		{
+			const bool bLegacyPackage = PackageFileSummary.GetFileVersionUE4() < VER_UE4_PUBLIC_WORLDS;
+			const bool bNoMapAsset = (ObjectCount == 0);
+			if (bLegacyPackage || bNoMapAsset)
+			{
+				FString AssetName = FPackageName::GetLongPackageAssetName(PackageName);
+				OutAssetDataList.Add(new FAssetData(FName(*PackageName), FName(*PackagePath), FName(*AssetName), FName(TEXT("World")), FAssetDataTagMap(), PackageFileSummary.ChunkIDs, PackageFileSummary.PackageFlags));
+			}
+		}
+
+		const int32 MinBytesPerTag = 1;
+		// UAsset files usually only have one asset, maps and redirectors have multiple
+		for (int32 ObjectIdx = 0; ObjectIdx < ObjectCount; ++ObjectIdx)
+		{
+			FString ObjectPath;
+			FString ObjectClassName;
+			int32 TagCount = 0;
+			BinaryArchive << ObjectPath;
+			BinaryArchive << ObjectClassName;
+			BinaryArchive << TagCount;
+			if (BinaryArchive.IsError() || TagCount < 0 || PackageFileSize < BinaryArchive.Tell() + TagCount * MinBytesPerTag)
+			{
+				OutError = EReadPackageDataMainErrorCode::InvalidTagCount;
+				return false;
+			}
+
+			FAssetDataTagMap TagsAndValues;
+			TagsAndValues.Reserve(TagCount);
+
+			for (int32 TagIdx = 0; TagIdx < TagCount; ++TagIdx)
+			{
+				FString Key;
+				FString Value;
+				BinaryArchive << Key;
+				BinaryArchive << Value;
+				if (BinaryArchive.IsError())
+				{
+					OutError = EReadPackageDataMainErrorCode::InvalidTag;
+					return false;
+				}
+
+				if (!Key.IsEmpty() && !Value.IsEmpty())
+				{
+					TagsAndValues.Add(FName(*Key), Value);
+				}
+			}
+
+			// Before worlds were RF_Public, other non-public assets were added to the asset data table in map packages.
+			// Here we simply skip over them
+			if (bIsMapPackage && PackageFileSummary.GetFileVersionUE4() < VER_UE4_PUBLIC_WORLDS)
+			{
+				if (ObjectPath != FPackageName::GetLongPackageAssetName(PackageName))
+				{
+					continue;
+				}
+			}
+
+			// if we have an object path that starts with the package then this asset is outer-ed to another package
+			const bool bFullObjectPath = ObjectPath.StartsWith(TEXT("/"), ESearchCase::CaseSensitive);
+
+			// if we do not have a full object path already, build it
+			if (!bFullObjectPath)
+			{
+				// if we do not have a full object path, ensure that we have a top level object for the package and not a sub object
+				if (!ensureMsgf(!ObjectPath.Contains(TEXT("."), ESearchCase::CaseSensitive), TEXT("Cannot make FAssetData for sub object %s in package %s!"), *ObjectPath, *PackageName))
+				{
+					UE_ASSET_LOG(LogAssetRegistry, Warning, *PackageName, TEXT("Cannot make FAssetData for sub object %s!"), *ObjectPath);
+					continue;
+				}
+				ObjectPath = PackageName + TEXT(".") + ObjectPath;
+			}
+			// Previously export couldn't have its outer as an import
+			else if (PackageFileSummary.GetFileVersionUE4() < VER_UE4_NON_OUTER_PACKAGE_IMPORT)
+			{
+				UE_ASSET_LOG(LogAssetRegistry, Warning, *PackageName, TEXT("Package has invalid export %s, resave source package!"), *ObjectPath);
+				continue;
+			}
+
+			// Create a new FAssetData for this asset and update it with the gathered data
+			OutAssetDataList.Add(new FAssetData(PackageName, ObjectPath, FName(*ObjectClassName), MoveTemp(TagsAndValues), PackageFileSummary.ChunkIDs, PackageFileSummary.PackageFlags));
+		}
+
+		return true;
+	}
+
+	// See the corresponding WriteAssetRegistryPackageData defined in SavePackageUtilities.cpp in CoreUObject module
+	bool ReadPackageDataDependencies(FArchive& BinaryArchive, TBitArray<>& OutImportUsedInGame, TBitArray<>& OutSoftPackageUsedInGame)
+	{
+		BinaryArchive << OutImportUsedInGame;
+		BinaryArchive << OutSoftPackageUsedInGame;
+		return !BinaryArchive.IsError();
+	}
+}
 }

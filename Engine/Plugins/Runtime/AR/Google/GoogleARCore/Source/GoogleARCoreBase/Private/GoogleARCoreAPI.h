@@ -6,11 +6,11 @@
 
 #include "GoogleARCoreTypes.h"
 #include "GoogleARCoreSessionConfig.h"
-#include "GoogleARCoreCameraImageBlitter.h"
 #include "GoogleARCoreAugmentedImage.h"
 #include "GoogleARCoreAugmentedFace.h"
 #include "GoogleARCoreCameraIntrinsics.h"
 #include "GoogleARCoreAugmentedImageDatabase.h"
+#include "ARActor.h"
 #include "ARSessionConfig.h"
 
 #if PLATFORM_ANDROID
@@ -20,6 +20,8 @@
 #include "GoogleARCoreAPI.generated.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGoogleARCoreAPI, Log, All);
+
+class UARCoreDepthTexture;
 
 enum class EGoogleARCoreAPIStatus : int
 {
@@ -148,26 +150,90 @@ class FGoogleARCoreFrame;
 class FGoogleARCoreSession;
 class UGoogleARCoreCameraImage;
 
+// A wrapper class that stores a native pointer internally, which can be used as the key type for TMap
+USTRUCT()
+struct FARCorePointer
+{
+	GENERATED_BODY()
+	
+	FARCorePointer() = default;
+	
+	FARCorePointer(void* InPointer) : RawPointer(InPointer) {}
+	
+	template<class T>
+	T* AsRawPointer() const
+	{
+		return (T*)RawPointer;
+	}
+	
+	friend uint32 GetTypeHash(const FARCorePointer& Pointer)
+	{
+		return ::GetTypeHash(Pointer.RawPointer);
+	}
+	
+	bool operator==(const FARCorePointer& Other) const
+	{
+		return RawPointer == Other.RawPointer;
+	}
+
+private:
+	void* RawPointer = nullptr;
+};
+
 UCLASS()
 class UGoogleARCoreUObjectManager : public UObject
 {
 	GENERATED_BODY()
 
+	UGoogleARCoreUObjectManager();
+	virtual ~UGoogleARCoreUObjectManager();
+	
 public:
 	UPROPERTY()
-	TArray<UARPin*> AllAnchors;
-
-	UPROPERTY()
 	UGoogleARCorePointCloud* LatestPointCloud;
+	
+	// pointer type is ArTrackable*
+	UPROPERTY()
+	TMap<FARCorePointer, FTrackedGeometryGroup> TrackableHandleMap;
+	
+	// pointer type is ArAnchor*
+	UPROPERTY()
+	TMap<FARCorePointer, UARPin*> HandleToAnchorMap;
+	
+	void ClearTrackables();
+	
+	// Returns the removed geometry
+	UARTrackedGeometry* RemoveTrackable(FARCorePointer Pointer);
 
 #if PLATFORM_ANDROID
-	TMap<ArAnchor*, UARPin*> HandleToAnchorMap;
-	TMap<ArTrackable*, TWeakObjectPtr<UARTrackedGeometry>> TrackableHandleMap;
-
-	template< class T > T* GetTrackableFromHandle(ArTrackable* TrackableHandle, FGoogleARCoreSession* Session);
-
+	const FTrackedGeometryGroup& GetBaseTrackableFromHandle(ArTrackable* TrackableHandle, FGoogleARCoreSession* Session);
+	
+	template<class T>
+	T* GetTrackableFromHandle(ArTrackable* TrackableHandle, FGoogleARCoreSession* Session)
+	{
+		const auto& Group = GetBaseTrackableFromHandle(TrackableHandle, Session);
+		return CastChecked<T>(Group.TrackedGeometry);
+	}
+	
 	void DumpTrackableHandleMap(const ArSession* SessionHandle);
+	
+	void RemoveInvalidTrackables(const TArray<ArTrackable*>& ValidTrackables, TArray<UARPin*>& ARPinsToRemove);
 #endif
+
+	UARSessionConfig& AccessSessionConfig();
+
+	void OnSpawnARActor(AARActor* NewARActor, UARComponent* NewARComponent, FGuid NativeID);
+
+	//for networked callbacks
+	FDelegateHandle SpawnARActorDelegateHandle;
+
+#if PLATFORM_ANDROID
+private:
+	//for mapping ArTrackable* to FGuids and back
+	FGuid TrackableHandleToGuid(const ArTrackable* TrackableHandle);
+	ArTrackable* GuidToTrackableHandle(const FGuid& Guid);
+#endif
+	FGuid BaseGuid;
 };
 
 class FGoogleARCoreAPKManager
@@ -214,11 +280,12 @@ public:
 	const FGoogleARCoreFrame* GetLatestFrame();
 	uint32 GetFrameNum();
 
-	void SetCameraTextureId(uint32_t TextureId);
+	void SetCameraTextureIds(const TArray<uint32_t>& TextureIds);
 	void SetDisplayGeometry(int Rotation, int Width, int Height);
 
 	// Anchor API
 	EGoogleARCoreAPIStatus CreateARAnchor(const FTransform& TransfromInTrackingSpace, UARTrackedGeometry* TrackedGeometry, USceneComponent* ComponentToPin, FName InDebugName, UARPin*& OutAnchor);
+	bool TryGetOrCreatePinForNativeResource(void* InNativeResource, const FString& InPinName, UARPin*& OutPin);
 	void DetachAnchor(UARPin* Anchor);
 
 	void GetAllAnchors(TArray<UARPin*>& OutAnchors) const;
@@ -232,7 +299,6 @@ private:
 	const UARSessionConfig* SessionConfig;
 	FGoogleARCoreFrame* LatestFrame;
 	UGoogleARCoreUObjectManager* UObjectManager;
-	uint32_t CameraTextureId;
 	float CachedWorldToMeterScale;
 	uint32 FrameNumber;
 
@@ -255,6 +321,8 @@ public:
 	void Init();
 
 	void Update(float WorldToMeterScale);
+	
+	void UpdateDepthTexture(UARCoreDepthTexture*& OutDepthTexture) const;
 
 	FTransform GetCameraPose() const;
 	int64 GetCameraTimestamp() const;
@@ -275,23 +343,25 @@ public:
 	EGoogleARCoreAPIStatus GetPointCloud(UGoogleARCorePointCloud*& OutLatestPointCloud) const;
 	EGoogleARCoreAPIStatus AcquirePointCloud(UGoogleARCorePointCloud*& OutLatestPointCloud) const;
 	EGoogleARCoreAPIStatus AcquireCameraImage(UGoogleARCoreCameraImage *&OutCameraImage) const;
-	EGoogleARCoreAPIStatus GetCameraImageIntrinsics(
-		UGoogleARCoreCameraIntrinsics *&OutCameraIntrinsics) const;
-	EGoogleARCoreAPIStatus GetCameraTextureIntrinsics(
-		UGoogleARCoreCameraIntrinsics *&OutCameraIntrinsics) const;
+	EGoogleARCoreAPIStatus GetCameraImageIntrinsics(FARCameraIntrinsics& OutCameraIntrinsics) const;
+	EGoogleARCoreAPIStatus GetCameraTextureIntrinsics(FARCameraIntrinsics& OutCameraIntrinsics) const;
 
 	void TransformARCoordinates2D(EGoogleARCoreCoordinates2DType InputCoordinatesType, const TArray<FVector2D>& InputCoordinates,
 		EGoogleARCoreCoordinates2DType OutputCoordinatesType, TArray<FVector2D>& OutputCoordinates) const;
-
+	
+	uint32 GetCameraTextureId() const { return CameraTextureId; }
+	
 #if PLATFORM_ANDROID
 	EGoogleARCoreAPIStatus GetCameraMetadata(const ACameraMetadata*& OutCameraMetadata) const;
 	ArFrame* GetHandle() { return FrameHandle; };
+	static TArray<ArTrackable*> GetTrackables(const ArSession* SessionHandle, ArTrackableList* ListHandle, bool bRemoveSubsumedPlanes);
 #endif
 
 private:
 	FGoogleARCoreSession* Session;
 	FTransform LatestCameraPose;
 	int64 LatestCameraTimestamp;
+	uint32 CameraTextureId = 0;
 	EGoogleARCoreTrackingState LatestCameraTrackingState;
 	EGoogleARCoreTrackingFailureReason LatestCameraTrackingFailureReason;
 
@@ -312,179 +382,6 @@ private:
 #endif
 };
 
-class FGoogleARCoreTrackableResource : public IARRef
-{
-public:
-	// IARRef interface
-	virtual void AddRef() override { }
-
-	virtual void RemoveRef() override
-	{
-#if PLATFORM_ANDROID
-		ArTrackable_release(TrackableHandle);
-		TrackableHandle = nullptr;
-#endif
-	}
-
-#if PLATFORM_ANDROID
-public:
-	FGoogleARCoreTrackableResource(TSharedPtr<FGoogleARCoreSession> InSession, ArTrackable* InTrackableHandle, UARTrackedGeometry* InTrackedGeometry)
-		: Session(InSession)
-		, TrackableHandle(InTrackableHandle)
-		, TrackedGeometry(InTrackedGeometry)
-	{
-		ensure(TrackableHandle != nullptr);
-	}
-
-	virtual ~FGoogleARCoreTrackableResource()
-	{
-		ArTrackable_release(TrackableHandle);
-		TrackableHandle = nullptr;
-	}
-
-	EARTrackingState GetTrackingState();
-
-	virtual void UpdateGeometryData();
-
-	TWeakPtr<FGoogleARCoreSession> GetSession() { return Session; }
-	ArTrackable* GetNativeHandle() { return TrackableHandle; }
-
-	void ResetNativeHandle(ArTrackable* InTrackableHandle);
-
-protected:
-	TWeakPtr<FGoogleARCoreSession> Session;
-	ArTrackable* TrackableHandle;
-	UARTrackedGeometry* TrackedGeometry;
-#endif
-};
-
-class FGoogleARCoreTrackedPlaneResource : public FGoogleARCoreTrackableResource
-{
-public:
-#if PLATFORM_ANDROID
-	FGoogleARCoreTrackedPlaneResource(TSharedPtr<FGoogleARCoreSession> InSession, ArTrackable* InTrackableHandle, UARTrackedGeometry* InTrackedGeometry)
-		: FGoogleARCoreTrackableResource(InSession, InTrackableHandle, InTrackedGeometry)
-	{
-		ensure(TrackableHandle != nullptr);
-	}
-
-	void UpdateGeometryData() override;
-
-	ArPlane* GetPlaneHandle() { return reinterpret_cast<ArPlane*>(TrackableHandle); }
-#endif
-};
-
-class FGoogleARCoreTrackedPointResource : public FGoogleARCoreTrackableResource
-{
-public:
-#if PLATFORM_ANDROID
-	FGoogleARCoreTrackedPointResource(TSharedPtr<FGoogleARCoreSession> InSession, ArTrackable* InTrackableHandle, UARTrackedGeometry* InTrackedGeometry)
-		: FGoogleARCoreTrackableResource(InSession, InTrackableHandle, InTrackedGeometry)
-	{
-		ensure(TrackableHandle != nullptr);
-	}
-
-	void UpdateGeometryData() override;
-
-	ArPoint* GetPointHandle() { return reinterpret_cast<ArPoint*>(TrackableHandle); }
-#endif
-};
-
-class FGoogleARCoreAugmentedImageResource : public FGoogleARCoreTrackableResource
-{
-public:
-#if PLATFORM_ANDROID
-	FGoogleARCoreAugmentedImageResource(TSharedPtr<FGoogleARCoreSession> InSession, ArTrackable* InTrackableHandle, UARTrackedGeometry* InTrackedGeometry)
-		: FGoogleARCoreTrackableResource(InSession, InTrackableHandle, InTrackedGeometry)
-	{
-		ensure(TrackableHandle != nullptr);
-	}
-
-	void UpdateGeometryData() override;
-
-	ArAugmentedImage* GetImageHandle() { return reinterpret_cast<ArAugmentedImage*>(TrackableHandle); }
-#endif
-};
-
-class FGoogleARCoreAugmentedFaceResource : public FGoogleARCoreTrackableResource
-{
-public:
-#if PLATFORM_ANDROID
-	FGoogleARCoreAugmentedFaceResource(TSharedPtr<FGoogleARCoreSession> InSession, ArTrackable* InTrackableHandle, UARTrackedGeometry* InTrackedGeometry)
-		: FGoogleARCoreTrackableResource(InSession, InTrackableHandle, InTrackedGeometry)
-	{
-		ensure(TrackableHandle != nullptr);
-	}
-
-	void UpdateGeometryData() override;
-
-	ArAugmentedFace* GetFaceHandle() { return reinterpret_cast<ArAugmentedFace*>(TrackableHandle); }
-#endif
-};
-
-#if PLATFORM_ANDROID
-// Template function definition
-template< class T >
-T* UGoogleARCoreUObjectManager::GetTrackableFromHandle(ArTrackable* TrackableHandle, FGoogleARCoreSession* Session)
-{
-	if (!TrackableHandleMap.Contains(TrackableHandle)
-		|| !TrackableHandleMap[TrackableHandle].IsValid()
-		|| TrackableHandleMap[TrackableHandle]->GetTrackingState() == EARTrackingState::StoppedTracking)
-	{
-		// Add the trackable to the cache.
-		UARTrackedGeometry* NewTrackableObject = nullptr;
-		ArTrackableType TrackableType = ArTrackableType::AR_TRACKABLE_NOT_VALID;
-		ArTrackable_getType(Session->GetHandle(), TrackableHandle, &TrackableType);
-		IARRef* NativeResource = nullptr;
-		if (TrackableType == ArTrackableType::AR_TRACKABLE_PLANE)
-		{
-			UARPlaneGeometry* PlaneObject = NewObject<UARPlaneGeometry>();
-			NewTrackableObject = static_cast<UARTrackedGeometry*>(PlaneObject);
-			NativeResource = new FGoogleARCoreTrackedPlaneResource(Session->AsShared(), TrackableHandle, NewTrackableObject);
-		}
-		else if (TrackableType == ArTrackableType::AR_TRACKABLE_POINT)
-		{
-			UARTrackedPoint* PointObject = NewObject<UARTrackedPoint>();
-			NewTrackableObject = static_cast<UARTrackedGeometry*>(PointObject);
-			NativeResource = new FGoogleARCoreTrackedPointResource(Session->AsShared(), TrackableHandle, NewTrackableObject);
-		}
-		else if (TrackableType == ArTrackableType::AR_TRACKABLE_AUGMENTED_IMAGE)
-		{
-			UGoogleARCoreAugmentedImage* ImageObject = NewObject<UGoogleARCoreAugmentedImage>();
-			NewTrackableObject = static_cast<UARTrackedGeometry*>(ImageObject);
-			NativeResource = new FGoogleARCoreAugmentedImageResource(Session->AsShared(), TrackableHandle, NewTrackableObject);
-		}
-		else if (TrackableType == ArTrackableType::AR_TRACKABLE_FACE)
-		{
-			UGoogleARCoreAugmentedFace* FaceObject = NewObject<UGoogleARCoreAugmentedFace>();
-			NewTrackableObject = static_cast<UARTrackedGeometry*> (FaceObject);
-			NativeResource = new FGoogleARCoreAugmentedFaceResource(Session->AsShared(), TrackableHandle, NewTrackableObject);
-		}
-		// We should have a valid trackable object now.
-		checkf(NewTrackableObject, TEXT("Unknown ARCore Trackable Type: %d"), TrackableType);
-
-		NewTrackableObject->InitializeNativeResource(NativeResource);
-		NativeResource = nullptr;
-
-		FGoogleARCoreTrackableResource* TrackableResource = reinterpret_cast<FGoogleARCoreTrackableResource*>(NewTrackableObject->GetNativeResource());
-
-		// Update the tracked geometry data using the native resource
-		TrackableResource->UpdateGeometryData();
-
-		TrackableHandleMap.Add(TrackableHandle, TWeakObjectPtr<UARTrackedGeometry>(NewTrackableObject));
-	}
-	else
-	{
-		// If we are not create new trackable object, release the trackable handle.
-		ArTrackable_release(TrackableHandle);
-	}
-
-	T* Result = Cast<T>(TrackableHandleMap[TrackableHandle].Get());
-	checkf(Result, TEXT("UGoogleARCoreUObjectManager failed to get a valid trackable %p from the map."), TrackableHandle);
-	return Result;
-}
-#endif
-
 template< class T >
 void FGoogleARCoreFrame::GetUpdatedTrackables(TArray<T*>& OutARCoreTrackableList) const
 {
@@ -503,16 +400,11 @@ void FGoogleARCoreFrame::GetUpdatedTrackables(TArray<T*>& OutARCoreTrackableList
 	}
 
 	ArTrackableList* TrackableListHandle = nullptr;
-	ArTrackableList_create(Session->GetHandle(), &TrackableListHandle);
-	ArFrame_getUpdatedTrackables(Session->GetHandle(), FrameHandle, TrackableType, TrackableListHandle);
-
-	int TrackableListSize = 0;
-	ArTrackableList_getSize(Session->GetHandle(), TrackableListHandle, &TrackableListSize);
-
-	for (int i = 0; i < TrackableListSize; i++)
+	ArTrackableList_create(SessionHandle, &TrackableListHandle);
+	ArFrame_getUpdatedTrackables(SessionHandle, FrameHandle, TrackableType, TrackableListHandle);
+	auto Trackables = GetTrackables(SessionHandle, TrackableListHandle, true);
+	for (auto TrackableHandle : Trackables)
 	{
-		ArTrackable* TrackableHandle = nullptr;
-		ArTrackableList_acquireItem(Session->GetHandle(), TrackableListHandle, i, &TrackableHandle);
 		T* TrackableObject = Session->GetUObjectManager()->template GetTrackableFromHandle<T>(TrackableHandle, Session);
 
 		OutARCoreTrackableList.Add(TrackableObject);
@@ -541,15 +433,10 @@ void FGoogleARCoreSession::GetAllTrackables(TArray<T*>& OutARCoreTrackableList)
 	ArTrackableList* TrackableListHandle = nullptr;
 	ArTrackableList_create(SessionHandle, &TrackableListHandle);
 	ArSession_getAllTrackables(SessionHandle, TrackableType, TrackableListHandle);
-
-	int TrackableListSize = 0;
-	ArTrackableList_getSize(SessionHandle, TrackableListHandle, &TrackableListSize);
-
-	for (int i = 0; i < TrackableListSize; i++)
+	
+	auto Trackables = FGoogleARCoreFrame::GetTrackables(SessionHandle, TrackableListHandle, true);
+	for (auto TrackableHandle : Trackables)
 	{
-		ArTrackable* TrackableHandle = nullptr;
-		ArTrackableList_acquireItem(SessionHandle, TrackableListHandle, i, &TrackableHandle);
-
 		T* TrackableObject = UObjectManager->template GetTrackableFromHandle<T>(TrackableHandle, this);
 		OutARCoreTrackableList.Add(TrackableObject);
 	}

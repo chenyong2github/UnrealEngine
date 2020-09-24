@@ -22,11 +22,10 @@ namespace EShaderPrecisionModifier
 	};
 };
 
+/** Returns whether EShaderPrecisionModifier is supported. */
 inline bool SupportShaderPrecisionModifier(EShaderPlatform Platform)
 {
-	return (
-		Platform == SP_OPENGL_ES3_1_ANDROID ||
-		Platform == SP_METAL); // TODO: Not sure at all, need a Metal RHI guy.
+	return IsMobilePlatform(Platform);
 }
 
 /** Each entry in a resource table is provided to the shader compiler for creating mappings. */

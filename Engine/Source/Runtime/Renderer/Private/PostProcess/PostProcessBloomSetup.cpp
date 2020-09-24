@@ -25,7 +25,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FBloomSetupParameters, )
 	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Input)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, InputSampler)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptation)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptationTexture)
 	SHADER_PARAMETER(float, BloomThreshold)
 END_SHADER_PARAMETER_STRUCT()
 
@@ -41,7 +41,7 @@ FBloomSetupParameters GetBloomSetupParameters(
 	Parameters.Input = GetScreenPassTextureViewportParameters(InputViewport);
 	Parameters.InputTexture = InputTexture;
 	Parameters.InputSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	Parameters.EyeAdaptation = EyeAdaptationTexture;
+	Parameters.EyeAdaptationTexture = EyeAdaptationTexture;
 	Parameters.BloomThreshold = BloomThreshold;
 	return Parameters;
 }
@@ -119,7 +119,7 @@ FScreenPassTexture AddBloomSetupPass(FRDGBuilder& GraphBuilder, const FViewInfo&
 
 	FRDGTextureDesc OutputDesc = Inputs.SceneColor.Texture->Desc;
 	OutputDesc.Reset();
-	OutputDesc.TargetableFlags |= bIsComputePass ? TexCreate_UAV : TexCreate_RenderTargetable;
+	OutputDesc.Flags |= bIsComputePass ? TexCreate_UAV : TexCreate_RenderTargetable;
 
 	const FScreenPassTextureViewport Viewport(Inputs.SceneColor);
 	const FScreenPassRenderTarget Output(GraphBuilder.CreateTexture(OutputDesc, TEXT("BloomSetup")), Viewport.Rect, View.GetOverwriteLoadAction());
@@ -155,7 +155,6 @@ FScreenPassTexture AddBloomSetupPass(FRDGBuilder& GraphBuilder, const FViewInfo&
 			Viewport,
 			Viewport,
 			FScreenPassPipelineState(VertexShader, PixelShader),
-			EScreenPassDrawFlags::None,
 			PassParameters,
 			[VertexShader, PixelShader, PassParameters] (FRHICommandListImmediate& RHICmdList)
 		{

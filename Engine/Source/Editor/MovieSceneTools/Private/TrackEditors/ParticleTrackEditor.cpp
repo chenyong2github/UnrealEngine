@@ -239,13 +239,13 @@ TSharedRef<ISequencerSection> FParticleTrackEditor::MakeSectionInterface( UMovie
 
 void FParticleTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass)
 {
-	if (ObjectClass->IsChildOf(AEmitter::StaticClass()) || ObjectClass->IsChildOf(UParticleSystemComponent::StaticClass()))
+	if (ObjectClass->IsChildOf(AEmitter::StaticClass()) || ObjectClass->IsChildOf(UFXSystemComponent::StaticClass()))
 	{
 		const TSharedPtr<ISequencer> ParentSequencer = GetSequencer();
 
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT("AddParticleTrack", "Particle Toggle Track"),
-			LOCTEXT("TriggerParticlesTooltip", "Adds a track for controlling particle emitter state."),
+			LOCTEXT("AddParticleTrack", "FX System Toggle Track"),
+			LOCTEXT("TriggerParticlesTooltip", "Adds a track for controlling FX system state."),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &FParticleTrackEditor::AddParticleKey, ObjectBindings))
 		);
@@ -288,7 +288,7 @@ FKeyPropertyResult FParticleTrackEditor::AddKeyInternal( FFrameNumber KeyTime, U
 		{
 			UMovieSceneParticleTrack* ParticleTrack = Cast<UMovieSceneParticleTrack>(Track);
 			ParticleTrack->AddNewSection(KeyTime);
-			ParticleTrack->SetDisplayName(LOCTEXT("TrackName", "Particle System"));
+			ParticleTrack->SetDisplayName(LOCTEXT("TrackName", "FX System"));
 			KeyPropertyResult.bTrackModified = true;
 		}
 	}

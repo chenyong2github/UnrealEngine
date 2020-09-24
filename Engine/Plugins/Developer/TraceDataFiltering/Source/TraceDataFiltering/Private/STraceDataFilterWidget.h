@@ -41,7 +41,7 @@ protected:
 	/** Callback from SFilterPresetList, should save the current tree view filter state as the specified preset */
 	void OnSavePreset(const TSharedPtr<IFilterPreset>& Preset);
 	/** Callback from SFilterPresetList, should update filtering state according to currently active Filter Presets */
-	void OnPresetsChanged();
+	void OnPresetChanged(const class SFilterPreset& Preset);
 	/** Callback from SFilterPresetList, should highlight the tree view items encompassed by the specified preset */
 	void OnHighlightPreset(const TSharedPtr<IFilterPreset>& Preset);
 
@@ -97,6 +97,7 @@ protected:
 
 	/** Analysis filter service for the current analysis session this window is currently representing */
 	TSharedPtr<ISessionTraceFilterService> SessionFilterService;
+	uint32 PreviousSessionHandle;
 	/** Timestamp used for refreshing cached filter data */
 	FDateTime SyncTimeStamp = 0;
 	

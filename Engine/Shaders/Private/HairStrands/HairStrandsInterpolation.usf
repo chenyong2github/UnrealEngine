@@ -4,6 +4,19 @@
 #include "HairStrandsMeshProjectionCommon.ush"
 #include "HairStrandsVisibilityCommon.ush"
 #include "HairStrandsAABBCommon.ush" 
+#include "HairStrandsClusterCommon.ush"
+#include "HairStrandsVertexFactoryCommon.ush"
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Common
+
+// These number need to match HairStrandsClusterCulling.usf
+#define GROUP_COUNT_X 16
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Hair interpolation 
+
+#if SHADER_HAIRINTERPOLATION
 
 #if PERMUTATION_DEBUG == 1
 #include "../ShaderDrawDebug.ush" 
@@ -14,7 +27,8 @@ uint DispatchCountX;
 uint HairDebugMode;
 float3 InRenderHairPositionOffset;
 float3 InSimHairPositionOffset;
-float3 OutHairPositionOffset;
+float3 OutRenderHairPositionOffset;
+float3 OutSimHairPositionOffset;
 int2 HairStrandsCullIndex;
 float4x4 LocalToWorldMatrix;
 
@@ -32,6 +46,13 @@ Buffer<uint4>  DeformedSimPositionBuffer;
 Buffer<uint4>  Interpolation0Buffer;
 Buffer<uint4>  Interpolation1Buffer;
 Buffer<uint>   SimRootPointIndexBuffer;
+
+uint HairStrandsVF_bIsCullingEnable;
+#if PERMUTATION_CULLING == 1
+Buffer<uint>	HairStrandsVF_CullingIndirectBuffer;
+Buffer<uint>	HairStrandsVF_CullingIndexBuffer;
+Buffer<float>	HairStrandsVF_CullingRadiusScaleBuffer;
+#endif
 
 #if PERMUTATION_SCALE_AND_CLIP
 Buffer<uint4>  AttributeBuffer;
@@ -74,9 +95,9 @@ Buffer<float4>	 SimAttributeBuffer;
 RWBuffer<float4> OutRenderAttributeBuffer;
 #endif
 
-#if PERMUTATION_GROUP_SIZE == 0
+#if PERMUTATION_GROUP_SIZE == 64
 	#define GROUP_SIZE 64
-#elif PERMUTATION_GROUP_SIZE == 1
+#elif PERMUTATION_GROUP_SIZE == 32
 	#define GROUP_SIZE 32
 #else
 	#error Unknown group size	
@@ -86,7 +107,7 @@ float3 ComputeStaticGeometryOffset(uint GuideIndex, float GuideVertexWeight)
 {	
 	const float3 RestGuidePoint = f16tof32(SimRestPosePositionBuffer[GuideIndex].xyz) + InSimHairPositionOffset;
 
-	const float3 DeformedGuidePoint = f16tof32(DeformedSimPositionBuffer[GuideIndex].xyz) + OutHairPositionOffset;
+	const float3 DeformedGuidePoint = f16tof32(DeformedSimPositionBuffer[GuideIndex].xyz) + OutSimHairPositionOffset;
 	return (DeformedGuidePoint - RestGuidePoint) * GuideVertexWeight;
 }
 
@@ -111,7 +132,7 @@ float3 ComputeDynamicGeometryOffset(
 	const float3 RestGuidePoint = f16tof32(SimRestPosePositionBuffer[GuideIndex].xyz) + InSimHairPositionOffset;
 	const float3 LocalRestGuidePoint = ToTriangle(RestGuidePoint, RootBarycentric, RestTriangle);
 
-	const float3 DeformedGuidePoint = f16tof32(DeformedSimPositionBuffer[GuideIndex].xyz) + OutHairPositionOffset;
+	const float3 DeformedGuidePoint = f16tof32(DeformedSimPositionBuffer[GuideIndex].xyz) + OutSimHairPositionOffset;
 	const float3 LocalDeformedGuidePoint = ToTriangle(DeformedGuidePoint, RootBarycentric, DeformedTriangle);
 
 	return (LocalDeformedGuidePoint - LocalRestGuidePoint) * GuideVertexWeight;
@@ -168,11 +189,23 @@ bool ScaleAndClip(uint ControlPointId, inout uint InPackedAlpha)
 #endif
 }
 
-
 [numthreads(GROUP_SIZE, 1, 1)]
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
-	const uint VertexIndex = DispatchThreadId.x + DispatchThreadId.y * DispatchCountX * GROUP_SIZE;
+	uint VertexIndex = DispatchThreadId.x + DispatchThreadId.y * DispatchCountX * GROUP_SIZE;
+#if PERMUTATION_CULLING
+	if (HairStrandsVF_bIsCullingEnable)
+	{
+		const uint FetchIndex = DispatchThreadId.x + DispatchThreadId.y * GROUP_SIZE * GROUP_COUNT_X;
+		const uint VertexCountAfterCulling = HairStrandsVF_CullingIndirectBuffer[3];
+		if (FetchIndex >= VertexCountAfterCulling)
+		{
+			return;
+		}
+		VertexIndex = HairStrandsVF_CullingIndexBuffer[FetchIndex];
+	}
+#endif
+
 	if (VertexIndex < VertexCount)
 	{
 		uint3 GuideVertexIndices = 0;
@@ -222,9 +255,9 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			#endif
 
 			const bool bIsValid = ScaleAndClip(VertexIndex, PackedRestPosition.w);
-			WorldVertexPosition = bIsValid ? ControlPoint + CurrOffset : float3(1.#INF, 1.#INF, 1.#INF);
+			WorldVertexPosition = bIsValid ? ControlPoint + CurrOffset : float3(POSITIVE_INFINITY, POSITIVE_INFINITY, POSITIVE_INFINITY);
 
-			OutRenderDeformedPositionBuffer[VertexIndex] = float4(f32tof16(WorldVertexPosition - OutHairPositionOffset), PackedRestPosition.w);
+			OutRenderDeformedPositionBuffer[VertexIndex] = float4(f32tof16(WorldVertexPosition - OutRenderHairPositionOffset), PackedRestPosition.w);
 		}
 		#endif	
 
@@ -268,7 +301,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			ControlPoint = ToWorld(ControlPoint,RootBarycentric,DeformedTriangle) + CurrOffset;
 
 			const bool bIsValid = ScaleAndClip(VertexIndex, PackedRestPosition.w);
-			WorldVertexPosition = bIsValid ? ControlPoint : float3(1.#INF, 1.#INF, 1.#INF);
+			WorldVertexPosition = bIsValid ? ControlPoint : float3(POSITIVE_INFINITY, POSITIVE_INFINITY, POSITIVE_INFINITY);
 
 			#if PERMUTATION_DEBUG == 1
 			{
@@ -278,7 +311,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 				if (bDebugEnabled && VertexIndex==0)
 				{	
 					AddCross(InRenderHairPositionOffset, 1.2, RestColor);
-					AddCross(OutHairPositionOffset, 1, DeformedColor);
+					AddCross(OutRenderHairPositionOffset, 1, DeformedColor);
 				}
 			
 				if (bDebugEnabled && VertexIndex >= 0 && VertexIndex < 64)
@@ -300,7 +333,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			}
 			#endif
 
-			OutRenderDeformedPositionBuffer[VertexIndex] = float4(f32tof16(WorldVertexPosition - OutHairPositionOffset), PackedRestPosition.w);
+			OutRenderDeformedPositionBuffer[VertexIndex] = float4(f32tof16(WorldVertexPosition - OutRenderHairPositionOffset), PackedRestPosition.w);
 		}
 		#endif	
 
@@ -337,9 +370,9 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			ControlPoint += RootBarycentric.x * DeformedTriangle.P0 + RootBarycentric.y * DeformedTriangle.P1 + RootBarycentric.z * DeformedTriangle.P2;
 
 			const bool bIsValid = ScaleAndClip(VertexIndex, PackedRestPosition.w);
-			WorldVertexPosition = bIsValid ? ControlPoint + CurrOffset : float3(1.#INF, 1.#INF, 1.#INF);
+			WorldVertexPosition = bIsValid ? ControlPoint + CurrOffset : float3(POSITIVE_INFINITY, POSITIVE_INFINITY, POSITIVE_INFINITY);
 
-			OutRenderDeformedPositionBuffer[VertexIndex] = float4(f32tof16(WorldVertexPosition - OutHairPositionOffset), PackedRestPosition.w);
+			OutRenderDeformedPositionBuffer[VertexIndex] = float4(f32tof16(WorldVertexPosition - OutRenderHairPositionOffset), PackedRestPosition.w);
 		}
 		#endif	
 
@@ -382,9 +415,9 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			ControlPoint =  RootBarycentric.x * DeformedTriangle.P0 + RootBarycentric.y * DeformedTriangle.P1 + RootBarycentric.z * DeformedTriangle.P2;
 
 			const bool bIsValid = ScaleAndClip(VertexIndex, PackedRestPosition.w);
-			WorldVertexPosition = bIsValid ? ControlPoint + CurrOffset : float3(1.#INF, 1.#INF, 1.#INF);
+			WorldVertexPosition = bIsValid ? ControlPoint + CurrOffset : float3(POSITIVE_INFINITY, POSITIVE_INFINITY, POSITIVE_INFINITY);
 
-			OutRenderDeformedPositionBuffer[VertexIndex] = float4(f32tof16(WorldVertexPosition - OutHairPositionOffset), PackedRestPosition.w);
+			OutRenderDeformedPositionBuffer[VertexIndex] = float4(f32tof16(WorldVertexPosition - OutRenderHairPositionOffset), PackedRestPosition.w);
 		}
 		#endif
 
@@ -424,9 +457,9 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			#endif
 
 			const bool bIsValid = ScaleAndClip(VertexIndex, PackedRestPosition.w);
-			WorldVertexPosition = bIsValid ? CurrOffset : float3(1.#INF, 1.#INF, 1.#INF);
+			WorldVertexPosition = bIsValid ? CurrOffset : float3(POSITIVE_INFINITY, POSITIVE_INFINITY, POSITIVE_INFINITY);
 
-			OutRenderDeformedPositionBuffer[VertexIndex] = float4(f32tof16(WorldVertexPosition - OutHairPositionOffset), PackedRestPosition.w);
+			OutRenderDeformedPositionBuffer[VertexIndex] = float4(f32tof16(WorldVertexPosition - OutRenderHairPositionOffset), PackedRestPosition.w);
 		}
 		#endif
 
@@ -465,7 +498,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 			if (!bIsValid)
 			{
-				OutRenderDeformedPositionBuffer[VertexIndex] = float4(float3(1.#INF, 1.#INF, 1.#INF), 2);
+				OutRenderDeformedPositionBuffer[VertexIndex] = float4(float3(POSITIVE_INFINITY, POSITIVE_INFINITY, POSITIVE_INFINITY), 2);
 			}
 		#endif		
 		}
@@ -486,14 +519,31 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		#endif
 	}
 }
+#endif // SHADER_HAIRINTERPOLATION
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Hair clusters update 
 
+#if SHADER_CLUSTERAABB
+
+#if PERMUTATION_GROUP_SIZE == 64
+#define GROUP_SIZE 64
+#elif PERMUTATION_GROUP_SIZE == 32
+#define GROUP_SIZE 32
+#else
+#error Unknown group size	
+#endif
+
+uint DispatchCountX;
 uint ClusterCount;
+float3 OutHairPositionOffset;
+float4x4 LocalToWorldMatrix;
 
 Buffer<uint4> RenderDeformedPositionBuffer;
 Buffer<uint> ClusterVertexIdBuffer;
-Buffer<uint4> ClusterInfoBuffer;		// Indices start and count
+Buffer<uint> ClusterIdBuffer;
+Buffer<uint> ClusterIndexOffsetBuffer;
+Buffer<uint> ClusterIndexCountBuffer;
 
 RWBuffer<int> OutClusterAABBBuffer;		// Cluster data packed as {uint3 AABBMin, uint3 AABBMax}
 RWBuffer<int> OutGroupAABBBuffer;		// Group data packed as {uint3 AABBMin, uint3 AABBMax}
@@ -508,34 +558,32 @@ groupshared float3 SharedClusterAABBMax[GROUP_SIZE];
 [numthreads(GROUP_SIZE, 1, 1)]
 void ClusterAABBEvaluationCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint3 GroupId : SV_GroupID, uint3 GroupThreadId : SV_GroupThreadID)
 {
-	const uint ClusterId = GroupId.x + GroupId.y * DispatchCountX;
-	if (ClusterId >= ClusterCount)
+	const uint ClusterFetchIndex = GroupId.x + GroupId.y * DispatchCountX;
+	if (ClusterFetchIndex >= ClusterCount)
 	{
 		return;
 	}
-
-	int4 ClusterInfo = ClusterInfoBuffer[ClusterId];
-	const uint ClusterIndicesStart = ClusterInfo.x;
-	const uint ClusterIndicesCount = ClusterInfo.y;
+	const uint ClusterId   = ClusterIdBuffer[ClusterFetchIndex];
+	const uint IndexOffset = ClusterIndexOffsetBuffer[ClusterFetchIndex];
+	const uint IndexCount  = ClusterIndexCountBuffer[ClusterFetchIndex];
 
 	int3 ClusterAABBMin = 9999999.0f;
 	int3 ClusterAABBMax =-9999999.0f;
 
-	uint LoopCount = (ClusterIndicesCount + GROUP_SIZE - 1) / GROUP_SIZE;
-	for (uint Loop = 0; Loop < LoopCount; ++Loop)
+	const uint LoopCount = (IndexCount + GROUP_SIZE - 1) / GROUP_SIZE;
+	for (uint LoopIt = 0; LoopIt < LoopCount; ++LoopIt)
 	{
-		uint GroupReadOffset = Loop * GROUP_SIZE;
+		uint GroupReadOffset = LoopIt * GROUP_SIZE;
 		uint ThreadReadOffset = GroupReadOffset + GroupThreadId.x;
 
-		if (ThreadReadOffset < ClusterIndicesCount)
+		if (ThreadReadOffset < IndexCount)
 		{
-			uint VertexIndex = ClusterVertexIdBuffer[ClusterIndicesStart + ThreadReadOffset];
+			const uint VertexIndex = ClusterVertexIdBuffer[IndexOffset + ThreadReadOffset];
+			const FHairControlPoint CP = UnpackHairControlPoint(RenderDeformedPositionBuffer[VertexIndex], OutHairPositionOffset, 1, 1);
 
-			uint4 PackedVertex = RenderDeformedPositionBuffer[VertexIndex];
-			float3 VertexWorldPosition = f16tof32(PackedVertex.xyz);
-			if (IsFinite(VertexWorldPosition.x))
+			if (all(IsFinite(CP.Position)))
 			{
-				const int3 WorldSpaceCentimeters = int3(mul(float4(VertexWorldPosition + OutHairPositionOffset, 1.0f), LocalToWorldMatrix).xyz);
+				const int3 WorldSpaceCentimeters = int3(mul(float4(CP.Position, 1.0f), LocalToWorldMatrix).xyz);
 				const int3 WorldSpaceCentimetersMin = WorldSpaceCentimeters - 1;
 				const int3 WorldSpaceCentimetersMax = WorldSpaceCentimeters + 1;
 
@@ -550,7 +598,7 @@ void ClusterAABBEvaluationCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint3
 	SharedClusterAABBMin[LocalIndex] = ClusterAABBMin;
 	SharedClusterAABBMax[LocalIndex] = ClusterAABBMax;
 
-	// Do a local reduction in shared memory. Assumes ClusterIndicesCount>64 to have all min&max values valid.
+	// Do a local reduction in shared memory. Assumes ClusterLOD0.VertexCount>64 to have all min&max values valid.
 #if GROUP_SIZE==64
 	GroupMemoryBarrierWithGroupSync();
 	if (LocalIndex < 32)
@@ -613,6 +661,7 @@ void ClusterAABBEvaluationCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint3
 		InterlockHairAABB(0, Bound, OutGroupAABBBuffer);
 	}
 
-	// TODO Atomic Min/Max group AABB
+	// Min/Max group AABB is done later by another pass
 }
 
+#endif // SHADER_CLUSTERAABB

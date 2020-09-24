@@ -121,6 +121,7 @@ private:
 	FORCEINLINE bool DeferDelete() const
 	{
 #if DISABLE_RHI_DEFFERED_DELETE
+		checkf(!GRHIValidationEnabled, TEXT("RHI validation is not supported when DISABLE_RHI_DEFERRED_DELETE flag is set."));
 		return false;
 #else
 		// Defer if GRHINeedsExtraDeletionLatency or we are doing threaded rendering (unless otherwise requested).
@@ -268,27 +269,27 @@ public:
 		return true;
 	}
 
-	inline void GetAccess(EResourceTransitionAccess& DepthAccess, EResourceTransitionAccess& StencilAccess) const
+	inline void GetAccess(ERHIAccess& DepthAccess, ERHIAccess& StencilAccess) const
 	{
-		DepthAccess = EResourceTransitionAccess::None;
+		DepthAccess = ERHIAccess::None;
 
 		// SRV access is allowed whilst a depth stencil target is "readable".
-		constexpr EResourceTransitionAccess DSVReadOnlyMask =
-			EResourceTransitionAccess::DSVRead | 
-			EResourceTransitionAccess::SRVGraphics | 
-			EResourceTransitionAccess::SRVCompute;
+		constexpr ERHIAccess DSVReadOnlyMask =
+			ERHIAccess::DSVRead |
+			ERHIAccess::SRVGraphics |
+			ERHIAccess::SRVCompute;
 
 		// If write access is required, only the depth block can access the resource.
-		constexpr EResourceTransitionAccess DSVReadWriteMask =
-			EResourceTransitionAccess::DSVRead |
-			EResourceTransitionAccess::DSVWrite;
+		constexpr ERHIAccess DSVReadWriteMask =
+			ERHIAccess::DSVRead |
+			ERHIAccess::DSVWrite;
 
 		if (IsUsingDepth())
 		{
 			DepthAccess = IsDepthWrite() ? DSVReadWriteMask : DSVReadOnlyMask;
 		}
 
-		StencilAccess = EResourceTransitionAccess::None;
+		StencilAccess = ERHIAccess::None;
 
 		if (IsUsingStencil())
 		{
@@ -304,8 +305,8 @@ public:
 			return;
 		}
 
-		EResourceTransitionAccess DepthAccess = EResourceTransitionAccess::None;
-		EResourceTransitionAccess StencilAccess = EResourceTransitionAccess::None;
+		ERHIAccess DepthAccess = ERHIAccess::None;
+		ERHIAccess StencilAccess = ERHIAccess::None;
 		GetAccess(DepthAccess, StencilAccess);
 
 		// Same depth / stencil state; single subresource.
@@ -316,11 +317,11 @@ public:
 		// Separate subresources for depth / stencil.
 		else
 		{
-			if (DepthAccess != EResourceTransitionAccess::None)
+			if (DepthAccess != ERHIAccess::None)
 			{
 				Function(DepthAccess, FRHITransitionInfo::kDepthPlaneSlice);
 			}
-			if (StencilAccess != EResourceTransitionAccess::None)
+			if (StencilAccess != ERHIAccess::None)
 			{
 				Function(StencilAccess, FRHITransitionInfo::kStencilPlaneSlice);
 			}
@@ -423,6 +424,9 @@ public:
 class FRHIDepthStencilState : public FRHIResource
 {
 public:
+#if ENABLE_RHI_VALIDATION
+	FExclusiveDepthStencil ActualDSMode;
+#endif
 	virtual bool GetInitializer(struct FDepthStencilStateInitializerRHI& Init) { return false; }
 };
 class FRHIBlendState : public FRHIResource
@@ -535,7 +539,7 @@ private:
 // Pipeline States
 //
 
-class FRHIGraphicsPipelineState : public FRHIResource
+class FRHIGraphicsPipelineState : public FRHIResource 
 {
 public:
 	inline void SetSortKey(uint64 InSortKey) { SortKey = InSortKey; }
@@ -543,8 +547,13 @@ public:
 
 private:
 	uint64 SortKey = 0;
-};
 
+#if ENABLE_RHI_VALIDATION
+	friend class FValidationContext;
+	friend class FValidationRHI;
+	FExclusiveDepthStencil DSMode;
+#endif
+};
 class FRHIComputePipelineState : public FRHIResource {};
 class FRHIRayTracingPipelineState : public FRHIResource {};
 
@@ -625,24 +634,11 @@ public:
 		Hash = TmpHash;
 	}
 
-	explicit FRHIUniformBufferLayout(const TCHAR* InName) :
-		ConstantBufferSize(0),
-		NumUsesForDebugging(0),
-		Name(InName),
-		Hash(0)
-	{
-	}
+	FRHIUniformBufferLayout() = default;
 
-	enum EInit
-	{
-		Zero
-	};
-	explicit FRHIUniformBufferLayout(EInit) :
-		ConstantBufferSize(0),
-		NumUsesForDebugging(0),
-		Hash(0)
-	{
-	}
+	explicit FRHIUniformBufferLayout(const TCHAR* InName)
+		: Name(InName)
+	{}
 
 #if VALIDATE_UNIFORM_BUFFER_LAYOUT_LIFETIME
 	~FRHIUniformBufferLayout()
@@ -670,6 +666,16 @@ public:
 		return RenderTargetsOffset != kInvalidOffset;
 	}
 
+	bool HasExternalOutputs() const
+	{
+		return bHasNonGraphOutputs;
+	}
+
+	bool HasStaticSlot() const
+	{
+		return IsUniformBufferStaticSlotValid(StaticSlot);
+	}
+
 	friend FArchive& operator<<(FArchive& Ar, FRHIUniformBufferLayout& Ref)
 	{
 		Ar << Ref.ConstantBufferSize;
@@ -680,6 +686,8 @@ public:
 		Ar << Ref.GraphResources;
 		Ar << Ref.GraphTextures;
 		Ar << Ref.GraphBuffers;
+		Ar << Ref.GraphUniformBuffers;
+		Ar << Ref.UniformBuffers;
 		Ar << Ref.Name;
 		Ar << Ref.Hash;
 		return Ar;
@@ -709,14 +717,19 @@ public:
 	/** The list of all RDG buffer references inlined into the shader parameter structure. */
 	LAYOUT_FIELD(TMemoryImageArray<FResourceParameter>, GraphBuffers);
 
-	LAYOUT_MUTABLE_FIELD(int32, NumUsesForDebugging);
+	/** The list of all RDG uniform buffer references inlined into the shader parameter structure. */
+	LAYOUT_FIELD(TMemoryImageArray<FResourceParameter>, GraphUniformBuffers);
+
+	/** The list of all non-RDG uniform buffer references inlined into the shader parameter structure. */
+	LAYOUT_FIELD(TMemoryImageArray<FResourceParameter>, UniformBuffers);
+
+	LAYOUT_MUTABLE_FIELD_INITIALIZED(int32, NumUsesForDebugging, 0);
 
 private:
 	// for debugging / error message
 	LAYOUT_FIELD(FMemoryImageString, Name);
 	LAYOUT_FIELD_INITIALIZED(uint32, Hash, 0);
 };
-
 
 /** Compare two uniform buffer layouts. */
 inline bool operator==(const FRHIUniformBufferLayout::FResourceParameter& A, const FRHIUniformBufferLayout::FResourceParameter& B)
@@ -734,6 +747,9 @@ inline bool operator==(const FRHIUniformBufferLayout& A, const FRHIUniformBuffer
 }
 
 class FRHIUniformBuffer : public FRHIResource
+#if ENABLE_RHI_VALIDATION
+	, public RHIValidation::FUniformBufferResource
+#endif
 {
 public:
 
@@ -786,7 +802,7 @@ public:
 	}
 	const FRHIUniformBufferLayout& GetLayout() const { return *Layout; }
 
-	bool HasStaticSlot() const
+	bool IsGlobal() const
 	{
 		return IsUniformBufferStaticSlotValid(Layout->StaticSlot);
 	}
@@ -803,6 +819,9 @@ private:
 };
 
 class FRHIIndexBuffer : public FRHIResource
+#if ENABLE_RHI_VALIDATION
+	, public RHIValidation::FBufferResource
+#endif
 {
 public:
 
@@ -848,6 +867,9 @@ private:
 };
 
 class FRHIVertexBuffer : public FRHIResource
+#if ENABLE_RHI_VALIDATION
+	, public RHIValidation::FBufferResource
+#endif
 {
 public:
 
@@ -891,6 +913,9 @@ private:
 };
 
 class FRHIStructuredBuffer : public FRHIResource
+#if ENABLE_RHI_VALIDATION
+	, public RHIValidation::FBufferResource
+#endif
 {
 public:
 
@@ -941,11 +966,14 @@ private:
 };
 
 class RHI_API FRHITexture : public FRHIResource
+#if ENABLE_RHI_VALIDATION
+	, public RHIValidation::FTextureResource
+#endif
 {
 public:
 	
 	/** Initialization constructor. */
-	FRHITexture(uint32 InNumMips, uint32 InNumSamples, EPixelFormat InFormat, uint32 InFlags, FLastRenderTimeContainer* InLastRenderTime, const FClearValueBinding& InClearValue)
+	FRHITexture(uint32 InNumMips, uint32 InNumSamples, EPixelFormat InFormat, ETextureCreateFlags InFlags, FLastRenderTimeContainer* InLastRenderTime, const FClearValueBinding& InClearValue)
 		: ClearValue(InClearValue)
 		, NumMips(InNumMips)
 		, NumSamples(InNumSamples)
@@ -1005,7 +1033,7 @@ public:
 	EPixelFormat GetFormat() const { return Format; }
 
 	/** @return The flags used to create the texture. */
-	uint32 GetFlags() const { return Flags; }
+	ETextureCreateFlags GetFlags() const { return Flags; }
 
 	/* @return the number of samples for multi-sampling. */
 	uint32 GetNumSamples() const { return NumSamples; }
@@ -1088,7 +1116,7 @@ private:
 	uint32 NumMips;
 	uint32 NumSamples;
 	EPixelFormat Format;
-	uint32 Flags;
+	ETextureCreateFlags Flags;
 	FLastRenderTimeContainer& LastRenderTime;
 	FLastRenderTimeContainer DefaultLastRenderTime;	
 	FName TextureName;
@@ -1099,7 +1127,7 @@ class RHI_API FRHITexture2D : public FRHITexture
 public:
 	
 	/** Initialization constructor. */
-	FRHITexture2D(uint32 InSizeX,uint32 InSizeY,uint32 InNumMips,uint32 InNumSamples,EPixelFormat InFormat,uint32 InFlags, const FClearValueBinding& InClearValue)
+	FRHITexture2D(uint32 InSizeX,uint32 InSizeY,uint32 InNumMips,uint32 InNumSamples,EPixelFormat InFormat,ETextureCreateFlags InFlags, const FClearValueBinding& InClearValue)
 	: FRHITexture(InNumMips, InNumSamples, InFormat, InFlags, NULL, InClearValue)
 	, SizeX(InSizeX)
 	, SizeY(InSizeY)
@@ -1135,10 +1163,12 @@ class RHI_API FRHITexture2DArray : public FRHITexture2D
 public:
 	
 	/** Initialization constructor. */
-	FRHITexture2DArray(uint32 InSizeX,uint32 InSizeY,uint32 InSizeZ,uint32 InNumMips,uint32 NumSamples, EPixelFormat InFormat,uint32 InFlags, const FClearValueBinding& InClearValue)
+	FRHITexture2DArray(uint32 InSizeX,uint32 InSizeY,uint32 InSizeZ,uint32 InNumMips,uint32 NumSamples, EPixelFormat InFormat,ETextureCreateFlags InFlags, const FClearValueBinding& InClearValue)
 	: FRHITexture2D(InSizeX, InSizeY, InNumMips,NumSamples,InFormat,InFlags, InClearValue)
 	, SizeZ(InSizeZ)
-	{}
+	{
+		check(InSizeZ != 0);
+	}
 	
 	// Dynamic cast methods.
 	virtual FRHITexture2DArray* GetTexture2DArray() { return this; }
@@ -1163,7 +1193,7 @@ class RHI_API FRHITexture3D : public FRHITexture
 public:
 	
 	/** Initialization constructor. */
-	FRHITexture3D(uint32 InSizeX,uint32 InSizeY,uint32 InSizeZ,uint32 InNumMips,EPixelFormat InFormat,uint32 InFlags, const FClearValueBinding& InClearValue)
+	FRHITexture3D(uint32 InSizeX,uint32 InSizeY,uint32 InSizeZ,uint32 InNumMips,EPixelFormat InFormat,ETextureCreateFlags InFlags, const FClearValueBinding& InClearValue)
 	: FRHITexture(InNumMips,1,InFormat,InFlags,NULL, InClearValue)
 	, SizeX(InSizeX)
 	, SizeY(InSizeY)
@@ -1199,7 +1229,7 @@ class RHI_API FRHITextureCube : public FRHITexture
 public:
 	
 	/** Initialization constructor. */
-	FRHITextureCube(uint32 InSize,uint32 InNumMips,EPixelFormat InFormat,uint32 InFlags, const FClearValueBinding& InClearValue)
+	FRHITextureCube(uint32 InSize,uint32 InNumMips,EPixelFormat InFormat,ETextureCreateFlags InFlags, const FClearValueBinding& InClearValue)
 	: FRHITexture(InNumMips,1,InFormat,InFlags,NULL, InClearValue)
 	, Size(InSize)
 	{}
@@ -1224,7 +1254,7 @@ class RHI_API FRHITextureReference : public FRHITexture
 {
 public:
 	explicit FRHITextureReference(FLastRenderTimeContainer* InLastRenderTime)
-		: FRHITexture(0,0,PF_Unknown,0,InLastRenderTime, FClearValueBinding())
+		: FRHITexture(0,0,PF_Unknown,TexCreate_None,InLastRenderTime, FClearValueBinding())
 	{}
 
 	virtual FRHITextureReference* GetTextureReference() override { return this; }
@@ -1243,6 +1273,14 @@ public:
 		}
 		return FIntVector(0, 0, 0);
 	}
+
+#if ENABLE_RHI_VALIDATION
+	virtual RHIValidation::FResource* GetTrackerResource() final override
+	{
+		check(ReferencedTexture);
+		return ReferencedTexture->GetTrackerResource();
+	}
+#endif
 
 private:
 	TRefCountPtr<FRHITexture> ReferencedTexture;
@@ -1388,13 +1426,12 @@ inline FRHIPooledRenderQuery::~FRHIPooledRenderQuery()
 	ReleaseQuery();
 }
 
-class FRHIComputeFence : public FRHIResource
+class FRHIComputeFence final : public FRHIResource
 {
 public:
 
 	FRHIComputeFence(FName InName)
 		: Name(InName)
-		, bWriteEnqueued(false)
 	{}
 
 	FORCEINLINE FName GetName() const
@@ -1404,27 +1441,15 @@ public:
 
 	FORCEINLINE bool GetWriteEnqueued() const
 	{
-		return bWriteEnqueued;
-	}
-
-	virtual void Reset()
-	{
-		bWriteEnqueued = false;
-	}
-
-	virtual void WriteFence()
-	{
-		ensureMsgf(!bWriteEnqueued, TEXT("ComputeFence: %s already written this frame. You should use a new label"), *Name.ToString());
-		bWriteEnqueued = true;
+		return Transition != nullptr;
 	}
 
 private:
 	//debug name of the label.
 	FName Name;
 
-	//has the label been written to since being created.
-	//check this when queuing waits to catch GPU hangs on the CPU at command creation time.
-	bool bWriteEnqueued;
+public:
+	const FRHITransition* Transition = nullptr;
 };
 
 class FRHIViewport : public FRHIResource 
@@ -1482,8 +1507,17 @@ public:
 // Views
 //
 
-class FRHIUnorderedAccessView : public FRHIResource {};
-class FRHIShaderResourceView : public FRHIResource {};
+class FRHIUnorderedAccessView : public FRHIResource
+#if ENABLE_RHI_VALIDATION
+	, public RHIValidation::FUnorderedAccessView
+#endif
+{};
+
+class FRHIShaderResourceView : public FRHIResource 
+#if ENABLE_RHI_VALIDATION
+	, public RHIValidation::FShaderResourceView
+#endif
+{};
 
 
 typedef TRefCountPtr<FRHISamplerState> FSamplerStateRHIRef;
@@ -2040,6 +2074,9 @@ enum class ESubpassHint : uint8
 
 	// Render pass has depth reading subpass
 	DepthReadSubpass,
+
+	// Mobile defferred shading subpass
+	DeferredShadingSubpass,
 };
 
 enum class EConservativeRasterization : uint8
@@ -2053,7 +2090,7 @@ class FGraphicsPipelineStateInitializer
 public:
 	// Can't use TEnumByte<EPixelFormat> as it changes the struct to be non trivially constructible, breaking memset
 	using TRenderTargetFormats		= TStaticArray<uint8/*EPixelFormat*/, MaxSimultaneousRenderTargets>;
-	using TRenderTargetFlags		= TStaticArray<uint32, MaxSimultaneousRenderTargets>;
+	using TRenderTargetFlags		= TStaticArray<uint32/*ETextureCreateFlags*/, MaxSimultaneousRenderTargets>;
 
 	FGraphicsPipelineStateInitializer()
 		: BlendState(nullptr)
@@ -2078,7 +2115,10 @@ public:
 		, ShadingRate(EVRSShadingRate::VRSSR_1x1)
 		, Flags(0)
 	{
-		static_assert(sizeof(EPixelFormat) != sizeof(uint8), "Change TRenderTargetFormats's uint8 to EPixelFormat");
+#if PLATFORM_WINDOWS
+		static_assert(sizeof(TRenderTargetFormats::ElementType) == sizeof(uint8/*EPixelFormat*/), "Change TRenderTargetFormats's uint8 to EPixelFormat's size!");
+		static_assert(sizeof(TRenderTargetFlags::ElementType) == sizeof(uint32/*ETextureCreateFlags*/), "Change TRenderTargetFlags's uint32 to ETextureCreateFlags's size!");
+#endif
 		static_assert(PF_MAX < MAX_uint8, "TRenderTargetFormats assumes EPixelFormat can fit in a uint8!");
 	}
 
@@ -2093,7 +2133,7 @@ public:
 		const TRenderTargetFormats&	InRenderTargetFormats,
 		const TRenderTargetFlags&	InRenderTargetFlags,
 		EPixelFormat				InDepthStencilTargetFormat,
-		uint32						InDepthStencilTargetFlag,
+		ETextureCreateFlags			InDepthStencilTargetFlag,
 		ERenderTargetLoadAction		InDepthTargetLoadAction,
 		ERenderTargetStoreAction	InDepthTargetStoreAction,
 		ERenderTargetLoadAction		InStencilTargetLoadAction,
@@ -2106,7 +2146,7 @@ public:
 		uint16						InFlags,
 		bool						bInDepthBounds,
 		bool						bInMultiView,
-		bool						bHasFragmentDensityAttachment,
+		bool						bInHasFragmentDensityAttachment,
 		EVRSShadingRate				InShadingRate)
 		: BoundShaderState(InBoundShaderState)
 		, BlendState(InBlendState)
@@ -2130,7 +2170,7 @@ public:
 		, ConservativeRasterization(EConservativeRasterization::Disabled)
 		, bDepthBounds(bInDepthBounds)
 		, bMultiView(bInMultiView)
-		, bHasFragmentDensityAttachment(bHasFragmentDensityAttachment)
+		, bHasFragmentDensityAttachment(bInHasFragmentDensityAttachment)
 		, ShadingRate(InShadingRate)
 		, Flags(InFlags)
 	{
@@ -2154,6 +2194,7 @@ public:
 			ImmutableSamplerState != rhs.ImmutableSamplerState ||
 			PrimitiveType != rhs.PrimitiveType ||
 			bDepthBounds != rhs.bDepthBounds ||
+			ShadingRate != rhs.ShadingRate ||
 			bMultiView != rhs.bMultiView ||
 			bHasFragmentDensityAttachment != rhs.bHasFragmentDensityAttachment ||
 			RenderTargetsEnabled != rhs.RenderTargetsEnabled ||
@@ -2482,6 +2523,7 @@ enum class EDepthStencilTargetActions : uint8
 	DontLoad_StoreStencilNotDepth =				RTACTION_MAKE_MASK(DontLoad_DontStore, DontLoad_Store),
 	ClearDepthStencil_StoreDepthStencil =		RTACTION_MAKE_MASK(Clear_Store, Clear_Store),
 	LoadDepthStencil_StoreDepthStencil =		RTACTION_MAKE_MASK(Load_Store, Load_Store),
+	LoadDepthNotStencil_StoreDepthNotStencil =	RTACTION_MAKE_MASK(Load_Store, DontLoad_DontStore),
 	LoadDepthNotStencil_DontStore =				RTACTION_MAKE_MASK(Load_DontStore, DontLoad_DontStore),
 	LoadDepthStencil_StoreStencilNotDepth =		RTACTION_MAKE_MASK(Load_DontStore, Load_Store),
 

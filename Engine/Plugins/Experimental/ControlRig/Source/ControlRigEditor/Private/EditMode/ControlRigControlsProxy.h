@@ -5,6 +5,12 @@
 #include "UObject/Object.h"
 #include "UObject/LazyObjectPtr.h"
 #include "TransformNoScale.h"
+#include "EulerTransform.h"
+
+#if WITH_EDITOR
+#include "IPropertyTypeCustomization.h"
+#endif
+
 #include "ControlRigControlsProxy.generated.h"
 
 struct FRigControl;
@@ -37,8 +43,10 @@ public:
 
 	UPROPERTY()
 	bool bSelected;
-	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category = "Control")
+	UPROPERTY(VisibleAnywhere, Category = "Control")
 	FName ControlName;
+protected:
+	void CheckEditModeOnSelectionChange(UControlRig* InControlRig);
 };
 
 UCLASS()
@@ -59,9 +67,33 @@ class UControlRigTransformControlProxy : public UControlRigControlsProxy
 
 public:
 	
-	UPROPERTY(EditAnywhere, Interp, AdvancedDisplay, Category = "Control")
+	UPROPERTY(EditAnywhere, Interp, Category = "Control")
 	FTransform Transform;
 };
+
+
+UCLASS()
+class UControlRigEulerTransformControlProxy : public UControlRigControlsProxy
+{
+	GENERATED_BODY()
+	UControlRigEulerTransformControlProxy() {}
+
+	// UObject interface
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#if WITH_EDITOR
+	virtual void PostEditUndo() override;
+#endif
+
+	//UControlRigControlsProxy
+	virtual void ValueChanged() override;
+	virtual void SetKey(const IPropertyHandle& KeyedPropertyHandle) override;
+
+public:
+
+	UPROPERTY(EditAnywhere, Interp, Category = "Control")
+	FEulerTransform Transform;
+};
+
 
 UCLASS()
 class UControlRigTransformNoScaleControlProxy : public UControlRigControlsProxy
@@ -81,7 +113,7 @@ class UControlRigTransformNoScaleControlProxy : public UControlRigControlsProxy
 
 public:
 
-	UPROPERTY(EditAnywhere, Interp, AdvancedDisplay, Category = "Control")
+	UPROPERTY(EditAnywhere, Interp, Category = "Control")
 	FTransformNoScale Transform;
 };
 
@@ -103,10 +135,89 @@ class UControlRigFloatControlProxy : public UControlRigControlsProxy
 
 public:
 
-	UPROPERTY(EditAnywhere, Interp, AdvancedDisplay, Category = "Control")
+	UPROPERTY(EditAnywhere, Interp, Category = "Control")
 	float Float;
 };
 
+UCLASS()
+class UControlRigIntegerControlProxy : public UControlRigControlsProxy
+{
+	GENERATED_BODY()
+	UControlRigIntegerControlProxy() {}
+
+	// UObject interface
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#if WITH_EDITOR
+	virtual void PostEditUndo() override;
+#endif
+
+	//UControlRigControlsProxy
+	virtual void ValueChanged() override;
+	virtual void SetKey(const IPropertyHandle& KeyedPropertyHandle) override;
+
+public:
+
+	UPROPERTY(EditAnywhere, Interp, Category = "Control")
+	int32 Integer;
+};
+
+USTRUCT(BlueprintType)
+struct FControlRigEnumControlProxyValue
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY()
+	UEnum* EnumType;
+
+	UPROPERTY(EditAnywhere, Category = Enum)
+	int32 EnumIndex;
+};
+
+#if WITH_EDITOR
+
+class FControlRigEnumControlProxyValueDetails : public IPropertyTypeCustomization
+{
+public:
+
+	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
+	{
+		return MakeShareable(new FControlRigEnumControlProxyValueDetails);
+	}
+
+	/** IPropertyTypeCustomization interface */
+	virtual void CustomizeHeader(TSharedRef<class IPropertyHandle> InStructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
+	virtual void CustomizeChildren(TSharedRef<class IPropertyHandle> InStructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
+
+private:
+
+	int32 GetEnumValue() const;
+	void OnEnumValueChanged(int32 InValue, ESelectInfo::Type InSelectInfo, TSharedRef<IPropertyHandle> InStructHandle);
+
+	UControlRigEnumControlProxy* ProxyBeingCustomized;
+};
+#endif
+
+UCLASS()
+class UControlRigEnumControlProxy : public UControlRigControlsProxy
+{
+	GENERATED_BODY()
+	UControlRigEnumControlProxy() {}
+
+	// UObject interface
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#if WITH_EDITOR
+	virtual void PostEditUndo() override;
+#endif
+
+	//UControlRigControlsProxy
+	virtual void ValueChanged() override;
+	virtual void SetKey(const IPropertyHandle& KeyedPropertyHandle) override;
+
+public:
+
+	UPROPERTY(EditAnywhere, Interp, Category = "Control")
+	FControlRigEnumControlProxyValue Enum;
+};
 
 UCLASS()
 class UControlRigVectorControlProxy : public UControlRigControlsProxy
@@ -126,7 +237,7 @@ class UControlRigVectorControlProxy : public UControlRigControlsProxy
 
 public:
 
-	UPROPERTY(EditAnywhere, Interp, AdvancedDisplay, Category = "Control")
+	UPROPERTY(EditAnywhere, Interp, Category = "Control")
 	FVector Vector;
 };
 
@@ -148,7 +259,7 @@ class UControlRigVector2DControlProxy : public UControlRigControlsProxy
 
 public:
 
-	UPROPERTY(EditAnywhere, Interp, AdvancedDisplay, Category = "Control")
+	UPROPERTY(EditAnywhere, Interp, Category = "Control")
 	FVector2D Vector2D;
 };
 
@@ -170,7 +281,7 @@ class UControlRigBoolControlProxy : public UControlRigControlsProxy
 
 public:
 
-	UPROPERTY(EditAnywhere, Interp, AdvancedDisplay, Category = "Control")
+	UPROPERTY(EditAnywhere, Interp, Category = "Control")
 	bool Bool;
 };
 

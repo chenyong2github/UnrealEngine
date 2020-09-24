@@ -7,33 +7,68 @@
 #include "Common.ush"
 #include "SceneTexturesCommon.ush"
 
-float2 ProjectionScaleBias;
+// This must match EDownsampleDepthFilter
+#define DOWNSAMPLE_DEPTH_FILTER_POINT		0
+#define DOWNSAMPLE_DEPTH_FILTER_MAX			1
+#define DOWNSAMPLE_DEPTH_FILTER_CBMINMAX	2
+
+Texture2D<float> DepthTexture;
 float4 SourceTexelOffsets01;
 float4 SourceTexelOffsets23;
 float2 SourceMaxUV;
-float UseMaxDepth;
+float2 DestinationResolution;
+uint DownsampleDepthFilter;
+
+float GetDepth(float2 UV)
+{
+	return ConvertFromDeviceZ(DepthTexture.Sample(GlobalPointClampedSampler, min(UV, SourceMaxUV)));
+}
 
 void Main(
-	noperspective float2 InUV : TEXCOORD0,
+	noperspective float4 UV : TEXCOORD0,
 	out float OutDepth : SV_DEPTH,
-	out float4 OutColor : SV_Target0
-	)
+	out float4 OutColor : SV_Target0)
 {
-	OutColor = 0;
+	float Depth = 0;
 
-	// Lookup the four view space Z's of the full resolution pixels corresponding to this low resolution pixel
-	float ViewSpaceZ0 = CalcSceneDepth(min(InUV + SourceTexelOffsets01.xy, SourceMaxUV));
-	float ViewSpaceZ1 = CalcSceneDepth(min(InUV + SourceTexelOffsets01.zw, SourceMaxUV));
-	float ViewSpaceZ2 = CalcSceneDepth(min(InUV + SourceTexelOffsets23.xy, SourceMaxUV));
-	float ViewSpaceZ3 = CalcSceneDepth(min(InUV + SourceTexelOffsets23.zw, SourceMaxUV));
+	if (DownsampleDepthFilter < DOWNSAMPLE_DEPTH_FILTER_CBMINMAX)
+	{
+		// Lookup the four view space Z's of the full resolution pixels corresponding to this low resolution pixel
+		float ViewSpaceZ0 = GetDepth(UV.xy + SourceTexelOffsets01.xy);
+		float ViewSpaceZ1 = GetDepth(UV.xy + SourceTexelOffsets01.zw);
+		float ViewSpaceZ2 = GetDepth(UV.xy + SourceTexelOffsets23.xy);
+		float ViewSpaceZ3 = GetDepth(UV.xy + SourceTexelOffsets23.zw);
 
-	float MaxDepth = max(max(ViewSpaceZ0, ViewSpaceZ1), max(ViewSpaceZ2, ViewSpaceZ3));
+		float MaxDepth = max(max(ViewSpaceZ0, ViewSpaceZ1), max(ViewSpaceZ2, ViewSpaceZ3));
 
-	// Max depth shrinks the silhouettes around foreground objects and is conservative for depth testing
-	// Sample 0 has consistent error, use whichever one is requested for this downsample
-	float Depth = UseMaxDepth > 0 ? MaxDepth : ViewSpaceZ0;
+		// Max depth shrinks the silhouettes around foreground objects and is conservative for depth testing
+		// Sample 0 has consistent error, use whichever one is requested for this downsample
+		Depth = DownsampleDepthFilter == DOWNSAMPLE_DEPTH_FILTER_MAX ? MaxDepth : ViewSpaceZ0;
+	}
+	else // DownsampleDepthFilter == DOWNSAMPLE_DEPTH_FILTER_CBMINMAX
+	{
+		// Lookup the four view space Z's of the full resolution pixels corresponding to this low resolution pixel
+		float ViewSpaceZ0 = GetDepth(UV.xy + SourceTexelOffsets23.zw * 0.5f * float2(-1,-1));
+		float ViewSpaceZ1 = GetDepth(UV.xy + SourceTexelOffsets23.zw * 0.5f * float2(-1, 1));
+		float ViewSpaceZ2 = GetDepth(UV.xy + SourceTexelOffsets23.zw * 0.5f * float2( 1,-1));
+		float ViewSpaceZ3 = GetDepth(UV.xy + SourceTexelOffsets23.zw * 0.5f * float2( 1, 1));
+
+		const float MaxDepth = max(max(ViewSpaceZ0, ViewSpaceZ1), max(ViewSpaceZ2, ViewSpaceZ3));
+
+		const float2 Resolution = uint2(DestinationResolution * View.BufferSizeAndInvSize.xy * View.ViewSizeAndInvSize.zw); // need to clamp to respect ratios
+		const uint2 PixelPos = uint2(UV.xy * Resolution);
+
+		const uint2 PixelPosStep = (PixelPos >> 1) * 2;
+		uint CheckerBoard = (PixelPos.x - PixelPosStep.x);									// horizontal alternance of black and white
+		CheckerBoard = (PixelPos.y - PixelPosStep.y) == 0 ? CheckerBoard : 1 - CheckerBoard;// vertical toggle of horizontal checker on odd lines
+
+		const float MinDepth = min(min(ViewSpaceZ0, ViewSpaceZ1), min(ViewSpaceZ2, ViewSpaceZ3));
+		Depth = CheckerBoard > 0 ? MaxDepth : MinDepth;
+	}
+
 	// Convert view space Z into post projection Z and output post projection Z / W as the depth buffer expects.
-	OutDepth = (Depth * ProjectionScaleBias.x + ProjectionScaleBias.y) / Depth;
+	OutDepth = ConvertToDeviceZ(Depth);
+	OutColor = 0;
 }
 
 #ifndef STENCIL_LIGHTING_CHANNELS_SHIFT 
@@ -43,11 +78,11 @@ void Main(
 Texture2D<uint2> SceneStencilTexture;
 
 void CopyStencilToLightingChannelsPS(  
-	noperspective float2 InUV : TEXCOORD0,
+	noperspective float4 InUV : TEXCOORD0,
 	out uint4 OutValue : SV_Target0
 	)
 {
-	uint2 IntUV = (uint2)(InUV * (float2)View.BufferSizeAndInvSize.xy);
+	uint2 IntUV = (uint2)((float2)InUV.xy * (float2)View.BufferSizeAndInvSize.xy);
 	uint Stencil = SceneStencilTexture.Load(uint3(IntUV, 0)) STENCIL_COMPONENT_SWIZZLE;
 	uint ShiftedStencil = Stencil >> STENCIL_LIGHTING_CHANNELS_SHIFT;
 	// Flip the lowest channel bit, it was stored inverted so we can clear stencil to 0 as a default

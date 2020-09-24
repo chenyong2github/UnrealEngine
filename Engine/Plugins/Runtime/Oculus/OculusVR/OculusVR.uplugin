@@ -1,7 +1,7 @@
 {
 	"FileVersion": 3,
 	"Version": 1,
-	"VersionName": "1.44.0",
+	"VersionName": "1.51.0",
 	"FriendlyName": "Oculus VR",
 	"Description": "Support for Oculus headsets and controllers",
 	"Category": "Virtual Reality",

@@ -928,6 +928,17 @@ public:
 	/**	@return Whether this property derives its visibility from its edit condition */
 	bool IsOnlyVisibleWhenEditConditionMet() const;
 
+
+	/**
+	 * Helper to fetch a list of child property nodes that are expanded
+	 */
+	void GetExpandedChildPropertyPaths(TSet<FString>& OutExpandedChildPropertyPaths);
+
+	/**
+	 * Helper to set the expansion state of a list of child property nodes
+	 */
+	void SetExpandedChildPropertyNodes(const TSet<FString>& InNodesToExpand);
+
 protected:
 
 	// Returns a pointer to the starting point of the structure that contains the property this node uses.

@@ -20,27 +20,37 @@
 			"Enabled": true
 		}
 	],
-	"Modules" :
+	"Modules": 
 	[
 		{
-			"Name" : "TakesCore",
-			"Type" : "UncookedOnly",
-			"LoadingPhase" : "PostEngineInit"
+			"Name": "TakesCore",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "PostEngineInit"
 		},
 		{
-			"Name" : "TakeTrackRecorders",
-			"Type" : "UncookedOnly",
-			"LoadingPhase" : "PostEngineInit"
+			"Name": "TakeTrackRecorders",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "PostEngineInit"
 		},
 		{
-			"Name" : "TakeRecorderSources",
-			"Type" : "UncookedOnly",
-			"LoadingPhase" : "PostEngineInit"
+			"Name": "TakeRecorderSources",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "PostEngineInit"
 		},
 		{
-			"Name" : "TakeRecorder",
-			"Type" : "UncookedOnly",
-			"LoadingPhase" : "PostEngineInit"
+			"Name": "TakeRecorder",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "PostEngineInit"
 		},
+		{
+			"Name": "TakeMovieScene",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "TakeSequencer",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		}
 	]
 }

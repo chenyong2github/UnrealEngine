@@ -9,6 +9,7 @@
 #include "Input/HittestGrid.h"
 #include "Layout/Children.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "Trace/SlateTrace.h"
 #include "Types/ReflectionMetadata.h"
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(SLATECORE_API, Slate);
@@ -67,9 +68,6 @@ FSlateInvalidationRoot::~FSlateInvalidationRoot()
 #if UE_SLATE_DEBUGGING_CLEAR_ALL_FAST_PATH_DATA
 	ensure(FastWidgetPathToClearedBecauseOfDelay.Num() == 0);
 #endif
-#if WITH_SLATE_DEBUGGING
-	FSlateDebugging::ClearInvalidatedWidgets(*this);
-#endif
 
 	if (FSlateApplicationBase::IsInitialized())
 	{
@@ -116,13 +114,9 @@ void FSlateInvalidationRoot::InvalidateChildOrder(const SWidget* Investigator)
 		}
 
 #if WITH_SLATE_DEBUGGING
-		if (GSlateInvalidationDebugging && FastWidgetPathList.Num())
-		{
-			FSlateDebugging::WidgetInvalidated(*this, FastWidgetPathList[0], &FLinearColor::Red);
-		}
-
 		FSlateDebugging::BroadcastInvalidationRootInvalidate(InvalidationRootWidget, Investigator, ESlateDebuggingInvalidateRootReason::ChildOrder);
 #endif
+		UE_TRACE_SLATE_ROOT_CHILDORDER_INVALIDATED(InvalidationRootWidget, Investigator);
 	}
 }
 
@@ -183,6 +177,7 @@ void FSlateInvalidationRoot::InvalidateRoot(const SWidget* Investigator)
 #if WITH_SLATE_DEBUGGING
 	FSlateDebugging::BroadcastInvalidationRootInvalidate(InvalidationRootWidget, Investigator, ESlateDebuggingInvalidateRootReason::Root);
 #endif
+	UE_TRACE_SLATE_ROOT_INVALIDATED(InvalidationRootWidget, Investigator);
 }
 
 FSlateInvalidationResult FSlateInvalidationRoot::PaintInvalidationRoot(const FSlateInvalidationContext& Context)
@@ -223,9 +218,6 @@ FSlateInvalidationResult FSlateInvalidationRoot::PaintInvalidationRoot(const FSl
 		SCOPED_NAMED_EVENT(Slate_PaintSlowPath, FColor::Red);
 
 		//CSV_EVENT(Basic, "Slate Slow Path update");
-#if WITH_SLATE_DEBUGGING
-		FSlateDebugging::ClearInvalidatedWidgets(*this);
-#endif
 		ClearAllFastPathData(!Context.bAllowFastPathUpdate);
 
 		GSlateIsOnFastUpdatePath = false;
@@ -265,18 +257,6 @@ FSlateInvalidationResult FSlateInvalidationRoot::PaintInvalidationRoot(const FSl
 	if (Context.bAllowFastPathUpdate)
 	{
 		Context.WindowElementList->PopCachedElementData();
-
-#if WITH_SLATE_DEBUGGING
-		if (GSlateInvalidationDebugging)
-		{
-			if (!GSlateEnableGlobalInvalidation)
-			{
-				FSlateDebugging::DrawInvalidationRoot(*InvalidationRootWidget, CachedMaxLayerId, *Context.WindowElementList);
-			}
-
-			FSlateDebugging::DrawInvalidatedWidgets(*this, *Context.PaintArgs, *Context.WindowElementList);
-		}
-#endif
 	}
 
 	FinalUpdateList.Reset();
@@ -514,6 +494,8 @@ void FSlateInvalidationRoot::BuildFastPathList(SWidget* RootWidget)
 		bool bBuiltPath = false;
 		if (FastWidgetPathList.Num() > 0)
 		{
+			SCOPED_NAMED_EVENT_FSTRING(FString::Printf(TEXT("BuildFastPathList_BuildNewFastPathList_Recursive: %s"), *FReflectionMetaData::GetWidgetDebugInfo(FastWidgetPathList[0].Widget)), FColor::Magenta);
+
 			int32 NextTreeIndex = 1;
 			bBuiltPath = BuildNewFastPathList_Recursive(*this, FastWidgetPathList[0], INDEX_NONE, NextTreeIndex, FastWidgetPathList, TempList);
 			if (!bBuiltPath)
@@ -525,6 +507,7 @@ void FSlateInvalidationRoot::BuildFastPathList(SWidget* RootWidget)
 		
 		if (!bBuiltPath)
 		{
+			SCOPED_NAMED_EVENT_FSTRING(FString::Printf(TEXT("BuildFastPathList_AssignIndicesToChildren: %s"), *FReflectionMetaData::GetWidgetDebugInfo(RootWidget)), FColor::Magenta);
 			TempList.Reset();
 			RootWidget->AssignIndicesToChildren(*this, INDEX_NONE, TempList, bParentVisible, bParentVolatile);
 		}
@@ -696,6 +679,7 @@ bool FSlateInvalidationRoot::ProcessInvalidation()
 #if WITH_SLATE_DEBUGGING
 					FSlateDebugging::BroadcastWidgetInvalidate(WidgetProxy.Widget, nullptr, EInvalidateWidgetReason::Layout);
 #endif
+					UE_TRACE_SLATE_WIDGET_INVALIDATED(WidgetProxy.Widget, nullptr, EInvalidateWidgetReason::Layout);
 				}
 
 #if SLATE_CSV_TRACKER
@@ -710,7 +694,7 @@ bool FSlateInvalidationRoot::ProcessInvalidation()
 
 				if (AddedWidgets >= CascadeInvalidationEventAmount)
 				{
-					CSV_EVENT(Slate, TEXT("%s"), *FReflectionMetaData::GetWidgetDebugInfo(WidgetProxy.Widget));
+					CSV_EVENT(Slate, TEXT("Invalidated %s"), *FReflectionMetaData::GetWidgetDebugInfo(WidgetProxy.Widget));
 				}
 
 				if (EnumHasAnyFlags(WidgetProxy.UpdateFlags, EWidgetUpdateFlags::NeedsRepaint))
@@ -728,28 +712,6 @@ bool FSlateInvalidationRoot::ProcessInvalidation()
 				if (EnumHasAnyFlags(WidgetProxy.UpdateFlags, EWidgetUpdateFlags::NeedsActiveTimerUpdate))
 				{
 					Stat_NeedsActiveTimerUpdate++;
-				}
-#endif
-
-#if WITH_SLATE_DEBUGGING
-				if (GSlateInvalidationDebugging)
-				{
-					if (EnumHasAnyFlags(WidgetProxy.UpdateFlags, EWidgetUpdateFlags::NeedsRepaint))
-					{
-						FSlateDebugging::WidgetInvalidated(*this, WidgetProxy);
-					}
-					else if (EnumHasAnyFlags(WidgetProxy.UpdateFlags, EWidgetUpdateFlags::NeedsVolatilePaint) && !WidgetProxy.Widget->Advanced_IsInvalidationRoot())
-					{
-						FSlateDebugging::WidgetInvalidated(*this, WidgetProxy, &FLinearColor::Blue);
-					}
-					else if (EnumHasAnyFlags(WidgetProxy.UpdateFlags, EWidgetUpdateFlags::NeedsTick))
-					{
-						FSlateDebugging::WidgetInvalidated(*this, WidgetProxy, &FLinearColor::White);
-					}
-					else if (EnumHasAnyFlags(WidgetProxy.UpdateFlags, EWidgetUpdateFlags::NeedsActiveTimerUpdate))
-					{
-						FSlateDebugging::WidgetInvalidated(*this, WidgetProxy, &FLinearColor::Green);
-					}
 				}
 #endif
 			}

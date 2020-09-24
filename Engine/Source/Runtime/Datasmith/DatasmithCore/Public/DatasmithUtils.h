@@ -206,6 +206,13 @@ public:
 
 	static bool IsMaterialIDUsedInScene(const TSharedPtr<class IDatasmithScene>& Scene, const TSharedPtr<class IDatasmithMaterialIDElement>& MaterialElement);
 	static bool IsPostProcessUsedInScene(const TSharedPtr<class IDatasmithScene>& Scene, const TSharedPtr<class IDatasmithPostProcessElement>& PostProcessElement);
+
+	/**
+	 * Fixes all missing references, remove all unused meshes, materials, textures, etc
+	 * @param Scene Scene to perform the cleanup on
+	 * @param bRemoveUnused Indicates if the cleanup includes the removal of unused assets
+	 */
+	static void CleanUpScene(TSharedRef<class IDatasmithScene> Scene, bool bRemoveUnused = false);
 };
 
 /**
@@ -279,5 +286,4 @@ protected:
 private:
 	TSet<FString> KnownNames;
 };
-
 

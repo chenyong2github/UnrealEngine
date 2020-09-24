@@ -18,7 +18,7 @@ void FStatsNode::ResetAggregatedStats()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FStatsNode::SetAggregatedStats(FAggregatedStats& InAggregatedStats)
+void FStatsNode::SetAggregatedStats(const FAggregatedStats& InAggregatedStats)
 {
 	AggregatedStats = InAggregatedStats;
 }
@@ -32,7 +32,7 @@ void FStatsNode::ResetAggregatedIntegerStats()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FStatsNode::SetAggregatedIntegerStats(FAggregatedIntegerStats& InAggregatedIntegerStats)
+void FStatsNode::SetAggregatedIntegerStats(const FAggregatedIntegerStats& InAggregatedIntegerStats)
 {
 	AggregatedIntegerStats = InAggregatedIntegerStats;
 

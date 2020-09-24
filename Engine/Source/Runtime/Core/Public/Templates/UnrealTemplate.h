@@ -8,6 +8,7 @@
 #include "Templates/EnableIf.h"
 #include "Templates/AndOrNot.h"
 #include "Templates/AreTypesEqual.h"
+#include "Templates/CopyQualifiersAndRefsFromTo.h"
 #include "Templates/IsArithmetic.h"
 #include "Templates/UnrealTypeTraits.h"
 #include "Templates/RemoveReference.h"
@@ -100,17 +101,34 @@ template <typename T, SIZE_T N> CONSTEXPR SIZE_T GetNum(      T (&&Container)[N]
 template <typename T, SIZE_T N> CONSTEXPR SIZE_T GetNum(const T (& Container)[N]) { return N; }
 template <typename T, SIZE_T N> CONSTEXPR SIZE_T GetNum(const T (&&Container)[N]) { return N; }
 
+/**
+ * Gets the number of items in an initializer list.
+ *
+ * The return type is int32 for compatibility with other code in the engine.
+ * Realistically, an initializer list should not exceed the limits of int32.
+ */
 template <typename T>
-CONSTEXPR SIZE_T GetNum(std::initializer_list<T> List)
+CONSTEXPR int32 GetNum(std::initializer_list<T> List)
 {
-	return List.size();
+	return static_cast<int32>(List.size());
 }
 
 /**
  * Returns a non-const pointer type as const.
  */
 template <typename T>
-FORCEINLINE const T* AsConst(T* Ptr)
+UE_DEPRECATED(4.26, "Call with a reference instead of a pointer.")
+constexpr FORCEINLINE const T* AsConst(T* const& Ptr)
+{
+	return Ptr;
+}
+
+/**
+ * Returns a non-const pointer type as const.
+ */
+template <typename T>
+UE_DEPRECATED(4.26, "Call with a reference instead of a pointer.")
+constexpr FORCEINLINE const T* AsConst(T* const&& Ptr)
 {
 	return Ptr;
 }
@@ -119,9 +137,25 @@ FORCEINLINE const T* AsConst(T* Ptr)
  * Returns a non-const reference type as const.
  */
 template <typename T>
-FORCEINLINE const T& AsConst(T& Ref)
+constexpr FORCEINLINE const T& AsConst(T& Ref)
 {
 	return Ref;
+}
+
+/**
+ * Disallowed for rvalue references because it cannot extend their lifetime.
+ */
+template <typename T>
+void AsConst(const T&& Ref) = delete;
+
+/**
+ * Returns a non-const reference type as const.
+ * This overload is only required until the pointer overloads are removed.
+ */
+template <typename T, SIZE_T N>
+constexpr FORCEINLINE const T (&AsConst(T (&Array)[N]))[N]
+{
+	return Array;
 }
 
 /*----------------------------------------------------------------------------
@@ -604,4 +638,28 @@ template <typename T>
 FORCEINLINE T ImplicitConv(typename TIdentity<T>::Type Obj)
 {
     return Obj;
+}
+
+/**
+ * ForwardAsBase will cast a reference to an rvalue reference of a base type.
+ * This allows the perfect forwarding of a reference as a base class.
+ */
+template <
+	typename T,
+	typename Base,
+	decltype(ImplicitConv<const volatile Base*>((typename TRemoveReference<T>::Type*)nullptr))* = nullptr
+>
+FORCEINLINE decltype(auto) ForwardAsBase(typename TRemoveReference<T>::Type& Obj)
+{
+	return (TCopyQualifiersAndRefsFromTo_T<T&&, Base>)Obj;
+}
+
+template <
+	typename T,
+	typename Base,
+	decltype(ImplicitConv<const volatile Base*>((typename TRemoveReference<T>::Type*)nullptr))* = nullptr
+>
+FORCEINLINE decltype(auto) ForwardAsBase(typename TRemoveReference<T>::Type&& Obj)
+{
+	return (TCopyQualifiersAndRefsFromTo_T<T&&, Base>)Obj;
 }

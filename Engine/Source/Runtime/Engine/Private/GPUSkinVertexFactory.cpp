@@ -38,9 +38,20 @@ static TAutoConsoleVariable<int32> CVarGPUSkinLimit2BoneInfluences(
 	TEXT("Whether to use 2 bones influence instead of default 4/8 for GPU skinning. Cannot be changed at runtime."),
 	ECVF_ReadOnly);
 
-// Changing the unlimited bone influences settings require DDC key SKELETALMESH_DERIVEDDATA_VER to update in order to regenerate bone weight vertex buffers
-static const bool GUnlimitedBoneInfluences = false;
-static const int32 GUnlimitedBoneInfluencesThreshold = EXTRA_BONE_INFLUENCES;
+static const bool GCVarUnlimitedBoneInfluences = false;
+static TAutoConsoleVariable<bool> CVarUnlimitedBoneInfluences(
+	TEXT("r.GPUSkin.UnlimitedBoneInfluences"),
+	GCVarUnlimitedBoneInfluences,
+	TEXT("Whether to use unlimited bone influences instead of default 4/8 for GPU skinning. Cannot be changed at runtime."),
+	ECVF_ReadOnly);
+
+static int32 GCVarUnlimitedBoneInfluencesThreshold = EXTRA_BONE_INFLUENCES;
+static TAutoConsoleVariable<int32> CVarUnlimitedBoneInfluencesThreshold(
+	TEXT("r.GPUSkin.UnlimitedBoneInfluencesThreshold"),
+	GCVarUnlimitedBoneInfluencesThreshold,
+	TEXT("Unlimited Bone Influences Threshold to use unlimited bone influences buffer if r.GPUSkin.UnlimitedBoneInfluences is enabled. Should be unsigned int. Cannot be changed at runtime."),
+	ECVF_ReadOnly);
+
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FAPEXClothUniformShaderParameters,"APEXClothParam");
 
@@ -356,7 +367,14 @@ int32 FGPUBaseSkinVertexFactory::GetMaxGPUSkinBones()
 
 bool FGPUBaseSkinVertexFactory::UseUnlimitedBoneInfluences(uint32 MaxBoneInfluences)
 {
-	return GUnlimitedBoneInfluences && MaxBoneInfluences > GUnlimitedBoneInfluencesThreshold;
+	const bool bUnlimitedBoneInfluence = GCVarUnlimitedBoneInfluences;
+	const uint32 UnlimitedBoneInfluencesThreshold = (uint32) GCVarUnlimitedBoneInfluencesThreshold;
+	return bUnlimitedBoneInfluence && MaxBoneInfluences > UnlimitedBoneInfluencesThreshold;
+}
+
+bool FGPUBaseSkinVertexFactory::GetUnlimitedBoneInfluences()
+{
+	return GCVarUnlimitedBoneInfluences;
 }
 
 /*-----------------------------------------------------------------------------
@@ -368,7 +386,7 @@ TGlobalResource<FBoneBufferPool> FGPUBaseSkinVertexFactory::BoneBufferPool;
 template <GPUSkinBoneInfluenceType BoneInfluenceType>
 bool TGPUSkinVertexFactory<BoneInfluenceType>::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
-	bool bUnlimitedBoneInfluences = (BoneInfluenceType == UnlimitedBoneInfluence && GUnlimitedBoneInfluences);
+	bool bUnlimitedBoneInfluences = (BoneInfluenceType == UnlimitedBoneInfluence && GCVarUnlimitedBoneInfluences);
 	return ((Parameters.MaterialParameters.bIsUsedWithSkeletalMesh && (BoneInfluenceType != UnlimitedBoneInfluence || bUnlimitedBoneInfluences)) || Parameters.MaterialParameters.bIsSpecialEngineMaterial);
 }
 
@@ -385,6 +403,8 @@ void TGPUSkinVertexFactory<BoneInfluenceType>::ModifyCompilationEnvironment(cons
 	}
 	OutEnvironment.SetDefine(TEXT("GPUSKIN_USE_BONES_SRV_BUFFER"), SupportsBonesBufferSRV(Parameters.Platform) ? 1 : 0);
 	OutEnvironment.SetDefine(TEXT("GPUSKIN_UNLIMITED_BONE_INFLUENCE"), BoneInfluenceType == UnlimitedBoneInfluence ? 1 : 0);
+
+	OutEnvironment.SetDefine(TEXT("GPU_SKINNED_MESH_FACTORY"), 1);
 }
 
 
@@ -487,6 +507,26 @@ void TGPUSkinVertexFactory<BoneInfluenceType>::AddVertexElements(FDataType& InDa
 			OutElements.Add(AccessStreamComponent(InData.BoneIndices, 14));
 			OutElements.Add(AccessStreamComponent(InData.BoneWeights, 15));
 		}
+	}
+
+	if (InData.PreSkinningOffsets.VertexBuffer)
+	{
+		OutElements.Add(AccessStreamComponent(InData.PreSkinningOffsets, 11));
+	}
+	else
+	{
+		FVertexStreamComponent NullDeltaComponent(&GNullVertexBuffer, 0, 0, VET_Float3);
+		OutElements.Add(AccessStreamComponent(NullDeltaComponent, 11));
+	}
+
+	if (InData.PostSkinningOffsets.VertexBuffer)
+	{
+		OutElements.Add(AccessStreamComponent(InData.PostSkinningOffsets, 12));
+	}
+	else
+	{
+		FVertexStreamComponent NullDeltaComponent(&GNullVertexBuffer, 0, 0, VET_Float3);
+		OutElements.Add(AccessStreamComponent(NullDeltaComponent, 12));
 	}
 }
 
@@ -1011,6 +1051,7 @@ void TGPUSkinAPEXClothVertexFactory<BoneInfluenceType>::ModifyCompilationEnviron
 {
 	Super::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	OutEnvironment.SetDefine(TEXT("GPUSKIN_APEX_CLOTH"),TEXT("1"));
+	OutEnvironment.SetDefine(TEXT("GPUSKIN_MULTIPLE_CLOTH_INFLUENCES"), TEXT("0"));
 }
 
 template <GPUSkinBoneInfluenceType BoneInfluenceType>
@@ -1022,27 +1063,6 @@ bool TGPUSkinAPEXClothVertexFactory<BoneInfluenceType>::ShouldCompilePermutation
 }
 
 /**
-* Add the decl elements for the streams
-* @param InData - type with stream components
-* @param OutElements - vertex decl list to modify
-*/
-template <GPUSkinBoneInfluenceType BoneInfluenceType>
-void TGPUSkinAPEXClothVertexFactory<BoneInfluenceType>::AddVertexElements(FDataType& InData, FVertexDeclarationElementList& OutElements)
-{
-	// add the base gpu skin elements
-	TGPUSkinVertexFactory<BoneInfluenceType>::AddVertexElements(InData,OutElements);
-	// add the morph delta elements
-//	return;
-	if(InData.CoordNormalComponent.VertexBuffer)
-	{
-		OutElements.Add(FVertexFactory::AccessStreamComponent(InData.CoordPositionComponent,9));
-		OutElements.Add(FVertexFactory::AccessStreamComponent(InData.CoordNormalComponent,10));
-		OutElements.Add(FVertexFactory::AccessStreamComponent(InData.CoordTangentComponent,11));
-		OutElements.Add(FVertexFactory::AccessStreamComponent(InData.SimulIndicesComponent,12));
-	}
-}
-
-/**
 * Creates declarations for each of the vertex stream components and
 * initializes the device resource
 */
@@ -1051,7 +1071,7 @@ void TGPUSkinAPEXClothVertexFactory<BoneInfluenceType>::InitRHI()
 {
 	// list of declaration items
 	FVertexDeclarationElementList Elements;	
-	AddVertexElements(MeshMappingData,Elements);
+	TGPUSkinVertexFactory<BoneInfluenceType>::AddVertexElements(MeshMappingData, Elements);
 
 	// create the actual device decls
 	FVertexFactory::InitDeclaration(Elements);
@@ -1061,6 +1081,25 @@ IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_PARAMETER_TYPE(TGPUSkinAPEXClothVertexFacto
 
 /** bind cloth gpu skin vertex factory to its shader file and its shader parameters */
 IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_TYPE(TGPUSkinAPEXClothVertexFactory, "/Engine/Private/GpuSkinVertexFactory.ush", true, false, true, false, false);
+
+
+template<GPUSkinBoneInfluenceType BoneInfluenceType>
+void TMultipleInfluenceClothVertexFactory<BoneInfluenceType>::ModifyCompilationEnvironment(
+	const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+{
+	Super::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	OutEnvironment.SetDefine(TEXT("GPUSKIN_MULTIPLE_CLOTH_INFLUENCES"), TEXT("1"));
+}
+
+
+template <GPUSkinBoneInfluenceType BoneInfluenceType>
+bool TMultipleInfluenceClothVertexFactory<BoneInfluenceType>::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
+{
+	return Super::ShouldCompilePermutation(Parameters);
+}
+
+IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_PARAMETER_TYPE(TMultipleInfluenceClothVertexFactory, SF_Vertex, TGPUSkinAPEXClothVertexFactoryShaderParameters);
+IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_TYPE(TMultipleInfluenceClothVertexFactory, "/Engine/Private/GpuSkinVertexFactory.ush", true, false, true, false, false);
 
 #undef IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_PARAMETER_TYPE
 #undef IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_TYPE

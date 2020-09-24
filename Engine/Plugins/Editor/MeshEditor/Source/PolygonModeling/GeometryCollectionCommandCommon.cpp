@@ -111,7 +111,7 @@ AGeometryCollectionActor* FGeometryCollectionCommandCommon::CreateNewGeometryAct
 	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
 	AssetToolsModule.Get().CreateUniqueAssetName(NewPackageName, TEXT(""), UniquePackageName, UniqueAssetName);
 
-	UPackage* Package = CreatePackage(NULL, *UniquePackageName);
+	UPackage* Package = CreatePackage(*UniquePackageName);
 	UGeometryCollection* GeometryCollection = static_cast<UGeometryCollection*>(
 		UGeometryCollectionFactory::StaticFactoryCreateNew(UGeometryCollection::StaticClass(), Package,
 			FName(*UniqueAssetName), RF_Standalone | RF_Public, NULL, GWarn));
@@ -307,7 +307,7 @@ UEditableMesh* FGeometryCollectionCommandCommon::GetEditableMeshForComponent(UAc
 /*
 UPackage* FGeometryCollectionCommandCommon::CreateGeometryCollectionPackage(UGeometryCollection*& GeometryCollection)
 {
-	UPackage* Package = CreatePackage(NULL, TEXT("/Game/GeometryCollectionAsset"));
+	UPackage* Package = CreatePackage(TEXT("/Game/GeometryCollectionAsset"));
 	GeometryCollection = static_cast<UGeometryCollection*>(
 		UGeometryCollectionFactory::StaticFactoryCreateNew(UGeometryCollection::StaticClass(), Package,
 			FName("GeometryCollectionAsset"), RF_Standalone | RF_Public, NULL, GWarn));		

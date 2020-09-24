@@ -63,9 +63,6 @@ TArray<UObject*> FReferencerFinder::GetAllReferencers(const TArray<UObject*>& Re
 	return GetAllReferencers(TSet<UObject*>(Referencees), ObjectsToIgnore, Flags);
 }
 
-void LockUObjectHashTables();
-void UnlockUObjectHashTables();
-
 TArray<UObject*> FReferencerFinder::GetAllReferencers(const TSet<UObject*>& Referencees, const TSet<UObject*>* ObjectsToIgnore, EReferencerFinderFlags Flags)
 {
 	TArray<UObject*> Ret;
@@ -74,7 +71,7 @@ TArray<UObject*> FReferencerFinder::GetAllReferencers(const TSet<UObject*>& Refe
 		FCriticalSection ResultCritical;
 
 		// Lock hashtables so that nothing can add UObjects while we're iterating over the GUObjectArray
-		LockUObjectHashTables();
+		FScopedUObjectHashTablesLock HashTablesLock;
 
 		const int32 MaxNumberOfObjects = GUObjectArray.GetObjectArrayNum();
 		const int32 NumThreads = FMath::Max(1, FTaskGraphInterface::Get().GetNumWorkerThreads());
@@ -84,7 +81,12 @@ TArray<UObject*> FReferencerFinder::GetAllReferencers(const TSet<UObject*>& Refe
 		{
 			TSet<UObject*> ThreadResult;
 			FAllReferencesProcessor Processor(Referencees, Flags, ThreadResult);
-			TFastReferenceCollector<false, FAllReferencesProcessor, FAllReferencesCollector, FGCArrayPool, true> ReferenceCollector(Processor, FGCArrayPool::Get());
+			TFastReferenceCollector<
+				FAllReferencesProcessor, 
+				FAllReferencesCollector, 
+				FGCArrayPool, 
+				EFastReferenceCollectorOptions::AutogenerateTokenStream | EFastReferenceCollectorOptions::ProcessNoOpTokens
+			> ReferenceCollector(Processor, FGCArrayPool::Get());
 			FGCArrayStruct ArrayStruct;
 
 			ArrayStruct.ObjectsToSerialize.Reserve(NumberOfObjectsPerThread);
@@ -122,8 +124,6 @@ TArray<UObject*> FReferencerFinder::GetAllReferencers(const TSet<UObject*>& Refe
 				Ret.Append(ThreadResult.Array());
 			}
 		}, GUObjectRegistrationComplete ? EParallelForFlags::None :  EParallelForFlags::ForceSingleThread );
-
-		UnlockUObjectHashTables();
 	}
 	return Ret;
 }

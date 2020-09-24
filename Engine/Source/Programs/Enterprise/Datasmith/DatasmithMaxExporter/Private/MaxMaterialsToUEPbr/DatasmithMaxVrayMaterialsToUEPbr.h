@@ -27,7 +27,7 @@ public:
 	virtual void Convert( TSharedRef< IDatasmithScene > DatasmithScene, TSharedPtr< IDatasmithBaseMaterialElement >& MaterialElement, Mtl* Material, const TCHAR* AssetsPath ) override;
 };
 
-class FDatasmithMaxVRayBlendMaterialToUEPbr : public FDatasmithMaxMaterialsToUEPbr 
+class FDatasmithMaxVRayBlendMaterialToUEPbr : public FDatasmithMaxVRayMaterialsToUEPbr 
 {
 public:
 	virtual bool IsSupported( Mtl* Material ) override;

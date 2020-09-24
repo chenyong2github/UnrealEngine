@@ -145,7 +145,7 @@ namespace UnrealBuildTool
 		}
 
 
-		void AppendCLArguments_Global(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		protected virtual void AppendCLArguments_Global(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
 			// Suppress generation of object code for unreferenced inline functions. Enabling this option is more standards compliant, and causes a big reduction
 			// in object file sizes (and link times) due to the amount of stuff we inline.
@@ -535,6 +535,13 @@ namespace UnrealBuildTool
  				Arguments.Add("/wd4244");
 				Arguments.Add("/wd4838");
  			}
+
+			// If using WindowsSDK 10.0.18362.0 or later and compiling Win32 we need to add a definition
+			//   for ignoring packing mismatches.
+			if(CompileEnvironment.Platform == UnrealTargetPlatform.Win32 && EnvVars.WindowsSdkVersion >= VersionNumber.Parse("10.0.18362.0"))
+			{
+				AddDefinition(Arguments, "WINDOWS_IGNORE_PACKING_MISMATCH");
+			}
 		}
 
 		protected virtual void AppendCLArguments_CPP(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
@@ -1774,6 +1781,9 @@ namespace UnrealBuildTool
 				}
 			}
 
+			// Allow the toolchain to adjust/process the link arguments
+			ModifyFinalLinkArguments(LinkEnvironment, Arguments, bBuildImportLibraryOnly );
+
 			// Create a response file for the linker, unless we're generating IntelliSense data
 			FileReference ResponseFileName = GetResponseFileName(LinkEnvironment, OutputFile);
 			if (!ProjectFileGenerator.bGenerateProjectFiles)
@@ -1829,6 +1839,11 @@ namespace UnrealBuildTool
 			Log.TraceVerbose("     Command: " + LinkAction.CommandArguments);
 
 			return OutputFile;
+		}
+
+		protected virtual void ModifyFinalLinkArguments(LinkEnvironment LinkEnvironment, List<string> Arguments, bool bBuildImportLibraryOnly)
+		{
+			
 		}
 
 		private void ExportObjectFilePaths(LinkEnvironment LinkEnvironment, string FileName, VCEnvironment EnvVars)

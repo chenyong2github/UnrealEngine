@@ -257,6 +257,7 @@ FGameplayAbilitySpecHandle UAbilitySystemComponent::GiveAbility(const FGameplayA
 		return Spec.Handle;
 	}
 	
+	ABILITYLIST_SCOPE_LOCK();
 	FGameplayAbilitySpec& OwnedSpec = ActivatableAbilities.Items[ActivatableAbilities.Items.Add(Spec)];
 	
 	if (OwnedSpec.Ability->GetInstancingPolicy() == EGameplayAbilityInstancingPolicy::InstancedPerActor)
@@ -885,8 +886,11 @@ void UAbilitySystemComponent::CancelAllAbilities(UGameplayAbility* Ignore)
 void UAbilitySystemComponent::DestroyActiveState()
 {
 	// If we haven't already begun being destroyed
-	if ((GetFlags() & RF_BeginDestroyed) == 0)
+	if (!bDestroyActiveStateInitiated && ((GetFlags() & RF_BeginDestroyed) == 0))
 	{
+		// Avoid re-entrancy (ie if during CancelAbilities() an EndAbility callback destroys the Actor owning this ability system)
+		bDestroyActiveStateInitiated = true;
+
 		// Cancel all abilities before we are destroyed.
 		FGameplayAbilityActorInfo* ActorInfo = AbilityActorInfo.Get();
 		
@@ -2357,14 +2361,14 @@ void UAbilitySystemComponent::ClearDebugInstantEffects()
 
 // ---------------------------------------------------------------------------
 
-float UAbilitySystemComponent::PlayMontage(UGameplayAbility* InAnimatingAbility, FGameplayAbilityActivationInfo ActivationInfo, UAnimMontage* NewAnimMontage, float InPlayRate, FName StartSectionName)
+float UAbilitySystemComponent::PlayMontage(UGameplayAbility* InAnimatingAbility, FGameplayAbilityActivationInfo ActivationInfo, UAnimMontage* NewAnimMontage, float InPlayRate, FName StartSectionName, float StartTimeSeconds)
 {
 	float Duration = -1.f;
 
 	UAnimInstance* AnimInstance = AbilityActorInfo.IsValid() ? AbilityActorInfo->GetAnimInstance() : nullptr;
 	if (AnimInstance && NewAnimMontage)
 	{
-		Duration = AnimInstance->Montage_Play(NewAnimMontage, InPlayRate);
+		Duration = AnimInstance->Montage_Play(NewAnimMontage, InPlayRate, EMontagePlayReturnType::MontageLength, StartTimeSeconds);
 		if (Duration > 0.f)
 		{
 			if (LocalAnimMontageInfo.AnimatingAbility && LocalAnimMontageInfo.AnimatingAbility != InAnimatingAbility)

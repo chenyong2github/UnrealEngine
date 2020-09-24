@@ -3,6 +3,7 @@
 #include "Unix/UnixPlatformProcess.h"
 #include "Unix/UnixPlatformCrashContext.h"
 #include "Unix/UnixPlatformRealTimeSignals.h"
+#include "Unix/UnixForkPageProtector.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "Containers/StringConv.h"
 #include "Logging/LogMacros.h"
@@ -1358,7 +1359,7 @@ FGenericPlatformProcess::EWaitAndForkResult FUnixPlatformProcess::WaitAndFork()
 		sigaction(WAIT_AND_FORK_QUEUE_SIGNAL, &Action, nullptr);
 	}
 
-	UE_LOG(LogHAL, Log, TEXT("   *** WaitAndFork awaiting signal %d to create child processes... ***"), WAIT_AND_FORK_QUEUE_SIGNAL);
+	UE_LOG(LogHAL, Log, TEXT("   *** WaitAndFork awaiting signal %d to process pid %d create child processes... ***"), WAIT_AND_FORK_QUEUE_SIGNAL, FPlatformProcess::GetCurrentProcessId());
 	GLog->Flush();
 
 	struct FMemoryStatsHolder
@@ -1424,6 +1425,12 @@ FGenericPlatformProcess::EWaitAndForkResult FUnixPlatformProcess::WaitAndFork()
 			else if (ChildPID == 0)
 			{
 				FForkProcessHelper::SetIsForkedChildProcess();
+
+				if (FPlatformMemory::HasForkPageProtectorEnabled())
+				{
+					UE::FForkPageProtector::OverrideGMalloc();
+					UE::FForkPageProtector::Get().ProtectMemoryRegions();
+				}
 
 				// Child
 				uint16 Cookie = (SignalValue >> 16) & 0xffff;

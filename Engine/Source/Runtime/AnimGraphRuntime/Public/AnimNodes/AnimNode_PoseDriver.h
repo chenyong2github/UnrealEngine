@@ -20,7 +20,7 @@ enum class EPoseDriverType : uint8
 };
 
 /** Transform aspect used to drive interpolation */
-UENUM()
+UENUM(BlueprintType)
 enum class EPoseDriverSource : uint8
 {
 	/** Drive using rotation */
@@ -31,7 +31,7 @@ enum class EPoseDriverSource : uint8
 };
 
 /** Options for what PoseDriver should be driving */
-UENUM()
+UENUM(BlueprintType)
 enum class EPoseDriverOutput : uint8
 {
 	/** Use target's DrivenName to drive poses from the assigned PoseAsset */
@@ -127,7 +127,7 @@ struct ANIMGRAPHRUNTIME_API FPoseDriverTarget
 };
 
 /** RBF based orientation driver */
-USTRUCT(BlueprintInternalUseOnly)
+USTRUCT(BlueprintType)
 struct ANIMGRAPHRUNTIME_API FAnimNode_PoseDriver : public FAnimNode_PoseHandler
 {
 	GENERATED_BODY()
@@ -165,7 +165,7 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_PoseDriver : public FAnimNode_PoseHandler
 	FBoneReference EvalSpaceBone;
 
 	/** Parameters used by RBF solver */
-	UPROPERTY(EditAnywhere, Category = PoseDriver, meta=(ShowOnlyInnerProperties))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = PoseDriver, meta=(ShowOnlyInnerProperties))
 	FRBFParams RBFParams;
 
 #if WITH_EDITORONLY_DATA
@@ -182,19 +182,38 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_PoseDriver : public FAnimNode_PoseHandler
 #endif
 
 	/** Which part of the transform is read */
-	UPROPERTY(EditAnywhere, Category = PoseDriver)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = PoseDriver)
 	EPoseDriverSource DriveSource;
 
 	/** Whether we should drive poses or curves */
-	UPROPERTY(EditAnywhere, Category = PoseDriver)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = PoseDriver)
 	EPoseDriverOutput DriveOutput;
 
 	/** If we should filter bones to be driven using the DrivenBonesFilter array */
-	UPROPERTY(EditAnywhere, Category = PoseDriver)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = PoseDriver)
 	uint8 bOnlyDriveSelectedBones : 1;
 
 	/** If true, will recalculate DrivenUID values in PoseTargets array on next eval */
 	uint8 bCachedDrivenIDsAreDirty : 1;
+
+#if WITH_EDITORONLY_DATA
+	/** The target to solo on, or INDEX_NONE if to use the normal weight computation. 
+	    Not a UPROPERTY to ensure it stays transient and doesn't affect PIE. */
+	int32 SoloTargetIndex;
+
+	/** Only solo the driven poses, and don't move the source joint(s) to match */
+	UPROPERTY()
+	bool bSoloDrivenOnly;
+#endif
+
+	/*
+	 * Max LOD that this node is allowed to run
+	 * For example if you have LODThreadhold to be 2, it will run until LOD 2 (based on 0 index)
+	 * when the component LOD becomes 3, it will stop update/evaluate
+	 * currently transition would be issue and that has to be re-visited
+	 */
+	UPROPERTY(EditAnywhere, Category = Performance, meta = (DisplayName = "LOD Threshold"))
+	int32 LODThreshold;
 
 	// FAnimNode_Base interface
 	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
@@ -202,6 +221,7 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_PoseDriver : public FAnimNode_PoseHandler
 	virtual void UpdateAssetPlayer(const FAnimationUpdateContext& Context) override;
 	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
 	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
+	virtual int32 GetLODThreshold() const override { return LODThreshold; }
 	// End of FAnimNode_Base interface
 
 	FAnimNode_PoseDriver();

@@ -17,15 +17,6 @@
 
 //------------------------------------------------------------------------------
 
-#pragma mark - Metal RHI Shader Code Library Types
-
-
-extern unsigned char ue4_stdlib_metal[];
-extern unsigned int ue4_stdlib_metal_len;
-
-
-//------------------------------------------------------------------------------
-
 #pragma mark - Metal RHI Base Shader Class Support Routines
 
 
@@ -45,6 +36,7 @@ extern mtlpp::LanguageVersion ValidateVersion(uint8 Version);
 
 #pragma mark - Metal RHI Base Shader Class Template
 
+extern bool GShowAuthFail;
 
 template<typename BaseResourceType, int32 ShaderType>
 class TMetalBaseShader : public BaseResourceType, public IRefCountedObject
@@ -258,10 +250,9 @@ void TMetalBaseShader<BaseResourceType, ShaderType>::Init(TArrayView<const uint8
 					bSavedSource = FFileHelper::SaveStringToFile(Source, *ShaderPathString);
 				}
 
-				static bool bAttemptedAuth = false;
-				if (!bSavedSource && !bAttemptedAuth)
+				if (!bSavedSource && !GShowAuthFail)
 				{
-					bAttemptedAuth = true;
+					GShowAuthFail = true;
 
 					if (IFileManager::Get().MakeDirectory(*FPaths::GetPath(ShaderPathString), true))
 					{
@@ -270,8 +261,7 @@ void TMetalBaseShader<BaseResourceType, ShaderType>::Init(TArrayView<const uint8
 
 					if (!bSavedSource)
 					{
-						FPlatformMisc::MessageBoxExt(EAppMsgType::Ok,
-													 *NSLOCTEXT("MetalRHI", "ShaderDebugAuthFail", "Could not access directory required for debugging optimised Metal shaders. Falling back to slower runtime compilation of shaders for debugging.").ToString(), TEXT("Error"));
+						UE_LOG(LogRHI, Error, TEXT("Could not access directory required for debugging optimised Metal shaders. Falling back to slower runtime compilation of shaders for debugging."));
 					}
 				}
 			}
@@ -322,10 +312,7 @@ void TMetalBaseShader<BaseResourceType, ShaderType>::Init(TArrayView<const uint8
 				ShaderString = [NSString stringWithFormat:@"// %@\n%@", Header.ShaderName.GetNSString(), ShaderString];
 			}
 
-			static NSString* UE4StdLibString = [[NSString alloc] initWithBytes:ue4_stdlib_metal length:ue4_stdlib_metal_len encoding:NSUTF8StringEncoding];
-
-			NSString* NewShaderString = [ShaderString stringByReplacingOccurrencesOfString:@"#include \"ue4_stdlib.metal\"" withString:UE4StdLibString];
-			NewShaderString = [NewShaderString stringByReplacingOccurrencesOfString:@"#pragma once" withString:@""];
+			NSString* NewShaderString = [ShaderString stringByReplacingOccurrencesOfString:@"#pragma once" withString:@""];
 
 			mtlpp::CompileOptions CompileOptions;
 

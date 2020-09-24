@@ -22,7 +22,14 @@ struct FMagicLeapImageTrackerTask : public FMagicLeapTask
 	};
 
 	EType Type;
-	FMagicLeapImageTrackerTarget Target;
+	FMagicLeapImageTargetSettings Target;
+	FString TargetName;
+
+	FMagicLeapSetImageTargetCompletedStaticDelegate SuccessStaticDelegate;
+	FMagicLeapSetImageTargetCompletedStaticDelegate FailureStaticDelegate;
+
+	FMagicLeapSetImageTargetSucceededMulti SuccessDynamicDelegate;
+	FMagicLeapSetImageTargetFailedMulti FailureDynamicDelegate;
 
 	FMagicLeapImageTrackerTask()
 	: Type(EType::None)
@@ -39,29 +46,39 @@ public:
 	void Resume() override;
 	bool ProcessCurrentTask() override;
 
-	void SetTargetAsync(const FMagicLeapImageTrackerTarget& ImageTarget);
-	bool RemoveTargetAsync(const FString& InName);
+	void SetTargetAsync(const FMagicLeapImageTargetSettings& ImageTarget, const FMagicLeapSetImageTargetCompletedStaticDelegate& SucceededDelegate, const FMagicLeapSetImageTargetCompletedStaticDelegate& FailedDelegate);
+	void SetTargetAsync(const FMagicLeapImageTargetSettings& ImageTarget, const FMagicLeapSetImageTargetSucceededMulti& SucceededDelegate, const FMagicLeapSetImageTargetFailedMulti& FailedDelegate);
+	bool RemoveTargetAsync(const FString& TargetName);
+
 	uint32 GetMaxSimultaneousTargets() const;
 	void SetMaxSimultaneousTargets(uint32 NewNumTargets);
 	bool GetImageTrackerEnabled() const;
 	void SetImageTrackerEnabled(bool bEnabled);
-	void UpdateTargetsMainThread();
-	bool TryGetRelativeTransformMainThread(const FString& TargetName, FVector& OutLocation, FRotator& OutRotation);
-	bool IsTracked(const FString& TargetName) const;
+
+	void GetTargetState(const FString& TargetName, bool bProvideTransformInTrackingSpace, FMagicLeapImageTargetState& TargetState) const;
+	FGuid GetTargetHandle(const FString& TargetName) const;
 
 private:
-	TMap<FString, FMagicLeapImageTrackerTarget> TrackedImageTargets;
-	FCriticalSection TargetsMutex;
+
+	mutable FCriticalSection TargetsMutex;
 	mutable FCriticalSection TrackerMutex;
 	TArray<uint8> RBGAPixelData;
 #if WITH_MLSDK
-	MLImageTrackerSettings Settings;
+	struct FImageTargetData
+	{
+		MLHandle TargetHandle;
+		MLImageTrackerTargetStaticData TargetData;
+	};
+
+	TMap<FString, FImageTargetData> TrackedImageTargets;
+
+	MLImageTrackerSettings TrackerSettings;
 	MLHandle ImageTracker;
 
 	bool CreateTracker();
 	void DestroyTracker();
 	void SetTarget();
-	void RemoveTarget(const FMagicLeapImageTrackerTarget& Target, bool bCanDestroyTracker = false);
+	void RemoveTarget(const FString& TargetName, bool bCanDestroyTracker = false);
 	MLHandle GetHandle() const;
 #endif // WITH_MLSDK
 };

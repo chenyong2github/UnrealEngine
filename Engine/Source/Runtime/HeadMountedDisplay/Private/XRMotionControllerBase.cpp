@@ -13,26 +13,24 @@ FName FXRMotionControllerBase::HMDSourceId(TEXT("HMD"));
 
 namespace XRMotionControllerBase_Impl
 {
-	static const uint32 HandAliasCount = 2;
-	// NOTE: indices should match up with the EControllerHand enum
-	static const FName LegacyHandMappings[][HandAliasCount] = {
-		{ FXRMotionControllerBase::LeftHandSourceId,  TEXT("EControllerHand::Left")           }, // EControllerHand::Left
-		{ FXRMotionControllerBase::RightHandSourceId, TEXT("EControllerHand::Right")          }, // EControllerHand::Right
-		{ TEXT("AnyHand"),                            TEXT("EControllerHand::AnyHand")        }, // EControllerHand::AnyHand
-		{ TEXT("Pad"),                                TEXT("EControllerHand::Pad")            }, // EControllerHand::Pad
-		{ TEXT("ExternalCamera"),                     TEXT("EControllerHand::ExternalCamera") }, // EControllerHand::ExternalCamera
-		{ TEXT("Gun"),                                TEXT("EControllerHand::Gun")            }, // EControllerHand::Gun
-		{ TEXT("Special_1"),                          TEXT("EControllerHand::Special_1")      }, // EControllerHand::Special_1
-		{ TEXT("Special_2"),                          TEXT("EControllerHand::Special_2")      }, // EControllerHand::Special_2
-		{ TEXT("Special_3"),                          TEXT("EControllerHand::Special_3")      }, // EControllerHand::Special_3
-		{ TEXT("Special_4"),                          TEXT("EControllerHand::Special_4")      }, // EControllerHand::Special_4
-		{ TEXT("Special_5"),                          TEXT("EControllerHand::Special_5")      }, // EControllerHand::Special_5
-		{ TEXT("Special_6"),                          TEXT("EControllerHand::Special_6")      }, // EControllerHand::Special_6
-		{ TEXT("Special_7"),                          TEXT("EControllerHand::Special_7")      }, // EControllerHand::Special_7
-		{ TEXT("Special_8"),                          TEXT("EControllerHand::Special_8")      }, // EControllerHand::Special_8
-		{ TEXT("Special_9"),                          TEXT("EControllerHand::Special_9")      }, // EControllerHand::Special_9
-		{ TEXT("Special_10"),                         TEXT("EControllerHand::Special_10")     }, // EControllerHand::Special_10
-		{ TEXT("Special_11"),                         TEXT("EControllerHand::Special_11")     }  // EControllerHand::Special_11
+	static const FName LegacySources[] = {
+		{ FXRMotionControllerBase::LeftHandSourceId, }, // EControllerHand::Left
+		{ FXRMotionControllerBase::RightHandSourceId }, // EControllerHand::Right
+		{ TEXT("AnyHand")                            }, // EControllerHand::AnyHand
+		{ TEXT("Pad")                                }, // EControllerHand::Pad
+		{ TEXT("ExternalCamera")                     }, // EControllerHand::ExternalCamera
+		{ TEXT("Gun")                                }, // EControllerHand::Gun
+		{ TEXT("Special_1")                          }, // EControllerHand::Special_1
+		{ TEXT("Special_2")                          }, // EControllerHand::Special_2
+		{ TEXT("Special_3")                          }, // EControllerHand::Special_3
+		{ TEXT("Special_4")                          }, // EControllerHand::Special_4
+		{ TEXT("Special_5")                          }, // EControllerHand::Special_5
+		{ TEXT("Special_6")                          }, // EControllerHand::Special_6
+		{ TEXT("Special_7")                          }, // EControllerHand::Special_7
+		{ TEXT("Special_8")                          }, // EControllerHand::Special_8
+		{ TEXT("Special_9")                          }, // EControllerHand::Special_9
+		{ TEXT("Special_10")                         }, // EControllerHand::Special_10
+		{ TEXT("Special_11")                         }  // EControllerHand::Special_11
 	};
 }
 
@@ -59,6 +57,15 @@ bool FXRMotionControllerBase::GetControllerOrientationAndPosition(const int32 Co
 		}
 	}
 	return bSucess;
+}
+
+bool FXRMotionControllerBase::GetControllerOrientationAndPositionForTime(const int32 ControllerIndex, const FName MotionSource, FTimespan Time, bool& OutTimeWasUsed, FRotator& OutOrientation, FVector& OutPosition, bool& OutbProvidedLinearVelocity, FVector& OutLinearVelocity, bool& OutbProvidedAngularVelocity, FVector& OutAngularVelocityRadPerSec, float WorldToMetersScale) const
+{
+	// Default implementation simply ignores the Timespan, no additional accuracy is provided by this call, velocities are not provided.
+	OutTimeWasUsed = false;
+	OutbProvidedLinearVelocity = false;
+	OutbProvidedAngularVelocity = false;
+	return GetControllerOrientationAndPosition(ControllerIndex, MotionSource, OutOrientation, OutPosition, WorldToMetersScale);
 }
 
 ETrackingStatus FXRMotionControllerBase::GetControllerTrackingStatus(const int32 ControllerIndex, const FName MotionSource) const
@@ -89,32 +96,69 @@ ETrackingStatus FXRMotionControllerBase::GetControllerTrackingStatus(const int32
 
 void FXRMotionControllerBase::EnumerateSources(TArray<FMotionControllerSource>& SourcesOut) const
 {
-	const int32 HandsCount = UE_ARRAY_COUNT(XRMotionControllerBase_Impl::LegacyHandMappings);
-	ensure(HandsCount == (int32)EControllerHand::ControllerHand_Count);
-
-	for (int32 HandIndex = 0; HandIndex < HandsCount; ++HandIndex)
+	const int32 LegaceSourcesCount = UE_ARRAY_COUNT(XRMotionControllerBase_Impl::LegacySources);
+	for (int32 Index = 0; Index < LegaceSourcesCount; ++Index)
 	{
-		SourcesOut.Add(XRMotionControllerBase_Impl::LegacyHandMappings[HandIndex][0]);
+		SourcesOut.Add(XRMotionControllerBase_Impl::LegacySources[Index]);
 	}
 }
 
 bool FXRMotionControllerBase::GetHandEnumForSourceName(const FName Source, EControllerHand& OutHand)
 {
-	const int32 HandsCount = UE_ARRAY_COUNT(XRMotionControllerBase_Impl::LegacyHandMappings);
-	ensure(HandsCount == (int32)EControllerHand::ControllerHand_Count);
-
-	bool bFound = false;
-	for (int32 HandIndex = 0; HandIndex < HandsCount; ++HandIndex)
+	static TMap<FName, EControllerHand> MotionSourceToEControllerHandMap;
+	if (MotionSourceToEControllerHandMap.Num() == 0)
 	{
-		for (int32 AliasIndex = 0; AliasIndex < XRMotionControllerBase_Impl::HandAliasCount; ++AliasIndex)
-		{
-			if (XRMotionControllerBase_Impl::LegacyHandMappings[HandIndex][AliasIndex] == Source)
-			{
-				OutHand = (EControllerHand)HandIndex;
-				bFound = true;
-				break;
-			}
-		}
+		// Motion source names that map to legacy EControllerHand values
+		MotionSourceToEControllerHandMap.Add(FXRMotionControllerBase::LeftHandSourceId, EControllerHand::Left);
+		MotionSourceToEControllerHandMap.Add(FXRMotionControllerBase::RightHandSourceId, EControllerHand::Right);
+		MotionSourceToEControllerHandMap.Add(TEXT("AnyHand"), EControllerHand::AnyHand);
+		MotionSourceToEControllerHandMap.Add(TEXT("Pad"), EControllerHand::Pad);
+		MotionSourceToEControllerHandMap.Add(TEXT("ExternalCamera"), EControllerHand::ExternalCamera);
+		MotionSourceToEControllerHandMap.Add(TEXT("Gun"), EControllerHand::Gun);
+		MotionSourceToEControllerHandMap.Add(TEXT("Special_1"), EControllerHand::Special_1);
+		MotionSourceToEControllerHandMap.Add(TEXT("Special_2"), EControllerHand::Special_2);
+		MotionSourceToEControllerHandMap.Add(TEXT("Special_3"), EControllerHand::Special_3);
+		MotionSourceToEControllerHandMap.Add(TEXT("Special_4"), EControllerHand::Special_4);
+		MotionSourceToEControllerHandMap.Add(TEXT("Special_5"), EControllerHand::Special_5);
+		MotionSourceToEControllerHandMap.Add(TEXT("Special_6"), EControllerHand::Special_6);
+		MotionSourceToEControllerHandMap.Add(TEXT("Special_7"), EControllerHand::Special_7);
+		MotionSourceToEControllerHandMap.Add(TEXT("Special_8"), EControllerHand::Special_8);
+		MotionSourceToEControllerHandMap.Add(TEXT("Special_9"), EControllerHand::Special_9);
+		MotionSourceToEControllerHandMap.Add(TEXT("Special_10"), EControllerHand::Special_10);
+		MotionSourceToEControllerHandMap.Add(TEXT("Special_11"), EControllerHand::Special_11);
+		// EControllerHand enum names mapped to EControllerHand enum values
+		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::Left"), EControllerHand::Left);
+		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::Right"), EControllerHand::Right);
+		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::AnyHand"), EControllerHand::AnyHand);
+		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::Pad"), EControllerHand::Pad);
+		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::ExternalCamera"), EControllerHand::ExternalCamera);
+		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::Gun"), EControllerHand::Gun);
+		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::Special_1"), EControllerHand::Special_1);
+		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::Special_2"), EControllerHand::Special_2);
+		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::Special_3"), EControllerHand::Special_3);
+		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::Special_4"), EControllerHand::Special_4);
+		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::Special_5"), EControllerHand::Special_5);
+		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::Special_6"), EControllerHand::Special_6);
+		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::Special_7"), EControllerHand::Special_7);
+		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::Special_8"), EControllerHand::Special_8);
+		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::Special_9"), EControllerHand::Special_9);
+		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::Special_10"), EControllerHand::Special_10);
+		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::Special_11"), EControllerHand::Special_11);
+		// Newer source names that can usefully map to legacy EControllerHand values
+		MotionSourceToEControllerHandMap.Add(TEXT("LeftGrip"), EControllerHand::Left);
+		MotionSourceToEControllerHandMap.Add(TEXT("RightGrip"), EControllerHand::Right);
+		MotionSourceToEControllerHandMap.Add(TEXT("LeftAim"), EControllerHand::Left);
+		MotionSourceToEControllerHandMap.Add(TEXT("RightAim"), EControllerHand::Right);
 	}
-	return bFound;
+
+	EControllerHand* FoundEnum = MotionSourceToEControllerHandMap.Find(Source);
+	if (FoundEnum != nullptr)
+	{
+		OutHand = *FoundEnum;
+		return true;
+	}
+	else
+	{
+		return false;
+	}
 }

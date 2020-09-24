@@ -6,10 +6,11 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/World.h"
 #include "GlobalShader.h"
-#include "IOpenColorIOModule.h"
+#include "CommonRenderResources.h"
 #include "Logging/LogMacros.h"
 #include "Logging/MessageLog.h"
 #include "OpenColorIOConfiguration.h"
+#include "OpenColorIOModule.h"
 #include "OpenColorIOShader.h"
 #include "OpenColorIOShaderType.h"
 #include "OpenColorIOShared.h"
@@ -19,95 +20,85 @@
 #include "SceneUtils.h"
 #include "ShaderParameterUtils.h"
 #include "TextureResource.h"
+#include "ScreenPass.h"
 
-
-
-class FOpenColorIOVertexShader : public FGlobalShader
-{
-	DECLARE_SHADER_TYPE(FOpenColorIOVertexShader, Global);
-
-public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+namespace {
+	/** This function is similar to DrawScreenPass in OpenColorIODisplayExtension.cpp except it is catered for Viewless texture rendering. */
+	template<typename TSetupFunction>
+	void DrawScreenPass(
+		FRHICommandListImmediate& RHICmdList,
+		const FIntPoint& OutputResolution,
+		const FScreenPassPipelineState& PipelineState,
+		TSetupFunction SetupFunction)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
+		RHICmdList.SetViewport(0.f, 0.f, 0.f, OutputResolution.X, OutputResolution.Y, 1.0f);
+
+		SetScreenPassPipelineState(RHICmdList, PipelineState);
+
+		// Setting up buffers.
+		SetupFunction(RHICmdList);
+
+		FIntPoint LocalOutputPos(FIntPoint::ZeroValue);
+		FIntPoint LocalOutputSize(OutputResolution);
+		EDrawRectangleFlags DrawRectangleFlags = EDRF_UseTriangleOptimization;
+
+		DrawPostProcessPass(
+			RHICmdList,
+			LocalOutputPos.X, LocalOutputPos.Y, LocalOutputSize.X, LocalOutputSize.Y,
+			0., 0., OutputResolution.X, OutputResolution.Y,
+			OutputResolution,
+			OutputResolution,
+			PipelineState.VertexShader,
+			EStereoscopicPass::eSSP_FULL,
+			false,
+			DrawRectangleFlags);
 	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-	}
-
-	/** Default constructor. */
-	FOpenColorIOVertexShader() {}
-
-	/** Initialization constructor. */
-	FOpenColorIOVertexShader(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-	}
-};
+}
 
 
-IMPLEMENT_SHADER_TYPE(, FOpenColorIOVertexShader, TEXT("/Plugin/OpenColorIO/Private/OpenColorIOBaseVS.usf"), TEXT("MainVS"), SF_Vertex)
-
-
-static void ProcessOCIOColorSpaceTransform_RenderThread(
+void ProcessOCIOColorSpaceTransform_RenderThread(
 	FRHICommandListImmediate& InRHICmdList
 	, ERHIFeatureLevel::Type InFeatureLevel
 	, FOpenColorIOTransformResource* InOCIOColorTransformResource
 	, FTextureResource* InLUT3dResource
-	, FTextureResource* InputSpaceColorResource
-	, FTextureResource* OutputSpaceColorResource)
+	, FTextureRHIRef InputSpaceColorTexture
+	, FTextureRHIRef OutputSpaceColorTexture
+	, FIntPoint OutputResolution)
 {
 	check(IsInRenderingThread());
 
 	SCOPED_DRAW_EVENT(InRHICmdList, ProcessOCIOColorSpaceTransform);
 
-	InRHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, OutputSpaceColorResource->TextureRHI);
+	InRHICmdList.Transition(FRHITransitionInfo(OutputSpaceColorTexture, ERHIAccess::Unknown, ERHIAccess::RTV));
 
-	FRHIRenderPassInfo RPInfo(OutputSpaceColorResource->TextureRHI, ERenderTargetActions::DontLoad_Store);
+	FRHIRenderPassInfo RPInfo(OutputSpaceColorTexture, ERenderTargetActions::DontLoad_Store);
 	InRHICmdList.BeginRenderPass(RPInfo, TEXT("ProcessOCIOColorSpaceXfrm"));
-
-	FIntPoint Resolution(OutputSpaceColorResource->GetSizeX(), OutputSpaceColorResource->GetSizeY());
-
-	// Set viewport.
-	InRHICmdList.SetViewport(0, 0, 0.f, Resolution.X, Resolution.Y, 1.f);
 
 	// Get shader from shader map.
 	FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(InFeatureLevel);
 	TShaderMapRef<FOpenColorIOVertexShader> VertexShader(GlobalShaderMap);
-	TShaderRef<FOpenColorIOPixelShader> OCIOPixelShader = InOCIOColorTransformResource->GetShader();
+	TShaderRef<FOpenColorIOPixelShader> OCIOPixelShader = InOCIOColorTransformResource->GetShader<FOpenColorIOPixelShader>();
 
-	// Set the graphic pipeline state.
-	FGraphicsPipelineStateInitializer GraphicsPSOInit;
-	InRHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-	GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = OCIOPixelShader.GetPixelShader();
-	SetGraphicsPipelineState(InRHICmdList, GraphicsPSOInit);
-
-	// Update pixel shader parameters
+	FScreenPassPipelineState PipelineState(VertexShader, OCIOPixelShader, TStaticBlendState<>::GetRHI(), TStaticDepthStencilState<false, CF_Always>::GetRHI());
+	DrawScreenPass(InRHICmdList, OutputResolution, PipelineState, [&](FRHICommandListImmediate& RHICmdList)
 	{
-		OCIOPixelShader->SetParameters(InRHICmdList, InputSpaceColorResource);
+		// Set Gamma to 1., since we do not have any display parameters or requirement for Gamma.
+		const float Gamma = 1.0;
+
+		// Update pixel shader parameters.
+		OCIOPixelShader->SetParameters(InRHICmdList, InputSpaceColorTexture, Gamma);
 
 		if (InLUT3dResource != nullptr)
 		{
 			OCIOPixelShader->SetLUTParameter(InRHICmdList, InLUT3dResource);
 		}
-	}
-
-	// Draw grid.
-	InRHICmdList.DrawPrimitive(0, 2, 1);
+	});
 
 	// Resolve render target.
 	InRHICmdList.EndRenderPass();
 
 	// Restore readable state
-	InRHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, OutputSpaceColorResource->TextureRHI);
+	InRHICmdList.Transition(FRHITransitionInfo(OutputSpaceColorTexture, ERHIAccess::RTV, ERHIAccess::SRVGraphics));
 }
 
 // static
@@ -160,7 +151,7 @@ bool FOpenColorIORendering::ApplyColorTransform(UWorld* InWorld, const FOpenColo
 
 	check(ShaderResource);
 
-	if (ShaderResource->GetShaderGameThread().IsNull())
+	if (ShaderResource->GetShaderGameThread<FOpenColorIOPixelShader>().IsNull())
 	{
 		UE_LOG(LogOpenColorIO, Warning, TEXT("OCIOPass - Shader was invalid for Resource %s"), *ShaderResource->GetFriendlyName());
 		return false;
@@ -169,16 +160,16 @@ bool FOpenColorIORendering::ApplyColorTransform(UWorld* InWorld, const FOpenColo
 
 	ENQUEUE_RENDER_COMMAND(ProcessColorSpaceTransform)(
 		[FeatureLevel, InputResource, OutputResource, ShaderResource, LUT3dResource](FRHICommandListImmediate& RHICmdList)
-	{
-		ProcessOCIOColorSpaceTransform_RenderThread(
+		{
+			ProcessOCIOColorSpaceTransform_RenderThread(
 			RHICmdList,
 			FeatureLevel,
 			ShaderResource,
 			LUT3dResource,
-			InputResource,
-			OutputResource);
-	}
+			InputResource->TextureRHI,
+			OutputResource->TextureRHI,
+			FIntPoint(OutputResource->GetSizeX(), OutputResource->GetSizeY()));
+		}
 	);
 	return true;
 }
-

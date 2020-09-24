@@ -35,9 +35,15 @@ void AllocatePageIndex(uint2 DispatchThreadId : SV_DispatchThreadID)
 	const uint MacroGroupId = DispatchThreadId.x;
 
 	FHairAABB Bound = InitHairAABB();
-	if (MacroGroupId < MacroGroupCount)
+	const bool bIsValid = MacroGroupId < MacroGroupCount;
+	if (bIsValid)
 	{
 		Bound = ReadHairAABB(MacroGroupId, MacroGroupAABBBuffer);
+		if (any(Bound.Min > Bound.Max))
+		{
+			Bound.Min = 0;
+			Bound.Max = 0;
+		}
 	}
 
 	// Page index allocation
@@ -45,10 +51,14 @@ void AllocatePageIndex(uint2 DispatchThreadId : SV_DispatchThreadID)
 	{
 		// Snap the max AABB to the voxel size
 		// Allocate enough pages to cover the AABB, where page (0,0,0) origin sit on MinAABB.
-		float3 MacroGroupSize = Bound.Max - Bound.Min;
-		PageIndexResolution = ceil(MacroGroupSize / PageWorldSize);
-		MacroGroupSize = PageIndexResolution * PageWorldSize;
-		Bound.Max = MacroGroupSize + Bound.Min;
+		float3 MacroGroupSize = 0;
+		if (bIsValid)
+		{
+			MacroGroupSize = Bound.Max - Bound.Min;
+			PageIndexResolution = ceil(MacroGroupSize / PageWorldSize);
+			MacroGroupSize = PageIndexResolution * PageWorldSize;
+			Bound.Max = MacroGroupSize + Bound.Min;
+		}
 
 		const uint TotalPageIndex = PageIndexResolution.x * PageIndexResolution.y * PageIndexResolution.z;		
 		PageIndexOffsets[MacroGroupId] = TotalPageIndex;
@@ -58,16 +68,16 @@ void AllocatePageIndex(uint2 DispatchThreadId : SV_DispatchThreadID)
 		if (DispatchThreadId.x == 0)
 		{
 			uint PageIndexOffset = 0;
-			for (uint MacroGroupId = 0; MacroGroupId < MacroGroupCount; ++MacroGroupId)
+			for (uint LocalMacroGroupId = 0; LocalMacroGroupId < MacroGroupCount; ++LocalMacroGroupId)
 			{
-				const uint PageCount = PageIndexOffsets[MacroGroupId];
-				PageIndexOffsets[MacroGroupId] = PageIndexOffset;
+				const uint PageCount = PageIndexOffsets[LocalMacroGroupId];
+				PageIndexOffsets[LocalMacroGroupId] = PageIndexOffset;
 				PageIndexOffset += PageCount;
 			}
 		}
 		GroupMemoryBarrierWithGroupSync();
 
-		if (MacroGroupId < MacroGroupCount)
+		if (bIsValid)
 		{
 			const uint PageIndexOffset = PageIndexOffsets[MacroGroupId];
 			OutPageIndexResolutionAndOffsetBuffer[MacroGroupId] = uint4(PageIndexResolution, PageIndexOffset);
@@ -75,7 +85,7 @@ void AllocatePageIndex(uint2 DispatchThreadId : SV_DispatchThreadID)
 		}
 	}
 
-	if (MacroGroupId >= MacroGroupCount)
+	if (!bIsValid)
 	{
 		return;
 	}
@@ -100,7 +110,7 @@ void AllocatePageIndex(uint2 DispatchThreadId : SV_DispatchThreadID)
 	}
 
 	// Matrix generation
-	if (MacroGroupId < MacroGroupCount)
+	if (bIsValid)
 	{
 		// Find the largest resolution and its dominant axis
 		uint2 RasterResolution = uint2(0, 0);
@@ -224,6 +234,7 @@ void UpdatePackScatterCoord(inout uint2 Out, uint PartIndex)
 uint			MaxClusterCount;
 uint			MacroGroupId;
 uint			MaxScatterAllocationCount;
+uint			bForceDirectPageAllocation;
 
 Buffer<int>		ClusterAABBsBuffer;
 Buffer<int>		MacroGroupAABBBuffer;
@@ -255,11 +266,23 @@ void MarkValid_PrepareCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	ClusterBound.Max.y = ClusterAABBsBuffer[BaseClusterIndex + 4];
 	ClusterBound.Max.z = ClusterAABBsBuffer[BaseClusterIndex + 5];
 
+	if (any(ClusterBound.Min >= ClusterBound.Max))
+		return;
+
+	if (any(!IsFinite(ClusterBound.Min)) || any(!IsFinite(ClusterBound.Max)))
+		return;
+
 	const uint4 PageIndexResolutionAndOffset = PageIndexResolutionAndOffsetBuffer.Load(MacroGroupId);
-	const FHairAABB MacroGroupBound			 = ReadHairAABB(MacroGroupId, MacroGroupAABBBuffer);
+	FHairAABB MacroGroupBound				 = ReadHairAABB(MacroGroupId, MacroGroupAABBBuffer);
 	const int3 PageIndexResolution			 = PageIndexResolutionAndOffset.xyz;
 	const uint PageIndexOffset				 = PageIndexResolutionAndOffset.w;
 
+
+	if (any(MacroGroupBound.Min >= MacroGroupBound.Max))
+		return;
+
+	if (any(!IsFinite(MacroGroupBound.Min)) || any(!IsFinite(MacroGroupBound.Max)))
+		return;
 
 	uint3 MinCoord = PositionToCoord(ClusterBound.Min, MacroGroupBound.Min, MacroGroupBound.Max, PageIndexResolution);
 	uint3 MaxCoord = PositionToCoord(ClusterBound.Max, MacroGroupBound.Min, MacroGroupBound.Max, PageIndexResolution);
@@ -275,8 +298,19 @@ void MarkValid_PrepareCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 	const uint ScatterCount = Coord.Resolution.x * Coord.Resolution.y * Coord.Resolution.z;
 
+	// Arbitrary large number (e.g., 100x10x10 pages covered)
+	// This acts as guards against degenerated case, where the sim would deformed strands large position making the cluster arbitratry large.
+	if (ScatterCount > 10000)
+		return;
+
+	if (any(!IsFinite(MinCoord)))
+		return;
+
+	if (any(!IsFinite(MaxCoord.x)))
+		return;
+
 	// Find a good sweet spot
-	if (ScatterCount <= 4)
+	if (ScatterCount <= 4 || bForceDirectPageAllocation>0)
 	{
 		for (uint z = MinCoord.z; z <= MaxCoord.z; ++z)
 		for (uint y = MinCoord.y; y <= MaxCoord.y; ++y)
@@ -344,11 +378,11 @@ void MarkValid_ScatterCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		const FScatterCoord Coord = UnpackScatterCoord(DeferredScatterBuffer[WorkItemIndex]);
 
 		const uint4 PageIndexResolutionAndOffset = PageIndexResolutionAndOffsetBuffer.Load(Coord.MacroGroupId);
-		const int3 PageIndexResolution			 = PageIndexResolutionAndOffset.xyz;
-		const uint PageIndexOffset				 = PageIndexResolutionAndOffset.w;
+		const int3  PageIndexResolution			 = PageIndexResolutionAndOffset.xyz;
+		const uint  PageIndexOffset				 = PageIndexResolutionAndOffset.w;
 
 		const uint  ClusterPageCount = Coord.Resolution.x * Coord.Resolution.y * Coord.Resolution.z;
-		const uint LinearVoxelIt = (Coord.PartIndex * SCATTER_WORK_ITEM_COUNT) + ItemIndex;
+		const uint  LinearVoxelIt = (Coord.PartIndex * SCATTER_WORK_ITEM_COUNT) + ItemIndex;
 		if (LinearVoxelIt < ClusterPageCount)
 		{
 			const uint3 PageIndexCoord = IndexToCoord(LinearVoxelIt, Coord.Resolution) + Coord.MinCoord;

@@ -30,7 +30,8 @@ namespace UnrealBuildTool.Rules
 					"MagicLeapLightEstimation",
 					"AugmentedReality",
 					"MagicLeapARPin",
-					"MagicLeapImageTracker"
+					"MagicLeapImageTracker",
+					"MRMesh"
 				}
 			);
 		}

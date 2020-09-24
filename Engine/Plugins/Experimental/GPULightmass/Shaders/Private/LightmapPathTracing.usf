@@ -145,6 +145,7 @@ void PathTracingKernel(
 #if USE_IRRADIANCE_CACHING
 	bool bShouldEmitGeometryHitPoint = false;
 	bool bShouldAccumulateToCacheRecord = false;
+	uint NewEntrySize = 32;
 	int NearestCacheEntryID = -1;
 #endif
 	
@@ -266,7 +267,10 @@ void PathTracingKernel(
 		}
 		
 	#if USE_IRRADIANCE_CACHING
-		if (Bounces >= 1 && Payload.HitT >= 1 * IrradianceCachingParameters.Spacing && !bShouldAccumulateToCacheRecord)
+		uint CoarseLevelSpacing = IrradianceCachingParameters.Spacing;
+		uint DetailLevelSpacing = IrradianceCachingParameters.Spacing;
+		
+		if (Bounces >= 1 && Payload.HitT >= DetailLevelSpacing * IrradianceCachingParameters.CornerRejection && !bShouldAccumulateToCacheRecord)
 		{
 			bool bIrradianceQuerySuccessful = false;
 			bool bGeometryQuerySuccessful = false;
@@ -275,11 +279,14 @@ void PathTracingKernel(
 			float3 RecordIrradiance;
 			float3 RecordWorldNormal;
 			
-			uint3 Key = EncodeVoxelKey(floor((Ray.Origin + Ray.Direction * Payload.HitT) / IrradianceCachingParameters.Spacing));			
+			uint3 Key = EncodeVoxelKey(floor((Ray.Origin + Ray.Direction * Payload.HitT) / (Payload.HitT >= CoarseLevelSpacing ? CoarseLevelSpacing : DetailLevelSpacing)));
+			uint NormalDirectionBits = EncodeNormalBits(Payload.WorldNormal);			
 			uint HashKey = 0;
 			HashKey = MurmurAdd( HashKey, Key.x );
 			HashKey = MurmurAdd( HashKey, Key.y );
 			HashKey = MurmurAdd( HashKey, Key.z );
+			HashKey = MurmurAdd( HashKey, NormalDirectionBits );
+			HashKey = MurmurAdd( HashKey, Payload.HitT >= CoarseLevelSpacing ? CoarseLevelSpacing : DetailLevelSpacing );
 			uint Index;
 			if (ICHashTableFind(HashKey, Index))
 			{
@@ -299,12 +306,9 @@ void PathTracingKernel(
 	
 			if (bIrradianceQuerySuccessful)
 			{
-				if (dot(Payload.WorldNormal, RecordWorldNormal) > 0.5)
-				{
-					// Successful query. Terminate path immediately. Can happen when accumulating for IC entries.
-					Irradiance += RecordIrradiance * RayThroughput / RayPdf;
-					break;
-				}
+				// Successful query. Terminate path immediately. Can happen when accumulating for IC entries.
+				Irradiance += RecordIrradiance * RayThroughput / RayPdf;
+				break;
 			}
 			else
 			{
@@ -316,14 +320,12 @@ void PathTracingKernel(
 						bShouldEmitGeometryHitPoint = true;
 						IrradianceCachePrimaryGIHitPoint.WorldPosition.xyz = Ray.Origin + Ray.Direction * Payload.HitT;
 						IrradianceCachePrimaryGIHitPoint.WorldNormal.xyz = Payload.WorldNormal;
+						NewEntrySize = Payload.HitT >= CoarseLevelSpacing ? CoarseLevelSpacing : DetailLevelSpacing;
 					}
 					else
 					{
-						if (dot(Payload.WorldNormal, RecordWorldNormal) > 0.5)
-						{
-							bShouldAccumulateToCacheRecord = true;
-							NearestCacheEntryID = NearestRecordIndex;
-						}
+						bShouldAccumulateToCacheRecord = true;
+						NearestCacheEntryID = NearestRecordIndex;
 					}
 				}
 			}
@@ -361,6 +363,7 @@ void PathTracingKernel(
 					TLAS,
 					RayFlags,
 					InstanceInclusionMask,
+					uint2(0, 0),
 					LightRay);
 	
 				if (NeePayload.IsMiss())
@@ -381,9 +384,10 @@ void PathTracingKernel(
 					EvalLight(LightId, LightUV, LightRay, Radiance);
 	
 					// Evaluate material
+					float Ior1 = 1.0;
 					float3 MaterialThroughput;
 					float MaterialEvalPdf = 0.0;
-					EvalMaterial(Ray.Direction, LightRay.Direction, RayHitInfo, Bounces == 1, MaterialThroughput, MaterialEvalPdf);
+					EvalMaterial(Ray.Direction, LightRay.Direction, RayHitInfo, Ior1, Bounces == 1, MaterialThroughput, MaterialEvalPdf);
 	
 					// Apply material Pdf for correct MIS weight
 					float MisWeight = 1.0;
@@ -392,7 +396,7 @@ void PathTracingKernel(
 					#if 0
 						// DEBUG: Validate Material PDF
 						float MaterialPdfTmp;
-						PdfMaterial(Ray.Direction, LightRay, RayHitInfo, Bounces == 1, MaterialPdfTmp);
+						PdfMaterial(Ray.Direction, LightRay, RayHitInfo, Ior1, Bounces == 1, MaterialPdfTmp);
 						if (abs(MaterialPdf - MaterialPdfTmp) > 0.0001)
 						{
 							MaterialThroughput *= -1.f;
@@ -417,20 +421,21 @@ void PathTracingKernel(
 		}
 	
 		// Sample material
+		float Ior1 = 1.0;
 		float3 Direction;
 		float3 Throughput;
 		float4 RandSample = RandomSequence_GenerateSample4D(RandSequence, SampleIndex);
 		float SignedPositionBias;
 		float SamplePdf;
-		SampleMaterial(Ray.Direction, RayHitInfo, RandSample, Bounces == 1, Direction, Throughput, SamplePdf, SignedPositionBias);
+		SampleMaterial(Ray.Direction, RayHitInfo, Ior1, RandSample, Bounces == 1, Direction, Throughput, SamplePdf, SignedPositionBias);
 		if (SamplePdf == 0.0)
 		{
 			break;
 		}
 	
-		PdfMaterial(Ray.Direction, Direction, Payload, Bounces == 1, MaterialPdf);
+		PdfMaterial(Ray.Direction, Direction, Payload, Ior1, Bounces == 1, MaterialPdf);
 		// Debug: Evaluation of a candidate sample direction should maintain energy balance with pathspace MIS
-		// EvalMaterial(Ray.Direction, Direction, RayHitInfo, Bounces == 1, Throughput, MaterialPdf);
+		// EvalMaterial(Ray.Direction, Direction, RayHitInfo, Ior1, Bounces == 1, Throughput, MaterialPdf);
 		// SamplePdf = MaterialPdf;
 
 		// Update ray
@@ -442,7 +447,16 @@ void PathTracingKernel(
 		// Russian roulette
 		float PathEnergy = max(max(RayThroughput.x, RayThroughput.y), RayThroughput.z);
 		float EnergyThreshold = 1.0; 
-		if (PathEnergy < EnergyThreshold && Bounces > 4)
+		if (PathEnergy < EnergyThreshold && 
+		#if !USE_IRRADIANCE_CACHING
+			Bounces > 4
+		#else
+			// A starting bounce of 4 is too early for relatively high reflectance scenes (0.8), which generates extreme variance that gets rejected by firefly rejection
+			// and shows as missing energy. IC effectively extends the path so it is less subject to this effect. However due to retrace around corners it shows as contrast between cached and non-cached paths.
+			// delay RR to a higher bounce numbmer
+			Bounces > 16
+		#endif
+		)
 		{
 			float Q = 1.0 - PathEnergy;
 			if (RandomSequence_GenerateSample1D(RandSequence, SampleIndex) < Q)
@@ -491,6 +505,7 @@ void PathTracingKernel(
 			InstanceInclusionMask,
 			Ray,
 			RayCone,
+			uint2(0, 0),
 			bDisableSkyLightContribution,
 			bIgnoreTranslucentMaterials);
 	}
@@ -500,7 +515,7 @@ void PathTracingKernel(
 	{
 		if(bShouldEmitGeometryHitPoint)
 		{
-			EmitGeometryHitPoint(DispatchRaysIndex().xy, DispatchRaysDimensions().xy, RenderPassIndex, IrradianceCachePrimaryGIHitPoint);
+			EmitGeometryHitPoint(IrradianceCachePrimaryGIHitPoint, NewEntrySize);
 		}
 		
 		if(bShouldAccumulateToCacheRecord)
@@ -663,11 +678,17 @@ void LightmapPathTracingMainRG()
 			float3 RecordIrradiance;
 			float3 RecordWorldNormal;
 			
-			uint3 Key = EncodeVoxelKey(floor(WorldPosition / IrradianceCachingParameters.Spacing));			
+			uint CoarseLevelSpacing = IrradianceCachingParameters.Spacing;
+			uint DetailLevelSpacing = IrradianceCachingParameters.Spacing;
+		
+			uint3 Key = EncodeVoxelKey(floor(WorldPosition / DetailLevelSpacing));		
+			uint NormalDirectionBits = EncodeNormalBits(ShadingNormal);				
 			uint HashKey = 0;
 			HashKey = MurmurAdd( HashKey, Key.x );
 			HashKey = MurmurAdd( HashKey, Key.y );
 			HashKey = MurmurAdd( HashKey, Key.z );
+			HashKey = MurmurAdd( HashKey, NormalDirectionBits );
+			HashKey = MurmurAdd( HashKey, DetailLevelSpacing);
 			uint Index;
 			if (ICHashTableFind(HashKey, Index))
 			{
@@ -684,15 +705,38 @@ void LightmapPathTracingMainRG()
 				RecordWorldNormal = Record.WorldNormal.xyz;
 				NearestRecordIndex = RecordIndex;
 			}
+			else
+			{
+				Key = EncodeVoxelKey(floor(WorldPosition / CoarseLevelSpacing));	
+				HashKey = 0;
+				HashKey = MurmurAdd( HashKey, Key.x );
+				HashKey = MurmurAdd( HashKey, Key.y );
+				HashKey = MurmurAdd( HashKey, Key.z );
+				HashKey = MurmurAdd( HashKey, NormalDirectionBits );
+				HashKey = MurmurAdd( HashKey, CoarseLevelSpacing);
+				
+				if (ICHashTableFind(HashKey, Index))
+				{
+					uint RecordIndex = IrradianceCachingParameters.RWHashToIndex[Index];
+					FIrradianceCacheRecord Record = IrradianceCachingParameters.IrradianceCacheRecords[RecordIndex];
+					if (Record.Irradiance.w > IrradianceCachingParameters.Quality)
+					{
+						bIrradianceQuerySuccessful = true;
+						
+						RecordIrradiance = asfloat(Record.Irradiance.xyz) / Record.Irradiance.w;
+					}
+					
+					bGeometryQuerySuccessful = true;
+					RecordWorldNormal = Record.WorldNormal.xyz;
+					NearestRecordIndex = RecordIndex;
+				}
+			}
 			
 			if (bIrradianceQuerySuccessful)
 			{
-				if (dot(WorldNormal, RecordWorldNormal) > 0.5)
-				{
-					IrradianceAndSampleCount[TexelIndexInPool] = 2.0f * float4(RecordIrradiance, asfloat(1));
-					SHDirectionality[TexelIndexInPool] = float4(1, 0, 0, 0) / SHBasisFunctionFloat(float3(2.0f / 3, 2.0f / 3, 2.0f / 3));			
-					SHCorrectionAndStationarySkyLightBentNormal[TexelIndexInPool].x = 1;
-				}
+				IrradianceAndSampleCount[TexelIndexInPool] = 2.0f * float4(RecordIrradiance, asfloat(1));
+				SHDirectionality[TexelIndexInPool] = float4(1, 0, 0, 0) / SHBasisFunctionFloat(float3(2.0f / 3, 2.0f / 3, 2.0f / 3));			
+				SHCorrectionAndStationarySkyLightBentNormal[TexelIndexInPool].x = 1;
 			}
 		}
 		#endif
@@ -715,13 +759,18 @@ void LightmapPathTracingMainRG()
 		}
 	#endif
 
-#if 0 // Debug: GBuffer shading normal visualization
-	const half LogBlackPoint = 0.01858136;
+#if 0 // Debug: GBuffer shading normal visualization	
+	{
+		const half LogBlackPoint = 0.01858136;
 	
-	float3 ShadingNormal = GBufferShadingNormal[TexelIndexInScratch].xyz * 0.5f + 0.5f;
-	OutputTileAtlas[LaunchIndex + BatchedTiles[TileIndex].OutputLayer1Position] = float4(0, 0, 0, 1);
-		OutputTileAtlas[LaunchIndex + BatchedTiles[TileIndex].OutputLayer0Position].rgba = float4(
-			sqrt(max(ShadingNormal, float3(0.00001, 0.00001, 0.00001))), log2( 1 + LogBlackPoint ) - (1.0f / 255 - 0.5 / 255));
+		float3 ShadingNormal = GBufferShadingNormal[TexelIndexInScratch].xyz * 0.5f + 0.5f;
+		
+		IrradianceAndSampleCount[TexelIndexInPool].rgb = ShadingNormal;
+		IrradianceAndSampleCount[TexelIndexInPool].a = asfloat(1);
+		
+		SHDirectionality[TexelIndexInPool] = float4(1, 0, 0, 0);					
+		SHCorrectionAndStationarySkyLightBentNormal[TexelIndexInPool].x = 1;
+	}
 #endif
 }
 
@@ -982,6 +1031,7 @@ bool GenerateOcclusionRay(
 	{
 		GenerateDirectionalLightOcclusionRay(
 			LightParameters,
+			-1,
 			WorldPosition, WorldNormal,
 			RandSample,
 			/* out */ RayOrigin,
@@ -1104,6 +1154,7 @@ void StationaryLightShadowTracingMainRG()
 					TLAS,
 					RayFlags,
 					RAY_TRACING_MASK_SHADOW,
+					uint2(0, 0),
 					Ray);
 				
 				uint Visibility = asuint(ShadowMask[TexelIndexInPool][ChannelIndex]);

@@ -12,10 +12,6 @@
 #include "MetalCommandBuffer.h"
 #include "HAL/PThreadEvent.h"
 
-#if METAL_STATISTICS
-extern int32 GMetalProfilerStatisticsTiming;
-#endif
-
 
 //------------------------------------------------------------------------------
 
@@ -172,6 +168,7 @@ FMetalRHIRenderQuery::FMetalRHIRenderQuery(ERenderQueryType InQueryType)
 	, Buffer{}
 	, Result{0}
 	, bAvailable{false}
+	, QueryWrittenEvent(nullptr)
 {
 	// void
 }
@@ -180,6 +177,12 @@ FMetalRHIRenderQuery::~FMetalRHIRenderQuery()
 {
 	Buffer.SourceBuffer.SafeRelease();
 	Buffer.Offset = 0;
+	
+	if(QueryWrittenEvent != nullptr)
+	{
+		FPlatformProcess::ReturnSynchEventToPool(QueryWrittenEvent);
+		QueryWrittenEvent = nullptr;
+	}
 }
 
 void FMetalRHIRenderQuery::Begin(FMetalContext* Context, TSharedPtr<FMetalCommandBufferFence, ESPMode::ThreadSafe> const& BatchFence)
@@ -263,66 +266,48 @@ void FMetalRHIRenderQuery::End(FMetalContext* Context)
 			Result = 0;
 			bAvailable = false;
 
-			QueryWrittenEvent = MakeShareable(new FPThreadEvent());
-			QueryWrittenEvent->Create(true);
-			
-#if METAL_STATISTICS
-			class IMetalStatistics* Stats = Context->GetCommandQueue().GetStatistics();
-			if (Stats && GMetalProfilerStatisticsTiming)
+			if(QueryWrittenEvent == nullptr)
 			{
-				id<IMetalStatisticsSamples> StatSample = Stats->GetLastStatisticsSample(Context->GetCurrentCommandBuffer().GetPtr());
-				if (!StatSample)
-				{
-					Context->GetCurrentRenderPass().InsertDebugEncoder();
-					StatSample = Stats->GetLastStatisticsSample(Context->GetCurrentCommandBuffer().GetPtr());
-				}
-				check(StatSample);
-				[StatSample retain];
-
-				// Insert the fence to wait on the current command buffer
-				Context->InsertCommandBufferFence(*(Buffer.CommandBufferFence), [this, StatSample](mtlpp::CommandBuffer const&)
-				{
-					if (StatSample.Count > 0)
-					{
-						Result = (FPlatformTime::ToMilliseconds64(StatSample.Array[0]) * 1000.0);
-					}
-					[StatSample release];
-					
-					QueryWrittenEvent->Trigger();
-					this->Release();
-				});
+				QueryWrittenEvent = FPlatformProcess::GetSynchEventFromPool(true);
+				check(QueryWrittenEvent != nullptr);
 			}
 			else
-#endif // METAL_STATISTICS
 			{
-				// Insert the fence to wait on the current command buffer
-				Context->InsertCommandBufferFence(*(Buffer.CommandBufferFence), [this](mtlpp::CommandBuffer const& CmdBuffer)
-				{
-					Result = 0;
-					
-#if PLATFORM_MAC
-					if(FPlatformMisc::MacOSXVersionCompare(10,15,0) >= 0)
-#endif
-					{
-						// If there are no commands in the command buffer then this can be zero
-						// In this case GPU start time is also not correct - we need to fall back standard behaviour
-						// Only seen empty command buffers at the very end of a frame
-						Result = uint64((CmdBuffer.GetGpuEndTime() / 1000.0) / FPlatformTime::GetSecondsPerCycle64());
-					}
-					
-					if(Result == 0)
-					{
-						Result = (FPlatformTime::ToMilliseconds64(mach_absolute_time()) * 1000.0);
-					}
-
-					QueryWrittenEvent->Trigger();
-					this->Release();
-				});
-
-				// Submit the current command buffer, marking this is as a break of a logical command buffer for render restart purposes
-				// This is necessary because we use command-buffer completion to emulate timer queries as Metal has no such API
-				Context->SubmitCommandsHint(EMetalSubmitFlagsCreateCommandBuffer|EMetalSubmitFlagsBreakCommandBuffer);
+				QueryWrittenEvent->Reset();
 			}
+
+			// Insert the fence to wait on the current command buffer
+			Context->InsertCommandBufferFence(*(Buffer.CommandBufferFence), [this](mtlpp::CommandBuffer const& CmdBuffer)
+			{
+				Result = 0;
+				
+#if PLATFORM_MAC
+				if(FPlatformMisc::MacOSXVersionCompare(10,15,0) >= 0)
+#endif
+				{
+					// If there are no commands in the command buffer then this can be zero
+					// In this case GPU start time is also not correct - we need to fall back standard behaviour
+					// Only seen empty command buffers at the very end of a frame
+					Result = uint64((CmdBuffer.GetGpuEndTime() / 1000.0) / FPlatformTime::GetSecondsPerCycle64());
+				}
+				
+				if(Result == 0)
+				{
+					Result = (FPlatformTime::ToMilliseconds64(mach_absolute_time()) * 1000.0);
+				}
+
+				if(QueryWrittenEvent != nullptr)
+				{
+					QueryWrittenEvent->Trigger();
+				}
+				
+				this->Release();
+			});
+
+			// Submit the current command buffer, marking this is as a break of a logical command buffer for render restart purposes
+			// This is necessary because we use command-buffer completion to emulate timer queries as Metal has no such API
+			Context->SubmitCommandsHint(EMetalSubmitFlagsCreateCommandBuffer|EMetalSubmitFlagsBreakCommandBuffer);
+
 			break;
 		}
 		default:
@@ -362,7 +347,7 @@ bool FMetalRHIRenderQuery::GetResult(uint64& OutNumPixels, bool bWait, uint32 GP
 			// Result is written in one of potentially many command buffer completion handlers
 			// But the command buffer wait above may return before the query completion handler fires
 			// We need to wait here until that has happenned, also make sure the command buffer actually completed due to timeout
-			if (bOK && (Type == RQT_AbsoluteTime) && QueryWrittenEvent.IsValid())
+			if (bOK && (Type == RQT_AbsoluteTime) && QueryWrittenEvent != nullptr)
 			{
 				QueryWrittenEvent->Wait();
 			}

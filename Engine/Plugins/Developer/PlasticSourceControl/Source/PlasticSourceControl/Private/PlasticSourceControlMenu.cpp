@@ -84,7 +84,7 @@ bool FPlasticSourceControlMenu::SaveDirtyPackages()
 TArray<FString> FPlasticSourceControlMenu::ListAllPackages()
 {
 	TArray<FString> PackageRelativePaths;
-	FPackageName::FindPackagesInDirectory(PackageRelativePaths, *FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir()));
+	FPackageName::FindPackagesInDirectory(PackageRelativePaths, FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir()));
 
 	TArray<FString> PackageNames;
 	PackageNames.Reserve(PackageRelativePaths.Num());

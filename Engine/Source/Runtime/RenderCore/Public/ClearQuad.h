@@ -47,103 +47,103 @@ struct FClearQuadCallbacks
 UE_DEPRECATED(4.25, "ClearUAV() is deprecated. Use RHICmdList.ClearUAVUint or RHICmdList.ClearUAVFloat instead, and handle any necessary resource transitions.")
 inline void ClearUAV(FRHICommandList& RHICmdList, const FRWBufferStructured& StructuredBuffer, uint32 Value)
 {
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, StructuredBuffer.UAV);
+	RHICmdList.Transition(FRHITransitionInfo(StructuredBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 	RHICmdList.ClearUAVUint(StructuredBuffer.UAV, FUintVector4(Value, Value, Value, Value));
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, StructuredBuffer.UAV);
+	RHICmdList.Transition(FRHITransitionInfo(StructuredBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 }
 extern RENDERCORE_API void ClearUAV(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* Buffer, uint32 NumBytes, uint32 Value, bool bBarriers = true);
 
 UE_DEPRECATED(4.25, "ClearUAV() is deprecated. Use RHICmdList.ClearUAVUint or RHICmdList.ClearUAVFloat instead, and handle any necessary resource transitions.")
 inline void ClearUAV(FRHICommandList& RHICmdList, const FTextureRWBuffer2D& Buffer, FLinearColor Value)
 {
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, Buffer.UAV);
+	RHICmdList.Transition(FRHITransitionInfo(Buffer.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 	RHICmdList.ClearUAVFloat(Buffer.UAV, FVector4(Value.R, Value.G, Value.B, Value.A));
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, Buffer.UAV);
+	RHICmdList.Transition(FRHITransitionInfo(Buffer.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 }
 
 UE_DEPRECATED(4.25, "ClearUAV() is deprecated. Use RHICmdList.ClearUAVUint or RHICmdList.ClearUAVFloat instead, and handle any necessary resource transitions.")
 inline void ClearUAV(FRHICommandList& RHICmdList, const FTextureRWBuffer3D& Buffer, FLinearColor Value)
 {
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, Buffer.UAV);
+	RHICmdList.Transition(FRHITransitionInfo(Buffer.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 	RHICmdList.ClearUAVFloat(Buffer.UAV, FVector4(Value.R, Value.G, Value.B, Value.A));
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, Buffer.UAV);
+	RHICmdList.Transition(FRHITransitionInfo(Buffer.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 }
 
 UE_DEPRECATED(4.25, "ClearUAV() is deprecated. Use RHICmdList.ClearUAVUint or RHICmdList.ClearUAVFloat instead, and handle any necessary resource transitions.")
 inline void ClearUAV(FRHICommandList& RHICmdList, const FRWBuffer& Buffer, uint32 Value)
 {
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, Buffer.UAV);
+	RHICmdList.Transition(FRHITransitionInfo(Buffer.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 	RHICmdList.ClearUAVUint(Buffer.UAV, FUintVector4(Value, Value, Value, Value));
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, Buffer.UAV);
+	RHICmdList.Transition(FRHITransitionInfo(Buffer.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 }
 
 UE_DEPRECATED(4.25, "ClearUAV() is deprecated. Use RHICmdList.ClearUAVUint or RHICmdList.ClearUAVFloat instead, and handle any necessary resource transitions.")
 inline void ClearUAV(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* UAV, uint32 /*unused NumBytes*/, uint32 Value)
 {
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, UAV);
+	RHICmdList.Transition(FRHITransitionInfo(UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 	RHICmdList.ClearUAVUint(UAV, FUintVector4(Value, Value, Value, Value));
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, UAV);
+	RHICmdList.Transition(FRHITransitionInfo(UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 }
 
 UE_DEPRECATED(4.25, "ClearUAV() is deprecated. Use RHICmdList.ClearUAVUint or RHICmdList.ClearUAVFloat instead, and handle any necessary resource transitions.")
 inline void ClearUAV(FRHICommandList& RHICmdList, FRHITexture* /*unused Texture*/, FRHIUnorderedAccessView* TextureUAV, const float(&ClearValues)[4])
 {
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, TextureUAV);
+	RHICmdList.Transition(FRHITransitionInfo(TextureUAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 	RHICmdList.ClearUAVFloat(TextureUAV, FVector4(ClearValues[0], ClearValues[1], ClearValues[2], ClearValues[3]));
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, TextureUAV);
+	RHICmdList.Transition(FRHITransitionInfo(TextureUAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 }
 
 UE_DEPRECATED(4.25, "ClearUAV() is deprecated. Use RHICmdList.ClearUAVUint or RHICmdList.ClearUAVFloat instead, and handle any necessary resource transitions.")
 inline void ClearUAV(FRHICommandList& RHICmdList, FRHITexture* /*unused Texture*/, FRHIUnorderedAccessView* TextureUAV, const uint32(&ClearValues)[4])
 {
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, TextureUAV);
+	RHICmdList.Transition(FRHITransitionInfo(TextureUAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 	RHICmdList.ClearUAVUint(TextureUAV, FUintVector4(ClearValues[0], ClearValues[1], ClearValues[2], ClearValues[3]));
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, TextureUAV);
+	RHICmdList.Transition(FRHITransitionInfo(TextureUAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 }
 
 UE_DEPRECATED(4.25, "ClearUAV() is deprecated. Use RHICmdList.ClearUAVUint or RHICmdList.ClearUAVFloat instead, and handle any necessary resource transitions.")
 inline void ClearUAV(FRHICommandList& RHICmdList, FRHITexture* /*unused Texture*/, FRHIUnorderedAccessView* TextureUAV, const FLinearColor& ClearColor)
 {
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, TextureUAV);
+	RHICmdList.Transition(FRHITransitionInfo(TextureUAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 	RHICmdList.ClearUAVFloat(TextureUAV, FVector4(ClearColor.R, ClearColor.G, ClearColor.B, ClearColor.A));
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, TextureUAV);
+	RHICmdList.Transition(FRHITransitionInfo(TextureUAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 }
 
 UE_DEPRECATED(4.25, "ClearUAV() is deprecated. Use RHICmdList.ClearUAVUint or RHICmdList.ClearUAVFloat instead, and handle any necessary resource transitions.")
 inline void ClearUAV(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* UAV, uint32 /*unused Width*/, uint32 /*unused Height*/, const FLinearColor& ClearColor)
 {
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, UAV);
+	RHICmdList.Transition(FRHITransitionInfo(UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 	RHICmdList.ClearUAVFloat(UAV, FVector4(ClearColor.R, ClearColor.G, ClearColor.B, ClearColor.A));
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, UAV);
+	RHICmdList.Transition(FRHITransitionInfo(UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 }
 
 UE_DEPRECATED(4.25, "ClearUAV() is deprecated. Use RHICmdList.ClearUAVUint or RHICmdList.ClearUAVFloat instead, and handle any necessary resource transitions.")
 inline void ClearUAV(FRHICommandList& RHICmdList, const FSceneRenderTargetItem& RenderTargetItem, const float(&ClearValues)[4])
 {
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, RenderTargetItem.UAV);
+	RHICmdList.Transition(FRHITransitionInfo(RenderTargetItem.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 	RHICmdList.ClearUAVFloat(RenderTargetItem.UAV, FVector4(ClearValues[0], ClearValues[1], ClearValues[2], ClearValues[3]));
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, RenderTargetItem.UAV);
+	RHICmdList.Transition(FRHITransitionInfo(RenderTargetItem.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 }
 
 UE_DEPRECATED(4.25, "ClearUAV() is deprecated. Use RHICmdList.ClearUAVUint or RHICmdList.ClearUAVFloat instead, and handle any necessary resource transitions.")
 inline void ClearUAV(FRHICommandList& RHICmdList, const FSceneRenderTargetItem& RenderTargetItem, const uint32(&ClearValues)[4])
 {
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, RenderTargetItem.UAV);
+	RHICmdList.Transition(FRHITransitionInfo(RenderTargetItem.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 	RHICmdList.ClearUAVUint(RenderTargetItem.UAV, FUintVector4(ClearValues[0], ClearValues[1], ClearValues[2], ClearValues[3]));
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, RenderTargetItem.UAV);
+	RHICmdList.Transition(FRHITransitionInfo(RenderTargetItem.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 }
 
 UE_DEPRECATED(4.25, "ClearUAV() is deprecated. Use RHICmdList.ClearUAVUint or RHICmdList.ClearUAVFloat instead, and handle any necessary resource transitions.")
 inline void ClearUAV(FRHICommandList& RHICmdList, const FSceneRenderTargetItem& RenderTargetItem, const FLinearColor& ClearColor)
 {
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, RenderTargetItem.UAV);
+	RHICmdList.Transition(FRHITransitionInfo(RenderTargetItem.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 	RHICmdList.ClearUAVFloat(RenderTargetItem.UAV, FVector4(ClearColor.R, ClearColor.G, ClearColor.B, ClearColor.A));
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, RenderTargetItem.UAV);
+	RHICmdList.Transition(FRHITransitionInfo(RenderTargetItem.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 }
 
-extern RENDERCORE_API void DrawClearQuadMRT(FRHICommandList& RHICmdList, bool bClearColor, int32 NumClearColors, const FLinearColor* ClearColorArray, bool bClearDepth, float Depth, bool bClearStencil, uint32 Stencil );
+extern RENDERCORE_API void DrawClearQuadMRT(FRHICommandList& RHICmdList, bool bClearColor, int32 NumClearColors, const FLinearColor* ClearColorArray, bool bClearDepth, float Depth, bool bClearStencil, uint32 Stencil);
 extern RENDERCORE_API void DrawClearQuadMRT(FRHICommandList& RHICmdList, bool bClearColor, int32 NumClearColors, const FLinearColor* ClearColorArray, bool bClearDepth, float Depth, bool bClearStencil, uint32 Stencil, FClearQuadCallbacks ClearQuadCallbacks);
-extern RENDERCORE_API void DrawClearQuadMRT(FRHICommandList& RHICmdList, bool bClearColor, int32 NumClearColors, const FLinearColor* ClearColorArray, bool bClearDepth, float Depth, bool bClearStencil, uint32 Stencil, FIntPoint ViewSize, FIntRect ExcludeRect );
+extern RENDERCORE_API void DrawClearQuadMRT(FRHICommandList& RHICmdList, bool bClearColor, int32 NumClearColors, const FLinearColor* ClearColorArray, bool bClearDepth, float Depth, bool bClearStencil, uint32 Stencil, FIntPoint ViewSize, FIntRect ExcludeRect);
 
 inline void DrawClearQuad(FRHICommandList& RHICmdList, bool bClearColor, const FLinearColor& Color, bool bClearDepth, float Depth, bool bClearStencil, uint32 Stencil)
 {

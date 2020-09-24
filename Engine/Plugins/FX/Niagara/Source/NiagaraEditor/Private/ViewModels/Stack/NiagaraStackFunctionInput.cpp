@@ -68,9 +68,10 @@ UNiagaraStackFunctionInput::UNiagaraStackFunctionInput()
 void GenerateInputParameterHandlePath(UNiagaraNodeFunctionCall& ModuleNode, UNiagaraNodeFunctionCall& FunctionCallNode, TArray<FNiagaraParameterHandle>& OutHandlePath)
 {
 	UNiagaraNodeFunctionCall* CurrentFunctionCallNode = &FunctionCallNode;
+	FPinCollectorArray FunctionOutputPins;
 	while (CurrentFunctionCallNode != &ModuleNode)
 	{
-		TArray<UEdGraphPin*> FunctionOutputPins;
+		FunctionOutputPins.Reset();
 		CurrentFunctionCallNode->GetOutputPins(FunctionOutputPins);
 		if (ensureMsgf(FunctionOutputPins.Num() == 1 && FunctionOutputPins[0]->LinkedTo.Num() == 1 && FunctionOutputPins[0]->LinkedTo[0]->GetOwningNode()->IsA<UNiagaraNodeParameterMapSet>(),
 			TEXT("Invalid Stack Graph - Dynamic Input Function call didn't have a valid connected output.")))
@@ -378,6 +379,9 @@ FText UNiagaraStackFunctionInput::GetCollapsedStateText() const
 				CollapsedTextCache = TypeUtilityValue->GetStackDisplayText(Var);
 			}
 			break;
+		case EValueMode::Data:
+				CollapsedTextCache = FText::Format(FText::FromString("[{0}]"), InputValues.DataObject.IsValid() ? InputValues.DataObject->GetClass()->GetDisplayNameText() : FText::FromString("?"));
+				break;
 		case EValueMode::Dynamic:
 			if (InputValues.DynamicNode->FunctionScript != nullptr)
 			{
@@ -1071,7 +1075,8 @@ void UNiagaraStackFunctionInput::GetAvailableParameterHandles(TArray<FNiagaraPar
 			{
 				UNiagaraNodeFunctionCall* ModuleToCheck = Cast<UNiagaraNodeFunctionCall>(StackGroups[i].EndNode);
 				FNiagaraParameterMapHistoryBuilder Builder;
-				ModuleToCheck->BuildParameterMapHistory(Builder, false);
+				UNiagaraEmitter* Emitter = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter() : nullptr;
+				FNiagaraStackGraphUtilities::BuildParameterMapHistoryWithStackContextResolution(Emitter, OutputNode, ModuleToCheck, Builder, false);
 
 				if (Builder.Histories.Num() == 1)
 				{
@@ -1152,14 +1157,16 @@ void UNiagaraStackFunctionInput::GetAvailableDynamicInputs(TArray<UNiagaraScript
 	DynamicInputScriptFilterOptions.bIncludeNonLibraryScripts = bIncludeNonLibraryInputs;
 	FNiagaraEditorUtilities::GetFilteredScriptAssets(DynamicInputScriptFilterOptions, DynamicInputAssets);
 
-	auto MatchesInputType = [this](UNiagaraScript* Script)
+	FPinCollectorArray InputPins;
+	TArray<UNiagaraNodeOutput*> OutputNodes;
+	auto MatchesInputType = [this, &InputPins, &OutputNodes](UNiagaraScript* Script)
 	{
 		UNiagaraScriptSource* DynamicInputScriptSource = Cast<UNiagaraScriptSource>(Script->GetSource());
-		TArray<UNiagaraNodeOutput*> OutputNodes;
+		OutputNodes.Reset();
 		DynamicInputScriptSource->NodeGraph->GetNodesOfClass<UNiagaraNodeOutput>(OutputNodes);
 		if (OutputNodes.Num() == 1)
 		{
-			TArray<UEdGraphPin*> InputPins;
+			InputPins.Reset();
 			OutputNodes[0]->GetInputPins(InputPins);
 			if (InputPins.Num() == 1)
 			{
@@ -1607,17 +1614,27 @@ bool UNiagaraStackFunctionInput::SupportsRename() const
 void UNiagaraStackFunctionInput::OnRenamed(FText NewNameText)
 {
 	FName NewName(*NewNameText.ToString());
+	FNiagaraVariable OldVar = FNiagaraVariable(InputType, InputParameterHandle.GetName());
+	FNiagaraVariable NewVar = FNiagaraVariable(InputType, NewName);
 	if (InputParameterHandle.GetName() != NewName && OwningAssignmentNode.IsValid() && SourceScript.IsValid())
 	{
+		TSharedRef<FNiagaraSystemViewModel> CachedSysViewModel = GetSystemViewModel();
+		TSharedPtr<FNiagaraEmitterViewModel> CachedEmitterViewModel = GetEmitterViewModel();
+		UNiagaraSystem& System = GetSystemViewModel()->GetSystem();
+		UNiagaraEmitter* Emitter = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter() : nullptr;
+
 		FScopedTransaction ScopedTransaction(LOCTEXT("RenameInput", "Rename this function's input."));
 		FNiagaraStackGraphUtilities::RenameAssignmentTarget(
-			GetSystemViewModel()->GetSystem(),
-			GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter() : nullptr,
+			System,
+			Emitter,
 			*SourceScript.Get(),
 			*OwningAssignmentNode.Get(),
-			FNiagaraVariable(InputType, InputParameterHandle.GetName()),
+			OldVar,
 			NewName);
 		ensureMsgf(IsFinalized(), TEXT("Input not finalized when renamed."));
+
+		CachedSysViewModel->NotifyParameterRenamedExternally(OldVar, NewVar, Emitter);
+
 	}
 }
 
@@ -1631,14 +1648,18 @@ void UNiagaraStackFunctionInput::DeleteInput()
 	if (UNiagaraNodeAssignment* NodeAssignment = Cast<UNiagaraNodeAssignment>(OwningFunctionCallNode.Get()))
 	{
 		FScopedTransaction ScopedTransaction(LOCTEXT("RemoveInputTransaction", "Remove Input"));
-		
+		TSharedRef<FNiagaraSystemViewModel> CachedSysViewModel = GetSystemViewModel();
+		UNiagaraEmitter* Emitter = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter() : nullptr;
+
 		// If there is an override pin and connected nodes, remove them before removing the input since removing
 		// the input will prevent us from finding the override pin.
 		RemoveOverridePin();
-
 		FNiagaraVariable Var = FNiagaraVariable(GetInputType(), GetInputParameterHandle().GetName());
 		NodeAssignment->Modify();
 		NodeAssignment->RemoveParameter(Var);
+
+		CachedSysViewModel->NotifyParameterRemovedExternally(Var, Emitter);
+
 	}
 }
 
@@ -2178,7 +2199,9 @@ void UNiagaraStackFunctionInput::UpdateValuesFromScriptDefaults(FInputValues& In
 		else
 		{
 			// Otherwise we need to check the pin that defined the variable in the graph to determine the default.
-			UEdGraphPin* DefaultPin = OwningFunctionCallNode->FindParameterMapDefaultValuePin(InputParameterHandle.GetParameterHandleString(), SourceScript->GetUsage());
+
+			FCompileConstantResolver ConstantResolver = GetEmitterViewModel() ? FCompileConstantResolver(GetEmitterViewModel()->GetEmitter(), FNiagaraStackGraphUtilities::GetOutputNodeUsage(*OwningFunctionCallNode)) : FCompileConstantResolver();
+			UEdGraphPin* DefaultPin = OwningFunctionCallNode->FindParameterMapDefaultValuePin(InputParameterHandle.GetParameterHandleString(), SourceScript->GetUsage(), ConstantResolver);
 			if (DefaultPin != nullptr)
 			{
 				if (InputType.IsDataInterface())

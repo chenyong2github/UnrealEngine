@@ -563,7 +563,6 @@ public:
 	inline bool TreatAsBackgroundForOcclusion() const { return bTreatAsBackgroundForOcclusion; }
 	inline bool NeedsLevelAddedToWorldNotification() const { return bNeedsLevelAddedToWorldNotification; }
 	inline bool IsComponentLevelVisible() const { return bIsComponentLevelVisible; }
-	inline bool IsStaticPathAvailable() const { return !bHasMobileMovablePointLightInteraction; }
 	inline bool ShouldReceiveMobileCSMShadows() const { return bReceiveMobileCSMShadows; }
 
 	/** Returns whether draws velocity in base pass. */
@@ -762,6 +761,9 @@ public:
 
 protected:
 
+	/** Returns true if primitive should be hidden because it is drawn only to the runtime virtual texture. */
+	bool DrawInVirtualTextureOnly(bool bEditor) const;
+
 	/** Allow subclasses to override the primitive name. Used primarily by BSP. */
 	void OverrideOwnerName(FName InOwnerName)
 	{
@@ -797,7 +799,8 @@ private:
 	uint8 DrawInGame : 1;
 	uint8 DrawInEditor : 1;
 	uint8 bReceivesDecals : 1;
-	uint8 bOnlyVirtualTexture : 1;
+	uint8 bVirtualTextureMainPassDrawAlways : 1;
+	uint8 bVirtualTextureMainPassDrawNever : 1;
 	uint8 bOnlyOwnerSee : 1;
 	uint8 bOwnerNoSee : 1;
 	uint8 bOftenMoving : 1;
@@ -854,9 +857,6 @@ private:
 	uint8 bTreatAsBackgroundForOcclusion : 1;
 
 	friend class FLightPrimitiveInteraction;
-	
-	/** Whether this primitive is affected by dynamic point lights (mobile only)*/
-	uint8 bHasMobileMovablePointLightInteraction : 1;
 
 protected:
 

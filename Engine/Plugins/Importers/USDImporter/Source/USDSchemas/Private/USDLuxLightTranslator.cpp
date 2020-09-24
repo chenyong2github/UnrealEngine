@@ -43,39 +43,40 @@ void FUsdLuxLightTranslator::UpdateComponents( USceneComponent* SceneComponent )
 
 	FScopedUsdAllocs UsdAllocs;
 
-	pxr::UsdLuxLight UsdLight{ Schema };
+	pxr::UsdPrim Prim = GetPrim();
+	pxr::UsdLuxLight UsdLight{ Prim };
 
 	if ( !UsdLight )
 	{
 		return;
 	}
 
-	UsdToUnreal::ConvertLight( pxr::UsdLuxLight{ Schema }, *LightComponent, Context->Time );
+	UsdToUnreal::ConvertLight( pxr::UsdLuxLight{ Prim }, *LightComponent, Context->Time );
 
 	if ( UDirectionalLightComponent* DirectionalLightComponent = Cast< UDirectionalLightComponent >( SceneComponent ) )
 	{
-		UsdToUnreal::ConvertDistantLight( pxr::UsdLuxDistantLight{ Schema }, *DirectionalLightComponent, Context->Time );
+		UsdToUnreal::ConvertDistantLight( pxr::UsdLuxDistantLight{ Prim }, *DirectionalLightComponent, Context->Time );
 	}
 	else if ( URectLightComponent* RectLightComponent = Cast< URectLightComponent >( SceneComponent ) )
 	{
-		FUsdStageInfo StageInfo( Schema.GetPrim().GetStage() );
+		FUsdStageInfo StageInfo( Context->Stage );
 
-		if ( pxr::UsdLuxRectLight UsdRectLight{ Schema } )
+		if ( pxr::UsdLuxRectLight UsdRectLight{ Prim } )
 		{
 			UsdToUnreal::ConvertRectLight( StageInfo, UsdRectLight, *RectLightComponent, Context->Time );
 		}
-		else if ( pxr::UsdLuxDiskLight UsdDiskLight{ Schema } )
+		else if ( pxr::UsdLuxDiskLight UsdDiskLight{ Prim } )
 		{
 			UsdToUnreal::ConvertDiskLight( StageInfo, UsdDiskLight, *RectLightComponent, Context->Time );
 		}
 	}
 	else if ( UPointLightComponent* PointLightComponent = Cast< UPointLightComponent >( SceneComponent ) )
 	{
-		UsdToUnreal::ConvertSphereLight( FUsdStageInfo( Schema.GetPrim().GetStage() ), pxr::UsdLuxSphereLight{ Schema }, *PointLightComponent, Context->Time );
+		UsdToUnreal::ConvertSphereLight( FUsdStageInfo( Context->Stage ), pxr::UsdLuxSphereLight{ Prim }, *PointLightComponent, Context->Time );
 	}
 	else if ( USkyLightComponent* SkyLightComponent = Cast< USkyLightComponent >( SceneComponent ) )
 	{
-		UsdToUnreal::ConvertDomeLight( FUsdStageInfo( Schema.GetPrim().GetStage() ), pxr::UsdLuxDomeLight{ Schema }, *SkyLightComponent, Context->AssetsCache, Context->Time );
+		UsdToUnreal::ConvertDomeLight( FUsdStageInfo( Context->Stage ), pxr::UsdLuxDomeLight{ Prim }, *SkyLightComponent, Context->AssetsCache, Context->Time );
 		SkyLightComponent->Mobility = EComponentMobility::Movable; // We won't bake geometry in the sky light so it needs to be movable
 	}
 }

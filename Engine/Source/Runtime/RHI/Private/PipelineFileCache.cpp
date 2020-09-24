@@ -62,13 +62,14 @@ enum class EPipelineCacheFileFormatVersions : uint32
 	EOFMarker = 15,
 	EngineFlags = 16,
 	Subpass = 17,
-	PatchSizeReduction_NoDuplicatedGuid = 18
+	PatchSizeReduction_NoDuplicatedGuid = 18,
+	AlphaToCoverage = 19
 };
 
 const uint64 FPipelineCacheFileFormatMagic = 0x5049504543414348; // PIPECACH
 const uint64 FPipelineCacheTOCFileFormatMagic = 0x544F435354415232; // TOCSTAR2
 const uint64 FPipelineCacheEOFFileFormatMagic = 0x454F462D4D41524B; // EOF-MARK
-const uint32 FPipelineCacheFileFormatCurrentVersion = (uint32)EPipelineCacheFileFormatVersions::PatchSizeReduction_NoDuplicatedGuid;
+const uint32 FPipelineCacheFileFormatCurrentVersion = (uint32)EPipelineCacheFileFormatVersions::AlphaToCoverage;
 const int32  FPipelineCacheGraphicsDescPartsNum = 63; // parser will expect this number of parts in a description string
 
 /**
@@ -465,7 +466,9 @@ bool FPipelineCacheFileFormatPSO::GraphicsDescriptor::StateFromString(const FStr
 	{
 		check(PartEnd - PartIt >= 4 && sizeof(ERenderTargetLoadAction) == 1 && sizeof(ERenderTargetStoreAction) == 1 && sizeof(EPixelFormat) == sizeof(uint32)); //not a very robust parser
 		LexFromString((uint32&)(RenderTargetFormats[Index]), *PartIt++);
-		LexFromString(RenderTargetFlags[Index], *PartIt++);
+		uint32 RTFlags;
+		LexFromString(RTFlags, *PartIt++);
+		RenderTargetFlags[Index] = (ETextureCreateFlags)RTFlags;
 		uint8 Load, Store;
 		LexFromString(Load, *PartIt++);
 		LexFromString(Store, *PartIt++);
@@ -954,7 +957,9 @@ bool FPipelineCacheFileFormatPSO::Verify() const
 				uint32 Format = (uint32)Info.GraphicsDesc.RenderTargetFormats[i];
 				Ar << Format;
 				Info.GraphicsDesc.RenderTargetFormats[i] = (EPixelFormat)Format;
-				Ar << Info.GraphicsDesc.RenderTargetFlags[i];
+				uint32 RTFlags = Info.GraphicsDesc.RenderTargetFlags[i];
+				Ar << RTFlags;
+				Info.GraphicsDesc.RenderTargetFlags[i] = (ETextureCreateFlags)RTFlags;
 				uint8 LoadStore = 0;
 				Ar << LoadStore;
 				Ar << LoadStore;
@@ -1135,7 +1140,7 @@ FPipelineCacheFileFormatPSO::FPipelineCacheFileFormatPSO()
 	for (uint32 i = 0; i < MaxSimultaneousRenderTargets; i++)
 	{
 		PSO.GraphicsDesc.RenderTargetFormats[i] = (EPixelFormat)Init.RenderTargetFormats[i];
-		PSO.GraphicsDesc.RenderTargetFlags[i] = Init.RenderTargetFlags[i];
+		PSO.GraphicsDesc.RenderTargetFlags[i] = (ETextureCreateFlags)Init.RenderTargetFlags[i];
 	}
 	
 	PSO.GraphicsDesc.RenderTargetsActive = Init.RenderTargetsEnabled;

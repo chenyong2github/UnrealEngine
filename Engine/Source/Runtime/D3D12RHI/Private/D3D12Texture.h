@@ -5,13 +5,17 @@ D3D12Texture.h: Implementation of D3D12 Texture
 =============================================================================*/
 #pragma once
 
+/** If true, guard texture creates with SEH to log more information about a driver crash we are seeing during texture streaming. */
+#define GUARDED_TEXTURE_CREATES (PLATFORM_WINDOWS && !(UE_BUILD_SHIPPING || UE_BUILD_TEST))
+
+
 void SafeCreateTexture2D(FD3D12Device* pDevice, 
 	FD3D12Adapter* Adapter,
 	const D3D12_RESOURCE_DESC& TextureDesc,
 	const D3D12_CLEAR_VALUE* ClearValue, 
 	FD3D12ResourceLocation* OutTexture2D, 
 	uint8 Format, 
-	uint32 Flags,
+	ETextureCreateFlags Flags,
 	D3D12_RESOURCE_STATES InitialState,
 	const TCHAR* Name);
 
@@ -217,7 +221,7 @@ protected:
 	FTextureRHIRef AliasingSourceTexture;
 };
 
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 struct FD3D12TextureLayout {};
 #endif
 
@@ -228,7 +232,7 @@ class TD3D12Texture2D : public BaseResourceType, public FD3D12TextureBase
 public:
 
 	/** Flags used when the texture was created */
-	uint32 Flags;
+	ETextureCreateFlags Flags;
 
 	/** Initialization constructor. */
 	TD3D12Texture2D(
@@ -240,7 +244,7 @@ public:
 		uint32 InNumSamples,
 		EPixelFormat InFormat,
 		bool bInCubemap,
-		uint32 InFlags,
+		ETextureCreateFlags InFlags,
 		const FClearValueBinding& InClearValue,
 		const FD3D12TextureLayout* InTextureLayout = nullptr
 #if PLATFORM_SUPPORTS_VIRTUAL_TEXTURES
@@ -381,7 +385,7 @@ public:
 		uint32 InSizeZ,
 		uint32 InNumMips,
 		EPixelFormat InFormat,
-		uint32 InFlags,
+		ETextureCreateFlags InFlags,
 		const FClearValueBinding& InClearValue
 		)
 		: FRHITexture3D(InSizeX, InSizeY, InSizeZ, InNumMips, InFormat, InFlags, InClearValue)
@@ -431,7 +435,7 @@ private:
 class FD3D12BaseTexture2D : public FRHITexture2D, public FD3D12FastClearResource
 {
 public:
-	FD3D12BaseTexture2D(uint32 InSizeX, uint32 InSizeY, uint32 InSizeZ, uint32 InNumMips, uint32 InNumSamples, EPixelFormat InFormat, uint32 InFlags, const FClearValueBinding& InClearValue)
+	FD3D12BaseTexture2D(uint32 InSizeX, uint32 InSizeY, uint32 InSizeZ, uint32 InNumMips, uint32 InNumSamples, EPixelFormat InFormat, ETextureCreateFlags InFlags, const FClearValueBinding& InClearValue)
 		: FRHITexture2D(InSizeX, InSizeY, InNumMips, InNumSamples, InFormat, InFlags, InClearValue)
 	{}
 	uint32 GetSizeZ() const { return 0; }
@@ -445,7 +449,7 @@ public:
 class FD3D12BaseTexture2DArray : public FRHITexture2DArray, public FD3D12FastClearResource
 {
 public:
-	FD3D12BaseTexture2DArray(uint32 InSizeX, uint32 InSizeY, uint32 InSizeZ, uint32 InNumMips, uint32 InNumSamples, EPixelFormat InFormat, uint32 InFlags, const FClearValueBinding& InClearValue)
+	FD3D12BaseTexture2DArray(uint32 InSizeX, uint32 InSizeY, uint32 InSizeZ, uint32 InNumMips, uint32 InNumSamples, EPixelFormat InFormat, ETextureCreateFlags InFlags, const FClearValueBinding& InClearValue)
 		: FRHITexture2DArray(InSizeX, InSizeY, InSizeZ, InNumMips, InNumSamples, InFormat, InFlags, InClearValue)
 	{
 		check(InNumSamples == 1);
@@ -455,7 +459,7 @@ public:
 class FD3D12BaseTextureCube : public FRHITextureCube, public FD3D12FastClearResource
 {
 public:
-	FD3D12BaseTextureCube(uint32 InSizeX, uint32 InSizeY, uint32 InSizeZ, uint32 InNumMips, uint32 InNumSamples, EPixelFormat InFormat, uint32 InFlags, const FClearValueBinding& InClearValue)
+	FD3D12BaseTextureCube(uint32 InSizeX, uint32 InSizeY, uint32 InSizeZ, uint32 InNumMips, uint32 InNumSamples, EPixelFormat InFormat, ETextureCreateFlags InFlags, const FClearValueBinding& InClearValue)
 		: FRHITextureCube(InSizeX, InNumMips, InFormat, InFlags, InClearValue)
 		, SliceCount(InSizeZ)
 	{
@@ -511,6 +515,35 @@ public:
 	}
 };
 
+class FD3D12Viewport;
+
+class FD3D12BackBufferReferenceTexture2D : public FD3D12Texture2D
+{
+public:
+
+	FD3D12BackBufferReferenceTexture2D(
+		FD3D12Viewport* InViewPort,
+		bool bInIsSDR,
+		FD3D12Device* InDevice,
+		uint32 InSizeX,
+		uint32 InSizeY,
+		EPixelFormat InFormat) :
+		FD3D12Texture2D(InDevice, InSizeX, InSizeY, 1, 1, 1, InFormat, false, TexCreate_Presentable, FClearValueBinding()),
+		Viewport(InViewPort), bIsSDR(bInIsSDR)
+	{
+	}
+
+	FD3D12Viewport* GetViewPort() { return Viewport; }
+	bool IsSDR() const { return bIsSDR; }
+
+	D3D12RHI_API FRHITexture* GetBackBufferTexture();
+
+private:
+
+	FD3D12Viewport* Viewport = nullptr;
+	bool bIsSDR = false;
+};
+
 /** Given a pointer to a RHI texture that was created by the D3D12 RHI, returns a pointer to the FD3D12TextureBase it encapsulates. */
 FORCEINLINE FD3D12TextureBase* GetD3D12TextureFromRHITexture(FRHITexture* Texture)
 {
@@ -519,9 +552,32 @@ FORCEINLINE FD3D12TextureBase* GetD3D12TextureFromRHITexture(FRHITexture* Textur
 		return NULL;
 	}
 	
-	FD3D12TextureBase* Result((FD3D12TextureBase*)Texture->GetTextureBaseRHI());
+	// If it's the dummy backbuffer then swap with actual current RHI backbuffer right now
+	FRHITexture* RHITexture = Texture;
+	if (RHITexture && RHITexture->GetFlags() & TexCreate_Presentable)
+	{
+		FD3D12BackBufferReferenceTexture2D* BufferBufferReferenceTexture = (FD3D12BackBufferReferenceTexture2D*)RHITexture;
+		RHITexture = BufferBufferReferenceTexture->GetBackBufferTexture();
+	}
+
+	FD3D12TextureBase* Result((FD3D12TextureBase*)RHITexture->GetTextureBaseRHI());
 	check(Result);
 	return Result;
+}
+
+FORCEINLINE FD3D12TextureBase* GetD3D12TextureFromRHITexture(FRHITexture* Texture, uint32 GPUIndex)
+{
+	FD3D12TextureBase* Result = GetD3D12TextureFromRHITexture(Texture);
+	if (Result != nullptr)
+	{
+		Result = Result->GetLinkedObject(GPUIndex);
+		check(Result);
+		return Result;
+	}
+	else
+	{
+		return Result;
+	}
 }
 
 class FD3D12TextureStats
@@ -556,21 +612,25 @@ struct TD3D12ResourceTraits<FRHITexture3D>
 {
 	typedef FD3D12Texture3D TConcreteType;
 };
+
 template<>
 struct TD3D12ResourceTraits<FRHITexture2D>
 {
 	typedef FD3D12Texture2D TConcreteType;
 };
+
 template<>
 struct TD3D12ResourceTraits<FRHITexture2DArray>
 {
 	typedef FD3D12Texture2DArray TConcreteType;
 };
+
 template<>
 struct TD3D12ResourceTraits<FRHITextureCube>
 {
 	typedef FD3D12TextureCube TConcreteType;
 };
+
 template<>
 struct TD3D12ResourceTraits<FRHITextureReference>
 {

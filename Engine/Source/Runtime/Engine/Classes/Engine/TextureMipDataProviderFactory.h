@@ -31,7 +31,6 @@ public:
 	* The object lifetime will be managed by FRenderAssetUpdate.
 	* 
 	* @param InAsset - the texture on which the stream in operation will be performed.
-	* @param NewMipCount - the total number mips after the stream in request.
 	*/
-	FTextureMipDataProvider* AllocateMipDataProvider(UTexture* Asset, int32 NewMipCount) { return nullptr; }
+	FTextureMipDataProvider* AllocateMipDataProvider(UTexture* Asset) { return nullptr; }
 };

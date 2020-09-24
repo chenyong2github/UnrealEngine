@@ -759,7 +759,7 @@ void ULevel::PostLoad()
 		{
 			const FString& ActorPackageName = ActorPackageNames[i];
 
-			UPackage* ActorPackage = bInstanced ? CreatePackage(nullptr, *InstancePackageNames[i]) : nullptr;
+			UPackage* ActorPackage = bInstanced ? CreatePackage( *InstancePackageNames[i]) : nullptr;
 
 			ActorPackage = LoadPackage(ActorPackage, *ActorPackageName, bPackageForPIE ? LOAD_PackageForPIE : LOAD_None, nullptr, &InstancingContext);
 
@@ -2176,7 +2176,7 @@ void ULevel::RouteActorInitialize()
 UPackage* ULevel::CreateMapBuildDataPackage() const
 {
 	FString PackageName = GetOutermost()->GetName() + TEXT("_BuiltData");
-	UPackage* BuiltDataPackage = CreatePackage(NULL, *PackageName);
+	UPackage* BuiltDataPackage = CreatePackage( *PackageName);
 	// PKG_ContainsMapData required so FEditorFileUtils::GetDirtyContentPackages can treat this as a map package
 	BuiltDataPackage->SetPackageFlags(PKG_ContainsMapData);
 	return BuiltDataPackage;
@@ -2387,7 +2387,7 @@ UPackage* ULevel::CreateActorPackage(UPackage* InLevelPackage, const FGuid& InGu
 			*GuidBase36 + FMath::Min(GuidBase36Len - 1, 4)
 		);
 
-	UPackage* ActorPackage = CreatePackage(nullptr, *ActorPackageName);
+	UPackage* ActorPackage = CreatePackage( *ActorPackageName);
 	ActorPackage->SetPackageFlags(PKG_EditorOnly);
 	return ActorPackage;
 }

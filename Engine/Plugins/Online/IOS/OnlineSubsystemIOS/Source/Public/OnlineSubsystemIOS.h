@@ -20,6 +20,8 @@
 
 @class FStoreKitHelperV2;
 @class FAppStoreUtils;
+@class GKPlayer;
+@class GKLocalPlayer;
 
 
 /**
@@ -103,6 +105,10 @@ PACKAGE_SCOPE:
 	 * @return access to the app store utility class
 	 */
 	FAppStoreUtils* GetAppStoreUtils();
+
+public:
+	static NSString* GetPlayerId(GKPlayer* Player);
+	static NSString* GetPlayerId(GKLocalPlayer* Player);
 
 private:
 	

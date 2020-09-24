@@ -9,7 +9,7 @@
 /**
  * SetBoneTranslation is used to perform a change in the hierarchy by setting a single bone's Translation.
  */
-USTRUCT(meta=(DisplayName="Set Translation", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetBoneTranslation,SetPosition,SetLocation,SetBonePosition,SetBoneLocation"))
+USTRUCT(meta=(DisplayName="Set Translation", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetBoneTranslation,SetPosition,SetLocation,SetBonePosition,SetBoneLocation", Deprecated="4.25"))
 struct FRigUnit_SetBoneTranslation : public FRigUnitMutable
 {
 	GENERATED_BODY()
@@ -19,12 +19,10 @@ struct FRigUnit_SetBoneTranslation : public FRigUnitMutable
 		, Space(EBoneGetterSetterMode::LocalSpace)
 		, Weight(1.f)
 		, bPropagateToChildren(false)
-		, CachedBoneIndex(INDEX_NONE)
+		, CachedBone(FCachedRigElement())
 	{}
 
-	virtual FString GetUnitLabel() const override;
-
-	virtual FName DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
+	virtual FRigElementKey DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
 	{
 		if (InPinPath.StartsWith(TEXT("Translation")) && Space == EBoneGetterSetterMode::LocalSpace)
 		{
@@ -33,12 +31,12 @@ struct FRigUnit_SetBoneTranslation : public FRigUnitMutable
 				int32 BoneIndex = Container->BoneHierarchy.GetIndex(Bone);
 				if (BoneIndex != INDEX_NONE)
 				{
-					return Container->BoneHierarchy[BoneIndex].ParentName;
+					return Container->BoneHierarchy[BoneIndex].GetParentElementKey();
 				}
 
 			}
 		}
-		return NAME_None;
+		return FRigElementKey();
 	}
 
 	RIGVM_METHOD()
@@ -47,7 +45,7 @@ struct FRigUnit_SetBoneTranslation : public FRigUnitMutable
 	/**
 	 * The name of the Bone to set the Translation for.
 	 */
-	UPROPERTY(meta = (Input, CustomWidget = "BoneName", Constant))
+	UPROPERTY(meta = (Input))
 	FName Bone;
 
 	/**
@@ -78,6 +76,6 @@ struct FRigUnit_SetBoneTranslation : public FRigUnitMutable
 	bool bPropagateToChildren;
 
 	// Used to cache the internally used bone index
-	UPROPERTY()
-	int32 CachedBoneIndex;
+	UPROPERTY(transient)
+	FCachedRigElement CachedBone;
 };

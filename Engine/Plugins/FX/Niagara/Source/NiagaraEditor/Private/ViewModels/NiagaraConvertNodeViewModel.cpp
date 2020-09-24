@@ -285,8 +285,8 @@ void FNiagaraConvertNodeViewModel::RefreshPinViewModels()
 	InputPinViewModels.Empty();
 	OutputPinViewModels.Empty();
 
-	TArray<UEdGraphPin*> InputPins;
-	TArray<UEdGraphPin*> OutputPins;
+	FPinCollectorArray InputPins;
+	FPinCollectorArray OutputPins;
 	ConvertNode.GetInputPins(InputPins);
 	ConvertNode.GetOutputPins(OutputPins);
 

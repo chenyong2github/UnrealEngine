@@ -12,6 +12,7 @@
 #include "STrackVariantValueView.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "ObjectPropertiesTrack.h"
 
 #define LOCTEXT_NAMESPACE "GameplaySharedData"
 
@@ -19,6 +20,7 @@ FGameplaySharedData::FGameplaySharedData()
 	: AnalysisSession(nullptr)
 	, bObjectTracksDirty(false)
 	, bObjectTracksEnabled(false)
+	, bObjectPropertyTracksEnabled(true)
 {
 }
 
@@ -115,6 +117,25 @@ static void UpdateTrackOrderRecursive(TSharedRef<FBaseTimingTrack> InTrack, int3
 	}
 }
 
+void FGameplaySharedData::MakeTrackAndAncestorsVisible(const TSharedRef<FObjectEventsTrack>& InObjectEventsTrack, bool bInVisible)
+{
+	TSharedPtr<FObjectEventsTrack> CurrentTrack = InObjectEventsTrack;
+	while(CurrentTrack.IsValid())
+	{
+		CurrentTrack->SetVisibilityFlag(bInVisible);
+
+		FGameplayTrack* ParentGameplayTrack = CurrentTrack->GetGameplayTrack().GetParentTrack();
+		TSharedPtr<FBaseTimingTrack> BaseParentTrack = ParentGameplayTrack != nullptr ? ParentGameplayTrack->GetTimingTrack() : TSharedPtr<FBaseTimingTrack>();
+		if(BaseParentTrack.IsValid())
+		{
+			check(BaseParentTrack->Is<FObjectEventsTrack>());
+		}
+		CurrentTrack = StaticCastSharedPtr<FObjectEventsTrack>(BaseParentTrack);
+	}
+
+	InvalidateObjectTracksOrder();
+}
+
 void FGameplaySharedData::Tick(Insights::ITimingViewSession& InTimingViewSession, const Trace::IAnalysisSession& InAnalysisSession)
 {
 	AnalysisSession = &InAnalysisSession;
@@ -128,11 +149,34 @@ void FGameplaySharedData::Tick(Insights::ITimingViewSession& InTimingViewSession
 		// Add a track for each tracked object
 		GameplayProvider->EnumerateObjects([this, &InTimingViewSession, &InAnalysisSession, &GameplayProvider](const FObjectInfo& InObjectInfo)
 		{
-			GameplayProvider->ReadObjectEventsTimeline(InObjectInfo.Id, [this, &InTimingViewSession, &InAnalysisSession, &InObjectInfo](const IGameplayProvider::ObjectEventsTimeline& InTimeline)
+			GameplayProvider->ReadObjectEventsTimeline(InObjectInfo.Id, [this, &InTimingViewSession, &InAnalysisSession, &InObjectInfo, &GameplayProvider](const IGameplayProvider::ObjectEventsTimeline& InTimeline)
 			{
 				if(InTimeline.GetEventCount() > 0)
 				{
-					GetObjectEventsTrackForId(InTimingViewSession, InAnalysisSession, InObjectInfo);
+					TSharedRef<FObjectEventsTrack> ObjectEventsTrack = GetObjectEventsTrackForId(InTimingViewSession, InAnalysisSession, InObjectInfo);
+
+					GameplayProvider->ReadObjectPropertiesTimeline(InObjectInfo.Id, [this, &InObjectInfo, &ObjectEventsTrack, &InTimingViewSession, &GameplayProvider](const IGameplayProvider::ObjectPropertiesTimeline& InTimeline)
+					{
+						auto FindObjectProperties = [](const FBaseTimingTrack& InTrack)
+						{
+							return InTrack.Is<FObjectPropertiesTrack>();
+						};
+
+						TSharedPtr<FObjectPropertiesTrack> ExistingObjectPropertiesTrack = StaticCastSharedPtr<FObjectPropertiesTrack>(ObjectEventsTrack->GetGameplayTrack().FindChildTrack(InObjectInfo.Id, FindObjectProperties));
+						if(!ExistingObjectPropertiesTrack.IsValid())
+						{
+							TSharedPtr<FObjectPropertiesTrack> ObjectPropertiesTrack = MakeShared<FObjectPropertiesTrack>(*this, InObjectInfo.Id, InObjectInfo.Name);
+							ObjectPropertiesTrack->SetVisibilityFlag(bObjectPropertyTracksEnabled);
+							ObjectPropertyTracks.Add(ObjectPropertiesTrack.ToSharedRef());
+
+							InTimingViewSession.AddScrollableTrack(ObjectPropertiesTrack);
+							InvalidateObjectTracksOrder();
+
+							ObjectEventsTrack->GetGameplayTrack().AddChildTrack(ObjectPropertiesTrack->GetGameplayTrack());
+
+							MakeTrackAndAncestorsVisible(ObjectEventsTrack, true);
+						}
+					});
 				}
 			});
 		});
@@ -175,6 +219,18 @@ void FGameplaySharedData::ExtendFilterMenu(FMenuBuilder& InMenuBuilder)
 				FExecuteAction::CreateRaw(this, &FGameplaySharedData::ToggleGameplayTracks),
 				FCanExecuteAction(),
 				FIsActionChecked::CreateRaw(this, &FGameplaySharedData::AreGameplayTracksEnabled)),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+
+		InMenuBuilder.AddMenuEntry(
+			LOCTEXT("TogglePropertyTracks", "Property Tracks"),
+			LOCTEXT("TogglePropertyTracks_Tooltip", "Show/hide the object property tracks"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateRaw(this, &FGameplaySharedData::ToggleObjectPropertyTracks),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateRaw(this, &FGameplaySharedData::AreObjectPropertyTracksEnabled)),
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 		);
@@ -225,6 +281,21 @@ void FGameplaySharedData::ToggleGameplayTracks()
 bool FGameplaySharedData::AreGameplayTracksEnabled() const
 {
 	return bObjectTracksEnabled;
+}
+
+void FGameplaySharedData::ToggleObjectPropertyTracks()
+{
+	bObjectPropertyTracksEnabled = !bObjectPropertyTracksEnabled;
+
+	for(TSharedRef<FObjectPropertiesTrack>& ObjectPropertyTrack : ObjectPropertyTracks)
+	{
+		ObjectPropertyTrack->SetVisibilityFlag(bObjectPropertyTracksEnabled);
+	}
+}
+
+bool FGameplaySharedData::AreObjectPropertyTracksEnabled() const
+{
+	return bObjectPropertyTracksEnabled;
 }
 
 void FGameplaySharedData::EnumerateObjectTracks(TFunctionRef<void(const TSharedRef<FObjectEventsTrack>&)> InCallback) const

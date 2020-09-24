@@ -36,7 +36,8 @@
 #define ENUM_VK_ENTRYPOINTS_OPTIONAL_PLATFORM_INSTANCE(EnumMacro) \
 	EnumMacro(PFN_vkGetRefreshCycleDurationGOOGLE, vkGetRefreshCycleDurationGOOGLE) \
 	EnumMacro(PFN_vkGetPastPresentationTimingGOOGLE, vkGetPastPresentationTimingGOOGLE) \
-	EnumMacro(PFN_vkGetPhysicalDeviceProperties2KHR, vkGetPhysicalDeviceProperties2KHR)
+	EnumMacro(PFN_vkGetPhysicalDeviceProperties2KHR, vkGetPhysicalDeviceProperties2KHR) \
+	EnumMacro(PFN_vkGetPhysicalDeviceFeatures2KHR, vkGetPhysicalDeviceFeatures2KHR)
 
 // and now, include the GenericPlatform class
 #include "../VulkanGenericPlatform.h"
@@ -115,8 +116,6 @@ public:
 	// Does the platform allow a nullptr Pixelshader on the pipeline
 	static bool SupportsNullPixelShader() { return false; }
 
-	static bool RequiresRenderPassResolveAttachments() { return true; }
-
 	//#todo-rco: Detect Mali? Does the platform require depth to be written on stencil clear
 	static bool RequiresDepthWriteOnStencilClear() { return true; }
 
@@ -188,3 +187,27 @@ private:
 #endif //VULKAN_SUPPORTS_GOOGLE_DISPLAY_TIMING
 
 typedef FVulkanAndroidPlatform FVulkanPlatform;
+
+/* VK_QCOM_render_pass_transform */
+#ifndef VK_QCOM_render_pass_transform
+#define VK_QCOM_render_pass_transform 1
+#define VK_QCOM_RENDER_PASS_TRANSFORM_SPEC_VERSION 1
+#define VK_QCOM_RENDER_PASS_TRANSFORM_EXTENSION_NAME "VK_QCOM_render_pass_transform"
+#define VK_STRUCTURE_TYPE_RENDER_PASS_TRANSFORM_BEGIN_INFO_QCOM 1000282000
+#define VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_RENDER_PASS_TRANSFORM_INFO_QCOM 1000282001
+#define VK_RENDER_PASS_CREATE_TRANSFORM_BIT_QCOM 0x00000002
+typedef struct VkRenderPassTransformBeginInfoQCOM {
+	VkStructureType sType;
+	void* pNext;
+	VkSurfaceTransformFlagBitsKHR transform;
+} VkRenderPassTransformBeginInfoQCOM;
+
+typedef struct VkCommandBufferInheritanceRenderPassTransformInfoQCOM {
+	VkStructureType sType;
+	void* pNext;
+	VkSurfaceTransformFlagBitsKHR transform;
+	VkRect2D renderArea;
+} VkCommandBufferInheritanceRenderPassTransformInfoQCOM;
+
+#endif //VK_QCOM_render_pass_transform
+#define VULKAN_SUPPORTS_QCOM_RENDERPASS_TRANSFORM			1

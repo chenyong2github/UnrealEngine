@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ControlRigHierarchyModifier.h"
+#include "ControlRigBlueprint.h"
 
 UControlRigHierarchyModifier::UControlRigHierarchyModifier()
 {
@@ -50,6 +51,11 @@ void UControlRigHierarchyModifier::SetBone(const FRigBone& InElement)
 		{
 			Container->BoneHierarchy.Bones[Index] = InElement;
 			Container->BoneHierarchy.Initialize();
+
+			if (UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(GetOuter()))
+			{
+				Blueprint->PropagateHierarchyFromBPToInstances(true, true);
+			}
 		}
 	}
 }
@@ -65,7 +71,7 @@ FRigElementKey UControlRigHierarchyModifier::AddControl(
 {
 	if(Container != nullptr)
 	{
-		return Container->ControlHierarchy.Add(InNewName, InControlType, InParentName, InSpaceName, FRigControlValue(), InGizmoName, FTransform::Identity, InGizmoColor).GetElementKey();
+		return Container->ControlHierarchy.Add(InNewName, InControlType, InParentName, InSpaceName, FTransform::Identity, FRigControlValue(), InGizmoName, FTransform::Identity, InGizmoColor).GetElementKey();
 	}
 	return FRigElementKey();
 }
@@ -93,6 +99,186 @@ void UControlRigHierarchyModifier::SetControl(const FRigControl& InElement)
 		{
 			Container->ControlHierarchy.Controls[Index] = InElement;
 			Container->ControlHierarchy.Initialize();
+
+			if (UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(GetOuter()))
+			{
+				Blueprint->PropagateHierarchyFromBPToInstances(true, true);
+			}
+		}
+	}
+}
+
+bool UControlRigHierarchyModifier::GetControlValueBool(const FRigElementKey& InKey, ERigControlValueType InValueType)
+{
+	if (Container != nullptr && InKey.Type == ERigElementType::Control)
+	{
+		int32 Index = Container->GetIndex(InKey);
+		if (Index != INDEX_NONE)
+		{
+			return Container->ControlHierarchy.Controls[Index].GetValue(InValueType).Get<bool>();
+		}
+	}
+	return false;
+}
+
+int32 UControlRigHierarchyModifier::GetControlValueInt(const FRigElementKey& InKey, ERigControlValueType InValueType)
+{
+	if (Container != nullptr && InKey.Type == ERigElementType::Control)
+	{
+		int32 Index = Container->GetIndex(InKey);
+		if (Index != INDEX_NONE)
+		{
+			return Container->ControlHierarchy.Controls[Index].GetValue(InValueType).Get<int32>();
+		}
+	}
+	return 0;
+}
+
+float UControlRigHierarchyModifier::GetControlValueFloat(const FRigElementKey& InKey, ERigControlValueType InValueType)
+{
+	if (Container != nullptr && InKey.Type == ERigElementType::Control)
+	{
+		int32 Index = Container->GetIndex(InKey);
+		if (Index != INDEX_NONE)
+		{
+			return Container->ControlHierarchy.Controls[Index].GetValue(InValueType).Get<float>();
+		}
+	}
+	return 0.f;
+}
+
+FVector2D UControlRigHierarchyModifier::GetControlValueVector2D(const FRigElementKey& InKey, ERigControlValueType InValueType)
+{
+	if (Container != nullptr && InKey.Type == ERigElementType::Control)
+	{
+		int32 Index = Container->GetIndex(InKey);
+		if (Index != INDEX_NONE)
+		{
+			return Container->ControlHierarchy.Controls[Index].GetValue(InValueType).Get<FVector2D>();
+		}
+	}
+	return FVector2D::ZeroVector;
+}
+
+FVector UControlRigHierarchyModifier::GetControlValueVector(const FRigElementKey& InKey, ERigControlValueType InValueType)
+{
+	if (Container != nullptr && InKey.Type == ERigElementType::Control)
+	{
+		int32 Index = Container->GetIndex(InKey);
+		if (Index != INDEX_NONE)
+		{
+			return Container->ControlHierarchy.Controls[Index].GetValue(InValueType).Get<FVector>();
+		}
+	}
+	return FVector::ZeroVector;
+}
+
+FRotator UControlRigHierarchyModifier::GetControlValueRotator(const FRigElementKey& InKey, ERigControlValueType InValueType)
+{
+	if (Container != nullptr && InKey.Type == ERigElementType::Control)
+	{
+		int32 Index = Container->GetIndex(InKey);
+		if (Index != INDEX_NONE)
+		{
+			return Container->ControlHierarchy.Controls[Index].GetValue(InValueType).Get<FRotator>();
+		}
+	}
+	return FRotator::ZeroRotator;
+}
+
+FTransform UControlRigHierarchyModifier::GetControlValueTransform(const FRigElementKey& InKey, ERigControlValueType InValueType)
+{
+	if (Container != nullptr && InKey.Type == ERigElementType::Control)
+	{
+		int32 Index = Container->GetIndex(InKey);
+		if (Index != INDEX_NONE)
+		{
+			return Container->ControlHierarchy.Controls[Index].GetTransformFromValue(InValueType);
+		}
+	}
+	return FTransform::Identity;
+}
+
+void UControlRigHierarchyModifier::SetControlValueBool(const FRigElementKey& InKey, bool InValue, ERigControlValueType InValueType)
+{
+	if (Container != nullptr && InKey.Type == ERigElementType::Control)
+	{
+		int32 Index = Container->GetIndex(InKey);
+		if (Index != INDEX_NONE)
+		{
+			Container->ControlHierarchy.Controls[Index].GetValue(InValueType).Set<bool>(InValue);
+		}
+	}
+}
+
+void UControlRigHierarchyModifier::SetControlValueInt(const FRigElementKey& InKey, int32 InValue, ERigControlValueType InValueType)
+{
+	if (Container != nullptr && InKey.Type == ERigElementType::Control)
+	{
+		int32 Index = Container->GetIndex(InKey);
+		if (Index != INDEX_NONE)
+		{
+			Container->ControlHierarchy.Controls[Index].GetValue(InValueType).Set<int32>(InValue);
+		}
+	}
+}
+
+void UControlRigHierarchyModifier::SetControlValueFloat(const FRigElementKey& InKey, float InValue, ERigControlValueType InValueType)
+{
+	if (Container != nullptr && InKey.Type == ERigElementType::Control)
+	{
+		int32 Index = Container->GetIndex(InKey);
+		if (Index != INDEX_NONE)
+		{
+			Container->ControlHierarchy.Controls[Index].GetValue(InValueType).Set<float>(InValue);
+		}
+	}
+}
+
+void UControlRigHierarchyModifier::SetControlValueVector2D(const FRigElementKey& InKey, FVector2D InValue, ERigControlValueType InValueType)
+{
+	if (Container != nullptr && InKey.Type == ERigElementType::Control)
+	{
+		int32 Index = Container->GetIndex(InKey);
+		if (Index != INDEX_NONE)
+		{
+			Container->ControlHierarchy.Controls[Index].GetValue(InValueType).Set<FVector2D>(InValue);
+		}
+	}
+}
+
+void UControlRigHierarchyModifier::SetControlValueVector(const FRigElementKey& InKey, FVector InValue, ERigControlValueType InValueType)
+{
+	if (Container != nullptr && InKey.Type == ERigElementType::Control)
+	{
+		int32 Index = Container->GetIndex(InKey);
+		if (Index != INDEX_NONE)
+		{
+			Container->ControlHierarchy.Controls[Index].GetValue(InValueType).Set<FVector>(InValue);
+		}
+	}
+}
+
+void UControlRigHierarchyModifier::SetControlValueRotator(const FRigElementKey& InKey, FRotator InValue, ERigControlValueType InValueType)
+{
+	if (Container != nullptr && InKey.Type == ERigElementType::Control)
+	{
+		int32 Index = Container->GetIndex(InKey);
+		if (Index != INDEX_NONE)
+		{
+			Container->ControlHierarchy.Controls[Index].GetValue(InValueType).Set<FRotator>(InValue);
+		}
+	}
+}
+
+void UControlRigHierarchyModifier::SetControlValueTransform(const FRigElementKey& InKey, FTransform InValue, ERigControlValueType InValueType)
+{
+	if (Container != nullptr && InKey.Type == ERigElementType::Control)
+	{
+		int32 Index = Container->GetIndex(InKey);
+		if (Index != INDEX_NONE)
+		{
+			Container->ControlHierarchy.Controls[Index].SetValueFromTransform(InValue, InValueType);
 		}
 	}
 }
@@ -133,6 +319,11 @@ void UControlRigHierarchyModifier::SetSpace(const FRigSpace& InElement)
 		{
 			Container->SpaceHierarchy.Spaces[Index] = InElement;
 			Container->SpaceHierarchy.Initialize();
+
+			if (UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(GetOuter()))
+			{
+				Blueprint->PropagateHierarchyFromBPToInstances(true, true);
+			}
 		}
 	}
 }
@@ -168,6 +359,11 @@ void UControlRigHierarchyModifier::SetCurve(const FRigCurve& InElement)
 		{
 			Container->CurveContainer.Curves[Index] = InElement;
 			Container->CurveContainer.Initialize();
+
+			if (UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(GetOuter()))
+			{
+				Blueprint->PropagateHierarchyFromBPToInstances(true, true);
+			}
 		}
 	}
 }

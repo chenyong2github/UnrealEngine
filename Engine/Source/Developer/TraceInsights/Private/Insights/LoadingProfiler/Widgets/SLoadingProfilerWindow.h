@@ -24,7 +24,7 @@ class STimingView;
 
 namespace Insights
 {
-	class STableTreeView;
+	class SUntypedTableTreeView;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -38,6 +38,7 @@ struct FLoadingProfilerTabs
 	static const FName ObjectTypeAggregationTreeViewID;
 	static const FName PackageDetailsTreeViewID;
 	static const FName ExportDetailsTreeViewID;
+	static const FName RequestsTreeViewID;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -61,6 +62,7 @@ public:
 	void UpdateObjectTypeAggregationTreeView();
 	void UpdatePackageDetailsTreeView();
 	void UpdateExportDetailsTreeView();
+	void UpdateRequestsTreeView();
 
 	/** Constructs this widget. */
 	void Construct(const FArguments& InArgs, const TSharedRef<SDockTab>& ConstructUnderMajorTab, const TSharedPtr<SWindow>& ConstructUnderWindow);
@@ -72,10 +74,11 @@ public:
 	TSharedPtr<FTabManager> GetTabManager() const { return TabManager; }
 
 	TSharedPtr<STimingView> GetTimingView() const { return TimingView; }
-	TSharedPtr<Insights::STableTreeView> GetEventAggregationTreeView() const { return EventAggregationTreeView; }
-	TSharedPtr<Insights::STableTreeView> GetObjectTypeAggregationTreeView() const { return ObjectTypeAggregationTreeView; }
-	TSharedPtr<Insights::STableTreeView> GetPackageDetailsTreeView() const { return PackageDetailsTreeView; }
-	TSharedPtr<Insights::STableTreeView> GetExportDetailsTreeView() const { return ExportDetailsTreeView; }
+	TSharedPtr<Insights::SUntypedTableTreeView> GetEventAggregationTreeView() const { return EventAggregationTreeView; }
+	TSharedPtr<Insights::SUntypedTableTreeView> GetObjectTypeAggregationTreeView() const { return ObjectTypeAggregationTreeView; }
+	TSharedPtr<Insights::SUntypedTableTreeView> GetPackageDetailsTreeView() const { return PackageDetailsTreeView; }
+	TSharedPtr<Insights::SUntypedTableTreeView> GetExportDetailsTreeView() const { return ExportDetailsTreeView; }
+	TSharedPtr<Insights::SUntypedTableTreeView> GetRequestsTreeView() const { return RequestsTreeView; }
 
 private:
 	TSharedRef<SDockTab> SpawnTab_Toolbar(const FSpawnTabArgs& Args);
@@ -95,6 +98,9 @@ private:
 
 	TSharedRef<SDockTab> SpawnTab_ExportDetailsTreeView(const FSpawnTabArgs& Args);
 	void OnExportDetailsTreeViewTabClosed(TSharedRef<SDockTab> TabBeingClosed);
+
+	TSharedRef<SDockTab> SpawnTab_RequestsTreeView(const FSpawnTabArgs& Args);
+	void OnRequestsTreeViewTabClosed(TSharedRef<SDockTab> TabBeingClosed);
 
 	/**
 	 * Fill the main menu with menu items.
@@ -172,16 +178,19 @@ private:
 	TSharedPtr<STimingView> TimingView;
 
 	/** The Event Aggregation tree view widget */
-	TSharedPtr<Insights::STableTreeView> EventAggregationTreeView;
+	TSharedPtr<Insights::SUntypedTableTreeView> EventAggregationTreeView;
 
 	/** The Object Type Aggregation tree view widget */
-	TSharedPtr<Insights::STableTreeView> ObjectTypeAggregationTreeView;
+	TSharedPtr<Insights::SUntypedTableTreeView> ObjectTypeAggregationTreeView;
 
 	/** The Package Details tree view widget */
-	TSharedPtr<Insights::STableTreeView> PackageDetailsTreeView;
+	TSharedPtr<Insights::SUntypedTableTreeView> PackageDetailsTreeView;
 
 	/** The Export Details tree view widget */
-	TSharedPtr<Insights::STableTreeView> ExportDetailsTreeView;
+	TSharedPtr<Insights::SUntypedTableTreeView> ExportDetailsTreeView;
+
+	/** The Requests tree view widget */
+	TSharedPtr<Insights::SUntypedTableTreeView> RequestsTreeView;
 
 	/** Holds the tab manager that manages the front-end's tabs. */
 	TSharedPtr<FTabManager> TabManager;

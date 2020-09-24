@@ -53,6 +53,8 @@ public:
 	void SendDisconnectPlayer(uint32 PlayerId, const FString& Reason);
 
 private:
+	void KeepAlive();
+
 	void OnConnected();
 	void OnConnectionError(const FString& Error);
 	void OnClosed(int32 StatusCode, const FString& Reason, bool bWasClean);
@@ -74,6 +76,10 @@ private:
 	FDelegateHandle OnConnectionErrorHandle;
 	FDelegateHandle OnClosedHandle;
 	FDelegateHandle OnMessageHandle;
+
+	/** Handle for efficient management of KeepAlive timer */
+	FTimerHandle TimerHandle_KeepAlive;
+	const float KEEP_ALIVE_INTERVAL = 60.0f;
 
 	TSharedPtr<IWebSocket> WS;
 };

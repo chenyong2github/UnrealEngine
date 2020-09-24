@@ -392,7 +392,7 @@ void RenderRadiosityProbes(
 		ProbeAtlasSizeInProbes.X * RadiosityProbeResolution,
 		ProbeAtlasSizeInProbes.Y * RadiosityProbeResolution);
 
-	FRDGTextureRef RadiosityProbeLightingAtlas = GraphBuilder.CreateTexture(FPooledRenderTargetDesc::Create2DDesc(ProbeAtlasSize, PF_FloatR11G11B10, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_UAV, false), TEXT("RadiosityProbeLightingAtlas"));
+	FRDGTextureRef RadiosityProbeLightingAtlas = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(ProbeAtlasSize, PF_FloatR11G11B10, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV), TEXT("RadiosityProbeLightingAtlas"));
 
 	{
 		FTraceProbeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTraceProbeCS::FParameters>();
@@ -422,7 +422,7 @@ void RenderRadiosityProbes(
 		ProbeAtlasSizeInProbes.X * RadiosityComposedProbeResolution,
 		ProbeAtlasSizeInProbes.Y * RadiosityComposedProbeResolution);
 
-	FRDGTextureRef RadiosityComposedProbeLightingAtlas = GraphBuilder.CreateTexture(FPooledRenderTargetDesc::Create2DDesc(ComposedProbeAtlasSize, PF_FloatR11G11B10, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_UAV, false), TEXT("RadiosityComposedProbeLightingAtlas"));
+	FRDGTextureRef RadiosityComposedProbeLightingAtlas = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(ComposedProbeAtlasSize, PF_FloatR11G11B10, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV), TEXT("RadiosityComposedProbeLightingAtlas"));
 
 	{
 		FComposeRadiosityProbesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FComposeRadiosityProbesCS::FParameters>();
@@ -739,14 +739,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardRadiosity, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FRasterizeToCardsVS::FParameters, VS)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardRadiosityPS::FParameters, PS)
 	RENDER_TARGET_BINDING_SLOTS()
-END_SHADER_PARAMETER_STRUCT()
-
-BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardRadiosityUpload, )
-	SHADER_PARAMETER_RDG_BUFFER_UPLOAD(Buffer<uint2>, CardQueryInfo)
-END_SHADER_PARAMETER_STRUCT()
-
-BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardRadiosityUpload2, )
-	SHADER_PARAMETER_RDG_BUFFER_UPLOAD(Buffer<uint4>, BVHQueryInfo)
 END_SHADER_PARAMETER_STRUCT()
 
 void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(

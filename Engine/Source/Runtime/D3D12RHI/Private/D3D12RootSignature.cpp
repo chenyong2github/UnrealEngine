@@ -8,6 +8,10 @@
 #include "D3D12RootSignatureDefinitions.h"
 #include "RayTracingBuiltInResources.h"
 
+#ifndef FD3D12_ROOT_SIGNATURE_FLAG_GLOBAL_ROOT_SIGNATURE
+#define FD3D12_ROOT_SIGNATURE_FLAG_GLOBAL_ROOT_SIGNATURE D3D12_ROOT_SIGNATURE_FLAG_NONE
+#endif
+
 #if !PLATFORM_CPU_ARM_FAMILY && (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "amd_ags.h"
@@ -265,6 +269,10 @@ FD3D12RootSignatureDesc::FD3D12RootSignatureDesc(const FD3D12QuantizedBoundShade
 	if (QBSS.RootSignatureType == RS_RayTracingLocal)
 	{
 		Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
+	}
+	else if(QBSS.RootSignatureType == RS_RayTracingGlobal)
+	{
+		Flags = FD3D12_ROOT_SIGNATURE_FLAG_GLOBAL_ROOT_SIGNATURE;
 	}
 	else if (QBSS.RootSignatureType == RS_Raster)
 #endif // D3D12_RHI_RAYTRACING

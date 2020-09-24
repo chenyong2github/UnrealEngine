@@ -23,6 +23,8 @@ struct CONTROLRIG_API FControlRigDrawContainer
 	FORCEINLINE TArray<FControlRigDrawInstruction>::RangedForIteratorType      end() { return Instructions.end(); }
 	FORCEINLINE TArray<FControlRigDrawInstruction>::RangedForConstIteratorType end() const { return Instructions.end(); }
 
+	FORCEINLINE uint32 GetAllocatedSize(void) const { return Instructions.GetAllocatedSize(); }
+
 	void Reset();
 
 	UPROPERTY(EditAnywhere, Category = "DrawContainer")

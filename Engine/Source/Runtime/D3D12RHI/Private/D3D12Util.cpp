@@ -267,13 +267,13 @@ static void LogBreadcrumbData(ID3D12Device* Device)
 	bool bValidData = true;
 
 	// Check all the devices
-	FD3D12DynamicRHI* D3D12RHI = (FD3D12DynamicRHI*)GDynamicRHI;
+	FD3D12DynamicRHI* D3D12RHI = FD3D12DynamicRHI::GetD3DRHI();
 	D3D12RHI->ForEachDevice(Device, [&](FD3D12Device* Device)
-		{
+	{
 		bValidData = bValidData && LogBreadcrumbData(Device->GetGPUProfiler(), Device->GetCommandListManager());
 		bValidData = bValidData && LogBreadcrumbData(Device->GetGPUProfiler(), Device->GetAsyncCommandListManager());
 		bValidData = bValidData && LogBreadcrumbData(Device->GetGPUProfiler(), Device->GetCopyCommandListManager());
-		});
+	});
 
 	if (!bValidData)
 	{
@@ -461,7 +461,7 @@ static bool LogDREDData(ID3D12Device* Device)
 						}
 
 						const TCHAR* OpName = (BreadcrumbOp < UE_ARRAY_COUNT(OpNames)) ? OpNames[BreadcrumbOp] : TEXT("Unknown Op");
-						UE_LOG(LogD3D12RHI, Error, TEXT("\tOp: %d, %s%s%s"), Op, OpName, *ContextStr, (Op + 1 == LastCompletedOp) ? TEXT(" - Last completed") : TEXT(""));
+						UE_LOG(LogD3D12RHI, Error, TEXT("\tOp: %d, %s%s%s"), Op, OpName, *ContextStr, (Op + 1 == LastCompletedOp) ? TEXT(" - LAST COMPLETED") : TEXT(""));
 					}
 				}
 
@@ -567,7 +567,7 @@ namespace D3D12RHI
 		// Log RHI independent breadcrumbing data
 		LogBreadcrumbData(InDevice);
 
-		FD3D12DynamicRHI* D3D12RHI = (FD3D12DynamicRHI*)GDynamicRHI;
+		FD3D12DynamicRHI* D3D12RHI = FD3D12DynamicRHI::GetD3DRHI();
 #if PLATFORM_WINDOWS
 		// If no device provided then try and log the DRED status of each device
 		D3D12RHI->ForEachDevice(InDevice, [&](FD3D12Device* IterationDevice)
@@ -609,16 +609,18 @@ namespace D3D12RHI
 		GLog->Flush();
 
 		// Show message box or trace information
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		if (!FApp::IsUnattended() && !IsDebuggerPresent())
 		{
 			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *ErrorMessage.ToText().ToString(), TEXT("Error"));
 		}
 		else
+#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		{
 			UE_LOG(LogD3D12RHI, Error, TEXT("%s"), *ErrorMessage.ToText().ToString());
 		}
 
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+#if PLATFORM_WINDOWS
 		// If we have crash dump data then dump to disc
 		if (InGPUCrashDump != nullptr)
 		{
@@ -635,8 +637,11 @@ namespace D3D12RHI
 
 			// Report the GPU crash which will raise the exception (only interesting if we have a GPU dump)
 			ReportGPUCrash(TEXT("Aftermath GPU Crash dump Triggered"), 0);
+
+			// Force shutdown, we can't do anything useful anymore.
+			FPlatformMisc::RequestExit(true);
 		}
-#endif // PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+#endif // PLATFORM_WINDOWS
 
 		// hard break here when the debugger is attached
 		if (IsDebuggerPresent())
@@ -651,15 +656,14 @@ namespace D3D12RHI
 
 		const FString& ErrorString = GetD3D12ErrorString(D3DResult, Device);
 		UE_LOG(LogD3D12RHI, Error, TEXT("%s failed \n at %s:%u \n with error %s\n%s"), ANSI_TO_TCHAR(Code), ANSI_TO_TCHAR(Filename), Line, *ErrorString, *Message);
-
-		// Terminate with device removed or hung then try and get the current GPU state and dump to log
-		if (D3DResult == DXGI_ERROR_DEVICE_REMOVED || D3DResult == DXGI_ERROR_DEVICE_HUNG)
-		{	 
-			TerminateOnGPUCrash(Device, nullptr, 0);
-		}
-		else if (D3DResult == E_OUTOFMEMORY)
+		
+		if (D3DResult == E_OUTOFMEMORY)
 		{
 			TerminateOnOutOfMemory(D3DResult, false);
+		}
+		else
+		{
+			TerminateOnGPUCrash(Device, nullptr, 0);
 		}
 
 		// Make sure the log is flushed!

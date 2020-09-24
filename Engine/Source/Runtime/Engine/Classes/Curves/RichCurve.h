@@ -56,6 +56,9 @@ enum ERichCurveCompressionFormat
 
 	/** Keys use mixed interpolation modes */
 	RCCF_Mixed UMETA(DisplayName = "Mixed"),
+
+	/** Keys use weighted interpolation modes */
+	RCCF_Weighted UMETA(DisplayName = "Weighted"),
 };
 
 /** Enumerates key time compression options. */

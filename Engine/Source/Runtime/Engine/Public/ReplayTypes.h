@@ -27,6 +27,8 @@ enum class EReplayHeaderFlags : uint32
 
 ENUM_CLASS_FLAGS(EReplayHeaderFlags);
 
+const TCHAR* LexToString(EReplayHeaderFlags Flag);
+
 enum class EWriteDemoFrameFlags : uint32
 {
 	None = 0,

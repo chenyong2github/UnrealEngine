@@ -152,7 +152,7 @@ public:
 	/**
 	 * Update all auto-generated easing curves for all sections in this track
 	 */
-	MOVIESCENE_API void UpdateEasing();
+	MOVIESCENE_API virtual void UpdateEasing();
 
 protected:
 
@@ -169,6 +169,12 @@ protected:
 	bool bIsEvalDisabled;
 
 public:
+
+	/**
+	 * Run the pre-compilation step for this track.
+	 * This method is called by the sequence compiler and is not meant to be called by 3rd party code.
+	 */
+	void PreCompile();
 
 	/**
 	 * Retrieve a fully up-to-date evaluation field for this track.
@@ -200,10 +206,14 @@ protected:
 
 private:
 
+	/** Sub-classes can override this method to perforum custom evaluation tree population logic. */
 	virtual bool PopulateEvaluationTree(TMovieSceneEvaluationTree<FMovieSceneTrackEvaluationData>& OutData) const
 	{
 		return false;
 	}
+
+	/** Sub-classes can override this method to perform custom pre-compilation logic. */
+	virtual void PreCompileImpl() {}
 
 private:
 
@@ -420,5 +430,6 @@ public:
 	 * @param Section The section that moved.
 	 */
 	virtual void OnSectionMoved(UMovieSceneSection& Section, const FMovieSceneSectionMovedParams& Params) {}
-#endif
+
+	#endif
 };

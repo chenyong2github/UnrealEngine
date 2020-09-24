@@ -432,23 +432,6 @@ static void ParseRayTracingEntryPoint(const FString& Input, FString& OutMain, FS
 	}
 }
 
-static bool IsUsingTessellation(const FShaderCompilerInput& Input)
-{
-	switch (Input.Target.GetFrequency())
-	{
-	case SF_Vertex:
-	{
-		const FString* UsingTessellationDefine = Input.Environment.GetDefinitions().Find(TEXT("USING_TESSELLATION"));
-		return (UsingTessellationDefine != nullptr && *UsingTessellationDefine == TEXT("1"));
-	}
-	case SF_Hull:
-	case SF_Domain:
-		return true;
-	default:
-		return false;
-	}
-}
-
 static ShaderConductor::Compiler::ShaderModel ToDXCShaderModel(ELanguage Language)
 {
 	switch (Language)
@@ -513,7 +496,7 @@ static bool RewriteUsingSC(FString& PreprocessedShaderSource, const FShaderCompi
 	bool bDumpDebugInfo, ELanguage Language, FShaderCompilerOutput& Output)
 {
 	bool bResult = true;
-	const bool bUsingTessellation = IsUsingTessellation(Input);
+	const bool bUsingTessellation = Input.IsUsingTessellation();
 	if (bUsingTessellation || bIsRayTracingShader)
 	{
 		bResult = false;
@@ -592,7 +575,7 @@ static bool RewriteUsingSC(FString& PreprocessedShaderSource, const FShaderCompi
 
 			if (bDumpDebugInfo)
 			{
-				DumpDebugUSF(Input, CStrSourceData.c_str(), (int32)CStrSourceData.length(), 0, GRewrittenBaseFilename);
+				DumpDebugUSF(Input, CStrSourceData.c_str(), 0, GRewrittenBaseFilename);
 			}
 		}
 

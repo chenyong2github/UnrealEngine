@@ -764,7 +764,7 @@ void ScreenProbeTemporalReprojectionDepthRejectionPS(
 	float2 ScreenUV = SVPosition.xy * View.BufferSizeAndInvSize.zw;
 	float2 ScreenPosition = (ScreenUV.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
 
-	float DeviceZ = Texture2DSampleLevel(SceneTexturesStruct.SceneDepthTexture, SceneTexturesStruct.SceneDepthTextureSampler, ScreenUV, 0).r;
+	float DeviceZ = Texture2DSampleLevel(SceneTexturesStruct.SceneDepthTexture, SceneTexturesStruct_SceneDepthTextureSampler, ScreenUV, 0).r;
 	float SceneDepth = ConvertFromDeviceZ(DeviceZ);
 
 	float3 HistoryScreenPosition = float3(ScreenPosition, DeviceZ);
@@ -775,7 +775,7 @@ void ScreenProbeTemporalReprojectionDepthRejectionPS(
 		float4 PrevClip = mul(ThisClip, View.ClipToPrevClip);
 		float3 PrevScreen = PrevClip.xyz / PrevClip.w;
 		float3 Velocity = HistoryScreenPosition - PrevScreen;
-		float3 EncodedVelocity = VelocityTexture.SampleLevel(GlobalPointClampedSampler, ScreenUV, 0).xyz;
+		float4 EncodedVelocity = VelocityTexture.SampleLevel(GlobalPointClampedSampler, ScreenUV, 0);
 		bIsDynamicPixel = EncodedVelocity.x > 0.0;
 
 		if (bIsDynamicPixel)

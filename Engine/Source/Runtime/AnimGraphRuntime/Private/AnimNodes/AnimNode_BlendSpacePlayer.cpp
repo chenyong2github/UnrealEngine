@@ -85,7 +85,7 @@ void FAnimNode_BlendSpacePlayer::UpdateInternal(const FAnimationUpdateContext& C
 	{
 		// Create a tick record and fill it out
 		FAnimGroupInstance* SyncGroup;
-		FAnimTickRecord& TickRecord = Context.AnimInstanceProxy->CreateUninitializedTickRecord(GroupIndex, /*out*/ SyncGroup);
+		FAnimTickRecord& TickRecord = Context.AnimInstanceProxy->CreateUninitializedTickRecordInScope(GroupIndex, GroupScope, /*out*/ SyncGroup);
 
 		const FVector BlendInput(X, Y, Z);
 	
@@ -126,7 +126,8 @@ void FAnimNode_BlendSpacePlayer::Evaluate_AnyThread(FPoseContext& Output)
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
 	if ((BlendSpace != NULL) && (Output.AnimInstanceProxy->IsSkeletonCompatible(BlendSpace->GetSkeleton())))
 	{
-		BlendSpace->GetAnimationPose(BlendSampleDataCache, Output.Pose, Output.Curve);
+		FAnimationPoseData AnimationPoseData(Output);
+		BlendSpace->GetAnimationPose(BlendSampleDataCache, AnimationPoseData);
 	}
 	else
 	{

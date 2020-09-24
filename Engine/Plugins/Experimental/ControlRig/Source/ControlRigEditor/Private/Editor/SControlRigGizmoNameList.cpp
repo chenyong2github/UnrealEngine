@@ -8,6 +8,7 @@
 #include "ScopedTransaction.h"
 #include "DetailLayoutBuilder.h"
 #include "ControlRigBlueprint.h"
+#include "ControlRig.h"
 
 void SControlRigGizmoNameList::Construct(const FArguments& InArgs, FRigControl* InControl, UControlRigBlueprint* InBlueprint)
 {
@@ -71,13 +72,34 @@ void SControlRigGizmoNameList::SetNameListText(const FText& NewTypeInValue, ETex
 	if (ControlIndex != INDEX_NONE)
 	{
 		FName NewName = *NewTypeInValue.ToString();
-		FRigControl& Control = Blueprint->HierarchyContainer.ControlHierarchy[ControlIndex];
+
+		bool bIsOnInstance = false;
+		FRigHierarchyContainer* Container = &Blueprint->HierarchyContainer;
+		UControlRig* DebuggedControlRig = Cast<UControlRig>(Blueprint->GetObjectBeingDebugged());
+
+		if (DebuggedControlRig)
+		{
+			if (!DebuggedControlRig->IsSetupModeEnabled())
+			{
+				Container = DebuggedControlRig->GetHierarchy();
+				bIsOnInstance = true;
+			}
+		}
+
+		FRigControl& Control = Container->ControlHierarchy[ControlIndex];
 		if (Control.GizmoName != NewName)
 		{
 			const FScopedTransaction Transaction(NSLOCTEXT("ControlRigEditor", "ChangeGizmoName", "Change Gizmo Name"));
 			Blueprint->Modify();
 			Control.GizmoName = NewName;
+
+			if (bIsOnInstance && DebuggedControlRig)
+			{
+				Blueprint->PropagatePropertyFromInstanceToBP(ControlKey, FRigControl::StaticStruct()->FindPropertyByName(TEXT("GizmoName")), DebuggedControlRig);
+			}
+
 			Blueprint->PropagatePropertyFromBPToInstances(ControlKey, FRigControl::StaticStruct()->FindPropertyByName(TEXT("GizmoName")));
+
 			Blueprint->HierarchyContainer.ControlHierarchy.OnControlUISettingsChanged.Broadcast(&Blueprint->HierarchyContainer, ControlKey);
 		}
 	}

@@ -88,7 +88,7 @@ class FScreenProbeComputeBRDFProbabilityDensityFunctionCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RWBRDFProbabilityDensityFunction)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float>, RWBRDFProbabilityDensityFunctionSH)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_STRUCT_REF(FSceneTexturesUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -194,7 +194,7 @@ void GenerateImportanceSamplingRays(
 	ScreenProbeParameters.ImportanceSampling.ScreenProbeBRDFOctahedronResolution = BRDFOctahedronResolution;
 
 	FIntPoint PDFBufferSize = ScreenProbeParameters.ScreenProbeAtlasBufferSize * BRDFOctahedronResolution;
-	FPooledRenderTargetDesc BRDFProbabilityDensityFunctionDesc(FPooledRenderTargetDesc::Create2DDesc(PDFBufferSize, PF_R16F, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_UAV, false));
+	FRDGTextureDesc BRDFProbabilityDensityFunctionDesc(FRDGTextureDesc::Create2D(PDFBufferSize, PF_R16F, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
 	FRDGTextureRef BRDFProbabilityDensityFunction = GraphBuilder.CreateTexture(BRDFProbabilityDensityFunctionDesc, TEXT("BRDFProbabilityDensityFunction"));
 	
 	const int32 BRDF_SHBufferSize = ScreenProbeParameters.ScreenProbeAtlasBufferSize.X * ScreenProbeParameters.ScreenProbeAtlasBufferSize.Y * 9;
@@ -206,7 +206,7 @@ void GenerateImportanceSamplingRays(
 		PassParameters->RWBRDFProbabilityDensityFunction = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(BRDFProbabilityDensityFunction));
 		PassParameters->RWBRDFProbabilityDensityFunctionSH = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(BRDFProbabilityDensityFunctionSH, PF_R16F));
 		PassParameters->View = View.ViewUniformBuffer;
-		PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBufferSingleDraw(GraphBuilder.RHICmdList, ESceneTextureSetupMode::All, View.FeatureLevel);
+		PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder, View.FeatureLevel);
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 
 		auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeComputeBRDFProbabilityDensityFunctionCS>(0);
@@ -227,7 +227,7 @@ void GenerateImportanceSamplingRays(
 	if (bImportanceSampleLighting)
 	{
 		FIntPoint LightingProbabilityDensityFunctionBufferSize = ScreenProbeParameters.ScreenProbeAtlasBufferSize * ScreenProbeParameters.ScreenProbeTracingOctahedronResolution;
-		FPooledRenderTargetDesc LightingProbabilityDensityFunctionDesc(FPooledRenderTargetDesc::Create2DDesc(LightingProbabilityDensityFunctionBufferSize, PF_R16F, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_UAV, false));
+		FRDGTextureDesc LightingProbabilityDensityFunctionDesc(FRDGTextureDesc::Create2D(LightingProbabilityDensityFunctionBufferSize, PF_R16F, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
 		LightingProbabilityDensityFunction = GraphBuilder.CreateTexture(LightingProbabilityDensityFunctionDesc, TEXT("LightingProbabilityDensityFunction"));
 
 		FScreenProbeGatherTemporalState& ScreenProbeGatherState = View.ViewState->Lumen.ScreenProbeGatherState;
@@ -261,16 +261,15 @@ void GenerateImportanceSamplingRays(
 					(ScreenProbeGatherState.ImportanceSamplingHistoryViewRect.Max.X - 0.5f) * InvBufferSize.X,
 					(ScreenProbeGatherState.ImportanceSamplingHistoryViewRect.Max.Y - 0.5f) * InvBufferSize.Y);
 
-				FSceneTextureParameters SceneTextures;
-				SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
+				FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
 
 				// Fallback to a black texture if no velocity.
-				if (!SceneTextures.SceneVelocityBuffer)
+				if (!SceneTextures.GBufferVelocityTexture)
 				{
-					SceneTextures.SceneVelocityBuffer = GSystemTextures.GetBlackDummy(GraphBuilder);
+					SceneTextures.GBufferVelocityTexture = GSystemTextures.GetBlackDummy(GraphBuilder);
 				}
 
-				PassParameters->VelocityTexture = SceneTextures.SceneVelocityBuffer;
+				PassParameters->VelocityTexture = SceneTextures.GBufferVelocityTexture;
 
 				PassParameters->ImportanceSamplingHistoryDistanceThreshold = GLumenScreenProbeImportanceSamplingHistoryDistanceThreshold;
 				PassParameters->HistoryScreenProbeRadiance = GraphBuilder.RegisterExternalTexture(ScreenProbeGatherState.ImportanceSamplingHistoryScreenProbeRadiance);
@@ -298,11 +297,11 @@ void GenerateImportanceSamplingRays(
 	}
 
 	FIntPoint RayInfosForTracingBufferSize = ScreenProbeParameters.ScreenProbeAtlasBufferSize * ScreenProbeParameters.ScreenProbeTracingOctahedronResolution;
-	FPooledRenderTargetDesc StructuredImportanceSampledRayInfosForTracingDesc(FPooledRenderTargetDesc::Create2DDesc(RayInfosForTracingBufferSize, PF_R16_UINT, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_UAV, false));
+	FRDGTextureDesc StructuredImportanceSampledRayInfosForTracingDesc(FRDGTextureDesc::Create2D(RayInfosForTracingBufferSize, PF_R16_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
 	ScreenProbeParameters.ImportanceSampling.StructuredImportanceSampledRayInfosForTracing = GraphBuilder.CreateTexture(StructuredImportanceSampledRayInfosForTracingDesc, TEXT("RayInfosForTracing"));
 
 	FIntPoint RayCoordForCompositeBufferSize = ScreenProbeParameters.ScreenProbeAtlasBufferSize * MaxImportanceSamplingOctahedronResolution;
-	FPooledRenderTargetDesc StructuredImportanceSampledRayCoordForCompositeDesc(FPooledRenderTargetDesc::Create2DDesc(RayCoordForCompositeBufferSize, PF_R8G8, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_UAV, false));
+	FRDGTextureDesc StructuredImportanceSampledRayCoordForCompositeDesc(FRDGTextureDesc::Create2D(RayCoordForCompositeBufferSize, PF_R8G8, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
 	ScreenProbeParameters.ImportanceSampling.StructuredImportanceSampledRayCoordForComposite = GraphBuilder.CreateTexture(StructuredImportanceSampledRayCoordForCompositeDesc, TEXT("RayCoordForComposite"));
 
 	{

@@ -1039,6 +1039,46 @@ class ENGINE_API UEdGraphSchema : public UObject
 	virtual FPinConnectionResponse CanCreateNewNodes(UEdGraphPin* InSourcePin) const { return FPinConnectionResponse(); }
 
 	/**
+	 * Check whether variables can be dropped onto the graph
+	 * @param	InGraph The graph the drop is subject of
+	 * @param	InVariableToDrop The variable we want to drop
+	 * @return the response to rejection or allowing the drop
+	 */
+	virtual bool CanVariableBeDropped(UEdGraph* InGraph, FProperty* InVariableToDrop) const { return false; }
+
+	/**
+	 * Request to drop a variable on a panel
+	 * @param	InGraph The graph the drop is subject of
+	 * @param	InVariableToDrop The variable we want to drop
+	 * @param	InDropPosition The position inside of the graph
+	 * @param	InScreenPosition The position inside of the screen
+	 * @return the response to rejection or performing the drop
+	 */
+	virtual bool RequestVariableDropOnPanel(UEdGraph* InGraph, FProperty* InVariableToDrop, const FVector2D& InDropPosition, const FVector2D& InScreenPosition) { return false; }
+
+	/**
+	 * Request to drop a variable on a node
+	 * @param	InGraph The graph the drop is subject of
+	 * @param	InVariableToDrop The variable we want to drop
+	 * @param	InNode The node we want to drop onto
+	 * @param	InDropPosition The position inside of the graph
+	 * @param	InScreenPosition The position inside of the screen
+	 * @return the response to rejection or performing the drop
+	 */
+	virtual bool RequestVariableDropOnNode(UEdGraph* InGraph, FProperty* InVariableToDrop, UEdGraphNode* InNode, const FVector2D& InDropPosition, const FVector2D& InScreenPosition) { return false; }
+
+	/**
+	 * Request to drop a variable on a pin
+	 * @param	InGraph The graph the drop is subject of
+	 * @param	InVariableToDrop The variable we want to drop
+	 * @param	InPin The pin we want to drop onto
+	 * @param	InDropPosition The position inside of the graph
+	 * @param	InScreenPosition The position inside of the screen
+	 * @return the response to rejection or performing the drop
+	 */
+	virtual bool RequestVariableDropOnPin(UEdGraph* InGraph, FProperty* InVariableToDrop, UEdGraphPin* InPin, const FVector2D& InDropPosition, const FVector2D& InScreenPosition) { return false; }
+
+	/**
 	 * Returns true if the types and directions of two pins are schema compatible. Handles
 	 * outputting a more derived type to an input pin expecting a less derived type.
 	 *

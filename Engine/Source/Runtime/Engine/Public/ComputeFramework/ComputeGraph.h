@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "PixelFormat.h"
 #include "ComputeGraph.generated.h"
 
 class UComputeKernelSource;

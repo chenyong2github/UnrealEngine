@@ -114,6 +114,8 @@ public:
 	uint32 NumCallableShaderSlots = 0;
 	uint32 NumMissShaderSlots = 1; // always at least the default
 
+	TArray<FHitGroupSystemParameters> HitGroupSystemParametersCache;
+
 	// #dxr_todo UE-68230: shader tables should be explicitly registered and unregistered with the scene
 	FD3D12RayTracingShaderTable* FindOrCreateShaderTable(const FD3D12RayTracingPipelineState* Pipeline, FD3D12Device* Device);
 	FD3D12RayTracingShaderTable* FindExistingShaderTable(const FD3D12RayTracingPipelineState* Pipeline, FD3D12Device* Device) const;

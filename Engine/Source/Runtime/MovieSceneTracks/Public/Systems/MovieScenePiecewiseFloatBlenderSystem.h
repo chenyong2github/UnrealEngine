@@ -41,6 +41,11 @@ namespace MovieScene
 			checkf(bTasksComplete, TEXT("Attempting to access task data while tasks are still in progress - this is a threading policy violation. Clients must wait on FBlendedValuesTaskData::Prerequisites prior to accessing task data."));
 			return Additives ? Additives.GetValue()[BlendID] : FBlendResult{};
 		}
+		FBlendResult GetAdditiveFromBaseResult(uint16 BlendID) const
+		{
+			checkf(bTasksComplete, TEXT("Attempting to access task data while tasks are still in progress - this is a threading policy violation. Clients must wait on FBlendedValuesTaskData::Prerequisites prior to accessing task data."));
+			return AdditivesFromBase ? AdditivesFromBase.GetValue()[BlendID] : FBlendResult{};
+		}
 
 	private:
 		friend UMovieScenePiecewiseFloatBlenderSystem;
@@ -49,6 +54,7 @@ namespace MovieScene
 		TOptional<TArray<FBlendResult>> Absolutes;
 		TOptional<TArray<FBlendResult>> Relatives;
 		TOptional<TArray<FBlendResult>> Additives;
+		TOptional<TArray<FBlendResult>> AdditivesFromBase;
 		bool bTasksComplete = true;
 	};
 
@@ -73,14 +79,6 @@ namespace MovieScene
 
 		FGraphEventRef Prerequisite;
 	};
-
-	struct FFinalCombineTask
-	{
-		const FBlendedValuesTaskData* TaskData;
-
-		void ForEachEntity(uint16 BlendID, float InInitialValue, float& OutFinalBlendResult);
-	};
-
 } // namespace MovieScene
 } // namespace UE
 
@@ -118,14 +116,17 @@ private:
 			bHasAbsolutes = false;
 			bHasRelatives = false;
 			bHasAdditives = false;
+			bHasAdditivesFromBase = false;
 		}
 
 		TComponentTypeID<float> ResultComponent;
+		TComponentTypeID<float> BaseValueComponent;
 
 		bool bEnabled : 1;
 		bool bHasAbsolutes : 1;
 		bool bHasRelatives : 1;
 		bool bHasAdditives : 1;
+		bool bHasAdditivesFromBase : 1;
 	};
 	TArray<FChannelData, TInlineAllocator<10>> ChannelData;
 
@@ -135,31 +136,3 @@ private:
 	TArray<int32> CachedRelevantProperties;
 };
 
-
-inline void UE::MovieScene::FFinalCombineTask::ForEachEntity(uint16 BlendID, float InInitialValue, float& OutFinalBlendResult)
-{
-	FBlendResult AbsoluteResult = TaskData->GetAbsoluteResult(BlendID);
-	FBlendResult RelativeResult = TaskData->GetRelativeResult(BlendID);
-	FBlendResult AdditiveResult = TaskData->GetAdditiveResult(BlendID);
-
-	if (RelativeResult.Weight != 0)
-	{
-		RelativeResult.Total += InInitialValue * RelativeResult.Weight;
-	}
-
-	const float TotalWeight = AbsoluteResult.Weight + RelativeResult.Weight;
-	if (TotalWeight != 0)
-	{
-		const float Value = (AbsoluteResult.Total + RelativeResult.Total) / TotalWeight + AdditiveResult.Total;
-		OutFinalBlendResult = Value;
-	}
-	else if (AdditiveResult.Weight != 0)
-	{
-		OutFinalBlendResult = AdditiveResult.Total + InInitialValue;
-	}
-	else
-	{
-		// Not animated at all - needs its current value
-		ensureMsgf(false, TEXT("Object not animated."));
-	}
-}

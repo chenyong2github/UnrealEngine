@@ -365,6 +365,9 @@ static void GetTextureBuildSettings(
 	OutBuildSettings.bVolume = false;
 	OutBuildSettings.bCubemap = false;
 	OutBuildSettings.bTextureArray = false;
+	OutBuildSettings.DiffuseConvolveMipLevel = 0;
+	OutBuildSettings.bLongLatSource = false;
+	OutBuildSettings.bStreamable = false;
 
 	if (Texture.MaxTextureSize > 0)
 	{
@@ -385,20 +388,17 @@ static void GetTextureBuildSettings(
 	}
 	else if (Texture.IsA(UTexture2DArray::StaticClass()))
 	{
+		OutBuildSettings.bStreamable = GSupportsTexture2DArrayStreaming;
 		OutBuildSettings.bTextureArray = true;
-		OutBuildSettings.DiffuseConvolveMipLevel = 0;
-		OutBuildSettings.bLongLatSource = false;
 	}
 	else if (Texture.IsA(UVolumeTexture::StaticClass()))
 	{
+		OutBuildSettings.bStreamable = GSupportsVolumeTextureStreaming;
 		OutBuildSettings.bVolume = true;
-		OutBuildSettings.DiffuseConvolveMipLevel = 0;
-		OutBuildSettings.bLongLatSource = false;
 	}
-	else
+	else if (Texture.IsA(UTexture2D::StaticClass()))
 	{
-		OutBuildSettings.DiffuseConvolveMipLevel = 0;
-		OutBuildSettings.bLongLatSource = false;
+		OutBuildSettings.bStreamable = true;
 	}
 
 	bool bDownsampleWithAverage;
@@ -428,7 +428,7 @@ static void GetTextureBuildSettings(
 	OutBuildSettings.CompositePower = Texture.CompositePower;
 	OutBuildSettings.LODBias = TextureLODSettings.CalculateLODBias(SourceSize.X, SourceSize.Y, Texture.MaxTextureSize, Texture.LODGroup, Texture.LODBias, Texture.NumCinematicMipLevels, Texture.MipGenSettings, bVirtualTextureStreaming);
 	OutBuildSettings.LODBiasWithCinematicMips = TextureLODSettings.CalculateLODBias(SourceSize.X, SourceSize.Y, Texture.MaxTextureSize, Texture.LODGroup, Texture.LODBias, 0, Texture.MipGenSettings, bVirtualTextureStreaming);
-	OutBuildSettings.bStreamable = bPlatformSupportsTextureStreaming && !Texture.NeverStream && (Texture.LODGroup != TEXTUREGROUP_UI) && (Cast<const UTexture2D>(&Texture) != NULL);
+	OutBuildSettings.bStreamable &= bPlatformSupportsTextureStreaming && !Texture.NeverStream && (Texture.LODGroup != TEXTUREGROUP_UI);
 	OutBuildSettings.bVirtualStreamable = bVirtualTextureStreaming;
 	OutBuildSettings.PowerOfTwoMode = Texture.PowerOfTwoMode;
 	OutBuildSettings.PaddingColor = Texture.PaddingColor;
@@ -547,6 +547,11 @@ static void GetBuildSettingsForRunningPlatform(
 			FTextureBuildSettings& OutSettings = OutSettingPerLayer.Add_GetRef(SourceBuildSettings);
 			OutSettings.TextureFormatName = PlatformFormats[0][LayerIndex];
 			FinalizeBuildSettingsForLayer(Texture, LayerIndex, OutSettings);
+
+			if (SourceBuildSettings.bVirtualStreamable)
+			{
+				OutSettings.TextureFormatName = CurrentPlatform->FinalizeVirtualTextureLayerFormat(OutSettings.TextureFormatName);
+			}
 		}
 	}
 }
@@ -569,6 +574,11 @@ static void GetBuildSettingsPerFormat(const UTexture& Texture, const FTextureBui
 			FTextureBuildSettings& OutSettings = OutSettingPerLayer.Add_GetRef(SourceBuildSettings);
 			OutSettings.TextureFormatName = PlatformFormatsPerLayer[LayerIndex];
 			FinalizeBuildSettingsForLayer(Texture, LayerIndex, OutSettings);
+
+			if (SourceBuildSettings.bVirtualStreamable)
+			{
+				OutSettings.TextureFormatName = TargetPlatform->FinalizeVirtualTextureLayerFormat(OutSettings.TextureFormatName);
+			}
 		}
 	}
 }
@@ -800,7 +810,7 @@ static float ComputePSNR(const FImage& SrcImage, const FCompressedImage2D& Compr
 				{
 					SquaredError += ComputeDXTColorBlockSquaredError(
 						CompressedData + (BlockY * NumBlocksX + BlockX) * 8,
-						SrcImage.AsBGRA8() + (BlockY * NumBlocksX * 16 + BlockX * 4),
+						(&SrcImage.AsBGRA8()[0]) + (BlockY * NumBlocksX * 16 + BlockX * 4),
 						SrcImage.SizeX
 						);
 					NumErrors += 16 * 3;
@@ -809,12 +819,12 @@ static float ComputePSNR(const FImage& SrcImage, const FCompressedImage2D& Compr
 				{
 					SquaredError += ComputeDXTAlphaBlockSquaredError(
 						CompressedData + (BlockY * NumBlocksX + BlockX) * 16,
-						SrcImage.AsBGRA8() + (BlockY * NumBlocksX * 16 + BlockX * 4),
+						(&SrcImage.AsBGRA8()[0]) + (BlockY * NumBlocksX * 16 + BlockX * 4),
 						SrcImage.SizeX
 						);
 					SquaredError += ComputeDXTColorBlockSquaredError(
 						CompressedData + (BlockY * NumBlocksX + BlockX) * 16 + 8,
-						SrcImage.AsBGRA8() + (BlockY * NumBlocksX * 16 + BlockX * 4),
+						(&SrcImage.AsBGRA8()[0]) + (BlockY * NumBlocksX * 16 + BlockX * 4),
 						SrcImage.SizeX
 						);
 					NumErrors += 16 * 4;
@@ -1251,7 +1261,14 @@ int32 FTexturePlatformData::GetNumNonStreamingMips() const
 			}
 		}
 
-		return NumNonStreamingMips;
+		if (NumNonStreamingMips == 0 && Mips.Num())
+		{
+			return 1;
+		}
+		else
+		{
+			return NumNonStreamingMips;
+		}
 	}
 	else if (Mips.Num() > 0)
 	{
@@ -1277,6 +1294,59 @@ int32 FTexturePlatformData::GetNumNonStreamingMips() const
 		return 0;
 	}
 }
+
+int32 FTexturePlatformData::GetNumNonOptionalMips() const
+{
+	// TODO : Count from last mip to first.
+	if (FPlatformProperties::RequiresCookedData())
+	{
+		int32 NumNonOptionalMips = Mips.Num();
+
+		for (const FTexture2DMipMap& Mip : Mips)
+		{
+			if (Mip.BulkData.IsOptional())
+			{
+				--NumNonOptionalMips;
+			}
+			else
+			{
+				break;
+			}
+		}
+
+		if (NumNonOptionalMips == 0 && Mips.Num())
+		{
+			return 1;
+		}
+		else
+		{
+			return NumNonOptionalMips;
+		}
+	}
+	else // Otherwise, all mips are available.
+	{
+		return Mips.Num();
+	}
+}
+
+bool FTexturePlatformData::CanBeLoaded() const
+{
+	for (const FTexture2DMipMap& Mip : Mips)
+	{
+#if WITH_EDITORONLY_DATA
+		if (!Mip.DerivedDataKey.IsEmpty())
+		{
+			return true;
+		}
+#endif 
+		if (Mip.BulkData.CanLoadFromDisk())
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 
 int32 FTexturePlatformData::GetNumVTMips() const
 {
@@ -2192,9 +2262,9 @@ void UTexture::SerializeCookedPlatformData(FArchive& Ar)
 	}
 }
 
-int32 UTexture2D::GMinTextureResidentMipCount = NUM_INLINE_DERIVED_MIPS;
+int32 UTexture::GMinTextureResidentMipCount = NUM_INLINE_DERIVED_MIPS;
 
-void UTexture2D::SetMinTextureResidentMipCount(int32 InMinTextureResidentMipCount)
+void UTexture::SetMinTextureResidentMipCount(int32 InMinTextureResidentMipCount)
 {
 	int32 MinAllowedMipCount = FPlatformProperties::RequiresCookedData() ? 1 : NUM_INLINE_DERIVED_MIPS;
 	GMinTextureResidentMipCount = FMath::Max(InMinTextureResidentMipCount, MinAllowedMipCount);

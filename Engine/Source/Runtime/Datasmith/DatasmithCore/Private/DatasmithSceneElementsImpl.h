@@ -1,16 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "IDatasmithSceneElements.h"
 #include "DatasmithDefinitions.h"
 #include "DatasmithSceneFactory.h"
+#include "DatasmithSceneGraphSharedState.h"
 #include "DatasmithUtils.h"
+#include "DirectLink/ParameterStore.h"
+#include "IDatasmithSceneElements.h"
 
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
 #include "Math/UnrealMathUtility.h"
 #include "Misc/PackageName.h"
 #include "Templates/SharedPointer.h"
+
+
+template<typename T, typename S=T> using TReflected = DirectLink::TStoreKey<T, S>;
+
 
 template< typename InterfaceType >
 class FDatasmithElementImpl : public InterfaceType
@@ -19,32 +25,47 @@ public:
 	FDatasmithElementImpl(const TCHAR* InName, EDatasmithElementType InType, uint64 InSubType = 0);
 	virtual ~FDatasmithElementImpl() {}
 
-	virtual bool IsA( EDatasmithElementType InType ) const override { return ( uint64(Type) & uint64(InType) ) != 0; }
-	virtual bool IsSubType( uint64 InSubType ) const override { return ( InSubType & SubType ) != 0; }
+	virtual bool IsA( EDatasmithElementType InType ) const override { return EnumHasAnyFlags(GetType(), InType); }
+	virtual bool IsSubType( uint64 InSubType ) const override { return ( InSubType & GetSubType() ) != 0; }
 
-	virtual const TCHAR* GetName() const override { return *Name; }
-	virtual void SetName(const TCHAR* InName) override { Name = FDatasmithUtils::SanitizeObjectName(InName); }
+	virtual const TCHAR* GetName() const override { return *Name.Get(Store); }
+	virtual void SetName(const TCHAR* InName) override {Name.Set(Store, FDatasmithUtils::SanitizeObjectName(InName)); }
 
-	virtual const TCHAR* GetLabel() const override { return Label.IsEmpty() ? GetName() : *Label; }
-	virtual void SetLabel(const TCHAR* InLabel) override { Label = FDatasmithUtils::SanitizeObjectName(InLabel); }
+	virtual const TCHAR* GetLabel() const override { const FString& Tmp = Label.Get(Store); return Tmp.IsEmpty() ? GetName() : *Tmp; }
+	virtual void SetLabel(const TCHAR* InLabel) override { Label.Set(Store, FDatasmithUtils::SanitizeObjectName(InLabel)); }
 
 	virtual FMD5Hash CalculateElementHash(bool) override { return ElementHash; }
 
+
+	virtual TSharedPtr<DirectLink::FSceneGraphSharedState> MakeSharedState() const override { return MakeShared<FDatasmithSceneGraphSharedState>(); }
+	virtual const DirectLink::FParameterStore& GetStore() const override { return Store; }
+	virtual       DirectLink::FParameterStore& GetStore()       override { return Store; }
+
+private:
+	EDatasmithElementType GetType() const { return Type.Get(Store); }
+	uint64 GetSubType() const { return Subtype.Get(Store); }
+
 protected:
-	FString Name;
-	FString Label;
 	FMD5Hash ElementHash;
 
-	EDatasmithElementType Type;
-	uint64 SubType;
+	DirectLink::FParameterStore Store;
+	TReflected<EDatasmithElementType, uint64> Type;
+	TReflected<uint64> Subtype;
+	TReflected<FString> Name;
+	TReflected<FString> Label;
 };
+
 
 template< typename InterfaceType >
 inline FDatasmithElementImpl< InterfaceType >::FDatasmithElementImpl(const TCHAR* InName, EDatasmithElementType InType, uint64 InSubType)
-	: Name(FDatasmithUtils::SanitizeObjectName(InName))
-	, Type(InType)
-	, SubType(InSubType)
+	: Type(InType)
+	, Subtype(InSubType)
 {
+	SetName(InName);
+	Store.RegisterParameter(Type,    "Type");
+	Store.RegisterParameter(Subtype, "Subtype");
+	Store.RegisterParameter(Name,    "Name");
+	Store.RegisterParameter(Label,   "Label");
 }
 
 class FDatasmithKeyValuePropertyImpl : public FDatasmithElementImpl< IDatasmithKeyValueProperty >
@@ -55,58 +76,92 @@ public:
 	EDatasmithKeyValuePropertyType GetPropertyType() const override { return PropertyType; }
 	void SetPropertyType( EDatasmithKeyValuePropertyType InType ) override;
 
-	const TCHAR* GetValue() const override { return *Value; }
+	const TCHAR* GetValue() const override { return *Value.Get(Store); }
 	void SetValue( const TCHAR* InValue ) override;
+
+	static TSharedPtr< IDatasmithKeyValueProperty > NullPropertyPtr;
 
 protected:
 	void FormatValue();
 
 private:
-	EDatasmithKeyValuePropertyType PropertyType;
-	FString Value;
+	TReflected<EDatasmithKeyValuePropertyType, uint8> PropertyType;
+	TReflected<FString> Value;
 };
+
+
+enum class EActorFlags : uint8
+{
+	IsAComponent       = 0x01,
+	IsASelector        = 0x02,
+	IsVisible          = 0x04,
+	UseParentTransform = 0x08,
+};
+ENUM_CLASS_FLAGS(EActorFlags);
+
+#define UPDATE_BITFLAGS( Flags, bValue, EnumValue) Flags = bValue ? Flags | EnumValue : Flags & ~EnumValue
 
 template< typename InterfaceType >
 class FDatasmithActorElementImpl : public FDatasmithElementImpl< InterfaceType >, public TSharedFromThis< FDatasmithActorElementImpl< InterfaceType > >
 {
 public:
+	using FDatasmithElementImpl< InterfaceType >::Store;
 	FDatasmithActorElementImpl(const TCHAR* InName, EDatasmithElementType InType);
 
-	virtual FVector GetTranslation() const override { return Translation; }
+	virtual FVector GetTranslation() const override { return Translation.Get(Store); }
 	virtual void SetTranslation(float InX, float InY, float InZ) override { SetTranslation( FVector( InX, InY, InZ ) ); }
-	virtual void SetTranslation(const FVector& Value) override { ConvertChildsToRelative(); Translation = Value; ConvertChildsToWorld(); }
+	virtual void SetTranslation(const FVector& Value) override { ConvertChildsToRelative(); SetInternalTranslation(Value); ConvertChildsToWorld(); }
 
-	virtual FVector GetScale() const override { return Scale; }
+	virtual FVector GetScale() const override { return Scale.Get(Store); }
 	virtual void SetScale(float InX, float InY, float InZ) override { SetScale( FVector( InX, InY, InZ ) ); }
-	virtual void SetScale(const FVector& Value) override { ConvertChildsToRelative(); Scale = Value; ConvertChildsToWorld(); }
+	virtual void SetScale(const FVector& Value) override { ConvertChildsToRelative(); SetInternalScale(Value); ConvertChildsToWorld(); }
 
 	virtual FQuat GetRotation() const override { return Rotation; }
 	virtual void SetRotation(float InX, float InY, float InZ, float InW) override { SetRotation( FQuat( InX, InY, InZ, InW ) ); }
-	virtual void SetRotation(const FQuat& Value) override { ConvertChildsToRelative(); Rotation = Value; ConvertChildsToWorld(); }
+	virtual void SetRotation(const FQuat& Value) override { ConvertChildsToRelative(); SetInternalRotation(Value); ConvertChildsToWorld(); }
 
-	virtual void SetUseParentTransform(bool bInUseParentTransform) override { bUseParentTransform = bInUseParentTransform;}
+	virtual void SetUseParentTransform(bool bInUseParentTransform) override
+	{
+		UPDATE_BITFLAGS(Flags, bInUseParentTransform, EActorFlags::UseParentTransform);
+	}
 	virtual FTransform GetRelativeTransform() const override;
 
-	virtual const TCHAR* GetLayer() const override { return *Layer; }
+	virtual const TCHAR* GetLayer() const override { return *(FString&)Layer; }
 	virtual void SetLayer(const TCHAR* InLayer) override { Layer = InLayer; }
 
-	virtual void AddTag(const TCHAR* InTag) override { Tags.Add(InTag); }
-	virtual void ResetTags() override { Tags.Reset(); }
-	virtual int32 GetTagsCount() const { return Tags.Num(); }
-	virtual const TCHAR* GetTag(int32 TagIndex) const override { return Tags.IsValidIndex(TagIndex) ? *Tags[TagIndex] : nullptr; }
+	virtual void AddTag(const TCHAR* InTag) override { Tags.Edit(Store).Add(InTag); }
+	virtual void ResetTags() override { Tags.Edit(Store).Reset(); }
+	virtual int32 GetTagsCount() const { return Tags.Get(Store).Num(); }
+	virtual const TCHAR* GetTag(int32 TagIndex) const override { return Tags.Get(Store).IsValidIndex(TagIndex) ? *Tags.Get(Store)[TagIndex] : nullptr; }
 
 	virtual void AddChild(const TSharedPtr< IDatasmithActorElement >& InChild, EDatasmithActorAttachmentRule AttachementRule = EDatasmithActorAttachmentRule::KeepWorldTransform) override;
-	virtual int32 GetChildrenCount() const override { return Children.Num(); }
+	virtual int32 GetChildrenCount() const override
+	{
+		return Children.Num();
+	}
+
 	/** Get the 'InIndex'th child of the actor  */
-	virtual TSharedPtr< IDatasmithActorElement > GetChild(int32 InIndex) override { return Children.IsValidIndex(InIndex) ? Children[InIndex] : NullActorPtr; };
-	virtual const TSharedPtr< IDatasmithActorElement >& GetChild(int32 InIndex) const override { return Children.IsValidIndex(InIndex) ? Children[InIndex] : NullActorPtr; };
-	virtual void RemoveChild(const TSharedPtr< IDatasmithActorElement >& InChild) override { Children.Remove(InChild); static_cast< FDatasmithActorElementImpl* >( InChild.Get() )->Parent.Reset(); }
+	virtual TSharedPtr< IDatasmithActorElement > GetChild(int32 InIndex) override
+	{
+		return Children.Inner.IsValidIndex(InIndex) ? Children.Inner[InIndex] : NullActorPtr;
+	};
 
-	virtual void SetIsAComponent(bool Value) { bIsAComponent = Value; }
-	virtual bool IsAComponent() const override { return bIsAComponent; }
+	virtual const TSharedPtr< IDatasmithActorElement >& GetChild(int32 InIndex) const override
+	{
+		return Children.Inner.IsValidIndex(InIndex) ? Children.Inner[InIndex] : NullActorPtr;
+	};
 
-	virtual void SetAsSelector(bool bInAsSelector) override { bIsASelector = bInAsSelector; }
-	virtual bool IsASelector() const override { return bIsASelector; }
+	virtual void RemoveChild(const TSharedPtr< IDatasmithActorElement >& InChild) override
+	{
+		Children.Inner.Remove(InChild);
+		static_cast< FDatasmithActorElementImpl* >( InChild.Get() )->Parent.Inner.Reset();
+	}
+
+	virtual void SetIsAComponent(bool Value) { UPDATE_BITFLAGS(Flags, Value, EActorFlags::IsAComponent); }
+	virtual bool IsAComponent() const override { return !!(Flags & EActorFlags::IsAComponent); }
+
+	virtual void SetAsSelector(bool bInAsSelector) override { UPDATE_BITFLAGS(Flags, bInAsSelector, EActorFlags::IsASelector); }
+	virtual bool IsASelector() const override { return !!(Flags & EActorFlags::IsASelector); }
 
 	/** Set the index of the child which is active in a selector  */
 	virtual void SetSelectionIndex(int32 InSelectionIdx) override { SelectionIdx = InSelectionIdx; }
@@ -114,35 +169,36 @@ public:
 	/** Get the index of the child which is active in a selector. Default is -1.  */
 	virtual int32 GetSelectionIndex() const override { return SelectionIdx; }
 
-	virtual void SetVisibility(bool bInVisibility) override { bVisibility = bInVisibility; }
-	virtual bool GetVisibility() const override { return bVisibility; }
+	virtual void SetVisibility(bool bInVisibility) override { UPDATE_BITFLAGS(Flags, bInVisibility, EActorFlags::IsVisible); }
+	virtual bool GetVisibility() const override { return !!(Flags & EActorFlags::IsVisible); }
 
 protected:
-	/** Converts all childs transforms to relative */
+	/** Converts all children's transforms to relative */
 	void ConvertChildsToRelative();
 
-	/** Converts all childs transforms to world */
+	/** Converts all children's transforms to world */
 	void ConvertChildsToWorld();
+
+	void SetInternalRotation(const FQuat& Value) { Rotation.Set(Store, Value); }
+	void SetInternalScale(const FVector& Value) { Scale.Set(Store, Value); }
+	void SetInternalTranslation(const FVector& Value) { Translation.Set(Store, Value); }
 
 private:
 	static TSharedPtr<IDatasmithActorElement> NullActorPtr;
 
-	FVector Translation;
-	FVector Scale;
-	FQuat Rotation;
+	TReflected<FVector> Translation;
+	TReflected<FVector> Scale;
+	TReflected<FQuat> Rotation;
 
-	FString Layer;
+	TReflected<FString> Layer;
 
-	TArray< FString > Tags;
+	TReflected<TArray<FString>> Tags;
 
-	TArray< TSharedPtr< IDatasmithActorElement > > Children;
-	TSharedPtr< IDatasmithActorElement > Parent;
+	TDatasmithReferenceArrayProxy<IDatasmithActorElement> Children;
+	TDatasmithReferenceProxy<IDatasmithActorElement> Parent;
 
-	bool bIsAComponent;
-	bool bIsASelector;
-	bool bVisibility;
-	bool bUseParentTransform;
-	int32 SelectionIdx;
+	TReflected<EActorFlags, uint8> Flags;
+	TReflected<int32> SelectionIdx;
 };
 
 template< typename InterfaceType >
@@ -154,12 +210,19 @@ inline FDatasmithActorElementImpl<T>::FDatasmithActorElementImpl(const TCHAR* In
 	, Translation(FVector::ZeroVector)
 	, Scale(FVector::OneVector)
 	, Rotation(FQuat::Identity)
-	, bIsAComponent(false)
-	, bIsASelector(false)
-	, bVisibility(true)
-	, bUseParentTransform(true)
+	, Flags(EActorFlags::IsVisible|EActorFlags::UseParentTransform)
 	, SelectionIdx(-1)
 {
+	this->RegisterReferenceProxy(Children, "Children");
+	this->RegisterReferenceProxy(Parent,   "Parent"  );
+
+	Store.RegisterParameter(Translation,  "Translation"  );
+	Store.RegisterParameter(Scale,        "Scale"        );
+	Store.RegisterParameter(Rotation,     "Rotation"     );
+	Store.RegisterParameter(Layer,        "Layer"        );
+	Store.RegisterParameter(Tags,         "Tags"         ); // reflect as low prio for directlink
+	Store.RegisterParameter(SelectionIdx, "SelectionIdx" );
+	Store.RegisterParameter(Flags,        "Flags"        );
 }
 
 template< typename T >
@@ -167,9 +230,9 @@ inline FTransform FDatasmithActorElementImpl<T>::GetRelativeTransform() const
 {
 	FTransform ActorTransform( GetRotation(), GetTranslation(), GetScale() );
 
-	if ( Parent.IsValid() && bUseParentTransform )
+	if ( Parent.Inner.IsValid() && !!(Flags & EActorFlags::UseParentTransform) )
 	{
-		FTransform ParentTransform( Parent->GetRotation(), Parent->GetTranslation(), Parent->GetScale() );
+		FTransform ParentTransform( Parent.Inner->GetRotation(), Parent.Inner->GetTranslation(), Parent.Inner->GetScale() );
 
 		return ActorTransform.GetRelativeTransform( ParentTransform );
 	}
@@ -193,7 +256,7 @@ inline void FDatasmithActorElementImpl<T>::AddChild(const TSharedPtr< IDatasmith
 	}
 
 	Children.Add(InChild);
-	static_cast< FDatasmithActorElementImpl* >( InChild.Get() )->Parent = this->AsShared();
+	static_cast< FDatasmithActorElementImpl* >( InChild.Get() )->Parent.Inner = this->AsShared();
 }
 
 template< typename T >
@@ -201,7 +264,7 @@ inline void FDatasmithActorElementImpl<T>::ConvertChildsToRelative()
 {
 	FTransform ThisWorldTransform( GetRotation(), GetTranslation(), GetScale() );
 
-	for ( TSharedPtr< IDatasmithActorElement >& Child : Children )
+	for ( TSharedPtr< IDatasmithActorElement >& Child : Children.Inner )
 	{
 		if ( !Child.IsValid() )
 		{
@@ -214,9 +277,9 @@ inline void FDatasmithActorElementImpl<T>::ConvertChildsToRelative()
 		FTransform ChildWorldTransform( Child->GetRotation(), Child->GetTranslation(), Child->GetScale() );
 
 		FTransform ChildRelativeTransform = ChildWorldTransform.GetRelativeTransform( ThisWorldTransform );
-		ChildImpl->Rotation = ChildRelativeTransform.GetRotation();
-		ChildImpl->Translation = ChildRelativeTransform.GetTranslation();
-		ChildImpl->Scale = ChildRelativeTransform.GetScale3D();
+		ChildImpl->SetInternalRotation(ChildRelativeTransform.GetRotation());
+		ChildImpl->SetInternalTranslation(ChildRelativeTransform.GetTranslation());
+		ChildImpl->SetInternalScale(ChildRelativeTransform.GetScale3D());
 	}
 }
 
@@ -225,7 +288,7 @@ inline void FDatasmithActorElementImpl<T>::ConvertChildsToWorld()
 {
 	FTransform ThisWorldTransform( GetRotation(), GetTranslation(), GetScale() );
 
-	for ( TSharedPtr< IDatasmithActorElement >& Child : Children )
+	for ( TSharedPtr< IDatasmithActorElement >& Child : Children.Inner )
 	{
 		if ( !Child.IsValid() )
 		{
@@ -237,9 +300,9 @@ inline void FDatasmithActorElementImpl<T>::ConvertChildsToWorld()
 		FTransform ChildRelativeTransform( Child->GetRotation(), Child->GetTranslation(), Child->GetScale() );
 
 		FTransform ChildWorldTransform = ChildRelativeTransform * ThisWorldTransform;
-		ChildImpl->Rotation = ChildWorldTransform.GetRotation();
-		ChildImpl->Translation = ChildWorldTransform.GetTranslation();
-		ChildImpl->Scale = ChildWorldTransform.GetScale3D();
+		ChildImpl->SetInternalRotation(ChildWorldTransform.GetRotation());
+		ChildImpl->SetInternalTranslation(ChildWorldTransform.GetTranslation());
+		ChildImpl->SetInternalScale(ChildWorldTransform.GetScale3D());
 
 		ChildImpl->ConvertChildsToWorld(); // Depth last now that we're in world space
 	}
@@ -252,7 +315,7 @@ public:
 
 	virtual FMD5Hash CalculateElementHash(bool bForce) override;
 
-	virtual const TCHAR* GetFile() const override { return *File; }
+	virtual const TCHAR* GetFile() const override { return *(FString&)File; }
 	virtual void SetFile(const TCHAR* InFile) override { File = InFile; };
 
 	virtual FMD5Hash GetFileHash() const override { return FileHash; }
@@ -284,16 +347,16 @@ protected:
 	virtual void SetLODCount(int32 Count) override { LODCount = Count; }
 
 private:
-	FString File;
-	FMD5Hash FileHash;
-	float Area;
-	float Width;
-	float Height;
-	float Depth;
-	int32 LODCount;
-	int32 LightmapCoordinateIndex;
-	int32 LightmapSourceUV;
-	TArray<TSharedPtr<IDatasmithMaterialIDElement>> MaterialSlots;
+	TReflected<FString>  File;
+	TReflected<FMD5Hash> FileHash;
+	TReflected<float>    Area;
+	TReflected<float>    Width;
+	TReflected<float>    Height;
+	TReflected<float>    Depth;
+	TReflected<int32>    LODCount;
+	TReflected<int32>    LightmapCoordinateIndex;
+	TReflected<int32>    LightmapSourceUV;
+	TDatasmithReferenceArrayProxy<IDatasmithMaterialIDElement> MaterialSlots;
 };
 
 class FDatasmithMaterialIDElementImpl : public FDatasmithElementImpl< IDatasmithMaterialIDElement >
@@ -309,12 +372,14 @@ public:
 	virtual void SetId(int32 InId) override { Id = InId; }
 
 private:
-	int32 Id;
+	TReflected<int32> Id;
 };
 
 template< typename InterfaceType = IDatasmithMeshActorElement >
 class FDatasmithMeshActorElementImpl : public FDatasmithActorElementImpl< InterfaceType >
 {
+	using FDatasmithElementImpl< InterfaceType >::Store;
+
 public:
 	explicit FDatasmithMeshActorElementImpl(const TCHAR* InName);
 
@@ -333,14 +398,16 @@ protected:
 	explicit FDatasmithMeshActorElementImpl(const TCHAR* InName, EDatasmithElementType ElementType);
 
 private:
-	FString StaticMeshPathName;
-	TArray< TSharedPtr< IDatasmithMaterialIDElement > > Materials;
+	TReflected<FString> StaticMeshPathName;
+	TDatasmithReferenceArrayProxy<IDatasmithMaterialIDElement> Materials;
 };
 
 template < typename InterfaceType >
 FDatasmithMeshActorElementImpl< InterfaceType >::FDatasmithMeshActorElementImpl(const TCHAR* InName)
 	: FDatasmithActorElementImpl< InterfaceType >(InName, EDatasmithElementType::StaticMeshActor)
 {
+	this->RegisterReferenceProxy(Materials, "Materials");
+	Store.RegisterParameter(StaticMeshPathName, "StaticMeshPathName");
 }
 
 template < typename InterfaceType >
@@ -354,7 +421,7 @@ void FDatasmithMeshActorElementImpl< InterfaceType >::AddMaterialOverride(const 
 {
 	FString MaterialName = FDatasmithUtils::SanitizeObjectName(InMaterialName);
 
-	for (const TSharedPtr< IDatasmithMaterialIDElement >& Material : Materials)
+	for (const TSharedPtr< IDatasmithMaterialIDElement >& Material : Materials.View())
 	{
 		if (FString(Material->GetName()) == MaterialName && Material->GetId() == Id)
 		{
@@ -410,7 +477,7 @@ void FDatasmithMeshActorElementImpl< InterfaceType >::RemoveMaterialOverride(con
 template < typename InterfaceType >
 const TCHAR* FDatasmithMeshActorElementImpl< InterfaceType >::GetStaticMeshPathName() const
 {
-	return *StaticMeshPathName;
+	return *(FString&)StaticMeshPathName;
 }
 
 template < typename InterfaceType >
@@ -433,95 +500,116 @@ public:
 	virtual void RemoveInstance(int32 InstanceIndex) override;
 
 private:
-	TArray<FTransform> Instances;
+	TArray<FTransform> Instances;// #ue_directlink_reflect
 };
+
+enum class LightActorFlags : uint8
+{
+	LightNone             = 0x00,
+	LightEnabled          = 0x01,
+	LightUseTemperature   = 0x02,
+	LightUseIes           = 0x04,
+	LightUseIesBrightness = 0x08,
+};
+ENUM_CLASS_FLAGS(LightActorFlags);
 
 template< typename InterfaceType = IDatasmithLightActorElement >
 class FDatasmithLightActorElementImpl : public FDatasmithActorElementImpl< InterfaceType >
 {
 public:
-	virtual bool IsEnabled() const override	{ return bEnabled; }
-	virtual void SetEnabled(bool bInIsEnabled) override { bEnabled = bInIsEnabled; }
+	using FDatasmithElementImpl< InterfaceType >::Store;
+	virtual bool IsEnabled() const override	{ return !!(LightFLags & LightActorFlags::LightEnabled); }
+	virtual void SetEnabled(bool bInIsEnabled) override {  UPDATE_BITFLAGS( LightFLags, bInIsEnabled, LightActorFlags::LightEnabled); }
 
 	virtual double GetIntensity() const override { return Intensity; }
 	virtual void SetIntensity(double InIntensity) override { Intensity = InIntensity; }
 
-	virtual FLinearColor GetColor() const override { return Color; }
-	virtual void SetColor(FLinearColor InColor) override { Color = InColor; }
+	virtual FLinearColor GetColor() const override { return FLinearColor(Color); }
+	virtual void SetColor(FLinearColor InColor) override { Color = FVector(InColor.R, InColor.G, InColor.B); }
 
 	virtual double GetTemperature() const override { return Temperature; }
 	virtual void SetTemperature(double InTemperature) override { Temperature = InTemperature; }
 
-	virtual bool GetUseTemperature() const override { return bUseTemperature; }
-	virtual void SetUseTemperature(bool bInUseTemperature) override { bUseTemperature = bInUseTemperature; }
+	virtual bool GetUseTemperature() const override { return !!(LightFLags & LightActorFlags::LightUseTemperature); }
+	virtual void SetUseTemperature(bool bInUseTemperature) override { UPDATE_BITFLAGS( LightFLags, bInUseTemperature, LightActorFlags::LightUseTemperature); }
 
-	virtual const TCHAR* GetIesFile() const override { return *IesFile;	}
+	virtual const TCHAR* GetIesFile() const override { return *(FString&)IesFile;	}
 	virtual void SetIesFile(const TCHAR* InIesFile) override { IesFile = InIesFile;	}
 
-	virtual bool GetUseIes() const override { return bUseIes; }
-	virtual void SetUseIes(bool bInUseIes) override	{ bUseIes = bInUseIes; }
+	virtual bool GetUseIes() const override { return !!(LightFLags & LightActorFlags::LightUseIes); }
+	virtual void SetUseIes(bool bInUseIes) override { UPDATE_BITFLAGS( LightFLags, bInUseIes, LightActorFlags::LightUseIes); }
 
 	virtual double GetIesBrightnessScale() const override { return IesBrightnessScale; }
 	virtual void SetIesBrightnessScale(double InIesBrightnessScale) override { IesBrightnessScale = InIesBrightnessScale; }
 
-	virtual bool GetUseIesBrightness() const override { return bUseIesBrightness; }
-	virtual void SetUseIesBrightness(bool bInUseIesBrightness) override { bUseIesBrightness = bInUseIesBrightness; }
+	virtual bool GetUseIesBrightness() const override { return !!(LightFLags & LightActorFlags::LightUseIesBrightness); }
+	virtual void SetUseIesBrightness(bool bInUseIesBrightness) override { UPDATE_BITFLAGS( LightFLags, bInUseIesBrightness, LightActorFlags::LightUseIesBrightness); }
 
 	virtual FQuat GetIesRotation() const override { return IesRotation; }
 	virtual void SetIesRotation(const FQuat& InIesRotation) override { IesRotation = InIesRotation; }
 
-	TSharedPtr< IDatasmithMaterialIDElement >& GetLightFunctionMaterial() override	{ return LightFunctionMaterial; }
+	TSharedPtr< IDatasmithMaterialIDElement >& GetLightFunctionMaterial() override	{ return LightFunctionMaterial.Inner; }
 
 	void SetLightFunctionMaterial(const TSharedPtr< IDatasmithMaterialIDElement >& InMaterial) override { LightFunctionMaterial = InMaterial; }
 
 	void SetLightFunctionMaterial(const TCHAR* InMaterialName) override
 	{
 		FString MaterialName = FDatasmithUtils::SanitizeObjectName(InMaterialName);
-		LightFunctionMaterial = FDatasmithSceneFactory::CreateMaterialId(*MaterialName);
+		LightFunctionMaterial.Inner = FDatasmithSceneFactory::CreateMaterialId(*MaterialName);
 	}
+
+	const TCHAR* GetIesTexturePathName() const override	{ return *(FString&)IesTexturePathName; }
+	void SetIesTexturePathName(const TCHAR* InTextureName) override { IesTexturePathName = InTextureName; }
 
 protected:
-	explicit FDatasmithLightActorElementImpl(const TCHAR* InName, EDatasmithElementType ChildType)
-		: FDatasmithActorElementImpl< InterfaceType >( InName, EDatasmithElementType::Light | ChildType )
-	{
-		Intensity = 1.0;
-
-		Color.R = 1.0f;
-		Color.G = 1.0f;
-		Color.B = 1.0f;
-
-		bEnabled = true;
-		Temperature = 6500.0;
-		bUseTemperature = false;
-		bUseIes = false;
-		IesBrightnessScale = 1.0;
-		bUseIesBrightness = false;
-
-		IesRotation = FQuat::Identity;
-	}
+	explicit FDatasmithLightActorElementImpl(const TCHAR* InName, EDatasmithElementType ChildType);
 
 private:
-	bool bEnabled;
-	double Intensity;
-	FLinearColor Color;
+	TReflected<double> Intensity;
 
-	double Temperature;
-	bool bUseTemperature;
+	TReflected<FVector> Color;
 
-	FString IesFile;
-	bool bUseIes;
+	TReflected<double> Temperature;
 
-	double IesBrightnessScale;
-	bool bUseIesBrightness;
+	TReflected<FString> IesFile;
 
-	TSharedPtr< IDatasmithMaterialIDElement > LightFunctionMaterial;
+	TReflected<FString> IesTexturePathName;
 
-	FQuat IesRotation;
+	TReflected<double> IesBrightnessScale;
+
+	TReflected<FQuat> IesRotation;
+
+	TReflected<LightActorFlags, uint8> LightFLags;
+
+	TDatasmithReferenceProxy< IDatasmithMaterialIDElement > LightFunctionMaterial;
 };
+
+template<typename InterfaceType>
+FDatasmithLightActorElementImpl<InterfaceType>::FDatasmithLightActorElementImpl(const TCHAR* InName, EDatasmithElementType ChildType)
+	: FDatasmithActorElementImpl< InterfaceType >( InName, EDatasmithElementType::Light | ChildType )
+	, Intensity(1.0)
+	, Color(FVector::OneVector)
+	, Temperature(6500.0)
+	, IesBrightnessScale(1.0)
+	, IesRotation(FQuat::Identity)
+	, LightFLags(LightActorFlags::LightEnabled)
+{
+	this->RegisterReferenceProxy(LightFunctionMaterial, "LightFunctionMaterial" );
+
+	Store.RegisterParameter(Intensity,          "Intensity"           );
+	Store.RegisterParameter(Color,              "Color"               );
+	Store.RegisterParameter(LightFLags,         "LightFLags"          );
+	Store.RegisterParameter(Temperature,        "Temperature"         );
+	Store.RegisterParameter(IesBrightnessScale, "IesBrightnessScale"  );
+	Store.RegisterParameter(IesRotation,        "IesRotation"         );
+	Store.RegisterParameter(IesTexturePathName,  "IesTexturePathName" );
+}
 
 template< typename InterfaceType = IDatasmithPointLightElement >
 class FDatasmithPointLightElementImpl : public FDatasmithLightActorElementImpl< InterfaceType >
 {
+	using FDatasmithElementImpl< InterfaceType >::Store;
+
 public:
 	explicit FDatasmithPointLightElementImpl(const TCHAR* InName)
 		: FDatasmithPointLightElementImpl( InName, EDatasmithElementType::None )
@@ -529,7 +617,7 @@ public:
 	}
 
 	virtual void SetIntensityUnits(EDatasmithLightUnits InUnits) { Units = InUnits; }
-	virtual EDatasmithLightUnits GetIntensityUnits() const { return Units; }
+	virtual EDatasmithLightUnits GetIntensityUnits() const { return (EDatasmithLightUnits)Units; }
 
 	virtual float GetSourceRadius() const override { return SourceRadius; }
 	virtual void SetSourceRadius(float InSourceRadius) override { SourceRadius = InSourceRadius; }
@@ -543,24 +631,29 @@ public:
 protected:
 	explicit FDatasmithPointLightElementImpl(const TCHAR* InName, EDatasmithElementType ChildType)
 		: FDatasmithLightActorElementImpl< InterfaceType >( InName, EDatasmithElementType::PointLight | ChildType )
+		, Units(EDatasmithLightUnits::Unitless)
+		, SourceRadius(-1)
+		, SourceLength(-1)
+		, AttenuationRadius(-1)
 	{
-		Units = EDatasmithLightUnits::Unitless;
-		SourceRadius = -1;
-		SourceLength = -1;
-		AttenuationRadius = -1;
+		Store.RegisterParameter(Units,             "Units"             );
+		Store.RegisterParameter(SourceRadius,      "SourceRadius"      );
+		Store.RegisterParameter(SourceLength,      "SourceLength"      );
+		Store.RegisterParameter(AttenuationRadius, "AttenuationRadius" );
 	}
 
 private:
-	EDatasmithLightUnits Units;
-	float SourceRadius;
-	float SourceLength;
-	float AttenuationRadius;
+	TReflected<EDatasmithLightUnits, uint8> Units;
+	TReflected<float> SourceRadius;
+	TReflected<float> SourceLength;
+	TReflected<float> AttenuationRadius;
 };
 
 template< typename InterfaceType = IDatasmithSpotLightElement >
 class FDatasmithSpotLightElementImpl : public FDatasmithPointLightElementImpl< InterfaceType >
 {
 public:
+	using FDatasmithElementImpl< InterfaceType >::Store;
 	explicit FDatasmithSpotLightElementImpl(const TCHAR* InName)
 		: FDatasmithSpotLightElementImpl( InName, EDatasmithElementType::None )
 	{
@@ -589,14 +682,16 @@ public:
 protected:
 	explicit FDatasmithSpotLightElementImpl(const TCHAR* InName, EDatasmithElementType ChildType)
 		: FDatasmithPointLightElementImpl< InterfaceType >( InName, EDatasmithElementType::SpotLight | ChildType )
+		, InnerConeAngle(45.f)
+		, OuterConeAngle(60.f)
 	{
-		InnerConeAngle = 45.f;
-		OuterConeAngle = 60.f;
+		Store.RegisterParameter(InnerConeAngle,	"InnerConeAngle" );
+		Store.RegisterParameter(OuterConeAngle,	"OuterConeAngle" );
 	}
 
 private:
-	float InnerConeAngle;
-	float OuterConeAngle;
+	TReflected<float> InnerConeAngle;
+	TReflected<float> OuterConeAngle;
 };
 
 class FDatasmithDirectionalLightElementImpl : public FDatasmithLightActorElementImpl< IDatasmithDirectionalLightElement >
@@ -618,6 +713,10 @@ public:
 		, Width( 0.f )
 		, Length( 0.f )
 	{
+		Store.RegisterParameter(LightShape, "LightShape" );
+		Store.RegisterParameter(LightType,  "LightType"  );
+		Store.RegisterParameter(Width,      "Width"      );
+		Store.RegisterParameter(Length,     "Length"     );
 	}
 
 	virtual EDatasmithLightShape GetLightShape() const override { return LightShape; }
@@ -633,10 +732,10 @@ public:
 	virtual float GetLength() const override { return Length; }
 
 private:
-	EDatasmithLightShape LightShape;
-	EDatasmithAreaLightType LightType;
-	float Width;
-	float Length;
+	TReflected<EDatasmithLightShape, uint8> LightShape;
+	TReflected<EDatasmithAreaLightType, uint8> LightType;
+	TReflected<float> Width;
+	TReflected<float> Length;
 };
 
 class FDatasmithLightmassPortalElementImpl : public FDatasmithPointLightElementImpl< IDatasmithLightmassPortalElement >
@@ -681,15 +780,15 @@ public:
 	virtual void SetDepthOfFieldFstop( float InFstop ) override { Fstop = InFstop; }
 
 private:
-	float Temperature;
-	FLinearColor ColorFilter;
-	float Vignette;
-	float Dof;
-	float MotionBlur;
-	float Saturation;
-	float CameraISO;
-	float CameraShutterSpeed;
-	float Fstop;
+	TReflected<float> Temperature;
+	TReflected<FLinearColor> ColorFilter;
+	TReflected<float> Vignette;
+	TReflected<float> Dof;
+	TReflected<float> MotionBlur;
+	TReflected<float> Saturation;
+	TReflected<float> CameraISO;
+	TReflected<float> CameraShutterSpeed;
+	TReflected<float> Fstop;
 };
 
 class FDatasmithPostProcessVolumeElementImpl : public FDatasmithActorElementImpl< IDatasmithPostProcessVolumeElement >
@@ -697,8 +796,8 @@ class FDatasmithPostProcessVolumeElementImpl : public FDatasmithActorElementImpl
 public:
 	FDatasmithPostProcessVolumeElementImpl( const TCHAR* InName );
 
-	virtual const TSharedRef< IDatasmithPostProcessElement >& GetSettings() const override { return Settings; }
-	virtual void SetSettings(const TSharedRef< IDatasmithPostProcessElement >& InSettings) override { Settings = InSettings; }
+	virtual TSharedRef< IDatasmithPostProcessElement > GetSettings() const override { return Settings.Inner.ToSharedRef(); }
+	virtual void SetSettings(const TSharedRef< IDatasmithPostProcessElement >& InSettings) override { Settings.Inner = InSettings; }
 
 	virtual bool GetEnabled() const { return bEnabled; }
 	virtual void SetEnabled( bool bInEnabled ) { bEnabled = bInEnabled; }
@@ -707,10 +806,10 @@ public:
 	virtual void SetUnbound( bool bInUnbound) override { bUnbound = bInUnbound; }
 
 private:
-	TSharedRef< IDatasmithPostProcessElement > Settings;
+	TDatasmithReferenceProxy<IDatasmithPostProcessElement> Settings;
 
-	bool bEnabled;
-	bool bUnbound;
+	TReflected<bool> bEnabled;
+	TReflected<bool> bUnbound;
 };
 
 class FDatasmithCameraActorElementImpl : public FDatasmithActorElementImpl< IDatasmithCameraActorElement >
@@ -740,59 +839,108 @@ public:
 	virtual const TSharedPtr< IDatasmithPostProcessElement >& GetPostProcess() const override;
 	virtual void SetPostProcess(const TSharedPtr< IDatasmithPostProcessElement >& InPostProcess) override;
 
-	virtual const TCHAR* GetLookAtActor() const override { return *ActorName; }
+	virtual const TCHAR* GetLookAtActor() const override { return *(FString&)ActorName; }
 	virtual void SetLookAtActor(const TCHAR* InActorName) override { ActorName = InActorName; }
 
 	virtual bool GetLookAtAllowRoll() const override { return bLookAtAllowRoll; }
 	virtual void SetLookAtAllowRoll(bool bAllow) override { bLookAtAllowRoll = bAllow; }
 
 private:
-	TSharedPtr< IDatasmithPostProcessElement > PostProcess;
+	TDatasmithReferenceProxy<IDatasmithPostProcessElement> PostProcess;
 
-	float SensorWidth;
-	float SensorAspectRatio;
-	bool bEnableDepthOfField;
-	float FocusDistance;
-	float FStop;
-	float FocalLength;
-	FString ActorName;
-	bool bLookAtAllowRoll;
+	TReflected<float>   SensorWidth;
+	TReflected<float>   SensorAspectRatio;
+	TReflected<bool>    bEnableDepthOfField;
+	TReflected<float>   FocusDistance;
+	TReflected<float>   FStop;
+	TReflected<float>   FocalLength;
+	TReflected<FString> ActorName;
+	TReflected<bool>    bLookAtAllowRoll;
 };
 
-class DATASMITHCORE_API FDatasmithCustomActorElementImpl : public FDatasmithActorElementImpl< IDatasmithCustomActorElement >
+template< typename InterfaceType = IDatasmithCustomActorElement >
+class DATASMITHCORE_API FDatasmithCustomActorElementImpl : public FDatasmithActorElementImpl< InterfaceType >
 {
 public:
-	explicit FDatasmithCustomActorElementImpl(const TCHAR* InName)
-		: FDatasmithActorElementImpl(InName, EDatasmithElementType::CustomActor)
+	using FDatasmithElementImpl< InterfaceType >::Store;
+
+	explicit FDatasmithCustomActorElementImpl(const TCHAR* InName, EDatasmithElementType InChildType = EDatasmithElementType::None)
+		: FDatasmithActorElementImpl< InterfaceType >(InName, EDatasmithElementType::CustomActor | InChildType)
 	{
+		this->RegisterReferenceProxy(Properties, "Properties");
+		Store.RegisterParameter(ClassOrPathName, "ClassOrPathName");
 	}
 
 	/** The class name or path to the blueprint to instantiate. */
-	virtual const TCHAR* GetClassOrPathName() const override { return *ClassOrPathName; }
+	virtual const TCHAR* GetClassOrPathName() const override { return *(FString&)ClassOrPathName; }
 	virtual void SetClassOrPathName( const TCHAR* InClassOrPathName ) override { ClassOrPathName = InClassOrPathName; }
 
 	/** Get the total amount of properties in this actor */
 	virtual int32 GetPropertiesCount() const override { return Properties.Num(); }
 
 	/** Get the property i-th of this actor */
-	virtual const TSharedPtr< IDatasmithKeyValueProperty >& GetProperty(int32 i) const override { return Properties[i]; }
-	virtual TSharedPtr< IDatasmithKeyValueProperty >& GetProperty(int32 i) override { return Properties[i]; }
+	virtual const TSharedPtr< IDatasmithKeyValueProperty >& GetProperty(int32 Index) const override
+	{
+		return Properties.IsValidIndex(Index) ? Properties[Index] : FDatasmithKeyValuePropertyImpl::NullPropertyPtr;
+	}
 
 	/** Get a property by its name if it exists */
-	virtual const TSharedPtr< IDatasmithKeyValueProperty >& GetPropertyByName(const TCHAR* Name) const override;
-	virtual TSharedPtr< IDatasmithKeyValueProperty >& GetPropertyByName(const TCHAR* Name) override;
+	virtual const TSharedPtr< IDatasmithKeyValueProperty >& GetPropertyByName(const TCHAR* InName) const override
+	{
+		const int32 Index = Properties.View().IndexOfByPredicate([InName](const TSharedPtr<IDatasmithKeyValueProperty>& Property){
+			return Property.IsValid() && FCString::Stricmp(Property->GetName(), InName) == 0;
+			});
+		return GetProperty(Index);
+	}
 
 	/** Add a property to this actor */
-	virtual void AddProperty( const TSharedPtr< IDatasmithKeyValueProperty >& Property ) override;
+	virtual void AddProperty( const TSharedPtr< IDatasmithKeyValueProperty >& InProperty ) override
+	{
+		if (!InProperty.IsValid())
+		{
+			return;
+		}
+
+		const TCHAR* InName = InProperty->GetName();
+		const int32 Index = Properties.View().IndexOfByPredicate([InName](const TSharedPtr<IDatasmithKeyValueProperty>& Property){
+			return Property.IsValid() && FCString::Stricmp(Property->GetName(), InName) == 0;
+			});
+
+		if (Index == INDEX_NONE)
+		{
+			Properties.Add(InProperty);
+		}
+	}
 
 	/** Removes a property from this actor, doesn't preserve ordering */
-	virtual void RemoveProperty( const TSharedPtr< IDatasmithKeyValueProperty >& Property ) override { Properties.RemoveSingleSwap( Property ); }
+	virtual void RemoveProperty( const TSharedPtr< IDatasmithKeyValueProperty >& Property ) override { Properties.Edit().RemoveSingleSwap( Property ); }
+
+
+
+protected:
+	/** Add a property to this actor */
+	int32 AddPropertyInternal(const TCHAR* InKey, EDatasmithKeyValuePropertyType InType, const TCHAR* InValue)
+	{
+		const int32 Index = Properties.View().IndexOfByPredicate([InKey](const TSharedPtr<IDatasmithKeyValueProperty>& Property){
+			return Property.IsValid() && FCString::Stricmp(Property->GetName(), InKey) == 0;
+			});
+
+		if (Index == INDEX_NONE)
+		{
+			TSharedPtr<IDatasmithKeyValueProperty> Property = MakeShared<FDatasmithKeyValuePropertyImpl>(InKey);
+			Property->SetPropertyType(InType);
+			Property->SetValue(InValue);
+
+			return Properties.Add( Property );
+		}
+
+		return INDEX_NONE;
+	}
 
 private:
-	FString ClassOrPathName;
+	TReflected<FString> ClassOrPathName;
 
-	TArray< TSharedPtr< IDatasmithKeyValueProperty > > Properties;
-	TMap< FString, int > PropertyIndexMap;
+	TDatasmithReferenceArrayProxy<IDatasmithKeyValueProperty> Properties;
 };
 
 class DATASMITHCORE_API FDatasmithLandscapeElementImpl : public FDatasmithActorElementImpl< IDatasmithLandscapeElement >
@@ -802,17 +950,26 @@ public:
 		: FDatasmithActorElementImpl(InName, EDatasmithElementType::Landscape)
 	{
 		SetScale( 100.f, 100.f, 100.f );
+
+		RegisterReferenceProxy(Material,  "Material"  );
+		RegisterReferenceProxy(Heightmap, "Heightmap" );
+
+		Store.RegisterParameter(HeightmapFilePath, "HeightmapFilePath" );
+		Store.RegisterParameter(MaterialPathName,  "MaterialPathName"  );
 	}
 
 	virtual void SetHeightmap( const TCHAR* InFilePath ) override { HeightmapFilePath = InFilePath; }
-	virtual const TCHAR* GetHeightmap() const override { return *HeightmapFilePath; }
+	virtual const TCHAR* GetHeightmap() const override { return *(FString&)HeightmapFilePath; }
 
 	virtual void SetMaterial( const TCHAR* InMaterialPathName ) override { MaterialPathName = InMaterialPathName; }
-	virtual const TCHAR* GetMaterial() const override { return *MaterialPathName; }
+	virtual const TCHAR* GetMaterial() const override { return *(FString&)MaterialPathName; }
 
 private:
-	FString HeightmapFilePath;
-	FString MaterialPathName;
+	TDatasmithReferenceProxy<IDatasmithBaseMaterialElement> Material;
+	TDatasmithReferenceProxy<IDatasmithTextureElement> Heightmap;
+
+	TReflected<FString> HeightmapFilePath;
+	TReflected<FString> MaterialPathName;
 };
 
 class FDatasmithEnvironmentElementImpl : public FDatasmithLightActorElementImpl< IDatasmithEnvironmentElement >
@@ -829,7 +986,7 @@ public:
 
 private:
 	TSharedPtr<IDatasmithCompositeTexture> EnvironmentComp;
-	bool bIsIlluminationMap;
+	TReflected<bool> bIsIlluminationMap;
 };
 
 class FDatasmithTextureElementImpl : public FDatasmithElementImpl< IDatasmithTextureElement >
@@ -870,19 +1027,21 @@ public:
 	virtual void SetSRGB(EDatasmithColorSpace Option) override;
 
 private:
-	FString File;
-	FMD5Hash FileHash;
-	float RGBCurve;
-	EDatasmithColorSpace ColorSpace;
-	EDatasmithTextureMode TextureMode;
-	EDatasmithTextureFilter TextureFilter;
-	EDatasmithTextureAddress TextureAddressX;
-	EDatasmithTextureAddress TextureAddressY;
-	bool bAllowResize;
+	TReflected<FString> File;
+	TReflected<FMD5Hash> FileHash;
+	TReflected<float> RGBCurve;
+	TReflected<EDatasmithColorSpace, uint8> ColorSpace;
+	TReflected<EDatasmithTextureMode, uint8> TextureMode;
+	TReflected<EDatasmithTextureFilter, uint8> TextureFilter;
+	TReflected<EDatasmithTextureAddress, uint8> TextureAddressX;
+	TReflected<EDatasmithTextureAddress, uint8> TextureAddressY;
+	TReflected<bool> bAllowResize;
 
+	// #ue_directlink_reflect buffer: should not be separated in 2 properties.
 	const uint8* Data;
 	uint32 DataSize;
-	EDatasmithTextureFormat TextureFormat;
+
+	TReflected<EDatasmithTextureFormat, uint8> TextureFormat;
 };
 
 class FDatasmithShaderElementImpl : public FDatasmithElementImpl< IDatasmithShaderElement >
@@ -1066,7 +1225,7 @@ public:
 	virtual const bool GetUseEmissiveForDynamicAreaLighting() const override { return bUseEmissiveForDynamicAreaLighting; }
 	virtual void SetUseEmissiveForDynamicAreaLighting(bool InUseEmissiveForDynamicAreaLighting) override {	bUseEmissiveForDynamicAreaLighting = InUseEmissiveForDynamicAreaLighting; };
 
-private:
+private:// #ue_directlink_reflect ???
 	double IOR;
 	double IORk;
 	double IORRefra;
@@ -1166,7 +1325,7 @@ public:
 	virtual TSharedPtr< IDatasmithShaderElement >& GetShader(int32 InIndex) override;
 	virtual const TSharedPtr< IDatasmithShaderElement >& GetShader(int32 InIndex) const override;
 
-private:
+private:// #ue_directlink_reflect
 	TArray< TSharedPtr< IDatasmithShaderElement > > Shaders;
 };
 
@@ -1175,33 +1334,48 @@ class FDatasmithMasterMaterialElementImpl : public FDatasmithBaseMaterialElement
 public:
 	FDatasmithMasterMaterialElementImpl(const TCHAR* InName);
 
-	virtual EDatasmithMasterMaterialType GetMaterialType() const { return MaterialType; }
+	virtual EDatasmithMasterMaterialType GetMaterialType() const override { return MaterialType; }
 	virtual void SetMaterialType( EDatasmithMasterMaterialType InType ) override { MaterialType = InType; }
 
-	virtual EDatasmithMasterMaterialQuality GetQuality() const { return Quality; }
-	virtual void SetQuality( EDatasmithMasterMaterialQuality InQuality ) { Quality = InQuality; }
+	virtual EDatasmithMasterMaterialQuality GetQuality() const override { return Quality; }
+	virtual void SetQuality( EDatasmithMasterMaterialQuality InQuality ) override { Quality = InQuality; }
 
-	virtual const TCHAR* GetCustomMaterialPathName() const { return *CustomMaterialPathName; }
-	virtual void SetCustomMaterialPathName( const TCHAR* InPathName ){ CustomMaterialPathName = InPathName; }
+	virtual const TCHAR* GetCustomMaterialPathName() const override { return *(FString&)CustomMaterialPathName; }
+	virtual void SetCustomMaterialPathName( const TCHAR* InPathName ) override { CustomMaterialPathName = InPathName; }
 
-	int32 GetPropertiesCount() const override { return Properties.Num(); }
-
-	const TSharedPtr< IDatasmithKeyValueProperty >& GetProperty( int32 InIndex ) const override;
-	TSharedPtr< IDatasmithKeyValueProperty >& GetProperty( int32 InIndex ) override;
-
-	const TSharedPtr< IDatasmithKeyValueProperty >& GetPropertyByName( const TCHAR* InName ) const override;
-	TSharedPtr< IDatasmithKeyValueProperty >& GetPropertyByName( const TCHAR* InName ) override;
-
-	void AddProperty( const TSharedPtr< IDatasmithKeyValueProperty >& InProperty ) override;
+	virtual int32 GetPropertiesCount() const override { return Properties.Num(); }
+	virtual const TSharedPtr< IDatasmithKeyValueProperty >& GetProperty( int32 InIndex ) const override;
+	virtual const TSharedPtr< IDatasmithKeyValueProperty >& GetPropertyByName( const TCHAR* InName ) const override;
+	virtual void AddProperty( const TSharedPtr< IDatasmithKeyValueProperty >& InProperty ) override;
 
 private:
-	TArray< TSharedPtr< IDatasmithKeyValueProperty > > Properties;
-	TMap< FString, int > PropertyIndexMap;
+	TDatasmithReferenceArrayProxy<IDatasmithKeyValueProperty> Properties;
 
-	EDatasmithMasterMaterialType MaterialType;
-	EDatasmithMasterMaterialQuality Quality;
+	TReflected<EDatasmithMasterMaterialType, uint8> MaterialType;
+	TReflected<EDatasmithMasterMaterialQuality, uint8> Quality;
 
-	FString CustomMaterialPathName;
+	TReflected<FString> CustomMaterialPathName;
+};
+
+class FDatasmithDecalMaterialElementImpl : public FDatasmithBaseMaterialElementImpl< IDatasmithDecalMaterialElement >
+{
+public:
+	FDatasmithDecalMaterialElementImpl(const TCHAR* InName)
+		: FDatasmithBaseMaterialElementImpl(InName, EDatasmithElementType::DecalMaterial)
+	{
+		Store.RegisterParameter(DiffuseTexturePathName, "DiffuseTexturePathName");
+		Store.RegisterParameter(NormalTexturePathName,  "NormalTexturePathName");
+	}
+
+	virtual const TCHAR* GetDiffuseTexturePathName() const override { return *(FString&)DiffuseTexturePathName; }
+	virtual void SetDiffuseTexturePathName( const TCHAR* InPathName ) override { DiffuseTexturePathName = InPathName; }
+
+	virtual const TCHAR* GetNormalTexturePathName() const override { return *(FString&)NormalTexturePathName; }
+	virtual void SetNormalTexturePathName( const TCHAR* InPathName ) override { NormalTexturePathName = InPathName; }
+
+private:
+	TReflected<FString> DiffuseTexturePathName;
+	TReflected<FString> NormalTexturePathName;
 };
 
 class FDatasmithCompositeSurface
@@ -1221,7 +1395,7 @@ public:
 	const FLinearColor& GetParamColor() const;
 	TSharedPtr<IDatasmithCompositeTexture>& GetParamSubComposite();
 
-private:
+private:// #ue_directlink_reflect
 	FDatasmithTextureSampler ParamSampler;
 	FString ParamTextures;
 	FLinearColor ParamColor;
@@ -1311,23 +1485,40 @@ class DATASMITHCORE_API FDatasmithMetaDataElementImpl : public FDatasmithElement
 public:
 	explicit FDatasmithMetaDataElementImpl(const TCHAR* InName);
 
-	virtual const TSharedPtr< IDatasmithElement >& GetAssociatedElement() const override { return AssociatedElement; }
-	virtual void SetAssociatedElement(const TSharedPtr< IDatasmithElement >& Element) { AssociatedElement = Element; }
+	virtual const TSharedPtr< IDatasmithElement >& GetAssociatedElement() const override { return AssociatedElement.Inner; }
+	virtual void SetAssociatedElement(const TSharedPtr< IDatasmithElement >& Element) { AssociatedElement.Inner = Element; }
 
-	int32 GetPropertiesCount() const override { return Properties.Num(); }
+	virtual int32 GetPropertiesCount() const override { return Properties.Num(); }
 
-	virtual const TSharedPtr< IDatasmithKeyValueProperty >& GetProperty(int32 i) const override { return Properties[i]; }
-	virtual TSharedPtr< IDatasmithKeyValueProperty >& GetProperty(int32 i) override { return Properties[i]; }
+	virtual const TSharedPtr< IDatasmithKeyValueProperty >& GetProperty(int32 i) const override;
 
-	const TSharedPtr< IDatasmithKeyValueProperty >& GetPropertyByName( const TCHAR* InName ) const override;
-	TSharedPtr< IDatasmithKeyValueProperty >& GetPropertyByName( const TCHAR* InName ) override;
+	virtual const TSharedPtr< IDatasmithKeyValueProperty >& GetPropertyByName( const TCHAR* InName ) const override;
 
 	virtual void AddProperty( const TSharedPtr< IDatasmithKeyValueProperty >& Property ) override;
 
 private:
-	TSharedPtr< IDatasmithElement > AssociatedElement;
-	TArray< TSharedPtr< IDatasmithKeyValueProperty > > Properties;
-	TMap< FString, int > PropertyIndexMap;
+	TDatasmithReferenceProxy<IDatasmithElement> AssociatedElement;
+	TDatasmithReferenceArrayProxy<IDatasmithKeyValueProperty> Properties;
+};
+
+class DATASMITHCORE_API FDatasmithDecalActorElementImpl : public FDatasmithCustomActorElementImpl< IDatasmithDecalActorElement >
+{
+public:
+	explicit FDatasmithDecalActorElementImpl( const TCHAR* InName );
+
+	virtual FVector GetDimensions() const;
+	virtual void SetDimensions( const FVector& InDimensions );
+
+	virtual const TCHAR* GetDecalMaterialPathName() const;
+	virtual void SetDecalMaterialPathName( const TCHAR* InMaterialPathName );
+
+	virtual int32 GetSortOrder() const;
+	virtual void SetSortOrder( int32 InSortOrder );
+
+private:
+	int32 SortOrderPropertyIndex;
+	int32 DimensionsPropertyIndex;
+	int32 MaterialPropertyIndex;
 };
 
 class DATASMITHCORE_API FDatasmithSceneImpl : public FDatasmithElementImpl< IDatasmithScene >
@@ -1337,35 +1528,31 @@ public:
 
 	virtual void Reset() override;
 
-	virtual const TCHAR* GetHost() const
-	{
-		return *Hostname;
-	}
+	virtual const TCHAR* GetHost() const;
+	virtual void SetHost(const TCHAR* InHostname);
 
-	virtual void SetHost(const TCHAR* InHostname)
-	{
-		Hostname = InHostname;
-	}
-
-	virtual const TCHAR* GetExporterVersion() const override { return *ExporterVersion; }
+	virtual const TCHAR* GetExporterVersion() const override { return *(FString&)ExporterVersion; }
 	virtual void SetExporterVersion(const TCHAR* InVersion) override { ExporterVersion = InVersion; }
 
-	virtual const TCHAR* GetExporterSDKVersion() const override { return *ExporterSDKVersion; }
+	virtual const TCHAR* GetExporterSDKVersion() const override { return *(FString&)ExporterSDKVersion; }
 	virtual void SetExporterSDKVersion(const TCHAR* InVersion) override { ExporterSDKVersion = InVersion; }
 
-	virtual const TCHAR* GetVendor() const override	{ return *Vendor; }
+	virtual const TCHAR* GetVendor() const override	{ return *(FString&)Vendor; }
 	virtual void SetVendor(const TCHAR* InVendor) override { Vendor = InVendor; }
 
-	virtual const TCHAR* GetProductName() const override { return *ProductName;	}
-	virtual void SetProductName(const TCHAR* InProductName) override { ProductName = InProductName;	}
+	virtual const TCHAR* GetProductName() const override { return *(FString&)ProductName; }
+	virtual void SetProductName(const TCHAR* InProductName) override { ProductName = InProductName; }
 
-	virtual const TCHAR* GetProductVersion() const override	{ return *ProductVersion; }
-	virtual void SetProductVersion(const TCHAR* InProductVersion) override { ProductVersion = InProductVersion;	}
+	virtual const TCHAR* GetProductVersion() const override	{ return *(FString&)ProductVersion; }
+	virtual void SetProductVersion(const TCHAR* InProductVersion) override { ProductVersion = InProductVersion; }
 
-	virtual const TCHAR* GetUserID() const override { return *UserID; }
+	virtual const TCHAR* GetResourcePath() const override	{ return *(FString&)ResourcePath; }
+	virtual void SetResourcePath(const TCHAR* InResourcePath) override { ResourcePath = InResourcePath; }
+
+	virtual const TCHAR* GetUserID() const override { return *(FString&)UserID; }
 	virtual void SetUserID(const TCHAR* InUserID) override { UserID = InUserID; }
 
-	virtual const TCHAR* GetUserOS() const override { return *UserOS; }
+	virtual const TCHAR* GetUserOS() const override { return *(FString&)UserOS; }
 	virtual void SetUserOS(const TCHAR* InUserOS) override { UserOS = InUserOS; }
 
 	virtual int32 GetExportDuration() const override { return ExportDuration; }
@@ -1398,16 +1585,16 @@ public:
 	virtual void RemoveTexture(const TSharedPtr< IDatasmithTextureElement >& InTexture) override { Textures.Remove(InTexture); }
 	virtual void EmptyTextures() override { Textures.Empty(); }
 
-	virtual void SetPostProcess(const TSharedPtr< IDatasmithPostProcessElement >& InPostProcess) override { PostProcess = InPostProcess; }
-	virtual TSharedPtr< IDatasmithPostProcessElement > GetPostProcess() override { return PostProcess; }
-	virtual const TSharedPtr< IDatasmithPostProcessElement >& GetPostProcess() const override { return PostProcess; }
+	virtual void SetPostProcess(const TSharedPtr< IDatasmithPostProcessElement >& InPostProcess) override { PostProcess.Inner = InPostProcess; }
+	virtual TSharedPtr< IDatasmithPostProcessElement > GetPostProcess() override { return PostProcess.Inner; }
+	virtual const TSharedPtr< IDatasmithPostProcessElement >& GetPostProcess() const override { return PostProcess.Inner; }
 
 	virtual void SetUsePhysicalSky(bool bInUsePhysicalSky) override { bUseSky = bInUsePhysicalSky; }
 	virtual bool GetUsePhysicalSky() const override { return bUseSky; }
 
-	virtual void AddLODScreenSize( float ScreenSize ) override { LODScreenSizes.Add( FMath::Clamp( ScreenSize, 0.f, 1.f ) ); }
-	virtual int32 GetLODScreenSizesCount() const override { return LODScreenSizes.Num(); }
-	virtual float GetLODScreenSize(int32 InIndex) const override { return LODScreenSizes.IsValidIndex( InIndex ) ? LODScreenSizes[InIndex] : 0.f; }
+	virtual void AddLODScreenSize( float ScreenSize ) override { LODScreenSizes.Edit(Store).Add( FMath::Clamp( ScreenSize, 0.f, 1.f ) ); }
+	virtual int32 GetLODScreenSizesCount() const override { return LODScreenSizes.Get(Store).Num(); }
+	virtual float GetLODScreenSize(int32 InIndex) const override { return LODScreenSizes.Get(Store).IsValidIndex( InIndex ) ? LODScreenSizes.Get(Store)[InIndex] : 0.f; }
 
 	virtual void AddMetaData(const TSharedPtr< IDatasmithMetaDataElement >& InMetaData) override { MetaData.Add(InMetaData); ElementToMetaDataMap.Add(InMetaData->GetAssociatedElement(), InMetaData); }
 
@@ -1416,6 +1603,7 @@ public:
 	virtual const TSharedPtr< IDatasmithMetaDataElement >& GetMetaData(int32 InIndex) const override;
 	virtual TSharedPtr< IDatasmithMetaDataElement > GetMetaData(const TSharedPtr<IDatasmithElement>& Element) override;
 	virtual const TSharedPtr< IDatasmithMetaDataElement >& GetMetaData(const TSharedPtr<IDatasmithElement>& Element) const override;
+	virtual void RemoveMetaData( const TSharedPtr<IDatasmithMetaDataElement>& Element ) override;
 
 	virtual void AddLevelSequence(const TSharedRef< IDatasmithLevelSequenceElement >& InSequence) override { LevelSequences.Add(InSequence);  }
 	virtual int32 GetLevelSequencesCount() const override { return LevelSequences.Num(); }
@@ -1437,27 +1625,31 @@ public:
 	virtual void AttachActorToSceneRoot(const TSharedPtr< IDatasmithActorElement >& Child, EDatasmithActorAttachmentRule AttachmentRule) override;
 
 private:
-	TArray< TSharedPtr< IDatasmithActorElement > >				Actors;
-	TArray< TSharedPtr< IDatasmithMeshElement > >				Meshes;
-	TArray< TSharedPtr< IDatasmithBaseMaterialElement > >		Materials;
-	TArray< TSharedPtr< IDatasmithTextureElement > >			Textures;
-	TArray< TSharedPtr< IDatasmithMetaDataElement > >			MetaData;
-	TArray< TSharedRef< IDatasmithLevelSequenceElement > >		LevelSequences;
-	TArray< TSharedPtr< IDatasmithLevelVariantSetsElement > >	LevelVariantSets;
-	TArray< float >												LODScreenSizes;
-	TSharedPtr< IDatasmithPostProcessElement >					PostProcess;
+	TDatasmithReferenceArrayProxy<IDatasmithActorElement>            Actors;
+	TDatasmithReferenceArrayProxy<IDatasmithMeshElement>             Meshes;
+	TDatasmithReferenceArrayProxy<IDatasmithBaseMaterialElement>     Materials;
+	TDatasmithReferenceArrayProxy<IDatasmithTextureElement>          Textures;
+	TDatasmithReferenceArrayProxy<IDatasmithMetaDataElement>         MetaData;
+	TDatasmithReferenceArrayProxy<IDatasmithLevelSequenceElement>    LevelSequences;
+	TDatasmithReferenceArrayProxy<IDatasmithLevelVariantSetsElement> LevelVariantSets;
+	TDatasmithReferenceProxy<IDatasmithPostProcessElement>           PostProcess;
+
+	TReflected<TArray<float>> LODScreenSizes;
+
+	TReflected<FString> Hostname;
+	TReflected<FString> ExporterVersion;
+	TReflected<FString> ExporterSDKVersion;
+	TReflected<FString> Vendor;
+	TReflected<FString> ProductName;
+	TReflected<FString> ProductVersion;
+	TReflected<FString> UserID;
+	TReflected<FString> UserOS;
+	TReflected<FString> ResourcePath;
+
+	TReflected<uint32> ExportDuration;
+
+	TReflected<bool> bUseSky;
+
+	// #ue_directlink_reflect todo
 	TMap< TSharedPtr< IDatasmithElement >, TSharedPtr< IDatasmithMetaDataElement> > ElementToMetaDataMap;
-
-	FString Hostname;
-	FString ExporterVersion;
-	FString ExporterSDKVersion;
-	FString Vendor;
-	FString ProductName;
-	FString ProductVersion;
-	FString UserID;
-	FString UserOS;
-
-	uint32 ExportDuration;
-
-	bool bUseSky;
 };

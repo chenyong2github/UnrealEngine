@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	PostProcessDeferredMeshDecals.cpp: Deferred Decals implementation.
-=============================================================================*/
-
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
 #include "RHI.h"
@@ -24,12 +20,8 @@
 #include "DebugViewModeRendering.h"
 #include "MeshPassProcessor.inl"
 
-
-/**
-* Policy for drawing mesh decals
-*/
 class FMeshDecalAccumulatePolicy
-{	
+{
 public:
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
@@ -37,134 +29,105 @@ public:
 	}
 };
 
-/**
-* A vertex shader for rendering mesh decals
-*/
 class FMeshDecalsVS : public FMeshMaterialShader
 {
+public:
 	DECLARE_SHADER_TYPE(FMeshDecalsVS, MeshMaterial);
-
-protected:
-
-	FMeshDecalsVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		:	FMeshMaterialShader(Initializer)
-	{
-		PassUniformBuffer.Bind(Initializer.ParameterMap, FSceneTexturesUniformParameters::StaticStructMetadata.GetShaderVariableName());
-	}
-
-	FMeshDecalsVS()
-	{
-	}
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
 		return FMeshDecalAccumulatePolicy::ShouldCompilePermutation(Parameters);
 	}
+
+	FMeshDecalsVS() = default;
+	FMeshDecalsVS(const ShaderMetaType::CompiledShaderInitializerType & Initializer)
+		: FMeshMaterialShader(Initializer)
+	{}
 };
 
-
-/**
- * A hull shader for rendering mesh decals
- */
 class FMeshDecalsHS : public FBaseHS
 {
+public:
 	DECLARE_SHADER_TYPE(FMeshDecalsHS, MeshMaterial);
-
-protected:
-
-	FMeshDecalsHS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FBaseHS(Initializer)
-	{
-		PassUniformBuffer.Bind(Initializer.ParameterMap, FSceneTexturesUniformParameters::StaticStructMetadata.GetShaderVariableName());
-	}
-
-	FMeshDecalsHS() {}
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
 		return FBaseHS::ShouldCompilePermutation(Parameters)
 			&& FMeshDecalAccumulatePolicy::ShouldCompilePermutation(Parameters);
 	}
+
+	FMeshDecalsHS() = default;
+	FMeshDecalsHS(const ShaderMetaType::CompiledShaderInitializerType & Initializer)
+		: FBaseHS(Initializer)
+	{}
 };
 
-/**
- * A domain shader for rendering mesh decals
- */
 class FMeshDecalsDS : public FBaseDS
 {
+public:
 	DECLARE_SHADER_TYPE(FMeshDecalsDS, MeshMaterial);
-
-protected:
-
-	FMeshDecalsDS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FBaseDS(Initializer)
-	{}
-
-	FMeshDecalsDS() {}
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
 		return FBaseDS::ShouldCompilePermutation(Parameters)
 			&& FMeshDecalAccumulatePolicy::ShouldCompilePermutation(Parameters);
 	}
+
+	FMeshDecalsDS() = default;
+	FMeshDecalsDS(const ShaderMetaType::CompiledShaderInitializerType & Initializer)
+		: FBaseDS(Initializer)
+	{}
 };
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(,FMeshDecalsVS,TEXT("/Engine/Private/MeshDecals.usf"),TEXT("MainVS"),SF_Vertex); 
 IMPLEMENT_MATERIAL_SHADER_TYPE(,FMeshDecalsHS,TEXT("/Engine/Private/MeshDecals.usf"),TEXT("MainHull"),SF_Hull); 
 IMPLEMENT_MATERIAL_SHADER_TYPE(,FMeshDecalsDS,TEXT("/Engine/Private/MeshDecals.usf"),TEXT("MainDomain"),SF_Domain);
 
-
-/**
-* A pixel shader to render mesh decals
-*/
 class FMeshDecalsPS : public FMeshMaterialShader
 {
+public:
 	DECLARE_SHADER_TYPE(FMeshDecalsPS, MeshMaterial);
 
-public:
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
 		return FMeshDecalAccumulatePolicy::ShouldCompilePermutation(Parameters);
 	}
+
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FMeshMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		FDecalRendering::SetDecalCompilationEnvironment(Parameters, OutEnvironment);
 	}
 
+	FMeshDecalsPS() = default;
 	FMeshDecalsPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		:	FMeshMaterialShader(Initializer)
-	{
-		PassUniformBuffer.Bind(Initializer.ParameterMap, FSceneTexturesUniformParameters::StaticStructMetadata.GetShaderVariableName());
-	}
-
-	FMeshDecalsPS()
-	{
-	}
+		: FMeshMaterialShader(Initializer)
+	{}
 };
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(,FMeshDecalsPS,TEXT("/Engine/Private/MeshDecals.usf"),TEXT("MainPS"),SF_Pixel);
 
 class FMeshDecalsEmissivePS : public FMeshDecalsPS
 {
+public:
 	DECLARE_SHADER_TYPE(FMeshDecalsEmissivePS, MeshMaterial);
 
-public:
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
 		return FMeshDecalsPS::ShouldCompilePermutation(Parameters)
 			&& Parameters.MaterialParameters.bHasEmissiveColorConnected
 			&& IsDBufferDecalBlendMode(FDecalRenderingCommon::ComputeFinalDecalBlendMode(Parameters.Platform, (EDecalBlendMode)Parameters.MaterialParameters.DecalBlendMode, Parameters.MaterialParameters.bHasNormalConnected));
 	}
+
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FMeshDecalsPS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		FDecalRendering::SetEmissiveDBufferDecalCompilationEnvironment(Parameters, OutEnvironment);
 	}
 
-	FMeshDecalsEmissivePS() {}
-	FMeshDecalsEmissivePS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
-		FMeshDecalsPS(Initializer)
+	FMeshDecalsEmissivePS() = default;
+	FMeshDecalsEmissivePS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FMeshDecalsPS(Initializer)
 	{}
 };
 
@@ -214,10 +177,6 @@ FMeshDecalMeshProcessor::FMeshDecalMeshProcessor(const FScene* Scene,
 	if (FeatureLevel == ERHIFeatureLevel::ES3_1)
 	{
 		PassDrawRenderState.SetPassUniformBuffer(Scene->UniformBuffers.MobileTranslucentBasePassUniformBuffer);
-	}
-	else
-	{
-		PassDrawRenderState.SetPassUniformBuffer(Scene->UniformBuffers.MeshDecalPassUniformBuffer);
 	}
 }
 
@@ -363,89 +322,80 @@ void FMeshDecalMeshProcessor::Process(
 		ShaderElementData);
 }
 
-
-void DrawDecalMeshCommands(FRenderingCompositePassContext& Context, EDecalRenderStage CurrentDecalStage, FDecalRenderingCommon::ERenderTargetMode RenderTargetMode)
+void DrawDecalMeshCommands(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	FDeferredDecalPassTextures& DecalPassTextures,
+	EDecalRenderStage DecalRenderStage,
+	FDecalRenderingCommon::ERenderTargetMode RenderTargetMode)
 {
-	FRHICommandListImmediate& RHICmdList = Context.RHICmdList;
-	const FViewInfo& View = Context.View;
-
-	const bool bPerPixelDBufferMask = IsUsingPerPixelDBufferMask(View.GetShaderPlatform());
-
-	bool bHasNormalRenderTarget = FDecalRenderingCommon::RTM_GBufferNormal == RenderTargetMode ||
-		FDecalRenderingCommon::RTM_SceneColorAndGBufferDepthWriteWithNormal == RenderTargetMode ||
-		FDecalRenderingCommon::RTM_SceneColorAndGBufferWithNormal == RenderTargetMode;
-
-	FGraphicsPipelineStateInitializer GraphicsPSOInit;
-	FDecalRenderTargetManager RenderTargetManager(Context.RHICmdList, Context.GetShaderPlatform(), Context.GetFeatureLevel(), CurrentDecalStage);
-	RenderTargetManager.SetRenderTargetMode(RenderTargetMode, bHasNormalRenderTarget, bPerPixelDBufferMask);
-	Context.SetViewportAndCallRHI(Context.View.ViewRect);
-	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-
-	DrawDynamicMeshPass(View, RHICmdList,
-		[&View, CurrentDecalStage, RenderTargetMode](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
+	auto* PassParameters = GraphBuilder.AllocParameters<FDeferredDecalPassParameters>();
+	GetDeferredDecalPassParameters(View, DecalPassTextures, RenderTargetMode, *PassParameters);
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("MeshDecals"),
+		PassParameters,
+		ERDGPassFlags::Raster,
+		[&View, DecalRenderStage, RenderTargetMode](FRHICommandList& RHICmdList)
 	{
-		FMeshDecalMeshProcessor PassMeshProcessor(
-			View.Family->Scene->GetRenderScene(),
-			&View,
-			CurrentDecalStage,
-			RenderTargetMode,
-			DynamicMeshPassContext);
+		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 
-		for (int32 MeshBatchIndex = 0; MeshBatchIndex < View.MeshDecalBatches.Num(); ++MeshBatchIndex)
+		DrawDynamicMeshPass(View, RHICmdList,
+			[&View, DecalRenderStage, RenderTargetMode](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 		{
-			const FMeshBatch* Mesh = View.MeshDecalBatches[MeshBatchIndex].Mesh;
-			const FPrimitiveSceneProxy* PrimitiveSceneProxy = View.MeshDecalBatches[MeshBatchIndex].Proxy;
-			const uint64 DefaultBatchElementMask = ~0ull;
+			FMeshDecalMeshProcessor PassMeshProcessor(
+				View.Family->Scene->GetRenderScene(),
+				&View,
+				DecalRenderStage,
+				RenderTargetMode,
+				DynamicMeshPassContext);
 
-			PassMeshProcessor.AddMeshBatch(*Mesh, DefaultBatchElementMask, PrimitiveSceneProxy);
-		}
-	}, true);
+			for (int32 MeshBatchIndex = 0; MeshBatchIndex < View.MeshDecalBatches.Num(); ++MeshBatchIndex)
+			{
+				const FMeshBatch* Mesh = View.MeshDecalBatches[MeshBatchIndex].Mesh;
+				const FPrimitiveSceneProxy* PrimitiveSceneProxy = View.MeshDecalBatches[MeshBatchIndex].Proxy;
+				const uint64 DefaultBatchElementMask = ~0ull;
+
+				PassMeshProcessor.AddMeshBatch(*Mesh, DefaultBatchElementMask, PrimitiveSceneProxy);
+			}
+		}, true);
+	});
 }
 
-void RenderMeshDecals(FRenderingCompositePassContext& Context, EDecalRenderStage CurrentDecalStage)
+void RenderMeshDecals(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	FDeferredDecalPassTextures& DecalPassTextures,
+	EDecalRenderStage DecalRenderStage)
 {
-	FRHICommandListImmediate& RHICmdList = Context.RHICmdList;
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-	const FViewInfo& View = Context.View;
-	FScene* Scene = (FScene*)View.Family->Scene;
-
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FSceneRenderer_RenderMeshDecals);
-	SCOPED_DRAW_EVENT(RHICmdList, MeshDecals);
 
-	FSceneTexturesUniformParameters SceneTextureParameters;
-	SetupSceneTextureUniformParameters(SceneContext, View.FeatureLevel, ESceneTextureSetupMode::All, SceneTextureParameters);
-	Scene->UniformBuffers.MeshDecalPassUniformBuffer.UpdateUniformBufferImmediate(SceneTextureParameters);
-
-	if (View.MeshDecalBatches.Num() > 0)
+	switch (DecalRenderStage)
 	{
-		switch (CurrentDecalStage)
-		{
-		case DRS_BeforeBasePass:
-			DrawDecalMeshCommands(Context, CurrentDecalStage, FDecalRenderingCommon::RTM_DBuffer);
-			break;
+	case DRS_BeforeBasePass:
+		DrawDecalMeshCommands(GraphBuilder, View, DecalPassTextures, DecalRenderStage, FDecalRenderingCommon::RTM_DBuffer);
+		break;
 
-		case DRS_AfterBasePass:
-			DrawDecalMeshCommands(Context, CurrentDecalStage, FDecalRenderingCommon::RTM_SceneColorAndGBufferDepthWriteWithNormal);
-			break;
+	case DRS_AfterBasePass:
+		DrawDecalMeshCommands(GraphBuilder, View, DecalPassTextures, DecalRenderStage, FDecalRenderingCommon::RTM_SceneColorAndGBufferDepthWriteWithNormal);
+		break;
 
-		case DRS_BeforeLighting:
-			DrawDecalMeshCommands(Context, CurrentDecalStage, FDecalRenderingCommon::RTM_GBufferNormal);
-			DrawDecalMeshCommands(Context, CurrentDecalStage, FDecalRenderingCommon::RTM_SceneColorAndGBufferWithNormal);
-			DrawDecalMeshCommands(Context, CurrentDecalStage, FDecalRenderingCommon::RTM_SceneColorAndGBufferNoNormal);
-			break;
+	case DRS_BeforeLighting:
+		DrawDecalMeshCommands(GraphBuilder, View, DecalPassTextures, DecalRenderStage, FDecalRenderingCommon::RTM_GBufferNormal);
+		DrawDecalMeshCommands(GraphBuilder, View, DecalPassTextures, DecalRenderStage, FDecalRenderingCommon::RTM_SceneColorAndGBufferWithNormal);
+		DrawDecalMeshCommands(GraphBuilder, View, DecalPassTextures, DecalRenderStage, FDecalRenderingCommon::RTM_SceneColorAndGBufferNoNormal);
+		break;
 
-		case DRS_Mobile:
-			DrawDecalMeshCommands(Context, CurrentDecalStage, FDecalRenderingCommon::RTM_SceneColor);
-			break;
+	case DRS_Mobile:
+		DrawDecalMeshCommands(GraphBuilder, View, DecalPassTextures, DecalRenderStage, FDecalRenderingCommon::RTM_SceneColor);
+		break;
 
-		case DRS_AmbientOcclusion:
-			DrawDecalMeshCommands(Context, CurrentDecalStage, FDecalRenderingCommon::RTM_AmbientOcclusion);
-			break;
+	case DRS_AmbientOcclusion:
+		DrawDecalMeshCommands(GraphBuilder, View, DecalPassTextures, DecalRenderStage, FDecalRenderingCommon::RTM_AmbientOcclusion);
+		break;
 
-		case DRS_Emissive:
-			DrawDecalMeshCommands(Context, CurrentDecalStage, FDecalRenderingCommon::RTM_SceneColor);
-			break;
-		}
+	case DRS_Emissive:
+		DrawDecalMeshCommands(GraphBuilder, View, DecalPassTextures, DecalRenderStage, FDecalRenderingCommon::RTM_SceneColor);
+		break;
 	}
 }
 
@@ -453,17 +403,21 @@ void RenderMeshDecalsMobile(FRHICommandList& RHICmdList, const FViewInfo& View)
 {
 	SCOPED_DRAW_EVENT(RHICmdList, MeshDecals);
 
+	FDecalRenderingCommon::ERenderTargetMode RenderTargetMode = IsMobileDeferredShadingEnabled(View.GetShaderPlatform()) ? 
+		FDecalRenderingCommon::RTM_SceneColorAndGBufferWithNormal : 
+		FDecalRenderingCommon::RTM_SceneColor;
+
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
 	RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1);
-	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit); 
-	
-	DrawDynamicMeshPass(View, RHICmdList, [&View](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
+	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+
+	DrawDynamicMeshPass(View, RHICmdList, [&View, RenderTargetMode](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 	{
 		FMeshDecalMeshProcessor PassMeshProcessor(
 			View.Family->Scene->GetRenderScene(),
 			&View,
 			DRS_Mobile,
-			FDecalRenderingCommon::RTM_SceneColor,
+			RenderTargetMode,
 			DynamicMeshPassContext);
 
 		for (int32 MeshBatchIndex = 0; MeshBatchIndex < View.MeshDecalBatches.Num(); ++MeshBatchIndex)

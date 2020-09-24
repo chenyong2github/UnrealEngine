@@ -10,7 +10,7 @@
 #include "../ShaderPrintCommon.ush"
 #include "HairStrandsVisibilityCommon.ush"
 #include "HairStrandsVoxelPageCommon.ush"
-#include "HairStrandsDebugCommon.ush" 
+#include "HairStrandsDebugCommon.ush"  
 
 #define VOXEL_TRAVERSAL_DEBUG 0
 #if PERMUTATION_TRAVERSAL == 1

@@ -6,6 +6,7 @@
 
 #include "Math/UnrealMathUtility.h"
 #include "Logging/LogMacros.h"
+#include "Async/ParallelFor.h"
 
 #if WITH_EDITOR
 #include "Framework/Notifications/NotificationManager.h"
@@ -17,6 +18,10 @@ DECLARE_CYCLE_STAT(TEXT("Skin Physics Mesh"), STAT_ClothSkinPhysMesh, STATGROUP_
 
 #define LOCTEXT_NAMESPACE "ClothingMeshUtils"
 
+// This must match NUM_INFLUENCES_PER_VERTEX in GpuSkinCacheComputeShader.usf and GpuSkinVertexFactory.ush
+// TODO: Make this easier to change in without messing things up
+#define NUM_INFLUENCES_PER_VERTEX 5
+
 namespace ClothingMeshUtils
 {
 	// Explicit template instantiations of SkinPhysicsMesh
@@ -27,9 +32,16 @@ namespace ClothingMeshUtils
 	void CLOTHINGSYSTEMRUNTIMECOMMON_API SkinPhysicsMesh<false, true>(const TArray<int32>& BoneMap, const FClothPhysicalMeshData& InMesh, const FTransform& RootBoneTransform,
 		const FMatrix* InBoneMatrices, const int32 InNumBoneMatrices, TArray<FVector>& OutPositions, TArray<FVector>& OutNormals, uint32 ArrayOffset);
 
+	// inline function used to force the unrolling of the skinning loop
+	FORCEINLINE static void AddInfluence(FVector& OutPosition, FVector& OutNormal, const FVector& RefParticle, const FVector& RefNormal, const FMatrix& BoneMatrix, const float Weight)
+	{
+		OutPosition += BoneMatrix.TransformPosition(RefParticle) * Weight;
+		OutNormal += BoneMatrix.TransformVector(RefNormal) * Weight;
+	}
+
 	template<bool bInPlaceOutput, bool bRemoveScaleAndInvertPostTransform>
 	void SkinPhysicsMesh(
-		const TArray<int32>& BoneMap,
+		const TArray<int32>& InBoneMap,
 		const FClothPhysicalMeshData& InMesh,
 		const FTransform& PostTransform,
 		const FMatrix* InBoneMatrices,
@@ -60,13 +72,18 @@ namespace ClothingMeshUtils
 		}
 
 		const int32 MaxInfluences = InMesh.MaxBoneWeights;
-		const FMatrix* RESTRICT BoneMatrices = InBoneMatrices;
+		UE_CLOG(MaxInfluences > 12, LogClothingMeshUtils, Warning, TEXT("The cloth physics mesh skinning code can't cope with more than 12 bone influences."));
 
-		for (uint32 VertIndex = 0; VertIndex < NumVerts; ++VertIndex)
+		const int32* const RESTRICT BoneMap = InBoneMap.GetData();  // Remove RangeCheck for faster skinning in development builds
+		const FMatrix* const RESTRICT BoneMatrices = InBoneMatrices;
+		
+		static const uint32 MinParallelVertices = 500;  // 500 seems to be the lowest threshold still giving gains even on profiled assets that are only using a small number of influences
+
+		ParallelFor(NumVerts, [&InMesh, &PostTransform, BoneMap, BoneMatrices, &OutPositions, &OutNormals, ArrayOffset](uint32 VertIndex)
 		{
 			// Fixed particle, needs to be skinned
-			const uint16* RESTRICT BoneIndices = InMesh.BoneData[VertIndex].BoneIndices;
-			const float* RESTRICT BoneWeights = InMesh.BoneData[VertIndex].BoneWeights;
+			const uint16* const RESTRICT BoneIndices = InMesh.BoneData[VertIndex].BoneIndices;
+			const float* const RESTRICT BoneWeights = InMesh.BoneData[VertIndex].BoneWeights;
 
 			// WARNING - HORRIBLE UNROLLED LOOP + JUMP TABLE BELOW
 			// done this way because this is a pretty tight and perf critical loop. essentially
@@ -78,71 +95,19 @@ namespace ClothingMeshUtils
 			FVector& OutNormal = OutNormals[bInPlaceOutput ? VertIndex + ArrayOffset : VertIndex];
 			switch (InMesh.BoneData[VertIndex].NumInfluences)
 			{
+			case 12: AddInfluence(OutPosition, OutNormal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[11]]], BoneWeights[11]);  // Intentional fall through
+			case 11: AddInfluence(OutPosition, OutNormal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[10]]], BoneWeights[10]);  // Intentional fall through
+			case 10: AddInfluence(OutPosition, OutNormal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[ 9]]], BoneWeights[ 9]);  // Intentional fall through
+			case  9: AddInfluence(OutPosition, OutNormal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[ 8]]], BoneWeights[ 8]);  // Intentional fall through
+			case  8: AddInfluence(OutPosition, OutNormal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[ 7]]], BoneWeights[ 7]);  // Intentional fall through
+			case  7: AddInfluence(OutPosition, OutNormal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[ 6]]], BoneWeights[ 6]);  // Intentional fall through
+			case  6: AddInfluence(OutPosition, OutNormal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[ 5]]], BoneWeights[ 5]);  // Intentional fall through
+			case  5: AddInfluence(OutPosition, OutNormal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[ 4]]], BoneWeights[ 4]);  // Intentional fall through
+			case  4: AddInfluence(OutPosition, OutNormal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[ 3]]], BoneWeights[ 3]);  // Intentional fall through
+			case  3: AddInfluence(OutPosition, OutNormal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[ 2]]], BoneWeights[ 2]);  // Intentional fall through
+			case  2: AddInfluence(OutPosition, OutNormal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[ 1]]], BoneWeights[ 1]);  // Intentional fall through
+			case  1: AddInfluence(OutPosition, OutNormal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[ 0]]], BoneWeights[ 0]);  // Intentional fall through
 			default: break;
-			case 8:
-			{
-				const FMatrix& BoneMatrix = BoneMatrices[BoneMap[BoneIndices[7]]];
-				const float Weight = BoneWeights[7];
-
-				OutPosition += BoneMatrix.TransformPosition(RefParticle) * Weight;
-				OutNormal += BoneMatrix.TransformVector(RefNormal) * Weight;
-			}
-			case 7:
-			{
-				const FMatrix& BoneMatrix = BoneMatrices[BoneMap[BoneIndices[6]]];
-				const float Weight = BoneWeights[6];
-
-				OutPosition += BoneMatrix.TransformPosition(RefParticle) * Weight;
-				OutNormal += BoneMatrix.TransformVector(RefNormal) * Weight;
-			}
-			case 6:
-			{
-				const FMatrix& BoneMatrix = BoneMatrices[BoneMap[BoneIndices[5]]];
-				const float Weight = BoneWeights[5];
-
-				OutPosition += BoneMatrix.TransformPosition(RefParticle) * Weight;
-				OutNormal += BoneMatrix.TransformVector(RefNormal) * Weight;
-			}
-			case 5:
-			{
-				const FMatrix& BoneMatrix = BoneMatrices[BoneMap[BoneIndices[4]]];
-				const float Weight = BoneWeights[4];
-
-				OutPosition += BoneMatrix.TransformPosition(RefParticle) * Weight;
-				OutNormal += BoneMatrix.TransformVector(RefNormal) * Weight;
-			}
-			case 4:
-			{
-				const FMatrix& BoneMatrix = BoneMatrices[BoneMap[BoneIndices[3]]];
-				const float Weight = BoneWeights[3];
-
-				OutPosition += BoneMatrix.TransformPosition(RefParticle) * Weight;
-				OutNormal += BoneMatrix.TransformVector(RefNormal) * Weight;
-			}
-			case 3:
-			{
-				const FMatrix& BoneMatrix = BoneMatrices[BoneMap[BoneIndices[2]]];
-				const float Weight = BoneWeights[2];
-
-				OutPosition += BoneMatrix.TransformPosition(RefParticle) * Weight;
-				OutNormal += BoneMatrix.TransformVector(RefNormal) * Weight;
-			}
-			case 2:
-			{
-				const FMatrix& BoneMatrix = BoneMatrices[BoneMap[BoneIndices[1]]];
-				const float Weight = BoneWeights[1];
-
-				OutPosition += BoneMatrix.TransformPosition(RefParticle) * Weight;
-				OutNormal += BoneMatrix.TransformVector(RefNormal) * Weight;
-			}
-			case 1:
-			{
-				const FMatrix& BoneMatrix = BoneMatrices[BoneMap[BoneIndices[0]]];
-				const float Weight = BoneWeights[0];
-
-				OutPosition += BoneMatrix.TransformPosition(RefParticle) * Weight;
-				OutNormal += BoneMatrix.TransformVector(RefNormal) * Weight;
-			}
 			}
 
 			if (bRemoveScaleAndInvertPostTransform)
@@ -165,7 +130,7 @@ namespace ClothingMeshUtils
 			{
 				OutNormal = OutNormal.GetUnsafeNormal();
 			}
-		}
+		}, NumVerts > MinParallelVertices ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread);
 	}
 
 	/** 
@@ -173,7 +138,7 @@ namespace ClothingMeshUtils
 	 * Performs no validation on the incoming mesh data, the mesh data should be verified
 	 * to be valid before using this function
 	 */
-	int32 GetBestTriangleBaseIndex(const ClothMeshDesc& Mesh, const FVector& Position)
+	static int32 GetBestTriangleBaseIndex(const ClothMeshDesc& Mesh, const FVector& Position)
 	{
 		float MinimumDistanceSq = MAX_flt;
 		int32 ClosestBaseIndex = INDEX_NONE;
@@ -209,7 +174,228 @@ namespace ClothingMeshUtils
 		return ClosestBaseIndex;
 	}
 
-	void GenerateMeshToMeshSkinningData(TArray<FMeshToMeshVertData>& OutSkinningData, const ClothMeshDesc& TargetMesh, const TArray<FVector>* TargetTangents, const ClothMeshDesc& SourceMesh)
+	namespace    // helpers
+	{
+
+		float DistanceToTriangle(const FVector& Position, const ClothMeshDesc& Mesh, int32 TriBaseIdx)
+		{
+			const uint32 IA = Mesh.Indices[TriBaseIdx + 0];
+			const uint32 IB = Mesh.Indices[TriBaseIdx + 1];
+			const uint32 IC = Mesh.Indices[TriBaseIdx + 2];
+
+			const FVector& A = Mesh.Positions[IA];
+			const FVector& B = Mesh.Positions[IB];
+			const FVector& C = Mesh.Positions[IC];
+
+			FVector PointOnTri = FMath::ClosestPointOnTriangleToPoint(Position, A, B, C);
+			return (PointOnTri - Position).Size();
+		}
+
+		using TriangleDistance = TPair<int32, float>;
+
+		/** Similar to GetBestTriangleBaseIndex but returns the N closest triangles. */
+		template<uint32 N>
+		TStaticArray<TriangleDistance, N> GetNBestTrianglesBaseIndices(const ClothMeshDesc& Mesh, const FVector& Position)
+		{
+			const TArray<int32> Tris = const_cast<ClothMeshDesc&>(Mesh).FindCandidateTriangles(Position);
+			int32 NumTriangles = Tris.Num();
+
+			if (NumTriangles < N)
+			{
+				// Couldn't find N candidates using FindCandidateTriangles. Grab all triangles in the mesh and see if
+				// we have enough
+				NumTriangles = Mesh.Indices.Num() / 3;
+
+				if (NumTriangles < N)
+				{
+					// The mesh doesn't have N triangles. Get as many as we can.
+					TStaticArray<TriangleDistance, N> ClosestTriangles;
+
+					int32 i = 0;
+					for ( ; i < NumTriangles; ++i)
+					{
+						int32 TriBaseIdx = 3*i;
+						float CurrentDistance = DistanceToTriangle(Position, Mesh, TriBaseIdx);
+						ClosestTriangles[i] = TPair<int32, float>{ TriBaseIdx, CurrentDistance };
+					}
+
+					// fill the rest with INDEX_NONE 
+					for (; i < N; ++i)
+					{
+						ClosestTriangles[i] = TPair<int32, float>{ INDEX_NONE, 0.0f };
+					}
+
+					return ClosestTriangles;
+				}
+			}
+
+			check(NumTriangles >= N);
+
+			// Closest N triangle, heapified so that the first triangle is the furthest of the N closest triangles
+			TStaticArray<TriangleDistance, N> ClosestTriangles;
+
+			// Get the distances to the first N triangles (unsorted)
+			int32 i = 0;
+			for (; i < N; ++i)
+			{
+				int32 TriBaseIdx = (Tris.Num() >= N ? Tris[i] : i) * 3;
+				float CurrentDistance = DistanceToTriangle(Position, Mesh, TriBaseIdx);
+				ClosestTriangles[i] = TPair<int32, float>{ TriBaseIdx, CurrentDistance };
+			}
+
+			// Max-heapify the N first triangle distances
+			Algo::Heapify(ClosestTriangles, [](const TriangleDistance& A, const TriangleDistance& B)
+			{
+				return A.Value > B.Value;
+			});
+
+			// Now keep going
+			for (; i < NumTriangles; ++i)
+			{
+				int32 TriBaseIdx = (Tris.Num() >= N ? Tris[i] : i) * 3;
+				float CurrentDistance = DistanceToTriangle(Position, Mesh, TriBaseIdx);
+
+				if (CurrentDistance < ClosestTriangles[0].Value)
+				{
+					// Triangle is closer than the "furthest" ClosestTriangles
+
+					// Replace the furthest ClosestTriangles with this triangle...
+					ClosestTriangles[0] = TPair<int32, float>{ TriBaseIdx, CurrentDistance };
+
+					// ...and re-heapify the closest triangles
+					Algo::Heapify(ClosestTriangles, [](const TriangleDistance& A, const TriangleDistance& B)
+					{
+						return A.Value > B.Value;
+					});
+				}
+			}
+
+			return ClosestTriangles;
+		}
+
+		// Using this formula, for R = Distance / MaxDistance:
+		//		Weight = 1 - 3 * R ^ 2 + 3 * R ^ 4 - R ^ 6
+		// From the Houdini metaballs docs: https://www.sidefx.com/docs/houdini/nodes/sop/metaball.html#kernels
+		// Which was linked to from the cloth capture doc: https://www.sidefx.com/docs/houdini/nodes/sop/clothcapture.html
+
+		float Kernel(float Distance, float MaxDistance)
+		{
+			float R = FMath::Max(0.0f, FMath::Min(1.0f, Distance / MaxDistance));
+			float R2 = R * R;
+			float R4 = R2 * R2;
+			return 1.0f + 3.0f * (R4 - R2) - R4 * R2;
+		}
+
+		template<unsigned int NUM_INFLUENCES>
+		bool SkinningDataForVertex(TStaticArray<FMeshToMeshVertData, NUM_INFLUENCES>& SkinningData,
+			const ClothMeshDesc& TargetMesh,
+			const TArray<FVector>* TargetTangents,
+			const ClothMeshDesc& SourceMesh,
+			int32 VertIdx0,
+			float KernelMaxDistance)
+		{
+			const FVector& VertPosition = TargetMesh.Positions[VertIdx0];
+			const FVector& VertNormal = TargetMesh.Normals[VertIdx0];
+
+			FVector VertTangent;
+			if (TargetTangents)
+			{
+				VertTangent = (*TargetTangents)[VertIdx0];
+			}
+			else
+			{
+				FVector Tan0, Tan1;
+				VertNormal.FindBestAxisVectors(Tan0, Tan1);
+				VertTangent = Tan0;
+			}
+
+			TStaticArray<TriangleDistance, NUM_INFLUENCES> NearestTriangles =
+				GetNBestTrianglesBaseIndices<NUM_INFLUENCES>(SourceMesh, VertPosition);
+
+			float SumWeight = 0.0f;
+
+			for (int j = 0; j < NUM_INFLUENCES; ++j)
+			{
+				FMeshToMeshVertData& CurrentData = SkinningData[j];
+
+				int ClosestTriangleBaseIdx = NearestTriangles[j].Key;
+				if (ClosestTriangleBaseIdx == INDEX_NONE)
+				{
+					CurrentData.Weight = 0.0f;
+					CurrentData.SourceMeshVertIndices[3] = 0xFFFF;
+					continue;
+				}
+
+				const FVector& A = SourceMesh.Positions[SourceMesh.Indices[ClosestTriangleBaseIdx]];
+				const FVector& B = SourceMesh.Positions[SourceMesh.Indices[ClosestTriangleBaseIdx + 1]];
+				const FVector& C = SourceMesh.Positions[SourceMesh.Indices[ClosestTriangleBaseIdx + 2]];
+
+				const FVector& NA = SourceMesh.Normals[SourceMesh.Indices[ClosestTriangleBaseIdx]];
+				const FVector& NB = SourceMesh.Normals[SourceMesh.Indices[ClosestTriangleBaseIdx + 1]];
+				const FVector& NC = SourceMesh.Normals[SourceMesh.Indices[ClosestTriangleBaseIdx + 2]];
+
+				// Before generating the skinning data we need to check for a degenerate triangle.
+				// If we find _any_ degenerate triangles we will notify and fail to generate the skinning data
+				const FVector TriNormal = FVector::CrossProduct(B - A, C - A);
+				if (TriNormal.SizeSquared() < SMALL_NUMBER)
+				{
+					// Failed, we have 2 identical vertices
+
+					// Log and toast
+					FText Error = FText::Format(LOCTEXT("DegenerateTriangleError", "Failed to generate skinning data, found conincident vertices in triangle A={0} B={1} C={2}"), FText::FromString(A.ToString()), FText::FromString(B.ToString()), FText::FromString(C.ToString()));
+
+					UE_LOG(LogClothingMeshUtils, Warning, TEXT("%s"), *Error.ToString());
+
+#if WITH_EDITOR
+					FNotificationInfo Info(Error);
+					Info.ExpireDuration = 5.0f;
+					FSlateNotificationManager::Get().AddNotification(Info);
+#endif
+					return false;
+				}
+
+				CurrentData.PositionBaryCoordsAndDist = GetPointBaryAndDist(A, B, C, NA, NB, NC, VertPosition);
+				CurrentData.NormalBaryCoordsAndDist = GetPointBaryAndDist(A, B, C, NA, NB, NC, VertPosition + VertNormal);
+				CurrentData.TangentBaryCoordsAndDist = GetPointBaryAndDist(A, B, C, NA, NB, NC, VertPosition + VertTangent);
+				CurrentData.SourceMeshVertIndices[0] = SourceMesh.Indices[ClosestTriangleBaseIdx];
+				CurrentData.SourceMeshVertIndices[1] = SourceMesh.Indices[ClosestTriangleBaseIdx + 1];
+				CurrentData.SourceMeshVertIndices[2] = SourceMesh.Indices[ClosestTriangleBaseIdx + 2];
+				CurrentData.SourceMeshVertIndices[3] = 0;
+
+				CurrentData.Weight = Kernel(NearestTriangles[j].Value, KernelMaxDistance);
+				SumWeight += CurrentData.Weight;
+			}
+
+			// Normalize weights
+
+			if (SumWeight == 0.0f)
+			{
+				// Abort
+				for (int j = 0; j < NUM_INFLUENCES; ++j)
+				{
+					FMeshToMeshVertData& CurrentData = SkinningData[j];
+					CurrentData.SourceMeshVertIndices[3] = 0xFFFF;
+					CurrentData.Weight = 0.0f;
+				}
+			}
+
+			for (FMeshToMeshVertData& CurrentData : SkinningData)
+			{
+				CurrentData.Weight /= SumWeight;
+			}
+
+			return true;
+		}
+
+	}		// unnamed namespace
+
+
+	void GenerateMeshToMeshSkinningData(TArray<FMeshToMeshVertData>& OutSkinningData, 
+		const ClothMeshDesc& TargetMesh, 
+		const TArray<FVector>* TargetTangents, 
+		const ClothMeshDesc& SourceMesh,
+		bool bUseMultipleInfluences,
+		float KernelMaxDistance)
 	{
 		if(!TargetMesh.HasValidMesh())
 		{
@@ -249,69 +435,102 @@ namespace ClothingMeshUtils
 			return;
 		}
 
-		OutSkinningData.Reserve(NumMesh0Verts);
-
-		// For all mesh0 verts
-		for(int32 VertIdx0 = 0; VertIdx0 < NumMesh0Verts; ++VertIdx0)
+		if (bUseMultipleInfluences)
 		{
-			OutSkinningData.AddZeroed();
-			FMeshToMeshVertData& SkinningData = OutSkinningData.Last();
+			OutSkinningData.Reserve(NumMesh0Verts * NUM_INFLUENCES_PER_VERTEX);
 
-			const FVector& VertPosition = TargetMesh.Positions[VertIdx0];
-			const FVector& VertNormal = TargetMesh.Normals[VertIdx0];
-
-			FVector VertTangent;
-			if(TargetTangents)
+			// For all mesh0 verts
+			for (int32 VertIdx0 = 0; VertIdx0 < NumMesh0Verts; ++VertIdx0)
 			{
-				VertTangent = (*TargetTangents)[VertIdx0];
+				TStaticArray<FMeshToMeshVertData, NUM_INFLUENCES_PER_VERTEX> SkinningData;
+				bool bOK = SkinningDataForVertex(SkinningData,
+												 TargetMesh,
+												 TargetTangents,
+												 SourceMesh,
+												 VertIdx0,
+												 KernelMaxDistance);
+
+				// If we find _any_ degenerate triangles we will notify and fail to generate the skinning data
+				if (!bOK)
+				{
+					UE_LOG(LogClothingMeshUtils, Warning, TEXT("Error generating mesh-to-mesh skinning data"));
+					OutSkinningData.Reset();
+					return;
+				}
+
+				OutSkinningData.Append(SkinningData.GetData(), NUM_INFLUENCES_PER_VERTEX);
 			}
-			else
+
+			check(OutSkinningData.Num() == NumMesh0Verts * NUM_INFLUENCES_PER_VERTEX);
+		}
+		else
+		{
+			OutSkinningData.Reserve(NumMesh0Verts);
+
+			// For all mesh0 verts
+			for (int32 VertIdx0 = 0; VertIdx0 < NumMesh0Verts; ++VertIdx0)
 			{
-				FVector Tan0, Tan1;
-				VertNormal.FindBestAxisVectors(Tan0, Tan1);
-				VertTangent = Tan0;
-			}
+				OutSkinningData.AddZeroed();
+				FMeshToMeshVertData& SkinningData = OutSkinningData.Last();
 
-			int32 ClosestTriangleBaseIdx = GetBestTriangleBaseIndex(SourceMesh, VertPosition);
+				const FVector& VertPosition = TargetMesh.Positions[VertIdx0];
+				const FVector& VertNormal = TargetMesh.Normals[VertIdx0];
 
-			check(ClosestTriangleBaseIdx != INDEX_NONE);
+				FVector VertTangent;
+				if (TargetTangents)
+				{
+					VertTangent = (*TargetTangents)[VertIdx0];
+				}
+				else
+				{
+					FVector Tan0, Tan1;
+					VertNormal.FindBestAxisVectors(Tan0, Tan1);
+					VertTangent = Tan0;
+				}
 
-			const FVector& A = SourceMesh.Positions[SourceMesh.Indices[ClosestTriangleBaseIdx]];
-			const FVector& B = SourceMesh.Positions[SourceMesh.Indices[ClosestTriangleBaseIdx + 1]];
-			const FVector& C = SourceMesh.Positions[SourceMesh.Indices[ClosestTriangleBaseIdx + 2]];
+				int32 ClosestTriangleBaseIdx = GetBestTriangleBaseIndex(SourceMesh, VertPosition);
+				check(ClosestTriangleBaseIdx != INDEX_NONE);
 
-			const FVector& NA = SourceMesh.Normals[SourceMesh.Indices[ClosestTriangleBaseIdx]];
-			const FVector& NB = SourceMesh.Normals[SourceMesh.Indices[ClosestTriangleBaseIdx + 1]];
-			const FVector& NC = SourceMesh.Normals[SourceMesh.Indices[ClosestTriangleBaseIdx + 2]];
+				const FVector& A = SourceMesh.Positions[SourceMesh.Indices[ClosestTriangleBaseIdx]];
+				const FVector& B = SourceMesh.Positions[SourceMesh.Indices[ClosestTriangleBaseIdx + 1]];
+				const FVector& C = SourceMesh.Positions[SourceMesh.Indices[ClosestTriangleBaseIdx + 2]];
 
-			// Before generating the skinning data we need to check for a degenerate triangle.
-			// If we find _any_ degenerate triangles we will notify and fail to generate the skinning data
-			const FVector TriNormal = FVector::CrossProduct(B - A, C - A);
-			if(TriNormal.SizeSquared() < SMALL_NUMBER)
-			{
-				// Failed, we have 2 identical vertices
-				OutSkinningData.Reset();
+				const FVector& NA = SourceMesh.Normals[SourceMesh.Indices[ClosestTriangleBaseIdx]];
+				const FVector& NB = SourceMesh.Normals[SourceMesh.Indices[ClosestTriangleBaseIdx + 1]];
+				const FVector& NC = SourceMesh.Normals[SourceMesh.Indices[ClosestTriangleBaseIdx + 2]];
 
-				// Log and toast
-				FText Error = FText::Format(LOCTEXT("DegenerateTriangleError", "Failed to generate skinning data, found conincident vertices in triangle A={0} B={1} C={2}"), FText::FromString(A.ToString()), FText::FromString(B.ToString()), FText::FromString(C.ToString()));
+				// Before generating the skinning data we need to check for a degenerate triangle.
+				// If we find _any_ degenerate triangles we will notify and fail to generate the skinning data
+				const FVector TriNormal = FVector::CrossProduct(B - A, C - A);
+				if (TriNormal.SizeSquared() < SMALL_NUMBER)
+				{
+					// Failed, we have 2 identical vertices
+					OutSkinningData.Reset();
 
-				UE_LOG(LogClothingMeshUtils, Warning, TEXT("%s"), *Error.ToString());
+					// Log and toast
+					FText Error = FText::Format(LOCTEXT("DegenerateTriangleError", "Failed to generate skinning data, found conincident vertices in triangle A={0} B={1} C={2}"), FText::FromString(A.ToString()), FText::FromString(B.ToString()), FText::FromString(C.ToString()));
+
+					UE_LOG(LogClothingMeshUtils, Warning, TEXT("%s"), *Error.ToString());
 
 #if WITH_EDITOR
-				FNotificationInfo Info(Error);
-				Info.ExpireDuration = 5.0f;
-				FSlateNotificationManager::Get().AddNotification(Info);
+					FNotificationInfo Info(Error);
+					Info.ExpireDuration = 5.0f;
+					FSlateNotificationManager::Get().AddNotification(Info);
 #endif
-				return;
+					return;
+				}
+
+				SkinningData.PositionBaryCoordsAndDist = GetPointBaryAndDist(A, B, C, NA, NB, NC, VertPosition);
+				SkinningData.NormalBaryCoordsAndDist = GetPointBaryAndDist(A, B, C, NA, NB, NC, VertPosition + VertNormal);
+				SkinningData.TangentBaryCoordsAndDist = GetPointBaryAndDist(A, B, C, NA, NB, NC, VertPosition + VertTangent);
+				SkinningData.SourceMeshVertIndices[0] = SourceMesh.Indices[ClosestTriangleBaseIdx];
+				SkinningData.SourceMeshVertIndices[1] = SourceMesh.Indices[ClosestTriangleBaseIdx + 1];
+				SkinningData.SourceMeshVertIndices[2] = SourceMesh.Indices[ClosestTriangleBaseIdx + 2];
+				SkinningData.SourceMeshVertIndices[3] = 0;
+				SkinningData.Weight = 1.0f;
 			}
 
-			SkinningData.PositionBaryCoordsAndDist = GetPointBaryAndDist(A, B, C, NA, NB, NC, VertPosition);
-			SkinningData.NormalBaryCoordsAndDist = GetPointBaryAndDist(A, B, C, NA, NB, NC, VertPosition + VertNormal);
-			SkinningData.TangentBaryCoordsAndDist = GetPointBaryAndDist(A, B, C, NA, NB, NC, VertPosition + VertTangent);
-			SkinningData.SourceMeshVertIndices[0] = SourceMesh.Indices[ClosestTriangleBaseIdx];
-			SkinningData.SourceMeshVertIndices[1] = SourceMesh.Indices[ClosestTriangleBaseIdx + 1];
-			SkinningData.SourceMeshVertIndices[2] = SourceMesh.Indices[ClosestTriangleBaseIdx + 2];
-			SkinningData.SourceMeshVertIndices[3] = 0;
+			check(OutSkinningData.Num() == NumMesh0Verts);
 		}
 	}
 

@@ -49,7 +49,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FCommonParameters, )
 
 	// Scene textures and its sampler.
 	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureSamplerParameters, SceneTextureSamplers)
 END_SHADER_PARAMETER_STRUCT()
 
 } // HybridIndirectLighting

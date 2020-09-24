@@ -2683,7 +2683,7 @@ void FNativeClassHeaderGenerator::ExportFunction(FOutputDevice& Out, FReferenceG
 	}
 	else
 	{
-		FString FunctionName = FNativeClassHeaderGenerator::GetOverriddenNameForLiteral(Function);
+		FString FunctionName = CreateUTF8LiteralString(FNativeClassHeaderGenerator::GetOverriddenNameForLiteral(Function));
 		CurrentFunctionText.Logf(TEXT("\t\tUObject* Outer = %s();\r\n"), *OuterFunc);
 		CurrentFunctionText.Logf(TEXT("\t\tUFunction* ReturnFunction = static_cast<UFunction*>(StaticFindObjectFast( UFunction::StaticClass(), Outer, %s ));\r\n"), *FunctionName);
 	}
@@ -3054,7 +3054,9 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 	FString GeneratedSerializeFunctionCPP;
 	FString GeneratedSerializeFunctionHeaderMacroName;
 
-	if (const FArchiveTypeDefinePair* ArchiveTypeDefinePair = GClassSerializerMap.Find(Class))
+	// Only write out adapters if the user has provided one or the other of the Serialize overloads
+	const FArchiveTypeDefinePair* ArchiveTypeDefinePair = GClassSerializerMap.Find(Class);
+	if (ArchiveTypeDefinePair && FMath::CountBits((uint32)ArchiveTypeDefinePair->ArchiveType) == 1)
 	{
 		FString EnclosingDefines;
 		FUHTStringBuilder Boilerplate, BoilerPlateCPP;
@@ -3624,8 +3626,8 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 	const FString& SingletonName = GetSingletonName(Struct, OutReferenceGatherers.UniqueCrossModuleReferences);
 	const FString ChoppedSingletonName = SingletonName.LeftChop(2);
 
-	const FString RigVMParameterPrefix = TEXT("const FName& RigVMOperatorName, int32 RigVMOperatorIndex");
-	TArray<FString> RigVMVirtualFuncProlog, RigVMStubProlog;
+	const FString RigVMParameterPrefix = TEXT("FRigVMExecuteContext& RigVMExecuteContext");
+	TArray<FString> RigVMVirtualFuncProlog, RigVMVirtualFuncEpilog, RigVMStubProlog;
 
 	// for RigVM methods we need to generated a macro used for implementing the static method
 	// and prepare two prologs: one for the virtual function implementation, and one for the stub
@@ -3641,41 +3643,91 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 			const FRigVMParameter& Parameter = StructRigVMInfo->Members[ParameterIndex];
 			if(Parameter.RequiresCast())
 			{
-				if (Parameter.IsArray() && !Parameter.IsConst() && !Parameter.MaxArraySize.IsEmpty())
+				if (Parameter.IsArray() && !Parameter.IsConst() && !Parameter.ArraySize.IsEmpty())
 				{
-					RigVMVirtualFuncProlog.Add(FString::Printf(TEXT("%s.SetNum( %s );"), *Parameter.Name, *Parameter.MaxArraySize));
+					RigVMVirtualFuncProlog.Add(FString::Printf(TEXT("%s.SetNum( %s );"), *Parameter.Name, *Parameter.ArraySize));
 				}
-				RigVMVirtualFuncProlog.Add(FString::Printf(TEXT("%s %s(%s);"), *Parameter.CastType, *Parameter.CastName, *Parameter.Name));
+
+				if (Parameter.CastType.StartsWith(FHeaderParser::FDynamicArrayText))
+				{
+					RigVMVirtualFuncProlog.Add(FString::Printf(TEXT("FRigVMByteArray %s_Bytes;"), *Parameter.CastName));
+					RigVMVirtualFuncProlog.Add(FString::Printf(TEXT("%s %s(%s_Bytes);"), *Parameter.CastType, *Parameter.CastName, *Parameter.CastName));
+					RigVMVirtualFuncProlog.Add(FString::Printf(TEXT("%s.CopyFrom(%s);"), *Parameter.CastName, *Parameter.Name));
+					RigVMVirtualFuncEpilog.Add(FString::Printf(TEXT("%s.CopyTo(%s);"), *Parameter.CastName, *Parameter.Name));
+				}
+				else
+				{
+					RigVMVirtualFuncProlog.Add(FString::Printf(TEXT("%s %s(%s);"), *Parameter.CastType, *Parameter.CastName, *Parameter.Name));
+				}
 			}
 
-			FString VariableType;
-			FString ExtractedType;
 			const FString& ParamTypeOriginal = Parameter.TypeOriginal(true);
 			const FString& ParamNameOriginal = Parameter.NameOriginal(false);
 
-			if (ParamTypeOriginal.StartsWith(TEXT("TArrayView"), ESearchCase::CaseSensitive))
+			if (ParamTypeOriginal.StartsWith(FHeaderParser::FFixedArrayText, ESearchCase::CaseSensitive))
 			{
-				ExtractedType = Parameter.ExtendedType().LeftChop(1).RightChop(1);
-				VariableType = ParamTypeOriginal;
-				
-				RigVMStubProlog.Add(FString::Printf(TEXT("%s %s = TArrayView<%s>((%s*)RigVMOperandMemory[%d], reinterpret_cast<uint64>(RigVMOperandMemory[%d]));"),
+				FString VariableType = ParamTypeOriginal;
+				FString ExtractedType = VariableType.LeftChop(1).RightChop(17);
+
+				RigVMStubProlog.Add(FString::Printf(TEXT("%s %s((%s*)RigVMMemoryHandles[%d].GetData(), reinterpret_cast<uint64>(RigVMMemoryHandles[%d].GetData()));"),
 					*VariableType,
 					*ParamNameOriginal,
-					*ExtractedType,
 					*ExtractedType,
 					OperandIndex,
 					OperandIndex + 1));
 
 				OperandIndex += 2;
 			}
+			else if (ParamTypeOriginal.StartsWith(FHeaderParser::FDynamicArrayText, ESearchCase::CaseSensitive))
+			{
+				FString VariableType = ParamTypeOriginal;
+				FString ExtractedType = VariableType.LeftChop(1).RightChop(19);
+
+				RigVMStubProlog.Add(FString::Printf(TEXT("FRigVMNestedByteArray& %s_%d_Array = *(FRigVMNestedByteArray*)RigVMMemoryHandles[%d].GetData(0, false);"),
+					*ParamNameOriginal,
+					OperandIndex,
+					OperandIndex));
+
+				RigVMStubProlog.Add(FString::Printf(TEXT("%s_%d_Array.SetNum(FMath::Max<int32>(RigVMExecuteContext.GetSlice().TotalNum(), %s_%d_Array.Num()));"),
+					*ParamNameOriginal,
+					OperandIndex,
+					*ParamNameOriginal,
+					OperandIndex));
+
+				RigVMStubProlog.Add(FString::Printf(TEXT("FRigVMDynamicArray<%s> %s(%s_%d_Array[RigVMExecuteContext.GetSlice().GetIndex()]);"),
+					*ExtractedType,
+					*ParamNameOriginal,
+					*ParamNameOriginal,
+					OperandIndex));
+
+				OperandIndex ++;
+			}
+			else if (!Parameter.IsArray() && Parameter.IsDynamic())
+			{
+				RigVMStubProlog.Add(FString::Printf(TEXT("FRigVMDynamicArray<%s> %s_%d_Array(*((FRigVMByteArray*)RigVMMemoryHandles[%d].GetData(0, false)));"),
+					*ParamTypeOriginal,
+					*ParamNameOriginal,
+					OperandIndex,
+					OperandIndex));
+				RigVMStubProlog.Add(FString::Printf(TEXT("%s_%d_Array.EnsureMinimumSize(RigVMExecuteContext.GetSlice().TotalNum());"),
+					*ParamNameOriginal,
+					OperandIndex));
+				RigVMStubProlog.Add(FString::Printf(TEXT("%s& %s = %s_%d_Array[RigVMExecuteContext.GetSlice().GetIndex()];"),
+					*ParamTypeOriginal,
+					*ParamNameOriginal,
+					*ParamNameOriginal,
+					OperandIndex));
+
+				OperandIndex++;
+			}
 			else
 			{
-				VariableType = Parameter.TypeVariableRef(true);
-				ExtractedType = Parameter.TypeOriginal();
+				FString VariableType = Parameter.TypeVariableRef(true);
+				FString ExtractedType = Parameter.TypeOriginal();
 				
 				FString ParameterCast = FString::Printf(TEXT("*(%s*)"), *ExtractedType);
 
-				RigVMStubProlog.Add(FString::Printf(TEXT("%s %s = %sRigVMOperandMemory[%d];"),
+				RigVMStubProlog.Add(FString::Printf(TEXT("%s %s = %sRigVMMemoryHandles[%d].GetData();"),
 				*VariableType,
 				*ParamNameOriginal,
 					*ParameterCast,
@@ -3721,10 +3773,10 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 				FString ParameterSuffix = MethodInfo.Parameters.Declarations(true, TEXT(",\r\n\t\t"));
 				FString ParameterNamesSuffix = MethodInfo.Parameters.Names(true, TEXT(",\r\n\t\t\t"));
 				FString RigVMParameterPrefix2 = RigVMParameterPrefix + FString((StructMembers.IsEmpty() && ParameterSuffix.IsEmpty()) ? TEXT("") : TEXT(",\r\n\t\t"));
-				FString RigVMParameterPrefix4 = FString(TEXT("RigVMOperatorName,\r\n\t\t\tRigVMOperatorIndex")) + FString((StructMembersForStub.IsEmpty() && ParameterSuffix.IsEmpty()) ? TEXT("") : TEXT(",\r\n\t\t\t"));
+				FString RigVMParameterPrefix4 = FString(TEXT("RigVMExecuteContext")) + FString((StructMembersForStub.IsEmpty() && ParameterSuffix.IsEmpty()) ? TEXT("") : TEXT(",\r\n\t\t\t"));
 
 				RigVMMethodsDeclarations += FString::Printf(TEXT("\tstatic %s Static%s(\r\n\t\t%s%s%s\r\n\t);\r\n"), *MethodInfo.ReturnType, *MethodInfo.Name, *RigVMParameterPrefix2, *StructMembers, *ParameterSuffix);
-				RigVMMethodsDeclarations += FString::Printf(TEXT("\tFORCEINLINE static %s RigVM%s(\r\n\t\t%s,\r\n\t\tFRigVMOperandMemory RigVMOperandMemory,\r\n\t\tconst FRigVMUserDataArray& RigVMUserData\r\n\t)\r\n"), *MethodInfo.ReturnType, *MethodInfo.Name, *RigVMParameterPrefix);
+				RigVMMethodsDeclarations += FString::Printf(TEXT("\tFORCEINLINE_DEBUGGABLE static %s RigVM%s(\r\n\t\t%s,\r\n\t\tFRigVMMemoryHandleArray RigVMMemoryHandles\r\n\t)\r\n"), *MethodInfo.ReturnType, *MethodInfo.Name, *RigVMParameterPrefix);
 				RigVMMethodsDeclarations += FString::Printf(TEXT("\t{\r\n"));
 
 				// implement inline stub method body
@@ -3734,7 +3786,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 					for (int32 ParameterIndex = 0; ParameterIndex < MethodInfo.Parameters.Num(); ParameterIndex++)
 					{
 						const FRigVMParameter& Parameter = MethodInfo.Parameters[ParameterIndex];
-						RigVMMethodsDeclarations += FString::Printf(TEXT("\t\t%s = *(%s*)RigVMUserData[%d];\r\n"), *Parameter.Declaration(), *Parameter.TypeNoRef(), ParameterIndex);
+						RigVMMethodsDeclarations += FString::Printf(TEXT("\t\t%s = *(%s*)RigVMExecuteContext.OpaqueArguments[%d];\r\n"), *Parameter.Declaration(), *Parameter.TypeNoRef(), ParameterIndex);
 					}
 					RigVMMethodsDeclarations += FString::Printf(TEXT("\t\t\r\n"));
 				}
@@ -3754,9 +3806,9 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 
 			for (const FRigVMParameter& StructMember : StructRigVMInfo->Members)
 			{
-				if (!StructMember.MaxArraySize.IsEmpty())
+				if (!StructMember.ArraySize.IsEmpty())
 				{
-					RigVMMethodsDeclarations += TEXT("\tvirtual int32 GetMaxArraySize(const FName& InMemberName, const FRigVMUserDataArray& RigVMUserData) override;\r\n");
+					RigVMMethodsDeclarations += TEXT("\tvirtual int32 GetArraySize(const FName& InMemberName, const FRigVMUserDataArray& Context) override;\r\n");
 					break;
 				}
 			}
@@ -3997,11 +4049,12 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 			FString ParameterDeclaration = MethodInfo.Parameters.Declarations(false, TEXT(",\r\n\t\t"));
 			FString ParameterSuffix = MethodInfo.Parameters.Names(true, TEXT(",\r\n\t\t"));
 			FString RigVMParameterPrefix2 = RigVMParameterPrefix + FString((StructMembersForVirtualFunc.IsEmpty() && ParameterSuffix.IsEmpty()) ? TEXT("") : TEXT(",\r\n\t\t"));
-			FString RigVMParameterPrefix3 = FString(TEXT("NAME_None,\r\n\t\tINDEX_NONE")) + FString((StructMembersForVirtualFunc.IsEmpty() && ParameterSuffix.IsEmpty()) ? TEXT("") : TEXT(",\r\n\t\t"));
+			FString RigVMParameterPrefix3 = FString(TEXT("RigVMExecuteContext")) + FString((StructMembersForVirtualFunc.IsEmpty() && ParameterSuffix.IsEmpty()) ? TEXT("") : TEXT(",\r\n\t\t"));
 
 			// implement the virtual function body.
 			Out.Logf(TEXT("%s %s::%s(%s)\r\n"), *MethodInfo.ReturnType, *StructNameCPP, *MethodInfo.Name, *ParameterDeclaration);
 			Out.Log(TEXT("{\r\n"));
+			Out.Log(TEXT("\tFRigVMExecuteContext RigVMExecuteContext;\r\n"));
 
 			if(RigVMVirtualFuncProlog.Num() > 0)
 			{
@@ -4013,32 +4066,42 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 			}
 
 			Out.Logf(TEXT("    %sStatic%s(\r\n\t\t%s%s%s\r\n\t);\n"), *MethodInfo.ReturnPrefix(), *MethodInfo.Name, *RigVMParameterPrefix3, *StructMembersForVirtualFunc, *ParameterSuffix);
+
+			if (RigVMVirtualFuncEpilog.Num() > 0)
+			{
+				for (const FString& RigVMVirtualFuncEpilogLine : RigVMVirtualFuncEpilog)
+				{
+					Out.Logf(TEXT("\t%s\r\n"), *RigVMVirtualFuncEpilogLine);
+				}
+				Out.Log(TEXT("\t\r\n"));
+			}
+
 			Out.Log(TEXT("}\r\n"));
 		}
 
 			Out.Log(TEXT("\r\n"));
 
-		bool bHasGetMaxArraySize = false;
+		bool bHasGetArraySize = false;
 		for (const FRigVMParameter& StructMember : StructRigVMInfo->Members)
 			{
-			if (!StructMember.MaxArraySize.IsEmpty())
+			if (!StructMember.ArraySize.IsEmpty())
 				{
-				bHasGetMaxArraySize = true;
+				bHasGetArraySize = true;
 				break;
 				}
 			}
 
-		if (bHasGetMaxArraySize)
+		if (bHasGetArraySize)
 			{
-			Out.Logf(TEXT("int32 %s::GetMaxArraySize(const FName& InMemberName, const FRigVMUserDataArray& RigVMUserData)\r\n"), *StructNameCPP);
+			Out.Logf(TEXT("int32 %s::GetArraySize(const FName& InMemberName, const FRigVMUserDataArray& Context)\r\n"), *StructNameCPP);
 			Out.Log(TEXT("{\r\n"));
 			for (const FRigVMParameter& StructMember : StructRigVMInfo->Members)
 			{
-				if (!StructMember.MaxArraySize.IsEmpty())
+				if (!StructMember.ArraySize.IsEmpty())
 				{
 					Out.Logf(TEXT("\tif(InMemberName == TEXT(\"%s\"))\r\n"), *StructMember.Name);
 					Out.Log(TEXT("\t{\r\n"));
-					Out.Logf(TEXT("\t\treturn %s;\r\n"), *StructMember.MaxArraySize);
+					Out.Logf(TEXT("\t\treturn %s;\r\n"), *StructMember.ArraySize);
 					Out.Log(TEXT("\t}\r\n"));
 				}
 			}
@@ -4148,6 +4211,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedEnumInitCode(FOutputDevice& Out
 	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t{\r\n"));
 
 	const TCHAR* UEnumObjectFlags = bIsDynamic ? TEXT("RF_Public|RF_Transient") : TEXT("RF_Public|RF_Transient|RF_MarkAsNative");
+	const TCHAR* EnumFlags        = Enum->HasAnyEnumFlags(EEnumFlags::Flags) ? TEXT("EEnumFlags::Flags") : TEXT("EEnumFlags::None");
 
 	const TCHAR* EnumFormStr = TEXT("");
 	switch (Enum->GetCppForm())
@@ -4179,6 +4243,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedEnumInitCode(FOutputDevice& Out
 	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\tEnumerators,\r\n"));
 	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\tUE_ARRAY_COUNT(Enumerators),\r\n"));
 	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\t%s,\r\n"), UEnumObjectFlags);
+	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\t%s,\r\n"), EnumFlags);
 	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\tUE4CodeGen_Private::EDynamicType::%s,\r\n"), bIsDynamic ? TEXT("Dynamic") : TEXT("NotDynamic"));
 	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\t(uint8)%s,\r\n"), EnumFormStr);
 	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\t%s\r\n"), *MetaDataParams);
@@ -6605,7 +6670,7 @@ ECompilationResult::Type PreparseModules(const FString& ModuleInfoPath, int32& N
 		UPackage* Package = Cast<UPackage>(StaticFindObjectFast(UPackage::StaticClass(), NULL, FName(*Module.LongPackageName), false, false));
 		if (Package == NULL)
 		{
-			Package = CreatePackage(NULL, *Module.LongPackageName);
+			Package = CreatePackage(*Module.LongPackageName);
 		}
 		// Set some package flags for indicating that this package contains script
 		// NOTE: We do this even if we didn't have to create the package, because CoreUObject is compiled into UnrealHeaderTool and we still
@@ -6769,7 +6834,22 @@ ECompilationResult::Type PreparseModules(const FString& ModuleInfoPath, int32& N
 					ProcessInitialClassParse(PerHeaderData[Index]);
 					TSharedRef<FUnrealSourceFile> UnrealSourceFile = PerHeaderData[Index].UnrealSourceFile.ToSharedRef();
 					FUnrealSourceFile* UnrealSourceFilePtr = &UnrealSourceFile.Get();
-					GUnrealSourceFilesMap.Add(FPaths::GetCleanFilename(RawFilename), UnrealSourceFile);
+					FString CleanFilename     = FPaths::GetCleanFilename(RawFilename);
+					uint32  CleanFilenameHash = GetTypeHash(CleanFilename);
+					if (const TSharedRef<FUnrealSourceFile>* ExistingSourceFile = GUnrealSourceFilesMap.FindByHash(CleanFilenameHash, CleanFilename))
+					{
+						FString NormalizedFullFilename     = FullFilename;
+						FString NormalizedExistingFilename = (*ExistingSourceFile)->GetFilename();
+
+						FPaths::NormalizeFilename(NormalizedFullFilename);
+						FPaths::NormalizeFilename(NormalizedExistingFilename);
+
+						if (NormalizedFullFilename != NormalizedExistingFilename)
+						{
+							FError::Throwf(TEXT("Duplicate leaf header name found: %s (original: %s)"), *NormalizedFullFilename, *NormalizedExistingFilename);
+						}
+					}
+					GUnrealSourceFilesMap.AddByHash(CleanFilenameHash, MoveTemp(CleanFilename), UnrealSourceFile);
 
 					if (CurrentlyProcessing == PublicClassesHeaders)
 					{
@@ -6782,7 +6862,7 @@ ECompilationResult::Type PreparseModules(const FString& ModuleInfoPath, int32& N
 						// Get the path relative to the module directory
 						const TCHAR* ModuleRelativePath = *FullFilename + Module.BaseDirectory.Len();
 
-						UnrealSourceFile->SetModuleRelativePath(ModuleRelativePath);
+						UnrealSourceFilePtr->SetModuleRelativePath(ModuleRelativePath);
 
 						// Calculate the include path
 						const TCHAR* IncludePath = ModuleRelativePath;
@@ -6813,7 +6893,7 @@ ECompilationResult::Type PreparseModules(const FString& ModuleInfoPath, int32& N
 						// Add the include path
 						if (*IncludePath != 0)
 						{
-							UnrealSourceFile->SetIncludePath(MoveTemp(IncludePath));
+							UnrealSourceFilePtr->SetIncludePath(MoveTemp(IncludePath));
 						}
 					}
 				}

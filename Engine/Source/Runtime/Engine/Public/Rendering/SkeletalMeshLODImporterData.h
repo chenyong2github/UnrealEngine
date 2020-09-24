@@ -105,7 +105,7 @@ namespace SkeletalMeshImportData
 		// Point to three vertices in the vertex list.
 		uint32   WedgeIndex[3];
 		// Materials can be anything.
-		uint8    MatIndex;
+		uint16    MatIndex;
 		// Second material from exporter (unused)
 		uint8    AuxMatIndex;
 		// 32-bit flag for smoothing groups.
@@ -141,7 +141,18 @@ namespace SkeletalMeshImportData
 
 		friend FArchive &operator<<(FArchive& Ar, FTriangle& F)
 		{
-			Ar << F.MatIndex;
+			Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
+
+			if (Ar.IsLoading() && Ar.CustomVer(FEditorObjectVersion::GUID) < FEditorObjectVersion::SkeletalMeshSourceDataSupport16bitOfMaterialNumber)
+			{
+				uint8 TempMatIndex = 0;
+				Ar << TempMatIndex;
+				F.MatIndex = TempMatIndex;
+			}
+			else
+			{
+				Ar << F.MatIndex;
+			}
 			Ar << F.AuxMatIndex;
 			Ar << F.SmoothingGroups;
 			

@@ -17,29 +17,23 @@ void UNiagaraDataInterfaceArray::PostInitProperties()
 		FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(GetClass()), true, false, false);
 	}
 
-	if (Impl.IsValid())
+	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
-		Impl->PushToRenderThread();
+		MarkRenderDataDirty();
 	}
 }
 
 void UNiagaraDataInterfaceArray::PostLoad()
 {
 	Super::PostLoad();
-	if (Impl.IsValid())
-	{
-		Impl->PushToRenderThread();
-	}
+	MarkRenderDataDirty();
 }
 
 #if WITH_EDITOR
 void UNiagaraDataInterfaceArray::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-	if (Impl.IsValid())
-	{
-		Impl->PushToRenderThread();
-	}
+	MarkRenderDataDirty();
 }
 #endif
 
@@ -50,6 +44,7 @@ bool UNiagaraDataInterfaceArray::CopyToInternal(UNiagaraDataInterface* Destinati
 		return false;
 	}
 	UNiagaraDataInterfaceArray* OtherTyped = CastChecked<UNiagaraDataInterfaceArray>(Destination);
+	OtherTyped->MarkRenderDataDirty();
 	OtherTyped->MaxElements = MaxElements;
 	if (ensureMsgf(Impl.IsValid(), TEXT("Impl should always be valid for %s"), *GetNameSafe(GetClass())))
 	{
@@ -78,7 +73,8 @@ bool UNiagaraDataInterfaceArray::Equals(const UNiagaraDataInterface* Other) cons
 	return true;
 }
 
-void UNiagaraDataInterfaceArray::UpdateGPU()
+
+void UNiagaraDataInterfaceArray::PushToRenderThreadImpl()
 {
 	if (Impl.IsValid())
 	{

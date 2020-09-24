@@ -143,6 +143,10 @@
 		{
 			"Name": "DMXProtocol",
 			"Enabled": true
+		},
+		{
+			"Name": "MovieRenderPipeline",
+			"Enabled": true
 		}
 	]
 }

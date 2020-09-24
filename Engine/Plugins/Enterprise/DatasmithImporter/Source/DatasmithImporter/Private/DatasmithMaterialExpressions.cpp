@@ -69,6 +69,7 @@
 #include "Templates/SharedPointer.h"
 #include "Templates/UnrealTemplate.h"
 #include "Templates/UnrealTypeTraits.h"
+#include "Materials/MaterialExpressionCustomOutput.h"
 
 #define MAXIMUM_IOR 16
 #define METAL_IOR 8
@@ -220,62 +221,6 @@ UMaterialExpressionFunctionOutput* FDatasmithMaterialExpressions::FindOrAddOutpu
 	}
 
 	return CreateMaterialExpression< UMaterialExpressionFunctionOutput >( Func );
-}
-
-UTextureLightProfile* FDatasmithMaterialExpressions::CreateDatasmithIES(const FString& Filename, UPackage* Package, EObjectFlags ObjectFlags)
-{
-	UTextureLightProfile* UnrealIES = nullptr;
-
-	if (Filename.IsEmpty() || !FPaths::FileExists(Filename))
-	{
-		FText DialogTitle = FText::FromString( TEXT("Cannot find ies light") );
-		FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(Filename), &DialogTitle);
-		UE_LOG(LogDatasmithImport, Warning, TEXT("Unable to find ies file %s"), *Filename);
-
-		return nullptr;
-	}
-
-	FString Extension = FPaths::GetExtension(Filename).ToLower();
-	FString TextureName = FPaths::GetBaseFilename(Filename) + TEXT("_IES");
-	TextureName = ObjectTools::SanitizeObjectName(TextureName);
-
-	// try opening from absolute path
-	TArray<uint8> TextureData;
-	if (!(FFileHelper::LoadFileToArray(TextureData, *Filename) && TextureData.Num() > 0))
-	{
-		UE_LOG(LogDatasmithImport, Warning, TEXT("Unable to find Texture file %s"), *Filename);
-		return nullptr;
-	}
-	else
-	{
-		UTextureFactory* TextureFact = NewObject<UTextureFactory>();
-		TextureFact->AddToRoot();
-		TextureFact->SuppressImportOverwriteDialog();
-
-		TextureFact->LODGroup = TEXTUREGROUP_IESLightProfile;
-		TextureFact->CompressionSettings = TC_HDR;
-
-		const uint8* PtrTexture = TextureData.GetData();
-
-		UPackage* LightPackage = CreatePackage( nullptr, *FPaths::Combine( Package->GetName(), TextureName ) );
-		LightPackage->FullyLoad();
-
-		UnrealIES = (UTextureLightProfile*)TextureFact->FactoryCreateBinary(UTextureLightProfile::StaticClass(), LightPackage, *TextureName, ObjectFlags, nullptr, *Extension, PtrTexture,
-																		PtrTexture + TextureData.Num(), GWarn);
-		if (UnrealIES != nullptr)
-		{
-			UnrealIES->AssetImportData->Update(Filename);
-
-			// Notify the asset registry
-			FAssetRegistryModule::AssetCreated(UnrealIES);
-
-			UnrealIES->MarkPackageDirty();
-		}
-
-		TextureFact->RemoveFromRoot();
-	}
-
-	return UnrealIES;
 }
 
 void FDatasmithMaterialExpressions::GetSamplersRecursive(UMaterialExpression* Expression, TArray<UMaterialExpressionTextureSample*>& TextureSamplers)
@@ -1036,8 +981,10 @@ void FDatasmithMaterialExpressions::ConnectToSlot(UMaterialExpression* ToBeConne
 			UnrealMaterial->BlendMode = EBlendMode::BLEND_Masked;
 			break;
 		case EDatasmithTextureSlot::DISPLACE:
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			UnrealMaterial->bEnableCrackFreeDisplacement = 1;
 			UnrealMaterial->D3D11TessellationMode = EMaterialTessellationMode::MTM_FlatTessellation;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			break;
 		}
 	}
@@ -2522,7 +2469,7 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateDatasmithMaterial(UPack
 		FText FailReason;
 		if (!FDatasmithImporterUtils::CanCreateAsset<UMaterial>( AssetsContext.MaterialsFinalPackage.Get(), FixedMaterialName, FailReason ))
 		{
-			AssetsContext.ParentContext.LogError(FailReason);
+			AssetsContext.GetParentContext().LogError(FailReason);
 			return nullptr;
 		}
 
@@ -2591,7 +2538,7 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateDatasmithMaterial(UPack
 		FText FailReason;
 		if (!FDatasmithImporterUtils::CanCreateAsset<UMaterialInterface>( AssetsContext.MaterialsFinalPackage.Get(), FixedMaterialName, FailReason ))
 		{
-			AssetsContext.ParentContext.LogError(FailReason);
+			AssetsContext.GetParentContext().LogError(FailReason);
 			return nullptr;
 		}
 
@@ -3050,18 +2997,22 @@ void FDatasmithMaterialExpressions::ConnectAnyExpression( const TSharedRef< IDat
 void FDatasmithMaterialExpressions::CreateUEPbrMaterialGraph(const TSharedPtr< IDatasmithUEPbrMaterialElement >& MaterialElement, FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction)
 {
 	TArray< TStrongObjectPtr< UMaterialExpression > > MaterialExpressions;
+	MaterialExpressions.Reserve( MaterialElement->GetExpressionsCount() );
 
 	for ( int32 ExpressionIndex = 0; ExpressionIndex < MaterialElement->GetExpressionsCount(); ++ExpressionIndex )
 	{
-		IDatasmithMaterialExpression* DatasmithExpression = MaterialElement->GetExpression( ExpressionIndex );
+		UMaterialExpression* MaterialExpression = nullptr;
 
-		UMaterialExpression* MaterialExpression = CreateExpression( DatasmithExpression, AssetsContext, UnrealMaterialOrFunction );
-		check(MaterialExpression);
+		if ( IDatasmithMaterialExpression* DatasmithExpression = MaterialElement->GetExpression( ExpressionIndex ) )
+		{
+			MaterialExpression = CreateExpression( DatasmithExpression, AssetsContext, UnrealMaterialOrFunction );
+			check(MaterialExpression);
+		}
 
-		MaterialExpressions.Add(TStrongObjectPtr< UMaterialExpression >(MaterialExpression));
+		MaterialExpressions.Emplace( MaterialExpression );
 	}
 
-	if( MaterialElement->GetUseMaterialAttributes() )
+	if ( MaterialElement->GetUseMaterialAttributes() )
 	{
 		//We ignore all the other inputs if we are using MaterialAttributes.
 		ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetMaterialAttributes().GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::MATERIALATTRIBUTES ), MaterialElement->GetMaterialAttributes().GetOutputIndex() );
@@ -3080,10 +3031,9 @@ void FDatasmithMaterialExpressions::CreateUEPbrMaterialGraph(const TSharedPtr< I
 	
 	ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetAmbientOcclusion().GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::AMBIANTOCCLUSION ), MaterialElement->GetAmbientOcclusion().GetOutputIndex() );
 	
-
-	if (MaterialElement->GetOpacity().GetExpression())
+	if ( MaterialElement->GetOpacity().GetExpression() )
 	{
-		if (GetUEPbrImportBlendMode(MaterialElement, AssetsContext) == BLEND_Translucent)
+		if ( GetUEPbrImportBlendMode(MaterialElement, AssetsContext) == BLEND_Translucent )
 		{
 			ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetOpacity().GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::OPACITY ), MaterialElement->GetOpacity().GetOutputIndex() );
 			
@@ -3097,6 +3047,25 @@ void FDatasmithMaterialExpressions::CreateUEPbrMaterialGraph(const TSharedPtr< I
 
 	ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetNormal().GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::NORMAL ), MaterialElement->GetNormal().GetOutputIndex() );
 	ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetWorldDisplacement().GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::DISPLACE ), MaterialElement->GetWorldDisplacement().GetOutputIndex() );
+
+	// Connect expressions to any UMaterialExpressionCustomOutput since these aren't part of the predefined material outputs
+	for ( int32 ExpressionIndex = 0; ExpressionIndex < MaterialElement->GetExpressionsCount(); ++ExpressionIndex )
+	{
+		if ( IDatasmithMaterialExpression* DatasmithExpression = MaterialElement->GetExpression( ExpressionIndex ) )
+		{
+			if ( UMaterialExpressionCustomOutput* MaterialOutputExpression = Cast< UMaterialExpressionCustomOutput >( MaterialExpressions[ ExpressionIndex ].Get() ) )
+			{
+				for ( int32 ExpressionInput = 0; ExpressionInput < DatasmithExpression->GetInputCount(); ++ExpressionInput )
+				{
+					if ( MaterialOutputExpression->GetInputs().IsValidIndex( ExpressionInput ) )
+					{
+						ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, DatasmithExpression->GetInput( ExpressionInput )->GetExpression(), 
+							MaterialOutputExpression->GetInput( ExpressionInput ), DatasmithExpression->GetInput( ExpressionInput )->GetOutputIndex() );
+					}
+				}
+			}
+		}
+	}
 }
 
 UMaterialFunction* FDatasmithMaterialExpressions::CreateUEPbrMaterialFunction(UPackage* Package, const TSharedPtr< IDatasmithUEPbrMaterialElement >& MaterialElement, FDatasmithAssetsImportContext& AssetsContext, UMaterial* ExistingMaterial, EObjectFlags ObjectFlags)
@@ -3106,7 +3075,7 @@ UMaterialFunction* FDatasmithMaterialExpressions::CreateUEPbrMaterialFunction(UP
 	FText FailReason;
 	if (!FDatasmithImporterUtils::CanCreateAsset<UMaterialFunction>(Package, MaterialFunctionName, FailReason))
 	{
-		AssetsContext.ParentContext.LogError(FailReason);
+		AssetsContext.GetParentContext().LogError(FailReason);
 		return nullptr;
 	}
 	
@@ -3164,7 +3133,7 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterial(UPackage*
 	FText FailReason;
 	if (!FDatasmithImporterUtils::CanCreateAsset<UMaterial>(Package, MaterialName, FailReason))
 	{
-		AssetsContext.ParentContext.LogError(FailReason);
+		AssetsContext.GetParentContext().LogError(FailReason);
 		return nullptr;
 	}
 
@@ -3188,13 +3157,23 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterial(UPackage*
 
 	if ( MaterialElement->GetOpacity().GetExpression() )
 	{
-		UnrealMaterial->TranslucencyLightingMode = ETranslucencyLightingMode::TLM_Surface;
+		if ( MaterialElement->GetShadingModel() == EDatasmithShadingModel::ThinTranslucent )
+		{
+			UnrealMaterial->SetShadingModel( MSM_ThinTranslucent );
+			UnrealMaterial->TranslucencyLightingMode = TLM_SurfacePerPixelLighting;
+		}
+		else
+		{
+			UnrealMaterial->TranslucencyLightingMode = ETranslucencyLightingMode::TLM_Surface;
+		}
 	}
 
 	if ( MaterialElement->GetWorldDisplacement().GetExpression() )
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		UnrealMaterial->bEnableCrackFreeDisplacement = 1;
 		UnrealMaterial->D3D11TessellationMode = EMaterialTessellationMode::MTM_FlatTessellation;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	UnrealMaterial->UpdateCachedExpressionData();
@@ -3213,7 +3192,7 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterialInstance(U
 	FText FailReason;
 	if (!FDatasmithImporterUtils::CanCreateAsset<UMaterialInstanceConstant>(AssetsContext.MaterialsFinalPackage.Get(), MaterialName, FailReason))
 	{
-		AssetsContext.ParentContext.LogError(FailReason);
+		AssetsContext.GetParentContext().LogError(FailReason);
 		return nullptr;
 	}
 

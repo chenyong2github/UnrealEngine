@@ -1237,7 +1237,7 @@ bool FReplayHelper::ReplicateCheckpointActor(AActor* ToReplicate, UNetConnection
 
 	UActorChannel* ActorChannel = Connection->FindActorChannelRef(ToReplicate);
 
-	if (ActorChannel == nullptr && ToReplicate->NetDormancy != DORM_Awake)
+	if (ActorChannel == nullptr && ToReplicate->NetDormancy > DORM_Awake)
 	{
 		// Create a new channel for this actor.
 		ActorChannel = Cast<UActorChannel>(Connection->CreateChannelByName(NAME_Actor, EChannelCreateFlags::OpenedLocally));
@@ -1321,7 +1321,13 @@ bool FReplayHelper::UpdateExternalDataForActor(UNetConnection* Connection, AActo
 {
 	check(Connection && Connection->Driver);
 
-	FRepChangedPropertyTracker* PropertyTracker = Connection->Driver->RepChangedPropertyTrackerMap.FindChecked(Actor).Get();
+	UNetDriver::FRepChangedPropertyTrackerWrapper* PropertyTrackerWrapper = Connection->Driver->RepChangedPropertyTrackerMap.Find(Actor);
+	if (PropertyTrackerWrapper == nullptr)
+	{
+		return false;
+	}
+
+	FRepChangedPropertyTracker* PropertyTracker = PropertyTrackerWrapper->Get();
 
 	if (PropertyTracker->ExternalData.Num() == 0)
 	{
@@ -1952,5 +1958,23 @@ void FReplayHelper::SetAnalyticsProvider(TSharedPtr<IAnalyticsProvider> InProvid
 	if (ReplayStreamer.IsValid())
 	{
 		ReplayStreamer->SetAnalyticsProvider(InProvider);
+	}
+}
+
+const TCHAR* LexToString(EReplayHeaderFlags Flag)
+{
+	switch (Flag)
+	{
+	case EReplayHeaderFlags::ClientRecorded:
+		return TEXT("ClientRecorded");
+	case EReplayHeaderFlags::HasStreamingFixes:
+		return TEXT("HasStreamingFixes");
+	case EReplayHeaderFlags::DeltaCheckpoints:
+		return TEXT("DeltaCheckpoints");
+	case EReplayHeaderFlags::GameSpecificFrameData:
+		return TEXT("GameSpecificFrameData");
+	default:
+		check(false);
+		return TEXT("Unknown");
 	}
 }

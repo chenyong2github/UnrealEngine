@@ -114,12 +114,10 @@ void AVirtualCameraPlayerControllerBase::BeginPlay()
 	{
 		if (IRemoteSessionModule* RemoteSession = FModuleManager::LoadModulePtr<IRemoteSessionModule>("RemoteSession"))
 		{
-			TMap<FString, ERemoteSessionChannelMode> RequiredChannels;
-			RequiredChannels.Add(FRemoteSessionFrameBufferChannelFactoryWorker::StaticType(), ERemoteSessionChannelMode::Write);
-			RequiredChannels.Add(FRemoteSessionInputChannel::StaticType(), ERemoteSessionChannelMode::Read);
-			RequiredChannels.Add(FRemoteSessionXRTrackingChannel::StaticType(), ERemoteSessionChannelMode::Read);
+			//RemoteSession->AddSupportedChannel(FRemoteSessionImageChannel::StaticType(), ERemoteSessionChannelMode::Write);
+			//RemoteSession->AddSupportedChannel(FRemoteSessionInputChannel::StaticType(), ERemoteSessionChannelMode::Read);
+			//RemoteSession->AddSupportedChannel(FRemoteSessionXRTrackingChannel::StaticType(), ERemoteSessionChannelMode::Read);
 
-			RemoteSession->SetSupportedChannels(RequiredChannels);
 			RemoteSession->InitHost();
 		}
 	}

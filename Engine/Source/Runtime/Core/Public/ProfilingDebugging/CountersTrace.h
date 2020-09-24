@@ -101,12 +101,7 @@ struct FCountersTrace
 
 	using FCounterInt = TCounter<int64, TraceCounterType_Int>;
 	using FCounterFloat = TCounter<double, TraceCounterType_Float>;
-
-	CORE_API static void Init(const TCHAR* CmdLine);
 };
-
-#define TRACE_COUNTERS_INIT(CmdLine) \
-	FCountersTrace::Init(CmdLine);
 
 #define __TRACE_DECLARE_INLINE_COUNTER(CounterDisplayName, CounterType, CounterDisplayHint) \
 	static FCountersTrace::CounterType PREPROCESSOR_JOIN(__TraceCounter, __LINE__)(CounterDisplayName, CounterDisplayHint);
@@ -158,7 +153,6 @@ struct FCountersTrace
 
 #else
 
-#define TRACE_COUNTERS_INIT(CmdLine)
 #define TRACE_INT_VALUE(CounterDisplayName, Value)
 #define TRACE_FLOAT_VALUE(CounterDisplayName, Value)
 #define TRACE_MEMORY_VALUE(CounterDisplayName, Value)

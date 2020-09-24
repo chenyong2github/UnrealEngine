@@ -358,6 +358,10 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "Clamp (integer)"), Category="Math|Integer")
 	static int32 Clamp(int32 Value, int32 Min, int32 Max);
 
+	/** Returns Value between A and B (inclusive) that wraps around */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Wrap (integer)", Min = "0", Max = "100"), Category = "Math|Integer")
+	static int32 Wrap(int32 Value, int32 Min, int32 Max);
+
 	/** Returns the absolute (positive) value of A */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "Absolute (integer)", CompactNodeTitle = "ABS"), Category="Math|Integer")
 	static int32 Abs_Int(int32 A);
@@ -741,6 +745,10 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	/** Returns Value clamped between A and B (inclusive) */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "Clamp (float)", Min="0.0", Max="1.0"), Category="Math|Float")
 	static float FClamp(float Value, float Min, float Max);
+
+	/** Returns Value wrapped from A and B (inclusive) */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Wrap (float)", Min = "0.0", Max = "1.0"), Category = "Math|Float")
+	static float FWrap(float Value, float Min, float Max);
 
 	/** This functions returns 0 if B (the denominator) is zero */
 	UFUNCTION(BlueprintPure, Category = "Math|Float", meta = (Keywords = "percent"))

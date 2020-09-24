@@ -4,74 +4,54 @@
 #include "SceneRendering.h"
 #include "ScenePrivate.h"
 
-void ServiceLocalQueue();
+void AddServiceLocalQueuePass(FRDGBuilder& GraphBuilder);
 
 void RenderHairPrePass(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	FScene* Scene,
 	TArray<FViewInfo>& Views,
-	FHairStrandClusterData HairClusterData,
 	FHairStrandsRenderingData& OutHairDatas)
 {
 	// #hair_todo: Add multi-view
 	const bool bIsViewCompatible = Views.Num() > 0 && Views[0].Family->ViewMode == VMI_Lit;
-	if (IsHairStrandsEnable(Scene->GetShaderPlatform()) && bIsViewCompatible)
+	if (bIsViewCompatible)
 	{
 		const ERHIFeatureLevel::Type FeatureLevel = Scene->GetFeatureLevel();
 
 		//SCOPED_GPU_STAT(RHICmdList, HairRendering);
-		OutHairDatas.MacroGroupsPerViews = CreateHairStrandsMacroGroups(RHICmdList, Scene, Views);
-
-		// Culling/LOD pass for DOM and Voxelisation altogether
-		FHairCullingParams CullingParams;
-		CullingParams.bShadowViewMode = true;
-		CullingParams.bCullingProcessSkipped = false;
-		ComputeHairStrandsClustersCulling(RHICmdList, *GetGlobalShaderMap(FeatureLevel), Views, CullingParams, HairClusterData);
-
-		ServiceLocalQueue();
+		OutHairDatas.MacroGroupsPerViews = CreateHairStrandsMacroGroups(GraphBuilder, Scene, Views);
+		AddServiceLocalQueuePass(GraphBuilder);
 
 		// Voxelization and Deep Opacity Maps
-		VoxelizeHairStrands(RHICmdList, Scene, Views, OutHairDatas.MacroGroupsPerViews);
-		RenderHairStrandsDeepShadows(RHICmdList, Scene, Views, OutHairDatas.MacroGroupsPerViews);
+		VoxelizeHairStrands(GraphBuilder, Scene, Views, OutHairDatas.MacroGroupsPerViews);
+		RenderHairStrandsDeepShadows(GraphBuilder, Scene, Views, OutHairDatas.MacroGroupsPerViews);
 
-		ServiceLocalQueue();
+		AddServiceLocalQueuePass(GraphBuilder);
 	}
 }
 
 void RenderHairBasePass(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	FScene* Scene,
 	FSceneRenderTargets& SceneContext,
 	TArray<FViewInfo>& Views,
-	FHairStrandClusterData HairClusterData,
 	FHairStrandsRenderingData& OutHairDatas)
 {
 	// #hair_todo: Add multi-view
 	const bool bIsViewCompatible = Views.Num() > 0 && Views[0].Family->ViewMode == VMI_Lit;
-	if (IsHairStrandsEnable(Scene->GetShaderPlatform()) && bIsViewCompatible)
+	if (bIsViewCompatible)
 	{
 		const ERHIFeatureLevel::Type FeatureLevel = Scene->GetFeatureLevel();
 
-		//SCOPED_GPU_STAT(RHICmdList, HairRendering);
-		// Culling/LOD pass for visibility (must be done after HZB is generated)
-		FHairCullingParams CullingParams;
-		CullingParams.bCullingProcessSkipped = false;
-		CullingParams.bShadowViewMode = false;
-		ComputeHairStrandsClustersCulling(RHICmdList, *GetGlobalShaderMap(FeatureLevel), Views, CullingParams, HairClusterData);
-
 		// Hair visibility pass
 		TRefCountPtr<IPooledRenderTarget> SceneColor = SceneContext.IsSceneColorAllocated() ? SceneContext.GetSceneColor() : nullptr;
-		OutHairDatas.HairVisibilityViews = RenderHairStrandsVisibilityBuffer(RHICmdList, Scene, Views, SceneContext.GBufferB, SceneColor, SceneContext.SceneDepthZ, SceneContext.SceneVelocity, OutHairDatas.MacroGroupsPerViews);
+		OutHairDatas.HairVisibilityViews = RenderHairStrandsVisibilityBuffer(GraphBuilder, Scene, Views, SceneContext.GBufferB, SceneColor, SceneContext.SceneDepthZ, SceneContext.SceneVelocity, OutHairDatas.MacroGroupsPerViews);
 
-		// Reset indirect draw buffer
-		ResetHairStrandsClusterToLOD0(RHICmdList, *GetGlobalShaderMap(FeatureLevel), HairClusterData);
-
-		ServiceLocalQueue();
 
 		if (SceneContext.bScreenSpaceAOIsValid && SceneContext.ScreenSpaceAO)
 		{
 			RenderHairStrandsAmbientOcclusion(
-				RHICmdList,
+				GraphBuilder,
 				Views,
 				&OutHairDatas,
 				SceneContext.ScreenSpaceAO);

@@ -16,7 +16,6 @@
 #define METAL_POOL_BUFFER_BACKING 1
 
 #if !METAL_POOL_BUFFER_BACKING
-//DECLARE_MEMORY_STAT_EXTERN(TEXT("Used Device Buffer Memory"), STAT_MetalDeviceBufferMemory, STATGROUP_MetalRHI, );
 DECLARE_MEMORY_STAT(TEXT("Used Device Buffer Memory"), STAT_MetalDeviceBufferMemory, STATGROUP_MetalRHI);
 #endif
 
@@ -101,11 +100,7 @@ void FMetalVertexBuffer::Swap(FMetalVertexBuffer& Other)
 
 void FMetalRHIBuffer::Swap(FMetalRHIBuffer& Other)
 {
-	check(0);
 	::Swap(*this, Other);
-	
-//	Other.Buffer.SetOwner(&Other, true);
-//	Buffer.SetOwner(this, true);
 }
 
 static bool CanUsePrivateMemory()
@@ -165,7 +160,7 @@ FMetalRHIBuffer::FMetalRHIBuffer(uint32 InSize, uint32 InUsage, ERHIResourceType
 			
 			if ((InUsage & EMetalBufferUsage_LinearTex) && !FMetalCommandQueue::SupportsFeature(EMetalFeaturesTextureBuffers))
 			{
-				if ((InUsage & BUF_UnorderedAccess) && ((InSize - AllocSize) < 512))
+				if (InUsage & BUF_UnorderedAccess)
 				{
 					// Padding for write flushing when not using linear texture bindings for buffers
 					AllocSize = Align(AllocSize + 512, 1024);
@@ -190,10 +185,19 @@ FMetalRHIBuffer::FMetalRHIBuffer(uint32 InSize, uint32 InUsage, ERHIResourceType
 						{
 							Dimension <<= 1;
 							checkf(SizeX <= GMaxTextureDimensions, TEXT("Calculated width %u is greater than maximum permitted %d when converting buffer of size %u to a 2D texture."), Dimension, (int32)GMaxTextureDimensions, AllocSize);
-							check(Dimension <= GMaxTextureDimensions);
-							AllocSize = Align(Size, Dimension);
-							NumElements = AllocSize;
-							SizeX = NumElements;
+							if(Dimension <= GMaxTextureDimensions)
+							{
+								AllocSize = Align(Size, Dimension);
+								NumElements = AllocSize;
+								SizeX = NumElements;
+							}
+							else
+							{
+								// We don't know the Pixel Format and so the bytes per element for the potential linear texture
+								// Use max texture dimension as the align to be a worst case rather than crashing
+								AllocSize = Align(Size, GMaxTextureDimensions);
+								break;
+							}
 						}
 					}
 					
@@ -307,35 +311,6 @@ FMetalRHIBuffer::~FMetalRHIBuffer()
 		SafeReleaseMetalObject(Data);
 	}
 }
-
-void FMetalRHIBuffer::Alias()
-{
-//	if (Mode == mtlpp::StorageMode::Private && Buffer.GetHeap() && !Buffer.IsAliasable())
-//	{
-//		Buffer.MakeAliasable();
-//#if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
-//		MetalLLM::LogAliasBuffer(Buffer);
-//#endif
-//	}
-}
-
-void FMetalRHIBuffer::Unalias()
-{
-//	if (Mode == mtlpp::StorageMode::Private && Buffer.GetHeap() && Buffer.IsAliasable())
-//	{
-//		uint32 Len = Buffer.GetLength();
-//		METAL_INC_DWORD_STAT_BY(Type, MemFreed, Len);
-//		SafeReleaseMetalBuffer(Buffer);
-//		Buffer = nil;
-//
-//		Alloc(Len, RLM_WriteOnly);
-//	}
-}
-
-//void FMetalRHIBuffer::Alloc(uint32 InSize, EResourceLockMode LockMode)
-//{
-//	check(0);
-//}
 
 void FMetalRHIBuffer::AllocTransferBuffer(bool bOnRHIThread, uint32 InSize, EResourceLockMode LockMode)
 {
@@ -613,7 +588,7 @@ void* FMetalRHIBuffer::Lock(bool bIsOnRHIThread, EResourceLockMode InLockMode, u
 			//kick the current command buffer.
 			GetMetalDeviceContext().SubmitCommandBufferAndWait();
 			
-			ReturnPointer = TransferBuffer.GetPtr();
+			ReturnPointer = TransferBuffer.GetContents();
 		}
 		#if PLATFORM_MAC
 		else if(Mode == mtlpp::StorageMode::Managed)
@@ -713,7 +688,7 @@ void FMetalRHIBuffer::Unlock()
 	LastLockFrame = GetMetalDeviceContext().GetFrameNumberRHIThread();
 }
 
-FVertexBufferRHIRef FMetalDynamicRHI::RHICreateVertexBuffer(uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
+FVertexBufferRHIRef FMetalDynamicRHI::RHICreateVertexBuffer(uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
 	check(0);
 	@autoreleasepool {
@@ -820,43 +795,6 @@ void FMetalDynamicRHI::RHICopyVertexBuffer(FRHIVertexBuffer* SourceBufferRHI, FR
 	}
 }
 
-//struct FMetalRHICommandInitialiseBuffer : public FRHICommand<FMetalRHICommandInitialiseBuffer>
-//{
-//	TRefCountPtr<FRHIResource> Resource;
-//	FMetalRHIBuffer* Buffer;
-//
-//	FORCEINLINE_DEBUGGABLE FMetalRHICommandInitialiseBuffer(FMetalRHIBuffer* InBuffer, FRHIResource* InResource)
-//	: Resource(InResource)
-//	, Buffer(InBuffer)
-//	{
-//	}
-//
-//	virtual ~FMetalRHICommandInitialiseBuffer()
-//	{
-//	}
-//
-//	void Execute(FRHICommandListBase& CmdList)
-//	{
-//		const FMetalBuffer& TheBackingBuffer = Buffer->GetCurrentBuffer();
-//		check(TheBackingBuffer);
-//		if (Buffer->TransferBuffer)
-//		{
-//			uint32 Size = FMath::Min(TheBackingBuffer.GetLength(), Buffer->TransferBuffer.GetLength());
-//			GetMetalDeviceContext().AsyncCopyFromBufferToBuffer(Buffer->TransferBuffer, 0, TheBackingBuffer, 0, Size);
-//
-//			if (Buffer->TransferBuffer)
-//			{
-//				SafeReleaseMetalBuffer(Buffer->TransferBuffer);
-//				Buffer->TransferBuffer = nil;
-//			}
-//		}
-//		else if (GMetalBufferZeroFill && !FMetalCommandQueue::SupportsFeature(EMetalFeaturesFences))
-//		{
-//			GetMetalDeviceContext().FillBuffer(TheBackingBuffer, ns::Range(0, TheBackingBuffer.GetLength()), 0);
-//		}
-//	}
-//};
-
 void FMetalRHIBuffer::Init_RenderThread(FRHICommandListImmediate& RHICmdList, uint32 InSize, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo, FRHIResource* Resource)
 {
 	if (CreateInfo.ResourceArray)
@@ -910,7 +848,7 @@ void FMetalRHIBuffer::Init_RenderThread(FRHICommandListImmediate& RHICmdList, ui
 	}
 }
 
-FVertexBufferRHIRef FMetalDynamicRHI::CreateVertexBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
+FVertexBufferRHIRef FMetalDynamicRHI::CreateVertexBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
 	@autoreleasepool {
 		if (CreateInfo.bWithoutNativeResource)

@@ -33,7 +33,7 @@ bool FGpuProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 		uint32 EventType = EventData.GetValue<uint32>("EventType");
 		const auto& Name = EventData.GetArray<uint16>("Name");
 
-		FString EventName(Name.GetData(), Name.Num());
+		const FString EventName(Name.Num(), Name.GetData());
 		EventTypeMap.Add(EventType, TimingProfilerProvider.AddGpuTimer(*EventName));
 		break;
 	}

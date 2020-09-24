@@ -51,10 +51,9 @@ class FRayTracingPrimaryRaysRGS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_STRUCT_REF(FRaytracingLightDataPacked, LightDataPacked)
 		SHADER_PARAMETER_STRUCT_REF(FReflectionUniformParameters, ReflectionStruct)
-		SHADER_PARAMETER_STRUCT_REF(FFogUniformParameters, FogUniformParameters)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FFogUniformParameters, FogUniformParameters)
 
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureSamplerParameters, SceneTextureSamplers)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColorTexture)
 
@@ -73,6 +72,11 @@ IMPLEMENT_GLOBAL_SHADER(FRayTracingPrimaryRaysRGS, "/Engine/Private/RayTracing/R
 void FDeferredShadingSceneRenderer::PrepareRayTracingTranslucency(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
 	// Declare all RayGen shaders that require material closest hit shaders to be bound
+
+	if (!GetRayTracingTranslucencyOptions().IsEnabled)
+	{
+		return;
+	}
 
 	FRayTracingPrimaryRaysRGS::FPermutationDomain PermutationVector;
 
@@ -97,10 +101,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingPrimaryRaysView(
 {
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
 
-	FSceneTextureParameters SceneTextures;
-	SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
-	FSceneTextureSamplerParameters SceneTextureSamplers;
-	SetupSceneTextureSamplers(&SceneTextureSamplers);
+	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
 
 	int32 UpscaleFactor = int32(1.0f / ResolutionFraction);
 	ensure(ResolutionFraction == 1.0 / UpscaleFactor);
@@ -108,11 +109,11 @@ void FDeferredShadingSceneRenderer::RenderRayTracingPrimaryRaysView(
 	FIntPoint RayTracingResolution = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), UpscaleFactor);
 
 	{
-		FPooledRenderTargetDesc Desc = SceneContext.GetSceneColor()->GetDesc();
+		FRDGTextureDesc Desc = Translate(SceneContext.GetSceneColor()->GetDesc());
 		Desc.Format = PF_FloatRGBA;
 		Desc.Flags &= ~(TexCreate_FastVRAM | TexCreate_Transient);
+		Desc.Flags |= TexCreate_UAV;
 		Desc.Extent /= UpscaleFactor;
-		Desc.TargetableFlags |= TexCreate_UAV;
 
 		if(*InOutColorTexture == nullptr) 
 		{
@@ -150,13 +151,12 @@ void FDeferredShadingSceneRenderer::RenderRayTracingPrimaryRaysView(
 	PassParameters->LightDataBuffer = View.RayTracingLightData.LightBufferSRV;
 
 	PassParameters->SceneTextures = SceneTextures;
-	PassParameters->SceneTextureSamplers = SceneTextureSamplers;
 
 	FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor(), TEXT("SceneColor"));
 	PassParameters->SceneColorTexture = SceneColorTexture;
 
 	PassParameters->ReflectionStruct = CreateReflectionUniformBuffer(View, EUniformBufferUsage::UniformBuffer_SingleFrame);
-	PassParameters->FogUniformParameters = CreateFogUniformBuffer(View, EUniformBufferUsage::UniformBuffer_SingleFrame);
+	PassParameters->FogUniformParameters = CreateFogUniformBuffer(GraphBuilder, View);
 
 	PassParameters->ColorOutput = GraphBuilder.CreateUAV(*InOutColorTexture);
 	PassParameters->RayHitDistanceOutput = GraphBuilder.CreateUAV(*InOutRayHitDistanceTexture);

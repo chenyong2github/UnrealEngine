@@ -2440,7 +2440,7 @@ bool FConfigCacheIni::GetSection( const TCHAR* Section, TArray<FString>& Result,
 	return true;
 }
 
-FConfigSection* FConfigCacheIni::GetSectionPrivate( const TCHAR* Section, bool Force, bool Const, const FString& Filename )
+FConfigSection* FConfigCacheIni::GetSectionPrivate( const TCHAR* Section, const bool Force, const bool Const, const FString& Filename )
 {
 	FRemoteConfig::Get()->FinishRead(*Filename); // Ensure the remote file has been loaded and processed
 	FConfigFile* File = Find(Filename);
@@ -4545,7 +4545,6 @@ CORE_API void OnSetCVarFromIniEntry(const TCHAR *IniFile, const TCHAR *Key, cons
 	check(IniFile && Key && Value);
 	check((SetBy & ECVF_FlagMask) == 0);
 
-
 	Value = ConvertValueFromHumanFriendlyValue(Value);
 
 	IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(Key); 
@@ -4567,8 +4566,15 @@ CORE_API void OnSetCVarFromIniEntry(const TCHAR *IniFile, const TCHAR *Key, cons
 
 		if(bAllowChange)
 		{
-			UE_LOG(LogConfig,Log,TEXT("Setting CVar [[%s:%s]]"),Key,Value);
-			CVar->Set(Value, (EConsoleVariableFlags)SetBy);
+			UE_LOG(LogConfig, Log, TEXT("Setting CVar [[%s:%s]]"), Key, Value);
+			if (SetBy == ECVF_SetByMask)
+			{
+				CVar->SetWithCurrentPriority(Value);
+			}
+			else
+			{
+				CVar->Set(Value, (EConsoleVariableFlags)SetBy);
+			}
 		}
 		else
 		{

@@ -18,8 +18,9 @@ namespace UnrealBuildTool.Rules
 					"EditorFramework",
 					"EditorStyle",
 					"Engine",
-					"LevelEditor",
 					"InputCore",
+					"LevelEditor",
+					"Projects", // So that we can use the IPluginManager, required for our custom style
 					"Slate",
 					"SlateCore",
 					"UnrealEd",

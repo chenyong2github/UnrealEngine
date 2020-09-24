@@ -91,14 +91,18 @@ public:
 
 	/**
 	 * Returns the directory for default Editor UI Layout files of the engine
-	 *
 	 * @return Directory for default Editor UI Layout files.
 	 */
 	static FString EngineDefaultLayoutDir();
 
 	/**
+	 * Returns the directory for project Editor UI Layout files of the engine
+	 * @return Directory for project Editor UI Layout files.
+	 */
+	static FString EngineProjectLayoutDir();
+
+	/**
 	 * Returns the directory for user-generated Editor UI Layout files of the engine
-	 *
 	 * @return Directory for user-generated Editor UI Layout files.
 	 */
 	static FString EngineUserLayoutDir();

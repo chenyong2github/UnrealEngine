@@ -77,6 +77,10 @@ public:
 	/** Gets the flipbook used by this instance. */
 	UFUNCTION(BlueprintPure, Category="Sprite")
 	virtual UPaperFlipbook* GetFlipbook();
+
+	/** Returns the current color of the sprite */
+	UFUNCTION(BlueprintPure, Category="Sprite")
+	FLinearColor GetSpriteColor() const { return SpriteColor; }
 	
 	/** Set color of the sprite */
 	UFUNCTION(BlueprintCallable, Category="Sprite")
@@ -167,6 +171,13 @@ protected:
 
 	void TickFlipbook(float DeltaTime);
 	void FlipbookChangedPhysicsState();
+
+private:
+		//disable parallel add to scene for paper2d
+		void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override
+		{
+			Super::CreateRenderState_Concurrent(nullptr);
+		}
 
 public:
 	// UObject interface

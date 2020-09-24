@@ -38,7 +38,8 @@ public class VPUtilitiesEditor : ModuleRules
 				"VPBookmark",
 				"WorkspaceMenuStructure",
                 "CinematicCamera",
-				"OSC"
+				"OSC",
+				"PlacementMode"
             }
 		);
 	}

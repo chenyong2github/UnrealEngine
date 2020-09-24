@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "Common.ush"
+
 /*=============================================================================
 	SeparateTranslucency.usf: 
 =============================================================================*/
 
 Texture2D<float> LowResDepthTexture;
-SamplerState BilinearClampedSampler;
-SamplerState PointClampedSampler;
+Texture2D<float> FullResDepthTexture;
 
 void UpdateNearestSample(float Z, float2 UV, float FullResZ, inout float MinDist, inout float2 NearestUV)
 {
@@ -22,7 +23,7 @@ void UpdateNearestSample(float Z, float2 UV, float FullResZ, inout float MinDist
 
 float4 BilinearUpsampling(float2 UV, Texture2D LowResTex)
 {
-	return Texture2DSample(LowResTex, BilinearClampedSampler, UV);
+	return Texture2DSample(LowResTex, GlobalBilinearClampedSampler, UV);
 }
 
 float4 NearestDepthNeighborUpsampling(float2 Position, float2 UV, Texture2D LowResTex, float2 LowResTexelSize)
@@ -34,9 +35,9 @@ float4 NearestDepthNeighborUpsampling(float2 Position, float2 UV, Texture2D LowR
 	float MaxOperationDepth = 2000000.0f;
 
 	// Note: this upsample is specialized for half res to full res
-    float4 LowResDepthBuffer = LowResDepthTexture.GatherRed(BilinearClampedSampler, UV);
+    float4 LowResDepthBuffer = LowResDepthTexture.GatherRed(GlobalBilinearClampedSampler, UV);
     float4 LowResDepth = min(float4(ConvertFromDeviceZ(LowResDepthBuffer.x), ConvertFromDeviceZ(LowResDepthBuffer.y), ConvertFromDeviceZ(LowResDepthBuffer.z), ConvertFromDeviceZ(LowResDepthBuffer.w)), MaxOperationDepth.xxxx);
-	float FullResDepth = min(ConvertFromDeviceZ(SceneTexturesStruct.SceneDepthTexture[uint2(Position.xy)].x), MaxOperationDepth);
+	float FullResDepth = min(ConvertFromDeviceZ(FullResDepthTexture[uint2(Position.xy)].x), MaxOperationDepth);
 
 	float RelativeDepthThreshold = .1f;
 
@@ -65,18 +66,18 @@ float4 NearestDepthNeighborUpsampling(float2 Position, float2 UV, Texture2D LowR
 		&& abs(LowResDepth.x - FullResDepth) * InvFullResDepth < RelativeDepthThreshold
 		&& abs(LowResDepth.y - FullResDepth) * InvFullResDepth < RelativeDepthThreshold)
     {
-        Output = Texture2DSampleLevel(LowResTex, BilinearClampedSampler, UV, 0);
+        Output = Texture2DSampleLevel(LowResTex, GlobalBilinearClampedSampler, UV, 0);
     }
     else
     {
-        Output = Texture2DSampleLevel(LowResTex, PointClampedSampler, NearestUV, 0);
+        Output = Texture2DSampleLevel(LowResTex, GlobalPointClampedSampler, NearestUV, 0);
     }
 	
 	return Output;
 
 #else
 
-	return Texture2DSample(LowResTex, BilinearClampedSampler, UV);
+	return Texture2DSample(LowResTex, GlobalBilinearClampedSampler, UV);
 
 #endif
 }

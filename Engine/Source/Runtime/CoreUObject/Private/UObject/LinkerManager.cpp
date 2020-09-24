@@ -152,6 +152,45 @@ void FLinkerManager::ResetLoaders(UObject* InPkg)
 	}
 }
 
+void FLinkerManager::ResetLoaders(const TSet<FLinkerLoad*>& InLinkerLoads)
+{
+	// Remove import references
+	{
+#if THREADSAFE_UOBJECTS
+		FScopeLock ObjectLoadersLock(&ObjectLoadersCritical);
+#endif
+		for (FLinkerLoad* Linker : ObjectLoaders)
+		{
+			// Detach LinkerToReset from other linker's import table.
+			if (!InLinkerLoads.Contains(Linker))
+			{
+				for (auto& Import : Linker->ImportMap)
+				{
+					if (InLinkerLoads.Contains(Import.SourceLinker))
+					{
+						Import.SourceLinker = NULL;
+						Import.SourceIndex = INDEX_NONE;
+					}
+				}
+			}
+		}
+	}
+	for (FLinkerLoad* LinkerToReset : InLinkerLoads)
+	{
+		// Detach linker, also removes from array and sets LinkerRoot to NULL.
+		LinkerToReset->LoadAndDetachAllBulkData();
+		LinkerToReset->Detach();
+	}
+	// Remove all linkers in the specified set
+	{
+#if THREADSAFE_UOBJECTS
+		FScopeLock PendingCleanupListLock(&PendingCleanupListCritical);
+#endif
+		PendingCleanupList.Append(InLinkerLoads.Array());
+		bHasPendingCleanup = true;
+	}
+}
+
 void FLinkerManager::EnsureLoadingComplete(UPackage* Package)
 {
 	if (!Package)

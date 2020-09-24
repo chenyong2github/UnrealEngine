@@ -21,6 +21,7 @@ public class GeometryCacheAbcFile : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"EditorFramework",
+				"GeometryCacheStreamer",
 				"PropertyEditor",
 				"Slate",
 				"SlateCore",

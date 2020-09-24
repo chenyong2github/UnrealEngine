@@ -18,7 +18,7 @@ class FTexture2DMipDataProvider_IO : public FTextureMipDataProvider
 {
 public:
 
-	FTexture2DMipDataProvider_IO(bool InPrioritizedIORequest);
+	FTexture2DMipDataProvider_IO(const UTexture* InTexture, bool InPrioritizedIORequest);
 	~FTexture2DMipDataProvider_IO();
 
 	// ********************************************************

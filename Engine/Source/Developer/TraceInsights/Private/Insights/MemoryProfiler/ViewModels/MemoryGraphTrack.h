@@ -22,10 +22,12 @@ enum class EGraphTrackLabelUnit
 {
 	Auto,
 	Byte,
-	KiB,
-	MiB,
-	GiB,
-	TiB
+	KiB, // 2^10 bytes (kibibyte)
+	MiB, // 2^20 bytes (mebibyte)
+	GiB, // 2^30 bytes (gibibyte)
+	TiB, // 2^40 bytes (tebibyte)
+	PiB, // 2^50 bytes (pebibyte)
+	EiB  // 2^60 bytes (exbibyte)
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -88,6 +90,7 @@ public:
 	TSharedPtr<FMemoryGraphSeries> GetMainSeries() const { return MainSeries; }
 	void SetMainSeries(TSharedPtr<FMemoryGraphSeries> InMainSeries) { MainSeries = InMainSeries; }
 
+	virtual void Draw(const ITimingTrackDrawContext& Context) const override;
 	virtual void Update(const ITimingTrackUpdateContext& Context) override;
 	virtual void InitTooltip(FTooltipDrawState& InOutTooltip, const ITimingEvent& InTooltipEvent) const override;
 

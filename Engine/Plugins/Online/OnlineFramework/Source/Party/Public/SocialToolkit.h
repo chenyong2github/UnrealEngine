@@ -131,7 +131,7 @@ PARTY_SCOPE:
 
 	void HandleUserInvalidated(USocialUser& InvalidUser);
 
-#if PLATFORM_PS4
+#if PARTY_PLATFORM_SESSIONS_PSN
 	void NotifyPSNFriendsListRebuilt();
 #endif
 

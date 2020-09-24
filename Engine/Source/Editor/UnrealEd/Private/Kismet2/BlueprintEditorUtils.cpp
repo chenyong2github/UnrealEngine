@@ -49,6 +49,7 @@
 #include "UObject/BlueprintsObjectVersion.h"
 #include "Kismet2/CompilerResultsLog.h"
 #include "Algo/Transform.h"
+#include "Algo/Count.h"
 
 #include "KismetCompilerModule.h"
 #include "EdGraphSchema_K2_Actions.h"
@@ -121,6 +122,9 @@
 #include "AnimGraphNode_LinkedInputPose.h"
 #include "AnimGraphNode_Root.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+
+#include "AssetRegistryModule.h"
+#include "Misc/MessageDialog.h"
 
 #define LOCTEXT_NAMESPACE "Blueprint"
 
@@ -1874,6 +1878,13 @@ void FBlueprintEditorUtils::PostDuplicateBlueprint(UBlueprint* Blueprint, bool b
 			// Create a new blueprint guid
 			Blueprint->GenerateNewGuid();
 
+			// Give all member variables a new guid
+			TMap<FGuid, FGuid> NewVarGuids;
+			for (FBPVariableDescription& Var : Blueprint->NewVariables)
+			{
+				Var.VarGuid = NewVarGuids.Emplace(Var.VarGuid, FGuid::NewGuid());
+			}
+
 			// Give all nodes a new Guid
 			TArray< UEdGraphNode* > AllGraphNodes;
 			GetAllNodesOfClass(Blueprint, AllGraphNodes);
@@ -1891,6 +1902,12 @@ void FBlueprintEditorUtils::PostDuplicateBlueprint(UBlueprint* Blueprint, bool b
 					// Self context variable nodes need to be updated with the new Blueprint class
 					if(VariableNode->VariableReference.IsSelfContext())
 					{
+						// update variable references with new Guids if necessary
+						if (FGuid* NewGuid = NewVarGuids.Find(VariableNode->VariableReference.GetMemberGuid()))
+						{
+							VariableNode->VariableReference.SetSelfMember(VariableNode->VariableReference.GetMemberName(), *NewGuid);
+						}
+
 						const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
 						if(UEdGraphPin* SelfPin = K2Schema->FindSelfPin(*VariableNode, EGPD_Input))
 						{
@@ -2058,11 +2075,14 @@ void FBlueprintEditorUtils::MarkBlueprintAsModified(UBlueprint* Blueprint, FProp
 		FBlueprintEditorUtils::ClearMacroCosmeticInfoCache(Blueprint);
 	}
 	
-	IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(Blueprint, false);
-	if (AssetEditor)
+	if (GEditor)
 	{
-		FBlueprintEditor* BlueprintEditor = static_cast<FBlueprintEditor*>(AssetEditor);
-		BlueprintEditor->UpdateNodesUnrelatedStatesAfterGraphChange();
+		IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(Blueprint, false);
+		if (AssetEditor)
+		{
+			FBlueprintEditor* BlueprintEditor = static_cast<FBlueprintEditor*>(AssetEditor);
+			BlueprintEditor->UpdateNodesUnrelatedStatesAfterGraphChange();
+		}
 	}
 }
 
@@ -2262,6 +2282,56 @@ UEdGraph* FBlueprintEditorUtils::CreateNewGraph(UObject* ParentScope, const FNam
 		NewGraph->Rename(*(GraphName.ToString()), ParentScope, REN_DoNotDirty | REN_ForceNoResetLoaders);
 	}
 	return NewGraph;
+}
+
+void FBlueprintEditorUtils::CreateMatchingFunction(UK2Node_CallFunction* InNode, TSubclassOf<class UEdGraphSchema> InSchemaClass)
+{
+	if (UBlueprint* Blueprint = InNode->GetBlueprint())
+	{
+		FScopedTransaction Transaction(LOCTEXT("CreateMatchingFunction", "Create Matching Function"));
+		Blueprint->Modify();
+
+		UEdGraph* Graph = FBlueprintEditorUtils::CreateNewGraph(Blueprint, InNode->GetFunctionName(), UEdGraph::StaticClass(), InSchemaClass);
+		FBlueprintEditorUtils::AddFunctionGraph<UClass>(Blueprint, Graph, true, nullptr);
+
+		TArray<UK2Node_FunctionEntry*> Entry;
+		Graph->GetNodesOfClass<UK2Node_FunctionEntry>(Entry);
+		if (ensure(Entry.Num() == 1))
+		{
+			UK2Node_FunctionResult* Result = nullptr;
+			for (UEdGraphPin* Pin : InNode->Pins)
+			{
+				// if this wasn't a split pin
+				if (!Pin->ParentPin)
+				{
+					FName PinName = Pin->GetFName();
+					// If this isn't a default pin, add it to the function entry
+					if (PinName != UEdGraphSchema_K2::PN_Self && PinName != UEdGraphSchema_K2::PN_Execute && PinName != UEdGraphSchema_K2::PN_Then)
+					{
+						if (Pin->Direction == EEdGraphPinDirection::EGPD_Input)
+						{
+							// add as an input param to function
+							Entry[0]->CreateUserDefinedPin(PinName, Pin->PinType, EEdGraphPinDirection::EGPD_Output);
+						}
+						else if (Pin->Direction == EEdGraphPinDirection::EGPD_Output)
+						{
+							// only create a result node if there are out parameters
+							if (!Result)
+							{
+								Result = FBlueprintEditorUtils::FindOrCreateFunctionResultNode(Entry[0]);
+							}
+
+							// add as an output param to function
+							Result->CreateUserDefinedPin(PinName, Pin->PinType, EEdGraphPinDirection::EGPD_Input);
+						}
+					}
+				}
+			}
+		}
+
+		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
+		InNode->ReconstructNode();
+	}
 }
 
 bool FBlueprintEditorUtils::IsFunctionConvertableToEvent(UBlueprint* const BlueprintObj, UFunction* const Function)
@@ -4214,6 +4284,27 @@ uint64* FBlueprintEditorUtils::GetBlueprintVariablePropertyFlags(UBlueprint* Blu
 	return nullptr;
 }
 
+FBPVariableDescription* FBlueprintEditorUtils::GetVariableFromOnRepFunction(UBlueprint* Blueprint, FName FuncName)
+{
+	const TCHAR* OnRepPrefix = TEXT("OnRep_");
+	FString FuncNameStr = FuncName.ToString();
+
+	if (FuncNameStr.StartsWith(OnRepPrefix))
+	{
+		FName VarName(FuncNameStr.RightChop(FCString::Strlen(OnRepPrefix)));
+		const int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndex(Blueprint, VarName);
+		if (VarIndex != INDEX_NONE)
+		{
+			if (Blueprint->NewVariables[VarIndex].RepNotifyFunc == FuncName)
+			{
+				return &Blueprint->NewVariables[VarIndex];
+			}
+		}
+	}
+
+	return nullptr;
+}
+
 FName FBlueprintEditorUtils::GetBlueprintVariableRepNotifyFunc(UBlueprint* Blueprint, const FName& VarName)
 {
 	const int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndex(Blueprint, VarName);
@@ -5134,7 +5225,12 @@ FName FBlueprintEditorUtils::DuplicateVariable(UBlueprint* InBlueprint, const US
 
 FBPVariableDescription FBlueprintEditorUtils::DuplicateVariableDescription(UBlueprint* InBlueprint, FBPVariableDescription& InVariableDescription)
 {
-	FName DuplicatedVariableName = FindUniqueKismetName(InBlueprint, InVariableDescription.VarName.GetPlainNameString());
+	FName DuplicatedVariableName = InVariableDescription.VarName;
+
+	if (FKismetNameValidator(InBlueprint).IsValid(DuplicatedVariableName) != EValidatorResult::Ok)
+	{
+		DuplicatedVariableName = FindUniqueKismetName(InBlueprint, InVariableDescription.VarName.GetPlainNameString());
+	}
 
 	// Now create new variable
 	FBPVariableDescription NewVar = InVariableDescription;
@@ -5775,6 +5871,70 @@ void FBlueprintEditorUtils::ValidateBlueprintChildVariables(UBlueprint* InBluepr
 	}
 }
 
+int32 FBlueprintEditorUtils::GetChildrenOfBlueprint(UBlueprint* InBlueprint, TArray<FAssetData>& OutChildren, bool bInRecursive /*= true*/)
+{
+	int32 Count = 0;
+	const FAssetData ParentAsset(InBlueprint);
+	TArray<FName> ParentNames;
+	ParentNames.Add(ParentAsset.GetTagValueRef<FName>(FBlueprintTags::GeneratedClassPath));
+
+	for (int32 ParentIdx = 0; ParentIdx < ParentNames.Num(); ++ParentIdx)
+	{
+		FARFilter Filter;
+		Filter.TagsAndValues.Add(FBlueprintTags::ParentClassPath, ParentNames[ParentIdx].ToString());
+
+		TArray<FAssetData> FoundAssets;
+		if (FAssetRegistryModule::GetRegistry().GetAssets(Filter, FoundAssets) && FoundAssets.Num() > 0)
+		{
+			if (bInRecursive)
+			{
+				for (const FAssetData& Child : FoundAssets)
+				{
+					ParentNames.Add(Child.GetTagValueRef<FName>(FBlueprintTags::GeneratedClassPath));
+				}
+			}
+
+			Count += FoundAssets.Num();
+			OutChildren.Append(MoveTemp(FoundAssets));
+		}
+	}
+
+	return Count;
+}
+
+void FBlueprintEditorUtils::MarkBlueprintChildrenAsModified(UBlueprint* InBlueprint)
+{
+	TArray<FAssetData> Children;
+	if (GetChildrenOfBlueprint(InBlueprint, Children) > 0)
+	{
+		int32 Unloaded = Algo::CountIf(Children,
+			[](const FAssetData& Asset)
+			{
+				return !Asset.IsAssetLoaded();
+			});
+
+
+		// If there are any unloaded children, ask the user to verify
+		EAppReturnType::Type DialogResponse = EAppReturnType::Yes;
+		if (Unloaded > 0)
+		{
+			FText Message = FText::Format(LOCTEXT("LoadChildrenPopupMessage", "Load {0} unloaded child blueprints to fix up phantom references?"), FText::FromString(FString::FromInt(Unloaded)));
+			FText Title = LOCTEXT("LoadChildrenPopupTitle", "Load Unloaded Children?");
+			DialogResponse = FMessageDialog::Open(EAppMsgType::YesNo, Message, &Title);
+		}
+
+		// Conditionally Load Children and mark as modified 
+		const bool bLoad = (DialogResponse == EAppReturnType::Yes);
+		for (FAssetData& Child : Children)
+		{
+			if (UBlueprint* ChildBlueprint = Cast<UBlueprint>(Child.FastGetAsset(bLoad)))
+			{
+				MarkBlueprintAsModified(ChildBlueprint);
+			}
+		}
+	}
+}
+
 //////////////////////////////////////////////////////////////////////////
 
 void FBlueprintEditorUtils::FindNativizationDependencies(UBlueprint* Blueprint, TArray<UClass*>& NativizeDependenciesOut)
@@ -6220,6 +6380,9 @@ void FBlueprintEditorUtils::RemoveInterface(UBlueprint* Blueprint, const FName& 
 
 		// Now recompile the blueprint (this needs to be done outside of RemoveGraph, after it's been removed from ImplementedInterfaces - otherwise it'll re-add it)
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
+
+		// Mark Child Blueprints as modified to fixup references to the Interface
+		MarkBlueprintChildrenAsModified(Blueprint);
 	}
 }
 

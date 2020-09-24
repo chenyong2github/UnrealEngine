@@ -81,7 +81,7 @@ void TRDGScopeStack<TScopeType>::BeginExecutePass(const TScopeType* ParentScope)
 			break;
 		}
 
-		PopFunction(RHICmdList);
+		PopFunction(RHICmdList, ScopeStack[i]);
 		ScopeStack[i] = nullptr;
 	}
 
@@ -104,7 +104,7 @@ void TRDGScopeStack<TScopeType>::EndExecute()
 			break;
 		}
 
-		PopFunction(RHICmdList);
+		PopFunction(RHICmdList, ScopeStack[ScopeIndex]);
 	}
 	ClearScopes();
 }
@@ -187,91 +187,93 @@ inline const TCHAR* FRDGEventName::GetTCHAR() const
 #endif
 }
 
-inline FRDGScopeStacks::FRDGScopeStacks(FRHIComputeCommandList& RHICmdList)
+#if RDG_GPU_SCOPES
+
+inline FRDGGPUScopeStacks::FRDGGPUScopeStacks(FRHIComputeCommandList& RHICmdList)
 	: Event(RHICmdList)
 	, Stat(RHICmdList)
 {}
 
-inline void FRDGScopeStacks::BeginExecute()
+inline void FRDGGPUScopeStacks::BeginExecute()
 {
 	Event.BeginExecute();
 	Stat.BeginExecute();
 }
 
-inline void FRDGScopeStacks::BeginExecutePass(const FRDGPass* Pass)
+inline void FRDGGPUScopeStacks::BeginExecutePass(const FRDGPass* Pass)
 {
 	Event.BeginExecutePass(Pass);
 	Stat.BeginExecutePass(Pass);
 }
 
-inline void FRDGScopeStacks::EndExecutePass()
+inline void FRDGGPUScopeStacks::EndExecutePass()
 {
 	Event.EndExecutePass();
 }
 
-inline void FRDGScopeStacks::EndExecute()
+inline void FRDGGPUScopeStacks::EndExecute()
 {
 	Event.EndExecute();
 	Stat.EndExecute();
 }
 
-inline FRDGScopes FRDGScopeStacks::GetCurrentScopes() const
+inline FRDGGPUScopes FRDGGPUScopeStacks::GetCurrentScopes() const
 {
-	FRDGScopes Scopes;
+	FRDGGPUScopes Scopes;
 	Scopes.Event = Event.GetCurrentScope();
 	Scopes.Stat = Stat.GetCurrentScope();
 	return Scopes;
 }
 
-inline FRDGScopeStacksByPipeline::FRDGScopeStacksByPipeline(FRHICommandListImmediate& RHICmdListGraphics, FRHIComputeCommandList& RHICmdListAsyncCompute)
+inline FRDGGPUScopeStacksByPipeline::FRDGGPUScopeStacksByPipeline(FRHICommandListImmediate& RHICmdListGraphics, FRHIComputeCommandList& RHICmdListAsyncCompute)
 	: Graphics(RHICmdListGraphics)
 	, AsyncCompute(RHICmdListAsyncCompute)
 {}
 
-inline void FRDGScopeStacksByPipeline::BeginEventScope(FRDGEventName&& ScopeName)
+inline void FRDGGPUScopeStacksByPipeline::BeginEventScope(FRDGEventName&& ScopeName)
 {
 	FRDGEventName ScopeNameCopy = ScopeName;
 	Graphics.Event.BeginScope(MoveTemp(ScopeNameCopy));
 	AsyncCompute.Event.BeginScope(MoveTemp(ScopeName));
 }
 
-inline void FRDGScopeStacksByPipeline::EndEventScope()
+inline void FRDGGPUScopeStacksByPipeline::EndEventScope()
 {
 	Graphics.Event.EndScope();
 	AsyncCompute.Event.EndScope();
 }
 
-inline void FRDGScopeStacksByPipeline::BeginStatScope(const FName& Name, const FName& StatName)
+inline void FRDGGPUScopeStacksByPipeline::BeginStatScope(const FName& Name, const FName& StatName, int32* DrawCallCounter)
 {
-	Graphics.Stat.BeginScope(Name, StatName);
-	AsyncCompute.Stat.BeginScope(Name, StatName);
+	Graphics.Stat.BeginScope(Name, StatName, DrawCallCounter);
+	AsyncCompute.Stat.BeginScope(Name, StatName, DrawCallCounter);
 }
 
-inline void FRDGScopeStacksByPipeline::EndStatScope()
+inline void FRDGGPUScopeStacksByPipeline::EndStatScope()
 {
 	Graphics.Stat.EndScope();
 	AsyncCompute.Stat.EndScope();
 }
 
-inline void FRDGScopeStacksByPipeline::BeginExecute()
+inline void FRDGGPUScopeStacksByPipeline::BeginExecute()
 {
 	Graphics.BeginExecute();
 	AsyncCompute.BeginExecute();
 }
 
-inline void FRDGScopeStacksByPipeline::EndExecute()
+inline void FRDGGPUScopeStacksByPipeline::EndExecute()
 {
 	Graphics.EndExecute();
 	AsyncCompute.EndExecute();
 }
 
-inline const FRDGScopeStacks& FRDGScopeStacksByPipeline::GetScopeStacks(ERDGPipeline Pipeline) const
+inline const FRDGGPUScopeStacks& FRDGGPUScopeStacksByPipeline::GetScopeStacks(ERHIPipeline Pipeline) const
 {
 	switch (Pipeline)
 	{
-	case ERDGPipeline::Graphics:
+	case ERHIPipeline::Graphics:
 		return Graphics;
-	case ERDGPipeline::AsyncCompute:
+	case ERHIPipeline::AsyncCompute:
 		return AsyncCompute;
 	default:
 		checkNoEntry();
@@ -279,13 +281,13 @@ inline const FRDGScopeStacks& FRDGScopeStacksByPipeline::GetScopeStacks(ERDGPipe
 	}
 }
 
-inline FRDGScopeStacks& FRDGScopeStacksByPipeline::GetScopeStacks(ERDGPipeline Pipeline)
+inline FRDGGPUScopeStacks& FRDGGPUScopeStacksByPipeline::GetScopeStacks(ERHIPipeline Pipeline)
 {
 	switch (Pipeline)
 	{
-	case ERDGPipeline::Graphics:
+	case ERHIPipeline::Graphics:
 		return Graphics;
-	case ERDGPipeline::AsyncCompute:
+	case ERHIPipeline::AsyncCompute:
 		return AsyncCompute;
 	default:
 		checkNoEntry();
@@ -293,7 +295,43 @@ inline FRDGScopeStacks& FRDGScopeStacksByPipeline::GetScopeStacks(ERDGPipeline P
 	}
 }
 
-inline FRDGScopes FRDGScopeStacksByPipeline::GetCurrentScopes(ERDGPipeline Pipeline) const
+inline FRDGGPUScopes FRDGGPUScopeStacksByPipeline::GetCurrentScopes(ERHIPipeline Pipeline) const
 {
 	return GetScopeStacks(Pipeline).GetCurrentScopes();
 }
+
+#endif
+
+//////////////////////////////////////////////////////////////////////////
+// CPU Scopes
+//////////////////////////////////////////////////////////////////////////
+
+#if RDG_CPU_SCOPES
+
+inline FRDGCPUScopeStacks::FRDGCPUScopeStacks(FRHIComputeCommandList& RHICmdList, const char* UnaccountedCSVStat)
+	: CSV(RHICmdList, UnaccountedCSVStat)
+{}
+
+inline void FRDGCPUScopeStacks::BeginExecute()
+{
+	CSV.BeginExecute();
+}
+
+inline void FRDGCPUScopeStacks::BeginExecutePass(const FRDGPass* Pass)
+{
+	CSV.BeginExecutePass(Pass);
+}
+
+inline void FRDGCPUScopeStacks::EndExecute()
+{
+	CSV.EndExecute();
+}
+
+inline FRDGCPUScopes FRDGCPUScopeStacks::GetCurrentScopes() const
+{
+	FRDGCPUScopes Scopes;
+	Scopes.CSV = CSV.GetCurrentScope();
+	return Scopes;
+}
+
+#endif

@@ -5,18 +5,10 @@
 #include "ClearReplacementShaders.h"
 #include "ShaderParameterUtils.h"
 #include "RenderTargetPool.h"
-#include "RenderGraphResourcePool.h"
 #include <initializer_list>
 #include "GlobalShader.h"
 #include "PixelShaderUtils.h"
-
-/** Adds a render graph tracked buffer suitable for use as a copy destination. */
-#define RDG_BUFFER_COPY_DEST(MemberName) \
-	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_RDG_BUFFER_COPY_DEST, TShaderResourceParameterTypeInfo<FRDGBufferRef>, FRDGBufferRef,MemberName,, = nullptr,EShaderPrecisionModifier::Float,TEXT(""),false)
-
-/** Adds a render graph tracked texture suitable for use as a copy destination. */
-#define RDG_TEXTURE_COPY_DEST(MemberName) \
-	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_RDG_TEXTURE_COPY_DEST, TShaderResourceParameterTypeInfo<FRDGTextureRef>, FRDGTextureRef,MemberName,, = nullptr,EShaderPrecisionModifier::Float,TEXT(""),false)
+#include "RenderGraphResourcePool.h"
 
 void ClearUnusedGraphResourcesImpl(
 	const FShaderParameterBindings& ShaderBindings,
@@ -24,47 +16,64 @@ void ClearUnusedGraphResourcesImpl(
 	void* InoutParameters,
 	std::initializer_list<FRDGResourceRef> ExcludeList)
 {
-	int32 UsedResourceIdx = 0;
-	uint8* Base = reinterpret_cast<uint8*>(InoutParameters);
+	const auto& GraphResources = ParametersMetadata->GetLayout().GraphResources;
 
-	for (int32 ResourceIndex = 0, Num = ParametersMetadata->GetLayout().Resources.Num(); ResourceIndex < Num; ResourceIndex++)
+	int32 ShaderResourceIndex = 0;
+	int32 GraphUniformBufferId = 0;
+	auto Base = reinterpret_cast<uint8*>(InoutParameters);
+
+	for (int32 GraphResourceIndex = 0, GraphResourceCount = GraphResources.Num(); GraphResourceIndex < GraphResourceCount; GraphResourceIndex++)
 	{
-		EUniformBufferBaseType Type = ParametersMetadata->GetLayout().Resources[ResourceIndex].MemberType;
-		uint16 ByteOffset = ParametersMetadata->GetLayout().Resources[ResourceIndex].MemberOffset;
-		bool bRDGResource = Type == UBMT_RDG_TEXTURE ||
-							Type == UBMT_RDG_TEXTURE_SRV || 
-							Type == UBMT_RDG_BUFFER_SRV ||
-							Type == UBMT_RDG_TEXTURE_UAV || 
-							Type == UBMT_RDG_BUFFER_UAV;
+		const EUniformBufferBaseType Type = GraphResources[GraphResourceIndex].MemberType;
+		const uint16 ByteOffset = GraphResources[GraphResourceIndex].MemberOffset;
 
-		if (UsedResourceIdx < ShaderBindings.ResourceParameters.Num())
+		if (Type == UBMT_RDG_TEXTURE ||
+			Type == UBMT_RDG_TEXTURE_SRV ||
+			Type == UBMT_RDG_TEXTURE_UAV ||
+			Type == UBMT_RDG_BUFFER_SRV ||
+			Type == UBMT_RDG_BUFFER_UAV)
 		{
-			const FShaderParameterBindings::FResourceParameter& ResourceParameter = ShaderBindings.ResourceParameters[UsedResourceIdx];
-			if (ByteOffset == ResourceParameter.ByteOffset)
+			const auto& ResourceParameters = ShaderBindings.ResourceParameters;
+			const int32 ShaderResourceCount = ResourceParameters.Num();
+			for (; ShaderResourceIndex < ShaderResourceCount && ResourceParameters[ShaderResourceIndex].ByteOffset < ByteOffset; ++ShaderResourceIndex)
 			{
-				// check next one
-				UsedResourceIdx++;
+			}
+
+			if (ShaderResourceIndex < ShaderResourceCount && ResourceParameters[ShaderResourceIndex].ByteOffset == ByteOffset)
+			{
+				continue;
+			}
+		}
+		else if (Type == UBMT_RDG_UNIFORM_BUFFER)
+		{
+			if (GraphUniformBufferId < ShaderBindings.GraphUniformBuffers.Num() && ByteOffset == ShaderBindings.GraphUniformBuffers[GraphUniformBufferId].ByteOffset)
+			{
+				GraphUniformBufferId++;
 				continue;
 			}
 
-			// make sure we dont jump over used resources
-			check(ByteOffset <= ResourceParameter.ByteOffset);
-		}
-
-		if (bRDGResource)
-		{
-			for (FRDGResourceRef ExcludeResource : ExcludeList)
+			FRDGUniformBufferRef UniformBuffer = *reinterpret_cast<FRDGUniformBufferRef*>(Base + ByteOffset);
+			if (!UniformBuffer || UniformBuffer->IsGlobal())
 			{
-				auto Resource = *reinterpret_cast<const FRDGResource* const*>(Base + ByteOffset);
-				if (Resource == ExcludeResource)
-				{
-					continue;
-				}
+				continue;
 			}
-
-			void** ResourcePointerAddress = reinterpret_cast<void**>(Base + ByteOffset);
-			*ResourcePointerAddress = nullptr;
 		}
+		else
+		{
+			continue;
+		}
+
+		FRDGResourceRef* ResourcePtr = reinterpret_cast<FRDGResourceRef*>(Base + ByteOffset);
+
+		for (FRDGResourceRef ExcludeResource : ExcludeList)
+		{
+			if (*ResourcePtr == ExcludeResource)
+			{
+				continue;
+			}
+		}
+
+		*ResourcePtr = nullptr;
 	}
 }
 
@@ -74,46 +83,77 @@ void ClearUnusedGraphResourcesImpl(
 	void* InoutParameters,
 	std::initializer_list<FRDGResourceRef> ExcludeList)
 {
-	TArray<int32, TInlineAllocator<SF_NumFrequencies>> GraphResourceIds;
-	GraphResourceIds.SetNumZeroed(ShaderBindingsList.Num());
+	const auto& GraphResources = ParametersMetadata->GetLayout().GraphResources;
 
-	uint8* Base = reinterpret_cast<uint8*>(InoutParameters);
+	TArray<int32, TInlineAllocator<SF_NumFrequencies>> ShaderResourceIds;
+	TArray<int32, TInlineAllocator<SF_NumFrequencies>> GraphUniformBufferIds;
+	ShaderResourceIds.SetNumZeroed(ShaderBindingsList.Num());
+	GraphUniformBufferIds.SetNumZeroed(ShaderBindingsList.Num());
 
-	for (int32 ResourceIndex = 0, Num = ParametersMetadata->GetLayout().Resources.Num(); ResourceIndex < Num; ResourceIndex++)
+	auto Base = reinterpret_cast<uint8*>(InoutParameters);
+
+	for (int32 GraphResourceIndex = 0, GraphResourceCount = GraphResources.Num(); GraphResourceIndex < GraphResourceCount; GraphResourceIndex++)
 	{
-		EUniformBufferBaseType Type = ParametersMetadata->GetLayout().Resources[ResourceIndex].MemberType;
-		uint16 ByteOffset = ParametersMetadata->GetLayout().Resources[ResourceIndex].MemberOffset;
-		bool bRDGResource = Type == UBMT_RDG_TEXTURE ||
-							Type == UBMT_RDG_TEXTURE_SRV || 
-							Type == UBMT_RDG_BUFFER_SRV ||
-							Type == UBMT_RDG_TEXTURE_UAV || 
-							Type == UBMT_RDG_BUFFER_UAV;
-
+		EUniformBufferBaseType Type = GraphResources[GraphResourceIndex].MemberType;
+		uint16 ByteOffset = GraphResources[GraphResourceIndex].MemberOffset;
 		bool bResourceIsUsed = false;
-		for (int32 Index = 0; Index < ShaderBindingsList.Num(); ++Index)
+
+		if (Type == UBMT_RDG_TEXTURE ||
+			Type == UBMT_RDG_TEXTURE_SRV ||
+			Type == UBMT_RDG_TEXTURE_UAV ||
+			Type == UBMT_RDG_BUFFER_SRV ||
+			Type == UBMT_RDG_BUFFER_UAV)
 		{
-			const FShaderParameterBindings& ShaderBindings = *ShaderBindingsList[Index];
-			int32& GraphResourceId = GraphResourceIds[Index];
-			for (; GraphResourceId < ShaderBindings.ResourceParameters.Num() && ShaderBindings.ResourceParameters[GraphResourceId].ByteOffset < ByteOffset; ++GraphResourceId)
+			for (int32 Index = 0; Index < ShaderBindingsList.Num(); ++Index)
 			{
-			}
-			bResourceIsUsed|= GraphResourceId < ShaderBindings.ResourceParameters.Num() && ByteOffset == ShaderBindings.ResourceParameters[GraphResourceId].ByteOffset; // check the resouce type as well?
-		}
-		
-		if (bRDGResource && !bResourceIsUsed)
-		{
-			for (FRDGResourceRef ExcludeResource : ExcludeList)
-			{
-				auto Resource = *reinterpret_cast<const FRDGResource* const*>(Base + ByteOffset);
-				if (Resource == ExcludeResource)
+				const auto& ResourceParameters = ShaderBindingsList[Index]->ResourceParameters;
+				int32& ShaderResourceId = ShaderResourceIds[Index];
+				for (; ShaderResourceId < ResourceParameters.Num() && ResourceParameters[ShaderResourceId].ByteOffset < ByteOffset; ++ShaderResourceId)
 				{
-					continue;
 				}
+				bResourceIsUsed |= ShaderResourceId < ResourceParameters.Num() && ByteOffset == ResourceParameters[ShaderResourceId].ByteOffset;
+			}
+		}
+		else if (Type == UBMT_RDG_UNIFORM_BUFFER)
+		{
+			for (int32 Index = 0; Index < ShaderBindingsList.Num(); ++Index)
+			{
+				const auto& GraphUniformBuffers = ShaderBindingsList[Index]->GraphUniformBuffers;
+				int32& GraphUniformBufferId = GraphUniformBufferIds[Index];
+				for (; GraphUniformBufferId < GraphUniformBuffers.Num() && GraphUniformBuffers[GraphUniformBufferId].ByteOffset < ByteOffset; ++GraphUniformBufferId)
+				{
+				}
+				bResourceIsUsed |= GraphUniformBufferId < GraphUniformBuffers.Num() && ByteOffset == GraphUniformBuffers[GraphUniformBufferId].ByteOffset;
 			}
 
-			void** ResourcePointerAddress = reinterpret_cast<void**>(Base + ByteOffset);
-			*ResourcePointerAddress = nullptr;
+			FRDGUniformBufferRef UniformBuffer = *reinterpret_cast<FRDGUniformBufferRef*>(Base + ByteOffset);
+			if (!UniformBuffer || UniformBuffer->IsGlobal())
+			{
+				continue;
+			}
 		}
+		else
+		{
+			// Not a resource we care about.
+			continue;
+		}
+
+		if (bResourceIsUsed)
+		{
+			continue;
+		}
+
+		FRDGResourceRef* ResourcePtr = reinterpret_cast<FRDGResourceRef*>(Base + ByteOffset);
+
+		for (FRDGResourceRef ExcludeResource : ExcludeList)
+		{
+			if (*ResourcePtr == ExcludeResource)
+			{
+				continue;
+			}
+		}
+
+		*ResourcePtr = nullptr;
 	}
 }
 
@@ -121,22 +161,66 @@ FRDGTextureRef RegisterExternalTextureWithFallback(
 	FRDGBuilder& GraphBuilder,
 	const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
 	const TRefCountPtr<IPooledRenderTarget>& FallbackPooledTexture,
-	const TCHAR* ExternalPooledTextureName)
+	ERenderTargetTexture ExternalTexture,
+	ERenderTargetTexture FallbackTexture)
 {
 	ensureMsgf(FallbackPooledTexture.IsValid(), TEXT("RegisterExternalTextureWithDummyFallback() requires a valid fallback pooled texture."));
 	if (ExternalPooledTexture.IsValid())
 	{
-		return GraphBuilder.RegisterExternalTexture(ExternalPooledTexture, ExternalPooledTextureName);
+		return GraphBuilder.RegisterExternalTexture(ExternalPooledTexture, ExternalTexture);
 	}
 	else
 	{
-		return GraphBuilder.RegisterExternalTexture(FallbackPooledTexture);
+		return GraphBuilder.RegisterExternalTexture(FallbackPooledTexture, FallbackTexture);
+	}
+}
+
+RENDERCORE_API FRDGTextureMSAA CreateTextureMSAA(
+	FRDGBuilder& GraphBuilder,
+	FRDGTextureDesc Desc,
+	const TCHAR* Name,
+	ETextureCreateFlags ResolveFlagsToAdd)
+{
+	FRDGTextureMSAA Texture(GraphBuilder.CreateTexture(Desc, Name));
+
+	if (Desc.NumSamples > 1)
+	{
+		Desc.NumSamples = 1;
+		ETextureCreateFlags ResolveFlags = TexCreate_ShaderResource;
+		if (EnumHasAnyFlags(Desc.Flags, TexCreate_DepthStencilTargetable))
+		{
+			ResolveFlags |= TexCreate_DepthStencilResolveTarget;
+		}
+		else
+		{
+			ResolveFlags |= TexCreate_ResolveTargetable;
+		}
+		Desc.Flags = ResolveFlags | ResolveFlagsToAdd;
+		Texture.Resolve = GraphBuilder.CreateTexture(Desc, Name);
+	}
+
+	return Texture;
+}
+
+FRDGTextureMSAA RegisterExternalTextureMSAAWithFallback(
+	FRDGBuilder& GraphBuilder,
+	const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
+	const TRefCountPtr<IPooledRenderTarget>& FallbackPooledTexture)
+{
+	ensureMsgf(FallbackPooledTexture.IsValid(), TEXT("RegisterExternalTextureWithDummyFallback() requires a valid fallback pooled texture."));
+	if (ExternalPooledTexture.IsValid())
+	{
+		return RegisterExternalTextureMSAA(GraphBuilder, ExternalPooledTexture);
+	}
+	else
+	{
+		return RegisterExternalTextureMSAA(GraphBuilder, FallbackPooledTexture);
 	}
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FCopyTextureParameters, )
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Input)
-	RDG_TEXTURE_COPY_DEST(Output)
+	RDG_TEXTURE_ACCESS(Input,  ERHIAccess::CopySrc)
+	RDG_TEXTURE_ACCESS(Output, ERHIAccess::CopyDest)
 END_SHADER_PARAMETER_STRUCT()
 
 void AddCopyTexturePass(
@@ -159,17 +243,13 @@ void AddCopyTexturePass(
 		ERDGPassFlags::Copy,
 		[InputTexture, OutputTexture, CopyInfo](FRHICommandList& RHICmdList)
 	{
-        // Manually mark as used since we aren't invoking any shaders.
-		InputTexture->MarkResourceAsUsed();
-		OutputTexture->MarkResourceAsUsed();
-
 		RHICmdList.CopyTexture(InputTexture->GetRHI(), OutputTexture->GetRHI(), CopyInfo);
 	});
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FCopyToResolveTargetParameters, )
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Input)
-	RDG_TEXTURE_COPY_DEST(Output)
+	RDG_TEXTURE_ACCESS_DYNAMIC(Input)
+	RDG_TEXTURE_ACCESS_DYNAMIC(Output)
 END_SHADER_PARAMETER_STRUCT()
 
 void AddCopyToResolveTargetPass(
@@ -178,18 +258,38 @@ void AddCopyToResolveTargetPass(
 	FRDGTextureRef OutputTexture,
 	const FResolveParams& ResolveParams)
 {
-	FCopyToResolveTargetParameters* Parameters = GraphBuilder.AllocParameters<FCopyToResolveTargetParameters>();
-	Parameters->Input = InputTexture;
-	Parameters->Output = OutputTexture;
+	check(InputTexture && OutputTexture);
 
-	GraphBuilder.AddPass(RDG_EVENT_NAME("CopyTexture"), Parameters, ERDGPassFlags::Copy,
-		[InputTexture, OutputTexture, ResolveParams](FRHICommandList& RHICmdList)
+	if (InputTexture == OutputTexture)
 	{
-		// Manually mark as used since we aren't invoking any shaders.
-		InputTexture->MarkResourceAsUsed();
-		OutputTexture->MarkResourceAsUsed();
+		return;
+	}
 
-		RHICmdList.CopyToResolveTarget(InputTexture->GetRHI(), OutputTexture->GetRHI(), ResolveParams);
+	ERHIAccess AccessSource = ERHIAccess::ResolveSrc;
+	ERHIAccess AccessDest = ERHIAccess::ResolveDst;
+
+	// This might also just be a copy.
+	if (InputTexture->Desc.NumSamples == OutputTexture->Desc.NumSamples)
+	{
+		AccessSource = ERHIAccess::CopySrc;
+		AccessDest = ERHIAccess::CopyDest;
+	}
+
+	FCopyToResolveTargetParameters* Parameters = GraphBuilder.AllocParameters<FCopyToResolveTargetParameters>();
+	Parameters->Input = FRDGTextureAccess(InputTexture, AccessSource);
+	Parameters->Output = FRDGTextureAccess(OutputTexture, AccessDest);
+
+	FResolveParams LocalResolveParams = ResolveParams;
+	LocalResolveParams.SourceAccessFinal = AccessSource;
+	LocalResolveParams.DestAccessFinal = AccessDest;
+
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("CopyToResolveTarget(%s -> %s)", InputTexture->Name, OutputTexture->Name),
+		Parameters,
+		ERDGPassFlags::Copy | ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
+		[InputTexture, OutputTexture, LocalResolveParams](FRHICommandList& RHICmdList)
+	{
+		RHICmdList.CopyToResolveTarget(InputTexture->GetRHI(), OutputTexture->GetRHI(), LocalResolveParams);
 	});
 }
 
@@ -206,12 +306,10 @@ void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGBufferUAVRef BufferUAV, uint
 		RDG_EVENT_NAME("ClearBuffer(%s Size=%ubytes)", BufferUAV->GetParent()->Name, BufferUAV->GetParent()->Desc.GetTotalNumBytes()),
 		Parameters,
 		ERDGPassFlags::Compute,
-		[&Parameters, BufferUAV, Value](FRHICommandList& RHICmdList)
+		[&Parameters, BufferUAV, Value](FRHIComputeCommandList& RHICmdList)
 	{
-		// This might be called if using ClearTinyUAV.
-		BufferUAV->MarkResourceAsUsed();
-
 		RHICmdList.ClearUAVUint(BufferUAV->GetRHI(), FUintVector4(Value, Value, Value, Value));
+		BufferUAV->MarkResourceAsUsed();
 	});
 }
 
@@ -236,13 +334,14 @@ void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, co
 			int32(TextureUAV->Desc.MipLevel)),
 		Parameters,
 		ERDGPassFlags::Compute,
-		[&Parameters, TextureUAV, ClearValues](FRHICommandList& RHICmdList)
+		[&Parameters, TextureUAV, ClearValues](FRHIComputeCommandList& RHICmdList)
 	{
 		const FRDGTextureDesc& LocalTextureDesc = TextureUAV->GetParent()->Desc;
 
 		FRHIUnorderedAccessView* RHITextureUAV = TextureUAV->GetRHI();
 
 		RHICmdList.ClearUAVUint(RHITextureUAV, ClearValues);
+		TextureUAV->MarkResourceAsUsed();
 	});
 }
 
@@ -259,13 +358,14 @@ void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, co
 		RDG_EVENT_NAME("ClearTextureFloat(%s) %dx%d", TextureUAV->GetParent()->Name, TextureDesc.Extent.X, TextureDesc.Extent.Y),
 		Parameters,
 		ERDGPassFlags::Compute,
-		[&Parameters, TextureUAV, ClearValues](FRHICommandList& RHICmdList)
+		[&Parameters, TextureUAV, ClearValues](FRHIComputeCommandList& RHICmdList)
 	{
 		const FRDGTextureDesc& LocalTextureDesc = TextureUAV->GetParent()->Desc;
 
 		FRHIUnorderedAccessView* RHITextureUAV = TextureUAV->GetRHI();
 
 		RHICmdList.ClearUAVFloat(RHITextureUAV, ClearValues);
+		TextureUAV->MarkResourceAsUsed();
 	});
 }
 
@@ -361,7 +461,33 @@ void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, co
 		TStaticDepthStencilState<false, CF_Always>::GetRHI());
 }
 
+void AddClearRenderTargetPass(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture)
+{
+	check(Texture);
+
+	FRenderTargetParameters* Parameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
+	Parameters->RenderTargets[0] = FRenderTargetBinding(Texture, ERenderTargetLoadAction::EClear);
+
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("ClearRenderTarget(%s) %dx%d ClearAction", Texture->Name, Texture->Desc.Extent.X, Texture->Desc.Extent.Y),
+		Parameters,
+		ERDGPassFlags::Raster,
+		[](FRHICommandList& RHICmdList) {});
+}
+
 void AddClearRenderTargetPass(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, const FLinearColor& ClearColor)
+{
+	if (Texture->Desc.ClearValue.ColorBinding == EClearBinding::EColorBound && Texture->Desc.ClearValue.GetClearColor() == ClearColor)
+	{
+		AddClearRenderTargetPass(GraphBuilder, Texture);
+	}
+	else
+	{
+		AddClearRenderTargetPass(GraphBuilder, Texture, ClearColor, FIntRect(FIntPoint::ZeroValue, Texture->Desc.Extent));
+	}
+}
+
+void AddClearRenderTargetPass(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, const FLinearColor& ClearColor, FIntRect Viewport)
 {
 	check(Texture);
 
@@ -369,11 +495,12 @@ void AddClearRenderTargetPass(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture,
 	Parameters->RenderTargets[0] = FRenderTargetBinding(Texture, ERenderTargetLoadAction::ENoAction);
 
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("ClearRenderTarget(%s) %dx%d", Texture->Name, Texture->Desc.Extent.X, Texture->Desc.Extent.Y),
+		RDG_EVENT_NAME("ClearRenderTarget(%s) [(%d, %d), (%d, %d)] ClearQuad", Texture->Name, Viewport.Min.X, Viewport.Min.Y, Viewport.Max.X, Viewport.Max.Y),
 		Parameters,
 		ERDGPassFlags::Raster,
-		[Parameters, ClearColor](FRHICommandList& RHICmdList)
+		[Parameters, ClearColor, Viewport](FRHICommandList& RHICmdList)
 	{
+		RHICmdList.SetViewport(Viewport.Min.X, Viewport.Min.Y, 0.0f, Viewport.Max.X, Viewport.Max.Y, 1.0f);
 		DrawClearQuad(RHICmdList, ClearColor);
 	});
 }
@@ -427,6 +554,62 @@ void AddClearDepthStencilPass(
 		[Parameters, bClearDepth, Depth, bClearStencil, Stencil](FRHICommandList& RHICmdList)
 	{
 		DrawClearQuad(RHICmdList, false, FLinearColor(), bClearDepth, Depth, bClearStencil, Stencil);
+	});
+}
+
+void AddClearStencilPass(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture)
+{
+	auto* PassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
+	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(Texture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::EClear, FExclusiveDepthStencil::DepthRead_StencilWrite);
+	GraphBuilder.AddPass(RDG_EVENT_NAME("ClearStencil (%s)", Texture->Name), PassParameters, ERDGPassFlags::Raster, [](FRHICommandList&) {});
+}
+
+void AddResummarizeHTilePass(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture)
+{
+	auto* PassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
+	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(Texture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite);
+	GraphBuilder.AddPass(RDG_EVENT_NAME("ResummarizeHTile (%s)", Texture->Name), PassParameters, ERDGPassFlags::Raster,
+		[Texture](FRHICommandList& RHICmdList)
+	{
+		RHICmdList.ResummarizeHTile(static_cast<FRHITexture2D*>(Texture->GetRHI()));
+	});
+}
+
+BEGIN_SHADER_PARAMETER_STRUCT(FEnqueueCopyTexturePass, )
+	RDG_TEXTURE_ACCESS(Texture, ERHIAccess::CopySrc)
+END_SHADER_PARAMETER_STRUCT()
+
+void AddEnqueueCopyPass(FRDGBuilder& GraphBuilder, FRHIGPUTextureReadback* Readback, FRDGTextureRef SourceTexture, FResolveRect Rect)
+{
+	FEnqueueCopyTexturePass* PassParameters = GraphBuilder.AllocParameters<FEnqueueCopyTexturePass>();
+	PassParameters->Texture = SourceTexture;
+
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("EnqueueCopy(%s)", SourceTexture->Name),
+		PassParameters,
+		ERDGPassFlags::Readback,
+		[Readback, SourceTexture, Rect](FRHICommandList& RHICmdList)
+	{
+		Readback->EnqueueCopyRDG(RHICmdList, SourceTexture->GetRHI(), Rect);
+	});
+}
+
+BEGIN_SHADER_PARAMETER_STRUCT(FEnqueueCopyBufferPass, )
+	RDG_BUFFER_ACCESS(Buffer, ERHIAccess::CopySrc)
+END_SHADER_PARAMETER_STRUCT()
+
+void AddEnqueueCopyPass(FRDGBuilder& GraphBuilder, FRHIGPUBufferReadback* Readback, FRDGBufferRef SourceBuffer, uint32 NumBytes)
+{
+	FEnqueueCopyBufferPass* PassParameters = GraphBuilder.AllocParameters<FEnqueueCopyBufferPass>();
+	PassParameters->Buffer = SourceBuffer;
+
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("EnqueueCopy(%s)", SourceBuffer->Name),
+		PassParameters,
+		ERDGPassFlags::Readback,
+		[Readback, SourceBuffer, NumBytes](FRHICommandList& RHICmdList)
+	{
+		Readback->EnqueueCopy(RHICmdList, SourceBuffer->GetRHIVertexBuffer(), NumBytes);
 	});
 }
 
@@ -533,7 +716,7 @@ void FComputeShaderUtils::ClearUAV(FRDGBuilder& GraphBuilder, FGlobalShaderMap* 
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FCopyBufferParameters, )
-	RDG_BUFFER_COPY_DEST(Buffer)
+	RDG_BUFFER_ACCESS(Buffer, ERHIAccess::CopyDest)
 END_SHADER_PARAMETER_STRUCT()
 
 const void* GetInitialData(FRDGBuilder& GraphBuilder, const void* InitialData, uint64 InitialDataSize, ERDGInitialDataFlags InitialDataFlags)
@@ -541,7 +724,7 @@ const void* GetInitialData(FRDGBuilder& GraphBuilder, const void* InitialData, u
 	if ((InitialDataFlags & ERDGInitialDataFlags::NoCopy) != ERDGInitialDataFlags::NoCopy)
 	{
 		// Allocates memory for the lifetime of the pass, since execution is deferred.
-		void* InitialDataCopy = GraphBuilder.MemStack.Alloc(InitialDataSize, 16);
+		void* InitialDataCopy = GraphBuilder.Alloc(InitialDataSize, 16);
 		FMemory::Memcpy(InitialDataCopy, InitialData, InitialDataSize);
 		return InitialDataCopy;
 	}
@@ -613,11 +796,100 @@ FRDGBufferRef CreateVertexBuffer(
 	return Buffer;
 }
 
+BEGIN_SHADER_PARAMETER_STRUCT(FTextureAccessDynamicPassParameters, )
+	RDG_TEXTURE_ACCESS_DYNAMIC(Texture)
+END_SHADER_PARAMETER_STRUCT()
+
+void ConvertToUntrackedExternalTexture(
+	FRDGBuilder& GraphBuilder,
+	FRDGTextureRef Texture,
+	TRefCountPtr<IPooledRenderTarget>& OutPooledRenderTarget,
+	ERHIAccess AccessFinal)
+{
+	ConvertToExternalTexture(GraphBuilder, Texture, OutPooledRenderTarget);
+	GraphBuilder.SetTextureAccessFinal(Texture, AccessFinal);
+
+	auto* PassParameters = GraphBuilder.AllocParameters<FTextureAccessDynamicPassParameters>();
+	PassParameters->Texture = FRDGTextureAccess(Texture, AccessFinal);
+	GraphBuilder.AddPass({}, PassParameters,
+		// Use all of the work flags so that any access is valid.
+		ERDGPassFlags::Copy |
+		ERDGPassFlags::Compute |
+		ERDGPassFlags::Raster |
+		ERDGPassFlags::SkipRenderPass |
+		// We're not writing to anything, so we have to tell the pass not to cull.
+		ERDGPassFlags::NeverCull,
+		[](FRHICommandList&) {});
+}
+
+BEGIN_SHADER_PARAMETER_STRUCT(FBufferAccessDynamicPassParameters, )
+	RDG_BUFFER_ACCESS_DYNAMIC(Buffer)
+END_SHADER_PARAMETER_STRUCT()
+
+void ConvertToUntrackedExternalBuffer(
+	FRDGBuilder& GraphBuilder,
+	FRDGBufferRef Buffer,
+	TRefCountPtr<FRDGPooledBuffer>& OutPooledBuffer,
+	ERHIAccess AccessFinal)
+{
+	ConvertToExternalBuffer(GraphBuilder, Buffer, OutPooledBuffer);
+	GraphBuilder.SetBufferAccessFinal(Buffer, AccessFinal);
+
+	auto* PassParameters = GraphBuilder.AllocParameters<FBufferAccessDynamicPassParameters>();
+	PassParameters->Buffer = FRDGBufferAccess(Buffer, AccessFinal);
+	GraphBuilder.AddPass({}, PassParameters,
+		// Use all of the work flags so that any access is valid.
+		ERDGPassFlags::Copy |
+		ERDGPassFlags::Compute |
+		ERDGPassFlags::Raster |
+		ERDGPassFlags::SkipRenderPass |
+		// We're not writing to anything, so we have to tell the pass not to cull.
+		ERDGPassFlags::NeverCull,
+		[](FRHICommandList&) {});
+}
+
+FRDGTextureRef RegisterExternalOrPassthroughTexture(
+	FRDGBuilder* GraphBuilder,
+	const TRefCountPtr<IPooledRenderTarget>& PooledRenderTarget,
+	ERDGTextureFlags Flags)
+{
+	check(PooledRenderTarget);
+	if (GraphBuilder)
+	{
+		return GraphBuilder->RegisterExternalTexture(PooledRenderTarget, ERenderTargetTexture::ShaderResource, Flags);
+	}
+	else
+	{
+		return FRDGTexture::GetPassthrough(PooledRenderTarget);
+	}
+}
+
+FRDGWaitForTasksScope::~FRDGWaitForTasksScope()
+{
+	if (bCondition)
+	{
+		AddPass(GraphBuilder, [](FRHICommandListImmediate& RHICmdList)
+		{
+			if (IsRunningRHIInSeparateThread())
+			{
+				QUICK_SCOPE_CYCLE_COUNTER(STAT_FScopedCommandListWaitForTasks_WaitAsync);
+				RHICmdList.ImmediateFlush(EImmediateFlushType::WaitForOutstandingTasksOnly);
+			}
+			else
+			{
+				QUICK_SCOPE_CYCLE_COUNTER(STAT_FScopedCommandListWaitForTasks_Flush);
+				CSV_SCOPED_TIMING_STAT(RHITFlushes, FRDGWaitForTasksDtor);
+				RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+			}
+		});
+	}
+}
+
 void GetPooledFreeBuffer(
 	FRHICommandList& RHICmdList,
 	const FRDGBufferDesc& Desc,
-	TRefCountPtr<FPooledRDGBuffer>& Out,
+	TRefCountPtr<FRDGPooledBuffer>& Out,
 	const TCHAR* InDebugName)
 {
-	GRenderGraphResourcePool.FindFreeBuffer(RHICmdList, Desc, Out, InDebugName);
+	Out = GRenderGraphResourcePool.FindFreeBuffer(RHICmdList, Desc, InDebugName);
 }

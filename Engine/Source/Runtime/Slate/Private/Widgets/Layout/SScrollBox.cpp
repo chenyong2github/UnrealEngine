@@ -413,6 +413,13 @@ bool SScrollBox::InternalScrollDescendantIntoView(const FGeometry& MyGeometry, c
 				const float MyPosition = InScrollPadding;
 				ScrollOffset = WidgetPosition - MyPosition;
 			}
+			else if (InDestination == EDescendantScrollDestination::BottomOrRight)
+			{
+				// Calculate how much we would need to scroll to bring this to the bottom/right of the scroll box
+				const float WidgetPosition = GetScrollComponentFromVector(MyGeometry.AbsoluteToLocal(WidgetGeometry->Geometry.GetAbsolutePosition() + WidgetGeometry->Geometry.GetAbsoluteSize()) - MyGeometry.GetLocalSize());
+				const float MyPosition = InScrollPadding;
+				ScrollOffset = WidgetPosition - MyPosition;
+			}
 			else if (InDestination == EDescendantScrollDestination::Center)
 			{
 				// Calculate how much we would need to scroll to bring this to the top/left of the scroll box

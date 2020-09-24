@@ -36,15 +36,18 @@ void FControlRigSequencerAnimInstanceProxy::Initialize(UAnimInstance* InAnimInst
 
 void FControlRigSequencerAnimInstanceProxy::Update(float DeltaSeconds)
 {
-	if (bLayeredBlendChanged)
-	{
-		LayeredBoneBlendNode.ReinitializeBoneBlendWeights(GetRequiredBones(), GetSkeleton());
-		bLayeredBlendChanged = false;
-	}
-	if (bAdditiveLayeredBlendChanged)
-	{
-		AdditiveLayeredBoneBlendNode.ReinitializeBoneBlendWeights(GetRequiredBones(), GetSkeleton());
-		bAdditiveLayeredBlendChanged = false;
+	if(GetRequiredBones().IsValid())
+	{	
+		if (bLayeredBlendChanged)
+		{
+			LayeredBoneBlendNode.ReinitializeBoneBlendWeights(GetRequiredBones(), GetSkeleton());
+			bLayeredBlendChanged = false;
+		}
+		if (bAdditiveLayeredBlendChanged)
+		{
+			AdditiveLayeredBoneBlendNode.ReinitializeBoneBlendWeights(GetRequiredBones(), GetSkeleton());
+			bAdditiveLayeredBlendChanged = false;
+		}
 	}
 
 	FAnimSequencerInstanceProxy::Update(DeltaSeconds);

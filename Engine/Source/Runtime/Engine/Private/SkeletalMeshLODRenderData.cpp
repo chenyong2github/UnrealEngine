@@ -3,10 +3,8 @@
 #include "Rendering/SkeletalMeshLODRenderData.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Engine/SkeletalMesh.h"
-#include "Experimental/Containers/RobinHoodHashTable.h"
 #include "Animation/MorphTarget.h"
 #include "Misc/ConfigCacheIni.h"
-#include "Modules/ModuleManager.h"
 #include "EngineLogs.h"
 #include "EngineUtils.h"
 #include "Interfaces/ITargetPlatform.h"
@@ -27,44 +25,21 @@ static FAutoConsoleVariableRef CVarStripSkeletalMeshLodsBelowMinLod(
 	TEXT("If set will strip skeletal mesh LODs under the minimum renderable LOD for the target platform during cooking.")
 );
 
-typedef FMorphTargetVertexInfoBuffers::FPermutationNode FPermutationNode;
-
-struct FMorphBitArrayRef
-{
-	TBitArray<>& BitArray;
-	Experimental::FHashType Hash;
-
-	bool operator==(const FMorphBitArrayRef& Other) const
-	{
-		return Hash == Other.Hash;
-	}
-
-	bool operator!=(const FMorphBitArrayRef& Other) const
-	{
-		return Hash != Other.Hash;
-	}
-};
-
-FORCEINLINE uint32 GetTypeHash(const FMorphBitArrayRef& BitArray)
-{
-	return GetTypeHash(BitArray.BitArray);
-}
-
 namespace
 {
 	struct FReverseOrderBitArraysBySetBits
 	{
-		FORCEINLINE bool operator()(const FMorphBitArrayRef& Lhs, const FMorphBitArrayRef& Rhs) const
+		FORCEINLINE bool operator()(const TBitArray<>& Lhs, const TBitArray<>& Rhs) const
 		{
 			//sort by length
-			if (Lhs.BitArray.Num() != Rhs.BitArray.Num())
+			if (Lhs.Num() != Rhs.Num())
 			{
-				return Lhs.BitArray.Num() > Rhs.BitArray.Num();
+				return Lhs.Num() > Rhs.Num();
 			}
 
-			uint32 NumWords = FMath::DivideAndRoundUp(Lhs.BitArray.Num(), NumBitsPerDWORD);
-			const uint32* Data0 = Lhs.BitArray.GetData();
-			const uint32* Data1 = Rhs.BitArray.GetData();
+			uint32 NumWords = FMath::DivideAndRoundUp(Lhs.Num(), NumBitsPerDWORD);
+			const uint32* Data0 = Lhs.GetData();
+			const uint32* Data1 = Rhs.GetData();
 
 			//sort by num bits active
 			int32 Count0 = 0, Count1 = 0;
@@ -127,97 +102,6 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshRenderSection& S)
 	return Ar;
 }
 
-// Calculate the median split between the leftmost and rightmost active permutation.
-// TODO: Should be rewritten
-static void DivideAndConquerPermutations(
-	const TBitArray<>& BitIndices,
-	const Experimental::FHashType BitIndicesHash,
-	Experimental::TRobinHoodHashMap<TBitArray<>, FPermutationNode::LinkType>& ExistingNodes,
-	TArray<bool>& InstantiatedNodes,
-	TArray<FMorphTargetVertexInfoBuffers::FPermutationNode>& AccumStrategyRules,
-	uint32& TempStoreSize)
-{
-	const Experimental::FHashElementId BitIndicesId = ExistingNodes.FindIdByHash(BitIndicesHash, BitIndices);
-	check(BitIndicesId.IsValid());
-	const FPermutationNode::LinkType NodeIndex = ExistingNodes.GetByElementId(BitIndicesId).Value;
-
-	if (!InstantiatedNodes[NodeIndex])
-	{
-		FPermutationNode::LinkType BitIndex1 = 0;
-		FPermutationNode::LinkType BitIndex2 = 0;
-		{
-			const int32 Index1 = BitIndices.Find(false);
-			const int32 Index2 = BitIndices.FindLast(false);
-			check(Index1 != INDEX_NONE);
-			check(Index2 != INDEX_NONE);
-			check(Index1 < Index2);
-
-			// Split in the middle between leftmost set and rightmost set bits.
-			const int32 SplitIndex = ((Index1 + Index2 + 1) >> 1);
-			
-			TBitArray<> BitIndices1 = BitIndices;
-			BitIndices1.SetRange(0, SplitIndex, true);
-			const Experimental::FHashType BitIndices1Hash = ExistingNodes.ComputeHash(BitIndices1);
-
-			TBitArray<> BitIndices2 = BitIndices;
-			BitIndices2.SetRange(SplitIndex, BitIndices2.Num() - SplitIndex, true);
-			const Experimental::FHashType BitIndices2Hash = ExistingNodes.ComputeHash(BitIndices2);
-
-			bool bAlreadyInMap1 = false;
-			const Experimental::FHashElementId BitIndices1Id = ExistingNodes.FindOrAddIdByHash(BitIndices1Hash, BitIndices1, TempStoreSize, bAlreadyInMap1);
-			if (bAlreadyInMap1)
-			{
-				BitIndex1 = ExistingNodes.GetByElementId(BitIndices1Id).Value;
-
-				// Do early instantiation of this node
-				if (!InstantiatedNodes[BitIndex1])
-				{
-					DivideAndConquerPermutations(BitIndices1, BitIndices1Hash, ExistingNodes, InstantiatedNodes, AccumStrategyRules, TempStoreSize);
-				}
-			}
-			else
-			{
-				InstantiatedNodes.Add(false);
-
-				BitIndex1 = TempStoreSize;
-				TempStoreSize++;
-
-				// Solve the dependencies immediately (as we depend on them).
-				DivideAndConquerPermutations(BitIndices1, BitIndices1Hash, ExistingNodes, InstantiatedNodes, AccumStrategyRules, TempStoreSize);
-			}
-
-			bool bAlreadyInMap2 = false;
-			const Experimental::FHashElementId BitIndices2Id = ExistingNodes.FindOrAddIdByHash(BitIndices2Hash, BitIndices2, TempStoreSize, bAlreadyInMap2);
-			if (bAlreadyInMap2)
-			{
-				BitIndex2 = ExistingNodes.GetByElementId(BitIndices2Id).Value;
-
-				// Do early instantiation of this node.
-				if (!InstantiatedNodes[BitIndex2])
-				{
-					DivideAndConquerPermutations(BitIndices2, BitIndices2Hash, ExistingNodes, InstantiatedNodes, AccumStrategyRules, TempStoreSize);
-				}
-			}
-			else
-			{
-				InstantiatedNodes.Add(false);
-
-				BitIndex2 = TempStoreSize;
-				TempStoreSize++;
-
-				// Solve the dependencies immediately (as we depend on them).
-				DivideAndConquerPermutations(BitIndices2, BitIndices2Hash, ExistingNodes, InstantiatedNodes, AccumStrategyRules, TempStoreSize);
-			}
-		}
-
-		// Check that we not accidentally have been recursively instantiated.
-		check(!InstantiatedNodes[NodeIndex]);
-
-		// Adding a new rule: [NodeIndex] = [BitIndex1] + [BitIndex2].
-		AccumStrategyRules.Emplace(NodeIndex, BitIndex1, BitIndex2);
-		InstantiatedNodes[NodeIndex] = true;
-	}
-}
 
 void FSkeletalMeshLODRenderData::InitResources(bool bNeedsVertexColors, int32 LODIndex, TArray<UMorphTarget*>& InMorphTargets, USkeletalMesh* Owner)
 {
@@ -340,174 +224,6 @@ void FSkeletalMeshLODRenderData::InitResources(bool bNeedsVertexColors, int32 LO
 			} while (MorphTargetSize > 0);
 		}
 
-		// This block recomputes morph target permutations. And build a rule set to efficiently compute their accumulated
-		// weights using as few additions as possible. A permutation is the unique set morph target combinations that affect
-		// a given list of vertices. 
-		const uint32 VertexArraySize = MaxVertexIndex + 1;
-		int32 NumMorphs = MorphTargetVertexInfoBuffers.StartOffsetPerMorph.Num();
-		
-		TArray<TArray<uint32>> MorphAnimIndicies;
-		MorphAnimIndicies.Reserve(VertexArraySize);
-
-		// TODO: Should be rewritten
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(Event_MorphAnimIndices);
-
-			Experimental::TRobinHoodHashMap<TBitArray<>, FPermutationNode::LinkType> ExistingNodes;
-			ExistingNodes.Reserve(VertexArraySize);
-
-			TBitArray<> BitArrayScratch;
-			BitArrayScratch.Init(true, NumMorphs);
-			const Experimental::FHashType EmptyHash = ExistingNodes.ComputeHash(BitArrayScratch);
-
-			// Find and merge the common permutations and generate new index lists (in sort of sorted order) from them
-			TArray<FMorphBitArrayRef> MorphIndexToBit;
-			MorphIndexToBit.Reserve(VertexArraySize);
-
-			TArray<TBitArray<>> UnusedIndices;
-			UnusedIndices.AddZeroed(VertexArraySize);
-
-			{
-				TArray<Experimental::FHashType> HashedUnusedIndices;
-				HashedUnusedIndices.Reserve(VertexArraySize);
-
-				// Mark all bits as unused
-				for (int32 VertexIndex = 0; VertexIndex < UnusedIndices.Num(); ++VertexIndex)
-				{
-					UnusedIndices[VertexIndex].Init(true, NumMorphs);
-				}
-
-				// Mark all animations used over all vertices
-				for (int32 AnimIdx = 0; AnimIdx < NumMorphs; ++AnimIdx)
-				{
-					uint32 Start = MorphTargetVertexInfoBuffers.StartOffsetPerMorph[AnimIdx];
-					for (uint32 Offset = 0; Offset < MorphTargetVertexInfoBuffers.WorkItemsPerMorph[AnimIdx]; ++Offset)
-					{
-						uint32 VertexIndex = MorphTargetVertexInfoBuffers.VertexIndices[Start + Offset];
-						UnusedIndices[VertexIndex][AnimIdx] = false;
-					}
-				}
-
-				// Precompute hashes for all the initial bit arrays
-				for (int32 VertexIndex = 0; VertexIndex < UnusedIndices.Num(); ++VertexIndex)
-				{
-					HashedUnusedIndices.Add(ExistingNodes.ComputeHash(UnusedIndices[VertexIndex]));
-				}
-
-				// De-duplicate permutations and store the type of the permutation with the affected vertices
-				{
-					Experimental::TRobinHoodHashMap<FMorphBitArrayRef, uint32> MorphBitToIndex;
-					MorphBitToIndex.Reserve(VertexArraySize);
-
-					uint32 CurrentIndex = 0;
-					for (int32 VertexIndex = 0; VertexIndex < UnusedIndices.Num(); VertexIndex++)
-					{
-						// Disregard empty permutations
-						if (HashedUnusedIndices[VertexIndex] != EmptyHash)
-						{
-							FMorphBitArrayRef BitArrayRef =
-							{
-								UnusedIndices[VertexIndex],
-								HashedUnusedIndices[VertexIndex]
-							};
-
-							uint32 Index;
-							bool bAlreadyInMap = false;
-							const Experimental::FHashElementId IndexId = MorphBitToIndex.FindOrAddIdByHash(BitArrayRef.Hash, BitArrayRef, CurrentIndex, bAlreadyInMap);
-							if (!bAlreadyInMap)
-							{
-								Index = CurrentIndex;
-								CurrentIndex++;
-								MorphAnimIndicies.AddDefaulted();
-								MorphIndexToBit.Add(BitArrayRef);
-							}
-							else
-							{
-								Index = MorphBitToIndex.GetByElementId(IndexId).Value;
-							}
-
-							MorphAnimIndicies[Index].Add(VertexIndex);
-						}
-					}
-				}
-			}
-
-			// Build a strategy to solve the accumulation of the weights on the CPU. The approach is loosely related
-			// to run length encoding and based on ideas taken from DWAGs it can also be viewed as an inverted radix/prefix 
-			// trie where we start at the leaves.
-			{
-				TArray<bool> InstantiatedNodes;
-				InstantiatedNodes.Reserve(MorphIndexToBit.Num());
-
-				// Make space for a zero at the very beginning.
-				MorphTargetVertexInfoBuffers.TempStoreSize = 1;
-				InstantiatedNodes.Add(true);
-
-				// Start filling in the initial weights.
-
-				for (int32 AnimIdx = 0; AnimIdx < NumMorphs; ++AnimIdx)
-				{
-					FBitReference AnimIdxRef = BitArrayScratch[AnimIdx];
-					AnimIdxRef = false;
-
-					ExistingNodes.FindOrAdd(BitArrayScratch, AnimIdx + 1); // + 1 (zero at the beginning)
-					InstantiatedNodes.Add(true);
-
-					AnimIdxRef = true;
-				}
-				MorphTargetVertexInfoBuffers.TempStoreSize += NumMorphs;
-
-				// Have the results stored right after and in order.
-				for (int32 PermIndx = 0; PermIndx < MorphIndexToBit.Num(); ++PermIndx)
-				{
-					bool bAlreadyInMap = false;
-					const FPermutationNode::LinkType PermValue = NumMorphs + PermIndx + 1; // + 1 (zero at the beginning)
-					const FMorphBitArrayRef& Element = MorphIndexToBit[PermIndx];
-					Experimental::FHashElementId LinkId = ExistingNodes.FindOrAddIdByHash(Element.Hash, Element.BitArray, PermValue, bAlreadyInMap);
-					if (!bAlreadyInMap)
-					{
-						InstantiatedNodes.Add(false);
-					}
-					else
-					{
-						const FPermutationNode::LinkType Next = ExistingNodes.GetByElementId(LinkId).Value;
-						// Special copy only rule by just summing with the zero at the beginning.
-						MorphTargetVertexInfoBuffers.AccumStrategyRules.Emplace(PermValue, 0, Next);
-						InstantiatedNodes.Add(true);
-					}
-				}
-				MorphTargetVertexInfoBuffers.TempStoreSize += MorphIndexToBit.Num();
-
-				// Slightly better rule and cache locality when sorting by smallest number of
-				// active morphs (the bits are inversed -> greater).
-				MorphIndexToBit.Sort(FReverseOrderBitArraysBySetBits());
-
-				for (const auto& BitIndicesRef : MorphIndexToBit)
-				{
-					// Continue splitting all requested outputs permutations until they are derived by the weights.
-					DivideAndConquerPermutations(
-						BitIndicesRef.BitArray,
-						BitIndicesRef.Hash,
-						ExistingNodes,
-						InstantiatedNodes,
-						MorphTargetVertexInfoBuffers.AccumStrategyRules,
-						MorphTargetVertexInfoBuffers.TempStoreSize
-					);
-				}
-			}
-		}
-
-		//fill data in a cpu/gpu data structure
-		uint32 PermuationOffset = 0;
-		for (int32 i = 0; i < MorphAnimIndicies.Num(); i++)
-		{
-			MorphTargetVertexInfoBuffers.PermuationStart.Add(PermuationOffset);
-			MorphTargetVertexInfoBuffers.PermuationSize.Add(MorphAnimIndicies[i].Num());
-			PermuationOffset += MorphAnimIndicies[i].Num();
-			MorphTargetVertexInfoBuffers.MorphPermutations.Append(MorphAnimIndicies[i]);
-		}
-		check(MorphTargetVertexInfoBuffers.MorphPermutations.Num() <= (int32)VertexArraySize);
-
 		check(MorphTargetVertexInfoBuffers.WorkItemsPerMorph.Num() == MorphTargetVertexInfoBuffers.StartOffsetPerMorph.Num());
 		check(MorphTargetVertexInfoBuffers.WorkItemsPerMorph.Num() == MorphTargetVertexInfoBuffers.MaximumValuePerMorph.Num());
 		check(MorphTargetVertexInfoBuffers.WorkItemsPerMorph.Num() == MorphTargetVertexInfoBuffers.MinimumValuePerMorph.Num());
@@ -515,47 +231,6 @@ void FSkeletalMeshLODRenderData::InitResources(bool bNeedsVertexColors, int32 LO
 		{
 			BeginInitResource(&MorphTargetVertexInfoBuffers);
 		}
-	}
-}
-
-void FMorphTargetVertexInfoBuffers::CalculateInverseAccumulatedWeights(const TArray<float>& MorphTargetWeights, TArray<float>& InverseAccumulatedWeights) const
-{
-	// TempArray Layout:
-	// |------|--------------------------|-----------------------------|--------------------------------------------------|
-	// | zero |       InputWeights       |      AccumulatedWeights     |					TempStore					  |
-	// |------|--------------------------|-----------------------------|--------------------------------------------------|
-	// The Input are the weights of the morph targets for this frame. The Output are the accumulated, normalized and inversed weights for each permutation.
-	// Where a permutation is the precomputed unique set of morph target combinations that can affect each other, given what vertices they affect separately.
-
-	TArray<float> TempArray;
-	TempArray.AddUninitialized(TempStoreSize);
-	TempArray[0] = 0.0f;
-
-	//+1 (zero at the beginning)
-	checkf(MorphTargetWeights.Num() + 1 < TempArray.Num(), TEXT("NumWeights: %d NumTemp: %d"), MorphTargetWeights.Num(), TempArray.Num());
-	for (int32 i = 0; i < MorphTargetWeights.Num(); i++)
-	{
-		//+1 (zero at the beginning)
-		TempArray[i + 1] = FMath::Abs(MorphTargetWeights[i]);
-	}
-
-	//the rules incrementally fill in the intermediate (cached results) into the temp store 
-	//and periodically scatter into the AccumulatedWeights until all of them are computed
-	for (const FPermutationNode& Rule : AccumStrategyRules)
-	{
-		TempArray[Rule.Dst] = TempArray[Rule.Op0] + TempArray[Rule.Op1];
-	}
-
-	checkf(MorphTargetWeights.Num() == GetNumMorphs(), TEXT("NumWeights: %d NumTotalWorkItems: %d"), MorphTargetWeights.Num(), GetNumMorphs());
-	InverseAccumulatedWeights.Empty(PermuationStart.Num());
-	for (int32 i = 0; i < PermuationStart.Num(); i++)
-	{
-		// if accumulated weight is >1.f
-		// previous code was applying the weight again in GPU if less than 1, but it doesn't make sense to do so
-		// so instead, we just divide by AccumulatedWeight if it's more than 1.
-		// now DeltaTangentZ isn't FPackedNormal, so you can apply any value to it. 
-		float AccumulatedWeight = TempArray[i + 1 + GetNumMorphs()]; //+1 (zero at the beginning)
-		InverseAccumulatedWeights.Add(AccumulatedWeight > 1.0f ? 1.0f / AccumulatedWeight : 1.0f);
 	}
 }
 
@@ -584,6 +259,13 @@ void FSkeletalMeshLODRenderData::ReleaseResources()
 	
 	DEC_DWORD_STAT_BY(STAT_SkeletalMeshVertexMemory, SkinWeightProfilesData.GetResourcesSize());
 	SkinWeightProfilesData.ReleaseResources();
+
+#if RHI_RAYTRACING
+	if (IsRayTracingEnabled())
+	{
+		ensure(NumReferencingStaticSkeletalMeshObjects == 0);
+	}
+#endif
 }
 
 void FSkeletalMeshLODRenderData::IncrementMemoryStats(bool bNeedsVertexColors)
@@ -783,7 +465,8 @@ int32 FSkeletalMeshLODRenderData::GetPlatformMinLODIdx(const ITargetPlatform* Ta
 {
 #if WITH_EDITOR
 	check(TargetPlatform && SkeletalMesh);
-	return  SkeletalMesh->MinLod.GetValueForPlatform(*TargetPlatform->IniPlatformName());
+	const FName IniPlatformName = TargetPlatform->GetPlatformInfo().IniPlatformName;
+	return  SkeletalMesh->MinLod.GetValueForPlatform(IniPlatformName);
 #else
 	return 0;
 #endif
@@ -802,8 +485,8 @@ uint8 FSkeletalMeshLODRenderData::GenerateClassStripFlags(FArchive& Ar, const US
 	bool bMeshDisablesMinLodStrip = false;
 	if (bIsCook)
 	{
-		MinMeshLod = OwnerMesh ? OwnerMesh->MinLod.GetValueForPlatform(*CookTarget->IniPlatformName()) : 0;
-		bMeshDisablesMinLodStrip = OwnerMesh ? OwnerMesh->DisableBelowMinLodStripping.GetValueForPlatform(*CookTarget->IniPlatformName()) : false;
+		MinMeshLod = OwnerMesh ? OwnerMesh->MinLod.GetValueForPlatform(CookTarget->GetPlatformInfo().IniPlatformName) : 0;
+		bMeshDisablesMinLodStrip = OwnerMesh ? OwnerMesh->DisableBelowMinLodStripping.GetValueForPlatform(CookTarget->GetPlatformInfo().IniPlatformName) : false;
 	}
 	const bool bWantToStripBelowMinLod = bIsCook && GStripSkeletalMeshLodsDuringCooking != 0 && MinMeshLod > LODIdx && !bMeshDisablesMinLodStrip;
 

@@ -210,8 +210,8 @@ void PlatformDestroyOpenGLContext(FPlatformOpenGLDevice* Device, FPlatformOpenGL
 
 FRHITexture* PlatformCreateBuiltinBackBuffer(FOpenGLDynamicRHI* OpenGLRHI, uint32 SizeX, uint32 SizeY)
 {
-	uint32 Flags = TexCreate_RenderTargetable;
-	FOpenGLTexture2D* Texture2D = new FOpenGLTexture2D(OpenGLRHI, LuminEGL::GetInstance()->GetOnScreenColorRenderBuffer(), GL_RENDERBUFFER, GL_COLOR_ATTACHMENT0, SizeX, SizeY, 0, 1, 1, 1, 0, PF_B8G8R8A8, false, false, Flags, nullptr, FClearValueBinding::Transparent);
+	ETextureCreateFlags Flags = TexCreate_RenderTargetable;
+	FOpenGLTexture2D* Texture2D = new FOpenGLTexture2D(OpenGLRHI, LuminEGL::GetInstance()->GetOnScreenColorRenderBuffer(), GL_RENDERBUFFER, GL_COLOR_ATTACHMENT0, SizeX, SizeY, 0, 1, 1, 1, 0, PF_B8G8R8A8, false, false, Flags, FClearValueBinding::Transparent);
 	OpenGLTextureAllocated(Texture2D, Flags);
 
 	return Texture2D;
@@ -299,8 +299,7 @@ void FLuminOpenGL::ProcessExtensions(const FString& ExtensionsString)
 	FString VersionString = FString(ANSI_TO_TCHAR((const ANSICHAR*)glGetString(GL_VERSION)));
 
 	FOpenGLES::CurrentFeatureLevelSupport = VersionString.Contains(TEXT("OpenGL ES 3.2")) ? FOpenGLES::EFeatureLevelSupport::ES32 : FOpenGLES::EFeatureLevelSupport::ES31;
-	bES31Support = true;
-
+	
 	FOpenGLES::ProcessExtensions(ExtensionsString);
 
 	FString RendererString = FString(ANSI_TO_TCHAR((const ANSICHAR*)glGetString(GL_RENDERER)));
@@ -336,12 +335,9 @@ void FLuminOpenGL::ProcessExtensions(const FString& ExtensionsString)
 			if (bHasImageExternal || bHasImageExternalESSL3)
 			{
 				ImageExternalType = EImageExternalType::ImageExternal100;
-				if (bUseES30ShadingLanguage)
+				if (bHasImageExternalESSL3)
 				{
-					if (bHasImageExternalESSL3)
-					{
-						ImageExternalType = EImageExternalType::ImageExternalESSL300;
-					}
+					ImageExternalType = EImageExternalType::ImageExternalESSL300;
 				}
 			}
 			break;
@@ -370,14 +366,9 @@ void FLuminOpenGL::ProcessExtensions(const FString& ExtensionsString)
 	}
 	bSupportsImageExternal = ImageExternalType != EImageExternalType::None;
 
-	glMapBufferOESa = (PFNGLMAPBUFFEROESPROC)((void*)eglGetProcAddress("glMapBufferOES"));
-	glUnmapBufferOESa = (PFNGLUNMAPBUFFEROESPROC)((void*)eglGetProcAddress("glUnmapBufferOES"));
-
-	//On Android, there are problems compiling shaders with textureCubeLodEXT calls in the glsl code,
-	// so we set this to false to modify the glsl manually at compile-time.
-	bSupportsTextureCubeLodEXT = false;
-	
-	
+	// No longer defined in GLES3.0 - maps to glMapBufferRange and glUnmapBuffer; these entrypoints are not used so commenting out for now.
+	//glMapBufferOESa = (PFNGLMAPBUFFEROESPROC)((void*)eglGetProcAddress("glMapBufferOES"));
+	//glUnmapBufferOESa = (PFNGLUNMAPBUFFEROESPROC)((void*)eglGetProcAddress("glUnmapBufferOES"));
 }
 
 void FAndroidAppEntry::PlatformInit()

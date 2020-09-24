@@ -93,14 +93,6 @@ static TAutoConsoleVariable<int32> CVarReflectionCaptureStaticSceneOnly(
 	TEXT(" 0 is off, 1 is on (default)"),
 	ECVF_ReadOnly);
 
-static int32 GReleaseSRVsAfterCubeMipsGen = 1;
-static FAutoConsoleVariableRef CVarReleaseSRVsAfterCubeMipsGen(
-	TEXT("r.ReleaseSRVsAfterCubeMipsGen"),
-	GReleaseSRVsAfterCubeMipsGen,
-	TEXT("Don't store SRVs used during mip gen to the cubemap render target item.\n")
-	TEXT("This reduces unnecessary memory allocations and copies when the item is copied around during snapshot creation."),
-	ECVF_RenderThreadSafe);
-
 static int32 GFreeReflectionScratchAfterUse = 0;
 static FAutoConsoleVariableRef CVarFreeReflectionScratchAfterUse(
 	TEXT("r.FreeReflectionScratchAfterUse"),
@@ -194,16 +186,14 @@ void CreateCubeMips( FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Typ
 
 	auto* ShaderMap = GetGlobalShaderMap(FeatureLevel);
 
-	if (!Cubemap.SRVs.Num())
-	{
-		Cubemap.SRVs.Empty(NumMips);
+	TArray<TPair<FRHITextureSRVCreateInfo, TRefCountPtr<FRHIShaderResourceView>>> SRVs;
+	SRVs.Empty(NumMips);
 
-		for (int32 MipIndex = 0; MipIndex < NumMips; MipIndex++)
-		{
-			FRHITextureSRVCreateInfo SRVDesc;
-			SRVDesc.MipLevel = MipIndex;
-			Cubemap.SRVs.Emplace(SRVDesc, RHICreateShaderResourceView(Cubemap.ShaderResourceTexture, SRVDesc));
-		}
+	for (int32 MipIndex = 0; MipIndex < NumMips; MipIndex++)
+	{
+		FRHITextureSRVCreateInfo SRVDesc;
+		SRVDesc.MipLevel = MipIndex;
+		SRVs.Emplace(SRVDesc, RHICreateShaderResourceView(Cubemap.ShaderResourceTexture, SRVDesc));
 	}
 
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
@@ -214,12 +204,27 @@ void CreateCubeMips( FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Typ
 	// Downsample all the mips, each one reads from the mip above it
 	for (int32 MipIndex = 1; MipIndex < NumMips; MipIndex++)
 	{
+		// For the first iteration, we don't know what the previous state
+		// of the source mip was, but we *do* for all the other iterations...
+		ERHIAccess Previous = MipIndex == 1
+			? ERHIAccess::Unknown
+			: ERHIAccess::RTV;
+
+		FRHITransitionInfo Transitions[] =
+		{
+			// Make the source mip readable (SRVGraphics)
+			FRHITransitionInfo(CubeRef, Previous, ERHIAccess::SRVGraphics, EResourceTransitionFlags::None, uint32(MipIndex - 1)),
+
+			// Make the destination mip writable (RTV)
+			FRHITransitionInfo(CubeRef, ERHIAccess::Unknown, ERHIAccess::RTV, EResourceTransitionFlags::None, uint32(MipIndex))
+		};
+		RHICmdList.Transition(Transitions);
+
 		const int32 MipSize = 1 << (NumMips - MipIndex - 1);
 		SCOPED_DRAW_EVENT(RHICmdList, CreateCubeMipsPerFace);
 		for (int32 CubeFace = 0; CubeFace < CubeFace_MAX; CubeFace++)
 		{
 			FRHIRenderPassInfo RPInfo(Cubemap.TargetableTexture, ERenderTargetActions::DontLoad_Store, nullptr, MipIndex, CubeFace);
-			RPInfo.bGeneratingMips = true;
 			RHICmdList.BeginRenderPass(RPInfo, TEXT("CreateCubeMips"));
 			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
@@ -245,8 +250,8 @@ void CreateCubeMips( FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Typ
 
 				SetShaderValue(RHICmdList, ShaderRHI, PixelShader->NumMips, NumMips);
 
-				check(Cubemap.SRVs.IsValidIndex(MipIndex - 1) && Cubemap.SRVs[MipIndex - 1].Key.MipLevel == MipIndex - 1);
-				SetSRVParameter(RHICmdList, ShaderRHI, PixelShader->SourceCubemapTexture, Cubemap.SRVs[MipIndex - 1].Value);
+				check(SRVs.IsValidIndex(MipIndex - 1) && SRVs[MipIndex - 1].Key.MipLevel == MipIndex - 1);
+				SetSRVParameter(RHICmdList, ShaderRHI, PixelShader->SourceCubemapTexture, SRVs[MipIndex - 1].Value);
 				SetSamplerParameter(RHICmdList, ShaderRHI, PixelShader->SourceCubemapSampler, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
 			}
 
@@ -264,12 +269,9 @@ void CreateCubeMips( FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Typ
 		}
 	}
 
-	RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, &CubeRef, 1);
+	RHICmdList.Transition(FRHITransitionInfo(CubeRef, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 
-	if (!!GReleaseSRVsAfterCubeMipsGen)
-	{
-		Cubemap.SRVs.Empty();
-	}
+	SRVs.Empty();
 }
 
 /** Computes the average brightness of the given reflection capture and stores it in the scene. */
@@ -358,7 +360,7 @@ void FilterCubeMap(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type 
 	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 	GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
 
-	RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, FilteredCube.TargetableTexture);
+	RHICmdList.Transition(FRHITransitionInfo(FilteredCube.TargetableTexture, ERHIAccess::Unknown, ERHIAccess::RTV));
 
 	// Filter all the mips
 	for (int32 MipIndex = 0; MipIndex < NumMips; MipIndex++)
@@ -368,7 +370,7 @@ void FilterCubeMap(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type 
 		for (int32 CubeFace = 0; CubeFace < CubeFace_MAX; CubeFace++)
 		{
 			FRHIRenderPassInfo RPInfo(FilteredCube.TargetableTexture, ERenderTargetActions::DontLoad_Store, nullptr, MipIndex, CubeFace);
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, FilteredCube.TargetableTexture);
+			RHICmdList.Transition(FRHITransitionInfo(FilteredCube.TargetableTexture, ERHIAccess::Unknown, ERHIAccess::RTV));
 			RHICmdList.BeginRenderPass(RPInfo, TEXT("FilterMips"));
 
 			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
@@ -433,8 +435,8 @@ void FilterReflectionEnvironment(FRHICommandListImmediate& RHICmdList, ERHIFeatu
 	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
 	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 	GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_Zero, BF_DestAlpha, BO_Add, BF_Zero, BF_One>::GetRHI();
-
-	RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EffectiveColorRT.TargetableTexture);
+		
+	RHICmdList.Transition(FRHITransitionInfo(EffectiveColorRT.TargetableTexture, ERHIAccess::Unknown, ERHIAccess::RTV));
 
 	// Premultiply alpha in-place using alpha blending
 	for (uint32 CubeFace = 0; CubeFace < CubeFace_MAX; CubeFace++)
@@ -473,7 +475,7 @@ void FilterReflectionEnvironment(FRHICommandListImmediate& RHICmdList, ERHIFeatu
 		RHICmdList.EndRenderPass();
 	}
 
-	RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EffectiveColorRT.TargetableTexture);
+	RHICmdList.Transition(FRHITransitionInfo(EffectiveColorRT.TargetableTexture, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 
 	auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
@@ -889,7 +891,7 @@ void FScene::AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent
 {
 	if (NewCaptures.Num() > 0)
 	{
-		if (GetFeatureLevel() >= ERHIFeatureLevel::SM5)
+		if (SupportsTextureCubeArray(GetFeatureLevel()))
 		{
 			int32_t PlatformMaxNumReflectionCaptures = FMath::Min(FMath::FloorToInt(GMaxTextureArrayLayers / 6.0f), GMaxNumReflectionCaptures);
 
@@ -1404,7 +1406,7 @@ void FScene::CaptureOrUploadReflectionCapture(UReflectionCaptureComponent* Captu
 			// Safety check during the reflection capture build, there should not be any map build data
 			ensure(!bVerifyOnlyCapturing);
 
-			check(GetFeatureLevel() >= ERHIFeatureLevel::SM5);
+			check(SupportsTextureCubeArray(GetFeatureLevel()));
 
 			FScene* Scene = this;
 
@@ -1572,11 +1574,21 @@ void CopyToSkyTexture(FRHICommandList& RHICmdList, FScene* Scene, FTexture* Proc
 		CopyInfo.NumSlices = 6;
 		CopyInfo.NumMips = NumMips;
 
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, ProcessedTexture->TextureRHI);
+		FRHITransitionInfo TransitionsBefore[] =
+		{
+			FRHITransitionInfo(FilteredCube.ShaderResourceTexture, ERHIAccess::Unknown, ERHIAccess::CopySrc),
+			FRHITransitionInfo(ProcessedTexture->TextureRHI, ERHIAccess::Unknown, ERHIAccess::CopyDest)
+		};
+		RHICmdList.Transition(MakeArrayView(TransitionsBefore, UE_ARRAY_COUNT(TransitionsBefore)));
 
 		RHICmdList.CopyTexture(FilteredCube.ShaderResourceTexture, ProcessedTexture->TextureRHI, CopyInfo);
 
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, ProcessedTexture->TextureRHI);
+		FRHITransitionInfo TransitionsAfter[] =
+		{
+			FRHITransitionInfo(FilteredCube.ShaderResourceTexture, ERHIAccess::CopySrc, ERHIAccess::SRVMask),
+			FRHITransitionInfo(ProcessedTexture->TextureRHI, ERHIAccess::CopyDest, ERHIAccess::SRVMask)
+		};
+		RHICmdList.Transition(MakeArrayView(TransitionsAfter, UE_ARRAY_COUNT(TransitionsAfter)));
 	}
 }
 

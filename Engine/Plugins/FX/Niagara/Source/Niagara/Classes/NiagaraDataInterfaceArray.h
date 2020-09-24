@@ -18,6 +18,9 @@ struct INiagaraDataInterfaceArrayImpl
 	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) = 0;
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) const = 0;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) const = 0;
+#if WITH_EDITORONLY_DATA
+	virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature) const = 0;
+#endif
 	virtual bool CopyToInternal(INiagaraDataInterfaceArrayImpl* Destination) const = 0;
 	virtual bool Equals(const INiagaraDataInterfaceArrayImpl* Other) const = 0;
 	virtual void PushToRenderThread() const = 0;
@@ -47,10 +50,15 @@ public:
 	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override { if (Impl) { Impl->GetVMExternalFunction(BindingInfo, InstanceData, OutFunc); } }
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override { if (Impl) { Impl->GetParameterDefinitionHLSL(ParamInfo, OutHLSL); } }
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override { return Impl ? Impl->GetFunctionHLSL(ParamInfo, FunctionInfo, FunctionInstanceIndex, OutHLSL) : false; }
+#if WITH_EDITORONLY_DATA
+	virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature) override { return Impl ? Impl->UpgradeFunctionCall(FunctionSignature) : false; }
+#endif
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target) const override { return true; }
 
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const;
 	virtual bool Equals(const UNiagaraDataInterface* Other) const;
+
+	virtual void PushToRenderThreadImpl() override;
 
 	virtual FNiagaraDataInterfaceParametersCS* CreateComputeParameters() const override { return Impl ? Impl->CreateComputeParameters() : nullptr; }
 	virtual const FTypeLayoutDesc* GetComputeParametersTypeDesc() const override { return Impl ? Impl->GetComputeParametersTypeDesc() : nullptr; }
@@ -58,10 +66,6 @@ public:
 	virtual void SetParameters(const FNiagaraDataInterfaceParametersCS* Base, FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const override { if (Impl) { return Impl->SetParameters(Base, RHICmdList, Context); } }
 	virtual void UnsetParameters(const FNiagaraDataInterfaceParametersCS* Base, FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const override { if (Impl) { return Impl->UnsetParameters(Base, RHICmdList, Context); } }
 	//UNiagaraDataInterface Interface
-
-	/** Updates the GPU side copy of the data after Blueprints have modified it. */
-	UFUNCTION(BlueprintCallable, Category=Niagara)
-	void UpdateGPU();
 
 	/** ReadWrite lock to ensure safe access to the underlying array. */
 	FRWLock ArrayRWGuard;

@@ -37,6 +37,17 @@
 			]
 		},
 		{
+			"Name" : "GeometryCacheStreamer",
+			"Type" : "Editor",
+			"LoadingPhase" : "Default",
+			"WhitelistPlatforms" :
+			[
+				"Win64",
+				"Mac",
+				"Linux"
+			]
+		},
+		{
 			"Name" : "GeometryCache",
 			"Type" : "Runtime",
 			"LoadingPhase" : "Default"

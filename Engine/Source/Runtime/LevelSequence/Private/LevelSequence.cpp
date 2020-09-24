@@ -15,11 +15,22 @@
 #include "Animation/AnimInstance.h"
 #include "LevelSequenceModule.h"
 #include "MovieSceneSpawnableAnnotation.h"
+#include "Tracks/MovieSceneAudioTrack.h"
+#include "Tracks/MovieSceneCameraCutTrack.h"
+#include "Tracks/MovieSceneCinematicShotTrack.h"
+#include "Tracks/MovieSceneEventTrack.h"
+#include "Tracks/MovieSceneFadeTrack.h"
+#include "Tracks/MovieSceneLevelVisibilityTrack.h"
+#include "Tracks/MovieSceneMaterialParameterCollectionTrack.h"
+#include "Tracks/MovieSceneSlomoTrack.h"
 #include "Tracks/MovieSceneSpawnTrack.h"
+#include "Tracks/MovieSceneSubTrack.h"
 #include "Modules/ModuleManager.h"
 #include "LevelSequencePlayer.h"
 #include "Compilation/MovieSceneCompiledDataManager.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
+#include "Engine/AssetUserData.h"
+
 
 #if WITH_EDITOR
 	#include "UObject/SequencerObjectVersion.h"
@@ -104,6 +115,25 @@ bool ULevelSequence::CanAnimateObject(UObject& InObject) const
 }
 
 #if WITH_EDITOR
+
+ETrackSupport ULevelSequence::IsTrackSupported(TSubclassOf<class UMovieSceneTrack> InTrackClass) const
+{
+	if (InTrackClass == UMovieSceneAudioTrack::StaticClass() ||
+		InTrackClass == UMovieSceneCameraCutTrack::StaticClass() ||
+		InTrackClass == UMovieSceneCinematicShotTrack::StaticClass() ||
+		InTrackClass == UMovieSceneEventTrack::StaticClass() ||
+		InTrackClass == UMovieSceneFadeTrack::StaticClass() ||
+		InTrackClass == UMovieSceneLevelVisibilityTrack::StaticClass() ||
+		InTrackClass == UMovieSceneMaterialParameterCollectionTrack::StaticClass() ||
+		InTrackClass == UMovieSceneSlomoTrack::StaticClass() ||
+		InTrackClass == UMovieSceneSpawnTrack::StaticClass() ||
+		InTrackClass == UMovieSceneSubTrack::StaticClass())
+	{
+		return ETrackSupport::Supported;
+	}
+
+	return Super::IsTrackSupported(InTrackClass);
+}
 
 void ULevelSequence::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 {
@@ -630,4 +660,48 @@ UObject* ULevelSequence::CreateDirectorInstance(IMovieScenePlayer& Player)
 	}
 
 	return nullptr;
+}
+
+void ULevelSequence::AddAssetUserData(UAssetUserData* InUserData)
+{
+	if (InUserData != NULL)
+	{
+		UAssetUserData* ExistingData = GetAssetUserDataOfClass(InUserData->GetClass());
+		if (ExistingData != NULL)
+		{
+			AssetUserData.Remove(ExistingData);
+		}
+		AssetUserData.Add(InUserData);
+	}
+}
+
+UAssetUserData* ULevelSequence::GetAssetUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass)
+{
+	for (int32 DataIdx = 0; DataIdx < AssetUserData.Num(); DataIdx++)
+	{
+		UAssetUserData* Datum = AssetUserData[DataIdx];
+		if (Datum != NULL && Datum->IsA(InUserDataClass))
+		{
+			return Datum;
+		}
+	}
+	return NULL;
+}
+
+void ULevelSequence::RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass)
+{
+	for (int32 DataIdx = 0; DataIdx < AssetUserData.Num(); DataIdx++)
+	{
+		UAssetUserData* Datum = AssetUserData[DataIdx];
+		if (Datum != NULL && Datum->IsA(InUserDataClass))
+		{
+			AssetUserData.RemoveAt(DataIdx);
+			return;
+		}
+	}
+}
+
+const TArray<UAssetUserData*>* ULevelSequence::GetAssetUserDataArray() const
+{
+	return &AssetUserData;
 }

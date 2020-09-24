@@ -200,7 +200,7 @@ public:
 typedef TFunctionRef<void(FRHICommandList& RHICmdList, bool bFirst)> FBeginShadowRenderPassFunction;
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FShadowDepthPassUniformParameters,)
-	SHADER_PARAMETER_STRUCT(FSceneTexturesUniformParameters, SceneTextures)
+	SHADER_PARAMETER_STRUCT(FSceneTextureUniformParameters, SceneTextures)
 	SHADER_PARAMETER_STRUCT(FLpvWriteUniformBufferParameters, LPV)
 	SHADER_PARAMETER(FMatrix, ProjectionMatrix)
 	SHADER_PARAMETER(FMatrix, ViewMatrix)
@@ -388,10 +388,6 @@ public:
 	/** Face projection matrix for cube map shadows. */
 	FMatrix OnePassShadowFaceProjectionMatrix;
 
-	/** Data passed from async compute begin to end. */
-	FComputeFenceRHIRef RayTracedShadowsEndFence;
-	TRefCountPtr<IPooledRenderTarget> RayTracedShadowsRT;
-
 	/** Controls fading out of per-object shadows in the distance to avoid casting super-sharp shadows far away. */
 	float PerObjectShadowFadeStart;
 	float InvPerObjectShadowFadeLength;
@@ -476,10 +472,20 @@ public:
 	 */
 	void RenderProjection(FRHICommandListImmediate& RHICmdList, int32 ViewIndex, const class FViewInfo* View, const class FSceneRenderer* SceneRender, bool bProjectingForForwardShading, bool bMobile, const struct FHairStrandsVisibilityData* HairVisibilityData) const;
 
-	void BeginRenderRayTracedDistanceFieldProjection(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
+	FRDGTextureRef BeginRenderRayTracedDistanceFieldProjection(
+		FRDGBuilder& GraphBuilder,
+		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+		const FViewInfo& View) const;
 
 	/** Renders ray traced distance field shadows. */
-	void RenderRayTracedDistanceFieldProjection(FRHICommandListImmediate& RHICmdList, const class FViewInfo& View, const FIntRect& ScissorRect, IPooledRenderTarget* ScreenShadowMaskTexture, bool bProjectingForForwardShading);
+	void RenderRayTracedDistanceFieldProjection(
+		FRDGBuilder& GraphBuilder,
+		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+		FRDGTextureRef ScreenShadowMaskTexture,
+		FRDGTextureRef SceneDepthTexture,
+		const FViewInfo& View,
+		FIntRect ScissorRect,
+		bool bProjectingForForwardShading) const;
 
 	/** Render one pass point light shadow projections. */
 	void RenderOnePassPointLightProjection(FRHICommandListImmediate& RHICmdList, int32 ViewIndex, const FViewInfo& View, bool bProjectingForForwardShading, const FHairStrandsVisibilityData* HairVisibilityData) const;
@@ -987,7 +993,7 @@ public:
 
 		if (HairVisibilityData && HairVisibilityData->CategorizationTexture)
 		{
-			SetTextureParameter(RHICmdList, ShaderRHI, HairCategorizationTexture, HairVisibilityData->CategorizationTexture->GetRenderTargetItem().ShaderResourceTexture);
+			SetTextureParameter(RHICmdList, ShaderRHI, HairCategorizationTexture, HairVisibilityData->CategorizationTexture->GetPooledRenderTarget()->GetRenderTargetItem().ShaderResourceTexture);
 
 			float DeviceZNear = 1;
 			float DeviceZFar = 0;
@@ -1116,7 +1122,6 @@ public:
 			Scene = View.Family->Scene->GetRenderScene();
 		}
 
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 		{
 			const IPooledRenderTarget* PooledRT = GetSubsufaceProfileTexture_RT((FRHICommandListImmediate&)RHICmdList);
 
@@ -1436,7 +1441,7 @@ public:
 
 		if (bUseSubPixel && HairVisibilityData && HairVisibilityData->CategorizationTexture)
 		{
-			SetTextureParameter(RHICmdList, ShaderRHI, HairCategorizationTexture, HairVisibilityData->CategorizationTexture->GetRenderTargetItem().ShaderResourceTexture);
+			SetTextureParameter(RHICmdList, ShaderRHI, HairCategorizationTexture, HairVisibilityData->CategorizationTexture->GetPooledRenderTarget()->GetRenderTargetItem().ShaderResourceTexture);
 		}
 
 		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);

@@ -3,13 +3,13 @@
 #pragma once
 
 #include "Containers/Array.h"
+#include "Containers/RingBuffer.h"
 #include "Containers/Set.h"
 #include "CookRequests.h"
 #include "CookTypes.h"
 #include "HAL/CriticalSection.h"
 #include "INetworkFileSystemModule.h"
 #include "Misc/ScopeLock.h"
-#include "RingBuffer.h"
 #include "Templates/UnrealTemplate.h"
 #include "UObject/NameTypes.h"
 #include "UObject/UObjectArray.h"
@@ -42,7 +42,7 @@ namespace Cook
 		void Enqueue(const Type& Item)
 		{
 			FScopeLock ScopeLock(&SynchronizationObject);
-			Items.PushBack(Item);
+			Items.Add(Item);
 		}
 
 		void EnqueueUnique(const Type& Item)
@@ -182,6 +182,9 @@ namespace Cook
 		virtual void NotifyUObjectCreated(const class UObjectBase* Object, int32 Index) override;
 		virtual void NotifyUObjectDeleted(const class UObjectBase* Object, int32 Index) override;
 		virtual void OnUObjectArrayShutdown() override;
+
+		/** Swap all ITargetPlatform* stored on this instance according to the mapping in @param Remap. */
+		void RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPlatform*>& Remap);
 
 		// This is the set of packages which have already had PostLoadFixup called 
 		TSet<UPackage*>			PostLoadFixupPackages;

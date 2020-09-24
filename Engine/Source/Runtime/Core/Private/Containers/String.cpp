@@ -179,14 +179,14 @@ void FString::TrimToNullTerminator()
 
 int32 FString::Find(const TCHAR* SubStr, ESearchCase::Type SearchCase, ESearchDir::Type SearchDir, int32 StartPosition) const
 {
-	if ( SubStr == nullptr )
+	if (SubStr == nullptr)
 	{
 		return INDEX_NONE;
 	}
 	if( SearchDir == ESearchDir::FromStart)
 	{
 		const TCHAR* Start = **this;
-		if ( StartPosition != INDEX_NONE )
+		if (StartPosition != INDEX_NONE && Len() > 0)
 		{
 			Start += FMath::Clamp(StartPosition, 0, Len() - 1);
 		}
@@ -917,7 +917,7 @@ int32 FString::ParseIntoArray( TArray<FString>& OutArray, const TCHAR* pchDelim,
 	// Make sure the delimit string is not null or empty
 	check(pchDelim);
 	OutArray.Reset();
-	const TCHAR *Start = Data.GetData();
+	const TCHAR *Start = **this;
 	const int32 DelimLength = FCString::Strlen(pchDelim);
 	if (Start && *Start != TEXT('\0') && DelimLength)
 	{

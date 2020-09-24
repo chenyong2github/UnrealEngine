@@ -54,7 +54,7 @@ struct FRigUnit_DebugTransform : public FRigUnit_DebugBase
 	UPROPERTY(meta = (Input))
 	float Scale;
 
-	UPROPERTY(meta = (Input, Constant, CustomWidget = "BoneName"))
+	UPROPERTY(meta = (Input))
 	FName Space;
 
 	UPROPERTY(meta = (Input))
@@ -64,7 +64,7 @@ struct FRigUnit_DebugTransform : public FRigUnit_DebugBase
 	bool bEnabled;
 };
 
-USTRUCT(meta=(DisplayName="Draw Transform", Deprecated = "4.25.0"))
+USTRUCT(meta=(DisplayName="Draw Transform", Deprecated = "4.25"))
 struct FRigUnit_DebugTransformMutable : public FRigUnit_DebugBaseMutable
 {
 	GENERATED_BODY()
@@ -97,8 +97,52 @@ struct FRigUnit_DebugTransformMutable : public FRigUnit_DebugBaseMutable
 	UPROPERTY(meta = (Input))
 	float Scale;
 
-	UPROPERTY(meta = (Input, Constant, CustomWidget = "BoneName"))
+	UPROPERTY(meta = (Input))
 	FName Space;
+
+	UPROPERTY(meta = (Input))
+	FTransform WorldOffset;
+
+	UPROPERTY(meta = (Input, Constant))
+	bool bEnabled;
+};
+
+USTRUCT(meta=(DisplayName="Draw Transform"))
+struct FRigUnit_DebugTransformMutableItemSpace : public FRigUnit_DebugBaseMutable
+{
+	GENERATED_BODY()
+
+	FRigUnit_DebugTransformMutableItemSpace()
+	{
+		Transform = WorldOffset = FTransform::Identity;
+		Mode = ERigUnitDebugTransformMode::Axes;
+		Color = FLinearColor::Red;
+		Thickness = 0.f;
+		Scale = 10.f;
+		Space = FRigElementKey(NAME_None, ERigElementType::Bone);
+		bEnabled = true;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	FTransform Transform;
+
+	UPROPERTY(meta = (Input))
+	ERigUnitDebugTransformMode Mode;
+
+	UPROPERTY(meta = (Input))
+	FLinearColor Color;
+
+	UPROPERTY(meta = (Input))
+	float Thickness;
+
+	UPROPERTY(meta = (Input))
+	float Scale;
+
+	UPROPERTY(meta = (Input))
+	FRigElementKey Space;
 
 	UPROPERTY(meta = (Input))
 	FTransform WorldOffset;
@@ -149,7 +193,7 @@ struct FRigUnit_DebugTransformArrayMutable : public FRigUnit_DebugBaseMutable
 	UPROPERTY(meta = (Input))
 	float Scale;
 
-	UPROPERTY(meta = (Input, Constant, CustomWidget = "BoneName"))
+	UPROPERTY(meta = (Input))
 	FName Space;
 
 	UPROPERTY(meta = (Input))

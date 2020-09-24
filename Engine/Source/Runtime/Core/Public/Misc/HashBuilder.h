@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Crc.h"
+#include "Concepts/GetTypeHashable.h"
 #include "Containers/UnrealString.h"
 
 class FHashBuilder

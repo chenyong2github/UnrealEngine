@@ -180,6 +180,11 @@ uint2 CompressBC1Block( in float3 Block[16] )
 // We expect linear colors as input and convert internally
 uint2 CompressBC1Block_SRGB( in float3 Block[16] )
 {
+#if (FEATURE_LEVEL == FEATURE_LEVEL_ES3_1)
+	// mobile uses linear color for RVT
+	return CompressBC1Block(Block);
+#endif
+	
 	float3 MinColor, MaxColor;
 	GetMinMax( Block, MinColor, MaxColor );
 
@@ -229,6 +234,11 @@ uint4 CompressBC3Block( in float3 BlockRGB[16], in float BlockA[16] )
 // We expect linear colors as input and convert internally
 uint4 CompressBC3Block_SRGB( in float3 BlockRGB[16], in float BlockA[16] )
 {
+#if (FEATURE_LEVEL == FEATURE_LEVEL_ES3_1)
+	// mobile uses linear color for RVT
+	return CompressBC3Block(BlockRGB, BlockA);
+#endif
+		
 	float3 MinColor, MaxColor;
 	GetMinMax( BlockRGB, MinColor, MaxColor );
 

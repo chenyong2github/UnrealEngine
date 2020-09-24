@@ -9,35 +9,24 @@ class FRemoteSessionHost;
 class FRemoteSessionClient;
 class IRemoteSessionChannelFactoryWorker;
 
+
+
 class FRemoteSessionModule : public IRemoteSessionModule, public FTickableGameObject
 {
-public:
-
-	struct FChannelRedirects
-	{
-		FString OldName;		// Old channel name
-		FString NewName;		// New channel name
-		int32 VersionNumber;	// 
-		FChannelRedirects() = default;
-		FChannelRedirects(FString InOldName, FString InNewName) : OldName(InOldName), NewName(InNewName) {}
-	};
-
 private:
 
 	TSharedPtr<FRemoteSessionHost>							Host;
 	TSharedPtr<FRemoteSessionClient>						Client;
 
-	TArray<TWeakPtr<IRemoteSessionChannelFactoryWorker>>	FactoryWorkers;
-	TArray<TSharedPtr<IRemoteSessionChannelFactoryWorker>>	BuiltInFactory;
+	//TArray<TWeakPtr<IRemoteSessionChannelFactoryWorker>>	FactoryWorkers;
+	//TArray<TSharedPtr<IRemoteSessionChannelFactoryWorker>>	BuiltInFactory;
 
-	int32													DefaultPort;
+	int32													DefaultPort = IRemoteSessionModule::kDefaultPort;
 
-	bool													bAutoHostWithPIE;
-	bool													bAutoHostWithGame;
+	bool													bAutoHostWithPIE = true;
+	bool													bAutoHostWithGame = true;
 
-	TMap<FString, ERemoteSessionChannelMode>				IniSupportedChannels;
-	TArray<FRemoteSessionChannelInfo>						ProgramaticallySupportedChannels;
-	TArray<FChannelRedirects>								ChannelRedirects;
+	//TArray<FRemoteSessionChannelInfo>						ProgramaticallySupportedChannels;
 
 	FDelegateHandle PostPieDelegate;
 	FDelegateHandle EndPieDelegate;
@@ -48,12 +37,9 @@ public:
 	//~ Begin IRemoteSessionModule interface
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
-	virtual void AddChannelFactory(TWeakPtr<IRemoteSessionChannelFactoryWorker> Worker) override;
-	virtual void RemoveChannelFactory(TWeakPtr<IRemoteSessionChannelFactoryWorker> Worker) override;
-	virtual TSharedPtr<IRemoteSessionChannelFactoryWorker> FindChannelFactoryWorker(const TCHAR* Type) override;
-	virtual void SetSupportedChannels(TMap<FString, ERemoteSessionChannelMode>& InSupportedChannels) override;
-	virtual void AddSupportedChannel(FString InType, ERemoteSessionChannelMode InMode) override;
-	virtual void AddSupportedChannel(FString InType, ERemoteSessionChannelMode InMode, FOnRemoteSessionChannelCreated InOnCreated) override;
+
+	void AddChannelFactory(const FStringView InChannelName, ERemoteSessionChannelMode InHostMode, TWeakPtr<IRemoteSessionChannelFactoryWorker> Worker) override;
+	void RemoveChannelFactory(TWeakPtr<IRemoteSessionChannelFactoryWorker> Worker) override;
 
 	virtual TSharedPtr<IRemoteSessionRole>	CreateClient(const TCHAR* RemoteAddress) override;
 	virtual void StopClient(TSharedPtr<IRemoteSessionRole> InClient) override;
@@ -72,15 +58,14 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	//~ End FTickableGameObject interface
 
-	const TArray<FChannelRedirects>& GetChannelRedirects() const { return ChannelRedirects; }
 	void SetAutoStartWithPIE(bool bEnable);
 
 private:
-	void ReadIniSettings();
+	void OnPostInit();
+	bool HandleSettingsSaved();
 
 	TSharedPtr<FRemoteSessionHost> CreateHostInternal(TArray<FRemoteSessionChannelInfo> SupportedChannels, int32 Port) const;
 
-	void OnGameStarted();
 	void OnPIEStarted(bool bSimulating);
 	void OnPIEEnded(bool bSimulating);
 };

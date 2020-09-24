@@ -18,6 +18,7 @@
 
 FConsoleSlateDebuggerPaint::FConsoleSlateDebuggerPaint()
 	: bEnabled(false)
+	, bEnabledCVarValue(false)
 	, bDisplayWidgetsNameList(false)
 	, bUseWidgetPathAsName(false)
 	, bDrawBox(false)
@@ -32,12 +33,17 @@ FConsoleSlateDebuggerPaint::FConsoleSlateDebuggerPaint()
 	, CacheDuration(2.0)
 	, ShowPaintWidgetCommand(
 		TEXT("SlateDebugger.Paint.Start")
-		, TEXT("Start the painted widget debug tool. Use to show widget that have been painted this frame.")
+		, TEXT("Start the painted widget debug tool. It shows when widgets are painted.")
 		, FConsoleCommandDelegate::CreateRaw(this, &FConsoleSlateDebuggerPaint::StartDebugging))
 	, HidePaintWidgetCommand(
 		TEXT("SlateDebugger.Paint.Stop")
 		, TEXT("Stop the painted widget debug tool.")
 		, FConsoleCommandDelegate::CreateRaw(this, &FConsoleSlateDebuggerPaint::StopDebugging))
+	, EnabledRefCVar(
+		TEXT("SlateDebugger.Paint.Enable")
+		, bEnabledCVarValue
+		, TEXT("Start/Stop the painted widget debug tool. It shows when widgets are painted.")
+		, FConsoleVariableDelegate::CreateRaw(this, &FConsoleSlateDebuggerPaint::HandleEnabled))
 	, LogPaintedWidgetOnceCommand(
 		TEXT("SlateDebugger.Paint.LogOnce")
 		, TEXT("Log the widgets that has been painted during the last update once")
@@ -112,6 +118,7 @@ void FConsoleSlateDebuggerPaint::StartDebugging()
 		FSlateDebugging::PaintDebugElements.AddRaw(this, &FConsoleSlateDebuggerPaint::HandlePaintDebugInfo);
 		FCoreDelegates::OnEndFrame.AddRaw(this, &FConsoleSlateDebuggerPaint::HandleEndFrame);
 	}
+	bEnabledCVarValue = bEnabled;
 }
 
 void FConsoleSlateDebuggerPaint::StopDebugging()
@@ -124,6 +131,19 @@ void FConsoleSlateDebuggerPaint::StopDebugging()
 
 		PaintedWidgets.Empty();
 		bEnabled = false;
+	}
+	bEnabledCVarValue = bEnabled;
+}
+
+void FConsoleSlateDebuggerPaint::HandleEnabled(IConsoleVariable* Variable)
+{
+	if (bEnabledCVarValue)
+	{
+		StartDebugging();
+	}
+	else
+	{
+		StopDebugging();
 	}
 }
 

@@ -1304,7 +1304,7 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 		{
 			static FText GetPreviewModeText()
 			{
-				const FPreviewPlatformMenuItem* Item = PlatformInfo::GetPreviewPlatformMenuItems().Find(GEditor->PreviewPlatform.PreviewShaderFormatName);
+				const FPreviewPlatformMenuItem* Item = PlatformInfo::GetPreviewPlatformMenuItems().Find(GEditor->PreviewPlatform.PreviewPlatformName);
 				return Item ? Item->IconText : FText();
 			}
 
@@ -1332,7 +1332,7 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 
 			static FSlateIcon GetPreviewModeIcon()
 			{
-				const FPreviewPlatformMenuItem* Item = PlatformInfo::GetPreviewPlatformMenuItems().Find(GEditor->PreviewPlatform.PreviewShaderFormatName);
+				const FPreviewPlatformMenuItem* Item = PlatformInfo::GetPreviewPlatformMenuItems().Find(GEditor->PreviewPlatform.PreviewPlatformName);
 				if(Item)
 				{
 					return FSlateIcon(FEditorStyle::GetStyleSetName(), GEditor->IsFeatureLevelPreviewActive() ? Item->ActiveIconName : Item->InactiveIconName);

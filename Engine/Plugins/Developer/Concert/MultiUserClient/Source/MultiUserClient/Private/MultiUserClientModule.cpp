@@ -354,7 +354,9 @@ public:
 			SharedState->Result = GetValidationModeResultOnFailure(ClientConfig);
 			SharedState->PromptText = LOCTEXT("ValidatingWorkspace_DiscardChanges", "Discard");
 			SharedState->Error.ErrorCode = MultiUserClientUtil::DirtyPackageValidationErrorCode;
-			SharedState->Error.ErrorText = LOCTEXT("ValidatingWorkspace_InMemoryChanges", "This workspace has in-memory changes. Continue will discard changes.");
+			SharedState->Error.ErrorText = SharedState->Result == EConcertResponseCode::Failed ? 
+				LOCTEXT("ValidatingWorkspace_InMemoryChanges_Fail", "This workspace has in-memory changes. Connection aborted.") : 
+				LOCTEXT("ValidatingWorkspace_InMemoryChanges_Prompt", "This workspace has in-memory changes. Continue will discard changes.");
 		}
 		else
 		{

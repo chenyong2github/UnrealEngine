@@ -11,6 +11,8 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "VehicleAnimInstance.generated.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 class UWheeledVehicleMovementComponent;
 
 struct FWheelAnimData
@@ -21,6 +23,7 @@ struct FWheelAnimData
 };
 
  /** Proxy override for this UAnimInstance-derived class */
+struct UE_DEPRECATED(4.26, "PhysX is deprecated. Use the FVehicleAnimationInstanceProxy from the ChaosVehiclePhysics Plugin.") FVehicleAnimInstanceProxy;
 USTRUCT()
 struct PHYSXVEHICLES_API FVehicleAnimInstanceProxy : public FAnimInstanceProxy
 {
@@ -53,6 +56,7 @@ private:
 	TArray<FWheelAnimData> WheelInstances;
 };
 
+class UE_DEPRECATED(4.26, "PhysX is deprecated. Use the UVehicleAnimationInstance from the ChaosVehiclePhysics Plugin.") UVehicleAnimInstance;
 UCLASS(transient)
 class PHYSXVEHICLES_API UVehicleAnimInstance : public UAnimInstance
 {
@@ -66,6 +70,7 @@ public:
 	TArray<FWheelAnimData> WheelData;
 
 public:
+	
 	void SetWheeledVehicleMovementComponent(const UWheeledVehicleMovementComponent* InWheeledVehicleMovementComponent)
 	{
 		WheeledVehicleMovementComponent = InWheeledVehicleMovementComponent;
@@ -88,7 +93,9 @@ private:
 	
 	UPROPERTY(transient)
 	const UWheeledVehicleMovementComponent* WheeledVehicleMovementComponent;
+
 };
 
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 

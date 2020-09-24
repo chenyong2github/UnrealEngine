@@ -163,6 +163,12 @@ public:
 		}
 
 		bForceCacheUpdate = false;
+		OnTargetPlatformsInvalidated.Broadcast();
+	}
+
+	virtual FOnTargetPlatformsInvalidated& GetOnTargetPlatformsInvalidatedDelegate() override
+	{
+		return OnTargetPlatformsInvalidated;
 	}
 
 	virtual const TArray<ITargetPlatform*>& GetTargetPlatforms() override
@@ -1166,6 +1172,9 @@ private:
 	}
 
 	FString InitErrorMessages;
+
+	// Delegate used to notify users of returned ITargetPlatform* pointers when those pointers are destructed due to a call to Invalidate
+	FOnTargetPlatformsInvalidated OnTargetPlatformsInvalidated;
 
 	// If true we should build formats that are actually required for use by the runtime. 
 	// This happens for an ordinary editor run and more specifically whenever there is no

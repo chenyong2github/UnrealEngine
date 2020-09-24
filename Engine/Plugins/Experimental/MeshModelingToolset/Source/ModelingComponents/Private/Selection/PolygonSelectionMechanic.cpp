@@ -31,7 +31,7 @@ void UPolygonSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 	SelectionRenderer.LineColor = LinearColors::Gold3f();
 	SelectionRenderer.LineThickness = 4.0f;
 
-	float HighlightedFacePercentDepthOffset = 1.0f;
+	float HighlightedFacePercentDepthOffset = 0.5f;
 	HighlightedFaceMaterial = ToolSetupUtil::GetSelectionMaterial(FLinearColor::Green, ParentToolIn->GetToolManager(), HighlightedFacePercentDepthOffset);
 	// The rest of the highlighting setup has to be done in Initialize(), since we need the world to set up our drawing component.
 }
@@ -205,13 +205,13 @@ bool UPolygonSelectionMechanic::TopologyHitTest(const FRay& WorldRay, FHitResult
 
 	if (OutSelection.SelectedCornerIDs.Num() > 0)
 	{
-		OutHit.FaceIndex = OutSelection.SelectedCornerIDs[0];
+		OutHit.FaceIndex = OutSelection.GetASelectedCornerID();
 		OutHit.Distance = LocalRay.Project(LocalPosition);
 		OutHit.ImpactPoint = (FVector)TargetTransform.TransformPosition(LocalRay.PointAt(OutHit.Distance));
 	}
 	else if (OutSelection.SelectedEdgeIDs.Num() > 0)
 	{
-		OutHit.FaceIndex = OutSelection.SelectedEdgeIDs[0];
+		OutHit.FaceIndex = OutSelection.GetASelectedEdgeID();
 		OutHit.Distance = LocalRay.Project(LocalPosition);
 		OutHit.ImpactPoint = (FVector)TargetTransform.TransformPosition(LocalRay.PointAt(OutHit.Distance));
 		OutHit.Item = EdgeSegmentId;
@@ -284,7 +284,11 @@ bool UPolygonSelectionMechanic::UpdateHighlight(const FRay& WorldRay)
 	FGroupTopologySelector::FSelectionSettings TopoSelectorSettings = GetTopoSelectorSettings(CameraState.bIsOrthographic);
 	bool bHit = TopoSelector.FindSelectedElement(TopoSelectorSettings, LocalRay, HilightSelection, LocalPosition, LocalNormal);
 
-	if (HilightSelection.SelectedEdgeIDs.Num() > 0 && ShouldSelectEdgeLoopsFunc())
+	if (HilightSelection.SelectedEdgeIDs.Num() > 0 && Properties->bSelectEdgeRings && ShouldSelectEdgeRingsFunc())
+	{
+		TopoSelector.ExpandSelectionByEdgeRings(HilightSelection);
+	}
+	if (HilightSelection.SelectedEdgeIDs.Num() > 0 && Properties->bSelectEdgeLoops && ShouldSelectEdgeLoopsFunc())
 	{
 		TopoSelector.ExpandSelectionByEdgeLoops(HilightSelection);
 	}
@@ -357,39 +361,29 @@ bool UPolygonSelectionMechanic::UpdateSelection(const FRay& WorldRay, FVector3d&
 		LocalHitPositionOut = LocalPosition;
 		LocalHitNormalOut = LocalNormal;
 
-		bool bSelectedEdgeLoops = false;
-		if (Selection.SelectedEdgeIDs.Num() > 0 && ShouldSelectEdgeLoopsFunc())
+		if (Selection.SelectedEdgeIDs.Num() > 0 && Properties->bSelectEdgeRings && ShouldSelectEdgeRingsFunc())
 		{
-			bSelectedEdgeLoops = true;
+			TopoSelector.ExpandSelectionByEdgeRings(Selection);
+		}
+		if (Selection.SelectedEdgeIDs.Num() > 0 && Properties->bSelectEdgeLoops && ShouldSelectEdgeLoopsFunc())
+		{
 			TopoSelector.ExpandSelectionByEdgeLoops(Selection);
 		}
+
 		if (GetAddToSelectionModifierStateFunc())
 		{
-			if (bSelectedEdgeLoops)
+			// We don't toggle because in cases where we are trying to add multiple elements,
+			// we want to remove the selection only if it was all selected to begin with,
+			// otherwise we want to add to it.
+			// At the moment the only way to add multiple elements at a time is through edge
+			// loop/ring selection, but we will someday have marquee selection and face ring selection.
+			if (PersistentSelection.Contains(Selection))
 			{
-				// We don't want to toggle if we're adding loops to the selection
-				// unless the entire loop was selected to begin with.
-				bool bLoopsAlreadySelected = true;
-				for (int32 Eid : Selection.SelectedEdgeIDs)
-				{
-					if (!PersistentSelection.SelectedEdgeIDs.Contains(Eid))
-					{
-						bLoopsAlreadySelected = false;
-						break;
-					}
-				}
-				if (bLoopsAlreadySelected)
-				{
-					PersistentSelection.Remove(Selection);
-				}
-				else
-				{
-					PersistentSelection.Append(Selection);
-				}
+				PersistentSelection.Remove(Selection);
 			}
 			else
 			{
-				PersistentSelection.Toggle(Selection);
+				PersistentSelection.Append(Selection);
 			}
 		}
 		else

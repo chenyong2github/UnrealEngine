@@ -29,21 +29,24 @@ private:
 typedef FIOSPlatformTextField FPlatformTextField;
 
 #if !PLATFORM_TVOS
-@interface SlateTextField : NSObject<UIAlertViewDelegate>
+
+@interface SlateTextField : UIAlertController
 {
 	TWeakPtr<IVirtualKeyboardEntry> TextWidget;
 	FText TextEntry;
     
-#ifdef __IPHONE_8_0
+    bool bTransitioning;
+    bool bWantsToShow;
+    NSString* CachedTextContents;
+    NSString* CachedPlaceholderContents;
+    FKeyboardConfig CachedKeyboardConfig;
+    
     UIAlertController* AlertController;
-#endif
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_9_0
-    UIAlertView* AlertView;
-#endif
 }
 
 -(void)show:(TSharedPtr<IVirtualKeyboardEntry>)InTextWidget text:(NSString*)TextContents placeholder:(NSString*)PlaceholderContents keyboardConfig:(FKeyboardConfig)KeyboardConfig;
 -(void)hide;
+-(void)updateToDesiredState;
 -(bool)hasTextWidget;
 
 @end

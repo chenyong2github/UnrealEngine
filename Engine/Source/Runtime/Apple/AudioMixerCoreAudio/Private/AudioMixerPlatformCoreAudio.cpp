@@ -7,10 +7,11 @@
 #include "CoreGlobals.h"
 #include "CoreMinimal.h"
 #include "Misc/ConfigCacheIni.h"
+#if WITH_ENGINE
 #include "VorbisAudioInfo.h"
 #include "OpusAudioInfo.h"
 #include "ADPCMAudioInfo.h"
-
+#endif
 /**
 * CoreAudio System Headers
 */
@@ -356,6 +357,7 @@ namespace Audio
 
 	FName FMixerPlatformCoreAudio::GetRuntimeFormat(USoundWave* InSoundWave)
 	{
+#if WITH_ENGINE
 		static const FName NAME_ADPCM(TEXT("ADPCM"));
 		static const FName NAME_OGG(TEXT("OGG"));
 		static const FName NAME_OPUS(TEXT("OPUS"));
@@ -371,6 +373,9 @@ namespace Audio
 		}
 
 		return NAME_OGG;
+#else
+		return FName();
+#endif
 	}
 
 	bool FMixerPlatformCoreAudio::HasCompressedAudioInfoClass(USoundWave* InSoundWave)
@@ -380,6 +385,7 @@ namespace Audio
 
 	ICompressedAudioInfo* FMixerPlatformCoreAudio::CreateCompressedAudioInfo(USoundWave* InSoundWave)
 	{
+#if WITH_ENGINE
 		check(InSoundWave);
 
 		if (InSoundWave->IsSeekableStreaming())
@@ -404,6 +410,7 @@ namespace Audio
 			return CompressedInfo;
 		}
 
+#endif // WITH_ENGINE
 		return nullptr;
 	}
 

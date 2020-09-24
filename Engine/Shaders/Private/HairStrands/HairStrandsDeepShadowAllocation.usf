@@ -46,6 +46,7 @@ float3				CPU_MinAABB;
 uint				CPU_bUseCPUData;
 float3				CPU_MaxAABB;
 float				RasterizationScale;
+float				AABBScale;
 
 int2				SlotResolution;
 uint				SlotIndexCount;
@@ -89,9 +90,9 @@ void ComputeWorldToLightClip(
 	const FHairAABB Light_AABB = Transform(World_AABB, Coarse_WorldToLight);
 	const float3 Light_Extents = GetExtents(Light_AABB);
 
-	const float Radius = length(Light_Extents.xy);
-	float MinZ = -Light_Extents.z;
-	float MaxZ = +Light_Extents.z;
+	const float Radius = length(Light_Extents.xy) * AABBScale;
+	float MinZ = -Light_Extents.z * AABBScale;
+	float MaxZ = +Light_Extents.z * AABBScale;
 
 	// Update AABB center based on the tigher Z entents
 	Center = ((MaxZ * OutLightDirection) + (MinZ * OutLightDirection)) * 0.5f + Center;

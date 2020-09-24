@@ -151,7 +151,8 @@ namespace AutomationCommon
 	{
 		TArray<uint8> FrameTrace;
 
-		if (CVarAutomationAllowFrameTraceCapture.GetValueOnGameThread() != 0 && FAutomationTestFramework::Get().OnCaptureFrameTrace.IsBound())
+		bool bDisableFrameTraceCapture = FParse::Param(FCommandLine::Get(), TEXT("DisableFrameTraceCapture"));
+		if (!bDisableFrameTraceCapture && CVarAutomationAllowFrameTraceCapture.GetValueOnGameThread() != 0 && FAutomationTestFramework::Get().OnCaptureFrameTrace.IsBound())
 		{
 			const FString MapAndTest = MapOrContext / FPaths::MakeValidFileName(TestName, TEXT('_'));
 			FString ScreenshotName = GetScreenshotName(MapAndTest);
@@ -392,7 +393,7 @@ bool FExecStringLatentCommand::Update()
 
 bool FEngineWaitLatentCommand::Update()
 {
-	float NewTime = FPlatformTime::Seconds();
+	const double NewTime = FPlatformTime::Seconds();
 	if (NewTime - StartTime >= Duration)
 	{
 		return true;
@@ -403,11 +404,11 @@ bool FEngineWaitLatentCommand::Update()
 ENGINE_API uint32 GStreamAllResourcesStillInFlight = -1;
 bool FStreamAllResourcesLatentCommand::Update()
 {
-	float LocalStartTime = FPlatformTime::Seconds();
+	const double LocalStartTime = FPlatformTime::Seconds();
 
 	GStreamAllResourcesStillInFlight = IStreamingManager::Get().StreamAllResources(Duration);
 
-	float Time = FPlatformTime::Seconds();
+	const double Time = FPlatformTime::Seconds();
 
 	if(GStreamAllResourcesStillInFlight)
 	{

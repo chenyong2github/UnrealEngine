@@ -58,9 +58,9 @@ FObjectExport::FObjectExport()
 
 {}
 
-FObjectExport::FObjectExport( UObject* InObject )
+FObjectExport::FObjectExport( UObject* InObject, bool bInNotAlwaysLoadedForEditorGame /*= true*/)
 : FObjectResource(InObject)
-, ObjectFlags(InObject ? InObject->GetMaskedFlags() : RF_NoFlags)
+, ObjectFlags(InObject ? InObject->GetMaskedFlags(RF_Load) : RF_NoFlags)
 , SerialSize(0)
 , SerialOffset(0)
 , ScriptSerializationStartOffset(0)
@@ -70,7 +70,7 @@ FObjectExport::FObjectExport( UObject* InObject )
 , bForcedExport(false)
 , bNotForClient(false)
 , bNotForServer(false)
-, bNotAlwaysLoadedForEditorGame(true)
+, bNotAlwaysLoadedForEditorGame(bInNotAlwaysLoadedForEditorGame)
 , bIsAsset(false)
 , bExportLoadFailed(false)
 , DynamicType(EDynamicType::NotDynamicExport)
@@ -85,9 +85,8 @@ FObjectExport::FObjectExport( UObject* InObject )
 {
 	if(Object)		
 	{
-		bNotForClient = Object->HasAnyMarks(OBJECTMARK_NotForClient);
-		bNotForServer = Object->HasAnyMarks(OBJECTMARK_NotForServer);
-		bNotAlwaysLoadedForEditorGame = Object->HasAnyMarks(OBJECTMARK_NotAlwaysLoadedForEditorGame);
+		bNotForClient = !Object->NeedsLoadForClient();
+		bNotForServer = !Object->NeedsLoadForServer();
 		bIsAsset = Object->IsAsset();
 	}
 }
@@ -288,6 +287,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FObjectImport& I)
 	Record << SA_VALUE(TEXT("OuterIndex"), I.OuterIndex);
 	Record << SA_VALUE(TEXT("ObjectName"), I.ObjectName);
 
+	//@todo: re-enable package override at runtime when ready
 #if WITH_EDITORONLY_DATA
 	if (Slot.GetUnderlyingArchive().UE4Ver() >= VER_UE4_NON_OUTER_PACKAGE_IMPORT && !Slot.GetUnderlyingArchive().IsFilterEditorOnly())
 	{

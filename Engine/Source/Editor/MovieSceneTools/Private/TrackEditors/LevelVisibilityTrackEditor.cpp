@@ -26,7 +26,8 @@ TSharedRef<ISequencerTrackEditor> FLevelVisibilityTrackEditor::CreateTrackEditor
 
 bool FLevelVisibilityTrackEditor::SupportsSequence(UMovieSceneSequence* InSequence) const
 {
-	return (InSequence != nullptr) && (InSequence->GetClass()->GetName() == TEXT("LevelSequence"));
+	ETrackSupport TrackSupported = InSequence ? InSequence->IsTrackSupported(UMovieSceneLevelVisibilityTrack::StaticClass()) : ETrackSupport::NotSupported;
+	return TrackSupported == ETrackSupport::Supported;
 }
 
 bool FLevelVisibilityTrackEditor::SupportsType( TSubclassOf<UMovieSceneTrack> Type ) const

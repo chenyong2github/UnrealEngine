@@ -51,9 +51,9 @@ public:
 		return false;
 	}
 
-	virtual bool CanLoadAssetForPreviewOrEdit(const FAssetData& InAssetData) override
+	virtual TArray<FAssetData> GetValidAssetsForPreviewOrEdit(TArrayView<const FAssetData> InAssetDatas, bool bIsPreview) override
 	{
-		return true;
+		return TArray<FAssetData>(InAssetDatas);
 	}
 
 	virtual bool CanFilter() override

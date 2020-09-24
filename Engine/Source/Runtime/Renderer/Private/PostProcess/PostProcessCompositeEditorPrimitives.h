@@ -4,7 +4,8 @@
 
 #include "ScreenPass.h"
 #include "OverridePassSequence.h"
-#include "PostProcess/RenderingCompositionGraph.h"
+#include "ScenePrivate.h"
+#include "SceneRenderTargets.h"
 
 #if WITH_EDITOR
 
@@ -74,10 +75,5 @@ struct FEditorPrimitiveInputs
 };
 
 FScreenPassTexture AddEditorPrimitivePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FEditorPrimitiveInputs& Inputs);
-
-FRenderingCompositeOutputRef AddEditorPrimitivePass(
-	FRenderingCompositionGraph& Graph,
-	FRenderingCompositeOutputRef Input,
-	FEditorPrimitiveInputs::EBasePassType BasePassType);
 
 #endif

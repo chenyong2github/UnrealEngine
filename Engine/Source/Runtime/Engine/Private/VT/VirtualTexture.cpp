@@ -181,6 +181,7 @@ URuntimeVirtualTextureStreamingProxy::URuntimeVirtualTextureStreamingProxy(const
 
 UVirtualTexture2D::UVirtualTexture2D(const FObjectInitializer& ObjectInitializer)
 	: UTexture2D(ObjectInitializer)
+	, bContinuousUpdate(false)
 	, bSinglePhysicalSpace(false)
 {
 }

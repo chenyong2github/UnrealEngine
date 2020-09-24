@@ -138,9 +138,9 @@ void UBaseCreateFromSelectedTool::SetTransformGizmos()
 		TUniquePtr<FPrimitiveComponentTarget>& Target = ComponentTargets[ComponentIdx];
 		UTransformProxy* Proxy = TransformProxies.Add_GetRef(NewObject<UTransformProxy>(this));
 		UTransformGizmo* Gizmo = TransformGizmos.Add_GetRef(GizmoManager->Create3AxisTransformGizmo(this));
-		Gizmo->SetActiveTarget(Proxy);
+		Gizmo->SetActiveTarget(Proxy, GetToolManager());
 		FTransform InitialTransform = Target->GetWorldTransform();
-		Gizmo->SetNewGizmoTransform(InitialTransform);
+		Gizmo->ReinitializeGizmoTransform(InitialTransform);
 		Proxy->OnTransformChanged.AddUObject(this, &UBaseCreateFromSelectedTool::TransformChanged);
 	}
 	UpdateGizmoVisibility();

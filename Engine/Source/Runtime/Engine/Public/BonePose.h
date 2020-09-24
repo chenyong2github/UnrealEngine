@@ -514,10 +514,37 @@ struct FCSPose
 	*/
 	void LocalBlendCSBoneTransforms(const TArray<struct FBoneTransform>& BoneTransforms, float Alpha);
 
-	// Convert any component space transforms back to local space
+	/** This function convert component space to local space to OutPose 
+	 *
+	 * This has been optimized with an assumption of
+	 * all parents are calculated in component space for those who have been converted to component space
+	 * After this function, accessing InPose.Pose won't be valid anymore because of Move semantics
+	 *
+	 * If a part of chain hasn't been converted, it will trigger ensure. 
+	 */
 	static void ConvertComponentPosesToLocalPoses(FCSPose<PoseType>&& InPose, PoseType& OutPose);
+	
+	/** This function convert component space to local space to OutPose 
+	 *
+	 * This has been optimized with an assumption of
+	 * all parents are calculated in component space for those who have been converted to component space
+	 *
+	 * If a part of chain hasn't been converted, it will trigger ensure. 
+	 */
 	static void ConvertComponentPosesToLocalPoses(const FCSPose<PoseType>& InPose, PoseType& OutPose);
 
+	/**
+	 * This function convert component space to local space to OutPose
+	 *
+	 * Contrast to ConvertComponentPosesToLocalPoses, 
+	 * this allows some parts of chain to stay in local space before conversion
+	 * And it will calculate back to component space correctly before converting back to new local space
+	 * This is issue when child is in component space, but the parent is not. 
+	 * Then we have to convert parents to be in the component space before converting back to local
+	 *
+	 * However it is more expensive as a result. 
+	 */
+	static void ConvertComponentPosesToLocalPosesSafe(FCSPose<PoseType>& InPose, PoseType& OutPose);
 protected:
 	PoseType Pose;
 
@@ -836,6 +863,9 @@ void FCSPose<PoseType>::ConvertComponentPosesToLocalPoses(const FCSPose<PoseType
 		if (InPose.ComponentSpaceFlags[BoneIndex])
 		{
 			const BoneIndexType ParentIndex = InPose.Pose.GetParentBoneIndex(BoneIndex);
+			// ensure if parent hasn't been calculated, otherwise, this assumption is not correct
+			ensureMsgf(InPose.ComponentSpaceFlags[ParentIndex], TEXT("Parent hasn't been calculated. Please use ConvertComponentPosesToLocalPosesSafe instead"));
+
 			OutPose[BoneIndex].SetToRelativeTransform(OutPose[ParentIndex]);
 			OutPose[BoneIndex].NormalizeRotation();
 		}
@@ -870,11 +900,81 @@ void FCSPose<PoseType>::ConvertComponentPosesToLocalPoses(FCSPose<PoseType>&& In
 		if (InPose.ComponentSpaceFlags[BoneIndex])
 		{
 			const BoneIndexType ParentIndex = OutPose.GetParentBoneIndex(BoneIndex);
+			
+			// ensure if parent hasn't been calculated, otherwise, this assumption is not correct
+			// Pose has moved, but ComponentSpaceFlags should be safe here
+			ensureMsgf(InPose.ComponentSpaceFlags[ParentIndex], TEXT("Parent hasn't been calculated. Please use ConvertComponentPosesToLocalPosesSafe instead"));
+			
 			OutPose[BoneIndex].SetToRelativeTransform(OutPose[ParentIndex]);
 			OutPose[BoneIndex].NormalizeRotation();
 		}
 	}
 }
 
+template<class PoseType>
+void FCSPose<PoseType>::ConvertComponentPosesToLocalPosesSafe(FCSPose<PoseType>& InPose, PoseType& OutPose)
+{
+	checkSlow(InPose.Pose.IsValid());
+
+	const int32 NumBones = InPose.Pose.GetNumBones();
+
+	// now we need to convert back to local bases
+	// only convert back that has been converted to mesh base
+	// if it was local base, and if it hasn't been modified
+	// that is still okay even if parent is changed, 
+	// that doesn't mean this local has to change
+	// go from child to parent since I need parent inverse to go back to local
+	// root is same, so no need to do Index == 0
+	const BoneIndexType RootBoneIndex(0);
+	if (InPose.ComponentSpaceFlags[RootBoneIndex])
+	{
+		OutPose[RootBoneIndex] = InPose.Pose[RootBoneIndex];
+	}
+
+	
+	for (int32 Index = NumBones - 1; Index > 0; Index--)
+	{
+		const BoneIndexType BoneIndex(Index);
+		if (InPose.ComponentSpaceFlags[BoneIndex])
+		{
+			const BoneIndexType ParentIndex = OutPose.GetParentBoneIndex(BoneIndex);
+
+			// if parent is local space, we have to calculate parent
+			if (!InPose.ComponentSpaceFlags[ParentIndex])
+			{
+				// if I'm calculated, but not parent, update parent
+				InPose.CalculateComponentSpaceTransform(ParentIndex);
+			}
+
+			OutPose[BoneIndex] = InPose.Pose[BoneIndex];
+			OutPose[BoneIndex].SetToRelativeTransform(InPose.Pose[ParentIndex]);
+			OutPose[BoneIndex].NormalizeRotation();
+		}
+	}
+}
+
 // Populate InOutPose based on raw animation data. 
-extern void BuildPoseFromRawData(const TArray<FRawAnimSequenceTrack>& InAnimationData, const TArray<struct FTrackToSkeletonMap>& TrackToSkeletonMapTable, FCompactPose& InOutPose, float InTime, EAnimInterpolationType Interpolation, int32 NumFrames, float SequenceLength, FName RetargetSource, const TMap<int32, const struct FTransformCurve*>* AdditiveBoneTransformCurves = nullptr);
+extern void BuildPoseFromRawData(
+	const TArray<FRawAnimSequenceTrack>& InAnimationData,
+	const TArray<struct FTrackToSkeletonMap>& TrackToSkeletonMapTable,
+	FCompactPose& InOutPose,
+	float InTime,
+	EAnimInterpolationType Interpolation,
+	int32 NumFrames,
+	float SequenceLength,
+	FName RetargetSource,
+	const TMap<int32, const struct FTransformCurve*>* AdditiveBoneTransformCurves = nullptr
+);
+
+extern void BuildPoseFromRawData(
+	const TArray<FRawAnimSequenceTrack>& InAnimationData, 
+	const TArray<struct FTrackToSkeletonMap>& TrackToSkeletonMapTable, 
+	FCompactPose& InOutPose, 
+	float InTime, 
+	EAnimInterpolationType Interpolation, 
+	int32 NumFrames, 
+	float SequenceLength, 
+	FName SourceName, 
+	const TArray<FTransform>& RetargetTransforms,
+	const TMap<int32, const FTransformCurve*>* AdditiveBoneTransformCurves = nullptr
+	);

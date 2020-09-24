@@ -26,6 +26,7 @@ namespace Insights
 	class FTable;
 	class FTableColumn;
 	class ITableCellValueSorter;
+	class SAggregatorStatus;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -217,6 +218,8 @@ private:
 
 	/** How we sort the nodes? Ascending or Descending. */
 	EColumnSortMode::Type ColumnSortMode;
+
+	TSharedPtr<Insights::SAggregatorStatus> AggregatorStatus;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

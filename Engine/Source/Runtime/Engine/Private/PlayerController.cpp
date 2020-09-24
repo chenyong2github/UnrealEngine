@@ -87,13 +87,6 @@ namespace PlayerControllerCVars
 		TEXT("Whether to reset server prediction data for the possessed Pawn when the pawn ack handshake completes.\n")
 		TEXT("0: Disable, 1: Enable"),
 		ECVF_Default);
-
-	static bool LevelVisibilityDontSerializeFileName = false;
-	FAutoConsoleVariableRef CVarLevelVisibilityDontSerializeFileName(
-		TEXT("PlayerController.LevelVisibilityDontSerializeFileName"),
-		LevelVisibilityDontSerializeFileName,
-		TEXT("When true, we'll always skip serializing FileName with FUpdateLevelVisibilityLevelInfo's. This will save bandwidth when games don't need both.")
-	);
 }
 
 const float RetryClientRestartThrottleTime = 0.5f;
@@ -103,41 +96,6 @@ const float RetryServerCheckSpectatorThrottleTime = 0.25f;
 // Note: This value should be sufficiently small such that it is considered to be in the past before RetryClientRestartThrottleTime and RetryServerAcknowledgeThrottleTime.
 const float ForceRetryClientRestartTime = -100.0f;
 
-FUpdateLevelVisibilityLevelInfo::FUpdateLevelVisibilityLevelInfo(const ULevel* const Level, const bool bInIsVisible)
-	: bIsVisible(bInIsVisible)
-	, bSkipCloseOnError(false)
-{
-	const UPackage* const LevelPackage = Level->GetOutermost();
-	PackageName = LevelPackage->GetFName();
-
-	// When packages are duplicated for PIE, they may not have a FileName.
-	// For now, just revert to the old behavior.
-	FileName = (LevelPackage->FileName == NAME_None) ? PackageName : LevelPackage->FileName;
-}
-
-bool FUpdateLevelVisibilityLevelInfo::NetSerialize(FArchive& Ar, UPackageMap* PackageMap, bool& bOutSuccess)
-{
-	bool bArePackageAndFileTheSame = !!((PlayerControllerCVars::LevelVisibilityDontSerializeFileName) || (FileName == PackageName) || (FileName == NAME_None));
-	bool bLocalIsVisible = !!bIsVisible;
-
-	Ar.SerializeBits(&bArePackageAndFileTheSame, 1);
-	Ar.SerializeBits(&bLocalIsVisible, 1);
-	Ar << PackageName;
-
-	if (!bArePackageAndFileTheSame)
-	{
-		Ar << FileName;
-	}
-	else if (Ar.IsLoading())
-	{
-		FileName = PackageName;
-	}
-
-	bIsVisible = bLocalIsVisible;
-
-	bOutSuccess = !Ar.IsError();
-	return true;
-}
 
 //////////////////////////////////////////////////////////////////////////
 // APlayerController
@@ -705,7 +663,7 @@ void APlayerController::InitInputSystem()
 {
 	if (PlayerInput == NULL)
 	{
-		PlayerInput = NewObject<UPlayerInput>(this);
+		PlayerInput = NewObject<UPlayerInput>(this, UInputSettings::GetDefaultPlayerInputClass());
 	}
 
 	SetupInputComponent();
@@ -2491,7 +2449,7 @@ void APlayerController::SetupInputComponent()
 	// A subclass could create a different InputComponent class but still want the default bindings
 	if (InputComponent == NULL)
 	{
-		InputComponent = NewObject<UInputComponent>(this, TEXT("PC_InputComponent0"));
+		InputComponent = NewObject<UInputComponent>(this, UInputSettings::GetDefaultInputComponentClass(), TEXT("PC_InputComponent0"));
 		InputComponent->RegisterComponent();
 	}
 
@@ -2936,6 +2894,12 @@ APlayerState* APlayerController::GetNextViewablePlayer(int32 dir)
 	// If we don't have a NextPlayerState, use our own.
 	// This will allow us to attempt to find another player to view or, if all else fails, makes sure we have a playerstate set for next time.
 	int32 NextIndex = (NextPlayerState ? GameState->PlayerArray.Find(NextPlayerState) : GameState->PlayerArray.Find(PlayerState));
+
+	//Check that NextIndex is a valid index, as Find() may return INDEX_NONE
+	if (!GameState->PlayerArray.IsValidIndex(NextIndex))
+	{
+		return nullptr;
+	}
 
 	// Cycle through the player states until we find a valid one.
 	for (int32 i = 0; i < GameState->PlayerArray.Num(); ++i)
@@ -4337,15 +4301,15 @@ void APlayerController::UpdateForceFeedback(IInputInterface* InputInterface, con
 
 /// @cond DOXYGEN_WARNINGS
 
-void APlayerController::ClientPlayCameraShake_Implementation( TSubclassOf<class UCameraShake> Shake, float Scale, ECameraAnimPlaySpace::Type PlaySpace, FRotator UserPlaySpaceRot )
+void APlayerController::ClientStartCameraShake_Implementation( TSubclassOf<class UCameraShakeBase> Shake, float Scale, ECameraShakePlaySpace PlaySpace, FRotator UserPlaySpaceRot )
 {
 	if (PlayerCameraManager != NULL)
 	{
-		PlayerCameraManager->PlayCameraShake(Shake, Scale, PlaySpace, UserPlaySpaceRot);
+		PlayerCameraManager->StartCameraShake(Shake, Scale, PlaySpace, UserPlaySpaceRot);
 	}
 }
 
-void APlayerController::ClientStopCameraShake_Implementation( TSubclassOf<class UCameraShake> Shake, bool bImmediately )
+void APlayerController::ClientStopCameraShake_Implementation( TSubclassOf<class UCameraShakeBase> Shake, bool bImmediately )
 {
 	if (PlayerCameraManager != NULL)
 	{
@@ -4353,11 +4317,11 @@ void APlayerController::ClientStopCameraShake_Implementation( TSubclassOf<class 
 	}
 }
 
-void APlayerController::ClientPlayCameraShakeFromSource(TSubclassOf<class UCameraShake> Shake, class UCameraShakeSourceComponent* SourceComponent)
+void APlayerController::ClientStartCameraShakeFromSource(TSubclassOf<class UCameraShakeBase> Shake, class UCameraShakeSourceComponent* SourceComponent)
 {
 	if (PlayerCameraManager != NULL)
 	{
-		PlayerCameraManager->PlayCameraShakeFromSource(Shake, SourceComponent);
+		PlayerCameraManager->StartCameraShakeFromSource(Shake, SourceComponent);
 	}
 }
 
@@ -4371,7 +4335,7 @@ void APlayerController::ClientStopCameraShakesFromSource(class UCameraShakeSourc
 
 void APlayerController::ClientPlayCameraAnim_Implementation( UCameraAnim* AnimToPlay, float Scale, float Rate,
 						float BlendInTime, float BlendOutTime, bool bLoop,
-						bool bRandomStartTime, ECameraAnimPlaySpace::Type Space, FRotator CustomPlaySpace )
+						bool bRandomStartTime, ECameraShakePlaySpace Space, FRotator CustomPlaySpace )
 {
 	if (PlayerCameraManager != NULL)
 	{
@@ -5002,7 +4966,7 @@ void APlayerController::UpdateStateInputComponents()
 		if (InactiveStateInputComponent == NULL)
 		{
 			static const FName InactiveStateInputComponentName(TEXT("PC_InactiveStateInputComponent0"));
-			InactiveStateInputComponent = NewObject<UInputComponent>(this, InactiveStateInputComponentName);
+			InactiveStateInputComponent = NewObject<UInputComponent>(this, UInputSettings::GetDefaultInputComponentClass(), InactiveStateInputComponentName);
 			SetupInactiveStateInputComponent(InactiveStateInputComponent);
 			InactiveStateInputComponent->RegisterComponent();
 			PushInputComponent(InactiveStateInputComponent);

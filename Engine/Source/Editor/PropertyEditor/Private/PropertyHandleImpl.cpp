@@ -2411,6 +2411,20 @@ void FPropertyHandleBase::GetOuterObjects( TArray<UObject*>& OuterObjects ) cons
 
 }
 
+void FPropertyHandleBase::ReplaceOuterObjects(const TArray<UObject*>& OuterObjects)
+{
+	if (Implementation->GetPropertyNode().IsValid())
+	{
+		FObjectPropertyNode* ObjectNode = Implementation->GetPropertyNode()->FindObjectItemParent();
+		if (ObjectNode)
+		{
+			ObjectNode->RemoveAllObjects();
+			ObjectNode->ClearCachedReadAddresses(true);
+			ObjectNode->AddObjects(OuterObjects);
+		}
+	}
+}
+
 void FPropertyHandleBase::GetOuterPackages(TArray<UPackage*>& OuterPackages) const
 {
 	if(Implementation->GetPropertyNode().IsValid())

@@ -159,23 +159,30 @@ void AndroidEGL::ResetDisplay()
 	}
 }
 
-void AndroidEGL::DestroySurface()
+void AndroidEGL::DestroyRenderSurface()
 {
 	VERIFY_EGL_SCOPE();
-	FPlatformMisc::LowLevelOutputDebugStringf( TEXT("AndroidEGL::DestroySurface()" ));
+	FPlatformMisc::LowLevelOutputDebugStringf( TEXT("AndroidEGL::DestroyRenderSurface()" ));
 	if( PImplData->eglSurface != EGL_NO_SURFACE )
 	{
 		eglDestroySurface(PImplData->eglDisplay, PImplData->eglSurface);
 		PImplData->eglSurface = EGL_NO_SURFACE;
 	}
+
+	PImplData->RenderingContext.eglSurface = EGL_NO_SURFACE;
+	PImplData->SingleThreadedContext.eglSurface = EGL_NO_SURFACE;
+}
+
+void AndroidEGL::DestroySharedSurface()
+{
+	VERIFY_EGL_SCOPE();
+	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("AndroidEGL::DestroySharedSurface()"));
 	if( PImplData->auxSurface != EGL_NO_SURFACE )
 	{
 		eglDestroySurface( PImplData->eglDisplay, PImplData->auxSurface);
 		PImplData->auxSurface = EGL_NO_SURFACE;
 	}
 
-	PImplData->RenderingContext.eglSurface = EGL_NO_SURFACE;
-	PImplData->SingleThreadedContext.eglSurface = EGL_NO_SURFACE;
 	PImplData->SharedContext.eglSurface = EGL_NO_SURFACE;
 }
 
@@ -242,14 +249,14 @@ void AndroidEGL::ResetInternal()
 	Terminate();
 }
 
-void AndroidEGL::CreateEGLSurface(ANativeWindow* InWindow, bool bCreateWndSurface)
+void AndroidEGL::CreateEGLRenderSurface(ANativeWindow* InWindow, bool bCreateWndSurface)
 {
 	VERIFY_EGL_SCOPE();
 
 	// due to possible early initialization, don't redo this
 	if (PImplData->eglSurface != EGL_NO_SURFACE)
 	{
-		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("AndroidEGL::CreateEGLSurface() Already initialized: %p"), PImplData->eglSurface);
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("AndroidEGL::CreateEGLRenderSurface() Already initialized: %p"), PImplData->eglSurface);
 		return;
 	}
 
@@ -263,7 +270,7 @@ void AndroidEGL::CreateEGLSurface(ANativeWindow* InWindow, bool bCreateWndSurfac
 			eglSurfaceAttrib(PImplData->eglDisplay, PImplData->eglSurface, EGL_TIMESTAMPS_ANDROID, EGL_TRUE);
 		}
 
-		FPlatformMisc::LowLevelOutputDebugStringf( TEXT("AndroidEGL::CreateEGLSurface() %p" ),PImplData->eglSurface);
+		FPlatformMisc::LowLevelOutputDebugStringf( TEXT("AndroidEGL::CreateEGLRenderSurface() %p" ), PImplData->eglSurface);
 
 		if(PImplData->eglSurface == EGL_NO_SURFACE )
 		{
@@ -316,7 +323,7 @@ void AndroidEGL::CreateEGLSurface(ANativeWindow* InWindow, bool bCreateWndSurfac
 		pbufferAttribs[1] = PImplData->eglWidth;
 		pbufferAttribs[3] = PImplData->eglHeight;
 
-		FPlatformMisc::LowLevelOutputDebugStringf( TEXT("AndroidEGL::CreateEGLSurface(%d), eglSurface = eglCreatePbufferSurface(), %dx%d" ),
+		FPlatformMisc::LowLevelOutputDebugStringf( TEXT("AndroidEGL::CreateEGLRenderSurface(%d), eglSurface = eglCreatePbufferSurface(), %dx%d" ),
 			int(bCreateWndSurface), pbufferAttribs[1], pbufferAttribs[3]);
 		PImplData->eglSurface = eglCreatePbufferSurface(PImplData->eglDisplay, PImplData->eglConfigParam, pbufferAttribs);
 		if(PImplData->eglSurface== EGL_NO_SURFACE )
@@ -324,6 +331,18 @@ void AndroidEGL::CreateEGLSurface(ANativeWindow* InWindow, bool bCreateWndSurfac
 			checkf(PImplData->eglSurface != EGL_NO_SURFACE, TEXT("eglCreatePbufferSurface error : 0x%x"), eglGetError());
 			ResetInternal();
 		}
+	}
+}
+
+void AndroidEGL::CreateEGLSharedSurface()
+{
+	VERIFY_EGL_SCOPE();
+
+	// due to possible early initialization, don't redo this
+	if (PImplData->auxSurface != EGL_NO_SURFACE)
+	{
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("AndroidEGL::CreateEGLSharedSurface() Already initialized: %p"), PImplData->auxSurface);
+		return;
 	}
 
 	EGLint pbufferAttribs[] =
@@ -340,8 +359,8 @@ void AndroidEGL::CreateEGLSurface(ANativeWindow* InWindow, bool bCreateWndSurfac
 	pbufferAttribs[1] = PImplData->eglWidth;
 	pbufferAttribs[3] = PImplData->eglHeight;
 
-	FPlatformMisc::LowLevelOutputDebugStringf( TEXT("AndroidEGL::CreateEGLSurface(%d), auxSurface = eglCreatePbufferSurface(), %dx%d" ), 
-		int(bCreateWndSurface), pbufferAttribs[1], pbufferAttribs[3]);
+	FPlatformMisc::LowLevelOutputDebugStringf( TEXT("AndroidEGL::CreateEGLSharedSurface(), auxSurface = eglCreatePbufferSurface(), %dx%d" ),
+		pbufferAttribs[1], pbufferAttribs[3]);
 	PImplData->auxSurface = eglCreatePbufferSurface(PImplData->eglDisplay, PImplData->eglConfigParam, pbufferAttribs);
 	if(PImplData->auxSurface== EGL_NO_SURFACE )
 	{
@@ -534,7 +553,7 @@ void AndroidEGL::ResizeRenderContextSurface()
 {
 	VERIFY_GL_SCOPE();
 
-	// Resize originates from the gamethread, we cant use Window_Event here.
+	// Resize render originates from the gamethread, we cant use Window_Event here.
 	if (PImplData->Window && 
 		(PImplData->eglWidth != (PImplData->CachedWindowRect.Right - PImplData->CachedWindowRect.Left)
 		|| PImplData->eglHeight != (PImplData->CachedWindowRect.Bottom - PImplData->CachedWindowRect.Top))
@@ -542,11 +561,33 @@ void AndroidEGL::ResizeRenderContextSurface()
 	{
 		UE_LOG(LogAndroid, Log, TEXT("AndroidEGL::ResizeRenderContextSurface, PImplData->Window=%p, PImplData->eglWidth=%d, PImplData->eglHeight=%d!, CachedWidth=%d, CachedHeight=%d, tid: %d"), 
 			PImplData->Window, PImplData->eglWidth, PImplData->eglHeight, (PImplData->CachedWindowRect.Right - PImplData->CachedWindowRect.Left), (PImplData->CachedWindowRect.Bottom - PImplData->CachedWindowRect.Top), FPlatformTLS::GetCurrentThreadId());
-		UnBind();
+		UnBindRender();
 		SetCurrentContext(EGL_NO_CONTEXT, EGL_NO_SURFACE);
 		bool bCreateSurface = !AndroidThunkCpp_IsOculusMobileApplication();
-		InitSurface(false, bCreateSurface);
+		InitRenderSurface(false, bCreateSurface);
 		SetCurrentRenderingContext();
+	}
+}
+
+void AndroidEGL::ResizeSharedContextSurface()
+{
+	VERIFY_GL_SCOPE();
+
+	check(IsInGameThread());
+
+	// Resize shared is in gamethread, we cant use Window_Event here.
+	if (PImplData->Window &&
+		(PImplData->eglWidth != (PImplData->CachedWindowRect.Right - PImplData->CachedWindowRect.Left)
+			|| PImplData->eglHeight != (PImplData->CachedWindowRect.Bottom - PImplData->CachedWindowRect.Top))
+		)
+	{
+		UE_LOG(LogAndroid, Log, TEXT("AndroidEGL::ResizeSharedContextSurface, PImplData->Window=%p, PImplData->eglWidth=%d, PImplData->eglHeight=%d!, CachedWidth=%d, CachedHeight=%d, tid: %d"),
+			PImplData->Window, PImplData->eglWidth, PImplData->eglHeight, (PImplData->CachedWindowRect.Right - PImplData->CachedWindowRect.Left), (PImplData->CachedWindowRect.Bottom - PImplData->CachedWindowRect.Top), FPlatformTLS::GetCurrentThreadId());
+		UnBindShared();
+		SetCurrentContext(EGL_NO_CONTEXT, EGL_NO_SURFACE);
+		bool bCreateSurface = !AndroidThunkCpp_IsOculusMobileApplication();
+		InitSharedSurface(false);
+		SetCurrentSharedContext();
 	}
 }
 
@@ -580,12 +621,19 @@ void AndroidEGL::InitBackBuffer()
 {
 	//add check to see if any context was made current. 
 	GLint OnScreenWidth, OnScreenHeight;
-	PImplData->ResolveFrameBuffer = 0;
+	if (FPlatformMisc::SupportsBackbufferSampling())
+	{
+		glGenFramebuffers(1, &PImplData->ResolveFrameBuffer);
+	}
+	else
+	{
+		PImplData->ResolveFrameBuffer = 0;
+	}
 	PImplData->OnScreenColorRenderBuffer = 0;
 	OnScreenWidth = PImplData->eglWidth;
 	OnScreenHeight = PImplData->eglHeight;
 
-	PImplData->RenderingContext.ViewportFramebuffer =GetResolveFrameBuffer();
+	PImplData->RenderingContext.ViewportFramebuffer = GetResolveFrameBuffer();
 	PImplData->SharedContext.ViewportFramebuffer = GetResolveFrameBuffer();
 	PImplData->SingleThreadedContext.ViewportFramebuffer = GetResolveFrameBuffer();
 }
@@ -594,7 +642,13 @@ extern void AndroidThunkCpp_SetDesiredViewSize(int32 Width, int32 Height);
 
 void AndroidEGL::InitSurface(bool bUseSmallSurface, bool bCreateWndSurface)
 {
-	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("AndroidEGL::InitSurface %d, %d"), int(bUseSmallSurface), int(bCreateWndSurface));
+	InitRenderSurface(bUseSmallSurface, bCreateWndSurface);
+	InitSharedSurface(bUseSmallSurface);
+}
+
+void AndroidEGL::InitRenderSurface(bool bUseSmallSurface, bool bCreateWndSurface)
+{
+	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("AndroidEGL::InitRenderSurface %d, %d"), int(bUseSmallSurface), int(bCreateWndSurface));
 
 	check(PImplData->Window);
 
@@ -606,24 +660,55 @@ void AndroidEGL::InitSurface(bool bUseSmallSurface, bool bCreateWndSurface)
 		if (PImplData->CachedWindowRect.Right > 0 && PImplData->CachedWindowRect.Bottom > 0)
 		{
 			// If we resumed from a lost window reuse the window size, the game thread will update the window dimensions.
-			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("AndroidEGL::InitSurface, Using CachedWindowRect, width: %d, height %d "), PImplData->CachedWindowRect.Right, PImplData->CachedWindowRect.Bottom);
+			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("AndroidEGL::InitRenderSurface, Using CachedWindowRect, width: %d, height %d "), PImplData->CachedWindowRect.Right, PImplData->CachedWindowRect.Bottom);
 			WindowSize = PImplData->CachedWindowRect;
 		}
 
 		Width = WindowSize.Right;
 		Height = WindowSize.Bottom;
 
-		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("AndroidEGL::InitSurface, Using width: %d, height %d "), Width, Height);
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("AndroidEGL::InitRenderSurface, Using width: %d, height %d "), Width, Height);
 		AndroidThunkCpp_SetDesiredViewSize(Width, Height);
 	}
 
-	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("AndroidEGL::InitSurface, wnd: %p, width: %d, height %d "), PImplData->Window, Width, Height);
+	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("AndroidEGL::InitRenderSurface, wnd: %p, width: %d, height %d "), PImplData->Window, Width, Height);
 	ANativeWindow_setBuffersGeometry(PImplData->Window, Width, Height, PImplData->NativeVisualID);
-	CreateEGLSurface(PImplData->Window, bCreateWndSurface);
-	
-	PImplData->SharedContext.eglSurface = PImplData->auxSurface;
+	CreateEGLRenderSurface(PImplData->Window, bCreateWndSurface);
+
 	PImplData->RenderingContext.eglSurface = PImplData->eglSurface;
 	PImplData->SingleThreadedContext.eglSurface = PImplData->eglSurface;
+}
+
+void AndroidEGL::InitSharedSurface(bool bUseSmallSurface)
+{
+	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("AndroidEGL::InitSharedSurface %d"), int(bUseSmallSurface));
+
+	check(PImplData->Window);
+
+	int32 Width = 8, Height = 8;
+	if (!bUseSmallSurface)
+	{
+		FPlatformRect WindowSize = FAndroidWindow::GetScreenRect();
+
+		if (PImplData->CachedWindowRect.Right > 0 && PImplData->CachedWindowRect.Bottom > 0)
+		{
+			// If we resumed from a lost window reuse the window size, the game thread will update the window dimensions.
+			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("AndroidEGL::InitSharedSurface, Using CachedWindowRect, width: %d, height %d "), PImplData->CachedWindowRect.Right, PImplData->CachedWindowRect.Bottom);
+			WindowSize = PImplData->CachedWindowRect;
+		}
+
+		Width = WindowSize.Right;
+		Height = WindowSize.Bottom;
+
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("AndroidEGL::InitSharedSurface, Using width: %d, height %d "), Width, Height);
+		AndroidThunkCpp_SetDesiredViewSize(Width, Height);
+	}
+
+	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("AndroidEGL::InitSharedSurface, width: %d, height %d "), Width, Height);
+	CreateEGLSharedSurface();
+
+	PImplData->SharedContext.eglSurface = PImplData->auxSurface;
+
 }
 
 void AndroidEGL::ReInit()
@@ -849,7 +934,8 @@ void AndroidEGL::Terminate()
 	PImplData->RenderingContext.Reset();
 	DestroyContext(PImplData->SingleThreadedContext.eglContext);
 	PImplData->SingleThreadedContext.Reset();
-	DestroySurface();
+	DestroyRenderSurface();
+	DestroySharedSurface();
 	TerminateEGL();
 }
 
@@ -912,7 +998,22 @@ void AndroidEGL::UnBind()
 {
 	FPlatformMisc::LowLevelOutputDebugString(TEXT("AndroidEGL::UnBind()"));
 	ResetDisplay();
-	DestroySurface();
+	DestroyRenderSurface();
+	DestroySharedSurface();
+}
+
+void AndroidEGL::UnBindRender()
+{
+	FPlatformMisc::LowLevelOutputDebugString(TEXT("AndroidEGL::UnBindRender()"));
+	ResetDisplay();
+	DestroyRenderSurface();
+}
+
+void AndroidEGL::UnBindShared()
+{
+	FPlatformMisc::LowLevelOutputDebugString(TEXT("AndroidEGL::UnBindShared()"));
+	ResetDisplay();
+	DestroySharedSurface();
 }
 
 void FAndroidAppEntry::ReInitWindow(void* NewNativeWindowHandle)
@@ -945,6 +1046,8 @@ void AndroidEGL::RefreshWindowSize()
 	FPlatformRect WindowRect = FAndroidWindow::GetScreenRect();
 	UE_LOG(LogAndroid, Log, TEXT("AndroidEGL::RefreshWindowSize updating window size = %d, %d, cached size : %d, %d tid : %d"), WindowRect.Right, WindowRect.Bottom, PImplData->CachedWindowRect.Right, PImplData->CachedWindowRect.Bottom, FPlatformTLS::GetCurrentThreadId());
 	PImplData->CachedWindowRect = WindowRect;
+
+	ResizeSharedContextSurface();
 
 	ENQUEUE_RENDER_COMMAND(EGLResizeRenderContextSurface)(
 		[](FRHICommandListImmediate& RHICmdList)

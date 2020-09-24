@@ -100,6 +100,7 @@
 			<graph title="CSV Profiler" budget="0" />
 			<graph title="Android Memory" budget="0" />
 			<graph title="Android Thermals" budget="0" />
+			<graph title="Android CPU" budget="0" />
 		</reporttype>
 
 
@@ -154,6 +155,7 @@
 			<graph title="CSV Profiler" budget="0" />
 			<graph title="Android Memory" budget="0" />
 			<graph title="Android Thermals" budget="0" />
+			<graph title="Android CPU" budget="0" />
 		</reporttype>
 
 		<reporttype name="Memory" title="Physical Memory Report" vsync="1">

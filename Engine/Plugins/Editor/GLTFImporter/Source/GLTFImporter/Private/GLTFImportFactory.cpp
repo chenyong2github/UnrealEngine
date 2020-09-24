@@ -119,7 +119,7 @@ UObject* UGLTFImportFactory::FactoryCreateFile(UClass* InClass, UObject* InParen
 	{
 		const FString AssetName      = Context.Asset.Name;
 		const FString NewPackageName = UPackageTools::SanitizePackageName(*(FPaths::GetPath(InParent->GetName()) / AssetName));
-		UObject*      ParentPackage  = NewPackageName == InParent->GetName() ? InParent : CreatePackage(nullptr, *NewPackageName);
+		UObject*      ParentPackage  = NewPackageName == InParent->GetName() ? InParent : CreatePackage(*NewPackageName);
 
 		const TArray<UStaticMesh*>& CreatedMeshes = Context.CreateMeshes(ParentPackage, Flags, false);
 		Context.CreateMaterials(ParentPackage, Flags);

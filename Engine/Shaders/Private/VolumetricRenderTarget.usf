@@ -14,8 +14,10 @@
 
 SamplerState LinearTextureSampler;
 
+Texture2D HalfResDepthTexture;
+
 Texture2D<float4> TracingVolumetricTexture;
-Texture2D<float> TracingVolumetricDepthTexture;
+Texture2D<float2> TracingVolumetricDepthTexture;
 uint4 TracingVolumetricTextureValidCoordRect;
 float4 TracingVolumetricTextureValidUvRect;
 
@@ -27,18 +29,18 @@ float4 SafeSampleTracingVolumetricTexture(float2 UV)
 {
 	return TracingVolumetricTexture.SampleLevel(LinearTextureSampler, clamp(UV, TracingVolumetricTextureValidUvRect.xy, TracingVolumetricTextureValidUvRect.zw), 0);
 }
-float SafeLoadTracingVolumetricDepthTexture(uint2 Coord)
+float2 SafeLoadTracingVolumetricDepthTexture(uint2 Coord)
 {
-	return TracingVolumetricDepthTexture.Load(uint3(clamp(Coord, TracingVolumetricTextureValidCoordRect.xy, TracingVolumetricTextureValidCoordRect.zw), 0)).r;
+	return TracingVolumetricDepthTexture.Load(uint3(clamp(Coord, TracingVolumetricTextureValidCoordRect.xy, TracingVolumetricTextureValidCoordRect.zw), 0)).rg;
 }
-float SafeSampleTracingVolumetricDepthTexture(float2 UV)
+float2 SafeSampleTracingVolumetricDepthTexture(float2 UV)
 {
-	return TracingVolumetricDepthTexture.SampleLevel(LinearTextureSampler, clamp(UV, TracingVolumetricTextureValidUvRect.xy, TracingVolumetricTextureValidUvRect.zw), 0).r;
+	return TracingVolumetricDepthTexture.SampleLevel(LinearTextureSampler, clamp(UV, TracingVolumetricTextureValidUvRect.xy, TracingVolumetricTextureValidUvRect.zw), 0).rg;
 }
 
 #if PERMUTATION_HISTORY_AVAILABLE
 Texture2D<float4> PreviousFrameVolumetricTexture; 
-Texture2D<float> PreviousFrameVolumetricDepthTexture;
+Texture2D<float2> PreviousFrameVolumetricDepthTexture;
 float4 PreviousVolumetricTextureSizeAndInvSize;
 
 uint4 PreviousFrameVolumetricTextureValidCoordRect;
@@ -52,13 +54,13 @@ float4 SafeSamplePreviousFrameVolumetricTexture(float2 UV)
 {
 	return PreviousFrameVolumetricTexture.SampleLevel(LinearTextureSampler, clamp(UV, PreviousFrameVolumetricTextureValidUvRect.xy, PreviousFrameVolumetricTextureValidUvRect.zw), 0);
 }
-float SafeLoadPreviousFrameVolumetricDepthTexture(uint2 Coord)
+float2 SafeLoadPreviousFrameVolumetricDepthTexture(uint2 Coord)
 {
-	return PreviousFrameVolumetricDepthTexture.Load(uint3(clamp(Coord, PreviousFrameVolumetricTextureValidCoordRect.xy, PreviousFrameVolumetricTextureValidCoordRect.zw), 0)).r;
+	return PreviousFrameVolumetricDepthTexture.Load(uint3(clamp(Coord, PreviousFrameVolumetricTextureValidCoordRect.xy, PreviousFrameVolumetricTextureValidCoordRect.zw), 0)).rg;
 }
-float SafeSamplePreviousFrameVolumetricDepthTexture(float2 UV)
+float2 SafeSamplePreviousFrameVolumetricDepthTexture(float2 UV)
 {
-	return PreviousFrameVolumetricDepthTexture.SampleLevel(LinearTextureSampler, clamp(UV, PreviousFrameVolumetricTextureValidUvRect.xy, PreviousFrameVolumetricTextureValidUvRect.zw), 0).r;
+	return PreviousFrameVolumetricDepthTexture.SampleLevel(LinearTextureSampler, clamp(UV, PreviousFrameVolumetricTextureValidUvRect.xy, PreviousFrameVolumetricTextureValidUvRect.zw), 0).rg;
 }
 #endif // PERMUTATION_HISTORY_AVAILABLE
 
@@ -104,73 +106,44 @@ float BOX_NORM_LUMA(float3 Clip, float3 Min, float3 Max)
 void ReconstructVolumetricRenderTargetPS(
 	in float4 SVPos : SV_POSITION,
 	out float4 OutputRt0 : SV_Target0,
-	out float  OutputRt1 : SV_Target1)
+	out float2 OutputRt1 : SV_Target1)
 {
-	float2 PixPos = SVPos.xy;
+	float2 PixelPos = SVPos.xy;
 	float2 ScreenUV = SVPos.xy * DstVolumetricTextureSizeAndInvSize.zw; // UV in [0,1]
 
 #if PERMUTATION_HISTORY_AVAILABLE
 
-	int xSub = int(SVPos.x) % DownSampleFactor;
-	int ySub = int(SVPos.y) % DownSampleFactor;
+	int2 IntPixelPos = int2(PixelPos);
+	int2 IntPixelPosDownsample = IntPixelPos / DownSampleFactor;
+	const int XSub = (IntPixelPosDownsample.x * DownSampleFactor) == int(IntPixelPos.x) ? 0 : 1;
+	const int YSub = (IntPixelPosDownsample.y * DownSampleFactor) == int(IntPixelPos.y) ? 0 : 1;
 
-	const bool UseNewSample = (xSub == CurrentTracingPixelOffset.x) && (ySub == CurrentTracingPixelOffset.y);
+	const bool bUseNewSample = (XSub == CurrentTracingPixelOffset.x) && (YSub == CurrentTracingPixelOffset.y);
 	float4 RGBA = 0.0f;
-	float Depth = 0.0f;
-
+	float2 Depths = 0.0f;
 
 #if 0
 	// Debug: always use new sample else history result. Should be 
-	if (UseNewSample)
+	if (bUseNewSample)
 	{
 		RGBA  = SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor);
-		Depth = SafeLoadTracingVolumetricDepthTexture(int2(SVPos.xy) / DownSampleFactor);
+		Depths = SafeLoadTracingVolumetricDepthTexture(int2(SVPos.xy) / DownSampleFactor);
 	}
 	else
 	{
 		RGBA = SafeSamplePreviousFrameVolumetricTexture(ScreenUV);
-		Depth = SafeSamplePreviousFrameVolumetricDepthTexture(ScreenUV);
+		Depths = SafeSamplePreviousFrameVolumetricDepthTexture(ScreenUV);
 	}
 	OutputRt0 = RGBA;
-	OutputRt1 = Depth;
+	OutputRt1 = Depths;
 	return;
 #endif
-
-	#define SAMPLECOUNT 9
-	int2 offset[SAMPLECOUNT] = {
-		{-1,-1}, {0,-1}, {1,-1},
-		{-1, 0}, {0, 0}, {1, 0},
-		{-1, 1}, {0, 1}, {1, 1} };
   
-	//if (false)  
-	//{
-	//	RGBA = SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor);
-	//	Depth = SafeLoadTracingVolumetricDepthTexture(int2(SVPos.xy) / DownSampleFactor);
-	//
-	//	float4 Plus00 = SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor + uint2(-1, 0));
-	//	float4 Plus10 = SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor + uint2( 1, 0));
-	//	float4 Plus11 = SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor + uint2( 0,-1));
-	//	float4 Plus01 = SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor + uint2( 0, 1));
-	//	float4 BoxMinPlus = min(min(Plus00, Plus10), min(Plus11, Plus01));
-	//	float4 BoxMaxPlus = max(max(Plus00, Plus10), max(Plus11, Plus01));
-	//	float4 Cross00 = SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor + uint2(-1,-1));
-	//	float4 Cross10 = SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor + uint2(-1, 1));
-	//	float4 Cross11 = SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor + uint2( 1,-1));
-	//	float4 Cross01 = SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor + uint2( 1, 1));
-	//	float4 BoxMinCross = min(min(Cross00, Cross10), min(Cross11, Cross01));
-	//	float4 BoxMaxCross = max(max(Cross00, Cross10), max(Cross11, Cross01));
-	//	float4 BoxMin = 0.5 * (BoxMinPlus + BoxMinCross);
-	//	float4 BoxMax = 0.5 * (BoxMaxPlus + BoxMaxCross);
-	//
-	//	RGBA = clamp(RGBA, BoxMin, BoxMax); // always simple TAA box filter
-	//}
-	//else
 	{
-
 		float2 ScreenPosition = ViewportUVToScreenPos(ScreenUV); // NDC in [-1,1] not using View.ScreenPositionScaleBias here
 
 		// Sample participating media "front depth" for a better reprojection
-		float TracingVolumetricSampleDepthKm = SafeLoadTracingVolumetricDepthTexture(int2(SVPos.xy) / DownSampleFactor);
+		float TracingVolumetricSampleDepthKm = SafeLoadTracingVolumetricDepthTexture(int2(SVPos.xy) / DownSampleFactor).x;
 		float TracingVolumetricSampleDepth = TracingVolumetricSampleDepthKm * 100000.0f; // Kilometers to centimeters
 		float DeviceZ = ConvertToDeviceZ(TracingVolumetricSampleDepth); // Approximation. Should try real DeviceZ
 
@@ -186,267 +159,135 @@ void ReconstructVolumetricRenderTargetPS(
 
 		if (VolumetricRenderTargetMode == 2)
 		{
+			const bool bUseNewSampleMode2 = ((IntPixelPos.x - IntPixelPosDownsample.x * DownSampleFactor) == CurrentTracingPixelOffset.x) && ((IntPixelPos.y - IntPixelPosDownsample.y * DownSampleFactor) == CurrentTracingPixelOffset.y);
+
 			// Always use new sample, reproject previous frame samples/pixels
-			if (UseNewSample || !bValidPreviousUVs)
+			if (bUseNewSampleMode2 || !bValidPreviousUVs)
 			{
 				// Load the new sample for this pixel we have just traced
-				RGBA = SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor);
-				Depth = SafeLoadTracingVolumetricDepthTexture(int2(SVPos.xy) / DownSampleFactor);
+				RGBA = SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor);// +float4(0.1, 0.0, 0, 0);
+				Depths = SafeLoadTracingVolumetricDepthTexture(int2(SVPos.xy) / DownSampleFactor);
 			}
 			else if(bValidPreviousUVs)
 			{
 				// Sample valid on screen history
-				RGBA = SafeSamplePreviousFrameVolumetricTexture(PrevScreenUVs);
-				Depth = SafeSamplePreviousFrameVolumetricDepthTexture(PrevScreenUVs);
+				RGBA = SafeSamplePreviousFrameVolumetricTexture(PrevScreenUVs);// +float4(0, 0.1, 0, 0);
+				Depths = SafeSamplePreviousFrameVolumetricDepthTexture(PrevScreenUVs);
 			}
 			else
 			{
 				// Bilinear sample new low resoltuion tracing
 				RGBA = SafeSampleTracingVolumetricTexture(ScreenUV);
-				Depth = SafeSampleTracingVolumetricDepthTexture(ScreenUV);
+				Depths = SafeSampleTracingVolumetricDepthTexture(ScreenUV);
 			}
 			OutputRt0 = RGBA;
-			OutputRt1 = Depth;
+			OutputRt1 = Depths;
 			return;
 		}
 		else if (bValidPreviousUVs)
 		{
+			int2 CenterSample = int2(SVPos.xy) / DownSampleFactor;
+			float4 NewRGBA = SafeLoadTracingVolumetricTexture(CenterSample);
+			float2 NewDepths = SafeLoadTracingVolumetricDepthTexture(CenterSample);
+
+			if (bUseNewSample)
+			{
+				// Load the new sample for this pixel we have just traced
+				RGBA = NewRGBA;
+				Depths = NewDepths;
+				//RGBA += float4(0.1, 0, 0, 0);
+			}
+			else // bValidPreviousUVs==true always here
+			{
+				// Sample valid on screen history
+				float4 HistoryRGBA = SafeSamplePreviousFrameVolumetricTexture(PrevScreenUVs * 1.0);
+				float2 HistoryDepths = SafeSamplePreviousFrameVolumetricDepthTexture(PrevScreenUVs * 1.0);
+
+				// Get information about neightboors
+				int2 NeightboorsOffset[8] = { int2(1,0), int2(1,1), int2(0,1), int2(-1,1), int2(-1,0), int2(-1,-1), int2(0,-1), int2(1,-1)};
+
+
+				const float ReconstructDepthZ = HalfResDepthTexture.Load(int3(SVPos.xy, 0)).r; // TODO split screen offset?
+				const float3 WorldPosition = SvPositionToWorld(float4(CenterSample, ReconstructDepthZ, 1.0));
+				const float PixelDistanceFromViewKm = length(WorldPosition - View.WorldCameraOrigin) * (1.0f / 100000.0f); // centimeter to kilometer
+
+				RGBA = HistoryRGBA;
+				Depths = HistoryDepths;
+
+				if (/*ReconstructDepthZ > 0.0001f &&*/ abs(PixelDistanceFromViewKm - HistoryDepths.y) > PixelDistanceFromViewKm * 0.1f)
+				{
+					// History has a too large depth difference at depth discontinuities, use the data with closest depth within the neightborhood
+					float ClosestDepth = 99999999.0f;
+					for (int i = 0; i < 8; ++i)
+					{
+						float2 NeighboorsDepths = SafeLoadTracingVolumetricDepthTexture(CenterSample + NeightboorsOffset[i]);
+						const float NeighboorsClosestDepth = abs(PixelDistanceFromViewKm - NeighboorsDepths.y);
+						if (NeighboorsClosestDepth < ClosestDepth)
+						{
+							ClosestDepth = NeighboorsClosestDepth;
+							float4 NeighboorsRGBA = SafeLoadTracingVolumetricTexture(CenterSample + NeightboorsOffset[i]);
+							RGBA   = NeighboorsRGBA;
+							Depths = NeighboorsDepths;
+						} 
+					}
+					if (abs(PixelDistanceFromViewKm - NewDepths.y) < ClosestDepth)
+					{
+						RGBA = NewRGBA;
+						Depths = NewDepths;
+					}
+					//RGBA += float4(0, 0.1 0, 0);
+				}
+				else //if(ReconstructDepthZ < 0.000001f)
+				{
+					// TODO: To use this, we need to make sure we prioritise pixe lwith under represented depth.
 #if 0
-			// Result in too blocky history
-			float4 PrevColor = SafeLoadPreviousFrameVolumetricTexture(PrevScreenUVs * PreviousVolumetricTextureSizeAndInvSize.xy);
-			float PrevDepth = SafeLoadPreviousFrameVolumetricDepthTexture(PrevScreenUVs * PreviousVolumetricTextureSizeAndInvSize.xy);
-#else
-			// Smoother history
-			float4 PrevColor = SafeSamplePreviousFrameVolumetricTexture(PrevScreenUVs);
-			float PrevDepth = SafeSamplePreviousFrameVolumetricDepthTexture(PrevScreenUVs);
+					// Make sure that history stay in the neightborhood color/transmittance/depth box after reprojection
+					float4 ColorAABBMin = 999999999.0f;
+					float4 ColorAABBMax = 0.0f;
+					float2 DepthsAABBMin = 999999999.0f;
+					float2 DepthsAABBMax = 0.0f;
+					bool bApply = true;
+					for (int i = 0; i < 8; ++i)
+					{
+						float4 ColorData = SafeLoadTracingVolumetricTexture(CenterSample + NeightboorsOffset[i]);
+						float2 DepthData = SafeLoadTracingVolumetricDepthTexture(CenterSample + NeightboorsOffset[i]);
+						ColorAABBMin = min(ColorAABBMin, ColorData);
+						ColorAABBMax = max(ColorAABBMax, ColorData);
+						DepthsAABBMin = min(DepthsAABBMin, DepthData);
+						DepthsAABBMax = max(DepthsAABBMax, DepthData);
+						bApply = bApply && DepthData.y > 1000.0f;
+					}
+					ColorAABBMin = min(ColorAABBMin, NewRGBA);
+					ColorAABBMax = max(ColorAABBMax, NewRGBA);
+					DepthsAABBMin = min(DepthsAABBMin, NewDepths);
+					DepthsAABBMax = max(DepthsAABBMax, NewDepths);
+					bApply = bApply && NewDepths.y > 1000.0f;
+					//if (bApply)
+					{
+						RGBA = clamp(RGBA, ColorAABBMin, ColorAABBMax);
+						Depths = clamp(Depths, DepthsAABBMin, DepthsAABBMax);
+					}
 #endif
-			float4 FilteredColor = PrevColor;
-			float FilteredDepth = PrevDepth;
-
-			float4 BoxMin = float4(99999.0f, 99999.0f, 99999.0f, 1.0f);
-			float4 BoxMax = float4(0.0f, 0.0f, 0.0f, 0.0f);
-
-#if 1 // Enable temporal AA like process
-			uint n;
-			float RefDepthKm = SafeLoadTracingVolumetricDepthTexture(int2(SVPos.xy) / DownSampleFactor);
-					   
-	#if 1
-			float4 MiddlePoint = SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor);
-			MiddlePoint.rgb = RGB2CLIP(MiddlePoint.rgb); MiddlePoint.a = -log(MiddlePoint.a);
-
-			float4 Plus00 = SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor + offset[0]);
-			float4 Plus10 = SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor + offset[2]);
-			float4 Plus11 = SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor + offset[6]);
-			float4 Plus01 = SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor + offset[8]);
-			Plus00.rgb = RGB2CLIP(Plus00.rgb); Plus00.a = -log(Plus00.a);
-			Plus10.rgb = RGB2CLIP(Plus10.rgb); Plus10.a = -log(Plus10.a);
-			Plus11.rgb = RGB2CLIP(Plus11.rgb); Plus11.a = -log(Plus11.a);
-			Plus01.rgb = RGB2CLIP(Plus01.rgb); Plus01.a = -log(Plus01.a);
-
-			float4 BoxMinPlus = min(min(Plus00, Plus10), min(Plus11, Plus01));
-			float4 BoxMaxPlus = max(max(Plus00, Plus10), max(Plus11, Plus01));
-			BoxMinPlus = min(BoxMinPlus, MiddlePoint);
-			BoxMaxPlus = max(BoxMaxPlus, MiddlePoint);
-
-			float4 Cross00 = SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor + offset[1]);
-			float4 Cross10 = SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor + offset[3]);
-			float4 Cross11 = SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor + offset[5]);
-			float4 Cross01 = SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor + offset[7]);
-			Cross00.rgb = RGB2CLIP(Cross00.rgb); Cross00.a = -log(Cross00.a);
-			Cross10.rgb = RGB2CLIP(Cross10.rgb); Cross10.a = -log(Cross10.a);
-			Cross11.rgb = RGB2CLIP(Cross11.rgb); Cross11.a = -log(Cross11.a);
-			Cross01.rgb = RGB2CLIP(Cross01.rgb); Cross01.a = -log(Cross01.a);
-
-			float4 BoxMinCross = min(min(Cross00, Cross10), min(Cross11, Cross01));
-			float4 BoxMaxCross = max(max(Cross00, Cross10), max(Cross11, Cross01));
-			BoxMinCross = min(BoxMinCross, MiddlePoint);
-			BoxMaxCross = max(BoxMaxCross, MiddlePoint);
-
-			BoxMin = 0.5f * (BoxMinPlus + BoxMinCross);
-			BoxMax = 0.5f * (BoxMaxPlus + BoxMaxCross);
-	#else
-			float4 BoxMinPlus = 999999;
-			float4 BoxMaxPlus = -999999;
-			float4 BoxMinCross = 999999;
-			float4 BoxMaxCross = -999999;
-			bool FoundAnyPlus = false;
-			bool FoundAnyCross = false;
-			#define UPDATEMINMAX_CROSS(x) \
-				if (any(x.rgb>0.0f)) \
-				{ \
-					float4 Data = x; \
-					Data.rgb = RGB2CLIP(Data.rgb); Data.a = -log(Data.a); \
-					FoundAnyCross = true; \
-					BoxMinCross = min(BoxMinCross, Data);\
-					BoxMaxCross = max(BoxMaxCross, Data);\
-				} 
-
-			#define UPDATEMINMAX_PLUS(x) \
-				if (any(x.rgb>0.0f)) \
-				{ \
-					float4 Data = x; \
-					Data.rgb = RGB2CLIP(Data.rgb); Data.a = -log(Data.a); \
-					FoundAnyPlus = true; \
-					BoxMinPlus = min(BoxMinPlus, Data);\
-					BoxMaxPlus = max(BoxMaxPlus, Data);\
-				} 
-
-			float4 MiddlePoint = SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor);
-			MiddlePoint.rgb = RGB2CLIP(MiddlePoint.rgb); MiddlePoint.a = -log(MiddlePoint.a);
-
-			UPDATEMINMAX_PLUS(SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor + offset[0]));
-			UPDATEMINMAX_PLUS(SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor + offset[2]));
-			UPDATEMINMAX_PLUS(SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor + offset[6]));
-			UPDATEMINMAX_PLUS(SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor + offset[8]));
-
-			UPDATEMINMAX_CROSS(SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor + offset[1]));
-			UPDATEMINMAX_CROSS(SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor + offset[3]));
-			UPDATEMINMAX_CROSS(SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor + offset[5]));
-			UPDATEMINMAX_CROSS(SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor + offset[7]));
-
-
-			if (!FoundAnyPlus && !FoundAnyCross)
-			{
-				//UPDATEMINMAX_PLUS(SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor + 2 * offset[0]));
-				//UPDATEMINMAX_PLUS(SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor + 2 * offset[2]));
-				//UPDATEMINMAX_PLUS(SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor + 2 * offset[6]));
-				//UPDATEMINMAX_PLUS(SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor + 2 * offset[8]));
-				//
-				//UPDATEMINMAX_CROSS(SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor + 2 * offset[1]));
-				//UPDATEMINMAX_CROSS(SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor + 2 * offset[3]));
-				//UPDATEMINMAX_CROSS(SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor + 2 * offset[5]));
-				//UPDATEMINMAX_CROSS(SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor + 2 * offset[7]));
-				//
-				//if (!FoundAnyPlus && !FoundAnyCross)
-				{
-					BoxMinCross = BoxMaxCross = MiddlePoint;
-					BoxMinPlus = BoxMaxPlus = MiddlePoint;
-				}
-				//else
-				//{
-				//	if (!FoundAnyCross)
-				//	{
-				//		BoxMinCross = BoxMinPlus;
-				//		BoxMaxCross = BoxMaxPlus;
-				//	}
-				//	if (!FoundAnyPlus)
-				//	{
-				//		BoxMinPlus = BoxMinCross;
-				//		BoxMaxPlus = BoxMaxCross;
-				//	}
-				//}
-			}
-			else
-			{
-				if (!FoundAnyCross)
-				{
-					BoxMinCross = BoxMinPlus;
-					BoxMaxCross = BoxMaxPlus;
-				}
-				if (!FoundAnyPlus)
-				{
-					BoxMinPlus = BoxMinCross;
-					BoxMaxPlus = BoxMaxCross;
 				}
 			}
-
-			BoxMin = 0.5 * (BoxMinPlus + BoxMinCross);
-			BoxMax = 0.5 * (BoxMaxPlus + BoxMaxCross);
-	#endif
-
-			float4 MiddlePointDepth = SafeLoadTracingVolumetricDepthTexture(int2(SVPos.xy) / DownSampleFactor);
-			float DepthPlus00 = SafeLoadTracingVolumetricDepthTexture(int2(SVPos.xy) / DownSampleFactor + offset[0]);
-			float DepthPlus10 = SafeLoadTracingVolumetricDepthTexture(int2(SVPos.xy) / DownSampleFactor + offset[2]);
-			float DepthPlus11 = SafeLoadTracingVolumetricDepthTexture(int2(SVPos.xy) / DownSampleFactor + offset[6]);
-			float DepthPlus01 = SafeLoadTracingVolumetricDepthTexture(int2(SVPos.xy) / DownSampleFactor + offset[8]);
-			float DepthBoxMinPlus = min(min(DepthPlus00, DepthPlus10), min(DepthPlus11, DepthPlus01));
-			float DepthBoxMaxPlus = max(max(DepthPlus00, DepthPlus10), max(DepthPlus11, DepthPlus01));
-			DepthBoxMinPlus = min(DepthBoxMinPlus, MiddlePointDepth);
-			DepthBoxMaxPlus = max(DepthBoxMaxPlus, MiddlePointDepth);
-			float DepthCross00 = SafeLoadTracingVolumetricDepthTexture(int2(SVPos.xy) / DownSampleFactor + offset[1]);
-			float DepthCross10 = SafeLoadTracingVolumetricDepthTexture(int2(SVPos.xy) / DownSampleFactor + offset[3]);
-			float DepthCross11 = SafeLoadTracingVolumetricDepthTexture(int2(SVPos.xy) / DownSampleFactor + offset[5]);
-			float DepthCross01 = SafeLoadTracingVolumetricDepthTexture(int2(SVPos.xy) / DownSampleFactor + offset[7]);
-			float DepthBoxMinCross = min(min(DepthCross00, DepthCross10), min(DepthCross11, DepthCross01));
-			float DepthBoxMaxCross = max(max(DepthCross00, DepthCross10), max(DepthCross11, DepthCross01));
-			DepthBoxMinCross = min(DepthBoxMinCross, MiddlePointDepth);
-			DepthBoxMaxCross = max(DepthBoxMaxCross, MiddlePointDepth);
-
-			// This reconstruction must be done for now to get proper depth matching the particpating media extent on screen
-			float DepthBoxMin = 0.5f * (DepthBoxMinPlus + DepthBoxMinCross);
-			float DepthBoxMax = 0.5f * (DepthBoxMaxPlus + DepthBoxMaxCross);
-			FilteredDepth = clamp(PrevDepth, DepthBoxMin, DepthBoxMax); // simple depth range clamp
-
-			float FinalTemporalFactor = TemporalFactor;
-#if 1
-			const float3 PrevColorClip = RGB2CLIP(PrevColor.rgb); PrevColor.a = -log(PrevColor.a);
-			FilteredColor = clamp(float4(PrevColorClip, PrevColor.a), BoxMin, BoxMax);// simple box clamp
-#else
-			// Slabs from http://jcgt.org/published/0007/03/04/
-			float3 RayOrigin = RGB2CLIP(PrevColor.rgb);				// Origin is the previous/history color sample
-			float3 RayDir = RGB2CLIP(SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor).rgb) - RayOrigin;		// Direction is the new color sample
-			//RayDir = normalize(RayDir);
-			RayDir.x = abs(RayDir.x) < half(1.0 / 65536.0) ? half(1.0 / 65536.0) : RayDir.x;
-			RayDir.y = abs(RayDir.y) < half(1.0 / 65536.0) ? half(1.0 / 65536.0) : RayDir.y;
-			RayDir.z = abs(RayDir.z) < half(1.0 / 65536.0) ? half(1.0 / 65536.0) : RayDir.z;
-			float3 InvRayDir = rcp(RayDir);
-			float3 t0 = (BoxMin - RayOrigin) * InvRayDir;
-			float3 t1 = (BoxMax - RayOrigin) * InvRayDir;
-			float3 Intersect3 = min(t0, t1);
-			float Intersect = min(Intersect3.x,min(Intersect3.y, Intersect3.z));
-
-			Intersect = saturate(Intersect);
-			float3 ClippedColor = RayOrigin + RayDir * Intersect;	// TODO should not need to intersect if we are inside the box and can reach the point...
-			FilteredColor = clamp(float4(ClippedColor, PrevColor.a), BoxMin, BoxMax);// simple box clamp
-#endif
-			// Convert optical thickness back to transmittance
-			FilteredColor.a = exp(-FilteredColor.a);
-
-			// When BoxMin is near 0 as pre-exposed luminance, this means we are likely near the edge of a volume. 
-			// In this case the AABB can bevery large and will accept many samples, leading to slow color convergence such as dark edges around clouds when the sun rises.
-			// We increase the temporal convergence rate to reduce that when we detect this case.
-			const float PreExposedLuminanceTopThresholdBeforeResponsive = 0.05f;
-			const float PreExposedBoxSizeBeforeResponsive = 0.1f;
-			const float ResponsiveAAFactor = 1.0f;
-			FinalTemporalFactor = all(BoxMin.rgb < PreExposedLuminanceTopThresholdBeforeResponsive) && any((BoxMax - BoxMin) > PreExposedBoxSizeBeforeResponsive) ?
-				saturate(TemporalFactor + ResponsiveAAFactor * (1.0f - BOX_NORM_LUMA(FilteredColor, BoxMin, BoxMax))) :
-				TemporalFactor;
-
-			FilteredColor.rgb = CLIP2RGB(FilteredColor.rgb);
-
-			if (UseNewSample)
-			{
-				float4 NewColor = SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor);
-				FilteredColor = lerp(FilteredColor, NewColor, FinalTemporalFactor);
-			
-				float NewDepth = SafeLoadTracingVolumetricDepthTexture(int2(SVPos.xy) / DownSampleFactor);
-				FilteredDepth = lerp(FilteredDepth, NewDepth, FinalTemporalFactor);
-			}
-
-#else  // Enable temporal AA like process
-			FilteredColor = SafeLoadTracingVolumetricTexture(int2(SVPos.xy) / DownSampleFactor);
-			FilteredDepth = SafeLoadTracingVolumetricDepthTexture(int2(SVPos.xy) / DownSampleFactor);
-#endif // Enable temporal AA like process
-
-			RGBA = FilteredColor;
-			Depth = FilteredDepth;
 		}
 		else
 		{
 			// History is invalid so simply use this frame low resolution render with bilinear sampling.
 			RGBA = SafeSampleTracingVolumetricTexture(ScreenUV);
-			Depth= SafeSampleTracingVolumetricDepthTexture(ScreenUV);
+			Depths = SafeSampleTracingVolumetricDepthTexture(ScreenUV);
 		}
 	}
 
 	OutputRt0 = RGBA;
-	OutputRt1 = Depth;
+	OutputRt1 = Depths;
 
 #else // PERMUTATION_HISTORY_AVAILABLE
 
 	// Simple bilinear upsample
 	OutputRt0 = SafeSampleTracingVolumetricTexture(ScreenUV);
 	OutputRt1 = SafeSampleTracingVolumetricDepthTexture(ScreenUV);
+
 #endif // PERMUTATION_HISTORY_AVAILABLE
 }
 
@@ -459,11 +300,11 @@ void ReconstructVolumetricRenderTargetPS(
 SamplerState LinearTextureSampler;
 
 Texture2D<float4> VolumetricTexture;
-Texture2D<float> VolumetricDepthTexture;
+Texture2D<float2> VolumetricDepthTexture;
 uint4 VolumetricTextureValidCoordRect;
 float4 VolumetricTextureValidUvRect;
 
-#if PERMUTATION_LINEARDEPTH
+#if PERMUTATION_RENDER_UNDERWATER_BUFFER || PERMUTATION_RENDER_CAMERA_UNDERWATER
 Texture2D WaterLinearDepthTexture;
 float4 SceneWithoutSingleLayerWaterViewRect;
 float2 FullResolutionToWaterBufferScale;
@@ -477,13 +318,13 @@ float4 SafeSampleVolumetricTexture(float2 UV)
 {
 	return VolumetricTexture.SampleLevel(LinearTextureSampler, clamp(UV, VolumetricTextureValidUvRect.xy, VolumetricTextureValidUvRect.zw), 0);
 }
-float SafeLoadVolumetricDepthTexture(uint2 Coord)
+float2 SafeLoadVolumetricDepthTexture(uint2 Coord)
 {
-	return VolumetricDepthTexture.Load(uint3(clamp(Coord, VolumetricTextureValidCoordRect.xy, VolumetricTextureValidCoordRect.zw), 0)).r;
+	return VolumetricDepthTexture.Load(uint3(clamp(Coord, VolumetricTextureValidCoordRect.xy, VolumetricTextureValidCoordRect.zw), 0)).rg;
 }
-float SafeSampleVolumetricDepthTexture(float2 UV)
+float2 SafeSampleVolumetricDepthTexture(float2 UV)
 {
-	return VolumetricDepthTexture.SampleLevel(LinearTextureSampler, clamp(UV, VolumetricTextureValidUvRect.xy, VolumetricTextureValidUvRect.zw), 0).r;
+	return VolumetricDepthTexture.SampleLevel(LinearTextureSampler, clamp(UV, VolumetricTextureValidUvRect.xy, VolumetricTextureValidUvRect.zw), 0).rg;
 }
 
 float4 VolumetricTextureSizeAndInvSize;
@@ -502,7 +343,7 @@ void Sample(
 	inout float4 DataAcc)
 {
 	uint2 LoadCoord = clamp(CurVolumeResPixelCoord + FullResPixelOffset, float2(0.0f,0.0f), VolumetricTextureSizeAndInvSize.xy-1.0f);
-	float CloudFrontDepthKm = SafeLoadVolumetricDepthTexture(LoadCoord);
+	float CloudFrontDepthKm = SafeLoadVolumetricDepthTexture(LoadCoord).x;
 
 	float  SampleDeviceZ = SampleDeviceZFromSceneTextures((CurVolumeResPixelCoord + FullResPixelOffset) * VolumetricTextureSizeAndInvSize.zw * DynamicResToFullResolutionCoord);
 	float3 SampleScreenWorldPositionApprox = float4(SvPositionToWorld(float4(SVPos.xy, SampleDeviceZ, 1.0)), 1.0).xyz;
@@ -523,7 +364,7 @@ void ComposeVolumetricRTOverScenePS(
 	in float4 SVPos : SV_POSITION,
 	out float4 OutputRt0 : SV_Target0)
 {
-	float2 CurResPixelCoord = SVPos.xy;
+	float2 CurResPixelCoord = SVPos.xy;// -ResolvedView.ViewRectMin.xy;
 	float2 ScreenUV = CurResPixelCoord * View.BufferSizeAndInvSize.zw;
 	float2 VolumeUV = FullResolutionToVolumetricBufferResolutionScale.x * (ScreenUV * View.BufferSizeAndInvSize.xy * VolumetricTextureSizeAndInvSize.zw);
 
@@ -533,68 +374,95 @@ void ComposeVolumetricRTOverScenePS(
 										* View.BufferSizeAndInvSize.zw											// Pixel size
 										* FullResolutionToVolumetricBufferResolutionScale.y;					// Volumetric buffer downsample factor
 	
-	float2 Offset0 = (float2(Rand3DPCG16(int3(CurResPixelCoord, View.StateFrameIndexMod8     )).xy) * rcp(65536.0)) * 2.0f - 1.0f;
-	float2 Offset1 = (float2(Rand3DPCG16(int3(CurResPixelCoord, View.StateFrameIndexMod8 + 8 )).xy) * rcp(65536.0)) * 2.0f - 1.0f;
-	float2 Offset2 = (float2(Rand3DPCG16(int3(CurResPixelCoord, View.StateFrameIndexMod8 + 16)).xy) * rcp(65536.0)) * 2.0f - 1.0f;
-	float2 Offset3 = (float2(Rand3DPCG16(int3(CurResPixelCoord, View.StateFrameIndexMod8 + 32)).xy) * rcp(65536.0)) * 2.0f - 1.0f;
+	float2 Offset0Sample = (float2(Rand3DPCG16(int3(CurResPixelCoord, View.StateFrameIndexMod8     )).xy) * rcp(65536.0)) * 2.0f - 1.0f;
+	float2 Offset1Sample = (float2(Rand3DPCG16(int3(CurResPixelCoord, View.StateFrameIndexMod8 + 8 )).xy) * rcp(65536.0)) * 2.0f - 1.0f;
+	float2 Offset2Sample = (float2(Rand3DPCG16(int3(CurResPixelCoord, View.StateFrameIndexMod8 + 16)).xy) * rcp(65536.0)) * 2.0f - 1.0f;
+	float2 Offset3Sample = (float2(Rand3DPCG16(int3(CurResPixelCoord, View.StateFrameIndexMod8 + 32)).xy) * rcp(65536.0)) * 2.0f - 1.0f;
+	Offset0Sample = normalize(Offset0Sample);
+	Offset1Sample = normalize(Offset1Sample);
+	Offset2Sample = normalize(Offset2Sample);
+	Offset3Sample = normalize(Offset3Sample);
 
-	Offset0 = normalize(Offset0) * FullResOffsetUVScale * UvOffsetScale;
-	Offset1 = normalize(Offset1) * FullResOffsetUVScale * UvOffsetScale;
-	Offset2 = normalize(Offset2) * FullResOffsetUVScale * UvOffsetScale;
-	Offset3 = normalize(Offset3) * FullResOffsetUVScale * UvOffsetScale;
+	float2 Offset0 = Offset0Sample * FullResOffsetUVScale * UvOffsetScale;
+	float2 Offset1 = Offset1Sample * FullResOffsetUVScale * UvOffsetScale;
+	float2 Offset2 = Offset2Sample * FullResOffsetUVScale * UvOffsetScale;
+	float2 Offset3 = Offset3Sample * FullResOffsetUVScale * UvOffsetScale;
+
+	float2 VolumeUVOffset0 = VolumeUV + Offset0;
+	float2 VolumeUVOffset1 = VolumeUV + Offset1;
+	float2 VolumeUVOffset2 = VolumeUV + Offset2;
+	float2 VolumeUVOffset3 = VolumeUV + Offset3;
 
 #if PERMUTATION_UPSAMPLINGMODE==0
 	// Single bilinear sample
 
-	OutputRt0 = SafeSampleVolumetricTexture(VolumeUV);
+	OutputRt0 = SafeLoadVolumetricTexture(VolumeUV * VolumetricTextureSizeAndInvSize.xy); // SafeSampleVolumetricTexture(VolumeUV);
 	return;
 
 #elif PERMUTATION_UPSAMPLINGMODE==1
 	// Jitter the source sample to add high frequency that can be resolved by TAA - 4 samples
 
-	float4 Data0 = SafeSampleVolumetricTexture(VolumeUV + Offset0);
-	float4 Data1 = SafeSampleVolumetricTexture(VolumeUV + Offset1);
-	float4 Data2 = SafeSampleVolumetricTexture(VolumeUV + Offset2);
-	float4 Data3 = SafeSampleVolumetricTexture(VolumeUV + Offset3);
+	float4 Data0 = SafeSampleVolumetricTexture(VolumeUVOffset0);
+	float4 Data1 = SafeSampleVolumetricTexture(VolumeUVOffset1);
+	float4 Data2 = SafeSampleVolumetricTexture(VolumeUVOffset2);
+	float4 Data3 = SafeSampleVolumetricTexture(VolumeUVOffset3);
 
 	OutputRt0 = 0.25 * (Data0 + Data1 + Data2 + Data3); 
 	return;
 
-#elif (PERMUTATION_UPSAMPLINGMODE==3 || PERMUTATION_UPSAMPLINGMODE==2)
+#elif (PERMUTATION_UPSAMPLINGMODE==4 || PERMUTATION_UPSAMPLINGMODE==3 || PERMUTATION_UPSAMPLINGMODE==2)
 	// Jitter the source sample to add high frequency that can be resolved by TAA - 4 samples + depth test with linear sampling
 
-	float2 VolumeCoord = (VolumeUV - VolumetricTextureSizeAndInvSize.zw * 0.5f);	// 0.5 is the scale between upsampled and fullres, we want to offset down one full res pixel
+	float2 VolumeCoord = (VolumeUV - 0*VolumetricTextureSizeAndInvSize.zw * 0.5f);	// 0.5 is the scale between upsampled and fullres, we want to offset down one full res pixel
 	VolumeCoord = (floor(VolumeCoord * VolumetricTextureSizeAndInvSize.xy) + 0.5f); // bottom left of the squere of texels to consider, at texel center
 
-#if PERMUTATION_LINEARDEPTH
-	// Adapt the UV to the relative water buffer size
-	VolumeUV *= FullResolutionToWaterBufferScale.y;
-	// Offset the uv to the view buffer region and take into account dynamic resolution scaling.
-	float2 DepthScreenUV = SceneWithoutSingleLayerWaterViewRect.xy + VolumeUV * (View.ViewSizeAndInvSize.xy * View.BufferSizeAndInvSize.zw);
-
 	const float UseWaterLinearDepthTexture = 100.0f;	// This must match SINGLE_LAYER_WATER_DEPTH_SCALE from SingleLayerWaterCommon.ush and SingleLayerWaterComposite.usf
-	float PixelLinearDepth = WaterLinearDepthTexture.SampleLevel(LinearTextureSampler, DepthScreenUV, 0).r * UseWaterLinearDepthTexture;
+#if PERMUTATION_RENDER_UNDERWATER_BUFFER
+	// Adapt the UV to the relative water buffer size
+	float2 WaterVolumeUV = VolumeUV * FullResolutionToWaterBufferScale.y;
+	// Offset the uv to the view buffer region and take into account dynamic resolution scaling.
+	float2 WaterDepthScreenUV = SceneWithoutSingleLayerWaterViewRect.xy + WaterVolumeUV * (View.ViewSizeAndInvSize.xy * View.BufferSizeAndInvSize.zw);
+
+	float PixelLinearDepth = WaterLinearDepthTexture.SampleLevel(LinearTextureSampler, WaterDepthScreenUV, 0).r * UseWaterLinearDepthTexture;
 
 	float3 WorldPosition = float4(SvPositionToWorld(float4(SVPos.xy, 0.5, 1.0)), 1.0).xyz;
 	WorldPosition = normalize(WorldPosition - View.WorldCameraOrigin) * PixelLinearDepth + View.WorldCameraOrigin;
 
 	float4 ClipPosition = mul(float4(WorldPosition,1.0), View.WorldToClip);
 	ClipPosition /= ClipPosition.w;
+	float PixelDeviceZ = ClipPosition.z;
 
 	float3 ScreenWorldPosition = float4(SvPositionToWorld(float4(SVPos.xy, ClipPosition.z, 1.0)), 1.0).xyz;
 #else
-	float PixelDeviceZ = SampleDeviceZFromSceneTextures(ScreenUV);
+	float PixelDeviceZ = SceneDepthTexture.Load(uint3(SVPos.xy, 0)).r;
 	float3 ScreenWorldPosition = float4(SvPositionToWorld(float4(SVPos.xy, PixelDeviceZ, 1.0)), 1.0).xyz;
 #endif 
 
-	float PixelFrontDepthFromViewKm = length(View.WorldCameraOrigin - ScreenWorldPosition) * (1.0f / 100000.0f); // centimeter to kilometer
+	float PixelDistanceFromView   = length(View.WorldCameraOrigin - ScreenWorldPosition);
+	float PixelDistanceFromViewKm = PixelDistanceFromView * (1.0f / 100000.0f); // centimeter to kilometer
+
+
+
+#if PERMUTATION_RENDER_CAMERA_UNDERWATER
+	// Now check that we are compositing a pixel that is not "water" to avoid applying clouds twice (they are already composited with the behind water layer scene).
+	// We also lack depth information behind the water surface now so the composition would be wrong anyway.
+	float WaterTestPixelLinearDepth = WaterLinearDepthTexture.SampleLevel(LinearTextureSampler, VolumeUV, 0).r * UseWaterLinearDepthTexture;
+	if (WaterTestPixelLinearDepth > PixelDistanceFromView)
+	{
+		// This pixel contains water, so skip it because clouds have already been composited in the "behind water scene color".
+		clip(-1.0f);
+		return;
+	}
+#endif
+
+
 
 #if PERMUTATION_UPSAMPLINGMODE==2
 	// Single pixel, forced mode when source and target resolution are matching
 	float4 VolumeRGBT = SafeSampleVolumetricTexture(VolumeUV);
-	float VolumeFrontDepth = SafeSampleVolumetricDepthTexture(VolumeUV);
+	float VolumeFrontDepth = SafeSampleVolumetricDepthTexture(VolumeUV).r;
 
-	if (PixelFrontDepthFromViewKm > VolumeFrontDepth)
+	if (PixelDistanceFromViewKm > VolumeFrontDepth)
 	{
 		OutputRt0 = VolumeRGBT;
 	}
@@ -603,22 +471,44 @@ void ComposeVolumetricRTOverScenePS(
 		OutputRt0 = float4(0.0f, 0.0f, 0.0f, 1.0f);
 		clip(-1.0f);
 	}
+#elif PERMUTATION_UPSAMPLINGMODE==3
+
+#if 1
+	float4 VolumeRGBT0 = SafeSampleVolumetricTexture(VolumeUVOffset0);
+	float2 VolumeFrontDepth0 = SafeSampleVolumetricDepthTexture(VolumeUVOffset0);
+	float4 VolumeRGBT1 = SafeSampleVolumetricTexture(VolumeUVOffset1);
+	float2 VolumeFrontDepth1 = SafeSampleVolumetricDepthTexture(VolumeUVOffset1);
+	float4 VolumeRGBT2 = SafeSampleVolumetricTexture(VolumeUVOffset2);
+	float2 VolumeFrontDepth2 = SafeSampleVolumetricDepthTexture(VolumeUVOffset2);
+	float4 VolumeRGBT3 = SafeSampleVolumetricTexture(VolumeUVOffset3);
+	float2 VolumeFrontDepth3 = SafeSampleVolumetricDepthTexture(VolumeUVOffset3);
 #else
-	float4 VolumeRGBT0 = SafeSampleVolumetricTexture(VolumeUV + Offset0);
-	float VolumeFrontDepth0 = SafeSampleVolumetricDepthTexture(VolumeUV + Offset0);
-	float4 VolumeRGBT1 = SafeSampleVolumetricTexture(VolumeUV + Offset1);
-	float VolumeFrontDepth1 = SafeSampleVolumetricDepthTexture(VolumeUV + Offset1);
-	float4 VolumeRGBT2 = SafeSampleVolumetricTexture(VolumeUV + Offset2);
-	float VolumeFrontDepth2 = SafeSampleVolumetricDepthTexture(VolumeUV + Offset2);
-	float4 VolumeRGBT3 = SafeSampleVolumetricTexture(VolumeUV + Offset3);
-	float VolumeFrontDepth3 = SafeSampleVolumetricDepthTexture(VolumeUV + Offset3);
+	float4 VolumeRGBT0 = SafeLoadVolumetricTexture(VolumeUVOffset0 * VolumetricTextureSizeAndInvSize.xy);
+	float2 VolumeFrontDepth0 = SafeLoadVolumetricDepthTexture(VolumeUVOffset0 * VolumetricTextureSizeAndInvSize.xy);
+	float4 VolumeRGBT1 = SafeLoadVolumetricTexture(VolumeUVOffset1 * VolumetricTextureSizeAndInvSize.xy);
+	float2 VolumeFrontDepth1 = SafeLoadVolumetricDepthTexture(VolumeUVOffset1 * VolumetricTextureSizeAndInvSize.xy);
+	float4 VolumeRGBT2 = SafeLoadVolumetricTexture(VolumeUVOffset2 * VolumetricTextureSizeAndInvSize.xy);
+	float2 VolumeFrontDepth2 = SafeLoadVolumetricDepthTexture(VolumeUVOffset2 * VolumetricTextureSizeAndInvSize.xy);
+	float4 VolumeRGBT3 = SafeLoadVolumetricTexture(VolumeUVOffset3 * VolumetricTextureSizeAndInvSize.xy);
+	float2 VolumeFrontDepth3 = SafeLoadVolumetricDepthTexture(VolumeUVOffset3 * VolumetricTextureSizeAndInvSize.xy);
+#endif
 
 	float ValidSampleCount = 0.0f;
 	float4 DataAcc = 0.0f;
-	if (PixelFrontDepthFromViewKm > VolumeFrontDepth0) { DataAcc += VolumeRGBT0; ValidSampleCount += 1.0f; }
-	if (PixelFrontDepthFromViewKm > VolumeFrontDepth1) { DataAcc += VolumeRGBT1; ValidSampleCount += 1.0f; }
-	if (PixelFrontDepthFromViewKm > VolumeFrontDepth2) { DataAcc += VolumeRGBT2; ValidSampleCount += 1.0f; }
-	if (PixelFrontDepthFromViewKm > VolumeFrontDepth3) { DataAcc += VolumeRGBT3; ValidSampleCount += 1.0f; }
+#if 1
+	if (PixelDistanceFromViewKm > VolumeFrontDepth0.x) { DataAcc += VolumeRGBT0; ValidSampleCount += 1.0f; }
+	if (PixelDistanceFromViewKm > VolumeFrontDepth1.x) { DataAcc += VolumeRGBT1; ValidSampleCount += 1.0f; }
+	if (PixelDistanceFromViewKm > VolumeFrontDepth2.x) { DataAcc += VolumeRGBT2; ValidSampleCount += 1.0f; }
+	if (PixelDistanceFromViewKm > VolumeFrontDepth3.x) { DataAcc += VolumeRGBT3; ValidSampleCount += 1.0f; }
+#else
+	float ClostestDepth = 999999999.0f;
+	float ThisDepth;
+	PixelDistanceFromViewKm = min(PixelDistanceFromViewKm, max(max(VolumeFrontDepth0.y, VolumeFrontDepth1.y), max(VolumeFrontDepth2.y, VolumeFrontDepth3.y))); // clamp to the maximum of the read depth to avoid no depth matching
+	ThisDepth = abs(VolumeFrontDepth0.y - PixelDistanceFromViewKm); if (ThisDepth < ClostestDepth) { DataAcc = VolumeRGBT0; ValidSampleCount = 1.0f; ClostestDepth = ThisDepth; }
+	ThisDepth = abs(VolumeFrontDepth1.y - PixelDistanceFromViewKm); if (ThisDepth < ClostestDepth) { DataAcc = VolumeRGBT1; ValidSampleCount = 1.0f; ClostestDepth = ThisDepth; }
+	ThisDepth = abs(VolumeFrontDepth2.y - PixelDistanceFromViewKm); if (ThisDepth < ClostestDepth) { DataAcc = VolumeRGBT2; ValidSampleCount = 1.0f; ClostestDepth = ThisDepth; }
+	ThisDepth = abs(VolumeFrontDepth3.y - PixelDistanceFromViewKm); if (ThisDepth < ClostestDepth) { DataAcc = VolumeRGBT3; ValidSampleCount = 1.0f; ClostestDepth = ThisDepth; }
+#endif
 
 	if (ValidSampleCount > 0.0f)
 	{
@@ -629,87 +519,191 @@ void ComposeVolumetricRTOverScenePS(
 		OutputRt0 = float4(0.0f, 0.0f, 0.0f, 1.0f);
 		clip(-1.0f);
 	}
+
+#elif PERMUTATION_UPSAMPLINGMODE==4
+
+	int2 PixelPos = SVPos.xy;
+	int2 VolumeCoordUInt = PixelPos  / int(FullResolutionToVolumetricBufferResolutionScale.y);
+	int OffsetX = (VolumeCoordUInt.x * int(FullResolutionToVolumetricBufferResolutionScale.y)) == PixelPos.x ? -1 : 1;
+	int OffsetY = (VolumeCoordUInt.y * int(FullResolutionToVolumetricBufferResolutionScale.y)) == PixelPos.y ? -1 : 1;
+
+#if PERMUTATION_RENDER_UNDERWATER_BUFFER
+
+	// Special spimple stochastic sampling when under water.
+	OutputRt0 = float4(0, 0, 0, 1);
+	{
+		VolumeUVOffset0 = WaterVolumeUV + Offset0;
+		VolumeUVOffset1 = WaterVolumeUV + Offset1;
+		VolumeUVOffset2 = WaterVolumeUV + Offset2;
+		VolumeUVOffset3 = WaterVolumeUV + Offset3;
+
+		float4 VolumeRGBT0 = SafeLoadVolumetricTexture(VolumeUVOffset0 * VolumetricTextureSizeAndInvSize.xy);
+		float2 VolumeFrontDepth0 = SafeLoadVolumetricDepthTexture(VolumeUVOffset0 * VolumetricTextureSizeAndInvSize.xy);
+		float4 VolumeRGBT1 = SafeLoadVolumetricTexture(VolumeUVOffset1 * VolumetricTextureSizeAndInvSize.xy);
+		float2 VolumeFrontDepth1 = SafeLoadVolumetricDepthTexture(VolumeUVOffset1 * VolumetricTextureSizeAndInvSize.xy);
+		float4 VolumeRGBT2 = SafeLoadVolumetricTexture(VolumeUVOffset2 * VolumetricTextureSizeAndInvSize.xy);
+		float2 VolumeFrontDepth2 = SafeLoadVolumetricDepthTexture(VolumeUVOffset2 * VolumetricTextureSizeAndInvSize.xy);
+		float4 VolumeRGBT3 = SafeLoadVolumetricTexture(VolumeUVOffset3 * VolumetricTextureSizeAndInvSize.xy);
+		float2 VolumeFrontDepth3 = SafeLoadVolumetricDepthTexture(VolumeUVOffset3 * VolumetricTextureSizeAndInvSize.xy);
+
+		float ValidSampleCount = 0.0f;
+		float4 DataAcc = 0.0f;
+		const float CloudFrontDepthTinyOffset = 0.001;
+
+		// When this pixel is at a distance further than what the water depth buffer can represent, trivially accept all neighboorinjg pixels containing clouds.
+		// This makes sure that clouds around the distant horizon are also composited and not skip by "depth buffer is further than the cloud front depth" test.
+		const bool ISWaterFarDepthBuffer = PixelDistanceFromViewKm >= UseWaterLinearDepthTexture * Max10BitsFloat;
+
+		// We are testing if the depth buffer is further than the cloud front depth and that the cloud front depth is actually in front of traced depth.
+		if (PixelDistanceFromViewKm > (VolumeFrontDepth0.x - CloudFrontDepthTinyOffset || ISWaterFarDepthBuffer) && VolumeFrontDepth0.x < (VolumeFrontDepth0.y)) { DataAcc += VolumeRGBT0; ValidSampleCount += 1.0f; }
+		if (PixelDistanceFromViewKm > (VolumeFrontDepth1.x - CloudFrontDepthTinyOffset || ISWaterFarDepthBuffer) && VolumeFrontDepth1.x < (VolumeFrontDepth1.y)) { DataAcc += VolumeRGBT1; ValidSampleCount += 1.0f; }
+		if (PixelDistanceFromViewKm > (VolumeFrontDepth2.x - CloudFrontDepthTinyOffset || ISWaterFarDepthBuffer) && VolumeFrontDepth2.x < (VolumeFrontDepth2.y)) { DataAcc += VolumeRGBT2; ValidSampleCount += 1.0f; }
+		if (PixelDistanceFromViewKm > (VolumeFrontDepth3.x - CloudFrontDepthTinyOffset || ISWaterFarDepthBuffer) && VolumeFrontDepth3.x < (VolumeFrontDepth3.y)) { DataAcc += VolumeRGBT3; ValidSampleCount += 1.0f; }
+		if (ValidSampleCount > 0.0f)
+		{
+			OutputRt0 = DataAcc / ValidSampleCount;
+		}
+		else
+		{
+			// If with the regular sampling we have not hit any valid data, let's sample further with an arbitrary scale.
+			const float ArbitraryScale = 3.0f;
+			VolumeUVOffset0 = WaterVolumeUV + Offset0.yx * ArbitraryScale;
+			VolumeUVOffset1 = WaterVolumeUV + Offset1.yx * ArbitraryScale;
+			VolumeUVOffset2 = WaterVolumeUV + Offset2.yx * ArbitraryScale;
+			VolumeUVOffset3 = WaterVolumeUV + Offset3.yx * ArbitraryScale;
+
+			VolumeRGBT0 = SafeLoadVolumetricTexture(VolumeUVOffset0 * VolumetricTextureSizeAndInvSize.xy);
+			VolumeFrontDepth0 = SafeLoadVolumetricDepthTexture(VolumeUVOffset0 * VolumetricTextureSizeAndInvSize.xy);
+			VolumeRGBT1 = SafeLoadVolumetricTexture(VolumeUVOffset1 * VolumetricTextureSizeAndInvSize.xy);
+			VolumeFrontDepth1 = SafeLoadVolumetricDepthTexture(VolumeUVOffset1 * VolumetricTextureSizeAndInvSize.xy);
+			VolumeRGBT2 = SafeLoadVolumetricTexture(VolumeUVOffset2 * VolumetricTextureSizeAndInvSize.xy);
+			VolumeFrontDepth2 = SafeLoadVolumetricDepthTexture(VolumeUVOffset2 * VolumetricTextureSizeAndInvSize.xy);
+			VolumeRGBT3 = SafeLoadVolumetricTexture(VolumeUVOffset3 * VolumetricTextureSizeAndInvSize.xy);
+			VolumeFrontDepth3 = SafeLoadVolumetricDepthTexture(VolumeUVOffset3 * VolumetricTextureSizeAndInvSize.xy);
+
+			// We are testing if the depth buffer is further than the cloud front depth and that the cloud front depth is actually in front of traced depth.
+			if (PixelDistanceFromViewKm > (VolumeFrontDepth0.x - CloudFrontDepthTinyOffset) && VolumeFrontDepth0.x < (VolumeFrontDepth0.y)) { DataAcc += VolumeRGBT0; ValidSampleCount += 1.0f; }
+			if (PixelDistanceFromViewKm > (VolumeFrontDepth1.x - CloudFrontDepthTinyOffset) && VolumeFrontDepth1.x < (VolumeFrontDepth1.y)) { DataAcc += VolumeRGBT1; ValidSampleCount += 1.0f; }
+			if (PixelDistanceFromViewKm > (VolumeFrontDepth2.x - CloudFrontDepthTinyOffset) && VolumeFrontDepth2.x < (VolumeFrontDepth2.y)) { DataAcc += VolumeRGBT2; ValidSampleCount += 1.0f; }
+			if (PixelDistanceFromViewKm > (VolumeFrontDepth3.x - CloudFrontDepthTinyOffset) && VolumeFrontDepth3.x < (VolumeFrontDepth3.y)) { DataAcc += VolumeRGBT3; ValidSampleCount += 1.0f; }
+			if (ValidSampleCount > 0.0f)
+			{
+				OutputRt0 = DataAcc / ValidSampleCount;// +float4(10.0, 0.0, 0.0, 0.0);
+			}
+			else
+			{
+				OutputRt0 = float4(0.0f, 0.0f, 0.0f, 1.0f);
+				clip(-1.0f);
+			}
+		}
+	}
+	return;
+
 #endif
 
-#elif PERMUTATION_UPSAMPLINGMODE>=4
-#error not available and not implemented
-// For the following to work we need a genuine downsampled buffer
+	uint2 VolumeCoord0 = max(0, int2(VolumeCoordUInt) + int2(0, 0));
+	uint2 VolumeCoord1 = max(0, int2(VolumeCoordUInt) + int2(OffsetX, 0));
+	uint2 VolumeCoord2 = max(0, int2(VolumeCoordUInt) + int2(OffsetX, OffsetY));
+	uint2 VolumeCoord3 = max(0, int2(VolumeCoordUInt) + int2(0, OffsetY));
 
-/*	float2 Offset00 = float2(0.0f, 0.0f);
-	float2 Offset01 = float2(0.0f, 1.0f);
-	float2 Offset11 = float2(1.0f, 1.0f);
-	float2 Offset10 = float2(1.0f, 0.0f);
-	//Offset00 *= DynamicResToFullResolutionCoord;
-	//Offset01 *= DynamicResToFullResolutionCoord;
-	//Offset11 *= DynamicResToFullResolutionCoord;
-	//Offset10 *= DynamicResToFullResolutionCoord;
+	float4 VolumeRGBT0 = SafeLoadVolumetricTexture(VolumeCoord0);
+	float2 VolumeFrontDepth0 = SafeLoadVolumetricDepthTexture(VolumeCoord0);
+	float4 VolumeRGBT1 = SafeLoadVolumetricTexture(VolumeCoord1);
+	float2 VolumeFrontDepth1 = SafeLoadVolumetricDepthTexture(VolumeCoord1);
+	float4 VolumeRGBT2 = SafeLoadVolumetricTexture(VolumeCoord2);
+	float2 VolumeFrontDepth2 = SafeLoadVolumetricDepthTexture(VolumeCoord2);
+	float4 VolumeRGBT3 = SafeLoadVolumetricTexture(VolumeCoord3);
+	float2 VolumeFrontDepth3 = SafeLoadVolumetricDepthTexture(VolumeCoord3);
 
-	float2 o00 = VolumeCoord + Offset00;
-	float2 o01 = VolumeCoord + Offset01;
-	float2 o11 = VolumeCoord + Offset11;
-	float2 o10 = VolumeCoord + Offset10;
-*/
-
-/*	
-	PixelFrontDepthFromViewKm = min(PixelFrontDepthFromViewKm, 63000.0f);
+	PixelDistanceFromViewKm = min(PixelDistanceFromViewKm, max(max(VolumeFrontDepth0.y, VolumeFrontDepth1.y),max(VolumeFrontDepth2.y, VolumeFrontDepth3.y))); // clamp to the maximum of the read depth to avoid no depth matching
 	float4 depth4Diff;
-	depth4Diff.x = PixelFrontDepthFromViewKm - VolumetricDepthTexture.Load(uint3(o00, 0)).r;// < 0.0f ? 1.0f : 0.0f;
-	depth4Diff.y = PixelFrontDepthFromViewKm - VolumetricDepthTexture.Load(uint3(o01, 0)).r;// < 0.0f ? 1.0f : 0.0f;
-	depth4Diff.z = PixelFrontDepthFromViewKm - VolumetricDepthTexture.Load(uint3(o11, 0)).r;// < 0.0f ? 1.0f : 0.0f;
-	depth4Diff.w = PixelFrontDepthFromViewKm - VolumetricDepthTexture.Load(uint3(o10, 0)).r;// < 0.0f ? 1.0f : 0.0f;
+	depth4Diff.x = PixelDistanceFromViewKm - VolumeFrontDepth0.y;
+	depth4Diff.y = PixelDistanceFromViewKm - VolumeFrontDepth1.y;
+	depth4Diff.z = PixelDistanceFromViewKm - VolumeFrontDepth2.y;
+	depth4Diff.w = PixelDistanceFromViewKm - VolumeFrontDepth3.y;
 	depth4Diff = abs(depth4Diff);
+	float MaxDepth4Diff = max(max(depth4Diff.x, depth4Diff.y), max(depth4Diff.z, depth4Diff.w));
 
-	float weightMultiplier = 100.0f;
+	float ValidSampleCount = 0;
+	float4 DataAcc = 0;
+
+	const float weightMultiplier = 10000.0f;
 	float4 weights = 1.0f / (depth4Diff * weightMultiplier + 1.0f);
-	weights *= 1.0f / dot(weights, float4(1.0f, 1.0f, 1.0f, 1.0f));
+	const float weightsSum = dot(weights, float4(1.0f, 1.0f, 1.0f, 1.0f));
+	const float ThresholdToBilinear = PixelDistanceFromViewKm * 0.1;
+	if (MaxDepth4Diff > ThresholdToBilinear)
+	{
+		// Depth discontinuities edges
+		weights/= weightsSum;
 
-	// Bilateral weighting of colors
-	float4 c00 = VolumetricTexture.Load(uint3(o00, 0));
-	float4 c01 = VolumetricTexture.Load(uint3(o01, 0));
-	float4 c11 = VolumetricTexture.Load(uint3(o11, 0));
-	float4 c10 = VolumetricTexture.Load(uint3(o10, 0));
-	OutputRt0 = weights.x * c00 + weights.y * c01 + weights.z * c11 + weights.w * c10;
-*/
+		ValidSampleCount = weightsSum > 0.0f ? 1.0 : 0.0f;
+		DataAcc = weights.x * VolumeRGBT0 + weights.y * VolumeRGBT1 + weights.z * VolumeRGBT2 + weights.w * VolumeRGBT3;
+		//DataAcc += float4(0.1, 0, 0, 0); 
+	}
+	else
+	{
+		// Now do a bilinear sample to have a soft look region without depth edges.
+		ValidSampleCount = 1.0;
+		DataAcc = SafeSampleVolumetricTexture((float2(VolumeCoord0) + 0.25 + (float2(OffsetX, OffsetY) * 0.5 + 0.5) * 0.5) * VolumetricTextureSizeAndInvSize.zw);
+		//DataAcc += float4(0, 0.1, 0, 0);
 
+		if (UvOffsetScale>0.0)
+		{
+			// Add some jittered samples to hide upsampling and noise through TAA filtering
+#if 0
+			VolumeRGBT0 = SafeLoadVolumetricTexture((VolumeUV + Offset0) * VolumetricTextureSizeAndInvSize.xy);
+			VolumeFrontDepth0 = SafeLoadVolumetricDepthTexture((VolumeUV + Offset0) * VolumetricTextureSizeAndInvSize.xy);
+			VolumeRGBT1 = SafeLoadVolumetricTexture((VolumeUV + Offset1) * VolumetricTextureSizeAndInvSize.xy);
+			VolumeFrontDepth1 = SafeLoadVolumetricDepthTexture((VolumeUV + Offset1) * VolumetricTextureSizeAndInvSize.xy);
+			VolumeRGBT2 = SafeLoadVolumetricTexture((VolumeUV + Offset2) * VolumetricTextureSizeAndInvSize.xy);
+			VolumeFrontDepth2 = SafeLoadVolumetricDepthTexture((VolumeUV + Offset2) * VolumetricTextureSizeAndInvSize.xy);
+			VolumeRGBT3 = SafeLoadVolumetricTexture((VolumeUV + Offset2) * VolumetricTextureSizeAndInvSize.xy);
+			VolumeFrontDepth3 = SafeLoadVolumetricDepthTexture((VolumeUV + Offset2) * VolumetricTextureSizeAndInvSize.xy);
+#else
+			float4 VolumeRGBT0 = SafeSampleVolumetricTexture(VolumeUV + Offset0);
+			float2 VolumeFrontDepth0 = SafeSampleVolumetricDepthTexture(VolumeUV + Offset0);
+			float4 VolumeRGBT1 = SafeSampleVolumetricTexture(VolumeUV + Offset1);
+			float2 VolumeFrontDepth1 = SafeSampleVolumetricDepthTexture(VolumeUV + Offset1);
+			float4 VolumeRGBT2 = SafeSampleVolumetricTexture(VolumeUV + Offset2);
+			float2 VolumeFrontDepth2 = SafeSampleVolumetricDepthTexture(VolumeUV + Offset2);
+			float4 VolumeRGBT3 = SafeSampleVolumetricTexture(VolumeUV + Offset3);
+			float2 VolumeFrontDepth3 = SafeSampleVolumetricDepthTexture(VolumeUV + Offset3);
+#endif
 
-/*
-	float  SampleDeviceZ = SampleDeviceZFromSceneTextures((o00) * VolumetricTextureSizeAndInvSize.zw * DynamicResToFullResolutionCoord);
-	float3 SampleScreenWorldPositionApprox = float4(SvPositionToWorld(float4(SVPos.xy, SampleDeviceZ, 1.0)), 1.0).xyz;
-	float  SampleDistanceFromViewKmApprox00 = length(View.WorldCameraOrigin - SampleScreenWorldPositionApprox) * (1.0f / 100000.0f);
+			PixelDistanceFromViewKm = min(PixelDistanceFromViewKm, max(max(VolumeFrontDepth0.y, VolumeFrontDepth1.y), max(VolumeFrontDepth2.y, VolumeFrontDepth3.y))); // clamp to the maximum of the read depth to avoid no depth matching
+			float4 depth4Diff;
+			depth4Diff.x = PixelDistanceFromViewKm - VolumeFrontDepth0.y;
+			depth4Diff.y = PixelDistanceFromViewKm - VolumeFrontDepth1.y;
+			depth4Diff.z = PixelDistanceFromViewKm - VolumeFrontDepth2.y;
+			depth4Diff.w = PixelDistanceFromViewKm - VolumeFrontDepth3.y;
+			depth4Diff = abs(depth4Diff);
+			float MaxDepth4Diff = max(max(depth4Diff.x, depth4Diff.y), max(depth4Diff.z, depth4Diff.w));
+			float4 weights = 1.0f / (depth4Diff * weightMultiplier + 1.0f);
+			const float weightsSum = dot(weights, float4(1.0f, 1.0f, 1.0f, 1.0f));
+			const float ThresholdToBilinear = PixelDistanceFromViewKm * 0.1;
+			if (MaxDepth4Diff < ThresholdToBilinear && weightsSum>0)
+			{
+				weights /= weightsSum;
+				ValidSampleCount += 1;
+				DataAcc += weights.x * VolumeRGBT0 + weights.y * VolumeRGBT1 + weights.z * VolumeRGBT2 + weights.w * VolumeRGBT3;
+				//	DataAcc += float4(0, 0, 0.1, 0);
+			}
+		}
+	}
 
-	SampleDeviceZ = SampleDeviceZFromSceneTextures((o01)*VolumetricTextureSizeAndInvSize.zw * DynamicResToFullResolutionCoord);
-	SampleScreenWorldPositionApprox = float4(SvPositionToWorld(float4(SVPos.xy, SampleDeviceZ, 1.0)), 1.0).xyz;
-	float SampleDistanceFromViewKmApprox01 = length(View.WorldCameraOrigin - SampleScreenWorldPositionApprox) * (1.0f / 100000.0f);
-
-	SampleDeviceZ = SampleDeviceZFromSceneTextures((o11)*VolumetricTextureSizeAndInvSize.zw * DynamicResToFullResolutionCoord);
-	SampleScreenWorldPositionApprox = float4(SvPositionToWorld(float4(SVPos.xy, SampleDeviceZ, 1.0)), 1.0).xyz;
-	float SampleDistanceFromViewKmApprox11 = length(View.WorldCameraOrigin - SampleScreenWorldPositionApprox) * (1.0f / 100000.0f);
-
-	SampleDeviceZ = SampleDeviceZFromSceneTextures((o10)*VolumetricTextureSizeAndInvSize.zw * DynamicResToFullResolutionCoord);
-	SampleScreenWorldPositionApprox = float4(SvPositionToWorld(float4(SVPos.xy, SampleDeviceZ, 1.0)), 1.0).xyz;
-	float SampleDistanceFromViewKmApprox10 = length(View.WorldCameraOrigin - SampleScreenWorldPositionApprox) * (1.0f / 100000.0f);
-
-	float4 depth4Diff;
-	depth4Diff.x = SampleDistanceFromViewKmApprox00 - VolumetricDepthTexture.Load(uint3(o00, 0)) > 0.0f ? 1.0f : 0.0f;
-	depth4Diff.y = SampleDistanceFromViewKmApprox01 - VolumetricDepthTexture.Load(uint3(o01, 0)) > 0.0f ? 1.0f : 0.0f;
-	depth4Diff.z = SampleDistanceFromViewKmApprox11 - VolumetricDepthTexture.Load(uint3(o11, 0)) > 0.0f ? 1.0f : 0.0f;
-	depth4Diff.w = SampleDistanceFromViewKmApprox10 - VolumetricDepthTexture.Load(uint3(o10, 0)) > 0.0f ? 1.0f : 0.0f;
-
-	float weightMultiplier = 100.0f;
-	float4 weights = 1.0f / (depth4Diff * weightMultiplier + 1.0f);
-	weights *= 1.0f / dot(weights, float4(1.0f, 1.0f, 1.0f, 1.0f));
-
-	// Bilateral weighting of colors
-	float4 c00 = VolumetricTexture.Load(uint3(o00, 0));
-	float4 c01 = VolumetricTexture.Load(uint3(o01, 0));
-	float4 c11 = VolumetricTexture.Load(uint3(o11, 0));
-	float4 c10 = VolumetricTexture.Load(uint3(o10, 0));
-	OutputRt0 = weights.x * c00 + weights.y * c01 + weights.z * c11 + weights.w * c10;
-
-	//OutputRt0 = float4(max(max(depth4Diff.x, depth4Diff.y),max(depth4Diff.z, depth4Diff.w)), 0.0, 0.0, 0.2f);
-*/
+	if (ValidSampleCount > 0.0f)
+	{
+		OutputRt0 = DataAcc / ValidSampleCount;
+	}
+	else
+	{
+		OutputRt0 = float4(0.0f, 0.0f, 0.0f, 1.0f);
+		clip(-1.0f);
+	}
 
 #endif
+
+#endif // PERMUTATION_UPSAMPLINGMODE==4 || PERMUTATION_UPSAMPLINGMODE==3 || PERMUTATION_UPSAMPLINGMODE==2
 
 }
 

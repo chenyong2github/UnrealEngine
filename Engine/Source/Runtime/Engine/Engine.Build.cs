@@ -79,7 +79,7 @@ public class Engine : ModuleRules
 				"AnalyticsET",
 				"RHI",
 				"Sockets",
-				"AssetRegistry", // Here until FAssetData is moved to engine
+				"AssetRegistry", // Here until we update all modules using AssetRegistry to add a dependency on it
 				"EngineMessages",
 				"EngineSettings",
 				"SynthBenchmark",
@@ -412,6 +412,11 @@ public class Engine : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.IOS || Target.Platform == UnrealTargetPlatform.TVOS)
 		{
+			PublicIncludePaths.AddRange(
+            	new string[] {
+               		"Runtime/IOS/IOSPlatformFeatures/Public"
+                });
+
 			PrivateIncludePathModuleNames.Add("IOSRuntimeSettings");
 		}
 

@@ -40,7 +40,7 @@ enum class EMagicLeapTouchpadGestureDirection : uint8
 
 /** Information about a recognized touchpad gesture. */
 USTRUCT(BlueprintType, meta = (DeprecationMessage="Use Touchpad Gesture Events instead."))
-struct FMagicLeapTouchpadGesture
+struct MAGICLEAPCONTROLLER_API FMagicLeapTouchpadGesture
 {
 	GENERATED_BODY()
 

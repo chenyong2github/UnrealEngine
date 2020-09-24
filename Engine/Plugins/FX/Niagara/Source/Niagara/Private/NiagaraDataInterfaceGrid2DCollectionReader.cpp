@@ -58,7 +58,7 @@ public:
 
 		FGrid2DCollectionRWInstanceData_RenderThread* Grid2DProxyData = nullptr;
 
-		if (ReaderProxyData && ReaderProxyData->GPUContext && ReaderProxyData->ProxyToUse)
+		if (ReaderProxyData && ReaderProxyData->ProxyToUse)
 		{
 			Grid2DProxyData = ReaderProxyData->ProxyToUse->SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
 		}
@@ -104,7 +104,8 @@ public:
 			FRHIShaderResourceView* InputGridBuffer;
 			if (Grid2DProxyData->CurrentData != nullptr)
 			{
-				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, Grid2DProxyData->CurrentData->GridBuffer.UAV);
+				// FIXME: this shouldn't be necessary, since the Grid2D DI leaves the buffer in the SRVMask state. Confirm and remove the commented out line.
+				//RHICmdList.Transition(FRHITransitionInfo(Grid2DProxyData->CurrentData->GridBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 				InputGridBuffer = Grid2DProxyData->CurrentData->GridBuffer.SRV;
 			}
 			else
@@ -330,42 +331,54 @@ bool UNiagaraDataInterfaceGrid2DCollectionReader::InitPerInstanceData(void* PerI
 	InstanceData->DIName = DIName;
 	for (TSharedPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> EmitterInstance : SystemInstance->GetEmitters())
 	{
-		if (EmitterName == EmitterInstance->GetCachedEmitter()->GetUniqueEmitterName())
+		UNiagaraEmitter* Emitter = EmitterInstance->GetCachedEmitter();
+		if (Emitter == nullptr)
+		{
+			continue;
+		}
+
+		if (EmitterName == Emitter->GetUniqueEmitterName())
 		{
 			InstanceData->EmitterInstance = EmitterInstance.Get();			
 			break;
 		}
 	}
 
-	// Push Updates to Proxy.
-	FNiagaraDataInterfaceProxyGrid2DCollectionReaderProxy* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyGrid2DCollectionReaderProxy>();
-	ENQUEUE_RENDER_COMMAND(FUpdateData)(
-		[RT_Proxy, InstanceID = SystemInstance->GetId(), RT_InstanceData=*InstanceData](FRHICommandListImmediate& RHICmdList)
+	// Look for proxy we are going to use
+	FNiagaraDataInterfaceProxyGrid2DCollectionProxy* ProxyToUse = nullptr;
+
+	if (InstanceData->EmitterInstance != nullptr)
 	{
-		check(!RT_Proxy->SystemInstancesToProxyData_RT.Contains(InstanceID));
-		FGrid2DCollectionReaderInstanceData_RenderThread* TargetData = &RT_Proxy->SystemInstancesToProxyData_RT.Add(InstanceID);			
-		TargetData->ProxyToUse = nullptr;
-
-		if (RT_InstanceData.EmitterInstance != nullptr)
+		FNiagaraComputeExecutionContext* ExecContext = InstanceData->EmitterInstance->GetGPUContext();
+		if ( (ExecContext != nullptr) && (ExecContext->GPUScript != nullptr) )
 		{
-			TargetData->GPUContext = RT_InstanceData.EmitterInstance->GetGPUContext();
+			const TArray<FNiagaraScriptDataInterfaceCompileInfo>& DataInterfaceInfo = ExecContext->GPUScript->GetVMExecutableData().DataInterfaceInfo;
+			const TArray<UNiagaraDataInterface*>& DataInterfaces = ExecContext->CombinedParamStore.GetDataInterfaces();
 
-			const TArray<FNiagaraScriptDataInterfaceCompileInfo>& DataInterfaceInfo = TargetData->GPUContext->GPUScript->GetVMExecutableData().DataInterfaceInfo;
-			const TArray<UNiagaraDataInterface*>& DataInterfaces = TargetData->GPUContext->CombinedParamStore.GetDataInterfaces();
-
-			FString FullName = FString("Emitter.") + RT_InstanceData.DIName;
+			FString FullName = FString("Emitter.") + InstanceData->DIName;
 			int Index = 0;
 
 			// #todo(dmp): we are looking at the UObjects that define the DIs here 
 			for (UNiagaraDataInterface* Interface : DataInterfaces)
 			{
 				if (DataInterfaceInfo[Index].Name.GetPlainNameString() == FullName)
-				{										
-					TargetData->ProxyToUse = static_cast<FNiagaraDataInterfaceProxyGrid2DCollectionProxy*>(Interface->GetProxy());
+				{
+					ProxyToUse = static_cast<FNiagaraDataInterfaceProxyGrid2DCollectionProxy*>(Interface->GetProxy());
+					break;
 				}
 				++Index;
 			}
 		}
+	}
+
+	// Push Updates to Proxy.
+	FNiagaraDataInterfaceProxyGrid2DCollectionReaderProxy* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyGrid2DCollectionReaderProxy>();
+	ENQUEUE_RENDER_COMMAND(FUpdateData)(
+		[RT_Proxy, InstanceID = SystemInstance->GetId(), RT_ProxyToUse=ProxyToUse](FRHICommandListImmediate& RHICmdList)
+	{
+		check(!RT_Proxy->SystemInstancesToProxyData_RT.Contains(InstanceID));
+		FGrid2DCollectionReaderInstanceData_RenderThread* TargetData = &RT_Proxy->SystemInstancesToProxyData_RT.Add(InstanceID);			
+		TargetData->ProxyToUse = RT_ProxyToUse;
 	});
 	
 	return true;

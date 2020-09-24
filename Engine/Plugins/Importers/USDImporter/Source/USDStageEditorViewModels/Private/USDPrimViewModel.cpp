@@ -73,6 +73,8 @@ TArray< FUsdPrimViewModelRef >& FUsdPrimViewModel::UpdateChildren()
 
 	if ( NumUsdChildren != NumUnrealChildren )
 	{
+		FScopedUnrealAllocs UnrealAllocs;
+
 		Children.Reset();
 		bNeedsRefresh = true;
 	}
@@ -84,6 +86,8 @@ TArray< FUsdPrimViewModelRef >& FUsdPrimViewModel::UpdateChildren()
 		{
 			if ( !Children.IsValidIndex( ChildIndex ) || Children[ ChildIndex ]->UsdPrim.GetPrimPath().GetString() != UsdToUnreal::ConvertPath( Child.GetPrimPath() ) )
 			{
+				FScopedUnrealAllocs UnrealAllocs;
+
 				Children.Reset();
 				bNeedsRefresh = true;
 				break;
@@ -167,6 +171,17 @@ bool FUsdPrimViewModel::CanExecutePrimAction() const
 #else
 	return false;
 #endif // #if USE_USD_SDK
+}
+
+bool FUsdPrimViewModel::HasVisibilityAttribute() const
+{
+#if USE_USD_SDK
+	if ( pxr::UsdGeomImageable UsdGeomImageable = pxr::UsdGeomImageable( UsdPrim ) )
+	{
+		return true;
+	}
+#endif // #if USE_USD_SDK
+	return false;
 }
 
 void FUsdPrimViewModel::ToggleVisibility()

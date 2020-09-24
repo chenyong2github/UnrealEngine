@@ -30,6 +30,8 @@ FNiagaraParameterCollectionAssetViewModel::FNiagaraParameterCollectionAssetViewM
 	RegisteredHandle = RegisterViewModelWithMap(Collection, this);
 	GEditor->RegisterForUndo(this);
 
+	ExternalChangeHandle = InCollection->OnChangedDelegate.AddRaw(this, &FNiagaraParameterCollectionAssetViewModel::OnCollectionChangedExternally);
+
 	RefreshParameterViewModels();
 }
 
@@ -63,6 +65,11 @@ FNiagaraParameterCollectionAssetViewModel::~FNiagaraParameterCollectionAssetView
 
 	GEditor->UnregisterForUndo(this);
 	UnregisterViewModelWithMap(RegisteredHandle);
+
+	if (Collection)
+	{
+		Collection->OnChangedDelegate.Remove(ExternalChangeHandle);
+	}
 }
 
 void FNiagaraParameterCollectionAssetViewModel::NotifyPreChange(FProperty* PropertyAboutToChange)
@@ -364,6 +371,12 @@ void FNiagaraParameterCollectionAssetViewModel::OnParameterValueChangedInternal(
 	
 	//Push the change to anyone already bound.
 	Instance->GetParameterStore().Tick();
+}
+
+void FNiagaraParameterCollectionAssetViewModel::OnCollectionChangedExternally()
+{
+	CollectionChanged(true);
+	RefreshParameterViewModels();
 }
 
 #undef LOCTEXT_NAMESPACE // "NiagaraScriptInputCollectionViewModel"

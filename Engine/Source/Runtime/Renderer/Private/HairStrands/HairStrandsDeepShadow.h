@@ -11,6 +11,7 @@
 #include "HairStrandsInterface.h"
 #include "RenderGraphResources.h"
 #include "SceneTypes.h"
+#include "Renderer/Private/SceneRendering.h"
 
 /// Hold deep shadow information for a given light.
 struct FHairStrandsDeepShadowData
@@ -29,6 +30,7 @@ struct FHairStrandsDeepShadowData
 	FVector  LightDirection;
 	FVector4 LightPosition;
 	FLinearColor LightLuminance;
+	float LayerDistribution;
 
 	FBoxSphereBounds Bounds;
 };
@@ -43,11 +45,9 @@ struct FDeepShadowResources
 	FIntPoint AtlasSlotResolution;
 	bool bIsGPUDriven = false;
 
-	TRefCountPtr<IPooledRenderTarget> DepthAtlasTexture;
-	TRefCountPtr<IPooledRenderTarget> LayersAtlasTexture;
-
-	TRefCountPtr<FPooledRDGBuffer> DeepShadowWorldToLightTransforms;
-	TRefCountPtr<FRHIShaderResourceView> DeepShadowWorldToLightTransformsSRV;
+	FRDGTextureRef DepthAtlasTexture = nullptr;
+	FRDGTextureRef LayersAtlasTexture = nullptr;
+	FRDGBufferRef DeepShadowWorldToLightTransforms = nullptr;
 };
 
 /// Store all deep shadows infos for a given view
@@ -57,7 +57,7 @@ struct FHairStrandsDeepShadowDatas
 };
 
 void RenderHairStrandsDeepShadows(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	const class FScene* Scene,
 	const TArray<FViewInfo>& Views,
 	struct FHairStrandsMacroGroupViews& MacroGroupsViews);

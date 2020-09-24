@@ -199,7 +199,7 @@ void SetupShadowDepthPassUniformBuffer(
 	FMobileShadowDepthPassUniformParameters& ShadowDepthPassParameters)
 {
 	FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get(RHICmdList);
-	SetupMobileSceneTextureUniformParameters(SceneRenderTargets, View.FeatureLevel, false, false, ShadowDepthPassParameters.SceneTextures);
+	SetupMobileSceneTextureUniformParameters(SceneRenderTargets, EMobileSceneTextureSetupMode::None, ShadowDepthPassParameters.SceneTextures);
 
 	ShadowDepthPassParameters.ProjectionMatrix = FTranslationMatrix(ShadowInfo->PreShadowTranslation - View.ViewMatrices.GetPreViewTranslation()) * ShadowInfo->SubjectAndReceiverMatrix;
 	ShadowDepthPassParameters.ViewMatrix = ShadowInfo->ShadowViewMatrix;
@@ -345,9 +345,7 @@ public:
 				// Only compile position-only shaders for vertex factories that support it. (Note: this assumes that a vertex factor which supports PositionOnly, supports also PositionAndNormalOnly)
 				&& (!bUsePositionOnlyStream || Parameters.VertexFactoryType->SupportsPositionOnly())
 				// Don't render ShadowDepth for translucent unlit materials
-				&& Parameters.MaterialParameters.bShouldCastDynamicShadows
-				// Only compile perspective correct light shaders for feature levels >= SM5
-				&& (ShaderMode != VertexShadowDepth_PerspectiveCorrect || IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5));
+				&& Parameters.MaterialParameters.bShouldCastDynamicShadows;
 		}
 	}
 
@@ -589,7 +587,7 @@ public:
 				|| (Parameters.MaterialParameters.bMaterialMayModifyMeshPosition && Parameters.MaterialParameters.bIsUsedWithInstancedStaticMeshes)
 				// Perspective correct rendering needs a pixel shader and WPO materials can't be overridden with default material.
 				|| (ShaderMode == PixelShadowDepth_PerspectiveCorrect && Parameters.MaterialParameters.bMaterialMayModifyMeshPosition))
-				&& ShaderMode == PixelShadowDepth_NonPerspectiveCorrect
+				&& ShaderMode != PixelShadowDepth_OnePassPointLight
 				// Don't render ShadowDepth for translucent unlit materials
 				&& Parameters.MaterialParameters.bShouldCastDynamicShadows
 				&& !bRenderReflectiveShadowMap;
@@ -894,10 +892,6 @@ void FProjectedShadowInfo::ClearDepth(FRHICommandList& RHICmdList, class FSceneR
 
 		DrawClearQuadMRT(RHICmdList, bClearColor, NumClearColors, Colors, true, 1.0f, false, 0);
 	}
-	else
-	{
-		RHICmdList.BindClearMRTValues(bClearColor, true, false);
-	}
 }
 
 void FProjectedShadowInfo::SetStateForView(FRHICommandList& RHICmdList) const
@@ -951,12 +945,6 @@ static TAutoConsoleVariable<int32> CVarParallelShadowsNonWholeScene(
 	ECVF_RenderThreadSafe
 );
 
-
-static TAutoConsoleVariable<int32> CVarRHICmdShadowDeferredContexts(
-	TEXT("r.RHICmdShadowDeferredContexts"),
-	1,
-	TEXT("True to use deferred contexts to parallelize shadow command list execution."));
-
 static TAutoConsoleVariable<int32> CVarRHICmdFlushRenderThreadTasksShadowPass(
 	TEXT("r.RHICmdFlushRenderThreadTasksShadowPass"),
 	0,
@@ -966,21 +954,14 @@ DECLARE_CYCLE_STAT(TEXT("Shadow"), STAT_CLP_Shadow, STATGROUP_ParallelCommandLis
 
 class FShadowParallelCommandListSet : public FParallelCommandListSet
 {
-	FProjectedShadowInfo& ProjectedShadowInfo;
-	FBeginShadowRenderPassFunction BeginShadowRenderPass;
-	EShadowDepthRenderMode RenderMode;
-
 public:
 	FShadowParallelCommandListSet(
-		const FViewInfo& InView,
-		const FSceneRenderer* InSceneRenderer,
 		FRHICommandListImmediate& InParentCmdList,
-		bool bInParallelExecute,
+		const FViewInfo& InView,
 		bool bInCreateSceneContext,
-		const FMeshPassProcessorRenderState& InDrawRenderState,
 		FProjectedShadowInfo& InProjectedShadowInfo,
 		FBeginShadowRenderPassFunction InBeginShadowRenderPass)
-		: FParallelCommandListSet(GET_STATID(STAT_CLP_Shadow), InView, InSceneRenderer, InParentCmdList, bInParallelExecute, bInCreateSceneContext, InDrawRenderState)
+		: FParallelCommandListSet(GET_STATID(STAT_CLP_Shadow), InView, InParentCmdList, bInCreateSceneContext)
 		, ProjectedShadowInfo(InProjectedShadowInfo)
 		, BeginShadowRenderPass(InBeginShadowRenderPass)
 	{
@@ -998,6 +979,11 @@ public:
 		BeginShadowRenderPass(CmdList, false);
 		ProjectedShadowInfo.SetStateForView(CmdList);
 	}
+
+private:
+	FProjectedShadowInfo& ProjectedShadowInfo;
+	FBeginShadowRenderPassFunction BeginShadowRenderPass;
+	EShadowDepthRenderMode RenderMode;
 };
 
 class FCopyShadowMapsCubeGS : public FGlobalShader
@@ -1058,7 +1044,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		return true;
 	}
 
 	FCopyShadowMaps2DPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
@@ -1236,7 +1222,7 @@ void FProjectedShadowInfo::TransitionCachedShadowmap(FRHICommandListImmediate& R
 		const FCachedShadowMapData& CachedShadowMapData = Scene->CachedShadowMaps.FindChecked(GetLightSceneInfo().Id);
 		if (CachedShadowMapData.bCachedShadowMapHasPrimitives && CachedShadowMapData.ShadowMap.IsValid())
 		{
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, CachedShadowMapData.ShadowMap.DepthTarget->GetRenderTargetItem().ShaderResourceTexture);
+			RHICmdList.Transition(FRHITransitionInfo(CachedShadowMapData.ShadowMap.DepthTarget->GetRenderTargetItem().ShaderResourceTexture, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
 		}
 	}
 }
@@ -1308,7 +1294,7 @@ void FProjectedShadowInfo::RenderDepthInner(FRHICommandListImmediate& RHICmdList
 
 		// Dispatch commands
 		{
-			FShadowParallelCommandListSet ParallelCommandListSet(*ShadowDepthView, SceneRenderer, RHICmdList, CVarRHICmdShadowDeferredContexts.GetValueOnRenderThread() > 0, !bFlush, DrawRenderState, *this, BeginShadowRenderPass);
+			FShadowParallelCommandListSet ParallelCommandListSet(RHICmdList, *ShadowDepthView, !bFlush, *this, BeginShadowRenderPass);
 
 			ShadowDepthPass.DispatchDraw(&ParallelCommandListSet, RHICmdList);
 		}
@@ -1671,17 +1657,15 @@ static void CopyToCompleteShadowMap(
 	);
 }
 
-void FSceneRenderer::RenderShadowDepthMapAtlases(FRHICommandListImmediate& RHICmdList)
+void FSceneRenderer::RenderShadowDepthMapAtlases(FRDGBuilder& GraphBuilder)
 {
-	check(RHICmdList.IsOutsideRenderPass());
-
 	// Perform setup work on all GPUs in case any cached shadows are being updated this
 	// frame. We revert to the AllViewsGPUMask for uncached shadows.
-	SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
+	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
 
-	bool bCanUseParallelDispatch = RHICmdList.IsImmediate() &&  // translucent shadows are draw on the render thread, using a recursive cmdlist (which is not immediate)
+	bool bCanUseParallelDispatch = GraphBuilder.RHICmdList.IsImmediate() &&  // translucent shadows are draw on the render thread, using a recursive cmdlist (which is not immediate)
 		GRHICommandList.UseParallelAlgorithms() && CVarParallelShadows.GetValueOnRenderThread();
 
 	const bool bNaniteEnabled = 
@@ -1695,202 +1679,199 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRHICommandListImmediate& RHICm
 		FSceneRenderTargetItem& RenderTarget = ShadowMapAtlas.RenderTargets.DepthTarget->GetRenderTargetItem();
 		FIntPoint AtlasSize = ShadowMapAtlas.RenderTargets.DepthTarget->GetDesc().Extent;
 
-		GVisualizeTexture.SetCheckPoint(RHICmdList, ShadowMapAtlas.RenderTargets.DepthTarget.GetReference());
-
-		SCOPED_DRAW_EVENTF(RHICmdList, EventShadowDepths, TEXT("Atlas%u %ux%u"), AtlasIndex, AtlasSize.X, AtlasSize.Y);
-
-		auto BeginShadowRenderPass = [this, &RenderTarget, &SceneContext](FRHICommandList& InRHICmdList, bool bPerformClear)
+		AddUntrackedAccessPass(GraphBuilder, [this, &ShadowMapAtlas , &RenderTarget, &SceneContext, AtlasIndex, AtlasSize, bCanUseParallelDispatch](FRHICommandListImmediate& RHICmdList)
 		{
-			check(RenderTarget.TargetableTexture->GetDepthClearValue() == 1.0f);
+			GVisualizeTexture.SetCheckPoint(RHICmdList, ShadowMapAtlas.RenderTargets.DepthTarget.GetReference());
 
-			ERenderTargetLoadAction DepthLoadAction = bPerformClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad;
+			SCOPED_DRAW_EVENTF(RHICmdList, EventShadowDepths, TEXT("Atlas%u %ux%u"), AtlasIndex, AtlasSize.X, AtlasSize.Y);
 
-			FRHIRenderPassInfo RPInfo(RenderTarget.TargetableTexture, MakeDepthStencilTargetActions(MakeRenderTargetActions(DepthLoadAction, ERenderTargetStoreAction::EStore), ERenderTargetActions::Load_Store), nullptr, FExclusiveDepthStencil::DepthWrite_StencilWrite);
-
-			if (!GSupportsDepthRenderTargetWithoutColorRenderTarget)
+			auto BeginShadowRenderPass = [this, &RenderTarget, &SceneContext](FRHICommandList& InRHICmdList, bool bPerformClear)
 			{
-				RPInfo.ColorRenderTargets[0].Action = ERenderTargetActions::DontLoad_DontStore;
-				RPInfo.ColorRenderTargets[0].RenderTarget = SceneContext.GetOptionalShadowDepthColorSurface(InRHICmdList, RPInfo.DepthStencilRenderTarget.DepthStencilTarget->GetTexture2D()->GetSizeX(), RPInfo.DepthStencilRenderTarget.DepthStencilTarget->GetTexture2D()->GetSizeY());
-				InRHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, RPInfo.ColorRenderTargets[0].RenderTarget);
-			}
-			InRHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, RPInfo.DepthStencilRenderTarget.DepthStencilTarget);
-			InRHICmdList.BeginRenderPass(RPInfo, TEXT("ShadowMapAtlases"));
+				check(RenderTarget.TargetableTexture->GetDepthClearValue() == 1.0f);
 
-			if (!bPerformClear)
-			{
-				InRHICmdList.BindClearMRTValues(false, true, false);
-			}
-		};
+				ERenderTargetLoadAction DepthLoadAction = bPerformClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad;
 
-		TArray<FProjectedShadowInfo*, SceneRenderingAllocator> ParallelShadowPasses;
-		TArray<FProjectedShadowInfo*, SceneRenderingAllocator> SerialShadowPasses;
+				FRHIRenderPassInfo RPInfo(RenderTarget.TargetableTexture, MakeDepthStencilTargetActions(MakeRenderTargetActions(DepthLoadAction, ERenderTargetStoreAction::EStore), ERenderTargetActions::DontLoad_DontStore), nullptr, FExclusiveDepthStencil::DepthWrite_StencilNop);
 
-		// Gather our passes here to minimize switching render passes
-		for (int32 ShadowIndex = 0; ShadowIndex < ShadowMapAtlas.Shadows.Num(); ShadowIndex++)
-		{
-			FProjectedShadowInfo* ProjectedShadowInfo = ShadowMapAtlas.Shadows[ShadowIndex];
-
-			const bool bDoParallelDispatch = bCanUseParallelDispatch &&
-				(ProjectedShadowInfo->IsWholeSceneDirectionalShadow() || CVarParallelShadowsNonWholeScene.GetValueOnRenderThread());
-
-			if (bDoParallelDispatch)
-			{
-				ParallelShadowPasses.Add(ProjectedShadowInfo);
-			}
-			else
-			{
-				SerialShadowPasses.Add(ProjectedShadowInfo);
-			}
-		}
-
-		FLightSceneProxy* CurrentLightForDrawEvent = NULL;
-
-	#if WANTS_DRAW_MESH_EVENTS
-		FDrawEvent LightEvent;
-	#endif
-
-		if (ParallelShadowPasses.Num() > 0)
-		{
-			{
-				// Clear before going wide.
-				SCOPED_DRAW_EVENT(RHICmdList, SetShadowRTsAndClear);
-				BeginShadowRenderPass(RHICmdList, true);
-				RHICmdList.EndRenderPass();
-			}
-
-			for (int32 ShadowIndex = 0; ShadowIndex < ParallelShadowPasses.Num(); ShadowIndex++)
-			{
-				FProjectedShadowInfo* ProjectedShadowInfo = ParallelShadowPasses[ShadowIndex];
-				SCOPED_GPU_MASK(RHICmdList, GetGPUMaskForShadow(ProjectedShadowInfo));
-
-			#if WANTS_DRAW_MESH_EVENTS
-				if (!CurrentLightForDrawEvent || ProjectedShadowInfo->GetLightSceneInfo().Proxy != CurrentLightForDrawEvent)
+				if (!GSupportsDepthRenderTargetWithoutColorRenderTarget)
 				{
-					if (CurrentLightForDrawEvent)
+					RPInfo.ColorRenderTargets[0].Action = ERenderTargetActions::DontLoad_DontStore;
+					RPInfo.ColorRenderTargets[0].RenderTarget = SceneContext.GetOptionalShadowDepthColorSurface(InRHICmdList, RPInfo.DepthStencilRenderTarget.DepthStencilTarget->GetTexture2D()->GetSizeX(), RPInfo.DepthStencilRenderTarget.DepthStencilTarget->GetTexture2D()->GetSizeY());
+					InRHICmdList.Transition(FRHITransitionInfo(RPInfo.ColorRenderTargets[0].RenderTarget, ERHIAccess::Unknown, ERHIAccess::RTV));
+				}
+				InRHICmdList.Transition(FRHITransitionInfo(RPInfo.DepthStencilRenderTarget.DepthStencilTarget, ERHIAccess::Unknown, ERHIAccess::DSVWrite));
+				InRHICmdList.BeginRenderPass(RPInfo, TEXT("ShadowMapAtlases"));
+			};
+
+			TArray<FProjectedShadowInfo*, SceneRenderingAllocator> ParallelShadowPasses;
+			TArray<FProjectedShadowInfo*, SceneRenderingAllocator> SerialShadowPasses;
+
+			// Gather our passes here to minimize switching render passes
+			for (int32 ShadowIndex = 0; ShadowIndex < ShadowMapAtlas.Shadows.Num(); ShadowIndex++)
+			{
+				FProjectedShadowInfo* ProjectedShadowInfo = ShadowMapAtlas.Shadows[ShadowIndex];
+
+				const bool bDoParallelDispatch = bCanUseParallelDispatch &&
+					(ProjectedShadowInfo->IsWholeSceneDirectionalShadow() || CVarParallelShadowsNonWholeScene.GetValueOnRenderThread());
+
+				if (bDoParallelDispatch)
+				{
+					ParallelShadowPasses.Add(ProjectedShadowInfo);
+				}
+				else
+				{
+					SerialShadowPasses.Add(ProjectedShadowInfo);
+				}
+			}
+
+			FLightSceneProxy* CurrentLightForDrawEvent = NULL;
+
+		#if WANTS_DRAW_MESH_EVENTS
+			FDrawEvent LightEvent;
+		#endif
+
+			if (ParallelShadowPasses.Num() > 0)
+			{
+				{
+					// Clear before going wide.
+					SCOPED_DRAW_EVENT(RHICmdList, SetShadowRTsAndClear);
+					BeginShadowRenderPass(RHICmdList, true);
+					RHICmdList.EndRenderPass();
+				}
+
+				for (int32 ShadowIndex = 0; ShadowIndex < ParallelShadowPasses.Num(); ShadowIndex++)
+				{
+					FProjectedShadowInfo* ProjectedShadowInfo = ParallelShadowPasses[ShadowIndex];
+					SCOPED_GPU_MASK(RHICmdList, GetGPUMaskForShadow(ProjectedShadowInfo));
+
+				#if WANTS_DRAW_MESH_EVENTS
+					if (!CurrentLightForDrawEvent || ProjectedShadowInfo->GetLightSceneInfo().Proxy != CurrentLightForDrawEvent)
 					{
+						if (CurrentLightForDrawEvent)
+						{
+							SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
+							STOP_DRAW_EVENT(LightEvent);
+						}
+
+						CurrentLightForDrawEvent = ProjectedShadowInfo->GetLightSceneInfo().Proxy;
+						FString LightNameWithLevel;
+						GetLightNameForDrawEvent(CurrentLightForDrawEvent, LightNameWithLevel);
+
 						SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
-						STOP_DRAW_EVENT(LightEvent);
+						BEGIN_DRAW_EVENTF(
+							RHICmdList,
+							LightNameEvent,
+							LightEvent,
+							*LightNameWithLevel);
+					}
+				#endif
+
+					ProjectedShadowInfo->SetupShadowUniformBuffers(RHICmdList, Scene);
+					ProjectedShadowInfo->TransitionCachedShadowmap(RHICmdList, Scene);
+					ProjectedShadowInfo->RenderDepth(RHICmdList, this, BeginShadowRenderPass, true);
+				}
+			}
+
+		#if WANTS_DRAW_MESH_EVENTS
+			if (CurrentLightForDrawEvent)
+			{
+				SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
+				STOP_DRAW_EVENT(LightEvent);
+			}
+		#endif
+
+			CurrentLightForDrawEvent = nullptr;
+
+			if (SerialShadowPasses.Num() > 0)
+			{
+				bool bForceSingleRenderPass = CVarShadowForceSerialSingleRenderPass.GetValueOnAnyThread() != 0;
+				if (bForceSingleRenderPass)
+				{
+					SCOPED_GPU_MASK(RHICmdList, AllViewsGPUMask);
+					BeginShadowRenderPass(RHICmdList, true);
+				}
+
+				for (int32 ShadowIndex = 0; ShadowIndex < SerialShadowPasses.Num(); ShadowIndex++)
+				{
+					FProjectedShadowInfo* ProjectedShadowInfo = SerialShadowPasses[ShadowIndex];
+					SCOPED_GPU_MASK(RHICmdList, GetGPUMaskForShadow(ProjectedShadowInfo));
+
+				#if WANTS_DRAW_MESH_EVENTS
+					if (!CurrentLightForDrawEvent || ProjectedShadowInfo->GetLightSceneInfo().Proxy != CurrentLightForDrawEvent)
+					{
+						if (CurrentLightForDrawEvent)
+						{
+							SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
+							STOP_DRAW_EVENT(LightEvent);
+						}
+
+						CurrentLightForDrawEvent = ProjectedShadowInfo->GetLightSceneInfo().Proxy;
+						FString LightNameWithLevel;
+						GetLightNameForDrawEvent(CurrentLightForDrawEvent, LightNameWithLevel);
+
+						SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
+						BEGIN_DRAW_EVENTF(
+							RHICmdList,
+							LightNameEvent,
+							LightEvent,
+							*LightNameWithLevel);
+					}
+				#endif
+
+					ProjectedShadowInfo->SetupShadowUniformBuffers(RHICmdList, Scene);
+					ProjectedShadowInfo->TransitionCachedShadowmap(RHICmdList, Scene);
+	#if WITH_MGPU
+					// In case the first shadow is view-dependent, ensure we do the clear on all GPUs.
+					FRHIGPUMask GPUMaskForRenderPass = RHICmdList.GetGPUMask();
+					if (ShadowIndex == 0)
+					{
+						// This ensures that we don't downgrade the GPU mask if the first shadow is a
+						// cached whole scene shadow.
+						GPUMaskForRenderPass |= AllViewsGPUMask;
+					}
+	#endif
+					if (!bForceSingleRenderPass)
+					{
+						SCOPED_GPU_MASK(RHICmdList, GPUMaskForRenderPass);
+						BeginShadowRenderPass(RHICmdList, ShadowIndex == 0);
 					}
 
-					CurrentLightForDrawEvent = ProjectedShadowInfo->GetLightSceneInfo().Proxy;
-					FString LightNameWithLevel;
-					GetLightNameForDrawEvent(CurrentLightForDrawEvent, LightNameWithLevel);
+					ProjectedShadowInfo->RenderDepth(RHICmdList, this, BeginShadowRenderPass, false);
 
-					SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
-					BEGIN_DRAW_EVENTF(
-						RHICmdList,
-						LightNameEvent,
-						LightEvent,
-						*LightNameWithLevel);
-				}
-			#endif
-
-				ProjectedShadowInfo->SetupShadowUniformBuffers(RHICmdList, Scene);
-				ProjectedShadowInfo->TransitionCachedShadowmap(RHICmdList, Scene);
-				ProjectedShadowInfo->RenderDepth(RHICmdList, this, BeginShadowRenderPass, true);
-			}
-		}
-
-	#if WANTS_DRAW_MESH_EVENTS
-		if (CurrentLightForDrawEvent)
-		{
-			SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
-			STOP_DRAW_EVENT(LightEvent);
-		}
-	#endif
-
-		CurrentLightForDrawEvent = nullptr;
-
-		if (SerialShadowPasses.Num() > 0)
-		{
-			bool bForceSingleRenderPass = CVarShadowForceSerialSingleRenderPass.GetValueOnAnyThread() != 0;
-			if (bForceSingleRenderPass)
-			{
-				SCOPED_GPU_MASK(RHICmdList, AllViewsGPUMask);
-				BeginShadowRenderPass(RHICmdList, true);
-			}
-
-			for (int32 ShadowIndex = 0; ShadowIndex < SerialShadowPasses.Num(); ShadowIndex++)
-			{
-				FProjectedShadowInfo* ProjectedShadowInfo = SerialShadowPasses[ShadowIndex];
-				SCOPED_GPU_MASK(RHICmdList, GetGPUMaskForShadow(ProjectedShadowInfo));
-
-			#if WANTS_DRAW_MESH_EVENTS
-				if (!CurrentLightForDrawEvent || ProjectedShadowInfo->GetLightSceneInfo().Proxy != CurrentLightForDrawEvent)
-				{
-					if (CurrentLightForDrawEvent)
+					if (!bForceSingleRenderPass)
 					{
-						SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
-						STOP_DRAW_EVENT(LightEvent);
+						RHICmdList.EndRenderPass();
 					}
-
-					CurrentLightForDrawEvent = ProjectedShadowInfo->GetLightSceneInfo().Proxy;
-					FString LightNameWithLevel;
-					GetLightNameForDrawEvent(CurrentLightForDrawEvent, LightNameWithLevel);
-
-					SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
-					BEGIN_DRAW_EVENTF(
-						RHICmdList,
-						LightNameEvent,
-						LightEvent,
-						*LightNameWithLevel);
 				}
-			#endif
-
-				ProjectedShadowInfo->SetupShadowUniformBuffers(RHICmdList, Scene);
-				ProjectedShadowInfo->TransitionCachedShadowmap(RHICmdList, Scene);
-#if WITH_MGPU
-				// In case the first shadow is view-dependent, ensure we do the clear on all GPUs.
-				FRHIGPUMask GPUMaskForRenderPass = RHICmdList.GetGPUMask();
-				if (ShadowIndex == 0)
+				if (bForceSingleRenderPass)
 				{
-					// This ensures that we don't downgrade the GPU mask if the first shadow is a
-					// cached whole scene shadow.
-					GPUMaskForRenderPass |= AllViewsGPUMask;
-				}
-#endif
-				if (!bForceSingleRenderPass)
-				{
-					SCOPED_GPU_MASK(RHICmdList, GPUMaskForRenderPass);
-					BeginShadowRenderPass(RHICmdList, ShadowIndex == 0);
-				}
-
-				ProjectedShadowInfo->RenderDepth(RHICmdList, this, BeginShadowRenderPass, false);
-
-				if (!bForceSingleRenderPass)
-				{
+					SCOPED_GPU_MASK(RHICmdList, AllViewsGPUMask);
 					RHICmdList.EndRenderPass();
 				}
 			}
-			if (bForceSingleRenderPass)
-			{
-				SCOPED_GPU_MASK(RHICmdList, AllViewsGPUMask);
-				RHICmdList.EndRenderPass();
-			}
-		}
 
-		if (CurrentLightForDrawEvent)
-		{
-			SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
-			STOP_DRAW_EVENT(LightEvent);
-			CurrentLightForDrawEvent = NULL;
-		}
+			if (CurrentLightForDrawEvent)
+			{
+				SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
+				STOP_DRAW_EVENT(LightEvent);
+				CurrentLightForDrawEvent = NULL;
+			}
+		});
 
 		if (bNaniteEnabled)
 		{
-			FRDGBuilder GraphBuilder(RHICmdList);
 			RenderShadowDepthAtlasNanite(GraphBuilder, *Scene, ShadowMapAtlas);
-			GraphBuilder.Execute();
 		}
 
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, RenderTarget.TargetableTexture);
+		AddUntrackedAccessPass(GraphBuilder, [&RenderTarget](FRHICommandList& RHICmdList)
+		{
+			RHICmdList.Transition(FRHITransitionInfo(RenderTarget.TargetableTexture, ERHIAccess::Unknown, ERHIAccess::SRVMask));
+		});
 	}
 
 	// Copy/resample shadow maps into "complete" shadow maps and add Nanite geometry
 	if (SortedShadowsForShadowDepthPass.CompleteShadowMapAtlases.Num() > 0)
 	{
-		FRDGBuilder GraphBuilder(RHICmdList);
-
 		for (const FSortedShadowMapAtlas& ShadowMapAtlas : SortedShadowsForShadowDepthPass.CompleteShadowMapAtlases)
 		{
 			FSceneRenderTargetItem& RenderTarget = ShadowMapAtlas.RenderTargets.DepthTarget->GetRenderTargetItem();
@@ -1929,30 +1910,24 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRHICommandListImmediate& RHICm
 				RenderShadowDepthAtlasNanite(GraphBuilder, *Scene, ShadowMapAtlas);
 			}
 		}
-
-		GraphBuilder.Execute();
 	}
 }
 
-void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
+void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder)
 {
-	check(RHICmdList.IsOutsideRenderPass());
-
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderShadows);
 	SCOPED_NAMED_EVENT(FSceneRenderer_RenderShadowDepthMaps, FColor::Emerald);
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
 
-	SCOPED_DRAW_EVENT(RHICmdList, ShadowDepths);
-	SCOPED_GPU_STAT(RHICmdList, ShadowDepths);
-
-	checkSlow(RHICmdList.IsOutsideRenderPass());
+	RDG_EVENT_SCOPE(GraphBuilder, "ShadowDepths");
+	RDG_GPU_STAT_SCOPE(GraphBuilder, ShadowDepths);
 
 	// Perform setup work on all GPUs in case any cached shadows are being updated this
 	// frame. We revert to the AllViewsGPUMask for uncached shadows.
 #if WITH_MGPU
-	ensure(RHICmdList.GetGPUMask() == AllViewsGPUMask);
+	ensure(GraphBuilder.RHICmdList.GetGPUMask() == AllViewsGPUMask);
 #endif
-	SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
+	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
 
 	const bool bHasVSMShadows = SortedShadowsForShadowDepthPass.VirtualShadowMapShadows.Num() > 0;
 	const bool bHasVSMClipMaps = SortedShadowsForShadowDepthPass.VirtualShadowMapClipmaps.Num() > 0;
@@ -1972,7 +1947,6 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 		const uint32 CachedFrameNumber = CacheManager->HZBFrameNumber;
 		const uint32 CurrentFrameNumber = ++CacheManager->HZBFrameNumber;
 		
-		FRDGBuilder GraphBuilder(RHICmdList);
 		{
 			RDG_EVENT_SCOPE(GraphBuilder, "Render Virtual Shadow Maps");
 
@@ -2161,12 +2135,11 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 					/* OutFurthestHZBTexture = */ &HZBPhysicalRDG,
 					PF_R32_FLOAT);
 			
-				GraphBuilder.QueueTextureExtraction( HZBPhysicalRDG, &VirtualShadowMapArray.HZBPhysical );
+				ConvertToExternalTexture(GraphBuilder, HZBPhysicalRDG, VirtualShadowMapArray.HZBPhysical);
 			}
 
-			GraphBuilder.QueueTextureExtraction(RasterContext.DepthBuffer, &VirtualShadowMapArray.PhysicalPagePool);
+			ConvertToExternalTexture(GraphBuilder, RasterContext.DepthBuffer, VirtualShadowMapArray.PhysicalPagePool);
 		}
-		GraphBuilder.Execute();
 
 		Scene->VirtualShadowMapArrayCacheManager->HZBPhysical  = VirtualShadowMapArray.HZBPhysical;
 		Scene->VirtualShadowMapArrayCacheManager->HZBPageTable = VirtualShadowMapArray.PageTable;
@@ -2174,7 +2147,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 		//GVisualizeTexture.SetCheckPoint(RHICmdList, VirtualShadowMapArray.PhysicalPagePool);
 	}
 
-	FSceneRenderer::RenderShadowDepthMapAtlases( RHICmdList );	// Render non-VSM shadows. Must be after VSM so we can use TopMip optimization.
+	FSceneRenderer::RenderShadowDepthMapAtlases( GraphBuilder );	// Render non-VSM shadows. Must be after VSM so we can use TopMip optimization.
 
 	const bool bUseGeometryShader = !GRHISupportsArrayIndexFromAnyShader;
 
@@ -2186,67 +2159,70 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 
 		check(ShadowMap.Shadows.Num() == 1);
 		FProjectedShadowInfo* ProjectedShadowInfo = ShadowMap.Shadows[0];
-		SCOPED_GPU_MASK(RHICmdList, GetGPUMaskForShadow(ProjectedShadowInfo));
+		RDG_GPU_MASK_SCOPE(GraphBuilder, GetGPUMaskForShadow(ProjectedShadowInfo));
 
-		const bool bDoParallelDispatch = RHICmdList.IsImmediate() &&  // translucent shadows are draw on the render thread, using a recursive cmdlist (which is not immediate)
-			GRHICommandList.UseParallelAlgorithms() && CVarParallelShadows.GetValueOnRenderThread() &&
-			(ProjectedShadowInfo->IsWholeSceneDirectionalShadow() || CVarParallelShadowsNonWholeScene.GetValueOnRenderThread());
-
-		GVisualizeTexture.SetCheckPoint(RHICmdList, ShadowMap.RenderTargets.DepthTarget.GetReference());
-
-		FString LightNameWithLevel;
-		GetLightNameForDrawEvent(ProjectedShadowInfo->GetLightSceneInfo().Proxy, LightNameWithLevel);
-		SCOPED_DRAW_EVENTF(RHICmdList, EventShadowDepths, TEXT("Cubemap %s %u^2"), *LightNameWithLevel, TargetSize.X, TargetSize.Y);
-
-		ProjectedShadowInfo->SetupShadowUniformBuffers(RHICmdList, Scene);
-
-		auto BeginShadowRenderPass = [this, &RenderTarget, &SceneContext](FRHICommandList& InRHICmdList, bool bPerformClear)
+		AddUntrackedAccessPass(GraphBuilder, [this, ProjectedShadowInfo, &SceneContext, &ShadowMap, &RenderTarget, TargetSize](FRHICommandListImmediate& RHICmdList)
 		{
-			FRHITexture* DepthTarget = RenderTarget.TargetableTexture;
-			ERenderTargetLoadAction DepthLoadAction = bPerformClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad;
+			const bool bDoParallelDispatch = RHICmdList.IsImmediate() &&  // translucent shadows are draw on the render thread, using a recursive cmdlist (which is not immediate)
+				GRHICommandList.UseParallelAlgorithms() && CVarParallelShadows.GetValueOnRenderThread() &&
+				(ProjectedShadowInfo->IsWholeSceneDirectionalShadow() || CVarParallelShadowsNonWholeScene.GetValueOnRenderThread());
 
-			check(DepthTarget->GetDepthClearValue() == FClearValueBinding::DepthFar.Value.DSValue.Depth);
-			FRHIRenderPassInfo RPInfo(DepthTarget, MakeDepthStencilTargetActions(MakeRenderTargetActions(DepthLoadAction, ERenderTargetStoreAction::EStore), ERenderTargetActions::Load_Store), nullptr, FExclusiveDepthStencil::DepthWrite_StencilWrite);
+			GVisualizeTexture.SetCheckPoint(RHICmdList, ShadowMap.RenderTargets.DepthTarget.GetReference());
 
-			if (!GSupportsDepthRenderTargetWithoutColorRenderTarget)
+			FString LightNameWithLevel;
+			GetLightNameForDrawEvent(ProjectedShadowInfo->GetLightSceneInfo().Proxy, LightNameWithLevel);
+			SCOPED_DRAW_EVENTF(RHICmdList, EventShadowDepths, TEXT("Cubemap %s %u^2"), *LightNameWithLevel, TargetSize.X, TargetSize.Y);
+
+			ProjectedShadowInfo->SetupShadowUniformBuffers(RHICmdList, Scene);
+
+			auto BeginShadowRenderPass = [this, &RenderTarget, &SceneContext](FRHICommandList& InRHICmdList, bool bPerformClear)
 			{
-				RPInfo.ColorRenderTargets[0].Action = ERenderTargetActions::DontLoad_DontStore;
-				RPInfo.ColorRenderTargets[0].ArraySlice = -1;
-				RPInfo.ColorRenderTargets[0].MipIndex = 0;
-				RPInfo.ColorRenderTargets[0].RenderTarget = SceneContext.GetOptionalShadowDepthColorSurface(InRHICmdList, DepthTarget->GetTexture2D()->GetSizeX(), DepthTarget->GetTexture2D()->GetSizeY());
+				FRHITexture* DepthTarget = RenderTarget.TargetableTexture;
+				ERenderTargetLoadAction DepthLoadAction = bPerformClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad;
 
-				InRHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, RPInfo.ColorRenderTargets[0].RenderTarget);
-			}
-			InRHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, DepthTarget);
-			InRHICmdList.BeginRenderPass(RPInfo, TEXT("ShadowDepthCubeMaps"));
-		};
+				check(DepthTarget->GetDepthClearValue() == FClearValueBinding::DepthFar.Value.DSValue.Depth);
+				FRHIRenderPassInfo RPInfo(DepthTarget, MakeDepthStencilTargetActions(MakeRenderTargetActions(DepthLoadAction, ERenderTargetStoreAction::EStore), ERenderTargetActions::DontLoad_DontStore), nullptr, FExclusiveDepthStencil::DepthWrite_StencilNop);
 
-		{
-			bool bDoClear = true;
+				if (!GSupportsDepthRenderTargetWithoutColorRenderTarget)
+				{
+					RPInfo.ColorRenderTargets[0].Action = ERenderTargetActions::DontLoad_DontStore;
+					RPInfo.ColorRenderTargets[0].ArraySlice = -1;
+					RPInfo.ColorRenderTargets[0].MipIndex = 0;
+					RPInfo.ColorRenderTargets[0].RenderTarget = SceneContext.GetOptionalShadowDepthColorSurface(InRHICmdList, DepthTarget->GetTexture2D()->GetSizeX(), DepthTarget->GetTexture2D()->GetSizeY());
 
-			if (ProjectedShadowInfo->CacheMode == SDCM_MovablePrimitivesOnly
-				&& Scene->CachedShadowMaps.FindChecked(ProjectedShadowInfo->GetLightSceneInfo().Id).bCachedShadowMapHasPrimitives)
+					InRHICmdList.Transition(FRHITransitionInfo(RPInfo.ColorRenderTargets[0].RenderTarget, ERHIAccess::Unknown, ERHIAccess::RTV));
+				}
+				InRHICmdList.Transition(FRHITransitionInfo(DepthTarget, ERHIAccess::Unknown, ERHIAccess::DSVWrite));
+				InRHICmdList.BeginRenderPass(RPInfo, TEXT("ShadowDepthCubeMaps"));
+			};
+
 			{
-				// Skip the clear when we'll copy from a cached shadowmap
-				bDoClear = false;
+				bool bDoClear = true;
+
+				if (ProjectedShadowInfo->CacheMode == SDCM_MovablePrimitivesOnly
+					&& Scene->CachedShadowMaps.FindChecked(ProjectedShadowInfo->GetLightSceneInfo().Id).bCachedShadowMapHasPrimitives)
+				{
+					// Skip the clear when we'll copy from a cached shadowmap
+					bDoClear = false;
+				}
+
+				SCOPED_CONDITIONAL_DRAW_EVENT(RHICmdList, Clear, bDoClear);
+				BeginShadowRenderPass(RHICmdList, bDoClear);
 			}
 
-			SCOPED_CONDITIONAL_DRAW_EVENT(RHICmdList, Clear, bDoClear);
-			BeginShadowRenderPass(RHICmdList, bDoClear);
-		}
+			if (bDoParallelDispatch)
+			{
+				// In parallel mode this first pass will just be the clear.
+				RHICmdList.EndRenderPass();
+			}
 
-		if (bDoParallelDispatch)
-		{
-			// In parallel mode this first pass will just be the clear.
-			RHICmdList.EndRenderPass();
-		}
+			ProjectedShadowInfo->RenderDepth(RHICmdList, this, BeginShadowRenderPass, bDoParallelDispatch);
 
-		ProjectedShadowInfo->RenderDepth(RHICmdList, this, BeginShadowRenderPass, bDoParallelDispatch);
-
-		if (!bDoParallelDispatch)
-		{
-			RHICmdList.EndRenderPass();
-		}
+			if (!bDoParallelDispatch)
+			{
+				RHICmdList.EndRenderPass();
+			}
+		});
 
 		if (bNaniteEnabled &&
 			CVarNaniteShadows.GetValueOnRenderThread() &&
@@ -2257,9 +2233,6 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 			FString LightName;
 			GetLightNameForDrawEvent(ProjectedShadowInfo->GetLightSceneInfo().Proxy, LightName);
 
-			check( RHICmdList.IsImmediate() );
-			FRDGBuilder GraphBuilder( RHICmdList );
-					
 			{
 				RDG_EVENT_SCOPE( GraphBuilder, "Nanite Cubemap %s %ux%u", *LightName, ProjectedShadowInfo->ResolutionX, ProjectedShadowInfo->ResolutionY );
 				
@@ -2342,54 +2315,184 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 						bUseGeometryShader);
 				}
 			}
-
-			GraphBuilder.Execute();
 		}
 
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, RenderTarget.TargetableTexture);
+		AddUntrackedAccessPass(GraphBuilder, [&RenderTarget](FRHICommandList& RHICmdList)
+		{
+			RHICmdList.Transition(FRHITransitionInfo(RenderTarget.TargetableTexture, ERHIAccess::Unknown, ERHIAccess::SRVMask));
+		});
 	}
 
-	checkSlow(RHICmdList.IsOutsideRenderPass());
-
-	if (SortedShadowsForShadowDepthPass.PreshadowCache.Shadows.Num() > 0)
+	AddUntrackedAccessPass(GraphBuilder, [this](FRHICommandListImmediate& RHICmdList)
 	{
-		FSceneRenderTargetItem& RenderTarget = SortedShadowsForShadowDepthPass.PreshadowCache.RenderTargets.DepthTarget->GetRenderTargetItem();
-
-		GVisualizeTexture.SetCheckPoint(RHICmdList, SortedShadowsForShadowDepthPass.PreshadowCache.RenderTargets.DepthTarget.GetReference());
-
-		SCOPED_DRAW_EVENT(RHICmdList, PreshadowCache);
-
-		for (int32 ShadowIndex = 0; ShadowIndex < SortedShadowsForShadowDepthPass.PreshadowCache.Shadows.Num(); ShadowIndex++)
+		if (SortedShadowsForShadowDepthPass.PreshadowCache.Shadows.Num() > 0)
 		{
-			FProjectedShadowInfo* ProjectedShadowInfo = SortedShadowsForShadowDepthPass.PreshadowCache.Shadows[ShadowIndex];
+			FSceneRenderTargetItem& RenderTarget = SortedShadowsForShadowDepthPass.PreshadowCache.RenderTargets.DepthTarget->GetRenderTargetItem();
 
-			if (!ProjectedShadowInfo->bDepthsCached)
+			GVisualizeTexture.SetCheckPoint(RHICmdList, SortedShadowsForShadowDepthPass.PreshadowCache.RenderTargets.DepthTarget.GetReference());
+
+			SCOPED_DRAW_EVENT(RHICmdList, PreshadowCache);
+
+			for (int32 ShadowIndex = 0; ShadowIndex < SortedShadowsForShadowDepthPass.PreshadowCache.Shadows.Num(); ShadowIndex++)
 			{
+				FProjectedShadowInfo* ProjectedShadowInfo = SortedShadowsForShadowDepthPass.PreshadowCache.Shadows[ShadowIndex];
+
+				if (!ProjectedShadowInfo->bDepthsCached)
+				{
+					SCOPED_GPU_MASK(RHICmdList, GetGPUMaskForShadow(ProjectedShadowInfo));
+
+					const bool bDoParallelDispatch = RHICmdList.IsImmediate() &&  // translucent shadows are draw on the render thread, using a recursive cmdlist (which is not immediate)
+						GRHICommandList.UseParallelAlgorithms() && CVarParallelShadows.GetValueOnRenderThread() &&
+						(ProjectedShadowInfo->IsWholeSceneDirectionalShadow() || CVarParallelShadowsNonWholeScene.GetValueOnRenderThread());
+
+					ProjectedShadowInfo->SetupShadowUniformBuffers(RHICmdList, Scene);
+
+					auto BeginShadowRenderPass = [this, ProjectedShadowInfo](FRHICommandList& InRHICmdList, bool bPerformClear)
+					{
+						FRHITexture* PreShadowCacheDepthZ = Scene->PreShadowCacheDepthZ->GetRenderTargetItem().TargetableTexture.GetReference();
+						InRHICmdList.TransitionResources(ERHIAccess::DSVWrite, &PreShadowCacheDepthZ, 1);
+
+						FRHIRenderPassInfo RPInfo(PreShadowCacheDepthZ, EDepthStencilTargetActions::LoadDepthNotStencil_StoreDepthNotStencil, nullptr, FExclusiveDepthStencil::DepthWrite_StencilNop);
+
+						// Must preserve existing contents as the clear will be scissored
+						InRHICmdList.BeginRenderPass(RPInfo, TEXT("ShadowDepthMaps"));
+						ProjectedShadowInfo->ClearDepth(InRHICmdList, this, 0, nullptr, PreShadowCacheDepthZ, bPerformClear);
+					};
+
+					BeginShadowRenderPass(RHICmdList, true);
+
+					if (bDoParallelDispatch)
+					{
+						// In parallel mode the first pass is just the clear.
+						RHICmdList.EndRenderPass();
+					}
+
+					ProjectedShadowInfo->RenderDepth(RHICmdList, this, BeginShadowRenderPass, bDoParallelDispatch);
+
+					if (!bDoParallelDispatch)
+					{
+						RHICmdList.EndRenderPass();
+					}
+
+					ProjectedShadowInfo->bDepthsCached = true;
+				}
+			}
+
+			RHICmdList.Transition(FRHITransitionInfo(RenderTarget.TargetableTexture, ERHIAccess::Unknown, ERHIAccess::SRVMask));
+		}
+
+		for (int32 AtlasIndex = 0; AtlasIndex < SortedShadowsForShadowDepthPass.TranslucencyShadowMapAtlases.Num(); AtlasIndex++)
+		{
+			const FSortedShadowMapAtlas& ShadowMapAtlas = SortedShadowsForShadowDepthPass.TranslucencyShadowMapAtlases[AtlasIndex];
+			FIntPoint TargetSize = ShadowMapAtlas.RenderTargets.ColorTargets[0]->GetDesc().Extent;
+
+			SCOPED_DRAW_EVENTF(RHICmdList, EventShadowDepths, TEXT("TranslucencyAtlas%u %u^2"), AtlasIndex, TargetSize.X, TargetSize.Y);
+
+			FSceneRenderTargetItem ColorTarget0 = ShadowMapAtlas.RenderTargets.ColorTargets[0]->GetRenderTargetItem();
+			FSceneRenderTargetItem ColorTarget1 = ShadowMapAtlas.RenderTargets.ColorTargets[1]->GetRenderTargetItem();
+
+			FRHITexture* RenderTargetArray[2] =
+			{
+				ColorTarget0.TargetableTexture,
+				ColorTarget1.TargetableTexture
+			};
+
+			FRHIRenderPassInfo RPInfo(UE_ARRAY_COUNT(RenderTargetArray), RenderTargetArray, ERenderTargetActions::Load_Store);
+			TransitionRenderPassTargets(RHICmdList, RPInfo);
+			RHICmdList.BeginRenderPass(RPInfo, TEXT("RenderTranslucencyDepths"));
+			{
+				for (int32 ShadowIndex = 0; ShadowIndex < ShadowMapAtlas.Shadows.Num(); ShadowIndex++)
+				{
+					FProjectedShadowInfo* ProjectedShadowInfo = ShadowMapAtlas.Shadows[ShadowIndex];
+					SCOPED_GPU_MASK(RHICmdList, GetGPUMaskForShadow(ProjectedShadowInfo));
+					ProjectedShadowInfo->RenderTranslucencyDepths(RHICmdList, this);
+				}
+			}
+			RHICmdList.EndRenderPass();
+
+			RHICmdList.Transition(FRHITransitionInfo(ColorTarget0.TargetableTexture, ERHIAccess::Unknown, ERHIAccess::SRVMask));
+			RHICmdList.Transition(FRHITransitionInfo(ColorTarget1.TargetableTexture, ERHIAccess::Unknown, ERHIAccess::SRVMask));
+		}
+
+		// Get a copy of LpvWriteUniformBufferParams for parallel RSM draw-call submission
+		{
+			for (int32 ViewIdx = 0; ViewIdx < Views.Num(); ++ViewIdx)
+			{
+				FViewInfo& View = Views[ViewIdx];
+				FSceneViewState* ViewState = View.ViewState;
+
+				if (ViewState)
+				{
+					FLightPropagationVolume* Lpv = ViewState->GetLightPropagationVolume(FeatureLevel);
+
+					if (Lpv)
+					{
+						Lpv->SetRsmUniformBuffer();
+					}
+				}
+			}
+		}
+
+		for (int32 AtlasIndex = 0; AtlasIndex < SortedShadowsForShadowDepthPass.RSMAtlases.Num(); AtlasIndex++)
+		{
+			checkSlow(RHICmdList.IsOutsideRenderPass());
+
+			const FSortedShadowMapAtlas& ShadowMapAtlas = SortedShadowsForShadowDepthPass.RSMAtlases[AtlasIndex];
+			FSceneRenderTargetItem ColorTarget0 = ShadowMapAtlas.RenderTargets.ColorTargets[0]->GetRenderTargetItem();
+			FSceneRenderTargetItem ColorTarget1 = ShadowMapAtlas.RenderTargets.ColorTargets[1]->GetRenderTargetItem();
+			FSceneRenderTargetItem DepthTarget = ShadowMapAtlas.RenderTargets.DepthTarget->GetRenderTargetItem();
+			FIntPoint TargetSize = ShadowMapAtlas.RenderTargets.DepthTarget->GetDesc().Extent;
+
+			SCOPED_DRAW_EVENTF(RHICmdList, EventShadowDepths, TEXT("RSM%u %ux%u"), AtlasIndex, TargetSize.X, TargetSize.Y);
+
+			for (int32 ShadowIndex = 0; ShadowIndex < ShadowMapAtlas.Shadows.Num(); ShadowIndex++)
+			{
+				FProjectedShadowInfo* ProjectedShadowInfo = ShadowMapAtlas.Shadows[ShadowIndex];
 				SCOPED_GPU_MASK(RHICmdList, GetGPUMaskForShadow(ProjectedShadowInfo));
 
 				const bool bDoParallelDispatch = RHICmdList.IsImmediate() &&  // translucent shadows are draw on the render thread, using a recursive cmdlist (which is not immediate)
 					GRHICommandList.UseParallelAlgorithms() && CVarParallelShadows.GetValueOnRenderThread() &&
 					(ProjectedShadowInfo->IsWholeSceneDirectionalShadow() || CVarParallelShadowsNonWholeScene.GetValueOnRenderThread());
 
-				ProjectedShadowInfo->SetupShadowUniformBuffers(RHICmdList, Scene);
+				FSceneViewState* ViewState = (FSceneViewState*)ProjectedShadowInfo->DependentView->State;
+				FLightPropagationVolume* LightPropagationVolume = ViewState->GetLightPropagationVolume(FeatureLevel);
 
-				auto BeginShadowRenderPass = [this, ProjectedShadowInfo](FRHICommandList& InRHICmdList, bool bPerformClear)
+				ProjectedShadowInfo->SetupShadowUniformBuffers(RHICmdList, Scene, LightPropagationVolume);
+
+				auto BeginShadowRenderPass = [this, LightPropagationVolume, ProjectedShadowInfo, &ColorTarget0, &ColorTarget1, &DepthTarget](FRHICommandList& InRHICmdList, bool bPerformClear)
 				{
-					FRHITexture* PreShadowCacheDepthZ = Scene->PreShadowCacheDepthZ->GetRenderTargetItem().TargetableTexture.GetReference();
-					InRHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, &PreShadowCacheDepthZ, 1);
+					FRHITexture* RenderTargets[2];
+					RenderTargets[0] = ColorTarget0.TargetableTexture;
+					RenderTargets[1] = ColorTarget1.TargetableTexture;
 
-					FRHIRenderPassInfo RPInfo(PreShadowCacheDepthZ, EDepthStencilTargetActions::LoadDepthStencil_StoreDepthStencil, nullptr, FExclusiveDepthStencil::DepthWrite_StencilWrite);
+					// Hook up the geometry volume UAVs
+					FRHITransitionInfo UAVTransitions[] = {
+						FRHITransitionInfo(LightPropagationVolume->GetGvListBufferUav(), ERHIAccess::Unknown, ERHIAccess::UAVMask),
+						FRHITransitionInfo(LightPropagationVolume->GetGvListHeadBufferUav(), ERHIAccess::Unknown, ERHIAccess::UAVMask),
+						FRHITransitionInfo(LightPropagationVolume->GetVplListBufferUav(), ERHIAccess::Unknown, ERHIAccess::UAVMask),
+						FRHITransitionInfo(LightPropagationVolume->GetVplListHeadBufferUav(), ERHIAccess::Unknown, ERHIAccess::UAVMask)
+					};
 
-					// Must preserve existing contents as the clear will be scissored
-					InRHICmdList.BeginRenderPass(RPInfo, TEXT("ShadowDepthMaps"));
-					ProjectedShadowInfo->ClearDepth(InRHICmdList, this, 0, nullptr, PreShadowCacheDepthZ, bPerformClear);
+					FRHIRenderPassInfo RPInfo(UE_ARRAY_COUNT(RenderTargets), RenderTargets, ERenderTargetActions::Load_Store);
+					RPInfo.DepthStencilRenderTarget.Action = EDepthStencilTargetActions::LoadDepthNotStencil_StoreDepthNotStencil;
+					RPInfo.DepthStencilRenderTarget.DepthStencilTarget = DepthTarget.TargetableTexture;
+					RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthWrite_StencilNop;
+
+					InRHICmdList.Transition(MakeArrayView(UAVTransitions, UE_ARRAY_COUNT(UAVTransitions)));
+					TransitionRenderPassTargets(InRHICmdList, RPInfo);
+					InRHICmdList.BeginRenderPass(RPInfo, TEXT("ShadowAtlas"));
+
+					ProjectedShadowInfo->ClearDepth(InRHICmdList, this, UE_ARRAY_COUNT(RenderTargets), RenderTargets, DepthTarget.TargetableTexture, bPerformClear);
 				};
 
-				BeginShadowRenderPass(RHICmdList, true);
+				{
+					SCOPED_DRAW_EVENT(RHICmdList, Clear);
+					BeginShadowRenderPass(RHICmdList, true);
+				}
 
+				// In parallel mode the first renderpass is just the clear.
 				if (bDoParallelDispatch)
 				{
-					// In parallel mode the first pass is just the clear.
 					RHICmdList.EndRenderPass();
 				}
 
@@ -2399,151 +2502,22 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 				{
 					RHICmdList.EndRenderPass();
 				}
-
-				ProjectedShadowInfo->bDepthsCached = true;
-			}
-		}
-
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, RenderTarget.TargetableTexture);
-	}
-
-	for (int32 AtlasIndex = 0; AtlasIndex < SortedShadowsForShadowDepthPass.TranslucencyShadowMapAtlases.Num(); AtlasIndex++)
-	{
-		const FSortedShadowMapAtlas& ShadowMapAtlas = SortedShadowsForShadowDepthPass.TranslucencyShadowMapAtlases[AtlasIndex];
-		FIntPoint TargetSize = ShadowMapAtlas.RenderTargets.ColorTargets[0]->GetDesc().Extent;
-
-		SCOPED_DRAW_EVENTF(RHICmdList, EventShadowDepths, TEXT("TranslucencyAtlas%u %u^2"), AtlasIndex, TargetSize.X, TargetSize.Y);
-
-		FSceneRenderTargetItem ColorTarget0 = ShadowMapAtlas.RenderTargets.ColorTargets[0]->GetRenderTargetItem();
-		FSceneRenderTargetItem ColorTarget1 = ShadowMapAtlas.RenderTargets.ColorTargets[1]->GetRenderTargetItem();
-
-		FRHITexture* RenderTargetArray[2] =
-		{
-			ColorTarget0.TargetableTexture,
-			ColorTarget1.TargetableTexture
-		};
-
-		FRHIRenderPassInfo RPInfo(UE_ARRAY_COUNT(RenderTargetArray), RenderTargetArray, ERenderTargetActions::Load_Store);
-		TransitionRenderPassTargets(RHICmdList, RPInfo);
-		RHICmdList.BeginRenderPass(RPInfo, TEXT("RenderTranslucencyDepths"));
-		{
-			for (int32 ShadowIndex = 0; ShadowIndex < ShadowMapAtlas.Shadows.Num(); ShadowIndex++)
-			{
-				FProjectedShadowInfo* ProjectedShadowInfo = ShadowMapAtlas.Shadows[ShadowIndex];
-				SCOPED_GPU_MASK(RHICmdList, GetGPUMaskForShadow(ProjectedShadowInfo));
-				ProjectedShadowInfo->RenderTranslucencyDepths(RHICmdList, this);
-			}
-		}
-		RHICmdList.EndRenderPass();
-
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, ColorTarget0.TargetableTexture);
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, ColorTarget1.TargetableTexture);
-	}
-
-	// Get a copy of LpvWriteUniformBufferParams for parallel RSM draw-call submission
-	{
-		for (int32 ViewIdx = 0; ViewIdx < Views.Num(); ++ViewIdx)
-		{
-			FViewInfo& View = Views[ViewIdx];
-			FSceneViewState* ViewState = View.ViewState;
-
-			if (ViewState)
-			{
-				FLightPropagationVolume* Lpv = ViewState->GetLightPropagationVolume(FeatureLevel);
-
-				if (Lpv)
 				{
-					Lpv->SetRsmUniformBuffer();
+					// Resolve the shadow depth z surface.
+					RHICmdList.CopyToResolveTarget(DepthTarget.TargetableTexture, DepthTarget.ShaderResourceTexture, FResolveParams());
+					RHICmdList.CopyToResolveTarget(ColorTarget0.TargetableTexture, ColorTarget0.ShaderResourceTexture, FResolveParams());
+					RHICmdList.CopyToResolveTarget(ColorTarget1.TargetableTexture, ColorTarget1.ShaderResourceTexture, FResolveParams());
+
+					FRHITransitionInfo UavsToReadable[2];
+					UavsToReadable[0] = FRHITransitionInfo(LightPropagationVolume->GetGvListBufferUav(), ERHIAccess::Unknown, ERHIAccess::SRVMask);
+					UavsToReadable[1] = FRHITransitionInfo(LightPropagationVolume->GetGvListHeadBufferUav(), ERHIAccess::Unknown, ERHIAccess::SRVMask);
+					RHICmdList.Transition(MakeArrayView(UavsToReadable, UE_ARRAY_COUNT(UavsToReadable)));
 				}
+				checkSlow(RHICmdList.IsOutsideRenderPass());
 			}
 		}
-	}
-
-	for (int32 AtlasIndex = 0; AtlasIndex < SortedShadowsForShadowDepthPass.RSMAtlases.Num(); AtlasIndex++)
-	{
-		checkSlow(RHICmdList.IsOutsideRenderPass());
-
-		const FSortedShadowMapAtlas& ShadowMapAtlas = SortedShadowsForShadowDepthPass.RSMAtlases[AtlasIndex];
-		FSceneRenderTargetItem ColorTarget0 = ShadowMapAtlas.RenderTargets.ColorTargets[0]->GetRenderTargetItem();
-		FSceneRenderTargetItem ColorTarget1 = ShadowMapAtlas.RenderTargets.ColorTargets[1]->GetRenderTargetItem();
-		FSceneRenderTargetItem DepthTarget = ShadowMapAtlas.RenderTargets.DepthTarget->GetRenderTargetItem();
-		FIntPoint TargetSize = ShadowMapAtlas.RenderTargets.DepthTarget->GetDesc().Extent;
-
-		SCOPED_DRAW_EVENTF(RHICmdList, EventShadowDepths, TEXT("RSM%u %ux%u"), AtlasIndex, TargetSize.X, TargetSize.Y);
-
-		for (int32 ShadowIndex = 0; ShadowIndex < ShadowMapAtlas.Shadows.Num(); ShadowIndex++)
-		{
-			FProjectedShadowInfo* ProjectedShadowInfo = ShadowMapAtlas.Shadows[ShadowIndex];
-			SCOPED_GPU_MASK(RHICmdList, GetGPUMaskForShadow(ProjectedShadowInfo));
-
-			const bool bDoParallelDispatch = RHICmdList.IsImmediate() &&  // translucent shadows are draw on the render thread, using a recursive cmdlist (which is not immediate)
-				GRHICommandList.UseParallelAlgorithms() && CVarParallelShadows.GetValueOnRenderThread() &&
-				(ProjectedShadowInfo->IsWholeSceneDirectionalShadow() || CVarParallelShadowsNonWholeScene.GetValueOnRenderThread());
-
-			FSceneViewState* ViewState = (FSceneViewState*)ProjectedShadowInfo->DependentView->State;
-			FLightPropagationVolume* LightPropagationVolume = ViewState->GetLightPropagationVolume(FeatureLevel);
-
-			ProjectedShadowInfo->SetupShadowUniformBuffers(RHICmdList, Scene, LightPropagationVolume);
-
-			auto BeginShadowRenderPass = [this, LightPropagationVolume, ProjectedShadowInfo, &ColorTarget0, &ColorTarget1, &DepthTarget](FRHICommandList& InRHICmdList, bool bPerformClear)
-			{
-				FRHITexture* RenderTargets[2];
-				RenderTargets[0] = ColorTarget0.TargetableTexture;
-				RenderTargets[1] = ColorTarget1.TargetableTexture;
-
-				// Hook up the geometry volume UAVs
-				FRHIUnorderedAccessView* Uavs[4];
-				Uavs[0] = LightPropagationVolume->GetGvListBufferUav();
-				Uavs[1] = LightPropagationVolume->GetGvListHeadBufferUav();
-				Uavs[2] = LightPropagationVolume->GetVplListBufferUav();
-				Uavs[3] = LightPropagationVolume->GetVplListHeadBufferUav();
-
-				FRHIRenderPassInfo RPInfo(UE_ARRAY_COUNT(RenderTargets), RenderTargets, ERenderTargetActions::Load_Store);
-				RPInfo.DepthStencilRenderTarget.Action = EDepthStencilTargetActions::LoadDepthStencil_StoreDepthStencil;
-				RPInfo.DepthStencilRenderTarget.DepthStencilTarget = DepthTarget.TargetableTexture;
-				RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthWrite_StencilWrite;
-
-
-				InRHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToGfx, Uavs, UE_ARRAY_COUNT(Uavs));
-				InRHICmdList.BeginRenderPass(RPInfo, TEXT("ShadowAtlas"));
-
-				ProjectedShadowInfo->ClearDepth(InRHICmdList, this, UE_ARRAY_COUNT(RenderTargets), RenderTargets, DepthTarget.TargetableTexture, bPerformClear);
-			};
-
-			{
-				SCOPED_DRAW_EVENT(RHICmdList, Clear);
-				BeginShadowRenderPass(RHICmdList, true);
-			}
-
-			// In parallel mode the first renderpass is just the clear.
-			if (bDoParallelDispatch)
-			{
-				RHICmdList.EndRenderPass();
-			}
-
-			ProjectedShadowInfo->RenderDepth(RHICmdList, this, BeginShadowRenderPass, bDoParallelDispatch);
-
-			if (!bDoParallelDispatch)
-			{
-				RHICmdList.EndRenderPass();
-			}
-			{
-				// Resolve the shadow depth z surface.
-				RHICmdList.CopyToResolveTarget(DepthTarget.TargetableTexture, DepthTarget.ShaderResourceTexture, FResolveParams());
-				RHICmdList.CopyToResolveTarget(ColorTarget0.TargetableTexture, ColorTarget0.ShaderResourceTexture, FResolveParams());
-				RHICmdList.CopyToResolveTarget(ColorTarget1.TargetableTexture, ColorTarget1.ShaderResourceTexture, FResolveParams());
-
-				FRHIUnorderedAccessView* UavsToReadable[2];
-				UavsToReadable[0] = LightPropagationVolume->GetGvListBufferUav();
-				UavsToReadable[1] = LightPropagationVolume->GetGvListHeadBufferUav();
-				RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EGfxToGfx, UavsToReadable, UE_ARRAY_COUNT(UavsToReadable));
-			}
-			checkSlow(RHICmdList.IsOutsideRenderPass());
-		}
-	}
-
-	checkSlow(RHICmdList.IsOutsideRenderPass());
-	bShadowDepthRenderCompleted = true;
+		bShadowDepthRenderCompleted = true;
+	});
 }
 
 template<bool bRenderReflectiveShadowMap>

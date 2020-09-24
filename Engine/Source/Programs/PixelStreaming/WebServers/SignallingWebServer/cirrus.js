@@ -21,7 +21,8 @@ const defaultConfig = {
 	UseAuthentication: false,
 	LogToFile: true,
 	HomepageFile: 'player.htm',
-	AdditionalRoutes: new Map()
+	AdditionalRoutes: new Map(),
+	EnableWebserver: true
 };
 
 const argv = require('yargs').argv;
@@ -171,9 +172,11 @@ sendGameSessionData();
 
 //Setup the login page if we are using authentication
 if(config.UseAuthentication){
-	app.get('/login', function(req, res){
-		res.sendFile(__dirname + '/login.htm');
-	});
+	if(config.EnableWebserver) {
+		app.get('/login', function(req, res){
+			res.sendFile(__dirname + '/login.htm');
+		});
+	}
 
 	// create application/x-www-form-urlencoded parser
 	var urlencodedParser = bodyParser.urlencoded({ extended: false })
@@ -192,11 +195,13 @@ if(config.UseAuthentication){
 	);
 }
 
-//Setup folders
-app.use(express.static(path.join(__dirname, '/public')))
-app.use('/images', express.static(path.join(__dirname, './images')))
-app.use('/scripts', [isAuthenticated('/login'),express.static(path.join(__dirname, '/scripts'))]);
-app.use('/', [isAuthenticated('/login'), express.static(path.join(__dirname, '/custom_html'))])
+if(config.EnableWebserver) {
+	//Setup folders
+	app.use(express.static(path.join(__dirname, '/public')))
+	app.use('/images', express.static(path.join(__dirname, './images')))
+	app.use('/scripts', [isAuthenticated('/login'),express.static(path.join(__dirname, '/scripts'))]);
+	app.use('/', [isAuthenticated('/login'), express.static(path.join(__dirname, '/custom_html'))])
+}
 
 try {
 	for (var property in config.AdditionalRoutes) {
@@ -209,21 +214,22 @@ try {
 	console.error(`reading config.AdditionalRoutes: ${err}`)
 }
 
-app.get('/', isAuthenticated('/login'), function (req, res) {
-	homepageFile = (typeof config.HomepageFile != 'undefined' && config.HomepageFile != '') ? config.HomepageFile.toString() : defaultConfig.HomepageFile;
-	homepageFilePath = path.join(__dirname, homepageFile)
+if(config.EnableWebserver) {
+	app.get('/', isAuthenticated('/login'), function (req, res) {
+		homepageFile = (typeof config.HomepageFile != 'undefined' && config.HomepageFile != '') ? config.HomepageFile.toString() : defaultConfig.HomepageFile;
+		homepageFilePath = path.join(__dirname, homepageFile)
 
-	fs.access(homepageFilePath, (err) => {
-		if (err) {
-			console.error('Unable to locate file ' + homepageFilePath)
-			res.status(404).send('Unable to locate file ' + homepageFile);
-		}
-		else {
-			res.sendFile(homepageFilePath);
-		}
+		fs.access(homepageFilePath, (err) => {
+			if (err) {
+				console.error('Unable to locate file ' + homepageFilePath)
+				res.status(404).send('Unable to locate file ' + homepageFile);
+			}
+			else {
+				res.sendFile(homepageFilePath);
+			}
+		});
 	});
-});
-
+}
 
 //Setup http and https servers
 http.listen(httpPort, function () {
@@ -272,6 +278,7 @@ let streamer; // WebSocket connected to Streamer
 
 streamerServer.on('connection', function (ws, req) {
 	console.logColor(logging.Green, `Streamer connected: ${req.connection.remoteAddress}`);
+	sendStreamerConnectedToMatchmaker();
 
 	ws.on('message', function onStreamerMessage(msg) {
 		console.logColor(logging.Blue, `<- Streamer: ${msg}`);
@@ -284,6 +291,11 @@ streamerServer.on('connection', function (ws, req) {
 			return;
 		}
 	
+		if (msg.type == 'ping') {
+			streamer.send(JSON.stringify({ type: "pong", time: msg.time}));
+			return;
+		}
+
 		let playerId = msg.playerId;
 		delete msg.playerId; // no need to send it to the player
 		let player = players.get(playerId);
@@ -305,6 +317,7 @@ streamerServer.on('connection', function (ws, req) {
 	});
 
 	function onStreamerDisconnected() {
+		sendStreamerDisconnectedToMatchmaker();
 		disconnectAllPlayers();
 	}
 	
@@ -430,7 +443,8 @@ if (config.UseMatchmaker) {
 		message = {
 			type: 'connect',
 			address: typeof serverPublicIp === 'undefined' ? '127.0.0.1' : serverPublicIp,
-			port: httpPort
+			port: httpPort,
+			ready: streamer && streamer.readyState === 1
 		};
 		matchmaker.write(JSON.stringify(message));
 	});
@@ -604,6 +618,26 @@ function sendPlayerDisconnectedToFrontend() {
 				console.error(err);
 			}
 		});
+}
+
+function sendStreamerConnectedToMatchmaker() {
+	if (!config.UseMatchmaker)
+		return;
+
+	message = {
+		type: 'streamerConnected'
+	};
+	matchmaker.write(JSON.stringify(message));
+}
+
+function sendStreamerDisconnectedToMatchmaker() {
+	if (!config.UseMatchmaker)
+		return;
+
+	message = {
+		type: 'streamerDisconnected'
+	};
+	matchmaker.write(JSON.stringify(message));
 }
 
 // The Matchmaker will not re-direct clients to this Cirrus server if any client

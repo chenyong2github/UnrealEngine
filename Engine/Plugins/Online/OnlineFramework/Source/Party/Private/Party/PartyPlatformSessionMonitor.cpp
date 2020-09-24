@@ -6,6 +6,7 @@
 #include "Party/PartyMember.h"
 #include "SocialToolkit.h"
 #include "SocialManager.h"
+#include "SocialSettings.h"
 #include "User/SocialUser.h"
 
 #include "HAL/IConsoleManager.h"
@@ -104,16 +105,31 @@ static FAutoConsoleVariableRef CVar_EstablishSessionRetryDelay(
 //////////////////////////////////////////////////////////////////////////
 // FPartySessionManager
 //////////////////////////////////////////////////////////////////////////
+
+static const FSocialPlatformDescription* FindPlatformDescriptionByOss(FName OssName)
+{
+	auto FindPlatformDescriptionByOssName = [OssName](const FSocialPlatformDescription& TestPlatformDescription)
+	{
+		return TestPlatformDescription.OnlineSubsystem == OssName;
+	};
+	return USocialSettings::GetSocialPlatformDescriptions().FindByPredicate(FindPlatformDescriptionByOssName);
+}
+
 bool FPartyPlatformSessionManager::DoesOssNeedPartySession(FName OssName)
 {
-#ifdef OSS_PARTY_PLATFORM_SESSION_REQUIRED
-	return OSS_PARTY_PLATFORM_SESSION_REQUIRED;
-#else
-	const bool bIsPS4 = OssName.IsEqual(PS4_SUBSYSTEM);
-	const bool bIsXB1 = OssName.IsEqual(LIVE_SUBSYSTEM);
-	const bool bIsTencent = OssName.IsEqual(TENCENT_SUBSYSTEM);
-	return bIsPS4 || bIsXB1 || bIsTencent;
-#endif
+	const FSocialPlatformDescription* const PlatformDescription = FindPlatformDescriptionByOss(OssName);
+	return PlatformDescription && !PlatformDescription->SessionType.IsEmpty();
+}
+
+TOptional<FString> FPartyPlatformSessionManager::GetOssPartySessionType(FName OssName)
+{
+	TOptional<FString> SessionType;
+	const FSocialPlatformDescription* const PlatformDescription = FindPlatformDescriptionByOss(OssName);
+	if (PlatformDescription && !PlatformDescription->SessionType.IsEmpty())
+	{
+		SessionType.Emplace(PlatformDescription->SessionType);
+	}
+	return SessionType;
 }
 
 TSharedRef<FPartyPlatformSessionManager> FPartyPlatformSessionManager::Create(USocialManager& InSocialManager)
@@ -182,44 +198,52 @@ FUniqueNetIdRepl FPartyPlatformSessionManager::GetLocalUserPlatformId() const
 	return SocialManager.GetFirstLocalUserId(ESocialSubsystem::Platform);
 }
 
-bool FPartyPlatformSessionManager::FindSessionInternal(const FSessionId& SessionId, const FUniqueNetIdRepl& SessionOwnerId, const FOnFindSessionAttemptComplete& OnAttemptComplete)
+bool FPartyPlatformSessionManager::FindSessionInternal(const FSessionId& SessionIdString, const FUniqueNetIdRepl& SessionOwnerId, const FOnFindSessionAttemptComplete& OnAttemptComplete)
 {
-	if (!SessionId.IsEmpty() && SessionOwnerId.IsValid())
+	if (!SessionIdString.IsEmpty() && SessionOwnerId.IsValid())
 	{
 		const FUniqueNetIdRepl& LocalUserPlatformId = GetLocalUserPlatformId();
 		if (ensure(LocalUserPlatformId.IsValid()))
 		{
-#if !UE_BUILD_SHIPPING
-			float DelaySeconds = FMath::Max(0.f, PlatformSessionFindDelay);
-			if (DelaySeconds > 0.f || ForcePlatformSessionFindFailure != 0)
-			{
-				UE_LOG(LogParty, Warning, TEXT("PartyPlatformSessionMonitor adding artificial delay of %0.2fs to session find attempt"), DelaySeconds);
-
-				TWeakPtr<FPartyPlatformSessionManager> AsWeakPtr = SharedThis(this);
-				FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(
-					[AsWeakPtr, SessionId, SessionOwnerId, LocalUserPlatformId, OnAttemptComplete, this](float)
-					{
-						QUICK_SCOPE_CYCLE_COUNTER(STAT_FPartyPlatformSessionManager_FindSessionAttempt);
-						if (AsWeakPtr.IsValid())
-						{
-							if (ForcePlatformSessionFindFailure != 0)
-							{
-								UE_LOG(LogParty, Warning, TEXT("Forcing session find failure"));
-								ProcessCompletedSessionSearch(SocialManager.GetFirstLocalUserNum(), false, FOnlineSessionSearchResult(), SessionId, SessionOwnerId, OnAttemptComplete);
-							}
-							else
-							{
-								GetSessionInterface()->FindSessionById(*LocalUserPlatformId, FUniqueNetIdString(SessionId), *LocalUserPlatformId, FOnSingleSessionResultCompleteDelegate::CreateSP(this, &FPartyPlatformSessionManager::HandleFindSessionByIdComplete, SessionId, SessionOwnerId, OnAttemptComplete));
-							}
-						}
-						return false; // Don't retick
-					}), DelaySeconds);
-				return ForcePlatformSessionFindFailure != 0;
-			}
-#endif
-			// Always start by trying to find the session directly by ID
 			const IOnlineSessionPtr& SessionInterface = GetSessionInterface();
-			return SessionInterface->FindSessionById(*LocalUserPlatformId, FUniqueNetIdString(SessionId), *LocalUserPlatformId, FOnSingleSessionResultCompleteDelegate::CreateSP(this, &FPartyPlatformSessionManager::HandleFindSessionByIdComplete, SessionId, SessionOwnerId, OnAttemptComplete));
+			TSharedPtr<const FUniqueNetId> SessionId = SessionInterface->CreateSessionIdFromString(SessionIdString);
+			if (SessionId.IsValid())
+			{
+#if !UE_BUILD_SHIPPING
+				float DelaySeconds = FMath::Max(0.f, PlatformSessionFindDelay);
+				if (DelaySeconds > 0.f || ForcePlatformSessionFindFailure != 0)
+				{
+					UE_LOG(LogParty, Warning, TEXT("PartyPlatformSessionMonitor adding artificial delay of %0.2fs to session find attempt"), DelaySeconds);
+
+					TWeakPtr<FPartyPlatformSessionManager> AsWeakPtr = SharedThis(this);
+					FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(
+						[AsWeakPtr, SessionId, SessionIdString, SessionOwnerId, LocalUserPlatformId, OnAttemptComplete, this](float)
+						{
+							QUICK_SCOPE_CYCLE_COUNTER(STAT_FPartyPlatformSessionManager_FindSessionAttempt);
+							if (AsWeakPtr.IsValid())
+							{
+								if (ForcePlatformSessionFindFailure != 0)
+								{
+									UE_LOG(LogParty, Warning, TEXT("Forcing session find failure"));
+									ProcessCompletedSessionSearch(SocialManager.GetFirstLocalUserNum(), false, FOnlineSessionSearchResult(), SessionIdString, SessionOwnerId, OnAttemptComplete);
+								}
+								else
+								{
+									GetSessionInterface()->FindSessionById(*LocalUserPlatformId, *SessionId, *LocalUserPlatformId, FOnSingleSessionResultCompleteDelegate::CreateSP(this, &FPartyPlatformSessionManager::HandleFindSessionByIdComplete, SessionIdString, SessionOwnerId, OnAttemptComplete));
+								}
+							}
+							return false; // Don't retick
+						}), DelaySeconds);
+					return ForcePlatformSessionFindFailure != 0;
+				}
+#endif
+				// Always start by trying to find the session directly by ID
+				return SessionInterface->FindSessionById(*LocalUserPlatformId, *SessionId, *LocalUserPlatformId, FOnSingleSessionResultCompleteDelegate::CreateSP(this, &FPartyPlatformSessionManager::HandleFindSessionByIdComplete, SessionIdString, SessionOwnerId, OnAttemptComplete));
+			}
+			else
+			{
+				UE_LOG(LogParty, Warning, TEXT("PartyPlatformSessionMonitor could not create a session id from string [%s]"), *SessionIdString);
+			}
 		}
 	}
 	return false;
@@ -231,7 +255,7 @@ void FPartyPlatformSessionManager::HandleFindSessionByIdComplete(int32 LocalUser
 
 	if (!bWasSuccessful || !FoundSession.IsSessionInfoValid())
 	{
-#if PLATFORM_PS4
+#if PARTY_PLATFORM_SESSIONS_PSN
 		//@todo DanH: Obviously remove all of this asap - we need the PSN OSS to be able to get updated presence info for a single user without querying the whole frigging list
 		//		Also, querying the list shouldn't wipe the existing friend infos, it should update them surgically, in which case we wouldn't need this notify regardless of additional queries
 
@@ -241,7 +265,7 @@ void FPartyPlatformSessionManager::HandleFindSessionByIdComplete(int32 LocalUser
 			UE_LOG(LogParty, Log, TEXT("PartyPlatformSessionManager failed to find PSN party session, requerying PSN friends list now."));
 
 			bHasAlreadyRequeriedPSNFriends = true;
-			Online::GetFriendsInterfaceChecked(SocialManager.GetWorld(), PS4_SUBSYSTEM)->ReadFriendsList(LocalUserNum, EFriendsLists::ToString(EFriendsLists::Default), FOnReadFriendsListComplete::CreateSP(this, &FPartyPlatformSessionManager::HandleReadPSNFriendsListComplete, SessionId, SessionOwnerId, OnAttemptComplete));
+			Online::GetFriendsInterfaceChecked(SocialManager.GetWorld(), USocialManager::GetSocialOssName(ESocialSubsystem::Platform))->ReadFriendsList(LocalUserNum, EFriendsLists::ToString(EFriendsLists::Default), FOnReadFriendsListComplete::CreateSP(this, &FPartyPlatformSessionManager::HandleReadPSNFriendsListComplete, SessionId, SessionOwnerId, OnAttemptComplete));
 			return;
 		}
 		else
@@ -261,7 +285,7 @@ void FPartyPlatformSessionManager::HandleFindSessionByIdComplete(int32 LocalUser
 
 void FPartyPlatformSessionManager::ProcessCompletedSessionSearch(int32 LocalUserNum, bool bWasSuccessful, const FOnlineSessionSearchResult& FoundSession, const FSessionId& SessionId, const FUniqueNetIdRepl& SessionOwnerId, const FOnFindSessionAttemptComplete& OnAttemptComplete)
 {
-#if PLATFORM_PS4
+#if PARTY_PLATFORM_SESSIONS_PSN
 	bHasAlreadyRequeriedPSNFriends = false;
 #endif
 
@@ -269,7 +293,7 @@ void FPartyPlatformSessionManager::ProcessCompletedSessionSearch(int32 LocalUser
 	OnAttemptComplete.ExecuteIfBound(bWasSuccessful, FoundSession);
 }
 
-#if PLATFORM_PS4
+#if PARTY_PLATFORM_SESSIONS_PSN
 void FPartyPlatformSessionManager::HandleReadPSNFriendsListComplete(int32 LocalUserNum, bool bWasSuccessful, const FString& ListName, const FString& ErrorStr, FSessionId OriginalSessionId, FUniqueNetIdRepl SessionOwnerId, FOnFindSessionAttemptComplete OnAttemptComplete)
 {
 	UE_LOG(LogParty, Log, TEXT("PartyPlatformSessionManager completed requery of the PSN friends list for user [%s] with result [%d] and Error [%s]"), *SessionOwnerId.ToDebugString(), (int32)bWasSuccessful, *ErrorStr);
@@ -623,7 +647,7 @@ void FPartyPlatformSessionMonitor::JoinSession(const FOnlineSessionSearchResult&
 	SessionInterface->AddOnJoinSessionCompleteDelegate_Handle(FOnJoinSessionCompleteDelegate::CreateSP(this, &FPartyPlatformSessionMonitor::HandleJoinSessionComplete));
 
 	FOnlineSessionSearchResult SearchResultCopy = SessionSearchResult;
-#if PLATFORM_XBOXONE
+#if PARTY_PLATFORM_SESSIONS_XBL
 	// Set session to be dedicated as we are not using peer to peer features
 	SearchResultCopy.Session.SessionSettings.bIsDedicated = true;
 #endif
@@ -694,12 +718,15 @@ const FPartyPlatformSessionInfo* FPartyPlatformSessionMonitor::FindLocalPlatform
 {
 	if (MonitoredParty.IsValid())
 	{
-		const FName PlatformOssName = USocialManager::GetSocialOssName(ESocialSubsystem::Platform);
-		for (const FPartyPlatformSessionInfo& SessionInfo : MonitoredParty->GetRepData().GetPlatformSessions())
+		TOptional<FString> SessionType = FPartyPlatformSessionManager::GetOssPartySessionType(USocialManager::GetSocialOssName(ESocialSubsystem::Platform));
+		if (SessionType)
 		{
-			if (PlatformOssName == SessionInfo.OssName)
+			for (const FPartyPlatformSessionInfo& SessionInfo : MonitoredParty->GetRepData().GetPlatformSessions())
 			{
-				return &SessionInfo;
+				if (SessionType.GetValue() == SessionInfo.SessionType)
+				{
+					return &SessionInfo;
+				}
 			}
 		}
 	}
@@ -837,10 +864,12 @@ void FPartyPlatformSessionMonitor::HandleCreateSessionComplete(FName SessionName
 				}
 			}
 
-#if PLATFORM_PS4
-			// Need to queue an immediate update of the newly created session to PUT the ChangeableSessionData
-			QueuePlatformSessionUpdate();
-#endif
+			bool bQueuePlatformSessionUpdate = bMissedSessionUpdateDuringCreate || PARTY_PLATFORM_SESSIONS_PSN;
+			if (bQueuePlatformSessionUpdate)
+			{
+				bMissedSessionUpdateDuringCreate = false;
+				QueuePlatformSessionUpdate();
+			}
 		}
 		
 		OnSessionEstablished.ExecuteIfBound();
@@ -902,11 +931,11 @@ void FPartyPlatformSessionMonitor::HandleJoinSessionComplete(FName SessionName, 
 
 	SessionInitTracker.CompleteStep(Step_JoinSession);
 	SessionInterface->ClearOnJoinSessionCompleteDelegates(this);
-	TargetSessionId = FSessionId();
 
 	const bool bWasSuccessful = JoinSessionResult == EOnJoinSessionCompleteResult::Success || JoinSessionResult == EOnJoinSessionCompleteResult::AlreadyInSession;
 	if (ShutdownState == EMonitorShutdownState::Requested)
 	{
+		TargetSessionId = FSessionId();
 		if (bWasSuccessful)
 		{
 			LeaveSession();
@@ -918,6 +947,7 @@ void FPartyPlatformSessionMonitor::HandleJoinSessionComplete(FName SessionName, 
 	}
 	else if (bWasSuccessful && ensure(MonitoredParty.IsValid()))
 	{
+		TargetSessionId = FSessionId();
 		MonitoredParty->SetIsMissingPlatformSession(false);
 		SessionInterface->AddOnSessionFailureDelegate_Handle(FOnSessionFailureDelegate::CreateSP(this, &FPartyPlatformSessionMonitor::HandleSessionFailure));
 
@@ -970,10 +1000,10 @@ bool FPartyPlatformSessionMonitor::ConfigurePlatformSessionSettings(FOnlineSessi
 		{
 			bEstablishedPartySettings = true;
 
-#if PLATFORM_PS4
+#if PARTY_PLATFORM_SESSIONS_PSN
 			SessionSettings.Set(SETTING_HOST_MIGRATION, true, EOnlineDataAdvertisementType::DontAdvertise);
 			SessionSettings.Set(SETTING_CUSTOM, JoinInfoJson, EOnlineDataAdvertisementType::DontAdvertise);
-#elif PLATFORM_XBOXONE
+#elif PARTY_PLATFORM_SESSIONS_XBL
 			// This needs to match our value on the XDP service configuration
 			SessionSettings.Set(SETTING_SESSION_TEMPLATE_NAME, FString(TEXT("MultiplayerGameSession")), EOnlineDataAdvertisementType::DontAdvertise);
 
@@ -1021,7 +1051,7 @@ bool FPartyPlatformSessionMonitor::ConfigurePlatformSessionSettings(FOnlineSessi
 		switch (PartyType)
 		{
 		case EPartyType::Private:
-#if PLATFORM_XBOXONE
+#if PARTY_PLATFORM_SESSIONS_XBL
 			// Xbox needs this false for privacy of session on dashboard
 			SessionSettings.bUsesPresence = false;
 #else
@@ -1037,7 +1067,7 @@ bool FPartyPlatformSessionMonitor::ConfigurePlatformSessionSettings(FOnlineSessi
 			SessionSettings.bUsesPresence = true;
 			SessionSettings.NumPublicConnections = 0;
 			SessionSettings.NumPrivateConnections = MonitoredParty->GetPartyMaxSize();
-#if PLATFORM_XBOXONE || PLATFORM_PS4 || PLATFORM_SWITCH
+#if PARTY_PLATFORM_SESSIONS_PSN
 			SessionSettings.bShouldAdvertise = false;
 #else
 			SessionSettings.bShouldAdvertise = true;
@@ -1104,14 +1134,22 @@ bool FPartyPlatformSessionMonitor::HandleQueuedSessionUpdate(float)
 
 		// Make sure the party session is in a fully created state and is not destroying
 		FNamedOnlineSession* PlatformSession = SessionInterface->GetNamedSession(PartySessionName);
-		if (PlatformSession && PlatformSession->SessionState >= EOnlineSessionState::Pending && PlatformSession->SessionState <= EOnlineSessionState::Ended)
+		if (PlatformSession)
 		{
-			if (ConfigurePlatformSessionSettings(PlatformSession->SessionSettings))
+			if (PlatformSession->SessionState >= EOnlineSessionState::Pending && PlatformSession->SessionState <= EOnlineSessionState::Ended)
 			{
-				if (!SessionInterface->UpdateSession(PartySessionName, PlatformSession->SessionSettings, true))
+				if (ConfigurePlatformSessionSettings(PlatformSession->SessionSettings))
 				{
-					UE_LOG(LogParty, Warning, TEXT("PartyPlatformSessionMonitor call to UpdateSession failed"));
+					if (!SessionInterface->UpdateSession(PartySessionName, PlatformSession->SessionSettings, true))
+					{
+						UE_LOG(LogParty, Warning, TEXT("PartyPlatformSessionMonitor call to UpdateSession failed"));
+					}
 				}
+			}
+			else if (PlatformSession->SessionState == EOnlineSessionState::Creating)
+			{
+				// Try again when the session is finished creating
+				bMissedSessionUpdateDuringCreate = true;
 			}
 		}
 	}

@@ -106,6 +106,7 @@ FHLSLMaterialTranslator::FHLSLMaterialTranslator(FMaterial* InMaterial,
 ,	bIsFullyRough(0)
 ,	bAllowCodeChunkGeneration(true)
 ,	bUsesPerInstanceCustomData(false)
+,	bUsesAnisotropy(false)
 ,	AllocatedUserTexCoords()
 ,	AllocatedUserVertexTexCoords()
 ,	DynamicParticleParameterMask(0)
@@ -815,6 +816,8 @@ bool FHLSLMaterialTranslator::Translate()
 		// Fully rough if we have a roughness code chunk and it's constant and evaluates to 1.
 		bIsFullyRough = Chunk[MP_Roughness] != INDEX_NONE && IsMaterialPropertyUsed(MP_Roughness, Chunk[MP_Roughness], FLinearColor(1, 0, 0, 0), 1) == false;
 
+		bUsesAnisotropy = IsMaterialPropertyUsed(MP_Anisotropy, Chunk[MP_Anisotropy], FLinearColor(0, 0, 0, 0), 1);
+
 		if (BlendMode == BLEND_Modulate && MaterialShadingModels.IsLit() && !Material->IsDeferredDecal())
 		{
 			Errorf(TEXT("Dynamically lit translucency is not supported for BLEND_Modulate materials."));
@@ -862,6 +865,10 @@ bool FHLSLMaterialTranslator::Translate()
 		if (Domain == MD_Volume && BlendMode != BLEND_Additive)
 		{
 			Errorf(TEXT("Volume materials must use an Additive blend mode."));
+		}
+		if (Domain == MD_Volume && Material->IsUsedWithSkeletalMesh())
+		{
+			Errorf(TEXT("Volume materials are not compatible with skinned meshes: they are voxelised as boxes anyway. Please disable UsedWithSkeletalMesh on the material."));
 		}
 
 		if (Material->IsLightFunction() && BlendMode != BLEND_Opaque)
@@ -1229,9 +1236,11 @@ void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform,
 	OutEnvironment.SetDefine(TEXT("USES_DISTORTION"), Material->IsDistorted()); 
 
 	OutEnvironment.SetDefine(TEXT("MATERIAL_ENABLE_TRANSLUCENCY_FOGGING"), Material->ShouldApplyFogging());
+	OutEnvironment.SetDefine(TEXT("MATERIAL_ENABLE_TRANSLUCENCY_CLOUD_FOGGING"), Material->ShouldApplyCloudFogging());
 	OutEnvironment.SetDefine(TEXT("MATERIAL_IS_SKY"), Material->IsSky());
 	OutEnvironment.SetDefine(TEXT("MATERIAL_COMPUTE_FOG_PER_PIXEL"), Material->ComputeFogPerPixel());
 	OutEnvironment.SetDefine(TEXT("MATERIAL_FULLY_ROUGH"), bIsFullyRough || Material->IsFullyRough());
+	OutEnvironment.SetDefine(TEXT("MATERIAL_USES_ANISOTROPY"), bUsesAnisotropy && FDataDrivenShaderPlatformInfo::GetSupportsAnisotropicMaterials(Platform));
 
 	// Count the number of VTStacks (each stack will allocate a feedback slot)
 	OutEnvironment.SetDefine(TEXT("NUM_VIRTUALTEXTURE_SAMPLES"), VTStacks.Num());
@@ -1394,6 +1403,7 @@ void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform,
 			}
 
 			OutEnvironment.SetDefine(TEXT("MATERIAL_VOLUMETRIC_ADVANCED_GRAYSCALE_MATERIAL"), VolumetricAdvancedNode->bGrayScaleMaterial ? TEXT("1") : TEXT("0"));
+			OutEnvironment.SetDefine(TEXT("MATERIAL_VOLUMETRIC_ADVANCED_RAYMARCH_VOLUME_SHADOW"), VolumetricAdvancedNode->bRayMarchVolumeShadow ? TEXT("1") : TEXT("0"));
 
 			OutEnvironment.SetDefine(TEXT("MATERIAL_VOLUMETRIC_ADVANCED_MULTISCATTERING_OCTAVE_COUNT"), VolumetricAdvancedNode->GetMultiScatteringApproximationOctaveCount());
 
@@ -1696,7 +1706,7 @@ FString FHLSLMaterialTranslator::GetMaterialShaderCode()
 
 // ========== PROTECTED: ========== //
 
-bool FHLSLMaterialTranslator::IsMaterialPropertyUsed(EMaterialProperty Property, int32 PropertyChunkIndex, const FLinearColor& ReferenceValue, int32 NumComponents)
+bool FHLSLMaterialTranslator::IsMaterialPropertyUsed(EMaterialProperty Property, int32 PropertyChunkIndex, const FLinearColor& ReferenceValue, int32 NumComponents) const
 {
 	bool bPropertyUsed = false;
 
@@ -1707,7 +1717,7 @@ bool FHLSLMaterialTranslator::IsMaterialPropertyUsed(EMaterialProperty Property,
 	else
 	{
 		int32 Frequency = (int32)FMaterialAttributeDefinitionMap::GetShaderFrequency(Property);
-		FShaderCodeChunk& PropertyChunk = SharedPropertyCodeChunks[Frequency][PropertyChunkIndex];
+		const FShaderCodeChunk& PropertyChunk = SharedPropertyCodeChunks[Frequency][PropertyChunkIndex];
 
 		// Determine whether the property is used. 
 		// If the output chunk has a uniform expression, it is constant, and GetNumberValue returns the default property value then property isn't used.
@@ -2730,6 +2740,22 @@ const ITargetPlatform* FHLSLMaterialTranslator::GetTargetPlatform() const
 	return TargetPlatform;
 }
 
+bool FHLSLMaterialTranslator::IsMaterialPropertyUsed(EMaterialProperty Property, int32 PropertyChunkIndex) const
+{
+	if (PropertyChunkIndex == -1)
+	{
+		return false;
+	}
+	else
+	{
+		FVector4 DefaultValue = FMaterialAttributeDefinitionMap::GetDefaultValue(Property);
+		EMaterialValueType ValueType = FMaterialAttributeDefinitionMap::GetValueType(Property);
+		int32 ComponentCount = GetNumComponents(ValueType);
+
+		return IsMaterialPropertyUsed(Property, PropertyChunkIndex, FLinearColor(DefaultValue), ComponentCount);
+	}
+}
+
 /** 
 	* Casts the passed in code to DestType, or generates a compile error if the cast is not valid. 
 	* This will truncate a type (float4 -> float3) but not add components (float2 -> float3), however a float1 can be cast to any float type by replication. 
@@ -3046,6 +3072,7 @@ int32 FHLSLMaterialTranslator::ViewProperty(EMaterialExposedViewProperty Propert
 		{MEVP_RuntimeVirtualTextureOutputLevel, MCT_Float1, TEXT("View.RuntimeVirtualTextureMipLevel.x"), nullptr},
 		{MEVP_RuntimeVirtualTextureOutputDerivative, MCT_Float2, TEXT("View.RuntimeVirtualTextureMipLevel.zw"), nullptr},
 		{MEVP_PreExposure, MCT_Float1, TEXT("View.PreExposure.x"), TEXT("View.OneOverPreExposure.x")},
+		{MEVP_RuntimeVirtualTextureMaxLevel, MCT_Float1, TEXT("View.RuntimeVirtualTextureMipLevel.y"), nullptr},
 	};
 	static_assert((sizeof(ViewPropertyMetaArray) / sizeof(ViewPropertyMetaArray[0])) == MEVP_MAX, "incoherency between EMaterialExposedViewProperty and ViewPropertyMetaArray");
 
@@ -3957,7 +3984,7 @@ int32 FHLSLMaterialTranslator::MaterialBakingWorldPosition()
 		AllocateSlot(AllocatedUserTexCoords, 6, 2);
 	}
 
-	// Note: inlining is important so that on ES2 devices, where half precision is used in the pixel shader, 
+	// Note: inlining is important so that on GLES devices, where half precision is used in the pixel shader, 
 	// The UV does not get assigned to a half temporary in cases where the texture sample is done directly from interpolated UVs
 	return AddInlinedCodeChunk(MCT_Float3, TEXT("float3(Parameters.TexCoords[6].x, Parameters.TexCoords[6].y, Parameters.TexCoords[7].x)"));
 }
@@ -3966,7 +3993,6 @@ int32 FHLSLMaterialTranslator::MaterialBakingWorldPosition()
 
 int32 FHLSLMaterialTranslator::TextureCoordinate(uint32 CoordinateIndex, bool UnMirrorU, bool UnMirrorV)
 {
-	// ERHIFeatureLevel::ES2 was the only feature level that required a maximum of 3 coordinates. Every other feature level has a maximum of 8.
 	const uint32 MaxNumCoordinates = 8;
 
 	if (CoordinateIndex >= MaxNumCoordinates)
@@ -4001,7 +4027,7 @@ int32 FHLSLMaterialTranslator::TextureCoordinate(uint32 CoordinateIndex, bool Un
 		SampleCode = TEXT("Parameters.TexCoords[%u].xy");
 	}
 
-	// Note: inlining is important so that on ES2 devices, where half precision is used in the pixel shader, 
+	// Note: inlining is important so that on GLES devices, where half precision is used in the pixel shader, 
 	// The UV does not get assigned to a half temporary in cases where the texture sample is done directly from interpolated UVs
 	return AddInlinedCodeChunk(
 			MCT_Float2,
@@ -4126,12 +4152,6 @@ int32 FHLSLMaterialTranslator::TextureSample(
 	)
 {
 	if(TextureIndex == INDEX_NONE || CoordinateIndex == INDEX_NONE)
-	{
-		return INDEX_NONE;
-	}
-
-	if (ShaderFrequency != SF_Pixel
-		&& ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::ES3_1) == INDEX_NONE)
 	{
 		return INDEX_NONE;
 	}
@@ -4363,8 +4383,11 @@ int32 FHLSLMaterialTranslator::TextureSample(
 			break;
 
 		case SAMPLERTYPE_Color:
-		case SAMPLERTYPE_VirtualColor:
 			SampleCode = FString::Printf( TEXT("ProcessMaterialColorTextureLookup(%s)"), *SampleCode );
+			break;
+		case SAMPLERTYPE_VirtualColor:
+			// has a mobile specific workaround
+			SampleCode = FString::Printf( TEXT("ProcessMaterialVirtualColorTextureLookup(%s)"), *SampleCode );
 			break;
 
 		case SAMPLERTYPE_LinearColor:
@@ -4889,28 +4912,6 @@ void FHLSLMaterialTranslator::UseSceneTextureId(ESceneTextureId SceneTextureId, 
 		}
 	}
 
-	if (SceneTextureId == PPI_WorldTangent)
-	{
-		static IConsoleVariable* AnisotropicBRDF = IConsoleManager::Get().FindConsoleVariable(TEXT("r.AnisotropicBRDF"));
-		static bool bIsPopulatingDDC = FString(FCommandLine::Get()).Contains(TEXT("Run=DerivedDataCache"));
-
-		if (!bIsPopulatingDDC && (!AnisotropicBRDF || !AnisotropicBRDF->GetBool()))
-		{
-			Errorf(TEXT("World Tangent scene texture is only available when using anisotropic BRDF."));
-		}
-	}
-
-	if (SceneTextureId == PPI_Anisotropy)
-	{
-		static IConsoleVariable* AnisotropicBRDF = IConsoleManager::Get().FindConsoleVariable(TEXT("r.AnisotropicBRDF"));
-		static bool bIsPopulatingDDC = FString(FCommandLine::Get()).Contains(TEXT("Run=DerivedDataCache"));
-
-		if (!bIsPopulatingDDC && (!AnisotropicBRDF || !AnisotropicBRDF->GetBool()))
-		{
-			Errorf(TEXT("Anisotropy scene texture is only available when using anisotropic BRDF."));
-		}
-	}
-
 	// not yet tracked:
 	//   PPI_SeparateTranslucency, PPI_CustomDepth, PPI_AmbientOcclusion
 }
@@ -4950,12 +4951,6 @@ int32 FHLSLMaterialTranslator::SceneColor(int32 Offset, int32 ViewportUV, bool b
 
 int32 FHLSLMaterialTranslator::Texture(UTexture* InTexture, int32& TextureReferenceIndex, EMaterialSamplerType SamplerType, ESamplerSourceMode SamplerSource, ETextureMipValueMode MipValueMode)
 {
-	if (ShaderFrequency != SF_Pixel
-		&& ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::ES3_1) == INDEX_NONE)
-	{
-		return INDEX_NONE;
-	}
-
 	EMaterialValueType ShaderType = InTexture->GetMaterialType();
 	TextureReferenceIndex = Material->GetReferencedTextures().Find(InTexture);
 
@@ -4985,12 +4980,6 @@ int32 FHLSLMaterialTranslator::Texture(UTexture* InTexture, int32& TextureRefere
 
 int32 FHLSLMaterialTranslator::TextureParameter(FName ParameterName, UTexture* DefaultValue, int32& TextureReferenceIndex, EMaterialSamplerType SamplerType, ESamplerSourceMode SamplerSource)
 {
-	if (ShaderFrequency != SF_Pixel
-		&& ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::ES3_1) == INDEX_NONE)
-	{
-		return INDEX_NONE;
-	}
-
 	EMaterialValueType ShaderType = DefaultValue->GetMaterialType();
 	TextureReferenceIndex = Material->GetReferencedTextures().Find(DefaultValue);
 	checkf(TextureReferenceIndex != INDEX_NONE, TEXT("Material expression called Compiler->TextureParameter() without implementing UMaterialExpression::GetReferencedTexture properly"));
@@ -5315,6 +5304,26 @@ int32 FHLSLMaterialTranslator::VertexColor()
 {
 	bUsesVertexColor |= (ShaderFrequency != SF_Vertex);
 	return AddInlinedCodeChunk(MCT_Float4,TEXT("Parameters.VertexColor"));
+}
+
+int32 FHLSLMaterialTranslator::PreSkinVertexOffset()
+{
+	if (ShaderFrequency != SF_Vertex)
+	{
+		return Errorf(TEXT("Pre Skin Offset only available in the vertex shader, pass through custom interpolators if needed."));
+	}
+
+	return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionPreSkinOffset(Parameters)"));
+}
+
+int32 FHLSLMaterialTranslator::PostSkinVertexOffset()
+{
+	if (ShaderFrequency != SF_Vertex)
+	{
+		return Errorf(TEXT("Post Skin Offset only available in the vertex shader, pass through custom interpolators if needed."));
+	}
+
+	return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionPostSkinOffset(Parameters)"));
 }
 
 int32 FHLSLMaterialTranslator::PreSkinnedPosition()
@@ -6483,6 +6492,17 @@ int32 FHLSLMaterialTranslator::ShadowReplace(int32 Default, int32 Shadow)
 	return AddCodeChunk(ResultType, TEXT("(GetShadowReplaceState() ? (%s) : (%s))"), *GetParameterCode(Shadow), *GetParameterCode(Default));
 }
 
+int32 FHLSLMaterialTranslator::ReflectionCapturePassSwitch(int32 Default, int32 Reflection)
+{
+	if (Default == INDEX_NONE || Reflection == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	EMaterialValueType ResultType = GetArithmeticResultType(Default, Reflection);
+	return AddCodeChunk(ResultType, TEXT("(GetReflectionCapturePassSwitchState() ? (%s) : (%s))"), *GetParameterCode(Reflection), *GetParameterCode(Default));
+}
+
 int32 FHLSLMaterialTranslator::RayTracingQualitySwitchReplace(int32 Normal, int32 RayTraced)
 {
 	if (Normal == INDEX_NONE || RayTraced == INDEX_NONE)
@@ -6576,11 +6596,6 @@ int32 FHLSLMaterialTranslator::PixelNormalWS()
 
 int32 FHLSLMaterialTranslator::DDX( int32 X )
 {
-	if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::ES3_1) == INDEX_NONE)
-	{
-		return INDEX_NONE;
-	}
-
 	if (X == INDEX_NONE)
 	{
 		return INDEX_NONE;
@@ -6602,11 +6617,6 @@ int32 FHLSLMaterialTranslator::DDX( int32 X )
 
 int32 FHLSLMaterialTranslator::DDY( int32 X )
 {
-	if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::ES3_1) == INDEX_NONE)
-	{
-		return INDEX_NONE;
-	}
-
 	if(X == INDEX_NONE)
 	{
 		return INDEX_NONE;
@@ -6669,11 +6679,6 @@ int32 FHLSLMaterialTranslator::DepthOfFieldFunction(int32 Depth, int32 FunctionV
 
 int32 FHLSLMaterialTranslator::Sobol(int32 Cell, int32 Index, int32 Seed)
 {
-	if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::ES3_1) == INDEX_NONE)
-	{
-		return INDEX_NONE;
-	}
-
 	AddEstimatedTextureSample(2);
 
 	return AddCodeChunk(MCT_Float2,
@@ -6686,11 +6691,6 @@ int32 FHLSLMaterialTranslator::Sobol(int32 Cell, int32 Index, int32 Seed)
 
 int32 FHLSLMaterialTranslator::TemporalSobol(int32 Index, int32 Seed)
 {
-	if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::ES3_1) == INDEX_NONE)
-	{
-		return INDEX_NONE;
-	}
-
 	AddEstimatedTextureSample(2);
 
 	return AddCodeChunk(MCT_Float2,
@@ -6701,16 +6701,6 @@ int32 FHLSLMaterialTranslator::TemporalSobol(int32 Index, int32 Seed)
 
 int32 FHLSLMaterialTranslator::Noise(int32 Position, float Scale, int32 Quality, uint8 NoiseFunction, bool bTurbulence, int32 Levels, float OutputMin, float OutputMax, float LevelScale, int32 FilterWidth, bool bTiling, uint32 RepeatSize)
 {
-	// GradientTex3D uses 3D texturing, which is not available on ES2
-	if (NoiseFunction == NOISEFUNCTION_GradientTex3D)
-	{
-		if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)
-		{
-			Errorf(TEXT("3D textures are not supported for ES2"));
-			return INDEX_NONE;
-		}
-	}
-
 	if(Position == INDEX_NONE || FilterWidth == INDEX_NONE)
 	{
 		return INDEX_NONE;
@@ -6832,6 +6822,40 @@ int32 FHLSLMaterialTranslator::GetHairRoughness()
 	return AddCodeChunk(MCT_Float1, TEXT("MaterialExpressionGetHairRoughness(Parameters)"));
 }
 
+int32 FHLSLMaterialTranslator::GetHairDepth()
+{
+	return AddCodeChunk(MCT_Float1, TEXT("MaterialExpressionGetHairDepth(Parameters)"));
+}
+
+int32 FHLSLMaterialTranslator::GetHairCoverage()
+{
+	return AddCodeChunk(MCT_Float1, TEXT("MaterialExpressionGetHairCoverage(Parameters)"));
+}
+
+int32 FHLSLMaterialTranslator::GetHairAtlasUVs()
+{
+	return AddCodeChunk(MCT_Float2, TEXT("MaterialExpressionGetAtlasUVs(Parameters)"));
+}
+
+int32 FHLSLMaterialTranslator::GetHairColorFromMelanin(int32 Melanin, int32 Redness, int32 DyeColor)
+{
+	if (Melanin == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	if (Redness == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	if (DyeColor == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+	return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionGetHairColorFromMelanin(%s, %s, %s)"), *GetParameterCode(Melanin), *GetParameterCode(Redness), *GetParameterCode(DyeColor));
+}
+
 int32 FHLSLMaterialTranslator::DistanceToNearestSurface(int32 PositionArg)
 {
 	if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)
@@ -6934,49 +6958,6 @@ int32 FHLSLMaterialTranslator::SkyAtmosphereDistantLightScatteredLuminance()
 {
 	bUsesSkyAtmosphere = true;
 	return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionSkyAtmosphereDistantLightScatteredLuminance(Parameters)"));
-}
-
-int32 FHLSLMaterialTranslator::SceneDepthWithoutWater(int32 Offset, int32 ViewportUV, bool bUseOffset, float FallbackDepth)
-{
-	if (ShaderFrequency == SF_Vertex && FeatureLevel <= ERHIFeatureLevel::ES3_1)
-	{
-		// mobile currently does not support this, we need to read a separate copy of the depth, we must disable framebuffer fetch and force scene texture reads.
-		return Errorf(TEXT("Cannot read scene depth from the vertex shader with feature level ES3.1 or below."));
-	}
-
-	if (!Material->GetShadingModels().HasShadingModel(MSM_SingleLayerWater))
-	{
-		return Errorf(TEXT("Can only read scene depth below water when material Shading Model is Single Layer Water."));
-	}
-	
-	if (Material->GetMaterialDomain() != MD_Surface)
-	{
-		return Errorf(TEXT("Can only read scene depth below water when material Domain is set to Surface."));
-	}
-
-	if (IsTranslucentBlendMode(Material->GetBlendMode()))
-	{
-		return Errorf(TEXT("Can only read scene depth below water when material Blend Mode isn't translucent."));
-	}
-
-	if (Offset == INDEX_NONE && bUseOffset)
-	{
-		return INDEX_NONE;
-	}
-
-	AddEstimatedTextureSample();
-
-	const FString UserDepthCode(TEXT("MaterialExpressionSceneDepthWithoutWater(%s, %s)"));
-	const FString FallbackString(FString::SanitizeFloat(FallbackDepth));
-	const int32 TexCoordCode = GetScreenAlignedUV(Offset, ViewportUV, bUseOffset);
-
-	// add the code string
-	return AddCodeChunk(
-		MCT_Float,
-		*UserDepthCode,
-		*GetParameterCode(TexCoordCode),
-		*FallbackString
-	);
 }
 
 int32 FHLSLMaterialTranslator::GetCloudSampleAltitude()
@@ -7551,11 +7532,6 @@ int32 FHLSLMaterialTranslator::RotateScaleOffsetTexCoords(int32 TexCoordCodeInde
 */
 int32 FHLSLMaterialTranslator::SpeedTree(int32 GeometryArg, int32 WindArg, int32 LODArg, float BillboardThreshold, bool bAccurateWindVelocities, bool bExtraBend, int32 ExtraBendArg)
 { 
-	if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::ES3_1) == INDEX_NONE)
-	{
-		return INDEX_NONE;
-	}
-
 	if (Material && Material->IsUsedWithSkeletalMesh())
 	{
 		return Error(TEXT("SpeedTree node not currently supported for Skeletal Meshes, please disable usage flag."));
@@ -7610,7 +7586,7 @@ int32 FHLSLMaterialTranslator::EyeAdaptation()
 /**Experimental access to the EyeAdaptation RT for applying an inverse. */
 int32 FHLSLMaterialTranslator::EyeAdaptationInverse(int32 LightValueArg, int32 AlphaArg)
 {
-	if( ShaderFrequency != SF_Pixel )
+	if (ShaderFrequency != SF_Pixel)
 	{
 		return NonPixelShaderExpressionError();
 	}

@@ -3,8 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Misc/NotifyHook.h"
-#include "Input/Reply.h"
 #include "UObject/GCObject.h"
 #include "Toolkits/IToolkitHost.h"
 
@@ -81,6 +79,20 @@ protected:
 	bool IsToggleBoundsChecked() const;
 	void OnToggleBoundsSetFixedBounds();
 
+	void ClearStatPerformance();
+	void ToggleStatPerformance();
+	bool IsStatPerformanceChecked();
+	void ToggleStatPerformanceGPU();
+	bool IsStatPerformanceGPUChecked();
+	void ToggleStatPerformanceTypeAvg();
+	void ToggleStatPerformanceTypeMax();
+	bool IsStatPerformanceTypeAvg();
+	bool IsStatPerformanceTypeMax();
+	void ToggleStatPerformanceModePercent();
+	void ToggleStatPerformanceModeAbsolute();
+	bool IsStatPerformanceModePercent();
+	bool IsStatPerformanceModeAbsolute();
+
 	void ToggleDrawOption(int32 Element);
 	bool IsDrawOptionEnabled(int32 Element) const;
 
@@ -140,6 +152,7 @@ private:
 	void OnViewModelRequestFocusTab(FName TabName);
 
 	TSharedRef<SWidget> GenerateBoundsMenuContent(TSharedRef<FUICommandList> InCommandList);
+	TSharedRef<SWidget> GenerateStatConfigMenuContent(TSharedRef<FUICommandList> InCommandList);
 	const FName GetNiagaraSystemMessageLogName(UNiagaraSystem* InSystem) const;
 	void OnSaveThumbnailImage();
 	void OnThumbnailCaptured(UTexture2D* Thumbnail);
@@ -183,6 +196,9 @@ private:
 	bool bChangesDiscarded;
 
 	bool bScratchPadChangesDiscarded;
+
+	static IConsoleVariable* VmStatEnabledVar;
+	static IConsoleVariable* GpuStatEnabledVar;
 
 public:
 	static const FName ViewportTabID;

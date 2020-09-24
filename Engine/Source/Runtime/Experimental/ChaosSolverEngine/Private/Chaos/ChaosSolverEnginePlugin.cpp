@@ -21,7 +21,7 @@ IMPLEMENT_MODULE( FChaosSolverEnginePlugin, ChaosSolverEngine )
 
 void FChaosSolverEnginePlugin::StartupModule()
 {
-	FChaosSolversModule* const ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
+	FChaosSolversModule* const ChaosModule = FChaosSolversModule::GetModule();
 	check(ChaosModule);
 	ChaosModule->SetSolverActorClass(AChaosSolverActor::StaticClass(), AChaosSolverActor::StaticClass());
 

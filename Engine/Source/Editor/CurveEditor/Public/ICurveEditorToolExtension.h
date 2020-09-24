@@ -75,7 +75,7 @@ private:
 	uint32 ID;
 };
 
-typedef TMulticastDelegate<void> FOnOptionsRefresh;
+DECLARE_MULTICAST_DELEGATE(FOnOptionsRefresh);
 
 /**
 * You can extend the Curve Editor toolset by implementing this interface. The Curve Editor guarantees that only

@@ -29,7 +29,7 @@
 
 TSet<FString> STraceDataFilterWidget::LastExpandedObjectNames;
 
-STraceDataFilterWidget::STraceDataFilterWidget() : bNeedsTreeRefresh(false), bHighlightingPreset(false)
+STraceDataFilterWidget::STraceDataFilterWidget() : PreviousSessionHandle(INDEX_NONE), bNeedsTreeRefresh(false), bHighlightingPreset(false)
 {
 }
 
@@ -118,7 +118,7 @@ void STraceDataFilterWidget::Construct(const FArguments& InArgs)
 				.FillWidth(1.0f)
 				[
 					SAssignNew(FilterPresetsListWidget, SFilterPresetList)
-					.OnPresetsChanged(this, &STraceDataFilterWidget::OnPresetsChanged)
+					.OnPresetChanged(this, &STraceDataFilterWidget::OnPresetChanged)
 					.OnSavePreset(this, &STraceDataFilterWidget::OnSavePreset)
 					.OnHighlightPreset(this, &STraceDataFilterWidget::OnHighlightPreset)
 				]
@@ -203,14 +203,11 @@ void STraceDataFilterWidget::OnSavePreset(const TSharedPtr<IFilterPreset>& Prese
 	}
 }
 
-void STraceDataFilterWidget::OnPresetsChanged()
+void STraceDataFilterWidget::OnPresetChanged(const SFilterPreset& Preset)
 {
-	TArray<TSharedPtr<IFilterPreset>> Presets;
-	FilterPresetsListWidget->GetAllEnabledPresets(Presets);
-
 	if (SessionFilterService.IsValid())
 	{
-		SessionFilterService->UpdateFilterPresets(Presets);
+		SessionFilterService->UpdateFilterPreset(Preset.GetFilterPreset(), Preset.IsEnabled());
 	}
 }
 
@@ -577,8 +574,15 @@ void STraceDataFilterWidget::SetCurrentAnalysisSession(uint32 SessionHandle, TSh
 	SessionFilterService = MakeShareable(new FSessionTraceFilterService(SessionHandle, AnalysisSession));
 #endif
 
+	PreviousSessionHandle = SessionHandle;
+
 	/** Refresh presets so config loaded state is directly applied */
-	OnPresetsChanged();
+	TArray<TSharedPtr<IFilterPreset>> EnabledPresets;
+	FilterPresetsListWidget->GetAllEnabledPresets(EnabledPresets);
+	for (auto Preset : EnabledPresets)
+	{
+		SessionFilterService->UpdateFilterPreset(Preset, true);
+	}
 	/** Refresh data driving the treeview */
 	RefreshTreeviewData();
 }
@@ -596,7 +600,7 @@ TSharedRef<ITraceObject> STraceDataFilterWidget::AddFilterableObject(const FTrac
 		ChildPtrs.Add(EventItem);
 	}
 
-	TSharedRef<FTraceChannel> SharedItem = MakeShareable(new FTraceChannel(Event.Name, ParentName, Event.Hash, Event.bEnabled, ChildPtrs, SessionFilterService));
+	TSharedRef<FTraceChannel> SharedItem = MakeShareable(new FTraceChannel(Event.Name, ParentName, Event.Hash, Event.bEnabled, Event.bReadOnly, ChildPtrs, SessionFilterService));
 	ParentToChild.Add(SharedItem, ChildPtrs);
 
 	for (TSharedPtr<ITraceObject> ChildObject : ChildPtrs)
@@ -731,7 +735,7 @@ void STraceDataFilterWidget::Tick(const FGeometry& AllottedGeometry, const doubl
 	else
 	{
 		if (AnalysisSession.IsValid())
-		{
+		{			
 			Trace::FStoreClient* StoreClient = InsightsModule.GetStoreClient();
 			if (StoreClient)
 			{
@@ -740,7 +744,7 @@ void STraceDataFilterWidget::Tick(const FGeometry& AllottedGeometry, const doubl
 				if (SessionCount > 0)
 				{
 					const Trace::FStoreClient::FSessionInfo* SessionInfo = StoreClient->GetSessionInfo(SessionCount - 1);
-					if (SessionInfo)
+					if (SessionInfo && (!AnalysisSession->IsAnalysisComplete() || SessionInfo->GetTraceId() != PreviousSessionHandle))
 					{
 						SetCurrentAnalysisSession(SessionInfo->GetTraceId(), AnalysisSession.ToSharedRef());
 					}

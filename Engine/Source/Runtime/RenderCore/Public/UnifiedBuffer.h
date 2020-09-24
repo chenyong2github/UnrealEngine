@@ -24,7 +24,7 @@ extern RENDERCORE_API bool ResizeResourceSOAIfNeeded( FRHICommandList& RHICmdLis
 class FScatterUploadBuffer
 {
 public:
-	enum { PrimitiveDataStrideInFloat4s = 35 };
+	enum { PrimitiveDataStrideInFloat4s = 36 };
 
 	FByteAddressBuffer ScatterBuffer;
 	FByteAddressBuffer UploadBuffer;

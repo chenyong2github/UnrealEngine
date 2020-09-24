@@ -574,7 +574,7 @@ namespace Chaos
 		FReal LinearSoftLambda;
 		FReal TwistSoftLambda;
 		FReal SwingSoftLambda;
-		FReal LinearDriveLambda;
+		FVec3 LinearDriveLambdas;
 		FVec3 RotationDriveLambdas;
 
 		// Constraint padding which can act something like a velocity constraint (for reslockfreetitution)

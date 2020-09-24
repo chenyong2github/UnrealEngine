@@ -1040,8 +1040,6 @@ void FSlateRHIRenderingPolicy::DrawElements(
 				{
 					MaterialShaderResource->CheckForStaleResources();
 
-					//FMaterialRenderProxy* MaterialRenderProxy = MaterialShaderResource->GetRenderProxy();
-
 					const FMaterial* Material = MaterialRenderProxy->GetMaterial(ActiveSceneView.GetFeatureLevel());
 
 					TShaderRef<FSlateMaterialShaderPS> PixelShader = GetMaterialPixelShader(Material, ShaderType);
@@ -1051,14 +1049,6 @@ void FSlateRHIRenderingPolicy::DrawElements(
 
 					if (VertexShader.IsValid() && PixelShader.IsValid() && IsSceneTexturesValid(RHICmdList))
 					{
-						FUniformBufferRHIRef PassUniformBuffer = CreateSceneTextureUniformBufferDependentOnShadingPath(
-							RHICmdList,
-							FeatureLevel,
-							ESceneTextureSetupMode::SceneDepth | ESceneTextureSetupMode::SSAO | ESceneTextureSetupMode::CustomDepth,
-							UniformBuffer_SingleDraw);
-						FUniformBufferStaticBindings GlobalUniformBuffers(PassUniformBuffer);
-						SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
-
 #if WITH_SLATE_VISUALIZERS
 						if (CVarShowSlateBatching.GetValueOnRenderThread() != 0)
 						{

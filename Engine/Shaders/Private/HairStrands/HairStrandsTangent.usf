@@ -8,6 +8,17 @@ uint DispatchCountX;
 Buffer<uint4>  	 PositionBuffer;
 RWBuffer<float4> OutputTangentBuffer;
 
+uint			HairStrandsVF_bIsCullingEnable;
+
+// These number need to match HairStrandsClusterCulling.usf
+#define GROUP_COUNT_X 16
+
+#if PERMUTATION_CULLING == 1
+Buffer<uint>	HairStrandsVF_CullingIndirectBuffer;
+Buffer<uint>	HairStrandsVF_CullingIndexBuffer;
+Buffer<float>	HairStrandsVF_CullingRadiusScaleBuffer;
+#endif
+
 #if PERMUTATION_GROUP_SIZE == 0
 	#define GROUP_SIZE 64
 #elif PERMUTATION_GROUP_SIZE == 1
@@ -24,13 +35,34 @@ float4 PackNormal(float3 V, uint A)
 [numthreads(GROUP_SIZE, 1, 1)]
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
-	const int IndexCurr = DispatchThreadId.x + DispatchThreadId.y * DispatchCountX * GROUP_SIZE;
 	const int MaxVertexCount = int(VertexCount);
+	int IndexCurr = DispatchThreadId.x + DispatchThreadId.y * DispatchCountX * GROUP_SIZE;
+	int IndexPrev = clamp(IndexCurr-1, 0, MaxVertexCount-1);
+	int IndexNext = clamp(IndexCurr+1, 0, MaxVertexCount-1);
+	bool bValid = IndexCurr < MaxVertexCount;
+#if PERMUTATION_CULLING
+	if (HairStrandsVF_bIsCullingEnable)
+	{
+		const uint FetchIndex = DispatchThreadId.x + DispatchThreadId.y * GROUP_SIZE * GROUP_COUNT_X;
+		const uint VertexCountAfterCulling = HairStrandsVF_CullingIndirectBuffer[3];
+		bValid = false;
+		if (FetchIndex < VertexCountAfterCulling)
+		{
+			const int FetchIndexPrev = clamp(FetchIndex-1, 0, VertexCountAfterCulling-1);
+			const int FetchIndexCurr = clamp(FetchIndex  , 0, VertexCountAfterCulling-1);
+			const int FetchIndexNext = clamp(FetchIndex+1, 0, VertexCountAfterCulling-1);
+
+			IndexPrev = HairStrandsVF_CullingIndexBuffer[FetchIndexPrev];
+			IndexCurr = HairStrandsVF_CullingIndexBuffer[FetchIndexCurr];
+			IndexNext = HairStrandsVF_CullingIndexBuffer[FetchIndexNext];
+
+			bValid = true;
+		}
+	}
+#endif
+
 	if (IndexCurr < MaxVertexCount)
 	{
-		const int IndexPrev = clamp(IndexCurr-1, 0, MaxVertexCount-1);
-		const int IndexNext = clamp(IndexCurr+1, 0, MaxVertexCount-1);
-
 		const uint4 DataCurr = PositionBuffer[IndexCurr];
 		const uint4 DataPrev = PositionBuffer[IndexPrev];
 		const uint4 DataNext = PositionBuffer[IndexNext];

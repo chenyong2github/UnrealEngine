@@ -64,7 +64,7 @@ CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
 
 static TAutoConsoleVariable<int32> CVarEnableClothPhysics(TEXT("p.ClothPhysics"), 1, TEXT("If 1, physics cloth will be used for simulation."));
 static TAutoConsoleVariable<int32> CVarEnableClothPhysicsUseTaskThread(TEXT("p.ClothPhysics.UseTaskThread"), 1, TEXT("If 1, run cloth on the task thread. If 0, run on game thread."));
-static TAutoConsoleVariable<int32> CVarClothPhysicsTickWaitForParallelClothTask(TEXT("p.ClothPhysics.WaitForParallelClothTask"), 1, TEXT(""));
+static TAutoConsoleVariable<int32> CVarClothPhysicsTickWaitForParallelClothTask(TEXT("p.ClothPhysics.WaitForParallelClothTask"), 1, TEXT("If 1, always wait for cloth task completion in the Cloth Tick function. If 0, wait at end-of-frame updates instead if allowed by component settings"));
 
 static TAutoConsoleVariable<bool> CVarClothTeleportOverride(TEXT("p.Cloth.TeleportOverride"), false, TEXT("Force console variable teleport override values over skeletal mesh properties.\n Default: false."));
 static TAutoConsoleVariable<bool> CVarClothResetAfterTeleport(TEXT("p.Cloth.ResetAfterTeleport"), true, TEXT("Require p.Cloth.TeleportOverride. Reset the clothing after moving the clothing position (called teleport).\n Default: true."));
@@ -77,10 +77,18 @@ static TAutoConsoleVariable<int32> CVarEnableKinematicDeferralPrePhysicsConditio
 DECLARE_CYCLE_STAT(TEXT("Cloth Total"), STAT_ClothTotalTime, STATGROUP_Physics);
 DECLARE_CYCLE_STAT(TEXT("Cloth Writeback"), STAT_ClothWriteback, STATGROUP_Physics);
 
+// Used as a default return value for invalid cloth data access
+static const TMap<int32, FClothSimulData> SEmptyClothSimulationData;
+
+
 void FSkeletalMeshComponentClothTickFunction::ExecuteTick(float DeltaTime, enum ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(FSkeletalMeshComponentClothTickFunction_ExecuteTick);
-	FActorComponentTickFunction::ExecuteTickHelper(Target,/*bTickInEditor=*/ true, DeltaTime, TickType, [this](float DilatedTime)
+#if WITH_EDITOR
+	FActorComponentTickFunction::ExecuteTickHelper(Target, Target->bUpdateClothInEditor, DeltaTime, TickType, [this](float DilatedTime)
+#else
+	FActorComponentTickFunction::ExecuteTickHelper(Target,true, DeltaTime, TickType, [this](float DilatedTime)
+#endif
 	{
 		Target->TickClothing(DilatedTime, *this);
 	});
@@ -529,6 +537,92 @@ void USkeletalMeshComponent::OnConstraintBrokenWrapper(int32 ConstraintIndex)
 	OnConstraintBroken.Broadcast(ConstraintIndex);
 }
 
+void USkeletalMeshComponent::InitCollisionRelationships()
+{
+#if WITH_CHAOS
+	if (UPhysicsAsset* const PhysicsAsset = GetPhysicsAsset())
+	{
+		int32 NumDisabledCollisions = PhysicsAsset->CollisionDisableTable.Num();
+		if (NumDisabledCollisions)
+		{
+			TMap<FPhysicsActorHandle, TArray< FPhysicsActorHandle > > DisabledCollisions;
+			for (auto& Elem : PhysicsAsset->CollisionDisableTable)
+			{		
+				// @question : PhysicsAsset->CollisionDisableTable should contain direct indices into the Bodies list?
+				//             I saw some OOB errors in a baked build that seemed to indicate that is not the case.
+
+				int32 SourceIndex = Elem.Key.Indices[0];
+				int32 TargetIndex = Elem.Key.Indices[1];
+				bool bDoCollide = !Elem.Value;
+				if (0 <= SourceIndex && SourceIndex < Bodies.Num())
+				{
+					if (auto* SourceBody = Bodies[SourceIndex])
+					{
+						if (0 <= TargetIndex && TargetIndex < Bodies.Num())
+						{
+							if (auto* TargetBody = Bodies[TargetIndex])
+							{
+								if (FPhysicsActorHandle SourceHandle = SourceBody->GetPhysicsActorHandle())
+								{
+									if (FPhysicsActorHandle TargetHandle = TargetBody->GetPhysicsActorHandle())
+									{
+										if (!DisabledCollisions.Contains(SourceHandle))
+										{
+											DisabledCollisions.Add(SourceHandle, TArray<FPhysicsActorHandle>());
+											DisabledCollisions[SourceHandle].Reserve(NumDisabledCollisions);
+										}
+
+										checkSlow(!DisabledCollisions[SourceHandle].Contains(TargetHandle));
+										DisabledCollisions[SourceHandle].Add(TargetHandle);
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			FPhysicsCommand::ExecuteWrite(this, [&]()
+				{
+					FChaosEngineInterface::AddDisabledCollisionsFor_AssumesLocked(DisabledCollisions);
+				});
+		}
+	}
+#endif
+}
+
+void USkeletalMeshComponent::TermCollisionRelationships()
+{
+#if WITH_CHAOS
+	if (UPhysicsAsset* const PhysicsAsset = GetPhysicsAsset())
+	{
+		int32 NumDisabledCollisions = PhysicsAsset->CollisionDisableTable.Num();
+		if (NumDisabledCollisions)
+		{
+			TArray< FPhysicsActorHandle > CollisionRelationships;
+			CollisionRelationships.Reserve(Bodies.Num());
+
+			for (auto& Body : Bodies)
+			{
+				if (Body)
+				{
+					if (FPhysicsActorHandle Handle = Body->GetPhysicsActorHandle())
+					{
+						CollisionRelationships.Add(Handle);
+					}
+				}
+			}
+
+			FPhysicsCommand::ExecuteWrite(this, [&]()
+			{
+				FChaosEngineInterface::RemoveDisabledCollisionsFor_AssumesLocked(CollisionRelationships);
+			});
+		}
+	}
+#endif
+
+}
+
+
 DECLARE_CYCLE_STAT(TEXT("Init Articulated"), STAT_InitArticulated, STATGROUP_Physics);
 
 int32 USkeletalMeshComponent::FindRootBodyIndex() const
@@ -568,12 +662,12 @@ void USkeletalMeshComponent::InitArticulated(FPhysScene* PhysScene)
 
 	UPhysicsAsset* const PhysicsAsset = GetPhysicsAsset();
 
-	if(PhysScene == nullptr || PhysicsAsset == nullptr || SkeletalMesh == nullptr || !ShouldCreatePhysicsState())
+	if (PhysScene == nullptr || PhysicsAsset == nullptr || SkeletalMesh == nullptr || !ShouldCreatePhysicsState())
 	{
 		return;
 	}
 
-	if(Bodies.Num() > 0)
+	if (Bodies.Num() > 0)
 	{
 		UE_LOG(LogSkeletalMesh, Log, TEXT("USkeletalMeshComponent::InitArticulated : Bodies already created (%s) - call TermArticulated first."), *GetPathName());
 		return;
@@ -593,19 +687,19 @@ void USkeletalMeshComponent::InitArticulated(FPhysScene* PhysScene)
 	RootBodyData.BodyIndex = INDEX_NONE;	//Reset the root body index just in case we need to refind a new one
 	const int32 RootBodyIndex = FindRootBodyIndex();
 
-	if(RootBodyIndex == INDEX_NONE)
+	if (RootBodyIndex == INDEX_NONE)
 	{
-		UE_LOG(LogSkeletalMesh, Log, TEXT("USkeletalMeshComponent::InitArticulated : Could not find root physics body: '%s'"), *GetPathName() );
+		UE_LOG(LogSkeletalMesh, Log, TEXT("USkeletalMeshComponent::InitArticulated : Could not find root physics body: '%s'"), *GetPathName());
 		return;
 	}
 
 	// Set up the map from skelmeshcomp ID to collision disable table
-	uint32 SkelMeshCompID = GetUniqueID();
-	PhysScene->DeferredAddCollisionDisableTable(SkelMeshCompID, &PhysicsAsset->CollisionDisableTable);
-
+#if !WITH_CHAOS
+	PhysScene->DeferredAddCollisionDisableTable(GetUniqueID(), &PhysicsAsset->CollisionDisableTable);
+#endif
 	int32 NumShapes = 0;
 	const int32 NumBodies = PhysicsAsset->SkeletalBodySetups.Num();
-	for(int32 BodyIndex = 0; BodyIndex < NumBodies; ++BodyIndex)
+	for (int32 BodyIndex = 0; BodyIndex < NumBodies; ++BodyIndex)
 	{
 		if (PhysicsAsset->SkeletalBodySetups[BodyIndex])
 		{
@@ -613,11 +707,11 @@ void USkeletalMeshComponent::InitArticulated(FPhysScene* PhysScene)
 		}
 	}
 
-	if(!Aggregate.IsValid() && NumShapes > RagdollAggregateThreshold && NumShapes <= AggregateMaxSize)
+	if (!Aggregate.IsValid() && NumShapes > RagdollAggregateThreshold&& NumShapes <= AggregateMaxSize)
 	{
 		Aggregate = FPhysicsInterface::CreateAggregate(PhysicsAsset->SkeletalBodySetups.Num());
 	}
-	else if(Aggregate.IsValid() && NumShapes > AggregateMaxSize)
+	else if (Aggregate.IsValid() && NumShapes > AggregateMaxSize)
 	{
 		UE_LOG(LogSkeletalMesh, Log, TEXT("USkeletalMeshComponent::InitArticulated : Too many shapes to create aggregate, Max: %u, This: %d"), AggregateMaxSize, NumShapes);
 	}
@@ -627,6 +721,7 @@ void USkeletalMeshComponent::InitArticulated(FPhysScene* PhysScene)
 	// now update root body index because body has BodySetup now
 	SetRootBodyIndex(RootBodyIndex);
 
+	InitCollisionRelationships();
 
 	// Update Flag
 #if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
@@ -845,10 +940,14 @@ void USkeletalMeshComponent::InstantiatePhysicsAsset_Internal(const UPhysicsAsse
 	}
 }
 
+
 void USkeletalMeshComponent::TermArticulated()
 {
 	ResetRootBodyIndex();
 
+#if WITH_CHAOS
+	TermCollisionRelationships();
+#else
 	uint32 SkelMeshCompID = GetUniqueID();
 	UWorld* MyWorld = GetWorld();
 	FPhysScene* PhysScene = (MyWorld ? MyWorld->GetPhysicsScene() : nullptr);
@@ -856,6 +955,7 @@ void USkeletalMeshComponent::TermArticulated()
 	{
 		PhysScene->DeferredRemoveCollisionDisableTable(SkelMeshCompID);
 	}
+#endif
 
 	FPhysicsCommand::ExecuteWrite(this, [&]()
 	{
@@ -1347,6 +1447,7 @@ void USkeletalMeshComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTrans
 				}
 			}
 
+#if WITH_CHAOS
 			if(GEnableKinematicDeferralStartPhysicsCondition)
 			{
 				if (World && (World->TickGroup == ETickingGroup::TG_StartPhysics))
@@ -1354,6 +1455,7 @@ void USkeletalMeshComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTrans
 					AllowDeferral = EAllowKinematicDeferral::AllowDeferral;
 				}
 			}
+#endif
 		}
 
 		UpdateKinematicBonesToAnim(GetComponentSpaceTransforms(), Teleport, false, AllowDeferral);
@@ -2457,7 +2559,11 @@ void USkeletalMeshComponent::RecreateClothingActors()
 		{
 			// Only create cloth sim actors when the world is ready for it
 			const UWorld* const World = GetWorld();
+#if WITH_EDITORONLY_DATA
+			if (World && (World->bShouldSimulatePhysics || bUpdateClothInEditor) && World->GetPhysicsScene())
+#else
 			if (World && World->bShouldSimulatePhysics && World->GetPhysicsScene())
+#endif
 			{
 				TArray<UClothingAssetBase*> AssetsInUse;
 				SkeletalMesh->GetClothingAssetsInUse(AssetsInUse);
@@ -3037,7 +3143,7 @@ void USkeletalMeshComponent::EndPhysicsTickComponent(FSkeletalMeshComponentEndPh
 	{
 		if (IsRegistered())
 		{
-			BlendInPhysics(ThisTickFunction);
+			BlendInPhysicsInternal(ThisTickFunction);
 		}
 	}
 }
@@ -3239,7 +3345,30 @@ public:
 	}
 };
 
-bool USkeletalMeshComponent::ShouldWaitForParallelClothTask() const
+bool USkeletalMeshComponent::RequiresPreEndOfFrameSync() const
+{
+	if ((ClothingSimulation != nullptr) && (CVarEnableClothPhysics.GetValueOnGameThread() != 0))
+	{
+		// By default we await the cloth task in the ClothTickFunction, but...
+		// If we have cloth and have no game-thread dependencies on the cloth output, 
+		// then we will wait for the cloth task in SendAllEndOfFrameUpdates.
+		if (!ShouldWaitForClothInTickFunction())
+		{
+			return true;
+		}
+	}
+	return Super::RequiresPreEndOfFrameSync();
+}
+
+void USkeletalMeshComponent::OnPreEndOfFrameSync()
+{
+	Super::OnPreEndOfFrameSync();
+
+	HandleExistingParallelClothSimulation();
+}
+
+
+bool USkeletalMeshComponent::ShouldWaitForClothInTickFunction() const
 {
 	return bWaitForParallelClothTask || (CVarClothPhysicsTickWaitForParallelClothTask.GetValueOnAnyThread() != 0);
 }
@@ -3247,7 +3376,7 @@ bool USkeletalMeshComponent::ShouldWaitForParallelClothTask() const
 const TMap<int32, FClothSimulData>& USkeletalMeshComponent::GetCurrentClothingData_GameThread() const
 {
 	// We require the cloth tick to wait for the simulation results if we want to use them for some reason other than rendering.
-	if (!ShouldWaitForParallelClothTask())
+	if (!ShouldWaitForClothInTickFunction())
 	{
 		// Log a one-time warning
 		UE_LOG(LogSkeletalMesh, Warning, TEXT("Use of USkeletalMeshComponent::GetCurrentClothingData_GameThread requires that property bWaitForParallelClothTask be set to true"));
@@ -3256,8 +3385,7 @@ const TMap<int32, FClothSimulData>& USkeletalMeshComponent::GetCurrentClothingDa
 		const_cast<USkeletalMeshComponent*>(this)->bWaitForParallelClothTask = true;
 
 		// Return an empty dataset
-		static const TMap<int32, FClothSimulData> SEmptySimulationData;
-		return SEmptySimulationData;
+		return SEmptyClothSimulationData;
 	}
 
 	return CurrentSimulationData;
@@ -3265,16 +3393,15 @@ const TMap<int32, FClothSimulData>& USkeletalMeshComponent::GetCurrentClothingDa
 
 const TMap<int32, FClothSimulData>& USkeletalMeshComponent::GetCurrentClothingData_AnyThread() const
 {
-	// If we did not wait for cloth data in the tick task, we must wait here
-	// Only required if forced waiting is not enabled. Note, we are deliberately not checking bWaitForParallelClothTask here since that
-	// could have been changed this frame in GetCurrentClothingData_GameThread(). This is ok though, see HandleExistingParallelClothSimulation which
-	// if fine to call if the task has already completed.
-	if (CVarClothPhysicsTickWaitForParallelClothTask.GetValueOnAnyThread() == 0)
+	// This is called during EndOfFrameUpdates, usually in a parallel-for loop. We need to be sure that
+	// the cloth task (if there is one) is complete, but it cannpt be waited for here. See OnPreEndOfFrameUpdateSync
+	// which is called just before EOF updates and is where we would have waited for the cloth task.
+	if (!IsValidRef(ParallelClothTask) || ParallelClothTask->IsComplete())
 	{
-		const_cast<USkeletalMeshComponent*>(this)->HandleExistingParallelClothSimulation();
+		return CurrentSimulationData;
 	}
 
-	return CurrentSimulationData;
+	return SEmptyClothSimulationData;
 }
 
 void USkeletalMeshComponent::UpdateClothStateAndSimulate(float DeltaTime, FTickFunction& ThisTickFunction)
@@ -3317,12 +3444,11 @@ void USkeletalMeshComponent::UpdateClothStateAndSimulate(float DeltaTime, FTickF
 	{
 		ParallelClothTask = TGraphTask<FParallelClothTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(*this, DeltaTime);
 		
-		if (ShouldWaitForParallelClothTask())
+		if (ShouldWaitForClothInTickFunction())
 		{
 			FGraphEventArray Prerequisites;
 			Prerequisites.Add(ParallelClothTask);
 			FGraphEventRef ClothCompletionEvent = TGraphTask<FParallelClothCompletionTask>::CreateTask(&Prerequisites, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(this);
-			ThisTickFunction.GetCompletionHandle()->SetGatherThreadForDontCompleteUntil(ENamedThreads::GameThread);
 			ThisTickFunction.GetCompletionHandle()->DontCompleteUntil(ClothCompletionEvent);
 		}
 	}

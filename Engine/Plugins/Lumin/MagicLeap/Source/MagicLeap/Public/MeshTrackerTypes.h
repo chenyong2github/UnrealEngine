@@ -59,7 +59,7 @@ enum class EMagicLeapMeshState : uint8
 
 /** Representation of a mesh block. */
 USTRUCT(BlueprintType)
-struct FMagicLeapMeshBlockInfo
+struct MAGICLEAP_API FMagicLeapMeshBlockInfo
 {
 	GENERATED_BODY()
 
@@ -91,7 +91,7 @@ public:
 
 /** Response structure for the mesh block info. */
 USTRUCT(BlueprintType)
-struct FMagicLeapTrackingMeshInfo
+struct MAGICLEAP_API FMagicLeapTrackingMeshInfo
 {
 	GENERATED_BODY()
 
@@ -107,7 +107,7 @@ public:
 
 /** Request structure to get the actual mesh for a block. */
 USTRUCT(BlueprintType)
-struct FMagicLeapMeshBlockRequest
+struct MAGICLEAP_API FMagicLeapMeshBlockRequest
 {
 	GENERATED_BODY()
 

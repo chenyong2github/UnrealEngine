@@ -15,8 +15,6 @@
 
 struct FPlatformFileTrace
 {
-	CORE_API static void Init(const TCHAR* CmdLine);
-
 	static void BeginOpen(const TCHAR* Path);
 	static void EndOpen(uint64 FileHandle);
 	static void FailOpen(const TCHAR* Path);
@@ -30,9 +28,6 @@ struct FPlatformFileTrace
 
 	CORE_API static uint32 GetOpenFileHandleCount();
 };
-
-#define TRACE_PLATFORMFILE_INIT(CmdLine) \
-	FPlatformFileTrace::Init(CmdLine);
 
 #define TRACE_PLATFORMFILE_BEGIN_OPEN(Path) \
 	FPlatformFileTrace::BeginOpen(Path);
@@ -66,7 +61,6 @@ struct FPlatformFileTrace
 
 #else
 
-#define TRACE_PLATFORMFILE_INIT(CmdLine)
 #define TRACE_PLATFORMFILE_BEGIN_OPEN(Path)
 #define TRACE_PLATFORMFILE_END_OPEN(FileHandle)
 #define TRACE_PLATFORMFILE_FAIL_OPEN(Path)

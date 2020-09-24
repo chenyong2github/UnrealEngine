@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 import { FunctionalTest, getRootDataClient, P4Client, P4Util, RobomergeBranchSpec, Stream } from '../framework'
 
-//import { Perforce } from '../test-perforce'
 const streams: Stream[] = [
 	{name: 'Main', streamType: 'mainline'},
 	{name: 'Dev-Pootle', streamType: 'development', parent: 'Main'},

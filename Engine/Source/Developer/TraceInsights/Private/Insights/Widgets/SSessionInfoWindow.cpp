@@ -2,9 +2,11 @@
 
 #include "SSessionInfoWindow.h"
 
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SlateOptMacros.h"
 #include "TraceServices/ModuleService.h"
 #include "Misc/Paths.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/SOverlay.h"
@@ -18,8 +20,10 @@
 #endif // WITH_EDITOR
 
 // Insights
+#include "Insights/Common/InsightsMenuBuilder.h"
 #include "Insights/Common/TimeUtils.h"
 #include "Insights/InsightsManager.h"
+#include "Insights/InsightsStyle.h"
 #include "Insights/Version.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -28,8 +32,13 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+const FName FSessionInfoTabs::SessionInfoID(TEXT("SessionInfo"));
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 SSessionInfoWindow::SSessionInfoWindow()
 	: DurationActive(0.0f)
+	, TabManager()
 {
 }
 
@@ -49,31 +58,133 @@ SSessionInfoWindow::~SSessionInfoWindow()
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
-void SSessionInfoWindow::Construct(const FArguments& InArgs)
+void SSessionInfoWindow::Construct(const FArguments& InArgs, const TSharedRef<SDockTab>& ConstructUnderMajorTab, const TSharedPtr<SWindow>& ConstructUnderWindow)
+{
+	// Create & initialize tab manager.
+	TabManager = FGlobalTabmanager::Get()->NewTabManager(ConstructUnderMajorTab);
+
+	TSharedRef<FWorkspaceItem> AppMenuGroup = TabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("SessionMenuGroupName", "Session Info"));
+
+	TabManager->RegisterTabSpawner(FSessionInfoTabs::SessionInfoID, FOnSpawnTab::CreateRaw(this, &SSessionInfoWindow::SpawnTab_SessionInfo))
+		.SetDisplayName(LOCTEXT("SessionInfo", "Session Info"))
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Toolbar.Icon.Small"))
+		.SetGroup(AppMenuGroup);
+
+	TSharedRef<FTabManager::FLayout> Layout = []() -> TSharedRef<FTabManager::FLayout>
+	{
+		// Create tab layout.
+		return FTabManager::NewLayout("SessionInfoLayout_v1.0")
+			->AddArea
+			(
+				FTabManager::NewPrimaryArea()
+				->SetOrientation(Orient_Vertical)
+				->Split
+				(
+					FTabManager::NewStack()
+					->AddTab(FSessionInfoTabs::SessionInfoID, ETabState::OpenedTab)
+					->SetHideTabWell(true)
+				)
+			);
+	}();
+
+	// Create & initialize main menu.
+	FMenuBarBuilder MenuBarBuilder = FMenuBarBuilder(TSharedPtr<FUICommandList>());
+
+	MenuBarBuilder.AddPullDownMenu(
+		LOCTEXT("MenuLabel", "Menu"),
+		FText::GetEmpty(),
+		FNewMenuDelegate::CreateStatic(&SSessionInfoWindow::FillMenu, TabManager),
+		FName(TEXT("Menu"))
+	);
+
+	ChildSlot
+	[
+		SNew(SOverlay)
+
+		// Version
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Right)
+		.VAlign(VAlign_Top)
+		.Padding(0.0f, -16.0f, 0.0f, 0.0f)
+		[
+			SNew(STextBlock)
+			.Clipping(EWidgetClipping::ClipToBoundsWithoutIntersecting)
+			.Text(LOCTEXT("UnrealInsightsVersion", UNREAL_INSIGHTS_VERSION_STRING_EX))
+			.ColorAndOpacity(FLinearColor(0.15f, 0.15f, 0.15f, 1.0f))
+		]
+		// Overlay slot for the main window area
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Fill)
+		.VAlign(VAlign_Fill)
+		[
+			SNew(SVerticalBox)
+
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				MenuBarBuilder.MakeWidget()
+			]
+
+			+ SVerticalBox::Slot()
+			.FillHeight(1.0f)
+			[
+				TabManager->RestoreFrom(Layout, ConstructUnderWindow).ToSharedRef()
+			]
+		]
+	];
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SSessionInfoWindow::AddInfoLine(TSharedPtr<SVerticalBox> InVerticalBox, const FText& InHeader, const TAttribute<FText>& InValue) const
+{
+	InVerticalBox->AddSlot()
+		.AutoHeight()
+		.Padding(8.0f, 4.0f, 8.0f, 0.0f)
+		[
+			SNew(STextBlock)
+			.Text(InHeader)
+			.Font(FCoreStyle::GetDefaultFontStyle("Bold", 11))
+		];
+
+	InVerticalBox->AddSlot()
+		.AutoHeight()
+		.Padding(8.0f, 0.0f, 8.0f, 4.0f)
+		[
+			SNew(SEditableTextBox)
+			.Text(InValue)
+			.HintText(LOCTEXT("HintText", "N/A"))
+			//.BackgroundColor(FLinearColor(0.243f, 0.243f, 0.243f, 1.0f))
+			.BackgroundColor(FLinearColor(0.1f, 0.1f, 0.1f, 1.0f))
+			.IsReadOnly(true)
+		];
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+TSharedRef<SDockTab> SSessionInfoWindow::SpawnTab_SessionInfo(const FSpawnTabArgs& Args)
 {
 	TSharedPtr<SVerticalBox> VerticalBox;
+	TSharedPtr<SImage> Image;
 
 	TSharedPtr<SScrollBar> VScrollbar;
 	SAssignNew(VScrollbar, SScrollBar)
 	.Orientation(Orient_Vertical);
 
-	ChildSlot
+	const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
+		.TabRole(ETabRole::PanelTab)
 		[
 			SNew(SOverlay)
 
-			// Version
+			//Overlay slot for the Background image
 			+ SOverlay::Slot()
-			.HAlign(HAlign_Right)
-			.VAlign(VAlign_Top)
-			.Padding(0.0f, -16.0f, 0.0f, 0.0f)
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Fill)
 			[
-				SNew(STextBlock)
-				.Clipping(EWidgetClipping::ClipToBoundsWithoutIntersecting)
-				.Text(LOCTEXT("UnrealInsightsVersion", UNREAL_INSIGHTS_VERSION_STRING_EX))
-				.ColorAndOpacity(FLinearColor(0.15f, 0.15f, 0.15f, 1.0f))
+				SAssignNew(Image, SImage)
+				
 			]
 
-			// Overlay slot for the main window area
+			//Overlay slot for the ScrollBox containing the data
 			+ SOverlay::Slot()
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Top)
@@ -101,44 +212,46 @@ void SSessionInfoWindow::Construct(const FArguments& InArgs)
 			]
 		];
 
+	Image->SetImage(new FSlateColorBrush(FLinearColor(0.015f, 0.015f, 0.015f, 1.0f)));
+
 	AddInfoLine(VerticalBox, LOCTEXT("SessionName_HeaderText",	"Session Name:"),		TAttribute<FText>(this, &SSessionInfoWindow::GetSessionNameText));
 	AddInfoLine(VerticalBox, LOCTEXT("Uri_HeaderText",			"URI:"),				TAttribute<FText>(this, &SSessionInfoWindow::GetUriText));
 	AddInfoLine(VerticalBox, LOCTEXT("Platform_HeaderText",		"Platform:"),			TAttribute<FText>(this, &SSessionInfoWindow::GetPlatformText));
 	AddInfoLine(VerticalBox, LOCTEXT("AppName_HeaderText",		"Application Name:"),	TAttribute<FText>(this, &SSessionInfoWindow::GetAppNameText));
-	AddInfoLine(VerticalBox, LOCTEXT("BuildConfig_HeaderText",	"Build Config:"),		TAttribute<FText>(this, &SSessionInfoWindow::GetBuildConfigText));
-	AddInfoLine(VerticalBox, LOCTEXT("BuildTarget_HeaderText",	"Build Target:"),		TAttribute<FText>(this, &SSessionInfoWindow::GetBuildTargetText));
-	AddInfoLine(VerticalBox, LOCTEXT("CommandLine_HeaderText",	"Command Line:"),		TAttribute<FText>(this, &SSessionInfoWindow::GetCommandLineText));
+	AddInfoLine(VerticalBox, LOCTEXT("BuildConfig_HeaderText",  "Build Config:"),		TAttribute<FText>(this, &SSessionInfoWindow::GetBuildConfigText));
+	AddInfoLine(VerticalBox, LOCTEXT("BuildTarget_HeaderText",  "Build Target:"),		TAttribute<FText>(this, &SSessionInfoWindow::GetBuildTargetText));
+	AddInfoLine(VerticalBox, LOCTEXT("CommandLine_HeaderText",  "Command Line:"),		TAttribute<FText>(this, &SSessionInfoWindow::GetCommandLineText));
 	//AddInfoLine(VerticalBox, LOCTEXT("FileSize_HeaderText",		"File Size:"),			TAttribute<FText>(this, &SSessionInfoWindow::GetFileSizeText));
 	AddInfoLine(VerticalBox, LOCTEXT("Status_HeaderText",		"Status:"),				TAttribute<FText>(this, &SSessionInfoWindow::GetStatusText));
 	AddInfoLine(VerticalBox, LOCTEXT("Modules_HeaderText",		"Modules:"),			TAttribute<FText>(this, &SSessionInfoWindow::GetModulesText));
+
+	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SSessionInfoWindow::OnSessionInfoTabClosed));
+
+	return DockTab;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SSessionInfoWindow::AddInfoLine(TSharedPtr<SVerticalBox> InVerticalBox, const FText& InHeader, const TAttribute<FText>& InValue) const
+void SSessionInfoWindow::OnSessionInfoTabClosed(TSharedRef<SDockTab> TabBeingClosed)
 {
-	InVerticalBox->AddSlot()
-		.AutoHeight()
-		.Padding(8.0f, 4.0f, 8.0f, 0.0f)
-		[
-			SNew(STextBlock)
-			.Text(InHeader)
-			.Font(FCoreStyle::GetDefaultFontStyle("Bold", 11))
-		];
 
-	InVerticalBox->AddSlot()
-		.AutoHeight()
-		.Padding(8.0f, 0.0f, 8.0f, 4.0f)
-		[
-			SNew(SEditableTextBox)
-			.Text(InValue)
-			.HintText(LOCTEXT("HintText", "N/A"))
-			.BackgroundColor(FLinearColor(0.1f, 0.1f, 0.1f, 1.0f))
-			.IsReadOnly(true)
-		];
 }
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SSessionInfoWindow::FillMenu(FMenuBuilder& MenuBuilder, const TSharedPtr<FTabManager> TabManager)
+{
+	if (!TabManager.IsValid())
+	{
+		return;
+	}
+
+	FInsightsManager::Get()->GetInsightsMenuBuilder()->PopulateMenu(MenuBuilder);
+
+	TabManager->PopulateLocalTabSpawnerMenu(MenuBuilder);
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 

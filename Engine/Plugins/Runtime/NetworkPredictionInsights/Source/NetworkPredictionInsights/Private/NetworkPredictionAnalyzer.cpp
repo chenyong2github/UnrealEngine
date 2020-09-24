@@ -122,6 +122,7 @@ bool FNetworkPredictionAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOn
 			TickStartMS = EventData.GetValue<int32>("StartMS");
 			TickDeltaMS = EventData.GetValue<int32>("DeltaMS");
 			TickOutputFrame = EventData.GetValue<int32>("OutputFrame");
+			TickLocalOffsetFrame = EventData.GetValue<int32>("LocalOffsetFrame");
 			break;
 		}
 
@@ -134,6 +135,7 @@ bool FNetworkPredictionAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOn
 			TickData.StartMS = TickStartMS;
 			TickData.EndMS = TickStartMS + TickDeltaMS;
 			TickData.OutputFrame = TickOutputFrame;
+			TickData.LocalOffsetFrame = TickLocalOffsetFrame;
 			NetworkPredictionProvider.WriteSimulationTick(TraceID, MoveTemp(TickData));
 
 			PendingWriteFrame = TickOutputFrame;

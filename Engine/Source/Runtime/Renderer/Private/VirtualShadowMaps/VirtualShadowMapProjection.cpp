@@ -41,7 +41,7 @@ static TAutoConsoleVariable<int32> CVarVirtualShadowMapDebugProjection(
 BEGIN_SHADER_PARAMETER_STRUCT(FProjectionParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, ProjectionParameters)
 	SHADER_PARAMETER_STRUCT(FLightShaderParameters, Light)
-	SHADER_PARAMETER_STRUCT_REF(FSceneTexturesUniformParameters, SceneTexturesStruct)
+	SHADER_PARAMETER_STRUCT_REF(FSceneTextureUniformParameters, SceneTexturesStruct)
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER(int32, VirtualShadowMapId)
 	SHADER_PARAMETER(float, ContactShadowLength)
@@ -112,11 +112,11 @@ static void AddPass_RenderVirtualShadowMapProjection(
 	check(ScissorRect.Area() > 0);
 		
 	FGlobalShaderMap* ShaderMap = View.ShaderMap;
-	TRefCountPtr<FPooledRDGBuffer> PageTable = VirtualShadowMapArray.PageTable;
+	TRefCountPtr<FRDGPooledBuffer> PageTable = VirtualShadowMapArray.PageTable;
 
 	FProjectionParameters* PassParameters = GraphBuilder.AllocParameters<FProjectionParameters>();
 	VirtualShadowMapArray.SetProjectionParameters(GraphBuilder, PassParameters->ProjectionParameters);
-	PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBufferSingleDraw(GraphBuilder.RHICmdList, ESceneTextureSetupMode::GBuffers | ESceneTextureSetupMode::SceneDepth, View.FeatureLevel);
+	PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder.RHICmdList, View.FeatureLevel, ESceneTextureSetupMode::GBuffers | ESceneTextureSetupMode::SceneDepth);
 	PassParameters->View = View.ViewUniformBuffer;
 		
 	FLightShaderParameters LightParameters;
@@ -147,14 +147,11 @@ static void AddPass_RenderVirtualShadowMapProjection(
 
 static FRDGTextureRef CreateDebugOutput(FRDGBuilder& GraphBuilder, FIntPoint Extent)
 {
-	FRDGTextureDesc DebugOutputDesc = FRDGTextureDesc::Create2DDesc(
+	FRDGTextureDesc DebugOutputDesc = FRDGTextureDesc::Create2D(
 		Extent,
 		PF_A32B32G32R32F,
 		FClearValueBinding::Transparent,
-		TexCreate_None,
-		TexCreate_ShaderResource | TexCreate_RenderTargetable,
-		false);
-	DebugOutputDesc.DebugName = TEXT("VirtSmDebugProj");
+		TexCreate_ShaderResource | TexCreate_RenderTargetable);
 	return GraphBuilder.CreateTexture(DebugOutputDesc, TEXT("VirtSmDebugProj"));
 }
 

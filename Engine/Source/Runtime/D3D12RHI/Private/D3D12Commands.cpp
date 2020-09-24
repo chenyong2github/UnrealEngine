@@ -102,21 +102,6 @@ void FD3D12CommandContext::RHISetComputeShader(FRHIComputeShader* ComputeShaderR
 	RHISetComputePipelineState(ComputePipelineState);
 }
 
-void FD3D12CommandContextBase::RHIWaitComputeFence(FRHIComputeFence* InFenceRHI)
-{
-	FD3D12Fence* Fence = FD3D12DynamicRHI::ResourceCast(InFenceRHI);
-
-	if (Fence)
-	{
-		check(IsDefaultContext());
-		RHISubmitCommandsHint();
-
-		checkf(Fence->GetWriteEnqueued(), TEXT("ComputeFence: %s waited on before being written. This will hang the GPU."), *Fence->GetName().ToString());
-
-		Fence->GpuWait(bIsAsyncComputeContext ? ED3D12CommandQueueType::Async : ED3D12CommandQueueType::Default , Fence->GetLastSignaledFence());
-	}
-}
-
 void FD3D12CommandContext::RHIDispatchComputeShader(uint32 ThreadGroupCountX, uint32 ThreadGroupCountY, uint32 ThreadGroupCountZ)
 {
 	FD3D12ComputeShader* ComputeShader = nullptr;
@@ -199,7 +184,6 @@ void FD3D12CommandContext::RHIDispatchIndirectComputeShader(FRHIVertexBuffer* Ar
 
 	DEBUG_EXECUTE_COMMAND_LIST(this);
 }
-
 
 template <typename FunctionType>
 void EnumerateSubresources(FD3D12Resource* Resource, const FRHITransitionInfo& Info, FunctionType Function)
@@ -324,11 +308,11 @@ void FD3D12CommandContext::RHIBeginTransitionsWithoutFencing(TArrayView<const FR
 
 				D3D12_RESOURCE_STATES State = D3D12_RESOURCE_STATE_COMMON;
 
-				if (EnumHasAnyFlags(Info.AccessAfter, EResourceTransitionAccess::EWritable))
+				if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::EWritable))
 				{
 					State |= D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
 				}
-				else if (EnumHasAnyFlags(Info.AccessAfter, EResourceTransitionAccess::EReadable))
+				else if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::EReadable))
 				{
 					State |= D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
 				}
@@ -354,13 +338,13 @@ void FD3D12CommandContext::RHIBeginTransitionsWithoutFencing(TArrayView<const FR
 	}
 }
 
-void FD3D12CommandContext::RHIBeginResourceTransitions(TArrayView<const FRHITransition*> Transitions)
+void FD3D12CommandContext::RHIBeginTransitions(TArrayView<const FRHITransition*> Transitions)
 {
 	RHIBeginTransitionsWithoutFencing(Transitions);
 	SignalTransitionFences(Transitions);
 }
 
-void FD3D12CommandContext::RHIEndResourceTransitions(TArrayView<const FRHITransition*> Transitions)
+void FD3D12CommandContext::RHIEndTransitions(TArrayView<const FRHITransition*> Transitions)
 {
 	WaitForTransitionFences(Transitions);
 
@@ -383,8 +367,8 @@ void FD3D12CommandContext::RHIEndResourceTransitions(TArrayView<const FRHITransi
 			// Sometimes we could still have barriers with resources, invalid but can still happen
 			if (bSamePipeline)
 			{
-				bUAVBarrier |= Info.AccessAfter == EResourceTransitionAccess::ERWBarrier;
-				bUAVBarrier |= EnumHasAnyFlags(Info.AccessBefore, EResourceTransitionAccess::UAVMask) && EnumHasAnyFlags(Info.AccessAfter, EResourceTransitionAccess::UAVMask);
+				bUAVBarrier |= Info.AccessAfter == ERHIAccess::ERWBarrier;
+				bUAVBarrier |= EnumHasAnyFlags(Info.AccessBefore, ERHIAccess::UAVMask) && EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::UAVMask);
 			}
 
 			if (!Info.Resource)
@@ -405,9 +389,9 @@ void FD3D12CommandContext::RHIEndResourceTransitions(TArrayView<const FRHITransi
 					State |= SkipFastClearEliminateState;
 				}
 
-				if (Info.AccessAfter != EResourceTransitionAccess::ERWBarrier)
+				if (Info.AccessAfter != ERHIAccess::ERWBarrier)
 				{
-					if (EnumHasAnyFlags(Info.AccessAfter, EResourceTransitionAccess::EWritable))
+					if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::EWritable))
 					{
 						if (bIsAsyncComputeContext)
 						{
@@ -418,7 +402,7 @@ void FD3D12CommandContext::RHIEndResourceTransitions(TArrayView<const FRHITransi
 							State |= Resource->GetWritableState();
 						}
 					}
-					else if (EnumHasAnyFlags(Info.AccessAfter, EResourceTransitionAccess::EReadable))
+					else if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::EReadable))
 					{
 						if (bIsAsyncComputeContext)
 						{
@@ -457,102 +441,6 @@ void FD3D12CommandContext::RHIEndResourceTransitions(TArrayView<const FRHITransi
 	}
 }
 
-
-void FD3D12CommandContext::RHITransitionResources(EResourceTransitionAccess TransitionType, FRHITexture** InTextures, int32 NumTextures)
-{
-#if !USE_D3D12RHI_RESOURCE_STATE_TRACKING
-	// TODO: Make sure that EMetaData is supported with an aliasing barrier, otherwise the CMask decal optimisation will break.
-	check(TransitionType != EResourceTransitionAccess::EMetaData && (TransitionType == EResourceTransitionAccess::EReadable || TransitionType == EResourceTransitionAccess::EWritable || TransitionType == EResourceTransitionAccess::ERWSubResBarrier));
-	// TODO: Remove this skip.
-	// Skip for now because we don't have enough info about what mip to transition yet.
-	// Note: This causes visual corruption.
-	if (TransitionType == EResourceTransitionAccess::ERWSubResBarrier)
-	{
-		return;
-	}
-
-	static IConsoleVariable* CVarShowTransitions = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ProfileGPU.ShowTransitions"));
-	const bool bShowTransitionEvents = CVarShowTransitions->GetInt() != 0;
-
-	SCOPED_RHI_CONDITIONAL_DRAW_EVENTF(*this, RHITransitionResources, bShowTransitionEvents, TEXT("TransitionTo: %s: %i Textures"), *GetResourceTransitionAccessName(TransitionType), NumTextures);
-
-	// Determine the direction of the transitions.
-	const D3D12_RESOURCE_STATES* pBefore = nullptr;
-	const D3D12_RESOURCE_STATES* pAfter = nullptr;
-	D3D12_RESOURCE_STATES WritableState;
-	D3D12_RESOURCE_STATES ReadableState;
-	switch (TransitionType)
-	{
-	case EResourceTransitionAccess::EReadable:
-		// Write -> Read
-		pBefore = &WritableState;
-		pAfter = &ReadableState;
-		break;
-
-	case EResourceTransitionAccess::EWritable:
-		// Read -> Write
-		pBefore = &ReadableState;
-		pAfter = &WritableState;
-		break;
-
-	default:
-		check(false);
-		break;
-	}
-
-	// Create the resource barrier descs for each texture to transition.
-	for (int32 i = 0; i < NumTextures; ++i)
-	{
-		if (InTextures[i])
-		{
-			FD3D12Resource* Resource = RetrieveTextureBase(InTextures[i])->GetResource();
-			check(Resource->RequiresResourceStateTracking());
-
-			SCOPED_RHI_CONDITIONAL_DRAW_EVENTF(*this, RHITransitionResourcesLoop, bShowTransitionEvents, TEXT("To:%i - %s"), i, *Resource->GetName().ToString());
-
-			WritableState = Resource->GetWritableState();
-			ReadableState = Resource->GetReadableState();
-
-			CommandListHandle.AddTransitionBarrier(Resource, *pBefore, *pAfter, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-
-			DUMP_TRANSITION(Resource->GetName(), TransitionType);
-		}
-	}
-#else
-	if (TransitionType == EResourceTransitionAccess::EMetaData)
-	{
-		FlushMetadata(InTextures, NumTextures);
-	}
-#endif // !USE_D3D12RHI_RESOURCE_STATE_TRACKING
-}
-
-
-void FD3D12CommandContext::RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView** InUAVs, int32 InNumUAVs, FRHIComputeFence* WriteComputeFenceRHI)
-{
-	static IConsoleVariable* CVarShowTransitions = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ProfileGPU.ShowTransitions"));
-	const bool bShowTransitionEvents = CVarShowTransitions->GetInt() != 0;
-
-	SCOPED_RHI_CONDITIONAL_DRAW_EVENTF(*this, RHITransitionResources, bShowTransitionEvents, TEXT("TransitionTo: %s: %i UAVs"), *GetResourceTransitionAccessName(TransitionType), InNumUAVs);
-
-	// Always perform UAV barrier when transition type is ERWBarrier because we don't know if the transition will be UAV -> UAV or any other state when ERWBarrier is set
-	// This is the safest path, but sadly enough not the fastest path. Barrier refactor code and RDG will fix this in the future
-	const bool bUAVBarrier = (TransitionType == EResourceTransitionAccess::ERWBarrier);
-	if (bUAVBarrier)
-	{
-		StateCache.FlushComputeShaderCache(true);
-	}
-
-	if (WriteComputeFenceRHI)
-	{
-		RHISubmitCommandsHint();
-
-		FD3D12Fence* Fence = FD3D12DynamicRHI::ResourceCast(WriteComputeFenceRHI);
-		Fence->WriteFence();
-
-		Fence->Signal(bIsAsyncComputeContext ? ED3D12CommandQueueType::Async : ED3D12CommandQueueType::Default);
-	}
-}
-
 void FD3D12CommandContext::RHISetGlobalUniformBuffers(const FUniformBufferStaticBindings& InUniformBuffers)
 {
 	FMemory::Memzero(GlobalUniformBuffers.GetData(), GlobalUniformBuffers.Num() * sizeof(FRHIUniformBuffer*));
@@ -578,22 +466,28 @@ void FD3D12CommandContext::RHICopyToStagingBuffer(FRHIVertexBuffer* SourceBuffer
 
 
 	// Ensure our shadow buffer is large enough to hold the readback.
-	if (!StagingBuffer->StagedRead || StagingBuffer->ShadowBufferSize < NumBytes)
+	if (!StagingBuffer->ResourceLocation.IsValid() || StagingBuffer->ShadowBufferSize < NumBytes)
 	{
-		// @todo-mattc I feel like we should allocate more than NumBytes to handle small reads without blowing tons of space. Need to pool this.
-		// Hopefully d3d12 will do smart pooling out of an internal heap.
 		StagingBuffer->SafeRelease();
 
-		VERIFYD3D12RESULT(GetParentDevice()->GetParentAdapter()->CreateBuffer(D3D12_HEAP_TYPE_READBACK, GetGPUMask(), GetGPUMask(), NumBytes, &StagingBuffer->StagedRead, TEXT("StagedRead")));
+		// Unknown aligment requirement for sub allocated read back buffer data
+		uint32 AllocationAlignment = 16;
+		const D3D12_RESOURCE_DESC BufferDesc = CD3DX12_RESOURCE_DESC::Buffer(NumBytes, D3D12_RESOURCE_FLAG_NONE);		
+		GetParentDevice()->GetDefaultBufferAllocator().AllocDefaultResource(D3D12_HEAP_TYPE_READBACK, BufferDesc, (EBufferUsageFlags)BUF_None, ED3D12ResourceStateMode::SingleState, StagingBuffer->ResourceLocation, AllocationAlignment, TEXT("StagedRead"));
+		check(StagingBuffer->ResourceLocation.GetSize() == NumBytes);
 		StagingBuffer->ShadowBufferSize = NumBytes;
 	}
 
+	// No need to check the GPU mask as staging buffers are in CPU memory and visible to all GPUs.
+	
 	{
 		FD3D12Resource* pSourceResource = VertexBuffer->ResourceLocation.GetResource();
 		D3D12_RESOURCE_DESC const& SourceBufferDesc = pSourceResource->GetDesc();
+		uint32 SourceOffset = VertexBuffer->ResourceLocation.GetOffsetFromBaseOfResource();
 
-		FD3D12Resource* pDestResource = StagingBuffer->StagedRead;
+		FD3D12Resource* pDestResource = StagingBuffer->ResourceLocation.GetResource();
 		D3D12_RESOURCE_DESC const& DestBufferDesc = pDestResource->GetDesc();
+		uint32 DestOffset = StagingBuffer->ResourceLocation.GetOffsetFromBaseOfResource();
 
 		if (pSourceResource->RequiresResourceStateTracking())
 		{
@@ -603,7 +497,7 @@ void FD3D12CommandContext::RHICopyToStagingBuffer(FRHIVertexBuffer* SourceBuffer
 
 		numCopies++;
 
-		CommandListHandle->CopyBufferRegion(pDestResource->GetResource(), 0, pSourceResource->GetResource(), Offset, NumBytes);
+		CommandListHandle->CopyBufferRegion(pDestResource->GetResource(), DestOffset, pSourceResource->GetResource(), Offset + SourceOffset, NumBytes);
 		CommandListHandle.UpdateResidency(pDestResource);
 		CommandListHandle.UpdateResidency(pSourceResource);
 	}
@@ -1982,11 +1876,6 @@ void FD3D12CommandContext::RHIClearMRTImpl(bool bClearColor, int32 NumClearColor
 	DEBUG_EXECUTE_COMMAND_LIST(this);
 }
 
-void FD3D12CommandContext::RHIBindClearMRTValues(bool bClearColor, bool bClearDepth, bool bClearStencil)
-{
-	// Not necessary for d3d.
-}
-
 // Blocks the CPU until the GPU catches up and goes idle.
 void FD3D12DynamicRHI::RHIBlockUntilGPUIdle()
 {
@@ -2156,11 +2045,11 @@ void FD3D12CommandContext::RHIBroadcastTemporalEffect(const FName& InEffectName,
 		DstTextures.Emplace(RetrieveTextureBase(InTextures[i], NextSiblingGPUIndex));
 	}
 
-#if USE_COPY_QUEUE_FOR_RESOURCE_SYNC
-
 	FD3D12Device* Device = GetParentDevice();
 	FD3D12Adapter* Adapter = Device->GetParentAdapter();
 	FD3D12TemporalEffect* Effect = Adapter->GetTemporalEffect(InEffectName);
+
+#if USE_COPY_QUEUE_FOR_RESOURCE_SYNC
 
 	for (int32 i = 0; i < NumTextures; i++)
 	{

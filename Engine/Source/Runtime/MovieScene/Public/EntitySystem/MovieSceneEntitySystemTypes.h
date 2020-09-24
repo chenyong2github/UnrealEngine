@@ -4,7 +4,7 @@
 
 #include "EntitySystem/MovieSceneEntityIDs.h"
 #include "Algo/Find.h"
-#include "Stats/Stats2.h"
+#include "Stats/Stats.h"
 #include "Misc/EnumClassFlags.h"
 #include "Containers/ArrayView.h"
 
@@ -23,20 +23,21 @@ namespace MovieScene
 enum class ESystemPhase : uint8
 {
 	/** Null phase which indicates that the system never runs, but still exists in the reference graph */
-	None,
+	None = 0,
 
 	/** Expensive: Phase that is run before instantiation any time any boundary is crossed in the sequence. Used to spawn new objects and trigger pre/post-spawn events. */
-	Spawn,
+	Spawn = 1 << 0,
 
 	/** Expensive: Houses any system that needs to instantiate global entities into the linker, or make meaningful changes to entity structures.. */
-	Instantiation,
+	Instantiation = 1 << 1,
 
 	/** Fast, distributed: Houses the majority of evaluation systems that compute animation data. Entity manager is locked down for the duration of this phase. */
-	Evaluation,
+	Evaluation = 1 << 2,
 
 	/** Finalization phase for enything that wants to run after everything else. */
-	Finalization,
+	Finalization = 1 << 3,
 };
+ENUM_CLASS_FLAGS(ESystemPhase);
 
 enum class EComponentTypeFlags : uint8
 {

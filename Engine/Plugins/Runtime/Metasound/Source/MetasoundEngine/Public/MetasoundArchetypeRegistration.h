@@ -58,7 +58,7 @@ namespace Metasound
 						}
 						else
 						{
-							PackageToSaveTo = CreatePackage(nullptr, *InPath);
+							PackageToSaveTo = CreatePackage(*InPath);
 						}
 					}
 					else

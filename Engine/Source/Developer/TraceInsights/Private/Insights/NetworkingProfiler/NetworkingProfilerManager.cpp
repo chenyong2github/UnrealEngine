@@ -8,6 +8,7 @@
 #include "WorkspaceMenuStructureModule.h"
 
 // Insights
+#include "Insights/Common/InsightsMenuBuilder.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/NetworkingProfiler/Widgets/SNetworkingProfilerWindow.h"
@@ -47,8 +48,6 @@ TSharedPtr<FNetworkingProfilerManager> FNetworkingProfilerManager::CreateInstanc
 FNetworkingProfilerManager::FNetworkingProfilerManager(TSharedRef<FUICommandList> InCommandList)
 	: bIsInitialized(false)
 	, bIsAvailable(false)
-	, AvailabilityCheckNextTimestamp(0)
-	, AvailabilityCheckWaitTimeSec(1.0)
 	, CommandList(InCommandList)
 	, ActionManager(this)
 	, ProfilerWindows()
@@ -66,12 +65,17 @@ void FNetworkingProfilerManager::Initialize(IUnrealInsightsModule& InsightsModul
 	}
 	bIsInitialized = true;
 
+	UE_LOG(NetworkingProfiler, Log, TEXT("Initialize"));
+
 	// Register tick functions.
 	OnTick = FTickerDelegate::CreateSP(this, &FNetworkingProfilerManager::Tick);
-	OnTickHandle = FTicker::GetCoreTicker().AddTicker(OnTick, 1.0f);
+	OnTickHandle = FTicker::GetCoreTicker().AddTicker(OnTick, 0.0f);
 
 	FNetworkingProfilerCommands::Register();
 	BindCommands();
+
+	FInsightsManager::Get()->GetSessionChangedEvent().AddSP(this, &FNetworkingProfilerManager::OnSessionChanged);
+	OnSessionChanged();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -84,12 +88,16 @@ void FNetworkingProfilerManager::Shutdown()
 	}
 	bIsInitialized = false;
 
+	FInsightsManager::Get()->GetSessionChangedEvent().RemoveAll(this);
+
 	FNetworkingProfilerCommands::Unregister();
 
 	// Unregister tick function.
 	FTicker::GetCoreTicker().RemoveTicker(OnTickHandle);
 
 	FNetworkingProfilerManager::Instance.Reset();
+
+	UE_LOG(NetworkingProfiler, Log, TEXT("Shutdown"));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -124,13 +132,13 @@ void FNetworkingProfilerManager::RegisterMajorTabs(IUnrealInsightsModule& Insigh
 			FName TabId = FInsightsManagerTabs::NetworkingProfilerTabId;
 			//TabId.SetNumber(ReservedId);
 			FTabSpawnerEntry& TabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(TabId,
-				FOnSpawnTab::CreateRaw(this, &FNetworkingProfilerManager::SpawnTab))
+				FOnSpawnTab::CreateRaw(this, &FNetworkingProfilerManager::SpawnTab), FCanSpawnTab::CreateRaw(this, &FNetworkingProfilerManager::CanSpawnTab))
 				.SetReuseTabMethod(FOnFindTabToReuse::CreateStatic(&NeverReuse))
 				.SetDisplayName(Config.TabLabel.IsSet() ? Config.TabLabel.GetValue() : LOCTEXT("NetworkingProfilerTabTitle", "Networking Insights"))
 				.SetTooltipText(Config.TabTooltip.IsSet() ? Config.TabTooltip.GetValue() : LOCTEXT("NetworkingProfilerTooltipText", "Open the Networking Insights tab."))
 				.SetIcon(Config.TabIcon.IsSet() ? Config.TabIcon.GetValue() : FSlateIcon(FInsightsStyle::GetStyleSetName(), "NetworkingProfiler.Icon.Small"));
 
-			TSharedRef<FWorkspaceItem> Group = Config.WorkspaceGroup.IsValid() ? Config.WorkspaceGroup.ToSharedRef() : WorkspaceMenu::GetMenuStructure().GetToolsCategory();
+			TSharedRef<FWorkspaceItem> Group = Config.WorkspaceGroup.IsValid() ? Config.WorkspaceGroup.ToSharedRef() : FInsightsManager::Get()->GetInsightsMenuBuilder()->GetInsightsToolsGroup();
 			TabSpawnerEntry.SetGroup(Group);
 		}
 	}
@@ -165,6 +173,13 @@ TSharedRef<SDockTab> FNetworkingProfilerManager::SpawnTab(const FSpawnTabArgs& A
 	AddProfilerWindow(Window);
 
 	return DockTab;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FNetworkingProfilerManager::CanSpawnTab(const FSpawnTabArgs& Args) const
+{
+	return bIsAvailable;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -204,53 +219,60 @@ FNetworkingProfilerActionManager& FNetworkingProfilerManager::GetActionManager()
 
 bool FNetworkingProfilerManager::Tick(float DeltaTime)
 {
-	if (!bIsAvailable)
+	// Check if session has Networking events (to spawn the tab), but not too often.
+	if (!bIsAvailable && AvailabilityCheck.Tick())
 	{
-		// Check if session has Networking events (to spawn the tab), but not too often.
-		const uint64 Time = FPlatformTime::Cycles64();
-		if (Time > AvailabilityCheckNextTimestamp)
+		uint32 NetTraceVersion = 0;
+
+		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+		if (Session.IsValid())
 		{
-			AvailabilityCheckWaitTimeSec += 1.0; // increase wait time with 1s
-			const uint64 WaitTime = static_cast<uint64>(AvailabilityCheckWaitTimeSec / FPlatformTime::GetSecondsPerCycle64());
-			AvailabilityCheckNextTimestamp = Time + WaitTime;
+			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-			uint32 NetTraceVersion = 0;
-
-			TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-			if (Session.IsValid())
+			if (Session->IsAnalysisComplete())
 			{
-				Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-				const Trace::INetProfilerProvider& NetProfilerProvider = Trace::ReadNetProfilerProvider(*Session.Get());
-				NetTraceVersion = NetProfilerProvider.GetNetTraceVersion();
+				// Never check again during this session.
+				AvailabilityCheck.Disable();
 			}
 
-			if (NetTraceVersion > 0)
+			const Trace::INetProfilerProvider& NetProfilerProvider = Trace::ReadNetProfilerProvider(*Session.Get());
+			NetTraceVersion = NetProfilerProvider.GetNetTraceVersion();
+		}
+		else
+		{
+			// Do not check again until the next session changed event (see OnSessionChanged).
+			AvailabilityCheck.Disable();
+		}
+
+		if (NetTraceVersion > 0)
+		{
+			bIsAvailable = true;
+
+			const FName& TabId = FInsightsManagerTabs::NetworkingProfilerTabId;
+			if (FGlobalTabmanager::Get()->HasTabSpawner(TabId))
 			{
-				bIsAvailable = true;
-
-				const FName& TabId = FInsightsManagerTabs::NetworkingProfilerTabId;
-				if (FGlobalTabmanager::Get()->HasTabSpawner(TabId))
-				{
-					FGlobalTabmanager::Get()->TryInvokeTab(TabId);
-					FGlobalTabmanager::Get()->TryInvokeTab(TabId);
-				}
-
-				//int32 SpawnTabCount = 2; // we want to spawn 2 tabs
-				//for (int32 ReservedId = 0; SpawnTabCount > 0 && ReservedId < 10; ++ReservedId)
-				//{
-				//	FName TabId = FInsightsManagerTabs::NetworkingProfilerTabId;
-				//	TabId.SetNumber(ReservedId);
-				//
-				//	if (FGlobalTabmanager::Get()->HasTabSpawner(TabId) && 
-				//		!FGlobalTabmanager::Get()->FindExistingLiveTab(TabId).IsValid())
-				//	{
-				//		FGlobalTabmanager::Get()->TryInvokeTab(TabId);
-				//		--SpawnTabCount;
-				//	}
-				//}
-
-				// ActivateTimingInsightsTab();
+				// Spawn 2 tabs.
+				UE_LOG(NetworkingProfiler, Log, TEXT("Opening the \"Networking Insights\" tabs..."));
+				FGlobalTabmanager::Get()->TryInvokeTab(TabId);
+				FGlobalTabmanager::Get()->TryInvokeTab(TabId);
 			}
+
+			//int32 SpawnTabCount = 2; // we want to spawn 2 tabs
+			//for (int32 ReservedId = 0; SpawnTabCount > 0 && ReservedId < 10; ++ReservedId)
+			//{
+			//	FName TabId = FInsightsManagerTabs::NetworkingProfilerTabId;
+			//	TabId.SetNumber(ReservedId);
+			//
+			//	if (FGlobalTabmanager::Get()->HasTabSpawner(TabId) && 
+			//		!FGlobalTabmanager::Get()->FindExistingLiveTab(TabId).IsValid())
+			//	{
+			//		UE_LOG(NetworkingProfiler, Log, TEXT("Opening the \"Networking Insights\" tab..."));
+			//		FGlobalTabmanager::Get()->TryInvokeTab(TabId);
+			//		--SpawnTabCount;
+			//	}
+			//}
+
+			// ActivateTimingInsightsTab();
 		}
 	}
 
@@ -261,9 +283,17 @@ bool FNetworkingProfilerManager::Tick(float DeltaTime)
 
 void FNetworkingProfilerManager::OnSessionChanged()
 {
+	UE_LOG(NetworkingProfiler, Log, TEXT("OnSessionChanged"));
+
 	bIsAvailable = false;
-	AvailabilityCheckNextTimestamp = 0;
-	AvailabilityCheckWaitTimeSec = 1.0;
+	if (FInsightsManager::Get()->GetSession().IsValid())
+	{
+		AvailabilityCheck.Enable(1.0);
+	}
+	else
+	{
+		AvailabilityCheck.Disable();
+	}
 
 	for (TWeakPtr<SNetworkingProfilerWindow> WndWeakPtr : ProfilerWindows)
 	{

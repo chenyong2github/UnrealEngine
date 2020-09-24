@@ -15,6 +15,7 @@
 #include "IDisplayClusterBlueprintAPI.generated.h"
 
 class UDisplayClusterRootComponent;
+class UCineCameraComponent;
 struct FPostProcessSettings;
 
 
@@ -242,6 +243,10 @@ public:
 	/** Overrides postprocess settings for specified viewport. */
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set final post processing settings for viewport"), Category = "DisplayCluster|Render")
 	virtual void SetFinalPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& FinalPostProcessingSettings) = 0;
+
+	/** Overrides postprocess settings for specified viewport. */
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Updated Post Processing"), Category = "DisplayCluster|Render")
+	virtual FPostProcessSettings GetUpdatedCinecameraPostProcessing(float DeltaSeconds, UCineCameraComponent* CineCamera) = 0;
 
 	/** Returns location and size of specified viewport. */
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get viewport rectangle"), Category = "DisplayCluster|Render")

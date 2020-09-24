@@ -19,6 +19,7 @@
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "LevelUtils.h"
 
+
 #if WITH_EDITOR
 #include "Editor.h"
 #include "Layers/Layer.h"
@@ -26,6 +27,7 @@
 #include "Editor/GroupActor.h"
 #include "EditorLevelUtils.h"
 #include "FileHelpers.h"
+#include "Misc/Base64.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/ScopeExit.h"
 #include "ScopedTransaction.h"

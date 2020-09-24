@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "Engine/TimecodeProvider.h"
-
+#include "GenlockedTimecodeProvider.h"
 #include "MediaIOCoreDefinitions.h"
 
 #include "BlackmagicTimecodeProvider.generated.h"
@@ -18,13 +17,13 @@ namespace BlackmagicTimecodeProviderHelpers
  * Class to fetch a timecode via a Blackmagic Design card.
  */
 UCLASS(Blueprintable, editinlinenew, meta=(DisplayName="Blackmagic SDI Input", MediaIOCustomLayout="Blackmagic"))
-class BLACKMAGICMEDIA_API UBlackmagicTimecodeProvider : public UTimecodeProvider
+class BLACKMAGICMEDIA_API UBlackmagicTimecodeProvider : public UGenlockedTimecodeProvider
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 	//~ UTimecodeProvider interface
-	virtual FQualifiedFrameTime GetQualifiedFrameTime() const override;
+	virtual bool FetchTimecode(FQualifiedFrameTime& OutFrameTime) override;
 	virtual ETimecodeProviderSynchronizationState GetSynchronizationState() const override;
 	virtual bool Initialize(class UEngine* InEngine) override;
 	virtual void Shutdown(class UEngine* InEngine) override;

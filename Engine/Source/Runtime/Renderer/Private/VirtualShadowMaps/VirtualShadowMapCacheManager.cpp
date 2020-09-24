@@ -180,7 +180,7 @@ public:
 };
 IMPLEMENT_GLOBAL_SHADER(FVirtualSmCopyStatsCS, "/Engine/Private/VirtualShadowMaps/CopyStats.usf", "CopyStatsCS", SF_Compute);
 
-void FVirtualShadowMapArrayCacheManager::ExtractFrameData(FVirtualShadowMapArray &VirtualShadowMapArray, FRHICommandListImmediate& RHICmdList)
+void FVirtualShadowMapArrayCacheManager::ExtractFrameData(FVirtualShadowMapArray &VirtualShadowMapArray, FRDGBuilder& GraphBuilder)
 {
 	if (CVarCacheVirtualSMs.GetValueOnRenderThread() != 0)
 	{
@@ -201,15 +201,15 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(FVirtualShadowMapArray
 	else
 	{
 		// Drop all refs.
-		PrevPageTable = TRefCountPtr<FPooledRDGBuffer>();
-		PrevPageFlags = TRefCountPtr<FPooledRDGBuffer>();
-		PrevHPageFlags = TRefCountPtr<FPooledRDGBuffer>();
+		PrevPageTable = TRefCountPtr<FRDGPooledBuffer>();
+		PrevPageFlags = TRefCountPtr<FRDGPooledBuffer>();
+		PrevHPageFlags = TRefCountPtr<FRDGPooledBuffer>();
 
 		PrevPhysicalPagePool = TRefCountPtr<IPooledRenderTarget>();
-		PrevPhysicalPageMetaData = TRefCountPtr<FPooledRDGBuffer>();
-		PrevDynamicCasterPageFlags = TRefCountPtr<FPooledRDGBuffer>();
-		PrevShadowMapProjectionDataBuffer = TRefCountPtr<FPooledRDGBuffer>();
-		PrevPageRectBounds = TRefCountPtr<FPooledRDGBuffer>();
+		PrevPhysicalPageMetaData = TRefCountPtr<FRDGPooledBuffer>();
+		PrevDynamicCasterPageFlags = TRefCountPtr<FRDGPooledBuffer>();
+		PrevShadowMapProjectionDataBuffer = TRefCountPtr<FRDGPooledBuffer>();
+		PrevPageRectBounds = TRefCountPtr<FRDGPooledBuffer>();
 
 		PrevCommonParameters.NumShadowMaps = 0;
 
@@ -217,28 +217,28 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(FVirtualShadowMapArray
 	}
 	CacheEntries.Reset();
 
+	FRDGBufferRef AccumulatedStatsBufferRDG = nullptr;
+
 	// Note: stats accumulation thing is here because it needs to persist over frames.
 	if (!AccumulatedStatsBuffer.IsValid())
 	{
-		FRDGBuilder GraphBuilder(RHICmdList);
-		FRDGBufferRef AccumulatedStatsBufferRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(4, 1 + FVirtualShadowMapArray::NumStats * MaxStatFrames), TEXT("AccumulatedStatsBuffer"));	// TODO: Can't be a structured buffer as EnqueueCopy is only defined for vertex buffers
+		AccumulatedStatsBufferRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(4, 1 + FVirtualShadowMapArray::NumStats * MaxStatFrames), TEXT("AccumulatedStatsBuffer"));	// TODO: Can't be a structured buffer as EnqueueCopy is only defined for vertex buffers
 		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(AccumulatedStatsBufferRDG, PF_R32_UINT), 0);
-		GraphBuilder.QueueBufferExtraction(AccumulatedStatsBufferRDG, &AccumulatedStatsBuffer);
-		GraphBuilder.Execute();
+		ConvertToExternalBuffer(GraphBuilder, AccumulatedStatsBufferRDG, AccumulatedStatsBuffer);
+	}
+	else
+	{
+		AccumulatedStatsBufferRDG = GraphBuilder.RegisterExternalBuffer(AccumulatedStatsBuffer, TEXT("AccumulatedStatsBuffer"));
 	}
 
 	if (IsAccumulatingStats())
 	{
-		FRDGBuilder GraphBuilder(RHICmdList);
-		FRDGBufferRef AccumulatedStatsBufferRDG = GraphBuilder.RegisterExternalBuffer(AccumulatedStatsBuffer, TEXT("AccumulatedStatsBuffer"));
-
 		// Initialize/clear
 		if (!bAccumulatingStats)
 		{
 			AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(AccumulatedStatsBufferRDG, PF_R32_UINT), 0);
 			bAccumulatingStats = true;
 		}
-
 
 		FVirtualSmCopyStatsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualSmCopyStatsCS::FParameters>();
 
@@ -255,16 +255,13 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(FVirtualShadowMapArray
 			PassParameters,
 			FIntVector(1, 1, 1)
 		);
-
-
-		GraphBuilder.QueueBufferExtraction(AccumulatedStatsBufferRDG, &AccumulatedStatsBuffer);
-		GraphBuilder.Execute();
 	}
 	else if (bAccumulatingStats)
 	{
 		bAccumulatingStats = false;
+
 		GPUBufferReadback = new FRHIGPUBufferReadback(TEXT("AccumulatedStatsBuffer"));
-		GPUBufferReadback->EnqueueCopy(RHICmdList, AccumulatedStatsBuffer->VertexBuffer, 0u);
+		AddEnqueueCopyPass(GraphBuilder, GPUBufferReadback, AccumulatedStatsBufferRDG, 0u);
 	}
 
 	if (GPUBufferReadback && GPUBufferReadback->IsReady())
@@ -454,7 +451,7 @@ void FVirtualShadowMapArrayCacheManager::ProcessInstanceRangeInvalidation(FRHICo
 			FRDGBufferRef InstanceRangesRDG = CreateStructuredBuffer(GraphBuilder, TEXT("InstanceRanges"), InstanceRanges);
 			FRDGBufferRef DynamicCasterFlagsRDG = GraphBuilder.RegisterExternalBuffer(PrevDynamicCasterPageFlags, TEXT("DynamicCasterFlags"));
 
-			auto RegExtCreateSrv = [&GraphBuilder](const TRefCountPtr<FPooledRDGBuffer>& Buffer, const TCHAR* Name) -> FRDGBufferSRVRef
+			auto RegExtCreateSrv = [&GraphBuilder](const TRefCountPtr<FRDGPooledBuffer>& Buffer, const TCHAR* Name) -> FRDGBufferSRVRef
 			{
 				return GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(Buffer, Name));
 			};

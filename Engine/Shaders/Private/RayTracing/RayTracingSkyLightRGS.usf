@@ -17,8 +17,8 @@ uint UpscaleFactor;
 
 RaytracingAccelerationStructure TLAS;
 
-RWTexture2D<float4> RWOcclusionMaskUAV;
-RWTexture2D<float2> RWRayDistanceUAV;
+RWTexture2D<float4> RWSkyOcclusionMaskUAV;
+RWTexture2D<float2> RWSkyOcclusionRayDistanceUAV;
 
 RAY_TRACING_ENTRY_RAYGEN(SkyLightRGS)
 {
@@ -37,7 +37,7 @@ RAY_TRACING_ENTRY_RAYGEN(SkyLightRGS)
 	FGBufferData GBufferData = GetGBufferDataFromSceneTexturesLoad(PixelCoord);
 #endif
 
-	float DeviceZ = SceneDepthBuffer.Load(int3(PixelCoord, 0)).r;
+	float DeviceZ = SceneDepthTexture.Load(int3(PixelCoord, 0)).r;
 	float3 WorldPosition;
 	float3 CameraDirection;
 	ReconstructWorldPositionAndCameraDirectionFromDeviceZ(PixelCoord, DeviceZ, WorldPosition, CameraDirection);
@@ -96,6 +96,6 @@ RAY_TRACING_ENTRY_RAYGEN(SkyLightRGS)
 	DiffuseExitantRadiance.rgb *= View.PreExposure;
 #endif
 
-	RWOcclusionMaskUAV[DispatchThreadId] = float4(ClampToHalfFloatRange(DiffuseExitantRadiance.rgb), AmbientOcclusion);
-	RWRayDistanceUAV[DispatchThreadId] = float2(HitDistance, SamplesPerPixel);
+	RWSkyOcclusionMaskUAV[DispatchThreadId] = float4(ClampToHalfFloatRange(DiffuseExitantRadiance.rgb), AmbientOcclusion);
+	RWSkyOcclusionRayDistanceUAV[DispatchThreadId] = float2(HitDistance, SamplesPerPixel);
 }

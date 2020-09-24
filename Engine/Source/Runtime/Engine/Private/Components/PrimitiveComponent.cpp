@@ -474,7 +474,7 @@ void UPrimitiveComponent::GetStreamingRenderAssetInfoWithNULLRemoval(FStreamingT
 		for (int32 Index = 0; Index < OutStreamingRenderAssets.Num(); Index++)
 		{
 			const FStreamingRenderAssetPrimitiveInfo& Info = OutStreamingRenderAssets[Index];
-			if (!IsStreamingRenderAsset(Info.RenderAsset))
+			if (!Info.RenderAsset || !Info.RenderAsset->IsStreamable())
 			{
 				OutStreamingRenderAssets.RemoveAtSwap(Index--);
 			}
@@ -1275,6 +1275,9 @@ void UPrimitiveComponent::PostEditImport()
 	{
 		BodyInstance.FixupData(this);
 	}
+
+	// Setup the transient internal primitive data array here after import (to support duplicate/paste)
+	ResetCustomPrimitiveData();
 }
 #endif
 
@@ -3335,6 +3338,7 @@ void UPrimitiveComponent::SetLightingChannels(bool bChannel0, bool bChannel1, bo
 		{
 			SceneProxy->SetLightingChannels_GameThread(LightingChannels);
 		}
+		MarkRenderStateDirty();
 	}
 }
 

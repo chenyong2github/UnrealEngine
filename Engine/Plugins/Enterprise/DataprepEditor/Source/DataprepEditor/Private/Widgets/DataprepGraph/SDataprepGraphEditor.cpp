@@ -50,7 +50,7 @@ TSharedPtr<FDataprepGraphEditorNodeFactory> SDataprepGraphEditor::NodeFactory;
 
 namespace DataprepGraphEditorUtils
 {
-	void ForEachActionAndStep(const TSet<UObject*>& Nodes,  TFunctionRef<bool (UDataprepActionAsset*, bool /* bIsFromActionNode */)> OnEachAction, TFunctionRef<bool (UDataprepParameterizableObject*)> OnEachStep)
+	void ForEachActionAndStep(const TSet<UObject*>& Nodes,  TFunctionRef<bool (UDataprepActionAsset*, bool /* bIsFromActionNode */)> OnEachAction, TFunctionRef<bool (UDataprepParameterizableObject*, UDataprepActionStep*)> OnEachStep)
 	{
 		for (UObject* Node : Nodes)
 		{
@@ -77,7 +77,7 @@ namespace DataprepGraphEditorUtils
 						{
 							if (UDataprepParameterizableObject* StepObject = Step->GetStepObject())
 							{
-								if ( OnEachStep( StepObject ) )
+								if ( OnEachStep( StepObject, Step ) )
 								{
 									break;
 								}
@@ -782,12 +782,82 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 	const UDataprepGraphActionStepNode* FirstStepNode = Cast<UDataprepGraphActionStepNode>( InGraphNode );
 	if( bIsActionNode || FirstStepNode )
 	{
+		FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+		TArray<UDataprepActionAsset*> Actions;
+		TArray<UDataprepActionStep*> ActionSteps;
+
+		auto OnSaveActions = [&Actions](UDataprepActionAsset* Action, bool bIsFromActionNode) -> bool
+		{
+			if (bIsFromActionNode)
+			{
+				Actions.Add(Action);
+			}
+			return false;
+		};
+
+		auto OnSaveActionSteps = [&ActionSteps](UDataprepParameterizableObject* StepObject, UDataprepActionStep* ActionStep) -> bool
+		{
+			ActionSteps.Add(ActionStep);
+			return false;
+		};
+
+		DataprepGraphEditorUtils::ForEachActionAndStep(SelectedNodes, OnSaveActions, OnSaveActionSteps);
+
 		MenuBuilder->BeginSection( FName( TEXT("CommonSection") ), LOCTEXT("CommonSection", "Common") );
 		{
 			MenuBuilder->AddMenuEntry(FGenericCommands::Get().Copy);
 			MenuBuilder->AddMenuEntry(FGenericCommands::Get().Cut);
 			MenuBuilder->AddMenuEntry(FGenericCommands::Get().Duplicate);
 			MenuBuilder->AddMenuEntry(FGenericCommands::Get().Delete);
+
+			// Add enable/disable menu item
+			if (Actions.Num() > 0 || ActionSteps.Num() > 0)
+			{
+				bool bShouldDisable = true;
+
+				// Figure out the operation (disable or enable) from the clicked node.
+				// Note: all of the selected items (steps and/or actions) will be set according to this operation
+				if (bIsActionNode)
+				{
+					const UDataprepGraphActionNode* ActionNode = Cast<UDataprepGraphActionNode>(InGraphNode);
+					const UDataprepActionAsset* ActionAsset = ActionNode->GetDataprepActionAsset();
+					bShouldDisable = ActionAsset->bIsEnabled;
+				}
+				else
+				{
+					const UDataprepActionAsset* Action = FirstStepNode->GetDataprepActionAsset();
+					const int32 StepIndex = FirstStepNode->GetStepIndex();
+					if ( Action )
+					{
+						ensure( StepIndex >= 0 && StepIndex < Action->GetStepsCount() );
+						UDataprepActionStep* ActionStep = Action->GetStep(StepIndex).Get();
+						bShouldDisable = ActionStep->bIsEnabled;
+					}
+				}
+
+				FUIAction EnableOrDisableItemsAction;
+				EnableOrDisableItemsAction.ExecuteAction.BindLambda([bShouldDisable, Actions, ActionSteps, InGraphNode]() 
+				{
+					FScopedTransaction Transaction( LOCTEXT("ActionEnableDisableTransaction", "Enabled/disabled actions") );
+
+					for (UDataprepActionAsset* ActionAsset : Actions)
+					{
+						ActionAsset->Modify();
+						ActionAsset->bIsEnabled = !bShouldDisable;
+					}
+					for (UDataprepActionStep* ActionStep : ActionSteps)
+					{
+						ActionStep->Modify();
+						ActionStep->bIsEnabled = !bShouldDisable;
+					}
+				});
+
+				FText Label = bShouldDisable ? FText::FromString("Disable") : FText::FromString("Enable");
+				MenuBuilder->AddMenuEntry(FText::Format( LOCTEXT( "EnableOrDisableItemsAction", "{0}" ), Label ),
+										  FText::Format( LOCTEXT( "EnableOrDisableItemsActionTooltip", "{0} steps/actions" ), Label ),
+										  FSlateIcon(),
+										  EnableOrDisableItemsAction);
+			}
 		}
 		MenuBuilder->EndSection();
 
@@ -797,7 +867,7 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 			// If all the all to node are filters (also we might need a more robust code path ex: register extension base on the base class/type of the steps?)
 			bool bIsSelectionOnlyFilters = true;
 			bool bAreFilterFromSameAction = true;
-			FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+			
 			TArray<UDataprepFilter*> Filters;
 			Filters.Reserve( SelectedNodes.Num() );
 
@@ -815,11 +885,11 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 					{
 						bAreFilterFromSameAction &= Action == ClickedAction;
 					}
-					return !bAreFilterFromSameAction;
+					return false;
 				};
 
 			// Check if the selection is only filters
-			auto OnEachStepForFilterOnly = [&bIsSelectionOnlyFilters, &Filters](UDataprepParameterizableObject* StepObject) -> bool
+			auto OnEachStepForFilterOnly = [&bIsSelectionOnlyFilters, &Filters](UDataprepParameterizableObject* StepObject, UDataprepActionStep* ActionStep) -> bool
 				{
 					if ( UDataprepFilter* Filter = Cast<UDataprepFilter>( StepObject ) )
 					{
@@ -829,8 +899,7 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 					{
 						bIsSelectionOnlyFilters = false;
 					}
-
-					return !bIsSelectionOnlyFilters;
+					return false;
 				};
 
 			DataprepGraphEditorUtils::ForEachActionAndStep( SelectedNodes, OnEachAction, OnEachStepForFilterOnly );

@@ -14,79 +14,57 @@ struct FHairGroupDesc
 
 	/** Number of hairs within this hair group. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Groom")
-	int32 HairCount;
+	int32 HairCount = 0;
 
 	/** Number of simulation guides within this hair group. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Groom")
-	int32 GuideCount;
+	int32 GuideCount = 0;
 
 	/** Length of the longest hair strands */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Groom")
-	float HairLength;
+	float HairLength = 0;
 
 	/** Hair width (in centimeters) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Groom", meta = (ClampMin = "0.0001", UIMin = "0.001", UIMax = "1.0", SliderExponent = 6))
-	float HairWidth;
+	float HairWidth = 0;
 
 	/** Scale the hair width at the root */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Groom", AdvancedDisplay, meta = (ClampMin = "0.0001", UIMin = "0.001", UIMax = "2.0", SliderExponent = 6))
-	float HairRootScale;
+	float HairRootScale = 0;
 
 	/** Scale the hair with at the tip */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Groom", AdvancedDisplay, meta = (ClampMin = "0.0001", UIMin = "0.001", UIMax = "2.0", SliderExponent = 6))
-	float HairTipScale;
+	float HairTipScale = 0;
 
 	/** Normalized hair clip length, i.e. at which length hair will be clipped. 1 means no clipping. 0 means hairs are fully clipped */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Groom", AdvancedDisplay, meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1.0", SliderExponent = 1))
-	float HairClipLength;
+	float HairClipLength = 0;
 
 	/** Override the hair shadow density factor (unit less). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Groom", AdvancedDisplay, meta = (ClampMin = "0.0001", UIMin = "0.001", UIMax = "10.0", SliderExponent = 6))
-	float HairShadowDensity;
+	float HairShadowDensity = 0;
 
 	/** Scale the hair geometry radius for ray tracing effects (e.g. shadow) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Groom", AdvancedDisplay, meta = (ClampMin = "0.0001", UIMin = "0.001", UIMax = "10.0", SliderExponent = 6))
-	float HairRaytracingRadiusScale;
-
-	/** The targeted budget of hair vertex per pixel. Cluster strands will be decimated based on that. Used when r.HairStrands.Cluster.Culling = 1. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Performance", AdvancedDisplay, meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "6.0", SliderExponent = 1))
-	float LodAverageVertexPerPixel;
+	float HairRaytracingRadiusScale = 0;
 
 	/** Bias the selected LOD. A value >0 will progressively select lower detailed lods. Used when r.HairStrands.Cluster.Culling = 1. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = "Performance", AdvancedDisplay, meta = (ClampMin = "-1.0", ClampMax = "1.0", UIMin = "-1.0", UIMax = "1.0", SliderExponent = 1))
-	float LodBias;
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = "Performance", AdvancedDisplay, meta = (ClampMin = "-7.0", ClampMax = "7.0", UIMin = "-7.0", UIMax = "7.0", SliderExponent = 1))
+	float LODBias = 0;
 
 	/** Insure the hair does not alias. When enable, group of hairs might appear thicker. Isolated hair should remain thin. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Groom")
-	bool bUseStableRasterization;
+	bool bUseStableRasterization = false;
 
 	/** Light hair with the scene color. This is used for vellus/short hair to bring light from the surrounding surface, like skin. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Groom")
-	bool bScatterSceneLighting;
+	bool bScatterSceneLighting = false;
 
-	// Contructor used to initialised new values
-	FHairGroupDesc()
-	{
-		ReInit();
-	}
+	UPROPERTY()
+	bool bSupportVoxelization = true;
 
-	void ReInit()
-	{
-		// Filled in by groom asset
-		HairCount = 0;	// Read only
-		GuideCount = 0;	// Read only
-		HairLength = 0;	// Read only
-		HairWidth = 0;	// Can be overridden by user
-
-		HairRaytracingRadiusScale = 1.0f;
-		HairRootScale = 1.0f;
-		HairTipScale = 1.0f;
-		HairClipLength = 1.0f;
-		HairShadowDensity = 1.0f;
-		bUseStableRasterization = false;
-		bScatterSceneLighting = false;
-
-		LodAverageVertexPerPixel = 3.0f; // Good for quality on heavy assets
-		LodBias = 0.0f;
-	}
+	/** Force a specific LOD index */
+	UPROPERTY()
+	int32 LODForcedIndex = -1;
 };
+typedef FHairGroupDesc FHairGroupInstanceModifer;

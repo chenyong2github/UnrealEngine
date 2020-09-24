@@ -27,8 +27,13 @@ void SGameplayInsightsTransportControls::Construct(const FArguments& InArgs, FGa
 	bPlaying = false;
 	bReverse = false;
 	bSettingMarker = false;
+	SelectionStartTime = 0.0;
+	SelectionEndTime = 0.0;
+	bSelectionRangeValid = false;
+	bLooping = true;
 
 	SharedData->GetTimingViewSession().OnTimeMarkerChanged().AddSP(this, &SGameplayInsightsTransportControls::HandleTimeMarkerChanged);
+	SharedData->GetTimingViewSession().OnSelectionChanged().AddSP(this, &SGameplayInsightsTransportControls::HandleSelectionRangeChanged);
 
 	FEditorWidgetsModule& EditorWidgetsModule = FModuleManager::LoadModuleChecked<FEditorWidgetsModule>("EditorWidgets");
 
@@ -40,6 +45,8 @@ void SGameplayInsightsTransportControls::Construct(const FArguments& InArgs, FGa
 	TransportControlArgs.OnForwardEnd = FOnClicked::CreateSP(this, &SGameplayInsightsTransportControls::OnClick_Forward_End);
 	TransportControlArgs.OnBackwardEnd = FOnClicked::CreateSP(this, &SGameplayInsightsTransportControls::OnClick_Backward_End);
 	TransportControlArgs.OnGetPlaybackMode = FOnGetPlaybackMode::CreateSP(this, &SGameplayInsightsTransportControls::GetPlaybackMode);
+	TransportControlArgs.OnToggleLooping = FOnClicked::CreateSP(this, &SGameplayInsightsTransportControls::OnClick_ToggleLooping);
+	TransportControlArgs.OnGetLooping = FOnGetLooping::CreateSP(this, &SGameplayInsightsTransportControls::GetLooping);
 
 	ChildSlot
 	[
@@ -74,7 +81,55 @@ void SGameplayInsightsTransportControls::Construct(const FArguments& InArgs, FGa
 		{
 			double CurrentTime = SharedData->GetTimingViewSession().GetTimeMarker();
 			double Delta = (double)(bReverse ? -InDeltaTime : InDeltaTime);
-			SetTimeMarker(CurrentTime + (Delta * PlayRate), false);
+			if(bSelectionRangeValid)
+			{
+				// Loop within the range if the selection is valid
+				double NewTime = CurrentTime + (Delta * PlayRate);
+				if(bReverse)
+				{
+					if(NewTime < SelectionStartTime)
+					{
+						if(bLooping)
+						{
+							NewTime = SelectionEndTime;
+						}
+						else
+						{
+							NewTime = SelectionStartTime;
+							bPlaying = false;
+						}
+					}
+					else if(NewTime > SelectionEndTime)
+					{
+						NewTime = SelectionEndTime;
+					}
+				}
+				else
+				{
+					if(NewTime < SelectionStartTime)
+					{
+						NewTime = SelectionStartTime;
+					}
+					else if(NewTime > SelectionEndTime)
+					{
+						if(bLooping)
+						{
+							NewTime = SelectionStartTime;
+						}
+						else
+						{
+							NewTime = SelectionEndTime;
+							bPlaying = false;
+						}
+					}
+				}
+
+				SetTimeMarker(NewTime, false);
+			}
+			else
+			{
+				SetTimeMarker(CurrentTime + (Delta * PlayRate), false);
+			}
 		}
 
 		return EActiveTimerReturnType::Continue;
@@ -226,6 +281,17 @@ FReply SGameplayInsightsTransportControls::OnClick_Backward()
 	return FReply::Handled();
 }
 
+FReply SGameplayInsightsTransportControls::OnClick_ToggleLooping()
+{
+	bLooping = !bLooping;
+	return FReply::Handled();
+}
+
+bool SGameplayInsightsTransportControls::GetLooping() const
+{
+	return bLooping;
+}
+
 EPlaybackMode::Type SGameplayInsightsTransportControls::GetPlaybackMode() const
 {
 	if(bPlaying)
@@ -256,6 +322,17 @@ void SGameplayInsightsTransportControls::HandleTimeMarkerChanged(Insights::ETime
 	{
 		// turn off playback if someone else scrubbed the timeline
 		bPlaying = false;
+	}
+}
+
+void SGameplayInsightsTransportControls::HandleSelectionRangeChanged(Insights::ETimeChangedFlags InFlags, double InStartTime, double InEndTime)
+{
+	if(InFlags != Insights::ETimeChangedFlags::Interactive)
+	{
+		bSelectionRangeValid = InStartTime != std::numeric_limits<double>::infinity() && InEndTime != std::numeric_limits<double>::infinity() && InEndTime > InStartTime;
+
+		SelectionStartTime = InStartTime;
+		SelectionEndTime = InEndTime;
 	}
 }
 

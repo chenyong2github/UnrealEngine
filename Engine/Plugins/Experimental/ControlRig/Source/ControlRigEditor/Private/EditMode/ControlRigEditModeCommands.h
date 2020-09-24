@@ -19,24 +19,25 @@ public:
 	)
 	{}
 	
-	/** Sets a key at the current time for the selected nodes */
-	TSharedPtr< FUICommandInfo > SetKey;
 
 	/** Toggles hiding all manipulators in the viewport */
 	TSharedPtr< FUICommandInfo > ToggleManipulators;
 
+	/** Reset Transforms for Controls */
+	TSharedPtr< FUICommandInfo > ResetTransforms;
 
-	/** Export this sequence to an optimized skeleton-specific animation sequence */
-	TSharedPtr< FUICommandInfo > ExportAnimSequence;
+	/** Reset Transforms for Controls */
+	TSharedPtr< FUICommandInfo > ResetAllTransforms;
 
-	/** Re-export this sequence to an animation sequence using the previous export settings */
-	TSharedPtr< FUICommandInfo > ReExportAnimSequence;
+	/** Increase Gizmo Size */
+	TSharedPtr< FUICommandInfo > IncreaseGizmoSize;
 
-	/** Import this animation sequence from a source rig sequence */
-	TSharedPtr< FUICommandInfo > ImportFromRigSequence;
+	/** Decrease Gizmo Size */
+	TSharedPtr< FUICommandInfo > DecreaseGizmoSize;
 
-	/** Re-import this animation sequence from it's source rig sequence */
-	TSharedPtr< FUICommandInfo > ReImportFromRigSequence;
+	/** Reset Gizmo Size */
+	TSharedPtr< FUICommandInfo > ResetGizmoSize;
+
 
 	/**
 	 * Initialize commands

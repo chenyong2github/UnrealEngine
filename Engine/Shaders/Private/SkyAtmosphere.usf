@@ -6,15 +6,8 @@
 
 
 #include "Common.ush"
-
-#if SHADING_PATH_MOBILE
-#define MobileSceneTextures SceneTexturesStruct 
-#endif
-
 #include "SceneTexturesCommon.ush"
 #include "SkyAtmosphereCommon.ush"
-
-
 
 #ifndef COLORED_TRANSMITTANCE_ENABLED	// Never used, UE4 does not supports dual blending
 #define COLORED_TRANSMITTANCE_ENABLED 0 
@@ -386,6 +379,8 @@ Texture3D<float4> CameraAerialPerspectiveVolumeTexture;
 Texture2D<float3> VolumetricCloudShadowMapTexture0;
 Texture2D<float3> VolumetricCloudShadowMapTexture1;
 Texture2D<float3> VolumetricCloudSkyAOTexture;
+float VolumetricCloudShadowStrength0;
+float VolumetricCloudShadowStrength1;
 
 
 #if SOURCE_DISK_ENABLED
@@ -687,11 +682,11 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 		float tPlanet0 = RaySphereIntersectNearest(P, Light0Dir, PlanetO + PLANET_RADIUS_OFFSET * UpVector, Atmosphere.BottomRadiusKm);
 		float PlanetShadow0 = tPlanet0 >= 0.0f ? 0.0f : 1.0f;
 		float3 ShadowP0 = P;
+		bool bUnused = false;
 #if SKYVIEWLUT_PASS
 		ShadowP0 = GetCameraPlanetPos() + t * mul(LocalReferencial, WorldDir); // Inverse of the local SkyViewLUT referencial transform
 #endif
 #if SAMPLE_OPAQUE_SHADOW
-		bool bUnused;
 		PlanetShadow0 *= ComputeLight0VolumeShadowing(ShadowP0 * SKY_UNIT_TO_CM + View.SkyPlanetCenterAndViewHeight.xyz, false, false, bUnused);
 #endif
 #if SAMPLE_CLOUD_SKYAO
@@ -701,8 +696,8 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 #endif
 #if SAMPLE_CLOUD_SHADOW
 		float OutOpticalDepth2 = 0.0f;
-		PlanetShadow0 *= GetCloudVolumetricShadow(ShadowP0 * SKY_UNIT_TO_CM + View.SkyPlanetCenterAndViewHeight.xyz, VolumetricCloudCommonParameters.CloudShadowmapWorldToLightClipMatrix[0],
-			VolumetricCloudCommonParameters.CloudShadowmapFarDepthKm[0], VolumetricCloudShadowMapTexture0, VolumetricCloudShadowMapTexture0Sampler, OutOpticalDepth2);
+		PlanetShadow0 *= saturate(lerp(1.0f, GetCloudVolumetricShadow(ShadowP0 * SKY_UNIT_TO_CM + View.SkyPlanetCenterAndViewHeight.xyz, VolumetricCloudCommonParameters.CloudShadowmapWorldToLightClipMatrix[0],
+			VolumetricCloudCommonParameters.CloudShadowmapFarDepthKm[0], VolumetricCloudShadowMapTexture0, VolumetricCloudShadowMapTexture0Sampler, OutOpticalDepth2), VolumetricCloudShadowStrength0));
 #endif
 		// MultiScatteredLuminance is already pre-exposed, atmospheric light contribution needs to be pre exposed
 		// Multi-scattering is also not affected by PlanetShadow or TransmittanceToLight because it contains diffuse light after single scattering.
@@ -720,8 +715,8 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 #endif
 #if SAMPLE_CLOUD_SHADOW
 		float OutOpticalDepth3 = 0.0f;
-		PlanetShadow1 *= GetCloudVolumetricShadow(ShadowP1 * SKY_UNIT_TO_CM + View.SkyPlanetCenterAndViewHeight.xyz, VolumetricCloudCommonParameters.CloudShadowmapWorldToLightClipMatrix[1],
-			VolumetricCloudCommonParameters.CloudShadowmapFarDepthKm[1], VolumetricCloudShadowMapTexture1, VolumetricCloudShadowMapTexture1Sampler, OutOpticalDepth3);
+		PlanetShadow1 *= saturate(lerp(1.0f, GetCloudVolumetricShadow(ShadowP1 * SKY_UNIT_TO_CM + View.SkyPlanetCenterAndViewHeight.xyz, VolumetricCloudCommonParameters.CloudShadowmapWorldToLightClipMatrix[1],
+			VolumetricCloudCommonParameters.CloudShadowmapFarDepthKm[1], VolumetricCloudShadowMapTexture1, VolumetricCloudShadowMapTexture1Sampler, OutOpticalDepth3), VolumetricCloudShadowStrength1));
 #endif
 		//  Multi-scattering can work for the second light but it is disabled for the sake of performance.
 		S += ExposedLight1Illuminance * PlanetShadow1 * TransmittanceToLight1 * PhaseTimesScattering1;// +MultiScatteredLuminance * Medium.Scattering);
@@ -897,7 +892,7 @@ void RenderSkyAtmosphereRayMarchingPS(
 
 	float ViewHeight = length(WorldPos);
 #if FASTSKY_ENABLED && RENDERSKY_ENABLED
-	if (ViewHeight < Atmosphere.TopRadiusKm && DeviceZ == FarDepthValue)
+	if (ViewHeight < (Atmosphere.TopRadiusKm + PLANET_RADIUS_SAFE_TRACE_EDGE) && DeviceZ == FarDepthValue)
 	{
 		float2 UV;
 

@@ -141,6 +141,9 @@ void FHttpManager::Flush(bool bShutdown)
 	double MaxFlushTimeSeconds = -1.0; // default to no limit
 	GConfig->GetDouble(TEXT("HTTP"), TEXT("MaxFlushTimeSeconds"), MaxFlushTimeSeconds, GEngineIni);
 
+	bool bAlwaysCancelRequestsOnFlush = false; // Default to not immediately cancelling
+	GConfig->GetBool(TEXT("HTTP"), TEXT("bAlwaysCancelRequestsOnFlush"), bAlwaysCancelRequestsOnFlush, GEngineIni);
+
 	if (bShutdown)
 	{
 		if (Requests.Num())
@@ -166,9 +169,17 @@ void FHttpManager::Flush(bool bShutdown)
 	{
 		const double AppTime = FPlatformTime::Seconds();
 		//UE_LOG(LogHttp, Display, TEXT("Waiting for %0.2f seconds. Limit:%0.2f seconds"), (AppTime - BeginWaitTime), MaxFlushTimeSeconds);
-		if (bShutdown && MaxFlushTimeSeconds > 0 && (AppTime - BeginWaitTime > MaxFlushTimeSeconds))
+		if (bAlwaysCancelRequestsOnFlush || (bShutdown && MaxFlushTimeSeconds > 0 && (AppTime - BeginWaitTime > MaxFlushTimeSeconds)))
 		{
-			UE_LOG(LogHttp, Display, TEXT("Canceling remaining HTTP requests after waiting %0.2f seconds"), (AppTime - BeginWaitTime));
+			if (bAlwaysCancelRequestsOnFlush)
+			{
+				UE_LOG(LogHttp, Display, TEXT("Immediately cancelling active HTTP requests"));
+			}
+			else
+			{
+				UE_LOG(LogHttp, Display, TEXT("Canceling remaining HTTP requests after waiting %0.2f seconds"), (AppTime - BeginWaitTime));
+			}
+
 			for (TArray<TSharedRef<IHttpRequest, ESPMode::ThreadSafe>>::TIterator It(Requests); It; ++It)
 			{
 				TSharedRef<IHttpRequest, ESPMode::ThreadSafe>& Request = *It;

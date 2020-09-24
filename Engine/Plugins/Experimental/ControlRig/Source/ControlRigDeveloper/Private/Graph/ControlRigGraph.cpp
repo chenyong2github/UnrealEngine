@@ -64,27 +64,76 @@ void UControlRigGraph::CacheNameLists(const FRigHierarchyContainer* HierarchyCon
 	CacheNameList<FControlRigDrawContainer>(*DrawContainer, DrawingNameList);
 }
 
-const TArray<TSharedPtr<FString>>& UControlRigGraph::GetBoneNameList() const
+const TArray<TSharedPtr<FString>>& UControlRigGraph::GetBoneNameList(URigVMPin* InPin) const
 {
 	return BoneNameList;
 }
 
-const TArray<TSharedPtr<FString>>& UControlRigGraph::GetControlNameList() const
+const TArray<TSharedPtr<FString>>& UControlRigGraph::GetControlNameList(URigVMPin* InPin) const
 {
 	return ControlNameList;
 }
 
-const TArray<TSharedPtr<FString>>& UControlRigGraph::GetSpaceNameList() const
+const TArray<TSharedPtr<FString>>& UControlRigGraph::GetSpaceNameList(URigVMPin* InPin) const
 {
 	return SpaceNameList;
 }
 
-const TArray<TSharedPtr<FString>>& UControlRigGraph::GetCurveNameList() const
+const TArray<TSharedPtr<FString>>& UControlRigGraph::GetCurveNameList(URigVMPin* InPin) const
 {
 	return CurveNameList;
 }
 
-const TArray<TSharedPtr<FString>>& UControlRigGraph::GetDrawingNameList() const
+const TArray<TSharedPtr<FString>>& UControlRigGraph::GetElementNameList(URigVMPin* InPin) const
+{
+	if (InPin)
+	{
+		if (URigVMPin* ParentPin = InPin->GetParentPin())
+		{
+			if (ParentPin->GetCPPTypeObject() == FRigElementKey::StaticStruct())
+			{
+				if (URigVMPin* TypePin = ParentPin->FindSubPin(TEXT("Type")))
+				{
+					FString DefaultValue = TypePin->GetDefaultValue();
+					if (!DefaultValue.IsEmpty())
+					{
+						ERigElementType Type = (ERigElementType)StaticEnum<ERigElementType>()->GetValueByNameString(DefaultValue);
+						return GetElementNameList(Type);
+					}
+				}
+			}
+		}
+	}
+
+	return GetBoneNameList(nullptr);
+}
+
+const TArray<TSharedPtr<FString>>& UControlRigGraph::GetElementNameList(ERigElementType InElementType) const
+{
+	switch (InElementType)
+	{
+		case ERigElementType::Bone:
+		{
+			return GetBoneNameList();
+		}
+		case ERigElementType::Control:
+		{
+			return GetControlNameList();
+		}
+		case ERigElementType::Space:
+		{
+			return GetSpaceNameList();
+		}
+		case ERigElementType::Curve:
+		{
+			return GetCurveNameList();
+		}
+	}
+
+	return GetBoneNameList(nullptr);
+}
+
+const TArray<TSharedPtr<FString>>& UControlRigGraph::GetDrawingNameList(URigVMPin* InPin) const
 {
 	return DrawingNameList;
 }
@@ -392,7 +441,11 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 				if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(ModelPin->GetNode()->GetFName())))
 				{
 					UEdGraphPin* RigNodePin = RigNode->FindPin(ModelPin->GetPinPath());
-					check(RigNodePin);
+					if (RigNodePin == nullptr)
+					{
+						break;
+					}
+
 					RigNode->SetupPinDefaultsFromModel(RigNodePin);
 
 					if (Cast<URigVMVariableNode>(ModelPin->GetNode()))
@@ -403,15 +456,19 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 							RigNode->ReconstructNode_Internal(true);
 						}
 					}
-					if (Cast<URigVMParameterNode>(ModelPin->GetNode()))
-							{
+					else if (Cast<URigVMParameterNode>(ModelPin->GetNode()))
+					{
 						if (ModelPin->GetName() == TEXT("Parameter"))
-								{
+						{
 							RigNode->InvalidateNodeTitle();
 							RigNode->ReconstructNode_Internal(true);
-								}
-							}
 						}
+					}
+					else if (Cast<URigVMStructNode>(ModelPin->GetNode()))
+					{
+						RigNode->InvalidateNodeTitle();
+					}
+				}
 				else if (URigVMInjectionInfo* Injection = ModelPin->GetNode()->GetInjectionInfo())
 						{
 					if (Injection->InputPin != ModelPin->GetRootPin())
@@ -449,9 +506,44 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 			}
 			break;
 		}
-		case ERigVMGraphNotifType::PinExpansionChanged:
+		case ERigVMGraphNotifType::VariableRenamed:
+		{
+			if (URigVMNode* ModelNode = Cast<URigVMNode>(InSubject))
+			{
+				if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(ModelNode->GetFName())))
+				{
+					RigNode->InvalidateNodeTitle();
+				}
+			}
+			break;
+		}
 		case ERigVMGraphNotifType::NodeSelected:
+		{
+			if (URigVMCommentNode* ModelNode = Cast<URigVMCommentNode>(InSubject))
+			{
+				// UEdGraphNode_Comment cannot access RigVMCommentNode's selection state, so we have to manually toggle its selection state
+				// UControlRigGraphNode does not need this step because it overrides the IsSelectedInEditor() method
+				UEdGraphNode_Comment* EdNode = Cast<UEdGraphNode_Comment>(FindNodeForModelNodeName(ModelNode->GetFName()));
+				if (EdNode)
+				{
+					GSelectedObjectAnnotation.Set(EdNode);
+				}
+			}
+			break;
+		}
 		case ERigVMGraphNotifType::NodeDeselected:
+		{
+			if (URigVMCommentNode* ModelNode = Cast<URigVMCommentNode>(InSubject))
+			{
+				UEdGraphNode_Comment* EdNode = Cast<UEdGraphNode_Comment>(FindNodeForModelNodeName(ModelNode->GetFName()));
+				if (EdNode)
+				{
+					GSelectedObjectAnnotation.Clear(EdNode);
+				}
+			}
+			break;
+		}
+		case ERigVMGraphNotifType::PinExpansionChanged:
 		default:
 		{
 			break;
@@ -493,9 +585,13 @@ URigVMController* UControlRigGraph::GetTemplateController()
 	if (TemplateController == nullptr)
 	{
 		TemplateController = NewObject<URigVMController>(this, TEXT("TemplateController"));
+		TemplateController->SetExecuteContextStruct(FControlRigExecuteContext::StaticStruct());
 		TemplateController->SetGraph(TemplateModel);
 		TemplateController->EnableReporting(false);
 		TemplateController->OnModified().AddUObject(this, &UControlRigGraph::HandleModifiedEvent);
+
+		TemplateController->SetFlags(RF_Transient);
+		TemplateModel->SetFlags(RF_Transient);
 	}
 	return TemplateController;
 }

@@ -640,11 +640,13 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	Intermediates.InputPosition = Input.Position;
 #else
 	Intermediates.InputPosition.xy = Input.PackedPosition.xy * 255.f;
-	float SubX = (float)((uint)(Input.PackedPosition.z * 255.f) >> 4);
-	float SubY = (float)((uint)(Input.PackedPosition.z * 255.f) & 0xf);
+
+	uint PackedExtraData = (uint)(Input.PackedPosition.z * 255.f);
+	float SubX = (float)((PackedExtraData >> 1) & 1);
+	float SubY = (float)((PackedExtraData >> 0) & 1);
 	Intermediates.InputPosition.zw = float2(SubX, SubY);
-	float HoleMaxLod = (float)((uint)(Input.PackedPosition.w * 255.f) >> 4);
-	float HoleVertexLod = (float)((uint)(Input.PackedPosition.w * 255.f) & 0xf);
+	float HoleMaxLod = (float)(PackedExtraData >> 5);
+	float HoleVertexLod = (float)((PackedExtraData >> 2) & 7);
 #endif
 
 	float2 xy = Intermediates.InputPosition.xy * Intermediates.LodValues.w;
@@ -665,25 +667,21 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	bool bClampLodForHole = HoleVertexLod < LodValue && LodValue < HoleMaxLod;
 	LodValue = bClampLodForHole ? HoleVertexLod : LodValue;
 
-	float3 HeightData = (LodValue < 1 ? float3(1.0, Input.LODHeights[0][2], Input.LODHeights[0][3]) :
-						(LodValue < 2 ? float3(0.5, Input.LODHeights[0][3], Input.LODHeights[1][0]) :
-						(LodValue < 3 ? float3(0.25, Input.LODHeights[1][0], Input.LODHeights[1][1]) :
-						(LodValue < 4 ? float3(0.125, Input.LODHeights[1][1], Input.LODHeights[1][2]) :
-						(LodValue < 5 ? float3(0.0625, Input.LODHeights[1][2], Input.LODHeights[1][3]) :
-						(float3(0.03125, Input.LODHeights[1][3], Input.LODHeights[1][3])))))));
+	// Get range of heights for all LODs
+	float MinHeight = DecodePackedHeight(float2(Input.LODHeights[0].x, Input.LODHeights[0].y));
+	float HeightDelta = Input.PackedPosition.w * 255.0 * 256.0 * TERRAIN_ZSCALE;
 
-	// we can hardcode InvLODScaleFactor
-	float InvLODScaleFactor = HeightData.x;
-	// select the height values from the vertex input corresponding to the current and next LOD
-	float InputHeight = HeightData.y;
-	float InputHeightNextLOD = HeightData.z;
+	// Select the height values from the vertex input corresponding to the current and next LOD
+	uint LODHeightIndex = (uint)LodValue + 2;
+	uint LODHeightIndexNextLod = min((uint)LodValue + 3, (uint)7);
 
-	float MinHeight = DecodePackedHeight(float2(Input.LODHeights[0].x, 0));
-	float MaxHeight = DecodePackedHeight(float2(Input.LODHeights[0].y, 0));
+	float InputHeight = Input.LODHeights[LODHeightIndex >> 2][LODHeightIndex & 3];
+	float InputHeightNextLOD = Input.LODHeights[LODHeightIndexNextLod >> 2][LODHeightIndexNextLod & 3];
 
-	float Height = lerp(MinHeight, MaxHeight, InputHeight);
-	float HeightNextLOD = lerp(MinHeight, MaxHeight, InputHeightNextLOD);
+	float Height = MinHeight + InputHeight * HeightDelta;
+	float HeightNextLOD = MinHeight + InputHeightNextLOD * HeightDelta;
 
+	float InvLODScaleFactor = 1.f / (float)(1 << (uint)LodValue);
 	// LodValues.x is always 0 on mobile.
 	float2 ActualLODCoordsInt = floor(Intermediates.InputPosition.xy * InvLODScaleFactor);
 #endif
@@ -734,24 +732,6 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	return Intermediates;
 }
 
-#if RENDERING_LANDSCAPE_GRASS && FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && VERTEXSHADER
-float2 LandscapeVertexFactorySampleHeight(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
-{
-	float2 xy = Intermediates.InputPosition.xy * Intermediates.LodValues.w;
-	float LODCalculated = CalcLOD(Intermediates.ComponentIndex, xy, Intermediates.InputPosition.zw);
-	float LodValue = floor(LODCalculated);
-	float CoordTranslate_x = (LandscapeParameters.SubsectionSizeVertsLayerUVPan.x * pow(2, -LodValue) - 1) * LandscapeParameters.SubsectionSizeVertsLayerUVPan.y;
-
-	// InputPositionLODAdjusted : Position for actual LOD in base LOD units
-	float2 ActualLODCoordsInt = floor(Intermediates.InputPosition.xy * pow(2, -(LodValue - Intermediates.LodValues.x)));
-
-	float2 InputPositionLODAdjusted = ActualLODCoordsInt / CoordTranslate_x;
-	float2 SampleCoords = InputPositionLODAdjusted * LandscapeParameters.HeightmapUVScaleBias.xy + LandscapeParameters.HeightmapUVScaleBias.zw + 0.5*LandscapeParameters.HeightmapUVScaleBias.xy + Intermediates.InputPosition.zw * LandscapeParameters.SubsectionOffsetParams.xy;
-	float4 SampleValue = Texture2DSampleLevel(LandscapeParameters.HeightmapTexture, LandscapeParameters.HeightmapTextureSampler, SampleCoords, LodValue-Intermediates.LodBias.x);
-	return SampleValue.rg;
-}
-#endif
-
 
 /**
 * Get the 3x3 tangent basis vectors for this vertex factory
@@ -768,19 +748,7 @@ float3x3 VertexFactoryGetTangentToLocal( FVertexFactoryInput Input, FVertexFacto
 
 float4 VertexFactoryGetRasterizedWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float4 InWorldPosition)
 {
-#if RENDERING_LANDSCAPE_GRASS
-	float2 xy = Intermediates.InputPosition.xy * Intermediates.LodValues.w;
-	float LODCalculated = CalcLOD(Intermediates.ComponentIndex, xy, Intermediates.InputPosition.zw);
-	float LodValue = floor(LODCalculated);
-	float CoordTranslate_x = (LandscapeParameters.SubsectionSizeVertsLayerUVPan.x * pow(2, -LodValue) - 1) * LandscapeParameters.SubsectionSizeVertsLayerUVPan.y;
-
-	float4 LocalPosition = mul(InWorldPosition, Primitive.WorldToLocal);
-	LocalPosition.xy *= CoordTranslate_x;
-
-	return mul(LocalPosition, Primitive.LocalToWorld);
-#else
 	return InWorldPosition;
-#endif
 }
 
 float3 VertexFactoryGetPositionForVertexLighting(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float3 TranslatedWorldPosition)

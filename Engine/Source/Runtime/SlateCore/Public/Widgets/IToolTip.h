@@ -34,6 +34,11 @@ public:
 	virtual void SetContentWidget( const TSharedRef<SWidget>& InContentWidget ) = 0;
 
 	/**
+	* Resets the tooltip to its default without a content widget.
+	*/
+	virtual void ResetContentWidget () { }
+
+	/**
 	 * Checks whether this tool tip has no content to display right now.
 	 *
 	 * @return true if the tool tip has no content to display, false otherwise.

@@ -273,7 +273,7 @@
 		<!-- Build utilities -->
 		Engine/Build/Windows/cl-filter/cl-filter.exe
 		Engine/Build/Windows/link-filter/link-filter.exe
-		Engine/Source/ThirdParty/IntelISPC/bin/Windows/ispc.exe
+		Engine/Source/ThirdParty/Intel/ISPC/bin/Windows/ispc.exe
 
 		<!-- Default resource files -->
 		Engine/Build/Windows/Resources/...
@@ -294,6 +294,9 @@
 
 		<!-- Enterprise Templates -->
 		Templates/TP_HololensBP/...
+
+		<!-- CsvTools binaries which are manually updated in P4 -->
+		Engine/Binaries/DotNET/CsvTools/...
 	</Property>
 
 	<Property Name="CopyEditorExceptionsWin64" Value="$(CopyEditorExceptions)">

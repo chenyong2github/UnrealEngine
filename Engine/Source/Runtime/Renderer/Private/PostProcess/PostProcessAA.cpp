@@ -112,8 +112,8 @@ FScreenPassTexture AddFXAAPass(FRDGBuilder& GraphBuilder, const FViewInfo& View,
 		OutputViewport,
 		FScreenPassTextureViewport(Inputs.SceneColor),
 		FScreenPassPipelineState(VertexShader, PixelShader),
-		EScreenPassDrawFlags::AllowHMDHiddenAreaMask,
 		PassParameters,
+		EScreenPassDrawFlags::AllowHMDHiddenAreaMask,
 		[VertexShader, PixelShader, PassParameters](FRHICommandList& RHICmdList)
 	{
 		SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), *PassParameters);

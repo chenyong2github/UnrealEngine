@@ -177,6 +177,9 @@ public:
 	UNREALUSDWRAPPER_API static TUsdStore< pxr::TfRefPtr< pxr::UsdStage > > OpenUsdStage(const char* Path, const char* Filename);
 #endif  // #if USE_USD_SDK
 
+	// Returns the file extensions the USD SDK supports reading from (e.g. ["usd", "usda", "usdc", etc.])
+	UNREALUSDWRAPPER_API static TArray<FString> GetAllSupportedFileFormats();
+
 	UNREALUSDWRAPPER_API static UE::FUsdStage OpenStage( const TCHAR* FilePath, EUsdInitialLoadSet InitialLoadSet, bool bUseStageCache = true );
 	UNREALUSDWRAPPER_API static UE::FUsdStage NewStage( const TCHAR* FilePath );
 
@@ -238,6 +241,7 @@ public:
 	static UNREALUSDWRAPPER_API pxr::GfMatrix4d GetLocalToWorldTransform(const pxr::UsdPrim& Prim, double Time );
 	static UNREALUSDWRAPPER_API pxr::GfMatrix4d GetLocalToWorldTransform(const pxr::UsdPrim& Prim, double Time, const pxr::SdfPath& AbsoluteRootPath);
 
+	/** DEPRECATED: Use UsdUtils::GetPrimMaterialAssignments from USDGeomMeshConversion.h */
 	static UNREALUSDWRAPPER_API TTuple< TArray< FString >, TArray< int32 > > GetGeometryMaterials(double Time, const pxr::UsdPrim& Prim);
 
 	static UNREALUSDWRAPPER_API bool IsUnrealProperty(const pxr::UsdPrim& Prim);
@@ -259,8 +263,39 @@ public:
 namespace UnrealIdentifiers
 {
 #if USE_USD_SDK
+	extern UNREALUSDWRAPPER_API const pxr::TfToken LOD;
+
 	/* Attribute name when assigning Unreal materials to UsdGeomMeshes */
-	extern UNREALUSDWRAPPER_API const pxr::TfToken MaterialAssignments;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken MaterialAssignments; // DEPRECATED in favor of MaterialAssignment
+	extern UNREALUSDWRAPPER_API const pxr::TfToken MaterialAssignment;
+
+	extern UNREALUSDWRAPPER_API const pxr::TfToken DiffuseColor;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken EmissiveColor;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken Metallic;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken Roughness;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken Opacity;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken Normal;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken Specular;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken Anisotropy;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken Tangent;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken SubsurfaceColor;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken AmbientOcclusion;
+
+	// Tokens used mostly for shade material conversion
+	extern UNREALUSDWRAPPER_API const pxr::TfToken Surface;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken St;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken Varname;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken Result;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken File;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken Fallback;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken R;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken RGB;
+
+	// Tokens copied from usdImaging, because at the moment it's all we need from it
+	extern UNREALUSDWRAPPER_API const pxr::TfToken UsdPreviewSurface;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken UsdPrimvarReader_float2;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken UsdUVTexture;
+
 #endif // #if USE_USD_SDK
 }
 

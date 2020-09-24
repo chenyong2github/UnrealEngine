@@ -70,7 +70,7 @@ void UFieldSystemComponent::OnCreatePhysicsState()
 	if(bValidWorld)
 	{
 		// Check we can get a suitable dispatcher
-		ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
+		ChaosModule = FChaosSolversModule::GetModule();
 		check(ChaosModule);
 
 		bHasPhysicsState = true;
@@ -137,7 +137,7 @@ void UFieldSystemComponent::DispatchCommand(const FFieldSystemCommand& InCommand
 				{
 					Concrete.EnqueueCommandImmediate([ConcreteSolver = &Concrete, NewCommand = InCommand]()
 					{
-						if(ConcreteSolver->Enabled() && ConcreteSolver->HasActiveParticles())
+						if(ConcreteSolver->HasActiveParticles())
 						{
 							ConcreteSolver->GetPerSolverField().BufferCommand(NewCommand);
 						}

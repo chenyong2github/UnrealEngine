@@ -127,6 +127,7 @@ public:
 
 		checkf(D3DCompileFlags == 0, TEXT("Unhandled shader compiler flags 0x%x!"), D3DCompileFlags);
 
+
 		ExtraArguments.Add(L"/Zss");
 		ExtraArguments.Add(L"/Qembed_debug");
 		ExtraArguments.Add(L"/Zi");
@@ -452,6 +453,7 @@ inline void GenerateFinalOutput(TRefCountPtr<TBlob>& CompressedData,
 		// Build the generic SRT for this shader.
 		FShaderCompilerResourceTable GenericSRT;
 		BuildResourceTableMapping(Input.Environment.ResourceTableMap, Input.Environment.ResourceTableLayoutHashes, UsedUniformBufferSlots, Output.ParameterMap, GenericSRT);
+		CullGlobalUniformBuffers(Input.Environment.ResourceTableLayoutSlots, Output.ParameterMap);
 
 		if (UniformBufferNames.Num() < GenericSRT.ResourceTableLayoutHashes.Num())
 		{

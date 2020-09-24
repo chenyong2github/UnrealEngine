@@ -52,7 +52,11 @@
 	#endif
 #endif
 
-#if FEATURE_LEVEL < FEATURE_LEVEL_SM5
+#ifndef SUPPORTS_TEXTURECUBE_ARRAY
+#define SUPPORTS_TEXTURECUBE_ARRAY (FEATURE_LEVEL >= FEATURE_LEVEL_SM5)
+#endif
+
+#if SUPPORTS_TEXTURECUBE_ARRAY == 0
 	// Define TextureCubeArray to something which will compile so we can use it in uniform buffers
 	#define TextureCubeArray TextureCube
 #endif
@@ -69,8 +73,8 @@
 
 #define METAL_TESSELLATION_PROFILE ((METAL_PROFILE || METAL_SM5_PROFILE) && USING_TESSELLATION)
 
-#ifndef MOBILE_FORCE_DEPTH_TEXTURE_READS
-#define MOBILE_FORCE_DEPTH_TEXTURE_READS 0
+#ifndef VELOCITY_ENCODE_DEPTH
+#define VELOCITY_ENCODE_DEPTH 1
 #endif
 
 // Using SV_ClipDistance has overhead (15% slower base pass in triangle bound test scene on PS4) so projects have to opt-in
@@ -404,8 +408,8 @@ float4 PseudoVolumeTexture(Texture2D Tex, SamplerState TexSampler, float3 inPos,
 
 #else
 
-	#define TANGENTTOWORLD0					TEXCOORD10
-	#define TANGENTTOWORLD2					TEXCOORD11
+	#define TANGENTTOWORLD0					TEXCOORD10_centroid
+	#define TANGENTTOWORLD2					TEXCOORD11_centroid
 
 	// TangentToWorld0 is float4 only to match D3D11
 #if METAL_PROFILE || COMPILER_GLSL_ES3_1 || VULKAN_PROFILE
@@ -1518,24 +1522,42 @@ struct FScreenVertexOutput
 	float4 Position : SV_POSITION;
 };
 
-
 // for velocity rendering, motionblur and temporal AA
 // velocity needs to support -2..2 screen space range for x and y
 // texture is 16bit 0..1 range per channel
-float3 EncodeVelocityToTexture(float3 In)
+float4 EncodeVelocityToTexture(float3 V)
 {
 	// 0.499f is a value smaller than 0.5f to avoid using the full range to use the clear color (0,0) as special value
 	// 0.5f to allow for a range of -2..2 instead of -1..1 for really fast motions for temporal AA
-	return In * (0.499f * 0.5f) + 32767.0f / 65535.0f;
+	float4 EncodedV;
+	EncodedV.xy = V.xy * (0.499f * 0.5f) + 32767.0f / 65535.0f;
+
+#if VELOCITY_ENCODE_DEPTH
+	uint Vz = asuint(V.z);
+
+	EncodedV.z = saturate(float((Vz >> 16) & 0xFFFF) * rcp(65535.0f) + (0.1 / 65535.0f));
+	EncodedV.w = saturate(float((Vz >>  0) & 0xFFFF) * rcp(65535.0f) + (0.1 / 65535.0f));
+
+	return EncodedV;
+#else
+	return float4(EncodedV.x, EncodedV.y, 0, 0);
+#endif
 }
 // see EncodeVelocityToTexture()
-float3 DecodeVelocityFromTexture(float3 In)
+float3 DecodeVelocityFromTexture(float4 EncodedV)
 {
 	const float InvDiv = 1.0f / (0.499f * 0.5f);
-	// reference
-//	return (In - 32767.0f / 65535.0f ) / (0.499f * 0.5f);
-	// MAD layout to help compiler
-	return In * InvDiv - 32767.0f / 65535.0f * InvDiv;
+
+	float3 V;
+	V.xy = EncodedV.xy * InvDiv - 32767.0f / 65535.0f * InvDiv;
+
+#if VELOCITY_ENCODE_DEPTH
+	V.z = asfloat((uint(round(EncodedV.z * 65535.0f)) << 16) | uint(round(EncodedV.w * 65535.0f)));
+
+	return V;
+#else
+	return float3 (V.x, V.y, 0);
+#endif
 }
 
 // Used for the Global Illumination in the GIReplace material expression
@@ -1670,6 +1692,11 @@ bool GetShadowReplaceState()
 #endif
 }
 
+bool GetReflectionCapturePassSwitchState()
+{
+	return View.RenderingReflectionCaptureMask > 0.0f;
+}
+
 float IsShadowDepthShader()
 {
 	return GetShadowReplaceState() ? 1.0f : 0.0f;
@@ -1781,5 +1808,20 @@ struct FPixelShaderOut
 #define GlobalTrilinearClampedSampler GetGlobalSampler(Trilinear, Clamped)
 #define GlobalTrilinearWrappedSampler GetGlobalSampler(Trilinear, Wrapped)
 
-#endif // SUPPORTS_INDEPENDENT_SAMPLERS
+#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 
+float4 GatherDepth(Texture2D Texture, float2 UV)
+{
+	// using Gather: xyzw in counter clockwise order starting with the sample to the lower left of the queried location
+	float4 DeviceZ = Texture.GatherRed(GlobalBilinearClampedSampler, UV);
+
+	return float4(
+		ConvertFromDeviceZ(DeviceZ.x),
+		ConvertFromDeviceZ(DeviceZ.y),
+		ConvertFromDeviceZ(DeviceZ.z),
+		ConvertFromDeviceZ(DeviceZ.w));
+}
+
+#endif
+
+#endif // SUPPORTS_INDEPENDENT_SAMPLERS

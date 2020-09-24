@@ -24,6 +24,7 @@
 #include "Misc/Guid.h"
 #include "Math/Vector.h"
 #include "Math/Color.h"
+#include "Math/Rotator.h"
 #include "HAL/PlatformProcess.h"
 #include "Misc/AutomationEvent.h"
 #include "Internationalization/Regex.h"
@@ -635,22 +636,12 @@ struct FAutomationScreenshotData
 
 struct CORE_API FAutomationScreenshotCompareResults
 {
-	FAutomationScreenshotCompareResults()
-		: UniqueId()
-		, bWasNew(false)
-		, bWasSimilar(false)
-		, MaxLocalDifference(0)
-		, GlobalDifference(0)
-		, ErrorMessage()
-	{
-	}
-
 	FGuid UniqueId;
-	bool bWasNew;
-	bool bWasSimilar;
-	double MaxLocalDifference;
-	double GlobalDifference;
 	FString ErrorMessage;
+	double MaxLocalDifference = 0.0;
+	double GlobalDifference = 0.0;
+	bool bWasNew = false;
+	bool bWasSimilar = false;
 
 	FAutomationEvent ToAutomationEvent(const FString& ScreenhotName) const;
 };
@@ -1361,6 +1352,7 @@ public:
 	bool TestEqual(const TCHAR* What, float Actual, float Expected, float Tolerance = KINDA_SMALL_NUMBER);
 	bool TestEqual(const TCHAR* What, double Actual, double Expected, double Tolerance = KINDA_SMALL_NUMBER);
 	bool TestEqual(const TCHAR* What, FVector Actual, FVector Expected, float Tolerance = KINDA_SMALL_NUMBER);
+	bool TestEqual(const TCHAR* What, FRotator Actual, FRotator Expected, float Tolerance = KINDA_SMALL_NUMBER);
 	bool TestEqual(const TCHAR* What, FColor Actual, FColor Expected);
 	bool TestEqual(const TCHAR* What, const TCHAR* Actual, const TCHAR* Expected);
 	bool TestEqualInsensitive(const TCHAR* What, const TCHAR* Actual, const TCHAR* Expected);
@@ -1381,6 +1373,11 @@ public:
 	}
 
 	bool TestEqual(const FString& What, FVector Actual, FVector Expected, float Tolerance = KINDA_SMALL_NUMBER)
+	{
+		return TestEqual(*What, Actual, Expected, Tolerance);
+	}
+
+	bool TestEqual(const FString& What, FRotator Actual, FRotator Expected, float Tolerance = KINDA_SMALL_NUMBER)
 	{
 		return TestEqual(*What, Actual, Expected, Tolerance);
 	}

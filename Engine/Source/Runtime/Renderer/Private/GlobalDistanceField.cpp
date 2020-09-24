@@ -680,7 +680,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 					PageAtlasTextureSize.Z,
 					PF_R8,
 					FClearValueBinding::None,
-					0,
+					TexCreate_None,
 					// TexCreate_ReduceMemoryWithTilingMode used because 128^3 texture comes out 4x bigger on PS4 with recommended volume texture tiling modes
 					TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV | TexCreate_ReduceMemoryWithTilingMode | TexCreate_3DTiling,
 					false));
@@ -691,7 +691,6 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 					VolumeDesc,
 					ViewState.GlobalDistanceFieldPageAtlasTexture,
 					TEXT("GlobalDistanceFieldPageAtlas"),
-					true,
 					ERenderTargetTransience::NonTransient
 				);
 
@@ -718,7 +717,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 						PageTableTextureResolution.Z,
 						PF_R16_UINT,
 						FClearValueBinding::None,
-						0,
+						TexCreate_None,
 						TexCreate_ShaderResource | TexCreate_UAV | TexCreate_ReduceMemoryWithTilingMode | TexCreate_3DTiling,
 						false));
 					VolumeDesc.AutoWritable = false;
@@ -728,7 +727,6 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 						VolumeDesc,
 						PageTableTexture,
 						TEXT("DistanceFieldPageTableCombined"),
-						true,
 						ERenderTargetTransience::NonTransient
 					);
 
@@ -754,7 +752,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 					MipTextureResolution.Z,
 					PF_R8,
 					FClearValueBinding::None,
-					0,
+					TexCreate_None,
 					TexCreate_ShaderResource | TexCreate_UAV | TexCreate_ReduceMemoryWithTilingMode | TexCreate_3DTiling,
 					false));
 				VolumeDesc.AutoWritable = false;
@@ -764,7 +762,6 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 					VolumeDesc,
 					MipTexture,
 					TEXT("GlobalSDFMipTexture"),
-					true,
 					ERenderTargetTransience::NonTransient
 				);
 
@@ -792,7 +789,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 						PageTableTextureResolution.Z,
 						PF_R16_UINT,
 						FClearValueBinding::None,
-						0,
+						TexCreate_None,
 						TexCreate_ShaderResource | TexCreate_UAV | TexCreate_ReduceMemoryWithTilingMode | TexCreate_3DTiling,
 						false));
 					VolumeDesc.AutoWritable = false;
@@ -802,7 +799,6 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 						VolumeDesc,
 						PageTableTexture,
 						CacheType == GDF_MostlyStatic ? TEXT("GlobalDistanceFieldPageTableStationaryLayer") : TEXT("GlobalDistanceFieldPageTableMovableLayer"),
-						true,
 						ERenderTargetTransience::NonTransient
 					);
 
@@ -1113,7 +1109,7 @@ void ReadbackDistanceFieldClipmap(FRHICommandListImmediate& RHICmdList, FGlobalD
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FUpdateBoundsUploadParameters, )
-	SHADER_PARAMETER_RDG_BUFFER_UPLOAD(Buffer<float4>, UpdateBoundsBuffer)
+	RDG_BUFFER_ACCESS(UpdateBoundsBuffer, ERHIAccess::CopyDest)
 END_SHADER_PARAMETER_STRUCT()
 
 class FCullObjectsToClipmapCS : public FGlobalShader
@@ -1619,15 +1615,11 @@ void UpdateGlobalDistanceFieldVolume(
 			FRDGTextureRef TempMipTexture = nullptr;
 			{
 				const int32 ClipmapMipResolution = GlobalDistanceField::GetClipmapMipResolution();
-				FPooledRenderTargetDesc TempMipDesc(FPooledRenderTargetDesc::CreateVolumeDesc(
-					ClipmapMipResolution,
-					ClipmapMipResolution,
-					ClipmapMipResolution,
+				FRDGTextureDesc TempMipDesc(FRDGTextureDesc::Create3D(
+					FIntVector(ClipmapMipResolution),
 					PF_R8,
 					FClearValueBinding::Black,
-					TexCreate_None,
-					TexCreate_ShaderResource | TexCreate_UAV | TexCreate_3DTiling,
-					false));
+					TexCreate_ShaderResource | TexCreate_UAV | TexCreate_3DTiling));
 
 				TempMipTexture = GraphBuilder.CreateTexture(TempMipDesc, TEXT("TempMip"));
 			}
@@ -2336,33 +2328,33 @@ void UpdateGlobalDistanceFieldVolume(
 			{
 				if (PageTableLayerTextures[CacheType])
 				{
-					GraphBuilder.QueueTextureExtraction(PageTableLayerTextures[CacheType], &GlobalDistanceFieldInfo.PageTableLayerTextures[CacheType]);
+					ConvertToExternalTexture(GraphBuilder, PageTableLayerTextures[CacheType], GlobalDistanceFieldInfo.PageTableLayerTextures[CacheType]);
 				}
 			}
 
 			if (PageFreeListAllocatorBuffer)
 			{
-				GraphBuilder.QueueBufferExtraction(PageFreeListAllocatorBuffer, &GlobalDistanceFieldInfo.PageFreeListAllocatorBuffer);
+				ConvertToExternalBuffer(GraphBuilder, PageFreeListAllocatorBuffer, GlobalDistanceFieldInfo.PageFreeListAllocatorBuffer);
 			}
 
 			if (PageFreeListBuffer)
 			{
-				GraphBuilder.QueueBufferExtraction(PageFreeListBuffer, &GlobalDistanceFieldInfo.PageFreeListBuffer);
+				ConvertToExternalBuffer(GraphBuilder, PageFreeListBuffer, GlobalDistanceFieldInfo.PageFreeListBuffer);
 			}
 
 			if (PageAtlasTexture)
 			{
-				GraphBuilder.QueueTextureExtraction(PageAtlasTexture, &GlobalDistanceFieldInfo.PageAtlasTexture);
+				ConvertToExternalTexture(GraphBuilder, PageAtlasTexture, GlobalDistanceFieldInfo.PageAtlasTexture);
 			}
 
 			if (PageTableCombinedTexture)
 			{
-				GraphBuilder.QueueTextureExtraction(PageTableCombinedTexture, &GlobalDistanceFieldInfo.PageTableCombinedTexture);
+				ConvertToExternalTexture(GraphBuilder, PageTableCombinedTexture, GlobalDistanceFieldInfo.PageTableCombinedTexture);
 			}
 
 			if (MipTexture)
 			{
-				GraphBuilder.QueueTextureExtraction(MipTexture, &GlobalDistanceFieldInfo.MipTexture);
+				ConvertToExternalTexture(GraphBuilder, MipTexture, GlobalDistanceFieldInfo.MipTexture);
 			}
 		}
 

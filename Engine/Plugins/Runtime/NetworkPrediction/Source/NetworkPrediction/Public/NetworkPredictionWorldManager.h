@@ -17,6 +17,7 @@
 #include "NetworkPredictionWorldManager.generated.h"
 
 class FChaosSolversModule;
+class ANetworkPredictionReplicatedManager;
 
 UCLASS()
 class NETWORKPREDICTION_API UNetworkPredictionWorldManager : public UWorldSubsystem
@@ -27,6 +28,10 @@ public:
 	static UNetworkPredictionWorldManager* ActiveInstance;
 
 	UNetworkPredictionWorldManager();
+
+	// Server created, replicated manager (only used for centralized/system wide data replication)
+	UPROPERTY()
+	ANetworkPredictionReplicatedManager* ReplicatedManager = nullptr;
 
 	// Subsystem Init/Deinit
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
@@ -181,6 +186,7 @@ void UNetworkPredictionWorldManager::ConfigureInstance(FNetworkPredictionID ID, 
 	{
 		// Point cached view to the VariableTickState's pending frame
 		InstanceData.Info.View->UpdateView(VariableTickState.PendingFrame, 
+			VariableTickState.GetNextTimeStep().TotalSimulationTime,
 			&FrameData.Buffer[VariableTickState.PendingFrame].InputCmd, 
 			&FrameData.Buffer[VariableTickState.PendingFrame].SyncState, 
 			&FrameData.Buffer[VariableTickState.PendingFrame].AuxState);
@@ -201,11 +207,17 @@ void UNetworkPredictionWorldManager::ConfigureInstance(FNetworkPredictionID ID, 
 					ServiceMask |= ENetworkPredictionService::IndependentRemoteFinalize;
 
 					// Point view to the ServerRecv PendingFrame instead
-					const int32 ServerRecvPendingFrame = DataStore->ServerRecv_IndependentTick.Find(ID)->PendingFrame;
-					InstanceData.Info.View->UpdateView(ServerRecvPendingFrame, 
-						&FrameData.Buffer[ServerRecvPendingFrame].InputCmd, 
-						&FrameData.Buffer[ServerRecvPendingFrame].SyncState, 
-						&FrameData.Buffer[ServerRecvPendingFrame].AuxState);
+					TServerRecvData_Independent<ModelDef>* ServerRecvData = DataStore->ServerRecv_IndependentTick.Find(ID);
+					npCheckSlow(ServerRecvData);
+
+					const int32 ServerRecvPendingFrame = ServerRecvData->PendingFrame;
+
+					auto& PendingFrameData = FrameData.Buffer[ServerRecvPendingFrame];
+					InstanceData.Info.View->UpdateView(ServerRecvPendingFrame,
+						ServerRecvData->TotalSimTimeMS,
+						&PendingFrameData.InputCmd, 
+						&PendingFrameData.SyncState, 
+						&PendingFrameData.AuxState);
 				}
 				else
 				{
@@ -215,7 +227,10 @@ void UNetworkPredictionWorldManager::ConfigureInstance(FNetworkPredictionID ID, 
 
 					if (FNetworkPredictionDriverBase<ModelDef>::HasSimulation())
 					{
-						ServiceMask |= ENetworkPredictionService::IndependentLocalInput;
+						if (FNetworkPredictionDriverBase<ModelDef>::HasInput())
+						{
+							ServiceMask |= ENetworkPredictionService::IndependentLocalInput;
+						}
 						ServiceMask |= ENetworkPredictionService::IndependentLocalTick;
 						ServiceMask |= ENetworkPredictionService::IndependentLocalFinalize;
 					}
@@ -230,6 +245,7 @@ void UNetworkPredictionWorldManager::ConfigureInstance(FNetworkPredictionID ID, 
 				BindNetSend_IndependentLocal<TIndependentTickReplicator_SP<ModelDef>>(ID, RepProxies.Replay, DataStore);
 				
 				npCheckf(FNetworkPredictionDriverBase<ModelDef>::HasSimulation(), TEXT("AP must have Simulation."));
+				npCheckf(FNetworkPredictionDriverBase<ModelDef>::HasInput(), TEXT("AP sim doesn't have Input?"));
 
 				ServiceMask |= ENetworkPredictionService::IndependentLocalInput;
 				ServiceMask |= ENetworkPredictionService::IndependentLocalTick;
@@ -254,7 +270,8 @@ void UNetworkPredictionWorldManager::ConfigureInstance(FNetworkPredictionID ID, 
 	else if (Archetype.TickingMode == ENetworkPredictionTickingPolicy::Fixed)
 	{
 		// Point cached view to the FixedTickState's pending frame
-		InstanceData.Info.View->UpdateView(FixedTickState.PendingFrame, 
+		InstanceData.Info.View->UpdateView(FixedTickState.PendingFrame + FixedTickState.Offset,
+			FixedTickState.GetTotalSimTimeMS(),
 			&FrameData.Buffer[FixedTickState.PendingFrame].InputCmd, 
 			&FrameData.Buffer[FixedTickState.PendingFrame].SyncState, 
 			&FrameData.Buffer[FixedTickState.PendingFrame].AuxState);
@@ -271,7 +288,10 @@ void UNetworkPredictionWorldManager::ConfigureInstance(FNetworkPredictionID ID, 
 					BindServerNetRecv_Fixed<ModelDef>(ID, RepProxies.ServerRPC, DataStore);
 					BindNetSend_Fixed<TFixedTickReplicator_AP<ModelDef>>(ID, RepProxies.AutonomousProxy, DataStore);
 
-					ServiceMask |= bHasNetConnection ? ENetworkPredictionService::FixedInputRemote : ENetworkPredictionService::FixedInputLocal;
+					if (FNetworkPredictionDriverBase<ModelDef>::HasInput())
+					{
+						ServiceMask |= bHasNetConnection ? ENetworkPredictionService::FixedInputRemote : ENetworkPredictionService::FixedInputLocal;
+					}
 				}
 				
 				BindNetSend_Fixed<TFixedTickReplicator_SP<ModelDef>>(ID, RepProxies.SimulatedProxy, DataStore);
@@ -281,6 +301,7 @@ void UNetworkPredictionWorldManager::ConfigureInstance(FNetworkPredictionID ID, 
 			case ENetRole::ROLE_AutonomousProxy:
 			{
 				npCheckf(FNetworkPredictionDriverBase<ModelDef>::HasSimulation(), TEXT("AP must have Simulation."));
+				npCheckf(FNetworkPredictionDriverBase<ModelDef>::HasInput(), TEXT("AP sim doesn't have Input?"));
 
 				BindClientNetRecv_Fixed<TFixedTickReplicator_AP<ModelDef>>(ID, RepProxies.AutonomousProxy, DataStore, Role);
 				BindNetSend_Fixed<TFixedTickReplicator_Server<ModelDef>>(ID, RepProxies.ServerRPC, DataStore);

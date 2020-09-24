@@ -4,6 +4,7 @@
 	#define DIM_DENOISER_OUTPUT 0
 #endif
 
+#include "../HairStrands/HairStrandsVoxelPageCommonStruct.ush"
 #include "../Common.ush"
 
 #define SUPPORT_CONTACT_SHADOWS		0
@@ -88,7 +89,7 @@ float3 GetSkyRadiance(float3 Direction, float Roughness)
 
 RAY_TRACING_ENTRY_RAYGEN(RayTracingPrimaryRaysRGS)
 {
-	uint2 DispatchThreadId = DispatchRaysIndex().xy + View.ViewRectMin;
+	uint2 DispatchThreadId = DispatchRaysIndex().xy + View.ViewRectMin.xy;
 	uint2 PixelCoord = GetPixelCoord(DispatchThreadId, UpscaleFactor);
 	uint LinearIndex = PixelCoord.y * View.BufferSizeAndInvSize.x + PixelCoord.x; // TODO(Denoiser): PixelCoord or DispatchThreadId
 	
@@ -213,9 +214,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingPrimaryRaysRGS)
 			ReflectionRay.TMax = LocalMaxRayDistance;
 			ReflectionRay.Origin = HitPoint;
 
-#if GBUFFER_HAS_TANGENT
 			ModifyGGXAnisotropicNormalRoughness(Payload.WorldTangent, Payload.Anisotropy, Payload.Roughness, Payload.WorldNormal, Ray.Direction);
-#endif
 
 			ReflectionRay.Direction = GenerateReflectedRayDirection(Ray.Direction, Payload.WorldNormal, Payload.Roughness, RandSample);
 			ApplyPositionBias(ReflectionRay, Payload.WorldNormal, MaxNormalBias);

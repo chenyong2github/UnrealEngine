@@ -119,7 +119,6 @@ namespace ChaosTest {
 
 		FChaosScene Scene(nullptr);
 		Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
-		Scene.GetSolver()->SetEnabled(true);
 
 		EXPECT_EQ(Scene.GetSpacialAcceleration()->GetSyncTimestamp(),0);	//timestamp of 0 because we flush when scene is created
 
@@ -140,7 +139,6 @@ namespace ChaosTest {
 	{
 		FChaosScene Scene(nullptr);
 		Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
-		Scene.GetSolver()->SetEnabled(true);
 
 		FActorCreationParams Params;
 		Params.Scene = &Scene;
@@ -180,7 +178,6 @@ namespace ChaosTest {
 	{
 		FChaosScene Scene(nullptr);
 		Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
-		Scene.GetSolver()->SetEnabled(true);
 
 		FActorCreationParams Params;
 		Params.Scene = &Scene;
@@ -224,7 +221,6 @@ namespace ChaosTest {
 	{
 		FChaosScene Scene(nullptr);
 		Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
-		Scene.GetSolver()->SetEnabled(true);
 
 		FActorCreationParams Params;
 		Params.Scene = &Scene;
@@ -267,7 +263,6 @@ namespace ChaosTest {
 	{
 		FChaosScene Scene(nullptr);
 		Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
-		Scene.GetSolver()->SetEnabled(true);
 
 		FActorCreationParams Params;
 		Params.Scene = &Scene;
@@ -311,7 +306,6 @@ namespace ChaosTest {
 	{
 		FChaosScene Scene(nullptr);
 		Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
-		Scene.GetSolver()->SetEnabled(true);
 
 		FActorCreationParams Params;
 		Params.Scene = &Scene;
@@ -356,7 +350,6 @@ namespace ChaosTest {
 		{
 			FChaosScene Scene(nullptr);
 			Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
-			Scene.GetSolver()->SetEnabled(true);
 			Scene.GetSolver()->GetMarshallingManager().SetTickDelay_External(Delay);
 
 			FActorCreationParams Params;
@@ -486,7 +479,6 @@ namespace ChaosTest {
 		{
 			FChaosScene Scene(nullptr);
 			Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
-			Scene.GetSolver()->SetEnabled(true);
 			Scene.GetSolver()->GetMarshallingManager().SetTickDelay_External(Delay);
 
 			FActorCreationParams Params;
@@ -576,11 +568,119 @@ namespace ChaosTest {
 		}
 	}
 
+	GTEST_TEST(EngineInterface,MoveDelayed)
+	{
+		for(int Delay = 0; Delay < 4; ++Delay)
+		{
+			FChaosScene Scene(nullptr);
+			Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
+			Scene.GetSolver()->GetMarshallingManager().SetTickDelay_External(Delay);
+
+			FActorCreationParams Params;
+			Params.Scene = &Scene;
+
+			Params.bSimulatePhysics = true;	//simulated so that gt conflicts with sim thread
+			Params.bStartAwake = true;
+
+			TGeometryParticle<FReal,3>* Particle = nullptr;
+			FChaosEngineInterface::CreateActor(Params,Particle);
+			EXPECT_NE(Particle,nullptr);
+
+			{
+				auto Sphere = MakeUnique<TSphere<FReal,3>>(FVec3(0),3);
+				Particle->SetGeometry(MoveTemp(Sphere));
+				auto Simulated = static_cast<TKinematicGeometryParticle<FReal,3>*>(Particle);
+				Simulated->SetV(FVec3(0,0,-1));
+			}
+
+			//create actor
+			TArray<TGeometryParticle<FReal,3>*> Particles ={Particle};
+			Scene.AddActorsToScene_AssumesLocked(Particles);
+
+			//tick until it's being synced from sim
+			for(int Repeat = 0; Repeat < Delay; ++Repeat)
+			{
+				{
+					FVec3 Grav(0,0,0);
+					Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+					Scene.StartFrame();
+					Scene.EndFrame();
+				}
+			}
+
+			//x starts at 0
+			EXPECT_NEAR(Particle->X()[2],0,1e-4);
+
+			//tick solver and see new position synced from sim
+			{
+				FVec3 Grav(0,0,0);
+				Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+				Scene.StartFrame();
+				Scene.EndFrame();
+				EXPECT_NEAR(Particle->X()[2],-1,1e-4);
+			}
+
+			//set new x position and make sure we see it right away even though there's delay
+			FChaosEngineInterface::SetGlobalPose_AssumesLocked(Particle,FTransform(FQuat::Identity,FVec3(0,0,10)));
+
+			for(int Repeat = 0; Repeat < Delay; ++Repeat)
+			{
+				{
+					FVec3 Grav(0,0,0);
+					Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+					Scene.StartFrame();
+					Scene.EndFrame();
+
+					EXPECT_NEAR(Particle->X()[2],10,1e-4);	//until we catch up, just use GT data
+				}
+			}
+
+			//tick solver one last time, should see sim results from the place we teleported to
+			{
+				FVec3 Grav(0,0,0);
+				Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+				Scene.StartFrame();
+				Scene.EndFrame();
+				EXPECT_NEAR(Particle->X()[2],9,1e-4);
+			}
+
+			//set x after sim but before EndFrame, make sure to see gt position since it was written after
+			{
+				FVec3 Grav(0,0,0);
+				Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+				Scene.StartFrame();
+				FChaosEngineInterface::SetGlobalPose_AssumesLocked(Particle,FTransform(FQuat::Identity,FVec3(0,0,100)));
+				Scene.EndFrame();
+				EXPECT_NEAR(Particle->X()[2],100,1e-4);
+			}
+
+			for(int Repeat = 0; Repeat < Delay; ++Repeat)
+			{
+				{
+					FVec3 Grav(0,0,0);
+					Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+					Scene.StartFrame();
+					Scene.EndFrame();
+
+					EXPECT_NEAR(Particle->X()[2],100,1e-4);	//until we catch up, just use GT data
+				}
+			}
+
+			//tick solver one last time, should see sim results from the place we teleported to
+			{
+				FVec3 Grav(0,0,0);
+				Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+				Scene.StartFrame();
+				Scene.EndFrame();
+				EXPECT_NEAR(Particle->X()[2],99,1e-4);
+			}
+		}
+	}
+
 	GTEST_TEST(EngineInterface, SimRoundTrip)
 	{
 		FChaosScene Scene(nullptr);
 		Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
-		Scene.GetSolver()->SetEnabled(true);
 
 		FActorCreationParams Params;
 		Params.Scene = &Scene;

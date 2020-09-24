@@ -3,6 +3,7 @@
 #pragma once
 
 #include "IO/IoDispatcher.h"
+#include "IO/IoDirectoryIndex.h"
 
 /**
  * I/O store container format version
@@ -11,6 +12,7 @@ enum class EIoStoreTocVersion : uint8
 {
 	Invalid = 0,
 	Initial,
+	DirectoryIndex,
 	LatestPlusOne,
 	Latest = LatestPlusOne - 1
 };
@@ -31,10 +33,11 @@ struct FIoStoreTocHeader
 	uint32	CompressionMethodNameCount;
 	uint32	CompressionMethodNameLength;
 	uint32	CompressionBlockSize;
+	uint32	DirectoryIndexSize;
 	FIoContainerId ContainerId;
 	FGuid	EncryptionKeyGuid;
 	EIoContainerFlags ContainerFlags;
-	uint8	Pad[64];
+	uint8	Pad[60];
 
 	void MakeMagic()
 	{
@@ -184,9 +187,12 @@ private:
  */
 enum class EIoStoreTocReadOptions
 {
-	IncludeTocMeta,
-	ExcludeTocMeta
+	Default,
+	ReadDirectoryIndex	= (1 << 0),
+	ReadTocMeta			= (1 << 1),
+	ReadAll				= ReadDirectoryIndex | ReadTocMeta
 };
+ENUM_CLASS_FLAGS(EIoStoreTocReadOptions);
 
 /**
  * Container TOC data.
@@ -208,6 +214,8 @@ struct FIoStoreTocResource
 	TArray<FSHAHash> ChunkBlockSignatures;
 
 	TArray<FIoStoreTocEntryMeta> ChunkMetas;
+
+	TArray<uint8> DirectoryIndexBuffer;
 
 	UE_NODISCARD static FIoStatus Read(const TCHAR* TocFilePath, EIoStoreTocReadOptions ReadOptions, FIoStoreTocResource& OutTocResource);
 

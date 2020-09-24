@@ -294,7 +294,7 @@ FText SSearchBrowser::GetSearchBackgroundText() const
 		IAssetSearchModule& SearchModule = IAssetSearchModule::Get();
 		FSearchStats SearchStats = SearchModule.GetStats();
 
-		if (SearchStats.IsUpdating())
+		if (SearchStats.IsUpdating() && SearchStats.TotalRecords > 0)
 		{
 			return FText::Format(LOCTEXT("SearchNumberOfThings", "Search\n{0} Things!"), SearchStats.TotalRecords);
 		}

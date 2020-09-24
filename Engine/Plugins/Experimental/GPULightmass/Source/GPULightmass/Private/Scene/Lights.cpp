@@ -40,7 +40,7 @@ FDirectionalLightRenderState::FDirectionalLightRenderState(UDirectionalLightComp
 	bStationary = bCastStationaryShadows;
 	Color = DirectionalLightComponent->GetColoredLightBrightness();
 	Direction = DirectionalLightComponent->GetDirection();
-	LightSourceAngle = DirectionalLightComponent->LightmassSettings.LightSourceAngle;
+	LightSourceAngle = DirectionalLightComponent->LightSourceAngle;
 	ShadowMapChannel = DirectionalLightComponent->PreviewShadowMapChannel;
 }
 

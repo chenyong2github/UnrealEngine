@@ -8,19 +8,17 @@
 /**
  * GetBoneTransform is used to retrieve a single transform from a hierarchy.
  */
-USTRUCT(meta=(DisplayName="Get Transform", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="GetBoneTransform"))
+USTRUCT(meta=(DisplayName="Get Transform", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="GetBoneTransform", Varying, Deprecated = "4.25"))
 struct FRigUnit_GetBoneTransform : public FRigUnit
 {
 	GENERATED_BODY()
 
 	FRigUnit_GetBoneTransform()
 		: Space(EBoneGetterSetterMode::GlobalSpace)
-		, CachedBoneIndex(INDEX_NONE)
+		, CachedBone()
 	{}
 
-	virtual FString GetUnitLabel() const override;
-
-	virtual FName DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
+	virtual FRigElementKey DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
 	{
 		if (InPinPath.StartsWith(TEXT("Transform")) && Space == EBoneGetterSetterMode::LocalSpace)
 		{
@@ -29,12 +27,12 @@ struct FRigUnit_GetBoneTransform : public FRigUnit
 				int32 BoneIndex = Container->BoneHierarchy.GetIndex(Bone);
 				if (BoneIndex != INDEX_NONE)
 				{
-					return Container->BoneHierarchy[BoneIndex].ParentName;
+					return Container->BoneHierarchy[BoneIndex].GetParentElementKey();
 				}
 
 			}
 		}
-		return NAME_None;
+		return FRigElementKey();
 	}
 
 	RIGVM_METHOD()
@@ -43,7 +41,7 @@ struct FRigUnit_GetBoneTransform : public FRigUnit
 	/**
 	 * The name of the Bone to retrieve the transform for.
 	 */
-	UPROPERTY(meta = (Input, CustomWidget = "BoneName", Constant))
+	UPROPERTY(meta = (Input))
 	FName Bone;
 
 	/**
@@ -58,6 +56,6 @@ struct FRigUnit_GetBoneTransform : public FRigUnit
 	FTransform Transform;
 
 	// Used to cache the internally used bone index
-	UPROPERTY()
-	int32 CachedBoneIndex;
+	UPROPERTY(transient)
+	FCachedRigElement CachedBone;
 };

@@ -183,6 +183,11 @@ void FAnimTimeSliderController::DrawTicks( FSlateWindowElementList& OutDrawEleme
 		return;
 	}
 
+	if(!FMath::IsFinite(ViewRange.GetLowerBoundValue()) || !FMath::IsFinite(ViewRange.GetUpperBoundValue()))
+	{
+		return;
+	}
+
 	FFrameRate     FrameResolution = GetTickResolution();
 	FPaintGeometry PaintGeometry   = InArgs.AllottedGeometry.ToPaintGeometry();
 	FSlateFontInfo SmallLayoutFont = FCoreStyle::GetDefaultFontStyle("Regular", 8);
@@ -617,7 +622,7 @@ FReply FAnimTimeSliderController::OnMouseButtonUp( SWidget& WidgetOwner, const F
 			if(!MouseEvent.IsControlDown())
 			{
 				double SnapMargin = (ScrubConstants::SnapMarginInPixels / (double)RangeToScreen.PixelsPerInput);
-				WeakModel.Pin()->Snap(Time, SnapMargin);
+				WeakModel.Pin()->Snap(Time, SnapMargin, { FName("MontageSection") });
 			}
 
 			SetEditableTime(DraggedTimeIndex, Time, false);
@@ -778,7 +783,7 @@ FReply FAnimTimeSliderController::OnMouseMove( SWidget& WidgetOwner, const FGeom
 				if(!MouseEvent.IsControlDown())
 				{
 					double SnapMargin = (ScrubConstants::SnapMarginInPixels / (double)RangeToScreen.PixelsPerInput);
-					WeakModel.Pin()->Snap(Time, SnapMargin);
+					WeakModel.Pin()->Snap(Time, SnapMargin, { FName("MontageSection") });
 				}
 
 				SetEditableTime(DraggedTimeIndex, Time, true);

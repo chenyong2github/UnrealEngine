@@ -217,6 +217,36 @@ const FGuid FOverlappingVerticesCustomVersion::GUID(0x612FBE52, 0xDA53400B, 0x91
 // Register the custom version with core
 FCustomVersionRegistration GRegisterOverlappingVerticesCustomVersion(FOverlappingVerticesCustomVersion::GUID, FOverlappingVerticesCustomVersion::LatestVersion, TEXT("OverlappingVerticeDetectionVer"));
 
+
+FArchive& operator<<(FArchive& Ar, FMeshToMeshVertData& V)
+{
+	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
+
+	Ar << V.PositionBaryCoordsAndDist
+		<< V.NormalBaryCoordsAndDist
+		<< V.TangentBaryCoordsAndDist
+		<< V.SourceMeshVertIndices[0]
+		<< V.SourceMeshVertIndices[1]
+		<< V.SourceMeshVertIndices[2]
+		<< V.SourceMeshVertIndices[3];
+
+	if (Ar.IsLoading() && 
+		Ar.CustomVer(FReleaseObjectVersion::GUID) < FReleaseObjectVersion::WeightFMeshToMeshVertData)
+	{
+		// Old version had "uint32 Padding[2]"
+		uint32 Discard;
+		Ar << Discard << V.Padding;
+	}
+	else
+	{
+		// New version has "float Weight and "uint32 Padding"
+		Ar << V.Weight << V.Padding;
+	}
+
+	return Ar;
+}
+
+
 /*-----------------------------------------------------------------------------
 FreeSkeletalMeshBuffersSinkCallback
 -----------------------------------------------------------------------------*/
@@ -231,7 +261,7 @@ void FreeSkeletalMeshBuffersSinkCallback()
 		FlushRenderingCommands();
 		for (TObjectIterator<USkeletalMesh> It;It;++It)
 		{
-			if (!It->HasPendingUpdate() && !It->GetResourceForRendering()->RequiresCPUSkinning(GMaxRHIFeatureLevel))
+			if (!It->HasPendingInitOrStreaming() && !It->GetResourceForRendering()->RequiresCPUSkinning(GMaxRHIFeatureLevel))
 			{
 				It->ReleaseCPUResources();
 			}
@@ -743,8 +773,8 @@ void USkeletalMesh::InitResources()
 	LLM_SCOPE(ELLMTag::SkeletalMesh);
 
 	UpdateUVChannelData(false);
+	CachedSRRState.Clear();
 
-	bool bAllLODsLookValid = false;
 	FSkeletalMeshRenderData* SkelMeshRenderData = GetResourceForRendering();
 	if (SkelMeshRenderData)
 	{
@@ -795,7 +825,7 @@ void USkeletalMesh::InitResources()
 			}
 		}
 #endif
-		bAllLODsLookValid = true;
+		bool bAllLODsLookValid = true;	// TODO figure this out
 		for (int32 LODIdx = 0; LODIdx < SkeletalMeshRenderData->LODRenderData.Num(); ++LODIdx)
 		{
 			const FSkeletalMeshLODRenderData& LODRenderData = SkeletalMeshRenderData->LODRenderData[LODIdx];
@@ -806,29 +836,38 @@ void USkeletalMesh::InitResources()
 			}
 		}
 
+		{
+			const int32 NumLODs = SkelMeshRenderData->LODRenderData.Num();
+			const int32 MinFirstLOD = MinLod.GetValue();
+
+			CachedSRRState.NumNonStreamingLODs = SkelMeshRenderData->NumInlinedLODs;
+			CachedSRRState.NumNonOptionalLODs = SkelMeshRenderData->NumNonOptionalLODs;
+			// Limit the number of LODs based on MinLOD value.
+			CachedSRRState.MaxNumLODs = FMath::Clamp<int32>(NumLODs - MinFirstLOD, SkelMeshRenderData->NumInlinedLODs, NumLODs);
+			CachedSRRState.AssetLODBias = MinFirstLOD;
+			// The optional LOD might be culled now.
+			CachedSRRState.NumNonOptionalLODs = FMath::Min(CachedSRRState.NumNonOptionalLODs, CachedSRRState.MaxNumLODs);
+			// Set LOD count to fit the current state.
+			CachedSRRState.NumResidentLODs = NumLODs - SkelMeshRenderData->CurrentFirstLODIdx;
+			CachedSRRState.NumRequestedLODs = CachedSRRState.NumResidentLODs;
+			// Set whether the mips can be streamed.
+			CachedSRRState.bSupportsStreaming = !NeverStream && bAllLODsLookValid && CachedSRRState.NumNonStreamingLODs != CachedSRRState.MaxNumLODs;
+		}
+
+		// TODO : Update RenderData->CurrentFirstLODIdx based on whether IStreamingManager::Get().IsRenderAssetStreamingEnabled(EStreamableRenderAssetType::SkeletalMesh).
+
 		SkelMeshRenderData->InitResources(bHasVertexColors, MorphTargets, this);
+		CachedSRRState.bHasPendingInitHint = true;
 	}
 
-	// Determine whether or not this mesh can be streamed.
-	const int32 NumLODs = GetLODNum();
-	bIsStreamable = !NeverStream
-		&& NumLODs > 1
-		&& bAllLODsLookValid
-		&& SkelMeshRenderData
-		&& !SkelMeshRenderData->LODRenderData[0].bStreamedDataInlined;
-
-	UnlinkStreaming();
-	if (bIsStreamable)
-	{
-		LinkStreaming();
-	}
+	LinkStreaming();
 }
 
 
 void USkeletalMesh::ReleaseResources()
 {
 	FSkeletalMeshRenderData* SkelMeshRenderData = GetResourceForRendering();
-	if (SkelMeshRenderData)
+	if (SkelMeshRenderData && SkelMeshRenderData->IsInitialized())
 	{
 
 		if(GIsEditor && !GIsPlayInEditorWorld)
@@ -838,10 +877,10 @@ void USkeletalMesh::ReleaseResources()
 		}
 
 		SkelMeshRenderData->ReleaseResources();
-	}
 
-	// insert a fence to signal when these commands completed
-	ReleaseResourcesFence.BeginFence();
+		// insert a fence to signal when these commands completed
+		ReleaseResourcesFence.BeginFence();
+	}
 }
 
 #if WITH_EDITORONLY_DATA
@@ -964,27 +1003,6 @@ void USkeletalMesh::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(RefSkeleton.GetDataSize());
 }
 
-int32 USkeletalMesh::GetLODGroupForStreaming() const
-{
-	// TODO: mesh LOD streaming may need to know LOD group settings
-	return 0;
-}
-
-int32 USkeletalMesh::GetNumMipsForStreaming() const
-{
-	return GetLODNum();
-}
-
-int32 USkeletalMesh::GetNumNonStreamingMips() const
-{
-	return SkeletalMeshRenderData->NumInlinedLODs;
-}
-
-int32 USkeletalMesh::CalcNumOptionalMips() const
-{
-	return SkeletalMeshRenderData->NumOptionalLODs;
-}
-
 int32 USkeletalMesh::CalcCumulativeLODSize(int32 NumLODs) const
 {
 	uint32 Accum = 0;
@@ -1013,8 +1031,9 @@ bool USkeletalMesh::GetMipDataFilename(const int32 MipIndex, FString& OutBulkDat
 	LocalizedName = FPackageName::GetLocalizedPackagePath(LocalizedName);
 	bool bSucceed = FPackageName::DoesPackageExist(LocalizedName, nullptr, &OutBulkDataFilename);
 	check(bSucceed);
-	OutBulkDataFilename = FPaths::ChangeExtension(OutBulkDataFilename, MipIndex < CalcNumOptionalMips() ? TEXT(".uptnl") : TEXT(".ubulk"));
-	check(MipIndex < CalcNumOptionalMips() || IFileManager::Get().FileExists(*OutBulkDataFilename));
+	const FSkeletalMeshRenderData* SkelMeshRenderData = GetResourceForRendering();
+	const bool bLODIsOptional = SkelMeshRenderData ? (MipIndex < SkelMeshRenderData->LODRenderData.Num() - SkelMeshRenderData->NumNonOptionalLODs) : false;
+	OutBulkDataFilename = FPaths::ChangeExtension(OutBulkDataFilename, bLODIsOptional ? TEXT(".uptnl") : TEXT(".ubulk"));
 	return true;
 }
 #endif // USE_BULKDATA_STREAMING_TOKEN
@@ -1049,61 +1068,17 @@ bool USkeletalMesh::DoesMipDataExist(const int32 MipIndex) const
 #endif
 }
 
-bool USkeletalMesh::IsReadyForStreaming() const
+bool USkeletalMesh::HasPendingRenderResourceInitialization() const
 {
-	return SkeletalMeshRenderData && SkeletalMeshRenderData->bReadyForStreaming;
-}
-
-int32 USkeletalMesh::GetNumResidentMips() const
-{
-	return GetLODNum() - SkeletalMeshRenderData->CurrentFirstLODIdx;
-}
-
-int32 USkeletalMesh::GetNumRequestedMips() const
-{
-	if (PendingUpdate && !PendingUpdate->IsCancelled())
-	{
-		return PendingUpdate->GetNumRequestedMips();
-	}
-	else
-	{
-		return GetCachedNumResidentLODs();
-	}
-}
-
-bool USkeletalMesh::CancelPendingMipChangeRequest()
-{
-	if (PendingUpdate)
-	{
-		if (!PendingUpdate->IsCancelled())
-		{
-			PendingUpdate->Abort();
-		}
-		return true;
-	}
-	return false;
-}
-
-bool USkeletalMesh::HasPendingUpdate() const
-{
-	return !!PendingUpdate;
-}
-
-bool USkeletalMesh::IsPendingUpdateLocked() const
-{
-	return PendingUpdate && PendingUpdate->IsLocked();
+	return SkeletalMeshRenderData && !SkeletalMeshRenderData->bReadyForStreaming;
 }
 
 bool USkeletalMesh::StreamOut(int32 NewMipCount)
 {
 	check(IsInGameThread());
-	if (bIsStreamable
-		&& !PendingUpdate
-		&& SkeletalMeshRenderData.IsValid()
-		&& SkeletalMeshRenderData->bReadyForStreaming
-		&& NewMipCount < GetNumResidentMips())
+	if (!HasPendingInitOrStreaming() && CachedSRRState.StreamOut(NewMipCount))
 	{
-		PendingUpdate = new FSkeletalMeshStreamOut(this, NewMipCount);
+		PendingUpdate = new FSkeletalMeshStreamOut(this);
 		return !PendingUpdate->IsCancelled();
 	}
 	return false;
@@ -1112,22 +1087,18 @@ bool USkeletalMesh::StreamOut(int32 NewMipCount)
 bool USkeletalMesh::StreamIn(int32 NewMipCount, bool bHighPrio)
 {
 	check(IsInGameThread());
-	if (bIsStreamable
-		&& !PendingUpdate
-		&& SkeletalMeshRenderData.IsValid()
-		&& SkeletalMeshRenderData->bReadyForStreaming
-		&& NewMipCount > GetNumResidentMips())
+	if (!HasPendingInitOrStreaming() && CachedSRRState.StreamIn(NewMipCount))
 	{
 #if WITH_EDITOR
 		if (FPlatformProperties::HasEditorOnlyData())
 		{
 			if (GRHISupportsAsyncTextureCreation)
 			{
-				PendingUpdate = new FSkeletalMeshStreamIn_DDC_Async(this, NewMipCount);
+				PendingUpdate = new FSkeletalMeshStreamIn_DDC_Async(this);
 			}
 			else
 			{
-				PendingUpdate = new FSkeletalMeshStreamIn_DDC_RenderThread(this, NewMipCount);
+				PendingUpdate = new FSkeletalMeshStreamIn_DDC_RenderThread(this);
 			}
 		}
 		else
@@ -1135,104 +1106,16 @@ bool USkeletalMesh::StreamIn(int32 NewMipCount, bool bHighPrio)
 		{
 			if (GRHISupportsAsyncTextureCreation)
 			{
-				PendingUpdate = new FSkeletalMeshStreamIn_IO_Async(this, NewMipCount, bHighPrio);
+				PendingUpdate = new FSkeletalMeshStreamIn_IO_Async(this, bHighPrio);
 			}
 			else
 			{
-				PendingUpdate = new FSkeletalMeshStreamIn_IO_RenderThread(this, NewMipCount, bHighPrio);
+				PendingUpdate = new FSkeletalMeshStreamIn_IO_RenderThread(this, bHighPrio);
 			}
 		}
 		return !PendingUpdate->IsCancelled();
 	}
 	return false;
-}
-
-bool USkeletalMesh::UpdateStreamingStatus(bool bWaitForMipFading, TArray<UStreamableRenderAsset*>* DeferredTickCBAssets)
-{
-	bool bUpdatePending = false;
-
-	// if resident and requested mip counts match then no pending request is in flight
-	if (PendingUpdate)
-	{
-		if (IsEngineExitRequested() || !SkeletalMeshRenderData)
-		{
-			PendingUpdate->Abort();
-		}
-
-		// When there is no renderthread, allow the gamethread to tick as the renderthread.
-		FRenderAssetUpdate::EThreadType TickThread = GIsThreadedRendering ? FRenderAssetUpdate::TT_None : FRenderAssetUpdate::TT_Render;
-		if (HasAnyFlags(RF_BeginDestroyed) && PendingUpdate->GetRelevantThread() == FRenderAssetUpdate::TT_Async)
-		{
-			// To avoid async tasks from timing out the GC, we tick as Async to force completion if this is relevant.
-			// This could lead the asset from releasing the PendingUpdate, which will be deleted once the async task completes.
-			TickThread = FRenderAssetUpdate::TT_GameRunningAsync;
-		}
-		PendingUpdate->Tick(TickThread);
-
-		if (!PendingUpdate->IsCompleted())
-		{
-			bUpdatePending = true;
-		}
-		else
-		{
-#if WITH_EDITOR
-			const bool bRebuildPlatformData = PendingUpdate->DDCIsInvalid() && !IsPendingKillOrUnreachable();
-#endif
-
-			PendingUpdate.SafeRelease();
-
-#if WITH_EDITOR
-			if (GIsEditor)
-			{
-				// When all the requested mips are streamed in, generate an empty property changed event, to force the
-				// ResourceSize asset registry tag to be recalculated.
-				FPropertyChangedEvent EmptyPropertyChangedEvent(nullptr);
-				FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(this, EmptyPropertyChangedEvent);
-
-				// We can't load the source art from a bulk data object if the mesh itself is pending kill because the linker will have been detached.
-				// In this case we don't rebuild the data and instead let the streaming request be cancelled. This will let the garbage collector finish
-				// destroying the object.
-				if (bRebuildPlatformData)
-				{
-					ITargetPlatformManagerModule& TargetPlatformManager = GetTargetPlatformManagerRef();
-					ITargetPlatform* TargetPlatform = TargetPlatformManager.GetRunningTargetPlatform();
-
-					// TODO: force rebuild even if DDC keys match
-					SkeletalMeshRenderData->Cache(TargetPlatform, this);
-					// @TODO this can not be called from this callstack since the entry needs to be removed completely from the streamer.
-					// UpdateResource();
-				}
-			}
-#endif
-		}
-	}
-
-	TickMipLevelChangeCallbacks(DeferredTickCBAssets);
-
-	// TODO: LOD fading?
-
-	return bUpdatePending;
-}
-
-void USkeletalMesh::LinkStreaming()
-{
-	if (!IsTemplate() && IStreamingManager::Get().IsMeshStreamingEnabled() && IsStreamingRenderAsset(this))
-	{
-		IStreamingManager::Get().GetTextureStreamingManager().AddStreamingRenderAsset(this);
-	}
-	else
-	{
-		StreamingIndex = INDEX_NONE;
-	}
-}
-
-void USkeletalMesh::UnlinkStreaming()
-{
-	if (!IsTemplate() && StreamingIndex != INDEX_NONE)
-	{
-		IStreamingManager::Get().GetTextureStreamingManager().RemoveStreamingRenderAsset(this);
-		RemoveAllMipLevelChangeCallbacks();
-	}
 }
 
 void USkeletalMesh::CancelAllPendingStreamingActions()
@@ -1242,7 +1125,7 @@ void USkeletalMesh::CancelAllPendingStreamingActions()
 	for (TObjectIterator<USkeletalMesh> It; It; ++It)
 	{
 		USkeletalMesh* StaticMesh = *It;
-		StaticMesh->CancelPendingMipChangeRequest();
+		StaticMesh->CancelPendingStreamingRequest();
 	}
 
 	FlushRenderingCommands();
@@ -1487,12 +1370,6 @@ void USkeletalMesh::BeginDestroy()
 {
 	Super::BeginDestroy();
 
-	// Cancel any in flight IO requests
-	CancelPendingMipChangeRequest();
-
-	// Safely unlink mesh from list of streamable ones.
-	UnlinkStreaming();
-
 	if (FSkinWeightProfileManager * Manager = FSkinWeightProfileManager::Get(GetWorld()))
 	{
 		Manager->CancelSkinWeightProfileRequest(this);
@@ -1518,14 +1395,24 @@ void USkeletalMesh::BeginDestroy()
 #endif // #if WITH_APEX_CLOTHING
 #endif // WITH_EDITORONLY_DATA
 
-	// Release the mesh's render resources.
-	ReleaseResources();
+	// Release the mesh's render resources now if no pending streaming op.
+	if (!HasPendingInitOrStreaming())
+	{
+		ReleaseResources();
+	}
 }
 
 bool USkeletalMesh::IsReadyForFinishDestroy()
 {
-	// see if we have hit the resource flush fence or pending streaming udpate
-	return ReleaseResourcesFence.IsFenceComplete() && !UpdateStreamingStatus();
+	if (!Super::IsReadyForFinishDestroy())
+	{
+		return false;
+	}
+
+	ReleaseResources();
+
+	// see if we have hit the resource flush fence
+	return ReleaseResourcesFence.IsFenceComplete();
 }
 
 void USkeletalMesh::Serialize( FArchive& Ar )
@@ -2288,6 +2175,32 @@ void USkeletalMesh::ReserveLODImportData(int32 MaxLODIndex)
 void USkeletalMesh::ForceBulkDataResident(const int32 LODIndex)
 {
 	GetMeshEditorData().GetLODImportedData(LODIndex).GetBulkData().ForceBulkDataResident();
+}
+
+void USkeletalMesh::EmptyLODImportData(const int32 LODIndex)
+{
+	if(!ImportedModel->LODModels.IsValidIndex(LODIndex) || !GetMeshEditorData().IsLODImportDataValid(LODIndex))
+	{
+		return;
+	}
+
+	FRawSkeletalMeshBulkData& RawMesh = GetMeshEditorData().GetLODImportedData(LODIndex);
+	FSkeletalMeshImportData EmptyData;
+	RawMesh.SaveRawMesh(EmptyData);
+	RawMesh.GeoImportVersion = ESkeletalMeshGeoImportVersions::Before_Versionning;
+	RawMesh.SkinningImportVersion = ESkeletalMeshSkinningImportVersions::Before_Versionning;
+	ImportedModel->LODModels[LODIndex].RawSkeletalMeshBulkDataID = RawMesh.GetIdString();
+	ImportedModel->LODModels[LODIndex].bIsBuildDataAvailable = RawMesh.IsBuildDataAvailable();
+	ImportedModel->LODModels[LODIndex].bIsRawSkeletalMeshBulkDataEmpty = RawMesh.IsEmpty();
+}
+
+void USkeletalMesh::EmptyAllImportData()
+{
+	const int32 LODNumber = GetLODNum();
+	for(int32 LODIndex = 0; LODIndex < LODNumber; ++LODIndex)
+	{
+		EmptyLODImportData(LODIndex);
+	}
 }
 
 void USkeletalMesh::CreateUserSectionsDataForLegacyAssets()
@@ -3535,6 +3448,95 @@ void USkeletalMesh::InvalidateDeriveDataCacheGUID()
 	GetImportedModel()->GenerateNewGUID();
 }
 
+namespace InternalSkeletalMeshHelper
+{
+	/**
+	 * We want to recreate the LODMaterialMap correctly. The hypothesis is the original section will always be the same when we build the skeletalmesh
+	 * Max GPU bone per section which drive the chunking which can generate different number of section but the number of original section will always be the same.
+	 * So we simply reset the LODMaterialMap and rebuild it with the backup we took before building the skeletalmesh.
+	 */
+	void CreateLodMaterialMapBackup(const USkeletalMesh* SkeletalMesh, TMap<int32, TArray<uint16>>& BackupSectionsPerLOD)
+	{
+		if (!ensure(SkeletalMesh != nullptr))
+		{
+			return;
+		}
+		BackupSectionsPerLOD.Reset();
+		const FSkeletalMeshModel* ImportedModel = SkeletalMesh->GetImportedModel();
+		if (!ImportedModel)
+		{
+			return;
+		}
+		//Create the backup
+		for (int32 LODIndex = 0; LODIndex < SkeletalMesh->GetLODNum(); ++LODIndex)
+		{
+			const FSkeletalMeshLODInfo* LODInfoEntry = SkeletalMesh->GetLODInfo(LODIndex);
+			//Do not backup/restore LODMaterialMap if...
+			if (!ImportedModel->LODModels.IsValidIndex(LODIndex)
+				|| LODInfoEntry == nullptr
+				|| LODInfoEntry->LODMaterialMap.Num() == 0 //If there is no LODMaterialMap we have nothing to backup
+				|| SkeletalMesh->IsReductionActive(LODIndex) //Reduction will manage the LODMaterialMap, avoid backup restore
+				|| !SkeletalMesh->IsLODImportedDataBuildAvailable(LODIndex)) //Legacy asset are not build, avoid backup restore
+			{
+				continue;
+			}
+			const FSkeletalMeshLODModel& LODModel = ImportedModel->LODModels[LODIndex];
+			TArray<uint16>& BackupSections = BackupSectionsPerLOD.FindOrAdd(LODIndex);
+			int32 SectionCount = LODModel.Sections.Num();
+			BackupSections.Reserve(SectionCount);
+			for (int32 SectionIndex = 0; SectionIndex < SectionCount; ++SectionIndex)
+			{
+				if (LODModel.Sections[SectionIndex].ChunkedParentSectionIndex == INDEX_NONE)
+				{
+					BackupSections.Add(LODInfoEntry->LODMaterialMap.IsValidIndex(SectionIndex) ? LODInfoEntry->LODMaterialMap[SectionIndex] : INDEX_NONE);
+				}
+			}
+		}
+	}
+
+	void RestoreLodMaterialMapBackup(USkeletalMesh* SkeletalMesh, const TMap<int32, TArray<uint16>>& BackupSectionsPerLOD)
+	{
+		if (!ensure(SkeletalMesh != nullptr))
+		{
+			return;
+		}
+		const FSkeletalMeshModel* ImportedModel = SkeletalMesh->GetImportedModel();
+		if (!ImportedModel)
+		{
+			return;
+		}
+
+		for (int32 LODIndex = 0; LODIndex < SkeletalMesh->GetLODNum(); ++LODIndex)
+		{
+			FSkeletalMeshLODInfo* LODInfoEntry = SkeletalMesh->GetLODInfo(LODIndex);
+			if (!ImportedModel->LODModels.IsValidIndex(LODIndex) || LODInfoEntry == nullptr)
+			{
+				continue;
+			}
+			const TArray<uint16>* BackupSectionsPtr = BackupSectionsPerLOD.Find(LODIndex);
+			if (!BackupSectionsPtr)
+			{
+				continue;
+			}
+
+			const TArray<uint16>& BackupSections = *BackupSectionsPtr;
+			const FSkeletalMeshLODModel& LODModel = ImportedModel->LODModels[LODIndex];
+			LODInfoEntry->LODMaterialMap.Reset();
+			const int32 SectionCount = LODModel.Sections.Num();
+			for (int32 SectionIndex = 0; SectionIndex < SectionCount; ++SectionIndex)
+			{
+				const FSkelMeshSection& Section = LODModel.Sections[SectionIndex];
+				int32 NewLODMaterialMapValue = INDEX_NONE;
+				if (BackupSections.IsValidIndex(Section.OriginalDataSectionIndex))
+				{
+					NewLODMaterialMapValue = BackupSections[Section.OriginalDataSectionIndex];
+				}
+				LODInfoEntry->LODMaterialMap.Add(NewLODMaterialMapValue);
+			}
+		}
+	}
+} //namespace InternalSkeletalMeshHelper
+
 void USkeletalMesh::CacheDerivedData()
 {
 	// Cache derived data for the running platform.
@@ -3543,7 +3545,17 @@ void USkeletalMesh::CacheDerivedData()
 	check(RunningPlatform);
 
 	AllocateResourceForRendering();
+
+	//LODMaterialMap from LODInfo is store in the uasset and not in the DDC, so we want to fix it here
+	//to cover the post load and the post edit change. The build can change the number of section and LODMaterialMap is index per section
+	//TODO, move LODMaterialmap functionality into the LODModel UserSectionsData which are index per original section (imported section).
+	TMap<int32, TArray<uint16>> BackupSectionsPerLOD;
+	InternalSkeletalMeshHelper::CreateLodMaterialMapBackup(this, BackupSectionsPerLOD);
+
 	SkeletalMeshRenderData->Cache(RunningPlatform, this);
+
+	InternalSkeletalMeshHelper::RestoreLodMaterialMapBackup(this, BackupSectionsPerLOD);
+
 	PostMeshCached.Broadcast(this);
 }
 
@@ -4155,6 +4167,16 @@ void USkeletalMesh::RemoveLODInfo(int32 Index)
 {
 	if (LODInfo.IsValidIndex(Index))
 	{
+#if WITH_EDITOR
+		if (MeshEditorDataObject != nullptr)
+		{
+			MeshEditorDataObject->RemoveLODImportedData(Index);
+		}
+		if (GetImportedModel() && GetImportedModel()->OriginalReductionSourceMeshData.IsValidIndex(Index))
+		{
+			GetImportedModel()->OriginalReductionSourceMeshData.RemoveAt(Index);
+		}
+#endif // WITH_EDITOR
 		LODInfo.RemoveAt(Index);
 	}
 }
@@ -4788,6 +4810,21 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 
 	// Skip primitive uniform buffer if we will be using local vertex factory which gets it's data from GPUScene.
 	bVFRequiresPrimitiveUniformBuffer = !((bIsCPUSkinned || bRenderStatic) && UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel));
+
+#if RHI_RAYTRACING
+	if (IsRayTracingEnabled())
+	{
+		if (bRenderStatic)
+		{
+			RayTracingGeometries.AddDefaulted(SkeletalMeshRenderData->LODRenderData.Num());
+			for (int32 LODIndex = 0; LODIndex < SkeletalMeshRenderData->LODRenderData.Num(); LODIndex++)
+			{
+				ensure(SkeletalMeshRenderData->LODRenderData[LODIndex].NumReferencingStaticSkeletalMeshObjects > 0);
+				RayTracingGeometries[LODIndex] = &SkeletalMeshRenderData->LODRenderData[LODIndex].StaticRayTracingGeometry;
+			}
+		}
+	}
+#endif
 }
 
 
@@ -4990,6 +5027,7 @@ void FSkeletalMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* 
 				#endif
 					MeshElement.Type = PT_TriangleList;
 					MeshElement.LODIndex = LODIndex;
+					MeshElement.SegmentIndex = SectionIndex;
 						
 					BatchElement.FirstIndex = Section.BaseIndex;
 					BatchElement.MinVertexIndex = Section.BaseVertexIndex;
@@ -5023,7 +5061,7 @@ void FSkeletalMeshSceneProxy::GetMeshElementsConditionallySelectable(const TArra
 		if (VisibilityMap & (1 << ViewIndex))
 		{
 			const FSceneView* View = Views[ViewIndex];
-			MeshObject->UpdateMinDesiredLODLevel(View, GetBounds(), ViewFamily.FrameNumber, SkeletalMeshRenderData->PendingFirstLODIdx);
+			MeshObject->UpdateMinDesiredLODLevel(View, GetBounds(), ViewFamily.FrameNumber, FMath::Max(SkeletalMeshRenderData->PendingFirstLODIdx, SkeletalMeshRenderData->CurrentFirstLODIdx));
 		}
 	}
 

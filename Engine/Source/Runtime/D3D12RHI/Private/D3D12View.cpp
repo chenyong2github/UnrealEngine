@@ -8,27 +8,35 @@
 
 static FORCEINLINE D3D12_SHADER_RESOURCE_VIEW_DESC GetVertexBufferSRVDesc(FD3D12VertexBuffer* VertexBuffer, uint32& CreationStride, uint8 Format, uint32 StartOffsetBytes, uint32 NumElements)
 {
-	D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
+	const uint32 BufferSize = VertexBuffer->GetSize();
+	const uint64 BufferOffset = VertexBuffer->ResourceLocation.GetOffsetFromBaseOfResource();
 
-	uint32 MaxElements = VertexBuffer->GetSize() / CreationStride;
-	StartOffsetBytes = FMath::Min(StartOffsetBytes, VertexBuffer->GetSize());
-	uint32 StartElement = StartOffsetBytes / CreationStride;
+	const uint32 FormatStride = GPixelFormats[Format].BlockBytes;
+
+	const uint32 NumRequestedBytes = NumElements * FormatStride;
+	const uint32 OffsetBytes = FMath::Min(StartOffsetBytes, BufferSize);
+	const uint32 NumBytes = FMath::Min(NumRequestedBytes, BufferSize - OffsetBytes);
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc{};
 
 	SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+
 	if (VertexBuffer->GetUsage() & BUF_ByteAddressBuffer)
 	{
 		SRVDesc.Format = DXGI_FORMAT_R32_TYPELESS;
-		SRVDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
+		SRVDesc.Buffer.Flags |= D3D12_BUFFER_SRV_FLAG_RAW;
 		CreationStride = 4;
 	}
 	else
 	{
 		SRVDesc.Format = FindShaderResourceDXGIFormat((DXGI_FORMAT)GPixelFormats[Format].PlatformFormat, false);
+		CreationStride = GPixelFormats[Format].BlockBytes;
 	}
-	SRVDesc.Buffer.FirstElement = VertexBuffer->ResourceLocation.GetOffsetFromBaseOfResource() / CreationStride + StartElement;
-	SRVDesc.Buffer.NumElements = FMath::Min(NumElements, MaxElements - StartElement);
-	SRVDesc.Buffer.StructureByteStride = 0;
+
+	SRVDesc.Buffer.FirstElement = (BufferOffset + OffsetBytes) / CreationStride;
+	SRVDesc.Buffer.NumElements = NumBytes / CreationStride;
+
 	return SRVDesc;
 }
 
@@ -42,7 +50,7 @@ static FORCEINLINE D3D12_SHADER_RESOURCE_VIEW_DESC GetIndexBufferSRVDesc(FD3D12I
 	uint32 StartElement = StartOffsetBytes / CreationStride;
 	const FD3D12ResourceLocation& Location = IndexBuffer->ResourceLocation;
 
-	D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
+	D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc{};
 	SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
 	if (Usage & BUF_ByteAddressBuffer)
@@ -57,7 +65,6 @@ static FORCEINLINE D3D12_SHADER_RESOURCE_VIEW_DESC GetIndexBufferSRVDesc(FD3D12I
 		SRVDesc.Format = CreationStride == 2u ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT;
 	}
 	SRVDesc.Buffer.NumElements = FMath::Min(MaxElements - StartElement, NumElements);
-	SRVDesc.Buffer.StructureByteStride = 0;
 
 	if (Location.GetResource())
 	{

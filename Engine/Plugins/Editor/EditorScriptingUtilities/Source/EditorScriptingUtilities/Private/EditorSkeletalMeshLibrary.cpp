@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorSkeletalMeshLibrary.h"
+#include "Components/SkinnedMeshComponent.h"
 #include "Editor.h"
 #include "EditorScriptingUtils.h"
 #include "Rendering/SkeletalMeshRenderData.h"
@@ -11,6 +12,7 @@
 #include "LODUtilities.h"
 #include "ScopedTransaction.h"
 #include "SkeletalMeshEditorSubsystem.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 bool UDEPRECATED_EditorSkeletalMeshLibrary::RegenerateLOD(USkeletalMesh* SkeletalMesh, int32 NewLODCount /*= 0*/, bool bRegenerateEvenIfImported /*= false*/, bool bGenerateBaseLOD /*= false*/)
 {
@@ -69,3 +71,43 @@ void UDEPRECATED_EditorSkeletalMeshLibrary::SetLodBuildSettings(USkeletalMesh* S
 	}
 }
 
+bool UDEPRECATED_EditorSkeletalMeshLibrary::RemoveLODs(USkeletalMesh* SkeletalMesh, TArray<int32> ToRemoveLODs)
+{
+	FSkeletalMeshUpdateContext UpdateContext;
+	UpdateContext.SkeletalMesh = SkeletalMesh;
+	int32 OriginalLODNumber = SkeletalMesh->GetLODNum();
+
+	// Close the mesh editor to be sure the editor is showing the correct data after the LODs are removed.
+	bool bMeshIsEdited = false;
+	UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
+	if (AssetEditorSubsystem->FindEditorForAsset(SkeletalMesh, false))
+	{
+		AssetEditorSubsystem->CloseAllEditorsForAsset(SkeletalMesh);
+		bMeshIsEdited = true;
+	}
+
+	// Now iterate over all skeletal mesh components to add them to the UpdateContext
+	for (TObjectIterator<USkinnedMeshComponent> It; It; ++It)
+	{
+		USkinnedMeshComponent* SkinComp = *It;
+		if (SkinComp->SkeletalMesh == SkeletalMesh)
+		{
+			UpdateContext.AssociatedComponents.Add(SkinComp);
+		}
+	}
+
+	FLODUtilities::RemoveLODs(UpdateContext, ToRemoveLODs);
+
+	if (bMeshIsEdited)
+	{
+		AssetEditorSubsystem->OpenEditorForAsset(SkeletalMesh);
+	}
+
+	int32 FinalLODNumber = SkeletalMesh->GetLODNum();
+	return (OriginalLODNumber-FinalLODNumber == ToRemoveLODs.Num());
+}
+
+bool UDEPRECATED_EditorSkeletalMeshLibrary::StripLODGeometry(USkeletalMesh* SkeletalMesh, const int32 LODIndex, UTexture2D* TextureMask, const float Threshold)
+{
+	return FLODUtilities::StripLODGeometry(SkeletalMesh, LODIndex, TextureMask, Threshold);
+}

@@ -1,11 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Chaos/GeometryParticles.h"
+#include "Chaos/Core.h"
+#include "Chaos/Framework/MultiBufferResource.h"
+#include "Chaos/GeometryParticlesfwd.h"
+#include "Chaos/ParticleHandleFwd.h"
+#include "Chaos/PBDRigidsEvolutionFwd.h"
 
 namespace Chaos
 {
-
 	enum class ECollisionConstraintFlags : uint32
 	{
 		CCF_None                       = 0x0,
@@ -16,53 +19,54 @@ namespace Chaos
 	class CHAOS_API FIgnoreCollisionManager
 	{
 	public:
-
+		using FGeometryParticle = TGeometryParticle<FReal, 3>;
 		using FHandleID = FUniqueIdx;
-
-		FIgnoreCollisionManager() {};
-
-		bool ContainsHandle(FHandleID Body0)
+		using FParticleArray = TArray<FGeometryParticle*>;
+		using FActiveMap = TMap<FHandleID, TArray<FHandleID> >;
+		using FPendingMap = TMap<FGeometryParticle*, FParticleArray >;
+		struct FStorageData
 		{
-			return IgnoreCollisionsList.Contains(Body0);
+			FPendingMap PendingActivations;
+			FParticleArray PendingDeactivations;
+		};
+
+		FIgnoreCollisionManager()
+		{
+			BufferedData = FMultiBufferFactory<FStorageData>::CreateBuffer(EMultiBufferMode::Double);
 		}
 
-		bool IgnoresCollision(FHandleID Body0, FHandleID Body1)
-		{
-			if (IgnoreCollisionsList.Contains(Body0))
-			{
-				return IgnoreCollisionsList[Body0].Contains(Body1);
-			}
-			return false;
-		}
+		bool ContainsHandle(FHandleID Body0);
 
-		int32 NumIgnoredCollision(FHandleID Body0)
-		{
-			if (IgnoreCollisionsList.Contains(Body0))
-			{
-				return IgnoreCollisionsList[Body0].Num();
-			}
-			return 0;
-		}
+		bool IgnoresCollision(FHandleID Body0, FHandleID Body1);
 
-		void AddIgnoreCollisionsFor(FHandleID Body0, FHandleID Body1)
-		{
-			if (!IgnoreCollisionsList.Contains(Body0))
-			{
-				IgnoreCollisionsList.Add(Body0, TArray<FHandleID>());
-			}
-			IgnoreCollisionsList[Body0].Add(Body1);
+		int32 NumIgnoredCollision(FHandleID Body0);
 
-		}
-		void RemoveIgnoreCollisionsFor(FHandleID Body0, FHandleID Body1)
-		{
-			if (IgnoreCollisionsList.Contains(Body0))
-			{
-				IgnoreCollisionsList[Body0].Remove(Body1);
-			}
-		}
+		void AddIgnoreCollisionsFor(FHandleID Body0, FHandleID Body1);
+
+		void RemoveIgnoreCollisionsFor(FHandleID Body0, FHandleID Body1);
+
+		const FPendingMap& GetPendingActivationsForGameThread() const { return BufferedData->AccessProducerBuffer()->PendingActivations; }
+		FPendingMap& GetPendingActivationsForGameThread() { return BufferedData->AccessProducerBuffer()->PendingActivations; }
+
+		const FParticleArray& GetPendingDeactivationsForGameThread() const { return BufferedData->AccessProducerBuffer()->PendingDeactivations; }
+		FParticleArray& GetPendingDeactivationsForGameThread() { return BufferedData->AccessProducerBuffer()->PendingDeactivations; }
+
+		/*
+		*
+		*/
+		void ProcessPendingQueues();
+
+		/*
+		*
+		*/
+		void FlipBufferPreSolve();
 
 	private:
-		TMap<FHandleID, TArray<FHandleID> > IgnoreCollisionsList;
+		FActiveMap IgnoreCollisionsList;
+
+		FPendingMap PendingActivations;
+		FParticleArray PendingDeactivations;
+		TUniquePtr<Chaos::IBufferResource<FStorageData>> BufferedData;
 	};
 
 } // Chaos

@@ -32,9 +32,7 @@ constexpr int32 NUM_FRAMES_TO_WAIT_REUSE_POOL = 10;
 constexpr uint32 NUM_FRAMES_TO_WAIT_RELEASE_POOL = MAX_uint32; // never release
 #endif
 
-extern FVulkanCommandBufferManager* GVulkanCommandBufferManager;
-
-FVulkanQueryPool::FVulkanQueryPool(FVulkanDevice* InDevice, uint32 InMaxQueries, VkQueryType InQueryType)
+FVulkanQueryPool::FVulkanQueryPool(FVulkanDevice* InDevice, FVulkanCommandBufferManager* CommandBufferManager, uint32 InMaxQueries, VkQueryType InQueryType)
 	: VulkanRHI::FDeviceChild(InDevice)
 	, QueryPool(VK_NULL_HANDLE)
 	, ResetEvent(VK_NULL_HANDLE)
@@ -49,7 +47,7 @@ FVulkanQueryPool::FVulkanQueryPool(FVulkanDevice* InDevice, uint32 InMaxQueries,
 
 	VERIFYVULKANRESULT(VulkanRHI::vkCreateQueryPool(Device->GetInstanceHandle(), &PoolCreateInfo, VULKAN_CPU_ALLOCATOR, &QueryPool));
 
-	GVulkanCommandBufferManager->AddQueryPoolForReset(QueryPool, InMaxQueries);
+	CommandBufferManager->AddQueryPoolForReset(QueryPool, InMaxQueries);
 	
 	VkEventCreateInfo EventCreateInfo;
 	ZeroVulkanStruct(EventCreateInfo, VK_STRUCTURE_TYPE_EVENT_CREATE_INFO);
@@ -228,7 +226,7 @@ void FVulkanCommandListContext::BeginOcclusionQueryBatch(FVulkanCmdBuffer* CmdBu
 	FScopeLock ScopeLock(&GOcclusionQueryCS);
 */
 	checkf(!CurrentOcclusionQueryPool, TEXT("BeginOcclusionQueryBatch called without corresponding EndOcclusionQueryBatch!"));
-	CurrentOcclusionQueryPool = Device->AcquireOcclusionQueryPool(NumQueriesInBatch);
+	CurrentOcclusionQueryPool = Device->AcquireOcclusionQueryPool(GetCommandBufferManager(), NumQueriesInBatch);
 	ensure(CmdBuffer->IsOutsideRenderPass());
 	CurrentOcclusionQueryPool->Reset(CmdBuffer, GFrameNumberRenderThread);
 }
@@ -264,7 +262,7 @@ void FVulkanOcclusionQueryPool::FlushAllocatedQueries()
 	}
 }
 
-FVulkanOcclusionQueryPool* FVulkanDevice::AcquireOcclusionQueryPool(uint32 NumQueries)
+FVulkanOcclusionQueryPool* FVulkanDevice::AcquireOcclusionQueryPool(FVulkanCommandBufferManager* CommandBufferManager, uint32 NumQueries)
 {
 	// At least add one query
 	NumQueries = FMath::Max(1u, NumQueries);
@@ -313,7 +311,7 @@ FVulkanOcclusionQueryPool* FVulkanDevice::AcquireOcclusionQueryPool(uint32 NumQu
 		}
 	}
 
-	FVulkanOcclusionQueryPool* Pool = new FVulkanOcclusionQueryPool(this, NumQueries);
+	FVulkanOcclusionQueryPool* Pool = new FVulkanOcclusionQueryPool(this, CommandBufferManager, NumQueries);
 	UsedOcclusionQueryPools.Add(Pool);
 	return Pool;
 }
@@ -345,12 +343,8 @@ void FVulkanCommandListContext::EndOcclusionQueryBatch(FVulkanCmdBuffer* CmdBuff
 	checkf(CurrentOcclusionQueryPool, TEXT("EndOcclusionQueryBatch called without corresponding BeginOcclusionQueryBatch!"));
 	CurrentOcclusionQueryPool->EndBatch(CmdBuffer);
 	CurrentOcclusionQueryPool = nullptr;
-	TransitionAndLayoutManager.EndRealRenderPass(CmdBuffer);
-/*
-	FScopeLock ScopeLock(&GOcclusionQueryCS);
-	CurrentOcclusionQueryPool = nullptr;
-	TransitionAndLayoutManager.EndEmulatedRenderPass(CmdBuffer);
-*/
+	LayoutManager.EndRenderPass(CmdBuffer);
+
 	// Sync point
 	if (GSubmitOcclusionBatchCmdBufferCVar.GetValueOnAnyThread())
 	{
@@ -417,7 +411,7 @@ FRenderQueryRHIRef FVulkanDynamicRHI::RHICreateRenderQuery(ERenderQueryType Quer
 	}
 	else if (QueryType == RQT_AbsoluteTime)
 	{
-		FVulkanTimingQuery* Query = new FVulkanTimingQuery(Device);
+		FVulkanTimingQuery* Query = new FVulkanTimingQuery();
 		return Query;
 	}
 	else
@@ -467,40 +461,40 @@ bool FVulkanDynamicRHI::RHIGetRenderQueryResult(FRHIRenderQuery* QueryRHI, uint6
 	else if (BaseQuery->QueryType == RQT_AbsoluteTime)
 	{
 		FVulkanTimingQuery* Query = static_cast<FVulkanTimingQuery*>(BaseQuery);
-		check(Query->Pool.CurrentTimestamp < Query->Pool.BufferSize);
-		int32 TimestampIndex = Query->Pool.CurrentTimestamp;
+		check(Query->Pool->CurrentTimestamp < Query->Pool->BufferSize);
+		int32 TimestampIndex = Query->Pool->CurrentTimestamp;
 		if (!bWait)
 		{
 			// Quickly check the most recent measurements to see if any of them has been resolved.  Do not flush these queries.
-			for (uint32 IssueIndex = 1; IssueIndex < Query->Pool.NumIssuedTimestamps; ++IssueIndex)
+			for (uint32 IssueIndex = 1; IssueIndex < Query->Pool->NumIssuedTimestamps; ++IssueIndex)
 			{
-				const FVulkanTimingQueryPool::FCmdBufferFence& StartQuerySyncPoint = Query->Pool.TimestampListHandles[TimestampIndex];
+				const FVulkanTimingQueryPool::FCmdBufferFence& StartQuerySyncPoint = Query->Pool->TimestampListHandles[TimestampIndex];
 				if (StartQuerySyncPoint.FenceCounter < StartQuerySyncPoint.CmdBuffer->GetFenceSignaledCounter())
 				{
-					Query->Pool.ResultsBuffer->InvalidateMappedMemory();
-					uint64* Data = (uint64*)Query->Pool.ResultsBuffer->GetMappedPointer();
+					Query->Pool->ResultsBuffer->InvalidateMappedMemory();
+					uint64* Data = (uint64*)Query->Pool->ResultsBuffer->GetMappedPointer();
 					OutNumPixels = ToMicroseconds(Data[TimestampIndex]);
 					return true;
 				}
 
-				TimestampIndex = (TimestampIndex + Query->Pool.BufferSize - 1) % Query->Pool.BufferSize;
+				TimestampIndex = (TimestampIndex + Query->Pool->BufferSize - 1) % Query->Pool->BufferSize;
 			}
 		}
 
-		if (Query->Pool.NumIssuedTimestamps > 0 || bWait)
+		if (Query->Pool->NumIssuedTimestamps > 0 || bWait)
 		{
 			// None of the (NumIssuedTimestamps - 1) measurements were ready yet,
 			// so check the oldest measurement more thoroughly.
 			// This really only happens if occlusion and frame sync event queries are disabled, otherwise those will block until the GPU catches up to 1 frame behind
 
-			const bool bBlocking = (Query->Pool.NumIssuedTimestamps == Query->Pool.BufferSize) || bWait;
+			const bool bBlocking = (Query->Pool->NumIssuedTimestamps == Query->Pool->BufferSize) || bWait;
 			const uint32 IdleStart = FPlatformTime::Cycles();
 
 			SCOPE_CYCLE_COUNTER(STAT_RenderQueryResultTime);
 
 			if (bBlocking)
 			{
-				const FVulkanTimingQueryPool::FCmdBufferFence& StartQuerySyncPoint = Query->Pool.TimestampListHandles[TimestampIndex];
+				const FVulkanTimingQueryPool::FCmdBufferFence& StartQuerySyncPoint = Query->Pool->TimestampListHandles[TimestampIndex];
 				bool bWaitForStart = StartQuerySyncPoint.FenceCounter == StartQuerySyncPoint.CmdBuffer->GetFenceSignaledCounter();
 				if (bWaitForStart)
 				{
@@ -517,11 +511,11 @@ bool FVulkanDynamicRHI::RHIGetRenderQueryResult(FRHIRenderQuery* QueryRHI, uint6
 				}
 			}
 
-			Query->Pool.ResultsBuffer->InvalidateMappedMemory();
+			Query->Pool->ResultsBuffer->InvalidateMappedMemory();
 			GRenderThreadIdle[ERenderThreadIdleTypes::WaitingForGPUQuery] += FPlatformTime::Cycles() - IdleStart;
 			GRenderThreadNumIdle[ERenderThreadIdleTypes::WaitingForGPUQuery]++;
 
-			uint64* Data = (uint64*)Query->Pool.ResultsBuffer->GetMappedPointer();
+			uint64* Data = (uint64*)Query->Pool->ResultsBuffer->GetMappedPointer();
 			OutNumPixels = ToMicroseconds(Data[TimestampIndex]);
 			return true;
 		}
@@ -587,14 +581,21 @@ void FVulkanCommandListContext::RHIEndRenderQuery(FRHIRenderQuery* QueryRHI)
 	else if (BaseQuery->QueryType == RQT_AbsoluteTime)
 	{
 		FVulkanTimingQuery* Query = static_cast<FVulkanTimingQuery*>(BaseQuery);
-		Query->Pool.CurrentTimestamp = (Query->Pool.CurrentTimestamp + 1) % Query->Pool.BufferSize;
-		const uint32 QueryEndIndex = Query->Pool.CurrentTimestamp;
+
+		if (Query->Pool == nullptr)
+		{
+			Query->Pool = new FVulkanTimingQueryPool(Device, CommandBufferManager, 4);
+			Query->Pool->ResultsBuffer = Device->GetStagingManager().AcquireBuffer(Query->Pool->BufferSize * sizeof(uint64), VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		}
+
+		Query->Pool->CurrentTimestamp = (Query->Pool->CurrentTimestamp + 1) % Query->Pool->BufferSize;
+		const uint32 QueryEndIndex = Query->Pool->CurrentTimestamp;
 		FVulkanCmdBuffer* CmdBuffer = CommandBufferManager->GetActiveCmdBuffer();
-		VulkanRHI::vkCmdWriteTimestamp(CmdBuffer->GetHandle(), VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, Query->Pool.GetHandle(), QueryEndIndex);
-		CmdBuffer->AddPendingTimestampQuery(QueryEndIndex, 1, Query->Pool.GetHandle(), Query->Pool.ResultsBuffer->GetHandle());
-		Query->Pool.TimestampListHandles[QueryEndIndex].CmdBuffer = CmdBuffer;
-		Query->Pool.TimestampListHandles[QueryEndIndex].FenceCounter = CmdBuffer->GetFenceSignaledCounter();
-		Query->Pool.NumIssuedTimestamps = FMath::Min<uint32>(Query->Pool.NumIssuedTimestamps + 1, Query->Pool.BufferSize);
+		VulkanRHI::vkCmdWriteTimestamp(CmdBuffer->GetHandle(), VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, Query->Pool->GetHandle(), QueryEndIndex);
+		CmdBuffer->AddPendingTimestampQuery(QueryEndIndex, 1, Query->Pool->GetHandle(), Query->Pool->ResultsBuffer->GetHandle());
+		Query->Pool->TimestampListHandles[QueryEndIndex].CmdBuffer = CmdBuffer;
+		Query->Pool->TimestampListHandles[QueryEndIndex].FenceCounter = CmdBuffer->GetFenceSignaledCounter();
+		Query->Pool->NumIssuedTimestamps = FMath::Min<uint32>(Query->Pool->NumIssuedTimestamps + 1, Query->Pool->BufferSize);
 	}
 }
 
@@ -608,15 +609,16 @@ void FVulkanCommandListContext::WriteEndTimestamp(FVulkanCmdBuffer* CmdBuffer)
 	FrameTiming->EndTiming(CmdBuffer);
 }
 
-FVulkanTimingQuery::FVulkanTimingQuery(FVulkanDevice* InDevice)
+FVulkanTimingQuery::FVulkanTimingQuery()
 	: FVulkanRenderQuery(RQT_AbsoluteTime)
-	, Pool(InDevice, 4)
 {
-	Pool.ResultsBuffer = InDevice->GetStagingManager().AcquireBuffer(Pool.BufferSize * sizeof(uint64), VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 }
-
 
 FVulkanTimingQuery::~FVulkanTimingQuery()
 {
-	Pool.GetParent()->GetStagingManager().ReleaseBuffer(nullptr, Pool.ResultsBuffer);
+	if (Pool != nullptr)
+	{
+		Pool->GetParent()->GetStagingManager().ReleaseBuffer(nullptr, Pool->ResultsBuffer);
+		delete Pool;
+	}
 }

@@ -16,6 +16,7 @@
 #include "UObject/UObjectGlobals.h"
 
 #include "GenericImgMediaReader.h"
+#include "IImageWrapperModule.h"
 #include "IImgMediaReader.h"
 #include "ImgMediaLoaderWork.h"
 #include "ImgMediaScheduler.h"

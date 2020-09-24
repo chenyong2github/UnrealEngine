@@ -158,9 +158,13 @@ FMaterialRelevance UMaterialInterface::GetRelevance_Internal(const UMaterial* Ma
 		const bool bIsMobile = InFeatureLevel <= ERHIFeatureLevel::ES3_1;
 		const bool bUsesSingleLayerWaterMaterial = MaterialResource->GetShadingModels().HasShadingModel(MSM_SingleLayerWater);
 		const bool IsSinglePassWaterTranslucent = bIsMobile && bUsesSingleLayerWaterMaterial;
+		const bool bIsMobilePixelProjectedTranslucent = MaterialResource->IsUsingPlanarForwardReflections() 
+														&& IsUsingMobilePixelProjectedReflection(GetFeatureLevelShaderPlatform(InFeatureLevel));
+
+		const bool bUsesAnisotropy = MaterialResource->GetShadingModels().HasAnyShadingModel({MSM_DefaultLit, MSM_ClearCoat}) && MaterialResource->HasAnisotropyConnected();
 
 		const EBlendMode BlendMode = (EBlendMode)GetBlendMode();
-		const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode) || IsSinglePassWaterTranslucent; // We want meshes with water materials to be scheduled for translucent pass on mobile.
+		const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode) || IsSinglePassWaterTranslucent || bIsMobilePixelProjectedTranslucent; // We want meshes with water materials to be scheduled for translucent pass on mobile. And we also have to render the meshes used for mobile pixel projection reflection in translucent pass.
 
 		EMaterialDomain Domain = (EMaterialDomain)MaterialResource->GetMaterialDomain();
 		bool bDecal = (Domain == MD_DeferredDecal);
@@ -196,7 +200,6 @@ FMaterialRelevance UMaterialInterface::GetRelevance_Internal(const UMaterial* Ma
 			MaterialRelevance.bNormalTranslucency = bIsTranslucent && !bMaterialSeparateTranslucency;
 			MaterialRelevance.bDisableDepthTest = bIsTranslucent && Material->bDisableDepthTest;		
 			MaterialRelevance.bUsesSceneColorCopy = bIsTranslucent && MaterialResource->RequiresSceneColorCopy_GameThread();
-			MaterialRelevance.bDisableOffscreenRendering = false;// Blend Modulate is now allowed in separate pass.
 			MaterialRelevance.bOutputsTranslucentVelocity = Material->IsTranslucencyWritingVelocity();
 			MaterialRelevance.bUsesGlobalDistanceField = MaterialResource->UsesGlobalDistanceField_GameThread();
 			MaterialRelevance.bUsesWorldPositionOffset = MaterialResource->UsesWorldPositionOffset_GameThread();
@@ -208,6 +211,7 @@ FMaterialRelevance UMaterialInterface::GetRelevance_Internal(const UMaterial* Ma
 			MaterialRelevance.bUsesCustomDepthStencil = MaterialResource->UsesCustomDepthStencil_GameThread();
 			MaterialRelevance.bUsesSkyMaterial = Material->bIsSky;
 			MaterialRelevance.bUsesSingleLayerWaterMaterial = bUsesSingleLayerWaterMaterial;
+			MaterialRelevance.bUsesAnisotropy = bUsesAnisotropy;
 		}
 		return MaterialRelevance;
 	}
@@ -283,7 +287,7 @@ void UMaterialInterface::SetForceMipLevelsToBeResident( bool OverrideForceMiplev
 				static IConsoleVariable* CVarAllowFastForceResident = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Streaming.AllowFastForceResident"));
 
 				Texture->bIgnoreStreamingMipBias = CVarAllowFastForceResident && CVarAllowFastForceResident->GetInt();
-				if (IStreamingManager::Get().IsRenderAssetStreamingEnabled())
+				if (Texture->IsStreamable())
 				{
 					IStreamingManager::Get().GetRenderAssetStreamingManager().FastForceFullyResident(Texture);
 				}
@@ -780,7 +784,7 @@ bool UMaterialInterface::UseAnyStreamingTexture() const
 
 	for (UTexture* Texture : Textures)
 	{
-		if (IsStreamingRenderAsset(Texture))
+		if (Texture && Texture->IsStreamable())
 		{
 			return true;
 		}

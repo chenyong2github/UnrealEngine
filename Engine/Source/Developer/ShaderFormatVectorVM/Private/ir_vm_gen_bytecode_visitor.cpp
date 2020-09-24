@@ -724,7 +724,7 @@ struct op_hook : public op_base
 #if WITH_EDITOR
 		Args.Add(VectorVM::GetOpName(op_code));
 #else
-		Args.Add(FString::Printf(TEXT("OP_%d"), op_code));
+		Args.Add(FString::Printf(TEXT("__OP__%d"), op_code));
 #endif
 
 		if(source_component)
@@ -790,7 +790,7 @@ struct op_standard : public op_base
 #if WITH_EDITOR
 		Args.Add(VectorVM::GetOpName(op_code));
 #else
-		Args.Add(FString::Printf(TEXT("OP_%d"), op_code));
+		Args.Add(FString::Printf(TEXT("__OP__%d"), op_code));
 #endif
 
 		Args.Add(get_location_string(dest_component->owner->location));
@@ -1389,7 +1389,7 @@ struct op_external_func : public op_base
 	bool should_cull_function(unsigned int op_idx)
 	{
 		FString FuncName = FString::Printf(TEXT("%s"), ANSI_TO_TCHAR(sig->function_name()));
-		bool bPotentiallyHasSideEffects = FuncName.Contains(TEXT("_UEImpureCall_"));
+		bool bPotentiallyHasSideEffects = FuncName.Contains(TEXT("_UEImpureCall"));
 		if (bPotentiallyHasSideEffects)
 		{
 			return false;

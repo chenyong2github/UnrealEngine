@@ -45,13 +45,13 @@ class MESHMODELINGTOOLSEDITORONLY_API USimplifyMeshToolProperties : public UMesh
 public:
 	USimplifyMeshToolProperties();
 
-	/** Simplification Target Type  */
-	UPROPERTY(EditAnywhere, Category = Options)
-	ESimplifyTargetType TargetMode;
-
 	/** Simplification Scheme  */
 	UPROPERTY(EditAnywhere, Category = Options)
 	ESimplifyType SimplifierType;
+
+	/** Simplification Target Type  */
+	UPROPERTY(EditAnywhere, Category = Options)
+	ESimplifyTargetType TargetMode;
 
 	/** Target percentage of original triangle count */
 	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "0", UIMax = "100", EditCondition = "TargetMode == ESimplifyTargetType::Percentage"))

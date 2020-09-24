@@ -182,6 +182,10 @@ void FEmbedPolygonsOp::CalculateResult(FProgressCancel* Progress)
 			bool bDidRemove = false;
 			if (DeleteMethod == EDeleteMethod::DeleteOutside)
 			{
+				if (Selection.Num() == 0)
+				{
+					return false; // refuse to delete the entire mesh w/ a hole cut
+				}
 				TArray<int> InvSelection;
 				InvSelection.Reserve(Mesh.TriangleCount() - Selection.Num());
 				for (int TID : Mesh.TriangleIndicesItr())
@@ -195,6 +199,10 @@ void FEmbedPolygonsOp::CalculateResult(FProgressCancel* Progress)
 			}
 			else
 			{
+				if (Selection.Num() == Mesh.TriangleCount())
+				{
+					return false; // refuse to delete the entire mesh w/ a hole cut
+				}
 				bDidRemove = MeshEditor.RemoveTriangles(Selection.AsArray(), true);
 			}
 			if (!bDidRemove)
@@ -335,10 +343,15 @@ void FEmbedPolygonsOp::RecordEmbeddedEdges(TArray<int>& PathVertIDs)
 {
 	for (int LastIdx = PathVertIDs.Num() - 1, Idx = 0; Idx < PathVertIDs.Num(); LastIdx = Idx++)
 	{
-		int EID = ResultMesh->FindEdge(PathVertIDs[LastIdx], PathVertIDs[Idx]);
-		if (ResultMesh->IsEdge(EID))
+		int A = PathVertIDs[LastIdx];
+		int B = PathVertIDs[Idx];
+		if (ResultMesh->IsVertex(A) && ResultMesh->IsVertex(B))
 		{
-			EmbeddedEdges.Add(EID);
+			int EID = ResultMesh->FindEdge(A, B);
+			if (ResultMesh->IsEdge(EID))
+			{
+				EmbeddedEdges.Add(EID);
+			}
 		}
 	}
 }

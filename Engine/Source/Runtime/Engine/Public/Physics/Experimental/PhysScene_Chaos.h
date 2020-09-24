@@ -173,9 +173,6 @@ public:
 	void SetKinematicTarget_AssumesLocked(FBodyInstance* BodyInstance, const FTransform& TargetTM, bool bAllowSubstepping);
 	bool GetKinematicTarget_AssumesLocked(const FBodyInstance* BodyInstance, FTransform& OutTM) const;
 
-	void DeferredAddCollisionDisableTable(uint32 SkelMeshCompID, TMap<struct FRigidBodyIndexPair, bool> * CollisionDisableTable);
-	void DeferredRemoveCollisionDisableTable(uint32 SkelMeshCompID);
-
 	bool MarkForPreSimKinematicUpdate(USkeletalMeshComponent* InSkelComp, ETeleportType InTeleport, bool bNeedsSkinning);
 	void ClearPreSimKinematicUpdate(USkeletalMeshComponent* InSkelComp);
 
@@ -188,7 +185,9 @@ public:
 
 	static bool SupportsOriginShifting();
 	void ApplyWorldOffset(FVector InOffset);
+#if WITH_CHAOS
 	virtual float OnStartFrame(float InDeltaTime) override;
+#endif
 
 	bool HandleExecCommands(const TCHAR* Cmd, FOutputDevice* Ar);
 	void ListAwakeRigidBodies(bool bIncludeKinematic);
@@ -263,7 +262,9 @@ private:
 	bool IsOwningWorldEditor() const;
 #endif
 
-	virtual void OnSyncBodies(const int32 SolverSyncTimestamp, Chaos::FPBDRigidDirtyParticlesBufferAccessor& Accessor) override;
+#if WITH_CHAOS
+	virtual void OnSyncBodies() override;
+#endif
 
 #if 0
 	void SetKinematicTransform(FPhysicsActorHandle& InActorReference,const Chaos::TRigidTransform<float,3>& NewTransform)

@@ -23,6 +23,7 @@
 #include "Widgets/SToolTip.h"
 #include "Widgets/SViewport.h"
 #include "Framework/Application/SWindowTitleBar.h"
+#include "Input/Events.h"
 #include "Input/HittestGrid.h"
 #include "HAL/PlatformApplicationMisc.h"
 #if WITH_ACCESSIBILITY
@@ -41,6 +42,7 @@
 #include "Math/UnitConversion.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "Trace/SlateTrace.h"
 #include "Styling/StarshipCoreStyle.h"
 
 #ifndef SLATE_HAS_WIDGET_REFLECTOR
@@ -478,6 +480,9 @@ namespace SlateDefs
 
 	// How far tool tips should be pushed out from a force field border, in pixels
 	static const FVector2D ToolTipOffsetFromForceField( 4.0f, 3.0f );
+
+	// Empty set of Touch Key
+	static TSet<FKey> EmptyTouchKeySet;
 }
 
 
@@ -946,6 +951,14 @@ void FSlateApplication::UsePlatformCursorForCursorUser(bool bUsePlatformCursor)
 				SlateUser->OverrideCursor(bUsePlatformCursor ? PlatformApplication->Cursor : MakeShared<FFauxSlateCursor>());
 			}
 		}
+	}
+}
+
+void FSlateApplication::SetPlatformCursorVisibility(bool bNewVisibility)
+{
+	if (PlatformApplication && PlatformApplication->Cursor)
+	{
+		PlatformApplication->Cursor->SetType(bNewVisibility ? EMouseCursor::Default : EMouseCursor::None);
 	}
 }
 
@@ -1580,6 +1593,8 @@ void FSlateApplication::TickAndDrawWidgets(float DeltaTime)
 		GetAccessibleMessageHandler()->ProcessAccessibleTasks();
 	}
 #endif
+
+	UE_TRACE_SLATE_APPLICATION_TICK_AND_DRAW_WIDGETS(GetDeltaTime());
 }
 
 void FSlateApplication::PumpMessages()
@@ -1867,7 +1882,7 @@ void FSlateApplication::AddModalWindow( TSharedRef<SWindow> InSlateWindow, const
 		}
 		else
 		{
-			FDebug::DumpStackTraceToLog();
+			FDebug::DumpStackTraceToLog(ELogVerbosity::Error);
 		}
 		return;
 	}
@@ -2972,7 +2987,7 @@ void FSlateApplication::ProcessExternalReply(const FWidgetPath& CurrentEventPath
 			PointerIndex,
 			SlateUser->GetCursorPosition(),
 			SlateUser->GetPreviousCursorPosition(),
-			bIsPrimaryUser ? PressedMouseButtons : TSet<FKey>(),
+			bIsPrimaryUser ? PressedMouseButtons : SlateDefs::EmptyTouchKeySet,
 			EKeys::Invalid,
 			0,
 			bIsPrimaryUser ? PlatformApplication->GetModifierKeys() : FModifierKeysState()
@@ -5579,9 +5594,10 @@ bool FSlateApplication::ProcessMouseMoveEvent( const FPointerEvent& MouseEvent, 
 
 	// When the event came from the OS, we are guaranteed to be over a slate window.
 	// Otherwise, we are synthesizing a MouseMove ourselves, and must verify that the
-	// cursor is indeed over a Slate window.
-	const bool bOverSlateWindow = !bIsSynthetic || IsActive() || PlatformApplication->IsCursorDirectlyOverSlateWindow();
-	
+	// cursor is indeed over a Slate window.  Synthesized device (gamepad) input while
+	// the application is inactive also needs to populate the widget path.
+	const bool bOverSlateWindow = !bIsSynthetic || IsActive() || PlatformApplication->IsCursorDirectlyOverSlateWindow() || GetHandleDeviceInputWhenApplicationNotActive();
+   
 	FWidgetPath WidgetsUnderCursor = bOverSlateWindow
 		? LocateWindowUnderMouse(MouseEvent.GetScreenSpacePosition(), GetInteractiveTopLevelWindows(), false, MouseEvent.GetUserIndex())
 		: FWidgetPath();

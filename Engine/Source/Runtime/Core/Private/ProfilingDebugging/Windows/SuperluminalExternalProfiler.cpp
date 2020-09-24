@@ -2,6 +2,7 @@
 
 #include "CoreTypes.h"
 #include "HAL/PlatformProcess.h"
+#include "Math/Color.h"
 #include "Misc/AssertionMacros.h"
 #include "ProfilingDebugging/ExternalProfiler.h"
 #include "Features/IModularFeatures.h"

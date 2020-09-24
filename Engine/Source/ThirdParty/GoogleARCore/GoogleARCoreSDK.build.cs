@@ -48,7 +48,7 @@ public class GoogleARCoreSDK : ModuleRules
 			PublicFrameworks.Add("UIKit");
 			PublicFrameworks.Add("VideoToolbox");
 
-			PublicAdditionalFrameworks.Add(new Framework("ARCore", "lib/ios/ARCore.embeddedframework.zip", "ARCore.framework/Resources/ARCoreResources.bundle"));
+			PublicAdditionalFrameworks.Add(new Framework("ARCoreCloudAnchors", "lib/ios/ARCoreCloudAnchors.embeddedframework.zip", "ARCoreCloudAnchors.framework/Resources/ARCoreResources.bundle"));
 		}
 	}
 }

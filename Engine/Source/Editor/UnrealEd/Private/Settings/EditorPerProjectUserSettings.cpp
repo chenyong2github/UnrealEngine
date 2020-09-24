@@ -31,6 +31,7 @@ UEditorPerProjectUserSettings::UEditorPerProjectUserSettings(const FObjectInitia
 	PreviewFeatureLevel = (int32)ERHIFeatureLevel::SM5;
 	PreviewShaderFormatName = NAME_None;
 	bPreviewFeatureLevelActive = false;
+	PreviewDeviceProfileName = NAME_None;
 }
 
 void UEditorPerProjectUserSettings::PostInitProperties()

@@ -30,9 +30,9 @@ void SubColorPS(
 
 #endif // SHADER_SUBCOLOR
 
-#if SHADER_FASTRESOLVE
+#if SHADER_FASTRESOLVE_MSAA
 
-#ifndef PERMUTATION_MSAACOUNT
+#ifndef PERMUTATION_MSAACOUNT 
 #error PERMUTATION_MSAACOUNT is not defined
 #endif
 
@@ -47,7 +47,7 @@ void FastResolvePS(in FScreenVertexOutput Input)
 	for (uint SampleIt = 0; SampleIt < PERMUTATION_MSAACOUNT; ++SampleIt)
 	{
 		const float2 EncodedVelocity = HairVisibilityVelocityTexture.Load(PixelCoord, SampleIt);
-		const float2 Velocity = DecodeVelocityFromTexture(float3(EncodedVelocity, 0.0)).xy;
+		const float2 Velocity = DecodeVelocityFromTexture(float4(EncodedVelocity, 0.0, 0.0)).xy;
 		const float VelocityMagnitude = sqrt(dot(Velocity, Velocity));
 		if (EncodedVelocity.x > 0 && VelocityMagnitude > VelocityThreshold)
 		{
@@ -60,7 +60,24 @@ void FastResolvePS(in FScreenVertexOutput Input)
 		discard;
 }
 
-#endif // SHADER_FASTRESOLVE
+#endif // SHADER_FASTRESOLVE_MSAA
+
+
+#if SHADER_FASTRESOLVE_MASK
+
+Texture2D<uint> ResolveMaskTexture;
+
+void FastResolvePS(in FScreenVertexOutput Input)
+{
+	const uint2 PixelCoord = floor(Input.Position.xy);
+	const bool bNeedFastResolve = ResolveMaskTexture.Load(uint3(PixelCoord, 0)) > 0;
+
+	if (!bNeedFastResolve)
+		discard;
+}
+
+#endif // SHADER_FASTRESOLVE_MASK
+
 
 #if SHADER_PATCH
 
@@ -78,7 +95,7 @@ void MainPS(
 
 	const float3 Tangent = float3(0, 0, 1);
 	OutGBufferA = float4(Tangent, 0);
-	OutGBufferB = float4(0, 0, 0, SHADINGMODELID_HAIR);
+	OutGBufferB = float4(0, 0, 0, EncodeShadingModelIdAndSelectiveOutputMask(SHADINGMODELID_HAIR, 0));
 }
 
 #endif // SHADER_PATCH

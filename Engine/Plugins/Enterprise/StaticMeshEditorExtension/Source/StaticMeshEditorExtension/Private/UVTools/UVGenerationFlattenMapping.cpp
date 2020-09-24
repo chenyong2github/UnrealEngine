@@ -62,7 +62,15 @@ private:
 	static FVector GetBestCandidateProjection(const TSet< FaceStruct* >& TempMeshFaces, FVector CandidatesProjectVec[19]);
 	static void CreateGroupUVIslands(TSet< FaceStruct* > TempMeshFaces, TArray< TArray< FaceStruct* > >& IslandsOfFaces, const TArray< int32 >& EdgeInUse, float AngleThreshold, float AreaWeight);
 
-	static void AddFaceVertexPair(FaceStruct* Face, TArray< TArray< FVector2D > >& VertexPair, TArray<int32>& EdgeInUse);
+	struct FVertexPair
+	{
+		int32 A;
+		int32 B;
+		FVertexPair() : A(0), B(0) {}
+		FVertexPair(int32 A, int32 B) : A(A), B(B) {}
+	};
+
+	static void AddFaceVertexPair(FaceStruct* Face, TArray< TArray< FVertexPair > >& VertexPair, TArray<int32>& EdgeInUse);
 
 	static int32 SplitInGeomGroups(TArray<FaceStruct>& Faces);
 
@@ -70,7 +78,7 @@ private:
 	static TArray< FVector2D > ComputeOrientedBox2D(const TArray< FVector2D >& ConvexHull);
 };
 
-void FUVGenerationFlattenMappingInternal::AddFaceVertexPair(FaceStruct* Face, TArray< TArray< FVector2D > >& VertexPair, TArray<int32>& EdgeInUse)
+void FUVGenerationFlattenMappingInternal::AddFaceVertexPair(FaceStruct* Face, TArray< TArray< FVertexPair > >& VertexPair, TArray<int32>& EdgeInUse)
 {
 	ensure( VertexPair.IsValidIndex( Face->V0 ) && VertexPair.IsValidIndex( Face->V1 ) && VertexPair.IsValidIndex( Face->V2 ) );
 
@@ -84,18 +92,18 @@ void FUVGenerationFlattenMappingInternal::AddFaceVertexPair(FaceStruct* Face, TA
 	int32 Index = -1;
 	for (int32 i = 0; i < VertexPair[Face->V0].Num(); i++)
 	{
-		if (VertexPair[Face->V0][i][0] == Face->V1)
+		if (VertexPair[Face->V0][i].A == Face->V1)
 		{
-			Index = (int32)VertexPair[Face->V0][i][1];
+			Index = (int32)VertexPair[Face->V0][i].B;
 		}
 	}
 
 	if (Index == -1)
 	{
-		FVector2D t1(Face->V1, EdgeInUse.Num());
+		FVertexPair t1(Face->V1, EdgeInUse.Num());
 		VertexPair[Face->V0].Add(t1);
 
-		FVector2D t2(Face->V0, EdgeInUse.Num());
+		FVertexPair t2(Face->V0, EdgeInUse.Num());
 		VertexPair[Face->V1].Add(t2);
 		Face->Edges[0] = EdgeInUse.Num();
 		EdgeInUse.Add(1);
@@ -109,18 +117,18 @@ void FUVGenerationFlattenMappingInternal::AddFaceVertexPair(FaceStruct* Face, TA
 	Index = -1;
 	for (int32 i = 0; i < VertexPair[Face->V1].Num(); i++)
 	{
-		if (VertexPair[Face->V1][i][0] == Face->V2)
+		if (VertexPair[Face->V1][i].A == Face->V2)
 		{
-			Index = (int32)VertexPair[Face->V1][i][1];
+			Index = (int32)VertexPair[Face->V1][i].B;
 		}
 	}
 
 	if (Index == -1)
 	{
-		FVector2D t1(Face->V2, EdgeInUse.Num());
+		FVertexPair t1(Face->V2, EdgeInUse.Num());
 		VertexPair[Face->V1].Add(t1);
 
-		FVector2D t2(Face->V1, EdgeInUse.Num());
+		FVertexPair t2(Face->V1, EdgeInUse.Num());
 		VertexPair[Face->V2].Add(t2);
 		Face->Edges[1] = EdgeInUse.Num();
 		EdgeInUse.Add(1);
@@ -134,18 +142,18 @@ void FUVGenerationFlattenMappingInternal::AddFaceVertexPair(FaceStruct* Face, TA
 	Index = -1;
 	for (int32 i = 0; i < VertexPair[Face->V2].Num(); i++)
 	{
-		if (VertexPair[Face->V2][i][0] == Face->V0)
+		if (VertexPair[Face->V2][i].A == Face->V0)
 		{
-			Index = (int32)VertexPair[Face->V2][i][1];
+			Index = (int32)VertexPair[Face->V2][i].B;
 		}
 	}
 
 	if (Index == -1)
 	{
-		FVector2D t1(Face->V0, EdgeInUse.Num());
+		FVertexPair t1(Face->V0, EdgeInUse.Num());
 		VertexPair[Face->V2].Add(t1);
 
-		FVector2D t2(Face->V2, EdgeInUse.Num());
+		FVertexPair t2(Face->V2, EdgeInUse.Num());
 		VertexPair[Face->V0].Add(t2);
 		Face->Edges[2] = EdgeInUse.Num();
 		EdgeInUse.Add(1);
@@ -1075,7 +1083,7 @@ void FUVGenerationFlattenMappingInternal::CalculateUVs(TArray<FaceStruct>& Flatt
 			// we'll create a pair of vertex connection
 			TArray<int32> EdgeInUse;
 
-			TArray< TArray< FVector2D > > VertexPair;
+			TArray< TArray< FVertexPair > > VertexPair;
 			VertexPair.AddDefaulted(VertexNum);
 
 			for (auto itr = TempMeshFaces[Index].CreateIterator(); itr; ++itr)

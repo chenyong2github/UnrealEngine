@@ -2,6 +2,8 @@
 
 #include "GameFramework/LightWeightInstanceSubsystem.h"
 #include "GameFramework/LightWeightInstanceManager.h"
+#include "Engine/World.h"
+#include "UObject/UObjectIterator.h"
 
 DEFINE_LOG_CATEGORY(LogLightWeightInstance);
 

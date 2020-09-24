@@ -5,7 +5,7 @@
 #include "IConcertClientTransactionBridge.h"
 #include "Misc/ITransaction.h"
 
-class FConcertClientTransactionBridge : public IConcertClientTransactionBridge
+class CONCERTSYNCCLIENT_API FConcertClientTransactionBridge : public IConcertClientTransactionBridge
 {
 public:
 	FConcertClientTransactionBridge();

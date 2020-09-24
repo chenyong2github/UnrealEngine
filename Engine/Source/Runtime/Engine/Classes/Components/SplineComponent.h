@@ -353,7 +353,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Spline)
 	FVector GetUpVectorAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
-	/** Get up vector at the provided input key value */
+	/** Get right vector at the provided input key value */
 	UFUNCTION(BlueprintCallable, Category = Spline)
 	FVector GetRightVectorAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
@@ -368,6 +368,10 @@ public:
 	/** Get scale at the provided input key value */
 	UFUNCTION(BlueprintCallable, Category = Spline)
 	FVector GetScaleAtSplineInputKey(float InKey) const;
+
+	/** Get distance along the spline at the provided input key value */
+	UFUNCTION(BlueprintCallable, Category = Spline)
+	float GetDistanceAlongSplineAtSplineInputKey(float InKey) const;
 
 	/** Get a metadata property float value along the spline at spline input key */
 	UFUNCTION(BlueprintCallable, Category = Spline)
@@ -501,7 +505,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Spline, meta = (DeprecatedFunction, DeprecationMessage = "Please use GetLocationAtSplinePoint, specifying SplineCoordinateSpace::World"))
 	FVector GetWorldLocationAtSplinePoint(int32 PointIndex) const;
 
-	/** Get the location at spline point */
+	/** Get the direction at spline point */
 	UFUNCTION(BlueprintCallable, Category = Spline)
 	FVector GetDirectionAtSplinePoint(int32 PointIndex, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
@@ -662,7 +666,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category=Spline)
 	FRotator GetRotationAtTime(float Time, ESplineCoordinateSpace::Type CoordinateSpace, bool bUseConstantVelocity = false) const;
 
-	/** Given a time from 0 to the spline duration, return a rotation corresponding to the spline's position and direction there. */
+	/** Given a time from 0 to the spline duration, return a rotation corresponding to the spline's position and direction there, in world space. */
 	UFUNCTION(BlueprintCallable, Category = Spline, meta = (DeprecatedFunction, DeprecationMessage = "Please use GetRotationAtTime, specifying SplineCoordinateSpace::World"))
 	FRotator GetWorldRotationAtTime(float Time, bool bUseConstantVelocity = false) const;
 

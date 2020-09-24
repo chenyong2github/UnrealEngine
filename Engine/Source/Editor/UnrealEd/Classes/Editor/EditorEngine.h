@@ -55,6 +55,7 @@ class UAnimSequence;
 class UAudioComponent;
 class UBrushBuilder;
 class UFoliageType;
+class UFbxImportUI;
 class UGameViewportClient;
 class ULocalPlayer;
 class UNetDriver;
@@ -275,20 +276,30 @@ struct FPreviewPlatformInfo
 {
 	FPreviewPlatformInfo()
 	:	PreviewFeatureLevel(ERHIFeatureLevel::SM5)
+	,	PreviewPlatformName(NAME_None)
+	,	PreviewShaderFormatName(NAME_None)
 	,	bPreviewFeatureLevelActive(false)
 	{}
 
-	FPreviewPlatformInfo(ERHIFeatureLevel::Type InFeatureLevel, FName InPreviewShaderFormatName = NAME_None, bool InbPreviewFeatureLevelActive = false)
+	FPreviewPlatformInfo(ERHIFeatureLevel::Type InFeatureLevel, FName InPreviewPlatformName = NAME_None, FName InPreviewShaderFormatName = NAME_None, FName InDeviceProfileName = NAME_None, bool InbPreviewFeatureLevelActive = false)
 	:	PreviewFeatureLevel(InFeatureLevel)
+	,	PreviewPlatformName(InPreviewPlatformName)
 	,	PreviewShaderFormatName(InPreviewShaderFormatName)
+	,	DeviceProfileName(InDeviceProfileName)
 	,	bPreviewFeatureLevelActive(InbPreviewFeatureLevelActive)
 	{}
 
 	/** The feature level we should use when loading or creating a new world */
 	ERHIFeatureLevel::Type PreviewFeatureLevel;
-	
+
+	/** The the platform to preview, or NAME_None if there is no preview platform */
+	FName PreviewPlatformName;
+
 	/** The shader platform to preview, or NAME_None if there is no shader preview platform */
 	FName PreviewShaderFormatName;
+
+	/** The device profile to preview. */
+	FName DeviceProfileName;
 
 	/** Is feature level preview currently active */
 	bool bPreviewFeatureLevelActive;
@@ -296,21 +307,13 @@ struct FPreviewPlatformInfo
 	/** Checks if two FPreviewPlatformInfos are for the same preview platform. Note, this does NOT compare the bPreviewFeatureLevelActive flag */
 	bool Matches(const FPreviewPlatformInfo& Other) const
 	{
-		return PreviewFeatureLevel == Other.PreviewFeatureLevel && PreviewShaderFormatName == Other.PreviewShaderFormatName;
+		return PreviewFeatureLevel == Other.PreviewFeatureLevel && PreviewPlatformName == Other.PreviewPlatformName && PreviewShaderFormatName == Other.PreviewShaderFormatName && DeviceProfileName == Other.DeviceProfileName;
 	}
 
-	/** Convert platform name like "Android", or NAME_None if none is set or the preview feature level is not active */
+	/** Return platform name like "Android", or NAME_None if none is set or the preview feature level is not active */
 	FName GetEffectivePreviewPlatformName() const
 	{
-		if (PreviewShaderFormatName != NAME_None && bPreviewFeatureLevelActive)
-		{
-			ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatformWithSupport(TEXT("ShaderFormat"), PreviewShaderFormatName);
-			if (TargetPlatform)
-			{
-				return FName(*TargetPlatform->IniPlatformName());
-			}
-		}
-		return NAME_None;
+		return bPreviewFeatureLevelActive ? PreviewPlatformName : NAME_None;
 	}
 
 	/** returns the preview feature level if active, or GMaxRHIFeatureLevel otherwise */
@@ -593,6 +596,10 @@ public:
 	/** A delegate that is called when the preview feature level changes. Primarily used to switch a viewport's feature level. */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FPreviewFeatureLevelChanged, ERHIFeatureLevel::Type);
 	FPreviewFeatureLevelChanged PreviewFeatureLevelChanged;
+
+	/** A delegate that is called when the preview platform changes. */
+	DECLARE_MULTICAST_DELEGATE(FPreviewPlatformChanged);
+	FPreviewPlatformChanged PreviewPlatformChanged;
 
 	/** Whether or not the editor is currently compiling */
 	bool bIsCompiling;
@@ -1623,10 +1630,15 @@ public:
 	/**
 	 * Reimport animation using SourceFilePath and SourceFileStamp 
 	 *
-	 * @param Skeleton	The skeleton that animation is import into
-	 * @param Filename	The FBX filename
+	 * @param Skeleton				The skeleton that animation is import into
+	 * @oaram AnimSequence			The existing AnimSequence.
+	 * @param ImportData			The import data of the existing AnimSequence
+	 * @param InFilename			The FBX filename
+	 * @param bOutImportAll			
+	 * @param bFactoryShowOptions	When true, create a UI popup asking the user for the reimport options.
+	 * @param ReimportUI			Optional parameter used to pass reimport options.
 	 */
-	static bool ReimportFbxAnimation( USkeleton* Skeleton, UAnimSequence* AnimSequence, class UFbxAnimSequenceImportData* ImportData, const TCHAR* InFilename, bool& bOutImportAll, const bool bFactoryShowOptions);
+	static bool ReimportFbxAnimation( USkeleton* Skeleton, UAnimSequence* AnimSequence, class UFbxAnimSequenceImportData* ImportData, const TCHAR* InFilename, bool& bOutImportAll, const bool bFactoryShowOptions, UFbxImportUI* ReimportUI = nullptr);
 
 
 	// Object management.
@@ -3221,6 +3233,9 @@ public:
 
 	/** Return the delegate that is called when the preview feature level changes */
 	FPreviewFeatureLevelChanged& OnPreviewFeatureLevelChanged() { return PreviewFeatureLevelChanged; }
+
+	/** Return the delegate that is called when the preview platform changes */
+	FPreviewPlatformChanged& OnPreviewPlatformChanged() { return PreviewPlatformChanged; }
 
 protected:
 

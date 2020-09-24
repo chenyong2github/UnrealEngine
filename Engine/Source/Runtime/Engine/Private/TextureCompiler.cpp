@@ -275,14 +275,16 @@ FQueuedThreadPool* FTextureCompilingManager::GetThreadPool() const
 
 bool FTextureCompilingManager::IsAsyncTextureCompilationEnabled() const
 {
-	if (bHasShutdown)
+	// #TODO DC Quick fix to force disable async texture compilation until a proper fix is ready
+	return false;
+	/*if (bHasShutdown)
 	{
 		return false;
 	}
 
 	TextureCompilingManagerImpl::EnsureInitializedCVars();
 
-	return CVarAsyncTextureCompilation.GetValueOnAnyThread() != 0;
+	return CVarAsyncTextureCompilation.GetValueOnAnyThread() != 0;*/
 }
 
 void FTextureCompilingManager::UpdateCompilationNotification()

@@ -9,7 +9,6 @@
 #include "Units/RigUnitContext.h"
 #include "ControlRig.h"
 #include "Math/TransformNonVectorized.h"
-#include "SkelMeshDNAUtils.h"
 #include "DNAUtils.h"
 
 #include "riglogic/RigLogic.h"

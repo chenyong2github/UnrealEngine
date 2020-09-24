@@ -120,6 +120,70 @@ FDetailWidgetRow& FDetailLayoutBuilderImpl::AddCustomRowToCategory(TSharedPtr<IP
 	return MyCategory.AddCustomRow(CustomSearchString, bForAdvanced);
 }
 
+TSharedPtr<IPropertyHandle> FDetailLayoutBuilderImpl::AddObjectPropertyData(TConstArrayView<UObject*> Objects, FName PropertyName)
+{
+	TSharedPtr<IPropertyHandle> Handle;
+
+	if (PropertyName != NAME_None)
+	{
+		TSharedPtr<FObjectPropertyNode> RootPropertyNode = MakeShared<FObjectPropertyNode>();
+
+		for (UObject* Obj : Objects)
+		{
+			RootPropertyNode->AddObject(Obj);
+		}
+		FPropertyNodeInitParams Params;
+		Params.bAllowChildren = false;
+
+		RootPropertyNode->InitNode(Params);
+
+		if (TSharedPtr<FPropertyNode> PropertyNode = RootPropertyNode->GenerateSingleChild(PropertyName))
+		{
+			RootPropertyNode->AddChildNode(PropertyNode);
+			PropertyNode->RebuildChildren();
+			Handle = GetPropertyHandle(PropertyNode);
+			AddExternalRootPropertyNode(RootPropertyNode.ToSharedRef());
+			
+			FClassInstanceToPropertyMap& ClassInstanceToPropertyMap = PropertyMap.FindOrAdd(PropertyNode->GetProperty()->GetOwnerStruct()->GetFName());
+			FPropertyNodeMap& PropertyNodeMap = ClassInstanceToPropertyMap.FindOrAdd(NAME_None);
+			PropertyNodeMap.Add(PropertyName, PropertyNode);
+		}
+	}
+
+	return Handle;
+}
+
+TSharedPtr<IPropertyHandle> FDetailLayoutBuilderImpl::AddStructurePropertyData(const TSharedPtr<FStructOnScope>& StructData, FName PropertyName)
+{
+	TSharedPtr<IPropertyHandle> Handle;
+
+	if (PropertyName != NAME_None && StructData && StructData->IsValid())
+	{
+		TSharedPtr<FStructurePropertyNode> RootPropertyNode = MakeShared<FStructurePropertyNode>();
+		
+		RootPropertyNode->SetStructure(StructData);
+		RootPropertyNode->InitNode(FPropertyNodeInitParams());
+
+		for (int32 ChildIdx = 0; ChildIdx < RootPropertyNode->GetNumChildNodes(); ++ChildIdx)
+		{
+			TSharedPtr< FPropertyNode > PropertyNode = RootPropertyNode->GetChildNode(ChildIdx);
+			if (FProperty* Property = PropertyNode->GetProperty())
+			{
+				if (Property->GetFName() == PropertyName)
+				{
+					AddExternalRootPropertyNode(RootPropertyNode.ToSharedRef());
+					FClassInstanceToPropertyMap& ClassInstanceToPropertyMap = PropertyMap.FindOrAdd(PropertyNode->GetProperty()->GetOwnerStruct()->GetFName());
+					FPropertyNodeMap& PropertyNodeMap = ClassInstanceToPropertyMap.FindOrAdd(NAME_None);
+					PropertyNodeMap.Add(PropertyName, PropertyNode);
+					break;
+				}
+			}
+		}
+	}
+
+	return Handle;
+}
+
 IDetailPropertyRow* FDetailLayoutBuilderImpl::EditDefaultProperty(TSharedPtr<IPropertyHandle> InPropertyHandle)
 {
 	if (InPropertyHandle.IsValid() && InPropertyHandle->IsValidHandle())

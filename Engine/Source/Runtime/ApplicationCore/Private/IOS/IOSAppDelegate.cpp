@@ -201,12 +201,7 @@ bool FIOSCoreDelegates::PassesPushNotificationFilters(NSDictionary* Payload)
 @implementation IOSAppDelegate
 
 #if !UE_BUILD_SHIPPING && !PLATFORM_TVOS
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_9_0
-	@synthesize ConsoleAlert;
-#endif
-#ifdef __IPHONE_8_0
     @synthesize ConsoleAlertController;
-#endif
 	@synthesize ConsoleHistoryValues;
 	@synthesize ConsoleHistoryValuesIndex;
 #endif
@@ -272,12 +267,7 @@ static IOSAppDelegate* CachedDelegate = nil;
 -(void)dealloc
 {
 #if !UE_BUILD_SHIPPING && !PLATFORM_TVOS
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_9_0
-	[ConsoleAlert release];
-#endif
-#ifdef __IPHONE_8_0
 	[ConsoleAlertController release];
-#endif
 	[ConsoleHistoryValues release];
 #endif
 	[Window release];
@@ -983,29 +973,8 @@ static FAutoConsoleVariableRef CVarGEnableThermalsReport(
 #endif
 	
 #if !PLATFORM_TVOS
-#if __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
 	UNUserNotificationCenter *Center = [UNUserNotificationCenter currentNotificationCenter];
 	Center.delegate = self;
-#else
-	// Save launch local notification so the app can check for it when it is ready
-	UILocalNotification *notification = [launchOptions objectForKey:UIApplicationLaunchOptionsLocalNotificationKey];
-	if ( notification != nullptr )
-	{
-		NSDictionary*	userInfo = [notification userInfo];
-		if(userInfo != nullptr)
-		{
-			NSString*	activationEvent = (NSString*)[notification.userInfo objectForKey: @"ActivationEvent"];
-			
-			if(activationEvent != nullptr)
-			{
-				FAppEntry::gAppLaunchedWithLocalNotification = true;
-				FAppEntry::gLaunchLocalNotificationActivationEvent = FString(activationEvent);
-				FAppEntry::gLaunchLocalNotificationFireDate = [notification.fireDate timeIntervalSince1970];
-			}
-		}
-	}
-#endif
-
 	// Register for device orientation changes
 	[[UIDevice currentDevice] beginGeneratingDeviceOrientationNotifications];
 	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(didRotate:) name:UIApplicationDidChangeStatusBarOrientationNotification object:nil];
@@ -1717,18 +1686,10 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
 #if !PLATFORM_TVOS
 	GameCenterDisplay.viewState = GKGameCenterViewControllerStateLeaderboards;
 #endif
-#ifdef __IPHONE_7_0
 	if ([GameCenterDisplay respondsToSelector : @selector(leaderboardIdentifier)] == YES)
 	{
 #if !PLATFORM_TVOS // @todo tvos: Why not??
 		GameCenterDisplay.leaderboardIdentifier = Category;
-#endif
-	}
-	else
-#endif
-	{
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_7_0
-		GameCenterDisplay.leaderboardCategory = Category;
 #endif
 	}
 	GameCenterDisplay.gameCenterDelegate = self;

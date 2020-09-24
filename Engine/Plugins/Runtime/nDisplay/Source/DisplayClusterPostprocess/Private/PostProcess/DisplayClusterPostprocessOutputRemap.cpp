@@ -52,7 +52,7 @@ void FDisplayClusterPostprocessOutputRemap::InitializePostProcess(const FString&
 	}
 }
 
-void FDisplayClusterPostprocessOutputRemap::PerformPostProcessRenderTargetAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* InOutTexture) const
+void FDisplayClusterPostprocessOutputRemap::PerformPostProcessRenderTargetAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* InOutTexture, const TArray<FDisplayClusterRenderViewport>& RenderViewports) const
 {
 	check(MeshRef >= 0);
 	FIntPoint ScreenSize = InOutTexture->GetSizeXY();

@@ -9,7 +9,7 @@
 /**
  * SetSpaceTransform is used to perform a change in the hierarchy by setting a single space's transform.
  */
-USTRUCT(meta=(DisplayName="Set Space", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetSpaceTransform"))
+USTRUCT(meta=(DisplayName="Set Space", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetSpaceTransform", Deprecated="4.25"))
 struct FRigUnit_SetSpaceTransform : public FRigUnitMutable
 {
 	GENERATED_BODY()
@@ -17,10 +17,8 @@ struct FRigUnit_SetSpaceTransform : public FRigUnitMutable
 	FRigUnit_SetSpaceTransform()
 		: Weight(1.f)
 		, SpaceType(EBoneGetterSetterMode::GlobalSpace)
-		, CachedSpaceIndex(INDEX_NONE)
+		, CachedSpaceIndex(FCachedRigElement())
 	{}
-
-	virtual FString GetUnitLabel() const override;
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
@@ -28,7 +26,7 @@ struct FRigUnit_SetSpaceTransform : public FRigUnitMutable
 	/**
 	 * The name of the Space to set the transform for.
 	 */
-	UPROPERTY(meta = (Input, CustomWidget = "SpaceName", Constant))
+	UPROPERTY(meta = (Input))
 	FName Space;
 
 	/**
@@ -52,5 +50,5 @@ struct FRigUnit_SetSpaceTransform : public FRigUnitMutable
 
 	// Used to cache the internally used bone index
 	UPROPERTY()
-	int32 CachedSpaceIndex;
+	FCachedRigElement CachedSpaceIndex;
 };

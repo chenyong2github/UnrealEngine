@@ -272,7 +272,7 @@ void DecodeMultiplexedSignalsFromFloat4(
 		OutSamples.Array[0].SampleCount = RawSample[1].r < 0 ? 0 : 1;
 		OutSamples.Array[0].MissCount = OutSamples.Array[0].SampleCount * RawSample[0].r;
 
-		OutSampleFrequencies.Array[0].ClosestHitDistance = RawSample[1].r;
+		OutSampleFrequencies.Array[0].WorldBluringRadius = RawSample[1].r;
 	}
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_AO_REJECTION)
 	{
@@ -309,6 +309,8 @@ void DecodeMultiplexedSignalsFromFloat4(
 			OutSamples.Array[0].SampleCount = RawSample[0].g;
 			OutSamples.Array[0].MissCount = RawSample[0].g * RawSample[0].r;
 		}
+		
+		OutSampleFrequencies.Array[0].WorldBluringRadius = RawSample[0].b;
 	}
 	#endif
 	#if COMPILE_SIGNAL_COLOR
@@ -628,6 +630,7 @@ void EncodeMultiplexedSignals(
 		// Outputs number of ray miss in red to be compatible as a SSAO output.
 		OutRawSample[0].r = Sample[0].SampleCount > 0 ? Sample[0].MissCount / Sample[0].SampleCount : 1.0;
 		OutRawSample[0].g = Sample[0].SampleCount;
+		OutRawSample[0].b = SampleFrequency[0].WorldBluringRadius;
 	}
 	#endif
 	#if COMPILE_SIGNAL_COLOR

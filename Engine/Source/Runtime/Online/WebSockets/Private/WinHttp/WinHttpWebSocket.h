@@ -27,6 +27,8 @@ enum class EWebSocketConnectionState : uint8
 	Closed
 };
 
+const TCHAR* LexToString(const EWebSocketConnectionState);
+
 class FWinHttpWebSocket
 	: public IWebSocket
 	, public TSharedFromThis<FWinHttpWebSocket>
@@ -74,6 +76,7 @@ protected:
 	TMap<FString, FString> UpgradeHeaders;
 
 	EWebSocketConnectionState State = EWebSocketConnectionState::NotStarted;
+	bool bSessionCreationInProgress = false;
 	bool bCloseRequested = false;
 	TOptional<int32> QueuedCloseCode;
 	TOptional<FString> QueuedCloseReason;

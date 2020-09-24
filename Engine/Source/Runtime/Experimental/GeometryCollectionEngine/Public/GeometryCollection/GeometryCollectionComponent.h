@@ -476,8 +476,8 @@ public:
 	float AngularEtherDrag_DEPRECATED;
 
 	/** Physical Properties */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics")
-	const UChaosPhysicalMaterial* PhysicalMaterial;
+	UPROPERTY(meta=(DeprecatedProperty, DeprecationMessage="Physical material now derived from render materials, for instance overrides use PhysicalMaterialOverride."))
+	const UChaosPhysicalMaterial* PhysicalMaterial_DEPRECATED;
 
 	/** */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Initial Velocity")
@@ -490,6 +490,9 @@ public:
 	/** */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Initial Velocity")
 	FVector InitialAngularVelocity;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="ChaosPhysics|Collisions")
+	UPhysicalMaterial* PhysicalMaterialOverride;
 
 	UPROPERTY()
 	FGeomComponentCacheParameters CacheParameters;
@@ -587,6 +590,9 @@ public:
 	bool CachePlayback;
 
 	bool DoCustomNavigableGeometryExport(FNavigableGeometryExport& GeomExport) const override;
+
+	/** Gets the physical material to use for this geometry collection, taking into account instance overrides and render materials */
+	UPhysicalMaterial* GetPhysicalMaterial() const;
 
 public:
 	UPROPERTY(BlueprintAssignable, Category = "Collision")
@@ -696,9 +702,6 @@ private:
 
 	float CurrentCacheTime;
 	TArray<bool> EventsPlayed;
-
-	//@todo(mlentine): Don't have one per geo collection
-	TUniquePtr<Chaos::FChaosPhysicsMaterial> ChaosMaterial;
 
 	FGeometryCollectionPhysicsProxy* PhysicsProxy;
 	TUniquePtr<FGeometryDynamicCollection> DynamicCollection;

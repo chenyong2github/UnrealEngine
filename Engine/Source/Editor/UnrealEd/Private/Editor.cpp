@@ -603,12 +603,14 @@ void FReimportManager::ValidateAllSourceFileAndReimport(TArray<UObject*> &ToImpo
 				{
 					TArray<FString> SourceFilenames;
 					this->GetNewReimportPath(Asset, SourceFilenames, FileIndex);
-					if (SourceFilenames.Num() == 0 || SourceFilenames[FileIndex].IsEmpty())
+					if (!SourceFilenames.IsValidIndex(FileIndex) || SourceFilenames[FileIndex].IsEmpty())
 					{
 						continue;
 					}
 					bCancelAll = false;
 					this->UpdateReimportPath(Asset, SourceFilenames[FileIndex], FileIndex);
+					//We do not want to ask again the user for a file
+					bForceNewFile = false;
 				}
 				//return if the operation is cancel and we have nothing to re-import
 				if (bCancelAll)

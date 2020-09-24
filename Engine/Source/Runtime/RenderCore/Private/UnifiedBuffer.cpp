@@ -385,8 +385,8 @@ RENDERCORE_API bool ResizeResourceIfNeeded<FRWByteAddressBuffer>(FRHICommandList
 		FRWByteAddressBuffer NewBuffer;
 		NewBuffer.Initialize(NumBytes, 0, DebugName);
 
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, Buffer.UAV);
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, NewBuffer.UAV);
+		RHICmdList.Transition(FRHITransitionInfo(Buffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute));
+		RHICmdList.Transition(FRHITransitionInfo(NewBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 
 		// Copy data to new buffer
 		uint32 CopyBytes = FMath::Min(NumBytes, Buffer.NumBytes);
@@ -478,7 +478,7 @@ void FScatterUploadBuffer::Init( uint32 NumElements, uint32 InNumBytesPerElement
 template<typename ResourceType>
 void FScatterUploadBuffer::ResourceUploadTo(FRHICommandList& RHICmdList, ResourceType& DstBuffer, bool bFlush)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE( "FScatterUploadBuffer::ResourceUploadTo" );
+	TRACE_CPUPROFILER_EVENT_SCOPE(FScatterUploadBuffer::ResourceUploadTo);
 	
 	RHIUnlockStructuredBuffer(ScatterBuffer.Buffer);
 	RHIUnlockStructuredBuffer(UploadBuffer.Buffer);
@@ -543,7 +543,7 @@ void FScatterUploadBuffer::ResourceUploadTo(FRHICommandList& RHICmdList, Resourc
 	{
 		if (LoopIdx != 0)
 		{
-			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWNoBarrier, EResourceTransitionPipeline::EComputeToCompute, DstBuffer.UAV);
+			RHICmdList.Transition(FRHITransitionInfo(DstBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::ERWNoBarrier));
 		}
 
 		Parameters.Common.SrcOffset = LoopIdx * (uint32)GMaxComputeDispatchDimension * ThreadGroupSize;

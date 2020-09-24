@@ -15,6 +15,7 @@
 #include "Interfaces/IAndroidDeviceDetectionModule.h"
 #include "PropertyEditorModule.h"
 #include "ShaderPlatformQualitySettings.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
 
 #define LOCTEXT_NAMESPACE "FLuminPlatformEditorModule"
 

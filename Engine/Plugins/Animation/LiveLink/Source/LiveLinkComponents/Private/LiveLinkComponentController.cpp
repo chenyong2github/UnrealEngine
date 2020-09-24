@@ -2,10 +2,13 @@
 
 #include "LiveLinkComponentController.h"
 
-#include "Features/IModularFeatures.h"
-#include "LiveLinkComponentSettings.h"
 #include "LiveLinkComponentPrivate.h"
+#include "LiveLinkComponentSettings.h"
 #include "LiveLinkControllerBase.h"
+
+#include "Features/IModularFeatures.h"
+#include "GameFramework/Actor.h"
+#include "Logging/LogMacros.h"
 #include "UObject/EnterpriseObjectVersion.h"
 #include "UObject/UObjectIterator.h"
 
@@ -13,9 +16,10 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Kismet2/ComponentEditorUtils.h"
 #include "Widgets/Notifications/SNotificationList.h"
-#endif
+#endif // WITH_EDITOR
 
 #define LOCTEXT_NAMESPACE "LiveLinkController"
+
 
 ULiveLinkComponentController::ULiveLinkComponentController()
 	: bUpdateInEditor(true)
@@ -26,7 +30,6 @@ ULiveLinkComponentController::ULiveLinkComponentController()
 	PrimaryComponentTick.TickGroup = ETickingGroup::TG_PrePhysics;
 	bTickInEditor = true;
 }
-
 
 void ULiveLinkComponentController::OnSubjectRoleChanged()
 {
@@ -102,11 +105,26 @@ void ULiveLinkComponentController::OnRegister()
 
 void ULiveLinkComponentController::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
+	// Check for spawnable
+	if (bIsDirty || !bIsSpawnableCache.IsSet())
+	{
+		static const FName SequencerActorTag(TEXT("SequencerActor"));
+		AActor* OwningActor = GetOwner();
+
+		bIsSpawnableCache = OwningActor && OwningActor->ActorHasTag(SequencerActorTag);
+
+		if (*bIsSpawnableCache && bDisableEvaluateLiveLinkWhenSpawnable)
+		{
+			bEvaluateLiveLink = false;
+		}
+	}
+
 	ILiveLinkClient& LiveLinkClient = IModularFeatures::Get().GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
 
 	//Evaluate subject frame once and pass the data to our controllers
 	FLiveLinkSubjectFrameData SubjectData;
-	const bool bHasValidData = LiveLinkClient.EvaluateFrame_AnyThread(SubjectRepresentation.Subject, SubjectRepresentation.Role, SubjectData);
+
+	const bool bHasValidData = bEvaluateLiveLink ? LiveLinkClient.EvaluateFrame_AnyThread(SubjectRepresentation.Subject, SubjectRepresentation.Role, SubjectData) : false;
 
 	//Go through each controllers and initialize them if we're dirty and tick them if there's valid data to process
 	for (TTuple<TSubclassOf<ULiveLinkRole>, ULiveLinkControllerBase*>& ControllerEntry : ControllerMap)
@@ -275,7 +293,5 @@ TSubclassOf<ULiveLinkControllerBase> ULiveLinkComponentController::GetController
 
 	return SelectedControllerClass;
 }
-
-
 
 #undef LOCTEXT_NAMESPACE

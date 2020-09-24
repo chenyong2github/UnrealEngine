@@ -90,7 +90,7 @@ namespace
 
 		FRHICommandListImmediate& RHICmdList = GetImmediateCommandList_ForRenderCommand();
 
-		if (GRHIThreadId && !IsInRHIThread() && !RHICmdList.Bypass())
+		if (IsRHIThreadRunning() && !IsInRHIThread() && !RHICmdList.Bypass())
 		{
 			ALLOC_COMMAND_CL(RHICmdList, FXRFunctionWrapperRHICommand<T>)(Function);
 			if (bFlush)

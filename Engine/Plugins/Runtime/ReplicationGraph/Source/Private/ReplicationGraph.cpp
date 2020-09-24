@@ -113,8 +113,10 @@ float CVar_RepGraph_OutOfRangeDistanceCheckRatio = 0.5f;
 static FAutoConsoleVariableRef CVarRepGraphOutOfRangeDistanceCheckRatio(TEXT("Net.RepGraph.OutOfRangeDistanceCheckRatio"), CVar_RepGraph_OutOfRangeDistanceCheckRatio,
 	TEXT("The ratio of DestructInfoMaxDistance that gives the distance traveled before we reevaluate the out of range destroyed actors list"), ECVF_Default);
 
-static TAutoConsoleVariable<float> CVar_ForceConnectionViewerPriority(TEXT("Net.RepGraph.ForceConnectionViewerPriority"), 1,
-	TEXT("Force the connection's player controller and viewing pawn as topmost priority."));
+int32 CVar_RepGraph_DormancyNode_DisconnectedBehavior = 1;
+static FAutoConsoleVariableRef CVarRepGraphDormancyNodeDisconnectedBehavior(TEXT("Net.RepGraph.DormancyNodeDisconnectedBehavior"), CVar_RepGraph_DormancyNode_DisconnectedBehavior, TEXT("This changes how the dormancy node deals with disconnected clients. 0 = ignore. 1 = skip the disconnected client nodes. 2 = lazily destroy the disconnected client nodes"), ECVF_Default);
+
+static TAutoConsoleVariable<float> CVar_ForceConnectionViewerPriority(TEXT("Net.RepGraph.ForceConnectionViewerPriority"), 1, TEXT("Force the connection's player controller and viewing pawn as topmost priority."));
 
 REPGRAPH_DEVCVAR_SHIPCONST(int32, "Net.RepGraph.LogNetDormancyDetails", CVar_RepGraph_LogNetDormancyDetails, 0, "Logs actors that are removed from the replication graph/nodes.");
 REPGRAPH_DEVCVAR_SHIPCONST(int32, "Net.RepGraph.LogActorRemove", CVar_RepGraph_LogActorRemove, 0, "Logs actors that are removed from the replication graph/nodes.");
@@ -627,14 +629,19 @@ void UReplicationGraph::RemoveNetworkActor(AActor* Actor)
 
 	GlobalActorReplicationInfoMap.Remove(Actor);
 
-	for (UNetReplicationGraphConnection* ConnectionManager : Connections)
 	{
-		ConnectionManager->ActorInfoMap.RemoveActor(Actor);
+		QUICK_SCOPE_CYCLE_COUNTER(UReplicationGraph_RemoveNetworkActor_FromConnectionsMap);
+	
+		for (UNetReplicationGraphConnection* ConnectionManager : Connections)
+		{
+			ConnectionManager->ActorInfoMap.RemoveActor(Actor);
+		}
 	}
 }
 
 void UReplicationGraph::RouteRemoveNetworkActorToNodes(const FNewReplicatedActorInfo& ActorInfo)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(UReplicationGraph_RouteRemoveNetworkActorToNodes);
 	// The base implementation just routes to every global node. Subclasses will want a more direct routing function where possible.
 	for (UReplicationGraphNode* Node : GlobalGraphNodes)
 	{
@@ -898,8 +905,6 @@ int32 UReplicationGraph::ServerReplicateActors(float DeltaSeconds)
 	// For Each Connection
 	// -------------------------------------------------------
 	
-	FGatheredReplicationActorLists GatheredReplicationListsForConnection;
-
 	// Total number of children processed, added to all the connections later for stat tracking purposes.
 	int32 NumChildrenConnectionsProcessed = 0;
 
@@ -979,7 +984,7 @@ int32 UReplicationGraph::ServerReplicateActors(float DeltaSeconds)
 		// GATHER list of ReplicationLists for this connection
 		// --------------------------------------------------------------------------------------------------------------
 		
-		GatheredReplicationListsForConnection.Reset();
+		FGatheredReplicationActorLists GatheredReplicationListsForConnection;
 
 		TSet<FName> AllVisibleLevelNames;
 		ConnectionManager->GetClientVisibleLevelNames(AllVisibleLevelNames);
@@ -1175,7 +1180,8 @@ void UReplicationGraph::ReplicateActorListsForConnections_Default(UNetReplicatio
 		const float MaxDistanceScaling = PrioritizationConstants.MaxDistanceScaling;
 		const uint32 MaxFramesSinceLastRep = PrioritizationConstants.MaxFramesSinceLastRep;
 
-		for (FActorRepListRawView& List : GatheredReplicationListsForConnection.GetLists(EActorRepListTypeFlags::Default))
+		const TArray<FActorRepListConstView>& GatheredLists = GatheredReplicationListsForConnection.GetLists(EActorRepListTypeFlags::Default);
+		for (const FActorRepListConstView& List : GatheredLists)
 		{
 			// Add actors from gathered list
 			NumGatheredActorsOnConnection += List.Num();
@@ -1487,10 +1493,10 @@ void UReplicationGraph::ReplicateActorListsForConnections_FastShared(UNetReplica
 	// This really isn't ideal. We want to have better ways of tracking and limiting network traffic. This feels pretty hacky in implementation but conceptually is good.
 	FScopedQueuedBits ScopedQueuedBits(NetConnection->QueuedBits, TotalBitsWritten);
 
-	TArray< FActorRepListRawView>& GatheredLists = GatheredReplicationListsForConnection.GetLists(EActorRepListTypeFlags::FastShared);
+	const TArray<FActorRepListConstView>& GatheredLists = GatheredReplicationListsForConnection.GetLists(EActorRepListTypeFlags::FastShared);
 	for (int32 ListIdx = 0; ListIdx < GatheredLists.Num(); ++ListIdx)
 	{
-		FActorRepListRawView& List = GatheredLists[(ListIdx + FrameNum) % GatheredLists.Num()];
+		const FActorRepListConstView& List = GatheredLists[(ListIdx + FrameNum) % GatheredLists.Num()];
 		for (int32 i = 0; i < List.Num(); ++i)
 		{
 			// Round robin through the list over multiple frames. We want to avoid sorting this list based on 'time since last rep'. This is a good balance
@@ -1772,8 +1778,6 @@ int64 UReplicationGraph::ReplicateSingleActor(AActor* Actor, FConnectionReplicat
 
 	const bool bWantsToGoDormant = GlobalActorInfo.bWantsToBeDormant;
 
-	const FActorRepListRefView& DependentActorList = GlobalActorInfo.GetDependentActorList();
-
 	bool bOpenActorChannel = (ActorInfo.Channel == nullptr);
 
 	if (bOpenActorChannel)
@@ -1837,7 +1841,8 @@ int64 UReplicationGraph::ReplicateSingleActor(AActor* Actor, FConnectionReplicat
 	// ----------------------------
 	//	Dependent actors
 	// ----------------------------
-	if (DependentActorList.IsValid())
+	const FGlobalActorReplicationInfo::FDependantListType& DependentActorList = GlobalActorInfo.GetDependentActorList();
+	if (DependentActorList.Num() > 0)
 	{
 		RG_QUICK_SCOPE_CYCLE_COUNTER(NET_ReplicateActors_DependentActors);
 
@@ -1896,9 +1901,9 @@ void UReplicationGraph::HandleStarvedActorList(const FPrioritizedRepList& List, 
 		// Update dependent actor's timeout frame
 		FGlobalActorReplicationInfo& GlobalActorInfo = GlobalActorReplicationInfoMap.Get(RepItem.Actor);
 
-		const FActorRepListRefView& DependentActorList = GlobalActorInfo.GetDependentActorList();
+		const FGlobalActorReplicationInfo::FDependantListType& DependentActorList = GlobalActorInfo.GetDependentActorList();
 
-		if (DependentActorList.IsValid())
+		if (DependentActorList.Num() > 0)
 		{
 			const uint32 CloseFrameNum = ActorInfo.ActorChannelCloseFrameNum;
 			for (AActor* DependentActor : DependentActorList)
@@ -2092,14 +2097,18 @@ bool UReplicationGraph::ProcessRemoteFunction(class AActor* Actor, UFunction* Fu
 					if (ShouldOpenChannel)
 					{
 						// We are within range, we will open a channel now for this actor and call the RPC on it
-						ConnectionActorInfo.Channel = (UActorChannel *)NetConnection->CreateChannelByName( NAME_Actor, EChannelCreateFlags::OpenedLocally );
-						ConnectionActorInfo.Channel->SetChannelActor(Actor, ESetChannelActorFlags::None);
+						ConnectionActorInfo.Channel = (UActorChannel*)NetConnection->CreateChannelByName(NAME_Actor, EChannelCreateFlags::OpenedLocally);
 
-						// Update timeout frame name. We would run into problems if we open the channel, queue a bunch, and then it timeouts before RepGraph replicates properties.
-						UpdateActorChannelCloseFrameNum(Actor, ConnectionActorInfo, GlobalInfo, ReplicationGraphFrame+1 /** Plus one to error on safe side. RepFrame num will be incremented in the next tick */, NetConnection );
+						if (ConnectionActorInfo.Channel)
+						{
+							ConnectionActorInfo.Channel->SetChannelActor(Actor, ESetChannelActorFlags::None);
 
-						// If this actor is dormant on the connection, we will force a flushnetdormancy call.
-						ForceFlushNetDormancy |= ConnectionActorInfo.bDormantOnConnection;
+							// Update timeout frame name. We would run into problems if we open the channel, queue a bunch, and then it timeouts before RepGraph replicates properties.
+							UpdateActorChannelCloseFrameNum(Actor, ConnectionActorInfo, GlobalInfo, ReplicationGraphFrame+1 /** Plus one to error on safe side. RepFrame num will be incremented in the next tick */, NetConnection );
+
+							// If this actor is dormant on the connection, we will force a flushnetdormancy call.
+							ForceFlushNetDormancy |= ConnectionActorInfo.bDormantOnConnection;
+						}
 					}
 				}
 			}
@@ -2738,7 +2747,7 @@ void UReplicationGraphNode::NotifyResetAllNetworkActors()
 	}
 }
 
-void UReplicationGraphNode::RemoveChildNode(UReplicationGraphNode* ChildNode, UReplicationGraphNode::NodeOrdering NodeOrder)
+bool UReplicationGraphNode::RemoveChildNode(UReplicationGraphNode* ChildNode, UReplicationGraphNode::NodeOrdering NodeOrder)
 {
 	ensure(ChildNode != nullptr);
 
@@ -2757,6 +2766,8 @@ void UReplicationGraphNode::RemoveChildNode(UReplicationGraphNode* ChildNode, UR
 	{
 		ChildNode->TearDown();
 	}
+
+	return Removed > 0;
 }
 
 void UReplicationGraphNode::CleanChildNodes(UReplicationGraphNode::NodeOrdering NodeOrder)
@@ -2813,7 +2824,7 @@ bool FStreamingLevelActorListCollection::RemoveActor(const FNewReplicatedActorIn
 	{
 		if (StreamingList.StreamingLevelName == ActorInfo.StreamingLevelName)
 		{
-			bRemovedSomething = StreamingList.ReplicationActorList.Remove(ActorInfo.Actor);
+			bRemovedSomething = StreamingList.ReplicationActorList.RemoveSlow(ActorInfo.Actor);
 			if (!bRemovedSomething && bWarnIfNotFound)
 			{
 				UE_LOG(LogReplicationGraph, Warning, TEXT("Attempted to remove %s from list %s but it was not found. (StreamingLevelName == %s)"), *GetActorRepListTypeDebugString(ActorInfo.Actor), *GetPathNameSafe(Outer), *ActorInfo.StreamingLevelName.ToString() );
@@ -2925,7 +2936,7 @@ bool UReplicationGraphNode_ActorList::NotifyRemoveNetworkActor(const FNewReplica
 
 	if (ActorInfo.StreamingLevelName == NAME_None)
 	{
-		bRemovedSomething = ReplicationActorList.Remove(ActorInfo.Actor);
+		bRemovedSomething = ReplicationActorList.RemoveSlow(ActorInfo.Actor);
 
 		UE_CLOG(!bRemovedSomething && bWarnIfNotFound, LogReplicationGraph, Warning, TEXT("Attempted to remove %s from list %s but it was not found. (StreamingLevelName == NAME_None)"), *GetActorRepListTypeDebugString(ActorInfo.Actor), *GetFullName());
 
@@ -3066,7 +3077,7 @@ bool UReplicationGraphNode_ActorListFrequencyBuckets::NotifyRemoveNetworkActor(c
 		bool bFound = false;
 		for (FActorRepListRefView& List : NonStreamingCollection)
 		{
-			if (List.Remove(ActorInfo.Actor))
+			if (List.RemoveSlow(ActorInfo.Actor))
 			{
 				bRemovedSomething = true;
 				TotalNumNonStreamingActors--;
@@ -3824,7 +3835,6 @@ void UReplicationGraphNode_ConnectionDormancyNode::ConditionalGatherDormantActor
 			ConnectionList.RemoveAtSwap(idx);
 			if (RemovedList)
 			{
-				RemovedList->PrepareForWrite();
 				RemovedList->Add(Actor);
 			}
 
@@ -3897,7 +3907,6 @@ void UReplicationGraphNode_ConnectionDormancyNode::NotifyActorDormancyFlush(FAct
 		FStreamingLevelActorListCollection::FStreamingLevelActors* RemoveList = RemovedStreamingLevelActorListCollection.StreamingLevelLists.FindByKey(ActorInfo.StreamingLevelName);
 		if (RemoveList)
 		{
-			RemoveList->ReplicationActorList.PrepareForWrite();
 			RemoveList->ReplicationActorList.RemoveFast(Actor);
 		}
 	}
@@ -3922,10 +3931,8 @@ void UReplicationGraphNode_ConnectionDormancyNode::OnClientVisibleLevelNameAdd(F
 	UE_CLOG(CVar_RepGraph_LogNetDormancyDetails, LogReplicationGraph, Display, TEXT("    CurrentAddList: %s"), *AddList->ReplicationActorList.BuildDebugString());
 	UE_CLOG(CVar_RepGraph_LogNetDormancyDetails, LogReplicationGraph, Display, TEXT("    RemoveList: %s"), *RemoveList->ReplicationActorList.BuildDebugString());
 
-	AddList->ReplicationActorList.PrepareForWrite();
 	AddList->ReplicationActorList.AppendContentsFrom(RemoveList->ReplicationActorList);
 
-	RemoveList->ReplicationActorList.PrepareForWrite();
 	RemoveList->ReplicationActorList.Reset();
 }
 
@@ -3953,6 +3960,40 @@ void UReplicationGraphNode_ConnectionDormancyNode::NotifyResetAllNetworkActors()
 
 float UReplicationGraphNode_DormancyNode::MaxZForConnection = WORLD_MAX;
 
+void UReplicationGraphNode_DormancyNode::CallFunctionOnValidConnectionNodes(FConnectionDormancyNodeFunction Function)
+{
+	enum class DisconnectedClientNodeBehavior
+	{
+		AlwaysValid = 0, // Keep calling functions on disconnected client nodes (previous behavior)
+		Deactivate = 1, // Deactivate the nodes by ignoring them. (wastes memory but doesn't incur a costly destruction)
+		Destroy = 2,  // Destroy the nodes immediately (one time cpu hit)
+	};
+	const DisconnectedClientNodeBehavior DisconnectedClientBehavior = (DisconnectedClientNodeBehavior)CVar_RepGraph_DormancyNode_DisconnectedBehavior;
+
+	QUICK_SCOPE_CYCLE_COUNTER(UReplicationGraphNode_DormancyNode_ConnectionLoop);
+	for (FConnectionDormancyNodeMap::TIterator It = ConnectionNodes.CreateIterator(); It; ++It)
+	{
+		const FRepGraphConnectionKey RepGraphConnection = It.Key();
+		const bool bIsActiveConnection = (DisconnectedClientBehavior == DisconnectedClientNodeBehavior::AlwaysValid) || (RepGraphConnection.ResolveObjectPtr() != nullptr);
+		if (bIsActiveConnection)
+		{
+			Function(It.Value());
+		}
+		else if (DisconnectedClientBehavior == DisconnectedClientNodeBehavior::Destroy)
+		{
+			// The connection is now invalid. Destroy it's corresponding node
+			UReplicationGraphNode_ConnectionDormancyNode* ConnectionNodeToDestroy = It.Value();
+			
+			bool bWasRemoved = RemoveChildNode(ConnectionNodeToDestroy, UReplicationGraphNode::NodeOrdering::IgnoreOrdering);
+			ensureMsgf(bWasRemoved, TEXT("DormancyNode did not find %s in it's child node."), *ConnectionNodeToDestroy->GetName());
+
+			//TODO: Release the ActorList in the Node ?
+			
+			It.RemoveCurrent();
+		}
+	}
+}
+
 void UReplicationGraphNode_DormancyNode::NotifyResetAllNetworkActors()
 {
 	if (GraphGlobals.IsValid())
@@ -3968,14 +4009,11 @@ void UReplicationGraphNode_DormancyNode::NotifyResetAllNetworkActors()
 	// Dump our global actor list
 	Super::NotifyResetAllNetworkActors();
 
-	// Reset the per connection nodes
-	for (auto& MapIt :  ConnectionNodes)
+	auto ResetAllActorsFunction = [](UReplicationGraphNode_ConnectionDormancyNode* ConnectionNode)
 	{
-		if (MapIt.Value)
-		{
-			MapIt.Value->NotifyResetAllNetworkActors();
-		}
-	}
+		ConnectionNode->NotifyResetAllNetworkActors();
+	};
+	CallFunctionOnValidConnectionNodes(ResetAllActorsFunction);
 }
 
 void UReplicationGraphNode_DormancyNode::AddDormantActor(const FNewReplicatedActorInfo& ActorInfo, FGlobalActorReplicationInfo& GlobalInfo)
@@ -3986,12 +4024,12 @@ void UReplicationGraphNode_DormancyNode::AddDormantActor(const FNewReplicatedAct
 
 	UE_CLOG(CVar_RepGraph_LogNetDormancyDetails > 0 && ConnectionNodes.Num() > 0, LogReplicationGraph, Display, TEXT("GRAPH_DORMANCY: AddDormantActor %s on %s. Adding to %d connection nodes."), *ActorInfo.Actor->GetPathName(), *GetName(), ConnectionNodes.Num());
 	
-	for (auto& MapIt : ConnectionNodes)
+	auto AddActorFunction = [ActorInfo](UReplicationGraphNode_ConnectionDormancyNode* ConnectionNode)
 	{
-		QUICK_SCOPE_CYCLE_COUNTER(ConnectionDormancyNode_NotifyAddNetworkActor);
-		UReplicationGraphNode_ConnectionDormancyNode* Node = MapIt.Value;
-		Node->NotifyAddNetworkActor(ActorInfo);
-	}
+        QUICK_SCOPE_CYCLE_COUNTER(ConnectionDormancyNode_NotifyAddNetworkActor);
+		ConnectionNode->NotifyAddNetworkActor(ActorInfo);
+	};
+	CallFunctionOnValidConnectionNodes(AddActorFunction);
 
 	// Tell us if this guy flushes net dormancy so we force him back on connection lists
 	GlobalInfo.Events.DormancyFlush.AddUObject(this, &UReplicationGraphNode_DormancyNode::OnActorDormancyFlush);
@@ -4004,15 +4042,15 @@ void UReplicationGraphNode_DormancyNode::RemoveDormantActor(const FNewReplicated
 	UE_CLOG(CVar_RepGraph_LogActorRemove>0, LogReplicationGraph, Display, TEXT("UReplicationGraphNode_DormancyNode::RemoveDormantActor %s on %s. (%d connection nodes). ChildNodes: %d"), *GetNameSafe(ActorInfo.Actor), *GetPathName(), ConnectionNodes.Num(), AllChildNodes.Num());
 
 	Super::RemoveNetworkActorFast(ActorInfo);
-	
+
 	ActorRepInfo.Events.DormancyFlush.RemoveAll(this);
 	
-	// Update any connection specific nodes
-	for (auto& MapIt : ConnectionNodes)
+	auto RemoveActorFunction = [ActorInfo](UReplicationGraphNode_ConnectionDormancyNode* ConnectionNode)
 	{
-		UReplicationGraphNode_ConnectionDormancyNode* Node = MapIt.Value;
-		Node->NotifyRemoveNetworkActor(ActorInfo, false); // Don't warn if not found, the node may have removed the actor itself. Not worth the extra bookkeeping to skip the call.
-	}
+		// Don't warn if not found, the node may have removed the actor itself. Not worth the extra bookkeeping to skip the call.
+		ConnectionNode->NotifyRemoveNetworkActor(ActorInfo, false);
+	};
+	CallFunctionOnValidConnectionNodes(RemoveActorFunction);
 }
 
 void UReplicationGraphNode_DormancyNode::GatherActorListsForConnection(const FConnectionGatherActorListParameters& Params)
@@ -4038,28 +4076,26 @@ void UReplicationGraphNode_DormancyNode::GatherActorListsForConnection(const FCo
 
 UReplicationGraphNode_ConnectionDormancyNode* UReplicationGraphNode_DormancyNode::GetExistingConnectionNode(const FConnectionGatherActorListParameters& Params)
 {
-	UReplicationGraphNode_ConnectionDormancyNode** ConnectionNodeItem = ConnectionNodes.Find(&Params.ConnectionManager);
+	UReplicationGraphNode_ConnectionDormancyNode** ConnectionNodeItem = ConnectionNodes.Find(FRepGraphConnectionKey(&Params.ConnectionManager));
 	return ConnectionNodeItem == nullptr ? nullptr : *ConnectionNodeItem;
 }
 
 UReplicationGraphNode_ConnectionDormancyNode* UReplicationGraphNode_DormancyNode::GetConnectionNode(const FConnectionGatherActorListParameters& Params)
 {
-	UReplicationGraphNode_ConnectionDormancyNode** NodePtrPtr = ConnectionNodes.Find(&Params.ConnectionManager);
-	UReplicationGraphNode_ConnectionDormancyNode* ConnectionNode = nullptr;
-	if (!NodePtrPtr)
+	FRepGraphConnectionKey RepGraphConnection(&Params.ConnectionManager);
+	UReplicationGraphNode_ConnectionDormancyNode** NodePtrPtr = ConnectionNodes.Find(RepGraphConnection);
+	UReplicationGraphNode_ConnectionDormancyNode* ConnectionNode = NodePtrPtr != nullptr ? *NodePtrPtr : nullptr;
+	
+	if (ConnectionNode == nullptr)
 	{
 		// We dont have a per-connection node for this connection, so create one and copy over contents
 		ConnectionNode = CreateChildNode<UReplicationGraphNode_ConnectionDormancyNode>();
-		ConnectionNodes.Add(&Params.ConnectionManager) = ConnectionNode;
+		ConnectionNodes.Add(RepGraphConnection) = ConnectionNode;
 
 		// Copy our master lists to the connection node
 		ConnectionNode->DeepCopyActorListsFrom(this);
 
 		UE_CLOG(CVar_RepGraph_LogNetDormancyDetails > 0, LogReplicationGraph, Display, TEXT("GRAPH_DORMANCY: First time seeing connection %s in node %s. Created ConnectionDormancyNode %s."), *Params.ConnectionManager.GetName(), *GetName(), *ConnectionNode->GetName());
-	}
-	else
-	{
-		ConnectionNode = *NodePtrPtr;
 	}
 
 	return ConnectionNode;
@@ -4089,11 +4125,11 @@ void UReplicationGraphNode_DormancyNode::OnActorDormancyFlush(FActorRepListType 
 		
 	UE_CLOG(CVar_RepGraph_LogNetDormancyDetails > 0 && ConnectionNodes.Num() > 0, LogReplicationGraph, Display, TEXT("GRAPH_DORMANCY: Actor %s Flushed Dormancy. %s. Refreshing all %d connection nodes."), *Actor->GetPathName(), *GetName(), ConnectionNodes.Num());
 
-	for (auto& MapIt : ConnectionNodes)
+	auto DormancyFlushFunction = [Actor](UReplicationGraphNode_ConnectionDormancyNode* ConnectionNode)
 	{
-		UReplicationGraphNode_ConnectionDormancyNode* Node = MapIt.Value;
-		Node->NotifyActorDormancyFlush(Actor);
-	}
+		ConnectionNode->NotifyActorDormancyFlush(Actor);
+	};
+	CallFunctionOnValidConnectionNodes(DormancyFlushFunction);
 }
 
 void UReplicationGraphNode_DormancyNode::ConditionalGatherDormantDynamicActors(FActorRepListRefView& RepList, const FConnectionGatherActorListParameters& Params, FActorRepListRefView* RemovedList, bool bEnforceReplistUniqueness)
@@ -4106,7 +4142,7 @@ void UReplicationGraphNode_DormancyNode::ConditionalGatherDormantDynamicActors(F
 			{
 				if (Info->bDormantOnConnection)
 				{
-					if (RemovedList && RemovedList->IsValid() && RemovedList->Contains(Actor))
+					if (RemovedList && RemovedList->Contains(Actor))
 					{
 						continue;
 					}
@@ -4124,7 +4160,6 @@ void UReplicationGraphNode_DormancyNode::ConditionalGatherDormantDynamicActors(F
 						}
 					}
 
-					RepList.PrepareForWrite();
 					RepList.ConditionalAdd(Actor);
 				}
 			}
@@ -5221,7 +5256,7 @@ void UReplicationGraphNode_GridSpatialization2D::GatherActorListsForConnection(c
 		}
 
 		// Now process the previous dormant list to handle destruction
-		if (bCellHasChanged && PrevDormantActorList.IsValid())
+   		if (bCellHasChanged)
 		{
 			// any previous dormant actors not in the current node dormant list
 			for (FActorRepListType& Actor : PrevDormantActorList)

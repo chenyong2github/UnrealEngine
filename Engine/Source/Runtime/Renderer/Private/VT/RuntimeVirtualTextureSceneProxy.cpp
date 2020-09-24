@@ -8,6 +8,7 @@
 #include "VT/RuntimeVirtualTextureProducer.h"
 #include "VT/VirtualTexture.h"
 #include "VT/VirtualTextureBuilder.h"
+#include "VT/VirtualTextureScalability.h"
 
 int32 FRuntimeVirtualTextureSceneProxy::ProducerIdGenerator = 1;
 
@@ -15,13 +16,21 @@ FRuntimeVirtualTextureSceneProxy::FRuntimeVirtualTextureSceneProxy(URuntimeVirtu
 	: SceneIndex(0)
 	, ProducerId(0)
 	, VirtualTexture(nullptr)
+	, bHidePrimitivesInEditor(false)
+	, bHidePrimitivesInGame(false)
 	, CombinedDirtyRect(0, 0, 0, 0)
 {
-	if (InComponent->GetVirtualTexture() != nullptr && InComponent->GetVirtualTexture()->GetEnabled())
+	// Evaluate the flags used to hide primitives writing to this virtual texture.
+	InComponent->GetHidePrimitiveSettings(bHidePrimitivesInEditor, bHidePrimitivesInGame);
+
+	if (InComponent->GetVirtualTexture() != nullptr)
 	{
 		// We store a ProducerId here so that we will be able to find our SceneIndex from the Producer during rendering.
 		// We will need the SceneIndex to determine which primitives should render to this Producer.
 		ProducerId = ProducerIdGenerator++;
+
+		URuntimeVirtualTexture::FInitSettings InitSettings;
+		InitSettings.TileCountBias = InComponent->IsScalable() ? VirtualTextureScalability::GetRuntimeVirtualTextureSizeBias(InComponent->GetScalabilityGroup()) : 0;
 
 		VirtualTexture = InComponent->GetVirtualTexture();
 		Transform = InComponent->GetComponentTransform();
@@ -29,7 +38,7 @@ FRuntimeVirtualTextureSceneProxy::FRuntimeVirtualTextureSceneProxy(URuntimeVirtu
 
 		// The producer description is calculated using the transform to determine the aspect ratio
 		FVTProducerDescription Desc;
-		VirtualTexture->GetProducerDescription(Desc, Transform);
+		VirtualTexture->GetProducerDescription(Desc, InitSettings, Transform);
 		VirtualTextureSize = FIntPoint(Desc.BlockWidthInTiles * Desc.TileSize, Desc.BlockHeightInTiles * Desc.TileSize);
 		// We only need to dirty flush up to the producer description MaxLevel which accounts for the RemoveLowMips
 		MaxDirtyLevel = Desc.MaxLevel;
@@ -53,7 +62,7 @@ FRuntimeVirtualTextureSceneProxy::FRuntimeVirtualTextureSceneProxy(URuntimeVirtu
 		}
 
 		// The Initialize() call will allocate the virtual texture by spawning work on the render thread.
-		VirtualTexture->Initialize(Producer, Transform, Bounds);
+		VirtualTexture->Initialize(Producer, InitSettings, Transform, Bounds);
 	}
 }
 

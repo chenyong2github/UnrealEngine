@@ -55,7 +55,7 @@ public:
 			}
 			if (Pkg == nullptr)
 			{
-				Pkg = CreatePackage(nullptr, *PackageName);
+				Pkg = CreatePackage( *PackageName);
 				if (Pkg == nullptr)
 				{
 					//Cannot create a package that don't exist on disk or in memory!!!

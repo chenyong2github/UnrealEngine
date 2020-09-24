@@ -843,8 +843,6 @@ void SAnimationSequenceBrowser::Construct(const FArguments& InArgs, const TShare
 	bTriedToCacheOrginalAsset = false;
 
 	bIsActiveTimerRegistered = false;
-	bToolTipVisualizedThisFrame = false;
-	bToolTipClosedThisFrame = false;
 
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
 
@@ -1479,7 +1477,6 @@ bool SAnimationSequenceBrowser::OnVisualizeAssetToolTip(const TSharedPtr<SWidget
 				bIsActiveTimerRegistered = true;
 				RegisterActiveTimer(0.f, FWidgetActiveTimerDelegate::CreateSP(this, &SAnimationSequenceBrowser::UpdateTootipPreview));
 			}
-			bToolTipVisualizedThisFrame = true;
 		}
 		else
 		{
@@ -1494,11 +1491,6 @@ bool SAnimationSequenceBrowser::OnVisualizeAssetToolTip(const TSharedPtr<SWidget
 
 void SAnimationSequenceBrowser::OnAssetToolTipClosing()
 {
-	// Make sure that the tooltip isn't about to preview another animation
-	if (!bToolTipVisualizedThisFrame)
-	{
-		ViewportWidget->SetVisibility(EVisibility::Hidden);
-	}
 }
 
 void SAnimationSequenceBrowser::CleanupPreviewSceneComponent(USceneComponent* Component)
@@ -1517,8 +1509,7 @@ void SAnimationSequenceBrowser::CleanupPreviewSceneComponent(USceneComponent* Co
 
 EActiveTimerReturnType SAnimationSequenceBrowser::UpdateTootipPreview( double InCurrentTime, float InDeltaTime )
 {
-	bToolTipVisualizedThisFrame = false;
-	if ( PreviewComponent && IsToolTipPreviewVisible() )
+	if (PreviewComponent && IsToolTipPreviewVisible() && ViewportWidget->IsParentValid())
 	{
 		// Tick the world to update preview viewport for tooltips
 		PreviewComponent->GetScene()->GetWorld()->Tick( LEVELTICK_All, InDeltaTime );
@@ -1544,7 +1535,7 @@ bool SAnimationSequenceBrowser::IsToolTipPreviewVisible()
 }
 
 EVisibility SAnimationSequenceBrowser::GetHistoryVisibility() const
-	{
+{
 	return bShowHistory ? EVisibility::Visible : EVisibility::Collapsed;
 }
 

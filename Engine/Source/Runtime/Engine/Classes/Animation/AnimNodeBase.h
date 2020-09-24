@@ -13,7 +13,9 @@
 #include "Logging/TokenizedMessage.h"
 #include "Stats/StatsHierarchical.h"
 #include "Animation/AnimTrace.h"
+#include "Animation/AnimationPoseData.h"
 #include "UObject/FieldPath.h"
+#include "CustomAttributesRuntime.h"
 
 // WARNING: This should always be the last include in any file that needs it (except .generated.h)
 #include "UObject/UndefineUPropertyMacros.h"
@@ -360,9 +362,10 @@ public:
 struct FPoseContext : public FAnimationBaseContext
 {
 public:
-	/* These Pose/Curve is stack allocator. You should not use it outside of stack. */
+	/* These Pose/Curve/Attributes are allocated using MemStack. You should not use it outside of stack. */
 	FCompactPose	Pose;
 	FBlendedCurve	Curve;
+	FStackCustomAttributes CustomAttributes;
 
 public:
 	// This constructor allocates a new uninitialized pose for the specified anim instance
@@ -441,6 +444,7 @@ public:
 
 		Pose = Other.Pose;
 		Curve = Other.Curve;
+		CustomAttributes = Other.CustomAttributes;
 		bExpectsAdditivePose = Other.bExpectsAdditivePose;
 		return *this;
 	}
@@ -461,6 +465,7 @@ struct FComponentSpacePoseContext : public FAnimationBaseContext
 public:
 	FCSPose<FCompactPose>	Pose;
 	FBlendedCurve			Curve;
+	FStackCustomAttributes CustomAttributes;
 
 public:
 	// This constructor allocates a new uninitialized pose for the specified anim instance

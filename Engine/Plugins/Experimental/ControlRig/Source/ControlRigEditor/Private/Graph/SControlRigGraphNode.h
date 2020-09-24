@@ -30,7 +30,7 @@ public:
 	void Construct(const FArguments& InArgs);
 
 	// SGraphNode interface
-	virtual TSharedRef<SWidget> CreateTitleWidget(TSharedPtr<SNodeTitle> NodeTitle) override;
+	virtual TSharedRef<SWidget> CreateTitleWidget(TSharedPtr<SNodeTitle> InNodeTitle) override;
 	virtual bool UseLowDetailNodeTitles() const override;
 	virtual void EndUserInteraction() const override;
 	virtual void AddPin( const TSharedRef<SGraphPin>& PinToAdd ) override;
@@ -70,6 +70,7 @@ private:
 	void HandleGetChildrenForTree(URigVMPin* InItem, TArray<URigVMPin*>& OutChildren);
 
 	void HandleExpansionChanged(URigVMPin* InItem, bool bExpanded);
+	void HandleExpandRecursively(URigVMPin* InItem, bool bExpanded, TSharedPtr<STreeView<URigVMPin*>>* TreeWidgetPtr);
 
 	FText GetPinLabel(TWeakPtr<SGraphPin> GraphPin) const;
 
@@ -78,6 +79,8 @@ private:
 	TSharedRef<SWidget> AddContainerPinContent(URigVMPin* InItem, FText InTooltipText);
 
 	FReply HandleAddArrayElement(URigVMPin* InItem);
+
+	void HandleNodeTitleDirtied();
 
 private:
 	/** Cached widget title area */
@@ -110,4 +113,7 @@ private:
 
 	static const FSlateBrush* CachedImg_CR_Pin_Connected;
 	static const FSlateBrush* CachedImg_CR_Pin_Disconnected;
+
+	/** Cache the node title so we can invalidate it */
+	TSharedPtr<SNodeTitle> NodeTitle;
 };

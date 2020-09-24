@@ -416,15 +416,31 @@ void UVectorFieldStatic::UpdateCPUData(bool bDiscardData)
 			UE_LOG(LogVectorField, Warning, TEXT("SourceData.GetCopy() is supposed to unload the data after copying, but it is still loaded."));
 		}
 
-		// Convert from 16-bit to 32-bit floats.
-			// Use vec4s instead of vec3s because of alignment, which in principle would be better for 
-			// cache and automatic or manual vectorization, even if the memory usage is 33% larger. 
-			// Need to profile to to make sure.
-		CPUData.SetNumUninitialized(SizeX*SizeY*SizeZ);
-		for (size_t i = 0; i < (size_t)(SizeX*SizeY*SizeZ); i++)
+		const size_t SampleCount = SizeX * SizeY * SizeZ;
+
+		FMemoryWriter Ar(CPUData);
+
+#if VECTOR_FIELD_DATA_AS_HALF
+		// because of vector implementations in VectorLoadHalf we want to make sure that our buffer
+		// is padded out to support reading the last element
+		constexpr int32 DestComponentCount = 3;
+		CPUData.Reset(FMath::DivideAndRoundUp<int32>(SampleCount * DestComponentCount * sizeof(FFloat16), sizeof(FVector4)));
+
+		for (size_t SampleIt = 0; SampleIt < SampleCount; ++SampleIt)
 		{
-			CPUData[i] = FVector4(float(Ptr[i].R), float(Ptr[i].G), float(Ptr[i].B), 0.0f);
+			Ar << Ptr[SampleIt].R;
+			Ar << Ptr[SampleIt].G;
+			Ar << Ptr[SampleIt].B;
 		}
+#else
+		CPUData.Reset(FMath::DivideAndRoundUp<int32>(SampleCount * sizeof(FVector), sizeof(FVector4)));
+
+		for (size_t SampleIt = 0; SampleIt < SampleCount; ++SampleIt)
+		{
+			FVector Value(Ptr[SampleIt].R.GetFloat(), Ptr[SampleIt].G.GetFloat(), Ptr[SampleIt].B.GetFloat());
+			Ar << Value;
+		}
+#endif
 
 		FMemory::Free(Ptr);
 	}
@@ -433,6 +449,99 @@ void UVectorFieldStatic::UpdateCPUData(bool bDiscardData)
 		// If there's no need to access the CPU data just empty the array.
 		CPUData.Empty();
 	}
+}
+
+FVector UVectorFieldStatic::FilteredSample(const FVector& SamplePosition, const FVector& TilingAxes) const
+{
+	check(bAllowCPUAccess);
+
+	static auto FVectorClamp = [](const FVector& v, const FVector& a, const FVector& b) {
+		return FVector(FMath::Clamp(v.X, a.X, b.X),
+			FMath::Clamp(v.Y, a.Y, b.Y),
+			FMath::Clamp(v.Z, a.Z, b.Z));
+	};
+
+	static auto FVectorFloor = [](const FVector& v) {
+		return FVector(FGenericPlatformMath::FloorToFloat(v.X),
+			FGenericPlatformMath::FloorToFloat(v.Y),
+			FGenericPlatformMath::FloorToFloat(v.Z));
+	};
+
+	const FVector Size(SizeX, SizeY, SizeZ);
+
+	// 
+	FVector Index0 = FVectorFloor(SamplePosition);
+	FVector Index1 = Index0 + FVector::OneVector;
+
+	// 
+	FVector Fraction = SamplePosition - Index0;
+
+	Index0 = Index0 - TilingAxes * FVectorFloor(Index0 / Size) * Size;
+	Index1 = Index1 - TilingAxes * FVectorFloor(Index1 / Size) * Size;
+
+	Index0 = FVectorClamp(Index0, FVector::ZeroVector, Size - FVector::OneVector);
+	Index1 = FVectorClamp(Index1, FVector::ZeroVector, Size - FVector::OneVector);
+
+	// Sample by regular trilinear interpolation:
+
+	// Fetch corners
+	FVector V000 = SampleInternal(int32(Index0.X + SizeX * Index0.Y + SizeX * SizeY * Index0.Z));
+	FVector V100 = SampleInternal(int32(Index1.X + SizeX * Index0.Y + SizeX * SizeY * Index0.Z));
+	FVector V010 = SampleInternal(int32(Index0.X + SizeX * Index1.Y + SizeX * SizeY * Index0.Z));
+	FVector V110 = SampleInternal(int32(Index1.X + SizeX * Index1.Y + SizeX * SizeY * Index0.Z));
+	FVector V001 = SampleInternal(int32(Index0.X + SizeX * Index0.Y + SizeX * SizeY * Index1.Z));
+	FVector V101 = SampleInternal(int32(Index1.X + SizeX * Index0.Y + SizeX * SizeY * Index1.Z));
+	FVector V011 = SampleInternal(int32(Index0.X + SizeX * Index1.Y + SizeX * SizeY * Index1.Z));
+	FVector V111 = SampleInternal(int32(Index1.X + SizeX * Index1.Y + SizeX * SizeY * Index1.Z));
+
+	// Blend x-axis
+	FVector V00 = FMath::Lerp(V000, V100, Fraction.X);
+	FVector V01 = FMath::Lerp(V001, V101, Fraction.X);
+	FVector V10 = FMath::Lerp(V010, V110, Fraction.X);
+	FVector V11 = FMath::Lerp(V011, V111, Fraction.X);
+
+	// Blend y-axis
+	FVector V0 = FMath::Lerp(V00, V10, Fraction.Y);
+	FVector V1 = FMath::Lerp(V01, V11, Fraction.Y);
+
+	// Blend z-axis
+	return FMath::Lerp(V0, V1, Fraction.Z);
+}
+
+FVector UVectorFieldStatic::Sample(const FIntVector& SamplePosition) const
+{
+	check(bAllowCPUAccess);
+
+	const int32 SampleX = FMath::Clamp(SamplePosition.X, 0, SizeX);
+	const int32 SampleY = FMath::Clamp(SamplePosition.Y, 0, SizeY);
+	const int32 SampleZ = FMath::Clamp(SamplePosition.Z, 0, SizeZ);
+	const int32 SampleIndex = SampleX + SizeX * (SampleY + SampleZ * SizeY);
+
+	return SampleInternal(SampleIndex);
+}
+
+FORCEINLINE static FVector SampleInternalData(TConstArrayView<FFloat16> Samples, int32 SampleIndex)
+{
+	constexpr int32 ComponentCount = 3;
+	const FFloat16* HalfData = Samples.GetData() + SampleIndex * ComponentCount;
+
+	FVector4 Result;
+	FPlatformMath::VectorLoadHalf(reinterpret_cast<float*>(&Result), reinterpret_cast<const uint16*>(HalfData));
+
+	return FVector(Result);
+}
+
+FORCEINLINE static FVector SampleInternalData(TConstArrayView<float> Samples, int32 SampleIndex)
+{
+	constexpr int32 ComponentCount = 3;
+	const float* FloatData = Samples.GetData() + SampleIndex * ComponentCount;
+	return FVector(FloatData[0], FloatData[1], FloatData[2]);
+}
+
+FORCEINLINE FVector UVectorFieldStatic::SampleInternal(int32 SampleIndex) const
+{
+	check(bAllowCPUAccess);
+	return SampleInternalData(ReadCPUData(), SampleIndex);
 }
 
 FRHITexture* UVectorFieldStatic::GetVolumeTextureRef()
@@ -972,7 +1081,7 @@ public:
 			check(SizeZ > 0);
 			UE_LOG(LogVectorField,Verbose,TEXT("InitRHI for 0x%016x %dx%dx%d"),(PTRINT)this,SizeX,SizeY,SizeZ);
 
-			uint32 TexCreateFlags = 0;
+			ETextureCreateFlags TexCreateFlags = TexCreate_None;
 			if (GetFeatureLevel() >= ERHIFeatureLevel::SM5)
 			{
 				TexCreateFlags = TexCreate_ShaderResource | TexCreate_UAV;
@@ -1062,7 +1171,7 @@ public:
 				NoiseVolumeTextureRHI = AnimatedVectorField->NoiseField->Resource->VolumeTextureRHI;
 			}
 
-			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, VolumeTextureUAV);
+			RHICmdList.Transition(FRHITransitionInfo(VolumeTextureUAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 			RHICmdList.SetComputeShader(CompositeCS.GetComputeShader());
 			CompositeCS->SetOutput(RHICmdList, VolumeTextureUAV);
 			/// ?
@@ -1078,7 +1187,7 @@ public:
 				SizeY / THREADS_PER_AXIS,
 				SizeZ / THREADS_PER_AXIS );
 			CompositeCS->UnbindBuffers(RHICmdList);
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, VolumeTextureUAV);
+			RHICmdList.Transition(FRHITransitionInfo(VolumeTextureUAV, ERHIAccess::ERWBarrier, ERHIAccess::SRVMask));
 		}
 	}
 

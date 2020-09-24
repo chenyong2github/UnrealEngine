@@ -2742,7 +2742,7 @@ void FBlueprintGraphArgumentGroupLayout::GenerateChildContent( IDetailChildrenBu
 					TWeakPtr<FUserPinInfo>(Pins[i]),
 					TargetNode.Get(),
 					GraphActionDetailsPtr,
-					FName(*(bIsInputNode ? FString::Printf(TEXT("InputArgument%i"), i) : FString(TEXT("OutputArgument%i"), i))),
+					FName(*(bIsInputNode ? FString::Printf(TEXT("InputArgument%i"), i) : FString::Printf(TEXT("OutputArgument%i"), i))),
 					bIsInputNode));
 				ChildrenBuilder.AddCustomBuilder(BlueprintArgumentLayout);
 				WasContentAdded = true;
@@ -3716,6 +3716,7 @@ void FBlueprintGraphActionDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 				.ToolTipText(LOCTEXT("FunctionNewInputArgTooltip", "Create a new input argument"))
 				.VAlign(VAlign_Center)
 				.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("FunctionNewInputArg")))
+				.IsEnabled(this, &FBlueprintGraphActionDetails::IsAddNewInputOutputEnabled)
 				[
 					SNew(SHorizontalBox)
 
@@ -3769,6 +3770,7 @@ void FBlueprintGraphActionDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 					.ToolTipText(LOCTEXT("FunctionNewOutputArgTooltip", "Create a new output argument"))
 					.VAlign(VAlign_Center)
 					.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("FunctionNewOutputArg")))
+					.IsEnabled(this, &FBlueprintGraphActionDetails::IsAddNewInputOutputEnabled)
 					[
 						SNew(SHorizontalBox)
 
@@ -5079,6 +5081,19 @@ EVisibility FBlueprintGraphActionDetails::GetAddNewInputOutputVisibility() const
 		}
 	}
 	return EVisibility::Visible;
+}
+
+bool FBlueprintGraphActionDetails::IsAddNewInputOutputEnabled() const
+{
+	if (DetailsLayoutPtr)
+	{
+		if (const IDetailsView* DetailsView = DetailsLayoutPtr->GetDetailsView())
+		{
+			return DetailsView->IsPropertyEditingEnabled();
+		}
+	}
+
+	return false;
 }
 
 EVisibility FBlueprintGraphActionDetails::OnGetSectionTextVisibility(TWeakPtr<SWidget> RowWidget) const

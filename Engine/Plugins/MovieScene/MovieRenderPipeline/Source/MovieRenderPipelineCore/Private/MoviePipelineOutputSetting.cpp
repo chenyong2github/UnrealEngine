@@ -21,7 +21,6 @@ UMoviePipelineOutputSetting::UMoviePipelineOutputSetting()
 	, bAutoVersion(true)
 	, ZeroPadFrameNumbers(4)
 	, FrameNumberOffset(0)
-	, bDisableToneCurve(false)
 {
 	FileNameFormat = TEXT("{sequence_name}.{frame_number}");
 	OutputDirectory.Path = FPaths::ProjectSavedDir() / TEXT("MovieRenders/");
@@ -89,5 +88,4 @@ void UMoviePipelineOutputSetting::GetFormatArguments(FMoviePipelineFormatArgs& I
 		FString VersionText = FString::Printf(TEXT("v%0*d"), 3, VersionNumber);
 		InOutFormatArgs.FilenameArguments.Add(TEXT("version"), VersionText);
 	}
-
 }

@@ -433,7 +433,8 @@ FPrimitiveSceneProxy* USkinnedMeshComponent::CreateSceneProxy()
 		MeshObject)
 	{
 		// Only create a scene proxy if the bone count being used is supported, or if we don't have a skeleton (this is the case with destructibles)
-		int32 MaxBonesPerChunk = SkelMeshRenderData->GetMaxBonesPerSection();
+		int32 MinLODIndex = ComputeMinLOD();
+		int32 MaxBonesPerChunk = SkelMeshRenderData->GetMaxBonesPerSection(MinLODIndex);
 		int32 MaxSupportedNumBones = MeshObject->IsCPUSkinned() ? MAX_int32 : GetFeatureLevelMaxNumberOfBones(SceneFeatureLevel);
 		if (MaxBonesPerChunk <= MaxSupportedNumBones)
 		{
@@ -529,9 +530,10 @@ void USkinnedMeshComponent::CreateRenderState_Concurrent(FRegisterComponentConte
 		{
 			ERHIFeatureLevel::Type SceneFeatureLevel = GetWorld()->FeatureLevel;
 			FSkeletalMeshRenderData* SkelMeshRenderData = SkeletalMesh->GetResourceForRendering();
-
+			int32 MinLODIndex = ComputeMinLOD();
+			
 #if DO_CHECK
-			for (int LODIndex = 0; LODIndex < SkelMeshRenderData->LODRenderData.Num(); LODIndex++)
+			for (int LODIndex = MinLODIndex; LODIndex < SkelMeshRenderData->LODRenderData.Num(); LODIndex++)
 			{
 				FSkeletalMeshLODRenderData& LODData = SkelMeshRenderData->LODRenderData[LODIndex];
 				const FPositionVertexBuffer* PositionVertexBufferPtr = &LODData.StaticVertexBuffers.PositionVertexBuffer;
@@ -541,7 +543,7 @@ void USkinnedMeshComponent::CreateRenderState_Concurrent(FRegisterComponentConte
 				}
 			}
 #endif
-
+	
 			// Also check if skeletal mesh has too many bones/chunk for GPU skinning.
 			if (bRenderStatic)
 			{
@@ -553,19 +555,19 @@ void USkinnedMeshComponent::CreateRenderState_Concurrent(FRegisterComponentConte
 				MeshObject = ::new FSkeletalMeshObjectCPUSkin(this, SkelMeshRenderData, SceneFeatureLevel);
 			}
 			// don't silently enable CPU skinning for unsupported meshes, just do not render them, so their absence can be noticed and fixed
-			else if (!SkelMeshRenderData->RequiresCPUSkinning(SceneFeatureLevel)) 
+			else if (!SkelMeshRenderData->RequiresCPUSkinning(SceneFeatureLevel, MinLODIndex)) 
 			{
 				MeshObject = ::new FSkeletalMeshObjectGPUSkin(this, SkelMeshRenderData, SceneFeatureLevel);
 			}
 			else
 			{
-				int32 MaxBonesPerChunk = SkelMeshRenderData->GetMaxBonesPerSection();
+				int32 MaxBonesPerChunk = SkelMeshRenderData->GetMaxBonesPerSection(MinLODIndex);
 				int32 MaxSupportedGPUSkinBones = FMath::Min(GetFeatureLevelMaxNumberOfBones(SceneFeatureLevel), FGPUBaseSkinVertexFactory::GetMaxGPUSkinBones());
-				int32 NumBoneInfluences = SkelMeshRenderData->GetNumBoneInfluences();
+				int32 NumBoneInfluences = SkelMeshRenderData->GetNumBoneInfluences(MinLODIndex);
 				FString FeatureLevelName; GetFeatureLevelName(SceneFeatureLevel, FeatureLevelName);
 
-				UE_LOG(LogSkinnedMeshComp, Warning, TEXT("SkeletalMesh %s, is not supported for current feature level (%s) and will not be rendered. NumBones %d (supported %d), NumBoneInfluences: %d"), 
-					*GetNameSafe(SkeletalMesh), *FeatureLevelName, MaxBonesPerChunk, MaxSupportedGPUSkinBones, NumBoneInfluences);
+				UE_LOG(LogSkinnedMeshComp, Warning, TEXT("SkeletalMesh %s, is not supported for current feature level (%s) and will not be rendered. MinLOD %d, NumBones %d (supported %d), NumBoneInfluences: %d"), 
+					*GetNameSafe(SkeletalMesh), *FeatureLevelName, MinLODIndex, MaxBonesPerChunk, MaxSupportedGPUSkinBones, NumBoneInfluences);
 			}
 
 			//Allow the editor a chance to manipulate it before its added to the scene
@@ -931,7 +933,7 @@ void USkinnedMeshComponent::SetCPUSkinningEnabled(bool bEnable, bool bRecreateRe
 		return;
 	}
 
-	if (bEnable && IStreamingManager::Get().IsRenderAssetStreamingEnabled())
+	if (bEnable && IStreamingManager::Get().IsRenderAssetStreamingEnabled(EStreamableRenderAssetType::SkeletalMesh))
 	{
 		UE_LOG(LogSkinnedMeshComp, Warning, TEXT("It is expensive to enable CPU skinning with LOD streaming on."));
 
@@ -942,11 +944,8 @@ void USkinnedMeshComponent::SetCPUSkinningEnabled(bool bEnable, bool bRecreateRe
 		SkeletalMesh->bForceMiplevelsToBeResident = true;
 		Manager.UpdateIndividualRenderAsset(SkeletalMesh);
 
-		while (SkeletalMesh->UpdateStreamingStatus())
-		{
-			FlushRenderingCommands();
-			FPlatformProcess::Sleep(RENDER_ASSET_STREAMING_SLEEP_DT);
-		}
+		SkeletalMesh->WaitForPendingInitOrStreaming();
+
 		check(SkeletalMesh->GetResourceForRendering()->CurrentFirstLODIdx <= SkeletalMesh->MinLod.Default);
 
 		SkeletalMesh->UnlinkStreaming();
@@ -986,7 +985,7 @@ void USkinnedMeshComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelCo
 {
 	GetStreamingTextureInfoInner(LevelContext, nullptr, GetComponentTransform().GetMaximumAxisScale() * StreamingDistanceMultiplier, OutStreamingRenderAssets);
 
-	if (IsStreamingRenderAsset(SkeletalMesh))
+	if (SkeletalMesh && SkeletalMesh->IsStreamable())
 	{
 		const int32 LocalForcedLodModel = GetForcedLOD();
 		const float TexelFactor = LocalForcedLodModel > 0 ? -(SkeletalMesh->GetLODNum() - LocalForcedLodModel + 1) : Bounds.SphereRadius * 2.f;
@@ -2898,6 +2897,16 @@ void USkinnedMeshComponent::SetMinLOD(int32 InNewMinLOD)
 	MinLodModel = FMath::Clamp(InNewMinLOD, 0, MaxLODIndex);
 }
 
+int32 USkinnedMeshComponent::ComputeMinLOD() const
+{
+	int32 MinLodIndex = bOverrideMinLod ? MinLodModel : SkeletalMesh->MinLod.GetValue();
+	int32 NumLODs = GetNumLODs();
+	// want to make sure MinLOD stays within the valid range
+	MinLodIndex = FMath::Min(MinLodIndex, NumLODs - 1);
+	MinLodIndex = FMath::Max(MinLodIndex, 0);
+	return MinLodIndex;
+}
+
 #if WITH_EDITOR
 int32 USkinnedMeshComponent::GetLODBias() const
 {
@@ -2932,6 +2941,32 @@ void USkinnedMeshComponent::SetCapsuleIndirectShadowMinVisibility(float NewValue
 	}
 }
 
+// @todo: think about consolidating this with UpdateLODStatus_Internal
+int32 USkinnedMeshComponent::GetDesiredSyncLOD() const
+{
+	if (SkeletalMesh && MeshObject)
+	{
+#if WITH_EDITOR
+		const int32 LODBias = GetLODBias();
+#else
+		const int32 LODBias = GSkeletalMeshLODBias;
+#endif
+		return MeshObject->MinDesiredLODLevel + LODBias;
+	}
+
+	return INDEX_NONE;
+}
+
+void USkinnedMeshComponent::SetSyncLOD(int32 LODIndex)
+{
+	SetForcedLOD(LODIndex + 1);
+}
+
+int32 USkinnedMeshComponent::GetNumSyncLODs() const
+{
+	return GetNumLODs();
+}
+
 bool USkinnedMeshComponent::UpdateLODStatus()
 {
 	return UpdateLODStatus_Internal(INDEX_NONE);
@@ -2955,15 +2990,11 @@ bool USkinnedMeshComponent::UpdateLODStatus_Internal(int32 InMasterPoseComponent
 		const int32 LODBias = GSkeletalMeshLODBias;
 #endif
 
-		int32 MinLodIndex = bOverrideMinLod ? MinLodModel : SkeletalMesh->MinLod.GetValue();
-
+		int32 MinLodIndex = ComputeMinLOD();
 		int32 MaxLODIndex = 0;
 		if (MeshObject)
 		{
 			MaxLODIndex = MeshObject->GetSkeletalMeshRenderData().LODRenderData.Num() - 1;
-			// want to make sure MinLOD stays within the valid range
-			MinLodIndex = FMath::Clamp(MinLodIndex, 0, MaxLODIndex);
-
 			MaxDistanceFactor = MeshObject->MaxDistanceFactor;
 		}
 
@@ -3008,7 +3039,7 @@ bool USkinnedMeshComponent::UpdateLODStatus_Internal(int32 InMasterPoseComponent
 			}
 		}
 
-		if (SkeletalMesh->bIsStreamable && MeshObject)
+		if (SkeletalMesh->IsStreamable() && MeshObject)
 		{
 			NewPredictedLODLevel = FMath::Max<int32>(NewPredictedLODLevel, MeshObject->GetSkeletalMeshRenderData().PendingFirstLODIdx);
 		}
@@ -3793,6 +3824,89 @@ void USkinnedMeshComponent::SetRenderStatic(bool bNewValue)
 	{
 		bRenderStatic = bNewValue;
 		MarkRenderStateDirty();
+	}
+}
+
+int32 USkinnedMeshComponent::GetVertexOffsetUsage(int32 LODIndex) const
+{
+	if (LODInfo.IsValidIndex(LODIndex))
+	{
+		return (LODIndex < VertexOffsetUsage.Num()) ? VertexOffsetUsage[LODIndex].Usage : 0;
+	}
+
+	return 0;
+}
+
+void USkinnedMeshComponent::SetVertexOffsetUsage(int32 LODIndex, int32 Usage)
+{
+	InitLODInfos();
+
+	if (LODInfo.IsValidIndex(LODIndex))
+	{
+		if (LODIndex >= VertexOffsetUsage.Num())
+		{
+			VertexOffsetUsage.SetNumZeroed(LODIndex+1);
+		}
+
+		VertexOffsetUsage[LODIndex].Usage = Usage;
+
+		if ((Usage & int32(EVertexOffsetUsageType::PreSkinningOffset)) == 0)
+		{
+			LODInfo[LODIndex].PreSkinningOffsets.Empty();
+		}
+
+		if ((Usage & int32(EVertexOffsetUsageType::PostSkinningOffset)) == 0)
+		{
+			LODInfo[LODIndex].PostSkinningOffsets.Empty();
+		}
+
+		MarkRenderStateDirty();
+	}
+}
+
+void USkinnedMeshComponent::SetPreSkinningOffsets(int32 LODIndex, TArray<FVector> Offsets)
+{
+	InitLODInfos();
+
+	FSkeletalMeshRenderData* SkelMeshRenderData = GetSkeletalMeshRenderData();
+
+	// If we have a render resource, and the requested LODIndex is valid (for both component and mesh, though these should be the same)
+	if (SkelMeshRenderData && LODInfo.IsValidIndex(LODIndex) && SkelMeshRenderData->LODRenderData.IsValidIndex(LODIndex))
+	{
+		ensure(LODInfo.Num() == SkelMeshRenderData->LODRenderData.Num());
+
+		FSkelMeshComponentLODInfo& Info = LODInfo[LODIndex];
+		FSkeletalMeshLODRenderData& LODData = SkelMeshRenderData->LODRenderData[LODIndex];
+
+		uint32 VertexCount = LODData.GetNumVertices();
+		Offsets.SetNumZeroed(VertexCount);
+
+		Info.PreSkinningOffsets = MoveTemp(Offsets);
+
+		MarkRenderDynamicDataDirty();
+	}
+}
+
+void USkinnedMeshComponent::SetPostSkinningOffsets(int32 LODIndex, TArray<FVector> Offsets)
+{
+	InitLODInfos();
+
+	FSkeletalMeshRenderData* SkelMeshRenderData = GetSkeletalMeshRenderData();
+
+	// If we have a render resource, and the requested LODIndex is valid (for both component and mesh, though these should be the same)
+	if (SkelMeshRenderData && LODInfo.IsValidIndex(LODIndex) && SkelMeshRenderData->LODRenderData.IsValidIndex(LODIndex))
+	{
+		ensure(LODInfo.Num() == SkelMeshRenderData->LODRenderData.Num());
+
+		FSkelMeshComponentLODInfo& Info = LODInfo[LODIndex];
+		FSkeletalMeshLODRenderData& LODData = SkelMeshRenderData->LODRenderData[LODIndex];
+
+		uint32 VertexCount = LODData.GetNumVertices();
+		Offsets.SetNumZeroed(VertexCount);
+
+		Info.PostSkinningOffsets = MoveTemp(Offsets);
+
+		MarkRenderDynamicDataDirty();
 	}
 }
 

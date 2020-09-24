@@ -25,6 +25,10 @@
 		{
 			"Name": "BlueprintMaterialTextureNodes",
 			"Enabled": true
+		},
+		{
+			"Name": "Landmass",
+			"Enabled": true
 		}
 	]
 }

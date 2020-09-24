@@ -146,38 +146,139 @@ void FRemoteSessionClient::CheckConnection()
 	}
 }
 
-void FRemoteSessionClient::OnBindEndpoints()
+void FRemoteSessionClient::BindEndpoints(TBackChannelSharedPtr<IBackChannelConnection> InConnection)
 {
-	FRemoteSessionRole::OnBindEndpoints();
+	auto Delegate = FBackChannelRouteDelegate::FDelegate::CreateRaw(this, &FRemoteSessionClient::OnReceiveLegacyVersion);
+	InConnection->AddRouteDelegate(kLegacyVersionEndPoint, Delegate);
+
+	// both legacy and new channel messages can go to the same delegate
+	Delegate = FBackChannelRouteDelegate::FDelegate::CreateRaw(this, &FRemoteSessionClient::OnReceiveChannelList);
+	InConnection->AddRouteDelegate(kLegacyChannelSelectionEndPoint, Delegate);
+	InConnection->AddRouteDelegate(kChannelListEndPoint, Delegate);
+
+	Delegate = FBackChannelRouteDelegate::FDelegate::CreateRaw(this, &FRemoteSessionClient::OnReceiveHello);
+	InConnection->AddRouteDelegate(kHelloEndPoint, Delegate);
 }
 
-void FRemoteSessionClient::OnChannelSelection(FBackChannelOSCMessage& Message, FBackChannelOSCDispatch& Dispatch)
+bool FRemoteSessionClient::ProcessStateChange(const ConnectionState NewState, const ConnectionState OldState)
 {
-	TArray<FRemoteSessionChannelInfo> DesiredChannels;
+	if (NewState == FRemoteSessionRole::ConnectionState::UnversionedConnection)
+	{
+		BindEndpoints(OSCConnection);
+
+		// send these both. Hello will always win
+		SendHello();
+
+		SendLegacyVersionCheck();
+
+		SetPendingState(FRemoteSessionRole::ConnectionState::EstablishingVersion);
+	}
+
+	return true;
+}
+
+
+void FRemoteSessionClient::OnReceiveChannelList(IBackChannelPacket& Message)
+{
+	AvailableChannels.Empty();
+
+	// #agrant todo - not safe, how to express this now?
+	FBackChannelOSCMessage& OSCMessage = *static_cast<FBackChannelOSCMessage*>(&Message);
 	
-	const int NumChannels = Message.GetArgumentCount() / 2;
+	int NumChannels = 0; //
 	
+	if (!IsLegacyConnection())
+	{
+		OSCMessage.Read(TEXT("ChannelCount"), NumChannels);
+
+		if (NumChannels == 0)
+		{
+			UE_LOG(LogRemoteSession, Error, TEXT("Received ChannelList messsage with no channels!"));
+
+		}
+		int ChannelTags = (OSCMessage.GetArgumentCount() - 1) / 2;
+		ensureMsgf(NumChannels == ChannelTags, TEXT("Channel count was %d but number of channel pairs was %d"), NumChannels, ChannelTags);
+	}
+	else
+	{
+		// need to interpret this from the argument count
+		NumChannels = OSCMessage.GetArgumentCount() / 2;
+	}
+	
+
 	for (int i = 0; i < NumChannels; i++)
 	{
 		FString ChannelName;
-		int32 ChannelMode;
+		FString ChannelModeStr;
+		ERemoteSessionChannelMode ChannelMode = ERemoteSessionChannelMode::Unknown;
 		
-		Message.Read(ChannelName);
-		Message.Read(ChannelMode);
-		
-		if (ChannelName.Len() && ChannelMode >= 0 && ChannelMode <= 1)
+		OSCMessage.Read(TEXT("Name"), ChannelName);
+
+		// in legacy modes we sent an int. In new protocol a string.
+		if (IsLegacyConnection())
 		{
-			DesiredChannels.Emplace(MoveTemp(ChannelName), (ERemoteSessionChannelMode)ChannelMode, FOnRemoteSessionChannelCreated());
+			int32 ChannelModeInt = 0;
+			OSCMessage.Read(TEXT("Mode"), ChannelModeInt);
+			ChannelMode = (ERemoteSessionChannelMode)ChannelModeInt;
+		}
+		else
+		{
+			OSCMessage.Read(TEXT("Mode"), ChannelModeStr);
+			LexFromString(ChannelMode, *ChannelModeStr);
+		}
+		
+		if (ChannelName.Len() && ChannelMode > ERemoteSessionChannelMode::Unknown)
+		{
+			UE_LOG(LogRemoteSession, Log, TEXT("Remote host supports channel %s with mode %s"), *ChannelName, ::LexToString((ERemoteSessionChannelMode)ChannelMode));
+			AvailableChannels.Emplace(MoveTemp(ChannelName), ChannelMode);
 		}
 		else
 		{
 			UE_LOG(LogRemoteSession, Error, TEXT("Failed to read channel from ChannelSelection message!"));
 		}
 	}
-	
-	// Need to create channels on the main thread
-	AsyncTask(ENamedThreads::GameThread, [this, DesiredChannels]
+
+	if (IsLegacyConnection())
 	{
-		CreateChannels(DesiredChannels);
+		// Need to create channels on the main thread
+		AsyncTask(ENamedThreads::GameThread, [this]
+			{
+				CreateChannels(AvailableChannels);
+			});
+		UE_LOG(LogRemoteSession, Log, TEXT("Creating all channels for legacy connection"));
+	}
+	else
+	{
+		// hard code these for now
+		FRemoteSessionChannelInfo Info;
+		Info.Type = TEXT("FRemoteSessionImageChannel");
+		Info.Mode = ERemoteSessionChannelMode::Read;
+		RequestChannel(Info);
+
+		Info.Type = TEXT("FRemoteSessionInputChannel");
+		Info.Mode = ERemoteSessionChannelMode::Write;
+		RequestChannel(Info);
+	}
+}
+
+void FRemoteSessionClient::RequestChannel(const FRemoteSessionChannelInfo& Info)
+{
+	AsyncTask(ENamedThreads::GameThread, [this, Info] {
+		// create the channel
+		CreateChannel(Info);
+
+		// Tell the host we want this channel
+		TBackChannelSharedPtr<IBackChannelPacket> Packet = OSCConnection->CreatePacket();
+
+		Packet->SetPath(kChangeChannelEndPoint);
+		FString Mode = ::LexToString(Info.Mode);
+
+		Packet->Write(TEXT("ChannelName"), Info.Type);
+		Packet->Write(TEXT("ChannelMode"), Mode);
+		Packet->Write(TEXT("Enabled"), 1);
+
+		UE_LOG(LogRemoteSession, Log, TEXT("Requesting channel %s with mode %s from host"), *Info.Type, *Mode);
+
+		OSCConnection->SendPacket(Packet);
 	});
 }

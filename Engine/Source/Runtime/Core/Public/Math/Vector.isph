@@ -94,6 +94,7 @@ static const uniform struct FVector4 RAD_TO_DEG = { {(180.f)/PI, (180.f)/PI, (18
 
 static const uniform struct FVector ZeroVector = { {0.0f, 0.0f, 0.0f} };
 static const uniform struct FVector OneVector = { {1.0f, 1.0f, 1.0f} };
+static const uniform struct FVector HalfVector = { {0.5f, 0.5f, 0.5f} };
 static const uniform struct FVector UpVector = { {0.0f, 0.0f, 1.0f} };
 static const uniform struct FVector DownVector = { {0.0f, 0.0f, -1.0f} };
 static const uniform struct FVector ForwardVector = { {1.0f, 0.0f, 0.0f} };
@@ -718,6 +719,12 @@ inline uniform FVector operator/(const uniform FVector &A, const uniform float F
 	return A / FVec;
 }
 
+inline uniform FVector operator/(const uniform float F, const uniform FVector &A)
+{
+	const uniform FVector FVec = {{F,F,F}};
+	return FVec / A;
+}
+
 inline FVector SetVector(const float X, const float Y, const float Z)
 {
 	const FVector Result = {{X, Y, Z}};
@@ -983,6 +990,25 @@ inline FVector VectorLerp(const FVector& A, const FVector& B, const float Alpha)
 inline uniform FVector VectorLerp(const uniform FVector& A, const uniform FVector& B, const uniform float Alpha)
 {
 	return (A + (B-A) * Alpha);
+}
+
+inline FVector VectorFloor(const FVector &A)
+{
+	return SetVector(floor(A.V[0]), floor(A.V[1]), floor(A.V[2]));
+}
+
+inline FVector VectorClamp(const FVector &A, const FVector &B, const FVector &C)
+{
+	return SetVector(clamp(A.V[0], B.V[0], C.V[0]),
+		clamp(A.V[1], B.V[1], C.V[1]),
+		clamp(A.V[2], B.V[2], C.V[2]));
+}
+
+inline FVector VectorClamp(const FVector &A, const uniform FVector &B, const uniform FVector &C)
+{
+	return SetVector(clamp(A.V[0], B.V[0], C.V[0]),
+		clamp(A.V[1], B.V[1], C.V[1]),
+		clamp(A.V[2], B.V[2], C.V[2]));
 }
 
 inline FVector4 VectorAdd(const FVector4 &A, const FVector4 &B)

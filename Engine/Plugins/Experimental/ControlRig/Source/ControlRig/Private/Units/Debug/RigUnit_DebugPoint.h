@@ -52,7 +52,7 @@ struct FRigUnit_DebugPoint : public FRigUnit_DebugBase
 	UPROPERTY(meta = (Input))
 	float Thickness;
 
-	UPROPERTY(meta = (Input, Constant, CustomWidget = "BoneName"))
+	UPROPERTY(meta = (Input))
 	FName Space;
 
 	UPROPERTY(meta = (Input))
@@ -96,11 +96,13 @@ struct FRigUnit_DebugPointMutable : public FRigUnit_DebugBaseMutable
 	UPROPERTY(meta = (Input))
 	float Thickness;
 
-	UPROPERTY(meta = (Input, Constant, CustomWidget = "BoneName"))
+	UPROPERTY(meta = (Input))
 	FName Space;
 
 	UPROPERTY(meta = (Input))
 	FTransform WorldOffset;
+
+
 
 	UPROPERTY(meta = (Input, Constant))
 	bool bEnabled;

@@ -203,7 +203,7 @@ namespace DatasmithConsumerUtils
 						{
 							FSoftObjectPath& SoftObjectPathRef = AssetRedirectorMap.Emplace( Asset );
 
-							UPackage* TargetPackage = CreatePackage(nullptr, *TargetPackagePath);
+							UPackage* TargetPackage = CreatePackage(*TargetPackagePath);
 							TargetPackage->FullyLoad();
 
 							Asset->Rename(nullptr, TargetPackage, REN_DontCreateRedirectors | REN_NonTransactional);

@@ -94,7 +94,23 @@ namespace RHIConsoleVariables
 };
 
 extern void D3D11TextureAllocated2D( FD3D11Texture2D& Texture );
-extern uint32 D3D11GetSwapChainFlags();
+
+/**
+ * Returns the current swap chain flags but with the same tearing policy used during construction.
+ */
+uint32 FD3D11Viewport::GetSwapChainFlags()
+{
+	uint32 SwapChainFlags = GSwapChainFlags;
+
+	// Ensure AllowTearing consistency or ResizeBuffers will fail with E_INVALIDARG
+	if (bAllowTearing != !!(SwapChainFlags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING))
+	{
+		SwapChainFlags ^= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+	}
+
+	return SwapChainFlags;
+}
+
 
 /**
  * Creates a FD3D11Surface to represent a swap chain's back buffer.
@@ -185,7 +201,7 @@ FD3D11Texture2D* FD3D11Viewport::GetSwapChainSurface(FD3D11DynamicRHI* D3DRHI, E
 		1,
 		PixelFormat,
 		false,
-		false,
+		TexCreate_RenderTargetable,
 		false,
 		FClearValueBinding()
 		);
@@ -256,6 +272,12 @@ void FD3D11Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 	}
 	BackBuffer.SafeRelease();
 
+	// Make sure we use a format the current device supports.
+	PreferredPixelFormat = D3DRHI->GetDisplayFormat(PreferredPixelFormat);
+
+	const FD3D11ResizeViewportState OldState{ SizeX, SizeY, GetRenderTargetFormat(PixelFormat), bIsFullscreen };
+	const FD3D11ResizeViewportState NewState{ InSizeX, InSizeY, GetRenderTargetFormat(PreferredPixelFormat), bInIsFullscreen };
+
 	if(SizeX != InSizeX || SizeY != InSizeY || PixelFormat != PreferredPixelFormat)
 	{
 		SizeX = InSizeX;
@@ -268,9 +290,12 @@ void FD3D11Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 		if (bNeedSwapChain)
 		{
 			// Resize the swap chain.
-			DXGI_FORMAT RenderTargetFormat = GetRenderTargetFormat(PixelFormat);
+
+			const UINT SwapChainFlags = GetSwapChainFlags();
+			const DXGI_FORMAT RenderTargetFormat = GetRenderTargetFormat(PixelFormat);
+
 			// Resize all existing buffers, don't change count
-			VERIFYD3D11RESIZEVIEWPORTRESULT(SwapChain->ResizeBuffers(0, SizeX, SizeY, RenderTargetFormat, D3D11GetSwapChainFlags()), SizeX, SizeY, RenderTargetFormat, D3DRHI->GetDevice());
+			VERIFYD3D11RESIZEVIEWPORTRESULT(SwapChain->ResizeBuffers(0, SizeX, SizeY, RenderTargetFormat, SwapChainFlags), OldState, NewState, D3DRHI->GetDevice());
 
 			if (bInIsFullscreen)
 			{
@@ -279,7 +304,7 @@ void FD3D11Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 				if (FAILED(SwapChain->ResizeTarget(&BufferDesc)))
 				{
 					ResetSwapChainInternal(true);
-					VERIFYD3D11RESIZEVIEWPORTRESULT(SwapChain->ResizeBuffers(0, SizeX, SizeY, RenderTargetFormat, D3D11GetSwapChainFlags()), SizeX, SizeY, RenderTargetFormat, D3DRHI->GetDevice());
+					VERIFYD3D11RESIZEVIEWPORTRESULT(SwapChain->ResizeBuffers(0, SizeX, SizeY, RenderTargetFormat, SwapChainFlags), OldState, NewState, D3DRHI->GetDevice());
 				}
 			}
 		}
@@ -296,7 +321,7 @@ void FD3D11Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 			// Ignore the viewport's focus state; since Resize is called as the result of a user action we assume authority without waiting for Focus.
 			ResetSwapChainInternal(true);
 			DXGI_FORMAT RenderTargetFormat = GetRenderTargetFormat(PixelFormat);
-			VERIFYD3D11RESIZEVIEWPORTRESULT(SwapChain->ResizeBuffers(0, SizeX, SizeY, RenderTargetFormat, D3D11GetSwapChainFlags()), SizeX, SizeY, RenderTargetFormat, D3DRHI->GetDevice());
+			VERIFYD3D11RESIZEVIEWPORTRESULT(SwapChain->ResizeBuffers(0, SizeX, SizeY, RenderTargetFormat, GetSwapChainFlags()), OldState, NewState, D3DRHI->GetDevice());
 		}
 	}
 
@@ -345,7 +370,7 @@ bool FD3D11Viewport::PresentChecked(int32 SyncInterval)
 		{
 			// Present the back buffer to the viewport window.
 			uint32 Flags = 0;
-			if( (D3D11GetSwapChainFlags() & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING) != 0 && !SyncInterval && !bIsFullscreen )
+			if( (GetSwapChainFlags() & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING) != 0 && !SyncInterval && !bIsFullscreen )
 			{
 				Flags |= DXGI_PRESENT_ALLOW_TEARING;
 			}
@@ -682,7 +707,7 @@ void FD3D11DynamicRHI::RHIBeginDrawingViewport(FRHIViewport* ViewportRHI, FRHITe
 	if( RenderTarget == NULL )
 	{
 		RenderTarget = Viewport->GetBackBuffer();
-		RHITransitionResources(EResourceTransitionAccess::EWritable, &RenderTarget, 1);
+		// @todo - fix this RHITransitionResources(EResourceTransitionAccess::EWritable, &RenderTarget, 1);
 	}
 	FRHIRenderTargetView View(RenderTarget, ERenderTargetLoadAction::ELoad);
 	SetRenderTargets(1,&View,nullptr);
@@ -772,12 +797,6 @@ void FD3D11DynamicRHI::RHIEndDrawingViewport(FRHIViewport* ViewportRHI,bool bPre
 			GInputLatencyTimer.RenderThreadTrigger = false;
 		}
 	}
-
-#if CHECK_SRV_TRANSITIONS
-	check(UnresolvedTargetsConcurrencyGuard.Increment() == 1);
-	UnresolvedTargets.Reset();
-	check(UnresolvedTargetsConcurrencyGuard.Decrement() == 0);
-#endif
 }
 
 void FD3D11DynamicRHI::RHIAdvanceFrameForGetViewportBackBuffer(FRHIViewport* Viewport)

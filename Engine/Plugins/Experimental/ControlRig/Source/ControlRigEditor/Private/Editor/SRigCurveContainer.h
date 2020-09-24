@@ -238,6 +238,7 @@ private:
 	void OnRigElementRemoved(FRigHierarchyContainer* Container, const FRigElementKey& InKey);
 	void OnRigElementRenamed(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InOldName, const FName& InNewName);
 	void OnRigElementSelected(FRigHierarchyContainer* Container, const FRigElementKey& InKey, bool bSelected);
+	void HandleRefreshEditorFromBlueprint(UControlRigBlueprint* InBlueprint);
 
 	// import curve part
 	void ImportCurve(const FAssetData& InAssetData);

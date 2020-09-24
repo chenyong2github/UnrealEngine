@@ -6,19 +6,19 @@
 
 #include "Lumin/CAPIShims/LuminAPIInput.h"
 
-namespace MLSDK_API
+namespace LUMIN_MLSDK_API
 {
 
 CREATE_FUNCTION_SHIM(ml_input, MLResult, MLInputGetConnectedDevices)
-#define MLInputGetConnectedDevices ::MLSDK_API::MLInputGetConnectedDevicesShim
+#define MLInputGetConnectedDevices ::LUMIN_MLSDK_API::MLInputGetConnectedDevicesShim
 CREATE_FUNCTION_SHIM(ml_input, MLResult, MLInputReleaseConnectedDevicesList)
-#define MLInputReleaseConnectedDevicesList ::MLSDK_API::MLInputReleaseConnectedDevicesListShim
+#define MLInputReleaseConnectedDevicesList ::LUMIN_MLSDK_API::MLInputReleaseConnectedDevicesListShim
 CREATE_FUNCTION_SHIM(ml_input, MLResult, MLInputSetTabletDeviceCallbacks)
-#define MLInputSetTabletDeviceCallbacks ::MLSDK_API::MLInputSetTabletDeviceCallbacksShim
+#define MLInputSetTabletDeviceCallbacks ::LUMIN_MLSDK_API::MLInputSetTabletDeviceCallbacksShim
 CREATE_FUNCTION_SHIM(ml_input, MLResult, MLInputGetTabletDeviceStates)
-#define MLInputGetTabletDeviceStates ::MLSDK_API::MLInputGetTabletDeviceStatesShim
+#define MLInputGetTabletDeviceStates ::LUMIN_MLSDK_API::MLInputGetTabletDeviceStatesShim
 CREATE_FUNCTION_SHIM(ml_input, MLResult, MLInputReleaseTabletDeviceStates)
-#define MLInputReleaseTabletDeviceStates ::MLSDK_API::MLInputReleaseTabletDeviceStatesShim
+#define MLInputReleaseTabletDeviceStates ::LUMIN_MLSDK_API::MLInputReleaseTabletDeviceStatesShim
 
 }
 

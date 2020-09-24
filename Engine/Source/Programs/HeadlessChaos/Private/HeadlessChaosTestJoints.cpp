@@ -38,6 +38,7 @@ namespace ChaosTest {
 		using Base = FConstraintsTest<TEvolution>;
 		using Base::Evolution;
 		using Base::AddParticleBox;
+		using Base::GetParticle;
 
 		FJointConstraintsTest(const int32 NumIterations, const FReal Gravity)
 			: Base(NumIterations, Gravity)

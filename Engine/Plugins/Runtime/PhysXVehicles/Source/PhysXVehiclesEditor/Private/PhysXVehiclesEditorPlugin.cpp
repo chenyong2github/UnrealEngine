@@ -16,6 +16,8 @@
 #include "HAL/IConsoleManager.h"
 #include "Engine/Blueprint.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 class FPhysXVehiclesEditorPlugin : public IPhysXVehiclesEditorPlugin
 {
 	/** IModuleInterface implementation */
@@ -38,6 +40,9 @@ class FPhysXVehiclesEditorPlugin : public IPhysXVehiclesEditorPlugin
 };
 
 IMPLEMENT_MODULE(FPhysXVehiclesEditorPlugin, PhysXVehiclesEditor)
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 
 // CONVERT TIRE TYPES UTIL
 static const FString EngineDir = TEXT("/Engine/");

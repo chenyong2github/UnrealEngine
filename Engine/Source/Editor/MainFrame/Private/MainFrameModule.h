@@ -132,6 +132,29 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			ClearDelayedShowMainFrameDelegate();
 		}
 	}
+	
+	virtual FDelegateHandle RegisterCanCloseEditor(const FMainFrameCanCloseEditor& InDelegate) override
+	{
+		return CanCloseEditorDelegates.Add_GetRef(InDelegate).GetHandle();
+	}
+
+	virtual void UnregisterCanCloseEditor(FDelegateHandle InHandle) override
+	{
+		CanCloseEditorDelegates.RemoveAll([InHandle](const FMainFrameCanCloseEditor& Delegate) { return Delegate.GetHandle() == InHandle; });
+	}
+
+	virtual bool ExecuteCanCloseEditorDelegates() override
+	{
+		for (const FMainFrameCanCloseEditor& It : CanCloseEditorDelegates)
+		{
+			if (It.IsBound() && !It.Execute())
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
 
 public:
 
@@ -225,6 +248,9 @@ private:
 
 	// Delegate that holds a delayed call to ShowMainFrameWindow
 	FSimpleDelegate DelayedShowMainFrameDelegate;
+	
+	// List of delegates that are called after user requests the editor to close that can stop the close
+	TArray<FMainFrameCanCloseEditor> CanCloseEditorDelegates;
 
 	// Allow delaying when to show main frame's window
 	bool bDelayedShowMainFrame;

@@ -8,7 +8,7 @@
 #include "MathUtil.h"
 #include "VectorTypes.h"
 #include "GeometryTypes.h"
-#include "MeshBoundaryLoops.h"
+#include "MeshRegionBoundaryLoops.h"
 
 
 class FDynamicMesh3;
@@ -67,6 +67,24 @@ public:
 	}
 
 	bool Fill(int32 GroupID = -1) override;	
+
+	/**
+	 * Updates the normals and UV's of NewTriangles. UV's are taken from VidUVMaps,
+	 * which is an array of maps (1:1 with UV layers) that map vid's of vertices on the
+	 * boundary to their UV elements and values. If the UV element for a vertex does not
+	 * yet exist in the overlay, the corresponding element ID should be InvalidID. The 
+	 * function will update it to point to the new element once it inserts it.
+
+	 * Normals are shared among NewTriangles but not with the surrounding portions of the mesh.
+	 *
+	 * @param VidsToUVsMap A map from vertex ID's of the boundary vertices to UV element ID's
+	 *  and/or their values. When the element ID is invalid, a new element is generated using
+	 *  the value, and the map is updated accordingly.
+	 *
+	 * @returns false if there is an error, usually if VidsToUVsMap did not have an entry
+	 *  for a needed vertex ID.
+	 */
+	bool UpdateAttributes(TArray<FMeshRegionBoundaryLoops::VidOverlayMap<FVector2f>>& VidUVMaps);
 
 
 protected:

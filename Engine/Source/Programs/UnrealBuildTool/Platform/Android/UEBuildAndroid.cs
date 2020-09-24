@@ -238,7 +238,7 @@ namespace UnrealBuildTool
 						bBuildShaderFormats = true;
 						Rules.DynamicallyLoadedModuleNames.Add("TextureFormatDXT");
 						Rules.DynamicallyLoadedModuleNames.Add("TextureFormatASTC");
-						Rules.DynamicallyLoadedModuleNames.Add("TextureFormatAndroid");  // ETC2 
+						Rules.DynamicallyLoadedModuleNames.Add("TextureFormatETC2");  // ETC2 
 						if (Target.bBuildDeveloperTools)
 						{
 							//Rules.DynamicallyLoadedModuleNames.Add("AudioFormatADPCM");	//@todo android: android audio
@@ -364,7 +364,7 @@ namespace UnrealBuildTool
 
 			if (!UseTegraGraphicsDebugger(Target))
 			{
-				LinkEnvironment.SystemLibraries.Add("GLESv2");
+				LinkEnvironment.SystemLibraries.Add("GLESv3");
 				LinkEnvironment.SystemLibraries.Add("EGL");
 			}
 			LinkEnvironment.SystemLibraries.Add("android");

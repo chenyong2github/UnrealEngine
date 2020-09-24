@@ -898,6 +898,13 @@ void UWorld::BeginDestroy()
 		}
 	}
 
+	if (PhysicsScene != nullptr)
+	{
+		// Tell PhysicsScene to stop kicking off async work so we can cleanup after pending work is complete.
+		PhysicsScene->BeginDestroy();
+	}
+
+
 	if (Scene)
 	{
 		Scene->UpdateParameterCollections(TArray<FMaterialParameterCollectionInstanceResource*>());
@@ -1005,6 +1012,28 @@ void UWorld::FinishDestroy()
 	Super::FinishDestroy();
 }
 
+bool UWorld::IsReadyForFinishDestroy()
+{
+#if WITH_CHAOS
+
+	// In single threaded, task will never complete unless we wait on it, allow FinishDestroy so we can wait on task, otherwise this will hang GC.
+	// In multi threaded, we cannot wait in FinishDestroy, as this may schedule another task that is unsafe during GC.
+	const bool bIsSingleThreadEnvironment = FPlatformProcess::SupportsMultithreading() == false;
+	if (bIsSingleThreadEnvironment == false)
+	{
+		if (PhysicsScene != nullptr)
+		{
+			if (PhysicsScene->AreAnyTasksPending())
+			{
+				return false;
+			}
+		}
+	}
+#endif
+
+	return Super::IsReadyForFinishDestroy();
+}
+
 void UWorld::PostLoad()
 {
 	EWorldType::Type * PreLoadWorldType = UWorld::WorldTypePreLoadMap.Find(GetOuter()->GetFName());
@@ -1074,7 +1103,8 @@ void UWorld::PostLoad()
 			OriginalWorldName = GetFName();
 			if (GetName() != ShortPackageName)
 			{
-				Rename(*ShortPackageName, NULL, REN_NonTransactional | REN_ForceNoResetLoaders | REN_DontCreateRedirectors);
+				// Do not go through UWorld::Rename as we do not want to go through map build data/external actors or hlod renaming in post load
+				UObject::Rename(*ShortPackageName, NULL, REN_NonTransactional | REN_ForceNoResetLoaders | REN_DontCreateRedirectors);
 			}
 
 			// Worlds are assets so they need RF_Public and RF_Standalone (for the editor)
@@ -1309,7 +1339,7 @@ void UWorld::RepairChaosActors()
 
 	if (!PhysicsScene_Chaos)
 	{
-		FChaosSolversModule* ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
+		FChaosSolversModule* ChaosModule = FChaosSolversModule::GetModule();
 		check(ChaosModule);
 		bool bHasChaosActor = false;
 		for (int32 i = 0; i < PersistentLevel->Actors.Num(); ++i)
@@ -1506,10 +1536,18 @@ void UWorld::InitWorld(const InitializationValues IVS)
 
 	Levels.Empty(1);
 	Levels.Add( PersistentLevel );
-	if (FLevelCollection* Collection = PersistentLevel->GetCachedLevelCollection())
+	
+	// If we are not Seamless Traveling remove PersistentLevel from LevelCollection if it is in a collection
+	// The Level Collections will be filled already during Seamless Travel in 
+	// UWorld::AsyncLoadAlwaysLoadedLevelsForSeamlessTravel()
+	if (GEngine->GetWorldContextFromWorld(this) && !IsInSeamlessTravel())  
 	{
-		Collection->RemoveLevel(PersistentLevel);
+		if (FLevelCollection* Collection = PersistentLevel->GetCachedLevelCollection())
+		{
+			Collection->RemoveLevel(PersistentLevel);
+		}
 	}
+	
 	PersistentLevel->OwningWorld = this;
 	PersistentLevel->bIsVisible = true;
 
@@ -1822,7 +1860,7 @@ UWorld* UWorld::CreateWorld(const EWorldType::Type InWorldType, bool bInformEngi
 	UPackage* WorldPackage = InWorldPackage;
 	if ( !WorldPackage )
 	{
-		WorldPackage = CreatePackage( NULL, NULL );
+		WorldPackage = CreatePackage(nullptr);
 	}
 
 	if (InWorldType == EWorldType::PIE)
@@ -3201,7 +3239,7 @@ UWorld* UWorld::DuplicateWorldForPIE(const FString& PackageName, UWorld* OwningW
 	FSoftObjectPath::AddPIEPackageName(PrefixedLevelFName);
 
 	UWorld::WorldTypePreLoadMap.FindOrAdd(PrefixedLevelFName) = EWorldType::PIE;
-	UPackage* PIELevelPackage = CreatePackage(nullptr,*PrefixedLevelName);
+	UPackage* PIELevelPackage = CreatePackage(*PrefixedLevelName);
 	PIELevelPackage->SetPackageFlags(PKG_PlayInEditor);
 	PIELevelPackage->PIEInstanceID = PIEInstanceID;
 	PIELevelPackage->FileName = PackageFName;
@@ -4449,7 +4487,7 @@ void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UW
 	{
 		return;
 	}
-	bool bWorldChanged = NewWorld != this && NewWorld != nullptr;
+	bool bWorldChanged = NewWorld != this;
 	CleanupWorldTag = CleanupWorldGlobalTag;
 
 	UE_LOG(LogWorld, Log, TEXT("UWorld::CleanupWorld for %s, bSessionEnded=%s, bCleanupResources=%s"), *GetName(), bSessionEnded ? TEXT("true") : TEXT("false"), bCleanupResources ? TEXT("true") : TEXT("false"));
@@ -4607,7 +4645,9 @@ void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UW
 
 	if(FXSystem && bWorldChanged)
 	{
-		FFXSystemInterface::QueueDestroyGPUSimulation(FXSystem);
+		FFXSystemInterface::Destroy( FXSystem );
+		Scene->SetFXSystem(NULL);
+		FXSystem = NULL;
 	}
 
 }
@@ -7531,7 +7571,7 @@ static ULevel* DuplicateLevelWithPrefix(ULevel* InLevel, int32 InstanceID )
 	const FString PrefixedPackageName = UWorld::ConvertToPIEPackageName( OriginalPackageName, InstanceID );
 
 	// Create a package for duplicated level
-	UPackage* NewPackage = CreatePackage( nullptr, *PrefixedPackageName );
+	UPackage* NewPackage = CreatePackage( *PrefixedPackageName );
 	NewPackage->SetPackageFlags( PKG_PlayInEditor );
 	NewPackage->PIEInstanceID = InstanceID;
 	NewPackage->FileName = OriginalPackage->FileName;

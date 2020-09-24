@@ -111,6 +111,11 @@ public:
 
 	DECLARE_DELEGATE_RetVal(ECheckBoxState, FGetCheckBoxStateDelegate);
 	DECLARE_DELEGATE_OneParam(FSetCheckBoxStateDelegate, ECheckBoxState);
+
+	void UnbindReductionSettings()
+	{
+		IsLODSettingsEnabledDelegate.Unbind();
+	}
 private:
 	/** IDetailCustomNodeBuilder Interface*/
 	virtual void SetOnRebuildChildren(FSimpleDelegate InOnRegenerateChildren) override {}
@@ -242,8 +247,14 @@ public:
 	FSkeletalMeshBuildSettingsLayout(FSkeletalMeshBuildSettings& InBuildSettings, int32 InLODIndex, FIsLODSettingsEnabledDelegate InIsBuildSettingsEnabledDelegate, FModifyMeshLODSettingsDelegate InModifyMeshLODSettingsDelegate);
 	virtual ~FSkeletalMeshBuildSettingsLayout() {};
 
+
 	DECLARE_DELEGATE_RetVal(float, FGetFloatDelegate);
 	DECLARE_DELEGATE_OneParam(FSetFloatDelegate, float);
+
+	void UnbindBuildSettings()
+	{
+		IsBuildSettingsEnabledDelegate.Unbind();
+	}
 
 private:
 	/** IDetailCustomNodeBuilder Interface*/
@@ -559,6 +570,8 @@ private:
 	FText GetLODImportedText(int32 LODIndex) const;
 
 	FText GetMaterialSlotNameText(int32 MaterialIndex) const;
+
+	void RefreshMeshDetailLayout();
 
 	/** apply LOD changes if the user modified LOD reduction settings */
 	FReply OnApplyChanges();

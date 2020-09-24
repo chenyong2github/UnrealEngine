@@ -69,6 +69,7 @@ void SMoviePipelineConfigPanel::Construct(const FArguments& InArgs, TSubclassOf<
 	FCoreUObjectDelegates::OnObjectModified.AddSP(this, &SMoviePipelineConfigPanel::OnAnyObjectModified);
 	
 	WeakJob = InArgs._Job;
+	WeakShot = InArgs._Shot;
 	OnConfigurationModified = InArgs._OnConfigurationModified;
 	OnConfigurationSetToPreset = InArgs._OnConfigurationSetToPreset;
 
@@ -251,13 +252,13 @@ FReply SMoviePipelineConfigPanel::OnConfirmChanges()
 	{
 		// They just want to use the preset. We'll call a different callback so it's easier for
 		// the caller to determine the intent.
-		OnConfigurationSetToPreset.ExecuteIfBound(WeakJob, PresetUsedIfNotModified.Get());
+		OnConfigurationSetToPreset.ExecuteIfBound(WeakJob, WeakShot, PresetUsedIfNotModified.Get());
 	}
 	else
 	{
 		// They modified the object after the last preset action, then we'll just use 
 		// the transient ui copy and the owning job will know it has been modified.
-		OnConfigurationModified.ExecuteIfBound(WeakJob, TransientPreset);
+		OnConfigurationModified.ExecuteIfBound(WeakJob, WeakShot, TransientPreset);
 	}
 	
 	return FReply::Handled();
@@ -315,6 +316,7 @@ FText SMoviePipelineConfigPanel::GetValidationWarningText() const
 UMoviePipelineConfigBase* SMoviePipelineConfigPanel::AllocateTransientPreset()
 {
 	static const TCHAR* PackageName = TEXT("/Temp/MoviePipeline/PendingConfig");
+	FString DesiredName = FString::Printf(TEXT("Pending_%s"), *ConfigAssetType->GetName());
 
 	// Return a cached transient if it exists
 	UMoviePipelineConfigBase* ExistingPreset = FindObject<UMoviePipelineConfigBase>(nullptr, TEXT("/Temp/MoviePipeline/PendingConfig.PendingConfig"));
@@ -323,13 +325,11 @@ UMoviePipelineConfigBase* SMoviePipelineConfigPanel::AllocateTransientPreset()
 		return ExistingPreset;
 	}
 
-	static FName DesiredName = "PendingMoviePipelineConfig";
-	
-	UPackage* NewPackage = CreatePackage(nullptr, PackageName);
+	UPackage* NewPackage = CreatePackage(PackageName);
 	NewPackage->SetFlags(RF_Transient);
 	NewPackage->AddToRoot();
 
-	UMoviePipelineConfigBase* NewPreset = NewObject<UMoviePipelineConfigBase>(NewPackage, ConfigAssetType, DesiredName, RF_Transient | RF_Transactional | RF_Standalone);
+	UMoviePipelineConfigBase* NewPreset = NewObject<UMoviePipelineConfigBase>(NewPackage, ConfigAssetType, *DesiredName, RF_Transient | RF_Transactional | RF_Standalone);
 
 	return NewPreset;
 }
@@ -364,7 +364,7 @@ TSharedRef<SWidget> SMoviePipelineConfigPanel::OnGeneratePresetsMenu()
 		AssetPickerConfig.bForceShowPluginContent = true;
 
 		AssetPickerConfig.AssetShowWarningText = LOCTEXT("NoPresets_Warning", "No Presets Found");
-		AssetPickerConfig.Filter.ClassNames.Add(UMoviePipelineConfigBase::StaticClass()->GetFName());
+		AssetPickerConfig.Filter.ClassNames.Add(ConfigAssetType->GetFName());
 		AssetPickerConfig.Filter.bRecursiveClasses = true;
 		AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateSP(this, &SMoviePipelineConfigPanel::OnImportPreset);
 	}
@@ -470,7 +470,7 @@ void SMoviePipelineConfigPanel::OnSaveAsPreset()
 
 	// Saving into a new package
 	const FString NewAssetName = FPackageName::GetLongPackageAssetName(PackageName);
-	UPackage*     NewPackage = CreatePackage(nullptr, *PackageName);
+	UPackage*     NewPackage = CreatePackage(*PackageName);
 	UMoviePipelineConfigBase*  NewPreset = NewObject<UMoviePipelineConfigBase>(NewPackage, ConfigAssetType, *NewAssetName, RF_Public | RF_Standalone | RF_Transactional);
 	
 	if (NewPreset)
@@ -560,6 +560,11 @@ UMoviePipelineConfigBase* SMoviePipelineConfigPanel::GetPipelineConfig() const
 UMoviePipelineExecutorJob* SMoviePipelineConfigPanel::GetOwningJob() const
 {
 	return WeakJob.Get();
+}
+
+UMoviePipelineExecutorShot* SMoviePipelineConfigPanel::GetOwningShot() const
+{
+	return WeakShot.Get();
 }
 
 #undef LOCTEXT_NAMESPACE // SMoviePipelinePanel

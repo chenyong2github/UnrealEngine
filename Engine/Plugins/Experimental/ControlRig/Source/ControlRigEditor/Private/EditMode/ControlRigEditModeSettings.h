@@ -15,22 +15,31 @@ class UControlRigEditModeSettings : public UObject
 
 	UControlRigEditModeSettings()
 		: bDisplayHierarchy(false)
+		, bDisplaySpaces(false)
 		, bHideManipulators(false)
 		, bDisplayAxesOnSelection(false)
 		, AxisScale(10.f)
 		, bCoordSystemPerWidgetMode(true)
 		, bOnlySelectRigControls(false)
+		, bLocalTransformsInEachLocalSpace(true)
+		, GizmoScale(1.0f)
 	{}
 
 	// UObject interface
 	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-
+#if WITH_EDITOR
+	virtual void PostEditUndo() override;
+#endif
 public:
 
-	/** Whether to show all nodes in the hierarchy being animated */
+	/** Whether to show all bones in the hierarchy */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Animation")
 	bool bDisplayHierarchy;
+
+	/** Whether to show all spaces in the hierarchy */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Animation")
+	bool bDisplaySpaces;
 
 	/** Should we always hide manipulators in viewport */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Animation")
@@ -51,5 +60,14 @@ public:
 	/** If true we can only select Rig Controls in the scene not other Actors. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Animation")
 	bool bOnlySelectRigControls;
+
+	/** If true when we transform multiple selected objects in the viewport they each transforms along their own local transform space */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Animation")
+	bool bLocalTransformsInEachLocalSpace;
+	
+	/** The scale for Gizmos */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Animation")
+	float GizmoScale;
+
 	
 };

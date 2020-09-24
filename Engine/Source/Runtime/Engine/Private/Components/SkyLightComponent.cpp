@@ -102,7 +102,7 @@ void FSkyTextureCubeResource::InitRHI()
 		CreateInfo.DebugName = TEXT("SkyTextureCube");
 		
 		checkf(FMath::IsPowerOfTwo(Size), TEXT("Size of SkyTextureCube must be a power of two; size is %d"), Size);
-		TextureCubeRHI = RHICreateTextureCube(Size, Format, NumMips, 0, CreateInfo);
+		TextureCubeRHI = RHICreateTextureCube(Size, Format, NumMips, TexCreate_None, CreateInfo);
 		TextureRHI = TextureCubeRHI;
 
 		// Create the sampler state RHI resource.
@@ -278,7 +278,7 @@ USkyLightComponent::USkyLightComponent(const FObjectInitializer& ObjectInitializ
 	CloudAmbientOcclusionExtent = 150.0f;
 	CloudAmbientOcclusionStrength = 1.0f;
 	CloudAmbientOcclusionMapResolutionScale = 1.0f;
-	CloudAmbientOcclusionApertureScale = 0.5f;
+	CloudAmbientOcclusionApertureScale = 0.05f;
 }
 
 FSkyLightSceneProxy* USkyLightComponent::CreateSceneProxy() const
@@ -571,8 +571,7 @@ bool USkyLightComponent::CanEditChange(const FProperty* InProperty) const
 
 		if (FCString::Strcmp(*PropertyName, TEXT("bRealTimeCapture")) == 0)
 		{
-			// RealTimeCapture is only possible with dynamic lighting and shadowing for now. TODO check the Stationary works too and enable it.
-			return Mobility == EComponentMobility::Movable;
+			return Mobility == EComponentMobility::Movable || Mobility == EComponentMobility::Stationary;
 		}
 		if (FCString::Strcmp(*PropertyName, TEXT("SourceType")) == 0)
 		{
@@ -997,7 +996,7 @@ bool USkyLightComponent::IsRealTimeCaptureEnabled() const
 	// We currently disable realtime capture on mobile, OGL requires an additional texture to read SkyIrradianceEnvironmentMap which can break materials already at the texture limit.
 	// See FORT-301037, FORT-302324	
 	const bool bIsMobile = LocalScene && LocalScene->GetFeatureLevel() <= ERHIFeatureLevel::ES3_1;
-	return bRealTimeCapture && Mobility == EComponentMobility::Movable && GSkylightRealTimeReflectionCapture >0 && !bIsMobile;
+	return bRealTimeCapture && (Mobility == EComponentMobility::Movable || Mobility == EComponentMobility::Stationary) && GSkylightRealTimeReflectionCapture >0 && !bIsMobile;
 }
 
 void USkyLightComponent::OnVisibilityChanged()

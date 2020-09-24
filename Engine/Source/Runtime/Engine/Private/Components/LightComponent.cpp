@@ -33,7 +33,7 @@ void FStaticShadowDepthMap::InitRHI()
 	if (FApp::CanEverRender() && Data && Data->ShadowMapSizeX > 0 && Data->ShadowMapSizeY > 0 && GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5)
 	{
 		FRHIResourceCreateInfo CreateInfo;
-		FTexture2DRHIRef Texture2DRHI = RHICreateTexture2D(Data->ShadowMapSizeX, Data->ShadowMapSizeY, PF_R16F, 1, 1, 0, CreateInfo);
+		FTexture2DRHIRef Texture2DRHI = RHICreateTexture2D(Data->ShadowMapSizeX, Data->ShadowMapSizeY, PF_R16F, 1, 1, TexCreate_None, CreateInfo);
 		TextureRHI = Texture2DRHI;
 
 		uint32 DestStride = 0;
@@ -329,6 +329,11 @@ FLightSceneProxy::FLightSceneProxy(const ULightComponent* InLightComponent)
 	, FarShadowCascadeCount(0)
 	, ShadowAmount(1.0f)
 	, SamplesPerPixel(1)
+	, DeepShadowLayerDistribution(InLightComponent->DeepShadowLayerDistribution)
+	, bMobileMovablePointLightUniformBufferNeedsUpdate(false)
+	, bMobileMovablePointLightShouldBeRender(false)
+	, bMobileMovablePointLightShouldCastShadow(false)
+	, MobileMovablePointLightShadowmapMinMax()
 {
 	check(SceneInterface);
 
@@ -420,6 +425,7 @@ ULightComponentBase::ULightComponentBase(const FObjectInitializer& ObjectInitial
 #if WITH_EDITORONLY_DATA
 	bVisualizeComponent = true;
 #endif
+	DeepShadowLayerDistribution = 0.5f;
 }
 
 ULightComponent::FOnUpdateColorAndBrightness ULightComponent::UpdateColorAndBrightnessEvent;

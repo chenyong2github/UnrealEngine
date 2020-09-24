@@ -928,31 +928,31 @@ void AllocateCardAtlasses(FRHICommandListImmediate& RHICmdList, FLumenSceneData&
 
 	FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(LumenSceneData.MaxAtlasSize, PF_R8G8B8A8, FClearValueBinding::Green, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear, false));
 	Desc.AutoWritable = false;
-	GRenderTargetPool.FindFreeElement(RHICmdList, Desc, LumenSceneData.AlbedoAtlas, TEXT("LumenSceneAlbedo"), true, ERenderTargetTransience::NonTransient);
-	GRenderTargetPool.FindFreeElement(RHICmdList, Desc, LumenSceneData.NormalAtlas, TEXT("LumenSceneNormal"), true, ERenderTargetTransience::NonTransient);
+	GRenderTargetPool.FindFreeElement(RHICmdList, Desc, LumenSceneData.AlbedoAtlas, TEXT("LumenSceneAlbedo"), ERenderTargetTransience::NonTransient);
+	GRenderTargetPool.FindFreeElement(RHICmdList, Desc, LumenSceneData.NormalAtlas, TEXT("LumenSceneNormal"), ERenderTargetTransience::NonTransient);
 
 	FPooledRenderTargetDesc DepthBufferDesc(FPooledRenderTargetDesc::Create2DDesc(LumenSceneData.MaxAtlasSize, PF_DepthStencil, FClearValueBinding::DepthZero, TexCreate_None, TexCreate_ShaderResource | TexCreate_DepthStencilTargetable | TexCreate_NoFastClear, false));
 	DepthBufferDesc.AutoWritable = false;
- 	GRenderTargetPool.FindFreeElement(RHICmdList, DepthBufferDesc, LumenSceneData.DepthBufferAtlas, TEXT("LumenSceneDepthBuffer"), true, ERenderTargetTransience::NonTransient);
+ 	GRenderTargetPool.FindFreeElement(RHICmdList, DepthBufferDesc, LumenSceneData.DepthBufferAtlas, TEXT("LumenSceneDepthBuffer"), ERenderTargetTransience::NonTransient);
 
 	FPooledRenderTargetDesc DepthDesc(FPooledRenderTargetDesc::Create2DDesc(LumenSceneData.MaxAtlasSize, PF_G16, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear, false, NumMips));
 	DepthDesc.AutoWritable = false;
-	GRenderTargetPool.FindFreeElement(RHICmdList, DepthDesc, LumenSceneData.DepthAtlas, TEXT("LumenSceneDepth"), true, ERenderTargetTransience::NonTransient);
+	GRenderTargetPool.FindFreeElement(RHICmdList, DepthDesc, LumenSceneData.DepthAtlas, TEXT("LumenSceneDepth"), ERenderTargetTransience::NonTransient);
 
 	FClearValueBinding CrazyGreen(FLinearColor(0.0f, 10000.0f, 0.0f, 1.0f));
 	FPooledRenderTargetDesc LightingDesc(FPooledRenderTargetDesc::Create2DDesc(LumenSceneData.MaxAtlasSize, PF_FloatR11G11B10, CrazyGreen, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear, false, NumMips));
 	LightingDesc.AutoWritable = false;
-	GRenderTargetPool.FindFreeElement(RHICmdList, LightingDesc, LumenSceneData.FinalLightingAtlas, TEXT("LumenSceneFinalLighting"), true, ERenderTargetTransience::NonTransient);
+	GRenderTargetPool.FindFreeElement(RHICmdList, LightingDesc, LumenSceneData.FinalLightingAtlas, TEXT("LumenSceneFinalLighting"), ERenderTargetTransience::NonTransient);
 	LumenSceneData.bFinalLightingAtlasContentsValid = false;
 
 	extern int32 GLumenRadiosityDownsampleFactor;
 	FPooledRenderTargetDesc RadiosityDesc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint::DivideAndRoundDown(LumenSceneData.MaxAtlasSize, GLumenRadiosityDownsampleFactor), PF_FloatR11G11B10, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, false));
 	RadiosityDesc.AutoWritable = false;
-	GRenderTargetPool.FindFreeElement(RHICmdList, RadiosityDesc, LumenSceneData.RadiosityAtlas, TEXT("LumenSceneRadiosity"), true, ERenderTargetTransience::NonTransient);
+	GRenderTargetPool.FindFreeElement(RHICmdList, RadiosityDesc, LumenSceneData.RadiosityAtlas, TEXT("LumenSceneRadiosity"), ERenderTargetTransience::NonTransient);
 
 	FPooledRenderTargetDesc OpacityDesc(FPooledRenderTargetDesc::Create2DDesc(LumenSceneData.MaxAtlasSize, PF_G8, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear, false, NumMips));
 	OpacityDesc.AutoWritable = false;
-	GRenderTargetPool.FindFreeElement(RHICmdList, OpacityDesc, LumenSceneData.OpacityAtlas, TEXT("LumenSceneOpacity"), true, ERenderTargetTransience::NonTransient);
+	GRenderTargetPool.FindFreeElement(RHICmdList, OpacityDesc, LumenSceneData.OpacityAtlas, TEXT("LumenSceneOpacity"), ERenderTargetTransience::NonTransient);
 
 	ClearAtlasesToDebugValues(RHICmdList, LumenSceneData);
 }
@@ -1911,7 +1911,7 @@ void ClearLumenCards(FRDGBuilder& GraphBuilder,
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardIdUpload, )
-	SHADER_PARAMETER_RDG_BUFFER_UPLOAD(Buffer<uint>, CardIds)
+	RDG_BUFFER_ACCESS(CardIds, ERHIAccess::CopyDest)
 END_SHADER_PARAMETER_STRUCT()
 
 void FDeferredShadingSceneRenderer::UpdateLumenScene(FRHICommandListImmediate& RHICmdList)
@@ -1966,7 +1966,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRHICommandListImmediate& R
 				GPrimitiveIdVertexBufferPool.ReturnToFreeList(Entry);
 			}
 
-			TRefCountPtr<FPooledRDGBuffer> PooledRectMinMaxBuffer;
+			TRefCountPtr<FRDGPooledBuffer> PooledRectMinMaxBuffer;
 			uint32 NumRects = 0;
 
 			{

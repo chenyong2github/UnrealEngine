@@ -6,11 +6,14 @@
 
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
+#include "Templates/SubclassOf.h"
+#include "Containers/Queue.h"
 
 #include "EditorUtilitySubsystem.generated.h"
 
 class SWindow;
 class UEditorUtilityWidget;
+class UEditorUtilityTask;
 
 UCLASS(config = EditorPerProjectUserSettings)
 class BLUTILITY_API UEditorUtilitySubsystem : public UEditorSubsystem
@@ -64,8 +67,43 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
 	UEditorUtilityWidget* FindUtilityWidgetFromBlueprint(class UEditorUtilityWidgetBlueprint* InBlueprint);
 
+	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
+	void RegisterAndExecuteTask(UEditorUtilityTask* NewTask);
+
+	void RemoveTaskFromActiveList(UEditorUtilityTask* Task);
+
+	void RegisterReferencedObject(UObject* ObjectToReference);
+	void UnregisterReferencedObject(UObject* ObjectToReference);
+
+protected:
+	bool Tick(float DeltaTime);
+
+	void ProcessRunTaskCommands();
+
+	void RunTaskCommand(const TArray<FString>& Params, UWorld* InWorld, FOutputDevice& Ar);
+	void CancelAllTasksCommand(const TArray<FString>& Params, UWorld* InWorld, FOutputDevice& Ar);
+
+	UClass* FindClassByName(const FString& RawTargetName);
+	UClass* FindBlueprintClass(const FString& TargetNameRaw);
+
 private:
+	IConsoleObject* RunTaskCommandObject = nullptr;
+	IConsoleObject* CancelAllTasksCommandObject = nullptr;
 	
 	UPROPERTY()
-	TMap<UObject*, UObject*> ObjectInstances;
+	TMap<UObject* /*Asset*/, UObject* /*Instance*/> ObjectInstances;
+
+	TQueue< TArray<FString> > RunTaskCommandBuffer;
+
+	UPROPERTY(Transient)
+	TArray<UEditorUtilityTask*> PendingTasks;
+
+	UPROPERTY(Transient)
+	UEditorUtilityTask* ActiveTask;
+
+	FDelegateHandle TickerHandle;
+
+	/** List of objects that are being kept alive by this subsystem. */
+	UPROPERTY()
+	TSet<UObject*> ReferencedObjects;
 };

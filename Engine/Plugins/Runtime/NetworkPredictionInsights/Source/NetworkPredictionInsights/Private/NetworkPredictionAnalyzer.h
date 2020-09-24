@@ -82,6 +82,7 @@ private:
 	int32 TickStartMS;
 	int32 TickDeltaMS;
 	int32 TickOutputFrame;
+	int32 TickLocalOffsetFrame;
 
 	int32 PendingWriteFrame;
 };

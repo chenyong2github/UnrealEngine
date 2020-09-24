@@ -3,7 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "DynamicMeshBuilder.h"
 #include "ControlRigDrawInstruction.generated.h"
+
+class FMaterialRenderProxy;
 
 UENUM()
 namespace EControlRigDrawSettings
@@ -12,7 +15,8 @@ namespace EControlRigDrawSettings
 	{
 		Points,
 		Lines,
-		LineStrip
+		LineStrip, 
+		DynamicMesh
 	};
 }
 
@@ -39,6 +43,11 @@ struct CONTROLRIG_API FControlRigDrawInstruction
 	UPROPERTY(EditAnywhere, Category = "DrawInstruction")
 	FTransform Transform;
 
+	// This is to draw cone, they're not UPROPERTY
+	TArray<FDynamicMeshVertex> MeshVerts;
+	TArray<uint32> MeshIndices;
+	FMaterialRenderProxy* MaterialRenderProxy = nullptr;
+
 	FControlRigDrawInstruction()
 		: Name(NAME_None)
 		, PrimitiveType(EControlRigDrawSettings::Points)
@@ -54,4 +63,16 @@ struct CONTROLRIG_API FControlRigDrawInstruction
 		, Thickness(InThickness)
 		, Transform(InTransform)
 	{}
+
+	bool IsValid() const
+	{
+		// if primitive type is dynamicmesh, we expect these data to be there. 
+		// otherwise, we can't draw
+		if (PrimitiveType == EControlRigDrawSettings::DynamicMesh)
+		{
+			return MeshVerts.Num() != 0 && MeshIndices.Num() != 0 && MaterialRenderProxy != nullptr;
+		}
+
+		return Positions.Num() != 0;
+	}
 };

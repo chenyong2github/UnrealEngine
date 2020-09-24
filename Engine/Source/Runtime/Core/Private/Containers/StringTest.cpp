@@ -446,4 +446,43 @@ bool FStringConstructWithSlackTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStringEqualityTest, "System.Core.String.Equality", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
+bool FStringEqualityTest::RunTest(const FString& Parameters)
+{
+	auto TestSelfEquality = [this](const TCHAR* A)
+	{
+		TestTrue(TEXT("Self Equality C string"), FString(A) == A);
+		TestTrue(TEXT("Self Equality C string"), A == FString(A));
+		TestTrue(TEXT("Self Equality CaseSensitive"), FString(A).Equals(FString(A), ESearchCase::CaseSensitive));
+		TestTrue(TEXT("Self Equality IgnoreCase"), FString(A).Equals(FString(A), ESearchCase::IgnoreCase));
+
+		FString Slacker(A);
+		Slacker.Reserve(100);
+		TestTrue(TEXT("Self Equality slack"), Slacker == FString(A));
+	};
+
+	auto TestPairEquality = [this](const TCHAR* A, const TCHAR* B)
+	{
+		TestEqual(TEXT("Equals CaseSensitive"), FCString::Strcmp(A, B)  == 0, FString(A).Equals(FString(B), ESearchCase::CaseSensitive));
+		TestEqual(TEXT("Equals CaseSensitive"), FCString::Strcmp(B, A)  == 0, FString(B).Equals(FString(A), ESearchCase::CaseSensitive));
+		TestEqual(TEXT("Equals IgnoreCase"),	FCString::Stricmp(A, B) == 0, FString(A).Equals(FString(B), ESearchCase::IgnoreCase));
+		TestEqual(TEXT("Equals IgnoreCase"),	FCString::Stricmp(B, A) == 0, FString(B).Equals(FString(A), ESearchCase::IgnoreCase));
+	};
+
+	const TCHAR* Pairs[][2] =	{ {TEXT(""),	TEXT(" ")}
+								, {TEXT("a"),	TEXT("A")}
+								, {TEXT("aa"),	TEXT("aA")}
+								, {TEXT("az"),	TEXT("AZ")}
+								, {TEXT("@["),	TEXT("@]")} };
+
+	for (const TCHAR** Pair : Pairs)
+	{
+		TestSelfEquality(Pair[0]);
+		TestSelfEquality(Pair[1]);
+		TestPairEquality(Pair[0], Pair[1]);
+	}
+
+	return true;	
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

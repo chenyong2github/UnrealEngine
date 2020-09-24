@@ -113,6 +113,10 @@ public:
 	UPROPERTY(EditAnywhere, config, Category=UserInterface, meta=(DisplayName="Show Friendly Variable Names"))
 	uint32 bShowFriendlyNames:1;
 
+	/** When enabled, the underlying Names for Components inherited from C++ will be shown alongside their UProperty Variable name */
+	UPROPERTY(EditAnywhere, config, Category = UserInterface, meta = (DisplayName = "Show Underlying Names For Native Components"))
+	uint32 bShowNativeComponentNames:1;
+
 	/** When enabled, the Editor Preferences and Project Settings menu items in the main menu will be expanded with sub-menus for each settings section. */
 	UPROPERTY(EditAnywhere, config, Category=UserInterface, AdvancedDisplay)
 	uint32 bExpandConfigurationMenus:1;

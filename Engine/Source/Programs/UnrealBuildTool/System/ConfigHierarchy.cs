@@ -627,9 +627,9 @@ namespace UnrealBuildTool
 
 					// Parse the value
 					Value.Clear();
-					if (Char.IsLetterOrDigit(Chars[Idx]) || Chars[Idx] == '_')
+					if (Char.IsLetterOrDigit(Chars[Idx]) || Chars[Idx] == '_' || Chars[Idx] == '-')
 					{
-						while (Char.IsLetterOrDigit(Chars[Idx]) || Chars[Idx] == '_' || Chars[Idx] == '.')
+						while (Char.IsLetterOrDigit(Chars[Idx]) || Chars[Idx] == '_' || Chars[Idx] == '-' || Chars[Idx] == '.')
 						{
 							Value.Append(Chars[Idx]);
 							Idx++;

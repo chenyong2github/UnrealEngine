@@ -5,6 +5,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/EmbeddedCommunication.h"
+#include "Misc/ScopeLock.h"
 #include "IOS/IOSAppDelegate.h"
 
 TUniquePtr<FVivoxVoiceChat> CreateVivoxObject()
@@ -137,9 +138,9 @@ bool FIOSVivoxVoiceChat::Initialize()
 
 	bInBackground = false;
 	bShouldReconnect = false;
-	for (IVoiceChatUser* VoiceChatUser : VoiceChatUsers)
+	for (const TUniquePtr<FVivoxVoiceChatUser>& VoiceChatUser : VoiceChatUsers)
 	{
-		static_cast<FIOSVivoxVoiceChatUser*>(VoiceChatUser)->Initialize();
+		static_cast<FIOSVivoxVoiceChatUser*>(VoiceChatUser.Get())->Initialize();
 	}
 
 	return bResult;
@@ -175,7 +176,9 @@ bool FIOSVivoxVoiceChat::Uninitialize()
 
 IVoiceChatUser* FIOSVivoxVoiceChat::CreateUser()
 {
-	return new FIOSVivoxVoiceChatUser(*this);
+	FScopeLock Lock(&VoiceChatUsersCriticalSection);
+	const TUniquePtr<FVivoxVoiceChatUser>& User = VoiceChatUsers.Emplace_GetRef(MakeUnique<FIOSVivoxVoiceChatUser>(*this));
+	return User.Get();
 }
 
 bool FIOSVivoxVoiceChat::IsHardwareAECEnabled() const
@@ -247,9 +250,9 @@ void FIOSVivoxVoiceChat::InvokeOnUIThread(void (Func)(void* Arg0), void* Arg0)
 void FIOSVivoxVoiceChat::onDisconnected(const VivoxClientApi::Uri& Server, const VivoxClientApi::VCSStatus& Status)
 {
 	int RecordingCount = 0;
-	for (IVoiceChatUser* VoiceChatUser : VoiceChatUsers)
+	for (const TUniquePtr<FVivoxVoiceChatUser>& VoiceChatUser : VoiceChatUsers)
 	{
-		if (static_cast<FIOSVivoxVoiceChatUser*>(VoiceChatUser)->IsRecording())
+		if (static_cast<FIOSVivoxVoiceChatUser*>(VoiceChatUser.Get())->IsRecording())
 		{
 			++RecordingCount;
 		}

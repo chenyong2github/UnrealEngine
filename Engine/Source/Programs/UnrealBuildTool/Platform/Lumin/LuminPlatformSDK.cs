@@ -13,7 +13,7 @@ namespace UnrealBuildTool
 
 		public override string GetMainVersion()
 		{
-			return "0.23";
+			return "0.24";
 		}
 
  		public override void GetValidVersionRange(out string MinVersion, out string MaxVersion)

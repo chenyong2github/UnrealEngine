@@ -4,6 +4,7 @@
 
 #include "DataprepCoreUtils.h"
 #include "DataprepOperationsLibrary.h"
+#include "DataprepOperationsLibraryUtil.h"
 #include "IDataprepProgressReporter.h"
 
 #include "ActorEditorUtils.h"

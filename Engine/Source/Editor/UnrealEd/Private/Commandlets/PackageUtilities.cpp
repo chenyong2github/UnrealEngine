@@ -36,6 +36,7 @@
 #include "GameFramework/WorldSettings.h"
 #include "Editor.h"
 #include "FileHelpers.h"
+#include "IAssetRegistry.h"
 
 #include "CollectionManagerTypes.h"
 #include "ICollectionManager.h"
@@ -903,7 +904,7 @@ FLinkerLoad* CreateLinkerForFilename(FUObjectSerializeContext* LoadContext, cons
 	UPackage* Package = FindObjectFast<UPackage>(nullptr, *TempPackageName);
 	if (!Package)
 	{
-		Package = CreatePackage(nullptr, *TempPackageName);
+		Package = CreatePackage( *TempPackageName);
 	}
 	FLinkerLoad* Linker = FLinkerLoad::CreateLinker(LoadContext, Package, *InFilename, LOAD_NoVerify);
 	return Linker;
@@ -1367,37 +1368,27 @@ void FPkgInfoReporter_Log::GeneratePackageReport( FLinkerLoad* InLinker /*=nullp
 		{
 			// Seek to the AssetRegistry table of contents
 			Linker->GetLoader_Unsafe()->Seek( Linker->Summary.AssetRegistryDataOffset );
+			TArray<FAssetData*> AssetDatas;
+			UE::AssetRegistry::EReadPackageDataMainErrorCode ErrorCode;
+			int64 DependencyDataOffset;
+			UE::AssetRegistry::ReadPackageDataMain(*Linker->GetLoader_Unsafe(), LinkerName.ToString(), Linker->Summary, DependencyDataOffset, AssetDatas, ErrorCode);
 
-			// Load the number of assets in the tag map
-			int32 AssetCount = 0;
-			*Linker << AssetCount;
-
-			Out.Logf(ELogVerbosity::Display, TEXT("Number of assets with Asset Registry data: %d"), AssetCount );
+			Out.Logf(ELogVerbosity::Display, TEXT("Number of assets with Asset Registry data: %d"), AssetDatas.Num() );
 
 			// If there are any Asset Registry tags, print them
-			for (int32 AssetIdx = 0; AssetIdx < AssetCount; ++AssetIdx)
+			int AssetIdx = 0;
+			for (FAssetData* AssetData : AssetDatas)
 			{
 				// Display the asset class and path
-				FString ObjectPath;
-				FString ObjectClassName;
-				int32 TagCount = 0;
+				Out.Logf(ELogVerbosity::Display, TEXT("\t\t%d) %s'%s' (%d Tags)"), AssetIdx++, *AssetData->AssetClass.ToString(), *AssetData->ObjectPath.ToString(), AssetData->TagsAndValues.Num());
 
-				*Linker << ObjectPath;
-				*Linker << ObjectClassName;
-				*Linker << TagCount;
-
-				Out.Logf(ELogVerbosity::Display, TEXT("\t\t%d) %s'%s' (%d Tags)"), AssetIdx, *ObjectClassName, *ObjectPath, TagCount );
-
-				// Now display all tags on this asset
-				for (int32 TagIdx = 0; TagIdx < TagCount; ++TagIdx)
+				// Display all tags on the asset
+				for (const TPair<FName,FString>& Pair : AssetData->TagsAndValues)
 				{
-					FString Key;
-					FString Value;
-					*Linker << Key;
-					*Linker << Value;
-
-					Out.Logf(ELogVerbosity::Display, TEXT("\t\t\t\"%s\": \"%s\""), *Key, *Value );
+					Out.Logf(ELogVerbosity::Display, TEXT("\t\t\t\"%s\": \"%s\""), *Pair.Key.ToString(), *Pair.Value );
 				}
+
+				delete AssetData;
 			}
 		}
 	}
@@ -1491,7 +1482,7 @@ int32 UPkgInfoCommandlet::Main( const FString& Params )
 	FString RelPathSibling;
 	if (FParse::Value(*Params, TEXT("AllPackagesIn="), PathWithPackages))
 	{
-		FPackageName::FindPackagesInDirectory(FilesInPath, *PathWithPackages);
+		FPackageName::FindPackagesInDirectory(FilesInPath, PathWithPackages);
 		RelPathSibling = FPaths::ConvertRelativePathToFull(PathWithPackages);
 		RelPathSibling = FPaths::Combine(RelPathSibling, TEXT("Placeholder"));
 	}
@@ -1626,7 +1617,7 @@ int32 UPkgInfoCommandlet::Main( const FString& Params )
 			Package = FindObjectFast<UPackage>(nullptr, *TempPackageName);
 			if (!Package)
 			{
-				Package = CreatePackage(nullptr, *TempPackageName);
+				Package = CreatePackage( *TempPackageName);
 			}
 
 			Reader = FArchiveStackTraceReader::CreateFromFile(*Filename);

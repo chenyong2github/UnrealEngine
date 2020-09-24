@@ -68,19 +68,19 @@ protected:
 		FOrderedPoints(const TArray<FVector3d>& PointSequence);
 
 		/** @return number of points in the sequence. */
-		inline int32 Num()
+		int32 Num()
 		{
 			return Sequence.Num();
 		}
 
 		/** @return last point ID in the sequence. */
-		inline int32 Last()
+		int32 Last()
 		{
 			return Sequence.Last();
 		}
 
 		/** @return first point ID in the sequence. */
-		inline int32 First()
+		int32 First()
 		{
 			return Sequence[0];
 		}
@@ -90,7 +90,7 @@ protected:
 		 *
 		 * @return the new point's ID.
 		 */
-		inline int32 AppendPoint(const FVector3d& PointCoordinates);
+		int32 AppendPoint(const FVector3d& PointCoordinates);
 
 		/**
 		 * Inserts a point with the given coordinates at the given position in the sequence.
@@ -121,7 +121,7 @@ protected:
 		/**
 		 * @return point ID at the given position in the sequence.
 		 */
-		inline int32 GetPointIDAt(int32 SequencePosition)
+		int32 GetPointIDAt(int32 SequencePosition)
 		{
 			return Sequence[SequencePosition];
 		}
@@ -129,7 +129,7 @@ protected:
 		/**
 		 * @return coordinates of the point with the given point ID.
 		 */
-		inline FVector3d GetPointCoordinates(int32 PointID) const
+		FVector3d GetPointCoordinates(int32 PointID) const
 		{
 			check(IsValidPoint(PointID));
 			return Vertices[PointID];
@@ -138,7 +138,7 @@ protected:
 		/**
 		 * @return coordinates of the point at the given position in the sequence.
 		 */
-		inline FVector3d GetPointCoordinatesAt(int32 SequencePosition) const
+		FVector3d GetPointCoordinatesAt(int32 SequencePosition) const
 		{
 			return Vertices[Sequence[SequencePosition]];
 		}
@@ -146,7 +146,7 @@ protected:
 		/**
 		 * Checks whether given point ID exists in the sequence.
 		 */
-		inline bool IsValidPoint(int32 PointID) const
+		bool IsValidPoint(int32 PointID) const
 		{
 			return Vertices.IsValidIndex(PointID);
 		}
@@ -154,7 +154,7 @@ protected:
 		/**
 		 * Change the coordinates associated with a given point ID.
 		 */
-		inline void SetPointCoordinates(int32 PointID, const FVector3d& NewCoordinates)
+		void SetPointCoordinates(int32 PointID, const FVector3d& NewCoordinates)
 		{
 			checkSlow(VectorUtil::IsFinite(NewCoordinates));
 			check(IsValidPoint(PointID));
@@ -177,7 +177,7 @@ protected:
 		 * as in "for (int32 PointID : PointSequence->PointIDItr()) { ... }"
 		 * The return type of this function is likely to change, but it will continue to work in range-based for-loops.
 		 */
-		inline PointIDEnumerable PointIDItr()
+		PointIDEnumerable PointIDItr()
 		{
 			return Sequence;
 		}
@@ -211,16 +211,36 @@ public:
 	virtual void Initialize(const TArray<FVector3d>& Points, bool bIsLoop);
 	int32 AppendPoint(const FVector3d& PointCoordinates);
 	
+	// Interactive initialization mode allows the user to click multiple times to initialize
+	// the curve (without having to hold Ctrl), and to transition to edit mode by clicking the
+	// last or first points (provided the minimal numbers of points have been met)
 	void SetInteractiveInitialization(bool bOn);
-	inline bool IsInInteractiveIntialization()
+	bool IsInInteractiveIntialization()
 	{
 		return bInteractiveInitializationMode;
 	}
 
+	// In interactive intialization mode, these minimums determine how many points must
+	// exist before initialization mode can be left.
+	void SetMinPointsToLeaveInteractiveInitialization(int32 MinForLoop, int32 MinForNonLoop)
+	{
+		MinPointsForLoop = MinForLoop;
+		MinPointsForNonLoop = MinForNonLoop;
+	}
+
+	// When true, if the number of control points falls below the mins required (through
+	// deletion by the user), the mechanic automatically falls back into interactive 
+	// intialization mode.
+	void SetAutoRevertToInteractiveInitialization(bool bOn)
+	{
+		bAutoRevertToInteractiveInitialization = bOn;
+	}
+
+
 	void SetIsLoop(bool bIsLoop);
 
 	/** Returns whether the underlying sequence of control points is a loop. */
-	inline bool GetIsLoop()
+	bool GetIsLoop()
 	{
 		return bIsLoop;
 	}
@@ -252,7 +272,7 @@ public:
 	void DeleteSelectedPoints();
 
 	/** Expires any changes currently associated with the mechanic in the undo/redo stack. */
-	inline void ExpireChanges()
+	void ExpireChanges()
 	{
 		++CurrentChangeStamp;
 	}
@@ -261,7 +281,7 @@ public:
 	void ExtractPointPositions(TArray<FVector3d> &PositionsOut);
 
 	/** Gives number of points currently managed by the mechanic. */
-	inline int32 GetNumPoints()
+	int32 GetNumPoints()
 	{
 		return ControlPoints.Num();
 	}
@@ -294,6 +314,10 @@ protected:
 
 	bool bIsLoop;
 	bool bInteractiveInitializationMode = false;
+
+	int32 MinPointsForLoop = 3;
+	int32 MinPointsForNonLoop = 2;
+	bool bAutoRevertToInteractiveInitialization = false;
 
 	bool bSnappingEnabled = true;
 	FPointPlanarSnapSolver SnapEngine;

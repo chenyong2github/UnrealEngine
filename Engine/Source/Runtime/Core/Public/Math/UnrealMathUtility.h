@@ -413,6 +413,24 @@ public:
 		return X<Min ? Min : X<Max ? X : Max;
 	}
 
+	/** Wraps X to be between Min and Max, inclusive */
+	template< class T >
+	static FORCEINLINE T Wrap(const T X, const T Min, const T Max)
+	{
+		T Size = Max - Min;
+		T EndVal = X;
+		while (EndVal < Min)
+		{
+			EndVal += Size;
+		}
+
+		while (EndVal > Max)
+		{
+			EndVal -= Size;
+		}
+		return EndVal;
+	}
+
 	/** Snaps a value to the nearest grid multiple */
 	template< class T >
 	static FORCEINLINE T GridSnap(T Location, T Grid)
@@ -570,7 +588,7 @@ public:
 	 * @param MaxAngleDegrees	"to" angle that defines the end of the range of valid angles
 	 * @return Returns clamped angle in the range -180..180.
 	 */
-	static float CORE_API ClampAngle(float AngleDegrees, float MinAngleDegrees, float MaxAngleDegrees);
+	static CORE_API float ClampAngle(float AngleDegrees, float MinAngleDegrees, float MaxAngleDegrees);
 
 	/** Find the smallest angle between two headings (in degrees) */
 	static float FindDeltaAngleDegrees(float A1, float A2)

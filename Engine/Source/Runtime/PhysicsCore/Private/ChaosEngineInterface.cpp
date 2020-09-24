@@ -17,6 +17,9 @@ FPhysicsDelegatesCore::FOnUpdatePhysXMaterial FPhysicsDelegatesCore::OnUpdatePhy
 #include "Chaos/Convex.h"
 #include "CollisionShape.h"
 #include "Chaos/PBDJointConstraintData.h"
+#include "Chaos/PBDSuspensionConstraintData.h"
+#include "Chaos/Collision/CollisionConstraintFlags.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "PBDRigidsSolver.h"
 
 bool bEnableChaosJointConstraints = true;
@@ -266,6 +269,38 @@ void FChaosEngineInterface::DetachShape(const FPhysicsActorHandle& InActor,FPhys
 	// #todo : Implement
 	CHAOS_ENSURE(false);
 }
+
+void FChaosEngineInterface::AddDisabledCollisionsFor_AssumesLocked(const TMap<FPhysicsActorHandle, TArray< FPhysicsActorHandle > >& InMap)
+{
+	for (auto Elem : InMap)
+	{
+		FPhysicsActorHandle& ActorReference = Elem.Key;
+		TArray< FPhysicsActorHandle >& DisabledCollisions = Elem.Value;
+		Chaos::FPhysicsSolver* Solver = ActorReference->GetProxy()->GetSolver<Chaos::FPhysicsSolver>();
+		Chaos::FIgnoreCollisionManager& CollisionManager = Solver->GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager();
+		Chaos::FIgnoreCollisionManager::FPendingMap& PendingMap = CollisionManager.GetPendingActivationsForGameThread();
+		if (PendingMap.Contains(ActorReference))
+		{
+			PendingMap.Remove(ActorReference);
+		}
+		PendingMap.Add(ActorReference, DisabledCollisions);
+	}
+}
+
+void FChaosEngineInterface::RemoveDisabledCollisionsFor_AssumesLocked(TArray< FPhysicsActorHandle >& InPhysicsActors)
+{
+	for (FPhysicsActorHandle& Handle : InPhysicsActors)
+	{
+		Chaos::FPhysicsSolver* Solver = Handle->GetProxy()->GetSolver<Chaos::FPhysicsSolver>();
+		Chaos::FIgnoreCollisionManager& CollisionManager = Solver->GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager();
+		Chaos::FIgnoreCollisionManager::FParticleArray& PendingMap = CollisionManager.GetPendingDeactivationsForGameThread();
+		if (!PendingMap.Contains(Handle))
+		{
+			PendingMap.Add(Handle);
+		}
+	}
+}
+
 
 void FChaosEngineInterface::SetActorUserData_AssumesLocked(FPhysicsActorHandle& InActorReference,FPhysicsUserData* InUserData)
 {
@@ -714,6 +749,15 @@ void FChaosEngineInterface::SetGravityEnabled_AssumesLocked(const FPhysicsActorH
 	}
 }
 
+void FChaosEngineInterface::SetOneWayInteraction_AssumesLocked(const FPhysicsActorHandle& InHandle, bool InOneWayInteraction)
+{
+	Chaos::TPBDRigidParticle<float, 3>* Rigid = InHandle->CastToRigidParticle();
+	if (Rigid)
+	{
+		Rigid->SetOneWayInteraction(InOneWayInteraction);
+	}
+}
+
 float FChaosEngineInterface::GetSleepEnergyThreshold_AssumesLocked(const FPhysicsActorHandle& InActorReference)
 {
 	return 0;
@@ -841,26 +885,54 @@ FPhysicsConstraintHandle FChaosEngineInterface::CreateConstraint(const FPhysicsA
 			{
 				LLM_SCOPE(ELLMTag::Chaos);
 
-				ConstraintRef.Constraint = new Chaos::FJointConstraint();
+				auto* JointConstraint = new Chaos::FJointConstraint();
+				ConstraintRef.Constraint = JointConstraint;
 
-				Chaos::FJointConstraint::FParticlePair JointParticles ={InActorRef1,InActorRef2};
-				ConstraintRef.Constraint->SetJointParticles({InActorRef1,InActorRef2});
-				ConstraintRef.Constraint->SetJointTransforms({InLocalFrame1,InLocalFrame2});
+				JointConstraint->SetParticleProxies({ InActorRef1->GetProxy(),InActorRef2->GetProxy() });
+				JointConstraint->SetJointTransforms({ InLocalFrame1,InLocalFrame2 });
 
 				Chaos::FPhysicsSolver* Solver = InActorRef1->GetProxy()->GetSolver<Chaos::FPhysicsSolver>();
 				checkSlow(Solver == InActorRef2->GetProxy()->GetSolver<Chaos::FPhysicsSolver>());
-				Solver->RegisterObject(ConstraintRef.Constraint);
+				Solver->RegisterObject(JointConstraint);
 			}
 		}
 	}
 	return ConstraintRef;
 }
 
+
+FPhysicsConstraintHandle FChaosEngineInterface::CreateSuspension(const FPhysicsActorHandle& InActorRef, const FVector& InLocalFrame)
+{
+	FPhysicsConstraintHandle ConstraintRef;
+
+	if (bEnableChaosJointConstraints)
+	{
+		if (InActorRef != nullptr)
+		{
+			if (InActorRef->GetProxy() != nullptr)
+			{
+				LLM_SCOPE(ELLMTag::Chaos);
+
+				auto* SuspensionConstraint = new Chaos::FSuspensionConstraint();
+				ConstraintRef.Constraint = SuspensionConstraint;
+
+				SuspensionConstraint->SetParticleProxies({ InActorRef->GetProxy(),nullptr });
+				SuspensionConstraint->SetLocation( InLocalFrame );
+
+				Chaos::FPhysicsSolver* Solver = InActorRef->GetProxy()->GetSolver<Chaos::FPhysicsSolver>();
+				Solver->RegisterObject(SuspensionConstraint);
+			}
+		}
+	}
+	return ConstraintRef;
+}
+
+
 void FChaosEngineInterface::SetConstraintUserData(const FPhysicsConstraintHandle& InConstraintRef,void* InUserData)
 {
-	if (InConstraintRef.IsValid())
+	if (InConstraintRef.IsValid() && InConstraintRef.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 	{
-		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintRef.Constraint))
 		{
 			Constraint->SetUserData(InUserData);
 		}
@@ -872,30 +944,45 @@ void FChaosEngineInterface::ReleaseConstraint(FPhysicsConstraintHandle& InConstr
 	if (bEnableChaosJointConstraints)
 	{
 		LLM_SCOPE(ELLMTag::Chaos);
-		if (InConstraintRef.IsValid())
+		if (InConstraintRef.IsValid() && InConstraintRef.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 		{
-			if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+			if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintRef.Constraint))
 			{
 				if (FJointConstraintPhysicsProxy* Proxy = Constraint->GetProxy<FJointConstraintPhysicsProxy>())
 				{
 					check(Proxy->GetSolver<Chaos::FPhysicsSolver>());
 					Chaos::FPhysicsSolver* Solver = Proxy->GetSolver<Chaos::FPhysicsSolver>();
 
-					Solver->UnregisterObject(InConstraintRef.Constraint);
+					Solver->UnregisterObject(Constraint);
 
-					delete InConstraintRef.Constraint;
-					InConstraintRef.Constraint = nullptr;
+					InConstraintRef.Constraint = nullptr; // freed by the joint constraint physics proxy
 				}
 			}
+		}
+		else if (InConstraintRef.IsValid() && InConstraintRef.Constraint->IsType(Chaos::EConstraintType::SuspensionConstraintType))
+		{
+			if (Chaos::FSuspensionConstraint* Constraint = static_cast<Chaos::FSuspensionConstraint*>(InConstraintRef.Constraint))
+			{
+				if (FSuspensionConstraintPhysicsProxy* Proxy = Constraint->GetProxy<FSuspensionConstraintPhysicsProxy>())
+				{
+					check(Proxy->GetSolver<Chaos::FPhysicsSolver>());
+					Chaos::FPhysicsSolver* Solver = Proxy->GetSolver<Chaos::FPhysicsSolver>();
+
+					Solver->UnregisterObject(Constraint);
+
+					InConstraintRef.Constraint = nullptr;  // freed by the joint constraint physics proxy
+				}
+			}
+
 		}
 	}
 }
 
 FTransform FChaosEngineInterface::GetLocalPose(const FPhysicsConstraintHandle& InConstraintRef,EConstraintFrame::Type InFrame)
 {
-	if (InConstraintRef.IsValid())
+	if (InConstraintRef.IsValid() && InConstraintRef.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 	{
-		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintRef.Constraint))
 		{
 			const Chaos::FJointConstraint::FTransformPair& M = Constraint->GetJointTransforms();
 			if (InFrame == EConstraintFrame::Frame1)
@@ -911,22 +998,50 @@ FTransform FChaosEngineInterface::GetLocalPose(const FPhysicsConstraintHandle& I
 	return FTransform::Identity;
 }
 
-FTransform FChaosEngineInterface::GetGlobalPose(const FPhysicsConstraintHandle& InConstraintRef,EConstraintFrame::Type InFrame)
+Chaos::TGeometryParticle<Chaos::FReal, 3>*
+GetParticleFromProxy(IPhysicsProxyBase* ProxyBase)
 {
-	if (InConstraintRef.IsValid())
+	if (ProxyBase)
 	{
-		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		if (ProxyBase->GetType() == EPhysicsProxyType::SingleGeometryParticleType)
 		{
-			const Chaos::FJointConstraint::FParticlePair& Particles = Constraint->GetJointParticles();
+			return ((FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<Chaos::FReal, 3>>*)ProxyBase)->GetParticle();
+		}
+		else if (ProxyBase->GetType() == EPhysicsProxyType::SingleRigidParticleType)
+		{
+			return ((FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<Chaos::FReal, 3>>*)ProxyBase)->GetParticle();
+		}
+		else if (ProxyBase->GetType() == EPhysicsProxyType::SingleKinematicParticleType)
+		{
+			return ((FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<Chaos::FReal, 3>>*)ProxyBase)->GetParticle();
+		}
+	}
+	return nullptr;
+}
+
+
+FTransform FChaosEngineInterface::GetGlobalPose(const FPhysicsConstraintHandle& InConstraintRef, EConstraintFrame::Type InFrame)
+{
+	if (InConstraintRef.IsValid() && InConstraintRef.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
+	{
+		if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintRef.Constraint))
+		{
+			Chaos::FConstraintBase::FProxyBasePair BasePairs = Constraint->GetParticleProxies();
 			const Chaos::FJointConstraint::FTransformPair& M = Constraint->GetJointTransforms();
 
 			if (InFrame == EConstraintFrame::Frame1)
 			{
-				return FTransform(Particles[0]->R(), Particles[0]->X())*M[0];
+				if (Chaos::TGeometryParticle<Chaos::FReal, 3>* Particle = GetParticleFromProxy(BasePairs[0]))
+				{
+					return FTransform(Particle->R(), Particle->X()) * M[0];
+				}
 			}
 			else if (InFrame == EConstraintFrame::Frame2)
 			{
-				return FTransform(Particles[1]->R(), Particles[1]->X())*M[1];
+				if (Chaos::TGeometryParticle<Chaos::FReal, 3>* Particle = GetParticleFromProxy(BasePairs[1]))
+				{
+					return FTransform(Particle->R(), Particle->X()) * M[1];
+				}
 			}
 		}
 	}
@@ -935,9 +1050,9 @@ FTransform FChaosEngineInterface::GetGlobalPose(const FPhysicsConstraintHandle& 
 
 FVector FChaosEngineInterface::GetLocation(const FPhysicsConstraintHandle& InConstraintRef)
 {
-	if (InConstraintRef.IsValid())
+	if (InConstraintRef.IsValid() && InConstraintRef.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 	{
-		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintRef.Constraint))
 		{
 			return 0.5 * (GetGlobalPose(InConstraintRef, EConstraintFrame::Frame1).GetTranslation() + GetGlobalPose(InConstraintRef, EConstraintFrame::Frame2).GetTranslation());
 		}
@@ -951,9 +1066,9 @@ void FChaosEngineInterface::GetForce(const FPhysicsConstraintHandle& InConstrain
 	OutLinForce = FVector::ZeroVector;
 	OutAngForce = FVector::ZeroVector;
 
-	if (InConstraintRef.IsValid())
+	if (InConstraintRef.IsValid() && InConstraintRef.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 	{
-		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintRef.Constraint))
 		{
 			OutLinForce = Constraint->GetOutputData().Force;
 			OutAngForce = Constraint->GetOutputData().Torque;
@@ -965,9 +1080,9 @@ void FChaosEngineInterface::GetDriveLinearVelocity(const FPhysicsConstraintHandl
 {
 	OutLinVelocity = FVector::ZeroVector;
 
-	if (InConstraintRef.IsValid())
+	if (InConstraintRef.IsValid() && InConstraintRef.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 	{
-		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintRef.Constraint))
 		{
 			OutLinVelocity = Constraint->GetLinearDriveVelocityTarget();
 		}
@@ -978,9 +1093,9 @@ void FChaosEngineInterface::GetDriveAngularVelocity(const FPhysicsConstraintHand
 {
 	OutAngVelocity = FVector::ZeroVector;
 
-	if (InConstraintRef.IsValid())
+	if (InConstraintRef.IsValid() && InConstraintRef.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 	{
-		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintRef.Constraint))
 		{
 			OutAngVelocity = Constraint->GetAngularDriveVelocityTarget();
 		}
@@ -1009,9 +1124,9 @@ void FChaosEngineInterface::SetCanVisualize(const FPhysicsConstraintHandle& InCo
 
 void FChaosEngineInterface::SetCollisionEnabled(const FPhysicsConstraintHandle& InConstraintRef,bool bInCollisionEnabled)
 {
-	if(InConstraintRef.IsValid())
+	if (InConstraintRef.IsValid() && InConstraintRef.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 	{
-		if(Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintRef.Constraint))
 		{
 			Constraint->SetCollisionEnabled(bInCollisionEnabled);
 		}
@@ -1020,9 +1135,9 @@ void FChaosEngineInterface::SetCollisionEnabled(const FPhysicsConstraintHandle& 
 
 void FChaosEngineInterface::SetProjectionEnabled_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef,bool bInProjectionEnabled,float InLinearAlpha,float InAngularAlpha)
 {
-	if(InConstraintRef.IsValid())
+	if (InConstraintRef.IsValid() && InConstraintRef.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 	{
-		if(Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintRef.Constraint))
 		{
 			Constraint->SetProjectionEnabled(bInProjectionEnabled);
 			Constraint->SetProjectionLinearAlpha(InLinearAlpha);
@@ -1033,9 +1148,9 @@ void FChaosEngineInterface::SetProjectionEnabled_AssumesLocked(const FPhysicsCon
 
 void FChaosEngineInterface::SetParentDominates_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef,bool bInParentDominates)
 {
-	if(InConstraintRef.IsValid())
+	if (InConstraintRef.IsValid() && InConstraintRef.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 	{
-		if(Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintRef.Constraint))
 		{
 			if(bInParentDominates)
 			{
@@ -1050,9 +1165,9 @@ void FChaosEngineInterface::SetParentDominates_AssumesLocked(const FPhysicsConst
 
 void FChaosEngineInterface::SetBreakForces_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef,float InLinearBreakForce,float InAngularBreakTorque)
 {
-	if (InConstraintRef.IsValid())
+	if (InConstraintRef.IsValid() && InConstraintRef.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 	{
-		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintRef.Constraint))
 		{
 			Constraint->SetLinearBreakForce(InLinearBreakForce);
 			Constraint->SetAngularBreakTorque(InAngularBreakTorque);
@@ -1067,9 +1182,9 @@ void FChaosEngineInterface::SetLocalPose(const FPhysicsConstraintHandle& InConst
 
 void FChaosEngineInterface::SetDrivePosition(const FPhysicsConstraintHandle& InConstraintRef,const FVector& InPosition)
 {
-	if (InConstraintRef.IsValid())
+	if (InConstraintRef.IsValid() && InConstraintRef.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 	{
-		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintRef.Constraint))
 		{
 			Constraint->SetLinearDrivePositionTarget(InPosition);
 		}
@@ -1078,9 +1193,9 @@ void FChaosEngineInterface::SetDrivePosition(const FPhysicsConstraintHandle& InC
 
 void FChaosEngineInterface::SetDriveOrientation(const FPhysicsConstraintHandle& InConstraintRef,const FQuat& InOrientation)
 {
-	if (InConstraintRef.IsValid())
+	if (InConstraintRef.IsValid() && InConstraintRef.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 	{
-		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintRef.Constraint))
 		{
 			Constraint->SetAngularDrivePositionTarget(InOrientation);
 		}
@@ -1089,9 +1204,9 @@ void FChaosEngineInterface::SetDriveOrientation(const FPhysicsConstraintHandle& 
 
 void FChaosEngineInterface::SetDriveLinearVelocity(const FPhysicsConstraintHandle& InConstraintRef,const FVector& InLinVelocity)
 {
-	if (InConstraintRef.IsValid())
+	if (InConstraintRef.IsValid() && InConstraintRef.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 	{
-		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintRef.Constraint))
 		{
 			Constraint->SetLinearDriveVelocityTarget(InLinVelocity);
 		}
@@ -1100,9 +1215,9 @@ void FChaosEngineInterface::SetDriveLinearVelocity(const FPhysicsConstraintHandl
 
 void FChaosEngineInterface::SetDriveAngularVelocity(const FPhysicsConstraintHandle& InConstraintRef,const FVector& InAngVelocity)
 {
-	if (InConstraintRef.IsValid())
+	if (InConstraintRef.IsValid() && InConstraintRef.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 	{
-		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintRef.Constraint))
 		{
 			Constraint->SetAngularDriveVelocityTarget(InAngVelocity);
 		}
@@ -1111,9 +1226,9 @@ void FChaosEngineInterface::SetDriveAngularVelocity(const FPhysicsConstraintHand
 
 void FChaosEngineInterface::SetTwistLimit(const FPhysicsConstraintHandle& InConstraintRef,float InLowerLimit,float InUpperLimit,float InContactDistance)
 {
-	if (InConstraintRef.IsValid())
+	if (InConstraintRef.IsValid() && InConstraintRef.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 	{
-		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintRef.Constraint))
 		{
 			Chaos::FVec3 Limit = Constraint->GetAngularLimits();
 			Limit[(int32)Chaos::EJointAngularConstraintIndex::Twist] = FMath::DegreesToRadians(InUpperLimit - InLowerLimit);
@@ -1125,9 +1240,9 @@ void FChaosEngineInterface::SetTwistLimit(const FPhysicsConstraintHandle& InCons
 
 void FChaosEngineInterface::SetSwingLimit(const FPhysicsConstraintHandle& InConstraintRef,float InYLimit,float InZLimit,float InContactDistance)
 {
-	if (InConstraintRef.IsValid())
+	if (InConstraintRef.IsValid() && InConstraintRef.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 	{
-		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintRef.Constraint))
 		{
 			Chaos::FVec3 Limit = Constraint->GetAngularLimits();
 			Limit[(int32)Chaos::EJointAngularConstraintIndex::Swing1] = FMath::DegreesToRadians(InYLimit);
@@ -1140,9 +1255,9 @@ void FChaosEngineInterface::SetSwingLimit(const FPhysicsConstraintHandle& InCons
 
 void FChaosEngineInterface::SetLinearLimit(const FPhysicsConstraintHandle& InConstraintRef,float InLinearLimit)
 {
-	if (InConstraintRef.IsValid())
+	if (InConstraintRef.IsValid() && InConstraintRef.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 	{
-		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintRef.Constraint))
 		{
 			Constraint->SetLinearLimit(InLinearLimit);
 		}
@@ -1151,9 +1266,9 @@ void FChaosEngineInterface::SetLinearLimit(const FPhysicsConstraintHandle& InCon
 
 bool FChaosEngineInterface::IsBroken(const FPhysicsConstraintHandle& InConstraintRef)
 {
-	if (InConstraintRef.IsValid())
+	if (InConstraintRef.IsValid() && InConstraintRef.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 	{
-		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintRef.Constraint))
 		{
 			return Constraint->GetOutputData().bIsBroken;
 		}

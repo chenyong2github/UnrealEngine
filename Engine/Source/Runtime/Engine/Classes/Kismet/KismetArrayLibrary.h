@@ -112,6 +112,14 @@ class ENGINE_API UKismetArrayLibrary : public UBlueprintFunctionLibrary
 	*/
 	UFUNCTION(BlueprintCallable, CustomThunk, meta=(DisplayName = "Resize", CompactNodeTitle = "RESIZE", ArrayParm = "TargetArray"), Category="Utilities|Array")
 	static void Array_Resize(const TArray<int32>& TargetArray, int32 Size);
+	
+	/**
+	 * Reverse the elements of an array
+	 *
+	 *@param	TargetArray		The array to reverse
+	*/
+	UFUNCTION(BlueprintCallable, CustomThunk, meta = (DisplayName = "Reverse", CompactNodeTitle = "REVERSE", ArrayParm = "TargetArray"), Category = "Utilities|Array")
+	static void Array_Reverse(const TArray<int32>& TargetArray);
 
 	/* 
 	 *Get the number of items in an array
@@ -227,6 +235,27 @@ class ENGINE_API UKismetArrayLibrary : public UBlueprintFunctionLibrary
 	*/
 	UFUNCTION(BlueprintPure, CustomThunk, meta = (DisplayName = "Is Valid Index", CompactNodeTitle = "IS VALID INDEX", ArrayParm = "TargetArray", BlueprintThreadSafe), Category = "Utilities|Array")
 	static bool Array_IsValidIndex(const TArray<int32>& TargetArray, int32 IndexToTest);
+	
+	/**
+	 * Gets a random item from specified array
+	 * 
+	 * @param	TargetArray		The array
+	 * @param	OutItem			The random item from this array
+	 * @param	OutIndex		The index of random item (will be -1 if array is empty)
+	 */
+	UFUNCTION(BlueprintPure, CustomThunk, meta=(DisplayName = "Random Array Item", CompactNodeTitle = "RANDOM", ArrayParm = "TargetArray", ArrayTypeDependentParams = "OutItem"), Category="Utilities|Array")
+	static void Array_Random(const TArray<int32>& TargetArray, int32& OutItem, int32& OutIndex);
+
+	/** 
+	 * Gets a random item from specified array (using random stream)
+	 * 
+	 * @param	TargetArray		The array
+	 * @param	RandomStream	The random stream
+	 * @param	OutItem			The random item from this array
+	 * @param	OutIndex		The index of random item (will be -1 if array is empty)
+	 */
+	UFUNCTION(BlueprintPure, CustomThunk, meta=(DisplayName = "Random Array Item from Stream", ArrayParm = "TargetArray", ArrayTypeDependentParams = "OutItem"), Category="Utilities|Array")
+	static void Array_RandomFromStream(const TArray<int32>& TargetArray, UPARAM(Ref) FRandomStream& RandomStream, int32& OutItem, int32& OutIndex);
 
 	// Native functions that will be called by the below custom thunk layers, which read off the property address, and call the appropriate native handler
 	static int32 GenericArray_Add(void* TargetArray, const FArrayProperty* ArrayProp, const void* NewItem);
@@ -239,6 +268,7 @@ class ENGINE_API UKismetArrayLibrary : public UBlueprintFunctionLibrary
 	static bool GenericArray_RemoveItem(void* TargetArray, const FArrayProperty* ArrayProp, const void* Item);
 	static void GenericArray_Clear(void* TargetArray, const FArrayProperty* ArrayProp);
 	static void GenericArray_Resize(void* TargetArray, const FArrayProperty* ArrayProp, int32 Size);
+	static void GenericArray_Reverse(void* TargetArray, const FArrayProperty* ArrayProp);
 	static int32 GenericArray_Length(const void* TargetArray, const FArrayProperty* ArrayProp);
 	static bool GenericArray_IsEmpty(const void* TargetArray, const FArrayProperty* ArrayProp);
 	static bool GenericArray_IsNotEmpty(const void* TargetArray, const FArrayProperty* ArrayProp);
@@ -248,6 +278,8 @@ class ENGINE_API UKismetArrayLibrary : public UBlueprintFunctionLibrary
 	static void GenericArray_Swap(const void* TargetArray, const FArrayProperty* ArrayProp, int32 First, int32 Second);
 	static int32 GenericArray_Find(const void* TargetArray, const FArrayProperty* ArrayProperty, const void* ItemToFind);
 	static void GenericArray_SetArrayPropertyByName(UObject* OwnerObject, FName ArrayPropertyName, const void* SrcArrayAddr);
+	static void GenericArray_Random(void* TargetArray, const FArrayProperty* ArrayProp, void* OutItem, int32* OutIndex);
+	static void GenericArray_RandomFromStream(void* TargetArray, const FArrayProperty* ArrayProp, FRandomStream* RandomStream, void* OutItem, int32* OutIndex);
 	static bool GenericArray_IsValidIndex(const void* TargetArray, const FArrayProperty* ArrayProp, int32 IndexToTest);
 	
 private:
@@ -516,6 +548,23 @@ public:
 		GenericArray_Resize(ArrayAddr, ArrayProperty, Size);
 		P_NATIVE_END;
 	}
+	
+	DECLARE_FUNCTION(execArray_Reverse)
+	{
+		Stack.MostRecentProperty = nullptr;
+		Stack.StepCompiledIn<FArrayProperty>(NULL);
+		void* ArrayAddr = Stack.MostRecentPropertyAddress;
+		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Stack.MostRecentProperty);
+		if (!ArrayProperty)
+		{
+			Stack.bArrayContextFailed = true;
+			return;
+		}
+		P_FINISH;
+		P_NATIVE_BEGIN;
+		GenericArray_Reverse(ArrayAddr, ArrayProperty);
+		P_NATIVE_END;
+	}
 
 	DECLARE_FUNCTION(execArray_Length)
 	{
@@ -773,6 +822,62 @@ public:
 
 		P_NATIVE_BEGIN;
 		*(bool*)RESULT_PARAM = GenericArray_IsValidIndex(ArrayAddr, ArrayProperty, IndexToTest);
+		P_NATIVE_END;
+	}
+	
+	DECLARE_FUNCTION(execArray_Random)
+	{
+		Stack.MostRecentProperty = nullptr;
+		Stack.StepCompiledIn<FArrayProperty>(nullptr);
+		void* ArrayAddr = Stack.MostRecentPropertyAddress;
+		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Stack.MostRecentProperty);
+		if (!ArrayProperty)
+		{
+			Stack.bArrayContextFailed = true;
+			return;
+		}
+
+		Stack.MostRecentProperty = nullptr;
+		Stack.StepCompiledIn<FProperty>(nullptr);
+		void* Result = Stack.MostRecentPropertyAddress;
+
+		Stack.MostRecentProperty = nullptr;
+		Stack.StepCompiledIn<FProperty>(nullptr);
+		int32* OutIndex = (int32*)Stack.MostRecentPropertyAddress;
+
+		P_FINISH;
+		P_NATIVE_BEGIN;
+		GenericArray_Random(ArrayAddr, ArrayProperty, Result, OutIndex);
+		P_NATIVE_END;
+	}
+	
+	DECLARE_FUNCTION(execArray_RandomFromStream)
+	{
+		Stack.MostRecentProperty = nullptr;
+		Stack.StepCompiledIn<FArrayProperty>(nullptr);
+		void* ArrayAddr = Stack.MostRecentPropertyAddress;
+		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Stack.MostRecentProperty);
+		if (!ArrayProperty)
+		{
+			Stack.bArrayContextFailed = true;
+			return;
+		}
+
+		Stack.MostRecentProperty = nullptr;
+		Stack.StepCompiledIn<FProperty>(nullptr);
+		FRandomStream* RandomStream = (FRandomStream*)Stack.MostRecentPropertyAddress;
+
+		Stack.MostRecentProperty = nullptr;
+		Stack.StepCompiledIn<FProperty>(nullptr);
+		void* Result = Stack.MostRecentPropertyAddress;
+
+		Stack.MostRecentProperty = nullptr;
+		Stack.StepCompiledIn<FProperty>(nullptr);
+		int32* OutIndex = (int32*)Stack.MostRecentPropertyAddress;
+
+		P_FINISH;
+		P_NATIVE_BEGIN;
+		GenericArray_RandomFromStream(ArrayAddr, ArrayProperty, RandomStream, Result, OutIndex);
 		P_NATIVE_END;
 	}
 };

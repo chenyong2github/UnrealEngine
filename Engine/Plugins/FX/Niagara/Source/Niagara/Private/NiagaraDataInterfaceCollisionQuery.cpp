@@ -9,9 +9,6 @@
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "Shader.h"
 
-//////////////////////////////////////////////////////////////////////////
-//Color Curve
-
 FCriticalSection UNiagaraDataInterfaceCollisionQuery::CriticalSection;
 
 struct FNiagaraCollisionDIFunctionVersion
@@ -164,6 +161,7 @@ bool UNiagaraDataInterfaceCollisionQuery::GetFunctionHLSL(const FNiagaraDataInte
 			Out_WorldNormal = float3(0.0, 0.0, 1.0);\n\
 			Out_IsInsideView = true;\n\
 			Out_CameraPosWorld.xyz = View.WorldCameraOrigin.xyz;\n\
+			#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5\n\
 			float4 SamplePosition = float4(In_SamplePos + View.PreViewTranslation, 1);\n\
 			float4 ClipPosition = mul(SamplePosition, View.TranslatedWorldToClip);\n\
 			float2 ScreenPosition = ClipPosition.xy / ClipPosition.w;\n\
@@ -177,12 +175,14 @@ bool UNiagaraDataInterfaceCollisionQuery::GetFunctionHLSL(const FNiagaraDataInte
 				// Reconstruct world position.\n\
 				Out_WorldPos = WorldPositionFromSceneDepth(ScreenPosition.xy, SceneDepth);\n\
 				// Sample the normal buffer\n\
-				Out_WorldNormal = Texture2DSampleLevel(SceneTexturesStruct.GBufferATexture, SceneTexturesStruct.GBufferATextureSampler, ScreenUV, 0).xyz * 2.0 - 1.0;\n\
+				Out_WorldNormal = Texture2DSampleLevel(SceneTexturesStruct.GBufferATexture, SceneTexturesStruct_GBufferATextureSampler, ScreenUV, 0).xyz * 2.0 - 1.0;\n\
 			}\n\
 			else\n\
 			{\n\
 				Out_IsInsideView = false;\n\
-			}\n}\n\n");
+			}\n\
+			#endif\n\
+			}\n\n");
 		return true;
 	}
 	else if (FunctionInfo.DefinitionName == TEXT("QueryMeshDistanceFieldGPU"))
@@ -240,6 +240,25 @@ bool UNiagaraDataInterfaceCollisionQuery::UpgradeFunctionCall(FNiagaraFunctionSi
 }
 #endif
 
+bool IsDistanceFieldEnabled()
+{
+	static const auto* CVarGenerateMeshDistanceFields = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
+	return CVarGenerateMeshDistanceFields != nullptr && CVarGenerateMeshDistanceFields->GetValueOnAnyThread() > 0;
+}
+
+#if WITH_EDITOR
+void UNiagaraDataInterfaceCollisionQuery::ValidateFunction(const FNiagaraFunctionSignature& Function, TArray<FText>& OutValidationErrors)
+{
+	if (Function.Name == DistanceFieldName)
+	{
+		if (!IsDistanceFieldEnabled())
+		{
+			OutValidationErrors.Add(NSLOCTEXT("NiagaraDataInterfaceCollisionQuery", "NiagaraDistanceFieldNotEnabledMsg", "The mesh distance field generation is currently not enabled, please check the project settings.\nNiagara cannot query the distance field otherwise."));
+		}
+	}
+}
+#endif
+
 void UNiagaraDataInterfaceCollisionQuery::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
 	// we don't need to add these to hlsl, as they're already in common.ush
@@ -273,6 +292,17 @@ void UNiagaraDataInterfaceCollisionQuery::GetVMExternalFunction(const FVMExterna
 		UE_LOG(LogNiagara, Error, TEXT("Could not find data interface external function. %s\n"),
 			*BindingInfo.Name.ToString());
 	}
+}
+
+bool UNiagaraDataInterfaceCollisionQuery::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
+{
+	if (!Super::AppendCompileHash(InVisitor))
+	{
+		return false;
+	}
+	bool bDistanceFieldEnabled = IsDistanceFieldEnabled();
+	InVisitor->UpdatePOD(TEXT("NiagaraCollisionDI_DistanceField"), bDistanceFieldEnabled);
+	return true;
 }
 
 void UNiagaraDataInterfaceCollisionQuery::PerformQuerySyncCPU(FVectorVMContext & Context)
@@ -380,12 +410,12 @@ void UNiagaraDataInterfaceCollisionQuery::PerformQueryAsyncCPU(FVectorVMContext 
 		bool Skip = IsSkipTrace.GetAndAdvance().GetValue();
 		ensure(!Pos.ContainsNaN());
 
-		*OutQueryID.GetDestAndAdvance() = Skip ? 0 : InstanceData->CollisionBatch.SubmitQuery(Pos, End, TraceChannel);
+		*OutQueryID.GetDestAndAdvance() = Skip ? INDEX_NONE : InstanceData->CollisionBatch.SubmitQuery(Pos, End, TraceChannel);
 
 		// try to retrieve a query with the supplied query ID
 		FNiagaraDICollsionQueryResult Res;
 		int32 ID = InIDParam.GetAndAdvance();
-		if (ID > 0 && InstanceData->CollisionBatch.GetQueryResult(ID, Res))
+		if (ID != INDEX_NONE && InstanceData->CollisionBatch.GetQueryResult(ID, Res))
 		{
 			*OutQueryValid.GetDestAndAdvance() = FNiagaraBool(true);
 			*OutInsideMesh.GetDestAndAdvance() = FNiagaraBool(Res.IsInsideMesh);
@@ -504,7 +534,7 @@ struct FNiagaraDataInterfaceParametersCS_CollisionQuery : public FNiagaraDataInt
 public:
 	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{
-		PassUniformBuffer.Bind(ParameterMap, FSceneTexturesUniformParameters::StaticStructMetadata.GetShaderVariableName());
+		PassUniformBuffer.Bind(ParameterMap, FSceneTextureUniformParameters::StaticStructMetadata.GetShaderVariableName());
 		GlobalDistanceFieldParameters.Bind(ParameterMap);
 	}
 
@@ -514,7 +544,7 @@ public:
 
 		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
 		
-		TUniformBufferRef<FSceneTexturesUniformParameters> SceneTextureUniformParams = GNiagaraViewDataManager.GetSceneTextureUniformParameters();
+		TUniformBufferRef<FSceneTextureUniformParameters> SceneTextureUniformParams = GNiagaraViewDataManager.GetSceneTextureUniformParameters();
 		SetUniformBufferParameter(RHICmdList, ComputeShaderRHI, PassUniformBuffer/*Shader->GetUniformBufferParameter(SceneTexturesUniformBufferStruct)*/, SceneTextureUniformParams);
 		if (GlobalDistanceFieldParameters.IsBound() && Context.Batcher)
 		{

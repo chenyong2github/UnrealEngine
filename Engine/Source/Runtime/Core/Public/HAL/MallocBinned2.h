@@ -261,9 +261,13 @@ class CORE_API FMallocBinned2 final : public FMalloc
 
 	FCriticalSection Mutex;
 
-	FORCEINLINE static bool IsOSAllocation(const void* Ptr)
+	FORCEINLINE bool IsOSAllocation(const void* Ptr)
 	{
+#if UE_USE_VERYLARGEPAGEALLOCATOR && !PLATFORM_UNIX
+		return !CachedOSPageAllocator.IsPartOf(Ptr);
+#else
 		return IsAligned(Ptr, BINNED2_LARGE_ALLOC);
+#endif
 	}
 
 	struct FBundleNode

@@ -111,7 +111,6 @@
 #include "Delegates/MulticastDelegateBase.h"
 #include "Delegates/IntegerSequence.h"
 #include "Templates/Tuple.h"
-#include "Templates/TypeWrapper.h"
 #include "UObject/ScriptDelegates.h"
 #include "Delegates/Delegate.h"
 #include "Internationalization/TextLocalizationManager.h"

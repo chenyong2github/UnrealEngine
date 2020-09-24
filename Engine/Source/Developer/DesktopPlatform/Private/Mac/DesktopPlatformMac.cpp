@@ -196,16 +196,16 @@ private:
 
 	CancelButton = [[NSButton alloc] initWithFrame: NSMakeRect(10, 10, 80, 24)];
 	[CancelButton setTitle: @"Cancel"];
-	[CancelButton setBezelStyle: NSRoundedBezelStyle];
-	[CancelButton setButtonType: NSMomentaryPushInButton];
+	[CancelButton setBezelStyle: NSBezelStyleRounded];
+	[CancelButton setButtonType: NSButtonTypeMomentaryPushIn];
 	[CancelButton setAction: @selector(onCancel:)];
 	[CancelButton setTarget: self];
 	[self addSubview: CancelButton];
 
 	OKButton = [[NSButton alloc] initWithFrame: NSMakeRect(100, 10, 80, 24)];
 	[OKButton setTitle: @"OK"];
-	[OKButton setBezelStyle: NSRoundedBezelStyle];
-	[OKButton setButtonType: NSMomentaryPushInButton];
+	[OKButton setBezelStyle: NSBezelStyleRounded];
+	[OKButton setButtonType: NSButtonTypeMomentaryPushIn];
 	[OKButton setAction: @selector(onOK:)];
 	[OKButton setTarget: self];
 	[self addSubview: OKButton];

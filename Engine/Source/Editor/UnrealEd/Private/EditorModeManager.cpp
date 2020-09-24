@@ -58,6 +58,7 @@ FEditorModeTools::FEditorModeTools()
 	, bShowWidget(true)
 	, bHideViewportUI(false)
 	, bSelectionHasSceneComponent(false)
+	, WidgetScale(1.0f)
 	, CoordSystem(COORD_World)
 	, bIsTracking(false)
 {
@@ -1258,7 +1259,9 @@ bool FEditorModeTools::ProcessCapturedMouseMoves( FEditorViewportClient* InViewp
 bool FEditorModeTools::InputKey(FEditorViewportClient* InViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event)
 {
 	bool bHandled = false;
-	for (UEdMode* Mode : ActiveScriptableModes)
+	//Copy the modes and iterate of that since a key may remove the edit mode and change CopyActiveScriptableModes
+	TArray<UEdMode*> CopyActiveScriptableModes(ActiveScriptableModes);
+	for (UEdMode* Mode : CopyActiveScriptableModes)
 	{
 		bHandled |= Mode->InputKey(InViewportClient, Viewport, Key, Event);
 	}
@@ -1563,6 +1566,25 @@ UE::Widget::EWidgetMode FEditorModeTools::GetWidgetMode() const
 	}
 
 	return WidgetMode;
+}
+
+
+/**
+* Set Scale On The Widget
+*/
+
+void FEditorModeTools::SetWidgetScale(float InScale)
+{
+	WidgetScale = InScale;
+}
+
+/**
+* Get Scale On The Widget
+*/
+
+float FEditorModeTools::GetWidgetScale() const
+{
+	return WidgetScale;
 }
 
 void FEditorModeTools::AddReferencedObjects( FReferenceCollector& Collector )

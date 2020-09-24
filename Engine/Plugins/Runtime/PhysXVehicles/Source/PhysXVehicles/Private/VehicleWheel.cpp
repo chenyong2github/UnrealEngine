@@ -12,6 +12,8 @@
 #include "PhysXVehicleManager.h"
 #include "PhysXPublic.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 UVehicleWheel::UVehicleWheel(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -192,3 +194,6 @@ UPhysicalMaterial* UVehicleWheel::GetContactSurfaceMaterial()
 
 	return PhysMaterial;
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+

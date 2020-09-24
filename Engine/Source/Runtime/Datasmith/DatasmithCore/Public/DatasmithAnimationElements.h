@@ -4,9 +4,9 @@
 
 #include "IDatasmithSceneElements.h"
 
-#include "Templates/SharedPointer.h"
 #include "Misc/FrameNumber.h"
 #include "Misc/SecureHash.h"
+#include "Templates/SharedPointer.h"
 
 class IDatasmithLevelSequenceElement;
 
@@ -88,29 +88,29 @@ class DATASMITHCORE_API IDatasmithSubsequenceAnimationElement : public IDatasmit
 public:
 	virtual ~IDatasmithSubsequenceAnimationElement() {}
 
-    /** Get the frame where the subsequence starts */
-    virtual FFrameNumber GetStartTime() const = 0;
+	/** Get the frame where the subsequence starts */
+	virtual FFrameNumber GetStartTime() const = 0;
 
-    /** Set the frame where the subsequence starts */
-    virtual void SetStartTime(FFrameNumber InStartTime) = 0;
+	/** Set the frame where the subsequence starts */
+	virtual void SetStartTime(FFrameNumber InStartTime) = 0;
 
-    /** Get the subsequence duration in number of frames */
-    virtual int32 GetDuration() const = 0;
+	/** Get the subsequence duration in number of frames */
+	virtual int32 GetDuration() const = 0;
 
-    /** Set the subsequence duration in number of frames */
-    virtual void SetDuration(int32 InDuration) = 0;
+	/** Set the subsequence duration in number of frames */
+	virtual void SetDuration(int32 InDuration) = 0;
 
-    /** Get the time scale used for the subsequence */
-    virtual float GetTimeScale() const = 0;
+	/** Get the time scale used for the subsequence */
+	virtual float GetTimeScale() const = 0;
 
-    /** Set the time scale used for the subsequence */
-    virtual void SetTimeScale(float InTimeScale) = 0;
+	/** Set the time scale used for the subsequence */
+	virtual void SetTimeScale(float InTimeScale) = 0;
 
-    /** Get a pointer to the subsequence that this element references */
-    virtual TWeakPtr<IDatasmithLevelSequenceElement> GetSubsequence() const = 0;
+	/** Get a pointer to the subsequence that this element references */
+	virtual TWeakPtr<IDatasmithLevelSequenceElement> GetSubsequence() const = 0;
 
-    /** Set the subsequence that this element references */
-    virtual void SetSubsequence(TWeakPtr<IDatasmithLevelSequenceElement> InSubsequence) = 0;
+	/** Set the subsequence that this element references */
+	virtual void SetSubsequence(TWeakPtr<IDatasmithLevelSequenceElement> InSubsequence) = 0;
 };
 
 /** IDatasmithLevelSequenceElement holds a set of animations */

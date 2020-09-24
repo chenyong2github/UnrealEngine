@@ -7,6 +7,7 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Object.h"
 #include "UObject/PackageId.h"
+#include "UObject/LinkerSave.h"
 #include "Misc/Guid.h"
 #include "Misc/WorldCompositionUtility.h"
 #include "Misc/OutputDeviceError.h"
@@ -21,7 +22,9 @@ class Error;
 // This is a dummy type which is not implemented anywhere. It's only 
 // used to flag a deprecated Conform argument to package save functions.
 class FLinkerNull;
+struct FPackageSaveInfo;
 class FSavePackageContext;
+struct FSavePackageArgs;
 
 /**
 * Represents the result of saving a package
@@ -62,11 +65,14 @@ struct FSavePackageResultStruct
 	/** MD5 hash of the cooked data */
 	TFuture<FMD5Hash> CookedHash;
 
+	/** Linker for linker comparison after save. */
+	TUniquePtr<FLinkerSave> LinkerSave;
+
 	/** Constructors, it will implicitly construct from the result enum */
 	FSavePackageResultStruct() : Result(ESavePackageResult::Error), TotalFileSize(0) {}
 	FSavePackageResultStruct(ESavePackageResult InResult) : Result(InResult), TotalFileSize(0) {}
 	FSavePackageResultStruct(ESavePackageResult InResult, int64 InTotalFileSize) : Result(InResult), TotalFileSize(InTotalFileSize) {}
-	FSavePackageResultStruct(ESavePackageResult InResult, int64 InTotalFileSize, TFuture<FMD5Hash>&& InHash) : Result(InResult), TotalFileSize(InTotalFileSize), CookedHash(MoveTemp(InHash)) {}
+	FSavePackageResultStruct(ESavePackageResult InResult, int64 InTotalFileSize, TFuture<FMD5Hash>&& InHash, TUniquePtr<FLinkerSave> Linker = nullptr) : Result(InResult), TotalFileSize(InTotalFileSize), CookedHash(MoveTemp(InHash)), LinkerSave(MoveTemp(Linker)) {}
 
 	bool operator==(const FSavePackageResultStruct& Other) const
 	{
@@ -147,6 +153,14 @@ public:
 
 	/** Whether this package has been fully loaded (aka had all it's exports created) at some point.															*/
 	mutable uint8 bHasBeenFullyLoaded:1;
+
+	/**
+	 * Whether this package can be imported, i.e. its package name is a package that exists on disk.
+	 * Note: This includes all normal packages where the Name matches the FileName
+	 * and localized packages shadowing an existing source package,
+	 * but excludes level streaming packages with /Temp/ names.
+	 */
+	uint8 bCanBeImported:1;
 
 private:
 	/** Time in seconds it took to fully load this package. 0 if package is either in process of being loaded or has never been fully loaded.					*/
@@ -318,6 +332,23 @@ public:
 	*/
 	void FullyLoad();
 
+	/**
+	* Marks/Unmarks the package's bCanBeImported flag.
+	*/
+	void SetCanBeImportedFlag(bool bInCanBeImported)
+	{
+		bCanBeImported = bInCanBeImported;
+	}
+
+	/**
+	* Returns whether the package can be imported.
+	*
+	* @return		true if the package can be imported.
+	*/
+	bool CanBeImported() const
+	{
+		return bCanBeImported;
+	}
 	/**
 	* Tags the Package's metadata
 	*/
@@ -518,6 +549,12 @@ public:
 	}
 
 	/**
+	 * Utility function to find Asset in this package, if any
+	 * @return the asset in the package, if any
+	 */
+	UObject* FindAssetInPackage() const;
+
+	/**
 	 * Return the list of packages found assigned to object outer-ed to the top level objects of this package
 	 * @return the array of external packages
 	 */
@@ -560,6 +597,18 @@ public:
 		uint32 SaveFlags=SAVE_None, const class ITargetPlatform* TargetPlatform = NULL, const FDateTime& FinalTimeStamp = FDateTime::MinValue(), 
 		bool bSlowTask = true, class FArchiveDiffMap* InOutDiffMap = nullptr,
 		FSavePackageContext* SavePackageContext = nullptr);
+
+	/**
+	 * Save an asset into an Unreal Package
+	 * Save2 is currently experimental and shouldn't be used until it can safely replace Save.
+	 */
+	static FSavePackageResultStruct Save2(UPackage* InPackage, UObject* InAsset, const TCHAR* InFilename, FSavePackageArgs& SaveArgs);
+
+	/**
+	 * Save a list of packages concurrently using Save2 mechanism
+	 * SaveConcurrent is currently experimental and shouldn't be used until it can safely replace Save.
+	 */
+	static ESavePackageResult SaveConcurrent(TArrayView<FPackageSaveInfo> InPackages, FSavePackageArgs& SaveArgs, TArray<FSavePackageResultStruct>& OutResults);
 
 	/**
 	* Save one specific object (along with any objects it references contained within the same Outer) into an Unreal package.

@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "IMagicLeapMusicServicePlugin.h"
 #include "Lumin/CAPIShims/LuminAPI.h"
-#include "MagicLeapPluginUtil.h"
 
 class FMagicLeapMusicServicePlugin : public IMagicLeapMusicServicePlugin
 {

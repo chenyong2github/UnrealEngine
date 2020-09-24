@@ -85,7 +85,7 @@ struct FPixelDataRectangle
 		// Copy the data a scan line at a time
 
 		uint8 *DstScanline = Data + DestX * PixelSize + DestY * DstScanlineSize;
-		const uint8 *SrcScanline = Source.Data + SourceX * PixelSize + SourceY * SrcScanlineSize;
+		const uint8 *SrcScanline = Source.Data + SourceX * PixelSize + (SIZE_T)SourceY * (SIZE_T)SrcScanlineSize;
 
 		for (int Y = 0; Y < ClampedHeight; Y++)
 		{
@@ -1213,7 +1213,7 @@ bool FVirtualTextureDataBuilder::DetectAlphaChannel(const FImage &Image)
 {
 	if (Image.Format == ERawImageFormat::BGRA8)
 	{
-		const FColor *SrcColors = Image.AsBGRA8();
+		const FColor* SrcColors = (&Image.AsBGRA8()[0]);
 		const FColor* LastColor = SrcColors + (Image.SizeX * Image.SizeY * Image.NumSlices);
 		while (SrcColors < LastColor)
 		{
@@ -1227,7 +1227,7 @@ bool FVirtualTextureDataBuilder::DetectAlphaChannel(const FImage &Image)
 	}
 	else if (Image.Format == ERawImageFormat::RGBA16F)
 	{
-		const FFloat16Color *SrcColors = Image.AsRGBA16F();
+		const FFloat16Color* SrcColors = (&Image.AsRGBA16F()[0]);
 		const FFloat16Color* LastColor = SrcColors + (Image.SizeX * Image.SizeY * Image.NumSlices);
 		while (SrcColors < LastColor)
 		{

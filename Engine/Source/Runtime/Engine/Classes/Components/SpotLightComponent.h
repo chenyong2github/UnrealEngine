@@ -25,19 +25,11 @@ class ENGINE_API USpotLightComponent : public UPointLightComponent
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Light, meta=(UIMin = "1.0", UIMax = "80.0"))
 	float OuterConeAngle;
 
-	/** Degrees. */
-	UPROPERTY(/*EditAnywhere, BlueprintReadOnly, Category=LightShaft, meta=(UIMin = "1.0", UIMax = "180.0")*/)
-	float LightShaftConeAngle;
-
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
 	void SetInnerConeAngle(float NewInnerConeAngle);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
 	void SetOuterConeAngle(float NewOuterConeAngle);
-
-	// Disable for now
-	//UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
-	//void SetLightShaftConeAngle(float NewLightShaftConeAngle);
 
 	// ULightComponent interface.
 	virtual FSphere GetBoundingSphere() const override;

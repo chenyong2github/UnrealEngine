@@ -1788,7 +1788,6 @@ struct FMarkRelevantStaticMeshesForViewData
 	FVector ViewOrigin;
 	int32 ForcedLODLevel;
 	float LODScale;
-	float InvLODScale;
 	float MinScreenRadiusForCSMDepthSquared;
 	float MinScreenRadiusForDepthPrepassSquared;
 	bool bFullEarlyZPass;
@@ -1801,7 +1800,6 @@ struct FMarkRelevantStaticMeshesForViewData
 		ForcedLODLevel = (View.Family->EngineShowFlags.LOD) ? GetCVarForceLOD() : 0;
 
 		LODScale = CVarStaticMeshLODDistanceScale.GetValueOnRenderThread() * View.LODDistanceFactor;
-		InvLODScale = 1.0f / LODScale;
 
 		MinScreenRadiusForCSMDepthSquared = GMinScreenRadiusForCSMDepth * GMinScreenRadiusForCSMDepth;
 		MinScreenRadiusForDepthPrepassSquared = GMinScreenRadiusForDepthPrepass * GMinScreenRadiusForDepthPrepass;
@@ -2094,23 +2092,23 @@ struct FRelevancePacket
 				{
 					if (ViewRelevance.bNormalTranslucency)
 					{
-						TranslucentPrimCount.Add(ETranslucencyPass::TPT_StandardTranslucency, ViewRelevance.bUsesSceneColorCopy, ViewRelevance.bDisableOffscreenRendering);
+						TranslucentPrimCount.Add(ETranslucencyPass::TPT_StandardTranslucency, ViewRelevance.bUsesSceneColorCopy);
 					}
 
 					if (ViewRelevance.bSeparateTranslucency)
 					{
-						TranslucentPrimCount.Add(ETranslucencyPass::TPT_TranslucencyAfterDOF, ViewRelevance.bUsesSceneColorCopy, ViewRelevance.bDisableOffscreenRendering);
+						TranslucentPrimCount.Add(ETranslucencyPass::TPT_TranslucencyAfterDOF, ViewRelevance.bUsesSceneColorCopy);
 					}
 
 					if (ViewRelevance.bSeparateTranslucencyModulate)
 					{
-						TranslucentPrimCount.Add(ETranslucencyPass::TPT_TranslucencyAfterDOFModulate, ViewRelevance.bUsesSceneColorCopy, ViewRelevance.bDisableOffscreenRendering);
+						TranslucentPrimCount.Add(ETranslucencyPass::TPT_TranslucencyAfterDOFModulate, ViewRelevance.bUsesSceneColorCopy);
 					}
 				}
 				else // Otherwise, everything is rendered in a single bucket. This is not related to whether DOF is currently enabled or not.
 				{
 					// When using all translucency, Standard and AfterDOF are sorted together instead of being rendered like 2 buckets.
-					TranslucentPrimCount.Add(ETranslucencyPass::TPT_AllTranslucency, ViewRelevance.bUsesSceneColorCopy, ViewRelevance.bDisableOffscreenRendering);
+					TranslucentPrimCount.Add(ETranslucencyPass::TPT_AllTranslucency, ViewRelevance.bUsesSceneColorCopy);
 				}
 
 				if (ViewRelevance.bDistortion)
@@ -2214,7 +2212,7 @@ struct FRelevancePacket
 			const bool bIsLODDithered = LODToRender.IsDithered();
 
 			float DistanceSquared = (Bounds.BoxSphereBounds.Origin - ViewData.ViewOrigin).SizeSquared();
-			const float LODFactorDistanceSquared = DistanceSquared * FMath::Square(View.LODDistanceFactor * ViewData.InvLODScale);
+			const float LODFactorDistanceSquared = DistanceSquared * FMath::Square(ViewData.LODScale);
 			const bool bDrawShadowDepth = FMath::Square(Bounds.BoxSphereBounds.SphereRadius) > ViewData.MinScreenRadiusForCSMDepthSquared * LODFactorDistanceSquared;
 			const bool bDrawDepthOnly = ViewData.bFullEarlyZPass || FMath::Square(Bounds.BoxSphereBounds.SphereRadius) > GMinScreenRadiusForDepthPrepass * GMinScreenRadiusForDepthPrepass * LODFactorDistanceSquared;
 
@@ -2300,6 +2298,11 @@ struct FRelevancePacket
 							{
 								DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::BasePass);
 								MarkMask |= EMarkMaskBits::StaticMeshVisibilityMapMask;
+
+								if (StaticMeshRelevance.bUseAnisotropy)
+								{
+									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::AnisotropyPass);
+								}
 
 								if (ShadingPath == EShadingPath::Mobile)
 								{
@@ -2762,6 +2765,12 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 			PassMask.Set(EMeshPass::BasePass);
 			View.NumVisibleDynamicMeshElements[EMeshPass::BasePass] += NumElements;
 
+			if (ViewRelevance.bUsesAnisotropy)
+			{
+				PassMask.Set(EMeshPass::AnisotropyPass);
+				View.NumVisibleDynamicMeshElements[EMeshPass::AnisotropyPass] += NumElements;
+			}
+
 			if (ShadingPath == EShadingPath::Mobile)
 			{
 				PassMask.Set(EMeshPass::MobileBasePassCSM);
@@ -3096,17 +3105,17 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 
 	if (IsHairStrandsEnable(Scene->GetShaderPlatform()) && Views.Num() > 0)
 	{
-		const EWorldType::Type WorldType = Views[0].Family->Scene->GetWorld()->WorldType;
-		const FShaderDrawDebugData* ShaderDrawData = &Views[0].ShaderDrawData;
-		auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
-		RunHairStrandsInterpolation(RHICmdList, WorldType, Scene->GetGPUSkinCache(), ShaderDrawData, ShaderMap, EHairStrandsInterpolationType::SimulationStrands, nullptr);
+		FRDGBuilder GraphBuilder(RHICmdList);
+		FHairStrandsBookmarkParameters Parameters = CreateHairStrandsBookmarkParameters(Views[0]);
+		RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessGuideInterpolation, Parameters);
+		GraphBuilder.Execute();
 	}
 
 	// Notify the FX system that the scene is about to perform visibility checks.
 
-	if (Scene->FXSystem && Views.IsValidIndex(0))
+	if (FXSystem && Views.IsValidIndex(0))
 	{
-		Scene->FXSystem->PreInitViews(RHICmdList, Views[0].AllowGPUParticleUpdate() && !ViewFamily.EngineShowFlags.HitProxies);
+		FXSystem->PreInitViews(RHICmdList, Views[0].AllowGPUParticleUpdate() && !ViewFamily.EngineShowFlags.HitProxies);
 	}
 
 	// Draw lines to lights affecting this mesh if its selected.
@@ -3180,7 +3189,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 
 		// set up the screen area for occlusion
-		float NumPossiblePixels = SceneContext.UseDownsizedOcclusionQueries() && IsValidRef(SceneContext.GetSmallDepthSurface()) ? 
+		float NumPossiblePixels = SceneContext.UseDownsizedOcclusionQueries() && IsValidRef(SceneContext.SmallDepthZ) ?
 			(float)View.ViewRect.Width() / SceneContext.GetSmallColorDepthDownsampleFactor() * (float)View.ViewRect.Height() / SceneContext.GetSmallColorDepthDownsampleFactor() :
 			View.ViewRect.Width() * View.ViewRect.Height();
 		View.OneOverNumPossiblePixels = NumPossiblePixels > 0.0 ? 1.0f / NumPossiblePixels : 0.0f;
@@ -3605,7 +3614,7 @@ void UpdateReflectionSceneData(FScene* Scene)
 		NewSortEntry.CubemapIndex = -1;
 		NewSortEntry.CaptureOffsetAndAverageBrightness = FVector4(CurrentCapture->CaptureOffset, 1.0f);
 		NewSortEntry.CaptureProxy = CurrentCapture;
-		if (Scene->GetFeatureLevel() >= ERHIFeatureLevel::SM5)
+		if (SupportsTextureCubeArray(Scene->GetFeatureLevel()))
 		{
 			FCaptureComponentSceneState* ComponentStatePtr = ReflectionSceneData.AllocatedReflectionCaptureState.Find(CurrentCapture->Component);
 			if (!ComponentStatePtr)
@@ -3894,6 +3903,7 @@ void FSceneRenderer::ComputeViewVisibility(
 		View.StaticMeshFadeInDitheredLODMap.Init(false,Scene->StaticMeshes.GetMaxIndex());
 		View.PrimitivesLODMask.Init(FLODMask(), Scene->Primitives.Num());
 		View.DistanceCullingPrimitiveMap.Init(false, Scene->Primitives.Num());
+
 		View.VisibleLightInfos.Empty(Scene->Lights.GetMaxIndex());
 
 		// The dirty list allocation must take into account the max possible size because when GILCUpdatePrimTaskEnabled is true,
@@ -4219,23 +4229,7 @@ void FSceneRenderer::PostVisibilityFrameSetup(FILCUpdatePrimTaskData& OutILCTask
 		}
 	}
 
-	bool bCheckLightShafts = false;
-	if (Scene->GetFeatureLevel() <= ERHIFeatureLevel::ES3_1)
-	{
-		// Clear the mobile light shaft data.
-		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-		{		
-			FViewInfo& View = Views[ViewIndex];
-			View.bLightShaftUse = false;
-			View.LightShaftCenter.X = 0.0f;
-			View.LightShaftCenter.Y = 0.0f;
-			View.LightShaftColorMask = FLinearColor(0.0f,0.0f,0.0f);
-			View.LightShaftColorApply = FLinearColor(0.0f,0.0f,0.0f);
-		}
-		
-		extern int32 GLightShafts;
-		bCheckLightShafts = ViewFamily.EngineShowFlags.LightShafts && GLightShafts;
-	}
+	const bool bSetupMobileLightShafts = FeatureLevel <= ERHIFeatureLevel::ES3_1 && ShouldRenderLightShafts(ViewFamily);
 
 	if (ViewFamily.EngineShowFlags.HitProxies == 0 && Scene->PrecomputedLightVolumes.Num() > 0
 		&& GILCUpdatePrimTaskEnabled && FPlatformProcess::SupportsMultithreading())
@@ -4286,36 +4280,9 @@ void FSceneRenderer::PostVisibilityFrameSetup(FILCUpdatePrimTaskData& OutILCTask
 				VisibleLightViewInfo.bInViewFrustum = true;
 				VisibleLightViewInfo.bInDrawRange = true;
 				// Setup single sun-shaft from direction lights for mobile.
-				if(bCheckLightShafts && LightSceneInfo->bEnableLightShaftBloom)
+				if (bSetupMobileLightShafts && LightSceneInfo->bEnableLightShaftBloom && ShouldRenderLightShaftsForLight(View, *LightSceneInfo->Proxy))
 				{
-					// Find directional light for sun shafts.
-					// Tweaked values from UE3 implementation.
-					extern const float PointLightFadeDistanceIncrease;
-					extern const float PointLightRadiusFadeFactor;
-
-					const FVector WorldSpaceBlurOrigin = LightSceneInfo->Proxy->GetPosition();
-					// Transform into post projection space
-					FVector4 ProjectedBlurOrigin = View.WorldToScreen(WorldSpaceBlurOrigin);
-
-					const float DistanceToBlurOrigin = (View.ViewMatrices.GetViewOrigin() - WorldSpaceBlurOrigin).Size() + PointLightFadeDistanceIncrease;
-
-					// Don't render if the light's origin is behind the view
-					if(ProjectedBlurOrigin.W >= 0.0f
-						// Don't render point lights that have completely faded out
-						&& (LightSceneInfo->Proxy->GetLightType() == LightType_Directional 
-							|| DistanceToBlurOrigin < LightSceneInfo->Proxy->GetRadius() * PointLightRadiusFadeFactor))
-					{
-						View.bLightShaftUse = true;
-						View.LightShaftCenter.X = ProjectedBlurOrigin.X / ProjectedBlurOrigin.W;
-						View.LightShaftCenter.Y = ProjectedBlurOrigin.Y / ProjectedBlurOrigin.W;
-						// TODO: Might want to hookup different colors for these.
-						View.LightShaftColorMask = LightSceneInfo->BloomTint;
-						View.LightShaftColorApply = LightSceneInfo->BloomTint;
-
-						// Apply bloom scale
-						View.LightShaftColorMask  *= FLinearColor(LightSceneInfo->BloomScale, LightSceneInfo->BloomScale, LightSceneInfo->BloomScale, 1.0f);
-						View.LightShaftColorApply *= FLinearColor(LightSceneInfo->BloomScale, LightSceneInfo->BloomScale, LightSceneInfo->BloomScale, 1.0f);
-					}
+					View.MobileLightShaft = GetMobileLightShaftInfo(View, *LightSceneInfo);
 				}
 			}
 
@@ -4466,10 +4433,10 @@ bool FDeferredShadingSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdLi
 	{
 		// This is to init the ViewUniformBuffer before rendering for the Niagara compute shader.
 		// This needs to run before ComputeViewVisibility() is called, but the views normally initialize the ViewUniformBuffer after that (at the end of this method).
-		if (Scene->FXSystem && Scene->FXSystem->RequiresEarlyViewUniformBuffer() && Views.IsValidIndex(0))
+		if (FXSystem && FXSystem->RequiresEarlyViewUniformBuffer() && Views.IsValidIndex(0))
 		{
 			Views[0].InitRHIResources();
-			Scene->FXSystem->PostInitViews(RHICmdList, Views[0].ViewUniformBuffer, Views[0].AllowGPUParticleUpdate() && !ViewFamily.EngineShowFlags.HitProxies);
+			FXSystem->PostInitViews(RHICmdList, Views[0].ViewUniformBuffer, Views[0].AllowGPUParticleUpdate() && !ViewFamily.EngineShowFlags.HitProxies);
 		}
 	}
 	
@@ -4558,7 +4525,7 @@ bool FDeferredShadingSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdLi
 	return bDoInitViewAftersPrepass;
 }
 
-void FDeferredShadingSceneRenderer::SetupSceneReflectionCaptureBuffer(FRHICommandListImmediate& RHICmdList)
+void FSceneRenderer::SetupSceneReflectionCaptureBuffer(FRHICommandListImmediate& RHICmdList)
 {
 	FReflectionCaptureShaderData SamplePositionsBuffer;
 
@@ -4639,7 +4606,7 @@ void FDeferredShadingSceneRenderer::InitViewsPossiblyAfterPrepass(FRHICommandLis
 		UpdatePrimitiveIndirectLightingCacheBuffers();
 	}
 
-	UpdateTranslucencyTimersAndSeparateTranslucencyBufferSize(RHICmdList);
+	SeparateTranslucencyDimensions = UpdateTranslucencyTimers(RHICmdList, Views);
 
 	SetupSceneReflectionCaptureBuffer(RHICmdList);
 

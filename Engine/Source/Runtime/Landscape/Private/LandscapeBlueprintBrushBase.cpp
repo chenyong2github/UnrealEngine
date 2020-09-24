@@ -72,12 +72,12 @@ void ALandscapeBlueprintBrushBase::RequestLandscapeUpdate()
 }
 
 #if WITH_EDITOR
-void ALandscapeBlueprintBrushBase::Tick(float DeltaSeconds)
+void ALandscapeBlueprintBrushBase::PushDeferredLayersContentUpdate()
 {
 #if WITH_EDITORONLY_DATA
 	// Avoid computing collision and client updates every frame
 	// Wait until we didn't trigger any more landscape update requests (padding of a couple of frames)
-	if (OwningLandscape != nullptr && 
+	if (OwningLandscape != nullptr &&
 		LastRequestLayersContentUpdateFrameNumber != InvalidLastRequestLayersContentUpdateFrameNumber &&
 		LastRequestLayersContentUpdateFrameNumber + CVarLandscapeBrushPadding.GetValueOnAnyThread() <= GFrameNumber)
 	{
@@ -97,7 +97,10 @@ void ALandscapeBlueprintBrushBase::Tick(float DeltaSeconds)
 		LastRequestLayersContentUpdateFrameNumber = InvalidLastRequestLayersContentUpdateFrameNumber;
 	}
 #endif
+}
 
+void ALandscapeBlueprintBrushBase::Tick(float DeltaSeconds)
+{
 	// Forward the Tick to the instances class of this BP
 	if (GetClass()->HasAnyClassFlags(CLASS_CompiledFromBlueprint))
 	{

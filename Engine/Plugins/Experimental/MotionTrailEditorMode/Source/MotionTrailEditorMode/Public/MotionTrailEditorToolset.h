@@ -16,6 +16,11 @@
 class UMotionTrailEditorMode;
 class UTrailToolEditor;
 
+namespace UE
+{
+namespace MotionTrailEditor
+{
+
 class FInteractiveTrailTool
 {
 public:
@@ -45,6 +50,9 @@ public:
 protected:
 	TWeakObjectPtr<class UMotionTrailEditorMode> WeakEditorMode;
 };
+
+} // namespace MovieScene
+} // namespace UE
 
 /**
  * Builder for UTrailToolManager

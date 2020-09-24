@@ -5,12 +5,13 @@
 #include "NetworkPredictionModelDefRegistry.h"
 #include "NetworkPredictionProxyInit.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "MockRootMotionSourceDataAsset.h"
 #include "Animation/AnimMontage.h"
 #include "NetworkPredictionProxyWrite.h"
 #include "Curves/CurveVector.h"
 #include "Animation/AnimInstance.h"
 #include "Templates/UniquePtr.h"
+#include "NetworkPredictionReplicatedManager.h"
+#include "MockRootMotionSourceObject.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMockRootMotionComponent, Log, All);
 
@@ -65,11 +66,6 @@ void UMockRootMotionComponent::FindAndCacheAnimInstance()
 
 void UMockRootMotionComponent::InitializeNetworkPredictionProxy()
 {
-	if (!npEnsureMsgf(RootMotionSourceDataAsset != nullptr, TEXT("No RootMotionSourceDataAsset set on %s. Skipping root motion init."), *GetPathName()))
-	{
-		return;
-	}
-
 	if (!npEnsureMsgf(UpdatedComponent != nullptr, TEXT("No UpdatedComponent set on %s. Skipping root motion init."), *GetPathName()))
 	{
 		return;
@@ -83,7 +79,7 @@ void UMockRootMotionComponent::InitializeNetworkPredictionProxy()
 	}
 
 	OwnedMockRootMotionSimulation = MakeUnique<FMockRootMotionSimulation>();
-	OwnedMockRootMotionSimulation->SourceMap = this->RootMotionSourceDataAsset;
+	OwnedMockRootMotionSimulation->SourceStore = this;
 	OwnedMockRootMotionSimulation->RootMotionComponent = AnimInstance->GetOwningComponent();
 	OwnedMockRootMotionSimulation->SetComponents(UpdatedComponent, UpdatedPrimitive);
 
@@ -120,72 +116,182 @@ void UMockRootMotionComponent::RestoreFrame(const FMockRootMotionSyncState* Sync
 void UMockRootMotionComponent::FinalizeFrame(const FMockRootMotionSyncState* SyncState, const FMockRootMotionAuxState* AuxState)
 {
 	npCheckSlow(AnimInstance);
-	npCheckSlow(RootMotionSourceDataAsset);
 
 	RestoreFrame(SyncState, AuxState);
 
-	// Update animation state (pose) - make sure it matches SyncState. 
+	// Update animation state (pose)
 	// This only needs to be done in FinalizeFrame because the pose does not directly affect the simulation
-	RootMotionSourceDataAsset->FinalizePose(SyncState, AnimInstance);
+
+	UMockRootMotionSource* Source = ResolveRootMotionSource(AuxState->Source.GetID(), AuxState->Source.GetParamsDataView());
+	if (Source)
+	{
+		const int32 ElapsedMS = NetworkPredictionProxy.GetTotalSimTimeMS() - AuxState->Source.GetStartMS();
+		Source->FinalizePose(ElapsedMS, AnimInstance);
+	}
 }
 
-template<typename AssetType>
-int32 UMockRootMotionComponent::PlayRootMotionByAssetType(AssetType* Asset)
+UMockRootMotionSource* UMockRootMotionComponent::CreateRootMotionSource(TSubclassOf<UMockRootMotionSource> Source)
 {
-	if (!npEnsureMsgf(RootMotionSourceDataAsset != nullptr, TEXT("No RootMotionSourceDataAsset set on %s. Skipping PlayRootMotion call."), *GetPathName()))
+	if (UClass* ClassPtr = Source.Get())
 	{
-		return INDEX_NONE;
+		return NewObject<UMockRootMotionSource>(this, ClassPtr);
+	}
+	
+	UE_LOG(LogNetworkPrediction, Warning, TEXT("CreateRootMotionSource called with null class"));
+	return nullptr;
+}
+
+void UMockRootMotionComponent::Input_PlayRootMotionSourceByClass(TSubclassOf<UMockRootMotionSource> Source)
+{
+	if (UMockRootMotionSource* CDO = Source.GetDefaultObject())
+	{
+		Input_PlayRootMotionSource(CDO);
+	}
+	else
+	{
+		UE_LOG(LogNetworkPrediction, Warning, TEXT("Input_PlayRootMotionSourceByClass called with null class"));
+	}
+}
+
+void UMockRootMotionComponent::Input_PlayRootMotionSource(UMockRootMotionSource* Source)
+{
+	if (!Source || !Source->IsValidRootMotionSource())
+	{
+		UE_LOG(LogNetworkPrediction, Warning, TEXT("Invalid Source (%s) in call to Input_PlayRootMotionSource"), *GetNameSafe(Source));
+		return;
 	}
 
-	int32 ID = RootMotionSourceDataAsset->FindRootMotionSourceID(Asset);
-	if (ID == INDEX_NONE)
-	{
-		UE_LOG(LogMockRootMotionComponent, Warning, TEXT("Invalid RootMotion asset %s. Not in %s. Skipping"), *Asset->GetName(), *RootMotionSourceDataAsset->GetPathName());
-		return ID;
-	}
+	UNetworkPredictionWorldManager* NetworkPredictionWorldManager = GetWorld()->GetSubsystem<UNetworkPredictionWorldManager>();
+	npCheckSlow(NetworkPredictionWorldManager);
 
-	PendingInputCmd.PlaySourceID = ID;
-	PendingInputCmd.PlayCount++;
-
-	return ID;
-}
-
-void UMockRootMotionComponent::Input_PlayRootMotionByMontage(UAnimMontage* Montage)
-{
-	PlayRootMotionByAssetType(Montage);
-}
-
-void UMockRootMotionComponent::Input_PlayRootMotionByCurve(UCurveVector* CurveVector, FVector Scale)
-{
-	PlayRootMotionByAssetType(CurveVector);
-	PendingInputCmd.Parameters.SetByType(&Scale);
-}
-
-void UMockRootMotionComponent::PlayRootMotionMontage(UAnimMontage* Montage, float PlayRate)
-{
-	if (!npEnsureMsgf(RootMotionSourceDataAsset != nullptr, TEXT("No RootMotionSourceDataAsset set on %s. Skipping PlayRootMotionMontage."), *GetPathName()))
+	ANetworkPredictionReplicatedManager* Manager = NetworkPredictionWorldManager->ReplicatedManager;
+	if (!npEnsureMsgf(Manager, TEXT("ANetworkPredictionReplicatedManager not available."))) 
 	{
 		return;
 	}
 
-	int32 ID = RootMotionSourceDataAsset->FindRootMotionSourceID(Montage);
-	if (ID == INDEX_NONE)
+	const int32 ID = Manager->GetIDForObject(Source->GetClass());
+	StoreRootMotionSource(ID, Source);
+
+	// Write the new source we are trying to play into the PendingInputCmd
+	const int32& SimTimeMS = NetworkPredictionProxy.GetTotalSimTimeMS();
+	PendingInputCmd.PlaySource.WriteSource(ID, SimTimeMS);
+	
+	// If this is instanced, give it a chance to write parameters
+	if (Source->HasAnyFlags(RF_ClassDefaultObject) == false)
 	{
-		UE_LOG(LogMockRootMotionComponent, Warning, TEXT("Invalid Montage %s. Not in %s. Skipping"), *Montage->GetName(), *RootMotionSourceDataAsset->GetPathName());
+		PendingInputCmd.PlaySource.WriteParams([Source](FBitWriter& Writer)
+		{
+			Source->SerializePayloadParameters(Writer);
+		});
+	}
+}
+	
+void UMockRootMotionComponent::PlayRootMotionSource(UMockRootMotionSource* Source)
+{
+	if (!Source || !Source->IsValidRootMotionSource())
+	{
+		UE_LOG(LogNetworkPrediction, Warning, TEXT("Invalid Source (%s) in call to Input_PlayRootMotionSource"), *GetNameSafe(Source));
 		return;
 	}
 
-	// We are writing directly to the sync state here, not setting up the pending input cmd.
-	//	The server can always do this - they are the authority and can set the sync state to whatever they want.
-	//	The client is free to do this - but will get a mispredict if the server does not do it too.
-	//		This type of prediction is "risky" - the client has to predict doing it at the same simulation time as the server
-	//		but since this function (UMockRootMotionComponent::PlayRootMotionMontage) is callable from anywhere, its not possible
-	//		to guaranteed. If you want guaranteed prediction, do it via InputCmd and the SimulationTick logic.
+	UNetworkPredictionWorldManager* NetworkPredictionWorldManager = GetWorld()->GetSubsystem<UNetworkPredictionWorldManager>();
+	npCheckSlow(NetworkPredictionWorldManager);
 
-	NetworkPredictionProxy.WriteSyncState<FMockRootMotionSyncState>([ID, PlayRate](FMockRootMotionSyncState& Sync)
+	ANetworkPredictionReplicatedManager* Manager = NetworkPredictionWorldManager->ReplicatedManager;
+	if (!npEnsureMsgf(Manager, TEXT("ANetworkPredictionReplicatedManager not available."))) 
 	{
-		Sync.RootMotionSourceID = ID;
-		Sync.PlayRate = PlayRate;
-		Sync.PlayPosition = 0.f;
-	}, "UMockRootMotionComponent::PlayRootMotionMontage");	// The string here is for Insights tracing. "Who did this?"
+		return;
+	}
+
+	// Lookup ID for this class and store it locally
+	const int32 ID = Manager->GetIDForObject(Source->GetClass());
+	StoreRootMotionSource(ID, Source);
+
+	const int32& SimTimeMS = NetworkPredictionProxy.GetTotalSimTimeMS();
+	
+	// Write new source directly to the aux state
+	NetworkPredictionProxy.WriteAuxState<FMockRootMotionAuxState>([Source, ID, SimTimeMS](FMockRootMotionAuxState& Aux)
+	{
+		Aux.Source.WriteSource(ID, SimTimeMS);
+
+		// If this is instanced, give it a chance to write parameters
+		if (Source->HasAnyFlags(RF_ClassDefaultObject) == false)
+		{
+			Aux.Source.WriteParams([Source](FBitWriter& Writer)
+			{
+				Source->SerializePayloadParameters(Writer);
+			});
+		}
+
+	}, "UMockRootMotionComponent::PlayRootMotionSource");	// The string here is for Insights tracing. "Who did this?"
+}
+
+void UMockRootMotionComponent::PlayRootMotionSourceByClass(TSubclassOf<UMockRootMotionSource> Source)
+{
+	if (UMockRootMotionSource* CDO = Source.GetDefaultObject())
+	{
+		PlayRootMotionSource(CDO);
+	}
+	else
+	{
+		UE_LOG(LogNetworkPrediction, Warning, TEXT("PlayRootMotionSourceByClass called with null class"));
+	}
+}
+
+UMockRootMotionSource* UMockRootMotionComponent::ResolveRootMotionSource(int32 ID, const TArrayView<const uint8>& Data)
+{
+	if (RootMotionSourceCache.ClassID == ID)
+	{
+		return RootMotionSourceCache.Instance;
+	}
+
+	UNetworkPredictionWorldManager* NetworkPredictionWorldManager = GetWorld()->GetSubsystem<UNetworkPredictionWorldManager>();
+	npCheckSlow(NetworkPredictionWorldManager);
+
+	ANetworkPredictionReplicatedManager* Manager = NetworkPredictionWorldManager->ReplicatedManager;
+	if (!npEnsureMsgf(Manager, TEXT("ANetworkPredictionReplicatedManager not available."))) 
+	{
+		return nullptr;
+	}
+
+	RootMotionSourceCache.ClassID = ID;
+	RootMotionSourceCache.Instance = nullptr;
+	
+	TSoftObjectPtr<UObject> SoftObjPtr = Manager->GetObjectForID(ID);
+	UObject* Obj = SoftObjPtr.Get();
+	if (Obj == nullptr)
+	{
+		return nullptr;
+	}
+
+	UClass* ClassObj = Cast<UClass>(Obj);
+	if (ClassObj == nullptr || !ClassObj->IsChildOf(UMockRootMotionSource::StaticClass()))
+	{
+		UE_LOG(LogNetworkPrediction, Warning, TEXT("Resolved object %s is not a subclass of URootMotionSource"), *GetNameSafe(Obj));
+		return nullptr;
+	}
+
+	if (Data.Num() == 0)
+	{
+		// No parameters: this implies no instantiation/CDO 
+		// (are we sure? Should there be a virtual here? What if we have a no parameter but internal state having source?)
+		RootMotionSourceCache.Instance = Cast<UMockRootMotionSource>(ClassObj->ClassDefaultObject);
+	}
+	else
+	{
+		RootMotionSourceCache.Instance = NewObject<UMockRootMotionSource>(this, ClassObj);
+		
+		FBitReader BitReader(const_cast<uint8*>(Data.GetData()), (int64)Data.Num() << 3);
+		RootMotionSourceCache.Instance->SerializePayloadParameters(BitReader);
+	}	
+
+	npCheckSlow(RootMotionSourceCache.Instance);
+	return RootMotionSourceCache.Instance;
+}
+
+void UMockRootMotionComponent::StoreRootMotionSource(int32 ID, UMockRootMotionSource* Source)
+{
+	RootMotionSourceCache.ClassID = ID;
+	RootMotionSourceCache.Instance = Source;
 }

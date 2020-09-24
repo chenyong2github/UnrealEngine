@@ -4,6 +4,7 @@
 
 #include "EditorStyleSet.h"
 #include "Features/IModularFeatures.h"
+#include "Framework/Docking/LayoutService.h"
 #include "Framework/Docking/WorkspaceItem.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SlateOptMacros.h"
@@ -23,6 +24,7 @@
 #endif // WITH_EDITOR
 
 // Insights
+#include "Insights/Common/InsightsMenuBuilder.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/ITimingViewExtender.h"
@@ -30,6 +32,7 @@
 #include "Insights/MemoryProfiler/ViewModels/MemorySharedState.h"
 #include "Insights/MemoryProfiler/Widgets/SMemoryProfilerToolbar.h"
 #include "Insights/MemoryProfiler/Widgets/SMemTagTreeView.h"
+#include "Insights/TraceInsightsModule.h"
 #include "Insights/Version.h"
 #include "Insights/Widgets/SInsightsSettings.h"
 #include "Insights/Widgets/STimingView.h"
@@ -60,6 +63,20 @@ SMemoryProfilerWindow::SMemoryProfilerWindow()
 
 SMemoryProfilerWindow::~SMemoryProfilerWindow()
 {
+	if (MemTagTreeView)
+	{
+		HideTab(FMemoryProfilerTabs::MemTagTreeViewID);
+		check(MemTagTreeView == nullptr);
+	}
+
+	if (TimingView)
+	{
+		HideTab(FMemoryProfilerTabs::TimingViewID);
+		check(TimingView == nullptr);
+	}
+
+	HideTab(FMemoryProfilerTabs::ToolbarID);
+
 #if WITH_EDITOR
 	if (DurationActive > 0.0f && FEngineAnalytics::IsAvailable())
 	{
@@ -213,7 +230,13 @@ void SMemoryProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 {
 	// Create & initialize tab manager.
 	TabManager = FGlobalTabmanager::Get()->NewTabManager(ConstructUnderMajorTab);
-	TSharedRef<FWorkspaceItem> AppMenuGroup = TabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("MemoryProfilerMenuGroupName", "Asset Memory Insights"));
+	const auto& PersistLayout = [](const TSharedRef<FTabManager::FLayout>& LayoutToSave)
+	{
+		FLayoutSaveRestore::SaveToConfig(FTraceInsightsModule::GetUnrealInsightsLayoutIni(), LayoutToSave);
+	};
+	TabManager->SetOnPersistLayout(FTabManager::FOnPersistLayout::CreateLambda(PersistLayout));
+
+	TSharedRef<FWorkspaceItem> AppMenuGroup = TabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("MemoryProfilerMenuGroupName", "Memory Insights"));
 
 	TabManager->RegisterTabSpawner(FMemoryProfilerTabs::ToolbarID, FOnSpawnTab::CreateRaw(this, &SMemoryProfilerWindow::SpawnTab_Toolbar))
 		.SetDisplayName(LOCTEXT("DeviceToolbarTabTitle", "Toolbar"))
@@ -234,7 +257,7 @@ void SMemoryProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 	ensure(MemoryProfilerManager.IsValid());
 
 	// Create tab layout.
-	const TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("InsightsMemoryProfilerLayout_v1.0")
+	TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("InsightsMemoryProfilerLayout_v1.0")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
@@ -255,26 +278,28 @@ void SMemoryProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 					FTabManager::NewStack()
 					->SetSizeCoefficient(0.77f)
 					->SetHideTabWell(true)
-					->AddTab(FMemoryProfilerTabs::TimingViewID, MemoryProfilerManager->IsTimingViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
+					->AddTab(FMemoryProfilerTabs::TimingViewID, ETabState::OpenedTab)
 				)
 				->Split
 				(
 					FTabManager::NewStack()
 					->SetSizeCoefficient(0.23f)
-					->AddTab(FMemoryProfilerTabs::MemTagTreeViewID, MemoryProfilerManager->IsMemTagTreeViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
+					->AddTab(FMemoryProfilerTabs::MemTagTreeViewID, ETabState::OpenedTab)
 					->SetForegroundTab(FMemoryProfilerTabs::MemTagTreeViewID)
 				)
 			)
 		);
 
+	Layout = FLayoutSaveRestore::LoadFromConfig(FTraceInsightsModule::GetUnrealInsightsLayoutIni(), Layout);
+
 	// Create & initialize main menu.
 	FMenuBarBuilder MenuBarBuilder = FMenuBarBuilder(TSharedPtr<FUICommandList>());
 
 	MenuBarBuilder.AddPullDownMenu(
-		LOCTEXT("MenuLabel", "MENU"),
+		LOCTEXT("MenuLabel", "Menu"),
 		FText::GetEmpty(),
 		FNewMenuDelegate::CreateStatic(&SMemoryProfilerWindow::FillMenu, TabManager),
-		FName(TEXT("MENU"))
+		FName(TEXT("Menu"))
 	);
 
 	TSharedRef<SWidget> MultiboxWidget = MenuBarBuilder.MakeWidget();
@@ -346,9 +371,7 @@ void SMemoryProfilerWindow::FillMenu(FMenuBuilder& MenuBuilder, const TSharedPtr
 		return;
 	}
 
-#if !WITH_EDITOR
-	//TODO: FGlobalTabmanager::Get()->PopulateTabSpawnerMenu(MenuBuilder, WorkspaceMenu::GetMenuStructure().GetStructureRoot());
-#endif //!WITH_EDITOR
+	FInsightsManager::Get()->GetInsightsMenuBuilder()->PopulateMenu(MenuBuilder);
 
 	TabManager->PopulateLocalTabSpawnerMenu(MenuBuilder);
 }

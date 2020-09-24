@@ -130,6 +130,9 @@ public:
 	/** Returns true if user has elected to restart crashing process, and if it was a success */
 	bool GetIsSuccesfullRestart() const { return bIsSuccesfullRestart; }
 
+	/** Retruns true if user has elected to close without sending the report. */
+	bool WasClosedWithoutSending() const { return !bSendData; }
+
 	void AllowToBeContacted_OnCheckStateChanged( ECheckBoxState NewRadioState );
 	void SendLogFile_OnCheckStateChanged( ECheckBoxState NewRadioState );
 

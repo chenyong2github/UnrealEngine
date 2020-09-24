@@ -109,6 +109,12 @@ public:
 	/** Remove this target from  */
 	void RemoveTarget();
 
+	void SoloTargetStart();
+	void SoloTargetEnd();
+
+	// Returns true if the target is currently set to solo.
+	bool IsSoloTarget() const;
+
 	/** FCurveOwnerInterface interface */
 	virtual TArray<FRichCurveEditInfoConst> GetCurves() const override;
 	virtual TArray<FRichCurveEditInfo> GetCurves() override;
@@ -155,6 +161,7 @@ public:
 	void OnTargetSelectionChanged(TSharedPtr<FPDD_TargetInfo> InInfo, ESelectInfo::Type SelectInfo);
 	void OnPoseAssetChanged();
 	void OnSourceBonesChanged();
+	void OnSoloDrivenOnlyChanged(const ECheckBoxState NewCheckState);
 	void SelectedTargetChanged();
 
 	/** Get tools popup menu content */
@@ -163,6 +170,17 @@ public:
 
 	/** Remove a target from node */
 	void RemoveTarget(int32 TargetIndex);
+
+	/** Set this target to show at 100% and others at 0% until the next compile, unless
+	    it is already a solo target, in which case it will get un-soloed and the normal weight
+		computation applies. */
+	void SetSoloTarget(int32 TargetIndex);
+
+	/** Returns the current solo target index, or INDEX_NONE if no target is set to solo */
+	int32 GetSoloTarget() const;
+
+	/** Returns true if the solo is for driven poses/curves only. */
+	bool IsSoloDrivenOnly() const;
 
 	/** Set the currently selected Target */
 	void SelectTarget(int32 TargetIndex, bool bExpandTarget);

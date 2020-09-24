@@ -92,7 +92,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FVisualizeRadianceCacheParameters, )
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
-void FDeferredShadingSceneRenderer::RenderLumenRadianceCacheVisualization(FRHICommandListImmediate& RHICmdList)
+void FDeferredShadingSceneRenderer::RenderLumenRadianceCacheVisualization(FRDGBuilder& GraphBuilder)
 {
 	if (GAllowLumenScene
 		&& DoesPlatformSupportLumenGI(ShaderPlatform)
@@ -100,14 +100,12 @@ void FDeferredShadingSceneRenderer::RenderLumenRadianceCacheVisualization(FRHICo
 		&& LumenRadianceCache::IsEnabled(Views[0])
 		&& GLumenRadianceCacheVisualize != 0)
 	{
-		SCOPED_DRAW_EVENT(RHICmdList, VisualizeLumenScene);
+		RDG_EVENT_SCOPE(GraphBuilder, "VisualizeLumenRadianceCache");
 
 		const FViewInfo& View = Views[0];
 		const FRadianceCacheState& RadianceCacheState = Views[0].ViewState->RadianceCacheState;
 
-		FRDGBuilder GraphBuilder(RHICmdList);
-
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
 		FRDGTextureRef SceneColor = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor());
 		FRDGTextureRef SceneDepth = GraphBuilder.RegisterExternalTexture(SceneContext.SceneDepthZ);
 
@@ -172,8 +170,6 @@ void FDeferredShadingSceneRenderer::RenderLumenRadianceCacheVisualization(FRHICo
 					RHICmdList.DrawIndexedPrimitive(GCubeIndexBuffer.IndexBufferRHI, 0, 0, 8, 0, 2 * 6, NumInstancesPerClipmap);
 				});
 		}
-
-		GraphBuilder.Execute();
 	}
 }
 

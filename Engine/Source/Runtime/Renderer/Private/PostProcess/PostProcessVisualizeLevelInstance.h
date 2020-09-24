@@ -23,6 +23,9 @@ struct FVisualizeLevelInstanceInputs
 
 	// [Required] The scene depth to composite with selection outlines.
 	FScreenPassTexture SceneDepth;
+
+	// [Required] Used when scene textures are required by the material.
+	FSceneTextureShaderParameters SceneTextures;
 };
 
 FScreenPassTexture AddVisualizeLevelInstancePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FVisualizeLevelInstanceInputs& Inputs, const Nanite::FRasterResults *NaniteRasterResults);

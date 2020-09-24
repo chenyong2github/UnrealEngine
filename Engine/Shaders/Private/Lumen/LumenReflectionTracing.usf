@@ -31,7 +31,7 @@ void ReflectionClearTracesCS(
 	RWTraceRadiance[ReflectionTracingCoord] = 0.0f;
 	RWTraceHit[ReflectionTracingCoord] = EncodeRayDistance(0.0f, false);
 }
-
+ 
 float MaxTraceDistance;
 
 Texture2D ColorTexture;
@@ -82,7 +82,7 @@ void ReflectionTraceScreenTexturesCS(
 
 			float2 SampleUV;
 			float Vignette;
-			ReprojectHit(PrevScreenPositionScaleBias, SceneVelocityBuffer, SceneVelocityBufferSampler, HitUVz, SampleUV, Vignette);
+			ReprojectHit(PrevScreenPositionScaleBias, GBufferVelocityTexture, GBufferVelocityTextureSampler, HitUVz, SampleUV, Vignette);
 
 			// Skip reporting a hit if near the edge of the screen or Temporal AA is off
 			if (Vignette < InterleavedGradientNoise(ReflectionTracingCoord + 0.5f, 0)

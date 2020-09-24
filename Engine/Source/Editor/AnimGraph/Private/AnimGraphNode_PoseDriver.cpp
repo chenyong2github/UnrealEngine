@@ -55,7 +55,10 @@ FText UAnimGraphNode_PoseDriver::GetTooltipText() const
 
 FText UAnimGraphNode_PoseDriver::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
-	const FText Description = LOCTEXT("PoseDriver", "Pose Driver");
+	static const FText DescriptionAll = LOCTEXT("PoseDriver", "Pose Driver");
+	static const FText DescriptionSolo = LOCTEXT("PoseDriverSolo", "Pose Driver [Solo]");
+
+	const FText& Description = Node.SoloTargetIndex == INDEX_NONE ? DescriptionAll : DescriptionSolo;
 
 	const FName FirstSourceBone = (Node.SourceBones.Num() > 0) ? Node.SourceBones[0].BoneName : NAME_None;
  	if ((TitleType == ENodeTitleType::ListView || TitleType == ENodeTitleType::MenuTitle) && (FirstSourceBone == NAME_None))
@@ -96,6 +99,13 @@ FText UAnimGraphNode_PoseDriver::GetMenuCategory() const
 }
 
 
+FLinearColor UAnimGraphNode_PoseDriver::GetNodeBodyTintColor() const
+{
+	return Node.SoloTargetIndex == INDEX_NONE ?
+		Super::GetNodeBodyTintColor() :
+		FLinearColor::Green;
+}
+
 void UAnimGraphNode_PoseDriver::ValidateAnimNodeDuringCompilation(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog)
 {
 	if (Node.SourceBones.Num() == 0)
@@ -128,6 +138,12 @@ void UAnimGraphNode_PoseDriver::ValidateAnimNodeDuringCompilation(USkeleton* For
 			MessageLog.Error(*LOCTEXT("PoseDriver_InvalidTarget", "@@ - '@@' is an invalid or duplicate target.").ToString(),
 				this, GetData(Node.PoseTargets[TargetIdx].DrivenName.ToString()));
 		}
+	}
+
+	if (Node.SoloTargetIndex != INDEX_NONE)
+	{
+		MessageLog.Warning(*LOCTEXT("PoseDriver_SoloEnabled", "@@ - Solo enabled on target '@@'").ToString(), 
+			this, GetData(Node.PoseTargets[Node.SoloTargetIndex].DrivenName.ToString()));
 	}
 
 	Super::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
@@ -217,12 +233,12 @@ void UAnimGraphNode_PoseDriver::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FPoseDriverCustomVersion::GUID);
 }
 
-void UAnimGraphNode_PoseDriver::CopyNodeDataToPreviewNode(FAnimNode_Base* InPreviewNode)
-{
+void UAnimGraphNode_PoseDriver::CopyNodeDataToPreviewNode(FAnimNode_Base* InPreviewNode){
 	FAnimNode_PoseDriver* PreviewPoseDriver = static_cast<FAnimNode_PoseDriver*>(InPreviewNode);
 
 	PreviewPoseDriver->RBFParams.SolverType = Node.RBFParams.SolverType;
 	PreviewPoseDriver->RBFParams.Radius = Node.RBFParams.Radius;
+	PreviewPoseDriver->RBFParams.bAutomaticRadius = Node.RBFParams.bAutomaticRadius;
 	PreviewPoseDriver->RBFParams.Function = Node.RBFParams.Function;
 	PreviewPoseDriver->RBFParams.DistanceMethod = Node.RBFParams.DistanceMethod;
 	PreviewPoseDriver->RBFParams.TwistAxis = Node.RBFParams.TwistAxis;
@@ -235,6 +251,8 @@ void UAnimGraphNode_PoseDriver::CopyNodeDataToPreviewNode(FAnimNode_Base* InPrev
 	PreviewPoseDriver->DriveSource = Node.DriveSource;
 	PreviewPoseDriver->PoseTargets = Node.PoseTargets;
 	PreviewPoseDriver->bCachedDrivenIDsAreDirty = true;
+	PreviewPoseDriver->SoloTargetIndex = Node.SoloTargetIndex;
+	PreviewPoseDriver->bSoloDrivenOnly = Node.bSoloDrivenOnly;
 }
 
 FAnimNode_PoseDriver* UAnimGraphNode_PoseDriver::GetPreviewPoseDriverNode() const

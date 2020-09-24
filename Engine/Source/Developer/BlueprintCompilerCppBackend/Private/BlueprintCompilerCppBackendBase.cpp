@@ -1234,7 +1234,7 @@ FString FBlueprintCompilerCppBackendBase::GenerateWrapperForClass(UClass* Source
 			const FString TypeDeclaration = Property->IsA<FMulticastDelegateProperty>()
 				? FString::Printf(TEXT("%s::%s"), *DelegatesClassName, *GenerateMulticastDelegateTypeName(CastFieldChecked<FMulticastDelegateProperty>(Property)))
 				: EmitterContext.ExportCppDeclaration(Property
-					, EExportedDeclaration::Parameter
+					, EExportedDeclaration::Member
 					, EPropertyExportCPPFlags::CPPF_CustomTypeName | EPropertyExportCPPFlags::CPPF_BlueprintCppBackend | EPropertyExportCPPFlags::CPPF_NoRef | EPropertyExportCPPFlags::CPPF_NoConst
 					, FEmitterLocalContext::EPropertyNameInDeclaration::Skip);
 			EmitterContext.Header.AddLine(FString::Printf(TEXT("FORCENOINLINE %s& GetRef__%s()"), *TypeDeclaration, *UnicodeToCPPIdentifier(Property->GetName(), false, nullptr)));

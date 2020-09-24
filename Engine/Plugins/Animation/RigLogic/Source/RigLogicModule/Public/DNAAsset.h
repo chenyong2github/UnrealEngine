@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
 
 #include "Engine/AssetUserData.h"
 #include "Interfaces/Interface_AssetUserData.h"
@@ -38,21 +40,12 @@ public:
 	class UAssetImportData* AssetImportData;
 #endif
 
-	/* Behavior part of the .dna file, used run-time */
-	UPROPERTY()
-	TArray<uint8> BehaviorData; 
-
 	TSharedPtr<IBehaviorReader> GetBehaviorReader()
 	{
 		return BehaviorStreamReader;
 	}
 
-
 #if WITH_EDITORONLY_DATA
-	/* The design-time part of the .dna file, used in-editor */
-	UPROPERTY()
-	TArray<uint8> DesignTimeData; 
-
 	TSharedPtr<IGeometryReader> GetGeometryReader()
 	{
 		return GeometryStreamReader;
@@ -63,7 +56,7 @@ public:
 	FString DNAFileName; 
 
 	bool Init(const FString Filename);
-    void PostLoad() override;
+	void Serialize(FArchive& Ar) override;
 
 	/** Used when importing behavior into archetype SkelMesh in the editor, 
 	  * and when updating SkeletalMesh runtime with GeneSplicer; it will split
@@ -75,18 +68,11 @@ public:
 
 private:
 	/** Part of the .dna file needed for run-time execution of RigLogic;
-	  * Serialized using BehaviorData property
 	 **/
     TSharedPtr<IBehaviorReader> BehaviorStreamReader = nullptr;
 
-#if WITH_EDITORONLY_DATA
 	/** Part of the .dna file used design-time for updating SkeletalMesh geometry
-	  * Serialized using GeometryData property
 	 **/
 	TSharedPtr<IGeometryReader> GeometryStreamReader = nullptr;
-#endif
-
-	static TSharedPtr<IDNAReader> CopyDNALayer(const IDNAReader* Source, EDNADataLayer DNADataLayer, uint32 PredictedSize );
-	static void WriteToBuffer(IDNAReader* SourcePartialDNAReader, TArray<uint8>* WriteBuffer, uint32 PredictedSize);
 
 };

@@ -17,6 +17,10 @@ DEFINE_LOG_CATEGORY_STATIC(LogUHeadMountedDisplay, Log, All);
 /* UHeadMountedDisplayFunctionLibrary
  *****************************************************************************/
 
+FXRDeviceOnDisconnectDelegate UHeadMountedDisplayFunctionLibrary::OnXRDeviceOnDisconnectDelegate;
+
+TMap<FName, FXRTimedInputActionDelegate> UHeadMountedDisplayFunctionLibrary::OnXRTimedInputActionDelegateMap;
+
 UHeadMountedDisplayFunctionLibrary::UHeadMountedDisplayFunctionLibrary(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -59,6 +63,37 @@ FName UHeadMountedDisplayFunctionLibrary::GetHMDDeviceName()
 	}
 
 	return DeviceName;
+}
+
+FString UHeadMountedDisplayFunctionLibrary::GetVersionString()
+{
+	FString VersionString;
+	if (GEngine->XRSystem.IsValid())
+	{
+		VersionString = GEngine->XRSystem->GetVersionString();
+	}
+	return VersionString;
+}
+
+
+int32 UHeadMountedDisplayFunctionLibrary::GetXRSystemFlags()
+{
+	int32 SystemFlags = 0;
+
+	if (GEngine->XRSystem.IsValid())
+	{
+		SystemFlags = GEngine->XRSystem->GetXRSystemFlags();
+		auto HMD = GEngine->XRSystem->GetHMDDevice();
+		if (HMD && !HMD->IsHMDConnected())
+		{
+			// Clear the flags if a HMD device is present but not connected
+			// Note that the HMD device is usually the XR system itself
+			// and the latter is registered as soon as the corresponding plugin is loaded
+			SystemFlags = 0;
+		}
+	}
+
+	return SystemFlags;
 }
 
 EHMDWornState::Type UHeadMountedDisplayFunctionLibrary::GetHMDWornState()
@@ -421,4 +456,111 @@ bool UHeadMountedDisplayFunctionLibrary::IsDeviceTracking(const FXRDeviceId& XRD
 	}
 
 	return bIsTracked;
+}
+
+
+void UHeadMountedDisplayFunctionLibrary::GetHMDData(UObject* WorldContext, FXRHMDData& HMDData)
+{
+	HMDData.bValid = false;
+
+	IXRTrackingSystem* TrackingSys = GEngine->XRSystem.Get();
+	if (TrackingSys)
+	{
+		TrackingSys->GetHMDData(WorldContext, HMDData);
+	}
+}
+
+void UHeadMountedDisplayFunctionLibrary::GetMotionControllerData(UObject* WorldContext, const EControllerHand Hand, FXRMotionControllerData& MotionControllerData)
+{
+	MotionControllerData.bValid = false;
+	
+	IXRTrackingSystem* TrackingSys = GEngine->XRSystem.Get();
+	if (TrackingSys)
+	{
+		TrackingSys->GetMotionControllerData(WorldContext, Hand, MotionControllerData);
+	}
+}
+
+bool UHeadMountedDisplayFunctionLibrary::ConfigureGestures(const FXRGestureConfig& GestureConfig)
+{
+	IXRTrackingSystem* TrackingSys = GEngine->XRSystem.Get();
+	if (TrackingSys)
+	{
+		return TrackingSys->ConfigureGestures(GestureConfig);
+	}
+	return false;
+}
+
+
+/** Connect to a remote device for Remote Debugging */
+EXRDeviceConnectionResult::Type UHeadMountedDisplayFunctionLibrary::ConnectRemoteXRDevice(const FString& IpAddress, const int32 BitRate)
+{
+	IXRTrackingSystem* TrackingSys = GEngine->XRSystem.Get();
+	if (TrackingSys)
+	{
+		return TrackingSys->ConnectRemoteXRDevice(IpAddress, BitRate);
+	}
+	return EXRDeviceConnectionResult::NoTrackingSystem;
+}
+
+void UHeadMountedDisplayFunctionLibrary::DisconnectRemoteXRDevice()
+{
+	IXRTrackingSystem* TrackingSys = GEngine->XRSystem.Get();
+	if (TrackingSys)
+	{
+		TrackingSys->DisconnectRemoteXRDevice();
+	}
+}
+
+void UHeadMountedDisplayFunctionLibrary::SetXRDisconnectDelegate(const FXRDeviceOnDisconnectDelegate& InDisconnectedDelegate)
+{
+	OnXRDeviceOnDisconnectDelegate = InDisconnectedDelegate;
+}
+
+void UHeadMountedDisplayFunctionLibrary::SetXRTimedInputActionDelegate(const FName& ActionName, const FXRTimedInputActionDelegate& InDelegate)
+{
+	OnXRTimedInputActionDelegateMap.Add(ActionName, InDelegate);
+}
+
+void UHeadMountedDisplayFunctionLibrary::ClearXRTimedInputActionDelegate(const FName& ActionName)
+{
+	OnXRTimedInputActionDelegateMap.Remove(ActionName);
+}
+
+bool UHeadMountedDisplayFunctionLibrary::GetControllerTransformForTime(UObject* WorldContext, const int32 ControllerIndex, const FName MotionSource, FTimespan Time, bool& bTimeWasUsed, FRotator& Orientation, FVector& Position, bool& bProvidedLinearVelocity, FVector& LinearVelocity, bool& bProvidedAngularVelocity, FVector& AngularVelocityRadPerSec)
+{
+	TArray<IMotionController*> MotionControllers = IModularFeatures::Get().GetModularFeatureImplementations<IMotionController>(IMotionController::GetModularFeatureName());
+	for (auto MotionController : MotionControllers)
+	{
+		if (MotionController == nullptr)
+		{
+			continue;
+		}
+
+		const float WorldToMetersScale = WorldContext ? WorldContext->GetWorld()->GetWorldSettings()->WorldToMeters : 100.0f;
+
+		const bool bGotTransform = MotionController->GetControllerOrientationAndPositionForTime(ControllerIndex, MotionSource, Time, bTimeWasUsed, Orientation, Position, bProvidedLinearVelocity, LinearVelocity, bProvidedAngularVelocity, AngularVelocityRadPerSec, WorldToMetersScale);
+		
+		if (bGotTransform)
+		{
+			// transform to world space
+			const FTransform TrackingToWorld = GetTrackingToWorldTransform(WorldContext);
+
+			Position = TrackingToWorld.TransformPosition(Position);
+			Orientation = TrackingToWorld.TransformRotation(FQuat(Orientation)).Rotator();
+
+			if (bProvidedLinearVelocity)
+			{
+				LinearVelocity = TrackingToWorld.TransformVector(LinearVelocity);
+			}
+			
+			if (bProvidedAngularVelocity)
+			{
+				AngularVelocityRadPerSec = TrackingToWorld.TransformVector(AngularVelocityRadPerSec);
+			}
+
+			return true;
+		}
+	}
+	return false;
 }

@@ -33,6 +33,8 @@ public:
 #endif
 
 public:
+	//~ UObject interface
+	virtual void PreSave(const class ITargetPlatform* TargetPlatform);
 
 	//~ UMediaSource interface
 

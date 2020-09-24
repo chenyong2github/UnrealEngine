@@ -8,9 +8,36 @@
 #include "ShadowRendering.h"
 #include "Engine/Engine.h"
 
+class FProjectedShadowInfo;
+class FPlanarReflectionSceneProxy;
+class FRHIRenderQuery;
+
+DECLARE_GPU_STAT_NAMED_EXTERN(HZB, TEXT("HZB"));
+
 /*=============================================================================
 	SceneOcclusion.h
 =============================================================================*/
+
+struct FViewOcclusionQueries
+{
+	using FProjectedShadowArray = TArray<FProjectedShadowInfo const*, SceneRenderingAllocator>;
+	using FPlanarReflectionArray = TArray<FPlanarReflectionSceneProxy const*, SceneRenderingAllocator>;
+	using FRenderQueryArray = TArray<FRHIRenderQuery*, SceneRenderingAllocator>;
+
+	FProjectedShadowArray LocalLightQueryInfos;
+	FProjectedShadowArray CSMQueryInfos;
+	FProjectedShadowArray ShadowQueryInfos;
+	FPlanarReflectionArray ReflectionQueryInfos;
+
+	FRenderQueryArray LocalLightQueries;
+	FRenderQueryArray CSMQueries;
+	FRenderQueryArray ShadowQueries;
+	FRenderQueryArray ReflectionQueries;
+
+	bool bFlushQueries = true;
+};
+
+using FViewOcclusionQueriesPerView = TArray<FViewOcclusionQueries, TInlineAllocator<1, SceneRenderingAllocator>>;
 
 /**
 * A vertex shader for rendering a texture on a simple element.
@@ -23,8 +50,12 @@ public:
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
+		static auto* MobileUseHWsRGBEncodingCVAR = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.UseHWsRGBEncoding"));
+		const bool bMobileUseHWsRGBEncoding = (MobileUseHWsRGBEncodingCVAR && MobileUseHWsRGBEncodingCVAR->GetValueOnAnyThread() == 1);
+
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("OUTPUT_GAMMA_SPACE"), IsMobileHDR() == false);
+		OutEnvironment.SetDefine(TEXT("OUTPUT_GAMMA_SPACE"), IsMobileHDR() == false && !bMobileUseHWsRGBEncoding);
+		OutEnvironment.SetDefine(TEXT("OUTPUT_MOBILE_HDR"), IsMobileHDR() == true);
 	}
 
 	FOcclusionQueryVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):

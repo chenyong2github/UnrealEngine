@@ -176,21 +176,21 @@ public:
 	// Large physical texture of depth format, say 4096^2 or whatever we think is enough texels to go around
 	TRefCountPtr<IPooledRenderTarget>	PhysicalPagePool;
 	// Buffer that serves as the page table for all virtual shadow maps
-	TRefCountPtr<FPooledRDGBuffer>		PageTable;
+	TRefCountPtr<FRDGPooledBuffer>		PageTable;
 	
 	// Buffer that stores flags (uints) marking each page that needs to be rendered and cache status, for all virtual shadow maps.
 	// Flag values defined in PageAccessCommon.ush: VSM_ALLOCATED_FLAG | VSM_INVALID_FLAG
-	TRefCountPtr<FPooledRDGBuffer>		PageFlags;
+	TRefCountPtr<FRDGPooledBuffer>		PageFlags;
 	// HPageFlags is a hierarchy over the PageFlags for quick query
-	TRefCountPtr<FPooledRDGBuffer>		HPageFlags;
+	TRefCountPtr<FRDGPooledBuffer>		HPageFlags;
 
 	TRefCountPtr<IPooledRenderTarget>	HZBPhysical;
-	TRefCountPtr<FPooledRDGBuffer>		HZBPageTable;
+	TRefCountPtr<FRDGPooledBuffer>		HZBPageTable;
 
 	TRefCountPtr<IPooledRenderTarget>	DebugVisualizationOutput;
 	TRefCountPtr<IPooledRenderTarget>	DebugVisualizationProjectionOutput;
 	
-	TRefCountPtr<FPooledRDGBuffer>		AllocatedPagesOffset;
+	TRefCountPtr<FRDGPooledBuffer>		AllocatedPagesOffset;
 
 	static constexpr uint32 NumStats = 5;
 	// 0 - allocated pages
@@ -199,18 +199,18 @@ public:
 	// 3 - NumSms
 	// 4 - RandRobin invalidated
 
-	TRefCountPtr<FPooledRDGBuffer>		StatsBufferRef;
+	TRefCountPtr<FRDGPooledBuffer>		StatsBufferRef;
 
 	// Allocation info for each page.
-	TRefCountPtr<FPooledRDGBuffer>		CachedPageInfos;
-	TRefCountPtr<FPooledRDGBuffer>		PhysicalPageMetaData;
+	TRefCountPtr<FRDGPooledBuffer>		CachedPageInfos;
+	TRefCountPtr<FRDGPooledBuffer>		PhysicalPageMetaData;
 
 	// Buffer that stores flags marking each page that received dynamic geo.
-	TRefCountPtr<FPooledRDGBuffer>		DynamicCasterPageFlags;
+	TRefCountPtr<FRDGPooledBuffer>		DynamicCasterPageFlags;
 	
 	// uint4 buffer with one rect for each mip level in all SMs, calculated to bound committed pages
 	// Used to clip the rect size of clusters during culling.
-	TRefCountPtr<FPooledRDGBuffer>		PageRectBounds;
+	TRefCountPtr<FRDGPooledBuffer>		PageRectBounds;
 
-	TRefCountPtr<FPooledRDGBuffer>		ShadowMapProjectionDataBuffer;
+	TRefCountPtr<FRDGPooledBuffer>		ShadowMapProjectionDataBuffer;
 };

@@ -416,6 +416,14 @@ public:
 	virtual void GetOuterObjects( TArray<UObject*>& OuterObjects ) const = 0;
 
 	/**
+	 * Set the outer objects for this property
+	 *
+	 * @param OuterObjects An array that contains the new outer objects
+	 */
+	virtual void ReplaceOuterObjects( const TArray<UObject*>& OuterObjects ) = 0;
+
+
+	/**
 	 * Get the packages that contain this property
 	 *
 	 * @param OuterPackages	An array that will be populated with the outer packages

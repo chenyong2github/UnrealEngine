@@ -263,7 +263,7 @@ public:
 	int					GetNumVerts() const { return numVerts; }
 	int					GetNumTris() const { return numTris; }
 
-	void				OutputMesh( T* Verts, uint32* Indexes );
+	void				OutputMesh( T* Verts, uint32* Indexes, uint32* OutNumVertices = nullptr, uint32* OutNumIndices = nullptr ) const;
 
 	template< typename FaceType >
 	void				CompactFaceData( TArray< FaceType>& FaceData );
@@ -2073,7 +2073,7 @@ float TMeshSimplifier<T, NumAttributes>::SimplifyMesh( float maxErrorLimit, int 
 }
 
 template< typename T, uint32 NumAttributes >
-void TMeshSimplifier<T, NumAttributes>::OutputMesh( T* verts, uint32* indexes )
+void TMeshSimplifier<T, NumAttributes>::OutputMesh( T* verts, uint32* indexes, uint32* OutNumVertices, uint32* OutNumIndices ) const
 {
 	FHashTable HashTable( 1 << FMath::Min( 16u, FMath::FloorLog2( GetNumVerts() ) ), GetNumVerts() );
 
@@ -2125,8 +2125,15 @@ void TMeshSimplifier<T, NumAttributes>::OutputMesh( T* verts, uint32* indexes )
 	check( numV <= numVerts );
 	check( numI <= numTris * 3 );
 	
-	numVerts = numV;
-	numTris = numI / 3;
+	if (OutNumVertices)
+	{
+		*OutNumVertices = numV;
+	}
+
+	if (OutNumIndices)
+	{
+		*OutNumIndices = numI;
+	}
 }
 
 template< typename T, uint32 NumAttributes >

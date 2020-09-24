@@ -217,7 +217,7 @@ class FLumenCardHardwareRayTracingRGS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenMeshSDFGridParameters, MeshSDFGridParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
-		SHADER_PARAMETER_STRUCT_REF(FSceneTexturesUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_STRUCT_REF(FSceneTextureUniformParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheParameters, RadianceCacheParameters)
 		SHADER_PARAMETER_STRUCT_REF(FRGSRadianceCacheParameters, RGSRadianceCacheParameters)
 
@@ -376,7 +376,7 @@ class FLumenCardHardwarePrimaryRayTracingRGS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenMeshSDFGridParameters, MeshSDFGridParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
-		SHADER_PARAMETER_STRUCT_REF(FSceneTexturesUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_STRUCT_REF(FSceneTextureUniformParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheParameters, RadianceCacheParameters)
 		SHADER_PARAMETER_STRUCT_REF(FRGSRadianceCacheParameters, RGSRadianceCacheParameters)
 
@@ -578,7 +578,7 @@ public:
 
 TGlobalResource<FVisualizeHardwareTracesVertexDeclaration> GVisualizeHardwareTracesVertexDeclaration;
 
-TRefCountPtr<FPooledRDGBuffer> GVisualizeHardwareTracesBuffer;
+TRefCountPtr<FRDGPooledBuffer> GVisualizeHardwareTracesBuffer;
 
 FRDGBufferRef  SetupVisualizationBuffer(FRDGBuilder& GraphBuilder, const TCHAR* Name)
 {
@@ -708,7 +708,7 @@ void RenderHardwareRayTracingScreenProbeSubpass(FRDGBuilder& GraphBuilder,
 		PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
 
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
-		PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBufferSingleDraw(GraphBuilder.RHICmdList, ESceneTextureSetupMode::All, View.FeatureLevel);
+		PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder.RHICmdList, View.FeatureLevel);
 
 		//This parameter should be set always as dynamic branch is chosen to reduce permutation counts. 
 		// The dynamic branch is coherent. Only set up the buffer when trace visualization is enabled.
@@ -822,11 +822,11 @@ void RenderHardwareRayTracingScreenProbe(FRDGBuilder& GraphBuilder,
 										ScreenProbeParameters.ScreenProbeTracingOctahedronResolution;
 
 		FRDGTextureRef FaceNormalCacheTexture = GraphBuilder.CreateTexture(
-			FRDGTextureDesc::Create2DDesc(
+			FRDGTextureDesc::Create2D(
 				AllRayStorageExtent,
 				PF_FloatRGBA,
 				FClearValueBinding::None,
-				TexCreate_None, TexCreate_ShaderResource | TexCreate_UAV, false),
+				TexCreate_ShaderResource | TexCreate_UAV),
 			TEXT("FaceNormalCacheTexture"));
 
 		for (int i = 0; i < 2; ++i)
@@ -902,7 +902,7 @@ void VisualizeLumenHardwareRayTracingPrimaryRaySubpass(FRDGBuilder& GraphBuilder
 		PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
 
 		//PassParameters->ScreenProbeParameters = ScreenProbeParameters;
-		PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBufferSingleDraw(GraphBuilder.RHICmdList, ESceneTextureSetupMode::All, View.FeatureLevel);
+		PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder.RHICmdList, View.FeatureLevel);
 		
 		//This parameter should be set always as dynamic branch is chosen to reduce permutation counts. 
 		// The dynamic branch is coherent. Only set up the buffer when trace visualization is enabled.
@@ -1013,11 +1013,11 @@ void VisualizeLumenHardwareRayTracingPrimaryRay(FRDGBuilder& GraphBuilder,
 		FIntPoint AllRayStorageExtent(FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), 8) * 8) ;
 
 		FRDGTextureRef FaceNormalCacheTexture = GraphBuilder.CreateTexture(
-			FRDGTextureDesc::Create2DDesc(
+			FRDGTextureDesc::Create2D(
 				AllRayStorageExtent,
 				PF_FloatRGBA,
 				FClearValueBinding::None,
-				TexCreate_None, TexCreate_ShaderResource | TexCreate_UAV, false),
+				TexCreate_ShaderResource | TexCreate_UAV),
 			TEXT("FaceNormalCacheTexture"));
 
 		for (int i = 0; i < 2; ++i)

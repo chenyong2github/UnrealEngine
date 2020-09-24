@@ -53,8 +53,11 @@ void SFlattenHeightEyeDropperButton::Construct(const FArguments& InArgs)
 
 SFlattenHeightEyeDropperButton::~SFlattenHeightEyeDropperButton()
 {
-	FSlateApplication::Get().OnApplicationPreInputKeyDownListener().RemoveAll(this);
-	FSlateApplication::Get().OnApplicationMousePreInputButtonDownListener().RemoveAll(this);
+	if (FSlateApplication::IsInitialized())
+	{
+		FSlateApplication::Get().OnApplicationPreInputKeyDownListener().RemoveAll(this);
+		FSlateApplication::Get().OnApplicationMousePreInputButtonDownListener().RemoveAll(this);
+	}
 }
 
 void SFlattenHeightEyeDropperButton::OnApplicationPreInputKeyDownListener(const FKeyEvent& InKeyEvent)

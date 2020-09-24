@@ -545,10 +545,10 @@ public:
 	uint8 MeshHolesMaxLod = 6;
 
 	/**
-	 * Array of runtime virtual textures into which we render this landscape.
+	 * Array of runtime virtual textures into which we draw this landscape.
 	 * The material also needs to be set up to output to a virtual texture.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = VirtualTexture, meta = (DisplayName = "Render to Virtual Textures"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = VirtualTexture, meta = (DisplayName = "Draw in Virtual Textures"))
 	TArray<URuntimeVirtualTexture*> RuntimeVirtualTextures;
 
 	/** 
@@ -565,8 +565,8 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Virtual Texture LOD Bias", UIMin = "0", UIMax = "7"))
 	int32 VirtualTextureLodBias = 0;
 
-	/** Render to the main pass based on the virtual texture settings. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Virtual Texture Pass Type"))
+	/** Controls if this component draws in the main pass as well as in the virtual texture. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Draw in Main Pass"))
 	ERuntimeVirtualTextureMainPassType VirtualTextureRenderPassType = ERuntimeVirtualTextureMainPassType::Always;
 
 	/** Allows overriding the landscape bounds. This is useful if you distort the landscape with world-position-offset, for example
@@ -662,7 +662,7 @@ public:
 	int32 CustomDepthStencilValue;
 
 	/**  Max draw distance exposed to LDs. The real max draw distance is the min (disregarding 0) of this and volumes affecting this object. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = LOD, meta = (DisplayName = "Desired Max Draw Distance"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Rendering, meta = (DisplayName = "Desired Max Draw Distance"))
 	float LDMaxDrawDistance;
 
 #if WITH_EDITORONLY_DATA
@@ -808,6 +808,7 @@ public:
 	// Editor-time blueprint functions
 
 	/** Deform landscape using a given spline
+	 * @param InSplineComponent - The component containing the spline data
 	 * @param StartWidth - Width of the spline at the start node, in Spline Component local space
 	 * @param EndWidth   - Width of the spline at the end node, in Spline Component local space
 	 * @param StartSideFalloff - Width of the falloff at either side of the spline at the start node, in Spline Component local space
@@ -818,9 +819,10 @@ public:
 	 * @param bRaiseHeights - Allow the landscape to be raised up to the level of the spline. If both bRaiseHeights and bLowerHeights are false, no height modification of the landscape will be performed
 	 * @param bLowerHeights - Allow the landscape to be lowered down to the level of the spline. If both bRaiseHeights and bLowerHeights are false, no height modification of the landscape will be performed
 	 * @param PaintLayer - LayerInfo to paint, or none to skip painting. The landscape must be configured with the same layer info in one of its layers or this will do nothing!
+	 * @param EditLayerName - Name of the landscape edition layer to affect (in Edit Layers mode)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Landscape|Editor")
-	void EditorApplySpline(USplineComponent* InSplineComponent, float StartWidth = 200, float EndWidth = 200, float StartSideFalloff = 200, float EndSideFalloff = 200, float StartRoll = 0, float EndRoll = 0, int32 NumSubdivisions = 20, bool bRaiseHeights = true, bool bLowerHeights = true, ULandscapeLayerInfoObject* PaintLayer = nullptr);
+	void EditorApplySpline(USplineComponent* InSplineComponent, float StartWidth = 200, float EndWidth = 200, float StartSideFalloff = 200, float EndSideFalloff = 200, float StartRoll = 0, float EndRoll = 0, int32 NumSubdivisions = 20, bool bRaiseHeights = true, bool bLowerHeights = true, ULandscapeLayerInfoObject* PaintLayer = nullptr, FName EditLayerName = TEXT(""));
 
 	/** Set an MID texture parameter value for all landscape components. */
 	UFUNCTION(BlueprintCallable, Category = "Landscape|Runtime|Material")

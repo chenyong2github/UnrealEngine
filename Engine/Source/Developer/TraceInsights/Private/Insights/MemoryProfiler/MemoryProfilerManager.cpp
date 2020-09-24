@@ -9,6 +9,7 @@
 #include "WorkspaceMenuStructureModule.h"
 
 // Insights
+#include "Insights/Common/InsightsMenuBuilder.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/MemoryProfiler/ViewModels/MemorySharedState.h"
@@ -51,13 +52,11 @@ TSharedPtr<FMemoryProfilerManager> FMemoryProfilerManager::CreateInstance()
 FMemoryProfilerManager::FMemoryProfilerManager(TSharedRef<FUICommandList> InCommandList)
 	: bIsInitialized(false)
 	, bIsAvailable(false)
-	, AvailabilityCheckNextTimestamp(0)
-	, AvailabilityCheckWaitTimeSec(1.0)
 	, CommandList(InCommandList)
 	, ActionManager(this)
 	, ProfilerWindow(nullptr)
-	, bIsTimingViewVisible(true)
-	, bIsMemTagTreeViewVisible(true)
+	, bIsTimingViewVisible(false)
+	, bIsMemTagTreeViewVisible(false)
 {
 }
 
@@ -72,12 +71,17 @@ void FMemoryProfilerManager::Initialize(IUnrealInsightsModule& InsightsModule)
 	}
 	bIsInitialized = true;
 
+	UE_LOG(MemoryProfiler, Log, TEXT("Initialize"));
+
 	// Register tick functions.
 	OnTick = FTickerDelegate::CreateSP(this, &FMemoryProfilerManager::Tick);
-	OnTickHandle = FTicker::GetCoreTicker().AddTicker(OnTick, 1.0f);
+	OnTickHandle = FTicker::GetCoreTicker().AddTicker(OnTick, 0.0f);
 
 	FMemoryProfilerCommands::Register();
 	BindCommands();
+
+	FInsightsManager::Get()->GetSessionChangedEvent().AddSP(this, &FMemoryProfilerManager::OnSessionChanged);
+	OnSessionChanged();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -90,12 +94,16 @@ void FMemoryProfilerManager::Shutdown()
 	}
 	bIsInitialized = false;
 
+	FInsightsManager::Get()->GetSessionChangedEvent().RemoveAll(this);
+
 	FMemoryProfilerCommands::Unregister();
 
 	// Unregister tick function.
 	FTicker::GetCoreTicker().RemoveTicker(OnTickHandle);
 
 	FMemoryProfilerManager::Instance.Reset();
+
+	UE_LOG(MemoryProfiler, Log, TEXT("Shutdown"));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -123,12 +131,12 @@ void FMemoryProfilerManager::RegisterMajorTabs(IUnrealInsightsModule& InsightsMo
 	{
 		// Register tab spawner for the Memory Insights.
 		FTabSpawnerEntry& TabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FInsightsManagerTabs::MemoryProfilerTabId,
-			FOnSpawnTab::CreateRaw(this, &FMemoryProfilerManager::SpawnTab))
+			FOnSpawnTab::CreateRaw(this, &FMemoryProfilerManager::SpawnTab), FCanSpawnTab::CreateRaw(this, &FMemoryProfilerManager::CanSpawnTab))
 			.SetDisplayName(Config.TabLabel.IsSet() ? Config.TabLabel.GetValue() : LOCTEXT("MemoryProfilerTabTitle", "Memory Insights"))
 			.SetTooltipText(Config.TabTooltip.IsSet() ? Config.TabTooltip.GetValue() : LOCTEXT("MemoryProfilerTooltipText", "Open the Memory Insights tab."))
 			.SetIcon(Config.TabIcon.IsSet() ? Config.TabIcon.GetValue() : FSlateIcon(FInsightsStyle::GetStyleSetName(), "MemoryProfiler.Icon.Small"));
 
-		TSharedRef<FWorkspaceItem> Group = Config.WorkspaceGroup.IsValid() ? Config.WorkspaceGroup.ToSharedRef() : WorkspaceMenu::GetMenuStructure().GetToolsCategory();
+		TSharedRef<FWorkspaceItem> Group = Config.WorkspaceGroup.IsValid() ? Config.WorkspaceGroup.ToSharedRef() : FInsightsManager::Get()->GetInsightsMenuBuilder()->GetInsightsToolsGroup();
 		TabSpawnerEntry.SetGroup(Group);
 	}
 }
@@ -157,6 +165,13 @@ TSharedRef<SDockTab> FMemoryProfilerManager::SpawnTab(const FSpawnTabArgs& Args)
 	AssignProfilerWindow(Window);
 
 	return DockTab;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FMemoryProfilerManager::CanSpawnTab(const FSpawnTabArgs& Args) const
+{
+	return bIsAvailable;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -202,36 +217,43 @@ FMemorySharedState* FMemoryProfilerManager::GetSharedState()
 
 bool FMemoryProfilerManager::Tick(float DeltaTime)
 {
-	if (!bIsAvailable)
+	// Check if session has Memory events (to spawn the tab), but not too often.
+	if (!bIsAvailable && AvailabilityCheck.Tick())
 	{
-		// Check if session has Memory events (to spawn the tab), but not too often.
-		const uint64 Time = FPlatformTime::Cycles64();
-		if (Time > AvailabilityCheckNextTimestamp)
+		uint32 TagCount = 0;
+
+		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+		if (Session.IsValid())
 		{
-			AvailabilityCheckWaitTimeSec += 1.0; // increase wait time with 1s
-			const uint64 WaitTime = static_cast<uint64>(AvailabilityCheckWaitTimeSec / FPlatformTime::GetSecondsPerCycle64());
-			AvailabilityCheckNextTimestamp = Time + WaitTime;
+			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-			uint32 TagCount = 0;
-
-			TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-			if (Session.IsValid())
+			if (Session->IsAnalysisComplete())
 			{
-				Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-				const Trace::IMemoryProvider& MemoryProvider = Trace::ReadMemoryProvider(*Session.Get());
-				TagCount = MemoryProvider.GetTagCount();
+				// Never check again during this session.
+				AvailabilityCheck.Disable();
 			}
 
-			if (TagCount > 0)
-			{
-				bIsAvailable = true;
+			const Trace::IMemoryProvider& MemoryProvider = Trace::ReadMemoryProvider(*Session.Get());
+			TagCount = MemoryProvider.GetTagCount();
+		}
+		else
+		{
+			// Do not check again until the next session changed event (see OnSessionChanged).
+			AvailabilityCheck.Disable();
+		}
 
-				const FName& TabId = FInsightsManagerTabs::MemoryProfilerTabId;
-				if (FGlobalTabmanager::Get()->HasTabSpawner(TabId))
-				{
-					FGlobalTabmanager::Get()->TryInvokeTab(TabId);
-				}
+		if (TagCount > 0)
+		{
+			bIsAvailable = true;
+
+#if !WITH_EDITOR
+			const FName& TabId = FInsightsManagerTabs::MemoryProfilerTabId;
+			if (FGlobalTabmanager::Get()->HasTabSpawner(TabId))
+			{
+				UE_LOG(MemoryProfiler, Log, TEXT("Opening the \"Memory Insights\" tab..."));
+				FGlobalTabmanager::Get()->TryInvokeTab(TabId);
 			}
+#endif
 		}
 	}
 
@@ -242,9 +264,17 @@ bool FMemoryProfilerManager::Tick(float DeltaTime)
 
 void FMemoryProfilerManager::OnSessionChanged()
 {
+	UE_LOG(MemoryProfiler, Log, TEXT("OnSessionChanged"));
+
 	bIsAvailable = false;
-	AvailabilityCheckNextTimestamp = 0;
-	AvailabilityCheckWaitTimeSec = 1.0;
+	if (FInsightsManager::Get()->GetSession().IsValid())
+	{
+		AvailabilityCheck.Enable(0.5);
+	}
+	else
+	{
+		AvailabilityCheck.Disable();
+	}
 
 	TSharedPtr<SMemoryProfilerWindow> Wnd = GetProfilerWindow();
 	if (Wnd.IsValid())

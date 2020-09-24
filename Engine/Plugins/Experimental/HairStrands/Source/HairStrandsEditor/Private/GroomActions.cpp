@@ -6,14 +6,42 @@
 #include "EditorFramework/AssetImportData.h"
 #include "HairStrandsRendering.h"
 #include "GroomAssetImportData.h"
+#include "GroomBuilder.h"
 #include "GroomImportOptions.h"
 #include "GroomImportOptionsWindow.h"
+#include "GroomCustomAssetEditorToolkit.h"
 #include "GroomCreateBindingOptions.h"
 #include "GroomCreateBindingOptionsWindow.h"
-#include "Toolkits/SimpleAssetEditor.h"
+#include "GroomCreateFollicleMaskOptions.h"
+#include "GroomCreateFollicleMaskOptionsWindow.h"
+#include "GroomCreateStrandsTexturesOptions.h"
+#include "GroomCreateStrandsTexturesOptionsWindow.h"
+#include "HairStrandsImporter.h"
+#include "HairStrandsTranslator.h"
 #include "ToolMenuSection.h"
-
+#include "Misc/ScopedSlowTask.h"
+#include "AssetRegistryModule.h"
+#include "GroomBindingBuilder.h"
+#include "GroomTextureBuilder.h"
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Helper functions
+
+void CreateFilename(const FString& InAssetName, const FString& Suffix, FString& OutPackageName, FString& OutAssetName)
+{
+	// Get a unique package and asset name
+	FAssetToolsModule& AssetToolsModule = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	AssetToolsModule.Get().CreateUniqueAssetName(InAssetName, Suffix, OutPackageName, OutAssetName);
+}
+
+void RegisterTexture(UTexture2D* Out)
+{
+	FAssetRegistryModule::AssetCreated(Out);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Actions
 
 FGroomActions::FGroomActions()
 {}
@@ -48,6 +76,28 @@ void FGroomActions::GetActions(const TArray<UObject*>& InObjects, FToolMenuSecti
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FGroomActions::ExecuteCreateBindingAsset, GroomAssets),
 			FCanExecuteAction::CreateSP(this, &FGroomActions::CanCreateBindingAsset, GroomAssets)
+		)
+	);
+
+	Section.AddMenuEntry(
+		"CreateFollicleTexture",
+		LOCTEXT("CreateFollicleTexture", "Create Follicle Texture"),
+		LOCTEXT("CreateFollicleTextureTooltip", "Create a follicle texture for the selected groom assets"),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions"),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &FGroomActions::ExecuteCreateFollicleTexture, GroomAssets),
+			FCanExecuteAction::CreateSP(this, &FGroomActions::CanCreateFollicleTexture, GroomAssets)
+			)
+		);
+
+	Section.AddMenuEntry(
+		"CreateStrandsTextures",
+		LOCTEXT("CreateStrandsTextures", "Create Strands Textures"),
+		LOCTEXT("CreateStrandsTexturesTooltip", "Create projected strands textures onto meshes"),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions"),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &FGroomActions::ExecuteCreateStrandsTextures, GroomAssets),
+			FCanExecuteAction::CreateSP(this, &FGroomActions::CanCreateStrandsTextures, GroomAssets)
 		)
 	);
 }
@@ -92,8 +142,22 @@ bool FGroomActions::HasActions(const TArray<UObject*>& InObjects) const
 void FGroomActions::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor)
 {
 	// #ueent_todo: Will need a custom editor at some point, for now just use the Properties editor
-	FSimpleAssetEditor::CreateEditor(EToolkitMode::Standalone, EditWithinLevelEditor, InObjects);
+	for (auto ObjIt = InObjects.CreateConstIterator(); ObjIt; ++ObjIt)
+	{
+		auto GroomAsset = Cast<UGroomAsset>(*ObjIt);
+		if (GroomAsset != nullptr)
+		{
+			// Make sure the groom asset has a document 
+			//FHairLabDataIO::GetDocumentForAsset(GroomAsset);
+
+			TSharedRef<FGroomCustomAssetEditorToolkit> NewCustomAssetEditor(new FGroomCustomAssetEditorToolkit());
+			NewCustomAssetEditor->InitCustomAssetEditor(EToolkitMode::Standalone, EditWithinLevelEditor, GroomAsset);
+		}
+	}
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Groom build/rebuild
 
 bool FGroomActions::CanRebuild(TArray<TWeakObjectPtr<UGroomAsset>> Objects) const
 {
@@ -120,18 +184,35 @@ void FGroomActions::ExecuteRebuild(TArray<TWeakObjectPtr<UGroomAsset>> Objects) 
 
 				// Duplicate the options to prevent dirtying the asset when they are modified but the rebuild is cancelled
 				UGroomImportOptions* CurrentOptions = DuplicateObject<UGroomImportOptions>(GroomAssetImportData->ImportOptions, nullptr);
-				TSharedPtr<SGroomImportOptionsWindow> GroomOptionWindow = SGroomImportOptionsWindow::DisplayRebuildOptions(CurrentOptions, Filename);
+			
+				UGroomHairGroupsPreview* GroupsPreview = NewObject<UGroomHairGroupsPreview>();
+				{					
+					const uint32 GroupCount = GroomAsset->GetNumHairGroups();
+					for (uint32 GroupIndex = 0; GroupIndex < GroupCount; GroupIndex++)
+					{
+						FGroomHairGroupPreview& OutGroup = GroupsPreview->Groups.AddDefaulted_GetRef();
+						OutGroup.GroupID    = GroupIndex;
+						OutGroup.CurveCount = GroomAsset->HairGroupsData[GroupIndex].Strands.Data.GetNumCurves();
+						OutGroup.GuideCount = GroomAsset->HairGroupsData[GroupIndex].Guides.Data.GetNumCurves();
+						OutGroup.InterpolationSettings = GroomAsset->HairGroupsInterpolation[GroupIndex];
+					}
+				}
+				TSharedPtr<SGroomImportOptionsWindow> GroomOptionWindow = SGroomImportOptionsWindow::DisplayRebuildOptions(CurrentOptions, GroupsPreview, Filename);
 
 				if (!GroomOptionWindow->ShouldImport())
 				{
 					continue;
 				}
 
-				bool bSucceeded = GroomAsset->CacheDerivedData(&CurrentOptions->BuildSettings);
+				bool bSucceeded = GroomAsset->CacheDerivedDatas();
 				if (bSucceeded)
 				{
 					// Move the transient ImportOptions to the asset package and set it on the GroomAssetImportData for serialization
 					CurrentOptions->Rename(nullptr, GroomAssetImportData);
+					for (const FGroomHairGroupPreview& GroupPreview : GroupsPreview->Groups)
+					{
+						CurrentOptions->InterpolationSettings[GroupPreview.GroupID] = GroupPreview.InterpolationSettings;
+					}
 					GroomAssetImportData->ImportOptions = CurrentOptions;
 					GroomAsset->MarkPackageDirty();
 				}
@@ -139,6 +220,9 @@ void FGroomActions::ExecuteRebuild(TArray<TWeakObjectPtr<UGroomAsset>> Objects) 
 		}
 	}
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Binding
 
 bool FGroomActions::CanCreateBindingAsset(TArray<TWeakObjectPtr<UGroomAsset>> Objects) const
 {
@@ -158,34 +242,194 @@ void FGroomActions::ExecuteCreateBindingAsset(TArray<TWeakObjectPtr<UGroomAsset>
 	{
 		if (GroomAsset.IsValid())
 		{
+			// Duplicate the options to prevent dirtying the asset when they are modified but the rebuild is cancelled
+			UGroomCreateBindingOptions* CurrentOptions = NewObject<UGroomCreateBindingOptions>();
+			TSharedPtr<SGroomCreateBindingOptionsWindow> GroomOptionWindow = SGroomCreateBindingOptionsWindow::DisplayCreateBindingOptions(CurrentOptions);
+
+			if (!GroomOptionWindow->ShouldCreate())
 			{
-
-				// Duplicate the options to prevent dirtying the asset when they are modified but the rebuild is cancelled
-				UGroomCreateBindingOptions* CurrentOptions = NewObject<UGroomCreateBindingOptions>();
-				TSharedPtr<SGroomCreateBindingOptionsWindow> GroomOptionWindow = SGroomCreateBindingOptionsWindow::DisplayCreateBindingOptions(CurrentOptions);
-
-				if (!GroomOptionWindow->ShouldCreate())
+				continue;
+			}
+			else if (GroomAsset.Get() && CurrentOptions && CurrentOptions->TargetSkeletalMesh)
+			{
+				GroomAsset->ConditionalPostLoad();
+				if (CurrentOptions->SourceSkeletalMesh)
 				{
-					continue;
+					CurrentOptions->SourceSkeletalMesh->ConditionalPostLoad();
 				}
-				else if (GroomAsset.Get() && CurrentOptions && CurrentOptions->TargetSkeletalMesh)
-				{
-					GroomAsset->ConditionalPostLoad();
-					if (CurrentOptions->SourceSkeletalMesh)
-					{
-						CurrentOptions->SourceSkeletalMesh->ConditionalPostLoad();
-					}
-					CurrentOptions->TargetSkeletalMesh->ConditionalPostLoad();
+				CurrentOptions->TargetSkeletalMesh->ConditionalPostLoad();
 
-					UGroomBindingAsset* BindingAsset = CreateGroomBindinAsset(GroomAsset.Get(), CurrentOptions->SourceSkeletalMesh, CurrentOptions->TargetSkeletalMesh, CurrentOptions->NumInterpolationPoints);
+				UGroomBindingAsset* BindingAsset = CreateGroomBindinAsset(GroomAsset.Get(), CurrentOptions->SourceSkeletalMesh, CurrentOptions->TargetSkeletalMesh, CurrentOptions->NumInterpolationPoints);
 
-					// The binding task will generate and set the binding value back to the binding asset.
-					// This code is not thread safe.
-					AddGroomBindingTask(BindingAsset);
-				}
+				// The binding task will generate and set the binding value back to the binding asset.
+				// This code is not thread safe.
+				const bool bUseGPU = true;
+				FGroomBindingBuilder::BuildBinding(BindingAsset, bUseGPU, true);
 			}
 		}
 	}
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Follicle
+
+bool FGroomActions::CanCreateFollicleTexture(TArray<TWeakObjectPtr<UGroomAsset>> Objects) const
+{
+	for (TWeakObjectPtr<UGroomAsset> GroomAsset : Objects)
+	{
+		if (GroomAsset.IsValid())
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void FGroomActions::ExecuteCreateFollicleTexture(TArray<TWeakObjectPtr<UGroomAsset>> Objects) const
+{
+	if (Objects.Num() == 0)
+	{
+		return;
+	}
+
+	// Duplicate the options to prevent dirtying the asset when they are modified but the rebuild is cancelled
+	UGroomCreateFollicleMaskOptions* CurrentOptions = NewObject<UGroomCreateFollicleMaskOptions>();
+	if (!CurrentOptions)
+	{
+		return;
+	}
+
+	for (TWeakObjectPtr<UGroomAsset>& GroomAsset : Objects)
+	{
+		if (GroomAsset.IsValid())
+		{
+			FFollicleMaskOptions& Items = CurrentOptions->Grooms.AddDefaulted_GetRef();;
+			Items.Groom   = GroomAsset.Get();
+			Items.Channel = EFollicleMaskChannel::R;
+		}
+	}
+
+	if (CurrentOptions->Grooms.Num() == 0)
+	{
+		return;
+	}
+	
+	TSharedPtr<SGroomCreateFollicleMaskOptionsWindow> GroomOptionWindow = SGroomCreateFollicleMaskOptionsWindow::DisplayCreateFollicleMaskOptions(CurrentOptions);
+
+	if (!GroomOptionWindow->ShouldCreate())
+	{
+		return;
+	}
+	else 
+	{
+		TArray<FFollicleInfo> Infos;
+		for (FFollicleMaskOptions& Option : CurrentOptions->Grooms)
+		{
+			Option.Groom->ConditionalPostLoad();
+
+			FFollicleInfo& Info = Infos.AddDefaulted_GetRef();
+			Info.GroomAsset			= Option.Groom;
+			Info.Channel			= FFollicleInfo::EChannel(uint8(Option.Channel));
+			Info.KernelSizeInPixels = FMath::Max(2, CurrentOptions->RootRadius);
+		}
+
+		FHairAssetHelper Helper;
+		Helper.CreateFilename = CreateFilename;
+		Helper.RegisterTexture = RegisterTexture;
+
+		const uint32 Resolution = FMath::RoundUpToPowerOfTwo(CurrentOptions->Resolution);
+		UTexture2D* FollicleTexture = FGroomTextureBuilder::CreateGroomFollicleMaskTexture(CurrentOptions->Grooms[0].Groom, Resolution, Helper);
+		if (FollicleTexture)
+		{
+			const bool bUseGPU = true;
+			FGroomTextureBuilder::BuildFollicleTexture(Infos, FollicleTexture, bUseGPU);
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Strands Textures
+
+bool FGroomActions::CanCreateStrandsTextures(TArray<TWeakObjectPtr<UGroomAsset>> Objects) const
+{
+	for (TWeakObjectPtr<UGroomAsset> GroomAsset : Objects)
+	{
+		if (GroomAsset.IsValid())
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void FGroomActions::ExecuteCreateStrandsTextures(TArray<TWeakObjectPtr<UGroomAsset>> Objects) const
+{
+	if (Objects.Num() == 0)
+	{
+		return;
+	}
+
+	// Duplicate the options to prevent dirtying the asset when they are modified but the rebuild is cancelled
+	UGroomCreateStrandsTexturesOptions* CurrentOptions = NewObject<UGroomCreateStrandsTexturesOptions>();
+	for (TWeakObjectPtr<UGroomAsset>& GroomAsset : Objects)
+	{
+		if (GroomAsset.IsValid() && CurrentOptions)
+		{
+			TSharedPtr<SGroomCreateStrandsTexturesOptionsWindow> GroomOptionWindow = SGroomCreateStrandsTexturesOptionsWindow::DisplayCreateStrandsTexturesOptions(CurrentOptions);
+			if (!GroomOptionWindow->ShouldCreate())
+			{
+				return;
+			}
+			else
+			{
+				GroomAsset->ConditionalPostLoad();
+
+				// Create debug data for the groom asset for tracing hair geometry when redering strands texture.
+				if (!GroomAsset->HasDebugData())
+				{
+					GroomAsset->CreateDebugData();
+				}
+
+				float SignDirection = 1;
+				switch (CurrentOptions->TraceType)
+				{
+				case EStrandsTexturesTraceType::TraceOuside: SignDirection =  1; break;
+				case EStrandsTexturesTraceType::TraceInside: SignDirection = -1; break;
+				}
+
+				UStaticMesh* StaticMesh = nullptr;
+				USkeletalMesh* SkeletalMesh = nullptr;
+				switch (CurrentOptions->MeshType)
+				{
+				case EStrandsTexturesMeshType::Static: StaticMesh = CurrentOptions->StaticMesh; break;
+				case EStrandsTexturesMeshType::Skeletal: SkeletalMesh = CurrentOptions->SkeletalMesh; break;
+				}
+				
+				EStrandsTexturesMeshType MeshType = EStrandsTexturesMeshType::Skeletal;
+
+				FStrandsTexturesInfo Info;
+				Info.GroomAsset   = GroomAsset.Get();
+				Info.MaxTracingDistance = SignDirection * CurrentOptions->TraceDistance;
+				Info.Resolution = FMath::RoundUpToPowerOfTwo(FMath::Max(256, CurrentOptions->Resolution));
+				Info.SectionIndex = FMath::Max(0, CurrentOptions->SectionIndex);
+				Info.UVChannelIndex= FMath::Max(0, CurrentOptions->UVChannelIndex);
+				Info.SkeletalMesh = SkeletalMesh;
+				Info.StaticMesh = StaticMesh;
+
+				FHairAssetHelper Helper;
+				Helper.CreateFilename = CreateFilename;
+				Helper.RegisterTexture = RegisterTexture;
+				
+				FStrandsTexturesOutput Output = FGroomTextureBuilder::CreateGroomStrandsTexturesTexture(GroomAsset.Get(), Info.Resolution, Helper);
+				if (Output.IsValid())
+				{
+					FGroomTextureBuilder::BuildStrandsTextures(Info, Output);
+				}
+			}
+		}
+	}
+
+}
+
 
 #undef LOCTEXT_NAMESPACE

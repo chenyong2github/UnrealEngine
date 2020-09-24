@@ -225,7 +225,7 @@ void TraceShadowRayMissShaderLighting(
 	in uint2 PixelCoord,
 	inout FPackedMaterialClosestHitPayload PackedPayload)
 {
-	PackedPayload.SetPixelCoordInCustomData(PixelCoord);
+	PackedPayload.SetPixelCoord(PixelCoord);
 	TraceRay
 	(
 		TLAS,
@@ -401,6 +401,9 @@ float3 ComputeDirectLighting(
 	in float ShadowMaxNormalBias)
 {
 	float3 DirectLighting = (float3)0;
+
+	// Preserve current custom data value from the material payload, as it will be overwritten during shadow ray tracing.
+	uint SavedPackedCustomData = Payload.PackedCustomData;
 
 
 #if DIM_MISS_SHADER_LIGHTING

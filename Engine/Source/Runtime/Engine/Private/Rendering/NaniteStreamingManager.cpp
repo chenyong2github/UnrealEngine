@@ -1014,7 +1014,7 @@ void FStreamingManager::VerifyPageLRU( FStreamingPageInfo& List, uint32 TargetLi
 }
 #endif
 
-bool FStreamingManager::ProcessNewResources( FRHICommandListImmediate& RHICmdList )
+bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 {
 	LLM_SCOPE(ELLMTag::Nanite);
 
@@ -1024,7 +1024,7 @@ bool FStreamingManager::ProcessNewResources( FRHICommandListImmediate& RHICmdLis
 	TRACE_CPUPROFILER_EVENT_SCOPE(FStreamingManager::ProcessNewResources);
 
 	// Upload hierarchy for pending resources
-	ResizeResourceIfNeeded( RHICmdList, Hierarchy.DataBuffer, FMath::RoundUpToPowerOfTwo( Hierarchy.Allocator.GetMaxSize() ) * sizeof( FPackedHierarchyNode ), TEXT("FStreamingManagerHierarchy") );
+	ResizeResourceIfNeeded( GraphBuilder.RHICmdList, Hierarchy.DataBuffer, FMath::RoundUpToPowerOfTwo( Hierarchy.Allocator.GetMaxSize() ) * sizeof( FPackedHierarchyNode ), TEXT("FStreamingManagerHierarchy") );
 
 	check( MaxStreamingPages <= MAX_GPU_PAGES );
 	uint32 MaxRootPages = MAX_GPU_PAGES - MaxStreamingPages;
@@ -1033,8 +1033,8 @@ bool FStreamingManager::ProcessNewResources( FRHICommandListImmediate& RHICmdLis
 
 	uint32 NumAllocatedPages = MaxStreamingPages + NumAllocatedRootPages;
 	check( NumAllocatedPages <= MAX_GPU_PAGES );
-	ResizeResourceIfNeeded( RHICmdList, ClusterPageHeaders.DataBuffer, NumAllocatedPages * sizeof( uint32 ), TEXT("FStreamingManagerClusterPageHeaders") );
-	ResizeResourceIfNeeded( RHICmdList, ClusterPageData.DataBuffer, NumAllocatedPages << CLUSTER_PAGE_GPU_SIZE_BITS, TEXT("FStreamingManagerClusterPageData") );
+	ResizeResourceIfNeeded( GraphBuilder.RHICmdList, ClusterPageHeaders.DataBuffer, NumAllocatedPages * sizeof( uint32 ), TEXT("FStreamingManagerClusterPageHeaders") );
+	ResizeResourceIfNeeded( GraphBuilder.RHICmdList, ClusterPageData.DataBuffer, NumAllocatedPages << CLUSTER_PAGE_GPU_SIZE_BITS, TEXT("FStreamingManagerClusterPageData") );
 
 	check( NumAllocatedPages <= ( 1u << ( 31 - CLUSTER_PAGE_GPU_SIZE_BITS ) ) );	// 2GB seems to be some sort of limit.
 																				// TODO: Is it a GPU/API limit or is it a signed integer bug on our end?
@@ -1102,6 +1102,7 @@ bool FStreamingManager::ProcessNewResources( FRHICommandListImmediate& RHICmdLis
 		Resources->RootClusterPage.Empty();
 	}
 
+	AddUntrackedAccessPass(GraphBuilder, [this, NumPendingAdds](FRHICommandList& RHICmdList)
 	{
 		FRHIUnorderedAccessView* UAVs[] = { ClusterPageData.DataBuffer.UAV, ClusterPageHeaders.DataBuffer.UAV, Hierarchy.DataBuffer.UAV };
 		RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, UAVs, UE_ARRAY_COUNT(UAVs));
@@ -1110,13 +1111,14 @@ bool FStreamingManager::ProcessNewResources( FRHICommandListImmediate& RHICmdLis
 		Hierarchy.UploadBuffer.ResourceUploadTo( RHICmdList, Hierarchy.DataBuffer, false );
 		ClusterPageHeaders.UploadBuffer.ResourceUploadTo( RHICmdList, ClusterPageHeaders.DataBuffer, false );
 		PageUploader->ResourceUploadTo(RHICmdList, ClusterPageData.DataBuffer);
-	}
+
+		if (NumPendingAdds > 1)
+		{
+			PageUploader->Release();
+		}
+	});
 
 	PendingAdds.Reset();
-	if( NumPendingAdds > 1 )
-	{
-		PageUploader->Release();
-	}
 	
 	return true;
 }
@@ -1198,7 +1200,7 @@ uint32 FStreamingManager::DetermineReadyPages()
 	return NumReadyPages;
 }
 
-void FStreamingManager::BeginAsyncUpdate(FRHICommandListImmediate& RHICmdList)
+void FStreamingManager::BeginAsyncUpdate(FRDGBuilder& GraphBuilder)
 {
 	if (!DoesPlatformSupportNanite(GMaxRHIShaderPlatform))
 	{
@@ -1207,8 +1209,8 @@ void FStreamingManager::BeginAsyncUpdate(FRHICommandListImmediate& RHICmdList)
 
 	LLM_SCOPE(ELLMTag::Nanite);
 	TRACE_CPUPROFILER_EVENT_SCOPE(FStreamingManager::BeginAsyncUpdate);
-	SCOPED_DRAW_EVENT(RHICmdList, NaniteStreaming);
-	SCOPED_GPU_STAT(RHICmdList, NaniteStreaming);
+	RDG_EVENT_SCOPE(GraphBuilder, "NaniteStreaming");
+	RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteStreaming);
 	
 	check(!AsyncState.bUpdateActive);
 	AsyncState = FAsyncState {};
@@ -1218,16 +1220,14 @@ void FStreamingManager::BeginAsyncUpdate(FRHICommandListImmediate& RHICmdList)
 	{
 		// Init and clear StreamingRequestsBuffer.
 		// Can't do this in InitRHI as RHICmdList doesn't have a valid context yet.
-		FRDGBuilder GraphBuilder(RHICmdList);
 		FRDGBufferDesc Desc = FRDGBufferDesc::CreateBufferDesc(4, 3 * MAX_STREAMING_REQUESTS);
 		Desc.Usage = EBufferUsageFlags(Desc.Usage | BUF_SourceCopy);
 		FRDGBufferRef StreamingRequestsBufferRef = GraphBuilder.CreateBuffer(Desc, TEXT("StreamingRequests"));	// TODO: Can't be a structured buffer as EnqueueCopy is only defined for vertex buffers
 		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(StreamingRequestsBufferRef, PF_R32_UINT), 0);
-		GraphBuilder.QueueBufferExtraction(StreamingRequestsBufferRef, &StreamingRequestsBuffer);
-		GraphBuilder.Execute();
+		ConvertToExternalBuffer(GraphBuilder, StreamingRequestsBufferRef, StreamingRequestsBuffer);
 	}
 
-	AsyncState.bBuffersTransitionedToWrite = ProcessNewResources(RHICmdList);
+	AsyncState.bBuffersTransitionedToWrite = ProcessNewResources(GraphBuilder);
 
 	AsyncState.NumReadyPages = DetermineReadyPages();
 	if (AsyncState.NumReadyPages > 0)
@@ -1702,12 +1702,7 @@ void FStreamingManager::SubmitFrameStreamingRequests(FRDGBuilder& GraphBuilder)
 		StreamingRequestReadbackBuffers[ ReadbackBuffersWriteIndex ] = GPUBufferReadback;
 	}
 
-	FRDGBufferRef Buffer = GraphBuilder.RegisterExternalBuffer(
-		StreamingRequestsBuffer,
-		TEXT("StreamingRequests"),
-		ERDGParentResourceFlags::None,
-		EResourceTransitionAccess::EReadable,
-		EResourceTransitionAccess::EWritable);
+	FRDGBufferRef Buffer = GraphBuilder.RegisterExternalBuffer(StreamingRequestsBuffer);
 
 	{
 		FRHIGPUBufferReadback* ReadbackBuffer = StreamingRequestReadbackBuffers[ReadbackBuffersWriteIndex];

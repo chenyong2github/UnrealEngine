@@ -1,156 +1,301 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "IOpenColorIOEditorModule.h"
+#include "OpenColorIOEditorModule.h"
 
 #include "AssetTypeActions_OpenColorIOConfiguration.h"
 #include "Engine/World.h"
 #include "Interfaces/IPluginManager.h"
-#include "ISettingsModule.h"
-#include "ISettingsSection.h"
+#include "IOpenColorIOModule.h"
+#include "LevelEditor.h"
+#include "LevelEditorViewport.h"
 #include "Modules/ModuleManager.h"
+#include "OpenColorIODisplayManager.h"
+#include "OpenColorIOEditorSettings.h"
 #include "OpenColorIOColorSpaceConversionCustomization.h"
 #include "OpenColorIOColorSpaceCustomization.h"
 #include "OpenColorIOColorTransform.h"
 #include "PropertyEditorModule.h"
+#include "SLevelViewport.h"
 #include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
-#include "UObject/StrongObjectPtr.h"
+#include "ToolMenus.h"
+#include "Widgets/SOpenColorIODisplay.h"
 
 
 DEFINE_LOG_CATEGORY(LogOpenColorIOEditor);
 
 #define LOCTEXT_NAMESPACE "OpenColorIOEditorModule"
 
-/**
- * Implements the OpenColorIOEditor module.
- */
-class FOpenColorIOEditorModule : public IOpenColorIOEditorModule
+
+void FOpenColorIOEditorModule::StartupModule()
 {
-public:
+	FWorldDelegates::OnPreWorldInitialization.AddRaw(this, &FOpenColorIOEditorModule::OnWorldInit);
 
-	virtual void StartupModule() override
+	// Register asset type actions for OpenColorIOConfiguration class
+	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+	TSharedRef<IAssetTypeActions> OpenColorIOConfigurationAssetTypeAction = MakeShared<FAssetTypeActions_OpenColorIOConfiguration>();
+	AssetTools.RegisterAssetTypeActions(OpenColorIOConfigurationAssetTypeAction);
+	RegisteredAssetTypeActions.Add(OpenColorIOConfigurationAssetTypeAction);
+
+	FCoreDelegates::OnFEngineLoopInitComplete.AddRaw(this, &FOpenColorIOEditorModule::OnEngineLoopInitComplete);
+	
+	RegisterCustomizations();
+	RegisterStyle();
+	RegisterViewMenuExtension();
+}
+
+void FOpenColorIOEditorModule::ShutdownModule()
+{
+	UnregisterViewMenuExtension();
+	UnregisterStyle();
+	UnregisterCustomizations();
+
+	// Unregister AssetTypeActions
+	FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools");
+
+	if (AssetToolsModule != nullptr)
 	{
-		FWorldDelegates::OnPreWorldInitialization.AddRaw(this, &FOpenColorIOEditorModule::OnWorldInit);
+		IAssetTools& AssetTools = AssetToolsModule->Get();
 
-		// Register asset type actions for OpenColorIOConfiguration class
-		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-		TSharedRef<IAssetTypeActions> OpenColorIOConfigurationAssetTypeAction = MakeShared<FAssetTypeActions_OpenColorIOConfiguration>();
-		AssetTools.RegisterAssetTypeActions(OpenColorIOConfigurationAssetTypeAction);
-		RegisteredAssetTypeActions.Add(OpenColorIOConfigurationAssetTypeAction);
-		
-		RegisterCustomizations();
-		RegisterStyle();
-	}
-
-	virtual void ShutdownModule() override
-	{
-		UnregisterStyle();
-		UnregisterCustomizations();
-
-		// Unregister AssetTypeActions
-		FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools");
-
-		if (AssetToolsModule != nullptr)
+		for (const TSharedRef<IAssetTypeActions>& Action : RegisteredAssetTypeActions)
 		{
-			IAssetTools& AssetTools = AssetToolsModule->Get();
-
-			for (const TSharedRef<IAssetTypeActions>& Action : RegisteredAssetTypeActions)
-			{
-				AssetTools.UnregisterAssetTypeActions(Action);
-			}
+			AssetTools.UnregisterAssetTypeActions(Action);
 		}
-
-		CleanFeatureLevelDelegate();
-		FWorldDelegates::OnPreWorldInitialization.RemoveAll(this);
 	}
 
-	void RegisterCustomizations()
+	CleanFeatureLevelDelegate();
+	FWorldDelegates::OnPreWorldInitialization.RemoveAll(this);
+	FCoreDelegates::OnFEngineLoopInitComplete.RemoveAll(this);
+}
+
+void FOpenColorIOEditorModule::RegisterCustomizations()
+{
+	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	PropertyModule.RegisterCustomPropertyTypeLayout(FOpenColorIOColorConversionSettings::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FOpenColorIOColorSpaceConversionCustomization::MakeInstance));
+	PropertyModule.RegisterCustomPropertyTypeLayout(FOpenColorIOColorSpace::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FOpenColorIOColorSpaceCustomization::MakeInstance));
+}
+
+void FOpenColorIOEditorModule::UnregisterCustomizations()
+{
+	if (UObjectInitialized() == true)
 	{
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-		PropertyModule.RegisterCustomPropertyTypeLayout(FOpenColorIOColorConversionSettings::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FOpenColorIOColorSpaceConversionCustomization::MakeInstance));
-		PropertyModule.RegisterCustomPropertyTypeLayout(FOpenColorIOColorSpace::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FOpenColorIOColorSpaceCustomization::MakeInstance));
+		PropertyModule.UnregisterCustomPropertyTypeLayout(FOpenColorIOColorSpace::StaticStruct()->GetFName());
+		PropertyModule.UnregisterCustomPropertyTypeLayout(FOpenColorIOColorConversionSettings::StaticStruct()->GetFName());
 	}
+}
 
-	void UnregisterCustomizations()
+void FOpenColorIOEditorModule::OnWorldInit(UWorld* InWorld, const UWorld::InitializationValues InInitializationValues)
+{
+	if (InWorld && InWorld->WorldType == EWorldType::Editor)
 	{
-		if (UObjectInitialized() == true)
+		CleanFeatureLevelDelegate();
+		EditorWorld = MakeWeakObjectPtr(InWorld);
+
+		FOnFeatureLevelChanged::FDelegate FeatureLevelChangedDelegate = FOnFeatureLevelChanged::FDelegate::CreateRaw(this, &FOpenColorIOEditorModule::OnLevelEditorFeatureLevelChanged);
+		FeatureLevelChangedDelegateHandle = EditorWorld->AddOnFeatureLevelChangedHandler(FeatureLevelChangedDelegate);
+	}
+}
+
+void FOpenColorIOEditorModule::OnLevelEditorFeatureLevelChanged(ERHIFeatureLevel::Type InFeatureLevel)
+{
+	UOpenColorIOColorTransform::AllColorTransformsCacheResourceShadersForRendering();
+}
+
+void FOpenColorIOEditorModule::CleanFeatureLevelDelegate()
+{
+	if (FeatureLevelChangedDelegateHandle.IsValid())
+	{
+		UWorld* RegisteredWorld = EditorWorld.Get();
+		if (RegisteredWorld)
 		{
-			FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-			PropertyModule.UnregisterCustomPropertyTypeLayout(FOpenColorIOColorSpace::StaticStruct()->GetFName());
-			PropertyModule.UnregisterCustomPropertyTypeLayout(FOpenColorIOColorConversionSettings::StaticStruct()->GetFName());
+			RegisteredWorld->RemoveOnFeatureLevelChangedHandler(FeatureLevelChangedDelegateHandle);
 		}
+
+		FeatureLevelChangedDelegateHandle.Reset();
 	}
+}
 
-	void OnWorldInit(UWorld* InWorld, const UWorld::InitializationValues InInitializationValues)
-	{
-		if (InWorld && InWorld->WorldType == EWorldType::Editor)
-		{
-			CleanFeatureLevelDelegate();
-			EditorWorld = MakeWeakObjectPtr(InWorld);
-
-			FOnFeatureLevelChanged::FDelegate FeatureLevelChangedDelegate = FOnFeatureLevelChanged::FDelegate::CreateRaw(this, &FOpenColorIOEditorModule::OnLevelEditorFeatureLevelChanged);
-			FeatureLevelChangedDelegateHandle = EditorWorld->AddOnFeatureLevelChangedHandler(FeatureLevelChangedDelegate);
-		}
-	}
-
-	void OnLevelEditorFeatureLevelChanged(ERHIFeatureLevel::Type InFeatureLevel)
-	{
-		UOpenColorIOColorTransform::AllColorTransformsCacheResourceShadersForRendering();
-	}
-
-	void CleanFeatureLevelDelegate()
-	{
-		if (FeatureLevelChangedDelegateHandle.IsValid())
-		{
-			UWorld* RegisteredWorld = EditorWorld.Get();
-			if (RegisteredWorld)
-			{
-				RegisteredWorld->RemoveOnFeatureLevelChangedHandler(FeatureLevelChangedDelegateHandle);
-			}
-
-			FeatureLevelChangedDelegateHandle.Reset();
-		}
-	}
-
-private:
-
-	void RegisterStyle()
-	{
+void FOpenColorIOEditorModule::RegisterStyle()
+{
 #define IMAGE_BRUSH(RelativePath, ...) FSlateImageBrush(StyleInstance->RootToContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
 
-		StyleInstance = MakeUnique<FSlateStyleSet>("OpenColorIOStyle");
+	StyleInstance = MakeUnique<FSlateStyleSet>("OpenColorIOStyle");
 
-		TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("OpenColorIO"));
-		if (Plugin.IsValid())
-		{
-			StyleInstance->SetContentRoot(FPaths::Combine(Plugin->GetContentDir(), TEXT("Editor/Icons")));
-		}
+	TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("OpenColorIO"));
+	if (Plugin.IsValid())
+	{
+		StyleInstance->SetContentRoot(FPaths::Combine(Plugin->GetContentDir(), TEXT("Editor/Icons")));
+	}
 
-		const FVector2D Icon20x20(20.0f, 20.0f);
-		const FVector2D Icon64x64(64.0f, 64.0f);
+	const FVector2D Icon20x20(20.0f, 20.0f);
+	const FVector2D Icon64x64(64.0f, 64.0f);
 
-		StyleInstance->Set("ClassThumbnail.OpenColorIOConfiguration", new IMAGE_BRUSH("OpenColorIOConfigIcon_64x", Icon64x64));
-		StyleInstance->Set("ClassIcon.OpenColorIOConfiguration", new IMAGE_BRUSH("OpenColorIOConfigIcon_20x", Icon20x20));
+	StyleInstance->Set("ClassThumbnail.OpenColorIOConfiguration", new IMAGE_BRUSH("OpenColorIOConfigIcon_64x", Icon64x64));
+	StyleInstance->Set("ClassIcon.OpenColorIOConfiguration", new IMAGE_BRUSH("OpenColorIOConfigIcon_20x", Icon20x20));
 
-		FSlateStyleRegistry::RegisterSlateStyle(*StyleInstance.Get());
+	FSlateStyleRegistry::RegisterSlateStyle(*StyleInstance.Get());
 
 #undef IMAGE_BRUSH
-	}
+}
 
-	void UnregisterStyle()
+void FOpenColorIOEditorModule::UnregisterStyle()
+{
+	FSlateStyleRegistry::UnRegisterSlateStyle(*StyleInstance.Get());
+	StyleInstance.Reset();
+}
+
+void FOpenColorIOEditorModule::RegisterViewMenuExtension()
+{
+	//Allows cleanup when module unloads
+	FToolMenuOwnerScoped ToolMenuOwnerScoped(this);
+
+	UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelViewportToolBar.View");
+	const FName ColorManagementSection = "ColorManagement";
+	FToolMenuSection* Section = Menu->FindSection(ColorManagementSection);
+	if (Section == nullptr)
 	{
-		FSlateStyleRegistry::UnRegisterSlateStyle(*StyleInstance.Get());
-		StyleInstance.Reset();
+		//Section not found, create one with the label
+		Section = &Menu->AddSection(ColorManagementSection, LOCTEXT("ColorManagement_Label", "Color Management"));
 	}
 
-private:
+	check(Section);
 
-	TWeakObjectPtr<UWorld> EditorWorld;
-	FDelegateHandle FeatureLevelChangedDelegateHandle;
-	TUniquePtr<FSlateStyleSet> StyleInstance;
-	TArray<TSharedRef<IAssetTypeActions>> RegisteredAssetTypeActions;
-};
+	Section->AddSubMenu(
+		"OCIODisplaySubMenu",
+		LOCTEXT("OCIODisplaySubMenu_Label", "OCIO Display"),
+		LOCTEXT("OCIODisplaySubMenu_ToolTip", "Configure the viewport to use an OCIO display configuration"),
+		FNewToolMenuDelegate::CreateRaw(this, &FOpenColorIOEditorModule::AddOpenColorIODisplaySubMenu), false);
+}
+
+void FOpenColorIOEditorModule::UnregisterViewMenuExtension()
+{
+	if (UObjectInitialized() == true)
+	{
+		//Clean up pass
+		GEditor->OnLevelViewportClientListChanged().RemoveAll(this);
+		UToolMenus::UnregisterOwner(this);
+	}
+}
+
+void FOpenColorIOEditorModule::AddOpenColorIODisplaySubMenu(UToolMenu* Menu)
+{
+	//Viewport menu was clicked, get which one was hit
+	FViewport* CurrentViewport = GEditor->GetActiveViewport();
+
+	//Make sure we know about that viewport
+	TrackNewViewportIfRequired(CurrentViewport);
 	
+	//Fetch configuration for this viewport. If none were made, we'll populate UI with default values
+	const FOpenColorIODisplayConfiguration& Configuration = IOpenColorIOModule::Get().GetDisplayManager().FindOrAddDisplayConfiguration(CurrentViewport->GetClient());
+
+	//Add OCIO display section
+	FToolMenuSection& Section = Menu->AddSection("DisplayConfiguration", LOCTEXT("DisplayConfiguration_Label", "Display Configuration"));
+	Section.AddEntry(FToolMenuEntry::InitWidget(
+		"DisplayConfigurationWidget"
+		, SNew(SOpenColorIODisplay)
+			.Viewport(CurrentViewport)
+			.InitialConfiguration(Configuration)
+			.OnConfigurationChanged(FOnDisplayConfigurationChanged::CreateRaw(this, &FOpenColorIOEditorModule::OnDisplayConfigurationChanged))
+		,FText::GetEmpty() //No Label
+		,true //bNoIndent
+		,false)); //bSearchable
+}
+
+void FOpenColorIOEditorModule::OnDisplayConfigurationChanged(const FOpenColorIODisplayConfiguration& NewConfiguration)
+{
+	//Anytime a configuration option changes, update its values in the display manager to have the viewport state up to date
+	FViewport* CurrentViewport = GEditor->GetActiveViewport();
+	FOpenColorIODisplayConfiguration& Configuration = IOpenColorIOModule::Get().GetDisplayManager().FindOrAddDisplayConfiguration(CurrentViewport->GetClient());
+	Configuration = NewConfiguration;
+}
+
+void FOpenColorIOEditorModule::OnLevelViewportClientListChanged()
+{
+	FOpenColorIODisplayManager& DisplayManager = IOpenColorIOModule::Get().GetDisplayManager();
+
+	const TArray<FLevelEditorViewportClient*> LevelViewportClients = GEditor->GetLevelViewportClients();
+	for (auto It = ConfiguredViewports.CreateIterator(); It; ++It)
+	{
+		FViewportPair& ViewportData = *It;
+
+		//If a viewport we were tracking doesn't exist anymore
+		// 1. Remove it from the collection if present
+		// 2. Save its settings to config file for future session
+		// 3. Remove from configured viewports
+		if (!LevelViewportClients.ContainsByPredicate([ViewportData](const FLevelEditorViewportClient* Other) { return Other == ViewportData.Key; }))
+		{
+			const FOpenColorIODisplayConfiguration* Configuration = DisplayManager.GetDisplayConfiguration(ViewportData.Key);
+			if (Configuration)
+			{
+				GetMutableDefault<UOpenColorIOLevelViewportSettings>()->SetViewportSettings(ViewportData.Value, *Configuration);
+				GetMutableDefault<UOpenColorIOLevelViewportSettings>()->SaveConfig();
+				DisplayManager.RemoveDisplayConfiguration(ViewportData.Key);
+			}
+
+			It.RemoveCurrent();
+		}
+	}
+
+	// Verify if settings are present for new viewports not actually configured
+	for (FLevelEditorViewportClient* LevelViewportClient : LevelViewportClients)
+	{
+		SetupViewportDisplaySettings(LevelViewportClient);
+	}
+}
+
+void FOpenColorIOEditorModule::OnEngineLoopInitComplete()
+{
+	// Register for Viewport updates to be able to track them
+	GEditor->OnLevelViewportClientListChanged().AddRaw(this, &FOpenColorIOEditorModule::OnLevelViewportClientListChanged);
+}
+
+void FOpenColorIOEditorModule::SetupViewportDisplaySettings(FLevelEditorViewportClient* Client)
+{
+	//If we haven't configured this viewport yet, it might be present in settings and we can apply its configuration
+	if (!ConfiguredViewports.ContainsByPredicate([Client](const FViewportPair& Other) { return Other.Key == Client; }))
+	{
+		TSharedPtr<SLevelViewport> LevelViewport = StaticCastSharedPtr<SLevelViewport>(Client->GetEditorViewportWidget());
+
+		if (LevelViewport.IsValid()) // Might not be valid when exiting
+		{
+			const FOpenColorIODisplayConfiguration* PresetConfig = GetDefault<UOpenColorIOLevelViewportSettings>()->GetViewportSettings(LevelViewport->GetConfigKey());
+			if (PresetConfig)
+			{
+				//Get display configuration for that viewport
+				FOpenColorIODisplayConfiguration& ViewportConfig = IOpenColorIOModule::Get().GetDisplayManager().FindOrAddDisplayConfiguration(Client);
+
+				//Write current settings so they become active
+				ViewportConfig = *PresetConfig;
+
+				//Since this viewport was preconfigured, add it to our list 
+				FViewportPair NewEntry(Client, LevelViewport->GetConfigKey());
+				ConfiguredViewports.Emplace(MoveTemp(NewEntry));
+			}
+		}
+	}
+}
+
+void FOpenColorIOEditorModule::TrackNewViewportIfRequired(FViewport* Viewport)
+{
+	if (!ConfiguredViewports.ContainsByPredicate([Viewport](const FViewportPair& Other) { return Other.Key == Viewport->GetClient(); }))
+	{
+		//Find associated LevelViewport to get its identifier
+		const TArray<FLevelEditorViewportClient*> LevelViewportClients = GEditor->GetLevelViewportClients();
+		FLevelEditorViewportClient* const* AssociatedClient = LevelViewportClients.FindByPredicate([Viewport](const FLevelEditorViewportClient* Other) { return Other == Viewport->GetClient(); });
+
+		// Active viewport should always have a client
+		check(AssociatedClient && *AssociatedClient);
+		
+		FLevelEditorViewportClient* Client = *AssociatedClient;
+		TSharedPtr<SLevelViewport> LevelViewport = StaticCastSharedPtr<SLevelViewport>(Client->GetEditorViewportWidget());
+		if (LevelViewport.IsValid())
+		{
+			FViewportPair NewEntry(Client, LevelViewport->GetConfigKey());
+			ConfiguredViewports.Emplace(MoveTemp(NewEntry));
+		}
+	}
+}
 
 IMPLEMENT_MODULE(FOpenColorIOEditorModule, OpenColorIOEditor);
 

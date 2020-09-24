@@ -6,13 +6,13 @@
 #include "MaterialCompiler.h"
 #include "GoogleARCorePassthroughCameraExternalTextureGuid.h"
 
-UMaterialExpressionGoogleARCorePassthroughCamera::UMaterialExpressionGoogleARCorePassthroughCamera(const FObjectInitializer& ObjectInitializer)
+UDEPRECATED_MaterialExpressionGoogleARCorePassthroughCamera::UDEPRECATED_MaterialExpressionGoogleARCorePassthroughCamera(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 }
 
 #if WITH_EDITOR
-int32 UMaterialExpressionGoogleARCorePassthroughCamera::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+int32 UDEPRECATED_MaterialExpressionGoogleARCorePassthroughCamera::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	return Compiler->TextureSample(
 		Compiler->ExternalTexture(GoogleARCorePassthroughCameraExternalTextureGuid),
@@ -20,13 +20,13 @@ int32 UMaterialExpressionGoogleARCorePassthroughCamera::Compile(class FMaterialC
 		EMaterialSamplerType::SAMPLERTYPE_Color);
 }
 
-int32 UMaterialExpressionGoogleARCorePassthroughCamera::CompilePreview(class FMaterialCompiler* Compiler, int32 OutputIndex)
+int32 UDEPRECATED_MaterialExpressionGoogleARCorePassthroughCamera::CompilePreview(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	return INDEX_NONE;
 }
 
-void UMaterialExpressionGoogleARCorePassthroughCamera::GetCaption(TArray<FString>& OutCaptions) const
+void UDEPRECATED_MaterialExpressionGoogleARCorePassthroughCamera::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("GoogleARCore Passthrough Camera"));
+	OutCaptions.Add(TEXT("DEPRECATED, USE UARBlueprintLibrary::GetARTexture - GoogleARCore Passthrough Camera"));
 }
 #endif

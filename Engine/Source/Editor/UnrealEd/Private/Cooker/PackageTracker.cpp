@@ -3,6 +3,7 @@
 #include "PackageTracker.h"
 
 #include "CookPackageData.h"
+#include "CookPlatformManager.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectIterator.h"
@@ -129,6 +130,12 @@ namespace Cook
 		GUObjectArray.RemoveUObjectDeleteListener(this);
 		GUObjectArray.RemoveUObjectCreateListener(this);
 	}
+
+	void FPackageTracker::RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPlatform*>& Remap)
+	{
+		RemapMapKeys(PlatformSpecificNeverCookPackages, Remap);
+	}
+
 
 }
 }

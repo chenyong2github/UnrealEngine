@@ -101,6 +101,7 @@ namespace Audio
 		if (SoundBuffer->NumChannels > 0)
 		{
 			CSV_SCOPED_TIMING_STAT(Audio, InitSources);
+			SCOPE_CYCLE_COUNTER(STAT_AudioSourceInitTime);
 
 			AUDIO_MIXER_CHECK(MixerDevice);
 			MixerSourceVoice = MixerDevice->GetMixerSourceVoice();
@@ -414,6 +415,7 @@ namespace Audio
 	void FMixerSource::Update()
 	{
 		CSV_SCOPED_TIMING_STAT(Audio, UpdateSources);
+		SCOPE_CYCLE_COUNTER(STAT_AudioUpdateSources);
 
 		LLM_SCOPE(ELLMTag::AudioMixer);
 

@@ -13,7 +13,7 @@ struct FSortedReflectionRay
 	float3	Origin;
 	uint	PixelCoordinates;
 	float3	Direction;
-	float	Validity; // Only technically need 8 bits, the rest could be repurposed
+	float	Roughness; // Only technically need 8 bits, the rest could be repurposed
 };
 
 uint PackPixelCoordinates(uint2 PixelCoordinates)
@@ -29,30 +29,53 @@ uint2 UnpackPixelCoordinates(uint PixelCoordinates)
 		PixelCoordinates >> 16);
 }
 
-FSortedReflectionRay GenerateDeferredReflectionRay(const uint2 PixelPos, float ReflectionMaxNormalBias, float MaxRoughness, bool bGlossyReflections)
+float ApplySmoothBias(float Roughness, float SmoothBias)
 {
-	const float2 ScreenPos       = ViewportUVToScreenPos((PixelPos.xy - View.ViewRectMin.xy) * View.ViewSizeAndInvSize.zw);
-	const float2 UV              = PixelPos.xy * View.BufferSizeAndInvSize.zw;
+	if (SmoothBias > 0)
+	{
+		// SmoothStep-like function up to SmoothBias, original value above
+		float X = saturate(Roughness / SmoothBias);
+		return Roughness * X * X * (3.0 - 2.0 * X);
+	}
+	else
+	{
+		return Roughness;
+	}
+}
+
+FSortedReflectionRay GenerateDeferredReflectionRay(const uint2 PixelPos, float ReflectionMaxNormalBias, float SmoothBias, bool bGlossyReflections)
+{
+	const float2 UV              = (float2(PixelPos.xy) + 0.5) * View.BufferSizeAndInvSize.zw;
 
     // not 'const', may need to be modified below
 	FGBufferData GBuffer         = GetGBufferDataFromSceneTextures(UV);
-	float DeviceZ                = SceneDepthBuffer.Load(int3(PixelPos, 0)).r;
+	float DeviceZ                = SceneDepthTexture.Load(int3(PixelPos, 0)).r;
 
 	float3 WorldPosition;
 	float3 CameraDirection;
 	ReconstructWorldPositionAndCameraDirectionFromDeviceZ(PixelPos, DeviceZ, WorldPosition, CameraDirection);
 	float3 V = -CameraDirection;
 
-#if GBUFFER_HAS_TANGENT
 	ModifyGGXAnisotropicNormalRoughness(GBuffer.WorldTangent, GBuffer.Anisotropy, GBuffer.Roughness, GBuffer.WorldNormal, V);
-#endif
 
-	// Use the same clearcoat approximation as SSR: simply blend base and clear coat roughness
+	FSortedReflectionRay Ray = (FSortedReflectionRay)0;
+	Ray.PixelCoordinates = PackPixelCoordinates(PixelPos);
+
+	if (GBuffer.ShadingModelID == SHADINGMODELID_HAIR 
+	 || GBuffer.ShadingModelID == SHADINGMODELID_UNLIT)
+	{
+		return Ray;
+	}
+
+	// Use the similar clearcoat approximation as SSR: simply blend base and clear coat roughness
 	if (GBuffer.ShadingModelID == SHADINGMODELID_CLEAR_COAT)
 	{
 		const float ClearCoat = GBuffer.CustomData.x;
 		const float ClearCoatRoughness = GBuffer.CustomData.y;
-		GBuffer.Roughness = lerp(GBuffer.Roughness, ClearCoatRoughness, ClearCoat);
+
+		// Combined reflection roughness is biased towards clear coat. 
+		// The approximation is quite arbitrary, based on empirical results.
+		GBuffer.Roughness = lerp(ClearCoatRoughness, GBuffer.Roughness, pow(1.0 - ClearCoat, 4.0));
 	}
 
 	float2 E = Rand1SPPDenoiserInput(PixelPos);
@@ -70,7 +93,10 @@ FSortedReflectionRay GenerateDeferredReflectionRay(const uint2 PixelPos, float R
 
 	if (bGlossyReflections)
 	{
-		float3 H = mul(ImportanceSampleVisibleGGX(UniformSampleDisk(E), Pow4(GBuffer.Roughness), TangentV).xyz, TangentBasis);
+		// Biased roughness is used for GGX sampling, but original value is still used to compute roughness threshold / fade.
+		// This means that biased roughness will never cause more rays to be traced, so will never cause performance drop.
+		float Roughness = ApplySmoothBias(GBuffer.Roughness, SmoothBias);
+		float3 H = mul(ImportanceSampleVisibleGGX(UniformSampleDisk(E), Pow4(Roughness), TangentV).xyz, TangentBasis);
 		L = 2 * dot(V, H) * H - V;
 	}
 	else
@@ -78,15 +104,11 @@ FSortedReflectionRay GenerateDeferredReflectionRay(const uint2 PixelPos, float R
 		L = reflect(-V, GBuffer.WorldNormal);
 	}
 
-	FSortedReflectionRay Ray = (FSortedReflectionRay)0;
-
 	Ray.Origin = WorldPosition;
 	Ray.Direction = L;
 	ApplyCameraRelativeDepthBias(Ray.Origin, Ray.Direction, PixelPos, DeviceZ, GBuffer.WorldNormal, ReflectionMaxNormalBias);
 
-	Ray.PixelCoordinates = PackPixelCoordinates(PixelPos);
-
-	Ray.Validity = GetRoughnessFade(GBuffer.Roughness, MaxRoughness);
+	Ray.Roughness = GBuffer.Roughness;
 
 	return Ray;
 }

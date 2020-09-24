@@ -78,7 +78,7 @@ void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThre
 			return;
 		}
 
-		Pkg = CreatePackage(nullptr, *PackageName);
+		Pkg = CreatePackage(*PackageName);
 		if (Pkg == nullptr)
 		{
 			const FText Message = FText::Format(NSLOCTEXT("Interchange", "CannotCreatePackageErrorMsg", "Cannot create package named '{0}', will not import asset {1}."), FText::FromString(PackageName), FText::FromString(AssetName));

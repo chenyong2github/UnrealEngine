@@ -2,6 +2,7 @@
 
 #include "AnimBlueprintCompilerCreationContext.h"
 #include "AnimBlueprintCompiler.h"
+#include "EdGraph/EdGraphSchema.h"
 
 FOnStartCompilingClass& FAnimBlueprintCompilerCreationContext::OnStartCompilingClass()
 {

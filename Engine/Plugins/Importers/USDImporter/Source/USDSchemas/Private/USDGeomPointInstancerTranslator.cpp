@@ -123,14 +123,13 @@ void FUsdGeomPointInstancerTranslator::UpdateComponents( USceneComponent* PointI
 
 	FScopedUsdAllocs UsdAllocs;
 
-	pxr::UsdGeomPointInstancer PointInstancer( Schema );
+	pxr::UsdPrim Prim = GetPrim();
+	pxr::UsdGeomPointInstancer PointInstancer( Prim );
 
 	if ( !PointInstancer )
 	{
 		return;
 	}
-
-	pxr::UsdPrim Prim = PointInstancer.GetPrim();
 
 	// For each prototype
 	const pxr::UsdRelationship& Prototypes = PointInstancer.GetPrototypesRel();
@@ -150,12 +149,17 @@ void FUsdGeomPointInstancerTranslator::UpdateComponents( USceneComponent* PointI
 				continue;
 			}
 
+			USceneComponent* PrototypeParentComponent = Context->ParentComponent;
+
 			FUsdGeomXformableTranslator PrototypeXformTranslator( Context, UE::FUsdTyped( PrototypePrim ) );
 
 			const bool bNeedsActor = false;
-			USceneComponent* PrototypeXformComponent = PrototypeXformTranslator.CreateComponentsEx( {}, bNeedsActor );
+			if ( USceneComponent* PrototypeXformComponent = PrototypeXformTranslator.CreateComponentsEx( {}, bNeedsActor ) )
+			{
+				PrototypeParentComponent = PrototypeXformComponent;
+			}
 
-			TGuardValue< USceneComponent* > ParentComponentGuard2( Context->ParentComponent, PrototypeXformComponent );
+			TGuardValue< USceneComponent* > ParentComponentGuard2( Context->ParentComponent, PrototypeParentComponent );
 
 			// Find UsdGeomMeshes in prototype childs
 			TArray< TUsdStore< pxr::UsdPrim > > ChildGeomMeshPrims = UsdUtils::GetAllPrimsOfType( PrototypePrim, pxr::TfType::Find< pxr::UsdGeomMesh >() );

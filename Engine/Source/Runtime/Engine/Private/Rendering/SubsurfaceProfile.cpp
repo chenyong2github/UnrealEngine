@@ -219,7 +219,7 @@ void FSubsurfaceProfileTexture::CreateTexture(FRHICommandListImmediate& RHICmdLi
 	const uint32 Width = BSSS_TRANSMISSION_PROFILE_OFFSET + BSSS_TRANSMISSION_PROFILE_SIZE;
 
 	// at minimum 64 lines (less reallocations)
-	FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(Width, FMath::Max(Height, (uint32)64)), PF_B8G8R8A8, FClearValueBinding::None, 0, TexCreate_ShaderResource, false));
+	FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(Width, FMath::Max(Height, (uint32)64)), PF_B8G8R8A8, FClearValueBinding::None, TexCreate_None, TexCreate_ShaderResource, false));
 	if (b16Bit)
 	{
 		Desc.Format = PF_A16B16G16R16;
@@ -288,7 +288,7 @@ void FSubsurfaceProfileTexture::CreateTexture(FRHICommandListImmediate& RHICmdLi
 			// When we need performance, we fallback Burley to Separable. In order to achieve that, we estimate Separable parameters
 			// from Burley. This fallback has two two advantages:
 			// 1. Burley Fallback is more expressive than Separable. It can use Burley's scattering profile with hdr dmfp. The original
-			//    separable can only use a fixed dmfp around 2.24 based on the fitting. Because of this, the fallback Separable can be
+			//    separable can only use a fixed dmfp around 2.229 based on the fitting. Because of this, the fallback Separable can be
 			//    used to express any materials. Since we have Burley parameters set, the transmittance profile can also go physically
 			//    more expressive. We can have better transmittance.
 			// 2. It runs faster than Burley. Burley has already been optimized. However, under extreme and rare conditions, it can go slow. 
@@ -299,13 +299,19 @@ void FSubsurfaceProfileTexture::CreateTexture(FRHICommandListImmediate& RHICmdLi
 			// 2.229f is divided because of fitting relationship between falloff color and dmfp that has a scale of 2.229.
 			Data.ScatterRadius = FMath::Max(Data.MeanFreePathDistance*Data.MeanFreePathColor.GetMax()/2.229f, 0.1f);
 
-			ComputeMirroredBSSSKernel(&TextureRow[SSSS_KERNEL0_OFFSET], SSSS_KERNEL0_SIZE, Data.SurfaceAlbedo, 
-				DifffuseMeanFreePath, Data.WorldUnitScale, Data.ScatterRadius);
-			ComputeMirroredBSSSKernel(&TextureRow[SSSS_KERNEL1_OFFSET], SSSS_KERNEL1_SIZE, Data.SurfaceAlbedo, 
-				DifffuseMeanFreePath, Data.WorldUnitScale, Data.ScatterRadius);
-			ComputeMirroredBSSSKernel(&TextureRow[SSSS_KERNEL2_OFFSET], SSSS_KERNEL2_SIZE, Data.SurfaceAlbedo, 
-				DifffuseMeanFreePath, Data.WorldUnitScale, Data.ScatterRadius);
-			
+			ComputeMirroredBSSSKernel(&TextureRow[SSSS_KERNEL0_OFFSET], SSSS_KERNEL0_SIZE, Data.SurfaceAlbedo,
+				DifffuseMeanFreePath, Data.ScatterRadius);
+			ComputeMirroredBSSSKernel(&TextureRow[SSSS_KERNEL1_OFFSET], SSSS_KERNEL1_SIZE, Data.SurfaceAlbedo,
+				DifffuseMeanFreePath, Data.ScatterRadius);
+			ComputeMirroredBSSSKernel(&TextureRow[SSSS_KERNEL2_OFFSET], SSSS_KERNEL2_SIZE, Data.SurfaceAlbedo,
+				DifffuseMeanFreePath, Data.ScatterRadius);
+
+			// Then, scale up by world unit scale and the fitting parameters to affect screen space sampling location.
+			// For high irradiance, the lose of energy due to insufficient sampling count needs to be compensated to
+			// make Burley fallback looks the same to Burley. Set 1.0f when we have enough samples.
+			const float SamplingCountCompensation = 0.707f;
+			Data.ScatterRadius *= (Data.WorldUnitScale * 10.0f)*2.229f* SamplingCountCompensation;
+
 			// Reset subsurface rgb component to 1. So in the combine pass, we will directly use the subsurface scattering result
 			// in Burley fallback and Burley mode.
 			TextureRow[SSSS_SUBSURFACE_COLOR_OFFSET].R = 1; 

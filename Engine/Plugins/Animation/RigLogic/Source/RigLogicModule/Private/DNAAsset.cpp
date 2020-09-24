@@ -3,10 +3,11 @@
 #include "DNAAsset.h"
 #include "DNAUtils.h"
 
+#include "ArchiveMemoryStream.h"
+#include "DNAAssetCustomVersion.h"
 #include "DNAReaderAdapter.h"
 #include "FMemoryResource.h"
 #include "RigLogicMemoryStream.h"
-#include "SkelMeshDNAReader.h"
 
 #if WITH_EDITORONLY_DATA
     #include "EditorFramework/AssetImportData.h"
@@ -22,23 +23,66 @@
 
 DEFINE_LOG_CATEGORY(LogDNAAsset);
 
+static constexpr uint32 AVG_EMPTY_SIZE = 4 * 1024;
 static constexpr uint32 AVG_BEHAVIOR_SIZE = 5 * 1024 * 1024;
 static constexpr uint32 AVG_GEOMETRY_SIZE = 150 * 1024 * 1024;
 
-void UDNAAsset::WriteToBuffer( IDNAReader* SourcePartialDNAReader, TArray<uint8>* WriteBuffer, uint32 PredictedSize)
-{	
-	WriteBuffer->Empty();
-	WriteBuffer->Reserve(PredictedSize);
-	// Use that stream to write data into TArray, so UE can serialize it with this asset
-	FRigLogicMemoryStream PartialDataWriteStream(WriteBuffer);
-	rl4::ScopedPtr<dna::StreamWriter> PartialStreamWriter = rl4::makeScoped<dna::StreamWriter>(&PartialDataWriteStream, FMemoryResource::Instance()); //where to write
-	PartialStreamWriter->setFrom(SourcePartialDNAReader->Unwrap()); //from where to read
-	PartialStreamWriter->write(); //DNAData TArray now holds and serializes behavior data
+static TSharedPtr<IDNAReader> ReadDNAFromStream(rl4::BoundedIOStream* Stream, EDNADataLayer Layer, uint16 MaxLOD)
+{
+	auto DNAStreamReader = rl4::makeScoped<dna::StreamReader>(Stream, static_cast<dna::DataLayer>(Layer), MaxLOD, FMemoryResource::Instance());
+	DNAStreamReader->read();
+	if (!rl4::Status::isOk())
+	{
+		UE_LOG(LogDNAAsset, Error, TEXT("%s"), ANSI_TO_TCHAR(rl4::Status::get().message));
+		return nullptr;
+	}
+	return MakeShared<FDNAReader<dna::StreamReader>>(DNAStreamReader.release());
+}
+
+static void WriteDNAToStream(const IDNAReader* Source, EDNADataLayer Layer, rl4::BoundedIOStream* Destination)
+{
+	auto DNAWriter = rl4::makeScoped<dna::StreamWriter>(Destination, FMemoryResource::Instance());
+	if (Source != nullptr)
+	{
+		DNAWriter->setFrom(Source->Unwrap(), static_cast<dna::DataLayer>(Layer));
+	}
+	DNAWriter->write();
+}
+
+static TSharedPtr<IDNAReader> CopyDNALayer(const IDNAReader* Source, EDNADataLayer DNADataLayer, uint32 PredictedSize)
+{
+	// To avoid lots of reallocations in `FRigLogicMemoryStream`, reserve an approximate size
+	// that we know would cause at most one reallocation in the worst case (but none for the average DNA)
+	TArray<uint8> MemoryBuffer;
+	MemoryBuffer.Reserve(PredictedSize);
+
+	FRigLogicMemoryStream MemoryStream(&MemoryBuffer);
+	WriteDNAToStream(Source, DNADataLayer, &MemoryStream);
+
+	MemoryStream.seek(0ul);
+
+	return ReadDNAFromBuffer(&MemoryBuffer, DNADataLayer);
+}
+
+static TSharedPtr<IDNAReader> CreateEmptyDNA(uint32 PredictedSize)
+{
+	// To avoid lots of reallocations in `FRigLogicMemoryStream`, reserve an approximate size
+	// that we know would cause at most one reallocation in the worst case (but none for the average DNA)
+	TArray<uint8> MemoryBuffer;
+	MemoryBuffer.Reserve(PredictedSize);
+
+	FRigLogicMemoryStream MemoryStream(&MemoryBuffer);
+	WriteDNAToStream(nullptr, EDNADataLayer::All, &MemoryStream);
+
+	MemoryStream.seek(0ul);
+
+	return ReadDNAFromBuffer(&MemoryBuffer, EDNADataLayer::All);
 }
 
 bool UDNAAsset::Init(const FString DNAFilename)
 {
-	if (!rl4::Status::isOk()) {
+	if (!rl4::Status::isOk())
+	{
 		UE_LOG(LogDNAAsset, Warning, TEXT("%s"), ANSI_TO_TCHAR(rl4::Status::get().message));
 	}
 
@@ -60,22 +104,20 @@ bool UDNAAsset::Init(const FString DNAFilename)
 	}
 	
 	// Load run-time data (behavior) from whole-DNA buffer into BehaviorStreamReader
-	TSharedPtr<IDNAReader> DNAReaderBehavior = ReadDNAFromBuffer(&TempFileBuffer, EDNADataLayer::Behavior, 0u); //0u = MaxLOD
-
-	if (!DNAReaderBehavior.IsValid())
+	BehaviorStreamReader = ReadDNAFromBuffer(&TempFileBuffer, EDNADataLayer::Behavior, 0u); //0u = MaxLOD
+	if (!BehaviorStreamReader.IsValid())
 	{
 		return false;
 	}
 
-	BehaviorStreamReader = DNAReaderBehavior;
-	WriteToBuffer(DNAReaderBehavior.Get(), &BehaviorData, AVG_BEHAVIOR_SIZE);
-
 #if WITH_EDITORONLY_DATA
 	//We use geometry part of the data in MHC only (for updating the SkeletalMesh with
 	//result of GeneSplicer), so we can drop geometry part when cooking for runtime
-	TSharedPtr<IDNAReader> DNAReaderGeometry = ReadDNAFromBuffer(&TempFileBuffer, EDNADataLayer::Geometry, 0u); //0u = MaxLOD
-	GeometryStreamReader = DNAReaderGeometry;
-	WriteToBuffer(DNAReaderGeometry.Get(), &DesignTimeData, AVG_GEOMETRY_SIZE);
+	GeometryStreamReader = ReadDNAFromBuffer(&TempFileBuffer, EDNADataLayer::Geometry, 0u); //0u = MaxLOD
+	if (!GeometryStreamReader.IsValid())
+	{
+		return false;
+	}
 	//Note: in future, we will want to load geometry data in-game too 
 	//to enable GeneSplicer to read geometry directly from SkeletalMeshes, as
 	//a way to save memory, as on consoles the "database" will be exactly the set of characters
@@ -85,47 +127,53 @@ bool UDNAAsset::Init(const FString DNAFilename)
 	return true;
 }
 
-void UDNAAsset::PostLoad()
+void UDNAAsset::Serialize(FArchive& Ar)
 {
-	Super::PostLoad();
+	Super::Serialize(Ar);
 
-	if (BehaviorData.Num() == 0)
+	Ar.UsingCustomVersion(FDNAAssetCustomVersion::GUID);
+
+	if (Ar.CustomVer(FDNAAssetCustomVersion::GUID) >= FDNAAssetCustomVersion::BeforeCustomVersionWasAdded)
 	{
-		return;
-	}
+		if (Ar.IsLoading())
+		{
+			UE_LOG(LogDNAAsset, Display, TEXT("Loading DNA Behavior..."));
+			FArchiveMemoryStream BehaviorStream{&Ar};
+			BehaviorStreamReader = ReadDNAFromStream(&BehaviorStream, EDNADataLayer::Behavior, 0u); //0u = max LOD
 
-	BehaviorStreamReader = ReadDNAFromBuffer(&BehaviorData, EDNADataLayer::Behavior, 0u); //0u = max LOD
-
+			// Geometry data is always present (even if only as an empty placeholder), just so the uasset
+			// format remains consistent between editor and non-editor builds
+			UE_LOG(LogDNAAsset, Display, TEXT("Loading DNA Geometry..."));
+			FArchiveMemoryStream GeometryStream{&Ar};
+			auto Reader = ReadDNAFromStream(&GeometryStream, EDNADataLayer::Geometry, 0u); //0u = max LOD
 #if WITH_EDITORONLY_DATA
-	if (DesignTimeData.Num() == 0)
-	{
-		return;
-	}
-	GeometryStreamReader = ReadDNAFromBuffer(&DesignTimeData, EDNADataLayer::Geometry, 0u); //0u = max LOD
+			// Geometry data is discarded unless in Editor
+			GeometryStreamReader = Reader;
 #endif // #if WITH_EDITORONLY_DATA
-}
+		}
 
-TSharedPtr<IDNAReader> UDNAAsset::CopyDNALayer(const IDNAReader* Source, EDNADataLayer DNADataLayer, uint32 PredictedSize )
-{
-	// To avoid lots of reallocations in `FRigLogicMemoryStream`, reserve an approximate size
-	// that we know would cause at most one reallocation in the worst case (but none for the average DNA)
-	
-	TArray<uint8> MemoryBuffer;
-	MemoryBuffer.Reserve(PredictedSize);
+		if (Ar.IsSaving())
+		{
+			TSharedPtr<IDNAReader> EmptyDNA = CreateEmptyDNA(AVG_EMPTY_SIZE);
 
-	FRigLogicMemoryStream MemoryStream(&MemoryBuffer);
-	auto DNAWriter = rl4::makeScoped<dna::StreamWriter>(&MemoryStream, FMemoryResource::Instance());
-	DNAWriter->setFrom(Source->Unwrap(), static_cast<dna::DataLayer>(DNADataLayer));
-	DNAWriter->write();
+			UE_LOG(LogDNAAsset, Display, TEXT("Saving DNA Behavior..."));
+			IDNAReader* BehaviorStreamReaderPtr = (BehaviorStreamReader.IsValid() ? static_cast<IDNAReader*>(BehaviorStreamReader.Get()) : EmptyDNA.Get());
+			FArchiveMemoryStream BehaviorStream{&Ar};
+			WriteDNAToStream(BehaviorStreamReaderPtr, EDNADataLayer::Behavior, &BehaviorStream);
 
-	MemoryStream.seek(0ul);
-
-	return ReadDNAFromBuffer(&MemoryBuffer, DNADataLayer);
+			// When cooking (or when there was no Geometry data available), an empty DNA structure is written
+			// into the stream, serving as a placeholder just so uasset files can be conveniently loaded
+			// regardless if they were cooked or prepared for in-editor work
+			UE_LOG(LogDNAAsset, Display, TEXT("Saving DNA Geometry..."));
+			IDNAReader* GeometryStreamReaderPtr = (GeometryStreamReader.IsValid() && !Ar.IsCooking() ? static_cast<IDNAReader*>(GeometryStreamReader.Get()) : EmptyDNA.Get());
+			FArchiveMemoryStream GeometryStream{&Ar};
+			WriteDNAToStream(GeometryStreamReaderPtr, EDNADataLayer::Geometry, &GeometryStream);
+		}
+	}
 }
 
 void UDNAAsset::SetBehaviorReader(const TSharedPtr<IDNAReader> SourceDNAReader)
 {
-
 	BehaviorStreamReader = CopyDNALayer(SourceDNAReader.Get(), EDNADataLayer::Behavior, AVG_BEHAVIOR_SIZE);
 }
 

@@ -22,9 +22,13 @@
 #include "VirtualTexturing.h"
 
 class FTexture2DResourceMem;
+class UTexture;
 class UTexture2D;
 class UTexture2DArray;
 class IVirtualTexture;
+struct FTexturePlatformData;
+class FStreamableTextureResource;
+class FTexture2DResource;
 
 /** Maximum number of slices in texture source art. */
 #define MAX_TEXTURE_SOURCE_SLICES 6
@@ -74,144 +78,51 @@ class FTextureResource : public FTexture
 {
 public:
 
-	FTextureResource()
-	{}
+	FTextureResource() {}
 	virtual ~FTextureResource() {}
-
-	// releases and recreates any sampler state objects.
-	// used when updating mip map bias offset
-	virtual void RefreshSamplerStates() {}
 
 	/**
 	* Returns true if the resource is proxying another one.
 	*/
 	virtual bool IsProxy() const { return false; }
 
+	// Dynamic cast methods.
+	ENGINE_API virtual FTexture2DResource* GetTexture2DResource() { return nullptr; }
+	ENGINE_API virtual FStreamableTextureResource* GetStreamableTextureResource() { return nullptr; }
+	// Dynamic cast methods (const).
+	ENGINE_API virtual const FTexture2DResource* GetTexture2DResource() const { return nullptr; }
+	ENGINE_API virtual const FStreamableTextureResource* GetStreamableTextureResource() const { return nullptr; }
+
+	// Current mip count. We use "current" to specify that it is not computed from SizeX() which is the size when fully streamed in.
+	FORCEINLINE int32 GetCurrentMipCount() const
+	{
+		return TextureRHI.IsValid() ? TextureRHI->GetNumMips() : 0;
+	}
+
+	FORCEINLINE bool IsTextureRHIPartiallyResident() const
+	{
+		return TextureRHI.IsValid() && !!(TextureRHI->GetFlags() & TexCreate_Virtual);
+	}
+
+	FORCEINLINE FRHITexture2D* GetTexture2DRHI() const
+	{
+		return TextureRHI.IsValid() ? TextureRHI->GetTexture2D() : nullptr;
+	}
+
+	void SetTextureReference(FRHITextureReference* TextureReference)
+	{
+		TextureReferenceRHI = TextureReference;
+	}
+
 #if STATS
 	/* The Stat_ FName corresponding to each TEXTUREGROUP */
 	static FName TextureGroupStatFNames[TEXTUREGROUP_MAX];
 #endif
-};
 
-/**
- * FTextureResource implementation for streamable 2D textures.
- */
-class FTexture2DResource : public FTextureResource
-{
-public:
-	/**
-	 * Minimal initialization constructor.
-	 *
-	 * @param InOwner			UTexture2D which this FTexture2DResource represents.
-	 * @param InitialMipCount	Initial number of mip levels to upload to card
-	 * @param InFilename		Filename to read data from
- 	 */
-	FTexture2DResource( UTexture2D* InOwner, int32 InitialMipCount );
-
-	/**
-	 * Destructor, freeing MipData in the case of resource being destroyed without ever 
-	 * having been initialized by the rendering thread via InitRHI.
-	 */
-	virtual ~FTexture2DResource();
-
-	virtual void RefreshSamplerStates() override;
-
-	// FRenderResource interface.
-	/**
-	 * Called when the resource is initialized. This is only called by the rendering thread.
-	 */
-	virtual void InitRHI() override;
-	/**
-	 * Called when the resource is released. This is only called by the rendering thread.
-	 */
-	virtual void ReleaseRHI() override;
-
-	/** Returns the width of the texture in pixels. */
-	virtual uint32 GetSizeX() const override;
-
-	/** Returns the height of the texture in pixels. */
-	virtual uint32 GetSizeY() const override;
-
-	/** 
-	 * Accessor
-	 * @return Texture2DRHI
-	 */
-	FTexture2DRHIRef GetTexture2DRHI() const
-	{
-		return Texture2DRHI;
-	}
-
-	virtual FString GetFriendlyName() const override;
-	virtual bool IsProxy() const override { return ProxiedResource != nullptr; }
-
-	//Returns the current first mip (always valid)
-	int32 GetCurrentFirstMip() const
-	{
-		return CurrentFirstMip;
-	}
-
-	void UpdateTexture(FTexture2DRHIRef& InTextureRHI, int32 InFirstMip);
-
-private:
-	/**
-	 * Make this Texture2DResource Proxy another one.
-	 *
-	 * @param InOwner             UTexture2D which this FTexture2DResource represents.
-	 * @param InProxiedResource   The resource to proxy.
-	 */
-	FTexture2DResource(UTexture2D* InOwner, const FTexture2DResource* InProxiedResource);
-
-	/** Texture streaming command classes that need to be friends in order to call Update/FinalizeMipCount.	*/
-	friend class UTexture2D;
-	friend class FTexture2DUpdate;
-
-	/** The UTexture2D which this resource represents.														*/
-	UTexture2D*	Owner;
-
-	/** Resource memory allocated by the owner for serialize bulk mip data into								*/
-	FTexture2DResourceMem* ResourceMem;
-
-	/** Whether the texture RHI has been initialized.														*/
-	bool bReadyForStreaming;
-
-	/** Whether this texture should be updated using the virtual allocations.								*/
-	bool bUseVirtualUpdatePath;
-
-	EMipFadeSettings MipFadeSetting;
-
-	/** First mip level used in Texture2DRHI. This is always correct as long as Texture2DRHI is allocated, regardless of streaming status. */
-	int32 CurrentFirstMip;
-	
-	/** Local copy/ cache of mip data between creation and first call to InitRHI.							*/
-	TArray<void*, TInlineAllocator<MAX_TEXTURE_MIP_COUNT> > MipData;
-
-	/** 2D texture version of TextureRHI which is used to lock the 2D texture during mip transitions.		*/
-	FTexture2DRHIRef	Texture2DRHI;
-
-	/** Another resource being proxied by this one. */
-	const FTexture2DResource* const ProxiedResource;
-#if STATS
-	/** Cached texture size for stats.																		*/
-	int32					TextureSize;
-	/** Cached intermediate texture size for stats.															*/
-	int32					IntermediateTextureSize;
-	/** The FName of the LODGroup-specific stat																*/
-	FName					LODGroupStatName;
-#endif
-
-	/**
-	 * Writes the data for a single mip-level into a destination buffer.
-	 * @param MipIndex	The index of the mip-level to read.
-	 * @param Dest		The address of the destination buffer to receive the mip-level's data.
-	 * @param DestPitch	Number of bytes per row
-	 */
-	void GetData( uint32 MipIndex,void* Dest,uint32 DestPitch );
-
-	/** Create RHI sampler states. */
-	void CreateSamplerStates(float MipMapBias);
-
-	/** Returns the default mip map bias for this texture. */
-	int32 GetDefaultMipMapBias() const;
+protected :
+	// A FRHITextureReference to update whenever the FTexture::TextureRHI changes.
+	// It allows to prevent dereferencing the UAsset pointers when updating a texture resource.
+	FTextureReferenceRHIRef TextureReferenceRHI;
 };
 
 class FVirtualTexture2DResource : public FTextureResource
@@ -226,8 +137,6 @@ public:
 #if WITH_EDITOR
 	void InitializeEditorResources(class IVirtualTexture* InVirtualTexture);
 #endif
-
-	virtual void RefreshSamplerStates() override;
 
 	virtual uint32 GetSizeX() const override;
 	virtual uint32 GetSizeY() const override;
@@ -293,152 +202,6 @@ private:
 	class UTexture2DDynamic* Owner;
 	/** Texture2D reference, used for locking/unlocking the mips. */
 	FTexture2DRHIRef Texture2DRHI;
-};
-
-/** Stores information about a mip map, used by FTexture2DArrayResource to mirror game thread data. */
-class FMipMapDataEntry
-{
-public:
-	uint32 SizeX;
-	uint32 SizeY;
-	TArray<uint8> Data;
-};
-
-/** Stores information about a single texture in FTexture2DArrayResource. */
-class FTextureArrayDataEntry
-{
-public:
-
-	FTextureArrayDataEntry() : 
-		NumRefs(0)
-	{}
-
-	/** Number of FTexture2DArrayResource::AddTexture2D calls that specified this texture. */
-	int32 NumRefs;
-
-	/** Mip maps of the texture. */
-	TArray<FMipMapDataEntry, TInlineAllocator<MAX_TEXTURE_MIP_COUNT> > MipData;
-};
-
-/** 
- * Stores information about a UTexture2D so the rendering thread can access it, 
- * Even though the UTexture2D may have changed by the time the rendering thread gets around to it.
- */
-class FIncomingTextureArrayDataEntry : public FTextureArrayDataEntry
-{
-public:
-
-	FIncomingTextureArrayDataEntry() {}
-
-	FIncomingTextureArrayDataEntry(UTexture2D* InTexture);
-
-	int32 SizeX;
-	int32 SizeY;
-	int32 NumMips;
-	TextureGroup LODGroup;
-	EPixelFormat Format;
-	ESamplerFilter Filter;
-	bool bSRGB;
-};
-
-/** Represents a 2D Texture Array to the renderer. */
-class FTexture2DArrayResource : public FTextureResource
-{
-public:
-
-	FTexture2DArrayResource() :
-		SizeX(0),
-		SizeY(0),
-		NumMips(0),
-		NumSlices(0),
-		LODGroup(),
-		Format(PF_Unknown),
-		Filter(SF_Point),
-		SamplerXAddress(AM_Wrap),
-		SamplerYAddress(AM_Wrap),
-		SamplerZAddress(AM_Wrap),
-		bDirty(false),
-		bPreventingReallocation(false)
-	{}
-
-	FTexture2DArrayResource(UTexture2DArray* InOwner);
-
-	// Rendering thread functions
-
-	/** 
-	 * Adds a texture to the texture array.  
-	 * This is called on the rendering thread, so it must not dereference NewTexture.
-	 */
-	void AddTexture2D(UTexture2D* NewTexture, const FIncomingTextureArrayDataEntry* InEntry);
-
-	/** Removes a texture from the texture array, and potentially removes the CachedData entry if the last ref was removed. */
-	void RemoveTexture2D(const UTexture2D* NewTexture);
-
-	/** Updates a CachedData entry (if one exists for this texture), with a new texture. */
-	void UpdateTexture2D(UTexture2D* NewTexture, const FIncomingTextureArrayDataEntry* InEntry);
-
-	/** Initializes the texture array resource if needed, and re-initializes if the texture array has been made dirty since the last init. */
-	void UpdateResource();
-
-	/** Returns the index of a given texture in the texture array. */
-	int32 GetTextureIndex(const UTexture2D* Texture) const;
-	int32 GetNumValidTextures() const;
-
-	/**
-	* Called when the resource is initialized. This is only called by the rendering thread.
-	*/
-	virtual void InitRHI() override;
-
-	/** Returns the width of the texture in pixels. */
-	virtual uint32 GetSizeX() const override
-	{
-		return SizeX;
-	}
-
-	/** Returns the height of the texture in pixels. */
-	virtual uint32 GetSizeY() const override
-	{
-		return SizeY;
-	}
-
-	/** Returns the number of slices(textures) in this array. */
-	uint32 GetNumSlices() const
-	{
-		return NumSlices;
-	}
-
-
-	/** Prevents reallocation from removals of the texture array until EndPreventReallocation is called. */
-	void BeginPreventReallocation();
-
-	/** Restores the ability to reallocate the texture array. */
-	void EndPreventReallocation();
-
-private:
-
-	/** Texture data, has to persist past the first InitRHI call, because more textures may be added later. */
-	TMap<const UTexture2D*, FTextureArrayDataEntry> CachedData;
-	TArray<FTextureArrayDataEntry>					CachedInitialData;
-	FName LODGroupStatName;
-	UTexture2DArray* Owner;
-
-	uint32 SizeX;
-	uint32 SizeY;
-	uint32 NumMips;
-	uint32 NumSlices;
-	TextureGroup LODGroup;
-	EPixelFormat Format;
-	ESamplerFilter Filter;
-	ESamplerAddressMode SamplerXAddress;
-	ESamplerAddressMode SamplerYAddress;
-	ESamplerAddressMode SamplerZAddress;
-
-	bool bSRGB;
-	bool bDirty;
-	bool bPreventingReallocation;
-
-	/** Copies data from DataEntry into Dest, taking stride into account. */
-	void GetData(const FTextureArrayDataEntry& DataEntry, int32 MipIndex, void* Dest, uint32 DestPitch);
 };
 
 /**
@@ -654,8 +417,7 @@ private:
 	FLinearColor ClearColor;
 	EPixelFormat Format;
 	int32 TargetSizeX,TargetSizeY;
-	/** cached params etc. for use with mip generator */
-	TSharedPtr<FGenerateMipsStruct> CachedMipsGenParams;
+	TRefCountPtr<IPooledRenderTarget> MipGenerationCache;
 };
 
 /**

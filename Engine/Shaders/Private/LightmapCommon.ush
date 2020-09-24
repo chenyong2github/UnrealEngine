@@ -267,8 +267,11 @@ half GetPrimaryPrecomputedShadowMask(FVertexFactoryInterpolantsVSToPS Interpolan
 
 		// Mark as shadowed for lightmapped objects with no shadowmap
 		// This is necessary because objects inside a light's influence that were determined to be completely shadowed won't be rendered with STATICLIGHTING_TEXTUREMASK==1
+		#if MOBILE_DEFERRED_SHADING
+		return 1;
+		#else
 		return 0;
-
+		#endif
 	#else
 		#if CACHED_POINT_INDIRECT_LIGHTING || CACHED_VOLUME_INDIRECT_LIGHTING
 			// output per-primitive directional light shadowing if requested

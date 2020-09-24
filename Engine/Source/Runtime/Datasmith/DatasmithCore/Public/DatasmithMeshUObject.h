@@ -6,9 +6,9 @@
 
 #include "RawMesh.h"
 
+#include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
-#include "UObject/Object.h"
 
 #include "DatasmithMeshUObject.generated.h"
 

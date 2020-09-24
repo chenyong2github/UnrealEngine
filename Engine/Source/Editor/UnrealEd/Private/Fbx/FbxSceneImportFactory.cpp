@@ -829,7 +829,7 @@ UFbxSceneImportData* CreateReImportAsset(const FString &PackagePath, const FStri
 	FbxReImportPkgName = UPackageTools::SanitizePackageName(FbxReImportPkgName);
 	FString AssetName = FilenameBase;
 	AssetName = UPackageTools::SanitizePackageName(AssetName);
-	UPackage* Pkg = CreatePackage(nullptr, *FbxReImportPkgName);
+	UPackage* Pkg = CreatePackage( *FbxReImportPkgName);
 	if (!ensure(Pkg))
 	{
 		//TODO log an import warning stipulate that there is no re-import asset created
@@ -2429,7 +2429,7 @@ UPackage *UFbxSceneImportFactory::CreatePackageForNode(FString PackageName, FStr
 			IsPkgExist = FindObject<UPackage>(nullptr, *PackageNameOfficial) != nullptr;
 		}
 	}
-	UPackage* Pkg = CreatePackage(nullptr, *PackageNameOfficial);
+	UPackage* Pkg = CreatePackage( *PackageNameOfficial);
 	if (!ensure(Pkg))
 	{
 		return nullptr;

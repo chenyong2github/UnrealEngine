@@ -1,20 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	LandscapeGrassWeightVertexShader.usf: Vertex shader to dump the weight map for Landscape Grass
-=============================================================================*/
-
-#define RENDERING_LANDSCAPE_GRASS 1
-
 #include "Common.ush"
 #include "/Engine/Generated/Material.ush"
 #include "/Engine/Generated/VertexFactory.ush"
 
 struct FLandscapeGrassWeightInterpolantsVSToPS
 {
-	FVertexFactoryInterpolantsVSToPS FactoryInterpolants;
-	float  Height			: TEXCOORD9;
 	float4 Position : SV_POSITION;
+	FVertexFactoryInterpolantsVSToPS FactoryInterpolants;
+	float4 PositionPreOffset : TEXCOORD9;
 };
 
 #if VERTEXSHADER
@@ -30,23 +24,25 @@ void VSMain(
 	ResolvedView = ResolveView();
 
 	FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
-	float4 WorldPositionExcludingWPO = VertexFactoryGetWorldPosition(Input, VFIntermediates);
-	float4 WorldPosition = WorldPositionExcludingWPO;
-	float4 RasterizedWorldPosition = VertexFactoryGetRasterizedWorldPosition(Input, VFIntermediates, WorldPosition);
-	Output.Position = mul(RasterizedWorldPosition, ResolvedView.TranslatedWorldToClip);
-
+	float4 WorldPosition = VertexFactoryGetWorldPosition(Input, VFIntermediates);
 	half3x3 TangentToLocal = VertexFactoryGetTangentToLocal(Input, VFIntermediates);
+	
 	FMaterialVertexParameters VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, WorldPosition.xyz, TangentToLocal);
+	
+	// We can't deal correctly with horizontal WPO. We can choose to either:
+	// (i) only take the offset in the direction of the heightfield which means that grass can mismatch on some slopes, or
+	// (ii) take the full offset which means that grass can be missing or corrupt at edges of each tile.
+	// We choose (i) here.
+	float3 WPO = GetMaterialWorldPositionOffset(VertexParameters);
+	WPO = mul(WPO, (float3x3)Primitive.WorldToLocal) * float3(0, 0, 1);
+	WPO = mul(WPO, (float3x3)Primitive.LocalToWorld);
+	WorldPosition.xyz += WPO;
+
 	Output.FactoryInterpolants = VertexFactoryGetInterpolantsVSToPS(Input, VFIntermediates, VertexParameters);
 
-	float2 Height2 = LandscapeVertexFactorySampleHeight(Input, VFIntermediates);
-	float Height = DecodePackedTwoChannelValue(Height2);
-
-	half3 WorldPositionOffset = GetMaterialWorldPositionOffset(VertexParameters);
-	Height = Height + mul(WorldPositionOffset, (MaterialFloat3x3)(Primitive.WorldToLocal)).z / TERRAIN_ZSCALE;
-	Output.Height = Height;
-
-	Output.Position.xy += RenderOffset;
+	float4 RasterizedWorldPosition = VertexFactoryGetRasterizedWorldPosition(Input, VFIntermediates, WorldPosition);
+	Output.PositionPreOffset = mul(RasterizedWorldPosition, ResolvedView.TranslatedWorldToClip);
+	Output.Position = Output.PositionPreOffset + float4(RenderOffset, 0, 0);
 }
 
 #elif PIXELSHADER
@@ -62,13 +58,17 @@ void PSMain(
 {
 	ResolvedView = ResolveView();
 
-	float4 SvPosition = Interpolants.Position;
+	// Build the SvPosition without RenderOffset so that we correctly reproject WorldPosition etc.
+	float4 SvPositionPreOffset = Interpolants.PositionPreOffset / Interpolants.PositionPreOffset.w;
+	SvPositionPreOffset.xy = (SvPositionPreOffset.xy * float2(0.5f, -0.5f) + 0.5f) * ResolvedView.ViewSizeAndInvSize.xy;
 
-	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(Interpolants.FactoryInterpolants, SvPosition);
+	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(Interpolants.FactoryInterpolants, SvPositionPreOffset);
 	FPixelMaterialInputs PixelMaterialInputs;
-	CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPosition, bIsFrontFace); 
+	CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPositionPreOffset, bIsFrontFace);
 
-	float Height = clamp(round(Interpolants.Height), 0, 65535);
+	// Calculate and pack landscape height.
+	float3 LocalPos = mul(float4(MaterialParameters.AbsoluteWorldPosition, 1), Primitive.WorldToLocal).xyz;
+	float Height = clamp(round(LocalPos.z / TERRAIN_ZSCALE) + 32768.0, 0, 65535);
 	float2 PackedHeight = float2(floor(Height / 256), fmod(Height, 256)) / 255;
 
 #if NUM_MATERIAL_OUTPUTS_GETGRASSWEIGHT > 2

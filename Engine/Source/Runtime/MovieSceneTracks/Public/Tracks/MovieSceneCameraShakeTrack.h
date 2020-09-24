@@ -23,7 +23,7 @@ class UMovieSceneCameraShakeTrack : public UMovieSceneNameableTrack, public IMov
 	GENERATED_BODY()
 
 public:
-	virtual UMovieSceneSection* AddNewCameraShake(FFrameNumber KeyTime, TSubclassOf<UCameraShake> ShakeClass);
+	virtual UMovieSceneSection* AddNewCameraShake(FFrameNumber KeyTime, TSubclassOf<UCameraShakeBase> ShakeClass);
 	
 public:
 

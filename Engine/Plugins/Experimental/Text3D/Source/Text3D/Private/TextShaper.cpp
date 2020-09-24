@@ -11,7 +11,7 @@ THIRD_PARTY_INCLUDES_START
 #include "hb.h"
 #include "hb-ft.h"
 
-#if !UE_BUILD_SHIPPING
+#if WITH_EDITOR
 extern "C"
 {
 void* HarfBuzzMalloc(size_t InSizeBytes)
@@ -45,7 +45,7 @@ void HarfBuzzFree(void* InPtr)
 }
 
 } // extern "C"
-#endif // !UE_BUILD_SHIPPING
+#endif // WITH_EDITOR
 THIRD_PARTY_INCLUDES_END
 
 FTextShaper* FTextShaper::Instance = nullptr;
@@ -113,7 +113,6 @@ void FTextShaper::PerformKerningTextShaping(const FT_Face Face, const TCHAR* Tex
 		}
 
 		const TCHAR CurrentChar = Text[Index];
-
 		const bool bIsZeroWidthSpace = CurrentChar == TEXT('\u200B');
 		bool bIsWhitespace = bIsZeroWidthSpace || FText::IsWhitespace(CurrentChar);
 
@@ -130,7 +129,7 @@ void FTextShaper::PerformKerningTextShaping(const FT_Face Face, const TCHAR* Tex
 		if (!bIsZeroWidthSpace)
 		{
 			FT_Fixed AdvanceData = 0;
-			if (FT_Get_Advance(Face, GlyphIndex, /*FIXME*/0, &AdvanceData) == 0)
+			if (FT_Get_Advance(Face, GlyphIndex, 0, &AdvanceData) == 0)
 			{
 				XAdvance = ((AdvanceData + (1 << 9)) >> 10) * FontInverseScale;
 			}
@@ -138,7 +137,6 @@ void FTextShaper::PerformKerningTextShaping(const FT_Face Face, const TCHAR* Tex
 
 		const int32 CurrentGlyphEntryIndex = OutShapedLines.Last().GlyphsToRender.AddDefaulted();
 		FShapedGlyphEntry& ShapedGlyphEntry = OutShapedLines.Last().GlyphsToRender[CurrentGlyphEntryIndex];
-		//ShapedGlyphEntry.FontFaceData = ShapedGlyphFaceData;
 		ShapedGlyphEntry.GlyphIndex = GlyphIndex;
 		ShapedGlyphEntry.SourceIndex = Index;
 		ShapedGlyphEntry.XAdvance = bIsZeroWidthSpace ? 0 : XAdvance;
@@ -235,7 +233,10 @@ void FTextShaper::PerformHarfBuzzTextShaping(const FT_Face Face, const TCHAR* Te
 		ShapedGlyphEntry.NumCharactersInGlyph = 1;
 		ShapedGlyphEntry.NumGraphemeClustersInGlyph = 1;
 		ShapedGlyphEntry.TextDirection = TextBiDi::ETextDirection::LeftToRight;
-		ShapedGlyphEntry.bIsVisible = true;
+
+		const TCHAR CurrentChar = Text[CurrentCharIndex];
+		const bool bIsZeroWidthSpace = CurrentChar == TEXT('\u200B');
+		ShapedGlyphEntry.bIsVisible = !(bIsZeroWidthSpace || FText::IsWhitespace(CurrentChar));
 	}
 
 	hb_buffer_destroy(HarfBuzzBuffer);
@@ -282,7 +283,7 @@ bool FTextShaper::InsertSubstituteGlyphs(const FT_Face Face, const TCHAR* Text, 
 		uint32 SpaceGlyphIndex = FT_Get_Char_Index(Face, TEXT(' '));
 
 		FT_Fixed AdvanceData = 0;
-		if (FT_Get_Advance(Face, SpaceGlyphIndex, /*FIXME*/0, &AdvanceData) == 0)
+		if (FT_Get_Advance(Face, SpaceGlyphIndex, 0, &AdvanceData) == 0)
 		{
 			SpaceXAdvance = ((AdvanceData + (1 << 9)) >> 10) * FontInverseScale;
 		}
@@ -293,7 +294,6 @@ bool FTextShaper::InsertSubstituteGlyphs(const FT_Face Face, const TCHAR* Text, 
 		{
 			const int32 CurrentGlyphEntryIndex = OutShapedLines.Last().GlyphsToRender.AddDefaulted();
 			FShapedGlyphEntry& ShapedGlyphEntry = OutShapedLines.Last().GlyphsToRender[CurrentGlyphEntryIndex];
-			//ShapedGlyphEntry.FontFaceData = InShapedGlyphFaceData;
 			ShapedGlyphEntry.GlyphIndex = SpaceGlyphIndex;
 			ShapedGlyphEntry.SourceIndex = Index;
 			ShapedGlyphEntry.XAdvance = SpaceXAdvance * NumSpacesToInsert;

@@ -4,12 +4,15 @@
 #include "Curves/CurveVector.h"
 #include "Curves/CurveLinearColor.h"
 #include "Curves/CurveFloat.h"
-#include "NiagaraTypes.h"
+#include "Engine/Texture2D.h"
+#include "Internationalization/Internationalization.h"
 #include "ShaderParameterUtils.h"
-#include "NiagaraShader.h"
+
 #include "NiagaraCustomVersion.h"
 #include "NiagaraEmitter.h"
-#include "Internationalization/Internationalization.h"
+#include "NiagaraShader.h"
+#include "NiagaraTypes.h"
+
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceCurveBase"
 
 IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_Curve);
@@ -96,15 +99,27 @@ void UNiagaraDataInterfaceCurveBase::Serialize(FArchive& Ar)
 		// Temporarily we will make sure they are up to date in editor builds
 		if (GetClass() != UNiagaraDataInterfaceCurveBase::StaticClass())
 		{
-			UpdateLUT();
+			UpdateLUT(true);
 		}
 		else
 #endif
 		{
-			PushToRenderThread();
+			MarkRenderDataDirty();
 		}
 	}
 }
+
+#if WITH_EDITOR
+void UNiagaraDataInterfaceCurveBase::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	FName PropertyName = (PropertyChangedEvent.Property != nullptr) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceCurveBase, bExposeCurve))
+	{
+		UpdateExposedTexture();
+	}
+}
+#endif
 
 bool UNiagaraDataInterfaceCurveBase::CopyToInternal(UNiagaraDataInterface* Destination) const
 {
@@ -122,6 +137,9 @@ bool UNiagaraDataInterfaceCurveBase::CopyToInternal(UNiagaraDataInterface* Desti
 	DestinationTyped->bOverrideOptimizeThreshold = bOverrideOptimizeThreshold;
 	DestinationTyped->OptimizeThreshold = OptimizeThreshold;
 #endif
+	DestinationTyped->bExposeCurve = bExposeCurve;
+	DestinationTyped->ExposedName = ExposedName;
+	DestinationTyped->MarkRenderDataDirty();
 
 	return true;
 }
@@ -158,7 +176,7 @@ void UNiagaraDataInterfaceCurveBase::SetDefaultLUT()
 }
 
 #if WITH_EDITORONLY_DATA
-void UNiagaraDataInterfaceCurveBase::UpdateLUT()
+void UNiagaraDataInterfaceCurveBase::UpdateLUT(bool bFromSerialize)
 {
 	UpdateTimeRanges();
 	if (bUseLUT)
@@ -173,7 +191,12 @@ void UNiagaraDataInterfaceCurveBase::UpdateLUT()
 		SetDefaultLUT();
 	}
 
-	PushToRenderThread();
+	if (!bFromSerialize)
+	{
+		UpdateExposedTexture();
+	}
+
+	MarkRenderDataDirty();
 }
 
 void UNiagaraDataInterfaceCurveBase::OptimizeLUT()
@@ -238,6 +261,48 @@ void UNiagaraDataInterfaceCurveBase::OptimizeLUT()
 		}
 	}
 }
+
+void UNiagaraDataInterfaceCurveBase::UpdateExposedTexture()
+{
+	if (bExposeCurve == false)
+	{
+		//-TODO: Do we need to invalidate the owning system to be safe??
+		ExposedTexture = nullptr;
+		return;
+	}
+
+	const int32 CurveWidth = 256;
+
+	if (ExposedTexture == nullptr)
+	{
+		ExposedTexture = NewObject<UTexture2D>(this);
+		ExposedTexture->Source.Init(CurveWidth, 1, 1, 1, ETextureSourceFormat::TSF_RGBA16F);
+		ExposedTexture->SRGB = false;
+		ExposedTexture->CompressionNone = true;
+		ExposedTexture->MipGenSettings = TMGS_NoMipmaps;
+		ExposedTexture->AddressX = TA_Clamp;
+		ExposedTexture->AddressY = TA_Clamp;
+		ExposedTexture->LODGroup = TEXTUREGROUP_EffectsNotFiltered;
+	}
+
+	FFloat16Color* TexData = reinterpret_cast<FFloat16Color*>(ExposedTexture->Source.LockMip(0));
+
+	const int32 NumElements = GetCurveNumElems();
+	const FLinearColor DefaultColors(1.0f, 1.0f, 1.0f, 1.0f);
+
+	TArray<float> TempLUT = BuildLUT(CurveWidth);
+	for (int32 i=0; i < CurveWidth; ++i)
+	{
+		TexData[i].R = TempLUT[(i * NumElements) + 0];
+		TexData[i].G = NumElements >= 2 ? TempLUT[(i * NumElements) + 1] : DefaultColors.G;
+		TexData[i].B = NumElements >= 3 ? TempLUT[(i * NumElements) + 2] : DefaultColors.B;
+		TexData[i].A = NumElements >= 4 ? TempLUT[(i * NumElements) + 3] : DefaultColors.A;
+	}
+
+	ExposedTexture->Source.UnlockMip(0);
+
+	ExposedTexture->PostEditChange();
+}
 #endif
 
 bool UNiagaraDataInterfaceCurveBase::Equals(const UNiagaraDataInterface* Other) const
@@ -257,6 +322,8 @@ bool UNiagaraDataInterfaceCurveBase::Equals(const UNiagaraDataInterface* Other) 
 		bEqual &= OtherTyped->OptimizeThreshold == OptimizeThreshold;
 	}
 #endif
+	bEqual &= OtherTyped->bExposeCurve == bExposeCurve;
+	bEqual &= OtherTyped->ExposedName == ExposedName;
 	if ( bEqual && bUseLUT )
 	{
 		bEqual &= OtherTyped->ShaderLUT == ShaderLUT;
@@ -307,7 +374,26 @@ void UNiagaraDataInterfaceCurveBase::GetParameterDefinitionHLSL(const FNiagaraDa
 //	return CurveLUT;
 //}
 
-void UNiagaraDataInterfaceCurveBase::PushToRenderThread()
+void UNiagaraDataInterfaceCurveBase::GetExposedVariables(TArray<FNiagaraVariableBase>& OutVariables) const
+{
+	if (bExposeCurve)
+	{
+		OutVariables.Emplace(FNiagaraTypeDefinition(UTexture::StaticClass()), ExposedName);
+	}
+}
+
+bool UNiagaraDataInterfaceCurveBase::GetExposedVariableValue(const FNiagaraVariableBase& InVariable, void* InPerInstanceData, FNiagaraSystemInstance* InSystemInstance, void* OutData) const
+{
+	if (bExposeCurve && ExposedTexture != nullptr)
+	{
+		*reinterpret_cast<UObject**>(OutData) = ExposedTexture;
+		return true;
+	}
+
+	return false;
+}
+
+void UNiagaraDataInterfaceCurveBase::PushToRenderThreadImpl()
 {
 	if (!GSupportsResourceView)
 	{
@@ -319,7 +405,7 @@ void UNiagaraDataInterfaceCurveBase::PushToRenderThread()
 	const float rtLUTMinTime = this->LUTMinTime;
 	const float rtLUTMaxTime = this->LUTMaxTime;
 	const float rtLUTInvTimeRange = this->LUTInvTimeRange;
-	const float rtCurveLUTNumMinusOne = this->LUTNumSamplesMinusOne;;
+	const float rtCurveLUTNumMinusOne = this->LUTNumSamplesMinusOne;
 
 	// Push Updates to Proxy.
 	ENQUEUE_RENDER_COMMAND(FUpdateDIColorCurve)(
@@ -330,6 +416,7 @@ void UNiagaraDataInterfaceCurveBase::PushToRenderThread()
 		RT_Proxy->LUTInvTimeRange = rtLUTInvTimeRange;
 		RT_Proxy->CurveLUTNumMinusOne = rtCurveLUTNumMinusOne;
 
+		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RT_Proxy->CurveLUT.NumBytes);
 		RT_Proxy->CurveLUT.Release();
 
 		check(rtShaderLUT.Num());
@@ -338,6 +425,7 @@ void UNiagaraDataInterfaceCurveBase::PushToRenderThread()
 		int32 *BufferData = static_cast<int32*>(RHILockVertexBuffer(RT_Proxy->CurveLUT.Buffer, 0, BufferSize, EResourceLockMode::RLM_WriteOnly));
 		FPlatformMemory::Memcpy(BufferData, rtShaderLUT.GetData(), BufferSize);
 		RHIUnlockVertexBuffer(RT_Proxy->CurveLUT.Buffer);
+		INC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RT_Proxy->CurveLUT.NumBytes);
 	});
 }
 
@@ -371,6 +459,5 @@ TArray<FNiagaraDataInterfaceError> UNiagaraDataInterfaceCurveBase::GetErrors()
 	return Errors;
 }
 #endif
-
 
 #undef LOCTEXT_NAMESPACE

@@ -82,6 +82,7 @@ public:
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Engine_InvDeltaTime() { return Engine_InvDeltaTime; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Engine_Time() { return Engine_Time; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Engine_RealTime() { return Engine_RealTime; }
+	FORCEINLINE static const FNiagaraVariable&  GetVar_Engine_QualityLevel() { return Engine_QualityLevel; }
 
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Engine_Owner_Position() { return Engine_Owner_Position; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Engine_Owner_Velocity() { return Engine_Owner_Velocity; }
@@ -108,8 +109,10 @@ public:
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Engine_Emitter_NumParticles() { return Engine_Emitter_NumParticles; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Engine_Emitter_TotalSpawnedParticles() { return Engine_Emitter_TotalSpawnedParticles; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Engine_Emitter_SpawnCountScale() { return Engine_Emitter_SpawnCountScale; }
+	FORCEINLINE static const FNiagaraVariable&  GetVar_Engine_Emitter_InstanceSeed() { return Engine_Emitter_InstanceSeed; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Engine_System_TickCount() { return Engine_System_TickCount; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Engine_System_NumEmittersAlive() { return Engine_System_NumEmittersAlive; }
+	FORCEINLINE static const FNiagaraVariable&  GetVar_Engine_System_SignificanceIndex() { return Engine_System_SignificanceIndex; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Engine_System_NumEmitters() { return Engine_System_NumEmitters; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Engine_NumSystemInstances() { return Engine_NumSystemInstances; }
 
@@ -169,6 +172,7 @@ public:
 	
 	FORCEINLINE static const FNiagaraVariable&  GetVar_DataInstance_Alive() { return DataInstance_Alive; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_BeginDefaults() { return Translator_BeginDefaults; }
+	FORCEINLINE static const FNiagaraVariable&  GetVar_CallID() { return Translator_CallID; }
 
 	FOnProcessQueue OnProcessQueue;
 
@@ -189,6 +193,7 @@ private:
 	static FNiagaraVariable Engine_InvDeltaTime;
 	static FNiagaraVariable Engine_Time; 
 	static FNiagaraVariable Engine_RealTime; 
+	static FNiagaraVariable Engine_QualityLevel; 
 
 	static FNiagaraVariable Engine_Owner_Position;
 	static FNiagaraVariable Engine_Owner_Velocity;
@@ -217,6 +222,7 @@ private:
 	static FNiagaraVariable Engine_Emitter_SpawnCountScale;
 	static FNiagaraVariable Engine_System_TickCount;
 	static FNiagaraVariable Engine_System_NumEmittersAlive;
+	static FNiagaraVariable Engine_System_SignificanceIndex;
 	static FNiagaraVariable Engine_System_NumEmitters;
 	static FNiagaraVariable Engine_NumSystemInstances;
 
@@ -230,6 +236,7 @@ private:
 	static FNiagaraVariable Emitter_OverrideGlobalSpawnCountScale;
 	static FNiagaraVariable Emitter_SimulationTarget;
 	static FNiagaraVariable Emitter_RandomSeed;
+	static FNiagaraVariable Engine_Emitter_InstanceSeed;
 	static FNiagaraVariable Emitter_SpawnRate;
 	static FNiagaraVariable Emitter_SpawnInterval;
 	static FNiagaraVariable Emitter_InterpSpawnStartDt;
@@ -276,5 +283,6 @@ private:
 	static FNiagaraVariable ScriptContext;
 	static FNiagaraVariable DataInstance_Alive;
 	static FNiagaraVariable Translator_BeginDefaults;
+	static FNiagaraVariable Translator_CallID;
 };
 

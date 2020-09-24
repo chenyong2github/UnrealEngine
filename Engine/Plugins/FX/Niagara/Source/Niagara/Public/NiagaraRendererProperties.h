@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "Containers/ArrayView.h"
-#include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "RHIDefinitions.h"
 #include "NiagaraTypes.h"
@@ -25,7 +24,77 @@ struct FSlateBrush;
 
 extern int32 GbEnableMinimalGPUBuffers;
 
+#if WITH_EDITOR
+// Helper class for GUI error handling
+DECLARE_DELEGATE(FNiagaraRendererFeedbackFix);
+class FNiagaraRendererFeedback
+{
+public:
+	FNiagaraRendererFeedback(FText InDescriptionText, FText InSummaryText, FText InFixDescription = FText(), FNiagaraRendererFeedbackFix InFix = FNiagaraRendererFeedbackFix(), bool InDismissable = false)
+		: DescriptionText(InDescriptionText)
+		  , SummaryText(InSummaryText)
+		  , FixDescription(InFixDescription)
+		  , Fix(InFix)
+		  , Dismissable(InDismissable)
+	{}
 
+	FNiagaraRendererFeedback(FText InSummaryText)
+        : DescriptionText(FText())
+          , SummaryText(InSummaryText)
+          , FixDescription(FText())
+          , Fix(FNiagaraRendererFeedbackFix())
+		  , Dismissable(false)
+	{}
+
+	FNiagaraRendererFeedback()
+	{}
+
+	/** Returns true if the problem can be fixed automatically. */
+	bool IsFixable() const
+	{
+		return Fix.IsBound();
+	}
+
+	/** Applies the fix if a delegate is bound for it.*/
+	void TryFix() const
+	{
+		if (Fix.IsBound())
+		{
+			Fix.Execute();
+		}
+	}
+
+	/** Full description text */
+	FText GetDescriptionText() const
+	{
+		return DescriptionText;
+	}
+
+	/** Shortened error description text*/
+	FText GetSummaryText() const
+	{
+		return SummaryText;
+	}
+
+	/** Full description text */
+	FText GetFixDescriptionText() const
+	{
+		return FixDescription;
+	}
+
+	bool IsDismissable() const 
+	{
+		return Dismissable;
+	}
+
+private:
+	FText DescriptionText;
+	FText SummaryText;
+	FText FixDescription;
+	FNiagaraRendererFeedbackFix Fix;
+	bool Dismissable;
+};
+#endif
 
 /** Mapping between a variable in the source dataset and the location we place it in the GPU buffer passed to the VF. */
 struct FNiagaraRendererVariableInfo
@@ -118,7 +187,11 @@ public:
 #if WITH_EDITORONLY_DATA
 
 	virtual bool IsSupportedVariableForBinding(const FNiagaraVariableBase& InSourceForBinding, const FName& InTargetBindingName) const;
-	virtual void RenameEmitter(const FName& InOldName, const UNiagaraEmitter* InRenamedEmitter) {};
+
+	/** Internal handling of any emitter variable renames. Note that this doesn't modify the renderer, the caller will need to do that if it is desired.*/
+	virtual void RenameEmitter(const FName& InOldName, const UNiagaraEmitter* InRenamedEmitter);
+	virtual void RenameVariable(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const UNiagaraEmitter* InEmitter);
+	virtual void RemoveVariable(const FNiagaraVariableBase& OldVariable, const UNiagaraEmitter* InEmitter);
 	virtual bool IsMaterialValidForRenderer(UMaterial* Material, FText& InvalidMessage) { return true; }
 
 	virtual void FixMaterial(UMaterial* Material) { }
@@ -135,6 +208,7 @@ public:
 	virtual void GetRendererWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const PURE_VIRTUAL(UNiagaraRendererProperties::GetRendererWidgets, );
 	virtual void GetRendererTooltipWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const PURE_VIRTUAL(UNiagaraRendererProperties::GetRendererTooltipWidgets, );
 	virtual void GetRendererFeedback(const UNiagaraEmitter* InEmitter, TArray<FText>& OutErrors, TArray<FText>& OutWarnings, TArray<FText>& OutInfo) const {};
+	virtual void GetRendererFeedback(UNiagaraEmitter* InEmitter, TArray<FNiagaraRendererFeedback>& OutErrors, TArray<FNiagaraRendererFeedback>& OutWarnings, TArray<FNiagaraRendererFeedback>& OutInfo) const;
 	
 	// The icon to display in the niagara stack widget under the renderer section
 	virtual const FSlateBrush* GetStackIcon() const;
@@ -152,11 +226,11 @@ public:
 
 	virtual bool GetIsActive() const;
 	virtual bool GetIsEnabled() const { return bIsEnabled; }
-	virtual void SetIsEnabled(bool bInIsEnabled) { bIsEnabled = bInIsEnabled; }
+	virtual void SetIsEnabled(bool bInIsEnabled);
 
 	virtual void CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData) {}
 
-	virtual bool NeedsMIDsForMaterials() const { return false; }
+	virtual bool NeedsMIDsForMaterials() const { return false; }	
 	
 	/** Platforms on which this renderer is enabled. */
 	UPROPERTY(EditAnywhere, Category = "Scalability")

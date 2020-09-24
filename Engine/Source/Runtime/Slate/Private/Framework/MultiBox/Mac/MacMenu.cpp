@@ -970,11 +970,11 @@ int32 FSlateMacMenu::GetMenuItemState(const TSharedRef<const class FMenuEntryBlo
 	switch(CheckState)
 	{
 	case ECheckBoxState::Checked:
-		return NSOnState;
+		return NSControlStateValueOn;
 	case ECheckBoxState::Undetermined:
-		return NSMixedState;
+		return NSControlStateValueMixed;
 	default:
 		break;
 	}
-	return NSOffState;
+	return NSControlStateValueOff;
 }

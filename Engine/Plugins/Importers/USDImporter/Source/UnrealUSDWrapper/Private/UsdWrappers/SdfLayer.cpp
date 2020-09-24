@@ -79,6 +79,20 @@ namespace UE
 		Impl.Reset();
 	}
 
+	bool FSdfLayer::operator==( const FSdfLayer& Other ) const
+	{
+#if USE_USD_SDK
+		return Impl->PxrSdfLayer.Get() == Other.Impl->PxrSdfLayer.Get();
+#else
+		return false;
+#endif // #if USE_USD_SDK
+	}
+
+	bool FSdfLayer::operator!=( const FSdfLayer& Other ) const
+	{
+		return !( *this == Other );
+	}
+
 	FSdfLayer::operator bool() const
 	{
 #if USE_USD_SDK
@@ -219,6 +233,26 @@ namespace UE
 #endif // #if USE_USD_SDK
 	}
 
+	void FSdfLayer::SetStartTimeCode( double TimeCode )
+	{
+#if USE_USD_SDK
+		if ( !Impl->PxrSdfLayer.Get()->HasStartTimeCode() || !FMath::IsNearlyEqual( TimeCode, Impl->PxrSdfLayer.Get()->GetStartTimeCode() ) )
+		{
+			Impl->PxrSdfLayer.Get()->SetStartTimeCode( TimeCode );
+		}
+#endif // #if USE_USD_SDK
+	}
+
+	void FSdfLayer::SetEndTimeCode( double TimeCode )
+	{
+#if USE_USD_SDK
+		if ( !Impl->PxrSdfLayer.Get()->HasEndTimeCode() || !FMath::IsNearlyEqual( TimeCode, Impl->PxrSdfLayer.Get()->GetEndTimeCode() ) )
+		{
+			Impl->PxrSdfLayer.Get()->SetEndTimeCode( TimeCode );
+		}
+#endif // #if USE_USD_SDK
+	}
+
 	bool FSdfLayer::HasTimeCodesPerSecond() const
 	{
 #if USE_USD_SDK
@@ -234,6 +268,38 @@ namespace UE
 		return Impl->PxrSdfLayer.Get()->GetTimeCodesPerSecond();
 #else
 		return 0.0;
+#endif // #if USE_USD_SDK
+	}
+
+	void FSdfLayer::SetTimeCodesPerSecond( double TimeCodesPerSecond )
+	{
+#if USE_USD_SDK
+		return Impl->PxrSdfLayer.Get()->SetTimeCodesPerSecond( TimeCodesPerSecond );
+#endif // #if USE_USD_SDK
+	}
+
+	bool FSdfLayer::HasFramesPerSecond() const
+	{
+#if USE_USD_SDK
+		return Impl->PxrSdfLayer.Get()->HasFramesPerSecond();
+#else
+		return false;
+#endif // #if USE_USD_SDK
+	}
+
+	double FSdfLayer::GetFramesPerSecond() const
+	{
+#if USE_USD_SDK
+		return Impl->PxrSdfLayer.Get()->GetFramesPerSecond();
+#else
+		return 0.0;
+#endif // #if USE_USD_SDK
+	}
+
+	void FSdfLayer::SetFramesPerSecond( double FramesPerSecond )
+	{
+#if USE_USD_SDK
+		return Impl->PxrSdfLayer.Get()->SetFramesPerSecond( FramesPerSecond );
 #endif // #if USE_USD_SDK
 	}
 
@@ -292,6 +358,31 @@ namespace UE
 		return Impl->PxrSdfLayer.Get()->HasSpec( Path );
 #else
 		return false;
+#endif // #if USE_USD_SDK
+	}
+
+	TSet< double > FSdfLayer::ListTimeSamplesForPath( const FSdfPath& Path ) const
+	{
+		TSet< double > TimeSamples;
+
+#if USE_USD_SDK
+		FScopedUsdAllocs UsdAllocs;
+
+		std::set< double > UsdTimeSamples = Impl->PxrSdfLayer.Get()->ListTimeSamplesForPath( Path );
+
+		for ( double UsdTimeSample : UsdTimeSamples )
+		{
+			TimeSamples.Add( UsdTimeSample );
+		}
+#endif // #if USE_USD_SDK
+
+		return TimeSamples;
+	}
+
+	void FSdfLayer::EraseTimeSample( const FSdfPath& Path, double Time )
+	{
+#if USE_USD_SDK
+		return Impl->PxrSdfLayer.Get()->EraseTimeSample( Path, Time );
 #endif // #if USE_USD_SDK
 	}
 

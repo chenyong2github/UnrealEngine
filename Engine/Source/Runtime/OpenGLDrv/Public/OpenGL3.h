@@ -42,8 +42,8 @@ struct FOpenGL3 : public FOpenGLBase
 	static FORCEINLINE bool SupportsGenerateMipmap()				{ return true; }
 	static FORCEINLINE bool AmdWorkaround()							{ return bAmdWorkaround; }
 	static FORCEINLINE bool SupportsTessellation()					{ return bSupportsTessellation; }
-	static FORCEINLINE bool SupportsTextureSwizzle()				{ return true; }
 	static FORCEINLINE bool SupportsSeparateShaderObjects()			{ return bSupportsSeparateShaderObjects; }
+	static FORCEINLINE bool SupportsBufferStorage()					{ return true; }
 
 	// Optional
 	static FORCEINLINE void QueryTimestampCounter(GLuint QueryID)
@@ -144,6 +144,9 @@ struct FOpenGL3 : public FOpenGLBase
 		{
 			case EResourceLockMode::RLM_ReadOnly:
 				Access = GL_MAP_READ_BIT;
+				break;
+			case EResourceLockMode::RLM_ReadOnlyPersistent:
+				Access = (GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
 				break;
 			case EResourceLockMode::RLM_WriteOnly:
 				Access = (GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_WRITE_BIT);

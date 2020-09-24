@@ -35,15 +35,10 @@ private:
 	* Whether the audio thread is currently running
 	* If this is false, then we have no audio thread and audio commands will be issued directly on the game thread
 	*/
-	static bool bIsAudioThreadRunning;
-
-	static bool bIsAudioThreadSuspended;
+	static TAtomic<bool> bIsAudioThreadRunning;
 
 	/** The audio thread itself. */
 	static FRunnable* AudioThreadRunnable;
-
-	/** The stashed value of the audio thread as we clear it during GC */
-	static uint32 CachedAudioThreadId;
 
 	void OnPreGarbageCollect();
 	void OnPostGarbageCollect();
@@ -87,6 +82,7 @@ public:
 	static ENGINE_API void SetUseThreadedAudio(bool bInUseThreadedAudio);
 	static ENGINE_API bool IsUsingThreadedAudio();
 
+	UE_DEPRECATED(4.26, "Please use global `IsAudioThreadRunning()`")
 	static ENGINE_API bool IsAudioThreadRunning();
 
 	static ENGINE_API void SuspendAudioThread();

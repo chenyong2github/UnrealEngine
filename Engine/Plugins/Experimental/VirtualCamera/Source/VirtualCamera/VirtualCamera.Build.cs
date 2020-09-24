@@ -23,7 +23,11 @@ public class VirtualCamera : ModuleRules
 				"RemoteSession",
 				"TimeManagement",
 				"UMG",
+				"VCamCore",
 				"VPUtilities",
+				"VPUtilitiesEditor",
+				"TakesCore",
+				"AssetRegistry",
 			}
 		);
 
@@ -62,6 +66,7 @@ public class VirtualCamera : ModuleRules
 			PrivateDependencyModuleNames.Add("LevelEditor");
 			PrivateDependencyModuleNames.Add("EditorFramework");
 			PrivateDependencyModuleNames.Add("UnrealEd");
+			PrivateDependencyModuleNames.Add("EditorScriptingUtilities");
 		}
 	}
 }

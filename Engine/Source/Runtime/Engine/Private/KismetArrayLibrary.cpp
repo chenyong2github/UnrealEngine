@@ -17,6 +17,7 @@ const FName InsertOutOfBoundsWarning = FName("InsertOutOfBoundsWarning");
 const FName RemoveOutOfBoundsWarning = FName("RemoveOutOfBoundsWarning");
 const FName ResizeArrayNegativeWarning = FName("ResizeArrayNegativeWarning");
 const FName SwapElementsInArrayWarning = FName("SwapElementsInArrayWarning");
+const FName RandomAccessToEmptyArrayWarning = FName("RandomAccessToEmptyArrayWarning");
 
 UKismetArrayLibrary::UKismetArrayLibrary(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -55,6 +56,12 @@ UKismetArrayLibrary::UKismetArrayLibrary(const FObjectInitializer& ObjectInitial
 		FBlueprintWarningDeclaration(
 			SwapElementsInArrayWarning,
 			LOCTEXT("SwapElementsInArrayWarning", "Array swap access out of bounds")
+		)
+	);
+	FBlueprintSupport::RegisterBlueprintWarning(
+		FBlueprintWarningDeclaration(
+			RandomAccessToEmptyArrayWarning,
+			LOCTEXT("RandomAccessToEmptyArrayWarning", "Random access to empty array")
 		)
 	);
 }
@@ -255,6 +262,19 @@ void UKismetArrayLibrary::GenericArray_Resize(void* TargetArray, const FArrayPro
 	}
 }
 
+void UKismetArrayLibrary::GenericArray_Reverse(void* TargetArray, const FArrayProperty* ArrayProp)
+{
+	if (TargetArray)
+	{
+		FScriptArrayHelper ArrayHelper(ArrayProp, TargetArray);
+		const int32 ArraySize = ArrayHelper.Num();
+		for (int32 i = 0, i2 = ArraySize - 1; i < ArraySize / 2 /*rounding down*/; ++i, --i2)
+		{
+			ArrayHelper.SwapValues(i, i2);
+		}
+	}
+}
+
 int32 UKismetArrayLibrary::GenericArray_Length(const void* TargetArray, const FArrayProperty* ArrayProp)
 {
 	if( TargetArray )
@@ -447,6 +467,58 @@ void UKismetArrayLibrary::GenericArray_HandleBool(const FProperty* Property, voi
 	}
 }
 
+
+void UKismetArrayLibrary::GenericArray_Random(void* TargetArray, const FArrayProperty* ArrayProp, void* OutItem, int32* OutIndex)
+{
+	*OutIndex = INDEX_NONE;
+	if (TargetArray)
+	{
+		FScriptArrayHelper ArrayHelper(ArrayProp, TargetArray);
+		FProperty* InnerProp = ArrayProp->Inner;
+
+		if (ArrayHelper.Num() > 0)
+		{
+			const int32 Index = FMath::RandRange(0, ArrayHelper.Num() - 1);
+
+			InnerProp->CopySingleValueToScriptVM(OutItem, ArrayHelper.GetRawPtr(Index));
+			*OutIndex = Index;
+		} 
+		else
+		{
+			FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Attempted to access random index from empty array!")),
+				ELogVerbosity::Warning,
+				RandomAccessToEmptyArrayWarning);
+			InnerProp->InitializeValue(OutItem);
+		}
+	}
+}
+
+void UKismetArrayLibrary::GenericArray_RandomFromStream(void* TargetArray, const FArrayProperty* ArrayProp, FRandomStream* RandomStream, void* OutItem, int32* OutIndex)
+{
+	*OutIndex = INDEX_NONE;
+	if (TargetArray && RandomStream)
+	{
+		FScriptArrayHelper ArrayHelper(ArrayProp, TargetArray);
+		FProperty* InnerProp = ArrayProp->Inner;
+
+		if (ArrayHelper.Num() > 0)
+		{
+			const int32 Index = RandomStream->RandRange(0, ArrayHelper.Num() - 1);
+
+			InnerProp->CopySingleValueToScriptVM(OutItem, ArrayHelper.GetRawPtr(Index));
+			*OutIndex = Index;
+		}
+		else
+		{
+			FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Attempted to access random index from empty array!")),
+				ELogVerbosity::Warning,
+				RandomAccessToEmptyArrayWarning);
+			InnerProp->InitializeValue(OutItem);
+		}
+	}
+}
+
+
 //////////////////////////////////////////////////////////////////////////
 // Stubs for the UFunctions declared as kismet callable.  These are never actually called...the CustomThunk code calls the appropriate native function with a void* reference to the array
 
@@ -559,5 +631,18 @@ bool UKismetArrayLibrary::Array_IsValidIndex(const TArray<int32>& TargetArray, i
 	check(0);
 	return true;
 }
+
+void UKismetArrayLibrary::Array_Random(const TArray<int32>& TargetArray, int32& OutItem, int32& OutIndex)
+{
+	// We should never hit these!  They're stubs to avoid NoExport on the class.  Call the Generic* equivalent instead
+	check(0);
+}
+
+void UKismetArrayLibrary::Array_RandomFromStream(const TArray<int32>& TargetArray, FRandomStream& RandomStream, int32& OutItem, int32& OutIndex)
+{
+	// We should never hit these!  They're stubs to avoid NoExport on the class.  Call the Generic* equivalent instead
+	check(0);
+}
+
 
 #undef LOCTEXT_NAMESPACE

@@ -23,7 +23,6 @@
 #include "AssetImportTask.h"
 #include "Misc/FileHelper.h"
 
-#include "SkelMeshDNAUtils.h"
 #include "DNAAssetImportUI.h"
 #include "DNAImporter.h"
 

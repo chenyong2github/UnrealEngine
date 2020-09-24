@@ -1,34 +1,60 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RenderGraphResources.h"
+#include "RenderGraphPass.h"
 #include "RenderGraphPrivate.h"
 
-FRDGParentResource::FRDGParentResource(const TCHAR* InName, const ERDGParentResourceType InType, const ERDGParentResourceFlags InFlags, bool bInIsExternal)
+#if RDG_ENABLE_DEBUG
+void FRDGResource::MarkResourceAsUsed()
+{
+	ValidateRHIAccess();
+	DebugData.bIsActuallyUsedByPass = true;
+}
+
+void FRDGUniformBuffer::MarkResourceAsUsed()
+{
+	FRDGResource::MarkResourceAsUsed();
+
+	// Individual resources can't be culled from a uniform buffer, so we have to mark them all as used.
+	ParameterStruct.Enumerate([](FRDGParameter Parameter)
+	{
+		if (FRDGResourceRef Resource = Parameter.GetAsResource())
+		{
+			Resource->MarkResourceAsUsed();
+		}
+	});
+}
+#endif
+
+FRDGParentResource::FRDGParentResource(const TCHAR* InName, const ERDGParentResourceType InType)
 	: FRDGResource(InName)
 	, Type(InType)
-	, Flags(InFlags)
-	, bIsExternal(bInIsExternal)
+	, bExternal(0)
+	, bExtracted(0)
+	, bTransient(0)
+	, bLastOwner(1)
+	// Culling logic runs only when immediate mode is off.
+	, bCulled(1)
+	, bUsedByAsyncComputePass(0)
 {}
 
 bool FRDGSubresourceState::IsTransitionRequired(const FRDGSubresourceState& Previous, const FRDGSubresourceState& Next)
 {
-	check(Next.Access != EResourceTransitionAccess::Unknown);
+	check(Next.Access != ERHIAccess::Unknown);
 
 	if (Previous.Access != Next.Access || Previous.Pipeline != Next.Pipeline)
 	{
 		return true;
 	}
-	else if (
-		EnumHasAnyFlags(Previous.Access, EResourceTransitionAccess::UAVMask) &&
-		EnumHasAnyFlags(Next.Access, EResourceTransitionAccess::UAVMask))
+	else if (EnumHasAnyFlags(Previous.Access, ERHIAccess::UAVMask) && EnumHasAnyFlags(Next.Access, ERHIAccess::UAVMask))
 	{
 		if (!GRDGOverlapUAVs)
 		{
 			return true;
 		}
 
-		const FRDGResourceHandle PreviousUniqueHandle = Previous.NoUAVBarrierFilter.GetUniqueHandle();
-		const FRDGResourceHandle NextUniqueHandle = Next.NoUAVBarrierFilter.GetUniqueHandle();
+		const FRDGViewHandle PreviousUniqueHandle = Previous.NoUAVBarrierFilter.GetUniqueHandle();
+		const FRDGViewHandle NextUniqueHandle = Next.NoUAVBarrierFilter.GetUniqueHandle();
 
 		// Previous / Next have the same non-null no-barrier UAV.
 		const bool bHasNoBarrierUAV = PreviousUniqueHandle == NextUniqueHandle && PreviousUniqueHandle.IsValid();
@@ -42,213 +68,190 @@ bool FRDGSubresourceState::IsTransitionRequired(const FRDGSubresourceState& Prev
 	}
 }
 
-void FRDGSubresourceState::SetPass(FRDGPassHandle InPassHandle, ERDGPipeline InPipeline)
+bool FRDGSubresourceState::IsMergeAllowed(ERDGParentResourceType ResourceType, const FRDGSubresourceState& Previous, const FRDGSubresourceState& Next)
 {
-	PassHandle = InPassHandle;
-	Pipeline = InPipeline;
-}
+	const ERHIAccess AccessUnion = Previous.Access | Next.Access;
 
-void FRDGSubresourceState::MergeSanitizedFrom(const FRDGSubresourceState& Other)
-{
-	//ensureMsgf(Other.Pipeline == ERDGPipeline::Graphics, TEXT("Resource should be on the graphics pipeline!"));
-
-	// Preserve pipeline / access members.
-	const ERDGPipeline LocalPipeline = Pipeline;
-	const EResourceTransitionAccess LocalAccess = Access;
-	*this = Other;
-	Pipeline = LocalPipeline;
-	Access = LocalAccess;
-}
-
-bool FRDGSubresourceState::MergeCrossPipelineFrom(const FRDGSubresourceState& Other)
-{
-	if (Other.Access != EResourceTransitionAccess::Unknown && Pipeline != Other.Pipeline)
+	// If we have the same access between the two states, we don't need to check for invalid access combinations.
+	if (Previous.Access != Next.Access)
 	{
-		const ERDGPipeline LocalPipeline = Pipeline;
-		*this = Other;
-		Pipeline = LocalPipeline;
-		return true;
-	}
-	return false;
-}
-
-bool FRDGSubresourceState::MergeFrom(const FRDGSubresourceState& Other)
-{
-	if (Other.Access != EResourceTransitionAccess::Unknown)
-	{
-		*this = Other;
-		return true;
-	}
-	return false;
-}
-
-FRDGTextureState::FRDGTextureState(const FRDGTextureDesc& Desc)
-	: Layout(Desc.NumMips, Desc.ArraySize, IsStencilFormat(Desc.Format) ? 2 : 1)
-{
-	checkf(Layout.GetSubresourceCount(), TEXT("Texture '%s' doesn't have any subresources."), Desc.DebugName);
-}
-
-void FRDGTextureState::InitAsWholeResource(FRDGSubresourceState InState)
-{
-	check(Layout.GetSubresourceCount());
-
-	WholeResourceState = InState;
-
-	// Reset the subresource states. This keeps the array memory allocation in case the resource
-	// is accessed on a subresource level again for the lifetime of this render graph instance.
-	SubresourceStates.Reset();
-}
-
-void FRDGTextureState::InitAsSubresources(FRDGSubresourceState InState)
-{
-	check(Layout.GetSubresourceCount());
-
-	WholeResourceState = {};
-	SubresourceStates.SetNum(Layout.GetSubresourceCount());
-
-	for (FRDGSubresourceState& State : SubresourceStates)
-	{
-		State = InState;
-	}
-}
-
-void FRDGTextureState::MergeSanitizedFrom(const FRDGTextureState& Other)
-{
-	check(Layout == Other.Layout);
-
-	if (Other.IsWholeResourceState())
-	{
-		InitAsWholeResource({});
-		WholeResourceState.MergeSanitizedFrom(Other.WholeResourceState);
-	}
-	else
-	{
-		if (IsWholeResourceState())
+		// Not allowed to merge read-only and writable states.
+		if (EnumHasAnyFlags(Previous.Access, ERHIAccess::ReadOnlyExclusiveMask) && EnumHasAnyFlags(Next.Access, ERHIAccess::WritableMask))
 		{
-			InitAsSubresources(WholeResourceState);
+			return false;
 		}
 
-		for (int32 Index = 0; Index < SubresourceStates.Num(); ++Index)
+		// Not allowed to merge write-only and readable states.
+		if (EnumHasAnyFlags(Previous.Access, ERHIAccess::WriteOnlyExclusiveMask) && EnumHasAnyFlags(Next.Access, ERHIAccess::ReadableMask))
 		{
-			SubresourceStates[Index].MergeSanitizedFrom(Other.SubresourceStates[Index]);
+			return false;
+		}
+
+		// Textures only allow certain read states to merge.
+		if (ResourceType == ERDGParentResourceType::Texture && EnumHasAnyFlags(AccessUnion, ~GRHITextureReadAccessMask))
+		{
+			return false;
 		}
 	}
+
+	// For merging purposes we are conservative and assume a UAV barrier.
+	if (EnumHasAnyFlags(AccessUnion, ERHIAccess::UAVMask))
+	{
+		return false;
+	}
+
+	// We are not allowed to cross pipelines or change flags in a merge.
+	if (Previous.Pipeline != Next.Pipeline || Previous.Flags != Next.Flags)
+	{
+		return false;
+	}
+
+	return true;
 }
 
-void FRDGTextureState::MergeCrossPipelineFrom(const FRDGTextureState& Other)
+bool FRDGTextureDesc::IsValid() const
 {
-	check(Layout == Other.Layout);
-
-	if (Other.IsWholeResourceState())
+	if (Extent.X <= 0 || Extent.Y <= 0 || Depth == 0 || ArraySize == 0 || NumMips == 0 || NumSamples < 1 || NumSamples > 8)
 	{
-		if (IsWholeResourceState())
-		{
-			WholeResourceState.MergeCrossPipelineFrom(Other.WholeResourceState);
-		}
-		else
-		{
-			int32 MergedSubresourceCount = 0;
+		return false;
+	}
 
-			// We can't know whether to coalesce to a whole resource state until we compare each individual
-			// subresource, since we're comparing against individual subresource pipelines.
-			for (int32 Index = 0; Index < SubresourceStates.Num(); ++Index)
-			{
-				if (SubresourceStates[Index].MergeCrossPipelineFrom(Other.WholeResourceState))
-				{
-					MergedSubresourceCount++;
-				}
-			}
+	if (Dimension != ETextureDimension::Texture2D && NumSamples > 1)
+	{
+		return false;
+	}
 
-			// If all sub-resources were merged, just reset to a whole resource.
-			if (MergedSubresourceCount == SubresourceStates.Num())
-			{
-				InitAsWholeResource(Other.WholeResourceState);
-			}
+	if (Dimension == ETextureDimension::Texture3D)
+	{
+		if (ArraySize > 1)
+		{
+			return false;
 		}
 	}
-	else
+	else if (Depth > 1)
 	{
-		if (IsWholeResourceState())
+		return false;
+	}
+
+	if (Format == PF_Unknown)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+void FRDGPooledTexture::InitViews(const FUnorderedAccessViewRHIRef& FirstMipUAV)
+{
+	if (EnumHasAnyFlags(Desc.Flags, TexCreate_ShaderResource))
+	{
+		SRVs.Empty(Desc.NumMips);
+	}
+
+	if (EnumHasAnyFlags(Desc.Flags, TexCreate_UAV))
+	{
+		MipUAVs.Empty(Desc.NumMips);
+
+		uint32 MipLevel = 0;
+
+		if (FirstMipUAV)
 		{
-			InitAsSubresources(WholeResourceState);
+			MipUAVs.Add(FirstMipUAV);
+			MipLevel++;
 		}
 
-		for (int32 Index = 0; Index < SubresourceStates.Num(); ++Index)
+		for (; MipLevel < Desc.NumMips; MipLevel++)
 		{
-			SubresourceStates[Index].MergeCrossPipelineFrom(Other.SubresourceStates[Index]);
+			MipUAVs.Add(RHICreateUnorderedAccessView(Texture, MipLevel));
 		}
 	}
 }
 
-void FRDGTextureState::MergeFrom(const FRDGTextureState& Other)
+FRDGTextureSubresourceRange FRDGTexture::GetSubresourceRangeSRV() const
 {
-	check(Layout == Other.Layout);
+	FRDGTextureSubresourceRange Range = GetSubresourceRange();
 
-	if (Other.IsWholeResourceState())
-	{
-		if (Other.WholeResourceState.Access != EResourceTransitionAccess::Unknown)
-		{
-			InitAsWholeResource(Other.WholeResourceState);
-		}
-	}
-	else
-	{
-		if (IsWholeResourceState())
-		{
-			InitAsSubresources(WholeResourceState);
-		}
+	// When binding a whole texture for shader read (SRV), we only use the first plane.
+	// Other planes like stencil require a separate view to access for read in the shader.
+	Range.PlaneSlice = FRHITransitionInfo::kDepthPlaneSlice;
+	Range.NumPlaneSlices = 1;
 
-		// Only merge subresource states that are known.
-		for (int32 Index = 0; Index < SubresourceStates.Num(); ++Index)
-		{
-			SubresourceStates[Index].MergeFrom(Other.SubresourceStates[Index]);
-		}
-	}
+	return Range;
 }
 
-void FRDGTextureState::SetPass(FRDGPassHandle PassHandle, ERDGPipeline Pipeline)
+void FRDGTexture::SetRHI(FPooledRenderTarget* InPooledRenderTarget, FRDGTextureRef& OutPreviousOwner)
 {
-	if (IsWholeResourceState())
-	{
-		WholeResourceState.SetPass(PassHandle, Pipeline);
-	}
-	else
-	{
-		for (FRDGSubresourceState& State : SubresourceStates)
-		{
-			State.SetPass(PassHandle, Pipeline);
-		}
-	}
-}
+	check(InPooledRenderTarget);
 
-FRDGTexture::FRDGTexture(const TCHAR* InName, const FPooledRenderTargetDesc& InDesc, ERDGParentResourceFlags InFlags, bool bIsExternal)
-	: FRDGParentResource(InName, ERDGParentResourceType::Texture, InFlags, bIsExternal)
-	, Desc(InDesc)
-	, State(InDesc)
-	, StatePending(InDesc)
-{}
+	if (!InPooledRenderTarget->HasRDG())
+	{
+		InPooledRenderTarget->InitRDG();
+	}
+	PooledTexture = InPooledRenderTarget->GetRDG(RenderTargetTexture);
+	check(PooledTexture);
 
-void FRDGTexture::Init(const TRefCountPtr<IPooledRenderTarget>& InPooledTexture)
-{
-	check(InPooledTexture);
-	PooledTexture = InPooledTexture;
-	ResourceRHI = InPooledTexture->GetRenderTargetItem().ShaderResourceTexture;
+	State = &PooledTexture->State;
+
+	// Return the previous owner and assign this texture as the new one.
+	OutPreviousOwner = PooledTexture->Owner;
+	PooledTexture->Owner = this;
+
+	// Link the previous alias to this one.
+	if (OutPreviousOwner)
+	{
+		OutPreviousOwner->NextOwner = Handle;
+		OutPreviousOwner->bLastOwner = false;
+	}
+
+	Allocation = InPooledRenderTarget;
+	PooledRenderTarget = InPooledRenderTarget;
+	ResourceRHI = PooledTexture->GetRHI();
 	check(ResourceRHI);
 }
 
-FRDGBuffer::FRDGBuffer(
-	const TCHAR* InName,
-	const FRDGBufferDesc& InDesc,
-	ERDGParentResourceFlags InFlags,
-	bool bIsExternal)
-	: FRDGParentResource(InName, ERDGParentResourceType::Buffer, InFlags, bIsExternal)
-	, Desc(InDesc)
-{}
+void FRDGTexture::Finalize()
+{
+	checkf(NextOwner.IsNull() == !!bLastOwner, TEXT("NextOwner must match bLastOwner."));
+	checkf(((bExternal || bExtracted) && !bLastOwner) == false, TEXT("Both external and extracted resources must be the last owner of a resource."));
 
-void FRDGBuffer::Init(const TRefCountPtr<FPooledRDGBuffer>& InPooledBuffer)
+	if (bLastOwner)
+	{
+		// External and extracted resources are user controlled, so we cannot assume the texture stays in its final state.
+		if (bExternal || bExtracted)
+		{
+			PooledTexture->Reset();
+		}
+		else
+		{
+			PooledTexture->Finalize();
+		}
+
+		// Resume automatic discard behavior for transient resources.
+		static_cast<FPooledRenderTarget*>(PooledRenderTarget)->bAutoDiscard = true;
+
+		// Restore the reference to the last owner in the aliasing chain.
+		Allocation = PooledRenderTarget;
+	}
+}
+
+void FRDGBuffer::SetRHI(FRDGPooledBuffer* InPooledBuffer, FRDGBufferRef& OutPreviousOwner)
 {
 	check(InPooledBuffer);
+
+	// Return the previous owner and assign this buffer as the new one.
+	OutPreviousOwner = InPooledBuffer->Owner;
+	InPooledBuffer->Owner = this;
+
+	// Link the previous owner to this one.
+	if (OutPreviousOwner)
+	{
+		OutPreviousOwner->NextOwner = Handle;
+		OutPreviousOwner->bLastOwner = false;
+	}
+
 	PooledBuffer = InPooledBuffer;
+	Allocation = InPooledBuffer;
+	State = &PooledBuffer->State;
 	switch (Desc.UnderlyingType)
 	{
 	case FRDGBufferDesc::EUnderlyingType::VertexBuffer:
@@ -262,4 +265,38 @@ void FRDGBuffer::Init(const TRefCountPtr<FPooledRDGBuffer>& InPooledBuffer)
 		break;
 	}
 	check(ResourceRHI);
+}
+
+void FRDGBuffer::Finalize()
+{
+	// If these fire, the graph is not tracking state properly.
+	check(NextOwner.IsNull() == !!bLastOwner);
+	check(!((bExternal || bExtracted) && !bLastOwner));
+
+	if (bLastOwner)
+	{
+		if (bExternal || bExtracted)
+		{
+			PooledBuffer->Reset();
+		}
+		else
+		{
+			PooledBuffer->Finalize();
+		}
+
+		// Restore the reference to the last owner in the chain and sanitize all graph state.
+		Allocation = PooledBuffer;
+	}
+}
+
+FRDGTextureRef FRDGTexture::GetPassthrough(const TRefCountPtr<IPooledRenderTarget>& PooledRenderTargetBase)
+{
+	if (PooledRenderTargetBase)
+	{
+		check(PooledRenderTargetBase->IsCompatibleWithRDG());
+		FRDGTextureRef Texture = &static_cast<FPooledRenderTarget&>(*PooledRenderTargetBase).PassthroughShaderResourceTexture;
+		checkf(Texture->GetRHI(), TEXT("The render target pool didn't allocate a passthrough RHI texture for %s"), PooledRenderTargetBase->GetDesc().DebugName);
+		return Texture;
+	}
+	return nullptr;
 }

@@ -61,6 +61,10 @@ SamplerState DistanceFieldNormalSampler;
 
 float4 EncodeDownsampledGBuffer(FGBufferData GBufferData, float SceneDepth)
 {
+	#if METAL_PROFILE 
+		// clamp max depth to avoid #inf
+		SceneDepth = min(SceneDepth, 65500.0f);
+	#endif
 	return float4(GBufferData.WorldNormal.xyz, SceneDepth);
 } 
 

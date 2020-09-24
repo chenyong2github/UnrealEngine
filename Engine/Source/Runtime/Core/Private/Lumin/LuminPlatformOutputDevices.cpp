@@ -19,7 +19,7 @@ void FLuminOutputDevices::SetupOutputDevices()
 {
 	check(GLog);
 
-	CachedAbsoluteFilename[0] = 0;
+	InitDefaultOutputDeviceFile();
 
 	GLog->AddOutputDevice(FPlatformOutputDevices::GetLog());
 

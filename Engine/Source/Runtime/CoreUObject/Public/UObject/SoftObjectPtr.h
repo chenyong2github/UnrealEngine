@@ -90,7 +90,9 @@ public:
 		if (GPlayInEditorID != INDEX_NONE)
 		{
 			// Cannot use or set the cached value in PIE as it may affect other PIE instances or the editor
-			return GetUniqueID().ResolveObject();
+			TWeakObjectPtr<UObject> Result = GetUniqueID().ResolveObject();
+			// If this object is pending kill or otherwise invalid, this will return nullptr just like TPersistentObjectPtr<FSoftObjectPath>::Get()
+			return Result.Get();
 		}
 		return TPersistentObjectPtr<FSoftObjectPath>::Get();
 	}

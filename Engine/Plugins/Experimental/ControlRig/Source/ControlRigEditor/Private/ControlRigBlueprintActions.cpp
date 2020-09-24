@@ -24,7 +24,7 @@
 #include "ISequencer.h"
 #include "ILevelSequenceEditorToolkit.h"
 #include "Sequencer/MovieSceneControlRigParameterTrack.h"
-#include "ControlRigSkeletalMeshBinding.h"
+#include "ControlRigObjectBinding.h"
 #include "EditMode/ControlRigEditMode.h"
 #include "Editor.h"
 #include "EditorModeManager.h"
@@ -132,6 +132,11 @@ UControlRigBlueprint* FControlRigBlueprintActions::CreateNewControlRigAsset(cons
 	FString UniqueAssetName;
 	AssetToolsModule.Get().CreateUniqueAssetName(InDesiredPackagePath, TEXT(""), UniquePackageName, UniqueAssetName);
 
+	if (UniquePackageName.EndsWith(UniqueAssetName))
+	{
+		UniquePackageName = UniquePackageName.LeftChop(UniqueAssetName.Len() + 1);
+	}
+
 	UObject* NewAsset = AssetToolsModule.Get().CreateAsset(*UniqueAssetName, *UniquePackageName, nullptr, Factory);
 	return Cast<UControlRigBlueprint>(NewAsset);
 }
@@ -170,12 +175,15 @@ UControlRigBlueprint* FControlRigBlueprintActions::CreateControlRigFromSkeletalM
 
 	NewControlRigBlueprint->HierarchyContainer.BoneHierarchy.ImportSkeleton(Skeleton->GetReferenceSkeleton(), NAME_None, true, true, false, false);
 	NewControlRigBlueprint->HierarchyContainer.CurveContainer.ImportCurvesFromSkeleton(Skeleton, NAME_None, true, false, false);
+	NewControlRigBlueprint->SourceHierarchyImport = Skeleton;
 	NewControlRigBlueprint->SourceCurveImport = Skeleton;
 
 	if(SkeletalMesh)
 	{
 		NewControlRigBlueprint->SetPreviewMesh(SkeletalMesh);
 	}
+
+	NewControlRigBlueprint->RecompileVM();
 
 	return NewControlRigBlueprint;
 }
@@ -246,7 +254,7 @@ void FControlRigBlueprintActions::OnSpawnedSkeletalMeshActorChanged(UObject* InO
 		FString UniqueAssetName;
 		AssetToolsModule.Get().CreateUniqueAssetName(PackagePath / SequenceName, TEXT(""), UniquePackageName, UniqueAssetName);
 
-		UPackage* Package = CreatePackage(nullptr, *UniquePackageName);
+		UPackage* Package = CreatePackage(*UniquePackageName);
 		ULevelSequence* Sequence = NewObject<ULevelSequence>(Package, *UniqueAssetName, RF_Public | RF_Standalone);
 		Sequence->Initialize(); //creates movie scene
 		Sequence->MarkPackageDirty();
@@ -306,17 +314,17 @@ void FControlRigBlueprintActions::OnSpawnedSkeletalMeshActorChanged(UObject* InO
 				ObjectName.RemoveFromEnd(TEXT("_C"));
 
 				UControlRig* ControlRig = NewObject<UControlRig>(Track, ControlRigClass, FName(*ObjectName), RF_Transactional);
-				ControlRig->SetObjectBinding(MakeShared<FControlRigSkeletalMeshBinding>());
+				ControlRig->SetObjectBinding(MakeShared<FControlRigObjectBinding>());
 				ControlRig->GetObjectBinding()->BindToObject(MeshActor->GetSkeletalMeshComponent());
 				ControlRig->GetDataSourceRegistry()->RegisterDataSource(UControlRig::OwnerComponent, ControlRig->GetObjectBinding()->GetBoundObject());
 				ControlRig->Initialize();
-				ControlRig->Execute(EControlRigState::Update);
+				ControlRig->Evaluate_AnyThread();
 				ControlRig->CreateRigControlsForCurveContainer();
 
 				WeakSequencer.Pin()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
 
 				Track->Modify();
-				UMovieSceneSection* NewSection = Track->CreateControlRigSection(0, ControlRig);
+				UMovieSceneSection* NewSection = Track->CreateControlRigSection(0, ControlRig, true);
 				//mz todo need to have multiple rigs with same class
 				Track->SetTrackName(FName(*ObjectName));
 				Track->SetDisplayName(FText::FromString(ObjectName));
@@ -337,7 +345,7 @@ void FControlRigBlueprintActions::OnSpawnedSkeletalMeshActorChanged(UObject* InO
 				}
 				if (ControlRigEditMode)
 				{
-					ControlRigEditMode->SetObjects(ControlRig, FGuid(), nullptr, WeakSequencer.Pin());
+					ControlRigEditMode->SetObjects(ControlRig, nullptr, WeakSequencer.Pin());
 				}
 			}
 		}

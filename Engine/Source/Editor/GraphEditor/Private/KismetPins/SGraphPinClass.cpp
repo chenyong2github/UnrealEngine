@@ -10,6 +10,8 @@
 #include "ClassViewerFilter.h"
 #include "ScopedTransaction.h"
 #include "AssetRegistryModule.h"
+#include "K2Node_Variable.h"
+#include "EdGraphSchema_K2.h"
 
 #define LOCTEXT_NAMESPACE "SGraphPinClass"
 
@@ -19,7 +21,7 @@
 void SGraphPinClass::Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 {
 	SGraphPin::Construct(SGraphPin::FArguments(), InGraphPinObj);
-	bAllowAbstractClasses = true;
+	bAllowAbstractClasses = false;
 }
 
 FReply SGraphPinClass::OnClickUse()
@@ -101,6 +103,24 @@ TSharedRef<SWidget> SGraphPinClass::GenerateAssetPicker()
 
 	TSharedPtr<FGraphPinFilter> Filter = MakeShareable(new FGraphPinFilter);
 	Filter->bAllowAbstractClasses = bAllowAbstractClasses;
+
+	if (UK2Node_Variable* VarNode = Cast<UK2Node_Variable>(GraphPinObj->GetOwningNode()))
+	{
+		const FString* AllowAbstractString = VarNode->GetPropertyForVariable()->FindMetaData(FBlueprintMetadata::MD_AllowAbstractClasses);
+		Filter->bAllowAbstractClasses = AllowAbstractString && AllowAbstractString->ToBool();
+	}
+	else
+	{
+		// Check with the node to see if there is any "AllowAbstract" metadata for the pin
+		FString AllowAbstractString = GraphPinObj->GetOwningNode()->GetPinMetaData(GraphPinObj->PinName, FBlueprintMetadata::MD_AllowAbstractClasses);
+
+		// Override bAllowAbstractClasses is the AllowAbstract metadata was set
+		if (!AllowAbstractString.IsEmpty())
+		{
+			Filter->bAllowAbstractClasses = AllowAbstractString.ToBool();
+		}
+	}
+
 	Options.ClassFilter = Filter;
 
 	Filter->AllowedChildrenOfClasses.Add(PinRequiredParentClass);

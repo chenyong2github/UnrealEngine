@@ -374,6 +374,7 @@ public:
 	virtual void Serialize( FArchive& Ar ) override;
 	virtual bool IsPostLoadThreadSafe() const override;
 	virtual void PostInitProperties() override;
+	virtual void PostLoad() override;
 
 public:
 
@@ -1000,7 +1001,7 @@ public:
 	const TArray<FMovieSceneMarkedFrame>& GetMarkedFrames() const { return MarkedFrames; }
 
 	/*
-	 * Sets the frame number for the given marked frame index.
+	 * Sets the frame number for the given marked frame index. Does not maintain sort. Call SortMarkedFrames
 	 *
 	 * @InMarkIndex The given user marked frame index to edit
 	 * @InFrameNumber The frame number to set
@@ -1027,6 +1028,11 @@ public:
 	 * Delete all user marked frames
 	 */
 	void DeleteMarkedFrames();
+
+	/*
+	 * Sort the marked frames in chronological order
+	 */
+	void SortMarkedFrames();
 
 	/*
 	 * Find the user marked frame by label

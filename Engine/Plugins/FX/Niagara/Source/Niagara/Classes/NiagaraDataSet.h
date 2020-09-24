@@ -181,9 +181,9 @@ public:
 	FORCEINLINE TArray<int32>& GetIDTable() { return IDToIndexTable; }
 	FORCEINLINE const TArray<int32>& GetIDTable() const { return IDToIndexTable; }
 
-	void SetShaderParams(class FNiagaraShader* Shader, FRHICommandList& CommandList, bool bInput);
-	void UnsetShaderParams(class FNiagaraShader* Shader, FRHICommandList& CommandList);
-	void UnsetShaderParamsWithDummies(class FNiagaraShader *Shader, FRHICommandList &RHICmdList, NiagaraEmitterInstanceBatcher& Batcher);
+	static void SetInputShaderParams(FRHICommandList& RHICmdList, class FNiagaraShader* Shader, FNiagaraDataBuffer* Buffer);
+	static void SetOutputShaderParams(FRHICommandList& RHICmdList, class FNiagaraShader* Shader, FNiagaraDataBuffer* Buffer);
+	static void UnsetShaderParams(FRHICommandList& RHICmdList, class FNiagaraShader* Shader);
 
 	void ReleaseGPUInstanceCount(FNiagaraGPUInstanceCountManager& GPUInstanceCountManager);
 
@@ -400,12 +400,12 @@ private:
 	FORCEINLINE void CheckCorrectThread()const
 	{
 		// In some rare occasions, the render thread might be null, like when offloading work to Lightmass 
-		// The final GRenderingThread check keeps us from inadvertently failing when that happens.
+		// The final GIsThreadedRendering check keeps us from inadvertently failing when that happens.
 #if DO_GUARD_SLOW
 		ENiagaraSimTarget SimTarget = GetSimTarget();
 		bool CPUSimOK = (SimTarget == ENiagaraSimTarget::CPUSim && !IsInRenderingThread());
 		bool GPUSimOK = (SimTarget == ENiagaraSimTarget::GPUComputeSim && IsInRenderingThread());
-		checkfSlow(!GRenderingThread || CPUSimOK || GPUSimOK, TEXT("NiagaraDataSet function being called on incorrect thread."));
+		checkfSlow(!GIsThreadedRendering || CPUSimOK || GPUSimOK, TEXT("NiagaraDataSet function being called on incorrect thread."));
 #endif
 	}
 
@@ -551,7 +551,9 @@ FORCEINLINE void FNiagaraDataBuffer::CheckUsage(bool bReadOnly)const
 
 	//We can read on the RT but any modifications must be GT (or GT Task).
 	//For GPU sims we must be on the RT.
-	checkSlow((Owner->GetSimTarget() == ENiagaraSimTarget::CPUSim  && (IsInGameThread() || (bReadOnly || !IsInRenderingThread()))) ||
-		(Owner->GetSimTarget() == ENiagaraSimTarget::GPUComputeSim) && IsInRenderingThread());
+	checkSlow(
+		(Owner->GetSimTarget() == ENiagaraSimTarget::CPUSim && (IsInGameThread() || bReadOnly || !IsInRenderingThread())) ||
+		(Owner->GetSimTarget() == ENiagaraSimTarget::GPUComputeSim && IsInRenderingThread())
+	);
 }
 

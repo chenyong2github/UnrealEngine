@@ -686,8 +686,8 @@ bool FTextTest::RunTest (const FString& Parameters)
 				}
 			}
 		}
-	}
 #endif
+	}
 #else
 	AddWarning("ICU is disabled thus locale-aware formatting needed in rebuilding source text from history is disabled.");
 #endif

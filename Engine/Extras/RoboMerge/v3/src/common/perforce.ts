@@ -22,6 +22,10 @@ const INTEGRATION_FAILURE_REGEXES: [RegExp, string][] = [
 
 export const EXCLUSIVE_CHECKOUT_REGEX = INTEGRATION_FAILURE_REGEXES[0][0]
 
+const changeResultExpectedShape: ztag.ParseOptions = {
+	expected: {change: 'integer', client: 'string', user: 'string', desc: 'string', time: 'integer', status: 'string', changeType: 'string'},
+	optional: {oldChange: 'integer'}
+}
 
 const ztag_group_rex = /\n\n\.\.\.\s/;
 const ztag_field_rex = /(?:\n|^)\.\.\.\s/;
@@ -72,6 +76,23 @@ export interface DescribeResult {
 	description: string
 	entries: DescribeEntry[]
 	date: Date | null
+}
+
+/**
+	Example tracing output
+
+	2020/09/12 19:40:33 576199000 pid 23850: <-  NetTcpTransport 10.200.65.101:63841 closing 10.200.21.246:1667
+ */
+
+const TRACE_OUTPUT_REGEX = /(\d\d\d\d\/\d\d\/\d\d \d\d:\d\d:\d\d \d+) pid (\d+): /
+
+function parseTrace(response: string): [string, string] {
+	const trace: string[] = []
+	const nonTrace: string[] = []
+	for (const line of response.split('\n')) {
+		(line.match(TRACE_OUTPUT_REGEX) ? trace : nonTrace).push(line)
+	}
+	return [trace.join('\n'), nonTrace.join('\n')]
 }
 
 
@@ -240,6 +261,7 @@ interface ExecOpts {
 	noCwd?: boolean;
 	noUsername?: boolean;
 	numRetries?: number;
+	trace?: boolean;
 }
 
 interface ExecZtagOpts extends ExecOpts {
@@ -444,13 +466,6 @@ export class PerforceContext {
 		return this._execP4Ztag(null, ['changes', '-u', this.username, '-s', 'pending'], { multiline: true });
 	}
 
-	// get a list of changes in a path since a specific CL
-	// output format is list of changelists
-	async latestChange(path: string) {
-		const result = await this.changes(path, 0, 1);
-		return <Change>(result && result.length > 0 ? result[0] : null);
-	}
-
 	/** get a single change in the format of changes() */
 	async getChange(path_in: string, changenum: number, status?: ChangelistStatus) {
 		const list = await this.changes(`${path_in}@${changenum},${changenum}`, -1, 1, status)
@@ -475,6 +490,22 @@ export class PerforceContext {
 			expected: {change: 'integer', client: 'string', user: 'string', desc: 'string'},
 			optional: {shelved: 'integer', oldChange: 'integer', IsPromoted: 'integer'}
 		}) as unknown as Promise<Change[]>
+	}
+
+	async latestChange(path: string): Promise<Change> {
+		// wait no longer than 5 seconds, retry up to 3 times
+		const args = ['-vnet.maxwait=5', '-r3', 'changes', '-l', '-ssubmitted', '-m1', path]
+		const result = await this.execAndParse(null, args, {quiet: true, trace: true}, changeResultExpectedShape)
+		if (!result || result.length !== 1) {
+			throw new Error("Expected exactly one change")
+		}
+
+		return result[0] as unknown as Change
+	}
+
+	changesBetween(path: string, from: number, to: number) {
+		const args = ['changes', '-l', '-ssubmitted', `${path}@${from},${to}`]
+		return this.execAndParse(null, args, {quiet: true}, changeResultExpectedShape) as unknown as Promise<Change[]>
 	}
 
 	// find a workspace for the given user
@@ -1269,7 +1300,18 @@ export class PerforceContext {
 						if (response.length > 10 * 1024) {
 							logger.info(`Response size: ${Math.round(response.length / 1024.)}K`)
 						}
-						done(response)
+
+						if (opts.trace) {
+							const [traceResult, rest] = parseTrace(response)
+							const durationSeconds = (Date.now() - cmd_rec.start.valueOf()) / 1000
+							if (durationSeconds > 30) {
+								logger.info(`Cmd: ${cmd_rec.cmd}, duration: ${durationSeconds}s\n` + traceResult)
+							}
+							done(rest)
+						}
+						else {
+							done(response)
+						}
 					}
 				});
 
@@ -1353,14 +1395,14 @@ export class PerforceContext {
 	async execAndParse(roboWorkspace: RoboWorkspace, args: string[], opts: ExecOpts, options?: ztag.ParseOptions) {
 		const workspace = coercePerforceWorkspace(roboWorkspace);
 		const rawOutput = await PerforceContext._execP4(this.logger, workspace, ['-ztag', ...args], opts)
-		return ztag.parseZtagOutput(rawOutput, options)
+		return ztag.parseZtagOutput(rawOutput, this.logger, options)
 
 	}
 
 	async execAndParseArray(roboWorkspace: RoboWorkspace, args: string[], opts: ExecOpts, headerOptions?: ztag.ParseOptions, arrayEntryOptions?: ztag.ParseOptions) {
 		const workspace = coercePerforceWorkspace(roboWorkspace);
 		const rawOutput = await PerforceContext._execP4(this.logger, workspace, ['-ztag', ...args], opts)
-		return ztag.parseHeaderAndArray(rawOutput, headerOptions, arrayEntryOptions)
+		return ztag.parseHeaderAndArray(rawOutput, this.logger, headerOptions, arrayEntryOptions)
 	}
 }
 

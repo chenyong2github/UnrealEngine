@@ -22,6 +22,34 @@ static FAutoConsoleVariableRef CVarEnableNiagaraCRHandler(
 
 class FNiagaraCrashReporterHandler
 {
+private:
+	enum class EThread { Game, Render, Other };
+
+	struct FThreadScopeInfo
+	{
+		EThread Thread;
+		TArray<FString> Stack;
+
+		FThreadScopeInfo()
+			: Thread(GetThreadType())
+		{}
+
+		static EThread GetThreadType()
+		{
+			if (IsInGameThread())
+			{
+				return EThread::Game;
+			}
+
+			if (IsInActualRenderingThread())
+			{
+				return EThread::Render;
+			}
+
+			return EThread::Other;
+		}
+	};
+
 public:
 	FNiagaraCrashReporterHandler()
 	{
@@ -43,7 +71,7 @@ public:
 		const uint32 ThreadID = FPlatformTLS::GetCurrentThreadId();
 
 		FScopeLock LockGuard(&RWGuard);
-		ThreadScopeInfoStack.FindOrAdd(ThreadID).Push(Info);
+		ThreadScopeInfoStack.FindOrAdd(ThreadID).Stack.Push(Info);
 		UpdateInfo();
 	}
 
@@ -67,7 +95,7 @@ public:
 		const uint32 ThreadID = FPlatformTLS::GetCurrentThreadId();
 
 		FScopeLock LockGuard(&RWGuard);
-		ThreadScopeInfoStack[ThreadID].Pop();
+		ThreadScopeInfoStack[ThreadID].Stack.Pop();
 		UpdateInfo();
 	}
 
@@ -82,16 +110,16 @@ private:
 		CurrentInfo.Empty();
 		for (auto it = ThreadScopeInfoStack.CreateIterator(); it; ++it)
 		{
-			if (it->Value.Num() == 0)
+			if (it->Value.Stack.Num() == 0)
 			{
 				continue;
 			}
 
-			if (it->Key == GGameThreadId)
+			if (it->Value.Thread == EThread::Game)
 			{
 				CurrentInfo.Append(GameThreadString);
 			}
-			else if (it->Key == GRenderThreadId)
+			else if (it->Value.Thread == EThread::Render)
 			{
 				CurrentInfo.Append(RenderThreadString);
 			}
@@ -102,7 +130,7 @@ private:
 			CurrentInfo.AppendChar('(');
 			CurrentInfo.AppendInt(it->Key);
 			CurrentInfo.AppendChars(") ", 2);
-			CurrentInfo.Append(it->Value.Last());
+			CurrentInfo.Append(it->Value.Stack.Last());
 			CurrentInfo.AppendChar('\n');
 		}
 
@@ -111,7 +139,7 @@ private:
 
 private:
 	FCriticalSection				RWGuard;
-	TMap<uint32, TArray<FString>>	ThreadScopeInfoStack;
+	TMap<uint32, FThreadScopeInfo>	ThreadScopeInfoStack;
 	FString							CurrentInfo;
 	FString							NullString;
 };

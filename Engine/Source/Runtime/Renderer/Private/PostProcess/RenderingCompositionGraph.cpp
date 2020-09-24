@@ -265,8 +265,7 @@ void FRenderingCompositePassContext::Process(const TArray<FRenderingCompositePas
 		Graph.RecursivelyGatherDependencies(Root);
 	}
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-	SceneTexturesUniformBuffer = CreateSceneTextureUniformBufferDependentOnShadingPath(SceneContext, FeatureLevel, ESceneTextureSetupMode::All, UniformBuffer_SingleFrame);
+	SceneTexturesUniformBuffer = CreateSceneTextureUniformBufferDependentOnShadingPath(RHICmdList, FeatureLevel);
 
 	if(bNewOrder)
 	{
@@ -904,7 +903,6 @@ FRenderingCompositeOutput *FRenderingCompositeOutputRef::GetOutput() const
 
 void FPostProcessPassParameters::Bind(const FShaderParameterMap& ParameterMap)
 {
-	BilinearTextureSampler.Bind(ParameterMap,TEXT("BilinearTextureSampler"));
 	ViewportSize.Bind(ParameterMap,TEXT("ViewportSize"));
 	ViewportRect.Bind(ParameterMap,TEXT("ViewportRect"));
 	ScreenPosToPixel.Bind(ParameterMap, TEXT("ScreenPosToPixel"));
@@ -975,15 +973,6 @@ void FPostProcessPassParameters::Set(
 	check(FilterOverrideArray || Filter);
 	// but not both
 	check(!FilterOverrideArray || !Filter);
-
-	if(BilinearTextureSampler.IsBound())
-	{
-		RHICmdList.SetShaderSampler(
-			ShaderRHI, 
-			BilinearTextureSampler.GetBaseIndex(), 
-			TStaticSamplerState<SF_Bilinear>::GetRHI()
-			);
-	}
 
 	if(ViewportSize.IsBound() || ScreenPosToPixel.IsBound() || ViewportRect.IsBound())
 	{
@@ -1116,7 +1105,7 @@ IMPLEMENT_POST_PROCESS_PARAM_SET(FRHIComputeShader, FRHIAsyncComputeCommandListI
 
 FArchive& operator<<(FArchive& Ar, FPostProcessPassParameters& P)
 {
-	Ar << P.BilinearTextureSampler << P.ViewportSize << P.ScreenPosToPixel << P.SceneColorBufferUVViewport << P.ViewportRect;
+	Ar << P.ViewportSize << P.ScreenPosToPixel << P.SceneColorBufferUVViewport << P.ViewportRect;
 
 	for(uint32 i = 0; i < ePId_Input_MAX; ++i)
 	{
@@ -1135,7 +1124,7 @@ const FSceneRenderTargetItem& FRenderingCompositeOutput::RequestSurface(const FR
 {
 	if(PooledRenderTarget)
 	{
-		Context.RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, PooledRenderTarget->GetRenderTargetItem().TargetableTexture);
+		Context.RHICmdList.Transition(FRHITransitionInfo(PooledRenderTarget->GetRenderTargetItem().TargetableTexture, ERHIAccess::Unknown, ERHIAccess::RTV));
 		return PooledRenderTarget->GetRenderTargetItem();
 	}
 
@@ -1258,7 +1247,7 @@ void FRenderingCompositePass::ExtractRDGTextureForOutput(FRDGBuilder& GraphBuild
 
 	if (FRenderingCompositeOutput* Output = GetOutput(OutputId))
 	{
-		Output->RenderTargetDesc = Texture->Desc;
+		Output->RenderTargetDesc = Translate(Texture->Desc);
 		GraphBuilder.QueueTextureExtraction(Texture, &Output->PooledRenderTarget);
 	}
 }

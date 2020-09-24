@@ -156,6 +156,7 @@ void ULevelVariantSets::RemoveVariantSets(const TArray<UVariantSet*> InVariantSe
 	for (UVariantSet* VariantSet : InVariantSets)
 	{
 		VariantSets.Remove(VariantSet);
+		VariantSet->Rename(nullptr, GetTransientPackage());
 	}
 }
 

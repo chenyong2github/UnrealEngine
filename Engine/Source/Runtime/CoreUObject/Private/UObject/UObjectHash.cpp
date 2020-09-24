@@ -1271,14 +1271,21 @@ void HashObject(UObjectBase* Object)
 		FUObjectHashTables& ThreadHash = FUObjectHashTables::Get();
 		FHashTableLock HashLock(ThreadHash);
 
-		Hash = GetObjectHash(Name);				
-		checkSlow(!ThreadHash.PairExistsInHash(Hash, Object));  // if it already exists, something is wrong with the external code
+		Hash = GetObjectHash(Name);
+#if !UE_BUILD_TEST && !UE_BUILD_SHIPPING
+		// if it already exists, something is wrong with the external code
+		UE_CLOG(ThreadHash.PairExistsInHash(Hash, Object), LogUObjectHash, Fatal, TEXT("%s already exists in UObject hash!"), *GetFullNameSafe((UObjectBaseUtility*)Object));
+#endif
 		ThreadHash.AddToHash(Hash, Object);
 
 		if (PTRINT Outer = (PTRINT)Object->GetOuter())
 		{
 			Hash = GetObjectOuterHash(Name, Outer);
-			checkSlow(!ThreadHash.HashOuter.FindPair(Hash, Object));  // if it already exists, something is wrong with the external code
+			checkSlow(!ThreadHash.HashOuter.FindPair(Hash, Object));  
+#if !UE_BUILD_TEST && !UE_BUILD_SHIPPING
+			// if it already exists, something is wrong with the external code
+			UE_CLOG(ThreadHash.HashOuter.FindPair(Hash, Object), LogUObjectHash, Fatal, TEXT("%s already exists in UObject Outer hash!"), *GetFullNameSafe((UObjectBaseUtility*)Object));
+#endif
 			ThreadHash.HashOuter.Add(Hash, Object);
 
 			AddToOuterMap(ThreadHash, Object);

@@ -9,6 +9,8 @@
 #include "Engine/Scene.h"
 #include "CameraTypes.generated.h"
 
+class UCameraShakeSourceComponent;
+
 //@TODO: Document
 UENUM()
 namespace ECameraProjectionMode
@@ -21,18 +23,15 @@ namespace ECameraProjectionMode
 }
 
 UENUM()
-namespace ECameraAnimPlaySpace
+enum class ECameraShakePlaySpace : uint8
 {
-	enum Type
-	{
- 		/** This anim is applied in camera space. */
- 		CameraLocal,
- 		/** This anim is applied in world space. */
- 		World,
- 		/** This anim is applied in a user-specified space (defined by UserPlaySpaceMatrix). */
- 		UserDefined,
- 	};
-}
+	/** This anim is applied in camera space. */
+	CameraLocal,
+	/** This anim is applied in world space. */
+	World,
+	/** This anim is applied in a user-specified space (defined by UserPlaySpaceMatrix). */
+	UserDefined,
+};
 
 USTRUCT(BlueprintType)
 struct FMinimalViewInfo
@@ -47,11 +46,11 @@ struct FMinimalViewInfo
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Camera)
 	FRotator Rotation;
 
-	/** The field of view (in degrees) in perspective mode (ignored in Orthographic mode) */
+	/** The horizontal field of view (in degrees) in perspective mode (ignored in orthographic mode). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Camera)
 	float FOV;
 
-	/** This is the originally desired field of view before any adjustments to account for different aspect ratios */
+	/** The originally desired horizontal field of view before any adjustments to account for different aspect ratios */
 	UPROPERTY(Transient)
 	float DesiredFOV;
 

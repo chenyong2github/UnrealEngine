@@ -22,6 +22,9 @@ public:
 	/** Activate a component visualizer given a clicked proxy */
 	bool HandleProxyForComponentVis(FEditorViewportClient* InViewportClient, HHitProxy *HitProxy, const FViewportClick &Click);
 
+	/** Activate a component visualizer given the specific visualizer */
+	bool SetActiveComponentVis(FEditorViewportClient* InViewportClient, TSharedPtr<FComponentVisualizer>& InVisualizer);
+
 	/** Clear active component visualizer */
 	void ClearActiveComponentVis();
 

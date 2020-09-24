@@ -434,8 +434,8 @@ void FBehaviorTreeSearchData::Reset()
 	SearchStart = FBTNodeIndex();
 	SearchEnd = FBTNodeIndex();
 	RollbackInstanceIdx = INDEX_NONE;
-	DeactivatedBranchStartIndex = INDEX_NONE;
-	DeactivatedBranchEndIndex = INDEX_NONE;
+	DeactivatedBranchStart = FBTNodeIndex();
+	DeactivatedBranchEnd = FBTNodeIndex();
 	bFilterOutRequestFromDeactivatedBranch = false;
 	bSearchInProgress = false;
 	bPostponeSearch = false;

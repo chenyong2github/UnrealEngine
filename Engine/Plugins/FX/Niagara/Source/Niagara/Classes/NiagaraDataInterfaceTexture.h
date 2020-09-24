@@ -54,23 +54,10 @@ public:
 protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 
-	void PushToRenderThread();
+	virtual void PushToRenderThreadImpl() override;
 
 	static const FName SampleTexture2DName;
 	static const FName SampleVolumeTextureName;
 	static const FName SamplePseudoVolumeTextureName;
 	static const FName TextureDimsName;
-};
-
-struct FNiagaraDataInterfaceProxyTexture : public FNiagaraDataInterfaceProxy
-{
-	FTextureReferenceRHIRef TextureReferenceRHI;
-	FSamplerStateRHIRef SamplerStateRHI;
-	FVector2D TexDims;
-
-	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override { check(false); }
-	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override
-	{
-		return 0;
-	}
 };

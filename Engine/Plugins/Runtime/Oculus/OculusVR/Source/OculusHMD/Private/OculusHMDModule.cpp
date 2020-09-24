@@ -65,8 +65,6 @@ void FOculusHMDModule::GetModuleAliases(TArray<FString>& AliasesOut) const
 {
 	// old name for this module (was renamed in 4.17)
 	AliasesOut.Add(TEXT("OculusRift"));
-	// the old "GearVR" module was merged with this one (also in 4.17)
-	AliasesOut.Add(TEXT("GearVR"));
 
 	AliasesOut.Add(TEXT("Oculus"));
 	AliasesOut.Add(TEXT("Rift"));
@@ -151,6 +149,8 @@ bool FOculusHMDModule::PreInit()
 				UE_LOG(LogHMD, Log, TEXT("Could not determine HMD audio output device"));
 			}
 #endif
+
+			UE_LOG(LogHMD, Log, TEXT("FOculusHMDModule PreInit successfully"));
 
 			bPreInit = true;
 		}

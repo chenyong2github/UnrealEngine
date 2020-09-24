@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraModule.h"
+#include "Misc/LazySingleton.h"
 #include "Modules/ModuleManager.h"
 #include "NiagaraTypes.h"
 #include "NiagaraEvents.h"
@@ -57,6 +58,7 @@ FNiagaraVariable INiagaraModule::Engine_DeltaTime;
 FNiagaraVariable INiagaraModule::Engine_InvDeltaTime;
 FNiagaraVariable INiagaraModule::Engine_Time;
 FNiagaraVariable INiagaraModule::Engine_RealTime;
+FNiagaraVariable INiagaraModule::Engine_QualityLevel;
 
 FNiagaraVariable INiagaraModule::Engine_Owner_Position;
 FNiagaraVariable INiagaraModule::Engine_Owner_Velocity;
@@ -85,6 +87,7 @@ FNiagaraVariable INiagaraModule::Engine_Emitter_TotalSpawnedParticles;
 FNiagaraVariable INiagaraModule::Engine_Emitter_SpawnCountScale;
 FNiagaraVariable INiagaraModule::Engine_System_TickCount;
 FNiagaraVariable INiagaraModule::Engine_System_NumEmittersAlive;
+FNiagaraVariable INiagaraModule::Engine_System_SignificanceIndex;
 FNiagaraVariable INiagaraModule::Engine_System_NumEmitters;
 FNiagaraVariable INiagaraModule::Engine_NumSystemInstances;
 
@@ -99,6 +102,7 @@ FNiagaraVariable INiagaraModule::Emitter_Determinism;
 FNiagaraVariable INiagaraModule::Emitter_OverrideGlobalSpawnCountScale;
 FNiagaraVariable INiagaraModule::Emitter_SimulationTarget;
 FNiagaraVariable INiagaraModule::Emitter_RandomSeed;
+FNiagaraVariable INiagaraModule::Engine_Emitter_InstanceSeed;
 FNiagaraVariable INiagaraModule::Emitter_SpawnRate;
 FNiagaraVariable INiagaraModule::Emitter_SpawnInterval;
 FNiagaraVariable INiagaraModule::Emitter_InterpSpawnStartDt;
@@ -144,6 +148,7 @@ FNiagaraVariable INiagaraModule::ScriptUsage;
 FNiagaraVariable INiagaraModule::ScriptContext;
 FNiagaraVariable INiagaraModule::DataInstance_Alive;
 FNiagaraVariable INiagaraModule::Translator_BeginDefaults;
+FNiagaraVariable INiagaraModule::Translator_CallID;
 
 void INiagaraModule::StartupModule()
 {
@@ -167,6 +172,7 @@ void INiagaraModule::StartupModule()
 	
 	Engine_Time = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Engine.Time"));
 	Engine_RealTime = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Engine.RealTime"));
+	Engine_QualityLevel = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.QualityLevel"));
 
 	Engine_Owner_Position = FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Engine.Owner.Position"));
 	Engine_Owner_Velocity = FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Engine.Owner.Velocity"));
@@ -193,8 +199,10 @@ void INiagaraModule::StartupModule()
 	Engine_Emitter_NumParticles = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.Emitter.NumParticles"));
 	Engine_Emitter_TotalSpawnedParticles = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.Emitter.TotalSpawnedParticles"));
 	Engine_Emitter_SpawnCountScale = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Engine.Emitter.SpawnCountScale"));
+	Engine_Emitter_InstanceSeed = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.Emitter.InstanceSeed"));
 	Engine_System_TickCount = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.System.TickCount"));
 	Engine_System_NumEmittersAlive = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.System.NumEmittersAlive"));
+	Engine_System_SignificanceIndex = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.System.SignificanceIndex"));
 	Engine_System_NumEmitters = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.System.NumEmitters"));
 	Engine_NumSystemInstances = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.NumSystemInstances"));
 
@@ -255,6 +263,7 @@ void INiagaraModule::StartupModule()
 	DataInstance_Alive = FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("DataInstance.Alive"));
 
 	Translator_BeginDefaults = FNiagaraVariable(FNiagaraTypeDefinition::GetParameterMapDef(), TEXT("Begin Defaults"));
+	Translator_CallID = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Translator.CallID"));
 
 	FNiagaraConstants::Init();
 	UNiagaraLightRendererProperties::InitCDOPropertiesAfterModuleStartup();
@@ -297,6 +306,8 @@ void INiagaraModule::ShutdownModule()
 	NiagaraShaderModule.ResetOnRequestDefaultDataInterfaceHandler();
 
 	ShutdownRenderingResources();
+
+	FNiagaraTypeRegistry::TearDown();
 }
 
 #if WITH_EDITOR
@@ -424,6 +435,7 @@ UScriptStruct* FNiagaraTypeDefinition::HalfVec4Struct;
 UClass* FNiagaraTypeDefinition::UObjectClass;
 UClass* FNiagaraTypeDefinition::UMaterialClass;
 UClass* FNiagaraTypeDefinition::UTextureClass;
+UClass* FNiagaraTypeDefinition::UTextureRenderTargetClass;
 
 UEnum* FNiagaraTypeDefinition::ExecutionStateEnum;
 UEnum* FNiagaraTypeDefinition::SimulationTargetEnum;
@@ -455,6 +467,7 @@ FNiagaraTypeDefinition FNiagaraTypeDefinition::HalfVec4Def;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::UObjectDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::UMaterialDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::UTextureDef;
+FNiagaraTypeDefinition FNiagaraTypeDefinition::UTextureRenderTargetDef;
 
 TSet<UScriptStruct*> FNiagaraTypeDefinition::NumericStructs;
 TArray<FNiagaraTypeDefinition> FNiagaraTypeDefinition::OrderedNumericTypes;
@@ -466,16 +479,6 @@ TSet<UStruct*> FNiagaraTypeDefinition::IntStructs;
 TSet<UStruct*> FNiagaraTypeDefinition::BoolStructs;
 
 FNiagaraTypeDefinition FNiagaraTypeDefinition::CollisionEventDef;
-
-
-FNiagaraTypeRegistry::RegisteredTypesArray FNiagaraTypeRegistry::RegisteredTypes;
-TArray<FNiagaraTypeDefinition> FNiagaraTypeRegistry::RegisteredParamTypes;
-TArray<FNiagaraTypeDefinition> FNiagaraTypeRegistry::RegisteredPayloadTypes;
-TArray<FNiagaraTypeDefinition> FNiagaraTypeRegistry::RegisteredUserDefinedTypes;
-TArray<FNiagaraTypeDefinition> FNiagaraTypeRegistry::RegisteredNumericTypes;
-TMap<uint32, int32> FNiagaraTypeRegistry::RegisteredTypeIndexMap;
-FRWLock FNiagaraTypeRegistry::RegisteredTypesLock;
-
 
 bool FNiagaraTypeDefinition::IsDataInterface()const
 {
@@ -509,6 +512,7 @@ void FNiagaraTypeDefinition::Init()
 	FNiagaraTypeDefinition::UObjectClass = UObject::StaticClass();
 	FNiagaraTypeDefinition::UMaterialClass = UMaterialInterface::StaticClass();
 	FNiagaraTypeDefinition::UTextureClass = UTexture::StaticClass();
+	FNiagaraTypeDefinition::UTextureRenderTargetClass = UTextureRenderTarget::StaticClass();
 	
 	ParameterMapDef = FNiagaraTypeDefinition(ParameterMapStruct);
 	IDDef = FNiagaraTypeDefinition(IDStruct);
@@ -531,6 +535,7 @@ void FNiagaraTypeDefinition::Init()
 	UObjectDef = FNiagaraTypeDefinition(UObjectClass);
 	UMaterialDef = FNiagaraTypeDefinition(UMaterialClass);
 	UTextureDef = FNiagaraTypeDefinition(UTextureClass);
+	UTextureRenderTargetDef = FNiagaraTypeDefinition(UTextureRenderTargetClass);
 
 	CollisionEventDef = FNiagaraTypeDefinition(FNiagaraCollisionEventPayload::StaticStruct());
 	NumericStructs.Add(NumericStruct);
@@ -605,12 +610,14 @@ bool FNiagaraTypeDefinition::AppendCompileHash(FNiagaraCompileHashVisitor* InVis
 	UClass* TDClass = GetClass();
 	UEnum* TDEnum = GetEnum();
 
+	TStringBuilder<128> PathName;
 	if (TDEnum)
 	{
 		// Do we need to enumerate all the enum values and rebuild if that changes or are we ok with just knowing that there are the same  count of enum entries?
 		// For now, am just going to be ok with the number of entries. The actual string values don't matter so much.
 		FString CppType = TDEnum->CppType;
-		FString PathName = TDEnum->GetPathName();
+		PathName.Reset();
+		TDEnum->GetPathName(nullptr, PathName);
 		InVisitor->UpdateString(TEXT("\tEnumPath"), PathName);
 		InVisitor->UpdateString(TEXT("\tEnumCppType"), CppType);
 		InVisitor->UpdatePOD(TEXT("\t\tNumEnums"),TDEnum->NumEnums());
@@ -622,22 +629,27 @@ bool FNiagaraTypeDefinition::AppendCompileHash(FNiagaraCompileHashVisitor* InVis
 		UObject* TempObj = TDClass->GetDefaultObject(false);
 		check(TempObj);
 
-		FString ClassName = TDClass->GetPathName();
-		InVisitor->UpdateString(TEXT("\tClassName"), ClassName);
+		PathName.Reset();
+		TDClass->GetPathName(nullptr, PathName);
+		InVisitor->UpdateString(TEXT("\tClassName"), PathName);
 
 		UNiagaraDataInterface* TempDI = Cast< UNiagaraDataInterface>(TempObj);
 		if (TempDI)
 		{
 			if (!TempDI->AppendCompileHash(InVisitor))
 			{
-				UE_LOG(LogNiagara, Warning, TEXT("Unable to generate AppendCompileHash for DI %s"), *TempDI->GetPathName());
+				PathName.Reset();
+				TempDI->GetPathName(nullptr, PathName);
+				UE_LOG(LogNiagara, Warning, TEXT("Unable to generate AppendCompileHash for DI %s"), PathName.ToString());
 			}
 		}
 	}
 	else if (TDStruct)
 	{
-		FString ClassName = TDStruct->GetPathName();
-		InVisitor->UpdateString(TEXT("\tStructName"), ClassName);
+		PathName.Reset();
+		TDStruct->GetPathName(nullptr, PathName);
+		InVisitor->UpdateString(TEXT("\tStructName"), PathName);
+		TStringBuilder<128> NameBuffer;
 		// Structs are potentially changed, so we will want to register their actual types and variable names.
 		for (TFieldIterator<FProperty> PropertyIt(TDStruct, EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::IncludeDeprecated); PropertyIt; ++PropertyIt)
 		{
@@ -646,8 +658,12 @@ bool FNiagaraTypeDefinition::AppendCompileHash(FNiagaraCompileHashVisitor* InVis
 			{
 				continue;
 			}
-			InVisitor->UpdateString(TEXT("\t\tPropertyName"), Property->GetName());
-			InVisitor->UpdateString(TEXT("\t\tPropertyClass"), Property->GetClass()->GetName());
+			NameBuffer.Reset();
+			Property->GetFName().ToString(NameBuffer);
+			InVisitor->UpdateString(TEXT("\t\tPropertyName"), NameBuffer);
+			NameBuffer.Reset();
+			Property->GetClass()->GetFName().ToString(NameBuffer);
+			InVisitor->UpdateString(TEXT("\t\tPropertyClass"), NameBuffer);
 		}
 	}
 	else
@@ -707,85 +723,90 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 	FNiagaraTypeRegistry::Register(UObjectDef, true, false, false);
 	FNiagaraTypeRegistry::Register(UMaterialDef, true, false, false);
 	FNiagaraTypeRegistry::Register(UTextureDef, true, false, false);
+	FNiagaraTypeRegistry::Register(UTextureRenderTargetDef, true, false, false);
 	FNiagaraTypeRegistry::Register(FNiagaraRandInfo::StaticStruct(), true, true, false);
 	FNiagaraTypeRegistry::Register(StaticEnum<ENiagaraLegacyTrailWidthMode>(), true, true, false);
 
-	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
-	check(Settings);
-	TArray<FSoftObjectPath> TotalStructAssets;
-	for (FSoftObjectPath AssetRef : Settings->AdditionalParameterTypes)
+	if (!IsRunningCommandlet())
 	{
-		TotalStructAssets.AddUnique(AssetRef);
-	}
-
-	for (FSoftObjectPath AssetRef : Settings->AdditionalPayloadTypes)
-	{
-		TotalStructAssets.AddUnique(AssetRef);
-	}
-
-	for (FSoftObjectPath AssetRef : TotalStructAssets)
-	{
-		FName AssetRefPathNamePreResolve = AssetRef.GetAssetPathName();
-
-		UObject* Obj = AssetRef.ResolveObject();
-		if (Obj == nullptr)
+		const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
+		check(Settings);
+		TArray<FSoftObjectPath> TotalStructAssets;
+		for (FSoftObjectPath AssetRef : Settings->AdditionalParameterTypes)
 		{
-			Obj = AssetRef.TryLoad();
+			TotalStructAssets.AddUnique(AssetRef);
 		}
 
-		if (Obj != nullptr)
+		for (FSoftObjectPath AssetRef : Settings->AdditionalPayloadTypes)
 		{
-			const FSoftObjectPath* ParamRefFound = Settings->AdditionalParameterTypes.FindByPredicate([&](const FSoftObjectPath& Ref) { return Ref.ToString() == AssetRef.ToString(); });
-			const FSoftObjectPath* PayloadRefFound = Settings->AdditionalPayloadTypes.FindByPredicate([&](const FSoftObjectPath& Ref) { return Ref.ToString() == AssetRef.ToString(); });
-			UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Obj);
-			if (ScriptStruct != nullptr)
+			TotalStructAssets.AddUnique(AssetRef);
+		}
+
+		for (FSoftObjectPath AssetRef : TotalStructAssets)
+		{
+			FName AssetRefPathNamePreResolve = AssetRef.GetAssetPathName();
+
+			UObject* Obj = AssetRef.ResolveObject();
+			if (Obj == nullptr)
 			{
-				FNiagaraTypeRegistry::Register(ScriptStruct, ParamRefFound != nullptr, PayloadRefFound != nullptr, true);
+				Obj = AssetRef.TryLoad();
 			}
 
-			UObjectRedirector* Redirector = FindObject<UObjectRedirector>(nullptr, *AssetRefPathNamePreResolve.ToString());
-			bool bRedirectorFollowed = Redirector && (Redirector->DestinationObject == Obj);
-			if (!bRedirectorFollowed && Obj->GetPathName() != AssetRefPathNamePreResolve.ToString())
+			if (Obj != nullptr)
 			{
-				UE_LOG(LogNiagara, Warning, TEXT("Additional parameter/payload enum has moved from where it was in settings (this may cause errors at runtime): Was: \"%s\" Now: \"%s\""), *AssetRefPathNamePreResolve.ToString(), *Obj->GetPathName());
+				const FSoftObjectPath* ParamRefFound = Settings->AdditionalParameterTypes.FindByPredicate([&](const FSoftObjectPath& Ref) { return Ref.ToString() == AssetRef.ToString(); });
+				const FSoftObjectPath* PayloadRefFound = Settings->AdditionalPayloadTypes.FindByPredicate([&](const FSoftObjectPath& Ref) { return Ref.ToString() == AssetRef.ToString(); });
+				UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Obj);
+				if (ScriptStruct != nullptr)
+				{
+					FNiagaraTypeRegistry::Register(ScriptStruct, ParamRefFound != nullptr, PayloadRefFound != nullptr, true);
+				}
+
+				UObjectRedirector* Redirector = FindObject<UObjectRedirector>(nullptr, *AssetRefPathNamePreResolve.ToString());
+				bool bRedirectorFollowed = Redirector && (Redirector->DestinationObject == Obj);
+				if (!bRedirectorFollowed && Obj->GetPathName() != AssetRefPathNamePreResolve.ToString())
+				{
+					UE_LOG(LogNiagara, Warning, TEXT("Additional parameter/payload enum has moved from where it was in settings (this may cause errors at runtime): Was: \"%s\" Now: \"%s\""), *AssetRefPathNamePreResolve.ToString(), *Obj->GetPathName());
+				}
+
 			}
-
-		}
-		else
-		{
-			UE_LOG(LogNiagara, Warning, TEXT("Could not find additional parameter/payload type: %s"), *AssetRef.ToString());
-		}
-	}
-
-	for (FSoftObjectPath AssetRef : Settings->AdditionalParameterEnums)
-	{
-		FName AssetRefPathNamePreResolve = AssetRef.GetAssetPathName();
-		UObject* Obj = AssetRef.ResolveObject();
-		if (Obj == nullptr)
-		{
-			Obj = AssetRef.TryLoad();
-		}
-
-		if (Obj != nullptr)
-		{
-			const FSoftObjectPath* ParamRefFound = Settings->AdditionalParameterEnums.FindByPredicate([&](const FSoftObjectPath& Ref) { return Ref.ToString() == AssetRef.ToString(); });
-			const FSoftObjectPath* PayloadRefFound = nullptr;
-			UEnum* Enum = Cast<UEnum>(Obj);
-			if (Enum != nullptr)
+			else
 			{
-				FNiagaraTypeRegistry::Register(Enum, ParamRefFound != nullptr, PayloadRefFound != nullptr, true);
-			}
-
-			UObjectRedirector* Redirector = FindObject<UObjectRedirector>(nullptr, *AssetRefPathNamePreResolve.ToString());
-			bool bRedirectorFollowed = Redirector && (Redirector->DestinationObject == Obj);
-			if (!bRedirectorFollowed && Obj->GetPathName() != AssetRefPathNamePreResolve.ToString())
-			{
-				UE_LOG(LogNiagara, Warning, TEXT("Additional parameter/payload enum has moved from where it was in settings (this may cause errors at runtime): Was: \"%s\" Now: \"%s\""), *AssetRefPathNamePreResolve.ToString(), *Obj->GetPathName());
+				UE_LOG(LogNiagara, Warning, TEXT("Could not find additional parameter/payload type: %s"), *AssetRef.ToString());
 			}
 		}
-		else
+
+
+		for (FSoftObjectPath AssetRef : Settings->AdditionalParameterEnums)
 		{
-			UE_LOG(LogNiagara, Warning, TEXT("Could not find additional parameter/payload enum: %s"), *AssetRef.ToString());
+			FName AssetRefPathNamePreResolve = AssetRef.GetAssetPathName();
+			UObject* Obj = AssetRef.ResolveObject();
+			if (Obj == nullptr)
+			{
+				Obj = AssetRef.TryLoad();
+			}
+
+			if (Obj != nullptr)
+			{
+				const FSoftObjectPath* ParamRefFound = Settings->AdditionalParameterEnums.FindByPredicate([&](const FSoftObjectPath& Ref) { return Ref.ToString() == AssetRef.ToString(); });
+				const FSoftObjectPath* PayloadRefFound = nullptr;
+				UEnum* Enum = Cast<UEnum>(Obj);
+				if (Enum != nullptr)
+				{
+					FNiagaraTypeRegistry::Register(Enum, ParamRefFound != nullptr, PayloadRefFound != nullptr, true);
+				}
+
+				UObjectRedirector* Redirector = FindObject<UObjectRedirector>(nullptr, *AssetRefPathNamePreResolve.ToString());
+				bool bRedirectorFollowed = Redirector && (Redirector->DestinationObject == Obj);
+				if (!bRedirectorFollowed && Obj->GetPathName() != AssetRefPathNamePreResolve.ToString())
+				{
+					UE_LOG(LogNiagara, Warning, TEXT("Additional parameter/payload enum has moved from where it was in settings (this may cause errors at runtime): Was: \"%s\" Now: \"%s\""), *AssetRefPathNamePreResolve.ToString(), *Obj->GetPathName());
+				}
+			}
+			else
+			{
+				UE_LOG(LogNiagara, Warning, TEXT("Could not find additional parameter/payload enum: %s"), *AssetRef.ToString());
+			}
 		}
 	}
 }
@@ -942,7 +963,7 @@ void FNiagaraTypeDefinition::PostSerialize(const FArchive& Ar)
 UNiagaraDataInterfaceBase* FNiagaraTypeRegistry::GetDefaultDataInterfaceByName(const FString& DIClassName)
 {
 	UClass* DIClass = nullptr;
-	for (const FNiagaraTypeDefinition& Def : RegisteredTypes)
+	for (const FNiagaraTypeDefinition& Def : Get().RegisteredTypes)
 	{
 		if (Def.IsDataInterface())
 		{
@@ -974,6 +995,37 @@ UNiagaraDataInterfaceBase* FNiagaraTypeRegistry::GetDefaultDataInterfaceByName(c
 	return nullptr;
 }
 
+// this will hold onto references to the classes/enums/structs that are used as a part of type definitions.  In the case that something is forcibly deleted
+// the contents of the RegisteredTypes array will have it's ClassStructorEnum cleared, and it will no longer be treated as a valid type
+// (FNiagaraTypeDefinitionHandle::Resolve will return an invalid Dummy reference).
+// 
+// It might be worth investigating changing RegisteredTypeIndexMap to be hashed based on the name of the class/enum/struct rather than the pointer.  That
+// way if we reload a type old data, with their existing index, will still be treated as valid.  In this current implementation old FNiagaraVariables will
+// have invalid types.  But, for now I think it would be an error to unload a type without having the variables that dependend on it also getting deleted.
+void FNiagaraTypeRegistry::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	for (FNiagaraTypeDefinition& RegisteredType : RegisteredTypes)
+	{
+		Collector.AddReferencedObject(RegisteredType.ClassStructOrEnum);
+	}
+}
+
+FString FNiagaraTypeRegistry::GetReferencerName() const
+{
+	return TEXT("FNiagaraTypeRegistry");
+}
+
+FNiagaraTypeRegistry& FNiagaraTypeRegistry::Get()
+{
+	return TLazySingleton<FNiagaraTypeRegistry>::Get();
+}
+
+void FNiagaraTypeRegistry::TearDown()
+{
+	TLazySingleton<FNiagaraTypeRegistry>::TearDown();
+}
+
+//////////////////////////////////////////////////////////////////////////
 
 FDelegateHandle INiagaraModule::SetOnProcessShaderCompilationQueue(FOnProcessQueue InOnProcessQueue)
 {
@@ -1000,7 +1052,12 @@ const FNiagaraTypeDefinition& FNiagaraTypeDefinitionHandle::Resolve() const
 
 	if (RegisteredTypes.IsValidIndex(RegisteredTypeIndex))
 	{
-		return RegisteredTypes[RegisteredTypeIndex];
+		// If the type is invalid, then it's likely that it has been invalidated by GC because the underlying object has
+		// been unloaded.
+		if (RegisteredTypes[RegisteredTypeIndex].IsValid())
+		{
+			return RegisteredTypes[RegisteredTypeIndex];
+		}
 	}
 
 	static FNiagaraTypeDefinition Dummy;
@@ -1088,12 +1145,20 @@ void FNiagaraVariable::PostSerialize(const FArchive& Ar)
 #if WITH_EDITOR
 const TArray<FNiagaraVariable>& FNiagaraGlobalParameters::GetVariables()
 {
+	static const FName NAME_NiagaraStructPadding0 = "Engine.PaddingInt32_0";
+	static const FName NAME_NiagaraStructPadding1 = "Engine.PaddingInt32_1";
+	static const FName NAME_NiagaraStructPadding2 = "Engine.PaddingInt32_2";
+
 	static const TArray<FNiagaraVariable> Variables =
 	{
 		SYS_PARAM_ENGINE_DELTA_TIME,
 		SYS_PARAM_ENGINE_INV_DELTA_TIME,
 		SYS_PARAM_ENGINE_TIME,
 		SYS_PARAM_ENGINE_REAL_TIME,
+		SYS_PARAM_ENGINE_QUALITY_LEVEL,
+		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), NAME_NiagaraStructPadding0),
+		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), NAME_NiagaraStructPadding1),
+		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), NAME_NiagaraStructPadding2),
 	};
 
 	return Variables;
@@ -1101,6 +1166,10 @@ const TArray<FNiagaraVariable>& FNiagaraGlobalParameters::GetVariables()
 
 const TArray<FNiagaraVariable>& FNiagaraSystemParameters::GetVariables()
 {
+	static const FName NAME_NiagaraStructPadding0 = "Engine.System.PaddingInt32_0";
+	static const FName NAME_NiagaraStructPadding1 = "Engine.System.PaddingInt32_1";
+	static const FName NAME_NiagaraStructPadding2 = "Engine.System.PaddingInt32_2";
+
 	static const TArray<FNiagaraVariable> Variables =
 	{
 		SYS_PARAM_ENGINE_TIME_SINCE_RENDERED,
@@ -1111,6 +1180,10 @@ const TArray<FNiagaraVariable>& FNiagaraSystemParameters::GetVariables()
 		SYS_PARAM_ENGINE_SYSTEM_TICK_COUNT,
 		SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS,
 		SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS_ALIVE,
+		SYS_PARAM_ENGINE_SYSTEM_SIGNIFICANCE_INDEX,
+		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), NAME_NiagaraStructPadding0),
+		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), NAME_NiagaraStructPadding1),
+		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), NAME_NiagaraStructPadding2),
 	};
 
 	return Variables;
@@ -1142,7 +1215,6 @@ const TArray<FNiagaraVariable>& FNiagaraEmitterParameters::GetVariables()
 {
 	static const FName NAME_NiagaraStructPadding0 = "Engine.Emitter.PaddingInt32_0";
 	static const FName NAME_NiagaraStructPadding1 = "Engine.Emitter.PaddingInt32_1";
-	static const FName NAME_NiagaraStructPadding2 = "Engine.Emitter.PaddingInt32_2";
 
 	static const TArray<FNiagaraVariable> Variables =
 	{
@@ -1152,9 +1224,9 @@ const TArray<FNiagaraVariable>& FNiagaraEmitterParameters::GetVariables()
 		SYS_PARAM_EMITTER_AGE,
 
 		SYS_PARAM_EMITTER_RANDOM_SEED,
+		SYS_PARAM_ENGINE_EMITTER_INSTANCE_SEED,
 		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), NAME_NiagaraStructPadding0),
 		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), NAME_NiagaraStructPadding1),
-		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), NAME_NiagaraStructPadding2),
 	};
 
 	return Variables;

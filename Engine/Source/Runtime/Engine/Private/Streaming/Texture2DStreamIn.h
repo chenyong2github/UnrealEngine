@@ -14,15 +14,13 @@ class FTexture2DStreamIn : public FTexture2DUpdate
 {
 public:
 
-	FTexture2DStreamIn(UTexture2D* InTexture, int32 InRequestedMips);
+	FTexture2DStreamIn(UTexture2D* InTexture);
 	~FTexture2DStreamIn();
-
 
 protected:
 
 	// StreamIn_Default : Locked mips of the intermediate textures, used as disk load destination.
 	TArray<void*, TInlineAllocator<MAX_TEXTURE_MIP_COUNT> > MipData;
-
 
 	// ****************************
 	// ********* Helpers **********

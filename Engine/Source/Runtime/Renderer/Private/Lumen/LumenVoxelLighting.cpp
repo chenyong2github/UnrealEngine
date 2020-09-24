@@ -724,21 +724,17 @@ void GatherVoxelize(
 	FIntVector ClipmapGridResolution = GetClipmapResolution();
 	FIntVector VolumeTextureResolution(GetClipmapResolutionXY(), GetClipmapResolutionXY() * ClipmapsToUpdate.Num(), GetClipmapResolutionZ() * 6);
 
-	FRDGTextureUAVRef VoxelLightingUAV = GraphBuilder.CreateUAV(VoxelLighting, ERDGChildResourceFlags::NoUAVBarrier);
+	FRDGTextureUAVRef VoxelLightingUAV = GraphBuilder.CreateUAV(VoxelLighting, ERDGUnorderedAccessViewFlags::SkipBarrier);
 	FRDGTextureRef VoxelVisBuffer = nullptr;
 	FRDGTextureUAVRef VoxelVisBufferUAV = nullptr;
 
 	if (bUseVoxelVisBuffer)
 	{
-		FPooledRenderTargetDesc VoxelVisBuferDesc(FPooledRenderTargetDesc::CreateVolumeDesc(
-			VolumeTextureResolution.X,
-			VolumeTextureResolution.Y,
-			VolumeTextureResolution.Z,
+		FRDGTextureDesc VoxelVisBuferDesc(FRDGTextureDesc::Create3D(
+			VolumeTextureResolution,
 			PF_R32_UINT,
 			FClearValueBinding::Transparent,
-			TexCreate_None,
-			TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV | TexCreate_3DTiling,
-			false));
+			TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV | TexCreate_3DTiling));
 		VoxelVisBuffer = GraphBuilder.CreateTexture(VoxelVisBuferDesc, TEXT("VoxelVisBuffer"));
 		VoxelVisBufferUAV = GraphBuilder.CreateUAV(VoxelVisBuffer);
 	}
@@ -1064,15 +1060,11 @@ void InjectCardsWithRasterizerScatter(
 
 	if (bUseVoxelVisBuffer)
 	{
-		FPooledRenderTargetDesc VoxelVisBuferDesc(FPooledRenderTargetDesc::CreateVolumeDesc(
-			VolumeTextureResolution.X,
-			VolumeTextureResolution.Y,
-			VolumeTextureResolution.Z,
+		FRDGTextureDesc VoxelVisBuferDesc(FRDGTextureDesc::Create3D(
+			VolumeTextureResolution,
 			PF_R32_UINT,
 			FClearValueBinding::Transparent,
-			TexCreate_None,
-			TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV | TexCreate_3DTiling,
-			false));
+			TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV | TexCreate_3DTiling));
 		VoxelVisBuffer = GraphBuilder.CreateTexture(VoxelVisBuferDesc, TEXT("VoxelVisBuffer"));
 		VoxelVisBufferUAV = GraphBuilder.CreateUAV(VoxelVisBuffer);
 
@@ -1137,7 +1129,7 @@ void InjectCardsWithRasterizerScatter(
 	if (!bUseVoxelVisBuffer)
 	{
 		FIntVector VoxelMaskTextureResolution(VolumeTextureResolution.X >> GLumenSceneVoxelLightingMaskDownsampleShift, VolumeTextureResolution.Y >> GLumenSceneVoxelLightingMaskDownsampleShift, VolumeTextureResolution.Z >> GLumenSceneVoxelLightingMaskDownsampleShift);
-		FPooledRenderTargetDesc MaskDesc(FPooledRenderTargetDesc::CreateVolumeDesc(VoxelMaskTextureResolution.X, VoxelMaskTextureResolution.Y, VoxelMaskTextureResolution.Z, PF_R16_UINT, FClearValueBinding::Transparent, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, false));
+		FRDGTextureDesc MaskDesc(FRDGTextureDesc::Create3D(VoxelMaskTextureResolution, PF_R16_UINT, FClearValueBinding::Transparent, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV));
 		VoxelMask = GraphBuilder.CreateTexture(MaskDesc, TEXT("VoxelMask"));
 		FRDGTextureUAVRef VoxelMaskUAV = GraphBuilder.CreateUAV(VoxelMask);
 
@@ -1253,10 +1245,10 @@ void InjectCardsWithRasterizerScatter(
 			});
 		}
 
-		FPooledRenderTargetDesc LightingOITDesc(FPooledRenderTargetDesc::CreateVolumeDesc(VolumeTextureResolution.X * 4, VolumeTextureResolution.Y, VolumeTextureResolution.Z, PF_R32_UINT, FClearValueBinding::Transparent, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, false));
+		FRDGTextureDesc LightingOITDesc(FRDGTextureDesc::Create3D(FIntVector(VolumeTextureResolution.X * 4, VolumeTextureResolution.Y, VolumeTextureResolution.Z), PF_R32_UINT, FClearValueBinding::Transparent, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV));
 		VoxelOITLighting = GraphBuilder.CreateTexture(LightingOITDesc, TEXT("VoxelOITLighting"));
 
-		FPooledRenderTargetDesc TransparencyOITDesc(FPooledRenderTargetDesc::CreateVolumeDesc(VolumeTextureResolution.X, VolumeTextureResolution.Y, VolumeTextureResolution.Z, PF_R32_UINT, FClearValueBinding::Transparent, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, false));
+		FRDGTextureDesc TransparencyOITDesc(FRDGTextureDesc::Create3D(VolumeTextureResolution, PF_R32_UINT, FClearValueBinding::Transparent, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV));
 		VoxelOITTransparency = GraphBuilder.CreateTexture(TransparencyOITDesc, TEXT("VoxelOITTransparency"));
 
 		VoxelOITLightingUAV = GraphBuilder.CreateUAV(VoxelOITLighting);
@@ -1427,7 +1419,7 @@ void InjectCardsWithRasterizerScatter(
 		});
 	}
 
-	FRDGTextureUAVRef VoxelLightingUAV = GraphBuilder.CreateUAV(VoxelLighting, ERDGChildResourceFlags::NoUAVBarrier);
+	FRDGTextureUAVRef VoxelLightingUAV = GraphBuilder.CreateUAV(VoxelLighting, ERDGUnorderedAccessViewFlags::SkipBarrier);
 
 	FIntVector ClipmapTextureResolution = VolumeTextureResolution;
 	ClipmapTextureResolution.Y /= ClipmapsToUpdate.Num();
@@ -1573,21 +1565,19 @@ void FDeferredShadingSceneRenderer::ComputeLumenSceneVoxelLighting(
 
 	const int32 ClampedNumClipmapLevels = GetNumLumenVoxelClipmaps();
 
-	FPooledRenderTargetDesc LightingDesc(FPooledRenderTargetDesc::CreateVolumeDesc(
-		GetClipmapResolutionXY(), 
-		GetClipmapResolutionXY() * ClampedNumClipmapLevels, 
-		GetClipmapResolutionZ() * 6, 
+	FRDGTextureDesc LightingDesc(FRDGTextureDesc::Create3D(
+		FIntVector(
+			GetClipmapResolutionXY(), 
+			GetClipmapResolutionXY() * ClampedNumClipmapLevels, 
+			GetClipmapResolutionZ() * 6), 
 		PF_FloatRGBA, 
-		FClearValueBinding::Black, 
-		TexCreate_None, 
-		TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV | TexCreate_3DTiling,
-		false));
-	LightingDesc.AutoWritable = false;
+		FClearValueBinding::Black,
+		TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV | TexCreate_3DTiling));
 
 	FRDGTextureRef VoxelLighting = TracingInputs.VoxelLighting;
 	bool bForceFullUpdate = GLumenSceneVoxelLightingForceFullUpdate != 0;
 
-	if (!VoxelLighting || !VoxelLighting->Desc.Compare(LightingDesc, true))
+	if (!VoxelLighting || VoxelLighting->Desc != LightingDesc)
 	{
 		bForceFullUpdate = true;
 		VoxelLighting = GraphBuilder.CreateTexture(LightingDesc, TEXT("VoxelLighting"));

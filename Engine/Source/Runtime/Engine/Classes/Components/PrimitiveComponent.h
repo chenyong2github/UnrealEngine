@@ -549,6 +549,7 @@ private:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TEnumAsByte<enum ECanBeCharacterBase> CanBeCharacterBase_DEPRECATED;
+
 #endif
 
 	FMaskFilter MoveIgnoreMask;
@@ -607,10 +608,10 @@ public:
 	int32 VisibilityId;
 
 	/** 
-	 * Array of runtime virtual textures into which we render the mesh for this actor. 
+	 * Array of runtime virtual textures into which we draw the mesh for this actor. 
 	 * The material also needs to be set up to output to a virtual texture. 
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = VirtualTexture, meta = (DisplayName = "Render to Virtual Textures"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = VirtualTexture, meta = (DisplayName = "Draw in Virtual Textures"))
 	TArray<URuntimeVirtualTexture*> RuntimeVirtualTextures;
 
 	/** Bias to the LOD selected for rendering to runtime virtual textures. */
@@ -632,8 +633,8 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = VirtualTexture, meta = (UIMin = "0", UIMax = "7"))
 	int8 VirtualTextureMinCoverage = 0;
 
-	/** Render to the main pass based on the virtual texture settings. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Virtual Texture Pass Type"))
+	/** Controls if this component draws in the main pass as well as in the virtual texture. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Draw in Main Pass"))
 	ERuntimeVirtualTextureMainPassType VirtualTextureRenderPassType = ERuntimeVirtualTextureMainPassType::Exclusive;
 
 	/** Get the array of runtime virtual textures into which we render the mesh for this actor. */

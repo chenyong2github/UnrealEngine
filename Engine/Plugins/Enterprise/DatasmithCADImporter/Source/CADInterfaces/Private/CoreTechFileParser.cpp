@@ -156,17 +156,16 @@ FString AsFString(CT_STR CtName)
 	return CtName.IsEmpty() ? FString() : CtName.toUnicode();
 };
 
-uint32 GetFileHash(const CADLibrary::FFileDescription& FileDescription, const FImportParameters& ImportParam)
+	uint32 FCoreTechFileParser::GetFileHash()
 {
 	FFileStatData FileStatData = IFileManager::Get().GetStatData(*FileDescription.Path);
 
-	int64 FileSize = FileStatData.FileSize;
+		FileSize = FileStatData.FileSize;
 	FDateTime ModificationTime = FileStatData.ModificationTime;
 
 	uint32 FileHash = GetTypeHash(FileDescription);
 	FileHash = HashCombine(FileHash, GetTypeHash(FileSize));
 	FileHash = HashCombine(FileHash, GetTypeHash(ModificationTime));
-	FileHash = HashCombine(FileHash, GetTypeHash(ImportParam.StitchingTechnique));
 
 	return FileHash;
 }
@@ -645,7 +644,7 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ProcessFile(const FFile
 		return EProcessResult::FileNotFound;
 	}
 
-	uint32 FileHash = GetFileHash(FileDescription, ImportParameters);
+		uint32 FileHash = GetFileHash();
 
 	SceneGraphArchive.ArchiveFileName = FString::Printf(TEXT("UEx%08x"), FileHash);
 
@@ -660,11 +659,7 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ProcessFile(const FFile
 #ifndef IGNORE_CACHE
 	if (ImportParameters.bEnableCacheUsage && IFileManager::Get().FileExists(*SceneGraphArchiveFilePath))
 	{
-		if (!IFileManager::Get().FileExists(*CTFilePath)) // the file is scene graph only because no CT file
-		{
-			bNeedToProceed = false;
-		}
-		else if (IFileManager::Get().FileExists(*MeshArchiveFilePath)) // the file has been proceed with same meshing parameters
+		if (IFileManager::Get().FileExists(*MeshArchiveFilePath)) // the file has been proceed with same meshing parameters
 		{
 			bNeedToProceed = false;
 		}
@@ -695,13 +690,20 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ReadFileWithKernelIO()
 	SceneGraphArchive.FullPath = FileDescription.Path;
 	SceneGraphArchive.CADFileName = FileDescription.Name;
 
-	CT_FLAGS CTImportOption = SetCoreTechImportOption(FileDescription.Extension);
+		// the parallelization of monolithic Jt file is set in SetCoreTechImportOption. Then it's processed as the other exploded formats
+		CT_FLAGS CTImportOption = SetCoreTechImportOption();
 
 	FString LoadOption;
 	CT_UINT32 NumberOfIds = 1;
 
 	if (!FileDescription.Configuration.IsEmpty())
 	{
+			if (FileDescription.Extension == "jt")
+			{
+				LoadOption = FileDescription.Configuration;
+			}
+			else
+			{
 		NumberOfIds = CT_KERNEL_IO::AskFileNbOfIds(*FileDescription.Path);
 		if (NumberOfIds > 1)
 		{
@@ -719,12 +721,15 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ReadFileWithKernelIO()
 			LoadOption = FString::FromInt((int32) ActiveConfig);
 		}
 	}
+		}
 
 	Result = CT_KERNEL_IO::LoadFile(*FileDescription.Path, MainId, CTImportOption, 0, *LoadOption);
 	if (Result == IO_ERROR_EMPTY_ASSEMBLY)
 	{
 		CT_KERNEL_IO::UnloadModel();
-		Result = CT_KERNEL_IO::LoadFile(*FileDescription.Path, MainId, CTImportOption | CT_LOAD_FLAGS_LOAD_EXTERNAL_REF);
+			CT_FLAGS CTReImportOption = CTImportOption | CT_LOAD_FLAGS_LOAD_EXTERNAL_REF;
+			CTReImportOption &= ~CT_LOAD_FLAGS_READ_ASM_STRUCT_ONLY;  // BUG CT -> Ticket 11685
+			Result = CT_KERNEL_IO::LoadFile(*FileDescription.Path, MainId, CTReImportOption, 0, *LoadOption);
 	}
 
 	// the file is loaded but it's empty, so no data is generate
@@ -740,6 +745,15 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ReadFileWithKernelIO()
 	{
 		CT_KERNEL_IO::UnloadModel();
 		return EProcessResult::ProcessFailed;
+	}
+
+	FString CTFilePath = FPaths::Combine(CachePath, TEXT("cad"), SceneGraphArchive.ArchiveFileName + TEXT(".ct"));
+	if(CTFilePath != FileDescription.Path)
+	{
+		CT_LIST_IO ObjectList;
+		ObjectList.PushBack(MainId);
+
+		CT_KERNEL_IO::SaveFile(ObjectList, *FPaths::Combine(CachePath, TEXT("cad"), SceneGraphArchive.ArchiveFileName + TEXT(".ct")), L"Ct");
 	}
 
 	SetCoreTechTessellationState(ImportParameters);
@@ -785,14 +799,6 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ReadFileWithKernelIO()
 		SceneGraphArchive.ComponentSet[0].MetaData.Add(TEXT("KernelIOVersion"), AsFString(KernelIO_Version));
 	}
 
-	if (bNeedSaveCTFile)
-	{
-		CT_LIST_IO ObjectList;
-		ObjectList.PushBack(MainId);
-
-		CT_KERNEL_IO::SaveFile(ObjectList, *FPaths::Combine(CachePath, TEXT("cad"), SceneGraphArchive.ArchiveFileName + TEXT(".ct")), L"Ct");
-	}
-
 	CT_KERNEL_IO::UnloadModel();
 
 	if (!bReadNodeSucceed)
@@ -806,16 +812,32 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ReadFileWithKernelIO()
 	return EProcessResult::ProcessOk;
 }
 
-CT_FLAGS FCoreTechFileParser::SetCoreTechImportOption(const FString& MainFileExt)
+	CT_FLAGS FCoreTechFileParser::SetCoreTechImportOption()
 {
 	// Set import option
 	CT_FLAGS Flags = CT_LOAD_FLAGS_USE_DEFAULT;
+		const FString& MainFileExt = FileDescription.Extension;
 
-	// Do not read meta-data from JT files with CoreTech. It crashes...
-	if (MainFileExt != TEXT("jt"))
+		// Parallelisation of monolitic Jt file,
+		// For Jt file, first step the file is read with "Structure only option"
+		// For each body, the JT file is read with "READ_SPECIFIC_OBJECT", Configuration == BodyId
+		if (MainFileExt == TEXT("jt"))
+		{
+			if (FileDescription.Configuration.IsEmpty())
+			{
+				if (FileSize > 2e6 /* 2 Mb */) // First step 
 	{
+					Flags |= CT_LOAD_FLAGS_READ_ASM_STRUCT_ONLY;
+				}
+			}
+			else // Second step
+			{
+				Flags &= ~CT_LOAD_FLAGS_REMOVE_EMPTY_COMPONENTS;
+				Flags |= CT_LOAD_FLAGS_READ_SPECIFIC_OBJECT;
+			}
+		}
+
 		Flags |= CT_LOAD_FLAGS_READ_META_DATA;
-	}
 
 	if (MainFileExt == TEXT("catpart") || MainFileExt == TEXT("catproduct") || MainFileExt == TEXT("cgr"))
 	{
@@ -1043,12 +1065,40 @@ bool FCoreTechFileParser::ReadInstance(CT_OBJECT_ID InstanceNodeId, uint32 Defau
 	{
 		SceneGraphArchive.Instances[Index].bIsExternalRef = true;
 
-		CT_STR ComponentFile, FileType;
-		CT_COMPONENT_IO::AskExternalDefinition(ReferenceNodeId, ComponentFile, FileType);
-		FString ExternalRefFullPath = AsFString(ComponentFile);
+		const FString SupressedEntity = TEXT("Supressed Entity");
+		FString IsSupressedEntity = SceneGraphArchive.Instances[Index].MetaData.FindRef(SupressedEntity);
+		if (IsSupressedEntity == TEXT("true"))
+		{
+			return false;
+		}
 
+			CT_STR ComponentFile, FileType;
+			CT_UINT3264 InternalId;
+			CT_COMPONENT_IO::AskExternalDefinition(ReferenceNodeId, ComponentFile, FileType, InternalId);
+			FString ExternalRefFullPath = AsFString(ComponentFile);
+
+			FString Configuration;
+			if (FileDescription.Extension == TEXT("jt"))
+			{
+				if (ExternalRefFullPath.IsEmpty())
+				{
+					ExternalRefFullPath = FileDescription.Path;
+				}
+
+				// Parallelisation of monolitic Jt file,
+				// is the external reference is the current file ? 
+				// Yes => this is an unloaded part that will be imported with CT_LOAD_FLAGS_READ_SPECIFIC_OBJECT Option
+				// No => the external reference is realy external... 
+				if (FPaths::IsSamePath(ExternalRefFullPath, FileDescription.Path))
+				{
+					Configuration = FString::Printf(TEXT("%d"), InternalId);
+				}
+			}
+			else
+			{
 		const FString ConfigName = TEXT("Configuration Name");
-		FString Configuration = SceneGraphArchive.Instances[Index].MetaData.FindRef(ConfigName);
+				Configuration = SceneGraphArchive.Instances[Index].MetaData.FindRef(ConfigName);
+			}
 		FFileDescription NewFileDescription(*ExternalRefFullPath, *Configuration, *FileDescription.MainCadFilePath);
 		SceneGraphArchive.Instances[Index].ExternalRef = NewFileDescription;
 		SceneGraphArchive.ExternalRefSet.Add(NewFileDescription);
@@ -1201,8 +1251,6 @@ bool FCoreTechFileParser::ReadBody(CT_OBJECT_ID BodyId, CT_OBJECT_ID ParentId, u
 	{
 		DefaultMaterialHash = MaterialHash;
 	}
-
-	bNeedSaveCTFile = true;
 
 	SceneGraphArchive.BodySet[Index].MeshActorName = GetStaticMeshUuid(*SceneGraphArchive.ArchiveFileName, BodyId);
 	BodyMeshes[BodyMeshIndex].MeshActorName = SceneGraphArchive.BodySet[Index].MeshActorName;

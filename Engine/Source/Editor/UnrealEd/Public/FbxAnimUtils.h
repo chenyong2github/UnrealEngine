@@ -12,6 +12,7 @@ namespace fbxsdk
 {
 	class FbxAnimCurve;
 	class FbxNode;
+	class FbxProperty;
 }
 
 //Define interface for exporting fbx animation
@@ -40,11 +41,19 @@ namespace FbxAnimUtils
 	UNREALED_API bool ShouldImportCurve(fbxsdk::FbxAnimCurve* Curve, bool bDoNotImportWithZeroValues);
 
 	/**
-	 * Helper function that extracts attribute curves from a specified Fbx node.
+	 * Helper function that extracts custom attribute curves from a specified Fbx node, omiting attributes directly applied to the bones.
 	 * @param	InNode							The node to extract curves from
 	 * @param	bInDoNotImportCurveWithZero		Whether to skip zero-valued curves
 	 * @param	ImportFunction					Function called to perform operations on the extracted curve(s)
 	 */
-	UNREALED_API void ExtractAttributeCurves(fbxsdk::FbxNode* InNode, bool bInDoNotImportCurveWithZero, TFunctionRef<void(fbxsdk::FbxAnimCurve* /*InCurve*/, const FString& /*InCurveName*/, const FString& /*InChannelName*/, int32 /*InChannelIndex*/, int32 /*InNumChannels*/)> ImportFunction);
+	UNREALED_API void ExtractAttributeCurves(fbxsdk::FbxNode* InNode, bool bInDoNotImportCurveWithZero, TFunctionRef<void(fbxsdk::FbxAnimCurve* /*InCurve*/, const FString& /*InCurveName*/)> ImportFunction);
+
+	/**
+	 * Helper function that extracts custom attribute from a specified Fbx node, selecting only attributes applied to the bones.
+	 * @param	InNode							The node to extract custom attribute from
+	 * @param	bInDoNotImportCurveWithZero		Whether to skip zero-valued curves
+	 * @param	ImportFunction					Function called to perform operations on the extracted curve(s)
+	 */
+	UNREALED_API void ExtractNodeAttributes(fbxsdk::FbxNode* InNode, bool bInDoNotImportCurveWithZero, bool bImportAllCustomAttributes, TFunctionRef<void(fbxsdk::FbxProperty& /*InProperty*/, fbxsdk::FbxAnimCurve* /*InCurve*/, const FString& /*InCurveName*/)> ImportFunction);
 
 } // namespace FbxAnimUtils

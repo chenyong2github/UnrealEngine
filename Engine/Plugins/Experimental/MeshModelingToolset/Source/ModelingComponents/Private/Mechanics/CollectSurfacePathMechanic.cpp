@@ -15,9 +15,9 @@ UCollectSurfacePathMechanic::UCollectSurfacePathMechanic()
 {
 	SpatialSnapPointsFunc = [this](FVector3d A, FVector3d B) { return A.DistanceSquared(B) < (ConstantSnapDistance * ConstantSnapDistance); };
 
-	PathColor = LinearColors::VideoRed3f();
-	PreviewColor = LinearColors::Orange3f();
-	PathCompleteColor = LinearColors::LightGreen3f();
+	PathColor = LinearColors::DarkOrange3f();
+	PreviewColor = LinearColors::Green3f();
+	PathCompleteColor = LinearColors::Yellow3f();
 
 	PathDrawer.LineColor = PathColor;
 	PathDrawer.LineThickness = 4.0f;

@@ -4,8 +4,6 @@
 D3D12Device.cpp: D3D device RHI implementation.
 =============================================================================*/
 #include "D3D12RHIPrivate.h"
-#include "RHIValidation.h"
-
 
 namespace D3D12RHI
 {
@@ -40,9 +38,9 @@ FD3D12Device::FD3D12Device(FRHIGPUMask InGPUMask, FD3D12Adapter* InAdapter) :
 #if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
 	CmdListExecTimeQueryHeap(this, D3D12_QUERY_HEAP_TYPE_TIMESTAMP, 8192),
 #endif
-	DefaultBufferAllocator(this, InGPUMask), //Note: Cross node buffers are possible 
+	DefaultBufferAllocator(this, FRHIGPUMask::All()), //Note: Cross node buffers are possible 
 	SamplerID(0),
-	DefaultFastAllocator(this, InGPUMask, D3D12_HEAP_TYPE_UPLOAD, 1024 * 1024 * 4),
+	DefaultFastAllocator(this, FRHIGPUMask::All(), D3D12_HEAP_TYPE_UPLOAD, 1024 * 1024 * 4),
 	TextureAllocator(this, FRHIGPUMask::All()),
 	GPUProfilingData(this)
 {
@@ -155,7 +153,7 @@ bool FD3D12Device::IsGPUIdle()
 	return Fence.IsFenceComplete(Fence.GetLastSignaledFence());
 }
 
-#if PLATFORM_WINDOWS
+#if (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
 typedef HRESULT(WINAPI *FDXGIGetDebugInterface1)(UINT, REFIID, void **);
 #endif
 
@@ -165,7 +163,9 @@ void FD3D12Device::SetupAfterDeviceCreation()
 {
 	ID3D12Device* Direct3DDevice = GetParentAdapter()->GetD3DDevice();
 
-#if PLATFORM_WINDOWS
+	GRHISupportsArrayIndexFromAnyShader = true;
+
+#if (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
 	// Check if we're running under GPU capture
 	bool bUnderGPUCapture = false;
 
@@ -202,11 +202,18 @@ void FD3D12Device::SetupAfterDeviceCreation()
 		bUnderGPUCapture = true;
 	}
 #if USE_PIX
+
+	// Only check windows version on PLATFORM_WINDOWS - Hololens can assume windows > 10.0 so the condition would always be true.
+#if PLATFORM_WINDOWS
 	// PIX (note that DXGIGetDebugInterface1 requires Windows 8.1 and up)
 	if (FPlatformMisc::VerifyWindowsVersion(6, 3))
+#endif
 	{
 		FDXGIGetDebugInterface1 DXGIGetDebugInterface1FnPtr = nullptr;
 
+#if PLATFORM_HOLOLENS
+		DXGIGetDebugInterface1FnPtr = DXGIGetDebugInterface1;
+#else
 		// CreateDXGIFactory2 is only available on Win8.1+, find it if it exists
 		HMODULE DxgiDLL = LoadLibraryA("dxgi.dll");
 		if (DxgiDLL)
@@ -217,6 +224,7 @@ void FD3D12Device::SetupAfterDeviceCreation()
 #pragma warning(pop)
 			FreeLibrary(DxgiDLL);
 		}
+#endif
 		
 		if (DXGIGetDebugInterface1FnPtr)
 		{
@@ -236,9 +244,9 @@ void FD3D12Device::SetupAfterDeviceCreation()
 
 	if(bUnderGPUCapture)
 	{
-		GetDynamicRHI<FD3D12DynamicRHI>()->EnableIdealGPUCaptureOptions(true);
+		GDynamicRHI->EnableIdealGPUCaptureOptions(true);
 	}
-#endif
+#endif // (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
 
 	// Init offline descriptor allocators
 	RTVAllocator.Init(Direct3DDevice);
@@ -340,13 +348,13 @@ void FD3D12Device::Cleanup()
 			int RefCount = CommandQueue->Release();
 			if (RefCount < 0)
 			{
-				UE_LOG(LogD3D12RHI, Error, TEXT("%s CommandQueue is already destroyed!"), Name);
+				UE_LOG(LogD3D12RHI, Error, TEXT("%s CommandQueue is already destroyed  (Refcount %d)!"), Name, RefCount);
 			}
 			else if (RefCount > 2)
 			{
 				UE_LOG(LogD3D12RHI, Warning, TEXT("%s CommandQueue is leaking (Refcount %d)"), Name, RefCount);
 			}
-			check(RefCount >= 1);
+			ensure(RefCount >= 1);
 		}
 	};
 
@@ -366,6 +374,9 @@ void FD3D12Device::Cleanup()
 
 	ReleasePooledUniformBuffers();
 
+	// Flush all pending deletes before destroying the device or any command contexts.
+	FRHIResource::FlushPendingDeletes();
+
 	// Delete array index 0 (the default context) last
 	for (int32 i = CommandContextArray.Num() - 1; i >= 0; i--)
 	{
@@ -380,8 +391,6 @@ void FD3D12Device::Cleanup()
 		AsyncComputeContextArray[i] = nullptr;
 	}
 
-	// Flush all pending deletes before destroying the device.
-	FRHIResource::FlushPendingDeletes();
 
 	/*
 	// Cleanup thread resources

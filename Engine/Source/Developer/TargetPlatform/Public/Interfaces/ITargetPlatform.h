@@ -406,11 +406,6 @@ public:
 	virtual bool UsesBasePassVelocity() const = 0;
 
 	/**
-	* Gets whether the platform should use Anisotropic BRDF in the base pass.
-	*/
-	virtual bool UsesAnisotropicBRDF() const = 0;
-
-	/**
 	* Gets whether the platform will use selective outputs in the base pass shaders.
 	*/
 	virtual bool UsesSelectiveBasePassOutputs() const = 0; 
@@ -429,6 +424,11 @@ public:
 	* Gets whether the platform will use SH2 instead of SH3 for sky irradiance.
 	*/
 	virtual bool ForcesSimpleSkyDiffuse() const = 0;
+
+	/**
+	* Gets whether the platform will encode depth velocity.
+	*/
+	virtual bool VelocityEncodeDepth() const = 0;
 
 	/**
 	* Gets down sample mesh distance field divider.
@@ -487,6 +487,12 @@ public:
 	 * @param OutFormats will contain all the texture formats which are possible for this platform
 	 */
 	virtual void GetAllTextureFormats( TArray<FName>& OutFormats ) const = 0;
+
+	/**
+	 * Platforms that support multiple texture compression variants 
+	 * might want to use a single specific variant for virtual textures to reduce fragmentation
+	 */
+	virtual FName FinalizeVirtualTextureLayerFormat(FName Format) const = 0;
 
 	/**
 	* Gets the texture format to use for a virtual texturing layer. In order to make a better guess

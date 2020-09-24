@@ -15,10 +15,40 @@
 #include "GeneralProjectSettings.h"
 #include "Misc/ScopeLock.h"
 
+
 DEFINE_LOG_CATEGORY(LogRemoteSession);
 
+const TCHAR* LexToString(ERemoteSessionChannelMode InMode)
+{
+	switch (InMode)
+	{
+	case ERemoteSessionChannelMode::Unknown:
+		return TEXT("Unknown");
+	case ERemoteSessionChannelMode::Read:
+		return TEXT("Read");
+	case ERemoteSessionChannelMode::Write:
+		return TEXT("Write");
+	default:
+		check(false);
+		return TEXT("Unknown");
+	}
+}
+
+void LexFromString(ERemoteSessionChannelMode& Value, const TCHAR* String)
+{
+	Value = ERemoteSessionChannelMode::Unknown;
+
+	for (int i = 0; i < (int)ERemoteSessionChannelMode::MaxValue; ++i)
+	{
+		if (FCString::Stricmp(LexToString((ERemoteSessionChannelMode)i), String) == 0)
+		{
+			Value = (ERemoteSessionChannelMode)i;
+			return;
+		}
+	}
+}
+
 FRemoteSessionRole::FRemoteSessionRole()
-	: bShouldCreateChannels(false)
 {
 }
 
@@ -35,6 +65,10 @@ void FRemoteSessionRole::Close()
 	OSCConnection = nullptr;
 	Connection = nullptr;
 	ClearChannels();
+	CurrentState = ConnectionState::Disconnected;
+	PendingState = ConnectionState::Unknown;
+	RemoteVersion = TEXT("");
+	FBackChannelOSCMessage::SetLegacyMode(false);
 }
 
 void FRemoteSessionRole::CloseWithError(const FString& Message)
@@ -46,33 +80,59 @@ void FRemoteSessionRole::CloseWithError(const FString& Message)
 
 void FRemoteSessionRole::Tick(float DeltaTime)
 {
-	if (OSCConnection.IsValid())
+	if (PendingState != ConnectionState::Unknown)
 	{
-		if (OSCConnection->IsConnected())
+		UE_LOG(LogRemoteSession, Log, TEXT("Processing change from %s to %s"), LexToString(CurrentState), LexToString(PendingState));
+		// pass this in so code can know where we came from if needed
+		ConnectionState OldState = CurrentState;
+		CurrentState = PendingState;
+		PendingState = ConnectionState::Unknown;
+		if (ProcessStateChange(CurrentState, OldState))
+		{
+			UE_LOG(LogRemoteSession, Log, TEXT("Changed state to %s"), LexToString(CurrentState));
+
+			if (CurrentState == ConnectionState::Connected)
+			{
+				UE_LOG(LogRemoteSession, Log, TEXT("Starting OSC receive thread for future messages"));
+				OSCConnection->StartReceiveThread();
+			}
+		}
+		else
+		{
+			CloseWithError(FString::Printf(TEXT("State change failed! Closing connection"), CurrentState, OldState));
+		}
+	}
+
+	bool DidHaveConnection = OSCConnection.IsValid() && !OSCConnection->IsConnected();
+
+	bool HaveLowLevelConnection = OSCConnection.IsValid() && OSCConnection->IsConnected();
+
+	if (HaveLowLevelConnection)
+	{
+		if (GetCurrentState() == ConnectionState::Disconnected)
+		{
+			SetPendingState(ConnectionState::UnversionedConnection);
+		}
+		else
 		{
 			if (ThreadRunning == false && OSCConnection->IsThreaded() == false)
 			{
 				OSCConnection->ReceivePackets();
 			}
 
-			if (bShouldCreateChannels)
+			if (GetCurrentState() == ConnectionState::Connected)
 			{
-				bShouldCreateChannels = false;
-				UE_LOG(LogRemoteSession, Log, TEXT("FRemoteSessionRole: Binding endpoints and creating channels"));
-				OnBindEndpoints();
-				OnCreateChannels();
-			}
-
-			for (auto& Channel : Channels)
-			{
-				Channel->Tick(DeltaTime);
+				for (auto& Channel : Channels)
+				{
+					Channel->Tick(DeltaTime);
+				}
 			}
 		}
-		else
-		{
-			UE_LOG(LogRemoteSession, Warning, TEXT("Connection %s has disconnected."), *OSCConnection->GetDescription());
-			OSCConnection = nullptr;
-		}
+	}
+	else if (DidHaveConnection)
+	{
+		UE_LOG(LogRemoteSession, Warning, TEXT("Connection %s has disconnected."), *OSCConnection->GetDescription());
+		OSCConnection = nullptr;
 	}
 }
 
@@ -122,7 +182,7 @@ uint32 FRemoteSessionRole::Run()
 {
 	/* Not used and likely to be removed! */
 	double LastTick = FPlatformTime::Seconds();
-
+	
 	while (ThreadExitRequested == false)
 	{
 		const double DeltaTime = FPlatformTime::Seconds() - LastTick;
@@ -156,52 +216,79 @@ void FRemoteSessionRole::StopBackgroundThread()
 	}
 }
 
-void FRemoteSessionRole::CreateOSCConnection(TSharedRef<IBackChannelConnection> InConnection)
+void FRemoteSessionRole::CreateOSCConnection(TSharedRef<IBackChannelSocketConnection> InConnection)
 {
 	OSCConnection = MakeShareable(new FBackChannelOSCConnection(InConnection));
-	
-	auto Delegate = FBackChannelDispatchDelegate::FDelegate::CreateRaw(this, &FRemoteSessionRole::OnVersionCheck);
-	OSCConnection->AddMessageHandler(TEXT("/Version"),Delegate);
-	
-	Delegate = FBackChannelDispatchDelegate::FDelegate::CreateRaw(this, &FRemoteSessionRole::OnCreateChannels);
-	OSCConnection->AddMessageHandler(GetChannelSelectionEndPoint(), Delegate);
 
-	OSCConnection->StartReceiveThread();
-	
-	SendVersion();
+	SetPendingState(ConnectionState::UnversionedConnection);
+
+	const URemoteSessionSettings* Settings = GetDefault<URemoteSessionSettings>();
+	OSCConnection->SetConnectionTimeout(Settings->ConnectionTimeout, Settings->ConnectionTimeoutWhenDebugging);
 }
 
-const TCHAR* FRemoteSessionRole::GetVersion() const
+bool FRemoteSessionRole::IsLegacyConnection() const
 {
-	return REMOTE_SESSION_VERSION_STRING;
+	return RemoteVersion == IRemoteSessionModule::GetLastSupportedVersion();
 }
 
-void FRemoteSessionRole::SendVersion()
+void FRemoteSessionRole::SendLegacyVersionCheck()
 {
-	// now ask the client to start these channels
-	FBackChannelOSCMessage Msg(TEXT("/Version"));
-	Msg.Write(GetVersion());
-	OSCConnection->SendPacket(Msg);
+	if (ensureMsgf(GetCurrentState() == ConnectionState::UnversionedConnection,
+		TEXT("Can only send version check in an unversioned state. Current State is %s"),
+		LexToString(GetCurrentState())))
+	{
+		TBackChannelSharedPtr<IBackChannelPacket> Packet = OSCConnection->CreatePacket();
+
+		Packet->SetPath(kLegacyVersionEndPoint);
+		Packet->Write(TEXT("Version"), IRemoteSessionModule::GetLastSupportedVersion());
+
+		// now ask the client to start these channels
+		//FBackChannelOSCMessage Msg(TEXT("/Version"));
+		//Msg.Write(TEXT("Version"), FString(GetVersion()));
+
+		OSCConnection->SendPacket(Packet);
+	}
 }
 
-void FRemoteSessionRole::OnVersionCheck(FBackChannelOSCMessage& Message, FBackChannelOSCDispatch& Dispatch)
+void FRemoteSessionRole::OnReceiveLegacyVersion(IBackChannelPacket& Message)
 {
+	if (IsStateCurrentOrPending(ConnectionState::Connected))
+	{
+		UE_LOG(LogRemoteSession, Log, TEXT("Already connected with new protocol. Ignoring legacy connection message."));
+		return;
+	}
+
 	FString VersionString;
-	
-	Message.Read(VersionString);
-	
+	Message.Read(TEXT("Version"), VersionString);
+
 	FString VersionErrorMessage;
-	
+
 	if (VersionString.Len() == 0)
 	{
 		VersionErrorMessage = TEXT("FRemoteSessionRole: Failed to read version string");
 	}
-	
-	if (VersionString != GetVersion())
+
+	if (VersionString != IRemoteSessionModule::GetLocalVersion())
 	{
-		VersionErrorMessage = FString::Printf(TEXT("FRemoteSessionRole: Version mismatch. Local=%s, Remote=%s"), *GetVersion(), *VersionString);
+		if (VersionString == IRemoteSessionModule::GetLastSupportedVersion())
+		{
+			UE_LOG(LogRemoteSession, Warning, TEXT("Detected legacy version %s. Setting compatibility options."), *VersionString);
+			RemoteVersion = VersionString;
+		}
+		else
+		{
+			VersionErrorMessage = FString::Printf(TEXT("FRemoteSessionRole: Version mismatch. Local=%s, Remote=%s"), *IRemoteSessionModule::GetLocalVersion(), *VersionString);
+		}
 	}
-	
+	else
+	{
+		// this path should not be possible..
+		if (ensureMsgf(false, TEXT("Received new protocol version through legacy handshake!")))
+		{
+			RemoteVersion = VersionString;
+		}
+	}
+
 	if (VersionErrorMessage.Len() > 0)
 	{
 		UE_LOG(LogRemoteSession, Error, TEXT("%s"), *VersionErrorMessage);
@@ -210,41 +297,96 @@ void FRemoteSessionRole::OnVersionCheck(FBackChannelOSCMessage& Message, FBackCh
 	}
 	else
 	{
-		bShouldCreateChannels = true;
+		SetPendingState(ConnectionState::Connected);
+		FBackChannelOSCMessage::SetLegacyMode(true);
 	}
 }
 
-void FRemoteSessionRole::OnCreateChannels(FBackChannelOSCMessage& Message, FBackChannelOSCDispatch& Dispatch)
+void FRemoteSessionRole::SendHello()
 {
-	OnChannelSelection(Message, Dispatch);
+	if (ensureMsgf(GetCurrentState() == ConnectionState::UnversionedConnection,
+		TEXT("Can only send version check in an unversioned state. Current State is %s"),
+		LexToString(GetCurrentState())))
+	{
+		TBackChannelSharedPtr<IBackChannelPacket> Packet = OSCConnection->CreatePacket();
+
+		Packet->SetPath(kHelloEndPoint);
+		Packet->Write(TEXT("Version"), IRemoteSessionModule::GetLocalVersion());
+		OSCConnection->SendPacket(Packet);
+	}
 }
 
-void FRemoteSessionRole::OnChannelSelection(FBackChannelOSCMessage& Message, FBackChannelOSCDispatch& Dispatch)
+void FRemoteSessionRole::OnReceiveHello(IBackChannelPacket& Message)
 {
+	if (IsStateCurrentOrPending(ConnectionState::Connected) || IsLegacyConnection())
+	{
+		UE_LOG(LogRemoteSession, Log, TEXT("Received Hello to established legacy connection. Switching to new protocol"));
+		RemoteVersion = TEXT("");
+		FBackChannelOSCMessage::SetLegacyMode(false);
+	}
+
+	// Read the version
+	FString VersionString;
+	FString VersionErrorMessage;
+
+	Message.Read(TEXT("Version"), VersionString);
+
+	if (VersionString.Len() == 0)
+	{
+		VersionErrorMessage = TEXT("FRemoteSessionRole: Failed to read version string");
+	}
+
+	// No compatibility checks beyond this new version yet
+	if (VersionString != IRemoteSessionModule::GetLocalVersion())
+	{
+		VersionErrorMessage = FString::Printf(TEXT("FRemoteSessionRole: Version mismatch. Local=%s, Remote=%s"), *IRemoteSessionModule::GetLocalVersion(), *VersionString);
+	}
+	else
+	{
+		RemoteVersion = VersionString;
+	}
+
+	if (VersionErrorMessage.Len() > 0)
+	{
+		UE_LOG(LogRemoteSession, Error, TEXT("%s"), *VersionErrorMessage);
+		UE_LOG(LogRemoteSession, Log, TEXT("FRemoteSessionRole: Closing connection due to version mismatch"));
+		CloseWithError(VersionErrorMessage);
+	}
+	else
+	{
+		SetPendingState(ConnectionState::Connected);
+	}
 }
 
-void FRemoteSessionRole::OnBindEndpoints()
+void FRemoteSessionRole::RegisterChannelChangeDelegate(FOnRemoteSessionChannelChange InDelegate)
 {
+	ChangeDelegates.Add(InDelegate);
 }
 
-void FRemoteSessionRole::OnCreateChannels()
+void FRemoteSessionRole::UnregisterChannelChangeDelegate(void* UserObject)
 {
+	ChangeDelegates.RemoveAll([UserObject](FOnRemoteSessionChannelChange& Delegate) {
+		return Delegate.IsBoundToObject(UserObject);
+	});
 }
+
 
 void FRemoteSessionRole::CreateChannel(const FRemoteSessionChannelInfo& InChannel)
 {
 	TSharedPtr<IRemoteSessionChannel> NewChannel;
 	IRemoteSessionModule& RemoteSession = FModuleManager::GetModuleChecked<IRemoteSessionModule>("RemoteSession");
-	if (TSharedPtr<IRemoteSessionChannelFactoryWorker> Worker = RemoteSession.FindChannelFactoryWorker(*InChannel.Type))
-	{
-		NewChannel = Worker->Construct(InChannel.Mode, OSCConnection);
-	}
+
+	NewChannel = FRemoteSessionChannelRegistry::Get().CreateChannel(*InChannel.Type, InChannel.Mode, OSCConnection);
 
 	if (NewChannel.IsValid())
 	{
 		UE_LOG(LogRemoteSession, Log, TEXT("Created Channel %s with mode %d"), *InChannel.Type, (int32)InChannel.Mode);
 		Channels.Add(NewChannel);
-		InChannel.OnCreated.ExecuteIfBound(NewChannel, InChannel.Type, InChannel.Mode);
+
+		for (auto& Delegate : ChangeDelegates)
+		{
+			Delegate.ExecuteIfBound(this, NewChannel, ERemoteSessionChannelChange::Created);
+		}
 	}
 	else
 	{
@@ -288,3 +430,11 @@ TSharedPtr<IRemoteSessionChannel> FRemoteSessionRole::GetChannel(const TCHAR* In
 
 	return Channel;
 }
+
+/* Queues the next state to be processed on the next tick. It's an error to call this when there is another state pending */
+void FRemoteSessionRole::SetPendingState(const ConnectionState InState)
+{
+	checkf(PendingState == ConnectionState::Unknown, TEXT("PendingState must be unknown when SetPendingState is called"));
+	PendingState = InState;
+}
+

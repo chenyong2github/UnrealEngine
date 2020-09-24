@@ -260,8 +260,8 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 			TranslucencyGIVolumeHistory1 = GraphBuilder.RegisterExternalTexture(View.ViewState->Lumen.TranslucencyVolume1);
 		}
 
-		FPooledRenderTargetDesc LumenTranslucencyGIDesc0(FPooledRenderTargetDesc::CreateVolumeDesc(TranslucencyGridSize.X, TranslucencyGridSize.Y, TranslucencyGridSize.Z, PF_FloatRGB, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_UAV | TexCreate_3DTiling, false));
-		FPooledRenderTargetDesc LumenTranslucencyGIDesc1(FPooledRenderTargetDesc::CreateVolumeDesc(TranslucencyGridSize.X, TranslucencyGridSize.Y, TranslucencyGridSize.Z, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_UAV | TexCreate_3DTiling, false));
+		FRDGTextureDesc LumenTranslucencyGIDesc0(FRDGTextureDesc::Create3D(TranslucencyGridSize, PF_FloatRGB, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV | TexCreate_3DTiling));
+		FRDGTextureDesc LumenTranslucencyGIDesc1(FRDGTextureDesc::Create3D(TranslucencyGridSize, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV | TexCreate_3DTiling));
 	
 		FRDGTextureRef TranslucencyGIVolume0 = GraphBuilder.CreateTexture(LumenTranslucencyGIDesc0, TEXT("LumenTranslucencyGIVolume0"));
 		FRDGTextureRef TranslucencyGIVolume1 = GraphBuilder.CreateTexture(LumenTranslucencyGIDesc1, TEXT("LumenTranslucencyGIVolume1"));
@@ -302,7 +302,7 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 				&& !View.bPrevTransformsReset
 				&& ViewFamily.bRealtimeUpdate
 				&& TranslucencyGIVolumeHistory0
-				&& TranslucencyGIVolumeHistory0->Desc.Compare(LumenTranslucencyGIDesc0, true);
+				&& TranslucencyGIVolumeHistory0->Desc == LumenTranslucencyGIDesc0;
 
 			PassParameters->HistoryWeight = GTranslucencyVolumeHistoryWeight;
 			PassParameters->FrameJitterOffset = TranslucencyVolumeTemporalRandom(View.ViewState ? View.ViewState->GetFrameIndex() : 0);

@@ -9,7 +9,7 @@
 /**
  * SetBoneTransform is used to perform a change in the hierarchy by setting a single bone's transform.
  */
-USTRUCT(meta=(DisplayName="Set Transform", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetBoneTransform"))
+USTRUCT(meta=(DisplayName="Set Transform", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetBoneTransform", Deprecated="4.25"))
 struct FRigUnit_SetBoneTransform : public FRigUnitMutable
 {
 	GENERATED_BODY()
@@ -18,12 +18,10 @@ struct FRigUnit_SetBoneTransform : public FRigUnitMutable
 		: Space(EBoneGetterSetterMode::LocalSpace)
 		, Weight(1.f)
 		, bPropagateToChildren(false)
-		, CachedBoneIndex(INDEX_NONE)
+		, CachedBone(FCachedRigElement())
 	{}
 
-	virtual FString GetUnitLabel() const override;
-
-	virtual FName DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
+	virtual FRigElementKey DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
 	{
 		if (InPinPath.StartsWith(TEXT("Transform")) && Space == EBoneGetterSetterMode::LocalSpace)
 		{
@@ -32,12 +30,12 @@ struct FRigUnit_SetBoneTransform : public FRigUnitMutable
 				int32 BoneIndex = Container->BoneHierarchy.GetIndex(Bone);
 				if (BoneIndex != INDEX_NONE)
 				{
-					return Container->BoneHierarchy[BoneIndex].ParentName;
+					return Container->BoneHierarchy[BoneIndex].GetParentElementKey();
 				}
 
 			}
 		}
-		return NAME_None;
+		return FRigElementKey();
 	}
 
 	RIGVM_METHOD()
@@ -46,14 +44,20 @@ struct FRigUnit_SetBoneTransform : public FRigUnitMutable
 	/**
 	 * The name of the Bone to set the transform for.
 	 */
-	UPROPERTY(meta = (Input, CustomWidget = "BoneName", Constant))
+	UPROPERTY(meta = (Input))
 	FName Bone;
 
 	/**
 	 * The transform value to set for the given Bone.
 	 */
-	UPROPERTY(meta = (Input, Output))
+	UPROPERTY(meta = (Input))
 	FTransform Transform;
+
+	/**
+	 * The transform value result (after weighting)
+	 */
+	UPROPERTY(meta = (Output))
+	FTransform Result;
 
 	/**
 	 * Defines if the bone's transform should be set
@@ -77,6 +81,6 @@ struct FRigUnit_SetBoneTransform : public FRigUnitMutable
 	bool bPropagateToChildren;
 
 	// Used to cache the internally used bone index
-	UPROPERTY()
-	int32 CachedBoneIndex;
+	UPROPERTY(transient)
+	FCachedRigElement CachedBone;
 };

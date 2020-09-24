@@ -98,8 +98,8 @@ void FSlatePostProcessor::BlurRect(FRHICommandListImmediate& RHICmdList, IRender
 			FTexture2DRHIRef SourceTexture = bDownsample ? IntermediateTargets->GetRenderTarget(0) : RectParams.SourceTexture;
 			FTexture2DRHIRef DestTexture = IntermediateTargets->GetRenderTarget(1);
 
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, SourceTexture);
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, DestTexture);
+			RHICmdList.Transition(FRHITransitionInfo(SourceTexture, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
+			RHICmdList.Transition(FRHITransitionInfo(DestTexture, ERHIAccess::Unknown, ERHIAccess::RTV));
 
 			FRHIRenderPassInfo RPInfo(DestTexture, ERenderTargetActions::Load_Store);
 			RHICmdList.BeginRenderPass(RPInfo, TEXT("SlateBlurRectPass0"));
@@ -161,8 +161,8 @@ void FSlatePostProcessor::BlurRect(FRHICommandListImmediate& RHICmdList, IRender
 			FTexture2DRHIRef SourceTexture = IntermediateTargets->GetRenderTarget(1);
 			FTexture2DRHIRef DestTexture = IntermediateTargets->GetRenderTarget(0);
 
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, SourceTexture);
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, DestTexture);
+			RHICmdList.Transition(FRHITransitionInfo(SourceTexture, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
+			RHICmdList.Transition(FRHITransitionInfo(DestTexture, ERHIAccess::Unknown, ERHIAccess::RTV));
 
 			FRHIRenderPassInfo RPInfo(DestTexture, ERenderTargetActions::Load_Store);
 			RHICmdList.BeginRenderPass(RPInfo, TEXT("SlateBlurRect"));
@@ -243,8 +243,8 @@ void FSlatePostProcessor::ColorDeficiency(FRHICommandListImmediate& RHICmdList, 
 		FTexture2DRHIRef SourceTexture = RectParams.SourceTexture;
 		FTexture2DRHIRef DestTexture = IntermediateTargets->GetRenderTarget(0);
 
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, SourceTexture);
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, DestTexture);
+		RHICmdList.Transition(FRHITransitionInfo(SourceTexture, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
+		RHICmdList.Transition(FRHITransitionInfo(DestTexture, ERHIAccess::Unknown, ERHIAccess::RTV));
 
 		FRHIRenderPassInfo RPInfo(DestTexture, ERenderTargetActions::Load_Store);
 		RHICmdList.BeginRenderPass(RPInfo, TEXT("ColorDeficiency"));
@@ -317,8 +317,8 @@ void FSlatePostProcessor::DownsampleRect(FRHICommandListImmediate& RHICmdList, I
 	{
 		TShaderMapRef<FSlatePostProcessDownsamplePS> PixelShader(ShaderMap);
 
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, Params.SourceTexture);
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, DestTexture);
+		RHICmdList.Transition(FRHITransitionInfo(Params.SourceTexture, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
+		RHICmdList.Transition(FRHITransitionInfo(DestTexture, ERHIAccess::Unknown, ERHIAccess::RTV));
 
 		const FVector2D InvSrcTetureSize(1.f/SrcTextureWidth, 1.f/SrcTextureHeight);
 
@@ -344,7 +344,7 @@ void FSlatePostProcessor::DownsampleRect(FRHICommandListImmediate& RHICmdList, I
 			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
-			PixelShader->SetShaderParams(RHICmdList, FVector4(InvSrcTetureSize.X, InvSrcTetureSize.Y, 0, 0));
+			PixelShader->SetShaderParams(RHICmdList, FShaderParams::MakePixelShaderParams(FVector4(InvSrcTetureSize.X, InvSrcTetureSize.Y, 0, 0)));
 			PixelShader->SetUVBounds(RHICmdList, FVector4(UVStart, UVEnd));
 			PixelShader->SetTexture(RHICmdList, Params.SourceTexture, BilinearClamp);
 
@@ -399,8 +399,9 @@ void FSlatePostProcessor::UpsampleRect(FRHICommandListImmediate& RHICmdList, IRe
 	RHICmdList.SetViewport(0, 0, 0, DestTextureWidth, DestTextureHeight, 0.0f);
 
 	// Perform Writable transitions first
-	RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, DestTexture);
-	RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, SrcTexture);
+
+	RHICmdList.Transition(FRHITransitionInfo(SrcTexture, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
+	RHICmdList.Transition(FRHITransitionInfo(DestTexture, ERHIAccess::Unknown, ERHIAccess::RTV));
 
 	FRHIRenderPassInfo RPInfo(DestTexture, ERenderTargetActions::Load_Store);
 	RHICmdList.BeginRenderPass(RPInfo, TEXT("UpsampleRect"));

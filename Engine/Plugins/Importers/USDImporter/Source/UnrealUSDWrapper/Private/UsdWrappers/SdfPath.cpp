@@ -57,7 +57,11 @@ namespace UE
 	{
 #if USE_USD_SDK
 		FScopedUnrealAllocs UnrealAllocs;
-		Impl = MakeUnique< Internal::FSdfPathImpl >( pxr::SdfPath( TCHAR_TO_ANSI( InPath ) ) );
+		Impl = MakeUnique< Internal::FSdfPathImpl >(
+			FCString::Strlen( InPath ) == 0
+				? pxr::SdfPath() // USD gives a warning if we construct with an empty string
+				: pxr::SdfPath( TCHAR_TO_ANSI( InPath ) )
+			);
 #endif // #if USE_USD_SDK
 	}
 
@@ -83,7 +87,7 @@ namespace UE
 		FScopedUnrealAllocs UnrealAllocs;
 		Impl.Reset();
 	}
-	
+
 	bool FSdfPath::operator==( const FSdfPath& Other ) const
 	{
 #if USE_USD_SDK

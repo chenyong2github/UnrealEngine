@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/ChaosMarshallingManager.h"
+#include "Chaos/PullPhysicsDataImp.h"
 
 namespace Chaos
 {
@@ -14,9 +15,29 @@ FChaosMarshallingManager::FChaosMarshallingManager()
 , SimTime(0)
 , InternalTimestamp(-1)
 , ProducerData(nullptr)
+, CurPullData(nullptr)
 , Delay(SimDelay)
 {
 	PrepareExternalQueue();
+	PreparePullData();
+}
+
+FChaosMarshallingManager::~FChaosMarshallingManager() = default;
+
+void FChaosMarshallingManager::FinalizePullData_Internal()
+{
+	CurPullData->SolverTimestamp = InternalTimestamp;
+	PullDataQueue.Enqueue(CurPullData);
+	PreparePullData();
+}
+
+void FChaosMarshallingManager::PreparePullData()
+{
+	if(!PullDataPool.Dequeue(CurPullData))
+	{
+		const int32 Idx = BackingPullBuffer.Add(MakeUnique<FPullPhysicsData>());
+		CurPullData = BackingPullBuffer[Idx].Get();
+	}
 }
 
 void FChaosMarshallingManager::PrepareExternalQueue()
@@ -32,9 +53,9 @@ void FChaosMarshallingManager::PrepareExternalQueue()
 
 void FChaosMarshallingManager::Step_External(FReal ExternalDT)
 {
-	for(FSimCallbackDataPair& Pair : ProducerData->SimCallbackDataPairs)
+	for (FSimCallbackInputAndObject& Pair : ProducerData->SimCallbackInputs)
 	{
-		Pair.Callback->LatestCallbackData = nullptr;	//mark data as marshalled, any new data must be in a new data packet
+		Pair.CallbackObject->CurrentExternalInput_External = nullptr;	//mark data as marshalled, any new data must be in a new data packet
 	}
 
 	//stored in reverse order for easy removal later. Might want to use a circular buffer if perf is bad here
@@ -87,30 +108,32 @@ void FChaosMarshallingManager::FreeData_Internal(FPushPhysicsData* PushData)
 	PushDataPool.Enqueue(PushData);
 }
 
-void FChaosMarshallingManager::FreeCallbackData_Internal(FSimCallbackHandlePT* Callback)
+void FChaosMarshallingManager::FreePullData_External(FPullPhysicsData* PullData)
 {
-	if(Callback->IntervalData.Num())
-	{
-		if(Callback->Handle->FreeExternal)
-		{
-			Callback->Handle->FreeExternal(Callback->IntervalData);	//any external data should be freed
-		}
-
-		for(FSimCallbackData* Data : Callback->IntervalData)
-		{
-			CallbackDataPool.Enqueue(Data);
-		}
-
-		Callback->IntervalData.Reset();
-	}
+	PullData->Reset();
+	PullDataPool.Enqueue(PullData);
 }
 
 void FPushPhysicsData::Reset()
 {
 	DirtyProxiesDataBuffer.Reset();
-	SimCallbacksToAdd.Reset();
-	SimCallbacksToRemove.Reset();
-	SimCallbackDataPairs.Reset();
+
+	SimCallbackObjectsToAdd.Reset();
+	SimCallbackObjectsToRemove.Reset();
+	SimCallbackInputs.Reset();
+}
+
+FSimCallbackInput* ISimCallbackObject::GetProducerInputData_External()
+{
+	if (CurrentExternalInput_External == nullptr)
+	{
+		FChaosMarshallingManager& Manager = Solver->GetMarshallingManager();
+		CurrentExternalInput_External = AllocateInputData_External();
+		CurrentExternalInput_External->ExternalTime = Manager.GetExternalTime_External();
+		Manager.AddSimCallbackInputData_External(this, CurrentExternalInput_External);
+	}
+
+	return CurrentExternalInput_External;
 }
 
 }

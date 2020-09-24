@@ -18,7 +18,7 @@ void Lambert_SampleMaterial(
 	float4 SampledValue = CosineSampleHemisphere(RandSample.xy);
 	OutDirection = TangentToWorld(SampledValue.xyz, N_World);
 
-	OutThroughput = DiffuseColor * SampledValue.w; // SampledValue.w = NoL / PI;
+	OutThroughput = DiffuseColor / PI;
 	OutPdf = SampledValue.w;
 }
 
@@ -40,5 +40,5 @@ void Lambert_EvalMaterial(
 	float NoL = max(dot(N_World, OutgoingDirection), 0.0);
 
 	OutPdf = NoL / PI;
-	OutThroughput = GetDiffuseColor(Payload) * NoL / PI;
+	OutThroughput = GetDiffuseColor(Payload) / PI;
 }

@@ -243,6 +243,9 @@ public:
 	/** Stub function used internally by animation blueprints */
 	static const FName MD_AnimBlueprintFunction;
 
+	/** Metadata that should be used with UPARAM to specify whether a TSubclassOf argument allows abstract classes */
+	static const FName MD_AllowAbstractClasses;
+
 private:
 	// This class should never be instantiated
 	FBlueprintMetadata() {}
@@ -527,6 +530,7 @@ public:
 	virtual int32 GetCurrentVisualizationCacheID() const override;
 	virtual void ForceVisualizationCacheClear() const override;
 	virtual bool SafeDeleteNodeFromGraph(UEdGraph* Graph, UEdGraphNode* NodeToDelete) const override;
+	virtual bool CanVariableBeDropped(UEdGraph* InGraph, FProperty* InVariableToDrop) const override { return true; }
 	//~ End EdGraphSchema Interface
 
 	/**

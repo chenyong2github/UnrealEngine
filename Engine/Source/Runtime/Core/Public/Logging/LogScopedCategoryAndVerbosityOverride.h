@@ -37,7 +37,7 @@ private:
 	/** Backup of the category, verbosity pairs that was present when we were constructed **/
 	FOverride Backup;
 public:
-	/** Back up the existing category and varbosity pair, then sets them.*/
+	/** Back up the existing category and verbosity pair, then sets them.*/
 	FLogScopedCategoryAndVerbosityOverride(FName Category, ELogVerbosity::Type Verbosity);
 
 	/** Restore the category and verbosity overrides to the previous value.*/

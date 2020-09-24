@@ -27,14 +27,12 @@ DebugViewModeRendering.cpp: Contains definitions for rendering debug viewmodes.
 #include "DeferredShadingRenderer.h"
 #include "MeshPassProcessor.inl"
 
-IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FDebugViewModePassPassUniformParameters, "DebugViewModePass");
+IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FDebugViewModePassUniformParameters, "DebugViewModePass", SceneTextures);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
-void SetupDebugViewModePassUniformBuffer(FSceneRenderTargets& SceneContext, const FViewInfo& ViewInfo, FDebugViewModePassPassUniformParameters& PassParameters)
+void SetupDebugViewModePassUniformBufferConstants(const FViewInfo& ViewInfo, FDebugViewModePassUniformParameters& PassParameters)
 {
-	SetupSceneTextureUniformParameters(SceneContext, ViewInfo.FeatureLevel, ESceneTextureSetupMode::None, PassParameters.SceneTextures);
-
 	// Accuracy colors
 	{
 		const int32 NumEngineColors = FMath::Min<int32>(GEngine->StreamingAccuracyColors.Num(), NumStreamingAccuracyColors);
@@ -59,7 +57,7 @@ void SetupDebugViewModePassUniformBuffer(FSceneRenderTargets& SceneContext, cons
 		{
 			Colors = &GEngine->HLODColorationColors;
 		}
-		
+
 		const int32 NumColors = Colors ? FMath::Min<int32>(NumLODColorationColors, Colors->Num()) : 0;
 		int32 ColorIndex = 0;
 		for (; ColorIndex < NumColors; ++ColorIndex)
@@ -73,6 +71,22 @@ void SetupDebugViewModePassUniformBuffer(FSceneRenderTargets& SceneContext, cons
 	}
 }
 
+TUniformBufferRef<FDebugViewModePassUniformParameters> CreateDebugViewModePassUniformBuffer(FRHICommandList& RHICmdList, const FViewInfo& View)
+{
+	FDebugViewModePassUniformParameters Parameters;
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	SetupSceneTextureUniformParameters(SceneContext, View.FeatureLevel, ESceneTextureSetupMode::None, Parameters.SceneTextures);
+	SetupDebugViewModePassUniformBufferConstants(View, Parameters);
+	return TUniformBufferRef<FDebugViewModePassUniformParameters>::CreateUniformBufferImmediate(Parameters, UniformBuffer_SingleFrame);
+}
+
+TRDGUniformBufferRef<FDebugViewModePassUniformParameters> CreateDebugViewModePassUniformBuffer(FRDGBuilder& GraphBuilder, const FViewInfo& View)
+{
+	auto* UniformBufferParameters = GraphBuilder.AllocParameters<FDebugViewModePassUniformParameters>();
+	SetupSceneTextureUniformParameters(GraphBuilder, View.FeatureLevel, ESceneTextureSetupMode::None, UniformBufferParameters->SceneTextures);
+	SetupDebugViewModePassUniformBufferConstants(View, *UniformBufferParameters);
+	return GraphBuilder.CreateUniformBuffer(UniformBufferParameters);
+}
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(,FDebugViewModeVS,TEXT("/Engine/Private/DebugViewModeVertexShader.usf"),TEXT("Main"),SF_Vertex);	
 IMPLEMENT_MATERIAL_SHADER_TYPE(,FDebugViewModeHS,TEXT("/Engine/Private/DebugViewModeVertexShader.usf"),TEXT("MainHull"),SF_Hull);	
@@ -101,41 +115,41 @@ bool FDebugViewModeVS::ShouldCompilePermutation(const FMeshMaterialShaderPermuta
 	return false;
 }
 
-bool FDeferredShadingSceneRenderer::RenderDebugViewMode(FRHICommandListImmediate& RHICmdList)
-{
-	bool bDirty=0;
-	SCOPED_DRAW_EVENT(RHICmdList, DebugViewMode);
+BEGIN_SHADER_PARAMETER_STRUCT(FDebugViewModePassParameters, )
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FDebugViewModePassUniformParameters, Pass)
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+void FDeferredShadingSceneRenderer::RenderDebugViewMode(FRDGBuilder& GraphBuilder, const FRenderTargetBindingSlots& RenderTargets)
+{
+	RDG_EVENT_SCOPE(GraphBuilder, "DebugViewMode");
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{
 		FViewInfo& View = Views[ViewIndex];
+		RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
+		RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 
-		SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
-		SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("View%d"), ViewIndex);
+		auto* PassParameters = GraphBuilder.AllocParameters<FDebugViewModePassParameters>();
+		PassParameters->Pass = CreateDebugViewModePassUniformBuffer(GraphBuilder, View);
+		PassParameters->RenderTargets = RenderTargets;
 
-		Scene->UniformBuffers.UpdateViewUniformBuffer(View);
-
-		// Some of the viewmodes use SCENE_TEXTURES_DISABLED to prevent issues when running in commandlet mode.
-		FDebugViewModePassPassUniformParameters PassParameters;
-		SetupDebugViewModePassUniformBuffer(SceneContext, View, PassParameters);
-		Scene->UniformBuffers.DebugViewModePassUniformBuffer.UpdateUniformBufferImmediate(PassParameters);
-
-		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1);
+		GraphBuilder.AddPass(
+			{},
+			PassParameters,
+			ERDGPassFlags::Raster,
+			[this, &View](FRHICommandList& RHICmdList)
 		{
-			SCOPED_DRAW_EVENT(RHICmdList, Dynamic);
-
+			Scene->UniformBuffers.UpdateViewUniformBuffer(View);
+			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1);
 			View.ParallelMeshDrawCommandPasses[EMeshPass::DebugViewMode].DispatchDraw(nullptr, RHICmdList);
-		}
+		});
 	}
-
-	return bDirty;
 }
 
 FDebugViewModePS::FDebugViewModePS(const FMeshMaterialShaderType::CompiledShaderInitializerType& Initializer) : FMeshMaterialShader(Initializer)
 {
-	PassUniformBuffer.Bind(Initializer.ParameterMap, FDebugViewModePassPassUniformParameters::StaticStructMetadata.GetShaderVariableName());
+	PassUniformBuffer.Bind(Initializer.ParameterMap, FDebugViewModePassUniformParameters::StaticStructMetadata.GetShaderVariableName());
 }
 
 void FDebugViewModePS::GetElementShaderBindings(
@@ -209,10 +223,6 @@ FDebugViewModeMeshProcessor::FDebugViewModeMeshProcessor(
 		if (!ViewUniformBuffer)
 		{
 			ViewUniformBuffer = InScene->UniformBuffers.ViewUniformBuffer;
-		}
-		if (!PassUniformBuffer)
-		{
-			PassUniformBuffer = InScene->UniformBuffers.DebugViewModePassUniformBuffer;
 		}
 	}
 }
@@ -386,10 +396,7 @@ void InitDebugViewModeInterfaces()
 
 #else // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
-bool FDeferredShadingSceneRenderer::RenderDebugViewMode(FRHICommandListImmediate& RHICmdList)
-{
-	return false;
-}
+void FDeferredShadingSceneRenderer::RenderDebugViewMode(FRDGBuilder& GraphBuilder, const FRenderTargetBindingSlots& RenderTargets) {}
 
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 

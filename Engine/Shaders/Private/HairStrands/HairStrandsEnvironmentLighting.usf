@@ -4,7 +4,7 @@
 	ReflectionEnvironmentComputeShaders - functionality to apply local cubemaps.
 =============================================================================*/
 
-#include "HairStrandsVoxelPageCommonStruct.ush"
+#include "HairStrandsVoxelPageCommonStruct.ush" 
 
 #include "../Common.ush"
 #include "HairStrandsCommon.ush"
@@ -48,11 +48,31 @@
 #define INTEGRATION_SCENECOLOR 0
 #define INTEGRATION_ADHOC 1
 #define INTEGRATION_UNIFORM 2
+#define INTEGRATION_SH 3
 
 // Note: 
 // * This version of environement lighting is very much in WIP state, with a lot of option to tune tweak to explore 
 //   what kind of approximation works the best for certains type of grooms and lighting condition
 // * There is a few fudges factor as well (roughness mapping, TT density, reflected vector orientations, ...)
+
+float4 ComputeRandom4(uint2 PixelPosition, uint SampleIt, uint SampleCount)
+{
+	//  Shader compiler code is pretty good at moving this out of any for loops.
+	const uint2 Seed0 = Rand3DPCG16(int3(PixelPosition, View.StateFrameIndexMod8)).xy;
+	const uint2 Seed1 = Rand3DPCG16(int3(PixelPosition + 17, View.StateFrameIndexMod8)).xy;
+	return float4(
+		Hammersley16(SampleIt, SampleCount, Seed0),
+		Hammersley16(SampleIt, SampleCount, Seed1));
+}
+
+// Compute a sample bias by adding a constant bias (3d jitter within a voxel) + a directional offset (jitter along the direction). 
+// Both constant & directional bias are scaled with the size of a voxel
+float3 ComputePositionBias(float3 SampleDirection, float3 SampleOffset)
+{
+	const float3 Bias_Constant		= SampleOffset;
+	const float3 Bias_Directional	= SampleDirection * VirtualVoxel.DepthBiasScale_Environment;
+	return VirtualVoxel.VoxelWorldSize * (Bias_Constant + Bias_Directional);
+}
 
 float GetPreExposure()
 {
@@ -154,7 +174,6 @@ uint bHairUseViewHairCount;
 Texture2D<float> HairCountTexture;
 
 uint  MultipleScatterSampleCount;
-uint  JitterSphericalIntegration;
 uint  HairComponents;
 float HairDualScatteringRoughnessOverride;
 float TransmissionDensityScaleFactor;
@@ -212,14 +231,12 @@ FHairTraversalResult InternalComputeHairCountVoxel(
 float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2 SvPosition, uint PrimitiveId)
 {
 	const float PreExposure = GetPreExposure();
-	const float  MaxDistance = 10000.f; // 100m
 	const float3 WorldPosition	= mul(float4(ScreenPosition * GBuffer.Depth, GBuffer.Depth, 1), View.ScreenToWorld).xyz;
 	const float3 CameraToPixel	= normalize(WorldPosition - View.WorldCameraOrigin);
 	const uint2  PixelPosition	= SvPosition - ResolvedView.ViewRectMin.xy;
 	const float  PixelSceneDepth= GBuffer.Depth;
 	const float  PixelRadius	= VirtualVoxel.HairCoveragePixelRadiusAtDepth1 * PixelSceneDepth;
 
-	const float VoxelMaxSize = VirtualVoxel.VoxelWorldSize;
 	const uint PrimitiveIdMod8 = (PrimitiveId % 8);
 	const float3 VoxelOffset =  GetHairVoxelJitter(SvPosition, View.StateFrameIndexMod8 + PrimitiveIdMod8);
 
@@ -264,31 +281,15 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 		const uint SampleCount = max(MultipleScatterSampleCount, uint(1));
 		#endif
 
-		float2 RandOffset = 0;
-		if (JitterSphericalIntegration > 0)
-		{
-			RandOffset += float2(
-				InterleavedGradientNoise(SvPosition, PrimitiveIdMod8 * 11),
-				InterleavedGradientNoise(SvPosition, PrimitiveIdMod8 * 7));
-			//	InterleavedGradientNoise(SvPosition, View.StateFrameIndexMod8 * 11),
-			//	InterleavedGradientNoise(SvPosition, View.StateFrameIndexMod8 * 7));
-		}
-
 		float3 AvgR = 0;
-		for (uint i = 0; i < SampleCount; ++i)
+		for (uint SampleIt = 0; SampleIt < SampleCount; ++SampleIt)
 		{
-		#if PERMUTATION_SAMPLESET == 0
-			const float2 Rand2 = (PoissonDisk[i] + float2(1, 1)) * 0.5f + RandOffset;
-		#else // PERMUTATION_SAMPLESET == 1
-			const float2 Rand2 = Hammersley(i, SampleCount, uint2(0,0)) + RandOffset;
-		#endif
+			const float4 Random4 = ComputeRandom4(PixelPosition, SampleIt, SampleCount);
 
-			// Depth bias
-			const float3 SampleVoxelOffset = VoxelMaxSize * GetHairVoxelJitter(SvPosition, PrimitiveIdMod8 + i);
-			const float3 SampleWorldPosition = WorldPosition + SampleVoxelOffset;
-
-			const float3 SampleL = UniformSampleSphere(frac(Rand2)).xyz;
-			const float3 SampleLightPosition = WorldPosition + SampleL*MaxDistance;
+			const float3 SampleL = UniformSampleSphere(frac(Random4.xy)).xyz;
+			const float3 SampleBias = ComputePositionBias(SampleL, SampleL * Random4.z);
+			const float3 SampleWorldPosition = WorldPosition + SampleBias;
+			const float3 SampleLightPosition = SampleWorldPosition + SampleL* MaxSearchDistance;
 
 			// Compute the number of hair count between light & shading point
 			const float SinLightAngle = dot(SampleL, T);
@@ -413,11 +414,9 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 		// Compute the transmittance
 		FHairTransmittanceMask TransmittanceMask = InitHairTransmittanceMask();
 		{
-			// Depth bias
-			// Origin is shifted voxels away towards the light + a constant bias of the size of the voxel
-			const float3 DepthBias = VoxelOffset /*+ VoxelMaxSize*Voxel_DepthBiasScale*L*/;
-			const float3 SampleWorldPosition = WorldPosition + DepthBias;
-			const float3 SampleLightPosition = WorldPosition + L * MaxDistance;
+			const float3 SampleBias = ComputePositionBias(L, VoxelOffset);
+			const float3 SampleWorldPosition = WorldPosition + SampleBias;
+			const float3 SampleLightPosition = SampleWorldPosition + L * MaxSearchDistance;
 
 			// Compute the number of hair count between light & shading point
 			const FHairTraversalResult Result = InternalComputeHairCountVoxel(SampleWorldPosition, SampleLightPosition, 1, 0, MaxSearchDistance, PixelRadius, true, bDebugEnabled);
@@ -468,11 +467,9 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 		// Compute the transmittance
 		FHairTransmittanceMask TransmittanceMask = InitHairTransmittanceMask();
 		{
-			// Depth bias
-			// Origin is shifted voxels away towards the light + a constant bias of the size of the voxel
-			const float3 DepthBias = VoxelOffset /*+ VoxelMaxSize*Voxel_DepthBiasScale*L*/;
-			const float3 SampleWorldPosition = WorldPosition + DepthBias;
-			const float3 SampleLightPosition = WorldPosition + L * MaxDistance;
+			const float3 SampleBias = ComputePositionBias(L, VoxelOffset);
+			const float3 SampleWorldPosition = WorldPosition + SampleBias;
+			const float3 SampleLightPosition = SampleWorldPosition + L * MaxSearchDistance;
 
 			// Compute the number of hair count between light & shading point
 			// For TT, we don't want to abort the hair counting, as this is important to get the proper transmission
@@ -552,47 +549,13 @@ float3 ReflectionEnvironmentUniformSampling(
 	const float  PixelRadius = VirtualVoxel.HairCoveragePixelRadiusAtDepth1 * PixelSceneDepth;
 
 	const uint PrimitiveIdMod8 = (PrimitiveId % 8);
-	const float VoxelMaxSize = VirtualVoxel.VoxelWorldSize;
-	const float3 VoxelOffset = VoxelMaxSize * GetHairVoxelJitter(SvPosition, View.StateFrameIndexMod8 + PrimitiveIdMod8);
 
 	const float3 V = -CameraToPixel;
 	const float3 T = GBuffer.WorldNormal;
 
 	// Trace/sample transmittance in various direction to have estimate of where is occlusion & computing the integrated dual scattering value
 	const float MaxSearchDistance = HairDistanceThreshold; // in cm
-#if PERMUTATION_SAMPLESET == 0
-	// Poisson disk position http://developer.download.nvidia.com/whitepapers/2008/PCSS_Integration.pdf
-	float2 PoissonDisk[16] =
-	{
-		float2(-0.94201624, -0.39906216),
-		float2(0.94558609, -0.76890725),
-		float2(-0.094184101, -0.92938870),
-		float2(0.34495938, 0.29387760),
-		float2(-0.91588581, 0.45771432),
-		float2(-0.81544232, -0.87912464),
-		float2(-0.38277543, 0.27676845),
-		float2(0.97484398, 0.75648379),
-		float2(0.44323325, -0.97511554),
-		float2(0.53742981, -0.47373420),
-		float2(-0.26496911, -0.41893023),
-		float2(0.79197514, 0.19090188),
-		float2(-0.24188840, 0.99706507),
-		float2(-0.81409955, 0.91437590),
-		float2(0.19984126, 0.78641367),
-		float2(0.14383161, -0.14100790)
-	};
-	const uint SampleCount = clamp(MultipleScatterSampleCount, uint(1), uint(16));
-#else
 	const uint SampleCount = max(MultipleScatterSampleCount, uint(1));
-#endif
-
-	float2 RandOffset = 0;
-	if (JitterSphericalIntegration > 0)
-	{
-		RandOffset += float2(
-			InterleavedGradientNoise(SvPosition, PrimitiveIdMod8 * 11),
-			InterleavedGradientNoise(SvPosition, PrimitiveIdMod8 * 7));
-	}
 
 	#if PERMUTATION_DEBUG
 	uint SampleOffset = 0;
@@ -605,18 +568,14 @@ float3 ReflectionEnvironmentUniformSampling(
 	float3 AccLighting = 0;
 	for (uint SampleIt = 0; SampleIt < SampleCount; ++SampleIt)
 	{
-		#if PERMUTATION_SAMPLESET == 0
-		const float2 Rand2 = frac((PoissonDisk[SampleIt] + float2(1, 1)) * 0.5f + RandOffset);
-		#else // PERMUTATION_SAMPLESET == 1
-		const float2 Rand2 = frac(Hammersley(SampleIt, SampleCount, uint2(0, 0)) + RandOffset);
-		#endif
+		const float4 Random4 = ComputeRandom4(PixelPosition, SampleIt, SampleCount);
 
 		// Depth bias
-		const float3 SampleVoxelOffset = VoxelMaxSize * GetHairVoxelJitter(SvPosition, PrimitiveIdMod8 + SampleIt);
-		const float3 SampleWorldPosition = WorldPosition + SampleVoxelOffset;
+		const float3 SampleL    = UniformSampleSphere(frac(Random4.xy)).xyz;
+		const float3 SampleBias = ComputePositionBias(SampleL, Random4.z * SampleL);
 
-		const float3 SampleL = UniformSampleSphere(frac(Rand2)).xyz;
-		const float3 SampleLightPosition = WorldPosition + SampleL * MaxSearchDistance;
+		const float3 SampleWorldPosition = WorldPosition + SampleBias;
+		const float3 SampleLightPosition = SampleWorldPosition + SampleL * MaxSearchDistance;
 
 		#if PERMUTATION_DEBUG
 		if (bDebugEnabled)
@@ -676,6 +635,47 @@ float3 ReflectionEnvironmentUniformSampling(
 	return -min(-Color, 0.0);
 }
 #endif // #if PERMUTATION_INTEGRATION_TYPE == INTEGRATION_UNIFORM
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Spherical based harmonic integration
+
+#if PERMUTATION_INTEGRATION_TYPE == INTEGRATION_SH
+float3 ReflectionEnvironmentSH(
+	FGBufferData GBuffer,
+	float2 ScreenPosition,
+	float2 SvPosition,
+	uint PrimitiveId,
+	bool bDebugEnabled)
+{
+	const float PreExposure = GetPreExposure();
+	const float3 WorldPosition = mul(float4(ScreenPosition * GBuffer.Depth, GBuffer.Depth, 1), View.ScreenToWorld).xyz;
+	const float3 CameraToPixel = normalize(WorldPosition - View.WorldCameraOrigin);
+
+	const float3 V = -CameraToPixel;
+	const float3 T = GBuffer.WorldNormal;
+	const float3 N = T;
+	const float3 L = normalize(V - N * dot(V, N));
+
+	FHairTransmittanceMask TransmittanceMask;
+	TransmittanceMask.Transmittance = 1;
+	TransmittanceMask.HairCount = 0;
+	TransmittanceMask.Visibility = 1;
+	FHairTransmittanceData TransmittanceData = GetHairTransmittance(
+		V,
+		L,
+		GBuffer,
+		TransmittanceMask,
+		HairScatteringLUTTexture,
+		HairLUTSampler,
+		HairComponents);
+
+	bool bEvalMultiScatter = true;
+	float3 Color = PI * HairShading(GBuffer, L, V, N, 1, TransmittanceData, 1, 0.2, uint2(0, 0));
+
+	// Transform NaNs to black, transform negative colors to black.
+	return -min(-Color, 0.0);
+}
+#endif // #if PERMUTATION_INTEGRATION_TYPE == INTEGRATION_SH
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Simple lookup of the scene color for single/low count of hair, close to the surface
@@ -804,6 +804,8 @@ void MainPS(
 			ReflectionEnvironment(GBuffer, ScreenPosition, SvPosition, Sample.PrimitiveId);
 		#elif PERMUTATION_INTEGRATION_TYPE == INTEGRATION_UNIFORM
 			ReflectionEnvironmentUniformSampling(GBuffer, ScreenPosition, SvPosition, Sample.PrimitiveId, bDebugEnabled);
+		#elif PERMUTATION_INTEGRATION_TYPE == INTEGRATION_SH
+			ReflectionEnvironmentSH(GBuffer, ScreenPosition, SvPosition, Sample.PrimitiveId, bDebugEnabled);
 		#endif
 
 		const float SampleCoverage = saturate(From8bitCoverage(Sample.Coverage8bit));

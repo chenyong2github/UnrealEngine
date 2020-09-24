@@ -447,7 +447,7 @@ FReply SRigWindow::OnSaveMapping()
 			const FString SaveAssetName = FPaths::GetBaseFilename(SavePackageName);
 			
 			// create package and create object
-			UPackage* Package = CreatePackage(nullptr, *SavePackageName);
+			UPackage* Package = CreatePackage( *SavePackageName);
 			UNodeMappingContainer* MapperClass = NewObject<UNodeMappingContainer>(Package, *SaveAssetName, RF_Public | RF_Standalone);
 			USkeletalMeshComponent* PreviewMeshComp = PreviewScenePtr.Pin()->GetPreviewMeshComponent();
 			USkeletalMesh* PreviewMesh = PreviewMeshComp->SkeletalMesh;

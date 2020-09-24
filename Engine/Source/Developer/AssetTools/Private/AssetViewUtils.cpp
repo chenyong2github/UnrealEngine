@@ -1481,7 +1481,7 @@ void GetOutOfDatePackageDependencies(const TArray<FString>& InPackagesThatWillBe
 			const FName PackageName = AllPackagesArray[PackageIndex];
 
 			TArray<FName> PackageDependencies;
-			AssetRegistryModule.GetDependencies(PackageName, PackageDependencies, EAssetRegistryDependencyType::Packages);
+			AssetRegistryModule.GetDependencies(PackageName, PackageDependencies, UE::AssetRegistry::EDependencyCategory::Package);
 
 			for (const FName& PackageDependency : PackageDependencies)
 			{

@@ -685,22 +685,22 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 	 */
 	float RWInputDataFloat(int DataSetIndex, int RegisterIdx, int InstanceIdx)
 	{
-		return RWOutputFloat[RegisterIdx*ComponentBufferSizeRead + InstanceIdx];
+		return RWOutputFloat[RegisterIdx*ComponentBufferSizeWrite + InstanceIdx];
 	}
 
 	int RWInputDataInt(int DataSetIndex, int RegisterIdx, int InstanceIdx)
 	{
-		return RWOutputInt[RegisterIdx*ComponentBufferSizeRead + InstanceIdx];
+		return RWOutputInt[RegisterIdx*ComponentBufferSizeWrite + InstanceIdx];
 	}
 	
 	bool RWInputDataBool(int DataSetIndex, int RegisterIdx, int InstanceIdx)
 	{
-		return RWOutputInt[RegisterIdx*ComponentBufferSizeRead + InstanceIdx] == -1;
+		return RWOutputInt[RegisterIdx*ComponentBufferSizeWrite + InstanceIdx] == -1;
 	}
 
 	float RWInputDataHalf(int DataSetIndex, int RegisterIdx, int InstanceIdx)
 	{
-		return RWOutputHalf[RegisterIdx*ComponentBufferSizeRead + InstanceIdx];
+		return RWOutputHalf[RegisterIdx*ComponentBufferSizeWrite + InstanceIdx];
 	}
 
 	/* ---------------------------------------------------------------------

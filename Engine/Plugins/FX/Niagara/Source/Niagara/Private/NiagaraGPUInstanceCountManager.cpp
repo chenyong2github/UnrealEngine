@@ -115,6 +115,9 @@ void FNiagaraGPUInstanceCountManager::FreeEntry(uint32& BufferOffset)
 
 	if (BufferOffset != INDEX_NONE)
 	{
+		checkf(!FreeEntries.Contains(BufferOffset), TEXT("BufferOffset %u exists in FreeEntries"), BufferOffset);
+		checkf(!InstanceCountClearTasks.Contains(BufferOffset), TEXT("BufferOffset %u exists in InstanceCountClearTasks"), BufferOffset);
+
 		//UE_LOG(LogNiagara, Warning, TEXT("FNiagaraGPUInstanceCountManager::FreeEntry %d"), BufferOffset);
 		// Add a reset to 0 task.
 		// The entry will only become available/reusable after being reset to 0 in UpdateDrawIndirectBuffer()
@@ -124,6 +127,24 @@ void FNiagaraGPUInstanceCountManager::FreeEntry(uint32& BufferOffset)
 		//}
 		InstanceCountClearTasks.Add(BufferOffset);
 		BufferOffset = INDEX_NONE;
+	}
+}
+
+void FNiagaraGPUInstanceCountManager::FreeEntryArray(TConstArrayView<uint32> EntryArray)
+{
+	checkSlow(IsInRenderingThread());
+
+	const int32 NumToFree = EntryArray.Num();
+	if (NumToFree > 0)
+	{
+#if DO_CHECK
+		for (uint32 BufferOffset : EntryArray)
+		{
+			checkf(!FreeEntries.Contains(BufferOffset), TEXT("BufferOffset %u exists in FreeEntries"), BufferOffset);
+			checkf(!InstanceCountClearTasks.Contains(BufferOffset), TEXT("BufferOffset %u exists in InstanceCountClearTasks"), BufferOffset);
+		}
+#endif
+		InstanceCountClearTasks.Append(EntryArray.GetData(), NumToFree);
 	}
 }
 
@@ -141,14 +162,16 @@ FRWBuffer* FNiagaraGPUInstanceCountManager::AcquireCulledCountsBuffer(FRHIComman
 
 				AllocatedCulledCounts = RecommendedCulledCounts;
 				CulledCountBuffer.Initialize(sizeof(uint32), AllocatedCulledCounts, EPixelFormat::PF_R32_UINT, BUF_Transient, TEXT("NiagaraCulledGPUInstanceCounts"));
+				// The clear pass expect to find this as readable.
+				RHICmdList.Transition(FRHITransitionInfo(CulledCountBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute));
 			}
 
 			CulledCountBuffer.AcquireTransientResource();
 
 			// Initialize the buffer by clearing it to zero then transition it to be ready to write to
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, CulledCountBuffer.UAV);
+			RHICmdList.Transition(FRHITransitionInfo(CulledCountBuffer.UAV, ERHIAccess::SRVCompute, ERHIAccess::UAVCompute));
 			RHICmdList.ClearUAVUint(CulledCountBuffer.UAV, FUintVector4(EForceInit::ForceInitToZero));
-			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, CulledCountBuffer.UAV);
+			RHICmdList.Transition(FRHITransitionInfo(CulledCountBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
 		}
 
 		return &CulledCountBuffer;
@@ -172,6 +195,8 @@ void FNiagaraGPUInstanceCountManager::ResizeBuffers(FRHICommandListImmediate& RH
 			TResourceArray<uint32> InitData;
 			InitData.AddZeroed(AllocatedInstanceCounts);
 			CountBuffer.Initialize(sizeof(uint32), AllocatedInstanceCounts, EPixelFormat::PF_R32_UINT, BUF_Static | BUF_SourceCopy, TEXT("NiagaraGPUInstanceCounts"), &InitData);
+			// NiagaraEmitterInstanceBatcher expects the count buffer to be readable and copyable before running the sim.
+			RHICmdList.Transition(FRHITransitionInfo(CountBuffer.UAV, ERHIAccess::UAVCompute, kCountBufferDefaultState));
 			//UE_LOG(LogNiagara, Log, TEXT("FNiagaraGPUInstanceCountManager::ResizeBuffers Alloc AllocatedInstanceCounts: %d ReservedInstanceCounts: %d"), AllocatedInstanceCounts, ReservedInstanceCounts);
 		}
 		// If we need to increase the buffer size to RecommendedInstanceCounts because the buffer is too small.
@@ -185,17 +210,14 @@ void FNiagaraGPUInstanceCountManager::ResizeBuffers(FRHICommandListImmediate& RH
 			FRWBuffer NextCountBuffer;
 			NextCountBuffer.Initialize(sizeof(uint32), RecommendedInstanceCounts, EPixelFormat::PF_R32_UINT, BUF_Static | BUF_SourceCopy, TEXT("NiagaraGPUInstanceCounts"), &InitData);
 
-			// TR-InstanceCount : The new count where just initialized here, while the previous count needs to transit in readable state..
-			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, NextCountBuffer.UAV);
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, CountBuffer.UAV);
-			
-			// Copy the current buffer in the next buffer.
+			// Copy the current buffer in the next buffer. We don't need to transition any of the buffers, because the current buffer is transitioned to readable after
+			// the simulation, and the new buffer is created in the UAVCompute state.
 			FRHIUnorderedAccessView* UAVs[] = { NextCountBuffer.UAV };
 			int32 UsedIndexCounts[] = { AllocatedInstanceCounts };
 			CopyUIntBufferToTargets(RHICmdList, FeatureLevel, CountBuffer.SRV, UAVs, UsedIndexCounts, 0, UE_ARRAY_COUNT(UAVs)); 
 
-			// TR-InstanceCount : The counts can either be used in the next simulation or as the input for the next draw indirect task. In both case, the target is for compute.
-			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, NextCountBuffer.UAV);
+			// NiagaraEmitterInstanceBatcher expects the count buffer to be readable and copyable before running the sim.
+			RHICmdList.Transition(FRHITransitionInfo(NextCountBuffer.UAV, ERHIAccess::UAVCompute, kCountBufferDefaultState));
 
 			// Swap the buffers
 			AllocatedInstanceCounts = RecommendedInstanceCounts;
@@ -215,6 +237,8 @@ void FNiagaraGPUInstanceCountManager::ResizeBuffers(FRHICommandListImmediate& RH
 			DrawIndirectBuffer.Release();
 			AllocatedDrawIndirectArgs = RecommendedDrawIndirectArgsCount;
 			DrawIndirectBuffer.Initialize(sizeof(uint32), RecommendedDrawIndirectArgsCount * NIAGARA_DRAW_INDIRECT_ARGS_SIZE, EPixelFormat::PF_R32_UINT, BUF_Static | BUF_DrawIndirect, TEXT("NiagaraGPUDrawIndirectArgs"));
+			// The rest of the code expects this to be in the IndirectArgs state.
+			RHICmdList.Transition(FRHITransitionInfo(DrawIndirectBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::IndirectArgs));
 		}
 	}
 	else
@@ -226,11 +250,12 @@ void FNiagaraGPUInstanceCountManager::ResizeBuffers(FRHICommandListImmediate& RH
 	INC_DWORD_STAT_BY(STAT_NiagaraMaxNumGPURenderers, ExpectedDrawIndirectArgs);
 }
 
-uint32 FNiagaraGPUInstanceCountManager::AddDrawIndirect(uint32 InstanceCountBufferOffset, uint32 NumIndicesPerInstance, uint32 StartIndexLocation, bool bCulled)
+uint32 FNiagaraGPUInstanceCountManager::AddDrawIndirect(uint32 InstanceCountBufferOffset, uint32 NumIndicesPerInstance, uint32 StartIndexLocation,
+	bool bIsInstancedStereoEnabled, bool bCulled)
 {
 	checkSlow(IsInRenderingThread());
 
-	const FArgGenTaskInfo Info(InstanceCountBufferOffset, NumIndicesPerInstance, StartIndexLocation, bCulled);
+	const FArgGenTaskInfo Info(InstanceCountBufferOffset, NumIndicesPerInstance, StartIndexLocation, bIsInstancedStereoEnabled, bCulled);
 
 	uint32& CachedOffset = DrawIndirectArgMap.FindOrAdd(Info, INDEX_NONE);
 	if (CachedOffset != INDEX_NONE)
@@ -256,13 +281,6 @@ void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffer(FRHICommandList& 
 	{
 		if (FNiagaraUtilities::AllowGPUParticles(GShaderPlatformForFeatureLevel[FeatureLevel]))
 		{
-			if (RequiredCulledCounts > 0)
-			{
-				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, CulledCountBuffer.UAV);
-			}
-			RHICmdList.TransitionResource(GRHISupportsRWTextureBuffers ? EResourceTransitionAccess::ERWBarrier : EResourceTransitionAccess::EReadable,
-				EResourceTransitionPipeline::EComputeToCompute, CountBuffer.UAV);
-
 			FReadBuffer TaskInfosBuffer;
 
 			//for (int32 i = 0; i < InstanceCountClearTasks.Num(); i++)
@@ -281,32 +299,44 @@ void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffer(FRHICommandList& 
 				RHIUnlockVertexBuffer(TaskInfosBuffer.Buffer);
 			}
 
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, DrawIndirectBuffer.UAV);
+			FRHIShaderResourceView* CulledCountsSRV;
 
-			FRHIShaderResourceView* CulledCountsSRV = CulledCountBuffer.SRV.IsValid() ? CulledCountBuffer.SRV.GetReference() : FNiagaraRenderer::GetDummyUIntBuffer();
+			FRHITransitionInfo TransitionsBefore[3];
+			int32 NumTransitionsBefore = 0;
+			TransitionsBefore[NumTransitionsBefore] = FRHITransitionInfo(DrawIndirectBuffer.UAV, ERHIAccess::IndirectArgs, ERHIAccess::UAVCompute);
+			++NumTransitionsBefore;
+			TransitionsBefore[NumTransitionsBefore] = FRHITransitionInfo(CountBuffer.UAV, kCountBufferDefaultState, ERHIAccess::UAVCompute);
+			++NumTransitionsBefore;
+			if (CulledCountBuffer.SRV.IsValid())
+			{
+				TransitionsBefore[NumTransitionsBefore] = FRHITransitionInfo(CulledCountBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute);
+				++NumTransitionsBefore;
+				CulledCountsSRV = CulledCountBuffer.SRV.GetReference();
+			}
+			else
+			{
+				CulledCountsSRV = FNiagaraRenderer::GetDummyUIntBuffer();
+			}
+
+			RHICmdList.Transition(MakeArrayView(TransitionsBefore, NumTransitionsBefore));
+
 			FNiagaraDrawIndirectArgsGenCS::FPermutationDomain PermutationVector;
 			PermutationVector.Set<FNiagaraDrawIndirectArgsGenCS::FSupportsTextureRW>(GRHISupportsRWTextureBuffers ? 1 : 0);
 			TShaderMapRef<FNiagaraDrawIndirectArgsGenCS> DrawIndirectArgsGenCS(GetGlobalShaderMap(FeatureLevel), PermutationVector);
 			RHICmdList.SetComputeShader(DrawIndirectArgsGenCS.GetComputeShader());
 			DrawIndirectArgsGenCS->SetOutput(RHICmdList, DrawIndirectBuffer.UAV, CountBuffer.UAV);
 			DrawIndirectArgsGenCS->SetParameters(RHICmdList, TaskInfosBuffer.SRV, CulledCountsSRV, DrawIndirectArgGenTasks.Num(), InstanceCountClearTasks.Num());
-			
 
 			// If the device supports RW Texture buffers then we can use a single compute pass, otherwise we need to split into two passes
 			if (GRHISupportsRWTextureBuffers)
 			{
 				DispatchComputeShader(RHICmdList, DrawIndirectArgsGenCS.GetShader(), FMath::DivideAndRoundUp(DrawIndirectArgGenTasks.Num() + InstanceCountClearTasks.Num(), NIAGARA_DRAW_INDIRECT_ARGS_GEN_THREAD_COUNT), 1, 1);
 				DrawIndirectArgsGenCS->UnbindBuffers(RHICmdList);
-
-				// Sync after clear.
-				RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, CountBuffer.UAV);
 			}
 			else
 			{
 				DispatchComputeShader(RHICmdList, DrawIndirectArgsGenCS.GetShader(), FMath::DivideAndRoundUp(DrawIndirectArgGenTasks.Num(), NIAGARA_DRAW_INDIRECT_ARGS_GEN_THREAD_COUNT), 1, 1);
 				DrawIndirectArgsGenCS->UnbindBuffers(RHICmdList);
-
-				RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, CountBuffer.UAV);
 
 				FNiagaraDrawIndirectResetCountsCS::FPermutationDomain PermutationVectorResetCounts;
 				TShaderMapRef<FNiagaraDrawIndirectResetCountsCS> DrawIndirectResetCountsArgsGenCS(GetGlobalShaderMap(FeatureLevel), PermutationVectorResetCounts);
@@ -315,13 +345,13 @@ void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffer(FRHICommandList& 
 				DrawIndirectResetCountsArgsGenCS->SetParameters(RHICmdList, TaskInfosBuffer.SRV, DrawIndirectArgGenTasks.Num(), InstanceCountClearTasks.Num());
 				DispatchComputeShader(RHICmdList, DrawIndirectResetCountsArgsGenCS.GetShader(), FMath::DivideAndRoundUp(InstanceCountClearTasks.Num(), NIAGARA_DRAW_INDIRECT_ARGS_GEN_THREAD_COUNT), 1, 1);
 				DrawIndirectResetCountsArgsGenCS->UnbindBuffers(RHICmdList);
-
-				// Sync after clear.
-				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, CountBuffer.UAV);
 			}
 
-			// Transition draw indirect to readable for gfx draw indirect.
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, DrawIndirectBuffer.UAV);
+			FRHITransitionInfo TransitionsAfter[] = {
+				FRHITransitionInfo(DrawIndirectBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::IndirectArgs),
+				FRHITransitionInfo(CountBuffer.UAV, ERHIAccess::UAVCompute, kCountBufferDefaultState)
+			};
+			RHICmdList.Transition(MakeArrayView(TransitionsAfter, UE_ARRAY_COUNT(TransitionsAfter)));
 		}
 		// Once cleared to 0, the count are reusable.
 		FreeEntries.Append(InstanceCountClearTasks);
@@ -367,13 +397,15 @@ void FNiagaraGPUInstanceCountManager::ReleaseGPUReadback()
 
 void FNiagaraGPUInstanceCountManager::EnqueueGPUReadback(FRHICommandListImmediate& RHICmdList)
 {
-	if (UsedInstanceCounts)
+	if (UsedInstanceCounts > 0 && (UsedInstanceCounts != FreeEntries.Num()))
 	{
 		if (!CountReadback)
 		{
 			CountReadback = new FRHIGPUBufferReadback(TEXT("Niagara GPU Instance Count Readback"));
 		}
 		CountReadbackSize = UsedInstanceCounts;
+		// No need for a transition, NiagaraEmitterInstanceBatcher ensures that the buffer is left in the
+		// correct state after the sim.
 		CountReadback->EnqueueCopy(RHICmdList, CountBuffer.Buffer);
 	}
 }

@@ -468,24 +468,25 @@ namespace WindowsMixedReality
 		void RemoveAnchor(const wchar_t* anchorId);
 		bool DoesAnchorExist(const wchar_t* anchorId) const;
 		bool GetAnchorPose(const wchar_t* anchorId, DirectX::XMFLOAT3& outScale, DirectX::XMFLOAT4& outRot, DirectX::XMFLOAT3& outTrans, HMDTrackingOrigin trackingOrigin) const;
-		bool SaveAnchor(const wchar_t* anchorId);
-		void RemoveSavedAnchor(const wchar_t* anchorId);
-		bool SaveAnchors();
-		bool LoadAnchors(std::function<void(const wchar_t* text)> anchorIdWritingFunctionPointer);
+		bool SaveAnchor(const wchar_t* saveId, const wchar_t* anchorId);
+		void RemoveSavedAnchor(const wchar_t* saveId);
+		bool LoadAnchors(std::function<void(const wchar_t* saveId, const wchar_t* anchorId)> anchorIdWritingFunctionPointer);
 		void ClearSavedAnchors();
 		bool DidAnchorCoordinateSystemChange();
 
 		// Remoting
 		enum class ConnectionEvent
 		{
-			DisconnectedFromPeer
+			Connected,
+			DisconnectedFromPeer,
+			Listening
 		};
 
 		typedef std::function<void(ConnectionEvent)> ConnectionCallback;
 
 		HMDRemotingConnectionState GetConnectionState();
 		void SetLogCallback(void (*functionPointer)(const wchar_t* text));
-		void ConnectToRemoteHoloLens(ID3D11Device* device, const wchar_t* ip, int bitrate, bool IsHoloLens1 = false);
+		void ConnectToRemoteHoloLens(ID3D11Device* device, const wchar_t* ip, int bitrate, bool IsHoloLens1 = false, int listenPort = 8265, bool listen = false);
 		void ConnectToLocalWMRHeadset();
 		void ConnectToLocalHoloLens();
 		void DisconnectFromDevice();
@@ -494,6 +495,7 @@ namespace WindowsMixedReality
 		bool IsRemotingConnected();
 		uint32_t SubscribeConnectionEvent(ConnectionCallback callback);
 		void UnsubscribeConnectionEvent(uint32_t id);
+		wchar_t* GetFailureString();
 
 		// Spatial Mapping
 		void StartSpatialMapping(float InTriangleDensity, float InVolumeSize, void(*StartFunctionPointer)(),
@@ -541,6 +543,10 @@ namespace WindowsMixedReality
 		bool SetEnabledMixedRealityCamera(bool enabled);
 		bool ResizeMixedRealityCamera(/*inout*/ SIZE& sz);
 		void GetThirdCameraDimensions(int& width, int& height);
+
+	private:
+		//For returning more descriptive error messages
+		wchar_t failureString[MAX_PATH];
 	};
 
 	class SpatialAudioClientRenderer;
@@ -629,14 +635,14 @@ public:
 	typedef int CloudAnchorID;
 	static const CloudAnchorID CloudAnchorID_Invalid = -1;
 	typedef int32_t WatcherID;
-	typedef std::wstring LocalAnchorID;
-	typedef std::wstring CloudAnchorIdentifier;
+	typedef const wchar_t* LocalAnchorID;
 
 	typedef void(*LogFunctionPtr)(const wchar_t* LogMsg);
 	typedef std::function<void(int32 WatcherIdentifier, int32 LocateAnchorStatus, AzureSpatialAnchorsInterop::CloudAnchorID CloudAnchorID)> AnchorLocatedCallbackPtr;
 	typedef std::function<void(int32 InWatcherIdentifier, bool InWasCanceled)> LocateAnchorsCompletedCallbackPtr;
 	typedef std::function<void(float InReadyForCreateProgress, float InRecommendedForCreateProgress, int InSessionCreateHash, int InSessionLocateHash, int32 InSessionUserFeedback)> SessionUpdatedCallbackPtr;
 
+	// Interop Lifecycle
 	static void Create(
 		WindowsMixedReality::MixedRealityInterop& interop, 
 		LogFunctionPtr LogFunctionPointer,
@@ -647,34 +653,19 @@ public:
 	static AzureSpatialAnchorsInterop& Get();
 	static void Release();
 
-	// The session lifecycle
-	struct ConfigData
-	{
-		const wchar_t* accountId = nullptr;
-		const wchar_t* accountKey = nullptr;
-		bool bCoarseLocalizationEnabled = false;
-		bool bEnableGPS = false;
-		bool bEnableWifi = false;
-		std::vector<const wchar_t*> BLEBeaconUUIDs;
-		int logVerbosity = 0;
-
-		//uncopyable, due to char*'s.
-		ConfigData() {}
-	private:
-		ConfigData(const ConfigData&) = delete;
-		ConfigData& operator=(const ConfigData&) = delete;
-	};
+	// AzureSpatialAnchorSession Lifecycle
 	virtual bool CreateSession() = 0;
-	virtual bool ConfigSession(const ConfigData& InConfigData) = 0;
-	virtual bool StartSession() = 0;
-	virtual void StopSession() = 0;
 	virtual void DestroySession() = 0;
 
-	enum class AsyncResult : uint8
+	enum class ASAResult : uint8
 	{
+		Success,
 		NotStarted,
 		Started,
-		FailBadAnchorIdentifier,
+		FailAlreadyStarted,
+		FailNoARPin,
+		FailBadLocalAnchorID,
+		FailBadCloudAnchorIdentifier,
 		FailAnchorIdAlreadyUsed,
 		FailAnchorDoesNotExist,
 		FailAnchorAlreadyTracked,
@@ -682,65 +673,19 @@ public:
 		FailNoLocalAnchor,
 		FailNoCloudAnchor,
 		FailNoSession,
+		FailNoWatcher,
 		FailNotEnoughData,
+		FailBadLifetime,
 		FailSeeErrorString,
 		NotLocated,
-		Canceled,
-		Success
+		Canceled
 	};
 
-	struct AsyncData
-	{
-		AsyncResult Result = AsyncResult::NotStarted;
-		std::wstring OutError;
-		std::atomic<bool> Completed = { false };
-
-		void Complete() { Completed = true; }
-	};
-
-	struct SaveAsyncData : public AsyncData
-	{
-		CloudAnchorID CloudAnchorID = CloudAnchorID_Invalid;
-	};
-	typedef std::shared_ptr<SaveAsyncData> SaveAsyncDataPtr;
-
-	struct DeleteAsyncData : public AsyncData
-	{
-		CloudAnchorID CloudAnchorID = CloudAnchorID_Invalid;
-	};
-	typedef std::shared_ptr<DeleteAsyncData> DeleteAsyncDataPtr;
-
-	struct LoadByIDAsyncData : public AsyncData
-	{
-		CloudAnchorIdentifier CloudAnchorIdentifier;
-		LocalAnchorID LocalAnchorId;
-		CloudAnchorID CloudAnchorID = CloudAnchorID_Invalid;
-	};
-	typedef std::shared_ptr<LoadByIDAsyncData> LoadByIDAsyncDataPtr;
-
-	struct UpdateCloudAnchorPropertiesAsyncData : public AsyncData
-	{
-		CloudAnchorID CloudAnchorID = CloudAnchorID_Invalid;
-	};
-	typedef std::shared_ptr<UpdateCloudAnchorPropertiesAsyncData> UpdateCloudAnchorPropertiesAsyncDataPtr;
-
-	struct RefreshCloudAnchorPropertiesAsyncData : public AsyncData
-	{
-		CloudAnchorID CloudAnchorID = CloudAnchorID_Invalid;
-	};
-	typedef std::shared_ptr<RefreshCloudAnchorPropertiesAsyncData> RefreshCloudAnchorPropertiesAsyncDataPtr;
-
-	struct GetCloudAnchorPropertiesAsyncData : public AsyncData
-	{
-		CloudAnchorIdentifier CloudAnchorIdentifier;
-		CloudAnchorID CloudAnchorID = CloudAnchorID_Invalid;
-	};
-	typedef std::shared_ptr<GetCloudAnchorPropertiesAsyncData> GetCloudAnchorPropertiesAsyncDataPtr;
-
-	struct CreateWatcherData
+	struct LocateCriteria
 	{
 		bool bBypassCache = false;
-		std::vector<std::wstring> Identifiers;
+		int NumIdentifiers = 0;
+		const wchar_t** Identifiers = nullptr;
 		CloudAnchorID NearCloudAnchorID = CloudAnchorID_Invalid;
 		float NearCloudAnchorDistance = 5.0f;
 		int NearCloudAnchorMaxResultCount = 20;
@@ -750,32 +695,234 @@ public:
 		int AzureSpatialAnchorDataCategory = 0;
 		int AzureSptialAnchorsLocateStrategy = 0;
 
-		int32 OutWatcherIdentifier = -1;
-		std::vector<CloudAnchorID> OutCloudAnchorIDs;
-		AsyncResult Result = AsyncResult::NotStarted;
-		std::wstring OutError;
+		//uncopyable, due to char*'s.
+		LocateCriteria() {}
+	private:
+		LocateCriteria(const LocateCriteria&) = delete;
+		LocateCriteria& operator=(const LocateCriteria&) = delete;
 	};
 
+	struct SessionConfig
+	{
+		const wchar_t* AccessToken = nullptr;
+		const wchar_t* AccountDomain = nullptr;
+		const wchar_t* AccountId = nullptr;
+		const wchar_t* AccountKey = nullptr;
+		const wchar_t* AuthenticationToken = nullptr;
 
-	// Things you can do while your session is running.
-	// AsyncDataPtr objects are created by UE4, and passed in here.
-	virtual bool HasEnoughDataForSaving() = 0;
-	virtual const wchar_t* GetCloudSpatialAnchorIdentifier(CloudAnchorID cloudAnchorID) = 0;
-	virtual bool CreateCloudAnchor(const LocalAnchorID& localAnchorId, CloudAnchorID& outCloudAnchorID) = 0;
-	virtual bool SetCloudAnchorExpiration(CloudAnchorID cloudAnchorID, float lifetime) = 0; // lifetime is seconds into the future
-	virtual bool GetCloudAnchorExpiration(CloudAnchorID cloudAnchorID, float& outLifetime) = 0;
-	virtual bool SetCloudAnchorAppProperties(CloudAnchorID cloudAnchorID, const std::vector<std::pair<std::wstring, std::wstring>>& AppProperties) = 0;
-	virtual bool GetCloudAnchorAppProperties(CloudAnchorID cloudAnchorID, std::vector<std::pair<std::wstring, std::wstring>>& AppProperties) = 0;
-	virtual bool SaveCloudAnchor(SaveAsyncDataPtr Data) = 0;
-	virtual bool DeleteCloudAnchor(DeleteAsyncDataPtr Data) = 0;
-	virtual bool LoadCloudAnchorByID(LoadByIDAsyncDataPtr Data) = 0;
-	virtual bool UpdateCloudAnchorProperties(UpdateCloudAnchorPropertiesAsyncDataPtr Data) = 0;
-	virtual bool RefreshCloudAnchorProperties(RefreshCloudAnchorPropertiesAsyncDataPtr Data) = 0;
-	virtual bool GetCloudAnchorProperties(GetCloudAnchorPropertiesAsyncDataPtr Data) = 0;
-	virtual bool CreateWatcher(CreateWatcherData& Data) = 0;
-	virtual bool StopWatcher(WatcherID WatcherIdentifier) = 0;
+		//uncopyable, due to char*'s.
+		SessionConfig() {}
+	private:
+		SessionConfig(const SessionConfig&) = delete;
+		SessionConfig& operator=(const SessionConfig&) = delete;
+	};
+
+	struct LocationProviderConfig
+	{
+		bool bCoarseLocalizationEnabled = false;
+		bool bEnableGPS = false;
+		bool bEnableWifi = false;
+		int NumBLEBeaconUUIDs = 0;
+		const wchar_t** BLEBeaconUUIDs = nullptr;
+
+		//uncopyable, due to char*'s.
+		LocationProviderConfig() {}
+	private:
+		LocationProviderConfig(const LocationProviderConfig&) = delete;
+		LocationProviderConfig& operator=(const LocationProviderConfig&) = delete;
+	};
+
+	struct DiagnosticsConfig
+	{
+		bool bImagesEnabled = false;
+		const wchar_t* LogDirectory = nullptr;
+		int32_t LogLevel = 0;
+		int32_t MaxDiskSizeInMB = 0;
+
+		//uncopyable, due to char*'s.
+		DiagnosticsConfig() {}
+	private:
+		DiagnosticsConfig(const DiagnosticsConfig&) = delete;
+		DiagnosticsConfig& operator=(const DiagnosticsConfig&) = delete;
+	};
+
+	struct SessionStatus
+	{
+		float ReadyForCreateProgress = 0.0f;
+		float RecommendedForCreateProgress = 0.0f;
+		int32_t SessionCreateHash = 0;
+		int32_t SessionLocateHash = 0;
+		int32_t UserFeedback = 0;
+	};
+
+	// Create this on the UE4 side, pass by reference, set the deleter and fill it in on the ASA side.
+	class StringOutParam
+	{
+	public:
+		StringOutParam() {}
+
+		void Set(void(*InDeleter)(const void*), uint32_t NumChars, const wchar_t* Chars)
+		{
+			assert(InDeleter);
+			Deleter = InDeleter;
+			assert(String == nullptr);
+			assert(NumChars >= 0);
+			assert(Chars != nullptr);
+			wchar_t* Buffer = new wchar_t[NumChars + 1];
+			wcsncpy_s(Buffer, NumChars + 1, Chars, NumChars);
+			String = Buffer;
+		}
+		~StringOutParam()
+		{
+			if (String) Deleter(String);
+		}
+
+		const wchar_t* String = nullptr;
+
+	private:
+		// No copy
+		StringOutParam(const StringOutParam&) = delete;
+		StringOutParam& operator=(const StringOutParam&) = delete;
+		void(*Deleter)(const void*) = nullptr;
+	};
+
+	// Create this on the UE4 side, pass by reference, fill it in on the ASA side.
+	class StringArrayOutParam
+	{
+	public:
+		StringArrayOutParam() {}
+		void SetArraySize(void(*InDeleter)(const void*), uint32_t Num)
+		{
+			assert(InDeleter);
+			Deleter = InDeleter;
+			assert(ArraySize == 0);
+			assert(Array == nullptr);
+			ArraySize = Num;
+			if (Num > 0)
+			{
+				Array = new wchar_t* [Num];
+			}
+		}
+		void SetArrayElement(uint32_t Index, uint32_t NumChars, const wchar_t* Chars)
+		{
+			assert(Index >= 0);
+			assert(Index < ArraySize);
+			assert(NumChars >= 0);
+			assert(Chars != nullptr);
+			wchar_t* Buffer = new wchar_t[NumChars + 1];
+			wcsncpy_s(Buffer, NumChars + 1, Chars, NumChars);
+			Array[Index] = Buffer;
+		}
+		~StringArrayOutParam()
+		{
+			if (Array)
+			{
+				for (uint32_t i = 0; i < ArraySize; i++)
+				{
+					Deleter(Array[i]);
+				}
+			}
+			if (Array) Deleter(Array);
+		};
+
+		uint32_t ArraySize = 0;
+		wchar_t** Array = nullptr;
+
+	private:
+		// No copy
+		StringArrayOutParam(const StringArrayOutParam&) = delete;
+		StringArrayOutParam& operator=(const StringArrayOutParam&) = delete;
+		void(*Deleter)(const void*) = nullptr;
+	};
+
+	// Create this on the UE4 side, pass by reference, fill it in on the ASA side.
+	class IntArrayOutParam
+	{
+	public:
+		IntArrayOutParam() {}
+		void SetArraySize(void(*InDeleter)(const void*), uint32_t Num)
+		{
+			assert(InDeleter);
+			Deleter = InDeleter;
+			assert(ArraySize == 0);
+			assert(Array == nullptr);
+			ArraySize = Num;
+			if (Num > 0)
+			{
+				Array = new int32_t [Num];
+			}
+		}
+		void SetArrayElement(uint32_t Index, int32_t Value)
+		{
+			assert(Index >= 0);
+			assert(Index < ArraySize);
+			Array[Index] = Value;
+		}
+		~IntArrayOutParam()
+		{
+			if (Array) Deleter(Array);
+		};
+
+		uint32_t ArraySize = 0;
+		int32_t* Array = nullptr;
+
+	private:
+		// No copy
+		IntArrayOutParam(const IntArrayOutParam&) = delete;
+		IntArrayOutParam& operator=(const IntArrayOutParam&) = delete;
+		void(*Deleter)(const void*) = nullptr;
+	};
+
+	// Callback types.
+	typedef std::function<void(ASAResult Result, const wchar_t* ErrorString)> Callback_Result;
+	typedef std::function<void(ASAResult Result, const wchar_t* ErrorString, SessionStatus SessionStatus)> Callback_Result_SessionStatus;
+	typedef std::function<void(ASAResult Result, const wchar_t* ErrorString, CloudAnchorID InCloudAnchorID)> Callback_Result_CloudAnchorID;
+	typedef std::function<void(ASAResult Result, const wchar_t* ErrorString, const wchar_t* String)> Callback_Result_String;
+
+	// CloudSpatialAnchorSession methods.
+	virtual void GetAccessTokenWithAccountKeyAsync(const wchar_t* AccountKey, Callback_Result_String Callback) = 0;
+	virtual void GetAccessTokenWithAuthenticationTokenAsync(const wchar_t* AuthenticationToken, Callback_Result_String Callback) = 0;
+	virtual ASAResult StartSession() = 0;
+	virtual void StopSession() = 0;
+	virtual ASAResult ResetSession() = 0;
+	virtual void DisposeSession() = 0;
+	virtual void GetSessionStatusAsync(Callback_Result_SessionStatus Callback) = 0;
+	virtual ASAResult ConstructAnchor(const LocalAnchorID& InLocalAnchorID, CloudAnchorID& OutCloudAnchorID) = 0;
+	virtual void CreateAnchorAsync(CloudAnchorID InCloudAnchorID, Callback_Result Callback) = 0;  // note this 'creates' the anchor in the azure cloud, aka saves it to the cloud.
+	virtual void DeleteAnchorAsync(CloudAnchorID InCloudAnchorID, Callback_Result Callback) = 0;
+	virtual ASAResult CreateWatcher(const LocateCriteria& InLocateCriteria, WatcherID& OutWatcherID, StringOutParam& OutErrorString) = 0;
+	virtual ASAResult GetActiveWatchers(IntArrayOutParam& OutWatcherIDs) = 0;
+	virtual void GetAnchorPropertiesAsync(const wchar_t* InCloudAnchorIdentifier, Callback_Result_CloudAnchorID Callback) = 0;
+	virtual void RefreshAnchorPropertiesAsync(CloudAnchorID InCloudAnchorID, Callback_Result Callback) = 0;
+	virtual void UpdateAnchorPropertiesAsync(CloudAnchorID InCloudAnchorID, Callback_Result Callback) = 0;
+	virtual ASAResult GetConfiguration(SessionConfig& OutConfig) = 0;
+	virtual ASAResult SetConfiguration(const SessionConfig& InConfig) = 0;
+	virtual ASAResult SetLocationProvider(const LocationProviderConfig& InConfig) = 0;
+	virtual ASAResult GetLogLevel(int32_t& OutLogVerbosity) = 0;
+	virtual ASAResult SetLogLevel(int32_t InLogVerbosity) = 0;
+	//virtual ASAResult GetSession() = 0;
+	//virtual ASAResult SetSession() = 0;
+	virtual ASAResult GetSessionId(std::wstring& OutSessionID) = 0;
+
+	// CloudSpatialAnchorWatcher methods.
+	virtual ASAResult StopWatcher(WatcherID WatcherIdentifier) = 0;
+
+	// CloudSpatialAnchor methods.
+	virtual ASAResult GetCloudSpatialAnchorIdentifier(CloudAnchorID InCloudAnchorID, StringOutParam& OutCloudAnchorIdentifier) = 0;
+	virtual ASAResult SetCloudAnchorExpiration(CloudAnchorID InCloudAnchorID, float InLifetimeInSeconds) = 0;
+	virtual ASAResult GetCloudAnchorExpiration(CloudAnchorID InCloudAnchorID, float& OutLifetimeInSeconds) = 0;
+	virtual ASAResult SetCloudAnchorAppProperties(CloudAnchorID InCloudAnchorID, int InNumAppProperties, const wchar_t** InAppProperties_KeyValueInterleaved) = 0;
+	virtual ASAResult GetCloudAnchorAppProperties(CloudAnchorID InCloudAnchorID, StringArrayOutParam& OutAppProperties_KeyValueInterleaved) = 0;
+
+	// Diagnostics methods.
+	virtual ASAResult SetDiagnosticsConfig(DiagnosticsConfig& InConfig) = 0;
+	virtual void CreateDiagnosticsManifestAsync(const wchar_t* Description, Callback_Result_String Callback) = 0;
+	virtual void SubmitDiagnosticsManifestAsync(const wchar_t* ManifestPath, Callback_Result Callback) = 0;
+
+
+	virtual bool HasEnoughDataForSaving() = 0;  // This is deprecated.
+
 	virtual bool CreateARPinAroundAzureCloudSpatialAnchor(const LocalAnchorID& localAnchorId, CloudAnchorID cloudAnchorID) = 0;
-
 
 protected:
 	AzureSpatialAnchorsInterop() {};

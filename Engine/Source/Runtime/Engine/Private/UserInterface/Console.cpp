@@ -155,6 +155,8 @@ UConsole::~UConsole()
 	{
 		GLog->RemoveOutputDevice(this);
 	}
+
+	FEngineShowFlags::OnCustomShowFlagRegistered.RemoveAll(this);
 }
 
 void UConsole::PostInitProperties()
@@ -169,6 +171,13 @@ void UConsole::PostInitProperties()
 	}
 #endif
 	Super::PostInitProperties();
+
+	FEngineShowFlags::OnCustomShowFlagRegistered.AddUObject(this, &UConsole::InvalidateAutocomplete);
+}
+
+void UConsole::InvalidateAutocomplete()
+{
+	bIsRuntimeAutoCompleteUpToDate = false;
 }
 
 void UConsole::BuildRuntimeAutoCompleteList(bool bForce)
@@ -379,7 +388,7 @@ void UConsole::BuildRuntimeAutoCompleteList(bool bForce)
 			{
 			}
 
-			bool OnEngineShowFlag(uint32 InIndex, const FString& InName)
+			bool HandleShowFlag(uint32 InIndex, const FString& InName)
 			{
 				// Get localized name.
 				FText LocName;
@@ -391,6 +400,16 @@ void UConsole::BuildRuntimeAutoCompleteList(bool bForce)
 				AutoCompleteList[NewIdx].Color = GetDefault<UConsoleSettings>()->AutoCompleteCommandColor;
 
 				return true;
+			}
+			
+			bool OnEngineShowFlag(uint32 InIndex, const FString& InName)
+			{
+				return HandleShowFlag(InIndex, InName);
+			}
+
+			bool OnCustomShowFlag(uint32 InIndex, const FString& InName)
+			{
+				return HandleShowFlag(InIndex, InName);
 			}
 
 			TArray<FAutoCompleteCommand>& AutoCompleteList;

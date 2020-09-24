@@ -77,6 +77,8 @@ public:
 
 	virtual void GetAllTextureFormats( TArray<FName>& OutFormats) const override;
 
+	virtual FName FinalizeVirtualTextureLayerFormat(FName Format) const override;
+
 	virtual const UTextureLODSettings& GetTextureLODSettings() const override;
 
 	virtual void RegisterTextureLODSettings(const UTextureLODSettings* InTextureLODSettings) override
@@ -92,7 +94,6 @@ public:
 	virtual void GetBuildProjectSettingKeys(FString& OutSection, TArray<FString>& InBoolKeys, TArray<FString>& InIntKeys, TArray<FString>& InStringKeys) const override
 	{
 		OutSection = TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings");
-		InBoolKeys.Add(TEXT("EnableRemoteShaderCompile"));
 		InBoolKeys.Add(TEXT("bGeneratedSYMFile"));
 		InBoolKeys.Add(TEXT("bGeneratedSYMBundle"));
 		InBoolKeys.Add(TEXT("bGenerateXCArchive"));
@@ -104,8 +105,6 @@ public:
 		else
 		{
 			InStringKeys.Add(TEXT("MinimumiOSVersion"));
-			InBoolKeys.Add(TEXT("bDevForArmV7")); InBoolKeys.Add(TEXT("bDevForArm64")); InBoolKeys.Add(TEXT("bDevForArmV7S"));
-			InBoolKeys.Add(TEXT("bShipForArmV7")); InBoolKeys.Add(TEXT("bShipForArm64")); InBoolKeys.Add(TEXT("bShipForArmV7S"));
 		}
 	}
 

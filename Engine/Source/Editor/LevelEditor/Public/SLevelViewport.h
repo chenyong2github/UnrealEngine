@@ -403,6 +403,13 @@ public:
 	 */
 	void OnCompactBookmarks();
 
+	/** 
+	 * Returns the config key associated with this viewport. 
+	 * This is what is used when loading/saving per viewport settings. 
+	 * If a plugin extends a LevelViewport menu, they'll be able to identify it and match their settings accordingly
+	 */
+	FName GetConfigKey() const { return ConfigKey; }
+
 protected:
 	/** SEditorViewport interface */
 	virtual TSharedRef<FEditorViewportClient> MakeEditorViewportClient() override;
@@ -717,6 +724,9 @@ private:
 
 	/** Get the SViewport size */
 	FVector2D GetSViewportSize() const;
+
+	/** Updates the real-time overrride applied to the viewport */
+	void OnPerformanceSettingsChanged(UObject* Obj, struct FPropertyChangedEvent& ChangeEvent);
 
 private:
 	/** Tab which this viewport is located in */

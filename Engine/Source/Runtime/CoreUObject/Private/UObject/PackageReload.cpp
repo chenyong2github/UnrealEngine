@@ -395,7 +395,7 @@ void SortPackagesForReload(const FName PackageName, TSet<FName>& ProcessedPackag
 	ProcessedPackages.Add(PackageName);
 
 	TArray<FName> PackageDependencies;
-	InAssetRegistry.GetDependencies(PackageName, PackageDependencies, EAssetRegistryDependencyType::Hard);
+	InAssetRegistry.GetDependencies(PackageName, PackageDependencies, UE::AssetRegistry::EDependencyCategory::Package, UE::AssetRegistry::EDependencyQuery::Hard);
 
 	// Recursively go through processing each new dependency until we run out
 	for (const FName& Dependency : PackageDependencies)

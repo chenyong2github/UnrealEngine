@@ -24,6 +24,7 @@
 #include "Internationalization/TextLocalizationManager.h"
 #include "Logging/LogScopedCategoryAndVerbosityOverride.h"
 #include "HAL/PlatformOutputDevices.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/OutputDeviceArchiveWrapper.h"
 
 #ifndef NOINITCRASHREPORTER
@@ -70,6 +71,7 @@ const TCHAR* const FGenericCrashContext::EngineModeExVanilla = TEXT("Vanilla");
 
 bool FGenericCrashContext::bIsInitialized = false;
 uint32 FGenericCrashContext::OutOfProcessCrashReporterPid = 0;
+volatile int64 FGenericCrashContext::OutOfProcessCrashReporterExitCode = 0;
 int32 FGenericCrashContext::StaticCrashContextIndex = 0;
 
 const FGuid FGenericCrashContext::ExecutionGuid = FGuid::NewGuid();
@@ -82,10 +84,10 @@ namespace NCached
 	static TMap<FString, FString> EngineData;
 	static TMap<FString, FString> GameData;
 
-	template <size_t CharCount>
-	void Set(TCHAR(&Dest)[CharCount], const TCHAR* pSrc)
+	template <size_t CharCount, typename CharType>
+	void Set(CharType(&Dest)[CharCount], const CharType* pSrc)
 	{
-		FCString::Strncpy(Dest, pSrc, CharCount);
+		TCString<CharType>::Strncpy(Dest, pSrc, CharCount);
 	}
 }
 
@@ -122,6 +124,9 @@ void FGenericCrashContext::Initialize()
 	NCached::Set(NCached::Session.UserName, FPlatformProcess::UserName());
 	NCached::Set(NCached::Session.DefaultLocale, *FPlatformMisc::GetDefaultLocale());
 
+	NCached::Set(NCached::Session.PlatformName, FPlatformProperties::PlatformName());
+	NCached::Set(NCached::Session.PlatformNameIni, FPlatformProperties::IniPlatformName());
+
 	// Information that cannot be gathered if command line is not initialized (e.g. crash during static init)
 	if (FCommandLine::IsInitialized())
 	{
@@ -129,6 +134,8 @@ void FGenericCrashContext::Initialize()
 		NCached::Set(NCached::Session.CommandLine, (FCommandLine::IsInitialized() ? FCommandLine::GetOriginalForLogging() : TEXT("")));
 		NCached::Set(NCached::Session.EngineMode, FGenericPlatformMisc::GetEngineMode());
 		NCached::Set(NCached::Session.EngineModeEx, FGenericCrashContext::EngineModeExUnknown); // Updated from callback
+
+		NCached::Set(NCached::UserSettings.LogFilePath, *FPlatformOutputDevices::GetAbsoluteLogFilename());
 
 		// Use -epicapp value from the commandline to start. This will also be set by the game
 		FParse::Value(FCommandLine::Get(), TEXT("EPICAPP="), NCached::Session.DeploymentName, CR_MAX_GENERIC_FIELD_CHARS, true);
@@ -147,6 +154,9 @@ void FGenericCrashContext::Initialize()
 				NCached::Session.CrashDumpMode = (int32)ECrashDumpMode::FullDump;
 			}
 		}
+
+		NCached::UserSettings.bNoDialog = FApp::IsUnattended() || IsRunningDedicatedServer();
+
 	}
 
 	// Create a unique base guid for bug report ids
@@ -235,10 +245,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	});
 
 	FCoreDelegates::ConfigReadyForUse.AddStatic(FGenericCrashContext::InitializeFromConfig);
-
-	NCached::Set(NCached::UserSettings.LogFilePath, *FPlatformOutputDevices::GetAbsoluteLogFilename());
-
-	NCached::UserSettings.bNoDialog = FApp::IsUnattended() || IsRunningDedicatedServer();
 
 	SerializeTempCrashContextToFile();
 
@@ -388,6 +394,15 @@ void FGenericCrashContext::InitializeFromConfig()
 	// Set privacy settings -> WARNING: Ensure those setting have a default values in Engine/Config/BaseEditorSettings.ini file, otherwise, they will not be found.
 	GConfig->GetBool(TEXT("/Script/UnrealEd.CrashReportsPrivacySettings"), TEXT("bSendUnattendedBugReports"), NCached::UserSettings.bSendUnattendedBugReports, GEditorSettingsIni);
 	GConfig->GetBool(TEXT("/Script/UnrealEd.AnalyticsPrivacySettings"), TEXT("bSendUsageData"), NCached::UserSettings.bSendUsageData, GEditorSettingsIni);
+	
+	// Write a marker file to disk indicating the user has allowed unattended crash reports being
+	// sent. This allows us to submit reports for crashes during static initialization when user
+	// settings are not available. 
+	FString MarkerFilePath = FString::Printf(TEXT("%s/NotAllowedUnattendedBugReports"), FPlatformProcess::ApplicationSettingsDir());
+	if (!NCached::UserSettings.bSendUnattendedBugReports)
+	{
+		TUniquePtr<IFileHandle> File(FPlatformFileManager::Get().GetPlatformFile().OpenWrite(*MarkerFilePath));
+	}
 
 	// Make sure we get updated text once the localized version is loaded
 	FTextLocalizationManager::Get().OnTextRevisionChangedEvent.AddStatic(&UpdateLocalizedStrings);
@@ -422,6 +437,23 @@ FGenericCrashContext::FGenericCrashContext(ECrashContextType InType, const TCHAR
 FString FGenericCrashContext::GetTempSessionContextFilePath(uint64 ProcessID)
 {
 	return FPlatformProcess::UserTempDir() / FString::Printf(TEXT("UECrashContext-%u.xml"), ProcessID);
+}
+
+TOptional<int32> FGenericCrashContext::GetOutOfProcessCrashReporterExitCode()
+{
+	TOptional<int32> ExitCode;
+	int64 ExitCodeData = FPlatformAtomics::AtomicRead(&OutOfProcessCrashReporterExitCode);
+	if (ExitCodeData & 0xFFFFFFFF00000000) // If one bit in the 32 MSB is set, the out of process exit code is set in the 32 LSB.
+	{
+		ExitCode.Emplace(static_cast<int32>(ExitCodeData)); // Truncate the 32 MSB.
+	}
+	return ExitCode;
+}
+
+void FGenericCrashContext::SetOutOfProcessCrashReporterExitCode(int32 ExitCode)
+{
+	int64 ExitCodeData = (1ll << 32) | ExitCode; // Set a bit in the 32 MSB to signal that the exit code is set
+	FPlatformAtomics::AtomicStore(&OutOfProcessCrashReporterExitCode, ExitCodeData);
 }
 
 void FGenericCrashContext::SerializeTempCrashContextToFile()
@@ -490,8 +522,8 @@ void FGenericCrashContext::SerializeSessionContext(FString& Buffer)
 
 	AddCrashPropertyInternal(Buffer, TEXT("Symbols"), Symbols);
 
-	AddCrashPropertyInternal(Buffer, TEXT("PlatformName"), FPlatformProperties::PlatformName());
-	AddCrashPropertyInternal(Buffer, TEXT("PlatformNameIni"), FPlatformProperties::IniPlatformName());
+	AddCrashPropertyInternal(Buffer, TEXT("PlatformName"), NCached::Session.PlatformName);
+	AddCrashPropertyInternal(Buffer, TEXT("PlatformNameIni"), NCached::Session.PlatformNameIni);
 	AddCrashPropertyInternal(Buffer, TEXT("EngineMode"), NCached::Session.EngineMode);
 	AddCrashPropertyInternal(Buffer, TEXT("EngineModeEx"), NCached::Session.EngineModeEx);
 
@@ -505,7 +537,6 @@ void FGenericCrashContext::SerializeSessionContext(FString& Buffer)
 	AddCrashPropertyInternal(Buffer, TEXT("IsUE4Release"), NCached::Session.bIsUE4Release);
 
 	// Need to set this at the time of the crash to check if requesting exit had been called
-	NCached::Session.bIsExitRequested = IsEngineExitRequested();
 	AddCrashPropertyInternal(Buffer, TEXT("IsRequestingExit"), NCached::Session.bIsExitRequested);
 
 	// Remove periods from user names to match AutoReporter user names
@@ -661,6 +692,11 @@ void FGenericCrashContext::SerializeContentToBuffer() const
 const TCHAR* FGenericCrashContext::GetCallstackProperty() const
 {
 	return TEXT("");
+}
+
+void FGenericCrashContext::SetEngineExit(bool bIsExiting)
+{
+	NCached::Session.bIsExitRequested = IsEngineExitRequested();
 }
 
 void FGenericCrashContext::SetNumMinidumpFramesToIgnore(int InNumMinidumpFramesToIgnore)

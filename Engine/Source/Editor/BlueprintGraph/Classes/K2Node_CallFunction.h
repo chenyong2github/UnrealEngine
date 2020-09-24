@@ -153,6 +153,9 @@ public:
 	/** Create exec pins for this function. May be multiple is using 'expand enum as execs' */
 	void CreateExecPinsForFunctionCall(const UFunction* Function);
 
+	/** Gets the name of the referenced function */
+	FName GetFunctionName() const;
+
 	virtual void PostParameterPinCreated(UEdGraphPin *Pin) {}
 
 	/** Gets the user-facing name for the function */

@@ -46,7 +46,7 @@ UENUM()
 enum class ERevolvePropertiesQuadSplit : uint8
 {
 	/** Quads will always be split the same way relative to an unrolled mesh, regardless of quad shape. */
-	Unform,
+	Uniform,
 	
 	/** Quads will be split such that the shortest diagonal is connected. */
 	ShortestDiagonal
@@ -67,16 +67,16 @@ public:
 	double RevolutionDegrees = 360;
 
 	/** The angle by which to shift the profile curve around the axis before beginning the revolve */
-	UPROPERTY(EditAnywhere, Category = RevolveSettings, meta = (UIMin = "-360", UIMax = "360", ClampMin = "-360", ClampMax = "360"), AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = RevolveSettings, meta = (UIMin = "-360", UIMax = "360", ClampMin = "-36000", ClampMax = "36000"), AdvancedDisplay)
 	double RevolutionDegreesOffset = 0;
 
 	/** Number of steps to take while revolving. */
 	UPROPERTY(EditAnywhere, Category = RevolveSettings, meta = (UIMin = "1", ClampMin = "1"))
 	int Steps = 24;
 
-	/** Determines direction of revolution if looking down the direction of the axis. */
+	/** By default, revolution is done counterclockwise if looking down the revolution axis. This reverses the direction.*/
 	UPROPERTY(EditAnywhere, Category = RevolveSettings)
-	bool bClockwise = true;
+	bool bReverseRevolutionDirection = false;
 
 	/** Flips the mesh inside out. */
 	UPROPERTY(EditAnywhere, Category = RevolveSettings)
@@ -96,6 +96,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = RevolveSettings, AdvancedDisplay)
 	ERevolvePropertiesQuadSplit QuadSplitMode = ERevolvePropertiesQuadSplit::ShortestDiagonal;
 	
+	/** When quads are generated using "shortest" diagonal, this biases the diagonal length comparison
+	 to prefer one slightly in the case of similar diagonals (for example, a value of 0.01 allows a
+	 1% difference in lengths before the triangulation is flipped). Helps symmetric quads be uniformly
+	 triangulated. */
+	UPROPERTY(EditAnywhere, Category = RevolveSettings, AdvancedDisplay, meta = (ClampMin = "0.0",  ClampMax = "2.0", 
+		EditCondition = "QuadSplitMode == ERevolvePropertiesQuadSplit::ShortestDiagonal", EditConditionHides))
+	double DiagonalProportionTolerance = 0.01;
+
 	/** Determines how caps are created if the revolution is partial. Not relevant if the
 	  revolution is full and welded. */
 	UPROPERTY(EditAnywhere, Category = RevolveSettings, AdvancedDisplay)

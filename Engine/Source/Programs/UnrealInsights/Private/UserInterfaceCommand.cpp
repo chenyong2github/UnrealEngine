@@ -104,6 +104,11 @@ bool CheckSessionBrowserSingleInstance()
 
 void FUserInterfaceCommand::Run()
 {
+	const uint32 MaxPath = FPlatformMisc::GetMaxPathLength();
+	TCHAR* TraceFile = new TCHAR[MaxPath + 1];
+	TraceFile[0] = 0;
+	bool bOpenTraceFile = false;
+
 	// Only a single instance of Session Browser window/process is allowed.
 	{
 		bool bBrowserMode = true;
@@ -114,7 +119,8 @@ void FUserInterfaceCommand::Run()
 		}
 		if (bBrowserMode)
 		{
-			bBrowserMode = FCString::Strifind(FCommandLine::Get(), TEXT("-OpenTraceFile=")) == nullptr;
+			bOpenTraceFile = GetTraceFileFromCmdLine(TraceFile, MaxPath);
+			bBrowserMode = !bOpenTraceFile;
 		}
 
 		if (bBrowserMode && !CheckSessionBrowserSingleInstance())
@@ -143,7 +149,10 @@ void FUserInterfaceCommand::Run()
 		FModuleManager::Get().LoadModule("SettingsEditor");
 	}
 
-	InitializeSlateApplication();
+	InitializeSlateApplication(bOpenTraceFile, TraceFile);
+
+	delete[] TraceFile;
+	TraceFile = nullptr;
 
 	// Initialize source code access.
 	// Load the source code access module.
@@ -199,7 +208,7 @@ void FUserInterfaceCommand::Run()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FUserInterfaceCommand::InitializeSlateApplication()
+void FUserInterfaceCommand::InitializeSlateApplication(bool bOpenTraceFile, const TCHAR* TraceFile)
 {
 	//TODO: FSlateApplication::InitHighDPI(true);
 
@@ -254,22 +263,50 @@ void FUserInterfaceCommand::InitializeSlateApplication()
 		bUseCustomStoreAddress = true;
 	}
 
+	TCHAR Cmd[1024];
+	bool bExecuteCommand = false;
+	if (FParse::Value(FCommandLine::Get(), TEXT("-ExecOnAnalysisCompleteCmd="), Cmd, 1024, false))
+	{
+		bExecuteCommand = true;
+	}
+
+	//This parameter will cause the application to close when analysis fails to start or completes succesfully
+	const bool bAutoQuit = FParse::Param(FCommandLine::Get(), TEXT("AutoQuit"));
+
+	const bool bInitializeTesting = FParse::Param(FCommandLine::Get(), TEXT("InsightsTest"));
+
 	if (bUseTraceId)
 	{
+		if (bInitializeTesting || bAutoQuit)
+		{
+			TraceInsightsModule.InitializeTesting(bInitializeTesting, bAutoQuit);
+
+			if (bExecuteCommand)
+			{
+				TraceInsightsModule.ScheduleCommand(Cmd);
+			}
+		}
+
 		TraceInsightsModule.CreateSessionViewer(bAllowDebugTools);
 		TraceInsightsModule.ConnectToStore(StoreHost, StorePort);
-		TraceInsightsModule.StartAnalysisForTrace(TraceId);
+		TraceInsightsModule.StartAnalysisForTrace(TraceId, bAutoQuit);
 	}
 	else
 	{
-		TCHAR* TraceFile = new TCHAR[MaxPath + 1];
-		TraceFile[0] = 0;
-		bool bUseTraceFile = FParse::Value(FCommandLine::Get(), TEXT("-OpenTraceFile="), TraceFile, MaxPath, true);
-
-		if (bUseTraceFile)
+		if (bOpenTraceFile)
 		{
+			if (bInitializeTesting || bAutoQuit)
+			{
+				TraceInsightsModule.InitializeTesting(bInitializeTesting, bAutoQuit);
+
+				if (bExecuteCommand)
+				{
+					TraceInsightsModule.ScheduleCommand(Cmd);
+				}
+			}
+
 			TraceInsightsModule.CreateSessionViewer(bAllowDebugTools);
-			TraceInsightsModule.StartAnalysisForTraceFile(TraceFile);
+			TraceInsightsModule.StartAnalysisForTraceFile(TraceFile, bAutoQuit);
 		}
 		else
 		{
@@ -284,8 +321,6 @@ void FUserInterfaceCommand::InitializeSlateApplication()
 			const bool bSingleProcess = FParse::Param(FCommandLine::Get(), TEXT("SingleProcess"));
 			TraceInsightsModule.CreateSessionBrowser(bAllowDebugTools, bSingleProcess);
 		}
-
-		delete[] TraceFile;
 	}
 
 	delete[] StoreHost;
@@ -300,6 +335,36 @@ void FUserInterfaceCommand::ShutdownSlateApplication()
 
 	// Shut down application.
 	FSlateApplication::Shutdown();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FUserInterfaceCommand::GetTraceFileFromCmdLine(TCHAR* OutTraceFile, uint32 MaxPath)
+{
+	// Try getting the trace file from the -OpenTraceFile= paramter first.
+	bool bUseTraceFile = FParse::Value(FCommandLine::Get(), TEXT("-OpenTraceFile="), OutTraceFile, MaxPath, true);
+
+	if (bUseTraceFile)
+	{
+		return true;
+	}
+
+	// Support opening a trace file by double clicking a .utrace file.
+	// In this case, the app will receive as the first parameter a utrace file path.
+
+	const TCHAR* CmdLine = FCommandLine::Get();
+	bool HasToken = FParse::Token(CmdLine, OutTraceFile, MaxPath, false);
+
+	if (HasToken)
+	{
+		FString Token = OutTraceFile;
+		if (Token.EndsWith(TEXT(".utrace")))
+		{
+			bUseTraceFile = true;
+		}
+	}
+
+	return bUseTraceFile;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

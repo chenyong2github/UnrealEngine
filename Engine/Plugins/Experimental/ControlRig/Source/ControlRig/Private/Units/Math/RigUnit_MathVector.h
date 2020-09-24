@@ -489,7 +489,7 @@ struct FRigUnit_MathVectorIsNearlyEqual : public FRigUnit_MathVectorBase
 /**
  * Return one of the two values based on the condition
  */
-USTRUCT(meta=(DisplayName="Select", PrototypeName="Select", Keywords="Pick,If"))
+USTRUCT(meta=(DisplayName="Select", PrototypeName="Select", Keywords="Pick,If", Deprecated = "4.26.0"))
 struct FRigUnit_MathVectorSelectBool : public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
@@ -867,7 +867,7 @@ struct FRigUnit_MathVectorBezierFourPoint : public FRigUnit_MathVectorBase
 /**
  * Creates a bezier four point
  */
-USTRUCT(meta = (DisplayName = "Make Bezier Four Point"))
+USTRUCT(meta = (DisplayName = "Make Bezier Four Point", Constant))
 struct FRigUnit_MathVectorMakeBezierFourPoint : public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
@@ -939,4 +939,41 @@ struct FRigUnit_MathVectorClampSpatially: public FRigUnit_MathVectorBase
 
 	UPROPERTY(meta = (Output))
 	FVector Result;
+};
+
+/**
+ * Intersects a plane with a vector given a start and direction
+ */
+USTRUCT(meta = (DisplayName = "Intersect Plane", Keywords = "Collide,Intersect,Raycast"))
+struct FRigUnit_MathIntersectPlane : public FRigUnit_MathVectorBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathIntersectPlane()
+	{
+		Start = PlanePoint = Result = FVector::ZeroVector;
+		Direction = PlaneNormal = FVector(0.f, 0.f, 1.f);
+		Distance = 0.f;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	FVector Start;
+
+	UPROPERTY(meta = (Input))
+	FVector Direction;
+
+	UPROPERTY(meta = (Input))
+	FVector PlanePoint;
+
+	UPROPERTY(meta = (Input))
+	FVector PlaneNormal;
+
+	UPROPERTY(meta = (Output))
+	FVector Result;
+
+	UPROPERTY(meta = (Output))
+	float Distance;
 };

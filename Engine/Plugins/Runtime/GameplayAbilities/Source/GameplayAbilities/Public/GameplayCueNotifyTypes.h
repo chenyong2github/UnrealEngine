@@ -14,7 +14,7 @@ class UParticleSystem;
 class UParticleSystemComponent;
 class UAudioComponent;
 class USoundBase;
-class UCameraShake;
+class UCameraShakeBase;
 class UCameraAnim;
 class UCameraAnimInst;
 class AEmitterCameraLensEffectBase;
@@ -282,7 +282,7 @@ public:
 
 	// List of camera shakes played.  There will be one camera shake per local player controller if shake is played in world.
 	UPROPERTY(BlueprintReadOnly, Transient, Category = GameplayCueNotify)
-	TArray<UCameraShake*> CameraShakes;
+	TArray<UCameraShakeBase*> CameraShakes;
 
 	// Camera animation played.
 	UPROPERTY(BlueprintReadOnly, Transient, Category = GameplayCueNotify)
@@ -434,7 +434,7 @@ public:
 
 	// Camera shake to play.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify)
-	TSubclassOf<UCameraShake> CameraShake;
+	TSubclassOf<UCameraShakeBase> CameraShake;
 
 	// Scale applied to the camera shake.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify)

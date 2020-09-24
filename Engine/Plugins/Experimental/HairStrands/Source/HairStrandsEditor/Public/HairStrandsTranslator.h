@@ -4,10 +4,10 @@
 
 #include "HairDescription.h"
 
-class HAIRSTRANDSEDITOR_API IHairStrandsTranslator
+class HAIRSTRANDSEDITOR_API IGroomTranslator
 {
 public:
-	virtual ~IHairStrandsTranslator() {}
+	virtual ~IGroomTranslator() {}
 
 	/** Translate a given file into a HairDescription; return true if successful */
 	virtual bool Translate(const FString& FilePath, FHairDescription& OutHairDescription, const struct FGroomConversionSettings& ConversionSettings) = 0;

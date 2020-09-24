@@ -46,6 +46,7 @@ public:
 	TSharedPtr<FUICommandInfo> PasteVariable;
 	TSharedPtr<FUICommandInfo> PasteLocalVariable;
 	TSharedPtr<FUICommandInfo> PasteFunction;
+	TSharedPtr<FUICommandInfo> PasteMacro;
 	TSharedPtr<FUICommandInfo> GotoNativeVarDefinition;
 	TSharedPtr<FUICommandInfo> MoveToParent;
 	// Add New Item
@@ -244,7 +245,6 @@ private:
 	void GotoNativeCodeVarDefinition();
 	bool IsNativeVariable() const;
 	void OnMoveToParent();
-	void OnMoveToParentCompleted();
 	bool CanMoveToParent() const;
 	void OnCopy();
 	bool CanCopy() const;
@@ -256,6 +256,11 @@ private:
 	bool CanPasteLocalVariable() const;
 	void OnPasteFunction();
 	bool CanPasteFunction() const;
+	void OnPasteMacro();
+	bool CanPasteMacro() const;
+
+	/** Gets the currently selected Category or returns default category name */
+	FText GetPasteCategory() const;
 
 	/** Callback when the filter is changed, forces the action tree(s) to filter */
 	void OnFilterTextChanged( const FText& InFilterText );
@@ -325,9 +330,6 @@ private:
 
 	/** The Kismet Inspector used to display properties: */
 	TWeakPtr<SKismetInspector> Inspector;
-
-	/** A transient Replace helper used when moving variables to the parent class */
-	TSharedPtr<FReplaceNodeReferencesHelper> ReplaceHelper;
 
 	/** Flag to indicate whether or not we need to refresh the panel */
 	bool bNeedsRefresh;

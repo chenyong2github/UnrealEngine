@@ -174,7 +174,7 @@ AActor* FWorldPartitionActorDesc::Load(const FLinkerInstancingContext* Instancin
 		FName RemappedPackageName = InstancingContext->Remap(ActorPackage);
 		check(RemappedPackageName != ActorPath);
 
-		Package = CreatePackage(nullptr, *RemappedPackageName.ToString());
+		Package = CreatePackage(*RemappedPackageName.ToString());
 	}
 
 	if (LoadPackage(Package, *ActorPackage.ToString(), LOAD_None, nullptr, InstancingContext))

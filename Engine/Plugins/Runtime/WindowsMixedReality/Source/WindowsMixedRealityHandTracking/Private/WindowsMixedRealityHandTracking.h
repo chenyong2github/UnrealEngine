@@ -69,6 +69,8 @@ public:
 	const FHandState& GetRightHandState() const;
 	bool IsHandTrackingStateValid() const;
 
+	void OnGetXRSystemFlags(int32& XRFlags);
+
 	bool GetKeypointTransform(EControllerHand Hand, EWMRHandKeypoint Keypoint, FTransform& OutTransform) const;
 	bool GetKeypointRadius(EControllerHand Hand, EWMRHandKeypoint Keypoint, float& OutRadius) const;
 
@@ -83,7 +85,6 @@ public:
 private:
 	void UpdateTrackerData();
 	void AddKeys();
-	void ConditionallyEnable();
 	
 	void SetupLiveLinkData();
 	void UpdateLiveLink();

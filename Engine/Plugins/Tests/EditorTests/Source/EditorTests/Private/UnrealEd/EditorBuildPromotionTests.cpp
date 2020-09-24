@@ -1840,7 +1840,7 @@ namespace BuildPromotionTestHelper
 			// Create blueprint asset
 			UBlueprintFactory* Factory = NewObject<UBlueprintFactory>();
 			Factory->ParentClass = AActor::StaticClass();
-			BlueprintPackage = CreatePackage(NULL, *PackageName);
+			BlueprintPackage = CreatePackage(*PackageName);
 			EObjectFlags Flags = RF_Public | RF_Standalone;
 
 			// Check that conflicting asset doesn't already exist

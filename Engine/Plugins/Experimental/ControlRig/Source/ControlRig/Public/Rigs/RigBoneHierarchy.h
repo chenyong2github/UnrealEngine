@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "RigHierarchyDefines.h"
+#include "RigHierarchyPose.h"
 #include "ReferenceSkeleton.h"
 #include "RigBoneHierarchy.generated.h"
 
@@ -63,9 +64,13 @@ struct CONTROLRIG_API FRigBone: public FRigElement
 		return ERigElementType::Bone;
 	}
 
-	FORCEINLINE virtual FRigElementKey GetParentElementKey() const
+	FORCEINLINE virtual FRigElementKey GetParentElementKey(bool bForce = false) const
 	{
-		return FRigElementKey(ParentName, GetElementType());
+		if (ParentIndex != INDEX_NONE || bForce)
+		{
+			return FRigElementKey(ParentName, GetElementType());
+		}
+		return FRigElementKey();
 	}
 };
 
@@ -143,13 +148,21 @@ struct CONTROLRIG_API FRigBoneHierarchy
 
 	FTransform GetLocalTransform(int32 InIndex) const;
 
-	void SetInitialTransform(const FName& InName, const FTransform& InTransform);
+	void SetInitialGlobalTransform(const FName& InName, const FTransform& InTransform, bool bPropagateTransform = false);
 
-	void SetInitialTransform(int32 InIndex, const FTransform& InTransform);
+	void SetInitialGlobalTransform(int32 InIndex, const FTransform& InTransform, bool bPropagateTransform = false);
 
-	FTransform GetInitialTransform(const FName& InName) const;
+	void SetInitialLocalTransform(const FName& InName, const FTransform& InTransform, bool bPropagateTransform = false);
 
-	FTransform GetInitialTransform(int32 InIndex) const;
+	void SetInitialLocalTransform(int32 InIndex, const FTransform& InTransform, bool bPropagateTransform = false);
+
+	FTransform GetInitialGlobalTransform(const FName& InName) const;
+
+	FTransform GetInitialGlobalTransform(int32 InIndex) const;
+
+	FTransform GetInitialLocalTransform(const FName& InName) const;
+
+	FTransform GetInitialLocalTransform(int32 InIndex) const;
 
 	// updates all of the internal caches
 	void Initialize(bool bResetTransforms = true);
@@ -157,27 +170,46 @@ struct CONTROLRIG_API FRigBoneHierarchy
 	// clears the hierarchy and removes all content
 	void Reset();
 
+	// returns the current pose
+	FRigPose GetPose() const;
+
+	// sets the current transforms from the given pose
+	void SetPose(FRigPose& InPose);
+
 	// resets all of the transforms back to the initial transform
 	void ResetTransforms();
+
+	// copies all initial transforms from another hierarchy
+	void CopyInitialTransforms(const FRigBoneHierarchy& InOther);
 
 	// recomputes all of the global transforms from local
 	void RecomputeGlobalTransforms();
 
+	// recomputes the local transform of a single bone
+	void RecalculateLocalTransform(int32 InIndex);
+
+	// recomputes the global transform of a single bone
+	void RecalculateGlobalTransform(int32 InIndex);
+
+	// propagates the transform change for a single bone
+	void PropagateTransform(int32 InIndex);
+
 	// import skeleton
 	TArray<FRigElementKey> ImportSkeleton(const FReferenceSkeleton& InSkeleton, const FName& InNameSpace, bool bReplaceExistingBones, bool bRemoveObsoleteBones, bool bSelectBones, bool bNotify);
-
-#if WITH_EDITOR
 
 	bool Select(const FName& InName, bool bSelect = true);
 	bool ClearSelection();
 	TArray<FName> CurrentSelection() const;
 	bool IsSelected(const FName& InName) const;
 
+	FRigElementSelected OnBoneSelected;
+
+#if WITH_EDITOR
+
 	FRigElementAdded OnBoneAdded;
 	FRigElementRemoved OnBoneRemoved;
 	FRigElementRenamed OnBoneRenamed;
 	FRigElementReparented OnBoneReparented;
-	FRigElementSelected OnBoneSelected;
 
 #endif
 
@@ -195,10 +227,8 @@ private:
 	UPROPERTY()
 	TMap<FName, int32> NameToIndexMapping;
 
-#if WITH_EDITORONLY_DATA
 	UPROPERTY(transient)
 	TArray<FName> Selection;
-#endif
 
 	int32 GetIndexSlow(const FName& InName) const;
 
@@ -207,15 +237,16 @@ private:
 
 	void RefreshParentNames();
 	void RefreshMapping();
+	void AppendToPose(FRigPose& InOutPose) const;
 	void Sort();
 
 	// list of names of children - this is not cheap, and is supposed to be used only for one time set up
 	int32 GetChildrenRecursive(const int32 InIndex, TArray<int32>& OutChildren, bool bRecursively) const;
 
-	void PropagateTransform(int32 InIndex);
-
 	bool bSuspendNotifications;
 
 	friend struct FRigHierarchyContainer;
+	friend struct FCachedRigElement;
 	friend class UControlRigHierarchyModifier;
+	friend class UControlRig;
 };

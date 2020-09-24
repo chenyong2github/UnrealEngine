@@ -112,12 +112,17 @@ bool UDatasmithFileProducer::Initialize()
 		return false;
 	}
 
-	UPackage* TransientPackage = NewObject< UPackage >( nullptr, *FPaths::Combine( Context.RootPackagePtr->GetPathName(), *GetName() ), RF_Transient );
+	// Create transient package if it wasn't specified
+	if (!TransientPackage)
+	{
+		TransientPackage = NewObject< UPackage >(nullptr, *FPaths::Combine(Context.RootPackagePtr->GetPathName(), *GetName()), RF_Transient);
+	}
+
 	TransientPackage->FullyLoad();
 
 	// Create the transient Datasmith scene
-	DatasmithScenePtr = TStrongObjectPtr< UDatasmithScene >( NewObject< UDatasmithScene >( TransientPackage, *GetName() ) );
-	check( DatasmithScenePtr.IsValid() );
+	DatasmithScene =  NewObject< UDatasmithScene >( TransientPackage, *GetName() );
+	check( DatasmithScene->IsValidLowLevel() );
 
 	// Translate the source into a Datasmith scene element
 	FDatasmithSceneSource Source;
@@ -159,10 +164,10 @@ bool UDatasmithFileProducer::Initialize()
 	// Set import options to default
 	ImportContextPtr->Options->BaseOptions = DefaultImportOptions;
 
-	ImportContextPtr->SceneAsset = DatasmithScenePtr.Get();
+	ImportContextPtr->SceneAsset = DatasmithScene;
 	ImportContextPtr->ActorsContext.ImportWorld = Context.WorldPtr.Get();
 
-	FString SceneOuterPath = DatasmithScenePtr->GetOutermost()->GetName();
+	FString SceneOuterPath = DatasmithScene->GetOutermost()->GetName();
 	FString RootPath = FPackageName::GetLongPackagePath( SceneOuterPath );
 
 	if ( Algo::Count( RootPath, TEXT('/') ) > 1 )
@@ -249,6 +254,9 @@ void UDatasmithFileProducer::SceneElementToWorld()
 	// ACTORS
 	{
 		FDatasmithImporter::ImportActors( *ImportContextPtr );
+		
+		// ImportSceneActor is created in FDatasmithImporter::ImportActors
+		ImportSceneActor = ImportContextPtr->ActorsContext.ImportSceneActor;
 
 		// Level sequences have to be imported after the actors to be able to bind the tracks to the actors to be animated
 		FDatasmithImporter::ImportLevelSequences( *ImportContextPtr );
@@ -358,7 +366,7 @@ void UDatasmithFileProducer::SceneElementToWorld()
 void UDatasmithFileProducer::PreventNameCollision()
 {
 	// Create packages where assets must be moved to avoid name collision
-	FString TransientFolderPath = DatasmithScenePtr->GetOutermost()->GetPathName();
+	FString TransientFolderPath = DatasmithScene->GetOutermost()->GetPathName();
 
 	// Clean up transient package path. It should be empty
 	FDatasmithFileProducerUtils::DeletePackagePath( TransientFolderPath );
@@ -418,7 +426,7 @@ void UDatasmithFileProducer::PreventNameCollision()
 
 				// Replace unique name id with hash of package path to avoid asset's name collision
 				const FString DatasmithUniqueId = DatasmithContentLibrary->GetDatasmithUserDataValueForKey( Object, UDatasmithAssetUserData::UniqueIdMetaDataKey );
-				const FString ObjectIdent = DatasmithUniqueId + DatasmithScenePtr->GetName() + Object->GetName() + Object->GetClass()->GetName();
+				const FString ObjectIdent = DatasmithUniqueId + DatasmithScene->GetName() + Object->GetName() + Object->GetClass()->GetName();
 				FString NewUniqueId = FMD5::HashBytes( reinterpret_cast<const uint8*>(*ObjectIdent), ObjectIdent.Len() * sizeof(TCHAR) );
 
 				UDatasmithAssetUserData::SetDatasmithUserDataValueForKey(Object, *(FString(TEXT("Old")) + UDatasmithAssetUserData::UniqueIdMetaDataKey), DatasmithUniqueId );
@@ -543,7 +551,7 @@ void UDatasmithFileProducer::PreventNameCollision()
 		{
 			if( ADatasmithSceneActor* SceneActor = Cast<ADatasmithSceneActor>( Level->Actors[i] ) )
 			{
-				if(SceneActor->Scene == DatasmithScenePtr.Get())
+				if(SceneActor->Scene == DatasmithScene)
 				{
 					// Append prefix to all children of scene actor
 					for( TPair< FName, TSoftObjectPtr< AActor > >& ActorPair : SceneActor->RelatedActors)
@@ -611,11 +619,12 @@ void UDatasmithFileProducer::OnFilePathChanged()
 
 void UDatasmithFileProducer::Reset()
 {
-	DatasmithScenePtr.Reset();
+	DatasmithScene = nullptr;
 	ImportContextPtr.Reset();
 	TranslatableSourcePtr.Reset();
 	ProgressTaskPtr.Reset();
 	Assets.Empty();
+	TransientPackage = nullptr;
 
 	UDataprepContentProducer::Reset();
 }
@@ -751,7 +760,7 @@ bool UDatasmithDirProducer::Initialize()
 		return false;
 	}
 
-	FileProducer = TStrongObjectPtr< UDatasmithFileProducer >( NewObject< UDatasmithFileProducer >( GetTransientPackage(), NAME_None, RF_Transient ) );
+	FileProducer = NewObject< UDatasmithFileProducer >( GetTransientPackage(), NAME_None, RF_Transient );
 
 	return true;
 }
@@ -824,122 +833,16 @@ bool UDatasmithDirProducer::Execute(TArray< TWeakObjectPtr< UObject > >& OutAsse
  */
 bool UDatasmithDirProducer::ImportAsPlmXml(UPackage* RootPackage, TArray<TWeakObjectPtr<UObject>>& OutAssets, TArray<FString>& FilesNotProcessed)
 {
-	// Find out which translator can import CAD files by retrieving translator for a JT file(this is expected to be 'DatasmithCADTranslator').
-	// And then accept files which have this translator returned as compatible.
-	FDatasmithSceneSource SomeCADFileSource;
-	SomeCADFileSource.SetSourceFile("test.jt");
-	TSharedPtr<IDatasmithTranslator> TranslatorForCADFiles = FDatasmithTranslatorManager::Get().SelectFirstCompatible(SomeCADFileSource);
-	if (!TranslatorForCADFiles.IsValid())
-	{
-		return false;
-	}
-
-	FName CADTranslatorName = TranslatorForCADFiles->GetFName();
-	TArray<FString> FilesToProcessWithPlmXml;
-	for (const FString& FileName : FilesToProcess)
-	{
-		FDatasmithSceneSource Source;
-		Source.SetSourceFile(FileName);
-		TSharedPtr<IDatasmithTranslator> Translator = FDatasmithTranslatorManager::Get().SelectFirstCompatible(Source);
-
-		bool bIsCADFile = Translator.IsValid() && (Translator->GetFName() == CADTranslatorName);
-		if (bIsCADFile)
-		{
-			FilesToProcessWithPlmXml.Add(FileName);
-		}
-		else
-		{
-			FilesNotProcessed.Add(FileName);
-		}
-	}
-
-	// skip plmxml processing for single file
-	if (FilesToProcessWithPlmXml.Num() <= 1)
-	{
-		return false;
-	}
-
-	FString TempDir = FPaths::Combine(FPaths::ProjectIntermediateDir(), TEXT("DatasmithProducerTemp"));
+	FString PlmXmlFileName;
+	FString TempDir = FPaths::Combine(FPaths::ProjectIntermediateDir(), TEXT("DatasmithDirProducerTemp"));
 	if (!IFileManager::Get().DirectoryExists(*TempDir))
 	{
 		IFileManager::Get().MakeDirectory(*TempDir);
 	}
-	FString PlmXmlFileName = FPaths::Combine(TempDir, FPaths::GetBaseFilename(FolderPath) + TEXT(".plmxml"));
+	PlmXmlFileName = FPaths::Combine(TempDir, FPaths::GetBaseFilename(FolderPath) + TEXT(".plmxml"));
 
-	class FXmlWriter
+	if (!FDatasmithImporterUtils::CreatePlmXmlSceneFromCADFiles(PlmXmlFileName, FilesToProcess, FilesNotProcessed))
 	{
-	public:
-		FString Buffer;
-
-		FXmlWriter()
-		{
-			Buffer = TEXT("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
-			Buffer += LINE_TERMINATOR;
-		}
-
-		class FTagGuard
-		{
-		public:
-			FTagGuard(FXmlWriter& InWriter, FString Opening, FString InClosing)
-				: Writer(InWriter)
-				, Closing(InClosing)
-			{
-				Writer.Buffer += Opening;
-				Writer.Buffer += LINE_TERMINATOR;
-			}
-			~FTagGuard()
-			{
-				Writer.Buffer += Closing;
-				Writer.Buffer += LINE_TERMINATOR;
-			}
-		private:
-			FXmlWriter& Writer;
-			FString Closing;
-		};
-	};
-
-	FXmlWriter Writer;
-	FString& Buffer = Writer.Buffer;
-
-	// Creating PLMXML file where each of files to process is referenced from a ProductRevisionView
-	{
-		FXmlWriter::FTagGuard PLMXMLTag(Writer, TEXT("<PLMXML xmlns=\"http://www.plmxml.org/Schemas/PLMXMLSchema\">"), "</PLMXML>");
-		FXmlWriter::FTagGuard ProductDefTag(Writer, TEXT("<ProductDef id=\"id1\">"), TEXT("</ProductDef>"));
-
-		// Used to assign unique ids to PLMXML entities being created
-		int32 CurrentId = 2;
-
-		// Collect all InstanceId to reference from InstanceGraph rootRefs
-		TArray<FString> InstanceIds;
-		InstanceIds.Reserve(FilesToProcessWithPlmXml.Num());
-		for (const FString& FileName : FilesToProcessWithPlmXml)
-		{
-			InstanceIds.Add(FString::Printf(TEXT("id%d"), CurrentId++));
-		}
-		FXmlWriter::FTagGuard InstanceGraphTag(Writer, FString::Printf(TEXT("<InstanceGraph id=\"id2\" rootRefs=\"%s\">"), *FString::Join(InstanceIds, TEXT(" "))), TEXT("</InstanceGraph>"));
-
-		for (int32 FileIndex = 0; FileIndex < FilesToProcessWithPlmXml.Num(); ++FileIndex)
-		{
-			const FString& FileName = FilesToProcessWithPlmXml[FileIndex];
-			FString InstanceId = InstanceIds[FileIndex];
-			FString InstanceName = FPaths::GetBaseFilename(FileName);
-			FString PartId = FString::Printf(TEXT("id%d"), CurrentId++);
-			FString RepresentationId = FString::Printf(TEXT("id%d"), CurrentId++);
-			{
-				FXmlWriter::FTagGuard ProductInstanceTag(Writer, FString::Printf(TEXT("<ProductInstance id=\"%s\" name=\"%s\" partRef=\"#%s\">"), *InstanceId, *InstanceName, *PartId), TEXT("</ProductInstance>"));
-			}
-			{
-				FXmlWriter::FTagGuard ProductRevisionViewTag(Writer, FString::Printf(TEXT("<ProductRevisionView id=\"%s\" name=\"%s\">"), *PartId, *InstanceName), TEXT("</ProductRevisionView>"));
-				//  omitting 'format' attribute, it's optional anyway
-				FXmlWriter::FTagGuard RepresentationTag(Writer, FString::Printf(TEXT("<Representation id=\"%s\" location=\"%s\">"), *RepresentationId, *FileName), TEXT("</Representation>"));
-			}
-		}
-	}
-
-	if (!FFileHelper::SaveStringToFile(Buffer, *PlmXmlFileName, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM))
-	{
-		FText ErrorReport = FText::Format(LOCTEXT("DatasmithPlmXmlProducer_FailedCreate", "Failed to create PlmXml file, {0}, for parallel loading ..."), FText::FromString(PlmXmlFileName));
-		LogError(ErrorReport);
 		return false;
 	}
 
@@ -952,19 +855,96 @@ bool UDatasmithDirProducer::ImportAsPlmXml(UPackage* RootPackage, TArray<TWeakOb
 	FileProducer->FilePath = PlmXmlFileName;
 	FileProducer->UpdateName();
 
-	if (!FileProducer->Produce(Context, OutAssets))
+	// Set transient package to be the root package, overriding default behavior - this way we avoid extra 'PlmXml' folder  in content folder hierarchy
+	FileProducer->TransientPackage = RootPackage;
+
+	bool bSuccess = FileProducer->Produce(Context, OutAssets);
+	if (bSuccess)
+	{
+		FixPlmXmlHierarchy();
+	}
+	else
 	{
 		FText ErrorReport = FText::Format(LOCTEXT("DatasmithPlmXmlProducer_FailedProduce", "Failed to produce assets with PlmXml file, {0}, for parallel loading ..."), FText::FromString(PlmXmlFileName));
 		LogError(ErrorReport);
-		return false;
 	}
-	return true;
+
+	return bSuccess;
+}
+
+void UDatasmithDirProducer::FixPlmXmlHierarchy()
+{
+	TFunction<void(AActor*, ADatasmithSceneActor*, const TMap<AActor*, FName>&)> AddActorHierachyToRelatedActors = [&AddActorHierachyToRelatedActors](AActor* Actor, ADatasmithSceneActor* SceneActor, const TMap<AActor*, FName>& NameForRelatedActor)
+	{
+		// Add all attached actors to related actors of a SceneActor
+		const FName* NamePtr = NameForRelatedActor.Find(Actor);
+		if (ensure(NamePtr))
+		{
+			SceneActor->RelatedActors.FindOrAdd(*NamePtr) = Actor;
+		}
+
+		TArray<class AActor*> AttachedActors;
+		Actor->GetAttachedActors(AttachedActors);
+		for (AActor* Child : AttachedActors)
+		{
+			AddActorHierachyToRelatedActors(Child, SceneActor, NameForRelatedActor);
+		}
+	};
+
+	ADatasmithSceneActor* ImportSceneActor = FileProducer->ImportSceneActor.Get();
+	if (ImportSceneActor)
+	{
+		// Convert each child actor of ImportSceneActor into ADatasmithSceneActor
+		TArray<class AActor*> ImportSceneActorChildren;
+		ImportSceneActor->GetAttachedActors(ImportSceneActorChildren);
+		for (AActor* ImportSceneActorChild : ImportSceneActorChildren)
+		{
+			FString Label = ImportSceneActorChild->GetActorLabel();
+
+			ADatasmithSceneActor* SceneActor = Cast<ADatasmithSceneActor>(Context.WorldPtr->SpawnActor(ADatasmithSceneActor::StaticClass(), nullptr, nullptr));
+			if (!ensure(SceneActor))
+			{
+				continue;
+			}
+			SceneActor->SetActorLabel(Label);
+			SceneActor->SpriteScale = 0.1f;
+
+			USceneComponent* RootComponent = RootComponent = NewObject<USceneComponent>(SceneActor, *Label, RF_Transactional);
+			RootComponent->SetWorldTransform(FTransform::Identity);
+			RootComponent->Mobility = EComponentMobility::Static;
+			RootComponent->bVisualizeComponent = true;
+			RootComponent->RegisterComponent();
+			SceneActor->SetRootComponent(RootComponent);
+			SceneActor->AddInstanceComponent(RootComponent);
+
+			// Create map of related actors to their names 
+			TMap<AActor*, FName> NameForRelatedActor;
+			for (TPair<FName, TSoftObjectPtr<AActor>>& ActorPair : ImportSceneActor->RelatedActors)
+			{
+				NameForRelatedActor.Add(ActorPair.Value.LoadSynchronous(), ActorPair.Key);
+			}
+
+			// Move child actors and related actors to new SceneActor
+			TArray<class AActor*> AttachedActors;
+			ImportSceneActorChild->GetAttachedActors(AttachedActors);
+			for (AActor* AttachedActor : AttachedActors)
+			{
+				AttachedActor->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+				AttachedActor->AttachToActor(SceneActor, FAttachmentTransformRules::KeepWorldTransform);
+				AddActorHierachyToRelatedActors(AttachedActor, SceneActor, NameForRelatedActor);
+			}
+			Context.WorldPtr.Get()->EditorDestroyActor(ImportSceneActorChild, true);
+		}
+		Context.WorldPtr.Get()->EditorDestroyActor(ImportSceneActor, true);
+		FileProducer->ImportSceneActor.Reset();
+	}
+
 }
 
 void UDatasmithDirProducer::Reset()
 {
 	FilesToProcess.Empty();
-	FileProducer.Reset();
+	FileProducer = nullptr;
 
 	UDataprepContentProducer::Reset();
 }

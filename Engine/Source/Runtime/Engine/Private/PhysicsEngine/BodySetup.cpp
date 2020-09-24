@@ -21,6 +21,7 @@
 #include "UObject/UObjectIterator.h"
 #include "UObject/PropertyPortFlags.h"
 #include "Components/SplineMeshComponent.h"
+#include "UObject/FortniteReleaseBranchCustomObjectVersion.h"
 
 #include "ChaosCheck.h"
 #include "Chaos/Convex.h"
@@ -871,8 +872,8 @@ void UBodySetup::AddShapesToRigidActor_AssumesLocked(
 
 void UBodySetup::RemoveSimpleCollision()
 {
-	AggGeom.EmptyElements();
 	InvalidatePhysicsData();
+	AggGeom.EmptyElements();
 }
 
 void UBodySetup::RescaleSimpleCollision( FVector BuildScale )
@@ -969,6 +970,7 @@ void UBodySetup::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 	Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
 	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
+	Ar.UsingCustomVersion(FFortniteReleaseBranchCustomObjectVersion::GUID);
 
 	// Load GUID (or create one for older versions)
 	Ar << BodySetupGuid;
@@ -1066,8 +1068,11 @@ void UBodySetup::Serialize(FArchive& Ar)
 
 
 	// Levelset Serialization support for BodySetup.
-	if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::LevelsetSerializationSupportForBodySetup)
+	if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::LevelsetSerializationSupportForBodySetup
+		&& Ar.CustomVer(FFortniteReleaseBranchCustomObjectVersion::GUID) < FFortniteReleaseBranchCustomObjectVersion::DisableLevelset_v14_10)
 	{
+		TArray<TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>> ChaosImplicitObjects;
+#if WITH_CHAOS
 		using namespace Chaos;
 		FChaosArchive ChaosAr(Ar);
 
@@ -1088,6 +1093,7 @@ void UBodySetup::Serialize(FArchive& Ar)
 				}
 			}
 		}
+		/*
 		else if (Ar.IsSaving())
 		{
 			for (int i = 0; i < ChaosImplicitObjects.Num(); i++)
@@ -1108,6 +1114,8 @@ void UBodySetup::Serialize(FArchive& Ar)
 				}
 			}
 		}
+		*/
+#endif
 	}
 
 

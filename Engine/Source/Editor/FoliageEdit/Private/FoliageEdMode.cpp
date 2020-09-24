@@ -3595,23 +3595,6 @@ bool FEdModeFoliage::InputKey(FEditorViewportClient* ViewportClient, FViewport* 
 
 			bHandled = true;
 		}
-		else if (IsCtrlDown(Viewport))
-		{
-			// Control + scroll adjusts the brush radius
-			static const float RadiusAdjustmentAmount = 25.f;
-			if (Key == EKeys::MouseScrollUp)
-			{
-				AdjustBrushRadius(RadiusAdjustmentAmount);
-
-				bHandled = true;
-			}
-			else if (Key == EKeys::MouseScrollDown)
-			{
-				AdjustBrushRadius(-RadiusAdjustmentAmount);
-
-				bHandled = true;
-			}
-		}
 		else if (Key == EKeys::I && Event == IE_Released)
 		{
 			UISettings.SetIsInQuickSingleInstantiationMode(false);
@@ -3627,6 +3610,24 @@ bool FEdModeFoliage::InputKey(FEditorViewportClient* ViewportClient, FViewport* 
 		else if ((Key == EKeys::LeftShift || Key == EKeys::RightShift) && Event == IE_Pressed)
 		{
 			UISettings.SetIsInQuickEraseMode(true);
+		}
+
+		if (IsCtrlDown(Viewport))
+		{
+			// Control + scroll adjusts the brush radius
+			static const float RadiusAdjustmentAmount = 25.f;
+			if (Key == EKeys::MouseScrollUp)
+			{
+				AdjustBrushRadius(RadiusAdjustmentAmount);
+
+				bHandled = true;
+			}
+			else if (Key == EKeys::MouseScrollDown)
+			{
+				AdjustBrushRadius(-RadiusAdjustmentAmount);
+
+				bHandled = true;
+			}
 		}
 	}
 

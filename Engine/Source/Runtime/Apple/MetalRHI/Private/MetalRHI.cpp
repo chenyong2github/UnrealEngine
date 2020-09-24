@@ -20,6 +20,7 @@
 #include "MetalShaderResources.h"
 #include "MetalLLM.h"
 #include "Engine/RendererSettings.h"
+#include "MetalTransitionData.h"
 
 DEFINE_LOG_CATEGORY(LogMetal)
 
@@ -89,6 +90,75 @@ static void ValidateTargetedRHIFeatureLevelExists(EShaderPlatform Platform)
 	}
 }
 
+#if PLATFORM_MAC && WITH_EDITOR
+static void VerifyMetalCompiler()
+{
+	FString OutStdOut;
+	FString OutStdErr;
+	
+	// Using xcrun or xcodebuild will fire xcode-select if xcode or command line tools are not installed
+	// This will also issue a popup dialog which will attempt to install command line tools which we don't want from the Editor
+	
+	// xcode-select --print-path
+	// Can print out /Applications/Xcode.app/Contents/Developer OR /Library/Developer/CommandLineTools
+	// CommandLineTools is no good for us as the Metal compiler isn't included
+	{
+		int32 ReturnCode = -1;
+		bool bFoundXCode = false;
+		
+		FPlatformProcess::ExecProcess(TEXT("/usr/bin/xcode-select"), TEXT("--print-path"), &ReturnCode, &OutStdOut, &OutStdErr);
+		if(ReturnCode == 0 && OutStdOut.Len() > 0)
+		{
+			OutStdOut.RemoveAt(OutStdOut.Len() - 1);
+			if (IFileManager::Get().DirectoryExists(*OutStdOut))
+			{
+				FString XcodeAppPath = OutStdOut.Left(OutStdOut.Find(TEXT(".app/")) + 4);
+				NSBundle* XcodeBundle = [NSBundle bundleWithPath:XcodeAppPath.GetNSString()];
+				if (XcodeBundle)
+				{
+					bFoundXCode = true;
+				}
+			}
+		}
+		
+		if(!bFoundXCode)
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, FText(NSLOCTEXT("MetalRHI", "XCodeMissingInstall", "Can't find Xcode install for Metal compiler. Please install Xcode and run Xcode.app to accept license or ensure active developer directory is set to current Xcode installation using xcode-select.")));
+			FPlatformMisc::RequestExit(true);
+			return;
+		}
+	}
+	
+	// xcodebuild -license check
+	// -license check :returns 0 for accepted, otherwise 1 for command line tools or non zero for license not accepted
+	// -checkFirstLaunchStatus | -runFirstLaunch : returns status and runs first launch not so useful from within the editor as sudo is required
+	{
+		int ReturnCode = -1;
+		FPlatformProcess::ExecProcess(TEXT("/usr/bin/xcodebuild"), TEXT("-license check"), &ReturnCode, &OutStdOut, &OutStdErr);
+		if(ReturnCode != 0)
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, FText::Format(NSLOCTEXT("MetalRHI", "XCodeLicenseAgreement", "Xcode license agreement error: {0}"), FText::FromString(OutStdErr)));
+			FPlatformMisc::RequestExit(true);
+			return;
+		}
+	}
+	
+	
+	// xcrun will return non zero if using command line tools
+	// This can fail for license agreement as well or wrong command line tools set i.e set to /Library/Developer/CommandLineTools rather than Applications/Xcode.app/Contents/Developer
+	{
+		int ReturnCode = -1;
+		FPlatformProcess::ExecProcess(TEXT("/usr/bin/xcrun"), TEXT("-sdk macosx metal -v"), &ReturnCode, &OutStdOut, &OutStdErr);
+		if(ReturnCode != 0)
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, FText::Format(NSLOCTEXT("MetalRHI", "XCodeMetalCompiler", "Xcode Metal Compiler error: {0}"), FText::FromString(OutStdErr)));
+			FPlatformMisc::RequestExit(true);
+			return;
+		}
+	}
+}
+#endif
+
 FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 : ImmediateContext(nullptr, FMetalDeviceContext::CreateDeviceContext())
 , AsyncComputeContext(nullptr)
@@ -97,6 +167,10 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	// This should be called once at the start 
 	check( IsInGameThread() );
 	check( !GIsThreadedRendering );
+	
+#if PLATFORM_MAC && WITH_EDITOR
+	VerifyMetalCompiler();
+#endif
 	
 	GRHISupportsMultithreading = true;
 	
@@ -209,7 +283,8 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM4_REMOVED] = SP_NumPlatforms;
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM5] = (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5) ? GMaxRHIShaderPlatform : SP_NumPlatforms;
 
-#else // @todo zebra
+#else // PLATFORM_IOS
+                
 	uint32 DeviceIndex = ((FMetalDeviceContext*)ImmediateContext.Context)->GetDeviceIndex();
 	
 	TArray<FMacPlatformMisc::FGPUDescriptor> const& GPUs = FPlatformMisc::GetGPUDescriptors();
@@ -401,6 +476,9 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 			   MemoryStats.TotalGraphicsMemory / 1024 / 1024);
 	}
 
+	GRHITransitionPrivateData_SizeInBytes = sizeof(FMetalTransitionData);
+	GRHITransitionPrivateData_AlignInBytes = alignof(FMetalTransitionData);
+
 	GRHISupportsRHIThread = false;
 	if (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5)
 	{
@@ -499,6 +577,7 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
     bSupportsD16 = !FParse::Param(FCommandLine::Get(),TEXT("nometalv2")) && Device.SupportsFeatureSet(mtlpp::FeatureSet::macOS_GPUFamily1_v2);
     GRHISupportsHDROutput = FPlatformMisc::MacOSXVersionCompare(10,14,4) >= 0 && Device.SupportsFeatureSet(mtlpp::FeatureSet::macOS_GPUFamily1_v2);
 	GRHIHDRDisplayOutputFormat = (GRHISupportsHDROutput) ? PF_PLATFORM_HDR_0 : PF_B8G8R8A8;
+	GMaxWorkGroupInvocations = 1024;
 #else
 #if PLATFORM_TVOS
 	GRHISupportsBaseVertexIndex = false;
@@ -521,6 +600,7 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	}
 	
 	GRHIHDRDisplayOutputFormat = (GRHISupportsHDROutput) ? PF_PLATFORM_HDR_0 : PF_B8G8R8A8;
+	GMaxWorkGroupInvocations = Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily4_v1) ? 1024 : 512;
 #endif
 	GMaxTextureDimensions = 8192;
 	GMaxCubeTextureDimensions = 8192;
@@ -879,7 +959,7 @@ FMetalDynamicRHI::~FMetalDynamicRHI()
 #endif
 }
 
-uint64 FMetalDynamicRHI::RHICalcTexture2DPlatformSize(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, uint32 Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
+uint64 FMetalDynamicRHI::RHICalcTexture2DPlatformSize(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
 {
 	@autoreleasepool {
 	OutAlign = 0;
@@ -887,7 +967,7 @@ uint64 FMetalDynamicRHI::RHICalcTexture2DPlatformSize(uint32 SizeX, uint32 SizeY
 	}
 }
 
-uint64 FMetalDynamicRHI::RHICalcTexture3DPlatformSize(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
+uint64 FMetalDynamicRHI::RHICalcTexture3DPlatformSize(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
 {
 	@autoreleasepool {
 	OutAlign = 0;
@@ -895,7 +975,7 @@ uint64 FMetalDynamicRHI::RHICalcTexture3DPlatformSize(uint32 SizeX, uint32 SizeY
 	}
 }
 
-uint64 FMetalDynamicRHI::RHICalcTextureCubePlatformSize(uint32 Size, uint8 Format, uint32 NumMips, uint32 Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
+uint64 FMetalDynamicRHI::RHICalcTextureCubePlatformSize(uint32 Size, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
 {
 	@autoreleasepool {
 	OutAlign = 0;
@@ -910,8 +990,10 @@ uint64 FMetalDynamicRHI::RHIGetMinimumAlignmentForBufferBackedSRV(EPixelFormat F
 
 void FMetalDynamicRHI::Init()
 {
-	GRHICommandList.GetImmediateCommandList().SetContext(RHIGetDefaultContext());
-	GRHICommandList.GetImmediateAsyncComputeCommandList().SetComputeContext(RHIGetDefaultAsyncComputeContext());
+	// Command lists need the validation RHI context if enabled, so call the global scope version of RHIGetDefaultContext() and RHIGetDefaultAsyncComputeContext().
+	GRHICommandList.GetImmediateCommandList().SetContext(::RHIGetDefaultContext());
+	GRHICommandList.GetImmediateAsyncComputeCommandList().SetComputeContext(::RHIGetDefaultAsyncComputeContext());
+
 	FRenderResource::InitPreRHIResources();
 	GIsRHIInitialized = true;
 }

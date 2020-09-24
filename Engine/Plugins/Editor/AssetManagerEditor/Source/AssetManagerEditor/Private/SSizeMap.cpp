@@ -529,7 +529,18 @@ void SSizeMap::GatherDependenciesRecursively(TSharedPtr<FAssetThumbnailPool>& In
 
 			if (NodeSizeMapData.AssetData.IsValid())
 			{
-				EAssetRegistryDependencyType::Type DependencyType = AssetPackageName != NAME_None ? EAssetRegistryDependencyType::Hard : EAssetRegistryDependencyType::HardManage;
+				FAssetManagerDependencyQuery DependencyQuery = FAssetManagerDependencyQuery::None();
+				if (AssetPackageName != NAME_None)
+				{
+					DependencyQuery.Categories = UE::AssetRegistry::EDependencyCategory::Package;
+					DependencyQuery.Flags = UE::AssetRegistry::EDependencyQuery::Hard;
+				}
+				else
+				{
+					DependencyQuery.Categories = UE::AssetRegistry::EDependencyCategory::Manage;
+					DependencyQuery.Flags = UE::AssetRegistry::EDependencyQuery::Direct;
+				}
+				
 				TArray<FAssetIdentifier> References;
 				
 				if (ChunkId != INDEX_NONE)
@@ -543,11 +554,11 @@ void SSizeMap::GatherDependenciesRecursively(TSharedPtr<FAssetThumbnailPool>& In
 				}
 				else
 				{
-					CurrentPlatformState->GetDependencies(AssetIdentifier, References, DependencyType);
+					CurrentPlatformState->GetDependencies(AssetIdentifier, References, DependencyQuery.Categories, DependencyQuery.Flags);
 				}
 				
 				// Filter for registry source
-				IAssetManagerEditorModule::Get().FilterAssetIdentifiersForCurrentRegistrySource(References, DependencyType, true);
+				IAssetManagerEditorModule::Get().FilterAssetIdentifiersForCurrentRegistrySource(References, DependencyQuery, true);
 
 				TArray<FAssetIdentifier> ReferencedAssetIdentifiers;
 
@@ -571,7 +582,7 @@ void SSizeMap::GatherDependenciesRecursively(TSharedPtr<FAssetThumbnailPool>& In
 							{
 								// Check to see if this is managed by the filter asset
 								TArray<FAssetIdentifier> Managers;
-								CurrentPlatformState->GetReferencers(FoundAssetIdentifier, Managers, EAssetRegistryDependencyType::Manage);
+								CurrentPlatformState->GetReferencers(FoundAssetIdentifier, Managers, UE::AssetRegistry::EDependencyCategory::Manage);
 
 								if (!Managers.Contains(FilterPrimaryAsset))
 								{

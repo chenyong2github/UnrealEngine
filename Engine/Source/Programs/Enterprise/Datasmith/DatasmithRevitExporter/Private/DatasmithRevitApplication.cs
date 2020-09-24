@@ -1,61 +1,145 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Windows.Media.Imaging;
-
+using Autodesk.Revit.DB.Events;
 using Autodesk.Revit.UI;
-
+using Microsoft.Win32;
 
 namespace DatasmithRevitExporter
 {
 	// Add-in external application Datasmith Revit Exporter.
 	public class DatasmithRevitApplication : IExternalApplication
 	{
-		private static DatasmithRevitExportMessages ExportMessages = null;
+		private static DatasmithRevitExportMessages ExportMessagesDialog = null;
 
-		// Implement the interface to execute some tasks when Revit starts. 
+		private static string ExportMessages;
+
+		private EventHandler<DocumentClosingEventArgs> DocumentClosingHandler;
+	
+		// Implement the interface to execute some tasks when Revit starts.
 		public Result OnStartup(
 			UIControlledApplication InApplication // handle to the application being started
 		)
 		{
+			// Create a custom ribbon tab
+			string TabName = "Datasmith";
+			InApplication.CreateRibbonTab(TabName);
+
+			// Add a new ribbon panel
+			RibbonPanel DirectLinkRibbonPanel = InApplication.CreateRibbonPanel(TabName, "Direct Link");
+			RibbonPanel FileExportRibbonPanel = InApplication.CreateRibbonPanel(TabName, "File Export");
+			RibbonPanel DatasmithRibbonPanel = InApplication.CreateRibbonPanel(TabName, "Datasmith");
+
 			string AssemblyPath = Assembly.GetExecutingAssembly().Location;
-			PushButtonData ExportButtonData = new PushButtonData("Export3DView", "Export 3D View", AssemblyPath, "DatasmithRevitExporter.DatasmithRevitCommand");
+			PushButtonData ExportButtonData = new PushButtonData("Export3DView", "Export 3D View", AssemblyPath, "DatasmithRevitExporter.DatasmithExportRevitCommand");
+			PushButtonData SyncButtonData = new PushButtonData("Sync3DView", "Synchronize", AssemblyPath, "DatasmithRevitExporter.DatasmithSyncRevitCommand");
+			PushButtonData ManageConnectionsButtonData = new PushButtonData("Connections", "Connections", AssemblyPath, "DatasmithRevitExporter.DatasmithManageConnectionsRevitCommand");
+			PushButtonData LogButtonData = new PushButtonData("Messages", "Messages", AssemblyPath, "DatasmithRevitExporter.DatasmithShowMessagesRevitCommand");
 
-			RibbonPanel DatasmithRibbonPanel = InApplication.CreateRibbonPanel("Unreal Datasmith");
-			PushButton ExportPushButton = DatasmithRibbonPanel.AddItem(ExportButtonData) as PushButton;
+			PushButton SyncPushButton = DirectLinkRibbonPanel.AddItem(SyncButtonData) as PushButton;
+			PushButton ManageConnectionsButton = DirectLinkRibbonPanel.AddItem(ManageConnectionsButtonData) as PushButton;
+			PushButton ExportPushButton = FileExportRibbonPanel.AddItem(ExportButtonData) as PushButton;
+			PushButton ShowLogButton = DatasmithRibbonPanel.AddItem(LogButtonData) as PushButton;
 
-			Uri DatasmithIconURI = new Uri(Path.Combine(Path.GetDirectoryName(AssemblyPath), "DatasmithIcon32.png"));
+			string DatasmithIconBase = Path.Combine(Path.GetDirectoryName(AssemblyPath), "DatasmithIcon");
+			ExportPushButton.Image = new BitmapImage(new Uri(DatasmithIconBase + "16.png"));
+			ExportPushButton.LargeImage = new BitmapImage(new Uri(DatasmithIconBase + "32.png"));
+			ExportPushButton.ToolTip = "Export an active 3D View to Unreal Datasmith";
 
-			ExportPushButton.LargeImage = new BitmapImage(DatasmithIconURI);
-			ExportPushButton.ToolTip    = "Export an active 3D View to Unreal Datasmith";
+			DatasmithIconBase = Path.Combine(Path.GetDirectoryName(AssemblyPath), "DatasmithSyncIcon");
+			SyncPushButton.Image = new BitmapImage(new Uri(DatasmithIconBase + "16.png"));
+			SyncPushButton.LargeImage = new BitmapImage(new Uri(DatasmithIconBase + "32.png"));
+			SyncPushButton.ToolTip = "Sync an active 3D View with DirectLink";
+
+			DatasmithIconBase = Path.Combine(Path.GetDirectoryName(AssemblyPath), "DatasmithManageConnectionsIcon");
+			ManageConnectionsButton.Image = new BitmapImage(new Uri(DatasmithIconBase + "16.png"));
+			ManageConnectionsButton.LargeImage = new BitmapImage(new Uri(DatasmithIconBase + "32.png"));
+			ManageConnectionsButton.ToolTip = "Manage connections";
+
+			DatasmithIconBase = Path.Combine(Path.GetDirectoryName(AssemblyPath), "DatasmithLogIcon");
+			ShowLogButton.Image = new BitmapImage(new Uri(DatasmithIconBase + "16.png"));
+			ShowLogButton.LargeImage = new BitmapImage(new Uri(DatasmithIconBase + "32.png"));
+			ShowLogButton.ToolTip = "Show messages";
+
+			DocumentClosingHandler = new EventHandler<DocumentClosingEventArgs>(OnDocumentClosing);
+			InApplication.ControlledApplication.DocumentClosing += DocumentClosingHandler;
+
+			// Setup Direct Link
+
+			string RevitEngineDir = null;
+
+			try
+			{
+				using (RegistryKey Key = Registry.LocalMachine.OpenSubKey("Software\\Wow6432Node\\EpicGames\\Unreal Engine"))
+				{
+					RevitEngineDir = Key?.GetValue("RevitEngineDir") as string;
+				}
+			}
+			finally
+			{
+				if (RevitEngineDir == null)
+				{
+					// If we could not read the registry, fallback to hardcoded engine dir
+					RevitEngineDir = "C:\\ProgramData\\Epic\\Exporter\\RevitEngine\\";
+				}
+			}
+
+			bool bDirectLinkInitOk = FDatasmithFacadeDirectLink.Init(true, RevitEngineDir);
+
+			Debug.Assert(bDirectLinkInitOk);
 
 			return Result.Succeeded;
+		}
+
+		static void OnDocumentClosing(object sender, DocumentClosingEventArgs e)
+		{
+			// Make sure direct link is destroyed, if it was valid.
+			if (FDirectLink.Get() != null)
+			{
+				FDirectLink.DestroyInstance(e.Document.Application);
+			}
 		}
 
 		// Implement the interface to execute some tasks when Revit shuts down.
 		public Result OnShutdown(
-			UIControlledApplication InApplication // handle to the application being shut down
+		UIControlledApplication InApplication // handle to the application being shut down
 		)
 		{
-			if (ExportMessages != null && !ExportMessages.IsDisposed)
-			{
-				ExportMessages.Close();
-			}
+			InApplication.ControlledApplication.DocumentClosing -= DocumentClosingHandler;
 
+			if (ExportMessagesDialog != null && !ExportMessagesDialog.IsDisposed)
+			{
+				ExportMessagesDialog.Close();
+			}
+			FDatasmithFacadeDirectLink.Shutdown();
 			return Result.Succeeded;
 		}
 
-		public static void ShowExportMessages(
-			string InMessages
-		)
+		public static void SetExportMessages(string InMessages)
 		{
-			if (ExportMessages == null || ExportMessages.IsDisposed)
+			ExportMessages = InMessages;
+
+			if (ExportMessagesDialog != null)
 			{
-				ExportMessages = new DatasmithRevitExportMessages();
-				ExportMessages.Messages = InMessages;
-				ExportMessages.Show();
+				ExportMessagesDialog.Messages = ExportMessages;
+			}
+		}
+
+		public static void ShowExportMessages()
+		{
+			if (ExportMessagesDialog == null || ExportMessagesDialog.IsDisposed)
+			{
+				ExportMessagesDialog = new DatasmithRevitExportMessages(() => ExportMessages = "");
+				ExportMessagesDialog.Messages = ExportMessages;
+				ExportMessagesDialog.Show();
+			}
+			else
+			{
+				ExportMessagesDialog.Focus();
 			}
 		}
 	}

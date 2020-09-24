@@ -1206,26 +1206,14 @@ ECompilationResult::Type FHotReloadModule::RebindPackagesInternal(const TArray<U
 }
 
 #if WITH_ENGINE
-namespace {
-	static TArray<TPair<UClass*, UClass*> >& GetClassesToReinstance()
-	{
-		static TArray<TPair<UClass*, UClass*> > Data;
-		return Data;
-	}
-}
-
 void FHotReloadModule::RegisterForReinstancing(UClass* OldClass, UClass* NewClass, EHotReloadedClassFlags Flags)
 {
-	TPair<UClass*, UClass*> Pair;
-	
-	Pair.Key = OldClass;
-	Pair.Value = NewClass;
-
 	// Don't allow reinstancing of UEngine classes
 	if (!OldClass->IsChildOf(UEngine::StaticClass()))
 	{
-		TArray<TPair<UClass*, UClass*> >& ClassesToReinstance = GetClassesToReinstance();
-		ClassesToReinstance.Add(MoveTemp(Pair));
+		TMap<UClass*, UClass*>& ClassesToReinstance = GetClassesToReinstanceForHotReload();
+		checkf(!ClassesToReinstance.Contains(OldClass) || ClassesToReinstance[OldClass] == NewClass, TEXT("Attempting to hot reload a class which is already being hot reloaded as a different class"));
+		ClassesToReinstance.Add(OldClass, NewClass);
 	}
 	else if (EnumHasAnyFlags(Flags, EHotReloadedClassFlags::Changed))
 	{
@@ -1242,7 +1230,7 @@ void FHotReloadModule::ReinstanceClasses()
 	}
 #endif // WITH_HOT_RELOAD
 
-	TArray<TPair<UClass*, UClass*> >& ClassesToReinstance = GetClassesToReinstance();
+	TMap<UClass*, UClass*>& ClassesToReinstance = GetClassesToReinstanceForHotReload();
 
 	TMap<UClass*, UClass*> OldToNewClassesMap;
 	for (const TPair<UClass*, UClass*>& Pair : ClassesToReinstance)

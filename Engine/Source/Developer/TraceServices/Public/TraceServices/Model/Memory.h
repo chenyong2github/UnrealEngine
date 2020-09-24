@@ -27,7 +27,7 @@ struct FMemoryTracker
 
 struct FMemoryTag
 {
-	static const FMemoryTagId InvalidTagId = -1;
+	static const FMemoryTagId InvalidTagId = 0;
 
 	// Unique identifier of the llm tag. Values larger than uint8 (or even uint32) are possible, but rare.
 	FMemoryTagId Id;

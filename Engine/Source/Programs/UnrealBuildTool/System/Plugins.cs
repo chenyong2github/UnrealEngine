@@ -287,6 +287,11 @@ namespace UnrealBuildTool
 		/// <returns>List of the found PluginInfo objects</returns>
 		public static IReadOnlyList<PluginInfo> ReadAdditionalPlugins(DirectoryReference AdditionalDirectory)
 		{
+			DirectoryReference FullPath = DirectoryReference.Combine(AdditionalDirectory, "");
+			if (!DirectoryReference.Exists(FullPath))
+			{
+				Log.TraceWarning("AdditionalPluginDirectory {0} not found. Path should be relative to the project", FullPath);
+			}
 			return ReadPluginsFromDirectory(AdditionalDirectory, "", PluginType.External);
 		}
 

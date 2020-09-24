@@ -2,7 +2,7 @@
     "FileVersion" : 3,
 
     "Version" : 11,
-    "VersionName" : "1.7.0",
+    "VersionName" : "1.16.0",
     "FriendlyName" : "Google ARCore",
     "Description" : "Support for Google's AR platform.",
     "Category" : "Augmented Reality",
@@ -35,6 +35,10 @@
         },
 		{
             "Name": "ProceduralMeshComponent",
+            "Enabled": true
+        },
+		{
+            "Name": "ARUtilities",
             "Enabled": true
         }
     ]

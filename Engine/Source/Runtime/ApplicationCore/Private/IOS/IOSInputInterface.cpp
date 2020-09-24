@@ -2,6 +2,7 @@
 
 #include "IOS/IOSInputInterface.h"
 #include "IOS/IOSAppDelegate.h"
+#include "IOS/IOSApplication.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/ScopeLock.h"
 #include "HAL/IConsoleManager.h"
@@ -12,33 +13,26 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(LogIOSInput, Log, All);
 
-#ifndef __IPHONE_OS_VERSION_MAX_ALLOWED
-#define __IPHONE_OS_VERSION_MAX_ALLOWED 0
-#endif
-
-#ifndef __MAC_OS_VERSION_MAX_ALLOWED
-#define __MAC_OS_VERSION_MAX_ALLOWED 0
-#endif
-
-#ifndef __APPLETV_OS_VERSION_MAX_ALLOWED
-#define __APPLETV_OS_VERSION_MAX_ALLOWED 0
-#endif
-
 @interface GCExtendedGamepad()
-#if (__IPHONE_OS_VERSION_MAX_ALLOWED < 121000 || __APPLETV_OS_VERSION_MAX_ALLOWED < 121000 || __MAC_OS_VERSION_MAX_ALLOWED < 1401000)
+#if (UE4_HAS_IOS121|| UE4_HAS_TVOS121 || UE4_HAS_MACOS1401)
 @property (nonatomic, readwrite, nullable) GCControllerButtonInput *leftThumbstickButton;
 @property (nonatomic, readwrite, nullable) GCControllerButtonInput *rightThumbstickButton;
 #endif
 
-#if (__IPHONE_OS_VERSION_MAX_ALLOWED < 130000 || __APPLETV_OS_VERSION_MAX_ALLOWED < 130000 || __MAC_OS_VERSION_MAX_ALLOWED < 1500000)
+#if (!UE4_HAS_IOS13 && !UE4_HAS_TVOS13 && !UE4_HAS_MACOS15)
 @property (nonatomic, readwrite, nullable) GCControllerButtonInput *buttonMenu;
 @property (nonatomic, readwrite, nullable) GCControllerButtonInput *buttonOptions;
 #endif
+
+#if (UE4_HAS_IOS14 && UE4_HAS_TVOS14)
+@property(nonatomic, strong, readonly) GCPhysicalInputProfile *physicalInputProfile;
+@property(nonatomic, strong) NSString *sfSymbolsName;
+#endif
+#if (!UE4_HAS_IOS13 && !UE4_HAS_TVOS13)
+@property(class, atomic, strong, readonly) GCController *current;
+#endif
 @end
-
-
-#if (__IPHONE_OS_VERSION_MAX_ALLOWED < 130000)
-// only redefine these values pre-iOS13 SDK
+#if (!UE4_HAS_IOS13 && !UE4_HAS_TVOS13)
 @interface GCController (capture)
 - (GCController *)capture;
 @end
@@ -49,17 +43,79 @@ static TAutoConsoleVariable<float> CVarHapticsKickMedium(TEXT("ios.VibrationHapt
 static TAutoConsoleVariable<float> CVarHapticsKickLight(TEXT("ios.VibrationHapticsKickLightValue"), 0.3f, TEXT("Vibation values higher than this will kick a haptics light Impact"));
 static TAutoConsoleVariable<float> CVarHapticsRest(TEXT("ios.VibrationHapticsRestValue"), 0.2f, TEXT("Vibation values lower than this will allow haptics to Kick again when going over ios.VibrationHapticsKickValue"));
 
-//@interface FControllerHelper : NSObject
-//{
-//	FIOSInputInterface
-//}
-//
-//@end
+#if (UE4_HAS_IOS14 || UE4_HAS_TVOS14)
+uint32 TranslateGCKeyCodeToASCII(GCKeyCode KeyCode)
+{
+    uint32 c = '?';
 
+    if ( KeyCode < GCKeyCodeSlash ) // Only implemented up to '/'
+    {
+        if (KeyCode == GCKeyCodeKeyA) { c = 'A';}
+        else if (KeyCode == GCKeyCodeKeyB) { c = 'B';}
+        else if (KeyCode == GCKeyCodeKeyC) { c = 'C';}
+        else if (KeyCode == GCKeyCodeKeyD) { c = 'D';}
+        else if (KeyCode == GCKeyCodeKeyE) { c = 'E';}
+        else if (KeyCode == GCKeyCodeKeyF) { c = 'F';}
+        else if (KeyCode == GCKeyCodeKeyG) { c = 'G';}
+        else if (KeyCode == GCKeyCodeKeyH) { c = 'H';}
+        else if (KeyCode == GCKeyCodeKeyI) { c = 'I';}
+        else if (KeyCode == GCKeyCodeKeyJ) { c = 'J';}
+        else if (KeyCode == GCKeyCodeKeyK) { c = 'K';}
+        else if (KeyCode == GCKeyCodeKeyL) { c = 'L';}
+        else if (KeyCode == GCKeyCodeKeyM) { c = 'M';}
+        else if (KeyCode == GCKeyCodeKeyN) { c = 'N';}
+        else if (KeyCode == GCKeyCodeKeyO) { c = 'O';}
+        else if (KeyCode == GCKeyCodeKeyP) { c = 'P';}
+        else if (KeyCode == GCKeyCodeKeyQ) { c = 'Q';}
+        else if (KeyCode == GCKeyCodeKeyR) { c = 'R';}
+        else if (KeyCode == GCKeyCodeKeyS) { c = 'S';}
+        else if (KeyCode == GCKeyCodeKeyT) { c = 'T';}
+        else if (KeyCode == GCKeyCodeKeyU) { c = 'U';}
+        else if (KeyCode == GCKeyCodeKeyV) { c = 'V';}
+        else if (KeyCode == GCKeyCodeKeyW) { c = 'W';}
+        else if (KeyCode == GCKeyCodeKeyX) { c = 'X';}
+        else if (KeyCode == GCKeyCodeKeyY) { c = 'Y';}
+        else if (KeyCode == GCKeyCodeKeyZ) { c = 'Z';}
+        else if (KeyCode == GCKeyCodeOne) { c = '1';}
+        else if (KeyCode == GCKeyCodeTwo) { c = '2';}
+        else if (KeyCode == GCKeyCodeThree) { c = '3';}
+        else if (KeyCode == GCKeyCodeFour) { c = '4';}
+        else if (KeyCode == GCKeyCodeFive) { c = '5';}
+        else if (KeyCode == GCKeyCodeSix) { c = '6';}
+        else if (KeyCode == GCKeyCodeSeven) { c = '7';}
+        else if (KeyCode == GCKeyCodeEight) { c = '8';}
+        else if (KeyCode == GCKeyCodeNine) { c = '9';}
+        else if (KeyCode == GCKeyCodeZero) { c = '0';}
+        else if (KeyCode == GCKeyCodeReturnOrEnter) { c = 10;}
+        else if (KeyCode == GCKeyCodeEscape) { c = 27;}
+        else if (KeyCode == GCKeyCodeBackslash) { c = 8;}
+        else if (KeyCode == GCKeyCodeTab) { c = '\t';}
+        else if (KeyCode == GCKeyCodeSpacebar) { c = ' ';}
+        else if (KeyCode == GCKeyCodeHyphen) { c = '-';}
+        else if (KeyCode == GCKeyCodeEqualSign) { c = '=';}
+        else if (KeyCode == GCKeyCodeOpenBracket) { c = '{';}
+        else if (KeyCode == GCKeyCodeCloseBracket) { c = '}';}
+        else if (KeyCode == GCKeyCodeBackslash) { c = '\\';}
+        else if (KeyCode == GCKeyCodeSemicolon) { c = ';';}
+        else if (KeyCode == GCKeyCodeQuote) { c = '\"';}
+        else if (KeyCode == GCKeyCodeGraveAccentAndTilde) { c = '~';}
+        else if (KeyCode == GCKeyCodeComma) { c = ',';}
+        else if (KeyCode == GCKeyCodePeriod) { c = '.';}
+        else if (KeyCode == GCKeyCodeSlash) { c = '/';}
+        
+        UE_LOG(LogIOS, Log, TEXT("char: %c"), (char)c);
+    }
+    return c;
+}
+#endif
+
+constexpr EIOSEventType operator+(EIOSEventType type, int Index) { return (EIOSEventType)((int)type + Index); }
 // protects the input stack used on 2 threads
 static FCriticalSection CriticalSection;
 static TArray<TouchInput> TouchInputStack;
 static TArray<int32> KeyInputStack;
+
+bool FIOSInputInterface::bKeyboardInhibited = false;
 
 TSharedRef< FIOSInputInterface > FIOSInputInterface::Create(  const TSharedRef< FGenericApplicationMessageHandler >& InMessageHandler )
 {
@@ -69,11 +125,15 @@ TSharedRef< FIOSInputInterface > FIOSInputInterface::Create(  const TSharedRef< 
 FIOSInputInterface::FIOSInputInterface( const TSharedRef< FGenericApplicationMessageHandler >& InMessageHandler )
 	: MessageHandler( InMessageHandler )
 	, bAllowRemoteRotation(false)
-	, bTreatRemoteAsSeparateController(false)
-	, bUseRemoteAsVirtualJoystick(true)
+	, bGameSupportsMultipleActiveControllers(false)
+	, bUseRemoteAsVirtualJoystick_DEPRECATED(true)
 	, bUseRemoteAbsoluteDpadValues(false)
 	, bAllowControllers(true)
     , LastHapticValue(0.0f)
+    , MouseDeltaX(0)
+    , MouseDeltaY(0)
+    , ScrollDeltaY(0)
+    , bHaveMouse(false)
 {
 	SCOPED_BOOT_TIMING("FIOSInputInterface::FIOSInputInterface");
 
@@ -84,24 +144,69 @@ FIOSInputInterface::FIOSInputInterface( const TSharedRef< FGenericApplicationMes
 	bPauseMotion = false;
 	GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bDisableMotionData"), bPauseMotion, GEngineIni);
 	
-	GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bTreatRemoteAsSeparateController"), bTreatRemoteAsSeparateController, GEngineIni);
+	GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bGameSupportsMultipleActiveControllers"), bGameSupportsMultipleActiveControllers, GEngineIni);
 	GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bAllowRemoteRotation"), bAllowRemoteRotation, GEngineIni);
-	GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bUseRemoteAsVirtualJoystick"), bUseRemoteAsVirtualJoystick, GEngineIni);
+	GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bUseRemoteAsVirtualJoystick"), bUseRemoteAsVirtualJoystick_DEPRECATED, GEngineIni);
 	GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bUseRemoteAbsoluteDpadValues"), bUseRemoteAbsoluteDpadValues, GEngineIni);
 	GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bAllowControllers"), bAllowControllers, GEngineIni);
 	GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bControllersBlockDeviceFeedback"), bControllersBlockDeviceFeedback, GEngineIni);
 	
-	[[NSNotificationCenter defaultCenter] addObserverForName:GCControllerDidConnectNotification object:nil queue:[NSOperationQueue currentQueue] usingBlock:^(NSNotification* Notification)
-	 {
-		HandleConnection(Notification.object);
-	 }];
+    
+    NSNotificationCenter* notificationCenter = [NSNotificationCenter defaultCenter];
+    NSOperationQueue* currentQueue = [NSOperationQueue currentQueue];
+        
+#if (!UE4_HAS_IOS14 && !UE4_HAS_TVOS14)
+    [notificationCenter addObserverForName:GCControllerDidConnectNotification object:nil queue:currentQueue usingBlock:^(NSNotification* Notification)
+    {
+        HandleConnection(Notification.object);
+    }];
+#endif
 
-	[[NSNotificationCenter defaultCenter] addObserverForName:GCControllerDidDisconnectNotification object:nil queue:[NSOperationQueue currentQueue] usingBlock:^(NSNotification* Notification)
-	 {
-		HandleDisconnect(Notification.object);
-	 }];
-	
+    [notificationCenter addObserverForName:GCControllerDidDisconnectNotification object:nil queue:currentQueue usingBlock:^(NSNotification* Notification)
+    {
+        HandleDisconnect(Notification.object);
+    }];
 
+#if (UE4_HAS_IOS14 || UE4_HAS_TVOS14)
+    [notificationCenter addObserverForName:GCMouseDidConnectNotification object:nil queue:currentQueue usingBlock:^(NSNotification* Notification)
+    {
+        HandleMouseConnection(Notification.object);
+    }];
+    
+    [notificationCenter addObserverForName:GCMouseDidDisconnectNotification object:nil queue:currentQueue usingBlock:^(NSNotification* Notification)
+    {
+        HandleMouseDisconnect(Notification.object);
+    }];
+    
+    [notificationCenter addObserverForName:GCKeyboardDidConnectNotification object:nil queue:currentQueue usingBlock:^(NSNotification* Notification)
+    {
+        HandleKeyboardConnection(Notification.object);
+    }];
+    
+    [notificationCenter addObserverForName:GCKeyboardDidDisconnectNotification object:nil queue:currentQueue usingBlock:^(NSNotification* Notification)
+    {
+        HandleKeyboardDisconnect(Notification.object);
+    }];
+    
+    if ( GCMouse.current )
+    {
+        HandleMouseConnection( GCMouse.current );
+    }
+    
+    if ( GCKeyboard.coalescedKeyboard )
+    {
+        HandleKeyboardConnection( GCKeyboard.coalescedKeyboard );
+    }
+    
+    if (!bGameSupportsMultipleActiveControllers)
+    {
+        [notificationCenter addObserverForName:GCControllerDidBecomeCurrentNotification object:nil queue:currentQueue usingBlock:^(NSNotification* Notification)
+        {
+            SetCurrentController(Notification.object);
+        }];
+    }
+#endif
+    
 	dispatch_async(dispatch_get_main_queue(), ^
 	   {
 		   [GCController startWirelessControllerDiscoveryWithCompletionHandler:^{ }];
@@ -118,7 +223,6 @@ FIOSInputInterface::FIOSInputInterface( const TSharedRef< FGenericApplicationMes
 	{
 		FString Error;
 #if !PLATFORM_TVOS
-		
 		// execute any console commands
 		if (Message.Command == TEXT("stopmotion"))
 		{
@@ -158,62 +262,162 @@ void FIOSInputInterface::Tick( float DeltaTime )
 
 }
 
+template <EIOSEventType U, EIOSEventType V>
+static inline void HandleButtons(GCControllerButtonInput* _Nonnull eventButton, float value, BOOL pressed, TArray<FDeferredIOSEvent>& DeferredEvents, FCriticalSection* EventsMutex)
+{
+    (void)eventButton;
+    (void)value;
+    FDeferredIOSEvent DeferredEvent;
+    DeferredEvent.type = pressed ? U : V;
+    FScopeLock Lock(EventsMutex);
+    DeferredEvents.Add(DeferredEvent);
+}
+
+#if (UE4_HAS_IOS14 || UE4_HAS_TVOS14)
+void FIOSInputInterface::HandleMouseConnection(GCMouse* Mouse)
+{
+    if ( @available( iOS 14, * ) )
+    {
+        bHaveMouse = true;
+        MouseDeltaX = 0.f;
+        MouseDeltaY = 0.f;
+        Mouse.mouseInput.mouseMovedHandler = ^(GCMouseInput * _Nonnull eventMouse, float deltaX, float deltaY) {
+            (void)eventMouse;
+            this->MouseDeltaX += deltaX;
+            this->MouseDeltaY -= deltaY;
+        };
+
+        Mouse.mouseInput.leftButton.pressedChangedHandler = ^(GCControllerButtonInput* _Nonnull eventButton, float value, BOOL pressed) {
+            HandleButtons< EIOSEventType::LeftMouseDown, EIOSEventType::LeftMouseUp >( eventButton, value, pressed, DeferredEvents, &EventsMutex );
+        };
+
+        Mouse.mouseInput.rightButton.pressedChangedHandler = ^(GCControllerButtonInput* _Nonnull eventButton, float value, BOOL pressed) {
+            HandleButtons< EIOSEventType::RightMouseDown, EIOSEventType::RightMouseUp >( eventButton, value, pressed, DeferredEvents, &EventsMutex );
+        };
+
+        Mouse.mouseInput.middleButton.pressedChangedHandler = ^(GCControllerButtonInput* _Nonnull eventButton, float value, BOOL pressed) {
+            HandleButtons< EIOSEventType::MiddleMouseDown, EIOSEventType::MiddleMouseUp >( eventButton, value, pressed, DeferredEvents, &EventsMutex );
+        };
+
+        NSArray<GCDeviceButtonInput*>* auxButtons = Mouse.mouseInput.auxiliaryButtons;
+        if (auxButtons && auxButtons.count > 0)
+        {
+            if ( auxButtons.count < 2 )
+            {
+                auxButtons[0].pressedChangedHandler = ^(GCControllerButtonInput* _Nonnull eventButton, float value, BOOL pressed){
+                    HandleButtons< EIOSEventType::ThumbDown + 0, EIOSEventType::ThumbUp + 0 >( eventButton, value, pressed, DeferredEvents, &EventsMutex );
+                };
+            }
+            if ( auxButtons.count < 3 )
+            {
+                auxButtons[0].pressedChangedHandler = ^(GCControllerButtonInput* _Nonnull eventButton, float value, BOOL pressed){
+                    HandleButtons< EIOSEventType::ThumbDown + 1, EIOSEventType::ThumbUp + 1 >( eventButton, value, pressed, DeferredEvents, &EventsMutex );
+                };
+            }
+        }
+
+        Mouse.mouseInput.scroll.valueChangedHandler = ^(GCControllerDirectionPad* _Nonnull dpad, float xValue, float yValue) {
+            (void)xValue;
+            ScrollDeltaY += yValue;
+        };
+    }
+}
+
+void FIOSInputInterface::HandleMouseDisconnect(GCMouse* Mouse)
+{
+    bHaveMouse = false;
+}
+
+void FIOSInputInterface::HandleKeyboardConnection(GCKeyboard* Keyboard)
+{
+    if ( @available( iOS 14, * ) )
+    {
+        Keyboard.keyboardInput.keyChangedHandler = ^(GCKeyboardInput * _Nonnull keyboard, GCControllerButtonInput * _Nonnull key, GCKeyCode keyCode, BOOL pressed) {
+            if ( !(FIOSInputInterface::IsKeyboardInhibited()) )
+            {
+                FDeferredIOSEvent DeferredEvent;
+                DeferredEvent.type = pressed ? EIOSEventType::KeyDown : EIOSEventType::KeyUp;
+                DeferredEvent.keycode = TranslateGCKeyCodeToASCII(keyCode);
+
+                FScopeLock Lock(&EventsMutex);
+                DeferredEvents.Add(DeferredEvent);
+            }
+        };
+    }
+}
+
+void FIOSInputInterface::HandleKeyboardDisconnect(GCKeyboard* Keyboard)
+{
+
+}
+#endif
+
+void FIOSInputInterface::SetControllerType(uint32 ControllerIndex)
+{
+    GCController *Controller = Controllers[ControllerIndex].Controller;
+    
+    if ([Controller.productCategory isEqualToString:@"DualShock 4"])
+    {
+        Controllers[ControllerIndex].ControllerType = ControllerType::DualShockGamepad;
+    }
+    else if ([Controller.productCategory isEqualToString:@"Xbox One"])
+    {
+        Controllers[ControllerIndex].ControllerType = ControllerType::XboxGamepad;
+    }
+    else if (Controller.extendedGamepad != nil)
+    {
+        Controllers[ControllerIndex].ControllerType = ControllerType::ExtendedGamepad;
+    }
+    else if (Controller.microGamepad != nil)
+    {
+        Controllers[ControllerIndex].ControllerType = ControllerType::SiriRemote;
+    }
+    else
+    {
+        Controllers[ControllerIndex].ControllerType = ControllerType::Unassigned;
+        UE_LOG(LogIOS, Warning, TEXT("Controller type is not recognized"));
+    }
+}
+
+
 void FIOSInputInterface::HandleConnection(GCController* Controller)
 {
 	static_assert(GCControllerPlayerIndex1 == 0 && GCControllerPlayerIndex4 == 3, "Apple changed the player index enums");
 
-	// is this guy a gamepad (i.e., not the Remote)
-	bool bIsGamepadType = (Controller.extendedGamepad != nil);
-	// if we want to use the Remote as a separate player, then we treat it as a Gamepad for player assignment
-	bool bIsTreatedAsGamepad = bIsGamepadType || bTreatRemoteAsSeparateController;
-
-	// disallow gamepad types (but still connect remote)
-	if (bIsGamepadType && !bAllowControllers)
+	if (!bAllowControllers)
 	{
 		return;
 	}
-
+    
 	// find a good controller index to use
 	bool bFoundSlot = false;
 	for (int32 ControllerIndex = 0; ControllerIndex < UE_ARRAY_COUNT(Controllers); ControllerIndex++)
 	{
-		// is this one already connected for this type of controller?
-		if ((!bIsTreatedAsGamepad && Controllers[ControllerIndex].bIsRemoteConnected == false) ||
-			( bIsTreatedAsGamepad && Controllers[ControllerIndex].bIsGamepadConnected == false))
-		{
-			Controller.playerIndex = (GCControllerPlayerIndex)ControllerIndex;
-            
-            Controllers[ControllerIndex].Controller = Controller;
-#if PLATFORM_TVOS
-			if (Controller.microGamepad != nil)
-			{
-				Controller.microGamepad.allowsRotation = bAllowRemoteRotation;
-				Controller.microGamepad.reportsAbsoluteDpadValues = bUseRemoteAbsoluteDpadValues;
-			}
-#endif
-			
-			// update the appropriate flag
-			if (bIsTreatedAsGamepad)
-			{
-				Controllers[ControllerIndex].bIsGamepadConnected = true;
-			}
-			else
-			{
-				Controllers[ControllerIndex].bIsRemoteConnected = true;
-			}
-			
-			Controllers[ControllerIndex].bPauseWasPressed = false;
-			Controller.controllerPausedHandler = ^(GCController* Cont)
-			{
-				Controllers[ControllerIndex].bPauseWasPressed = true;
-			};
-			
-			
-			bFoundSlot = true;
+        if (Controllers[ControllerIndex].ControllerType != ControllerType::Unassigned)
+        {
+            continue;
+        }
+        
+        Controller.playerIndex = (GCControllerPlayerIndex)ControllerIndex;
 
-			UE_LOG(LogIOS, Log, TEXT("New %s controller inserted, assigned to playerIndex %d"), bIsTreatedAsGamepad ? TEXT("Gamepad") : TEXT("Remote"), Controller.playerIndex);
-			break;
-		}
+        Controllers[ControllerIndex].Controller = Controller;
+        SetControllerType(ControllerIndex);
+
+        // Deprecated but buttonMenu in iOS 14 is not working in current Beta (August 2020).
+        Controllers[ControllerIndex].bPauseWasPressed = false;
+        Controller.controllerPausedHandler = ^(GCController* Cont)
+        {
+            Controllers[ControllerIndex].bPauseWasPressed = true;
+        };
+        
+        bFoundSlot = true;
+        
+        UE_LOG(LogIOS, Log, TEXT("New %s controller inserted, assigned to playerIndex %d"),
+               Controllers[ControllerIndex].ControllerType == ControllerType::ExtendedGamepad ||
+               Controllers[ControllerIndex].ControllerType == ControllerType::XboxGamepad ||
+               Controllers[ControllerIndex].ControllerType == ControllerType::DualShockGamepad
+               ? TEXT("Gamepad") : TEXT("Remote"), Controller.playerIndex);
+        break;
 	}
 	checkf(bFoundSlot, TEXT("Used a fifth controller somehow!"));
 	
@@ -222,24 +426,58 @@ void FIOSInputInterface::HandleConnection(GCController* Controller)
 void FIOSInputInterface::HandleDisconnect(GCController* Controller)
 {
 	// if we don't allow controllers, there could be unset player index here
-	if (Controller.playerIndex == GCControllerPlayerIndexUnset)
+	if (!bAllowControllers && Controller.playerIndex == GCControllerPlayerIndexUnset)
 	{
-		return;
+        return;
 	}
 	
 	UE_LOG(LogIOS, Log, TEXT("Controller for playerIndex %d was removed"), Controller.playerIndex);
-	
-	// mark this controller as disconnected, and reset the state
-	FMemory::Memzero(&Controllers[Controller.playerIndex], sizeof(Controllers[Controller.playerIndex]));
+
+    for (int32 ControllerIndex = 0; ControllerIndex < UE_ARRAY_COUNT(Controllers); ControllerIndex++)
+    {
+        if (Controllers[ControllerIndex].Controller == Controller)
+        {
+            FMemory::Memzero(&Controllers[ControllerIndex], sizeof(Controllers[ControllerIndex]));
+            return;
+            
+        }
+    }
 }
 
+void FIOSInputInterface::SetCurrentController(GCController* Controller)
+{
+    int32 ControllerIndex = 0;
+
+    for (ControllerIndex = 0; ControllerIndex < UE_ARRAY_COUNT(Controllers); ControllerIndex++)
+    {
+        if (Controllers[ControllerIndex].Controller == Controller)
+        {
+            break;
+        }
+    }
+    if (ControllerIndex == UE_ARRAY_COUNT(Controllers))
+    {
+        HandleConnection(Controller);
+    }
+
+
+    for (ControllerIndex = 0; ControllerIndex < UE_ARRAY_COUNT(Controllers); ControllerIndex++)
+    {
+        if (Controllers[ControllerIndex].Controller == Controller)
+        {
+            Controllers[ControllerIndex].Controller.playerIndex = GCControllerPlayerIndex1;
+        }
+        else if (Controllers[ControllerIndex].Controller.playerIndex == GCControllerPlayerIndex1)
+        {
+            Controllers[ControllerIndex].Controller.playerIndex = GCControllerPlayerIndexUnset;
+        }
+    }
+}
 
 #if !PLATFORM_TVOS
 void ModifyVectorByOrientation(FVector& Vec, bool bIsRotation)
 {
-    UIInterfaceOrientation Orientation = [[UIApplication sharedApplication] statusBarOrientation];
-
-	switch (Orientation)
+	switch (FIOSApplication::CachedOrientation)
 	{
 	case UIInterfaceOrientationPortrait:
 		// this is the base orientation, so nothing to do
@@ -338,6 +576,91 @@ void FIOSInputInterface::ProcessTouchesAndKeys(uint32 ControllerId, const TArray
 	}
 }
 
+void FIOSInputInterface::ProcessDeferredEvents()
+{
+    TArray<FDeferredIOSEvent> EventsToProcess;
+
+    EventsMutex.Lock();
+    EventsToProcess.Append(DeferredEvents);
+    DeferredEvents.Empty();
+    EventsMutex.Unlock();
+
+    for (uint32_t Index = 0; Index < EventsToProcess.Num(); ++Index)
+    {
+        ProcessEvent(EventsToProcess[Index]);
+    }
+}
+
+void FIOSInputInterface::ProcessEvent(const FDeferredIOSEvent& Event)
+{
+    if (Event.type != EIOSEventType::Invalid)
+    {
+        switch (Event.type)
+        {
+            case EIOSEventType::KeyDown:
+            {
+                MessageHandler->OnKeyDown(Event.keycode, Event.keycode, false);
+                break;
+            }
+            case EIOSEventType::KeyUp:
+            {
+                MessageHandler->OnKeyUp(Event.keycode, Event.keycode, false);
+                break;
+            }
+            case EIOSEventType::LeftMouseDown:
+            {
+                MessageHandler->OnMouseDown(nullptr, EMouseButtons::Left);
+                break;
+            }
+            case EIOSEventType::LeftMouseUp:
+            {
+                MessageHandler->OnMouseUp(EMouseButtons::Left);
+                break;
+            }
+            case EIOSEventType::RightMouseDown:
+            {
+                MessageHandler->OnMouseDown(nullptr, EMouseButtons::Right);
+                break;
+            }
+            case EIOSEventType::RightMouseUp:
+            {
+                MessageHandler->OnMouseUp(EMouseButtons::Right);
+                break;
+            }
+            case EIOSEventType::MiddleMouseDown:
+            {
+                MessageHandler->OnMouseDown(nullptr, EMouseButtons::Middle);
+                break;
+            }
+            case EIOSEventType::MiddleMouseUp:
+            {
+                MessageHandler->OnMouseUp(EMouseButtons::Middle);
+                break;
+            }
+            case EIOSEventType::ThumbDown+0:
+            {
+                MessageHandler->OnMouseDown(nullptr, EMouseButtons::Thumb01);
+                break;
+            }
+            case EIOSEventType::ThumbUp+0:
+            {
+                MessageHandler->OnMouseUp(EMouseButtons::Thumb01);
+                break;
+            }
+            case EIOSEventType::ThumbDown+1:
+            {
+                MessageHandler->OnMouseDown(nullptr, EMouseButtons::Thumb02);
+                break;
+            }
+            case EIOSEventType::ThumbUp+1:
+            {
+                MessageHandler->OnMouseUp(EMouseButtons::Thumb02);
+                break;
+            }
+        }
+    }
+}
+
 void FIOSInputInterface::SendControllerEvents()
 {
 	TArray<TouchInput> LocalTouchInputStack;
@@ -353,6 +676,7 @@ void FIOSInputInterface::SendControllerEvents()
 #if !PLATFORM_TVOS
 	// on ios, touches always go go player 0
 	ProcessTouchesAndKeys(0, LocalTouchInputStack, LocalKeyInputStack);
+    ProcessDeferredEvents();
 #endif
 
 	
@@ -380,27 +704,30 @@ void FIOSInputInterface::SendControllerEvents()
 		MessageHandler->OnMotionDetected(Attitude, RotationRate, Gravity, Acceleration, 0);
 	}
 #endif
+    
+    if ( bHaveMouse )
+    {
+        MessageHandler->OnRawMouseMove(MouseDeltaX, MouseDeltaY);
+        MouseDeltaX = 0.f;
+        MouseDeltaY = 0.f;
+        
+        MessageHandler->OnMouseWheel( ScrollDeltaY );
+        ScrollDeltaY = 0.f;
+    }
+    
     for(int32 i = 0; i < UE_ARRAY_COUNT(Controllers); ++i)
  	{
-		if (!(Controllers[i].bIsGamepadConnected || Controllers[i].bIsRemoteConnected))
-		{
-			continue;
-		}
-        
         GCController* Cont = Controllers[i].Controller;
-        GCExtendedGamepadSnapshot* ExtendedGamepad = nullptr;
-        static bool bSupportsGamepadCapture = [Cont respondsToSelector:@selector(capture)];
-        if (bSupportsGamepadCapture)
-        {
-            ExtendedGamepad = (GCExtendedGamepadSnapshot*)[Cont capture].extendedGamepad;
-        }
-        else
-        {
-            ExtendedGamepad = [Cont.extendedGamepad saveSnapshot];
-        }
+        
+        GCExtendedGamepad* ExtendedGamepad = nil;
+#if (UE4_HAS_TVOS13  || UE4_HAS_IOS13)
+        ExtendedGamepad = [Cont capture].extendedGamepad;
+#else
+        ExtendedGamepad = [Cont.extendedGamepad saveSnapshot];
+#endif
         
 #if PLATFORM_TVOS
-        GCMicroGamepad* MicroGamepad = [Cont.microGamepad saveSnapshot];
+        GCMicroGamepad* MicroGamepad = [Cont capture].microGamepad;
 #endif
 		GCMotion* Motion = Cont.motion;
 
@@ -413,120 +740,55 @@ void FIOSInputInterface::SendControllerEvents()
 		// make sure the connection handler has run on this guy
 		if (Cont.playerIndex == GCControllerPlayerIndexUnset)
 		{
-			HandleConnection(Cont);
+            continue;
 		}
 
 		FUserController& Controller = Controllers[Cont.playerIndex];
 		
-        static bool bSystemSupportsMenuButtons = [GCExtendedGamepad instancesRespondToSelector:@selector(buttonOptions)];
+        if (Controller.bPauseWasPressed)
+        {
+            MessageHandler->OnControllerButtonPressed(FGamepadKeyNames::SpecialRight, Cont.playerIndex, false);
+            MessageHandler->OnControllerButtonReleased(FGamepadKeyNames::SpecialRight, Cont.playerIndex, false);
+            
+            Controller.bPauseWasPressed = false;
+        }
         
-        // If buttonMenu is defined, we will handle it like a regular button.
-		if (Controller.bPauseWasPressed && !bSystemSupportsMenuButtons)
-		{
-			MessageHandler->OnControllerButtonPressed(FGamepadKeyNames::SpecialRight, Cont.playerIndex, false);
-			MessageHandler->OnControllerButtonReleased(FGamepadKeyNames::SpecialRight, Cont.playerIndex, false);
-			
-			Controller.bPauseWasPressed = false;
-		}
-		
-        const double CurrentTime = FPlatformTime::Seconds();
-        const float IniitialRepeatDelay = 0.2f;
-        const float RepeatDelay = 0.1;
-
-#define HANDLE_BUTTON_INTERNAL(Gamepad, bWasPressed, bIsPressed, UEButton) \
-if (bWasPressed != bIsPressed) \
-{ \
-	NSLog(@"%@ button %s on controller %d", bIsPressed ? @"Pressed" : @"Released", TCHAR_TO_ANSI(*UEButton.ToString()), (int32)Cont.playerIndex); \
-	bIsPressed ? MessageHandler->OnControllerButtonPressed(UEButton, Cont.playerIndex, false) : MessageHandler->OnControllerButtonReleased(UEButton, Cont.playerIndex, false); \
-    NextKeyRepeatTime.FindOrAdd(UEButton) = CurrentTime + IniitialRepeatDelay; \
-} \
-else if(bIsPressed) \
-{ \
-    double* NextRepeatTime = NextKeyRepeatTime.Find(UEButton); \
-    if(NextRepeatTime && *NextRepeatTime <= CurrentTime) \
-    { \
-        MessageHandler->OnControllerButtonPressed(UEButton, Cont.playerIndex, true); \
-*NextRepeatTime = CurrentTime + RepeatDelay; \
-    } \
-} \
-else \
-{ \
-    NextKeyRepeatTime.Remove(UEButton); \
-}
-		
-#define HANDLE_BUTTON(Gamepad, GCButton, UEButton) \
-{ \
-	const bool bWasPressed = Previous##Gamepad != nil && Previous##Gamepad.GCButton.pressed; \
-	const bool bPressed = Gamepad.GCButton.pressed; \
-	HANDLE_BUTTON_INTERNAL(Gamepad, bWasPressed, bPressed, UEButton); \
-}
-
-        // Send controller events any time we are passed the given input threshold similarly to PC/Console (see: XInputInterface.cpp)
-        const float RepeatDeadzone = 0.24;
-        
-#define HANDLE_ANALOG(Gamepad, GCAxis, UEAxis) \
-if ((Previous##Gamepad != nil && Gamepad.GCAxis.value != Previous##Gamepad.GCAxis.value) || (Gamepad.GCAxis.value < -RepeatDeadzone || Gamepad.GCAxis.value > RepeatDeadzone)) \
-{ \
-	NSLog(@"Axis %s is %f", TCHAR_TO_ANSI(*UEAxis.ToString()), Gamepad.GCAxis.value); \
-	MessageHandler->OnControllerAnalog(UEAxis, Cont.playerIndex, Gamepad.GCAxis.value); \
-}
-
-#define HANDLE_ANALOG_VIRTUAL_BUTTONS(Gamepad, GCAxis, UEButtonNegative, UEButtonPositive) \
-{ \
-	const bool bWasNegativePressed = Previous##Gamepad != nil && Previous##Gamepad.GCAxis.value <= -RepeatDeadzone; \
-	const bool bNegativePressed = Gamepad.GCAxis.value <= -RepeatDeadzone; \
-	HANDLE_BUTTON_INTERNAL(Gamepad, bWasNegativePressed, bNegativePressed, UEButtonNegative) \
-	const bool bWasPositivePressed = Previous##Gamepad != nil && Previous##Gamepad.GCAxis.value >= RepeatDeadzone; \
-	const bool bPositivePressed = Gamepad.GCAxis.value >= RepeatDeadzone; \
-	HANDLE_BUTTON_INTERNAL(Gamepad, bWasPositivePressed, bPositivePressed, UEButtonPositive) \
-}
-		
 		if (ExtendedGamepad != nil)
 		{
             const GCExtendedGamepad* PreviousExtendedGamepad = Controller.PreviousExtendedGamepad;
-            
-			HANDLE_BUTTON(ExtendedGamepad, buttonA,			FGamepadKeyNames::FaceButtonBottom);
-			HANDLE_BUTTON(ExtendedGamepad, buttonB,			FGamepadKeyNames::FaceButtonRight);
-			HANDLE_BUTTON(ExtendedGamepad, buttonX,			FGamepadKeyNames::FaceButtonLeft);
-			HANDLE_BUTTON(ExtendedGamepad, buttonY,			FGamepadKeyNames::FaceButtonTop);
-			HANDLE_BUTTON(ExtendedGamepad, leftShoulder,	FGamepadKeyNames::LeftShoulder);
-			HANDLE_BUTTON(ExtendedGamepad, rightShoulder,	FGamepadKeyNames::RightShoulder);
-			HANDLE_BUTTON(ExtendedGamepad, leftTrigger,		FGamepadKeyNames::LeftTriggerThreshold);
-			HANDLE_BUTTON(ExtendedGamepad, rightTrigger,	FGamepadKeyNames::RightTriggerThreshold);
-			HANDLE_BUTTON(ExtendedGamepad, dpad.up,			FGamepadKeyNames::DPadUp);
-			HANDLE_BUTTON(ExtendedGamepad, dpad.down,		FGamepadKeyNames::DPadDown);
-			HANDLE_BUTTON(ExtendedGamepad, dpad.right,		FGamepadKeyNames::DPadRight);
-			HANDLE_BUTTON(ExtendedGamepad, dpad.left,		FGamepadKeyNames::DPadLeft);
-			
-			HANDLE_ANALOG(ExtendedGamepad, leftThumbstick.xAxis,	FGamepadKeyNames::LeftAnalogX);
-			HANDLE_ANALOG(ExtendedGamepad, leftThumbstick.yAxis,	FGamepadKeyNames::LeftAnalogY);
-			HANDLE_ANALOG(ExtendedGamepad, rightThumbstick.xAxis,	FGamepadKeyNames::RightAnalogX);
-			HANDLE_ANALOG(ExtendedGamepad, rightThumbstick.yAxis,	FGamepadKeyNames::RightAnalogY);
-			HANDLE_ANALOG(ExtendedGamepad, leftTrigger,				FGamepadKeyNames::LeftTriggerAnalog);
-			HANDLE_ANALOG(ExtendedGamepad, rightTrigger,			FGamepadKeyNames::RightTriggerAnalog);
 
-			HANDLE_ANALOG_VIRTUAL_BUTTONS(ExtendedGamepad, leftThumbstick.xAxis, FGamepadKeyNames::LeftStickLeft, FGamepadKeyNames::LeftStickRight);
-			HANDLE_ANALOG_VIRTUAL_BUTTONS(ExtendedGamepad, leftThumbstick.yAxis, FGamepadKeyNames::LeftStickDown, FGamepadKeyNames::LeftStickUp);
-			HANDLE_ANALOG_VIRTUAL_BUTTONS(ExtendedGamepad, rightThumbstick.xAxis, FGamepadKeyNames::RightStickLeft, FGamepadKeyNames::RightStickRight);
-			HANDLE_ANALOG_VIRTUAL_BUTTONS(ExtendedGamepad, rightThumbstick.yAxis, FGamepadKeyNames::RightStickDown, FGamepadKeyNames::RightStickUp);
+            HandleButtonGamepad(FGamepadKeyNames::FaceButtonBottom, i);
+            HandleButtonGamepad(FGamepadKeyNames::FaceButtonLeft, i);
+            HandleButtonGamepad(FGamepadKeyNames::FaceButtonRight, i);
+            HandleButtonGamepad(FGamepadKeyNames::FaceButtonTop, i);
+            HandleButtonGamepad(FGamepadKeyNames::LeftShoulder, i);
+            HandleButtonGamepad(FGamepadKeyNames::RightShoulder, i);
+            HandleButtonGamepad(FGamepadKeyNames::LeftTriggerThreshold, i);
+            HandleButtonGamepad(FGamepadKeyNames::RightTriggerThreshold, i);
+            HandleButtonGamepad(FGamepadKeyNames::DPadUp, i);
+            HandleButtonGamepad(FGamepadKeyNames::DPadDown, i);
+            HandleButtonGamepad(FGamepadKeyNames::DPadRight, i);
+            HandleButtonGamepad(FGamepadKeyNames::DPadLeft, i);
+            HandleButtonGamepad(FGamepadKeyNames::SpecialRight, i);
+            HandleButtonGamepad(FGamepadKeyNames::SpecialLeft, i);
             
-            if(bSystemSupportsMenuButtons)
-            {
-                HANDLE_BUTTON(ExtendedGamepad, buttonMenu,          FGamepadKeyNames::SpecialRight);
-                HANDLE_BUTTON(ExtendedGamepad, buttonOptions,       FGamepadKeyNames::SpecialLeft);
-            }
-            
-            static bool bSystemSupportsThumbsticks = [GCExtendedGamepad instancesRespondToSelector:@selector(leftThumbstickButton)];
-            
-            if(bSystemSupportsThumbsticks)
-            {
-                HANDLE_BUTTON_INTERNAL(ExtendedGamepad, Controller.bLeftThumbstickWasPressed, ExtendedGamepad.leftThumbstickButton.pressed, FGamepadKeyNames::LeftThumb);
-                Controller.bLeftThumbstickWasPressed = ExtendedGamepad.leftThumbstickButton.pressed;
-                
-                HANDLE_BUTTON_INTERNAL(ExtendedGamepad, Controller.bRightThumbstickWasPressed, ExtendedGamepad.rightThumbstickButton.pressed, FGamepadKeyNames::RightThumb);
-                Controller.bRightThumbstickWasPressed = ExtendedGamepad.rightThumbstickButton.pressed;
-            }
+            HandleAnalogGamepad(FGamepadKeyNames::LeftAnalogX, i);
+            HandleAnalogGamepad(FGamepadKeyNames::LeftAnalogY, i);
+            HandleAnalogGamepad(FGamepadKeyNames::RightAnalogX, i);
+            HandleAnalogGamepad(FGamepadKeyNames::RightAnalogY, i);
+            HandleAnalogGamepad(FGamepadKeyNames::RightTriggerAnalog, i);
+            HandleAnalogGamepad(FGamepadKeyNames::LeftTriggerAnalog, i);
 
+
+            HandleVirtualButtonGamepad(FGamepadKeyNames::LeftStickRight, FGamepadKeyNames::LeftStickLeft, i);
+            HandleVirtualButtonGamepad(FGamepadKeyNames::LeftStickDown, FGamepadKeyNames::LeftStickUp, i);
+            HandleVirtualButtonGamepad(FGamepadKeyNames::RightStickLeft, FGamepadKeyNames::RightStickRight, i);
+            HandleVirtualButtonGamepad(FGamepadKeyNames::RightStickDown, FGamepadKeyNames::RightStickUp, i);
+                    
+#if (UE4_HAS_TVOS121 || UE4_HAS_IOS121 || UE4_HAS_MACOS1401)
+            HandleButtonGamepad(FGamepadKeyNames::LeftThumb, i);
+            HandleButtonGamepad(FGamepadKeyNames::RightThumb, i);
+#endif
             [Controller.PreviousExtendedGamepad release];
             Controller.PreviousExtendedGamepad = ExtendedGamepad;
             [Controller.PreviousExtendedGamepad retain];
@@ -536,83 +798,33 @@ if ((Previous##Gamepad != nil && Gamepad.GCAxis.value != Previous##Gamepad.GCAxi
         else if (MicroGamepad != nil)
         {
             const GCMicroGamepad* PreviousMicroGamepad = Controller.PreviousMicroGamepad;
+
+            HandleButtonGamepad(FGamepadKeyNames::FaceButtonBottom, i);
+            HandleButtonGamepad(FGamepadKeyNames::FaceButtonLeft, i);
+            HandleButtonGamepad(FGamepadKeyNames::SpecialRight, i);
             
 			// if we want virtual joysticks, then use the dpad values (and drain the touch queue to not leak memory)
-			if (bUseRemoteAsVirtualJoystick)
+			if (bUseRemoteAsVirtualJoystick_DEPRECATED)
 			{
-				HANDLE_ANALOG(MicroGamepad, dpad.xAxis, FGamepadKeyNames::LeftAnalogX);
-				HANDLE_ANALOG(MicroGamepad, dpad.yAxis, FGamepadKeyNames::LeftAnalogY);
-				
-				// @todo tvos: Do these need a deadzone? I need a good test case for these bindings
-				HANDLE_BUTTON(MicroGamepad, dpad.up,	FGamepadKeyNames::LeftStickUp);
-				HANDLE_BUTTON(MicroGamepad, dpad.down,	FGamepadKeyNames::LeftStickDown);
-				HANDLE_BUTTON(MicroGamepad, dpad.right,	FGamepadKeyNames::LeftStickRight);
-				HANDLE_BUTTON(MicroGamepad, dpad.left,	FGamepadKeyNames::LeftStickLeft);
+                HandleAnalogGamepad(FGamepadKeyNames::LeftAnalogX, i);
+                HandleAnalogGamepad(FGamepadKeyNames::LeftAnalogY, i);
+
+                HandleButtonGamepad(FGamepadKeyNames::LeftStickUp, i);
+                HandleButtonGamepad(FGamepadKeyNames::LeftStickDown, i);
+                HandleButtonGamepad(FGamepadKeyNames::LeftStickRight, i);
+                HandleButtonGamepad(FGamepadKeyNames::LeftStickLeft, i);
 			}
 			// otherwise, process touches like ios for the remote's index
 			else
 			{
 				ProcessTouchesAndKeys(Cont.playerIndex, LocalTouchInputStack, LocalKeyInputStack);
 			}
-			
-			HANDLE_BUTTON(MicroGamepad, buttonA,	FGamepadKeyNames::FaceButtonBottom);
-			HANDLE_BUTTON(MicroGamepad, buttonX,	FGamepadKeyNames::FaceButtonRight);
-		
-			
+
+                     
 			[Controller.PreviousMicroGamepad release];
 			Controller.PreviousMicroGamepad = MicroGamepad;
 			[Controller.PreviousMicroGamepad retain];
         }
-        
-		// motion is orthogonal to buttons
-// @todo tvos: handle motion without attitude or rotation rate
-#if 0
-		if (Motion != nil)
-		{
-			FVector Attitude;
-			FVector RotationRate;
-			FVector Gravity;
-			FVector Acceleration;
-
-		
-			FQuat CurrentAttitude(Motion.attitude.x, Motion.attitude.y, Motion.attitude.z, Motion.attitude.w);
-			
-			// save off current as reference when we calibrate
-			if (Controller.bNeedsReferenceAttitude)
-			{
-				Controller.ReferenceAttitude = CurrentAttitude;
-				Controller.bHasReferenceAttitude = true;
-				Controller.bNeedsReferenceAttitude = false;
-			}
-			
-			// take away the reference if we have it
-			if (Controller.bHasReferenceAttitude)
-			{
-				CurrentAttitude *= Controller.ReferenceAttitude.Inverse();
-			}
-			
-			// convert from GCMotion to unrealism
-			Attitude = CurrentAttitude.Euler();
-			RotationRate = FVector(float(Motion.rotationRate.x), float(Motion.rotationRate.y), float(Motion.rotationRate.z));
-			Gravity = FVector(float(Motion.gravity.x), float(Motion.gravity.y), float(Motion.gravity.z));
-			Acceleration = FVector(float(Motion.userAcceleration.x), float(Motion.userAcceleration.y), float(Motion.userAcceleration.z));
-			
-			
-			// Fix-up yaw to match directions we expect
-			Attitude.Y = -Attitude.Y;
-			RotationRate.Y = -RotationRate.Y;
-			
-			// @todo tvos: Handle rotated controller? Not sure that we can get if it's in landscape mode or not
-			MessageHandler->OnMotionDetected(Attitude, RotationRate, Gravity, Acceleration, 0);
-			
-//			NSLog(@"Atti %.2f, %.2f, %.2f\n", Attitude.X, Attitude.Y, Attitude.Z);
-//			NSLog(@"SrcA %.2f, %.2f, %.2f, %.2f\n", Motion.attitude.x, Motion.attitude.y, Motion.attitude.z, Motion.attitude.w);
-//			NSLog(@"Rate %.2f, %.2f, %.2f\n", RotationRate.X, RotationRate.Y, RotationRate.Z);
-//			NSLog(@"Grav %.2f, %.2f, %.2f\n", Gravity.X, Gravity.Y, Gravity.Z);
-//			NSLog(@"Acce %.2f, %.2f, %.2f\n", Acceleration.X, Acceleration.Y, Acceleration.Z);
-		}
-#endif
-		
 #endif
 	}
 }
@@ -787,8 +999,7 @@ bool FIOSInputInterface::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& 
 bool FIOSInputInterface::IsControllerAssignedToGamepad(int32 ControllerId) const
 {
 	return ControllerId < UE_ARRAY_COUNT(Controllers) &&
-		(Controllers[ControllerId].bIsGamepadConnected ||
-		 Controllers[ControllerId].bIsRemoteConnected);
+		(Controllers[ControllerId].ControllerType != ControllerType::Unassigned);
 }
 
 bool FIOSInputInterface::IsGamepadAttached() const
@@ -875,4 +1086,254 @@ void FIOSInputInterface::SetForceFeedbackChannelValues(int32 ControllerId, const
 
 	// the other function will just play, regardless of channel
 	SetForceFeedbackChannelValue(ControllerId, FForceFeedbackChannelType::LEFT_LARGE, Value);
+}
+
+NSData* FIOSInputInterface::GetGamepadGlyphRawData(const FGamepadKeyNames::Type& ButtonKey, uint32 ControllerIndex)
+{
+    GCController* Cont = Controllers[ControllerIndex].Controller;
+    GCExtendedGamepad* ExtendedGamepad = Cont.extendedGamepad;
+    if (ExtendedGamepad == nil)
+    {
+        NSLog(@"Siri Remote is not compatible with glyphs.");
+        return nullptr;
+    }
+
+    GCControllerButtonInput *ButtonToReturnGlyphOf = GetGCControllerButton(ButtonKey, ControllerIndex);
+
+//    UIImage* Image = nullptr;
+// #if (UE4_HAS_TVOS14 || UE4_HAS_IOS14 || UE4_HAS_MACOS15)
+//    NSString *ButtonStringName = ButtonToReturnGlyphOf.sfSymbolsName;
+//    Image = [UIImage systemImageNamed:ButtonStringName];
+//#endif
+//     return UIImagePNGRepresentation(Image);
+    return nullptr;
+}
+
+
+GCControllerButtonInput* FIOSInputInterface::GetGCControllerButton(const FGamepadKeyNames::Type& ButtonKey, uint32 ControllerIndex)
+{
+    GCController* Cont = Controllers[ControllerIndex].Controller;
+    
+    GCExtendedGamepad* ExtendedGamepad = Cont.extendedGamepad;
+    GCControllerButtonInput *ButtonToReturn = nullptr;
+
+    if (ButtonKey == FGamepadKeyNames::FaceButtonBottom){ButtonToReturn = ExtendedGamepad.buttonA;}
+    else if (ButtonKey == FGamepadKeyNames::FaceButtonRight){ButtonToReturn = ExtendedGamepad.buttonB;}
+    else if (ButtonKey == FGamepadKeyNames::FaceButtonLeft){ButtonToReturn = ExtendedGamepad.buttonX;}
+    else if (ButtonKey == FGamepadKeyNames::FaceButtonTop){ButtonToReturn = ExtendedGamepad.buttonY;}
+    else if (ButtonKey == FGamepadKeyNames::LeftShoulder){ButtonToReturn = ExtendedGamepad.leftShoulder;}
+    else if (ButtonKey == FGamepadKeyNames::RightShoulder){ButtonToReturn = ExtendedGamepad.rightShoulder;}
+    else if (ButtonKey == FGamepadKeyNames::LeftTriggerThreshold){ButtonToReturn = ExtendedGamepad.leftTrigger;}
+    else if (ButtonKey == FGamepadKeyNames::RightTriggerThreshold){ButtonToReturn = ExtendedGamepad.rightTrigger;}
+    else if (ButtonKey == FGamepadKeyNames::LeftTriggerAnalog){ButtonToReturn = ExtendedGamepad.leftTrigger;}
+    else if (ButtonKey == FGamepadKeyNames::RightTriggerAnalog){ButtonToReturn = ExtendedGamepad.rightTrigger;}
+    else if (ButtonKey == FGamepadKeyNames::LeftThumb){ButtonToReturn = ExtendedGamepad.leftThumbstickButton;}
+    else if (ButtonKey == FGamepadKeyNames::RightThumb){ButtonToReturn = ExtendedGamepad.rightThumbstickButton;}
+
+    return ButtonToReturn;
+}
+
+const ControllerType FIOSInputInterface::GetControllerType(uint32 ControllerIndex)
+{
+    if (Controllers[ControllerIndex].Controller != nullptr)
+    {
+        return Controllers[ControllerIndex].ControllerType;
+    }
+    return ControllerType::Unassigned;
+}
+
+void FIOSInputInterface::HandleInputInternal(const FGamepadKeyNames::Type& UEButton, uint32 ControllerIndex, bool bIsPressed, bool bWasPressed)
+{
+    const double CurrentTime = FPlatformTime::Seconds();
+    const float InitialRepeatDelay = 0.2f;
+    const float RepeatDelay = 0.1;
+    GCController* Cont = Controllers[ControllerIndex].Controller;
+
+    if (bWasPressed != bIsPressed)
+    {
+    NSLog(@"%@ button %s on controller %d", bIsPressed ? @"Pressed" : @"Released", TCHAR_TO_ANSI(*UEButton.ToString()), (int32)Cont.playerIndex);
+    bIsPressed ? MessageHandler->OnControllerButtonPressed(UEButton, Cont.playerIndex, false) : MessageHandler->OnControllerButtonReleased(UEButton, Cont.playerIndex, false);
+    NextKeyRepeatTime.FindOrAdd(UEButton) = CurrentTime + InitialRepeatDelay;
+    }
+    else if(bIsPressed)
+    {
+    double* NextRepeatTime = NextKeyRepeatTime.Find(UEButton);
+    if(NextRepeatTime && *NextRepeatTime <= CurrentTime)
+    {
+        MessageHandler->OnControllerButtonPressed(UEButton, Cont.playerIndex, true);
+    *NextRepeatTime = CurrentTime + RepeatDelay;
+    }
+    }
+    else
+    {
+    NextKeyRepeatTime.Remove(UEButton);
+    }
+}
+
+void FIOSInputInterface::HandleVirtualButtonGamepad(const FGamepadKeyNames::Type& UEButtonNegative, const FGamepadKeyNames::Type& UEButtonPositive, uint32 ControllerIndex)
+{
+    GCController* Cont = Controllers[ControllerIndex].Controller;
+    GCExtendedGamepad *ExtendedGamepad = Cont.extendedGamepad;
+    GCExtendedGamepad *ExtendedPreviousGamepad = Controllers[ControllerIndex].PreviousExtendedGamepad;;
+
+    // Send controller events any time we are passed the given input threshold similarly to PC/Console (see: XInputInterface.cpp)
+    const float RepeatDeadzone = 0.24;
+    
+    bool bWasNegativePressed = false;
+    bool bNegativePressed = false;
+    bool bWasPositivePressed = false;
+    bool bPositivePressed = false;
+    
+    if (UEButtonNegative == FGamepadKeyNames::LeftStickLeft && UEButtonPositive == FGamepadKeyNames::LeftStickRight)
+    {
+        bWasNegativePressed = ExtendedPreviousGamepad != nil && ExtendedPreviousGamepad.leftThumbstick.xAxis.value <= -RepeatDeadzone;
+        bNegativePressed = ExtendedGamepad.leftThumbstick.xAxis.value <= -RepeatDeadzone;
+        bWasPositivePressed = ExtendedPreviousGamepad != nil && ExtendedPreviousGamepad.leftThumbstick.xAxis.value >= RepeatDeadzone;
+        bPositivePressed = ExtendedGamepad.leftThumbstick.xAxis.value >= RepeatDeadzone;
+
+        HandleInputInternal(FGamepadKeyNames::LeftStickDown, ControllerIndex, bNegativePressed, bWasNegativePressed);
+        HandleInputInternal(FGamepadKeyNames::LeftStickUp, ControllerIndex, bPositivePressed, bWasPositivePressed);
+    }
+    else if (UEButtonNegative == FGamepadKeyNames::LeftStickDown && UEButtonPositive == FGamepadKeyNames::LeftStickUp)
+    {
+        bWasNegativePressed = ExtendedPreviousGamepad != nil && ExtendedPreviousGamepad.leftThumbstick.yAxis.value <= -RepeatDeadzone;
+        bNegativePressed = ExtendedGamepad.leftThumbstick.yAxis.value <= -RepeatDeadzone;
+        bWasPositivePressed = ExtendedPreviousGamepad != nil && ExtendedPreviousGamepad.leftThumbstick.yAxis.value >= RepeatDeadzone;
+        bPositivePressed = ExtendedGamepad.leftThumbstick.yAxis.value >= RepeatDeadzone;
+
+        HandleInputInternal(FGamepadKeyNames::LeftStickDown, ControllerIndex, bNegativePressed, bWasNegativePressed);
+        HandleInputInternal(FGamepadKeyNames::LeftStickUp, ControllerIndex, bPositivePressed, bWasPositivePressed);
+    }
+    else if (UEButtonNegative == FGamepadKeyNames::RightStickLeft && UEButtonPositive == FGamepadKeyNames::RightStickRight)
+    {
+        bWasNegativePressed = ExtendedPreviousGamepad != nil && ExtendedPreviousGamepad.rightThumbstick.xAxis.value <= -RepeatDeadzone;
+        bNegativePressed = ExtendedGamepad.rightThumbstick.xAxis.value <= -RepeatDeadzone;
+        bWasPositivePressed = ExtendedPreviousGamepad != nil && ExtendedPreviousGamepad.rightThumbstick.xAxis.value >= RepeatDeadzone;
+        bPositivePressed = ExtendedGamepad.rightThumbstick.xAxis.value >= RepeatDeadzone;
+
+        HandleInputInternal(FGamepadKeyNames::LeftStickDown, ControllerIndex, bNegativePressed, bWasNegativePressed);
+        HandleInputInternal(FGamepadKeyNames::LeftStickUp, ControllerIndex, bPositivePressed, bWasPositivePressed);
+    }
+    else if (UEButtonNegative == FGamepadKeyNames::RightStickDown && UEButtonPositive == FGamepadKeyNames::RightStickUp)
+    {
+        bWasNegativePressed = ExtendedPreviousGamepad != nil && ExtendedPreviousGamepad.rightThumbstick.yAxis.value <= -RepeatDeadzone;
+        bNegativePressed = ExtendedGamepad.rightThumbstick.yAxis.value <= -RepeatDeadzone;
+        bWasPositivePressed = ExtendedPreviousGamepad != nil && ExtendedPreviousGamepad.rightThumbstick.yAxis.value >= RepeatDeadzone;
+        bPositivePressed = ExtendedGamepad.rightThumbstick.yAxis.value >= RepeatDeadzone;
+
+        HandleInputInternal(FGamepadKeyNames::LeftStickDown, ControllerIndex, bNegativePressed, bWasNegativePressed);
+        HandleInputInternal(FGamepadKeyNames::LeftStickUp, ControllerIndex, bPositivePressed, bWasPositivePressed);
+    }
+}
+
+void FIOSInputInterface::HandleButtonGamepad(const FGamepadKeyNames::Type& UEButton, uint32 ControllerIndex)
+{
+    GCController* Cont = Controllers[ControllerIndex].Controller;
+
+    
+    bool bWasPressed = false;
+    bool bIsPressed = false;
+
+    GCExtendedGamepad *ExtendedGamepad = nil;
+    GCExtendedGamepad *ExtendedPreviousGamepad = nil;
+
+    GCMicroGamepad *MicroGamepad = nil;
+    GCMicroGamepad *MicroPreviousGamepad = nil;
+
+#define SET_PRESSED(Gamepad, PreviousGamepad, GCButton, UEButton) \
+{ \
+bWasPressed = PreviousGamepad.GCButton.pressed; \
+bIsPressed = Gamepad.GCButton.pressed; \
+}
+    switch (Controllers[ControllerIndex].ControllerType)
+    {
+        case ControllerType::ExtendedGamepad:
+        case ControllerType::DualShockGamepad:
+        case ControllerType::XboxGamepad:
+            
+            ExtendedGamepad = Cont.extendedGamepad;
+            ExtendedPreviousGamepad = Controllers[ControllerIndex].PreviousExtendedGamepad;
+       
+            if (UEButton == FGamepadKeyNames::FaceButtonLeft){SET_PRESSED(ExtendedGamepad, ExtendedPreviousGamepad, buttonX, UEButton);}
+            else if (UEButton == FGamepadKeyNames::FaceButtonBottom){SET_PRESSED(ExtendedGamepad, ExtendedPreviousGamepad, buttonA, UEButton);}
+            else if (UEButton == FGamepadKeyNames::FaceButtonRight){SET_PRESSED(ExtendedGamepad, ExtendedPreviousGamepad, buttonB, UEButton);}
+            else if (UEButton == FGamepadKeyNames::FaceButtonTop){SET_PRESSED(ExtendedGamepad, ExtendedPreviousGamepad, buttonY, UEButton);}
+            else if (UEButton == FGamepadKeyNames::LeftShoulder){SET_PRESSED(ExtendedGamepad, ExtendedPreviousGamepad, leftShoulder, UEButton);}
+            else if (UEButton == FGamepadKeyNames::RightShoulder){SET_PRESSED(ExtendedGamepad, ExtendedPreviousGamepad, rightShoulder, UEButton);}
+            else if (UEButton == FGamepadKeyNames::LeftTriggerThreshold){SET_PRESSED(ExtendedGamepad, ExtendedPreviousGamepad, leftTrigger, UEButton);}
+            else if (UEButton == FGamepadKeyNames::RightTriggerThreshold){SET_PRESSED(ExtendedGamepad, ExtendedPreviousGamepad, rightTrigger, UEButton);}
+            else if (UEButton == FGamepadKeyNames::DPadUp){SET_PRESSED(ExtendedGamepad, ExtendedPreviousGamepad, dpad.up, UEButton);}
+            else if (UEButton == FGamepadKeyNames::DPadDown){SET_PRESSED(ExtendedGamepad, ExtendedPreviousGamepad, dpad.down, UEButton);}
+            else if (UEButton == FGamepadKeyNames::DPadRight){SET_PRESSED(ExtendedGamepad, ExtendedPreviousGamepad, dpad.right, UEButton);}
+            else if (UEButton == FGamepadKeyNames::DPadLeft){SET_PRESSED(ExtendedGamepad, ExtendedPreviousGamepad, dpad.left, UEButton);}
+            else if (UEButton == FGamepadKeyNames::SpecialRight){SET_PRESSED(ExtendedGamepad, ExtendedPreviousGamepad, buttonMenu, UEButton);}
+            else if (UEButton == FGamepadKeyNames::SpecialLeft){SET_PRESSED(ExtendedGamepad, ExtendedPreviousGamepad, buttonOptions, UEButton);}
+            else if (UEButton == FGamepadKeyNames::LeftThumb){SET_PRESSED(ExtendedGamepad, ExtendedPreviousGamepad, leftThumbstickButton, UEButton);}
+            else if (UEButton == FGamepadKeyNames::RightThumb){SET_PRESSED(ExtendedGamepad, ExtendedPreviousGamepad, rightThumbstickButton, UEButton);}
+            break;
+        case ControllerType::SiriRemote:
+            
+            MicroGamepad = Cont.microGamepad;
+            MicroPreviousGamepad = Controllers[ControllerIndex].PreviousMicroGamepad;
+
+            if (UEButton == FGamepadKeyNames::LeftStickUp){SET_PRESSED(MicroGamepad, MicroPreviousGamepad, dpad.up, UEButton);}
+            else if (UEButton == FGamepadKeyNames::LeftStickDown){SET_PRESSED(MicroGamepad, MicroPreviousGamepad, dpad.down, UEButton);}
+            else if (UEButton == FGamepadKeyNames::LeftStickRight){SET_PRESSED(MicroGamepad, MicroPreviousGamepad, dpad.right, UEButton);}
+            else if (UEButton == FGamepadKeyNames::LeftStickLeft){SET_PRESSED(MicroGamepad, MicroPreviousGamepad, dpad.left, UEButton);}
+            else if (UEButton == FGamepadKeyNames::FaceButtonBottom){SET_PRESSED(MicroGamepad, MicroPreviousGamepad, buttonA, UEButton);}
+            else if (UEButton == FGamepadKeyNames::FaceButtonLeft){SET_PRESSED(MicroGamepad, MicroPreviousGamepad, buttonX, UEButton);}
+            else if (UEButton == FGamepadKeyNames::SpecialRight){SET_PRESSED(MicroGamepad, MicroPreviousGamepad, buttonMenu, UEButton);}
+            break;
+    }
+    HandleInputInternal(UEButton, ControllerIndex, bIsPressed, bWasPressed);
+}
+
+void FIOSInputInterface::HandleAnalogGamepad(const FGamepadKeyNames::Type& UEAxis, uint32 ControllerIndex)
+{
+    GCController* Cont = Controllers[ControllerIndex].Controller;
+    
+    // Send controller events any time we are passed the given input threshold similarly to PC/Console (see: XInputInterface.cpp)
+    const float RepeatDeadzone = 0.24;
+    bool bWasPositivePressed = false;
+    bool bPositivePressed = false;
+    bool bWasNegativePressed = false;
+    bool bNegativePressed = false;
+    float axisValue = 0;
+
+    GCExtendedGamepad *ExtendedGamepad = Cont.extendedGamepad;
+    GCExtendedGamepad *ExtendedPreviousGamepad = Controllers[ControllerIndex].PreviousExtendedGamepad;;
+
+    GCMicroGamepad *MicroGamepad = Cont.microGamepad;
+    GCMicroGamepad *MicroPreviousGamepad = Controllers[ControllerIndex].PreviousMicroGamepad;
+    
+    switch (Controllers[ControllerIndex].ControllerType)
+    {
+        case ControllerType::ExtendedGamepad:
+        case ControllerType::DualShockGamepad:
+        case ControllerType::XboxGamepad:
+            
+            if (UEAxis == FGamepadKeyNames::LeftAnalogX){if ((ExtendedPreviousGamepad != nil && ExtendedGamepad.leftThumbstick.xAxis.value != ExtendedPreviousGamepad.leftThumbstick.xAxis.value) ||
+                                                             (ExtendedGamepad.leftThumbstick.xAxis.value < -RepeatDeadzone || ExtendedGamepad.leftThumbstick.xAxis.value > RepeatDeadzone)){axisValue = ExtendedGamepad.leftThumbstick.xAxis.value;}}
+            else if (UEAxis == FGamepadKeyNames::LeftAnalogY){if ((ExtendedPreviousGamepad != nil && ExtendedGamepad.leftThumbstick.yAxis.value != ExtendedPreviousGamepad.leftThumbstick.yAxis.value) ||
+                                                                  (ExtendedGamepad.leftThumbstick.yAxis.value < -RepeatDeadzone || ExtendedGamepad.leftThumbstick.yAxis.value > RepeatDeadzone)){axisValue = ExtendedGamepad.leftThumbstick.yAxis.value;}}
+            else if (UEAxis == FGamepadKeyNames::RightAnalogX){if ((ExtendedPreviousGamepad != nil && ExtendedGamepad.rightThumbstick.xAxis.value != ExtendedPreviousGamepad.rightThumbstick.xAxis.value) ||
+                                                                   (ExtendedGamepad.rightThumbstick.xAxis.value < -RepeatDeadzone || ExtendedGamepad.rightThumbstick.xAxis.value > RepeatDeadzone)){axisValue = ExtendedGamepad.rightThumbstick.xAxis.value;}}
+            else if (UEAxis == FGamepadKeyNames::RightAnalogY){if ((ExtendedPreviousGamepad != nil && ExtendedGamepad.rightThumbstick.yAxis.value != ExtendedPreviousGamepad.rightThumbstick.yAxis.value) ||
+                                                                   (ExtendedGamepad.rightThumbstick.yAxis.value < -RepeatDeadzone || ExtendedGamepad.rightThumbstick.yAxis.value > RepeatDeadzone)){axisValue = ExtendedGamepad.rightThumbstick.yAxis.value;}}
+            else if (UEAxis == FGamepadKeyNames::LeftTriggerAnalog){if ((ExtendedPreviousGamepad != nil && ExtendedGamepad.leftTrigger.value != ExtendedPreviousGamepad.leftTrigger.value) ||
+                                                                        (ExtendedGamepad.leftTrigger.value < -RepeatDeadzone || ExtendedGamepad.leftTrigger.value > RepeatDeadzone)){axisValue = ExtendedGamepad.leftTrigger.value;}}
+            else if (UEAxis == FGamepadKeyNames::RightTriggerAnalog){if ((ExtendedPreviousGamepad != nil && ExtendedGamepad.rightTrigger.value != ExtendedPreviousGamepad.rightTrigger.value) ||
+                                                                         (ExtendedGamepad.rightTrigger.value < -RepeatDeadzone || ExtendedGamepad.rightTrigger.value > RepeatDeadzone)){axisValue = ExtendedGamepad.rightTrigger.value;}}
+            break;
+            
+        case ControllerType::SiriRemote:
+            
+            if (UEAxis == FGamepadKeyNames::LeftAnalogX){if ((ExtendedPreviousGamepad != nil && MicroGamepad.dpad.xAxis.value != ExtendedPreviousGamepad.dpad.xAxis.value) ||
+                                                             (MicroGamepad.dpad.xAxis.value < -RepeatDeadzone || MicroGamepad.dpad.xAxis.value > RepeatDeadzone)){axisValue = MicroGamepad.dpad.xAxis.value;}}
+            else if (UEAxis == FGamepadKeyNames::LeftAnalogY){if ((MicroPreviousGamepad != nil && MicroGamepad.dpad.yAxis.value != MicroPreviousGamepad.dpad.yAxis.value) ||
+                                                                  (MicroGamepad.dpad.yAxis.value < -RepeatDeadzone || MicroGamepad.dpad.yAxis.value > RepeatDeadzone)){axisValue = MicroGamepad.dpad.yAxis.value;}}
+            break;
+    }
+    NSLog(@"Axis %s is %f", TCHAR_TO_ANSI(*UEAxis.ToString()), axisValue);
+    MessageHandler->OnControllerAnalog(UEAxis, Cont.playerIndex, axisValue);
 }

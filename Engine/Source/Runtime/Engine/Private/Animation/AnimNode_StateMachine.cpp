@@ -893,15 +893,20 @@ void FAnimNode_StateMachine::EvaluateTransitionStandardBlendInternal(FPoseContex
 		}
 	}
 	else
+	{
 		for(FCompactPoseBoneIndex BoneIndex : Output.Pose.ForEachBoneIndex())
 		{
 			Output.Pose[BoneIndex] = PreviousStateResult.Pose[BoneIndex] * VPreviousWeight;
 			Output.Pose[BoneIndex].AccumulateWithShortestRotation(NextStateResult.Pose[BoneIndex], VWeight);
 		}
+	}
 	
 	// blend curve in
 	Output.Curve.Override(PreviousStateResult.Curve, 1.0 - Transition.Alpha);
 	Output.Curve.Accumulate(NextStateResult.Curve, Transition.Alpha);
+
+	FCustomAttributesRuntime::OverrideAttributes(PreviousStateResult.CustomAttributes, Output.CustomAttributes, 1.0 - Transition.Alpha);
+	FCustomAttributesRuntime::AccumulateAttributes(NextStateResult.CustomAttributes, Output.CustomAttributes, Transition.Alpha);
 }
 
 void FAnimNode_StateMachine::EvaluateTransitionCustomBlend(FPoseContext& Output, FAnimationActiveTransitionEntry& Transition, bool bIntermediatePoseIsValid)

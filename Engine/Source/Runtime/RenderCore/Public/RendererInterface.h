@@ -23,12 +23,13 @@ class FSceneInterface;
 class FSceneRenderTargets;
 class FSceneView;
 class FSceneViewFamily;
-class FSceneTexturesUniformParameters;
+class FSceneTextureUniformParameters;
 class FGlobalDistanceFieldParameterData;
 struct FMeshBatch;
 struct FSynthBenchmarkResults;
 class FShader;
 class FShaderMapPointerTable;
+class FRDGBuilder;
 template<typename ShaderType, typename PointerTableType> class TShaderRefBase;
 
 // Shortcut for the allocator used by scene rendering.
@@ -56,24 +57,9 @@ public:
 
 	/** Default constructor, use one of the factory functions below to make a valid description */
 	FPooledRenderTargetDesc()
-		: DebugName(TEXT("UnknownTexture"))
-		, ClearValue(FClearValueBinding())
-		, Extent(0, 0)
-		, Depth(0)
-		, ArraySize(1)
-		, Flags(TexCreate_None)
-		, TargetableFlags(TexCreate_None)
-		, Format(PF_Unknown)
-		, NumMips(0)
-		, NumSamples(1)
-		, bIsArray(false)
-		, bIsCubemap(false)
-		, bForceSeparateTargetAndShaderResource(false)
-		, bForceSharedTargetAndShaderResource(false)
-		, AutoWritable(true)
-		, bCreateRenderTargetWriteMask(false)
-		, bCreateRenderTargetFmask(false)
+		: PackedBits(0)
 	{
+		AutoWritable = true;
 		check(!IsValid());
 	}
 
@@ -85,8 +71,8 @@ public:
 		FIntPoint InExtent,
 		EPixelFormat InFormat,
 		const FClearValueBinding& InClearValue,
-		uint32 InFlags,
-		uint32 InTargetableFlags,
+		ETextureCreateFlags InFlags,
+		ETextureCreateFlags InTargetableFlags,
 		bool bInForceSeparateTargetAndShaderResource,
 		uint16 InNumMips = 1,
 		bool InAutowritable = true,
@@ -127,8 +113,8 @@ public:
 		uint32 InSizeZ,
 		EPixelFormat InFormat,
 		const FClearValueBinding& InClearValue,
-		uint32 InFlags,
-		uint32 InTargetableFlags,
+		ETextureCreateFlags InFlags,
+		ETextureCreateFlags InTargetableFlags,
 		bool bInForceSeparateTargetAndShaderResource,
 		uint16 InNumMips = 1,
 		bool InAutowritable = true)
@@ -163,8 +149,8 @@ public:
 		uint32 InExtent,
 		EPixelFormat InFormat,
 		const FClearValueBinding& InClearValue,
-		uint32 InFlags,
-		uint32 InTargetableFlags,
+		ETextureCreateFlags InFlags,
+		ETextureCreateFlags InTargetableFlags,
 		bool bInForceSeparateTargetAndShaderResource,
 		uint32 InArraySize = 1,
 		uint16 InNumMips = 1,
@@ -201,8 +187,8 @@ public:
 		uint32 InExtent,
 		EPixelFormat InFormat,
 		const FClearValueBinding& InClearValue,
-		uint32 InFlags,
-		uint32 InTargetableFlags,
+		ETextureCreateFlags InFlags,
+		ETextureCreateFlags InTargetableFlags,
 		bool bInForceSeparateTargetAndShaderResource,
 		uint32 InArraySize,
 		uint16 InNumMips = 1,
@@ -242,20 +228,16 @@ public:
 			RhsFlags &= (~TexCreate_FastVRAM);
 		}
 		
-		return Extent == rhs.Extent
+		return ClearValue == rhs.ClearValue
+			&& LhsFlags == RhsFlags
+			&& TargetableFlags == rhs.TargetableFlags
+			&& Format == rhs.Format
+			&& Extent == rhs.Extent
 			&& Depth == rhs.Depth
-			&& bIsArray == rhs.bIsArray
-			&& bIsCubemap == rhs.bIsCubemap
 			&& ArraySize == rhs.ArraySize
 			&& NumMips == rhs.NumMips
 			&& NumSamples == rhs.NumSamples
-			&& Format == rhs.Format
-			&& LhsFlags == RhsFlags
-			&& TargetableFlags == rhs.TargetableFlags
-			&& bForceSeparateTargetAndShaderResource == rhs.bForceSeparateTargetAndShaderResource
-			&& bForceSharedTargetAndShaderResource == rhs.bForceSharedTargetAndShaderResource
-			&& ClearValue == rhs.ClearValue
-			&& AutoWritable == rhs.AutoWritable;
+			&& PackedBits == rhs.PackedBits;
 	}
 
 	bool IsCubemap() const
@@ -314,7 +296,7 @@ public:
 
 		FString FlagsString = TEXT("");
 
-		uint32 LocalFlags = Flags | TargetableFlags;
+		ETextureCreateFlags LocalFlags = Flags | TargetableFlags;
 
 		if(LocalFlags & TexCreate_RenderTargetable)
 		{
@@ -384,41 +366,60 @@ public:
 	}
 
 	/** only set a pointer to memory that never gets released */
-	const TCHAR* DebugName;
+	const TCHAR* DebugName = TEXT("UnknownTexture");
 	/** Value allowed for fast clears for this target. */
 	FClearValueBinding ClearValue;
-	/** In pixels, (0,0) if not set, (x,0) for cube maps, todo: make 3d int vector for volume textures */
-	FIntPoint Extent;
-	/** 0, unless it's texture array or volume texture */
-	uint32 Depth;
-	/** >1 if a texture array should be used (not supported on DX9) */
-	uint32 ArraySize;
 	/** The flags that must be set on both the shader-resource and the targetable texture. bit mask combined from elements of ETextureCreateFlags e.g. TexCreate_UAV */
-	uint32 Flags;
+	ETextureCreateFlags Flags = TexCreate_None;
 	/** The flags that must be set on the targetable texture. bit mask combined from elements of ETextureCreateFlags e.g. TexCreate_UAV */
-	uint32 TargetableFlags;
+	ETextureCreateFlags TargetableFlags = TexCreate_None;
 	/** Texture format e.g. PF_B8G8R8A8 */
-	EPixelFormat Format;
+	EPixelFormat Format = PF_Unknown;
+	/** In pixels, (0,0) if not set, (x,0) for cube maps, todo: make 3d int vector for volume textures */
+	FIntPoint Extent = FIntPoint::ZeroValue;
+	/** 0, unless it's texture array or volume texture */
+	uint16 Depth = 0;
+	/** >1 if a texture array should be used (not supported on DX9) */
+	uint16 ArraySize = 1;
 	/** Number of mips */
-	uint16 NumMips;
+	uint8 NumMips = 0;
 	/** Number of MSAA samples, default: 1  */
-	uint16 NumSamples;
-	/** true if an array texture. Note that ArraySize still can be 1 */
-	uint8 bIsArray : 1;
-	/** true if a cubemap texture */
-	uint8 bIsCubemap : 1;
-	/** Whether the shader-resource and targetable texture must be separate textures. */
-	uint8 bForceSeparateTargetAndShaderResource : 1;
-	/** Whether the shader-resource and targetable texture must be the same resource. */
-	uint8 bForceSharedTargetAndShaderResource : 1;
-	/** automatically set to writable via barrier during */
-	uint8 AutoWritable : 1;
-	/** create render target write mask (supported only on specific platforms) */
-	uint8 bCreateRenderTargetWriteMask : 1;
-	/** create render target fmask (supported only on specific platforms) */
-	uint8 bCreateRenderTargetFmask : 1;
+	uint8 NumSamples = 1;
+
+	union
+	{
+		struct
+		{
+			/** true if an array texture. Note that ArraySize still can be 1 */
+			uint8 bIsArray : 1;
+			/** true if a cubemap texture */
+			uint8 bIsCubemap : 1;
+			/** Whether the shader-resource and targetable texture must be separate textures. */
+			uint8 bForceSeparateTargetAndShaderResource : 1;
+			/** Whether the shader-resource and targetable texture must be the same resource. */
+			uint8 bForceSharedTargetAndShaderResource : 1;
+			/** automatically set to writable via barrier during */
+			uint8 AutoWritable : 1;
+			/** create render target write mask (supported only on specific platforms) */
+			uint8 bCreateRenderTargetWriteMask : 1;
+			/** create render target fmask (supported only on specific platforms) */
+			uint8 bCreateRenderTargetFmask : 1;
+			/** Unused flag. */
+			uint8 bReserved0 : 1;
+		};
+		uint8 PackedBits;
+	};
 };
 
+/** Enum to select between the two RHI textures on a pooled render target. */
+enum class ERenderTargetTexture : uint8
+{
+	/** Maps to the targetable RHI texture on a pooled render target item. */
+	Targetable,
+
+	/** Maps to the shader resource RHI texture on a pooled render target item. */
+	ShaderResource
+};
 
 /**
  * Single render target item consists of a render surface and its resolve texture, Render thread side
@@ -440,10 +441,10 @@ struct FSceneRenderTargetItem
 		TargetableTexture.SafeRelease();
 		ShaderResourceTexture.SafeRelease();
 		UAV.SafeRelease();
-		MipUAVs.Empty();
-		SRVs.Empty();
 		HTileUAV.SafeRelease();
 		HTileSRV.SafeRelease();
+		RTWriteMaskSRV.SafeRelease();
+		FmaskSRV.SafeRelease();
 	}
 
 	bool IsValid() const
@@ -453,21 +454,19 @@ struct FSceneRenderTargetItem
 			|| UAV != 0;
 	}
 
+	FRHITexture* GetRHI(ERenderTargetTexture Texture) const
+	{
+		return Texture == ERenderTargetTexture::Targetable ? TargetableTexture : ShaderResourceTexture;
+	}
+
 	/** The 2D or cubemap texture that may be used as a render or depth-stencil target. */
 	FTextureRHIRef TargetableTexture;
 
 	/** The 2D or cubemap shader-resource 2D texture that the targetable textures may be resolved to. */
 	FTextureRHIRef ShaderResourceTexture;
 	
-	/** only created if requested through the flag, same as MipUAVs[0] */
-	// TODO: refactor all the code to only use MipUAVs?
+	/** only created if requested through the flag. */
 	FUnorderedAccessViewRHIRef UAV;
-	
-	/** only created if requested through the flag  */
-	TArray< FUnorderedAccessViewRHIRef, TInlineAllocator<1> > MipUAVs;
-
-	/** All SRVs that has been created on for that ShaderResourceTexture.  */
-	TArray<TPair<FRHITextureSRVCreateInfo, FShaderResourceViewRHIRef>, TInlineAllocator<1>> SRVs;
 
 	FShaderResourceViewRHIRef RTWriteMaskSRV;
 	FShaderResourceViewRHIRef FmaskSRV;
@@ -502,11 +501,28 @@ struct IPooledRenderTarget
 	inline const FSceneRenderTargetItem& GetRenderTargetItem() const { return RenderTargetItem; }
 	/** Returns if the render target is tracked by a pool. */
 	virtual bool IsTracked() const = 0;
+	/** Returns true if the render target is compatible with RDG. */
+	virtual bool IsCompatibleWithRDG() const { return false; }
 
 	// Refcounting
 	virtual uint32 AddRef() const = 0;
 	virtual uint32 Release() = 0;
 	virtual uint32 GetRefCount() const = 0;
+
+	FORCEINLINE FRHITexture* GetTargetableRHI() const
+	{
+		return RenderTargetItem.TargetableTexture.GetReference();
+	}
+
+	FORCEINLINE FRHITexture* GetShaderResourceRHI() const
+	{
+		return RenderTargetItem.ShaderResourceTexture.GetReference();
+	}
+
+	FORCEINLINE FRHITexture* GetRHI(ERenderTargetTexture Texture) const
+	{
+		return Texture == ERenderTargetTexture::Targetable ? GetTargetableRHI() : GetShaderResourceRHI();
+	}
 
 protected:
 
@@ -514,11 +530,15 @@ protected:
 	FSceneRenderTargetItem RenderTargetItem;
 };
 
+/** Creates an untracked pooled render target from an RHI texture. */
+extern RENDERCORE_API TRefCountPtr<IPooledRenderTarget> CreateRenderTarget(FRHITexture* Texture, const TCHAR* Name);
 
-struct FQueryVisualizeTexureInfo
-{
-	TArray<FString> Entries;
-};
+/** Creates an untracked pooled render target from the RHI texture, but only if the pooled render target is
+ *  empty or doesn't match the input texture. If the pointer already exists and points at the input texture,
+ *  the function just returns. Useful to cache a pooled render target for an RHI texture. Returns true if the
+ *  render target was created, or false if it was reused.
+ */
+extern RENDERCORE_API bool CacheRenderTarget(FRHITexture* Texture, const TCHAR* Name, TRefCountPtr<IPooledRenderTarget>& OutPooledRenderTarget);
 
 
 // use r.DrawDenormalizedQuadMode to override the function call setting (quick way to see if an artifact is caused by this optimization)
@@ -543,11 +563,12 @@ public:
 	FRHITexture2D* SmallDepthTexture;
 	FRHICommandListImmediate* RHICmdList;
 	FRHIUniformBuffer* ViewUniformBuffer;
-	TUniformBufferRef<FSceneTexturesUniformParameters> SceneTexturesUniformParams;
+	TUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformParams;
 	const FGlobalDistanceFieldParameterData* GlobalDistanceFieldParams;
 	void* Uid; // A unique identifier for the view.
 };
-DECLARE_DELEGATE_OneParam(FPostOpaqueRenderDelegate, class FPostOpaqueRenderParameters&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnPostOpaqueRender, class FPostOpaqueRenderParameters&);
+typedef FOnPostOpaqueRender::FDelegate FPostOpaqueRenderDelegate;
 
 class ICustomVisibilityQuery: public IRefCountedObject
 {
@@ -732,20 +753,16 @@ public:
 	virtual void RegisterCustomCullingImpl(ICustomCulling* impl) = 0;
 	virtual void UnregisterCustomCullingImpl(ICustomCulling* impl) = 0;
 
-	virtual void RegisterPostOpaqueRenderDelegate(const FPostOpaqueRenderDelegate& PostOpaqueRenderDelegate) = 0;
-	virtual void RegisterOverlayRenderDelegate(const FPostOpaqueRenderDelegate& OverlayRenderDelegate) = 0;
-	virtual void RenderPostOpaqueExtensions(const class FViewInfo& View, FRHICommandListImmediate& RHICmdList, class FSceneRenderTargets& SceneContext, TUniformBufferRef<FSceneTexturesUniformParameters>& SceneTextureUniformParams) = 0;
-	virtual void RenderOverlayExtensions(const class FViewInfo& View, FRHICommandListImmediate& RHICmdList, FSceneRenderTargets& SceneContext) = 0;
-	virtual bool HasPostOpaqueExtentions() const = 0;
+	virtual FDelegateHandle RegisterPostOpaqueRenderDelegate(const FPostOpaqueRenderDelegate& PostOpaqueRenderDelegate) = 0;
+	virtual void RemovePostOpaqueRenderDelegate(FDelegateHandle PostOpaqueRenderDelegate) = 0;
+	virtual FDelegateHandle RegisterOverlayRenderDelegate(const FPostOpaqueRenderDelegate& OverlayRenderDelegate) = 0;
+	virtual void RemoveOverlayRenderDelegate(FDelegateHandle OverlayRenderDelegate) = 0;
 
 	/** Delegate that is called upon resolving scene color. */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnResolvedSceneColor, FRHICommandListImmediate& /*RHICmdList*/, class FSceneRenderTargets& /*SceneContext*/);
 
 	/** Accessor for post scene color resolve delegates */
 	virtual FOnResolvedSceneColor& GetResolvedSceneColorCallbacks() = 0;
-
-	/** Calls registered post resolve delegates, if any */
-	virtual void RenderPostResolvedSceneColorExtension(FRHICommandListImmediate& RHICmdList, class FSceneRenderTargets& SceneContext) = 0;
 
 	virtual void PostRenderAllViewports() = 0;
 
@@ -759,6 +776,7 @@ public:
 	virtual void ReleaseVirtualTextureProducer(const FVirtualTextureProducerHandle& Handle) = 0;
 	virtual void AddVirtualTextureProducerDestroyedCallback(const FVirtualTextureProducerHandle& Handle, FVTProducerDestroyedFunction* Function, void* Baton) = 0;
 	virtual uint32 RemoveAllVirtualTextureProducerDestroyedCallbacks(const void* Baton) = 0;
+	virtual void ReleaseVirtualTexturePendingResources() = 0;
 
 	/**	Provided a list of packed virtual texture tile ids, let the VT system request them. Note this should be called as long as the tiles are needed.*/
 	virtual void RequestVirtualTextureTiles(const FVector2D& InScreenSpaceSize, int32 InMipLevel) = 0;

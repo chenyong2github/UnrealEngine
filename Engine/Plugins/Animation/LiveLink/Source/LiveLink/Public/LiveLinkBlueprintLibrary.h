@@ -116,7 +116,7 @@ public:
 
 	/** Get a list of all subjects */
 	UFUNCTION(BlueprintCallable, Category = "LiveLink")
-	static TArray<FLiveLinkSubjectKey> GetLiveLinkSubjects(bool bIncludeDisabledSubject, bool bIncludeDisal);
+	static TArray<FLiveLinkSubjectKey> GetLiveLinkSubjects(bool bIncludeDisabledSubject, bool bIncludeVirtualSubject);
 
 	/**
 	 * Whether or not a subject from the specific source is the enabled subject.
@@ -125,7 +125,7 @@ public:
 	 * That snapshot dictate which subject will be used for the duration of that frame.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "LiveLink")
-	bool IsSpecificLiveLinkSubjectEnabled(const FLiveLinkSubjectKey SubjectKey, bool bForThisFrame);
+	static bool IsSpecificLiveLinkSubjectEnabled(const FLiveLinkSubjectKey SubjectKey, bool bForThisFrame);
 
 	/**
 	 * Whether or not the client has a subject with this name enabled
@@ -134,7 +134,7 @@ public:
 	 * That snapshot dictate which subject will be used for the duration of that frame.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "LiveLink")
-	bool IsLiveLinkSubjectEnabled(const FLiveLinkSubjectName SubjectName);
+	static bool IsLiveLinkSubjectEnabled(const FLiveLinkSubjectName SubjectName);
 
 	/** 
 	 * Set the subject's from a specific source to enabled, disabling the other in the process.
@@ -144,7 +144,7 @@ public:
 	 * SetSubjectEnabled will take effect on the next frame.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "LiveLink")
-	void SetLiveLinkSubjectEnabled(const FLiveLinkSubjectKey SubjectKey, bool bEnabled);
+	static void SetLiveLinkSubjectEnabled(const FLiveLinkSubjectKey SubjectKey, bool bEnabled);
 
 	/** Get the role of a subject from a specific source */
 	UFUNCTION(BlueprintCallable, Category = "LiveLink")

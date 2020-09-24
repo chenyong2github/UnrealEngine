@@ -826,6 +826,11 @@ public partial class Project : CommandUtils
 		{
 			TempCmdLine += "-buildmachine ";
 		}
+		if (Params.HasDDCGraph)
+		{
+			TempCmdLine += "-ddc=" + Params.DDCGraph +" ";
+		}
+
 		if (Params.CrashIndex > 0)
 		{
 			int RealIndex = Params.CrashIndex - 1;
@@ -974,6 +979,12 @@ public partial class Project : CommandUtils
 				Args += " -signedpak";
 			}
 		}
+
+		if (Params.HasDDCGraph)
+		{
+			Args += " -ddc=" + Params.DDCGraph;
+		}
+
 		if (IsBuildMachine || Params.Unattended)
 		{
 			Args += " -buildmachine";

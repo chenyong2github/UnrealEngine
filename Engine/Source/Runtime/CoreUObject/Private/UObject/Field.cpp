@@ -987,6 +987,13 @@ FName FField::GenerateFFieldName(FFieldVariant InOwner /** Unused yet */, FField
 }
 
 #if WITH_EDITORONLY_DATA
+
+FField::FOnConvertCustomUFieldToFField& FField::GetConvertCustomUFieldToFFieldDelegate()
+{
+	static FOnConvertCustomUFieldToFField ConvertCustomUFieldToFFieldDelegate;
+	return ConvertCustomUFieldToFFieldDelegate;
+}
+
 FField* FField::CreateFromUField(UField* InField)
 {
 	FField* NewField = nullptr;
@@ -1110,7 +1117,10 @@ FField* FField::CreateFromUField(UField* InField)
 	}
 	else
 	{
-		checkf(false, TEXT("Cannot create an FField from %s. The class is either abstract or not implemented."), *InField->GetFullName());
+		FFieldClass** FieldClassPtr = FFieldClass::GetNameToFieldClassMap().Find(UFieldClass->GetFName());
+		checkf(FieldClassPtr, TEXT("Cannot create an FField from %s. The class is either abstract or not implemented."), *InField->GetFullName());
+		GetConvertCustomUFieldToFFieldDelegate().Broadcast(*FieldClassPtr, InField, NewField);
+		checkf(NewField, TEXT("Cannot create an FField from %s. The class conversion function is not implemented or not bound to FField::GetConvertCustomUFieldToFField() delegate."), *InField->GetFullName());
 	}
 
 	return NewField;

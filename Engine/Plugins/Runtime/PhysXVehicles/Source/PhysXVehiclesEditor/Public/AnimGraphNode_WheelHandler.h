@@ -10,6 +10,8 @@
 
 class UEdGraph;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 UCLASS(MinimalAPI, meta=(Keywords = "Modify Wheel Vehicle"))
 class UAnimGraphNode_WheelHandler : public UAnimGraphNode_SkeletalControlBase
 {
@@ -33,3 +35,5 @@ protected:
 	virtual const FAnimNode_SkeletalControlBase* GetNode() const override { return &Node; }
 	// End of UAnimGraphNode_SkeletalControlBase interface
 };
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

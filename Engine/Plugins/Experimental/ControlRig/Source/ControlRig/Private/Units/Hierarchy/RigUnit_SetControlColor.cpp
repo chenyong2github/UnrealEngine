@@ -2,7 +2,6 @@
 
 #include "RigUnit_SetControlColor.h"
 #include "Units/RigUnitContext.h"
-#include "Math/ControlRigMathLibrary.h"
 
 FRigUnit_SetControlColor_Execute()
 {
@@ -14,12 +13,12 @@ FRigUnit_SetControlColor_Execute()
 		{
 			case EControlRigState::Init:
 			{
-				CachedControlIndex = Hierarchy->GetIndex(Control);
+				CachedControlIndex.Reset();
 				break;
 			}
 			case EControlRigState::Update:
 			{
-				if (CachedControlIndex != INDEX_NONE)
+				if (CachedControlIndex.UpdateCache(Control, Hierarchy))
 				{
 					(*Hierarchy)[CachedControlIndex].GizmoColor = Color;
 				}

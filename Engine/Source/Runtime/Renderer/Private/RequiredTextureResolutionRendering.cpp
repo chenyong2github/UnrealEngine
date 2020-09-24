@@ -44,23 +44,15 @@ void FRequiredTextureResolutionInterface::GetDebugViewModeShaderBindings(
 			{
 				const UTexture* Texture = nullptr;
 				UniformExpressions.GetTextureValue(EMaterialTextureParameterType::Standard2D, ParameterIndex, MaterialContext, Material, Texture);
-				const UTexture2D* Texture2D = Cast<UTexture2D>(Texture);
-				if (Texture2D && Texture2D->Resource)
+				if (Texture && Texture->Resource)
 				{
-					if (!Texture2D->IsCurrentlyVirtualTextured())
+					if (Texture->IsStreamable())
 					{
-						FTexture2DResource* Texture2DResource = (FTexture2DResource*)Texture2D->Resource;
-						if (Texture2DResource->GetTexture2DRHI().IsValid())
-						{
-							TextureResolution = 1 << (Texture2DResource->GetTexture2DRHI()->GetNumMips() - 1);
-						}
-						break;
+						TextureResolution = 1 << (Texture->Resource->GetCurrentMipCount() - 1);
 					}
 					else
 					{
-						//FVirtualTexture2DResource* Texture2DResource = (FVirtualTexture2DResource*)Texture2D->Resource;
-						TextureResolution = FMath::Max(Texture2D->GetSizeX(), Texture2D->GetSizeY());
-						break;
+						TextureResolution = FMath::Max(Texture->Resource->GetSizeX(), Texture->Resource->GetSizeY());
 					}
 				}
 			}
@@ -73,28 +65,17 @@ void FRequiredTextureResolutionInterface::GetDebugViewModeShaderBindings(
 		{
 			const UTexture* Texture = nullptr;
 			UniformExpressions.GetTextureValue(EMaterialTextureParameterType::Standard2D, ParameterIndex, MaterialContext, Material, Texture);
-			if (Texture && Texture->GetFName() == ViewModeParamName)
+			if (Texture && Texture->Resource && Texture->GetFName() == ViewModeParamName)
 			{
-				const UTexture2D* Texture2D = Cast<UTexture2D>(Texture);
-				if (Texture2D && Texture2D->Resource)
+				if (Texture->IsStreamable())
 				{
-					if (!Texture2D->IsCurrentlyVirtualTextured())
-					{
-						FTexture2DResource* Texture2DResource = (FTexture2DResource*)Texture2D->Resource;
-						if (Texture2DResource->GetTexture2DRHI().IsValid())
-						{
-							const FMaterialTextureParameterInfo& Parameter = UniformExpressions.GetTextureParameter(EMaterialTextureParameterType::Standard2D, ParameterIndex);
-							AnalysisIndex = Parameter.TextureIndex;
-							TextureResolution = 1 << (Texture2DResource->GetTexture2DRHI()->GetNumMips() - 1);
-						}
-						break;
-					}
-					else
-					{
-						//FVirtualTexture2DResource* Texture2DResource = (FVirtualTexture2DResource*)Texture2D->Resource;
-						TextureResolution = FMath::Max(Texture2D->GetSizeX(), Texture2D->GetSizeY());
-						break;
-					}
+					const FMaterialTextureParameterInfo& Parameter = UniformExpressions.GetTextureParameter(EMaterialTextureParameterType::Standard2D, ParameterIndex);
+					AnalysisIndex = Parameter.TextureIndex;
+					TextureResolution = 1 << (Texture->Resource->GetCurrentMipCount() - 1);
+				}
+				else
+				{
+					TextureResolution = FMath::Max(Texture->Resource->GetSizeX(), Texture->Resource->GetSizeY());
 				}
 			}
 		}

@@ -112,7 +112,7 @@ int32 UMediaTexture::GetWidth() const
 void UMediaTexture::SetMediaPlayer(UMediaPlayer* NewMediaPlayer)
 {
 	CurrentPlayer = NewMediaPlayer;
-	UpdateQueue();
+	UpdatePlayerAndQueue();
 }
 
 
@@ -314,18 +314,14 @@ void UMediaTexture::TickResource(FTimespan Timecode)
 	const FGuid PreviousGuid = CurrentGuid;
 
 	// media player bookkeeping
-	if (CurrentPlayer.IsValid())
+	UpdatePlayerAndQueue();
+
+	if (!CurrentPlayer.IsValid())
 	{
-		UpdateQueue();
-	}
-	else if (CurrentGuid != DefaultGuid)
-	{
-		SampleQueue.Reset();
-		CurrentGuid = DefaultGuid;
-	}
-	else if ((LastClearColor == ClearColor) && (LastSrgb == SRGB))
-	{
-		return; // nothing to render
+		if ((LastClearColor == ClearColor) && (LastSrgb == SRGB))
+		{
+			return; // nothing to render
+		}
 	}
 
 	LastClearColor = ClearColor;
@@ -438,18 +434,24 @@ void UMediaTexture::UpdateSampleInfo(const TSharedPtr<IMediaTextureSample, ESPMo
 		case EMediaOrientation::CW90: CurrentOrientation = MTORI_CW90; break;
 		case EMediaOrientation::CW180: CurrentOrientation = MTORI_CW180; break;
 		case EMediaOrientation::CW270: CurrentOrientation = MTORI_CW270; break;
-		default: CurrentOrientation = MTORI_Original; break;
+		default: CurrentOrientation = MTORI_Original;
 	}
 }
 
-void UMediaTexture::UpdateQueue()
+void UMediaTexture::UpdatePlayerAndQueue()
 {
 	if (UMediaPlayer* CurrentPlayerPtr = CurrentPlayer.Get())
 	{
 		const FGuid PlayerGuid = CurrentPlayerPtr->GetGuid();
 
+		// Player changed?
 		if (CurrentGuid != PlayerGuid)
 		{
+			if (FMediaTextureResource* MediaResource = static_cast<FMediaTextureResource*>(Resource))
+			{
+				MediaResource->FlushPendingData();
+			}
+
 			SampleQueue = MakeShared<FMediaTextureSampleQueue, ESPMode::ThreadSafe>();
 			CurrentPlayerPtr->GetPlayerFacade()->AddVideoSampleSink(SampleQueue.ToSharedRef());
 			CurrentGuid = PlayerGuid;
@@ -457,7 +459,19 @@ void UMediaTexture::UpdateQueue()
 	}
 	else
 	{
-		SampleQueue.Reset();
+		// No player. Did we already reset to default?
+		if (CurrentGuid != DefaultGuid)
+		{
+			// No, do so now...
+			SampleQueue.Reset();
+			CurrentGuid = DefaultGuid;
+
+			if (FMediaTextureResource* MediaResource = static_cast<FMediaTextureResource*>(Resource))
+			{
+				MediaResource->FlushPendingData();
+			}
+
+		}
 	}
 }
 

@@ -187,7 +187,7 @@ class FScreenProbeTraceCardsCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenMeshSDFGridParameters, MeshSDFGridParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
-		SHADER_PARAMETER_STRUCT_REF(FSceneTexturesUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_STRUCT_REF(FSceneTextureUniformParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FCompactedTraceParameters, CompactedTraceParameters)
 	END_SHADER_PARAMETER_STRUCT()
 		
@@ -220,7 +220,7 @@ class FScreenProbeTraceVoxelsCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheParameters, RadianceCacheParameters)
-		SHADER_PARAMETER_STRUCT_REF(FSceneTexturesUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_STRUCT_REF(FSceneTextureUniformParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FCompactedTraceParameters, CompactedTraceParameters)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -361,7 +361,7 @@ public:
 
 TGlobalResource<FVisualizeTracesVertexDeclaration> GVisualizeTracesVertexDeclaration;
 
-TRefCountPtr<FPooledRDGBuffer> GVisualizeTracesData;
+TRefCountPtr<FRDGPooledBuffer> GVisualizeTracesData;
 
 void SetupVisualizeTraces(
 	FRDGBuilder& GraphBuilder,
@@ -559,7 +559,7 @@ void TraceScreenProbes(
 				float(View.ViewRect.Width()) / float(2 * View.HZBMipmap0Size.X),
 				float(View.ViewRect.Height()) / float(2 * View.HZBMipmap0Size.Y));
 
-			const FVector4 ScreenPositionScaleBias = View.GetScreenPositionScaleBias(SceneTextures.SceneDepthBuffer->Desc.Extent, View.ViewRect);
+			const FVector4 ScreenPositionScaleBias = View.GetScreenPositionScaleBias(SceneTextures.SceneDepthTexture->Desc.Extent, View.ViewRect);
 			const FVector2D HZBUVToScreenUVScale = FVector2D(1.0f / HZBUvFactor.X, 1.0f / HZBUvFactor.Y) * FVector2D(2.0f, -2.0f) * FVector2D(ScreenPositionScaleBias.X, ScreenPositionScaleBias.Y);
 			const FVector2D HZBUVToScreenUVBias = FVector2D(-1.0f, 1.0f) * FVector2D(ScreenPositionScaleBias.X, ScreenPositionScaleBias.Y) + FVector2D(ScreenPositionScaleBias.W, ScreenPositionScaleBias.Z);
 			PassParameters->HZBUVToScreenUVScaleBias = FVector4(HZBUVToScreenUVScale, HZBUVToScreenUVBias);
@@ -567,7 +567,7 @@ void TraceScreenProbes(
 
 		checkf(View.ClosestHZB, TEXT("Lumen screen tracing: ClosestHZB was not setup, should have been setup by FDeferredShadingSceneRenderer::RenderHzb"));
 		PassParameters->ClosestHZBTexture = GraphBuilder.RegisterExternalTexture(View.ClosestHZB, TEXT("ClosestHZB"));
-		PassParameters->SceneDepthTexture = SceneTextures.SceneDepthBuffer;
+		PassParameters->SceneDepthTexture = SceneTextures.SceneDepthTexture;
 		PassParameters->HZBBaseTexelSize = FVector2D(1.0f / View.ClosestHZB->GetDesc().Extent.X, 1.0f / View.ClosestHZB->GetDesc().Extent.Y);
 		PassParameters->MaxHierarchicalScreenTraceIterations = GLumenScreenProbeGatherHierarchicalScreenTracesMaxIterations;
 		PassParameters->UncertainTraceRelativeDepthThreshold = GLumenScreenProbeGatherUncertainTraceRelativeDepthThreshold;
@@ -638,7 +638,7 @@ void TraceScreenProbes(
 				PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
 				PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 				PassParameters->IndirectTracingParameters = IndirectTracingParameters;
-				PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBufferSingleDraw(GraphBuilder.RHICmdList, ESceneTextureSetupMode::All, View.FeatureLevel);
+				PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder.RHICmdList, View.FeatureLevel);
 				PassParameters->CompactedTraceParameters = CompactedTraceParameters;
 
 				FScreenProbeTraceCardsCS::FPermutationDomain PermutationVector;
@@ -670,7 +670,7 @@ void TraceScreenProbes(
 		GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 		PassParameters->IndirectTracingParameters = IndirectTracingParameters;
-		PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBufferSingleDraw(GraphBuilder.RHICmdList, ESceneTextureSetupMode::All, View.FeatureLevel);
+		PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder.RHICmdList, View.FeatureLevel);
 		PassParameters->CompactedTraceParameters = CompactedTraceParameters;
 
 		const bool bRadianceCache = LumenScreenProbeGather::UseRadianceCache(View);

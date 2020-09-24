@@ -22,7 +22,7 @@ public:
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Input)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutputTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptation)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptationTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, InputSampler)
 		SHADER_PARAMETER(FVector2D, DispatchThreadToInputUVScale)
 		SHADER_PARAMETER(FVector2D, DispatchThreadToInputUVBias)
@@ -37,13 +37,11 @@ FRDGTextureRef ComputeMitchellNetravaliDownsample(
 	FScreenPassTexture Input,
 	const FScreenPassTextureViewport OutputViewport)
 {
-	const FRDGTextureDesc OutputTextureDesc = FRDGTextureDesc::Create2DDesc(
+	const FRDGTextureDesc OutputTextureDesc = FRDGTextureDesc::Create2D(
 		OutputViewport.Extent,
 		PF_FloatRGBA,
 		FClearValueBinding::Black,
-		TexCreate_None,
-		TexCreate_ShaderResource | TexCreate_UAV,
-		false);
+		TexCreate_ShaderResource | TexCreate_UAV);
 
 	FRDGTextureRef OutputTexture = GraphBuilder.CreateTexture(OutputTextureDesc, TEXT("MitchelNetravaliDownsampleOutput"));
 
@@ -53,7 +51,7 @@ FRDGTextureRef ComputeMitchellNetravaliDownsample(
 	PassParameters->InputTexture = Input.Texture;
 	PassParameters->InputSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	PassParameters->OutputTexture = GraphBuilder.CreateUAV(OutputTexture);
-	PassParameters->EyeAdaptation = GetEyeAdaptationTexture(GraphBuilder, View);
+	PassParameters->EyeAdaptationTexture = GetEyeAdaptationTexture(GraphBuilder, View);
 
 	// Scale / Bias factor to map the dispatch thread id to the input texture UV.
 	PassParameters->DispatchThreadToInputUVScale.X = Input.ViewRect.Width()  / float(OutputViewport.Rect.Width()  * Input.Texture->Desc.Extent.X);

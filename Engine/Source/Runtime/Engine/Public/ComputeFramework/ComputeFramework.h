@@ -2,15 +2,19 @@
 
 #pragma once
 
+#include "RHIDefinitions.h"
+#include "Shader.h"
+#include "Templates/RefCounting.h"
+
 class FComputeKernelShader;
 
 extern ENGINE_API bool SupportsComputeFramework(ERHIFeatureLevel::Type FeatureLevel, EShaderPlatform ShaderPlatform);
 
-struct FPooledRDGBuffer;
+class FRDGPooledBuffer;
 struct FComputeExecutionExternalBufferDesc
 {
 	FName Name;
-	TRefCountPtr<FPooledRDGBuffer> Buffer;
+	TRefCountPtr<FRDGPooledBuffer> Buffer;
 };
 
 enum class EComputeExecutionBufferType

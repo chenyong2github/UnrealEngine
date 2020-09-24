@@ -186,7 +186,18 @@ void FAbcPolyMesh::SetFrameAndTime(const float InTime, const int32 FrameIndex, c
 			}
 			else
 			{
-				AbcImporterUtilities::GenerateSmoothingGroupsIndices(WriteSample, File->GetImportSettings()->NormalGenerationSettings.HardEdgeAngleThreshold);
+				// Check the user-configurable setting for smoothing group generation
+				if (!File->GetImportSettings()->NormalGenerationSettings.bForceOneSmoothingGroupPerObject)
+				{
+					AbcImporterUtilities::GenerateSmoothingGroupsIndices(WriteSample, File->GetImportSettings()->NormalGenerationSettings.HardEdgeAngleThreshold);
+				}
+				else
+				{
+					const int32 NumFaces = WriteSample->Indices.Num() / 3;
+					WriteSample->SmoothingGroupIndices.Empty(NumFaces);
+					WriteSample->SmoothingGroupIndices.AddZeroed(NumFaces);
+					WriteSample->NumSmoothingGroups = 1;
+				}
 			}
 
 			AbcImporterUtilities::ComputeTangents(WriteSample, File->GetImportSettings()->NormalGenerationSettings.bIgnoreDegenerateTriangles, *File->GetMeshUtilities());
@@ -335,49 +346,7 @@ void FAbcMeshSample::Reset(const ESampleReadFlags ReadFlags)
 
 void FAbcMeshSample::Copy(const FAbcMeshSample& InSample, const ESampleReadFlags ReadFlags)
 {
-	Reset(ReadFlags);
-
-	if (!EnumHasAnyFlags(ReadFlags, ESampleReadFlags::Positions))
-	{
-		Vertices = InSample.Vertices;
-	}
-	
-	if (!EnumHasAnyFlags(ReadFlags, ESampleReadFlags::Indices))
-	{
-		Indices = InSample.Indices;
-	}
-
-	if (!EnumHasAnyFlags(ReadFlags, ESampleReadFlags::Normals))
-	{
-		Normals = InSample.Normals;
-		TangentX = InSample.TangentX;
-		TangentY = InSample.TangentY;
-		
-		SmoothingGroupIndices = InSample.SmoothingGroupIndices;
-		NumSmoothingGroups = InSample.NumSmoothingGroups;
-	}
-
-	if (!EnumHasAnyFlags(ReadFlags, ESampleReadFlags::UVs))
-	{
-		for (uint32 UVIndex = 0; UVIndex < InSample.NumUVSets; ++UVIndex)
-		{
-			UVs[UVIndex] = InSample.UVs[UVIndex];
-		}
-		NumUVSets = InSample.NumUVSets;
-	}
-
-	if (!EnumHasAnyFlags(ReadFlags, ESampleReadFlags::Colors))
-	{
-		Colors = InSample.Colors;
-	}
-
-	if (!EnumHasAnyFlags(ReadFlags, ESampleReadFlags::MaterialIndices))
-	{
-		MaterialIndices = InSample.MaterialIndices;
-		NumMaterials = InSample.NumMaterials;
-	}
-	
-	SampleTime = InSample.SampleTime;	
+	Copy(&InSample, ReadFlags);
 }
 
 void FAbcMeshSample::Copy(const FAbcMeshSample* InSample, const ESampleReadFlags ReadFlags)

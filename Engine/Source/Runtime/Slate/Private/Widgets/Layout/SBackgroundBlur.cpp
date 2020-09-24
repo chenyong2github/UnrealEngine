@@ -12,14 +12,7 @@ static FAutoConsoleVariableRef CVarSlateMaxKernelSize(TEXT("Slate.BackgroundBlur
 static int32 bDownsampleForBlur = 1;
 static FAutoConsoleVariableRef CVarDownsampleForBlur(TEXT("Slate.BackgroundBlurDownsample"), bDownsampleForBlur, TEXT(""), ECVF_Cheat);
 
-#if PLATFORM_ANDROID
-// This feature has not been tested on es2 and will likely not work so we force low quality fallback mode
-static int32 bForceLowQualityBrushFallback = 1;
-#else
 static int32 bForceLowQualityBrushFallback = 0;
-#endif
-
-
 static FAutoConsoleVariableRef CVarForceLowQualityBackgroundBlurOverride(TEXT("Slate.ForceBackgroundBlurLowQualityOverride"), bForceLowQualityBrushFallback, TEXT("Whether or not to force a slate brush to be used instead of actually blurring the background"), ECVF_Scalability);
 
 
@@ -111,15 +104,17 @@ void SBackgroundBlur::SetPadding(const TAttribute<FMargin>& InPadding)
 
 bool SBackgroundBlur::IsUsingLowQualityFallbackBrush() const
 {
-	return bForceLowQualityBrushFallback == 1;
+	return bForceLowQualityBrushFallback == 1 || !FPlatformMisc::SupportsBackbufferSampling();
 }
 
 int32 SBackgroundBlur::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
+	const bool bUsingLowQualityFallbackBrush = IsUsingLowQualityFallbackBrush();
+
 	int32 PostFXLayerId = LayerId;
 	if (bAllowBackgroundBlur && AllottedGeometry.GetLocalSize() > FVector2D::ZeroVector)
 	{
-		if (!bForceLowQualityBrushFallback)
+		if (!bUsingLowQualityFallbackBrush)
 		{
 			// Modulate blur strength by the widget alpha
 			const float Strength = BlurStrength.Get() * (bApplyAlphaToBlur ? InWidgetStyle.GetColorAndOpacityTint().A : 1.f);
@@ -156,7 +151,7 @@ int32 SBackgroundBlur::OnPaint(const FPaintArgs& Args, const FGeometry& Allotted
 				++PostFXLayerId;
 			}
 		}
-		else if (bAllowBackgroundBlur && bForceLowQualityBrushFallback && LowQualityFallbackBrush && LowQualityFallbackBrush->DrawAs != ESlateBrushDrawType::NoDrawType)
+		else if (bAllowBackgroundBlur && bUsingLowQualityFallbackBrush && LowQualityFallbackBrush && LowQualityFallbackBrush->DrawAs != ESlateBrushDrawType::NoDrawType)
 		{
 			const bool bIsEnabled = ShouldBeEnabled(bParentEnabled);
 			const ESlateDrawEffect DrawEffects = bIsEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;

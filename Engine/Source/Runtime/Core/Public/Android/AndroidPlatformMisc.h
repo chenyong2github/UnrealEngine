@@ -167,6 +167,11 @@ public:
 	static bool FileExistsInPlatformPackage(const FString& RelativePath);
 
 	// ANDROID ONLY:
+
+	// called when OS (via JNI) reports memory trouble, triggers MemoryWarningHandler callback on game thread if set.
+	enum class EOSMemoryStatusCategory { OSTrim, MemoryAdvisor };
+	static void UpdateOSMemoryStatus(EOSMemoryStatusCategory OSMemoryStatusCategory, int value);
+
 	static void SetVersionInfo(FString AndroidVersion, FString DeviceMake, FString DeviceModel, FString DeviceBuildNumber, FString OSLanguage);
 	static const FString GetAndroidVersion();
 	static const FString GetDeviceMake();
@@ -293,6 +298,12 @@ public:
 	 * Returns whether or not a 16 bit index buffer should be promoted to 32 bit on load, needed for some Android devices
 	 */
 	static bool Expand16BitIndicesTo32BitOnLoad();
+
+	static bool SupportsBackbufferSampling();
+
+	static void SetMemoryWarningHandler(void (*Handler)(const FGenericMemoryWarningContext& Context));
+	static bool HasMemoryWarningHandler();
+
 private:
 	static const ANSICHAR* CodeToString(int Signal, int si_code);
 	static EDeviceScreenOrientation DeviceOrientation;

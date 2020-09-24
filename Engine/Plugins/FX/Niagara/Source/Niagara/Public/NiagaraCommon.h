@@ -4,10 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "Engine/EngineBaseTypes.h"
+#include "Engine/TextureRenderTarget2D.h"
 #include "UObject/ObjectMacros.h"
 #include "NiagaraTypes.h"
-#include "UObject/SoftObjectPath.h"
-#include "RHI.h"
+#include "Engine/BlueprintGeneratedClass.h"
 #include "NiagaraCore.h"
 #include "UObject/ObjectKey.h"
 #include "UObject/WeakFieldPtr.h"
@@ -60,6 +60,20 @@ enum ENiagaraBaseTypes
 	NBT_Max,
 };
 
+/** Niagara supported buffer formats on the GPU. */
+UENUM()
+enum class ENiagaraGpuBufferFormat : uint8
+{
+	/** 32-bit per channel floating point, range [-3.402823 x 10^38, 3.402823 x 10^38] */
+	Float,
+	/** 16-bit per channel floating point, range [-65504, 65504] */
+	HalfFloat,
+	/** 8-bit per channel fixed point, range [0, 1]. */
+	UnsignedNormalizedByte,
+
+	Max UMETA(Hidden),
+};
+
 // TODO: Custom will eventually mean that the default value or binding will be overridden by a subgraph default, i.e. expose it to a "Initialize variable" node. 
 // TODO: Should we add an "Uninitialized" entry, or is that too much friction? 
 UENUM()
@@ -95,6 +109,19 @@ enum class ENiagaraAgeUpdateMode : uint8
 	DesiredAgeNoSeek
 };
 
+UENUM()
+enum class ENiagaraStatEvaluationType : uint8
+{
+	Average,
+    Maximum,
+};
+
+UENUM()
+enum class ENiagaraStatDisplayMode : uint8
+{
+	Percent,
+    Absolute,
+};
 
 UENUM()
 enum class ENiagaraDataSetType : uint8
@@ -285,9 +312,20 @@ struct NIAGARA_API FNiagaraFunctionSignature
 	UPROPERTY()
 	uint32 bWriteFunction : 1;
 
+	/** Whether or not this function should show up in normal usage. */
+	UPROPERTY()
+	uint32 bSoftDeprecatedFunction : 1;
+
 	/** Bitmask for which scripts are supported for this function. Use UNiagaraScript::MakeSupportedUsageContextBitmask to make the bitmask. */
 	UPROPERTY(meta = (Bitmask, BitmaskEnum = ENiagaraScriptUsage))
 	int32 ModuleUsageBitmask;
+
+	/** When using simulation stages and bRequiresContext is true this will be the index of the stage that is associated with the function. */
+	UPROPERTY()
+	int32 ContextStageMinIndex;
+
+	UPROPERTY()
+	int32 ContextStageMaxIndex;
 
 	/** Function specifiers verified at bind time. */
 	UPROPERTY()
@@ -307,7 +345,10 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, bSupportsCPU(true)
 		, bSupportsGPU(true)
 		, bWriteFunction(false)
+		, bSoftDeprecatedFunction(false)
 		, ModuleUsageBitmask(0)
+		, ContextStageMinIndex(INDEX_NONE)
+		, ContextStageMaxIndex(INDEX_NONE)
 	{
 	}
 
@@ -322,7 +363,10 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, bSupportsCPU(true)
 		, bSupportsGPU(true)
 		, bWriteFunction(false)
+		, bSoftDeprecatedFunction(false)
 		, ModuleUsageBitmask(0)
+		, ContextStageMinIndex(INDEX_NONE)
+		, ContextStageMaxIndex(INDEX_NONE)
 	{
 
 	}
@@ -338,7 +382,10 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, bSupportsCPU(true)
 		, bSupportsGPU(true)
 		, bWriteFunction(false)
+		, bSoftDeprecatedFunction(false)
 		, ModuleUsageBitmask(0)
+		, ContextStageMinIndex(INDEX_NONE)
+		, ContextStageMaxIndex(INDEX_NONE)
 		, FunctionSpecifiers(InFunctionSpecifiers)
 	{
 
@@ -373,6 +420,8 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		bMatches &= bRequiresExecPin == Other.bRequiresExecPin;
 		bMatches &= bMemberFunction == Other.bMemberFunction;
 		bMatches &= OwnerName == Other.OwnerName;
+		bMatches &= ContextStageMinIndex == Other.ContextStageMinIndex;
+		bMatches &= ContextStageMaxIndex == Other.ContextStageMaxIndex;
 		return bMatches;
 	}
 
@@ -574,11 +623,11 @@ struct NIAGARA_API FNiagaraSystemUpdateContext
 	FNiagaraSystemUpdateContext(const UNiagaraSystem* System, bool bReInit, bool bInDestroyOnAdd = false, bool bInOnlyActive = false) :bDestroyOnAdd(bInDestroyOnAdd), bOnlyActive(bInOnlyActive) { Add(System, bReInit); }
 #if WITH_EDITORONLY_DATA
 	FNiagaraSystemUpdateContext(const UNiagaraEmitter* Emitter, bool bReInit, bool bInDestroyOnAdd = false, bool bInOnlyActive = false) :bDestroyOnAdd(bInDestroyOnAdd), bOnlyActive(bInOnlyActive)  { Add(Emitter, bReInit); }
-	FNiagaraSystemUpdateContext(const UNiagaraScript* Script, bool bReInit, bool bInDestroyOnAdd = false, bool bInOnlyActive = false) :bDestroyOnAdd(bInDestroyOnAdd), bOnlyActive(bInOnlyActive)  { Add(Script, bReInit); }
-	//FNiagaraSystemUpdateContext(UNiagaraDataInterface* Interface, bool bReinit) : Add(Interface, bReinit) {}
+	FNiagaraSystemUpdateContext(const UNiagaraScript* Script, bool bReInit, bool bInDestroyOnAdd = false, bool bInOnlyActive = false) :bDestroyOnAdd(bInDestroyOnAdd), bOnlyActive(bInOnlyActive)  { Add(Script, bReInit); }	
 	FNiagaraSystemUpdateContext(const UNiagaraParameterCollection* Collection, bool bReInit, bool bInDestroyOnAdd = false, bool bInOnlyActive = false) :bDestroyOnAdd(bInDestroyOnAdd), bOnlyActive(bInOnlyActive) { Add(Collection, bReInit); }
 #endif
-	FNiagaraSystemUpdateContext():bDestroyOnAdd(false), bOnlyActive(false){ }
+	FNiagaraSystemUpdateContext() :bDestroyOnAdd(false), bOnlyActive(false) { }
+	FNiagaraSystemUpdateContext(FNiagaraSystemUpdateContext& Other) = delete;
 
 	~FNiagaraSystemUpdateContext();
 
@@ -589,7 +638,6 @@ struct NIAGARA_API FNiagaraSystemUpdateContext
 #if WITH_EDITORONLY_DATA
 	void Add(const UNiagaraEmitter* Emitter, bool bReInit);
 	void Add(const UNiagaraScript* Script, bool bReInit);
-	//void Add(UNiagaraDataInterface* Interface, bool bReinit);
 	void Add(const UNiagaraParameterCollection* Collection, bool bReInit);
 #endif
 
@@ -601,12 +649,13 @@ struct NIAGARA_API FNiagaraSystemUpdateContext
 
 private:
 	void AddInternal(class UNiagaraComponent* Comp, bool bReInit);
-	FNiagaraSystemUpdateContext(FNiagaraSystemUpdateContext& Other) :bDestroyOnAdd(false) { }
 
 	UPROPERTY(transient)
 	TArray<UNiagaraComponent*> ComponentsToReset;
 	UPROPERTY(transient)
 	TArray<UNiagaraComponent*> ComponentsToReInit;
+	UPROPERTY(transient)
+	TArray<UNiagaraComponent*> ComponentsToNotifySimDestroy;
 	UPROPERTY(transient)
 	TArray<UNiagaraSystem*> SystemSimsToDestroy;
 
@@ -654,6 +703,7 @@ struct FNiagaraComponentUpdateTask
 
 struct FNiagaraComponentRenderPool
 {
+	TWeakObjectPtr<AActor> OwnerActor;
 	TMap<TObjectKey<USceneComponent>, TArray<FNiagaraComponentRenderPoolEntry>> PoolsByTemplate;
 };
 
@@ -766,6 +816,45 @@ enum ENiagaraBindingSource
 	MaxBindingSource
 };
 
+#if STATS
+
+template<typename ElementType> class TSimpleRingBuffer;
+
+struct FStatExecutionTimer
+{
+	TSimpleRingBuffer<float>* CapturedTimings;
+
+	FStatExecutionTimer();
+};
+
+/** Combines all stat reporting and evaluation of niagara instances (emitter or system).
+ * This is then used by the SNiagaraStackRowPerfWidget to display the data in the ui.
+ */
+struct NIAGARA_API FNiagaraStatDatabase
+{
+	typedef TTuple<uint64, ENiagaraScriptUsage> FStatReportKey;
+
+	/* Used by emitter and system instances to add the recorded data of a frame to this emitter's data store. */
+	void AddStatCapture(FStatReportKey ReportKey, TMap<TStatIdData const*, float> CapturedData);
+
+	/* Removes all captured stats. */
+	void ClearStatCaptures();
+
+	/* Returns the average runtime cost of a specific module call inside the script for the given usage. Returns 0 if no data was found. */
+	float GetRuntimeStat(FName StatName, ENiagaraScriptUsage Usage, ENiagaraStatEvaluationType EvaluationType);
+
+	/* Returns the average runtime cost of a script for the given usage. Returns 0 if no data was recorded for that usage. */
+	float GetRuntimeStat(ENiagaraScriptUsage Usage, ENiagaraStatEvaluationType EvaluationType);
+
+	/* Returns the names of all captures stat data points. Useful for debugging and to dump the stat data. */
+	TMap<ENiagaraScriptUsage, TSet<FName>> GetAvailableStatNames();
+
+private:
+	/** The captured runtime stat data. The first key is a combination of reporter handle and script usage, the second key is the stat id which correlates to a single recorded scope. */
+	TMap<FStatReportKey, TMap<TStatIdData const*, FStatExecutionTimer>> StatCaptures;
+	FCriticalSection CriticalSection;
+};
+#endif
 
 /** Defines all you need to know about a variable.*/
 USTRUCT()
@@ -807,6 +896,8 @@ struct FNiagaraVariableAttributeBinding
 	bool NIAGARA_API CanBindToHostParameterMap() const { return bBindingExistsOnSource && !bIsCachedParticleValue; }
 	void NIAGARA_API SetValue(const FName& InValue, const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode);
 	void NIAGARA_API CacheValues(const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode);
+	bool NIAGARA_API RenameVariableIfMatching(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode);
+	bool NIAGARA_API Matches(const FNiagaraVariableBase& OldVariable, const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode);
 
 #if WITH_EDITORONLY_DATA
 	NIAGARA_API const FName& GetName(ENiagaraRendererSourceDataMode InSourceMode) const;
@@ -885,6 +976,9 @@ struct FNiagaraMaterialAttributeBinding
 
 	void NIAGARA_API CacheValues(const UNiagaraEmitter* InEmitter); 
 	const FNiagaraVariableBase& GetParamMapBindableVariable() const;
+
+	bool NIAGARA_API RenameVariableIfMatching(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode);
+	bool NIAGARA_API Matches(const FNiagaraVariableBase& OldVariable, const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode);
 };
 
 USTRUCT()
@@ -962,6 +1056,9 @@ namespace FNiagaraUtilities
 
 	// Whether compute shaders are allowed. Could change depending on config and runtime switches.
 	bool AllowComputeShaders(EShaderPlatform ShaderPlatform);
+
+	ENiagaraCompileUsageStaticSwitch NIAGARA_API ConvertScriptUsageToStaticSwitchUsage(ENiagaraScriptUsage ScriptUsage);
+	ENiagaraScriptContextStaticSwitch NIAGARA_API ConvertScriptUsageToStaticSwitchContext(ENiagaraScriptUsage ScriptUsage);
 	
 #if WITH_EDITORONLY_DATA
 	/**
@@ -979,6 +1076,12 @@ namespace FNiagaraUtilities
 	void NIAGARA_API DumpHLSLText(const FString& SourceCode, const FString& DebugName);
 
 	NIAGARA_API FString SystemInstanceIDToString(FNiagaraSystemInstanceID ID);
+
+	/** Converts a Niagara format into a EPixelFormat */
+	NIAGARA_API EPixelFormat BufferFormatToPixelFormat(ENiagaraGpuBufferFormat NiagaraFormat);
+
+	/** Converts a Niagara format into a ETextureRenderTargetFormat */
+	NIAGARA_API ETextureRenderTargetFormat BufferFormatToRenderTargetFormat(ENiagaraGpuBufferFormat NiagaraFormat);
 };
 
 USTRUCT()

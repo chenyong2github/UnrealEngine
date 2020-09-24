@@ -5,7 +5,6 @@
 #include "IPlacementModeModule.h"
 #include "PropertyEditorModule.h"
 #include "RuntimeVirtualTextureAssetTypeActions.h"
-#include "RuntimeVirtualTextureBuildMinMaxHeight.h"
 #include "RuntimeVirtualTextureBuildStreamingMips.h"
 #include "RuntimeVirtualTextureDetailsCustomization.h"
 #include "RuntimeVirtualTextureThumbnailRenderer.h"
@@ -31,8 +30,6 @@ public:
 	//~ Begin IVirtualTexturingEditorModule Interface.
 	virtual bool HasStreamedMips(URuntimeVirtualTextureComponent* InComponent) const override;
 	virtual bool BuildStreamedMips(URuntimeVirtualTextureComponent* InComponent) const override;
-	virtual bool HasMinMaxHeightTexture(URuntimeVirtualTextureComponent* InComponent) const override;
-	virtual bool BuildMinMaxHeightTexture(URuntimeVirtualTextureComponent* InComponent) const override;
 	//~ End IVirtualTexturingEditorModule Interface.
 
 private:
@@ -89,16 +86,6 @@ bool FVirtualTexturingEditorModule::HasStreamedMips(URuntimeVirtualTextureCompon
 bool FVirtualTexturingEditorModule::BuildStreamedMips(URuntimeVirtualTextureComponent* InComponent) const
 {
 	return RuntimeVirtualTexture::BuildStreamedMips(InComponent, ERuntimeVirtualTextureDebugType::None);
-}
-
-bool FVirtualTexturingEditorModule::HasMinMaxHeightTexture(URuntimeVirtualTextureComponent* InComponent) const
-{
-	return RuntimeVirtualTexture::HasMinMaxHeightTexture(InComponent);
-}
-
-bool FVirtualTexturingEditorModule::BuildMinMaxHeightTexture(URuntimeVirtualTextureComponent* InComponent) const
-{
-	return RuntimeVirtualTexture::BuildMinMaxHeightTexture(InComponent);
 }
 
 #undef LOCTEXT_NAMESPACE

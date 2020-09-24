@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VirtualCameraSubsystem.h"
-
 #include "LevelSequencePlaybackController.h"
-#include "UObject/Script.h"
-#include "VirtualCameraUserSettings.h"
+
 
 UVirtualCameraSubsystem::UVirtualCameraSubsystem()
 	: bIsStreaming(false)
@@ -68,9 +66,4 @@ void UVirtualCameraSubsystem::SetVirtualCameraController(TScriptInterface<IVirtu
 {
 	ActiveCameraController = VirtualCamera;
 	//todo deactive the last current, initialize the new active, call back
-}
-
-UVirtualCameraUserSettings* UVirtualCameraSubsystem::GetUserSettings()
-{ 
-	return GetMutableDefault<UVirtualCameraUserSettings>(); 
 }

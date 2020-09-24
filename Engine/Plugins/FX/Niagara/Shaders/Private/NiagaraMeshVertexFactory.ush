@@ -218,6 +218,9 @@ struct FVertexFactoryIntermediates
 	float4x4 PrevParticleToWorld;
 
 	float4x4 WorldToParticle;
+	
+	/** The instance ID when unsorted/culled, otherwise is an index buffer indirection */
+	uint SortedInstanceId;
 };
 
 float4x4 GetParticleTransform(FVertexFactoryIntermediates Inters)
@@ -238,7 +241,7 @@ float4x4 GetParticleInvTransform(FVertexFactoryIntermediates Inters)
 float4x4 GetParticlePrevTransform(FVertexFactoryIntermediates Inters)
 {
 #if USE_PREVIOUS_TRANSFORM
-	uint TransformBaseIdx = Input.InstanceId * 3;
+	uint TransformBaseIdx = Inters.SortedInstanceId * 3;
 
 	float4x4 PrevTransform4x4 = float4x4(
 		PrevTransformBuffer[TransformBaseIdx + 0],
@@ -620,9 +623,11 @@ float3 CalculateCameraOffset(float3 WorldPosition, uint InstanceId)
 	return CameraDir * Offset;
 }
 
-void CalculateTransforms(int InstanceId, in FVertexFactoryIntermediates Intermediates, out float4x4 LocalToWorld,
+void CalculateTransforms(in FVertexFactoryIntermediates Intermediates, out float4x4 LocalToWorld,
 	out float4x4 LocalToWorldNoScale, out float4x4 WorldToLocal)
 {
+	int InstanceId = Intermediates.SortedInstanceId;
+	
 	////////////////////////////////////////////////////////////////////////////////
 	// Translation
 	float3 WorldParticlePosition = float3(0.0f, 0.0f, 0.0f);
@@ -682,10 +687,12 @@ void CalculateTransforms(int InstanceId, in FVertexFactoryIntermediates Intermed
 FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
 {
 	FVertexFactoryIntermediates Intermediates = (FVertexFactoryIntermediates)0;
+	Input.InstanceId = GetInstanceId(Input.InstanceId);
 
+	Intermediates.SortedInstanceId = GetInstanceId(Input.InstanceId); // NOTE: Handles instanced stereo		
 	if (SortedIndicesOffset != 0xFFFFFFFF)
 	{
-		Input.InstanceId = SortedIndices[SortedIndicesOffset + Input.InstanceId];
+		Intermediates.SortedInstanceId = SortedIndices[SortedIndicesOffset + Intermediates.SortedInstanceId];
 	}
 
 	if (NiagaraMeshVF.ColorDataOffset == -1)
@@ -694,13 +701,13 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	}
 	else
 	{
-		Intermediates.ParticleColor = GetVec4(NiagaraMeshVF.ColorDataOffset, Input.InstanceId);
+		Intermediates.ParticleColor = GetVec4(NiagaraMeshVF.ColorDataOffset, Intermediates.SortedInstanceId);
 	}
 
 	float3 ParticleVelocity = (float3)0.0f;
 	if (NiagaraMeshVF.VelocityDataOffset != -1)
 	{
-		ParticleVelocity = float3(GetVec3(NiagaraMeshVF.VelocityDataOffset, Input.InstanceId));
+		ParticleVelocity = float3(GetVec3(NiagaraMeshVF.VelocityDataOffset, Intermediates.SortedInstanceId));
 	}
 
 	// Calculate the particle velocity (NOTE: always do this regardless of NEEDS_PARTICLE_VELOCITY because of velocity facing particles)
@@ -715,7 +722,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	}
 	else
 	{
-		Intermediates.DynamicParameter = GetVec4(NiagaraMeshVF.MaterialParamDataOffset, Input.InstanceId);
+		Intermediates.DynamicParameter = GetVec4(NiagaraMeshVF.MaterialParamDataOffset, Intermediates.SortedInstanceId);
 	}
 #endif
 #if (DYNAMIC_PARAMETERS_MASK & 2)
@@ -725,7 +732,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	}	
 	else
 	{
-		Intermediates.DynamicParameter1 = GetVec4(NiagaraMeshVF.MaterialParam1DataOffset, Input.InstanceId);
+		Intermediates.DynamicParameter1 = GetVec4(NiagaraMeshVF.MaterialParam1DataOffset, Intermediates.SortedInstanceId);
 	}
 #endif
 #if (DYNAMIC_PARAMETERS_MASK & 4)
@@ -735,7 +742,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	}
 	else
 	{
-		Intermediates.DynamicParameter2 = GetVec4(NiagaraMeshVF.MaterialParam2DataOffset, Input.InstanceId);
+		Intermediates.DynamicParameter2 = GetVec4(NiagaraMeshVF.MaterialParam2DataOffset, Intermediates.SortedInstanceId);
 	}
 #endif
 #if (DYNAMIC_PARAMETERS_MASK & 8)
@@ -745,7 +752,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	}
 	else
 	{
-		Intermediates.DynamicParameter3 = GetVec4(NiagaraMeshVF.MaterialParam3DataOffset, Input.InstanceId);
+		Intermediates.DynamicParameter3 = GetVec4(NiagaraMeshVF.MaterialParam3DataOffset, Intermediates.SortedInstanceId);
 	}
 #endif
 
@@ -756,7 +763,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	}
 	else
 	{
-		Intermediates.RelativeTime = GetFloat(NiagaraMeshVF.NormalizedAgeDataOffset, Input.InstanceId);
+		Intermediates.RelativeTime = GetFloat(NiagaraMeshVF.NormalizedAgeDataOffset, Intermediates.SortedInstanceId);
 	}
 #endif
 
@@ -767,7 +774,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	}
 	else
 	{
-		Intermediates.ParticleRandom = GetFloat(NiagaraMeshVF.MaterialRandomDataOffset, Input.InstanceId);
+		Intermediates.ParticleRandom = GetFloat(NiagaraMeshVF.MaterialRandomDataOffset, Intermediates.SortedInstanceId);
 	}
 #endif	
 
@@ -778,7 +785,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	float4x4 ParticleToWorldNoScale;
 	float4x4 WorldToParticle;
 	
-	CalculateTransforms(Input.InstanceId, Intermediates, ParticleToWorld, ParticleToWorldNoScale, WorldToParticle);
+	CalculateTransforms(Intermediates, ParticleToWorld, ParticleToWorldNoScale, WorldToParticle);
 
 	//-TODO: If / when we store previous transform data use them here (providing they are in local space, if not handle below)
 	//if (MeshParticleVF.PrevTransformAvailable > 0)
@@ -836,7 +843,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	else
 	{
 		// SubUV.
-		float SubImageIndex = GetFloat(NiagaraMeshVF.SubImageDataOffset, Input.InstanceId);
+		float SubImageIndex = GetFloat(NiagaraMeshVF.SubImageDataOffset, Intermediates.SortedInstanceId);
 		float SubImageLerp = frac(SubImageIndex);
 		float SubImageA = SubImageIndex - SubImageLerp;
 		float SubImageB = SubImageA + 1;

@@ -11,6 +11,35 @@
 #include "Engine/AssetManagerTypes.h"
 #include "CollectionManagerTypes.h"
 
+/**
+ * AssetRegistry Dependency Category + QueryFlags, to pass around the two enums in a single variable.
+ */
+struct FAssetManagerDependencyQuery
+{
+	UE::AssetRegistry::EDependencyCategory Categories = UE::AssetRegistry::EDependencyCategory::All;
+	UE::AssetRegistry::EDependencyQuery Flags = UE::AssetRegistry::EDependencyQuery::NoRequirements;
+
+	bool IsNone() const
+	{
+		return Categories == UE::AssetRegistry::EDependencyCategory::None;
+	}
+
+	FAssetManagerDependencyQuery() = default;
+	UE_DEPRECATED(4.26, "Helper for backwards compatibility functions")
+	ASSETMANAGEREDITOR_API FAssetManagerDependencyQuery(EAssetRegistryDependencyType::Type DependencyType);
+
+	static FAssetManagerDependencyQuery All()
+	{
+		return FAssetManagerDependencyQuery();
+	}
+	static FAssetManagerDependencyQuery None()
+	{
+		FAssetManagerDependencyQuery Result;
+		Result.Categories = UE::AssetRegistry::EDependencyCategory::None;
+		return Result;
+	}
+};
+
 DECLARE_LOG_CATEGORY_EXTERN(LogAssetManagerEditor, Log, All);
 
 DECLARE_DELEGATE_RetVal(FText, FOnGetPrimaryAssetDisplayText);
@@ -178,8 +207,11 @@ public:
 	/** Returns true if this package exists in the current registry source, optionally setting a redirected package name */
 	virtual bool IsPackageInCurrentRegistrySource(FName PackageName) = 0;
 
+	UE_DEPRECATED(4.26, "Use the version that takes a FAssetManagerDependencyQuery instead")
+	bool FilterAssetIdentifiersForCurrentRegistrySource(TArray<FAssetIdentifier>& AssetIdentifiers, EAssetRegistryDependencyType::Type DependencyType, bool bForwardDependency = true);
+
 	/** Filters list of identifiers and removes ones that do not exist in this registry source. Handles replacing redirectors as well */
-	virtual bool FilterAssetIdentifiersForCurrentRegistrySource(TArray<FAssetIdentifier>& AssetIdentifiers, EAssetRegistryDependencyType::Type DependencyType = EAssetRegistryDependencyType::None, bool bForwardDependency = true) = 0;
+	virtual bool FilterAssetIdentifiersForCurrentRegistrySource(TArray<FAssetIdentifier>& AssetIdentifiers,	const FAssetManagerDependencyQuery& DependencyQuery = FAssetManagerDependencyQuery::None(), bool bForwardDependency = true) = 0;
 
 	/** Creates a collection from a list of packages, will overwrite/modify an existing collection of the same name. Will display feedback to the user if bShowFeedback is true */
 	virtual bool WriteCollection(FName CollectionName, ECollectionShareType::Type ShareType, const TArray<FName>& PackageNames, bool bShowFeedback = true) = 0;

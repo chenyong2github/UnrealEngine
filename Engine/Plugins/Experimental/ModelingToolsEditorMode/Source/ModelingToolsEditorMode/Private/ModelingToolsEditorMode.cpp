@@ -16,6 +16,7 @@
 #include "MeshVertexSculptTool.h"
 #include "EditMeshPolygonsTool.h"
 #include "DeformMeshPolygonsTool.h"
+#include "GroupEdgeInsertionTool.h"
 #include "EdgeLoopInsertionTool.h"
 #include "ConvertToPolygonsTool.h"
 #include "AddPrimitiveTool.h"
@@ -66,11 +67,16 @@
 #include "MeshTangentsTool.h"
 #include "ProjectToTargetTool.h"
 #include "LatticeDeformerTool.h"
+#include "SeamSculptTool.h"
 
 #include "Physics/PhysicsInspectorTool.h"
 #include "Physics/SetCollisionGeometryTool.h"
 #include "Physics/ExtractCollisionGeometryTool.h"
 //#include "Physics/EditCollisionGeometryTool.h"
+
+// hair tools
+#include "Hair/GroomToMeshTool.h"
+#include "GenerateLODMeshesTool.h"
 
 #include "EditorModeManager.h"
 
@@ -605,6 +611,10 @@ void FModelingToolsEditorMode::Enter()
 	RegisterToolFunc(ToolManagerCommands.BeginProjectToTargetTool, TEXT("ProjectToTargetTool"), NewObject<UProjectToTargetToolBuilder>());
 	RegisterToolFunc(ToolManagerCommands.BeginSimplifyMeshTool, TEXT("SimplifyMeshTool"), NewObject<USimplifyMeshToolBuilder>());
 
+	auto GroupEdgeInsertionToolBuilder = NewObject<UGroupEdgeInsertionToolBuilder>();
+	GroupEdgeInsertionToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	RegisterToolFunc(ToolManagerCommands.BeginGroupEdgeInsertionTool, TEXT("GroupEdgeInsertionTool"), GroupEdgeInsertionToolBuilder);
+
 	auto EdgeLoopInsertionToolBuilder = NewObject<UEdgeLoopInsertionToolBuilder>();
 	EdgeLoopInsertionToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
 	RegisterToolFunc(ToolManagerCommands.BeginEdgeLoopInsertionTool, TEXT("EdgeLoopInsertionTool"), EdgeLoopInsertionToolBuilder);
@@ -692,6 +702,8 @@ void FModelingToolsEditorMode::Enter()
 	GroupUVGenerateToolBuilder->bDoAutomaticGlobalUnwrap = false;
 	RegisterToolFunc(ToolManagerCommands.BeginGroupUVGenerateTool, TEXT("GroupParameterizeMeshTool"), GroupUVGenerateToolBuilder);
 
+	RegisterToolFunc(ToolManagerCommands.BeginUVSeamEditTool, TEXT("UVSeamSculptTool"), NewObject< USeamSculptToolBuilder>());
+
 	auto MeshSelectionToolBuilder = NewObject<UMeshSelectionToolBuilder>();
 	MeshSelectionToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	RegisterToolFunc(ToolManagerCommands.BeginMeshSelectionTool, TEXT("MeshSelectionTool"), MeshSelectionToolBuilder);
@@ -723,6 +735,18 @@ void FModelingToolsEditorMode::Enter()
 	auto ExtractCollisionGeoToolBuilder = NewObject<UExtractCollisionGeometryToolBuilder>();
 	ExtractCollisionGeoToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	RegisterToolFunc(ToolManagerCommands.BeginExtractCollisionGeometryTool, TEXT("ExtractCollisionGeoTool"), ExtractCollisionGeoToolBuilder);
+
+
+
+	// (experimental) hair tools
+
+	UGroomToMeshToolBuilder* GroomToMeshToolBuilder = NewObject<UGroomToMeshToolBuilder>();
+	GroomToMeshToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
+	RegisterToolFunc(ToolManagerCommands.BeginGroomToMeshTool, TEXT("GroomToMeshTool"), GroomToMeshToolBuilder);
+
+	UGenerateLODMeshesToolBuilder* GenerateLODMeshesToolBuilder = NewObject<UGenerateLODMeshesToolBuilder>();
+	GenerateLODMeshesToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
+	RegisterToolFunc(ToolManagerCommands.BeginGenerateLODMeshesTool, TEXT("GenerateLODMeshesTool"), GenerateLODMeshesToolBuilder);
 
 
 
@@ -858,7 +882,7 @@ void FModelingToolsEditorMode::ConfigureRealTimeViewportsOverride(bool bEnable)
 				}
 				else
 				{
-					Viewport.RemoveRealtimeOverride(SystemDisplayName);
+					Viewport.RemoveRealtimeOverride(SystemDisplayName, false);
 				}
 			}
 		}

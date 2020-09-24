@@ -141,4 +141,6 @@ void FLocalLightSceneProxy::UpdateRadius(float ComponentRadius)
 
 	// Min to avoid div by 0 (NaN in InvRadius)
 	InvRadius = 1.0f / FMath::Max(0.00001f, ComponentRadius);
+
+	bMobileMovablePointLightUniformBufferNeedsUpdate = true;
 }

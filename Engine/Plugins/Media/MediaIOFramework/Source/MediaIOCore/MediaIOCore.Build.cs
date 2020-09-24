@@ -28,7 +28,7 @@ namespace UnrealBuildTool.Rules
 			PrivateIncludePaths.AddRange(
 				new string[] {
 				});
-				
+
             PrivateDependencyModuleNames.AddRange(
                 new string[]
                 {
@@ -39,6 +39,7 @@ namespace UnrealBuildTool.Rules
 			{
 				PrivateDependencyModuleNames.Add("EditorFramework");
 				PrivateDependencyModuleNames.Add("UnrealEd");
+				PrivateDependencyModuleNames.Add("LevelEditor");
 			}
 		}
 	}

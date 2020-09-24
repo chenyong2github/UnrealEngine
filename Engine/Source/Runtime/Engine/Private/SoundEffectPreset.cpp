@@ -6,6 +6,8 @@
 #include "Engine/Engine.h"
 #include "AudioDeviceManager.h"
 #include "CoreGlobals.h"
+#include "Audio.h"
+#include "Async/TaskGraphInterfaces.h" //< Used for FORT-309671. Can be removed when task graph thread info is no longer used for debugging.
 
 USoundEffectPreset::USoundEffectPreset(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -105,3 +107,52 @@ void USoundEffectSourcePresetChain::AddReferencedEffects(FReferenceCollector& Co
 		}
 	}
 }
+
+void USoundEffectPreset::UnregisterInstance(TSoundEffectPtr InEffectPtr)
+{
+	if (ensure(IsInAudioThread()))
+	{
+		if (InEffectPtr.IsValid())
+		{
+			if (USoundEffectPreset* Preset = InEffectPtr->GetPreset())
+			{
+				Preset->RemoveEffectInstance(InEffectPtr);
+			}
+
+			InEffectPtr->ClearPreset();
+		}
+	}
+	else
+	{
+		// Message added to ensure to get additional debug info - Jira: FORT-309671
+		// Logging instead of using ensureMsgf to get info in shipping builds.  
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		UE_LOG(LogAudio, Error, TEXT("Attempt to unregister sound effect outside of audio thread. Current thread id: %d. Named thread type: %d. Game Thread Id: %d."), FPlatformTLS::GetCurrentThreadId(), FTaskGraphInterface::Get().GetCurrentThreadIfKnown(), GGameThreadId);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+}
+
+void USoundEffectPreset::RegisterInstance(USoundEffectPreset& InPreset, TSoundEffectPtr InEffectPtr)
+{
+	ensure(IsInAudioThread());
+	if (!InEffectPtr.IsValid())
+	{
+		return;
+	}
+
+	if (InEffectPtr->Preset.Get() != &InPreset)
+	{
+		UnregisterInstance(InEffectPtr);
+
+		InEffectPtr->Preset = &InPreset;
+		if (InEffectPtr->Preset.IsValid())
+		{
+			InPreset.AddEffectInstance(InEffectPtr);
+		}
+	}
+
+	// Anytime notification occurs that the preset has been modified,
+	// flag for update.
+	InEffectPtr->bChanged = true;
+}
+

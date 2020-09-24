@@ -142,6 +142,10 @@ private:
 	UNiagaraSystemSelectionViewModel* OverviewSelectionViewModel;
 
 	static const TArray<TArray<ENiagaraParameterPanelCategory>> DefaultCategoryPaths;
+
+	void OnParameterRenamedExternally(const FNiagaraVariableBase& InOldVar, const FNiagaraVariableBase& InNewVar, UNiagaraEmitter* InOptionalEmitter);
+	void OnParameterRemovedExternally(const FNiagaraVariableBase& InOldVar, UNiagaraEmitter* InOptionalEmitter);
+
 };
 
 class FNiagaraScriptToolkitParameterPanelViewModel : public INiagaraParameterPanelViewModel

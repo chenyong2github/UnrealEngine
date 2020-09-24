@@ -8,8 +8,12 @@
 #include "DSP/ReverbFast.h"
 #include "DSP/BufferVectorOperations.h"
 #include "Sound/SoundEffectSubmix.h"
+#include "Stats/Stats.h"
 
 #include "AudioMixerSubmixEffectReverbFast.generated.h"
+
+// The time it takes to process the master reverb.
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Submix Reverb"), STAT_AudioMixerSubmixReverb, STATGROUP_AudioMixer, AUDIOMIXER_API);
 
 struct FAudioEffectParameters;
 

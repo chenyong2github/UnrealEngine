@@ -700,6 +700,7 @@ private:
 
 	void OnVectorParameterDefaultChanged(class UMaterialExpression*, FName ParameterName, const FLinearColor& Value);
 	void OnScalarParameterDefaultChanged(class UMaterialExpression*, FName ParameterName, float Value);
+	void OnParameterDefaultChanged();
 
 	void SetVectorParameterDefaultOnDependentMaterials(FName ParameterName, const FLinearColor& Value, bool bOverride);
 	void SetScalarParameterDefaultOnDependentMaterials(FName ParameterName, float, bool bOverride);

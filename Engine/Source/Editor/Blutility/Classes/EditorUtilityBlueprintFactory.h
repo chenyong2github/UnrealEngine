@@ -15,7 +15,7 @@
 class SWindow;
 
 UCLASS()
-class UEditorUtilityBlueprintFactory : public UFactory
+class BLUTILITY_API UEditorUtilityBlueprintFactory : public UFactory
 {
 	GENERATED_UCLASS_BODY()
 

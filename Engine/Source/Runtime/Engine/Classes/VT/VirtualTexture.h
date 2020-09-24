@@ -43,10 +43,14 @@ class UVirtualTexture2D : public UTexture2D
 	FVirtualTextureBuildSettings Settings;
 
 	UPROPERTY()
+	bool bContinuousUpdate;
+
+	UPROPERTY()
 	bool bSinglePhysicalSpace;
 
 	//~ Begin UTexture Interface.
 	virtual void GetVirtualTextureBuildSettings(FVirtualTextureBuildSettings& OutSettings) const override { OutSettings = Settings; }
+	virtual bool IsVirtualTexturedWithContinuousUpdate() const override { return bContinuousUpdate; }
 	virtual bool IsVirtualTexturedWithSinglePhysicalSpace() const override { return bSinglePhysicalSpace; }
 #if WITH_EDITOR
 	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;

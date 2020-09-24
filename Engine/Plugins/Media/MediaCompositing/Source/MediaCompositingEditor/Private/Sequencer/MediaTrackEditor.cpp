@@ -20,6 +20,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SBox.h"
 #include "Misc/QualifiedFrameTime.h"
+#include "LevelSequence.h"
 
 #include "MediaThumbnailSection.h"
 
@@ -160,7 +161,7 @@ TSharedRef<ISequencerSection> FMediaTrackEditor::MakeSectionInterface(UMovieScen
 
 bool FMediaTrackEditor::SupportsSequence(UMovieSceneSequence* InSequence) const
 {
-	return (InSequence != nullptr) && (InSequence->GetClass()->GetName() == TEXT("LevelSequence"));
+	return InSequence && InSequence->IsA(ULevelSequence::StaticClass());
 }
 
 

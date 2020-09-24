@@ -87,7 +87,11 @@ void UMoviePipelineVideoOutputBase::OnRecieveImageDataImpl(FMoviePipelineMergerO
 
 		FMoviePipelineBackgroundMediaTasks Task;
 		FImagePixelData* RawRenderPassData = RenderPassData.Value.Get();
-		
+
+		// Making sure that if OCIO is enabled the Quantization won't do additional color conversion.
+		UMoviePipelineColorSetting* ColorSetting = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineColorSetting>();
+		OutputWriter->bConvertToSrgb = !(ColorSetting && ColorSetting->OCIOConfiguration.bIsEnabled);
+
 		//FGraphEventRef Event = Task.Execute([this, OutputWriter, RawRenderPassData]
 		//	{
 				// Enqueue a encode for this frame onto our worker thread.

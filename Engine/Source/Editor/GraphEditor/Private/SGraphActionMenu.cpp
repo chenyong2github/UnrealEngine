@@ -354,6 +354,8 @@ public:
 
 //////////////////////////////////////////////////////////////////////////
 
+FString SGraphActionMenu::LastUsedFilterText;
+
 void SGraphActionMenu::Construct( const FArguments& InArgs, bool bIsReadOnly/* = true*/ )
 {
 	this->SelectedSuggestion = INDEX_NONE;
@@ -760,6 +762,9 @@ void SGraphActionMenu::GenerateFilteredItems(bool bPreserveExpansion)
 	
 	// Trim and sanitized the filter text (so that it more likely matches the action descriptions)
 	FString TrimmedFilterString = FText::TrimPrecedingAndTrailing(GetFilterText()).ToString();
+
+	// Remember the last filter string to that external clients can access it
+	LastUsedFilterText = TrimmedFilterString;
 
 	// Tokenize the search box text into a set of terms; all of them must be present to pass the filter
 	TArray<FString> FilterTerms;

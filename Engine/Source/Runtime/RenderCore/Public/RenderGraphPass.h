@@ -2,240 +2,14 @@
 
 #pragma once
 
-#include "RenderGraphDefinitions.h"
 #include "RenderGraphResources.h"
 #include "RenderGraphEvent.h"
-#include "ShaderParameterMacros.h"
 #include "Containers/SortedMap.h"
-
-class FRDGPass;
-class FRDGBuilder;
-
-/** A helper class for identifying and accessing a render graph pass parameter. */
-class FRDGPassParameter final
-{
-public:
-	FRDGPassParameter() = default;
-
-	bool IsResource() const
-	{
-		return !IsRenderTargetBindingSlots();
-	}
-
-	bool IsSRV() const
-	{
-		return MemberType == UBMT_RDG_TEXTURE_SRV || MemberType == UBMT_RDG_BUFFER_SRV;
-	}
-
-	bool IsUAV() const
-	{
-		return MemberType == UBMT_RDG_TEXTURE_UAV || MemberType == UBMT_RDG_BUFFER_UAV;
-	}
-
-	bool IsChildResource() const
-	{
-		return IsSRV() || IsUAV();
-	}
-
-	bool IsTexture() const
-	{
-		return
-			MemberType == UBMT_RDG_TEXTURE ||
-			MemberType == UBMT_RDG_TEXTURE_COPY_DEST;
-	}
-
-	bool IsBuffer() const
-	{
-		return
-			MemberType == UBMT_RDG_BUFFER ||
-			MemberType == UBMT_RDG_BUFFER_COPY_DEST;
-	}
-
-	bool IsParentResource() const
-	{
-		return IsTexture() || IsBuffer();
-	}
-
-	bool IsRenderTargetBindingSlots() const
-	{
-		return MemberType == UBMT_RENDER_TARGET_BINDING_SLOTS;
-	}
-
-	EUniformBufferBaseType GetType() const
-	{
-		return MemberType;
-	}
-
-	FRDGResourceRef GetAsResource() const
-	{
-		check(IsResource());
-		return *GetAs<FRDGResourceRef>();
-	}
-
-	FRDGParentResourceRef GetAsParentResource() const
-	{
-		check(IsParentResource());
-		return *GetAs<FRDGParentResourceRef>();
-	}
-
-	FRDGChildResourceRef GetAsChildResource() const
-	{
-		check(IsChildResource());
-		return *GetAs<FRDGChildResourceRef>();
-	}
-
-	FRDGShaderResourceViewRef GetAsSRV() const
-	{
-		check(IsSRV());
-		return *GetAs<FRDGShaderResourceViewRef>();
-	}
-
-	FRDGUnorderedAccessViewRef GetAsUAV() const
-	{
-		check(IsUAV());
-		return *GetAs<FRDGUnorderedAccessViewRef>();
-	}
-
-	FRDGTextureRef GetAsTexture() const
-	{
-		check(IsTexture());
-		return *GetAs<FRDGTextureRef>();
-	}
-
-	FRDGBufferRef GetAsBuffer() const
-	{
-		check(IsBuffer());
-		return *GetAs<FRDGBufferRef>();
-	}
-
-	FRDGTextureSRVRef GetAsTextureSRV() const
-	{
-		check(MemberType == UBMT_RDG_TEXTURE_SRV);
-		return *GetAs<FRDGTextureSRVRef>();
-	}
-
-	FRDGBufferSRVRef GetAsBufferSRV() const
-	{
-		check(MemberType == UBMT_RDG_BUFFER_SRV);
-		return *GetAs<FRDGBufferSRVRef>();
-	}
-
-	FRDGTextureUAVRef GetAsTextureUAV() const
-	{
-		check(MemberType == UBMT_RDG_TEXTURE_UAV);
-		return *GetAs<FRDGTextureUAVRef>();
-	}
-
-	FRDGBufferUAVRef GetAsBufferUAV() const
-	{
-		check(MemberType == UBMT_RDG_BUFFER_UAV);
-		return *GetAs<FRDGBufferUAVRef>();
-	}
-
-	const FRenderTargetBindingSlots& GetAsRenderTargetBindingSlots() const
-	{
-		check(IsRenderTargetBindingSlots());
-		return *GetAs<FRenderTargetBindingSlots>();
-	}
-
-private:
-	FRDGPassParameter(EUniformBufferBaseType InMemberType, void* InMemberPtr)
-		: MemberType(InMemberType)
-		, MemberPtr(InMemberPtr)
-	{}
-
-	template <typename T>
-	T* GetAs() const
-	{
-		return reinterpret_cast<T*>(MemberPtr);
-	}
-
-	const EUniformBufferBaseType MemberType = UBMT_INVALID;
-	void* const MemberPtr = nullptr;
-
-	friend class FRDGPassParameterStruct;
-};
-
-/** Wraps a pass parameter struct payload and provides helpers for traversing members. */
-class RENDERCORE_API FRDGPassParameterStruct final
-{
-public:
-	explicit FRDGPassParameterStruct(void* InContents, const FRHIUniformBufferLayout* InLayout)
-		: Contents(reinterpret_cast<uint8*>(InContents))
-		, Layout(InLayout)
-	{
-		checkf(Contents && Layout, TEXT("Pass parameter struct created with null inputs."));
-	}
-
-	template <typename FParameterStruct>
-	explicit FRDGPassParameterStruct(FParameterStruct* Parameters)
-		: FRDGPassParameterStruct(Parameters, &FParameterStruct::FTypeInfo::GetStructMetadata()->GetLayout())
-	{}
-
-	uint8* GetContents() const
-	{
-		return Contents;
-	}
-
-	uint32 GetParameterCount() const
-	{
-		return Layout->GraphResources.Num();
-	}
-
-	FRDGPassParameter GetParameter(uint32 ParameterIndex) const
-	{
-		return GetParameterInternal(Layout->GraphResources, ParameterIndex);
-	}
-
-	uint32 GetTextureParameterCount() const
-	{
-		return Layout->GraphTextures.Num();
-	}
-
-	FRDGPassParameter GetTextureParameter(uint32 TextureParameterIndex) const
-	{
-		return GetParameterInternal(Layout->GraphTextures, TextureParameterIndex);
-	}
-
-	uint32 GetBufferParameterCount() const
-	{
-		return Layout->GraphBuffers.Num();
-	}
-
-	FRDGPassParameter GetBufferParameter(uint32 BufferParameterIndex) const
-	{
-		return GetParameterInternal(Layout->GraphBuffers, BufferParameterIndex);
-	}
-
-	/** Releases all active uniform buffer references held inside the struct. */
-	void ClearUniformBuffers() const;
-
-	FUniformBufferStaticBindings GetGlobalUniformBuffers() const;
-
-	/** Returns whether the pass has outputs not represented by the graph resources. */
-	bool HasExternalOutputs() const;
-
-	/** Returns the render target binding slots, if they exist. Otherwise nullptr. */
-	const FRenderTargetBindingSlots* GetRenderTargetBindingSlots() const;
-
-private:
-	FRDGPassParameter GetParameterInternal(TArrayView<const FRHIUniformBufferLayout::FResourceParameter> Parameters, uint32 ParameterIndex) const
-	{
-		checkf(ParameterIndex < static_cast<uint32>(Parameters.Num()), TEXT("Attempted to access RDG pass parameter outside of index for Layout '%s'"), *Layout->GetDebugName());
-		const EUniformBufferBaseType MemberType = Parameters[ParameterIndex].MemberType;
-		const uint16 MemberOffset = Parameters[ParameterIndex].MemberOffset;
-		return FRDGPassParameter(MemberType, Contents + MemberOffset);
-	}
-
-	uint8* Contents;
-	const FRHIUniformBufferLayout* Layout;
-};
 
 class RENDERCORE_API FRDGBarrierBatch
 {
 public:
 	FRDGBarrierBatch(const FRDGBarrierBatch&) = delete;
-	virtual ~FRDGBarrierBatch() = default;
 
 	bool IsSubmitted() const
 	{
@@ -245,24 +19,29 @@ public:
 	FString GetName() const;
 
 protected:
-	FRDGBarrierBatch(const FRDGPass* InPass, const TCHAR* InName)
-		: Pass(InPass)
-		, Name(InName)
-	{
-		check(Pass && Name);
-	}
+	FRDGBarrierBatch(const FRDGPass* InPass, const TCHAR* InName);
 
 	void SetSubmitted();
 
+	ERHIPipeline GetPipeline() const
+	{
+		return Pipeline;
+	}
+
+private:
+	bool bSubmitted = false;
+	ERHIPipeline Pipeline;
+
+#if RDG_ENABLE_DEBUG
 	const FRDGPass* Pass;
 	const TCHAR* Name;
-	bool bSubmitted = false;
+#endif
 };
 
 class RENDERCORE_API FRDGBarrierBatchBegin final : public FRDGBarrierBatch
 {
 public:
-	FRDGBarrierBatchBegin(const FRDGPass* InPass, const TCHAR* InName, TOptional<ERDGPipeline> InOverridePipelineForEnd = {});
+	FRDGBarrierBatchBegin(const FRDGPass* InPass, const TCHAR* InName, TOptional<ERHIPipeline> InOverridePipelineForEnd = {});
 	~FRDGBarrierBatchBegin();
 
 	/** Adds a resource transition into the batch. */
@@ -287,18 +66,19 @@ public:
 	void Submit(FRHIComputeCommandList& RHICmdList);
 
 private:
+	TOptional<ERHIPipeline> OverridePipelineToEnd;
+	bool bUseCrossPipelineFence = false;
 
 	/** The transition to store after submission. It is assigned back to null by the end batch. */
 	const FRHITransition* Transition = nullptr;
 
 	/** An array of asynchronous resource transitions to perform. */
-	TArray<FRHITransitionInfo, TInlineAllocator<4, SceneRenderingAllocator>> Transitions;
+	TArray<FRHITransitionInfo, TInlineAllocator<1, SceneRenderingAllocator>> Transitions;
 
-	/** An array of RDG resources matching with the Transitions array. Used for patching the RHI resource pointers prior to submission. */
-	TArray<FRDGParentResource*, TInlineAllocator<4, SceneRenderingAllocator>> Resources;
-
-	TOptional<ERDGPipeline> OverridePipelineToEnd;
-	bool bUseCrossPipelineFence = false;
+#if RDG_ENABLE_DEBUG
+	/** An array of RDG resources matching with the Transitions array. For debugging only. */
+	TArray<FRDGParentResource*, SceneRenderingAllocator> Resources;
+#endif
 
 	friend class FRDGBarrierBatchEnd;
 	friend class FRDGBarrierValidation;
@@ -312,6 +92,8 @@ public:
 	{}
 
 	~FRDGBarrierBatchEnd();
+
+	void ReserveMemory(uint32 ExpectedDependencyCount);
 
 	/** Inserts a dependency on a begin batch. A begin batch can be inserted into more than one end batch. */
 	void AddDependency(FRDGBarrierBatchBegin* BeginBatch);
@@ -328,36 +110,40 @@ private:
 class RENDERCORE_API FRDGPass
 {
 public:
-	FRDGPass(
-		FRDGEventName&& InName,
-		FRDGPassParameterStruct InParameterStruct,
-		ERDGPassFlags InFlags);
-
+	FRDGPass(FRDGEventName&& InName, FRDGParameterStruct InParameterStruct, ERDGPassFlags InFlags);
 	FRDGPass(const FRDGPass&) = delete;
-
 	virtual ~FRDGPass() = default;
 
-	const TCHAR* GetName() const
+#if RDG_ENABLE_DEBUG
+	const TCHAR* GetName() const;
+#else
+	FORCEINLINE const TCHAR* GetName() const
 	{
 		return Name.GetTCHAR();
 	}
+#endif
 
-	ERDGPassFlags GetFlags() const
+	FORCEINLINE const FRDGEventName& GetEventName() const
+	{
+		return Name;
+	}
+
+	FORCEINLINE ERDGPassFlags GetFlags() const
 	{
 		return Flags;
 	}
 
-	ERDGPipeline GetPipeline() const
+	FORCEINLINE ERHIPipeline GetPipeline() const
 	{
 		return Pipeline;
 	}
 
-	FRDGPassParameterStruct GetParameters() const
+	FORCEINLINE FRDGParameterStruct GetParameters() const
 	{
 		return ParameterStruct;
 	}
 
-	FRDGPassHandle GetHandle() const
+	FORCEINLINE FRDGPassHandle GetHandle() const
 	{
 		return Handle;
 	}
@@ -384,7 +170,7 @@ public:
 
 	bool IsAsyncCompute() const
 	{
-		return Pipeline == ERDGPipeline::AsyncCompute;
+		return Pipeline == ERHIPipeline::AsyncCompute;
 	}
 
 	bool IsAsyncComputeBegin() const
@@ -405,11 +191,6 @@ public:
 	bool IsGraphicsJoin() const
 	{
 		return bGraphicsJoin;
-	}
-
-	const FRDGPassHandleArray& GetConsumers() const
-	{
-		return Consumers;
 	}
 
 	const FRDGPassHandleArray& GetProducers() const
@@ -441,36 +222,90 @@ public:
 		return GraphicsJoinPass;
 	}
 
-	FRDGScopes GetScopes() const
+#if RDG_CPU_SCOPES
+	FRDGCPUScopes GetCPUScopes() const
 	{
-		return Scopes;
+		return CPUScopes;
 	}
+#endif
+
+#if RDG_GPU_SCOPES
+	FRDGGPUScopes GetGPUScopes() const
+	{
+		return GPUScopes;
+	}
+#endif
 
 private:
-	FRDGBarrierBatchBegin* GetEpilogueBarriersToBeginFor(ERDGPipeline PipelineForEnd)
+	FRDGBarrierBatchBegin& GetPrologueBarriersToBegin(FRDGAllocator& Allocator);
+	FRDGBarrierBatchEnd& GetPrologueBarriersToEnd(FRDGAllocator& Allocator);
+	FRDGBarrierBatchBegin& GetEpilogueBarriersToBeginForGraphics(FRDGAllocator& Allocator);
+	FRDGBarrierBatchBegin& GetEpilogueBarriersToBeginForAsyncCompute(FRDGAllocator& Allocator);
+
+	FRDGBarrierBatchBegin& GetEpilogueBarriersToBeginFor(FRDGAllocator& Allocator, ERHIPipeline PipelineForEnd)
 	{
-		check(PipelineForEnd != ERDGPipeline::MAX);
-		return PipelineForEnd == ERDGPipeline::Graphics
-			? &EpilogueBarriersToBeginForGraphics
-			: &EpilogueBarriersToBeginForAsyncCompute;
+		switch (PipelineForEnd)
+		{
+		default: 
+			checkNoEntry();
+			// fall through
+
+		case ERHIPipeline::Graphics:
+			return GetEpilogueBarriersToBeginForGraphics(Allocator);
+
+		case ERHIPipeline::AsyncCompute:
+			return GetEpilogueBarriersToBeginForAsyncCompute(Allocator);
+		}
 	}
 
 	//////////////////////////////////////////////////////////////////////////
 	//! User Methods to Override
 
-	virtual void ExecuteImpl(FRHIComputeCommandList& RHICmdList) const = 0;
+	virtual void ExecuteImpl(FRHIComputeCommandList& RHICmdList) = 0;
 
 	//////////////////////////////////////////////////////////////////////////
 
-	void Execute(FRHIComputeCommandList& RHICmdList) const;
+	void Execute(FRHIComputeCommandList& RHICmdList);
+
+	// When r.RDG.Debug is enabled, this will include a full namespace path with event scopes included.
+	IF_RDG_ENABLE_DEBUG(FString FullPathIfDebug);
 
 	const FRDGEventName Name;
-	const FRDGPassParameterStruct ParameterStruct;
+	const FRDGParameterStruct ParameterStruct;
 	const ERDGPassFlags Flags;
-	const ERDGPipeline Pipeline;
-
-	/** Handle of the pass and its dependencies in the graph builder pass list. */
+	const ERHIPipeline Pipeline;
 	FRDGPassHandle Handle;
+
+	union
+	{
+		struct
+		{
+			/** Whether the render pass begin / end should be skipped. */
+			uint32 bSkipRenderPassBegin : 1;
+			uint32 bSkipRenderPassEnd : 1;
+
+			/** (AsyncCompute only) Whether this is the first / last async compute pass in an async interval. */
+			uint32 bAsyncComputeBegin : 1;
+			uint32 bAsyncComputeEnd : 1;
+
+			/** (AsyncCompute only) Whether this is the last async compute pass in the graph. */
+			uint32 bAsyncComputeEndExecute : 1;
+
+			/** (Graphics only) Whether this is a graphics fork / join pass. */
+			uint32 bGraphicsFork : 1;
+			uint32 bGraphicsJoin : 1;
+
+			/** Whether the pass writes to a UAV. */
+			uint32 bUAVAccess : 1;
+
+			/** Whether the pass has untracked outputs. */
+			uint32 bUntrackedOutputs : 1;
+
+			/** Whether this pass allocated a texture through the pool. */
+			IF_RDG_ENABLE_DEBUG(uint32 bFirstTextureAllocated : 1);
+		};
+		uint32 PackedBits = 0;
+	};
 
 	/** Handle of the latest cross-pipeline producer and earliest cross-pipeline consumer. */
 	FRDGPassHandle CrossPipelineProducer;
@@ -480,75 +315,79 @@ private:
 	FRDGPassHandle GraphicsForkPass;
 	FRDGPassHandle GraphicsJoinPass;
 
-	/** Lists of producer / consumer passes. */
+	/** The passes which are handling the epilogue / prologue barriers meant for this pass. */
+	FRDGPassHandle PrologueBarrierPass;
+	FRDGPassHandle EpilogueBarrierPass;
+
+	/** Lists of producer passes. */
 	FRDGPassHandleArray Producers;
-	FRDGPassHandleArray Consumers;
 
-	/** Whether the render pass begin / end should be skipped. */
-	uint32 bSkipRenderPassBegin : 1;
-	uint32 bSkipRenderPassEnd : 1;
-
-	/** (AsyncCompute only) Whether this is the first / last async compute pass in an async interval. */
-	uint32 bAsyncComputeBegin : 1;
-	uint32 bAsyncComputeEnd : 1;
-
-	/** (AsyncCompute only) Whether this is the last async compute pass in the graph. */
-	uint32 bAsyncComputeEndExecute : 1;
-
-	/** (Graphics only) Whether this is a graphics fork / join pass. */
-	uint32 bGraphicsFork : 1;
-	uint32 bGraphicsJoin : 1;
-
-	/** Whether subresource accesses are the same across textures. */
-	uint32 bSubresourceTrackingRequired : 1;
-
-	struct FAccessInfo
+	struct FTextureState
 	{
-		/** The combined set of access across all resource references. */
-		EResourceTransitionAccess AccessUnion = EResourceTransitionAccess::Unknown;
+		FTextureState()
+		{
+			InitAsWholeResource(State);
+		}
 
-		/** The number of resource references across the pass. */
+		FRDGTextureTransientSubresourceState State;
+		FRDGTextureTransientSubresourceStateIndirect MergeState;
 		uint16 ReferenceCount = 0;
+	};
 
-		/** The last no-barrier UAV assigned. */
-		FRDGResourceUniqueFilter NoUAVBarrierFilter;
-
-		/** Whether the resource requires subresource tracking. */
-		bool bSubresourceTrackingRequired = false;
-
-		/** The combined set of transition flags required by all resource references. */
-		EResourceTransitionFlags FlagsUnion = EResourceTransitionFlags::None;
+	struct FBufferState
+	{
+		FRDGSubresourceState State;
+		FRDGSubresourceState* MergeState = nullptr;
+		uint16 ReferenceCount = 0;
 	};
 
 	/** Maps textures / buffers to information on how they are used in the pass. */
-	TSortedMap<FRDGTexture*, FAccessInfo, SceneRenderingAllocator> TextureAccessMap;
-	TSortedMap<FRDGBuffer*, FAccessInfo, SceneRenderingAllocator> BufferAccessMap;
+	TSortedMap<FRDGTexture*, FTextureState, SceneRenderingAllocator> TextureStates;
+	TSortedMap<FRDGBuffer*, FBufferState, SceneRenderingAllocator> BufferStates;
 
 	/** Lists of pass parameters scheduled for begin during execution of this pass. */
-	TArray<FRDGPassParameterStruct, TInlineAllocator<1, SceneRenderingAllocator>> PassesToBegin;
+	TArray<FRDGPass*, TInlineAllocator<1, SceneRenderingAllocator>> ResourcesToBegin;
+	TArray<FRDGPass*, TInlineAllocator<1, SceneRenderingAllocator>> ResourcesToEnd;
 
-	/** List of resources this pass will release after executing the pass. Used to extend async compute resource lifetimes. */
-	TArray<FRDGTexture*, SceneRenderingAllocator> TexturesToRelease;
-	TArray<FRDGBuffer*, SceneRenderingAllocator> BuffersToRelease;
+	/** List of textures to acquire *after* the pass completes, *before* discards. Acquires apply to all allocated textures. */
+	TArray<FRHITexture*, SceneRenderingAllocator> TexturesToAcquire;
+
+	/** List of textures to discard *after* the pass completes, *after* acquires. Discards only apply to textures marked as
+	 *  transient and the last alias of the texture uses the automatic discard behavior (in order to support cleaner hand-off
+	 *  to the user or back to the pool.
+	 */
+	TArray<FRHITexture*, SceneRenderingAllocator> TexturesToDiscard;
 
 	/** Barriers to begin / end prior to executing a pass. */
-	FRDGBarrierBatchBegin PrologueBarriersToBegin;
-	FRDGBarrierBatchEnd PrologueBarriersToEnd;
+	FRDGBarrierBatchBegin* PrologueBarriersToBegin = nullptr;
+	FRDGBarrierBatchEnd* PrologueBarriersToEnd = nullptr;
 
 	/** Barriers to begin after executing a pass. */
-	FRDGBarrierBatchBegin EpilogueBarriersToBeginForGraphics;
-	FRDGBarrierBatchBegin EpilogueBarriersToBeginForAsyncCompute;
+	FRDGBarrierBatchBegin* EpilogueBarriersToBeginForGraphics = nullptr;
+	FRDGBarrierBatchBegin* EpilogueBarriersToBeginForAsyncCompute = nullptr;
 
-	FRDGScopes Scopes;
+	EAsyncComputeBudget AsyncComputeBudget = EAsyncComputeBudget::EAll_4;
+
+#if WITH_MGPU
+	FRHIGPUMask GPUMask;
+#endif
+
+	IF_RDG_CPU_SCOPES(FRDGCPUScopes CPUScopes);
+	IF_RDG_GPU_SCOPES(FRDGGPUScopes GPUScopes);
 
 	friend FRDGBuilder;
+	friend FRDGPassRegistry;
 };
 
 /** Render graph pass with lambda execute function. */
 template <typename ParameterStructType, typename ExecuteLambdaType>
-class TRDGLambdaPass final
+class TRDGLambdaPass
 	: public FRDGPass
 {
+	// Verify that the amount of stuff captured by the pass lambda is reasonable.
+	static constexpr int32 kMaximumLambdaCaptureSize = 1024;
+	static_assert(sizeof(ExecuteLambdaType) <= kMaximumLambdaCaptureSize, "The amount of data of captured for the pass looks abnormally high.");
+
 	template <typename T>
 	struct TLambdaTraits
 		: TLambdaTraits<decltype(&T::operator())>
@@ -564,47 +403,59 @@ class TRDGLambdaPass final
 		using TRHICommandList = ArgType;
 	};
 	using TRHICommandList = typename TLambdaTraits<ExecuteLambdaType>::TRHICommandList;
+
 public:
 	static const bool kSupportsAsyncCompute = TIsSame<TRHICommandList, FRHIComputeCommandList>::Value;
 	static const bool kSupportsRaster = TIsDerivedFrom<TRHICommandList, FRHICommandList>::IsDerived;
 
 	TRDGLambdaPass(
 		FRDGEventName&& InName,
-		FRDGPassParameterStruct InParameterStruct,
+		const ParameterStructType* InParameterStruct,
 		ERDGPassFlags InPassFlags,
 		ExecuteLambdaType&& InExecuteLambda)
-		: FRDGPass(MoveTemp(InName), InParameterStruct, InPassFlags)
+		: FRDGPass(MoveTemp(InName), FRDGParameterStruct(InParameterStruct), InPassFlags)
 		, ExecuteLambda(MoveTemp(InExecuteLambda))
 	{
-		if (!kSupportsAsyncCompute)
-		{
-			checkf(InPassFlags != ERDGPassFlags::AsyncCompute, TEXT("Pass %s is set to use 'AsyncCompute', but the pass lambda's first argument is not FRHIComputeCommandList&."), GetName());
-		}
+		checkf(kSupportsAsyncCompute || !EnumHasAnyFlags(InPassFlags, ERDGPassFlags::AsyncCompute),
+			TEXT("Pass %s is set to use 'AsyncCompute', but the pass lambda's first argument is not FRHIComputeCommandList&."), GetName());
 	}
 
 private:
-	void ExecuteImpl(FRHIComputeCommandList& RHICmdList) const override
+	void ExecuteImpl(FRHIComputeCommandList& RHICmdList) override
 	{
-		if (kSupportsRaster)
-		{
-			check(RHICmdList.IsImmediate());
-		}
-
+		check(!kSupportsRaster || RHICmdList.IsImmediate());
 		ExecuteLambda(static_cast<TRHICommandList&>(RHICmdList));
 	}
 
 	ExecuteLambdaType ExecuteLambda;
 };
 
+template <typename ExecuteLambdaType>
+class TRDGEmptyLambdaPass
+	: public TRDGLambdaPass<FEmptyShaderParameters, ExecuteLambdaType>
+{
+public:
+	TRDGEmptyLambdaPass(FRDGEventName&& InName, ERDGPassFlags InPassFlags, ExecuteLambdaType&& InExecuteLambda)
+		: TRDGLambdaPass<FEmptyShaderParameters, ExecuteLambdaType>(MoveTemp(InName), &EmptyShaderParameters, InPassFlags, MoveTemp(InExecuteLambda))
+	{}
+
+private:
+	FEmptyShaderParameters EmptyShaderParameters;
+	friend class FRDGBuilder;
+};
+
+/** Render graph pass used for the prologue / epilogue passes. */
 class FRDGSentinelPass final
 	: public FRDGPass
 {
 public:
 	FRDGSentinelPass(FRDGEventName&& Name)
-		: FRDGPass(MoveTemp(Name), FRDGPassParameterStruct(&EmptyShaderParameters), ERDGPassFlags::Copy)
+		: FRDGPass(MoveTemp(Name), FRDGParameterStruct(&EmptyShaderParameters), ERDGPassFlags::NeverCull)
 	{}
 
 private:
-	void ExecuteImpl(FRHIComputeCommandList&) const override {}
+	void ExecuteImpl(FRHIComputeCommandList&) override {}
 	FEmptyShaderParameters EmptyShaderParameters;
 };
+
+#include "RenderGraphParameters.inl"

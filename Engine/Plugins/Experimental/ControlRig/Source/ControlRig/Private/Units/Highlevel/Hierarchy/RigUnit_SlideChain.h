@@ -20,10 +20,10 @@ struct FRigUnit_SlideChain_WorkData
 	float ChainLength;
 
 	UPROPERTY()
-	TArray<float> BoneSegments;
+	TArray<float> ItemSegments;
 
 	UPROPERTY()
-	TArray<int32> BoneIndices;
+	TArray<FCachedRigElement> CachedItems;
 
 	UPROPERTY()
 	TArray<FTransform> Transforms;
@@ -35,7 +35,7 @@ struct FRigUnit_SlideChain_WorkData
 /**
  * Slides an existing chain along itself with control over extrapolation.
  */
-USTRUCT(meta=(DisplayName="Slide Chain", Category="Hierarchy", Keywords="Fit,Refit"))
+USTRUCT(meta=(DisplayName="Slide Chain", Category="Hierarchy", Keywords="Fit,Refit", Deprecated = "4.25"))
 struct FRigUnit_SlideChain: public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
@@ -53,14 +53,55 @@ struct FRigUnit_SlideChain: public FRigUnit_HighlevelBaseMutable
 	/** 
 	 * The name of the first bone to slide
 	 */
-	UPROPERTY(meta = (Input, Constant, CustomWidget = "BoneName"))
+	UPROPERTY(meta = (Input))
 	FName StartBone;
 
 	/** 
 	 * The name of the last bone to slide
 	 */
-	UPROPERTY(meta = (Input, Constant, CustomWidget = "BoneName"))
+	UPROPERTY(meta = (Input))
 	FName EndBone;
+
+	/** 
+	 * The amount of sliding. This unit is multiple of the chain length.
+	 */
+	UPROPERTY(meta = (Input))
+	float SlideAmount;
+
+	/**
+	 * If set to true all of the global transforms of the children
+	 * of this bone will be recalculated based on their local transforms.
+	 * Note: This is computationally more expensive than turning it off.
+	 */
+	UPROPERTY(meta = (Input, Constant))
+	bool bPropagateToChildren;
+
+	UPROPERTY(transient)
+	FRigUnit_SlideChain_WorkData WorkData;
+};
+
+/**
+ * Slides an existing chain along itself with control over extrapolation.
+ */
+USTRUCT(meta=(DisplayName="Slide Chain", Category="Hierarchy", Keywords="Fit,Refit"))
+struct FRigUnit_SlideChainPerItem: public FRigUnit_HighlevelBaseMutable
+{
+	GENERATED_BODY()
+
+	FRigUnit_SlideChainPerItem()
+	{
+		SlideAmount = 0.f;
+		bPropagateToChildren = false;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	/** 
+	 * The items to slide
+	 */
+	UPROPERTY(meta = (Input))
+	FRigElementKeyCollection Items;
 
 	/** 
 	 * The amount of sliding. This unit is multiple of the chain length.

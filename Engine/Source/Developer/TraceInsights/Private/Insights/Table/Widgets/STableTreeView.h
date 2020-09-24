@@ -23,7 +23,6 @@ class FMenuBuilder;
 namespace Trace
 {
 	class IAnalysisSession;
-	struct FTimelineEvent;
 }
 
 namespace Insights
@@ -66,8 +65,6 @@ public:
 
 	TSharedPtr<Insights::FTable> GetTable() const { return Table; }
 
-	void UpdateSourceTable(TSharedPtr<Trace::IUntypedTable> SourceTable);
-
 	virtual void Reset();
 
 	void RebuildColumns();
@@ -82,6 +79,7 @@ public:
 	void SelectNodeByTableRowIndex(int32 RowIndex);
 
 protected:
+	void ConstructWidget(TSharedPtr<FTable> InTablePtr);
 	void UpdateTree();
 
 	/** Called when the analysis session has changed. */

@@ -189,11 +189,11 @@ public:
 	}
 
 	/** Replicated function to set the pawn location and rotation, allowing server to force (ex. teleports). */
-	UFUNCTION(Reliable, Client)
+	UFUNCTION(Reliable, Client, WithValidation)
 	void ClientSetLocation(FVector NewLocation, FRotator NewRotation);
 
 	/** Replicated function to set the pawn rotation, allowing the server to force. */
-	UFUNCTION(Reliable, Client)
+	UFUNCTION(Reliable, Client, WithValidation)
 	void ClientSetRotation(FRotator NewRotation, bool bResetCamera = false);
 
 	/** Return the Pawn that is currently 'controlled' by this PlayerController */

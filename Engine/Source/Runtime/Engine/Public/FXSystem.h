@@ -191,6 +191,18 @@ public:
 	virtual void DrawDebug(FCanvas* Canvas) = 0;
 
 	/**
+	 * Does the FX system require DrawDebug_RenderThread to be called at all?
+	 * There is cost to enabling this so only return true when we have something to present.
+	 */
+	virtual bool ShouldDebugDraw_RenderThread() const { return false; }
+
+	/**
+	 * Draw desired debug information related to the effects system on the render thread.
+	 * @param Canvas The canvas on which to draw.
+	 */
+	virtual void DrawDebug_RenderThread(FRHICommandListImmediate& RHICmdList, FCanvas* Canvas) {}
+
+	/**
 	 * Add a vector field to the FX system.
 	 * @param VectorFieldComponent The vector field component to add.
 	 */

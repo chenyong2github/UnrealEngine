@@ -117,31 +117,24 @@ class FTexelToCornersMap
 public:
 
 	/** Initialization constructor. */
-	FTexelToCornersMap(int32 InSizeX,int32 InSizeY):
-		Data(InSizeX * InSizeY),
+	FTexelToCornersMap(int32 InSizeX,int32 InSizeY):		
 		SizeX(InSizeX),
 		SizeY(InSizeY)
 	{
 		// Clear the map to zero.
-		for(int32 Y = 0;Y < SizeY;Y++)
-		{
-			for(int32 X = 0;X < SizeX;X++)
-			{
-				FMemory::Memzero(&(*this)(X,Y),sizeof(FTexelToCorners));
-			}
-		}
+		Data.AddZeroed(SizeX * SizeY);
 	}
 
 	// Accessors.
 	FTexelToCorners& operator()(int32 X,int32 Y)
 	{
 		const uint32 TexelIndex = Y * SizeX + X;
-		return Data(TexelIndex);
+		return Data[TexelIndex];
 	}
 	const FTexelToCorners& operator()(int32 X,int32 Y) const
 	{
 		const int32 TexelIndex = Y * SizeX + X;
-		return Data(TexelIndex);
+		return Data[TexelIndex];
 	}
 
 	int32 GetSizeX() const { return SizeX; }
@@ -151,7 +144,7 @@ public:
 private:
 
 	/** The mapping data. */
-	TChunkedArray<FTexelToCorners> Data;
+	TArray<FTexelToCorners> Data;
 
 	/** The width of the mapping data. */
 	int32 SizeX;

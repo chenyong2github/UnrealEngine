@@ -9,6 +9,7 @@
 #include "CoreMinimal.h"
 #include "RendererInterface.h"
 #include "RenderGraphResources.h"
+#include "Renderer/Private/SceneRendering.h"
 
 struct FVirtualVoxelNodeDesc
 {
@@ -44,44 +45,35 @@ BEGIN_SHADER_PARAMETER_STRUCT(FVirtualVoxelCommonParameters, )
 	SHADER_PARAMETER(uint32, IndirectDispatchGroupSize)
 	SHADER_PARAMETER(uint32, NodeDescCount)
 	SHADER_PARAMETER(float, DensityScale)
-	SHADER_PARAMETER(float, DepthBiasScale)
+	SHADER_PARAMETER(float, DepthBiasScale_Light)
+	SHADER_PARAMETER(float, DepthBiasScale_Environment)
 	SHADER_PARAMETER(float, SteppingScale)
 	SHADER_PARAMETER(float, HairCoveragePixelRadiusAtDepth1) 
-	SHADER_PARAMETER_SRV(Buffer<uint>, PageIndexBuffer)
-	SHADER_PARAMETER_SRV(Buffer<uint>, PageIndexCoordBuffer)
-	SHADER_PARAMETER_SRV(StructuredBuffer<FPackedVirtualVoxelNodeDesc>, NodeDescBuffer) // Packed into 2 x uint4
-	SHADER_PARAMETER_TEXTURE(Texture2D<float>, HairCoverageLUT)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, PageIndexBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, PageIndexCoordBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPackedVirtualVoxelNodeDesc>, NodeDescBuffer) // Packed into 2 x uint4
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, HairCoverageLUT)
 	SHADER_PARAMETER_SAMPLER(SamplerState, HairCoverageSampler)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVirtualVoxelParameters, RENDERER_API)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualVoxelCommonParameters, Common)
-	SHADER_PARAMETER_TEXTURE(Texture3D<uint>, PageTexture)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture3D<uint>, PageTexture)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 struct FVirtualVoxelResources
 {
 	FVirtualVoxelParameters	Parameters;
-	TUniformBufferRef<FVirtualVoxelParameters> UniformBuffer;
+	TRDGUniformBufferRef<FVirtualVoxelParameters> UniformBuffer;
+	FRDGTextureRef PageTexture = nullptr;
+	FRDGBufferRef PageIndexBuffer = nullptr;
+	FRDGBufferRef NodeDescBuffer = nullptr;
+	FRDGBufferRef PageIndexCoordBuffer = nullptr;
+	FRDGBufferRef IndirectArgsBuffer = nullptr;
+	FRDGBufferRef PageIndexGlobalCounter = nullptr;
+	FRDGBufferRef VoxelizationViewInfoBuffer = nullptr;
 
-	TRefCountPtr<IPooledRenderTarget>	PageTexture;
-
-	TRefCountPtr<FPooledRDGBuffer>		PageIndexBuffer;
-	FShaderResourceViewRHIRef			PageIndexBufferSRV = nullptr;
-
-	TRefCountPtr<FPooledRDGBuffer>		NodeDescBuffer;
-	FShaderResourceViewRHIRef			NodeDescBufferSRV = nullptr;
-
-	TRefCountPtr<FPooledRDGBuffer>		PageIndexCoordBuffer;
-	FShaderResourceViewRHIRef			PageIndexCoordBufferSRV = nullptr;
-
-	TRefCountPtr<FPooledRDGBuffer>		IndirectArgsBuffer;
-
-	TRefCountPtr<FPooledRDGBuffer>		PageIndexGlobalCounter;
-
-	TRefCountPtr<FPooledRDGBuffer>		VoxelizationViewInfoBuffer;
-
-	const bool IsValid() const { return UniformBuffer.IsValid(); }
+	const bool IsValid() const { return UniformBuffer != nullptr; }
 };
 
 /// Global enable/disable for hair voxelization
@@ -89,7 +81,7 @@ bool IsHairStrandsVoxelizationEnable();
 bool IsHairStrandsForVoxelTransmittanceAndShadowEnable();
 
 void VoxelizeHairStrands(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	const class FScene* Scene,
 	const TArray<FViewInfo>& Views,
 	struct FHairStrandsMacroGroupViews& MacroGroupViews);

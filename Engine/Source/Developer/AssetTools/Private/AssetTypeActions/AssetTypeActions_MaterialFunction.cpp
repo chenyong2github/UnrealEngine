@@ -30,19 +30,15 @@ void FAssetTypeActions_MaterialFunction::GetActions(const TArray<UObject*>& InOb
 {
 	const TArray<TWeakObjectPtr<UMaterialFunctionInterface>> Functions = GetTypedWeakObjectPtrs<UMaterialFunctionInterface>(InObjects);
 
-	IMaterialEditorModule& MaterialEditorModule = FModuleManager::LoadModuleChecked<IMaterialEditorModule>("MaterialEditor");
-	if (MaterialEditorModule.MaterialLayersEnabled())
-	{
-		Section.AddMenuEntry(
-			"MaterialFunction_NewMFI",
-			GetInstanceText(),
-			LOCTEXT("Material_NewMFITooltip", "Creates a parameterized function using this function as a base."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.MaterialInstanceActor"),
-			FUIAction(
-				FExecuteAction::CreateSP(this, &FAssetTypeActions_MaterialFunction::ExecuteNewMFI, Functions)
-			)
-		);
-	}
+	Section.AddMenuEntry(
+		"MaterialFunction_NewMFI",
+		GetInstanceText(),
+		LOCTEXT("Material_NewMFITooltip", "Creates a parameterized function using this function as a base."),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.MaterialInstanceActor"),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &FAssetTypeActions_MaterialFunction::ExecuteNewMFI, Functions)
+		)
+	);
 
 	if (FEditorDelegates::OnOpenReferenceViewer.IsBound())
 	{
@@ -175,13 +171,13 @@ UThumbnailInfo* FAssetTypeActions_MaterialFunction::GetThumbnailInfo(UObject* As
 
 UClass* FAssetTypeActions_MaterialFunctionLayer::GetSupportedClass() const
 {
-	UClass* SupportedClass = IMaterialEditorModule::Get().MaterialLayersEnabled() ? UMaterialFunctionMaterialLayer::StaticClass() : nullptr;
+	UClass* SupportedClass = UMaterialFunctionMaterialLayer::StaticClass();
 	return SupportedClass;
 }
 
 bool FAssetTypeActions_MaterialFunctionLayer::CanFilter()
 {
-	return IMaterialEditorModule::Get().MaterialLayersEnabled();
+	return true;
 }
 
 
@@ -245,13 +241,13 @@ void FAssetTypeActions_MaterialFunctionLayer::ExecuteNewMFI(TArray<TWeakObjectPt
 
 UClass* FAssetTypeActions_MaterialFunctionLayerBlend::GetSupportedClass() const
 {
-	UClass* SupportedClass = IMaterialEditorModule::Get().MaterialLayersEnabled() ? UMaterialFunctionMaterialLayerBlend::StaticClass() : nullptr;
+	UClass* SupportedClass = UMaterialFunctionMaterialLayerBlend::StaticClass();
 	return SupportedClass;
 }
 
 bool FAssetTypeActions_MaterialFunctionLayerBlend::CanFilter()
 {
-	return IMaterialEditorModule::Get().MaterialLayersEnabled();
+	return true;
 }
 
 void FAssetTypeActions_MaterialFunctionLayerBlend::ExecuteNewMFI(TArray<TWeakObjectPtr<UMaterialFunctionInterface>> Objects)

@@ -211,7 +211,7 @@ void FNetTraceReporter::ReportPacketContent(FNetTracePacketContentEvent* Events,
 
 				if (HeaderSize)
 				{
-					FTraceUtils::Encode7bit(CurrentEvent.ChannelIndex, BufferPtr);
+					FTraceUtils::Encode7bit(CurrentEvent.BunchInfo.Value, BufferPtr);
 				}
 			}
 			break;

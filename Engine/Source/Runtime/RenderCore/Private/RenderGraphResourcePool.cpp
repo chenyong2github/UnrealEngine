@@ -11,10 +11,19 @@ FRenderGraphResourcePool::FRenderGraphResourcePool()
 { }
 
 
-void FRenderGraphResourcePool::FindFreeBuffer(
+TRefCountPtr<FRDGPooledBuffer> FRenderGraphResourcePool::FindFreeBuffer(
 	FRHICommandList& RHICmdList,
 	const FRDGBufferDesc& Desc,
-	TRefCountPtr<FPooledRDGBuffer>& Out,
+	const TCHAR* InDebugName)
+{
+	TRefCountPtr<FRDGPooledBuffer> Result = FindFreeBufferInternal(RHICmdList, Desc, InDebugName);
+	Result->Reset();
+	return Result;
+}
+
+TRefCountPtr<FRDGPooledBuffer> FRenderGraphResourcePool::FindFreeBufferInternal(
+	FRHICommandList& RHICmdList,
+	const FRDGBufferDesc& Desc,
 	const TCHAR* InDebugName)
 {
 	// First find if available.
@@ -28,29 +37,27 @@ void FRenderGraphResourcePool::FindFreeBuffer(
 
 		if (PooledBuffer->Desc == Desc)
 		{
-			Out = PooledBuffer;
-			Out->LastUsedFrame = FrameCounter;
-			Out->Name = InDebugName;
+			PooledBuffer->LastUsedFrame = FrameCounter;
+			PooledBuffer->Name = InDebugName;
 			
 			//@todo - rename other resources too
-			for (TMap<FRDGBufferUAVDesc, FUnorderedAccessViewRHIRef, FDefaultSetAllocator, TMapRDGBufferUAVFuncs<FRDGBufferUAVDesc, FUnorderedAccessViewRHIRef>>::TIterator It(PooledBuffer->UAVs); It; ++It)
+			for (const auto& Pair : PooledBuffer->UAVs)
 			{
-				RHIBindDebugLabelName(It.Value(), InDebugName);
+				RHIBindDebugLabelName(Pair.Value, InDebugName);
 			}
 
-			return;
+			return PooledBuffer;
 		}
 	}
 
 	// Allocate new one
 	{
-		Out = new FPooledRDGBuffer;
-		AllocatedBuffers.Add(Out);
-		check(Out->GetRefCount() == 2);
+		TRefCountPtr<FRDGPooledBuffer> PooledBuffer = new FRDGPooledBuffer(Desc);
+		AllocatedBuffers.Add(PooledBuffer);
+		check(PooledBuffer->GetRefCount() == 2);
 
-		Out->Desc = Desc;
-		Out->Name = InDebugName;
-		Out->LastUsedFrame = FrameCounter;
+		PooledBuffer->Name = InDebugName;
+		PooledBuffer->LastUsedFrame = FrameCounter;
 
 		uint32 NumBytes = Desc.GetTotalNumBytes();
 
@@ -59,16 +66,18 @@ void FRenderGraphResourcePool::FindFreeBuffer(
 
 		if (Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::VertexBuffer)
 		{
-			Out->VertexBuffer = RHICreateVertexBuffer(NumBytes, Desc.Usage, CreateInfo);
+			PooledBuffer->VertexBuffer = RHICreateVertexBuffer(NumBytes, Desc.Usage, CreateInfo);
 		}
 		else if (Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::StructuredBuffer)
 		{
-			Out->StructuredBuffer = RHICreateStructuredBuffer(Desc.BytesPerElement, NumBytes, Desc.Usage, CreateInfo);
+			PooledBuffer->StructuredBuffer = RHICreateStructuredBuffer(Desc.BytesPerElement, NumBytes, Desc.Usage, CreateInfo);
 		}
 		else
 		{
 			check(0);
 		}
+
+		return PooledBuffer;
 	}
 }
 
@@ -85,7 +94,7 @@ void FRenderGraphResourcePool::TickPoolElements()
 
 	while (BufferIndex < AllocatedBuffers.Num())
 	{
-		TRefCountPtr<FPooledRDGBuffer>& Buffer = AllocatedBuffers[BufferIndex];
+		TRefCountPtr<FRDGPooledBuffer>& Buffer = AllocatedBuffers[BufferIndex];
 
 		const bool bIsUnused = Buffer.GetRefCount() == 1;
 

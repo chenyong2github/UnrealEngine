@@ -194,9 +194,9 @@ namespace ChaosTest {
 		Particle->CollisionParticles()->X(CollisionIndex++) = TVector<T, 3>(-Scale[0] / 2.f, +Scale[1] / 2.f, +Scale[2] / 2.f);
 		Particle->CollisionParticles()->X(CollisionIndex++) = TVector<T, 3>(+Scale[0] / 2.f, +Scale[1] / 2.f, +Scale[2] / 2.f);
 
-		// TODO: Change this error prone API to set bounds more automatically. This is easy to forget
-		Particle->SetLocalBounds(TAABB<T, 3>(TVector<T, 3>(-Scale[0] / 2.f), TVector<T, 3>(Scale[0] / 2.f)));
-		Particle->SetWorldSpaceInflatedBounds(TAABB<T, 3>(TVector<T, 3>(-Scale[0] / 2.f), TVector<T, 3>(Scale[0] / 2.f)));
+		// This is needed for calculating contacts (Bounds are bigger than they need to be, even allowing for rotation)
+		Particle->SetLocalBounds(TAABB<T, 3>(TVector<T, 3>(-Scale[0]), TVector<T, 3>(Scale[0])));
+		Particle->SetWorldSpaceInflatedBounds(TAABB<T, 3>(TVector<T, 3>(-Scale[0]), TVector<T, 3>(Scale[0])));
 		Particle->SetHasBounds(true);
 
 		if (OutElements != nullptr)
@@ -427,6 +427,11 @@ namespace ChaosTest {
 		T ScaleSq = Scale.X * Scale.X;
 
 		Particle->SetDynamicGeometry(MakeUnique<TBox<T, 3>>(-Scale / 2.f, Scale / 2.f));
+
+		// This is needed for calculating contacts (Bounds are bigger than they need to be, even allowing for rotation)
+		Particle->SetLocalBounds(TAABB<T, 3>(TVector<T, 3>(-Scale[0]), TVector<T, 3>(Scale[0])));
+		Particle->SetWorldSpaceInflatedBounds(TAABB<T, 3>(TVector<T, 3>(-Scale[0]), TVector<T, 3>(Scale[0])));
+		Particle->SetHasBounds(true);
 
 		if (OutElements != nullptr)
 		{

@@ -549,6 +549,11 @@ bool FEdGraphUtilities::IsArrayDependentParam(const UFunction* Function, const F
 	return TypeDependentPinNames.Contains(ParameterName.ToString());
 }
 
+bool FEdGraphUtilities::IsDynamicContainerParam(const UFunction* Function, const FName ParameterName)
+{
+	return FEdGraphUtilities::IsArrayDependentParam(Function, ParameterName) || FEdGraphUtilities::IsMapParam(Function, ParameterName) || FEdGraphUtilities::IsSetParam(Function, ParameterName);
+}
+
 UEdGraphPin* FEdGraphUtilities::FindArrayParamPin(const UFunction* Function, const UEdGraphNode* Node)
 {
 	return FEdGraphUtilities::FindPinFromMetaData(Function, Node, FBlueprintMetadata::MD_ArrayParam);

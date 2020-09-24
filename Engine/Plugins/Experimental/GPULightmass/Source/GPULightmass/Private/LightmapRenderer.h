@@ -28,10 +28,29 @@ struct FLightmapTileRequest
 	IPooledRenderTarget* OutputRenderTargets[8] = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
 	uint32 TileAddressInWorkingSet = ~0u;
 	uint32 TileAddressInScratch = ~0u;
+
+	bool operator==(const FLightmapTileRequest& Rhs) const
+	{
+		return RenderState == Rhs.RenderState && VirtualCoordinates == Rhs.VirtualCoordinates;
+	}
+
+	bool IsScreenOutputTile() const
+	{
+		for (IPooledRenderTarget* RenderTarget : OutputRenderTargets)
+		{
+			if (RenderTarget != nullptr)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
 };
 
 struct FLightmapReadbackGroup
 {
+	bool bIsFree = true;
 	int32 Revision;
 	int32 GPUIndex = 0;
 	TUniquePtr<FLightmapTilePoolGPU> ReadbackTilePoolGPU;
@@ -39,6 +58,47 @@ struct FLightmapReadbackGroup
 	TUniquePtr<FRHIGPUTextureReadback> StagingHQLayer0Readback;
 	TUniquePtr<FRHIGPUTextureReadback> StagingHQLayer1Readback;
 	TUniquePtr<FRHIGPUTextureReadback> StagingShadowMaskReadback;
+
+	struct FTextureData
+	{
+		// Duplicate some metadata so the async thread doesn't need to access FLightmapReadbackGroup
+		FIntPoint SizeInTiles;
+		int32 RowPitchInPixels[3];
+		TArray<FLinearColor> Texture[3];
+
+		volatile int32 bDenoisingFinished = 0;
+	};
+
+	TUniquePtr<FTextureData> TextureData;
+};
+
+struct FLightmapTileDenoiseGroup
+{
+	FLightmapTileDenoiseGroup(FLightmapTileRequest& TileRequest) : TileRequest(TileRequest) {}
+
+	int32 Revision;
+	FLightmapTileRequest TileRequest;
+	bool bShouldBeCancelled = false;
+
+	struct FTextureData
+	{
+		TArray<FLinearColor> Texture[2];
+
+		volatile int32 bDenoisingFinished = 0;
+	};
+
+	TSharedPtr<FTextureData, ESPMode::ThreadSafe> TextureData;
+	class FLightmapTileDenoiseAsyncTask* AsyncDenoisingWork = nullptr;
+};
+
+class FLightmapTileDenoiseAsyncTask : public IQueuedWork
+{
+public:
+	FIntPoint Size;
+	TSharedPtr<FLightmapTileDenoiseGroup::FTextureData, ESPMode::ThreadSafe> TextureData;
+
+	virtual void DoThreadedWork();
+	virtual void Abandon() {}
 };
 
 class FLightmapRenderer : public IVirtualTextureFinalizer
@@ -50,17 +110,25 @@ public:
 
 	virtual void Finalize(FRHICommandListImmediate& RHICmdList) override;
 
-	virtual ~FLightmapRenderer() {}
+	virtual ~FLightmapRenderer();
 
 	void BackgroundTick();
 
-	int32 CurrentRevision = 0;
+	void BumpRevision();
+	int32 GetCurrentRevision() { return CurrentRevision; }
+
 	int32 FrameNumber = 0;
 
 	bool bUseFirstBounceRayGuiding = false;
 	int32 NumFirstBounceRayGuidingTrialSamples = 0;
 
+	bool bDenoiseDuringInteractiveBake = false;
+	bool bOnlyBakeWhatYouSee = false;
+
+	TArray<TArray<FLightmapTileRequest>> TilesVisibleLastFewFrames;
+
 private:
+	int32 CurrentRevision = 0;
 	int32 LastInvalidationFrame = 0;
 	int32 Mip0WorkDoneLastFrame = 0;
 	bool bIsExiting = false;
@@ -75,12 +143,14 @@ private:
 
 	TUniquePtr<FLightmapTilePoolGPU> ScratchTilePoolGPU;
 
-	TArray<FLightmapReadbackGroup> OngoingReadbacks;
+	TArray<FLightmapReadbackGroup*> OngoingReadbacks;
+	TArray<TUniquePtr<FLightmapReadbackGroup>> RecycledReadbacks;
+
+	TArray<FLightmapTileDenoiseGroup> OngoingDenoiseGroups;
 
 	TUniquePtr<FLightmapTilePoolGPU> UploadTilePoolGPU;
+
+	FQueuedThreadPool* DenoisingThreadPool;
 };
 
 }
-
-extern int32 GGPULightmassSamplesPerTexel;
-extern int32 GGPULightmassShadowSamplesPerTexel;

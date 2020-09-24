@@ -3,6 +3,7 @@
 #pragma once
 
 #include "DynamicMesh3.h"
+#include "Sampling/SampleSetStatistics.h"
 
 namespace UE
 {
@@ -46,6 +47,8 @@ namespace UE
 }
 
 
+
+
 /**
  * FMeshVertexCurvatureCache calculates and stores various per-vertex Curvature types
  * for a Mesh, as well as some statistics for those values.
@@ -64,10 +67,10 @@ public:
 
 	TArray<FVertexCurvature> Curvatures;
 
-	FInterval1d MeanRange;
-	FInterval1d GaussianRange;
-	FInterval1d MaxPrincipalRange;
-	FInterval1d MinPrincipalRange;
+	FSampleSetStatisticsd MeanStats;
+	FSampleSetStatisticsd GaussianStats;
+	FSampleSetStatisticsd MaxPrincipalStats;
+	FSampleSetStatisticsd MinPrincipalStats;
 
 	int32 Num() const { return Curvatures.Num(); }
 	const FVertexCurvature& operator[](int32 Index) const { return Curvatures[Index]; }

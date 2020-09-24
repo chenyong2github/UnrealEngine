@@ -271,14 +271,8 @@ private:
 	/** Updates the animation preview in the tooltip */
 	EActiveTimerReturnType UpdateTootipPreview( double InCurrentTime, float InDeltaTime );
 
-	/** Whether the tooltip was visualized this frame */
-	uint8 bToolTipClosedThisFrame : 1;
-
 	/** Whether the active timer is currently registered */
 	uint8 bIsActiveTimerRegistered : 1;
-
-	/** Whether the active timer should stop */
-	uint8 bToolTipVisualizedThisFrame : 1;
 
 public:
 	/** The section of EditorPerProjectUserSettings in which to save settings */

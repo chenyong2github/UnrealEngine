@@ -22,6 +22,10 @@ StructuredBuffer<FSkyLightVisibilityRays> SkyLightVisibilityRays;
 #define USE_HAIR_LIGHTING 0
 #endif
 
+#if USE_HAIR_LIGHTING
+#include "../HairStrands/HairStrandsRaytracing.ush"
+#endif
+
 // Evaluates the radiance for the current sky light in a given direction
 float3 EvaluateSkyLightRadiance(float3 Direction)
 {
@@ -183,7 +187,8 @@ void SkyLightEvaluate(
 		#if USE_HAIR_LIGHTING
 		if (GBufferData.ShadingModelID != SHADINGMODELID_HAIR)
 		{
-			MinimalPayload.HitT = TraverseHair(PixelCoord, Ray.Origin, Ray.Direction, MinimalPayload.HitT);
+			//fixme
+			//MinimalPayload.HitT = TraverseHair(PixelCoord, Ray.Origin, Ray.Direction, MinimalPayload.HitT);
 		}
 		#endif
 

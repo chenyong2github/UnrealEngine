@@ -1,0 +1,80 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "DirectLinkCommon.h"
+
+
+namespace DirectLink
+{
+class FParameterStore;
+struct FReferenceSnapshot;
+
+
+/**
+ * Represents a scene part.
+ * #ue_directlink_doc: full doc pass
+ * 	- sharedState concept
+ *
+ * Notes:
+ * - replication of references via DirectLink::FReferenceSnapshot
+ * - replication of data by the Store (DirectLink::FParameterStore)
+ */
+class DATASMITHCORE_API ISceneGraphNode
+{
+public:
+	virtual ~ISceneGraphNode() = default;
+
+	/// Related nodes share a common object
+	virtual TSharedPtr<FSceneGraphSharedState> MakeSharedState() const { return MakeShared<FSceneGraphSharedState>(); }
+	virtual TSharedPtr<FSceneGraphSharedState> GetSharedState() const { return SharedState; }
+	void SetSharedState(TSharedPtr<FSceneGraphSharedState> NewSharedState);
+
+	/// data
+	virtual const FParameterStore& GetStore() const = 0;
+	virtual FParameterStore& GetStore() = 0; // protected ?
+
+	/// References
+	// This Id is unique within a SceneGraph
+	FSceneGraphId GetNodeId() const { return SceneGraphId; }
+	//private: friend class ...  #ue_directlink_design -> only accessible from the scene that owns the dep graph
+	void SetNodeId(FSceneGraphId Id) { SceneGraphId = Id; }
+
+	void RegisterReferenceProxy(class IReferenceProxy& View, FName Name);
+	int32 GetReferenceProxyCount() const;
+	class IReferenceProxy* GetReferenceProxy(int32 Index) const;
+	FName GetReferenceProxyName(int32 Index) const;
+
+	FSceneGraphId RegisterReference(ISceneGraphNode* Referenced);
+	void UpdateRefs(class IReferenceResolutionProvider& Resolver, const FReferenceSnapshot& NewRefs);
+	// #ue_directlink_design is node responsible for ref serialization?
+
+private:
+	FSceneGraphId SceneGraphId = 0;
+	TSharedPtr<FSceneGraphSharedState> SharedState;
+
+	struct FNamedReferenceProxy
+	{
+		FName Name;
+		IReferenceProxy* View;
+	};
+	TArray<FNamedReferenceProxy> ReferenceProxies;
+};
+
+class IReferenceResolutionProvider // #ue_directlink_design: improve: ClaimRef in the ds shared state
+{
+public:
+	virtual ~IReferenceResolutionProvider() = default;
+	virtual TSharedPtr<ISceneGraphNode> AsSharedPtr(FSceneGraphId NodeId) { return nullptr; }
+};
+
+class DATASMITHCORE_API IReferenceProxy
+{
+public:
+	virtual ~IReferenceProxy() = default;
+	virtual int32 Num() const = 0;
+	virtual ISceneGraphNode* GetNode(int32 Index) const = 0;
+	virtual void SetNodes(IReferenceResolutionProvider& ResolutionProvider, const TArray<FSceneGraphId>& NodeIds) = 0;
+};
+
+} // namespace DirectLink

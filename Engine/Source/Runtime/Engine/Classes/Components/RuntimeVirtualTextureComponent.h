@@ -17,17 +17,45 @@ class ENGINE_API URuntimeVirtualTextureComponent : public USceneComponent
 	GENERATED_UCLASS_BODY()
 
 protected:
+	/** Actor to align rotation to. If set this actor is always included in the bounds calculation. */
+	UPROPERTY(EditAnywhere, Category = TransformFromBounds)
+	TSoftObjectPtr<AActor> BoundsAlignActor = nullptr;
+
+	/** Placeholder for details customization button. */
+	UPROPERTY(VisibleAnywhere, Transient, Category = TransformFromBounds)
+	bool bSetBoundsButton;
+
+	/** If the Bounds Align Actor is a Landscape then this will snap the bounds so that virtual texture texels align with landscape vertex positions. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = TransformFromBounds, meta = (DisplayName = "Snap To Landscape"))
+	bool bSnapBoundsToLandscape;
+
 	/** The virtual texture object to use. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, NonPIEDuplicateTransient, Category = VirtualTexture)
 	URuntimeVirtualTexture* VirtualTexture = nullptr;
+
+	/** Set to true to enable scalability settings for the virtual texture. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = VirtualTexture, meta = (InlineEditConditionToggle))
+	bool bEnableScalability = false;
+
+	/** Group index of the scalability settings to use for the virtual texture. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = VirtualTexture, meta = (UIMin = "0", UIMax = "2", EditCondition = bEnableScalability))
+	uint32 ScalabilityGroup = 0;
+
+	/** Hide primitives in the main pass. Hidden primitives will be those that draw to this virtual texture with 'Draw in Main Pass' set to 'From Virtual Texture'. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = VirtualTexture)
+	bool bHidePrimitives = false;
 
 	/** Texture object containing streamed low mips. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, NonPIEDuplicateTransient, Category = VirtualTextureBuild)
 	UVirtualTextureBuilder* StreamingTexture = nullptr;
 
 	/** Number of low mips to serialize and stream for the virtual texture. This can reduce rendering update cost. */
-	UPROPERTY(EditAnywhere, Category = VirtualTextureBuild, meta = (UIMin = "0", UIMax = "6", DisplayName = "Num Streaming Mips"))
+	UPROPERTY(EditAnywhere, Category = VirtualTextureBuild, meta = (UIMin = "0", UIMax = "12", DisplayName = "Streaming Levels"))
 	int32 StreamLowMips = 0;
+
+	/** Placeholder for details customization button. */
+	UPROPERTY(VisibleAnywhere, Transient, Category = VirtualTextureBuild)
+	bool bBuildStreamingMipsButton;
 
 	/** Enable Crunch texture compression for the streaming low mips. Generic ZLib compression is used when Crunch is disabled. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = VirtualTextureBuild, meta = (DisplayName = "Enable Crunch"))
@@ -37,21 +65,18 @@ protected:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = VirtualTextureBuild, meta = (DisplayName = "View Streaming Mips in Editor"))
 	bool bUseStreamingLowMipsInEditor = false;
 
-	/** Texture object containing min and max height. Only valid if the virtual texture contains a compatible height layer. This can be useful for ray marching against the height. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, NonPIEDuplicateTransient, Category = VirtualTextureBuild)
-	UTexture2D* MinMaxTexture = nullptr;
-
-	/** Actor to align rotation to. If set this actor is always included in the bounds calculation. */
-	UPROPERTY(EditAnywhere, Category = TransformFromBounds)
-	TSoftObjectPtr<AActor> BoundsAlignActor = nullptr;
-
-	/** If the Bounds Align Actor is a Landscape then this will snap the bounds so that virtual texture texels align with landscape vertex positions. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = TransformFromBounds, meta = (DisplayName = "Snap To Landscape"))
-	bool bSnapBoundsToLandscape;
+	/** Build the streaming low mips using debug coloring. This can help show where streaming mips are being used. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Transient, AdvancedDisplay, Category = VirtualTextureBuild, meta = (DisplayName = "Build Debug"))
+	bool bBuildDebugStreamingMips = false;
 
 #if WITH_EDITOR
+	/** Delegate handle for our function called on PIE end. */
 	FDelegateHandle PieEndDelegateHandle;
 #endif
+
+	/** Delegate that this virtual texture will call to evaluated the full HidePrimitives state. */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FGetHidePrimitivesDelegate, bool&, bool&);
+	FGetHidePrimitivesDelegate HidePrimitivesDelegate;
 
 public:
 	/**
@@ -64,11 +89,23 @@ public:
 	/** Get the runtime virtual texture object on this component. */
 	URuntimeVirtualTexture* GetVirtualTexture() const { return VirtualTexture; }
 
+	/** Get if scalability settings are enabled. */
+	bool IsScalable() const { return bEnableScalability; }
+
+	/** Get group index of the scalability settings. */
+	uint32 GetScalabilityGroup() const { return ScalabilityGroup; }
+
+	/** Get the delegate used to extend the calculation of the HidePrimitives state. */
+	FGetHidePrimitivesDelegate& GetHidePrimitivesDelegate() { return HidePrimitivesDelegate; }
+
+	/** Get the full hide primitive state including the evaluating the GetHidePrimitivesDelegate delegate. */
+	void GetHidePrimitiveSettings(bool& OutHidePrimitiveEditor, bool& OutHidePrimitiveGame) const;
+
 	/** Get the streaming virtual texture object on this component. */
 	UVirtualTextureBuilder* GetStreamingTexture() const { return StreamingTexture; }
 
 	/** Public getter for virtual texture streaming low mips */
-	int32 NumStreamingMips() const { return FMath::Clamp(StreamLowMips, 0, 6); }
+	int32 NumStreamingMips() const { return FMath::Clamp(StreamLowMips, 0, 12); }
 
 	/** Get if we want to use any streaming low mips on this component. */
 	bool IsStreamingLowMips() const;
@@ -76,24 +113,17 @@ public:
 	/** Public getter for crunch compression flag. */
 	bool IsCrunchCompressed() const { return bEnableCompressCrunch; }
 
+	/** Public getter for debug streaming mips flag. */
+	bool IsBuildDebugStreamingMips() { return bBuildDebugStreamingMips; }
+
+	/** Returns true if the StreamingTexure contents are valid for use. */
+	bool IsStreamingTextureValid() const;
+
 #if WITH_EDITOR
 	/** Set a new asset to hold the low mip streaming texture. This should only be called directly before setting data to the new asset. */
 	void SetStreamingTexture(UVirtualTextureBuilder* InTexture) { StreamingTexture = InTexture; }
 	/** Initialize the low mip streaming texture with the passed in size and data. */
 	void InitializeStreamingTexture(uint32 InSizeX, uint32 InSizeY, uint8* InData);
-#endif
-
-	/** Returns true if a MinMax height texture is relevant for this virtual texture type. */
-	bool IsMinMaxTextureEnabled() const;
-
-	/** Get the streaming MinMax height texture on this component. */
-	UTexture2D* GetMinMaxTexture() { return IsMinMaxTextureEnabled() ? MinMaxTexture : nullptr; }
-
-#if WITH_EDITOR
-	/** Set a new asset to hold the MinMax height texture. This should only be called directly before setting data to the new asset. */
-	void SetMinMaxTexture(UTexture2D* InTexture) { MinMaxTexture = InTexture; }
-	/** Initialize the MinMax height texture with the passed in size and data. */
-	void InitializeMinMaxTexture(uint32 InSizeX, uint32 InSizeY, uint32 InNumMips, uint8* InData);
 #endif
 
 #if WITH_EDITOR
@@ -133,10 +163,6 @@ protected:
 protected:
 	/** Calculate a hash used to determine if the StreamingTexture contents are valid for use. The hash doesn't include whether the contents are up to date. */
 	uint64 CalculateStreamingTextureSettingsHash() const;
-	/** Returns true if the StreamingTexure contents are valid for use. */
-	bool IsStreamingTextureValid() const;
-	/** Returns true if the MinMaxTexture contents are valid for use. */
-	bool IsMinMaxTextureValid() const;
 
 public:
 	/** Scene proxy object. Managed by the scene but stored here. */

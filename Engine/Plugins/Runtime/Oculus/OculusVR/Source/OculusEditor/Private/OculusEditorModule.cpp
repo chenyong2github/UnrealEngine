@@ -13,6 +13,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Widgets/Images/SImage.h"
 #include "PropertyEditorModule.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
@@ -218,16 +219,26 @@ FReply FOculusHMDSettingsDetailsCustomization::PluginClickPlatFn(bool text)
 
 void FOculusHMDSettingsDetailsCustomization::OnEnableBuildTelemetry(ECheckBoxState NewState)
 {
-	FOculusBuildAnalytics::GetInstance()->OnTelemetryToggled(NewState == ECheckBoxState::Checked);
+	FOculusBuildAnalytics* analytics = FOculusBuildAnalytics::GetInstance();
+	// If we aren't able to get an instance for some reason, don't try an invoke it; but do update the setting
+	if (analytics != NULL) {
+		analytics->OnTelemetryToggled(NewState == ECheckBoxState::Checked);
+	}
+
 	GConfig->SetBool(TEXT("/Script/OculusEditor.OculusEditorSettings"), TEXT("bEnableOculusBuildTelemetry"), NewState == ECheckBoxState::Checked, GEditorIni);
 	GConfig->Flush(0);
 }
 
-ECheckBoxState FOculusHMDSettingsDetailsCustomization::IsBuildTelemetryEnabled() const
+ECheckBoxState FOculusHMDSettingsDetailsCustomization::GetBuildTelemetryCheckBoxState() const
 {
 	bool v;
 	GConfig->GetBool(TEXT("/Script/OculusEditor.OculusEditorSettings"), TEXT("bEnableOculusBuildTelemetry"), v, GEditorIni);
 	return v ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+EVisibility FOculusHMDSettingsDetailsCustomization::GetOculusHMDAvailableWarningVisibility() const
+{
+	return FOculusBuildAnalytics::IsOculusHMDAvailable() ? EVisibility::Collapsed : EVisibility::Visible;
 }
 
 void FOculusHMDSettingsDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
@@ -239,50 +250,69 @@ void FOculusHMDSettingsDetailsCustomization::CustomizeDetails(IDetailLayoutBuild
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot().AutoHeight().Padding(2)
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot().AutoWidth()
-		[
-			SNew(SButton)
-			.Text(LOCTEXT("LaunchTool", "Launch Oculus Performance Window"))
-		.OnClicked(this, &FOculusHMDSettingsDetailsCustomization::PluginClickPerfFn, true)
-		]
-	+ SHorizontalBox::Slot().FillWidth(8)
-		]
-	+ SVerticalBox::Slot().AutoHeight().Padding(2)
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot().AutoWidth()
-		[
-			SNew(SButton)
-			.Text(LOCTEXT("LaunchPlatTool", "Launch Oculus Platform Window"))
-		.OnClicked(this, &FOculusHMDSettingsDetailsCustomization::PluginClickPlatFn, true)
-		]
-	+ SHorizontalBox::Slot().FillWidth(8)
-		]
-	+ SVerticalBox::Slot().AutoHeight().Padding(5)
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot().AutoWidth()
-		[
-			SNew(SBox)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("EnableBuildTelemetry", "Enable Oculus Build Telemetry"))
-			]
-		]
-	+ SHorizontalBox::Slot().AutoWidth()
-		[
-			SNew(SBox).WidthOverride(10.f)
-		]
-	+ SHorizontalBox::Slot().AutoWidth()
-		[
-			SNew(SCheckBox)
-			.OnCheckStateChanged(this, &FOculusHMDSettingsDetailsCustomization::OnEnableBuildTelemetry)
-		.IsChecked(this, &FOculusHMDSettingsDetailsCustomization::IsBuildTelemetryEnabled)
-		]
-	+ SHorizontalBox::Slot().FillWidth(8)
-		]
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().AutoWidth()
+						[
+							SNew(SButton)
+							.Text(LOCTEXT("LaunchTool", "Launch Oculus Performance Window"))
+							.OnClicked(this, &FOculusHMDSettingsDetailsCustomization::PluginClickPerfFn, true)
+						]
+					+ SHorizontalBox::Slot().FillWidth(8)
+				]
+			+ SVerticalBox::Slot().AutoHeight().Padding(2)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().AutoWidth()
+						[
+							SNew(SButton)
+							.Text(LOCTEXT("LaunchPlatTool", "Launch Oculus Platform Window"))
+							.OnClicked(this, &FOculusHMDSettingsDetailsCustomization::PluginClickPlatFn, true)
+						]
+					+ SHorizontalBox::Slot().FillWidth(8)
+				]
+			+ SVerticalBox::Slot().AutoHeight().Padding(5)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().AutoWidth()
+						[
+							SNew(SBox)
+							[
+								SNew(STextBlock)
+								.Text(LOCTEXT("EnableBuildTelemetry", "Enable Oculus Build Telemetry"))
+							]
+						]
+					+ SHorizontalBox::Slot().AutoWidth()
+						[
+							SNew(SBox).WidthOverride(10.f)
+						]
+					+ SHorizontalBox::Slot().AutoWidth()
+						[
+							SNew(SCheckBox)
+							.OnCheckStateChanged(this, &FOculusHMDSettingsDetailsCustomization::OnEnableBuildTelemetry)
+							.IsChecked(this, &FOculusHMDSettingsDetailsCustomization::GetBuildTelemetryCheckBoxState)
+						]
+					+ SHorizontalBox::Slot().FillWidth(8)
+				]
+			+ SVerticalBox::Slot().AutoHeight().Padding(5)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().AutoWidth().HAlign(HAlign_Center).VAlign(VAlign_Center).Padding(4)
+						[
+							SNew(SImage)
+							.Image(FEditorStyle::Get().GetBrush("Icons.Warning"))
+							.Visibility(this, &FOculusHMDSettingsDetailsCustomization::GetOculusHMDAvailableWarningVisibility)
+						]
+					+ SHorizontalBox::Slot().FillWidth(8).VAlign(VAlign_Center)
+						[
+							SNew(STextBlock)
+							.AutoWrapText(true)
+							.Text(LOCTEXT("OculusHMDNotConnected", "WARNING: Build telemetry functionality may be limited, because the Oculus HMD was not found to be connected, available, or configured correctly. Check the Devices tab of the Oculus PC app."))
+							.ColorAndOpacity(FLinearColor(0.7f, 0.23f, 0.23f, 1.f))
+							.Font(FEditorStyle::GetFontStyle(TEXT("BoldFont")))
+							.Visibility(this, &FOculusHMDSettingsDetailsCustomization::GetOculusHMDAvailableWarningVisibility)
+						]
+				]
 		];
 }
 

@@ -14,9 +14,8 @@ namespace UnrealBuildTool.Rules
                     "Engine",
                     "MovieScene",
                     "MovieSceneTracks",
-                    "GeometryCollectionCore",
+					"Chaos",
                     "GeometryCollectionEngine",
-                    "GeometryCollectionSimulationCore",
                 }
             );
 

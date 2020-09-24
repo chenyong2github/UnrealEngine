@@ -48,6 +48,10 @@ public:
 	 * Adds a new object to the list.
 	 */
 	void AddObject( UObject* InObject );
+
+	/** Adds new objects to the list. */
+	void AddObjects(const TArray<UObject*>& InObjects);
+
 	/**
 	 * Removes an object from the list.
 	 */

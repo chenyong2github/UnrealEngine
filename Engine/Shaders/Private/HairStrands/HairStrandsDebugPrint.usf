@@ -5,7 +5,7 @@
 #include "../ShaderDrawDebug.ush"
 #include "HairStrandsVisibilityCommon.ush"
 #include "HairStrandsDebugCommon.ush"
-#include "HairStrandsAABBCommon.ush"
+#include "HairStrandsAABBCommon.ush" 
 
 int2 PixelCoord;
 int2 MaxResolution;

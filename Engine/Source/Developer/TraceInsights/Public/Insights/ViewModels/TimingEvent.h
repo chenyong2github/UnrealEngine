@@ -65,11 +65,16 @@ public:
 
 	double GetExclusiveTime() const { return ExclusiveTime; }
 	void SetExclusiveTime(double InExclusiveTime) { ExclusiveTime = InExclusiveTime; }
+	bool IsExclusiveTimeComputed() const { return bIsExclusiveTimeComputed; }
+	void SetIsExclusiveTimeComputed(bool InIsExclusiveTime) { bIsExclusiveTimeComputed = InIsExclusiveTime; }
 
 	uint64 GetType() const { return Type; }
 
 	static uint32 ComputeEventColor(uint32 Id);
 	static uint32 ComputeEventColor(const TCHAR* Str);
+
+protected:
+	void SetType(uint64 InType) { Type = InType; }
 
 private:
 	// The track this timing event is contained within
@@ -86,6 +91,9 @@ private:
 
 	// For hierarchical events, the cached exclusive time
 	double ExclusiveTime;
+
+	// A flag used to avoid recomputing the exclusive time
+	bool bIsExclusiveTimeComputed = false;
 
 	// The depth of the event
 	uint32 Depth;

@@ -17,7 +17,7 @@ namespace MagicLeap
 		Error
 	};
 
-	struct FRequiredPrivilege
+	struct MAGICLEAP_API FRequiredPrivilege
 	{
 		typedef TFunction<void(const FRequiredPrivilege& RequiredPrivilege)> FPrivilegeEventHandler;
 

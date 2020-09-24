@@ -911,6 +911,8 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 	const float ModifiedViewFOV = ModifiedViewInfo.FOV;
 	if (bUseControllingActorViewInfo)
 	{
+		ControllingActorViewInfo.Location = ModifiedViewInfo.Location;
+		ControllingActorViewInfo.Rotation = ModifiedViewInfo.Rotation;
 		ControllingActorViewInfo.FOV = ModifiedViewInfo.FOV;
 	}
 
@@ -2905,33 +2907,9 @@ void FEditorViewportClient::StopTracking()
 
 		// Force an immediate redraw of the viewport and hit proxy.
 		// The results are required straight away, so it is not sufficient to defer the redraw until the next tick.
-		if (Viewport)
-		{
-			Viewport->InvalidateHitProxy();
-			Viewport->Draw();
-
-			// If there are child viewports, force a redraw on those too
-			FSceneViewStateInterface* ParentView = ViewState.GetReference();
-			if (ParentView->IsViewParent())
-			{
-				for (FEditorViewportClient* ViewportClient : GEditor->GetAllViewportClients())
-				{
-					if (ViewportClient != nullptr)
-					{
-						FSceneViewStateInterface* ViewportParentView = ViewportClient->ViewState.GetReference();
-
-						if (ViewportParentView != nullptr &&
-							ViewportParentView->HasViewParent() &&
-							ViewportParentView->GetViewParent() == ParentView &&
-							!ViewportParentView->IsViewParent())
-						{
-							ViewportClient->Viewport->InvalidateHitProxy();
-							ViewportClient->Viewport->Draw();
-						}
-					}
-				}
-			}
-		}
+		constexpr bool bForceChildViewportRedraw = true;
+		constexpr bool bInvalidateHitProxies = true;
+		Invalidate(bForceChildViewportRedraw, bInvalidateHitProxies);
 
 		SetRequiredCursorOverride( false );
 

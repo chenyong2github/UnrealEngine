@@ -283,11 +283,13 @@ struct FBTBuilder
 		return *ServiceOb;
 	}
 
-	static void WithServiceLog(UBTCompositeNode& ParentNode, int32 ActivationIndex, int32 DeactivationIndex)
+	static void WithServiceLog(UBTCompositeNode& ParentNode, int32 ActivationIndex, int32 DeactivationIndex, int32 TickIndex = INDEX_NONE, FName BoolKeyName = NAME_None, bool bCallTickOnSearchStart = false)
 	{
 		UTestBTService_Log& LogService = WithService<UTestBTService_Log>(ParentNode);
 		LogService.LogActivation = ActivationIndex;
 		LogService.LogDeactivation = DeactivationIndex;
+		LogService.LogTick = TickIndex;
+		LogService.SetFlagOnTick(BoolKeyName, bCallTickOnSearchStart);
 	}
 
 	template<class T>
@@ -302,10 +304,12 @@ struct FBTBuilder
 		return *ServiceOb;
 	}
 
-	static void WithTaskServiceLog(UBTCompositeNode& ParentNode, int32 ActivationIndex, int32 DeactivationIndex)
+	static void WithTaskServiceLog(UBTCompositeNode& ParentNode, int32 ActivationIndex, int32 DeactivationIndex, int32 TickIndex = INDEX_NONE, FName BoolKeyName = NAME_None, bool bCallTickOnSearchStart = false)
 	{
 		UTestBTService_Log& LogService = WithTaskService<UTestBTService_Log>(ParentNode);
 		LogService.LogActivation = ActivationIndex;
 		LogService.LogDeactivation = DeactivationIndex;
+		LogService.LogTick = TickIndex;
+		LogService.SetFlagOnTick(BoolKeyName, bCallTickOnSearchStart);
 	}
 };

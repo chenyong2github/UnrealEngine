@@ -30,10 +30,9 @@ namespace WindowsMixedReality
 		void RemoveAnchor(const wchar_t* anchorId);
 		bool DoesAnchorExist(const wchar_t* anchorId) const;
 		bool GetAnchorPose(const wchar_t* anchorId, DirectX::XMFLOAT3& outScale, DirectX::XMFLOAT4& outRot, DirectX::XMFLOAT3& outTrans, winrt::Windows::Perception::Spatial::SpatialCoordinateSystem& inCoordinateSystem) const;
-		bool SaveAnchor(const wchar_t* anchorId);
-		void RemoveSavedAnchor(const wchar_t* anchorId);
-		bool SaveAnchors();
-		bool LoadAnchors(std::function<void(const wchar_t* text)> anchorIdWritingFunctionPointer);
+		bool SaveAnchor(const wchar_t* saveId, const wchar_t* anchorId);
+		void RemoveSavedAnchor(const wchar_t* saveId);
+		bool LoadAnchors(std::function<void(const wchar_t* saveId, const wchar_t* anchorId)> anchorIdWritingFunctionPointer);
 		void ClearSavedAnchors();
 		void SubscribeToRawCoordinateSystemAdjusted(winrt::Windows::Perception::Spatial::SpatialAnchor& anchor, const wchar_t* strName);
 		bool DidAnchorCoordinateSystemChange();

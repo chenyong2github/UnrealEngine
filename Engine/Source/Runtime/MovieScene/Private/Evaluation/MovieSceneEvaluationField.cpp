@@ -142,6 +142,11 @@ void FMovieSceneEntityComponentField::QueryPersistentEntities(FFrameNumber Query
 	}
 }
 
+bool FMovieSceneEntityComponentField::HasAnyOneShotEntities() const
+{
+	return !OneShotEntityTree.SerializedData.IsEmpty();
+}
+
 void FMovieSceneEntityComponentField::QueryOneShotEntities(const TRange<FFrameNumber>& QueryRange, FMovieSceneEvaluationFieldEntitySet& OutEntities) const
 {
 	FMovieSceneEvaluationTreeRangeIterator Iterator = OneShotEntityTree.SerializedData.IterateFromLowerBound(QueryRange.GetLowerBound());

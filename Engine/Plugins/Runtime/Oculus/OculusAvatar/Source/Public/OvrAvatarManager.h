@@ -20,6 +20,7 @@ class OCULUSAVATAR_API UOvrAvatarManager : public UObject, public FTickableGameO
 public:
 	GENERATED_BODY()
 
+	~UOvrAvatarManager();
 	static UOvrAvatarManager& Get();
 	static void Destroy();
 
@@ -63,7 +64,6 @@ private:
 	static void SDKLogger(const char * str);
 
 	UOvrAvatarManager() {};
-	~UOvrAvatarManager();
 
 	void HandleAvatarSpecification(const ovrAvatarMessage_AvatarSpecification* message);
 	void HandleAssetLoaded(const ovrAvatarMessage_AssetLoaded* message);
@@ -78,7 +78,7 @@ private:
 	TSet<uint64> NormalMapIDs;
 	TSet<uint64> RoughnessMapIDs;
 	
-	static UOvrAvatarManager* sAvatarManager;
+	static TUniquePtr<UOvrAvatarManager> sAvatarManager;
 	FString AVATAR_APP_ID;
 
 	struct SerializedPacketBuffer
@@ -103,5 +103,5 @@ private:
 	ovrAvatarLogLevel LogLevel = ovrAvatarLogLevel::ovrAvatarLogLevel_Silent;
 
 	static FSoftObjectPath AssetList[];
-	static TArray<UObject*> AssetObjects;
+	TArray<UObject*> AssetObjects;
 };

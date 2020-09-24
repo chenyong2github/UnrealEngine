@@ -186,6 +186,11 @@ void FGraphSelectionManager::ClickedOnNode(SelectedItemType Node, const FPointer
 	}
 }
 
+void FGraphSelectionManager::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	Collector.AddReferencedObjects(SelectedNodes);
+}
+
 //////////////////////////////////////////////////////////////////////////
 // SNodePanel
 

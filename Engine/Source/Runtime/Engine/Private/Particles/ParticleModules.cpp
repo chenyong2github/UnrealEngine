@@ -4555,7 +4555,11 @@ void UParticleModuleTypeDataGpu::PostLoad()
 
 void UParticleModuleTypeDataGpu::BeginDestroy()
 {
-	BeginReleaseGPUSpriteResources( EmitterInfo.Resources );
+	if (FGPUSpriteResources* Resources = EmitterInfo.Resources)
+	{
+		EmitterInfo.Resources = nullptr;
+		BeginReleaseGPUSpriteResources(Resources);
+	}
 	Super::BeginDestroy();
 }
 

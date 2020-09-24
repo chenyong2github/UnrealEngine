@@ -503,20 +503,6 @@ void FDataTableEditor::OnEditDataTableStructClicked()
 	}
 }
 
-FReply FDataTableEditor::SaveDataTable_Execute()
-{
-	FAssetEditorToolkit::SaveAsset_Execute();
-
-	return FReply::Handled();
-}
-
-FReply FDataTableEditor::BrowseForDataTable_Execute()
-{
-	FAssetEditorToolkit::FindInContentBrowser_Execute();
-
-	return FReply::Handled();
-}
-
 void FDataTableEditor::ExtendToolbar(TSharedPtr<FExtender> Extender)
 {
 	Extender->AddToolBarExtension(

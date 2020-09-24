@@ -183,6 +183,20 @@ namespace Chaos
 
 	void FPBDJointSettings::Sanitize()
 	{
+		// Disable soft joints for locked dofs
+		if ((LinearMotionTypes[0] == EJointMotionType::Locked) && (LinearMotionTypes[1] == EJointMotionType::Locked) && (LinearMotionTypes[2] == EJointMotionType::Locked))
+		{
+			bSoftLinearLimitsEnabled = false;
+		}
+		if (AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist] == EJointMotionType::Locked)
+		{
+			bSoftTwistLimitsEnabled = false;
+		}
+		if ((AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1] == EJointMotionType::Locked) && (AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2] == EJointMotionType::Locked))
+		{
+			bSoftSwingLimitsEnabled = false;
+		}
+
 		// Reset limits if they won't be used (means we don't have to check if limited/locked in a few cases).
 		// A side effect: if we enable a constraint, we need to reset the value of the limit.
 		if ((LinearMotionTypes[0] != EJointMotionType::Limited) && (LinearMotionTypes[1] != EJointMotionType::Limited) && (LinearMotionTypes[2] != EJointMotionType::Limited))
@@ -204,7 +218,7 @@ namespace Chaos
 
 		// If we have a zero degree limit angle, lock the joint, or set a non-zero limit (to avoid division by zero in axis calculations)
 		const FReal MinAngularLimit = 0.01f;
-		if ((AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist] == EJointMotionType::Limited) && (AngularLimits[(int32)EJointAngularConstraintIndex::Twist] == 0))
+		if ((AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist] == EJointMotionType::Limited) && (AngularLimits[(int32)EJointAngularConstraintIndex::Twist] < MinAngularLimit))
 		{
 			if (bSoftTwistLimitsEnabled)
 			{
@@ -215,7 +229,7 @@ namespace Chaos
 				AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist] = EJointMotionType::Locked;
 			}
 		}
-		if ((AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1] == EJointMotionType::Limited) && (AngularLimits[(int32)EJointAngularConstraintIndex::Swing1] == 0))
+		if ((AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1] == EJointMotionType::Limited) && (AngularLimits[(int32)EJointAngularConstraintIndex::Swing1] < MinAngularLimit))
 		{
 			if (bSoftSwingLimitsEnabled)
 			{
@@ -226,7 +240,7 @@ namespace Chaos
 				AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1] = EJointMotionType::Locked;
 			}
 		}
-		if ((AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2] == EJointMotionType::Limited) && (AngularLimits[(int32)EJointAngularConstraintIndex::Swing2] == 0))
+		if ((AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2] == EJointMotionType::Limited) && (AngularLimits[(int32)EJointAngularConstraintIndex::Swing2] < MinAngularLimit))
 		{
 			if (bSoftSwingLimitsEnabled)
 			{
@@ -337,20 +351,24 @@ namespace Chaos
 
 	void FPBDJointConstraints::GetConstrainedParticleIndices(const int32 ConstraintIndex, int32& Index0, int32& Index1) const
 	{
-		// In solvers we assume Particle0 is the parent particle (which it usually is as implemented in the editor). 
-		// However, it is possible to set it up so that the kinematic particle is the child which we don't support, so...
-		// If particle 0 is kinematic we make it the parent, otherwise particle 1 is the parent.
-		// @todo(ccaulfield): look into this and confirm/fix properly
-		TPBDRigidParticleHandle<FReal, 3>* Particle1 = ConstraintParticles[ConstraintIndex][1]->CastToRigidParticle();
-		if (!Particle1 || Particle1->ObjectState() == EObjectStateType::Kinematic || Particle1->ObjectState() == EObjectStateType::Static)
-		{
-			Index0 = 1;
-			Index1 = 0;
-		}
-		else
+		// The solver assumes its two particles are ordered Kinematic-Dynamic or Dynamic-Dynamic, and that the "Parent" is first.
+		// In ConstraintInstance the parent is second, so by default we need to flip the indices before we pass them to the solver. 
+		// However, it is possible to set up ConstraintInstance so the first (child) particle is kinematic, so in this case we would 
+		// not flip the indices. We don't care about the order if both particles are kinematic.
+		// @todo(chaos): We implicitly assume that if only one particle is Kinematic then it is the parent. As mentioned above, this is 
+		// potentially not true so we may need to support Dynamic-Kinematic in the solver after all. The only side effect of the parent-child
+		// swapping that occurs if we don't support this is when have asymmetric cone limits, because the cone axes should be in parent space.
+		const TPBDRigidParticleHandle<FReal, 3>* Particle0 = ConstraintParticles[ConstraintIndex][0]->CastToRigidParticle();
+		const bool bIsKinematic0 = (Particle0 == nullptr) || (Particle0->ObjectState() == EObjectStateType::Kinematic) || (Particle0->ObjectState() == EObjectStateType::Static);
+		if (bIsKinematic0)
 		{
 			Index0 = 0;
 			Index1 = 1;
+		}
+		else
+		{
+			Index0 = 1;
+			Index1 = 0;
 		}
 	}
 

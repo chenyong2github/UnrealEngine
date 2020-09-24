@@ -10,12 +10,11 @@ Texture2DStreamIn.cpp: Stream in helper for 2D textures.
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 
-FTexture2DStreamIn::FTexture2DStreamIn(UTexture2D* InTexture, int32 InRequestedMips)
-	: FTexture2DUpdate(InTexture, InRequestedMips)
+FTexture2DStreamIn::FTexture2DStreamIn(UTexture2D* InTexture)
+	: FTexture2DUpdate(InTexture)
 {
-	ensure(InRequestedMips > InTexture->GetNumResidentMips());
-
-	MipData.AddZeroed(InTexture->GetNumMips());
+	ensure(ResourceState.NumRequestedLODs > ResourceState.NumResidentLODs);
+	MipData.AddZeroed(ResourceState.MaxNumLODs);
 }
 
 FTexture2DStreamIn::~FTexture2DStreamIn()
@@ -28,18 +27,14 @@ FTexture2DStreamIn::~FTexture2DStreamIn()
 #endif
 }
 
-
 void FTexture2DStreamIn::DoAllocateNewMips(const FContext& Context)
 {
 	if (!IsCancelled() && Context.Resource)
 	{
-		const TIndirectArray<FTexture2DMipMap>& OwnerMips = Context.Texture->GetPlatformMips();
-		const int32 CurrentFirstMip = Context.Resource->GetCurrentFirstMip();
-
-		for (int32 MipIndex = PendingFirstMip; MipIndex < CurrentFirstMip; ++MipIndex)
+		for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx; ++MipIndex)
 		{
-			const FTexture2DMipMap& MipMap = OwnerMips[MipIndex];
-			const int32 MipSize = CalcTextureMipMapSize(MipMap.SizeX, MipMap.SizeY, Context.Resource->GetTexture2DRHI()->GetFormat(), 0);
+			const FTexture2DMipMap& MipMap = *Context.MipsView[MipIndex];
+			const int32 MipSize = CalcTextureMipMapSize(MipMap.SizeX, MipMap.SizeY, Context.Resource->GetPixelFormat(), 0);
 
 			check(!MipData[MipIndex]);
 			MipData[MipIndex] = FMemory::Malloc(MipSize);
@@ -49,16 +44,12 @@ void FTexture2DStreamIn::DoAllocateNewMips(const FContext& Context)
 
 void FTexture2DStreamIn::DoFreeNewMips(const FContext& Context)
 {
-	if (Context.Resource)
+	for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx; ++MipIndex)
 	{
-		const int32 CurrentFirstMip = Context.Resource->GetCurrentFirstMip();
-		for (int32 MipIndex = PendingFirstMip; MipIndex < Context.Resource->GetCurrentFirstMip(); ++MipIndex)
+		if (MipData[MipIndex])
 		{
-			if (MipData[MipIndex])
-			{
-				FMemory::Free(MipData[MipIndex]);
-				MipData[MipIndex] = nullptr;
-			}
+			FMemory::Free(MipData[MipIndex]);
+			MipData[MipIndex] = nullptr;
 		}
 	}
 }
@@ -70,12 +61,9 @@ void FTexture2DStreamIn::DoLockNewMips(const FContext& Context)
 	if (!IsCancelled() && IntermediateTextureRHI && Context.Resource)
 	{
 		// With virtual textures, all mips exist although they might not be allocated.
-		const FTexture2DRHIRef Texture2DRHI = Context.Resource->GetTexture2DRHI();
-		const bool bIsVirtualTexture = (IntermediateTextureRHI->GetFlags() & TexCreate_Virtual) == TexCreate_Virtual;
-		const int32 MipOffset = bIsVirtualTexture ? 0 : PendingFirstMip;
+		const int32 MipOffset = !!(IntermediateTextureRHI->GetFlags() & TexCreate_Virtual) ? 0 : PendingFirstLODIdx;
 
-		const int32 CurrentFirstMip = Context.Resource->GetCurrentFirstMip();
-		for (int32 MipIndex = PendingFirstMip; MipIndex < CurrentFirstMip; ++MipIndex)
+		for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx; ++MipIndex)
 		{
 			check(!MipData[MipIndex]);
 			uint32 DestPitch = 0;
@@ -92,12 +80,9 @@ void FTexture2DStreamIn::DoUnlockNewMips(const FContext& Context)
 	if (IntermediateTextureRHI && Context.Resource)
 	{
 		// With virtual textures, all mips exist although they might not be allocated.
-		const FTexture2DRHIRef Texture2DRHI = Context.Resource->GetTexture2DRHI();
-		const bool bIsVirtualTexture = (IntermediateTextureRHI->GetFlags() & TexCreate_Virtual) == TexCreate_Virtual;
-		const int32 MipOffset = bIsVirtualTexture ? 0 : PendingFirstMip;
+		const int32 MipOffset = !!(IntermediateTextureRHI->GetFlags() & TexCreate_Virtual) ? 0 : PendingFirstLODIdx;
 
-		const int32 CurrentFirstMip = Context.Resource->GetCurrentFirstMip();
-		for (int32 MipIndex = PendingFirstMip; MipIndex < CurrentFirstMip; ++MipIndex)
+		for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx; ++MipIndex)
 		{
 			if (MipData[MipIndex])
 			{
@@ -114,8 +99,7 @@ void FTexture2DStreamIn::DoCopySharedMips(const FContext& Context)
 
 	if (!IsCancelled() && IntermediateTextureRHI && Context.Resource)
 	{
-		const FTexture2DRHIRef Texture2DRHI = Context.Resource->GetTexture2DRHI();
-		RHICopySharedMips(IntermediateTextureRHI, Texture2DRHI);
+		RHICopySharedMips(IntermediateTextureRHI, Context.Resource->GetTexture2DRHI());
 	}
 }
 
@@ -125,26 +109,18 @@ void FTexture2DStreamIn::DoAsyncCreateWithNewMips(const FContext& Context)
 	TRACE_CPUPROFILER_EVENT_SCOPE( "FTexture2DStreamIn::DoAsyncCreateWithNewMips" );
 	check(Context.CurrentThread == TT_Async);
 
-	if (!IsCancelled() && Context.Texture && Context.Resource)
+	if (!IsCancelled() && Context.Resource)
 	{
-		FTexture2DRHIRef Texture2DRHI = Context.Resource->GetTexture2DRHI();
-		if (Texture2DRHI)
-		{
-			const TIndirectArray<FTexture2DMipMap>& OwnerMips = Context.Texture->GetPlatformMips();
-			const FTexture2DMipMap& RequestedMipMap = OwnerMips[PendingFirstMip];
-			ensure(!IntermediateTextureRHI);
+		const FTexture2DMipMap& RequestedMipMap = *Context.MipsView[PendingFirstLODIdx];
+		ensure(!IntermediateTextureRHI);
 
-			const uint32 Flags = (Context.Texture->SRGB ? TexCreate_SRGB : 0);
-			const int32 ResidentMips = OwnerMips.Num() - Context.Resource->GetCurrentFirstMip();
-
-			IntermediateTextureRHI = RHIAsyncCreateTexture2D(
-				RequestedMipMap.SizeX,
-				RequestedMipMap.SizeY,
-				Texture2DRHI->GetFormat(),
-				RequestedMips,
-				Flags,
-				&MipData[PendingFirstMip],
-				RequestedMips - ResidentMips);
-		}
+		IntermediateTextureRHI = RHIAsyncCreateTexture2D(
+			RequestedMipMap.SizeX,
+			RequestedMipMap.SizeY,
+			Context.Resource->GetPixelFormat(),
+			ResourceState.NumRequestedLODs,
+			Context.Resource->GetCreationFlags(),
+			&MipData[PendingFirstLODIdx],
+			ResourceState.NumRequestedLODs - ResourceState.NumResidentLODs);
 	}
 }

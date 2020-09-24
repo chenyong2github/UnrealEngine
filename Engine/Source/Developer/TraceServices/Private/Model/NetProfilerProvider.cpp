@@ -10,6 +10,25 @@ namespace Trace
 
 const FName FNetProfilerProvider::ProviderName("NetProfilerProvider");
 
+const TCHAR* LexToString(const ENetProfilerChannelCloseReason Value)
+{
+	switch (Value)
+	{
+	case ENetProfilerChannelCloseReason::Destroyed:
+		return TEXT("Destroyed");
+	case ENetProfilerChannelCloseReason::Dormancy:
+		return TEXT("Dormancy");
+	case ENetProfilerChannelCloseReason::LevelUnloaded:
+		return TEXT("LevelUnloaded");
+	case ENetProfilerChannelCloseReason::Relevancy:
+		return TEXT("Relevancy");
+	case ENetProfilerChannelCloseReason::TearOff:
+		return TEXT("TearOff");
+	}
+
+	return TEXT("Unknown");
+}
+
 FNetProfilerProvider::FNetProfilerProvider(IAnalysisSession& InSession)
 	: Session(InSession)
 	, NetTraceVersion(0U)

@@ -127,7 +127,6 @@ public:
 		}
 
 		FGraphEventRef FinalizeTask = TGraphTask<FParticleManagerFinalizeTask>::CreateTask(nullptr, CurrentThread).ConstructAndDispatchWhenReady(Owner, PSCsToTick);
-		MyCompletionGraphEvent->SetGatherThreadForDontCompleteUntil(ENamedThreads::GameThread);
 		MyCompletionGraphEvent->DontCompleteUntil(FinalizeTask);
 	}
 };
@@ -510,7 +509,6 @@ FORCEINLINE void FParticleSystemWorldManager::FlushAsyncTicks(const FGraphEventR
 		FGraphEventRef AsyncTask = TGraphTask<FParticleManagerAsyncTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(this, AsyncTickBatch);
 
 #if PSC_MAN_TG_WAIT_FOR_ASYNC
-		TickGroupCompletionGraphEvent->SetGatherThreadForDontCompleteUntil(ENamedThreads::GameThread);
 		TickGroupCompletionGraphEvent->DontCompleteUntil(AsyncTask);
 #endif
 

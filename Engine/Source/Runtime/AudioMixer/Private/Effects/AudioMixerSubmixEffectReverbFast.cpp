@@ -8,7 +8,12 @@
 #include "DSP/BufferVectorOperations.h"
 #include "DSP/ReverbFast.h"
 #include "DSP/Amp.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
+
+
+// Link to "Audio" profiling category
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXERCORE_API, Audio);
 
 static int32 DisableSubmixReverbCVarFast = 0;
 static FAutoConsoleVariableRef CVarDisableSubmixReverbFast(
@@ -35,6 +40,7 @@ static FAutoConsoleVariableRef CVarDisableQuadReverbCVarFast(
 	TEXT("0: Not Disabled, 1: Disabled"),
 	ECVF_Default);
 
+DEFINE_STAT(STAT_AudioMixerSubmixReverb);
 
 const float FSubmixEffectReverbFast::MinWetness = 0.0f;
 const float FSubmixEffectReverbFast::MaxWetness = 10.f;
@@ -131,6 +137,9 @@ void FSubmixEffectReverbFast::OnProcessAudio(const FSoundEffectSubmixInputData& 
 		// Not supported
 		return;
 	}
+
+	CSV_SCOPED_TIMING_STAT(Audio, SubmixReverb);
+	SCOPE_CYCLE_COUNTER(STAT_AudioMixerSubmixReverb);
 
 	UpdateParameters();
 

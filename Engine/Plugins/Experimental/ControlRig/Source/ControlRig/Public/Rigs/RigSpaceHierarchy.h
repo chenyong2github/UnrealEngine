@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "RigHierarchyDefines.h"
+#include "RigHierarchyPose.h"
 #include "RigSpaceHierarchy.generated.h"
 
 class UControlRig;
@@ -60,25 +61,28 @@ struct CONTROLRIG_API FRigSpace : public FRigElement
 		return ERigElementType::Space;
 	}
 
-	FORCEINLINE virtual FRigElementKey GetParentElementKey() const
+	FORCEINLINE virtual FRigElementKey GetParentElementKey(bool bForce = false) const
 	{
-		switch (SpaceType)
+		if (ParentIndex != INDEX_NONE || bForce)
 		{
-			case ERigSpaceType::Bone:
+			switch (SpaceType)
 			{
-				return FRigElementKey(ParentName, ERigElementType::Bone);
-			}
-			case ERigSpaceType::Control:
-			{
-				return FRigElementKey(ParentName, ERigElementType::Control);
-			}
-			case ERigSpaceType::Space:
-			{
-				return FRigElementKey(ParentName, ERigElementType::Space);
-			}
-			default:
-			{
-				break;
+				case ERigSpaceType::Bone:
+				{
+					return FRigElementKey(ParentName, ERigElementType::Bone);
+				}
+				case ERigSpaceType::Control:
+				{
+					return FRigElementKey(ParentName, ERigElementType::Control);
+				}
+				case ERigSpaceType::Space:
+				{
+					return FRigElementKey(ParentName, ERigElementType::Space);
+				}
+				default:
+				{
+					break;
+				}
 			}
 		}
 		return FRigElementKey();
@@ -176,21 +180,31 @@ struct CONTROLRIG_API FRigSpaceHierarchy
 	// clears the hierarchy and removes all content
 	void Reset();
 
+	// returns the current pose
+	FRigPose GetPose() const;
+
+	// sets the current transforms from the given pose
+	void SetPose(FRigPose& InPose);
+
 	// resets all of the transforms back to the initial transform
 	void ResetTransforms();
 
-#if WITH_EDITOR
+	// copies all initial transforms from another hierarchy
+	void CopyInitialTransforms(const FRigSpaceHierarchy& InOther);
+
 
 	bool Select(const FName& InName, bool bSelect = true);
 	bool ClearSelection();
 	TArray<FName> CurrentSelection() const;
 	bool IsSelected(const FName& InName) const;
 
+	FRigElementSelected OnSpaceSelected;
+
+#if WITH_EDITOR
 	FRigElementAdded OnSpaceAdded;
 	FRigElementRemoved OnSpaceRemoved;
 	FRigElementRenamed OnSpaceRenamed;
 	FRigElementReparented OnSpaceReparented;
-	FRigElementSelected OnSpaceSelected;
 
 	void HandleOnElementRemoved(FRigHierarchyContainer* InContainer, const FRigElementKey& InKey);
 	void HandleOnElementRenamed(FRigHierarchyContainer* InContainer, ERigElementType InElementType, const FName& InOldName, const FName& InNewName);
@@ -213,15 +227,21 @@ private:
 	UPROPERTY()
 	TMap<FName, int32> NameToIndexMapping;
 
-#if WITH_EDITORONLY_DATA
 	UPROPERTY(transient)
 	TArray<FName> Selection;
-#endif
 
 	int32 GetIndexSlow(const FName& InName) const;
 
 	void RefreshMapping();
 
+	void AppendToPose(FRigPose& InOutPose) const;
+
+#if WITH_EDITOR
+	mutable TArray<bool> RecursionGuard;
+#endif
+
 	friend struct FRigHierarchyContainer;
+	friend struct FCachedRigElement;
 	friend class UControlRigHierarchyModifier;
+	friend class UControlRig;
 };

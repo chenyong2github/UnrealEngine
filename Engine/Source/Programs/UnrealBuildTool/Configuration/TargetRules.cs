@@ -742,6 +742,13 @@ namespace UnrealBuildTool
 		public bool bUseChecksInShipping = false;
 
 		/// <summary>
+		/// Whether to use the EstimatedUtcNow or PlatformUtcNow.  EstimatedUtcNow is appropriate in
+		/// cases where PlatformUtcNow can be slow.
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		public bool bUseEstimatedUtcNow = false;
+
+		/// <summary>
 		/// True if we need FreeType support.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
@@ -1065,13 +1072,6 @@ namespace UnrealBuildTool
 		public bool bPGOOptimize = false;
 
 		/// <summary>
-		/// Whether to allow the use of ASLR (address space layout randomization) if supported. Only
-		/// applies to shipping builds.
-		/// </summary>
-		[XmlConfigFile(Category = "BuildConfiguration")]
-		public bool bAllowASLRInShipping = true;
-
-		/// <summary>
 		/// Whether to support edit and continue.  Only works on Microsoft compilers.
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
@@ -1318,6 +1318,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Macros to define across all macros in the project.
 		/// </summary>
+		[CommandLine("-ProjectDefine:")]
 		public List<string> ProjectDefinitions = new List<string>();
 
 		/// <summary>
@@ -2235,6 +2236,11 @@ namespace UnrealBuildTool
 			get { return Inner.bUseChecksInShipping; }
 		}
 
+		public bool bUseEstimatedUtcNow
+		{
+			get { return Inner.bUseEstimatedUtcNow; }
+		}
+
 		public bool bCompileFreeType
 		{
 			get { return Inner.bCompileFreeType; }
@@ -2445,11 +2451,6 @@ namespace UnrealBuildTool
 		public bool bPGOOptimize
 		{
 			get { return Inner.bPGOOptimize; }
-		}
-
-		public bool bAllowASLRInShipping
-		{
-			get { return Inner.bAllowASLRInShipping; }
 		}
 
 		public bool bSupportEditAndContinue

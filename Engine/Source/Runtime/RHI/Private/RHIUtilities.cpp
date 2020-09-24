@@ -30,7 +30,7 @@ void FDumpTransitionsHelper::DumpTransitionForResourceHandler()
 	DumpTransitionForResource = FName(*NewValue);
 }
 
-void FDumpTransitionsHelper::DumpResourceTransition(const FName& ResourceName, const EResourceTransitionAccess TransitionType)
+void FDumpTransitionsHelper::DumpResourceTransition(const FName& ResourceName, const ERHIAccess TransitionType)
 {
 	const FName ResourceDumpName = FDumpTransitionsHelper::DumpTransitionForResource;
 	if ((ResourceDumpName != NAME_None) && (ResourceDumpName == ResourceName))
@@ -39,7 +39,7 @@ void FDumpTransitionsHelper::DumpResourceTransition(const FName& ResourceName, c
 		ANSICHAR DumpCallstack[DumpCallstackSize] = { 0 };
 
 		FPlatformStackWalk::StackWalkAndDump(DumpCallstack, DumpCallstackSize, 2);
-		UE_LOG(LogRHI, Log, TEXT("%s transition to: %s"), *ResourceDumpName.ToString(), *GetResourceTransitionAccessName(TransitionType));
+		UE_LOG(LogRHI, Log, TEXT("%s transition to: %s"), *ResourceDumpName.ToString(), *GetRHIAccessName(TransitionType));
 		UE_LOG(LogRHI, Log, TEXT("%s"), ANSI_TO_TCHAR(DumpCallstack));
 	}
 }
@@ -527,3 +527,80 @@ RHI_API void RHIShutdownFlipTracking()
 	FRHIFrameOffsetThread::Shutdown();
 #endif
 }
+
+RHI_API ERHIAccess RHIGetDefaultResourceState(ETextureCreateFlags InUsage, bool bInHasInitialData)
+{
+	// By default assume it can be bound for reading
+	ERHIAccess ResourceState = ERHIAccess::SRVMask;
+
+	if (!bInHasInitialData)
+	{
+		if (InUsage & TexCreate_RenderTargetable)
+		{
+			ResourceState = ERHIAccess::RTV;
+		}
+		else if (InUsage & TexCreate_DepthStencilTargetable)
+		{
+			ResourceState = ERHIAccess::DSVWrite | ERHIAccess::DSVRead;
+		}
+		else if (InUsage & TexCreate_UAV)
+		{
+			ResourceState = ERHIAccess::UAVMask;
+		}
+		else if (InUsage & TexCreate_Presentable)
+		{
+			ResourceState = ERHIAccess::Present;
+		}
+		else if (InUsage & TexCreate_ShaderResource)
+		{
+			ResourceState = ERHIAccess::SRVMask;
+		}
+	}
+
+	return ResourceState;
+}
+
+RHI_API ERHIAccess RHIGetDefaultResourceState(EBufferUsageFlags InUsage, bool bInHasInitialData)
+{
+	// Default reading state is different per buffer type
+	ERHIAccess DefaultReadingState = ERHIAccess::Unknown;
+	if (InUsage & BUF_IndexBuffer)
+	{
+		DefaultReadingState = ERHIAccess::VertexOrIndexBuffer;
+	}
+	if (InUsage & BUF_VertexBuffer)
+	{
+		// Could be vertex buffer or normal DataBuffer
+		DefaultReadingState = DefaultReadingState | ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask;
+	}
+	if (InUsage & BUF_StructuredBuffer)
+	{
+		DefaultReadingState = DefaultReadingState | ERHIAccess::SRVMask;
+	}
+
+	// Vertex and index buffers might not have the BUF_ShaderResource flag set and just assume
+	// they are readable by default
+	ERHIAccess ResourceState = (!EnumHasAnyFlags(DefaultReadingState, ERHIAccess::VertexOrIndexBuffer)) ? ERHIAccess::Unknown : DefaultReadingState;
+
+	// SRV when we have initial data because we can sample the buffer then
+	if (bInHasInitialData)
+	{
+		ResourceState = DefaultReadingState;
+	}
+	else
+	{
+		if (InUsage & BUF_UnorderedAccess)
+		{
+			ResourceState = ERHIAccess::UAVMask;
+		}
+		else if (InUsage & BUF_ShaderResource)
+		{
+			ResourceState = DefaultReadingState | ERHIAccess::SRVMask;
+		}
+	}
+
+	check(ResourceState != ERHIAccess::Unknown);
+
+	return ResourceState;
+}
+

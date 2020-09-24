@@ -10,6 +10,9 @@
 #include "Insights/ViewModels/TimingEventSearch.h"
 #include "TraceServices/Model/Frames.h"
 #include "VariantTreeNode.h"
+#include "ObjectPropertyTrace.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/Commands/UICommandInfo.h"
 
 #define LOCTEXT_NAMESPACE "ObjectEventsTrack"
 
@@ -150,7 +153,7 @@ void FObjectEventsTrack::GetVariantsAtFrame(const Trace::FFrame& InFrame, TArray
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
 
-		TSharedRef<FVariantTreeNode> Header = OutVariants.Add_GetRef(FVariantTreeNode::MakeHeader(FText::FromString(GetName())));
+		TSharedRef<FVariantTreeNode> Header = OutVariants.Add_GetRef(FVariantTreeNode::MakeHeader(FText::FromString(GetName()), 0));
 
 		// object events
 		GameplayProvider->ReadObjectEventsTimeline(GetGameplayTrack().GetObjectId(), [&InFrame, &Header](const FGameplayProvider::ObjectEventsTimeline& InTimeline)
@@ -162,6 +165,55 @@ void FObjectEventsTrack::GetVariantsAtFrame(const Trace::FFrame& InFrame, TArray
 			});
 		});
 	}
+}
+
+void FObjectEventsTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
+{
+	FGameplayTimingEventsTrack::BuildContextMenu(MenuBuilder);
+
+#if OBJECT_PROPERTY_TRACE_ENABLED
+	MenuBuilder.BeginSection("Trace", LOCTEXT("TraceHeader", "Trace"));
+	{
+		TWeakObjectPtr<UObject> WeakObject = nullptr;
+		const FGameplayProvider* GameplayProvider = SharedData.GetAnalysisSession().ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
+		if (GameplayProvider)
+		{
+			Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
+
+			if (const FObjectInfo* ObjectInfo = GameplayProvider->FindObjectInfo(GetGameplayTrack().GetObjectId()))
+			{
+				WeakObject = FindObject<UObject>(nullptr, ObjectInfo->PathName);
+			}
+		}
+
+		MenuBuilder.AddMenuEntry
+		(
+			LOCTEXT("TraceProperties", "Trace Object Properties"),
+			LOCTEXT("TraceProperties_Tooltip", "Enable object property tracing for this object."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([WeakObject]()
+				{ 
+					if(UObject* Object = WeakObject.Get())
+					{
+						FObjectPropertyTrace::ToggleObjectRegistration(Object);
+					}
+				}),
+				FCanExecuteAction::CreateLambda([WeakObject]()
+				{
+					return FObjectPropertyTrace::IsEnabled() && WeakObject.IsValid();
+				}),
+				FGetActionCheckState::CreateLambda([WeakObject]()
+				{
+					return FObjectPropertyTrace::IsEnabled() && FObjectPropertyTrace::IsObjectRegistered(WeakObject.Get()) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+				})
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+	}
+	MenuBuilder.EndSection();
+#endif
 }
 
 #undef LOCTEXT_NAMESPACE

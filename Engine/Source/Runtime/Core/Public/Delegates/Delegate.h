@@ -23,8 +23,8 @@
  *	whichever types you need.
  *
  *	Both single-cast and multi-cast delegates are supported, as well as "dynamic" delegates which
- *	can be safely serialized to disk.  Additionally, delegates may define "payload" data which
- *	will stored and passed directly to bound functions.
+ *	can be serialized to disk and accessed from blueprints.  Additionally, delegates may define 
+ *	"payload" data which will be stored and passed directly to bound functions.
  *
  *
  *
@@ -34,13 +34,18 @@
  *	Currently we support delegate signatures using any combination of the following:
  *   		- Functions returning a value
  *			- Up to four "payload" variables
- *   		- Up to eight function parameters
+ *   		- Multiple function parameters depending on macro/template declaration
  *   		- Functions declared as 'const'
  *
  *  Multi-cast delegates are also supported, using the 'DECLARE_MULTICAST_DELEGATE...' macros.
  *  Multi-cast delegates allow you to attach multiple function delegates, then execute them all at
  *  once by calling a single "Broadcast()" function.  Multi-cast delegate signatures are not allowed
  *	to use a return value.
+ *
+ *	Unlike other types, dynamic delegates are integrated into the UObject reflection system and can be
+ *	bound to blueprint-implemented functions or serialized to disk. You can also bind native functions,
+ *	but the native functions need to be declared with UFUNCTION markup. You do not need to use UFUNCTION for
+ *	functions bound to other types of delegates.
  *
  *	You can assign "payload data" to your delegates!  These are arbitrary variables that will be passed
  *  directly to any bound function when it is invoked.  This is really useful as it allows you to store
@@ -54,8 +59,8 @@
  *
  *			MyDelegate.BindStatic( &MyFunction, true, 20 );
  *
- *	Remember to look at the table at the bottom of this documentation comment for the macro names to
- *	use for each function signature type.
+ *	Remember to look at the signature table at the bottom of this documentation comment for the macro names 
+ *	to use for each function signature type, and the binding table to see options and concerns for binding.
  *
  *
  *
@@ -137,7 +142,8 @@
  *  FUNCTION SIGNATURES
  *  -----------------------------------------------------------------------------------------------
  *
- *  Use this table to find the declaration macro to use to declare your delegate.
+ *	Use this table to find the declaration macro to use to declare your delegate.
+ *	The full list is defined in DelegateCombinations.h
  *
  *	Function signature									|	Declaration macro
  *  ------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -156,43 +162,81 @@
  *                       Single-cast delegates:  DECLARE_DELEGATE...()
  *                        Multi-cast delegates:  DECLARE_MULTICAST_DELEGATE...()
  *	 Dynamic (UObject, serializable) delegates:  DECLARE_DYNAMIC_DELEGATE...()
+ *
+ *
+ *
+ *	BINDING AND SAFETY
+ *  -----------------------------------------------------------------------------------------------
+ *
+ *	Once a delegate has been declared, it can be bound to functions stored in different places.
+ *	Because delegates are often called long after they are bound, extra attention must be paid to 
+ *	avoid crashes. This list is for single-cast, for multi-cast delegates, replace Bind in the table 
+ *	below with Add. Also for multi-cast delegates, Add will return a handle that can then be used to 
+ *	later remove the binding. All multi-cast delegates have an ::FDelegate subtype defining an equivalent
+ *	single-cast version, that can be Created one place and then added later.
+ *
+ *	Bind function										|	Usage
+ *  ------------------------------------------------------------------------------------------------------------------------------------------------------------
+ *	BindStatic(&GlobalFunctionName)						|	Call a static function, can either be globally scoped or a class static
+ *	BindUObject(UObject, &UClass::Function)				|	Call a UObject class member function via a TWeakObjectPtr, will not be called if object is invalid
+ *	BindSP(SharedPtr, &FClass::Function)				|	Call a native class member function via a TWeakPtr, will not be called if shared pointer is invalid
+ *	BindThreadSafeSP(SharedPtr, &FClass::Function)		|	Call a native class member function via a TWeakPtr, will not be called if shared pointer is invalid
+ *	BindRaw(RawPtr, &FClass::Function)					|	Call a native class member function with no safety checks. You MUST call Unbind or Remove when object dies to avoid crashes!
+ *	BindLambda(Lambda)									|	Call a lambda function with no safety checks. You MUST make sure all captures will be safe at a later point to avoid crashes!
+ *	BindWeakLambda(UObject, Lambda)						|	Call a lambda function only if UObject is still valid. Captured 'this' will always be valid but any other captures may not be
+ *	BindUFunction(UObject, FName("FunctionName"))		|	Usable for both native and dynamic delegates, will call a UFUNCTION with specified name
+ *	BindDynamic(UObject, &UClass::FunctionName)			|	Convenience wrapper only available for dynamic delegates, FunctionName must be declared as a UFUNCTION
+ *  ------------------------------------------------------------------------------------------------------------------------------------------------------------
+ *
  */
 
 
-// This suffix is appended to all header exported delegates
+/** This suffix is appended to all header exported delegates */
 #define HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX TEXT("__DelegateSignature")
 
 /** Helper macro that enables passing comma-separated arguments as a single macro parameter */
 #define FUNC_CONCAT( ... ) __VA_ARGS__
 
-/** Declare the user's delegate object */
-// NOTE: The last parameter is variadic and is used as the 'template args' for this delegate's classes (__VA_ARGS__)
-#define FUNC_DECLARE_DELEGATE( DelegateName, ... ) \
-	typedef TBaseDelegate<__VA_ARGS__> DelegateName;
+/**
+ * Declares a delegate that can only bind to one native function at a time
+ *
+ * @note: The last parameter is variadic and is used as the 'template args' for this delegate's classes (__VA_ARGS__)
+ * @note: To avoid issues with macro expansion breaking code navigation, make sure the type/class name macro params are unique across all of these macros
+ */
+#define FUNC_DECLARE_DELEGATE( DelegateName, ReturnType, ... ) \
+	typedef TDelegate<ReturnType(__VA_ARGS__)> DelegateName;
 
-/** Declare the user's multicast delegate object */
-// NOTE: The last parameter is variadic and is used as the 'template args' for this delegate's classes (__VA_ARGS__)
-#define FUNC_DECLARE_MULTICAST_DELEGATE( MulticastDelegateName, ... ) \
-	typedef TMulticastDelegate<__VA_ARGS__> MulticastDelegateName;
+/** Declares a broadcast delegate that can bind to multiple native functions simultaneously */
+#define FUNC_DECLARE_MULTICAST_DELEGATE( MulticastDelegateName, ReturnType, ... ) \
+	typedef TMulticastDelegate<ReturnType(__VA_ARGS__)> MulticastDelegateName;
 
-#define FUNC_DECLARE_EVENT( OwningType, EventName, ... ) \
-	class EventName : public TBaseMulticastDelegate<__VA_ARGS__> \
+/**
+ * Declares a multicast delegate that is meant to only be activated from OwningType
+ *
+ * @note: This behavior is not enforced and this type should be considered deprecated for new delegates, use normal multicast instead
+ */
+#define FUNC_DECLARE_EVENT( OwningType, EventName, ReturnType, ... ) \
+	class EventName : public TMulticastDelegate<ReturnType(__VA_ARGS__)> \
 	{ \
 		friend class OwningType; \
 	};
 
+/** Declares a derived event delegate that works the same as its parent type but is intended to be used by a different owning type */
+#define DECLARE_DERIVED_EVENT( OwningType, BaseTypeEvent, EventName ) \
+	class EventName : public BaseTypeEvent { friend class OwningType; };
+
 /** Declare user's dynamic delegate, with wrapper proxy method for executing the delegate */
-#define FUNC_DECLARE_DYNAMIC_DELEGATE( TWeakPtr, DynamicDelegateName, ExecFunction, FuncParamList, FuncParamPassThru, ... ) \
-	class DynamicDelegateName : public TBaseDynamicDelegate<TWeakPtr, __VA_ARGS__> \
+#define FUNC_DECLARE_DYNAMIC_DELEGATE( TWeakPtr, DynamicDelegateClassName, ExecFunction, FuncParamList, FuncParamPassThru, ... ) \
+	class DynamicDelegateClassName : public TBaseDynamicDelegate<TWeakPtr, __VA_ARGS__> \
 	{ \
 	public: \
 		/** Default constructor */ \
-		DynamicDelegateName() \
+		DynamicDelegateClassName() \
 		{ \
 		} \
 		\
 		/** Construction from an FScriptDelegate must be explicit.  This is really only used by UObject system internals. */ \
-		explicit DynamicDelegateName( const TScriptDelegate<>& InScriptDelegate ) \
+		explicit DynamicDelegateClassName( const TScriptDelegate<>& InScriptDelegate ) \
 			: TBaseDynamicDelegate<TWeakPtr, __VA_ARGS__>( InScriptDelegate ) \
 		{ \
 		} \
@@ -216,17 +260,18 @@
 		} \
 	};
 
-#define FUNC_DECLARE_DYNAMIC_DELEGATE_RETVAL(TWeakPtr, DynamicDelegateName, ExecFunction, RetValType, FuncParamList, FuncParamPassThru, ...) \
-	class DynamicDelegateName : public TBaseDynamicDelegate<TWeakPtr, __VA_ARGS__> \
+/** Declare user's dynamic delegate with return value, with wrapper proxy method for executing the delegate */
+#define FUNC_DECLARE_DYNAMIC_DELEGATE_RETVAL(TWeakPtr, DynamicDelegateRetValClassName, ExecFunction, RetValType, FuncParamList, FuncParamPassThru, ...) \
+	class DynamicDelegateRetValClassName : public TBaseDynamicDelegate<TWeakPtr, __VA_ARGS__> \
 	{ \
 	public: \
 		/** Default constructor */ \
-		DynamicDelegateName() \
+		DynamicDelegateRetValClassName() \
 		{ \
 		} \
 		\
 		/** Construction from an FScriptDelegate must be explicit.  This is really only used by UObject system internals. */ \
-		explicit DynamicDelegateName( const TScriptDelegate<>& InScriptDelegate ) \
+		explicit DynamicDelegateRetValClassName( const TScriptDelegate<>& InScriptDelegate ) \
 			: TBaseDynamicDelegate<TWeakPtr, __VA_ARGS__>( InScriptDelegate ) \
 		{ \
 		} \
@@ -242,17 +287,17 @@
 
 
 /** Declare user's dynamic multi-cast delegate, with wrapper proxy method for executing the delegate */
-#define FUNC_DECLARE_DYNAMIC_MULTICAST_DELEGATE(TWeakPtr, DynamicMulticastDelegateName, ExecFunction, FuncParamList, FuncParamPassThru, ...) \
-class DynamicMulticastDelegateName : public TBaseDynamicMulticastDelegate<TWeakPtr, __VA_ARGS__> \
+#define FUNC_DECLARE_DYNAMIC_MULTICAST_DELEGATE(TWeakPtr, DynamicMulticastDelegateClassName, ExecFunction, FuncParamList, FuncParamPassThru, ...) \
+class DynamicMulticastDelegateClassName : public TBaseDynamicMulticastDelegate<TWeakPtr, __VA_ARGS__> \
 	{ \
 	public: \
 		/** Default constructor */ \
-		DynamicMulticastDelegateName() \
+		DynamicMulticastDelegateClassName() \
 		{ \
 		} \
 		\
 		/** Construction from an FMulticastScriptDelegate must be explicit.  This is really only used by UObject system internals. */ \
-		explicit DynamicMulticastDelegateName( const TMulticastScriptDelegate<>& InMulticastScriptDelegate ) \
+		explicit DynamicMulticastDelegateClassName( const TMulticastScriptDelegate<>& InMulticastScriptDelegate ) \
 			: TBaseDynamicMulticastDelegate<TWeakPtr, __VA_ARGS__>( InMulticastScriptDelegate ) \
 		{ \
 		} \
@@ -268,7 +313,6 @@ class DynamicMulticastDelegateName : public TBaseDynamicMulticastDelegate<TWeakP
 #define ENABLE_STATIC_FUNCTION_FNAMES (PLATFORM_COMPILER_CLANG && (__clang_major__ > 3 || (__clang_major__ == 3 && __clang_minor__ >= 5)))
 
 #if ENABLE_STATIC_FUNCTION_FNAMES
-
 
 	namespace NStrAfterLastDoubleColon_Private
 	{
@@ -367,19 +411,44 @@ class DynamicMulticastDelegateName : public TBaseDynamicMulticastDelegate<TWeakP
 #endif
 
 
-// Helper macro for calling BindDynamic() on dynamic delegates.  Automatically generates the function name string.
+/**
+ * Helper macro to bind a UObject instance and a member UFUNCTION to a dynamic delegate.
+ *
+ * @param	UserObject		UObject instance
+ * @param	FuncName		Function pointer to member UFUNCTION, usually in form &UClassName::FunctionName
+ */
 #define BindDynamic( UserObject, FuncName ) __Internal_BindDynamic( UserObject, FuncName, STATIC_FUNCTION_FNAME( TEXT( #FuncName ) ) )
 
-// Helper macro for calling AddDynamic() on dynamic multi-cast delegates.  Automatically generates the function name string.
+/**
+ * Helper macro to bind a UObject instance and a member UFUNCTION to a dynamic multi-cast delegate.
+ *
+ * @param	UserObject		UObject instance
+ * @param	FuncName		Function pointer to member UFUNCTION, usually in form &UClassName::FunctionName
+ */
 #define AddDynamic( UserObject, FuncName ) __Internal_AddDynamic( UserObject, FuncName, STATIC_FUNCTION_FNAME( TEXT( #FuncName ) ) )
 
-// Helper macro for calling AddUniqueDynamic() on dynamic multi-cast delegates.  Automatically generates the function name string.
+/**
+ * Helper macro to bind a UObject instance and a member UFUNCTION to a dynamic multi-cast delegate, but only if it hasn't been bound before.
+ *
+ * @param	UserObject		UObject instance
+ * @param	FuncName		Function pointer to member UFUNCTION, usually in form &UClassName::FunctionName
+ */
 #define AddUniqueDynamic( UserObject, FuncName ) __Internal_AddUniqueDynamic( UserObject, FuncName, STATIC_FUNCTION_FNAME( TEXT( #FuncName ) ) )
 
-// Helper macro for calling RemoveDynamic() on dynamic multi-cast delegates.  Automatically generates the function name string.
+/**
+ * Helper macro to unbind a UObject instance and a member UFUNCTION from this multi-cast delegate.
+ *
+ * @param	UserObject		UObject instance
+ * @param	FuncName		Function pointer to member UFUNCTION, usually in form &UClassName::FunctionName
+ */
 #define RemoveDynamic( UserObject, FuncName ) __Internal_RemoveDynamic( UserObject, FuncName, STATIC_FUNCTION_FNAME( TEXT( #FuncName ) ) )
 
-// Helper macro for calling IsAlreadyBound() on dynamic multi-cast delegates.  Automatically generates the function name string.
+ /**
+  * Helper macro to tests if a UObject instance and a member UFUNCTION are already bound to this multi-cast delegate.
+  *
+  * @param	UserObject		UObject instance
+  * @param	FuncName		Function pointer to member UFUNCTION, usually in form &UClassName::FunctionName
+  */
 #define IsAlreadyBound( UserObject, FuncName ) __Internal_IsAlreadyBound( UserObject, FuncName, STATIC_FUNCTION_FNAME( TEXT( #FuncName ) ) )
 
 
@@ -422,10 +491,15 @@ namespace UE4Delegates_Private
 
 /*********************************************************************************************************************/
 
-#define DECLARE_DERIVED_EVENT( OwningType, BaseTypeEvent, EventName ) \
-	class EventName : public BaseTypeEvent { friend class OwningType; };
-
-
 // Simple delegate used by various utilities such as timers
 DECLARE_DELEGATE( FSimpleDelegate );
 DECLARE_MULTICAST_DELEGATE( FSimpleMulticastDelegate );
+
+// Legacy typedefs
+template <typename RetType, typename... ArgTypes>
+using TBaseDelegate UE_DEPRECATED(4.26, "TBaseDelegate<ReturnType, ArgTypes...> is deprecated - use TDelegate<ReturnType(ArgTypes...)> instead.")
+	= TDelegate<RetType(ArgTypes...)>;
+
+template <typename RetType, typename... ArgTypes>
+using TBaseMulticastDelegate UE_DEPRECATED(4.26, "TBaseMulticastDelegate<ReturnType, ArgTypes...> is deprecated - use TMulticastDelegate<ReturnType(ArgTypes...)> instead.")
+	= TMulticastDelegate<RetType(ArgTypes...)>;

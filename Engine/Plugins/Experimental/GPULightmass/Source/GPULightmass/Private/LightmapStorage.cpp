@@ -77,9 +77,25 @@ FLightmapRenderState::FLightmapRenderState(Initializer InInitializer, FGeometryI
 	{
 		// Store converged tiles for re-uploading to GPU / encoding & saving to disk
 		// Store physical tiles for easier GPU upload, which however requires further physical -> virtual conversion when saving to disk
-		CPUTextureData[0].AddZeroed(GetPaddedPhysicalSize().X * GetPaddedPhysicalSize().Y);
-		CPUTextureData[1].AddZeroed(GetPaddedPhysicalSize().X * GetPaddedPhysicalSize().Y);
-		CPUTextureData[2].AddZeroed(GetPaddedPhysicalSize().X * GetPaddedPhysicalSize().Y);
+		CPUTextureData[0].AddDefaulted(MaxLevel + 1);
+		CPUTextureData[1].AddDefaulted(MaxLevel + 1);
+		CPUTextureData[2].AddDefaulted(MaxLevel + 1);
+		for (int32 MipLevel = 0; MipLevel <= MaxLevel; MipLevel++)
+		{
+			CPUTextureData[0][MipLevel].AddUninitialized(GetPaddedSize().X * GetPaddedSize().Y);
+			CPUTextureData[1][MipLevel].AddUninitialized(GetPaddedSize().X * GetPaddedSize().Y);
+			CPUTextureData[2][MipLevel].AddUninitialized(GetPaddedSize().X * GetPaddedSize().Y);
+		}
+
+		CPUTextureRawData[0].AddDefaulted(MaxLevel + 1);
+		CPUTextureRawData[1].AddDefaulted(MaxLevel + 1);
+		CPUTextureRawData[2].AddDefaulted(MaxLevel + 1);
+		for (int32 MipLevel = 0; MipLevel <= MaxLevel; MipLevel++)
+		{
+			CPUTextureRawData[0][MipLevel].AddUninitialized(GetPaddedSize().X * GetPaddedSize().Y);
+			CPUTextureRawData[1][MipLevel].AddUninitialized(GetPaddedSize().X * GetPaddedSize().Y);
+			CPUTextureRawData[2][MipLevel].AddUninitialized(GetPaddedSize().X * GetPaddedSize().Y);
+		}
 	}
 
 	{
@@ -111,38 +127,32 @@ FLightmapRenderState::FLightmapRenderState(Initializer InInitializer, FGeometryI
 	}
 }
 
-bool FLightmapRenderState::IsTileGIConverged(FTileVirtualCoordinates Coords)
+bool FLightmapRenderState::IsTileGIConverged(FTileVirtualCoordinates Coords, int32 NumGISamples)
 {
-	return GGPULightmassSamplesPerTexel >= 0 && RetrieveTileState(Coords).RenderPassIndex >= GGPULightmassSamplesPerTexel;
+	return RetrieveTileState(Coords).RenderPassIndex >= NumGISamples;
 }
 
-bool FLightmapRenderState::IsTileShadowConverged(FTileVirtualCoordinates Coords)
+bool FLightmapRenderState::IsTileShadowConverged(FTileVirtualCoordinates Coords, int32 NumShadowSamples)
 {
 	bool bConverged = true;
 	for (auto& Pair : RetrieveTileRelevantLightSampleState(Coords).RelevantDirectionalLightSampleCount)
 	{
-		bConverged &= GGPULightmassShadowSamplesPerTexel >= 0 && Pair.Value >= GGPULightmassShadowSamplesPerTexel;
+		bConverged &= Pair.Value >= NumShadowSamples;
 	}
 	for (auto& Pair : RetrieveTileRelevantLightSampleState(Coords).RelevantPointLightSampleCount)
 	{
-		bConverged &= GGPULightmassShadowSamplesPerTexel >= 0 && Pair.Value >= GGPULightmassShadowSamplesPerTexel;
+		bConverged &= Pair.Value >= NumShadowSamples;
 	}
 	for (auto& Pair : RetrieveTileRelevantLightSampleState(Coords).RelevantSpotLightSampleCount)
 	{
-		bConverged &= GGPULightmassShadowSamplesPerTexel >= 0 && Pair.Value >= GGPULightmassShadowSamplesPerTexel;
+		bConverged &= Pair.Value >= NumShadowSamples;
 	}
 	for (auto& Pair : RetrieveTileRelevantLightSampleState(Coords).RelevantRectLightSampleCount)
 	{
-		bConverged &= GGPULightmassShadowSamplesPerTexel >= 0 && Pair.Value >= GGPULightmassShadowSamplesPerTexel;
+		bConverged &= Pair.Value >= NumShadowSamples;
 	}
 	return bConverged;
 }
-
-bool FLightmapRenderState::IsTileFullyConverged(FTileVirtualCoordinates Coords)
-{
-	return IsTileGIConverged(Coords) && IsTileShadowConverged(Coords);
-}
-
 bool FLightmapRenderState::DoesTileHaveValidCPUData(FTileVirtualCoordinates Coords, int32 CurrentRevision)
 {
 	return RetrieveTileState(Coords).CPURevision == CurrentRevision;

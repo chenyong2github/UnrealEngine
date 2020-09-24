@@ -90,6 +90,115 @@ private:
 
 namespace RobinHoodHashTable_Private
 {
+	template<typename HashMapAllocator>
+	class TFreeList
+	{
+		using IndexType = int32;
+
+		struct FSpan
+		{
+			IndexType Start;
+			IndexType End;
+		};
+
+		TArray<FSpan, HashMapAllocator> FreeList;
+
+	public:
+		TFreeList()
+		{
+			Empty();
+		}
+
+		void Push(IndexType NodeIndex)
+		{
+			//find the index that points to our right side node
+			int Index = 1; //exclude the dummy
+			int Size = FreeList.Num() - 1;
+
+			//start with binary search for larger lists
+			while (Size > 32)
+			{
+				const int LeftoverSize = Size % 2;
+				Size = Size / 2;
+
+				const int CheckIndex = Index + Size;
+				const int IndexIfLess = CheckIndex + LeftoverSize;
+
+				Index = FreeList[CheckIndex].Start > NodeIndex ? IndexIfLess : Index;
+			}
+
+			//small size array optimization
+			int ArrayEnd = Index + Size;
+			while (Index < ArrayEnd)
+			{
+				if (FreeList[Index].Start < NodeIndex)
+				{
+					break;
+				}
+				Index++;
+			}
+
+			//can we merge with the right node
+			if (Index < FreeList.Num() && FreeList[Index].End + 1 == NodeIndex)
+			{
+				FreeList[Index].End = NodeIndex;
+
+				//are we filling the gap between the left and right node
+				if (FreeList[Index - 1].Start - 1 == NodeIndex)
+				{
+					FreeList[Index - 1].Start = FreeList[Index].Start;
+					FreeList.RemoveAt(Index);
+				}
+				return;
+			}
+
+			//can we merge with the left node
+			if (FreeList[Index - 1].Start - 1 == NodeIndex)
+			{
+				FreeList[Index - 1].Start = NodeIndex;
+				return;
+			}
+
+			//we are node that could not be merged
+			FreeList.Insert(FSpan{ NodeIndex , NodeIndex }, Index);
+		}
+
+		IndexType Pop()
+		{
+			FSpan& Span = FreeList.Last();
+			IndexType Index = Span.Start;
+			checkSlow(Index != INDEX_NONE);
+			if (Span.Start == Span.End)
+			{
+				FreeList.Pop();
+				return Index;
+			}
+			else
+			{
+				Span.Start++;
+				return Index;
+			}
+		}
+
+		void Empty()
+		{
+			FreeList.Reset(1);
+			//push a dummy
+			FreeList.Push(FSpan{ INDEX_NONE, INDEX_NONE });
+		}
+
+		int Num() const
+		{
+			//includes one dummy
+			return FreeList.Num() - 1;
+		}
+
+		SIZE_T GetAllocatedSize() const
+		{
+			return FreeList.GetAllocatedSize();
+		}
+	};
+
 	struct FUnitType
 	{
 	};
@@ -104,15 +213,13 @@ namespace RobinHoodHashTable_Private
 		friend class TRobinHoodHashTable;
 
 		template<typename DeducedKeyType, typename DeducedValueType>
-		inline TKeyValue(DeducedKeyType&& InKey, DeducedValueType&& InVal, FHashType InHash)
+		inline TKeyValue(DeducedKeyType&& InKey, DeducedValueType&& InVal)
 		: Pair(Forward<DeducedKeyType>(InKey)
 		, Forward<DeducedValueType>(InVal))
-		, Hash(InHash)
 		{
 		}
 
 		ElementType Pair;
-		FHashType Hash;
 
 		inline FindValueType FindImpl()
 		{
@@ -145,14 +252,12 @@ namespace RobinHoodHashTable_Private
 		friend class TRobinHoodHashTable;
 
 		template<typename DeducedKeyType>
-		inline TKeyValue(DeducedKeyType&& InKey, FUnitType&&, FHashType InHash)
+		inline TKeyValue(DeducedKeyType&& InKey, FUnitType&&)
 		: Key(Forward<DeducedKeyType>(InKey))
-		, Hash(InHash)
 		{
 		}
 
 		ElementType Key;
-		FHashType Hash;
 
 		inline FindValueType FindImpl() const
 		{
@@ -208,12 +313,15 @@ namespace RobinHoodHashTable_Private
 				if (FreeList.Num() > 0)
 				{
 					Index = FreeList.Pop();
-					new (&KeyVals[Index]) KeyValueType{ Forward<DeducedKeyType>(Key), Forward<DeducedValueType>(Val), Hash };
+					new (&KeyVals[Index]) KeyValueType{ Forward<DeducedKeyType>(Key), Forward<DeducedValueType>(Val) };
+					Hashes[Index] = Hash;
+
 				}
 				else
 				{
 					Index = KeyVals.Num();
-					KeyVals.Push(KeyValueType{ Forward<DeducedKeyType>(Key), Forward<DeducedValueType>(Val), Hash });
+					KeyVals.Push(KeyValueType{ Forward<DeducedKeyType>(Key), Forward<DeducedValueType>(Val) });
+					Hashes.Push(Hash);
 				}
 				checkSlow(Index != InvalidIndex);
 				CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedDecrement(&ConcurrentReaders) == 0);
@@ -225,16 +333,8 @@ namespace RobinHoodHashTable_Private
 			{
 				CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedIncrement(&ConcurrentWriters) == 1);
 				CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedIncrement(&ConcurrentReaders) == 1);
-				int32 InsertIndex = 0;
-				for (; InsertIndex < FreeList.Num(); InsertIndex++)
-				{
-					if (FreeList[InsertIndex] < Index)
-					{
-						break;
-					}
-				}
-
-				FreeList.EmplaceAt(InsertIndex, Index);
+				FreeList.Push(Index);
+				Hashes[Index] = FHashType();
 				KeyVals[Index].~KeyValueType();
 				CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedDecrement(&ConcurrentReaders) == 0);
 				CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedDecrement(&ConcurrentWriters) == 0);
@@ -247,31 +347,11 @@ namespace RobinHoodHashTable_Private
 
 			inline const KeyValueType& Get(IndexType Index) const
 			{
-				CHECK_CONCURRENT_ACCESS(ConcurrentWriters == 0);
-				CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedIncrement(&ConcurrentReaders) >= 1);
-#if DO_GUARD_SLOW
-				for (IndexType Idx : FreeList)
-				{
-					checkSlow(Idx != Index);
-				}
-#endif
-				CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedDecrement(&ConcurrentReaders) >= 0);
-				CHECK_CONCURRENT_ACCESS(ConcurrentWriters == 0);
 				return KeyVals[Index];
 			}
 
 			inline KeyValueType& Get(IndexType Index)
 			{
-				CHECK_CONCURRENT_ACCESS(ConcurrentWriters == 0);
-				CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedIncrement(&ConcurrentReaders) >= 1);
-#if DO_GUARD_SLOW
-				for (IndexType Idx : FreeList)
-				{
-					checkSlow(Idx != Index);
-				}
-#endif
-				CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedDecrement(&ConcurrentReaders) >= 0);
-				CHECK_CONCURRENT_ACCESS(ConcurrentWriters == 0);
 				return KeyVals[Index];
 			}
 
@@ -288,16 +368,15 @@ namespace RobinHoodHashTable_Private
 			struct FIteratorState
 			{
 				IndexType Index;
-				int32 FreeListIndex;
 
 				inline bool operator ==(const FIteratorState& Rhs) const
 				{
-					return Index == Rhs.Index && FreeListIndex == Rhs.FreeListIndex;
+					return Index == Rhs.Index;
 				}
 
 				inline bool operator !=(const FIteratorState& Rhs) const
 				{
-					return Index != Rhs.Index || FreeListIndex != Rhs.FreeListIndex;
+					return Index != Rhs.Index;
 				}
 			};
 
@@ -306,26 +385,21 @@ namespace RobinHoodHashTable_Private
 				for (;;)
 				{
 					State.Index = (State.Index + 1) & InvalidIndex;
-					if (State.FreeListIndex < 0 || State.Index < FreeList[State.FreeListIndex])
+					if (State.Index >= uint32(KeyVals.Num()) || Hashes[State.Index].IsOccupied())
 					{
-						return FIteratorState{ State.Index, State.FreeListIndex };
-					}
-					else
-					{
-						checkSlow(State.Index == FreeList[State.FreeListIndex]);
-						State.FreeListIndex--;
+						return FIteratorState{ State.Index };
 					}
 				}
 			}
 
 			inline FIteratorState Start() const
 			{
-				return Next(FIteratorState{ InvalidIndex, FreeList.Num() - 1 });
+				return Next(FIteratorState{ InvalidIndex });
 			}
 
 			inline FIteratorState End() const
 			{
-				return FIteratorState{ IndexType(KeyVals.Num()), INDEX_NONE };
+				return FIteratorState{ IndexType(KeyVals.Num()) };
 			}
 
 			void Empty()
@@ -352,7 +426,8 @@ namespace RobinHoodHashTable_Private
 			mutable int ConcurrentWriters = 0;
 #endif
 			TArray<KeyValueType, HashMapAllocator> KeyVals;
-			TArray<IndexType, HashMapAllocator> FreeList;
+			TArray<FHashType, HashMapAllocator> Hashes;
+			TFreeList<HashMapAllocator> FreeList;
 		};
 
 		inline IndexType ModTableSize(IndexType HashValue) const
@@ -834,7 +909,7 @@ namespace RobinHoodHashTable_Private
 			CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedIncrement(&ConcurrentReaders) == 1);
 			
 			bool bIsFoundInMap = false;
-			FHashType HashValue = KeyValueData.Get(Id.GetIndex()).Hash;
+			FHashType HashValue = KeyValueData.Hashes[Id.GetIndex()];
 			IndexType BucketIndex = ModTableSize(HashValue.AsUInt());
 			const IndexType EndBucketIndex = ModTableSize(HashValue.AsUInt() + MaximumDistance + 1);
 			do

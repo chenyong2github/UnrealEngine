@@ -24,10 +24,10 @@ class NIAGARA_API FNiagaraSystemInstance
 
 public:
 	DECLARE_DELEGATE(FOnPostTick);
+	DECLARE_DELEGATE(FOnComplete);
 
 #if WITH_EDITOR
 	DECLARE_MULTICAST_DELEGATE(FOnInitialized);
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnComplete, FNiagaraSystemInstance*);
 	
 	DECLARE_MULTICAST_DELEGATE(FOnReset);
 	DECLARE_MULTICAST_DELEGATE(FOnDestroyed);
@@ -73,6 +73,8 @@ public:
 
 	void SetSolo(bool bInSolo);
 
+	void SetGpuComputeDebug(bool bEnableDebug);
+
 	void UpdatePrereqs();
 
 	//void RebindParameterCollection(UNiagaraParameterCollectionInstance* OldInstance, UNiagaraParameterCollectionInstance* NewInstance);
@@ -107,6 +109,7 @@ public:
 	bool RequiresDistanceFieldData() const;
 	bool RequiresDepthBuffer() const;
 	bool RequiresEarlyViewData() const;
+	bool RequiresViewUniformBuffer() const;
 
 	/** Requests the the simulation be reset on the next tick. */
 	void Reset(EResetMode Mode);
@@ -174,23 +177,24 @@ public:
 	FORCEINLINE TArray<TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> > &GetEmitters() { return Emitters; }
 	FORCEINLINE const TArray<TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> >& GetEmitters() const { return Emitters; }
 	FORCEINLINE const FBox& GetLocalBounds() { return LocalBounds;  }
-	TConstArrayView<const int32> GetEmitterExecutionOrder() const;
+	TConstArrayView<FNiagaraEmitterExecutionIndex> GetEmitterExecutionOrder() const;
 
 	FNiagaraEmitterInstance* GetEmitterByID(FGuid InID);
 
-	FORCEINLINE bool IsSolo()const { return bSolo; }
+	FORCEINLINE bool IsSolo() const { return bSolo; }
 
-	FORCEINLINE bool NeedsGPUTick()const{ return ActiveGPUEmitterCount > 0 /*&& Component->IsRegistered()*/ && !IsComplete();}
+	FORCEINLINE bool NeedsGPUTick() const { return ActiveGPUEmitterCount > 0 /*&& Component->IsRegistered()*/ && !IsComplete();}
+
+	struct FNiagaraComputeSharedContext* GetComputeSharedContext() { check(SharedContext.Get()); return SharedContext.Get(); }
 
 	/** Gets a multicast delegate which is called after this instance has finished ticking for the frame on the game thread */
 	FORCEINLINE void SetOnPostTick(const FOnPostTick& InPostTickDelegate) { OnPostTickDelegate = InPostTickDelegate; }
+	/** Gets a multicast delegate which is called whenever this instance is complete. */
+	FORCEINLINE void SetOnComplete(const FOnComplete& InOnCompleteDelegate) { OnCompleteDelegate = InOnCompleteDelegate; }
 
 #if WITH_EDITOR
 	/** Gets a multicast delegate which is called whenever this instance is initialized with an System asset. */
 	FOnInitialized& OnInitialized();
-
-	/** Gets a multicast delegate which is called whenever this instance is complete. */
-	FOnComplete& OnComplete();
 
 	/** Gets a multicast delegate which is called whenever this instance is reset due to external changes in the source System asset. */
 	FOnReset& OnReset();
@@ -319,6 +323,8 @@ public:
 		return ComponentTasks.Enqueue(Task);
 	}
 
+	TSet<int32> GetParticlesWithActiveComponents(USceneComponent* const Component);
+
 	/** Gets the current world transform of the system */
 	FORCEINLINE const FTransform& GetWorldTransform() const { return WorldTransform; }
 	/** Sets the world transform */
@@ -328,6 +334,17 @@ public:
 	{
 		return SystemInstanceIndex;
 	}
+
+	/**
+	The significant index for this component. i.e. this is the Nth most significant instance of it's system in the scene.
+	Passed to the script to allow us to scale down internally for less significant systems instances.
+*/
+	FORCEINLINE void SetSystemSignificanceIndex(int32 InIndex) { SignificanceIndex = InIndex; }
+
+	/** Calculates the distance to use for distance based LODing / culling. */
+	float GetLODDistance();
+
+	void OnSimulationDestroyed();
 
 private:
 	void DestroyDataInterfaceInstanceData();
@@ -346,13 +363,13 @@ private:
 	/** Call PrepareForSImulation on each data source from the simulations and determine which need per-tick updates.*/
 	void InitDataInterfaces();	
 	
-	/** Calculates the distance to use for distance based LODing / culling. */
-	float GetLODDistance();
-
 	void ProcessComponentRendererTasks();
 
 	/** Index of this instance in the system simulation. */
 	int32 SystemInstanceIndex;
+
+	/** Index of how significant this system is in the scene. 0 = Most significant instance of this systems in the scene. */
+	int32 SignificanceIndex;
 
 	TSharedPtr<class FNiagaraSystemSimulation, ESPMode::ThreadSafe> SystemSimulation;
 
@@ -382,10 +399,10 @@ private:
 	TArray< TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> > Emitters;
 
 	FOnPostTick OnPostTickDelegate;
+	FOnComplete OnCompleteDelegate;
 
 #if WITH_EDITOR
 	FOnInitialized OnInitializedDelegate;
-	FOnComplete OnCompleteDelegate;
 
 	FOnReset OnResetDelegate;
 	FOnDestroyed OnDestroyedDelegate;
@@ -494,6 +511,7 @@ private:
 	/** The component renderer can queue update tasks that are executed on the game thread on finalization. */
 	TQueue<FNiagaraComponentUpdateTask, EQueueMode::Mpsc> ComponentTasks;
 	FNiagaraComponentRenderPool ComponentRenderPool;
+	mutable FRWLock ComponentPoolLock;
 	void ResetComponentRenderPool();
 
 public:
@@ -503,8 +521,11 @@ public:
 	// Transient data that is accumulated during tick.
 	uint32 TotalGPUParamSize = 0;
 	uint32 ActiveGPUEmitterCount = 0;
+	TUniquePtr<FNiagaraComputeSharedContext, FNiagaraComputeSharedContextDeleter> SharedContext;
+
 	int32 GPUDataInterfaceInstanceDataSize = 0;
 	bool GPUParamIncludeInterpolation = false;
+	TArray<TPair<TWeakObjectPtr<UNiagaraDataInterface>, int32>> GPUDataInterfaces;
 
 	struct FInstanceParameters
 	{

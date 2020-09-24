@@ -100,7 +100,7 @@ struct FRestoreReimportData
 		int32 EditorCloseCount = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(EditorObject);
 		//Restore the duplicate asset
 		OriginalPackageName = UPackageTools::SanitizePackageName(OriginalPackageName);
-		Package = CreatePackage(NULL, *OriginalPackageName);
+		Package = CreatePackage( *OriginalPackageName);
 		UObject* ExistingObject = StaticFindObject(UStaticMesh::StaticClass(), Package, *OriginalName, true);
 		if (ExistingObject)
 		{
@@ -138,10 +138,8 @@ struct FRestoreReimportData
 	}
 };
 
-static FbxString GetNodeNameWithoutNamespace( FbxNode* Node )
+static FbxString GetNodeNameWithoutNamespace( const FbxString& NodeName )
 {
-	FbxString NodeName = Node->GetName();
-
 	// Namespaces are marked with colons so find the last colon which will mark the start of the actual name
 	int32 LastNamespceIndex = NodeName.ReverseFind(':');
 
@@ -582,7 +580,17 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(BuildCollision);
 
-		bool bImportedCollision = ImportCollisionModels(StaticMesh, GetNodeNameWithoutNamespace(Node));
+		FbxString NodeName;
+		if (const FbxString* OriginalNodeName = NodeUniqueNameToOriginalNameMap.Find(Node->GetName()))
+		{
+			NodeName = GetNodeNameWithoutNamespace(*OriginalNodeName);
+		}
+		else
+		{
+			NodeName = GetNodeNameWithoutNamespace(Node->GetName());
+		}
+
+		bool bImportedCollision = ImportCollisionModels(StaticMesh, NodeName);
 
 		//If we import a collision or we "generate one and remove the degenerates triangles" we will automatically set the section collision boolean.
 		bool bEnableCollision = bImportedCollision || (GBuildStaticMeshCollision && LODIndex == 0 && ImportOptions->bRemoveDegenerates);
@@ -1668,7 +1676,7 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 				return nullptr;
 			}
 			NewPackageName = UPackageTools::SanitizePackageName(NewPackageName);
-			Package = CreatePackage(NULL, *NewPackageName);
+			Package = CreatePackage( *NewPackageName);
 		}
 		Package->FullyLoad();
 
@@ -1695,7 +1703,7 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 			CollectGarbage( GARBAGE_COLLECTION_KEEPFLAGS );
 
 			// Create a package for each mesh
-			Package = CreatePackage(NULL, *NewPackageName);
+			Package = CreatePackage( *NewPackageName);
 
 			// Require the parent because it will have been invalidated from the garbage collection
 			Parent = Package;
@@ -2576,7 +2584,7 @@ void UnFbx::FFbxImporter::ImportStaticMeshGlobalSockets( UStaticMesh* StaticMesh
 
 bool UnFbx::FFbxImporter::FillCollisionModelList(FbxNode* Node)
 {
-	FbxString NodeName = GetNodeNameWithoutNamespace( Node );
+	FbxString NodeName = GetNodeNameWithoutNamespace( Node->GetName() );
 
 	if ( NodeName.Find("UCX") != -1 || NodeName.Find("MCDCX") != -1 ||
 		 NodeName.Find("UBX") != -1 || NodeName.Find("USP") != -1 || NodeName.Find("UCP") != -1)

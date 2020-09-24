@@ -711,6 +711,7 @@ bool FWinHttpConnectionHttp::ProcessResponseHeaders()
 			{
 				FWideStringView HeaderKey(CompleteHeader.Left(OutIndex));
 				FWideStringView HeaderValue(CompleteHeader.RightChop(OutIndex + 1));
+				HeaderValue.TrimStartAndEndInline();
 
 				HeadersReceived.Emplace(HeaderKey, HeaderValue);
 				HeaderKeysToReportReceived.Emplace(HeaderKey);

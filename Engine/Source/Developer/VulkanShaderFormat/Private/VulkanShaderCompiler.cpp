@@ -7,9 +7,8 @@
 #include "ShaderCompilerCommon.h"
 #include "hlslcc.h"
 
-#if PLATFORM_MAC || PLATFORM_WINDOWS
+#if PLATFORM_MAC || PLATFORM_WINDOWS || PLATFORM_LINUX
 THIRD_PARTY_INCLUDES_START
-	#include "ShaderConductor/ShaderConductor.hpp"
 	#include "spirv_reflect.h"
 	#include "SPIRV/GlslangToSpv.h"
 	#include "SPIRV/doc.h"
@@ -22,7 +21,7 @@ THIRD_PARTY_INCLUDES_END
 #include <D3Dcompiler.h>
 #include "Windows/HideWindowsPlatformTypes.h"
 #endif
-#endif
+#endif // PLATFORM_MAC || PLATFORM_WINDOWS || PLATFORM_LINUX
 
 // Glslang's 'spv::Disassemble' function needs STL's <std::ostream>,
 // so we dump out SPIR-V disassembled ASM for debugging purposes using STL's fstream
@@ -96,32 +95,6 @@ inline bool CStringIsBlankLine(const ANSICHAR * Text)
 	return true;
 }
 
-static inline bool IsAlpha(ANSICHAR c)
-{
-	return (c >='a' && c <= 'z') || (c >='A' && c <='Z');
-}
-
-static inline bool IsDigit(ANSICHAR c)
-{
-	return c >= '0' && c <= '9';
-}
-
-static FString ParseIdentifier(const ANSICHAR* &Str)
-{
-	FString Result;
-
-	while ((*Str >= 'A' && *Str <= 'Z')
-		|| (*Str >= 'a' && *Str <= 'z')
-		|| (*Str >= '0' && *Str <= '9')
-		|| *Str == '_')
-	{
-		Result += *Str;
-		++Str;
-	}
-
-	return Result;
-}
-
 inline void AppendCString(TArray<ANSICHAR> & Dest, const ANSICHAR * Source)
 {
 	if (Dest.Num() > 0)
@@ -190,7 +163,7 @@ static bool Match(const ANSICHAR* &Str, ANSICHAR Char)
 }
 
 template <typename T>
-uint32 ParseNumber(const T* Str)
+uint32 ParseNumber(const T* Str, bool bEmptyIsZero = false)
 {
 	check(Str);
 
@@ -207,7 +180,17 @@ uint32 ParseNumber(const T* Str)
 		}
 	}
 
-	check(Len > 0);
+	if (Len == 0)
+	{
+		if (bEmptyIsZero)
+		{
+			return 0;
+		}
+		else
+		{
+			check(0);
+		}
+	}
 
 	// Find offset to integer type
 	int32 Offset = -1;
@@ -414,7 +397,7 @@ static int32 AddGlobal(FOLDVulkanCodeHeader& OLDHeader,
 						const FVulkanBindingTable& BindingTable,
 						const CrossCompiler::FHlslccHeader& CCHeader,
 						const FString& ParameterName,
-						uint16 BaseIndex,
+						uint16 BindingIndex,
 						const FSpirv& Spirv,
 						FVulkanShaderHeader& OutHeader,
 						const TArray<FString>& GlobalNames,
@@ -440,7 +423,7 @@ static int32 AddGlobal(FOLDVulkanCodeHeader& OLDHeader,
 	}
 	else
 	{
-		Entry = CombinedAliasIndex == UINT16_MAX ? Spirv.GetEntryByBindingIndex(BaseIndex) : Spirv.GetEntry(GlobalNames[CombinedAliasIndex]);
+		Entry = CombinedAliasIndex == UINT16_MAX ? Spirv.GetEntryByBindingIndex(BindingIndex) : Spirv.GetEntry(GlobalNames[CombinedAliasIndex]);
 		check(Entry);
 		check(Entry->Binding != -1);
 		if (!Entry->Name.EndsWith(TEXT("_BUFFER")))
@@ -486,7 +469,7 @@ static int32 AddGlobalForUBEntry(FOLDVulkanCodeHeader& OLDHeader,
 									const FVulkanBindingTable& BindingTable,
 									const CrossCompiler::FHlslccHeader& CCHeader,
 									const FString& ParameterName,
-									uint16 BaseIndex,
+									uint16 BindingIndex,
 									const FSpirv& Spirv,
 									const TArray<FString>&
 									GlobalNames,
@@ -510,7 +493,7 @@ static int32 AddGlobalForUBEntry(FOLDVulkanCodeHeader& OLDHeader,
 		}
 	}
 
-	return AddGlobal(OLDHeader, BindingTable, CCHeader, ParameterName, BaseIndex, Spirv, OutHeader, GlobalNames, OutTypePatch, CombinedAliasIndex);
+	return AddGlobal(OLDHeader, BindingTable, CCHeader, ParameterName, BindingIndex, Spirv, OutHeader, GlobalNames, OutTypePatch, CombinedAliasIndex);
 }
 
 static void AddUBResources(FOLDVulkanCodeHeader& OLDHeader,
@@ -552,7 +535,7 @@ static void AddUBResources(FOLDVulkanCodeHeader& OLDHeader,
 				int32 HeaderUBResourceInfoIndex = OutUBInfo.ResourceEntries.AddZeroed();
 				FVulkanShaderHeader::FUBResourceInfo& UBResourceInfo = OutUBInfo.ResourceEntries[HeaderUBResourceInfoIndex];
 
-				int32 HeaderGlobalIndex = AddGlobalForUBEntry(OLDHeader, BindingTable, CCHeader, MemberName, ResourceIndex, Spirv, GlobalNames, (EUniformBufferBaseType)ResourceTableEntry.Type, OutTypePatch, OutHeader);
+				int32 HeaderGlobalIndex = AddGlobalForUBEntry(OLDHeader, BindingTable, CCHeader, MemberName, BindingIndex, Spirv, GlobalNames, (EUniformBufferBaseType)ResourceTableEntry.Type, OutTypePatch, OutHeader);
 				UBResourceInfo.SourceUBResourceIndex = ResourceIndex;
 				UBResourceInfo.OriginalBindingIndex = BindingIndex;
 				UBResourceInfo.GlobalIndex = HeaderGlobalIndex;
@@ -866,10 +849,16 @@ static void PrepareGlobals(const FVulkanBindingTable& BindingTable, const FVulka
 	}
 
 	// Now input attachments
-	for (int32 Index = 0; Index < BindingTable.InputAttachments.Num(); ++Index)
+	if (BindingTable.InputAttachmentsMask != 0)
 	{
-		const FString& AttachmentName  = BindingTable.InputAttachments[Index];
-		DoAddGlobal(AttachmentName, OutHeader, OutGlobalNames);
+		uint32 InputAttachmentsMask = BindingTable.InputAttachmentsMask;
+		for (int32 Index = 0; InputAttachmentsMask != 0; ++Index, InputAttachmentsMask>>= 1)
+		{
+			if (InputAttachmentsMask & 1)
+			{
+				DoAddGlobal(VULKAN_SUBPASS_FETCH_VAR_W[Index], OutHeader, OutGlobalNames);
+			}
+		}
 	}
 }
 
@@ -992,11 +981,30 @@ static void ConvertToNEWHeader(FOLDVulkanCodeHeader& OLDHeader,
 	}
 
 	// Finally check for subpass/input attachments
-	if (BindingTable.InputAttachments.Num() > 0)
+	if (BindingTable.InputAttachmentsMask != 0)
 	{
-		for (int32 Index = 0; Index < BindingTable.InputAttachments.Num(); ++Index)
+		const static FVulkanShaderHeader::EAttachmentType AttachmentTypes[] = 
 		{
-			const FString& AttachmentName  = BindingTable.InputAttachments[Index];
+			FVulkanShaderHeader::EAttachmentType::Depth,
+			FVulkanShaderHeader::EAttachmentType::Color0,
+			FVulkanShaderHeader::EAttachmentType::Color1,
+			FVulkanShaderHeader::EAttachmentType::Color2,
+			FVulkanShaderHeader::EAttachmentType::Color3,
+			FVulkanShaderHeader::EAttachmentType::Color4,
+			FVulkanShaderHeader::EAttachmentType::Color5,
+			FVulkanShaderHeader::EAttachmentType::Color6,
+			FVulkanShaderHeader::EAttachmentType::Color7
+		};
+				
+		uint32 InputAttachmentsMask = BindingTable.InputAttachmentsMask;
+		for (int32 Index = 0; InputAttachmentsMask != 0; ++Index, InputAttachmentsMask>>=1)
+		{
+			if ((InputAttachmentsMask & 1) == 0)
+			{
+				continue;
+			}
+						
+			const FString& AttachmentName = VULKAN_SUBPASS_FETCH_VAR_W[Index];
 			const FVulkanBindingTable::FBinding* Found = BindingTable.GetBindings().FindByPredicate([&AttachmentName](const FVulkanBindingTable::FBinding& Entry)
 				{
 					return Entry.Name == AttachmentName;
@@ -1004,9 +1012,7 @@ static void ConvertToNEWHeader(FOLDVulkanCodeHeader& OLDHeader,
 			check(Found);
 			int32 BindingIndex = (int32)(Found - BindingTable.GetBindings().GetData());
 			check(BindingIndex >= 0 && BindingIndex <= BindingTable.GetBindings().Num());
-			const bool bIsFetch = AttachmentName == VULKAN_SUBPASS_FETCH_VAR_W;
-			const bool bIsDepthFetch = AttachmentName == VULKAN_SUBPASS_DEPTH_FETCH_VAR_W;
-			if (bIsFetch || bIsDepthFetch)
+			FVulkanShaderHeader::EAttachmentType AttachmentType = AttachmentTypes[Index];
 			{
 				int32 HeaderGlobalIndex = GlobalNames.Find(AttachmentName);
 				check(HeaderGlobalIndex != INDEX_NONE);
@@ -1026,15 +1032,9 @@ static void ConvertToNEWHeader(FOLDVulkanCodeHeader& OLDHeader,
 				GlobalInfo.DebugName = AttachmentName;
 #endif
 				int32 HeaderAttachmentIndex = OutHeader.InputAttachments.AddZeroed();
-				check(HeaderAttachmentIndex == Index);
 				FVulkanShaderHeader::FInputAttachment& AttachmentInfo = OutHeader.InputAttachments[HeaderAttachmentIndex];
 				AttachmentInfo.GlobalIndex = HeaderGlobalIndex;
-				ensure(bIsFetch != bIsDepthFetch);
-				AttachmentInfo.Type = bIsFetch ? FVulkanShaderHeader::EAttachmentType::Color : FVulkanShaderHeader::EAttachmentType::Depth;
-			}
-			else
-			{
-				ensureMsgf(0, TEXT("Unknown Attachment name '%s'!"), *AttachmentName);
+				AttachmentInfo.Type = AttachmentType;
 			}
 		}
 	}
@@ -1094,7 +1094,7 @@ static void BuildShaderOutput(
 		// Only process attributes for vertex shaders.
 		if (Frequency == SF_Vertex && Input.Name.StartsWith(AttributePrefix))
 		{
-			int32 AttributeIndex = ParseNumber(*Input.Name + AttributePrefix.Len());
+			int32 AttributeIndex = ParseNumber(*Input.Name + AttributePrefix.Len(), /*bEmptyIsZero:*/ true);
 			OLDHeader.SerializedBindings.InOutMask |= (1 << AttributeIndex);
 		}
 #if 0
@@ -1117,7 +1117,7 @@ static void BuildShaderOutput(
 		// Only targets for pixel shaders must be tracked.
 		if (Frequency == SF_Pixel && Output.Name.StartsWith(TargetPrefix))
 		{
-			uint8 TargetIndex = ParseNumber(*Output.Name + TargetPrefix.Len());
+			uint8 TargetIndex = ParseNumber(*Output.Name + TargetPrefix.Len(), /*bEmptyIsZero:*/ true);
 			OLDHeader.SerializedBindings.InOutMask |= (1 << TargetIndex);
 		}
 		// Only depth writes for pixel shaders must be tracked.
@@ -1521,9 +1521,11 @@ static void BuildShaderOutput(
 	{
 		if (IsVulkanMobilePlatform((EShaderPlatform)ShaderInput.Target.Platform))
 		{
-			CompileOfflineMali(ShaderInput, ShaderOutput, (const ANSICHAR*)Spirv.Data.GetData(), Spirv.Data.Num(), true);
+			CompileOfflineMali(ShaderInput, ShaderOutput, (const ANSICHAR*)Spirv.Data.GetData(), Spirv.Data.Num() * sizeof(uint32), true, (const ANSICHAR*)(Spirv.Data.GetData() + Spirv.OffsetToMainName));
 		}
 	}
+
+	CullGlobalUniformBuffers(ShaderInput.Environment.ResourceTableLayoutSlots, ShaderOutput.ParameterMap);
 }
 
 
@@ -1852,93 +1854,7 @@ static bool CompileWithHlslcc(const FString& PreprocessedShader, FVulkanBindingT
 	return bResult;
 }
 
-#if PLATFORM_MAC || PLATFORM_WINDOWS
-
-static ShaderConductor::ShaderStage ToDXCShaderStage(EHlslShaderFrequency Frequency)
-{
-	check(Frequency >= HSF_VertexShader && Frequency <= HSF_ComputeShader);
-	switch (Frequency)
-	{
-	case HSF_VertexShader:		return ShaderConductor::ShaderStage::VertexShader;
-	case HSF_PixelShader:		return ShaderConductor::ShaderStage::PixelShader;
-	case HSF_GeometryShader:	return ShaderConductor::ShaderStage::GeometryShader;
-	case HSF_HullShader:		return ShaderConductor::ShaderStage::HullShader;
-	case HSF_DomainShader:		return ShaderConductor::ShaderStage::DomainShader;
-	case HSF_ComputeShader:		return ShaderConductor::ShaderStage::ComputeShader;
-	default:					return ShaderConductor::ShaderStage::NumShaderStages;
-	}
-}
-
-static ShaderConductor::Compiler::ShaderModel ToDXCShaderModel(EHlslCompileTarget Target)
-{
-	switch (Target)
-	{
-	case HCT_FeatureLevelSM4:		return { 4, 0 };
-	case HCT_FeatureLevelES3_1Ext:	return { 4, 0 };
-	case HCT_FeatureLevelSM5:		return { 5, 0 };
-	case HCT_FeatureLevelES2:		return { 4, 0 };
-	case HCT_FeatureLevelES3_1:		return { 4, 0 };
-	default:
-		UE_LOG(LogVulkanShaderCompiler, Error, TEXT("Invalid input shader target for enum <EHlslCompileTarget>."));
-	}
-	return { 6,0 };
-}
-
-static void InnerDXCRewriteWrapper(const ShaderConductor::Compiler::SourceDesc& InDesc,
-	const ShaderConductor::Compiler::Options& InOptions, ShaderConductor::Compiler::ResultDesc& ResultDesc)
-{
-	ResultDesc = ShaderConductor::Compiler::Rewrite(InDesc, InOptions);
-}
-
-static ShaderConductor::Compiler::ResultDesc DXCRewriteWrapper(const ShaderConductor::Compiler::SourceDesc& InDesc,
-	const ShaderConductor::Compiler::Options& InOptions,
-	bool& bOutException)
-{
-	bOutException = false;
-#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
-	__try
-#endif
-	{
-		ShaderConductor::Compiler::ResultDesc ResultDesc;
-		InnerDXCRewriteWrapper(InDesc, InOptions, ResultDesc);
-		return ResultDesc;
-	}
-#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
-	__except (EXCEPTION_EXECUTE_HANDLER)
-	{
-		GSCWErrorCode = ESCWErrorCode::CrashInsidePlatformCompiler;
-		ShaderConductor::Compiler::ResultDesc ResultDesc;
-		FMemory::Memzero(ResultDesc);
-		bOutException = true;
-		return ResultDesc;
-	}
-#endif
-}
-
-static ShaderConductor::Compiler::ResultDesc DXCCompileWrapper(const ShaderConductor::Compiler::SourceDesc& InDesc,
-	const ShaderConductor::Compiler::Options& InOptions,
-	const ShaderConductor::Compiler::TargetDesc& InTargetDesc,
-	bool& bOutException)
-{
-	bOutException = false;
-#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
-	__try
-#endif
-	{
-		ShaderConductor::Compiler::ResultDesc ResultDesc = ShaderConductor::Compiler::Compile(InDesc, InOptions, InTargetDesc);
-		return ResultDesc;
-	}
-#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
-	__except (EXCEPTION_EXECUTE_HANDLER)
-	{
-		GSCWErrorCode = ESCWErrorCode::CrashInsidePlatformCompiler;
-		ShaderConductor::Compiler::ResultDesc ResultDesc;
-		FMemory::Memzero(ResultDesc);
-		bOutException = true;
-		return ResultDesc;
-	}
-#endif
-}
+#if PLATFORM_MAC || PLATFORM_WINDOWS || PLATFORM_LINUX
 
 struct FSpirvReflectionBindings
 {
@@ -1965,7 +1881,7 @@ static bool ParseSemanticIndex(const ANSICHAR* InSemanticName, int32& OutSemanti
 
 	for (int32 NameLen = FCStringAnsi::Strlen(InSemanticName), Index = NameLen; Index > 0; --Index)
 	{
-		if (!isdigit(static_cast<uint32>(InSemanticName[Index - 1])))
+		if (!FChar::IsDigit(InSemanticName[Index - 1]))
 		{
 			if (Index == NameLen)
 			{
@@ -1984,7 +1900,7 @@ static bool ParseSemanticIndex(const ANSICHAR* InSemanticName, int32& OutSemanti
 	return false;
 }
 
-static void GatherSPIRVReflectionBindings(
+static void GatherSpirvReflectionBindings(
 	spv_reflect::ShaderModule&	Reflection,
 	FSpirvReflectionBindings&	OutBindings,
 	const EShaderFrequency		ShaderFrequency)
@@ -2321,7 +2237,22 @@ static FString ConvertMetaDataSemantic(const FString& InSemantic, const SpvBuilt
 	}
 }
 
-static void BuildShaderOutputFromSPIRV(
+// Returns the string position where the index in the specified HLSL semantic beings, e.g. "SV_Target2" -> 9, "SV_Target" -> INDEX_NONE
+static int32 FindIndexInHlslSemantic(const FString& Semantic)
+{
+	int32 Index = Semantic.Len();
+	if (Index > 0 && FChar::IsDigit(Semantic[Index - 1]))
+	{
+		while (Index > 0 && FChar::IsDigit(Semantic[Index - 1]))
+		{
+			--Index;
+		}
+		return Index;
+	}
+	return INDEX_NONE;
+}
+
+static void BuildShaderOutputFromSpirv(
 	FSpirv&						Spirv,
 	const FShaderCompilerInput& Input,
 	FShaderCompilerOutput&		Output,
@@ -2355,7 +2286,7 @@ static void BuildShaderOutputFromSPIRV(
 	}
 
 	FSpirvReflectionBindings Bindings;
-	GatherSPIRVReflectionBindings(Reflection, Bindings, static_cast<EShaderFrequency>(Input.Target.Frequency));
+	GatherSpirvReflectionBindings(Reflection, Bindings, static_cast<EShaderFrequency>(Input.Target.Frequency));
 
 	// Register how often a sampler-state is used
 	for (const SpvReflectDescriptorBinding* Binding : Bindings.TextureSRVs)
@@ -2466,15 +2397,66 @@ static void BuildShaderOutputFromSPIRV(
 	for (const SpvReflectInterfaceVariable* Attribute : Bindings.OutputAttributes)
 	{
 		check(Attribute->semantic != nullptr);
+
 		const FString TypeSpecifier = ConvertMetaDataTypeSpecifier(*Attribute->type_description);
-		const FString Semantic = ConvertMetaDataSemantic(ANSI_TO_TCHAR(Attribute->semantic), Attribute->built_in, false);
-		OUTString += FString::Printf(
-			TEXT("%s%s;%d:%s"),
-			OUTString.Len() ? TEXT(",") : TEXT(""),
-			*TypeSpecifier, // type specifier
-			Attribute->location,
-			*Semantic
-		);
+		FString Semantic = ConvertMetaDataSemantic(ANSI_TO_TCHAR(Attribute->semantic), Attribute->built_in, false);
+
+		if (Attribute->array.dims_count > 0)
+		{
+			// Flatten array dimensions, e.g. from float4[3][2] -> float4[6]
+			uint32 FlattenedArrayDim = 1;
+			for (uint32 ArrayDimIndex = 0; ArrayDimIndex < Attribute->array.dims_count; ++ArrayDimIndex)
+			{
+				FlattenedArrayDim *= Attribute->array.dims[ArrayDimIndex];
+			}
+
+			// Get semantic without index, e.g. "out_Target0" -> "out_Target"
+			const int32 SemanticIndexPos = FindIndexInHlslSemantic(Semantic);
+			if (SemanticIndexPos != INDEX_NONE)
+			{
+				Semantic = Semantic.Left(SemanticIndexPos);
+			}
+
+			// Emit one output slot for each array element, e.g. "out float4 OutColor[2] : SV_Target0" occupies output slot SV_Target0 and SV_Target1.
+			for (uint32 FlattenedArrayIndex = 0; FlattenedArrayIndex < FlattenedArrayDim; ++FlattenedArrayIndex)
+			{
+				if (Attribute->location == -1)
+				{
+					// If there is no binding slot, emit output as system value array such as "gl_SampleMask[]"
+					OUTString += FString::Printf(
+						TEXT("%s%s;%d:%s[%d]"),
+						OUTString.Len() ? TEXT(",") : TEXT(""),
+						*TypeSpecifier, // type specifier
+						Attribute->location,
+						*Semantic,
+						FlattenedArrayIndex
+					);
+				}
+				else
+				{
+					const uint32 BindingSlot = Attribute->location + FlattenedArrayIndex;
+					OUTString += FString::Printf(
+						TEXT("%s%s;%d:%s%d"),
+						OUTString.Len() ? TEXT(",") : TEXT(""),
+						*TypeSpecifier, // type specifier
+						BindingSlot,
+						*Semantic,
+						BindingSlot
+					);
+				}
+			}
+		}
+		else
+		{
+			// Emit single output slot
+			OUTString += FString::Printf(
+				TEXT("%s%s;%d:%s"),
+				OUTString.Len() ? TEXT(",") : TEXT(""),
+				*TypeSpecifier, // type specifier
+				Attribute->location,
+				*Semantic
+			);
+		}
 	}
 
 	int32 UBOBindings = 0, UAVBindings = 0, SRVBindings = 0, SMPBindings = 0, GLOBindings = 0;
@@ -2712,7 +2694,7 @@ static void BuildShaderOutputFromSPIRV(
 
 	// Overwrite updated SPIRV code
 	Spirv.Data = TArray<uint32>(Reflection.GetCode(), Reflection.GetCodeSize() / 4);
-	PathSpirvReflectionEntriesAndEntryPoint(Spirv);
+	PatchSpirvReflectionEntriesAndEntryPoint(Spirv);
 
 	BuildShaderOutput(
 		Output,
@@ -2730,53 +2712,28 @@ static void BuildShaderOutputFromSPIRV(
 	if (bDebugDump)
 	{
 		// Write meta data to debug output file
-		FString DumpedMetaDataFilename = Input.DumpDebugInfoPath / TEXT("OutputMetadata.dxc.txt");
-		if (TUniquePtr<FArchive> FileWriter = TUniquePtr<FArchive>(IFileManager::Get().CreateFileWriter(*DumpedMetaDataFilename)))
-		{
-			FileWriter->Serialize(MetaData.GetCharArray().GetData(), MetaData.Len() * sizeof(FString::ElementType));
-			FileWriter->Close();
-		}
-
-		// Convert to STL container for glslang library
-		std::vector<uint32> SpirvData;
-		SpirvData.resize(Spirv.Data.Num());
-		FMemory::Memcpy(&SpirvData[0], Spirv.Data.GetData(), Spirv.Data.Num() * sizeof(uint32));
+		DumpDebugShaderText(Input, MetaData, TEXT("meta.txt"));
 
 		// SPIR-V file (Binary)
-		{
-			FString SpirvFile = Input.DumpDebugInfoPath / (TEXT("Output.dxc.spv"));
-			glslang::OutputSpvBin(SpirvData, TCHAR_TO_ANSI(*SpirvFile));
-		}
+		DumpDebugShaderBinary(Input, Spirv.Data.GetData(), Spirv.Data.Num() * sizeof(uint32), TEXT("spv"));
 
+		//@todo-lh: move this also to ShaderCompilerCommon module
 		// Disassembled SPIR-V file (Text)
+		const FString DisAsmSpvFilename = Input.DumpDebugInfoPath / FPaths::GetBaseFilename(Input.GetSourceFilename()) + TEXT(".spvasm");
+		std::ofstream File;
+		File.open(TCHAR_TO_ANSI(*DisAsmSpvFilename), std::fstream::out);
+		if (File.is_open())
 		{
-			FString SpirvTextFile = Input.DumpDebugInfoPath / (TEXT("Output.dxc.spvasm"));
-			std::ofstream File;
-			File.open(TCHAR_TO_ANSI(*SpirvTextFile), std::fstream::out);
-			if (File.is_open())
-			{
-				spv::Parameterize();
-				spv::Disassemble(File, SpirvData);
-				File.close();
-			}
-		}
-	}
-}
+			// Convert to STL container for glslang library
+			std::vector<uint32> SpirvData;
+			SpirvData.resize(Spirv.Data.Num());
+			FMemory::Memcpy(&SpirvData[0], Spirv.Data.GetData(), Spirv.Data.Num() * sizeof(uint32));
 
-static bool IsUsingTessellation(const FCompilerInfo& CompilerInfo)
-{
-	switch (CompilerInfo.Frequency)
-	{
-	case HSF_VertexShader:
-	{
-		const FString* UsingTessellationDefine = CompilerInfo.Input.Environment.GetDefinitions().Find(TEXT("USING_TESSELLATION"));
-		return (UsingTessellationDefine != nullptr && *UsingTessellationDefine == TEXT("1"));
-	}
-	case HSF_HullShader:
-	case HSF_DomainShader:
-		return true;
-	default:
-		return false;
+			// Emit disassembled SPIR-V
+			spv::Parameterize();
+			spv::Disassemble(File, SpirvData);
+			File.close();
+		}
 	}
 }
 
@@ -2791,158 +2748,74 @@ static bool CompileWithShaderConductor(
 {
 	const FShaderCompilerInput& Input = CompilerInfo.Input;
 
-	const bool bUsingTessellation = IsUsingTessellation(CompilerInfo);
+	const bool bUsingTessellation = Input.IsUsingTessellation();
+	const bool bRewriteHlslSource = !bUsingTessellation;
+	const bool bDebugDump = CompilerInfo.bDebugDump;
 
-	// Set up compile options for ShaderConductor (shader model, optimization settings etc.)
-	ShaderConductor::Compiler::Options Options;
-	Options.removeUnusedGlobals = false;
-	Options.packMatricesInRowMajor = false;
-	Options.enableDebugInfo = false;
-	Options.enable16bitTypes = false;
-	Options.disableOptimizations = false;
-	Options.shaderModel = ToDXCShaderModel(HlslCompilerTarget);
+	CrossCompiler::FShaderConductorContext CompilerContext;
 
-	// Convert input source code from TCHAR to ANSI
-	std::string CStrSourceData(TCHAR_TO_ANSI(*PreprocessedShader));
-	std::string CStrFileName(TCHAR_TO_ANSI(*Input.VirtualSourceFilePath));
-	std::string CStrEntryPointName(TCHAR_TO_ANSI(*Input.EntryPointName));
+	// Inject additional macro definitions to circumvent missing features: external textures
+	FShaderCompilerDefinitions AdditionalDefines;
+	AdditionalDefines.SetDefine(TEXT("TextureExternal"), TEXT("Texture2D"));
 
-	const ShaderConductor::MacroDefine BuiltinDefines[] =
+	if (bDebugDump)
 	{
-//		{ "COMPILER_HLSL", "1" },
-		{ "TextureExternal", "Texture2D" },
-	};
+		DumpDebugUSF(Input, PreprocessedShader, CompilerInfo.CCFlags);
+	}
 
-	// Set up source description for ShaderConductor
-	ShaderConductor::Compiler::SourceDesc SourceDesc;
-	FMemory::Memzero(SourceDesc);
-	SourceDesc.source = CStrSourceData.c_str();
-	SourceDesc.fileName = CStrFileName.c_str();
-	SourceDesc.entryPoint = CStrEntryPointName.c_str();
-	SourceDesc.numDefines = sizeof(BuiltinDefines) / sizeof(BuiltinDefines[0]);
-	SourceDesc.defines = BuiltinDefines;
-	SourceDesc.stage = ToDXCShaderStage(CompilerInfo.Frequency);
+	// Load shader source into compiler context
+	CompilerContext.LoadSource(PreprocessedShader, Input.VirtualSourceFilePath, EntryPointName, CompilerInfo.Frequency, &AdditionalDefines);
 
-	ShaderConductor::Compiler::TargetDesc TargetDesc;
-	FMemory::Memzero(TargetDesc);
-	TargetDesc.language = ShaderConductor::ShadingLanguage::SpirV;
+	// Initialize compilation options for ShaderConductor
+	CrossCompiler::FShaderConductorOptions Options;
+	Options.TargetProfile = HlslCompilerTarget;
 
-	// Rewrite HLSL source to remove unused global variables (DXC retains them when compiling)
-	ShaderConductor::Blob* RewriteBlob = nullptr;
-
-	const TCHAR* RewrittenBaseFilename = TEXT("Output.dxc.hlsl");
-
-	if (!bUsingTessellation)
+	if (bRewriteHlslSource)
 	{
-		// Rewrite HLSL
-		Options.removeUnusedGlobals = true;
-		bool bException = false;
-		ShaderConductor::Compiler::ResultDesc RewriteResultDesc = DXCRewriteWrapper(SourceDesc, Options, bException);
-		Options.removeUnusedGlobals = false;
-		if (RewriteResultDesc.hasError || bException)
+		// Rewrite HLSL source code to remove unused global resources and variables
+		FString RewrittenHlslSource;
+
+		Options.bRemoveUnusedGlobals = true;
+		if (!CompilerContext.RewriteHlsl(Options, (bDebugDump ? &RewrittenHlslSource : nullptr)))
 		{
-			if (bException)
-			{
-				Output.Errors.Add(TEXT("ShaderConductor exception during rewrite"));
-			}
-			// Append compile error to output reports
-			if (ShaderConductor::Blob* ErrorBlob = RewriteResultDesc.errorWarningMsg)
-			{
-				FUTF8ToTCHAR UTF8Converter(reinterpret_cast<const ANSICHAR*>(ErrorBlob->Data()), ErrorBlob->Size());
-				const FString ErrorString(ErrorBlob->Size(), UTF8Converter.Get());
-				Output.Errors.Add(*ErrorString);
-
-				ShaderConductor::DestroyBlob(RewriteResultDesc.errorWarningMsg);
-				RewriteResultDesc.errorWarningMsg = nullptr;
-			}
+			CompilerContext.FlushErrors(Output.Errors);
+			return false;
 		}
-		else
+		Options.bRemoveUnusedGlobals = false;
+
+		if (bDebugDump)
 		{
-			// Copy rewritten HLSL code into new source data string
-			RewriteBlob = RewriteResultDesc.target;
-
-			CStrSourceData.clear();
-			CStrSourceData.resize(RewriteBlob->Size());
-			FCStringAnsi::Strncpy(&CStrSourceData[0], static_cast<const char*>(RewriteBlob->Data()), RewriteBlob->Size());
-			SourceDesc.source = CStrSourceData.c_str();
-
-			if (CompilerInfo.bDebugDump)
-			{
-				DumpDebugUSF(Input, CStrSourceData.c_str(), (int32)CStrSourceData.length(), CompilerInfo.CCFlags, RewrittenBaseFilename);
-			}
+			DumpDebugShaderText(Input, RewrittenHlslSource, TEXT("rewritten.hlsl"));
 		}
 	}
 
-	if (CompilerInfo.bDebugDump)
+	// Compile HLSL source to SPIR-V binary
+	FSpirv Spirv;
+	if (!CompilerContext.CompileHlslToSpirv(Options, Spirv.Data))
 	{
-		// Command line for ShaderConductorCmd
-		FString SourceFilename = RewriteBlob ? RewrittenBaseFilename : *CompilerInfo.BaseSourceFilename;
-		if (Input.bGenerateDirectCompileFile)
-		{
-			WriteShaderConductorCommandLine(CompilerInfo.Input, SourceFilename, EShaderConductorTarget::Spirv);
-		}
+		CompilerContext.FlushErrors(Output.Errors);
+		return false;
 	}
 
-	// Compile HLSL to SPIR-V
-	bool bException = false;
-	ShaderConductor::Compiler::ResultDesc ResultDesc = DXCCompileWrapper(SourceDesc, Options, TargetDesc, bException);
+	// Build shader output and binding table
+	BuildShaderOutputFromSpirv(Spirv, CompilerInfo.Input, Output, BindingTable, bHasRealUBs, bDebugDump);
 
-	bool bResult = true;
-	if (ResultDesc.hasError || bException || !ResultDesc.target)
+	// Write final output shader
+	Output.Target = Input.Target;
+	Output.ShaderCode.GetWriteAccess().Append(reinterpret_cast<const uint8*>(Spirv.Data.GetData()), Spirv.Data.Num() * sizeof(uint32));
+	Output.bSucceeded = true;
+
+	if (bDebugDump)
 	{
-		if (bException)
-		{
-			Output.Errors.Add(TEXT("ShaderConductor exception"));
-		}
-
-		// Append compile error to output reports
-		if (ShaderConductor::Blob* ErrorBlob = ResultDesc.errorWarningMsg)
-		{
-			FUTF8ToTCHAR UTF8Converter(reinterpret_cast<const ANSICHAR*>(ErrorBlob->Data()), ErrorBlob->Size());
-			const FString ErrorString(ErrorBlob->Size(), UTF8Converter.Get());
-			Output.Errors.Add(*ErrorString);
-		}
-		bResult = false;
-	}
-	else
-	{
-		// Create SPIR-V module
-		const uint8* SpirvCode = reinterpret_cast<const uint8*>(ResultDesc.target->Data());
-		const uint32 SpirvSize = ResultDesc.target->Size();
-
-		FSpirv Spirv;
-		Spirv.Data = TArray<uint32>(
-			reinterpret_cast<const uint32*>(ResultDesc.target->Data()),
-			ResultDesc.target->Size() / 4
-		);
-
-		// Build shader output and binding table
-		BuildShaderOutputFromSPIRV(Spirv, CompilerInfo.Input, Output, BindingTable, bHasRealUBs, CompilerInfo.bDebugDump);
-
-		// Write final output shader
-		Output.Target = Input.Target;
-		Output.ShaderCode.GetWriteAccess().Append(reinterpret_cast<const uint8*>(Spirv.Data.GetData()), Spirv.Data.Num() * sizeof(uint32));
-		Output.bSucceeded = true;
+		DumpDebugShaderBinary(Input, Spirv.Data.GetData(), Spirv.Data.Num() * sizeof(uint32), TEXT("spv"));
 	}
 
-	// Release ShaderConductor resources
-	if (ResultDesc.errorWarningMsg)
-	{
-		ShaderConductor::DestroyBlob(ResultDesc.errorWarningMsg);
-	}
-	if (ResultDesc.target)
-	{
-		ShaderConductor::DestroyBlob(ResultDesc.target);
-	}
-	if (RewriteBlob)
-	{
-		ShaderConductor::DestroyBlob(RewriteBlob);
-	}
-
-	return bResult;
+	// Flush warnings
+	CompilerContext.FlushErrors(Output.Errors);
+	return true;
 }
 
-#endif // PLATFORM_MAC || PLATFORM_WINDOWS
+#endif // PLATFORM_MAC || PLATFORM_WINDOWS || PLATFORM_LINUX
 
 
 void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& Output, const class FString& WorkingDirectory, EVulkanShaderVersion Version)
@@ -3005,12 +2878,11 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 		AdditionalDefines.SetDefine(TEXT("FORCE_FLOATS"), (uint32)1);
 	}
 
-#if PLATFORM_MAC || PLATFORM_WINDOWS
+#if PLATFORM_MAC || PLATFORM_WINDOWS || PLATFORM_LINUX
 	// Disable VULKAN_SUBPASS_DEPTHFETCH for DXC, since DXC doesn't generate SPIR-V code that can make use of that Vulkan specific feature yet
 	if (bForceDXC)
 	{
 		AdditionalDefines.SetDefine(TEXT("VULKAN_SUBPASS_DEPTHFETCH"), (uint32)0);
-		AdditionalDefines.SetDefine(TEXT("COMPILER_DXC"), 1);
 	}
 #endif // PLATFORM_MAC || PLATFORM_WINDOWS
 
@@ -3104,14 +2976,14 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 	FVulkanBindingTable BindingTable(CompilerInfo.Frequency);
 	bool bSuccess = false;
 
-#if PLATFORM_MAC || PLATFORM_WINDOWS
+#if PLATFORM_MAC || PLATFORM_WINDOWS || PLATFORM_LINUX
 	if (bForceDXC)
 	{
 		// Cross-compile shader via ShaderConductor (DXC, SPIRV-Tools, SPIRV-Cross)
 		bSuccess = CompileWithShaderConductor(PreprocessedShaderSource, EntryPointName, CompilerInfo, HlslCompilerTarget, Output, BindingTable, bHasRealUBs);
 	}
 	else
-#endif // PLATFORM_MAC || PLATFORM_WINDOWS
+#endif // PLATFORM_MAC || PLATFORM_WINDOWS || PLATFORM_LINUX
 	{
 		if (CompilerInfo.bDebugDump)
 		{

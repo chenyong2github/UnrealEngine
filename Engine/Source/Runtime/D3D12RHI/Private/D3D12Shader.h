@@ -169,7 +169,7 @@ public:
 		FRHIHullShader* InHullShaderRHI,
 		FRHIDomainShader* InDomainShaderRHI,
 		FRHIGeometryShader* InGeometryShaderRHI,
-		FD3D12Device* InDevice
+		FD3D12Adapter* InAdapter
 		);
 
 	virtual ~FD3D12BoundShaderState();

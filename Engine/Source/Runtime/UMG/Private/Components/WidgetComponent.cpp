@@ -1242,6 +1242,11 @@ void UWidgetComponent::DrawWidgetToRenderTarget(float DeltaTime)
 		return;
 	}
 
+	if ( !WidgetRenderer )
+	{
+		return;
+	}
+
 	const int32 MaxAllowedDrawSize = GetMax2DTextureDimension();
 	if ( DrawSize.X <= 0 || DrawSize.Y <= 0 || DrawSize.X > MaxAllowedDrawSize || DrawSize.Y > MaxAllowedDrawSize )
 	{
@@ -1678,6 +1683,8 @@ void UWidgetComponent::UpdateRenderTarget(FIntPoint DesiredRenderTargetSize)
 
 	if ( DesiredRenderTargetSize.X != 0 && DesiredRenderTargetSize.Y != 0 )
 	{
+		const EPixelFormat requestedFormat = FSlateApplication::Get().GetRenderer()->GetSlateRecommendedColorFormat();
+
 		if ( RenderTarget == nullptr )
 		{
 			RenderTarget = NewObject<UTextureRenderTarget2D>(this);
@@ -1685,7 +1692,7 @@ void UWidgetComponent::UpdateRenderTarget(FIntPoint DesiredRenderTargetSize)
 
 			bClearColorChanged = bWidgetRenderStateDirty = true;
 
-			RenderTarget->InitCustomFormat(DesiredRenderTargetSize.X, DesiredRenderTargetSize.Y, PF_B8G8R8A8, false);
+			RenderTarget->InitCustomFormat(DesiredRenderTargetSize.X, DesiredRenderTargetSize.Y, requestedFormat, false);
 
 			if ( MaterialInstance )
 			{

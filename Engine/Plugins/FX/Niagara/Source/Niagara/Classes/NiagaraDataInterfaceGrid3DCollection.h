@@ -5,18 +5,27 @@
 #include "NiagaraDataInterfaceRW.h"
 #include "ClearQuad.h"
 #include "NiagaraComponent.h"
+#include "NiagaraStats.h"
 
 #include "NiagaraDataInterfaceGrid3DCollection.generated.h"
 
 class FNiagaraSystemInstance;
+class UTextureRenderTarget;
 class UTextureRenderTargetVolume;
 
 class FGrid3DBuffer
 {
 public:
-	FGrid3DBuffer(int NumX, int NumY, int NumZ)
-	{		
-		GridBuffer.Initialize(4, NumX, NumY, NumZ, EPixelFormat::PF_R32_FLOAT);
+	FGrid3DBuffer(int NumX, int NumY, int NumZ, EPixelFormat PixelFormat)
+	{
+		GridBuffer.Initialize(GPixelFormats[PixelFormat].BlockBytes, NumX, NumY, NumZ, PixelFormat);
+		INC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, GridBuffer.NumBytes);
+	}
+
+	~FGrid3DBuffer()
+	{
+		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, GridBuffer.NumBytes);
+		GridBuffer.Release();
 	}
 
 	FTextureRWBuffer3D GridBuffer;	
@@ -28,6 +37,7 @@ struct FGrid3DCollectionRWInstanceData_GameThread
 	FIntVector NumTiles = FIntVector::ZeroValue;
 	FVector CellSize = FVector::ZeroVector;
 	FVector WorldBBoxSize = FVector::ZeroVector;
+	EPixelFormat PixelFormat = EPixelFormat::PF_R32_FLOAT;
 
 	/** A binding to the user ptr we're reading the RT from (if we are). */
 	FNiagaraParameterDirectBinding<UObject*> RTUserParamBinding;
@@ -39,6 +49,7 @@ struct FGrid3DCollectionRWInstanceData_RenderThread
 	FIntVector NumTiles = FIntVector::ZeroValue;
 	FVector CellSize = FVector::ZeroVector;
 	FVector WorldBBoxSize = FVector::ZeroVector;
+	EPixelFormat PixelFormat = EPixelFormat::PF_R32_FLOAT;
 
 	TArray<TUniquePtr<FGrid3DBuffer>> Buffers;
 	FGrid3DBuffer* CurrentData = nullptr;
@@ -46,8 +57,8 @@ struct FGrid3DCollectionRWInstanceData_RenderThread
 
 	FTextureRHIRef RenderTargetToCopyTo;
 
-	void BeginSimulate();
-	void EndSimulate();
+	void BeginSimulate(FRHICommandList& RHICmdList);
+	void EndSimulate(FRHICommandList& RHICmdList);
 };
 
 struct FNiagaraDataInterfaceProxyGrid3DCollectionProxy : public FNiagaraDataInterfaceProxyRW
@@ -73,12 +84,16 @@ public:
 
 	DECLARE_NIAGARA_DI_PARAMETER();
 
+	// Number of attributes stored on the grid
 	UPROPERTY(EditAnywhere, Category = "Grid")
 	int32 NumAttributes;
 
 	/** Reference to a user parameter if we're reading one. */
 	UPROPERTY(EditAnywhere, Category = "Grid3DCollection")
 	FNiagaraUserParameterBinding RenderTargetUserParameter;
+
+	UPROPERTY(EditAnywhere, Category = "Grid3DCollection", meta = (ToolTip = "Changes the format used to store data inside the grid, low bit formats save memory and performance."))
+	ENiagaraGpuBufferFormat BufferFormat;
 
 	virtual void PostInitProperties() override;
 	

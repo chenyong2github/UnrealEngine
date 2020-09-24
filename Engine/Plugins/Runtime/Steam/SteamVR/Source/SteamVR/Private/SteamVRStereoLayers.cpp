@@ -256,16 +256,15 @@ void FSteamVRHMD::UpdateStereoLayers_RenderThread()
 #if PLATFORM_MAC
 					check( 0 );
 #else
-					auto vlkRHI = static_cast<FVulkanDynamicRHI*>(GDynamicRHI);
 					FRHITexture2D* TextureRHI2D = Layer.LayerDesc.Texture->GetTexture2D();
 					check(TextureRHI2D);
 					FVulkanTexture2D* Texture2D = (FVulkanTexture2D*)TextureRHI2D;
 
-					VulkanTexture.m_pInstance = vlkRHI->GetInstance();
-					VulkanTexture.m_pDevice = vlkRHI->GetDevice()->GetInstanceHandle();
-					VulkanTexture.m_pPhysicalDevice = vlkRHI->GetDevice()->GetPhysicalHandle();
-					VulkanTexture.m_pQueue = vlkRHI->GetDevice()->GetGraphicsQueue()->GetHandle();
-					VulkanTexture.m_nQueueFamilyIndex = vlkRHI->GetDevice()->GetGraphicsQueue()->GetFamilyIndex();
+					VulkanTexture.m_pInstance = GVulkanRHI->GetInstance();
+					VulkanTexture.m_pDevice = GVulkanRHI->GetDevice()->GetInstanceHandle();
+					VulkanTexture.m_pPhysicalDevice = GVulkanRHI->GetDevice()->GetPhysicalHandle();
+					VulkanTexture.m_pQueue = GVulkanRHI->GetDevice()->GetGraphicsQueue()->GetHandle();
+					VulkanTexture.m_nQueueFamilyIndex = GVulkanRHI->GetDevice()->GetGraphicsQueue()->GetFamilyIndex();
 					VulkanTexture.m_nImage = (uint64_t)Texture2D->Surface.Image;
 					VulkanTexture.m_nWidth = Texture2D->Surface.Width;
 					VulkanTexture.m_nHeight = Texture2D->Surface.Height;

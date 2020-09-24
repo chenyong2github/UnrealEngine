@@ -24,7 +24,7 @@ struct TTickUtil
 		// can only write to the output/pending state. (Input state is frozen now).
 		FNetworkPredictionStateView* View = Instance.Info.View;
 		View->bTickInProgress = true;
-		View->UpdateView(Step.Frame, &OutputFrameData.InputCmd, &OutputFrameData.SyncState, &OutputFrameData.AuxState);
+		View->UpdateView(Step.Frame, Step.TotalSimulationTime, &OutputFrameData.InputCmd, &OutputFrameData.SyncState, &OutputFrameData.AuxState);
 
 		// FIXME: aux. Copy it over and make a fake lazy writer for now
 		OutputFrameData.AuxState = InputFrameData.AuxState;
@@ -291,7 +291,7 @@ public:
 
 					ServerRecvData.TotalSimTimeMS += InputCmdMS;
 
-					UE_NP_TRACE_PUSH_TICK(Step.TotalSimulationTime, Step.StepMS, Step.Frame);
+					UE_NP_TRACE_PUSH_TICK(Step.TotalSimulationTime, Step.StepMS, Step.Frame, 0);
 					UE_NP_TRACE_SIM_TICK(TraceID);
 
 					TTickUtil<ModelDef>::DoTick(InstanceData, InputFrameData, OutputFrameData, Step, CueTimeMS, ESimulationTickContext::Authority);

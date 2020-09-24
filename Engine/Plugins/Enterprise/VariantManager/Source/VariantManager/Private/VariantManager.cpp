@@ -62,8 +62,6 @@ void FVariantManager::InitVariantManager(ULevelVariantSets* InLevelVariantSets)
 {
 	CurrentLevelVariantSets = InLevelVariantSets;
 
-	VariantManagerWidget = SNew(SVariantManager, SharedThis(this));
-
 	// When undo occurs, get a notification so we can make sure our view is up to date
 	GEditor->RegisterForUndo(this);
 }
@@ -1036,9 +1034,12 @@ void FVariantManager::CanAddActorsToVariant(const TArray<UObject*>& InActors, co
 
 void FVariantManager::PostUndo(bool bSuccess)
 {
-	VariantManagerWidget->RefreshVariantTree();
-	VariantManagerWidget->RefreshActorList();
-	VariantManagerWidget->RefreshPropertyList();
+	if (VariantManagerWidget.IsValid())
+	{
+		VariantManagerWidget->RefreshVariantTree();
+		VariantManagerWidget->RefreshActorList();
+		VariantManagerWidget->RefreshPropertyList();
+	}
 }
 
 void FVariantManager::CaptureNewProperties(const TArray<UVariantObjectBinding*>& Bindings)
@@ -1089,8 +1090,13 @@ void FVariantManager::GetCapturableProperties(const TArray<UClass*>& Classes, TA
 	FVariantManagerPropertyCapturer::CaptureProperties(BoundObjectsArr, OutProperties, TargetPropertyPath, bCaptureAllArrayIndices);
 }
 
-TSharedPtr<SVariantManager> FVariantManager::GetVariantManagerWidget() const
-{
+TSharedPtr<SVariantManager> FVariantManager::GetVariantManagerWidget()
+{	
+	if (!VariantManagerWidget.IsValid())
+	{
+		VariantManagerWidget = SNew(SVariantManager, SharedThis(this));
+	}
+
 	return VariantManagerWidget;
 }
 

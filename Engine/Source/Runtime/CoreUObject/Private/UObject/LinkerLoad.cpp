@@ -1353,6 +1353,11 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::UpdateFromPackageFileSummary()
 				// Temporarily just warn and continue. @todo: this needs to be fixed properly
 				UE_LOG(LogLinker, Warning, TEXT("Package %s was saved with a custom integration that is not present. Tag %s  Version %d"), *Filename, *Diff.Version->Key.ToString(), Diff.Version->Version);
 			}
+			else if (Diff.Type == ECustomVersionDifference::Invalid)
+			{
+				UE_LOG(LogLinker, Error, TEXT("Package %s was saved with an invalid custom version. Tag %s  Version %d"), *Filename, *Diff.Version->Key.ToString(), Diff.Version->Version);
+				return LINKER_Failed;
+			}
 			else if (Diff.Type == ECustomVersionDifference::Newer)
 			{
 				FCustomVersion LatestVersion = FCurrentCustomVersions::Get(Diff.Version->Key).GetValue();
@@ -2970,7 +2975,7 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 		// In the other case we do not want to trigger another load of the objects in that import, in case they contain dependencies to the package we are currently loading
 		// and the current loader doesn't have the LOAD_DeferDependencyLoads flag
 		Package = FindObjectFast<UPackage>(nullptr, PackageToLoadInto);
-		if (Package == nullptr)
+		if (Package == nullptr || !Package->IsFullyLoaded())
 		{
 #if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 			// when LOAD_DeferDependencyLoads is in play, we usually head off 
@@ -2994,7 +2999,7 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 			// In the case of a non instanced load `PackageToLoad` and `PackageToLoadInto` will be the same and we won't be providing a package to load into since `Package` will be null.
 			if (PackageToLoad != PackageToLoadInto)
 			{
-				Package = CreatePackage(nullptr, *PackageToLoadInto.ToString());
+				Package = CreatePackage(*PackageToLoadInto.ToString());
 			}
 			Package = LoadPackageInternal(Package, *PackageToLoad.ToString(), InternalLoadFlags | LOAD_IsVerifying, this, nullptr, nullptr);
 		}
@@ -3009,7 +3014,7 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 		// @todo linkers: This could quite possibly be cleaned up
 		if (Package == nullptr)
 		{
-			Package = CreatePackage(NULL, *PackageToLoad.ToString());
+			Package = CreatePackage(*PackageToLoad.ToString());
 		}
 
 		// if we couldn't create the package or it is 
@@ -3513,7 +3518,13 @@ int32 FLinkerLoad::LoadMetaDataFromExportMap(bool bForcePreload)
 	// Make sure the meta-data is referenced by its package to avoid premature GC
 	if (LinkerRoot)
 	{
-		LinkerRoot->MetaData = MetaData;
+		// If we didn't find a MetaData, keep the existing MetaData we may have constructed after previously noticing LoadMetaDataFromExportMap didn't find one
+		if (MetaData)
+		{
+			UE_CLOG(LinkerRoot->MetaData && LinkerRoot->MetaData != MetaData, LogLinker, Warning,
+				TEXT("LoadMetaDataFromExportMap was called after the MetaData was already loaded, and it found a different MetaData. Discarding the previously loaded MetaData."));
+			LinkerRoot->MetaData = MetaData;
+		}
 	}
 
 	return MetaDataIndex;
@@ -4408,7 +4419,7 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 		{
 			// Create the forced export in the TopLevel instead of LinkerRoot. Please note that CreatePackage
 			// will find and return an existing object if one exists and only create a new one if there doesn't.
-			Export.Object = CreatePackage( NULL, *Export.ObjectName.ToString() );
+			Export.Object = CreatePackage( *Export.ObjectName.ToString() );
 			check(Export.Object);
 			check(CurrentLoadContext);
 			CurrentLoadContext->IncrementForcedExportCount();
@@ -4671,20 +4682,14 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 
 		LoadClass->GetDefaultObject();
 
-		Export.Object = StaticConstructObject_Internal
-		(
-			LoadClass,
-			ThisParent,
-			NewName,
-			ObjectLoadFlags,
-			EInternalObjectFlags::None,
-			Template,
-			false,
-			nullptr,
-			false,
-			// if our outer is actually an import, then the package we are an export of is not in our outer chain, set our package in that case
-			Export.OuterIndex.IsImport() ? LinkerRoot : nullptr /*ExternalPackage*/
-		);
+		FStaticConstructObjectParameters Params(LoadClass);
+		Params.Outer = ThisParent;
+		Params.Name = NewName;
+		Params.SetFlags = ObjectLoadFlags;
+		Params.Template = Template;
+		// if our outer is actually an import, then the package we are an export of is not in our outer chain, set our package in that case
+		Params.ExternalPackage = Export.OuterIndex.IsImport() ? LinkerRoot : nullptr;
+		Export.Object = StaticConstructObject_Internal(Params);
 
 		if (FPlatformProperties::RequiresCookedData())
 		{
@@ -4887,7 +4892,7 @@ UObject* FLinkerLoad::CreateImport( int32 Index )
 					// Import is a toplevel package.
 					if( Import.OuterIndex.IsNull() )
 					{
-						FindObject = CreatePackage(NULL, *Import.ObjectName.ToString());
+						FindObject = CreatePackage(*Import.ObjectName.ToString());
 					}
 					// Import is regular import/ export.
 					else
@@ -4906,7 +4911,7 @@ UObject* FLinkerLoad::CreateImport( int32 Index )
 							// Outer is toplevel package, create/ find it.
 							else if( OuterImport.OuterIndex.IsNull() )
 							{
-								FindOuter = CreatePackage( NULL, *OuterImport.ObjectName.ToString() );
+								FindOuter = CreatePackage( *OuterImport.ObjectName.ToString() );
 							}
 							// Outer is regular import/ export, use IndexToObject to potentially recursively load/ find it.
 							else

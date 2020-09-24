@@ -73,6 +73,7 @@ void UMoviePipelineWidgetRenderer::RenderSample_GameThreadImpl(const FMoviePipel
 			FrameData->PassIdentifier = FMoviePipelinePassIdentifier(TEXT("ViewportUI"));
 			FrameData->SampleState = InSampleState;
 			FrameData->bRequireTransparentOutput = true;
+			FrameData->SortingOrder = 4;
 
 			TUniquePtr<FImagePixelData> PixelData = MakeUnique<TImagePixelData<FColor>>(InSampleState.BackbufferSize, TArray64<FColor>(MoveTemp(RawPixels)), FrameData);
 

@@ -27,6 +27,7 @@
 #include "NiagaraScript.h"
 #include "NiagaraRendererProperties.h"
 #include "NiagaraSimulationStageBase.h"
+#include "NiagaraTrace.h"
 #include "Serialization/MemoryReader.h"
 #include "../../Niagara/Private/NiagaraPrecompileContainer.h"
 
@@ -140,6 +141,8 @@ void FNiagaraCompileRequestData::VisitReferencedGraphsRecursive(UNiagaraGraph* I
 	TArray<UNiagaraNode*> Nodes;
 	InGraph->GetNodesOfClass(Nodes);
 	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
+	FPinCollectorArray CallOutputs;
+	FPinCollectorArray CallInputs;
 
 	for (UEdGraphNode* Node : Nodes)
 	{
@@ -180,8 +183,8 @@ void FNiagaraCompileRequestData::VisitReferencedGraphsRecursive(UNiagaraGraph* I
 						// module nodes and UNiagaraNodeCustomHlsl expression dynamic input nodes.
 						bool bRequiresClonedScript = FunctionScript->GetOuter()->IsA<UNiagaraNodeFunctionCall>() == false;
 
-						TArray<UEdGraphPin*> CallOutputs;
-						TArray<UEdGraphPin*> CallInputs;
+						CallOutputs.Reset();
+						CallInputs.Reset();
 						InNode->GetOutputPins(CallOutputs);
 						InNode->GetInputPins(CallInputs);
 
@@ -483,8 +486,24 @@ void FNiagaraCompileRequestData::FinishPrecompile(UNiagaraScriptSource* ScriptSo
 
 			FString TranslationName = TEXT("Emitter");
 			Builder.BeginTranslation(TranslationName);
+			FName SimStageName;
+			if (FoundOutputNode->GetUsage() == ENiagaraScriptUsage::ParticleSimulationStageScript && SimStages && SimStages->IsValidIndex(NumSimStageNodes))
+			{
+				UNiagaraSimulationStageBase* SimStage = (*SimStages)[NumSimStageNodes];
+				if (SimStage == nullptr || !SimStage->bEnabled)
+				{
+					// Do nothing
+				}
+				else if (UNiagaraSimulationStageGeneric* GenericStage = Cast<UNiagaraSimulationStageGeneric>(SimStage))
+				{
+					SimStageName = GenericStage->IterationSource == ENiagaraIterationSource::DataInterface ? GenericStage->DataInterface.BoundVariable.GetName() : FName();
+				}
+			}
+
+			Builder.BeginUsage(FoundOutputNode->GetUsage(), SimStageName);
 			Builder.EnableScriptWhitelist(true, FoundOutputNode->GetUsage());
 			Builder.BuildParameterMaps(FoundOutputNode, true);
+			Builder.EndUsage();
 			
 			ensure(Builder.Histories.Num() <= 1);
 
@@ -499,6 +518,7 @@ void FNiagaraCompileRequestData::FinishPrecompile(UNiagaraScriptSource* ScriptSo
 					}
 				}
 			}
+
 			if (FoundOutputNode->GetUsage() == ENiagaraScriptUsage::ParticleSimulationStageScript)
 			{
 				NumSimStageNodes++;
@@ -531,7 +551,7 @@ void FNiagaraCompileRequestData::FinishPrecompile(UNiagaraScriptSource* ScriptSo
 					NumIterationsPerStage.Add(GenericStage->Iterations);
 					IterationSourcePerStage.Add(GenericStage->IterationSource == ENiagaraIterationSource::DataInterface ? GenericStage->DataInterface.BoundVariable.GetName() : FName());
 					SpawnOnlyPerStage.Add(GenericStage->bSpawnOnly);
-					PartialParticleUpdatePerStage.Add(GenericStage->bPartialParticleUpdate);
+					PartialParticleUpdatePerStage.Add(GenericStage->bDisablePartialParticleUpdate == false);
 					StageGuids.Add(GenericStage->Script->GetUsageId());
 					StageNames.Add(GenericStage->SimulationStageName);
 				}
@@ -625,6 +645,9 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 		return InvalidPtr;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(NiagaraPrecompile);
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT_ON_CHANNEL(LogPackage ? *LogPackage->GetName() : *InObj->GetName(), NiagaraChannel);
+
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_ScriptSource_PreCompile);
 	double StartTime = FPlatformTime::Seconds();
 
@@ -661,7 +684,7 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 		for (int32 i = 0; i < System->GetEmitterHandles().Num(); i++)
 		{
 			const FNiagaraEmitterHandle& Handle = System->GetEmitterHandle(i);
-			FCompileConstantResolver ConstantResolver(Handle.GetInstance());
+			FCompileConstantResolver ConstantResolver(Handle.GetInstance(), ENiagaraScriptUsage::EmitterSpawnScript);
 			TSharedPtr<FNiagaraCompileRequestData, ESPMode::ThreadSafe> EmitterPtr = MakeShared<FNiagaraCompileRequestData, ESPMode::ThreadSafe>();
 			EmitterPtr->EmitterUniqueName = Handle.GetInstance()->GetUniqueEmitterName();
 			if (Handle.GetIsEnabled()) // Don't need to copy the graph if we aren't going to use it.
@@ -696,7 +719,7 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 		for (int32 i = 0; i < System->GetEmitterHandles().Num(); i++)
 		{
 			const FNiagaraEmitterHandle& Handle = System->GetEmitterHandle(i);
-			FCompileConstantResolver ConstantResolver(Handle.GetInstance());
+			FCompileConstantResolver ConstantResolver(Handle.GetInstance(), ENiagaraScriptUsage::EmitterSpawnScript);
 			if (Handle.GetIsEnabled()) // Don't pull in the emitter if it isn't going to be used.
 			{
 				TArray<UNiagaraScript*> EmitterScripts;
@@ -788,7 +811,7 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 			for (int32 i = 0; i < System->GetEmitterHandles().Num(); i++)
 			{
 				const FNiagaraEmitterHandle& Handle = System->GetEmitterHandle(i);
-				FCompileConstantResolver ConstantResolver(Handle.GetInstance());
+				FCompileConstantResolver ConstantResolver(Handle.GetInstance(), ENiagaraScriptUsage::EmitterSpawnScript);
 				if (Handle.GetIsEnabled()) // Don't pull in the emitter if it isn't going to be used.
 				{
 					TArray<UNiagaraScript*> EmitterScripts;
@@ -1192,6 +1215,17 @@ int32 FHlslNiagaraCompiler::CompileScript(const FNiagaraCompileRequestData* InCo
 	return JobID;
 }
 
+void FHlslNiagaraCompiler::FixupVMAssembly(FString& Asm)
+{
+	for (int32 OpCode = 0; OpCode < VectorVM::GetNumOpCodes(); ++OpCode)
+	{
+		//TODO: reduce string ops here by moving these out to a static list.
+		FString ToReplace = TEXT("__OP__") + LexToString(OpCode) + TEXT("(");
+		FString Replacement = VectorVM::GetOpName(EVectorVMOp(OpCode)) + TEXT("(");
+		Asm.ReplaceInline(*ToReplace, *Replacement);
+	}
+}
+
 //TODO: Map Lines of HLSL to their source Nodes and flag those nodes with errors associated with their lines.
 void FHlslNiagaraCompiler::DumpDebugInfo(const FNiagaraCompileResults& CompileResult, const FShaderCompilerInput& Input, bool bGPUScript)
 {
@@ -1297,6 +1331,7 @@ TOptional<FNiagaraCompileResults> FHlslNiagaraCompiler::GetCompileResult(int32 J
 			Errors += ShaderError.StrippedErrorMessage + "\n";
 		}
 		Error(FText::Format(LOCTEXT("VectorVMCompileErrorMessageFormat", "The Vector VM compile failed.  Errors:\n{0}"), FText::FromString(Errors)));
+		DumpHLSLText(Results.Data->LastHlslTranslation, CompilationJob->CompileResults.DumpDebugInfoPath);
 	}
 
 	if (!Results.bVMSucceeded)
@@ -1317,6 +1352,7 @@ TOptional<FNiagaraCompileResults> FHlslNiagaraCompiler::GetCompileResult(int32 J
 		Results.Data->ByteCode = CompilationOutput.ByteCode;
 		Results.Data->NumTempRegisters = CompilationOutput.MaxTempRegistersUsed + 1;
 		Results.Data->LastAssemblyTranslation = CompilationOutput.AssemblyAsString;
+		FixupVMAssembly(Results.Data->LastAssemblyTranslation);
 		Results.Data->LastOpCount = CompilationOutput.NumOps;
 
 		if (GbForceNiagaraVMBinaryDump != 0 && Results.Data.IsValid())

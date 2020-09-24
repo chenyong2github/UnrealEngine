@@ -24,12 +24,6 @@ typedef khronos_int64_t GLint64;
 typedef khronos_uint64_t GLuint64;
 #define GL_CLAMP		GL_CLAMP_TO_EDGE
 
-#ifndef GL_WRITE_ONLY
-#define GL_WRITE_ONLY	GL_WRITE_ONLY_OES
-#endif
-
-#define glTexEnvi(...)
-
 #include "OpenGLES.h"
 
 typedef khronos_stime_nanoseconds_t EGLnsecsANDROID;
@@ -53,8 +47,7 @@ typedef GLboolean(GL_APIENTRYP PFNeglQueryTimestampSupportedANDROID) (EGLDisplay
 #define EGL_DISPLAY_PRESENT_TIME_ANDROID 0x343A
 #define EGL_DEQUEUE_READY_TIME_ANDROID 0x343B
 #define EGL_READS_DONE_TIME_ANDROID 0x343C
-#define EGL_TIMESTAMP_PENDING_ANDROID - 2
-#define EGL_TIMESTAMP_INVALID_ANDROID - 1
+
 
 extern "C"
 {
@@ -73,18 +66,20 @@ extern "C"
 	extern PFNeglQueryTimestampSupportedANDROID eglGetFrameTimestampsSupportedANDROID_p;
 }
 
-#ifndef GL_FRAMEBUFFER_FETCH_NONCOHERENT_QCOM
-#define GL_FRAMEBUFFER_FETCH_NONCOHERENT_QCOM	0x96A2
-#endif
-typedef void (GL_APIENTRYP PFNGLFRAMEBUFFERFETCHBARRIERQCOMPROC) (void);
-extern PFNGLFRAMEBUFFERFETCHBARRIERQCOMPROC	glFramebufferFetchBarrierQCOM;
+namespace GLFuncPointers
+{
+	// GL_QCOM_shader_framebuffer_fetch_noncoherent
+	extern PFNGLFRAMEBUFFERFETCHBARRIERQCOMPROC	glFramebufferFetchBarrierQCOM;
+}
 
 struct FAndroidOpenGL : public FOpenGLES
 {
 	static FORCEINLINE bool HasHardwareHiddenSurfaceRemoval() { return bHasHardwareHiddenSurfaceRemoval; };
 
 	// Optional:
-	static void QueryTimestampCounter(GLuint QueryID);
+	static void QueryTimestampCounter(GLuint QueryID) 
+	{
+	};
 
 	static GLuint MakeVirtualQueryReal(GLuint QueryID);
 
@@ -141,10 +136,6 @@ struct FAndroidOpenGL : public FOpenGLES
 		return FR_ConditionSatisfied;
 	}
 	
-	// Required:
-
-	static FORCEINLINE bool SupportsR11G11B10F()						{ return true; }
-
 	// Disable all queries except occlusion
 	// Query is a limited resource on Android and we better spent them all on occlusion
 	static FORCEINLINE bool SupportsTimestampQueries()					{ return false; }
@@ -161,8 +152,6 @@ struct FAndroidOpenGL : public FOpenGLES
 	static FORCEINLINE bool SupportsImageExternal() { return bSupportsImageExternal; }
 
 	static FORCEINLINE EImageExternalType GetImageExternalType() { return ImageExternalType; }
-
-	static FORCEINLINE bool SupportsTextureMaxLevel()	 { return bES31Support; }
 
 	static FORCEINLINE GLint GetMaxComputeTextureImageUnits() { check(MaxComputeTextureImageUnits != -1); return MaxComputeTextureImageUnits; }
 	static FORCEINLINE GLint GetMaxComputeUniformComponents() { check(MaxComputeUniformComponents != -1); return MaxComputeUniformComponents; }

@@ -273,6 +273,7 @@ public:
 	 */
 	virtual bool BuildSkeletalMesh( 
 		FSkeletalMeshLODModel& LODModel,
+		const FString& SkeletalMeshName,
 		const FReferenceSkeleton& RefSkeleton,
 		const TArray<SkeletalMeshImportData::FVertInfluence>& Influences,
 		const TArray<SkeletalMeshImportData::FMeshWedge>& Wedges,
@@ -356,8 +357,21 @@ public:
 	 * @param OutTangentX Array to hold calculated Tangents
 	 * @param OutTangentY Array to hold calculated Bitangents
 	 * @param OutNormals Array to hold calculated normals (if already contains normals will use those instead for the tangent calculation)	
-	*/
+	 */
 	virtual void CalculateTangents(const TArray<FVector>& InVertices, const TArray<uint32>& InIndices, const TArray<FVector2D>& InUVs, const TArray<uint32>& InSmoothingGroupIndices, const uint32 InTangentOptions, TArray<FVector>& OutTangentX, TArray<FVector>& OutTangentY, TArray<FVector>& OutNormals) const = 0;
+
+	/**
+	 * Calculates MikkTSpace Tangents for a given set of vertex data with normals provided
+	 *
+	 * @param InVertices Vertices that make up the mesh
+	 * @param InIndices Indices for the Vertex array
+	 * @param InUVs Texture coordinates (per-index based)
+	 * @param InNormals Normals used for the tangent calculation (must be normalized)
+	 * @param bIgnoreDegenerateTriangles Flag for MikkTSpace to skip degenerate triangles fix-up path
+	 * @param OutTangentX Array to hold calculated Tangents
+	 * @param OutTangentY Array to hold calculated Bitangents
+	 */
+	virtual void CalculateMikkTSpaceTangents(const TArray<FVector>& InVertices, const TArray<uint32>& InIndices, const TArray<FVector2D>& InUVs, const TArray<FVector>& InNormals, bool bIgnoreDegenerateTriangles, TArray<FVector>& OutTangentX, TArray<FVector>& OutTangentY) const = 0;
 
 	/** 
 	 * Calculates Normals for a given set of vertex data

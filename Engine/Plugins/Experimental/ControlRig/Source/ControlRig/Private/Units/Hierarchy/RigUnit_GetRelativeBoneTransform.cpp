@@ -3,11 +3,6 @@
 #include "RigUnit_GetRelativeBoneTransform.h"
 #include "Units/RigUnitContext.h"
 
-FString FRigUnit_GetRelativeBoneTransform::GetUnitLabel() const
-{
-	return FString::Printf(TEXT("Get Relative Transform %s"), *Bone.ToString());
-}
-
 FRigUnit_GetRelativeBoneTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -18,23 +13,23 @@ FRigUnit_GetRelativeBoneTransform_Execute()
 		{
 			case EControlRigState::Init:
 			{
-				CachedBoneIndex = Hierarchy->GetIndex(Bone);
-				CachedSpaceIndex = Hierarchy->GetIndex(Space);
-				if (CachedBoneIndex == INDEX_NONE)
-				{
-					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Bone is not set."));
-				}
-				if (CachedSpaceIndex == INDEX_NONE)
-				{
-					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Space is not set."));
-				}
+				CachedBone.Reset();
+				CachedSpaceIndex.Reset();
 			}
 			case EControlRigState::Update:
 			{
-				if (CachedBoneIndex != INDEX_NONE && CachedSpaceIndex != INDEX_NONE)
+				if (!CachedBone.UpdateCache(Bone, Hierarchy))
+				{
+					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Bone '%s' is not valid."), *Bone.ToString());
+				}
+				else if (!CachedSpaceIndex.UpdateCache(Space, Hierarchy))
+				{
+					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Space '%s' is not valid."), *Space.ToString());
+				}
+				else
 				{
 					const FTransform SpaceTransform = Hierarchy->GetGlobalTransform(CachedSpaceIndex);
-					const FTransform BoneTransform = Hierarchy->GetGlobalTransform(CachedBoneIndex);
+					const FTransform BoneTransform = Hierarchy->GetGlobalTransform(CachedBone);
 					Transform = BoneTransform.GetRelativeTransform(SpaceTransform);
 				}
 			}

@@ -51,7 +51,7 @@ public:
 			GetSizeY(), 
 			PF_FloatRGBA,
 			1,
-			0,
+			TexCreate_None,
 			TexCreate_RenderTargetable,
 			false,
 			CreateInfo,

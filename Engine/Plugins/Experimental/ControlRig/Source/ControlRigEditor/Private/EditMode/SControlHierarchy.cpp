@@ -150,6 +150,11 @@ void SControlHierarchy::Construct(const FArguments& InArgs, UControlRig* InContr
 	SetControlRig(InControlRig);
 }
 
+UControlRig* SControlHierarchy::GetControlRig() const
+{
+	return ControlRig.Get();
+}
+
 void SControlHierarchy::SetControlRig(UControlRig* InControlRig)
 {
 	bSelecting = false;
@@ -323,33 +328,31 @@ TSharedPtr<FControlTreeElement> SControlHierarchy::FindElement(const FRigElement
 	return TSharedPtr<FControlTreeElement>();
 }
 
-void SControlHierarchy::OnRigElementSelected(IControlRigManipulatable* ControlRigManp, const FRigControl& Control, bool bSelected)
+void SControlHierarchy::OnRigElementSelected(UControlRig* Subject, const FRigControl& Control, bool bSelected)
 {
-	if (!bSelecting)
+	
+	FRigElementKey Key;
+	Key.Name = Control.Name;
+	Key.Type = ERigElementType::Control;
+	for (int32 RootIndex = 0; RootIndex < RootElements.Num(); ++RootIndex)
 	{
-		TGuardValue<bool> Guard(bSelecting, true);
-		FRigElementKey Key;
-		Key.Name = Control.Name;
-		Key.Type = ERigElementType::Control;
-		for (int32 RootIndex = 0; RootIndex < RootElements.Num(); ++RootIndex)
+		TSharedPtr<FControlTreeElement> Found = FindElement(Key, RootElements[RootIndex]);
+		if (Found.IsValid())
 		{
-			TSharedPtr<FControlTreeElement> Found = FindElement(Key, RootElements[RootIndex]);
-			if (Found.IsValid())
+			TreeView->SetItemSelection(Found, bSelected, ESelectInfo::OnNavigation);
+			TArray<TSharedPtr<FControlTreeElement>> SelectedItems = TreeView->GetSelectedItems();
+			for (TSharedPtr<FControlTreeElement> SelectedItem : SelectedItems)
 			{
-				TreeView->SetItemSelection(Found, bSelected, ESelectInfo::OnNavigation);
-				TArray<TSharedPtr<FControlTreeElement>> SelectedItems = TreeView->GetSelectedItems();
-				for (TSharedPtr<FControlTreeElement> SelectedItem : SelectedItems)
-				{
-					SetExpansionRecursive(SelectedItem, true);
-				}
+				SetExpansionRecursive(SelectedItem, true);
+			}
 
-				if (SelectedItems.Num() > 0)
-				{
-					TreeView->RequestScrollIntoView(SelectedItems.Last());
-				}
+			if (SelectedItems.Num() > 0)
+			{
+				TreeView->RequestScrollIntoView(SelectedItems.Last());
 			}
 		}
 	}
+	
 }
 
 void SControlHierarchy::AddControlElement(FRigControl InControl)
@@ -439,8 +442,22 @@ void SControlHierarchy::AddElement(FRigElementKey InKey, FRigElementKey InParent
 		FString FilteredStringUnderScores = FilteredString.Replace(TEXT(" "), TEXT("_"));
 		if (InKey.Name.ToString().Contains(FilteredString) || InKey.Name.ToString().Contains(FilteredStringUnderScores))
 		{
-			TSharedPtr<FControlTreeElement> NewItem = MakeShared<FControlTreeElement>(InKey, SharedThis(this));
-			RootElements.Add(NewItem);
+			bool bExists = false;
+			for (int32 RootIndex = 0; RootIndex < RootElements.Num(); ++RootIndex)
+			{
+				TSharedPtr<FControlTreeElement> Found = FindElement(InKey, RootElements[RootIndex]);
+				if (Found.IsValid())
+				{
+					bExists = true;
+					break;
+				}
+			}
+
+			if (!bExists)
+			{
+				TSharedPtr<FControlTreeElement> NewItem = MakeShared<FControlTreeElement>(InKey, SharedThis(this));
+				RootElements.Add(NewItem);
+			}
 		}
 	}
 }

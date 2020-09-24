@@ -309,7 +309,7 @@ public:
 			const FString& AssetPath = TEXT("/Game/AxF");
 
 			FString   FunctionPackageName = UPackageTools::SanitizePackageName(*(AssetPath / FunctionName));
-			UPackage* Package = CreatePackage(nullptr, *FunctionPackageName);
+			UPackage* Package = CreatePackage(*FunctionPackageName);
 
 			UMaterialFunction* Function = NewObject<UMaterialFunction>(Package, UMaterialFunction::StaticClass(), FName(*Name), RF_Public | RF_Standalone);
 
@@ -1419,8 +1419,10 @@ private:
 
 			if (ExpressionHeight)
 			{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				Material->D3D11TessellationMode = EMaterialTessellationMode::MTM_FlatTessellation;
 				Material->bEnableAdaptiveTessellation = true;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 				UMaterialExpressionVertexNormalWS* VertexNormalWS = CreateMaterialExpression<UMaterialExpressionVertexNormalWS>();
 
@@ -1712,7 +1714,7 @@ private:
 			Log.Info(TEXT("Importing material: ") + MaterialName);
 
 			FString  MaterialPackageName = UPackageTools::SanitizePackageName(*(ParentPackage->GetName() / MaterialName));
-			UObject* MaterialPackage = CreatePackage(nullptr, *MaterialPackageName);
+			UObject* MaterialPackage = CreatePackage(*MaterialPackageName);
 
 			UMaterial* NewMaterial = NewObject<UMaterial>(MaterialPackage, UMaterial::StaticClass(), FName(*MaterialName), Flags);
 			check(NewMaterial != nullptr);
@@ -1856,7 +1858,7 @@ private:
 							{
 								FString TextureName = PropertyName;
 								FString  TexturePackageName = UPackageTools::SanitizePackageName(*(ParentPackage->GetName() / TEXT("Textures") / TextureName));
-								UPackage* TexturePackage = CreatePackage(nullptr, *TexturePackageName);
+								UPackage* TexturePackage = CreatePackage(*TexturePackageName);
 
 
 								UTexture2D* Texture = TextureFactory->CreateTexture2D(TexturePackage, *TextureName, RF_Standalone | RF_Public);
@@ -2017,7 +2019,7 @@ private:
 					if (!bReplaceTextureByConstant)
 					{
 						FString  TexturePackageName = UPackageTools::SanitizePackageName(*(ParentPackage->GetName() / TEXT("Textures") / TextureName));
-						UPackage* TexturePackage = CreatePackage(nullptr, *TexturePackageName);
+						UPackage* TexturePackage = CreatePackage(*TexturePackageName);
 						UTexture2D* Texture = nullptr;
 
 						Texture = TextureFactory->CreateTexture2D(TexturePackage, *TextureName, RF_Standalone | RF_Public);
@@ -2362,7 +2364,7 @@ private:
 		Image.Init(TextureSource.Width, TextureSource.Height, ERawImageFormat::RGBA32F);
 		for (int PixelIndex = 0; PixelIndex < TextureSource.Width * TextureSource.Height; PixelIndex++)
 		{
-			*(Image.AsRGBA32F() + PixelIndex) = TextureSource.GetPixel(PixelIndex);
+			Image.AsRGBA32F()[PixelIndex] = TextureSource.GetPixel(PixelIndex);
 		}
 
 		int32 TargetWidth;
@@ -2503,7 +2505,7 @@ private:
 			if (MaterialName == OutMaterial->GetName())
 			{
 				FString RootPackageName = *FPaths::GetPath(OutMaterial->GetOuter()->GetName());
-				UPackage* RootPackage = CreatePackage(nullptr, *RootPackageName);
+				UPackage* RootPackage = CreatePackage(*RootPackageName);
 				
 				ImportMaterial(CreatedMaterial, Material, RootPackage);
 				Log.Info(TEXT("Done re-importing material: ") + MaterialName);

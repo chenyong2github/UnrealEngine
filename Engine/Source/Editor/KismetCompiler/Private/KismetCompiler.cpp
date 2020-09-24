@@ -766,12 +766,6 @@ void FKismetCompilerContext::CreateClassVariablesFromBlueprint()
 			if(!Variable.DefaultValue.IsEmpty())
 			{
 				SetPropertyDefaultValue(NewProperty, Variable.DefaultValue);
-
-				// We're copying the value to the real CDO, so clear the version stored in the blueprint editor data
-				if (CompileOptions.CompileType == EKismetCompileType::Full)
-				{
-					Variable.DefaultValue.Empty();
-				}
 			}
 
 			if (NewProperty->HasAnyPropertyFlags(CPF_Net))

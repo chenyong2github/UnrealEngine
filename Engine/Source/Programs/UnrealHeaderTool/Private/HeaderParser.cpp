@@ -27,6 +27,7 @@
 #include "Misc/ScopeExit.h"
 
 #include "Specifiers/CheckedMetadataSpecifiers.h"
+#include "Specifiers/EnumSpecifiers.h"
 #include "Specifiers/FunctionSpecifiers.h"
 #include "Specifiers/InterfaceSpecifiers.h"
 #include "Specifiers/StructSpecifiers.h"
@@ -1282,6 +1283,15 @@ namespace
 		Parser.RequireSymbol(TEXT(')'), ErrorMessageGetter);
 	}
 
+	void SkipAlignasAndDeprecatedMacroIfNecessary(FBaseParser& Parser)
+	{
+		// alignas() can come before or after the deprecation macro.
+		// We can't have both, but the compiler will catch that anyway.
+		SkipAlignasIfNecessary(Parser);
+		SkipDeprecatedMacroIfNecessary(Parser);
+		SkipAlignasIfNecessary(Parser);
+	}
+
 	static const TCHAR* GLayoutMacroNames[] = {
 		TEXT("LAYOUT_ARRAY"),
 		TEXT("LAYOUT_ARRAY_EDITORONLY"),
@@ -1569,17 +1579,12 @@ UEnum* FHeaderParser::CompileEnum()
 	TArray<FPropertySpecifier> SpecifiersFound;
 	ReadSpecifierSetInsideMacro(SpecifiersFound, TEXT("Enum"), EnumToken.MetaData);
 
-	// We don't handle any non-metadata enum specifiers at the moment
-	if (SpecifiersFound.Num() != 0)
-	{
-		FError::Throwf(TEXT("Unknown enum specifier '%s'"), *SpecifiersFound[0].Key);
-	}
-
 	FScriptLocation DeclarationPosition;
 
 	// Check enum type. This can be global 'enum', 'namespace' or 'enum class' enums.
 	bool            bReadEnumName = false;
 	UEnum::ECppForm CppForm       = UEnum::ECppForm::Regular;
+	EEnumFlags      Flags         = EEnumFlags::None;
 	if (!GetIdentifier(EnumToken))
 	{
 		FError::Throwf(TEXT("Missing identifier after UENUM()") );
@@ -1587,13 +1592,14 @@ UEnum* FHeaderParser::CompileEnum()
 
 	if (EnumToken.Matches(TEXT("namespace"), ESearchCase::CaseSensitive))
 	{
-		CppForm      = UEnum::ECppForm::Namespaced;
+		CppForm = UEnum::ECppForm::Namespaced;
+
+		SkipDeprecatedMacroIfNecessary(*this);
+
 		bReadEnumName = GetIdentifier(EnumToken);
 	}
 	else if (EnumToken.Matches(TEXT("enum"), ESearchCase::CaseSensitive))
 	{
-		SkipAlignasIfNecessary(*this);
-
 		if (!GetIdentifier(EnumToken))
 		{
 			FError::Throwf(TEXT("Missing identifier after enum") );
@@ -1601,18 +1607,19 @@ UEnum* FHeaderParser::CompileEnum()
 
 		if (EnumToken.Matches(TEXT("class"), ESearchCase::CaseSensitive) || EnumToken.Matches(TEXT("struct"), ESearchCase::CaseSensitive))
 		{
-			// You can't actually have an alignas() before the class/struct keyword, but this
-			// makes the parsing easier and illegal syntax will be caught by the compiler anyway.
-			SkipAlignasIfNecessary(*this);
-
-			CppForm       = UEnum::ECppForm::EnumClass;
-			bReadEnumName = GetIdentifier(EnumToken);
+			CppForm = UEnum::ECppForm::EnumClass;
 		}
 		else
 		{
-			CppForm       = UEnum::ECppForm::Regular;
-			bReadEnumName = true;
+			// Put whatever token we found back so that we can correctly skip below
+			UngetToken(EnumToken);
+
+			CppForm = UEnum::ECppForm::Regular;
 		}
+
+		SkipAlignasAndDeprecatedMacroIfNecessary(*this);
+
+		bReadEnumName = GetIdentifier(EnumToken);
 	}
 	else
 	{
@@ -1642,6 +1649,19 @@ UEnum* FHeaderParser::CompileEnum()
 	// Create enum definition.
 	UEnum* Enum = new(EC_InternalUseOnlyConstructor, CurrentSrcFile->GetPackage(), EnumToken.Identifier, RF_Public) UEnum(FObjectInitializer());
 	Scope->AddType(Enum);
+
+	for (const FPropertySpecifier& Specifier : SpecifiersFound)
+	{
+		switch ((EEnumSpecifier)Algo::FindSortedStringCaseInsensitive(*Specifier.Key, GEnumSpecifierStrings))
+		{
+		default:
+			FError::Throwf(TEXT("Unknown enum specifier '%s'"), *Specifier.Key);
+
+		case EEnumSpecifier::Flags:
+			Flags |= EEnumFlags::Flags;
+			break;
+		}
+	}
 
 	if (CompilerDirectiveStack.Num() > 0 && (CompilerDirectiveStack.Last() & ECompilerDirective::WithEditorOnlyData) != 0)
 	{
@@ -1709,6 +1729,13 @@ UEnum* FHeaderParser::CompileEnum()
 
 		GEnumUnderlyingTypes.Add(Enum, UnderlyingType);
 	}
+	else
+	{
+		if (EnumHasAnyFlags(Flags, EEnumFlags::Flags))
+		{
+			FError::Throwf(TEXT("The 'Flags' specifier can only be used on enum classes"));
+		}
+	}
 
 	if (UnderlyingType != EUnderlyingEnumType::uint8 && EnumToken.MetaData.Contains(NAME_BlueprintType))
 	{
@@ -1725,7 +1752,7 @@ UEnum* FHeaderParser::CompileEnum()
 			// Now handle the inner true enum portion
 			RequireIdentifier(TEXT("enum"), ESearchCase::CaseSensitive, TEXT("'Enum'"));
 
-			SkipAlignasIfNecessary(*this);
+			SkipAlignasAndDeprecatedMacroIfNecessary(*this);
 
 			FToken InnerEnumToken;
 			if (!GetIdentifier(InnerEnumToken))
@@ -1884,7 +1911,7 @@ UEnum* FHeaderParser::CompileEnum()
 	}
 
 	// Register the list of enum names.
-	if (!Enum->SetEnums(EnumNames, CppForm, false))
+	if (!Enum->SetEnums(EnumNames, CppForm, Flags, false))
 	{
 		const FName MaxEnumItem      = *(Enum->GenerateEnumPrefix() + TEXT("_MAX"));
 		const int32 MaxEnumItemIndex = Enum->GetIndexByName(MaxEnumItem);
@@ -2361,11 +2388,7 @@ UScriptStruct* FHeaderParser::CompileStructDeclaration(FClasses& AllClasses)
 	// The required API module for this struct, if any
 	FString RequiredAPIMacroIfPresent;
 
-	// alignas() can come before or after the deprecation macro.
-	// We can't have both, but the compiler will catch that anyway.
-	SkipAlignasIfNecessary(*this);
-	SkipDeprecatedMacroIfNecessary(*this);
-	SkipAlignasIfNecessary(*this);
+	SkipAlignasAndDeprecatedMacroIfNecessary(*this);
 
 	// Read the struct name
 	ParseNameWithPotentialAPIMacroPrefix(/*out*/ StructNameInScript, /*out*/ RequiredAPIMacroIfPresent, TEXT("struct"));
@@ -5947,7 +5970,9 @@ bool FHeaderParser::CompileDeclaration(FClasses& AllClasses, TArray<UDelegateFun
 
 							UClass* CurrentClass = GetCurrentClass();
 
-							GClassSerializerMap.Add(CurrentClass, { ArchiveType, MoveTemp(EnclosingDefine) });
+							FArchiveTypeDefinePair& DefinePair = GClassSerializerMap.FindOrAdd(CurrentClass);
+							DefinePair.ArchiveType |= ArchiveType;
+							DefinePair.EnclosingDefine = MoveTemp(EnclosingDefine);
 						}
 						else
 						{
@@ -6322,11 +6347,7 @@ UClass* FHeaderParser::CompileClassDeclaration(FClasses& AllClasses)
 	// New style files have the class name / extends afterwards
 	RequireIdentifier(TEXT("class"), ESearchCase::CaseSensitive, TEXT("Class declaration"));
 
-	// alignas() can come before or after the deprecation macro.
-	// We can't have both, but the compiler will catch that anyway.
-	SkipAlignasIfNecessary(*this);
-	SkipDeprecatedMacroIfNecessary(*this);
-	SkipAlignasIfNecessary(*this);
+	SkipAlignasAndDeprecatedMacroIfNecessary(*this);
 
 	FString DeclaredClassName;
 	FString RequiredAPIMacroIfPresent;
@@ -6744,15 +6765,20 @@ void FHeaderParser::CompileRigVMMethodDeclaration(FClasses& AllClasses, UStruct*
 	StructRigVMInfo.Methods.Add(MethodInfo);
 }
 
-static const FName NAME_InputText(TEXT("Input"));
-static const FName NAME_OutputText(TEXT("Output"));
-static const FName NAME_ConstantText(TEXT("Constant"));
-static const FName NAME_MaxArraySizeText(TEXT("MaxArraySize"));
+const FName FHeaderParser::NAME_InputText(TEXT("Input"));
+const FName FHeaderParser::NAME_OutputText(TEXT("Output"));
+const FName FHeaderParser::NAME_ConstantText(TEXT("Constant"));
+const FName FHeaderParser::NAME_VisibleText(TEXT("Visible"));
+const FName FHeaderParser::NAME_ArraySizeText(TEXT("ArraySize"));
+const FName FHeaderParser::NAME_SingletonText(TEXT("Singleton"));
 
-static const TCHAR* TArrayText = TEXT("TArray");
-static const TCHAR* TArrayViewText = TEXT("TArrayView");
-static const TCHAR* GetRefText = TEXT("GetRef");
-static const TCHAR* GetArrayText = TEXT("GetArray");
+const TCHAR* FHeaderParser::TArrayText = TEXT("TArray");
+const TCHAR* FHeaderParser::TEnumAsByteText = TEXT("TEnumAsByte");
+const TCHAR* FHeaderParser::FFixedArrayText = TEXT("FRigVMFixedArray");
+const TCHAR* FHeaderParser::FDynamicArrayText = TEXT("FRigVMDynamicArray");
+const TCHAR* FHeaderParser::GetRefText = TEXT("GetRef");
+const TCHAR* FHeaderParser::GetFixedArrayText = TEXT("GetFixedArray");
+const TCHAR* FHeaderParser::GetDynamicArrayText = TEXT("GetDynamicArray");
 
 void FHeaderParser::ParseRigVMMethodParameters(UStruct* Struct)
 {
@@ -6770,15 +6796,28 @@ void FHeaderParser::ParseRigVMMethodParameters(UStruct* Struct)
 		FString ExtendedCPPType;
 		MemberCPPType = Prop->GetCPPType(&ExtendedCPPType);
 
+		if (ExtendedCPPType.IsEmpty() && MemberCPPType.StartsWith(TEnumAsByteText))
+		{
+			MemberCPPType = MemberCPPType.LeftChop(1).RightChop(12);
+		}
+
 		FRigVMParameter Parameter;
 		Parameter.Name = Prop->GetName();
 		Parameter.Type = MemberCPPType + ExtendedCPPType;
 		Parameter.bConstant = Prop->HasMetaData(NAME_ConstantText);
 		Parameter.bInput = Prop->HasMetaData(NAME_InputText);
 		Parameter.bOutput = Prop->HasMetaData(NAME_OutputText);
-		Parameter.MaxArraySize = Prop->GetMetaData(NAME_MaxArraySizeText);
+		Parameter.ArraySize = Prop->GetMetaData(NAME_ArraySizeText);
 		Parameter.Getter = GetRefText;
 		Parameter.bEditorOnly = Prop->IsEditorOnlyProperty();
+		Parameter.bSingleton = Prop->HasMetaData(NAME_SingletonText);
+
+		if (Prop->HasMetaData(NAME_VisibleText))
+		{
+			Parameter.bConstant = true;
+			Parameter.bInput = true;
+			Parameter.bOutput = false;
+		}
 
 		if (Parameter.bEditorOnly)
 		{
@@ -6788,26 +6827,26 @@ void FHeaderParser::ParseRigVMMethodParameters(UStruct* Struct)
 		if (!ExtendedCPPType.IsEmpty())
 		{
 			// we only support arrays - no maps or similar data structures
-			if (MemberCPPType != TArrayText)
+			if (MemberCPPType != TArrayText && MemberCPPType != TEnumAsByteText)
 			{
 				UE_LOG_ERROR_UHT(TEXT("RigVM Struct '%s' - Member '%s' type '%s' not supported by RigVM."), *Struct->GetName(), *Parameter.Name, *MemberCPPType);
-				continue;
-			}
-
-			if (!Parameter.IsConst() && Parameter.MaxArraySize.IsEmpty())
-			{
-				UE_LOG_ERROR_UHT(TEXT("RigVM Struct '%s' - Member '%s' requires the 'MaxArraySize' meta tag."), *Struct->GetName(), *Parameter.Name);
 				continue;
 			}
 		}
 
 		if (MemberCPPType.StartsWith(TArrayText, ESearchCase::CaseSensitive))
 		{
-			if (Parameter.IsConst() || !Parameter.MaxArraySize.IsEmpty())
+			ExtendedCPPType = FString::Printf(TEXT("<%s>"), *ExtendedCPPType.LeftChop(1).RightChop(1));
+			Parameter.CastName = FString::Printf(TEXT("%s_%d_Array"), *Parameter.Name, StructRigVMInfo->Members.Num());
+			if (Parameter.IsConst() || !Parameter.ArraySize.IsEmpty())
 			{
-				Parameter.CastName = FString::Printf(TEXT("%s_%d_View"), *Parameter.Name, StructRigVMInfo->Members.Num());
-				Parameter.CastType = FString::Printf(TEXT("%s%s"), TArrayViewText, *ExtendedCPPType);
-				Parameter.Getter = GetArrayText;
+				Parameter.CastType = FString::Printf(TEXT("%s%s"), FFixedArrayText, *ExtendedCPPType);
+				Parameter.Getter = GetFixedArrayText;
+			}
+			else
+			{
+				Parameter.CastType = FString::Printf(TEXT("%s%s"), FDynamicArrayText, *ExtendedCPPType);
+				Parameter.Getter = GetDynamicArrayText;
 			}
 		}
 
@@ -9624,11 +9663,7 @@ void FHeaderPreParser::ParseClassDeclaration(const TCHAR* Filename, const TCHAR*
 	// Require 'class'
 	RequireIdentifier(TEXT("class"), ESearchCase::CaseSensitive, ErrorMsg);
 
-	// alignas() can come before or after the deprecation macro.
-	// We can't have both, but the compiler will catch that anyway.
-	SkipAlignasIfNecessary(*this);
-	SkipDeprecatedMacroIfNecessary(*this);
-	SkipAlignasIfNecessary(*this);
+	SkipAlignasAndDeprecatedMacroIfNecessary(*this);
 
 	// Read the class name
 	FString RequiredAPIMacroIfPresent;

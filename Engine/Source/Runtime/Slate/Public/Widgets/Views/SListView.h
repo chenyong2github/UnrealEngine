@@ -171,6 +171,9 @@ public:
 
 		SLATE_EVENT(FOnTableViewBadState, OnEnteredBadState);
 
+		/** Callback delegate to have first chance handling of the OnKeyDown event */
+		SLATE_EVENT(FOnKeyDown, OnKeyDownHandler)
+
 	SLATE_END_ARGS()
 
 	/**
@@ -216,6 +219,8 @@ public:
 			? InArgs._OnItemToString_Debug
 			: GetDefaultDebugDelegate();
 		OnEnteredBadState = InArgs._OnEnteredBadState;
+
+		this->OnKeyDownHandler = InArgs._OnKeyDownHandler;
 
 		// Check for any parameters that the coder forgot to specify.
 		FString ErrorString;
@@ -283,6 +288,15 @@ public:
 
 	virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override
 	{
+		if (OnKeyDownHandler.IsBound())
+		{
+			FReply Reply = OnKeyDownHandler.Execute(MyGeometry, InKeyEvent);
+			if (Reply.IsEventHandled())
+			{
+				return Reply;
+			}
+		}
+
 		const TArray<ItemType>& ItemsSourceRef = (*this->ItemsSource);
 
 		// Don't respond to key-presses containing "Alt" as a modifier
@@ -422,6 +436,12 @@ public:
 		return STableViewBase::OnKeyDown(MyGeometry, InKeyEvent);
 	}
 
+private:
+
+	FOnKeyDown OnKeyDownHandler;
+
+public:
+
 	virtual FNavigationReply OnNavigation(const FGeometry& MyGeometry, const FNavigationEvent& InNavigationEvent) override
 	{
 		if (this->ItemsSource && this->bHandleDirectionalNavigation && (this->bHandleGamepadEvents || InNavigationEvent.GetNavigationGenesis() != ENavigationGenesis::Controller))
@@ -429,7 +449,7 @@ public:
 			const TArray<ItemType>& ItemsSourceRef = (*this->ItemsSource);
 
 			const int32 NumItemsPerLine = GetNumItemsPerLine();
-			const int32 CurSelectionIndex = (!TListTypeTraits<ItemType>::IsPtrValid(SelectorItem)) ? 0 : ItemsSourceRef.Find(TListTypeTraits<ItemType>::NullableItemTypeConvertToItemType(SelectorItem));
+			const int32 CurSelectionIndex = (!TListTypeTraits<ItemType>::IsPtrValid(SelectorItem)) ? -1 : ItemsSourceRef.Find(TListTypeTraits<ItemType>::NullableItemTypeConvertToItemType(SelectorItem));
 			int32 AttemptSelectIndex = -1;
 
 			const EUINavigation NavType = InNavigationEvent.GetNavigationType();
@@ -1211,10 +1231,19 @@ public:
 
 				bAtEndOfList = ItemIndex >= ItemsSource->Num() - 1;
 
-				// Note: To account for accrued error from floating point truncation and addition in our sum of dimensions used, 
-				//	we pad the allotted axis just a little to be sure we have filled the available space.
-				const float FloatPrecisionOffset = 0.001f;
-				bHasFilledAvailableArea = ViewLengthUsedSoFar >= MyDimensions.ScrollAxis + FloatPrecisionOffset;
+				if (bIsFirstItem && ViewLengthUsedSoFar >= MyDimensions.ScrollAxis)
+				{
+					// Since there was no sum of floating points, make sure we correctly detect the case where one element
+					// fills up the space.
+					bHasFilledAvailableArea = true;
+				}
+				else
+				{
+					// Note: To account for accrued error from floating point truncation and addition in our sum of dimensions used, 
+					//	we pad the allotted axis just a little to be sure we have filled the available space.
+					const float FloatPrecisionOffset = 0.001f;
+					bHasFilledAvailableArea = ViewLengthUsedSoFar >= MyDimensions.ScrollAxis + FloatPrecisionOffset;
+				}
 			}
 
 			// Handle scenario b.

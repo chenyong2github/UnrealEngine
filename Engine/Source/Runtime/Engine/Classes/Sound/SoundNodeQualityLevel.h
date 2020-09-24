@@ -29,6 +29,7 @@ public:
 	//~ End UObject Interface
 
 	//~ Begin USoundNode Interface.
+	virtual void Serialize(FArchive& Ar) override;	
 	virtual void ParseNodes( FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound, const FSoundParseParameters& ParseParams, TArray<FWaveInstance*>& WaveInstances ) override;
 	virtual int32 GetMaxChildNodes() const override;
 	virtual int32 GetMinChildNodes() const override;
@@ -41,8 +42,18 @@ public:
 #endif
 	//~ End USoundNode Interface.
 
+	// A Property to indicate which quality this node was cooked with. (INDEX_NONE if not cooked, or unset).
+	UPROPERTY()
+	int32 CookedQualityLevelIndex = INDEX_NONE;
+
 #if WITH_EDITOR
 	void ReconcileNode(bool bReconstructNode);
+
+	// Critical section to protect Child nodes array while serializing
+	FCriticalSection EditorOnlyCs;
 #endif
+
+private:
+	virtual void ForCurrentQualityLevel(TFunction<void(USoundNode*)>&& Lambda);
 };
 

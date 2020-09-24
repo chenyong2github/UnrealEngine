@@ -65,7 +65,8 @@ bool UVPTimecodeCustomTimeStep::UpdateTimeStep(UEngine* InEngine)
 		double BeforeSeconds = FPlatformTime::Seconds();
 		while(FPlatformTime::Seconds() - BeforeSeconds < MaxDeltaTime)
 		{
-			const UTimecodeProvider* TimecodeProvider = InEngine->GetTimecodeProvider();
+			UTimecodeProvider* TimecodeProvider = InEngine->GetTimecodeProvider();
+
 			if (TimecodeProvider == nullptr)
 			{
 				UE_LOG(LogVPUtilities, Error, TEXT("There is no Timecode Provider for '%s'."), *GetName());
@@ -80,7 +81,9 @@ bool UVPTimecodeCustomTimeStep::UpdateTimeStep(UEngine* InEngine)
 				return true;
 			}
 
+			TimecodeProvider->FetchAndUpdate();
 			NewTimecode = TimecodeProvider->GetTimecode();
+
 			if (NewTimecode == PreviousTimecode)
 			{
 				FPlatformProcess::SleepNoStats(0.f);

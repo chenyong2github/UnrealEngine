@@ -333,8 +333,19 @@ void UGameEngine::DetermineGameWindowResolution( int32& ResolutionX, int32& Reso
 	}
 	else
 	{
-		FParse::Value(FCommandLine::Get(), TEXT("ResX="), ResolutionX);
-		FParse::Value(FCommandLine::Get(), TEXT("ResY="), ResolutionY);
+		bool UserSpecifiedWidth = FParse::Value(FCommandLine::Get(), TEXT("ResX="), ResolutionX);
+		bool UserSpecifiedHeight = FParse::Value(FCommandLine::Get(), TEXT("ResY="), ResolutionY);
+
+		const float AspectRatio = 16.0 / 9.0;
+
+		if (UserSpecifiedWidth && !UserSpecifiedHeight)
+		{
+			ResolutionY = int32(ResolutionX / AspectRatio);
+		}
+		else if (UserSpecifiedHeight && !UserSpecifiedHeight)
+		{
+			ResolutionX = int32(ResolutionY * AspectRatio);
+		}
 	}
 
 	//fullscreen is always supported, but don't allow windowed mode on platforms that dont' support it.
@@ -367,9 +378,17 @@ void UGameEngine::DetermineGameWindowResolution( int32& ResolutionX, int32& Reso
 		{
 			if (MonitorInfo.bIsPrimary)
 			{
-				// This is the primary monitor. Use this monitor's native width/height
-				MaxResolutionX = MonitorInfo.NativeWidth;
-				MaxResolutionY = MonitorInfo.NativeHeight;
+				// This is the primary monitor. Use this monitor's max width/height.
+				MaxResolutionX = MonitorInfo.MaxResolution.X;
+				MaxResolutionY = MonitorInfo.MaxResolution.Y;
+
+				// Fall back to the monitor's native width/height if there was no max width/height found.
+				if (MaxResolutionX == 0 || MaxResolutionY == 0)
+				{
+					MaxResolutionX = MonitorInfo.NativeWidth;
+					MaxResolutionY = MonitorInfo.NativeHeight;
+				}
+
 				break;
 			}
 		}
@@ -1894,7 +1913,7 @@ void UGameEngine::Tick( float DeltaSeconds, bool bIdleMode )
 			
 			GRenderTargetPool.TickPoolElements();
 			FRDGBuilder::TickPoolElements();
-			ICustomResourcePool::TickPoolElements();
+			ICustomResourcePool::TickPoolElements(RHICmdList);
 		});
 	}
 

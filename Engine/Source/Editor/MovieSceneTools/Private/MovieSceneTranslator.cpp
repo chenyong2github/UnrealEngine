@@ -670,7 +670,6 @@ TSharedPtr<FMovieSceneImportCinematicSectionData> FMovieSceneImportData::CreateC
 	if (SequenceToAdd == nullptr)
 	{
 		UE_LOG(LogMovieScene, Error, TEXT("Can't find valid level sequence asset to map clip to: (%s)"), *InName);
-		return nullptr;
 	}
 
 	// both FCP XML and Sequencer have inclusive start frame, exclusive end frame

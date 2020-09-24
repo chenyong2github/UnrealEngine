@@ -48,6 +48,8 @@ public class SequencerScriptingEditor : ModuleRules
                 "LevelSequence",
 				"EditorFramework",
                 "UnrealEd",
+                "Sequencer",
+                "BlueprintGraph"
             }
 		);
 

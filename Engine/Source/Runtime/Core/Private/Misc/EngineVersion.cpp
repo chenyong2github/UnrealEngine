@@ -7,6 +7,7 @@
 #include "Runtime/Launch/Resources/Version.h"
 #include "UObject/ReleaseObjectVersion.h"
 #include "BuildSettings.h"
+#include "CoreGlobals.h"
 
 FEngineVersionBase::FEngineVersionBase(uint16 InMajor, uint16 InMinor, uint16 InPatch, uint32 InChangelist)
 : Major(InMajor)
@@ -242,7 +243,6 @@ void operator<<(FStructuredArchive::FSlot Slot, FEngineVersion &Version)
 		Record << SA_VALUE(TEXT("Branch"), Version.Branch);
 	}
 }
-
 
 // Unique Release Object version id
 const FGuid FReleaseObjectVersion::GUID(0x9C54D522, 0xA8264FBE, 0x94210746, 0x61B482D0);

@@ -45,6 +45,9 @@ enum class EDescendantScrollDestination : uint8
 	* slack.
 	*/
 	Center,
+
+	/** Always scroll the widget so it appears at the bottom/Right of the scrollable area. */
+	BottomOrRight,
 };
 
 /** Set behavior when user focus changes inside this scroll box */

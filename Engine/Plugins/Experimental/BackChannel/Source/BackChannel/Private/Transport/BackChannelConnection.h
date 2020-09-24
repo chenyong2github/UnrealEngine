@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "BackChannel/Transport/IBackChannelConnection.h"
+#include "BackChannel/Transport/IBackChannelSocketConnection.h"
 #include "HAL/ThreadSafeBool.h"
 
 class FSocket;
@@ -11,7 +11,7 @@ class FSocket;
 * BackChannelClient implementation.
 *
 */
-class BACKCHANNEL_API FBackChannelConnection : public IBackChannelConnection, public TSharedFromThis<FBackChannelConnection>
+class BACKCHANNEL_API FBackChannelConnection : public IBackChannelSocketConnection, public TSharedFromThis<FBackChannelConnection>
 {
 public:
 
@@ -28,7 +28,7 @@ public:
 	virtual void Close() override;
 
 	/* Waits for an icoming or outgoing connection to be made */
-	virtual bool WaitForConnection(double InTimeout, TFunction<bool(TSharedRef<IBackChannelConnection>)> InDelegate) override;
+	virtual bool WaitForConnection(double InTimeout, TFunction<bool(TSharedRef<IBackChannelSocketConnection>)> InDelegate) override;
 
 	/* Attach this connection to the provided socket */
 	bool Attach(FSocket* InSocket);

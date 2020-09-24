@@ -8,17 +8,15 @@
 /**
  * GetControlTransform is used to retrieve a single transform from a hierarchy.
  */
-USTRUCT(meta=(DisplayName="Get Control Initial Transform", Category="Controls", DocumentationPolicy = "Strict", Keywords="GetControlInitialTransform"))
+USTRUCT(meta=(DisplayName="Get Control Initial Transform", Category="Controls", DocumentationPolicy = "Strict", Keywords="GetControlInitialTransform", Deprecated = "4.25"))
 struct FRigUnit_GetControlInitialTransform : public FRigUnit
 {
 	GENERATED_BODY()
 
 	FRigUnit_GetControlInitialTransform()
 		: Space(EBoneGetterSetterMode::LocalSpace)
-		, CachedControlIndex(INDEX_NONE)
+		, CachedControlIndex(FCachedRigElement())
 	{}
-
-	virtual FString GetUnitLabel() const override;
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
@@ -26,7 +24,7 @@ struct FRigUnit_GetControlInitialTransform : public FRigUnit
 	/**
 	 * The name of the Control to retrieve the transform for.
 	 */
-	UPROPERTY(meta = (Input, CustomWidget = "ControlName", Constant))
+	UPROPERTY(meta = (Input))
 	FName Control;
 
 	/**
@@ -42,5 +40,5 @@ struct FRigUnit_GetControlInitialTransform : public FRigUnit
 
 	// Used to cache the internally used bone index
 	UPROPERTY()
-	int32 CachedControlIndex;
+	FCachedRigElement CachedControlIndex;
 };

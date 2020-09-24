@@ -1867,7 +1867,7 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 			TArray<FText> WarningMessages;
 			TArray<FName> WarningNames;
 			// Create actual rendering data.
-			bBuildSuccess = MeshUtilities.BuildSkeletalMesh(ImportedResource->LODModels[ImportLODModelIndex], SkeletalMesh->RefSkeleton, LODInfluences, LODWedges, LODFaces, LODPoints, LODPointToRawMap, LegacyBuildOptions, &WarningMessages, &WarningNames);
+			bBuildSuccess = MeshUtilities.BuildSkeletalMesh(ImportedResource->LODModels[ImportLODModelIndex], SkeletalMesh->GetPathName(), SkeletalMesh->RefSkeleton, LODInfluences, LODWedges, LODFaces, LODPoints, LODPointToRawMap, LegacyBuildOptions, &WarningMessages, &WarningNames);
 
 			// temporary hack of message/names, should be one token or a struct
 			if (WarningMessages.Num() > 0 && WarningNames.Num() == WarningMessages.Num())
@@ -2238,9 +2238,9 @@ void UnFbx::FFbxImporter::UpdateSkeletalMeshImportData(USkeletalMesh *SkeletalMe
 UObject* UnFbx::FFbxImporter::CreateAssetOfClass(UClass* AssetClass, FString ParentPackageName, FString ObjectName, bool bAllowReplace)
 {
 	// See if this sequence already exists.
-	UObject* 	ParentPkg = CreatePackage(NULL, *ParentPackageName);
+	UObject* 	ParentPkg = CreatePackage( *ParentPackageName);
 	FString 	ParentPath = FString::Printf(TEXT("%s/%s"), *FPackageName::GetLongPackagePath(*ParentPackageName), *ObjectName);
-	UObject* 	Parent = CreatePackage(NULL, *ParentPath);
+	UObject* 	Parent = CreatePackage( *ParentPath);
 	// See if an object with this name exists
 	UObject* Object = LoadObject<UObject>(Parent, *ObjectName, NULL, LOAD_NoWarn | LOAD_Quiet, NULL);
 
@@ -4041,98 +4041,97 @@ bool UnFbx::FFbxImporter::ImportSkeletalMeshLOD(USkeletalMesh* InSkeletalMesh, U
 
 	if (!bApplyBaseSkinning)
 	{
-		//Fix up the new LOD import data to use the same bone hierarchy order has the base LOD
-		if (!InSkeletalMesh->IsLODImportedDataEmpty(0))
+		//The imported LOD is always in LOD 0 of the InSkeletalMesh
+		const int32 SourceLODIndex = 0;
+		if(!InSkeletalMesh->IsLODImportedDataEmpty(SourceLODIndex))
 		{
-			FSkeletalMeshImportData SkeletalMeshImportData;
-			InSkeletalMesh->LoadLODImportedData(0, SkeletalMeshImportData);
-			int32 ImportBoneCount = SkeletalMeshImportData.RefBonesBinary.Num();
-			TArray<SkeletalMeshImportData::FBone> MergedRefBonesBinary;
-			TArray<int32> RemapBoneIndex;
-			RemapBoneIndex.AddZeroed(ImportBoneCount);
-
-			//AddZeroed the base ref skeleton array, we don't care if the LOD do not use all entries
-			MergedRefBonesBinary.AddZeroed(BaseSkeletalMesh->RefSkeleton.GetNum());
-
-			//Build the remap and the replacement array
-			for (int32 ImportBoneIndex = 0; ImportBoneIndex < ImportBoneCount; ++ImportBoneIndex)
+			// Fix up the imported data bone indexes
+			FSkeletalMeshImportData LODImportData;
+			InSkeletalMesh->LoadLODImportedData(SourceLODIndex, LODImportData);
+			const int32 LODImportDataBoneNumber = LODImportData.RefBonesBinary.Num();
+			//We want to create a remap array so we can fix all influence easily
+			TArray<int32> ImportDataBoneRemap;
+			ImportDataBoneRemap.AddZeroed(LODImportDataBoneNumber);
+			//We generate a new RefBonesBinary array to replace the existing one
+			TArray<SkeletalMeshImportData::FBone> RemapedRefBonesBinary;
+			RemapedRefBonesBinary.AddZeroed(BaseSkeletalMesh->RefSkeleton.GetNum());
+			for (int32 ImportBoneIndex = 0; ImportBoneIndex < LODImportDataBoneNumber; ++ImportBoneIndex)
 			{
-				const SkeletalMeshImportData::FBone& ImportBone = SkeletalMeshImportData.RefBonesBinary[ImportBoneIndex];
-				FName LODBoneName(ImportBone.Name);
-
+				SkeletalMeshImportData::FBone& ImportedBone = LODImportData.RefBonesBinary[ImportBoneIndex];
+				int32 LODBoneIndex = ImportBoneIndex;
+				FName LODBoneName = FName(*ImportedBone.Name);
 				int32 BaseBoneIndex = BaseSkeletalMesh->RefSkeleton.FindBoneIndex(LODBoneName);
-				if (BaseBoneIndex == INDEX_NONE)
+				ImportDataBoneRemap[ImportBoneIndex] = BaseBoneIndex;
+				if (BaseBoneIndex != INDEX_NONE)
 				{
-					//Added Bones, we store them at the end of the LOD ref skeleton
-					RemapBoneIndex[ImportBoneIndex] = MergedRefBonesBinary.Add(ImportBone);
-
-				}
-				else
-				{
-					RemapBoneIndex[ImportBoneIndex] = BaseBoneIndex;
-					MergedRefBonesBinary[BaseBoneIndex] = ImportBone;
+					RemapedRefBonesBinary[BaseBoneIndex] = ImportedBone;
+					if(RemapedRefBonesBinary[BaseBoneIndex].ParentIndex != INDEX_NONE)
+					{
+						RemapedRefBonesBinary[BaseBoneIndex].ParentIndex = ImportDataBoneRemap[RemapedRefBonesBinary[BaseBoneIndex].ParentIndex];
+					}
 				}
 			}
-			//Remap the parent
-			for (int32 ImportBoneIndex = 0; ImportBoneIndex < ImportBoneCount; ++ImportBoneIndex)
+			//Copy the new RefBonesBinary over the existing one
+			LODImportData.RefBonesBinary = RemapedRefBonesBinary;
+		
+			//Fix the influences
+			bool bNeedShrinking = false;
+			const int32 InfluenceNumber = LODImportData.Influences.Num();
+			for (int32 InfluenceIndex = InfluenceNumber-1; InfluenceIndex >= 0; --InfluenceIndex)
 			{
-				SkeletalMeshImportData::FBone& ImportBone = MergedRefBonesBinary[ImportBoneIndex];
-				int32 OriginalParentindex = ImportBone.ParentIndex;
-				if (OriginalParentindex != INDEX_NONE && RemapBoneIndex.IsValidIndex(OriginalParentindex))
+				SkeletalMeshImportData::FRawBoneInfluence& Influence = LODImportData.Influences[InfluenceIndex];
+				Influence.BoneIndex = ImportDataBoneRemap[Influence.BoneIndex];
+				if (Influence.BoneIndex == INDEX_NONE)
 				{
-					ImportBone.ParentIndex = RemapBoneIndex[OriginalParentindex];
+					const int32 DeleteCount = 1;
+					const bool AllowShrink = false;
+					LODImportData.Influences.RemoveAt(InfluenceIndex, DeleteCount, AllowShrink);
+					bNeedShrinking = true;
 				}
 			}
-
-			//Copy the merged bone array
-			SkeletalMeshImportData.RefBonesBinary = MergedRefBonesBinary;
-
-			//Remap the influences
-			const int32 InfluenceCount = SkeletalMeshImportData.Influences.Num();
-			for (int32 InfluenceIndex = 0; InfluenceIndex < InfluenceCount; ++InfluenceIndex)
+			//Shrink the array if we have deleted at least one entry
+			if(bNeedShrinking)
 			{
-				SkeletalMeshImportData::FRawBoneInfluence& Influence = SkeletalMeshImportData.Influences[InfluenceIndex];
-				Influence.BoneIndex = RemapBoneIndex[Influence.BoneIndex];
+				LODImportData.Influences.Shrink();
 			}
-
-			//Save the fixed ImportData
-			InSkeletalMesh->SaveLODImportedData(0, SkeletalMeshImportData);
+			//Save the fix up remap bone index
+			InSkeletalMesh->SaveLODImportedData(SourceLODIndex, LODImportData);
 		}
 
 		// Fix up the ActiveBoneIndices array.
-		for (int32 i = 0; i < NewLODModel.ActiveBoneIndices.Num(); i++)
+		for (int32 ActiveIndex = 0; ActiveIndex < NewLODModel.ActiveBoneIndices.Num(); ActiveIndex++)
 		{
-			int32 LODBoneIndex = NewLODModel.ActiveBoneIndices[i];
+			int32 LODBoneIndex = NewLODModel.ActiveBoneIndices[ActiveIndex];
 			FName LODBoneName = InSkeletalMesh->RefSkeleton.GetBoneName(LODBoneIndex);
 			int32 BaseBoneIndex = BaseSkeletalMesh->RefSkeleton.FindBoneIndex(LODBoneName);
-			NewLODModel.ActiveBoneIndices[i] = BaseBoneIndex;
+			NewLODModel.ActiveBoneIndices[ActiveIndex] = BaseBoneIndex;
 		}
 
 		// Fix up the chunk BoneMaps.
 		for (int32 SectionIndex = 0; SectionIndex < NewLODModel.Sections.Num(); SectionIndex++)
 		{
 			FSkelMeshSection& Section = NewLODModel.Sections[SectionIndex];
-			for (int32 i = 0; i < Section.BoneMap.Num(); i++)
+			for (int32 BoneMapIndex = 0; BoneMapIndex < Section.BoneMap.Num(); BoneMapIndex++)
 			{
-				int32 LODBoneIndex = Section.BoneMap[i];
+				int32 LODBoneIndex = Section.BoneMap[BoneMapIndex];
 				FName LODBoneName = InSkeletalMesh->RefSkeleton.GetBoneName(LODBoneIndex);
 				int32 BaseBoneIndex = BaseSkeletalMesh->RefSkeleton.FindBoneIndex(LODBoneName);
-				Section.BoneMap[i] = BaseBoneIndex;
+				Section.BoneMap[BoneMapIndex] = BaseBoneIndex;
 			}
 		}
 
 		// Create the RequiredBones array in the LODModel from the ref skeleton.
-		for (int32 i = 0; i < NewLODModel.RequiredBones.Num(); i++)
+		for (int32 RequiredBoneIndex = 0; RequiredBoneIndex < NewLODModel.RequiredBones.Num(); RequiredBoneIndex++)
 		{
-			FName LODBoneName = InSkeletalMesh->RefSkeleton.GetBoneName(NewLODModel.RequiredBones[i]);
+			FName LODBoneName = InSkeletalMesh->RefSkeleton.GetBoneName(NewLODModel.RequiredBones[RequiredBoneIndex]);
 			int32 BaseBoneIndex = BaseSkeletalMesh->RefSkeleton.FindBoneIndex(LODBoneName);
 			if (BaseBoneIndex != INDEX_NONE)
 			{
-				NewLODModel.RequiredBones[i] = BaseBoneIndex;
+				NewLODModel.RequiredBones[RequiredBoneIndex] = BaseBoneIndex;
 			}
 			else
 			{
-				NewLODModel.RequiredBones.RemoveAt(i--);
+				NewLODModel.RequiredBones.RemoveAt(RequiredBoneIndex--);
 			}
 		}
 

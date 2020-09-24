@@ -122,6 +122,7 @@ private:
 	/** Validity flags for pose times/ranges */
 	bool bTimeMarkerValid;
 	bool bMarkerFrameValid;
+	bool bSelectionRangeValid;
 
 	// Flags controlling whether check type of our animation tracks are enabled
 	bool bSkeletalMeshPoseTracksEnabled;

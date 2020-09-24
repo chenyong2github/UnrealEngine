@@ -153,6 +153,7 @@ TSharedPtr<SDockTab> FTabManager::FLastMajorOrNomadTab::Search(const FTabManager
 	return FoundTab;
 }
 
+const TSharedRef<FTabManager::FLayout> FTabManager::FLayout::NullLayout = FTabManager::NewLayout("NullLayout")->AddArea(FTabManager::NewPrimaryArea());
 
 
 TSharedRef<FTabManager::FLayoutNode> FTabManager::FLayout::NewFromString_Helper( TSharedPtr<FJsonObject> JsonObject )

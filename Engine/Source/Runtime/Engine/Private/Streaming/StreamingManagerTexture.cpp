@@ -25,6 +25,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Interfaces/ITargetPlatform.h"
+#include "Async/ParallelFor.h"
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
 
@@ -42,6 +43,22 @@ static TAutoConsoleVariable<int32> CVarStreamingAllowFastForceResident(
 	TEXT("Whether it is allowed to load in missing mips for fast-force-resident assets ASAP. ")
 	TEXT("Useful to accelerate force-resident process but risks disturbing streaming metric calculation. ")
 	TEXT("Fast-force-resident mips can't be sacrificed even when overbudget so use with caution."),
+	ECVF_Default);
+
+static int32 GAllowParallelUpdateStreamingRenderAssets = 0;
+static FAutoConsoleVariableRef CVarStreamingAllowParallelUpdateStreamingRenderAssets(
+	TEXT("r.Streaming.AllowParallelStreamingRenderAssets"),
+	GAllowParallelUpdateStreamingRenderAssets,
+	TEXT("Whether it is allowed to do UpdateStreamingRenderAssets with a ParallelFor to use more cores."),
+	ECVF_Default);
+
+static int32 GParallelRenderAssetsNumWorkgroups = 2;
+static FAutoConsoleVariableRef CVarStreamingParallelRenderAssetsNumWorkgroups(
+	TEXT("r.Streaming.ParallelRenderAssetsNumWorkgroups"),
+	GParallelRenderAssetsNumWorkgroups,
+	TEXT("How many workgroups we want to use for ParellelRenderAsset updates. ")
+	TEXT("Splits the work up a bit more so we don't get as many waits. ")
+	TEXT("Though adds overhead to GameThread if too high."),
 	ECVF_Default);
 
 bool TrackRenderAsset( const FString& AssetName );
@@ -388,9 +405,9 @@ void FRenderAssetStreamingManager::TickFastResponseAssets()
 
 		Asset.UpdateStreamingStatus(false);
 
-		if (!Asset.bInFlight && Asset.ResidentMips < Asset.NumNonOptionalMips)
+		if (Asset.ResidentMips != Asset.RequestedMips && Asset.ResidentMips < Asset.MaxAllowedMips)
 		{
-			RenderAsset->StreamIn(Asset.NumNonOptionalMips, true);
+			RenderAsset->StreamIn(Asset.MaxAllowedMips, true);
 			RenderAsset->bHasStreamingUpdatePending = true;
 			Asset.bHasUpdatePending = true;
 			VisibleFastResponseRenderAssetIndices.Add(StreamingIdx);
@@ -449,14 +466,12 @@ void FRenderAssetStreamingManager::ProcessAddedRenderAssets()
 		if (Asset)
 		{
 			Asset->StreamingIndex = StreamingRenderAssets.Num();
-			const FStreamingRenderAsset::EAssetType Type = PendingStreamingRenderAssetTypes[Idx];
-			const int32* NumStreamedMips;
-			const int32 NumLODGroups = GetNumStreamedMipsArray(Type, NumStreamedMips);
-			new (StreamingRenderAssets) FStreamingRenderAsset(Asset, NumStreamedMips, NumLODGroups, Type, Settings);
+			const int32* NumStreamedMips = nullptr;
+			const int32 NumLODGroups = GetNumStreamedMipsArray(Asset->GetRenderAssetType(), NumStreamedMips);
+			new (StreamingRenderAssets) FStreamingRenderAsset(Asset, NumStreamedMips, NumLODGroups, Settings);
 		}
 	}
 	PendingStreamingRenderAssets.Empty();
-	PendingStreamingRenderAssetTypes.Empty();
 }
 
 void FRenderAssetStreamingManager::ConditionalUpdateStaticData()
@@ -508,6 +523,7 @@ void FRenderAssetStreamingManager::ConditionalUpdateStaticData()
 				{
 					Levels.Push(LevelManager->GetLevel());
 					LevelManager->Remove(nullptr);
+					delete LevelManager;
 				}
 			}
 			LevelRenderAssetManagers.Empty();
@@ -751,7 +767,7 @@ void FRenderAssetStreamingManager::NotifyLevelOffset(ULevel* Level, const FVecto
 	}
 }
 
-void FRenderAssetStreamingManager::AddStreamingRenderAsset_Internal(UStreamableRenderAsset* InAsset, FStreamingRenderAsset::EAssetType InType)
+void FRenderAssetStreamingManager::AddStreamingRenderAsset(UStreamableRenderAsset* InAsset)
 {
 	FScopeLock ScopeLock(&CriticalSection);
 
@@ -760,7 +776,6 @@ void FRenderAssetStreamingManager::AddStreamingRenderAsset_Internal(UStreamableR
 	// Adds the new texture/mesh to the Pending list, to avoid reallocation of the thread-safe StreamingRenderAssets array.
 	check(InAsset->StreamingIndex == INDEX_NONE);
 	InAsset->StreamingIndex = PendingStreamingRenderAssets.Add(InAsset);
-	PendingStreamingRenderAssetTypes.Add(InType);
 
 	// Mark as pending update while the streamer has not determined the required resolution (unless paused)
 	InAsset->bHasStreamingUpdatePending = !bPauseRenderAssetStreaming;
@@ -769,29 +784,6 @@ void FRenderAssetStreamingManager::AddStreamingRenderAsset_Internal(UStreamableR
 	ReferencedRenderAssets.Add(InAsset);
 
 	STAT(GatheredStats.CallbacksCycles += FPlatformTime::Cycles();)
-}
-
-/**
- * Adds a new texture/mesh to the streaming manager.
- */
-void FRenderAssetStreamingManager::AddStreamingRenderAsset( UTexture2D* Texture )
-{
-	AddStreamingRenderAsset_Internal(Texture, FStreamingRenderAsset::AT_Texture);
-}
-
-void FRenderAssetStreamingManager::AddStreamingRenderAsset(UStaticMesh* StaticMesh)
-{
-	AddStreamingRenderAsset_Internal(StaticMesh, FStreamingRenderAsset::AT_StaticMesh);
-}
-
-void FRenderAssetStreamingManager::AddStreamingRenderAsset(USkeletalMesh* SkeletalMesh)
-{
-	AddStreamingRenderAsset_Internal(SkeletalMesh, FStreamingRenderAsset::AT_SkeletalMesh);
-}
-
-void FRenderAssetStreamingManager::AddStreamingRenderAsset(ULandscapeLODStreamingProxy* Landscape)
-{
-	AddStreamingRenderAsset_Internal(Landscape, FStreamingRenderAsset::AT_LandscapeMeshMobile);
 }
 
 /**
@@ -1122,7 +1114,7 @@ void FRenderAssetStreamingManager::FastForceFullyResident(UStreamableRenderAsset
 
 		Asset.UpdateStreamingStatus(false);
 
-		if (Asset.ResidentMips < Asset.NumNonOptionalMips)
+		if (Asset.ResidentMips < Asset.MaxAllowedMips)
 		{
 			FastResponseRenderAssets.Add(Asset.RenderAsset);
 		}
@@ -1147,33 +1139,113 @@ void FRenderAssetStreamingManager::UpdateStreamingRenderAssets(int32 StageIndex,
 
 	int32 StartIndex = CurrentUpdateStreamingRenderAssetIndex;
 	int32 EndIndex = StreamingRenderAssets.Num() * (StageIndex + 1) / NumUpdateStages;
-	for ( int32 Index=StartIndex; Index < EndIndex; ++Index )
+
+#if !STATS
+	if (GAllowParallelUpdateStreamingRenderAssets)
 	{
-		FStreamingRenderAsset& StreamingRenderAsset = StreamingRenderAssets[Index];
-		FPlatformMisc::Prefetch( &StreamingRenderAsset + 1 );
-
-		// Is this texture/mesh marked for removal? Will get cleanup once the async task is done.
-		if (!StreamingRenderAsset.RenderAsset) continue;
-
-		STAT(int32 PreviousResidentMips = StreamingRenderAsset.ResidentMips;)
-
-		const int32* NumStreamedMips;
-		const int32 NumLODGroups = GetNumStreamedMipsArray(StreamingRenderAsset.RenderAssetType, NumStreamedMips);
-
-		StreamingRenderAsset.UpdateDynamicData(NumStreamedMips, NumLODGroups, Settings, bWaitForMipFading, bAsync ? &DeferredTickCBAssets : nullptr);
-
-		// Make a list of each texture/mesh that can potentially require additional UpdateStreamingStatus
-		if (StreamingRenderAsset.bInFlight)
+		struct FPacket
 		{
-			InflightRenderAssets.Add(Index);
+			FPacket(int32 InStartIndex,
+				int32 InEndIndex,
+				TArray<FStreamingRenderAsset>& InStreamingRenderAssets)
+				: StartIndex(InStartIndex),
+				EndIndex(InEndIndex),
+				StreamingRenderAssets(InStreamingRenderAssets)
+			{
+			}
+			int32 StartIndex;
+			int32 EndIndex;
+			TArray<FStreamingRenderAsset>& StreamingRenderAssets;
+			TArray<int32> LocalInflightRenderAssets;
+			TArray<UStreamableRenderAsset*> LocalDeferredTickCBAssets;
+			char FalseSharingSpacerBuffer[PLATFORM_CACHE_LINE_SIZE];		// separate Packets to avoid false sharing
+		};
+		// In order to pass the InflightRenderAssets and DeferredTickCBAssets to each parallel for loop we need to break this into a number of workgroups.
+		// Cannot be too large or the overhead of consolidating all the arrays will take too long.  Cannot be too small or the parallel for will not have
+		// enough work.  Can be adjusted by CVarStreamingParallelRenderAssetsNumWorkgroups.
+		int32 Num = EndIndex - StartIndex;
+		int32 NumThreadTasks = FMath::Min<int32>(FTaskGraphInterface::Get().GetNumWorkerThreads() * GParallelRenderAssetsNumWorkgroups, Num - 1);
+		TArray<FPacket> Packets;
+		Packets.Reset(NumThreadTasks); // Go ahead and reserve space up front
+		int32 Start = StartIndex;
+		int32 NumRemaining = Num;
+		int32 NumItemsPerGroup = Num / NumThreadTasks + 1;
+		for (int32 i = 0; i < NumThreadTasks; ++i)
+		{
+			int32 NumAssetsToProcess = FMath::Min<int32>(NumRemaining, NumItemsPerGroup);
+			Packets.Add(FPacket(Start, Start + NumAssetsToProcess, StreamingRenderAssets));
+			Start += NumAssetsToProcess;
+			NumRemaining -= NumAssetsToProcess;
+			if (NumRemaining <= 0)
+			{
+				break;
+			}
 		}
+
+		ParallelFor(Packets.Num(), [this, &Packets, &bWaitForMipFading, &bAsync](int32 PacketIndex)
+		{
+			for (int32 Index = Packets[PacketIndex].StartIndex; Index < Packets[PacketIndex].EndIndex; ++Index)
+			{
+				FStreamingRenderAsset& StreamingRenderAsset = Packets[PacketIndex].StreamingRenderAssets[Index];
+
+				// Is this texture/mesh marked for removal? Will get cleanup once the async task is done.
+				if (!StreamingRenderAsset.RenderAsset)
+				{
+					continue;
+				}
+
+				const int32* NumStreamedMips;
+				const int32 NumLODGroups = GetNumStreamedMipsArray(StreamingRenderAsset.RenderAssetType, NumStreamedMips);
+
+				StreamingRenderAsset.UpdateDynamicData(NumStreamedMips, NumLODGroups, Settings, bWaitForMipFading, &Packets[PacketIndex].LocalDeferredTickCBAssets); // We always use the Deferred CBs when doing the ParallelFor since those CBs are not thread safe.
+
+				// Make a list of each texture/mesh that can potentially require additional UpdateStreamingStatus
+				if (StreamingRenderAsset.RequestedMips != StreamingRenderAsset.ResidentMips)
+				{
+					Packets[PacketIndex].LocalInflightRenderAssets.Add(Index);
+				}
+			}
+		});
+
+		for (FPacket Packet : Packets) {
+			InflightRenderAssets.Append(Packet.LocalInflightRenderAssets);
+			DeferredTickCBAssets.Append(Packet.LocalDeferredTickCBAssets);
+			Packet.LocalInflightRenderAssets.Empty();
+			Packet.LocalDeferredTickCBAssets.Empty();
+		}
+		Packets.Empty();
+	}
+	else
+#endif
+	{
+		for (int32 Index = StartIndex; Index < EndIndex; ++Index)
+		{
+			FStreamingRenderAsset& StreamingRenderAsset = StreamingRenderAssets[Index];
+			FPlatformMisc::Prefetch(&StreamingRenderAsset + 1);
+
+			// Is this texture/mesh marked for removal? Will get cleanup once the async task is done.
+			if (!StreamingRenderAsset.RenderAsset) continue;
+
+			STAT(int32 PreviousResidentMips = StreamingRenderAsset.ResidentMips;)
+
+			const int32* NumStreamedMips;
+			const int32 NumLODGroups = GetNumStreamedMipsArray(StreamingRenderAsset.RenderAssetType, NumStreamedMips);
+
+			StreamingRenderAsset.UpdateDynamicData(NumStreamedMips, NumLODGroups, Settings, bWaitForMipFading, bAsync ? &DeferredTickCBAssets : nullptr);
+
+			// Make a list of each texture/mesh that can potentially require additional UpdateStreamingStatus
+			if (StreamingRenderAsset.RequestedMips != StreamingRenderAsset.ResidentMips)
+			{
+				InflightRenderAssets.Add(Index);
+			}
 
 #if STATS
-		if (StreamingRenderAsset.ResidentMips > PreviousResidentMips)
-		{
-			GatheredStats.MipIOBandwidth += StreamingRenderAsset.GetSize(StreamingRenderAsset.ResidentMips) - StreamingRenderAsset.GetSize(PreviousResidentMips);
-		}
+			if (StreamingRenderAsset.ResidentMips > PreviousResidentMips)
+			{
+				GatheredStats.MipIOBandwidth += StreamingRenderAsset.GetSize(StreamingRenderAsset.ResidentMips) - StreamingRenderAsset.GetSize(PreviousResidentMips);
+			}
 #endif
+		}
 	}
 	CurrentUpdateStreamingRenderAssetIndex = EndIndex;
 }
@@ -1215,7 +1287,7 @@ void FRenderAssetStreamingManager::StreamRenderAssets( bool bProcessEverything )
 		{
 			if (StreamingRenderAssets.IsValidIndex(AssetIndex) && !VisibleFastResponseRenderAssetIndices.Contains(AssetIndex))
 			{
-				StreamingRenderAssets[AssetIndex].CancelPendingMipChangeRequest();
+				StreamingRenderAssets[AssetIndex].CancelStreamingRequest();
 			}
 		}
 
@@ -1274,10 +1346,14 @@ void FRenderAssetStreamingManager::StreamRenderAssets( bool bProcessEverything )
 		if (StreamingRenderAssets.IsValidIndex(Idx))
 		{
 			FStreamingRenderAsset& Asset = StreamingRenderAssets[Idx];
-
 			Asset.BudgetMipBias = 0;
+			Asset.bIgnoreStreamingMipBias = true;
+
 			// If optional mips is available but not counted, they will be counted later in UpdateDynamicData
-			Asset.MaxAllowedMips = FMath::Max(Asset.MaxAllowedMips, Asset.NumNonOptionalMips);
+			if (Asset.RenderAsset)
+			{
+				Asset.MaxAllowedMips = FMath::Max<int32>(Asset.MaxAllowedMips, Asset.RenderAsset->GetStreamableResourceState().NumNonOptionalLODs);
+			}
 		}
 	}
 
@@ -1673,7 +1749,7 @@ int32 FRenderAssetStreamingManager::BlockTillAllRequestsFinished( float TimeLimi
 		for (FStreamingRenderAsset& StreamingRenderAsset : StreamingRenderAssets)
 		{
 			StreamingRenderAsset.UpdateStreamingStatus(false);
-			if (StreamingRenderAsset.bInFlight)
+			if (StreamingRenderAsset.RequestedMips != StreamingRenderAsset.ResidentMips)
 			{
 				++NumOfInFlights;
 			}
@@ -1802,6 +1878,7 @@ void FRenderAssetStreamingManager::PropagateLightingScenarioChange()
 		{
 			Levels.Push(LevelManager->GetLevel());
 			LevelManager->Remove(nullptr);
+            delete LevelManager;
 		}
 	}
 
@@ -1849,22 +1926,22 @@ bool FRenderAssetStreamingManager::HandleListStreamingRenderAssetsCommand( const
 	SyncStates(true);
 
 	const bool bShouldOnlyListUnkownRef = FParse::Command(&Cmd, TEXT("UNKOWNREF"));
-	FStreamingRenderAsset::EAssetType ListAssetType = FStreamingRenderAsset::AT_Num;
+	EStreamableRenderAssetType ListAssetType = EStreamableRenderAssetType::None;
 	{
 		FString AssetTypeStr;
 		if (FParse::Value(Cmd, TEXT("AssetType="), AssetTypeStr))
 		{
 			if (AssetTypeStr == TEXT("Texture"))
 			{
-				ListAssetType = FStreamingRenderAsset::AT_Texture;
+				ListAssetType = EStreamableRenderAssetType::Texture;
 			}
 			else if (AssetTypeStr == TEXT("StaticMesh"))
 			{
-				ListAssetType = FStreamingRenderAsset::AT_StaticMesh;
+				ListAssetType = EStreamableRenderAssetType::StaticMesh;
 			}
 			else if (AssetTypeStr == TEXT("SkeletalMesh"))
 			{
-				ListAssetType = FStreamingRenderAsset::AT_SkeletalMesh;
+				ListAssetType = EStreamableRenderAssetType::SkeletalMesh;
 			}
 		}
 	}
@@ -1886,9 +1963,10 @@ bool FRenderAssetStreamingManager::HandleListStreamingRenderAssetsCommand( const
 	{
 		const FStreamingRenderAsset& StreamingRenderAsset = StreamingRenderAssets[It.Value()];
 		const UStreamableRenderAsset* RenderAsset = StreamingRenderAsset.RenderAsset;
-		const typename FStreamingRenderAsset::EAssetType AssetType = StreamingRenderAsset.RenderAssetType;
+		const FStreamableRenderResourceState ResourceState = RenderAsset->GetStreamableResourceState();
+		const EStreamableRenderAssetType AssetType = StreamingRenderAsset.RenderAssetType;
 		
-		if (ListAssetType != FStreamingRenderAsset::AT_Num && ListAssetType != AssetType)
+		if (ListAssetType != EStreamableRenderAssetType::None && ListAssetType != AssetType)
 		{
 			continue;
 		}
@@ -1898,11 +1976,11 @@ bool FRenderAssetStreamingManager::HandleListStreamingRenderAssetsCommand( const
 			It.Value(),
 			*RenderAsset->GetFullName() );
 
-		const int32 CurrentMipIndex = FMath::Max(RenderAsset->GetNumMipsForStreaming() - StreamingRenderAsset.ResidentMips, 0);
-		const int32 WantedMipIndex = FMath::Max(RenderAsset->GetNumMipsForStreaming() - StreamingRenderAsset.GetPerfectWantedMips(), 0);
-		const int32 MaxAllowedMipIndex = FMath::Max(RenderAsset->GetNumMipsForStreaming() - StreamingRenderAsset.MaxAllowedMips, 0);
+		const int32 CurrentMipIndex = ResourceState.LODCountToAssetFirstLODIdx(ResourceState.NumResidentLODs);
+		const int32 WantedMipIndex = ResourceState.LODCountToAssetFirstLODIdx(StreamingRenderAsset.GetPerfectWantedMips());
+		const int32 MaxAllowedMipIndex = ResourceState.LODCountToAssetFirstLODIdx(StreamingRenderAsset.MaxAllowedMips);
 
-		if (AssetType == FStreamingRenderAsset::AT_Texture)
+		if (AssetType == EStreamableRenderAssetType::Texture)
 		{
 			const UTexture2D* Texture = CastChecked<UTexture2D>(RenderAsset);
 			const TIndirectArray<struct FTexture2DMipMap>& Mips = Texture->PlatformData->Mips;
@@ -1942,7 +2020,7 @@ bool FRenderAssetStreamingManager::HandleListStreamingRenderAssetsCommand( const
 				CurrentMipIndex,
 				WantedMipIndex,
 				MaxAllowedMipIndex,
-				StreamingRenderAsset.MipCount,
+				ResourceState.MaxNumLODs,
 				StreamingRenderAsset.NumForcedMips,
 				LastRenderTime == MAX_FLT ? TEXT("NotTracked") : *FString::Printf(TEXT("%.3f"), LastRenderTime),
 				StreamingRenderAsset.BudgetMipBias,
@@ -2217,7 +2295,6 @@ bool FRenderAssetStreamingManager::HandleStreamingManagerMemoryCommand( const TC
 	MemSize += StreamingRenderAssets.GetAllocatedSize();
 	MemSize += DynamicComponentManager.GetAllocatedSize();
 	MemSize += PendingStreamingRenderAssets.GetAllocatedSize()
-		+ PendingStreamingRenderAssetTypes.GetAllocatedSize()
 		+ RemovedRenderAssetIndices.GetAllocatedSize();
 	MemSize += LevelRenderAssetManagers.GetAllocatedSize();
 	MemSize += AsyncWork->GetTask().StreamingData.GetAllocatedSize();
@@ -2265,12 +2342,13 @@ bool FRenderAssetStreamingManager::HandleInvestigateRenderAssetCommand(const TCH
 			{
 				UStreamableRenderAsset* RenderAsset = StreamingRenderAsset.RenderAsset;
 				if (!RenderAsset) continue;
-				const typename FStreamingRenderAsset::EAssetType AssetType = StreamingRenderAsset.RenderAssetType;
+				const EStreamableRenderAssetType AssetType = StreamingRenderAsset.RenderAssetType;
+				const FStreamableRenderResourceState ResourceState = RenderAsset->GetStreamableResourceState();
 				UTexture2D* Texture2D = Cast<UTexture2D>(RenderAsset);
 				UStaticMesh* StaticMesh = Cast<UStaticMesh>(RenderAsset);
-				int32 CurrentMipIndex = FMath::Max(RenderAsset->GetNumMipsForStreaming() - StreamingRenderAsset.ResidentMips, 0);
-				int32 WantedMipIndex = FMath::Max(RenderAsset->GetNumMipsForStreaming() - StreamingRenderAsset.GetPerfectWantedMips(), 0);
-				int32 MaxMipIndex = FMath::Max(RenderAsset->GetNumMipsForStreaming() - StreamingRenderAsset.MaxAllowedMips, 0);
+				int32 CurrentMipIndex = ResourceState.LODCountToAssetFirstLODIdx(StreamingRenderAsset.ResidentMips);
+				int32 WantedMipIndex = ResourceState.LODCountToAssetFirstLODIdx(StreamingRenderAsset.GetPerfectWantedMips());
+				int32 MaxMipIndex = ResourceState.LODCountToAssetFirstLODIdx(StreamingRenderAsset.MaxAllowedMips);
 
 				UE_LOG(LogContentStreaming, Log, TEXT("%s: %s"), FStreamingRenderAsset::GetStreamingAssetTypeStr(AssetType), *AssetName);
 				FString LODGroupName = Texture2D ? UTexture::GetTextureGroupString((TextureGroup)StreamingRenderAsset.LODGroup) : TEXT("Unknown");
@@ -2308,7 +2386,7 @@ bool FRenderAssetStreamingManager::HandleInvestigateRenderAssetCommand(const TCH
 				{
 					UE_LOG(LogContentStreaming, Log, TEXT("  Force all mips: bForceFullyLoad"));
 				}
-				else if (StreamingRenderAsset.MipCount == 1)
+				else if (ResourceState.MaxNumLODs == 1)
 				{
 					UE_LOG(LogContentStreaming, Log, TEXT("  Force all mips:  No mip-maps"));
 				}
@@ -2323,7 +2401,7 @@ bool FRenderAssetStreamingManager::HandleInvestigateRenderAssetCommand(const TCH
 					UE_LOG(LogContentStreaming, Log, TEXT("  Current LOD index: %d"), CurrentMipIndex);
 					UE_LOG(LogContentStreaming, Log, TEXT("  Wanted LOD index: %d"), WantedMipIndex);
 				}
-				UE_LOG(LogContentStreaming, Log, TEXT("  Allowed mips:        %d-%d [%d]"), StreamingRenderAsset.MinAllowedMips, StreamingRenderAsset.MaxAllowedMips, StreamingRenderAsset.MipCount);
+				UE_LOG(LogContentStreaming, Log, TEXT("  Allowed mips:        %d-%d [%d]"), StreamingRenderAsset.MinAllowedMips, StreamingRenderAsset.MaxAllowedMips, ResourceState.MaxNumLODs);
 				UE_LOG(LogContentStreaming, Log, TEXT("  LoadOrder Priority:  %d"), StreamingRenderAsset.LoadOrderPriority);
 				UE_LOG(LogContentStreaming, Log, TEXT("  Retention Priority:  %d"), StreamingRenderAsset.RetentionPriority);
 				UE_LOG(LogContentStreaming, Log, TEXT("  Boost factor:        %.1f"), StreamingRenderAsset.BoostFactor);
@@ -2357,7 +2435,7 @@ bool FRenderAssetStreamingManager::HandleInvestigateRenderAssetCommand(const TCH
 						}
 
 						// LOD group MaxResolution clamp : see UTextureLODSettings::CalculateLODBias(), included in CachedCombinedLODBias
-						const int32 MipCountBeforeMaxRes = StreamingRenderAsset.MipCount - RenderAsset->NumCinematicMipLevels -
+						const int32 MipCountBeforeMaxRes = ResourceState.MaxNumLODs - RenderAsset->NumCinematicMipLevels -
 							(StreamingRenderAsset.LODGroup == TEXTUREGROUP_UI ? GUITextureLODBias : 0) - 
 							(FPlatformProperties::RequiresCookedData() ? 0 : (LODGroupInfo.LODBias + (Texture2D ? Texture2D->LODBias : 0)));
 						const int32 MaxResBias = MipCountBeforeMaxRes - (LODGroupInfo.MaxLODMipCount + 1);
@@ -2391,14 +2469,14 @@ bool FRenderAssetStreamingManager::HandleInvestigateRenderAssetCommand(const TCH
 
 					// RHI max resolution and optional mips : see FStreamingRenderAsset::UpdateDynamicData().
 					{
-						const int32 OptMipBias = StreamingRenderAsset.MipCount - CumuBias - StreamingRenderAsset.NumNonOptionalMips;
+						const int32 OptMipBias = ResourceState.MaxNumLODs - CumuBias - RenderAsset->GetStreamableResourceState().NumNonOptionalLODs;
 						if (StreamingRenderAsset.OptionalMipsState != FStreamingRenderAsset::EOptionalMipsState::OMS_HasOptionalMips && OptMipBias > 0)
 						{
 							BiasDesc += FString::Printf(TEXT(" [Asset.Opt:%d]"), OptMipBias);
 							CumuBias += OptMipBias;
 						}
 
-						const int32 RHIMaxResBias = StreamingRenderAsset.MipCount - CumuBias - GMaxTextureMipCount;
+						const int32 RHIMaxResBias = ResourceState.MaxNumLODs - CumuBias - GMaxTextureMipCount;
 						if (RHIMaxResBias > 0)
 						{
 							BiasDesc += FString::Printf(TEXT(" [RHI.MaxRes:%d]"), RHIMaxResBias);
@@ -2421,7 +2499,7 @@ bool FRenderAssetStreamingManager::HandleInvestigateRenderAssetCommand(const TCH
 					}
 				}
 
-				UE_LOG(LogContentStreaming, Log, TEXT("  Mip bias:			  %d %s"), StreamingRenderAsset.MipCount - StreamingRenderAsset.MaxAllowedMips, !BiasDesc.IsEmpty() ? *BiasDesc : TEXT("") );
+				UE_LOG(LogContentStreaming, Log, TEXT("  Mip bias:			  %d %s"), ResourceState.MaxNumLODs - StreamingRenderAsset.MaxAllowedMips, !BiasDesc.IsEmpty() ? *BiasDesc : TEXT("") );
 
 				if (InWorld && !GIsEditor)
 				{
@@ -2611,11 +2689,11 @@ void FRenderAssetStreamingManager::DumpTextureGroupStats( bool bDetailedStats )
 			Stat.WantedTextureSize += StreamingTexture->GetSize( StreamingTexture->WantedMips );
 			Stat.MaxTextureSize += StreamingTexture->GetSize( StreamingTexture->MaxAllowedMips );
 			
-			int64 WasteCurrent = StreamingTexture->GetSize( StreamingTexture->ResidentMips ) - RHICalcTexture2DPlatformSize(Texture2D->GetSizeX(), Texture2D->GetSizeY(), Texture2D->GetPixelFormat(), StreamingTexture->ResidentMips, 1, 0, CreateInfo, TextureAlign);
+			int64 WasteCurrent = StreamingTexture->GetSize( StreamingTexture->ResidentMips ) - RHICalcTexture2DPlatformSize(Texture2D->GetSizeX(), Texture2D->GetSizeY(), Texture2D->GetPixelFormat(), StreamingTexture->ResidentMips, 1, TexCreate_None, CreateInfo, TextureAlign);
 
-			int64 WasteWanted = StreamingTexture->GetSize( StreamingTexture->WantedMips ) - RHICalcTexture2DPlatformSize(Texture2D->GetSizeX(), Texture2D->GetSizeY(), Texture2D->GetPixelFormat(), StreamingTexture->WantedMips, 1, 0, CreateInfo, TextureAlign);
+			int64 WasteWanted = StreamingTexture->GetSize( StreamingTexture->WantedMips ) - RHICalcTexture2DPlatformSize(Texture2D->GetSizeX(), Texture2D->GetSizeY(), Texture2D->GetPixelFormat(), StreamingTexture->WantedMips, 1, TexCreate_None, CreateInfo, TextureAlign);
 
-			int64 WasteMaxSize = StreamingTexture->GetSize( StreamingTexture->MaxAllowedMips ) - RHICalcTexture2DPlatformSize(Texture2D->GetSizeX(), Texture2D->GetSizeY(), Texture2D->GetPixelFormat(), StreamingTexture->MaxAllowedMips, 1, 0, CreateInfo, TextureAlign);
+			int64 WasteMaxSize = StreamingTexture->GetSize( StreamingTexture->MaxAllowedMips ) - RHICalcTexture2DPlatformSize(Texture2D->GetSizeX(), Texture2D->GetSizeY(), Texture2D->GetPixelFormat(), StreamingTexture->MaxAllowedMips, 1, TexCreate_None, CreateInfo, TextureAlign);
 
 			Waste.NumTextures++;
 			Waste.CurrentTextureSize += FMath::Max<int64>(WasteCurrent,0);
@@ -2631,7 +2709,7 @@ void FRenderAssetStreamingManager::DumpTextureGroupStats( bool bDetailedStats )
 			Stat.NonStreamingSize += TextureSize;
 			if ( Texture2D && Texture2D->Resource )
 			{				
-				int64 WastedSize = TextureSize - RHICalcTexture2DPlatformSize(Texture2D->GetSizeX(), Texture2D->GetSizeY(), Texture2D->GetPixelFormat(), Texture2D->GetNumMips(), 1, 0, CreateInfo, TextureAlign);
+				int64 WastedSize = TextureSize - RHICalcTexture2DPlatformSize(Texture2D->GetSizeX(), Texture2D->GetSizeY(), Texture2D->GetPixelFormat(), Texture2D->GetNumMips(), 1, TexCreate_None, CreateInfo, TextureAlign);
 
 				Waste.NumNonStreamingTextures++;
 				Waste.NonStreamingSize += FMath::Max<int64>(WastedSize, 0);

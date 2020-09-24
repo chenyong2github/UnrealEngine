@@ -26,7 +26,7 @@ namespace CruncherSharp
 			BindControlMouseClicks(this);
 			m_table = Utils.CreateDataTable();
 
-			m_CruncherData = new CruncherData();
+			m_CruncherData = new CruncherData(m_table);
 
             bindingSourceSymbols.DataSource = m_table;
             dataGridSymbols.DataSource = bindingSourceSymbols;
@@ -74,7 +74,8 @@ namespace CruncherSharp
 			bUpdateStack = false;
 
 			Cursor.Current = Cursors.WaitCursor;
-			m_LoadResult = m_CruncherData.LoadDataFromPdb(m_CurrentPDBFilePath, backgroundWorker);			
+			string LoadRes = m_CruncherData.LoadDataFromPdb(m_CurrentPDBFilePath, backgroundWorker);
+			m_LoadResult = (LoadRes == null);
 		}
 
 		private void loadingBackgroundWorker_ProgressChanged(object sender, ProgressChangedEventArgs e)
@@ -84,7 +85,7 @@ namespace CruncherSharp
 
 		private void loadingBackgroundWorker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
 		{
-			m_CruncherData.PopulateDataTable(m_table);
+			//m_CruncherData.PopulateDataTable(m_table);
 			if (!m_LoadResult)
 			{
 				MessageBox.Show(this, "Something went wrong loading a PDB, see log.");
@@ -184,7 +185,7 @@ namespace CruncherSharp
                 }
             };
 
-            foreach (CruncherSymbol child in info.Children)
+            foreach (CruncherSymbol child in info.m_children)
             {
                 if (child.Padding > 0)
                 {

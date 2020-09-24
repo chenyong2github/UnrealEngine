@@ -200,6 +200,33 @@ void SDataprepGraphActionStepNode::UpdateGraphNode()
 			[
 				ActionBlockPtr
 			]
+
+			+ SOverlay::Slot()
+			.VAlign(VAlign_Fill)
+			.HAlign(HAlign_Fill)
+			.Padding(OverlayPadding)
+			[
+				SNew(SImage)
+				.ColorAndOpacity(FLinearColor(0.25f, 0.25f, 0.25f, 0.5f))
+				.Image(FDataprepEditorStyle::GetBrush("DataprepEditor.Node.Body"))
+				.Visibility_Lambda([&]() 
+				{ 
+					if ( UDataprepGraphActionStepNode* StepNode = Cast<UDataprepGraphActionStepNode>(GraphNode) )
+					{
+						if ( const UDataprepActionAsset* ActionAsset = StepNode->GetDataprepActionAsset() )
+						{
+							const UDataprepActionStep* ActionStep = ActionAsset->GetStep(StepIndex).Get();
+
+							// Don't overlay if whole action is also disabled - it will take care of that
+							if ( ActionAsset->bIsEnabled && ActionStep && !ActionStep->bIsEnabled )
+							{
+								return EVisibility::Visible;
+							}
+						}
+					}
+					return EVisibility::Collapsed;
+				})
+			]
 		]
 	];
 }

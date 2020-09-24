@@ -12,19 +12,29 @@
 #if UE_USE_VERYLARGEPAGEALLOCATOR
 
 #if PLATFORM_64BITS
-#define CACHEDOSVERYLARGEPAGEALLOCATOR_BYTE_LIMIT (64*1024*1024)
+#define CACHEDOSVERYLARGEPAGEALLOCATOR_BYTE_LIMIT (128*1024*1024)
 #else
 #define CACHEDOSVERYLARGEPAGEALLOCATOR_BYTE_LIMIT (16*1024*1024)
 #endif
 //#define CACHEDOSVERYLARGEPAGEALLOCATOR_MAX_CACHED_OS_FREES (CACHEDOSVERYLARGEPAGEALLOCATOR_BYTE_LIMIT/(1024*64))
-#define CACHEDOSVERYLARGEPAGEALLOCATOR_MAX_CACHED_OS_FREES (128)
+#define CACHEDOSVERYLARGEPAGEALLOCATOR_MAX_CACHED_OS_FREES (256)
+
+
+#ifndef UE_VERYLARGEPAGEALLOCATOR_TAKEONALL64KBALLOCATIONS
+#define UE_VERYLARGEPAGEALLOCATOR_TAKEONALL64KBALLOCATIONS 0
+#endif
 
 #ifndef UE_VERYLARGEPAGEALLOCATOR_PAGESIZE_KB
 #define UE_VERYLARGEPAGEALLOCATOR_PAGESIZE_KB 4096	//default to 4MB
 #endif
 class FCachedOSVeryLargePageAllocator
 {
-	static const uint64 AddressSpaceToReserve = ((1024 * 1024) * (1024 + 512));
+	// we make the address space twice as big as we need and use the 1st have for small pool allocations, the 2nd half is used for other allocations that are still == SizeOfSubPage
+#if UE_VERYLARGEPAGEALLOCATOR_TAKEONALL64KBALLOCATIONS
+	static const uint64 AddressSpaceToReserve = ((1024 * 1024) * 2048LL * 2LL);
+#else
+	static const uint64 AddressSpaceToReserve = ((1024 * 1024) * 2048LL);
+#endif
 	static const uint64 SizeOfLargePage = (UE_VERYLARGEPAGEALLOCATOR_PAGESIZE_KB * 1024);
 	static const uint64 SizeOfSubPage = (1024 * 64);
 	static const uint64 NumberOfLargePages = (AddressSpaceToReserve / SizeOfLargePage);
@@ -54,12 +64,23 @@ public:
 		return CachedFree + CachedOSPageAllocator.GetCachedFreeTotal();
 	}
 
+	FORCEINLINE bool IsPartOf(const void* Ptr)
+	{
+		if ((uintptr_t)Ptr >= AddressSpaceReserved && (uintptr_t)Ptr < AddressSpaceReservedEndSmallPool)
+		{
+			return true;
+		}
+		return false;
+	}
+
 private:
 
 	void Init();
 
 	bool bEnabled;
 	uintptr_t	AddressSpaceReserved;
+	uintptr_t	AddressSpaceReservedEndSmallPool;
+	uintptr_t	AddressSpaceReservedEnd;
 	uint64		CachedFree;
 
 	FPlatformMemory::FPlatformVirtualMemoryBlock Block;
@@ -100,9 +121,9 @@ private:
 		}
 	};
 
-	FLargePage*	FreeLargePagesHead;				// no backing store
+	FLargePage*	FreeLargePagesHead[FMemory::AllocationHints::Max];				// no backing store
 
-	FLargePage*	UsedLargePagesHead;				// has backing store and is full
+	FLargePage*	UsedLargePagesHead[FMemory::AllocationHints::Max];				// has backing store and is full
 
 	FLargePage*	UsedLargePagesWithSpaceHead[FMemory::AllocationHints::Max];	// has backing store and still has room
 
@@ -112,4 +133,5 @@ private:
 
 };
 CORE_API extern bool GEnableVeryLargePageAllocator;
+
 #endif // UE_USE_VERYLARGEPAGEALLOCATOR

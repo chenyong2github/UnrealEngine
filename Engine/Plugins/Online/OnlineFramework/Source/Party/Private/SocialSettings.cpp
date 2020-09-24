@@ -91,3 +91,9 @@ int32 USocialSettings::GetMaxNicknameLength()
 	const USocialSettings& SettingsCDO = *GetDefault<USocialSettings>();
 	return SettingsCDO.MaxNicknameLength;
 }
+
+const TArray<FSocialPlatformDescription>& USocialSettings::GetSocialPlatformDescriptions()
+{
+	const USocialSettings& SettingsCDO = *GetDefault<USocialSettings>();
+	return SettingsCDO.SocialPlatformDescriptions;
+}

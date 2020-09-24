@@ -11,6 +11,7 @@
 #include "Blueprint/BlueprintSupport.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Engine/UserDefinedStruct.h"
+#include "Algo/Reverse.h"
 
 // Common libraries
 #include "Kismet/KismetArrayLibrary.h"
@@ -113,7 +114,7 @@ public:
 		int32 LastIndex = TargetArray.Num() - 1;
 		for (int32 i = 0; i < LastIndex; ++i)
 		{
-			int32 Index = FMath::RandRange(0, LastIndex);
+			int32 Index = FMath::RandRange(i, LastIndex);
 			if (i != Index)
 			{
 				const_cast<TArray<T>*>(&TargetArray)->Swap(i, Index);
@@ -286,6 +287,12 @@ public:
 			ExecutionMessage(*FString::Printf(TEXT("Attempted to resize an array using negative size: Size = %d!"), Size), ELogVerbosity::Warning);
 		}
 	}
+	
+	template<typename T>
+	static void Array_Reverse(const TArray<T>& TargetArray)
+	{
+		Algo::Reverse(*const_cast<TArray<T>*>(&TargetArray));
+	}
 
 	template<typename T>
 	static int32 Array_Length(const TArray<T>& TargetArray)
@@ -329,6 +336,40 @@ public:
 		else
 		{
 			ExecutionMessage(*FString::Printf(TEXT("Attempted to set an invalid index on array [%d/%d]!"), Index, LastIndexForLog(TargetArray)), ELogVerbosity::Warning);
+		}
+	}
+
+	template<typename T, typename U>
+	static void Array_Random(const TArray<T>& TargetArray, U& OutItem, int32& OutIndex)
+	{
+		if (TargetArray.Num() > 0)
+		{
+			const int32 Index = FMath::RandRange(0, TargetArray.Num() - 1);
+
+			OutItem = TargetArray[Index];
+			OutIndex = Index;
+		}
+		else
+		{
+			OutItem = U{};
+			OutIndex = INDEX_NONE;
+		}
+	}
+
+	template<typename T, typename U>
+	static void Array_RandomFromStream(const TArray<T>& TargetArray, FRandomStream& RandomStream, U& OutItem, int32& OutIndex)
+	{
+		if (TargetArray.Num() > 0)
+		{
+			const int32 Index = RandomStream.RandRange(0, TargetArray.Num() - 1);
+
+			OutItem = TargetArray[Index];
+			OutIndex = Index;
+		}
+		else
+		{
+			OutItem = U{};
+			OutIndex = INDEX_NONE;
 		}
 	}
 

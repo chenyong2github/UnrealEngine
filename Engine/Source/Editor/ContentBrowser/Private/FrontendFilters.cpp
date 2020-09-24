@@ -1348,3 +1348,30 @@ void FFrontendFilter_Recent::ResetFilter(FName InName)
 		BroadcastChangedEvent();
 	}
 }
+
+/////////////////////////////////////////
+// FFrontendFilter_Writable
+/////////////////////////////////////////
+
+FFrontendFilter_Writable::FFrontendFilter_Writable(TSharedPtr<FFrontendFilterCategory> InCategory)
+	: FFrontendFilter(InCategory)
+{
+}
+
+FFrontendFilter_Writable::~FFrontendFilter_Writable()
+{
+
+}
+
+bool FFrontendFilter_Writable::PassesFilter(FAssetFilterType InItem) const
+{
+	FString ItemDiskPath;
+	if (!InItem.GetItemPhysicalPath(ItemDiskPath))
+	{
+		return false;
+	}
+
+	ItemDiskPath = FPaths::ConvertRelativePathToFull(MoveTemp(ItemDiskPath));
+
+	return !IFileManager::Get().IsReadOnly(*ItemDiskPath);
+}

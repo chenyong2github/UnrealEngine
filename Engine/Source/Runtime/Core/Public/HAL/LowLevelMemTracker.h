@@ -533,6 +533,7 @@ private:
 	FLLMTracker* Trackers[(int32)ELLMTracker::Max];
 
 	int32 ParentTags[LLM_TAG_COUNT];
+	FCriticalSection UpdateLock;
 
 	static FLowLevelMemTracker* TrackerInstance;
 

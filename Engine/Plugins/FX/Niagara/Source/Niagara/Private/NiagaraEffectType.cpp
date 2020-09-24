@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "NiagaraEffectType.h"
 #include "NiagaraCommon.h"
+#include "NiagaraComponent.h"
 #include "NiagaraCustomVersion.h"
 #include "NiagaraSystem.h"
 
@@ -15,7 +16,9 @@ UNiagaraEffectType::UNiagaraEffectType(const FObjectInitializer& ObjectInitializ
 	: Super(ObjectInitializer)
 	, UpdateFrequency(ENiagaraScalabilityUpdateFrequency::SpawnOnly)
 	, CullReaction(ENiagaraCullReaction::DeactivateImmediate)
+	, SignificanceHandler(nullptr)
 	, NumInstances(0)
+	, bNewSystemsSinceLastScalabilityUpdate(false)
 	, AvgTimeMS_GT(0.0f)
 	, AvgTimeMS_GT_CNC(0.0f)
 	, AvgTimeMS_RT(0.0f)
@@ -48,6 +51,21 @@ void UNiagaraEffectType::Serialize(FArchive& Ar)
 void UNiagaraEffectType::PostLoad()
 {
 	Super::PostLoad();
+
+	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
+
+	/** Init signficance handlers to match previous behavior. */
+	if (NiagaraVer < FNiagaraCustomVersion::SignificanceHandlers)
+	{
+		if (UpdateFrequency == ENiagaraScalabilityUpdateFrequency::SpawnOnly)
+		{
+			SignificanceHandler = nullptr;
+		}
+		else
+		{
+			SignificanceHandler = NewObject<UNiagaraSignificanceHandlerDistance>(this);
+		}
+	}
 }
 
 const FNiagaraSystemScalabilitySettings& UNiagaraEffectType::GetActiveSystemScalabilitySettings()const
@@ -145,6 +163,7 @@ void UNiagaraEffectType::ProcessLastFrameCycleCounts()
 FNiagaraSystemScalabilityOverride::FNiagaraSystemScalabilityOverride()
 	: bOverrideDistanceSettings(false)
 	, bOverrideInstanceCountSettings(false)
+	, bOverridePerSystemInstanceCountSettings(false)
 	, bOverrideTimeSinceRendererSettings(false)
 {
 }
@@ -160,8 +179,10 @@ void FNiagaraSystemScalabilitySettings::Clear()
 	bCullByDistance = false;
 	bCullByMaxTimeWithoutRender = false;
 	bCullMaxInstanceCount = false;
+	bCullPerSystemMaxInstanceCount = false;
 	MaxDistance = 0.0f;
 	MaxInstances = 0;
+	MaxSystemInstances = 0;
 	MaxTimeWithoutRender = 0.0f;
 }
 
@@ -180,3 +201,48 @@ FNiagaraEmitterScalabilityOverride::FNiagaraEmitterScalabilityOverride()
 	: bOverrideSpawnCountScale(false)
 {
 }
+
+
+//////////////////////////////////////////////////////////////////////////
+
+#include "NiagaraScalabilityManager.h"
+void UNiagaraSignificanceHandlerDistance::CalculateSignificance(TArray<UNiagaraComponent*>& Components, TArray<FNiagaraScalabilityState>& OutState)
+{
+	check(Components.Num() == OutState.Num());
+	for (int32 CompIdx = 0; CompIdx < Components.Num(); ++CompIdx)
+	{
+		UNiagaraComponent* Component = Components[CompIdx];
+		FNiagaraScalabilityState& State = OutState[CompIdx];
+
+		float LODDistance = 0.0f;
+#if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
+		if (Component->bEnablePreviewLODDistance)
+		{
+			LODDistance = Component->PreviewLODDistance;
+		}
+		else
+#endif
+		if(FNiagaraSystemInstance* Inst = Component->GetSystemInstance())
+		{
+			LODDistance = Inst->GetLODDistance();
+		}
+
+		State.Significance = 1.0f / LODDistance;
+	}
+}
+
+void UNiagaraSignificanceHandlerAge::CalculateSignificance(TArray<UNiagaraComponent*>& Components, TArray<FNiagaraScalabilityState>& OutState)
+{
+	for (int32 CompIdx = 0; CompIdx < Components.Num(); ++CompIdx)
+	{
+		UNiagaraComponent* Component = Components[CompIdx];
+		FNiagaraScalabilityState& State = OutState[CompIdx];
+
+		if (FNiagaraSystemInstance* Inst = Component->GetSystemInstance())
+		{
+			State.Significance = 1.0f / Inst->GetAge();//Newer Systems are higher significance.
+		}
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////

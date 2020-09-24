@@ -47,9 +47,8 @@ public:
 	virtual TSharedRef<IStaticMeshEditor> CreateStaticMeshEditor( const EToolkitMode::Type Mode, const TSharedPtr< IToolkitHost >& InitToolkitHost, UStaticMesh* StaticMesh ) override
 	{
 		TSharedRef<FStaticMeshEditor> NewStaticMeshEditor(new FStaticMeshEditor());
-		NewStaticMeshEditor->InitEditorForStaticMesh(StaticMesh);
-		OnStaticMeshEditorOpened().Broadcast(NewStaticMeshEditor);
 		NewStaticMeshEditor->InitStaticMeshEditor(Mode, InitToolkitHost, StaticMesh);
+		OnStaticMeshEditorOpened().Broadcast(NewStaticMeshEditor);
 		return NewStaticMeshEditor;
 	}
 

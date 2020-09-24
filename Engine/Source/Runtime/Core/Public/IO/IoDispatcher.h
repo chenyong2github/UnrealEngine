@@ -28,6 +28,7 @@ class FIoStoreWriterImpl;
 class FIoStoreReaderImpl;
 class IMappedFileHandle;
 class IMappedFileRegion;
+class FIoDirectoryIndexReaderImpl;
 
 CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogIoDispatcher, Log, All);
 
@@ -42,6 +43,7 @@ enum class EIoErrorCode
 	Cancelled,
 	FileOpenFailed,
 	FileNotOpen,
+	ReadError,
 	WriteError,
 	NotFound,
 	CorruptToc,
@@ -580,6 +582,11 @@ public:
 		return !(*this == Rhs);
 	}
 
+	inline FString ToString() const
+	{
+		return BytesToHex(Hash, 20);
+	}
+
 	static FIoChunkHash HashBuffer(const void* Data, uint64 DataSize)
 	{
 		FIoChunkHash Result;
@@ -921,6 +928,85 @@ private:
 
 //////////////////////////////////////////////////////////////////////////
 
+class FIoDirectoryIndexHandle
+{
+	static constexpr uint32 InvalidHandle = ~uint32(0);
+	static constexpr uint32 RootHandle = 0;
+
+public:
+	FIoDirectoryIndexHandle() = default;
+
+	inline bool IsValid() const
+	{
+		return Handle != InvalidHandle;
+	}
+
+	inline bool operator<(FIoDirectoryIndexHandle Other) const
+	{
+		return Handle < Other.Handle;
+	}
+
+	inline bool operator==(FIoDirectoryIndexHandle Other) const
+	{
+		return Handle == Other.Handle;
+	}
+
+	inline friend uint32 GetTypeHash(FIoDirectoryIndexHandle InHandle)
+	{
+		return InHandle.Handle;
+	}
+
+	inline uint32 ToIndex() const
+	{
+		return Handle;
+	}
+
+	static inline FIoDirectoryIndexHandle FromIndex(uint32 Index)
+	{
+		return FIoDirectoryIndexHandle(Index);
+	}
+
+	static inline FIoDirectoryIndexHandle RootDirectory()
+	{
+		return FIoDirectoryIndexHandle(RootHandle);
+	}
+
+	static inline FIoDirectoryIndexHandle Invalid()
+	{
+		return FIoDirectoryIndexHandle(InvalidHandle);
+	}
+
+private:
+	FIoDirectoryIndexHandle(uint32 InHandle)
+		: Handle(InHandle) { }
+
+	uint32 Handle = InvalidHandle;
+};
+
+class FIoDirectoryIndexReader
+{
+public:
+	CORE_API FIoDirectoryIndexReader();
+	CORE_API ~FIoDirectoryIndexReader();
+	CORE_API FIoStatus Initialize(TArray<uint8>& InBuffer, FAES::FAESKey InDecryptionKey);
+
+	CORE_API const FString& GetMountPoint() const;
+	CORE_API FIoDirectoryIndexHandle GetChildDirectory(FIoDirectoryIndexHandle Directory) const;
+	CORE_API FIoDirectoryIndexHandle GetNextDirectory(FIoDirectoryIndexHandle Directory) const;
+	CORE_API FIoDirectoryIndexHandle GetFile(FIoDirectoryIndexHandle Directory) const;
+	CORE_API FIoDirectoryIndexHandle GetNextFile(FIoDirectoryIndexHandle File) const;
+	CORE_API FStringView GetDirectoryName(FIoDirectoryIndexHandle Directory) const;
+	CORE_API FStringView GetFileName(FIoDirectoryIndexHandle File) const;
+	CORE_API uint32 GetFileData(FIoDirectoryIndexHandle File) const;
+
+private:
+	UE_NONCOPYABLE(FIoDirectoryIndexReader);
+
+	FIoDirectoryIndexReaderImpl* Impl;
+};
+
+//////////////////////////////////////////////////////////////////////////
+
 struct FIoStoreWriterSettings
 {
 	FName CompressionMethod = NAME_None;
@@ -937,6 +1023,7 @@ enum class EIoContainerFlags : uint8
 	Compressed	= (1 << 0),
 	Encrypted	= (1 << 1),
 	Signed		= (1 << 2),
+	Indexed		= (1 << 3),
 };
 ENUM_CLASS_FLAGS(EIoContainerFlags);
 
@@ -962,6 +1049,11 @@ struct FIoContainerSettings
 	{
 		return !!(ContainerFlags & EIoContainerFlags::Signed);
 	}
+
+	bool IsIndexed() const
+	{
+		return !!(ContainerFlags & EIoContainerFlags::Indexed);
+	}
 };
 
 struct FIoStoreWriterResult
@@ -973,12 +1065,14 @@ struct FIoStoreWriterResult
 	int64 PaddingSize = 0;
 	int64 UncompressedContainerSize = 0;
 	int64 CompressedContainerSize = 0;
+	int64 DirectoryIndexSize = 0;
 	FName CompressionMethod = NAME_None;
 	EIoContainerFlags ContainerFlags;
 };
 
 struct FIoWriteOptions
 {
+	FString FileName;
 	const TCHAR* DebugName = nullptr;
 	bool bForceUncompressed = false;
 	bool bIsMemoryMapped = false;
@@ -1024,6 +1118,7 @@ struct FIoStoreTocChunkInfo
 	uint64 Size;
 	bool bForceUncompressed;
 	bool bIsMemoryMapped;
+	bool bIsCompressed;
 };
 
 class FIoStoreReader
@@ -1037,13 +1132,13 @@ public:
 	CORE_API EIoContainerFlags GetContainerFlags() const;
 	CORE_API FGuid GetEncryptionKeyGuid() const;
 	CORE_API void EnumerateChunks(TFunction<bool(const FIoStoreTocChunkInfo&)>&& Callback) const;
+	CORE_API TIoStatusOr<FIoStoreTocChunkInfo> GetChunkInfo(const FIoChunkId& Chunk) const;
+	CORE_API TIoStatusOr<FIoStoreTocChunkInfo> GetChunkInfo(const uint32 TocEntryIndex) const;
 	CORE_API TIoStatusOr<FIoBuffer> Read(const FIoChunkId& Chunk, const FIoReadOptions& Options) const;
+
+	CORE_API const FIoDirectoryIndexReader& GetDirectoryIndexReader() const;
 
 private:
 	FIoStoreReaderImpl* Impl;
 };
-
 //////////////////////////////////////////////////////////////////////////
-
-//////////////////////////////////
-

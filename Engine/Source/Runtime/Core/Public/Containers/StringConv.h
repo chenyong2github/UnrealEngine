@@ -317,10 +317,10 @@ private:
 			// Check if this character is a high-surrogate
 			if (StringConv::IsHighSurrogate(Codepoint))
 			{
-				// Ensure we don't already have a high-surrogate set
-				if (bHighSurrogateIsSet)
+				// Ensure we don't already have a high-surrogate set or end without a matching low-surrogate
+				if (bHighSurrogateIsSet || i == SourceLen - 1)
 				{
-					// Already have a high-surrogate in this pair
+					// Already have a high-surrogate in this pair or string ends with lone high-surrogate
 					// Write our stored value (will be converted into bogus character)
 					if (!WriteCodepointToBuffer(HighSurrogate, Dest, DestLen))
 					{

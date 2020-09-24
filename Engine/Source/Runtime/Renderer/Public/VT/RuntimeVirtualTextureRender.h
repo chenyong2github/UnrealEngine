@@ -84,12 +84,4 @@ namespace RuntimeVirtualTexture
 
 	/** Render a batch of pages for a runtime virtual texture. */
 	RENDERER_API void RenderPages(FRHICommandListImmediate& RHICmdList, FRenderPageBatchDesc const& InDesc);
-
-	/**
-	 * Utility funtion to downsample a height texture and then pack and write the MinMax values to a texel in the destination texture.
-	 * SrcTexture is expected to by G16 and DstTexture is expected to be RGBA8 packed as 16 bit min and max split across the 8 bit channels.
-	 */
-	RENDERER_API void DownsampleMinMaxAndCopy(FRDGBuilder& GraphBuilder, FRDGTexture* SrcTexture, FIntPoint SrcSize, FRDGTextureUAV* DstTexture, FIntPoint DstCoord);
-	/** Utility function to generate all additional mips from mip0 for a MinMax height texture already packed in RGBA8. */
-	RENDERER_API void GenerateMinMaxTextureMips(FRDGBuilder& GraphBuilder, FRDGTexture* Texture, FIntPoint SrcSize, int32 NumMips);
 }

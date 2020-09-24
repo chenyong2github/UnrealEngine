@@ -630,9 +630,10 @@ void UChildActorComponent::CreateChildActor()
 				{
 					Params.ObjectFlags &= ~RF_Transactional;
 				}
-				if (HasAllFlags(RF_Transient) || IsEditorOnly())
+				if (HasAllFlags(RF_Transient) || IsEditorOnly() || (MyOwner && (MyOwner->HasAllFlags(RF_Transient) || MyOwner->IsEditorOnly())))
 				{
-					// If we are either transient or editor only, set our created actor to transient. We can't programatically set editor only on an actor so this is the best option
+					// If this component or its owner are transient or editor only, set our created actor to transient. 
+					// We can't programatically set editor only on an actor so this is the best option
 					Params.ObjectFlags |= RF_Transient;
 				}
 
@@ -691,7 +692,20 @@ void UChildActorComponent::DestroyChildActor()
 	// If we own an Actor, kill it now unless we don't have authority on it, for that we rely on the server
 	// If the level is being removed then don't destroy the child actor so re-adding it doesn't
 	// need to create a new actor
-	if (ChildActor && ChildActor->HasAuthority() && GetOwner() && GetOwner()->GetLevel() && !GetOwner()->GetLevel()->bIsBeingRemoved)
+	auto IsLevelBeingRemoved = [this]() -> bool
+	{
+		if (AActor* MyOwner = GetOwner())
+		{
+			if (ULevel* MyLevel = MyOwner->GetLevel())
+			{
+				return MyLevel->bIsBeingRemoved;
+			}
+		}
+
+		return false;
+	};
+
+	if (ChildActor && ChildActor->HasAuthority() && !IsLevelBeingRemoved())
 	{
 		if (!GExitPurge)
 		{

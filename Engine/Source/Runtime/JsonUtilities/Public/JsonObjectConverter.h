@@ -155,10 +155,11 @@ public: // UStruct -> JSON
 	 * @param CheckFlags		Only convert properties that match at least one of these flags. If 0 check all properties.
 	 * @param SkipFlags			Skip properties that match any of these flags
 	 * @param ExportCb Optional callback to override export behavior, if this returns null it will fallback to the default
+	 * @param OuterProperty		If applicable, the Array/Set/Map Property that contains this property
 	 *
 	 * @return					The constructed JsonValue from the property
 	 */
-	static TSharedPtr<FJsonValue> UPropertyToJsonValue(FProperty* Property, const void* Value, int64 CheckFlags, int64 SkipFlags, const CustomExportCallback* ExportCb = nullptr);
+	static TSharedPtr<FJsonValue> UPropertyToJsonValue(FProperty* Property, const void* Value, int64 CheckFlags, int64 SkipFlags, const CustomExportCallback* ExportCb = nullptr, FProperty* OuterProperty = nullptr);
 
 public: // JSON -> UStruct
 

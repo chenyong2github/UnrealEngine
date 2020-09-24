@@ -7,8 +7,8 @@ Texture2DStreamIn_IO_AsyncCreate.cpp: Async create path for streaming in texture
 #include "Streaming/Texture2DStreamIn_IO_Virtual.h"
 #include "RenderUtils.h"
 
-FTexture2DStreamIn_IO_Virtual::FTexture2DStreamIn_IO_Virtual(UTexture2D* InTexture, int32 InRequestedMips, bool InPrioritizedIORequest) 
-	: FTexture2DStreamIn_IO(InTexture, InRequestedMips, InPrioritizedIORequest)
+FTexture2DStreamIn_IO_Virtual::FTexture2DStreamIn_IO_Virtual(UTexture2D* InTexture, bool InPrioritizedIORequest) 
+	: FTexture2DStreamIn_IO(InTexture, InPrioritizedIORequest)
 {
 	PushTask(FContext(InTexture, TT_None), TT_Render, SRA_UPDATE_CALLBACK(LockMips), TT_None, nullptr);
 }
@@ -53,7 +53,7 @@ void FTexture2DStreamIn_IO_Virtual::Finalize(const FContext& Context)
 	DoUnlockNewMips(Context);
 	if (IntermediateTextureRHI)
 	{
-		RHIVirtualTextureSetFirstMipVisible(IntermediateTextureRHI, PendingFirstMip);
+		RHIVirtualTextureSetFirstMipVisible(IntermediateTextureRHI, PendingFirstLODIdx);
 	}
 	DoFinishUpdate(Context);
 }
@@ -80,7 +80,7 @@ void FTexture2DStreamIn_IO_Virtual::Cancel(const FContext& Context)
 	DoUnlockNewMips(Context);
 	if (IntermediateTextureRHI)
 	{
-		RHIVirtualTextureSetFirstMipInMemory(IntermediateTextureRHI, Context.Resource->GetCurrentFirstMip());
+		RHIVirtualTextureSetFirstMipInMemory(IntermediateTextureRHI, CurrentFirstLODIdx);
 	}
 	DoFinishUpdate(Context);
 	ReportIOError(Context);

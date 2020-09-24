@@ -41,7 +41,7 @@ public:
 	FNiagaraStackFunctionInputOverrideMergeAdapter(
 		UNiagaraScript& InOwningScript,
 		UNiagaraNodeFunctionCall& InOwningFunctionCallNode,
-		FString InInputName,
+		FStringView InInputName,
 		FNiagaraVariable InRapidIterationParameter);
 
 	FNiagaraStackFunctionInputOverrideMergeAdapter(UEdGraphPin* InStaticSwitchPin);

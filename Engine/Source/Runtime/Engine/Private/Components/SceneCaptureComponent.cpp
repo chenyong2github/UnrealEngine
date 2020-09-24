@@ -141,6 +141,7 @@ USceneCaptureComponent::USceneCaptureComponent(const FObjectInitializer& ObjectI
 	ShowFlags.SetMotionBlur(0); // motion blur doesn't work correctly with scene captures.
 	ShowFlags.SetSeparateTranslucency(0);
 	ShowFlags.SetHMDDistortion(0);
+	ShowFlags.SetOnScreenDebug(0);
 
     CaptureStereoPass = EStereoscopicPass::eSSP_FULL;
 }
@@ -899,6 +900,16 @@ void UPlanarReflectionComponent::DestroyRenderState_Concurrent()
 
 		SceneProxy = nullptr;
 	}
+}
+
+bool UPlanarReflectionComponent::ShouldComponentAddToScene() const
+{
+	bool bSceneAdd = USceneComponent::ShouldComponentAddToScene();
+
+	ERHIFeatureLevel::Type FeatureLevel = GetScene() ? GetScene()->GetFeatureLevel() : ERHIFeatureLevel::SM5;
+
+	// The PlanarReflectionComponent should not be added to scene if it is used only for mobile pixel projected reflection
+	return bSceneAdd && (FeatureLevel <= ERHIFeatureLevel::ES3_1 || GetMobilePlanarReflectionMode() != EMobilePlanarReflectionMode::MobilePPRExclusive);
 }
 
 #if WITH_EDITOR

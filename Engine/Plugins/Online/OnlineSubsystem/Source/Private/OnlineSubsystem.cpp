@@ -184,54 +184,22 @@ FString IOnlineSubsystem::GetLocalPlatformName()
 {
 	FString OnlinePlatform;
 
+	// Priority: CVar -> Command line -> INI, defaults to OTHER
 	OnlinePlatform = CVarPlatformOverride.GetValueOnAnyThread();
-	if (!OnlinePlatform.IsEmpty())
-	{
-		return OnlinePlatform.ToUpper();
-	}
 #if !UE_BUILD_SHIPPING
-	FParse::Value(FCommandLine::Get(), TEXT("PLATFORMTEST="), OnlinePlatform);
-	if (!OnlinePlatform.IsEmpty())
+	if (OnlinePlatform.IsEmpty())
 	{
-		return OnlinePlatform.ToUpper();
+		FParse::Value(FCommandLine::Get(), TEXT("PLATFORMTEST="), OnlinePlatform);
 	}
 #endif
-	GConfig->GetString(TEXT("OnlineSubsystem"), TEXT("LocalPlatformName"), OnlinePlatform, GEngineIni);
+	if (OnlinePlatform.IsEmpty())
+	{
+		GConfig->GetString(TEXT("OnlineSubsystem"), TEXT("LocalPlatformName"), OnlinePlatform, GEngineIni);
+	}
+
 	if (!OnlinePlatform.IsEmpty())
 	{
-		return OnlinePlatform.ToUpper();
-	}
-	if (PLATFORM_PS4)
-	{
-		OnlinePlatform = OSS_PLATFORM_NAME_PS4;
-	}
-	else if (PLATFORM_XBOXONE)
-	{
-		OnlinePlatform = OSS_PLATFORM_NAME_XBOX;
-	}
-	else if (PLATFORM_WINDOWS)
-	{
-		OnlinePlatform = OSS_PLATFORM_NAME_WINDOWS;
-	}
-	else if (PLATFORM_MAC)
-	{
-		OnlinePlatform = OSS_PLATFORM_NAME_MAC;
-	}
-	else if (PLATFORM_LINUX)
-	{
-		OnlinePlatform = OSS_PLATFORM_NAME_LINUX;
-	}
-	else if (PLATFORM_IOS)
-	{
-		OnlinePlatform = OSS_PLATFORM_NAME_IOS;
-	}
-	else if (PLATFORM_ANDROID)
-	{
-		OnlinePlatform = OSS_PLATFORM_NAME_ANDROID;
-	}
-	else if (PLATFORM_SWITCH)
-	{
-		OnlinePlatform = OSS_PLATFORM_NAME_SWITCH;
+		OnlinePlatform.ToUpperInline();
 	}
 	else
 	{

@@ -11,6 +11,7 @@
 #include "EdGraph/EdGraphPin.h"
 #include "NiagaraEditorSettings.h"
 #include "NiagaraEditorUtilities.h"
+#include "NiagaraNodeOutput.h"
 
 UNiagaraStackModuleItemLinkedInputCollection::UNiagaraStackModuleItemLinkedInputCollection()
 	: FunctionCallNode(nullptr)
@@ -64,7 +65,7 @@ void UNiagaraStackModuleItemLinkedInputCollection::RefreshChildrenInternal(const
 		FNiagaraParameterMapHistoryBuilder Builder;
 		Builder.SetIgnoreDisabled(false);
 		Builder.ConstantResolver = GetEmitterViewModel().IsValid() 
-			? FCompileConstantResolver(GetEmitterViewModel()->GetEmitter())
+			? FCompileConstantResolver(GetEmitterViewModel()->GetEmitter(), FNiagaraStackGraphUtilities::GetOutputNodeUsage(*FunctionCallNode))
 			: FCompileConstantResolver();
 		FunctionCallNode->BuildParameterMapHistory(Builder, false);
 

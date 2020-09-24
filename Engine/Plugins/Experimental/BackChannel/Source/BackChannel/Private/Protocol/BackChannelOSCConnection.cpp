@@ -9,18 +9,11 @@
 #include "HAL/PlatformProcess.h"
 #include "Misc/ScopeLock.h"
 
-FBackChannelOSCConnection::FBackChannelOSCConnection(TSharedRef<IBackChannelConnection> InConnection)
+FBackChannelOSCConnection::FBackChannelOSCConnection(TSharedRef<IBackChannelSocketConnection> InConnection)
 	: Connection(InConnection)
 {
-	LastReceiveTime = 0;
-	LastSendTime = 0;
-	PingTime = 3;
-	HasErrorState = false;
-
-	// OSC connections expect a size followed by payload for TCP connections
-	ExpectedDataSize = 4;
-	ReceivedDataSize = 0;
-
+	LastReceiveTime = FPlatformTime::Seconds();
+	
 	const int32 kDefaultBufferSize = 4096;
 	ReceiveBuffer.AddUninitialized(kDefaultBufferSize);
 }
@@ -34,8 +27,60 @@ FBackChannelOSCConnection::~FBackChannelOSCConnection()
 	}
 }
 
+FString FBackChannelOSCConnection::GetProtocolName() const
+{
+	return TEXT("BOSC");
+}
+
+TBackChannelSharedPtr<IBackChannelPacket> FBackChannelOSCConnection::CreatePacket()
+{
+	return MakeShared<FBackChannelOSCMessage, ESPMode::ThreadSafe>(OSCPacketMode::Write);
+}
+
+int FBackChannelOSCConnection::SendPacket(const TBackChannelSharedPtr<IBackChannelPacket>& Packet)
+{
+	FBackChannelOSCMessage* Message = static_cast<FBackChannelOSCMessage*>(Packet.Get());
+
+	if (!SendPacket(*Message))
+	{
+		return -1;
+	}
+
+	return 0;
+}
+
+
+/* Bind a delegate to a message address */
+FDelegateHandle FBackChannelOSCConnection::AddRouteDelegate(FStringView Path, FBackChannelRouteDelegate::FDelegate Delegate)
+{
+	FScopeLock Lock(&PacketMutex);
+	return DispatchMap.AddRoute(Path, Delegate);
+}
+
+/* Remove a delegate handle */
+void FBackChannelOSCConnection::RemoveRouteDelegate(FStringView Path, FDelegateHandle& InHandle)
+{
+	FScopeLock Lock(&PacketMutex);
+	DispatchMap.RemoveRoute(Path, InHandle);
+}
+/*
+FDelegateHandle FBackChannelOSCConnection::AddMessageHandler(const TCHAR* Path, FBackChannelDispatchDelegate::FDelegate Delegate)
+{
+	FScopeLock Lock(&PacketMutex);
+	return LegacyDispatchMap.GetAddressHandler(Path).Add(Delegate);
+}
+
+
+void FBackChannelOSCConnection::RemoveMessageHandler(const TCHAR* Path, FDelegateHandle& InHandle)
+{
+	LegacyDispatchMap.GetAddressHandler(Path).Remove(InHandle);
+	InHandle.Reset();
+}*/
+
 void FBackChannelOSCConnection::ReceivePackets(const float MaxTime /*= 0*/)
 {
+	const float kTimeout = FPlatformMisc::IsDebuggerPresent() ? ConnectionTImeoutWhenDebugging : ConnectionTimeout;
+
 	ReceiveData(MaxTime);
 	DispatchMessages();
 
@@ -45,6 +90,14 @@ void FBackChannelOSCConnection::ReceivePackets(const float MaxTime /*= 0*/)
 	{
 		FBackChannelOSCMessage Msg(TEXT("/ping"));
 		SendPacket(Msg);
+	}
+
+	const double TimeSinceActivity = (FPlatformTime::Seconds() - LastReceiveTime);
+	if (TimeSinceActivity >= kTimeout)
+	{
+		UE_LOG(LogBackChannel, Error, TEXT("Connection to %s timed out after %.02f seconds"), *Connection->GetDescription(), TimeSinceActivity);
+		HasErrorState = true;
+		ExitRequested = true;
 	}
 }
 
@@ -62,7 +115,7 @@ void FBackChannelOSCConnection::ReceiveData(const float MaxTime /*= 0*/)
 
 		Connection->GetSocket()->Wait(ESocketWaitConditions::WaitForRead, FTimespan(0, 0, MaxTime));
 
-		int32 Received = Connection->ReceiveData(ReceiveBuffer.GetData() + ReceivedDataSize, ExpectedDataSize - ReceivedDataSize);
+		int32 Received = Connection->ReceiveData(ReceiveBuffer.GetData() + ReceivedDataSize, ExpectedSizeOfNextPacket - ReceivedDataSize);
 
 		if (Received > 0)
 		{
@@ -70,12 +123,12 @@ void FBackChannelOSCConnection::ReceiveData(const float MaxTime /*= 0*/)
 
 			ReceivedDataSize += Received;
 
-			if (ReceivedDataSize == ExpectedDataSize)
+			if (ReceivedDataSize == ExpectedSizeOfNextPacket)
 			{
 				// reset this
 				ReceivedDataSize = 0;
 
-				if (ExpectedDataSize == 4)
+				if (ExpectedSizeOfNextPacket == 4)
 				{
 					int32 Size(0);
 					FMemory::Memcpy(&Size, ReceiveBuffer.GetData(), sizeof(int32));
@@ -85,13 +138,13 @@ void FBackChannelOSCConnection::ReceiveData(const float MaxTime /*= 0*/)
 						ReceiveBuffer.AddUninitialized(Size - ReceiveBuffer.Num());
 					}
 
-					ExpectedDataSize = Size;
+					ExpectedSizeOfNextPacket = Size;
 				}
 				else
 				{
 					// read packet
 					FScopeLock PacketLock(&PacketMutex);
-					TSharedPtr<FBackChannelOSCPacket> Packet = FBackChannelOSCPacket::CreateFromBuffer(ReceiveBuffer.GetData(), ExpectedDataSize);
+					TSharedPtr<FBackChannelOSCPacket> Packet = FBackChannelOSCPacket::CreateFromBuffer(ReceiveBuffer.GetData(), ExpectedSizeOfNextPacket);
 
 					if (Packet.IsValid())
 					{
@@ -101,9 +154,9 @@ void FBackChannelOSCConnection::ReceiveData(const float MaxTime /*= 0*/)
 						{
 							auto MsgPacket = StaticCastSharedPtr<FBackChannelOSCMessage>(Packet);
 
-							const FString& NewAddress = MsgPacket->GetAddress();
+							const FString NewAddress = MsgPacket->GetPath();
 
-							UE_CLOG(GBackChannelLogPackets, LogBackChannel, Log, TEXT("Received msg to %s of %d bytes"), *NewAddress, ExpectedDataSize);
+							UE_LOG(LogBackChannel, VeryVerbose, TEXT("Received message to %s (tags:%s, size:%d)"), *NewAddress, *MsgPacket->GetTags(), ExpectedSizeOfNextPacket);
 
 							int32 CurrentCount = GetMessageCountForPath(*NewAddress);
 
@@ -111,24 +164,24 @@ void FBackChannelOSCConnection::ReceiveData(const float MaxTime /*= 0*/)
 
 							if (CurrentCount > 0)
 							{
-								UE_CLOG(GBackChannelLogPackets, LogBackChannel, Log, TEXT("%s has %d pending messages"), *NewAddress, CurrentCount + 1);
+								UE_CLOG(GBackChannelLogPackets, LogBackChannel, Log, TEXT("%s has %d unprocessed messages"), *NewAddress, CurrentCount + 1);
 
 								if (MaxMessages > 0 && CurrentCount >= MaxMessages)
 								{
-									UE_CLOG(GBackChannelLogPackets, LogBackChannel, Log, TEXT("Discarding old messages due to limit of %d"), MaxMessages);
+									UE_LOG(LogBackChannel, VeryVerbose, TEXT("Discarding old messages due to limit of %d"), MaxMessages);
 									RemoveMessagesWithPath(*NewAddress, 1);
 								}
 							}
 						}
 						else
 						{
-							UE_CLOG(GBackChannelLogPackets, LogBackChannel, Log, TEXT("Received #bundle of %d bytes"), ExpectedDataSize);
+							UE_LOG(LogBackChannel, VeryVerbose, TEXT("Received #bundle of %d bytes"), ExpectedSizeOfNextPacket);
 						}
 
 						ReceivedPackets.Add(Packet);
 					}
 
-					ExpectedDataSize = 4;
+					ExpectedSizeOfNextPacket = 4;
 					PacketsReceived++;
 				}
 			}
@@ -151,8 +204,9 @@ void FBackChannelOSCConnection::DispatchMessages()
 		{
 			TSharedPtr<FBackChannelOSCMessage> Msg = StaticCastSharedPtr<FBackChannelOSCMessage>(Packet);
 
-			UE_LOG(LogBackChannel, Verbose, TEXT("Dispatching %s"), *Msg->GetAddress());
+			UE_LOG(LogBackChannel, VeryVerbose, TEXT("Dispatching %s to handlers"), *Msg->GetPath());
 			DispatchMap.DispatchMessage(*Msg.Get());
+			Msg->ResetRead();
 		}
 	}
 
@@ -191,23 +245,13 @@ uint32 FBackChannelOSCConnection::Run()
 	TArray<uint8> Buffer;
 	Buffer.AddUninitialized(kDefaultBufferSize);
 
-	const float kTimeout = 10;
-
 	LastReceiveTime = LastSendTime = FPlatformTime::Seconds();
 
 	UE_LOG(LogBackChannel, Verbose, TEXT("OSC Connection to %s is Running"), *Connection->GetDescription());
 
 	while (ExitRequested == false)
 	{		
-		ReceivePackets(1);
-
-		const double TimeSinceActivity = (FPlatformTime::Seconds() - LastReceiveTime);
-		if (TimeSinceActivity >= kTimeout)
-		{
-			UE_LOG(LogBackChannel, Error, TEXT("Connection to %s timed out after %.02f seconds"), *Connection->GetDescription(), TimeSinceActivity);
-			HasErrorState = true;
-			ExitRequested = true;
-		}
+		ReceivePackets(1);		
 
 		FPlatformProcess::SleepNoStats(0);
 	}
@@ -244,10 +288,13 @@ bool FBackChannelOSCConnection::SendPacket(FBackChannelOSCPacket& Packet)
 {
 	FBackChannelOSCMessage* MsgPacket = (FBackChannelOSCMessage*)&Packet;
 
-	UE_LOG(LogBackChannel, Verbose, TEXT("Sending packet to %s"), *MsgPacket->GetAddress());
 	TArray<uint8> Data = Packet.WriteToBuffer();
+
+	UE_LOG(LogBackChannel, VeryVerbose, TEXT("Sent message to %s (tags:%s, size:%d)"), *MsgPacket->GetPath(), *MsgPacket->GetTags(), Data.Num());
+
 	return SendPacketData(Data.GetData(), Data.Num());
 }
+
 
 bool FBackChannelOSCConnection::SendPacketData(const void* Data, const int32 DataLen)
 {
@@ -288,19 +335,6 @@ void FBackChannelOSCConnection::SetMessageOptions(const TCHAR* Path, int32 MaxQu
 	MessageLimits.FindOrAdd(Path) = MaxQueuedMessages;
 }
 
-FDelegateHandle FBackChannelOSCConnection::AddMessageHandler(const TCHAR* Path, FBackChannelDispatchDelegate::FDelegate Delegate)
-{
-	FScopeLock Lock(&PacketMutex);
-	return DispatchMap.GetAddressHandler(Path).Add(Delegate);
-}
-
-/* Remove a delegate handle */
-void FBackChannelOSCConnection::RemoveMessageHandler(const TCHAR* Path, FDelegateHandle& InHandle)
-{
-	DispatchMap.GetAddressHandler(Path).Remove(InHandle);
-	InHandle.Reset();
-}
-
 int32 FBackChannelOSCConnection::GetMessageCountForPath(const TCHAR* Path)
 {
 	FScopeLock Lock(&PacketMutex);
@@ -313,7 +347,7 @@ int32 FBackChannelOSCConnection::GetMessageCountForPath(const TCHAR* Path)
 		{
 			auto Msg = StaticCastSharedPtr<FBackChannelOSCMessage>(Packet);
 
-			if (Msg->GetAddress() == Path)
+			if (Msg->GetPath() == Path)
 			{
 				Count++;
 			}
@@ -365,7 +399,7 @@ void FBackChannelOSCConnection::RemoveMessagesWithPath(const TCHAR* Path, const 
 		{
 			TSharedPtr<FBackChannelOSCMessage> Msg = StaticCastSharedPtr<FBackChannelOSCMessage>(Packet);
 
-			if (Msg->GetAddress() == Path)
+			if (Msg->GetPath() == Path)
 			{
 				bRemove = true;
 			}

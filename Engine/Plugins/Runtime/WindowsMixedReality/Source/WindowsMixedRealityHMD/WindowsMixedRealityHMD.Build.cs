@@ -29,7 +29,7 @@ namespace UnrealBuildTool.Rules
                 PrivateDefinitions.Add("WINDOWS_MIXED_REALITY_DEBUG_DLL=0");
             }
 
-			if(Target.Platform != UnrealTargetPlatform.Win32)
+			if(Target.Platform == UnrealTargetPlatform.Win64)
             {
 				// HoloLens 2 Remoting
                 RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Windows/x64/Microsoft.Holographic.AppRemoting.dll");
@@ -57,8 +57,8 @@ namespace UnrealBuildTool.Rules
 					{
 						"HeadMountedDisplay",
 						"ProceduralMeshComponent",
-                        "MixedRealityInteropLibrary",
-                        "InputDevice",
+						"MixedRealityInteropLibrary",
+						"InputDevice",
 					}
 				);
 			
@@ -69,7 +69,8 @@ namespace UnrealBuildTool.Rules
 						"CoreUObject",
 						"ApplicationCore",
 						"Engine",
-						"InputCore",
+                        "EngineSettings",
+                        "InputCore",
 						"RHI",
 						"RenderCore",
 						"Renderer",
@@ -78,16 +79,7 @@ namespace UnrealBuildTool.Rules
 						"Slate",
 						"SlateCore",
 						"Projects",
-						"WindowsMixedRealityHandTracking",
 						"AugmentedReality",
-					}
-					);
-
-				// Circular references that need to be cleaned up
-				CircularlyReferencedDependentModules.AddRange(
-					new string[] 
-					{
-						"WindowsMixedRealityHandTracking"
 					}
 					);
 

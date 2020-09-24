@@ -288,7 +288,7 @@ void FContentComparisonHelper::RecursiveObjectCollection(UObject* InStartObject,
 
 bool EngineUtils::FindOrLoadAssetsByPath(const FString& Path, TArray<UObject*>& OutAssets, EAssetToLoad Type)
 {
-	if ( !FPackageName::IsValidLongPackageName(Path, true) )
+	if ( !FPackageName::IsValidPath(Path))
 	{
 		return false;
 	}

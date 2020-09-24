@@ -395,10 +395,11 @@ void UWidgetInteractionComponent::SimulatePointerMovement()
 	}
 	
 	FWidgetPath WidgetPathUnderFinger = DetermineWidgetUnderPointer();
-	
+
+	ensure(PointerIndex >= 0);
 	FPointerEvent PointerEvent(
 		VirtualUser->GetUserIndex(),
-		PointerIndex,
+		(uint32)PointerIndex,
 		LocalHitLocation,
 		LastLocalHitLocation,
 		PressedKeys,
@@ -443,10 +444,11 @@ void UWidgetInteractionComponent::PressPointerKey(FKey Key)
 	}
 
 	FWidgetPath WidgetPathUnderFinger = LastWidgetPath.ToWidgetPath();
-		
+
+	ensure(PointerIndex >= 0);
 	FPointerEvent PointerEvent(
 		VirtualUser->GetUserIndex(),
-		PointerIndex,
+		(uint32)PointerIndex,
 		LocalHitLocation,
 		LastLocalHitLocation,
 		PressedKeys,
@@ -477,9 +479,10 @@ void UWidgetInteractionComponent::ReleasePointerKey(FKey Key)
 	
 	FWidgetPath WidgetPathUnderFinger = LastWidgetPath.ToWidgetPath();
 
+	ensure(PointerIndex >= 0);
 	FPointerEvent PointerEvent(
 		VirtualUser->GetUserIndex(),
-		PointerIndex,
+		(uint32)PointerIndex,
 		LocalHitLocation,
 		LastLocalHitLocation,
 		PressedKeys,
@@ -599,10 +602,11 @@ void UWidgetInteractionComponent::ScrollWheel(float ScrollDelta)
 	}
 
 	FWidgetPath WidgetPathUnderFinger = LastWidgetPath.ToWidgetPath();
-	
+
+	ensure(PointerIndex >= 0);
 	FPointerEvent MouseWheelEvent(
 		VirtualUser->GetUserIndex(),
-		PointerIndex,
+		(uint32)PointerIndex,
 		LocalHitLocation,
 		LastLocalHitLocation,
 		PressedKeys,

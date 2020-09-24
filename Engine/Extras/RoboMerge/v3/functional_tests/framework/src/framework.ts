@@ -126,7 +126,6 @@ type RobomergeBranchOptions = {
 	rootPath: string
 	isDefaultBot: boolean
 	emailOnBlockage: boolean // if present, completely overrides BotConfig
-	maxFilesPerIntegration: number // otherwise auto pause
 
 	notify: string[]
 	flowsTo: string[]
@@ -136,9 +135,6 @@ type RobomergeBranchOptions = {
 	resolver: string | null
 	aliases: string[]
 	badgeProject: string | null
-
-	pathsToMonitor: string[] | null
-
 
 	////////////////////
 	// NodeOptionFields
@@ -213,7 +209,10 @@ export abstract class FunctionalTest {
 	abstract run(): Promise<any>;
 	abstract getBranches(): RobomergeBranchSpec[];
 	getEdges(): EdgeProperties[] { return [] }
+	getMacros(): {[name:string]: string[]} { return {} }
 	abstract verify(): Promise<any>;
+
+	allowSyntaxErrors() { return false }
 
 	workspaceName(user: string, name: string) {
 		return [user, this.testName, name].join('_')
@@ -227,7 +226,7 @@ export abstract class FunctionalTest {
 		return `//${depot}/${name}`
 	}
 
-	protected fullBranchName(branch: string) {
+	fullBranchName(branch: string) {
 		return this.testName + P4Util.escapeBranchName(branch)
 	}
 
@@ -685,7 +684,12 @@ export abstract class FunctionalTest {
 
 		const latestP4CLs = new Map<string, Promise<number>>()
 		for (const client of this.clients.get('testuser1')!.values()) {
-			latestP4CLs.set(this.fullBranchName(client.name), client.changes(1).then(changes => changes[0].change))
+			latestP4CLs.set(this.fullBranchName(client.name), client.changes(1).then(changes => {
+				if (!changes[0]) {
+					throw new Error('No changes! ' + client.stream)
+				}
+				return changes[0].change
+			}))
 		}
 
 		const unblockedBranchStates = new Map<string, BranchState>()
@@ -783,7 +787,7 @@ export abstract class FunctionalTest {
 		return true
 	}
 
-	async waitForRobomergeIdle(dump = false, wait_limit = 15) {
+	async waitForRobomergeIdle(dump = false, wait_limit = 20) {
 		let sleepTime = .5
 		for (let safety = 0; safety < wait_limit; ++safety) {
 			if (await this.isRobomergeIdle(dump || safety === wait_limit - 1)) {

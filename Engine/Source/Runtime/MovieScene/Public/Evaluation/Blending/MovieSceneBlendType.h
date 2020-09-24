@@ -17,6 +17,12 @@ enum class EMovieSceneBlendType : uint8
 	Additive			= 0x2,
 	/** Applies this value as a sum total of all other additives and the initial value before the animation */
 	Relative			= 0x4,
+	/** Applies this value as an additive equal to the difference between the current value and the first value */
+	AdditiveFromBase    = 0x8,
+
+	// If you add new blend types, don't forget to change:
+	// - All()
+	// - Num()
 };
 
 /** Optional blend type structure */
@@ -152,21 +158,21 @@ public:
 	static FMovieSceneBlendTypeFieldIterator Begin(FMovieSceneBlendTypeField InField);
 	static FMovieSceneBlendTypeFieldIterator End(FMovieSceneBlendTypeField InField);
 
-	FORCEINLINE explicit operator bool() const 	{ return Offset >= 0 && Offset <= 2; }
-	FORCEINLINE bool operator!() const 			{ return Offset < 0 || Offset > 2; }
+	FORCEINLINE explicit operator bool() const 	{ return Offset >= 0 && Offset <= MaxValidOffset(); }
+	FORCEINLINE bool operator!() const 			{ return Offset < 0 || Offset > MaxValidOffset(); }
 	FORCEINLINE void operator++() 				{ IterateToNext(); }
 	FORCEINLINE bool operator==(const FMovieSceneBlendTypeFieldIterator& RHS) const { return Field == RHS.Field && Offset == RHS.Offset; }
 	FORCEINLINE bool operator!=(const FMovieSceneBlendTypeFieldIterator& RHS) const { return Field != RHS.Field || Offset != RHS.Offset; }
 
 	MOVIESCENE_API EMovieSceneBlendType operator*();
 
-
-
 private:
 	friend MOVIESCENE_API FMovieSceneBlendTypeFieldIterator begin(const FMovieSceneBlendTypeField&);
 	friend MOVIESCENE_API FMovieSceneBlendTypeFieldIterator end(const FMovieSceneBlendTypeField&);
 
 	MOVIESCENE_API void IterateToNext();
+
+	FORCEINLINE static int8 MaxValidOffset() { return StaticEnum<EMovieSceneBlendType>()->NumEnums() - 2; }
 
 	FMovieSceneBlendTypeField Field;
 	int8 Offset;

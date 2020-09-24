@@ -12,6 +12,11 @@
 #include "Insights/TimingProfilerCommands.h"
 #include "Insights/ViewModels/TimerNode.h"
 
+namespace Insights
+{
+	class FTimerButterflyAggregator;
+}
+
 class STimingProfilerWindow;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -133,6 +138,7 @@ public:
 
 	void ResetCallersAndCallees();
 	void UpdateCallersAndCallees();
+	TSharedRef<Insights::FTimerButterflyAggregator> GetTimerButterflyAggregator() const { return TimerButterflyAggregator; }
 
 	void UpdateAggregatedTimerStats();
 	void UpdateAggregatedCounterStats();
@@ -144,17 +150,20 @@ private:
 	/** Called to spawn the Timing Profiler major tab. */
 	TSharedRef<SDockTab> SpawnTab(const FSpawnTabArgs& Args);
 
+	bool CanSpawnTab(const FSpawnTabArgs& Args) const;
+
 	/** Callback called when the Timing Profiler major tab is closed. */
 	void OnTabClosed(TSharedRef<SDockTab> TabBeingClosed);
 
 	/** Updates this manager, done through FCoreTicker. */
 	bool Tick(float DeltaTime);
 
+	void FinishTimerButterflyAggregation();
+
 private:
 	bool bIsInitialized;
 	bool bIsAvailable;
-	uint64 AvailabilityCheckNextTimestamp;
-	double AvailabilityCheckWaitTimeSec;
+	FAvailabilityCheck AvailabilityCheck;
 
 	/** The delegate to be invoked when this manager ticks. */
 	FTickerDelegate OnTick;
@@ -199,6 +208,8 @@ private:
 
 	static constexpr uint32 InvalidTimerId = uint32(-1);
 	uint32 SelectedTimerId;
+
+	TSharedRef<Insights::FTimerButterflyAggregator> TimerButterflyAggregator;
 
 	/** A shared pointer to the global instance of the Timing Profiler manager. */
 	static TSharedPtr<FTimingProfilerManager> Instance;

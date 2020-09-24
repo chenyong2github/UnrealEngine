@@ -302,7 +302,7 @@ public:
 				const int DesiredSize = TestFileEntries[File];
 				Data.SetNumUninitialized(DesiredSize);
 
-				if (!FFileHelper::SaveArrayToFile(Data, *File))
+				if (!FFileHelper::SaveArrayToFile(Data, *File, &IFileManager::Get(), FILEWRITE_Silent))
 				{
 					// handle the case where something else may have created the path at the same time. This is less about multiple users
 					// and more about things like SCW's / UnrealPak that can spin up multiple instances at once
@@ -333,7 +333,7 @@ public:
 				const int FileSize = KV.Value;
 				const FString& FilePath = KV.Key;
 
-				if (!FFileHelper::LoadFileToArray(TempData, *FilePath))
+				if (!FFileHelper::LoadFileToArray(TempData, *FilePath, FILEREAD_Silent))
 				{
 					uint32 ErrorCode = FPlatformMisc::GetLastError();
 					TCHAR ErrorBuffer[1024];
@@ -372,7 +372,7 @@ public:
 
 				FilePath = FilePath.Replace(*CachePath, *CustomPath);
 
-				if (!FFileHelper::SaveArrayToFile(TempData, *FilePath))
+				if (!FFileHelper::SaveArrayToFile(TempData, *FilePath, &IFileManager::Get(), FILEWRITE_Silent))
 				{
 					uint32 ErrorCode = FPlatformMisc::GetLastError();
 					TCHAR ErrorBuffer[1024];
@@ -635,7 +635,7 @@ public:
 				TempFilename = FPaths::GetPath(Filename) / TempFilename;
 				bool bResult;
 				{
-					bResult = FFileHelper::SaveArrayToFile(Data, *TempFilename);
+					bResult = FFileHelper::SaveArrayToFile(Data, *TempFilename, &IFileManager::Get(), FILEWRITE_Silent);
 				}
 				if (bResult)
 				{

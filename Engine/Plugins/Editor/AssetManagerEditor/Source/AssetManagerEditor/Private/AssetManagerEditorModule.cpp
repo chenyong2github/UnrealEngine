@@ -322,21 +322,21 @@ public:
 	virtual void SetCurrentRegistrySource(const FString& SourceName) override;
 	virtual void RefreshRegistryData() override;
 	virtual bool IsPackageInCurrentRegistrySource(FName PackageName) override;
-	virtual bool FilterAssetIdentifiersForCurrentRegistrySource(TArray<FAssetIdentifier>& AssetIdentifiers, EAssetRegistryDependencyType::Type DependencyType = EAssetRegistryDependencyType::None, bool bForwardDependency = true) override;
+	virtual bool FilterAssetIdentifiersForCurrentRegistrySource(TArray<FAssetIdentifier>& AssetIdentifiers, const FAssetManagerDependencyQuery& DependencyQuery = FAssetManagerDependencyQuery::None(), bool bForwardDependency = true) override;
 	virtual bool WriteCollection(FName CollectionName, ECollectionShareType::Type ShareType, const TArray<FName>& PackageNames, bool bShowFeedback) override;
 private:
 
-	static bool GetDependencyTypeArg(const FString& Arg, EAssetRegistryDependencyType::Type& OutDepType);
+	static bool GetDependencyTypeArg(const FString& Arg, UE::AssetRegistry::EDependencyQuery& OutRequiredFlags);
 
 	//Prints all dependency chains from assets in the search path to the target package.
-	void FindReferenceChains(FName TargetPackageName, FName RootSearchPath, EAssetRegistryDependencyType::Type DependencyType);
+	void FindReferenceChains(FName TargetPackageName, FName RootSearchPath, UE::AssetRegistry::EDependencyQuery RequiredDependencyFlags);
 
 	//Prints all dependency chains from the PackageName to any dependency of one of the given class names.
 	//If the package name is a path rather than a package, then it will do this for each package in the path.
-	void FindClassDependencies(FName PackagePath, const TArray<FName>& TargetClasses, EAssetRegistryDependencyType::Type DependencyType);
+	void FindClassDependencies(FName PackagePath, const TArray<FName>& TargetClasses, UE::AssetRegistry::EDependencyQuery RequiredDependencyFlags);
 
-	bool GetPackageDependencyChain(FName SourcePackage, FName TargetPackage, TArray<FName>& VisitedPackages, TArray<FName>& OutDependencyChain, EAssetRegistryDependencyType::Type DependencyType);
-	void GetPackageDependenciesPerClass(FName SourcePackage, const TArray<FName>& TargetClasses, TArray<FName>& VisitedPackages, TArray<FName>& OutDependentPackages, EAssetRegistryDependencyType::Type DependencyType);
+	bool GetPackageDependencyChain(FName SourcePackage, FName TargetPackage, TArray<FName>& VisitedPackages, TArray<FName>& OutDependencyChain, UE::AssetRegistry::EDependencyQuery RequiredFlags);
+	void GetPackageDependenciesPerClass(FName SourcePackage, const TArray<FName>& TargetClasses, TArray<FName>& VisitedPackages, TArray<FName>& OutDependentPackages, UE::AssetRegistry::EDependencyQuery RequiredDependencyFlags);
 
 	void LogAssetsWithMultipleLabels();
 	bool CreateOrEmptyCollection(FName CollectionName, ECollectionShareType::Type ShareType);
@@ -1096,7 +1096,7 @@ bool FAssetManagerEditorModule::GetManagedPackageListForAssetData(const FAssetDa
 	{
 		for (const FPrimaryAssetId& PrimaryAssetId : PrimaryAssetSet)
 		{
-			CurrentRegistrySource->RegistryState->GetDependencies(PrimaryAssetId, FoundDependencies, EAssetRegistryDependencyType::Manage);
+			CurrentRegistrySource->RegistryState->GetDependencies(PrimaryAssetId, FoundDependencies, UE::AssetRegistry::EDependencyCategory::Manage);
 		}
 	}
 	
@@ -1544,7 +1544,7 @@ void FAssetManagerEditorModule::SetCurrentRegistrySource(const FString& SourceNa
 					if (AssetData.ChunkIDs.Num() > 0)
 					{
 						TArray<FAssetIdentifier> ManagerAssets;
-						CurrentRegistrySource->RegistryState->GetReferencers(AssetData.PackageName, ManagerAssets, EAssetRegistryDependencyType::Manage);
+						CurrentRegistrySource->RegistryState->GetReferencers(AssetData.PackageName, ManagerAssets, UE::AssetRegistry::EDependencyCategory::Manage);
 
 						for (int32 ChunkId : AssetData.ChunkIDs)
 						{
@@ -1559,7 +1559,7 @@ void FAssetManagerEditorModule::SetCurrentRegistrySource(const FString& SourceNa
 								
 								TArray<FAssetIdentifier> ManagedAssets;
 
-								CurrentRegistrySource->RegistryState->GetDependencies(ChunkAssetId, ManagedAssets, EAssetRegistryDependencyType::Manage);
+								CurrentRegistrySource->RegistryState->GetDependencies(ChunkAssetId, ManagedAssets, UE::AssetRegistry::EDependencyCategory::Manage);
 
 								for (const FAssetIdentifier& ManagedAsset : ManagedAssets)
 								{
@@ -1648,7 +1648,14 @@ bool FAssetManagerEditorModule::IsPackageInCurrentRegistrySource(FName PackageNa
 	return true;
 }
 
-bool FAssetManagerEditorModule::FilterAssetIdentifiersForCurrentRegistrySource(TArray<FAssetIdentifier>& AssetIdentifiers, EAssetRegistryDependencyType::Type DependencyType, bool bForwardDependency)
+bool IAssetManagerEditorModule::FilterAssetIdentifiersForCurrentRegistrySource(TArray<FAssetIdentifier>& AssetIdentifiers, EAssetRegistryDependencyType::Type DependencyType, bool bForwardDependency)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return FilterAssetIdentifiersForCurrentRegistrySource(AssetIdentifiers, FAssetManagerDependencyQuery(DependencyType), bForwardDependency);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+bool FAssetManagerEditorModule::FilterAssetIdentifiersForCurrentRegistrySource(TArray<FAssetIdentifier>& AssetIdentifiers, const FAssetManagerDependencyQuery& DependencyQuery, bool bForwardDependency)
 {
 	bool bMadeChange = false;
 	if (!CurrentRegistrySource || !CurrentRegistrySource->RegistryState || CurrentRegistrySource->bIsEditor)
@@ -1667,7 +1674,7 @@ bool FAssetManagerEditorModule::FilterAssetIdentifiersForCurrentRegistrySource(T
 				// Remove bad package
 				AssetIdentifiers.RemoveAt(Index);
 
-				if (DependencyType != EAssetRegistryDependencyType::None)
+				if (!DependencyQuery.IsNone())
 				{
 					// If this is a redirector replace with references
 					TArray<FAssetData> Assets;
@@ -1681,11 +1688,11 @@ bool FAssetManagerEditorModule::FilterAssetIdentifiersForCurrentRegistrySource(T
 
 							if (bForwardDependency)
 							{
-								CurrentRegistrySource->RegistryState->GetDependencies(PackageName, FoundReferences, DependencyType);
+								CurrentRegistrySource->RegistryState->GetDependencies(PackageName, FoundReferences, DependencyQuery.Categories, DependencyQuery.Flags);
 							}
 							else
 							{
-								CurrentRegistrySource->RegistryState->GetReferencers(PackageName, FoundReferences, DependencyType);
+								CurrentRegistrySource->RegistryState->GetReferencers(PackageName, FoundReferences, DependencyQuery.Categories, DependencyQuery.Flags);
 							}
 
 							AssetIdentifiers.Insert(FoundReferences, Index);
@@ -1762,16 +1769,16 @@ void FAssetManagerEditorModule::PerformAuditConsoleCommand(const TArray<FString>
 	LogAssetsWithMultipleLabels();
 }
 
-bool FAssetManagerEditorModule::GetDependencyTypeArg(const FString& Arg, EAssetRegistryDependencyType::Type& OutDepType)
+bool FAssetManagerEditorModule::GetDependencyTypeArg(const FString& Arg, UE::AssetRegistry::EDependencyQuery& OutRequiredFlags)
 {
 	if (Arg.Compare(TEXT("-hardonly"), ESearchCase::IgnoreCase) == 0)
 	{
-		OutDepType = EAssetRegistryDependencyType::Hard;
+		OutRequiredFlags = UE::AssetRegistry::EDependencyQuery::Hard;
 		return true;
 	}
 	else if (Arg.Compare(TEXT("-softonly"), ESearchCase::IgnoreCase) == 0)
 	{
-		OutDepType = EAssetRegistryDependencyType::Soft;
+		OutRequiredFlags = UE::AssetRegistry::EDependencyQuery::Soft;
 		return true;
 	}
 	return false;
@@ -1788,13 +1795,13 @@ void FAssetManagerEditorModule::PerformDependencyChainConsoleCommand(const TArra
 	FName TargetPath = FName(*Args[0].ToLower());
 	FName SearchRoot = FName(*Args[1].ToLower());
 
-	EAssetRegistryDependencyType::Type DependencyType = EAssetRegistryDependencyType::Packages;
+	UE::AssetRegistry::EDependencyQuery RequiredDependencyFlags = UE::AssetRegistry::EDependencyQuery::NoRequirements;
 	if (Args.Num() > 2)
 	{
-		GetDependencyTypeArg(Args[2], DependencyType);
+		GetDependencyTypeArg(Args[2], RequiredDependencyFlags);
 	}
 
-	FindReferenceChains(TargetPath, SearchRoot, DependencyType);
+	FindReferenceChains(TargetPath, SearchRoot, RequiredDependencyFlags);
 }
 
 void FAssetManagerEditorModule::PerformDependencyClassConsoleCommand(const TArray<FString>& Args)
@@ -1805,13 +1812,13 @@ void FAssetManagerEditorModule::PerformDependencyClassConsoleCommand(const TArra
 		return;
 	}
 
-	EAssetRegistryDependencyType::Type DependencyType = EAssetRegistryDependencyType::Packages;
+	UE::AssetRegistry::EDependencyQuery RequiredDependencyFlags = UE::AssetRegistry::EDependencyQuery::NoRequirements;
 
 	FName SourcePackagePath = FName(*Args[0].ToLower());
 	TArray<FName> TargetClasses;
 	for (int32 i = 1; i < Args.Num(); ++i)
 	{
-		if (!GetDependencyTypeArg(Args[i], DependencyType))
+		if (!GetDependencyTypeArg(Args[i], RequiredDependencyFlags))
 		{
 			TargetClasses.AddUnique(FName(*Args[i]));
 		}
@@ -1841,11 +1848,11 @@ void FAssetManagerEditorModule::PerformDependencyClassConsoleCommand(const TArra
 	for (FName SourcePackage : PackagesToSearch)
 	{
 		UE_LOG(LogAssetManagerEditor, Verbose, TEXT("FindDepClasses for: %s"), *SourcePackage.ToString());
-		FindClassDependencies(SourcePackage, TargetClasses, DependencyType);
+		FindClassDependencies(SourcePackage, TargetClasses, RequiredDependencyFlags);
 	}
 }
 
-bool FAssetManagerEditorModule::GetPackageDependencyChain(FName SourcePackage, FName TargetPackage, TArray<FName>& VisitedPackages, TArray<FName>& OutDependencyChain, EAssetRegistryDependencyType::Type DependencyType)
+bool FAssetManagerEditorModule::GetPackageDependencyChain(FName SourcePackage, FName TargetPackage, TArray<FName>& VisitedPackages, TArray<FName>& OutDependencyChain, UE::AssetRegistry::EDependencyQuery RequiredFlags)
 {
 	//avoid crashing from circular dependencies.
 	if (VisitedPackages.Contains(SourcePackage))
@@ -1861,7 +1868,7 @@ bool FAssetManagerEditorModule::GetPackageDependencyChain(FName SourcePackage, F
 	}
 
 	TArray<FName> SourceDependencies;
-	if (AssetRegistry->GetDependencies(SourcePackage, SourceDependencies, DependencyType) == false)
+	if (AssetRegistry->GetDependencies(SourcePackage, SourceDependencies, UE::AssetRegistry::EDependencyCategory::Package, RequiredFlags) == false)
 	{
 		return false;
 	}
@@ -1870,7 +1877,7 @@ bool FAssetManagerEditorModule::GetPackageDependencyChain(FName SourcePackage, F
 	while (DependencyCounter < SourceDependencies.Num())
 	{
 		const FName& ChildPackageName = SourceDependencies[DependencyCounter];
-		if (GetPackageDependencyChain(ChildPackageName, TargetPackage, VisitedPackages, OutDependencyChain, DependencyType))
+		if (GetPackageDependencyChain(ChildPackageName, TargetPackage, VisitedPackages, OutDependencyChain, RequiredFlags))
 		{
 			OutDependencyChain.Add(SourcePackage);
 			return true;
@@ -1881,7 +1888,7 @@ bool FAssetManagerEditorModule::GetPackageDependencyChain(FName SourcePackage, F
 	return false;
 }
 
-void FAssetManagerEditorModule::GetPackageDependenciesPerClass(FName SourcePackage, const TArray<FName>& TargetClasses, TArray<FName>& VisitedPackages, TArray<FName>& OutDependentPackages, EAssetRegistryDependencyType::Type DependencyType)
+void FAssetManagerEditorModule::GetPackageDependenciesPerClass(FName SourcePackage, const TArray<FName>& TargetClasses, TArray<FName>& VisitedPackages, TArray<FName>& OutDependentPackages, UE::AssetRegistry::EDependencyQuery RequiredDependencyFlags)
 {
 	//avoid crashing from circular dependencies.
 	if (VisitedPackages.Contains(SourcePackage))
@@ -1891,7 +1898,7 @@ void FAssetManagerEditorModule::GetPackageDependenciesPerClass(FName SourcePacka
 	VisitedPackages.AddUnique(SourcePackage);
 
 	TArray<FName> SourceDependencies;
-	if (AssetRegistry->GetDependencies(SourcePackage, SourceDependencies, DependencyType) == false)
+	if (AssetRegistry->GetDependencies(SourcePackage, SourceDependencies, UE::AssetRegistry::EDependencyCategory::Package, RequiredDependencyFlags) == false)
 	{
 		return;
 	}
@@ -1900,7 +1907,7 @@ void FAssetManagerEditorModule::GetPackageDependenciesPerClass(FName SourcePacka
 	while (DependencyCounter < SourceDependencies.Num())
 	{
 		const FName& ChildPackageName = SourceDependencies[DependencyCounter];
-		GetPackageDependenciesPerClass(ChildPackageName, TargetClasses, VisitedPackages, OutDependentPackages, DependencyType);
+		GetPackageDependenciesPerClass(ChildPackageName, TargetClasses, VisitedPackages, OutDependentPackages, RequiredDependencyFlags);
 		++DependencyCounter;
 	}
 
@@ -1920,7 +1927,7 @@ void FAssetManagerEditorModule::GetPackageDependenciesPerClass(FName SourcePacka
 	}
 }
 
-void FAssetManagerEditorModule::FindReferenceChains(FName TargetPackageName, FName RootSearchPath, EAssetRegistryDependencyType::Type DependencyType)
+void FAssetManagerEditorModule::FindReferenceChains(FName TargetPackageName, FName RootSearchPath, UE::AssetRegistry::EDependencyQuery RequiredDependencyFlags)
 {
 	//find all the assets we think might depend on our target through some chain
 	TArray<FAssetData> AssetsInSearchPath;
@@ -1942,7 +1949,7 @@ void FAssetManagerEditorModule::FindReferenceChains(FName TargetPackageName, FNa
 	for (const FName& SearchPackage : SearchPackages)
 	{
 		VisitedPackages.Reset();
-		if (GetPackageDependencyChain(SearchPackage, TargetPackageName, VisitedPackages, FoundChains[CurrentFoundChain], DependencyType))
+		if (GetPackageDependencyChain(SearchPackage, TargetPackageName, VisitedPackages, FoundChains[CurrentFoundChain], RequiredDependencyFlags))
 		{
 			++CurrentFoundChain;
 			FoundChains.AddDefaulted(1);
@@ -1962,7 +1969,7 @@ void FAssetManagerEditorModule::FindReferenceChains(FName TargetPackageName, FNa
 	}
 }
 
-void FAssetManagerEditorModule::FindClassDependencies(FName SourcePackageName, const TArray<FName>& TargetClasses, EAssetRegistryDependencyType::Type DependencyType)
+void FAssetManagerEditorModule::FindClassDependencies(FName SourcePackageName, const TArray<FName>& TargetClasses, UE::AssetRegistry::EDependencyQuery RequiredDependencyFlags)
 {
 	TArray<FAssetData> PackageAssets;
 	if (!AssetRegistry->GetAssetsByPackageName(SourcePackageName, PackageAssets))
@@ -1973,7 +1980,7 @@ void FAssetManagerEditorModule::FindClassDependencies(FName SourcePackageName, c
 
 	TArray<FName> VisitedPackages;
 	TArray<FName> DependencyPackages;
-	GetPackageDependenciesPerClass(SourcePackageName, TargetClasses, VisitedPackages, DependencyPackages, DependencyType);
+	GetPackageDependenciesPerClass(SourcePackageName, TargetClasses, VisitedPackages, DependencyPackages, RequiredDependencyFlags);
 
 	if (DependencyPackages.Num() > 0)
 	{
@@ -1987,7 +1994,7 @@ void FAssetManagerEditorModule::FindClassDependencies(FName SourcePackageName, c
 		{
 			TArray<FName> Chain;
 			VisitedPackages.Reset();
-			GetPackageDependencyChain(SourcePackageName, DependencyPackage, VisitedPackages, Chain, DependencyType);
+			GetPackageDependencyChain(SourcePackageName, DependencyPackage, VisitedPackages, Chain, RequiredDependencyFlags);
 
 			UE_LOG(LogAssetManagerEditor, Log, TEXT("Chain to package: %s"), *DependencyPackage.ToString());
 			TArray<FAssetData> DepAssets;
@@ -2131,7 +2138,7 @@ void FAssetManagerEditorModule::DumpAssetDependencies(const TArray<FString>& Arg
 			TArray<FAssetIdentifier> FoundDependencies;
 			TArray<FString> DependencyStrings;
 
-			AssetRegistry->GetDependencies(PrimaryAssetId, FoundDependencies, EAssetRegistryDependencyType::Manage);
+			AssetRegistry->GetDependencies(PrimaryAssetId, FoundDependencies, UE::AssetRegistry::EDependencyCategory::Manage);
 
 			for (const FAssetIdentifier& Identifier : FoundDependencies)
 			{
@@ -2229,5 +2236,31 @@ bool FAssetManagerEditorModule::WriteCollection(FName CollectionName, ECollectio
 	}
 
 	return bSuccess;
+}
+
+FAssetManagerDependencyQuery::FAssetManagerDependencyQuery(EAssetRegistryDependencyType::Type DependencyType)
+{
+	using namespace UE::AssetRegistry;
+
+	Categories = EDependencyCategory::None;
+	Flags = EDependencyQuery::NoRequirements;
+	if (DependencyType & EAssetRegistryDependencyType::Packages)
+	{
+		Categories |= EDependencyCategory::Package;
+		Flags |= (DependencyType & EAssetRegistryDependencyType::Hard) ? EDependencyQuery::NoRequirements : EDependencyQuery::Soft;
+		Flags |= (DependencyType & EAssetRegistryDependencyType::Soft) ? EDependencyQuery::NoRequirements : EDependencyQuery::Hard;
+	}
+
+	if (DependencyType & EAssetRegistryDependencyType::SearchableName)
+	{
+		Categories |= EDependencyCategory::SearchableName;
+	}
+
+	if (DependencyType & EAssetRegistryDependencyType::Manage)
+	{
+		Categories |= EDependencyCategory::Manage;
+		Flags |= (DependencyType & EAssetRegistryDependencyType::HardManage) ? EDependencyQuery::NoRequirements : EDependencyQuery::Indirect;
+		Flags |= (DependencyType & EAssetRegistryDependencyType::SoftManage) ? EDependencyQuery::NoRequirements : EDependencyQuery::Direct;
+	}
 }
 #undef LOCTEXT_NAMESPACE

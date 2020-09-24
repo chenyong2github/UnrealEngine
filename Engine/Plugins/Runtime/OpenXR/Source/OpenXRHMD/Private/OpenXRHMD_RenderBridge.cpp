@@ -2,9 +2,9 @@
 
 #include "OpenXRHMD_RenderBridge.h"
 #include "OpenXRHMD.h"
-#include "OpenXRHMDPrivate.h"
-#include "OpenXRHMDPrivateRHI.h"
 #include "OpenXRHMD_Swapchain.h"
+#include "OpenXRCore.h"
+#include "OpenXRPlatformRHI.h"
 
 bool FOpenXRRenderBridge::Present(int32& InOutSyncInterval)
 {
@@ -39,8 +39,7 @@ public:
 
 	virtual void* GetGraphicsBinding() override
 	{
-		FD3D11DynamicRHI* DynamicRHI = static_cast<FD3D11DynamicRHI*>(GDynamicRHI);
-		FD3D11Device* Device = DynamicRHI->GetDevice();
+		FD3D11Device* Device = GD3D11RHI->GetDevice();
 
 		Binding.type = XR_TYPE_GRAPHICS_BINDING_D3D11_KHR;
 		Binding.next = nullptr;
@@ -48,9 +47,9 @@ public:
 		return &Binding;
 	}
 
-	virtual FXRSwapChainPtr CreateSwapchain(XrSession InSession, uint8 Format, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, uint32 NumSamples, uint32 Flags, uint32 TargetableTextureFlags) override final
+	virtual FXRSwapChainPtr CreateSwapchain(XrSession InSession, uint8 Format, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, ETextureCreateFlags TargetableTextureFlags, const FClearValueBinding& ClearValueBinding) override final
 	{
-		return CreateSwapchain_D3D11(InSession, Format, SizeX, SizeY, ArraySize, NumMips, NumSamples, Flags, TargetableTextureFlags);
+		return CreateSwapchain_D3D11(InSession, Format, SizeX, SizeY, ArraySize, NumMips, NumSamples, Flags, TargetableTextureFlags, ClearValueBinding);
 	}
 
 private:
@@ -67,10 +66,13 @@ public:
 	FD3D12RenderBridge(XrInstance InInstance, XrSystemId InSystem)
 		: Binding()
 	{
+		PFN_xrGetD3D12GraphicsRequirementsKHR GetD3D12GraphicsRequirementsKHR;
+		XR_ENSURE(xrGetInstanceProcAddr(InInstance, "xrGetD3D12GraphicsRequirementsKHR", (PFN_xrVoidFunction*)&GetD3D12GraphicsRequirementsKHR));
+
 		XrGraphicsRequirementsD3D12KHR Requirements;
 		Requirements.type = XR_TYPE_GRAPHICS_REQUIREMENTS_D3D12_KHR;
 		Requirements.next = nullptr;
-		if (XR_ENSURE(xrGetD3D12GraphicsRequirementsKHR(InInstance, InSystem, &Requirements)))
+		if (XR_ENSURE(GetD3D12GraphicsRequirementsKHR(InInstance, InSystem, &Requirements)))
 		{
 			AdapterLuid = reinterpret_cast<uint64&>(Requirements.adapterLuid);
 		}
@@ -78,7 +80,7 @@ public:
 
 	virtual void* GetGraphicsBinding() override
 	{
-		FD3D12DynamicRHI* DynamicRHI = static_cast<FD3D12DynamicRHI*>(GDynamicRHI);
+		FD3D12DynamicRHI* DynamicRHI = FD3D12DynamicRHI::GetD3DRHI();
 		ID3D12Device* Device = DynamicRHI->GetAdapter().GetD3DDevice();
 		ID3D12CommandQueue* Queue = DynamicRHI->RHIGetD3DCommandQueue();
 
@@ -89,9 +91,9 @@ public:
 		return &Binding;
 	}
 
-	virtual FXRSwapChainPtr CreateSwapchain(XrSession InSession, uint8 Format, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, uint32 NumSamples, uint32 Flags, uint32 TargetableTextureFlags) override final
+	virtual FXRSwapChainPtr CreateSwapchain(XrSession InSession, uint8 Format, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, ETextureCreateFlags TargetableTextureFlags, const FClearValueBinding& ClearValueBinding) override final
 	{
-		return CreateSwapchain_D3D12(InSession, Format, SizeX, SizeY, ArraySize, NumMips, NumSamples, Flags, TargetableTextureFlags);
+		return CreateSwapchain_D3D12(InSession, Format, SizeX, SizeY, ArraySize, NumMips, NumSamples, Flags, TargetableTextureFlags, ClearValueBinding);
 	}
 
 private:
@@ -108,12 +110,15 @@ public:
 	FOpenGLRenderBridge(XrInstance InInstance, XrSystemId InSystem)
 		: Binding()
 	{
+		PFN_xrGetOpenGLGraphicsRequirementsKHR GetOpenGLGraphicsRequirementsKHR;
+		XR_ENSURE(xrGetInstanceProcAddr(InInstance, "xrGetOpenGLGraphicsRequirementsKHR", (PFN_xrVoidFunction*)&GetOpenGLGraphicsRequirementsKHR));
+
 		XrGraphicsRequirementsOpenGLKHR Requirements;
 		Requirements.type = XR_TYPE_GRAPHICS_REQUIREMENTS_OPENGL_KHR;
 		Requirements.next = nullptr;
 		Requirements.minApiVersionSupported = 0;
 		Requirements.maxApiVersionSupported = 0;
-		XR_ENSURE(xrGetOpenGLGraphicsRequirementsKHR(InInstance, InSystem, &Requirements));
+		XR_ENSURE(GetOpenGLGraphicsRequirementsKHR(InInstance, InSystem, &Requirements));
 
 		XrVersion RHIVersion = XR_MAKE_VERSION(FOpenGL::GetMajorVersion(), FOpenGL::GetMinorVersion(), 0);
 		if (RHIVersion < Requirements.minApiVersionSupported) //-V547
@@ -139,9 +144,9 @@ public:
 		return nullptr;
 	}
 
-	virtual FXRSwapChainPtr CreateSwapchain(XrSession InSession, uint8 Format, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, uint32 NumSamples, uint32 Flags, uint32 TargetableTextureFlags) override final
+	virtual FXRSwapChainPtr CreateSwapchain(XrSession InSession, uint8 Format, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, ETextureCreateFlags TargetableTextureFlags, const FClearValueBinding& ClearValueBinding) override final
 	{
-		return CreateSwapchain_OpenGL(InSession, Format, SizeX, SizeY, ArraySize, NumMips, NumSamples, Flags, TargetableTextureFlags);
+		return CreateSwapchain_OpenGL(InSession, Format, SizeX, SizeY, ArraySize, NumMips, NumSamples, Flags, TargetableTextureFlags, ClearValueBinding);
 	}
 
 private:
@@ -162,12 +167,15 @@ public:
 		, Instance(InInstance)
 		, System(InSystem)
 	{
+		PFN_xrGetVulkanGraphicsRequirementsKHR GetVulkanGraphicsRequirementsKHR;
+		XR_ENSURE(xrGetInstanceProcAddr(InInstance, "xrGetVulkanGraphicsRequirementsKHR", (PFN_xrVoidFunction*)&GetVulkanGraphicsRequirementsKHR));
+
 		XrGraphicsRequirementsVulkanKHR Requirements;
 		Requirements.type = XR_TYPE_GRAPHICS_REQUIREMENTS_VULKAN_KHR;
 		Requirements.next = nullptr;
 		Requirements.minApiVersionSupported = 0;
 		Requirements.maxApiVersionSupported = 0;
-		XR_ENSURE(xrGetVulkanGraphicsRequirementsKHR(InInstance, InSystem, &Requirements));
+		XR_ENSURE(GetVulkanGraphicsRequirementsKHR(InInstance, InSystem, &Requirements));
 
 		// The extension uses the OpenXR version format instead of the Vulkan one
 		XrVersion RHIVersion = XR_MAKE_VERSION(
@@ -184,17 +192,20 @@ public:
 		{
 			UE_LOG(LogHMD, Warning, TEXT("The Vulkan API version has not been tested with the OpenXR runtime"));
 		}
+
+		PFN_xrGetVulkanGraphicsDeviceKHR GetVulkanGraphicsDeviceKHR;
+		XR_ENSURE(xrGetInstanceProcAddr(Instance, "xrGetVulkanGraphicsDeviceKHR", (PFN_xrVoidFunction*)&GetVulkanGraphicsDeviceKHR));
+		XR_ENSURE(GetVulkanGraphicsDeviceKHR(Instance, System, GVulkanRHI->GetInstance(), &Gpu));
 	}
 
 	virtual void* GetGraphicsBinding() override
 	{
-		FVulkanDynamicRHI* DynamicRHI = static_cast<FVulkanDynamicRHI*>(GDynamicRHI);
-		FVulkanDevice* Device = DynamicRHI->GetDevice();
+		FVulkanDevice* Device = GVulkanRHI->GetDevice();
 		FVulkanQueue* Queue = Device->GetGraphicsQueue();
 
 		Binding.type = XR_TYPE_GRAPHICS_BINDING_VULKAN_KHR;
 		Binding.next = nullptr;
-		Binding.instance = DynamicRHI->GetInstance();
+		Binding.instance = GVulkanRHI->GetInstance();
 		Binding.physicalDevice = Device->GetPhysicalHandle();
 		Binding.device = Device->GetInstanceHandle();
 		Binding.queueFamilyIndex = Queue->GetFamilyIndex();
@@ -204,21 +215,26 @@ public:
 
 	virtual uint64 GetGraphicsAdapterLuid() override
 	{
-		if (!AdapterLuid)
+#if VULKAN_SUPPORTS_DRIVER_PROPERTIES
+		if (!AdapterLuid && GVulkanRHI->GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2)
 		{
-			FVulkanDynamicRHI* DynamicRHI = static_cast<FVulkanDynamicRHI*>(GDynamicRHI);
-			XR_ENSURE(xrGetVulkanGraphicsDeviceKHR(Instance, System, DynamicRHI->GetInstance(), &Gpu));
+			VkPhysicalDeviceIDPropertiesKHR GpuIdProps;
+			VkPhysicalDeviceProperties2KHR GpuProps2;
+			ZeroVulkanStruct(GpuProps2, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2_KHR);
+			GpuProps2.pNext = &GpuIdProps;
+			ZeroVulkanStruct(GpuIdProps, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES_KHR);
 
-			const VkPhysicalDeviceIDPropertiesKHR& vkPhysicalDeviceIDProperties = DynamicRHI->GetDevice()->GetDeviceIdProperties();
-			check(vkPhysicalDeviceIDProperties.deviceLUIDValid);
-			AdapterLuid = reinterpret_cast<const uint64&>(vkPhysicalDeviceIDProperties.deviceLUID);
+			VulkanRHI::vkGetPhysicalDeviceProperties2KHR(Gpu, &GpuProps2);
+			check(GpuIdProps.deviceLUIDValid);
+			AdapterLuid = reinterpret_cast<const uint64&>(GpuIdProps.deviceLUID);
 		}
+#endif
 		return AdapterLuid;
 	}
 
-	virtual FXRSwapChainPtr CreateSwapchain(XrSession InSession, uint8 Format, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, uint32 NumSamples, uint32 Flags, uint32 TargetableTextureFlags) override final
+	virtual FXRSwapChainPtr CreateSwapchain(XrSession InSession, uint8 Format, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, ETextureCreateFlags TargetableTextureFlags, const FClearValueBinding& ClearValueBinding) override final
 	{
-		return CreateSwapchain_Vulkan(InSession, Format, SizeX, SizeY, ArraySize, NumMips, NumSamples, Flags, TargetableTextureFlags);
+		return CreateSwapchain_Vulkan(InSession, Format, SizeX, SizeY, ArraySize, NumMips, NumSamples, Flags, TargetableTextureFlags, ClearValueBinding);
 	}
 
 private:

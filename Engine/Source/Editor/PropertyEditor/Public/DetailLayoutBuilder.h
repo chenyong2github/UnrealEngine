@@ -127,6 +127,26 @@ public:
 	virtual FDetailWidgetRow& AddCustomRowToCategory(TSharedPtr<IPropertyHandle> InPropertyHandle, const FText& InCustomSearchString, bool bForAdvanced = false) = 0;
 
 	/**
+	 * Adds an external object's property to this details panel's PropertyMap.
+	 * Allows getting the property handle for the property without having to generate a row widget.
+	 *
+	 * @param Objects		List of objects that contain the property.
+	 * @param PropertyName	Name of the property to generate a node from.
+	 * @return The property handle created tied to generated property node.
+	 */	
+	virtual TSharedPtr<IPropertyHandle> AddObjectPropertyData(TConstArrayView<UObject*> Objects, FName PropertyName) = 0;
+
+	/**
+	 * Adds an external structure's property data to this details panel's PropertyMap.
+	 * Allows getting the property handle for the property without having to generate a row widget.
+	 *
+	 * @param StructData    Struct data to find the property within.
+	 * @param PropertyName	Name of the property to generate a node from.
+	 * @return			    The property handle tied to the generated property node.
+	 */
+	virtual TSharedPtr<IPropertyHandle> AddStructurePropertyData(const TSharedPtr<FStructOnScope>& StructData, FName PropertyName) = 0;
+
+	/**
 	 * Allows for the customization of a property row for a property that already exists on a class being edited in the details panel
 	 * The property will remain in the default location but the widget or other attributes for the property can be changed 
 	 * Note This cannot be used to customize other customizations

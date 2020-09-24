@@ -733,6 +733,11 @@ bool UPropertyValue::ContainsProperty(const FProperty* Prop) const
 	return LeafProperty && LeafProperty == Prop;
 }
 
+const TArray<FCapturedPropSegment>& UPropertyValue::GetCapturedPropSegments() const
+{
+	return CapturedPropSegments;
+}
+
 // @Copypaste from PropertyEditorHelpers
 TArray<FName> UPropertyValue::GetValidEnumsFromPropertyOverride()
 {

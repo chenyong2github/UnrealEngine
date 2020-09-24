@@ -213,7 +213,7 @@ void FMainFrameCommands::RegisterCommands()
 	ActionList->MapAction(
 		RemoveUserLayouts,
 		FExecuteAction::CreateStatic(&FLayoutsMenuRemove::RemoveUserLayouts),
-		FCanExecuteAction::CreateStatic(&FLayoutsMenuBase::IsThereUserLayouts)
+		FCanExecuteAction::CreateStatic(&FLayoutsMenu::IsThereUserLayouts)
 	);
 
 

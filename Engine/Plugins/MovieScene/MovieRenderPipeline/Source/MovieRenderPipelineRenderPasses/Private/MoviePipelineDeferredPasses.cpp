@@ -28,16 +28,19 @@
 #include "MoviePipelineAntiAliasingSetting.h"
 #include "MoviePipelineOutputSetting.h"
 #include "MovieRenderPipelineCoreModule.h"
+#include "SceneViewExtension.h"
+#include "OpenColorIODisplayExtension.h"
 
-DECLARE_CYCLE_STAT(TEXT("STAT_MoviePipeline_WaitForAvailableAccumulator"), STAT_MoviePipeline_WaitForAvailableAccumulator, STATGROUP_MoviePipeline);
+// For Cine Camera Variables in Metadata
+#include "CineCameraActor.h"
+#include "CineCameraComponent.h"
+
 DECLARE_CYCLE_STAT(TEXT("STAT_MoviePipeline_AccumulateSample_TT"), STAT_AccumulateSample_TaskThread, STATGROUP_MoviePipeline);
-DECLARE_CYCLE_STAT(TEXT("STAT_MoviePipeline_WaitForAvailableSurface"), STAT_MoviePipeline_WaitForAvailableSurface, STATGROUP_MoviePipeline);
 
 // Forward Declare
 namespace MoviePipeline
 {
-	static void AccumulateSample_TaskThread(TUniquePtr<FImagePixelData>&& InPixelData, const MoviePipeline::FSampleAccumulationArgs& InParams);
-	static bool GetAnyOutputWantsAlpha(UMoviePipelineConfigBase* InConfig);
+	static void AccumulateSample_TaskThread(TUniquePtr<FImagePixelData>&& InPixelData, const MoviePipeline::FImageSampleAccumulationArgs& InParams);
 }
 
 void UMoviePipelineImagePassBase::GetViewShowFlags(FEngineShowFlags& OutShowFlag, EViewModeIndex& OutViewModeIndex) const
@@ -72,7 +75,6 @@ void UMoviePipelineImagePassBase::RenderSample_GameThreadImpl(const FMoviePipeli
 	ViewFamily.ViewMode = ViewModeIndex;
 	EngineShowFlagOverride(ESFIM_Game, ViewFamily.ViewMode, ViewFamily.EngineShowFlags, false);
 
-
 	// View is added as a child of the ViewFamily. 
 	FSceneView* View = GetSceneViewForSampleState(&ViewFamily, /*InOut*/ InOutSampleState);
 #if RHI_RAYTRACING
@@ -86,7 +88,7 @@ void UMoviePipelineImagePassBase::RenderSample_GameThreadImpl(const FMoviePipeli
 	View->OverrideFrameIndexValue = InOutSampleState.FrameIndex;
 	View->bCameraCut = InOutSampleState.bCameraCut;
 	View->bIsOfflineRender = true;
-	View->AntiAliasingMethod = InOutSampleState.AntiAliasingMethod;
+	View->AntiAliasingMethod = IsAntiAliasingSupported() ? InOutSampleState.AntiAliasingMethod : EAntiAliasingMethod::AAM_None;
 
 	// Override the Motion Blur settings since these are controlled by the movie pipeline.
 	{
@@ -110,17 +112,39 @@ void UMoviePipelineImagePassBase::RenderSample_GameThreadImpl(const FMoviePipeli
 
 	// Locked Exposure
 	{
-		if (InOutSampleState.ExposureCompensation.IsSet())
-		{
-			View->FinalPostProcessSettings.AutoExposureMethod = EAutoExposureMethod::AEM_Manual;
-			View->FinalPostProcessSettings.AutoExposureBias = InOutSampleState.ExposureCompensation.GetValue();
-		}
-		else if (InOutSampleState.GetTileCount() > 1 && (View->FinalPostProcessSettings.AutoExposureMethod != EAutoExposureMethod::AEM_Manual))
+		if (InOutSampleState.GetTileCount() > 1 && (View->FinalPostProcessSettings.AutoExposureMethod != EAutoExposureMethod::AEM_Manual))
 		{
 			// Auto exposure is not allowed
 			UE_LOG(LogMovieRenderPipeline, Warning, TEXT("AutoExposure Method should always be Manual when using tiling!"));
 			View->FinalPostProcessSettings.AutoExposureMethod = EAutoExposureMethod::AEM_Manual;
 		}
+	}
+
+	ViewFamily.ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions();
+
+	// OCIO Scene View Extension is a special case and won't be registered like other view extensions.
+	if (InSampleState.OCIOConfiguration && InSampleState.OCIOConfiguration->bIsEnabled)
+	{
+		FOpenColorIODisplayConfiguration* OCIOConfigNew = const_cast<FMoviePipelineRenderPassMetrics&>(InSampleState).OCIOConfiguration;
+		FOpenColorIODisplayConfiguration& OCIOConfigCurrent = OCIOSceneViewExtension->GetDisplayConfiguration();
+
+		// We only need to set this once per render sequence.
+		if (OCIOConfigNew->ColorConfiguration.ConfigurationSource && OCIOConfigNew->ColorConfiguration.ConfigurationSource != OCIOConfigCurrent.ColorConfiguration.ConfigurationSource)
+		{
+			OCIOSceneViewExtension->SetDisplayConfiguration(*OCIOConfigNew);
+		}
+
+		ViewFamily.ViewExtensions.Add(OCIOSceneViewExtension.ToSharedRef());
+	}
+
+	for (auto ViewExt : ViewFamily.ViewExtensions)
+	{
+		ViewExt->SetupViewFamily(ViewFamily);
+	}
+
+	for (int ViewExt = 0; ViewExt < ViewFamily.ViewExtensions.Num(); ViewExt++)
+	{
+		ViewFamily.ViewExtensions[ViewExt]->SetupView(ViewFamily, *View);
 	}
 
 	// Anti Aliasing
@@ -162,10 +186,152 @@ void UMoviePipelineImagePassBase::RenderSample_GameThreadImpl(const FMoviePipeli
 
 	FCanvas Canvas = FCanvas(RenderTarget, nullptr, GetPipeline()->GetWorld(), ERHIFeatureLevel::SM5, FCanvas::CDM_DeferDrawing, 1.0f);
 
-	// Draw the world into this View Family
-	GetRendererModule().BeginRenderingViewFamily(&Canvas, &ViewFamily);
+	RendererSubmission_GameThread(InOutSampleState, Canvas, ViewFamily);
+}
 
-	PostRendererSubmission(InOutSampleState, Canvas);
+void UMoviePipelineImagePassBase::RendererSubmission_GameThread(const FMoviePipelineRenderPassMetrics& InSampleState, FCanvas& InCanvas, FSceneViewFamilyContext& InViewFamily)
+{
+	// Draw the world into this View Family
+	GetRendererModule().BeginRenderingViewFamily(&InCanvas, &InViewFamily);
+
+	PostRendererSubmission(InSampleState, InCanvas);
+}
+
+void UMoviePipelineDeferredPassBase::RendererSubmission_GameThread(const FMoviePipelineRenderPassMetrics& InSampleState, FCanvas& InCanvas, FSceneViewFamilyContext& InViewFamily)
+{
+	FSceneView* View = const_cast<FSceneView*>(InViewFamily.Views[0]);
+	View->FinalPostProcessSettings.BufferVisualizationOverviewMaterials.Empty();
+	View->FinalPostProcessSettings.BufferVisualizationPipes.Empty();
+
+	for (UMaterialInterface* Material : ActivePostProcessMaterials)
+	{
+		if (Material)
+		{
+			View->FinalPostProcessSettings.BufferVisualizationOverviewMaterials.Add(Material);
+		}
+	}
+
+	for (UMaterialInterface* VisMaterial : View->FinalPostProcessSettings.BufferVisualizationOverviewMaterials)
+	{
+		// If this was just to contribute to the history buffer, no need to go any further.
+		if (InSampleState.bDiscardResult)
+		{
+			continue;
+		}
+		FMoviePipelinePassIdentifier LayerPassIdentifier = FMoviePipelinePassIdentifier(PassIdentifier.Name + VisMaterial->GetName());
+
+		auto BufferPipe = MakeShared<FImagePixelPipe, ESPMode::ThreadSafe>();
+		BufferPipe->AddEndpoint(MakeForwardingEndpoint(LayerPassIdentifier, InSampleState));
+		
+		View->FinalPostProcessSettings.BufferVisualizationPipes.Add(VisMaterial->GetFName(), BufferPipe);
+	}
+
+
+	int32 NumValidMaterials = View->FinalPostProcessSettings.BufferVisualizationPipes.Num();
+	View->FinalPostProcessSettings.bBufferVisualizationDumpRequired = NumValidMaterials > 0;
+
+	Super::RendererSubmission_GameThread(InSampleState, InCanvas, InViewFamily);
+}
+
+void UMoviePipelineDeferredPassBase::GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses)
+{
+	// Add the default backbuffer
+	Super::GatherOutputPassesImpl(ExpectedRenderPasses);
+
+	TArray<FString> RenderPasses;
+
+	for (UMaterialInterface* Material : ActivePostProcessMaterials)
+	{
+		if (Material)
+		{
+			RenderPasses.Add(Material->GetName());
+		}
+	}
+
+
+	for (const FString& Pass : RenderPasses)
+	{
+		ExpectedRenderPasses.Add(FMoviePipelinePassIdentifier(PassIdentifier.Name + Pass));
+	}
+}
+
+TFunction<void(TUniquePtr<FImagePixelData>&&)> UMoviePipelineDeferredPassBase::MakeForwardingEndpoint(const FMoviePipelinePassIdentifier InPassIdentifier, const FMoviePipelineRenderPassMetrics& InSampleState)
+{
+	// We have a pool of accumulators - we multi-thread the accumulation on the task graph, and for each frame,
+	// the task has the previous samples as pre-reqs to keep the accumulation in order. However, each accumulator
+	// can only work on one frame at a time, so we create a pool of them to work concurrently. This needs a limit
+	// as large accumulations (16k) can take a lot of system RAM.
+	TSharedPtr<FAccumulatorPool::FAccumulatorInstance, ESPMode::ThreadSafe> SampleAccumulator = nullptr;
+	{
+		SCOPE_CYCLE_COUNTER(STAT_MoviePipeline_WaitForAvailableAccumulator);
+		SampleAccumulator = AccumulatorPool->BlockAndGetAccumulator_GameThread(InSampleState.OutputState.OutputFrameNumber, InPassIdentifier);
+	}
+	TSharedPtr<FMoviePipelineSurfaceQueue> LocalSurfaceQueue = SurfaceQueue;
+
+	TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> FramePayload = MakeShared<FImagePixelDataPayload, ESPMode::ThreadSafe>();
+	FramePayload->PassIdentifier = InPassIdentifier;
+	FramePayload->SampleState = InSampleState;
+	FramePayload->SortingOrder = GetOutputFileSortingOrder() + 1;
+
+	MoviePipeline::FImageSampleAccumulationArgs AccumulationArgs;
+	{
+		AccumulationArgs.OutputMerger = GetPipeline()->OutputBuilder;
+		AccumulationArgs.ImageAccumulator = StaticCastSharedPtr<FImageOverlappedAccumulator>(SampleAccumulator->Accumulator);
+		AccumulationArgs.bAccumulateAlpha = bAccumulateMultisampleAlpha;
+	}
+
+	auto Callback = [this, FramePayload, AccumulationArgs, SampleAccumulator](TUniquePtr<FImagePixelData>&& InPixelData)
+	{
+			// Each frame can be processed independently, so we can start processing the second frame's tasks
+			// even if the accumulation for the first frame is still happening.
+
+
+		// Transfer the framePayload to the returned data
+		TUniquePtr<FImagePixelData> PixelDataWithPayload = nullptr;
+		switch (InPixelData->GetType())
+		{
+		case EImagePixelType::Color:
+		{
+			TImagePixelData<FColor>* SourceData = static_cast<TImagePixelData<FColor>*>(InPixelData.Get());
+			PixelDataWithPayload = MakeUnique<TImagePixelData<FColor>>(InPixelData->GetSize(), MoveTemp(SourceData->Pixels), FramePayload);
+			break;
+		}
+		case EImagePixelType::Float16:
+		{
+			TImagePixelData<FFloat16Color>* SourceData = static_cast<TImagePixelData<FFloat16Color>*>(InPixelData.Get());
+			PixelDataWithPayload = MakeUnique<TImagePixelData<FFloat16Color>>(InPixelData->GetSize(), MoveTemp(SourceData->Pixels), FramePayload);
+			break;
+		}
+		case EImagePixelType::Float32:
+		{
+			TImagePixelData<FLinearColor>* SourceData = static_cast<TImagePixelData<FLinearColor>*>(InPixelData.Get());
+			PixelDataWithPayload = MakeUnique<TImagePixelData<FLinearColor>>(InPixelData->GetSize(), MoveTemp(SourceData->Pixels), FramePayload);
+			break;
+		}
+		default:
+			checkNoEntry();
+		}
+
+		bool bFinalSample = FramePayload->IsLastTile() && FramePayload->IsLastTemporalSample();
+		bool bFirstSample = FramePayload->IsFirstTile() && FramePayload->IsFirstTemporalSample();
+		FMoviePipelineBackgroundAccumulateTask Task;
+		Task.LastCompletionEvent = SampleAccumulator->TaskPrereq;
+		FGraphEventRef Event = Task.Execute([PixelData = MoveTemp(PixelDataWithPayload), AccumulationArgs, bFinalSample, SampleAccumulator]() mutable
+		{
+			// Enqueue a encode for this frame onto our worker thread.
+			MoviePipeline::AccumulateSample_TaskThread(MoveTemp(PixelData), AccumulationArgs);
+			if (bFinalSample)
+			{
+				SampleAccumulator->bIsActive = false;
+				SampleAccumulator->TaskPrereq = nullptr;
+			}
+		});
+
+		this->OutstandingTasks.Add(Event);
+
+	};
+
+	return Callback;
 }
 
 void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipelineRenderPassMetrics& InSampleState, FCanvas& InCanvas)
@@ -186,8 +352,8 @@ void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipeline
 		
 		const FIntPoint FullOutputSize = OutputSettings->OutputResolution;
 		const FIntPoint ConstrainedFullSize = CameraCache.AspectRatio > 1.0f ?
-			FIntPoint(FullOutputSize.X, (1.0 / CameraCache.AspectRatio) * FullOutputSize.X) :
-			FIntPoint(CameraCache.AspectRatio * FullOutputSize.Y, FullOutputSize.Y);
+			FIntPoint(FullOutputSize.X, FMath::CeilToInt((double)FullOutputSize.X / (double)CameraCache.AspectRatio)) :
+			FIntPoint(FMath::CeilToInt(CameraCache.AspectRatio * FullOutputSize.Y), FullOutputSize.Y);
 
 		const FIntPoint TileViewMin = InSampleState.OverlappedOffset;
 		const FIntPoint TileViewMax = TileViewMin + InSampleState.BackbufferSize;
@@ -239,42 +405,33 @@ void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipeline
 	TSharedPtr<FAccumulatorPool::FAccumulatorInstance, ESPMode::ThreadSafe> SampleAccumulator = nullptr;
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MoviePipeline_WaitForAvailableAccumulator);
-		SampleAccumulator = AccumulatorPool->BlockAndGetAccumulator_GameThread(InSampleState.OutputState.OutputFrameNumber);
+		SampleAccumulator = AccumulatorPool->BlockAndGetAccumulator_GameThread(InSampleState.OutputState.OutputFrameNumber, PassIdentifier);
 	}
 	TSharedPtr<FMoviePipelineSurfaceQueue> LocalSurfaceQueue = SurfaceQueue;
 
 	TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> FramePayload = MakeShared<FImagePixelDataPayload, ESPMode::ThreadSafe>();
 	FramePayload->PassIdentifier = PassIdentifier;
 	FramePayload->SampleState = InSampleState;
+	FramePayload->SortingOrder = GetOutputFileSortingOrder();
 
-	MoviePipeline::FSampleAccumulationArgs AccumulationArgs;
+	MoviePipeline::FImageSampleAccumulationArgs AccumulationArgs;
 	{
 		AccumulationArgs.OutputMerger = GetPipeline()->OutputBuilder;
-		AccumulationArgs.ImageAccumulator = SampleAccumulator->Accumulator;
-		AccumulationArgs.bAccumulateAlpha = MoviePipeline::GetAnyOutputWantsAlpha(GetPipeline()->GetPipelineMasterConfig());
+		AccumulationArgs.ImageAccumulator = StaticCastSharedPtr<FImageOverlappedAccumulator>(SampleAccumulator->Accumulator);
+		AccumulationArgs.bAccumulateAlpha = bAccumulateMultisampleAlpha;
 	}
 
 	auto Callback = [this, FramePayload, AccumulationArgs, SampleAccumulator](TUniquePtr<FImagePixelData>&& InPixelData)
 	{
 		bool bFinalSample = FramePayload->IsLastTile() && FramePayload->IsLastTemporalSample();
 		bool bFirstSample = FramePayload->IsFirstTile() && FramePayload->IsFirstTemporalSample();
-		if (bFirstSample)
-		{
 			// Each frame can be processed independently, so we can start processing the second frame's tasks
 			// even if the accumulation for the first frame is still happening.
-			this->TaskPrereq = nullptr;
-		}
-		FGraphEventRef* LastTask = nullptr;
-		if (this->TaskPrereq)
-		{
-			LastTask = &this->TaskPrereq;
-		}
 
 		FMoviePipelineBackgroundAccumulateTask Task;
-		if (LastTask)
-		{
-			Task.LastCompletionEvent = *LastTask;
-		}
+		// There may be other accumulations for this accumulator which need to be processed first
+		Task.LastCompletionEvent = SampleAccumulator->TaskPrereq;
+
 		FGraphEventRef Event = Task.Execute([PixelData = MoveTemp(InPixelData), AccumulationArgs, bFinalSample, SampleAccumulator]() mutable
 		{
 			// Enqueue a encode for this frame onto our worker thread.
@@ -282,11 +439,11 @@ void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipeline
 			if (bFinalSample)
 			{
 				SampleAccumulator->bIsActive = false;
+				SampleAccumulator->TaskPrereq = nullptr;
 			}
 		});
 
 		this->OutstandingTasks.Add(Event);
-		this->TaskPrereq = Event;
 
 	};
 
@@ -341,10 +498,14 @@ void UMoviePipelineImagePassBase::SetupViewForViewModeOverride(FSceneView* View)
 
 void UMoviePipelineDeferredPassBase::MoviePipelineRenderShowFlagOverride(FEngineShowFlags& OutShowFlag)
 {
-	OutShowFlag.SetAntiAliasing(!bDisableAntiAliasing);
-	OutShowFlag.SetDepthOfField(!bDisableDepthOfField);
-	OutShowFlag.SetMotionBlur(!bDisableMotionBlur);
-	OutShowFlag.SetBloom(!bDisableBloom);
+	if (bDisableMultisampleEffects)
+	{
+		OutShowFlag.SetAntiAliasing(false);
+		OutShowFlag.SetDepthOfField(false);
+		OutShowFlag.SetMotionBlur(false);
+		OutShowFlag.SetBloom(false);
+		OutShowFlag.SetSceneColorFringe(false);
+	}
 }
 
 void UMoviePipelineImagePassBase::SetupImpl(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings)
@@ -355,6 +516,20 @@ void UMoviePipelineImagePassBase::SetupImpl(const MoviePipeline::FMoviePipelineR
 	ViewState.Allocate();
 }
 
+UMoviePipelineDeferredPassBase::UMoviePipelineDeferredPassBase() 
+	: UMoviePipelineImagePassBase()
+{
+	PassIdentifier = FMoviePipelinePassIdentifier("FinalImage");
+	TArray<FString> DefaultPostProcessMaterials;
+	DefaultPostProcessMaterials.Add(TEXT("/MovieRenderPipeline/Materials/MovieRenderQueue_WorldDepth.MovieRenderQueue_WorldDepth"));
+	DefaultPostProcessMaterials.Add(TEXT("/MovieRenderPipeline/Materials/MovieRenderQueue_MotionVectors.MovieRenderQueue_MotionVectors"));
+	for (FString& MaterialPath : DefaultPostProcessMaterials)
+	{
+		FMoviePipelinePostProcessPass& NewPass = AdditionalPostProcessMaterials.AddDefaulted_GetRef();
+		NewPass.Material = TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(MaterialPath));
+		NewPass.bEnabled = false;
+	}
+}
 void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings)
 {
 	Super::SetupImpl(InPassInitSettings);
@@ -362,6 +537,11 @@ void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipeli
 	// Render Target that the GBuffer is copied to
 	TileRenderTarget = NewObject<UTextureRenderTarget2D>(GetTransientPackage());
 	TileRenderTarget->ClearColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.0f);
+
+	// OCIO: Since this is a manually created Render target we don't need Gamma to be applied.
+	// We use this render target to render to via a display extension that utilizes Display Gamma
+	// which has a default value of 2.2 (DefaultDisplayGamma), therefore we need to set Gamma on this render target to 2.2 to cancel out any unwanted effects.
+	TileRenderTarget->TargetGamma = FOpenColorIODisplayExtension::DefaultDisplayGamma;
 
 	// Initialize to the tile size (not final size) and use a 16 bit back buffer to avoid precision issues when accumulating later
 	TileRenderTarget->InitCustomFormat(InPassInitSettings.BackbufferResolution.X, InPassInitSettings.BackbufferResolution.Y, EPixelFormat::PF_FloatRGBA, false);
@@ -371,8 +551,24 @@ void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipeli
 		GetPipeline()->SetPreviewTexture(TileRenderTarget.Get());
 	}
 
-	SurfaceQueue = MakeShared<FMoviePipelineSurfaceQueue>(InPassInitSettings.BackbufferResolution, EPixelFormat::PF_FloatRGBA, 3);
-	AccumulatorPool = MakeShared<FAccumulatorPool, ESPMode::ThreadSafe>(6);
+	for (FMoviePipelinePostProcessPass& AdditionalPass : AdditionalPostProcessMaterials)
+	{
+		if (AdditionalPass.bEnabled)
+		{
+			UMaterialInterface* Material = AdditionalPass.Material.LoadSynchronous();
+			if (Material)
+			{
+				ActivePostProcessMaterials.Add(Material);
+			}
+		}
+	}
+	SurfaceQueue = MakeShared<FMoviePipelineSurfaceQueue>(InPassInitSettings.BackbufferResolution, EPixelFormat::PF_FloatRGBA, 3, true);
+	int32 PoolSize = (ActivePostProcessMaterials.Num() + 1) * 3;
+	AccumulatorPool = MakeShared<TAccumulatorPool<FImageOverlappedAccumulator>, ESPMode::ThreadSafe>(PoolSize);
+
+	// This scene view extension will be released automatically as soon as Render Sequence is torn down.
+	// One Extension per sequence, since each sequence has its own OCIO settings.
+	OCIOSceneViewExtension = FSceneViewExtensions::NewExtension<FOpenColorIODisplayExtension>();
 }
 
 void UMoviePipelineImagePassBase::TeardownImpl()
@@ -397,6 +593,10 @@ void UMoviePipelineDeferredPassBase::TeardownImpl()
 	// Stall until the task graph has completed any pending accumulations.
 	FTaskGraphInterface::Get().WaitUntilTasksComplete(OutstandingTasks, ENamedThreads::GameThread);
 	OutstandingTasks.Reset();
+	ActivePostProcessMaterials.Reset();
+	
+	OCIOSceneViewExtension.Reset();
+	OCIOSceneViewExtension = nullptr;
 
 	// Preserve our view state until the rendering thread has been flushed.
 	Super::TeardownImpl();
@@ -606,16 +806,30 @@ FSceneView* UMoviePipelineImagePassBase::GetSceneViewForSampleState(FSceneViewFa
 	// This metadata is per-file and not per-view, but we need the blended result from the view to actually match what we rendered.
 	// To solve this, we'll insert metadata per renderpass, separated by render pass name.
 	InOutSampleState.OutputState.FileMetadata.Add(FString::Printf(TEXT("unreal/camera/%s/fstop"), *PassIdentifier.Name), View->FinalPostProcessSettings.DepthOfFieldFstop);
-	InOutSampleState.OutputState.FileMetadata.Add(FString::Printf(TEXT("unreal/camera/%s/focalLength"), *PassIdentifier.Name), View->FinalPostProcessSettings.DepthOfFieldFocalRegion);
-	InOutSampleState.OutputState.FileMetadata.Add(FString::Printf(TEXT("unreal/camera/%s/focusDistance"), *PassIdentifier.Name), View->FinalPostProcessSettings.DepthOfFieldFocalDistance);
+	InOutSampleState.OutputState.FileMetadata.Add(FString::Printf(TEXT("unreal/camera/%s/fov"), *PassIdentifier.Name), ViewInitOptions.FOV);
+	InOutSampleState.OutputState.FileMetadata.Add(FString::Printf(TEXT("unreal/camera/%s/focalDistance"), *PassIdentifier.Name), View->FinalPostProcessSettings.DepthOfFieldFocalDistance);
 	InOutSampleState.OutputState.FileMetadata.Add(FString::Printf(TEXT("unreal/camera/%s/sensorWidth"), *PassIdentifier.Name), View->FinalPostProcessSettings.DepthOfFieldSensorWidth);
 
 	if (GetWorld()->GetFirstPlayerController()->PlayerCameraManager)
 	{
-		const FMinimalViewInfo CameraCache = GetWorld()->GetFirstPlayerController()->PlayerCameraManager->GetCameraCachePOV();
-		float AspectRatio = CameraCache.bConstrainAspectRatio ? CameraCache.AspectRatio : (InOutSampleState.BackbufferSize.X / (float)InOutSampleState.BackbufferSize.Y);
-		InOutSampleState.OutputState.FileMetadata.Add(FString::Printf(TEXT("unreal/camera/%s/sensorAspectRatio"), *PassIdentifier.Name), AspectRatio);
-		InOutSampleState.OutputState.FileMetadata.Add(FString::Printf(TEXT("unreal/camera/%s/sensorHeight"), *PassIdentifier.Name), View->FinalPostProcessSettings.DepthOfFieldSensorWidth / AspectRatio);
+		// This only works if you use a Cine Camera (which is almost guranteed with Sequencer) and it's easier (and less human error prone) than re-deriving the information
+		ACineCameraActor* CineCameraActor = Cast<ACineCameraActor>(GetWorld()->GetFirstPlayerController()->PlayerCameraManager->GetViewTarget());
+		if (CineCameraActor)
+		{
+			UCineCameraComponent* CineCameraComponent = CineCameraActor->GetCineCameraComponent();
+			if (CineCameraComponent)
+			{
+				InOutSampleState.OutputState.FileMetadata.Add(FString::Printf(TEXT("unreal/camera/%s/sensorWidth"), *PassIdentifier.Name), CineCameraComponent->Filmback.SensorWidth);
+				InOutSampleState.OutputState.FileMetadata.Add(FString::Printf(TEXT("unreal/camera/%s/sensorHeight"), *PassIdentifier.Name), CineCameraComponent->Filmback.SensorHeight);
+				InOutSampleState.OutputState.FileMetadata.Add(FString::Printf(TEXT("unreal/camera/%s/sensorAspectRatio"), *PassIdentifier.Name), CineCameraComponent->Filmback.SensorAspectRatio);
+				InOutSampleState.OutputState.FileMetadata.Add(FString::Printf(TEXT("unreal/camera/%s/minFocalLength"), *PassIdentifier.Name), CineCameraComponent->LensSettings.MinFocalLength);
+				InOutSampleState.OutputState.FileMetadata.Add(FString::Printf(TEXT("unreal/camera/%s/maxFocalLength"), *PassIdentifier.Name), CineCameraComponent->LensSettings.MaxFocalLength);
+				InOutSampleState.OutputState.FileMetadata.Add(FString::Printf(TEXT("unreal/camera/%s/minFStop"), *PassIdentifier.Name), CineCameraComponent->LensSettings.MinFStop);
+				InOutSampleState.OutputState.FileMetadata.Add(FString::Printf(TEXT("unreal/camera/%s/maxFStop"), *PassIdentifier.Name), CineCameraComponent->LensSettings.MaxFStop);
+				InOutSampleState.OutputState.FileMetadata.Add(FString::Printf(TEXT("unreal/camera/%s/dofDiaphragmBladeCount"), *PassIdentifier.Name), CineCameraComponent->LensSettings.DiaphragmBladeCount);
+				InOutSampleState.OutputState.FileMetadata.Add(FString::Printf(TEXT("unreal/camera/%s/focalLength"), *PassIdentifier.Name), CineCameraComponent->CurrentFocalLength);
+			}
+		}
 	}
 
 
@@ -658,7 +872,7 @@ void UMoviePipelineImagePassBase::BlendPostProcessSettings(FSceneView* InView)
 
 namespace MoviePipeline
 {
-	static void AccumulateSample_TaskThread(TUniquePtr<FImagePixelData>&& InPixelData, const MoviePipeline::FSampleAccumulationArgs& InParams)
+	static void AccumulateSample_TaskThread(TUniquePtr<FImagePixelData>&& InPixelData, const MoviePipeline::FImageSampleAccumulationArgs& InParams)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_AccumulateSample_TaskThread);
 
@@ -751,6 +965,7 @@ namespace MoviePipeline
 			TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> NewPayload = MakeShared<FImagePixelDataPayload, ESPMode::ThreadSafe>();
 			NewPayload->PassIdentifier = FramePayload->PassIdentifier;
 			NewPayload->SampleState = FramePayload->SampleState;
+			NewPayload->SortingOrder = FramePayload->SortingOrder;
 
 			// Now that a tile is fully built and accumulated we can notify the output builder that the
 			// data is ready so it can pass that onto the output containers (if needed).
@@ -790,32 +1005,10 @@ namespace MoviePipeline
 			InParams.ImageAccumulator->Reset();
 		}
 	}
-
-	static bool GetAnyOutputWantsAlpha(UMoviePipelineConfigBase* InConfig)
-	{
-		TArray<UMoviePipelineOutputBase*> OutputSettings = InConfig->FindSettings<UMoviePipelineOutputBase>();
-
-		for (const UMoviePipelineOutputBase* Output : OutputSettings)
-		{
-			if (Output->IsAlphaSupported())
-			{
-				return true;
-			}
-		}
-
-		return false;
-	}
 }
 
-FAccumulatorPool::FAccumulatorPool(int32 InNumAccumulators)
-{
-	for (int32 Index = 0; Index < InNumAccumulators; Index++)
-	{
-		Accumulators.Add(MakeShared<FAccumulatorInstance, ESPMode::ThreadSafe>());
-	}
-}
 
-TSharedPtr<FAccumulatorPool::FAccumulatorInstance, ESPMode::ThreadSafe> FAccumulatorPool::BlockAndGetAccumulator_GameThread(int32 InFrameNumber)
+TSharedPtr<FAccumulatorPool::FAccumulatorInstance, ESPMode::ThreadSafe> FAccumulatorPool::BlockAndGetAccumulator_GameThread(int32 InFrameNumber, const FMoviePipelinePassIdentifier& InPassIdentifier)
 {
 	FScopeLock ScopeLock(&CriticalSection);
 
@@ -824,7 +1017,7 @@ TSharedPtr<FAccumulatorPool::FAccumulatorInstance, ESPMode::ThreadSafe> FAccumul
 	{
 		for (int32 Index = 0; Index < Accumulators.Num(); Index++)
 		{
-			if (InFrameNumber == Accumulators[Index]->ActiveFrameNumber)
+			if (InFrameNumber == Accumulators[Index]->ActiveFrameNumber && InPassIdentifier == Accumulators[Index]->ActivePassIdentifier)
 			{
 				AvailableIndex = Index;
 				break;
@@ -840,7 +1033,9 @@ TSharedPtr<FAccumulatorPool::FAccumulatorInstance, ESPMode::ThreadSafe> FAccumul
 				{
 					// Found a free one, tie it to this output frame.
 					Accumulators[Index]->ActiveFrameNumber = InFrameNumber;
+					Accumulators[Index]->ActivePassIdentifier = InPassIdentifier;
 					Accumulators[Index]->bIsActive = true;
+					Accumulators[Index]->TaskPrereq = nullptr;
 					AvailableIndex = Index;
 					break;
 				}
@@ -849,13 +1044,6 @@ TSharedPtr<FAccumulatorPool::FAccumulatorInstance, ESPMode::ThreadSafe> FAccumul
 	}
 
 	return Accumulators[AvailableIndex];
-}
-
-FAccumulatorPool::FAccumulatorInstance::FAccumulatorInstance()
-{
-	Accumulator = MakeShared<FImageOverlappedAccumulator, ESPMode::ThreadSafe>();
-	ActiveFrameNumber = INDEX_NONE;
-	bIsActive = false;
 }
 
 bool FAccumulatorPool::FAccumulatorInstance::IsActive() const

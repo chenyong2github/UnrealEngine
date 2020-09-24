@@ -8,7 +8,6 @@
 #include "../LightShaderParameters.ush"
 #include "../SceneTextureParameters.ush"
 #include "../ScreenSpaceDenoise/SSDPublic.ush"
-#include "../SobolRandom.ush"
 #include "../TransmissionCommon.ush"
 #include "../HairStrands/HairStrandsVisibilityCommon.ush"
 #include "RayTracingCommon.ush"
@@ -41,10 +40,17 @@ int2 PixelOffset;
 float TraceDistance;
 float LODTransitionStart;
 float LODTransitionEnd;
+uint bTransmissionSamplingDistanceCulling;
+uint TransmissionSamplingTechnique;
+uint RejectionSamplingTrials;
+
+#define TransmissionSampling_ConstantTrackingInfiniteDomain 0
+#define TransmissionSampling_ConstantTrackingFiniteDomain 1
 
 #if USE_HAIR_LIGHTING
 #include "../HairStrands/HairStrandsRaytracing.ush"
 uint				bUseHairVoxel;
+float				HairOcclusionThreshold;
 Texture2D<uint4>	HairCategorizationTexture;
 Texture2D<uint>		HairLightChannelMaskTexture;
 
@@ -159,53 +165,59 @@ float ComputeDiffuseTransmission(
 	// Refract inward and force a scattering event
 	float3 Tr = refract(V, N, Eta);
 
-	// TODO: decide between stochastic or expectation
-	//float ScatterDistance = MeanFreePath;
-	uint DummyVariable;
-	float RandSample = RandomSequence_GenerateSample1D(RandSequence, DummyVariable);
-	float ScatterDistance = -log(RandSample) * MeanFreePath;
-	float ScatterDistancePdf = RcpMeanFreePath * exp(-ScatterDistance * RcpMeanFreePath);
-
-	// Reject scatter distances which penetrate through the medium
+	// Find bounding sub-surface ray extent
 	const uint RayFlags = 0;
 	const uint InstanceInclusionMask = RAY_TRACING_MASK_OPAQUE;
 
-	// Use rejection sampling to improve 1D estimate
-	if (RejectionRetryMax > 1)
+	float TMax = SSSS_MAX_TRANSMISSION_PROFILE_DISTANCE;
+	if (bTransmissionSamplingDistanceCulling)
 	{
 		RayDesc RejectionTestRay;
 		RejectionTestRay.Origin = P;
 		RejectionTestRay.Direction = Tr;
 		RejectionTestRay.TMin = 0.01;
-		RejectionTestRay.TMax = ScatterDistance;
+		RejectionTestRay.TMax = TMax;
+
 		FMinimalPayload RejectionTestPayload = TraceVisibilityRay(
 			TLAS,
 			RayFlags,
 			InstanceInclusionMask,
 			PixelCoord,
 			RejectionTestRay);
-
-		float RejectionDistancePdf = ScatterDistancePdf;
-		uint RetryCount = 0;
-		while (RejectionTestPayload.IsHit() && RetryCount < RejectionRetryMax)
-		{
-			RetryCount++;
-			ScatterDistance /= 2.0;
-			// Account for forcibly scattering at a half-distance, given that a previous trial has failed
-			ScatterDistancePdf = RcpMeanFreePath * exp(-ScatterDistance * RcpMeanFreePath);
-			RejectionDistancePdf = ScatterDistancePdf / RejectionDistancePdf;
-			RejectionTestRay.TMax = ScatterDistance;
-
-			RejectionTestPayload = TraceVisibilityRay(
-				TLAS,
-				RayFlags,
-				InstanceInclusionMask,
-				PixelCoord,
-				RejectionTestRay);
-		}
-		if (RejectionTestPayload.IsHit()) return 0.0;
-		ScatterDistance = ScatterDistance * ScatterDistancePdf / RejectionDistancePdf;
+		TMax = (RejectionTestPayload.IsHit() ? RejectionTestPayload.HitT : RejectionTestRay.TMax);
 	}
+
+	uint DummyVariable;
+	float RandSample = RandomSequence_GenerateSample1D(RandSequence, DummyVariable);
+
+	float ScatterDistance = SSSS_MAX_TRANSMISSION_PROFILE_DISTANCE;
+	float ScatterDistancePdf = 0.0;
+	if (TransmissionSamplingTechnique == TransmissionSampling_ConstantTrackingFiniteDomain)
+	{
+		// Use constant tracking through homogeneous media, but renormalize to force a scatter event within the interval: [0, TMax]
+		float NormalizationConstant = 1.0 - exp(-RcpMeanFreePath * TMax);
+		ScatterDistance = -log(1.0 - RandSample * NormalizationConstant) * MeanFreePath;
+		ScatterDistancePdf = RcpMeanFreePath * exp(-RcpMeanFreePath * ScatterDistance) * rcp(NormalizationConstant);
+	}
+	else // TransmissionSamplingTechnique = TransmissionSampling_ConstantTrackingInfiniteDomain
+	{
+		// Use constant tracking through homogeneous media, with rejection sampling to force a scatter event
+		ScatterDistance = -log(RandSample) * MeanFreePath;
+		ScatterDistancePdf = RcpMeanFreePath * exp(-ScatterDistance * RcpMeanFreePath);
+
+		// Reject scatter distances which penetrate through the medium
+		uint RetryCount = 0;
+		while (ScatterDistance > TMax && RetryCount < RejectionSamplingTrials)
+		{
+			RandSample = RandomSequence_GenerateSample1D(RandSequence, DummyVariable);
+			ScatterDistance = -log(RandSample) * MeanFreePath;
+			ScatterDistancePdf = RcpMeanFreePath * exp(-ScatterDistance * RcpMeanFreePath);
+			RetryCount++;
+		}
+		if (ScatterDistance > TMax)	return 0.0;
+	}
+
+	ScatterDistance /= ScatterDistancePdf;
 
 	// Build sub-surface scattering ray
 	RayDesc SSSRay;
@@ -344,13 +356,9 @@ FOcclusionResult ComputeOcclusion(
 
 		#if !ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
 		{
-			const uint TemporalBits = 10;
-			uint FrameIndexMod1024 = ReverseBitsN(GetPowerOfTwoModulatedFrameIndex(1 << TemporalBits), TemporalBits);
-
-			uint2 SobolBase = SobolPixel(PixelCoord);
-			uint2 SobolFrame = SobolIndex(SobolBase, FrameIndexMod1024, TemporalBits);
-
-			RandSample = SobolIndexToUniformUnitSquare(SobolFrame);
+			uint2 RandomSeed = Rand3DPCG16(int3(PixelCoord, View.StateFrameIndex % 17)).xy;
+			
+			RandSample = Hammersley16(0, 1, RandomSeed);
 		}
 		#endif // !ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
 
@@ -365,7 +373,7 @@ FOcclusionResult ComputeOcclusion(
 			/* out */ Ray.TMax);
 			
 
-		uint Stencil = SceneStencilBuffer.Load(int3(PixelCoord, 0)) STENCIL_COMPONENT_SWIZZLE;
+		uint Stencil = SceneStencilTexture.Load(int3(PixelCoord, 0)) STENCIL_COMPONENT_SWIZZLE;
 		bool bDitheredLODFadingOut = Stencil & 1;
 		
 #if	ENABLE_TRANSMISSION
@@ -425,7 +433,7 @@ FOcclusionResult ComputeOcclusion(
 		#if USE_HAIR_LIGHTING
 		if (ShadingModelID != SHADINGMODELID_HAIR && bUseHairVoxel)
 		{
-			MinimalPayload.HitT = TraverseHair(PixelCoord, RandSequence, Ray.Origin, Ray.Direction, MinimalPayload.HitT);
+			MinimalPayload.HitT = TraverseHair(PixelCoord, RandSequence, Ray.Origin, Ray.Direction, MinimalPayload.HitT, HairOcclusionThreshold);
 		}
 		#endif
 
@@ -548,9 +556,10 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 #endif
 			ShadingModelID = GBufferData.ShadingModelID;
 			WorldNormal = GBufferData.WorldNormal;
-#if ENABLE_TRANSMISSION
-			TransmissionProfileParams = GetTransmissionProfileParams(GBufferData);
-#endif
+			if (ENABLE_TRANSMISSION)
+			{
+				TransmissionProfileParams = GetTransmissionProfileParams(GBufferData);
+			}
 
 			if (ShadingModelID == SHADINGMODELID_SUBSURFACE)
 			{
@@ -561,12 +570,12 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 		// Mask out depth values that are infinitely far away
 
 #if 0
-		float DeviceZ = SceneDepthBuffer.SampleLevel(SceneDepthBufferSampler, BufferUV, 0).r;
+		float DeviceZ = SceneDepthTexture.SampleLevel(SceneDepthTextureSampler, BufferUV, 0).r;
 #else
 		//#dxr-todo: workaround for flickering. UE-87281
-		float DeviceZ = SceneDepthBuffer.Load(int3(PixelCoord, 0)).r;
+		float DeviceZ = SceneDepthTexture.Load(int3(PixelCoord, 0)).r;
 #endif
-		const bool bIsDepthValid = SceneDepthBuffer.Load(int3(PixelCoord, 0)).r > 0.0;
+		const bool bIsDepthValid = SceneDepthTexture.Load(int3(PixelCoord, 0)).r > 0.0;
 		const bool bIsValidPixel = ShadingModelID != SHADINGMODELID_UNLIT && bIsDepthValid;
 		const uint LightChannel = GetSceneLightingChannel(PixelCoord);
 		const bool bTraceRay = bIsValidPixel && (LightChannel & LightingChannelMask) != 0;

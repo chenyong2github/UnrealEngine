@@ -17,6 +17,7 @@ namespace UnrealBuildTool.Rules
 					"Engine",
 					"ImgMedia",
 					"InputCore",
+					"LevelSequence",
 					"MediaAssets",
 					"MediaCompositing",
 					"MediaUtils",

@@ -327,14 +327,10 @@ FRayTracingShaderRHIRef FD3D12DynamicRHI::RHICreateRayTracingShader(TArrayView<c
 
 	FD3D12Adapter& Adapter = GetAdapter();
 
-#if USE_STATIC_ROOT_SIGNATURE
-	Shader->pRootSignature = Adapter.GetStaticComputeRootSignature();
-#else // USE_STATIC_ROOT_SIGNATURE
 	const D3D12_RESOURCE_BINDING_TIER Tier = Adapter.GetResourceBindingTier();
 	FD3D12QuantizedBoundShaderState QBSS;
 	QuantizeBoundShaderState(ShaderFrequency, Tier, Shader, QBSS);
 	Shader->pRootSignature = Adapter.GetRootSignature(QBSS);
-#endif // USE_STATIC_ROOT_SIGNATURE
 
 	return Shader;
 }
@@ -354,21 +350,19 @@ FD3D12BoundShaderState::FD3D12BoundShaderState(
 	FRHIHullShader* InHullShaderRHI,
 	FRHIDomainShader* InDomainShaderRHI,
 	FRHIGeometryShader* InGeometryShaderRHI,
-	FD3D12Device* InDevice
+	FD3D12Adapter* InAdapter
 	) :
 	CacheLink(InVertexDeclarationRHI, InVertexShaderRHI, InPixelShaderRHI, InHullShaderRHI, InDomainShaderRHI, InGeometryShaderRHI, this)
 {
 	INC_DWORD_STAT(STAT_D3D12NumBoundShaderState);
 
-	FD3D12Adapter* Adapter = InDevice->GetParentAdapter();
-
 #if USE_STATIC_ROOT_SIGNATURE
-	pRootSignature = Adapter->GetStaticGraphicsRootSignature();
+	pRootSignature = InAdapter->GetStaticGraphicsRootSignature();
 #else
-	const D3D12_RESOURCE_BINDING_TIER Tier = Adapter->GetResourceBindingTier();
+	const D3D12_RESOURCE_BINDING_TIER Tier = InAdapter->GetResourceBindingTier();
 	FD3D12QuantizedBoundShaderState QuantizedBoundShaderState;
 	QuantizeBoundShaderState(Tier, this, QuantizedBoundShaderState);
-	pRootSignature = Adapter->GetRootSignature(QuantizedBoundShaderState);
+	pRootSignature = InAdapter->GetRootSignature(QuantizedBoundShaderState);
 #endif
 
 #if D3D12_SUPPORTS_PARALLEL_RHI_EXECUTE
@@ -405,7 +399,7 @@ FBoundShaderStateRHIRef FD3D12DynamicRHI::RHICreateBoundShaderState(
 {
 	//SCOPE_CYCLE_COUNTER(STAT_D3D12CreateBoundShaderStateTime);
 
-	checkf(GIsRHIInitialized && GetRHIDevice()->GetCommandListManager().IsReady(), (TEXT("Bound shader state RHI resource was created without initializing Direct3D first")));
+	checkf(GIsRHIInitialized && GetRHIDevice(0)->GetCommandListManager().IsReady(), (TEXT("Bound shader state RHI resource was created without initializing Direct3D first")));
 
 #if D3D12_SUPPORTS_PARALLEL_RHI_EXECUTE
 	// Check for an existing bound shader state which matches the parameters
@@ -443,6 +437,6 @@ FBoundShaderStateRHIRef FD3D12DynamicRHI::RHICreateBoundShaderState(
 	{
 		SCOPE_CYCLE_COUNTER(STAT_D3D12NewBoundShaderStateTime);
 
-		return new FD3D12BoundShaderState(VertexDeclarationRHI, VertexShaderRHI, PixelShaderRHI, HullShaderRHI, DomainShaderRHI, GeometryShaderRHI, GetRHIDevice());
+		return new FD3D12BoundShaderState(VertexDeclarationRHI, VertexShaderRHI, PixelShaderRHI, HullShaderRHI, DomainShaderRHI, GeometryShaderRHI, &GetAdapter());
 	}
 }

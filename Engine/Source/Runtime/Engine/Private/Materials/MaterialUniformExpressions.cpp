@@ -17,18 +17,6 @@
 #include "VirtualTexturing.h"
 #include "VT/RuntimeVirtualTexture.h"
 
-static TAutoConsoleVariable<int32> CVarSupportMaterialLayers(
-	TEXT("r.SupportMaterialLayers"),
-	0,
-	TEXT("Support new material layering"),
-	ECVF_ReadOnly | ECVF_RenderThreadSafe);
-
-// Temporary flag for toggling experimental material layers functionality
-bool AreExperimentalMaterialLayersEnabled()
-{
-	return CVarSupportMaterialLayers.GetValueOnAnyThread() == 1;
-}
-
 TLinkedList<FMaterialUniformExpressionType*>*& FMaterialUniformExpressionType::GetTypeList()
 {
 	static TLinkedList<FMaterialUniformExpressionType*>* TypeList = NULL;
@@ -94,17 +82,30 @@ static void GetTextureParameterValue(const FHashedMaterialParameterInfo& Paramet
 	{
 		UTexture* Value = nullptr;
 
-		if (AreExperimentalMaterialLayersEnabled())
-		{
-			UMaterialInterface* Interface = Context.Material.GetMaterialInterface();
-			if (!Interface || !Interface->GetTextureParameterDefaultValue(ParameterInfo, Value))
-			{
-				Value = GetIndexedTexture<UTexture>(Context.Material, TextureIndex);
-			}
-		}
-		else
+		UMaterialInterface* Interface = Context.Material.GetMaterialInterface();
+		if (!Interface || !Interface->GetTextureParameterDefaultValue(ParameterInfo, Value))
 		{
 			Value = GetIndexedTexture<UTexture>(Context.Material, TextureIndex);
+		}
+
+		OutValue = Value;
+	}
+}
+
+static void GetTextureParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, int32 TextureIndex, const FMaterialRenderContext& Context, const URuntimeVirtualTexture*& OutValue)
+{
+	if (ParameterInfo.Name.IsNone())
+	{
+		OutValue = GetIndexedTexture<URuntimeVirtualTexture>(Context.Material, TextureIndex);
+	}
+	else if (!Context.MaterialRenderProxy || !Context.MaterialRenderProxy->GetTextureValue(ParameterInfo, &OutValue, Context))
+	{
+		URuntimeVirtualTexture* Value = nullptr;
+
+		UMaterialInterface* Interface = Context.Material.GetMaterialInterface();
+		if (!Interface || !Interface->GetRuntimeVirtualTextureParameterDefaultValue(ParameterInfo, Value))
+		{
+			Value = GetIndexedTexture<URuntimeVirtualTexture>(Context.Material, TextureIndex);
 		}
 
 		OutValue = Value;
@@ -630,15 +631,8 @@ static void GetVectorParameter(const FUniformExpressionSet& UniformExpressionSet
 	{
 		const bool bOveriddenParameterOnly = Parameter.ParameterInfo.Association == EMaterialParameterAssociation::GlobalParameter;
 
-		if (AreExperimentalMaterialLayersEnabled())
-		{
-			UMaterialInterface* Interface = Context.Material.GetMaterialInterface();
-			if (!Interface || !Interface->GetVectorParameterDefaultValue(Parameter.ParameterInfo, OutValue, bOveriddenParameterOnly))
-			{
-				bNeedsDefaultValue = true;
-			}
-		}
-		else
+		UMaterialInterface* Interface = Context.Material.GetMaterialInterface();
+		if (!Interface || !Interface->GetVectorParameterDefaultValue(Parameter.ParameterInfo, OutValue, bOveriddenParameterOnly))
 		{
 			bNeedsDefaultValue = true;
 		}
@@ -666,15 +660,8 @@ static void GetScalarParameter(const FUniformExpressionSet& UniformExpressionSet
 	{
 		const bool bOveriddenParameterOnly = Parameter.ParameterInfo.Association == EMaterialParameterAssociation::GlobalParameter;
 
-		if (AreExperimentalMaterialLayersEnabled())
-		{
-			UMaterialInterface* Interface = Context.Material.GetMaterialInterface();
-			if (!Interface || !Interface->GetScalarParameterDefaultValue(Parameter.ParameterInfo, OutValue.A, bOveriddenParameterOnly))
-			{
-				bNeedsDefaultValue = true;
-			}
-		}
-		else
+		UMaterialInterface* Interface = Context.Material.GetMaterialInterface();
+		if (!Interface || !Interface->GetScalarParameterDefaultValue(Parameter.ParameterInfo, OutValue.A, bOveriddenParameterOnly))
 		{
 			bNeedsDefaultValue = true;
 		}
@@ -1066,11 +1053,19 @@ void FUniformExpressionSet::GetTextureValue(EMaterialTextureParameterType Type, 
 	GetTextureParameterValue(Parameter.ParameterInfo, Parameter.TextureIndex, Context, OutValue);
 }
 
-void FUniformExpressionSet::GetTextureValue(int32 Index, const FMaterial& Material, const URuntimeVirtualTexture*& OutValue) const
+void FUniformExpressionSet::GetTextureValue(int32 Index, const FMaterialRenderContext& Context, const FMaterial& Material, const URuntimeVirtualTexture*& OutValue) const
 {
 	check(IsInParallelRenderingThread());
-	const FMaterialTextureParameterInfo& Parameter = GetTextureParameter(EMaterialTextureParameterType::Virtual, Index);
-	OutValue = GetIndexedTexture<URuntimeVirtualTexture>(Material, Parameter.TextureIndex);
+	const int32 VirtualTexturesNum = GetNumTextures(EMaterialTextureParameterType::Virtual);
+	if (ensure(Index < VirtualTexturesNum))
+	{
+		const FMaterialTextureParameterInfo& Parameter = GetTextureParameter(EMaterialTextureParameterType::Virtual, Index);
+		GetTextureParameterValue(Parameter.ParameterInfo, Parameter.TextureIndex, Context, OutValue);
+	}
+	else
+	{
+		OutValue = nullptr;
+	}
 }
 
 void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& MaterialRenderContext, const FUniformExpressionCache& UniformExpressionCache, uint8* TempBuffer, int TempBufferSize) const
@@ -1133,7 +1128,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 			if (!bFoundTexture)
 			{
 				const URuntimeVirtualTexture* Texture = nullptr;
-				GetTextureValue(ExpressionIndex, MaterialRenderContext.Material, Texture);
+				GetTextureValue(ExpressionIndex, MaterialRenderContext, MaterialRenderContext.Material, Texture);
 				if (Texture != nullptr)
 				{
 					IAllocatedVirtualTexture const* AllocatedVT = Texture->GetAllocatedVirtualTexture();
@@ -1530,7 +1525,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 			if (!bValidResources)
 			{
 				const URuntimeVirtualTexture* Texture = nullptr;
-				GetTextureValue(ExpressionIndex, MaterialRenderContext.Material, Texture);
+				GetTextureValue(ExpressionIndex, MaterialRenderContext, MaterialRenderContext.Material, Texture);
 				if (Texture != nullptr)
 				{
 					IAllocatedVirtualTexture const* AllocatedVT = Texture->GetAllocatedVirtualTexture();
@@ -1685,6 +1680,7 @@ FMaterialUniformExpressionExternalTextureParameter::FMaterialUniformExpressionEx
 
 FMaterialUniformExpressionExternalTextureParameter::FMaterialUniformExpressionExternalTextureParameter(FName InParameterName, int32 InTextureIndex)
 	: Super(InTextureIndex)
+	, ParameterName(InParameterName)
 {}
 
 void FMaterialUniformExpressionExternalTextureParameter::GetExternalTextureParameterInfo(FMaterialExternalTextureParameterInfo& OutParameter) const
@@ -1774,7 +1770,7 @@ void FMaterialTextureParameterInfo::GetGameThreadTextureValue(const UMaterialInt
 {
 	if (!ParameterInfo.Name.IsNone())
 	{
-		const bool bOverrideValuesOnly = !AreExperimentalMaterialLayersEnabled();
+		const bool bOverrideValuesOnly = false;
 		if (!MaterialInterface->GetTextureParameterValue(ParameterInfo, OutValue, bOverrideValuesOnly))
 		{
 			OutValue = GetIndexedTexture<UTexture>(Material, TextureIndex);

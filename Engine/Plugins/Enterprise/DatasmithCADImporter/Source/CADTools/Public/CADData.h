@@ -89,6 +89,8 @@ struct CADTOOLS_API FTessellationData
 {
 	friend CADTOOLS_API FArchive& operator<<(FArchive& Ar, FTessellationData& Tessellation);
 
+	int32    PatchId = 0;
+
 	TArray<FVector> VertexArray;
 	TArray<FVector> NormalArray;
 	TArray<int32> IndexArray;

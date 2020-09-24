@@ -36,12 +36,6 @@ public:
 	/** 1 / Tangent of the spot light's outer cone angle. */
 	float InvTanOuterCone;
 
-	/** Cosine of the spot light's outer light shaft cone angle. */
-	float CosLightShaftConeAngle;
-
-	/** 1 / (appCos(ClampedInnerLightShaftConeAngle) - CosLightShaftConeAngle) */
-	float InvCosLightShaftConeDifference;
-
 	/** Initialization constructor. */
 	FSpotLightSceneProxy(const USpotLightComponent* Component)
 	:	FPointLightSceneProxy(Component)
@@ -54,12 +48,6 @@ public:
 		CosInnerCone = FMath::Cos(ClampedInnerConeAngle);
 		InvCosConeDifference = 1.0f / (CosInnerCone - CosOuterCone);
 		InvTanOuterCone = 1.0f / FMath::Tan(ClampedOuterConeAngle);
-		const float ClampedOuterLightShaftConeAngle = FMath::Clamp(Component->LightShaftConeAngle * (float)PI / 180.0f, 0.001f, 89.0f * (float)PI / 180.0f + 0.001f);
-		// Use half the outer light shaft cone angle as the inner angle to provide a nice falloff
-		// Not exposing the inner light shaft cone angle as it is probably not needed
-		const float ClampedInnerLightShaftConeAngle = .5f * ClampedOuterLightShaftConeAngle;
-		CosLightShaftConeAngle = FMath::Cos(ClampedOuterLightShaftConeAngle);
-		InvCosLightShaftConeDifference = 1.0f / (FMath::Cos(ClampedInnerLightShaftConeAngle) - CosLightShaftConeAngle);
 	}
 
 	/** Accesses parameters needed for rendering the light. */
@@ -133,8 +121,6 @@ public:
 	}
 
 	virtual float GetOuterConeAngle() const override { return OuterConeAngle; }
-
-	virtual FVector2D GetLightShaftConeParams() const override { return FVector2D(CosLightShaftConeAngle, InvCosLightShaftConeDifference); }
 
 	virtual FSphere GetBoundingSphere() const override
 	{
@@ -257,17 +243,6 @@ void USpotLightComponent::SetLightBrightness(float InBrightness)
 	}
 }
 #endif // WITH_EDITOR
-
-
-// Disable for now
-//void USpotLightComponent::SetLightShaftConeAngle(float NewLightShaftConeAngle)
-//{
-//	if (NewLightShaftConeAngle != LightShaftConeAngle)
-//	{
-//		LightShaftConeAngle = NewLightShaftConeAngle;
-//		MarkRenderStateDirty();
-//	}
-//}
 
 static bool IsSpotLightSupported(const USpotLightComponent* InLight)
 {

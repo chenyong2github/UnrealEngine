@@ -108,5 +108,27 @@ public:
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Skeletal Mesh Utilities")
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | SkeletalMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Skeletal Mesh Editor Subsystem"))
 	static void SetLodBuildSettings(USkeletalMesh* SkeletalMesh, const int32 LodIndex, const FSkeletalMeshBuildSettings& BuildOptions);
+	/** Remove all the specified LODs. This function will remove all the valid LODs in the list.
+	 * Valid LOD is any LOD greater then 0 that exist in the skeletalmesh. We cannot remove the base LOD 0.
+	 *
+	 * @param SkeletalMesh	The mesh inside which we are renaming a socket
+	 * @param ToRemoveLODs	The LODs we need to remove
+	 * @return true if the successfully remove all the LODs. False otherwise, but evedn if it return false it
+	 * will have removed all valid LODs.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | SkeletalMesh", meta = (ScriptMethod))
+	static bool RemoveLODs(USkeletalMesh* SkeletalMesh, TArray<int32> ToRemoveLODs);
+
+	/**
+	 * This function will strip all triangle in the specified LOD that don't have any UV area pointing on a black pixel in the TextureMask.
+	 * We use the UVChannel 0 to find the pixels in the texture.
+	 *
+	 * @Param SkeletalMesh: The skeletalmesh we want to optimize
+	 * @Param LODIndex: The LOD we want to optimize
+	 * @Param TextureMask: The texture containing the stripping mask. non black pixel strip triangle, black pixel keep them.
+	 * @Param Threshold: The threshold we want when comparing the texture value with zero.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | SkeletalMesh", meta = (ScriptMethod))
+	static bool StripLODGeometry(USkeletalMesh* SkeletalMesh, const int32 LODIndex, UTexture2D* TextureMask, const float Threshold);
 };
 

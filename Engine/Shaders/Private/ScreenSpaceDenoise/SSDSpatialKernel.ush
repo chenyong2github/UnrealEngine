@@ -303,8 +303,10 @@ void SetBilateralPreset(uint BilateralPresetId, inout FSSDKernelConfig KernelCon
 		UNROLL_N(SIGNAL_ARRAY_SIZE)
 		for (uint MultiplexId = 0; MultiplexId < SIGNAL_ARRAY_SIZE; MultiplexId++)
 		{
+			// Change the bilarteral settings to use normal orientation in 
+			// order to not merge background / foreground sample, as otherwise this results into leaks
 			// Shadow masks are normal invarient, so only reject based on position.
-			KernelConfig.BilateralSettings[MultiplexId] = BILATERAL_POSITION_BASED(5);
+			KernelConfig.BilateralSettings[MultiplexId] = BILATERAL_POSITION_BASED(5) | BILATERAL_NORMAL;
 		}
 	}
 	else if (BilateralPresetId == BILATERAL_PRESET_POLYCHROMATIC_PENUMBRA)
@@ -364,6 +366,27 @@ void SetBilateralPreset(uint BilateralPresetId, inout FSSDKernelConfig KernelCon
 	{
 		// Diffuse & specular bilateral component.
 		KernelConfig.BilateralSettings[0] = BILATERAL_POSITION_BASED(1) | BILATERAL_SHADING_MODEL;
+	}
+	else if (BilateralPresetId == BILATERAL_PRESET_AO)
+	{
+		// Diffuse depends on world position, but also the normal of the surface given it doesn't store any directionality.
+		KernelConfig.BilateralSettings[0] = BILATERAL_POSITION_BASED(4) | BILATERAL_NORMAL;
+		
+		#if SIGNAL_ARRAY_SIZE > 1
+			// Variance for sampling rejection pre convolution.
+			KernelConfig.BilateralSettings[1] = KernelConfig.BilateralSettings[0];
+		#endif
+	}
+	else if (BilateralPresetId == BILATERAL_PRESET_AO_HISTORY)
+	{
+		// Diffuse depends on world position, but also the normal of the surface given it doesn't store any directionality.
+		KernelConfig.BilateralSettings[0] = BILATERAL_POSITION_BASED(2) | BILATERAL_NORMAL;
+		//KernelConfig.BilateralSettings[0] = BILATERAL_NORMAL;
+		
+		#if SIGNAL_ARRAY_SIZE > 1
+			// Variance for sampling rejection pre convolution.
+			KernelConfig.BilateralSettings[1] = KernelConfig.BilateralSettings[0];
+		#endif
 	}
 }
 
@@ -671,6 +694,9 @@ void AccumulateSampledMultiplexedSignals(
 		// Compute at compile time the id of the signal being processed.
 		const uint BatchedSignalId = ComputeSignalBatchIdFromSignalMultiplexId(KernelConfig, SignalMultiplexId);
 		
+		// Domain knowledge of the signal.
+		FSSDSignalDomainKnowledge DomainKnowledge = GetSignalDomainKnowledge(BatchedSignalId);
+
 		// TODO(Denoiser): direction of the ray should be cached by injest or output by RGS, otherwise ends up with VGPR pressure because of SampleBufferUV.
 		uint2 NeighborPixelCoord = floor(SampleBufferUV * KernelConfig.BufferSizeAndInvSize.xy);
 
@@ -685,7 +711,7 @@ void AccumulateSampledMultiplexedSignals(
 		float SamplePixelWorldBluringRadius = ComputeWorldBluringRadiusCausedByPixelSize(SampleSceneMetadata);
 		
 		// Compute the bluring radius of the signal from ray hit distance and signal domain knowledge.
-		float SignalConvolutionBluringRadius = GetSignalWorldBluringRadius(SampleFrequency, SampleSceneMetadata, BatchedSignalId);
+		float SignalConvolutionBluringRadius = GetSignalWorldBluringRadius(SampleFrequency, SampleSceneMetadata, DomainKnowledge);
 		
 		// But the signal's bluring radius might already be pre computed.
 		if (KernelConfig.BilateralDistanceComputation == SIGNAL_WORLD_FREQUENCY_PRECOMPUTED_BLURING_RADIUS)
@@ -733,6 +759,7 @@ void AccumulateSampledMultiplexedSignals(
 		float BilateralWeight = ComputeBilateralWeight(
 			KernelConfig.BilateralSettings[SignalMultiplexId],
 			FinalWorldBluringDistance,
+			DomainKnowledge,
 			RefSceneMetadata,
 			SampleSceneMetadata,
 			NeighborToRefVector);

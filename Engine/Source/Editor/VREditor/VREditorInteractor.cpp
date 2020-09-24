@@ -171,7 +171,7 @@ void UVREditorInteractor::Init_Implementation( UVREditorMode* InVRMode )
 			AddKeyAction( EKeys::Vive_Left_Trackpad_Touch, FViewportActionKeyInput( VRActionTypes::Touch ) );
 
 			// Valve Index
-			AddKeyAction( EKeys::ValveIndex_Left_Grip_Click, FViewportActionKeyInput( ViewportWorldActionTypes::WorldMovement ) );
+			AddKeyAction( EKeys::ValveIndex_Left_Trackpad_Touch, FViewportActionKeyInput( ViewportWorldActionTypes::WorldMovement ) );
 			AddKeyAction( EKeys::ValveIndex_Left_A_Click, FViewportActionKeyInput( VRActionTypes::Modifier ) );
 			AddKeyAction( EKeys::ValveIndex_Left_B_Click, FViewportActionKeyInput( VRActionTypes::Modifier2 ) );
 			AddKeyAction( EKeys::ValveIndex_Left_Thumbstick_Touch, FViewportActionKeyInput( VRActionTypes::Touch ) );
@@ -227,7 +227,7 @@ void UVREditorInteractor::Init_Implementation( UVREditorMode* InVRMode )
 			AddKeyAction( EKeys::Vive_Right_Trackpad_Touch, FViewportActionKeyInput( VRActionTypes::Touch ) );
 			
 			// Valve Index
-			AddKeyAction( EKeys::ValveIndex_Right_Grip_Click, FViewportActionKeyInput( ViewportWorldActionTypes::WorldMovement ) );
+			AddKeyAction( EKeys::ValveIndex_Right_Trackpad_Touch, FViewportActionKeyInput( ViewportWorldActionTypes::WorldMovement ) );
 			AddKeyAction( EKeys::ValveIndex_Right_A_Click, FViewportActionKeyInput( VRActionTypes::Modifier ) );
 			AddKeyAction( EKeys::ValveIndex_Right_B_Click, FViewportActionKeyInput( VRActionTypes::Modifier2 ) );
 			AddKeyAction( EKeys::ValveIndex_Right_Thumbstick_Touch, FViewportActionKeyInput( VRActionTypes::Touch ) );
@@ -1410,7 +1410,7 @@ UStaticMeshSocket* UVREditorInteractor::FindMeshSocketForKey( UStaticMesh* Stati
 		SocketName = TriggerSocketName;
 	}
 	else if (Key == EKeys::Vive_Left_Grip_Click || Key == EKeys::Vive_Right_Grip_Click ||
-		Key == EKeys::ValveIndex_Left_Grip_Click || Key == EKeys::ValveIndex_Right_Grip_Click ||
+		Key == EKeys::ValveIndex_Left_Trackpad_Touch || Key == EKeys::ValveIndex_Right_Trackpad_Touch ||
 		Key == EKeys::OculusTouch_Left_Grip_Click || Key == EKeys::OculusTouch_Right_Grip_Click)
 	{
 		static FName GripSocketName( "Grip" );

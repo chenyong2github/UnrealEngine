@@ -27,6 +27,7 @@ public:
 	virtual void RecalculateSequenceLength() override;
 	virtual void OnSetEditableTime(int32 TimeIndex, double Time, bool bIsDragging) override;
 	virtual bool ClampToEndTime(float NewEndTime) override;
+	virtual void RefreshSnapTimes() override;
 
 	/** Refresh the UI representation of the sections */
 	void RefreshSectionTimes();

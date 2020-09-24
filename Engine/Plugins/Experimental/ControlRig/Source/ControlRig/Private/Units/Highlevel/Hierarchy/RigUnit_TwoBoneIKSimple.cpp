@@ -7,8 +7,38 @@
 
 FRigUnit_TwoBoneIKSimple_Execute()
 {
+	FRigUnit_TwoBoneIKSimplePerItem::StaticExecute(
+		RigVMExecuteContext, 
+		FRigElementKey(BoneA, ERigElementType::Bone),
+		FRigElementKey(BoneB, ERigElementType::Bone),
+		FRigElementKey(EffectorBone, ERigElementType::Bone),
+		Effector,
+		PrimaryAxis,
+		SecondaryAxis,
+		SecondaryAxisWeight,
+		PoleVector,
+		PoleVectorKind,
+		FRigElementKey(PoleVectorSpace, ERigElementType::Bone),
+		bEnableStretch,
+		StretchStartRatio,
+		StretchMaximumRatio,
+		Weight,
+		BoneALength,
+		BoneBLength,
+		bPropagateToChildren,
+		DebugSettings,
+		CachedBoneAIndex,
+		CachedBoneBIndex,
+		CachedEffectorBoneIndex,
+		CachedPoleVectorSpaceIndex,
+		ExecuteContext, 
+		Context);
+}
+
+FRigUnit_TwoBoneIKSimplePerItem_Execute()
+{
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
+	FRigHierarchyContainer* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy == nullptr)
 	{
 		return;
@@ -16,46 +46,31 @@ FRigUnit_TwoBoneIKSimple_Execute()
 
 	if (Context.State == EControlRigState::Init)
 	{
-		BoneAIndex = Hierarchy->GetIndex(BoneA);
-		BoneBIndex = Hierarchy->GetIndex(BoneB);
-		EffectorBoneIndex = Hierarchy->GetIndex(EffectorBone);
-		PoleVectorSpaceIndex = Hierarchy->GetIndex(PoleVectorSpace);
+		CachedItemAIndex.Reset();
+		CachedItemBIndex.Reset();
+		CachedEffectorItemIndex.Reset();
+		CachedPoleVectorSpaceIndex.Reset();
 		return;
 	}
 
-	if (BoneAIndex == INDEX_NONE || BoneBIndex == INDEX_NONE)
+	if (!CachedItemAIndex.UpdateCache(ItemA, Hierarchy) ||
+		!CachedItemBIndex.UpdateCache(ItemB, Hierarchy) ||
+		!CachedEffectorItemIndex.UpdateCache(EffectorItem, Hierarchy))
 	{
 		return;
 	}
+
+	CachedPoleVectorSpaceIndex.UpdateCache(PoleVectorSpace, Hierarchy);
 
 	if (Weight <= SMALL_NUMBER)
 	{
 		return;
 	}
 
-	float LengthA = BoneALength;
-	float LengthB = BoneBLength;
-
-	if (LengthA < SMALL_NUMBER)
-	{
-		LengthA = (Hierarchy->GetInitialTransform(BoneAIndex).GetLocation() - Hierarchy->GetInitialTransform(BoneBIndex).GetLocation()).Size();
-	}
-
-	if (LengthB < SMALL_NUMBER && EffectorBoneIndex != INDEX_NONE)
-	{
-		LengthB = (Hierarchy->GetInitialTransform(BoneBIndex).GetLocation() - Hierarchy->GetInitialTransform(EffectorBoneIndex).GetLocation()).Size();
-	}
-
-	if (LengthA < SMALL_NUMBER || LengthB < SMALL_NUMBER)
-	{
-		UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Bone Lengths are not provided.\nEither set bone length(s) or set effector bone."));
-		return;
-	}
-
 	FVector PoleTarget = PoleVector;
-	if (PoleVectorSpaceIndex != INDEX_NONE)
+	if (CachedPoleVectorSpaceIndex.IsValid())
 	{
-		const FTransform PoleVectorSpaceTransform = Hierarchy->GetGlobalTransform(PoleVectorSpaceIndex);
+		const FTransform PoleVectorSpaceTransform = Hierarchy->GetGlobalTransform(CachedPoleVectorSpaceIndex);
 		if (PoleVectorKind == EControlRigVectorKind::Direction)
 		{
 			PoleTarget = PoleVectorSpaceTransform.TransformVectorNoScale(PoleTarget);
@@ -66,10 +81,33 @@ FRigUnit_TwoBoneIKSimple_Execute()
 		}
 	}
 
-	FTransform TransformA = Hierarchy->GetGlobalTransform(BoneAIndex);
+	FTransform TransformA = Hierarchy->GetGlobalTransform(CachedItemAIndex);
 	FTransform TransformB = TransformA;
-	TransformB.SetLocation(Hierarchy->GetGlobalTransform(BoneBIndex).GetLocation());
+	TransformB.SetLocation(Hierarchy->GetGlobalTransform(CachedItemBIndex).GetLocation());
 	FTransform TransformC = Effector;
+
+	float LengthA = ItemALength;
+	float LengthB = ItemBLength;
+
+	if (LengthA < SMALL_NUMBER)
+	{
+		FVector Diff = Hierarchy->GetInitialGlobalTransform(CachedItemAIndex).GetLocation() - Hierarchy->GetInitialGlobalTransform(CachedItemBIndex).GetLocation();
+		Diff = Diff * TransformA.GetScale3D();
+		LengthA = Diff.Size();
+	}
+
+	if (LengthB < SMALL_NUMBER && CachedEffectorItemIndex != INDEX_NONE)
+	{
+		FVector Diff = Hierarchy->GetInitialGlobalTransform(CachedItemBIndex).GetLocation() - Hierarchy->GetInitialGlobalTransform(CachedEffectorItemIndex).GetLocation();
+		Diff = Diff * TransformB.GetScale3D();
+		LengthB = Diff.Size();
+	}
+
+	if (LengthA < SMALL_NUMBER || LengthB < SMALL_NUMBER)
+	{
+		UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Item Lengths are not provided.\nEither set item length(s) or set effector item."));
+		return;
+	}
 
 	FControlRigMathLibrary::SolveBasicTwoBoneIK(TransformA, TransformB, TransformC, PoleTarget, PrimaryAxis, SecondaryAxis, SecondaryAxisWeight, LengthA, LengthB, bEnableStretch, StretchStartRatio, StretchMaximumRatio);
 
@@ -87,16 +125,16 @@ FRigUnit_TwoBoneIKSimple_Execute()
 	{
 		FVector PositionB = TransformA.InverseTransformPosition(TransformB.GetLocation());
 		FVector PositionC = TransformB.InverseTransformPosition(TransformC.GetLocation());
-		TransformA.SetRotation(FQuat::Slerp(Hierarchy->GetGlobalTransform(BoneAIndex).GetRotation(), TransformA.GetRotation(), Weight));
-		TransformB.SetRotation(FQuat::Slerp(Hierarchy->GetGlobalTransform(BoneBIndex).GetRotation(), TransformB.GetRotation(), Weight));
-		TransformC.SetRotation(FQuat::Slerp(Hierarchy->GetGlobalTransform(EffectorBoneIndex).GetRotation(), TransformC.GetRotation(), Weight));
+		TransformA.SetRotation(FQuat::Slerp(Hierarchy->GetGlobalTransform(CachedItemAIndex).GetRotation(), TransformA.GetRotation(), Weight));
+		TransformB.SetRotation(FQuat::Slerp(Hierarchy->GetGlobalTransform(CachedItemBIndex).GetRotation(), TransformB.GetRotation(), Weight));
+		TransformC.SetRotation(FQuat::Slerp(Hierarchy->GetGlobalTransform(CachedEffectorItemIndex).GetRotation(), TransformC.GetRotation(), Weight));
 		TransformB.SetLocation(TransformA.TransformPosition(PositionB));
 		TransformC.SetLocation(TransformB.TransformPosition(PositionC));
 	}
 
-	Hierarchy->SetGlobalTransform(BoneAIndex, TransformA, bPropagateToChildren);
-	Hierarchy->SetGlobalTransform(BoneBIndex, TransformB, bPropagateToChildren);
-	Hierarchy->SetGlobalTransform(EffectorBoneIndex, TransformC, bPropagateToChildren);
+	Hierarchy->SetGlobalTransform(CachedItemAIndex, TransformA, bPropagateToChildren);
+	Hierarchy->SetGlobalTransform(CachedItemBIndex, TransformB, bPropagateToChildren);
+	Hierarchy->SetGlobalTransform(CachedEffectorItemIndex, TransformC, bPropagateToChildren);
 }
 
 FRigUnit_TwoBoneIKSimpleVectors_Execute()

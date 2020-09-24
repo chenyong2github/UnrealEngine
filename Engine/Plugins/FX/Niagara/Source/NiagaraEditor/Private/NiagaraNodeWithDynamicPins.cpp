@@ -76,20 +76,20 @@ bool UNiagaraNodeWithDynamicPins::AllowNiagaraTypeForAddPin(const FNiagaraTypeDe
 
 UEdGraphPin* UNiagaraNodeWithDynamicPins::RequestNewTypedPin(EEdGraphPinDirection Direction, const FNiagaraTypeDefinition& Type)
 {
-	FString DefaultName;
+	TStringBuilder<128> DefaultName;
 	if (Direction == EGPD_Input)
 	{
-		TArray<UEdGraphPin*> InPins;
+		FPinCollectorArray InPins;
 		GetInputPins(InPins);
-		DefaultName = TEXT("Input ") + LexToString(InPins.Num());
+		DefaultName << TEXT("Input ") << InPins.Num();
 	}
 	else
 	{
-		TArray<UEdGraphPin*> OutPins;
+		FPinCollectorArray OutPins;
 		GetOutputPins(OutPins);
-		DefaultName = TEXT("Output ") + LexToString(OutPins.Num());
+		DefaultName << TEXT("Output ") << OutPins.Num();
 	}
-	return RequestNewTypedPin(Direction, Type, *DefaultName);
+	return RequestNewTypedPin(Direction, Type, DefaultName.ToString());
 }
 
 UEdGraphPin* UNiagaraNodeWithDynamicPins::RequestNewTypedPin(EEdGraphPinDirection Direction, const FNiagaraTypeDefinition& Type, const FName InName)
@@ -156,7 +156,7 @@ bool UNiagaraNodeWithDynamicPins::CanMovePin(const UEdGraphPin* Pin) const
 
 void UNiagaraNodeWithDynamicPins::MoveDynamicPin(UEdGraphPin* Pin, int32 DirectionToMove)
 {
-	TArray<UEdGraphPin*> SameDirectionPins;
+	FPinCollectorArray SameDirectionPins;
 	if (Pin->Direction == EEdGraphPinDirection::EGPD_Input)
 	{
 		GetInputPins(SameDirectionPins);
@@ -241,7 +241,7 @@ void UNiagaraNodeWithDynamicPins::GetNodeContextMenuActions(UToolMenu* Menu, UGr
 		}
 		if (CanMovePin(Context->Pin))
 		{
-			TArray<UEdGraphPin*> SameDirectionPins;
+			FPinCollectorArray SameDirectionPins;
 			if (Context->Pin->Direction == EEdGraphPinDirection::EGPD_Input)
 			{
 				GetInputPins(SameDirectionPins);

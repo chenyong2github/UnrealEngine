@@ -4,18 +4,28 @@
 
 #include "UnrealUSDWrapper.h"
 #include "USDConversionUtils.h"
+#include "USDLayerUtils.h"
 #include "USDTypesConversion.h"
 
+#include "Channels/MovieSceneChannelProxy.h"
+#include "Channels/MovieSceneFloatChannel.h"
 #include "CineCameraActor.h"
 #include "CineCameraComponent.h"
 #include "Components/LightComponent.h"
 #include "Components/MeshComponent.h"
 #include "Components/SceneComponent.h"
+#include "MovieSceneTimeHelpers.h"
+#include "Sections/MovieScene3DTransformSection.h"
+#include "Sections/MovieSceneFloatSection.h"
+#include "Sections/MovieSceneVectorSection.h"
+#include "Tracks/MovieScene3DTransformTrack.h"
 
 #if USE_USD_SDK
 
 #include "USDIncludesStart.h"
 
+#include "pxr/usd/sdf/changeBlock.h"
+#include "pxr/usd/usd/attribute.h"
 #include "pxr/usd/usd/prim.h"
 #include "pxr/usd/usd/stage.h"
 #include "pxr/usd/usd/timeCode.h"
@@ -96,6 +106,131 @@ bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr:
 	return true;
 }
 
+bool UsdToUnreal::ConvertXformable( const pxr::UsdTyped& Schema, UMovieScene3DTransformTrack& MovieSceneTrack, const FMovieSceneSequenceTransform& SequenceTransform )
+{
+	const UMovieScene* MovieScene = MovieSceneTrack.GetTypedOuter< UMovieScene >();
+
+	if ( !MovieScene )
+	{
+		return false;
+	}
+
+	FScopedUsdAllocs UsdAllocs;
+
+	pxr::UsdGeomXformable Xformable( Schema );
+
+	if ( !Xformable )
+	{
+		return false;
+	}
+
+	std::vector< double > UsdTimeSamples;
+	Xformable.GetTimeSamples( &UsdTimeSamples );
+
+	if ( UsdTimeSamples.empty() )
+	{
+		return false;
+	}
+
+	const FFrameRate Resolution = MovieScene->GetTickResolution();
+	const FFrameRate DisplayRate = MovieScene->GetDisplayRate();
+
+	TArray< FFrameNumber > FrameNumbers;
+	FrameNumbers.Reserve( UsdTimeSamples.size() );
+
+	TArray< FMovieSceneFloatValue > TranslationValuesX;
+	TranslationValuesX.Reserve( UsdTimeSamples.size() );
+
+	TArray< FMovieSceneFloatValue > TranslationValuesY;
+	TranslationValuesY.Reserve( UsdTimeSamples.size() );
+
+	TArray< FMovieSceneFloatValue > TranslationValuesZ;
+	TranslationValuesZ.Reserve( UsdTimeSamples.size() );
+
+	TArray< FMovieSceneFloatValue > RotationValuesX;
+	RotationValuesX.Reserve( UsdTimeSamples.size() );
+
+	TArray< FMovieSceneFloatValue > RotationValuesY;
+	RotationValuesY.Reserve( UsdTimeSamples.size() );
+
+	TArray< FMovieSceneFloatValue > RotationValuesZ;
+	RotationValuesZ.Reserve( UsdTimeSamples.size() );
+
+	TArray< FMovieSceneFloatValue > ScaleValuesX;
+	ScaleValuesX.Reserve( UsdTimeSamples.size() );
+
+	TArray< FMovieSceneFloatValue > ScaleValuesY;
+	ScaleValuesY.Reserve( UsdTimeSamples.size() );
+
+	TArray< FMovieSceneFloatValue > ScaleValuesZ;
+	ScaleValuesZ.Reserve( UsdTimeSamples.size() );
+
+	pxr::UsdStageRefPtr Stage = Schema.GetPrim().GetStage();
+	const double StageTimeCodesPerSecond = Stage->GetTimeCodesPerSecond();
+	const FFrameRate StageFrameRate( StageTimeCodesPerSecond, 1 );
+
+	const ERichCurveInterpMode InterpMode = ( Stage->GetInterpolationType() == pxr::UsdInterpolationTypeLinear ) ? ERichCurveInterpMode::RCIM_Linear : ERichCurveInterpMode::RCIM_Constant;
+
+	for ( double UsdTimeSample : UsdTimeSamples )
+	{
+		// Frame Number
+		int32 FrameNumber = FMath::FloorToInt( UsdTimeSample );
+		float SubFrameNumber = UsdTimeSample - FrameNumber;
+
+		FFrameTime FrameTime( FrameNumber, SubFrameNumber );
+
+		FFrameTime KeyFrameTime = FFrameRate::TransformTime( FrameTime, StageFrameRate, Resolution );
+		KeyFrameTime *= SequenceTransform;
+		FrameNumbers.Add( KeyFrameTime.GetFrame() );
+
+		// Frame Values
+		FTransform Transform;
+		UsdToUnreal::ConvertXformable( Stage, Xformable, Transform, UsdTimeSample );
+
+		// Location
+		TranslationValuesX.Emplace_GetRef( Transform.GetLocation().X ).InterpMode = InterpMode;
+		TranslationValuesY.Emplace_GetRef( Transform.GetLocation().Y ).InterpMode = InterpMode;
+		TranslationValuesZ.Emplace_GetRef( Transform.GetLocation().Z ).InterpMode = InterpMode;
+
+		// Rotation
+		FRotator Rotator = Transform.Rotator();
+		RotationValuesX.Emplace_GetRef( Rotator.Roll ).InterpMode = InterpMode;
+		RotationValuesY.Emplace_GetRef( Rotator.Pitch ).InterpMode = InterpMode;
+		RotationValuesZ.Emplace_GetRef( Rotator.Yaw ).InterpMode = InterpMode;
+
+		// Scale
+		ScaleValuesX.Emplace_GetRef( Transform.GetScale3D().X ).InterpMode = InterpMode;
+		ScaleValuesY.Emplace_GetRef( Transform.GetScale3D().Y ).InterpMode = InterpMode;
+		ScaleValuesZ.Emplace_GetRef( Transform.GetScale3D().Z ).InterpMode = InterpMode;
+	}
+
+	bool bSectionAdded = false;
+	UMovieScene3DTransformSection* TransformSection = Cast< UMovieScene3DTransformSection >( MovieSceneTrack.FindOrAddSection( 0, bSectionAdded ) );
+	TransformSection->EvalOptions.CompletionMode = EMovieSceneCompletionMode::KeepState;
+	TransformSection->SetRange( TRange< FFrameNumber >::All() );
+
+	TArrayView< FMovieSceneFloatChannel* > Channels = TransformSection->GetChannelProxy().GetChannels< FMovieSceneFloatChannel >();
+
+	check( Channels.Num() >= 9 );
+
+	// Translation
+	Channels[0]->Set( FrameNumbers, TranslationValuesX );
+	Channels[1]->Set( FrameNumbers, TranslationValuesY );
+	Channels[2]->Set( FrameNumbers, TranslationValuesZ );
+
+	// Rotation
+	Channels[3]->Set( FrameNumbers, RotationValuesX );
+	Channels[4]->Set( FrameNumbers, RotationValuesY );
+	Channels[5]->Set( FrameNumbers, RotationValuesZ );
+
+	// Scale
+	Channels[6]->Set( FrameNumbers, ScaleValuesX );
+	Channels[7]->Set( FrameNumbers, ScaleValuesY );
+	Channels[8]->Set( FrameNumbers, ScaleValuesZ );
+
+	return true;
+}
+
 bool UsdToUnreal::ConvertGeomCamera( const pxr::UsdStageRefPtr& Stage, const pxr::UsdGeomCamera& GeomCamera, UCineCameraComponent& CameraComponent, double EvalTime )
 {
 	FUsdStageInfo StageInfo( Stage );
@@ -153,40 +288,7 @@ bool UnrealToUsd::ConvertSceneComponent( const pxr::UsdStageRefPtr& Stage, const
 
 	RelativeTransform = AdditionalRotation * RelativeTransform;
 
-	FUsdStageInfo StageInfo( Stage );
-	pxr::GfMatrix4d UsdTransform = UnrealToUsd::ConvertTransform( StageInfo, RelativeTransform );
-
-	pxr::GfMatrix4d UsdMatrix;
-	bool bResetXFormStack = false;
-	XForm.GetLocalTransformation( &UsdMatrix, &bResetXFormStack );
-
-	if ( !GfIsClose( UsdMatrix, UsdTransform, THRESH_VECTORS_ARE_NEAR ) )
-	{
-		bResetXFormStack = false;
-		bool bFoundTransformOp = false;
-
-		std::vector< pxr::UsdGeomXformOp > XFormOps = XForm.GetOrderedXformOps( &bResetXFormStack );
-		for ( const pxr::UsdGeomXformOp& XFormOp : XFormOps )
-		{
-			// Found transform op, trying to set its value
-			if ( XFormOp.GetOpType() == pxr::UsdGeomXformOp::TypeTransform )
-			{
-				bFoundTransformOp = true;
-				XFormOp.Set( UsdTransform );
-				break;
-			}
-		}
-
-		// If transformOp is not found, make a new one
-		if ( !bFoundTransformOp )
-		{
-			pxr::UsdGeomXformOp MatrixXform = XForm.MakeMatrixXform();
-			if ( MatrixXform )
-			{
-				MatrixXform.Set( UsdTransform );
-			}
-		}
-	}
+	ConvertXformable( RelativeTransform, UsdPrim, UsdUtils::GetDefaultTimeCode() );
 
 	// Visibility
 	bool bVisible = SceneComponent->GetVisibleFlag();
@@ -205,11 +307,6 @@ bool UnrealToUsd::ConvertSceneComponent( const pxr::UsdStageRefPtr& Stage, const
 bool UnrealToUsd::ConvertMeshComponent( const pxr::UsdStageRefPtr& Stage, const UMeshComponent* MeshComponent, pxr::UsdPrim& UsdPrim )
 {
 	if ( !UsdPrim || !MeshComponent )
-	{
-		return false;
-	}
-
-	if ( !ConvertSceneComponent( Stage, MeshComponent, UsdPrim ) )
 	{
 		return false;
 	}
@@ -249,6 +346,232 @@ bool UnrealToUsd::ConvertMeshComponent( const pxr::UsdStageRefPtr& Stage, const 
 		else if ( bHasMaterialAttribute )
 		{
 			UsdPrim.GetAttribute( UnrealIdentifiers::MaterialAssignments ).Clear();
+		}
+	}
+
+	return true;
+}
+
+bool UnrealToUsd::ConvertXformable( const FTransform& RelativeTransform, pxr::UsdPrim& UsdPrim, double TimeCode )
+{
+	if ( !UsdPrim )
+	{
+		return false;
+	}
+
+	FScopedUsdAllocs UsdAllocs;
+
+	// Transform
+	pxr::UsdGeomXformable XForm( UsdPrim );
+	if ( !XForm )
+	{
+		return false;
+	}
+
+	FUsdStageInfo StageInfo( UsdPrim.GetStage() );
+	pxr::GfMatrix4d UsdTransform = UnrealToUsd::ConvertTransform( StageInfo, RelativeTransform );
+
+	const pxr::UsdTimeCode UsdTimeCode( TimeCode );
+
+	pxr::GfMatrix4d UsdMatrix;
+	bool bResetXFormStack = false;
+	XForm.GetLocalTransformation( &UsdMatrix, &bResetXFormStack, UsdTimeCode );
+
+	if ( !GfIsClose( UsdMatrix, UsdTransform, THRESH_VECTORS_ARE_NEAR ) )
+	{
+		bResetXFormStack = false;
+		bool bFoundTransformOp = false;
+
+		std::vector< pxr::UsdGeomXformOp > XFormOps = XForm.GetOrderedXformOps( &bResetXFormStack );
+		for ( const pxr::UsdGeomXformOp& XFormOp : XFormOps )
+		{
+			// Found transform op, trying to set its value
+			if ( XFormOp.GetOpType() == pxr::UsdGeomXformOp::TypeTransform )
+			{
+				bFoundTransformOp = true;
+				XFormOp.Set( UsdTransform, UsdTimeCode );
+				break;
+			}
+		}
+
+		// If transformOp is not found, make a new one
+		if ( !bFoundTransformOp )
+		{
+			pxr::UsdGeomXformOp MatrixXform = XForm.MakeMatrixXform();
+			if ( MatrixXform )
+			{
+				MatrixXform.Set( UsdTransform, UsdTimeCode );
+			}
+		}
+	}
+
+	return true;
+}
+
+bool UnrealToUsd::ConvertXformable( const UMovieScene3DTransformTrack& MovieSceneTrack, pxr::UsdPrim& UsdPrim, const FMovieSceneSequenceTransform& SequenceTransform )
+{
+	if ( !UsdPrim )
+	{
+		return false;
+	}
+
+	const UMovieScene* MovieScene = MovieSceneTrack.GetTypedOuter< UMovieScene >();
+
+	if ( !MovieScene )
+	{
+		return false;
+	}
+
+	FScopedUsdAllocs UsdAllocs;
+
+	pxr::UsdGeomXformable Xformable( UsdPrim );
+
+	if ( !Xformable )
+	{
+		return false;
+	}
+
+	UMovieScene3DTransformSection* TransformSection = Cast< UMovieScene3DTransformSection >( const_cast< UMovieScene3DTransformTrack& >( MovieSceneTrack ).FindSection( 0 ) );
+
+	if ( !TransformSection )
+	{
+		return false;
+	}
+
+	const TRange< FFrameNumber > PlaybackRange = MovieScene->GetPlaybackRange();
+	const FFrameRate Resolution = MovieScene->GetTickResolution();
+	const FFrameRate DisplayRate = MovieScene->GetDisplayRate();
+
+	const double StageTimeCodesPerSecond = UsdPrim.GetStage()->GetTimeCodesPerSecond();
+	const FFrameRate StageFrameRate( StageTimeCodesPerSecond, 1 );
+
+	auto EvaluateChannel = [ &PlaybackRange, &Resolution, &DisplayRate, &SequenceTransform ]( const FMovieSceneFloatChannel* Channel, float DefaultValue ) -> TArray< TPair< FFrameNumber, float > >
+	{
+		TArray< TPair< FFrameNumber, float > > Values;
+
+		if ( PlaybackRange.HasLowerBound() && PlaybackRange.HasUpperBound() )
+		{
+			const FFrameTime Interval = FFrameRate::TransformTime( 1, DisplayRate, Resolution );
+			const FFrameNumber StartFrame = UE::MovieScene::DiscreteInclusiveLower( PlaybackRange );
+			const FFrameNumber EndFrame = UE::MovieScene::DiscreteExclusiveUpper( PlaybackRange );
+
+			for ( FFrameTime EvalTime = StartFrame; EvalTime < EndFrame; EvalTime += Interval )
+			{
+				FFrameNumber KeyTime = FFrameRate::Snap( EvalTime, Resolution, DisplayRate ).FloorToFrame();
+
+				float Result = DefaultValue;
+				if ( Channel )
+				{
+					Result = Channel->GetDefault().Get( DefaultValue );
+					Channel->Evaluate( KeyTime, Result );
+				}
+
+				FFrameTime GlobalEvalTime( KeyTime );
+				GlobalEvalTime *= SequenceTransform.InverseLinearOnly();
+
+				Values.Emplace( GlobalEvalTime.GetFrame(), Result );
+			}
+		}
+
+		return Values;
+	};
+
+	TArrayView< FMovieSceneFloatChannel* > Channels = TransformSection->GetChannelProxy().GetChannels< FMovieSceneFloatChannel >();
+	check( Channels.Num() >= 9 );
+
+	auto GetChannel = [ &Channels ]( const int32 ChannelIndex ) -> const FMovieSceneFloatChannel*
+	{
+		if ( Channels.IsValidIndex( ChannelIndex ) )
+		{
+			return Channels[ ChannelIndex ];
+		}
+		else
+		{
+			return  nullptr;
+		}
+	};
+
+	// Translation
+	TArray< TPair< FFrameNumber, float > > LocationValuesX = EvaluateChannel( GetChannel(0), 0.f );
+	TArray< TPair< FFrameNumber, float > > LocationValuesY = EvaluateChannel( GetChannel(1), 0.f );
+	TArray< TPair< FFrameNumber, float > > LocationValuesZ = EvaluateChannel( GetChannel(2), 0.f );
+
+	// Rotation
+	TArray< TPair< FFrameNumber, float > > RotationValuesX = EvaluateChannel( GetChannel(3), 0.f );
+	TArray< TPair< FFrameNumber, float > > RotationValuesY = EvaluateChannel( GetChannel(4), 0.f );
+	TArray< TPair< FFrameNumber, float > > RotationValuesZ = EvaluateChannel( GetChannel(5), 0.f );
+
+	// Scale
+	TArray< TPair< FFrameNumber, float > > ScaleValuesX = EvaluateChannel( GetChannel(6), 1.f );
+	TArray< TPair< FFrameNumber, float > > ScaleValuesY = EvaluateChannel( GetChannel(7), 1.f );
+	TArray< TPair< FFrameNumber, float > > ScaleValuesZ = EvaluateChannel( GetChannel(8), 1.f );
+
+	bool bIsDataOutOfSync = false;
+	{
+		const FUsdStageInfo StageInfo( UsdPrim.GetStage() );
+		int32 ValueIndex = 0;
+
+		FFrameTime UsdStartTime = FFrameRate::TransformTime( PlaybackRange.GetLowerBoundValue(), Resolution, StageFrameRate );
+		FFrameTime UsdEndTime = FFrameRate::TransformTime( PlaybackRange.GetUpperBoundValue(), Resolution, StageFrameRate );
+
+		if ( LocationValuesX.Num() > 0 || Xformable.TransformMightBeTimeVarying() )
+		{
+			std::vector< double > UsdTimeSamples;
+			Xformable.GetTimeSamples( &UsdTimeSamples );
+
+			bIsDataOutOfSync = ( UsdTimeSamples.size() != LocationValuesX.Num() );
+
+			if ( !bIsDataOutOfSync )
+			{
+				for ( const TPair< FFrameNumber, float >& Value : LocationValuesX )
+				{
+					FFrameTime UsdFrameTime = FFrameRate::TransformTime( Value.Key, Resolution, StageFrameRate );
+
+					FVector Location( LocationValuesX[ ValueIndex ].Value, LocationValuesY[ ValueIndex ].Value, LocationValuesZ[ ValueIndex ].Value );
+					FRotator Rotation( RotationValuesY[ ValueIndex ].Value, RotationValuesZ[ ValueIndex ].Value, RotationValuesX[ ValueIndex ].Value );
+					FVector Scale( ScaleValuesX[ ValueIndex ].Value, ScaleValuesY[ ValueIndex ].Value, ScaleValuesZ[ ValueIndex ].Value );
+
+					FTransform Transform( Rotation, Location, Scale );
+					pxr::GfMatrix4d UsdTransform = UnrealToUsd::ConvertTransform( StageInfo, Transform );
+
+					pxr::GfMatrix4d UsdMatrix;
+					bool bResetXFormStack = false;
+					Xformable.GetLocalTransformation( &UsdMatrix, &bResetXFormStack, UsdFrameTime.AsDecimal() );
+
+					if ( !pxr::GfIsClose( UsdMatrix, UsdTransform, THRESH_POINTS_ARE_NEAR ) )
+					{
+						bIsDataOutOfSync = true;
+						break;
+					}
+
+					++ValueIndex;
+				}
+			}
+		}
+	}
+
+	if ( bIsDataOutOfSync )
+	{
+		if ( pxr::UsdGeomXformOp TransformOp = Xformable.MakeMatrixXform() )
+		{
+			TransformOp.GetAttr().Clear(); // Clear existing transform data
+		}
+
+		pxr::SdfChangeBlock ChangeBlock;
+
+		int32 ValueIndex = 0;
+		for ( const TPair< FFrameNumber, float >& Value : LocationValuesX )
+		{
+			FFrameTime UsdFrameTime = FFrameRate::TransformTime( Value.Key, Resolution, StageFrameRate );
+
+			FVector Location( LocationValuesX[ ValueIndex ].Value, LocationValuesY[ ValueIndex ].Value, LocationValuesZ[ ValueIndex ].Value );
+			FRotator Rotation( RotationValuesY[ ValueIndex ].Value, RotationValuesZ[ ValueIndex ].Value, RotationValuesX[ ValueIndex ].Value );
+			FVector Scale( ScaleValuesX[ ValueIndex ].Value, ScaleValuesY[ ValueIndex ].Value, ScaleValuesZ[ ValueIndex ].Value );
+
+			FTransform Transform( Rotation, Location, Scale );
+			ConvertXformable( Transform, UsdPrim, UsdFrameTime.AsDecimal() );
+
+			++ValueIndex;
 		}
 	}
 

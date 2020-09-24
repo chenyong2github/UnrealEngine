@@ -16,12 +16,35 @@ const FString UNiagaraDataInterfaceTexture::TextureName(TEXT("Texture_"));
 const FString UNiagaraDataInterfaceTexture::SamplerName(TEXT("Sampler_"));
 const FString UNiagaraDataInterfaceTexture::DimensionsBaseName(TEXT("Dimensions_"));
 
+struct FNiagaraDataInterfaceProxyTexture : public FNiagaraDataInterfaceProxy
+{
+	FSamplerStateRHIRef SamplerStateRHI;
+	FTextureReferenceRHIRef TextureReferenceRHI;
+	FVector2D TexDims;
+
+	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override
+	{
+		checkNoEntry();
+	}
+
+	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override
+	{
+		return 0;
+	}
+
+	virtual void PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override
+	{
+		// Make sure the texture is readable, we don't know where it's coming from.
+		RHICmdList.Transition(FRHITransitionInfo(TextureReferenceRHI->GetReferencedTexture(), ERHIAccess::Unknown, ERHIAccess::SRVMask));
+	}
+};
+
 UNiagaraDataInterfaceTexture::UNiagaraDataInterfaceTexture(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, Texture(nullptr)
 {
 	Proxy.Reset(new FNiagaraDataInterfaceProxyTexture());
-	PushToRenderThread();
+	MarkRenderDataDirty();
 }
 
 void UNiagaraDataInterfaceTexture::PostInitProperties()
@@ -33,7 +56,7 @@ void UNiagaraDataInterfaceTexture::PostInitProperties()
 		FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(GetClass()), true, false, false);
 	}
 
-	PushToRenderThread();
+	MarkRenderDataDirty();
 }
 
 void UNiagaraDataInterfaceTexture::PostLoad()
@@ -51,7 +74,7 @@ void UNiagaraDataInterfaceTexture::PostLoad()
 #endif
 	// Not safe since the UTexture might not have yet PostLoad() called and so UpdateResource() called.
 	// This will affect whether the SamplerStateRHI will be available or not.
-	PushToRenderThread();
+	MarkRenderDataDirty();
 }
 
 #if WITH_EDITOR
@@ -59,7 +82,7 @@ void UNiagaraDataInterfaceTexture::PostLoad()
 void UNiagaraDataInterfaceTexture::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-	PushToRenderThread();
+	MarkRenderDataDirty();
 }
 
 
@@ -85,7 +108,7 @@ bool UNiagaraDataInterfaceTexture::CopyToInternal(UNiagaraDataInterface* Destina
 	}
 	UNiagaraDataInterfaceTexture* DestinationTexture = CastChecked<UNiagaraDataInterfaceTexture>(Destination);
 	DestinationTexture->Texture = Texture;
-	DestinationTexture->PushToRenderThread();
+	DestinationTexture->MarkRenderDataDirty();
 
 	return true;
 }
@@ -391,7 +414,7 @@ public:
 			if (!SamplerStateRHI)
 			{
 				// Fallback required because PostLoad() order affects whether RHI resources 
-				// are initalized in UNiagaraDataInterfaceTexture::PushToRenderThread().
+				// are initalized in UNiagaraDataInterfaceTexture::PushToRenderThreadImpl().
 				SamplerStateRHI = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 			}
 
@@ -430,7 +453,7 @@ IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_Texture);
 
 IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceTexture, FNiagaraDataInterfaceParametersCS_Texture);
 
-void UNiagaraDataInterfaceTexture::PushToRenderThread()
+void UNiagaraDataInterfaceTexture::PushToRenderThreadImpl()
 {
 	FNiagaraDataInterfaceProxyTexture* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyTexture>();
 
@@ -461,11 +484,10 @@ void UNiagaraDataInterfaceTexture::PushToRenderThread()
 	);
 }
 
-
 void UNiagaraDataInterfaceTexture::SetTexture(UTexture* InTexture)
 {
 	Texture = InTexture;
-	PushToRenderThread();
+	MarkRenderDataDirty();
 }
 
 #undef LOCTEXT_NAMESPACE

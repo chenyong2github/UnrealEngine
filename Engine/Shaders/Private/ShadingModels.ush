@@ -157,34 +157,27 @@ float EnergyNormalization( inout float a2, float VoH, FAreaLight AreaLight )
 	return Energy;
 }
 
-float3 SpecularGGX( float Roughness, float Anisotropy, float3 SpecularColor, BxDFContext Context, float NoL, FAreaLight AreaLight )
+float3 SpecularGGX(float Roughness, float Anisotropy, float3 SpecularColor, BxDFContext Context, float NoL, FAreaLight AreaLight)
 {
 	float Alpha = Roughness * Roughness;
 	float a2 = Alpha * Alpha;
 
-	float Energy = EnergyNormalization( a2, Context.VoH, AreaLight );
+	FAreaLight Punctual = AreaLight;
+	Punctual.SphereSinAlpha = 0;
+	Punctual.SphereSinAlphaSoft = 0;
+	Punctual.LineCosSubtended = 1;
+	Punctual.Rect = (FRect)0;
+	Punctual.bIsRect = false;
+
+	float Energy = EnergyNormalization(a2, Context.VoH, Punctual);
+
+	float ax = 0;
+	float ay = 0;
+	GetAnisotropicRoughness(Alpha, Anisotropy, ax, ay);
 
 	// Generalized microfacet specular
-	float D = 0;
-	float Vis = 0;
-
-#if GBUFFER_HAS_TANGENT
-	if (!IsAreaLight(AreaLight))
-	{
-		float ax = 0;
-		float ay = 0;
-		GetAnisotropicRoughness(Alpha, Anisotropy, ax, ay);
-
-		D = D_GGXaniso(ax, ay, Context.NoH, Context.XoH, Context.YoH) * Energy;
-		Vis = Vis_SmithJointAniso(ax, ay, Context.NoV, NoL, Context.XoV, Context.XoL, Context.YoV, Context.YoL);
-	}
-	else
-#endif
-	{
-		D = D_GGX( a2, Context.NoH ) * Energy;
-		Vis = Vis_SmithJointApprox(a2, Context.NoV, NoL);
-	}
-
+	float3 D = D_GGXaniso(ax, ay, Context.NoH, Context.XoH, Context.YoH) * Energy;
+	float3 Vis = Vis_SmithJointAniso(ax, ay, Context.NoV, NoL, Context.XoV, Context.XoL, Context.YoV, Context.YoL);
 	float3 F = F_Schlick( SpecularColor, Context.VoH );
 
 	return (D * Vis) * F;
@@ -229,26 +222,49 @@ struct FDirectLighting
 
 FDirectLighting DefaultLitBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L, float Falloff, float NoL, FAreaLight AreaLight, FShadowTerms Shadow )
 {
-#if GBUFFER_HAS_TANGENT
-	half3 X = GBuffer.WorldTangent;
-	half3 Y = normalize(cross(N, X));
-#else
-	half3 X = 0;
-	half3 Y = 0;
-#endif
-	
 	BxDFContext Context;
-	Init( Context, N, X, Y, V, L );
-	SphereMaxNoH( Context, AreaLight.SphereSinAlpha, true );
-	Context.NoV = saturate( abs( Context.NoV ) + 1e-5 );
+
+#if SUPPORTS_ANISOTROPIC_MATERIALS
+	bool bHasAnisotropy = HasAnisotropy(GBuffer.SelectiveOutputMask);
+#else
+	bool bHasAnisotropy = false;
+#endif
+
+	BRANCH
+	if (bHasAnisotropy)
+	{
+		half3 X = GBuffer.WorldTangent;
+		half3 Y = normalize(cross(N, X));
+		Init(Context, N, X, Y, V, L);
+	}
+	else
+	{
+		Init(Context, N, V, L);
+		SphereMaxNoH(Context, AreaLight.SphereSinAlpha, true);
+	}
+
+	Context.NoV = saturate(abs( Context.NoV ) + 1e-5);
 
 	FDirectLighting Lighting;
 	Lighting.Diffuse  = AreaLight.FalloffColor * (Falloff * NoL) * Diffuse_Lambert( GBuffer.DiffuseColor );
 
-	if( AreaLight.bIsRect )
-		Lighting.Specular = RectGGXApproxLTC( GBuffer.Roughness, GBuffer.SpecularColor, N, V, AreaLight.Rect, AreaLight.Texture );
+	BRANCH
+	if (bHasAnisotropy)
+	{
+		//Lighting.Specular = GBuffer.WorldTangent * .5f + .5f;
+		Lighting.Specular = AreaLight.FalloffColor * (Falloff * NoL) * SpecularGGX(GBuffer.Roughness, GBuffer.Anisotropy, GBuffer.SpecularColor, Context, NoL, AreaLight);
+	}
 	else
-		Lighting.Specular = AreaLight.FalloffColor * (Falloff * NoL) * SpecularGGX( GBuffer.Roughness, GBuffer.Anisotropy, GBuffer.SpecularColor, Context, NoL, AreaLight );
+	{
+		if( AreaLight.bIsRect )
+		{
+			Lighting.Specular = RectGGXApproxLTC(GBuffer.Roughness, GBuffer.SpecularColor, N, V, AreaLight.Rect, AreaLight.Texture);
+		}
+		else
+		{
+			Lighting.Specular = AreaLight.FalloffColor * (Falloff * NoL) * SpecularGGX(GBuffer.Roughness, GBuffer.SpecularColor, Context, NoL, AreaLight);
+		}
+	}
 
 	Lighting.Transmission = 0;
 	return Lighting;
@@ -319,7 +335,7 @@ BxDFContext RefractClearCoatContext(BxDFContext Context)
 	//  NoV2 = Eta * NoV - RefractBlend(VoH, Eta) * NoH
 	//  NoV2 = 1.0 / 1.5 * NoV - RefractBlendClearCoatApprox(VoH) * NoH
 
-	BxDFContext RefractedContext;
+	BxDFContext RefractedContext = Context;
 	float Eta = 1.0 / 1.5;
 	float RefractionBlendFactor = RefractBlendClearCoatApprox(Context.VoH);
 	float RefractionProjectionTerm = RefractionBlendFactor * Context.NoH;
@@ -338,14 +354,6 @@ FDirectLighting ClearCoatBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L, 
 	const float Film = 1 * ClearCoat;
 	const float MetalSpec = 0.9;
 
-#if GBUFFER_HAS_TANGENT
-	half3 X = GBuffer.WorldTangent;
-	half3 Y = normalize(cross(N, X));
-#else
-	half3 X = 0;
-	half3 Y = 0;
-#endif
-
 	FDirectLighting Lighting = {
 		float3(0.0, 0.0, 0.0),
 		float3(0.0, 0.0, 0.0),
@@ -360,7 +368,27 @@ FDirectLighting ClearCoatBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L, 
 		Nspec = GBuffer.WorldNormal;
 	}
 
-	Init(Context, Nspec, X, Y, V, L);
+#if SUPPORTS_ANISOTROPIC_MATERIALS
+	bool bHasAnisotropy = HasAnisotropy(GBuffer.SelectiveOutputMask);
+#else
+	bool bHasAnisotropy = false;
+#endif
+
+	half3 X = 0;
+	half3 Y = 0;
+
+	BRANCH
+	if (bHasAnisotropy)
+	{
+		X = GBuffer.WorldTangent;
+		Y = normalize(cross(N, X));
+		Init(Context, Nspec, X, Y, V, L);
+	}
+	else
+	{
+		Init(Context, Nspec, V, L);
+	}
+	
 	// Modify SphereSinAlpha, knowing that it was previously manipulated by roughness of the under coat
 	// Note: the operation is not invertible for GBuffer.Roughness = 1.0, so roughness is clamped to 254.0/255.0
 	float SphereSinAlpha = AreaLight.SphereSinAlpha;
@@ -402,6 +430,18 @@ FDirectLighting ClearCoatBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L, 
 
 	if (CLEAR_COAT_BOTTOM_NORMAL)
 	{
+		BxDFContext TempContext;
+
+		BRANCH
+		if (bHasAnisotropy)
+		{
+			Init(TempContext, N, X, Y, V, L);
+		}
+		else
+		{
+			Init(TempContext, Nspec, V, L);
+		}
+
 		// If bottom-normal, update normal-based dot products:
 		float3 H = normalize(V + L);
 		Context.NoH = saturate(dot(N, H));
@@ -410,8 +450,19 @@ FDirectLighting ClearCoatBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L, 
 		Context.VoL = saturate(dot(V, L));
 		Context.VoH = saturate(dot(V, H));
 
-		bool bNewtonIteration = true;
-		SphereMaxNoH(Context, AreaLight.SphereSinAlpha, bNewtonIteration);
+		Context.XoV = TempContext.XoV;
+		Context.XoL = TempContext.XoL;
+		Context.XoH = TempContext.XoH;
+		Context.YoV = TempContext.YoV;
+		Context.YoL = TempContext.YoL;
+		Context.YoH = TempContext.YoH;
+
+		if (!bHasAnisotropy)
+		{
+			bool bNewtonIteration = true;
+			SphereMaxNoH(Context, AreaLight.SphereSinAlpha, bNewtonIteration);
+		}
+
 		Context.NoV = saturate(abs(Context.NoV) + 1e-5);
 	}
 
@@ -423,7 +474,7 @@ FDirectLighting ClearCoatBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L, 
 	//   float3 L2 = reflect(V2, H);
 	//   V2 = -V2;
 	//   BxDFContext BottomContext;
-	//   Init(BottomContext, N, V2, L2);
+	//   Init(BottomContext, N, X, Y, V2, L2);
 	BxDFContext BottomContext = RefractClearCoatContext(Context);
 	BottomContext.VoH = AreaLight.bIsRect ? BottomContext.NoV : BottomContext.VoH;
 
@@ -434,7 +485,8 @@ FDirectLighting ClearCoatBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L, 
 	float3 DefaultDiffuse = (Falloff * NoL) * AreaLight.FalloffColor * Diffuse_Lambert(GBuffer.DiffuseColor);
 	float3 RefractedDiffuse = FresnelCoeff * Transmission * DefaultDiffuse;
 	Lighting.Diffuse = lerp(DefaultDiffuse, RefractedDiffuse, ClearCoat);
-	if (AreaLight.bIsRect)
+
+	if (!bHasAnisotropy && AreaLight.bIsRect)
 	{
 		// Note: V is used instead of V2 because LTC integration is not tuned to handle refraction direction
 		float3 DefaultSpecular = RectGGXApproxLTC(GBuffer.Roughness, GBuffer.SpecularColor, N, V, AreaLight.Rect, AreaLight.Texture);
@@ -444,22 +496,20 @@ FDirectLighting ClearCoatBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L, 
 	else
 	{
 		float a2 = Pow4(GBuffer.Roughness);
-		float Energy = EnergyNormalization(a2, Context.VoH, AreaLight);
 		float D2 = 0;
 		float Vis2 = 0;
 
-#if GBUFFER_HAS_TANGENT
-		if (!IsAreaLight(AreaLight))
+		BRANCH
+		if (bHasAnisotropy)
 		{
 			float ax = 0;
 			float ay = 0;
 			GetAnisotropicRoughness(Alpha, GBuffer.Anisotropy, ax, ay); 
 
 			D2 = D_GGXaniso(ax, ay, Context.NoH, Context.XoH, Context.YoH);
-			Vis2 = Vis_SmithJointAniso(ax, ay, BottomContext.NoV, BottomContext.NoL, Context.XoV, Context.XoL, Context.YoV, Context.YoL);
+			Vis2 = Vis_SmithJointAniso(ax, ay, BottomContext.NoV, BottomContext.NoL, BottomContext.XoV, BottomContext.XoL, BottomContext.YoV, BottomContext.YoL);
 		}
 		else
-#endif
 		{
 			D2 = D_GGX(a2, BottomContext.NoH);
 			// NoL is chosen to provide better parity with DefaultLit when ClearCoat=0
@@ -469,6 +519,25 @@ FDirectLighting ClearCoatBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L, 
 		float3 F = F_Schlick(GBuffer.SpecularColor, BottomContext.VoH);
 		float3 RefractedF = lerp(0.0, F, GBuffer.Metallic);
 		
+		float Energy = 0;
+
+		BRANCH
+		if (bHasAnisotropy)
+		{
+			FAreaLight Punctual = AreaLight;
+			Punctual.SphereSinAlpha = 0;
+			Punctual.SphereSinAlphaSoft = 0;
+			Punctual.LineCosSubtended = 1;
+			Punctual.Rect = (FRect)0;
+			Punctual.bIsRect = false;
+			
+			Energy = EnergyNormalization(a2, Context.VoH, Punctual);
+		}
+		else
+		{
+			Energy = EnergyNormalization(a2, Context.VoH, AreaLight);
+		}
+
 		// Note: reusing D, V, and F from refracted context to save computation for when ClearCoat < 1
 		float3 CommonSpecular = (Energy * Falloff * D2 * Vis2) * AreaLight.FalloffColor;
 		float3 DefaultSpecular = F * NoL;

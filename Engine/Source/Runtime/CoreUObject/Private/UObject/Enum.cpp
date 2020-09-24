@@ -364,6 +364,18 @@ FString UEnum::GetNameStringByValue(int64 Value) const
 	return GetNameStringByIndex(Index);
 }
 
+bool UEnum::FindNameStringByValue(FString& Out, int64 InValue) const
+{
+	int32 Index = GetIndexByValue(InValue);
+	if (Index == INDEX_NONE)
+	{
+		return false;
+	}
+
+	Out = GetNameStringByIndex(Index);
+	return true;
+}
+
 FText UEnum::GetDisplayNameTextByIndex(int32 NameIndex) const
 {
 	FString RawName = GetNameStringByIndex(NameIndex);
@@ -414,6 +426,18 @@ FText UEnum::GetDisplayNameTextByValue(int64 Value) const
 	return GetDisplayNameTextByIndex(Index);
 }
 
+bool UEnum::FindDisplayNameTextByValue(FText& Out, int64 Value) const
+{
+	int32 Index = GetIndexByValue(Value);
+	if (Index == INDEX_NONE)
+	{
+		return false;
+	}
+
+	Out = GetDisplayNameTextByIndex(Index);
+	return true;
+}
+
 FString UEnum::GetAuthoredNameStringByIndex(int32 InIndex) const
 {
 	return GetNameStringByIndex(InIndex);
@@ -423,6 +447,18 @@ FString UEnum::GetAuthoredNameStringByValue(int64 Value) const
 {
 	int32 Index = GetIndexByValue(Value);
 	return GetAuthoredNameStringByIndex(Index);
+}
+
+bool UEnum::FindAuthoredNameStringByValue(FString& Out, int64 Value) const
+{
+	int32 Index = GetIndexByValue(Value);
+	if (Index == INDEX_NONE)
+	{
+		return false;
+	}
+
+	Out = GetAuthoredNameStringByIndex(Index);
+	return true;
 }
 
 int32 UEnum::GetIndexByNameString(const FString& InSearchString, EGetByNameFlags Flags) const
@@ -552,14 +588,15 @@ bool UEnum::ContainsExistingMax() const
 	return false;
 }
 
-bool UEnum::SetEnums(TArray<TPair<FName, int64>>& InNames, UEnum::ECppForm InCppForm, bool bAddMaxKeyIfMissing)
+bool UEnum::SetEnums(TArray<TPair<FName, int64>>& InNames, UEnum::ECppForm InCppForm, EEnumFlags InFlags, bool bAddMaxKeyIfMissing)
 {
 	if (Names.Num() > 0)
 	{
 		RemoveNamesFromMasterList();
 	}
-	Names   = InNames;
-	CppForm = InCppForm;
+	Names     = InNames;
+	CppForm   = InCppForm;
+	EnumFlags = InFlags;
 
 	if (bAddMaxKeyIfMissing)
 	{

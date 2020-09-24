@@ -7,6 +7,12 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Stats/Stats.h"
 
+#if (defined(__IPHONE_OS_VERSION_MIN_REQUIRED) && __IPHONE_OS_VERSION_MIN_REQUIRED <= __IPHONE_12_0) || (defined(__TV_OS_VERSION_MIN_REQUIRED) && __TV_OS_VERSION_MIN_REQUIRED <= __TVOS_12_0)
+#define USE_DEPRECATED_PLAYERID 1
+#else
+#define USE_DEPRECATED_PLAYERID 0
+#endif
+
 FOnlineSubsystemIOS::FOnlineSubsystemIOS(FName InInstanceName)
 	: FOnlineSubsystemImpl(IOS_SUBSYSTEM, InInstanceName)
 	, StoreHelper(nil)
@@ -377,3 +383,36 @@ bool FOnlineSubsystemIOS::IsInAppPurchasingEnabled()
 	GConfig->GetBool(TEXT("OnlineSubsystemIOS.Store"), TEXT("bSupportInAppPurchasing"), bEnableIAP1, GEngineIni);
 	return bEnableIAP || bEnableIAP1;
 }
+
+NSString* FOnlineSubsystemIOS::GetPlayerId(GKPlayer* Player)
+{
+#if USE_DEPRECATED_PLAYERID
+	if ([GKPlayer respondsToSelector:@selector(teamPlayerID)] == YES)
+	{
+		return Player.teamPlayerID;
+	}
+	else
+	{
+		return Player.playerID;
+	}
+#else
+	return Player.teamPlayerID;
+#endif
+}
+
+NSString* FOnlineSubsystemIOS::GetPlayerId(GKLocalPlayer* Player)
+{
+#if USE_DEPRECATED_PLAYERID
+	if ([GKLocalPlayer respondsToSelector:@selector(teamPlayerID)] == YES)
+	{
+		return Player.teamPlayerID;
+	}
+	else
+	{
+		return Player.playerID;
+	}
+#else
+	return Player.teamPlayerID;
+#endif
+}
+

@@ -56,6 +56,13 @@ public class BuildCookRun : BuildCommand
 			Params.DirectoriesToCook = new ParamList<string>(DirectoriesToCook.Split('+'));
 		}
 
+		var DDCGraph = ParseParamValue("ddc");
+		if (!String.IsNullOrEmpty(DDCGraph))
+		{
+			Params.DDCGraph = DDCGraph;
+		}
+
+
         var InternationalizationPreset = ParseParamValue("i18npreset");
         if (!String.IsNullOrEmpty(InternationalizationPreset))
         {

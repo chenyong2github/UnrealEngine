@@ -88,7 +88,7 @@ FNiagaraStackFunctionInputOverrideMergeAdapter::FNiagaraStackFunctionInputOverri
 FNiagaraStackFunctionInputOverrideMergeAdapter::FNiagaraStackFunctionInputOverrideMergeAdapter(
 	UNiagaraScript& InOwningScript,
 	UNiagaraNodeFunctionCall& InOwningFunctionCallNode,
-	FString InInputName,
+	FStringView InInputName,
 	FNiagaraVariable InRapidIterationParameter
 )
 	: OwningScript(&InOwningScript)
@@ -207,11 +207,11 @@ FNiagaraStackFunctionMergeAdapter::FNiagaraStackFunctionMergeAdapter(const UNiag
 	FString UniqueEmitterName = InOwningEmitter.GetUniqueEmitterName();
 
 	// Collect explicit overrides set via parameter map set nodes.
-	TSet<FString> AliasedInputsAdded;
+	TSet<FName> AliasedInputsAdded;
 	UNiagaraNodeParameterMapSet* OverrideNode = FNiagaraStackGraphUtilities::GetStackFunctionOverrideNode(*FunctionCallNode);
 	if (OverrideNode != nullptr)
 	{
-		TArray<UEdGraphPin*> OverridePins;
+		FPinCollectorArray OverridePins;
 		OverrideNode->GetInputPins(OverridePins);
 		for (UEdGraphPin* OverridePin : OverridePins)
 		{
@@ -222,7 +222,7 @@ FNiagaraStackFunctionMergeAdapter::FNiagaraStackFunctionMergeAdapter(const UNiag
 				if (InputHandle.GetNamespace().ToString() == FunctionCallNode->GetFunctionName())
 				{
 					InputOverrides.Add(MakeShared<FNiagaraStackFunctionInputOverrideMergeAdapter>(InOwningEmitter, *OwningScript.Get(), *FunctionCallNode.Get(), *OverridePin));
-					AliasedInputsAdded.Add(OverridePin->PinName.ToString());
+					AliasedInputsAdded.Add(OverridePin->PinName);
 				}
 			}
 		}
@@ -236,7 +236,7 @@ FNiagaraStackFunctionMergeAdapter::FNiagaraStackFunctionMergeAdapter(const UNiag
 	if (InFunctionCallNode.FunctionScript != nullptr)
 	{
 		TSet<const UEdGraphPin*> HiddenPins;
-		FCompileConstantResolver Resolver(&InOwningEmitter);
+		FCompileConstantResolver Resolver(&InOwningEmitter, ENiagaraScriptUsage::Function);
 		TArray<const UEdGraphPin*> FunctionInputPins;
 		FNiagaraStackGraphUtilities::GetStackFunctionInputPins(*FunctionCallNode, FunctionInputPins, HiddenPins, Resolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly, false);
 
@@ -245,7 +245,8 @@ FNiagaraStackFunctionMergeAdapter::FNiagaraStackFunctionMergeAdapter(const UNiag
 			FNiagaraVariable FunctionInputVariable = NiagaraSchema->PinToNiagaraVariable(FunctionInputPin);
 			if (FunctionInputVariable.IsValid() && FNiagaraStackGraphUtilities::IsRapidIterationType(FunctionInputVariable.GetType()))
 			{
-				UEdGraphPin* FunctionInputDefaultPin = FunctionCallNode->FindParameterMapDefaultValuePin(FunctionInputPin->PinName, OwningScript->GetUsage());
+				FCompileConstantResolver ConstantResolver(&InOwningEmitter, FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(*FunctionCallNode)->GetUsage());
+				UEdGraphPin* FunctionInputDefaultPin = FunctionCallNode->FindParameterMapDefaultValuePin(FunctionInputPin->PinName, OwningScript->GetUsage(), ConstantResolver);
 				if (FunctionInputDefaultPin != nullptr)
 				{
 					// Try to get the default value from the default pin.
@@ -296,7 +297,7 @@ FNiagaraStackFunctionMergeAdapter::FNiagaraStackFunctionMergeAdapter(const UNiag
 				}
 			}
 
-			if (AliasedInputsAdded.Contains(AliasedInputHandle.GetParameterHandleString().ToString()) == false)
+			if (AliasedInputsAdded.Contains(AliasedInputHandle.GetParameterHandleString()) == false)
 			{
 				// Check if the input is at the current default and if so it can be skipped.
 				bool bMatchesDefault = false;
@@ -777,6 +778,7 @@ TSharedPtr<FNiagaraScriptStackMergeAdapter> FNiagaraEmitterMergeAdapter::GetScri
 				return SimulationStage->GetSimulationStageStack();
 			}
 		}
+		break;
 	default:
 		checkf(false, TEXT("Unsupported usage"));
 	}
@@ -2011,8 +2013,8 @@ TOptional<bool> FNiagaraScriptMergeManager::DoFunctionInputOverridesMatch(TShare
 		UNiagaraNodeCustomHlsl* OtherCustomHlsl = Cast<UNiagaraNodeCustomHlsl>(OtherDynamicValueFunction->GetFunctionCallNode());
 		if (BaseCustomHlsl != nullptr || OtherCustomHlsl != nullptr)
 		{
-			if (((BaseCustomHlsl != nullptr) && (OtherCustomHlsl == nullptr)) ||
-				((BaseCustomHlsl == nullptr) && (OtherCustomHlsl != nullptr)))
+			if ((BaseCustomHlsl != nullptr && OtherCustomHlsl == nullptr) ||
+				(BaseCustomHlsl == nullptr && OtherCustomHlsl != nullptr))
 			{
 				return false;
 			}
@@ -2027,8 +2029,8 @@ TOptional<bool> FNiagaraScriptMergeManager::DoFunctionInputOverridesMatch(TShare
 			int32 BaseScratchPadScriptIndex = BaseDynamicValueFunction->GetScratchPadScriptIndex();
 			int32 OtherScratchPadScriptIndex = OtherDynamicValueFunction->GetScratchPadScriptIndex();
 
-			if (((BaseScratchPadScriptIndex != INDEX_NONE) && (OtherScratchPadScriptIndex == INDEX_NONE)) ||
-				((BaseScratchPadScriptIndex == INDEX_NONE) && (OtherScratchPadScriptIndex != INDEX_NONE)))
+			if ((BaseScratchPadScriptIndex != INDEX_NONE && OtherScratchPadScriptIndex == INDEX_NONE) ||
+				(BaseScratchPadScriptIndex == INDEX_NONE && OtherScratchPadScriptIndex != INDEX_NONE))
 			{
 				return false;
 			}

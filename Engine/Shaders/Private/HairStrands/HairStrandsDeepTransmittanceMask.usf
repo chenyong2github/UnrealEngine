@@ -58,6 +58,7 @@ float				DeepShadow_DepthBiasScale;
 float				DeepShadow_DensityScale;
 float				LightRadius;
 float				DeepShadow_KernelAperture;
+float4				DeepShadow_LayerDepths;
 uint				DeepShadow_KernelType;
 uint				DeepShadow_DebugMode;
 int4				DeepShadow_AtlasSlotOffsets_AtlasSlotIndex[MAX_HAIR_MACROGROUP_COUNT];
@@ -121,7 +122,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		float4x4 WorldToLightTransform = 0;
 		if (DeepShadow_bIsGPUDriven > 0)
 		{
-			WorldToLightTransform = DeepShadow_WorldToLightTransformBuffer.Load(SlotOffset_SlotIndex.z).WorldToClip;
+			WorldToLightTransform = DeepShadow_WorldToLightTransformBuffer[SlotOffset_SlotIndex.z].WorldToClip;
 		}	
 		else
 		{
@@ -143,7 +144,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 		const float SceneDepth = ConvertFromDeviceZ(Sample.Depth);
 		const float3 WorldPosition = ToWorldPosition(UV, SceneDepth);
-		const FHairTransmittanceMask TransmittanceMask = ComputeTransmittance(WorldPosition, GBuffer, Settings, DeepShadow_FrontDepthTexture, DeepShadow_DomTexture, HairLUTTexture, LinearSampler);
+		const FHairTransmittanceMask TransmittanceMask = ComputeTransmittance(WorldPosition, GBuffer, Settings, DeepShadow_LayerDepths, DeepShadow_FrontDepthTexture, DeepShadow_DomTexture, HairLUTTexture, LinearSampler);
 
 		const FPackedHairTransmittanceMask PackedTransmittanceMask = PackTransmittanceMask(TransmittanceMask);
 		OutputColor[LocalOffset] = PackedTransmittanceMask;
@@ -234,7 +235,8 @@ FHairTransmittanceMask ComputeTransmittanceVoxel(
 		const float3 SampleRandom = GetHairVoxelJitter(PixelCoord, View.StateFrameIndexMod8);
 		#endif
 		
-		const float3 DepthBias = VirtualVoxel.VoxelWorldSize * (VirtualVoxel.DepthBiasScale*LightDirection + SampleRandom);
+		const float PositionBiasScale = 0.5f;
+		const float3 DepthBias = VirtualVoxel.VoxelWorldSize * (VirtualVoxel.DepthBiasScale_Light*LightDirection + PositionBiasScale*(SampleRandom*2-1));
 		const float3 SampleWorldPosition = WorldPosition + DepthBias;
 
 		FVirtualVoxelCommonDesc CommonDesc;

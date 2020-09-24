@@ -9,10 +9,10 @@
 
 #define HAIRSTRANDSEDITOR_MODULE_NAME TEXT("HairStrandsEditor")
 
-class IHairStrandsTranslator;
+class IGroomTranslator;
 
 /** Implements the HairStrands module  */
-class HAIRSTRANDSEDITOR_API FHairStrandsEditor : public IModuleInterface
+class HAIRSTRANDSEDITOR_API FGroomEditor : public IModuleInterface
 {
 public:
 
@@ -26,9 +26,9 @@ public:
 		return false;
 	}
 
-	static inline FHairStrandsEditor& Get()
+	static inline FGroomEditor& Get()
 	{
-		return FModuleManager::LoadModuleChecked<FHairStrandsEditor>(HAIRSTRANDSEDITOR_MODULE_NAME);
+		return FModuleManager::LoadModuleChecked<FGroomEditor>(HAIRSTRANDSEDITOR_MODULE_NAME);
 	}
 
 	/** Register HairStrandsTranslator to add support for import by the HairStandsFactory */
@@ -42,14 +42,18 @@ public:
 	}
 
 	/** Get new instances of HairStrandsTranslators */
-	TArray<TSharedPtr<IHairStrandsTranslator>> GetHairTranslators();
+	TArray<TSharedPtr<IGroomTranslator>> GetHairTranslators();
 
 private:
 
 	/** The collection of registered asset type actions. */
 	TArray<TSharedRef<class IAssetTypeActions>> RegisteredAssetTypeActions;
 
-	TArray<TFunction<TSharedPtr<IHairStrandsTranslator>()>> TranslatorSpawners;
+	TArray<TFunction<TSharedPtr<IGroomTranslator>()>> TranslatorSpawners;
 
 	TSharedPtr<FSlateStyleSet> StyleSet;
+
+public:
+
+	static FName GroomEditorAppIdentifier;
 };

@@ -71,4 +71,21 @@ public:
 	 * @warning computes a single parameterization, so input triangle set must be connected, however this is not verified internally
 	 */
 	bool SetTriangleUVsFromFreeBoundaryConformal(const TArray<int32>& Triangles, FUVEditResult* Result = nullptr);
+
+	/**
+	 * Create new UV island for given Triangles, and set UVs for that island using Discrete Natural Conformal Map (equivalent to Least-Squares Conformal Map)
+	 * @param Triangles list of triangles
+	 * @param bUseExistingUVTopology if true, re-solve for existing UV set, rather than constructing per-vertex UVs from triangle set. Allows for solving w/ partial seams, interior cuts, etc. 
+	 * @warning computes a single parameterization, so input triangle set must be connected, however this is not verified internally
+	 */
+	bool SetTriangleUVsFromFreeBoundaryConformal(const TArray<int32>& Triangles, bool bUseExistingUVTopology, FUVEditResult* Result = nullptr);
+
+
+	/**
+	 * Cut existing UV topolgy with a path of vertices. This allows for creating partial seams/darts, interior cuts, etc.
+	 * @param VertexPath sequential list of edge-connected vertices
+	 * @param Result if non-null, list of new UV elements created along the path will be stored here (not ordered)
+	 * @return true on success
+	 */
+	bool CreateSeamAlongVertexPath(const TArray<int32>& VertexPath, FUVEditResult* Result = nullptr);
 };

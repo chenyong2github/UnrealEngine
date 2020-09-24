@@ -81,10 +81,10 @@ namespace EOculusMobileDevice
 {
 	enum Type
 	{
-		/** Package for Oculus Go / Gear VR */
-		GearGo UMETA(DisplayName = "Oculus Go / Gear VR"),
+		// 0 was the deprecated OculusGo
+
 		/** Package for Oculus Quest */
-		Quest UMETA(DisplayName = "Oculus Quest"),
+		Quest = 1 UMETA(DisplayName = "Oculus Quest"),
 	};
 }
 
@@ -347,7 +347,7 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Advanced APK Packaging", Meta = (DisplayName = "Package for Oculus Mobile devices"))
 	TArray<TEnumAsByte<EOculusMobileDevice::Type>> PackageForOculusMobile;
 
-	// Removes Oculus Signature Files (osig) from APK if Gear VR APK signed for distribution and enables entitlement checker
+	// Removes Oculus Signature Files (osig) from APK if Quest/Go APK signed for distribution and enables entitlement checker
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Advanced APK Packaging", Meta = (DisplayName = "Remove Oculus Signature Files from Distribution APK"))
 	bool bRemoveOSIG;
 
@@ -398,6 +398,10 @@ public:
 	// Enable Vulkan SM5 rendering support
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (DisplayName = "Support Vulkan Desktop [Experimental]"))
 	bool bSupportsVulkanSM5;
+
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (DisplayName = "Support Backbuffer Sampling on OpenGL",
+	ToolTip = "Whether to render to an offscreen surface instead of render to backbuffer directly on android opengl platform. Enable it if you'd like to support UMG background blur on android opengl."))
+	bool bAndroidOpenGLSupportsBackbufferSampling;
 
 	// Whether to detect Vulkan device support by default, if the project is packaged with Vulkan support. If unchecked, the -detectvulkan commandline will enable Vulkan detection.
 	UPROPERTY(GlobalConfig, EditAnywhere, AdvancedDisplay, Category = Build, meta = (DisplayName = "Detect Vulkan device support", EditCondition = "bSupportsVulkan"))

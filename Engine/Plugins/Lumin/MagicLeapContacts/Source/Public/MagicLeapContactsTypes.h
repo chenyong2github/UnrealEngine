@@ -49,7 +49,7 @@ enum class EMagicLeapContactsOperationStatus : uint8
 	of value is stored, e.g. "home", "work", etc.
 */
 USTRUCT(BlueprintType)
-struct FMagicLeapTaggedAttribute
+struct MAGICLEAPCONTACTS_API FMagicLeapTaggedAttribute
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -64,7 +64,7 @@ struct FMagicLeapTaggedAttribute
 
 /** Representation of available information for a single contact in an address book. */
 USTRUCT(BlueprintType)
-struct FMagicLeapContact
+struct MAGICLEAPCONTACTS_API FMagicLeapContact
 {
 	GENERATED_USTRUCT_BODY()
 

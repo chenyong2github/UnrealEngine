@@ -9098,7 +9098,10 @@ void CompilerMSL::entry_point_args_discrete_descriptors(string &ep_args)
 				
 				// Use [[color(N)]] as input for fragment shader to utilize native subpass fetch operations
 				ep_args += image_type_glsl(type, var_id) + " " + r.name;
-				ep_args += " [[color(" + convert_to_string(r.index) + ")]]";
+				// UE Change Begin: [[color(N)]] use input attachment index instead of resource index for N
+				uint32_t input_attachment_index = get_decoration(var_id, DecorationInputAttachmentIndex); 
+				ep_args += " [[color(" + convert_to_string(input_attachment_index) + ")]]";
+				// UE Change End:
 			}
 
 			// Emulate texture2D atomic operations

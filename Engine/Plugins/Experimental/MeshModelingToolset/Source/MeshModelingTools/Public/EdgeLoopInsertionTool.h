@@ -67,7 +67,7 @@ public:
 
 	/** Determines how edge loops are added to the geometry */
 	UPROPERTY(EditAnywhere, Category = InsertEdgeLoop)
-	EEdgeLoopInsertionMode InsertionMode = EEdgeLoopInsertionMode::PlaneCut;
+	EEdgeLoopInsertionMode InsertionMode = EEdgeLoopInsertionMode::Retriangulate;
 
 	/** How many loops to insert at a time. Only used with "even" positioning mode. */
 	UPROPERTY(EditAnywhere, Category = InsertEdgeLoop, meta = (UIMin = "0", UIMax = "20", ClampMin = "0", ClampMax = "500", 

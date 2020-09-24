@@ -4,6 +4,7 @@
 #include "XmlNode.h"
 #include "XmlFile.h"
 #include "Misc/Paths.h"
+#include "Logging/MessageLog.h"
 
 // Insights
 #include "Insights/MemoryProfiler/ViewModels/Report.h"
@@ -12,9 +13,21 @@
 namespace Insights
 {
 
+#define LOCTEXT_NAMESPACE "Insights.ReportXmlParser"
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void FReportXmlParser::LoadReportGraphsXML(FReportConfig& ReportConfig, FString Path)
+{
+	Status = EStatus::Completed;
+	ErrorMessages.Empty();
+
+	LoadReportGraphsXML_Internal(ReportConfig, Path);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FReportXmlParser::LoadReportGraphsXML_Internal(FReportConfig& ReportConfig, FString Path)
 {
 	UE_LOG(TraceInsights, Log, TEXT("[Report] Loading Report Graphs from \"%s\"..."), *Path);
 
@@ -79,12 +92,21 @@ void FReportXmlParser::LoadReportGraphsXML(FReportConfig& ReportConfig, FString 
 		}
 		else
 		{
-			UE_LOG(TraceInsights, Warning, TEXT("[Report] Failed to load Report Graphs from \"%s\". No root xml node!?"), *Path);
+			FText DetailMsg = FText::Format(LOCTEXT("FailedToLoad_ReportGraphsFmt", "Failed to load Report Graphs from \"{0}\".{1}No root xml node."),
+				FText::FromString(Path),
+				FText::FromString(LINE_TERMINATOR));
+
+			LogError(DetailMsg);
 		}
 	}
 	else
 	{
-		UE_LOG(TraceInsights, Warning, TEXT("[Report] Failed to load Report Graphs from \"%s\". Either the file doesn't exist or is not xml!"), *Path);
+		FText DetailMsg = FText::Format(LOCTEXT("FailedToLoad_ReportGraphsFmt2", "Failed to load Report Graphs from \"{0}\".{1}{2}"),
+			FText::FromString(Path),
+			FText::FromString(LINE_TERMINATOR),
+			FText::FromString(XmlFile.GetLastError()));
+
+		LogError(DetailMsg);
 	}
 }
 
@@ -209,6 +231,16 @@ void FReportXmlParser::ParseGraph(FGraphConfig& GraphConfig, const FXmlNode* Xml
 
 void FReportXmlParser::LoadReportTypesXML(FReportConfig& ReportConfig, FString Path)
 {
+	Status = EStatus::Completed;
+	ErrorMessages.Empty();
+
+	LoadReportTypesXML_Internal(ReportConfig, Path);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FReportXmlParser::LoadReportTypesXML_Internal(FReportConfig& ReportConfig, FString Path)
+{
 	UE_LOG(TraceInsights, Log, TEXT("[Report] Loading Report Types from \"%s\"..."), *Path);
 
 	FXmlFile XmlFile;
@@ -251,7 +283,7 @@ void FReportXmlParser::LoadReportTypesXML(FReportConfig& ReportConfig, FString P
 					else if (NodeTag == TEXT("reporttypes"))
 					{
 						FString ReportGraphsFile = Node->GetAttribute(TEXT("reportGraphsFile"));
-						LoadReportGraphsXML(ReportConfig, FPaths::GetPath(Path) / ReportGraphsFile);
+						LoadReportGraphsXML_Internal(ReportConfig, FPaths::GetPath(Path) / ReportGraphsFile);
 
 						for (const FXmlNode* ReportTypeNode : Node->GetChildrenNodes())
 						{
@@ -280,12 +312,21 @@ void FReportXmlParser::LoadReportTypesXML(FReportConfig& ReportConfig, FString P
 		}
 		else
 		{
-			UE_LOG(TraceInsights, Warning, TEXT("[Report] Failed to load Report Types from \"%s\". No root xml node!?"), *Path);
+			FText DetailMsg = FText::Format(LOCTEXT("FailedToLoad_ReportTypesFmt", "Failed to load Report Types from \"{0}\".{1}No root xml node."),
+				FText::FromString(Path),
+				FText::FromString(LINE_TERMINATOR));
+
+			LogError(DetailMsg);
 		}
 	}
 	else
 	{
-		UE_LOG(TraceInsights, Warning, TEXT("[Report] Failed to load Report Types from \"%s\". Either the file doesn't exist or is not xml!"), *Path);
+		FText DetailMsg = FText::Format(LOCTEXT("FailedToLoad_ReportTypesFmt2", "Failed to load Report Types from \"{0}\".{1}{2}"),
+			FText::FromString(Path),
+			FText::FromString(LINE_TERMINATOR),
+			FText::FromString(XmlFile.GetLastError()));
+
+		LogError(DetailMsg);
 	}
 
 	// Resolve GraphConfig pointers.
@@ -312,7 +353,11 @@ void FReportXmlParser::LoadReportTypesXML(FReportConfig& ReportConfig, FString P
 			}
 			if (!bGraphFound)
 			{
-				UE_LOG(TraceInsights, Warning, TEXT("[Report] Report graph \"%s\" not found (referenced in report type \"%s\")!"), *ReportTypeGraph.Title, *ReportType.Name);
+				FText DetailMsg = FText::Format(LOCTEXT("ReportGraphNotFoundFmt", "Report graph \"{0}\" not found (referenced in report type \"{1}\")!"),
+					FText::FromString(*ReportTypeGraph.Title),
+					FText::FromString(*ReportType.Name));
+
+				LogWarning(DetailMsg);
 			}
 		}
 	}
@@ -415,11 +460,15 @@ void FReportXmlParser::UnknownXmlNode(const FXmlNode* XmlChildNode, const FXmlNo
 {
 	if (XmlParentNode != nullptr)
 	{
-		UE_LOG(TraceInsights, Warning, TEXT("[Report] Unknown XML child node <%s> in <%s> node."), *XmlChildNode->GetTag(), *XmlParentNode->GetTag());
+		FText DetailMsg = FText::Format(LOCTEXT("UnknownXmlChildNodeFmt", "Unknown XML child node <{0}> in <{1}> node."),
+			FText::FromString(*XmlChildNode->GetTag()),
+			FText::FromString(*XmlParentNode->GetTag()));
+
+		LogWarning(DetailMsg);
 	}
 	else
 	{
-		UE_LOG(TraceInsights, Warning, TEXT("[Report] Unknown XML root node <%s>."), *XmlChildNode->GetTag());
+		LogError(LOCTEXT("FailedToLoad_NoRootXmlNode", "Failed to load Report. No root xml node."));
 	}
 }
 
@@ -427,7 +476,12 @@ void FReportXmlParser::UnknownXmlNode(const FXmlNode* XmlChildNode, const FXmlNo
 
 void FReportXmlParser::UnknownXmlAttribute(const FXmlNode* XmlNode, const FXmlAttribute& XmlAttribute)
 {
-	UE_LOG(TraceInsights, Warning, TEXT("[Report] Unknown XML attribute %s=\"%s\" in <%s> node."), *XmlAttribute.GetTag(), *XmlAttribute.GetValue(), *XmlNode->GetTag());
+	FText DetailMsg = FText::Format(LOCTEXT("UnknownXmlAttributeFmt", "Unknown XML attribute {0}=\"{1}\" in <{2}> node."),
+		FText::FromString(*XmlAttribute.GetTag()),
+		FText::FromString(*XmlAttribute.GetValue()),
+		FText::FromString(*XmlNode->GetTag()));
+
+	LogWarning(DetailMsg);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -442,5 +496,33 @@ void FReportXmlParser::AutoLoadLLMReportXML(FReportConfig& ReportConfig)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FReportXmlParser::LogError(const FText& Text)
+{
+	TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(EMessageSeverity::Error);
+	Message->AddToken(FDynamicTextToken::Create(Text));
+
+	ErrorMessages.Add(Message);
+	Status = EStatus::Error;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FReportXmlParser::LogWarning(const FText& Text)
+{
+	TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(EMessageSeverity::Warning);
+	Message->AddToken(FDynamicTextToken::Create(Text));
+
+	ErrorMessages.Add(Message);
+
+	if (Status == EStatus::Completed)
+	{
+		Status = EStatus::CompletedWithWarnings;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#undef LOCTEXT_NAMESPACE
 
 } // namespace Insights

@@ -141,7 +141,7 @@ T* FAbcImporter::CreateObjectInstance(UObject*& InParent, const FString& ObjectN
 	// Setup package name and create one accordingly
 	NewPackageName = FPackageName::GetLongPackagePath(InParent->GetOutermost()->GetName() + TEXT("/") + ObjectName);
 	NewPackageName = UPackageTools::SanitizePackageName(NewPackageName);
-	Package = CreatePackage(nullptr, *NewPackageName);
+	Package = CreatePackage(*NewPackageName);
 
 	const FString SanitizedObjectName = ObjectTools::SanitizeObjectName(ObjectName);
 
@@ -164,7 +164,7 @@ T* FAbcImporter::CreateObjectInstance(UObject*& InParent, const FString& ObjectN
 			CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 
 			// Create a package for each mesh
-			Package = CreatePackage(nullptr, *NewPackageName);
+			Package = CreatePackage(*NewPackageName);
 			InParent = Package;
 		}
 		else

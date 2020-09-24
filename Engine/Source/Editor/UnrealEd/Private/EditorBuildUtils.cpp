@@ -1402,7 +1402,7 @@ bool FEditorBuildUtils::EditorBuildVirtualTexture(UWorld* InWorld)
 	TArray<URuntimeVirtualTextureComponent*> Components;
 	for (TObjectIterator<URuntimeVirtualTextureComponent> It; It; ++It)
 	{
-		if (Module->HasStreamedMips(*It) || Module->HasMinMaxHeightTexture(*It))
+		if (Module->HasStreamedMips(*It))
 		{
 			Components.Add(*It);
 		}
@@ -1421,7 +1421,7 @@ bool FEditorBuildUtils::EditorBuildVirtualTexture(UWorld* InWorld)
 		BuildTask.EnterProgressFrame();
 
 		// Note that Build*() functions return true if the associated Has*() functions return false
-		if (BuildTask.ShouldCancel() || !Module->BuildStreamedMips(Component) || !Module->BuildMinMaxHeightTexture(Component))
+		if (BuildTask.ShouldCancel() || !Module->BuildStreamedMips(Component))
 		{
 			return false;
 		}

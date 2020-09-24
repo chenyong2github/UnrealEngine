@@ -19,7 +19,8 @@ public:
 	// Handles clicking a menu entry.
 	static void HandleOpenTranslationPicker()
 	{
-		FModuleManager::LoadModuleChecked<ITranslationEditor>("TranslationEditor").OpenTranslationPicker();
+		FModuleManager::Get().LoadModuleChecked("TranslationEditor");
+		ITranslationEditor::OpenTranslationPicker();
 	}
 
 };

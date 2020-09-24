@@ -97,6 +97,7 @@ private:
 
 	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+public:
 	float PreviousPlayRate;
 
 #endif

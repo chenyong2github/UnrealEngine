@@ -68,15 +68,13 @@ public:
 
 	void UnsetParameters(
 		FRHICommandList& RHICmdList,
-		EResourceTransitionAccess TransitionAccess,
-		EResourceTransitionPipeline TransitionPipeline,
-		FRWBuffer& VarianceMap,
-		FRHIComputeFence* Fence)
+		ERHIAccess TransitionAccess,
+		FRWBuffer& VarianceMap)
 	{
 		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
-
 		VarianceMipTreeParameter.UnsetUAV(RHICmdList, ShaderRHI);
-		RHICmdList.TransitionResource(TransitionAccess, TransitionPipeline, VarianceMap.UAV, Fence);
+
+		RHICmdList.Transition(FRHITransitionInfo(VarianceMap.UAV, ERHIAccess::Unknown, TransitionAccess));
 	}
 
 private:
@@ -114,15 +112,13 @@ void FDeferredShadingSceneRenderer::BuildVarianceMipTree(FRHICommandListImmediat
 	// Execute hierarchical build
 	for (uint32 MipLevel = 0; MipLevel <= MipLevelCount; ++MipLevel)
 	{
-		FComputeFenceRHIRef MipLevelFence = RHICmdList.CreateComputeFence(TEXT("VarianceMipTree Build"));
 		BuildVarianceMipTreeComputeShader->SetParameters(RHICmdList, MeanAndDeviationTexture, ViewSize, VarianceMipTreeDimensions, MipLevel, VarianceMipTree);
 		FIntVector MipLevelDimensions = FIntVector(VarianceMipTreeDimensions.X >> MipLevel, VarianceMipTreeDimensions.Y >> MipLevel, 1);
 		FIntVector NumGroups = FIntVector::DivideAndRoundUp(MipLevelDimensions, FBuildVarianceMipTreeCS::GetGroupSize());
 		DispatchComputeShader(RHICmdList, BuildVarianceMipTreeComputeShader.GetShader(), NumGroups.X, NumGroups.Y, 1);
-		BuildVarianceMipTreeComputeShader->UnsetParameters(RHICmdList, EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, VarianceMipTree, MipLevelFence);
+		BuildVarianceMipTreeComputeShader->UnsetParameters(RHICmdList, ERHIAccess::ERWBarrier, VarianceMipTree);
 	}
-	FComputeFenceRHIRef TransitionFence = RHICmdList.CreateComputeFence(TEXT("VarianceMipTree Transition"));
-	BuildVarianceMipTreeComputeShader->UnsetParameters(RHICmdList, EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, VarianceMipTree, TransitionFence);
+	BuildVarianceMipTreeComputeShader->UnsetParameters(RHICmdList, ERHIAccess::ERWBarrier, VarianceMipTree);
 }
 
 class FVisualizeMipTreePS : public FGlobalShader
@@ -179,7 +175,8 @@ void FDeferredShadingSceneRenderer::VisualizeVarianceMipTree(FRHICommandListImme
 {
 	// Allocate render target
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-	FPooledRenderTargetDesc Desc = SceneContext.GetSceneColor()->GetDesc();
+	TRefCountPtr<IPooledRenderTarget> SceneColor = SceneContext.GetSceneColor();
+	FPooledRenderTargetDesc Desc = SceneColor->GetDesc();
 	Desc.Flags &= ~(TexCreate_FastVRAM | TexCreate_Transient);
 	TRefCountPtr<IPooledRenderTarget> VarianceMipTreeRT;
 	GRenderTargetPool.FindFreeElement(RHICmdList, Desc, VarianceMipTreeRT, TEXT("VarianceMipTreeRT"));
@@ -190,7 +187,7 @@ void FDeferredShadingSceneRenderer::VisualizeVarianceMipTree(FRHICommandListImme
 	TShaderMapRef<FVisualizeMipTreePS> PixelShader(ShaderMap);
 	FRHITexture* RenderTargets[2] =
 	{
-		SceneContext.GetSceneColor()->GetRenderTargetItem().TargetableTexture, 
+		SceneColor->GetRenderTargetItem().TargetableTexture,
 		VarianceMipTreeRT->GetRenderTargetItem().TargetableTexture
 	};
 	FRHIRenderPassInfo RenderPassInfo(2, RenderTargets, ERenderTargetActions::Load_Store);
@@ -208,7 +205,7 @@ void FDeferredShadingSceneRenderer::VisualizeVarianceMipTree(FRHICommandListImme
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
-	RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, VarianceMipTree.UAV);
+	RHICmdList.Transition(FRHITransitionInfo(VarianceMipTree.UAV, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
 
 	// Draw
 	RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
@@ -222,10 +219,9 @@ void FDeferredShadingSceneRenderer::VisualizeVarianceMipTree(FRHICommandListImme
 		FIntPoint(View.ViewRect.Width(), View.ViewRect.Height()),
 		SceneContext.GetBufferSizeXY(),
 		VertexShader);
-	ResolveSceneColor(RHICmdList);
 	RHICmdList.EndRenderPass();
 
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, VarianceMipTree.UAV);
+	RHICmdList.Transition(FRHITransitionInfo(VarianceMipTree.UAV, ERHIAccess::SRVGraphics, ERHIAccess::ERWBarrier));
 
 	// Declare RT as visualizable
 	RHICmdList.CopyToResolveTarget(VarianceMipTreeRT->GetRenderTargetItem().TargetableTexture, VarianceMipTreeRT->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());

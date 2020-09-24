@@ -40,7 +40,7 @@ UFoliageType* FFoliageEditUtility::SaveFoliageTypeObject(UFoliageType* InFoliage
 		if (SaveFoliageTypeDialog->ShowModal() != EAppReturnType::Cancel)
 		{
 			PackageName = SaveFoliageTypeDialog->GetFullAssetPath().ToString();
-			UPackage* Package = CreatePackage(nullptr, *PackageName);
+			UPackage* Package = CreatePackage( *PackageName);
 
 			// We should not save a copy of this duplicate into the transaction buffer as it's an asset
 			InFoliageType->ClearFlags(RF_Transactional);

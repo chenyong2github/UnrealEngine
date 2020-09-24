@@ -21,6 +21,8 @@ enum class EReferenceChainSearchMode
 	Longest = 1 << 2,
 	// Returns only the direct referencers
 	Direct = 1 << 3,
+	// Returns complete chains. (Ignoring non GC objects)
+	FullChain = 1 << 4,
 
 	// Print results
 	PrintResults = 1 << 16,
@@ -231,7 +233,7 @@ private:
 	/** Tries to find a node for an object and if it doesn't exists creates a new one and returns it */
 	static FGraphNode* FindOrAddNode(TMap<UObject*, FGraphNode*>& AllNodes, UObject* InObjectToFindNodeFor);
 	/** Builds reference chains */
-	static int32 BuildReferenceChains(FGraphNode* TargetNode, TArray<FReferenceChain*>& ProducedChains, int32 ChainDepth, const int32 VisitCounter);
+	static int32 BuildReferenceChains(FGraphNode* TargetNode, TArray<FReferenceChain*>& ProducedChains, int32 ChainDepth, const int32 VisitCounter, EReferenceChainSearchMode SearchMode);
 	/** Builds reference chains */
 	static void BuildReferenceChains(FGraphNode* TargetNode, TArray<FReferenceChain*>& AllChains, EReferenceChainSearchMode SearchMode);
 	/** Builds reference chains for direct references only */

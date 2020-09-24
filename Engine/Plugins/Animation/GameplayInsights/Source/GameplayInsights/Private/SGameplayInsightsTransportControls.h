@@ -36,11 +36,17 @@ private:
 
 	FReply OnClick_Backward();
 
+	FReply OnClick_ToggleLooping();
+
+	bool GetLooping() const;
+
 	EPlaybackMode::Type GetPlaybackMode() const;
 
 	void SetTimeMarker(double InTime, bool bInScroll);
 
 	void HandleTimeMarkerChanged(Insights::ETimeChangedFlags InFlags, double InTimeMarker);
+
+	void HandleSelectionRangeChanged(Insights::ETimeChangedFlags InFlags, double InStartTime, double InEndTime);
 
 private:
 	FGameplaySharedData* SharedData;
@@ -51,7 +57,13 @@ private:
 
 	bool bReverse;
 
+	bool bLooping;
+
 	bool bSettingMarker;
+
+	double SelectionStartTime;
+	double SelectionEndTime;
+	bool bSelectionRangeValid;
 };
 
 #endif

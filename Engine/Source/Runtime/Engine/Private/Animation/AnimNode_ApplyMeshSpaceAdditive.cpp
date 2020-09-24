@@ -82,7 +82,9 @@ void FAnimNode_ApplyMeshSpaceAdditive::Evaluate_AnyThread(FPoseContext& Output)
 		Base.Evaluate(Output);
 		Additive.Evaluate(AdditiveEvalContext);
 
-		FAnimationRuntime::AccumulateAdditivePose(Output.Pose, AdditiveEvalContext.Pose, Output.Curve, AdditiveEvalContext.Curve, ActualAlpha, AAT_RotationOffsetMeshSpace);
+		FAnimationPoseData BaseAnimationPoseData(Output);
+		const FAnimationPoseData AdditiveAnimationPoseData(AdditiveEvalContext);
+		FAnimationRuntime::AccumulateAdditivePose(BaseAnimationPoseData, AdditiveAnimationPoseData, ActualAlpha, AAT_RotationOffsetMeshSpace);
 		Output.Pose.NormalizeRotations();
 	}
 	else

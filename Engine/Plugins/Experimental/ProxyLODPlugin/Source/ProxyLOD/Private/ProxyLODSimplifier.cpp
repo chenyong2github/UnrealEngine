@@ -1157,7 +1157,7 @@ int32 ProxyLOD::FQuadricMeshSimplifier::CountDegenerates() const
 }
 
 
-void ProxyLOD::FQuadricMeshSimplifier::OutputMesh(MeshVertType* verts, uint32* indexes, TArray<int32>* LockedVerts)
+void ProxyLOD::FQuadricMeshSimplifier::OutputMesh(MeshVertType* verts, uint32* indexes, TArray<int32>* LockedVerts, int* OutNumVertices, int* OutNumIndices) const
 {
 	FHashTable HashTable(4096, GetNumVerts());
 
@@ -1215,6 +1215,13 @@ void ProxyLOD::FQuadricMeshSimplifier::OutputMesh(MeshVertType* verts, uint32* i
 	check(numV <= numVerts);
 	check(numI <= numTris * 3);
 
-	numVerts = numV;
-	numTris = numI / 3;
+	if (OutNumVertices)
+	{
+		*OutNumVertices = numV;
+	}
+
+	if (OutNumIndices)
+	{
+		*OutNumIndices = numI;
+	}
 }

@@ -25,10 +25,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Layout, meta = (DisplayName = "Enable BC texture compression"))
 	bool bCompressTextures = true;
 
-	/** Enable usage of the virtual texture. When disabled there is no rendering into the virtual texture, and sampling will return zero values. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Layout, meta = (DisplayName = "Enable virtual texture"))
-	bool bEnable = true;
-
 	/** Enable clear before rendering a page of the virtual texture. Disabling this can be an optimization if you know that the texture will always be fully covered by rendering.  */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Layout, meta = (DisplayName = "Enable clear before render"))
 	bool bClearTextures = true;
@@ -78,9 +74,6 @@ protected:
 	class URuntimeVirtualTextureStreamingProxy* StreamingTexture_DEPRECATED = nullptr;
 
 public:
-	/** Public getter for enabled status */
-	bool GetEnabled() { return bEnable; }
-
 	/** Get the material set that this virtual texture stores. */
 	ERuntimeVirtualTextureMaterialType GetMaterialType() const { return MaterialType; }
 
@@ -106,6 +99,8 @@ public:
 	bool GetCompressTextures() const { return bCompressTextures; }
 	/** Public getter for virtual texture removed low mips */
 	int32 GetRemoveLowMips() const { return FMath::Clamp(RemoveLowMips, 0, 5); }
+	/** Public getter for virtual texture using continuous update flag. */
+	bool GetContinuousUpdate() const { return bContinuousUpdate; }
 	/** Public getter for virtual texture using single physical space flag. */
 	bool GetSinglePhysicalSpace() const { return bSinglePhysicalSpace; }
 
@@ -116,8 +111,15 @@ public:
 	int32 GetEstimatedPhysicalTextureMemoryKb() const;
 #endif
 
+	/** Structure containing settings for initializing the producer. */
+	struct FInitSettings
+	{
+		/** Bias to apply to the virtual texture tile count. */
+		int32 TileCountBias = 0;
+	};
+
 	/** Get virtual texture description based on the properties of this object and the passed in volume transform. */
-	void GetProducerDescription(FVTProducerDescription& OutDesc, FTransform const& VolumeToWorld) const;
+	void GetProducerDescription(FVTProducerDescription& OutDesc, FInitSettings const& InitSettings, FTransform const& VolumeToWorld) const;
 
 	/** Returns number of texture layers in the virtual texture */
 	int32 GetLayerCount() const;
@@ -133,7 +135,7 @@ public:
 	bool GetClearTextures() const { return bClearTextures; }
 
 	/** (Re)Initialize this object. Call this whenever we modify the producer or transform. */
-	void Initialize(IVirtualTexture* InProducer, FTransform const& VolumeToWorld, FBox const& WorldBounds);
+	void Initialize(IVirtualTexture* InProducer, FInitSettings const& InitSettings, FTransform const& VolumeToWorld, FBox const& WorldBounds);
 
 	/** Release the resources for this object This will need to be called if our producer becomes stale and we aren't doing a full reinit with a new producer. */
 	void Release();
@@ -148,7 +150,7 @@ public:
 
 protected:
 	/** Initialize the render resources. This kicks off render thread work. */
-	void InitResource(IVirtualTexture* InProducer, FTransform const& VolumeToWorld);
+	void InitResource(IVirtualTexture* InProducer, FInitSettings const& InitSettings, FTransform const& VolumeToWorld);
 	/** Initialize the render resources with a null producer. This kicks off render thread work. */
 	void InitNullResource();
 

@@ -347,6 +347,12 @@ void CameraImageCapture::StartCameraCapture(void(*FunctionPointer)(void*, Direct
 		winrt::agile_ref < winrt::Windows::Media::Capture::MediaCapture > Capture{ MediaCapture() };
 		Capture.get().InitializeAsync(CaptureSettings).Completed([=](auto&& asyncInfo, auto&& asyncStatus)
 		{
+			if (asyncStatus != winrt::Windows::Foundation::AsyncStatus::Completed)
+			{
+				Log(L"Failed to open camera, please check Webcam capability");
+				return;
+			}
+			
 			// Get the frame source from the source info we got earlier
 			MediaFrameSource FrameSource = Capture.get().FrameSources().Lookup(ChosenSourceInfo.Id());
 

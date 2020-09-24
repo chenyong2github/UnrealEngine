@@ -109,9 +109,23 @@ static void GetFragmentCvars(const FString& CurrentSectionName, const FString& C
 	}
 }
 
-void UDeviceProfileManager::InitializeCVarsForActiveDeviceProfile(bool bPushSettings)
+void UDeviceProfileManager::InitializeCVarsForActiveDeviceProfile(bool bPushSettings, bool bIsDeviceProfilePreview)
 {
-	FString ActiveProfileName = DeviceProfileManagerSingleton ? DeviceProfileManagerSingleton->ActiveDeviceProfile->GetName() : GetPlatformDeviceProfileName();
+	FString ActiveProfileName;
+	
+	if(DeviceProfileManagerSingleton)
+	{
+		ActiveProfileName = DeviceProfileManagerSingleton->ActiveDeviceProfile->GetName();
+
+		//Ensure we've loaded the device profiles for the active platform.
+		//This can be needed when overriding the device profile.
+		FString ActivePlatformName = DeviceProfileManagerSingleton->ActiveDeviceProfile->DeviceType;
+		FConfigCacheIni::LoadGlobalIniFile(GDeviceProfilesIni, TEXT("DeviceProfiles"), *ActivePlatformName, true);
+	}
+	else
+	{
+		ActiveProfileName = GetPlatformDeviceProfileName();
+	}
 
 	UE_LOG(LogInit, Log, TEXT("Applying CVar settings loaded from the selected device profile: [%s]"), *ActiveProfileName);
 
@@ -299,7 +313,9 @@ void UDeviceProfileManager::InitializeCVarsForActiveDeviceProfile(bool bPushSett
 								}
 							}
 
-							uint32 CVarPriority = bIsScalabilityBucket ? ECVF_SetByScalability : ECVF_SetByDeviceProfile;
+							//If this is a dp preview then we set cvars with their existing priority so that we don't cause future issues when setting by scalability levels etc.
+							uint32 BaseCVarPriority = bIsDeviceProfilePreview ? ECVF_SetByMask : ECVF_SetByDeviceProfile;
+							uint32 CVarPriority = bIsScalabilityBucket ? ECVF_SetByScalability : BaseCVarPriority;
 							OnSetCVarFromIniEntry(*GDeviceProfilesIni, *CVarKey, *CVarValue, CVarPriority);
 							CVarsAlreadySetList.Add(CVarKey, CVarValue);
 						}
@@ -635,7 +651,7 @@ void UDeviceProfileManager::SaveProfiles(bool bSaveToDefaults)
 /**
 * Overrides the device profile. The original profile can be restored with RestoreDefaultDeviceProfile
 */
-void UDeviceProfileManager::SetOverrideDeviceProfile(UDeviceProfile* DeviceProfile)
+void UDeviceProfileManager::SetOverrideDeviceProfile(UDeviceProfile* DeviceProfile, bool bIsDeviceProfilePreview)
 {
 	// pop any pushed settings
 	HandleDeviceProfileOverridePop();
@@ -645,7 +661,7 @@ void UDeviceProfileManager::SetOverrideDeviceProfile(UDeviceProfile* DeviceProfi
 
 	// activate new one!
 	DeviceProfileManagerSingleton->SetActiveDeviceProfile(DeviceProfile);
-	InitializeCVarsForActiveDeviceProfile(true);
+	InitializeCVarsForActiveDeviceProfile(true, bIsDeviceProfilePreview);
 
 	// broadcast cvar sinks now that we are done
 	IConsoleManager::Get().CallAllConsoleVariableSinks();
@@ -663,10 +679,12 @@ void UDeviceProfileManager::RestoreDefaultDeviceProfile()
 		if (CVar)
 		{
 			// restore it!
-			CVar->Set(*It.Value(), ECVF_SetByDeviceProfile);
+			CVar->SetWithCurrentPriority(*It.Value());			
 			UE_LOG(LogInit, Log, TEXT("Popping Device Profile CVar: [[%s:%s]]"), *It.Key(), *It.Value());
 		}
 	}
+
+	PushedSettings.Reset();
 
 	if(BaseDeviceProfile)
 	{

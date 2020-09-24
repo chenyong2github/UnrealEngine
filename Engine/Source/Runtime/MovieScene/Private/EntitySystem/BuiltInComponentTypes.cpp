@@ -76,19 +76,35 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	ComponentRegistry->NewComponentType(&FloatResult[7],        TEXT("Float Result 7"));
 	ComponentRegistry->NewComponentType(&FloatResult[8],        TEXT("Float Result 8"));
 
+	ComponentRegistry->NewComponentType(&BaseFloat[0],          TEXT("Base Float 0"));
+	ComponentRegistry->NewComponentType(&BaseFloat[1],          TEXT("Base Float 1"));
+	ComponentRegistry->NewComponentType(&BaseFloat[2],          TEXT("Base Float 2"));
+	ComponentRegistry->NewComponentType(&BaseFloat[3],          TEXT("Base Float 3"));
+	ComponentRegistry->NewComponentType(&BaseFloat[4],          TEXT("Base Float 4"));
+	ComponentRegistry->NewComponentType(&BaseFloat[5],          TEXT("Base Float 5"));
+	ComponentRegistry->NewComponentType(&BaseFloat[6],          TEXT("Base Float 6"));
+	ComponentRegistry->NewComponentType(&BaseFloat[7],          TEXT("Base Float 7"));
+	ComponentRegistry->NewComponentType(&BaseFloat[8],          TEXT("Base Float 8"));
+
+	ComponentRegistry->NewComponentType(&BaseValueEvalTime,     TEXT("Base Value Eval Time"));
+
 	ComponentRegistry->NewComponentType(&WeightResult,          TEXT("Weight Result"));
 	ComponentRegistry->NewComponentType(&WeightAndEasingResult, TEXT("Weight/Easing Result"));
 
 	ComponentRegistry->NewComponentType(&TrackInstance,         TEXT("Track Instance"));
 	ComponentRegistry->NewComponentType(&TrackInstanceInput,    TEXT("Track Instance Input"));
 
+	ComponentRegistry->NewComponentType(&EvaluationHook,        TEXT("Evaluation Hook"));
+	ComponentRegistry->NewComponentType(&EvaluationHookFlags,   TEXT("Evaluation Hook Flags"), EComponentTypeFlags::Preserved);
+
 	ComponentRegistry->NewComponentType(&Interrogation.InputKey,  TEXT("Interrogation Input"));
 	ComponentRegistry->NewComponentType(&Interrogation.OutputKey, TEXT("Interrogation Output"));
 
-	Tags.RestoreState   = ComponentRegistry->NewTag(TEXT("Is Restore State Entity"));
-	Tags.AbsoluteBlend  = ComponentRegistry->NewTag(TEXT("Is Absolute Blend"));
-	Tags.RelativeBlend  = ComponentRegistry->NewTag(TEXT("Is Relative Blend"));
-	Tags.AdditiveBlend  = ComponentRegistry->NewTag(TEXT("Is Additive Blend"));
+	Tags.RestoreState            = ComponentRegistry->NewTag(TEXT("Is Restore State Entity"));
+	Tags.AbsoluteBlend           = ComponentRegistry->NewTag(TEXT("Is Absolute Blend"));
+	Tags.RelativeBlend           = ComponentRegistry->NewTag(TEXT("Is Relative Blend"));
+	Tags.AdditiveBlend           = ComponentRegistry->NewTag(TEXT("Is Additive Blend"));
+	Tags.AdditiveFromBaseBlend   = ComponentRegistry->NewTag(TEXT("Is Additive From Base Blend"));
 
 	Tags.NeedsLink               = ComponentRegistry->NewTag(TEXT("Needs Link"));
 	Tags.NeedsUnlink             = ComponentRegistry->NewTag(TEXT("Needs Unlink"));
@@ -116,6 +132,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	ComponentRegistry->Factories.DefineChildComponent(Tags.AbsoluteBlend, Tags.AbsoluteBlend);
 	ComponentRegistry->Factories.DefineChildComponent(Tags.RelativeBlend, Tags.RelativeBlend);
 	ComponentRegistry->Factories.DefineChildComponent(Tags.AdditiveBlend, Tags.AdditiveBlend);
+	ComponentRegistry->Factories.DefineChildComponent(Tags.AdditiveFromBaseBlend, Tags.AdditiveFromBaseBlend);
 	ComponentRegistry->Factories.DefineChildComponent(Tags.FixedTime,     Tags.FixedTime);
 	ComponentRegistry->Factories.DefineChildComponent(Tags.PreRoll,       Tags.PreRoll);
 	ComponentRegistry->Factories.DefineChildComponent(Tags.SectionPreRoll,Tags.SectionPreRoll);
@@ -123,6 +140,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(Tags.SectionPreRoll,Tags.PreRoll);
 
 	ComponentRegistry->Factories.DuplicateChildComponent(EvalTime);
+	ComponentRegistry->Factories.DuplicateChildComponent(BaseValueEvalTime);
 
 	ComponentRegistry->Factories.DuplicateChildComponent(InstanceHandle);
 	ComponentRegistry->Factories.DuplicateChildComponent(PropertyBinding);
@@ -155,6 +173,9 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 
 	// Float channel relationships
 	{
+		static_assert(
+				UE_ARRAY_COUNT(FloatChannel) == UE_ARRAY_COUNT(BaseFloat), 
+				"Base floats and float results should have the same size.");
 
 		// Duplicate float channels
 		for (int32 Index = 0; Index < UE_ARRAY_COUNT(FloatChannel); ++Index)
@@ -163,6 +184,14 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 			ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(FloatChannel[Index], FloatResult[Index]);
 			ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(FloatChannel[Index], EvalTime);
 			ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(FloatChannel[Index], FloatChannelFlags[Index]);
+		}
+
+		// Create base float components for float channels that are meant to be additive from base.
+		for (int32 Index = 0; Index < UE_ARRAY_COUNT(BaseFloat); ++Index)
+		{
+			ComponentRegistry->Factories.DefineComplexInclusiveComponents(
+					FComplexInclusivityFilter::All({ FloatChannel[Index], BaseValueEvalTime, Tags.AdditiveFromBaseBlend }),
+					BaseFloat[Index]);
 		}
 	}
 
@@ -202,6 +231,12 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 			OutInput.Section = InInstance.Owner;
 		};
 		ComponentRegistry->Factories.DefineChildComponent(TrackInstance, TrackInstanceInput, InitInput);
+	}
+
+	{
+		ComponentRegistry->Factories.DefineChildComponent(EvaluationHook, EvaluationHook);
+		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(EvaluationHook, EvalTime);
+		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(EvaluationHook, EvaluationHookFlags);
 	}
 }
 

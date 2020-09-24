@@ -29,6 +29,7 @@
 
 #include "Math/IntRect.h"
 
+#include "CineCameraComponent.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // DisplayCluster module API
@@ -120,7 +121,7 @@ void UDisplayClusterBlueprintAPIImpl::GetLocalViewports(bool IsRTT, TArray<FStri
 {
 	TArray<FDisplayClusterConfigViewport> SelectedViewports = DisplayClusterHelpers::config::GetLocalViewports().FilterByPredicate([IsRTT](const FDisplayClusterConfigViewport& Item)
 	{
-		return Item.IsRTT == IsRTT;
+		return Item.bIsRTT == IsRTT;
 	});
 
 	IDisplayClusterConfigManager* const ConfigMgr = IDisplayCluster::Get().GetConfigMgr();
@@ -411,6 +412,12 @@ void UDisplayClusterBlueprintAPIImpl::SetFinalPostProcessingSettings(const FStri
 {
 	UE_LOG(LogDisplayClusterBlueprint, Verbose, TEXT("SetFinalPostProcessingSettings - id=%s"), *ViewportID);
 	IDisplayCluster::Get().GetRenderMgr()->SetFinalPostProcessingSettings(ViewportID, FinalPostProcessingSettings);
+}
+
+FPostProcessSettings UDisplayClusterBlueprintAPIImpl::GetUpdatedCinecameraPostProcessing(float DeltaSeconds, UCineCameraComponent* CineCamera)
+{	
+	UE_LOG(LogDisplayClusterBlueprint, Verbose, TEXT("GetUpdatedCinecameraPostProcessing - dt=%f"), DeltaSeconds);
+	return IDisplayCluster::Get().GetRenderMgr()->GetUpdatedCinecameraPostProcessing(DeltaSeconds, CineCamera);
 }
 
 bool UDisplayClusterBlueprintAPIImpl::GetViewportRect(const FString& ViewportID, FIntPoint& ViewportLoc, FIntPoint& ViewportSize)

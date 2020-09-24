@@ -776,7 +776,13 @@ void SDetailSingleItemRow::OnPasteProperty()
 			TSharedPtr<IPropertyHandle> Handle = PropertyEditorHelpers::GetPropertyHandle(PropertyNode.ToSharedRef(), OwnerTreeNode.Pin()->GetDetailsView()->GetNotifyHook(), OwnerTreeNode.Pin()->GetDetailsView()->GetPropertyUtilities());
 
 			Handle->SetValueFromFormattedString(ClipboardContent);
+
+			// Cache expansion state and then rebuild child nodes, in case we're pasting an array of a different size. This ensures instanced properties can be rebuild properly
+			TSet<FString> ExpandedChildPropertyPaths;
+			PropertyNode->GetExpandedChildPropertyPaths(ExpandedChildPropertyPaths);
 			PropertyNode->RebuildChildren();
+			PropertyNode->SetExpandedChildPropertyNodes(ExpandedChildPropertyPaths);
+
 			TArray<TSharedPtr<IPropertyHandle>> CopiedHandles;
 
 			CopiedHandles.Add(Handle);

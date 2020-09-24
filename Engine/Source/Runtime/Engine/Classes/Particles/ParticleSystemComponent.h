@@ -414,6 +414,8 @@ public:
 
 	/** Returns an approximate memory usage value for this component. */
 	virtual uint32 GetApproxMemoryUsage() const { return 0; }
+
+	virtual void ActivateSystem(bool bFlagAsJustAttached = false) { };
 };
 
 
@@ -1381,7 +1383,7 @@ public:
 	//~ End USceneComponent Interface
 
 	/** Activate the system */
-	void ActivateSystem(bool bFlagAsJustAttached = false);
+	virtual void ActivateSystem(bool bFlagAsJustAttached = false) override;
 	/** Deactivate the system */
 	void DeactivateSystem();
 	// Collision Handling...

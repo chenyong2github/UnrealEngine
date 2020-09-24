@@ -77,11 +77,13 @@ struct FVoiceChatDeviceInfo
 
 	inline bool operator==(const FVoiceChatDeviceInfo& Other) const { return Id == Other.Id; }
 	inline bool operator!=(const FVoiceChatDeviceInfo& Other) const { return !operator==(Other); }
+
+	FString ToDebugString() const { return FString::Printf(TEXT("DisplayName=[%s] Id=[%s]"), *DisplayName, *Id); }
 };
 
 inline FString LexToString(const FVoiceChatDeviceInfo& DeviceInfo)
 {
-	return FString::Printf(TEXT("DisplayName=[%s] Id=[%s]"), *DeviceInfo.DisplayName, *DeviceInfo.Id);
+	return DeviceInfo.ToDebugString();
 }
 
 DECLARE_DELEGATE_OneParam(FOnVoiceChatInitializeCompleteDelegate, const FVoiceChatResult& /* Result */);
@@ -701,11 +703,18 @@ public:
 	virtual FOnVoiceChatReconnectedDelegate& OnVoiceChatReconnected() = 0;
 
 	/**
-	 * Allocate an interface for an additional user // TODO: document limitations
+	 * Allocate an interface for an additional user. The interface must be released with ReleaseUser.
 	 *
 	 * @return new instance of IVoiceChatUser, or nullptr if implementation does not support multiple users
 	 */
 	virtual IVoiceChatUser* CreateUser() = 0;
+
+	/**
+	 * Release an interface for an additional user.
+	 * 
+	 * @param VoiceChatUser the user interface to release.
+	 */
+	virtual void ReleaseUser(IVoiceChatUser* VoiceChatUser) = 0;
 
 private:
 	static FName GetModularFeatureName()

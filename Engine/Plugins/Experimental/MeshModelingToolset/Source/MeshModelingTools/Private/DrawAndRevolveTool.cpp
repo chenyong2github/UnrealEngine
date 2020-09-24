@@ -177,6 +177,14 @@ void UDrawAndRevolveTool::Setup()
 
 	ControlPointsMechanic->SetPlane(PlaneMechanic->Plane);
 	ControlPointsMechanic->SetInteractiveInitialization(true);
+	ControlPointsMechanic->SetAutoRevertToInteractiveInitialization(true);
+
+	// For things to behave nicely, we expect to revolve at least a two point
+	// segment if it's not a loop, and a three point segment if it is. Revolving
+	// a two-point loop to make a double sided thing is a pain to support because
+	// it forces us to deal with manifoldness issues that we would really rather
+	// not worry about (we'd have to duplicate vertices to stay manifold)
+	ControlPointsMechanic->SetMinPointsToLeaveInteractiveInitialization(3, 2);
 }
 
 void UDrawAndRevolveTool::UpdateRevolutionAxis(const FTransform& PlaneTransform)
@@ -250,7 +258,7 @@ void UDrawAndRevolveTool::OnPropertyModified(UObject* PropertySet, FProperty* Pr
 	if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(URevolveToolProperties, DrawPlaneAndAxis)))
 	{
 		FFrame3d ProfileDrawPlane(Settings->DrawPlaneAndAxis); // Casting to FFrame3d
-		ControlPointsMechanic->SetPlane(PlaneMechanic->Plane);
+		ControlPointsMechanic->SetPlane(ProfileDrawPlane);
 		PlaneMechanic->SetPlaneWithoutBroadcast(ProfileDrawPlane);
 		UpdateRevolutionAxis(Settings->DrawPlaneAndAxis);
 	}

@@ -10,6 +10,9 @@ MobileDistortionPass.cpp - Mobile specific rendering of primtives with refractio
 #include "PostProcess/PostProcessing.h"
 #include "PostProcess/SceneFilterRendering.h"
 #include "PipelineStateCache.h"
+#include "DistortionRendering.h"
+
+IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FMobileDistortionPassUniformParameters, "MobileDistortionPass", SceneTextures);
 
 bool IsMobileDistortionActive(const FViewInfo& View)
 {
@@ -28,149 +31,103 @@ bool IsMobileDistortionActive(const FViewInfo& View)
 		DisableDistortion == 0;
 }
 
-void FRCDistortionAccumulatePassES2::Process(FRenderingCompositePassContext& Context)
+BEGIN_SHADER_PARAMETER_STRUCT(FMobileDistortionPassParameters, )
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FMobileDistortionPassUniformParameters, Pass)
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
+
+TRDGUniformBufferRef<FMobileDistortionPassUniformParameters> CreateMobileDistortionPassUniformBuffer(FRDGBuilder& GraphBuilder, const FViewInfo& View)
 {
-	SCOPED_DRAW_EVENT(Context.RHICmdList, DistortionAccumulatePass);
+	auto* Parameters = GraphBuilder.AllocParameters<FMobileDistortionPassUniformParameters>();
 
-	FViewInfo& View = const_cast<FViewInfo &>(Context.View);
-	FSceneRenderTargets& SceneTargets = FSceneRenderTargets::Get(Context.RHICmdList);
-	const FSceneRenderTargetItem& DestRenderTarget = PassOutputs[0].RequestSurface(Context);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
 
-	FRHIRenderPassInfo RPInfo(DestRenderTarget.TargetableTexture, ERenderTargetActions::Clear_Store);
-	Context.RHICmdList.BeginRenderPass(RPInfo, TEXT("DistortionAccumulate"));
+	EMobileSceneTextureSetupMode SetupMode = EMobileSceneTextureSetupMode::SceneColor;
+	if (View.bCustomDepthStencilValid)
 	{
-
-		Context.SetViewportAndCallRHI(View.ViewRect);
-
-		if (Scene->UniformBuffers.UpdateViewUniformBuffer(View))
-		{
-			FMobileDistortionPassUniformParameters Parameters;
-			SetupMobileDistortionPassUniformBuffer(Context.RHICmdList, View, Parameters);
-			Scene->UniformBuffers.MobileDistortionPassUniformBuffer.UpdateUniformBufferImmediate(Parameters);
-		}
-
-		View.ParallelMeshDrawCommandPasses[EMeshPass::Distortion].DispatchDraw(nullptr, Context.RHICmdList);
+		SetupMode |= EMobileSceneTextureSetupMode::CustomDepth;
 	}
-	Context.RHICmdList.EndRenderPass();
-	Context.RHICmdList.CopyToResolveTarget(DestRenderTarget.TargetableTexture, DestRenderTarget.ShaderResourceTexture, FResolveParams());
+
+	SetupMobileSceneTextureUniformParameters(GraphBuilder, SetupMode, Parameters->SceneTextures);
+
+	SetupDistortionParams(Parameters->DistortionParams, View);
+
+	return GraphBuilder.CreateUniformBuffer(Parameters);
 }
 
-FPooledRenderTargetDesc FRCDistortionAccumulatePassES2::ComputeOutputDesc(EPassOutputId InPassOutputId) const
+FMobileDistortionAccumulateOutputs AddMobileDistortionAccumulatePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FMobileDistortionAccumulateInputs& Inputs)
 {
-	FPooledRenderTargetDesc Ret;
-	Ret.Depth = 0;
-	Ret.ArraySize = 1;
-	Ret.bIsArray = false;
-	Ret.NumMips = 1;
-	Ret.TargetableFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource;
-	Ret.bForceSeparateTargetAndShaderResource = false;
-	Ret.Format = PF_B8G8R8A8;
-	Ret.NumSamples = 1;
-	Ret.Extent.X = FMath::Max(1, PrePostSourceViewportSize.X);
-	Ret.Extent.Y = FMath::Max(1, PrePostSourceViewportSize.Y);
-	Ret.DebugName = TEXT("DistortionAccumulatePass");
-	Ret.ClearValue = FClearValueBinding(FLinearColor::Transparent);
-	return Ret;
+	FRDGTextureDesc DistortionAccumulateDesc = FRDGTextureDesc::Create2D(Inputs.SceneColor.Texture->Desc.Extent, PF_B8G8R8A8, FClearValueBinding::Transparent, TexCreate_ShaderResource | TexCreate_RenderTargetable);
+
+	FScreenPassRenderTarget DistortionAccumulateOutput = FScreenPassRenderTarget(GraphBuilder.CreateTexture(DistortionAccumulateDesc, TEXT("DistortionAccumulatePass")), Inputs.SceneColor.ViewRect, ERenderTargetLoadAction::EClear);
+
+	FMobileDistortionPassParameters* PassParameters = GraphBuilder.AllocParameters<FMobileDistortionPassParameters>();
+	PassParameters->Pass = CreateMobileDistortionPassUniformBuffer(GraphBuilder, View);
+	PassParameters->RenderTargets[0] = DistortionAccumulateOutput.GetRenderTargetBinding();
+
+	const FScreenPassTextureViewport SceneColorViewport(Inputs.SceneColor);
+
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("DistortionAccumulate %dx%d", SceneColorViewport.Rect.Width(), SceneColorViewport.Rect.Height()),
+		PassParameters,
+		ERDGPassFlags::Raster,
+		[&View, SceneColorViewport](FRHICommandList& RHICmdList)
+	{
+		RHICmdList.SetViewport(SceneColorViewport.Rect.Min.X, SceneColorViewport.Rect.Min.Y, 0.0f, SceneColorViewport.Rect.Max.X, SceneColorViewport.Rect.Max.Y, 1.0f);
+
+		View.ParallelMeshDrawCommandPasses[EMeshPass::Distortion].DispatchDraw(nullptr, RHICmdList);
+	});
+
+	FMobileDistortionAccumulateOutputs Outputs;
+
+	Outputs.DistortionAccumulate = DistortionAccumulateOutput;
+
+	return MoveTemp(Outputs);
 }
 
-class FDistortionMergePS_ES2 : public FGlobalShader
+class FMobileDistortionMergePS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FDistortionMergePS_ES2, Global);
+public:
+	DECLARE_GLOBAL_SHADER(FMobileDistortionMergePS);
+	SHADER_USE_PARAMETER_STRUCT(FMobileDistortionMergePS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColorTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, SceneColorTextureSampler)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DistortionAccumulateTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, DistortionAccumulateSampler)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return GetMaxSupportedFeatureLevel(Parameters.Platform) <= ERHIFeatureLevel::ES3_1;
-	}
-
-	FDistortionMergePS_ES2() {}
-
-public:
-	LAYOUT_FIELD(FPostProcessPassParameters, PostprocessParameter)
-
-	/** Initialization constructor. */
-	FDistortionMergePS_ES2(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		PostprocessParameter.Bind(Initializer.ParameterMap);
-	}
-
-	void SetParameters(const FRenderingCompositePassContext& Context)
-	{
-		FRHIPixelShader* ShaderRHI = Context.RHICmdList.GetBoundPixelShader();
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(Context.RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
-		PostprocessParameter.SetPS(Context.RHICmdList, ShaderRHI, Context, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
+		return IsMobilePlatform(Parameters.Platform);
 	}
 };
 
-IMPLEMENT_SHADER_TYPE(, FDistortionMergePS_ES2, TEXT("/Engine/Private/DistortApplyScreenPS.usf"), TEXT("Merge_ES2"), SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FMobileDistortionMergePS, "/Engine/Private/DistortApplyScreenPS.usf", "Merge_Mobile", SF_Pixel);
 
-void FRCDistortionMergePassES2::Process(FRenderingCompositePassContext& Context)
+FScreenPassTexture AddMobileDistortionMergePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FMobileDistortionMergeInputs& Inputs)
 {
-	SCOPED_DRAW_EVENT(Context.RHICmdList, DistortionMergePass);
+	FRDGTextureDesc DistortionMergeDesc = FRDGTextureDesc::Create2D(Inputs.DistortionAccumulate.Texture->Desc.Extent, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_RenderTargetable);
 
-	const FViewInfo& View = Context.View;
-	const FPooledRenderTargetDesc* InputDesc = GetInputDesc(ePId_Input0);
-	const FPooledRenderTargetDesc& OutputDesc = PassOutputs[0].RenderTargetDesc;
-	const FSceneRenderTargetItem& DestRenderTarget = PassOutputs[0].RequestSurface(Context);
+	FScreenPassRenderTarget DistortionMergeOutput = FScreenPassRenderTarget(GraphBuilder.CreateTexture(DistortionMergeDesc, TEXT("DistortionMergePass")), Inputs.DistortionAccumulate.ViewRect, ERenderTargetLoadAction::EClear);
 
-	FRHIRenderPassInfo RPInfo(DestRenderTarget.TargetableTexture, ERenderTargetActions::Clear_Store);
-	Context.RHICmdList.BeginRenderPass(RPInfo, TEXT("DistortionMerge"));
-	{
-		FIntRect SrcRect = View.ViewRect;
-		FIntRect DestRect = View.ViewRect;
-		FIntPoint SrcSize = InputDesc->Extent;
-		FIntPoint DstSize = OutputDesc.Extent;
+	TShaderMapRef<FMobileDistortionMergePS> PixelShader(View.ShaderMap);
 
-		Context.SetViewportAndCallRHI(View.ViewRect);
+	FMobileDistortionMergePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMobileDistortionMergePS::FParameters>();
+	PassParameters->RenderTargets[0] = DistortionMergeOutput.GetRenderTargetBinding();
+	PassParameters->View = View.ViewUniformBuffer;
+	PassParameters->SceneColorTexture = Inputs.SceneColor.Texture;
+	PassParameters->SceneColorTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	PassParameters->DistortionAccumulateTexture = Inputs.DistortionAccumulate.Texture;
+	PassParameters->DistortionAccumulateSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
-		FGraphicsPipelineStateInitializer GraphicsPSOInit;
-		Context.RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-		GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+	const FScreenPassTextureViewport InputViewport(Inputs.SceneColor);
+	const FScreenPassTextureViewport OutputViewport(DistortionMergeOutput);
 
-		TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
-		TShaderMapRef<FDistortionMergePS_ES2> PixelShader(View.ShaderMap);
+	AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("DistortionMerge"), View, OutputViewport, InputViewport, PixelShader, PassParameters);
 
-		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-
-		SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
-
-		VertexShader->SetParameters(Context);
-		PixelShader->SetParameters(Context);
-
-		DrawRectangle(
-			Context.RHICmdList,
-			0, 0,
-			DstSize.X, DstSize.Y,
-			SrcRect.Min.X, SrcRect.Min.Y,
-			SrcRect.Width(), SrcRect.Height(),
-			DstSize,
-			SrcSize,
-			VertexShader,
-			EDRF_UseTriangleOptimization);
-	}
-	Context.RHICmdList.EndRenderPass();
-	Context.RHICmdList.CopyToResolveTarget(DestRenderTarget.TargetableTexture, DestRenderTarget.ShaderResourceTexture, FResolveParams());
-}
-
-FPooledRenderTargetDesc FRCDistortionMergePassES2::ComputeOutputDesc(EPassOutputId InPassOutputId) const
-{
-	FPooledRenderTargetDesc Ret;
-	Ret.Depth = 0;
-	Ret.ArraySize = 1;
-	Ret.bIsArray = false;
-	Ret.NumMips = 1;
-	Ret.TargetableFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource;
-	Ret.bForceSeparateTargetAndShaderResource = false;
-	Ret.Format = PF_FloatRGBA;
-	Ret.NumSamples = 1;
-	Ret.Extent.X = FMath::Max(1, PrePostSourceViewportSize.X);
-	Ret.Extent.Y = FMath::Max(1, PrePostSourceViewportSize.Y);
-	Ret.DebugName = TEXT("DistortionMergePass");
-	Ret.ClearValue = FClearValueBinding(FLinearColor::Black);
-	return Ret;
+	return MoveTemp(DistortionMergeOutput);
 }

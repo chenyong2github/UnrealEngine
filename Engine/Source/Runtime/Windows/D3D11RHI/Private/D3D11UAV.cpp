@@ -3,6 +3,38 @@
 #include "D3D11RHIPrivate.h"
 #include "ClearReplacementShaders.h"
 
+static D3D11_UNORDERED_ACCESS_VIEW_DESC InitializeCommonUAVDesc(const D3D11_BUFFER_DESC& BufferDesc, uint32 Offset, uint32 Size, EPixelFormat Format, bool bForStructured)
+{
+	const bool bByteAccessBuffer = (BufferDesc.MiscFlags & D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS) != 0;
+
+	D3D11_UNORDERED_ACCESS_VIEW_DESC UAVDesc{};
+	UAVDesc.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
+
+	uint32 EffectiveStride;
+	if (bByteAccessBuffer)
+	{
+		UAVDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+		UAVDesc.Buffer.Flags |= D3D11_BUFFER_UAV_FLAG_RAW;
+		EffectiveStride = 4;
+	}
+	else if (bForStructured)
+	{
+		UAVDesc.Format = DXGI_FORMAT_UNKNOWN;
+		// For byte access buffers and indirect draw argument buffers, GetDesc returns a StructureByteStride of 0 even though we created it with 4
+		EffectiveStride = BufferDesc.StructureByteStride == 0 ? 4 : BufferDesc.StructureByteStride;
+	}
+	else
+	{
+		UAVDesc.Format = FindUnorderedAccessDXGIFormat((DXGI_FORMAT)GPixelFormats[Format].PlatformFormat);
+		EffectiveStride = GPixelFormats[Format].BlockBytes;
+	}
+
+	UAVDesc.Buffer.FirstElement = Offset / EffectiveStride;
+	UAVDesc.Buffer.NumElements = Size / EffectiveStride;
+
+	return UAVDesc;
+}
+
 FUnorderedAccessViewRHIRef FD3D11DynamicRHI::RHICreateUnorderedAccessView(FRHIStructuredBuffer* StructuredBufferRHI, bool bUseUAVCounter, bool bAppendBuffer)
 {
 	FD3D11StructuredBuffer* StructuredBuffer = ResourceCast(StructuredBufferRHI);
@@ -10,28 +42,13 @@ FUnorderedAccessViewRHIRef FD3D11DynamicRHI::RHICreateUnorderedAccessView(FRHISt
 	D3D11_BUFFER_DESC BufferDesc;
 	StructuredBuffer->Resource->GetDesc(&BufferDesc);
 
-	const bool bByteAccessBuffer = (BufferDesc.MiscFlags & D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS) != 0;
-
-	D3D11_UNORDERED_ACCESS_VIEW_DESC UAVDesc;
-	UAVDesc.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
-	UAVDesc.Format = DXGI_FORMAT_UNKNOWN;
+	D3D11_UNORDERED_ACCESS_VIEW_DESC UAVDesc = InitializeCommonUAVDesc(BufferDesc, 0, BufferDesc.ByteWidth, PF_Unknown, true);
 
 	if (BufferDesc.MiscFlags & D3D11_RESOURCE_MISC_DRAWINDIRECT_ARGS)
 	{
 		UAVDesc.Format = DXGI_FORMAT_R32_UINT;
 	}
-	else if (bByteAccessBuffer)
-	{
-		UAVDesc.Format = DXGI_FORMAT_R32_TYPELESS;
-	}
 		
-	UAVDesc.Buffer.FirstElement = 0;
-
-	// For byte access buffers and indirect draw argument buffers, GetDesc returns a StructureByteStride of 0 even though we created it with 4
-	const uint32 EffectiveStride = BufferDesc.StructureByteStride == 0 ? 4 : BufferDesc.StructureByteStride;
-	UAVDesc.Buffer.NumElements = BufferDesc.ByteWidth / EffectiveStride;
-	UAVDesc.Buffer.Flags = 0;
-
 	if (bUseUAVCounter)
 	{
 		UAVDesc.Buffer.Flags |= D3D11_BUFFER_UAV_FLAG_COUNTER;
@@ -40,11 +57,6 @@ FUnorderedAccessViewRHIRef FD3D11DynamicRHI::RHICreateUnorderedAccessView(FRHISt
 	if (bAppendBuffer)
 	{
 		UAVDesc.Buffer.Flags |= D3D11_BUFFER_UAV_FLAG_APPEND;
-	}
-
-	if (bByteAccessBuffer)
-	{
-		UAVDesc.Buffer.Flags |= D3D11_BUFFER_UAV_FLAG_RAW;
 	}
 
 	TRefCountPtr<ID3D11UnorderedAccessView> UnorderedAccessView;
@@ -66,7 +78,7 @@ FUnorderedAccessViewRHIRef FD3D11DynamicRHI::RHICreateUnorderedAccessView(FRHITe
 {
 	FD3D11TextureBase* Texture = GetD3D11TextureFromRHITexture(TextureRHI);
 	
-	D3D11_UNORDERED_ACCESS_VIEW_DESC UAVDesc;
+	D3D11_UNORDERED_ACCESS_VIEW_DESC UAVDesc{};
 
 	if (TextureRHI->GetTexture3D() != NULL)
 	{
@@ -121,21 +133,7 @@ FUnorderedAccessViewRHIRef FD3D11DynamicRHI::RHICreateUnorderedAccessView(FRHIVe
 	D3D11_BUFFER_DESC BufferDesc;
 	VertexBuffer->Resource->GetDesc(&BufferDesc);
 
-	const bool bByteAccessBuffer = (BufferDesc.MiscFlags & D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS) != 0;
-
-	D3D11_UNORDERED_ACCESS_VIEW_DESC UAVDesc;
-	UAVDesc.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
-	UAVDesc.Format = FindUnorderedAccessDXGIFormat((DXGI_FORMAT)GPixelFormats[Format].PlatformFormat);
-	UAVDesc.Buffer.FirstElement = 0;
-
-	UAVDesc.Buffer.NumElements = BufferDesc.ByteWidth / GPixelFormats[Format].BlockBytes;
-	UAVDesc.Buffer.Flags = 0;
-
-	if (bByteAccessBuffer)
-	{
-		UAVDesc.Buffer.Flags |= D3D11_BUFFER_UAV_FLAG_RAW;
-		UAVDesc.Format = DXGI_FORMAT_R32_TYPELESS;
-	}
+	D3D11_UNORDERED_ACCESS_VIEW_DESC UAVDesc = InitializeCommonUAVDesc(BufferDesc, 0, BufferDesc.ByteWidth, (EPixelFormat)Format, false);
 
 	TRefCountPtr<ID3D11UnorderedAccessView> UnorderedAccessView;
 	VERIFYD3D11RESULT_EX(Direct3DDevice->CreateUnorderedAccessView(VertexBuffer->Resource,&UAVDesc,(ID3D11UnorderedAccessView**)UnorderedAccessView.GetInitReference()), Direct3DDevice);
@@ -158,21 +156,7 @@ FUnorderedAccessViewRHIRef FD3D11DynamicRHI::RHICreateUnorderedAccessView(FRHIIn
 	D3D11_BUFFER_DESC BufferDesc;
 	IndexBuffer->Resource->GetDesc(&BufferDesc);
 
-	const bool bByteAccessBuffer = (BufferDesc.MiscFlags & D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS) != 0;
-
-	D3D11_UNORDERED_ACCESS_VIEW_DESC UAVDesc;
-	UAVDesc.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
-	UAVDesc.Format = FindUnorderedAccessDXGIFormat((DXGI_FORMAT)GPixelFormats[Format].PlatformFormat);
-	UAVDesc.Buffer.FirstElement = 0;
-
-	UAVDesc.Buffer.NumElements = BufferDesc.ByteWidth / GPixelFormats[Format].BlockBytes;
-	UAVDesc.Buffer.Flags = 0;
-
-	if (bByteAccessBuffer)
-	{
-		UAVDesc.Buffer.Flags |= D3D11_BUFFER_UAV_FLAG_RAW;
-		UAVDesc.Format = DXGI_FORMAT_R32_TYPELESS;
-	}
+	D3D11_UNORDERED_ACCESS_VIEW_DESC UAVDesc = InitializeCommonUAVDesc(BufferDesc, 0, BufferDesc.ByteWidth, (EPixelFormat)Format, false);
 
 	TRefCountPtr<ID3D11UnorderedAccessView> UnorderedAccessView;
 	VERIFYD3D11RESULT_EX(Direct3DDevice->CreateUnorderedAccessView(IndexBuffer->Resource, &UAVDesc, (ID3D11UnorderedAccessView**)UnorderedAccessView.GetInitReference()), Direct3DDevice);
@@ -210,19 +194,33 @@ static void CreateD3D11ShaderResourceViewOnBuffer(ID3D11Device* Direct3DDevice, 
 	D3D11_BUFFER_DESC BufferDesc;
 	Buffer->GetDesc(&BufferDesc);
 
+	const uint32 FormatStride = GPixelFormats[Format].BlockBytes;
+	const uint32 NumRequestedBytes = NumElements * FormatStride;
+	const uint32 OffsetBytes = FMath::Min(StartOffsetBytes, BufferDesc.ByteWidth);
+	const uint32 NumBytes = FMath::Min(NumRequestedBytes, BufferDesc.ByteWidth - OffsetBytes);
+
+	const bool bByteAccessBuffer = (BufferDesc.MiscFlags & D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS) != 0;
+
 	// Create a Shader Resource View
-	D3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc;
-	FMemory::Memzero(SRVDesc);
-	SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+	D3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc{};
 
-	uint32 Stride = GPixelFormats[Format].BlockBytes;
-	uint32 MaxElements = BufferDesc.ByteWidth / Stride;
-	StartOffsetBytes = FMath::Min(StartOffsetBytes, BufferDesc.ByteWidth);
-	uint32 StartElement = StartOffsetBytes / Stride;
+	if (bByteAccessBuffer)
+	{
+		SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFEREX;
+		SRVDesc.Format = DXGI_FORMAT_R32_TYPELESS;
 
-	SRVDesc.Buffer.FirstElement = StartElement;
-	SRVDesc.Format = FindShaderResourceDXGIFormat((DXGI_FORMAT)GPixelFormats[Format].PlatformFormat, false);
-	SRVDesc.Buffer.NumElements = FMath::Min(NumElements, MaxElements - StartElement);
+		SRVDesc.BufferEx.Flags |= D3D11_BUFFEREX_SRV_FLAG_RAW;
+		SRVDesc.BufferEx.FirstElement = OffsetBytes / 4;
+		SRVDesc.BufferEx.NumElements = NumBytes / 4;
+	}
+	else
+	{
+		SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+		SRVDesc.Format = FindShaderResourceDXGIFormat((DXGI_FORMAT)GPixelFormats[Format].PlatformFormat, false);
+
+		SRVDesc.Buffer.FirstElement = OffsetBytes / GPixelFormats[Format].BlockBytes;
+		SRVDesc.Buffer.NumElements = NumBytes / GPixelFormats[Format].BlockBytes;
+	}
 
 	HRESULT hr = Direct3DDevice->CreateShaderResourceView(Buffer, &SRVDesc, OutSRV);
 	if (FAILED(hr))
@@ -234,7 +232,7 @@ static void CreateD3D11ShaderResourceViewOnBuffer(ID3D11Device* Direct3DDevice, 
 		}
 		if (FAILED(hr))
 		{
-			UE_LOG(LogD3D11RHI, Error, TEXT("Failed to create shader resource view for buffer: ByteWidth=%d NumElements=%d Format=%s"), BufferDesc.ByteWidth, BufferDesc.ByteWidth / Stride, GPixelFormats[Format].Name);
+			UE_LOG(LogD3D11RHI, Error, TEXT("Failed to create shader resource view for buffer: ByteWidth=%d NumElements=%d Format=%s"), BufferDesc.ByteWidth, BufferDesc.ByteWidth / GPixelFormats[Format].BlockBytes, GPixelFormats[Format].Name);
 			VerifyD3D11Result(hr, "Direct3DDevice->CreateShaderResourceView", __FILE__, __LINE__, Direct3DDevice);
 		}
 	}
@@ -278,7 +276,7 @@ FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(const FS
 			const bool bByteAccessBuffer = (BufferDesc.MiscFlags & D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS) != 0;
 
 			// Create a Shader Resource View
-			D3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc;
+			D3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc{};
 
 			if (bByteAccessBuffer)
 			{
@@ -422,7 +420,7 @@ void FD3D11DynamicRHI::ClearUAV(TRHICommandList_RecursiveHazardous<FD3D11Dynamic
 	// Only structured buffers can have an unknown format
 	check(UAVDesc.ViewDimension == D3D11_UAV_DIMENSION_BUFFER || UAVDesc.Format != DXGI_FORMAT_UNKNOWN);
 
-	EClearReplacementValueType ValueType = EClearReplacementValueType::Float;
+	EClearReplacementValueType ValueType = bFloat ? EClearReplacementValueType::Float : EClearReplacementValueType::Uint32;
 	switch (UAVDesc.Format)
 	{
 	case DXGI_FORMAT_R32G32B32A32_SINT:
@@ -461,7 +459,9 @@ void FD3D11DynamicRHI::ClearUAV(TRHICommandList_RecursiveHazardous<FD3D11Dynamic
 
 	if (UAVDesc.ViewDimension == D3D11_UAV_DIMENSION_BUFFER)
 	{
-		if (UAVDesc.Format == DXGI_FORMAT_UNKNOWN)
+		const bool bByteAddressBuffer = (UAVDesc.Buffer.Flags & D3D11_BUFFER_UAV_FLAG_RAW) != 0;
+
+		if (UAVDesc.Format == DXGI_FORMAT_UNKNOWN || bByteAddressBuffer)
 		{
 			// Structured buffer. Use the clear function on the immediate context, since we can't use a general purpose shader for these.
 			RHICmdList.RunOnContext([UnorderedAccessView, ClearValues](auto& Context)

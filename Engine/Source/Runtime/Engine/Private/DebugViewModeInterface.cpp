@@ -23,8 +23,16 @@ void FDebugViewModeInterface::SetDrawRenderState(EBlendMode BlendMode, FRenderSt
 	else
 	{
 		DrawRenderState.BlendState = TStaticBlendState<>::GetRHI();
+
 		// If not selected, use depth equal to make alpha test stand out (goes with EarlyZPassMode = DDM_AllOpaque) 
-		DrawRenderState.DepthStencilState = TStaticDepthStencilState<false, CF_Equal>::GetRHI();
+		if (BlendMode == BLEND_Masked && bHasDepthPrepassForMaskedMaterial)
+		{
+			DrawRenderState.DepthStencilState = TStaticDepthStencilState<false, CF_Equal>::GetRHI();
+		}
+		else
+		{
+			DrawRenderState.DepthStencilState = TStaticDepthStencilState<>::GetRHI();
+		}
 	}
 }
 

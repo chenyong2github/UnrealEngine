@@ -38,9 +38,6 @@ public:
 	void ValidateCreateExternalTexture(FRDGTextureRef Texture);
 	void ValidateCreateExternalBuffer(FRDGBufferRef Buffer);
 
-	/** Tracks and validates usage of a pass parameters allocation. */
-	void ValidateAllocPassParameters(const void* Parameters);
-
 	/** Validates a resource extraction operation. */
 	void ValidateExtractResource(FRDGParentResourceRef Resource);
 
@@ -69,9 +66,6 @@ private:
 	/** Traverses all resources in the pass and marks whether they are externally accessible by user pass implementations. */
 	static void SetAllowRHIAccess(const FRDGPass* Pass, bool bAllowAccess);
 
-	/** All recently allocated pass parameter structure, but not used by a AddPass() yet. */
-	TSet<const void*, DefaultKeyFuncs<const void*>, SceneRenderingSetAllocator> AllocatedUnusedPassParameters;
-
 	/** List of tracked resources for validation prior to shutdown. */
 	TArray<FRDGTextureRef, SceneRenderingAllocator> TrackedTextures;
 	TArray<FRDGBufferRef, SceneRenderingAllocator> TrackedBuffers;
@@ -87,17 +81,11 @@ public:
 	FRDGBarrierValidation(const FRDGPassRegistry* InPasses, const FRDGEventName& InGraphName);
 	FRDGBarrierValidation(const FRDGBarrierValidation&) = delete;
 
-	/** Validates a texture state. */
-	void ValidateState(const FRDGPass* RequestingPass, FRDGTextureRef Texture, const FRDGTextureState& State);
-
-	/** Validates a buffer state. */
-	void ValidateState(const FRDGPass* RequestingPass, FRDGBufferRef Buffer, FRDGSubresourceState State);
-
 	/** Validates a begin barrier batch just prior to submission to the command list. */
-	void ValidateBarrierBatchBegin(const FRDGBarrierBatchBegin& Batch);
+	void ValidateBarrierBatchBegin(const FRDGPass* Pass, const FRDGBarrierBatchBegin& Batch);
 
 	/** Validates an end barrier batch just prior to submission to the command list. */
-	void ValidateBarrierBatchEnd(const FRDGBarrierBatchEnd& Batch);
+	void ValidateBarrierBatchEnd(const FRDGPass* Pass, const FRDGBarrierBatchEnd& Batch);
 
 	/** Validates that all barrier batches were flushed at execution end. */
 	void ValidateExecuteEnd();
@@ -125,6 +113,7 @@ public:
 	void Begin(
 		const FRDGEventName& GraphName,
 		const FRDGPassRegistry* InPassRegistry,
+		FRDGPassBitArray InPassesCulled,
 		FRDGPassHandle InProloguePassHandle,
 		FRDGPassHandle InEpiloguePassHandle);
 
@@ -132,11 +121,15 @@ public:
 
 	void AddFirstEdge(const FRDGBufferRef Buffer, FRDGPassHandle FirstPass);
 
-	void AddTransitionEdge(FRDGSubresourceState StateBefore, FRDGSubresourceState StateAfter, const FRDGTextureRef Texture);
+	void AddAliasEdge(const FRDGTextureRef TextureBefore, FRDGPassHandle BeforePass, const FRDGTextureRef TextureAfter, FRDGPassHandle PassAfter);
 
-	void AddTransitionEdge(FRDGSubresourceState StateBefore, FRDGSubresourceState StateAfter, const FRDGTextureRef Texture, uint32 MipIndex, uint32 ArraySlice, uint32 PlaneSlice);
+	void AddAliasEdge(const FRDGBufferRef BufferBefore, FRDGPassHandle BeforePass, const FRDGBufferRef BufferAfter, FRDGPassHandle PassAfter);
 
-	void AddTransitionEdge(FRDGSubresourceState StateBefore, FRDGSubresourceState StateAfter, const FRDGBufferRef Buffer);
+	void AddTransitionEdge(FRDGPassHandle PassHandle, FRDGSubresourceState StateBefore, FRDGSubresourceState StateAfter, const FRDGTextureRef Texture);
+
+	void AddTransitionEdge(FRDGPassHandle PassHandle, FRDGSubresourceState StateBefore, FRDGSubresourceState StateAfter, const FRDGTextureRef Texture, FRDGTextureSubresource Subresource);
+
+	void AddTransitionEdge(FRDGPassHandle PassHandle, FRDGSubresourceState StateBefore, FRDGSubresourceState StateAfter, const FRDGBufferRef Buffer);
 
 	void End();
 
@@ -152,6 +145,9 @@ private:
 	FString GetNodeName(const FRDGTexture* Texture);
 	FString GetNodeName(const FRDGBuffer* Buffer);
 
+	bool IncludeTransitionEdgeInGraph(FRDGPassHandle PassBefore, FRDGPassHandle PassAfter) const;
+	bool IncludeTransitionEdgeInGraph(FRDGPassHandle Pass) const;
+
 	bool bOpen = false;
 
 	TSet<FRDGPassHandle> PassesReferenced;
@@ -159,6 +155,7 @@ private:
 	TArray<const FRDGBuffer*> Buffers;
 
 	const FRDGPassRegistry* Passes = nullptr;
+	FRDGPassBitArray PassesCulled;
 	FRDGPassHandle ProloguePassHandle;
 	FRDGPassHandle EpiloguePassHandle;
 

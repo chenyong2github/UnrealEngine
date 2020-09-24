@@ -110,11 +110,11 @@ void SSearchableComboBox::SetSelectedItem(TSharedPtr<FString> InSelectedItem)
 {
 	if (TListTypeTraits<TSharedPtr<FString>>::IsPtrValid(InSelectedItem))
 	{
-		OnSelectionChanged_Internal(InSelectedItem, ESelectInfo::OnNavigation);
+		ComboListView->SetSelection(InSelectedItem, ESelectInfo::OnNavigation);
 	}
 	else
 	{
-		OnSelectionChanged_Internal(SelectedItem, ESelectInfo::OnNavigation);
+		ComboListView->SetSelection(SelectedItem, ESelectInfo::OnNavigation);
 	}
 }
 
@@ -125,10 +125,25 @@ TSharedPtr<FString> SSearchableComboBox::GetSelectedItem()
 
 void SSearchableComboBox::RefreshOptions()
 {
-	if (!ComboListView->IsPendingRefresh())
+	// Need to refresh filtered list whenever options change
+	FilteredOptionsSource.Reset();
+
+	if (SearchText.IsEmpty())
 	{
-		ComboListView->RequestListRefresh();
+		FilteredOptionsSource.Append(*OptionsSource);
 	}
+	else
+	{
+		for (TSharedPtr<FString> Option : *OptionsSource)
+		{
+			if (Option->Find(SearchText.ToString(), ESearchCase::Type::IgnoreCase) >= 0)
+			{
+				FilteredOptionsSource.Add(Option);
+			}
+		}
+	}
+
+	ComboListView->RequestListRefresh();
 }
 
 TSharedRef<ITableRow> SSearchableComboBox::GenerateMenuItemRow(TSharedPtr<FString> InItem, const TSharedRef<STableViewBase>& OwnerTable)
@@ -159,7 +174,7 @@ void SSearchableComboBox::OnMenuOpenChanged(bool bOpen)
 		if (TListTypeTraits<TSharedPtr<FString>>::IsPtrValid(SelectedItem))
 		{
 			// Ensure the ListView selection is set back to the last committed selection
-			OnSelectionChanged_Internal(SelectedItem, ESelectInfo::OnNavigation);
+			ComboListView->SetSelection(SelectedItem, ESelectInfo::OnNavigation);
 		}
 
 		// Set focus back to ComboBox for users focusing the ListView that just closed
@@ -197,22 +212,7 @@ void SSearchableComboBox::OnSelectionChanged_Internal(TSharedPtr<FString> Propos
 
 void SSearchableComboBox::OnSearchTextChanged(const FText& ChangedText)
 {
-	FilteredOptionsSource.Reset();
-
-	if (ChangedText.IsEmpty())
-	{
-		FilteredOptionsSource.Append(*OptionsSource);
-	}
-	else
-	{
-		for (TSharedPtr<FString> Option : *OptionsSource)
-		{
-			if (Option->Find(ChangedText.ToString(), ESearchCase::Type::IgnoreCase) >= 0)
-			{
-				FilteredOptionsSource.Add(Option);
-			}
-		}
-	}
+	SearchText = ChangedText;
 
 	RefreshOptions();
 }
@@ -221,7 +221,7 @@ void SSearchableComboBox::OnSearchTextCommitted(const FText& InText, ETextCommit
 {
 	if ((InCommitType == ETextCommit::Type::OnEnter) && FilteredOptionsSource.Num() > 0)
 	{
-		OnSelectionChanged_Internal(FilteredOptionsSource[0], ESelectInfo::Type::OnKeyPress);
+		ComboListView->SetSelection(FilteredOptionsSource[0], ESelectInfo::OnKeyPress);
 	}
 }
 

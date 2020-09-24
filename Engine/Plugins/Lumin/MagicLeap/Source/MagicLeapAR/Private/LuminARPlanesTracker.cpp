@@ -5,6 +5,9 @@
 #include "MagicLeapHMDFunctionLibrary.h"
 #include "IMagicLeapPlanesModule.h"
 #include "LuminARTrackingSystem.h"
+#include "LuminAROrigin.h"
+#include "GameFramework/PlayerController.h"
+#include "IMagicLeapPlugin.h"
 
 FLuminARPlanesTracker::FLuminARPlanesTracker(FLuminARImplementation& InARSystemSupport)
 : ILuminARTracker(InARSystemSupport)
@@ -15,7 +18,6 @@ FLuminARPlanesTracker::FLuminARPlanesTracker(FLuminARImplementation& InARSystemS
 
 FLuminARPlanesTracker::~FLuminARPlanesTracker()
 {
-	// TODO: should we wait here if bPlanesQueryPending is true? Don't want the result delegate to come back to a deleted object.
 }
 
 void FLuminARPlanesTracker::CreateEntityTracker()
@@ -26,6 +28,7 @@ void FLuminARPlanesTracker::CreateEntityTracker()
 
 void FLuminARPlanesTracker::DestroyEntityTracker()
 {
+	// This will clear any pending call to FLuminARPlanesTracker::ProcessPlaneQuery() so we don't need to worry about the result delegate coming back to a deleted object.
 	IMagicLeapPlanesModule::Get().RemoveQuery(PlanesQueryHandle);
 	IMagicLeapPlanesModule::Get().DestroyTracker();
 	PlaneResultsMap.Empty();
@@ -49,6 +52,11 @@ bool FLuminARPlanesTracker::IsHandleTracked(const FGuid& Handle) const
 UARTrackedGeometry* FLuminARPlanesTracker::CreateTrackableObject()
 {
 	return NewObject<UARPlaneGeometry>();
+}
+
+UClass* FLuminARPlanesTracker::GetARComponentClass(const UARSessionConfig& SessionConfig)
+{
+	return SessionConfig.GetPlaneComponentClass();
 }
 
 IARRef* FLuminARPlanesTracker::CreateNativeResource(const FGuid& Handle, UARTrackedGeometry* TrackableObject)
@@ -81,29 +89,36 @@ void FLuminARPlanesTracker::StartPlaneQuery()
 			if (LuminARSessionConfig != nullptr)
 			{
 				Query = LuminARSessionConfig->PlanesQuery;
-				Query.Flags.Add(EMagicLeapPlaneQueryFlags::Polygons);
-				Query.bResultTrackingSpace = true;
-
-				if (LuminARSessionConfig->ShouldDoHorizontalPlaneDetection())	{ Query.Flags.Add(EMagicLeapPlaneQueryFlags::Horizontal); }
-				if (LuminARSessionConfig->ShouldDoVerticalPlaneDetection())		{ Query.Flags.Add(EMagicLeapPlaneQueryFlags::Vertical); }
 				if (LuminARSessionConfig->bArbitraryOrientationPlaneDetection)	{ Query.Flags.Add(EMagicLeapPlaneQueryFlags::Arbitrary); }
-
 				bDiscardZeroExtentPlanes = LuminARSessionConfig->bDiscardZeroExtentPlanes;
 			}
 			else
 			{
 				UE_LOG(LogLuminAR, Log, TEXT("LuminArSessionConfig not found, using defaults for lumin specific settings."));
-				Query.Flags.Add(EMagicLeapPlaneQueryFlags::Vertical);
-				Query.Flags.Add(EMagicLeapPlaneQueryFlags::Horizontal);
-				Query.Flags.Add(EMagicLeapPlaneQueryFlags::Polygons);
 				Query.MaxResults = 200;
 				Query.MinHoleLength = 50.0f;
 				Query.MinPlaneArea = 400.0f;
 				Query.SearchVolumeExtents = FVector(10000.0f, 10000.0f, 10000.0f);
 				Query.SimilarityThreshold = 1.0f;
-				Query.bResultTrackingSpace = true;
 				Query.bSearchVolumeTrackingSpace = true;
 				bDiscardZeroExtentPlanes = false;
+			}
+
+			Query.bResultTrackingSpace = true;
+			Query.Flags.Add(EMagicLeapPlaneQueryFlags::Polygons);
+			if (ARSessionConfig.ShouldDoHorizontalPlaneDetection())
+			{
+				Query.Flags.Add(EMagicLeapPlaneQueryFlags::Horizontal);
+				// Result query flags will contains semantic flags only if requested
+				Query.Flags.Add(EMagicLeapPlaneQueryFlags::Floor);
+				Query.Flags.Add(EMagicLeapPlaneQueryFlags::Ceiling);
+			}
+
+			if (ARSessionConfig.ShouldDoVerticalPlaneDetection())
+			{
+				Query.Flags.Add(EMagicLeapPlaneQueryFlags::Vertical);
+				// Result query flags will contains semantic flags only if requested
+				Query.Flags.Add(EMagicLeapPlaneQueryFlags::Wall);
 			}
 
 			bPlanesQueryPending = IMagicLeapPlanesModule::Get().PersistentQueryBeginAsync(Query, PlanesQueryHandle, ResultDelegate);
@@ -125,15 +140,38 @@ void FLuminARPlanesTracker::ProcessPlaneQuery(const bool bSuccess,
 {
 	if (bSuccess)
 	{
+		// The whole reason we are hanging onto the UWorld of the AROrigin here
+		//	is to obtain the transform of the root component of the first 
+		//	player's pawn within the same world. //
+		UWorld*const AROriginWorld = ALuminAROrigin::FindWorld();
+		verify(AROriginWorld);
+		// We need to check the ARSessionConfig to see if we are configured to
+		//	generate geometry based on tracked data.
+		//	@session-config-mesh-properties-support //
+		const UARSessionConfig& ARSessionConfig =
+						 ARSystemSupport->GetARSystem()->AccessSessionConfig();
+		// If we're configured to do so, then before processing all the planes
+		//	we need to obtain a global actor located at the origin to 
+		//	accumulate MRMeshComponents to hang geometry onto. //
+		ALuminAROrigin*const OriginActor =
+			ARSessionConfig.bGenerateMeshDataFromTrackedGeometry ?
+				ALuminAROrigin::GetOriginActor(ARSessionConfig, AROriginWorld) :
+				nullptr;
+
 		for (const FGuid& RemovedPlaneID : RemovedPlanes)
 		{
 			// Only remove from the parent map if the unique ID represents an outer plane
-			const auto Plane = PlaneResultsMap.Find(RemovedPlaneID)->Plane;
+			FLuminPlanesAndBoundaries* const planesAndBoundaries = 
+										  PlaneResultsMap.Find(RemovedPlaneID);
+			const auto& Plane = planesAndBoundaries->Plane;
 			if (!Plane.PlaneFlags.Contains(EMagicLeapPlaneQueryFlags::PreferInner))
 			{
 				PlaneParentMap.Remove(Plane.ID);
-			}			
-
+			}
+			if (OriginActor)
+			{
+				OriginActor->DestroyPlane(RemovedPlaneID);
+			}
 			PlaneResultsMap.Remove(RemovedPlaneID);
 		}
 
@@ -167,6 +205,19 @@ void FLuminARPlanesTracker::ProcessPlaneQuery(const bool bSuccess,
 				, FVector(-HalfHeight, HalfWidth, 0)
 				, FVector(-HalfHeight, -HalfWidth, 0)
 				, FVector(HalfHeight, -HalfWidth, 0) } );
+			// The LuminAROrigin actor is now responsible for creation &
+			//	destruction of planes using UMRMeshComponent.
+			//	@session-config-mesh-properties-support //
+			if (ARSessionConfig.bGenerateMeshDataFromTrackedGeometry && OriginActor)
+			{
+				const FTransform LocalToTracking = 
+								   FTransform(ResultUEPlane.ContentOrientation,
+											  ResultUEPlane.PlanePosition);
+				OriginActor->CreatePlane(ResultUEPlane.InnerID, 
+										 CachedResult.PolygonVerticesLocalSpace,
+										 LocalToTracking,
+										 GetMostSignificantPlaneFlag(ResultUEPlane.PlaneFlags));
+			}
 		}
 
 		// Setup for boundaries, build a map of Handles to Boundaries
@@ -212,11 +263,27 @@ void FLuminARPlanesTracker::ProcessPlaneQuery(const bool bSuccess,
 				TrackableResource->UpdateGeometryData(ARSystemSupport);
 			}
 		}
-
-		// TODO : add support for mesh properties in ARSessionConfig.
 	}
 
 	bPlanesQueryPending = false;
+}
+
+EMagicLeapPlaneQueryFlags FLuminARPlanesTracker::GetMostSignificantPlaneFlag(const TArray<EMagicLeapPlaneQueryFlags>& PlaneFlags) const
+{
+	EMagicLeapPlaneQueryFlags Result = EMagicLeapPlaneQueryFlags::Arbitrary;
+
+	int32 i = PlaneFlags.Num() - 1;
+	while (i >= 0)
+	{
+		if (PlaneFlags[i] != EMagicLeapPlaneQueryFlags::OrientToGravity && PlaneFlags[i] != EMagicLeapPlaneQueryFlags::PreferInner)
+		{
+			Result = PlaneFlags[i];
+			break;
+		}
+		--i;
+	}
+
+	return Result;
 }
 
 void FLuminARTrackedPlaneResource::UpdateGeometryData(FLuminARImplementation* InARSystemSupport)

@@ -77,7 +77,7 @@ public:
 	FLandscapePhysicalMaterial(const FMeshMaterialShaderType::CompiledShaderInitializerType& Initializer)
 		: FMeshMaterialShader(Initializer)
 	{
-		PassUniformBuffer.Bind(Initializer.ParameterMap, FSceneTexturesUniformParameters::StaticStructMetadata.GetShaderVariableName());
+		PassUniformBuffer.Bind(Initializer.ParameterMap, FSceneTextureUniformParameters::StaticStructMetadata.GetShaderVariableName());
 	}
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
@@ -231,11 +231,11 @@ namespace
 	 * Initially we only collect the base landscape mesh, but potentially we could gather other objects like roads?
 	 * WARNING: This gets the SceneProxy pointer from the UComponent on the render thread. This doesn't feel safe but it's what the grass renderer does...
 	 */
-	void FillMeshInfos_RenderThread(ULandscapeComponent const* InLandscapeComponent, FMeshInfoArray& OutMeshInfos)
+	void FillMeshInfos_RenderThread(const FPrimitiveSceneProxy* InSceneProxy, FMeshInfoArray& OutMeshInfos)
 	{
 		const int32 MeshInfoIndex = OutMeshInfos.AddUninitialized();
-		OutMeshInfos[MeshInfoIndex].Proxy = InLandscapeComponent->SceneProxy;
-		OutMeshInfos[MeshInfoIndex].MeshBatch = &((FLandscapeComponentSceneProxy*)InLandscapeComponent->SceneProxy)->GetGrassMeshBatch();
+		OutMeshInfos[MeshInfoIndex].Proxy = InSceneProxy;
+		OutMeshInfos[MeshInfoIndex].MeshBatch = &((FLandscapeComponentSceneProxy*)InSceneProxy)->GetGrassMeshBatch();
 		OutMeshInfos[MeshInfoIndex].MeshBatchElementMask = 1 << 0; // LOD 0 only
 	}
 
@@ -253,7 +253,7 @@ namespace
 		// Allocate temporary render target
 		TRefCountPtr<IPooledRenderTarget> PooledRenderTarget;
 		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(TargetSize, PF_G8, FClearValueBinding::Black, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
-		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, PooledRenderTarget, TEXT("LandscapePhysicalMaterialTarget"), true, ERenderTargetTransience::Transient);
+		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, PooledRenderTarget, TEXT("LandscapePhysicalMaterialTarget"), ERenderTargetTransience::Transient);
 		FTextureRHIRef RenderTargetTexture = PooledRenderTarget->GetRenderTargetItem().TargetableTexture;
 
 		// Create the view
@@ -309,8 +309,8 @@ namespace
 			RHICmdList.EndRenderPass();
 
 			// Copy to the read back texture
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, RenderTargetTexture);
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, ReadbackTexture);
+			RHICmdList.Transition(FRHITransitionInfo(RenderTargetTexture, ERHIAccess::RTV, ERHIAccess::CopySrc));
+			RHICmdList.Transition(FRHITransitionInfo(ReadbackTexture, ERHIAccess::Unknown, ERHIAccess::CopyDest));
 			RHICmdList.CopyToResolveTarget(RenderTargetTexture, ReadbackTexture, FResolveParams());
 			RHICmdList.WriteGPUFence(ReadbackFence);
 		}
@@ -435,14 +435,15 @@ namespace
 	{
 		// WARNING: We access the UComponent to get in SceneProxy for FillMeshInfos_RenderThread(). 
 		// This isn't good style but probably works since the UComponent owns the update task and is guaranteed to be valid.
-		if (Task.CompletionState == ECompletionState::None && Task.LandscapeComponent->SceneProxy)
+		const FPrimitiveSceneProxy* SceneProxy = Task.LandscapeComponent->SceneProxy;
+		if (Task.CompletionState == ECompletionState::None && SceneProxy)
 		{
 			// Allocate read back resources
 			if (InitTaskRenderResources(Task))
 			{
 				// Render the pending item.
 				FMeshInfoArray MeshInfos;
-				FillMeshInfos_RenderThread(Task.LandscapeComponent, MeshInfos);
+				FillMeshInfos_RenderThread(SceneProxy, MeshInfos);
 
 				Render_RenderThread(
 					RHICmdList,
@@ -475,7 +476,7 @@ namespace
 /**
  * Pool for storing physical material render task data.
  */
-class FLandscapePhysicalMaterialRenderTaskPool
+class FLandscapePhysicalMaterialRenderTaskPool : public FRenderResource
 {
 public:
 	/** Pool uses chunked array to avoid task data being moved by a realloc. */
@@ -518,7 +519,7 @@ public:
 		InTask.PoolHandle = -1;
 
 		// Submit render thread command to mark pooled task as free.
-		ENQUEUE_RENDER_COMMAND(FLandscapePhysicalMaterialUpdaterTick)(
+		ENQUEUE_RENDER_COMMAND(FLandscapePhysicalMaterialClear)(
 			[Task](FRHICommandListImmediate& RHICmdList)
 			{
 				Task->LandscapeComponent = nullptr;
@@ -547,7 +548,7 @@ public:
 					Task->ResultIds.Empty();
 
 					// Free the render resources (which may already be free)
-					ENQUEUE_RENDER_COMMAND(FLandscapePhysicalMaterialUpdaterTick)(
+					ENQUEUE_RENDER_COMMAND(FLandscapePhysicalMaterialFree)(
 						[Task](FRHICommandListImmediate& RHICmdList)
 						{
 							Task->ReadbackTexture.SafeRelease();
@@ -559,10 +560,15 @@ public:
 
 		FrameCount++;
 	}
+
+	void ReleaseRHI() override
+	{
+		Pool.Empty();
+	}
 };
 
 /** Static global pool object. */
-static FLandscapePhysicalMaterialRenderTaskPool GTaskPool;
+static TGlobalResource< FLandscapePhysicalMaterialRenderTaskPool > GTaskPool;
 
 
 void FLandscapePhysicalMaterialRenderTask::Init(ULandscapeComponent const* LandscapeComponent)
@@ -623,7 +629,7 @@ void FLandscapePhysicalMaterialRenderTask::Flush()
 	{
 		FLandscapePhysicalMaterialRenderTaskImpl* Task = &GTaskPool.Pool[PoolHandle];
 
-		ENQUEUE_RENDER_COMMAND(FLandscapePhysicalMaterialUpdaterTick)(
+		ENQUEUE_RENDER_COMMAND(FLandscapePhysicalMaterialFlush)(
 			[Task](FRHICommandListImmediate& RHICmdList)
 			{
 				UpdateTask_RenderThread(RHICmdList, *Task, true);

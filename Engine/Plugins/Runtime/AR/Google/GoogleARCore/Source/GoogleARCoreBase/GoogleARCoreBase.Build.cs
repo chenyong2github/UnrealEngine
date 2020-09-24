@@ -10,43 +10,38 @@ namespace UnrealBuildTool.Rules
 	{
 		public GoogleARCoreBase(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.AddRange(
-				new string[]
-				{
-					"GoogleARCoreBase/Private",
-				}
-			);
+			PrivateIncludePaths.AddRange(new string[]
+			{
+				"GoogleARCoreBase/Private",
+			});
 
 			PublicIncludePathModuleNames.Add("TargetPlatform");
 
-			PublicDependencyModuleNames.AddRange(
-				new string[]
-				{
-					"HeadMountedDisplay",
-					"AugmentedReality",
-				}
-			);
+			PublicDependencyModuleNames.AddRange(new string[]
+			{
+				"HeadMountedDisplay",
+				"AugmentedReality",
+			});
 
-			PrivateDependencyModuleNames.AddRange(
-				new string[]
-				{
-					"Core",
-					"CoreUObject",
-					"Engine",
-					"EngineSettings",
-					"Slate",
-					"SlateCore",
-					"RHI",
-					"RenderCore",
-					"AndroidPermission",
-					"GoogleARCoreRendering",
-					"GoogleARCoreSDK",
-					"OpenGL",
-					"ProceduralMeshComponent",
-					"UElibPNG",
-					"zlib"
-				}
-			);
+			PrivateDependencyModuleNames.AddRange(new string[]
+			{
+				"Core",
+				"CoreUObject",
+				"Engine",
+				"EngineSettings",
+				"Slate",
+				"SlateCore",
+				"RHI",
+				"RenderCore",
+				"AndroidPermission",
+				"GoogleARCoreRendering",
+				"GoogleARCoreSDK",
+				"OpenGL",
+				"ProceduralMeshComponent",
+				"UElibPNG",
+				"zlib",
+				"MRMesh",
+			});
 
 			PrivateIncludePathModuleNames.AddRange(
 				new string[]

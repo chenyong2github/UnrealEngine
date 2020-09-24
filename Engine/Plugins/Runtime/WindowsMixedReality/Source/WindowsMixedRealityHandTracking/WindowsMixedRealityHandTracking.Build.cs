@@ -12,9 +12,11 @@ namespace UnrealBuildTool.Rules
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"InputDevice"
-				}
-			);
+					"InputDevice",
+                    "LiveLink",
+                    "LiveLinkInterface"
+                }
+            );
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[]

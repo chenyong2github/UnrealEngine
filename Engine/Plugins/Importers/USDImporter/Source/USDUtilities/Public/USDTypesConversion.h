@@ -60,8 +60,7 @@ namespace UsdToUnreal
 	USDUTILITIES_API FMatrix ConvertMatrix( const pxr::GfMatrix4d& Matrix );
 	USDUTILITIES_API FTransform ConvertMatrix( const FUsdStageInfo& StageInfo, const pxr::GfMatrix4d& InMatrix );
 
-	USDUTILITIES_API float ConvertDistance( const FUsdStageInfo& StageInfo, const float& InValue );
-	USDUTILITIES_API float ConvertLightIntensity( const float& InValue );
+	USDUTILITIES_API float ConvertDistance( const FUsdStageInfo& StageInfo, const float InValue );
 }
 
 namespace UnrealToUsd
@@ -73,6 +72,9 @@ namespace UnrealToUsd
 	USDUTILITIES_API TUsdStore< std::string > ConvertName( const FName& InName );
 
 	USDUTILITIES_API TUsdStore< pxr::TfToken > ConvertToken( const TCHAR* InString );
+
+	USDUTILITIES_API pxr::GfVec4f ConvertColor( const FLinearColor& InValue );
+	USDUTILITIES_API pxr::GfVec4f ConvertColor( const FColor& InValue );
 
 	USDUTILITIES_API pxr::GfVec2f ConvertVector( const FVector2D& InValue );
 	USDUTILITIES_API pxr::GfVec3f ConvertVector( const FVector& InValue );

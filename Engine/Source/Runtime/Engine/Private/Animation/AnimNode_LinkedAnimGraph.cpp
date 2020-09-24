@@ -34,6 +34,7 @@ FAnimNode_LinkedAnimGraph::FAnimNode_LinkedAnimGraph()
 	, Tag(NAME_None)
 	, LinkedRoot(nullptr)
 	, NodeIndex(INDEX_NONE)
+	, CachedLinkedNodeIndex(INDEX_NONE)
 	, PendingBlendDuration(-1.0f)
 	, bReceiveNotifiesFromLinkedInstances(false)
 	, bPropagateNotifiesToLinkedInstances(false)
@@ -110,6 +111,9 @@ void FAnimNode_LinkedAnimGraph::Update_AnyThread(const FAnimationUpdateContext& 
 		// in USkeletalMeshComponent::TickAnimation. It used to be the case that we could do non-parallel work in 
 		// USkeletalMeshComponent::TickAnimation, which would mean we would have to skip doing that work here.
 		FAnimationUpdateContext NewContext = InContext.WithOtherProxy(&Proxy);
+ #if ANIM_NODE_IDS_AVAILABLE
+		NewContext = NewContext.WithNodeId(CachedLinkedNodeIndex);
+ #endif
 		Proxy.UpdateAnimation_WithRoot(NewContext, LinkedRoot, GetDynamicLinkFunctionName());
 	}
 	else if(InputPoses.Num() > 0)
@@ -122,17 +126,14 @@ void FAnimNode_LinkedAnimGraph::Update_AnyThread(const FAnimationUpdateContext& 
 	// Consume pending inertial blend request
 	if(PendingBlendDuration >= 0.0f)
 	{
-		if(InputPoses.Num() > 0)
+		FAnimNode_Inertialization* InertializationNode = InContext.GetAncestor<FAnimNode_Inertialization>();
+		if(InertializationNode)
 		{
-			FAnimNode_Inertialization* InertializationNode = InContext.GetAncestor<FAnimNode_Inertialization>();
-			if(InertializationNode)
-			{
-				InertializationNode->RequestInertialization(PendingBlendDuration);
-			}
-			else if (PendingBlendDuration != 0.0f)
-			{
-				FAnimNode_Inertialization::LogRequestError(InContext, InputPoses[0]);
-			}
+			InertializationNode->RequestInertialization(PendingBlendDuration);
+		}
+		else if ((PendingBlendDuration != 0.0f) && (InputPoses.Num() > 0))
+		{
+			FAnimNode_Inertialization::LogRequestError(InContext, InputPoses[0]);
 		}
 
 		PendingBlendDuration = -1.0f;
@@ -161,6 +162,7 @@ void FAnimNode_LinkedAnimGraph::Evaluate_AnyThread(FPoseContext& Output)
 		// Move the curves
 		Output.Curve.MoveFrom(EvaluationContext.Curve);
 		Output.Pose.MoveBonesFrom(EvaluationContext.Pose);
+		Output.CustomAttributes.MoveFrom(EvaluationContext.CustomAttributes);
 	}
 	else if(InputPoses.Num() > 0)
 	{
@@ -225,6 +227,8 @@ void FAnimNode_LinkedAnimGraph::TeardownInstance()
 		InstanceToRun->UninitializeAnimation();
 		InstanceToRun = nullptr;
 	}
+
+	SetTargetInstance(nullptr);
 }
 
 void FAnimNode_LinkedAnimGraph::ReinitializeLinkedAnimInstance(const UAnimInstance* InOwningAnimInstance, UAnimInstance* InNewAnimInstance)
@@ -330,6 +334,8 @@ UAnimInstance* FAnimNode_LinkedAnimGraph::GetDynamicLinkTarget(UAnimInstance* In
 
 void FAnimNode_LinkedAnimGraph::DynamicLink(UAnimInstance* InOwningAnimInstance)
 {
+	CachedLinkedNodeIndex = INDEX_NONE;
+
 	UAnimInstance* LinkTargetInstance = GetDynamicLinkTarget(InOwningAnimInstance);
 	if(LinkTargetInstance)
 	{
@@ -340,10 +346,16 @@ void FAnimNode_LinkedAnimGraph::DynamicLink(UAnimInstance* InOwningAnimInstance)
 			const FName FunctionToLink = GetDynamicLinkFunctionName();
 
 			// Link input poses
-			for(const FAnimBlueprintFunction& AnimBlueprintFunction : SubAnimBlueprintClass->GetAnimBlueprintFunctions())
+			const TArray<FAnimBlueprintFunction>& AnimBlueprintFunctions = SubAnimBlueprintClass->GetAnimBlueprintFunctions();
+			const int32 FunctionCount = AnimBlueprintFunctions.Num();
+			for(int32 FunctionIndex = 0; FunctionIndex < FunctionCount; ++FunctionIndex)
 			{
+				const FAnimBlueprintFunction& AnimBlueprintFunction = AnimBlueprintFunctions[FunctionIndex];
+
 				if(AnimBlueprintFunction.Name == FunctionToLink)
 				{
+					CachedLinkedNodeIndex = AnimBlueprintFunction.OutputPoseNodeIndex;
+
 					for(int32 InputPoseIndex = 0; InputPoseIndex < AnimBlueprintFunction.InputPoseNames.Num() && InputPoseIndex < InputPoses.Num(); ++InputPoseIndex)
 					{
 						// Make sure we attempt a re-link first, as only this pose link knows its target
@@ -418,6 +430,8 @@ void FAnimNode_LinkedAnimGraph::DynamicUnlink(UAnimInstance* InOwningAnimInstanc
 			}
 		}
 	}
+
+	CachedLinkedNodeIndex = INDEX_NONE;
 }
 
 int32 FAnimNode_LinkedAnimGraph::FindFunctionInputIndex(const FAnimBlueprintFunction& InAnimBlueprintFunction, const FName& InInputName)

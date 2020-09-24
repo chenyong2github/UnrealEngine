@@ -24,6 +24,8 @@
 
 #if WITH_EDITOR
 #include "Editor.h"
+#include "IAssetViewport.h"
+#include "LevelEditor.h"
 #include "Editor/EditorEngine.h"
 #include "Engine/Engine.h"
 #include "Engine/EngineTypes.h"
@@ -49,10 +51,12 @@ namespace MediaCaptureDetails
 	bool ValidateSceneViewport(const TSharedPtr<FSceneViewport>& SceneViewport, const FMediaCaptureOptions& CaptureOption, const FIntPoint& DesiredSize, const EPixelFormat DesiredPixelFormat, const bool bCurrentlyCapturing);
 	bool ValidateTextureRenderTarget2D(const UTextureRenderTarget2D* RenderTarget, const FMediaCaptureOptions& CaptureOption, const FIntPoint& DesiredSize, const EPixelFormat DesiredPixelFormat, const bool bCurrentlyCapturing);
 
-	//Validation that there is a capture 
+	//Validation that there is a capture
 	bool ValidateIsCapturing(const UMediaCapture& CaptureToBeValidated);
 
 	void ShowSlateNotification();
+
+	static const FName LevelEditorName(TEXT("LevelEditor"));
 }
 
 
@@ -137,7 +141,7 @@ bool UMediaCapture::CaptureActiveSceneViewport(FMediaCaptureOptions CaptureOptio
 	TSharedPtr<FSceneViewport> FoundSceneViewport;
 	if (!MediaCaptureDetails::FindSceneViewportAndLevel(FoundSceneViewport) || !FoundSceneViewport.IsValid())
 	{
-		UE_LOG(LogMediaIOCore, Warning, TEXT("Can not start the capture. No viewport could be found. Play in 'Standalone' or in 'New Editor Window PIE'."));
+		UE_LOG(LogMediaIOCore, Warning, TEXT("Can not start the capture. No viewport could be found."));
 		return false;
 	}
 
@@ -282,7 +286,7 @@ void UMediaCapture::CacheOutputOptions()
 }
 
 FIntPoint UMediaCapture::GetOutputSize(const FIntPoint & InSize, const EMediaCaptureConversionOperation & InConversionOperation) const
-{	
+{
 	switch (InConversionOperation)
 	{
 	case EMediaCaptureConversionOperation::RGBA8_TO_YUV_8BIT:
@@ -631,7 +635,7 @@ void UMediaCapture::OnEndFrame_GameThread()
 
 	if (CapturingFrame)
 	{
-		//Verify if game thread is overrunning the render thread. 
+		//Verify if game thread is overrunning the render thread.
 		if (CapturingFrame->bResolvedTargetRequested)
 		{
 			FlushRenderingCommands();
@@ -884,7 +888,7 @@ void UMediaCapture::Capture_RenderThread(FRHICommandListImmediate& RHICmdList,
 				// set viewport to RT size
 				RHICmdList.SetViewport(0, 0, 0.0f, InMediaCapture->DesiredOutputSize.X, InMediaCapture->DesiredOutputSize.Y, 1.0f);
 				RHICmdList.DrawPrimitive(0, 2, 1);
-				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, DestRenderTarget.TargetableTexture);
+				RHICmdList.Transition(FRHITransitionInfo(DestRenderTarget.TargetableTexture, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
 
 				RHICmdList.EndRenderPass();
 			}
@@ -948,22 +952,40 @@ namespace MediaCaptureDetails
 				{
 					UEditorEngine* EditorEngine = CastChecked<UEditorEngine>(GEngine);
 					FSlatePlayInEditorInfo& Info = EditorEngine->SlatePlayInEditorMap.FindChecked(Context.ContextHandle);
-					if (Info.SlatePlayInEditorWindowViewport.IsValid())
+
+					// The PIE window has priority over the regular editor window, so we need to break out of the loop if either of these are found
+					if (TSharedPtr<IAssetViewport> DestinationLevelViewport = Info.DestinationSlateViewport.Pin())
+					{
+						OutSceneViewport = DestinationLevelViewport->GetSharedActiveViewport();
+						break;
+					}
+					else if (Info.SlatePlayInEditorWindowViewport.IsValid())
 					{
 						OutSceneViewport = Info.SlatePlayInEditorWindowViewport;
-						return true;
+						break;
+					}
+				}
+				else if (Context.WorldType == EWorldType::Editor)
+				{
+					if (FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(LevelEditorName))
+					{
+						TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditorModule->GetFirstActiveViewport();
+						if (ActiveLevelViewport.IsValid())
+						{
+							OutSceneViewport = ActiveLevelViewport->GetSharedActiveViewport();
+						}
 					}
 				}
 			}
-			return false;
 		}
 		else
 #endif
 		{
 			UGameEngine* GameEngine = CastChecked<UGameEngine>(GEngine);
 			OutSceneViewport = GameEngine->SceneViewport;
-			return true;
 		}
+
+		return (OutSceneViewport.IsValid());
 	}
 
 	bool ValidateSize(const FIntPoint TargetSize, const FIntPoint& DesiredSize, const FMediaCaptureOptions& CaptureOptions, const bool bCurrentlyCapturing)

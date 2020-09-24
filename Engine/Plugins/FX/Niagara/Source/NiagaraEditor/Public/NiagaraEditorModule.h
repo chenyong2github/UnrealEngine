@@ -164,6 +164,7 @@ private:
 	void OnExecParticleInvoked(const TCHAR* InStr);
 	void OnPostEngineInit();
 	void OnDeviceProfileManagerUpdated();
+	void OnPreviewPlatformChanged();
 	void OnPreExit();
 
 	/** FGCObject interface */
@@ -211,6 +212,8 @@ private:
 	FDelegateHandle PrecompilerHandle;
 
 	FDelegateHandle DeviceProfileManagerUpdatedHandle;
+
+	FDelegateHandle PreviewPlatformChangedHandle;
 
 	USequencerSettings* SequencerSettings;
 	

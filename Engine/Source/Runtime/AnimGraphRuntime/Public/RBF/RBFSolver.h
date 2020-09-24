@@ -188,7 +188,7 @@ struct ANIMGRAPHRUNTIME_API FRBFOutputWeight
 };
 
 /** Parameters used by RBF solver */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct ANIMGRAPHRUNTIME_API FRBFParams
 {
 	GENERATED_BODY()
@@ -202,42 +202,46 @@ struct ANIMGRAPHRUNTIME_API FRBFParams
 		solver also has smoother blending, whereas the additive solver requires more targets but
 		has a more precise control over the influence of each target.
 	*/
-	UPROPERTY(EditAnywhere, Category = RBFData)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = RBFData)
 	ERBFSolverType SolverType;
 
 	/** Default radius for each target. 
 	*/
-	UPROPERTY(EditAnywhere, Category = RBFData)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = RBFData, meta = (EditCondition = "!bAutomaticRadius"))
 	float Radius;
 
-	UPROPERTY(EditAnywhere, Category = RBFData)
+	/* Automatically pick the radius based on the average distance between targets */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = RBFData)
+	bool bAutomaticRadius;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = RBFData)
 	ERBFFunctionType Function;
 
-	UPROPERTY(EditAnywhere, Category = RBFData)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = RBFData)
 	ERBFDistanceMethod DistanceMethod;
 
 	/** Axis to use when DistanceMethod is SwingAngle */
-	UPROPERTY(EditAnywhere, Category = RBFData)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = RBFData)
 	TEnumAsByte<EBoneAxis> TwistAxis;
 
 	/** Weight below which we shouldn't bother returning a contribution from a target */
-	UPROPERTY(EditAnywhere, Category = RBFData)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = RBFData)
 	float WeightThreshold;
 
 	/** Method to use for normalizing the weight */
-	UPROPERTY(EditAnywhere, Category = RBFData)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = RBFData)
 	ERBFNormalizeMethod NormalizeMethod;
 
 	/** Rotation or position of median (used for normalization) */
-	UPROPERTY(EditAnywhere, Category = RBFData)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = RBFData)
 	FVector MedianReference;
 
 	/** Minimum distance used for median */
-	UPROPERTY(EditAnywhere, Category = RBFData, meta = (UIMin = "0", UIMax = "90"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = RBFData, meta = (UIMin = "0", UIMax = "90"))
 	float MedianMin;
 
 	/** Maximum distance used for median */
-	UPROPERTY(EditAnywhere, Category = RBFData, meta = (UIMin = "0", UIMax = "90"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = RBFData, meta = (UIMin = "0", UIMax = "90"))
 	float MedianMax;
 
 	FRBFParams();
@@ -271,4 +275,7 @@ struct ANIMGRAPHRUNTIME_API FRBFSolver
 
 	/** Returns the radius for a given target */
 	static float GetRadiusForTarget(const FRBFTarget& Target, const FRBFParams& Params);
+
+	/** Compute the optimal radius for the given targets. Returns the radius */
+	static float GetOptimalRadiusForTargets(const FRBFParams& Params, const TArray<FRBFTarget>& Targets);
 };

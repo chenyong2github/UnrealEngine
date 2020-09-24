@@ -27,6 +27,8 @@ struct TRACEINSIGHTS_API FInsightsManagerTabs
 	static const FName LoadingProfilerTabId;
 	static const FName NetworkingProfilerTabId;
 	static const FName MemoryProfilerTabId;
+	static const FName InsightsMessageLogTabId;
+	static const FName AutomationWindowTabId;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -194,8 +196,9 @@ public:
 	 * Starts analysis of the specified trace. Called when the application starts in "Viewer" mode.
 	 *
 	 * @param InTraceId The id of the trace to analyze.
+	 * @param InAutoQuit - The Application will close when session analysis is complete or fails to start
 	 */
-	virtual void StartAnalysisForTrace(uint32 InTraceId) = 0;
+	virtual void StartAnalysisForTrace(uint32 InTraceId, bool InAutoQuit = false) = 0;
 
 	/**
 	 * Starts analysis of the last live session. Called when the application starts in "Viewer" mode.
@@ -206,8 +209,9 @@ public:
 	 * Starts analysis of the specified *.utrace file. Called when the application starts in "Viewer" mode.
 	 *
 	 * @param InTraceFile The filename (*.utrace) of the trace to analyze.
+	 * @param InAutoQuit - The Application will close when session analysis is complete or fails to start
 	 */
-	virtual void StartAnalysisForTraceFile(const TCHAR* InTraceFile) = 0;
+	virtual void StartAnalysisForTraceFile(const TCHAR* InTraceFile, bool InAutoQuit = false) = 0;
 
 	//////////////////////////////////////////////////
 
@@ -254,6 +258,18 @@ public:
 	 * Called when the application shutsdown.
 	 */
 	virtual void ShutdownUserInterface() = 0;
+
+	/**
+	* Called to schedule a command to run after session analysis is complete. Intended for running Automation RunTests commands.
+	*/
+	virtual void ScheduleCommand(const FString& InCmd) = 0;
+
+	/**
+	* Called to initialize testing in stand alone Insights.
+	 * @param InInitAutomationModules If true Insights will initialize the modules required for running automation tests.
+	 * @param InAutoQuit If true Insights will close after completing session analysis and running any tests started using the ScheduleCommand function.
+	*/
+	virtual void InitializeTesting(bool InInitAutomationModules, bool InAutoQuit) = 0;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -12,6 +12,7 @@ struct FDatasmithImportContext;
 class IDatasmithActorElement;
 class IDatasmithCameraActorElement;
 class IDatasmithCustomActorElement;
+class IDatasmithDecalActorElement;
 class IDatasmithEnvironmentElement;
 class IDatasmithHierarchicalInstancedStaticMeshActorElement;
 class IDatasmithLandscapeElement;
@@ -89,6 +90,11 @@ public:
 	 * Spawns an actor with a class defined by the CustomActorElement class name
 	 */
 	static AActor* ImportCustomActor( FDatasmithImportContext& ImportContext, const TSharedRef< IDatasmithCustomActorElement >& CustomActorElement, FDatasmithActorUniqueLabelProvider& UniqueNameProvider );
+
+	/**
+	 * Spawns a Decal actor
+	 */
+	static AActor* ImportDecalActor( FDatasmithImportContext& ImportContext, const TSharedRef< IDatasmithDecalActorElement >& DecalActorElement, FDatasmithActorUniqueLabelProvider& UniqueNameProvider );
 
 	/**
 	 * Spawns a landscape actor

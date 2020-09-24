@@ -16,15 +16,29 @@ namespace Insights
 
 void FMemoryTag::SetColorAuto()
 {
-	uint32 Hash = (Id << 5) + Id; // Id * 33
-	uint32 n = 4;
-	for (const TCHAR* c = *StatName; n && *c; ++c, --n)
+	uint32 Hash = 49;
+	for (const TCHAR* c = *StatName; *c; ++c)
 	{
 		Hash = ((Hash << 5) + Hash + *c) * 0xfb23618f;
 	}
 
 	const uint8 H = Hash & 0xFF;
-	const uint8 S = 128 + ((Hash >>  8) & 0x7F);
+	const uint8 S = 155 + ((Hash >> 8) & 0xFF) * (255 - 155) / 255;
+	const uint8 V = 128 + ((Hash >> 16) & 0x7F);
+	Color = FLinearColor::MakeFromHSV8(H, S, V);
+	Color.A = 1.0f;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FMemoryTag::SetRandomColor()
+{
+	uint64 Time = FPlatformTime::Cycles64();
+	uint32 Hash = (Time & 0xFFFFFFFF) ^ (Time >> 32);
+	Hash = ((Hash << 5) + Hash) * 0xfb23618f;
+
+	const uint8 H = Hash & 0xFF;
+	const uint8 S = 128 + ((Hash >> 8) & 0x7F);
 	const uint8 V = 128 + ((Hash >> 16) & 0x7F);
 	Color = FLinearColor::MakeFromHSV8(H, S, V);
 	Color.A = 1.0f;

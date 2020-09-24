@@ -512,7 +512,7 @@ protected:
 	class UPhysicalMaterial* PhysMaterialOverride;
 
 public:
-	/** The maximum angular velocity for this instance */
+	/** The maximum angular velocity for this instance [degrees/s]*/
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Physics, meta = (editcondition = "bOverrideMaxAngularVelocity"))
 	float MaxAngularVelocity;
 
@@ -737,6 +737,9 @@ public:
 	void AddForceAtPosition(const FVector& Force, const FVector& Position, bool bAllowSubstepping = true, bool bIsLocalForce = false);
 	/** Clear accumulated forces on this body */
 	void ClearForces(bool bAllowSubstepping = true);
+
+	/** If set to true, this body will treat bodies that do not have the flag set as having infinite mass */
+	void SetOneWayInteraction(bool InOneWayInteraction = true);
 
 	/** Add a torque to this body */
 	void AddTorqueInRadians(const FVector& Torque, bool bAllowSubstepping = true, bool bAccelChange = false);

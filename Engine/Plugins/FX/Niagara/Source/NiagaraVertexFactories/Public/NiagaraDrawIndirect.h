@@ -25,24 +25,40 @@ NiagaraDrawIndirect.h: Niagara shader to generate the draw indirect args for Nia
 */
 struct FNiagaraDrawIndirectArgGenTaskInfo
 {
-	FNiagaraDrawIndirectArgGenTaskInfo(uint32 InInstanceCountBufferOffset, uint32 InNumIndicesPerInstance, uint32 InStartIndexLocation, bool bInUseCulledCounts)
+	enum Flags : uint32
+	{
+		Flag_UseCulledCounts = 1 << 0,
+		Flag_InstancedStereo = 1 << 1,
+	};
+
+	FNiagaraDrawIndirectArgGenTaskInfo(uint32 InInstanceCountBufferOffset, uint32 InNumIndicesPerInstance, uint32 InStartIndexLocation,
+		bool bInIsInstancedStereo, bool bInUseCulledCounts)
 		: InstanceCountBufferOffset(InInstanceCountBufferOffset)
 		, NumIndicesPerInstance(InNumIndicesPerInstance)
 		, StartIndexLocation(InStartIndexLocation)
-		, bUseCulledCounts(bInUseCulledCounts ? 1 : 0)
-	{}
+	{
+		Flags = 0;
+		if (bInUseCulledCounts)
+		{
+			Flags |= Flag_UseCulledCounts;
+		}
+		if (bInIsInstancedStereo)
+		{
+			Flags |= Flag_InstancedStereo;
+		}
+	}
 
 	uint32 InstanceCountBufferOffset;
 	uint32 NumIndicesPerInstance; // When -1 the counter needs to be reset to 0.
 	uint32 StartIndexLocation;
-	uint32 bUseCulledCounts;
+	uint32 Flags;
 
 	bool operator==(const FNiagaraDrawIndirectArgGenTaskInfo& Rhs) const
 	{
 		return InstanceCountBufferOffset == Rhs.InstanceCountBufferOffset
 			&& NumIndicesPerInstance == Rhs.NumIndicesPerInstance
 			&& StartIndexLocation == Rhs.StartIndexLocation
-			&& bUseCulledCounts == Rhs.bUseCulledCounts;
+			&& Flags == Rhs.Flags;
 	}
 };
 

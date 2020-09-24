@@ -130,7 +130,7 @@ static bool GetPolygonTangentsAndNormals(FMeshDescription& MeshDescription,
 void FStaticMeshOperations::ComputePolygonTangentsAndNormals(FMeshDescription& MeshDescription, float ComparisonThreshold)
 {
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("FStaticMeshOperations::ComputePolygonTangentsAndNormals_Selection"));
+	TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshOperations::ComputePolygonTangentsAndNormals_Selection);
 
 	FStaticMeshAttributes Attributes(MeshDescription);
 	Attributes.RegisterPolygonNormalAndTangentAttributes();
@@ -846,6 +846,13 @@ void FStaticMeshOperations::ConvertFromRawMesh(const FRawMesh& SourceRawMesh, FM
 
 	//Triangles
 	int32 TriangleCount = SourceRawMesh.WedgeIndices.Num() / 3;
+
+	// Reserve enough memory to avoid as much as possible reallocations
+	DestinationMeshDescription.ReserveNewVertexInstances(SourceRawMesh.WedgeIndices.Num());
+	DestinationMeshDescription.ReserveNewTriangles(TriangleCount);
+	DestinationMeshDescription.ReserveNewPolygons(TriangleCount);
+	DestinationMeshDescription.ReserveNewEdges(TriangleCount * 2);
+
 	for (int32 TriangleIndex = 0; TriangleIndex < TriangleCount; ++TriangleIndex)
 	{
 		int32 VerticeIndexBase = TriangleIndex * 3;

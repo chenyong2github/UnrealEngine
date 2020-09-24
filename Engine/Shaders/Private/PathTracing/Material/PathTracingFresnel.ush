@@ -44,3 +44,63 @@ float FresnelDielectric(float CosThetaI, float IorI, float IorT)
 
 	return Fr;
 }
+
+void CalcFresnelCoefficients(float CosTheta1, float N1, float N2, out float CosTheta2, out float Rs, out float Rp)
+{
+	Rs = 0.0;
+	Rp = 0.0;
+	CosTheta2 = 0.0;
+	// Use Snell's law to compute CosTheta2:
+	// N1 * sin(Theta1) = N2 * sin(Theta2)
+	// [N1 * sin(Theta1)]^2 = [N2 * sin(Theta2)]^2
+	float SinTheta1_Squared = 1.0 - CosTheta1 * CosTheta1;
+	float SinTheta2_Squared = (SinTheta1_Squared * N1 * N1) / (N2 * N2);
+
+	float CosTheta1_Squared = 1.0 - SinTheta1_Squared;
+	float CosTheta2_Squared = 1.0 - SinTheta2_Squared;
+	if (CosTheta2_Squared >= 0.0)
+	{
+		CosTheta2 = sqrt(CosTheta2_Squared);
+
+		// Optimized Fresnel equations
+		// Rs = (N1 * CosTheta1 - N2 * CosTheta2) / (N1 * CosTheta1 + N2 * CosTheta2);
+		// Rp = (N2 * CosTheta1 - N1 * CosTheta2) / (N2 * CosTheta1 + N1 * CosTheta2);
+		float N1_CosTheta1 = N1 * CosTheta1;
+		float N1_CosTheta2 = N1 * CosTheta2;
+		float N2_CosTheta1 = N2 * CosTheta1;
+		float N2_CosTheta2 = N2 * CosTheta2;
+		Rs = (N1_CosTheta1 - N2_CosTheta2) / (N1_CosTheta1 + N2_CosTheta2);
+		Rp = (N2_CosTheta1 - N1_CosTheta2) / (N2_CosTheta1 + N1_CosTheta2);
+	}
+}
+
+// TODO: Unify FresnelReflectance() and FresnelDielectric()
+float FresnelReflectance(float CosTheta1, float N1, float N2)
+{
+	float CosTheta2;
+	float Rs;
+	float Rp;
+	CalcFresnelCoefficients(CosTheta1, N1, N2, CosTheta2, Rs, Rp);
+
+	float Fr = (Rs * Rs + Rp * Rp) / 2.0;
+	return Fr;
+}
+
+float FresnelTransmittance(float CosTheta1, float N1, float N2)
+{
+	float Ft = 0.0;
+	if (CosTheta1 > 0.0)
+	{
+		float CosTheta2;
+		float Rs;
+		float Rp;
+		CalcFresnelCoefficients(CosTheta1, N1, N2, CosTheta2, Rs, Rp);
+
+		float Ts = Rs + 1;
+		float Tp = (Rp + 1) * N1 / N2;
+		Ft = (Ts * Ts + Tp * Tp) / 2.0;
+		Ft *= (N2 * CosTheta2) / (N1 * CosTheta1);
+	}
+
+	return Ft;
+}

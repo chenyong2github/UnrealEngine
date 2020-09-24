@@ -478,7 +478,20 @@ struct FGenericPlatformMath
 	}
 
 	/**
-	 * Counts the number of leading zeros in the bit representation of the value
+	 * Counts the number of leading zeros in the bit representation of the 8-bit value
+	 *
+	 * @param Value the value to determine the number of leading zeros for
+	 *
+	 * @return the number of zeros before the first "on" bit
+	 */
+	static FORCEINLINE uint8 CountLeadingZeros8(uint8 Value)
+	{
+		if (Value == 0) return 8;
+		return uint8(7 - FloorLog2(uint32(Value)));
+	}
+
+	/**
+	 * Counts the number of leading zeros in the bit representation of the 32-bit value
 	 *
 	 * @param Value the value to determine the number of leading zeros for
 	 *

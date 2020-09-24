@@ -462,7 +462,7 @@ static void DoUpdateExternalMediaSampleExecute(TWeakPtr<FJavaAndroidMediaPlayer,
 	if (VideoTexture == nullptr)
 	{
 		FRHIResourceCreateInfo CreateInfo;
-		VideoTexture = GDynamicRHI->RHICreateTextureExternal2D(1, 1, PF_R8G8B8A8, 1, 1, 0, CreateInfo);
+		VideoTexture = GDynamicRHI->RHICreateTextureExternal2D(1, 1, PF_R8G8B8A8, 1, 1, TexCreate_None, ERHIAccess::SRVGraphics, CreateInfo);
 		PinnedJavaMediaPlayer->SetVideoTexture(VideoTexture);
 
 		if (VideoTexture == nullptr)

@@ -45,10 +45,6 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=Octree)
 	int32 NodeGridResolution;
 
-	/** Enabling this will allow usage of multiple threads during import and processing. */
-	UPROPERTY(config, EditAnywhere, Category=Performance)
-	bool bUseMultithreading;
-
 	/** Determines the maximum amount of points to process in a single batch when using multi-threading. */
 	UPROPERTY(config, EditAnywhere, Category=Performance)
 	int32 MultithreadingInsertionBatchSize;
@@ -57,14 +53,6 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=Performance)
 	bool bUseAsyncImport;
 
-	/** Determines the maximum size of the buffer to use during importing. */
-	UPROPERTY(config, EditAnywhere, Category=Performance)
-	int32 MaxImportBufferSize;
-
-	/** Determines the maximum size of the buffer to use during exporting. */
-	UPROPERTY(config, EditAnywhere, Category=Performance)
-	int32 ExportBatchSize;
-
 	/**
 	 * Enabling this will allocate larger portion of the available point budget to the viewport with focus.
 	 * May improve asset editing experience, if the scenes are busy.
@@ -72,6 +60,13 @@ public:
 	 */
 	UPROPERTY(config, EditAnywhere, Category=Performance)
 	bool bPrioritizeActiveViewport;
+
+	/**
+	 * Sets how long the nodes wil be kept in RAM after they are no longer visible.
+	 * Larger values are more likely to avoid re-loads from storage, at the cost of increased RAM usage. 
+	 */
+	UPROPERTY(config, EditAnywhere, Category=Performance, meta = (ClampMin = "0"))
+	float CachedNodeLifetime;
 
 	/**
 	 * Enabling this will compress data when saving the assets.
@@ -89,38 +84,16 @@ public:
 	 * Caution: Preserving original coordinates may cause noticeable precision loss, if the values are too large.
 	 * Should you experience point 'banding' effect, please re-import your cloud with centering enabled.
 	 */
-	UPROPERTY(config, EditAnywhere, Category=Import)
+	UPROPERTY(config, EditAnywhere, Category="Import / Export")
 	bool bAutoCenterOnImport;
 
 	/** Scale to apply during import */
-	UPROPERTY(config, EditAnywhere, Category=Import, meta = (ClampMin = "0.0001"))
+	UPROPERTY(config, EditAnywhere, Category= "Import / Export", meta = (ClampMin = "0.0001"))
 	float ImportScale;
 
-	/**
-	 * Enables 8-bit color detection in LAS files.
-	 * This will slow down the import a little.
-	 */
-	UPROPERTY(config, EditAnywhere, Category=Import, meta = (DisplayName = "Enable 8-Bit LAS Detection"))
-	bool bEnable8BitLASDetection;
-
-	/** Determines the maximum number of points to scan when analyzing the LAS data */
-	UPROPERTY(config, EditAnywhere, Category=Import, meta = (DisplayName = "Max Number Of Points To Scan (LAS)"))
-	int32 MaxNumberOfPointsToScanLAS;
-
-	/** Determines the maximum number of points to scan when analyzing the ASCII data */
-	UPROPERTY(config, EditAnywhere, Category=Import, meta = (DisplayName = "Max Number Of Points To Scan (ASCII)"))
-	int32 MaxNumberOfPointsToScanASCII;
-
 	/** Scale to apply during export. In most cases, this should be equal to an inverted ImportScale */
-	UPROPERTY(config, EditAnywhere, Category=Export, meta = (ClampMin = "0.0001"))
+	UPROPERTY(config, EditAnywhere, Category= "Import / Export", meta = (ClampMin = "0.0001"))
 	float ExportScale;
-
-	/**
-	 * Enabling this will store pre-processed version of the import data as a *.tmp file, and will attempt to use it upon re-import.
-	 * Useful for faster debug iteration on large and slow to import (especially ASCII based) cloud assets.
-	 */
-	UPROPERTY(config, EditAnywhere, Category=Debug)
-	bool bUseIOCaching;
 
 public:
 	ULidarPointCloudSettings();

@@ -81,7 +81,7 @@ void UCanvasRenderTarget2D::RepaintCanvas()
 		ENQUEUE_RENDER_COMMAND(CanvasRenderTargetMakeCurrentCommand)(
 			[TextureRenderTarget, bClearRenderTarget](FRHICommandListImmediate& RHICmdList)
 		{
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, TextureRenderTarget->GetRenderTargetTexture());
+			RHICmdList.Transition(FRHITransitionInfo(TextureRenderTarget->GetRenderTargetTexture(), ERHIAccess::Unknown, ERHIAccess::RTV));
 
 			if (bClearRenderTarget)
 			{

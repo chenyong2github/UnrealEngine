@@ -23,6 +23,7 @@ enum EShowFlagGroup
 	SFG_LightingFeatures,
 	SFG_Hidden,
 	SFG_Transient, // Hidden, and don't serialize it
+	SFG_Custom,
 	SFG_Max
 };
 
@@ -76,8 +77,23 @@ struct FEngineShowFlags
 	enum EShowFlag
 	{
 		#include "ShowFlagsValues.inl"
+		SF_FirstCustom, 
 	};
 	// ---------------------------------------------------------
+
+	// Strong type for custom show flag indices starting from 0 to make interface clearer
+	enum class ECustomShowFlag : uint32
+	{
+		First = 0, // ECustomShowFlag + SF_FirstCustom -> EShowFlag
+
+		None = 0xFFFFFFFF,
+	};
+	
+	// NOTE: that the offset of this variable is used mark the end of the variables defined by ShowFlagsValues.inl, no other variables should be added before it.
+	TBitArray<> CustomShowFlags;
+
+	// Delegate fired when a new custom show flag is registered or re-registered so other systems can iterate all show flags and update any related data
+	static ENGINE_API FSimpleMulticastDelegate OnCustomShowFlagRegistered;
 
 	/** Retrieve the localized display name for a named show flag */
 	static void FindShowFlagDisplayName(const FString& InName, FText& OutText)
@@ -120,6 +136,9 @@ struct FEngineShowFlags
 		{
 			OutText = *OutName;
 		}
+		else if (FindCustomShowFlagDisplayName(InName, OutText))
+		{
+		}
 		else
 		{
 			OutText = FText::FromString(InName);
@@ -130,6 +149,11 @@ struct FEngineShowFlags
 	static EShowFlagGroup FindShowFlagGroup(const TCHAR* Name)
 	{
 		int32 FlagIndex = FindIndexByName(Name);
+
+		if (FlagIndex >= SF_FirstCustom)
+		{
+			return GetCustomShowFlagGroup(ECustomShowFlag(FlagIndex - SF_FirstCustom));
+		}
 
 		switch (FlagIndex)
 		{
@@ -302,7 +326,16 @@ struct FEngineShowFlags
 	{
 		#define SHOWFLAG_ALWAYS_ACCESSIBLE(a,...) if( !Sink.OnEngineShowFlag((uint32)SF_##a, TEXT(PREPROCESSOR_TO_STRING(a))) ) { return; }
 		#include "ShowFlagsValues.inl"
+
+		IterateCustomFlags([&](uint32 Index, const FString& Name) { return Sink.OnCustomShowFlag(Index, Name); });
 	}
+
+	// Used by TCustomShowFlag to register a show flag from another module 
+	static ENGINE_API ECustomShowFlag RegisterCustomShowFlag(const TCHAR* Name, bool DefaultEnabled, EShowFlagGroup Group, FText DisplayName);
+	// Iterate all registered custom show flags
+	static ENGINE_API void IterateCustomFlags(TFunctionRef<bool(uint32, const FString&)> Functor);
+	// Supports ShowFlag.* cvars for custom show flags to force custom show flags on/off
+	void EngineOverrideCustomShowFlagsFromCVars();
 
 private:
 	/** Initializes the struct. */
@@ -310,16 +343,17 @@ private:
 	{
 		if (InitMode == ESFIM_All0)
 		{
-			FMemory::Memset(this, 0x00, sizeof(*this));
+			FMemory::Memset(this, 0x00, STRUCT_OFFSET(FEngineShowFlags, CustomShowFlags));
 			return;
 		}
 
 		// Most flags are on by default. With the following line we only need disable flags.
 #if PLATFORM_USE_SHOWFLAGS_ALWAYS_BITFIELD
-		FMemory::Memset(this, 0xff, sizeof(*this));
+		FMemory::Memset(this, 0xff, STRUCT_OFFSET(FEngineShowFlags, CustomShowFlags));
 #else
-		FMemory::Memset(this, uint8(true), sizeof(*this));
+		FMemory::Memset(this, uint8(true), STRUCT_OFFSET(FEngineShowFlags, CustomShowFlags));
 #endif
+		InitCustomShowFlags(InitMode);
 
 		// The following code sets what should be off by default.
 		SetVisualizeHDR(false);
@@ -468,6 +502,18 @@ private:
 
 	/** @return -1 if not found */
 	static void AddNameByIndex(uint32 InIndex, FString& Out);
+
+	// Set default values for custom flags on this FEngineShowFlags instance
+	ENGINE_API void InitCustomShowFlags(EShowFlagInitMode InitMode);
+	// If new custom show flags have been registered, add new default entries to CustomShowFlags
+	void UpdateNewCustomShowFlags();
+	
+	// Lookup functions for custom show flags matching engine ones
+	static ENGINE_API bool FindCustomShowFlagDisplayName(const FString& InName, FText& OutText);
+	static FString GetCustomShowFlagName(ECustomShowFlag Index);
+	static FText GetCustomShowFlagDisplayName(ECustomShowFlag Index);
+	static ENGINE_API EShowFlagGroup GetCustomShowFlagGroup(ECustomShowFlag Index);
+	static ECustomShowFlag FindCustomShowFlagByName(const FString& Name);
 };
 
 /** Set ShowFlags and EngineShowFlags depending on view mode. */
@@ -484,3 +530,60 @@ ENGINE_API EViewModeIndex FindViewMode(const FEngineShowFlags& EngineShowFlags);
 
 /** @return 0 if outside of the range, e.g. TEXT("LightingOnly") for EVM_LightingOnly */
 const TCHAR* GetViewModeName(EViewModeIndex ViewModeIndex);
+
+// Enum to control behavior of custom show flags in shipping builds
+enum class EShowFlagShippingValue
+{
+	Dynamic,		// Allow flag to be changed dynamically
+	ForceEnabled,	// Always enabled in shipping builds
+	ForceDisabled,	// Always disabled in shipping builds
+};
+
+// Statically register a custom show flag to control rendering - use TCustomShowFlag::IsEnabled to get current state for a given view.
+template<EShowFlagShippingValue ShippingValue = EShowFlagShippingValue::Dynamic>
+struct TCustomShowFlag
+{
+#if PLATFORM_COMPILER_HAS_IF_CONSTEXPR
+#define IF_CONSTEXPR if constexpr
+#else 
+#define IF_CONSTEXPR if
+#endif
+	TCustomShowFlag(const TCHAR* Name, bool DefaultEnabled, EShowFlagGroup Group = SFG_Custom, FText DisplayName = {})
+	{
+#if UE_BUILD_SHIPPING
+		IF_CONSTEXPR(ShippingValue == EShowFlagShippingValue::Dynamic)
+#endif
+		{
+			FlagIndex = FEngineShowFlags::RegisterCustomShowFlag(Name, DefaultEnabled, Group, DisplayName);
+		}
+	}
+
+	bool IsEnabled(const FEngineShowFlags& ShowFlags)
+	{
+#if UE_BUILD_SHIPPING
+		IF_CONSTEXPR (ShippingValue == EShowFlagShippingValue::ForceDisabled)
+		{
+			return false;
+		}
+		else IF_CONSTEXPR(ShippingValue == EShowFlagShippingValue::ForceEnabled)
+		{
+			return true;
+		}
+		else
+#endif
+		{
+			if (FlagIndex == FEngineShowFlags::ECustomShowFlag::None)
+			{
+				return false;
+			}
+			else
+			{
+				return ShowFlags.GetSingleFlag((uint32)FlagIndex + FEngineShowFlags::SF_FirstCustom);
+			}
+		}
+	}
+#undef IF_CONSTEXPR
+
+private:
+	FEngineShowFlags::ECustomShowFlag FlagIndex = FEngineShowFlags::ECustomShowFlag::None;
+};

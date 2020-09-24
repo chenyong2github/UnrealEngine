@@ -2,6 +2,7 @@
 
 #pragma once
 
+#define EYE_ADAPTATION_LOOSE_PARAMETERS 1
 
 //------------------------------------------------------- CONFIG DISABLED DEFAULTS
 
@@ -408,10 +409,32 @@ void ProjectSpecularLobeToScreenSpace(
 
 //------------------------------------------------------- MAIN FUNCTIONS TO IMPLEMENT FOR THE PASSES
 
+float3 ComputeMajorLightRayDirection(FSSDSampleSceneInfos SceneMetadata, FSSDSignalDomainKnowledge DomainKnowledge)
+#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK
+{
+	BRANCH
+	if (DomainKnowledge.LightType == LIGHT_TYPE_DIRECTIONAL)
+	{
+		return -DomainKnowledge.Light.Direction;
+	}
+	else
+	{
+		float3 PixelToLightWorldVector = (DomainKnowledge.Light.Position + View.PreViewTranslation) - GetTranslatedWorldPosition(SceneMetadata);
+		return normalize(PixelToLightWorldVector);
+	}
+}
+#else
+{
+	// Not used by any pass.
+	return float3(0.0, 0.0, 1.0);
+}
+#endif
+
 /** COmpute the weight of the bilateral filter to use between a reference sample and a neighbor. */
 float ComputeBilateralWeight(
 	const uint BilateralSettings,
 	float MaxWorldBluringDistance,
+	FSSDSignalDomainKnowledge DomainKnowledge,
 	FSSDSampleSceneInfos RefSceneMetadata,
 	FSSDSampleSceneInfos NeighborSceneMetadata,
 	float3 NeighborToRefVector)
@@ -429,6 +452,9 @@ float ComputeBilateralWeight(
 		float3 NeighborNormal = NeighborSceneMetadata.WorldNormal;
 	#endif
 	
+	// TODO(Denoiser): extremely expensive with rcp()...
+	float InvMaxWorldBluringDistance = rcp(MaxWorldBluringDistance);
+
 	float PositionBilateralWeight = 1;
 	if ((BilateralSettings & 0xF) == 1)
 	{
@@ -455,7 +481,7 @@ float ComputeBilateralWeight(
 
 		float DistFromRefPlane = abs(dot(RefNormal, NeighborToRefVector));
 
-		PositionBilateralWeight = saturate(1 - DistFromRefPlane * rcp(MaxWorldBluringDistance));
+		PositionBilateralWeight = saturate(1 - DistFromRefPlane * InvMaxWorldBluringDistance);
 	}
 	else if ((BilateralSettings & 0xF) == 3)
 	{
@@ -471,12 +497,45 @@ float ComputeBilateralWeight(
 	}
 	else if ((BilateralSettings & 0xF) == 5)
 	{
-		float DistFromRefPlane = dot(RefNormal, NeighborToRefVector);
+		float LightTangentBilateral;
+		{
+			// Projet in the NeighborToRefVector into the the light tangential plane.
+			float3 NeighborToLight = ComputeMajorLightRayDirection(NeighborSceneMetadata, DomainKnowledge);
+			float3 ProjectedNeighborToRefVector = NeighborToRefVector - NeighborToLight * dot(NeighborToLight, NeighborToRefVector);
 
-		// TODO(Denoiser): extremely expensive with rcp()...
-		PositionBilateralWeight = (
-			saturate(1 - dot(NeighborToRefVector, NeighborToRefVector) * rcp(MaxWorldBluringDistance * MaxWorldBluringDistance)) *
-			saturate(1 - 6 * abs(DistFromRefPlane) * rcp(MaxWorldBluringDistance)));
+			// Measure in the tangential space the distance to take into account anisotropy.
+			LightTangentBilateral = saturate(1 - dot(ProjectedNeighborToRefVector, ProjectedNeighborToRefVector) * (InvMaxWorldBluringDistance * InvMaxWorldBluringDistance));
+		}
+		
+		float PlaneMisAlignementBilateral;
+		{
+			const float NormalEncodingError = 0.25;
+			
+			float DistFromRefPlane = dot(RefNormal, -NeighborToRefVector);
+
+			float NeighborToRefPlaneDistance = length(-NeighborToRefVector - DistFromRefPlane * RefNormal);
+			float NeighborToRefError = NeighborToRefPlaneDistance * NormalEncodingError;
+
+			PlaneMisAlignementBilateral = saturate(1 - 6 * (abs(DistFromRefPlane) - NeighborToRefError) * InvMaxWorldBluringDistance);
+		}
+
+		PositionBilateralWeight = LightTangentBilateral * PlaneMisAlignementBilateral;
+	}
+	else if ((BilateralSettings & 0xF) == 6)
+	{
+		float PlaneMisAlignementBilateral;
+		{
+			const float NormalEncodingError = View.GeneralPurposeTweak;
+			
+			float DistFromRefPlane = dot(RefNormal, -NeighborToRefVector);
+
+			float NeighborToRefPlaneDistance = length(-NeighborToRefVector - DistFromRefPlane * RefNormal);
+			float NeighborToRefError = NeighborToRefPlaneDistance * NormalEncodingError;
+
+			PlaneMisAlignementBilateral = saturate(1 - (abs(DistFromRefPlane) - NeighborToRefError) * InvMaxWorldBluringDistance);
+		}
+
+		PositionBilateralWeight = PlaneMisAlignementBilateral;
 	}
 
 	float NormalBilateralWeight = 1;
@@ -527,7 +586,7 @@ float ComputeBilateralWeight(
 	return PositionBilateralWeight * NormalBilateralWeight * LobeSimilarity * AxesSimilarity;
 }
 
-float GetSignalWorldBluringRadius(FSSDSignalFrequency SampleFrequency, FSSDSampleSceneInfos SceneMetadata, uint BatchedSignalId)
+float GetSignalWorldBluringRadius(FSSDSignalFrequency SampleFrequency, FSSDSampleSceneInfos SceneMetadata, FSSDSignalDomainKnowledge DomainKnowledge)
 #if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_VIRTUAL_SHADOW_MAP_MASK
 {
 	if (SampleFrequency.ClosestHitDistance == DENOISER_INVALID_HIT_DISTANCE)
@@ -538,8 +597,6 @@ float GetSignalWorldBluringRadius(FSSDSignalFrequency SampleFrequency, FSSDSampl
 	{
 		return WORLD_RADIUS_MISS; // 100000;
 	}
-
-	FSSDSignalDomainKnowledge DomainKnowledge = GetSignalDomainKnowledge(BatchedSignalId);
 
 	// Sometime, artists might put occluder very close to the area light compared to they area, that may lead to negative values.
 	// TODO(Denoiser): the correct way to fix this is to move this world bluring radius computation into the RGS, and have DistanceFromLight = Ray's MaxT.

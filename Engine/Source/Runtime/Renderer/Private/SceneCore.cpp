@@ -246,9 +246,7 @@ FLightPrimitiveInteraction::FLightPrimitiveInteraction(
 			{
 				bMobileDynamicPointLight = true;
 				PrimitiveSceneInfo->NumMobileMovablePointLights++;
-				// enable dynamic path for primitives affected by dynamic point lights
-				PrimitiveSceneInfo->Proxy->bHasMobileMovablePointLightInteraction = (PrimitiveSceneInfo->NumMobileMovablePointLights != 0);
-				// The mobile renderer needs to use a different shader for movable point lights, so we have to update any static meshes in drawlists
+				// The mobile renderer needs to update the shader bindings of movable point lights uniform buffer, so we have to update any static meshes in drawlists
 				PrimitiveSceneInfo->BeginDeferredUpdateStaticMeshes();
 			} 
 		}
@@ -310,8 +308,6 @@ FLightPrimitiveInteraction::~FLightPrimitiveInteraction()
 	if (bMobileDynamicPointLight)
 	{
 		PrimitiveSceneInfo->NumMobileMovablePointLights--;
-		// enable dynamic path for primitives affected by dynamic point lights
-		PrimitiveSceneInfo->Proxy->bHasMobileMovablePointLightInteraction = (PrimitiveSceneInfo->NumMobileMovablePointLights != 0);
 		// The mobile renderer needs to use a different shader for movable point lights, so we have to update any static meshes in drawlists
 		PrimitiveSceneInfo->BeginDeferredUpdateStaticMeshes();
 	}

@@ -808,9 +808,9 @@ EXmppLoginStatus::Type FXmppConnectionJingle::GetLoginStatus() const
 {
 	FScopeLock Lock(&LoginStateLock);
 
-	if (LoginState == EXmppLoginStatus::LoggedIn)
+	if (LoginState == EXmppLoginStatus::LoggedIn || LoginState == EXmppLoginStatus::ProcessingLogin)
 	{
-		return EXmppLoginStatus::LoggedIn;
+		return LoginState;
 	}
 	else
 	{

@@ -215,8 +215,14 @@ FReply FDragConnection::DroppedOnPin(FVector2D ScreenPosition, FVector2D GraphPo
 
 			if (MyGraphObj->GetSchema()->TryCreateConnection(PinA, PinB))
 			{
-				NodeList.Add(PinA->GetOwningNode());
-				NodeList.Add(PinB->GetOwningNode());
+				if (!PinA->IsPendingKill())
+				{
+					NodeList.Add(PinA->GetOwningNode());
+				}
+				if (!PinB->IsPendingKill())
+				{
+					NodeList.Add(PinB->GetOwningNode());
+				}
 			}
 		}
 		else

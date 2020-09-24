@@ -51,14 +51,14 @@ struct FRigUnit_SpringIK_WorkData
 
 	FRigUnit_SpringIK_WorkData()
 	{
-		PoleVectorIndex = INDEX_NONE;
+		CachedPoleVector = FCachedRigElement();
 	}
 
-	UPROPERTY()
-	TArray<int32> BoneIndices;
+	UPROPERTY(transient)
+	TArray<FCachedRigElement> BoneIndices;
 
 	UPROPERTY()
-	int32 PoleVectorIndex;
+	FCachedRigElement CachedPoleVector;
 
 	UPROPERTY()
 	TArray<FTransform> Transforms;
@@ -97,13 +97,13 @@ struct FRigUnit_SpringIK : public FRigUnit_HighlevelBaseMutable
 	}
 
 
-	virtual FName DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
+	virtual FRigElementKey DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
 	{
 		if (InPinPath.StartsWith(TEXT("PoleVector")))
 		{
-			return PoleVectorSpace;
+			return FRigElementKey(PoleVectorSpace, ERigElementType::Bone);
 		}
-		return NAME_None;
+		return FRigElementKey();
 	}
 
 	RIGVM_METHOD()
@@ -112,13 +112,13 @@ struct FRigUnit_SpringIK : public FRigUnit_HighlevelBaseMutable
 	/** 
 	 * The name of the first bone to solve
 	 */
-	UPROPERTY(meta = (Input, Constant, CustomWidget = "BoneName"))
+	UPROPERTY(meta = (Input, CustomWidget = "BoneName"))
 	FName StartBone;
 
 	/**
 	 * The name of the second bone to solve
 	 */
-	UPROPERTY(meta = (Input, Constant, CustomWidget = "BoneName"))
+	UPROPERTY(meta = (Input, CustomWidget = "BoneName"))
 	FName EndBone;
 
 	/**
@@ -181,7 +181,7 @@ struct FRigUnit_SpringIK : public FRigUnit_HighlevelBaseMutable
 	/**
 	 * The space in which the pole vector is expressed
 	 */
-	UPROPERTY(meta = (Input, Constant, CustomWidget = "BoneName"))
+	UPROPERTY(meta = (Input, CustomWidget = "BoneName"))
 	FName PoleVectorSpace;
 
 	/**
@@ -225,7 +225,7 @@ struct FRigUnit_SpringIK : public FRigUnit_HighlevelBaseMutable
 	bool bPropagateToChildren;
 
 	/** The debug setting for the node */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(meta = (Input, DetailsOnly))
 	FRigUnit_SpringIK_DebugSettings DebugSettings;
 
 	UPROPERTY(transient)

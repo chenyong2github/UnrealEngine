@@ -35,9 +35,7 @@ public class AnimGraphRuntime : ModuleRules
         {
             PublicDependencyModuleNames.AddRange(
                 new string[] {
-					"ChaosSolvers",
 					"GeometryCollectionEngine",
-					"GeometryCollectionSimulationCore"
                 }
             );
         }

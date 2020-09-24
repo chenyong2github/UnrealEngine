@@ -292,12 +292,13 @@ void FNiagaraEditorUtilities::FixUpPastedNodes(UEdGraph* Graph, TSet<UEdGraphNod
 		}
 	}
 
+	FPinCollectorArray InputPins;
 	for (UEdGraphNode* PastedNode : PastedNodes)
 	{
 		UNiagaraNodeParameterMapSet* ParameterMapSetNode = Cast<UNiagaraNodeParameterMapSet>(PastedNode);
 		if (ParameterMapSetNode != nullptr)
 		{
-			TArray<UEdGraphPin*> InputPins;
+			InputPins.Reset();
 			ParameterMapSetNode->GetInputPins(InputPins);
 			for (UEdGraphPin* InputPin : InputPins)
 			{
@@ -418,6 +419,15 @@ bool FNiagaraEditorUtilities::NestedPropertiesAppendCompileHash(const void* Cont
 			return true;
 		}
 	}
+	else if (Struct == FNiagaraTypeDefinitionHandle::StaticStruct())
+	{
+		FNiagaraTypeDefinitionHandle* TypeDef = (FNiagaraTypeDefinitionHandle*)Container;
+		if (TypeDef)
+		{
+			TypeDef->AppendCompileHash(InVisitor);
+			return true;
+		}
+	}
 
 	TFieldIterator<FProperty> PropertyCountIt(Struct, IteratorFlags);
 	int32 NumProperties = 0;
@@ -426,6 +436,7 @@ bool FNiagaraEditorUtilities::NestedPropertiesAppendCompileHash(const void* Cont
 		NumProperties++;
 	}
 
+	TStringBuilder<128> PathName;
 	for (TFieldIterator<FProperty> PropertyIt(Struct, IteratorFlags); PropertyIt; ++PropertyIt)
 	{
 		FProperty* Property = *PropertyIt;
@@ -449,8 +460,12 @@ bool FNiagaraEditorUtilities::NestedPropertiesAppendCompileHash(const void* Cont
 			InVisitor->UpdatePOD(*PropertyName, MapHelper.Num());
 			if (MapHelper.GetKeyProperty())
 			{
-				InVisitor->UpdateString(TEXT("KeyPathname"), MapHelper.GetKeyProperty()->GetPathName());
-				InVisitor->UpdateString(TEXT("ValuePathname"), MapHelper.GetValueProperty()->GetPathName());
+				PathName.Reset();
+				MapHelper.GetKeyProperty()->GetPathName(nullptr, PathName);
+				InVisitor->UpdateString(TEXT("KeyPathname"), PathName);
+				PathName.Reset();
+				MapHelper.GetValueProperty()->GetPathName(nullptr, PathName);
+				InVisitor->UpdateString(TEXT("ValuePathname"), PathName);
 
 				// We currently only support maps with keys of FNames. Anything else should generate a warning.
 				if (MapHelper.GetKeyProperty()->GetClass() == FNameProperty::StaticClass())
@@ -528,7 +543,9 @@ bool FNiagaraEditorUtilities::NestedPropertiesAppendCompileHash(const void* Cont
 
 			FScriptArrayHelper ArrayHelper(CastProp, CastProp->ContainerPtrToValuePtr<void>(Container));
 			InVisitor->UpdatePOD(*PropertyName, ArrayHelper.Num());
-			InVisitor->UpdateString(TEXT("InnerPathname"), CastProp->Inner->GetPathName());
+			PathName.Reset();
+			CastProp->Inner->GetPathName(nullptr, PathName);
+			InVisitor->UpdateString(TEXT("InnerPathname"), PathName);
 
 			// We support arrays of POD types or arrays of structs with POD types internally. Anything else we should generate a warning on.
 			if (CastProp->Inner->IsA(FStructProperty::StaticClass()))
@@ -1026,7 +1043,7 @@ void FNiagaraEditorUtilities::FixUpNumericPins(const UEdGraphSchema_Niagara* Sch
 	TraverseGraphFromOutputDepthFirst(Schema, Node, FixUpVisitor);
 }
 
-void FNiagaraEditorUtilities::SetStaticSwitchConstants(UNiagaraGraph* Graph, const TArray<UEdGraphPin*>& CallInputs, const FCompileConstantResolver& ConstantResolver)
+void FNiagaraEditorUtilities::SetStaticSwitchConstants(UNiagaraGraph* Graph, TArrayView<UEdGraphPin* const> CallInputs, const FCompileConstantResolver& ConstantResolver)
 {
 	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
 
@@ -1164,10 +1181,11 @@ void PreProcessGraphForInputNumerics(const UEdGraphSchema_Niagara* Schema, UNiag
 	// Visit all input nodes
 	TArray<UNiagaraNodeInput*> InputNodes;
 	Graph->FindInputNodes(InputNodes);
+	FPinCollectorArray OutputPins;
 	for (UNiagaraNodeInput* InputNode : InputNodes)
 	{
 		// See if any of the output pins are of Numeric type. If so, force to floats.
-		TArray<UEdGraphPin*> OutputPins;
+		OutputPins.Reset();
 		InputNode->GetOutputPins(OutputPins);
 		for (UEdGraphPin* OutputPin : OutputPins)
 		{
@@ -1196,7 +1214,7 @@ void PreProcessGraphForAttributeNumerics(const UEdGraphSchema_Niagara* Schema, U
 	{
 		// For each pin, make sure that if it has a valid type, but the associated variable is still Numeric,
 		// force the variable to match the pin's new type. Record that we touched this variable for later cleanup.
-		TArray<UEdGraphPin*> InputPins;
+		FPinCollectorArray InputPins;
 		OutputNode->GetInputPins(InputPins);
 		check(OutputNode->Outputs.Num() == InputPins.Num());
 		for (int32 i = 0; i < InputPins.Num(); i++)
@@ -1246,7 +1264,8 @@ void FNiagaraEditorUtilities::ResolveNumerics(UNiagaraGraph* SourceGraph, bool b
 	}
 }
 
-void FNiagaraEditorUtilities::PreprocessFunctionGraph(const UEdGraphSchema_Niagara* Schema, UNiagaraGraph* Graph, const TArray<UEdGraphPin*>& CallInputs, const TArray<UEdGraphPin*>& CallOutputs, ENiagaraScriptUsage ScriptUsage, const FCompileConstantResolver& ConstantResolver)
+void FNiagaraEditorUtilities::PreprocessFunctionGraph(const UEdGraphSchema_Niagara* Schema, UNiagaraGraph* Graph, TArrayView<UEdGraphPin* const> CallInputs, TArrayView<UEdGraphPin* const> CallOutputs,
+	ENiagaraScriptUsage ScriptUsage, const FCompileConstantResolver& ConstantResolver)
 {
 	// Change any numeric inputs or outputs to match the types from the call node.
 	TArray<UNiagaraNodeInput*> InputNodes;
@@ -1258,6 +1277,7 @@ void FNiagaraEditorUtilities::PreprocessFunctionGraph(const UEdGraphSchema_Niaga
 
 	Graph->FindInputNodes(InputNodes, Options);
 
+	FPinCollectorArray OutputPins;
 	for (UNiagaraNodeInput* InputNode : InputNodes)
 	{
 		FNiagaraVariable& Input = InputNode->Input;
@@ -1269,7 +1289,7 @@ void FNiagaraEditorUtilities::PreprocessFunctionGraph(const UEdGraphSchema_Niaga
 			{
 				FNiagaraTypeDefinition PinType = Schema->PinToTypeDefinition(*MatchingPin);
 				Input.SetType(PinType);
-				TArray<UEdGraphPin*> OutputPins;
+				OutputPins.Reset();
 				InputNode->GetOutputPins(OutputPins);
 				check(OutputPins.Num() == 1);
 				OutputPins[0]->PinType = (*MatchingPin)->PinType;
@@ -1280,7 +1300,7 @@ void FNiagaraEditorUtilities::PreprocessFunctionGraph(const UEdGraphSchema_Niaga
 	UNiagaraNodeOutput* OutputNode = Graph->FindOutputNode(ScriptUsage);
 	check(OutputNode);
 
-	TArray<UEdGraphPin*> InputPins;
+	FPinCollectorArray InputPins;
 	OutputNode->GetInputPins(InputPins);
 
 	for (FNiagaraVariable& Output : OutputNode->Outputs)

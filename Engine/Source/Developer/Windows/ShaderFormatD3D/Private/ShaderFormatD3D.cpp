@@ -5,6 +5,7 @@
 #include "Modules/ModuleManager.h"
 #include "Interfaces/IShaderFormat.h"
 #include "Interfaces/IShaderFormatModule.h"
+#include "DxcWrapper.h"
 #include "HAL/PlatformProcess.h"
 #include "Misc/Paths.h"
 
@@ -73,9 +74,9 @@ public:
  * Module for D3D shaders
  */
 
-static IShaderFormat* Singleton = NULL;
+static IShaderFormat* Singleton = nullptr;
 
-class FShaderFormatD3DModule : public IShaderFormatModule
+class FShaderFormatD3DModule : public IShaderFormatModule, public FDxcModuleWrapper
 {
 	void* DllHandleSC = nullptr;
 	void* DllHandleDXC = nullptr;
@@ -127,8 +128,9 @@ public:
 		}
 
 		delete Singleton;
-		Singleton = NULL;
+		Singleton = nullptr;
 	}
+
 	virtual IShaderFormat* GetShaderFormat()
 	{
 		if (!Singleton)

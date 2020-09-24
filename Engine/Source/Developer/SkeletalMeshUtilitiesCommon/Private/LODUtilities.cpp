@@ -21,7 +21,6 @@
 #include "HAL/ThreadSafeBool.h"
 
 #include "ObjectTools.h"
-#include "ScopedTransaction.h"
 
 #if WITH_APEX_CLOTHING
 	#include "ApexClothingUtils.h"
@@ -266,45 +265,147 @@ bool FLODUtilities::RegenerateLOD(USkeletalMesh* SkeletalMesh, int32 NewLODCount
 	return false;
 }
 
+namespace RemoveLODHelper
+{
+	void GetDependentLODs(USkeletalMesh* SkeletalMesh, const int32 RefLODIndex, TArray<int32>& DependentLODs)
+	{
+		if (!SkeletalMesh || RefLODIndex >= SkeletalMesh->GetLODNum()-1)
+		{
+			return;
+		}
+		int32 LODCount = SkeletalMesh->GetLODNum();
+		FSkeletalMeshModel* SkelMeshModel = SkeletalMesh->GetImportedModel();
+		for (int32 LODIndex = RefLODIndex + 1; LODIndex < LODCount; ++LODIndex)
+		{
+			if (!SkeletalMesh->IsReductionActive(LODIndex))
+			{
+				continue;
+			}
+			const FSkeletalMeshLODInfo* LODInfo = SkeletalMesh->GetLODInfo(LODIndex);
+			if (!LODInfo)
+			{
+				continue;
+			}
+			if (LODInfo->ReductionSettings.BaseLOD == RefLODIndex)
+			{
+				DependentLODs.Add(LODIndex);
+			}
+		}
+	}
+
+	void AdjustReductionSettings(USkeletalMesh* SkeletalMesh, const int32 DestinationLODIndex, const int32 SourceLODIndex)
+	{
+		FSkeletalMeshLODInfo* DestinationLODInfo = SkeletalMesh->GetLODInfo(DestinationLODIndex);
+		const FSkeletalMeshLODInfo* SourceLODInfo = SkeletalMesh->GetLODInfo(SourceLODIndex);
+		if (!DestinationLODInfo || !SourceLODInfo)
+		{
+			return;
+		}
+		//Adjust percent so we end up with the same amount.
+		DestinationLODInfo->ReductionSettings.NumOfTrianglesPercentage /= SourceLODInfo->ReductionSettings.NumOfTrianglesPercentage;
+		DestinationLODInfo->ReductionSettings.NumOfVertPercentage /= SourceLODInfo->ReductionSettings.NumOfVertPercentage;
+	}
+} //End namspace RemoveLODHelper
+
 void FLODUtilities::RemoveLOD(FSkeletalMeshUpdateContext& UpdateContext, int32 DesiredLOD )
 {
 	USkeletalMesh* SkeletalMesh = UpdateContext.SkeletalMesh;
 	FSkeletalMeshModel* SkelMeshModel = SkeletalMesh->GetImportedModel();
 
-	if(SkelMeshModel->LODModels.Num() == 1 )
+	if(SkelMeshModel->LODModels.Num() <= 1)
 	{
-		FMessageDialog::Open( EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "NoLODToRemove", "No LODs to remove!") );
+		if(!FApp::IsUnattended())
+		{
+			FMessageDialog::Open( EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "NoLODToRemove", "No LODs to remove!") );
+		}
+		UE_LOG(LogLODUtilities, Warning, TEXT("Cannot remove LOD {0}, there must be at least one LOD after the removal."), DesiredLOD);
 		return;
-	}
-
-	// Now display combo to choose which LOD to remove.
-	TArray<FString> LODStrings;
-	LODStrings.AddZeroed(SkelMeshModel->LODModels.Num()-1 );
-	for(int32 i=0; i<SkelMeshModel->LODModels.Num()-1; i++)
-	{
-		LODStrings[i] = FString::Printf( TEXT("%d"), i+1 );
 	}
 
 	check( SkeletalMesh->GetLODNum() == SkelMeshModel->LODModels.Num() );
 
-	// If its a valid LOD, kill it.
-	if( DesiredLOD > 0 && DesiredLOD < SkelMeshModel->LODModels.Num() )
+	// If its a valid LOD, remove it.
+	if(DesiredLOD < SkelMeshModel->LODModels.Num() )
 	{
 		FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkeletalMesh);
 
-		// Block until this is done
+		//Get the dependent generated LODs
+		TArray<int32> DependentLODs;
+		RemoveLODHelper::GetDependentLODs(SkeletalMesh, DesiredLOD, DependentLODs);
 
-		SkelMeshModel->LODModels.RemoveAt(DesiredLOD);
-		SkeletalMesh->RemoveLODInfo(DesiredLOD);
-		RefreshLODChange(SkeletalMesh);
-
-		// Set the forced LOD to Auto.
-		for(auto Iter = UpdateContext.AssociatedComponents.CreateIterator(); Iter; ++Iter)
+		//Adjust LODInfo properties to be in sync with the LOD removal. We reverse iterate because we want to restore some LOD info property from the previous LOD
+		for (int32 NextLODIndex = SkeletalMesh->GetLODNum() -1; NextLODIndex > DesiredLOD; NextLODIndex--)
 		{
-			USkinnedMeshComponent* SkinnedComponent = Cast<USkinnedMeshComponent>(*Iter);
-			if(SkinnedComponent)
+			const FSkeletalMeshLODInfo* PreviousLODInfo = SkeletalMesh->GetLODInfo(NextLODIndex-1);
+			FSkeletalMeshLODInfo* NextLODInfo = SkeletalMesh->GetLODInfo(NextLODIndex);
+			if (!NextLODInfo)
 			{
-				SkinnedComponent->SetForcedLOD(0);
+				continue;
+			}
+
+			//Adjust the reduction baseLOD
+			if(SkeletalMesh->IsReductionActive(NextLODIndex) && NextLODInfo->ReductionSettings.BaseLOD > DesiredLOD)
+			{
+				NextLODInfo->ReductionSettings.BaseLOD--;
+			}
+			
+			//Propagate someproperties we need to take from the previous LOD
+			if (PreviousLODInfo)
+			{
+				//Screen size
+				NextLODInfo->ScreenSize = PreviousLODInfo->ScreenSize;
+			}
+		}
+
+		//Adjust the imported data so it point on the correct LOD index
+		if (DependentLODs.Num() > 0 && !SkeletalMesh->IsLODImportedDataEmpty(DesiredLOD))
+		{
+			int32 FirstDepLODIndex = DependentLODs[0];
+			FSkeletalMeshLODInfo* FirstDepLODInfo = SkeletalMesh->GetLODInfo(FirstDepLODIndex);
+			if (FirstDepLODInfo)
+			{
+				FSkeletalMeshImportData ToRemovedLODImportData;
+				SkeletalMesh->LoadLODImportedData(DesiredLOD, ToRemovedLODImportData);
+				//Override imported data with the original source imported data (we are depending on the LOD we want to removed)
+				SkeletalMesh->SaveLODImportedData(FirstDepLODIndex, ToRemovedLODImportData);
+
+				//Manage the override original reduction source mesh data
+				if (SkelMeshModel->OriginalReductionSourceMeshData.IsValidIndex(FirstDepLODIndex) && SkelMeshModel->OriginalReductionSourceMeshData[FirstDepLODIndex])
+				{
+					if(SkeletalMesh->IsLODImportedDataBuildAvailable(DesiredLOD))
+					{
+						//Empty the OriginalReductionSourceMeshData it will be recreate when we will rebuild the asset
+						SkelMeshModel->OriginalReductionSourceMeshData[FirstDepLODIndex]->EmptyBulkData();
+					}
+					//If we are modifying an old asset we have to duplicate the original reduction source mesh data from the source model
+					else if(SkelMeshModel->OriginalReductionSourceMeshData.IsValidIndex(DesiredLOD) &&
+						SkelMeshModel->OriginalReductionSourceMeshData[DesiredLOD] &&
+						!SkelMeshModel->OriginalReductionSourceMeshData[DesiredLOD]->IsEmpty())
+					{
+						//If there is no build copy the one from the DesiredLOD
+						FSkeletalMeshLODModel LODModel;
+						TMap<FString, TArray<FMorphTargetDelta>> BaseLODMorphTargetData;
+						SkelMeshModel->OriginalReductionSourceMeshData[DesiredLOD]->LoadReductionData(LODModel, BaseLODMorphTargetData, SkeletalMesh);
+						SkelMeshModel->OriginalReductionSourceMeshData[FirstDepLODIndex]->SaveReductionData(LODModel, BaseLODMorphTargetData, SkeletalMesh);
+					}
+				}
+
+				//Adjust Reduction settings
+				FirstDepLODInfo->ReductionSettings.BaseLOD = FirstDepLODIndex - 1;
+				RemoveLODHelper::AdjustReductionSettings(SkeletalMesh, FirstDepLODIndex, DesiredLOD);
+				//Do the adjustment for the other dependent LODs
+				for (int32 DependentLODsIndex = 1; DependentLODsIndex < DependentLODs.Num(); ++DependentLODsIndex)
+				{
+					int32 DepLODIndex = DependentLODs[DependentLODsIndex];
+					FSkeletalMeshLODInfo* DepLODInfo = SkeletalMesh->GetLODInfo(DepLODIndex);
+					if (!DepLODInfo)
+					{
+						continue;
+					}
+					//Adjust Reduction settings
+					DepLODInfo->ReductionSettings.BaseLOD = FirstDepLODIndex - 1;
+					RemoveLODHelper::AdjustReductionSettings(SkeletalMesh, DepLODIndex, FirstDepLODIndex);
+				}
 			}
 		}
 
@@ -317,11 +418,92 @@ void FLODUtilities::RemoveLOD(FSkeletalMeshUpdateContext& UpdateContext, int32 D
 			}
 		}
 
+		SkelMeshModel->LODModels.RemoveAt(DesiredLOD);
+		SkeletalMesh->RemoveLODInfo(DesiredLOD);
+		RefreshLODChange(SkeletalMesh);
+
+		// Adjust the force LOD to point on the same one, if we are forcing a LOD greater then the one we delete, we want to continue pointing on it
+		// If we delete the LOD we are loking at, we fall back on auto LOD
+		for(auto Iter = UpdateContext.AssociatedComponents.CreateIterator(); Iter; ++Iter)
+		{
+			USkinnedMeshComponent* SkinnedComponent = Cast<USkinnedMeshComponent>(*Iter);
+			if(SkinnedComponent)
+			{
+				int32 CurrentForceLOD = SkinnedComponent->GetForcedLOD();
+				CurrentForceLOD = CurrentForceLOD == 0 ? 0 : CurrentForceLOD-1;
+				if(CurrentForceLOD == DesiredLOD)
+				{
+					SkinnedComponent->SetForcedLOD(0);
+				}
+				else if (CurrentForceLOD > DesiredLOD)
+				{
+					//Set back the force LOD, CurrentForceLOD was reduce by one so we simply set it.
+					SkinnedComponent->SetForcedLOD(CurrentForceLOD);
+				}
+			}
+		}
+
 		//Notify calling system of change
 		UpdateContext.OnLODChanged.ExecuteIfBound();
 
 		// Mark things for saving.
 		SkeletalMesh->MarkPackageDirty();
+	}
+}
+
+void FLODUtilities::RemoveLODs(FSkeletalMeshUpdateContext& UpdateContext, const TArray<int32>& DesiredLODs)
+{
+	USkeletalMesh* SkeletalMesh = UpdateContext.SkeletalMesh;
+	FSkeletalMeshModel* SkelMeshModel = SkeletalMesh->GetImportedModel();
+
+	auto NoLODToRemoveDialog = []()
+	{
+		if (!FApp::IsUnattended())
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "NoLODToRemove", "No LODs to remove!"));
+		}
+		UE_LOG(LogLODUtilities, Warning, TEXT("No LOD to remove or there must be at least one LOD after we remove this one."));
+		
+	};
+
+	if (SkelMeshModel->LODModels.Num() <= 1 || DesiredLODs.Num() < 1)
+	{
+		NoLODToRemoveDialog();
+		return;
+	}
+
+	check(SkeletalMesh->GetLODNum() == SkelMeshModel->LODModels.Num());
+
+	TArray<int32> SortedDesiredLODs;
+	for (int32 DesiredLODIndex = 0; DesiredLODIndex < DesiredLODs.Num(); ++DesiredLODIndex)
+	{
+		int32 DesiredLOD = DesiredLODs[DesiredLODIndex];
+		if (SkelMeshModel->LODModels.Num() > 1 && SkelMeshModel->LODModels.IsValidIndex(DesiredLOD))
+		{
+			SortedDesiredLODs.Add(DesiredLOD);
+		}
+		else
+		{
+			UE_LOG(LogLODUtilities, Warning, TEXT("Cannot remove LOD {0}"), DesiredLOD);
+		}
+	}
+
+	if (SortedDesiredLODs.Num() < 1)
+	{
+		NoLODToRemoveDialog();
+		return;
+	}
+
+	{
+		FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkeletalMesh);
+		//Sort the LODs and reverse iterate the sorted array to remove the LODs from the end to avoid having to remap LODs index in the sortedDesiredLODs array
+		SortedDesiredLODs.Sort();
+		for (int32 SortedDesiredLODIndex = SortedDesiredLODs.Num()-1; SortedDesiredLODIndex >= 0 ; SortedDesiredLODIndex--)
+		{
+			int32 LODToRemove = SortedDesiredLODs[SortedDesiredLODIndex];
+			check(SkelMeshModel->LODModels.IsValidIndex(LODToRemove))
+			FLODUtilities::RemoveLOD(UpdateContext, LODToRemove);
+		}
 	}
 }
 
@@ -1814,7 +1996,7 @@ bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDe
 				SkeletalMeshImportData::FRawBoneInfluence AlternateInfluence;
 				AlternateInfluence.BoneIndex = BoneIndexDest;
 				AlternateInfluence.VertexIndex = VertexIndexDest;
-				AlternateInfluence.Weight = InfluenceSrc.Weight;
+				AlternateInfluence.Weight = InfluenceSrc.Weight* Ratio;
 				int32 AlternateInfluencesIndex = AlternateInfluences.Add(AlternateInfluence);
 				AlternateInfluencesMap.Add(AlternateInfluencesIndex);
 			}
@@ -1944,7 +2126,7 @@ bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDe
 	AdjustImportDataFaceMaterialIndex(SkeletalMeshDest->Materials, ImportDataDest.Materials, LODFacesDest, LODIndexDest);
 
 	//Build the destination mesh with the Alternate influences, so the chunking is done properly.
-	bBuildSuccess = MeshUtilities.BuildSkeletalMesh(LODModelDest, RefSkeleton, LODInfluencesDest, LODWedgesDest, LODFacesDest, LODPointsDest, LODPointToRawMapDest, BuildOptions, &WarningMessages, &WarningNames);
+	bBuildSuccess = MeshUtilities.BuildSkeletalMesh(LODModelDest, SkeletalMeshDest->GetName(), RefSkeleton, LODInfluencesDest, LODWedgesDest, LODFacesDest, LODPointsDest, LODPointToRawMapDest, BuildOptions, &WarningMessages, &WarningNames);
 	//Re-Apply the user section changes, the UserSectionsData is map to original section and should match the builded LODModel
 	LODModelDest.SyncronizeUserSectionsDataArray();
 
@@ -2822,6 +3004,426 @@ void FLODUtilities::AdjustImportDataFaceMaterialIndex(const TArray<FSkeletalMate
 		}
 	}
 }
+namespace TriangleStripHelper
+{
+	struct FTriangle2D
+	{
+		FVector2D Vertices[3];
+	};
 
+	bool IntersectTriangleAndAABB(const FTriangle2D& Triangle, const FBox2D& Box)
+	{
+		FBox2D TriangleBox(Triangle.Vertices[0], Triangle.Vertices[0]);
+		TriangleBox += Triangle.Vertices[1];
+		TriangleBox += Triangle.Vertices[2];
+
+		auto IntersectBoxes = [&TriangleBox, &Box]()-> bool
+		{
+			if ((FMath::RoundToInt(TriangleBox.Min.X) >= FMath::RoundToInt(Box.Max.X)) || (FMath::RoundToInt(Box.Min.X) >= FMath::RoundToInt(TriangleBox.Max.X)))
+			{
+				return false;
+			}
+
+			if ((FMath::RoundToInt(TriangleBox.Min.Y) >= FMath::RoundToInt(Box.Max.Y)) || (FMath::RoundToInt(Box.Min.Y) >= FMath::RoundToInt(TriangleBox.Max.Y)))
+			{
+				return false;
+			}
+
+			return true;
+		};
+
+		//If the triangle box do not intersect, return false
+		if (!IntersectBoxes())
+		{
+			return false;
+		}
+
+		auto IsInsideBox = [&Box](const FVector2D& TestPoint)->bool
+		{
+			return ((FMath::RoundToInt(TestPoint.X) >= FMath::RoundToInt(Box.Min.X)) &&
+					(FMath::RoundToInt(TestPoint.X) <= FMath::RoundToInt(Box.Max.X)) &&
+					(FMath::RoundToInt(TestPoint.Y) >= FMath::RoundToInt(Box.Min.Y)) &&
+					(FMath::RoundToInt(TestPoint.Y) <= FMath::RoundToInt(Box.Max.Y)) );
+		};
+
+		if( IsInsideBox(Triangle.Vertices[0]) ||
+			IsInsideBox(Triangle.Vertices[1]) ||
+			IsInsideBox(Triangle.Vertices[2]) )
+		{
+			return true;
+		}
+
+		auto SegmentIntersection2D = [](const FVector2D & SegmentStartA, const FVector2D & SegmentEndA, const FVector2D & SegmentStartB, const FVector2D & SegmentEndB)
+		{
+			const FVector2D VectorA = SegmentEndA - SegmentStartA;
+			const FVector2D VectorB = SegmentEndB - SegmentStartB;
+
+			const float S = (-VectorA.Y * (SegmentStartA.X - SegmentStartB.X) + VectorA.X * (SegmentStartA.Y - SegmentStartB.Y)) / (-VectorB.X * VectorA.Y + VectorA.X * VectorB.Y);
+			const float T = (VectorB.X * (SegmentStartA.Y - SegmentStartB.Y) - VectorB.Y * (SegmentStartA.X - SegmentStartB.X)) / (-VectorB.X * VectorA.Y + VectorA.X * VectorB.Y);
+
+			return (S >= 0 && S <= 1 && T >= 0 && T <= 1);
+		};
+
+		auto IsInsideTriangle = [&Triangle, &SegmentIntersection2D, &Box, &TriangleBox](const FVector2D& TestPoint)->bool
+		{
+			float Extent = (2.0f * Box.GetSize().Size()) + (2.0f * TriangleBox.GetSize().Size());
+			FVector2D TestPointExtend(Extent, Extent);
+			int32 IntersectionCount = SegmentIntersection2D(Triangle.Vertices[0], Triangle.Vertices[1], TestPoint, TestPoint + TestPointExtend) ? 1 : 0;
+			IntersectionCount += SegmentIntersection2D(Triangle.Vertices[1], Triangle.Vertices[2], TestPoint, TestPoint + TestPointExtend) ? 1 : 0;
+			IntersectionCount += SegmentIntersection2D(Triangle.Vertices[2], Triangle.Vertices[0], TestPoint, TestPoint + TestPointExtend) ? 1 : 0;
+			return (IntersectionCount == 1);
+		};
+	
+		if (IsInsideTriangle(Box.Min) ||
+			IsInsideTriangle(Box.Max) ||
+			IsInsideTriangle(FVector2D(Box.Min.X, Box.Max.Y)) ||
+			IsInsideTriangle(FVector2D(Box.Max.X, Box.Min.Y)))
+		{
+			return true;
+		}
+
+		auto IsTriangleEdgeIntersectBoxEdges = [&SegmentIntersection2D, &Box]( const FVector2D& EdgeStart, const FVector2D& EdgeEnd)->bool
+		{
+			//Triangle Edges 0-1 intersection with box
+			if( SegmentIntersection2D(EdgeStart, EdgeEnd, Box.Min, FVector2D(Box.Min.X, Box.Max.Y)) ||
+				SegmentIntersection2D(EdgeStart, EdgeEnd, Box.Max, FVector2D(Box.Min.X, Box.Max.Y)) ||
+				SegmentIntersection2D(EdgeStart, EdgeEnd, Box.Max, FVector2D(Box.Max.X, Box.Min.Y)) ||
+				SegmentIntersection2D(EdgeStart, EdgeEnd, Box.Min, FVector2D(Box.Max.X, Box.Min.Y)) )
+			{
+				return true;
+			}
+			return false;
+		};
+
+		if( IsTriangleEdgeIntersectBoxEdges(Triangle.Vertices[0], Triangle.Vertices[1]) ||
+			IsTriangleEdgeIntersectBoxEdges(Triangle.Vertices[1], Triangle.Vertices[2]) || 
+			IsTriangleEdgeIntersectBoxEdges(Triangle.Vertices[2], Triangle.Vertices[0]))
+		{
+			return true;
+		}
+		return false;
+	}
+} //End namespace TriangleStripHelper
+
+bool FLODUtilities::StripLODGeometry(USkeletalMesh* SkeletalMesh, const int32 LODIndex, UTexture2D* TextureMask, const float Threshold)
+{
+	if (LODIndex < 0 || LODIndex >= SkeletalMesh->GetLODNum() || !SkeletalMesh->GetImportedModel() || !SkeletalMesh->GetImportedModel()->LODModels.IsValidIndex(LODIndex) || !TextureMask)
+	{
+		UE_LOG(LogLODUtilities, Warning, TEXT("Cannot strip triangle for skeletalmesh %s LOD %d."), *SkeletalMesh->GetPathName(), LODIndex);
+		return false;
+	}
+	
+	//Grab the reference data
+	FSkeletalMeshLODModel& LODModel = SkeletalMesh->GetImportedModel()->LODModels[LODIndex];
+	const FSkeletalMeshLODInfo& LODInfo = *(SkeletalMesh->GetLODInfo(LODIndex));
+	const bool bIsReductionActive = SkeletalMesh->IsReductionActive(LODIndex);
+	if (bIsReductionActive && LODInfo.ReductionSettings.BaseLOD < LODIndex)
+	{
+		//No need to strip if the LOD is reduce using another LOD as the source data
+		UE_LOG(LogLODUtilities, Warning, TEXT("Cannot strip triangle for skeletalmesh %s LOD %d. Because this LOD is generated, strip the source instead."), *SkeletalMesh->GetPathName(), LODIndex);
+		return false;
+	}
+
+	//Check the texture mask source data, it must be valid
+	FTextureSource& InitialSource = TextureMask->Source;
+	const int32 ResX = InitialSource.GetSizeX();
+	const int32 ResY = InitialSource.GetSizeY();
+	const int32 FormatDataSize = InitialSource.GetBytesPerPixel();
+	if (FormatDataSize <= 0)
+	{
+		UE_LOG(LogLODUtilities, Warning, TEXT("Cannot strip triangle for skeletalmesh %s LOD %d. Because the texture format size is 0."), *SkeletalMesh->GetPathName(), LODIndex);
+		return false;
+	}
+	ETextureSourceFormat SourceFormat = InitialSource.GetFormat();
+	if (SourceFormat <= TSF_Invalid || SourceFormat >= TSF_MAX)
+	{
+		UE_LOG(LogLODUtilities, Warning, TEXT("Cannot strip triangle for skeletalmesh %s LOD %d. Because the texture format is invalid."), *SkeletalMesh->GetPathName(), LODIndex);
+		return false;
+	}
+	TArray64<uint8> Ref2DData;
+	if (!InitialSource.GetMipData(Ref2DData, 0, nullptr))
+	{
+		UE_LOG(LogLODUtilities, Warning, TEXT("Cannot strip triangle for skeletalmesh %s LOD %d. Because the texture data cannot be extracted."), *SkeletalMesh->GetPathName(), LODIndex);
+		return false;
+	}
+
+	//Post edit change scope
+	{
+		FScopedSkeletalMeshPostEditChange ScopePostEditChange(SkeletalMesh);
+		//This is like a re-import, we must force to use a new DDC
+		SkeletalMesh->InvalidateDeriveDataCacheGUID();
+		const bool bContainImportedData = SkeletalMesh->IsLODImportedDataEmpty(LODIndex);
+		const bool bBuildAvailable = SkeletalMesh->IsLODImportedDataBuildAvailable(LODIndex);
+		FSkeletalMeshImportData ImportedData;
+		//Get the imported data if available
+		if (bBuildAvailable)
+		{
+			SkeletalMesh->LoadLODImportedData(LODIndex, ImportedData);
+		}
+		SkeletalMesh->Modify();
+		
+		const float ThresholdClamp = FMath::Clamp(Threshold, 0.0f, 1.0f);
+		const uint8 Threshold8 = (uint8)FMath::FloorToInt(ThresholdClamp * (float)(0xFF));
+		const uint16 Threshold16 = (uint16)FMath::FloorToInt(ThresholdClamp * (float)(0xFFFF));
+
+		auto ShouldStripTriangle = [&InitialSource, &ResX, &ResY, &FormatDataSize, &Ref2DData, &SourceFormat, &Threshold, &Threshold8, &Threshold16](const FVector2D& UvA, const FVector2D& UvB, const FVector2D& UvC)->bool
+		{
+			FVector2D PixelUvA = FVector2D(FMath::FloorToInt(UvA.X * (float)ResX) % (ResX + 1), FMath::FloorToInt(UvA.Y * (float)ResY) % (ResY + 1));
+			FVector2D PixelUvB = FVector2D(FMath::FloorToInt(UvB.X * (float)ResX) % (ResX + 1), FMath::FloorToInt(UvB.Y * (float)ResY) % (ResY + 1));
+			FVector2D PixelUvC = FVector2D(FMath::FloorToInt(UvC.X * (float)ResX) % (ResX + 1), FMath::FloorToInt(UvC.Y * (float)ResY) % (ResY + 1));
+
+			int32 MinU = FMath::Clamp(FMath::Min3<int32>(PixelUvA.X, PixelUvB.X, PixelUvC.X), 0, ResX);
+			int32 MinV = FMath::Clamp(FMath::Min3<int32>(PixelUvA.Y, PixelUvB.Y, PixelUvC.Y), 0, ResY);
+			int32 MaxU = FMath::Clamp(FMath::Max3<int32>(PixelUvA.X, PixelUvB.X, PixelUvC.X), 0, ResX);
+			int32 MaxV = FMath::Clamp(FMath::Max3<int32>(PixelUvA.Y, PixelUvB.Y, PixelUvC.Y), 0, ResY);
+
+			//Do not read the alpha value when testing the texture value
+			auto IsPixelZero = [&Ref2DData, &InitialSource, &SourceFormat, &FormatDataSize, &Threshold, &Threshold8, &Threshold16](int32 PosX, int32 PosY) -> bool
+			{
+				uint8 CurPos[16];
+				const int32 RefPos = PosX + (PosY * InitialSource.GetSizeX());
+				FMemory::Memcpy(&(CurPos[0]), Ref2DData.GetData() + (RefPos * FormatDataSize), FormatDataSize);
+				bool bPixelIsZero = true;
+				switch (SourceFormat)
+				{
+				case TSF_BGRA8:
+				case TSF_BGRE8:
+				case TSF_RGBA8:
+				case TSF_RGBE8:
+				{
+					
+					if (CurPos[0] > Threshold8 || CurPos[1] > Threshold8 || CurPos[2] > Threshold8)
+					{
+						bPixelIsZero = false;
+					}
+				}
+				break;
+				case TSF_G8:
+				{
+					bPixelIsZero = !(CurPos[0] > Threshold8);
+				}
+				break;
+				case TSF_G16:
+				{
+					bPixelIsZero = !(((uint16*)(&CurPos[0]))[0] > Threshold16);
+				}
+				break;
+				
+				break;
+				case TSF_RGBA16:
+				case TSF_RGBA16F:
+				{
+					FFloat16 HalfValueR = *(FFloat16*)(&CurPos[0]);
+					FFloat16 HalfValueG = *(FFloat16*)(&CurPos[2]);
+					FFloat16 HalfValueB = *(FFloat16*)(&CurPos[4]);
+					if ( !FMath::IsNearlyZero(float(HalfValueR), Threshold) || !FMath::IsNearlyZero(float(HalfValueG), Threshold) || !FMath::IsNearlyZero(float(HalfValueB), Threshold) )
+					{
+						bPixelIsZero = false;
+					}
+				}
+				break;
+				default:
+					//Unknown format
+					return false;
+				}
+				return bPixelIsZero;
+			};
+
+			//Triangle smaller or equal to one pixel just need to test the pixel color value
+			if (MinU == MaxU || MinV == MaxV)
+			{
+				return IsPixelZero(MinU, MinV);
+			}
+
+			for (int32 PosY = MinV; PosY < MaxV; ++PosY)
+			{
+				for (int32 PosX = MinU; PosX < MaxU; ++PosX)
+				{
+					bool bStripPixel = IsPixelZero(PosX, PosY);
+
+					//if any none zeroed pixel intersect the triangle, prevent stripping of this triangle
+					if (!bStripPixel)
+					{
+						FVector2D StartPixel((float)PosX, (float)PosY);
+						FVector2D EndPixel((float)(PosX+1), (float)(PosY + 1));
+						FBox2D Box2D(StartPixel, EndPixel);
+						//Test if the triangle UV touch this pixel
+						TriangleStripHelper::FTriangle2D Triangle;
+						Triangle.Vertices[0] = PixelUvA;
+						Triangle.Vertices[1] = PixelUvB;
+						Triangle.Vertices[2] = PixelUvC;
+						if(TriangleStripHelper::IntersectTriangleAndAABB(Triangle, Box2D))
+						{
+							return false;
+						}
+					}
+				}
+			}
+			return true;
+		};
+
+		TArray< uint32 > SoftVertexIndexToImportDataPointIndex;
+		if (LODModel.RawPointIndices.GetBulkDataSize())
+		{
+			SoftVertexIndexToImportDataPointIndex.Empty(LODModel.RawPointIndices.GetElementCount());
+			SoftVertexIndexToImportDataPointIndex.AddUninitialized(LODModel.RawPointIndices.GetElementCount());
+			FMemory::Memcpy(SoftVertexIndexToImportDataPointIndex.GetData(), LODModel.RawPointIndices.Lock(LOCK_READ_ONLY), LODModel.RawPointIndices.GetBulkDataSize());
+			LODModel.RawPointIndices.Unlock();
+		}
+
+		
+		
+		TMap<uint64, TArray<int32>> OptimizedFaceFinder;
+		
+		auto GetMatchFaceIndex = [&OptimizedFaceFinder, &ImportedData](const int32 FaceVertexA, const int32 FaceVertexB, int32 FaceVertexC)->int32
+		{
+			uint64 Key = (uint64)FaceVertexA | ((uint64)FaceVertexB >> 32) | (((uint64)FaceVertexC & 0xFFFF) >> 48);
+			TArray<int32>& FaceIndices = OptimizedFaceFinder.FindChecked(Key);
+			for (int32 PossibleFaceIndex = 0; PossibleFaceIndex < FaceIndices.Num(); ++PossibleFaceIndex)
+			{
+				int32 FaceIndex = FaceIndices[PossibleFaceIndex];
+				const SkeletalMeshImportData::FTriangle& Face = ImportedData.Faces[FaceIndex];
+				if (FaceVertexA == ImportedData.Wedges[Face.WedgeIndex[0]].VertexIndex)
+				{
+					if (FaceVertexB == ImportedData.Wedges[Face.WedgeIndex[1]].VertexIndex)
+					{
+						if (FaceVertexC == ImportedData.Wedges[Face.WedgeIndex[2]].VertexIndex)
+						{
+							return FaceIndex;
+						}
+					}
+				}
+			}
+			return INDEX_NONE;
+		};
+
+		for (int32 FaceIndex = 0; FaceIndex < ImportedData.Faces.Num(); ++FaceIndex)
+		{
+			const SkeletalMeshImportData::FTriangle& Face = ImportedData.Faces[FaceIndex];
+			int32 FaceVertexA = ImportedData.Wedges[Face.WedgeIndex[0]].VertexIndex;
+			int32 FaceVertexB = ImportedData.Wedges[Face.WedgeIndex[1]].VertexIndex;
+			int32 FaceVertexC = ImportedData.Wedges[Face.WedgeIndex[2]].VertexIndex;
+			uint64 Key = (uint64)FaceVertexA | ((uint64)FaceVertexB >> 32) | (((uint64)FaceVertexC & 0xFFFF) >> 48);
+			TArray<int32>& FaceIndices = OptimizedFaceFinder.FindOrAdd(Key);
+			FaceIndices.Add(FaceIndex);
+		}
+
+		int32 RemovedFaceCount = 0;
+		TBitArray<> FaceToRemove;
+		FaceToRemove.Init(false, ImportedData.Faces.Num());
+		int32 NumTriangleIndex = LODModel.IndexBuffer.Num();
+		for (int32 TriangleIndex = NumTriangleIndex - 1; TriangleIndex >= 0; TriangleIndex -= 3)
+		{
+			int32 VertexIndexA = LODModel.IndexBuffer[TriangleIndex - 2];
+			int32 VertexIndexB = LODModel.IndexBuffer[TriangleIndex - 1];
+			int32 VertexIndexC = LODModel.IndexBuffer[TriangleIndex];
+			int32 SectionIndex;
+			int32 SectionVertexIndexA;
+			int32 SectionVertexIndexB;
+			int32 SectionVertexIndexC;
+			LODModel.GetSectionFromVertexIndex(VertexIndexA, SectionIndex, SectionVertexIndexA);
+			LODModel.GetSectionFromVertexIndex(VertexIndexB, SectionIndex, SectionVertexIndexB);
+			LODModel.GetSectionFromVertexIndex(VertexIndexC, SectionIndex, SectionVertexIndexC);
+			FSkelMeshSection& Section = LODModel.Sections[SectionIndex];
+			//Get the UV triangle, add the small number that will act like threshold when converting the UV into pixel coordinate.
+			FVector2D UvA = Section.SoftVertices[SectionVertexIndexA].UVs[0] + KINDA_SMALL_NUMBER;
+			FVector2D UvB = Section.SoftVertices[SectionVertexIndexB].UVs[0] + KINDA_SMALL_NUMBER;
+			FVector2D UvC = Section.SoftVertices[SectionVertexIndexC].UVs[0] + KINDA_SMALL_NUMBER;
+
+			if (ShouldStripTriangle(UvA, UvB, UvC))
+			{
+				//Find the face in the imported data
+				if (bBuildAvailable)
+				{
+					//Findback the face in the import data
+					int32 ImportedPointIndexA = SoftVertexIndexToImportDataPointIndex[VertexIndexA];
+					int32 ImportedPointIndexB = SoftVertexIndexToImportDataPointIndex[VertexIndexB];
+					int32 ImportedPointIndexC = SoftVertexIndexToImportDataPointIndex[VertexIndexC];
+					int32 FaceIndex = GetMatchFaceIndex(ImportedPointIndexA, ImportedPointIndexB, ImportedPointIndexC);
+					if (FaceIndex != INDEX_NONE)
+					{
+						if (!FaceToRemove[FaceIndex])
+						{
+							FaceToRemove[FaceIndex] = true;
+							RemovedFaceCount++;
+						}
+					}
+				}
+				else
+				{
+					//Remove the source model vertex if there is no build data
+					LODModel.IndexBuffer.RemoveAt(TriangleIndex - 2, 3, false);
+				}
+			}
+		}
+		
+		if(bBuildAvailable && RemovedFaceCount > 0)
+		{
+			//Recreate a new imported data with only the remaining faces
+			FSkeletalMeshImportData StrippedImportedData;
+			StrippedImportedData = ImportedData;
+			StrippedImportedData.Faces.Reset();
+			StrippedImportedData.Wedges.Reset();
+			StrippedImportedData.Points.Reset();
+			StrippedImportedData.PointToRawMap.Reset();
+			StrippedImportedData.Influences.Reset();
+
+			TArray<int32> RemapVertexIndex;
+			RemapVertexIndex.AddZeroed(ImportedData.Points.Num());
+			for (int32 VertexIndex = 0; VertexIndex < ImportedData.Points.Num(); ++VertexIndex)
+			{
+				RemapVertexIndex[VertexIndex] = INDEX_NONE;
+			}
+
+			StrippedImportedData.Faces.AddDefaulted(ImportedData.Faces.Num() - RemovedFaceCount);
+			StrippedImportedData.Wedges.AddDefaulted(StrippedImportedData.Faces.Num()*3);
+			int32 NewFaceIndex = 0;
+			int32 NewWedgeIndex = 0;
+			for (int32 FaceIndex = 0; FaceIndex < ImportedData.Faces.Num(); ++FaceIndex)
+			{
+				//Skip removed faces
+				if (FaceToRemove[FaceIndex])
+				{
+					continue;
+				}
+
+				SkeletalMeshImportData::FTriangle& NewFace = StrippedImportedData.Faces[NewFaceIndex++];
+				NewFace = ImportedData.Faces[FaceIndex];
+				for(int32 FaceWedgeIndex = 0; FaceWedgeIndex < 3; ++FaceWedgeIndex)
+				{
+					SkeletalMeshImportData::FVertex& NewWedge = StrippedImportedData.Wedges[NewWedgeIndex];
+					NewWedge = ImportedData.Wedges[NewFace.WedgeIndex[FaceWedgeIndex]];
+					NewFace.WedgeIndex[FaceWedgeIndex] = NewWedgeIndex;
+					int32 VertexIndex = NewWedge.VertexIndex;
+					if(RemapVertexIndex[VertexIndex] == INDEX_NONE)
+					{
+						StrippedImportedData.PointToRawMap.Add(ImportedData.PointToRawMap[VertexIndex]);
+						NewWedge.VertexIndex = StrippedImportedData.Points.Add(ImportedData.Points[VertexIndex]);
+						RemapVertexIndex[VertexIndex] = NewWedge.VertexIndex;
+					}
+					else
+					{
+						NewWedge.VertexIndex = RemapVertexIndex[VertexIndex];
+					}
+					NewWedgeIndex++;
+				}
+			}
+			
+			//Fix the influences with the RemapVertexIndex
+			for (int32 InfluenceIndex = 0; InfluenceIndex < ImportedData.Influences.Num(); ++InfluenceIndex)
+			{
+				int32 VertexIndex = ImportedData.Influences[InfluenceIndex].VertexIndex;
+				int32 RemappedVertexIndex = RemapVertexIndex[VertexIndex];
+				if(RemappedVertexIndex != INDEX_NONE)
+				{
+					SkeletalMeshImportData::FRawBoneInfluence& Influence = StrippedImportedData.Influences.Add_GetRef(ImportedData.Influences[InfluenceIndex]);
+					Influence.VertexIndex = RemapVertexIndex[VertexIndex];
+				}
+			}
+			SkeletalMesh->SaveLODImportedData(LODIndex, StrippedImportedData);
+		}
+	}
+	return true;
+}
 
 #undef LOCTEXT_NAMESPACE // "LODUtilities"

@@ -6,6 +6,11 @@
 
 #define LOCTEXT_NAMESPACE "MotionTrailEditorModeCommands"
 
+namespace UE
+{
+namespace MotionTrailEditor
+{
+
 void FMotionTrailEditorModeCommands::RegisterCommands()
 {
 	UI_COMMAND(Default, "Default", "Default trail editing tool", EUserInterfaceActionType::ToggleButton, FInputChord());
@@ -23,5 +28,8 @@ void FMotionTrailEditorModeCommands::UnRegisterDynamic(const FName InName)
 	Instance.Pin()->Commands.Remove(InName);
 	Instance.Pin()->CommandsChanged.Broadcast(*(Instance.Pin()));
 }
+
+} // namespace MovieScene
+} // namespace UE
 
 #undef LOCTEXT_NAMESPACE

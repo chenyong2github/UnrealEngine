@@ -19,7 +19,7 @@ struct ENGINE_API FTextureLODGroup
 	FTextureLODGroup()
 		: Group(TEXTUREGROUP_World)
 		, MinLODMipCount(0)
-		, MaxLODMipCount(12)
+		, MaxLODMipCount(32)
 		, LODBias(0)
 		, LODBias_Smaller(-1)
 		, LODBias_Smallest(-1)
@@ -31,13 +31,14 @@ struct ENGINE_API FTextureLODGroup
 		, MaxLODSize_Smallest(-1)
 		, OptionalLODBias(0)
 		, OptionalMaxLODSize(4096)
-		, OptionalMaxLODMipCount(12)
+		, OptionalMaxLODMipCount(32)
 		, MinMagFilter(NAME_Aniso)
 		, MipFilter(NAME_Point)
 		, MipLoadOptions(ETextureMipLoadOptions::AllMips)
 		, DuplicateNonOptionalMips(false)
 		, Downscale(1.0)
 		, DownscaleOptions(ETextureDownscaleOptions::SimpleAverage)
+		, VirtualTextureTileCountBias(0)
 		, VirtualTextureTileSizeBias(0)
 	{
 		SetupGroup();
@@ -113,6 +114,9 @@ struct ENGINE_API FTextureLODGroup
 
 	UPROPERTY()
 	ETextureDownscaleOptions DownscaleOptions;
+
+	UPROPERTY()
+	int32 VirtualTextureTileCountBias;
 
 	UPROPERTY()
 	int32 VirtualTextureTileSizeBias;

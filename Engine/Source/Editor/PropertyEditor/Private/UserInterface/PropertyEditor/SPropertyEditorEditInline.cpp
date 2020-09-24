@@ -62,7 +62,6 @@ public:
 			// When ClassWithin is null, assume it can be owned by anything.
 			return ClassWithin == nullptr || InFilterFuncs->IfMatchesAll_ObjectsSetIsAClass(OwningObjects, ClassWithin) != EFilterReturn::Failed;
 		}
-
 		return false;
 	}
 };

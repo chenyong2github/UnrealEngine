@@ -29,6 +29,7 @@ namespace UnrealBuildTool.Rules
 					"EditorStyle", // For standard styles on most of UI
 					"GraphEditor", // For DragDropOp, might be removed later
 					"InputCore", // For ListView keyboard control
+					"Projects", // So that we can use the IPluginManager, required for our custom style
 					"PropertyEditor",  // For functions that create the property widgets
 					"CinematicCamera",  // So we can check the CineCamera structs exist
 					"SceneOutliner",

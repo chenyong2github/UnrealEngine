@@ -35,7 +35,7 @@ void UNiagaraNodeParameterMapFor::AllocateDefaultPins()
 
 void UNiagaraNodeParameterMapFor::Compile(FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs)
 {
-	TArray<UEdGraphPin*> InputPins;
+	FPinCollectorArray InputPins;
 	GetInputPins(InputPins);
 	if (Translator)
 	{

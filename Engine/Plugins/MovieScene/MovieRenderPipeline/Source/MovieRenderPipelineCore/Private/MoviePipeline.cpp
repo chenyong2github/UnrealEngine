@@ -43,6 +43,9 @@
 #include "MovieSceneExportMetadata.h"
 #endif
 
+#include "Camera/CameraActor.h"
+#include "Camera/CameraComponent.h"
+
 #define LOCTEXT_NAMESPACE "MoviePipeline"
 
 static TAutoConsoleVariable<int32> CVarMovieRenderPipelineFrameStepper(
@@ -89,12 +92,12 @@ void UMoviePipeline::ValidateSequenceAndSettings() const
 		IConsoleVariable* TonemapAlphaCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.PostProcessing.PropagateAlpha"));
 		check(TonemapAlphaCVar);
 
-		TArray<UMoviePipelineOutputBase*> OutputSettings = GetPipelineMasterConfig()->FindSettings<UMoviePipelineOutputBase>();
+		TArray<UMoviePipelineRenderPass*> OutputSettings = GetPipelineMasterConfig()->FindSettings<UMoviePipelineRenderPass>();
 		bool bAnyOutputWantsAlpha = false;
 
-		for (const UMoviePipelineOutputBase* Output : OutputSettings)
+		for (const UMoviePipelineRenderPass* Output : OutputSettings)
 		{
-			bAnyOutputWantsAlpha |= Output->IsAlphaSupported();
+			bAnyOutputWantsAlpha |= Output->IsAlphaInTonemapperRequired();
 		}
 
 		if (bAnyOutputWantsAlpha && TonemapAlphaCVar->GetInt() == 0)
@@ -116,34 +119,26 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 
 	if (!ensureAlwaysMsgf(InJob, TEXT("MoviePipeline cannot be initialized with null job. Aborting.")))
 	{
-		OnMoviePipelineErroredDelegate.Broadcast(this, true, LOCTEXT("MissingJob", "Job was not specified, movie render is aborting."));
-
-		Shutdown();
+		Shutdown(true);
 		return;
 	}
 	
 	if (!ensureAlwaysMsgf(InJob->GetConfiguration(), TEXT("MoviePipeline cannot be initialized with null configuration. Aborting.")))
 	{
-		OnMoviePipelineErroredDelegate.Broadcast(this, true, LOCTEXT("MissingConfiguration", "Job did not specify a configuration, movie render is aborting."));
-
-		Shutdown();
+		Shutdown(true);
 		return;
 	}
 
 	if (!ensureAlwaysMsgf(PipelineState == EMovieRenderPipelineState::Uninitialized, TEXT("Pipeline cannot be reused. Create a new pipeline to execute a job.")))
 	{
-		OnMoviePipelineErroredDelegate.Broadcast(this, true, LOCTEXT("DontReusePipeline", "Attempted to reuse an existing Movie Pipeline. Initialize a new pipeline instead of reusing an existing one."));
-
-		Shutdown();
+		Shutdown(true);
 		return;
 	}
 
 	// Ensure this object has the World as part of its Outer (so that it has context to spawn things)
 	if (!ensureAlwaysMsgf(GetWorld(), TEXT("Pipeline does not contain the world as an outer.")))
 	{
-		OnMoviePipelineErroredDelegate.Broadcast(this, true, LOCTEXT("MissingWorld", "Could not find World in the Outer Path for Pipeline. The world must be an outer to give the Pipeline enough context to spawn things."));
-
-		Shutdown();
+		Shutdown(true);
 		return;
 	}
 
@@ -152,9 +147,7 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 	ULevelSequence* OriginalSequence = Cast<ULevelSequence>(InJob->Sequence.TryLoad());
 	if (!ensureAlwaysMsgf(OriginalSequence, TEXT("Failed to load Sequence Asset from specified path, aborting movie render! Attempted to load Path: %s"), *InJob->Sequence.ToString()))
 	{
-		OnMoviePipelineErroredDelegate.Broadcast(this, true, LOCTEXT("MissingSequence", "Could not load sequence asset, movie render is aborting. Check logs for additional details."));
-
-		Shutdown();
+		Shutdown(true);
 		return;
 	}
 
@@ -344,8 +337,15 @@ void UMoviePipeline::RestoreTargetSequenceToOriginalState()
 }
 
 
-void UMoviePipeline::RequestShutdown()
+void UMoviePipeline::RequestShutdown(bool bIsError)
 {
+	// It's possible for a previous call to RequestionShutdown to have set an error before this call that may not
+	// We don't want to unset a previously set error state
+	if (bIsError)
+	{
+		bFatalError = true;
+	}
+
 	// The user has requested a shutdown, it will be read the next available chance and possibly acted on.
 	bShutdownRequested = true;
 	switch (PipelineState)
@@ -362,9 +362,16 @@ void UMoviePipeline::RequestShutdown()
 	}
 }
 
-void UMoviePipeline::Shutdown()
+void UMoviePipeline::Shutdown(bool bIsError)
 {
 	check(IsInGameThread());
+
+	// It's possible for a previous call to RequestionShutdown to have set an error before this call that may not
+	// We don't want to unset a previously set error state
+	if (bIsError)
+	{
+		bFatalError = true;
+	}
 
 	// This is a blocking operation which abandons any outstanding work to be submitted but finishes
 	// the existing work already processed.
@@ -917,10 +924,10 @@ void UMoviePipeline::InitializeShot(UMoviePipelineExecutorShot* InShot)
 	// Set the new shot as the active shot. This enables the specified shot section and disables all other shot sections.
 	SetSoloShot(InShot);
 
-	if (InShot->ShotOverrideConfig != nullptr)
+	if (InShot->GetShotOverrideConfiguration() != nullptr)
 	{
 		// Any shot-specific overrides haven't had first time initialization. So we'll do that now.
-		for (UMoviePipelineSetting* Setting : InShot->ShotOverrideConfig->GetUserSettings())
+		for (UMoviePipelineSetting* Setting : InShot->GetShotOverrideConfiguration()->GetUserSettings())
 		{
 			Setting->OnMoviePipelineInitialized(this);
 		}
@@ -943,10 +950,10 @@ void UMoviePipeline::TeardownShot(UMoviePipelineExecutorShot* InShot)
 		Container->OnShotFinished(InShot);
 	}
 
-	if (InShot->ShotOverrideConfig != nullptr)
+	if (InShot->GetShotOverrideConfiguration() != nullptr)
 	{
 		// Any shot-specific overrides haven't had first time initialization. So we'll do that now.
-		for (UMoviePipelineSetting* Setting : InShot->ShotOverrideConfig->GetUserSettings())
+		for (UMoviePipelineSetting* Setting : InShot->GetShotOverrideConfiguration()->GetUserSettings())
 		{
 			Setting->OnMoviePipelineShutdown(this);
 		}
@@ -1225,8 +1232,21 @@ MoviePipeline::FFrameConstantMetrics UMoviePipeline::CalculateShotFrameMetrics(c
 	UMoviePipelineCameraSetting* CameraSettings = FindOrAddSetting<UMoviePipelineCameraSetting>(InShot);
 	UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSetting<UMoviePipelineAntiAliasingSetting>(InShot);
 
-	// (CameraShutterAngle/360) gives us the fraction-of-the-output-frame the accumulation frames should cover.
-	Output.ShutterAnglePercentage = FMath::Max(CameraSettings->CameraShutterAngle / 360.0, 1 / 360.0);
+	Output.ShutterAnglePercentage = 0.0;
+
+	if (GetWorld()->GetFirstPlayerController()->PlayerCameraManager)
+	{
+		// This only works if you use a Cine Camera (which is almost guranteed with Sequencer)
+		ACameraActor* CameraActor = Cast<ACameraActor>(GetWorld()->GetFirstPlayerController()->PlayerCameraManager->GetViewTarget());
+		if (CameraActor)
+		{
+			UCameraComponent* CameraComponent = CameraActor->GetCameraComponent();
+			if (CameraComponent)
+			{
+				Output.ShutterAnglePercentage = CameraComponent->PostProcessSettings.MotionBlurAmount;
+			}
+		}
+	}
 
 	{
 		/*
@@ -1241,15 +1261,24 @@ MoviePipeline::FFrameConstantMetrics UMoviePipeline::CalculateShotFrameMetrics(c
 		* we accumulate the sub-tick and choose when to apply it.
 		*/
 
-		// Now we take the amount of time the shutter is open.
-		Output.TicksWhileShutterOpen = Output.TicksPerOutputFrame * Output.ShutterAnglePercentage;
+		// If the shutter angle is effectively zero, lie about how long a frame is to prevent divide by zero
+		if (Output.ShutterAnglePercentage < 1.0 / 360.0)
+		{
+			Output.TicksWhileShutterOpen = Output.TicksPerOutputFrame * (1.0 / 360.0);
+		}
+		else
+		{
+			// Otherwise, calculate the amount of time the shutter is open.
+			Output.TicksWhileShutterOpen = Output.TicksPerOutputFrame * Output.ShutterAnglePercentage;
+		}
 
 		// Divide that amongst all of our accumulation sample frames.
 		Output.TicksPerSample = Output.TicksWhileShutterOpen / AntiAliasingSettings->TemporalSampleCount;
+
 	}
 
-	Output.ShutterClosedFraction = (360 - CameraSettings->CameraShutterAngle) / 360.0;
-	Output.TicksWhileShutterClosed = Output.TicksPerOutputFrame * Output.ShutterClosedFraction;
+	Output.ShutterClosedFraction = 1.0 - Output.ShutterAnglePercentage;
+	Output.TicksWhileShutterClosed = Output.TicksPerOutputFrame - Output.TicksWhileShutterOpen;
 
 	// Shutter Offset
 	switch (CameraSettings->ShutterTiming)
@@ -1284,9 +1313,9 @@ UMoviePipelineMasterConfig* UMoviePipeline::GetPipelineMasterConfig() const
 UMoviePipelineSetting* UMoviePipeline::FindOrAddSetting(TSubclassOf<UMoviePipelineSetting> InSetting, const UMoviePipelineExecutorShot* InShot) const
 {
 	// Check to see if this setting is in the shot override, if it is we'll use the shot version of that.
-	if (InShot->ShotOverrideConfig)
+	if (InShot->GetShotOverrideConfiguration())
 	{
-		UMoviePipelineSetting* Setting = InShot->ShotOverrideConfig->FindSettingByClass(InSetting);
+		UMoviePipelineSetting* Setting = InShot->GetShotOverrideConfiguration()->FindSettingByClass(InSetting);
 		if (Setting)
 		{
 			// If they specified the setting at all, respect the enabled setting. If it's not enabled, we return the
@@ -1304,6 +1333,38 @@ UMoviePipelineSetting* UMoviePipeline::FindOrAddSetting(TSubclassOf<UMoviePipeli
 
 	// If no one overrode it, then we return the default.
 	return InSetting->GetDefaultObject<UMoviePipelineSetting>();
+}
+
+TArray<UMoviePipelineSetting*> UMoviePipeline::FindSettings(TSubclassOf<UMoviePipelineSetting> InSetting, const UMoviePipelineExecutorShot* InShot) const
+{
+	TArray<UMoviePipelineSetting*> FoundSettings;
+
+	// Find all enabled settings of given subclass in the shot override first
+	if (UMoviePipelineShotConfig* ShotOverride = InShot->GetShotOverrideConfiguration())
+	{
+		for (UMoviePipelineSetting* Setting : ShotOverride->FindSettings(InSetting))
+		{
+			if (Setting && Setting->IsEnabled())
+			{
+				FoundSettings.Add(Setting);
+			}
+		}
+	}
+
+	// Add all enabled settings of given subclass not overridden by shot override
+	for (UMoviePipelineSetting* Setting : GetPipelineMasterConfig()->FindSettings(InSetting))
+	{
+		if (Setting && Setting->IsEnabled())
+		{
+			TSubclassOf<UMoviePipelineSetting> SettingClass = Setting->GetClass();
+			if (!FoundSettings.ContainsByPredicate([SettingClass](UMoviePipelineSetting* ExistingSetting) { return ExistingSetting && ExistingSetting->GetClass() == SettingClass; } ))
+			{
+				FoundSettings.Add(Setting);
+			}
+		}
+	}
+
+	return FoundSettings;
 }
 
 static bool CanWriteToFile(const TCHAR* InFilename, bool bOverwriteExisting)

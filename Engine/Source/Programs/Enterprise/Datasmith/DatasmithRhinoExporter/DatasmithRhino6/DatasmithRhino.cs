@@ -32,7 +32,7 @@ namespace DatasmithRhino
 		protected override Rhino.PlugIns.FileTypeList AddFileTypes(Rhino.FileIO.FileWriteOptions options)
 		{
 			var result = new Rhino.PlugIns.FileTypeList();
-			result.AddFileType("Datasmith File (*.udatasmith)", "udatasmith");
+			result.AddFileType("Unreal Datasmith (*.udatasmith)", "udatasmith");
 			return result;
 		}
 
@@ -47,10 +47,7 @@ namespace DatasmithRhino
 		/// <returns>A value that defines success or a specific failure.</returns>
 		protected override Rhino.PlugIns.WriteFileResult WriteFile(string filename, int index, RhinoDoc doc, Rhino.FileIO.FileWriteOptions options)
 		{
-			DatasmithRhinoSceneExporter Exporter = new DatasmithRhinoSceneExporter();
-			bool bSuccess = Exporter.Export(filename, doc);
-
-			return bSuccess ? Rhino.PlugIns.WriteFileResult.Success : Rhino.PlugIns.WriteFileResult.Failure;
+			return DatasmithRhinoSceneExporter.Export(filename, doc, options);
 		}
 	}
 }

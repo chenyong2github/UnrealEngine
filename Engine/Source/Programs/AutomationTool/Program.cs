@@ -22,7 +22,6 @@ namespace AutomationTool
 		/// </summary>
 		static ProcessManager.CtrlHandlerDelegate CtrlHandlerDelegateInstance = CtrlHandler;
 
-		[STAThread]
 		public static int Main(string[] Arguments)
 		{
             // Ensure UTF8Output flag is respected, since we are initializing logging early in the program.
@@ -60,9 +59,10 @@ namespace AutomationTool
 				AssemblyUtils.InstallAssemblyResolver(PathToBinariesDotNET);
 				AssemblyUtils.InstallRecursiveAssemblyResolver(PathToBinariesDotNET);
 
-				// third party directories to look in for CopyLocal=false libs
+				// Ensure that any third-party libraries marked as CopyLocal=false have their folders added as well (if the resolver can't be done locally where the class is used)
 				string PathToBinariesThirdParty = Path.Combine(PathToBinariesDotNET, "..", "ThirdParty");
 				AssemblyUtils.InstallRecursiveAssemblyResolver(Path.Combine(PathToBinariesThirdParty, "Google"));
+				AssemblyUtils.InstallRecursiveAssemblyResolver(Path.Combine(PathToBinariesThirdParty, "AWSSDK"));
 
 				// Initialize the host platform layer
 				HostPlatform.Initialize();

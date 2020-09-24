@@ -21,6 +21,7 @@ class IRemoteSessionUnmanagedRole;
 class UCineCameraComponent;
 class URemoteSessionMediaCapture;
 class URemoteSessionMediaOutput;
+class USceneCaptureComponent2D;
 class UUserWidget;
 class UVirtualCameraMovement;
 class UVPFullScreenUserWidget;
@@ -48,7 +49,7 @@ public:
 	UCineCameraComponent* StreamedCamera;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "VirtualCamera | Component")
-	UCineCameraComponent* RecordingCamera;
+	USceneCaptureComponent2D* SceneCaptureComponent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VirtualCamera | Movement")
 	FLiveLinkSubjectRepresentation LiveLinkSubject;
@@ -81,12 +82,6 @@ protected:
 
 	UPROPERTY(Transient)
 	USceneComponent* DefaultSceneRoot;
-
-	UPROPERTY(Transient)
-	USceneComponent* SceneOffset;
-
-	UPROPERTY(Transient)
-	USceneComponent* CameraOffset;
 
 	UPROPERTY(Transient)
 	AActor* PreviousViewTarget;
@@ -157,8 +152,7 @@ public:
 	virtual UWorld* GetControllerWorld() override;
 protected:
 	virtual UCineCameraComponent* GetStreamedCameraComponent_Implementation() const override;
-	virtual UCineCameraComponent* GetRecordingCameraComponent_Implementation() const override;
-	virtual UCineCameraComponent* GetActiveCameraComponent_Implementation() const override;
+	virtual USceneCaptureComponent2D* GetSceneCaptureComponent_Implementation() const override;
 	virtual ULevelSequencePlaybackController* GetSequenceController_Implementation() const override;
 	virtual TScriptInterface<IVirtualCameraPresetContainer> GetPresetContainer_Implementation() override;
 	virtual TScriptInterface<IVirtualCameraOptions> GetOptions_Implementation() override;
@@ -166,7 +160,6 @@ protected:
 	virtual void SetLiveLinkRepresentation_Implementation(const FLiveLinkSubjectRepresentation& InLiveLinkRepresentation) override;
 	virtual bool IsStreaming_Implementation() const override;
 	virtual void SetSaveSettingsOnStopStreaming_Implementation(bool bShouldSettingsSave) override;
-	virtual void SetRelativeTransform_Implementation(const FTransform& InControllerTransform) override;
 	virtual FTransform GetRelativeTransform_Implementation() const override;
 	virtual void AddBlendableToCamera_Implementation(const TScriptInterface<IBlendableInterface>& InBlendableToAdd, float InWeight) override;
 	virtual void SetFocusDistance_Implementation(float InFocusDistanceCentimeters) override;
@@ -202,8 +195,9 @@ protected:
 
 private:
 
-	void OnImageChannelCreated(TWeakPtr<IRemoteSessionChannel> Instance, const FString& Type, ERemoteSessionChannelMode Mode);
-	void OnInputChannelCreated(TWeakPtr<IRemoteSessionChannel> Instance, const FString& Type, ERemoteSessionChannelMode Mode);
+	void OnRemoteSessionChannelChange(IRemoteSessionRole* Role, TWeakPtr<IRemoteSessionChannel> Channel, ERemoteSessionChannelChange Change);
+	void OnImageChannelCreated(TWeakPtr<IRemoteSessionChannel> Instance);
+	void OnInputChannelCreated(TWeakPtr<IRemoteSessionChannel> Instance);
 
 	void OnTouchEventOutsideUMG(const FVector2D& InViewportPosition);
 
@@ -211,9 +205,6 @@ private:
 	void SaveSettings();
 	/** Restores settings from save game. */
 	void LoadSettings();
-
-	UCineCameraComponent* GetActiveCameraComponentInternal() const;
-	void SetRelativeTransformInternal(const FTransform& InRelativeTransform);
 
 	void UpdateAutoFocus();
 

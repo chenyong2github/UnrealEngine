@@ -21,7 +21,7 @@ struct FRigUnit_MathBoolConstant : public FRigUnit_MathBoolBase
 		Value = false;
 	}
 
-	UPROPERTY(meta=(Output, Constant))
+	UPROPERTY(meta=(Output))
 	bool Value;
 };
 

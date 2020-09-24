@@ -4,23 +4,178 @@
 
 // Datasmith facade.
 #include "DatasmithFacadeActor.h"
+#include "DatasmithFacadeMaterialID.h"
 
+class IDatasmithLightActorElement;
+class IDatasmithPointLightElement;
 
-class DATASMITHFACADE_API FDatasmithFacadeActorLight :
-	public FDatasmithFacadeActor
+class DATASMITHFACADE_API FDatasmithFacadeActorLight : public FDatasmithFacadeActor
 {
 public:
+	virtual ~FDatasmithFacadeActorLight() {}
 
-	// Possible Datasmith light types.
-	enum class ELightType
-	{
-		DirectionalLight, // IDatasmithDirectionalLightElement is a IDatasmithLightActorElement with no specific properties
-		PointLight,       // IDatasmithPointLightElement       is a IDatasmithLightActorElement
-		LightmassPortal,  // IDatasmithLightmassPortalElement  is a IDatasmithPointLightElement with no specific properties
-		SpotLight,        // IDatasmithSpotLightElement        is a IDatasmithPointLightElement
-		AreaLight         // IDatasmithAreaLightElement        is a IDatasmithSpotLightElement
-	};
+	/** Return true on light enabled, false otherwise */
+	bool IsEnabled() const;
 
+	/** Set enable property of the light */
+	void SetEnabled(
+		bool bIsEnabled
+	);
+
+	/** Get light intensity */
+	double GetIntensity() const;
+
+	/** Set light intensity */
+	void SetIntensity(
+		double Intensity
+	);
+
+	/** Get light color in sRGB mode */
+	void GetColor(
+		uint8& OutR,
+		uint8& OutG,
+		uint8& OutB,
+		uint8& OutA
+	) const;
+
+	/** Get light color on linear mode */
+	void GetColor(
+		float& OutR,
+		float& OutG,
+		float& OutB,
+		float& OutA
+	) const;
+
+	/** Set the Datasmith light sRGBA color. */
+	void SetColor(
+		uint8 InR,
+		uint8 InG,
+		uint8 InB,
+		uint8 InA
+	);
+
+	/** Set the Datasmith light linear color. */
+	void SetColor(
+		float InR,
+		float InG,
+		float InB,
+		float InA
+	);
+
+	/** Get the light temperature in Kelvin */
+	double GetTemperature() const;
+
+	/** Set the light temperature in Kelvin */
+	void SetTemperature(
+		double Temperature
+	);
+
+	/** Get if the light color is controlled by temperature */
+	bool GetUseTemperature() const;
+
+	/** Set if the light color is controlled by temperature */
+	void SetUseTemperature(
+		bool bUseTemperature
+	);
+
+	/** Get the path of the Ies definition file */
+	const TCHAR* GetIesFile() const;
+
+	void WriteIESFile(
+		const TCHAR* InIESFileFolder,
+		const TCHAR* InIESFileName,
+		const TCHAR* InIESData
+	);
+
+	/** Set the path of the Ies definition file */
+	void SetIesFile(
+		const TCHAR* IesFile
+	);
+
+	/** Set if this light is controlled by Ies definition file */
+	bool GetUseIes() const;
+
+	/** Get if this light is controlled by Ies definition file */
+	void SetUseIes(
+		bool bUseIes
+	);
+
+	/** Get the Ies brightness multiplier */
+	double GetIesBrightnessScale() const;
+
+	/** Set the Ies brightness multiplier */
+	void SetIesBrightnessScale(
+		double IesBrightnessScale
+	);
+
+	/** Get if the emissive amount of the ies is controlled by the brightness scale */
+	bool GetUseIesBrightness() const;
+
+	/** Set if the emissive amount of the ies is controlled by the brightness scale */
+	void SetUseIesBrightness(
+		bool bUseIesBrightness
+	);
+
+	/** Get the rotation applied to the IES shape in the form of quaternion members */
+	void GetIesRotation(
+		float& OutX,
+		float& OutY,
+		float& OutZ,
+		float& OutW
+	) const;
+
+	/** Get the rotation applied to the IES shape in the form of euler angles */
+	void GetIesRotation(
+		float& OutPitch,
+		float& OutYaw,
+		float& OutRoll
+	) const;
+
+	/** Set the rotation to apply to the IES shape in Quaternion format */
+	void SetIesRotation(
+		float X,
+		float Y,
+		float Z,
+		float W
+	);
+
+	/** Set the rotation to apply to the IES shape from euler angles */
+	void SetIesRotation(
+		float Pitch,
+		float Yaw,
+		float Roll
+	);
+
+	/**
+	 *	Returns a new FDatasmithFacadeMaterialID pointing to emissive material on this light
+	 *	If there is no child at the given index, returned value is nullptr.
+	 *	The caller is responsible of deleting the returned object pointer.
+	 **/
+	FDatasmithFacadeMaterialID* GetNewLightFunctionMaterial();
+
+	/** Set emissive material on this light */
+	void SetLightFunctionMaterial(
+		FDatasmithFacadeMaterialID& InMaterial
+	);
+
+	/** Set emissive material on this light */
+	void SetLightFunctionMaterial(
+		const TCHAR* InMaterialName
+	);
+
+#ifdef SWIG_FACADE
+protected:
+#endif
+	FDatasmithFacadeActorLight(
+		const TSharedRef<IDatasmithLightActorElement>& InInternalActor
+	);
+
+	TSharedRef<IDatasmithLightActorElement> GetDatasmithLightActorElement() const;
+};
+
+class DATASMITHFACADE_API FDatasmithFacadePointLight : public FDatasmithFacadeActorLight
+{
+public:
 	// Possible Datasmith point light intensity units.
 	// Copy of EDatasmithLightUnits from DatasmithCore DatasmithDefinitions.h.
 	enum class EPointLightIntensityUnit
@@ -29,6 +184,120 @@ public:
 		Candelas,
 		Lumens
 	};
+
+	FDatasmithFacadePointLight(
+		const TCHAR* InElementName
+	);
+
+	virtual ~FDatasmithFacadePointLight() {}
+
+	void SetIntensityUnits(
+		EPointLightIntensityUnit InUnits
+	);
+	
+	EPointLightIntensityUnit GetIntensityUnits() const;
+
+	/** Get light radius, width in case of 2D light sources */
+	float GetSourceRadius() const;
+
+	/** Set light radius, width in case of 2D light sources */
+	void SetSourceRadius(
+		float SourceRadius
+	);
+
+	/** Get light length only affects 2D shaped lights */
+	float GetSourceLength() const;
+
+	/** Set light length only affects 2D shaped lights */
+	void SetSourceLength(
+		float SourceLength
+	);
+
+	/** Get attenuation radius in centimeters */
+	float GetAttenuationRadius() const;
+
+	/** Set attenuation radius in centimeters */
+	void SetAttenuationRadius(
+		float AttenuationRadius
+	);
+
+#ifdef SWIG_FACADE
+protected:
+#endif
+	FDatasmithFacadePointLight(
+		const TSharedRef<IDatasmithPointLightElement>& InInternalActor
+	);
+
+private:
+
+	TSharedRef<IDatasmithPointLightElement> GetDatasmithPointLightElement() const;
+};
+
+class DATASMITHFACADE_API FDatasmithFacadeSpotLight: public FDatasmithFacadePointLight
+{
+public:
+	FDatasmithFacadeSpotLight(
+		const TCHAR* InElementName
+	);
+
+	virtual ~FDatasmithFacadeSpotLight() {}
+
+	/** Get the inner cone angle for spot lights in degrees */
+	float GetInnerConeAngle() const;
+
+	/** Set the inner cone angle for spot lights in degrees */
+	void SetInnerConeAngle(
+		float InnerConeAngle
+	);
+
+	/** Get the outer cone angle for spot lights in degrees */
+	float GetOuterConeAngle() const;
+
+	/** Set the outer cone angle for spot lights in degrees */
+	void SetOuterConeAngle(
+		float OuterConeAngle
+	);
+
+#ifdef SWIG_FACADE
+protected:
+#endif
+	FDatasmithFacadeSpotLight(
+		const TSharedRef<IDatasmithSpotLightElement>& InInternalActor
+	);
+
+private:
+
+	TSharedRef<IDatasmithSpotLightElement> GetDatasmithSpotLightElement() const;
+};
+
+class DATASMITHFACADE_API FDatasmithFacadeDirectionalLight : public FDatasmithFacadeActorLight
+{
+public:
+	FDatasmithFacadeDirectionalLight(
+		const TCHAR* InElementName
+	);
+
+	virtual ~FDatasmithFacadeDirectionalLight() {}
+
+#ifdef SWIG_FACADE
+protected:
+#endif
+	FDatasmithFacadeDirectionalLight(
+		const TSharedRef<IDatasmithDirectionalLightElement>& InInternalActor
+	);
+};
+
+/**
+ * An area light is an emissive shape (light shape) with a light component (light type)
+ */
+class DATASMITHFACADE_API FDatasmithFacadeAreaLight : public FDatasmithFacadeSpotLight
+{
+public:
+	FDatasmithFacadeAreaLight(
+		const TCHAR* InElementName
+	);
+
+	virtual ~FDatasmithFacadeAreaLight() {}
 
 	// Possible Datasmith area light shapes.
 	// Copy of EDatasmithLightShape from DatasmithCore DatasmithDefinitions.h.
@@ -51,191 +320,63 @@ public:
 		Rect
 	};
 
-public:
+	/** Get the light shape Rectangle/Sphere/Disc/Cylinder */
+	EAreaLightShape GetLightShape() const;
 
-	FDatasmithFacadeActorLight(
-		const TCHAR* InElementName, // Datasmith element name
-		const TCHAR* InElementLabel // Datasmith element label
+	/** Set the light shape Rectangle/Sphere/Disc/Cylinder */
+	void SetLightShape(
+		EAreaLightShape Shape
 	);
 
-	virtual ~FDatasmithFacadeActorLight() {}
-
-	// Set the Datasmith light type.
+	/** Set the type of light for an area light: Point/Spot/Rect */
 	void SetLightType(
-		ELightType InLightType // light type
+		EAreaLightType LightType
 	);
+	
+	EAreaLightType GetLightType() const;
 
-	// Set whether or not the Datasmith light is enabled.
-	void SetEnabled(
-		bool bInIsEnabled
+	/** Set the area light shape size on the Y axis */
+	void SetWidth(
+		float InWidth
 	);
+	
+	float GetWidth() const;
 
-	// Set the Datasmith light intensity.
-	void SetIntensity(
-		double InIntensity // light intensity
+	/** Set the area light shape size on the X axis */
+	void SetLength(
+		float InLength
 	);
-
-	// Set the Datasmith light sRGBA color.
-	void SetColor(
-		unsigned char InR, // red
-		unsigned char InG, // green
-		unsigned char InB, // blue
-		unsigned char InA  // alpha
-	);
-
-	// Set the Datasmith light linear color.
-	void SetColor(
-		float InR, // red
-		float InG, // green
-		float InB, // blue
-		float InA  // alpha
-	);
-
-	// Set the Datasmith light temperature.
-	void SetTemperature(
-		double InTemperature // light temperature (in Kelvin degrees)
-	);
-
-	// Write a IES definition file and set its file path for the Datasmith light.
-	void WriteIESFile(
-		const TCHAR* InIESFileFolder, // IES definition file folder path
-		const TCHAR* InIESFileName,   // IES definition file name
-		const TCHAR* InIESData        // IES definition data
-	);
-
-	// Set the file path of the IES definition file of the Datasmith light.
-	void SetIESFilePath(
-		const TCHAR* InIESFilePath // IES definition file path
-	);
-
-	// Set the Datasmith light IES brightness scale.
-	void SetIESBrightnessScale(
-		double InIESBrightnessScale // IES brightness scale
-	);
-
-	// Set the intensity unit of the Datasmith point light and derived types.
-	void SetPointIntensityUnit(
-		EPointLightIntensityUnit InPointIntensityUnit // point light intensity unit
-	);
-
-	// Set the source radius, or 2D source width, of the Datasmith point light and derived types.
-	void SetPointSourceRadius(
-		float InPointSourceRadius // point light source radius or width (in world units)
-	);
-
-	// Set the 2D source length of the Datasmith point light and derived types.
-	void SetPointSourceLength(
-		float InPointSourceLength // point light source length (in world units)
-	);
-
-	// Set the attenuation radius of the Datasmith point light and derived types.
-	void SetPointAttenuationRadius(
-		float InPointAttenuationRadius // point light attenuation radius (in world units)
-	);
-
-	// Set the inner cone angle of the Datasmith spot light and derived types.
-	void SetSpotInnerConeAngle(
-		float InSpotInnerConeAngle // spot light inner cone angle (in degrees)
-	);
-
-	// Set the outer cone angle of the Datasmith spot light and derived types.
-	void SetSpotOuterConeAngle(
-		float InSpotOuterConeAngle // spot light outer cone angle (in degrees)
-	);
-
-	// Set the Datasmith area light shape.
-	void SetAreaShape(
-		EAreaLightShape InAreaShape // area light shape
-	);
-
-	// Set the Datasmith area light type.
-	void SetAreaType(
-		EAreaLightType InAreaType // area light type
-	);
-
-	// Set the Datasmith area light shape size on the Y axis.
-	void SetAreaWidth(
-		float InAreaWidth // area light shape size on the Y axis (in world units)
-	);
-
-	// Set the Datasmith area light shape size on the X axis.
-	void SetAreaLength(
-		float InAreaLength // area light shape size on the X axis (in world units)
-	);
-
-	// Set the Datasmith lightmass portal dimensions.
-	void SetPortalDimensions
-	(
-		float InDimensionX, // lightmass portal dimension on the X axis (in world units)
-		float InDimensionY, // lightmass portal dimension on the Y axis (in world units)
-		float InDimensionZ  // lightmass portal dimension on the Z axis (in world units)
-	);
+	
+	float GetLength() const;
 
 #ifdef SWIG_FACADE
 protected:
 #endif
+	FDatasmithFacadeAreaLight(
+		const TSharedRef<IDatasmithAreaLightElement>& InInternalActor
+	);
 
-	// Create and initialize a Datasmith light actor hierarchy.
-	virtual TSharedPtr<IDatasmithActorElement> CreateActorHierarchy(
-		TSharedRef<IDatasmithScene> IOSceneRef // Datasmith scene
-	) const override;
+	TSharedRef<IDatasmithAreaLightElement> GetDatasmithAreaLightElement() const;
+};
 
-private:
+/**
+ * Represents a ALightmassPortal
+ *
+ * Use the actor scale to drive the portal dimensions
+ */
+class DATASMITHFACADE_API FDatasmithFacadeLightmassPortal : public FDatasmithFacadePointLight
+{
+public:
+	FDatasmithFacadeLightmassPortal(
+		const TCHAR* InElementName
+	);
 
-	// Datasmith light type.
-	ELightType LightType;
+	virtual ~FDatasmithFacadeLightmassPortal() {}
 
-	// Whether or not the Datasmith light is enabled.
-	bool bIsEnabled;
-
-	// Datasmith light intensity.
-	double Intensity;
-
-	// Datasmith light linear color.
-	FLinearColor LinearColor;
-
-	// Whether or not to use the Datasmith light temperature.
-	bool bUseTemperature;
-
-	// Datasmith light temperature (in Kelvin degrees).
-	double Temperature;
-
-	// File path of the IES definition file of the Datasmith light.
-	FString IESFilePath;
-
-	// Whether or not to use the Datasmith light IES brightness scale.
-	bool bUseIESBrightnessScale;
-
-	// Datasmith light IES brightness scale.
-	double IESBrightnessScale;
-
-	// Intensity unit of the Datasmith point light and derived types.
-	EPointLightIntensityUnit PointIntensityUnit;
-
-	// Source radius (in centimeters), or 2D source width, of the Datasmith point light and derived types.
-	float PointSourceRadius;
-
-	// 2D source length (in centimeters) of the Datasmith point light and derived types.
-	float PointSourceLength;
-
-	// Attenuation radius (in centimeters) of the Datasmith point light and derived types.
-	float PointAttenuationRadius;
-
-	// Inner cone angle (in degrees) of the Datasmith spot light and derived types.
-	float SpotInnerConeAngle;
-
-	// Outer cone angle (in degrees) of the Datasmith spot light and derived types.
-	float SpotOuterConeAngle;
-
-	// Datasmith area light shape.
-	EAreaLightShape AreaShape;
-
-	// Datasmith area light type.
-	EAreaLightType AreaType;
-
-	// Datasmith area light shape size on the Y axis (in world units).
-	float AreaWidth;
-
-	// Datasmith area light shape size on the X axis (in world units).
-	float AreaLength;
+#ifdef SWIG_FACADE
+protected:
+#endif
+	FDatasmithFacadeLightmassPortal(
+		const TSharedRef<IDatasmithLightmassPortalElement>& InInternalActor
+	);
 };

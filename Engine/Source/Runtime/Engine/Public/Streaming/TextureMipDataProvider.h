@@ -10,9 +10,13 @@ TextureMipDataProvider.h: Base class for providing the mip data used by FTexture
 #include "HAL/ThreadSafeCounter.h"
 #include "PixelFormat.h"
 #include "RHIDefinitions.h"
+#include "RHIDefinitions.h"
+#include "Streaming/StreamableRenderResourceState.h"
 
 class UTexture;
 class UStreamableRenderAsset;
+class FStreamableTextureResource;
+struct FTexture2DMipMap;
 
 // Describes a mip that gets updated through FTextureStreamIn.
 struct FTextureMipInfo
@@ -60,23 +64,22 @@ struct FTextureUpdateContext
 {
 	typedef int32 EThreadType;
 
-	FTextureUpdateContext(UTexture* InTexture, EThreadType InCurrentThread);
-	FTextureUpdateContext(UStreamableRenderAsset* InTexture, EThreadType InCurrentThread);
+	FTextureUpdateContext(const UTexture* InTexture, EThreadType InCurrentThread);
+	FTextureUpdateContext(const UStreamableRenderAsset* InTexture, EThreadType InCurrentThread);
 
-	UStreamableRenderAsset* GetRenderAsset() const;
 	EThreadType GetCurrentThread() const { return CurrentThread; }
 
 	// The texture to update, this must be the same one as the one used when creating the FTextureUpdate object.
-	UTexture* Texture;
+	const UTexture* Texture = nullptr;
+
+	/** The current streamabble resource of this texture. */
+	FStreamableTextureResource* Resource = nullptr;
+
+	/** The array view of streamable mips from the asset. Takes into account FStreamableRenderResourceState::AssetLODBias and FStreamableRenderResourceState::MaxNumLODs. */
+	TArrayView<const FTexture2DMipMap*> MipsView;
+
 	// The current executing thread.
 	EThreadType CurrentThread;
-
-	// The requested first mip after the update completes (smaller mip index are bigger, 0 being the biggest possible mips for that texture).
-	int32 PendingFirstMipIndex = INDEX_NONE;
-	// The current first mip before the update was requested.
-	int32 CurrentFirstMipIndex = INDEX_NONE;
-	// The number of requested mips after the update completes (PendingFirstMipIndex + NumRequestedMips - 1) being the smallest possible mip for this texture (typically 1x1).
-	int32 NumRequestedMips = INDEX_NONE;
 };
 
 /**
@@ -105,7 +108,8 @@ public:
 	};
 
 	// Constructor, defining the first tick step and thread.
-	FTextureMipDataProvider(ETickState InTickState, ETickThread InTickThread) : NextTickState(InTickState), NextTickThread(InTickThread) {}
+	FTextureMipDataProvider(const UTexture* Texture, ETickState InTickState, ETickThread InTickThread);
+
 	virtual ~FTextureMipDataProvider() {}
 
 	// Get the next tick state and thread for the mip allocator. Used by FTextureStreamIn to schedule correctly the update between FTextureMipAllocator and FTextureMipDataProvider.
@@ -184,6 +188,13 @@ protected:
 		NextTickState = InState;
 		NextTickThread = InThread;
 	}
+
+	/** The streamable state requested. */
+	const FStreamableRenderResourceState ResourceState;
+	// The resident first LOD resource index. With domain = [0, ResourceState.NumLODs[. NOT THE ASSET LOD INDEX!
+	const int32 CurrentFirstLODIdx = INDEX_NONE;
+	// The requested first LOD resource index. With domain = [0, ResourceState.NumLODs[. NOT THE ASSET LOD INDEX!
+	const int32 PendingFirstLODIdx = INDEX_NONE;
 
 private:
 

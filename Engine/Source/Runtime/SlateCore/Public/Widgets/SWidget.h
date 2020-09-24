@@ -763,8 +763,11 @@ private:
 
 	void UpdateWidgetProxy(int32 NewLayerId, FSlateCachedElementsHandle& CacheHandle);
 
+public:
+
 #if WITH_SLATE_DEBUGGING
 	uint32 Debug_GetLastPaintFrame() const { return LastPaintFrame; }
+private:
 	void Debug_UpdateLastPaintFrame() { LastPaintFrame = GFrameNumber; }
 #endif
 
@@ -1333,6 +1336,11 @@ public:
 	/** @return The name this widget was tagged with */
 	virtual FName GetTag() const;
 
+#if UE_SLATE_WITH_WIDGET_UNIQUE_IDENTIFIER
+	/** @return The widget's id */
+	uint64 GetId() const { return UniqueIdentifier; }
+#endif
+
 	/** @return the Foreground color that this widget sets; unset options if the widget does not set a foreground color */
 	virtual FSlateColor GetForegroundColor() const;
 
@@ -1711,6 +1719,11 @@ private:
 
 	FNoReplyPointerEventHandler MouseEnterHandler;
 	FSimpleNoReplyPointerEventHandler MouseLeaveHandler;
+
+#if UE_SLATE_WITH_WIDGET_UNIQUE_IDENTIFIER
+	/** The widget's id */
+	uint64 UniqueIdentifier;
+#endif
 
 	STAT(size_t AllocSize;)
 

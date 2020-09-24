@@ -7,7 +7,7 @@ struct FDeepShadowViewInfo
 	float4x4 WorldToClip;
 	float3   ViewForward;
 	float    MinRadiusAtDepth1;
-}; 
+};
 
 struct FDeepShadowTransform
 {

@@ -4,6 +4,8 @@
 
 #include "Components/RuntimeVirtualTextureComponent.h"
 #include "Engine/World.h"
+#include "HeightfieldMinMaxTexture.h"
+#include "VirtualHeightfieldMeshEnable.h"
 #include "VirtualHeightfieldMeshSceneProxy.h"
 #include "VT/RuntimeVirtualTexture.h"
 #include "VT/RuntimeVirtualTextureVolume.h"
@@ -15,31 +17,53 @@ UVirtualHeightfieldMeshComponent::UVirtualHeightfieldMeshComponent(const FObject
 #if WITH_EDITORONLY_DATA
 	bEnableAutoLODGeneration = false;
 #endif // WITH_EDITORONLY_DATA
-
 	Mobility = EComponentMobility::Static;
+}
+
+void UVirtualHeightfieldMeshComponent::OnRegister()
+{
+	VirtualTextureRef = VirtualTexture.Get();
+
+	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTextureRef != nullptr ? VirtualTextureRef->VirtualTextureComponent : nullptr;
+	if (RuntimeVirtualTextureComponent)
+	{
+		// Bind to delegate so that RuntimeVirtualTextureComponent will pull hide flags from this object.
+		RuntimeVirtualTextureComponent->GetHidePrimitivesDelegate().AddUObject(this, &UVirtualHeightfieldMeshComponent::GatherHideFlags);
+		RuntimeVirtualTextureComponent->MarkRenderStateDirty();
+	}
+
+	Super::OnRegister();
+}
+
+void UVirtualHeightfieldMeshComponent::OnUnregister()
+{
+	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTextureRef != nullptr ? VirtualTextureRef->VirtualTextureComponent : nullptr;
+	if (RuntimeVirtualTextureComponent)
+	{
+		RuntimeVirtualTextureComponent->GetHidePrimitivesDelegate().RemoveAll(this);
+		RuntimeVirtualTextureComponent->MarkRenderStateDirty();
+	}
+
+	VirtualTextureRef = nullptr;
+
+	Super::OnUnregister();
 }
 
 ARuntimeVirtualTextureVolume* UVirtualHeightfieldMeshComponent::GetVirtualTextureVolume() const
 {
-	return VirtualTexture.Get();
-}
-
-FTransform UVirtualHeightfieldMeshComponent::GetVirtualTextureTransform() const
-{
-	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTexture.IsValid() ? VirtualTexture.Get()->VirtualTextureComponent : nullptr;
-	return RuntimeVirtualTextureComponent ? RuntimeVirtualTextureComponent->GetComponentTransform() * RuntimeVirtualTextureComponent->GetTexelSnapTransform() : FTransform::Identity;
+	return VirtualTextureRef;
 }
 
 URuntimeVirtualTexture* UVirtualHeightfieldMeshComponent::GetVirtualTexture() const
 {
-	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTexture.IsValid() ? VirtualTexture.Get()->VirtualTextureComponent : nullptr;
+	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTextureRef != nullptr ? VirtualTextureRef->VirtualTextureComponent : nullptr;
 	return RuntimeVirtualTextureComponent ? RuntimeVirtualTextureComponent->GetVirtualTexture() : nullptr;
 }
 
-UTexture2D* UVirtualHeightfieldMeshComponent::GetMinMaxTexture() const
+FTransform UVirtualHeightfieldMeshComponent::GetVirtualTextureTransform() const
 {
-	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTexture.IsValid() ? VirtualTexture.Get()->VirtualTextureComponent : nullptr;
-	return RuntimeVirtualTextureComponent ? RuntimeVirtualTextureComponent->GetMinMaxTexture() : nullptr;
+	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTextureRef != nullptr ? VirtualTextureRef->VirtualTextureComponent : nullptr;
+	return RuntimeVirtualTextureComponent ? RuntimeVirtualTextureComponent->GetComponentTransform() * RuntimeVirtualTextureComponent->GetTexelSnapTransform() : FTransform::Identity;
 }
 
 bool UVirtualHeightfieldMeshComponent::IsVisible() const
@@ -48,25 +72,17 @@ bool UVirtualHeightfieldMeshComponent::IsVisible() const
 		Super::IsVisible() &&
 		GetVirtualTexture() != nullptr &&
 		GetVirtualTexture()->GetMaterialType() == ERuntimeVirtualTextureMaterialType::WorldHeight &&
-		UseVirtualTexturing(GetScene() ? GetScene()->GetFeatureLevel() : ERHIFeatureLevel::SM5);
-}
-
-FPrimitiveSceneProxy* UVirtualHeightfieldMeshComponent::CreateSceneProxy()
-{
-	//hack[vhm]: No scene representation when disabled for now.
-	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VHM.Enable"));
-	bool bVHMEnable = CVar != nullptr && CVar->GetValueOnAnyThread() != 0;
-	if (!bVHMEnable)
-	{
-		return nullptr;
-	}
-
-	return new FVirtualHeightfieldMeshSceneProxy(this);
+		VirtualHeightfieldMesh::IsEnabled(GetScene() ? GetScene()->GetFeatureLevel() : ERHIFeatureLevel::SM5);
 }
 
 FBoxSphereBounds UVirtualHeightfieldMeshComponent::CalcBounds(const FTransform& LocalToWorld) const
 {
 	return FBoxSphereBounds(FBox(FVector(0.f, 0.f, 0.f), FVector(1.f, 1.f, 1.f))).TransformBy(LocalToWorld);
+}
+
+FPrimitiveSceneProxy* UVirtualHeightfieldMeshComponent::CreateSceneProxy()
+{
+	return new FVirtualHeightfieldMeshSceneProxy(this);
 }
 
 void UVirtualHeightfieldMeshComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials) const
@@ -77,64 +93,59 @@ void UVirtualHeightfieldMeshComponent::GetUsedMaterials(TArray<UMaterialInterfac
 	}
 }
 
+void UVirtualHeightfieldMeshComponent::GatherHideFlags(bool& InOutHidePrimitivesInEditor, bool& InOutHidePrimitivesInGame) const
+{
+	const FStaticFeatureLevel FeatureLevel = GetScene() ? GetScene()->GetFeatureLevel() : ERHIFeatureLevel::SM5;
+	const bool bIsEnabled = VirtualHeightfieldMesh::IsEnabled(FeatureLevel);
+	InOutHidePrimitivesInEditor |= (bIsEnabled && !bHiddenInEditor);
+	InOutHidePrimitivesInGame |= bIsEnabled;
+}
+
 #if WITH_EDITOR
 
 void UVirtualHeightfieldMeshComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	Super::PostEditChangeProperty(PropertyChangedEvent);
+	static const FName HideInEditorName = GET_MEMBER_NAME_CHECKED(UVirtualHeightfieldMeshComponent, bHiddenInEditor);
 
-	static FName VirtualTextureName = GET_MEMBER_NAME_CHECKED(UVirtualHeightfieldMeshComponent, VirtualTexture);
-	static FName NumOcclusionLodsName = GET_MEMBER_NAME_CHECKED(UVirtualHeightfieldMeshComponent, NumOcclusionLods);
-	if (PropertyChangedEvent.Property && (PropertyChangedEvent.Property->GetFName() == VirtualTextureName || PropertyChangedEvent.Property->GetFName() == NumOcclusionLodsName))
+	const FName PropertyName = PropertyChangedEvent.Property->GetFName();
+	if (PropertyName == HideInEditorName)
 	{
-		BuildOcclusionData();
+		// Force RuntimeVirtualTextureComponent to poll the HidePrimitives settings.
+		URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTextureRef != nullptr ? VirtualTextureRef->VirtualTextureComponent : nullptr;
+		if (RuntimeVirtualTextureComponent != nullptr)
+		{
+			RuntimeVirtualTextureComponent->MarkRenderStateDirty();
+		}
 	}
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
-void UVirtualHeightfieldMeshComponent::BuildOcclusionData()
+#endif
+
+bool UVirtualHeightfieldMeshComponent::IsMinMaxTextureEnabled() const
 {
-	NumBuiltOcclusionLods = 0;
-	BuiltOcclusionData.Reset();
-	
-	UTexture2D* MinMaxTexture = GetMinMaxTexture();
-	if (MinMaxTexture != nullptr && NumOcclusionLods > 0)
+	URuntimeVirtualTexture* RuntimeVirtualTexture = GetVirtualTexture();
+	return RuntimeVirtualTexture != nullptr && RuntimeVirtualTexture->GetMaterialType() == ERuntimeVirtualTextureMaterialType::WorldHeight;
+}
+
+#if WITH_EDITOR
+
+void UVirtualHeightfieldMeshComponent::InitializeMinMaxTexture(uint32 InSizeX, uint32 InSizeY, uint32 InNumMips, uint8* InData)
+{
+	// We need an existing StreamingTexture object to update.
+	if (MinMaxTexture != nullptr)
 	{
-		if (MinMaxTexture->Source.IsValid() && MinMaxTexture->Source.GetFormat() == TSF_BGRA8)
-		{
-			const int32 NumMinMaxTextureMips = MinMaxTexture->Source.GetNumMips();
+		FHeightfieldMinMaxTextureBuildDesc BuildDesc;
+		BuildDesc.SizeX = InSizeX;
+		BuildDesc.SizeY = InSizeY;
+		BuildDesc.NumMips = InNumMips;
+		BuildDesc.Data = InData;
 
-			// Clamp NumBuiltOcclusionLods to give a maximum 341 occlusion volumes.
-			NumBuiltOcclusionLods = FMath::Min(NumOcclusionLods, 5);
-			NumBuiltOcclusionLods = FMath::Min(NumBuiltOcclusionLods, NumMinMaxTextureMips);
+		MinMaxTexture->Modify();
+		MinMaxTexture->BuildTexture(BuildDesc);
 
-			// Reserve the expected entries assuming square mips.
-			const int32 NumEntries = ((1 << (2 * NumBuiltOcclusionLods)) - 1) / 3;
-			BuiltOcclusionData.Reserve(NumEntries);
-		
-			// Iterate the MinMaxTexture mips and extract min/max values to store in a flat array.
-			const int32 BaseMipIndex = NumMinMaxTextureMips - NumBuiltOcclusionLods;
-			for (int32 MipIndex = BaseMipIndex; MipIndex < NumMinMaxTextureMips; ++MipIndex)
-			{
-				TArray64<uint8> MipData;
-				if (MinMaxTexture->Source.GetMipData(MipData, MipIndex))
-				{
-					for (int32 Index = 0; Index < MipData.Num(); Index += 4)
-					{
-						float Min = (float)(MipData[Index + 2] * 256 + MipData[Index + 3]) / 65535.f;
-						float Max = (float)(MipData[Index + 0] * 256 + MipData[Index + 1]) / 65535.f;
-						BuiltOcclusionData.Add(FVector2D(Min, Max));
-					}
-				}
-			}
-
-			// Check assumption of square mips, and disable occlusion if not true.
-			ensure(NumEntries == BuiltOcclusionData.Num());
-			if (NumEntries != BuiltOcclusionData.Num())
-			{
-				NumBuiltOcclusionLods = 0;
-				BuiltOcclusionData.Reset();
-			}
-		}
+		MarkRenderStateDirty();
 	}
 }
 

@@ -37,7 +37,7 @@ LIBFILES=(
 # Build script will be in <lib>/Build/Mac so get that path and drop two folders to leave us
 # in the actual lib folder
 pushd . > /dev/null
-SCRIPT_DIR="`dirname "${BASH_SOURCE[0]}"`"
+SCRIPT_DIR="$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)"
 cd ${SCRIPT_DIR}/${DROP_TO_LIBROOT}
 LIB_ROOT_DIR=${PWD}
 echo Changed to ${LIB_ROOT_DIR}

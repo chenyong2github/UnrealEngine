@@ -22,7 +22,7 @@ FText FMemTagNode::GetTrackerText() const
 	FMemorySharedState* SharedState = FMemoryProfilerManager::Get()->GetSharedState();
 	if (SharedState)
 	{
-		return FText::FromString(SharedState->TrackersToString(Trackers));
+		return FText::FromString(SharedState->TrackersToString(Trackers, TEXT(", ")));
 	}
 
 	return FText::GetEmpty();

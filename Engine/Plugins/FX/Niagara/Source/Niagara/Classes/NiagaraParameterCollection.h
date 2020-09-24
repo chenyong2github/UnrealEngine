@@ -7,6 +7,7 @@
 #include "NiagaraCompileHash.h"
 #include "NiagaraParameterCollection.generated.h"
 
+class UMaterialParameterCollection;
 class UNiagaraParameterCollection;
 
 UCLASS()
@@ -34,7 +35,7 @@ public:
 	void Empty();
 	void GetParameters(TArray<FNiagaraVariable>& OutParameters);
 
-	void Tick();
+	void Tick(UWorld* World);
 
 	//TODO: Abstract to some interface to allow a hierarchy like UMaterialInstance?
 	UPROPERTY(EditAnywhere, Category=Instance)
@@ -50,11 +51,17 @@ public:
 
 	/** Synchronizes this instance with any changes with it's parent collection. */
 	void SyncWithCollection();
-	
+
+	void Bind(UWorld* World);
+
 private:
+	void RefreshSourceParameters(UWorld* World);
+	bool EnsureNotBoundToMaterialParameterCollection(FName InVariableName, FString CallingFunction) const;
 
 	UPROPERTY()
 	FNiagaraParameterStore ParameterStorage;
+
+	bool SourceInstanceDirtied = false;
 
 	//TODO: These overrides should be settable per platform.
 	//UPROPERTY()
@@ -127,11 +134,14 @@ public:
 
 	int32 IndexOfParameter(const FNiagaraVariable& Var);
 
+	int32 AddParameter(const FNiagaraVariable& Parameter);
 	int32 AddParameter(FName Name, FNiagaraTypeDefinition Type);
 	void RemoveParameter(const FNiagaraVariable& Parameter);
 	void RenameParameter(FNiagaraVariable& Parameter, FName NewName);
 
 	TArray<FNiagaraVariable>& GetParameters() { return Parameters; }
+
+	const UMaterialParameterCollection* GetSourceCollection() const { return SourceMaterialCollection; }
 
 	//TODO: Optional per platform overrides of the above.
 	//TMap<FString, UNiagaraParameterCollectionOverride> PerPlatformOverrides;
@@ -165,9 +175,19 @@ public:
 	//~UObject interface
 
 	FName GetNamespace()const { return Namespace; }
+
+#if WITH_EDITOR
+	DECLARE_MULTICAST_DELEGATE(FOnChanged);
+
+	FOnChanged OnChangedDelegate;
+#endif
+
 protected:
 	
+#if WITH_EDITORONLY_DATA
 	void MakeNamespaceNameUnique();
+	void AddDefaultSourceParameters();
+#endif
 
 	/** Namespace for this parameter collection. Is enforced to be unique across all parameter collections. */
 	UPROPERTY(EditAnywhere, Category = "Parameter Collection", AssetRegistrySearchable)
@@ -175,6 +195,10 @@ protected:
 	
 	UPROPERTY()
 	TArray<FNiagaraVariable> Parameters;
+
+	/** Optional set of MPC that can drive scalar and vector parameters */
+	UPROPERTY(EditAnywhere, Category = "Parameter Collection")
+	UMaterialParameterCollection* SourceMaterialCollection;
 	
 	UPROPERTY()
 	UNiagaraParameterCollectionInstance* DefaultInstance;

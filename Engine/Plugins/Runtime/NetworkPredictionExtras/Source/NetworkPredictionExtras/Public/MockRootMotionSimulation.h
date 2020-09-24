@@ -8,65 +8,104 @@
 #include "NetworkPredictionTickState.h"
 #include "NetworkPredictionReplicationProxy.h"
 #include "BaseMovementSimulation.h"
+#include "MockRootMotionSourceStore.h"
 
 class UAnimInstance;
 
-// Very crude parameter pack for root motion parameters. The idea being each root motion source can have source-defined
-// parameters. This version just works on a block of memory without safety or optimizations (NetSerialize does not quantize anything)
-template<int32 InlineSize=128>
-struct TMockParameterPack
+// Thing that goes in the aux state
+template<typename IdType=uint8, int32 InInlineSize=128, int32 InMaxSize=255>
+struct TMockRootMotionSourceProxy
 {
-	TArray<uint8, TInlineAllocator<128>> Data;
+	enum { InlineSize = InInlineSize };
+	enum { MaxSize = InMaxSize };
+	enum { InvalidValue = TNumericLimits<IdType>::Max() };
 
+	void Reset()
+	{
+		ID = InvalidValue;
+		StartMS = 0;
+		Params.Reset();
+	}
+
+	bool IsValid() const
+	{
+		return ID < InvalidValue;
+	}
+
+	// Writes the blob of parameters to the actual network stream
 	void NetSerialize(const FNetSerializeParams& P)
 	{
-		npCheckf(Data.Num() <= 255, TEXT("Parameter size too big %d"), Data.Num());
-		
+		npCheckf(Params.Num() <= MaxSize, TEXT("Parameter size too big %d"), Params.Num());
+
+		P.Ar << ID;
+		P.Ar << StartMS;
+
 		if(P.Ar.IsSaving())
 		{	
-			uint8 Size = Data.Num();
+			uint8 Size = Params.Num();
 			P.Ar << Size;
-			P.Ar.Serialize(Data.GetData(), Data.Num());
+			P.Ar.Serialize(Params.GetData(), Params.Num());
 		}
 		else
 		{
 			uint8 Size = 0;
 			P.Ar << Size;
-			Data.SetNumUninitialized(Size, false);
-			P.Ar.Serialize(Data.GetData(), Size);
+			Params.SetNumUninitialized(Size, false);
+			P.Ar.Serialize(Params.GetData(), Size);
 		}
 	}
+
+	FBitReader GetParamBitReader()
+	{
+		return FBitReader(Params.GetData(), Params.Num() << 3);
+	}
+
+	// Writes a new source with no params
+	void WriteSource(IdType InID, int32 InStartMS)
+	{
+		npEnsureMsgf(InID < InvalidValue, TEXT("Invalid Value written: %d"), InID);
+
+		ID = InID;
+		StartMS = InStartMS;
+		Params.Reset();
+	}
+
+	// Write a new source and encode the params into the generic param block
+	void WriteParams(TFunctionRef<void(FBitWriter&)> WriteFunc)
+	{
+		static constexpr int64 MaxBits = (int64)MaxSize << 3;
+		Params.Reset();
+
+		// Unfortunate we cannot just create bit writer to our Params
+		FBitWriter Writer(MaxBits, false);
+		WriteFunc(Writer);
+
+		Params = *Writer.GetBuffer();
+	}
+
+	IdType GetID() const { return ID; }
+	int32 GetStartMS() const { return StartMS; }
+	TArrayView<const uint8> GetParamsDataView() const { return TArrayView<const uint8>(Params); }
 
 	void ToString(FAnsiStringBuilderBase& Out) const
 	{
-		Out.Appendf("ParameterPack Size: %d", Data.Num());
+		Out.Appendf("SourceID: %d\n", ID);
+		Out.Appendf("StartMS: %d\n", StartMS);
+		Out.Appendf("Params Size: %d\n", Params.Num());
 	}
 
-	template<typename T>
-	void SetByType(const T* RawData)
+	bool operator==(const TMockRootMotionSourceProxy<IdType, InlineSize, MaxSize> &Other) const
 	{
-		Data.SetNumUninitialized(sizeof(T), false);
-		FMemory::Memcpy(Data.GetData(), RawData, sizeof(T));
+		return Params.Num() == Other.Params.Num() && FMemory::Memcmp(Params.GetData(), Other.Params.GetData(), Params.Num()) == 0;
 	}
 
-	template<typename T>
-	const T* GetByType() const
-	{
-		if (npEnsureMsgf(Data.Num() == sizeof(T), TEXT("Parameter size %d does not match Type size: %d"), Data.Num(), sizeof(T)))
-		{
-			return (T*)Data.GetData();
-		}
-		return nullptr;
-	}
+	bool operator!=(const TMockRootMotionSourceProxy<IdType, InlineSize, MaxSize> &Other) const { return !(*this == Other); }
 
-	bool operator==(const TMockParameterPack<InlineSize> &Other) const
-	{
-		return Data.Num() == Other.Data.Num() && FMemory::Memcmp(Data.GetData(), Other.Data.GetData(), Data.Num()) == 0;
-	}
-
-	bool operator!=(const TMockParameterPack<InlineSize> &Other) const { return !(*this == Other); }
+private:
+	IdType ID = InvalidValue;	// static mapping to the source (could be global or per sim/actor/anim instance)
+	int32 StartMS = 0;			// Sim time this source started
+	TArray<uint8, TInlineAllocator<InlineSize>> Params; // quantized params
 };
-
 
 
 // This is an initial prototype of root motion in the Network Prediction system. It is meant to flesh out some ideas before 
@@ -94,25 +133,16 @@ struct FMockRootMotionInputCmd
 	// The real world example would be more like "InputCmd says activate an abilty, the ability says
 	// to play a montage".
 
-	int32	PlaySourceID = INDEX_NONE;	// Which RootMotionSourceID to trigger
-	int32	PlayCount = 0;				// Counter - to allow back to back playing of same anim
-
-	TMockParameterPack<> Parameters;
+	TMockRootMotionSourceProxy<> PlaySource;	// What we are want to play
 
 	void NetSerialize(const FNetSerializeParams& P)
 	{
-		P.Ar << PlaySourceID;
-		P.Ar << PlayCount;
-
-		Parameters.NetSerialize(P);
+		PlaySource.NetSerialize(P);
 	}
 
 	void ToString(FAnsiStringBuilderBase& Out) const
 	{
-		Out.Appendf("PlaySourceID: %d\n", PlaySourceID);
-		Out.Appendf("PlayCount: %d\n", PlayCount);
-
-		Parameters.ToString(Out);
+		PlaySource.ToString(Out);
 	}
 };
 
@@ -124,42 +154,15 @@ struct FMockRootMotionSyncState
 	FVector Location;
 	FRotator Rotation;
 
-	// ---------------------------------------------
-	// Core Root Motion state
-	// ---------------------------------------------
-
-	// Maps to the actual thing driving root motion. Initially this will map to a UAnimMontage,
-	// but we really want this to be able to map to anything that can drive motion.
-	int32	RootMotionSourceID = INDEX_NONE;
-
-	// The root motion state for this instance. This is hard coded for montages right now.
-	// We could instead allocate a generic block of memory for the RootMotionSourceID to 
-	// use however it wants. This would allow different root motion sources to have different
-	// internal state (PlayPosition) and different parameterization (PlayRate).
-
-	float	PlayPosition = 0.f;
-	float	PlayRate = 0.f;
-
-	// Counter to catch new input cmds
-	int32	InputPlayCount = 0;
-
 	void NetSerialize(const FNetSerializeParams& P)
 	{
 		P.Ar << Location;
 		P.Ar << Rotation;
-
-		P.Ar << RootMotionSourceID;
-		P.Ar << PlayPosition;
-		P.Ar << PlayRate;
 	}
 	void ToString(FAnsiStringBuilderBase& Out) const
 	{
 		Out.Appendf("Loc: X=%.2f Y=%.2f Z=%.2f\n", Location.X, Location.Y, Location.Z);
 		Out.Appendf("Rot: P=%.2f Y=%.2f R=%.2f\n", Rotation.Pitch, Rotation.Yaw, Rotation.Roll);
-
-		Out.Appendf("RootMotionSourceID: %d\n", RootMotionSourceID);
-		Out.Appendf("PlayPosition: %.2f\n", PlayPosition);
-		Out.Appendf("PlayRate: %.2f\n", PlayRate);
 	}
 
 	void Interpolate(const FMockRootMotionSyncState* From, const FMockRootMotionSyncState* To, float PCT)
@@ -174,35 +177,12 @@ struct FMockRootMotionSyncState
 			Location = FMath::Lerp(From->Location, To->Location, PCT);
 			Rotation = FMath::Lerp(From->Rotation, To->Rotation, PCT);
 		}
-
-		// This is a case where strictly interpolating Sync/Aux state may not be enough in all situations.
-		// While its fine for interpolating across the same RootMotionSourceID, when interpolating between
-		// different sources, the Driver may want to blend between two animation poses for example
-		// (so rather than interpolating Sync/Aux state, we want to interpolate Driver state).
-		// This could be made possible by template specialization of FNetworkDriver<ModelDef>::Interpolate
-		// (currently it is not supported, but we probably should do it)
-
-		if (From->RootMotionSourceID == To->RootMotionSourceID)
-		{
-			this->RootMotionSourceID = To->RootMotionSourceID;
-			this->PlayPosition = FMath::Lerp(From->PlayPosition, To->PlayPosition, PCT);
-			this->PlayRate = FMath::Lerp(From->PlayRate, To->PlayRate, PCT);
-		}
-		else
-		{
-			*this = *To;
-		}
-
 	}
 
 	bool ShouldReconcile(const FMockRootMotionSyncState& AuthorityState) const
 	{
 		const float TransformErrorTolerance = 1.f;
-
-		const bool bShouldReconcile =	!Location.Equals(AuthorityState.Location, TransformErrorTolerance) ||
-				RootMotionSourceID != AuthorityState.RootMotionSourceID || 
-				!FMath::IsNearlyZero(PlayPosition - AuthorityState.PlayPosition) || 
-				!FMath::IsNearlyZero(PlayRate - AuthorityState.PlayRate);
+		const bool bShouldReconcile = !Location.Equals(AuthorityState.Location, TransformErrorTolerance);
 
 		return bShouldReconcile;
 	}
@@ -212,26 +192,29 @@ struct FMockRootMotionSyncState
 // (note that optimizations for sparse aux storage are not complete yet)
 struct FMockRootMotionAuxState
 {
-	TMockParameterPack<> Parameters;
+	TMockRootMotionSourceProxy<> Source;
+	int32 EndTimeMS = 0;	// Time the Source finished. Used in the sim's input handling
 
 	void NetSerialize(const FNetSerializeParams& P)
 	{
-		Parameters.NetSerialize(P);
+		Source.NetSerialize(P);
+		P.Ar << EndTimeMS;
 	}
 
 	void ToString(FAnsiStringBuilderBase& Out) const
 	{
-		Parameters.ToString(Out);
+		Source.ToString(Out);
+		Out.Appendf("EndTimeMS: %d\n", EndTimeMS);
 	}
 
 	bool ShouldReconcile(const FMockRootMotionAuxState& AuthorityState) const
 	{
-		return this->Parameters != AuthorityState.Parameters;
+		return this->Source != AuthorityState.Source;
 	}
 
 	void Interpolate(const FMockRootMotionAuxState* From, const FMockRootMotionAuxState* To, float PCT)
 	{
-		this->Parameters = To->Parameters;
+		this->Source = To->Source;
 	}
 };
 
@@ -261,8 +244,13 @@ public:
 	// The main tick function
 	void SimulationTick(const FNetSimTimeStep& TimeStep, const TNetSimInput<MockRootMotionStateTypes>& Input, const TNetSimOutput<MockRootMotionStateTypes>& Output);
 
-	// Simulation's interface for mapping ID -> RootMotionSource
-	IMockRootMotionSourceMap* SourceMap = nullptr;
+	IRootMotionSourceStore* SourceStore = nullptr;
+
+	template<typename ProxyType>
+	UMockRootMotionSource* ResolveRootMotionSource(const ProxyType& Proxy)
+	{
+		return SourceStore->ResolveRootMotionSource(Proxy.GetID(), Proxy.GetParamsDataView());
+	}
 
 	// The component the root motion is relative to. This was found to be needed since, in our examples, we author root motion anims where Y is forward
 	// and we rotate the mesh components at the actor level so that X is forward. We need to know which component to rotate the root motion animation relative to.

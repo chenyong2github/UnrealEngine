@@ -1,73 +1,55 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
 #pragma once
 
 #include "SceneTexturesCommon.ush"
 #include "DeferredShadingCommon.ush"
 
-uint bIsSceneLightingChannelsValid;
+#if SHADING_PATH_DEFERRED
+
+#if !SUPPORTS_INDEPENDENT_SAMPLERS
+	#error Scene textures may only be used on platforms which support independent samplers.
+#endif
+
+uint bSceneLightingChannelsValid;
 
 // Matches FSceneTextureParameters
-Texture2D SceneDepthBuffer;
-Texture2D<uint2> SceneStencilBuffer;
-Texture2D SceneVelocityBuffer;
-Texture2D SceneGBufferA;
-Texture2D SceneGBufferB;
-Texture2D SceneGBufferC;
-Texture2D SceneGBufferD;
-Texture2D SceneGBufferE;
-#if GBUFFER_HAS_TANGENT
-Texture2D SceneGBufferF;
-#endif
+Texture2D SceneDepthTexture;
+Texture2D<uint2> SceneStencilTexture;
+Texture2D GBufferATexture;
+Texture2D GBufferBTexture;
+Texture2D GBufferCTexture;
+Texture2D GBufferDTexture;
+Texture2D GBufferETexture;
+Texture2D GBufferVelocityTexture;
+Texture2D GBufferFTexture;
 Texture2D<uint> SceneLightingChannels;
 
-#if SUPPORTS_INDEPENDENT_SAMPLERS
-#define SceneDepthBufferSampler GlobalPointClampedSampler
-#define SceneVelocityBufferSampler GlobalPointClampedSampler
-#define SceneGBufferASampler GlobalPointClampedSampler
-#define SceneGBufferBSampler GlobalPointClampedSampler
-#define SceneGBufferCSampler GlobalPointClampedSampler
-#define SceneGBufferDSampler GlobalPointClampedSampler
-#define SceneGBufferESampler GlobalPointClampedSampler
-#if GBUFFER_HAS_TANGENT
-#define SceneGBufferFSampler GlobalPointClampedSampler
-#endif
-
-#else
-SamplerState SceneDepthBufferSampler;
-SamplerState SceneVelocityBufferSampler;
-SamplerState SceneGBufferASampler;
-SamplerState SceneGBufferBSampler;
-SamplerState SceneGBufferCSampler;
-SamplerState SceneGBufferDSampler;
-SamplerState SceneGBufferESampler;
-#if GBUFFER_HAS_TANGENT
-SamplerState SceneGBufferFSampler;
-#endif
-
-#endif
+#define SceneDepthTextureSampler GlobalPointClampedSampler
+#define GBufferATextureSampler GlobalPointClampedSampler
+#define GBufferBTextureSampler GlobalPointClampedSampler
+#define GBufferCTextureSampler GlobalPointClampedSampler
+#define GBufferDTextureSampler GlobalPointClampedSampler
+#define GBufferETextureSampler GlobalPointClampedSampler
+#define GBufferFTextureSampler GlobalPointClampedSampler
+#define GBufferVelocityTextureSampler GlobalPointClampedSampler
 
 float SampleDeviceZFromSceneTextures(float2 UV)
 {
-	return SceneDepthBuffer.SampleLevel(SceneDepthBufferSampler, UV, 0).r;
+	return SceneDepthTexture.SampleLevel(SceneDepthTextureSampler, UV, 0).r;
 }
 
 // @param UV - UV space in the GBuffer textures (BufferSize resolution)
 // TOOD: need to find a way to make this more convenient.
 FGBufferData GetGBufferDataFromSceneTextures(float2 UV, bool bGetNormalizedNormal = true)
 {
-	float4 GBufferA = SceneGBufferA.SampleLevel(SceneGBufferASampler, UV, 0);
-	float4 GBufferB = SceneGBufferB.SampleLevel(SceneGBufferBSampler, UV, 0);
-	float4 GBufferC = SceneGBufferC.SampleLevel(SceneGBufferCSampler, UV, 0);
-	float4 GBufferD = SceneGBufferD.SampleLevel(SceneGBufferDSampler, UV, 0);
-	float4 GBufferE = SceneGBufferE.SampleLevel(SceneGBufferESampler, UV, 0);
-#if GBUFFER_HAS_TANGENT
-	float4 GBufferF = SceneGBufferF.SampleLevel(SceneGBufferFSampler, UV, 0);
-#else
-	float4 GBufferF = 0.5f;
-#endif
-	float4 GBufferVelocity = SceneVelocityBuffer.SampleLevel(SceneVelocityBufferSampler, UV, 0);
+	float4 GBufferA = GBufferATexture.SampleLevel(GBufferATextureSampler, UV, 0);
+	float4 GBufferB = GBufferBTexture.SampleLevel(GBufferBTextureSampler, UV, 0);
+	float4 GBufferC = GBufferCTexture.SampleLevel(GBufferCTextureSampler, UV, 0);
+	float4 GBufferD = GBufferDTexture.SampleLevel(GBufferDTextureSampler, UV, 0);
+	float4 GBufferE = GBufferETexture.SampleLevel(GBufferETextureSampler, UV, 0);
+	float4 GBufferF = GBufferFTexture.SampleLevel(GBufferFTextureSampler, UV, 0);
+	float4 GBufferVelocity = GBufferVelocityTexture.SampleLevel(GBufferVelocityTextureSampler, UV, 0);
 
 	uint CustomStencil = 0;
 	float CustomNativeDepth = 0;
@@ -83,9 +65,11 @@ FGBufferData GetGBufferDataFromSceneTextures(float2 UV, bool bGetNormalizedNorma
 uint GetSceneLightingChannel(uint2 PixelCoord)
 {
 	BRANCH
-	if (bIsSceneLightingChannelsValid)
+	if (bSceneLightingChannelsValid)
 	{
 		return SceneLightingChannels.Load(uint3(PixelCoord, 0)).x;
 	}
 	return ~0;
 }
+
+#endif

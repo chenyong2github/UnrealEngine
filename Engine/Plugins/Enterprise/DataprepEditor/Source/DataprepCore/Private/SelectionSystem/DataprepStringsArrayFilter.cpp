@@ -97,7 +97,7 @@ const UDataprepFetcher* UDataprepStringsArrayFilter::GetFetcherImplementation() 
 
 FText UDataprepStringsArrayFilter::GetFilterCategoryText() const
 {
-	return NSLOCTEXT("DataprepSringsArrayFilter", "StringFilterCategory", "String");
+	return NSLOCTEXT("DataprepSringsArrayFilter", "StringArrayFilterCategory", "StringArray");
 }
 
 EDataprepStringMatchType UDataprepStringsArrayFilter::GetStringMatchingCriteria() const

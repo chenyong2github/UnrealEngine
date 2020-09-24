@@ -32,7 +32,7 @@ class TSocialQuery : public FSocialQueryBase
 {
 public:
 	using FQueryId = QueryUserIdT;
-	using FOnQueryComplete = TBaseDelegate<void, ESocialSubsystem, bool, CompletionCallbackArgs...>;
+	using FOnQueryComplete = TDelegate<void(ESocialSubsystem, bool, CompletionCallbackArgs...)>;
 
 	// All subclasses of TSocialQuery must implement this static method
 	// Intentionally not implemented here to catch errors at compile time

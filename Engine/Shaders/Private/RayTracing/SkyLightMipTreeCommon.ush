@@ -155,7 +155,7 @@ uint SampleFace(float FaceCdf[7], float RandSample, out float FacePdf)
 {
 	// Determine CDF entry
 	uint FaceIndex = 1;
-	while (RandSample > FaceCdf[FaceIndex])
+	while (RandSample > FaceCdf[FaceIndex] && FaceIndex < 7)
 	{
 		FaceIndex++;
 	}

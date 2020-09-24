@@ -15,7 +15,7 @@ class FTexture2DStreamIn_DDC_AsyncCreate : public FTexture2DStreamIn_DDC
 {
 public:
 
-	FTexture2DStreamIn_DDC_AsyncCreate(UTexture2D* InTexture, int32 InRequestedMips);
+	FTexture2DStreamIn_DDC_AsyncCreate(UTexture2D* InTexture);
 
 protected:
 

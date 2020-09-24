@@ -15,9 +15,10 @@ public:
 
 	// IHeadMountedDisplayVulkanExtensions
 	virtual bool GetVulkanInstanceExtensionsRequired(TArray<const ANSICHAR*>& Out) override;
-	virtual bool GetVulkanDeviceExtensionsRequired(struct VkPhysicalDevice_T *pPhysicalDevice, TArray<const ANSICHAR*>& Out) override;
+	virtual bool GetVulkanDeviceExtensionsRequired(struct VkPhysicalDevice_T* pPhysicalDevice, TArray<const ANSICHAR*>& Out) override;
 
 private:
-	struct Implementation;
-	TUniquePtr<Implementation> ImpPtr;
+#if PLATFORM_WINDOWS
+	struct FMagicLeapVulkanExtensionsImpl* ImpPtr;
+#endif // PLATFORM_WINDOWS
 };

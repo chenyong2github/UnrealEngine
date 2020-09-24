@@ -38,6 +38,8 @@ public class MeshModelingToolsEditorOnly : ModuleRules
 				"ModelingOperatorsEditorOnly",
                 "ProxyLODMeshReduction", // currently required to be public due to IVoxelBasedCSG API
 				// ... add other public dependencies that you statically link with here ...
+
+				"HairStrandsCore"		// required for Hair toolset
 			}
             );
 			

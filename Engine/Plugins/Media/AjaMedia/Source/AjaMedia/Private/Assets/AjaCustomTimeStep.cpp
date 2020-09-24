@@ -26,7 +26,7 @@ struct UAjaCustomTimeStep::FAJACallback : public AJA::IAJASyncChannelCallbackInt
 	//~ IAJAInputCallbackInterface interface
 	virtual void OnInitializationCompleted(bool bSucceed) override
 	{
-		Owner->State = bSucceed ? ECustomTimeStepSynchronizationState::Synchronized : ECustomTimeStepSynchronizationState::Error;
+		Owner->State = bSucceed ? ECustomTimeStepSynchronizationState::Synchronizing : ECustomTimeStepSynchronizationState::Error;
 		if (!bSucceed)
 		{
 			UE_LOG(LogAjaMedia, Error, TEXT("The initialization of '%s' failed. The CustomTimeStep won't be synchronized."), *Owner->GetName());
@@ -49,10 +49,12 @@ UAjaCustomTimeStep::UAjaCustomTimeStep(const FObjectInitializer& ObjectInitializ
 	, LastAutoSynchronizeInEditorAppTime(0.0)
 #endif
 	, State(ECustomTimeStepSynchronizationState::Closed)
-	, bDidAValidUpdateTimeStep(false)
 	, bWarnedAboutVSync(false)
 	, bIsPreviousSyncCountValid(false)
 	, PreviousSyncCount(0)
+	, SyncCountDelta(0)
+	, LastDetectedVideoFormat(0) // 0 means UNKNOWN
+	, bLastDetectedVideoFormatInitialized(false)
 {
 	MediaConfiguration.bIsInput = !bUseReferenceIn;
 }
@@ -64,7 +66,8 @@ bool UAjaCustomTimeStep::Initialize(UEngine* InEngine)
 #endif
 
 	State = ECustomTimeStepSynchronizationState::Closed;
-	bDidAValidUpdateTimeStep = false;
+
+	bLastDetectedVideoFormatInitialized = false;
 
 	if (!FAja::IsInitialized())
 	{
@@ -166,7 +169,6 @@ bool UAjaCustomTimeStep::Initialize(UEngine* InEngine)
 	InitializedEngine = InEngine;
 #endif
 
-	State = ECustomTimeStepSynchronizationState::Synchronizing;
 	return true;
 }
 
@@ -180,48 +182,85 @@ void UAjaCustomTimeStep::Shutdown(UEngine* InEngine)
 	ReleaseResources();
 }
 
-bool UAjaCustomTimeStep::UpdateTimeStep(UEngine* InEngine)
+bool UAjaCustomTimeStep::VerifyGenlockSignal()
 {
-	bool bRunEngineTimeStep = true;
-	if (State == ECustomTimeStepSynchronizationState::Synchronized)
+	bool bGenlockSignalValid = true;
+
+	AJA::FAJAVideoFormat VideoFormat;
+	const bool bHasGenlockSignal = SyncChannel->GetVideoFormat(VideoFormat);
+
+	// Log error only once per signal change
+	const bool bShouldLogError = !bLastDetectedVideoFormatInitialized || (LastDetectedVideoFormat != VideoFormat);
+
+	if (bHasGenlockSignal)
 	{
-		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VSync"));
-		if (!bWarnedAboutVSync)
+		if (VideoFormat != MediaConfiguration.MediaMode.DeviceModeIdentifier)
 		{
-			bool bLockToVsync = CVar->GetValueOnGameThread() != 0;
-			if (bLockToVsync)
+			bGenlockSignalValid = false;
+
+			if (bShouldLogError)
 			{
-				UE_LOG(LogAjaMedia, Warning, TEXT("The Engine is using VSync and the AJACustomTimeStep. It may break the 'genlock'."));
-				bWarnedAboutVSync = true;
+				constexpr uint32 MaxStringLen = 128;
+				char VideoFormatStdString[MaxStringLen];
+				char ExpectedVideoFormatStdString[MaxStringLen];
+
+				const bool bVideoFormatStringOk = AJA::AJAVideoFormats::VideoFormatToString(
+					VideoFormat, VideoFormatStdString, sizeof(VideoFormatStdString)
+				);
+
+				const bool bExpectedVideoFormatStringOk = AJA::AJAVideoFormats::VideoFormatToString(
+					MediaConfiguration.MediaMode.DeviceModeIdentifier, ExpectedVideoFormatStdString, sizeof(ExpectedVideoFormatStdString)
+				);
+
+				if (bVideoFormatStringOk && bExpectedVideoFormatStringOk)
+				{
+					FString VideoFormatString(UTF8_TO_TCHAR(VideoFormatStdString));
+					FString ExpectedVideoFormatString(UTF8_TO_TCHAR(ExpectedVideoFormatStdString));
+
+					UE_LOG(LogAjaMedia, Warning, TEXT("Detected Genlock signal '%s' differs from expected '%s'"), *VideoFormatString, *ExpectedVideoFormatString);
+				}
+				else
+				{
+					UE_LOG(LogAjaMedia, Warning, TEXT("Detected Genlock signal '%d' differs from expected '%d'"), 
+						VideoFormat, MediaConfiguration.MediaMode.DeviceModeIdentifier
+					);
+				}
 			}
 		}
-
-		// Updates logical last time to match logical current time from last tick
-		UpdateApplicationLastTime();
-
-		const double BeforeTime = FPlatformTime::Seconds();
-
-		WaitForSync();
-
-		// Use fixed delta time and update time.
-		FApp::SetCurrentTime(FPlatformTime::Seconds());
-		FApp::SetIdleTime(FApp::GetCurrentTime() - BeforeTime);
-
-		double InterlacedMultiplier = ((MediaConfiguration.MediaMode.Standard == EMediaIOStandardType::Interlaced) && bWaitForFrameToBeReady) ? 2.0 : 1.0;
-		FApp::SetDeltaTime(GetFixedFrameRate().AsInterval() * InterlacedMultiplier);
-
-		bRunEngineTimeStep = false;
-		bDidAValidUpdateTimeStep = true;
 	}
-	else if (State == ECustomTimeStepSynchronizationState::Error)
+	else
+	{
+		bGenlockSignalValid = false;
+
+		if (bShouldLogError)
+		{
+			UE_LOG(LogAjaMedia, Warning, TEXT("Genlock signal not detected"));
+		}
+	}
+
+	LastDetectedVideoFormat = VideoFormat;
+	bLastDetectedVideoFormatInitialized = true;
+	return bGenlockSignalValid;
+}
+
+bool UAjaCustomTimeStep::UpdateTimeStep(UEngine* InEngine)
+{
+	if (State == ECustomTimeStepSynchronizationState::Closed)
+	{
+		return true;
+	}
+
+	if (State == ECustomTimeStepSynchronizationState::Error)
 	{
 		ReleaseResources();
+		bLastDetectedVideoFormatInitialized = false;
+		bIsPreviousSyncCountValid = false;
 
 		// In Editor only, when not in pie, reinitialized the device
 #if WITH_EDITORONLY_DATA && WITH_EDITOR
 		if (InitializedEngine && !GIsPlayInEditorWorld && GIsEditor)
 		{
-			const double TimeBetweenAttempt = 1.0;
+			constexpr double TimeBetweenAttempt = 1.0;
 			if (FApp::GetCurrentTime() - LastAutoSynchronizeInEditorAppTime > TimeBetweenAttempt)
 			{
 				Initialize(InitializedEngine);
@@ -229,23 +268,86 @@ bool UAjaCustomTimeStep::UpdateTimeStep(UEngine* InEngine)
 			}
 		}
 #endif
+		return true;
 	}
 
-	return bRunEngineTimeStep;
+	check(State == ECustomTimeStepSynchronizationState::Synchronized || State == ECustomTimeStepSynchronizationState::Synchronizing);
+
+	// Warn about Vsync once
+	{
+		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VSync"));
+		if (!bWarnedAboutVSync)
+		{
+			bool bLockToVsync = CVar->GetValueOnGameThread() != 0;
+			if (bLockToVsync)
+			{
+				UE_LOG(LogAjaMedia, Warning, TEXT("The Engine is using VSync and may break the 'genlock'"));
+				bWarnedAboutVSync = true;
+			}
+		}
+	}
+
+	// Updates logical last time to match logical current time from last tick
+	UpdateApplicationLastTime();
+
+	const double TimeBeforeSync = FPlatformTime::Seconds();
+
+	const bool bValidGenlockSignal = VerifyGenlockSignal();
+	const bool bWaitedForSync = WaitForSync();
+
+	const double TimeAfterSync = FPlatformTime::Seconds();
+
+	if (!bWaitedForSync)
+	{
+		State = ECustomTimeStepSynchronizationState::Error;
+		return true;
+	}
+
+	if (bValidGenlockSignal)
+	{
+		State = ECustomTimeStepSynchronizationState::Synchronized;
+	}
+	else
+	{
+		State = ECustomTimeStepSynchronizationState::Synchronizing;
+	}
+
+	UpdateAppTimes(TimeBeforeSync, TimeAfterSync);
+
+	return false;
 }
 
 ECustomTimeStepSynchronizationState UAjaCustomTimeStep::GetSynchronizationState() const
 {
-	if (State == ECustomTimeStepSynchronizationState::Synchronized)
-	{
-		return bDidAValidUpdateTimeStep ? ECustomTimeStepSynchronizationState::Synchronized : ECustomTimeStepSynchronizationState::Synchronizing;
-	}
 	return State;
 }
 
 FFrameRate UAjaCustomTimeStep::GetFixedFrameRate() const
 {
 	return MediaConfiguration.MediaMode.FrameRate;
+}
+
+FFrameRate UAjaCustomTimeStep::GetSyncRate() const
+{
+	FFrameRate SyncRate = GetFixedFrameRate();
+
+	if (MediaConfiguration.MediaMode.Standard == EMediaIOStandardType::ProgressiveSegmentedFrame)
+	{
+		// If pSF you should get 2 field interrupts.
+		SyncRate.Numerator *= 2;
+	}
+
+	return SyncRate;
+}
+
+uint32 UAjaCustomTimeStep::GetLastSyncCountDelta() const
+{
+	return SyncCountDelta;
+}
+
+bool UAjaCustomTimeStep::IsLastSyncDataValid() const
+{
+	return bIsPreviousSyncCountValid;
 }
 
 //~ UObject implementation
@@ -271,29 +373,50 @@ void UAjaCustomTimeStep::PostEditChangeChainProperty(struct FPropertyChangedChai
 
 //~ UAjaCustomTimeStep implementation
 //--------------------------------------------------------------------
-void UAjaCustomTimeStep::WaitForSync()
+bool UAjaCustomTimeStep::WaitForSync()
 {
 	check(SyncChannel);
 
-	bool bWaitIsValid = SyncChannel->WaitForSync();
-	if (bEnableOverrunDetection && bWaitIsValid)
-	{
-		uint32 NewSyncCount = 0;
-		bool bIsNewSyncCountValid = SyncChannel->GetSyncCount(NewSyncCount);
+	SyncCountDelta = 1;
 
-		if (bIsNewSyncCountValid && bIsPreviousSyncCountValid && NewSyncCount != PreviousSyncCount+1)
-		{
-			UE_LOG(LogAjaMedia, Warning, TEXT("The Engine couldn't run fast enough to keep up with the CustomTimeStep Sync. '%d' frame(s) was dropped."), NewSyncCount-PreviousSyncCount-1);
-		}
-		bIsPreviousSyncCountValid = bIsNewSyncCountValid;
-		PreviousSyncCount = NewSyncCount;
-	}
+	const bool bWaitIsValid = SyncChannel->WaitForSync();
 
 	if (!bWaitIsValid)
 	{
 		State = ECustomTimeStepSynchronizationState::Error;
-		UE_LOG(LogAjaMedia, Error, TEXT("The Engine couldn't run fast enough to keep up with the CustomTimeStep Sync. The wait timeout."));
+		bIsPreviousSyncCountValid = false;
+		UE_LOG(LogAjaMedia, Error, TEXT("The Engine couldn't run fast enough to keep up with the CustomTimeStep Sync. The wait timed out."));
+		return false;
 	}
+
+	uint32 NewSyncCount = 0;
+	const bool bIsNewSyncCountValid = SyncChannel->GetSyncCount(NewSyncCount);
+
+	const int32 ExpectedSyncCountsPerWait = GetExpectedSyncCountDelta();
+
+	if (bEnableOverrunDetection 
+		&& bIsNewSyncCountValid 
+		&& bIsPreviousSyncCountValid 
+		&& (NewSyncCount != (PreviousSyncCount + ExpectedSyncCountsPerWait)))
+	{
+		UE_LOG(LogAjaMedia, Warning, 
+			TEXT("The Engine couldn't run fast enough to keep up with the CustomTimeStep Sync. '%d' frame(s) dropped."), 
+			NewSyncCount - PreviousSyncCount - ExpectedSyncCountsPerWait);
+	}
+
+	if (bIsNewSyncCountValid)
+	{
+		if (bIsPreviousSyncCountValid)
+		{
+			SyncCountDelta = NewSyncCount - PreviousSyncCount;
+		}
+
+		PreviousSyncCount = NewSyncCount;
+	}
+
+	bIsPreviousSyncCountValid = bIsNewSyncCountValid;
+
+	return true;
 }
 
 void UAjaCustomTimeStep::ReleaseResources()

@@ -45,6 +45,22 @@ FRigUnit_DebugTransform_Execute()
 
 FRigUnit_DebugTransformMutable_Execute()
 {
+	FRigUnit_DebugTransformMutableItemSpace::StaticExecute(
+		RigVMExecuteContext, 
+		Transform,
+		Mode,
+		Color,
+		Thickness,
+		Scale,
+		FRigElementKey(Space, ERigElementType::Bone), 
+		WorldOffset, 
+		bEnabled,
+		ExecuteContext, 
+		Context);
+}
+
+FRigUnit_DebugTransformMutableItemSpace_Execute()
+{
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
 	{

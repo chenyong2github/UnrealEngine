@@ -37,17 +37,15 @@ URuntimeVirtualTextureThumbnailRenderer::URuntimeVirtualTextureThumbnailRenderer
 bool URuntimeVirtualTextureThumbnailRenderer::CanVisualizeAsset(UObject* Object)
 {
 	URuntimeVirtualTexture* RuntimeVirtualTexture = Cast<URuntimeVirtualTexture>(Object);
-	if (RuntimeVirtualTexture->GetEnabled())
+
+	// We need a matching URuntimeVirtualTextureComponent in a Scene to be able to render a thumbnail
+	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = FindComponent(RuntimeVirtualTexture);
+	if (RuntimeVirtualTextureComponent != nullptr)
 	{
-		// We need a matching URuntimeVirtualTextureComponent in a Scene to be able to render a thumbnail
-		URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = FindComponent(RuntimeVirtualTexture);
-		if (RuntimeVirtualTextureComponent != nullptr)
+		FSceneInterface* Scene = RuntimeVirtualTextureComponent->GetScene();
+		if (Scene != nullptr && RuntimeVirtualTexture::IsSceneReadyToRender(Scene->GetRenderScene()))
 		{
-			FSceneInterface* Scene = RuntimeVirtualTextureComponent->GetScene();
-			if (Scene != nullptr && RuntimeVirtualTexture::IsSceneReadyToRender(Scene->GetRenderScene()))
-			{
-				return true;
-			}
+			return true;
 		}
 	}
 
@@ -74,7 +72,7 @@ void URuntimeVirtualTextureThumbnailRenderer::Draw(UObject* Object, int32 X, int
 	const ERuntimeVirtualTextureMaterialType MaterialType = RuntimeVirtualTexture->GetMaterialType();
 
 	FVTProducerDescription VTDesc;
-	RuntimeVirtualTexture->GetProducerDescription(VTDesc, Transform);
+	RuntimeVirtualTexture->GetProducerDescription(VTDesc, URuntimeVirtualTexture::FInitSettings(), Transform);
 	const int32 MaxLevel = (int32)FMath::CeilLogTwo(FMath::Max(VTDesc.BlockWidthInTiles, VTDesc.BlockHeightInTiles));
 
 	ENQUEUE_RENDER_COMMAND(BakeStreamingTextureTileCommand)(

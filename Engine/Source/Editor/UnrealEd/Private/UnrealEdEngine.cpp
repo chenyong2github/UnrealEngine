@@ -678,6 +678,8 @@ void UUnrealEdEngine::OnPostGarbageCollect()
 			It.RemoveCurrent();
 		}
 	}
+
+	RedrawAllViewports();
 }
 
 

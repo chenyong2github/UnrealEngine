@@ -3,6 +3,7 @@
 // libwebsocket client wrapper.
 //
 #pragma  once
+#include "INetworkingWebSocket.h"
 #include "WebSocketNetworkingPrivate.h"
 #if USE_LIBWEBSOCKET
 #include "Runtime/Sockets/Private/BSDSockets/SocketSubsystemBSD.h"
@@ -10,7 +11,7 @@
 #include <netinet/in.h>
 #endif
 
-class FWebSocket
+class FWebSocket : public INetworkingWebSocket
 {
 
 public:
@@ -23,46 +24,39 @@ public:
 	FWebSocket(WebSocketInternalContext* InContext, WebSocketInternal* Wsi);
 #endif
 
-	// clean up.
-	~FWebSocket();
-
-	/************************************************************************/
-	/* Set various callbacks for Socket Events                              */
-	/************************************************************************/
-	void SetConnectedCallBack(FWebSocketInfoCallBack CallBack);
-	void SetErrorCallBack(FWebSocketInfoCallBack CallBack);
-	void SetRecieveCallBack(FWebSocketPacketRecievedCallBack CallBack);
-
-	/** Send raw data to remote end point. */
-	bool Send(uint8* Data, uint32 Size);
-
-	/** service libwebsocket.			   */
-	void Tick();
-	/** service libwebsocket until outgoing buffer is empty */
-	void Flush();
-
-	/** Helper functions to describe end points. */
-	TArray<uint8> GetRawRemoteAddr(int32& OutPort);
-	FString RemoteEndPoint(bool bAppendPort);
-	FString LocalEndPoint(bool bAppendPort);
-	struct sockaddr_in* GetRemoteAddr() { return &RemoteAddr; }
+	//~ Begin INetworkingWebSocket interface
+	virtual ~FWebSocket() override;	
+	virtual void SetConnectedCallBack(FWebSocketInfoCallBack CallBack) override;
+	virtual void SetErrorCallBack(FWebSocketInfoCallBack CallBack) override;
+	virtual void SetReceiveCallBack(FWebSocketPacketReceivedCallBack CallBack) override;
+	virtual void SetSocketClosedCallBack(FWebSocketInfoCallBack CallBack) override;
+	virtual bool Send(const uint8* Data, uint32 Size) override;
+	virtual void Tick() override;
+	virtual void Flush() override;
+	virtual TArray<uint8> GetRawRemoteAddr(int32& OutPort) override;
+	virtual FString RemoteEndPoint(bool bAppendPort) override;
+	virtual FString LocalEndPoint(bool bAppendPort) override;
+	virtual struct sockaddr_in* GetRemoteAddr() override { return &RemoteAddr; }
+	//~ End INetworkingWebSocket interface
 
 // this was made public because of cross-platform build issues
 public:
-
 	void HandlePacket();
+	void OnReceive(void* Data, uint32 Size);
 	void OnRawRecieve(void* Data, uint32 Size);
 	void OnRawWebSocketWritable(WebSocketInternal* wsi);
+	void OnClose();
 
 	/************************************************************************/
 	/*	Various Socket callbacks											*/
 	/************************************************************************/
-	FWebSocketPacketRecievedCallBack  RecievedCallBack;
+	FWebSocketPacketReceivedCallBack  ReceivedCallback;
 	FWebSocketInfoCallBack ConnectedCallBack;
 	FWebSocketInfoCallBack ErrorCallBack;
+	FWebSocketInfoCallBack SocketClosedCallback;
 
 	/**  Recv and Send Buffers, serviced during the Tick */
-	TArray<uint8> RecievedBuffer;
+	TArray<uint8> ReceiveBuffer;
 	TArray<TArray<uint8>> OutgoingBuffer;
 
 #if USE_LIBWEBSOCKET

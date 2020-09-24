@@ -363,7 +363,10 @@ bool UMovieScenePropertyInstantiatorSystem::PropertySupportsFastPath(const FProp
 		}
 
 		FComponentMask Type = Linker->EntityManager.GetEntityType(It.Value());
-		if (Type.Contains(BuiltInComponents->Tags.RelativeBlend) || Type.Contains(BuiltInComponents->Tags.AdditiveBlend) || Type.Contains(BuiltInComponents->WeightAndEasingResult))
+		if (Type.Contains(BuiltInComponents->Tags.RelativeBlend) || 
+				Type.Contains(BuiltInComponents->Tags.AdditiveBlend) || 
+				Type.Contains(BuiltInComponents->Tags.AdditiveFromBaseBlend) || 
+				Type.Contains(BuiltInComponents->WeightAndEasingResult))
 		{
 			return false;
 		}

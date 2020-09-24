@@ -145,9 +145,11 @@ void FRenderDocPluginLoader::Initialize()
 		UE_LOG(RenderDocPlugin, Log, TEXT("RenderDoc library not found; provide a custom installation location..."));
 
 		FString RenderdocPath;
-		FString Filter = TEXT("Renderdoc executable|renderdocui.exe");
+		// renderdocui.exe is the old executable name, it was changed to qrenderdoc.exe in 1.0.
+		// If users upgraded from pre-1.0 to 1.0+, renderdocui.exe is a redirect to qrenderdoc.exe; otherwise only the new executable exists.
+		FString Filter = TEXT("RenderDoc executable|renderdocui.exe;qrenderdoc.exe");
 		TArray<FString> OutFiles;
-		if (DesktopPlatform->OpenFileDialog(nullptr, TEXT("Locate main Renderdoc executable..."), TEXT(""), TEXT(""), Filter, EFileDialogFlags::None, OutFiles))
+		if (DesktopPlatform->OpenFileDialog(nullptr, TEXT("Locate main RenderDoc executable..."), TEXT(""), TEXT(""), Filter, EFileDialogFlags::None, OutFiles))
 		{
 			RenderdocPath = OutFiles[0];
 		}

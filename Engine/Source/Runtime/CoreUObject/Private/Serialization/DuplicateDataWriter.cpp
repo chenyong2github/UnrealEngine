@@ -141,10 +141,15 @@ UObject* FDuplicateDataWriter::GetDuplicatedObject(UObject* Object, bool bCreate
 			if(DupOuter != nullptr)
 			{
 				// The object's outer is being duplicated, create a duplicate of this object.
-				Result = StaticConstructObject_Internal(Object->GetClass(), DupOuter, Object->GetFName(),
-					ApplyFlags | Object->GetMaskedFlags(FlagMask),
-					ApplyInternalFlags | (Object->GetInternalFlags() & InternalFlagMask),
-					Object->GetArchetype(), true, InstanceGraph);
+				FStaticConstructObjectParameters Params(Object->GetClass());
+				Params.Outer = DupOuter;
+				Params.Name = Object->GetFName();
+				Params.SetFlags = ApplyFlags | Object->GetMaskedFlags(FlagMask);
+				Params.InternalSetFlags = ApplyInternalFlags | (Object->GetInternalFlags() & InternalFlagMask);
+				Params.Template = Object->GetArchetype();
+				Params.bCopyTransientsFromClassDefaults = true;
+				Params.InstanceGraph = InstanceGraph;
+				Result = StaticConstructObject_Internal(Params);
 				
 				// If we assign external package to duplicated object, fetch the package
 				Result->SetExternalPackage(bAssignExternalPackages ? Cast<UPackage>(GetDuplicatedObject(Object->GetExternalPackage(), false)) : nullptr);

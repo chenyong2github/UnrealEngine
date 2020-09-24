@@ -605,6 +605,7 @@ namespace Audio
 		FMixerSubmixWeakPtr MasterSubmix = GetMasterSubmix();
 		{
 			CSV_SCOPED_TIMING_STAT(Audio, Submixes);
+			SCOPE_CYCLE_COUNTER(STAT_AudioMixerSubmixes);
 
 			FMixerSubmixPtr MasterSubmixPtr = MasterSubmix.Pin();
 			if (MasterSubmixPtr.IsValid())
@@ -616,6 +617,8 @@ namespace Audio
 
 		{
 			CSV_SCOPED_TIMING_STAT(Audio, EndpointSubmixes);
+			SCOPE_CYCLE_COUNTER(STAT_AudioMixerEndpointSubmixes);
+
 			FScopeLock ScopeLock(&EndpointSubmixesMutationLock);
 			for (FMixerSubmixPtr& Submix : DefaultEndpointSubmixes)
 			{

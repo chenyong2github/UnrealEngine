@@ -185,17 +185,17 @@ float ComputeSceneDepth(float3 TranslatedWorldPosition)
 
 FGBufferData FetchGBufferDataForProbeOcclusion(float2 BufferUV, out float DeviceZ)
 {
-	float4 GBufferA = SceneGBufferA.SampleLevel(SceneGBufferASampler, BufferUV, 0);
-	float4 GBufferB = SceneGBufferB.SampleLevel(SceneGBufferBSampler, BufferUV, 0);
-	float4 GBufferC = SceneGBufferC.SampleLevel(SceneGBufferCSampler, BufferUV, 0);
-	float4 GBufferD = SceneGBufferD.SampleLevel(SceneGBufferDSampler, BufferUV, 0);
-	float4 GBufferE = SceneGBufferE.SampleLevel(SceneGBufferESampler, BufferUV, 0);
+	float4 GBufferA = GBufferATexture.SampleLevel(GBufferATextureSampler, BufferUV, 0);
+	float4 GBufferB = GBufferBTexture.SampleLevel(GBufferBTextureSampler, BufferUV, 0);
+	float4 GBufferC = GBufferCTexture.SampleLevel(GBufferCTextureSampler, BufferUV, 0);
+	float4 GBufferD = GBufferDTexture.SampleLevel(GBufferDTextureSampler, BufferUV, 0);
+	float4 GBufferE = GBufferETexture.SampleLevel(GBufferETextureSampler, BufferUV, 0);
 #if GBUFFER_HAS_TANGENT
-	float4 GBufferF = SceneGBufferF.SampleLevel(SceneGBufferFSampler, UV, 0);
+	float4 GBufferF = GBufferFTexture.SampleLevel(GBufferFTextureSampler, UV, 0);
 #else
 	float4 GBufferF = 0.5f;
 #endif
-	float4 GBufferVelocity = SceneVelocityBuffer.SampleLevel(SceneVelocityBufferSampler, BufferUV, 0);
+	float4 GBufferVelocity = GBufferVelocityTexture.SampleLevel(GBufferVelocityTextureSampler, BufferUV, 0);
 
 	uint CustomStencil = 0;
 	float CustomNativeDepth = 0;

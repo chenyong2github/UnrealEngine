@@ -1180,12 +1180,16 @@ bool FMaterialResource::IsUsedWithAPEXCloth() const
 
 EMaterialTessellationMode FMaterialResource::GetTessellationMode() const 
 { 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return (EMaterialTessellationMode)Material->D3D11TessellationMode; 
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 bool FMaterialResource::IsCrackFreeDisplacementEnabled() const 
 { 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return Material->bEnableCrackFreeDisplacement;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 bool FMaterialResource::IsTranslucencyAfterDOFEnabled() const 
@@ -1207,7 +1211,9 @@ bool FMaterialResource::IsMobileSeparateTranslucencyEnabled() const
 
 bool FMaterialResource::IsAdaptiveTessellationEnabled() const
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return Material->bEnableAdaptiveTessellation;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 bool FMaterialResource::IsFullyRough() const
@@ -1225,6 +1231,11 @@ bool FMaterialResource::IsUsingFullPrecision() const
 	return Material->bUseFullPrecision;
 }
 
+bool FMaterialResource::IsUsingAlphaToCoverage() const
+{
+	return Material->bUseAlphaToCoverage && Material->MaterialDomain == EMaterialDomain::MD_Surface && Material->GetBlendMode() == EBlendMode::BLEND_Masked;
+}
+
 bool FMaterialResource::IsUsingPreintegratedGFForSimpleIBL() const
 {
 	return Material->bForwardRenderUsePreintegratedGFForSimpleIBL;
@@ -1237,7 +1248,9 @@ bool FMaterialResource::IsUsingHQForwardReflections() const
 
 bool FMaterialResource::IsUsingPlanarForwardReflections() const
 {
-	return Material->bUsePlanarForwardReflections;
+	return Material->bUsePlanarForwardReflections
+		// Don't use planar reflection if it is used only for mobile pixel projected reflection.
+		&& (GetFeatureLevel() <= ERHIFeatureLevel::ES3_1 || GetMobilePlanarReflectionMode() != EMobilePlanarReflectionMode::MobilePPRExclusive);
 }
 
 bool FMaterialResource::IsNonmetal() const
@@ -1259,7 +1272,8 @@ bool FMaterialResource::IsPersistent() const { return true; }
 
 FGuid FMaterialResource::GetMaterialId() const
 {
-	return Material->StateId;
+	// It's possible for Material to become null due to AddReferencedObjects
+	return Material ? Material->StateId : FGuid();
 }
 
 ETranslucencyLightingMode FMaterialResource::GetTranslucencyLightingMode() const { return (ETranslucencyLightingMode)Material->TranslucencyLightingMode; }
@@ -1311,7 +1325,8 @@ bool FMaterialResource::IsDitheredLODTransition() const
 
 bool FMaterialResource::IsTranslucencyWritingCustomDepth() const
 {
-	return Material->IsTranslucencyWritingCustomDepth();
+	// We cannot call UMaterial::IsTranslucencyWritingCustomDepth because we need to check the instance potentially overriden blend mode.
+	return  Material->AllowTranslucentCustomDepthWrites != 0 && IsTranslucentBlendMode(GetBlendMode());
 }
 
 bool FMaterialResource::IsTranslucencyWritingVelocity() const
@@ -1344,8 +1359,11 @@ float FMaterialResource::GetTranslucentBackscatteringExponent() const { return M
 FLinearColor FMaterialResource::GetTranslucentMultipleScatteringExtinction() const { return Material->TranslucentMultipleScatteringExtinction; }
 float FMaterialResource::GetTranslucentShadowStartOffset() const { return Material->TranslucentShadowStartOffset; }
 float FMaterialResource::GetRefractionDepthBiasValue() const { return Material->RefractionDepthBias; }
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 float FMaterialResource::GetMaxDisplacement() const { return Material->MaxDisplacement; }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 bool FMaterialResource::ShouldApplyFogging() const { return Material->bUseTranslucencyVertexFog; }
+bool FMaterialResource::ShouldApplyCloudFogging() const { return Material->bApplyCloudFogging; }
 bool FMaterialResource::IsSky() const { return Material->bIsSky; }
 bool FMaterialResource::ComputeFogPerPixel() const {return Material->bComputeFogPerPixel;}
 FString FMaterialResource::GetFriendlyName() const { return *GetNameSafe(Material); } //avoid using the material instance name here, we want materials that share a shadermap to also share a friendly name.
@@ -1383,6 +1401,11 @@ bool FMaterialResource::HasSpecularConnected() const
 bool FMaterialResource::HasEmissiveColorConnected() const
 {
 	return HasMaterialAttributesConnected() || Material->HasEmissiveColorConnected();
+}
+
+bool FMaterialResource::HasAnisotropyConnected() const
+{
+	return HasMaterialAttributesConnected() || Material->HasAnisotropyConnected();
 }
 
 bool FMaterialResource::HasAmbientOcclusionConnected() const
@@ -1606,11 +1629,14 @@ void FMaterial::SetupMaterialEnvironment(
 
 	if ((RHISupportsTessellation(Platform) == false) || (GetTessellationMode() == MTM_NoTessellation))
 	{
+		// Make sure this define is in sync with FShaderCompilerInput::IsUsingTessellation
 		OutEnvironment.SetDefine(TEXT("USING_TESSELLATION"),TEXT("0"));
 	}
 	else
 	{
+		// Make sure this define is in sync with FShaderCompilerInput::IsUsingTessellation
 		OutEnvironment.SetDefine(TEXT("USING_TESSELLATION"),TEXT("1"));
+
 		if (GetTessellationMode() == MTM_FlatTessellation)
 		{
 			OutEnvironment.SetDefine(TEXT("TESSELLATION_TYPE_FLAT"),TEXT("1"));
@@ -1734,6 +1760,7 @@ void FMaterial::SetupMaterialEnvironment(
 	OutEnvironment.SetDefine(TEXT("MATERIAL_ALLOW_NEGATIVE_EMISSIVECOLOR"), AllowNegativeEmissiveColor());
 	OutEnvironment.SetDefine(TEXT("MATERIAL_OUTPUT_OPACITY_AS_ALPHA"), GetBlendableOutputAlpha());
 	OutEnvironment.SetDefine(TEXT("TRANSLUCENT_SHADOW_WITH_MASKED_OPACITY"), GetCastDynamicShadowAsMasked());
+	OutEnvironment.SetDefine(TEXT("MATERIAL_USE_ALPHA_TO_COVERAGE"), IsUsingAlphaToCoverage());
 
 	if (IsUsingFullPrecision())
 	{
@@ -1792,6 +1819,11 @@ void FMaterial::SetupMaterialEnvironment(
 	{	
 		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.StencilForLODDither"));
 		OutEnvironment.SetDefine(TEXT("USE_STENCIL_LOD_DITHER_DEFAULT"), CVar->GetValueOnAnyThread() != 0 ? 1 : 0);
+	}
+
+	if (GetShadingRate() != MSR_1x1)
+	{
+		OutEnvironment.SetDefine(TEXT("USING_VARIABLE_RATE_SHADING"), TEXT("1"));
 	}
 
 	{
@@ -2326,7 +2358,17 @@ void FMaterialVirtualTextureStack::GetTextureValues(const FMaterialRenderContext
 
 void FMaterialVirtualTextureStack::GetTextureValue(const FMaterialRenderContext& Context, const FUniformExpressionSet& UniformExpressionSet, const URuntimeVirtualTexture*& OutValue) const
 {
-	OutValue = GetIndexedTexture<URuntimeVirtualTexture>(Context.Material, PreallocatedStackTextureIndex);
+	OutValue = nullptr;
+	if (NumLayers > 0)
+	{
+		const int32 ParameterIndex = LayerUniformExpressionIndices[0];
+		if (ParameterIndex != INDEX_NONE)
+		{
+			const URuntimeVirtualTexture* Texture = nullptr;
+			UniformExpressionSet.GetTextureValue(ParameterIndex, Context, Context.Material, Texture);
+			OutValue = Texture;
+		}
+	}
 }
 
 void FMaterialVirtualTextureStack::Serialize(FArchive& Ar)

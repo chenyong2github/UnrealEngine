@@ -12,6 +12,10 @@ class MOVIERENDERPIPELINECORE_API UMoviePipelineRenderPass : public UMoviePipeli
 {
 	GENERATED_BODY()
 public:
+	// UMoviePipelineSetting Interface
+	virtual void ValidateStateImpl() override;
+	// ~UMoviePipelineSetting Interface
+	
 	void Setup(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings)
 	{
 		SetupImpl(InPassInitSettings);
@@ -34,6 +38,12 @@ public:
 		RenderSample_GameThreadImpl(InSampleState);
 	}
 
+	bool IsAlphaInTonemapperRequired() const
+	{
+		return IsAlphaInTonemapperRequiredImpl();
+	}
+
+
 protected:
 	virtual bool IsValidOnShots() const override { return true; }
 	virtual bool IsValidOnMaster() const override { return true; }
@@ -45,4 +55,5 @@ protected:
 	virtual void TeardownImpl() {}
 	virtual void GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses) {}
 	virtual void RenderSample_GameThreadImpl(const FMoviePipelineRenderPassMetrics& InSampleState) {}
+	virtual bool IsAlphaInTonemapperRequiredImpl() const { return false; }
 };

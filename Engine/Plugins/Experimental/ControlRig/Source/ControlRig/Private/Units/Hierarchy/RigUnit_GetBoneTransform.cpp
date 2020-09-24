@@ -4,11 +4,6 @@
 #include "RigUnit_GetInitialBoneTransform.h"
 #include "Units/RigUnitContext.h"
 
-FString FRigUnit_GetBoneTransform::GetUnitLabel() const
-{
-	return FString::Printf(TEXT("Get Transform %s"), *Bone.ToString());
-}
-
 FRigUnit_GetBoneTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -19,23 +14,27 @@ FRigUnit_GetBoneTransform_Execute()
 		{
 			case EControlRigState::Init:
 			{
-				FRigUnit_GetInitialBoneTransform::StaticExecute(RigVMOperatorName, RigVMOperatorIndex, Bone, Space, Transform, CachedBoneIndex, Context);;
+				FRigUnit_GetInitialBoneTransform::StaticExecute(RigVMExecuteContext, Bone, Space, Transform, CachedBone, Context);;
 				break;
 			}
 			case EControlRigState::Update:
 			{
-				if (CachedBoneIndex != INDEX_NONE)
+				if (!CachedBone.UpdateCache(Bone, Hierarchy))
+				{
+					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Bone '%s' is not valid."), *Bone.ToString());
+				}
+				else
 				{
 					switch (Space)
 					{
 						case EBoneGetterSetterMode::GlobalSpace:
 						{
-							Transform = Hierarchy->GetGlobalTransform(CachedBoneIndex);
+							Transform = Hierarchy->GetGlobalTransform(CachedBone);
 							break;
 						}
 						case EBoneGetterSetterMode::LocalSpace:
 						{
-							Transform = Hierarchy->GetLocalTransform(CachedBoneIndex);
+							Transform = Hierarchy->GetLocalTransform(CachedBone);
 							break;
 						}
 						default:

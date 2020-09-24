@@ -30,6 +30,7 @@
 #include "LevelSequenceEditorModule.h"
 #include "SequencerSettings.h"
 #include "TakeMetaData.h"
+#include "MovieSceneTakeSettings.h"
 #include "FileHelpers.h"
 
 #include "IContentBrowserSingleton.h"
@@ -229,6 +230,11 @@ FTakeRecorderModule::FTakeRecorderModule()
 {
 }
 
+UTakePreset* FTakeRecorderModule::GetPendingTake() const
+{
+	return FindObject<UTakePreset>(nullptr, TEXT("/Temp/TakeRecorder/PendingTake.PendingTake"));
+}
+
 void FTakeRecorderModule::StartupModule()
 {
 	FTakeRecorderStyle::Get();
@@ -375,6 +381,8 @@ void FTakeRecorderModule::UnregisterAssetTools()
 
 void FTakeRecorderModule::RegisterSettings()
 {
+	RegisterSettingsObject(GetMutableDefault<UMovieSceneTakeSettings>());
+
 	ISettingsModule& SettingsModule = FModuleManager::LoadModuleChecked<ISettingsModule>("Settings");
 
 	SettingsModule.RegisterSettings("Project", "Plugins", "Take Recorder",

@@ -719,9 +719,6 @@ public class LuminPlatform : Platform
 				{
 					VulkanLayerLibsLookupPaths.Add(Path.GetFullPath(VulkanValdationLayerLibsDir));
 				}
-				// TODO: add path dir in MLSDK which contains these layer libs. Until that is available, use NDKROOT path as a contingency.
-				//  When we do get these libs in the MLSDK, remove the folder selection option from LuminRuntimeSettings.
-				VulkanLayerLibsLookupPaths.Add(Environment.ExpandEnvironmentVariables("%NDKROOT%/sources/third_party/vulkan/src/build-android/jniLibs/arm64-v8a"));
 
 				VulkanValdationLayerLibsDir = string.Empty;
 				foreach (string LookupPath in VulkanLayerLibsLookupPaths)

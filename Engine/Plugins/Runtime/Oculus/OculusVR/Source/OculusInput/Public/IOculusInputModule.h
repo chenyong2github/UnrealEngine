@@ -43,5 +43,14 @@ public:
 	 * @return The number of Touch controllers that are active (but not necessarily tracked)
 	 */
 	virtual uint32 GetNumberOfTouchControllers() const = 0;
+
+	/**
+	 * Gets the number of hands that are active, so that games that require them can check to make sure they're present
+	 *
+	 * @return The number of Hands that are active (but not necessarily tracked)
+	 */
+	virtual uint32 GetNumberOfHandControllers() const = 0;
+
+	virtual TSharedPtr<IInputDevice> GetInputDevice() const = 0;
 };
 

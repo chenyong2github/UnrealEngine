@@ -131,9 +131,11 @@ public:
 
 				bOkToExit = bOkToExit && FGlobalTabmanager::Get()->CanCloseManager(TabsToIgnore);
 			}
-
-
+			
+			// Allow Plugins and other systems to prevent close 
 			IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>(TEXT("MainFrame"));
+			bOkToExit = bOkToExit && MainFrameModule.ExecuteCanCloseEditorDelegates();
+
 			// Prompt for save and quit only if we did not launch a gameless rocket exe or are in demo mode or we are asking for a close to recreate the Default Main Frame
 			if ( FApp::HasProjectName() && !GIsDemoMode && !MainFrameModule.IsRecreatingDefaultMainFrame())
 			{

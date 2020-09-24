@@ -106,6 +106,8 @@ struct FPlatformIconPaths
 /** Information for feature level menu item added by this platform */
 struct FPreviewPlatformMenuItem
 {
+	FName PlatformName;
+	FName ShaderFormat;
 	FString ActiveIconPath;
 	FName ActiveIconName;
 	FString InactiveIconPath;
@@ -113,6 +115,7 @@ struct FPreviewPlatformMenuItem
 	FText MenuText;
 	FText MenuTooltip;
 	FText IconText;
+	FName DeviceProfileName;
 };
 
 // Information about a platform loaded from disk

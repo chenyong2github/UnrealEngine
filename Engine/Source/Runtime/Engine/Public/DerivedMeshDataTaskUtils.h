@@ -6,6 +6,9 @@
 
 #pragma once
 
+#include "Components.h"
+#include "StaticMeshResources.h"
+
 /** Source mesh data. Valid only in specific cases, when StaticMesh doesn't contain original data anymore (e.g. it's replaced by the Nanite coarse mesh representation) */
 class FSourceMeshDataForDerivedDataTask
 {

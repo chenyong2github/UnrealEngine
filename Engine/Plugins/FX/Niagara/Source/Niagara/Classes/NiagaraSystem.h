@@ -50,6 +50,9 @@ struct FNiagaraEmitterCompiledData
 	FNiagaraVariable EmitterRandomSeedVar;
 
 	UPROPERTY()
+	FNiagaraVariable EmitterInstanceSeedVar;
+
+	UPROPERTY()
 	FNiagaraVariable EmitterTotalSpawnedParticlesVar;
 
 	/** Per-Emitter DataSet Data. */
@@ -172,6 +175,16 @@ struct FNiagaraSystemCompileRequest
 	bool bForced = false;
 };
 
+struct FNiagaraEmitterExecutionIndex
+{
+	FNiagaraEmitterExecutionIndex() { bStartNewOverlapGroup = false; EmitterIndex = 0; }
+
+	/** Flag to denote if the batcher should start a new overlap group, i.e. when we have a dependency ensure we don't overlap with the emitter we depend on. */
+	uint32 bStartNewOverlapGroup : 1;
+	/** Emitter index to use */
+	uint32 EmitterIndex : 31;
+};
+
 /** Container for multiple emitters that combine together to create a particle system effect.*/
 UCLASS(BlueprintType)
 class NIAGARA_API UNiagaraSystem : public UFXSystemAsset
@@ -197,6 +210,11 @@ public:
 	virtual void PreEditChange(FProperty* PropertyThatWillChange)override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override; 
 	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform *TargetPlatform) override;
+
+	/** Helper method to handle when an internal variable has been renamed. Renames any downstream dependencies in the emitters or exposed variables.*/
+	void HandleVariableRenamed(const FNiagaraVariable& InOldVariable, const FNiagaraVariable& InNewVariable, bool bUpdateContexts);
+	/** Helper method to handle when an internal variable has been removed. Resets any downstream dependencies in the emitters or exposed variables.*/
+	void HandleVariableRemoved(const FNiagaraVariable& InOldVariable, bool bUpdateContexts);
 #endif
 
 	/** Gets an array of the emitter handles. */
@@ -223,6 +241,7 @@ public:
 
 	/** Removes the emitter handles which have an Id in the supplied set. */
 	void RemoveEmitterHandlesById(const TSet<FGuid>& HandlesToRemove);
+
 #endif
 
 
@@ -255,6 +274,10 @@ public:
 	const FNiagaraDataSetAccessor<ENiagaraExecutionState>& GetSystemExecutionStateAccessor() const { return SystemExecutionStateAccessor; }
 	TConstArrayView<FNiagaraDataSetAccessor<ENiagaraExecutionState>> GetEmitterExecutionStateAccessors() const { return MakeArrayView(EmitterExecutionStateAccessors); }
 	TConstArrayView<FNiagaraDataSetAccessor<FNiagaraSpawnInfo>> GetEmitterSpawnInfoAccessors(int32 EmitterIndex) const { return MakeArrayView(EmitterSpawnInfoAccessors[EmitterIndex]);  }
+	
+	/** Performs the passed action for all scripts in this system. */
+	template<typename TAction>
+	void ForEachScript(TAction Func) const;
 
 private:
 	bool IsReadyToRunInternal() const;
@@ -268,9 +291,13 @@ public:
 	FORCEINLINE int32 GetWarmupTickCount()const { return WarmupTickCount; }
 	FORCEINLINE float GetWarmupTickDelta()const { return WarmupTickDelta; }
 
+#if STATS
+	FNiagaraStatDatabase& GetStatData() { return StatDatabase; }
+#endif
+
 #if WITH_EDITORONLY_DATA
 	/** Are there any pending compile requests?*/
-	bool HasOutstandingCompilationRequests() const;
+	bool HasOutstandingCompilationRequests(bool bIncludingGPUShaders = false) const;
 
 	/** Determines if this system has the supplied emitter as an editable and simulating emitter instance. */
 	bool ReferencesInstanceEmitter(UNiagaraEmitter& Emitter);
@@ -288,7 +315,7 @@ public:
 	bool PollForCompilationComplete();
 
 	/** Blocks until all active compile jobs have finished */
-	void WaitForCompilationComplete();
+	void WaitForCompilationComplete(bool bIncludingGPUShaders = false, bool bShowProgress = true);
 
 	/** Invalidates any active compilation requests which will ignore their results. */
 	void InvalidateActiveCompiles();
@@ -361,10 +388,6 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance")
 	uint32 bBakeOutRapidIterationOnCook : 1;
 
-	/** If true we generate shader permutations per stage to optimize the GPU.  */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance")
-	uint32 bUseShaderPermutations : 1;
-
 	/** Toggles whether or not emitters within this system will try and compress their particle attributes.
 	In some cases, this precision change can lead to perceivable differences, but memory costs and or performance (especially true for GPU emitters) can improve. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance")
@@ -398,9 +421,12 @@ public:
 	/** Cache data & accessors from the compiled data, allows us to avoid per instance. */
 	void CacheFromCompiledData();
 
-	FORCEINLINE TConstArrayView<int32> GetEmitterExecutionOrder() const { return MakeArrayView(EmitterExecutionOrder); }
+	FORCEINLINE TConstArrayView<FNiagaraEmitterExecutionIndex> GetEmitterExecutionOrder() const { return MakeArrayView(EmitterExecutionOrder); }
 
 	FORCEINLINE TConstArrayView<int32> GetRendererDrawOrder() const { return MakeArrayView(RendererDrawOrder); }
+
+	/** When an index inside the EmitterExecutionOrder array has this bit set, it means the corresponding emitter cannot execute in parallel with the previous emitters due to a data dependency. */
+	static constexpr int32 kStartNewOverlapGroupBit = (1 << 31);
 
 	FORCEINLINE UNiagaraParameterCollectionInstance* GetParameterCollectionOverride(UNiagaraParameterCollection* Collection)
 	{
@@ -443,6 +469,7 @@ public:
 #endif
 	UNiagaraEffectType* GetEffectType()const;
 	FORCEINLINE const FNiagaraSystemScalabilitySettings& GetScalabilitySettings() { return CurrentScalabilitySettings; }
+	FORCEINLINE bool NeedsSortedSignificanceCull()const{ return bNeedsSortedSignificanceCull; }
 	
 	void OnQualityLevelChanged();
 
@@ -465,6 +492,11 @@ public:
 	void RemoveMessageDelegateable(const FGuid MessageKey) { MessageKeyToMessageMap.Remove(MessageKey); };
 	const FGuid& GetAssetGuid() const {return AssetGuid;};
 #endif
+
+	FORCEINLINE void RegisterActiveInstance();
+	FORCEINLINE void UnregisterActiveInstance();
+	FORCEINLINE int32& GetActiveInstancesCount() { return ActiveInstances; }
+	FORCEINLINE int32& GetActiveInstancesTempCount() { return ActiveInstancesTemp; }
 
 private:
 #if WITH_EDITORONLY_DATA
@@ -503,13 +535,13 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "System")
 	UNiagaraEffectType* EffectType;
 
-	UPROPERTY(EditAnywhere, Category = "System", meta=(InlineEditConditionToggle))
+	UPROPERTY(EditAnywhere, Category = "Scalability")
 	bool bOverrideScalabilitySettings;
 
 	UPROPERTY()
 	TArray<FNiagaraSystemScalabilityOverride> ScalabilityOverrides_DEPRECATED;
 
-	UPROPERTY(EditAnywhere, Category = "System", meta = (EditCondition="bOverrideScalabilitySettings"))
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition="bOverrideScalabilitySettings"))
 	FNiagaraSystemScalabilityOverrides SystemScalabilityOverrides;
 
 	/** Handles to the emitter this System will simulate. */
@@ -588,8 +620,10 @@ protected:
 	UPROPERTY()
 	TArray<FName> UserDINamesReadInSystemScripts;
 
-	/** Array of emitter indices sorted by execution priority. The emitters will be ticked in this order. */
-	TArray<int32> EmitterExecutionOrder;
+	/** Array of emitter indices sorted by execution priority. The emitters will be ticked in this order. Please note that some indices may have the top bit set (kStartNewOverlapGroupBit)
+	* to indicate synchronization points in parallel execution, so mask it out before using the values as indices in the emitters array.
+	*/
+	TArray<FNiagaraEmitterExecutionIndex> EmitterExecutionOrder;
 
 	/** Precomputed emitter renderer draw order, since emitters & renderers are not dynamic we can do this. */
 	TArray<int32> RendererDrawOrder;
@@ -611,6 +645,7 @@ protected:
 
 	mutable TStatId StatID_InstanceCount;
 	mutable TStatId StatID_InstanceCountSolo;
+	FNiagaraStatDatabase StatDatabase;
 #endif
 
 	FNiagaraSystemScalabilitySettings CurrentScalabilitySettings;
@@ -619,6 +654,7 @@ protected:
 
 	uint32 bHasDIsWithPostSimulateTick : 1;
 	uint32 bHasAnyGPUEmitters : 1;
+	uint32 bNeedsSortedSignificanceCull : 1;
 
 #if WITH_EDITORONLY_DATA
 	/** Messages associated with the System asset. */
@@ -627,6 +663,15 @@ protected:
 
 	FGuid AssetGuid;
 #endif
+
+	/** Total active instances of this system. */
+	int32 ActiveInstances;
+
+	/** 
+	Temp working value used by the scalability manager when tracking sorted instance count culling. 
+	Systems who are tracking their instance culling separately need an easily accessible working value.
+	*/
+	int32 ActiveInstancesTemp;
 };
 
 extern int32 GEnableNiagaraRuntimeCycleCounts;
@@ -637,4 +682,29 @@ FORCEINLINE int32* UNiagaraSystem::GetCycleCounter(bool bGameThread, bool bConcu
 		return EffectType->GetCycleCounter(bGameThread, bConcurrent);
 	}
 	return nullptr;
+}
+
+FORCEINLINE void UNiagaraSystem::RegisterActiveInstance()
+{
+	++ActiveInstances;
+}
+
+FORCEINLINE void UNiagaraSystem::UnregisterActiveInstance()
+{
+	--ActiveInstances;
+}
+
+template<typename TAction>
+void UNiagaraSystem::ForEachScript(TAction Func) const
+{	
+	Func(SystemSpawnScript);
+	Func(SystemUpdateScript);
+			
+	for (const FNiagaraEmitterHandle& Handle : EmitterHandles)
+	{
+		if (UNiagaraEmitter* Emitter = Handle.GetInstance())
+		{
+			Emitter->ForEachScript(Func);
+		}
+	}
 }

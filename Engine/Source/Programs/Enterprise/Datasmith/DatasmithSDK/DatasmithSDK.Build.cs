@@ -15,6 +15,11 @@ namespace UnrealBuildTool.Rules
 				{
 					"DatasmithCore",
 					"DatasmithExporter",
+
+					// Network layer
+					"UdpMessaging",
+					"MessagingCommon",
+					"Messaging",
 				}
 			);
 		}

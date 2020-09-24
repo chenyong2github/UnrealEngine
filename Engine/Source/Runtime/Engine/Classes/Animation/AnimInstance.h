@@ -35,6 +35,13 @@ struct FAnimNode_LinkedAnimLayer;
 
 typedef TArray<FTransform> FTransformArrayA2;
 
+struct FParallelEvaluationData
+{
+	FBlendedHeapCurve& OutCurve;
+	FCompactPose& OutPose;
+	FHeapCustomAttributes& OutAttributes;
+};
+
 UENUM()
 enum class EMontagePlayReturnType : uint8
 {
@@ -173,6 +180,7 @@ struct FSlotEvaluationPose
 	/* These Pose/Curve is stack allocator. You should not use it outside of stack. */
 	FCompactPose Pose;
 	FBlendedCurve Curve;
+	FStackCustomAttributes Attributes;
 
 	FSlotEvaluationPose()
 		: AdditiveType(AAT_None)
@@ -192,6 +200,7 @@ struct FSlotEvaluationPose
 	{
 		Pose.MoveBonesFrom(InEvaluationPose.Pose);
 		Curve.MoveFrom(InEvaluationPose.Curve);
+		Attributes.MoveFrom(InEvaluationPose.Attributes);
 	}
 
 	FSlotEvaluationPose(const FSlotEvaluationPose& InEvaluationPose) = default;
@@ -793,6 +802,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Animation Blueprint Linking")
 	UAnimInstance* GetLinkedAnimLayerInstanceByGroup(FName InGroup) const;
 
+	/** Runs through all nodes, attempting to find all distinct layer linked instances in the group */
+	UFUNCTION(BlueprintPure, Category = "Animation Blueprint Linking")
+	void GetLinkedAnimLayerInstancesByGroup(FName InGroup, TArray<UAnimInstance*>& OutLinkedInstances) const;
+
+	/** Gets layer linked instance that matches group and class */
+	UFUNCTION(BlueprintPure, Category = "Animation Blueprint Linking")
+	UAnimInstance* GetLinkedAnimLayerInstanceByGroupAndClass(FName InGroup, TSubclassOf<UAnimInstance> InClass) const;
+
 	UE_DEPRECATED(4.24, "Function renamed, please use GetLinkedAnimLayerInstanceByClass")
 	UAnimInstance* GetLayerSubInstanceByClass(TSubclassOf<UAnimInstance> InClass) const { return GetLinkedAnimLayerInstanceByClass(InClass); }
 
@@ -1105,10 +1122,10 @@ public:
 	bool ParallelCanEvaluate(const USkeletalMesh* InSkeletalMesh) const;
 
 	/** Perform evaluation. Can be called from worker threads. */
-	void ParallelEvaluateAnimation(bool bForceRefPose, const USkeletalMesh* InSkeletalMesh, FBlendedHeapCurve& OutCurve, FCompactPose& OutPose);
+	void ParallelEvaluateAnimation(bool bForceRefPose, const USkeletalMesh* InSkeletalMesh, FParallelEvaluationData& OutAnimationPoseData);
 
-	UE_DEPRECATED(4.23, "Please use ParallelEvaluateAnimation without passing OutBoneSpaceTransforms.")
-	void ParallelEvaluateAnimation(bool bForceRefPose, const USkeletalMesh* InSkeletalMesh, TArray<FTransform>& OutBoneSpaceTransforms, FBlendedHeapCurve& OutCurve, FCompactPose& OutPose);
+	UE_DEPRECATED(4.26, "Please use ParallelEvaluateAnimation with different signature.")
+	void ParallelEvaluateAnimation(bool bForceRefPose, const USkeletalMesh* InSkeletalMesh, FBlendedHeapCurve& OutCurve, FCompactPose& OutPose);
 
 	void PostEvaluateAnimation();
 	void UninitializeAnimation();
@@ -1453,6 +1470,7 @@ protected:
 	}
 
 	friend struct FAnimNode_LinkedAnimGraph;
+	friend struct FAnimInstanceProxy;
 	
 	/** Return whether this AnimNotifyState should be triggered */
 	virtual bool ShouldTriggerAnimNotifyState(const UAnimNotifyState* AnimNotifyState) const;

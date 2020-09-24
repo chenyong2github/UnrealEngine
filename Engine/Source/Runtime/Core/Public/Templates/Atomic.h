@@ -8,6 +8,10 @@
 #include "Templates/IsTrivial.h"
 #include "Traits/IntType.h"
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// `TAtomic` is planned for deprecation. Please use `std::atomic`
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 template <typename T>
 struct TAtomicBase_Basic;
 
@@ -525,6 +529,8 @@ protected:
 };
 
 /**
+ * DEPRECATED! UE atomics are not maintained and potentially will be physically deprecated. Use std::atomic<T> for new code
+ *
  * Atomic object wrapper class which wraps an element of T.  This allows the following benefits:
  *
  * - Changes made to the element on one thread can never be observed as a partial state by other threads. (atomicity)

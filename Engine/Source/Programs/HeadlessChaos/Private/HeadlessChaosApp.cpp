@@ -106,6 +106,7 @@ TEST(CollisionTests, Collisions) {
 	ChaosTest::CollisionBoxPlane<float>();
 	ChaosTest::CollisionBoxPlaneZeroResitution<float>();
 	ChaosTest::CollisionBoxPlaneRestitution<float>();
+	ChaosTest::CollisionCubeCubeRestitution<float>();
 	ChaosTest::CollisionBoxToStaticBox<float>();
 	ChaosTest::CollisionConvexConvex<float>();
 
@@ -426,7 +427,8 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 {
     // start up the main loop
 	GEngineLoop.PreInit(ArgC, ArgV);
-
+	FModuleManager::Get().StartProcessingNewlyLoadedObjects();
+	
 	::testing::InitGoogleTest(&ArgC, ArgV);
 
 	// Add a UE-formatting printer

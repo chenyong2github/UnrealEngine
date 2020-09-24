@@ -2,9 +2,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
@@ -15,17 +13,14 @@ using Autodesk.Revit.UI;
 
 namespace DatasmithRevitExporter
 {
-	// Add-in external command Export to Unreal Datasmith. 
-	[Transaction(TransactionMode.Manual)]
-	public class DatasmithRevitCommand : IExternalCommand
+	public abstract class DatasmithRevitCommand : IExternalCommand
 	{
-		private const string DIALOG_CAPTION = "Export 3D View to Unreal Datasmith";
+		public const string DIALOG_CAPTION = "Export 3D View to Unreal Datasmith";
 
-		// Implement the interface to execute the command.
 		public Result Execute(
-			ExternalCommandData InCommandData,     // contains reference to Application and View
-			ref string          OutCommandMessage, // error message to display in the failure dialog when the command returns "Failed"
-			ElementSet          OutElements        // set of problem elements to display in the failure dialog when the command returns "Failed"
+			ExternalCommandData InCommandData,		// contains reference to Application and View
+			ref string			OutCommandMessage,  // error message to display in the failure dialog when the command returns "Failed"
+			ElementSet			OutElements         // set of problem elements to display in the failure dialog when the command returns "Failed"
 		)
 		{
 			Autodesk.Revit.ApplicationServices.Application Application = InCommandData.Application.Application;
@@ -53,6 +48,96 @@ namespace DatasmithRevitExporter
 				return Result.Cancelled;
 			}
 
+			return OnExecute(InCommandData, ref OutCommandMessage, OutElements);
+		}
+
+		public abstract Result OnExecute(ExternalCommandData InCommandData, ref string OutCommandMessage, ElementSet OutElements);
+	}
+
+	[Transaction(TransactionMode.Manual)]
+	public class DatasmithSyncRevitCommand : DatasmithRevitCommand
+	{
+		public override Result OnExecute(ExternalCommandData InCommandData, ref string OutCommandMessage, ElementSet OutElements)
+		{
+			UIDocument UIDoc = InCommandData.Application.ActiveUIDocument;
+			Document Doc = UIDoc.Document;
+			View3D ActiveView = Doc.ActiveView as View3D;
+
+			if (ActiveView == null)
+			{
+				string Message = "You must be in a 3D view to export.";
+				MessageBox.Show(Message, DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+				return Result.Cancelled;
+			}
+
+			if (ActiveView.IsTemplate || !ActiveView.CanBePrinted)
+			{
+				string Message = "The active 3D view cannot be exported.";
+				MessageBox.Show(Message, DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+				return Result.Cancelled;
+			}
+
+			// Handle DirectLink initialization.
+			if (FDirectLink.Get() == null || !Doc.Equals(FDirectLink.Get().RootDocument) || (System.Windows.Forms.Control.ModifierKeys & Keys.Control) == Keys.Control)
+			{
+				FDirectLink.DestroyInstance(InCommandData.Application.Application);
+				FDirectLink.InitInstance();
+			}
+
+			FDatasmithRevitExportContext ExportContext = new FDatasmithRevitExportContext(
+				InCommandData.Application.Application,
+				Doc,
+				null,
+				new DatasmithRevitExportOptions(Doc),
+				FDirectLink.Get());
+
+			// Export the active 3D View to the given Unreal Datasmith file.
+			using (CustomExporter Exporter = new CustomExporter(Doc, ExportContext))
+			{
+				try
+				{
+					// The export process will exclude output of geometric objects such as faces and curves,
+					// but the context needs to receive the calls related to Faces or Curves to gather data.
+					// The context always receive their tessellated geometry in form of polymeshes or lines.
+					Exporter.IncludeGeometricObjects = true;
+
+					// The export process should stop in case an error occurs during any of the exporting methods.
+					Exporter.ShouldStopOnError = true;
+
+#if REVIT_API_2020
+					Exporter.Export(ActiveView as Autodesk.Revit.DB.View);
+#else
+					Exporter.Export(ActiveView);
+#endif
+				}
+				catch (System.Exception exception)
+				{
+					OutCommandMessage = string.Format("Cannot export the 3D view:\n\n{0}\n\n{1}", exception.Message, exception.StackTrace);
+					MessageBox.Show(OutCommandMessage, DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Error);
+					return Result.Failed;
+				}
+				finally
+				{
+					if (ExportContext.GetMessages().Count > 0)
+					{
+						string Messages = string.Join($"{System.Environment.NewLine}", ExportContext.GetMessages());
+						DatasmithRevitApplication.SetExportMessages(Messages);
+					}
+				}
+			}
+
+			return Result.Succeeded;
+		}
+	}
+
+	// Add-in external command Export to Unreal Datasmith. 
+	[Transaction(TransactionMode.Manual)]
+	public class DatasmithExportRevitCommand : DatasmithRevitCommand
+	{
+		// Implement the interface to execute the command.
+		public override Result OnExecute(ExternalCommandData InCommandData, ref string OutCommandMessage, ElementSet OutElements)
+		{
+			UIDocument UIDoc = InCommandData.Application.ActiveUIDocument;
 			Document Doc = UIDoc.Document;
 
 			string DocumentPath = Doc.PathName;
@@ -161,7 +246,12 @@ namespace DatasmithRevitExporter
 			EnableViewWindow(InCommandData.Application, false);
 
 			// Create a custom export context for command Export to Unreal Datasmith.
-			FDatasmithRevitExportContext ExportContext = new FDatasmithRevitExportContext(InCommandData.Application.Application, Doc, FilePaths, ExportOptions);
+			FDatasmithRevitExportContext ExportContext = new FDatasmithRevitExportContext(
+				InCommandData.Application.Application,
+				Doc,
+				FilePaths,
+				ExportOptions,
+				null);
 
 			// Export the active 3D View to the given Unreal Datasmith file.
 			using( CustomExporter Exporter = new CustomExporter(Doc, ExportContext) )
@@ -206,7 +296,7 @@ namespace DatasmithRevitExporter
 					if (ExportContext.GetMessages().Count > 0)
 					{
 						string Messages = string.Join($"{System.Environment.NewLine}", ExportContext.GetMessages());
-						DatasmithRevitApplication.ShowExportMessages(Messages);
+						DatasmithRevitApplication.SetExportMessages(Messages);
 					}
 				}
 			}
@@ -227,7 +317,7 @@ namespace DatasmithRevitExporter
 		)
         {
 #if REVIT_API_2018
-				IntPtr MainWindowHandle = Process.GetCurrentProcess().MainWindowHandle;
+				IntPtr MainWindowHandle = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
 #else
 				IntPtr MainWindowHandle = in_application.MainWindowHandle;
 #endif
@@ -247,7 +337,7 @@ namespace DatasmithRevitExporter
 		)
         {
             IntPtr WindowHandle = FindWindowEx(InParentWindowHandle, IntPtr.Zero, InWindowClassName, null);
-			
+
             if (WindowHandle == IntPtr.Zero)
             {
                 IntPtr WindowHandleChild = FindWindowEx(InParentWindowHandle, IntPtr.Zero, null, null);
@@ -255,15 +345,36 @@ namespace DatasmithRevitExporter
                 while (WindowHandleChild != IntPtr.Zero && WindowHandle == IntPtr.Zero)
                 {
                     WindowHandle = FindChildWindow(WindowHandleChild, InWindowClassName);
-					
-                    if (WindowHandle == IntPtr.Zero)
+
+					if (WindowHandle == IntPtr.Zero)
                     {
                         WindowHandleChild = FindWindowEx(InParentWindowHandle, WindowHandleChild, null, null);
                     }
                 }
             }
-			
+
             return WindowHandle;
         }
+	}
+
+	[Transaction(TransactionMode.Manual)]
+	public class DatasmithManageConnectionsRevitCommand : IExternalCommand
+	{
+		public Result Execute(ExternalCommandData InCommandData, ref string OutCommandMessage, ElementSet OutElements) 
+		{
+			IDirectLinkUI DirectLinkUI = IDatasmithExporterUIModule.Get()?.GetDirectLinkExporterUI();
+			DirectLinkUI?.OpenDirectLinkStreamWindow();
+			return Result.Succeeded;
+		}
+	}
+
+	[Transaction(TransactionMode.Manual)]
+	public class DatasmithShowMessagesRevitCommand : IExternalCommand
+	{
+		public Result Execute(ExternalCommandData InCommandData, ref string OutCommandMessage, ElementSet OutElements)
+		{
+			DatasmithRevitApplication.ShowExportMessages();
+			return Result.Succeeded;
+		}
 	}
 }

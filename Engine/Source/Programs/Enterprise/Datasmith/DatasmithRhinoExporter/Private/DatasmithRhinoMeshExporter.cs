@@ -8,7 +8,7 @@ namespace DatasmithRhino
 	public static class FDatasmithRhinoMeshExporter
 	{
 		/// <summary>
-		/// Center the given mesh on its pivot, either from a Gumball or from its bounding box center.
+		/// Center the given mesh on its pivot, from the bounding box center. Returns the pivot point.
 		/// </summary>
 		/// <param name="RhinoMesh"></param>
 		/// <returns>The pivot point on which the Mesh was centered</returns>
@@ -21,60 +21,124 @@ namespace DatasmithRhino
 			return PivotPoint;
 		}
 
-		public static void ParseMesh(FDatasmithFacadeMesh DatasmithMesh, Mesh RhinoMesh)
+		/// <summary>
+		/// Center the given meshes on the pivot determined from the union of their bounding boxes. Returns the pivot point.
+		/// </summary>
+		/// <param name="RhinoMeshes"></param>
+		/// <returns>The pivot point on which the Mesh was centered</returns>
+		public static Vector3d CenterMeshesOnPivot(List<Mesh> RhinoMeshes)
 		{
-			foreach (var Vertex in RhinoMesh.Vertices)
+			BoundingBox MeshesBoundingBox = RhinoMeshes[0].GetBoundingBox(true);
+
+			for (int MeshIndex = 1; MeshIndex < RhinoMeshes.Count; ++MeshIndex)
 			{
-				DatasmithMesh.AddVertex(Vertex.X, Vertex.Y, Vertex.Z);
+				MeshesBoundingBox.Union(RhinoMeshes[MeshIndex].GetBoundingBox(true));
 			}
 
-			if (RhinoMesh.Normals.Count == 0)
+			Vector3d PivotPoint = new Vector3d(MeshesBoundingBox.Center.X, MeshesBoundingBox.Center.Y, MeshesBoundingBox.Center.Z);
+			RhinoMeshes.ForEach((CurrentMesh) => CurrentMesh.Translate(-PivotPoint));
+
+			return PivotPoint;
+		}
+
+
+		public static void ExportMeshes(FDatasmithFacadeScene DatasmithScene, DatasmithRhinoSceneParser SceneParser)
+		{
+			int MeshIndex = 0;
+			int MeshCount = SceneParser.ObjectIdToMeshInfoDictionary.Count;
+
+			foreach (DatasmithMeshInfo CurrentMeshInfo in SceneParser.ObjectIdToMeshInfoDictionary.Values)
 			{
-				RhinoMesh.Normals.ComputeNormals();
+				FDatasmithRhinoProgressManager.Instance.UpdateCurrentTaskProgress((float)(MeshIndex++)/MeshCount);
+
+				string HashedName = FDatasmithFacadeElement.GetStringHash(CurrentMeshInfo.Name);
+				FDatasmithFacadeMesh DatasmithMesh = new FDatasmithFacadeMesh(HashedName);
+				DatasmithMesh.SetLabel(CurrentMeshInfo.Label);				
+
+				List<RhinoMaterialInfo> MaterialInfos = new List<RhinoMaterialInfo>(CurrentMeshInfo.MaterialIndices.Count);
+				CurrentMeshInfo.MaterialIndices.ForEach((MaterialIndex) => MaterialInfos.Add(SceneParser.GetMaterialInfoFromMaterialIndex(MaterialIndex)));
+				ParseMesh(DatasmithMesh, CurrentMeshInfo.RhinoMeshes, MaterialInfos);
+
+				DatasmithScene.AddMesh(DatasmithMesh);
 			}
+		}
 
-			bool bUseFaceNormals = RhinoMesh.Normals.Count != RhinoMesh.Vertices.Count && RhinoMesh.FaceNormals.Count == RhinoMesh.Faces.Count;
-			int NumberOfVertices = DatasmithMesh.GetVertexCount();
-			Vector3f[] NormalsByFaces = new Vector3f[NumberOfVertices];
+		public static void ParseMesh(FDatasmithFacadeMesh DatasmithMesh, List<Mesh> MeshSections, List<RhinoMaterialInfo> MaterialInfos)
+		{
+			int VertexIndexOffset = 0;
+			List<RhinoMaterialInfo> UniqueMaterialInfo = new List<RhinoMaterialInfo>();
 
-			for (int FaceIndex = 0; FaceIndex < RhinoMesh.Faces.Count; ++FaceIndex)
+			for (int MeshIndex = 0; MeshIndex < MeshSections.Count; ++MeshIndex )
 			{
-				MeshFace Face = RhinoMesh.Faces[FaceIndex];
+				Mesh RhinoMesh = MeshSections[MeshIndex];
 
-				DatasmithMesh.AddTriangle(Face.A, Face.B, Face.C);
-
-				if (Face.IsQuad)
+				// Get Material index for the current section.
+				int MaterialIndex = UniqueMaterialInfo.FindIndex((CurrentInfo)=> CurrentInfo == MaterialInfos[MeshIndex]);
+				if (MaterialIndex == -1)
 				{
-					DatasmithMesh.AddTriangle(Face.A, Face.C, Face.D);
+					MaterialIndex = UniqueMaterialInfo.Count;
+					DatasmithMesh.AddMaterial(MaterialIndex, MaterialInfos[MeshIndex]?.Name);
+					UniqueMaterialInfo.Add(MaterialInfos[MeshIndex]);
 				}
 
-				if (bUseFaceNormals)
+				// Add all the section vertices to the mesh.
+				for (int VertexIndex = 0; VertexIndex < RhinoMesh.Vertices.Count; ++VertexIndex)
 				{
-					Vector3f Normal = RhinoMesh.FaceNormals[FaceIndex];
-					AddNormalsToMesh(DatasmithMesh, Normal);
+					Point3f Vertex = RhinoMesh.Vertices[VertexIndex];
+					DatasmithMesh.AddVertex(Vertex.X, Vertex.Y, Vertex.Z);
+				}
+
+				// Try to compute normals if the section doesn't have them
+				if (RhinoMesh.Normals.Count == 0)
+				{
+					RhinoMesh.Normals.ComputeNormals();
+				}
+
+				bool bUseFaceNormals = RhinoMesh.Normals.Count != RhinoMesh.Vertices.Count && RhinoMesh.FaceNormals.Count == RhinoMesh.Faces.Count;
+
+				//Add triangles and normals to the mesh.
+				for (int FaceIndex = 0; FaceIndex < RhinoMesh.Faces.Count; ++FaceIndex)
+				{
+					MeshFace Face = RhinoMesh.Faces[FaceIndex];
+
+					DatasmithMesh.AddTriangle(VertexIndexOffset + Face.A, VertexIndexOffset + Face.B, VertexIndexOffset + Face.C, MaterialIndex);
 
 					if (Face.IsQuad)
 					{
+						DatasmithMesh.AddTriangle(VertexIndexOffset + Face.A, VertexIndexOffset + Face.C, VertexIndexOffset + Face.D, MaterialIndex);
+					}
+
+					if (bUseFaceNormals)
+					{
+						Vector3f Normal = RhinoMesh.FaceNormals[FaceIndex];
 						AddNormalsToMesh(DatasmithMesh, Normal);
-					}
-				}
-				else
-				{
-					Vector3f[] Normals = new Vector3f[] { RhinoMesh.Normals[Face.A], RhinoMesh.Normals[Face.B], RhinoMesh.Normals[Face.C] };
 
-					AddNormalsToMesh(DatasmithMesh, Normals[0], Normals[1], Normals[2]);
-					if (Face.IsQuad)
+						if (Face.IsQuad)
+						{
+							AddNormalsToMesh(DatasmithMesh, Normal);
+						}
+					}
+					else
 					{
-						Vector3f DNormal = RhinoMesh.Normals[Face.D];
-						AddNormalsToMesh(DatasmithMesh, Normals[0], Normals[2], DNormal);
+						Vector3f[] Normals = new Vector3f[] { RhinoMesh.Normals[Face.A], RhinoMesh.Normals[Face.B], RhinoMesh.Normals[Face.C] };
+
+						AddNormalsToMesh(DatasmithMesh, Normals[0], Normals[1], Normals[2]);
+						if (Face.IsQuad)
+						{
+							Vector3f DNormal = RhinoMesh.Normals[Face.D];
+							AddNormalsToMesh(DatasmithMesh, Normals[0], Normals[2], DNormal);
+						}
 					}
 				}
-			}
 
-			int NumberOfUVCoord = RhinoMesh.TextureCoordinates.Count;
-			foreach (var UV in RhinoMesh.TextureCoordinates)
-			{
-				DatasmithMesh.AddUV(0, UV.X, UV.Y);
+				// Add the UV coordinates for the triangles we just added.
+				int NumberOfUVCoord = RhinoMesh.TextureCoordinates.Count;
+				foreach (var UV in RhinoMesh.TextureCoordinates)
+				{
+					DatasmithMesh.AddUV(0, UV.X, 1 - UV.Y);
+				}
+
+				VertexIndexOffset += RhinoMesh.Vertices.Count;
 			}
 		}
 

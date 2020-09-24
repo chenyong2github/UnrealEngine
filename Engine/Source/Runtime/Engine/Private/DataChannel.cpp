@@ -1980,7 +1980,7 @@ int64 UActorChannel::Close(EChannelCloseReason Reason)
 						Actor->NetDormancy = DORM_DormantAll;
 					}
 
-					check( Actor->NetDormancy > DORM_Awake ); // Dormancy should have been canceled if game code changed NetDormancy
+					ensureMsgf(Actor->NetDormancy > DORM_Awake, TEXT("Dormancy should have been canceled if game code changed NetDormancy: %s [%s]"), *GetFullNameSafe(Actor), *UEnum::GetValueAsString(TEXT("/Script/Engine.ENetDormancy"), Actor->NetDormancy));
 					Connection->Driver->NotifyActorFullyDormantForConnection(Actor, Connection);
 				}
 
@@ -2100,12 +2100,6 @@ bool UActorChannel::CleanUp(const bool bForDestroy, EChannelCloseReason CloseRea
 	checkf(Connection->Driver != nullptr, TEXT("UActorChannel::CleanUp: Connection->Driver is null!"));
 
 	Connection->Driver->NotifyActorChannelCleanedUp(this, CloseReason);
-
-	UReplicationConnectionDriver* const ConnectionDriver = Connection->GetReplicationConnectionDriver();
-	if (ConnectionDriver)
-	{
-		ConnectionDriver->NotifyActorChannelCleanedUp(this);
-	}
 
 	const bool bIsServer = Connection->Driver->IsServer();
 
@@ -2670,7 +2664,7 @@ void UActorChannel::ReceivedBunch( FInBunch & Bunch )
 		{
 			if (Connection->KeepProcessingActorChannelBunchesMap.Contains(ActorNetGUID))
 			{
-				UE_LOG(LogNet, Log, TEXT("UActorChannel::ReceivedBunch: Queuing bunch because another channel (that closed) is processing bunches for this guid still. ActorNetGUID: %s"), *ActorNetGUID.ToString());
+				UE_LOG(LogNet, Verbose, TEXT("UActorChannel::ReceivedBunch: Queuing bunch because another channel (that closed) is processing bunches for this guid still. ActorNetGUID: %s"), *ActorNetGUID.ToString());
 			}
 
 			if (QueuedBunches.Num() == 0)

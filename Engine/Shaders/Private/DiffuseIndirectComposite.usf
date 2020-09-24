@@ -114,7 +114,7 @@ void MainPS(
 
 	// Sample scene textures.
 	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(SceneBufferUV);
-	
+
 	// Sample the ambient occlusion that is dynamically generated every frame.
 	float DynamicAmbientOcclusion = AmbientOcclusionTexture.SampleLevel(AmbientOcclusionSampler, SceneBufferUV, 0).r;
 
@@ -129,7 +129,7 @@ void MainPS(
 	float NoV = saturate(dot(N, V));
 
 	// Apply diffuse indirect.
-	#if DIM_APPLY_DIFFUSE_INDIRECT
+#if DIM_APPLY_DIFFUSE_INDIRECT
 	{
 		float3 DiffuseIndirectLighting = 0;
 		float3 SpecularIndirectLighting = 0;

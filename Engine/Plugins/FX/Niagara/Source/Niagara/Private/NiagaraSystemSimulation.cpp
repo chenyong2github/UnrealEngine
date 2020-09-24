@@ -1006,7 +1006,6 @@ void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphE
 		SystemTickGraphEvent = SimulationTickTask->GetCompletionEvent();
 		Context.FinalizeEvents->Add(SystemTickGraphEvent);
 
-		MyCompletionGraphEvent->SetGatherThreadForDontCompleteUntil(ENamedThreads::GameThread);
 		MyCompletionGraphEvent->DontCompleteUntil(FinalizeGraphEvent);
 
 		SimulationTickTask->Unlock(ENamedThreads::GameThread);
@@ -1607,6 +1606,10 @@ void FNiagaraSystemSimulation::TransferSystemSimResults(FNiagaraSystemSimulation
 
 	UNiagaraSystem* System = GetSystem();
 	check(System != nullptr);
+#if STATS
+	System->GetStatData().AddStatCapture(TTuple<uint64, ENiagaraScriptUsage>((uint64)this, ENiagaraScriptUsage::SystemSpawnScript), GetSpawnExecutionContext()->ReportStats());
+	System->GetStatData().AddStatCapture(TTuple<uint64, ENiagaraScriptUsage>((uint64)this, ENiagaraScriptUsage::SystemUpdateScript), GetUpdateExecutionContext()->ReportStats());
+#endif
 
 	FNiagaraDataSetReaderInt32<ENiagaraExecutionState> SystemExecutionStateAccessor = System->GetSystemExecutionStateAccessor().GetReader(Context.DataSet);
 	TConstArrayView<FNiagaraDataSetAccessor<ENiagaraExecutionState>> EmitterExecutionStateAccessors = System->GetEmitterExecutionStateAccessors();
@@ -1704,6 +1707,12 @@ void FNiagaraSystemSimulation::RemoveInstance(FNiagaraSystemInstance* Instance)
 	PendingTickGroupPromotions.RemoveSingleSwap(Instance);
 
 	UNiagaraSystem* System = WeakSystem.Get();
+
+	if(System)
+	{
+		System->UnregisterActiveInstance();
+	}
+
 	if (Instance->IsPendingSpawn())
 	{
 		if (GbDumpSystemData || (System && System->bDumpDebugSystemInfo))
@@ -1841,9 +1850,15 @@ void FNiagaraSystemSimulation::AddInstance(FNiagaraSystemInstance* Instance)
 		//MainDataSet.Dump(true, Instance->SystemInstanceIndex, 1);
 	}
 	
+	if(System)
+	{
+		System->RegisterActiveInstance();
+	}
+
 	if (EffectType)
 	{
 		++EffectType->NumInstances;
+		EffectType->bNewSystemsSinceLastScalabilityUpdate = true;
 	}
 
 	check(SystemInstances.Num() == MainDataSet.GetCurrentDataChecked().GetNumInstances());

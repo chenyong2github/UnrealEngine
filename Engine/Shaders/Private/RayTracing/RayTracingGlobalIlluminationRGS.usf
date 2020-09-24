@@ -19,7 +19,7 @@
 
 RaytracingAccelerationStructure TLAS;
 RWTexture2D<float4> RWGlobalIlluminationUAV;
-RWTexture2D<float2> RWRayDistanceUAV;
+RWTexture2D<float2> RWGlobalIlluminationRayDistanceUAV;
 
 uint SamplesPerPixel;
 uint MaxBounces;
@@ -61,7 +61,7 @@ RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 {
 	uint2 DispatchThreadId = DispatchRaysIndex().xy + View.ViewRectMin + uint2(RenderTileOffsetX, RenderTileOffsetY);
 	RWGlobalIlluminationUAV[DispatchThreadId] = 0.0;
-	RWRayDistanceUAV[DispatchThreadId] = float2(-1.0, 0.0);
+	RWGlobalIlluminationRayDistanceUAV[DispatchThreadId] = float2(-1.0, 0.0);
 
 	uint2 PixelCoord = GetPixelCoord(DispatchThreadId, UpscaleFactor);
 	uint LinearIndex = CalcLinearIndex(PixelCoord);
@@ -83,7 +83,7 @@ RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 	{
 		GBufferData.DiffuseColor = GBufferData.StoredBaseColor;
 	}
-	float DeviceZ = SceneDepthBuffer.Load(int3(PixelCoord, 0)).r;
+	float DeviceZ = SceneDepthTexture.Load(int3(PixelCoord, 0)).r;
 	float3 WorldPosition;
 	float3 CameraDirection;
 	ReconstructWorldPositionAndCameraDirectionFromDeviceZ(PixelCoord, DeviceZ, WorldPosition, CameraDirection);
@@ -364,7 +364,7 @@ RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 
 	Irradiance = ClampToHalfFloatRange(Irradiance);
 	RWGlobalIlluminationUAV[DispatchThreadId] = float4(Irradiance, AmbientOcclusion);
-	RWRayDistanceUAV[DispatchThreadId] = float2(HitDistance, SamplesPerPixel);
+	RWGlobalIlluminationRayDistanceUAV[DispatchThreadId] = float2(HitDistance, SamplesPerPixel);
 	// For AO denoiser..
-	//RWRayDistanceUAV[DispatchThreadId] = float2(Luminance(Irradiance), HitDistance);
+	//RWGlobalIlluminationRayDistanceUAV[DispatchThreadId] = float2(Luminance(Irradiance), HitDistance);
 }

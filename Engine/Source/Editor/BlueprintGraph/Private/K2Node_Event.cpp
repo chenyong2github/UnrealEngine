@@ -208,7 +208,7 @@ void UK2Node_Event::PostReconstructNode()
 }
 
 
-void UK2Node_Event::FixupEventReference()
+void UK2Node_Event::FixupEventReference(bool bForce /*= false*/)
 {
 	if (bOverrideFunction && !HasAnyFlags(RF_Transient))
 	{
@@ -219,7 +219,7 @@ void UK2Node_Event::FixupEventReference()
 
 			UClass* ParentType = EventReference.GetMemberParentClass();
 
-			if (BlueprintType && (!ParentType || !(BlueprintType->IsChildOf(ParentType) || BlueprintType->ImplementsInterface(ParentType))))
+			if (BlueprintType && (bForce || !ParentType || !(BlueprintType->IsChildOf(ParentType) || BlueprintType->ImplementsInterface(ParentType))))
 			{
 				FName EventName = EventReference.GetMemberName();
 
@@ -317,7 +317,7 @@ void UK2Node_Event::AllocateDefaultPins()
 	
 	if (!Function)
 	{
-		FixupEventReference();
+		FixupEventReference(/*bForce*/ true);
 		Function = FindEventSignatureFunction();
 	}
 

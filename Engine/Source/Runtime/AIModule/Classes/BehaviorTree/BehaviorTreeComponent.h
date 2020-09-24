@@ -62,6 +62,7 @@ struct FBTPendingExecutionInfo
 
 	FBTPendingExecutionInfo() : NextTask(NULL), bOutOfNodes(false), bLocked(false) {}
 	bool IsSet() const { return (NextTask || bOutOfNodes) && !bLocked; }
+	bool IsLocked() const { return bLocked; }
 
 	void Lock() { bLocked = true; }
 	void Unlock() { bLocked = false; }

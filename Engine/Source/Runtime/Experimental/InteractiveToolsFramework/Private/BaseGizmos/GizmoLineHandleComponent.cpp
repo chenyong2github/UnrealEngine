@@ -67,9 +67,9 @@ public:
 					*ExternalDynamicPixelToWorldScale = PixelToWorldScale;
 				}
 
-				FVector ScaledDiskOrigin = LengthScale * (WorldDiskOrigin - WorldBaseOrigin) + WorldBaseOrigin;
-				FVector ScaledIntevalStart = -LengthScale * (WorldIntervalEnd - WorldDiskOrigin) + ScaledDiskOrigin;
-				FVector ScaledIntevalEnd = LengthScale * (WorldIntervalEnd - WorldDiskOrigin) + ScaledDiskOrigin;
+				FVector ScaledIntevalStart = -LengthScale * (WorldIntervalEnd - WorldDiskOrigin) + WorldDiskOrigin;
+				FVector ScaledIntevalEnd = LengthScale * (WorldIntervalEnd - WorldDiskOrigin) + WorldDiskOrigin;
+				FVector ScaledDiskOrigin = 0.5 * (ScaledIntevalStart + ScaledIntevalEnd);
 
 				float UseThickness = (bExternalHoverState != nullptr && *bExternalHoverState == true) ?
 					(HoverThicknessMultiplier * Thickness) : (Thickness);

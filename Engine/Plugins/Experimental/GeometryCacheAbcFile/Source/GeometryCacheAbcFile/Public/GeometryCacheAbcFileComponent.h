@@ -32,6 +32,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Alembic")
 	FAbcConversionSettings ConversionSettings;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Alembic")
+	FAbcNormalGenerationSettings NormalGenerationSettings;
+
 public:
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;

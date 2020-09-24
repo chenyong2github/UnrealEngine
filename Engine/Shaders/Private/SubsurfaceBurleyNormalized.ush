@@ -8,6 +8,7 @@
 #include "Random.ush"
 #include "BurleyNormalizedSSSCommon.ush"
 #include "DeferredShadingCommon.ush"
+#include "MonteCarlo.ush"
 
 // Setup the max number of Burley samples
 #define BURLEY_NUM_SAMPLES	64
@@ -49,8 +50,9 @@
 #define ROOT_ANALYTIC 0
 
 // one of these must be true
+#define SAMPLE_ROOT_ANGLE_R2SEQUENCE 1
 #define SAMPLE_ANGLE_RANDOM 0
-#define SAMPLE_ANGLE_FIBONACCI 1
+#define SAMPLE_ANGLE_FIBONACCI 0
 
 // Texture local cash does not help on 2080TI with regular layout
 #define TEXTURE_CACHE_DISABLED 0
@@ -101,6 +103,10 @@
 #define ROOT_ANALYTIC 0
 #endif
 
+#ifndef SAMPLE_ROOT_ANGLE_R2SEQUENCE
+#define SAMPLE_ROOT_ANGLE_R2SEQUENCE 0
+#endif
+
 #ifndef SAMPLE_ANGLE_RANDOM
 #define SAMPLE_ANGLE_RANDOM 0
 #endif
@@ -133,6 +139,20 @@
 #define LIGHT_PERPENDICULAR_DIFFUSE_SURFACE 0
 #endif
 
+#ifndef ENABLE_PROFILE_ID_CACHE
+#define ENABLE_PROFILE_ID_CACHE 0
+#endif
+
+#define BILATERAL_FILTER_KERNEL_FUNCTION_DEPTH				0
+#define BILATERAL_FILTER_KERNEL_FUNCTION_DEPTH_AND_NORMAL	1
+
+#ifndef BILATERAL_FILTER_KERNEL_FUNCTION_TYPE
+#define BILATERAL_FILTER_KERNEL_FUNCTION_TYPE BILATERAL_FILTER_KERNEL_FUNCTION_DEPTH_AND_NORMAL
+#endif
+
+#ifndef SUBSURFACE_SAMPLER_TYPE
+#define SUBSURFACE_SAMPLER_TYPE 0
+#endif
 
 struct FBurleyParameter
 {
@@ -176,7 +196,7 @@ float SampleDepthTexture(float2 ScreenUV)
 	float2 FullScreenUV = ScreenUV;
 #endif
 	
-	return Texture2DSampleLevel(SceneTexturesStruct.SceneDepthTexture, SceneTexturesStruct.SceneDepthTextureSampler, ScreenUV, 0).r;
+	return Texture2DSampleLevel(SceneTexturesStruct.SceneDepthTexture, SceneTexturesStruct_SceneDepthTextureSampler, ScreenUV, 0).r;
 }
 
 
@@ -203,7 +223,11 @@ FBurleyParameter GetBurleyParameters(FGBufferData GBuffer)
 
 float2 Generate2DRandomNumber(int3 Seed)
 {
+#if SAMPLE_ROOT_ANGLE_R2SEQUENCE
+	return R2Sequence(Seed.z);
+#else
 	return float2(Rand3DPCG16(Seed).xy) / 0x10000;
+#endif
 }
 
 float GetCDF(float D, float X, float XI)
@@ -332,7 +356,7 @@ FBurleySampleInfo GenerateSampleInfo(float2 Rand0T1, float DiffuseMeanFreePathFo
 	BurleySampleInfo.RadiusInMM = max(FoundRoot, 0.00001f);
 	
 	// Sample angle
-#if SAMPLE_ANGLE_RANDOM
+#if (SAMPLE_ANGLE_RANDOM || SAMPLE_ROOT_ANGLE_R2SEQUENCE)
 	BurleySampleInfo.Theta = Rand0T1.y * 2 * PI;
 
 	BurleySampleInfo.CosTheta = cos(BurleySampleInfo.Theta);
@@ -438,11 +462,36 @@ uint ExtractSubsurfaceProfileIntWithInvalid(FGBufferData BufferData)
 	return ProfileID;
 }
 
+// BufferUV back to grid posistion of the input
+uint2 ConvertUVPos2Input0GridPos(float2 BufferUV)
+{
+	return clamp(BufferUV, 0, 1) * SubsurfaceInput0_Extent - 0.5f;
+}
+
+uint ExtractSubsurfaceProfileIntWithInvalid(float2 UV,float Depth)
+{
+	uint ProfileID = INVALID_PROFILE_ID;
+
+	// the invalid status be determined by the scene depth.
+	if (Depth > 0)
+	{
+		uint2 PosOfSampledUV = ConvertUVPos2Input0GridPos(UV);
+		ProfileID = ProfileIdTexture[PosOfSampledUV];
+	}
+	return ProfileID;
+}
+
+#define BILATERAL_FILTER_DEFAULT_NORMAL float3(1.0f,0.0f,0.0f)
+
 struct BurleySampleDiffuseNormal
 {
 	float4 DiffuseLighting;
-	float3 WorldNormal;
 	uint   ProfileID;
+
+#if BILATERAL_FILTER_KERNEL_FUNCTION_TYPE == BILATERAL_FILTER_KERNEL_FUNCTION_DEPTH_AND_NORMAL
+	float3 WorldNormal;
+#endif
+
 };
 
 #if SUBSURFACE_BURLEY_COMPUTE
@@ -474,7 +523,11 @@ struct BurleySampleDiffuseNormal
 
 #if !TEXTURE_CACHE_DISABLED 
 groupshared float4 SharedSubsurfaceDiffuseLighting[LARGE_GROUP_TEXTURE_SHARE_TOTALSIZE];
+
+#if BILATERAL_FILTER_KERNEL_FUNCTION_TYPE == BILATERAL_FILTER_KERNEL_FUNCTION_DEPTH_AND_NORMAL
 groupshared float3 SharedSubsurfaceWorldNormal[LARGE_GROUP_TEXTURE_SHARE_TOTALSIZE];
+#endif
+
 groupshared uint   SharedSubsurfaceProfileID[LARGE_GROUP_TEXTURE_SHARE_TOTALSIZE];
 #endif
 
@@ -549,14 +602,18 @@ BurleySampleDiffuseNormal SampleSharedDiffuseNormal(float2 SampleGroupThreadId)
 {
 	BurleySampleDiffuseNormal Sample;
 	Sample.DiffuseLighting = 0.0;
+#if BILATERAL_FILTER_KERNEL_FUNCTION_TYPE == BILATERAL_FILTER_KERNEL_FUNCTION_DEPTH_AND_NORMAL
 	Sample.WorldNormal = 0.0;
+#endif
 	Sample.ProfileID = 0;
 
 #if SUBSURFACE_SAMPLER_TYPE == 0
 	// We use point sampling by now
 	int2 Id = SampleGroupThreadId + THREAD_TEXTURE_BORDER;
 	Sample.DiffuseLighting = SharedSubsurfaceDiffuseLighting[Id.x + Id.y*LARGE_GROUP_TEXTURE_DIMENSION_SIZE];
+#if BILATERAL_FILTER_KERNEL_FUNCTION_TYPE == BILATERAL_FILTER_KERNEL_FUNCTION_DEPTH_AND_NORMAL
 	Sample.WorldNormal = SharedSubsurfaceWorldNormal[Id.x + Id.y*LARGE_GROUP_TEXTURE_DIMENSION_SIZE];
+#endif
 	Sample.ProfileID = SharedSubsurfaceProfileID[Id.x + Id.y*LARGE_GROUP_TEXTURE_DIMENSION_SIZE];
 #elif SUBSURFACE_SAMPLER_TYPE == 1
 	// SUBSURFACE_SAMPLER_TYPE is always 0, but keeping this code around for reference
@@ -575,6 +632,8 @@ BurleySampleDiffuseNormal SampleSharedDiffuseNormal(float2 SampleGroupThreadId)
 		float4 Q11 = SharedSubsurfaceDiffuseLighting[Id11.x + Id11.y*LARGE_GROUP_TEXTURE_DIMENSION_SIZE];
 		Sample.DiffuseLighting = Q00 * (1 - x)*(1 - y) + Q10 * x*(1 - y) + Q01 * (1 - x)*y + Q11 * x*y;
 	}
+
+#if BILATERAL_FILTER_KERNEL_FUNCTION_TYPE == BILATERAL_FILTER_KERNEL_FUNCTION_DEPTH_AND_NORMAL
 	{
 		float3 Q00 = SharedSubsurfaceWorldNormal[Id00.x + Id00.y*LARGE_GROUP_TEXTURE_DIMENSION_SIZE];
 		float3 Q01 = SharedSubsurfaceWorldNormal[Id01.x + Id01.y*LARGE_GROUP_TEXTURE_DIMENSION_SIZE];
@@ -582,6 +641,7 @@ BurleySampleDiffuseNormal SampleSharedDiffuseNormal(float2 SampleGroupThreadId)
 		float3 Q11 = SharedSubsurfaceWorldNormal[Id11.x + Id11.y*LARGE_GROUP_TEXTURE_DIMENSION_SIZE];
 		Sample.WorldNormal = normalize(Q00 * (1 - x)*(1 - y) + Q10 * x*(1 - y) + Q01 * (1 - x)*y + Q11 * x*y);
 	}
+#endif
 
 	Sample.ProfileID = SharedSubsurfaceProfileID[Id00.x + Id00.y*LARGE_GROUP_TEXTURE_DIMENSION_SIZE];
 #endif
@@ -600,6 +660,15 @@ BurleySampleDiffuseNormal SampleSharedDiffuseNormal(float2 SampleGroupThreadId)
 	#define SharedBurleyPointSampler SubsurfaceSampler0
 #endif
 
+float3 GetBilateralNormal(float2 ClampedUV)
+{
+	//BRANCH to avoid extra evaluation of the GBuffer.
+#if BILATERAL_FILTER_KERNEL_FUNCTION_TYPE == BILATERAL_FILTER_KERNEL_FUNCTION_DEPTH_AND_NORMAL
+	return GetScreenSpaceData(ClampedUV).GBuffer.WorldNormal;
+#elif BILATERAL_FILTER_KERNEL_FUNCTION_TYPE == BILATERAL_FILTER_KERNEL_FUNCTION_DEPTH
+	return BILATERAL_FILTER_DEFAULT_NORMAL;
+#endif
+}
 
 BurleySampleDiffuseNormal SampleSSSColorConsideringLocalShared(float2 CenterUV, float2 UVOffset, uint2 CenterGroupThreadID, float MipLevel)
 {
@@ -611,14 +680,25 @@ BurleySampleDiffuseNormal SampleSSSColorConsideringLocalShared(float2 CenterUV, 
 
 	BurleySampleDiffuseNormal Sample;
 	Sample.DiffuseLighting = 0.0;
+#if BILATERAL_FILTER_KERNEL_FUNCTION_TYPE == BILATERAL_FILTER_KERNEL_FUNCTION_DEPTH_AND_NORMAL
 	Sample.WorldNormal = 0.0;
+#endif
 
 #if SUBSURFACE_BURLEY_COMPUTE
 
 #if TEXTURE_CACHE_DISABLED
 	Sample.DiffuseLighting = Texture2DSampleLevel(SubsurfaceInput0_Texture, SharedBurleyPointSampler, ClampedUV, MipLevel);
-	Sample.WorldNormal.xyz = GetScreenSpaceData(ClampedUV).GBuffer.WorldNormal;
+
+#if BILATERAL_FILTER_KERNEL_FUNCTION_TYPE == BILATERAL_FILTER_KERNEL_FUNCTION_DEPTH_AND_NORMAL
+	Sample.WorldNormal.xyz = GetBilateralNormal(ClampedUV);
+#endif
+
+#if ENABLE_PROFILE_ID_CACHE && (SUBSURFACE_FALCE_SEPARABLE !=1)
+	Sample.ProfileID = ExtractSubsurfaceProfileIntWithInvalid(ClampedUV,Sample.DiffuseLighting.w);
+#else
 	Sample.ProfileID = ExtractSubsurfaceProfileIntWithInvalid(GetScreenSpaceData(ClampedUV).GBuffer);
+#endif
+
 	return Sample;
 #else
 	float2 SampleGroupThreadId = ConvertUVOffset2GTIDOffsetForInput0(UVOffset) + CenterGroupThreadID; // Subtract 0.5 is to make sampling match. (0,0), samples at 1/w*0.5;
@@ -633,16 +713,33 @@ BurleySampleDiffuseNormal SampleSSSColorConsideringLocalShared(float2 CenterUV, 
 		else
 		{
 			Sample.DiffuseLighting = Texture2DSampleLevel(SubsurfaceInput0_Texture, SharedBurleyPointSampler, ClampedUV, MipLevel);
-			Sample.WorldNormal.xyz = GetScreenSpaceData(ClampedUV).GBuffer.WorldNormal;
+#if BILATERAL_FILTER_KERNEL_FUNCTION_TYPE == BILATERAL_FILTER_KERNEL_FUNCTION_DEPTH_AND_NORMAL
+			Sample.WorldNormal.xyz = GetBilateralNormal(ClampedUV);
+#endif
+
+#if ENABLE_PROFILE_ID_CACHE && (SUBSURFACE_FORCE_SEPARABLE != 1)
+			Sample.ProfileID = ExtractSubsurfaceProfileIntWithInvalid(ClampedUV, Sample.DiffuseLighting.w);
+#else
 			Sample.ProfileID = ExtractSubsurfaceProfileIntWithInvalid(GetScreenSpaceData(ClampedUV).GBuffer);
+#endif
+
 			return Sample;
 		}
 #endif
 
 #else
 	Sample.DiffuseLighting = Texture2DSampleLevel(SubsurfaceInput0_Texture, SharedBurleyPointSampler, ClampedUV, MipLevel);
-	Sample.WorldNormal.xyz = GetScreenSpaceData(ClampedUV).GBuffer.WorldNormal;
+
+#if BILATERAL_FILTER_KERNEL_FUNCTION_TYPE == BILATERAL_FILTER_KERNEL_FUNCTION_DEPTH_AND_NORMAL
+	Sample.WorldNormal.xyz = GetBilateralNormal(ClampedUV);
+#endif
+	
+#if ENABLE_PROFILE_ID_CACHE && (SUBSURFACE_FORCE_SEPARABLE != 1)
+	Sample.ProfileID = ExtractSubsurfaceProfileIntWithInvalid(ClampedUV, Sample.DiffuseLighting.w);
+#else
 	Sample.ProfileID = ExtractSubsurfaceProfileIntWithInvalid(GetScreenSpaceData(ClampedUV).GBuffer);
+#endif
+
 	return Sample;
 #endif
 }
@@ -694,7 +791,7 @@ float CalculateCenterSampleRadiusInMM(FBurleyParameter BurleyParameter, float De
 
 	float A = GetComponentForScalingFactorEstimation(BurleyParameter.SurfaceAlbedo);
 	float S = GetScalingFactor(A);
-	float3 S3D = GetScalingFactor3D(BurleyParameter.SurfaceAlbedo);
+	float3 S3D = GetScalingFactor3D(BurleyParameter.SurfaceAlbedo.xyz);
 
 	float2 BurleyScale = CalculateBurleyScale(BurleyParameter.WorldUnitScale,Depth);
 
@@ -717,7 +814,7 @@ float3 CalculateCenterSampleWeight(float Depth, FBurleyParameter BurleyParameter
 	float DiffuseMeanFreePath = GetDiffuseMeanFreePathForSampling(BurleyParameter.DiffuseMeanFreePath);
 
 	// To calculate the surface free path from albedo, use diffuse surface scaling.
-	float3 D = DiffuseMeanFreePath / GetDiffuseSurfaceScalingFactor3D(BurleyParameter.SurfaceAlbedo);
+	float3 D = DiffuseMeanFreePath / GetDiffuseSurfaceScalingFactor3D(BurleyParameter.SurfaceAlbedo.xyz);
 
 	float3 CenterSampleWeight;
 
@@ -742,6 +839,15 @@ float CalculateCenterSampleCdf(FBurleyParameter BurleyParameter, float Depth)
 	return CenterSampleRadiusCdf;
 }
 
+void UpdateSeed(int3 Seed3D, inout int StartSeed)
+{
+	/*To make R2Sequence work, we need to rebase the R2 sequence start index to a new one uniformly in the R2 space,
+	  then sample sequentially for the current frame. With this mechanism, we can get the best
+	  quality for each frame, and thus best over time.*/
+#if SAMPLE_ROOT_ANGLE_R2SEQUENCE
+	StartSeed = Rand3DPCG16(int3(Seed3D.xy, StartSeed)).x;
+#endif
+}
 
 float4 BurleyNormalizedSS(float2 BufferUV, uint2 GroupThreadID)
 {
@@ -767,7 +873,7 @@ float4 BurleyNormalizedSS(float2 BufferUV, uint2 GroupThreadID)
 	float3 BoundaryColorBleed = GetSubsurfaceProfileBoundaryColorBleed(ScreenSpaceData.GBuffer).xyz;
 
 	float S = GetScalingFactor(A);
-	float3 S3D = GetScalingFactor3D(BurleyParameter.SurfaceAlbedo);
+	float3 S3D = GetScalingFactor3D(BurleyParameter.SurfaceAlbedo.xyz);
 
 	int SeedStart = View.FrameNumber;
 	float3 WeightingFactor = 0.0f;
@@ -790,6 +896,7 @@ float4 BurleyNormalizedSS(float2 BufferUV, uint2 GroupThreadID)
 	}
 
 	int3  Seed3D = int3(BufferUV*SubsurfaceInput0_Extent, 0);
+	UpdateSeed(Seed3D,SeedStart);
 
 #if !USE_BILATERAL_FILTERING
 	float ActiveNumOfSamples = 0;
@@ -878,7 +985,11 @@ float4 BurleyNormalizedSS(float2 BufferUV, uint2 GroupThreadID)
 
 			BurleySampleDiffuseNormal FoundSample = SampleSSSColorConsideringLocalShared(BufferUV, UVOffset, GroupThreadID, MipLevel);
 			float4 SampledRadianceAndDepth = FoundSample.DiffuseLighting;
+#if BILATERAL_FILTER_KERNEL_FUNCTION_TYPE == BILATERAL_FILTER_KERNEL_FUNCTION_DEPTH_AND_NORMAL
 			float3 SampleWorldNormal = FoundSample.WorldNormal;
+#else
+			float3 SampleWorldNormal = float3(1.0f,0.0f,0.0f);
+#endif
 			uint LocalProfile = FoundSample.ProfileID;
 #endif
 
@@ -976,14 +1087,11 @@ float4 UpdateQualityVariance(float4 SubsurfaceColor, float2 BufferUV)
 
 #if (ENABLE_VELOCITY)
 	{
-		float2 VelocityN;
-		VelocityN = Texture2DSampleLevel(SubsurfaceInput2_Texture, SubsurfaceSampler2, NearestBufferUV + VelocityOffset, 0).xy;
+		float4 EncodedVelocity = Texture2DSampleLevel(SubsurfaceInput2_Texture, SubsurfaceSampler2, NearestBufferUV + VelocityOffset, 0);
 		
-		bool DynamicN = VelocityN.x > 0.0;
-
-		if (DynamicN)
+		if (EncodedVelocity.x > 0.0)
 		{
-			BackN = DecodeVelocityFromTexture(float3(VelocityN, 0.0)).xy;
+			BackN = DecodeVelocityFromTexture(EncodedVelocity).xy;
 		}
 
 		BackTemp = BackN * SubsurfaceInput1_ViewportSize.xy;
@@ -1082,7 +1190,9 @@ void BurleyComputeMain(uint2 DT_ID, uint2 G_ID, uint GI)
 
 			// Also fetch the normal and profile ID
 			FScreenSpaceData SampleScreenSpaceData = GetScreenSpaceData(SampleUV);
+#if BILATERAL_FILTER_KERNEL_FUNCTION_TYPE == BILATERAL_FILTER_KERNEL_FUNCTION_DEPTH_AND_NORMAL
 			SharedSubsurfaceWorldNormal[LocalSharedIndex] = SampleScreenSpaceData.GBuffer.WorldNormal;
+#endif
 			SharedSubsurfaceProfileID[LocalSharedIndex] = ExtractSubsurfaceProfileIntWithInvalid(SampleScreenSpaceData.GBuffer);
 		}
 	}

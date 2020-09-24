@@ -1,0 +1,416 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "WebRemoteControlUtils.h"
+#include "HttpServerRequest.h"
+#include "UObject/StructOnScope.h"
+#include "Serialization/JsonReader.h"
+
+
+namespace RemotePayloadSerializer
+{
+	FName NAME_Get = "GET";
+	FName NAME_Put = "PUT";
+	FName NAME_Post = "POST";
+	FName NAME_Patch = "PATCH";
+	FName NAME_Delete = "DELETE";
+	FName NAME_Options = "OPTIONS";
+
+	typedef UCS2CHAR PayloadCharType;
+	const FName ReturnValuePropName(TEXT("ReturnValue"));
+
+	void ReplaceFirstOccurence(TConstArrayView<uint8> InPayload, const FString& From, const FString& To, TArray<uint8>& OutModifiedPayload)
+	{
+		if (TCHAR* PropValuePtr = FCString::Stristr((TCHAR*)InPayload.GetData(), *From))
+		{
+			OutModifiedPayload.Reserve(InPayload.Num() + (To.Len() - (From.Len()) * sizeof(TCHAR)));
+
+			int32 StartIndex = UE_PTRDIFF_TO_INT32(PropValuePtr - (TCHAR*)InPayload.GetData()) * sizeof(TCHAR);
+			int32 EndIndex = StartIndex + From.Len() * sizeof(TCHAR);
+			TConstArrayView<uint8> RestOfPayload = InPayload.Slice(EndIndex, InPayload.Num() - EndIndex);
+			OutModifiedPayload.Append(InPayload.GetData(), StartIndex);
+			OutModifiedPayload.Append((uint8*)*To, To.Len() * sizeof(TCHAR));
+			OutModifiedPayload.Append(RestOfPayload.GetData(), RestOfPayload.Num());
+		}
+	}
+
+	EHttpServerRequestVerbs ParseHttpVerb(FName InVerb)
+	{
+		if (InVerb == NAME_Get)
+		{
+			return EHttpServerRequestVerbs::VERB_GET;
+		}
+		else if (InVerb == NAME_Post)
+		{
+			return EHttpServerRequestVerbs::VERB_POST;
+		}
+		else if (InVerb == NAME_Put)
+		{
+			return EHttpServerRequestVerbs::VERB_PUT;
+		}
+		else if (InVerb == NAME_Patch)
+		{
+			return EHttpServerRequestVerbs::VERB_PATCH;
+		}
+		else if (InVerb == NAME_Delete)
+		{
+			return EHttpServerRequestVerbs::VERB_DELETE;
+		}
+		else if (InVerb == NAME_Options)
+		{
+			return EHttpServerRequestVerbs::VERB_OPTIONS;
+		}
+		else
+		{
+			return EHttpServerRequestVerbs::VERB_NONE;
+		}
+	}
+
+	TSharedRef<FHttpServerRequest> UnwrapHttpRequest(const FRCRequestWrapper& Wrapper, const FHttpServerRequest* TemplateRequest)
+	{
+		TSharedRef<FHttpServerRequest> WrappedHttpRequest = MakeShared<FHttpServerRequest>();
+		if (TemplateRequest)
+		{
+			WrappedHttpRequest->HttpVersion = TemplateRequest->HttpVersion;
+			WrappedHttpRequest->Headers = TemplateRequest->Headers;
+		}
+		else
+		{
+			// Assign Request defaults.
+			WrappedHttpRequest->HttpVersion = HttpVersion::EHttpServerHttpVersion::HTTP_VERSION_1_1;
+			WrappedHttpRequest->Headers.Add(TEXT("Content-Type"), { TEXT("application/json") });
+		}
+
+		WrappedHttpRequest->RelativePath = Wrapper.URL;
+		WrappedHttpRequest->Verb = ParseHttpVerb(Wrapper.Verb);
+		WrappedHttpRequest->Body = Wrapper.BodyData;
+
+		return WrappedHttpRequest;
+	}
+
+	void SerializeWrappedCallResponse(int32 RequestId, TUniquePtr<FHttpServerResponse> Response, FMemoryWriter& Writer)
+	{
+		FJsonStructSerializerBackend Backend(Writer, EStructSerializerBackendFlags::Default);
+		TSharedPtr<TJsonWriter<ANSICHAR>> JsonWriter = TJsonWriter<ANSICHAR>::Create(&Writer);
+
+		JsonWriter->WriteObjectStart();
+		JsonWriter->WriteValue(TEXT("RequestId"), RequestId);
+		JsonWriter->WriteValue(TEXT("ResponseCode"), static_cast<int32>(Response->Code));
+		JsonWriter->WriteIdentifierPrefix(TEXT("ResponseBody"));
+		Writer.Serialize((void*)Response->Body.GetData(), Response->Body.Num());
+		JsonWriter->WriteObjectEnd();
+	}
+
+	bool SerializePartial(TFunctionRef<bool(FJsonStructSerializerBackend&)> SerializeFunction, FMemoryWriter& SerializedPayloadWriter)
+	{
+		TArray<uint8> WorkingBuffer;
+		FMemoryWriter TemporaryBufferWriter(WorkingBuffer);
+		FJsonStructSerializerBackend TemporaryBackend(TemporaryBufferWriter, EStructSerializerBackendFlags::Default);
+
+		int32 ColonPosition = -1;
+		int32 LastBracketPosition = -1;
+
+		bool bSuccess = SerializeFunction(TemporaryBackend);
+
+		FStringView BufferView = FStringView((TCHAR*)WorkingBuffer.GetData(), WorkingBuffer.Num() / sizeof(TCHAR));
+		if (bSuccess)
+		{
+			BufferView.FindChar(TEXT(':'), ColonPosition);
+			BufferView.FindLastChar(TEXT('}'), LastBracketPosition);
+			ColonPosition++;
+		}
+
+		if (LastBracketPosition > ColonPosition)
+		{
+			BufferView.MidInline(ColonPosition, LastBracketPosition - ColonPosition);
+			SerializedPayloadWriter.Serialize((uint8*)BufferView.GetData(), BufferView.Len() * sizeof(TCHAR) / sizeof(uint8));
+		}
+		else
+		{
+			bSuccess = false;
+		}
+
+		return bSuccess;
+	}
+
+	bool DeserializeCall(const FHttpServerRequest& InRequest, FRCCall& OutCall, const FHttpResultCallback& InCompleteCallback)
+	{
+		// Create Json reader to read the payload, the payload will already be validated as being in TCHAR
+		TArray<uint8> WorkingBuffer;
+		WebRemoteControlUtils::ConvertToTCHAR(InRequest.Body, WorkingBuffer);
+
+		FRCCallRequest CallRequest;
+		if (!WebRemoteControlUtils::DeserializeRequest(InRequest, &InCompleteCallback, CallRequest))
+		{
+			return false;
+		}
+
+		FString ErrorText;
+		bool bSuccess = true;
+		if (IRemoteControlModule::Get().ResolveCall(CallRequest.ObjectPath, CallRequest.FunctionName, OutCall.CallRef, &ErrorText))
+		{
+			// Initialize the param struct with default parameters
+			OutCall.bGenerateTransaction = CallRequest.GenerateTransaction;
+			OutCall.ParamStruct = FStructOnScope(OutCall.CallRef.Function.Get());
+
+			// If some parameters were provided, deserialize them
+			const FBlockDelimiters& ParametersDelimiters = CallRequest.GetStructParameters().FindChecked(FRCCallRequest::ParametersLabel());
+			if (ParametersDelimiters.BlockStart > 0)
+			{
+				FMemoryReader Reader(WorkingBuffer);
+				Reader.Seek(ParametersDelimiters.BlockStart);
+				Reader.SetLimitSize(ParametersDelimiters.BlockEnd + 1);
+
+				FJsonStructDeserializerBackend Backend(Reader);
+				if (!FStructDeserializer::Deserialize((void*)OutCall.ParamStruct.GetStructMemory(), *const_cast<UStruct*>(OutCall.ParamStruct.GetStruct()), Backend, FStructDeserializerPolicies()))
+				{
+					ErrorText = TEXT("Parameters object improperly formatted.");
+					bSuccess = false;
+				}
+			}
+		}
+		else
+		{
+			bSuccess = false;
+		}
+
+		if (!bSuccess)
+		{
+			UE_LOG(LogRemoteControl, Error, TEXT("Web Remote Call deserialization error: %s"), *ErrorText);
+			TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse();
+			WebRemoteControlUtils::CreateUTF8ErrorMessage(ErrorText, Response->Body);
+			InCompleteCallback(MoveTemp(Response));
+		}
+
+		return bSuccess;
+	}
+
+	bool SerializeCall(const FRCCall& InCall, TArray<uint8>& OutPayload, bool bOnlyReturn)
+	{
+		FMemoryWriter Writer(OutPayload);
+		TSharedPtr<TJsonWriter<PayloadCharType>> JsonWriter;
+
+		if (!bOnlyReturn)
+		{
+			// Create Json writer to write the payload, if we do not just write the return value back.
+			JsonWriter = TJsonWriter<PayloadCharType>::Create(&Writer);
+
+			JsonWriter->WriteObjectStart();
+			JsonWriter->WriteValue(TEXT("ObjectPath"), InCall.CallRef.Object->GetPathName());
+			JsonWriter->WriteValue(TEXT("FunctionName"), InCall.CallRef.Function->GetFName().ToString());
+			JsonWriter->WriteIdentifierPrefix(TEXT("Parameters"));
+		}
+
+		// write the param struct
+		FJsonStructSerializerBackend Backend(Writer, EStructSerializerBackendFlags::Default);
+		FStructSerializerPolicies Policies;
+
+		if (bOnlyReturn)
+		{
+			Policies.PropertyFilter = [](const FProperty* CurrentProp, const FProperty* ParentProperty) -> bool
+			{
+				return CurrentProp->HasAnyPropertyFlags(CPF_ReturnParm | CPF_OutParm) || ParentProperty != nullptr;
+			};
+		}
+
+		FStructSerializer::Serialize((void*)InCall.ParamStruct.GetStructMemory(), *const_cast<UStruct*>(InCall.ParamStruct.GetStruct()), Backend, Policies);
+
+		if (!bOnlyReturn)
+		{
+			JsonWriter->WriteObjectEnd();
+		}
+
+		return true;
+	}
+
+	bool DeserializeObjectRef(const FHttpServerRequest& InRequest, FRCObjectReference& OutObjectRef, FRCObjectRequest& OutDeserializedRequest, const FHttpResultCallback& InCompleteCallback)
+	{
+		TArray<uint8> WorkingBuffer;
+		WebRemoteControlUtils::ConvertToTCHAR(InRequest.Body, WorkingBuffer);
+
+		if (!WebRemoteControlUtils::DeserializeRequest(InRequest, &InCompleteCallback, OutDeserializedRequest))
+		{
+			return false;
+		}
+
+		FString ErrorText;
+
+		// If we properly identified the object path, property name and access type as well as identified the starting / end position for property value
+		// resolve the object reference
+		IRemoteControlModule::Get().ResolveObject(OutDeserializedRequest.GetAccessValue(), OutDeserializedRequest.ObjectPath, OutDeserializedRequest.PropertyName, OutObjectRef, &ErrorText);
+
+		if (!ErrorText.IsEmpty())
+		{
+			UE_LOG(LogRemoteControl, Error, TEXT("Web Remote Object Access error: %s"), *ErrorText);
+			TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse();
+			WebRemoteControlUtils::CreateUTF8ErrorMessage(ErrorText, Response->Body);
+			InCompleteCallback(MoveTemp(Response));
+			return false;
+		}
+
+		return true;
+	}
+}
+
+namespace HttpUtils
+{
+	/**
+	 * Add the desired content type to the http response headers.
+	 * @param InResponse The response to add the content type to.
+	 * @param InContentType The content type header to add.
+	 */
+	void AddContentTypeHeaders(FHttpServerResponse* InOutResponse, FString InContentType)
+	{
+		InOutResponse->Headers.Add(TEXT("content-type"), { MoveTemp(InContentType) });
+	}
+
+	/**
+	* Add CORS headers to a http response.
+	* @param InOutResponse The http response to add the CORS headers to.
+	*/
+	void AddCORSHeaders(FHttpServerResponse* InOutResponse)
+	{
+		check(InOutResponse != nullptr);
+		InOutResponse->Headers.Add(TEXT("Access-Control-Allow-Origin"), { TEXT("*") });
+		InOutResponse->Headers.Add(TEXT("Access-Control-Allow-Methods"), { TEXT("PUT, POST, GET, OPTIONS") });
+		InOutResponse->Headers.Add(TEXT("Access-Control-Allow-Headers"), { TEXT("Origin, X-Requested-With, Content-Type, Accept") });
+		InOutResponse->Headers.Add(TEXT("Access-Control-Max-Age"), { TEXT("600") });
+	}
+
+	/**
+	 * Validate a request's content type.
+	 * @param InRequest The request to validate the content type on.
+	 * @param InContentType The target content type.
+	 * @param OutErrorText If set, the string pointer will be populated with an error message on error.
+	 * @return Whether or not the content type matches the target content type.
+	 */
+	bool IsRequestContentType(const FHttpServerRequest& InRequest, const FString& InContentType, FString* OutErrorText)
+	{
+		if (const TArray<FString>* ContentTypeHeaders = InRequest.Headers.Find(TEXT("Content-Type")))
+		{
+			if (ContentTypeHeaders->Num() > 0 && (*ContentTypeHeaders)[0] == InContentType)
+			{
+				return true;
+			}
+		}
+
+		if (OutErrorText)
+		{
+			*OutErrorText = FString::Printf(TEXT("Request content type must be %s"), *InContentType);
+		}
+		return false;
+	}
+}
+
+void WebRemoteControlUtils::ConvertToTCHAR(TConstArrayView<uint8> InUTF8Payload, TArray<uint8>& OutTCHARPayload)
+{
+	int32 StartIndex = OutTCHARPayload.Num();
+	OutTCHARPayload.AddUninitialized(FUTF8ToTCHAR_Convert::ConvertedLength((ANSICHAR*)InUTF8Payload.GetData(), InUTF8Payload.Num() / sizeof(ANSICHAR)) * sizeof(TCHAR));
+	FUTF8ToTCHAR_Convert::Convert((TCHAR*)(OutTCHARPayload.GetData() + StartIndex), (OutTCHARPayload.Num() - StartIndex) / sizeof(TCHAR), (ANSICHAR*)InUTF8Payload.GetData(), InUTF8Payload.Num() / sizeof(ANSICHAR));
+}
+
+void WebRemoteControlUtils::ConvertToUTF8(TConstArrayView<uint8> InTCHARPayload, TArray<uint8>& OutUTF8Payload)
+{
+	int32 StartIndex = OutUTF8Payload.Num();
+	OutUTF8Payload.AddUninitialized(FTCHARToUTF8_Convert::ConvertedLength((TCHAR*)InTCHARPayload.GetData(), InTCHARPayload.Num() / sizeof(TCHAR)) * sizeof(ANSICHAR));
+	FTCHARToUTF8_Convert::Convert((ANSICHAR*)(OutUTF8Payload.GetData() + StartIndex), (OutUTF8Payload.Num() - StartIndex) / sizeof(ANSICHAR), (TCHAR*)InTCHARPayload.GetData(), InTCHARPayload.Num() / sizeof(TCHAR));
+}
+
+void WebRemoteControlUtils::ConvertToUTF8(const FString& InString, TArray<uint8>& OutUTF8Payload)
+{
+	int32 StartIndex = OutUTF8Payload.Num();
+	OutUTF8Payload.AddUninitialized(FTCHARToUTF8_Convert::ConvertedLength(*InString, InString.Len()) * sizeof(ANSICHAR));
+	FTCHARToUTF8_Convert::Convert((ANSICHAR*)(OutUTF8Payload.GetData() + StartIndex), (OutUTF8Payload.Num() - StartIndex) / sizeof(ANSICHAR), *InString, InString.Len());
+}
+
+TUniquePtr<FHttpServerResponse> WebRemoteControlUtils::CreateHttpResponse(EHttpServerResponseCodes InResponseCode)
+{
+	TUniquePtr<FHttpServerResponse> Response = MakeUnique<FHttpServerResponse>();
+	HttpUtils::AddCORSHeaders(Response.Get());
+	HttpUtils::AddContentTypeHeaders(Response.Get(), TEXT("application/json"));
+	Response->Code = InResponseCode;
+	return Response;
+}
+
+void WebRemoteControlUtils::CreateUTF8ErrorMessage(const FString& InMessage, TArray<uint8>& OutUTF8Message)
+{
+	WebRemoteControlUtils::ConvertToUTF8(FString::Printf(TEXT("{ \"errorMessage\": \"%s\" }"), *InMessage), OutUTF8Message);
+}
+
+bool WebRemoteControlUtils::GetStructParametersDelimiters(TConstArrayView<uint8> InTCHARPayload, TMap<FString, FBlockDelimiters>& InOutStructParameters, FString* OutErrorText)
+{
+	typedef UCS2CHAR PayloadCharType;
+	FMemoryReaderView Reader(InTCHARPayload);
+	TSharedRef<TJsonReader<PayloadCharType>> JsonReader = TJsonReader<PayloadCharType>::Create(&Reader);
+
+	EJsonNotation Notation;
+
+	FString ErrorText;
+	// The payload should be an object
+	JsonReader->ReadNext(Notation);
+	if (Notation != EJsonNotation::ObjectStart)
+	{
+		ErrorText = TEXT("Expected json object.");
+	}
+
+	// Mark the start/end of the param object in the payload
+	while (JsonReader->ReadNext(Notation) && ErrorText.IsEmpty())
+	{
+		switch (Notation)
+		{
+			// this should mean we reached the parameters field, record the start and ending offset
+		case EJsonNotation::ObjectStart:
+			if (FBlockDelimiters* Delimiters = InOutStructParameters.Find(JsonReader->GetIdentifier()))
+			{
+				Delimiters->BlockStart = Reader.Tell() - sizeof(PayloadCharType);
+				if (JsonReader->SkipObject())
+				{
+					Delimiters->BlockEnd = Reader.Tell();
+				}
+				else
+				{
+					ErrorText = FString::Printf(TEXT("%s object improperly formatted."), *JsonReader->GetIdentifier());
+				}
+			}
+			else
+			{
+				ErrorText = TEXT("Unexpected object field.");
+			}
+			break;
+			// This means we should be done with the request object
+		case EJsonNotation::ObjectEnd:
+			break;
+			// Read the reset to default property
+		case EJsonNotation::Error:
+			ErrorText = JsonReader->GetErrorMessage();
+			break;
+		default:
+			// Ignore any other fields
+			break;
+		}
+	}
+
+	if (!ErrorText.IsEmpty())
+	{
+		UE_LOG(LogRemoteControl, Error, TEXT("Web Remote Control deserialization error: %s"), *ErrorText);
+		if (OutErrorText)
+		{
+			*OutErrorText = MoveTemp(ErrorText);
+		}
+		return false;
+	}
+
+	return true;
+}
+
+bool WebRemoteControlUtils::ValidateContentType(const FHttpServerRequest& InRequest, FString InContentType, const FHttpResultCallback& InCompleteCallback)
+{
+	FString ErrorText;
+	if (!HttpUtils::IsRequestContentType(InRequest, MoveTemp(InContentType), &ErrorText))
+	{
+		TUniquePtr<FHttpServerResponse> Response = CreateHttpResponse();
+		CreateUTF8ErrorMessage(ErrorText, Response->Body);
+		InCompleteCallback(MoveTemp(Response));
+		return false;
+	}
+	return true;
+}

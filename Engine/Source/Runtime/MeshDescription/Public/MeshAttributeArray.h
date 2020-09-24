@@ -33,36 +33,6 @@ using AttributeTypes = TTuple
 
 
 /**
- * Helper template which gets the tuple index of a given type from a given TTuple.
- * If the type occurs more than once, the first index is returned.
- * If the type doesn't appear, a compile error is generated.
- *
- * Given Type = char, and Tuple = TTuple<int, float, char>,
- * TTupleIndex<Type, Tuple>::Value will be 2.
- *
- * @todo: Move to Tuple.h
- */
-template <typename Type, typename Tuple> struct TTupleIndex;
-template <typename Type, typename... Ts> struct TTupleIndex<Type, TTuple<Type, Ts...>> : TIntegralConstant<uint32, 0> {};
-template <typename Type, typename... Ts> struct TTupleIndex<Type, TTuple<Ts...>> : TIntegralConstant<uint32, 0> { static_assert( sizeof...( Ts ) > 0, "TTuple type not found" ); };
-template <typename Type, typename T, typename... Ts> struct TTupleIndex<Type, TTuple<T, Ts...>> : TIntegralConstant<uint32, 1 + TTupleIndex<Type, TTuple<Ts...>>::Value> {};
-
-
-/**
- * Helper template which gets the element type of a TTuple with the given index.
- *
- * Given Index = 1, and Tuple = TTuple<int, float, char>,
- * TTupleElement<Index, Tuple>::Type will be float.
- *
- * @todo: Move to Tuple.h
- */
-template <uint32 Index, typename Tuple> struct TTupleElement;
-template <uint32 Index, typename T, typename... Ts> struct TTupleElement<Index, TTuple<T, Ts...>> : TTupleElement<Index - 1, TTuple<Ts...>> {};
-template <typename T, typename... Ts> struct TTupleElement<0, TTuple<T, Ts...>> { using Type = T; };
-template <typename... Ts> struct TTupleElement<0, TTuple<Ts...>> { static_assert( sizeof...( Ts ) > 0, "TTuple element index out of range" ); };
-
-
-/**
  * Helper template which generates a TVariant of all supported attribute types.
  */
 template <typename Tuple> struct TVariantFromTuple;

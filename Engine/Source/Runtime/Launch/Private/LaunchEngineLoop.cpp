@@ -177,6 +177,10 @@
 
 #include "Misc/EmbeddedCommunication.h"
 
+#if WITH_ENGINE
+	#include "Tests/RHIUnitTests.h"
+#endif
+
 class FSlateRenderer;
 class SViewport;
 class IPlatformFile;
@@ -449,7 +453,7 @@ static void RHIExitAndStopRHIThread()
 	FRealtimeGPUProfiler::SafeRelease();
 #endif
 
-	// Stop the RHI Thread (using GRHIThread_InternalUseOnly is unreliable since RT may be stopped)
+	// Stop the RHI Thread (using IsRHIThreadRunning() is unreliable since RT may be stopped)
 	if (FTaskGraphInterface::IsRunning() && FTaskGraphInterface::Get().IsThreadProcessingTasks(ENamedThreads::RHIThread))
 	{
 		DECLARE_CYCLE_STAT(TEXT("Wait For RHIThread Finish"), STAT_WaitForRHIThreadFinish, STATGROUP_TaskGraphTasks);
@@ -2177,7 +2181,9 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 #endif
 
 #if WITH_ENGINE && TRACING_PROFILER
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FTracingProfiler::Get()->Init();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 
 	// Start the application
@@ -2594,22 +2600,25 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 
 	bool bEnableShaderCompile = !FParse::Param(FCommandLine::Get(), TEXT("NoShaderCompile"));
 
-	if (bEnableShaderCompile && !FPlatformProperties::RequiresCookedData())
+	if (!FPlatformProperties::RequiresCookedData())
 	{
-		check(!GShaderCompilerStats);
-		GShaderCompilerStats = new FShaderCompilerStats();
-
-		check(!GShaderCompilingManager);
-		GShaderCompilingManager = new FShaderCompilingManager();
-
 		check(!GDistanceFieldAsyncQueue);
 		GDistanceFieldAsyncQueue = new FDistanceFieldAsyncQueue();
 
 		check(!GCardRepresentationAsyncQueue);
 		GCardRepresentationAsyncQueue = new FCardRepresentationAsyncQueue();
-		
-		// Shader hash cache is required only for shader compilation.
-		InitializeShaderHashCache();
+
+		if (bEnableShaderCompile)
+		{
+			check(!GShaderCompilerStats);
+			GShaderCompilerStats = new FShaderCompilerStats();
+
+			check(!GShaderCompilingManager);
+			GShaderCompilingManager = new FShaderCompilingManager();
+
+			// Shader hash cache is required only for shader compilation.
+			InitializeShaderHashCache();
+		}
 	}
 
 	{
@@ -2778,12 +2787,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 
 int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 {
-	//Long duration timing scopes have negative performance consequences on UnrealInsights, so taking special steps to avoid
-	//having the PreInitPostStartupScreen scope from encompassing commandlet execution, which may be long duration.
-#if CPUPROFILERTRACE_ENABLED
-	TOptional<FCpuProfilerTrace::FDynamicEventScope> PreInitPostStartupScreenTraceScope(InPlace, "FEngineLoop::PreInitPostStartupScreen", CpuChannel);
-#endif
-	FScopedBootTiming ANONYMOUS_VARIABLE(BootTiming_)("FEngineLoop::PreInitPostStartupScreen");
+	SCOPED_BOOT_TIMING("FEngineLoop::PreInitPostStartupScreen");
 
 	if (IsEngineExitRequested())
 	{
@@ -3380,13 +3384,7 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 			CycleCount_AfterStats.StopAndResetStatId();
 #endif // STATS
 			FStats::TickCommandletStats();
-#if CPUPROFILERTRACE_ENABLED
-			PreInitPostStartupScreenTraceScope.Reset(); // Exclude the commandlet main function from this scope's duration
 			int32 ErrorLevel = Commandlet->Main( CommandletCommandLine );
-			PreInitPostStartupScreenTraceScope.Emplace("FEngineLoop::PreInitPostStartupScreen", CpuChannel);
-#else
-			int32 ErrorLevel = Commandlet->Main( CommandletCommandLine );
-#endif
 			FStats::TickCommandletStats();
 
 			RequestEngineExit(FString::Printf(TEXT("Commandlet %s finished execution (result %d)"), *Commandlet->GetName(), ErrorLevel));
@@ -4506,6 +4504,7 @@ uint64 FScopedSampleMallocChurn::DumpFrame = 0;
 
 #endif
 
+static uint32 TraceFrameEventThreadId = (uint32) -1;
 
 static inline void BeginFrameRenderThread(FRHICommandListImmediate& RHICmdList, uint64 CurrentFrameCounter)
 {
@@ -4523,25 +4522,25 @@ static inline void BeginFrameRenderThread(FRHICommandListImmediate& RHICmdList, 
 	}
 #endif
 
-#if ENABLE_NAMED_EVENTS
-	TCHAR IndexedFrameString[32] = { 0 };
-	const TCHAR* FrameString = nullptr;
+#if CPUPROFILERTRACE_ENABLED
+	TraceFrameEventThreadId = (uint32) -1;
 	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(CpuChannel))
 	{
-		FrameString = TEXT("Frame");
+		TraceFrameEventThreadId = FPlatformTLS::GetCurrentThreadId();
+		FCpuProfilerTrace::OutputBeginDynamicEvent(TEXT("Frame"));
 	}
-	else
-	{
+#endif //CPUPROFILERTRACE_ENABLED
+
+	FString FrameString = FString::Printf(TEXT("Frame %d"), CurrentFrameCounter);
+#if ENABLE_NAMED_EVENTS
 #if PLATFORM_LIMIT_PROFILER_UNIQUE_NAMED_EVENTS
-		FrameString = TEXT("Frame");
+	FPlatformMisc::BeginNamedEvent(FColor::Yellow, TEXT("Frame"));
 #else
-		FCString::Snprintf(IndexedFrameString, 32, TEXT("Frame %d"), CurrentFrameCounter);
-		FrameString = IndexedFrameString;
+	FPlatformMisc::BeginNamedEvent(FColor::Yellow, *FrameString);
 #endif
-	}
-	FPlatformMisc::BeginNamedEvent(FColor::Yellow, FrameString);
 #endif // ENABLE_NAMED_EVENTS
-	RHICmdList.PushEvent(FrameString, FColor::Green);
+
+	RHICmdList.PushEvent(*FrameString, FColor::Green);
 #endif // !UE_BUILD_SHIPPING
 
 	GPU_STATS_BEGINFRAME(RHICmdList);
@@ -4571,6 +4570,12 @@ static inline void EndFrameRenderThread(FRHICommandListImmediate& RHICmdList, ui
 #if ENABLE_NAMED_EVENTS
 	FPlatformMisc::EndNamedEvent();
 #endif
+#if CPUPROFILERTRACE_ENABLED
+	if (TraceFrameEventThreadId == FPlatformTLS::GetCurrentThreadId())
+	{
+		FCpuProfilerTrace::OutputEndEvent();
+	}
+#endif // CPUPROFILERTRACE_ENABLED
 #endif // !UE_BUILD_SHIPPING 
 	TRACE_END_FRAME(TraceFrameType_Rendering);
 }
@@ -5287,13 +5292,13 @@ bool LaunchCorrectEditorExecutable(const FString& EditorTargetFileName)
 	CleanUpPath(CurrentExecutableName);
 
 	// Nothing to do if they're the same
-	if(LaunchExecutableName == CurrentExecutableName)
+	if(FPaths::IsSamePath(LaunchExecutableName, CurrentExecutableName))
 	{
 		return false;
 	}
 
 	// Relaunch the correct executable
-	UE_LOG(LogInit, Display, TEXT("Running incorrect executable for target. Launching %s..."), *LaunchExecutableName);
+	UE_LOG(LogInit, Display, TEXT("Running incorrect executable for target (%s). Launching %s instead..."), *CurrentExecutableName, *LaunchExecutableName);
 	FPlatformProcess::CreateProc(*IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*LaunchExecutableName), FCommandLine::GetOriginal(), true, false, false, nullptr, 0, nullptr, nullptr, nullptr);
 	return true;
 }
@@ -5825,11 +5830,11 @@ void FEngineLoop::PostInitRHI()
 	}
 	RHIPostInit(PixelFormatByteWidth);
 
-#if (!UE_BUILD_SHIPPING)
-	if (FParse::Param(FCommandLine::Get(), TEXT("rhiunittest")))
+#if WITH_ENGINE && (!UE_BUILD_SHIPPING)
+	IRHITestModule* RHIUnitTests = static_cast<IRHITestModule*>(FModuleManager::Get().GetModule(TEXT("RHITests")));
+	if (RHIUnitTests)
 	{
-		extern ENGINE_API void RunRHIUnitTest();
-		RunRHIUnitTest();
+		RHIUnitTests->RunAllTests();
 	}
 #endif //(!UE_BUILD_SHIPPING)
 

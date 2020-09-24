@@ -34,14 +34,12 @@ FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView(FRHISt
 
 	FD3D12ResourceLocation& Location = StructuredBuffer->ResourceLocation;
 
-	const D3D12_RESOURCE_DESC& BufferDesc = Location.GetResource()->GetDesc();
-
 	const uint32 BufferUsage = StructuredBuffer->GetUsage();
 	const bool bByteAccessBuffer = (BufferUsage & BUF_ByteAddressBuffer) != 0;
 	const bool bStructuredBuffer = !bByteAccessBuffer;
 	check(bByteAccessBuffer != bStructuredBuffer); // You can't have a structured buffer that allows raw views
 
-	D3D12_UNORDERED_ACCESS_VIEW_DESC UAVDesc = {};
+	D3D12_UNORDERED_ACCESS_VIEW_DESC UAVDesc{};
 	UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
 	UAVDesc.Format = DXGI_FORMAT_UNKNOWN;
 
@@ -50,28 +48,20 @@ FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView(FRHISt
 	if (bByteAccessBuffer)
 	{
 		UAVDesc.Format  = DXGI_FORMAT_R32_TYPELESS;
+		UAVDesc.Buffer.Flags |= D3D12_BUFFER_UAV_FLAG_RAW;
 		EffectiveStride = 4;
 	}
-
 	else if (BufferUsage & BUF_DrawIndirect)
 	{
 		UAVDesc.Format  = DXGI_FORMAT_R32_UINT;
 		EffectiveStride = 4;
 	}
+
 	UAVDesc.Buffer.FirstElement = Location.GetOffsetFromBaseOfResource() / EffectiveStride;
 	UAVDesc.Buffer.NumElements  = Location.GetSize() / EffectiveStride;
 	UAVDesc.Buffer.StructureByteStride = bStructuredBuffer ? EffectiveStride : 0;
-	UAVDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
-
-	UAVDesc.Buffer.CounterOffsetInBytes = 0;
 
 	const bool bNeedsCounterResource = bAppendBuffer | bUseUAVCounter;
-
-	if (bByteAccessBuffer)
-	{
-		UAVDesc.Buffer.Flags |= D3D12_BUFFER_UAV_FLAG_RAW;
-	}
-
 	return CreateUAV(UAVDesc, StructuredBuffer, bNeedsCounterResource);
 }
 
@@ -132,35 +122,24 @@ FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView(FRHIVe
 	FD3D12VertexBuffer*  VertexBuffer = FD3D12DynamicRHI::ResourceCast(VertexBufferRHI);
 	FD3D12ResourceLocation& Location = VertexBuffer->ResourceLocation;
 
-	const D3D12_RESOURCE_DESC& BufferDesc = Location.GetResource()->GetDesc();
-	const uint64 effectiveBufferSize = Location.GetSize();
-
-	const uint32 BufferUsage = VertexBuffer->GetUsage();
-	const bool bByteAccessBuffer = (BufferUsage & BUF_ByteAddressBuffer) != 0;
-
-	D3D12_UNORDERED_ACCESS_VIEW_DESC UAVDesc = {};
+	D3D12_UNORDERED_ACCESS_VIEW_DESC UAVDesc{};
 	UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
-	UAVDesc.Format = FindUnorderedAccessDXGIFormat((DXGI_FORMAT)GPixelFormats[Format].PlatformFormat);
-	UAVDesc.Buffer.FirstElement = Location.GetOffsetFromBaseOfResource();
 
-	UAVDesc.Buffer.NumElements = effectiveBufferSize / GPixelFormats[Format].BlockBytes;
-	UAVDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
-	UAVDesc.Buffer.CounterOffsetInBytes = 0;
-	UAVDesc.Buffer.StructureByteStride = 0;
-
-	if (bByteAccessBuffer)
+	uint32 EffectiveStride;
+	if (VertexBuffer->GetUsage() & BUF_ByteAddressBuffer)
 	{
-		UAVDesc.Buffer.Flags |= D3D12_BUFFER_UAV_FLAG_RAW;
 		UAVDesc.Format = DXGI_FORMAT_R32_TYPELESS;
-		UAVDesc.Buffer.NumElements = effectiveBufferSize / 4;
-		UAVDesc.Buffer.FirstElement /= 4;
+		UAVDesc.Buffer.Flags |= D3D12_BUFFER_UAV_FLAG_RAW;
+		EffectiveStride = 4;
 	}
-
 	else
 	{
-		UAVDesc.Buffer.NumElements = effectiveBufferSize / GPixelFormats[Format].BlockBytes;
-		UAVDesc.Buffer.FirstElement /= GPixelFormats[Format].BlockBytes;
+		UAVDesc.Format = FindUnorderedAccessDXGIFormat((DXGI_FORMAT)GPixelFormats[Format].PlatformFormat);
+		EffectiveStride = GPixelFormats[Format].BlockBytes;
 	}
+
+	UAVDesc.Buffer.FirstElement = Location.GetOffsetFromBaseOfResource() / EffectiveStride;
+	UAVDesc.Buffer.NumElements = Location.GetSize() / EffectiveStride;
 
 	return CreateUAV(UAVDesc, VertexBuffer, false);
 }
@@ -170,35 +149,24 @@ FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView(FRHIIn
 	FD3D12IndexBuffer* IndexBuffer = FD3D12DynamicRHI::ResourceCast(IndexBufferRHI);
 	FD3D12ResourceLocation& Location = IndexBuffer->ResourceLocation;
 
-	const D3D12_RESOURCE_DESC& BufferDesc = Location.GetResource()->GetDesc();
-	const uint64 effectiveBufferSize = Location.GetSize();
-
-	const uint32 BufferUsage = IndexBuffer->GetUsage();
-	const bool bByteAccessBuffer = (BufferUsage & BUF_ByteAddressBuffer) != 0;
-
-	D3D12_UNORDERED_ACCESS_VIEW_DESC UAVDesc = {};
+	D3D12_UNORDERED_ACCESS_VIEW_DESC UAVDesc{};
 	UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
-	UAVDesc.Format = FindUnorderedAccessDXGIFormat((DXGI_FORMAT)GPixelFormats[Format].PlatformFormat);
-	UAVDesc.Buffer.FirstElement = Location.GetOffsetFromBaseOfResource();
 
-	UAVDesc.Buffer.NumElements = effectiveBufferSize / GPixelFormats[Format].BlockBytes;
-	UAVDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
-	UAVDesc.Buffer.CounterOffsetInBytes = 0;
-	UAVDesc.Buffer.StructureByteStride = 0;
-
-	if (bByteAccessBuffer)
+	uint32 EffectiveStride;
+	if ((IndexBuffer->GetUsage() & BUF_ByteAddressBuffer) != 0)
 	{
-		UAVDesc.Buffer.Flags |= D3D12_BUFFER_UAV_FLAG_RAW;
 		UAVDesc.Format = DXGI_FORMAT_R32_TYPELESS;
-		UAVDesc.Buffer.NumElements = effectiveBufferSize / 4;
-		UAVDesc.Buffer.FirstElement /= 4;
+		UAVDesc.Buffer.Flags |= D3D12_BUFFER_UAV_FLAG_RAW;
+		EffectiveStride = 4;
 	}
-
 	else
 	{
-		UAVDesc.Buffer.NumElements = effectiveBufferSize / GPixelFormats[Format].BlockBytes;
-		UAVDesc.Buffer.FirstElement /= GPixelFormats[Format].BlockBytes;
+		UAVDesc.Format = FindUnorderedAccessDXGIFormat((DXGI_FORMAT)GPixelFormats[Format].PlatformFormat);
+		EffectiveStride = GPixelFormats[Format].BlockBytes;
 	}
+
+	UAVDesc.Buffer.FirstElement = Location.GetOffsetFromBaseOfResource() / EffectiveStride;
+	UAVDesc.Buffer.NumElements = Location.GetSize() / EffectiveStride;
 
 	return CreateUAV(UAVDesc, IndexBuffer, false);
 }
@@ -211,7 +179,7 @@ void FD3D12CommandContext::ClearUAV(TRHICommandList_RecursiveHazardous<FD3D12Com
 	// Only structured buffers can have an unknown format
 	check(UAVDesc.ViewDimension == D3D12_UAV_DIMENSION_BUFFER || UAVDesc.Format != DXGI_FORMAT_UNKNOWN);
 
-	EClearReplacementValueType ValueType = EClearReplacementValueType::Float;
+	EClearReplacementValueType ValueType = bFloat ? EClearReplacementValueType::Float : EClearReplacementValueType::Uint32;
 	switch (UAVDesc.Format)
 	{
 	case DXGI_FORMAT_R32G32B32A32_SINT:
@@ -250,7 +218,7 @@ void FD3D12CommandContext::ClearUAV(TRHICommandList_RecursiveHazardous<FD3D12Com
 
 	if (UAVDesc.ViewDimension == D3D12_UAV_DIMENSION_BUFFER)
 	{
-		if (UAVDesc.Format == DXGI_FORMAT_UNKNOWN)
+		if (UAVDesc.Format == DXGI_FORMAT_UNKNOWN || (UAVDesc.Buffer.Flags & D3D12_BUFFER_UAV_FLAG_RAW) != 0)
 		{
 			// Structured buffer.
 			RHICmdList.RunOnContext([UnorderedAccessView, ClearValues, UAVDesc](auto& Context)
@@ -262,15 +230,24 @@ void FD3D12CommandContext::ClearUAV(TRHICommandList_RecursiveHazardous<FD3D12Com
 				ID3D12Device* Device = ParentDevice->GetDevice();
 				ID3D12Resource* Resource = UnorderedAccessView->GetResource()->GetResource();
 
-				// Structured buffer stride must be a multiple of sizeof(uint32)
-				check(UAVDesc.Buffer.StructureByteStride % sizeof(uint32) == 0);
-				uint32 DwordsPerElement = UAVDesc.Buffer.StructureByteStride / sizeof(uint32);
+				D3D12_UNORDERED_ACCESS_VIEW_DESC R32UAVDesc{};
+				if ((UAVDesc.Buffer.Flags & D3D12_BUFFER_UAV_FLAG_RAW) != 0)
+				{
+					// Raw UAVs will already be setup correctly for us.
+					check(UAVDesc.Format == DXGI_FORMAT_R32_TYPELESS);
+					R32UAVDesc = UAVDesc;
+				}
+				else
+				{
+					// Structured buffer stride must be a multiple of sizeof(uint32)
+					check(UAVDesc.Buffer.StructureByteStride % sizeof(uint32) == 0);
+					uint32 DwordsPerElement = UAVDesc.Buffer.StructureByteStride / sizeof(uint32);
 
-				D3D12_UNORDERED_ACCESS_VIEW_DESC R32UAVDesc = {};
-				R32UAVDesc.Format = DXGI_FORMAT_R32_UINT;
-				R32UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
-				R32UAVDesc.Buffer.FirstElement = UAVDesc.Buffer.FirstElement * DwordsPerElement;
-				R32UAVDesc.Buffer.NumElements = UAVDesc.Buffer.NumElements * DwordsPerElement;
+					R32UAVDesc.Format = DXGI_FORMAT_R32_UINT;
+					R32UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+					R32UAVDesc.Buffer.FirstElement = UAVDesc.Buffer.FirstElement * DwordsPerElement;
+					R32UAVDesc.Buffer.NumElements = UAVDesc.Buffer.NumElements * DwordsPerElement;
+				}
 
 				// Scoped descriptor handle will free the offline CPU handle once we return
 				FD3D12DescriptorHandleUAV UAVHandle(ParentDevice);
@@ -380,22 +357,19 @@ FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView_Render
 
 FD3D12StagingBuffer::~FD3D12StagingBuffer()
 {
-	if (StagedRead)
-	{
-		StagedRead->DeferDelete();
-	}
+	ResourceLocation.Clear();
 }
 
 void* FD3D12StagingBuffer::Lock(uint32 Offset, uint32 NumBytes)
 {
 	check(!bIsLocked);
 	bIsLocked = true;
-	if (StagedRead)
+	if (ResourceLocation.IsValid())
 	{
 		D3D12_RANGE ReadRange;
-		ReadRange.Begin = Offset;
-		ReadRange.End = Offset + NumBytes;
-		return reinterpret_cast<uint8*>(StagedRead->Map(&ReadRange)) + Offset;
+		ReadRange.Begin = ResourceLocation.GetOffsetFromBaseOfResource() + Offset;
+		ReadRange.End = ResourceLocation.GetOffsetFromBaseOfResource() + Offset + NumBytes;
+		return reinterpret_cast<uint8*>(ResourceLocation.GetResource()->Map(&ReadRange)) + ResourceLocation.GetOffsetFromBaseOfResource() + Offset;
 	}
 	else
 	{
@@ -407,8 +381,8 @@ void FD3D12StagingBuffer::Unlock()
 {
 	check(bIsLocked);
 	bIsLocked = false;
-	if (StagedRead)
+	if (ResourceLocation.IsValid())
 	{
-		StagedRead->Unmap();
+		ResourceLocation.GetResource()->Unmap();
 	}
 }

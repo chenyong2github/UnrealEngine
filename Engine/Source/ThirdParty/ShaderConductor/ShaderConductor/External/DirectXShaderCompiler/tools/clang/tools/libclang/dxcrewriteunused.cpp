@@ -142,6 +142,9 @@ void SetupCompilerForRewrite(CompilerInstance &compiler,
   compiler.getLangOpts().UseMinPrecision = !opts.Enable16BitTypes;
   compiler.getLangOpts().EnableDX9CompatMode = opts.EnableDX9CompatMode;
   compiler.getLangOpts().EnableFXCCompatMode = opts.EnableFXCCompatMode;
+  // UE Change Begin: Enable Vulkan specific features in rewriter.
+  compiler.getLangOpts().SPIRV = opts.GenSPIRV;
+  // UE Change End: Enable Vulkan specific features in rewriter.
 
   PreprocessorOptions &PPOpts = compiler.getPreprocessorOpts();
   if (rewrite != nullptr) {
@@ -870,6 +873,9 @@ public:
 
       hlsl::options::DxcOpts opts;
       opts.HLSLVersion = 2015;
+      // UE Change Begin: Enable Vulkan specific features in rewriter.
+      opts.GenSPIRV = true;
+      // UE Change End: Enable Vulkan specific features in rewriter.
 
       std::string errors;
       std::string rewrite;

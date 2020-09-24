@@ -9,8 +9,8 @@ RenderAssetUpdate.inl: Base class of helpers to stream in and out texture/mesh L
 #include "RenderAssetUpdate.h"
 
 template <typename TContext>
-TRenderAssetUpdate<TContext>::TRenderAssetUpdate(UStreamableRenderAsset* InAsset, int32 InRequestedMips)
-	: FRenderAssetUpdate(InAsset, InRequestedMips)
+TRenderAssetUpdate<TContext>::TRenderAssetUpdate(const UStreamableRenderAsset* InAsset)
+	: FRenderAssetUpdate(InAsset)
 	, TaskThread(TT_None)
 	, TaskCallback(nullptr)
 	, CancelationThread(TT_None)
@@ -42,7 +42,7 @@ FRenderAssetUpdate::ETaskState TRenderAssetUpdate<TContext>::TickInternal(EThrea
 	// Thread, callback and asset must be coherent because Abort() could be called while this is executing.
 	EThreadType RelevantThread = TaskThread;
 	FCallback RelevantCallback = TaskCallback;
-	UStreamableRenderAsset* RelevantAsset = StreamableAsset;
+	const UStreamableRenderAsset* RelevantAsset = StreamableAsset;
 	if (bIsCancelled || !RelevantAsset)
 	{
 		RelevantThread = CancelationThread;
@@ -72,7 +72,6 @@ FRenderAssetUpdate::ETaskState TRenderAssetUpdate<TContext>::TickInternal(EThrea
 	{
 		ClearCallbacks();
 		FContext Context(RelevantAsset, InCurrentThread);
-		InitContext(Context);
 		RelevantCallback(Context);
 		return TS_Locked;
 	} 

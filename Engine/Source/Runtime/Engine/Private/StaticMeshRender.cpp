@@ -1346,8 +1346,7 @@ void FStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView
 		|| EngineShowFlags.Bounds
 		|| bProxyIsSelected 
 		|| IsHovered()
-		|| bIsLightmapSettingError 
-		|| !IsStaticPathAvailable() );
+		|| bIsLightmapSettingError);
 
 	// Draw polygon mesh if we are either not in a collision view, or are drawing it as collision.
 	if (EngineShowFlags.StaticMeshes && bDrawMesh)
@@ -1724,16 +1723,16 @@ void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGat
 
 	FRayTracingGeometry& Geometry = bEvaluateWPO? DynamicRayTracingGeometries[LODIndex] : RenderData->LODResources[LODIndex].RayTracingGeometry;
 	{
-		FRayTracingInstance RayTracingInstance;
+		FRayTracingInstance &RayTracingInstance = OutRayTracingInstances.AddDefaulted_GetRef();
 	
 		const int32 NumBatches = GetNumMeshBatches();
 
+		RayTracingInstance.Materials.Reserve(LODModel.Sections.Num() * NumBatches);
 		for (int32 BatchIndex = 0; BatchIndex < NumBatches; BatchIndex++)
 		{
-			RayTracingInstance.Materials.Reserve(LODModel.Sections.Num());
 			for(int SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
 			{
-				FMeshBatch Mesh;
+				FMeshBatch &Mesh = RayTracingInstance.Materials.AddDefaulted_GetRef();
 	
 				bool bResult = GetMeshElement(LODIndex, BatchIndex, SectionIndex, PrimitiveDPG, false, false, Mesh);
 				if (!bResult)
@@ -1743,7 +1742,6 @@ void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGat
 					Mesh.VertexFactory = &RenderData->LODVertexFactories[LODIndex].VertexFactory;
 				}
 				Mesh.SegmentIndex = SectionIndex;
-				RayTracingInstance.Materials.Add(Mesh);
 			}
 		}
 
@@ -1785,8 +1783,6 @@ void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGat
 			RayTracingInstance.Geometry->Initializer.Segments.Num(), 
 			RayTracingInstance.Materials.Num(), 
 			LODIndex);
-
-		OutRayTracingInstances.Add(RayTracingInstance);
 	}
 }
 #endif
@@ -1846,8 +1842,7 @@ FPrimitiveViewRelevance FStaticMeshSceneProxy::GetViewRelevance(const FSceneView
 #endif
 		// Force down dynamic rendering path if invalid lightmap settings, so we can apply an error material in DrawRichMesh
 		(bAllowStaticLighting && HasStaticLighting() && !HasValidSettingsForStaticLighting()) ||
-		HasViewDependentDPG() ||
-		 !IsStaticPathAvailable()
+		HasViewDependentDPG()
 		)
 	{
 		Result.bDynamicRelevance = true;
@@ -2299,18 +2294,18 @@ FLODMask FStaticMeshSceneProxy::GetLODMask(const FSceneView* View) const
 
 			FCachedSystemScalabilityCVars CachedSystemScalabilityCVars = GetCachedScalabilityCVars();
 
-			float InvScreenSizeScale = (CachedSystemScalabilityCVars.StaticMeshLODDistanceScale != 0.f) ? (1.0f / CachedSystemScalabilityCVars.StaticMeshLODDistanceScale) : 1.0f;
+			const float LODScale = CachedSystemScalabilityCVars.StaticMeshLODDistanceScale;
 
 			if (bUseDithered)
 			{
 				for (int32 Sample = 0; Sample < 2; Sample++)
 				{
-					Result.SetLODSample(ComputeTemporalStaticMeshLOD(RenderData, ProxyBounds.Origin, ProxyBounds.SphereRadius, *View, ClampedMinLOD, InvScreenSizeScale, Sample), Sample);
+					Result.SetLODSample(ComputeTemporalStaticMeshLOD(RenderData, ProxyBounds.Origin, ProxyBounds.SphereRadius, *View, ClampedMinLOD, LODScale, Sample), Sample);
 				}
 			}
 			else
 			{
-				Result.SetLOD(ComputeStaticMeshLOD(RenderData, ProxyBounds.Origin, ProxyBounds.SphereRadius, *View, ClampedMinLOD, InvScreenSizeScale));
+				Result.SetLOD(ComputeStaticMeshLOD(RenderData, ProxyBounds.Origin, ProxyBounds.SphereRadius, *View, ClampedMinLOD, LODScale));
 			}
 		}
 	}

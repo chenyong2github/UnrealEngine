@@ -14,7 +14,9 @@
 #include "Widgets/Layout/SBox.h"
 #include "EditorStyleSet.h"
 #include "Input/Reply.h"
+#include "Kismet2/KismetEditorUtilities.h"
 #include "Kismet2/SClassPickerDialog.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "LightWeightInstanceFactory"
 

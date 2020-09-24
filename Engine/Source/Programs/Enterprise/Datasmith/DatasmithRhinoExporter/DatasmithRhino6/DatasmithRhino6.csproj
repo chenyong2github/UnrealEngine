@@ -2,7 +2,8 @@
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <Platform Condition=" '$(Platform)' == '' ">x64</Platform>
+	<AssemblyInfo Condition=" '$(AssemblyInfo)' == ''">..\Properties\DefaultAssemblyInfo.cs</AssemblyInfo>
     <!--If the evironment variable is not define, try to find the Rhino files on build machines-->
     <ProductVersion>8.0.30703</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
@@ -11,37 +12,38 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>DatasmithRhino6</RootNamespace>
     <AssemblyName Condition="'$(Configuration)' == 'Debug'">DatasmithRhino6-Debug</AssemblyName>
-	<AssemblyName Condition="'$(Configuration)' != 'Debug'">DatasmithRhino6</AssemblyName>
+	<AssemblyName Condition="'$(Configuration)' == 'Shipping' OR '$(Configuration)' == 'Release'">DatasmithRhino6-Shipping</AssemblyName>
+	<AssemblyName Condition="'$(Configuration)' != 'Debug' AND '$(Configuration)' != 'Shipping' AND '$(Configuration)' != 'Release'">DatasmithRhino6</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <IsWebBootstrapper>false</IsWebBootstrapper>
     <NuGetPackageImportStamp>
     </NuGetPackageImportStamp>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>..\..\..\..\..\..\Binaries\DotNET\Rhino\Rhino6</OutputPath>
+    <OutputPath>..\..\..\..\..\..\Binaries\Win64\Rhino\6</OutputPath>
     <DefineConstants>DEBUG;TRACE;RHINO_VERSION_6</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <CodeAnalysisIgnoreBuiltInRules>false</CodeAnalysisIgnoreBuiltInRules>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Development|AnyCPU' ">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Development|x64'">
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
-    <OutputPath>..\..\..\..\..\..\Binaries\DotNET\Rhino\Rhino6</OutputPath>
+    <OutputPath>..\..\..\..\..\..\Binaries\Win64\Rhino\6</OutputPath>
     <DefineConstants>TRACE;RHINO_VERSION_6</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
-    <OutputPath>..\..\..\..\..\..\Binaries\DotNET\Rhino\Rhino6</OutputPath>
+    <OutputPath>..\..\..\..\..\..\Binaries\Win64\Rhino\6</OutputPath>
     <DefineConstants>TRACE;RHINO_VERSION_6</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -53,26 +55,28 @@
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="RhinoCommon">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>$(RHINO6_PATH)\System\rhinocommon.dll</HintPath>
+      <HintPath>$(RHINO6_PATH)\rhinocommon.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Eto">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>$(RHINO6_PATH)\System\Eto.dll</HintPath>
+      <HintPath>$(RHINO6_PATH)\Eto.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Rhino.UI">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>$(RHINO6_PATH)\System\Rhino.UI.dll</HintPath>
+      <HintPath>$(RHINO6_PATH)\Rhino.UI.dll</HintPath>
       <Private>False</Private>
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="DatasmithRhinoCommand.cs" />
     <Compile Include="DatasmithRhino.cs" />
-    <Compile Include="..\Properties\AssemblyInfo.cs">
-		<Link>Properties\AssemblyInfo.cs</Link>
-	</Compile>
+    <Compile Include="$(AssemblyInfo)">
+      <Link>Properties\AssemblyInfo.cs</Link>
+    </Compile>
+    <Compile Include="..\Private\**\*.cs">
+      <Link>DatasmithRhinoExporter\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </Compile>
     <!-- DatasmithCSharpFacade API, possibly change that. -->
     <Compile Include="..\..\..\..\..\..\Binaries\Win64\DatasmithFacadeCSharp\Public\*.cs">
       <Link>DatasmithSwigFacade\%(Filename)%(Extension)</Link>
@@ -91,15 +95,14 @@
   -->
   <PropertyGroup>
     <PostBuildEvent>
-      Copy "$(TargetPath)" "$(TargetDir)$(AssemblyName).rhp"
-      Erase "$(TargetPath)"
+      Copy "$(TargetPath)" "$(TargetDir)$(TargetName).rhp"
     </PostBuildEvent>
   </PropertyGroup>
   <PropertyGroup>
     <FallbackCulture>en-US</FallbackCulture>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
-    <StartProgram>$(RHINO6_PATH)\System\Rhino.exe</StartProgram>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <StartProgram>$(RHINO6_PATH)\Rhino.exe</StartProgram>
     <StartArguments>
     </StartArguments>
     <StartAction>Program</StartAction>

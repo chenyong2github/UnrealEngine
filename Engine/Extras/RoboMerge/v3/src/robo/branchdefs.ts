@@ -16,10 +16,11 @@ export interface BotConfig {
 	visibility: string[] | string
 	slackChannel: string
 	reportToBuildHealth: boolean
-	maxFilesPerIntegration: number // otherwise auto pause
 	mirrorPath: string[]
-	alias: string // alias if we need to make name of bot in commands
+	alias: string // alias if we need to mask name of bot in commands
 	emailDomainWhitelist: string[]
+
+	macros: { [name: string]: string[] }
 }
 
 export interface BranchBase {
@@ -28,7 +29,6 @@ export interface BranchBase {
 	rootPath: string
 	isDefaultBot: boolean
 	emailOnBlockage: boolean // if present, completely overrides BotConfig
-	maxFilesPerIntegration: number // otherwise auto pause
 
 	notify: string[]
 	flowsTo: string[]
@@ -38,8 +38,6 @@ export interface BranchBase {
 	resolver: string | null
 	aliases: string[]
 	badgeProject: string | null
-
-	pathsToMonitor: string[] | null
 }
 
 export class IntegrationMethod {
@@ -57,7 +55,21 @@ export class IntegrationMethod {
 
 // probably not right to extend BranchBase, because so much is optional
 
-interface NodeOptionFields extends BranchBase {
+type CommonOptionFields = {
+	lastGoodCLPath: string | number
+
+	initialCL: number
+	forcePause: boolean
+
+	disallowSkip: boolean
+	incognitoMode: boolean
+
+	excludeAuthors: string[] // if present, completely overrides BotConfig
+
+	p4MaxRowsOverride: number // use with care and check with p4 admins
+}
+
+type NodeOptionFields = BranchBase & CommonOptionFields & {
 	disabled: boolean
 	integrationMethod: string
 	forceAll: boolean
@@ -73,33 +85,14 @@ interface NodeOptionFields extends BranchBase {
 	workspaceNameOverride: string
 	additionalSlackChannelForBlockages: string
 	ignoreBranchspecs: boolean
-	lastGoodCLPath: string | number
-
-	initialCL: number
-	forcePause: boolean
-
-	disallowSkip: boolean
-	incognitoMode: boolean
-
-	excludeAuthors: string[] // if present, completely overrides BotConfig
-
-	p4MaxRowsOverride: number // use with care and check with p4 admins
 }
 
 // will eventually have all properties listed on wiki
-type EdgeOptionFields = {
-	lastGoodCLPath: string | number
+type EdgeOptionFields = CommonOptionFields & {
 	additionalSlackChannel: string
-	initialCL: number
-	forcePause: boolean
-	p4MaxRowsOverride: number // use with care and check with p4 admins
 
-	disallowSkip: boolean
-	incognitoMode: boolean
 	terminal: boolean // changes go along terminal edges but no further
 	doHackyOkForGithubThing: boolean
-
-	excludeAuthors: string[] // if present, completely overrides bot and node configs
 }
 
 export type NodeOptions = Partial<NodeOptionFields>
@@ -165,10 +158,10 @@ export class BranchDefs {
 			visibility: ['fte'],
 			slackChannel: '',
 			reportToBuildHealth: false,
-			maxFilesPerIntegration: -1,
 			mirrorPath: [],
 			alias: '',
-			emailDomainWhitelist: []
+			emailDomainWhitelist: [],
+			macros: {}
 		}
 
 		let branchGraph
@@ -182,10 +175,35 @@ export class BranchDefs {
 
 		// copy config values
 		for (let key of Object.keys(defaultConfigForWholeBot)) {
-			let value = (<any>branchGraph)[key]
-			if (value !== undefined)
-				(<any>defaultConfigForWholeBot)[key] = value
+			let value = (branchGraph as any)[key]
+			if (value !== undefined) {
+				if (key === 'macros') {
+					let macrosLower: {[name:string]: string[]} | null = {}
+					if (value === null && typeof value !== 'object') {
+						macrosLower = null
+					}
+					else {
+						const macrosObj = value as any
+						for (const name of Object.keys(macrosObj)) {
+							const lines = macrosObj[name]
+							if (!Array.isArray(lines)) {
+								macrosLower = null
+								break
+							}
+							macrosLower[name.toLowerCase()] = lines
+						}
+					}
+					if (!macrosLower) {
+						outErrors.push(`Invalid macro property: '${value}'`)
+						return {branchGraphDef: null, config: defaultConfigForWholeBot}
+					}
+					value = macrosLower
+				}
+				(defaultConfigForWholeBot as any)[key] = value
+			}
 		}
+
+
 
 		if (defaultConfigForWholeBot.defaultIntegrationMethod) {
 			BranchDefs.checkValidIntegrationMethod(outErrors, defaultConfigForWholeBot.defaultIntegrationMethod, 'config')

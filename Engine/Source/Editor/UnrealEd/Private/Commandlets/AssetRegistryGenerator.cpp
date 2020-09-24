@@ -2,6 +2,7 @@
 
 #include "Commandlets/AssetRegistryGenerator.h"
 #include "HAL/FileManager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/FileHelper.h"
 #include "Serialization/ArrayReader.h"
 #include "Serialization/ArrayWriter.h"
@@ -99,9 +100,13 @@ FAssetRegistryGenerator::FAssetRegistryGenerator(const ITargetPlatform* InPlatfo
 		bOnlyHardReferences = PackagingSettings->bChunkHardReferencesOnly;
 	}	
 
-	DependencyType = bOnlyHardReferences ? EAssetRegistryDependencyType::Hard : EAssetRegistryDependencyType::Packages;
+	DependencyQuery = bOnlyHardReferences ? UE::AssetRegistry::EDependencyQuery::Hard : UE::AssetRegistry::EDependencyQuery::NoRequirements;
 
-	if (UAssetManager::IsValid() && !FGameDelegates::Get().GetAssignStreamingChunkDelegate().IsBound() && !FGameDelegates::Get().GetGetPackageDependenciesForManifestGeneratorDelegate().IsBound())
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FAssignStreamingChunkDelegate& AssignStreamingChunkDelegate = FGameDelegates::Get().GetAssignStreamingChunkDelegate();
+	FGetPackageDependenciesForManifestGeneratorDelegate& GetPackageDependenciesForManifestGeneratorDelegate = FGameDelegates::Get().GetGetPackageDependenciesForManifestGeneratorDelegate();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	if (UAssetManager::IsValid() && !AssignStreamingChunkDelegate.IsBound() && !GetPackageDependenciesForManifestGeneratorDelegate.IsBound())
 	{
 		bUseAssetManager = true;
 
@@ -490,10 +495,11 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 
 					struct FFilePaths
 					{
-						FFilePaths(const FString& InFilename, FString&& InRelativeFilename) : Filename(InFilename), RelativeFilename(MoveTemp(InRelativeFilename))
+						FFilePaths(const FString& InFilename, FString&& InRelativeFilename, uint64 InFileOpenOrder) : Filename(InFilename), RelativeFilename(MoveTemp(InRelativeFilename)), FileOpenOrder(InFileOpenOrder)
 						{ }
 						FString Filename;
 						FString RelativeFilename;
+						uint64 FileOpenOrder;
 					};
 
 					TArray<FFilePaths> SortedFiles;
@@ -508,12 +514,31 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 							RelativeFilename = FPaths::SetExtension(RelativeFilename, TEXT("uasset")); // only use the uassets to decide which pak file these guys should live in
 						}
 						RelativeFilename.ToLowerInline();
-						SortedFiles.Add(FFilePaths(ChunkFilename, MoveTemp(RelativeFilename)));
+						uint64 FileOpenOrder = OrderMap.GetFileOrder(RelativeFilename, true);
+						/*if (FileOpenOrder != MAX_uint64)
+						{
+							UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Found file open order for %s, %ll"), *RelativeFilename, FileOpenOrder);
+						}
+						else
+						{
+							UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Didn't find openorder for %s"), *RelativeFilename, FileOpenOrder);
+						}*/
+						SortedFiles.Add(FFilePaths(ChunkFilename, MoveTemp(RelativeFilename), FileOpenOrder));
 					}
 
 					SortedFiles.Sort([&OrderMap, &CookedDirectory, &RelativePath](const FFilePaths& A, const FFilePaths& B)
 					{
-						return OrderMap.GetFileOrder(A.RelativeFilename, true) < OrderMap.GetFileOrder(B.RelativeFilename, true);
+						uint64 AOrder = A.FileOpenOrder;
+						uint64 BOrder = B.FileOpenOrder;
+
+						if (AOrder == MAX_uint64 && BOrder == MAX_uint64)
+						{
+							return A.RelativeFilename.Compare(B.RelativeFilename) < 0;
+						}
+						else 
+						{
+							return AOrder < BOrder;
+						}
 					});
 
 					ChunkFilenames.Empty(SortedFiles.Num());
@@ -570,6 +595,21 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 
 	ChunkLayerFile->Close();
 	PakChunkListFile->Close();
+	
+	if (bSucceeded)
+	{
+		FString ChunkManifestDirectory = FPaths::ProjectDir() / TEXT("Metadata") / TEXT("ChunkManifest");
+		ChunkManifestDirectory =
+			InSandboxFile->ConvertToAbsolutePathForExternalAppForWrite(*ChunkManifestDirectory)
+				.Replace(TEXT("[Platform]"), *Platform);
+
+		IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+		if (!PlatformFile.CopyDirectoryTree(*ChunkManifestDirectory, *TmpPackagingDir, true))
+		{
+			UE_LOG(LogAssetRegistryGenerator, Error, TEXT("Failed to copy chunk manifest from '%s' to '%s'"), *TmpPackagingDir, *ChunkManifestDirectory)
+			return false;
+		}
+	}
 
 	return bSucceeded;
 }
@@ -602,9 +642,12 @@ void FAssetRegistryGenerator::GenerateChunkManifestForPackage(const FName& Packa
 		{
 			// Try to call game-specific delegate to determine the target chunk ID
 			// FString Name = Package->GetPathName();
-			if (FGameDelegates::Get().GetAssignStreamingChunkDelegate().IsBound())
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			FAssignStreamingChunkDelegate& AssignStreamingChunkDelegate = FGameDelegates::Get().GetAssignStreamingChunkDelegate();
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			if (AssignStreamingChunkDelegate.IsBound())
 			{
-				FGameDelegates::Get().GetAssignStreamingChunkDelegate().ExecuteIfBound(PackagePathName, LastLoadedMapName, RegistryChunkIDs, ExistingChunkIDs, TargetChunks);
+				AssignStreamingChunkDelegate.ExecuteIfBound(PackagePathName, LastLoadedMapName, RegistryChunkIDs, ExistingChunkIDs, TargetChunks);
 			}
 			else
 			{
@@ -976,7 +1019,7 @@ void FAssetRegistryGenerator::ComputePackageDifferences(TSet<FName>& ModifiedPac
 		{
 			FName ModifiedPackage = ModifiedPackagesToRecurse[RecurseIndex];
 			TArray<FAssetIdentifier> Referencers;
-			State.GetReferencers(ModifiedPackage, Referencers, EAssetRegistryDependencyType::Hard);
+			State.GetReferencers(ModifiedPackage, Referencers, UE::AssetRegistry::EDependencyCategory::Package, UE::AssetRegistry::EDependencyQuery::Hard);
 
 			for (const FAssetIdentifier& Referencer : Referencers)
 			{
@@ -1189,7 +1232,7 @@ void FAssetRegistryGenerator::AddAssetToFileOrderRecursive(const FName& InPackag
 		OutEncounteredNames.Add(InPackageName);
 
 		TArray<FName> Dependencies;
-		AssetRegistry.GetDependencies(InPackageName, Dependencies, EAssetRegistryDependencyType::Hard);
+		AssetRegistry.GetDependencies(InPackageName, Dependencies, UE::AssetRegistry::EDependencyCategory::Package, UE::AssetRegistry::EDependencyQuery::Hard);
 
 		for (FName DependencyName : Dependencies)
 		{
@@ -1382,7 +1425,7 @@ bool FAssetRegistryGenerator::WriteCookerOpenOrder()
 		for (FName PackageName : PackageNameSet)
 		{
 			TArray<FName> Referencers;
-			AssetRegistry.GetReferencers(PackageName, Referencers, EAssetRegistryDependencyType::Hard);
+			AssetRegistry.GetReferencers(PackageName, Referencers, UE::AssetRegistry::EDependencyCategory::Package, UE::AssetRegistry::EDependencyQuery::Hard);
 
 			bool bIsTopLevel = true;
 			bool bIsMap = MapList.Contains(PackageName);
@@ -1467,7 +1510,7 @@ bool FAssetRegistryGenerator::GetPackageDependencyChain(FName SourcePackage, FNa
 	}
 
 	TArray<FName> SourceDependencies;
-	if (GetPackageDependencies(SourcePackage, SourceDependencies, DependencyType) == false)
+	if (GetPackageDependencies(SourcePackage, SourceDependencies, DependencyQuery) == false)
 	{		
 		return false;
 	}
@@ -1487,21 +1530,28 @@ bool FAssetRegistryGenerator::GetPackageDependencyChain(FName SourcePackage, FNa
 	return false;
 }
 
-bool FAssetRegistryGenerator::GetPackageDependencies(FName PackageName, TArray<FName>& DependentPackageNames, EAssetRegistryDependencyType::Type InDependencyType)
-{	
-	if (FGameDelegates::Get().GetGetPackageDependenciesForManifestGeneratorDelegate().IsBound())
+bool FAssetRegistryGenerator::GetPackageDependencies(FName PackageName, TArray<FName>& DependentPackageNames, UE::AssetRegistry::EDependencyQuery InDependencyQuery)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FGetPackageDependenciesForManifestGeneratorDelegate& GetPackageDependenciesForManifestGeneratorDelegate = FGameDelegates::Get().GetGetPackageDependenciesForManifestGeneratorDelegate();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	if (GetPackageDependenciesForManifestGeneratorDelegate.IsBound())
 	{
-		return FGameDelegates::Get().GetGetPackageDependenciesForManifestGeneratorDelegate().Execute(PackageName, DependentPackageNames, InDependencyType);
+		uint8 DependencyType = 0;
+		DependencyType |= (uint8)(!!(InDependencyQuery & UE::AssetRegistry::EDependencyQuery::Soft) ? EAssetRegistryDependencyType::None : EAssetRegistryDependencyType::Hard);
+		DependencyType |= (uint8)(!!(InDependencyQuery & UE::AssetRegistry::EDependencyQuery::Hard) ? EAssetRegistryDependencyType::None : EAssetRegistryDependencyType::Soft);
+		return GetPackageDependenciesForManifestGeneratorDelegate.Execute(PackageName, DependentPackageNames, DependencyType);
 	}
 	else
 	{
-		return AssetRegistry.GetDependencies(PackageName, DependentPackageNames, InDependencyType);
+		return AssetRegistry.GetDependencies(PackageName, DependentPackageNames, UE::AssetRegistry::EDependencyCategory::Package, InDependencyQuery);
 	}
 }
 
 bool FAssetRegistryGenerator::GatherAllPackageDependencies(FName PackageName, TArray<FName>& DependentPackageNames)
 {	
-	if (GetPackageDependencies(PackageName, DependentPackageNames, DependencyType) == false)
+	if (GetPackageDependencies(PackageName, DependentPackageNames, DependencyQuery) == false)
 	{
 		return false;
 	}
@@ -1515,7 +1565,7 @@ bool FAssetRegistryGenerator::GatherAllPackageDependencies(FName PackageName, TA
 		const FName& ChildPackageName = DependentPackageNames[DependencyCounter];
 		++DependencyCounter;
 		TArray<FName> ChildDependentPackageNames;
-		if (GetPackageDependencies(ChildPackageName, ChildDependentPackageNames, DependencyType) == false)
+		if (GetPackageDependencies(ChildPackageName, ChildDependentPackageNames, DependencyQuery) == false)
 		{
 			return false;
 		}

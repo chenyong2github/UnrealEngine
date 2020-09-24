@@ -264,6 +264,21 @@ FCategorizationData DecodeCategorizationData(uint4 Data)
 	return Out;
 }
 
+// Return true if the underlying pixel need to run with TAA fast resolve. This is the case when 
+// the velocity is larger than a certain threshold.
+bool NeedFastResolve(float2 InEncodedVelocity, float2 InVelocity, float InVelocityThreshold)
+{
+	const float VelocityMagnitude = sqrt(dot(InVelocity, InVelocity));
+	return InEncodedVelocity.x > 0 && VelocityMagnitude > InVelocityThreshold;
+}
+
+bool NeedFastResolve(float2 InEncodedVelocity, float InVelocityThreshold)
+{
+	const float2 Velocity = DecodeVelocityFromTexture(float4(InEncodedVelocity, 0.0, 0.0)).xy;
+	const float VelocityMagnitude = sqrt(dot(Velocity, Velocity));
+	return InEncodedVelocity.x > 0 && VelocityMagnitude > InVelocityThreshold;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Hair view info (used for overriding view constant/uniform buffer)
 
@@ -433,6 +448,36 @@ FHairVisSample UnpackHairVisSample(uint RawVis)
 	return Out;
 }
  
+// Pack depth & coverage within a uint32
+uint PackHairVisSampleDepth(float InDepth, float InCoverage)
+{
+	//return asuint(Depth);
+	return (uint(InDepth * 0x00FFFFFF) << 8) | uint(0xFF * saturate(InCoverage));
+}
+
+// Unpack depth & coverage from a uint32
+float2 UnpackHairVisSampleDepth(uint InPacked)
+{
+	//return asfloat(InPacked);
+	float OutDepth = float(InPacked >> 8) / float(0x00FFFFFF);
+	float OutCoverage = float(InPacked & 0xFF) / float(0xFF);
+
+	return float2(OutDepth, OutCoverage);
+}
+
+uint PackCoverageAndHairCount(float InCoverage)
+{
+	// Assume the storage is enough for not overflowing
+	// Encode the strands_radius/pixel_radius ratio into 8bits, and this can accumulate up to 256 element with coverage of 1
+	//return (InHairCount<<16) | uint(saturate(InCoverage) * 0xFF);
+	return uint(saturate(InCoverage) * 1000.f);
+}
+
+float UnpackCoverageAndHairCount(uint InPacked)
+{
+	return float(InPacked) / 1000.f;
+}
+
  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
  // Hair MSAA buffer 
 
@@ -495,3 +540,5 @@ void UnpackHairMRT2(float4 In, inout float Specular, inout uint LightChannelMask
 	Backlit = In.z;
 	bUseScatterSceneLighting = In.w > 0;
 }
+
+

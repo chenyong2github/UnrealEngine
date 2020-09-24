@@ -8,7 +8,7 @@
 #include "Channels/MovieSceneByteChannel.h"
 #include "Channels/MovieSceneFloatChannel.h"
 #include "Channels/MovieSceneIntegerChannel.h"
-#include "Sections/MovieSceneStringChannel.h"
+#include "Channels/MovieSceneStringChannel.h"
 #include "LiveLinkTypes.h"
 
 #include "MovieSceneLiveLinkStructProperties.generated.h"

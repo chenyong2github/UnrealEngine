@@ -37,6 +37,7 @@ Texture2D<float3> CloudShadowmapTexture;
 SamplerState CloudShadowmapSampler;
 float CloudShadowmapFarDepthKm;
 float4x4 CloudShadowmapWorldToLightClipMatrix;
+float CloudShadowmapStrength;
 #endif
 
 struct FInputParams
@@ -219,7 +220,7 @@ void DeferredLightPixelMain(
 
 	#if USE_CLOUD_TRANSMITTANCE
 		float OutOpticalDepth = 0.0f;
-		OutColor.rgb *= GetCloudVolumetricShadow(StableLargeWorldPosition, CloudShadowmapWorldToLightClipMatrix, CloudShadowmapFarDepthKm, CloudShadowmapTexture, CloudShadowmapSampler, OutOpticalDepth);
+		OutColor.rgb *= lerp(1.0f, GetCloudVolumetricShadow(StableLargeWorldPosition, CloudShadowmapWorldToLightClipMatrix, CloudShadowmapFarDepthKm, CloudShadowmapTexture, CloudShadowmapSampler, OutOpticalDepth), CloudShadowmapStrength);
 	#endif
 	}
 

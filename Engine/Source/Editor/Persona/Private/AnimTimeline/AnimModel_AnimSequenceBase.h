@@ -49,6 +49,9 @@ public:
 	 * @return		Whether clamping was/is necessary
 	 */
 	virtual bool ClampToEndTime(float NewEndTime);
+	
+	/** Refresh any simple snap times */
+	virtual void RefreshSnapTimes();
 
 protected:
 	/** Refresh notify tracks */

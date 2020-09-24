@@ -18,9 +18,11 @@ bool MaterialSettingsRequireAdjacencyInformation_GameThread(UMaterialInterface* 
 	{
 		UMaterial* BaseMaterial = Material->GetMaterial();
 		check(BaseMaterial);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		EMaterialTessellationMode TessellationMode = (EMaterialTessellationMode)BaseMaterial->D3D11TessellationMode;
 		bool bEnableCrackFreeDisplacement = BaseMaterial->bEnableCrackFreeDisplacement;
 		return TessellationMode == MTM_PNTriangles || (TessellationMode == MTM_FlatTessellation && bEnableCrackFreeDisplacement);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	return false;
 }

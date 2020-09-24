@@ -112,12 +112,10 @@ void BuildHZB(
 	bool bReduceClosestDepth = OutClosestHZBTexture != nullptr;
 	bool bUseCompute = bReduceClosestDepth || CVarHZBBuildUseCompute.GetValueOnRenderThread();
 
-	FRDGTextureDesc HZBDesc = FRDGTextureDesc::Create2DDesc(
+	FRDGTextureDesc HZBDesc = FRDGTextureDesc::Create2D(
 		HZBSize, Format,
 		FClearValueBinding::None,
-		TexCreate_None,
 		TexCreate_ShaderResource | (bUseCompute ? TexCreate_UAV : TexCreate_RenderTargetable),
-		/* bInForceSeparateTargetAndShaderResource = */ false,
 		NumMips);
 	HZBDesc.Flags |= GFastVRamConfig.HZB;
 
@@ -179,21 +177,16 @@ void BuildHZB(
 			PermutationVector.Set<FHZBBuildCS::FDimVisBufferFormat>(VisBufferFormat);
 
 			TShaderMapRef<FHZBBuildCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
-
-			ClearUnusedGraphResources(ComputeShader, PassParameters);
-			GraphBuilder.AddPass(
-				RDG_EVENT_NAME("ReduceHZB(mips=[%d;%d]%s%s%s) %dx%d",
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("ReduceHZB(mips=[%d;%d]%s%s) %dx%d",
 					StartDestMip, EndDestMip - 1,
 					bOutputClosest ? TEXT(" Closest") : TEXT(""),
 					bOutputFurthest ? TEXT(" Furthest") : TEXT(""),
-					PermutationVector.Get<FHZBBuildCS::FDimVisBufferFormat>() != 0 ? TEXT(" ReadVisBuffer") : TEXT(""),
 					DstSize.X, DstSize.Y),
+				ComputeShader,
 				PassParameters,
-				ERDGPassFlags::Compute,
-				[PassParameters, ComputeShader, DstSize](FRHICommandList& RHICmdList)
-			{
-				FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *PassParameters, FComputeShaderUtils::GetGroupCount(DstSize, 8));
-			});
+				FComputeShaderUtils::GetGroupCount(DstSize, 8));
 		}
 		else
 		{
@@ -207,22 +200,20 @@ void BuildHZB(
 			FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 			TShaderMapRef<FHZBBuildPS> PixelShader(GlobalShaderMap);
 
-			ClearUnusedGraphResources(PixelShader, PassParameters);
-			GraphBuilder.AddPass(
+			FPixelShaderUtils::AddFullscreenPass(
+				GraphBuilder,
+				GlobalShaderMap,
 				RDG_EVENT_NAME("DownsampleHZB(mip=%d) %dx%d", StartDestMip, DstSize.X, DstSize.Y),
+				PixelShader,
 				PassParameters,
-				ERDGPassFlags::Raster,
-				[PassParameters, GlobalShaderMap, PixelShader, DstSize](FRHICommandList& RHICmdList)
-			{
-				FPixelShaderUtils::DrawFullscreenPixelShader(RHICmdList, GlobalShaderMap, PixelShader, *PassParameters, FIntRect(0, 0, DstSize.X, DstSize.Y));
-			});
+				FIntRect(0, 0, DstSize.X, DstSize.Y));
 		}
 	};
 
 	// Reduce first mips Closesy and furtherest are done at same time.
 	{
+		FIntPoint SrcSize = SceneDepth->Desc.Extent;
 		FRDGTextureSRVRef ParentTextureMip = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SceneDepth));
-		FIntPoint SrcSize = VisBufferTexture ? VisBufferTexture->Desc.Extent : ParentTextureMip->Desc.Texture->Desc.Extent;
 		
 		FVector4 DispatchThreadIdToBufferUV;
 		DispatchThreadIdToBufferUV.X = 2.0f / float(SrcSize.X);
@@ -278,9 +269,10 @@ void BuildHZB(
 	*OutFurthestHZBTexture = FurthestHZBTexture;
 
 	if (OutClosestHZBTexture)
+	{
 		*OutClosestHZBTexture = ClosestHZBTexture;
-} // BuildHZB()
-
+	}
+}
 
 void BuildHZB(
 	FRDGBuilder& GraphBuilder,

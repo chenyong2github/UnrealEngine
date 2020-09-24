@@ -62,7 +62,10 @@ void D3D12RHI::FD3DGPUProfiler::BeginFrame(FD3D12DynamicRHI* InRHI)
 	}
 	bPreviousLatchedGProfilingGPUHitches = bLatchedGProfilingGPUHitches;
 
-	FrameTiming.StartTiming();
+	if (GDynamicRHI && !GDynamicRHI->RHIIsRenderingSuspended())
+	{
+		FrameTiming.StartTiming();
+	}
 
 	if (GetEmitDrawEvents())
 	{
@@ -78,7 +81,10 @@ void D3D12RHI::FD3DGPUProfiler::EndFrame(FD3D12DynamicRHI* InRHI)
 		check(StackDepth == 0);
 	}
 
-	FrameTiming.EndTiming();
+	if (GDynamicRHI && !GDynamicRHI->RHIIsRenderingSuspended())
+	{
+		FrameTiming.EndTiming();
+	}
 
 	const uint32 GPUIndex = GetParentDevice()->GetGPUIndex();
 	if (FrameTiming.IsSupported())
@@ -373,7 +379,7 @@ bool D3D12RHI::FD3DGPUProfiler::CheckGpuHeartbeat() const
 			if (Status != GFSDK_Aftermath_Device_Status_Active)
 			{
 				GIsGPUCrashed = true;
-				const TCHAR* AftermathReason[] = { TEXT("Active"), TEXT("Timeout"), TEXT("OutOfMemory"), TEXT("PageFault"), TEXT("Unknown") };
+				const TCHAR* AftermathReason[] = { TEXT("Active"), TEXT("Timeout"), TEXT("OutOfMemory"), TEXT("PageFault"), TEXT("Stopped"), TEXT("Reset"), TEXT("Unknown"), TEXT("DmaFault") };
 				if (Status < UE_ARRAY_COUNT(AftermathReason))
 				{
 					UE_LOG(LogRHI, Error, TEXT("[Aftermath] Status: %s"), AftermathReason[Status]);
@@ -392,22 +398,22 @@ bool D3D12RHI::FD3DGPUProfiler::CheckGpuHeartbeat() const
 					UE_LOG(LogRHI, Error, TEXT("[Aftermath] Scanning %d command lists for dumps"), ContextDataOut.Num());
 					for (GFSDK_Aftermath_ContextData& ContextData : ContextDataOut)
 					{
-						if (ContextData.status == GFSDK_Aftermath_Context_Status_Executing)
+						if (ContextData.status == GFSDK_Aftermath_Context_Status_Executing || Status == GFSDK_Aftermath_Device_Status_PageFault)
 						{
-							UE_LOG(LogRHI, Error, TEXT("[Aftermath] GPU Stack Dump"));
 							uint32 NumCRCs = ContextData.markerSize / sizeof(uint32);
 							uint32* Data = (uint32*)ContextData.markerData;
-							for (uint32 i = 0; i < NumCRCs; i++)
-							{
-								const FString* Frame = CachedEventStrings.Find(Data[i]);
-								if (Frame != nullptr)
-								{
-									UE_LOG(LogRHI, Error, TEXT("[Aftermath] %i: %s"), i, *(*Frame));
-								}
-							}
 							if (NumCRCs > 0)
 							{
-								UE_LOG(LogRHI, Error, TEXT("[Aftermath] GPU Stack Dump"));
+								UE_LOG(LogRHI, Error, TEXT("[Aftermath] Begin GPU Stack Dump"));
+								for (uint32 i = 0; i < NumCRCs; i++)
+								{
+									const FString* Frame = CachedEventStrings.Find(Data[i]);
+									if (Frame != nullptr)
+									{
+										UE_LOG(LogRHI, Error, TEXT("[Aftermath] %i: %s"), i, *(*Frame));
+									}
+								}
+								UE_LOG(LogRHI, Error, TEXT("[Aftermath] End GPU Stack Dump"));
 							}
 						}
 					}
@@ -485,15 +491,11 @@ void D3D12RHI::FD3DGPUProfiler::DoPostProfileGPUWork()
 	constexpr EFlushCmdsAction FlushAction = EFlushCmdsAction::FCEA_EndProfilingGPU;
 
 	TArray<FResolvedCmdListExecTime> CmdListExecTimes;
-	FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
-	for (uint32 GPUIdx : FRHIGPUMask::All())
-	{
-		FD3D12Device* Device = Adapter->GetDevice(GPUIdx);
-		Device->GetDefaultCommandContext().FlushCommands(bWaitForCommands, FlushAction);
-		TArray<FResolvedCmdListExecTime> TimingPairs;
-		Device->GetCommandListManager().GetCommandListTimingResults(TimingPairs);
-		CmdListExecTimes.Append(MoveTemp(TimingPairs));
-	}
+	FD3D12Device* Device = GetParentDevice();
+	Device->GetDefaultCommandContext().FlushCommands(bWaitForCommands, FlushAction);
+	TArray<FResolvedCmdListExecTime> TimingPairs;
+	Device->GetCommandListManager().GetCommandListTimingResults(TimingPairs);
+	CmdListExecTimes.Append(MoveTemp(TimingPairs));
 
 	const int32 NumTimingPairs = CmdListExecTimes.Num();
 	CmdListStartTimestamps.Empty(NumTimingPairs);

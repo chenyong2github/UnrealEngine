@@ -271,15 +271,15 @@ public:
 	}
 };
 
-class FScopedIgnoreOpenChannels
+class FScopedAllowExistingChannelIndex
 {
 public:
-	FScopedIgnoreOpenChannels(FScopedIgnoreOpenChannels&&) = delete;
-	FScopedIgnoreOpenChannels(const FScopedIgnoreOpenChannels&) = delete;
-	FScopedIgnoreOpenChannels& operator=(const FScopedIgnoreOpenChannels&) = delete;
-	FScopedIgnoreOpenChannels& operator=(FScopedIgnoreOpenChannels&&) = delete;
+	FScopedAllowExistingChannelIndex(FScopedAllowExistingChannelIndex&&) = delete;
+	FScopedAllowExistingChannelIndex(const FScopedAllowExistingChannelIndex&) = delete;
+	FScopedAllowExistingChannelIndex& operator=(const FScopedAllowExistingChannelIndex&) = delete;
+	FScopedAllowExistingChannelIndex& operator=(FScopedAllowExistingChannelIndex&&) = delete;
 
-	FScopedIgnoreOpenChannels(UNetConnection* InConnection):
+	FScopedAllowExistingChannelIndex(UNetConnection* InConnection):
 		Connection(InConnection)
 	{
 		if (Connection.IsValid())
@@ -288,7 +288,7 @@ public:
 		}	
 	}
 
-	~FScopedIgnoreOpenChannels()
+	~FScopedAllowExistingChannelIndex()
 	{
 		if (Connection.IsValid())
 		{
@@ -298,35 +298,6 @@ public:
 
 private:
 	TWeakObjectPtr<UNetConnection> Connection;
-};
-
-class FScopedIgnoreClosedChannels
-{
-public:
-	FScopedIgnoreClosedChannels(FScopedIgnoreClosedChannels&&) = delete;
-	FScopedIgnoreClosedChannels(const FScopedIgnoreClosedChannels&) = delete;
-	FScopedIgnoreClosedChannels& operator=(const FScopedIgnoreClosedChannels&) = delete;
-	FScopedIgnoreClosedChannels& operator=(FScopedIgnoreClosedChannels&&) = delete;
-
-	FScopedIgnoreClosedChannels(UNetConnection* InConnection, TSet<FNetworkGUID>&& IgnoredBunchGuids)
-		: ServerConnection(InConnection)
-	{
-		if (ServerConnection.IsValid())
-		{
-			ServerConnection->SetIgnoreActorBunches(true, MoveTemp(IgnoredBunchGuids));
-		}
-	}
-
-	~FScopedIgnoreClosedChannels()
-	{
-		if (ServerConnection.IsValid())
-		{
-			ServerConnection->SetIgnoreActorBunches(false, TSet<FNetworkGUID>());
-		}
-	}
-
-private:
-	TWeakObjectPtr<UNetConnection> ServerConnection;
 };
 
 class FJumpToLiveReplayTask : public FQueuedReplayTask
@@ -3046,8 +3017,24 @@ void UDemoNetDriver::ReplayStreamingReady(const FStartStreamingResult& Result)
 			}
 		}
 
-		UE_LOG(LogDemo, Log, TEXT("ReplayStreamingReady: playing back replay [%s] %s, which was recorded on engine version %s with flags 0x%08x"),
-			*ReplayHelper.GetPlaybackGuid().ToString(EGuidFormats::Digits), *ReplayHelper.DemoURL.Map, *ReplayHelper.PlaybackDemoHeader.EngineVersion.ToString(), ReplayHelper.PlaybackDemoHeader.HeaderFlags);
+		if (UE_LOG_ACTIVE(LogDemo, Log))
+		{
+			FString HeaderFlags;
+
+			for (int32 i = 0; i < sizeof(EReplayHeaderFlags) * 8; ++i)
+			{
+				EReplayHeaderFlags Flag = (EReplayHeaderFlags)(1 << i);
+
+				if (EnumHasAnyFlags(ReplayHelper.PlaybackDemoHeader.HeaderFlags, Flag))
+				{
+					HeaderFlags += (HeaderFlags.IsEmpty() ? TEXT("") : TEXT("|"));
+					HeaderFlags += LexToString(Flag);
+				}
+			}
+
+			UE_LOG(LogDemo, Log, TEXT("ReplayStreamingReady: playing back replay [%s] %s, which was recorded on engine version %s with flags [%s]"),
+				*ReplayHelper.GetPlaybackGuid().ToString(EGuidFormats::Digits), *ReplayHelper.DemoURL.Map, *ReplayHelper.PlaybackDemoHeader.EngineVersion.ToString(), *HeaderFlags);
+		}
 
 		// Notify all listeners that a demo is starting
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -3584,7 +3571,6 @@ bool UDemoNetDriver::FastForwardLevels(const FGotoResult& GotoResult)
 
 	{
 		TGuardValue<bool> FastForward(bIsFastForwarding, true);
-		FScopedIgnoreOpenChannels ScopedIgnoreChannels(ServerConnection);
 
 		if (bDeltaCheckpoint)
 		{
@@ -3607,13 +3593,17 @@ bool UDemoNetDriver::FastForwardLevels(const FGotoResult& GotoResult)
 
 				check(DeltaCheckpointPacketIntervals[i].IsValid());
 
-				ProcessFastForwardPackets(MakeArrayView<FPlaybackPacket>(&ReadPacketsHelper.Packets[DeltaCheckpointPacketIntervals[i].Min], DeltaCheckpointPacketIntervals[i].Size()), LevelIndices);
+				{
+					FScopedAllowExistingChannelIndex ScopedAllowExistingChannelIndex(ServerConnection);
+					ProcessFastForwardPackets(MakeArrayView<FPlaybackPacket>(&ReadPacketsHelper.Packets[DeltaCheckpointPacketIntervals[i].Min], DeltaCheckpointPacketIntervals[i].Size()), LevelIndices);
+				}
 			}
 
 			DemoConnection->GetOpenChannelMap().Empty();
 		}
 		else
 		{
+			FScopedAllowExistingChannelIndex ScopedAllowExistingChannelIndex(ServerConnection);
 			ProcessFastForwardPackets(ReadPacketsHelper.Packets, LevelIndices);
 		}
 	}
@@ -4248,8 +4238,11 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 				}
 
 				check(DeltaCheckpointPacketIntervals[i].IsValid());
+				check(PlaybackPackets.IsValidIndex(DeltaCheckpointPacketIntervals[i].Min)); 
+				check(PlaybackPackets.IsValidIndex(DeltaCheckpointPacketIntervals[i].Min + DeltaCheckpointPacketIntervals[i].Size()));
 
-				ProcessPlaybackPackets(MakeArrayView<FPlaybackPacket>(&PlaybackPackets[DeltaCheckpointPacketIntervals[i].Min], DeltaCheckpointPacketIntervals[i].Size()));
+				// + 1 because the interval is inclusive
+				ProcessPlaybackPackets(MakeArrayView<FPlaybackPacket>(&PlaybackPackets[DeltaCheckpointPacketIntervals[i].Min], DeltaCheckpointPacketIntervals[i].Size() + 1));
 			}
 
 			PlaybackPackets.Empty();
@@ -4945,6 +4938,7 @@ void UDemoNetDriver::NotifyActorChannelOpen(UActorChannel* Channel, AActor* Acto
 		Actor->RewindForReplay();
 	}	
 
+	// Only necessary on clients where dynamic actors can go in and out of relevancy
 	if (bValidChannel && bValidActor && IsRecording() && HasDeltaCheckpoints())
 	{
 		ReplayHelper.RecordingDeltaCheckpointData.DestroyedDynamicActors.Remove(Channel->ActorNetGUID);
@@ -5134,6 +5128,7 @@ FString UDemoNetDriver::GetDemoPath() const
 
 bool UDemoNetDriver::ShouldReplicateFunction(AActor* Actor, UFunction* Function) const
 {
+	// ReplayNetConnection does not currently have this functionality, as it filters fast shared rpcs directly in the rep graph
 	bool bShouldRecordMulticast = (Function && Function->FunctionFlags & FUNC_NetMulticast) && IsRecording();
 	if (bShouldRecordMulticast)
 	{

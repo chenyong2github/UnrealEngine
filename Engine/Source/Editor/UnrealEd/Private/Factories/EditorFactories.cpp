@@ -535,12 +535,6 @@ UMaterialFunctionMaterialLayerFactory::UMaterialFunctionMaterialLayerFactory(con
 	bEditAfterNew = true;
 }
 
-bool UMaterialFunctionMaterialLayerFactory::CanCreateNew() const
-{
-	IMaterialEditorModule& MaterialEditorModule = FModuleManager::LoadModuleChecked<IMaterialEditorModule>( "MaterialEditor" );
-	return MaterialEditorModule.MaterialLayersEnabled();
-}
-
 UObject* UMaterialFunctionMaterialLayerFactory::FactoryCreateNew(UClass* Class,UObject* InParent,FName Name,EObjectFlags Flags,UObject* Context,FFeedbackContext* Warn)
 {
 	UMaterialFunctionMaterialLayer* Function = NewObject<UMaterialFunctionMaterialLayer>(InParent, UMaterialFunctionMaterialLayer::StaticClass(), Name, Flags);
@@ -560,12 +554,6 @@ UMaterialFunctionMaterialLayerBlendFactory::UMaterialFunctionMaterialLayerBlendF
 	SupportedClass = UMaterialFunctionMaterialLayerBlend::StaticClass();
 	bCreateNew = true;
 	bEditAfterNew = true;
-}
-
-bool UMaterialFunctionMaterialLayerBlendFactory::CanCreateNew() const
-{
-	IMaterialEditorModule& MaterialEditorModule = FModuleManager::LoadModuleChecked<IMaterialEditorModule>( "MaterialEditor" );
-	return MaterialEditorModule.MaterialLayersEnabled();
 }
 
 UObject* UMaterialFunctionMaterialLayerBlendFactory::FactoryCreateNew(UClass* Class,UObject* InParent,FName Name,EObjectFlags Flags,UObject* Context,FFeedbackContext* Warn)
@@ -1431,7 +1419,7 @@ UObject* UPackageFactory::FactoryCreateText( UClass* Class, UObject* InParent, F
 					UE_LOG(LogEditorFactories, Warning, TEXT("Package factory can only handle the map package or new packages!"));
 					return nullptr;
 				}
-				TopLevelPackage = CreatePackage(nullptr, *(PackageName.ToString()));
+				TopLevelPackage = CreatePackage( *(PackageName.ToString()));
 				TopLevelPackage->SetFlags(RF_Standalone|RF_Public);
 				MapPackages.Add(TopLevelPackage->GetName(), TopLevelPackage);
 
@@ -4114,6 +4102,12 @@ UObject* UTextureFactory::FactoryCreateBinary
 		// Update with new settings, which should disable streaming...
 		ExistingTexture2D->UpdateResource();
 	}
+	if(ExistingTexture)
+	{
+		// Wait for InitRHI() to complete before the FTextureReferenceReplacer calls ReleaseRHI() to follow the workflow.
+		// Static texture needs to avoid having pending InitRHI() before enqueuing ReleaseRHI() to safely track access of the PlatformData on the renderthread.
+		ExistingTexture->WaitForPendingInitOrStreaming();
+	}
 	
 	FTextureReferenceReplacer RefReplacer(ExistingTexture);
 
@@ -4343,7 +4337,7 @@ UObject* UTextureFactory::FactoryCreateBinary
 		// Create the package for the material
 		const FString MaterialName = FString::Printf( TEXT("%s_Mat"), *TextureName.ToString() );
 		const FString MaterialPackageName = FPackageName::GetLongPackagePath(InParent->GetName()) + TEXT("/") + MaterialName;
-		UPackage* MaterialPackage = CreatePackage(nullptr, *MaterialPackageName);
+		UPackage* MaterialPackage = CreatePackage( *MaterialPackageName);
 
 		// Create the material
 		UMaterialFactoryNew* Factory = NewObject<UMaterialFactoryNew>();
@@ -5123,7 +5117,7 @@ UObject* UFontFileImportFactory::FactoryCreateBinary(UClass* InClass, UObject* I
 		UFontFactory* FontFactory = NewObject<UFontFactory>();
 		FontFactory->bEditAfterNew = false;
 
-		UPackage* FontPackage = CreatePackage(nullptr, *FontPackageName);
+		UPackage* FontPackage = CreatePackage( *FontPackageName);
 		UFont* Font = Cast<UFont>(FontFactory->FactoryCreateNew(UFont::StaticClass(), FontPackage, *FontAssetName, InFlags, InContext, InWarn));
 		if (Font)
 		{
@@ -5688,7 +5682,21 @@ EReimportResult::Type UReimportFbxStaticMeshFactory::Reimport( UObject* Obj )
 
 	UFbxStaticMeshImportData* ImportData = Cast<UFbxStaticMeshImportData>(Mesh->AssetImportData);
 	
-	UFbxImportUI* ReimportUI = NewObject<UFbxImportUI>();
+	UFbxImportUI* ReimportUI;
+	UFbxImportUI* OverrideImportUI = AssetImportTask ? Cast<UFbxImportUI>(AssetImportTask->Options) : nullptr;
+	if (OverrideImportUI)
+	{
+		ReimportUI = OverrideImportUI;
+	}
+	else
+	{
+		if (AssetImportTask && AssetImportTask->Options)
+		{
+			UE_LOG(LogFbx, Display, TEXT("The options set in the Asset Import Task are not of type UFbxImportUI and will be ignored"));
+		}
+		ReimportUI = NewObject<UFbxImportUI>();
+	}
+
 	ReimportUI->MeshTypeToImport = FBXIT_StaticMesh;
 	ReimportUI->StaticMeshImportData->bCombineMeshes = true;
 
@@ -6008,7 +6016,21 @@ EReimportResult::Type UReimportFbxSkeletalMeshFactory::Reimport( UObject* Obj, i
 	UFbxSkeletalMeshImportData* ImportData = Cast<UFbxSkeletalMeshImportData>(SkeletalMesh->AssetImportData);
 	
 	// Prepare the import options
-	UFbxImportUI* ReimportUI = NewObject<UFbxImportUI>();
+	UFbxImportUI* ReimportUI;
+	UFbxImportUI* OverrideImportUI = AssetImportTask ? Cast<UFbxImportUI>(AssetImportTask->Options) : nullptr;
+	if (OverrideImportUI)
+	{
+		ReimportUI = OverrideImportUI;
+	}
+	else
+	{
+		if (AssetImportTask && AssetImportTask->Options)
+		{
+			UE_LOG(LogFbx, Display, TEXT("The options set in the Asset Import Task are not of type UFbxImportUI and will be ignored"));
+		}
+		ReimportUI = NewObject<UFbxImportUI>();
+	}
+
 	ReimportUI->MeshTypeToImport = FBXIT_SkeletalMesh;
 	ReimportUI->Skeleton = SkeletalMesh->Skeleton;
 	ReimportUI->bCreatePhysicsAsset = false;
@@ -6436,13 +6458,6 @@ EReimportResult::Type UReimportFbxAnimSequenceFactory::Reimport( UObject* Obj )
 	{
 		return EReimportResult::Failed;
 	}
-	// If there is no file path provided, can't reimport from source
-// 	if ( !Filename.Len() )
-// 	{
-// 		// Since this is a new system most skeletal meshes don't have paths, so logging has been commented out
-// 		//UE_LOG(LogEditorFactories, Warning, TEXT("-- cannot reimport: skeletal mesh resource does not have path stored."));
-// 		return false;
-// 	}
 
 	UE_LOG(LogEditorFactories, Log, TEXT("Performing atomic reimport of [%s]"), *Filename);
 
@@ -6477,8 +6492,15 @@ EReimportResult::Type UReimportFbxAnimSequenceFactory::Reimport( UObject* Obj )
 		//Set the selected skeleton in the anim sequence
 		AnimSequence->SetSkeleton(Skeleton);
 	}
+
+	UFbxImportUI* OverrideImportUI = AssetImportTask ? Cast<UFbxImportUI>(AssetImportTask->Options) : nullptr;
+	if (!OverrideImportUI && AssetImportTask && AssetImportTask->Options)
+	{
+		UE_LOG(LogFbx, Display, TEXT("The options set in the Asset Import Task are not of type UFbxImportUI and will be ignored"));
+	}
+
 	bool bOutImportAll = false;
-	if ( UEditorEngine::ReimportFbxAnimation(Skeleton, AnimSequence, ImportData, *Filename, bOutImportAll, bShowOption && !IsAutomatedImport()) )
+	if ( UEditorEngine::ReimportFbxAnimation(Skeleton, AnimSequence, ImportData, *Filename, bOutImportAll, bShowOption && !IsAutomatedImport(), OverrideImportUI) )
 	{
 		if (bOutImportAll)
 		{

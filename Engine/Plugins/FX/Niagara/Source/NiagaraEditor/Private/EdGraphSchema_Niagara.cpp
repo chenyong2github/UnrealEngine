@@ -653,6 +653,8 @@ TArray<TSharedPtr<FNiagaraSchemaAction_NewNode> > UEdGraphSchema_Niagara::GetGra
 				DataInterface->GetFunctions(Functions);
 				for (FNiagaraFunctionSignature& Sig : Functions)
 				{
+					if (Sig.bSoftDeprecatedFunction)
+						continue;
 					TSharedPtr<FNiagaraSchemaAction_NewNode> Action = AddNewNodeAction(NewActions, MenuCat, FText::FromString(Sig.GetName()), *Sig.GetName(), FText::GetEmpty());
 					UNiagaraNodeFunctionCall* FuncNode = NewObject<UNiagaraNodeFunctionCall>(OwnerOfTemporaries);
 					Action->NodeTemplate = FuncNode;
@@ -1327,8 +1329,8 @@ FNiagaraTypeDefinition UEdGraphSchema_Niagara::PinToTypeDefinition(const UEdGrap
 		UClass* Class = Cast<UClass>(Pin->PinType.PinSubCategoryObject.Get());
 		if (Class == nullptr)
 		{
-			UE_LOG(LogNiagaraEditor, Error, TEXT("Pin states that it is of class type, but is missing its class object. This is usually the result of a registered type going away. Pin Name '%s' Owning Node '%s'."),
-				*Pin->PinName.ToString(), OwningNode ? *OwningNode->GetName() : TEXT("Invalid"));
+			UE_LOG(LogNiagaraEditor, Warning, TEXT("Pin states that it is of class type, but is missing its class object. This is usually the result of a registered type going away. Pin Name '%s' Owning Node '%s'."),
+				*Pin->PinName.ToString(), OwningNode ? *OwningNode->GetFullName() : TEXT("Invalid"));
 			return FNiagaraTypeDefinition();
 		}
 		return FNiagaraTypeDefinition(Class);
@@ -1338,8 +1340,8 @@ FNiagaraTypeDefinition UEdGraphSchema_Niagara::PinToTypeDefinition(const UEdGrap
 		UEnum* Enum = Cast<UEnum>(Pin->PinType.PinSubCategoryObject.Get());
 		if (Enum == nullptr)
 		{
-			UE_LOG(LogNiagaraEditor, Error, TEXT("Pin states that it is of Enum type, but is missing its Enum! Pin Name '%s' Owning Node '%s'. Turning into standard int definition!"), *Pin->PinName.ToString(),
-				OwningNode ? *OwningNode->GetName() : TEXT("Invalid"));
+			UE_LOG(LogNiagaraEditor, Warning, TEXT("Pin states that it is of Enum type, but is missing its Enum! Pin Name '%s' Owning Node '%s'. Turning into standard int definition!"), *Pin->PinName.ToString(),
+				OwningNode ? *OwningNode->GetFullName() : TEXT("Invalid"));
 			return FNiagaraTypeDefinition(FNiagaraTypeDefinition::GetIntDef());
 		}
 		return FNiagaraTypeDefinition(Enum);

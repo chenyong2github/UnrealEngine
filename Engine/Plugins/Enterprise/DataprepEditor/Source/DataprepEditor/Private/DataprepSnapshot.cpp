@@ -700,8 +700,8 @@ void FDataprepEditor::TakeSnapshot()
 			// Code inspired from UUnrealEdEngine::edactCopySelected
 			FStringOutputDevice Ar;
 			uint32 ExportFlags = PPF_DeepCompareInstances | PPF_ExportsNotFullyQualified | PPF_IncludeTransient;
-			const FDataprepExportObjectInnerContext Context( PreviewWorld.Get() );
-			UExporter::ExportToOutputDevice( &Context, PreviewWorld.Get(), nullptr, Ar, TEXT("copy"), 0, ExportFlags);
+			const FDataprepExportObjectInnerContext Context( PreviewWorld );
+			UExporter::ExportToOutputDevice( &Context, PreviewWorld, nullptr, Ar, TEXT("copy"), 0, ExportFlags);
 
 			// Save text into file
 			FString PackageFilePath = DataprepSnapshotUtil::BuildAssetFileName( TempDir, GetTransientContentFolder() / SessionID ) + TEXT(".asc");
@@ -863,7 +863,7 @@ void FDataprepEditor::RestoreFromSnapshot(bool bUpdateViewport)
 
 		// Set the GWorld to the preview world since ULevelFactory::FactoryCreateText uses GWorld
 		UWorld* PrevGWorld = GWorld;
-		GWorld = PreviewWorld.Get();
+		GWorld = PreviewWorld;
 
 		// Cache and disable recording of transaction
 		TGuardValue<UTransactor*> NormalTransactor( GEditor->Trans, nullptr );

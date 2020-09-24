@@ -37,6 +37,10 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = VisualStyle)
 	bool bHideUnrelatedNodes;
 
+	/** If true, use short tooltips whenever possible */
+	UPROPERTY(EditAnywhere, config, Category = VisualStyle)
+	bool bShowShortTooltips;
+
 // Workflow Settings
 public:
 	/** If enabled, we'll save off your chosen target setting based off of the context (allowing you to have different preferences based off what you're operating on). */

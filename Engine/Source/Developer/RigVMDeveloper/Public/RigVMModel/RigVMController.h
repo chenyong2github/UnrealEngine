@@ -8,6 +8,11 @@
 #include "RigVMModel/Nodes/RigVMParameterNode.h"
 #include "RigVMModel/Nodes/RigVMCommentNode.h"
 #include "RigVMModel/Nodes/RigVMRerouteNode.h"
+#include "RigVMModel/Nodes/RigVMBranchNode.h"
+#include "RigVMModel/Nodes/RigVMIfNode.h"
+#include "RigVMModel/Nodes/RigVMSelectNode.h"
+#include "RigVMModel/Nodes/RigVMPrototypeNode.h"
+#include "RigVMModel/Nodes/RigVMEnumNode.h"
 #include "RigVMController.generated.h"
 
 class URigVMActionStack;
@@ -100,6 +105,26 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	URigVMVariableNode* AddVariableNodeFromObjectPath(const FName& InVariableName, const FString& InCPPType, const FString& InCPPTypeObjectPath, bool bIsGetter, const FString& InDefaultValue, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bUndo = true);
 
+	// Refreshes the variable node with the new data
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	void RefreshVariableNode(const FName& InNodeName, const FName& InVariableName, const FString& InCPPType, UObject* InCPPTypeObject, bool bUndo);
+
+	// Removes all nodes related to a given variable
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	void RemoveVariableNodes(const FName& InVarName, bool bUndo);
+
+	// Renames the variable name in all relevant nodes
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	void RenameVariableNodes(const FName& InOldVarName, const FName& InNewVarName, bool bUndo);
+
+	// Changes the data type of all nodes matching a given variable name
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	void ChangeVariableNodesType(const FName& InVarName, const FString& InCPPType, UObject* InCPPTypeObject, bool bUndo);
+
+	// Refreshes the variable node with the new data
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	URigVMVariableNode* ReplaceParameterNodeWithVariable(const FName& InNodeName, const FName& InVariableName, const FString& InCPPType, UObject* InCPPTypeObject, bool bUndo);
+
 	// Adds a Parameter Node to the edited Graph.
 	// Parameters represent input or output arguments to the Graph / Function.
 	// Input Parameters are constant values / literals.
@@ -145,6 +170,26 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	URigVMRerouteNode* AddFreeRerouteNode(bool bShowAsFullNode, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bIsConstant, const FName& InCustomWidgetName, const FString& InDefaultValue, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bUndo = true);
 
+	// Adds a branch node to the graph.
+	// Branch nodes can be used to split the execution of into multiple branches,
+	// allowing to drive behavior by logic.
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	URigVMBranchNode* AddBranchNode(const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bUndo = true);
+
+	// Adds an if node to the graph.
+	// If nodes can be used to pick between two values based on a condition.
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	URigVMIfNode* AddIfNode(const FString& InCPPType, const FName& InCPPTypeObjectPath, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bUndo = true);
+
+	// Adds a select node to the graph.
+	// Select nodes can be used to pick between multiple values based on an index.
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	URigVMSelectNode* AddSelectNode(const FString& InCPPType, const FName& InCPPTypeObjectPath, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bUndo = true);
+
+	// Adds a prototype node to the graph.
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	URigVMPrototypeNode* AddPrototypeNode(const FName& InNotation, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bUndo = true);
+
 	// Adds a Function / Struct Node to the edited Graph as an injected node
 	// StructNode represent a RIGVM_METHOD declaration on a USTRUCT.
 	// This causes a NodeAdded modified event.
@@ -160,6 +205,11 @@ public:
 	// Ejects the last injected node on a pin
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	URigVMNode* EjectNodeFromPin(const FString& InPinPath, bool bUndo = true);
+
+	// Adds an enum node to the graph
+	// Enum nodes can be used to represent constant enum values within the graph
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	URigVMEnumNode* AddEnumNode(const FName& InCPPTypeObjectPath, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bUndo = true);
 
 	// Un-does the last action on the stack.
 	// Note: This should really only be used for unit tests,
@@ -379,12 +429,17 @@ public:
 	FRigVMController_ShouldStructUnfoldDelegate UnfoldStructDelegate;
 
 	int32 DetachLinksFromPinObjects();
-	int32 ReattachLinksToPinObjects();
+	int32 ReattachLinksToPinObjects(bool bFollowCoreRedirectors = false);
+	void AddPinRedirector(bool bInput, bool bOutput, const FString& OldPinPath, const FString& NewPinPath);
 
 	// Removes nodes which went stale.
 	void RemoveStaleNodes();
 
 #if WITH_EDITOR
+
+	bool ShouldRedirectPin(UScriptStruct* InOwningStruct, const FString& InOldRelativePinPath, FString& InOutNewRelativePinPath) const;
+	bool ShouldRedirectPin(const FString& InOldPinPath, FString& InOutNewPinPath) const;
+
 	void RepopulatePinsOnNode(URigVMNode* InNode);
 #endif
 
@@ -445,9 +500,16 @@ private:
 	static void CreateDefaultValueForStructIfRequired(UScriptStruct* InStruct, FString& OutDefaultValue);
 	static void PostProcessDefaultValue(URigVMPin* Pin, FString& OutDefaultValue);
 
+	void PotentiallyResolvePrototypeNode(URigVMPrototypeNode* InNode, bool bUndo);
+	void PotentiallyResolvePrototypeNode(URigVMPrototypeNode* InNode, bool bUndo, TArray<URigVMNode*>& NodesVisited);
+	bool ChangePinType(const FString& InPinPath, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bUndo);
+	bool ChangePinType(URigVMPin* InPin, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bUndo);
+
 #if WITH_EDITOR
 	void RewireLinks(URigVMPin* OldPin, URigVMPin* NewPin, bool bAsInput, bool bUndo, TArray<URigVMLink*> InLinks = TArray<URigVMLink*>());
 #endif
+
+	void DestroyObject(UObject* InObjectToDestroy);
 
 	UPROPERTY(transient)
 	URigVMGraph* Graph;
@@ -462,10 +524,51 @@ private:
 	bool bReportWarningsAndErrors;
 	bool bIgnoreRerouteCompactnessChanges;
 
+	// temporary maps used for pin redirection
+	// only valid between Detach & ReattachLinksToPinObjects
+	TMap<FString, FString> InputPinRedirectors;
+	TMap<FString, FString> OutputPinRedirectors;
+
+	struct FControlRigStructPinRedirectorKey
+	{
+		FControlRigStructPinRedirectorKey()
+		{
+		}
+
+		FControlRigStructPinRedirectorKey(UScriptStruct* InScriptStruct, const FString& InPinPathInNode)
+		: Struct(InScriptStruct)
+		, PinPathInNode(InPinPathInNode)
+		{
+		}
+
+		friend FORCEINLINE uint32 GetTypeHash(const FControlRigStructPinRedirectorKey& Cache)
+		{
+			return HashCombine(GetTypeHash(Cache.Struct), GetTypeHash(Cache.PinPathInNode));
+		}
+
+		FORCEINLINE bool operator ==(const FControlRigStructPinRedirectorKey& Other) const
+		{
+			return Struct == Other.Struct && PinPathInNode == Other.PinPathInNode;
+		}
+
+		FORCEINLINE bool operator !=(const FControlRigStructPinRedirectorKey& Other) const
+		{
+			return Struct != Other.Struct || PinPathInNode != Other.PinPathInNode;
+		}
+
+		UScriptStruct* Struct;
+		FString PinPathInNode;
+	};
+
+	static TMap<FControlRigStructPinRedirectorKey, FString> PinPathCoreRedirectors;
+	FCriticalSection PinPathCoreRedirectorsLock;
+
 	friend class URigVMGraph;
 	friend class URigVMActionStack;
 	friend class URigVMCompiler;
 	friend struct FRigVMControllerObjectFactory;
 	friend struct FRigVMAddRerouteNodeAction;
+	friend struct FRigVMChangePinTypeAction;
+	friend class FRigVMParserAST;
 };
 

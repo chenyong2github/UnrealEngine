@@ -156,31 +156,25 @@ void FLumenDirectLightingHardwareRayTracingData::Initialize(FRDGBuilder& GraphBu
 	const FIntPoint MaxAtlasSize = LumenSceneData.MaxAtlasSize;
 	auto AtlasElementCount = MaxAtlasSize.X * MaxAtlasSize.Y;
 
-	const FRDGTextureDesc LightMaskTextureDescriptor = FRDGTextureDesc::Create2DDesc(
+	const FRDGTextureDesc LightMaskTextureDescriptor = FRDGTextureDesc::Create2D(
 		MaxAtlasSize,
 		PF_R8_UINT,
 		FClearValueBinding(),
-		TexCreate_None,
-		TexCreate_ShaderResource | TexCreate_UAV,
-		false
+		TexCreate_ShaderResource | TexCreate_UAV
 	);
 
-	const FRDGTextureDesc CardInterpolantsTextureDescriptor = FRDGTextureDesc::Create2DDesc(
+	const FRDGTextureDesc CardInterpolantsTextureDescriptor = FRDGTextureDesc::Create2D(
 		MaxAtlasSize,
 		PF_FloatRGBA,
 		FClearValueBinding(),
-		TexCreate_None,
-		TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV,
-		false
+		TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV
 	);
 
-	const FRDGTextureDesc ShadowMaskAtlasTextureDescriptor = FRDGTextureDesc::Create2DDesc(
+	const FRDGTextureDesc ShadowMaskAtlasTextureDescriptor = FRDGTextureDesc::Create2D(
 		MaxAtlasSize,
 		PF_R16F,
 		FClearValueBinding(),
-		TexCreate_None,
-		TexCreate_ShaderResource | TexCreate_UAV,
-		false
+		TexCreate_ShaderResource | TexCreate_UAV
 	);
 
 	LightMaskTexture = GraphBuilder.CreateTexture(LightMaskTextureDescriptor, TEXT("LightMaskTexture"));
@@ -474,8 +468,7 @@ void RenderHardwareRayTracedShadowIntoLumenCards(FRDGBuilder& GraphBuilder,
 	FLumenCardDirectLightingRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenCardDirectLightingRGS::FParameters>();
 	{
 		{
-			FDeferredLightUniformStruct DeferredLightUniforms;
-			GetDeferredLightParameters(LightSceneInfo, View, DeferredLightUniforms);
+			FDeferredLightUniformStruct DeferredLightUniforms = GetDeferredLightParameters(View, *LightSceneInfo);
 
 			if (LightSceneInfo->Proxy->IsInverseSquared())
 			{

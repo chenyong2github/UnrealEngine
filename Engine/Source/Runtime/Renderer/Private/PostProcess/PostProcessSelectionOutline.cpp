@@ -8,6 +8,8 @@
 #include "CanvasTypes.h"
 #include "RenderTargetTemp.h"
 #include "ClearQuad.h"
+#include "ScenePrivate.h"
+#include "SceneRenderTargets.h"
 
 namespace
 {
@@ -39,6 +41,11 @@ public:
 IMPLEMENT_GLOBAL_SHADER(FSelectionOutlinePS, "/Engine/Private/PostProcessSelectionOutline.usf", "MainPS", SF_Pixel);
 } //! namespace
 
+BEGIN_SHADER_PARAMETER_STRUCT(FSelectionOutlinePassParameters, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextures)
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
+
 FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FSelectionOutlineInputs& Inputs, const Nanite::FRasterResults* NaniteRasterResults)
 {
 	check(Inputs.SceneColor.IsValid());
@@ -48,22 +55,12 @@ FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FVie
 
 	RDG_EVENT_SCOPE(GraphBuilder, "EditorSelectionOutlines");
 
-	uint32 MsaaSampleCount = 0;
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FPersistentUniformBuffers& SceneUniformBuffers = View.Family->Scene->GetRenderScene()->UniformBuffers;
+	const uint32 MsaaSampleCount = SceneContext.GetEditorMSAACompositingSampleCount();
 
 	// Patch uniform buffers with updated state for rendering the outline mesh draw commands.
-	{
-		FScene* Scene = View.Family->Scene->GetRenderScene();
-
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
-
-		MsaaSampleCount = SceneContext.GetEditorMSAACompositingSampleCount();
-
-		UpdateEditorPrimitiveView(Scene->UniformBuffers, SceneContext, View, Inputs.SceneColor.ViewRect);
-
-		FSceneTexturesUniformParameters SceneTextureParameters;
-		SetupSceneTextureUniformParameters(SceneContext, View.FeatureLevel, ESceneTextureSetupMode::None, SceneTextureParameters);
-		Scene->UniformBuffers.EditorSelectionPassUniformBuffer.UpdateUniformBufferImmediate(SceneTextureParameters);
-	}
+	const FViewInfo* EditorView = UpdateEditorPrimitiveView(SceneUniformBuffers, SceneContext, View, Inputs.SceneColor.ViewRect);
 
 	FRDGTextureRef DepthStencilTexture = nullptr;
 
@@ -73,29 +70,26 @@ FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FVie
 			FRDGTextureDesc DepthStencilDesc = Inputs.SceneColor.Texture->Desc;
 			DepthStencilDesc.Reset();
 			DepthStencilDesc.Format = PF_DepthStencil;
-			DepthStencilDesc.Flags = TexCreate_None;
-
 			// This is a reversed Z depth surface, so 0.0f is the far plane.
 			DepthStencilDesc.ClearValue = FClearValueBinding((float)ERHIZBuffer::FarPlane, 0);
-
-			// Mark targetable as TexCreate_ShaderResource because we actually do want to sample from the unresolved MSAA target in this case.
-			DepthStencilDesc.TargetableFlags = TexCreate_DepthStencilTargetable | TexCreate_ShaderResource;
+			DepthStencilDesc.Flags = TexCreate_DepthStencilTargetable | TexCreate_ShaderResource;
 			DepthStencilDesc.NumSamples = MsaaSampleCount;
-			DepthStencilDesc.bForceSharedTargetAndShaderResource = true;
 
 			DepthStencilTexture = GraphBuilder.CreateTexture(DepthStencilDesc, TEXT("SelectionOutline"));
 		}
+
+		auto* PassParameters = GraphBuilder.AllocParameters<FNaniteSelectionOutlineParameters>();
 
 		FScene* Scene = View.Family->Scene->GetRenderScene();
 
 		const FScreenPassTextureViewport SceneColorViewport(Inputs.SceneColor);
 
-		auto* PassParameters = GraphBuilder.AllocParameters<FNaniteSelectionOutlineParameters>();
 		if (bNaniteEnabled)
 		{
 			Nanite::GetEditorSelectionPassParameters(GraphBuilder, *Scene, View, SceneColorViewport.Rect, NaniteRasterResults, PassParameters);
 		}
 
+		PassParameters->SceneTextures = Inputs.SceneTextures;
 		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
 			DepthStencilTexture,
 			ERenderTargetLoadAction::EClear,
@@ -106,9 +100,11 @@ FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FVie
 			RDG_EVENT_NAME("OutlineDepth %dx%d", SceneColorViewport.Rect.Width(), SceneColorViewport.Rect.Height()),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[&View, SceneColorViewport, DepthStencilTexture, NaniteRasterResults, PassParameters, bNaniteEnabled](FRHICommandListImmediate& RHICmdList)
+			[&SceneUniformBuffers, EditorView, &View, SceneColorViewport, DepthStencilTexture, NaniteRasterResults, PassParameters, bNaniteEnabled](FRHICommandListImmediate& RHICmdList)
 		{
 			RHICmdList.SetViewport(SceneColorViewport.Rect.Min.X, SceneColorViewport.Rect.Min.Y, 0.0f, SceneColorViewport.Rect.Max.X, SceneColorViewport.Rect.Max.Y, 1.0f);
+
+			SceneUniformBuffers.UpdateViewUniformBufferImmediate(*EditorView->CachedViewUniformShaderParameters);
 
 			{
 				SCOPED_DRAW_EVENT(RHICmdList, EditorSelection);
@@ -198,43 +194,6 @@ FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FVie
 	}
 
 	return MoveTemp(Output);
-}
-
-FRenderingCompositeOutputRef AddSelectionOutlinePass(FRenderingCompositionGraph& Graph, FRenderingCompositeOutputRef Input, const Nanite::FRasterResults *NaniteRasterResults)
-{
-	FRenderingCompositePass* Pass = Graph.RegisterPass(
-		new(FMemStack::Get()) TRCPassForRDG<1, 1>(
-			[NaniteRasterResults](FRenderingCompositePass* InPass, FRenderingCompositePassContext& InContext)
-	{
-		FRDGBuilder GraphBuilder(InContext.RHICmdList);
-
-		FRDGTextureRef SceneColorTexture = InPass->CreateRDGTextureForRequiredInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"));
-		const FIntRect SceneColorViewRect = InContext.GetSceneColorDestRect(InPass);
-
-		const FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
-		FRDGTextureRef SceneDepthTexture = GraphBuilder.RegisterExternalTexture(SceneContext.SceneDepthZ, TEXT("SceneDepthZ"));
-
-		FSelectionOutlineInputs Inputs;
-		Inputs.SceneColor.Texture = SceneColorTexture;
-		Inputs.SceneColor.ViewRect = SceneColorViewRect;
-		Inputs.SceneDepth.Texture = SceneDepthTexture;
-		Inputs.SceneDepth.ViewRect = InContext.View.ViewRect;
-
-		if (FRDGTextureRef OutputTexture = InPass->FindRDGTextureForOutput(GraphBuilder, ePId_Output0, TEXT("BackBuffer")))
-		{
-			Inputs.OverrideOutput.Texture = OutputTexture;
-			Inputs.OverrideOutput.ViewRect = InContext.GetSceneColorDestRect(InPass->GetOutput(ePId_Output0)->PooledRenderTarget->GetRenderTargetItem());
-			Inputs.OverrideOutput.LoadAction = InContext.View.IsFirstInFamily() ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad;
-		}
-
-		FScreenPassTexture Outputs = AddSelectionOutlinePass(GraphBuilder, InContext.View, Inputs, NaniteRasterResults);
-
-		InPass->ExtractRDGTextureForOutput(GraphBuilder, ePId_Output0, Outputs.Texture);
-
-		GraphBuilder.Execute();
-	}));
-	Pass->SetInput(ePId_Input0, Input);
-	return Pass;
 }
 
 #endif

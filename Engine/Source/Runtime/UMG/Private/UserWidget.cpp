@@ -27,6 +27,7 @@
 #include "TimerManager.h"
 #include "UObject/Package.h"
 #include "Editor/WidgetCompilerLog.h"
+#include "GameFramework/InputSettings.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
@@ -586,6 +587,17 @@ float UUserWidget::GetAnimationCurrentTime(const UWidgetAnimation* InAnimation) 
 	}
 
 	return 0;
+}
+
+void UUserWidget::SetAnimationCurrentTime(const UWidgetAnimation* InAnimation, float InTime)
+{
+	if (InAnimation)
+	{
+		if (UUMGSequencePlayer* FoundPlayer = GetSequencePlayer(InAnimation))
+		{
+			FoundPlayer->SetCurrentTime(InTime);
+		}
+	}
 }
 
 bool UUserWidget::IsAnimationPlaying(const UWidgetAnimation* InAnimation) const
@@ -1539,7 +1551,7 @@ void UUserWidget::InitializeInputComponent()
 {
 	if ( APlayerController* Controller = GetOwningPlayer() )
 	{
-		InputComponent = NewObject< UInputComponent >( this, NAME_None, RF_Transient );
+		InputComponent = NewObject< UInputComponent >( this, UInputSettings::GetDefaultInputComponentClass(), NAME_None, RF_Transient );
 		InputComponent->bBlockInput = bStopAction;
 		InputComponent->Priority = Priority;
 		Controller->PushInputComponent( InputComponent );

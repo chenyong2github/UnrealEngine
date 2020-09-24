@@ -3173,9 +3173,9 @@ void USceneComponent::OnRep_AttachChildren()
 	{
 		for (USceneComponent* AttachChild : AttachChildren)
 		{
-			if (AttachChild)
+			// Clear out any initially attached components from the ClientAttachedChildren array that end up becoming replicated, but only if the child now is NetSimulating.
+			if (AttachChild && AttachChild->IsNetSimulating())
 			{
-				// Clear out any initially attached components from the client attached list that end up becoming replicated
 				ClientAttachedChildren.Remove(AttachChild);
 			}
 		}
@@ -3233,11 +3233,11 @@ void USceneComponent::PostRepNotifies()
 		Exchange(NetOldAttachSocketName, AttachSocketName);
 		
 		// Note: This is a local fix for JIRA UE-43355.
-		if (bShouldSnapLocationWhenAttached)
+		if (bShouldSnapLocationWhenAttached && !bNetUpdateTransform)
 		{
 			SetRelativeLocation_Direct(FVector::ZeroVector);
 		}
-		if (bShouldSnapRotationWhenAttached)
+		if (bShouldSnapRotationWhenAttached && !bNetUpdateTransform)
 		{
 			SetRelativeRotation_Direct(FRotator::ZeroRotator);
 		}
@@ -3267,7 +3267,7 @@ void USceneComponent::PostRepNotifies()
 
 	if (bNetUpdateTransform)
 	{
-		UpdateComponentToWorld(EUpdateTransformFlags::SkipPhysicsUpdate);
+		UpdateComponentToWorld();
 		bNetUpdateTransform = false;
 	}
 }

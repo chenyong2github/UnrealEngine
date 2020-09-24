@@ -22,6 +22,10 @@ struct FTrackedCamera
 	UPROPERTY()
 	FString Name;
 
+	/** The time that this camera was updated */
+	UPROPERTY()
+	double UpdateTime;
+
 	/** The horizontal FOV, in degrees */
 	UPROPERTY(meta = (UIMin = "5.0", UIMax = "170", ClampMin = "0.001", ClampMax = "360.0", Units = deg))
 	float FieldOfView;
@@ -54,17 +58,18 @@ struct FTrackedCamera
 	UPROPERTY()
 	FVector UserOffset;
 
-	/** The raw pose of the camera to the attached tracking device */
-	UPROPERTY()
-	FRotator RawRotation;
+	/** The raw pose of the camera to the attached tracking device (Deprecated) */
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "All camera pose info is now in stage space, do not use raw pose data."))
+	FRotator RawRotation_DEPRECATED;
 
-	/** The raw pose of the camera to the attached tracking device */
-	UPROPERTY()
-	FVector RawOffset;
+	/** The raw pose of the camera to the attached tracking device (Deprecated) */
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "All camera pose info is now in stage space, do not use raw pose data."))
+	FVector RawOffset_DEPRECATED;
 
 	FTrackedCamera()
 		: Index(-1)
 		, Name(TEXT("Unknown"))
+		, UpdateTime(0.0f)
 		, FieldOfView(90.0f)
 		, SizeX(1280)
 		, SizeY(720)
@@ -73,8 +78,8 @@ struct FTrackedCamera
 		, CalibratedOffset(EForceInit::ForceInitToZero)
 		, UserRotation(EForceInit::ForceInitToZero)
 		, UserOffset(EForceInit::ForceInitToZero)
-		, RawRotation(EForceInit::ForceInitToZero)
-		, RawOffset(EForceInit::ForceInitToZero)
+		, RawRotation_DEPRECATED(EForceInit::ForceInitToZero)
+		, RawOffset_DEPRECATED(EForceInit::ForceInitToZero)
 	{}
 };
 

@@ -13,7 +13,7 @@
 
 #ifndef CHAOSSOLVERS_TEMPLATE_API
 #if PLATFORM_MAC || PLATFORM_LINUX
-#define CHAOSSOLVERS_TEMPLATE_API CHAOSSOLVERS_API
+#define CHAOSSOLVERS_TEMPLATE_API CHAOS_API
 #else
 #define CHAOSSOLVERS_TEMPLATE_API
 #endif
@@ -25,6 +25,7 @@
 	#include "CoreTypes.h"
 	#include "Logging/MessageLog.h"
 	#include "Misc/CoreMiscDefines.h"
+	#include "UObject/ExternalPhysicsCustomObjectVersion.h"
 #endif
 #include "Serializable.h"
 

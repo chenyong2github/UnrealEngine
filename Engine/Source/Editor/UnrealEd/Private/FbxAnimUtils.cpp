@@ -1,13 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FbxAnimUtils.h"
-#include "Misc/Paths.h"
-#include "EditorDirectories.h"
-#include "FbxExporter.h"
+
+#include "Animation/AnimationSettings.h"
 #include "Animation/AnimTypes.h"
 #include "Curves/RichCurve.h"
+#include "EditorDirectories.h"
 #include "Engine/CurveTable.h"
 #include "Exporters/FbxExportOption.h"
+#include "FbxExporter.h"
+#include "Misc/Paths.h"
 
 namespace FbxAnimUtils
 {
@@ -174,19 +176,9 @@ namespace FbxAnimUtils
 							// We have a node, so clear the curve table
 							InOutCurveTable->EmptyTable();
 
-							ExtractAttributeCurves(SkeletonNode, false, [&InOutCurveTable, &AnimTimeSpan, &FbxImporter](FbxAnimCurve* InCurve, const FString& InCurveName, const FString& InChannelName, int32 InChannelIndex, int32 InNumChannels)
+							ExtractAttributeCurves(SkeletonNode, false, [&InOutCurveTable, &AnimTimeSpan, &FbxImporter](FbxAnimCurve* InCurve, const FString& InCurveName)
 							{
-								FString FinalCurveName;
-								if (InNumChannels == 1)
-								{
-									FinalCurveName = InCurveName;
-								}
-								else
-								{
-									FinalCurveName = InCurveName + "_" + InChannelName;
-								}
-
-								FRichCurve& RichCurve = InOutCurveTable->AddRichCurve(*FinalCurveName);
+								FRichCurve& RichCurve = InOutCurveTable->AddRichCurve(*InCurveName);
 								RichCurve.Reset();
 
 								FbxImporter->ImportCurve(InCurve, RichCurve, AnimTimeSpan, 1.0f);
@@ -203,28 +195,56 @@ namespace FbxAnimUtils
 		return false;
 	}
 
-	void ExtractAttributeCurves(FbxNode* InNode, bool bInDoNotImportCurveWithZero, TFunctionRef<void(FbxAnimCurve* /*InCurve*/, const FString& /*InCurveName*/, const FString& /*InChannelName*/, int32 /*InChannelIndex*/, int32 /*InNumChannels*/)> ImportFunction)
+	bool DefaultAttributeFilter(const FbxProperty& Property, const FbxAnimCurveNode* CurveNode)
+	{
+		return CurveNode && Property.GetFlag(FbxPropertyFlags::eUserDefined) &&
+			CurveNode->IsAnimated() && FbxAnimUtils::IsSupportedCurveDataType(Property.GetPropertyDataType().GetType());
+	}
+
+	FString GetCurveName(const FString& InCurveName, const FString& InChannelName, int32 InNumChannels)
+	{
+		FString FinalCurveName;
+		if (InNumChannels == 1)
+		{
+			FinalCurveName = InCurveName;
+		}
+		else
+		{
+			FinalCurveName = InCurveName + "_" + InChannelName;
+		}
+
+		return FinalCurveName;
+	}
+
+	void ExtractAttributeCurves(FbxNode* InNode, bool bInDoNotImportCurveWithZero, TFunctionRef<void(FbxAnimCurve* /*InCurve*/, const FString& /*InCurveName*/)> ImportFunction)
 	{
 		FbxProperty Property = InNode->GetFirstProperty();
+		UAnimationSettings* AnimationSettings = UAnimationSettings::Get();
+
 		while (Property.IsValid())
 		{
 			FbxAnimCurveNode* CurveNode = Property.GetCurveNode();
-			// do this if user defined and animated and leaf node
-			if( CurveNode && Property.GetFlag(FbxPropertyFlags::eUserDefined) &&
-				CurveNode->IsAnimated() && FbxAnimUtils::IsSupportedCurveDataType(Property.GetPropertyDataType().GetType()) )
+			FString PropertyName = UTF8_TO_TCHAR(Property.GetName());
+			// do this if user defined and animated
+
+			if (CurveNode && Property.GetFlag(FbxPropertyFlags::eUserDefined) &&
+				CurveNode->IsAnimated() && FbxAnimUtils::IsSupportedCurveDataType(Property.GetPropertyDataType().GetType()) &&
+				!AnimationSettings->BoneCustomAttributesNames.ContainsByPredicate([&PropertyName](const FCustomAttributeSetting& CustomAttributeSetting) { return CustomAttributeSetting.Name.Equals(PropertyName, ESearchCase::IgnoreCase); }))
 			{
 				FString CurveName = UTF8_TO_TCHAR(CurveNode->GetName());
-				UE_LOG(LogFbx, Log, TEXT("CurveName : %s"), *CurveName );
+				UE_LOG(LogFbx, Log, TEXT("CurveName : %s"), *CurveName);
 
-				int32 TotalCount = CurveNode->GetChannelsCount();
-				for (int32 ChannelIndex=0; ChannelIndex<TotalCount; ++ChannelIndex)
+				int32 ChannelCount = CurveNode->GetChannelsCount();
+				for (int32 ChannelIndex = 0; ChannelIndex < ChannelCount; ++ChannelIndex)
 				{
-					FbxAnimCurve * AnimCurve = CurveNode->GetCurve(ChannelIndex);
+					FbxAnimCurve* AnimCurve = CurveNode->GetCurve(ChannelIndex);
 					FString ChannelName = CurveNode->GetChannelName(ChannelIndex).Buffer();
 
 					if (FbxAnimUtils::ShouldImportCurve(AnimCurve, bInDoNotImportCurveWithZero))
 					{
-						ImportFunction(AnimCurve, CurveName, ChannelName, ChannelIndex, TotalCount);
+						FString FinalCurveName = GetCurveName(CurveName, ChannelName, ChannelCount);
+
+						ImportFunction(AnimCurve, FinalCurveName);
 					}
 					else
 					{
@@ -233,7 +253,55 @@ namespace FbxAnimUtils
 				}
 			}
 
-			Property = InNode->GetNextProperty(Property); 
+			Property = InNode->GetNextProperty(Property);
+		}
+	}
+
+	void ExtractNodeAttributes(fbxsdk::FbxNode* InNode, bool bInDoNotImportCurveWithZero, bool bImportAllCustomAttributes, TFunctionRef<void(fbxsdk::FbxProperty& /*InProperty*/, fbxsdk::FbxAnimCurve* /*InCurve*/, const FString& /*InCurveName*/)> ImportFunction)
+	{
+		FbxProperty Property = InNode->GetFirstProperty();
+		UAnimationSettings* AnimationSettings = UAnimationSettings::Get();
+
+		while (Property.IsValid())
+		{
+			FbxAnimCurveNode* CurveNode = Property.GetCurveNode();
+			const FString PropertyName = UTF8_TO_TCHAR(Property.GetName());
+			const EFbxType PropertyType = Property.GetPropertyDataType().GetType();
+			const bool bIsTypeSupported = FbxAnimUtils::IsSupportedCurveDataType(PropertyType) || eFbxString == PropertyType;
+
+			if (Property.GetFlag(FbxPropertyFlags::eUserDefined) && bIsTypeSupported 
+				&& (bImportAllCustomAttributes || AnimationSettings->BoneCustomAttributesNames.ContainsByPredicate([&PropertyName](const FCustomAttributeSetting& CustomAttributeSetting) { return CustomAttributeSetting.Name.Equals(PropertyName, ESearchCase::IgnoreCase); })))
+			{
+				UE_LOG(LogFbx, Log, TEXT("PropertyName : %s"), *PropertyName);
+
+				if (CurveNode && CurveNode->IsAnimated())
+				{
+					int32 ChannelCount = CurveNode->GetChannelsCount();
+					for (int32 ChannelIndex = 0; ChannelIndex < ChannelCount; ++ChannelIndex)
+					{
+						FbxAnimCurve* AnimCurve = CurveNode->GetCurve(ChannelIndex);
+						FString ChannelName = CurveNode->GetChannelName(ChannelIndex).Buffer();
+
+						if (FbxAnimUtils::ShouldImportCurve(AnimCurve, bInDoNotImportCurveWithZero))
+						{
+							FString FinalCurveName = GetCurveName(PropertyName, ChannelName, ChannelCount);
+
+							ImportFunction(Property, AnimCurve, FinalCurveName);
+						}
+						else
+						{
+							UE_LOG(LogFbx, Log, TEXT("CurveName(%s) is skipped because it only contains invalid values."), *PropertyName);
+						}
+					}
+				}
+				else
+				{
+					// The value of the attribute is constant, we should add the property value directly at Key 0.
+					ImportFunction(Property, nullptr, PropertyName);
+				}
+			}
+
+			Property = InNode->GetNextProperty(Property);
 		}
 	}
 }

@@ -324,6 +324,17 @@ public:
 	 */
 	UE::Widget::EWidgetMode GetWidgetMode() const;
 
+
+	/**
+	* Set Scale On The Widget
+	*/
+	void SetWidgetScale(float InScale);
+
+	/**
+	*  Get Widget Scale
+	*/
+	float GetWidgetScale() const;
+
 	// FGCObject interface
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
 	// End of FGCObject interface
@@ -518,6 +529,9 @@ protected:
 
 	/** if true the current selection has a scene component */
 	bool bSelectionHasSceneComponent;
+
+	/** Scale Factor for Widget*/
+	float WidgetScale;
 
 private:
 	struct FEdModeToolbarRow

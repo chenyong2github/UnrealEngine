@@ -123,7 +123,11 @@ private:
 
 struct FNiagaraGraphFunctionAliasContext
 {
+	// the usage as defined in the compilation request (same for all translation stages)
 	ENiagaraScriptUsage CompileUsage;
+
+	// the usage as defined in the current translation stage
+	ENiagaraScriptUsage ScriptUsage;
 	TArray<UEdGraphPin*> StaticSwitchValues;
 };
 
@@ -420,7 +424,7 @@ private:
 	FOnGraphChanged OnGraphNeedsRecompile;
 
 	/** Find all nodes in the graph that can be reached during compilation. */
-	TArray<UEdGraphNode*> FindReachbleNodes() const;
+	TArray<UEdGraphNode*> FindReachableNodes() const;
 
 	/** Compares the values on the default pins with the metadata and syncs the two if necessary */
 	void ValidateDefaultPins();

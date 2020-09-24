@@ -121,7 +121,6 @@ class FScatterLeafProbesCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FCommonProbeDenoiserParameters, CommonProbeDenoiserParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureSamplerParameters, SceneTextureSamplers)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER(FIntPoint, TilePixelOffset)
 
@@ -331,7 +330,6 @@ class FResolveProbeIndexesCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FCommonProbeDenoiserParameters, CommonProbeDenoiserParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenProbeHierarchy::FHierarchyParameters, HierarchyParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureSamplerParameters, SceneTextureSamplers)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER(FIntPoint, GlobalEmitTileClassificationOffset)
 
@@ -357,7 +355,6 @@ class FMaskProbesDirectionsCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FCommonProbeDenoiserParameters, CommonProbeDenoiserParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenProbeHierarchy::FHierarchyParameters, HierarchyParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureSamplerParameters, SceneTextureSamplers)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER(int32, SamplePerPixel)
 		SHADER_PARAMETER(float, AdditionalSpecularRayThreshold)
@@ -450,7 +447,6 @@ class FTraceIndirectLightingProbeHierarchyCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenProbeHierarchy::FHierarchyParameters, HierarchyParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenProbeHierarchy::FHierarchyLevelParameters, LevelParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureSamplerParameters, SceneTextureSamplers)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 
 		SHADER_PARAMETER(FVector2D, FinalProbeAtlasPixelSize)
@@ -485,7 +481,6 @@ class FProbeOcclusionTileClassificationCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FCommonProbeDenoiserParameters, CommonProbeDenoiserParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureSamplerParameters, SceneTextureSamplers)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER(FIntPoint, AtomicTileExtent)
 		SHADER_PARAMETER(float, AdditionalSpecularRayThreshold)
@@ -586,7 +581,7 @@ const TCHAR* GetEventName(EProbeOcclusionClassification TileClassification)
 FIndirectLightingProbeOcclusionOutputParameters CreateProbeOcclusionOutputParameters(
 	FRDGBuilder& GraphBuilder,
 	const FIndirectLightingProbeOcclusionParameters& ProbeOcclusionParameters,
-	ERDGChildResourceFlags ResourceViewFlags)
+	ERDGUnorderedAccessViewFlags ResourceViewFlags)
 {
 	FIndirectLightingProbeOcclusionOutputParameters OutputParameters;
 	OutputParameters.DiffuseLightingOutput = GraphBuilder.CreateUAV(ProbeOcclusionParameters.DiffuseLighting, ResourceViewFlags);
@@ -678,15 +673,13 @@ FRDGTextureRef ComposeFinalProbeAtlas(
 
 	FRDGTextureRef FinalProbeAtlas;
 	{
-		FRDGTextureDesc ProbeAtlasDesc = FRDGTextureDesc::Create2DDesc(
+		FRDGTextureDesc ProbeAtlasDesc = FRDGTextureDesc::Create2D(
 			FIntPoint(
 				ProbeHierachyParameters.ProbeAtlasGridSize.X * (kProbeResolution + kIBLBorderSize * 2) * 2,
 				ProbeHierachyParameters.ProbeAtlasGridSize.Y * (kProbeResolution + kIBLBorderSize * 2) * 3),
 			PF_FloatR11G11B10,
 			FClearValueBinding::None,
-			/* InFlags = */ TexCreate_None,
-			/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
-			/* bInForceSeparateTargetAndShaderResource = */ false);
+			TexCreate_ShaderResource | TexCreate_UAV);
 
 		ProbeAtlasDesc.NumMips = 2;
 		FinalProbeAtlas = GraphBuilder.CreateTexture(ProbeAtlasDesc, TEXT("ProbeHierarchy.FinalProbeAtlas"));
@@ -765,13 +758,11 @@ FRDGTextureUAVRef CreateProbeHierarchyDebugOutputUAV(
 {
 	LLM_SCOPE(ELLMTag::Lumen);
 #if 1
-	FRDGTextureDesc DebugOutputDesc = FRDGTextureDesc::Create2DDesc(
+	FRDGTextureDesc DebugOutputDesc = FRDGTextureDesc::Create2D(
 		Extent,
 		PF_FloatRGBA,
 		FClearValueBinding::Transparent,
-		/* InFlags = */ TexCreate_None,
-		/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
-		/* bInForceSeparateTargetAndShaderResource = */ false);
+		TexCreate_ShaderResource | TexCreate_UAV);
 
 	FRDGTextureRef DebugTexture = GraphBuilder.CreateTexture(DebugOutputDesc, DebugName);
 
@@ -803,7 +794,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 
 	const bool bAntiTileAliasing = CVarAntiTileAliasing.GetValueOnRenderThread() != 0 && View.ViewState;
 
-	const FIntPoint SceneBufferExtent = CommonParameters.SceneTextures.SceneDepthBuffer->Desc.Extent;
+	const FIntPoint SceneBufferExtent = CommonParameters.SceneTextures.SceneDepthTexture->Desc.Extent;
 
 	const int32 MaxHierarchDepth = UseRadianceCache(View) ? 2 : kProbeMaxHierarchyDepth;
 	const int32 HierarchyDepth = FMath::Clamp(CVarHierarchyDepth.GetValueOnRenderThread(), 1, MaxHierarchDepth);
@@ -905,13 +896,11 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 		AtomicBufferExtent.X = FMath::DivideAndRoundUp(EmitTileStorageExtent.X, 4) * 4;
 		AtomicBufferExtent.Y = FMath::DivideAndRoundUp(EmitTileStorageExtent.Y, 4) * 4;
 
-		ProjectedTileCountersDesc = FRDGTextureDesc::Create2DDesc(
+		ProjectedTileCountersDesc = FRDGTextureDesc::Create2D(
 			AtomicBufferExtent,
 			PF_R32_UINT,
 			FClearValueBinding::None,
-			/* InFlags = */ TexCreate_None,
-			/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
-			/* bInForceSeparateTargetAndShaderResource = */ false);
+			TexCreate_ShaderResource | TexCreate_UAV);
 	}
 
 	FCommonProbeDenoiserParameters CommonProbeDenoiserParameters;
@@ -1017,26 +1006,22 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 
 			// Allocate resources
 			{
-				FRDGTextureDesc ProjectedProbesDesc = FRDGTextureDesc::Create2DDesc(
+				FRDGTextureDesc ProjectedProbesDesc = FRDGTextureDesc::Create2D(
 					FIntPoint(EmitTileStorageExtent.X * ProbesPerEmitTileStorage.X, EmitTileStorageExtent.Y * ProbesPerEmitTileStorage.Y),
 					PF_R32_UINT,
 					FClearValueBinding::None,
-					/* InFlags = */ TexCreate_None,
-					/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
-					/* bInForceSeparateTargetAndShaderResource = */ false);
+					TexCreate_ShaderResource | TexCreate_UAV);
 
 				ProjectedProbes[0] = GraphBuilder.CreateTexture(ProjectedProbesDesc, TEXT("ProbeHierarchy.BuildFrustum.ProjectedProbes"));
 			}
 
 			{
 				int32 LastHierarchyLevelId = ProbeHierachyParameters.HierarchyDepth - 1;
-				FRDGTextureDesc TiledDepthBoundsDesc = FRDGTextureDesc::Create2DDesc(
+				FRDGTextureDesc TiledDepthBoundsDesc = FRDGTextureDesc::Create2D(
 					ComputeResolveTileCount(SceneBufferExtent, LastHierarchyLevelId) * (1 << LastHierarchyLevelId),
 					PF_G16R16F,
 					FClearValueBinding::None,
-					/* InFlags = */ TexCreate_None,
-					/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
-					/* bInForceSeparateTargetAndShaderResource = */ false);
+					TexCreate_ShaderResource | TexCreate_UAV);
 				TiledDepthBoundsDesc.NumMips = FMath::Max(ProbeHierachyParameters.HierarchyDepth, 2);
 
 				TiledDepthBounds = GraphBuilder.CreateTexture(TiledDepthBoundsDesc, TEXT("ProbeHierarchy.BuildFrustum.TiledDepthBounds"));
@@ -1046,7 +1031,6 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 				GraphBuilder.AllocParameters<FScatterLeafProbesCS::FParameters>();
 			PassParameters->CommonProbeDenoiserParameters = CommonProbeDenoiserParameters;
 			PassParameters->SceneTextures = CommonParameters.SceneTextures;
-			SetupSceneTextureSamplers(&PassParameters->SceneTextureSamplers);
 			PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 			PassParameters->TilePixelOffset = ComputeTileClassificationOffset(/* ParentTileSize = */ TileSize, /* ChildTileSize = */ 1);
 
@@ -1077,13 +1061,11 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 		{
 			if (HierarchyLevelId < ProbeHierachyParameters.HierarchyDepth)
 			{
-				FRDGTextureDesc ProjectedProbesDesc = FRDGTextureDesc::Create2DDesc(
+				FRDGTextureDesc ProjectedProbesDesc = FRDGTextureDesc::Create2D(
 					FIntPoint(EmitTileStorageExtent.X * ProbesPerEmitTileStorage.X, EmitTileStorageExtent.Y * ProbesPerEmitTileStorage.Y),
 					PF_R32_UINT,
 					FClearValueBinding::None,
-					/* InFlags = */ TexCreate_None,
-					/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
-					/* bInForceSeparateTargetAndShaderResource = */ false);
+					TexCreate_ShaderResource | TexCreate_UAV);
 
 				ProjectedProbes[HierarchyLevelId] = GraphBuilder.CreateTexture(ProjectedProbesDesc, TEXT("ProbeHierarchy.BuildFrustum.ProjectedProbes"));
 			}
@@ -1162,7 +1144,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 		TStaticArray<FRDGTextureRef, kProbeMaxHierarchyDepth> ProjectedTileOffsets;
 		{
 			FRDGBufferUAVRef GlobalCounterOutput = GraphBuilder.CreateUAV(
-				ProbeGlobalCountersBuffer, PF_R32_UINT, ERDGChildResourceFlags::NoUAVBarrier);
+				ProbeGlobalCountersBuffer, PF_R32_UINT, ERDGUnorderedAccessViewFlags::SkipBarrier);
 
 			for (int32 HierarchyLevelId = 0; HierarchyLevelId < kProbeMaxHierarchyDepth; HierarchyLevelId++)
 			{
@@ -1235,19 +1217,17 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 				FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4) * 2, ProbeHierachyParameters.MaxProbeCount),
 				TEXT("ProbeHierarchy.ProbeArray"));
 
-			FRDGBufferUAVRef ProbeArrayOutput = GraphBuilder.CreateUAV(ProbeArray, ERDGChildResourceFlags::NoUAVBarrier);
+			FRDGBufferUAVRef ProbeArrayOutput = GraphBuilder.CreateUAV(ProbeArray, ERDGUnorderedAccessViewFlags::SkipBarrier);
 
 			for (int32 HierarchyLevelId = 0; HierarchyLevelId < kProbeMaxHierarchyDepth; HierarchyLevelId++)
 			{
 				if (HierarchyLevelId < ProbeHierachyParameters.HierarchyDepth)
 				{
-					FRDGTextureDesc ProbeListPerEmitTileDesc = FRDGTextureDesc::Create2DDesc(
+					FRDGTextureDesc ProbeListPerEmitTileDesc = FRDGTextureDesc::Create2D(
 						FIntPoint(EmitTileStorageExtent.X * ProbesPerEmitTileStorage.X, EmitTileStorageExtent.Y * ProbesPerEmitTileStorage.Y),
 						PF_R32_UINT,
 						FClearValueBinding::None,
-						/* InFlags = */ TexCreate_None,
-						/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
-						/* bInForceSeparateTargetAndShaderResource = */ false);
+						TexCreate_ShaderResource | TexCreate_UAV);
 
 					ProbeListsPerEmitTile[HierarchyLevelId] = GraphBuilder.CreateTexture(
 						ProbeListPerEmitTileDesc,
@@ -1363,25 +1343,21 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 		// Stocastically selects the probes on per pixel basis, outputing probe index and tracing distance that should be use for probe occlusion.
 		{
 			{
-				FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
+				FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
 					SceneBufferExtent,
 					PF_R16_UINT,
 					FClearValueBinding::None,
-					/* InFlags = */ TexCreate_None,
-					/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
-					/* bInForceSeparateTargetAndShaderResource = */ false);
+					TexCreate_ShaderResource | TexCreate_UAV);
 
 				ResolvedProbeIndexes = GraphBuilder.CreateTexture(Desc, TEXT("ProbeHierarchy.Occlusion.ProbeIndexes"));
 			}
 
 			{
-				FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
+				FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
 					SceneBufferExtent,
 					PF_R16F,
 					FClearValueBinding::None,
-					/* InFlags = */ TexCreate_None,
-					/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
-					/* bInForceSeparateTargetAndShaderResource = */ false);
+					TexCreate_ShaderResource | TexCreate_UAV);
 
 				IndirectLightingProbeOcclusionParameters.ProbeOcclusionDistanceTexture = 
 					GraphBuilder.CreateTexture(Desc, TEXT("ProbeHierarchy.Occlusion.Distance"));
@@ -1392,7 +1368,6 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 			PassParameters->CommonProbeDenoiserParameters = CommonProbeDenoiserParameters;
 			PassParameters->HierarchyParameters = ProbeHierachyParameters;
 			PassParameters->SceneTextures = CommonParameters.SceneTextures;
-			SetupSceneTextureSamplers(&PassParameters->SceneTextureSamplers);
 			PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 			PassParameters->GlobalEmitTileClassificationOffset = ProbeOcclusionParameters.GlobalEmitTileClassificationOffset;
 			PassParameters->ProbePerResolveTiles = GraphBuilder.CreateSRV(ProbeListsPerResolveTile[0]);
@@ -1425,13 +1400,11 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 			{
 				// Allocate compressed data.
 				{
-					FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
+					FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
 						SceneBufferExtent,
 						PF_R16F,
 						FClearValueBinding::None,
-						/* InFlags = */ TexCreate_None,
-						/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
-						/* bInForceSeparateTargetAndShaderResource = */ false);
+						TexCreate_ShaderResource | TexCreate_UAV);
 
 					IndirectLightingProbeOcclusionParameters.CompressedDepthTexture = GraphBuilder.CreateTexture(Desc, TEXT("ProbeHierarchy.CompressedDepth"));
 				
@@ -1444,13 +1417,11 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 
 				// Allocate tile classification
 				{
-					FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
+					FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
 						TileClassificationExtent,
 						PF_R8_UINT,
 						FClearValueBinding::None,
-						/* InFlags = */ TexCreate_None,
-						/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
-						/* bInForceSeparateTargetAndShaderResource = */ false);
+						TexCreate_ShaderResource | TexCreate_UAV);
 
 					TileClassificationTexture = GraphBuilder.CreateTexture(Desc, TEXT("ProbeHierarchy.Occlusion.Classification"));
 				}
@@ -1460,13 +1431,11 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 					AtomicTileCount = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), kTracingClassificationTileSize * 8);
 					AtomicTileExtent = FIntPoint::DivideAndRoundUp(SceneBufferExtent, kTracingClassificationTileSize * 8);
 
-					FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
+					FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
 						FIntPoint(AtomicTileExtent.X, AtomicTileExtent.Y * int32(EProbeOcclusionClassification::MAX)),
 						PF_R32_UINT,
 						FClearValueBinding::None,
-						/* InFlags = */ TexCreate_None,
-						/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
-						/* bInForceSeparateTargetAndShaderResource = */ false);
+						TexCreate_ShaderResource | TexCreate_UAV);
 
 					AtomicTileCountersTexture = GraphBuilder.CreateTexture(Desc, TEXT("ProbeHierarchy.Occlusion.AtomicTileCounters"));
 				}
@@ -1474,7 +1443,6 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 				FProbeOcclusionTileClassificationCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FProbeOcclusionTileClassificationCS::FParameters>();
 				PassParameters->CommonProbeDenoiserParameters = CommonProbeDenoiserParameters;
 				PassParameters->SceneTextures = CommonParameters.SceneTextures;
-				SetupSceneTextureSamplers(&PassParameters->SceneTextureSamplers);
 				PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 				PassParameters->AtomicTileExtent = AtomicTileExtent;
 				PassParameters->AdditionalSpecularRayThreshold = CVarAdditionalSpecularRayThreshold.GetValueOnRenderThread();
@@ -1504,13 +1472,11 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 			FRDGBufferRef GlobalClassificationCountersBuffer = nullptr;
 			{
 				{
-					FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
+					FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
 						FIntPoint(AtomicTileExtent.X, AtomicTileExtent.Y * int32(EProbeOcclusionClassification::MAX)),
 						PF_R32_UINT,
 						FClearValueBinding::None,
-						/* InFlags = */ TexCreate_None,
-						/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
-						/* bInForceSeparateTargetAndShaderResource = */ false);
+						TexCreate_ShaderResource | TexCreate_UAV);
 
 					AtomicTileOffsetsTexture = GraphBuilder.CreateTexture(Desc, TEXT("ProbeHierarchy.Occlusion.AtomicTileOffsets"));
 				}
@@ -1585,13 +1551,11 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 
 		// Allocate input for screen space denoiser.
 		{
-			FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
+			FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
 				SceneBufferExtent,
 				PF_FloatR11G11B10,
 				FClearValueBinding::None,
-				/* InFlags = */ TexCreate_None,
-				/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
-				/* bInForceSeparateTargetAndShaderResource = */ false);
+				TexCreate_ShaderResource | TexCreate_UAV);
 
 			IndirectLightingProbeOcclusionParameters.DiffuseLighting = GraphBuilder.CreateTexture(Desc, TEXT("ProbeHierarchy.ResolveDiffuseIndirect"));
 			IndirectLightingProbeOcclusionParameters.SpecularLighting = GraphBuilder.CreateTexture(Desc, TEXT("ProbeHierarchy.ResolveSpecularIndirect"));
@@ -1637,7 +1601,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 				static const uint32 MaskClearColor[4] = { 0, 0, 0, 0 };
 
 				FIndirectLightingProbeOcclusionOutputParameters ProbeOcclusionOutputParameters = CreateProbeOcclusionOutputParameters(
-					GraphBuilder, IndirectLightingProbeOcclusionParameters, ERDGChildResourceFlags::None);
+					GraphBuilder, IndirectLightingProbeOcclusionParameters, ERDGUnorderedAccessViewFlags::None);
 
 				AddClearUAVPass(GraphBuilder, ProbeOcclusionOutputParameters.DiffuseLightingOutput, FLinearColor::Transparent);
 				AddClearUAVPass(GraphBuilder, ProbeOcclusionOutputParameters.DiffuseSampleMaskOutput, MaskClearColor);
@@ -1674,7 +1638,6 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 			PassParameters->CommonProbeDenoiserParameters = CommonProbeDenoiserParameters;
 			PassParameters->HierarchyParameters = ProbeHierachyParameters;
 			PassParameters->SceneTextures = CommonParameters.SceneTextures;
-			SetupSceneTextureSamplers(&PassParameters->SceneTextureSamplers);
 			PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 			PassParameters->SamplePerPixel = CommonParameters.RayCountPerPixel;
 			PassParameters->AdditionalSpecularRayThreshold = CVarAdditionalSpecularRayThreshold.GetValueOnRenderThread();
@@ -1768,15 +1731,13 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 		ProbeHierachyParameters.ProbeIndexAbscissMask = (ProbeHierachyParameters.ProbeAtlasGridSize.X / kMinAtlasGridSize) - 1;
 		ProbeHierachyParameters.ProbeIndexOrdinateShift = FMath::Log2(ProbeHierachyParameters.ProbeAtlasGridSize.X / kMinAtlasGridSize);
 
-		FRDGTextureDesc ProbeAtlasDesc = FRDGTextureDesc::Create2DDesc(
+		FRDGTextureDesc ProbeAtlasDesc = FRDGTextureDesc::Create2D(
 			FIntPoint(
 				ProbeHierachyParameters.ProbeAtlasGridSize.X * kProbeResolution * 2,
 				ProbeHierachyParameters.ProbeAtlasGridSize.Y * kProbeResolution * 3),
 			PF_FloatR11G11B10,
 			FClearValueBinding::None,
-			/* InFlags = */ TexCreate_None,
-			/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
-			/* bInForceSeparateTargetAndShaderResource = */ false);
+			TexCreate_ShaderResource | TexCreate_UAV);
 
 		IndirectLightingAtlasParameters.ProbeAtlasColor = GraphBuilder.CreateTexture(ProbeAtlasDesc, TEXT("ProbeHierarchy.ProbeAtlasColor"));
 
@@ -1867,7 +1828,6 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 		PassParameters->HierarchyParameters = ProbeHierachyParameters;
 		PassParameters->LevelParameters = LumenProbeHierarchy::GetLevelParameters(ProbeHierachyParameters, /* HierarchyLevelId = */ 0);
 		PassParameters->SceneTextures = CommonParameters.SceneTextures;
-		SetupSceneTextureSamplers(&PassParameters->SceneTextureSamplers);
 		PassParameters->CompressedDepthTexture = IndirectLightingProbeOcclusionParameters.CompressedDepthTexture;
 		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 

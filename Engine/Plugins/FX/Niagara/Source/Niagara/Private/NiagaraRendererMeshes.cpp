@@ -313,7 +313,14 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 		{
 			if (VisibilityMap & (1 << ViewIndex))
 			{
-				const FSceneView* View = Views[ViewIndex];
+				const FSceneView* View = Views[ViewIndex];				
+				
+				const bool bIsInstancedStereo = View->bIsInstancedStereoEnabled && IStereoRendering::IsStereoEyeView(*View);				
+				if (bIsInstancedStereo && !IStereoRendering::IsAPrimaryView(*View))
+				{
+					// One eye renders everything, so we can skip non-primaries
+					continue;
+				}
 
 				int32 CulledGPUCountOffset = bDoGPUCulling ? Batcher->GetGPUInstanceCounterManager().AcquireCulledEntry() : INDEX_NONE;
 
@@ -328,6 +335,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 							bDoGPUCulling ? CulledGPUCountOffset : SourceParticleData->GetGPUInstanceCountBufferOffset(),
 							IndexInfoPerSection[LODIndex][SectionIdx].Key,
 							IndexInfoPerSection[LODIndex][SectionIdx].Value,
+							bIsInstancedStereo,
 							bDoGPUCulling);
 					}
 				}
@@ -414,33 +422,55 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 					SortVarIdx = bCustomSorting ? ENiagaraMeshVFLayout::CustomSorting : ENiagaraMeshVFLayout::Position;
 					SortInfo.SortAttributeOffset = VFVariables[SortVarIdx].GetGPUOffset();
 
+					auto GetViewMatrices = [](const FSceneView& View) -> const FViewMatrices&
+					{
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-					const FSceneViewState* ViewState = View->State != nullptr ? View->State->GetConcreteViewState() : nullptr;
-					if (ViewState && ViewState->bIsFrozen && ViewState->bIsFrozenViewMatricesCached)
-					{
-						// Use the frozen view for culling so we can test that it's working
-						const FViewMatrices& Matrices = ViewState->CachedViewMatrices;
-						SortInfo.ViewOrigin = Matrices.GetViewOrigin();
-						SortInfo.ViewDirection = Matrices.GetViewMatrix().GetColumn(2);
-
-						if (bEnableFrustumCulling)
+						const FSceneViewState* ViewState = View.State != nullptr ? View.State->GetConcreteViewState() : nullptr;
+						if (ViewState && ViewState->bIsFrozen && ViewState->bIsFrozenViewMatricesCached)
 						{
-							const FMatrix& ViewProj = Matrices.GetViewProjectionMatrix();
-							SortInfo.CullPlanes.SetNumZeroed(4);
-							ViewProj.GetFrustumLeftPlane(SortInfo.CullPlanes[0]);
-							ViewProj.GetFrustumTopPlane(SortInfo.CullPlanes[1]);
-							ViewProj.GetFrustumRightPlane(SortInfo.CullPlanes[2]);
-							ViewProj.GetFrustumBottomPlane(SortInfo.CullPlanes[3]);							
+							// Use the frozen view for culling so we can test that it's working
+							return ViewState->CachedViewMatrices;							
 						}
-					}
-					else
 #endif
+						return View.ViewMatrices;						
+					};
+
+					const FViewMatrices& ViewMatrices = GetViewMatrices(*View);					
+					SortInfo.ViewOrigin = ViewMatrices.GetViewOrigin();
+					SortInfo.ViewDirection = ViewMatrices.GetViewMatrix().GetColumn(2);
+
+					if (View->StereoPass != eSSP_FULL)
 					{
-						SortInfo.ViewOrigin = View->ViewMatrices.GetViewOrigin();
-						SortInfo.ViewDirection = View->GetViewDirection();
-						if (bEnableFrustumCulling)
+						// For VR, do distance culling and sorting from a central eye position to prevent differences between views
+						const uint32 PairedViewIdx = (ViewIndex & 1) ? (ViewIndex - 1) : (ViewIndex + 1);
+						const FSceneView* PairedView = Views[PairedViewIdx];
+						check(PairedView);
+						SortInfo.ViewOrigin = 0.5f * (SortInfo.ViewOrigin + GetViewMatrices(*PairedView).GetViewOrigin());
+					}						
+
+					if (bEnableFrustumCulling)
+					{
+						SortInfo.CullPlanes.SetNumZeroed(6);
+
+						// Gather the culling planes from the view projection matrix
+						const FMatrix& ViewProj = ViewMatrices.GetViewProjectionMatrix();
+						ViewProj.GetFrustumNearPlane(SortInfo.CullPlanes[0]);
+						ViewProj.GetFrustumFarPlane(SortInfo.CullPlanes[1]);
+						ViewProj.GetFrustumTopPlane(SortInfo.CullPlanes[2]);
+						ViewProj.GetFrustumBottomPlane(SortInfo.CullPlanes[3]);
+
+						ViewProj.GetFrustumLeftPlane(SortInfo.CullPlanes[4]);
+						if (bIsInstancedStereo)
 						{
-							SortInfo.CullPlanes = View->ViewFrustum.Planes;
+							// For Instanced Stereo, cull using an extended frustum that encompasses both eyes
+							ensure(View->StereoPass == eSSP_LEFT_EYE); // Sanity check that the primary eye is the left
+							const FSceneView* RightEyeView = Views[ViewIndex + 1];
+							check(RightEyeView);
+							GetViewMatrices(*RightEyeView).GetViewProjectionMatrix().GetFrustumRightPlane(SortInfo.CullPlanes[5]);
+						}
+						else
+						{
+							ViewProj.GetFrustumRightPlane(SortInfo.CullPlanes[5]);
 						}
 					}
 
@@ -876,7 +906,7 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 		DispatchComputeShader(RHICmdList, GPURayTracingTransformsCS, NGroups, 1, 1);
 		GPURayTracingTransformsCS->UnbindBuffers(RHICmdList);
 
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, InstanceGPUTransformsBuffer.UAV);
+		RHICmdList.Transition(FRHITransitionInfo(InstanceGPUTransformsBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute));
 	}
 
 	RayTracingInstance.BuildInstanceMaskAndFlags();

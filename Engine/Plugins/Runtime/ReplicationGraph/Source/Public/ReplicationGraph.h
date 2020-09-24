@@ -125,8 +125,8 @@ public:
 		KeepOrder,		// Use slower removal but keep the node order intact
 	};
 
-	/** Remove a child node from our list and flag it for destruction */
-	void RemoveChildNode(UReplicationGraphNode* OutChildNode, UReplicationGraphNode::NodeOrdering NodeOrder=UReplicationGraphNode::NodeOrdering::IgnoreOrdering);
+	/** Remove a child node from our list and flag it for destruction. Returns if the node was found or not */
+	bool RemoveChildNode(UReplicationGraphNode* OutChildNode, UReplicationGraphNode::NodeOrdering NodeOrder=UReplicationGraphNode::NodeOrdering::IgnoreOrdering);
 
 	/** Remove all null and about to be destroyed nodes from our list */
 	void CleanChildNodes(UReplicationGraphNode::NodeOrdering NodeOrder);
@@ -445,7 +445,20 @@ public:
 
 private:
 
-	TMap<UNetReplicationGraphConnection*, UReplicationGraphNode_ConnectionDormancyNode*> ConnectionNodes;
+	/** Function called on every ConnectionDormancyNode in our list */
+	typedef TFunction<void(UReplicationGraphNode_ConnectionDormancyNode*)> FConnectionDormancyNodeFunction;
+
+	/**
+	 * Iterates over all ConnectionDormancyNodes and calls the function on those still valid.
+	 * If a RepGraphConnection was torn down since the last iteration, it removes and destroys the ConnectionDormancyNode associated with the Connection.
+	 */
+	void CallFunctionOnValidConnectionNodes(FConnectionDormancyNodeFunction Function);
+
+private:
+
+	typedef TObjectKey<UNetReplicationGraphConnection> FRepGraphConnectionKey;
+	typedef TSortedMap<FRepGraphConnectionKey, UReplicationGraphNode_ConnectionDormancyNode*> FConnectionDormancyNodeMap;
+	FConnectionDormancyNodeMap ConnectionNodes;
 };
 
 UCLASS()

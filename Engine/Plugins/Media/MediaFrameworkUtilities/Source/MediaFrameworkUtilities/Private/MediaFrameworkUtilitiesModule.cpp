@@ -17,10 +17,16 @@
 #endif //WITH_EDITOR
 
 
-
 DEFINE_LOG_CATEGORY(LogMediaFrameworkUtilities);
 
 #define LOCTEXT_NAMESPACE "MediaFrameworkUtilities"
+
+static TAutoConsoleVariable<FString> CVarMediaUtilsStartupProfile(
+	TEXT("MediaUtils.StartupProfile"),
+	TEXT(""),
+	TEXT("Startup Media Profile\n"),
+	ECVF_ReadOnly
+);
 
 /**
  * Implements the MediaFrameworkUtilitiesModule module.
@@ -94,10 +100,34 @@ class FMediaFrameworkUtilitiesModule : public IMediaFrameworkUtilitiesModule
 		{
 			UMediaProfile* MediaProfile = nullptr;
 
+			// Try to load from CVar
+			{
+				const FString MediaProfileName = CVarMediaUtilsStartupProfile.GetValueOnGameThread();
+
+				if (MediaProfileName.Len())
+				{
+					if (UObject* Object = StaticLoadObject(UMediaProfile::StaticClass(), nullptr, *MediaProfileName))
+					{
+						MediaProfile = CastChecked<UMediaProfile>(Object);
+					}
+
+					if (MediaProfile)
+					{
+						UE_LOG(LogMediaFrameworkUtilities, Display,
+							TEXT("Loading Media Profile specified in CVar MediaUtils.StartupProfile: '%s'"), *MediaProfileName);
+					}
+				}
+			}
+
 #if WITH_EDITOR
-			MediaProfile = GetDefault<UMediaProfileEditorSettings>()->GetUserMediaProfile();
+			// Try to load from User Settings
+			if (MediaProfile == nullptr)
+			{
+				MediaProfile = GetDefault<UMediaProfileEditorSettings>()->GetUserMediaProfile();
+			}
 #endif
 
+			// Try to load from Game Settings
 			if (MediaProfile == nullptr)
 			{
 				MediaProfile = GetDefault<UMediaProfileSettings>()->GetStartupMediaProfile();

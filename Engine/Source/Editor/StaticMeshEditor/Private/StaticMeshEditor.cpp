@@ -202,6 +202,8 @@ void FStaticMeshEditor::InitEditorForStaticMesh(UStaticMesh* ObjectToEdit)
 
 void FStaticMeshEditor::InitStaticMeshEditor( const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UStaticMesh* ObjectToEdit )
 {
+	InitEditorForStaticMesh(ObjectToEdit);
+
 	TSharedRef<FTabManager::FStack> ExtentionTabStack(
 		FTabManager::NewStack()
 		->SetSizeCoefficient(0.3f)

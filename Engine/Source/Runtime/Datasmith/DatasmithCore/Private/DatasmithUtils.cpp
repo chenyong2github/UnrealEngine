@@ -1,12 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "DatasmithUtils.h"
 
+#include "DatasmithCore.h"
 #include "DatasmithDefinitions.h"
+#include "DatasmithAnimationElements.h"
+#include "DatasmithMaterialElements.h"
 #include "DatasmithMesh.h"
 #include "DatasmithSceneFactory.h"
+#include "DatasmithVariantElements.h"
 #include "IDatasmithSceneElements.h"
 
 #include "HAL/FileManager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Math/UnrealMath.h"
 #include "Misc/EngineVersion.h"
 #include "Misc/Paths.h"
@@ -145,6 +150,12 @@ void FDatasmithUtils::GetCleanFilenameAndExtension(const FString& InFilePath, FS
 		BaseFile = OutFilename;
 		BaseFile.Split(TEXT("."), &OutFilename, &OutExtension, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
 		OutExtension = OutExtension + TEXT(".*");
+		return;
+	}
+
+	if (OutExtension.IsEmpty())
+	{
+		OutFilename = BaseFile;
 	}
 }
 
@@ -646,6 +657,775 @@ bool FDatasmithSceneUtils::IsPostProcessUsedInScene(const TSharedPtr<IDatasmithS
 		}
 	}
 	return false;
+}
+
+namespace DatasmithSceneUtilsImpl
+{
+	void FixIesTextures(IDatasmithScene& Scene, const TSharedPtr< IDatasmithActorElement>& InActor)
+	{
+		if (InActor->IsA(EDatasmithElementType::Light))
+		{
+			TSharedPtr<IDatasmithLightActorElement> LightActor = StaticCastSharedPtr< IDatasmithLightActorElement >(InActor);
+
+			FString IESFilePath(LightActor->GetIesFile());
+
+			if (!IESFilePath.IsEmpty() && FCString::Strlen(LightActor->GetIesTexturePathName()) == 0)
+			{
+				FString TextureName = FDatasmithUtils::SanitizeObjectName(FPaths::GetBaseFilename(IESFilePath) + TEXT("_IES"));
+				TSharedPtr<IDatasmithTextureElement> TexturePtr;
+
+				for (int32 Index = 0; Index < Scene.GetTexturesCount(); ++Index)
+				{
+					if (TextureName.Equals(Scene.GetTexture(Index)->GetName()))
+					{
+						TexturePtr = Scene.GetTexture(Index);
+						break;
+					}
+				}
+
+				if(!TexturePtr.IsValid())
+				{
+					// Create a Datasmith texture element.
+					TexturePtr = FDatasmithSceneFactory::CreateTexture(*TextureName);
+
+					// Set the texture label used in the Unreal UI.
+					TexturePtr->SetLabel(*TextureName);
+
+					// Set the Datasmith texture mode.
+					TexturePtr->SetTextureMode(EDatasmithTextureMode::Ies);
+
+					// Set the Datasmith texture file path.
+					TexturePtr->SetFile(*IESFilePath);
+
+					// Add the texture to the Datasmith scene.
+					Scene.AddTexture(TexturePtr);
+				}
+
+				// The Datasmith light is controlled by a IES definition file.
+				LightActor->SetUseIes(true);
+
+				// Set the IES definition file path of the Datasmith light.
+				LightActor->SetIesTexturePathName(TexturePtr->GetName());
+				LightActor->SetIesFile(TEXT(""));
+			}
+		}
+
+		int32 ChildrenCount = InActor->GetChildrenCount();
+		for (int32 i = 0; i < ChildrenCount; ++i)
+		{
+			FixIesTextures(Scene, InActor->GetChild(i));
+		}
+	}
+
+	EDatasmithTextureMode GetTextureModeFromPropertyName(const FString& PropertyName)
+	{
+		if (PropertyName.Find(TEXT("BUMP")) != INDEX_NONE)
+		{
+			return EDatasmithTextureMode::Bump;
+		}
+		else if (PropertyName.Find(TEXT("SPECULAR")) != INDEX_NONE)
+		{
+			return EDatasmithTextureMode::Specular;
+		}
+		else if (PropertyName.Find(TEXT("NORMAL")) != INDEX_NONE)
+		{
+			return EDatasmithTextureMode::Normal;
+		}
+
+		return EDatasmithTextureMode::Diffuse;
+	};
+
+	void CheckMasterMaterialTextures( IDatasmithScene& Scene )
+	{
+		TSet<FString> ProcessedTextures;
+
+		IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+
+
+		for( int32 MaterialIndex = 0; MaterialIndex < Scene.GetMaterialsCount(); ++MaterialIndex )
+		{
+			const TSharedPtr< IDatasmithBaseMaterialElement >& BaseMaterial = Scene.GetMaterial( MaterialIndex );
+
+			if ( BaseMaterial->IsA( EDatasmithElementType::MasterMaterial ) )
+			{
+				const TSharedPtr< IDatasmithMasterMaterialElement >& Material = StaticCastSharedPtr< IDatasmithMasterMaterialElement >( BaseMaterial );
+
+				for ( int32 i = 0; i < Material->GetPropertiesCount(); ++i )
+				{
+					TSharedPtr< IDatasmithKeyValueProperty > Property = Material->GetProperty(i);
+
+					if (Property->GetPropertyType() == EDatasmithKeyValuePropertyType::Texture && FCString::Strlen(Property->GetValue()) > 0)
+					{
+						FString TexturePathName = Property->GetValue();
+
+						// If TexturePathName is a path to a file on disk
+						if (TexturePathName[0] != '/' && PlatformFile.FileExists( *TexturePathName ))
+						{
+							// Add TextureElement associated to TexturePathName if it has not been yet
+							if (ProcessedTextures.Find(TexturePathName) == nullptr)
+							{
+
+								TSharedPtr< IDatasmithTextureElement > TextureElement = FDatasmithSceneFactory::CreateTexture(*FPaths::GetBaseFilename(TexturePathName));
+
+								TextureElement->SetTextureMode( GetTextureModeFromPropertyName(Property->GetName()) );
+								TextureElement->SetFile( *TexturePathName );
+
+								Scene.AddTexture( TextureElement );
+
+								ProcessedTextures.Add(TexturePathName);
+							}
+
+							Property->SetValue( *FPaths::GetBaseFilename(TexturePathName) );
+						}
+					}
+				}
+			}
+		}
+	}
+
+	void CleanUpEnvironments( TSharedPtr<IDatasmithScene> Scene )
+	{
+		// Remove unsupported environments
+		for (int32 Index = Scene->GetActorsCount() - 1; Index >= 0; --Index)
+		{
+			if ( Scene->GetActor(Index)->IsA( EDatasmithElementType::EnvironmentLight ) )
+			{
+				TSharedPtr< IDatasmithEnvironmentElement > EnvironmentElement = StaticCastSharedPtr< IDatasmithEnvironmentElement >( Scene->GetActor(Index) );
+
+				if ( EnvironmentElement->GetEnvironmentComp()->GetMode() != EDatasmithCompMode::Regular || EnvironmentElement->GetEnvironmentComp()->GetParamSurfacesCount() != 1 )
+				{
+					UE_LOG(LogDatasmith, Warning, TEXT("Environment %s removed because it is not supported yet"), EnvironmentElement->GetName());
+					Scene->RemoveActor( EnvironmentElement, EDatasmithActorRemovalRule::RemoveChildren );
+				}
+				else if ( !EnvironmentElement->GetEnvironmentComp()->GetUseTexture(0) )
+				{
+					UE_LOG(LogDatasmith, Warning, TEXT("Environment %s removed because it is not supported yet"), EnvironmentElement->GetName());
+					Scene->RemoveActor( EnvironmentElement, EDatasmithActorRemovalRule::RemoveChildren );
+				}
+			}
+		}
+
+		// Keep only one environment with an illumination map and without
+		for ( int32 Index = Scene->GetActorsCount() - 1; Index >= 0; --Index )
+		{
+			if ( Scene->GetActor(Index)->IsA( EDatasmithElementType::EnvironmentLight ) )
+			{
+				TSharedPtr< IDatasmithEnvironmentElement > EnvironmentElement = StaticCastSharedPtr< IDatasmithEnvironmentElement >( Scene->GetActor(Index) );
+
+				bool bIsIlluminationMap = EnvironmentElement->GetIsIlluminationMap();
+
+				bool bIsADuplicate = false;
+				for ( int32 PastIndex = 0; PastIndex < Index; ++PastIndex )
+				{
+					if (Scene->GetActor(PastIndex)->IsA(EDatasmithElementType::EnvironmentLight))
+					{
+						TSharedPtr< IDatasmithEnvironmentElement > PreviousEnvElement = StaticCastSharedPtr< IDatasmithEnvironmentElement >( Scene->GetActor(PastIndex) );
+						if (PreviousEnvElement->GetIsIlluminationMap() == bIsIlluminationMap)
+						{
+							bIsADuplicate = true;
+							break;
+						}
+					}
+				}
+
+				if ( bIsADuplicate )
+				{
+					UE_LOG(LogDatasmith, Warning, TEXT("Environment %s removed because only one environment of its type is supported"), EnvironmentElement->GetName());
+					Scene->RemoveActor( EnvironmentElement, EDatasmithActorRemovalRule::RemoveChildren );
+				}
+			}
+		}
+	}
+
+	const FString TexturePrefix( TEXT( "Texture." ) );
+	const FString MaterialPrefix( TEXT( "Material." ) );
+	const FString MeshPrefix( TEXT( "Mesh." ) );
+
+	struct FDatasmithSceneCleaner
+	{
+		TSet<TSharedPtr<IDatasmithMeshElement>> ReferencedMeshes;
+		TSet<TSharedPtr<IDatasmithBaseMaterialElement>> ReferencedMaterials;
+		TSet<TSharedPtr<IDatasmithBaseMaterialElement>> FunctionMaterials;
+		TSet<FString> ReferencedTextures;
+		TSet<FString> ActorsInScene;
+
+		TMap<FString, TSharedPtr<IDatasmithElement>> AssetElementMapping;
+
+		TSharedPtr<IDatasmithScene> Scene;
+
+		FDatasmithSceneCleaner(TSharedPtr<IDatasmithScene> InScene)
+			: Scene(InScene)
+		{
+		}
+
+		void ScanMaterialIDElement(const IDatasmithMaterialIDElement* MaterialIDElement)
+		{
+			if (MaterialIDElement)
+			{
+				if (TSharedPtr<IDatasmithElement>* MaterialElementPtr = AssetElementMapping.Find(MaterialPrefix + MaterialIDElement->GetName()))
+				{
+					TSharedPtr<IDatasmithBaseMaterialElement> MaterialElement = StaticCastSharedPtr<IDatasmithBaseMaterialElement>(*MaterialElementPtr);
+
+					ReferencedMaterials.Add(MaterialElement);
+				}
+			}
+		}
+
+		void ScanMeshActorElement(IDatasmithMeshActorElement* MeshActorElement)
+		{
+			if (FCString::Strlen(MeshActorElement->GetStaticMeshPathName()) == 0)
+			{
+				return;
+			}
+
+			FString StaticMeshPathName(MeshActorElement->GetStaticMeshPathName());
+
+			// If mesh actor refers to a UE asset, nothing to do
+			if (StaticMeshPathName[0] == '/')
+			{
+				return;
+			}
+
+			if (TSharedPtr<IDatasmithElement>* MeshElementPtr = AssetElementMapping.Find(MeshPrefix + StaticMeshPathName))
+			{
+				TSharedPtr<IDatasmithMeshElement> MeshElement = StaticCastSharedPtr<IDatasmithMeshElement>(*MeshElementPtr);
+
+				ReferencedMeshes.Add(MeshElement);
+
+				for (int32 Index = 0; Index < MeshActorElement->GetMaterialOverridesCount(); ++Index)
+				{
+					ScanMaterialIDElement( MeshActorElement->GetMaterialOverride(Index).Get() );
+				}
+			}
+		}
+
+		void ScanLightActorElement(IDatasmithLightActorElement* LightActorElement)
+		{
+			if (LightActorElement->GetUseIes() && FCString::Strlen(LightActorElement->GetIesTexturePathName()) > 0)
+			{
+				FString TexturePathName(LightActorElement->GetIesTexturePathName());
+
+				if (TexturePathName[0] != '/')
+				{
+					if (TSharedPtr<IDatasmithElement>* TextureElementPtr = AssetElementMapping.Find(TexturePrefix + TexturePathName))
+					{
+						ReferencedTextures.Add((*TextureElementPtr)->GetName());
+					}
+				}
+			}
+
+			ScanMaterialIDElement( LightActorElement->GetLightFunctionMaterial().Get() );
+		}
+
+		void ParseSceneActor( const TSharedPtr<IDatasmithActorElement>& ActorElement )
+		{
+			if (!ActorElement.IsValid())
+			{
+				return;
+			}
+
+			ActorsInScene.Add(ActorElement->GetName());
+
+			if (ActorElement->IsA(EDatasmithElementType::StaticMeshActor))
+			{
+				ScanMeshActorElement(static_cast<IDatasmithMeshActorElement*>(ActorElement.Get()));
+			}
+			else if (ActorElement->IsA(EDatasmithElementType::Light))
+			{
+				ScanLightActorElement(static_cast<IDatasmithLightActorElement*>(ActorElement.Get()));
+			}
+
+			for (int32 Index = 0; Index < ActorElement->GetChildrenCount(); ++Index)
+			{
+				ParseSceneActor( ActorElement->GetChild(Index) );
+			}
+		}
+
+		void ScanMeshElement(TSharedPtr<IDatasmithMeshElement >& MeshElement)
+		{
+			for (int32 Index = 0; Index < MeshElement->GetMaterialSlotCount(); Index++)
+			{
+				ScanMaterialIDElement( MeshElement->GetMaterialSlotAt(Index).Get() );
+			}
+		}
+
+		void ScanMasterMaterialElement(IDatasmithMasterMaterialElement* MaterialElement)
+		{
+			for ( int32 Index = 0; Index < MaterialElement->GetPropertiesCount(); ++Index )
+			{
+				TSharedPtr< IDatasmithKeyValueProperty > Property = MaterialElement->GetProperty(Index);
+
+				if (Property->GetPropertyType() == EDatasmithKeyValuePropertyType::Texture && FCString::Strlen(Property->GetValue()) > 0)
+				{
+					FString TexturePathName = Property->GetValue();
+
+					if (TexturePathName[0] != '/')
+					{
+						ReferencedTextures.Add(TexturePathName);
+					}
+				}
+			}
+		}
+
+		void ScanPbrMaterialElement(IDatasmithUEPbrMaterialElement* MaterialElement)
+		{
+			TFunction<void(IDatasmithMaterialExpression*)> ParseExpressionElement;
+			ParseExpressionElement = [this, &ParseExpressionElement](IDatasmithMaterialExpression* ExpressionElement) -> void
+			{
+				if (ExpressionElement)
+				{
+					if (ExpressionElement->IsA(EDatasmithMaterialExpressionType::Texture))
+					{
+						const IDatasmithMaterialExpressionTexture* TextureExpression = static_cast<IDatasmithMaterialExpressionTexture*>(ExpressionElement);
+						if (FCString::Strlen(TextureExpression->GetTexturePathName()) > 0)
+						{
+							FString TexturePathName(TextureExpression->GetTexturePathName());
+							if (TexturePathName[0] != '/')
+							{
+								this->ReferencedTextures.Add(TexturePathName);
+							}
+						}
+					}
+					else if (ExpressionElement->IsA(EDatasmithMaterialExpressionType::Generic))
+					{
+						const IDatasmithMaterialExpressionGeneric* GenericExpression = static_cast<IDatasmithMaterialExpressionGeneric*>(ExpressionElement);
+
+						for ( int32 PropertyIndex = 0; PropertyIndex < GenericExpression->GetPropertiesCount(); ++PropertyIndex )
+						{
+							if ( const TSharedPtr< IDatasmithKeyValueProperty >& Property = GenericExpression->GetProperty( PropertyIndex ) )
+							{
+								if ( Property->GetPropertyType() == EDatasmithKeyValuePropertyType::Texture )
+								{
+									this->ReferencedTextures.Add( Property->GetValue() );
+								}
+							}
+						}
+					}
+					else if (ExpressionElement->IsA(EDatasmithMaterialExpressionType::FunctionCall))
+					{
+						const IDatasmithMaterialExpressionFunctionCall* FunctionExpression = static_cast<IDatasmithMaterialExpressionFunctionCall*>(ExpressionElement);
+						if (FCString::Strlen(FunctionExpression->GetFunctionPathName()) > 0)
+						{
+							FString FunctionPathName(FunctionExpression->GetFunctionPathName());
+							if (FunctionPathName[0] != '/')
+							{
+								if (TSharedPtr<IDatasmithElement>* MaterialElementPtr = this->AssetElementMapping.Find(MaterialPrefix + FunctionPathName))
+								{
+									TSharedPtr<IDatasmithBaseMaterialElement> MaterialElement = StaticCastSharedPtr<IDatasmithBaseMaterialElement>(*MaterialElementPtr);
+
+									this->ReferencedMaterials.Add(MaterialElement);
+									this->ScanPbrMaterialElement(static_cast< IDatasmithUEPbrMaterialElement* >( MaterialElement.Get() ));
+								}
+							}
+						}
+					}
+
+					for (int32 InputIndex = 0; InputIndex < ExpressionElement->GetInputCount(); ++InputIndex)
+					{
+						ParseExpressionElement(ExpressionElement->GetInput(InputIndex)->GetExpression());
+					}
+				}
+			};
+
+			ParseExpressionElement(MaterialElement->GetBaseColor().GetExpression());
+			ParseExpressionElement(MaterialElement->GetSpecular().GetExpression());
+			ParseExpressionElement(MaterialElement->GetNormal().GetExpression());
+			ParseExpressionElement(MaterialElement->GetMetallic().GetExpression());
+			ParseExpressionElement(MaterialElement->GetRoughness().GetExpression());
+			ParseExpressionElement(MaterialElement->GetEmissiveColor().GetExpression());
+			ParseExpressionElement(MaterialElement->GetRefraction().GetExpression());
+			ParseExpressionElement(MaterialElement->GetAmbientOcclusion().GetExpression());
+			ParseExpressionElement(MaterialElement->GetOpacity().GetExpression());
+			ParseExpressionElement(MaterialElement->GetWorldDisplacement().GetExpression());
+
+			if ( MaterialElement->GetUseMaterialAttributes() )
+			{
+				ParseExpressionElement(MaterialElement->GetMaterialAttributes().GetExpression());
+			}			
+		}
+
+		void ScanCompositeTexture( IDatasmithCompositeTexture* CompositeTexture )
+		{
+			if ( !CompositeTexture )
+			{
+				return;
+			}
+
+			for (int32 i = 0; i < CompositeTexture->GetParamSurfacesCount(); ++i)
+			{
+				const FString Texture = CompositeTexture->GetParamTexture(i);
+
+				if ( !Texture.IsEmpty() && Algo::Find( ReferencedTextures, Texture ) == nullptr )
+				{
+					this->ReferencedTextures.Add( Texture );
+					this->ReferencedTextures.Add( Texture + TEXT("_Tex") );
+				}
+			}
+
+			for (int32 i = 0; i < CompositeTexture->GetParamMaskSurfacesCount(); i++)
+			{
+				ScanCompositeTexture( CompositeTexture->GetParamMaskSubComposite(i).Get() );
+			}
+
+			for (int32 i = 0; i < CompositeTexture->GetParamSurfacesCount(); i++)
+			{
+				ScanCompositeTexture( CompositeTexture->GetParamSubComposite(i).Get() );
+			}
+		};
+
+		void ScanLegacyMaterialElement(IDatasmithMaterialElement* MaterialElement)
+		{
+			if ( !MaterialElement )
+			{
+				return;
+			}
+
+			for (int32 j = 0; j < MaterialElement->GetShadersCount(); ++j )
+			{
+				if ( const TSharedPtr< IDatasmithShaderElement >& Shader = MaterialElement->GetShader(j) )
+				{
+					ScanCompositeTexture( Shader->GetDiffuseComp().Get() );
+					ScanCompositeTexture( Shader->GetRefleComp().Get() );
+					ScanCompositeTexture( Shader->GetRoughnessComp().Get() );
+					ScanCompositeTexture( Shader->GetNormalComp().Get() );
+					ScanCompositeTexture( Shader->GetBumpComp().Get() );
+					ScanCompositeTexture( Shader->GetTransComp().Get() );
+					ScanCompositeTexture( Shader->GetMaskComp().Get() );
+					ScanCompositeTexture( Shader->GetDisplaceComp().Get() );
+					ScanCompositeTexture( Shader->GetMetalComp().Get() );
+					ScanCompositeTexture( Shader->GetEmitComp().Get() );
+					ScanCompositeTexture( Shader->GetWeightComp().Get() );
+				}
+			}
+		}
+
+		void Initialize()
+		{
+			int32 AssetElementCount = Scene->GetTexturesCount() + Scene->GetMaterialsCount() +
+				Scene->GetMeshesCount() + Scene->GetLevelSequencesCount();
+
+			AssetElementMapping.Reserve( AssetElementCount );
+
+			TFunction<void(TSharedPtr<IDatasmithElement>&&, const FString&)> AddAsset;
+			AddAsset = [this](TSharedPtr<IDatasmithElement>&& InElementPtr, const FString& AssetPrefix) -> void
+			{
+				AssetElementMapping.Add(AssetPrefix + InElementPtr->GetName(), MoveTemp(InElementPtr));
+			};
+
+			for (int32 Index = 0; Index < Scene->GetTexturesCount(); ++Index)
+			{
+				AddAsset(Scene->GetTexture(Index), TexturePrefix);
+			}
+
+			for (int32 Index = 0; Index < Scene->GetMaterialsCount(); ++Index)
+			{
+				AddAsset(Scene->GetMaterial(Index), MaterialPrefix);
+			}
+
+			for (int32 Index = 0; Index < Scene->GetMeshesCount(); ++Index)
+			{
+				AddAsset(Scene->GetMesh(Index), MeshPrefix);
+			}
+		}
+
+		void Clean()
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithSceneCleaner::Clean);
+
+			Initialize();
+
+			for (int32 Index = 0; Index < Scene->GetActorsCount(); ++Index)
+			{
+				ParseSceneActor( Scene->GetActor(Index) );
+			}
+
+			for (TSharedPtr<IDatasmithMeshElement >& MeshElement : ReferencedMeshes)
+			{
+				ScanMeshElement(MeshElement);
+			}
+
+			TSet< TSharedPtr<IDatasmithBaseMaterialElement > > CopyOfReferencedMaterials = ReferencedMaterials; // We might discover more referenced materials so iterate on a copy of the set
+			for (TSharedPtr<IDatasmithBaseMaterialElement >& MaterialElement : CopyOfReferencedMaterials)
+			{
+				if ( MaterialElement->IsA( EDatasmithElementType::UEPbrMaterial ) )
+				{
+					ScanPbrMaterialElement(static_cast< IDatasmithUEPbrMaterialElement* >( MaterialElement.Get() ));
+				}
+				else if ( MaterialElement->IsA( EDatasmithElementType::MasterMaterial ) )
+				{
+					ScanMasterMaterialElement(static_cast< IDatasmithMasterMaterialElement* >( MaterialElement.Get() ));
+				}
+				else if ( MaterialElement->IsA( EDatasmithElementType::Material ) )
+				{
+					ScanLegacyMaterialElement(static_cast< IDatasmithMaterialElement* >( MaterialElement.Get() ));
+				}
+			}
+
+			for ( int32 ActorIndex = 0; ActorIndex < Scene->GetActorsCount(); ++ActorIndex )
+			{
+				const TSharedPtr< IDatasmithActorElement >& Actor = Scene->GetActor( ActorIndex );
+
+				if ( Actor->IsA( EDatasmithElementType::EnvironmentLight ) )
+				{
+					if ( TSharedPtr< IDatasmithEnvironmentElement > EnvironmentElement = StaticCastSharedPtr< IDatasmithEnvironmentElement >( Actor ) )
+					{
+						ScanCompositeTexture( EnvironmentElement->GetEnvironmentComp().Get() );
+					}
+				}
+			}
+
+			for (int32 Index = Scene->GetMeshesCount() - 1; Index >= 0; --Index)
+			{
+				const TSharedPtr< IDatasmithMeshElement >& MeshElement = Scene->GetMesh(Index);
+				if ( !ReferencedMeshes.Contains(MeshElement) )
+				{
+					UE_LOG(LogDatasmith, Warning, TEXT("Mesh element %s removed because it is unused"), MeshElement->GetName());
+					Scene->RemoveMesh(MeshElement);
+				}
+			}
+
+			for (int32 Index = Scene->GetMaterialsCount() - 1; Index >= 0; --Index)
+			{
+				const TSharedPtr< IDatasmithBaseMaterialElement >& MaterialElement = Scene->GetMaterial(Index);
+				if ( !ReferencedMaterials.Contains(MaterialElement) )
+				{
+					UE_LOG(LogDatasmith, Warning, TEXT("Material element %s removed because it is unused"), MaterialElement->GetName());
+					Scene->RemoveMaterial(MaterialElement);
+				}
+			}
+
+			for (int32 Index = Scene->GetTexturesCount() - 1; Index >= 0; --Index)
+			{
+				const TSharedPtr< IDatasmithTextureElement >& TextureElement = Scene->GetTexture(Index);
+				if ( !ReferencedTextures.Contains(TextureElement->GetName()) )
+				{
+					UE_LOG(LogDatasmith, Warning, TEXT("Texture element %s removed because it is unused"), TextureElement->GetName());
+					Scene->RemoveTexture(TextureElement);
+				}
+			}
+
+			CleanUpLevelSequences();
+
+			// Remove variant sets referring actors which are not in the scene
+			// #ue_liveupdate: Add code to fully clean up the VariantSetsElement itself
+			for (int32 Index = Scene->GetLevelVariantSetsCount() - 1; Index >= 0; --Index)
+			{
+				TSharedPtr< IDatasmithLevelVariantSetsElement > VariantSetsElement = Scene->GetLevelVariantSets(Index);
+
+				bool bValidVariantSets = false;
+
+				for (int32 VariantSetIndex = 0; VariantSetIndex < VariantSetsElement->GetVariantSetsCount() && !bValidVariantSets; ++VariantSetIndex)
+				{
+					TSharedPtr<IDatasmithVariantSetElement> VariantSetElement = VariantSetsElement->GetVariantSet(VariantSetIndex);
+					if (!VariantSetElement)
+					{
+						continue;
+					}
+
+					for (int32 VariantIndex = 0; VariantIndex < VariantSetElement->GetVariantsCount() && !bValidVariantSets; ++VariantIndex)
+					{
+						TSharedPtr<IDatasmithVariantElement> Variant = VariantSetElement->GetVariant(VariantIndex);
+						if (!Variant)
+						{
+							continue;
+						}
+
+						for (int32 BindingIndex = 0; BindingIndex < Variant->GetActorBindingsCount() && !bValidVariantSets; ++BindingIndex)
+						{
+							TSharedPtr<IDatasmithActorBindingElement> Binding = Variant->GetActorBinding(BindingIndex);
+							if (!Binding || !Binding->GetActor())
+							{
+								continue;
+							}
+
+							bValidVariantSets = ActorsInScene.Contains(Binding->GetActor()->GetName());
+						}
+					}
+				}
+
+				if (!bValidVariantSets)
+				{
+					UE_LOG(LogDatasmith, Warning, TEXT("VariantSets element %s removed because it references no actor part of the scene"), VariantSetsElement->GetName());
+					Scene->RemoveLevelVariantSets(VariantSetsElement);
+				}
+			}
+		}
+
+		int32 OptimizeTransformFrames( const TSharedRef<IDatasmithTransformAnimationElement>& Animation, EDatasmithTransformType TransformType )
+		{
+			int32 NumFrames = Animation->GetFramesCount(TransformType);
+			if (NumFrames > 3)
+			{
+				// First pass: determine which redundant frames can be removed safely
+				TArray<int32> FramesToDelete;
+				for (int32 FrameIndex = 1; FrameIndex < NumFrames - 2; ++FrameIndex)
+				{
+					const FDatasmithTransformFrameInfo& PreviousFrameInfo = Animation->GetFrame(TransformType, FrameIndex - 1);
+					const FDatasmithTransformFrameInfo& CurrentFrameInfo = Animation->GetFrame(TransformType, FrameIndex);
+					const FDatasmithTransformFrameInfo& NextFrameInfo = Animation->GetFrame(TransformType, FrameIndex + 1);
+
+					// Remove the in-between frames that have the same transform as the previous and following frames
+					// Need to keep the frames on the boundaries of sharp transitions to avoid interpolated frames at import
+					if (CurrentFrameInfo.IsValid() && PreviousFrameInfo.IsValid() && NextFrameInfo.IsValid() && CurrentFrameInfo == PreviousFrameInfo && CurrentFrameInfo == NextFrameInfo)
+					{
+						FramesToDelete.Add(FrameIndex);
+					}
+				}
+				// Second pass: remove the frames determined in the previous pass
+				for (int32 FrameIndex = FramesToDelete.Num() - 1; FrameIndex > 0; --FrameIndex)
+				{
+					Animation->RemoveFrame(TransformType, FramesToDelete[FrameIndex]);
+				}
+			}
+			// Note that a one-frame animation could be an instantaneous state change (eg. teleport), so keep it
+			return Animation->GetFramesCount(TransformType);
+		}
+
+		void CleanUpLevelSequences()
+		{
+			int32 LevelSequencesLastIndex = Scene->GetLevelSequencesCount() - 1;
+
+			// Remove level seequences without animation
+			for (int32 SequenceIndex = LevelSequencesLastIndex; SequenceIndex >= 0; --SequenceIndex)
+			{
+				TSharedPtr< IDatasmithLevelSequenceElement > LevelSequence = Scene->GetLevelSequence(SequenceIndex);
+
+				if (!LevelSequence.IsValid())
+				{
+					continue;
+				}
+
+				int32 NumAnims = LevelSequence->GetAnimationsCount();
+				for (int32 AnimIndex = NumAnims - 1; AnimIndex >= 0; --AnimIndex)
+				{
+					TSharedPtr< IDatasmithBaseAnimationElement > Animation = LevelSequence->GetAnimation(AnimIndex);
+					if (Animation.IsValid() && Animation->IsA(EDatasmithElementType::Animation) && Animation->IsSubType((uint64)EDatasmithElementAnimationSubType::TransformAnimation))
+					{
+						const TSharedRef< IDatasmithTransformAnimationElement > TransformAnimation = StaticCastSharedRef< IDatasmithTransformAnimationElement >(Animation.ToSharedRef());
+
+						// Optimize the frames for each transform type
+						int32 NumFrames = OptimizeTransformFrames(TransformAnimation, EDatasmithTransformType::Translation);
+						NumFrames += OptimizeTransformFrames(TransformAnimation, EDatasmithTransformType::Rotation);
+						NumFrames += OptimizeTransformFrames(TransformAnimation, EDatasmithTransformType::Scale);
+
+						// Remove animation that has no frame
+						if (NumFrames == 0)
+						{
+							LevelSequence->RemoveAnimation(TransformAnimation);
+						}
+					}
+				}
+
+				if (LevelSequence->GetAnimationsCount() == 0)
+				{
+					Scene->RemoveLevelSequence(LevelSequence.ToSharedRef());
+				}
+			}
+
+			// The last valid index can change in the previous loop
+			LevelSequencesLastIndex = Scene->GetLevelSequencesCount() - 1;
+
+			// Process sequences without sub-sequence animation first
+			TSet<TSharedPtr< IDatasmithLevelSequenceElement >> ValidSequences;
+			for (int32 Index =  LevelSequencesLastIndex; Index >= 0; --Index)
+			{
+				TSharedPtr< IDatasmithLevelSequenceElement > SequenceElement = Scene->GetLevelSequence(Index);
+				bool bValidSequence = false;
+
+				const int32 NumAnimations = SequenceElement->GetAnimationsCount();
+				for (int32 AnimIndex = 0; AnimIndex < NumAnimations && !bValidSequence; ++AnimIndex)
+				{
+					TSharedPtr<IDatasmithBaseAnimationElement> AnimationElement = SequenceElement->GetAnimation(AnimIndex);
+					if (!AnimationElement)
+					{
+						continue;
+					}
+
+					if (AnimationElement->IsSubType((uint64)EDatasmithElementAnimationSubType::TransformAnimation))
+					{
+						const IDatasmithTransformAnimationElement* TransformAnimation = static_cast<IDatasmithTransformAnimationElement*>(AnimationElement.Get());
+						bValidSequence = ActorsInScene.Contains(TransformAnimation->GetName());
+					}
+					else if (AnimationElement->IsSubType((uint64)EDatasmithElementAnimationSubType::VisibilityAnimation))
+					{
+						const IDatasmithVisibilityAnimationElement* VisibilityAnimation = static_cast<IDatasmithVisibilityAnimationElement*>(AnimationElement.Get());
+						bValidSequence = ActorsInScene.Contains(VisibilityAnimation->GetName());
+					}
+				}
+
+				if (bValidSequence)
+				{
+					ValidSequences.Add(SequenceElement);
+				}
+			}
+
+			for (int32 Index = LevelSequencesLastIndex; Index >= 0; --Index)
+			{
+				TSharedPtr< IDatasmithLevelSequenceElement > SequenceElement = Scene->GetLevelSequence(Index);
+				if (ValidSequences.Contains(SequenceElement))
+				{
+					continue;
+				}
+
+				bool bValidSequence = false;
+
+				const int32 NumAnimations = SequenceElement->GetAnimationsCount();
+				for (int32 AnimIndex = 0; AnimIndex < NumAnimations && !bValidSequence; ++AnimIndex)
+				{
+					TSharedPtr<IDatasmithBaseAnimationElement> AnimationElement = SequenceElement->GetAnimation(AnimIndex);
+					if (!AnimationElement)
+					{
+						continue;
+					}
+
+					if (AnimationElement->IsSubType((uint64)EDatasmithElementAnimationSubType::TransformAnimation))
+					{
+						const IDatasmithTransformAnimationElement* TransformAnimation = static_cast<IDatasmithTransformAnimationElement*>(AnimationElement.Get());
+						bValidSequence = ActorsInScene.Contains(TransformAnimation->GetName());
+					}
+					else if (AnimationElement->IsSubType((uint64)EDatasmithElementAnimationSubType::VisibilityAnimation))
+					{
+						const IDatasmithVisibilityAnimationElement* VisibilityAnimation = static_cast<IDatasmithVisibilityAnimationElement*>(AnimationElement.Get());
+						bValidSequence = ActorsInScene.Contains(VisibilityAnimation->GetName());
+					}
+					else if (AnimationElement->IsSubType((uint64)EDatasmithElementAnimationSubType::SubsequenceAnimation))
+					{
+						TSharedRef<IDatasmithSubsequenceAnimationElement> SubsequenceAnimation = StaticCastSharedRef<IDatasmithSubsequenceAnimationElement>(AnimationElement.ToSharedRef());
+						bValidSequence = ValidSequences.Contains(SubsequenceAnimation->GetSubsequence().Pin());
+					}
+				}
+
+				if (!bValidSequence)
+				{
+					UE_LOG(LogDatasmith, Warning, TEXT("LevelSequence element %s removed because it references no actor part of the scene"), SequenceElement->GetName());
+					Scene->RemoveLevelSequence(SequenceElement.ToSharedRef());
+				}
+			}
+		}
+	};
+}
+
+void FDatasmithSceneUtils::CleanUpScene(TSharedRef<IDatasmithScene> Scene, bool bRemoveUnused)
+{
+	using namespace DatasmithSceneUtilsImpl;
+	using namespace DirectLink;
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithSceneUtils::CleanUpScene);
+
+	for (int32 Index = 0; Index < Scene->GetActorsCount(); ++Index)
+	{
+		FixIesTextures(*Scene, Scene->GetActor(Index));
+	}
+
+	CheckMasterMaterialTextures(*Scene);
+
+	CleanUpEnvironments(Scene);
+
+	if (bRemoveUnused)
+	{
+		FDatasmithSceneCleaner SceneCleaner(Scene);
+		SceneCleaner.Clean();
+	}
 }
 
 FString FDatasmithUniqueNameProviderBase::GenerateUniqueName(const FString& BaseName)

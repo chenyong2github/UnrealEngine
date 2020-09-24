@@ -939,7 +939,7 @@ namespace
 		FSoftObjectPath::AddPIEPackageName(PIEPackageFName);
 
 		uint32 LoadFlags = LOAD_None;
-		UPackage* NewPackage = CreatePackage(NULL, *PIEPackageName);
+		UPackage* NewPackage = CreatePackage( *PIEPackageName);
 		if (NewPackage != nullptr && WorldContext.WorldType == EWorldType::PIE)
 		{
 			NewPackage->SetPackageFlags(PKG_PlayInEditor);
@@ -2361,10 +2361,14 @@ void UEngine::UpdateTimecode()
 {
 	FApp::InvalidateCurrentFrameTime();
 
-	const UTimecodeProvider* Provider = GetTimecodeProvider();
-	if (Provider && Provider->GetSynchronizationState() == ETimecodeProviderSynchronizationState::Synchronized)
+	if (UTimecodeProvider* Provider = GetTimecodeProvider())
 	{
-		FApp::SetCurrentFrameTime(Provider->GetDelayedQualifiedFrameTime());
+		Provider->FetchAndUpdate();
+
+		if (Provider->GetSynchronizationState() == ETimecodeProviderSynchronizationState::Synchronized)
+		{
+			FApp::SetCurrentFrameTime(Provider->GetDelayedQualifiedFrameTime());
+		}
 	}
 }
 
@@ -3232,7 +3236,7 @@ bool UEngine::InitializeHMDDevice()
 			}
 
 			// If we found a valid XRSystem, use it to get a stereo rendering device, if available
-			if (XRSystem.IsValid())
+			if (XRSystem.IsValid() && !FParse::Param(FCommandLine::Get(), TEXT("noxrstereo")))
 			{
 				StereoRenderingDevice = XRSystem->GetStereoRenderingDevice();
 				const bool bShouldStartInVR = StereoRenderingDevice.IsValid() && (FParse::Param(FCommandLine::Get(), TEXT("vr")) || GetDefault<UGeneralProjectSettings>()->bStartInVR);
@@ -10181,17 +10185,6 @@ float DrawMapWarnings(UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanv
 	}
 #endif
 
-	static const auto CVarAnisotropicBRDF			= IConsoleManager::Get().FindConsoleVariable(TEXT("r.AnisotropicBRDF"));
-	static const auto CVarBasePassOutputVelocity	= IConsoleManager::Get().FindConsoleVariable(TEXT("r.BasePassOutputsVelocity"));
-
-	if (CVarAnisotropicBRDF && CVarBasePassOutputVelocity && CVarAnisotropicBRDF->GetInt() && CVarBasePassOutputVelocity->GetInt())
-	{
-		SmallTextItem.SetColor(FLinearColor::Red);
-		SmallTextItem.Text = LOCTEXT("AnisotropicBRDF_or_BasePassVelocity", "Anisotropic BRDF and 'output velocity during base pass' options are mutually exclusive.\nSee Project Settings (Rendering) or r.AnisotropicBRDF, r.BasePassOutputsVelocity");
-		Canvas->DrawItem(SmallTextItem, FVector2D(MessageX, MessageY));
-		MessageY += FontSizeY;
-	}
-
 	/* @todo ue4 temporarily disabled
 	AWorldSettings* WorldSettings = World->GetWorldSettings();
 	if( !WorldSettings->IsNavigationRebuilt() )
@@ -10491,6 +10484,7 @@ void DrawStatsHUD( UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanvas*
 #endif
 
 #if TRACING_PROFILER
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (FTracingProfiler::Get()->IsCapturing())
 		{
 			SmallTextItem.SetColor(FLinearColor(0.0f, 1.0f, 0.0f, 1.0f));
@@ -10501,6 +10495,7 @@ void DrawStatsHUD( UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanvas*
 			MessageY += FontSizeY;
 
 		}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 
 #if !(UE_BUILD_TEST)
@@ -15686,7 +15681,7 @@ static void SetupThreadAffinity(const TArray<FString>& Args)
 	FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
 		FSimpleDelegateGraphTask::FDelegate::CreateStatic(&SetAffinityOnThread),
 		TStatId(), NULL, ENamedThreads::GetRenderThread());
-	if (GRHIThread_InternalUseOnly)
+	if (IsRHIThreadRunning())
 	{
 		FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
 			FSimpleDelegateGraphTask::FDelegate::CreateStatic(&SetAffinityOnThread),

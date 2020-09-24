@@ -23,6 +23,11 @@ private:
 		RouteId_Class,
 		RouteId_Object,
 		RouteId_ObjectEvent,
+		RouteId_ClassPropertyStringId,
+		RouteId_ClassProperty,
+		RouteId_PropertiesStart,
+		RouteId_PropertiesEnd,
+		RouteId_PropertyValue,
 	};
 
 	Trace::IAnalysisSession& Session;

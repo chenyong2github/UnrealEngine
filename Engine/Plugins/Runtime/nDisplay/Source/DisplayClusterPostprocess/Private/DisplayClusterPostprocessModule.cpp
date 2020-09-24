@@ -6,10 +6,14 @@
 #include "DisplayClusterPostprocessStrings.h"
 
 #include "PostProcess/DisplayClusterPostprocessOutputRemap.h"
+#include "PostProcess/DisplayClusterTextureShare.h"
+#include "PostProcess/DisplayClusterDX12CrossGPU.h"
 
 #include "IDisplayCluster.h"
 #include "Render/IDisplayClusterRenderManager.h"
 
+#include "ITextureShare.h"
+#include "ITextureShareD3D12.h"
 
 FDisplayClusterPostprocessModule::FDisplayClusterPostprocessModule()
 {
@@ -19,8 +23,21 @@ FDisplayClusterPostprocessModule::FDisplayClusterPostprocessModule()
 	Postprocess = MakeShareable(new FDisplayClusterPostprocessOutputRemap);
 	PostprocessAssets.Emplace(DisplayClusterStrings::postprocess::OutputRemap, Postprocess);
 
-
+	// Only if TextureShare plugins used
+	if (ITextureShare::IsAvailable())
+	{
+		Postprocess = MakeShareable(new FDisplayClusterTextureShare());
+		PostprocessAssets.Emplace(DisplayClusterStrings::postprocess::TextureShare, Postprocess);
+	}
 	
+	// Only if TextureShare plugins used
+	if (ITextureShareD3D12::IsAvailable())
+	{
+		Postprocess = MakeShareable(new FDisplayClusterD3D12CrossGPU());
+		PostprocessAssets.Emplace(DisplayClusterStrings::postprocess::D3D12CrossGPU, Postprocess);
+	}
+	
+
 	UE_LOG(LogDisplayClusterPostprocess, Log, TEXT("Postprocess module has been instantiated"));
 }
 

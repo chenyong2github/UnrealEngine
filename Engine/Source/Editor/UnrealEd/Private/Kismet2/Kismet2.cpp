@@ -1033,7 +1033,7 @@ UPackage* CreateBlueprintPackage(const FString& Path, FString& OutAssetName)
 		PackageName = Path;
 	}
 
-	return CreatePackage(nullptr, *PackageName);
+	return CreatePackage( *PackageName);
 }
 
 UBlueprint* FKismetEditorUtilities::CreateBlueprintFromActor(const FString& Path, AActor* Actor, const FKismetEditorUtilities::FCreateBlueprintFromActorParams& Params)
@@ -2248,7 +2248,7 @@ UBlueprint* FKismetEditorUtilities::CreateBlueprintFromClass(FText InWindowTitle
 		}
 
 		// Then find/create it.
-		UPackage* Package = CreatePackage(NULL, *UserPackageName);
+		UPackage* Package = CreatePackage( *UserPackageName);
 		check(Package);
 
 		// Create and init a new Blueprint

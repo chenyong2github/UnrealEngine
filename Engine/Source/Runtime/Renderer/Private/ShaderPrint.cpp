@@ -155,6 +155,21 @@ namespace ShaderPrint
 		return IsSupported(View.GetShaderPlatform());
 	}
 
+	void SetEnabled(bool bInEnabled)
+	{
+		CVarEnable->Set(bInEnabled);
+	}
+
+	void SetFontSize(int32 InFontSize)
+	{
+		CVarFontSize->Set(FMath::Clamp(InFontSize, 6, 128));
+	}
+
+	void SetMaxValueCount(int32 InMaxCount)
+	{
+		CVarMaxValueCount->Set(FMath::Max(256, InMaxCount));
+	}	
+
 	bool IsEnabled()
 	{
 		return CVarEnable.GetValueOnAnyThread() != 0;

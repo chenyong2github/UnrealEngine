@@ -71,7 +71,7 @@ private:
 	FRigVMActionWrapper& operator = (const FRigVMActionWrapper& Other) = delete;
 
 	UScriptStruct* ScriptStruct;
-	TArray<uint8> Data;
+	FRigVMByteArray Data;
 };
 
 /**
@@ -464,6 +464,142 @@ public:
 
 	UPROPERTY()
 	FName CustomWidgetName;
+
+	UPROPERTY()
+	FVector2D Position;
+
+	UPROPERTY()
+	FString NodePath;
+};
+
+/**
+ * An action adding a branch node to the graph.
+ */
+USTRUCT()
+struct FRigVMAddBranchNodeAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMAddBranchNodeAction();
+	FRigVMAddBranchNodeAction(URigVMBranchNode* InNode);
+	virtual ~FRigVMAddBranchNodeAction() {};
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
+
+	UPROPERTY()
+	FVector2D Position;
+
+	UPROPERTY()
+	FString NodePath;
+};
+
+/**
+ * An action adding an if node to the graph.
+ */
+USTRUCT()
+struct FRigVMAddIfNodeAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMAddIfNodeAction();
+	FRigVMAddIfNodeAction(URigVMIfNode* InNode);
+	virtual ~FRigVMAddIfNodeAction() {};
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
+
+	UPROPERTY()
+	FString CPPType;
+
+	UPROPERTY()
+	FName CPPTypeObjectPath;
+
+	UPROPERTY()
+	FVector2D Position;
+
+	UPROPERTY()
+	FString NodePath;
+};
+
+/**
+ * An action adding a select node to the graph.
+ */
+USTRUCT()
+struct FRigVMAddSelectNodeAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMAddSelectNodeAction();
+	FRigVMAddSelectNodeAction(URigVMSelectNode* InNode);
+	virtual ~FRigVMAddSelectNodeAction() {};
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
+
+	UPROPERTY()
+	FString CPPType;
+
+	UPROPERTY()
+	FName CPPTypeObjectPath;
+
+	UPROPERTY()
+	FVector2D Position;
+
+	UPROPERTY()
+	FString NodePath;
+};
+
+/**
+ * An action adding an enum node to the graph.
+ */
+USTRUCT()
+struct FRigVMAddEnumNodeAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMAddEnumNodeAction();
+	FRigVMAddEnumNodeAction(URigVMEnumNode* InNode);
+	virtual ~FRigVMAddEnumNodeAction() {};
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
+
+	UPROPERTY()
+	FString CPPType;
+
+	UPROPERTY()
+	FName CPPTypeObjectPath;
+
+	UPROPERTY()
+	FVector2D Position;
+
+	UPROPERTY()
+	FString NodePath;
+};
+
+/**
+ * An action adding a prototype node to the graph.
+ */
+USTRUCT()
+struct FRigVMAddPrototypeNodeAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMAddPrototypeNodeAction();
+	FRigVMAddPrototypeNodeAction(URigVMPrototypeNode* InNode);
+	virtual ~FRigVMAddPrototypeNodeAction() {};
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
+
+	UPROPERTY()
+	FName PrototypeNotation;
 
 	UPROPERTY()
 	FVector2D Position;
@@ -931,4 +1067,36 @@ public:
 
 	UPROPERTY()
 	FString InputPinPath;
+};
+
+/**
+ * An action changing a pin type
+ */
+USTRUCT()
+struct FRigVMChangePinTypeAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMChangePinTypeAction() {}
+	FRigVMChangePinTypeAction(URigVMPin* InPin, const FString& InCppType, const FName& InCppTypeObjectPath);
+	virtual ~FRigVMChangePinTypeAction() {};
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
+
+	UPROPERTY()
+	FString PinPath;
+
+	UPROPERTY()
+	FString OldCPPType;
+
+	UPROPERTY()
+	FName OldCPPTypeObjectPath;
+
+	UPROPERTY()
+	FString NewCPPType;
+
+	UPROPERTY()
+	FName NewCPPTypeObjectPath;
 };

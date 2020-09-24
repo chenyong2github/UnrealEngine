@@ -41,6 +41,7 @@ public class MovieSceneTools : ModuleRules
                 "CurveEditor",
                 "DesktopPlatform",
                 "Json",
+                "EditorFramework",
                 "JsonUtilities",
 				"LevelSequence",
                 "LiveLinkInterface",

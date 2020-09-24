@@ -114,20 +114,10 @@ void FAssetTypeActions_LidarPointCloud::ExecuteMerge(TArray<ULidarPointCloud*> P
 		ULidarPointCloud* PC = NewObject<ULidarPointCloud>(MergedCloudPackage, FName(*FPaths::GetBaseFilename(MergedCloudPackage->GetName())), EObjectFlags::RF_Public | EObjectFlags::RF_Standalone | EObjectFlags::RF_Transactional);
 		if (IsValid(PC))
 		{
-			TArray<FString> Names({ "Initializing", "Self" });
-
-			for (ULidarPointCloud* Asset : PointClouds)
-			{
-				Names.Add(FPaths::GetBaseFilename(FSoftObjectPath(Asset).ToString()));
-			}
-
 			FScopedSlowTask ProgressDialog(PointClouds.Num() + 2, LOCTEXT("Merge", "Merging Point Clouds..."));
 			ProgressDialog.MakeDialog();
-			int32 i = 0;
 
-			PC->Merge(PointClouds, [&ProgressDialog, &i, &Names](float Progress) {
-				ProgressDialog.EnterProgressFrame(1.f, FText::FromString(Names[i++]));
-			});
+			PC->Merge(PointClouds, [&ProgressDialog]() { ProgressDialog.EnterProgressFrame(1.f); });
 
 			PC->MarkPackageDirty();
 

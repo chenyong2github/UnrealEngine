@@ -22,48 +22,6 @@ static TAutoConsoleVariable<int32> CVarPhotographyAvailable(
 /////////////////////////////////////////////////
 // FCameraPhotography internals
 
-static TAutoConsoleVariable<int32> CVarPhotographyAllow(
-	TEXT("r.Photography.Allow"),
-	1,
-	TEXT("If 1, allow the user to freeze the scene and potentially use a roaming camera to\n")
-	TEXT("take screenshots.  Set this dynamically to permit or forbid photography per-level,\n")
-	TEXT("per-cutscene, etc.  (Default: 1)"));
-
-static TAutoConsoleVariable<int32> CVarPhotographyEnableMultipart(
-	TEXT("r.Photography.EnableMultipart"),
-	1,
-	TEXT("If 1, allow the photography system to take high-resolution shots that need to be rendered in tiles which are later stitched together.  (Default: 1)"));
-
-static TAutoConsoleVariable<int32> CVarPhotographySettleFrames(
-	TEXT("r.Photography.SettleFrames"),
-	10,
-	TEXT("The number of frames to let the rendering 'settle' before taking a photo.  Useful to allow temporal AA/smoothing to work well; if not using any temporal effects, can be lowered for faster capture.  (Default: 10)"));
-
-static TAutoConsoleVariable<float> CVarPhotographyTranslationSpeed(
-	TEXT("r.Photography.TranslationSpeed"),
-	100.0f,
-	TEXT("Normal speed (in Unreal Units per second) at which to move the roaming photography camera. (Default: 100.0)"));
-
-static TAutoConsoleVariable<float> CVarConstrainCameraSize(
-	TEXT("r.Photography.Constrain.CameraSize"),
-	14.0f,
-	TEXT("Radius (in Unreal Units) of sphere around the camera; used to prevent the camera clipping into nearby geometry when constraining camera with collision.  Negative values disable default camera collisions. (Default: 14.0)"));
-
-static TAutoConsoleVariable<float> CVarConstrainCameraDistance(
-	TEXT("r.Photography.Constrain.MaxCameraDistance"),
-	2500.0f,
-	TEXT("Maximum distance (in Unreal Units) which camera is allowed to wander from its initial position when constraining camera by distance.  Negative values disable default distance contraints. (Default: 2500.0)"));
-
-static TAutoConsoleVariable<int32> CVarPhotographyAutoPostprocess(
-	TEXT("r.Photography.AutoPostprocess"),
-	1,
-	TEXT("If 1, the photography system will attempt to automatically disable HUD, subtitles, and some standard postprocessing effects during photography sessions/captures which are known to give poor photography results.  Set to 0 to manage all postprocessing tweaks manually from the PlayerCameraManager Blueprint callbacks.  Note: Blueprint callbacks will be called regardless of AutoPostprocess value.  (Default: auto-disable (1)"));
-
-static TAutoConsoleVariable<int32> CVarPhotographyAutoPause(
-	TEXT("r.Photography.AutoPause"),
-	1,
-	TEXT("If 1, the photography system will attempt to ensure that the level is paused while in photography mode.  Set to 0 to manage pausing and unpausing manually from the PlayerCameraManager Blueprint callbacks.    Note: Blueprint callbacks will be called regardless of AutoPause value.  (Default: auto-pause (1)"));
-
 FCameraPhotographyManager::FCameraPhotographyManager()
 	: ActiveImpl(nullptr)
 {

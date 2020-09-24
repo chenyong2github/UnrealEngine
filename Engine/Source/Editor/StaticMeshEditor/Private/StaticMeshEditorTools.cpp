@@ -97,6 +97,9 @@ void FStaticMeshDetails::CustomizeDetails( class IDetailLayoutBuilder& DetailBui
 	LightMapCoordinateIndexProperty->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FStaticMeshDetails::OnLightmapSettingsChanged));
 	LightMapResolutionProperty->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FStaticMeshDetails::OnLightmapSettingsChanged));
 
+	TSharedRef<IPropertyHandle> StaticMaterials = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UStaticMesh, StaticMaterials));
+	StaticMaterials->MarkHiddenByCustomization();
+
 	TSharedRef<IPropertyHandle> ImportSettings = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UStaticMesh, AssetImportData));
 	if (!StaticMeshEditor.GetStaticMesh() || 
 		!StaticMeshEditor.GetStaticMesh()->AssetImportData ||
@@ -4315,8 +4318,11 @@ void FLevelOfDetailSettingsLayout::OnNumStreamedLODsCommitted(int32 InValue, ETe
 	check(StaticMesh);
 	if (UpdateStaticMeshNumStreamedLODsHelper(StaticMesh, InValue, Platform))
 	{
-		// Make sure FStaticMeshRenderData::CurrentFirstLODIdx is not accessed on other threads
-		IStreamingManager::Get().GetTextureStreamingManager().BlockTillAllRequestsFinished();
+		if (IStreamingManager::Get().IsRenderAssetStreamingEnabled(EStreamableRenderAssetType::StaticMesh))
+		{
+			// Make sure FStaticMeshRenderData::CurrentFirstLODIdx is not accessed on other threads
+			IStreamingManager::Get().GetRenderAssetStreamingManager().BlockTillAllRequestsFinished();
+		}
 		// Recache derived data and relink streaming
 		ApplyChanges();
 	}

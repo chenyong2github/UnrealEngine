@@ -205,7 +205,7 @@ public:
 	 * Each user virtual controller or virtual finger tips being simulated should use a different pointer index.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Interaction", meta=( ClampMin = "0", UIMin = "0", UIMax = "9", ExposeOnSpawn = true ))
-	float PointerIndex;
+	int32 PointerIndex;
 
 public:
 

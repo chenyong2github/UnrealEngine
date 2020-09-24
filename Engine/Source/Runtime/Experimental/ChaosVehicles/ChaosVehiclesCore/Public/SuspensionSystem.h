@@ -109,10 +109,7 @@ namespace Chaos
 		void SetSuspensionLength(float InLength, float WheelRadius)
 		{
 			DisplacementInput = InLength - Setup().RaycastSafetyMargin - WheelRadius;
-			//if (SpringIndex == 2)
-			//{
-			//	UE_LOG(LogChaos, Warning, TEXT("DisplacementInput %f = InLength %f - Offset %f"), DisplacementInput, InLength, Setup().RaycastSafetyMargin + WheelRadius);
-			//}
+			SpringDisplacement = Setup().MaxLength - DisplacementInput;
 		}
 
 		/** set local velocity at suspension position */
@@ -144,6 +141,11 @@ namespace Chaos
 
 			OutTrace.Start = WorldLocation - WorldDirection * (Setup().SuspensionMaxRaise + Setup().RaycastSafetyMargin);
 			OutTrace.End = WorldLocation + WorldDirection * (Setup().SuspensionMaxDrop + WheelRadius);
+		}
+
+		float GetTraceLength(float WheelRadius)
+		{
+			return Setup().SuspensionMaxRaise + Setup().RaycastSafetyMargin + Setup().SuspensionMaxDrop + WheelRadius;
 		}
 
 // Outputs
@@ -210,7 +212,6 @@ namespace Chaos
 		{
 			float Damping = (DisplacementInput < LastDisplacement) ? Setup().CompressionDamping : Setup().ReboundDamping;
 
-			SpringDisplacement = Setup().MaxLength - DisplacementInput;
 			const float StiffnessForce = SpringDisplacement * Setup().SpringRate;
 			const float DampingForce = LocalVelocity.Z * Damping;
 			SuspensionForce = StiffnessForce - DampingForce;

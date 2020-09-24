@@ -15,7 +15,7 @@
 
 namespace AssetDataGathererConstants
 {
-	static const int32 CacheSerializationVersion = 14;
+	static const int32 CacheSerializationVersion = 15;
 	static const int32 MaxFilesToDiscoverBeforeFlush = 2500;
 	static const int32 MaxFilesToGatherBeforeFlush = 250;
 	static const int32 MinSecondsToElapseBeforeCacheWrite = 60;
@@ -595,6 +595,7 @@ uint32 FAssetDataGatherer::Run()
 			struct FReadContext
 			{
 				FName PackageName;
+				FName Extension;
 				const FDiscoveredPackageFile& AssetFileData;
 				TArray<FAssetData*> AssetDataFromFile;
 				FPackageDependencyData DependencyData;
@@ -602,8 +603,9 @@ uint32 FAssetDataGatherer::Run()
 				bool bCanAttemptAssetRetry = false;
 				bool bResult = false;
 
-				FReadContext(FName InPackageName, const FDiscoveredPackageFile& InAssetFileData)
+				FReadContext(FName InPackageName, FName InExtension, const FDiscoveredPackageFile& InAssetFileData)
 					: PackageName(InPackageName)
+					, Extension(InExtension)
 					, AssetFileData(InAssetFileData)
 				{
 				}
@@ -619,6 +621,7 @@ uint32 FAssetDataGatherer::Run()
 				}
 
 				const FName PackageName = FName(*FPackageName::FilenameToLongPackageName(AssetFileData.PackageFilename));
+				const FName Extension = FName(*FPaths::GetExtension(AssetFileData.PackageFilename));
 
 				bool bLoadedFromCache = false;
 				if (bLoadAndSaveCache)
@@ -631,11 +634,8 @@ uint32 FAssetDataGatherer::Run()
 						{
 							DiskCachedAssetData = nullptr;
 						}
-					}
-
-					if (DiskCachedAssetData)
-					{
-						if (DiskCachedAssetData->DependencyData.PackageName != PackageName && DiskCachedAssetData->DependencyData.PackageName != NAME_None)
+						else if ((DiskCachedAssetData->DependencyData.PackageName != PackageName && DiskCachedAssetData->DependencyData.PackageName != NAME_None) ||
+								DiskCachedAssetData->Extension != Extension)
 						{
 							UE_LOG(LogAssetRegistry, Display, TEXT("Cached dependency data for package '%s' is invalid. Discarding cached data."), *PackageName.ToString());
 							DiskCachedAssetData = nullptr;
@@ -659,13 +659,13 @@ uint32 FAssetDataGatherer::Run()
 							LocalDependencyResults.Add(DiskCachedAssetData->DependencyData);
 						}
 
-						NewCachedAssetDataMap.Add(PackageName, DiskCachedAssetData);
+						AddToCache(PackageName, DiskCachedAssetData);
 					}
 				}
 
 				if (!bLoadedFromCache)
 				{
-					ReadContexts.Emplace(PackageName, AssetFileData);
+					ReadContexts.Emplace(PackageName, Extension, AssetFileData);
 				}
 			}
 
@@ -703,7 +703,7 @@ uint32 FAssetDataGatherer::Run()
 					if (bCachePackage)
 					{
 						// Update the cache
-						FDiskCachedAssetData* NewData = new FDiskCachedAssetData(ReadContext.AssetFileData.PackageTimestamp);
+						FDiskCachedAssetData* NewData = new FDiskCachedAssetData(ReadContext.AssetFileData.PackageTimestamp, ReadContext.Extension);
 						NewData->AssetDataList.Reserve(ReadContext.AssetDataFromFile.Num());
 						for (const FAssetData* BackgroundAssetData : ReadContext.AssetDataFromFile)
 						{
@@ -721,7 +721,7 @@ uint32 FAssetDataGatherer::Run()
 						}
 
 						NewCachedAssetData.Add(NewData);
-						NewCachedAssetDataMap.Add(ReadContext.PackageName, NewData);
+						AddToCache(ReadContext.PackageName, NewData);
 					}
 
 					LocalAssetResults.Append(MoveTemp(ReadContext.AssetDataFromFile));
@@ -786,6 +786,27 @@ uint32 FAssetDataGatherer::Run()
 	}
 
 	return 0;
+}
+
+void FAssetDataGatherer::AddToCache(FName PackageName, FDiskCachedAssetData* DiskCachedAssetData)
+{
+	FDiskCachedAssetData*& ValueInMap = NewCachedAssetDataMap.FindOrAdd(PackageName, DiskCachedAssetData);
+	if (ValueInMap != DiskCachedAssetData)
+	{
+		// An updated DiskCachedAssetData for the same package; replace the existing DiskCachedAssetData with the new one.
+		// Note that memory management of the DiskCachedAssetData is handled in a separate structure; we do not need to delete the old value here.
+		if (DiskCachedAssetData->Extension != ValueInMap->Extension)
+		{
+			// Two files with the same package name but different extensions, e.g. basename.umap and basename.uasset
+			// This is invalid - some systems in the engine (Cooker's FPackageNameCache) assume that package : filename is 1 : 1 - so issue a warning
+			// Because it is invalid, we don't fully support it here (our map is keyed only by packagename), and will remove from cache all but the last filename we find with the same packagename
+			// TODO: Turn this into a warning once all sample projects have fixed it
+			UE_LOG(LogAssetRegistry, Display, TEXT("Multiple files exist with the same package name %s but different extensions (%s and %s). ")
+				TEXT("This is invalid and will cause errors; merge or rename or delete one of the files."),
+				*PackageName.ToString(), *ValueInMap->Extension.ToString(), *DiskCachedAssetData->Extension.ToString());
+		}
+		ValueInMap = DiskCachedAssetData;
+	}
 }
 
 void FAssetDataGatherer::Stop()

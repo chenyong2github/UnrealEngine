@@ -34,7 +34,7 @@ public:
 		int32 GroupEdgeID = FDynamicMesh3::InvalidID;
 
 		/** 
-		 * Inputs can be proportions in the range (0,1), or aboslute lengths. 
+		 * Inputs can be proportions in the range (0,1), or absolute lengths. 
 		 * As the name suggests, they must already be sorted. 
 		 */
 		const TArray<double>* SortedInputLengths = nullptr;
@@ -60,7 +60,7 @@ public:
 		EInsertionMode Mode = EInsertionMode::Retriangulate;
 	};
 
-	bool InsertEdgeLoops(const FEdgeLoopInsertionParams& Params, TSet<int32>* NewEids, FProgressCancel* Progress);
+	bool InsertEdgeLoops(const FEdgeLoopInsertionParams& Params, TSet<int32>* NewEidsOut = nullptr, FProgressCancel* Progress = nullptr);
 
 
 	/** Point along a group edge that is used as a start/endpoint for an inserted group edge. */
@@ -95,7 +95,8 @@ public:
 
 		/** Group across which the cut is inserted. */
 		int32 GroupID = FDynamicMesh3::InvalidID;
-		FGroupTopology::FGroupBoundary* GroupBoundary = nullptr;
+		/** Index into the group's Boundary array that holds the boundary that the start and end points share. */
+		int32 GroupBoundaryIndex = 0;
 
 		FGroupEdgeSplitPoint StartPoint;
 		FGroupEdgeSplitPoint EndPoint;
@@ -110,6 +111,6 @@ public:
 		EInsertionMode Mode = EInsertionMode::Retriangulate;
 	};
 
-	bool InsertGroupEdge(FGroupEdgeInsertionParams& Params, TSet<int32>* NewEids, FProgressCancel* Progress);
+	bool InsertGroupEdge(FGroupEdgeInsertionParams& Params, TSet<int32>* NewEidsOut = nullptr, FProgressCancel* Progress = nullptr);
 
 };

@@ -237,7 +237,8 @@ void UEditorEngine::LaunchNewProcess(const FRequestPlaySessionParams& InParams, 
 		FIntPoint WindowSize, WindowPosition;
 		GetWindowSizeAndPositionForInstanceIndex(*InParams.EditorPlaySettings, 0, WindowSize, WindowPosition);
 
-		if (!InParams.EditorPlaySettings->CenterNewWindow)
+		// If not center window nor NewWindowPosition is FIntPoint::NoneValue (-1,-1)
+		if (!InParams.EditorPlaySettings->CenterNewWindow && InParams.EditorPlaySettings->NewWindowPosition != FIntPoint::NoneValue)
 		{
 			// If they don't want to center the new window, we add a specific location. This will get saved to user settings
 			// via SAVEWINPOS and not end up reflected in our PlayInEditor settings.

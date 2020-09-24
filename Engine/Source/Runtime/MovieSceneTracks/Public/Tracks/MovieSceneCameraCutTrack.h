@@ -57,6 +57,8 @@ protected:
 
 	FFrameNumber FindEndTimeForCameraCut(FFrameNumber StartTime);
 
+	virtual void PreCompileImpl() override;
+
 public:
 	UPROPERTY()
 	bool bCanBlend;

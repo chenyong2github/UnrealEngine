@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "FixedFrameRateCustomTimeStep.h"
+#include "GenlockedCustomTimeStep.h"
 
 #include "AJALib.h"
 #include "MediaIOCoreDefinitions.h"
@@ -19,7 +19,7 @@ class UEngine;
  * When the signal is lost in the editor (not in PIE), the CustomTimeStep will try to re-synchronize every second.
  */
 UCLASS(Blueprintable, editinlinenew, meta=(DisplayName="AJA SDI Input", MediaIOCustomLayout="AJA"))
-class AJAMEDIA_API UAjaCustomTimeStep : public UFixedFrameRateCustomTimeStep
+class AJAMEDIA_API UAjaCustomTimeStep : public UGenlockedCustomTimeStep
 {
 	GENERATED_UCLASS_BODY()
 
@@ -31,6 +31,12 @@ public:
 	virtual ECustomTimeStepSynchronizationState GetSynchronizationState() const override;
 	virtual FFrameRate GetFixedFrameRate() const override;
 
+	//~ UGenlockedCustomTimeStep interface
+	virtual uint32 GetLastSyncCountDelta() const override;
+	virtual bool IsLastSyncDataValid() const override;
+	virtual FFrameRate GetSyncRate() const override;
+	virtual bool WaitForSync() override;
+
 	//~ UObject interface
 	virtual void BeginDestroy() override;
 #if WITH_EDITOR
@@ -41,8 +47,8 @@ private:
 	struct FAJACallback;
 	friend FAJACallback;
 
-	void WaitForSync();
 	void ReleaseResources();
+	bool VerifyGenlockSignal();
 
 public:
 	/**
@@ -90,12 +96,16 @@ private:
 
 	/** The current SynchronizationState of the CustomTimeStep */
 	ECustomTimeStepSynchronizationState State;
-	bool bDidAValidUpdateTimeStep;
 
 	/** Warn if there is a CustomTimeStep and a vsync at the same time but only once. */
 	bool bWarnedAboutVSync;
 
-	/** Remember if the last */
+	/** Remember the last Sync Count*/
 	bool bIsPreviousSyncCountValid;
 	uint32 PreviousSyncCount;
+	uint32 SyncCountDelta;
+
+	/** Remember last detected video format */
+	AJA::FAJAVideoFormat LastDetectedVideoFormat;
+	bool bLastDetectedVideoFormatInitialized;
 };

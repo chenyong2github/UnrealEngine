@@ -1,9 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#define EYE_ADAPTATION_LOOSE_PARAMETERS 1
+
 #include "../Common.ush"
 #include "../Random.ush"
 #include "../EyeAdaptationCommon.ush"
 #include "../TextureSampling.ush"
+#include "../MonteCarlo.ush"
 
 //------------------------------------------------------- COMPILER CONFIG
 
@@ -314,6 +317,11 @@
 	#define AA_SAMPLE_CACHE_METHOD (AA_SAMPLE_CACHE_METHOD_VGPR_3X3)
 #endif
 
+// By default, enable stocastic quantization of the output.
+#ifndef AA_ENABLE_STOCASTIC_QUANTIZATION
+	#define AA_ENABLE_STOCASTIC_QUANTIZATION 1
+#endif
+
 
 //------------------------------------------------------- MENDATORY CONFIG
 
@@ -446,11 +454,11 @@ SamplerState InputSceneColorSampler;
 Texture2D InputSceneMetadata;
 SamplerState InputSceneMetadataSampler;
 
-Texture2D SceneDepthBuffer;
-SamplerState SceneDepthBufferSampler;
+Texture2D SceneDepthTexture;
+SamplerState SceneDepthTextureSampler;
 
-Texture2D SceneVelocityBuffer;
-SamplerState SceneVelocityBufferSampler;
+Texture2D GBufferVelocityTexture;
+SamplerState GBufferVelocityTextureSampler;
 
 Texture2D<uint2> StencilTexture;
 
@@ -463,6 +471,7 @@ float4 HistoryBufferUVMinMax;
 
 float4 OutputViewportSize;
 float4 OutputViewportRect;
+float3 OutputQuantizationError;
 
 #if COMPUTESHADER
 RWTexture2D<float4> OutComputeTex_0;
@@ -1067,7 +1076,7 @@ void PrecacheInputSceneDepthToLDS(in FTAAInputParameters InputParams)
 				(i != LoadCount - 1) ||
 				(LDS_DEPTH_ARRAY_SIZE % THREADGROUP_TOTAL) == 0)
 			{
-				GroupSharedArray[LinearGroupThreadId] = SceneDepthBuffer.Load(uint3(TexelLocation, 0)).x;
+				GroupSharedArray[LinearGroupThreadId] = SceneDepthTexture.Load(uint3(TexelLocation, 0)).x;
 			}
 			LinearGroupThreadId += THREADGROUP_TOTAL;
 		}
@@ -1097,7 +1106,7 @@ void PrecacheInputSceneDepthToLDS(in FTAAInputParameters InputParams)
 				((LDS_DEPTH_ARRAY_SIZE / 4) % THREADGROUP_TOTAL) == 0)
 			{
 				float2 UV = float2(TexelLocation + 0.5) * InputSceneColorSize.zw;
-				float4 Depth = SceneDepthBuffer.Gather(SceneDepthBufferSampler, UV);
+				float4 Depth = SceneDepthTexture.Gather(SceneDepthTextureSampler, UV);
 				GroupSharedArray[DestI + 1 * LDS_DEPTH_TILE_WIDTH + 0] = Depth.x;
 				GroupSharedArray[DestI + 1 * LDS_DEPTH_TILE_WIDTH + 1] = Depth.y;
 				GroupSharedArray[DestI + 0 * LDS_DEPTH_TILE_WIDTH + 1] = Depth.z;
@@ -1295,7 +1304,7 @@ void PrecacheInputSceneDepth(in FTAAInputParameters InputParams)
 // Sample scene color.
 float SampleCachedSceneDepthTexture(in FTAAInputParameters InputParams, int2 PixelOffset)
 {
-	return SceneDepthBuffer.SampleLevel(SceneDepthBufferSampler, InputParams.NearestBufferUV, 0, PixelOffset).r;
+	return SceneDepthTexture.SampleLevel(SceneDepthTextureSampler, InputParams.NearestBufferUV, 0, PixelOffset).r;
 }
 
 
@@ -1983,12 +1992,11 @@ FTAAHistoryPayload TemporalAASample(uint2 GroupId, uint2 GroupThreadId, uint Gro
 
 		#if AA_DYNAMIC
 		{
-			float2 VelocityN;
-			VelocityN = SceneVelocityBuffer.SampleLevel(SceneVelocityBufferSampler, InputParams.NearestBufferUV + VelocityOffset, 0).xy;
-			bool DynamicN = VelocityN.x > 0.0;
+			float4 EncodedVelocity = GBufferVelocityTexture.SampleLevel(GBufferVelocityTextureSampler, InputParams.NearestBufferUV + VelocityOffset, 0);
+			bool DynamicN = EncodedVelocity.x > 0.0;
 			if(DynamicN)
 			{
-				BackN = DecodeVelocityFromTexture(float3(VelocityN, 0.0)).xy;
+				BackN = DecodeVelocityFromTexture(EncodedVelocity).xy;
 			}
 			BackTemp = BackN * OutputViewportSize.xy;
 		}
@@ -2044,11 +2052,11 @@ FTAAHistoryPayload TemporalAASample(uint2 GroupId, uint2 GroupThreadId, uint Gro
 			#error AA_DYNAMIC_ANTIGHOST requires AA_DYNAMIC
 		#endif
 		// TODO: try a 2x2 for AA_UPSAMPLE
-		bool Dynamic1 = SceneVelocityBuffer.SampleLevel(SceneVelocityBufferSampler, InputParams.NearestBufferUV, 0, int2( 0, -1)).x > 0;
-		bool Dynamic3 = SceneVelocityBuffer.SampleLevel(SceneVelocityBufferSampler, InputParams.NearestBufferUV, 0, int2(-1,  0)).x > 0;
-		Dynamic4 = SceneVelocityBuffer.SampleLevel(SceneVelocityBufferSampler, InputParams.NearestBufferUV, 0).x > 0;
-		bool Dynamic5 = SceneVelocityBuffer.SampleLevel(SceneVelocityBufferSampler, InputParams.NearestBufferUV, 0, int2( 1,  0)).x > 0;
-		bool Dynamic7 = SceneVelocityBuffer.SampleLevel(SceneVelocityBufferSampler, InputParams.NearestBufferUV, 0, int2( 0,  1)).x > 0;
+		bool Dynamic1 = GBufferVelocityTexture.SampleLevel(GBufferVelocityTextureSampler, InputParams.NearestBufferUV, 0, int2( 0, -1)).x > 0;
+		bool Dynamic3 = GBufferVelocityTexture.SampleLevel(GBufferVelocityTextureSampler, InputParams.NearestBufferUV, 0, int2(-1,  0)).x > 0;
+		Dynamic4 = GBufferVelocityTexture.SampleLevel(GBufferVelocityTextureSampler, InputParams.NearestBufferUV, 0).x > 0;
+		bool Dynamic5 = GBufferVelocityTexture.SampleLevel(GBufferVelocityTextureSampler, InputParams.NearestBufferUV, 0, int2( 1,  0)).x > 0;
+		bool Dynamic7 = GBufferVelocityTexture.SampleLevel(GBufferVelocityTextureSampler, InputParams.NearestBufferUV, 0, int2( 0,  1)).x > 0;
 
 		bool Dynamic = Dynamic1 || Dynamic3 || Dynamic4 || Dynamic5 || Dynamic7;
 		IgnoreHistory = IgnoreHistory || (!Dynamic && History.Color.a > 0);
@@ -2252,7 +2260,17 @@ void MainCS(
 	uint2 PixelPos = DispatchThreadId + OutputViewportRect.xy;
 	if (all(PixelPos < OutputViewportRect.zw))
 	{
-		OutComputeTex_0[PixelPos] = min(MaxHalfFloat.xxxx, OutColor0);
+		float4 FinalOutput0 = min(MaxHalfFloat.xxxx, OutColor0);
+		#if AA_ENABLE_STOCASTIC_QUANTIZATION
+		{
+			uint2 Random = Rand3DPCG16(int3(PixelPos, View.StateFrameIndexMod8)).xy;
+			float2 E = Hammersley16(0, 1, Random);
+
+			FinalOutput0.rgb += FinalOutput0.rgb * (E.x * OutputQuantizationError);
+		}
+		#endif
+
+		OutComputeTex_0[PixelPos] = FinalOutput0;
 
 		#if HISTORY_RENDER_TARGETS == 2
 			OutComputeTex_1[PixelPos] = OutColor1;

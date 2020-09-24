@@ -3038,11 +3038,21 @@ bool UGameViewportClient::HandleShowCommand( const TCHAR* Cmd, FOutputDevice& Ar
 			{
 			}
 
-			bool OnEngineShowFlag(uint32 InIndex, const FString& InName)
+			bool HandleShowFlag(uint32 InIndex, const FString& InName)
 			{
 				FString Value = FString::Printf(TEXT("%s=%d"), *InName, EngineShowFlags.GetSingleFlag(InIndex) ? 1 : 0);
 				LinesToSort.Add(Value);
 				return true;
+			}
+
+			bool OnEngineShowFlag(uint32 InIndex, const FString& InName)
+			{
+				return HandleShowFlag(InIndex, InName);
+			}
+
+			bool OnCustomShowFlag(uint32 InIndex, const FString& InName)
+			{
+				return HandleShowFlag(InIndex, InName);
 			}
 
 			TSet<FString>& LinesToSort;

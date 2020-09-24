@@ -202,6 +202,7 @@ void STraceObjectRowWidget::Construct(const FArguments& InArgs, const TSharedRef
 		.Content()
 		[
 			SNew(SHorizontalBox)
+			.IsEnabled(!InObject->IsReadOnly())
 			// Name 
 			+ SHorizontalBox::Slot()
 			.FillWidth(1.0f)

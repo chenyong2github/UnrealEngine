@@ -2,6 +2,7 @@
 
 #include "DatasmithOpenNurbsImportOptions.h"
 
+#include "CADInterfacesModule.h"
 #include "DatasmithOpenNurbsTranslatorModule.h"
 
 #include "UObject/UnrealType.h"
@@ -9,6 +10,7 @@
 #define LOCTEXT_NAMESPACE "DatasmithOpenNurbsImportPlugin"
 
 #if WITH_EDITOR
+
 bool UDatasmithOpenNurbsImportOptions::CanEditChange(const FProperty* InProperty) const
 {
 	if (!Super::CanEditChange(InProperty) || !InProperty)
@@ -20,11 +22,11 @@ bool UDatasmithOpenNurbsImportOptions::CanEditChange(const FProperty* InProperty
 
 	if (PropertyFName == GET_MEMBER_NAME_CHECKED(FDatasmithOpenNurbsOptions, Geometry))
 	{
-#ifdef CAD_LIBRARY
+		if (ICADInterfacesModule::IsAvailable() == ECADInterfaceAvailability::Unavailable)
+		{
+			return false;
+		}
 		return true;
-#else
-		return false;
-#endif
 	}
 	else if (PropertyFName == GET_MEMBER_NAME_CHECKED(FDatasmithOpenNurbsOptions, ChordTolerance)
 		|| PropertyFName == GET_MEMBER_NAME_CHECKED(FDatasmithOpenNurbsOptions, MaxEdgeLength)

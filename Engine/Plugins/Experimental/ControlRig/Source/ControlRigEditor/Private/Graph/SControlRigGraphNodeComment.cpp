@@ -7,6 +7,7 @@
 #include "UObject/PropertyPortFlags.h"
 #include "ControlRigBlueprint.h"
 #include "Graph/ControlRigGraph.h"
+#include "Graph/ControlRigGraphSchema.h"
 #include "RigVMModel/RigVMController.h"
 #if WITH_EDITOR
 #include "Editor.h"
@@ -56,40 +57,9 @@ void SControlRigGraphNodeComment::EndUserInteraction() const
 
 	if (GraphNode)
 	{
-		UEdGraphNode_Comment* CommentNode = CastChecked<UEdGraphNode_Comment>(GraphNode);
-		if (UControlRigGraph* Graph = Cast<UControlRigGraph>(CommentNode->GetOuter()))
+		if (const UControlRigGraphSchema* RigSchema = Cast<UControlRigGraphSchema>(GraphNode->GetSchema()))
 		{
-			if (UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(Graph->GetOuter()))
-			{
-				if (CommentNode->MoveMode == ECommentBoxMode::GroupMovement)
-				{
-					Blueprint->Controller->OpenUndoBracket(TEXT("Move Comment Box"));
-
-					for (FCommentNodeSet::TConstIterator NodeIt(CommentNode->GetNodesUnderComment()); NodeIt; ++NodeIt)
-					{
-						if (UEdGraphNode* EdNode = Cast<UEdGraphNode>(*NodeIt))
-						{
-							FName NodeName = EdNode->GetFName();
-							if (URigVMNode* ModelNode = Blueprint->Model->FindNodeByName(NodeName))
-							{
-								if (!ModelNode->IsSelected())
-								{
-									FVector2D Position(EdNode->NodePosX, EdNode->NodePosY);
-									Blueprint->Controller->SetNodePositionByName(NodeName, Position, true);
-								}
-							}
-						}
-					}
-					FVector2D Position(CommentNode->NodePosX, CommentNode->NodePosY);
-					Blueprint->Controller->SetNodePositionByName(CommentNode->GetFName(), Position, true);
-					Blueprint->Controller->CloseUndoBracket();
-				}
-				else
-				{
-					FVector2D Position(CommentNode->NodePosX, CommentNode->NodePosY);
-					Blueprint->Controller->SetNodePositionByName(CommentNode->GetFName(), Position, true);
-				}
-			}
+			RigSchema->EndGraphNodeInteraction(GraphNode);
 		}
 	}
 
@@ -165,5 +135,14 @@ void SControlRigGraphNodeComment::OnCommentTextCommitted(const FText& NewComment
 }
 */
 
+bool SControlRigGraphNodeComment::IsNodeUnderComment(UEdGraphNode_Comment* InCommentNode, const TSharedRef<SGraphNode> InNodeWidget) const
+{
+	const FVector2D NodePosition = GetPosition();
+	const FVector2D NodeSize = GetDesiredSize();
+	const FSlateRect CommentRect(NodePosition.X, NodePosition.Y, NodePosition.X + NodeSize.X, NodePosition.Y + NodeSize.Y);
+
+	const FVector2D InNodePosition = InNodeWidget->GetPosition();
+	return CommentRect.ContainsPoint(InNodePosition);
+}
 
 #undef LOCTEXT_NAMESPACE

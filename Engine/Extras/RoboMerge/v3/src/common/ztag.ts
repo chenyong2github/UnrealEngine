@@ -94,7 +94,7 @@ class Record {
 class ZtagPropertyReader {
 	private lineIndex = 0
 	currentField = ''
-	constructor(private lines: string[]) {
+	constructor(private lines: string[], private logger: ContextualLogger) {
 	}
 
 	done() {
@@ -120,8 +120,15 @@ class ZtagPropertyReader {
 			const nextField = fieldMatch[1]
 			const index = fieldMatch[2] ? parseInt(fieldMatch[2]) : -1
 
-			if (onStartField(record, nextField, index)) {
-				break
+			try {
+				if (onStartField(record, nextField, index)) {
+					break
+				}
+			}
+			catch (err) {
+				this.logger.error("Parse error, assuming continuation: " + err.toString())
+				valueLines.push(line)
+				continue
 			}
 
 			if (this.currentField) {
@@ -180,8 +187,8 @@ function initialShapeFromOptions(options?: ParseOptions) {
 }
 
 
-export function parseHeaderAndArrayImpl(s: string, headerOptions?: ParseOptions, arrayEntryOptions?: ParseOptions) : Record[] {
-	const propertyReader = new ZtagPropertyReader(s.split('\n'))
+export function parseHeaderAndArrayImpl(s: string, logger: ContextualLogger, headerOptions?: ParseOptions, arrayEntryOptions?: ParseOptions) : Record[] {
+	const propertyReader = new ZtagPropertyReader(s.split('\n'), logger)
 
 	const headerShape = initialShapeFromOptions(headerOptions)
 
@@ -219,14 +226,14 @@ export function parseHeaderAndArrayImpl(s: string, headerOptions?: ParseOptions,
 	return [headerRecord, ...entries]
 }
 
-export function parseHeaderAndArray(s: string, headerOptions?: ParseOptions, arrayEntryOptions?: ParseOptions): ZtagProperties {
-	return parseHeaderAndArrayImpl(s, headerOptions, arrayEntryOptions).map(rec => {
+export function parseHeaderAndArray(s: string, logger: ContextualLogger, headerOptions?: ParseOptions, arrayEntryOptions?: ParseOptions): ZtagProperties {
+	return parseHeaderAndArrayImpl(s, logger, headerOptions, arrayEntryOptions).map(rec => {
 		rec.checkComplete()
 		return Object.fromEntries([...rec.values])
 	})
 }
 
-export function parseZtagOutput(ztagOutput: string, options?: ParseOptions) {
+export function parseZtagOutput(ztagOutput: string, logger: ContextualLogger, options?: ParseOptions) {
 	if (ztagOutput.trim().length === 0) {
 		return []
 	}
@@ -243,7 +250,7 @@ export function parseZtagOutput(ztagOutput: string, options?: ParseOptions) {
 	}
 
 	// console.log(ztagOutput.replace(/\n/g, '-'))
-	const propertyReader = new ZtagPropertyReader(ztagOutput.split('\n'))
+	const propertyReader = new ZtagPropertyReader(ztagOutput.split('\n'), logger)
 
 	const shape = initialShapeFromOptions(options)
 
@@ -300,7 +307,7 @@ function equal(lhs: any[], rhs: any[]) {
 
 let tests = 0
 let failures = 0
-function test(it: string, s: string, options: ParseOptions, expected?: any[], arrayEntryOptions?: ParseOptions) {
+function doTest(it: string, s: string, logger: ContextualLogger, options: ParseOptions, expected?: any[], arrayEntryOptions?: ParseOptions) {
 	// last ztag record seems to match others in ending with double \n
 	// may need to revisit this when dealing with arrays
 
@@ -312,7 +319,7 @@ function test(it: string, s: string, options: ParseOptions, expected?: any[], ar
 
 	let result: any[]
 	try {
-		result = arrayEntryOptions ? parseHeaderAndArray(s, options, arrayEntryOptions) : parseZtagOutput(s + '\n', options)
+		result = arrayEntryOptions ? parseHeaderAndArray(s, logger, options, arrayEntryOptions) : parseZtagOutput(s + '\n', logger, options)
 	}
 	catch (err) {
 		if (expected) {
@@ -357,6 +364,9 @@ console.log('2')
 export function runTests(logger: ContextualLogger) {
 	tests = 0
 	failures = 0
+
+	const test = (it: string, s: string, options: ParseOptions, expected?: any[], arrayEntryOptions?: ParseOptions) =>
+		doTest(it, s, logger, options, expected, arrayEntryOptions)
 
 if (true) {
 	test('single entry', '... first woo\n... second yay\n', {},

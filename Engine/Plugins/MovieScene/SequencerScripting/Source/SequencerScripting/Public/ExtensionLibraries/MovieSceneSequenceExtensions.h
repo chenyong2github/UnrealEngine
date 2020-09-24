@@ -138,7 +138,7 @@ public:
 	static FSequencerScriptingRange MakeRangeSeconds(UMovieSceneSequence* Sequence, float StartTime, float Duration);
 
 	/**
-	 * Get playback range of this sequence
+	 * Get playback range of this sequence in display rate resolution
 	 *
 	 * @param Sequence        The sequence within which to get the playback range
 	 * @return Playback range of this sequence
@@ -147,7 +147,7 @@ public:
 	static FSequencerScriptingRange GetPlaybackRange(UMovieSceneSequence* Sequence);
 
 	/**
-	 * Get playback start of this sequence
+	 * Get playback start of this sequence in display rate resolution
 	 *
 	 * @param Sequence        The sequence within which to get the playback start
 	 * @return Playback start of this sequence
@@ -165,7 +165,7 @@ public:
 	static float GetPlaybackStartSeconds(UMovieSceneSequence* Sequence);
 
 	/**
-	 * Get playback end of this sequence
+	 * Get playback end of this sequence in display rate resolution
 	 *
 	 * @param Sequence        The sequence within which to get the playback end
 	 * @return Playback end of this sequence
@@ -289,6 +289,42 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "Sequence", meta = (ScriptMethod, DevelopmentOnly))
 	static float GetWorkRangeEnd(UMovieSceneSequence* InSequence);
+
+	/**
+	 * Set the evaluation type for this sequence
+	 *
+	 * @param Sequence The sequence within which to set the evaluation type
+	 * @param InEvaluationType The evaluation type to set for this sequence
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequence", meta = (ScriptMethod))
+	static void SetEvaluationType(UMovieSceneSequence* InSequence, EMovieSceneEvaluationType InEvaluationType);
+
+	/**
+	 * Get the evaluation type for this sequence
+	 *
+	 * @param Sequence The sequence within which to get the evaluation type
+	 * @return The evaluation type for this sequence
+	 */
+	UFUNCTION(BlueprintPure, Category = "Sequence", meta = (ScriptMethod))
+	static EMovieSceneEvaluationType GetEvaluationType(UMovieSceneSequence* InSequence);
+
+	/**
+	 * Set the clock source for this sequence
+	 *
+	 * @param Sequence The sequence within which to set the clock source
+	 * @param InClockSource The clock source to set for this sequence
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequence", meta = (ScriptMethod))
+	static void SetClockSource(UMovieSceneSequence* InSequence, EUpdateClockSource InClockSource);
+
+	/**
+	 * Get the clock source for this sequence
+	 *
+	 * @param Sequence The sequence within which to get the clock source
+	 * @return The clock source for this sequence
+	 */
+	UFUNCTION(BlueprintPure, Category = "Sequence", meta = (ScriptMethod))
+	static EUpdateClockSource GetClockSource(UMovieSceneSequence* InSequence);
 
 	/**
 	 * Get the timecode source of this sequence
@@ -461,6 +497,15 @@ public:
 	static int32 AddMarkedFrame(UMovieSceneSequence* Sequence, const FMovieSceneMarkedFrame& InMarkedFrame);
 
 	/*
+	 * Sets the frame number for the given marked frame index. Does not maintain sort. Call SortMarkedFrames
+	 *
+	 * @InMarkIndex The given user marked frame index to edit
+	 * @InFrameNumber The frame number to set
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequence", meta = (ScriptMethod))
+	static void SetMarkedFrame(UMovieSceneSequence* Sequence, int32 InMarkIndex, FFrameNumber InFrameNumber);
+
+	/*
 	 * Delete the user marked frame by index.
 	 *
 	 * @DeleteIndex The index to the user marked frame to delete
@@ -473,6 +518,12 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequence", meta = (ScriptMethod))
 	static void DeleteMarkedFrames(UMovieSceneSequence* Sequence);
+
+	/*
+	 * Sort the marked frames in chronological order
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequence", meta = (ScriptMethod))
+	static void SortMarkedFrames(UMovieSceneSequence* Sequence);
 
 	/*
 	 * Find the user marked frame by label

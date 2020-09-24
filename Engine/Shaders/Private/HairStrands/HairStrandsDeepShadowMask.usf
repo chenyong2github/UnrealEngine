@@ -34,6 +34,7 @@ uint				DeepShadow_SlotIndex;
 uint				DeepShadow_KernelType;
 float				DeepShadow_DepthBiasScale;
 float				DeepShadow_DensityScale;
+float4				DeepShadow_LayerDepths;
 
 float4				Voxel_LightPosition;
 float3				Voxel_LightDirection;
@@ -73,7 +74,7 @@ float3 ToLightPosition(float3 WorldPosition)
 	float4x4 WorldToLightTransform = 0;
 	if (DeepShadow_bIsGPUDriven > 0)
 	{
-		WorldToLightTransform = DeepShadow_WorldToLightTransformBuffer.Load(DeepShadow_SlotIndex).WorldToClip;
+		WorldToLightTransform = DeepShadow_WorldToLightTransformBuffer[DeepShadow_SlotIndex].WorldToClip;
 	}
 	else
 	{
@@ -329,9 +330,9 @@ float InternalGaussianTransmissionFilter(float3 ShadowPosition, FHairSamplingSet
 	for (uint SampleIt = 0; SampleIt < SampleCount; ++SampleIt)
 	{
 		const float2 Offset = PoissonDisk[SampleIt] * SampleRadius;
-		const float DepthBias = LAYER_DEPTH0 * DeepShadow_DepthBiasScale;
+		const float DepthBias = DeepShadow_LayerDepths[0] * DeepShadow_DepthBiasScale;
 		const float3 LightSpacePositionInAtlas = (ShadowPosition+float3(Offset,0)) * float3(DeepShadow_SlotResolution, 1) + float3(DeepShadow_SlotOffset, 0);
-		const float HairCount = SampleDOM_PCF2x2(LightSpacePositionInAtlas.xyz, DepthBias, Settings.ShadowDepthTexture, Settings.ShadowDomTexture);
+		const float HairCount = SampleDOM_PCF2x2(LightSpacePositionInAtlas.xyz, DepthBias, DeepShadow_LayerDepths, Settings.ShadowDepthTexture, Settings.ShadowDomTexture);
 		AccHairCount += saturate(HairCount);
 	}
 
@@ -426,7 +427,8 @@ void MainPS(
 		// Origin is shifted 2 voxels away towards the light + a constant bias of the size of the voxel
 		const float3 Random = GetHairVoxelJitter(PixelCoord.xy, View.StateFrameIndexMod8);
 		{
-			const float3 DepthBias = VirtualVoxel.VoxelWorldSize * (2 * LightDirection + Random);
+			const float PositionBiasScale = 0.5f;
+			const float3 DepthBias = VirtualVoxel.VoxelWorldSize * (2 * LightDirection + PositionBiasScale * (Random * 2 - 1));
 			WorldPosition += DepthBias;
 		}
 
@@ -476,7 +478,7 @@ void MainPS(
 			discard;
 		}
 
-		Visibility = min(saturate(1 - Result.HairCount), Result.Visibility);
+		Visibility = saturate(1 - Result.HairCount);
 	}
 
 	// Depending of if the light is direction (i.e., WholeSceneLight) or a local light (Point/Spot/Rect), 

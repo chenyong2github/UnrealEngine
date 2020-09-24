@@ -308,6 +308,25 @@ bool FPhysicsAssetEditorEditMode::InputDelta(FEditorViewportClient* InViewportCl
 		return Rotation;
 	};
 
+	auto GetLocalTranslation = [this](FEditorViewportClient* InLocalViewportClient, const FVector& InDrag, const FTransform& InWidgetTM)
+	{
+		FVector Translation = InDrag;
+
+		if (InLocalViewportClient->GetWidgetCoordSystemSpace() == COORD_Local)
+		{
+			// When using local coords, we should translate in EACH objects local space, not the space of the first selected.
+			// We receive deltas in the local coord space, so we need to transform back
+			FMatrix CoordSpace;
+			GetCustomInputCoordinateSystem(CoordSpace, nullptr);
+
+			// Now transform into this object's local space
+			FMatrix ObjectMatrix = InWidgetTM.ToMatrixNoScale().RemoveTranslation();
+			Translation = ObjectMatrix.TransformVector(CoordSpace.Inverse().TransformVector(InDrag));
+		}
+
+		return Translation;
+	};
+
 	bool bHandled = false;
 	const EAxisList::Type CurrentAxis = InViewportClient->GetCurrentWidgetAxis();
 	if (!SharedData->bRunningSimulation && SharedData->bManipulating && CurrentAxis != EAxisList::None)
@@ -331,8 +350,9 @@ bool FPhysicsAssetEditorEditMode::InputDelta(FEditorViewportClient* InViewportCl
 				{
 					if (InViewportClient->GetWidgetMode() == UE::Widget::WM_Translate)
 					{
-						FVector Dir = SelectedObject.WidgetTM.InverseTransformVector(InDrag.GetSafeNormal());
-						FVector DragVec = Dir * InDrag.Size() / BoneScale;
+						FVector DragToUse = GetLocalTranslation(InViewportClient, InDrag, SelectedObject.WidgetTM);
+						FVector Dir = SelectedObject.WidgetTM.InverseTransformVector(DragToUse.GetSafeNormal());
+						FVector DragVec = Dir * DragToUse.Size() / BoneScale;
 						SelectedObject.ManipulateTM.AddToTranslation(DragVec);
 					}
 					else if (InViewportClient->GetWidgetMode() == UE::Widget::WM_Rotate)
@@ -401,8 +421,9 @@ bool FPhysicsAssetEditorEditMode::InputDelta(FEditorViewportClient* InViewportCl
 
 				if (InViewportClient->GetWidgetMode() == UE::Widget::WM_Translate)
 				{
-					FVector Dir = SelectedObject.WidgetTM.InverseTransformVector(InDrag.GetSafeNormal());
-					FVector DragVec = Dir * InDrag.Size() / BoneScale;
+					FVector DragToUse = GetLocalTranslation(InViewportClient, InDrag, SelectedObject.WidgetTM);
+					FVector Dir = SelectedObject.WidgetTM.InverseTransformVector(DragToUse.GetSafeNormal());
+					FVector DragVec = Dir * DragToUse.Size() / BoneScale;
 					SelectedObject.ManipulateTM.AddToTranslation(DragVec);
 				}
 				else if (InViewportClient->GetWidgetMode() == UE::Widget::WM_Rotate)

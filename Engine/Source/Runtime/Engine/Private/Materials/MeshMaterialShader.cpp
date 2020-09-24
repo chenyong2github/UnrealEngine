@@ -151,7 +151,6 @@ FShader* FMeshMaterialShaderType::FinishCompileShader(
 	}
 
 	FShader* Shader = ConstructCompiled(CompiledShaderInitializerType(this, CurrentJob.PermutationId, CurrentJob.Output, UniformExpressionSet, MaterialShaderMapHash, InDebugDescription, ShaderPipelineType, CurrentJob.VFType));
-	ValidateAfterBind(this, (FMeshMaterialShader*)Shader);
 	CurrentJob.Output.ParameterMap.VerifyBindingsAreComplete(GetName(), CurrentJob.Output.Target, CurrentJob.VFType);
 
 	return Shader;

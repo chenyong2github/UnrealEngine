@@ -7,23 +7,32 @@
 #include "MovieSceneSequence.h"
 #include "MovieSceneSequenceID.h"
 
+namespace UE
+{
+namespace MovieScene
+{
 
-static TSparseArray<IMovieScenePlayer*> GlobalPlayerRegistry;
+static TSparseArray<IMovieScenePlayer*> GGlobalPlayerRegistry;
+
+} // namespace MovieScene
+} // namespace UE
 
 IMovieScenePlayer::IMovieScenePlayer()
 {
-	UniqueIndex = GlobalPlayerRegistry.Add(this);
+	UniqueIndex = UE::MovieScene::GGlobalPlayerRegistry.Add(this);
 }
 
 IMovieScenePlayer::~IMovieScenePlayer()
 {
-	GlobalPlayerRegistry.RemoveAt(UniqueIndex, 1);
+	ensureMsgf(IsInGameThread(), TEXT("Destruction must occur on the game thread"));
+
+	UE::MovieScene::GGlobalPlayerRegistry.RemoveAt(UniqueIndex, 1);
 }
 
 IMovieScenePlayer* IMovieScenePlayer::Get(uint16 InUniqueIndex)
 {
-	check(GlobalPlayerRegistry.IsValidIndex(InUniqueIndex));
-	return GlobalPlayerRegistry[InUniqueIndex];
+	check(UE::MovieScene::GGlobalPlayerRegistry.IsValidIndex(InUniqueIndex));
+	return UE::MovieScene::GGlobalPlayerRegistry[InUniqueIndex];
 }
 
 void IMovieScenePlayer::ResolveBoundObjects(const FGuid& InBindingId, FMovieSceneSequenceID SequenceID, UMovieSceneSequence& Sequence, UObject* ResolutionContext, TArray<UObject*, TInlineAllocator<1>>& OutObjects) const

@@ -6,12 +6,15 @@
 
 void FControlRigEditModeCommands::RegisterCommands()
 {
-	UI_COMMAND(SetKey, "Set Key", "Sets a key on the selected nodes", EUserInterfaceActionType::Button, FInputChord(EKeys::Enter));
+	UI_COMMAND(ResetTransforms, "Reset Transform", "Reset the Controls Transforms", EUserInterfaceActionType::Button, FInputChord(EKeys::G, EModifierKey::Control));
+	UI_COMMAND(ResetAllTransforms, "Reset All Transform", "Reset all of the Controls Transforms", EUserInterfaceActionType::Button, FInputChord(EKeys::G, EModifierKey::Control | EModifierKey::Shift));
 	UI_COMMAND(ToggleManipulators, "Toggle Manipulators", "Toggles visibility of manipulators in the viewport", EUserInterfaceActionType::Button, FInputChord(EKeys::T));
-	UI_COMMAND(ExportAnimSequence, "Export To Animation", "Export this sequence to an optimized skeleton-specific animation sequence", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(ReExportAnimSequence, "Re-export To Animation", "Re-export this sequence to an animation sequence using the previous export settings", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(ImportFromRigSequence, "Import From Rig Sequence", "Import this animation sequence from a source rig sequence", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(ReImportFromRigSequence, "Re-import From Rig Sequence", "Re-import this animation sequence from it's source rig sequence", EUserInterfaceActionType::Button, FInputChord());
+
+	UI_COMMAND(IncreaseGizmoSize, "Increase Gizmo Size", "Increase Size of the Gizmos In The Viewport", EUserInterfaceActionType::Button, FInputChord(EKeys::Equals, EModifierKey::Shift));
+	UI_COMMAND(DecreaseGizmoSize, "Decrease Gizmo Size", "Decrease Size of the Gizmos In The Viewport", EUserInterfaceActionType::Button, FInputChord(EKeys::Hyphen, EModifierKey::Shift));
+	UI_COMMAND(ResetGizmoSize, "Reset Gizmo Size", "Resize Gizmo Size To Default", EUserInterfaceActionType::Button, FInputChord(EKeys::Equals));
+
+
 }
 
 #undef LOCTEXT_NAMESPACE

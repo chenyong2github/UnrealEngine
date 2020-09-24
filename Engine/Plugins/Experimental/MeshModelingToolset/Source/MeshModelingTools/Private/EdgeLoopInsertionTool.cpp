@@ -178,9 +178,14 @@ void UEdgeLoopInsertionTool::SetupPreview()
 			Op->GetLoopEdgeLocations(PreviewEdges);
 			LatestOpTopologyResult = Op->ResultTopology;
 		}
-		else
+		});
+	// In case of failure, we want to hide the broken preview, since we wouldn't accept it on
+	// a click. Note that this can't be fired OnOpCompleted because the preview is updated
+	// with the op result after that callback, which would undo the reset. The preview edge
+	// extraction can't be lumped in here because it needs the op rather than the preview object.
+	Preview->OnMeshUpdated.AddLambda([this]( UMeshOpPreviewWithBackgroundCompute*) {
+		if (!bLastComputeSucceeded)
 		{
-			// Don't show the broken preview, since we wouldn't accept it on click.
 			Preview->PreviewMesh->UpdatePreview(CurrentMesh.Get());
 		}
 		});
@@ -201,6 +206,7 @@ void UEdgeLoopInsertionTool::Shutdown(EToolShutdownType ShutdownType)
 	Preview->Shutdown();
 	ComponentTarget->SetOwnerVisibility(true);
 	CurrentMesh.Reset();
+	CurrentTopology.Reset();
 	ExpireChanges();
 }
 
@@ -263,7 +269,7 @@ void UEdgeLoopInsertionTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 	// Draw the preview edges
 	PreviewEdgeRenderer.BeginFrame(RenderAPI, RenderCameraState);
-	PreviewEdgeRenderer.SetTransform(Preview->PreviewMesh->GetTransform()); // TODO: Is this right?
+	PreviewEdgeRenderer.SetTransform(Preview->PreviewMesh->GetTransform());
 	for (TPair<FVector3d, FVector3d>& EdgeVerts : PreviewEdges)
 	{
 		PreviewEdgeRenderer.DrawLine(EdgeVerts.Key, EdgeVerts.Value);
@@ -299,7 +305,7 @@ FInputRayHit UEdgeLoopInsertionTool::HitTest(const FRay& WorldRay)
 		// TODO: We could check here that the edge has some quad-like neighbor. For now we
 		// just check that the edge isn't a loop unto itself (in which case the neighbor groups
 		// are definitely not quad-like).
-		int32 GroupEdgeID = Selection.SelectedEdgeIDs[0];
+		int32 GroupEdgeID = Selection.GetASelectedEdgeID();
 		const FGroupTopology::FGroupEdge& GroupEdge = CurrentTopology->Edges[GroupEdgeID];
 		if (GroupEdge.EndpointCorners.A != FDynamicMesh3::InvalidID)
 		{
@@ -328,7 +334,7 @@ bool UEdgeLoopInsertionTool::UpdateHoveredItem(const FRay& WorldRay)
 	}
 
 	// Check that the edge has endpoints
-	int32 GroupEdgeID = Selection.SelectedEdgeIDs[0];
+	int32 GroupEdgeID = Selection.GetASelectedEdgeID();
 	FGroupTopology::FGroupEdge GroupEdge = CurrentTopology->Edges[GroupEdgeID];
 	if (GroupEdge.EndpointCorners.A == FDynamicMesh3::InvalidID)
 	{
@@ -494,13 +500,13 @@ void FEdgeLoopInsertionChangeBookend::Apply(UObject* Object)
 	if (!bBeforeChange)
 	{
 		UEdgeLoopInsertionTool* Tool = Cast<UEdgeLoopInsertionTool>(Object);
-		Tool->CurrentMesh.Reset();
+		Tool->CurrentMesh->Clear();
 		FMeshDescriptionToDynamicMesh Converter;
 		Converter.Convert(Tool->ComponentTarget->GetMesh(), *Tool->CurrentMesh);
 		Tool->CurrentTopology->RebuildTopology();
 		Tool->MeshSpatial.Build();
 		Tool->TopologySelector.Invalidate(true, true);
-		Tool->Preview->PreviewMesh->UpdatePreview(Tool->CurrentMesh.Get());
+		Tool->ClearPreview();
 	}
 }
 
@@ -515,7 +521,7 @@ void FEdgeLoopInsertionChangeBookend::Revert(UObject* Object)
 		Tool->CurrentTopology->RebuildTopology();
 		Tool->MeshSpatial.Build();
 		Tool->TopologySelector.Invalidate(true, true);
-		Tool->Preview->PreviewMesh->UpdatePreview(Tool->CurrentMesh.Get());
+		Tool->ClearPreview();
 	}
 }
 

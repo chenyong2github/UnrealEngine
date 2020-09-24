@@ -28,6 +28,9 @@
 #	include "Developer/ShaderCompilerCommon/Public/ShaderCompilerCommon.h"
 #undef SHADERCOMPILERCOMMON_API
 
+bool GShowAuthFail = false;
+
+
 NSString* DecodeMetalSourceCode(uint32 CodeSize, TArray<uint8> const& CompressedSource)
 {
 	NSString* GlslCodeNSString = nil;

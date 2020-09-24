@@ -273,8 +273,7 @@ void RenderDirectLightIntoLumenCards(
 			bDynamicallyShadowed,
 			PassParameters->PS.VolumeShadowingShaderParameters);
 
-		FDeferredLightUniformStruct DeferredLightUniforms;
-		GetDeferredLightParameters(LightSceneInfo, View, DeferredLightUniforms);
+		FDeferredLightUniformStruct DeferredLightUniforms = GetDeferredLightParameters(View, *LightSceneInfo);
 
 		if (LightSceneInfo->Proxy->IsInverseSquared())
 		{

@@ -57,20 +57,14 @@ NIAGARASHADER_API bool FNiagaraShaderScript::ShouldCache(EShaderPlatform Platfor
 	return true;
 }
 
-NIAGARASHADER_API uint32 FNiagaraShaderScript::GetUseSimStagesDefine() const
+NIAGARASHADER_API bool FNiagaraShaderScript::GetUsesSimulationStages() const
 {
-	if (AdditionalDefines.Contains(TEXT("Emitter.UseSimulationStages")))
-	{
-		return 1;
-	}
-	else if (AdditionalDefines.Contains(TEXT("Emitter.UseOldShaderStages")))
-	{
-		return 1;
-	}
-	else
-	{
-		return 0;
-	}
+	return AdditionalDefines.Contains(TEXT("Emitter.UseSimulationStages"));
+}
+
+NIAGARASHADER_API bool FNiagaraShaderScript::GetUsesOldShaderStages() const
+{
+	return AdditionalDefines.Contains(TEXT("Emitter.UseOldShaderStages"));
 }
 
 NIAGARASHADER_API void FNiagaraShaderScript::NotifyCompilationFinished()
@@ -145,14 +139,13 @@ bool FNiagaraShaderScript::IsSame(const FNiagaraShaderMapId& InId) const
 		InId.FeatureLevel == FeatureLevel &&/*
 		InId.BaseScriptID == BaseScriptId &&*/
 		InId.bUsesRapidIterationParams == bUsesRapidIterationParams &&
-		InId.bUseShaderPermutations == bUseShaderPermutations &&
 		InId.BaseCompileHash == BaseCompileHash &&
 		InId.CompilerVersionID == CompilerVersionId;
 }
 
 int32 FNiagaraShaderScript::PermutationIdToShaderStageIndex(int32 PermutationId) const
 {
-	return bUseShaderPermutations ? ShaderStageToPermutation[PermutationId].Key : 0;
+	return ShaderStageToPermutation[PermutationId].Key;
 }
 
 bool FNiagaraShaderScript::IsShaderMapComplete() const
@@ -231,7 +224,6 @@ NIAGARASHADER_API void FNiagaraShaderScript::GetShaderMapId(EShaderPlatform Plat
 		OutId.FeatureLevel = GetFeatureLevel();/*
 		OutId.BaseScriptID = BaseScriptId;*/
 		OutId.bUsesRapidIterationParams = bUsesRapidIterationParams;		
-		OutId.bUseShaderPermutations = bUseShaderPermutations;
 		BaseCompileHash.ToSHAHash(OutId.BaseCompileHash);
 		OutId.CompilerVersionID = FNiagaraCustomVersion::LatestScriptCompileVersion;
 
@@ -369,7 +361,7 @@ void FNiagaraShaderScript::SerializeShaderMap(FArchive& Ar)
 
 void FNiagaraShaderScript::SetScript(UNiagaraScriptBase* InScript, ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform, const FGuid& InCompilerVersionID,  const TArray<FString>& InAdditionalDefines,
 		const FNiagaraCompileHash& InBaseCompileHash, const TArray<FNiagaraCompileHash>& InReferencedCompileHashes, 
-		bool bInUsesRapidIterationParams, bool bInUseShaderPermutations, FString InFriendlyName)
+		bool bInUsesRapidIterationParams, FString InFriendlyName)
 {
 	checkf(InBaseCompileHash.IsValid(), TEXT("Invalid base compile hash.  Script caching will fail."))
 	BaseVMScript = InScript;
@@ -377,18 +369,11 @@ void FNiagaraShaderScript::SetScript(UNiagaraScriptBase* InScript, ERHIFeatureLe
 	//BaseScriptId = InBaseScriptID;
 	AdditionalDefines = InAdditionalDefines;
 	bUsesRapidIterationParams = bInUsesRapidIterationParams;
-	bUseShaderPermutations = bInUseShaderPermutations;
 	BaseCompileHash = InBaseCompileHash;
 	ReferencedCompileHashes = InReferencedCompileHashes;
 	FriendlyName = InFriendlyName;
 	SetFeatureLevel(InFeatureLevel);
 	ShaderPlatform = InShaderPlatform;
-
-	// We don't support old shader stages with permutations
-	if (AdditionalDefines.Contains(TEXT("Emitter.UseOldShaderStages")))
-	{
-		bUseShaderPermutations = false;
-	}
 
 	UpdateCachedData_All();
 }
@@ -399,7 +384,6 @@ bool FNiagaraShaderScript::MatchesScript(ERHIFeatureLevel::Type InFeatureLevel, 
 	return CompilerVersionId == ScriptId.CompilerVersionID
 		&& AdditionalDefines == ScriptId.AdditionalDefines
 		&& bUsesRapidIterationParams == ScriptId.bUsesRapidIterationParams
-		&& bUseShaderPermutations == ScriptId.bUseShaderPermutations
 		&& BaseCompileHash == ScriptId.BaseScriptCompileHash
 		&& ReferencedCompileHashes == ScriptId.ReferencedCompileHashes
 		&& FeatureLevel == InFeatureLevel
@@ -457,18 +441,15 @@ void FNiagaraShaderScript::UpdateCachedData_PreCompile()
 		NumPermutations = 1;
 		ShaderStageToPermutation.Empty();
 
-		if (bUseShaderPermutations)
+		TConstArrayView<FSimulationStageMetaData> SimulationStages = BaseVMScript->GetSimulationStageMetaData();
+
+		// We add the number of simulation stages as Stage 0 is always the particle stage currently
+		NumPermutations += SimulationStages.Num();
+
+		ShaderStageToPermutation.Emplace(0, 1);
+		for (const FSimulationStageMetaData& StageMeta : SimulationStages)
 		{
-			TConstArrayView<FSimulationStageMetaData> SimulationStages = BaseVMScript->GetSimulationStageMetaData();
-
-			// We add the number of simulation stages as Stage 0 is always the particle stage currently
-			NumPermutations += SimulationStages.Num();
-
-			ShaderStageToPermutation.Emplace(0, 1);
-			for (const FSimulationStageMetaData& StageMeta : SimulationStages)
-			{
-				ShaderStageToPermutation.Emplace(StageMeta.MinStage, StageMeta.MaxStage);
-			}
+			ShaderStageToPermutation.Emplace(StageMeta.MinStage, StageMeta.MaxStage);
 		}
 	}
 	else

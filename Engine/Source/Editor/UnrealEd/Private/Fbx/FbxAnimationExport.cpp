@@ -17,6 +17,7 @@
 #include "Animation/SkeletalMeshActor.h"
 #include "FbxExporter.h"
 #include "Exporters/FbxExportOption.h"
+#include "Animation/CustomAttributesRuntime.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFbxAnimationExport, Log, All);
 
@@ -114,12 +115,68 @@ void FFbxExporter::ExportAnimSequenceToFbx(const UAnimSequence* AnimSeq,
 
 	ExportCustomAnimCurvesToFbx(CustomCurveMap, AnimSeq, AnimStartOffset, AnimEndOffset, AnimPlayRate, StartTime);
 
+	TArray<FCustomAttribute> CustomAttributes;
+
 	// Add the animation data to the bone nodes
 	for(int32 BoneIndex = 0; BoneIndex < BoneNodes.Num(); ++BoneIndex)
 	{
 		FbxNode* CurrentBoneNode = BoneNodes[BoneIndex];
+		int32 BoneTreeIndex = Skeleton->GetSkeletonBoneIndexFromMeshBoneIndex(SkelMesh, BoneIndex);
+		int32 BoneTrackIndex = Skeleton->GetRawAnimationTrackIndex(BoneTreeIndex, AnimSeq);
+		FName BoneName = Skeleton->GetReferenceSkeleton().GetBoneName(BoneTreeIndex);
+		
+		CustomAttributes.Reset();
+		AnimSeq->GetCustomAttributesForBone(BoneName, CustomAttributes);
 
-		// Create the AnimCurves
+		TArray<TPair<int32, FbxAnimCurve*>> FloatCustomAttributeIndices;
+		TArray<TPair<int32, FbxAnimCurve*>> IntCustomAttributeIndices;
+
+		// Setup custom attribute properties and curves
+		for (int32 AttributeIndex = 0; AttributeIndex < CustomAttributes.Num(); ++AttributeIndex)
+		{
+			const FCustomAttribute& Attribute = CustomAttributes[AttributeIndex];
+			const FName& AttributeName = Attribute.Name;
+
+			const EVariantTypes VariantType = static_cast<EVariantTypes>(Attribute.VariantType);
+
+			if (VariantType == EVariantTypes::Int32)
+			{
+				FbxProperty AnimCurveFbxProp = FbxProperty::Create(CurrentBoneNode, FbxIntDT, TCHAR_TO_UTF8(*AttributeName.ToString()));
+				AnimCurveFbxProp.ModifyFlag(FbxPropertyFlags::eAnimatable, true);
+				AnimCurveFbxProp.ModifyFlag(FbxPropertyFlags::eUserDefined, true);
+
+				FbxAnimCurve* AnimFbxCurve = AnimCurveFbxProp.GetCurve(InAnimLayer, true);
+				AnimFbxCurve->KeyModifyBegin();
+				IntCustomAttributeIndices.Emplace(AttributeIndex, AnimFbxCurve);
+			}
+			else if (VariantType == EVariantTypes::Float)
+			{
+				FbxProperty AnimCurveFbxProp = FbxProperty::Create(CurrentBoneNode, FbxFloatDT, TCHAR_TO_UTF8(*AttributeName.ToString()));
+				AnimCurveFbxProp.ModifyFlag(FbxPropertyFlags::eAnimatable, true);
+				AnimCurveFbxProp.ModifyFlag(FbxPropertyFlags::eUserDefined, true);
+
+				FbxAnimCurve* AnimFbxCurve = AnimCurveFbxProp.GetCurve(InAnimLayer, true);
+				AnimFbxCurve->KeyModifyBegin();
+				FloatCustomAttributeIndices.Emplace(AttributeIndex, AnimFbxCurve);
+			}
+			else if (VariantType == EVariantTypes::String)
+			{
+				FbxProperty AnimCurveFbxProp = FbxProperty::Create(CurrentBoneNode, FbxStringDT, TCHAR_TO_UTF8(*AttributeName.ToString()));
+				AnimCurveFbxProp.ModifyFlag(FbxPropertyFlags::eUserDefined, true);
+
+				// String attributes can't be keyed, simply set a normal value.
+				FString AttributeValue;
+				FCustomAttributesRuntime::GetAttributeValue(Attribute, 0.f, AttributeValue);
+				FbxString FbxValueString(TCHAR_TO_UTF8(*AttributeValue));
+				AnimCurveFbxProp.Set(FbxValueString);
+			}
+			else
+			{
+				ensureMsgf(false, TEXT("Trying to export unsupported custom attribte (float, int32 and FString are currently supported)"));
+			}
+		}
+
+		// Create the transform AnimCurves
 		const uint32 NumberOfCurves = 9;
 		FbxAnimCurve* Curves[NumberOfCurves];
 		
@@ -136,8 +193,6 @@ void FFbxExporter::ExportAnimSequenceToFbx(const UAnimSequence* AnimSeq,
 		Curves[7] = CurrentBoneNode->LclScaling.GetCurve(InAnimLayer, FBXSDK_CURVENODE_COMPONENT_Y, true);
 		Curves[8] = CurrentBoneNode->LclScaling.GetCurve(InAnimLayer, FBXSDK_CURVENODE_COMPONENT_Z, true);
 
-		int32 BoneTreeIndex = Skeleton->GetSkeletonBoneIndexFromMeshBoneIndex(SkelMesh, BoneIndex);
-		int32 BoneTrackIndex = Skeleton->GetRawAnimationTrackIndex(BoneTreeIndex, AnimSeq);
 		if(BoneTrackIndex == INDEX_NONE)
 		{
 			// If this sequence does not have a track for the current bone, then skip it
@@ -176,6 +231,22 @@ void FFbxExporter::ExportAnimSequenceToFbx(const UAnimSequence* AnimSeq,
 					}
 				}
 			}
+
+			for (TPair<int32, FbxAnimCurve*>& CurrentAttributeCurve : FloatCustomAttributeIndices)
+			{
+				float AttributeValue = 0.f;
+				FCustomAttributesRuntime::GetAttributeValue(CustomAttributes[CurrentAttributeCurve.Key], AnimTime, AttributeValue);
+				int32 KeyIndex = CurrentAttributeCurve.Value->KeyAdd(ExportTime);
+				CurrentAttributeCurve.Value->KeySetValue(KeyIndex, AttributeValue);
+			}
+
+			for (TPair<int32, FbxAnimCurve*>& CurrentAttributeCurve : IntCustomAttributeIndices)
+			{
+				int32 AttributeValue = 0;
+				FCustomAttributesRuntime::GetAttributeValue(CustomAttributes[CurrentAttributeCurve.Key], AnimTime, AttributeValue);
+				int32 KeyIndex = CurrentAttributeCurve.Value->KeyAdd(ExportTime);
+				CurrentAttributeCurve.Value->KeySetValue(KeyIndex, static_cast<float>(AttributeValue));
+			}
 		};
 
 		IterateInsideAnimSequence(AnimSeq, AnimStartOffset, AnimEndOffset, AnimPlayRate, StartTime, ExportLambda);
@@ -184,6 +255,17 @@ void FFbxExporter::ExportAnimSequenceToFbx(const UAnimSequence* AnimSeq,
 		{
 			Curve->KeyModifyEnd();
 		}
+
+		auto MarkCurveEnd = [](auto& CurvesArray)
+		{
+			for (auto& CurvePair : CurvesArray)
+			{
+				CurvePair.Value->KeyModifyEnd();
+			}
+		};
+
+		MarkCurveEnd(FloatCustomAttributeIndices);
+		MarkCurveEnd(IntCustomAttributeIndices);
 	}
 }
 
@@ -324,7 +406,7 @@ void FFbxExporter::CorrectAnimTrackInterpolation( TArray<FbxNode*>& BoneNodes, F
 }
 
 
-FbxNode* FFbxExporter::ExportAnimSequence( const UAnimSequence* AnimSeq, const USkeletalMesh* SkelMesh, bool bExportSkelMesh, const TCHAR* MeshName, FbxNode* ActorRootNode )
+FbxNode* FFbxExporter::ExportAnimSequence( const UAnimSequence* AnimSeq, const USkeletalMesh* SkelMesh, bool bExportSkelMesh, const TCHAR* MeshName, FbxNode* ActorRootNode, const TArray<UMaterialInterface*>* OverrideMaterials /*= nullptr*/ )
 {
 	if( Scene == NULL || AnimSeq == NULL || SkelMesh == NULL )
 	{
@@ -398,7 +480,7 @@ FbxNode* FFbxExporter::ExportAnimSequence( const UAnimSequence* AnimSeq, const U
 					double LodScreenSize = (double)(10.0f / SkelMesh->GetLODInfo(CurrentLodIndex)->ScreenSize.Default);
 					FbxLodGroupAttribute->AddThreshold(LodScreenSize);
 				}
-				FbxNode* FbxActorLOD = CreateMesh(SkelMesh, *FbxLODNodeName, CurrentLodIndex, AnimSeq);
+				FbxNode* FbxActorLOD = CreateMesh(SkelMesh, *FbxLODNodeName, CurrentLodIndex, AnimSeq, OverrideMaterials);
 				if (FbxActorLOD)
 				{
 					MeshRootNode->AddChild(FbxActorLOD);
@@ -414,14 +496,15 @@ FbxNode* FFbxExporter::ExportAnimSequence( const UAnimSequence* AnimSeq, const U
 		}
 		else
 		{
-			MeshRootNode = CreateMesh(SkelMesh, *MeshNodeName, 0, AnimSeq);
+			const int32 LodIndex = 0;
+			MeshRootNode = CreateMesh(SkelMesh, *MeshNodeName, LodIndex, AnimSeq, OverrideMaterials);
 			if (MeshRootNode)
 			{
 				TmpNodeNoTransform->AddChild(MeshRootNode);
 				if (SkeletonRootNode)
 				{
 					// Bind the mesh to the skeleton
-					BindMeshToSkeleton(SkelMesh, MeshRootNode, BoneNodes, 0);
+					BindMeshToSkeleton(SkelMesh, MeshRootNode, BoneNodes, LodIndex);
 
 					// Add the bind pose
 					CreateBindPose(MeshRootNode);
@@ -566,7 +649,8 @@ void FFbxExporter::ExportAnimTrack(IAnimTrackAdapter& AnimTrackAdapter, AActor* 
 		}
 	}
 	
-
+	TArray<FCustomAttribute> CustomAttributes;
+	
 	FTransform InitialInvParentTransform;
 
 	int32 LocalStartFrame = AnimTrackAdapter.GetLocalStartFrame();
@@ -586,6 +670,10 @@ void FFbxExporter::ExportAnimTrack(IAnimTrackAdapter& AnimTrackAdapter, AActor* 
 
 		// This will call UpdateSkelPose on the skeletal mesh component to move bones based on animations in the matinee group
 		AnimTrackAdapter.UpdateAnimation(LocalFrame);
+
+		// This will retrieve the currently active anim sequence (topmost) for custom attributes
+		const UAnimSequence* AnimSeq = AnimTrackAdapter.GetAnimSequence(LocalFrame);
+		float AnimTime = AnimTrackAdapter.GetAnimTime(LocalFrame);
 
 		// Update space bases so new animation position has an effect.
 		// @todo - hack - this will be removed at some point
@@ -664,6 +752,90 @@ void FFbxExporter::ExportAnimTrack(IAnimTrackAdapter& AnimTrackAdapter, AActor* 
 			{
 				Curves[i]->KeyModifyEnd();
 			}
+
+			// Custom attributes
+			if (!AnimSeq)
+			{
+				continue;
+			}
+
+			CustomAttributes.Reset();
+			AnimSeq->GetCustomAttributesForBone(BoneName, CustomAttributes);
+
+			TArray<TPair<int32, FbxAnimCurve*>> FloatCustomAttributeIndices;
+			TArray<TPair<int32, FbxAnimCurve*>> IntCustomAttributeIndices;
+
+			// Setup custom attribute properties and curves
+			for (int32 AttributeIndex = 0; AttributeIndex < CustomAttributes.Num(); ++AttributeIndex)
+			{
+				const FCustomAttribute& Attribute = CustomAttributes[AttributeIndex];
+				const FName& AttributeName = Attribute.Name;
+
+				const EVariantTypes VariantType = static_cast<EVariantTypes>(Attribute.VariantType);
+
+				if (VariantType == EVariantTypes::Int32)
+				{
+					FbxProperty AnimCurveFbxProp = FbxProperty::Create(CurrentBoneNode, FbxIntDT, TCHAR_TO_UTF8(*AttributeName.ToString()));
+					AnimCurveFbxProp.ModifyFlag(FbxPropertyFlags::eAnimatable, true);
+					AnimCurveFbxProp.ModifyFlag(FbxPropertyFlags::eUserDefined, true);
+
+					FbxAnimCurve* AnimFbxCurve = AnimCurveFbxProp.GetCurve(AnimLayer, true);
+					AnimFbxCurve->KeyModifyBegin();
+					IntCustomAttributeIndices.Emplace(AttributeIndex, AnimFbxCurve);
+				}
+				else if (VariantType == EVariantTypes::Float)
+				{
+					FbxProperty AnimCurveFbxProp = FbxProperty::Create(CurrentBoneNode, FbxFloatDT, TCHAR_TO_UTF8(*AttributeName.ToString()));
+					AnimCurveFbxProp.ModifyFlag(FbxPropertyFlags::eAnimatable, true);
+					AnimCurveFbxProp.ModifyFlag(FbxPropertyFlags::eUserDefined, true);
+
+					FbxAnimCurve* AnimFbxCurve = AnimCurveFbxProp.GetCurve(AnimLayer, true);
+					AnimFbxCurve->KeyModifyBegin();
+					FloatCustomAttributeIndices.Emplace(AttributeIndex, AnimFbxCurve);
+				}
+				else if (VariantType == EVariantTypes::String)
+				{
+					FbxProperty AnimCurveFbxProp = FbxProperty::Create(CurrentBoneNode, FbxStringDT, TCHAR_TO_UTF8(*AttributeName.ToString()));
+					AnimCurveFbxProp.ModifyFlag(FbxPropertyFlags::eUserDefined, true);
+
+					// String attributes can't be keyed, simply set a normal value.
+					FString AttributeValue;
+					FCustomAttributesRuntime::GetAttributeValue(Attribute, 0.f, AttributeValue);
+					FbxString FbxValueString(TCHAR_TO_UTF8(*AttributeValue));
+					AnimCurveFbxProp.Set(FbxValueString);
+				}
+				else
+				{
+					ensureMsgf(false, TEXT("Trying to export unsupported custom attribte (float, int32 and FString are currently supported)"));
+				}
+
+				for (TPair<int32, FbxAnimCurve*>& CurrentAttributeCurve : FloatCustomAttributeIndices)
+				{
+					float AttributeValue = 0.f;
+					FCustomAttributesRuntime::GetAttributeValue(CustomAttributes[CurrentAttributeCurve.Key], AnimTime, AttributeValue);
+					int32 KeyIndex = CurrentAttributeCurve.Value->KeyAdd(ExportTime);
+					CurrentAttributeCurve.Value->KeySetValue(KeyIndex, AttributeValue);
+				}
+
+				for (TPair<int32, FbxAnimCurve*>& CurrentAttributeCurve : IntCustomAttributeIndices)
+				{
+					int32 AttributeValue = 0;
+					FCustomAttributesRuntime::GetAttributeValue(CustomAttributes[CurrentAttributeCurve.Key], AnimTime, AttributeValue);
+					int32 KeyIndex = CurrentAttributeCurve.Value->KeyAdd(ExportTime);
+					CurrentAttributeCurve.Value->KeySetValue(KeyIndex, static_cast<float>(AttributeValue));
+				}
+			}
+
+			auto MarkCurveEnd = [](auto& CurvesArray)
+			{
+				for (auto& CurvePair : CurvesArray)
+				{
+					CurvePair.Value->KeyModifyEnd();
+				}
+			};
+
+			MarkCurveEnd(FloatCustomAttributeIndices);
+			MarkCurveEnd(IntCustomAttributeIndices);
 		}
 	}
 

@@ -15,6 +15,7 @@ namespace Trace
 
 class SDockTab;
 class FSpawnTabArgs;
+class SWindow;
 
 /**
  * Implements the Trace Insights module.
@@ -39,9 +40,9 @@ public:
 	virtual void CreateSessionViewer(bool bAllowDebugTools) override;
 
 	virtual TSharedPtr<const Trace::IAnalysisSession> GetAnalysisSession() const override;
-	virtual void StartAnalysisForTrace(uint32 InTraceId) override;
+	virtual void StartAnalysisForTrace(uint32 InTraceId, bool InAutoQuit = false) override;
 	virtual void StartAnalysisForLastLiveSession() override;
-	virtual void StartAnalysisForTraceFile(const TCHAR* InTraceFile) override;
+	virtual void StartAnalysisForTraceFile(const TCHAR* InTraceFile, bool InAutoQuit = false) override;
 
 	virtual void ShutdownUserInterface() override;
 
@@ -63,6 +64,10 @@ public:
 	/** Set the ini path for saving persistent layout data. */
 	virtual void SetUnrealInsightsLayoutIni(const FString& InIniPath) override;
 
+	virtual void ScheduleCommand(const FString& InCmd) override;
+
+	virtual void InitializeTesting(bool InInitAutomationModules, bool InAutoQuit) override;
+
 protected:
 	void InitTraceStore();
 
@@ -81,6 +86,7 @@ protected:
 	/** Session Info */
 	TSharedRef<SDockTab> SpawnSessionInfoTab(const FSpawnTabArgs& Args);
 
+	void OnWindowClosedEvent(const TSharedRef<SWindow>&);
 protected:
 	TUniquePtr<Trace::FStoreService> StoreService;
 

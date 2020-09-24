@@ -121,7 +121,7 @@ FReply FProceduralMeshComponentDetails::ClickedOnConvertToStaticMesh()
 			if (MeshDescription.Polygons().Num() > 0)
 			{
 				// Then find/create it.
-				UPackage* Package = CreatePackage(NULL, *UserPackageName);
+				UPackage* Package = CreatePackage(*UserPackageName);
 				check(Package);
 
 				// Create StaticMesh object

@@ -64,7 +64,7 @@ public:
 
 	virtual void GetRendererWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const override;
 	virtual void GetRendererTooltipWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const override;
-	virtual void GetRendererFeedback(const UNiagaraEmitter* InEmitter, TArray<FText>& OutErrors, TArray<FText>& OutWarnings, TArray<FText>& OutInfo) const override;
+	virtual void GetRendererFeedback(UNiagaraEmitter* InEmitter, TArray<FNiagaraRendererFeedback>& OutErrors, TArray<FNiagaraRendererFeedback>& OutWarnings, TArray<FNiagaraRendererFeedback>& OutInfo) const override;
 	virtual const FSlateBrush* GetStackIcon() const override;
 	virtual FText GetWidgetDisplayName() const override;
 
@@ -88,6 +88,11 @@ public:
 	 * Disabling this option is faster, but a particle can get a different component each tick, which can lead to problems with for example motion blur. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Component Rendering")
 	bool bAssignComponentsOnParticleID;
+
+	/** If true then new components can only be created on newly spawned particles. If a particle is not able to create a component on it's first frame (e.g. because the component
+	 * limit was reached) then it will be blocked from spawning a component on subsequent frames. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Component Rendering", meta = (EditConition = "bAssignComponentsOnParticleID"))
+	bool bOnlyCreateComponentsOnParticleSpawn;
 
 #if WITH_EDITORONLY_DATA
 
@@ -121,4 +126,6 @@ private:
 	const UNiagaraEmitter* EmitterPtr;
 
 	void CreateTemplateComponent();
+
+	bool HasPropertyBinding(FName PropertyName) const;
 };

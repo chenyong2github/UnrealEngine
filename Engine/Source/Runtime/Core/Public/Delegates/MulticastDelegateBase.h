@@ -17,24 +17,20 @@
 	typedef TInlineAllocator<NUM_MULTICAST_DELEGATE_INLINE_ENTRIES> FMulticastInvocationListAllocatorType;
 #endif
 
-typedef TArray<FDelegateBase, FMulticastInvocationListAllocatorType> TInvocationList;
-
 /**
  * Abstract base class for multicast delegates.
  */
-template<typename ObjectPtrType>
-class FMulticastDelegateBase
+template<typename UserPolicy>
+class TMulticastDelegateBase
 {
+protected:
+	using InvocationListType = TArray<TDelegateBase<UserPolicy>, FMulticastInvocationListAllocatorType>;
+
 public:
-
-	~FMulticastDelegateBase()
-	{
-	}
-
 	/** Removes all functions from this delegate's invocation list. */
 	void Clear( )
 	{
-		for (FDelegateBase& DelegateBaseRef : InvocationList)
+		for (TDelegateBase<UserPolicy>& DelegateBaseRef : InvocationList)
 		{
 			DelegateBaseRef.Unbind();
 		}
@@ -49,7 +45,7 @@ public:
 	 */
 	inline bool IsBound( ) const
 	{
-		for (const FDelegateBase& DelegateBaseRef : InvocationList)
+		for (const TDelegateBase<UserPolicy>& DelegateBaseRef : InvocationList)
 		{
 			if (DelegateBaseRef.GetDelegateInstanceProtected())
 			{
@@ -66,7 +62,7 @@ public:
 	 */
 	inline bool IsBoundToObject( void const* InUserObject ) const
 	{
-		for (const FDelegateBase& DelegateBaseRef : InvocationList)
+		for (const TDelegateBase<UserPolicy>& DelegateBaseRef : InvocationList)
 		{
 			IDelegateInstance* DelegateInstance = DelegateBaseRef.GetDelegateInstanceProtected();
 			if ((DelegateInstance != nullptr) && DelegateInstance->HasSameObject(InUserObject))
@@ -90,7 +86,7 @@ public:
 		int32 Result = 0;
 		if (InvocationListLockCount > 0)
 		{
-			for (FDelegateBase& DelegateBaseRef : InvocationList)
+			for (TDelegateBase<UserPolicy>& DelegateBaseRef : InvocationList)
 			{
 				IDelegateInstance* DelegateInstance = DelegateBaseRef.GetDelegateInstanceProtected();
 				if ((DelegateInstance != nullptr) && DelegateInstance->HasSameObject(InUserObject))
@@ -112,7 +108,7 @@ public:
 			// compact us while shuffling in later delegates to fill holes
 			for (int32 InvocationListIndex = 0; InvocationListIndex < InvocationList.Num();)
 			{
-				FDelegateBase& DelegateBaseRef = InvocationList[InvocationListIndex];
+				TDelegateBase<UserPolicy>& DelegateBaseRef = InvocationList[InvocationListIndex];
 
 				IDelegateInstance* DelegateInstance = DelegateBaseRef.GetDelegateInstanceProtected();
 				if (DelegateInstance == nullptr
@@ -139,7 +135,7 @@ public:
 protected:
 
 	/** Hidden default constructor. */
-	inline FMulticastDelegateBase( )
+	inline TMulticastDelegateBase( )
 		: CompactionThreshold(2)
 		, InvocationListLockCount(0)
 	{ }
@@ -151,13 +147,37 @@ protected:
 	 *
 	 * @param NewDelegateBaseRef The delegate instance to add.
 	 */
-	inline FDelegateHandle AddInternal(FDelegateBase&& NewDelegateBaseRef)
+	inline FDelegateHandle AddDelegateInstance(TDelegateBase<UserPolicy>&& NewDelegateBaseRef)
 	{
 		// compact but obey threshold of when this will trigger
 		CompactInvocationList(true);
 		FDelegateHandle Result = NewDelegateBaseRef.GetHandle();
 		InvocationList.Add(MoveTemp(NewDelegateBaseRef));
 		return Result;
+	}
+
+	/**
+	 * Removes a function from this multi-cast delegate's invocation list (performance is O(N)).
+	 *
+	 * @param Handle The handle of the delegate instance to remove.
+	 * @return  true if the delegate was successfully removed.
+	 */
+	bool RemoveDelegateInstance(FDelegateHandle Handle)
+	{
+		for (int32 InvocationListIndex = 0; InvocationListIndex < InvocationList.Num(); ++InvocationListIndex)
+		{
+			TDelegateBase<UserPolicy>& DelegateBase = InvocationList[InvocationListIndex];
+
+			IDelegateInstance* DelegateInstance = DelegateBase.GetDelegateInstanceProtected();
+			if (DelegateInstance && DelegateInstance->GetHandle() == Handle)
+			{
+				DelegateBase.Unbind();
+				CompactInvocationList();
+				return true; // each delegate binding has a unique handle, so once we find it, we can stop
+			}
+		}
+
+		return false;
 	}
 
 	/**
@@ -185,7 +205,7 @@ protected:
 		// Find anything null or compactable and remove it
 		for (int32 InvocationListIndex = 0; InvocationListIndex < InvocationList.Num();)
 		{
-			FDelegateBase& DelegateBaseRef = InvocationList[InvocationListIndex];
+			auto& DelegateBaseRef = InvocationList[InvocationListIndex];
 
 			IDelegateInstance* DelegateInstance = DelegateBaseRef.GetDelegateInstanceProtected();
 			if (DelegateInstance == nullptr	|| DelegateInstance->IsCompactable())
@@ -212,7 +232,12 @@ protected:
 	 *
 	 * @return The invocation list.
 	 */
-	inline const TInvocationList& GetInvocationList( ) const
+	inline InvocationListType& GetInvocationList( )
+	{
+		return InvocationList;
+	}
+
+	inline const InvocationListType& GetInvocationList( ) const
 	{
 		return InvocationList;
 	}
@@ -229,11 +254,18 @@ protected:
 		--InvocationListLockCount;
 	}
 
+	/** Returns the lock counter for the invocation list. */
+	inline int32 GetInvocationListLockCount() const
+	{
+		return InvocationListLockCount;
+	}
+
 protected:
 	/**
-	 * Helper function for derived classes of FMulticastDelegateBase to get at the delegate instance.
+	 * Helper function for derived classes of TMulticastDelegateBase to get at the delegate instance.
 	 */
-	static FORCEINLINE IDelegateInstance* GetDelegateInstanceProtectedHelper(const FDelegateBase& Base)
+	template <typename DelegateType>
+	static FORCEINLINE auto* GetDelegateInstanceProtectedHelper(const DelegateType& Base)
 	{
 		return Base.GetDelegateInstanceProtected();
 	}
@@ -241,7 +273,7 @@ protected:
 private:
 
 	/** Holds the collection of delegate instances to invoke. */
-	TInvocationList InvocationList;
+	InvocationListType InvocationList;
 
 	/** Used to determine when a compaction should happen. */
 	int32 CompactionThreshold;

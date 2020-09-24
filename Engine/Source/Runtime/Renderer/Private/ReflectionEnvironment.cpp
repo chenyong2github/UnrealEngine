@@ -139,7 +139,7 @@ FVector GetReflectionEnvironmentRoughnessMixingScaleBiasAndLargestWeight()
 
 bool IsReflectionEnvironmentAvailable(ERHIFeatureLevel::Type InFeatureLevel)
 {
-	return (InFeatureLevel >= ERHIFeatureLevel::SM5) && (GetReflectionEnvironmentCVar() != 0);
+	return (SupportsTextureCubeArray(InFeatureLevel)) && (GetReflectionEnvironmentCVar() != 0);
 }
 
 bool IsReflectionCaptureAvailable()
@@ -150,7 +150,7 @@ bool IsReflectionCaptureAvailable()
 
 void FReflectionEnvironmentCubemapArray::InitDynamicRHI()
 {
-	if (GetFeatureLevel() >= ERHIFeatureLevel::SM5)
+	if (SupportsTextureCubeArray(GetFeatureLevel()))
 	{
 		const int32 NumReflectionCaptureMips = FMath::CeilLogTwo(CubemapSize) + 1;
 

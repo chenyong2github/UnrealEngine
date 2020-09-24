@@ -5,6 +5,7 @@
 #include "IMagicLeapTrackerEntity.h"
 #include "ARTypes.h"
 #include "ARTrackable.h"
+#include "ARSessionConfig.h"
 
 class FLuminARImplementation;
 
@@ -20,6 +21,7 @@ public:
 	virtual void OnStartGameFrame() {}
 	virtual bool IsHandleTracked(const FGuid& Handle) const { return false; }
 	virtual UARTrackedGeometry* CreateTrackableObject() { return nullptr; }
+	virtual UClass* GetARComponentClass(const UARSessionConfig& SessionConfig) { return nullptr;  }
 	virtual IARRef* CreateNativeResource(const FGuid& Handle, UARTrackedGeometry* TrackableObject) { return nullptr; }
 
 protected:

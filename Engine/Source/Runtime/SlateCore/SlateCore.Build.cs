@@ -13,6 +13,7 @@ public class SlateCore : ModuleRules
 				"InputCore",
 				"ApplicationCore",
 				"Json",
+				"TraceLog",
 			});
 
 		PrivateIncludePaths.AddRange(
@@ -50,6 +51,7 @@ public class SlateCore : ModuleRules
 			}
 
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "HarfBuzz");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "Nanosvg");
 		}
 		else
 		{

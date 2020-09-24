@@ -43,6 +43,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
 	int32 GetInstructionIndex() const;
 
+	// Returns the index of the block this node belongs to
+	UFUNCTION(BlueprintCallable, Category = RigVMNode)
+	int32 GetBlockIndex() const;
+
 	// Returns all of the top-level Pins of this Node.
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
 	const TArray<URigVMPin*>& GetPins() const;
@@ -102,6 +106,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
 	virtual bool IsPure() const;
 
+	// Returns true if the node is defined as non-varying
+	UFUNCTION(BlueprintCallable, Category = RigVMNode)
+	virtual bool IsDefinedAsConstant() const { return false; }
+
+	// Returns true if the node is defined as non-varying
+	UFUNCTION(BlueprintCallable, Category = RigVMNode)
+	virtual bool IsDefinedAsVarying() const { return false; }
+
 	// Returns true if this Node has side effects or
 	// internal state.
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
@@ -148,10 +160,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
 	TArray<URigVMNode*> GetLinkedTargetNodes() const;
 
+	// Returns the name of the slice context for a pin
+	virtual FName GetSliceContextForPin(URigVMPin* InRootPin, const FRigVMUserDataArray& InUserData);
+
+	// returns the number of slices on this node
+	int32 GetNumSlices(const FRigVMUserDataArray& InUserData);
+
+	// Returns the number of slices for a given context
+	virtual int32 GetNumSlicesForContext(const FName& InContextName, const FRigVMUserDataArray& InUserData);
+
 private:
 
-	static const FString ExecuteName;
-	static const FString ExecuteContextName;
 	static const FString NodeColorName;
 
 	bool IsLinkedToRecursive(URigVMPin* InPin, URigVMNode* InNode) const;
@@ -160,6 +179,7 @@ private:
 protected:
 
 	virtual FText GetToolTipTextForPin(const URigVMPin* InPin) const;
+	virtual bool AllowsLinksOn(const URigVMPin* InPin) const { return true; }
 
 	UPROPERTY()
 	FString NodeTitle;
@@ -177,8 +197,13 @@ private:
 	UPROPERTY(transient)
 	int32 InstructionIndex;
 
+	UPROPERTY(transient)
+	int32 BlockIndex;
+
 	UPROPERTY()
 	TArray<URigVMPin*> Pins;
+
+	int32 GetSliceContextBracket;
 
 	friend class URigVMController;
 	friend class URigVMGraph;

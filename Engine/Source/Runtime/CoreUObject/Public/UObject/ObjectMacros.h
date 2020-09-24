@@ -96,6 +96,7 @@ enum ESaveFlags
 	SAVE_DiffOnly       = 0x00000200,	///< Serializes the package to a special memory archive that performs a diff with an existing file on disk
 	SAVE_DiffCallstack  = 0x00000400,	///< Serializes the package to a special memory archive that compares all differences against a file on disk and dumps relevant callstacks
 	SAVE_ComputeHash    = 0x00000800,	///< Compute the MD5 hash of the cooked data
+	SAVE_CompareLinker	= 0x00001000,	///< Return the linker save to compare against another
 };
 
 /** Package flags, passed into UPackage::SetPackageFlags and related functions */
@@ -549,6 +550,16 @@ enum class EInternalObjectFlags : int32
 	AllFlags = ReachableInCluster | ClusterRoot | Native | Async | AsyncLoading | Unreachable | PendingKill | RootSet
 };
 ENUM_CLASS_FLAGS(EInternalObjectFlags);
+
+/** Flags describing a UEnum */
+enum class EEnumFlags
+{
+	None,
+
+	Flags = 0x00000001 // Whether the UEnum represents a set of flags
+};
+
+ENUM_CLASS_FLAGS(EEnumFlags)
 
 /*----------------------------------------------------------------------------
 	Core types.

@@ -17,6 +17,7 @@
 #include "RigVMModel/RigVMController.h"
 #include "RigVMCompiler/RigVMCompiler.h"
 #include "ControlRigHierarchyModifier.h"
+#include "ControlRigValidationPass.h"
 #include "Drawing/ControlRigDrawContainer.h"
 #include "ControlRigBlueprint.generated.h"
 
@@ -25,6 +26,9 @@ class USkeletalMesh;
 class UControlRigGraph;
 
 DECLARE_EVENT_TwoParams(UControlRigBlueprint, FOnVMCompiledEvent, UBlueprint*, URigVM*);
+DECLARE_EVENT_OneParam(UControlRigBlueprint, FOnRefreshEditorEvent, UControlRigBlueprint*);
+DECLARE_EVENT_FourParams(UControlRigBlueprint, FOnVariableDroppedEvent, UObject*, FProperty*, const FVector2D&, const FVector2D&);
+DECLARE_EVENT_OneParam(UControlRigBlueprint, FOnExternalVariablesChanged, const TArray<FRigVMExternalVariable>&);
 
 UCLASS(BlueprintType, meta=(IgnoreClassThumbnail))
 class CONTROLRIGDEVELOPER_API UControlRigBlueprint : public UBlueprint, public IInterface_PreviewMeshProvider
@@ -34,7 +38,7 @@ class CONTROLRIGDEVELOPER_API UControlRigBlueprint : public UBlueprint, public I
 public:
 	UControlRigBlueprint();
 
-	void InitializeModelIfRequired();
+	void InitializeModelIfRequired(bool bRecompileVM = true);
 
 	/** Get the (full) generated class for this control rig blueprint */
 	UControlRigBlueprintGeneratedClass* GetControlRigBlueprintGeneratedClass() const;
@@ -50,11 +54,13 @@ public:
 	virtual bool IsValidForBytecodeOnlyRecompile() const override { return false; }
 	virtual void LoadModulesRequiredForCompilation() override;
 	virtual void GetTypeActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const override;
+	virtual void GetInstanceActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const override;
 	virtual void SetObjectBeingDebugged(UObject* NewObject) override;
+	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
 	virtual void PostLoad() override;
 	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
 
-	virtual bool SupportsGlobalVariables() const override { return false; }
+	virtual bool SupportsGlobalVariables() const override { return true; }
 	virtual bool SupportsLocalVariables() const override { return false; }
 	virtual bool SupportsFunctions() const override { return false; }
 	virtual bool SupportsMacros() const override { return false; }
@@ -64,6 +70,7 @@ public:
 
 
 #endif	// #if WITH_EDITOR
+
 	virtual bool ShouldBeMarkedDirtyUponTransaction() const override { return false; }
 
 	/** IInterface_PreviewMeshProvider interface */
@@ -102,8 +109,10 @@ public:
 
 	bool bSuspendModelNotificationsForSelf;
 	bool bSuspendModelNotificationsForOthers;
+	bool bSuspendAllNotifications;
 
 	void PopulateModelFromGraphForBackwardsCompatibility(UControlRigGraph* InGraph);
+	void SetupPinRedirectorsForBackwardsCompatibility();
 	void RebuildGraphFromModel();
 
 	FRigVMGraphModifiedEvent& OnModified();
@@ -147,6 +156,9 @@ public:
 
 #endif
 
+	UPROPERTY(EditAnywhere, Category = "Influence Map")
+	FRigInfluenceMapPerEvent Influences;
+
 private:
 
 	// need list of "allow query property" to "source" - whether rig unit or property itself
@@ -166,16 +178,33 @@ private:
 	UPROPERTY()
 	FRigCurveContainer CurveContainer_DEPRECATED;
 
+	/** Whether or not this rig has an Inversion Event */
+	UPROPERTY(AssetRegistrySearchable)
+	bool bSupportsInversion;
+
+	/** Whether or not this rig has Controls on It */
+	UPROPERTY(AssetRegistrySearchable)
+	bool bSupportsControls;
+
 	/** The default skeletal mesh to use when previewing this asset */
 	UPROPERTY(AssetRegistrySearchable)
 	TSoftObjectPtr<USkeletalMesh> PreviewSkeletalMesh;
 
-	/** The default skeletal mesh to use when previewing this asset */
+	/** The skeleton from import into a hierarchy */
 	UPROPERTY(DuplicateTransient, AssetRegistrySearchable)
 	TSoftObjectPtr<UObject> SourceHierarchyImport;
 
+	/** The skeleton from import into a curve */
 	UPROPERTY(DuplicateTransient, AssetRegistrySearchable)
 	TSoftObjectPtr<UObject> SourceCurveImport;
+
+	/** The event names this control rig blueprint contains */
+	UPROPERTY(AssetRegistrySearchable)
+	TArray<FName> SupportedEventNames;
+
+	/** If set to true, this control rig has animatable controls */
+	UPROPERTY(AssetRegistrySearchable)
+	bool bExposesAnimatableControls;
 
 	UPROPERTY(transient)
 	bool bAutoRecompileVM;
@@ -193,11 +222,33 @@ private:
 	void Notify(ERigVMGraphNotifType InNotifType, UObject* InSubject);
 	void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
 
+#if WITH_EDITOR
+
+	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
+	void SuspendNotifications(bool bSuspendNotifs);
+
+	FOnRefreshEditorEvent RefreshEditorEvent;
+	FOnVariableDroppedEvent VariableDroppedEvent;
+
+public:
+
+	FOnRefreshEditorEvent& OnRefreshEditor() { return RefreshEditorEvent; }
+	FOnVariableDroppedEvent& OnVariableDropped() { return VariableDroppedEvent; }
+
+private:
+
+#endif
+
 	FOnVMCompiledEvent VMCompiledEvent;
 
 	static TArray<UControlRigBlueprint*> sCurrentlyOpenedRigBlueprints;
 
 	void CleanupBoneHierarchyDeprecated();
+	void CreateMemberVariablesOnLoad();
+	void PatchVariableNodesOnLoad();
+
+	TMap<FName, int32> AddedMemberVariableMap;
+	TArray<FBPVariableDescription> LastNewVariables;
 
 public:
 	void PropagatePoseFromInstanceToBP(UControlRig* InControlRig);
@@ -209,6 +260,9 @@ public:
 
 private:
 
+	UPROPERTY()
+	UControlRigValidator* Validator;
+
 #if WITH_EDITOR
 
 	void HandleOnElementAdded(FRigHierarchyContainer* InContainer, const FRigElementKey& InKey);
@@ -217,6 +271,43 @@ private:
 	void HandleOnElementReparented(FRigHierarchyContainer* InContainer, const FRigElementKey& InKey, const FName& InOldParentName, const FName& InNewParentName);
 	void HandleOnElementSelected(FRigHierarchyContainer* InContainer, const FRigElementKey& InKey, bool bSelected);
 #endif
+
+	// Class used to temporarily cache all 
+	// current control values and reapply them
+	// on destruction
+	class CONTROLRIGDEVELOPER_API FControlValueScope
+	{
+	public: 
+		FControlValueScope(UControlRigBlueprint* InBlueprint);
+		~FControlValueScope();
+
+	private:
+
+		UControlRigBlueprint* Blueprint;
+		TMap<FName, FRigControlValue> ControlValues;
+	};
+
+#if WITH_EDITOR
+
+public:
+
+	FOnExternalVariablesChanged& OnExternalVariablesChanged() { return ExternalVariablesChangedEvent; }
+	
+	virtual void OnPreVariableChange(UObject* InObject);
+	virtual void OnPostVariableChange(UBlueprint* InBlueprint);
+	virtual void OnVariableAdded(const FName& InVarName);
+	virtual void OnVariableRemoved(const FName& InVarName);
+	virtual void OnVariableRenamed(const FName& InOldVarName, const FName& InNewVarName);
+	virtual void OnVariableTypeChanged(const FName& InVarName, FEdGraphPinType InOldPinType, FEdGraphPinType InNewPinType);
+
+private:
+
+	FOnExternalVariablesChanged ExternalVariablesChangedEvent;
+	void BroadcastExternalVariablesChangedEvent();
+
+#endif
+
+	bool bDirtyDuringLoad;
 
 	friend class FControlRigBlueprintCompilerContext;
 	friend class SRigHierarchy;
@@ -227,4 +318,7 @@ private:
 	friend class FControlRigBlueprintActions;
 	friend class FControlRigDrawContainerDetails;
 	friend class UDefaultControlRigManipulationLayer;
+	friend struct FRigValidationTabSummoner;
+	friend class UAnimGraphNode_ControlRig;
+	friend class UControlRigThumbnailRenderer;
 };

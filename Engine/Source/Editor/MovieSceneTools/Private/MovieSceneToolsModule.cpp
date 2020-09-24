@@ -58,6 +58,7 @@
 #include "ISettingsModule.h"
 #include "PropertyEditorModule.h"
 #include "IMovieSceneTools.h"
+#include "IMovieSceneToolsTrackImporter.h"
 #include "MovieSceneToolsProjectSettings.h"
 
 #include "ISequencerChannelInterface.h"
@@ -73,6 +74,9 @@
 #include "MovieSceneEventUtils.h"
 
 #include "EntitySystem/MovieSceneEntityManager.h"
+#include "EditorModeManager.h"
+#include "EditModes/SkeletalAnimationTrackEditMode.h"
+
 
 #define LOCTEXT_NAMESPACE "FMovieSceneToolsModule"
 
@@ -199,6 +203,15 @@ void FMovieSceneToolsModule::StartupModule()
 			}
 		);
 	}
+
+	// EditorStyle must be initialized by now
+	FModuleManager::Get().LoadModule("EditorStyle");
+
+	FEditorModeRegistry::Get().RegisterMode<FSkeletalAnimationTrackEditMode>(
+		FSkeletalAnimationTrackEditMode::ModeName,
+		NSLOCTEXT("SkeletalAnimationTrackEditorMode", "SkelAnimTrackEditMode", "Skeletal Anim Track Mode"),
+		FSlateIcon(),
+		false);
 }
 
 void FMovieSceneToolsModule::ShutdownModule()
@@ -274,6 +287,9 @@ void FMovieSceneToolsModule::ShutdownModule()
 		PropertyModule.UnregisterCustomPropertyTypeLayout("MovieSceneObjectBindingID");
 		PropertyModule.UnregisterCustomPropertyTypeLayout("MovieSceneEvent");
 	}
+
+	FEditorModeRegistry::Get().UnregisterMode(FSkeletalAnimationTrackEditMode::ModeName);
+
 }
 
 void FMovieSceneToolsModule::PostDuplicateEventSection(UMovieSceneEventSectionBase* Section)
@@ -456,6 +472,18 @@ void FMovieSceneToolsModule::UnregisterTakeData(IMovieSceneToolsTakeData* InTake
 	TakeDatas.Remove(InTakeData);
 }
 
+void FMovieSceneToolsModule::RegisterTrackImporter(IMovieSceneToolsTrackImporter* InTrackImporter)
+{
+	checkf(!TrackImporters.Contains(InTrackImporter), TEXT("Track Importer is already registered"));
+	TrackImporters.Add(InTrackImporter);
+}
+
+void FMovieSceneToolsModule::UnregisterTrackImporter(IMovieSceneToolsTrackImporter* InTrackImporter)
+{
+	checkf(TrackImporters.Contains(InTrackImporter), TEXT("Take Importer is not registered"));
+	TrackImporters.Remove(InTrackImporter);
+}
+
 bool FMovieSceneToolsModule::GatherTakes(const UMovieSceneSection* Section, TArray<FAssetData>& AssetData, uint32& OutCurrentTakeNumber)
 {
 	for (IMovieSceneToolsTakeData* TakeData : TakeDatas)
@@ -488,6 +516,32 @@ bool FMovieSceneToolsModule::SetTakeNumber(const UMovieSceneSection* Section, ui
 	for (IMovieSceneToolsTakeData* TakeData : TakeDatas)
 	{
 		if (TakeData->SetTakeNumber(Section, InTakeNumber))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool FMovieSceneToolsModule::ImportAnimatedProperty(const FString& InPropertyName, const FRichCurve& InCurve, FGuid InBinding, UMovieScene* InMovieScene)
+{
+	for (IMovieSceneToolsTrackImporter* TrackImporter : TrackImporters)
+	{
+		if (TrackImporter->ImportAnimatedProperty(InPropertyName, InCurve, InBinding, InMovieScene))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool FMovieSceneToolsModule::ImportStringProperty(const FString& InPropertyName, const FString& InStringValue, FGuid InBinding, UMovieScene* InMovieScene)
+{
+	for (IMovieSceneToolsTrackImporter* TrackImporter : TrackImporters)
+	{
+		if (TrackImporter->ImportStringProperty(InPropertyName, InStringValue, InBinding, InMovieScene))
 		{
 			return true;
 		}

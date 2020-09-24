@@ -54,6 +54,7 @@
 #define LIGHTING_FROM_SURFACE_CACHE							3
 #define NORMAL_FROM_MATERIAL_LIGHTING_FROM_HIT				4
 
+#include "../HairStrands/HairStrandsVoxelPageCommonStruct.ush"
 #include "../Common.ush"
 #define SUPPORT_CONTACT_SHADOWS		0
 #define USE_SOURCE_TEXTURE			1

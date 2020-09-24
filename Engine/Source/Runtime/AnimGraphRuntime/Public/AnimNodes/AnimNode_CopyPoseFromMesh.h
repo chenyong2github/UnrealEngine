@@ -25,11 +25,23 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_CopyPoseFromMesh : public FAnimNode_Base
 
 	/* If SourceMeshComponent is not valid, and if this is true, it will look for attahced parent as a source */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Copy, meta = (NeverAsPin))
-	bool bUseAttachedParent;
+	uint8 bUseAttachedParent : 1;
 
 	/* Copy curves also from SouceMeshComponent. This will copy the curves if this instance also contains */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Copy, meta = (NeverAsPin))
-	bool bCopyCurves;
+	uint8 bCopyCurves : 1;
+  
+	/* Copy custom attributes from SouceMeshComponent */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Copy, meta = (NeverAsPin))
+	bool bCopyCustomAttributes;
+
+	/* Use root space transform to copy to the target pose. By default, it copies their relative transform (bone space)*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Copy, meta = (NeverAsPin))
+	uint8 bUseMeshPose : 1;
+
+	/* If you want to specify copy root, use this - this will ensure copy only below of this joint (inclusively) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Copy, meta = (NeverAsPin))
+	FName RootBoneToCopy;
 
 	FAnimNode_CopyPoseFromMesh();
 
@@ -60,6 +72,9 @@ private:
 
 	// Cached curves, copied on the game thread
 	TMap<FName, float> SourceCurveList;
+
+	// Cached attributes, copied on the game thread
+	FHeapCustomAttributes SourceCustomAttributes;
 
 	// reinitialize mesh component 
 	void ReinitializeMeshComponent(USkeletalMeshComponent* NewSkeletalMeshComponent, USkeletalMeshComponent* TargetMeshComponent);

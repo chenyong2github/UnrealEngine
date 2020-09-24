@@ -18,8 +18,7 @@
 DECLARE_DWORD_COUNTER_STAT(TEXT("Draw Calls"), STAT_DrawCallCount, STATGROUP_LidarPointCloud)
 
 FLidarPointCloudProxyUpdateData::FLidarPointCloudProxyUpdateData()
-	: FirstElementIndex(0)
-	, NumElements(0)
+	: NumElements(0)
 	, VDMultiplier(1)
 	, RootCellSize(1)
 {
@@ -143,7 +142,12 @@ private:
 	int32 MaxVertexIndex;
 };
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
+class FLidarOneFrameResource : public FOneFrameResource
+{
+public:
+	TArray<FLidarPointCloudBatchElementUserData> Payload;
+	virtual ~FLidarOneFrameResource() {}
+};
 
 class FLidarPointCloudSceneProxy : public ILidarPointCloudSceneProxy, public FPrimitiveSceneProxy
 {
@@ -181,27 +185,36 @@ public:
 				// Prepare the draw call
 				if (RenderData.NumElements)
 				{
-					FMeshBatch& MeshBatch = Collector.AllocateMesh();
+					TArray<FLidarPointCloudBatchElementUserData>& UserData = Collector.AllocateOneFrameResource<FLidarOneFrameResource>().Payload;
+					UserData.Reserve(RenderData.SelectedNodes.Num());
 
-					MeshBatch.Type = bUsesSprites ? PT_TriangleList : PT_PointList;
-					MeshBatch.LODIndex = 0;
-					MeshBatch.VertexFactory = &GLidarPointCloudVertexFactory;
-					MeshBatch.bWireframe = false;
-					MeshBatch.MaterialRenderProxy = Component->GetMaterial(0)->GetRenderProxy();
-					MeshBatch.ReverseCulling = IsLocalToWorldDeterminantNegative();
-					MeshBatch.DepthPriorityGroup = SDPG_World;
+					for (const FLidarPointCloudProxyUpdateDataNode& Node : RenderData.SelectedNodes)
+					{
+						if (Node.DataNode && Node.DataNode->GetDataCache())
+						{
+							FMeshBatch& MeshBatch = Collector.AllocateMesh();
 
-					FMeshBatchElement& BatchElement = MeshBatch.Elements[0];
-					BatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
-					BatchElement.IndexBuffer = &GLidarPointCloudIndexBuffer;
-					BatchElement.FirstIndex = bUsesSprites ? 0 : GLidarPointCloudIndexBuffer.PointOffset;
-					BatchElement.MinVertexIndex = 0;
-					BatchElement.NumPrimitives = RenderData.NumElements * (bUsesSprites ? 2 : 1);
-					BatchElement.UserData = &UserData[UserData.Add(BuildUserDataElement(View))];
+							MeshBatch.Type = bUsesSprites ? PT_TriangleList : PT_PointList;
+							MeshBatch.LODIndex = 0;
+							MeshBatch.VertexFactory = &GLidarPointCloudVertexFactory;
+							MeshBatch.bWireframe = false;
+							MeshBatch.MaterialRenderProxy = Component->GetMaterial(0)->GetRenderProxy();
+							MeshBatch.ReverseCulling = IsLocalToWorldDeterminantNegative();
+							MeshBatch.DepthPriorityGroup = SDPG_World;
 
-					Collector.AddMesh(ViewIndex, MeshBatch);
+							FMeshBatchElement& BatchElement = MeshBatch.Elements[0];
+							BatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
+							BatchElement.IndexBuffer = &GLidarPointCloudIndexBuffer;
+							BatchElement.FirstIndex = bUsesSprites ? 0 : GLidarPointCloudIndexBuffer.PointOffset;
+							BatchElement.MinVertexIndex = 0;
+							BatchElement.NumPrimitives = Node.NumVisiblePoints * (bUsesSprites ? 2 : 1);
+							BatchElement.UserData = &UserData[UserData.Add(BuildUserDataElement(View, Node))];
 
-					INC_DWORD_STAT(STAT_DrawCallCount);
+							Collector.AddMesh(ViewIndex, MeshBatch);
+
+							INC_DWORD_STAT(STAT_DrawCallCount);
+						}
+					}
 				}
 
 #if !(UE_BUILD_SHIPPING)
@@ -257,17 +270,6 @@ public:
 		return Result;
 	}
 
-	virtual void* InitViewCustomData(const FSceneView& InView, float InViewLODScale, FMemStackBase& InCustomDataMemStack, bool InIsStaticRelevant, bool InIsShadowOnly, const FLODMask* InVisiblePrimitiveLODMask = nullptr, float InMeshScreenSizeSquared = -1.0f)
-	{
-		// Don't process for shadow views
-		if (!InIsShadowOnly)
-		{
-			UserData.Reset(10);
-		}
-
-		return nullptr;
-	}
-
 	bool PrepareCollisionWireframe(FMeshBatch& MeshBatch, FColoredMaterialRenderProxy* CollisionMaterialInstance) const
 	{
 		MeshBatch.Type = PT_TriangleList;
@@ -289,9 +291,9 @@ public:
 	}
 
 	/** UserData is used to pass rendering information to the VertexFactory */
-	FLidarPointCloudBatchElementUserData BuildUserDataElement(const FSceneView* InView) const
+	FLidarPointCloudBatchElementUserData BuildUserDataElement(const FSceneView* InView, const FLidarPointCloudProxyUpdateDataNode& Node) const
 	{	
-		FLidarPointCloudBatchElementUserData UserDataElement(RenderData.VDMultiplier, RenderData.RootCellSize);
+		FLidarPointCloudBatchElementUserData UserDataElement;
 
 		const bool bUsesSprites = Component->PointSize > 0;
 
@@ -303,16 +305,16 @@ public:
 		BoundsSize.Z = FMath::Max(BoundsSize.Z, 0.001f);
 
 		// Update shader parameters
-		UserDataElement.IndexDivisor = bUsesSprites ? 4 : 1;
-		UserDataElement.FirstElementIndex = RenderData.FirstElementIndex;
-
-		UserDataElement.LocationOffset = Component->GetPointCloud()->GetLocationOffset().ToVector();
-		
-		UserDataElement.SizeOffset = GLidarPointCloudRenderBuffer.PointCount * 4;
+		UserDataElement.bEditorView = Component->IsOwnedByEditor();
+		UserDataElement.VirtualDepth = RenderData.VDMultiplier * Node.VirtualDepth;
+		UserDataElement.SpriteSize = RenderData.RootCellSize / FMath::Pow(2.0f, UserDataElement.VirtualDepth);
 		UserDataElement.SpriteSizeMultiplier = Component->PointSize * Component->GetComponentScale().GetAbsMax();
 
+		UserDataElement.IndexDivisor = bUsesSprites ? 4 : 1;
+		UserDataElement.LocationOffset = Component->GetPointCloud()->GetLocationOffset().ToVector();		
 		UserDataElement.ViewRightVector = InView->GetViewRight();
 		UserDataElement.ViewUpVector = InView->GetViewUp();
+		UserDataElement.bUseCameraFacing = !Component->ShouldRenderFacingNormals();
 		UserDataElement.BoundsSize = BoundsSize;
 		UserDataElement.ElevationColorBottom = FVector(Component->ColorSource == ELidarPointCloudColorationMode::None ? FColor::White : Component->ElevationColorBottom);
 		UserDataElement.ElevationColorTop = FVector(Component->ColorSource == ELidarPointCloudColorationMode::None ? FColor::White : Component->ElevationColorTop);
@@ -328,9 +330,22 @@ public:
 
 		UserDataElement.bUseClassification = Component->ColorSource == ELidarPointCloudColorationMode::Classification;
 		UserDataElement.SetClassificationColors(Component->ClassificationColors);
+				
+		UserDataElement.NumClippingVolumes = FMath::Min(RenderData.ClippingVolumes.Num(), 16);
 
-		// Make sure to update the reference to the resource, in case it was re-initialized
-		UserDataElement.DataBuffer = GLidarPointCloudRenderBuffer.SRV;
+		for (uint32 i = 0; i < UserDataElement.NumClippingVolumes; ++i)
+		{
+			const ALidarClippingVolume* ClippingVolume = RenderData.ClippingVolumes[i];
+			const FVector Extent = ClippingVolume->GetActorScale3D() * 100;
+			UserDataElement.ClippingVolume[i] = FMatrix(FPlane(ClippingVolume->GetActorLocation(), ClippingVolume->Mode == ELidarClippingVolumeMode::ClipInside),
+													 FPlane(ClippingVolume->GetActorForwardVector(), Extent.X),
+												     FPlane(ClippingVolume->GetActorRightVector(), Extent.Y),
+													 FPlane(ClippingVolume->GetActorUpVector(), Extent.Z));
+
+			UserDataElement.bStartClipped = UserDataElement.bStartClipped || ClippingVolume->Mode == ELidarClippingVolumeMode::ClipOutside;
+		}
+
+		UserDataElement.DataBuffer = Node.DataNode->GetDataCache()->SRV;
 
 		return UserDataElement;
 	}
@@ -352,7 +367,6 @@ public:
 
 private:
 	FLidarPointCloudProxyUpdateData RenderData;
-	mutable TArray<FLidarPointCloudBatchElementUserData> UserData;
 
 	ULidarPointCloudComponent* Component;
 	FMaterialRelevance MaterialRelevance;
@@ -360,8 +374,6 @@ private:
 
 	FLidarPointCloudCollisionRendering* CollisionRendering;
 };
-
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 FPrimitiveSceneProxy* ULidarPointCloudComponent::CreateSceneProxy()
 {

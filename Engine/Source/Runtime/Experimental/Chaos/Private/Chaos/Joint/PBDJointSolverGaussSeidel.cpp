@@ -139,19 +139,13 @@ namespace Chaos
 		NetAngularImpulse = FVec3(0);
 
 		LinearSoftLambda = 0;
-		LinearDriveLambda = 0;
 		TwistSoftLambda = 0;
 		SwingSoftLambda = 0;
-		RotationDriveLambdas[0] = 0;
-		RotationDriveLambdas[1] = 0;
-		RotationDriveLambdas[2] = 0;
+		LinearDriveLambdas = FVec3(0);
+		RotationDriveLambdas = FVec3(0);
 
-		LinearConstraintPadding[0] = -1;
-		LinearConstraintPadding[1] = -1;
-		LinearConstraintPadding[2] = -1;
-		AngularConstraintPadding[0] = -1;
-		AngularConstraintPadding[1] = -1;
-		AngularConstraintPadding[2] = -1;
+		LinearConstraintPadding = FVec3(-1);
+		AngularConstraintPadding = FVec3(-1);
 
 		// Tolerances are positional errors below visible detection. But in PBD the errors
 		// we leave behind get converted to velocity, so we need to ensure that the resultant
@@ -611,7 +605,9 @@ namespace Chaos
 			if (bDriven[0] || bDriven[1] || bDriven[2])
 			{
 				const FMatrix33 R0M = Rs[0].ToMatrix();
-				const FVec3 CX = Xs[1] - Xs[0];
+				const FVec3 XTarget = Xs[0] + Rs[0] * JointSettings.LinearDrivePositionTarget;
+				const FVec3 VTarget = Rs[0] * JointSettings.LinearDriveVelocityTarget;
+				const FVec3 CX = Xs[1] - XTarget;
 
 				for (int32 AxisIndex = 0; AxisIndex < 3; ++AxisIndex)
 				{
@@ -619,7 +615,7 @@ namespace Chaos
 					{
 						const FVec3 Axis = R0M.GetAxis(AxisIndex);
 						const FReal DeltaPos = FVec3::DotProduct(CX, Axis);
-						const FReal DeltaVel = JointSettings.LinearDriveVelocityTarget[AxisIndex];
+						const FReal DeltaVel = FVec3::DotProduct(VTarget, Axis);
 
 						ApplyPositionDrive(Dt, AxisIndex, SolverSettings, JointSettings, Axis, DeltaPos, DeltaVel);
 					}
@@ -1743,11 +1739,10 @@ namespace Chaos
 		const FReal Stiffness = FPBDJointUtilities::GetLinearDriveStiffness(SolverSettings, JointSettings, AxisIndex);
 		const FReal Damping = FPBDJointUtilities::GetLinearDriveDamping(SolverSettings, JointSettings, AxisIndex);
 		const bool bAccelerationMode = FPBDJointUtilities::GetDriveAccelerationMode(SolverSettings, JointSettings);
-		const FReal TargetVel = (Damping > 0.0f) ? FVec3::DotProduct(Axis, Rs[0] * JointSettings.LinearDriveVelocityTarget) : 0.0f;
 
 		if ((FMath::Abs(DeltaPos) > PositionTolerance) || (Damping > 0.0f))
 		{
-			ApplyPositionConstraintSoft(Dt, Stiffness, Damping, bAccelerationMode, Axis, DeltaPos, DeltaVel, LinearDriveLambda);
+			ApplyPositionConstraintSoft(Dt, Stiffness, Damping, bAccelerationMode, Axis, DeltaPos, DeltaVel, LinearDriveLambdas[AxisIndex]);
 		}
 	}
 

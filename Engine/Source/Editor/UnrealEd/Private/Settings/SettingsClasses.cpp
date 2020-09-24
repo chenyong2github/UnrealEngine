@@ -470,7 +470,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	BuildGameBeforeLaunch = EPlayOnBuildMode::PlayOnBuild_Default;
 	LaunchConfiguration = EPlayOnLaunchConfiguration::LaunchConfig_Default;
 	bAutoCompileBlueprintsOnLaunch = true;
-	CenterNewWindow = true;
+	CenterNewWindow = false;
+	NewWindowPosition = FIntPoint::NoneValue; // It will center PIE to the middle of the screen the first time it is run (until the user drag the window somewhere else)
 
 	EnablePIEEnterAndExitSounds = false;
 

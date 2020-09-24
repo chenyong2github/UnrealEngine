@@ -7,7 +7,7 @@
 
 #include "HairStrandsFactory.generated.h"
 
-class IHairStrandsTranslator;
+class IGroomTranslator;
 
 /**
  * Implements a factory for UHairStrands objects.
@@ -28,11 +28,11 @@ public:
 protected:
 	void InitTranslators();
 
-	TSharedPtr<IHairStrandsTranslator> GetTranslator(const FString& Filename);
+	TSharedPtr<IGroomTranslator> GetTranslator(const FString& Filename);
 
 	class UGroomImportOptions* ImportOptions;
 
 private:
-	TArray<TSharedPtr<IHairStrandsTranslator>> Translators;
+	TArray<TSharedPtr<IGroomTranslator>> Translators;
 };
 

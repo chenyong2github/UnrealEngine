@@ -13,6 +13,28 @@
 #include "Engine/Engine.h"
 #include "RemoteSession.h"
 
+
+class FRemoteSessionXRTrackingChannelFactoryWorker : public IRemoteSessionChannelFactoryWorker
+{
+public:
+	TSharedPtr<IRemoteSessionChannel> Construct(ERemoteSessionChannelMode InMode, TBackChannelSharedPtr<IBackChannelConnection> InConnection) const
+	{
+		bool IsSupported = (InMode == ERemoteSessionChannelMode::Read) || UARBlueprintLibrary::IsSessionTypeSupported(EARSessionType::Orientation);
+		if (IsSupported)
+		{
+			return MakeShared<FRemoteSessionXRTrackingChannel>(InMode, InConnection);
+		}
+		else
+		{
+			UE_LOG(LogRemoteSession, Warning, TEXT("FRemoteSessionXRTrackingChannel does not support sending on this platform/device"));
+		}
+		return TSharedPtr<IRemoteSessionChannel>();
+	}
+
+};
+
+REGISTER_CHANNEL_FACTORY(FRemoteSessionXRTrackingChannel, FRemoteSessionXRTrackingChannelFactoryWorker, ERemoteSessionChannelMode::Read);
+
 bool FXRTrackingProxy::EnumerateTrackedDevices(TArray<int32>& OutDevices, EXRTrackedDeviceType Type)
 {
 	if (Type == EXRTrackedDeviceType::Any || Type == EXRTrackedDeviceType::HeadMountedDisplay)
@@ -39,7 +61,7 @@ FName FXRTrackingProxy::GetSystemName() const
 
 #define MESSAGE_ADDRESS TEXT("/XRTracking")
 
-FRemoteSessionXRTrackingChannel::FRemoteSessionXRTrackingChannel(ERemoteSessionChannelMode InRole, TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection)
+FRemoteSessionXRTrackingChannel::FRemoteSessionXRTrackingChannel(ERemoteSessionChannelMode InRole, TSharedPtr<IBackChannelConnection, ESPMode::ThreadSafe> InConnection)
 	: IRemoteSessionChannel(InRole, InConnection)
 	, Connection(InConnection)
 	, Role(InRole)
@@ -48,7 +70,7 @@ FRemoteSessionXRTrackingChannel::FRemoteSessionXRTrackingChannel(ERemoteSessionC
 	Init();
 }
 
-FRemoteSessionXRTrackingChannel::FRemoteSessionXRTrackingChannel(ERemoteSessionChannelMode InRole, TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection, IARSystemSupport* InARSystemSupport)
+FRemoteSessionXRTrackingChannel::FRemoteSessionXRTrackingChannel(ERemoteSessionChannelMode InRole, TSharedPtr<IBackChannelConnection, ESPMode::ThreadSafe> InConnection, IARSystemSupport* InARSystemSupport)
 	: IRemoteSessionChannel(InRole, InConnection)
 	, Connection(InConnection)
 	, Role(InRole)
@@ -62,7 +84,7 @@ FRemoteSessionXRTrackingChannel::~FRemoteSessionXRTrackingChannel()
 	if (Role == ERemoteSessionChannelMode::Read)
 	{
 		// Remove the callback so it doesn't call back on an invalid this
-		Connection->RemoveMessageHandler(MESSAGE_ADDRESS, MessageCallbackHandle);
+		Connection->RemoveRouteDelegate(MESSAGE_ADDRESS, MessageCallbackHandle);
 
         if (GEngine != nullptr)
         {
@@ -86,9 +108,11 @@ void FRemoteSessionXRTrackingChannel::Init()
 		ProxyXRSystem = MakeShared<FXRTrackingProxy, ESPMode::ThreadSafe>(ARSystemSupport);
 		GEngine->XRSystem = ProxyXRSystem;
 
-		auto Delegate = FBackChannelDispatchDelegate::FDelegate::CreateRaw(this, &FRemoteSessionXRTrackingChannel::ReceiveXRTracking);
-		MessageCallbackHandle = Connection->AddMessageHandler(MESSAGE_ADDRESS, Delegate);
-		Connection->SetMessageOptions(MESSAGE_ADDRESS, 1);
+		auto Delegate = FBackChannelRouteDelegate::FDelegate::CreateRaw(this, &FRemoteSessionXRTrackingChannel::ReceiveXRTracking);
+		MessageCallbackHandle = Connection->AddRouteDelegate(MESSAGE_ADDRESS, Delegate);
+
+		// #agrant todo: need equivalent
+		// Connection->SetMessageOptions(MESSAGE_ADDRESS, 1);
 	}
 	else
 	{
@@ -124,12 +148,12 @@ void FRemoteSessionXRTrackingChannel::SendXRTracking()
                 FRotator Rotation(Orientation);
 
                 TwoParamMsg<FVector, FRotator> MsgParam(Location, Rotation);
-                FBackChannelOSCMessage Msg(MESSAGE_ADDRESS);
-                Msg.Write(MsgParam.AsData());
+				TBackChannelSharedPtr<IBackChannelPacket> Msg = MakeShared<FBackChannelOSCMessage, ESPMode::ThreadSafe>(MESSAGE_ADDRESS);
+                Msg->Write(TEXT("XRData"), MsgParam.AsData());
 
                 Connection->SendPacket(Msg);
                 
-                UE_LOG(LogRemoteSession, Verbose, TEXT("Sent Rotation (%.02f,%.02f,%.02f)"), Rotation.Pitch,Rotation.Yaw,Rotation.Roll);
+                UE_LOG(LogRemoteSession, VeryVerbose, TEXT("Sent Rotation (%.02f,%.02f,%.02f)"), Rotation.Pitch,Rotation.Yaw,Rotation.Roll);
             }
             else
             {
@@ -143,7 +167,7 @@ void FRemoteSessionXRTrackingChannel::SendXRTracking()
     }
 }
 
-void FRemoteSessionXRTrackingChannel::ReceiveXRTracking(FBackChannelOSCMessage& Message, FBackChannelOSCDispatch& Dispatch)
+void FRemoteSessionXRTrackingChannel::ReceiveXRTracking(IBackChannelPacket& Message)
 {
 	if (!ProxyXRSystem.IsValid())
 	{
@@ -154,7 +178,7 @@ void FRemoteSessionXRTrackingChannel::ReceiveXRTracking(FBackChannelOSCMessage& 
 	TUniquePtr<TArray<uint8>> DataCopy = MakeUnique<TArray<uint8>>();
     TWeakPtr<IXRTrackingSystem, ESPMode::ThreadSafe> TaskXRSystem = ProxyXRSystem;
 
-	Message << *DataCopy;
+	Message.Read(TEXT("XRData"), *DataCopy);
 
     AsyncTask(ENamedThreads::GameThread, [TaskXRSystem, DataCopy=MoveTemp(DataCopy)]
 	{
@@ -164,7 +188,7 @@ void FRemoteSessionXRTrackingChannel::ReceiveXRTracking(FBackChannelOSCMessage& 
 			FMemoryReader Ar(*DataCopy);
 			TwoParamMsg<FVector, FRotator> MsgParam(Ar);
 
-			UE_LOG(LogRemoteSession, Verbose, TEXT("Received Rotation (%.02f,%.02f,%.02f)"), MsgParam.Param2.Pitch, MsgParam.Param2.Yaw, MsgParam.Param2.Roll);
+			UE_LOG(LogRemoteSession, VeryVerbose, TEXT("Received Rotation (%.02f,%.02f,%.02f)"), MsgParam.Param2.Pitch, MsgParam.Param2.Yaw, MsgParam.Param2.Roll);
 
 			FTransform NewTransform(MsgParam.Param2, MsgParam.Param1);
 			TaskXRSystemPinned->UpdateTrackingToWorldTransform(NewTransform);
@@ -172,16 +196,3 @@ void FRemoteSessionXRTrackingChannel::ReceiveXRTracking(FBackChannelOSCMessage& 
 	});
 }
 
-TSharedPtr<IRemoteSessionChannel> FRemoteSessionXRTrackingChannelFactoryWorker::Construct(ERemoteSessionChannelMode InMode, TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection) const
-{
-	bool IsSupported = (InMode == ERemoteSessionChannelMode::Read) || UARBlueprintLibrary::IsSessionTypeSupported(EARSessionType::Orientation);
-	if (IsSupported)
-	{
-		return MakeShared<FRemoteSessionXRTrackingChannel>(InMode, InConnection);
-	}
-	else
-	{
-		UE_LOG(LogRemoteSession, Warning, TEXT("FRemoteSessionXRTrackingChannel does not support sending on this platform/device"));
-	}
-	return TSharedPtr<IRemoteSessionChannel>();
-}

@@ -26,6 +26,7 @@
 #include "AudioDeviceManager.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "Subsystems/SubsystemCollection.h"
+#include "CollisionProfile.h"
 
 #include "World.generated.h"
 
@@ -1369,6 +1370,10 @@ public:
 #endif
 private:
 
+	/** Array of components that need to wait on tasks before end of frame updates */
+	UPROPERTY(Transient, NonTransactional)
+	TSet<UActorComponent*> ComponentsThatNeedPreEndOfFrameSync;
+
 	/** Array of components that need updates at the end of the frame */
 	UPROPERTY(Transient, NonTransactional)
 	TArray<UActorComponent*> ComponentsThatNeedEndOfFrameUpdate;
@@ -2050,6 +2055,27 @@ public:
 	FTraceHandle	AsyncLineTraceByObjectType(EAsyncTraceType InTraceType, const FVector& Start,const FVector& End, const FCollisionObjectQueryParams& ObjectQueryParams, const FCollisionQueryParams& Params = FCollisionQueryParams::DefaultQueryParam, FTraceDelegate * InDelegate=NULL, uint32 UserData = 0 );
 
 	/**
+	 * Interface for Async. Pretty much same parameter set except you can optional set delegate to be called when execution is completed and you can set UserData if you'd like
+	 * if no delegate, you can query trace data using QueryTraceData or QueryOverlapData
+	 * the data is available only in the next frame after request is made - in other words, if request is made in frame X, you can get the result in frame (X+1)
+	 *
+	 *	@param	InTraceType		Indicates if you want multiple results, single result, or just yes/no (no hit information)
+	 *  @param  Start           Start location of the ray
+	 *  @param  End             End location of the ray
+	 *  @param  ProfileName		The 'profile' used to determine which components to hit
+	 *  @param  Params          Additional parameters used for the trace
+	 *	@param	InDeleagte		Delegate function to be called - to see example, search FTraceDelegate
+	 *							Example can be void MyActor::TraceDone(const FTraceHandle& TraceHandle, FTraceDatum & TraceData)
+	 *							Before sending to the function,
+	 *
+	 *							FTraceDelegate TraceDelegate;
+	 *							TraceDelegate.BindRaw(this, &MyActor::TraceDone);
+	 *
+	 *	@param	UserData		UserData
+	 */
+	FTraceHandle	AsyncLineTraceByProfile(EAsyncTraceType InTraceType, const FVector& Start, const FVector& End, FName ProfileName, const FCollisionQueryParams& Params = FCollisionQueryParams::DefaultQueryParam, FTraceDelegate* InDelegate = NULL, uint32 UserData = 0);
+
+	/**
 	 * Interface for Async trace
 	 * Pretty much same parameter set except you can optional set delegate to be called when execution is completed and you can set UserData if you'd like
 	 * if no delegate, you can query trace data using QueryTraceData or QueryOverlapData
@@ -2095,6 +2121,29 @@ public:
 	 *	@param	UserData		UserData
 	 */ 
 	FTraceHandle	AsyncSweepByObjectType(EAsyncTraceType InTraceType, const FVector& Start, const FVector& End, const FQuat& Rot, const FCollisionObjectQueryParams& ObjectQueryParams, const FCollisionShape& CollisionShape, const FCollisionQueryParams& Params = FCollisionQueryParams::DefaultQueryParam, FTraceDelegate * InDelegate = NULL, uint32 UserData = 0);
+
+	/**
+	 * Interface for Async trace
+	 * Pretty much same parameter set except you can optional set delegate to be called when execution is completed and you can set UserData if you'd like
+	 * if no delegate, you can query trace data using QueryTraceData or QueryOverlapData
+	 * the data is available only in the next frame after request is made - in other words, if request is made in frame X, you can get the result in frame (X+1)
+	 *
+	 *	@param	InTraceType		Indicates if you want multiple results, single hit result, or just yes/no (no hit information)
+	 *  @param  Start           Start location of the shape
+	 *  @param  End             End location of the shape
+	 *  @param  ProfileName     The 'profile' used to determine which components to hit
+	 *  @param	CollisionShape	CollisionShape - supports Box, Sphere, Capsule
+	 *  @param  Params          Additional parameters used for the trace
+	 *	@param	InDeleagte		Delegate function to be called - to see example, search FTraceDelegate
+	 *							Example can be void MyActor::TraceDone(const FTraceHandle& TraceHandle, FTraceDatum & TraceData)
+	 *							Before sending to the function,
+	 *
+	 *							FTraceDelegate TraceDelegate;
+	 *							TraceDelegate.BindRaw(this, &MyActor::TraceDone);
+	 *
+	 *	@param	UserData		UserData
+	 */
+	FTraceHandle	AsyncSweepByProfile(EAsyncTraceType InTraceType, const FVector& Start, const FVector& End, const FQuat& Rot, FName ProfileName, const FCollisionShape& CollisionShape, const FCollisionQueryParams& Params = FCollisionQueryParams::DefaultQueryParam, FTraceDelegate* InDelegate = NULL, uint32 UserData = 0);
 
 	// overlap functions
 
@@ -2167,6 +2216,23 @@ public:
 	 * return false if it already has expired Or not valid 
 	 */
 	bool IsTraceHandleValid(const FTraceHandle& Handle, bool bOverlapTrace);
+
+private:
+	static void GetCollisionProfileChannelAndResponseParams(FName ProfileName, ECollisionChannel& CollisionChannel, FCollisionResponseParams& ResponseParams)
+	{
+		if (UCollisionProfile::GetChannelAndResponseParams(ProfileName, CollisionChannel, ResponseParams))
+		{
+			return;
+		}
+
+		// No profile found
+		UE_LOG(LogPhysics, Warning, TEXT("COLLISION PROFILE [%s] is not found"), *ProfileName.ToString());
+
+		CollisionChannel = ECC_WorldStatic;
+		ResponseParams = FCollisionResponseParams::DefaultResponseParam;
+	}
+
+public:
 
 	/** NavigationSystem getter */
 	FORCEINLINE UNavigationSystemBase* GetNavigationSystem() { return NavigationSystem; }
@@ -2478,6 +2544,7 @@ public:
 	virtual void Serialize( FArchive& Ar ) override;
 	virtual void BeginDestroy() override;
 	virtual void FinishDestroy() override;
+	virtual bool IsReadyForFinishDestroy() override;
 	virtual void PostLoad() override;
 	virtual void PreDuplicate(FObjectDuplicationParameters& DupParams) override;
 	virtual bool PreSaveRoot(const TCHAR* Filename) override;

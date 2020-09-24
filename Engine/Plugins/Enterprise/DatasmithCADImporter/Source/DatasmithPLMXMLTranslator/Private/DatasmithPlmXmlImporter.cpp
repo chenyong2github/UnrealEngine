@@ -271,7 +271,7 @@ namespace PlmXml
 		TSharedPtr<IDatasmithActorElement> InstantiateMesh(FString DatasmithName, int32 Id)
 		{
 			TSharedRef<IDatasmithActorElement> ActorElement = FDatasmithSceneFactory::CreateActor(*DatasmithName);
-			ActorElement->SetLabel(TEXT("Mesh")); // TODO: instantiated mesh label
+			ActorElement->SetLabel(TEXT("Invalid")); // Label is set in FillAnchorActor
 			
 			if(FilePaths.IsValidIndex(Id))
 			{
@@ -279,9 +279,6 @@ namespace PlmXml
 
 				// Make sure file was loaded
 				SceneGraphBuilder->FillAnchorActor(ActorElement, Filename);
-
-				FString DatasmithLabel = FDatasmithUtils::SanitizeObjectName(Filename);
-				ActorElement->SetLabel(*DatasmithLabel);
 			}
 
 			return ActorElement;
@@ -1042,134 +1039,137 @@ namespace PlmXml
 		// Variants 
 		TSharedRef<IDatasmithLevelVariantSetsElement> LVS = ImportContext.LVS;
 
-		// Make a variant set to contain a variant per existing ProductView
-		TSharedPtr<IDatasmithVariantSetElement> ProductViewVarSet = FDatasmithSceneFactory::CreateVariantSet(TEXT("ProductView"));
-		LVS->AddVariantSet(ProductViewVarSet.ToSharedRef());
-
-		const TSharedRef<IDatasmithActorElement> RootActorElementForProductViews = FDatasmithSceneFactory::CreateActor(TEXT("ProductViews"));
-		RootActorElementForProductViews->SetLabel(TEXT("ProductViews"));
-		ImportContext.DatasmithScene->AddActor(RootActorElementForProductViews);
-
-		// TODO: add this to no-ProductDef path too
-		// A variant per ProductView
-		for (const FXmlNode* ProductViewNode : ImportContext.ParsedPlmXml.ProductViewNodes)
+		if (ImportContext.ParsedPlmXml.ProductViewNodes.Num() > 0)
 		{
-			const TSharedRef<IDatasmithActorElement> ProductViewActorElement = CreateActor(RootActorElementForProductViews, *GetAttributeId(ProductViewNode), *GetLabel(ProductViewNode));
-			
-			// Collect all actors used in this ProductView via Occurrence node
-			TSet<TSharedRef<IDatasmithActorElement>> ActorOptions;
+			// Make a variant set to contain a variant per existing ProductView
+			TSharedPtr<IDatasmithVariantSetElement> ProductViewVarSet = FDatasmithSceneFactory::CreateVariantSet(TEXT("ProductView"));
+			LVS->AddVariantSet(ProductViewVarSet.ToSharedRef());
 
-			// TODO: rootRefs
-			for (const FXmlNode* ProductViewChildNode : ProductViewNode->GetChildrenNodes())
+			const TSharedRef<IDatasmithActorElement> RootActorElementForProductViews = FDatasmithSceneFactory::CreateActor(TEXT("ProductViews"));
+			RootActorElementForProductViews->SetLabel(TEXT("ProductViews"));
+			ImportContext.DatasmithScene->AddActor(RootActorElementForProductViews);
+
+			// TODO: add this to no-ProductDef path too
+			// A variant per ProductView
+			for (const FXmlNode* ProductViewNode : ImportContext.ParsedPlmXml.ProductViewNodes)
 			{
-				if (ProductViewChildNode->GetTag() == TEXT("Occurrence"))
+				const TSharedRef<IDatasmithActorElement> ProductViewActorElement = CreateActor(RootActorElementForProductViews, *GetAttributeId(ProductViewNode), *GetLabel(ProductViewNode));
+			
+				// Collect all actors used in this ProductView via Occurrence node
+				TSet<TSharedRef<IDatasmithActorElement>> ActorOptions;
+
+				// TODO: rootRefs
+				for (const FXmlNode* ProductViewChildNode : ProductViewNode->GetChildrenNodes())
 				{
-					
-					// TODO: rootRefs - if present use it to collect occurrence tree, else take all occurrences
-					const FXmlNode* OccurrenceNode = ProductViewChildNode;
-					const FString DatasmithName = *GetAttributeId(OccurrenceNode);
-					const TSharedRef<IDatasmithActorElement> OccurrenceActorElement = CreateActor(ProductViewActorElement, DatasmithName, *GetLabel(OccurrenceNode));
-
-					ParseUserDataToDatasmithMetadata(OccurrenceNode, OccurrenceActorElement, ImportContext.DatasmithScene);
-
-					// Leaf Occurence actor could change depending what instanceRefs setup
-					TSharedRef<IDatasmithActorElement> OccurrenceLeafActorElement = OccurrenceActorElement;
-					TArray<FIdRef> InstanceRefs = PlmXml::GetAttributeUriReferenceList(OccurrenceNode, TEXT("instanceRefs"));
-					if (InstanceRefs.Num())
+					if (ProductViewChildNode->GetTag() == TEXT("Occurrence"))
 					{
+					
+						// TODO: rootRefs - if present use it to collect occurrence tree, else take all occurrences
+						const FXmlNode* OccurrenceNode = ProductViewChildNode;
+						const FString DatasmithName = *GetAttributeId(OccurrenceNode);
+						const TSharedRef<IDatasmithActorElement> OccurrenceActorElement = CreateActor(ProductViewActorElement, DatasmithName, *GetLabel(OccurrenceNode));
 
-						// Every 'Occurrence' adds an object to a 'view'(ProductView, PRV only view or others too?) that should
-						// be displayed when this 'view' is active(ro whatever it's called, 'shown'). Difference Occurrence's can reference same 'instance' object but
-						// modify it, with, for example transform. transformRef is in he doc. or child nodes Transform(takes precedence over transformRef) - absolute, additional Representation, EntityMaterial, AssociatedAttachment>.
-						// see 7.5.3 <Occurrence> for details
+						ParseUserDataToDatasmithMetadata(OccurrenceNode, OccurrenceActorElement, ImportContext.DatasmithScene);
 
-						// Few examples, contradicting with PLMXML spec:
-						// - instancedRef is supposed to be path through instance graph, but 'stand' example has instanceRefs not on InstanceGraph at all, instanceRefs referencing ProductRevision(which is not ProductRevisionView - another contraditiction with the docs)
-						// - PLMXML_Occurrence(UE-90772) has Occurrence's instanceRefs not being "a path through instanceGraph starting from a rootRef", doesn't start from rootRef
-
-						TSharedPtr<PlmXml::FImportedInstanceTreeNode> FoundImportedInstanceTreeNode = ImportContext.ImportedInstanceTreeRootNode;
-						for (const FIdRef& InstanceRef : InstanceRefs)
+						// Leaf Occurence actor could change depending what instanceRefs setup
+						TSharedRef<IDatasmithActorElement> OccurrenceLeafActorElement = OccurrenceActorElement;
+						TArray<FIdRef> InstanceRefs = PlmXml::GetAttributeUriReferenceList(OccurrenceNode, TEXT("instanceRefs"));
+						if (InstanceRefs.Num())
 						{
-							// Check if instance path is valid take the child instance
-							if (FoundImportedInstanceTreeNode.IsValid())
+
+							// Every 'Occurrence' adds an object to a 'view'(ProductView, PRV only view or others too?) that should
+							// be displayed when this 'view' is active(ro whatever it's called, 'shown'). Difference Occurrence's can reference same 'instance' object but
+							// modify it, with, for example transform. transformRef is in he doc. or child nodes Transform(takes precedence over transformRef) - absolute, additional Representation, EntityMaterial, AssociatedAttachment>.
+							// see 7.5.3 <Occurrence> for details
+
+							// Few examples, contradicting with PLMXML spec:
+							// - instancedRef is supposed to be path through instance graph, but 'stand' example has instanceRefs not on InstanceGraph at all, instanceRefs referencing ProductRevision(which is not ProductRevisionView - another contraditiction with the docs)
+							// - PLMXML_Occurrence(UE-90772) has Occurrence's instanceRefs not being "a path through instanceGraph starting from a rootRef", doesn't start from rootRef
+
+							TSharedPtr<PlmXml::FImportedInstanceTreeNode> FoundImportedInstanceTreeNode = ImportContext.ImportedInstanceTreeRootNode;
+							for (const FIdRef& InstanceRef : InstanceRefs)
 							{
-								TSharedPtr<PlmXml::FImportedInstanceTreeNode>* Ptr = FoundImportedInstanceTreeNode->ChildInstances.Find(InstanceRef.Value);
-								if (!ensure(Ptr))
+								// Check if instance path is valid take the child instance
+								if (FoundImportedInstanceTreeNode.IsValid())
 								{
-									UE_LOG(LogDatasmithPlmXmlImport, Warning, TEXT("instanceRef '%s' doesn't correspond any ProductInstance"), *InstanceRef.Value);
+									TSharedPtr<PlmXml::FImportedInstanceTreeNode>* Ptr = FoundImportedInstanceTreeNode->ChildInstances.Find(InstanceRef.Value);
+									if (!ensure(Ptr))
+									{
+										UE_LOG(LogDatasmithPlmXmlImport, Warning, TEXT("instanceRef '%s' doesn't correspond any ProductInstance"), *InstanceRef.Value);
+									}
+									else
+									{
+										FoundImportedInstanceTreeNode = *Ptr;
+									}
 								}
 								else
 								{
-									FoundImportedInstanceTreeNode = *Ptr;
+									// In case PLMXML is not well-formed and instance path doesnt exist in instanceGraph just take an instance node(by its id)
+									if (TSharedPtr<PlmXml::FImportedInstanceTreeNode>* Ptr = ImportContext.ImportedInstanceTreeNodes.Find(InstanceRef.Value))
+									{
+										FoundImportedInstanceTreeNode = *Ptr;
+									}
 								}
 							}
-							else
+							if (FoundImportedInstanceTreeNode.IsValid() && FoundImportedInstanceTreeNode->DatasmithActorElement.IsValid())
 							{
-								// In case PLMXML is not well-formed and instance path doesnt exist in instanceGraph just take an instance node(by its id)
-								if (TSharedPtr<PlmXml::FImportedInstanceTreeNode>* Ptr = ImportContext.ImportedInstanceTreeNodes.Find(InstanceRef.Value))
-								{
-									FoundImportedInstanceTreeNode = *Ptr;
-								}
+								OccurrenceLeafActorElement = FoundImportedInstanceTreeNode->DatasmithActorElement.ToSharedRef();
+								ActorOptions.Add(OccurrenceLeafActorElement);
 							}
 						}
-						if (FoundImportedInstanceTreeNode.IsValid() && FoundImportedInstanceTreeNode->DatasmithActorElement.IsValid())
-						{
-							OccurrenceLeafActorElement = FoundImportedInstanceTreeNode->DatasmithActorElement.ToSharedRef();
-							ActorOptions.Add(OccurrenceLeafActorElement);
-						}
-					}
 
-					FIdRef InstancedRef = PlmXml::GetUriReferenceId(OccurrenceNode, TEXT("instancedRef"));
+						FIdRef InstancedRef = PlmXml::GetUriReferenceId(OccurrenceNode, TEXT("instancedRef"));
 
-					if (InstancedRef)
-					{
-						if (ImportContext.ParsedPlmXml.ProductRevisionNodes.Contains(InstancedRef.Value))
+						if (InstancedRef)
 						{
-							FTransform Transform;
-							for (const FXmlNode* OccurrenceChildNode : OccurrenceNode->GetChildrenNodes())
+							if (ImportContext.ParsedPlmXml.ProductRevisionNodes.Contains(InstancedRef.Value))
 							{
-								if (OccurrenceChildNode->GetTag() == TEXT("Transform"))
+								FTransform Transform;
+								for (const FXmlNode* OccurrenceChildNode : OccurrenceNode->GetChildrenNodes())
 								{
-									Transform = ParseTransform(OccurrenceChildNode);
+									if (OccurrenceChildNode->GetTag() == TEXT("Transform"))
+									{
+										Transform = ParseTransform(OccurrenceChildNode);
+									}
 								}
+
+								// Occurrence Transform element sets absolute transform
+								// TODO: right now it's only implemented for existing <Transform> element. Which replaces transform of the referenced object and does it as absolute transform.
+								// need also:
+								// - transformRef(optional, <Transform> takes precedence over it)
+								PlmXml::SetActorWorldTransform(OccurrenceActorElement, Transform);
+
+								const FXmlNode* ProductRevisionNode = ImportContext.ParsedPlmXml.ProductRevisionNodes[InstancedRef.Value];
+								FImportedProductRevision ImportedProductRevision = ParseProductRevision(ImportContext, OccurrenceLeafActorElement, ProductRevisionNode, OccurrenceActorElement->GetName());
 							}
-
-							// Occurrence Transform element sets absolute transform
-							// TODO: right now it's only implemented for existing <Transform> element. Which replaces transform of the referenced object and does it as absolute transform.
-							// need also:
-							// - transformRef(optional, <Transform> takes precedence over it)
-							PlmXml::SetActorWorldTransform(OccurrenceActorElement, Transform);
-
-							const FXmlNode* ProductRevisionNode = ImportContext.ParsedPlmXml.ProductRevisionNodes[InstancedRef.Value];
-							FImportedProductRevision ImportedProductRevision = ParseProductRevision(ImportContext, OccurrenceLeafActorElement, ProductRevisionNode, OccurrenceActorElement->GetName());
 						}
-					}
 
-					// TODO: Transform for Occurrence may come from parent Occurrence(by occurrenceRefs)'s referenced instance(partRef?)
-					for (const FXmlNode* OccurrenceNodeChildNode : OccurrenceNode->GetChildrenNodes())
-					{
-						ParseRepresentation(ImportContext, OccurrenceNodeChildNode, OccurrenceLeafActorElement, DatasmithName);
+						// TODO: Transform for Occurrence may come from parent Occurrence(by occurrenceRefs)'s referenced instance(partRef?)
+						for (const FXmlNode* OccurrenceNodeChildNode : OccurrenceNode->GetChildrenNodes())
+						{
+							ParseRepresentation(ImportContext, OccurrenceNodeChildNode, OccurrenceLeafActorElement, DatasmithName);
+						}
 					}
 				}
-			}
 
-			FString OptionName = PlmXml::GetAttributeId(ProductViewNode); // TODO: make better name, when we have examples with multiple ProductView
-			TSharedPtr<IDatasmithVariantElement> NewVar = FDatasmithSceneFactory::CreateVariant(*OptionName);
-			ProductViewVarSet->AddVariant(NewVar.ToSharedRef());
+				FString OptionName = PlmXml::GetAttributeId(ProductViewNode); // TODO: make better name, when we have examples with multiple ProductView
+				TSharedPtr<IDatasmithVariantElement> NewVar = FDatasmithSceneFactory::CreateVariant(*OptionName);
+				ProductViewVarSet->AddVariant(NewVar.ToSharedRef());
 
-			// Add every ProductInstance actor element to the variant set, setting it visible if it's included in the ProductView 
-			for (const PlmXml::FImportedProductInstance& ProductInstance : ImportContext.ProductInstances)
-			{
-				TSharedPtr<IDatasmithPropertyCaptureElement> PropertyCapture = FDatasmithSceneFactory::CreatePropertyCapture();
-				PropertyCapture->SetCategory(EDatasmithPropertyCategory::Visibility);
+				// Add every ProductInstance actor element to the variant set, setting it visible if it's included in the ProductView 
+				for (const PlmXml::FImportedProductInstance& ProductInstance : ImportContext.ProductInstances)
+				{
+					TSharedPtr<IDatasmithPropertyCaptureElement> PropertyCapture = FDatasmithSceneFactory::CreatePropertyCapture();
+					PropertyCapture->SetCategory(EDatasmithPropertyCategory::Visibility);
 
-				bool bVisible = ActorOptions.Contains(ProductInstance.ActorElement);
-				PropertyCapture->SetRecordedData((uint8*)&bVisible, sizeof(bool));
+					bool bVisible = ActorOptions.Contains(ProductInstance.ActorElement);
+					PropertyCapture->SetRecordedData((uint8*)&bVisible, sizeof(bool));
 
-				TSharedPtr<IDatasmithActorBindingElement> Binding = FDatasmithSceneFactory::CreateActorBinding();
-				Binding->SetActor(ProductInstance.ActorElement);
-				Binding->AddPropertyCapture(PropertyCapture.ToSharedRef());
-				NewVar->AddActorBinding(Binding.ToSharedRef());
+					TSharedPtr<IDatasmithActorBindingElement> Binding = FDatasmithSceneFactory::CreateActorBinding();
+					Binding->SetActor(ProductInstance.ActorElement);
+					Binding->AddPropertyCapture(PropertyCapture.ToSharedRef());
+					NewVar->AddActorBinding(Binding.ToSharedRef());
+				}
 			}
 		}
 		return true;
@@ -1244,58 +1244,6 @@ namespace PlmXml
 
 		return true;
 	}
-
-	bool ParseProductRevisions(const FXmlNode* RootNode, FImportContext& ImportContext)
-	{
-		FParsedPlmXml& ParsedPlmXml = ImportContext.ParsedPlmXml;
-
-		const TSharedRef<IDatasmithActorElement> RootActorElement = FDatasmithSceneFactory::CreateActor(TEXT("ProductRevisions"));
-		ImportContext.DatasmithScene->AddActor(RootActorElement);
-		ImportContext.RootActorElementForProductRevisions = RootActorElement;
-
-		TArray<FImportedProductRevision> ImportedProductRevisions;
-		
-		for (const TPair<FString, const FXmlNode*> ProductRevisionIdNode : ParsedPlmXml.ProductRevisionNodes)
-		{
-			//ImportedProductRevisions.Add(ParseProductRevision(ImportContext, RootActorElement, ProductRevisionIdNode.Value, RootActorElement->GetName()));
-		}
-
-		TSharedRef<IDatasmithLevelVariantSetsElement> Lvs = ImportContext.LVS;
-
-		for (const FImportedProductRevision& ImportedProductRevision : ImportedProductRevisions)
-		{
-			ImportedProductRevision.ActorElement->AddTag(*ImportedProductRevision.Id);
-		}
-
-		// Make a variant set to contain a variant per existing ProductRevision
-		TSharedPtr<IDatasmithVariantSetElement> ProductRevisionVarSet = FDatasmithSceneFactory::CreateVariantSet(TEXT("ProductRevision"));
-		Lvs->AddVariantSet(ProductRevisionVarSet.ToSharedRef());
-
-		// A variant per ProductView
-		for (const FImportedProductRevision& ImportedProductRevision : ImportedProductRevisions)
-		{
-			FString OptionName = ImportedProductRevision.Label; // TODO: make better name?
-			TSharedPtr<IDatasmithVariantElement> NewVar = FDatasmithSceneFactory::CreateVariant(*OptionName);
-			ProductRevisionVarSet->AddVariant(NewVar.ToSharedRef());
-
-			for (const FImportedProductRevision& ImportedProductRevisionOther : ImportedProductRevisions)
-			{
-				TSharedPtr<IDatasmithPropertyCaptureElement> PropertyCapture = FDatasmithSceneFactory::CreatePropertyCapture();
-				PropertyCapture->SetCategory(EDatasmithPropertyCategory::Visibility);
-
-				bool bVisible = ImportedProductRevision.ActorElement == ImportedProductRevisionOther.ActorElement; // TODO: make more obvious that we use one revision
-				PropertyCapture->SetRecordedData((uint8*)&bVisible, sizeof(bool));
-
-				TSharedPtr<IDatasmithActorBindingElement> Binding = FDatasmithSceneFactory::CreateActorBinding();
-				Binding->SetActor(ImportedProductRevisionOther.ActorElement);
-				Binding->AddPropertyCapture(PropertyCapture.ToSharedRef());
-				NewVar->AddActorBinding(Binding.ToSharedRef());
-			}
-		}
-		
-		return true;
-	}
-
 }
 
 bool FDatasmithPlmXmlImporter::OpenFile(const FString& InFilePath, const FDatasmithSceneSource& Source, FDatasmithTessellationOptions& TessellationOptions)
@@ -1345,11 +1293,10 @@ bool FDatasmithPlmXmlImporter::OpenFile(const FString& InFilePath, const FDatasm
 	}
 	
 	bool bProductDefParsed = PlmXml::ParseProductDef(RootNode, ImportContext);
-	bool bProductRevisionsParsed = PlmXml::ParseProductRevisions(RootNode, ImportContext);
 	bool bProductViewVariantsAdded = AddProductViewVariants(ImportContext);
 
 
-	if (!(bProductDefParsed || bProductRevisionsParsed || bProductViewVariantsAdded))
+	if (!(bProductDefParsed || bProductViewVariantsAdded))
 	{
 		return false;
 	}

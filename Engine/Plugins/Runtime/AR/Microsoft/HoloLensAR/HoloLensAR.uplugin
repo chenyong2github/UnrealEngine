@@ -3,7 +3,7 @@
 	"Version": 1,
 	"VersionName": "1.0",
 	"FriendlyName": "HoloLens",
-	"Description": "HoloLens Support",
+	"Description": "Support packaging for HoloLens device.  This plugin is not required for remoting to HoloLens.",
 	"Category": "Augmented Reality",
 	"CreatedBy": "Epic Games, Inc. and Microsoft",
 	"CreatedByURL": "http://epicgames.com",
@@ -11,23 +11,10 @@
 	"MarketplaceURL": "",
 	"SupportURL": "",
 	"EnabledByDefault": false,
-	"CanContainContent": true,
+	"CanContainContent": false,
 	"IsBetaVersion": false,
 	"Installed": false,
-	"SupportedTargetPlatforms": [
-		"HoloLens",
-		"Win64"
-	],
 	"Modules": [
-		{
-			"Name": "HoloLensAR",
-			"Type": "Runtime",
-			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms": [
-				"HoloLens",
-				"Win64"
-			]
-		},
 		{
 			"Name": "HoloLensPlatformEditor",
 			"Type": "Editor",

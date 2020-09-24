@@ -106,8 +106,7 @@ public:
 		// Store slice count for texture array
 		if (bIsTextureArray)
 		{
-			const FTexture2DArrayResource* TextureValue2DArray = (FTexture2DArrayResource*)(TextureValue);
-			float NumSlicesData = TextureValue2DArray ? float(TextureValue2DArray->GetNumSlices()) : 1;
+			const float NumSlicesData = TextureValue ? TextureValue->GetSizeZ() : 1;
 			SetShaderValue(RHICmdList, ShaderRHI, NumSlices, NumSlicesData);
 		}
 

@@ -18,9 +18,11 @@ public class MovieScene : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
-				"Engine",
+                "InputCore",
+                "Engine",
 				"TimeManagement"
 			}
 		);
-	}
+
+    }
 }

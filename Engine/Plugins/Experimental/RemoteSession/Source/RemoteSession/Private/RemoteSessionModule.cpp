@@ -18,10 +18,29 @@
 
 #if WITH_EDITOR
 	#include "Editor.h"
+	#include "ISettingsModule.h"
+	#include "ISettingsSection.h"
 #endif
+#include "Modules/ModuleManager.h"
+
+#include "Modules/ModuleManager.h"
+
 
 #define LOCTEXT_NAMESPACE "FRemoteSessionModule"
 
+#define REMOTE_SESSION_VERSION_STRING TEXT("1.1")
+#define REMOTE_SESSION_LEGACY_VERSION_STRING TEXT("1.0.5")
+
+
+FString IRemoteSessionModule::GetLocalVersion()
+{
+	return REMOTE_SESSION_VERSION_STRING;
+}
+
+FString IRemoteSessionModule::GetLastSupportedVersion()
+{
+	return REMOTE_SESSION_LEGACY_VERSION_STRING;
+}
 
 void FRemoteSessionModule::SetAutoStartWithPIE(bool bEnable)
 {
@@ -29,26 +48,7 @@ void FRemoteSessionModule::SetAutoStartWithPIE(bool bEnable)
 }
 
 void FRemoteSessionModule::StartupModule()
-{
-	// set defaults
-	DefaultPort = IRemoteSessionModule::kDefaultPort;
-	bAutoHostWithPIE = true;
-	bAutoHostWithGame = true;
-
-	ReadIniSettings();
-
-	// Add the default channel factory
-	BuiltInFactory.Add(MakeShared<FRemoteSessionARCameraChannelFactoryWorker>());
-	BuiltInFactory.Add(MakeShared<FRemoteSessionARSystemChannelFactoryWorker>());
-	BuiltInFactory.Add(MakeShared<FRemoteSessionFrameBufferChannelFactoryWorker>()); // for deprecation before 2.24
-	BuiltInFactory.Add(MakeShared<FRemoteSessionImageChannelFactoryWorker>());
-	BuiltInFactory.Add(MakeShared<FRemoteSessionInputChannelFactoryWorker>());
-	BuiltInFactory.Add(MakeShared<FRemoteSessionXRTrackingChannelFactoryWorker>());
-	for (TSharedPtr<IRemoteSessionChannelFactoryWorker> Channel : BuiltInFactory)
-	{
-		FactoryWorkers.Add(Channel);
-	}
-
+{	
 	if (PLATFORM_DESKTOP 
 		&& IsRunningDedicatedServer() == false 
 		&& IsRunningCommandlet() == false)
@@ -57,133 +57,12 @@ void FRemoteSessionModule::StartupModule()
 		PostPieDelegate = FEditorDelegates::PostPIEStarted.AddRaw(this, &FRemoteSessionModule::OnPIEStarted);
 		EndPieDelegate = FEditorDelegates::EndPIE.AddRaw(this, &FRemoteSessionModule::OnPIEEnded);
 #endif
-		GameStartDelegate = FCoreDelegates::OnFEngineLoopInitComplete.AddRaw(this, &FRemoteSessionModule::OnGameStarted);
-	}
-}
-
-void FRemoteSessionModule::ReadIniSettings()
-{
-	GConfig->GetBool(TEXT("RemoteSession"), TEXT("bAutoHostWithGame"), bAutoHostWithGame, GEngineIni);
-	GConfig->GetBool(TEXT("RemoteSession"), TEXT("bAutoHostWithPIE"), bAutoHostWithPIE, GEngineIni);
-	GConfig->GetInt(TEXT("RemoteSession"), TEXT("HostPort"), DefaultPort, GEngineIni);
-
-	// Query the list of channels from the hosts ini file.
-	TArray<FString> ReadIniSupportedChannels;
-	GConfig->GetArray(TEXT("RemoteSession"), TEXT("Channels"), ReadIniSupportedChannels, GEngineIni);
-
-	if (ReadIniSupportedChannels.Num() == 0)
-	{
-		// Default to Input receive and framebuffer send
-		ReadIniSupportedChannels.Add(FString::Printf(TEXT("(Name=%s,Mode=Read)"), FRemoteSessionInputChannel::StaticType()));
-		ReadIniSupportedChannels.Add(FString::Printf(TEXT("(Name=%s,Mode=Write)"), FRemoteSessionFrameBufferChannelFactoryWorker::StaticType()));
-		UE_LOG(LogRemoteSession, Log, TEXT("No channels specified. Defaulting to Input and Framebuffer."));
-	}
-
-	FParse::Value(FCommandLine::Get(), TEXT("remote.port="), DefaultPort);
-
-	IniSupportedChannels.Reset();
-
-	for (FString& Channel : ReadIniSupportedChannels)
-	{
-		FString ChannelName, Mode;
-
-		Channel.TrimStartAndEndInline();
-
-		if (Channel[0] == TEXT('('))
-		{
-			const TCHAR* ChannelArgs = (*Channel) + 1;
-
-			FParse::Value(ChannelArgs, TEXT("Name="), ChannelName);
-			FParse::Value(ChannelArgs, TEXT("Mode="), Mode);
-		}
-
-		if (ChannelName.Len() && Mode.Len())
-		{
-			ERemoteSessionChannelMode ChannelMode = Mode == TEXT("Read") ? ERemoteSessionChannelMode::Read : ERemoteSessionChannelMode::Write;
-			IniSupportedChannels.Add(*ChannelName, ChannelMode);
-
-			UE_LOG(LogRemoteSession, Log, TEXT("Will request channel %s in mode %s."), *ChannelName, *Mode);
-		}
-		else
-		{
-			UE_LOG(LogRemoteSession, Error, TEXT("Unrecognized channel syntax '%s'. Should be ChannelType,r or ChannelType,s"), *Channel);
-		}
-	}
-
-	{
-		TArray<FString> IniChannelRedirectsString;
-		GConfig->GetArray(TEXT("RemoteSession"), TEXT("ChannelRedirects"), IniChannelRedirectsString, GEngineIni);
-
-		for (FString& Channel : IniChannelRedirectsString)
-		{
-			Channel.TrimStartAndEndInline();
-			if (Channel[0] == TEXT('('))
-			{
-				const TCHAR* ChannelArgs = (*Channel) + 1;
-
-				FString OldName, NewName;
-				FParse::Value(ChannelArgs, TEXT("OldName="), OldName);
-				FParse::Value(ChannelArgs, TEXT("NewName="), NewName);
-
-				if (OldName.Len() && NewName.Len())
-				{
-					ChannelRedirects.Emplace(MoveTemp(OldName), MoveTemp(NewName));
-				}
-			}
-		}
-	}
-}
-
-void FRemoteSessionModule::AddChannelFactory(TWeakPtr<IRemoteSessionChannelFactoryWorker> Worker)
-{
-	FactoryWorkers.AddUnique(Worker);
-}
-
-void FRemoteSessionModule::RemoveChannelFactory(TWeakPtr<IRemoteSessionChannelFactoryWorker> Worker)
-{
-	FactoryWorkers.RemoveSingleSwap(Worker);
-}
-
-TSharedPtr<IRemoteSessionChannelFactoryWorker> FRemoteSessionModule::FindChannelFactoryWorker(const TCHAR* Type)
-{
-	for (TWeakPtr<IRemoteSessionChannelFactoryWorker> Worker : FactoryWorkers)
-	{
-		if (TSharedPtr<IRemoteSessionChannelFactoryWorker> Pinned = Worker.Pin())
-		{
-			if (FPlatformString::Stricmp(Pinned->GetType(), Type) == 0)
-			{
-				return Pinned;
-			}
-		}
-	}
-	return TSharedPtr<IRemoteSessionChannelFactoryWorker>();
-}
-
-void FRemoteSessionModule::SetSupportedChannels(TMap<FString, ERemoteSessionChannelMode>& InSupportedChannels)
-{
-	for (const auto& KP : InSupportedChannels)
-	{
-		AddSupportedChannel(KP.Key, KP.Value, FOnRemoteSessionChannelCreated());
-	}
-}
-
-void FRemoteSessionModule::AddSupportedChannel(FString InType, ERemoteSessionChannelMode InMode)
-{
-	AddSupportedChannel(MoveTemp(InType), InMode, FOnRemoteSessionChannelCreated());
-}
-
-void FRemoteSessionModule::AddSupportedChannel(FString InType, ERemoteSessionChannelMode InMode, FOnRemoteSessionChannelCreated InOnCreated)
-{
-	if (!ProgramaticallySupportedChannels.ContainsByPredicate([&InType](const FRemoteSessionChannelInfo& Info) { return Info.Type == InType; }))
-	{
-		ProgramaticallySupportedChannels.Emplace(MoveTemp(InType), InMode, InOnCreated);
+		GameStartDelegate = FCoreDelegates::OnFEngineLoopInitComplete.AddRaw(this, &FRemoteSessionModule::OnPostInit);
 	}
 }
 
 void FRemoteSessionModule::ShutdownModule()
 {
-	BuiltInFactory.Reset();
-
 	// This function may be called during shutdown to clean up your module.  For modules that support dynamic reloading,
 	// we call this function before unloading the module.
 #if WITH_EDITOR
@@ -196,6 +75,14 @@ void FRemoteSessionModule::ShutdownModule()
 	{
 		FEditorDelegates::EndPIE.Remove(EndPieDelegate);
 	}
+
+	// unregister settings
+	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
+
+	if (SettingsModule != nullptr)
+	{
+		SettingsModule->UnregisterSettings("Project", "Plugins", "RemoteSession");
+	}
 #endif
 
 	if (GameStartDelegate.IsValid())
@@ -204,8 +91,30 @@ void FRemoteSessionModule::ShutdownModule()
 	}
 }
 
-void FRemoteSessionModule::OnGameStarted()
+void FRemoteSessionModule::OnPostInit()
 {
+#if WITH_EDITOR
+	// register settings
+	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
+
+	if (SettingsModule != nullptr)
+	{
+		ISettingsSectionPtr SettingsSection = SettingsModule->RegisterSettings("Project", "Plugins", "RemoteSession",
+			LOCTEXT("RemoteSessionSettingsName", "Remote Session"),
+			LOCTEXT("RemoteSessionSettingsDescription", "Configure the Remote Session plugin."),
+			GetMutableDefault<URemoteSessionSettings>()
+		);
+
+		if (SettingsSection.IsValid())
+		{
+			SettingsSection->OnModified().BindRaw(this, &FRemoteSessionModule::HandleSettingsSaved);
+		}
+	}
+#endif // WITH_EDITOR
+
+	// Call this to trigger set up based on current settings
+	HandleSettingsSaved();
+
 	bool IsHostGame = PLATFORM_DESKTOP
 		&& GIsEditor == false
 		&& IsRunningDedicatedServer() == false
@@ -216,6 +125,56 @@ void FRemoteSessionModule::OnGameStarted()
 		InitHost();
 	}
 }
+
+/** Callback for when the settings were saved. */
+bool FRemoteSessionModule::HandleSettingsSaved()
+{
+	URemoteSessionSettings* Settings = URemoteSessionSettings::StaticClass()->GetDefaultObject<URemoteSessionSettings>();
+
+	bAutoHostWithPIE = Settings->bAutoHostWithPIE;
+	bAutoHostWithGame = Settings->bAutoHostWithPIE;
+	DefaultPort = Settings->HostPort;
+
+	// port can be overriden on the command line
+	FParse::Value(FCommandLine::Get(), TEXT("remote.port="), DefaultPort);
+
+	TArray<FRemoteSessionChannelInfo> KnownChannels = FRemoteSessionChannelRegistry::Get().GetRegisteredFactories();
+
+	// check channels
+	for (const auto& Channel : Settings->WhitelistedChannels)
+	{
+		if (KnownChannels.ContainsByPredicate([Channel](const FRemoteSessionChannelInfo& Info) {
+			return Info.Type == Channel;
+			}))
+		{
+			UE_LOG(LogRemoteSession, Error, TEXT("Channel %s in the ini file whitelist is not a recognized channel."), *Channel);
+		}
+	}
+
+	for (const auto& Channel : Settings->BlacklistedChannels)
+	{
+		if (KnownChannels.ContainsByPredicate([Channel](const FRemoteSessionChannelInfo& Info) {
+			return Info.Type == Channel;
+			}))
+		{
+			UE_LOG(LogRemoteSession, Error, TEXT("Channel %s in the ini file blacklist is not a recognized channel."), *Channel);
+		}
+	}
+
+	return true;
+}
+
+
+void FRemoteSessionModule::AddChannelFactory(const FStringView InChannelName, ERemoteSessionChannelMode InHostMode, TWeakPtr<IRemoteSessionChannelFactoryWorker> Worker)
+{
+	FRemoteSessionChannelRegistry::Get().RegisterChannelFactory(*FString(InChannelName.Len(), InChannelName.GetData()), InHostMode, Worker);
+}
+
+void FRemoteSessionModule::RemoveChannelFactory(TWeakPtr<IRemoteSessionChannelFactoryWorker> Worker)
+{
+	FRemoteSessionChannelRegistry::Get().RemoveChannelFactory(Worker);
+}
+
 
 void FRemoteSessionModule::OnPIEStarted(bool bSimulating)
 {
@@ -263,13 +222,27 @@ void FRemoteSessionModule::InitHost(const int16 Port /*= 0*/)
 		Host = nullptr;
 	}
 
-	TArray<FRemoteSessionChannelInfo> SupportedChannels = ProgramaticallySupportedChannels;
-	for (const auto& KP : IniSupportedChannels)
+	TArray<FRemoteSessionChannelInfo> SupportedChannels;
+
+	const URemoteSessionSettings* Settings = URemoteSessionSettings::StaticClass()->GetDefaultObject<URemoteSessionSettings>();
+
+	SupportedChannels = FRemoteSessionChannelRegistry::Get().GetRegisteredFactories();
+
+	if (Settings->WhitelistedChannels.Num())
 	{
-		if (!SupportedChannels.ContainsByPredicate([&KP](const FRemoteSessionChannelInfo& Other) { return KP.Key == Other.Type; }))
-		{
-			SupportedChannels.Emplace(KP.Key, KP.Value, FOnRemoteSessionChannelCreated());
-		}
+		// Remove anything not in the whitelist
+		SupportedChannels = SupportedChannels.FilterByPredicate([Settings](const FRemoteSessionChannelInfo& Info) {
+			return Settings->WhitelistedChannels.Contains(Info.Type);
+		});
+	}
+
+
+	if (Settings->BlacklistedChannels.Num())
+	{
+		// Remove anything in the blacklist
+		SupportedChannels = SupportedChannels.FilterByPredicate([Settings](const FRemoteSessionChannelInfo& Info) {
+			return Settings->BlacklistedChannels.Contains(Info.Type) == false;
+		});
 	}
 
 	int16 SelectedPort = Port ? Port : (int16)DefaultPort;
@@ -302,9 +275,10 @@ TSharedPtr<IRemoteSessionUnmanagedRole> FRemoteSessionModule::CreateHost(TArray<
 TSharedPtr<FRemoteSessionHost> FRemoteSessionModule::CreateHostInternal(TArray<FRemoteSessionChannelInfo> SupportedChannels, int32 Port) const
 {
 #if UE_BUILD_SHIPPING
+
+	const URemoteSessionSettings* Settings = URemoteSessionSettings::StaticClass()->GetDefaultObject<URemoteSessionSettings>();
 	bool bAllowInShipping = false;
-	GConfig->GetBool(TEXT("RemoteSession"), TEXT("bAllowInShipping"), bAllowInShipping, GEngineIni);
-	if (bAllowInShipping == false)
+	if (Settings->bAllowInShipping == false)
 	{
 		UE_LOG(LogRemoteSession, Log, TEXT("RemoteSession is disabled. Shipping=1"));
 		return TSharedPtr<FRemoteSessionHost>();

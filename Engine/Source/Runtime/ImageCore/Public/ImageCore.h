@@ -138,102 +138,102 @@ public:
 
 	// Convenience accessors to raw data
 	
-	uint8* AsG8()
+	TArrayView64<uint8> AsG8()
 	{
 		check(Format == ERawImageFormat::G8);
-		return RawData.GetData();
+		return { RawData.GetData(), int64(RawData.Num()) };
 	}
 
-	uint16* AsG16()
+	TArrayView64<uint16> AsG16()
 	{
 		check(Format == ERawImageFormat::G16);
-		return (uint16*)RawData.GetData();
+		return { (uint16*)RawData.GetData(), int64(RawData.Num() / sizeof(uint16)) };
 	}
 
-	struct FColor* AsBGRA8()
+	TArrayView64<FColor> AsBGRA8()
 	{
 		check(Format == ERawImageFormat::BGRA8);
-		return (struct FColor*)RawData.GetData();
+		return { (struct FColor*)RawData.GetData(), int64(RawData.Num() / sizeof(FColor)) };
 	}
 
-	struct FColor* AsBGRE8()
+	TArrayView64<FColor> AsBGRE8()
 	{
 		check(Format == ERawImageFormat::BGRE8);
-		return (struct FColor*)RawData.GetData();
+		return { (struct FColor*)RawData.GetData(), int64(RawData.Num() / sizeof(FColor)) };
 	}
 
-	uint16* AsRGBA16()
+	TArrayView64<uint16> AsRGBA16()
 	{
 		check(Format == ERawImageFormat::RGBA16);
-		return (uint16*)RawData.GetData();
+		return { (uint16*)RawData.GetData(), int64(RawData.Num() / sizeof(uint16)) };
 	}
 
-	class FFloat16Color* AsRGBA16F()
+	TArrayView64<FFloat16Color> AsRGBA16F()
 	{
 		check(Format == ERawImageFormat::RGBA16F);
-		return (class FFloat16Color*)RawData.GetData();
+		return { (class FFloat16Color*)RawData.GetData(), int64(RawData.Num() / sizeof(FFloat16Color)) };
 	}
 
-	struct FLinearColor* AsRGBA32F()
+	TArrayView64<FLinearColor> AsRGBA32F()
 	{
 		check(Format == ERawImageFormat::RGBA32F);
-		return (struct FLinearColor*)RawData.GetData();
+		return { (struct FLinearColor*)RawData.GetData(), int64(RawData.Num() / sizeof(FLinearColor)) };
 	}
 
-	class FFloat16* AsR16F()
+	TArrayView64<FFloat16> AsR16F()
 	{
 		check(Format == ERawImageFormat::R16F);
-		return (class FFloat16*)RawData.GetData();
+		return { (class FFloat16*)RawData.GetData(), int64(RawData.Num() / sizeof(FFloat16)) };
 	}
 
 	// Convenience accessors to const raw data
 
-	const uint8* AsG8() const
+	TArrayView64<const uint8> AsG8() const
 	{
 		check(Format == ERawImageFormat::G8);
-		return RawData.GetData();
+		return { RawData.GetData(), int64(RawData.Num()) };
 	}
 
-	const uint16* AsG16() const
+	TArrayView64<const uint16> AsG16() const
 	{
 		check(Format == ERawImageFormat::G16);
-		return (const uint16*)RawData.GetData();
+		return { (const uint16*)RawData.GetData(), int64(RawData.Num() / sizeof(uint16)) };
 	}
 
-	const struct FColor* AsBGRA8() const
+	TArrayView64<const FColor> AsBGRA8() const
 	{
 		check(Format == ERawImageFormat::BGRA8);
-		return (const struct FColor*)RawData.GetData();
+		return { (const struct FColor*)RawData.GetData(), int64(RawData.Num() / sizeof(FColor)) };
 	}
 
-	const struct FColor* AsBGRE8() const
+	TArrayView64<const FColor> AsBGRE8() const
 	{
 		check(Format == ERawImageFormat::BGRE8);
-		return (struct FColor*)RawData.GetData();
+		return { (struct FColor*)RawData.GetData(), int64(RawData.Num() / sizeof(FColor)) };
 	}
 
-	const uint16* AsRGBA16() const
+	TArrayView64<const uint16> AsRGBA16() const
 	{
 		check(Format == ERawImageFormat::RGBA16);
-		return (const uint16*)RawData.GetData();
+		return { (const uint16*)RawData.GetData(), int64(RawData.Num() / sizeof(uint16)) };
 	}
 
-	const class FFloat16Color* AsRGBA16F() const
+	TArrayView64<const FFloat16Color> AsRGBA16F() const
 	{
 		check(Format == ERawImageFormat::RGBA16F);
-		return (const class FFloat16Color*)RawData.GetData();
+		return { (const class FFloat16Color*)RawData.GetData(), int64(RawData.Num() / sizeof(FFloat16Color)) };
 	}
 
-	const struct FLinearColor* AsRGBA32F() const
+	TArrayView64<const FLinearColor> AsRGBA32F() const
 	{
 		check(Format == ERawImageFormat::RGBA32F);
-		return (struct FLinearColor*)RawData.GetData();
+		return { (struct FLinearColor*)RawData.GetData(), int64(RawData.Num() / sizeof(FLinearColor)) };
 	}
 
-	const class FFloat16* AsR16F() const
+	TArrayView64<const FFloat16> AsR16F() const
 	{
 		check(Format == ERawImageFormat::R16F);
-		return (const class FFloat16*)RawData.GetData();
+		return { (const class FFloat16*)RawData.GetData(), int64(RawData.Num() / sizeof(FFloat16)) };
 	}
 
 	FORCEINLINE bool IsGammaCorrected() const

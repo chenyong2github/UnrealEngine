@@ -8,9 +8,16 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(CADInterfaces, Log, All);
 
-class ICADInterfacesModule : public IModuleInterface
+enum class ECADInterfaceAvailability
+{
+	Unknown,
+	Available,
+	Unavailable,
+};
+
+class CADINTERFACES_API ICADInterfacesModule : public IModuleInterface
 {
 public:
 	static ICADInterfacesModule& Get();
-	static bool IsAvailable();
+	static ECADInterfaceAvailability IsAvailable();
 };

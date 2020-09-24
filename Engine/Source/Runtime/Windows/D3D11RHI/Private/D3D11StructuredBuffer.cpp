@@ -2,7 +2,7 @@
 
 #include "D3D11RHIPrivate.h"
 
-FStructuredBufferRHIRef FD3D11DynamicRHI::RHICreateStructuredBuffer(uint32 Stride,uint32 Size,uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
+FStructuredBufferRHIRef FD3D11DynamicRHI::RHICreateStructuredBuffer(uint32 Stride,uint32 Size,uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
 	// Explicitly check that the size is nonzero before allowing CreateStructuredBuffer to opaquely fail.
 	check(Size > 0);
@@ -97,9 +97,10 @@ FStructuredBufferRHIRef FD3D11DynamicRHI::CreateStructuredBuffer_RenderThread(
 	uint32 Stride,
 	uint32 Size,
 	uint32 InUsage,
+	ERHIAccess InResourceState,
 	FRHIResourceCreateInfo& CreateInfo)
 {
-	return RHICreateStructuredBuffer(Stride, Size, InUsage, CreateInfo);
+	return RHICreateStructuredBuffer(Stride, Size, InUsage, InResourceState, CreateInfo);
 }
 
 void* FD3D11DynamicRHI::LockStructuredBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIStructuredBuffer* StructuredBufferRHI,uint32 Offset,uint32 Size,EResourceLockMode LockMode)

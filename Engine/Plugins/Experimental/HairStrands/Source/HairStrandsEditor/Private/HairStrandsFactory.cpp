@@ -42,8 +42,8 @@ void UHairStrandsFactory::InitTranslators()
 {
 	Formats.Reset();
 
-	Translators = FHairStrandsEditor::Get().GetHairTranslators();
-	for (TSharedPtr<IHairStrandsTranslator> Translator : Translators)
+	Translators = FGroomEditor::Get().GetHairTranslators();
+	for (TSharedPtr<IGroomTranslator> Translator : Translators)
 	{
 		Formats.Add(Translator->GetSupportedFormat());
 	}
@@ -67,7 +67,7 @@ UObject* UHairStrandsFactory::FactoryCreateFile(UClass* InClass, UObject* InPare
 	bOutOperationCanceled = false;
 
 	// Translate the hair data from the file
-	TSharedPtr<IHairStrandsTranslator> SelectedTranslator = GetTranslator(Filename);
+	TSharedPtr<IGroomTranslator> SelectedTranslator = GetTranslator(Filename);
 	if (!SelectedTranslator.IsValid())
 	{
 		return nullptr;
@@ -76,9 +76,7 @@ UObject* UHairStrandsFactory::FactoryCreateFile(UClass* InClass, UObject* InPare
 	if (!GIsRunningUnattendedScript && !IsAutomatedImport())
 	{
 		// Load the alembic file upfront to preview & report any potential issue
-		const bool bRunValidation = RunGroomAssetValidation();
 		FProcessedHairDescription OutDescription;
-		if (bRunValidation)
 		{
 			FScopedSlowTask Progress((float)1, LOCTEXT("ImportHairAssetForPreview", "Importing hair asset for preview..."), true);
 			Progress.MakeDialog(true);
@@ -89,11 +87,40 @@ UObject* UHairStrandsFactory::FactoryCreateFile(UClass* InClass, UObject* InPare
 				return nullptr;
 			}
 
-			FGroomBuilder::ProcessHairDescription(HairDescription, ImportOptions->BuildSettings, OutDescription);
+			FGroomBuilder::ProcessHairDescription(HairDescription, OutDescription);
+		
+			// Populate the interpolation settings based on the group count, as this is used later during the ImportHair() to define 
+			// the exact number of group to create
+			const uint32 GroupCount = OutDescription.HairGroups.Num();
+			if (GroupCount != uint32(ImportOptions->InterpolationSettings.Num()))
+			{
+				ImportOptions->InterpolationSettings.Init(FHairGroupsInterpolation(), GroupCount);
+			}
+		}
+
+		// Convert the process hair description into hair groups
+		UGroomHairGroupsPreview* GroupsPreview = NewObject<UGroomHairGroupsPreview>();
+		{
+			uint32 GroupIndex = 0;
+			for (TPair<int32, FProcessedHairDescription::FHairGroup> HairGroupIt : OutDescription.HairGroups)
+			{
+				const FProcessedHairDescription::FHairGroup& Group = HairGroupIt.Value;
+				const FHairGroupInfo& GroupInfo = Group.Key;
+
+				FGroomHairGroupPreview& OutGroup = GroupsPreview->Groups.AddDefaulted_GetRef();
+				OutGroup.GroupID = GroupInfo.GroupID;
+				OutGroup.CurveCount = GroupInfo.NumCurves;
+				OutGroup.GuideCount = GroupInfo.NumGuides;
+
+				if (OutGroup.GroupID < OutDescription.HairGroups.Num())
+				{				
+					OutGroup.InterpolationSettings = ImportOptions->InterpolationSettings[OutGroup.GroupID];
+				}
+			}
 		}
 
 		// Display import options and handle user cancellation
-		TSharedPtr<SGroomImportOptionsWindow> GroomOptionWindow = SGroomImportOptionsWindow::DisplayImportOptions(ImportOptions, Filename, bRunValidation ? &OutDescription : nullptr);
+		TSharedPtr<SGroomImportOptionsWindow> GroomOptionWindow = SGroomImportOptionsWindow::DisplayImportOptions(ImportOptions, GroupsPreview, Filename);
 		if (!GroomOptionWindow->ShouldImport())
 		{
 			bOutOperationCanceled = true;
@@ -101,6 +128,13 @@ UObject* UHairStrandsFactory::FactoryCreateFile(UClass* InClass, UObject* InPare
 		}
 
 		// Save the options as the new default
+		for (const FGroomHairGroupPreview& GroupPreview : GroupsPreview->Groups)
+		{
+			if (GroupPreview.GroupID < OutDescription.HairGroups.Num())
+			{
+				ImportOptions->InterpolationSettings[GroupPreview.GroupID] = GroupPreview.InterpolationSettings;
+			}
+		}
 		ImportOptions->SaveConfig();
 	}
 
@@ -114,7 +148,12 @@ UObject* UHairStrandsFactory::FactoryCreateFile(UClass* InClass, UObject* InPare
 	}
 
 	// Might try to import the same file in the same folder, so if an asset already exists there, reuse and update it
+	// Since we are importing (not reimporting) we reset the object completely. All previous settings will be lost.
 	UGroomAsset* ExistingAsset = FindObject<UGroomAsset>(InParent, *InName.ToString());
+	if (ExistingAsset)
+	{
+		ExistingAsset->SetNumGroup(0);
+	}
 
 	FHairImportContext HairImportContext(ImportOptions, InParent, InClass, InName, Flags);
 	UGroomAsset* CurrentAsset = FHairStrandsImporter::ImportHair(HairImportContext, HairDescription, ExistingAsset);
@@ -136,7 +175,7 @@ UObject* UHairStrandsFactory::FactoryCreateFile(UClass* InClass, UObject* InPare
 
 bool UHairStrandsFactory::FactoryCanImport(const FString& Filename)
 {
-	for (TSharedPtr<IHairStrandsTranslator> Translator : Translators)
+	for (TSharedPtr<IGroomTranslator> Translator : Translators)
 	{
 		if (Translator->CanTranslate(Filename))
 		{
@@ -146,10 +185,10 @@ bool UHairStrandsFactory::FactoryCanImport(const FString& Filename)
 	return false;
 }
 
-TSharedPtr<IHairStrandsTranslator> UHairStrandsFactory::GetTranslator(const FString& Filename)
+TSharedPtr<IGroomTranslator> UHairStrandsFactory::GetTranslator(const FString& Filename)
 {
 	FString Extension = FPaths::GetExtension(Filename);
-	for (TSharedPtr<IHairStrandsTranslator> Translator : Translators)
+	for (TSharedPtr<IGroomTranslator> Translator : Translators)
 	{
 		if (Translator->IsFileExtensionSupported(Extension))
 		{

@@ -11,6 +11,7 @@ uint			DispatchCountX;
 uint			MaxRasterCount;
 uint			FrameIdMod8;
 uint			MacroGroupId;
+uint			HairStrandsVF_bIsCullingEnable;
 float			HairStrandsVF_Radius;
 float			HairStrandsVF_Length;
 float			HairStrandsVF_Density;
@@ -18,6 +19,12 @@ float3			HairStrandsVF_PositionOffset;
 uint			HairStrandsVF_VertexCount;
 float4x4		HairStrandsVF_LocalToWorldPrimitiveTransform;
 Buffer<uint4>	HairStrandsVF_PositionBuffer;
+
+#if PERMUTATION_CULLING == 1
+Buffer<uint>	HairStrandsVF_CullingIndirectBuffer;
+Buffer<uint>	HairStrandsVF_CullingIndexBuffer;
+Buffer<float>	HairStrandsVF_CullingRadiusScaleBuffer;
+#endif
 
 uint			VirtualVoxelParams_PageIndexCount;
 uint			VirtualVoxelParams_PageResolution;
@@ -43,28 +50,64 @@ float3 GetHairVoxelJitter(uint2 PixelCoord, uint Seed)
 
 #define JITTER_ENABLE 0
 
+// These number need to match HairStrandsClusterCulling.usf
 #define GROUP_SIZE 32
+#define GROUP_COUNT_X 16
+
 [numthreads(GROUP_SIZE, 1, 1)]
 void MainCS(uint3 DispatchThreadID : SV_DispatchThreadID)
 {
-	const uint VertexIndex = DispatchThreadID.x + DispatchThreadID.y * GROUP_SIZE * DispatchCountX;
-	if (VertexIndex >= HairStrandsVF_VertexCount)
+#if PERMUTATION_CULLING == 1
+	uint VertexIndex0 = DispatchThreadID.x + DispatchThreadID.y * GROUP_SIZE * GROUP_COUNT_X;
+#else
+	uint VertexIndex0 = DispatchThreadID.x + DispatchThreadID.y * GROUP_SIZE * DispatchCountX;
+#endif
+
+	//const uint VertexIndex = DispatchThreadID.x + DispatchThreadID.y * GROUP_SIZE * DispatchCountX;
+	uint VertexIndex1 = min(VertexIndex0 + 1, HairStrandsVF_VertexCount - 1);
+	if (VertexIndex0 >= HairStrandsVF_VertexCount)
 		return;
 
+	float LodRadiusScale0 = 1;
+	float LodRadiusScale1 = 1;
+#if PERMUTATION_CULLING == 1
+	if (HairStrandsVF_bIsCullingEnable)
+	{
+		const uint VertexCountAfterCulling = HairStrandsVF_CullingIndirectBuffer[3];
+		uint FetchIndex0 = VertexIndex0;
+		uint FetchIndex1 = VertexIndex1;
+		if (FetchIndex0 >= VertexCountAfterCulling)
+		{
+			return;
+		}
+		FetchIndex1 = min(FetchIndex0 + 1, VertexCountAfterCulling - 1);
+
+		VertexIndex0 = HairStrandsVF_CullingIndexBuffer[FetchIndex0];
+		LodRadiusScale0 = HairStrandsVF_CullingRadiusScaleBuffer[FetchIndex0];
+
+		VertexIndex1 = HairStrandsVF_CullingIndexBuffer[FetchIndex1];
+		LodRadiusScale1 = HairStrandsVF_CullingRadiusScaleBuffer[FetchIndex1];
+
+		if (LodRadiusScale0 <= 0.0f)
+		{
+			return;
+		}
+	}
+#endif
+
 	const FHairControlPoint CP0 = UnpackHairControlPoint(
-		HairStrandsVF_PositionBuffer[VertexIndex],
+		HairStrandsVF_PositionBuffer[VertexIndex0],
 		HairStrandsVF_PositionOffset,
-		HairStrandsVF_Radius,
+		HairStrandsVF_Radius * LodRadiusScale0,
 		HairStrandsVF_Length);
 
 	if (CP0.Type == HAIR_CONTROLPOINT_END)
 		return;
 
-	const uint VertexIndex1 = min(VertexIndex + 1, HairStrandsVF_VertexCount - 1);
 	const FHairControlPoint CP1 = UnpackHairControlPoint(
 		HairStrandsVF_PositionBuffer[VertexIndex1],
 		HairStrandsVF_PositionOffset,
-		HairStrandsVF_Radius,
+		HairStrandsVF_Radius * LodRadiusScale1,
 		HairStrandsVF_Length);
 
 	const float DiameterToRadius = 0.5f;
@@ -88,9 +131,9 @@ void MainCS(uint3 DispatchThreadID : SV_DispatchThreadID)
 	// Count the number of fibers which are within a cylinder defined by the voxel size, 
 	// and the distance between the origin and the extent of the volume
 	// This assumes that the voxel volume is cubic (i.e. equal dimensions on all sides)
-	const float3 Line = WP1 - WP0;
-	const float LineLength = length(Line);
-	const float3 StepD = normalize(Line) * CommonDesc.VoxelWorldSize;
+	const float3 LineSegment = WP1 - WP0;
+	const float LineLength = length(LineSegment);
+	const float3 StepD = normalize(LineSegment) * CommonDesc.VoxelWorldSize;
 
 	// Step according to voxel size
 	int3 CurrentPageIndexCoord = -1;

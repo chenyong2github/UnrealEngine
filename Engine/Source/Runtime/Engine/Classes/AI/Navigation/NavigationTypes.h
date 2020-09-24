@@ -349,6 +349,11 @@ struct FNavLocation
 	FORCEINLINE bool HasNodeRef() const { return NodeRef != INVALID_NAVNODEREF; }
 
 	FORCEINLINE operator FVector() const { return Location; }
+
+	bool operator==(const FNavLocation& Other) const
+	{
+		return Location == Other.Location && NodeRef == Other.NodeRef;
+	}
 };
 
 /** Describes node in navigation path */
@@ -363,6 +368,11 @@ struct FNavPathPoint : public FNavLocation
 	FNavPathPoint() : Flags(0), CustomLinkId(0) {}
 	FNavPathPoint(const FVector& InLocation, NavNodeRef InNodeRef = INVALID_NAVNODEREF, uint32 InFlags = 0) 
 		: FNavLocation(InLocation, InNodeRef), Flags(InFlags), CustomLinkId(0) {}
+
+	bool operator==(const FNavPathPoint& Other) const
+	{
+		return Flags == Other.Flags && CustomLinkId == Other.CustomLinkId && FNavLocation::operator==(Other);
+	}
 };
 
 /** path type data */

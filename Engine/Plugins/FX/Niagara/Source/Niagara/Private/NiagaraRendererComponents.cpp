@@ -2,14 +2,10 @@
 
 #include "NiagaraRendererComponents.h"
 #include "NiagaraConstants.h"
-#include "ParticleResources.h"
 #include "NiagaraDataSet.h"
 #include "NiagaraStats.h"
-#include "NiagaraVertexFactory.h"
-#include "Engine/Engine.h"
 #include "NiagaraComponentRendererProperties.h"
 #include "NiagaraRendererComponents.h"
-#include "Components/PointLightComponent.h"
 
 DECLARE_CYCLE_STAT(TEXT("Component renderer bind data"), STAT_NiagaraComponentRendererBind, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Component renderer update data"), STAT_NiagaraComponentRendererUpdate, STATGROUP_Niagara);
@@ -36,9 +32,7 @@ void SetValueWithAccessor(FNiagaraVariable& DataVariable, FNiagaraDataSet& Data,
 
 void SetVariableByType(FNiagaraVariable& DataVariable, FNiagaraDataSet& Data, int ParticleIndex)
 {
-	const FNiagaraVariableLayoutInfo* VarLayout = Data.GetVariableLayout(DataVariable);
 	const FNiagaraTypeDefinition& VarType = DataVariable.GetType();
-	uint8* Src = nullptr;
 	if (VarType == FNiagaraTypeDefinition::GetFloatDef()) { SetValueWithAccessor<float>(DataVariable, Data, ParticleIndex); }
 	else if (VarType == FNiagaraTypeDefinition::GetIntDef()) { SetValueWithAccessor<int32>(DataVariable, Data, ParticleIndex); }
 	else if (VarType == FNiagaraTypeDefinition::GetBoolDef()) { SetValueWithAccessor<FNiagaraBool>(DataVariable, Data, ParticleIndex); }
@@ -46,6 +40,7 @@ void SetVariableByType(FNiagaraVariable& DataVariable, FNiagaraDataSet& Data, in
 	else if (VarType == FNiagaraTypeDefinition::GetVec3Def()) { SetValueWithAccessor<FVector>(DataVariable, Data, ParticleIndex); }
 	else if (VarType == FNiagaraTypeDefinition::GetVec4Def()) {	SetValueWithAccessor<FVector4>(DataVariable, Data, ParticleIndex); }
 	else if (VarType == FNiagaraTypeDefinition::GetColorDef()) { SetValueWithAccessor<FLinearColor>(DataVariable, Data, ParticleIndex); }
+	else if (VarType == FNiagaraTypeDefinition::GetQuatDef()) { SetValueWithAccessor<FQuat>(DataVariable, Data, ParticleIndex); }
 }
 
 void ConvertVariableToType(const FNiagaraVariable& SourceVariable, FNiagaraVariable& TargetVariable)
@@ -133,7 +128,7 @@ void InvokeSetterFunction(UObject* InRuntimeObject, UFunction* Setter, const uin
 void FNiagaraRendererComponents::Initialize(const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitter, const UNiagaraComponent* InComponent)
 {
 	const UNiagaraComponentRendererProperties* Properties = CastChecked<const UNiagaraComponentRendererProperties>(InProperties);
-	if (!Properties)
+	if (!Properties || !Properties->TemplateComponent)
 	{
 		return;
 	}
@@ -217,29 +212,33 @@ FNiagaraDynamicDataBase* FNiagaraRendererComponents::GenerateDynamicData(const F
 	FNiagaraDataSet& Data = Emitter->GetData();
 	FNiagaraDataBuffer& ParticleData = Data.GetCurrentDataChecked();
 	FNiagaraDataSetReaderInt32<FNiagaraBool> EnabledAccessor = FNiagaraDataSetAccessor<FNiagaraBool>::CreateReader(Data, Properties->EnabledBinding.GetDataSetBindableVariable().GetName());
-	FNiagaraDataSetReaderInt32<int32> IDAccessor = FNiagaraDataSetAccessor<int32>::CreateReader(Data, FName("UniqueID"));
+	FNiagaraDataSetReaderInt32<int32> UniqueIDAccessor = FNiagaraDataSetAccessor<int32>::CreateReader(Data, FName("UniqueID"));
+	TSet<int32> ParticlesWithComponents = Properties->bOnlyCreateComponentsOnParticleSpawn ? SystemInstance->GetParticlesWithActiveComponents(Properties->TemplateComponent) : TSet<int32>();
 
 	int32 TaskLimitLeft = Properties->ComponentCountLimit;
 	int32 SmallestID = INT_MAX;
-	for (uint32 ParticleIndex = 0; ParticleIndex < ParticleData.GetNumInstances(); ParticleIndex++)
+	for (uint32 ParticleIndex = 0; ParticleIndex < ParticleData.GetNumInstances() && TaskLimitLeft > 0; ParticleIndex++)
 	{
 		int32 ParticleID = -1;
 		if (Properties->bAssignComponentsOnParticleID)
 		{
-			ParticleID = IDAccessor.GetSafe(ParticleIndex, -1);
+			ParticleID = UniqueIDAccessor.GetSafe(ParticleIndex, -1);
 			SmallestID = FMath::Min<int32>(ParticleID, SmallestID);
-		}
-		if (TaskLimitLeft <= 0)
-		{
-			break;
 		}
 		if (!EnabledAccessor.GetSafe(ParticleIndex, true))
 		{
 			continue;
 		}
+		if (Properties->bAssignComponentsOnParticleID && Properties->bOnlyCreateComponentsOnParticleSpawn)
+		{
+			bool bIsNewlySpawnedParticle = ParticleIndex >= ParticleData.GetNumInstances() - ParticleData.GetNumSpawnedInstances();
+			if (!bIsNewlySpawnedParticle && !ParticlesWithComponents.Contains(ParticleID))
+			{
+				continue;
+			}
+		}
 
 		TArray<FNiagaraComponentPropertyBinding> BindingsCopy = Properties->PropertyBindings;
-
 		for (FNiagaraComponentPropertyBinding& PropertyBinding : BindingsCopy)
 		{
 			PropertyBinding.SetterFunction = SetterFunctionMapping[PropertyBinding.PropertyName].Function;

@@ -70,8 +70,6 @@ float4 ViewportSize;
 // in pixels (scaled to the current rendertarget resolution), float4(minx,miny,maxx,maxy), depends on SetViewportAndCallRHI() call
 uint4 ViewportRect;
 
-SamplerState BilinearTextureSampler;
-
 // transforms ScreenPos to the screen pixel position, not the viewport local position (*xy +wz)
 // (0,0) left top, (width-1,height-1) at right bottom, in pixels (without offset to reach the pixel center)
 float4 ScreenPosToPixel;
@@ -163,35 +161,7 @@ float2 VignetteSpace(float2 Pos, float AspectRatio)
 
 float2 VignetteSpace(float2 Pos)
 {
-	return VignetteSpace(Pos, ViewportSize.x * ViewportSize.z);
-}
-
-// gets 4 nearby SceneDepth values for one UV value, useful for depth downsample, uses Gather() if possible
-float4 GatherSceneDepth(float2 UV, float2 InvBufferSize)
-{
-#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
-	// using Gather: xyzw in counter clockwise order starting with the sample to the lower left of the queried location
-	float4 DeviceZ = SceneTexturesStruct.SceneDepthTextureNonMS.Gather(BilinearTextureSampler, UV);
-
-	return float4(
-		ConvertFromDeviceZ(DeviceZ.x),
-		ConvertFromDeviceZ(DeviceZ.y),
-		ConvertFromDeviceZ(DeviceZ.z),
-		ConvertFromDeviceZ(DeviceZ.w)
-		);
-#elif FEATURE_LEVEL == FEATURE_LEVEL_SM4
-	float2 TexelScale = 0.5f * InvBufferSize;
-	// @todo Optimize
-	// Manually sample neighbouring texels in counter clockwise order starting with the sample to the lower left of the queried location.
-	return float4(
-		CalcSceneDepth(UV + (float2(-1, 1) * TexelScale)),
-		CalcSceneDepth(UV + (float2( 1, 1) * TexelScale)),
-		CalcSceneDepth(UV + (float2( 1,-1) * TexelScale)),
-		CalcSceneDepth(UV + (float2(-1,-1) * TexelScale))
-		); 
-#else
-	return (float4)CalcSceneDepth(UV);
-#endif // FEATURE_LEVEL
+	return VignetteSpace(Pos, ViewportSize.y * ViewportSize.z);
 }
 
 half4 UnwrappedTexture3DSample( Texture2D Texture, SamplerState Sampler, float3 UVW, float Size )

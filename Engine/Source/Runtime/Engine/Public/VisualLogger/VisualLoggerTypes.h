@@ -331,6 +331,7 @@ public:
 
 	virtual void OnItemsSelectionChanged(IVisualLoggerEditorInterface* EdInterface) {};
 	virtual void OnLogLineSelectionChanged(IVisualLoggerEditorInterface* EdInterface, TSharedPtr<struct FLogEntryItem> SelectedItem, int64 UserData) {};
+	virtual void OnScrubPositionChanged(IVisualLoggerEditorInterface* EdInterface, float NewScrubPosition, bool bScrubbing) {}
 };
 
 ENGINE_API  FArchive& operator<<(FArchive& Ar, FVisualLogDevice::FVisualLogEntryItem& FrameCacheItem);

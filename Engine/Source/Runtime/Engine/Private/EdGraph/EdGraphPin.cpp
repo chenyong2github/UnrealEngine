@@ -3,6 +3,7 @@
 #include "EdGraph/EdGraphPin.h"
 #include "UObject/BlueprintsObjectVersion.h"
 #include "UObject/FrameworkObjectVersion.h"
+#include "UObject/ReleaseObjectVersion.h"
 #include "UObject/UnrealType.h"
 #include "UObject/TextProperty.h"
 #include "EdGraph/EdGraph.h"
@@ -156,6 +157,7 @@ bool FEdGraphPinType::Serialize(FArchive& Ar)
 	}
 
 	Ar.UsingCustomVersion(FFrameworkObjectVersion::GUID);
+	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 
 	if (Ar.CustomVer(FFrameworkObjectVersion::GUID) >= FFrameworkObjectVersion::PinsStoreFName)
 	{
@@ -261,11 +263,19 @@ bool FEdGraphPinType::Serialize(FArchive& Ar)
 		Ar << bIsConstBool;
 	}
 
+	bool bIsUObjectWrapperBool = bIsUObjectWrapper;
+
+	if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::PinTypeIncludesUObjectWrapperFlag)
+	{
+		Ar << bIsUObjectWrapperBool;
+	}
+
 	if (Ar.IsLoading())
 	{
 		bIsReference = bIsReferenceBool;
 		bIsWeakPointer = bIsWeakPointerBool;
 		bIsConst = bIsConstBool;
+		bIsUObjectWrapper = bIsUObjectWrapperBool;
 	}
 
 	return true;
@@ -1306,6 +1316,7 @@ FEdGraphTerminalType UEdGraphPin::GetPrimaryTerminalType() const
 	TerminalType.TerminalSubCategoryObject = PinType.PinSubCategoryObject;
 	TerminalType.bTerminalIsConst = PinType.bIsConst;
 	TerminalType.bTerminalIsWeakPointer = PinType.bIsWeakPointer;
+	TerminalType.bTerminalIsUObjectWrapper = PinType.bIsUObjectWrapper;
 	return TerminalType;
 }
 

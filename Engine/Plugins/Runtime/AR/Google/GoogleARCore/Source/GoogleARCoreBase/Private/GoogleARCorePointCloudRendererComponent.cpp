@@ -3,9 +3,10 @@
 #include "GoogleARCorePointCloudRendererComponent.h"
 #include "DrawDebugHelpers.h"
 #include "GoogleARCoreTypes.h"
-#include "GoogleARCoreFunctionLibrary.h"
+#include "ARBlueprintLibrary.h"
 
-UGoogleARCorePointCloudRendererComponent::UGoogleARCorePointCloudRendererComponent()
+
+UDEPRECATED_GoogleARCorePointCloudRendererComponent::UDEPRECATED_GoogleARCorePointCloudRendererComponent()
 	: PointColor(FColor::Red)
 	, PointSize(0.1f)
 {
@@ -13,27 +14,20 @@ UGoogleARCorePointCloudRendererComponent::UGoogleARCorePointCloudRendererCompone
 	PrimaryComponentTick.bCanEverTick = true;
 }
 
-void UGoogleARCorePointCloudRendererComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction * ThisTickFunction)
+void UDEPRECATED_GoogleARCorePointCloudRendererComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction * ThisTickFunction)
 {
 	DrawPointCloud();
 }
 
-void UGoogleARCorePointCloudRendererComponent::DrawPointCloud()
+void UDEPRECATED_GoogleARCorePointCloudRendererComponent::DrawPointCloud()
 {
 	UWorld* World = GetWorld();
-	if (UGoogleARCoreFrameFunctionLibrary::GetTrackingState() == EGoogleARCoreTrackingState::Tracking)
+	if (UARBlueprintLibrary::GetTrackingQuality() != EARTrackingQuality::NotTracking)
 	{
-		UGoogleARCorePointCloud* LatestPointCloud = nullptr;
-		EGoogleARCoreFunctionStatus Status = UGoogleARCoreFrameFunctionLibrary::GetPointCloud(LatestPointCloud);
-		if (Status == EGoogleARCoreFunctionStatus::Success && LatestPointCloud != nullptr && LatestPointCloud->GetPointNum() > 0)
+		const auto PointCloud = UARBlueprintLibrary::GetPointCloud();
+		for (const auto& PointPosition : PointCloud)
 		{
-			for (int i = 0; i < LatestPointCloud->GetPointNum(); i++)
-			{
-				FVector PointPosition = FVector::ZeroVector;
-				float PointConfidence = 0;
-				LatestPointCloud->GetPoint(i, PointPosition, PointConfidence);
-				DrawDebugPoint(World, PointPosition, PointSize, PointColor, false);
-			}
+			DrawDebugPoint(World, PointPosition, PointSize, PointColor, false);
 		}
 	}
 }

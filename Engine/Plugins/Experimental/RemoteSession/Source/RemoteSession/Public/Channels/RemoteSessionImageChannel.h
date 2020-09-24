@@ -14,6 +14,7 @@ class FBackChannelOSCDispatch;
 class FRemoteSessionImageChannel;
 class IRemoteSessionImageProvider;
 class UTexture2D;
+class IBackChannelPacket;
 
 class REMOTESESSION_API IRemoteSessionImageProvider
 {
@@ -37,7 +38,7 @@ public:
 	{
 	public:
   
-		FImageSender(TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection);
+		FImageSender(TSharedPtr<IBackChannelConnection, ESPMode::ThreadSafe> InConnection);
   
 		/** Set the jpg compression quality */
 		void SetCompressQuality(int32 InQuality);
@@ -51,7 +52,7 @@ public:
 	private:
   
 		/** Underlying connection */
-		TWeakPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> Connection;
+		TWeakPtr<IBackChannelConnection, ESPMode::ThreadSafe> Connection;
   
 		/** Compression quality of the raw image we wish to send to client */
 		TAtomic<int32> CompressQuality;
@@ -61,7 +62,7 @@ public:
 
 public:
 
-	FRemoteSessionImageChannel(ERemoteSessionChannelMode InRole, TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection);
+	FRemoteSessionImageChannel(ERemoteSessionChannelMode InRole, TSharedPtr<IBackChannelConnection, ESPMode::ThreadSafe> InConnection);
 
 	~FRemoteSessionImageChannel();
 
@@ -73,6 +74,9 @@ public:
 
 	/** Set the ImageProvider that will produce the images that will be sent to the client */
 	void SetImageProvider(TSharedPtr<IRemoteSessionImageProvider> ImageProvider);
+
+	/** Sets up an image provider that mirrors the games framebuffer. WIll be the default if no ImageProvider is set. */
+	void SetFramebufferAsImageProvider();
 
 	/** Set the jpg compression quality */
 	void SetCompressQuality(int32 InQuality);
@@ -88,7 +92,7 @@ public:
 protected:
 
 	/** Underlying connection */
-	TWeakPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> Connection;
+	TWeakPtr<IBackChannelConnection, ESPMode::ThreadSafe> Connection;
 
 	/** Our role */
 	ERemoteSessionChannelMode Role;
@@ -97,7 +101,7 @@ protected:
 	TSharedPtr<IRemoteSessionImageProvider> ImageProvider;
 
 	/** Bound to receive incoming images */
-	void ReceiveHostImage(FBackChannelOSCMessage & Message, FBackChannelOSCDispatch & Dispatch);
+	void ReceiveHostImage(IBackChannelPacket& Message);
 
 	/** Creates a texture to receive images into */
 	void CreateTexture(const int32 InSlot, const int32 InWidth, const int32 InHeight);
@@ -151,12 +155,6 @@ protected:
 	FEvent *			ScreenshotEvent;
 
 	FThreadSafeBool		ExitRequested;
-};
 
-class REMOTESESSION_API FRemoteSessionImageChannelFactoryWorker : public IRemoteSessionChannelFactoryWorker
-{
-public:
-	virtual const TCHAR* GetType() const override { return FRemoteSessionImageChannel::StaticType(); }
-	virtual TSharedPtr<IRemoteSessionChannel> Construct(ERemoteSessionChannelMode InMode, TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection) const override;
+	bool				HaveConfiguredImageProvider;
 };
-

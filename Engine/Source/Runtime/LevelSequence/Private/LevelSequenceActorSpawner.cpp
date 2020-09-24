@@ -69,7 +69,7 @@ UObject* FLevelSequenceActorSpawner::SpawnObject(FMovieSceneSpawnable& Spawnable
 		return nullptr;
 	}
 
-	const EObjectFlags ObjectFlags = RF_Transient;
+	const EObjectFlags ObjectFlags = RF_Transient | RF_Transactional;
 
 	// @todo sequencer livecapture: Consider using SetPlayInEditorWorld() and RestoreEditorWorld() here instead
 	
@@ -96,10 +96,9 @@ UObject* FLevelSequenceActorSpawner::SpawnObject(FMovieSceneSpawnable& Spawnable
 				// Avoid spamming output, warning only once per level
 				if (!ErrorLevels.Contains(DesiredLevelName))
 				{
-					UE_LOG(LogMovieScene, Warning, TEXT("Can't find sublevel '%s' to spawn '%s' into."), *DesiredLevelName.ToString(), *Spawnable.GetName());
+					UE_LOG(LogMovieScene, Warning, TEXT("Can't find sublevel '%s' to spawn '%s' into, defaulting to Persistent level"), *DesiredLevelName.ToString(), *Spawnable.GetName());
 					ErrorLevels.Add(DesiredLevelName);
 				}
-				return nullptr;
 			}
 		}
 	}
@@ -108,20 +107,35 @@ UObject* FLevelSequenceActorSpawner::SpawnObject(FMovieSceneSpawnable& Spawnable
 	{
 		if (!ErrorLevels.Contains(DesiredLevelName))
 		{
-			UE_LOG(LogMovieScene, Warning, TEXT("Can't find world to spawn '%s' into."), *Spawnable.GetName());
+			UE_LOG(LogMovieScene, Warning, TEXT("Can't find world to spawn '%s' into, defaulting to Persistent level"), *Spawnable.GetName());
 			ErrorLevels.Add(DesiredLevelName);
 		}
 
-		return nullptr;
+		WorldContext = GWorld;
 	}
 
-	// Construct the object with the same name that we will set later on the actor to avoid renaming it inside SetActorLabel
-	FName SpawnName =
+	// We use the net addressable name for spawnables on any non-editor, non-standalone world (ie, all clients, servers and PIE worlds)
+	const bool bUseNetAddressableName = (WorldContext->WorldType != EWorldType::Editor) && (WorldContext->GetNetMode() != ENetMode::NM_Standalone);
+
+	FName SpawnName = bUseNetAddressableName ? Spawnable.GetNetAddressableName(Player) :
 #if WITH_EDITOR
+		// Construct the object with the same name that we will set later on the actor to avoid renaming it inside SetActorLabel
 		MakeUniqueObjectName(WorldContext->PersistentLevel, ObjectTemplate->GetClass(), *Spawnable.GetName());
 #else
 		NAME_None;
 #endif
+
+	// If there's an object that already exists with the requested name, it needs to be renamed (it's probably pending kill)
+	if (!SpawnName.IsNone())
+	{
+		UObject* ExistingObject = StaticFindObjectFast(nullptr, WorldContext->PersistentLevel, SpawnName);
+		if (ExistingObject)
+		{
+			FName DefunctName = MakeUniqueObjectName(WorldContext->PersistentLevel, ExistingObject->GetClass());
+			UE_LOG(LogMovieScene, Log, TEXT("Found existing object '%s' renaming to '%s'"), *SpawnName.ToString(), *DefunctName.ToString());
+			ExistingObject->Rename(*DefunctName.ToString(), nullptr, REN_ForceNoResetLoaders);
+		}
+	}
 
 	// Spawn the puppet actor
 	FActorSpawnParameters SpawnInfo;
@@ -185,11 +199,15 @@ UObject* FLevelSequenceActorSpawner::SpawnObject(FMovieSceneSpawnable& Spawnable
 
 	// tag this actor so we know it was spawned by sequencer
 	SpawnedActor->Tags.AddUnique(SequencerActorTag);
+	if (bUseNetAddressableName)
+	{
+		SpawnedActor->SetNetAddressable();
+	}
 
 #if WITH_EDITOR
 	if (GIsEditor)
 	{
-		// Explicitly set RF_Transactional on spawned actors so we can undo/redo properties on them. We don't add this as a spawn flag since we don't want to transact spawn/destroy events.
+		// Explicitly set RF_Transactional on spawned actors so we can undo/redo properties on them.
 		SpawnedActor->SetFlags(RF_Transactional);
 
 		for (UActorComponent* Component : SpawnedActor->GetComponents())
@@ -207,7 +225,7 @@ UObject* FLevelSequenceActorSpawner::SpawnObject(FMovieSceneSpawnable& Spawnable
 
 #if WITH_EDITOR
 	// Don't set the actor label in PIE as this requires flushing async loading.
-	if (GIsEditor && !GEditor->IsPlaySessionInProgress())
+	if (WorldContext->WorldType == EWorldType::Editor)
 	{
 		SpawnedActor->SetActorLabel(Spawnable.GetName());
 	}
@@ -240,7 +258,7 @@ void FLevelSequenceActorSpawner::DestroySpawnedObject(UObject& Object)
 #endif
 
 	UWorld* World = Actor->GetWorld();
-	if (ensure(World))
+	if (World)
 	{
 		const bool bNetForce = false;
 		const bool bShouldModifyLevel = false;

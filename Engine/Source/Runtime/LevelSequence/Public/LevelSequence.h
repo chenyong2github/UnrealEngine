@@ -9,18 +9,20 @@
 #include "LevelSequenceBindingReference.h"
 #include "LevelSequenceLegacyObjectReference.h"
 #include "Templates/SubclassOf.h"
+#include "Interfaces/Interface_AssetUserData.h"
 #include "LevelSequence.generated.h"
 
 class UBlueprint;
 class UMovieScene;
 class UBlueprintGeneratedClass;
+class UAssetUserData;
 
 /**
  * Movie scene animation for Actors.
  */
 UCLASS(BlueprintType)
 class LEVELSEQUENCE_API ULevelSequence
-	: public UMovieSceneSequence
+	: public UMovieSceneSequence, public IInterface_AssetUserData
 {
 	GENERATED_UCLASS_BODY()
 
@@ -58,7 +60,17 @@ public:
 	virtual void PostLoad() override;
 	virtual bool Rename(const TCHAR* NewName = nullptr, UObject* NewOuter = nullptr, ERenameFlags Flags = REN_None) override;
 
+
+	//~ Begin IInterface_AssetUserData Interface
+	virtual void AddAssetUserData(UAssetUserData* InUserData) override;
+	virtual void RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
+	virtual UAssetUserData* GetAssetUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
+	virtual const TArray<UAssetUserData*>* GetAssetUserDataArray() const override;
+	//~ End IInterface_AssetUserData Interface
+
+
 #if WITH_EDITOR
+	virtual ETrackSupport IsTrackSupported(TSubclassOf<class UMovieSceneTrack> InTrackClass) const override;
 	virtual void GetAssetRegistryTagMetadata(TMap<FName, FAssetRegistryTagMetadata>& OutMetadata) const override;
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 #endif
@@ -258,4 +270,9 @@ private:
 	TArray<UObject*> MetaDataObjects;
 
 #endif
+
+protected:
+	/** Array of user data stored with the asset */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Instanced, Category = Animation)
+	TArray<UAssetUserData*> AssetUserData;
 };

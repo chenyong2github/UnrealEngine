@@ -62,9 +62,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bShowWireframe = false;
 
-	UPROPERTY(EditAnywhere, Category = Options)
-	bool bSelectEdgeLoops = false;
-
 	UPROPERTY(EditAnywhere, Category = Gizmo)
 	ELocalFrameMode LocalFrameMode = ELocalFrameMode::FromGeometry;
 

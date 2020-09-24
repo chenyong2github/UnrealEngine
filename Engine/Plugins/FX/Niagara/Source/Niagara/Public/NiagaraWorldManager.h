@@ -47,7 +47,7 @@ public:
 	FRHITexture2D* GetSceneDepthTexture() { return SceneDepthTexture; }
 	FRHITexture2D* GetSceneNormalTexture() { return SceneNormalTexture; }
 	FRHIUniformBuffer* GetViewUniformBuffer() { return ViewUniformBuffer; }
-	TUniformBufferRef<FSceneTexturesUniformParameters> GetSceneTextureUniformParameters() { return SceneTexturesUniformParams; }
+	TUniformBufferRef<FSceneTextureUniformParameters> GetSceneTextureUniformParameters() { return SceneTexturesUniformParams; }
 
 	virtual void InitDynamicRHI() override;
 
@@ -58,8 +58,9 @@ private:
 	FRHITexture2D* SceneNormalTexture;
 	FRHIUniformBuffer* ViewUniformBuffer;
 
-	TUniformBufferRef<FSceneTexturesUniformParameters> SceneTexturesUniformParams;
+	TUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformParams;
 	FPostOpaqueRenderDelegate PostOpaqueDelegate;
+	FDelegateHandle PostOpaqueDelegateHandle;
 };
 
 extern TGlobalResource<FNiagaraViewDataMgr> GNiagaraViewDataManager;
@@ -114,7 +115,6 @@ public:
 	//~ GCObject Interface
 	
 	UNiagaraParameterCollectionInstance* GetParameterCollection(UNiagaraParameterCollection* Collection);
-	void SetParameterCollection(UNiagaraParameterCollectionInstance* NewInstance);
 	void CleanupParameterCollections();
 	TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe> GetSystemSimulation(ETickingGroup TickGroup, UNiagaraSystem* System);
 	void DestroySystemSimulation(UNiagaraSystem* System);
@@ -141,7 +141,7 @@ public:
 
 	UNiagaraComponentPool* GetComponentPool() { return ComponentPool; }
 
-	void UpdateScalabilityManagers();
+	void UpdateScalabilityManagers(bool bNewSpawnsOnly);
 
 	// Dump details about what's inside the world manager
 	void DumpDetails(FOutputDevice& Ar);
@@ -161,7 +161,7 @@ public:
 	void CalculateScalabilityState(UNiagaraSystem* System, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraEffectType* EffectType, UNiagaraComponent* Component, bool bIsPreCull, FNiagaraScalabilityState& OutState);
 	void CalculateScalabilityState(UNiagaraSystem* System, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraEffectType* EffectType, FVector Location, bool bIsPreCull, FNiagaraScalabilityState& OutState);
 
-	/*FORCEINLINE_DEBUGGABLE*/ void SortedSignificanceCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, float Significance, int32 Index, FNiagaraScalabilityState& OutState);
+	/*FORCEINLINE_DEBUGGABLE*/ void SortedSignificanceCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, float Significance, int32& EffectTypeInstCount, int32& SystemInstCount, FNiagaraScalabilityState& OutState);
 
 #if DEBUG_SCALABILITY_STATE
 	void DumpScalabilityState();
@@ -209,13 +209,11 @@ private:
 
 	FORCEINLINE_DEBUGGABLE bool CanPreCull(UNiagaraEffectType* EffectType);
 
-	FORCEINLINE_DEBUGGABLE void SignificanceCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, float Significance, FNiagaraScalabilityState& OutState);
+	FORCEINLINE_DEBUGGABLE void DistanceCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, FVector Location, FNiagaraScalabilityState& OutState);
+	FORCEINLINE_DEBUGGABLE void DistanceCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraComponent* Component, FNiagaraScalabilityState& OutState);
 	FORCEINLINE_DEBUGGABLE void VisibilityCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraComponent* Component, FNiagaraScalabilityState& OutState);
-	FORCEINLINE_DEBUGGABLE void InstanceCountCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, FNiagaraScalabilityState& OutState);
+	FORCEINLINE_DEBUGGABLE void InstanceCountCull(UNiagaraEffectType* EffectType, UNiagaraSystem* System, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, FNiagaraScalabilityState& OutState);
 
-	/** Calculate significance contribution from the distance to nearest view. */
-	FORCEINLINE_DEBUGGABLE float DistanceSignificance(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, FVector Location);
-	FORCEINLINE_DEBUGGABLE float DistanceSignificance(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraComponent* Component);
 	
 	static FDelegateHandle OnWorldInitHandle;
 	static FDelegateHandle OnWorldCleanupHandle;

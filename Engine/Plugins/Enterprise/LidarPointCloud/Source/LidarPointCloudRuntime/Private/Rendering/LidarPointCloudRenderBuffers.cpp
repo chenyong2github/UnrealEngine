@@ -19,7 +19,6 @@
 
 //////////////////////////////////////////////////////////// Base Buffer
 
-TGlobalResource<FLidarPointCloudRenderBuffer> GLidarPointCloudRenderBuffer;
 TGlobalResource<FLidarPointCloudIndexBuffer> GLidarPointCloudIndexBuffer;
 TGlobalResource<FLidarPointCloudVertexFactory> GLidarPointCloudVertexFactory;
 
@@ -84,6 +83,10 @@ void FLidarPointCloudRenderBuffer::Resize(const uint32& RequestedCapacity)
 		Capacity = RequestedCapacity;
 		InitResource();
 	}
+	else if (!IsInitialized())
+	{
+		InitResource();
+	}
 }
 
 void FLidarPointCloudRenderBuffer::InitRHI()
@@ -112,6 +115,27 @@ void FLidarPointCloudRenderBuffer::ReleaseRHI()
 
 //////////////////////////////////////////////////////////// User Data
 
+FLidarPointCloudBatchElementUserData::FLidarPointCloudBatchElementUserData()
+	: SelectionColor(FVector::OneVector)
+	, IndexDivisor(4)
+	, SpriteSize(0)
+	, bUseLODColoration(false)
+	, NumClippingVolumes(0)
+	, bStartClipped(false)
+{
+	for (int32 i = 0; i < 16; ++i)
+	{
+		ClippingVolume[i] = FMatrix(FPlane(FVector::ZeroVector, 0),
+									FPlane(FVector::ForwardVector, FLT_MAX),
+									FPlane(FVector::RightVector, FLT_MAX),
+									FPlane(FVector::UpVector, FLT_MAX));
+	}
+
+#if WITH_EDITOR
+	SelectionColor = FVector(GetDefault<UEditorStyleSettings>()->SelectionColor.ToFColor(true));
+#endif
+}
+
 void FLidarPointCloudBatchElementUserData::SetClassificationColors(const TMap<int32, FLinearColor>& InClassificationColors)
 {
 	for (int32 i = 0; i < 32; ++i)
@@ -126,16 +150,17 @@ void FLidarPointCloudBatchElementUserData::SetClassificationColors(const TMap<in
 void FLidarPointCloudVertexFactoryShaderParameters::Bind(const FShaderParameterMap& ParameterMap)
 {
 	BINDPARAM(DataBuffer);
+	BINDPARAM(bEditorView);
+	BINDPARAM(SelectionColor);
 	BINDPARAM(IndexDivisor);
-	BINDPARAM(FirstElementIndex);
 	BINDPARAM(LocationOffset);
-	BINDPARAM(VDMultiplier);
-	BINDPARAM(SizeOffset);
-	BINDPARAM(RootCellSize);
+	BINDPARAM(VirtualDepth);
+	BINDPARAM(SpriteSize);
 	BINDPARAM(bUseLODColoration);
 	BINDPARAM(SpriteSizeMultiplier);
 	BINDPARAM(ViewRightVector);
 	BINDPARAM(ViewUpVector);
+	BINDPARAM(bUseCameraFacing);
 	BINDPARAM(BoundsSize);
 	BINDPARAM(ElevationColorBottom);
 	BINDPARAM(ElevationColorTop);
@@ -150,6 +175,9 @@ void FLidarPointCloudVertexFactoryShaderParameters::Bind(const FShaderParameterM
 	BINDPARAM(IntensityInfluence);
 	BINDPARAM(bUseClassification);
 	BINDPARAM(ClassificationColors);
+	BINDPARAM(ClippingVolume);
+	BINDPARAM(NumClippingVolumes);
+	BINDPARAM(bStartClipped);
 }
 
 void FLidarPointCloudVertexFactoryShaderParameters::GetElementShaderBindings(const class FSceneInterface* Scene, const FSceneView* View, const FMeshMaterialShader* Shader, const EVertexInputStreamType InputStreamType, ERHIFeatureLevel::Type FeatureLevel,
@@ -158,16 +186,17 @@ void FLidarPointCloudVertexFactoryShaderParameters::GetElementShaderBindings(con
 	FLidarPointCloudBatchElementUserData* UserData = (FLidarPointCloudBatchElementUserData*)BatchElement.UserData;
 
 	SETSRVPARAM(DataBuffer);
+	SETPARAM(bEditorView);
+	SETPARAM(SelectionColor);
 	SETPARAM(IndexDivisor);
-	SETPARAM(FirstElementIndex);
 	SETPARAM(LocationOffset);
-	SETPARAM(VDMultiplier);
-	SETPARAM(SizeOffset);
-	SETPARAM(RootCellSize);
+	SETPARAM(VirtualDepth);
+	SETPARAM(SpriteSize);
 	SETPARAM(bUseLODColoration);
 	SETPARAM(SpriteSizeMultiplier);
 	SETPARAM(ViewRightVector);
 	SETPARAM(ViewUpVector);
+	SETPARAM(bUseCameraFacing);
 	SETPARAM(BoundsSize);
 	SETPARAM(ElevationColorBottom);
 	SETPARAM(ElevationColorTop);
@@ -182,6 +211,9 @@ void FLidarPointCloudVertexFactoryShaderParameters::GetElementShaderBindings(con
 	SETPARAM(IntensityInfluence);
 	SETPARAM(bUseClassification);
 	SETPARAM(ClassificationColors);
+	SETPARAM(ClippingVolume);
+	SETPARAM(NumClippingVolumes);
+	SETPARAM(bStartClipped);
 }
 
 bool FLidarPointCloudVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)

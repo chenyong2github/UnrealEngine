@@ -107,7 +107,7 @@ private:
 	/** Generate a row for the InItem in the combo box's list (passed in as OwnerTable). Do this by calling the user-specified OnGenerateWidget */
 	TSharedRef<ITableRow> GenerateMenuItemRow(TSharedPtr<FString> InItem, const TSharedRef<STableViewBase>& OwnerTable);
 
-	//** Called if the menu is closed
+	/** Called if the menu is closed */
 	void OnMenuOpenChanged(bool bOpen);
 
 	/** Invoked when the selection in the list changes */
@@ -143,7 +143,13 @@ private:
 	/** Delegate to invoke when we need to visualize an option as a widget. */
 	FOnGenerateWidget OnGenerateWidget;
 
+	/** Updated whenever search text is changed */
+	FText SearchText;
+
+	/** Source data for this combo box */
 	const TArray< TSharedPtr<FString> >* OptionsSource;
+
+	/** Filtered list that is actually displayed */
 	TArray< TSharedPtr<FString> > FilteredOptionsSource;
 };
 

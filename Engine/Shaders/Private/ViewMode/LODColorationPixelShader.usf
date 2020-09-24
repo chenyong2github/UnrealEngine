@@ -61,6 +61,10 @@ void Main(
 #else
 		BaseColor += Emissive;
 #endif
+
+#if MATERIALBLENDING_MASKED
+		clip(GetMaterialMask(PixelMaterialInputs));
+#endif
 	}
 
 	Result *= (.05 + .95 * Luminance(BaseColor));

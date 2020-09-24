@@ -46,6 +46,8 @@ public:
 	}
 };
 
+DECLARE_DELEGATE(FOnSelectionChangedDelegateVK);
+
 class SLATE_API IVirtualKeyboardEntry
 {
 
@@ -69,6 +71,10 @@ public:
 	* @return  Text
 	*/
 	virtual FText GetText() const = 0;
+
+	virtual bool GetSelection(int& OutSelStart, int& OutSelEnd) = 0;
+
+	FOnSelectionChangedDelegateVK OnSelectionChanged;
 
 	/**
 	* Returns the hint text.

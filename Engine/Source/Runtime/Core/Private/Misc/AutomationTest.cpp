@@ -204,6 +204,8 @@ bool FAutomationTestFramework::RunSmokeTests()
 			// We disable capturing the stack when running smoke tests, it adds too much overhead to do it at startup.
 			FAutomationTestFramework::Get().SetCaptureStack(false);
 
+			double SlowestTestDuration = 0.0f;
+			FString SlowestTestName;
 			for ( int TestIndex = 0; TestIndex < TestInfo.Num(); ++TestIndex )
 			{
 				SlowTask.EnterProgressFrame(1);
@@ -217,17 +219,24 @@ bool FAutomationTestFramework::RunSmokeTests()
 					const bool CurTestSuccessful = StopTest(CurExecutionInfo);
 
 					bAllSuccessful = bAllSuccessful && CurTestSuccessful;
+
+					if (CurTestSuccessful && CurExecutionInfo.Duration > SlowestTestDuration)
+					{
+						SlowestTestDuration = CurExecutionInfo.Duration;
+						SlowestTestName = MoveTemp(TestCommand);
+					}
 				}
 			}
 
 			FAutomationTestFramework::Get().SetCaptureStack(true);
 
-			const double EndTime = FPlatformTime::Seconds();
-			const double TimeForTest = static_cast<float>(EndTime - SmokeTestStartTime);
+			const double TimeForTest = FPlatformTime::Seconds() - SmokeTestStartTime;
 			if (TimeForTest > 2.0f)
 			{
 				//force a failure if a smoke test takes too long
-				UE_LOG(LogAutomationTest, Warning, TEXT("Smoke tests took > 2s to run: %.2fs"), (float)TimeForTest);
+				UE_LOG(LogAutomationTest, Warning, TEXT("Smoke tests took >2s to run (%.2fs). '%s' took %dms. "
+					"SmokeFilter tier tests should take less than 1ms. Please optimize or move '%s' to a slower tier than SmokeFilter."), 
+					TimeForTest, *SlowestTestName, static_cast<int32>(1000*SlowestTestDuration), *SlowestTestName);
 			}
 
 			FAutomationTestFramework::DumpAutomationTestExecutionInfo( OutExecutionInfoMap );
@@ -1295,6 +1304,16 @@ bool FAutomationTestBase::TestEqual(const TCHAR* What, const double Actual, cons
 }
 
 bool FAutomationTestBase::TestEqual(const TCHAR* What, const FVector Actual, const FVector Expected, float Tolerance)
+{
+	if (!Expected.Equals(Actual, Tolerance))
+	{
+		AddError(FString::Printf(TEXT("Expected '%s' to be %s, but it was %s within tolerance %f."), What, *Expected.ToString(), *Actual.ToString(), Tolerance), 1);
+		return false;
+	}
+	return true;
+}
+
+bool FAutomationTestBase::TestEqual(const TCHAR* What, const FRotator Actual, const FRotator Expected, float Tolerance)
 {
 	if (!Expected.Equals(Actual, Tolerance))
 	{

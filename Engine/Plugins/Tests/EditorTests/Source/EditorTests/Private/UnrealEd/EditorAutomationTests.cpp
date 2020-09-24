@@ -199,7 +199,7 @@ bool FPIETest::RunTest(const FString& Parameters)
 	if (!MapName.IsEmpty())
 	{
 		FAutomationEditorCommonUtils::LoadMap(MapName);
-		FAutomationEditorCommonUtils::RunPIE();
+		FAutomationEditorCommonUtils::RunPIE(AutomationTestSettings->PIETestDuration);
 	}
 	else
 	{

@@ -1738,7 +1738,7 @@ void FConsoleManager::RegisterThreadPropagation(uint32 ThreadId, IConsoleThreadP
 	}
 
 	ThreadPropagationCallback = InCallback;
-	ThreadPropagationThreadId = ThreadId;
+	// `ThreadId` is ignored as only RenderingThread is supported
 }
 
 IConsoleThreadPropagation* FConsoleManager::GetThreadPropagationCallback()
@@ -1748,7 +1748,7 @@ IConsoleThreadPropagation* FConsoleManager::GetThreadPropagationCallback()
 
 bool FConsoleManager::IsThreadPropagationThread()
 {
-	return FPlatformTLS::GetCurrentThreadId() == ThreadPropagationThreadId;
+	return IsInActualRenderingThread();
 }
 
 void FConsoleManager::OnCVarChanged()
@@ -1973,6 +1973,7 @@ void CreateConsoleVariables()
 	IConsoleManager::Get().RegisterConsoleCommand(TEXT("DumpUnbuiltLightInteractions"),	TEXT("Logs all lights and primitives that have an unbuilt interaction."), ECVF_Cheat);
 	IConsoleManager::Get().RegisterConsoleCommand(TEXT("Stat MapBuildData"),	TEXT(""), ECVF_Cheat);
 	IConsoleManager::Get().RegisterConsoleCommand(TEXT("r.ResetViewState"), TEXT("Reset some state (e.g. TemporalAA index) to make rendering more deterministic (for automated screenshot verification)"), ECVF_Cheat);
+	IConsoleManager::Get().RegisterConsoleCommand(TEXT("r.RHI.Name"),		TEXT("Show current RHI's name"), ECVF_Cheat);
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 
@@ -2064,6 +2065,13 @@ static TAutoConsoleVariable<int32> CVarMobileHDR(
 	1,
 	TEXT("0: Mobile renders in LDR gamma space. (suggested for unlit games targeting low-end phones)\n")
 	TEXT("1: Mobile renders in HDR linear space. (default)"),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly);
+
+static TAutoConsoleVariable<int32> CVarMobileShadingPath(
+	TEXT("r.Mobile.ShadingPath"),
+	0,
+	TEXT("0: Forward shading (default)")
+	TEXT("1: Deferred shading"),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
 static TAutoConsoleVariable<int32> CVarMobileNumDynamicPointLights(
@@ -2327,14 +2335,6 @@ static TAutoConsoleVariable<int32> CVarAllowStaticLighting(
 	1,
 	TEXT("Whether to allow any static lighting to be generated and used, like lightmaps and shadowmaps.\n")
 	TEXT("Games that only use dynamic lighting should set this to 0 to save some static lighting overhead."),
-	ECVF_ReadOnly | ECVF_RenderThreadSafe);
-
-// Changing this causes a full shader recompile
-static TAutoConsoleVariable<int32> CVarAnisotropicBRDF(
-	TEXT("r.AnisotropicBRDF"),
-	0,
-	TEXT("Whether anisotropic BRDF is enabled. Default = 0\n")
-	TEXT("Note: base pass will only use the anisotropic BRDF if r.BasePassOutputsVelocity = 0"),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarNormalMaps(

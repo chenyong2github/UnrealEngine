@@ -5,6 +5,13 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 
+class ISequencer;
+
+namespace UE
+{
+namespace MotionTrailEditor
+{
+
 class FMotionTrailEditorModeModule : public IModuleInterface
 {
 public:
@@ -14,7 +21,11 @@ public:
 	virtual void ShutdownModule() override;
 
 private:
-	void OnSequencerCreated(TSharedRef<class ISequencer> Sequencer);
+	void OnSequencerCreated(TSharedRef<ISequencer> Sequencer);
 
 	FDelegateHandle OnSequencerCreatedHandle;
+	FDelegateHandle OnCreateTrackEditorHandle;
 };
+
+} // namespace MotionTrailEditor
+} // namespace UE

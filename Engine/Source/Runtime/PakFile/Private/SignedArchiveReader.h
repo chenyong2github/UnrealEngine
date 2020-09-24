@@ -131,6 +131,8 @@ class FChunkCacheWorker : public FRunnable
 	FThreadSafeCounter StopTaskCounter;
 	/** Available chunk requests */
 	TLockFreePointerListUnordered<FChunkRequest, PLATFORM_CACHE_LINE_SIZE> FreeChunkRequests;
+	/** List of FEvents to be released on the worker thread */
+	TLockFreePointerListUnordered<FEvent,PLATFORM_CACHE_LINE_SIZE> EventsToRelease;
 
 	/** 
 	 * Process requested chunks 
@@ -161,6 +163,14 @@ class FChunkCacheWorker : public FRunnable
 	{ 
 		return Thread != nullptr;
 	}
+	/**
+	 * Returns a FEvent that can later be released via ReleaseNotificationEvent
+	 */
+	FEvent* AcquireNotificationEvent() const;
+	/**
+	 * Queues the event to be released safely on the FChunkCacheWorker thread
+	 */
+	void ReleaseNotificationEvent(FEvent* Event);
 
 public:
 

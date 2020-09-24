@@ -6,6 +6,7 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/NodeMappingContainer.h"
 #include "AnimationRuntime.h"
+#include "Units/Execution/RigUnit_BeginExecution.h"
 
 FAnimNode_ControlRigBase::FAnimNode_ControlRigBase()
 	: FAnimNode_CustomProperty()
@@ -34,6 +35,7 @@ void FAnimNode_ControlRigBase::OnInitializeAnimInstance(const FAnimInstanceProxy
 			// node mapping container will be saved on the initialization part
 			NodeMappingContainer = Component->SkeletalMesh->GetNodeMappingContainer(Blueprint);
 		}
+
 		// register skeletalmesh component for now
 		ControlRig->GetDataSourceRegistry()->RegisterDataSource(UControlRig::OwnerComponent, InAnimInstance->GetOwningComponent());
 	}
@@ -154,7 +156,8 @@ void FAnimNode_ControlRigBase::UpdateOutput(UControlRig* ControlRig, FPoseContex
 			MeshPoses.SetComponentSpaceTransform(CompactPoseIndex, ComponentTransform);
 		}
 
-		FCSPose<FCompactPose>::ConvertComponentPosesToLocalPoses(MeshPoses, InOutput.Pose);
+		FCSPose<FCompactPose>::ConvertComponentPosesToLocalPosesSafe(MeshPoses, InOutput.Pose);
+		InOutput.Pose.NormalizeRotations();
 	}
 
 	if (OutputSettings.bUpdateCurves)
@@ -206,7 +209,10 @@ void FAnimNode_ControlRigBase::Evaluate_AnyThread(FPoseContext& Output)
 			FAnimationRuntime::ConvertPoseToAdditive(AdditivePose.Pose, SourcePose.Pose);
 			AdditivePose.Curve.ConvertToAdditive(SourcePose.Curve);
 			Output = SourcePose;
-			FAnimationRuntime::AccumulateAdditivePose(Output.Pose, AdditivePose.Pose, Output.Curve, AdditivePose.Curve, InternalBlendAlpha, AAT_LocalSpaceBase);
+
+			FAnimationPoseData BaseAnimationPoseData(Output);
+			const FAnimationPoseData AdditiveAnimationPoseData(AdditivePose);
+			FAnimationRuntime::AccumulateAdditivePose(BaseAnimationPoseData, AdditiveAnimationPoseData, InternalBlendAlpha, AAT_LocalSpaceBase);
 		}
 	}
 	else // if not relevant, skip to run control rig
@@ -234,6 +240,95 @@ void FAnimNode_ControlRigBase::ExecuteControlRig(FPoseContext& InOutput)
 	}
 }
 
+struct FControlRigControlScope
+{
+	FControlRigControlScope(UControlRig* InControlRig)
+		: ControlRig(InControlRig)
+	{
+		if (ControlRig.IsValid())
+		{
+			CopyOfControls = ControlRig->AvailableControls();
+			
+		}
+	}
+
+	~FControlRigControlScope()
+	{
+		if (ControlRig.IsValid())
+		{
+			for (const FRigControl& CopyRigControl: CopyOfControls)
+			{
+				FRigControl* RigControl = ControlRig->FindControl(CopyRigControl.Name);
+				if (RigControl)
+				{
+					if (CopyRigControl.ControlType == RigControl->ControlType)
+					{
+						switch (RigControl->ControlType)
+						{
+						case ERigControlType::Transform:
+						{
+							FTransform Val = CopyRigControl.GetValue(ERigControlValueType::Current).Get<FTransform>();
+							RigControl->GetValue(ERigControlValueType::Current).Set<FTransform>(Val);
+							break;
+						}
+						case ERigControlType::TransformNoScale:
+						{
+							FTransformNoScale Val = CopyRigControl.GetValue(ERigControlValueType::Current).Get<FTransformNoScale>();
+							RigControl->GetValue(ERigControlValueType::Current).Set<FTransformNoScale>(Val);
+							break;
+						}
+						case ERigControlType::EulerTransform:
+						{
+							FEulerTransform Val = CopyRigControl.GetValue(ERigControlValueType::Current).Get<FEulerTransform>();
+							RigControl->GetValue(ERigControlValueType::Current).Set<FEulerTransform>(Val);
+							break;
+						}
+						case ERigControlType::Float:
+						{
+							float Val = CopyRigControl.GetValue(ERigControlValueType::Current).Get<float>();
+							RigControl->GetValue(ERigControlValueType::Current).Set<float>(Val);
+							break;
+						}
+						case ERigControlType::Bool:
+						{
+							bool Val = CopyRigControl.GetValue(ERigControlValueType::Current).Get<bool>();
+							RigControl->GetValue(ERigControlValueType::Current).Set<bool>(Val);
+							break;
+						}
+						case ERigControlType::Integer:
+						{
+							int32 Val = CopyRigControl.GetValue(ERigControlValueType::Current).Get<int32>();
+							RigControl->GetValue(ERigControlValueType::Current).Set<int32>(Val);
+							break;
+						}
+						case ERigControlType::Vector2D:
+						{
+							FVector2D Val = CopyRigControl.GetValue(ERigControlValueType::Current).Get<FVector2D>();
+							RigControl->GetValue(ERigControlValueType::Current).Set<FVector2D>(Val);
+							break;
+						}
+						case ERigControlType::Position:
+						case ERigControlType::Scale:
+						case ERigControlType::Rotator:
+						{
+							FVector Val = CopyRigControl.GetValue(ERigControlValueType::Current).Get<FVector>();
+							RigControl->GetValue(ERigControlValueType::Current).Set<FVector>(Val);
+							break;
+						}
+						default:
+							break;
+
+						};
+					}
+				}
+			}
+		}
+	}
+
+	TArray<FRigControl> CopyOfControls;
+	TWeakObjectPtr<UControlRig> ControlRig;
+};
+
 void FAnimNode_ControlRigBase::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
@@ -245,63 +340,70 @@ void FAnimNode_ControlRigBase::CacheBones_AnyThread(const FAnimationCacheBonesCo
 	{
 		// fill up node names
 		FBoneContainer& RequiredBones = Context.AnimInstanceProxy->GetRequiredBones();
-		const TArray<FBoneIndexType>& RequiredBonesArray = RequiredBones.GetBoneIndicesArray();
-		const int32 NumBones = RequiredBonesArray.Num();
+
 		ControlRigBoneMapping.Reset();
 		ControlRigCurveMapping.Reset();
 
-		const FReferenceSkeleton& RefSkeleton = RequiredBones.GetReferenceSkeleton();
-
-		// @todo: thread-safe? probably not in editor, but it may not be a big issue in editor
-		if (NodeMappingContainer.IsValid())
+		if(RequiredBones.IsValid())
 		{
-			// get target to source mapping table - this is reversed mapping table
-			TMap<FName, FName> TargetToSourceMappingTable;
-			NodeMappingContainer->GetTargetToSourceMappingTable(TargetToSourceMappingTable);
+			const TArray<FBoneIndexType>& RequiredBonesArray = RequiredBones.GetBoneIndicesArray();
+			const int32 NumBones = RequiredBonesArray.Num();
 
-			// now fill up node name
-			for (uint16 Index = 0; Index < NumBones; ++Index)
+			const FReferenceSkeleton& RefSkeleton = RequiredBones.GetReferenceSkeleton();
+
+			// @todo: thread-safe? probably not in editor, but it may not be a big issue in editor
+			if (NodeMappingContainer.IsValid())
 			{
-				// get bone name, and find reverse mapping
-				FName TargetNodeName = RefSkeleton.GetBoneName(RequiredBonesArray[Index]);
-				FName* SourceName = TargetToSourceMappingTable.Find(TargetNodeName);
-				if (SourceName)
+				// get target to source mapping table - this is reversed mapping table
+				TMap<FName, FName> TargetToSourceMappingTable;
+				NodeMappingContainer->GetTargetToSourceMappingTable(TargetToSourceMappingTable);
+
+				// now fill up node name
+				for (uint16 Index = 0; Index < NumBones; ++Index)
 				{
-					ControlRigBoneMapping.Add(*SourceName, Index);
+					// get bone name, and find reverse mapping
+					FName TargetNodeName = RefSkeleton.GetBoneName(RequiredBonesArray[Index]);
+					FName* SourceName = TargetToSourceMappingTable.Find(TargetNodeName);
+					if (SourceName)
+					{
+						ControlRigBoneMapping.Add(*SourceName, Index);
+					}
 				}
 			}
-		}
-		else
-		{
-			TArray<FName> NodeNames;
-			TArray<FNodeItem> NodeItems;
-			ControlRig->GetMappableNodeData(NodeNames, NodeItems);
-
-			// even if not mapped, we map only node that exists in the controlrig
-			for (uint16 Index = 0; Index < NumBones; ++Index)
+			else
 			{
-				const FName& BoneName = RefSkeleton.GetBoneName(RequiredBonesArray[Index]);
-				if (NodeNames.Contains(BoneName))
+				TArray<FName> NodeNames;
+				TArray<FNodeItem> NodeItems;
+				ControlRig->GetMappableNodeData(NodeNames, NodeItems);
+
+				// even if not mapped, we map only node that exists in the controlrig
+				for (uint16 Index = 0; Index < NumBones; ++Index)
 				{
-					ControlRigBoneMapping.Add(BoneName, Index);
+					const FName& BoneName = RefSkeleton.GetBoneName(RequiredBonesArray[Index]);
+					if (NodeNames.Contains(BoneName))
+					{
+						ControlRigBoneMapping.Add(BoneName, Index);
+					}
 				}
 			}
-		}
-
-		// we just support curves by name only
-		TArray<FName> const& CurveNames = RequiredBones.GetUIDToNameLookupTable();
-		const FRigCurveContainer& RigCurveContainer = ControlRig->GetCurveContainer();
-		for (uint16 Index = 0; Index < CurveNames.Num(); ++Index)
-		{
-			// see if the curve name exists in the control rig
-			if (RigCurveContainer.GetIndex(CurveNames[Index]) != INDEX_NONE)
+			
+			// we just support curves by name only
+			TArray<FName> const& CurveNames = RequiredBones.GetUIDToNameLookupTable();
+			const FRigCurveContainer& RigCurveContainer = ControlRig->GetCurveContainer();
+			for (uint16 Index = 0; Index < CurveNames.Num(); ++Index)
 			{
-				ControlRigCurveMapping.Add(CurveNames[Index], Index);
+				// see if the curve name exists in the control rig
+				if (RigCurveContainer.GetIndex(CurveNames[Index]) != INDEX_NONE)
+				{
+					ControlRigCurveMapping.Add(CurveNames[Index], Index);
+				}
 			}
 		}
 
 		// re-init when LOD changes
-		ControlRig->Execute(EControlRigState::Init);
+		// and restore control values
+		FControlRigControlScope Scope(ControlRig);
+		ControlRig->Execute(EControlRigState::Init, FRigUnit_BeginExecution::EventName);
 	}
 }
 

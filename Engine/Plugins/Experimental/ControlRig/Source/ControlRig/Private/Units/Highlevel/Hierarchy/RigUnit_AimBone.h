@@ -15,7 +15,7 @@ struct FRigUnit_AimBone_Target
 		Weight = 1.f;
 		Axis = FVector(1.f, 0.f, 0.f);
 		Target = FVector(1.f, 0.f, 0.f);
-		Kind = EControlRigVectorKind::Direction;
+		Kind = EControlRigVectorKind::Location;
 		Space = NAME_None;
 	}
 
@@ -46,8 +46,53 @@ struct FRigUnit_AimBone_Target
 	/**
 	 * The space in which the target is expressed
 	 */
-	UPROPERTY(EditAnywhere, meta = (Input, EditCondition = "Weight > 0.0", CustomWidget = "BoneName", Constant), Category = "AimTarget")
+	UPROPERTY(EditAnywhere, meta = (DisplayName = "Target Space", Input, EditCondition = "Weight > 0.0" ), Category = "AimTarget")
 	FName Space;
+};
+
+USTRUCT()
+struct FRigUnit_AimItem_Target
+{
+	GENERATED_BODY()
+
+	FRigUnit_AimItem_Target()
+	{
+		Weight = 1.f;
+		Axis = FVector(1.f, 0.f, 0.f);
+		Target = FVector(1.f, 0.f, 0.f);
+		Kind = EControlRigVectorKind::Location;
+		Space = FRigElementKey(NAME_None, ERigElementType::Bone);
+	}
+
+	/**
+	 * The amount of aim rotation to apply on this target.
+	 */
+	UPROPERTY(EditAnywhere, meta = (Input), Category = "AimTarget")
+	float Weight;
+
+	/**
+	 * The axis to align with the aim on this target
+	 */
+	UPROPERTY(EditAnywhere, meta = (Input, EditCondition = "Weight > 0.0"), Category = "AimTarget")
+	FVector Axis;
+
+	/**
+	 * The target to aim at - can be a direction or location based on the Kind setting
+	 */
+	UPROPERTY(EditAnywhere, meta = (Input, EditCondition = "Weight > 0.0"), Category = "AimTarget")
+	FVector Target;
+
+	/**
+	 * The kind of target this is representing - can be a direction or a location
+	 */
+	UPROPERTY(EditAnywhere, meta = (Input, EditCondition = "Weight > 0.0"), Category = "AimTarget")
+	EControlRigVectorKind Kind;
+
+	/**
+	 * The space in which the target is expressed
+	 */
+	UPROPERTY(EditAnywhere, meta = (DisplayName = "Target Space", Input, EditCondition = "Weight > 0.0" ), Category = "AimTarget")
+	FRigElementKey Space;
 };
 
 USTRUCT()
@@ -82,10 +127,76 @@ struct FRigUnit_AimBone_DebugSettings
 };
 
 /**
- * Aligns the rotation of a primary and secondary axis of a bone to a world target.
+ * Aligns the rotation of a primary and secondary axis of an input transform to a world target.
  * Note: This node operates in world space!
  */
-USTRUCT(meta=(DisplayName="Aim", Category="Hierarchy", Keywords="Lookat"))
+USTRUCT(meta = (DisplayName = "Aim Math", Category = "Hierarchy", Keywords = "Lookat"))
+struct FRigUnit_AimBoneMath : public FRigUnit_HighlevelBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_AimBoneMath()
+	{
+		InputTransform = FTransform::Identity;
+		Primary = FRigUnit_AimItem_Target();
+		Secondary = FRigUnit_AimItem_Target();
+		Primary.Axis = FVector(1.f, 0.f, 0.f);
+		Secondary.Axis = FVector(0.f, 0.f, 1.f);
+		Weight = 1.f;
+		DebugSettings = FRigUnit_AimBone_DebugSettings();
+		PrimaryCachedSpaceIndex = FCachedRigElement();
+		SecondaryCachedSpaceIndex = FCachedRigElement();
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	/**
+	 * The transform (in global space) before the aim was applied (optional)
+	 */
+	UPROPERTY(meta = (Input))
+	FTransform InputTransform;
+
+	/**
+	 * The primary target for the aim
+	 */
+	UPROPERTY(meta = (Input, ExpandByDefault))
+	FRigUnit_AimItem_Target Primary;
+
+	/**
+	 * The secondary target for the aim - also referred to as PoleVector / UpVector
+	 */
+	UPROPERTY(meta = (Input))
+	FRigUnit_AimItem_Target Secondary;
+
+	/**
+	 * The weight of the change - how much the change should be applied
+	 */
+	UPROPERTY(meta = (Input, UIMin = "0.0", UIMax = "1.0"))
+	float Weight;
+
+	/**
+	 * The resulting transform
+	 */
+	UPROPERTY(meta = (Output))
+	FTransform Result;
+
+	/** The debug setting for the node */
+	UPROPERTY(meta = (Input, DetailsOnly))
+	FRigUnit_AimBone_DebugSettings DebugSettings;
+
+	UPROPERTY()
+	FCachedRigElement PrimaryCachedSpaceIndex;
+
+	UPROPERTY()
+	FCachedRigElement SecondaryCachedSpaceIndex;
+};
+
+/**
+ * Aligns the rotation of a primary and secondary axis of a bone to a global target.
+ * Note: This node operates in global space!
+ */
+USTRUCT(meta=(DisplayName="Aim", Category="Hierarchy", Keywords="Lookat", Deprecated = "4.25"))
 struct FRigUnit_AimBone : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
@@ -100,24 +211,22 @@ struct FRigUnit_AimBone : public FRigUnit_HighlevelBaseMutable
 		Weight = 1.f;
 		bPropagateToChildren = false;
 		DebugSettings = FRigUnit_AimBone_DebugSettings();
-		BoneIndex = INDEX_NONE;
-		PrimaryCachedSpaceName = NAME_None;
-		PrimaryCachedSpaceIndex = INDEX_NONE;
-		SecondaryCachedSpaceName = NAME_None;
-		SecondaryCachedSpaceIndex = INDEX_NONE;
+		BoneIndex = FCachedRigElement();
+		PrimaryCachedSpaceIndex = FCachedRigElement();
+		SecondaryCachedSpaceIndex = FCachedRigElement();
 	}
 
-	virtual FName DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
+	virtual FRigElementKey DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
 	{
 		if (InPinPath.StartsWith(TEXT("Primary.Target")))
 		{
-			return Primary.Space;
+			return FRigElementKey(Primary.Space, ERigElementType::Bone);
 		}
 		if (InPinPath.StartsWith(TEXT("Secondary.Target")))
 		{
-			return Secondary.Space;
+			return FRigElementKey(Secondary.Space, ERigElementType::Bone);
 		}
-		return NAME_None;
+		return FRigElementKey();
 	}
 
 	RIGVM_METHOD()
@@ -126,13 +235,13 @@ struct FRigUnit_AimBone : public FRigUnit_HighlevelBaseMutable
 	/** 
 	 * The name of the bone to align
 	 */
-	UPROPERTY(meta = (Input, Constant, CustomWidget = "BoneName"))
+	UPROPERTY(meta = (Input))
 	FName Bone;
 
 	/**
 	 * The primary target for the aim 
 	 */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(meta = (Input, ExpandByDefault))
 	FRigUnit_AimBone_Target Primary;
 
 	/**
@@ -156,21 +265,92 @@ struct FRigUnit_AimBone : public FRigUnit_HighlevelBaseMutable
 	bool bPropagateToChildren;
 
 	/** The debug setting for the node */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(meta = (Input, DetailsOnly))
 	FRigUnit_AimBone_DebugSettings DebugSettings;
 
 	UPROPERTY()
-	int32 BoneIndex;
+	FCachedRigElement BoneIndex;
 
 	UPROPERTY()
-	FName PrimaryCachedSpaceName;
+	FCachedRigElement PrimaryCachedSpaceIndex;
 
 	UPROPERTY()
-	int32 PrimaryCachedSpaceIndex;
+	FCachedRigElement SecondaryCachedSpaceIndex;
+};
+
+/**
+ * Aligns the rotation of a primary and secondary axis of a bone to a global target.
+ * Note: This node operates in global space!
+ */
+USTRUCT(meta=(DisplayName="Aim", Category="Hierarchy", Keywords="Lookat"))
+struct FRigUnit_AimItem: public FRigUnit_HighlevelBaseMutable
+{
+	GENERATED_BODY()
+
+	FRigUnit_AimItem()
+	{
+		Item = FRigElementKey(NAME_None, ERigElementType::Bone);
+		Primary = FRigUnit_AimItem_Target();
+		Secondary = FRigUnit_AimItem_Target();
+		Primary.Axis = FVector(1.f, 0.f, 0.f);
+		Secondary.Axis = FVector(0.f, 0.f, 1.f);
+		Weight = 1.f;
+		DebugSettings = FRigUnit_AimBone_DebugSettings();
+		CachedItem = FCachedRigElement();
+		PrimaryCachedSpaceIndex = FCachedRigElement();
+		SecondaryCachedSpaceIndex = FCachedRigElement();
+	}
+
+	virtual FRigElementKey DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
+	{
+		if (InPinPath.StartsWith(TEXT("Primary.Target")))
+		{
+			return Primary.Space;
+		}
+		if (InPinPath.StartsWith(TEXT("Secondary.Target")))
+		{
+			return Secondary.Space;
+		}
+		return FRigElementKey();
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	/** 
+	 * The name of the item to align
+	 */
+	UPROPERTY(meta = (Input, ExpandByDefault))
+	FRigElementKey Item;
+
+	/**
+	 * The primary target for the aim 
+	 */
+	UPROPERTY(meta = (Input, ExpandByDefault))
+	FRigUnit_AimItem_Target Primary;
+
+	/**
+	 * The secondary target for the aim - also referred to as PoleVector / UpVector
+	 */
+	UPROPERTY(meta = (Input))
+	FRigUnit_AimItem_Target Secondary;
+
+	/**
+	 * The weight of the change - how much the change should be applied
+	 */
+	UPROPERTY(meta = (Input, UIMin = "0.0", UIMax = "1.0"))
+	float Weight;
+
+	/** The debug setting for the node */
+	UPROPERTY(meta = (Input, DetailsOnly))
+	FRigUnit_AimBone_DebugSettings DebugSettings;
 
 	UPROPERTY()
-	FName SecondaryCachedSpaceName;
+	FCachedRigElement CachedItem;
 
 	UPROPERTY()
-	int32 SecondaryCachedSpaceIndex;
+	FCachedRigElement PrimaryCachedSpaceIndex;
+
+	UPROPERTY()
+	FCachedRigElement SecondaryCachedSpaceIndex;
 };

@@ -6,12 +6,12 @@
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
 #include "Containers/Map.h"
+#include "Containers/RingBuffer.h"
 #include "Containers/StringFwd.h"
 #include "Containers/UnrealString.h"
 #include "HAL/Platform.h"
 #include "Misc/EnumClassFlags.h"
 #include "PackageNameCache.h"
-#include "RingBuffer.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/GCObject.h"
 #include "UObject/NameTypes.h"
@@ -260,6 +260,9 @@ namespace Cook
 		/** Report whether this PackageData is holding any references to Objects and would therefore be affected by GarbageCollection. */
 		bool HasReferencedObjects() const;
 
+		/** Swap all ITargetPlatform* stored on this instance according to the mapping in @param Remap. */
+		void RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPlatform*>& Remap);
+
 	private:
 		friend struct UE::Cook::FPackageDatas;
 
@@ -362,6 +365,9 @@ namespace Cook
 		bool PollIsComplete();
 		/** Release all held resources related to the pending call, if they have not already been released. */
 		void Release();
+
+		/** Swap all ITargetPlatform* stored on this instance according to the mapping in @param Remap. */
+		void RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPlatform*>& Remap);
 
 		/** The object with the pending call. */
 		FWeakObjectPtr Object;
@@ -474,8 +480,8 @@ namespace Cook
 		bool IsEmpty();
 		int32 Num() const;
 		FPackageData* PopFront();
-		void PushBack(FPackageData* PackageData);
-		void PushFront(FPackageData* PackageData);
+		void Add(FPackageData* PackageData);
+		void AddFront(FPackageData* PackageData);
 		bool Contains(const FPackageData* PackageData) const;
 		uint32 Remove(FPackageData* PackageData);
 
@@ -564,6 +570,9 @@ namespace Cook
 		/** RangedFor methods for iterating over all FPackageData managed by this FPackageDatas */
 		TArray<FPackageData*>::RangedForIteratorType begin();
 		TArray<FPackageData*>::RangedForIteratorType end();
+
+		/** Swap all ITargetPlatform* stored on this instance according to the mapping in @param Remap. */
+		void RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPlatform*>& Remap);
 
 	private:
 		/** Construct a new FPackageData with the given PackageName and FileName and store references to it in the maps. New FPackageData are always created in the Idle state. */

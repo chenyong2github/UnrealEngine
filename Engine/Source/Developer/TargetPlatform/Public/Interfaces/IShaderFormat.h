@@ -119,6 +119,12 @@ public:
 	 */
 	virtual void AppendToKeyString(FString& KeyString) const { }
 
+	/**
+	 * Can the shader compiler use the HLSLcc library when compiling shaders
+	 * @returns True if the shader compiler can use the HLSLcc library when compiling shaders, otherwise false.
+	 */
+	virtual bool UsesHLSLcc(const struct FShaderCompilerInput& Input) const { return false; }
+
 public:
 	/** Virtual destructor. */
 	virtual ~IShaderFormat() { }

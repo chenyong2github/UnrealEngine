@@ -49,3 +49,11 @@ private:
 	bool LoadOrderFile(const FString& OrderFilePath, TMap<FString, int64>& OrderMap);
 };
 
+UCLASS()
+class UAssetRegistryDumpCommandlet : public UCommandlet
+{
+	GENERATED_UCLASS_BODY()
+public:
+	virtual int32 Main(const FString& CmdLineParams) override;
+};
+

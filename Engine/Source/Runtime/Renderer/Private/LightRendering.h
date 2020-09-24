@@ -34,7 +34,7 @@ extern uint32 GetShadowQuality();
 
 extern float GetLightFadeFactor(const FSceneView& View, const FLightSceneProxy* Proxy);
 
-extern void GetDeferredLightParameters(const FLightSceneInfo* LightSceneInfo, const FSceneView& View, FDeferredLightUniformStruct& DeferredLightUniforms);
+extern FDeferredLightUniformStruct GetDeferredLightParameters(const FSceneView& View, const FLightSceneInfo& LightSceneInfo);
 
 template<typename ShaderRHIParamRef>
 void SetDeferredLightParameters(
@@ -44,10 +44,7 @@ void SetDeferredLightParameters(
 	const FLightSceneInfo* LightSceneInfo,
 	const FSceneView& View)
 {
-	FDeferredLightUniformStruct DeferredLightUniformsValue;
-	GetDeferredLightParameters(LightSceneInfo, View, DeferredLightUniformsValue);
-
-	SetUniformBufferParameterImmediate(RHICmdList, ShaderRHI,DeferredLightUniformBufferParameter,DeferredLightUniformsValue);
+	SetUniformBufferParameterImmediate(RHICmdList, ShaderRHI, DeferredLightUniformBufferParameter, GetDeferredLightParameters(View, *LightSceneInfo));
 }
 
 template<typename ShaderRHIParamRef>
@@ -457,7 +454,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return bRadialLight ? IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) : true;
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) || IsMobileDeferredShadingEnabled(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)

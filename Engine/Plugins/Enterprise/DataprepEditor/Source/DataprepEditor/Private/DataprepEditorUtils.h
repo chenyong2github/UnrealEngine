@@ -47,4 +47,30 @@ public:
 	 * Make a context menu widget to manage parameterization link of a property
 	 */
 	static TSharedPtr<SWidget> MakeContextMenu(const TSharedPtr<FDataprepParametrizationActionData>& ParameterizationActionData);
+
+	static void RegisterBlueprintCallbacks(void* InModule);
+
+	/**
+	 * Create new user-defined filter, based on blueprint
+	 * @return Returns true if the filter was successfully created, false if cancelled
+	 */
+	static bool CreateUserDefinedFilter();
+
+	/**
+	 * Create new user-defined operation, based on blueprint
+	 * @return Returns true if the operation was successfully created, false if cancelled
+	 */
+	static bool CreateUserDefinedOperation();
+
+	/**
+	 * Get assets referenced by a set of actors.
+	 * @param InActors	Actors to check for assets
+	 */
+	static TSet<UObject*> GetReferencedAssets(const TSet<AActor*>& InActors);
+
+	/**
+	 * Get all actors that reference any asset in the input assets list
+	 * @param InAssets The set of referenced assets to follow
+	 */
+	static TSet<TWeakObjectPtr<UObject>> GetActorsReferencingAssets(UWorld* InWorld, const TSet<UObject*>& InAssets);
 };

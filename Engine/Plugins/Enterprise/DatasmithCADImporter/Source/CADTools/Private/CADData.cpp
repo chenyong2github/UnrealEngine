@@ -72,6 +72,8 @@ FArchive& operator<<(FArchive& Ar, FFileDescription& File)
 
 FArchive& operator<<(FArchive& Ar, FTessellationData& TessellationData)
 {
+	Ar << TessellationData.PatchId;
+
 	Ar << TessellationData.VertexArray;
 	Ar << TessellationData.NormalArray;
 	Ar << TessellationData.IndexArray;
@@ -146,6 +148,12 @@ void GetCleanFilenameAndExtension(const FString& InFilePath, FString& OutFilenam
 		BaseFile = OutFilename;
 		BaseFile.Split(TEXT("."), &OutFilename, &OutExtension, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
 		OutExtension = OutExtension + TEXT(".*");
+		return;
+	}
+
+	if (OutExtension.IsEmpty())
+	{
+		OutFilename = BaseFile;
 	}
 }
 

@@ -119,6 +119,31 @@ void UVolumetricCloudComponent::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 }
 
+
+#define CLOUD_DECLARE_BLUEPRINT_SETFUNCTION(MemberType, MemberName) void UVolumetricCloudComponent::Set##MemberName(MemberType NewValue)\
+{\
+	if (AreDynamicDataChangesAllowed() && MemberName != NewValue)\
+	{\
+		MemberName = NewValue;\
+		MarkRenderStateDirty();\
+	}\
+}\
+
+CLOUD_DECLARE_BLUEPRINT_SETFUNCTION(float, LayerBottomAltitude);
+CLOUD_DECLARE_BLUEPRINT_SETFUNCTION(float, LayerHeight);
+CLOUD_DECLARE_BLUEPRINT_SETFUNCTION(float, TracingStartMaxDistance);
+CLOUD_DECLARE_BLUEPRINT_SETFUNCTION(float, TracingMaxDistance);
+CLOUD_DECLARE_BLUEPRINT_SETFUNCTION(float, PlanetRadius);
+CLOUD_DECLARE_BLUEPRINT_SETFUNCTION(FColor, GroundAlbedo);
+CLOUD_DECLARE_BLUEPRINT_SETFUNCTION(bool, bUsePerSampleAtmosphericLightTransmittance);
+CLOUD_DECLARE_BLUEPRINT_SETFUNCTION(float, SkyLightCloudBottomOcclusion);
+CLOUD_DECLARE_BLUEPRINT_SETFUNCTION(float, ViewSampleCountScale);
+CLOUD_DECLARE_BLUEPRINT_SETFUNCTION(float, ReflectionSampleCountScale);
+CLOUD_DECLARE_BLUEPRINT_SETFUNCTION(float, ShadowViewSampleCountScale);
+CLOUD_DECLARE_BLUEPRINT_SETFUNCTION(float, ShadowReflectionSampleCountScale);
+CLOUD_DECLARE_BLUEPRINT_SETFUNCTION(float, ShadowTracingDistance);
+CLOUD_DECLARE_BLUEPRINT_SETFUNCTION(UMaterialInterface*, Material);
+
 /*=============================================================================
 	AVolumetricCloud implementation.
 =============================================================================*/
@@ -144,7 +169,7 @@ AVolumetricCloud::AVolumetricCloud(const FObjectInitializer& ObjectInitializer)
 			FName ID_VolumetricCloud;
 			FText NAME_VolumetricCloud;
 			FConstructorStatics()
-				: VolumetricCloudTextureObject(TEXT("/Engine/EditorResources/S_SkyAtmosphere"))
+				: VolumetricCloudTextureObject(TEXT("/Engine/EditorResources/S_VolumetricCloud"))
 				, ID_VolumetricCloud(TEXT("Fog"))
 				, NAME_VolumetricCloud(NSLOCTEXT("SpriteCategory", "Fog", "Fog"))
 			{

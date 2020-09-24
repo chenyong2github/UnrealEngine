@@ -35,7 +35,7 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogSkinWeightsUtilities, Log, All);
 
-bool FSkinWeightsUtilities::ImportAlternateSkinWeight(USkeletalMesh* SkeletalMesh, FString Path, int32 TargetLODIndex, const FName& ProfileName)
+bool FSkinWeightsUtilities::ImportAlternateSkinWeight(USkeletalMesh* SkeletalMesh, const FString& Path, int32 TargetLODIndex, const FName& ProfileName)
 {
 	check(SkeletalMesh);
 	check(SkeletalMesh->GetLODInfo(TargetLODIndex));
@@ -277,14 +277,14 @@ bool FSkinWeightsUtilities::ReimportAlternateSkinWeight(USkeletalMesh* SkeletalM
 		}
 
 		const FString& PathName = *PathNamePtr;
-
-		if (FPaths::FileExists(PathName))
+		FString AbsoluteFilePath = UAssetImportData::ResolveImportFilename(PathName, SkeletalMesh->GetOutermost());
+		if (FPaths::FileExists(AbsoluteFilePath))
 		{
-			bResult |= FSkinWeightsUtilities::ImportAlternateSkinWeight(SkeletalMesh, PathName, TargetLODIndex, ProfileInfo.Name);
+			bResult |= FSkinWeightsUtilities::ImportAlternateSkinWeight(SkeletalMesh, AbsoluteFilePath, TargetLODIndex, ProfileInfo.Name);
 		}
 		else
 		{
-			const FString PickedFileName = FSkinWeightsUtilities::PickSkinWeightFBXPath(TargetLODIndex);
+			const FString PickedFileName = FSkinWeightsUtilities::PickSkinWeightFBXPath(TargetLODIndex, SkeletalMesh);
 			if (!PickedFileName.IsEmpty() && FPaths::FileExists(PickedFileName))
 			{
 				bResult |= FSkinWeightsUtilities::ImportAlternateSkinWeight(SkeletalMesh, PickedFileName, TargetLODIndex, ProfileInfo.Name);
@@ -345,13 +345,13 @@ bool FSkinWeightsUtilities::RemoveSkinnedWeightProfileData(USkeletalMesh* Skelet
 	FLODUtilities::AdjustImportDataFaceMaterialIndex(SkeletalMesh->Materials, ImportDataDest.Materials, LODFacesDest, LODIndex);
 
 	//Build the destination mesh with the Alternate influences, so the chunking is done properly.
-	const bool bBuildSuccess = MeshUtilities.BuildSkeletalMesh(LODModelDest, SkeletalMesh->RefSkeleton, LODInfluencesDest, LODWedgesDest, LODFacesDest, LODPointsDest, LODPointToRawMapDest, BuildOptions, &WarningMessages, &WarningNames);
+	const bool bBuildSuccess = MeshUtilities.BuildSkeletalMesh(LODModelDest, SkeletalMesh->GetPathName(), SkeletalMesh->RefSkeleton, LODInfluencesDest, LODWedgesDest, LODFacesDest, LODPointsDest, LODPointToRawMapDest, BuildOptions, &WarningMessages, &WarningNames);
 	FLODUtilities::RegenerateAllImportSkinWeightProfileData(LODModelDest);
 
 	return bBuildSuccess;
 }
 
-FString FSkinWeightsUtilities::PickSkinWeightFBXPath(int32 LODIndex)
+FString FSkinWeightsUtilities::PickSkinWeightFBXPath(int32 LODIndex, USkeletalMesh* SkeletalMesh)
 {
 	FString PickedFileName("");
 
@@ -364,11 +364,27 @@ FString FSkinWeightsUtilities::PickSkinWeightFBXPath(int32 LODIndex)
 	bool bOpen = false;
 	if (DesktopPlatform)
 	{
+		// Try and retrieve the path containing the original skeletal mesh source data, and set it as default path for the file dialog
+		UFbxSkeletalMeshImportData* ImportData = SkeletalMesh ? Cast<UFbxSkeletalMeshImportData>(SkeletalMesh->AssetImportData) : nullptr;
+		FString DefaultPath;
+		FString TempString;
+		if (ImportData)
+		{
+			ImportData->GetImportContentFilename(DefaultPath, TempString);
+			DefaultPath = FPaths::GetPath(DefaultPath);
+		}
+		
+		// Otherwise resort back to last FBX directory
+		if(!FPaths::DirectoryExists(DefaultPath))
+		{
+			DefaultPath = FEditorDirectories::Get().GetLastDirectory(ELastDirectory::FBX);
+		}		
+		
 		const FString DialogTitle = TEXT("Pick FBX file containing Skin Weight data for LOD ") + FString::FormatAsNumber(LODIndex);
 		bOpen = DesktopPlatform->OpenFileDialog(
 			FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr),
 			DialogTitle,
-			*FEditorDirectories::Get().GetLastDirectory(ELastDirectory::FBX),
+			*DefaultPath,
 			TEXT(""),
 			*ExtensionStr,
 			EFileDialogFlags::None,

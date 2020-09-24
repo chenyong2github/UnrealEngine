@@ -310,7 +310,7 @@ bool UNiagaraNodeStaticSwitch::GetVarIndex(FHlslNiagaraTranslator* Translator, i
 		if (MaxValue > 0)
 		{
 			// do a sanity check here if the number of pins actually matches the enum count (which might have changed in the meantime without us noticing)
-			TArray<UEdGraphPin*> LocalOutputPins;
+			FPinCollectorArray LocalOutputPins;
 			GetOutputPins(LocalOutputPins);
 			int32 OutputPinCount = LocalOutputPins.Num() - 1;
 			int32 ReservedValues = (InputPinCount / OutputPinCount);
@@ -366,9 +366,9 @@ bool UNiagaraNodeStaticSwitch::SubstituteCompiledPin(FHlslNiagaraTranslator* Tra
 		return false;
 	}
 
-	TArray<UEdGraphPin*> InputPins;
+	FPinCollectorArray InputPins;
 	GetInputPins(InputPins);
-	TArray<UEdGraphPin*> OutputPins;
+	FPinCollectorArray OutputPins;
 	GetOutputPins(OutputPins);
 
 	for (int i = 0; i < OutputPins.Num(); i++)
@@ -418,9 +418,9 @@ UEdGraphPin* UNiagaraNodeStaticSwitch::GetTracedOutputPin(UEdGraphPin* LocallyOw
 
 UEdGraphPin* UNiagaraNodeStaticSwitch::GetTracedOutputPin(UEdGraphPin* LocallyOwnedOutputPin, bool bRecursive) const
 {
-	TArray<UEdGraphPin*> InputPins;
+	FPinCollectorArray InputPins;
 	GetInputPins(InputPins);
-	TArray<UEdGraphPin*> OutputPins;
+	FPinCollectorArray OutputPins;
 	GetOutputPins(OutputPins);
 
 	for (int i = 0; i < OutputPins.Num(); i++)
@@ -441,6 +441,15 @@ UEdGraphPin* UNiagaraNodeStaticSwitch::GetTracedOutputPin(UEdGraphPin* LocallyOw
 		}
 	}
 	return LocallyOwnedOutputPin;
+}
+
+UEdGraphPin* UNiagaraNodeStaticSwitch::GetPassThroughPin(const UEdGraphPin* LocallyOwnedOutputPin,	ENiagaraScriptUsage MasterUsage) const
+{
+	if (IsValueSet)
+	{
+		return GetTracedOutputPin(const_cast<UEdGraphPin*>(LocallyOwnedOutputPin));
+	}
+	return Super::GetPassThroughPin(LocallyOwnedOutputPin, MasterUsage);
 }
 
 void UNiagaraNodeStaticSwitch::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive /*= true*/, bool bFilterForCompilation /*= true*/) const

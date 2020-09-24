@@ -114,7 +114,20 @@ const TCHAR* FSoftObjectProperty::ImportText_Internal( const TCHAR* InBuffer, vo
 
 	FSoftObjectPath SoftObjectPath;
 
-	if (SoftObjectPath.ImportTextItem(InBuffer, PortFlags, Parent, ErrorText, GetLinker()))
+	bool bImportTextSuccess = false;
+#if WITH_EDITOR
+	if (HasAnyPropertyFlags(CPF_EditorOnly))
+	{
+		FSoftObjectPathSerializationScope SerializationScope(NAME_None, NAME_None, ESoftObjectPathCollectType::EditorOnlyCollect, ESoftObjectPathSerializeType::AlwaysSerialize);
+		bImportTextSuccess = SoftObjectPath.ImportTextItem(InBuffer, PortFlags, Parent, ErrorText, GetLinker());
+	}
+	else
+#endif // WITH_EDITOR
+	{
+		bImportTextSuccess = SoftObjectPath.ImportTextItem(InBuffer, PortFlags, Parent, ErrorText, GetLinker());
+	}
+
+	if (bImportTextSuccess)
 	{
 		SoftObjectPtr = SoftObjectPath;
 		return InBuffer;

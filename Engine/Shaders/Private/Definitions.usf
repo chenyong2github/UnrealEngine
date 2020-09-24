@@ -78,10 +78,6 @@
 #define GBUFFER_HAS_VELOCITY							0
 #endif
 
-#ifndef GBUFFER_HAS_TANGENT
-#define GBUFFER_HAS_TANGENT								0
-#endif
-
 #define PC_D3D											SM5_PROFILE
 
 #ifndef NEEDS_LIGHTMAP_COORDINATE
@@ -169,4 +165,9 @@
 
 #ifndef CLOUD_LAYER_PIXEL_SHADER
 #define CLOUD_LAYER_PIXEL_SHADER						0
+#endif
+
+
+#ifndef SUPPORTS_ANISOTROPIC_MATERIALS
+#define SUPPORTS_ANISOTROPIC_MATERIALS					0
 #endif

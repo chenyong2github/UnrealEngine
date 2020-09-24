@@ -43,6 +43,7 @@ public:
 	virtual void PruneIsolatedNodes(const TArray<UEdGraphNode*>& RootSet, TArray<UEdGraphNode*>& GraphNodes) override {}
 	virtual void CleanAndSanitizeClass(UBlueprintGeneratedClass* ClassToClean, UObject*& InOldCDO) override;
 	virtual void MergeUbergraphPagesIn(UEdGraph* Ubergraph) override {};
+	virtual void PreCompileUpdateBlueprintOnLoad(UBlueprint* BP) override;
 
 private:
 

@@ -61,7 +61,7 @@ void UCurveControlPointsMechanic::Setup(UInteractiveTool* ParentToolIn)
 	PreviewSegment->SetLineMaterial(
 		LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/LineSetOverlaidComponentMaterial")));
 
-	InitializationCurveColor = FColor::Yellow;
+	InitializationCurveColor = FColor::Orange;
 	NormalCurveColor = FColor::Red;
 	CurrentSegmentsColor = bInteractiveInitializationMode ? InitializationCurveColor : NormalCurveColor;
 	SegmentsThickness = 4.0f;
@@ -118,7 +118,7 @@ void UCurveControlPointsMechanic::Setup(UInteractiveTool* ParentToolIn)
 	PointTransformProxy->OnTransformChanged.AddUObject(this, &UCurveControlPointsMechanic::GizmoTransformChanged);
 	PointTransformProxy->OnBeginTransformEdit.AddUObject(this, &UCurveControlPointsMechanic::GizmoTransformStarted);
 	PointTransformProxy->OnEndTransformEdit.AddUObject(this, &UCurveControlPointsMechanic::GizmoTransformEnded);
-	PointTransformGizmo->SetActiveTarget(PointTransformProxy);
+	PointTransformGizmo->SetActiveTarget(PointTransformProxy, GetParentTool()->GetToolManager());
 	PointTransformGizmo->SetVisibility(false);
 
 	// We force the coordinate system to be local so that the gizmo only moves in the plane we specify
@@ -400,8 +400,8 @@ void UCurveControlPointsMechanic::SetInteractiveInitialization(bool bOn)
 			// this brings us out of initialization mode.
 			if (ControlPoints.Num() > 0)
 			{
-				SnapEngine.AddPointTarget(ControlPoints.GetPointCoordinatesAt(0), FirstPointSnapID, EndpointSnapPriority);
-				SnapEngine.AddPointTarget(ControlPoints.GetPointCoordinatesAt(ControlPoints.Last()), LastPointSnapID, EndpointSnapPriority);
+				SnapEngine.AddPointTarget(ControlPoints.GetPointCoordinates(ControlPoints.First()), FirstPointSnapID, EndpointSnapPriority);
+				SnapEngine.AddPointTarget(ControlPoints.GetPointCoordinates(ControlPoints.Last()), LastPointSnapID, EndpointSnapPriority);
 			}
 
 			SnapEngine.RegenerateTargetLinesAround(ControlPoints.Num());
@@ -599,7 +599,8 @@ void UCurveControlPointsMechanic::OnClicked(const FInputDeviceRay& ClickPos)
 		SnapEngine.UpdateSnappedPoint(NewPointCoordinates);
 		if (SnapEngine.HaveActiveSnap())
 		{
-			if (SnapEngine.GetActiveSnapTargetID() == FirstPointSnapID || SnapEngine.GetActiveSnapTargetID() == LastPointSnapID)
+			if ((ControlPoints.Num() >= MinPointsForLoop && SnapEngine.GetActiveSnapTargetID() == FirstPointSnapID)
+				|| (ControlPoints.Num() >= MinPointsForNonLoop && SnapEngine.GetActiveSnapTargetID() == LastPointSnapID))
 			{
 				ParentTool->GetToolManager()->BeginUndoTransaction(InitializationCompletedTransactionText);
 
@@ -927,8 +928,9 @@ bool UCurveControlPointsMechanic::OnUpdateHover(const FInputDeviceRay& DevicePos
 				{
 					// We always snap to the start/end points because that's how we get out of initialization mode, and we don't want to
 					// risk the user not knowing what to do if they set snapping to be disabled.
-					if ((bSnappingEnabled ^ bSnapToggle) || SnapEngine.GetActiveSnapTargetID() == FirstPointSnapID
-						|| SnapEngine.GetActiveSnapTargetID() == LastPointSnapID)
+					if ((bSnappingEnabled ^ bSnapToggle) 
+						|| (ControlPoints.Num() >= MinPointsForLoop && SnapEngine.GetActiveSnapTargetID() == FirstPointSnapID)
+						|| (ControlPoints.Num() >= MinPointsForNonLoop && SnapEngine.GetActiveSnapTargetID() == LastPointSnapID))
 					{
 						HitPoint = SnapEngine.GetActiveSnapToPoint();
 					}
@@ -1024,7 +1026,31 @@ void UCurveControlPointsMechanic::DeleteSelectedPoints()
 		DeletePoint(PointID);
 	}
 
+	// If we deleted too many points, we may need to switch modes.
+	bool bChangedMode = false;
+	if (bAutoRevertToInteractiveInitialization)
+	{
+		if ((bIsLoop && ControlPoints.Num() < MinPointsForLoop)
+			|| (!bIsLoop && ControlPoints.Num() < MinPointsForNonLoop))
+		{
+			// We emit first just out of convenience of not having to temporarily store bIsLoop, 
+			// which gets reset during the SetInteractiveIntialization(true) call.
+			ParentTool->GetToolManager()->EmitObjectChange(this, MakeUnique<FCurveControlPointsMechanicModeChange>(
+				false, bIsLoop, CurrentChangeStamp), InitializationCompletedTransactionText);
+
+			SetInteractiveInitialization(true);
+			bChangedMode = true;
+		}
+	}
+
 	ParentTool->GetToolManager()->EndUndoTransaction();
+
+	// We broadcast the mode change first because clients are likely
+	// to respond differently to point changes in different modes.
+	if (bChangedMode)
+	{
+		OnModeChanged.Broadcast();
+	}
 	OnPointsChanged.Broadcast();
 }
 

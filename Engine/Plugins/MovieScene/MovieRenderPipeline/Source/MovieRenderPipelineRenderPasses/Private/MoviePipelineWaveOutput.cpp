@@ -53,7 +53,7 @@ static bool IsMoviePipelineAudioOutputSupported(const UObject* WorldContextObjec
 	}
 
 	// If there is no audio thread running (e.g. we're in the editor), it's possible to create a new non-realtime audio mixer
-	if (!FAudioThread::IsAudioThreadRunning())
+	if (!IsAudioThreadRunning())
 	{
 		return true;
 	}

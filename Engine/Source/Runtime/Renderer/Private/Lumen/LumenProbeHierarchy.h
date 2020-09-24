@@ -137,7 +137,7 @@ END_SHADER_PARAMETER_STRUCT()
 FIndirectLightingProbeOcclusionOutputParameters CreateProbeOcclusionOutputParameters(
 	FRDGBuilder& GraphBuilder,
 	const FIndirectLightingProbeOcclusionParameters& ProbeOcclusionParameters,
-	ERDGChildResourceFlags ResourceViewFlags);
+	ERDGUnorderedAccessViewFlags ResourceViewFlags);
 
 /* Emit probe parameters for culling light probes. */
 class FEmitProbeParameters

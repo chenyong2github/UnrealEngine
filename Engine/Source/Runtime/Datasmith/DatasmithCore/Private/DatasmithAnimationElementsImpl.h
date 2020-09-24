@@ -164,49 +164,49 @@ class FDatasmithSubsequenceAnimationElementImpl : public FDatasmithBaseAnimation
 public:
 	explicit FDatasmithSubsequenceAnimationElementImpl(const TCHAR* InName);
 
-    virtual FFrameNumber GetStartTime() const override
-    {
-        return StartTime;
-    }
+	virtual FFrameNumber GetStartTime() const override
+	{
+		return StartTime;
+	}
 
-    virtual void SetStartTime(FFrameNumber InStartTime) override
-    {
-        StartTime = InStartTime;
-    }
+	virtual void SetStartTime(FFrameNumber InStartTime) override
+	{
+		StartTime = InStartTime;
+	}
 
-    virtual int32 GetDuration() const override
-    {
-        return Duration;
-    }
+	virtual int32 GetDuration() const override
+	{
+		return Duration;
+	}
 
-    virtual void SetDuration(int32 InDuration) override
-    {
-        Duration = InDuration;
-    }
+	virtual void SetDuration(int32 InDuration) override
+	{
+		Duration = InDuration;
+	}
 
-    virtual float GetTimeScale() const override
-    {
-        return TimeScale;
-    }
+	virtual float GetTimeScale() const override
+	{
+		return TimeScale;
+	}
 
-    virtual void SetTimeScale(float InTimeScale) override
-    {
-        TimeScale = InTimeScale;
-    }
+	virtual void SetTimeScale(float InTimeScale) override
+	{
+		TimeScale = InTimeScale;
+	}
 
-    virtual TWeakPtr<IDatasmithLevelSequenceElement> GetSubsequence() const override
-    {
-        return Subsequence;
-    }
+	virtual TWeakPtr<IDatasmithLevelSequenceElement> GetSubsequence() const override
+	{
+		return Subsequence;
+	}
 
-    virtual void SetSubsequence(TWeakPtr<IDatasmithLevelSequenceElement> InSubsequence) override
-    {
-        Subsequence = InSubsequence;
-    }
+	virtual void SetSubsequence(TWeakPtr<IDatasmithLevelSequenceElement> InSubsequence) override
+	{
+		Subsequence = InSubsequence;
+	}
 
 private:
 	FFrameNumber StartTime;
-    int32 Duration;
-    float TimeScale;
-    TWeakPtr<IDatasmithLevelSequenceElement> Subsequence;
+	int32 Duration;
+	float TimeScale;
+	TWeakPtr<IDatasmithLevelSequenceElement> Subsequence;
 };

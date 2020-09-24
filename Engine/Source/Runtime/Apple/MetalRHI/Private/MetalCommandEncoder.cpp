@@ -577,7 +577,6 @@ void FMetalCommandEncoder::BeginParallelRenderCommandEncoding(uint32 NumChildren
 			}
 		}
 	}
-	// METAL_STATISTIC(FMetalProfiler::GetProfiler()->BeginEncoder(CommandBufferStats, ParallelRenderCommandEncoder));
 	
 	for (uint32 i = 0; i < NumChildren; i++)
 	{
@@ -624,7 +623,6 @@ void FMetalCommandEncoder::BeginRenderCommandEncoding(void)
 			}
 		}
 	}
-	METAL_STATISTIC(FMetalProfiler::GetProfiler()->BeginEncoder(CommandBufferStats, RenderCommandEncoder));
 	
 	if (CommandList.IsImmediate())
 	{
@@ -669,7 +667,7 @@ void FMetalCommandEncoder::BeginComputeCommandEncoding(mtlpp::DispatchType Dispa
 			}
 		}
 	}
-	METAL_STATISTIC(FMetalProfiler::GetProfiler()->BeginEncoder(CommandBufferStats, ComputeCommandEncoder));
+	
 	EncoderFence = CommandList.GetCommandQueue().CreateFence(Label);
 }
 
@@ -703,7 +701,6 @@ void FMetalCommandEncoder::BeginBlitCommandEncoding(void)
 			}
 		}
 	}
-	METAL_STATISTIC(FMetalProfiler::GetProfiler()->BeginEncoder(CommandBufferStats, BlitCommandEncoder));
 	
 	EncoderFence = CommandList.GetCommandQueue().CreateFence(Label);
 }
@@ -782,8 +779,6 @@ TRefCountPtr<FMetalFence> FMetalCommandEncoder::EndEncoding(void)
 				WaitCount = 0;
 				UpdateCount = 0;
 #endif
-				
-				METAL_STATISTIC(FMetalProfiler::GetProfiler()->EndEncoder(CommandBufferStats, RenderCommandEncoder));
 				RenderCommandEncoder.EndEncoding();
 				METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, RenderEncoderDebug.EndEncoder());
 				RenderCommandEncoder = nil;
@@ -852,7 +847,6 @@ TRefCountPtr<FMetalFence> FMetalCommandEncoder::EndEncoding(void)
 					}
 				}
 
-//				METAL_STATISTIC(FMetalProfiler::GetProfiler()->EndEncoder(CommandBufferStats, ParallelRenderCommandEncoder));
 				ParallelRenderCommandEncoder.EndEncoding();
 				METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, ParallelEncoderDebug.EndEncoder());
 				ParallelRenderCommandEncoder = nil;
@@ -895,8 +889,6 @@ TRefCountPtr<FMetalFence> FMetalCommandEncoder::EndEncoding(void)
 			WaitCount = 0;
 			UpdateCount = 0;
 #endif
-			
-			METAL_STATISTIC(FMetalProfiler::GetProfiler()->EndEncoder(CommandBufferStats, ComputeCommandEncoder));
 			ComputeCommandEncoder.EndEncoding();
 			METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, ComputeEncoderDebug.EndEncoder());
 			ComputeCommandEncoder = nil;
@@ -937,8 +929,6 @@ TRefCountPtr<FMetalFence> FMetalCommandEncoder::EndEncoding(void)
 			WaitCount = 0;
 			UpdateCount = 0;
 #endif
-			
-			METAL_STATISTIC(FMetalProfiler::GetProfiler()->EndEncoder(CommandBufferStats, RenderCommandEncoder));
 			BlitCommandEncoder.EndEncoding();
 			METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, BlitEncoderDebug.EndEncoder());
 			BlitCommandEncoder = nil;
@@ -1001,14 +991,6 @@ void FMetalCommandEncoder::UpdateFence(FMetalFence* Fence)
 				METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, RenderEncoderDebug.AddUpdateFence(VertexFence));
 				Fence->Write(mtlpp::RenderStages::Vertex);
 				METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, UpdateCount++);
-				
-#if ENABLE_METAL_GPUPROFILE && METAL_STATISTICS
-				FMetalProfiler* Profiler = FMetalProfiler::GetProfiler();
-				if (Profiler)
-				{
-					Profiler->EncodeFence(GetCommandBufferStats(), TEXT("UpdateFence"), Fence, EMTLFenceTypeUpdate);
-				}
-#endif
 			}
 
 			if (Fence->NeedsWrite(mtlpp::RenderStages::Fragment))
@@ -1017,14 +999,6 @@ void FMetalCommandEncoder::UpdateFence(FMetalFence* Fence)
 				METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, RenderEncoderDebug.AddUpdateFence(FragmentFence));
 				Fence->Write(mtlpp::RenderStages::Fragment);
 				METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, UpdateCount++);
-				
-#if ENABLE_METAL_GPUPROFILE && METAL_STATISTICS
-				FMetalProfiler* Profiler = FMetalProfiler::GetProfiler();
-				if (Profiler)
-				{
-					Profiler->EncodeFence(GetCommandBufferStats(), TEXT("UpdateFence"), Fence, EMTLFenceTypeUpdate);
-				}
-#endif
 			}
 		}
 		else if (ComputeCommandEncoder && Fence->NeedsWrite(mtlpp::RenderStages::Vertex))
@@ -1033,14 +1007,6 @@ void FMetalCommandEncoder::UpdateFence(FMetalFence* Fence)
 			METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, ComputeEncoderDebug.AddUpdateFence(VertexFence));
 			Fence->Write(mtlpp::RenderStages::Vertex);
 			METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, UpdateCount++);
-			
-#if ENABLE_METAL_GPUPROFILE && METAL_STATISTICS
-			FMetalProfiler* Profiler = FMetalProfiler::GetProfiler();
-			if (Profiler)
-			{
-				Profiler->EncodeFence(GetCommandBufferStats(), TEXT("UpdateFence"), Fence, EMTLFenceTypeUpdate);
-			}
-#endif
 		}
 		else if (BlitCommandEncoder && Fence->NeedsWrite(mtlpp::RenderStages::Vertex))
 		{
@@ -1048,14 +1014,6 @@ void FMetalCommandEncoder::UpdateFence(FMetalFence* Fence)
 			METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, BlitEncoderDebug.AddUpdateFence(VertexFence));
 			Fence->Write(mtlpp::RenderStages::Vertex);
 			METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, UpdateCount++);
-			
-#if ENABLE_METAL_GPUPROFILE && METAL_STATISTICS
-			FMetalProfiler* Profiler = FMetalProfiler::GetProfiler();
-			if (Profiler)
-			{
-				Profiler->EncodeFence(GetCommandBufferStats(), TEXT("UpdateFence"), Fence, EMTLFenceTypeUpdate);
-			}
-#endif
 		}
 	}
 }
@@ -1068,13 +1026,6 @@ void FMetalCommandEncoder::WaitForFence(FMetalFence* Fence)
 	{
 		if (Fence->NeedsWait(mtlpp::RenderStages::Vertex))
 		{
-#if ENABLE_METAL_GPUPROFILE && METAL_STATISTICS
-			FMetalProfiler* Profiler = FMetalProfiler::GetProfiler();
-			if (Profiler)
-			{
-				Profiler->EncodeFence(GetCommandBufferStats(), TEXT("WaitForFence"), Fence, EMTLFenceTypeWait);
-			}
-#endif
 			METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, WaitCount++);
 			
 			mtlpp::Fence VertexFence = Fence->Get(mtlpp::RenderStages::Vertex);
@@ -1100,14 +1051,6 @@ void FMetalCommandEncoder::WaitForFence(FMetalFence* Fence)
 		}
 		if (Fence->NeedsWait(mtlpp::RenderStages::Fragment))
 		{
-#if ENABLE_METAL_GPUPROFILE && METAL_STATISTICS
-			FMetalProfiler* Profiler = FMetalProfiler::GetProfiler();
-			if (Profiler)
-			{
-				Profiler->EncodeFence(GetCommandBufferStats(), TEXT("WaitForFence"), Fence, EMTLFenceTypeWait);
-			}
-#endif
-			
 			if (FenceStage == mtlpp::RenderStages::Vertex || BlitCommandEncoder)
 			{
 				mtlpp::Fence FragmentFence = Fence->Get(mtlpp::RenderStages::Fragment);
@@ -1147,14 +1090,6 @@ void FMetalCommandEncoder::WaitAndUpdateFence(FMetalFence* Fence)
 	static bool bSupportsFences = CommandList.GetCommandQueue().SupportsFeature(EMetalFeaturesFences);
 	if ((bSupportsFences METAL_DEBUG_OPTION(|| CommandList.GetCommandQueue().GetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation)) && Fence)
 	{
-#if ENABLE_METAL_GPUPROFILE && METAL_STATISTICS
-		FMetalProfiler* Profiler = FMetalProfiler::GetProfiler();
-		if (Profiler)
-		{
-			Profiler->EncodeFence(GetCommandBufferStats(), TEXT("WaitForFence"), Fence, EMTLFenceTypeWait);
-			Profiler->EncodeFence(GetCommandBufferStats(), TEXT("UpdateFence"), Fence, EMTLFenceTypeUpdate);
-		}
-#endif
 		METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, WaitCount++);
 		METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, UpdateCount++);
 		
@@ -1357,7 +1292,6 @@ void FMetalCommandEncoder::SetRenderPipelineState(FMetalShaderPipeline* Pipeline
 {
 	check (RenderCommandEncoder);
 	{
-		METAL_STATISTIC(FMetalProfiler::GetProfiler()->EncodePipeline(CommandBufferStats, PipelineState));
 		METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, RenderEncoderDebug.SetPipeline(PipelineState));
 		RenderCommandEncoder.SetRenderPipelineState(PipelineState->RenderPipelineState);
 	}
@@ -1726,8 +1660,7 @@ void FMetalCommandEncoder::SetComputePipelineState(FMetalShaderPipeline* State)
 {
 	check (ComputeCommandEncoder);
 	{
-		METAL_STATISTIC(FMetalProfiler::GetProfiler()->EncodePipeline(CommandBufferStats, State));
-        METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, ComputeEncoderDebug.SetPipeline(State));
+		METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, ComputeEncoderDebug.SetPipeline(State));
 		ComputeCommandEncoder.SetComputePipelineState(State->ComputePipelineState);
 	}
 }

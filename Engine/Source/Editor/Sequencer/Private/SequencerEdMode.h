@@ -13,6 +13,7 @@ class FCanvas;
 class FEditorViewportClient;
 class FPrimitiveDrawInterface;
 class FSceneView;
+class ISequencer;
 class FSequencer;
 class FViewport;
 struct HMovieSceneKeyProxy;
@@ -72,14 +73,9 @@ public:
 
 protected:
 	void DrawTracks3D(FPrimitiveDrawInterface* PDI);
-	void DrawTransformTrack(const TSharedPtr<FSequencer>& Sequencer, FPrimitiveDrawInterface* PDI, UMovieScene3DTransformTrack* TransformTrack, TArrayView<const TWeakObjectPtr<>> BoundObjects, const bool bIsSelected);
+	void DrawTransformTrack(const TSharedPtr<ISequencer>& Sequencer, FPrimitiveDrawInterface* PDI, UMovieScene3DTransformTrack* TransformTrack, TArrayView<const TWeakObjectPtr<>> BoundObjects, const bool bIsSelected);
 	void DrawAudioTracks(FPrimitiveDrawInterface* PDI);
 
-protected:
-	static void GetLocationAtTime(const FMovieSceneEvaluationTrack* Track, UObject* BoundObject, FFrameTime KeyTime, FVector& KeyPos, FRotator& KeyRot, const TSharedPtr<FSequencer>& Sequencer);
-	static void GetParents(TArray<const UObject *>& Parents, const UObject* InObject);
-	static FTransform GetRefFrameFromParents(const TSharedPtr<FSequencer>& Sequencer, const TArray<const UObject *>& Parents, FFrameTime KeyTime);
-	static bool GetParentTM(FTransform& CurrentRefTM, const TSharedPtr<FSequencer>& Sequencer, UObject* ParentObject, FFrameTime KeyTime);
 private:
 	TArray<TWeakPtr<FSequencer>> Sequencers;
 

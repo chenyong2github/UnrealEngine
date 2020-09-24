@@ -5,6 +5,23 @@
 
 FRigUnit_DebugBezier_Execute()
 {
+	FRigUnit_DebugBezierItemSpace::StaticExecute(
+		RigVMExecuteContext, 
+		Bezier, 
+		MinimumU, 
+		MaximumU, 
+		Color, 
+		Thickness, 
+		Detail, 
+		FRigElementKey(Space, ERigElementType::Bone), 
+		WorldOffset, 
+		bEnabled,
+		ExecuteContext, 
+		Context);
+}
+
+FRigUnit_DebugBezierItemSpace_Execute()
+{
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
 	{
@@ -17,9 +34,9 @@ FRigUnit_DebugBezier_Execute()
 	}
 
 	FTransform Transform = WorldOffset;
-	if (Space != NAME_None && Context.GetBones() != nullptr)
+	if (Space.IsValid())
 	{
-		Transform = Transform * Context.GetBones()->GetGlobalTransform(Space);
+		Transform = Transform * Context.Hierarchy->GetGlobalTransform(Space);
 	}
 
 	Context.DrawInterface->DrawBezier(Transform, Bezier, MinimumU, MaximumU, Color, Thickness, Detail);

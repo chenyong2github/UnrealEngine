@@ -11,7 +11,7 @@ FRigUnit_PointSimulation_Execute()
 	float DeltaTime = Context.DeltaTime;
 
 	FCRSimPointContainer& Simulation = WorkData.Simulation;
-	TArray<int32>& BoneIndices = WorkData.BoneIndices;
+	TArray<FCachedRigElement>& BoneIndices = WorkData.BoneIndices;
 
 	if (Context.State == EControlRigState::Init ||
 		Simulation.Points.Num() != Points.Num() ||
@@ -22,6 +22,11 @@ FRigUnit_PointSimulation_Execute()
 	{
 		Simulation.Reset();
 		BoneIndices.Reset();
+		return;
+	}
+
+	if(Simulation.AccumulatedTime < SMALL_NUMBER)
+	{
 		Simulation.TimeStep = 1.0f / FMath::Clamp<float>(SimulatedStepsPerSecond, 1.f, 120.f);
 
 		bool bFoundErrors = false;
@@ -69,7 +74,7 @@ FRigUnit_PointSimulation_Execute()
 		{
 			for (const FRigUnit_PointSimulation_BoneTarget& BoneTarget : BoneTargets)
 			{
-				BoneIndices.Add(Hierarchy->GetIndex(BoneTarget.Bone));
+				BoneIndices.Add(FCachedRigElement());
 			}
 		}
 
@@ -153,7 +158,7 @@ FRigUnit_PointSimulation_Execute()
 
 		for (int32 TargetIndex = 0; TargetIndex < BoneTargets.Num(); TargetIndex++)
 		{
-			if (BoneIndices[TargetIndex] != INDEX_NONE)
+			if (BoneIndices[TargetIndex].UpdateCache(BoneTargets[TargetIndex].Bone, Hierarchy))
 			{
 				const FRigUnit_PointSimulation_BoneTarget& BoneTarget = BoneTargets[TargetIndex];
 				FTransform Transform = Hierarchy->GetGlobalTransform(BoneIndices[TargetIndex]);
@@ -168,8 +173,8 @@ FRigUnit_PointSimulation_Execute()
 					int32 ParentIndex = (*Hierarchy)[BoneIndices[TargetIndex]].ParentIndex;
 					if (ParentIndex != INDEX_NONE)
 					{
-						FTransform InitialTransform = Hierarchy->GetInitialTransform(BoneIndices[TargetIndex]);
-						FTransform ParentInitialTransform = Hierarchy->GetInitialTransform(ParentIndex);
+						FTransform InitialTransform = Hierarchy->GetInitialGlobalTransform(BoneIndices[TargetIndex]);
+						FTransform ParentInitialTransform = Hierarchy->GetInitialGlobalTransform(ParentIndex);
 						FTransform ParentTransform = Hierarchy->GetGlobalTransform(ParentIndex);
 						float ExpectedDistance = (InitialTransform.GetLocation() - ParentInitialTransform.GetLocation()).Size();
 						if (ExpectedDistance > SMALL_NUMBER)

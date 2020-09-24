@@ -205,19 +205,18 @@ void FEndPhysicsTickFunction::ExecuteTick(float DeltaTime, enum ELevelTick TickT
 		return;
 	}
 
-	FGraphEventRef PhysicsComplete = PhysScene->GetCompletionEvent();
-	if (PhysicsComplete.GetReference() && !PhysicsComplete->IsComplete())
+	FGraphEventArray PhysicsComplete = PhysScene->GetCompletionEvents();
+	if (!PhysScene->IsCompletionEventComplete())
 	{
 		// don't release the next tick group until the physics has completed and we have run FinishPhysicsSim
 		DECLARE_CYCLE_STAT(TEXT("FSimpleDelegateGraphTask.FinishPhysicsSim"),
 			STAT_FSimpleDelegateGraphTask_FinishPhysicsSim,
 			STATGROUP_TaskGraphTasks);
 
-		MyCompletionGraphEvent->SetGatherThreadForDontCompleteUntil(ENamedThreads::GameThread);
 		MyCompletionGraphEvent->DontCompleteUntil(
 			FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
 				FSimpleDelegateGraphTask::FDelegate::CreateUObject(Target, &UWorld::FinishPhysicsSim),
-				GET_STATID(STAT_FSimpleDelegateGraphTask_FinishPhysicsSim), PhysicsComplete, ENamedThreads::GameThread
+				GET_STATID(STAT_FSimpleDelegateGraphTask_FinishPhysicsSim), &PhysicsComplete, ENamedThreads::GameThread
 			)
 		);
 	}

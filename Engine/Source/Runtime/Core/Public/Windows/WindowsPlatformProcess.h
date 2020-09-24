@@ -155,6 +155,7 @@ public:
 	static bool CanLaunchURL(const TCHAR* URL);
 	static void LaunchURL( const TCHAR* URL, const TCHAR* Parms, FString* Error );
 	static FProcHandle CreateProc( const TCHAR* URL, const TCHAR* Parms, bool bLaunchDetached, bool bLaunchHidden, bool bLaunchReallyHidden, uint32* OutProcessID, int32 PriorityModifier, const TCHAR* OptionalWorkingDirectory, void* PipeWriteChild, void * PipeReadChild = nullptr);
+	static bool SetProcPriority(FProcHandle & InProcHandle, int32 PriorityModifier);
 	static FProcHandle OpenProcess(uint32 ProcessID);
 	static bool IsProcRunning( FProcHandle & ProcessHandle );
 	static void WaitForProc( FProcHandle & ProcessHandle );

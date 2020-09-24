@@ -9,12 +9,15 @@ struct WideFVector4
 };
 
 #if TARGET_WIDTH == 4
+static const uniform struct WideFVector4 WFloatZero = { {0.0f, 0.0f, 0.0f, 0.0f} };
 static const uniform struct WideFVector4 WFloat0001 = { {0.0f, 0.0f, 0.0f, 1.0f} };
 static const uniform struct WideFVector4 WSmallLengthThreshold = { {1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f} };
 #elif TARGET_WIDTH == 8
+static const uniform struct WideFVector4 WFloatZero = { {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f} };
 static const uniform struct WideFVector4 WFloat0001 = { {0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f} };
 static const uniform struct WideFVector4 WSmallLengthThreshold = { {1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f} };
 #elif TARGET_WIDTH == 16
+static const uniform struct WideFVector4 WFloatZero = { {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f} };
 static const uniform struct WideFVector4 WFloat0001 = { {0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f} };
 static const uniform struct WideFVector4 WSmallLengthThreshold = { {1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f} };
 #endif
@@ -42,6 +45,15 @@ unmasked inline uniform WideFVector4 operator*(const uniform WideFVector4 &A, co
 	uniform WideFVector4 Result;
 
 	Result.V[programIndex] = A.V[programIndex] * B.V[programIndex];
+
+	return Result;
+}
+
+unmasked inline uniform WideFVector4 operator*(const uniform WideFVector4 &A, const uniform float F)
+{
+	uniform WideFVector4 Result;
+
+	Result.V[programIndex] = A.V[programIndex] * F;
 
 	return Result;
 }
@@ -110,13 +122,45 @@ unmasked inline uniform WideFVector4 VectorDot4( const uniform WideFVector4& Vec
 	return Temp1 + Temp2; // (X*X + Z*Z + Y*Y + W*W, Y*Y + W*W + Z*Z + X*X, Z*Z + X*X + W*W + Y*Y, W*W + Y*Y + X*X + Z*Z)
 }
 
+unmasked inline uniform WideFVector4 VectorBitwiseAnd(const uniform WideFVector4 &Vec1, const uniform WideFVector4 &Vec2)
+{
+	varying unsigned int S0, S1;
+	varying float Result;
+	*((uniform WideFVector4 *uniform)&S0) = *((uniform WideFVector4 *uniform)&Vec1);
+	*((uniform WideFVector4 *uniform)&S1) = *((uniform WideFVector4 *uniform)&Vec2);
+
+	Result = floatbits(S0 & S1);
+
+	return *((uniform WideFVector4 *uniform)&Result);
+}
+
+unmasked inline uniform WideFVector4 VectorBitwiseOr(const uniform WideFVector4 &Vec1, const uniform WideFVector4 &Vec2)
+{
+	varying unsigned int S0, S1;
+	varying float Result;
+	*((uniform WideFVector4 *uniform)&S0) = *((uniform WideFVector4 *uniform)&Vec1);
+	*((uniform WideFVector4 *uniform)&S1) = *((uniform WideFVector4 *uniform)&Vec2);
+
+	Result = floatbits(S0 | S1);
+
+	return *((uniform WideFVector4 *uniform)&Result);
+}
+
+unmasked inline uniform WideFVector4 VectorBitwiseXor(const uniform WideFVector4 &Vec1, const uniform WideFVector4 &Vec2)
+{
+	varying unsigned int S0, S1;
+	varying float Result;
+	*((uniform WideFVector4 *uniform)&S0) = *((uniform WideFVector4 *uniform)&Vec1);
+	*((uniform WideFVector4 *uniform)&S1) = *((uniform WideFVector4 *uniform)&Vec2);
+
+	Result = floatbits(S0 ^ S1);
+
+	return *((uniform WideFVector4 *uniform)&Result);
+}
+
 unmasked inline uniform WideFVector4 VectorSelect(const uniform WideFVector4& Mask, const uniform WideFVector4& Vec1, const uniform WideFVector4& Vec2 )
 {
-	uniform WideFVector4 Result;
-
-	Result.V[programIndex] = floatbits(intbits(Vec2.V[programIndex]) ^ (intbits(Mask.V[programIndex]) & (intbits(Vec1.V[programIndex]) ^ intbits(Vec2.V[programIndex]))));
-
-	return Result;
+	return VectorBitwiseXor(Vec2, VectorBitwiseAnd(Mask, VectorBitwiseXor(Vec1, Vec2)));
 }
 
 unmasked inline uniform WideFVector4 VectorNormalizeSafe( const uniform WideFVector4& Vector, const uniform WideFVector4& DefaultValue)
@@ -166,6 +210,19 @@ unmasked inline uniform WideFVector4 VectorQuaternionRotateVector(const uniform 
 	return Rotated;
 }
 
+inline uniform WideFVector4 VectorAccumulateQuaternionShortestPath(const uniform WideFVector4& A, const uniform WideFVector4& B)
+{
+	// Blend rotation
+	//     To ensure the 'shortest route', we make sure the dot product between the both rotations is positive.
+	//     const float Bias = (|A.B| >= 0 ? 1 : -1)
+	//     return A + B * Bias;
+	const uniform WideFVector4 RotationDot = VectorDot4(A, B);
+	const uniform WideFVector4 QuatRotationDirMask = VectorCompareGE(RotationDot, WFloatZero);
+	const uniform WideFVector4 NegativeB = WFloatZero - B;
+	const uniform WideFVector4 BiasTimesB = VectorSelect(QuatRotationDirMask, B, NegativeB);
+	return A + BiasTimesB;
+}
+
 unmasked inline void LoadStridedWideFVector4(uniform FVector4 * uniform DstPtr, const uniform FVector4* uniform SrcPtr, const uniform int SrcStride)
 {
 	*DstPtr = *SrcPtr;
@@ -200,6 +257,30 @@ unmasked inline void StoreStridedWideFVector4(uniform FVector4* uniform DstPtr, 
 		*(DstPtr + i*DstStride) = *(SrcPtr + i);
 	}
 	*/
+}
+
+unmasked inline void LoadIndexedWideFVector4(uniform FVector4 * uniform DstPtr, const uniform FVector4* uniform SrcPtr, const uniform int* uniform pIndex)
+{
+	*DstPtr = *(SrcPtr + pIndex[0]);
+#if TARGET_WIDTH == 8 || TARGET_WIDTH == 16
+	*(DstPtr + 1) = *(SrcPtr + pIndex[1]);
+#endif
+#if TARGET_WIDTH == 16
+	*(DstPtr + 2) = *(SrcPtr + pIndex[2]);
+	*(DstPtr + 3) = *(SrcPtr + pIndex[3]);
+#endif
+}
+
+unmasked inline void StoreIndexedWideFVector4(uniform FVector4 * uniform DstPtr, const uniform FVector4* uniform SrcPtr, const uniform int* uniform pIndex)
+{
+	*(DstPtr + pIndex[0]) = *SrcPtr;
+#if TARGET_WIDTH == 8 || TARGET_WIDTH == 16
+	*(DstPtr + pIndex[1]) = *(SrcPtr + 1);
+#endif
+#if TARGET_WIDTH == 16
+	*(DstPtr + pIndex[2]) = *(SrcPtr + 2);
+	*(DstPtr + pIndex[3]) = *(SrcPtr + 3);
+#endif
 }
 
 #endif

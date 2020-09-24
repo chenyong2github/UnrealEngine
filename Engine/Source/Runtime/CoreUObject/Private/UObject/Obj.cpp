@@ -220,71 +220,77 @@ bool UObject::Rename( const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags
 	{
 		ResetLoaders( GetOuter() );
 	}
+
 	FName OldName = GetFName();
-
 	FName NewName;
-
-	if (InName == nullptr)
-	{
-		// If null, null is passed in, then we are deliberately trying to get a new name
-		// Otherwise if the outer is changing, try and maintain the name
-		if (NewOuter && StaticFindObjectFastInternal(nullptr, NewOuter, OldName) == nullptr)
-		{
-			NewName = OldName;
-		}
-		else
-		{
-			NewName = MakeUniqueObjectName( NameScopeOuter ? NameScopeOuter : GetOuter(), GetClass() );
-		}
-	}
-	else
-	{
-		NewName = FName(InName);
-	}
-
-	//UE_LOG(LogObj, Log,  TEXT("Renaming %s to %s"), *OldName.ToString(), *NewName.ToString() );
-
-	if ( !(Flags & REN_NonTransactional) )
-	{
-		// Mark touched packages as dirty.
-		if (Flags & REN_DoNotDirty)
-		{
-			// This will only mark dirty if in a transaction,
-			// the object is transactional, and the object is
-			// not in a PlayInEditor package.
-			Modify(false);
-		}
-		else
-		{
-			// This will maintain previous behavior...
-			// Which was to directly call MarkPackageDirty
-			Modify(true);
-		}
-	}
-
 	bool bCreateRedirector = false;
-	UObject* OldOuter = GetOuter();
+	UObject* OldOuter = nullptr;
 
-	if ( HasAnyFlags(RF_Public) )
 	{
-		const bool bUniquePathChanged	= ((NewOuter != NULL && OldOuter != NewOuter) || (OldName != NewName));
-		const bool bRootPackage			= GetClass() == UPackage::StaticClass() && OldOuter == NULL;
-		const bool bRedirectionAllowed = !FApp::IsGame() && ((Flags & REN_DontCreateRedirectors) == 0);
+		// Make sure that for the remainder of the duration of the rename operation nothing else is going to modify the UObject hash tables.
+		FScopedUObjectHashTablesLock HashTablesLock;
 
-		// We need to create a redirector if we changed the Outer or Name of an object that can be referenced from other packages
-		// [i.e. has the RF_Public flag] so that references to this object are not broken.
-		bCreateRedirector = bRootPackage == false && bUniquePathChanged == true && bRedirectionAllowed == true && bIsCaseOnlyChange == false;
-	}
-
-	if( NewOuter )
-	{
-		if (!(Flags & REN_DoNotDirty))
+		if (InName == nullptr)
 		{
-			NewOuter->MarkPackageDirty();
+			// If null, null is passed in, then we are deliberately trying to get a new name
+			// Otherwise if the outer is changing, try and maintain the name
+			if (NewOuter && StaticFindObjectFastInternal(nullptr, NewOuter, OldName) == nullptr)
+			{
+				NewName = OldName;
+			}
+			else
+			{
+				NewName = MakeUniqueObjectName(NameScopeOuter ? NameScopeOuter : GetOuter(), GetClass());
+			}
 		}
-	}
+		else
+		{
+			NewName = FName(InName);
+		}
 
-	LowLevelRename(NewName,NewOuter);
+		//UE_LOG(LogObj, Log,  TEXT("Renaming %s to %s"), *OldName.ToString(), *NewName.ToString() );
+
+		if (!(Flags & REN_NonTransactional))
+		{
+			// Mark touched packages as dirty.
+			if (Flags & REN_DoNotDirty)
+			{
+				// This will only mark dirty if in a transaction,
+				// the object is transactional, and the object is
+				// not in a PlayInEditor package.
+				Modify(false);
+			}
+			else
+			{
+				// This will maintain previous behavior...
+				// Which was to directly call MarkPackageDirty
+				Modify(true);
+			}
+		}
+
+		OldOuter = GetOuter();
+
+		if (HasAnyFlags(RF_Public))
+		{
+			const bool bUniquePathChanged = ((NewOuter != NULL && OldOuter != NewOuter) || (OldName != NewName));
+			const bool bRootPackage = GetClass() == UPackage::StaticClass() && OldOuter == NULL;
+			const bool bRedirectionAllowed = !FApp::IsGame() && ((Flags & REN_DontCreateRedirectors) == 0);
+
+			// We need to create a redirector if we changed the Outer or Name of an object that can be referenced from other packages
+			// [i.e. has the RF_Public flag] so that references to this object are not broken.
+			bCreateRedirector = bRootPackage == false && bUniquePathChanged == true && bRedirectionAllowed == true && bIsCaseOnlyChange == false;
+		}
+
+		if (NewOuter)
+		{
+			if (!(Flags & REN_DoNotDirty))
+			{
+				NewOuter->MarkPackageDirty();
+			}
+		}
+
+		LowLevelRename(NewName, NewOuter);
+	}
 
 	// Create the redirector AFTER renaming the object. Two objects of different classes may not have the same fully qualified name.
 	if (bCreateRedirector)
@@ -2767,7 +2773,15 @@ void UObject::ReinitializeProperties( UObject* SourceObject/*=NULL*/, FObjectIns
 	// the properties for this object ensures that any cleanup required when an object is reinitialized from defaults occurs properly
 	// for example, when re-initializing UPrimitiveComponents, the component must notify the rendering thread that its data structures are
 	// going to be re-initialized
-	StaticConstructObject_Internal( GetClass(), GetOuter(), GetFName(), GetFlags(), GetInternalFlags(), SourceObject, !HasAnyFlags(RF_ClassDefaultObject), InstanceGraph );
+	FStaticConstructObjectParameters Params(GetClass());
+	Params.Outer = GetOuter();
+	Params.Name = GetFName();
+	Params.SetFlags = GetFlags();
+	Params.InternalSetFlags = GetInternalFlags();
+	Params.Template = SourceObject;
+	Params.bCopyTransientsFromClassDefaults = !HasAnyFlags(RF_ClassDefaultObject);
+	Params.InstanceGraph = InstanceGraph;
+	StaticConstructObject_Internal(Params);
 }
 
 
@@ -3977,6 +3991,10 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 					{
 						SearchModeFlags |= EReferenceChainSearchMode::Direct;
 					}
+					else if (FCString::Stricmp(*Tok, TEXT("full")) == 0)
+					{
+						SearchModeFlags |= EReferenceChainSearchMode::FullChain;
+					}
 				}
 				
 				FReferenceChainSearch RefChainSearch(Object, SearchModeFlags);
@@ -4087,8 +4105,10 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 					TCHAR Temp[MAX_SPRINTF]=TEXT("");
 					FCString::Sprintf( Temp, TEXT("EXCLUDE%i="), i );
 					FName F;
-					if( FParse::Value(Str,Temp,F) )
-						Exclude.Add( CreatePackage(NULL,*F.ToString()) );
+					if (FParse::Value(Str, Temp, F))
+					{
+						Exclude.Add(CreatePackage(*F.ToString()));
+					}
 				}
 				Ar.Logf( TEXT("Dependencies of %s:"), *Pkg->GetPathName() );
 
@@ -4435,11 +4455,6 @@ void StaticExit()
 	// Delete all linkers are pending destroy
 	DeleteLoaders();
 
-	// We'll be destroying objects without time limit during exit purge
-	// so doing it on a separate thread doesn't make anything faster,
-	// also the exit purge is not a standard GC pass so no need to overcompilcate things
-	GMultithreadedDestructionEnabled = false;
-
 	// Cleanup root.
 	if (GObjTransientPkg != NULL)
 	{
@@ -4458,6 +4473,11 @@ void StaticExit()
 	{
 		IncrementalPurgeGarbage(false);
 	}
+
+	// From now on we'll be destroying objects without time limit during exit purge
+	// so doing it on a separate thread doesn't make anything faster,
+	// also the exit purge is not a standard GC pass so no need to overcompilcate things
+	GMultithreadedDestructionEnabled = false;
 
 	// Make sure no other threads manipulate UObjects
 	AcquireGCLock();

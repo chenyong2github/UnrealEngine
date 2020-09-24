@@ -37,6 +37,7 @@
 #include "Insights/LoadingProfiler/LoadingProfilerManager.h"
 #include "Insights/LoadingProfiler/Widgets/SLoadingProfilerWindow.h"
 #include "Insights/Table/Widgets/STableTreeView.h"
+#include "Insights/Tests/TimingProfilerTests.h"
 #include "Insights/TimingProfilerCommon.h"
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/ViewModels/BaseTimingTrack.h"
@@ -63,6 +64,8 @@
 
 #define LOCTEXT_NAMESPACE "STimingView"
 
+#define ACTIVATE_BENCHMARK 0
+
 // start auto generated ids from a big number (MSB set to 1) to avoid collisions with ids for gpu/cpu tracks based on 32bit timeline index
 uint64 FBaseTimingTrack::IdGenerator = (1ULL << 63);
 
@@ -81,11 +84,15 @@ STimingView::STimingView()
 	, bAssetLoadingMode(false)
 	, FileActivitySharedState(MakeShared<FFileActivitySharedState>(this))
 	, TimeRulerTrack(MakeShared<FTimeRulerTrack>())
+	, DefaultTimeMarker(MakeShared<Insights::FTimeMarker>())
 	, MarkersTrack(MakeShared<FMarkersTimingTrack>())
 	, GraphTrack(MakeShared<FTimingGraphTrack>())
 	, WhiteBrush(FInsightsStyle::Get().GetBrush("WhiteBrush"))
 	, MainFont(FCoreStyle::GetDefaultFontStyle("Regular", 8))
 {
+	DefaultTimeMarker->SetName(TEXT(""));
+	DefaultTimeMarker->SetColor(FLinearColor(0.85f, 0.5f, 0.03f, 0.5f));
+
 	GraphTrack->SetName(TEXT("Main Graph Track"));
 
 	IModularFeatures::Get().RegisterModularFeature(Insights::TimingViewExtenderFeatureName, FrameSharedState.Get());
@@ -135,7 +142,6 @@ void STimingView::Construct(const FArguments& InArgs)
 			.AlwaysShowScrollbar(false)
 			.Visibility(EVisibility::Visible)
 			.Thickness(FVector2D(5.0f, 5.0f))
-			//.RenderOpacity(0.75)
 			.OnUserScrolled(this, &STimingView::HorizontalScrollBar_OnUserScrolled)
 		]
 
@@ -148,7 +154,6 @@ void STimingView::Construct(const FArguments& InArgs)
 			.AlwaysShowScrollbar(false)
 			.Visibility(EVisibility::Visible)
 			.Thickness(FVector2D(5.0f, 5.0f))
-			//.RenderOpacity(0.75)
 			.OnUserScrolled(this, &STimingView::VerticalScrollBar_OnUserScrolled)
 		]
 
@@ -169,7 +174,7 @@ void STimingView::Construct(const FArguments& InArgs)
 			[
 				SNew(SHorizontalBox)
 
-				+SHorizontalBox::Slot()
+				+ SHorizontalBox::Slot()
 				.Padding(0.0f)
 				.AutoWidth()
 				[
@@ -179,7 +184,7 @@ void STimingView::Construct(const FArguments& InArgs)
 					.Text(FText::FromString(FString(TEXT("\xf0b0"))) /*fa-filter*/)
 				]
 
-				+SHorizontalBox::Slot()
+				+ SHorizontalBox::Slot()
 				.Padding(FMargin(2.0f, 0.0f, 0.0f, 0.0f))
 				.AutoWidth()
 				[
@@ -297,6 +302,28 @@ void STimingView::Reset(bool bIsFirstReset)
 
 	TimeRulerTrack->Reset();
 	AddTopDockedTrack(TimeRulerTrack);
+	TimeRulerTrack->AddTimeMarker(DefaultTimeMarker);
+	SetTimeMarker(std::numeric_limits<double>::infinity());
+
+#if 0 // test for multiple time markers
+	TSharedRef<Insights::FTimeMarker> TimeMarkerA = DefaultTimeMarker;
+	TimeMarkerA->SetName(TEXT("A"));
+	TimeMarkerA->SetColor(FLinearColor(0.85f, 0.5f, 0.03f, 0.5f));
+
+	TSharedRef<Insights::FTimeMarker> TimeMarkerB = MakeShared<Insights::FTimeMarker>();
+	TimeRulerTrack->AddTimeMarker(TimeMarkerB);
+	TimeMarkerB->SetName(TEXT("B"));
+	TimeMarkerB->SetColor(FLinearColor(0.03f, 0.85f, 0.5f, 0.5f));
+
+	TSharedRef<Insights::FTimeMarker> TimeMarkerC = MakeShared<Insights::FTimeMarker>();
+	TimeRulerTrack->AddTimeMarker(TimeMarkerC);
+	TimeMarkerC->SetName(TEXT("C"));
+	TimeMarkerC->SetColor(FLinearColor(0.03f, 0.5f, 0.85f, 0.5f));
+
+	TimeMarkerA->SetTime(0.0f);
+	TimeMarkerB->SetTime(1.0f);
+	TimeMarkerC->SetTime(2.0f);
+#endif
 
 	MarkersTrack->Reset();
 	AddTopDockedTrack(MarkersTrack);
@@ -384,9 +411,6 @@ void STimingView::Reset(bool bIsFirstReset)
 	Tooltip.Reset();
 
 	LastSelectionType = ESelectionType::None;
-
-	SetTimeMarker(std::numeric_limits<double>::infinity());
-	bIsScrubbing = false;
 
 	//ThisGeometry
 
@@ -598,7 +622,6 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 	Viewport.UpdateLayout();
 
 	TimeRulerTrack->SetSelection(bIsSelecting, SelectionStartTime, SelectionEndTime);
-	TimeRulerTrack->SetTimeMarker(bIsDragging, TimeMarker);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -750,7 +773,8 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		Viewport.SetScrollHeight(ScrollHeight);
 		UpdateVerticalScrollBar();
 	}
-	//Set the VerticalScrollBar padding so it is limited to the scrollable area
+
+	// Set the VerticalScrollBar padding so it is limited to the scrollable area.
 	VerticalScrollBar->SetPadding(FMargin(0.0f, TopOffset, 0.0f, FMath::Max(BottomOffset, 12.0f)));
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1444,14 +1468,13 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 		//////////////////////////////////////////////////
 		// Display time markers stats.
 
-		if (MarkersTrack)
+		if (MarkersTrack->IsVisible())
 		{
 			DrawContext.DrawText
 			(
 				DbgX, DbgY,
-				FString::Format(TEXT("{0}{1} logs : {2} boxes, {3} texts"),
+				FString::Format(TEXT("{0} logs : {1} boxes, {2} texts"),
 				{
-					MarkersTrack->IsVisible() ? TEXT("") : TEXT("*"),
 					FText::AsNumber(MarkersTrack->GetNumLogMessages()).ToString(),
 					FText::AsNumber(MarkersTrack->GetNumBoxes()).ToString(),
 					FText::AsNumber(MarkersTrack->GetNumTexts()).ToString(),
@@ -1519,7 +1542,7 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 		if (bIsPanning) InputStr += " Panning";
 		if (bIsSelecting) InputStr += " Selecting";
 		if (bIsDragging) InputStr += " Dragging";
-		if (bIsScrubbing) InputStr += " Scrubbing";
+		if (TimeRulerTrack->IsScrubbing()) InputStr += " Scrubbing";
 		DrawContext.DrawText(DbgX, DbgY, InputStr, SummaryFont, DbgTextColor);
 		DbgY += DbgDY;
 	}
@@ -1559,6 +1582,17 @@ void STimingView::AddTrack(TSharedPtr<FBaseTimingTrack> Track, ETimingTrackLocat
 
 	const TCHAR* LocationName = GetLocationName(Location);
 	TArray<TSharedPtr<FBaseTimingTrack>>& TrackList = const_cast<TArray<TSharedPtr<FBaseTimingTrack>>&>(GetTrackList(Location));
+
+	const int32 MaxNumTracks = 1000;
+	if (TrackList.Num() >= MaxNumTracks)
+	{
+		UE_LOG(TimingProfiler, Warning, TEXT("Too many tracks already created (%d tracks)! Ignoring %s track : %s (\"%s\")"),
+			TrackList.Num(),
+			LocationName,
+			*Track->GetTypeName().ToString(),
+			*Track->GetName());
+		return;
+	}
 
 	UE_LOG(TimingProfiler, Log, TEXT("New %s Track (%d) : %s (\"%s\")"),
 		LocationName,
@@ -1753,19 +1787,37 @@ FReply STimingView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointe
 		}
 	}
 
+	TSharedPtr<Insights::FTimeMarker> ScrubbingTimeMarker = nullptr;
+
 	if (bStartPanningSelectingOrScrubbing)
 	{
+		bool bIsHoveringTimeRulerTrack = false;
+		if (TimeRulerTrack->IsVisible())
+		{
+			bIsHoveringTimeRulerTrack = MousePositionOnButtonDown.Y >= TimeRulerTrack->GetPosY() &&
+										MousePositionOnButtonDown.Y < TimeRulerTrack->GetPosY() + TimeRulerTrack->GetHeight();
+			if (bIsHoveringTimeRulerTrack)
+			{
+				if (MouseEvent.GetModifierKeys().IsControlDown())
+				{
+					ScrubbingTimeMarker = DefaultTimeMarker;
+				}
+				else
+				{
+					ScrubbingTimeMarker = TimeRulerTrack->GetTimeMarkerAtPos(MousePositionOnButtonDown, Viewport);
+				}
+			}
+		}
+
 		if (bIsSpaceBarKeyPressed)
 		{
 			bStartPanning = true;
 		}
-		else if (MousePositionOnButtonDown.Y < TimeRulerTrack->GetHeight() &&
-			(MouseEvent.GetModifierKeys().IsControlDown() || MouseEvent.GetModifierKeys().IsShiftDown()))
+		else if (ScrubbingTimeMarker)
 		{
 			bStartScrubbing = true;
 		}
-		else if (MousePositionOnButtonDown.Y < TimeRulerTrack->GetHeight() ||
-			(MouseEvent.GetModifierKeys().IsControlDown() && MouseEvent.GetModifierKeys().IsShiftDown()))
+		else if (bIsHoveringTimeRulerTrack || (MouseEvent.GetModifierKeys().IsControlDown() && MouseEvent.GetModifierKeys().IsShiftDown()))
 		{
 			bStartSelecting = true;
 		}
@@ -1787,13 +1839,13 @@ FReply STimingView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointe
 	{
 		bIsPanning = false;
 		bIsDragging = false;
-		bIsScrubbing = true;
+		TimeRulerTrack->StartScrubbing(ScrubbingTimeMarker.ToSharedRef());
 	}
 	else if (bStartPanning)
 	{
 		bIsPanning = true;
 		bIsDragging = false;
-		bIsScrubbing = false;
+		TimeRulerTrack->StopScrubbing();
 
 		ViewportStartTimeOnButtonDown = Viewport.GetStartTime();
 		ViewportScrollPosYOnButtonDown = Viewport.GetScrollPosY();
@@ -1818,7 +1870,7 @@ FReply STimingView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointe
 	{
 		bIsSelecting = true;
 		bIsDragging = false;
-		bIsScrubbing = false;
+		TimeRulerTrack->StopScrubbing();
 
 		SelectionStartTime = Viewport.SlateUnitsToTime(MousePositionOnButtonDown.X);
 		SelectionEndTime = SelectionStartTime;
@@ -1913,10 +1965,10 @@ FReply STimingView::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 				RaiseSelectionChanged();
 				bIsSelecting = false;
 			}
-			else if (bIsScrubbing)
+			else if (TimeRulerTrack->IsScrubbing())
 			{
 				RaiseTimeMarkerChanged();
-				bIsScrubbing = false;
+				TimeRulerTrack->StopScrubbing();
 			}
 
 			if (bIsValidForMouseClick)
@@ -1958,10 +2010,10 @@ FReply STimingView::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 				RaiseSelectionChanged();
 				bIsSelecting = false;
 			}
-			else if (bIsScrubbing)
+			else if (TimeRulerTrack->IsScrubbing())
 			{
 				RaiseTimeMarkerChanged();
-				bIsScrubbing = false;
+				TimeRulerTrack->StopScrubbing();
 			}
 
 			if (bIsValidForMouseClick)
@@ -2123,13 +2175,14 @@ FReply STimingView::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent
 				RaiseSelectionChanging();
 			}
 		}
-		else if (bIsScrubbing)
+		else if (TimeRulerTrack->IsScrubbing())
 		{
 			if (HasMouseCapture())
 			{
 				bIsDragging = true;
 
-				TimeMarker = Viewport.SlateUnitsToTime(MousePosition.X);
+				TSharedRef<Insights::FTimeMarker> ScrubbingTimeMarker = TimeRulerTrack->GetScrubbingTimeMarker();
+				ScrubbingTimeMarker->SetTime(Viewport.SlateUnitsToTime(MousePosition.X));
 				RaiseTimeMarkerChanging();
 			}
 		}
@@ -2497,40 +2550,38 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 		Viewport.AddDirtyFlags(ETimingTrackViewportDirtyFlags::HInvalidated);
 		return FReply::Handled();
 	}
-	else if (InKeyEvent.GetKey() == EKeys::G) // debug: toggles Graph track on/off
+	else if (InKeyEvent.GetKey() == EKeys::G)
 	{
 		ShowHideGraphTrack_Execute();
 		return FReply::Handled();
 	}
-	else if (InKeyEvent.GetKey() == EKeys::R) // debug: toggles Frame tracks on/off
+	else if (InKeyEvent.GetKey() == EKeys::R)
 	{
 		FrameSharedState->ShowHideAllFrameTracks();
 		return FReply::Handled();
 	}
-	else if (InKeyEvent.GetKey() == EKeys::Y) // debug: toggles GPU track on/off
+	else if (InKeyEvent.GetKey() == EKeys::Y)
 	{
 		ThreadTimingSharedState->ShowHideAllGpuTracks();
 		return FReply::Handled();
 	}
-	else if (InKeyEvent.GetKey() == EKeys::U) // debug: toggles CPU tracks on/off
+	else if (InKeyEvent.GetKey() == EKeys::U)
 	{
 		ThreadTimingSharedState->ShowHideAllCpuTracks();
 		return FReply::Handled();
 	}
-	else if (InKeyEvent.GetKey() == EKeys::L)  // debug: toggles Loading tracks on/off
+	else if (InKeyEvent.GetKey() == EKeys::L)
 	{
 		LoadingSharedState->ShowHideAllLoadingTracks();
 		return FReply::Handled();
 	}
-	else if (InKeyEvent.GetKey() == EKeys::I)  // debug: toggles IO tracks on/off
+	else if (InKeyEvent.GetKey() == EKeys::I)
 	{
 		FileActivitySharedState->ShowHideAllIoTracks();
 		return FReply::Handled();
 	}
-	else if (InKeyEvent.GetKey() == EKeys::O)  // debug: toggles IO merge lanes algorithm
+	else if (InKeyEvent.GetKey() == EKeys::O)
 	{
-		//FileActivitySharedState->ToggleMergeLanes();
-		//FileActivitySharedState->RequestUpdate();
 		FileActivitySharedState->ToggleBackgroundEvents();
 		return FReply::Handled();
 	}
@@ -2554,6 +2605,14 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 		LoadingSharedState->SetColorSchema(3);
 		return FReply::Handled();
 	}
+#if ACTIVATE_BENCHMARK
+	else if (InKeyEvent.GetKey() == EKeys::Z)
+		{
+			FTimingProfilerTests::FCheckValues CheckValues;
+			FTimingProfilerTests::RunEnumerateBenchmark(FTimingProfilerTests::FEnumerateTestParams(), CheckValues);
+			return FReply::Handled();
+		}
+#endif
 
 	return SCompoundWidget::OnKeyDown(MyGeometry, InKeyEvent);
 }
@@ -3065,6 +3124,7 @@ void STimingView::RaiseSelectionChanged()
 
 void STimingView::RaiseTimeMarkerChanging()
 {
+	const double TimeMarker = GetTimeMarker();
 	OnTimeMarkerChangedDelegate.Broadcast(Insights::ETimeChangedFlags::Interactive, TimeMarker);
 }
 
@@ -3072,15 +3132,22 @@ void STimingView::RaiseTimeMarkerChanging()
 
 void STimingView::RaiseTimeMarkerChanged()
 {
+	const double TimeMarker = GetTimeMarker();
 	OnTimeMarkerChangedDelegate.Broadcast(Insights::ETimeChangedFlags::None, TimeMarker);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+double STimingView::GetTimeMarker() const
+{
+	return DefaultTimeMarker->GetTime();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STimingView::SetTimeMarker(double InMarkerTime)
 {
-	TimeMarker = InMarkerTime;
-
+	DefaultTimeMarker->SetTime(InMarkerTime);
 	RaiseTimeMarkerChanged();
 }
 
@@ -3132,6 +3199,7 @@ void STimingView::SetAndCenterOnTimeMarker(double Time)
 
 void STimingView::SelectToTimeMarker(double Time)
 {
+	const double TimeMarker = GetTimeMarker();
 	if (TimeMarker < Time)
 	{
 		SelectTimeInterval(TimeMarker, Time - TimeMarker);
@@ -3986,4 +4054,5 @@ TArray<Insights::ITimingViewExtender*> STimingView::GetExtenders() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#undef ACTIVATE_BENCHMARK
 #undef LOCTEXT_NAMESPACE

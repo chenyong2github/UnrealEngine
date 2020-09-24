@@ -210,7 +210,7 @@ public:
 	FRWByteAddressBuffer PrimitiveToDFObjectIndexBuffer;
 
 	TArray<int32> VisibleCardsIndices;
-	TRefCountPtr<FPooledRDGBuffer> VisibleCardsIndexBuffer;
+	TRefCountPtr<FRDGPooledBuffer> VisibleCardsIndexBuffer;
 
 	// --- Captured from the triangle scene ---
 	TRefCountPtr<IPooledRenderTarget> AlbedoAtlas;

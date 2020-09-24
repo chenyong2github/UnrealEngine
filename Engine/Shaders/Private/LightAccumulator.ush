@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include "Common.ush"
+
 // set by c++, not set for LPV
 // 0 / 1
 #ifndef VISUALIZE_LIGHT_CULLING

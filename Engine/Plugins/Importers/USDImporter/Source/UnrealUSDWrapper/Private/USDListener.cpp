@@ -32,9 +32,9 @@ public:
 
 	virtual ~FUsdListenerImpl();
 
-	FUsdListener::FOnStageChanged OnStageChanged;
 	FUsdListener::FOnStageEditTargetChanged OnStageEditTargetChanged;
 	FUsdListener::FOnPrimsChanged OnPrimsChanged;
+	FUsdListener::FOnStageInfoChanged OnStageInfoChanged;
 	FUsdListener::FOnLayersChanged OnLayersChanged;
 
 	FThreadSafeCounter IsBlocked;
@@ -91,11 +91,6 @@ bool FUsdListener::IsBlocked() const
 	return Impl->IsBlocked.GetValue() > 0;
 }
 
-FUsdListener::FOnStageChanged& FUsdListener::GetOnStageChanged()
-{
-	return Impl->OnStageChanged;
-}
-
 FUsdListener::FOnStageEditTargetChanged& FUsdListener::GetOnStageEditTargetChanged()
 {
 	return Impl->OnStageEditTargetChanged;
@@ -104,6 +99,11 @@ FUsdListener::FOnStageEditTargetChanged& FUsdListener::GetOnStageEditTargetChang
 FUsdListener::FOnPrimsChanged& FUsdListener::GetOnPrimsChanged()
 {
 	return Impl->OnPrimsChanged;
+}
+
+FUsdListener::FOnStageInfoChanged& FUsdListener::GetOnStageInfoChanged()
+{
+	return Impl->OnStageInfoChanged;
 }
 
 FUsdListener::FOnLayersChanged& FUsdListener::GetOnLayersChanged()
@@ -155,17 +155,17 @@ void FUsdListenerImpl::HandleUsdNotice( const pxr::UsdNotice::ObjectsChanged& No
 	using namespace pxr;
 	using PathRange = UsdNotice::ObjectsChanged::PathRange;
 
-	if ( !OnPrimsChanged.IsBound() || IsBlocked.GetValue() > 0 )
+	if ( (!OnPrimsChanged.IsBound() && !OnStageInfoChanged.IsBound()) || IsBlocked.GetValue() > 0 )
 	{
 		return;
 	}
 
 	TMap< FString, bool > PrimsChangedList;
+	TArray< FString > StageChangedFields;
 
 	FScopedUsdAllocs UsdAllocs;
 
 	PathRange PathsToUpdate = Notice.GetResyncedPaths();
-
 	for ( PathRange::const_iterator It = PathsToUpdate.begin(); It != PathsToUpdate.end(); ++It )
 	{
 		constexpr bool bResync = true;
@@ -173,29 +173,49 @@ void FUsdListenerImpl::HandleUsdNotice( const pxr::UsdNotice::ObjectsChanged& No
 	}
 
 	PathsToUpdate = Notice.GetChangedInfoOnlyPaths();
-
 	for ( PathRange::const_iterator  PathToUpdateIt = PathsToUpdate.begin(); PathToUpdateIt != PathsToUpdate.end(); ++PathToUpdateIt )
 	{
 		const FString PrimPath = ANSI_TO_TCHAR( PathToUpdateIt->GetAbsoluteRootOrPrimPath().GetString().c_str() );
 
-		if ( !PrimsChangedList.Contains( PrimPath ) )
+		if ( PrimsChangedList.Contains( PrimPath ) )
 		{
-			bool bResync = false;
+			continue;
+		}
 
-			if ( PathToUpdateIt->GetAbsoluteRootOrPrimPath() == pxr::SdfPath::AbsoluteRootPath() )
+		bool bResync = false;
+
+		// If the layer reloaded, anything could have happened, so we must resync from the layer down
+		const std::vector<const SdfChangeList::Entry*>& Changes = PathToUpdateIt.base()->second;
+		for ( const SdfChangeList::Entry* Change : Changes )
+		{
+			if ( Change && Change->flags.didReloadContent )
 			{
-				pxr::TfTokenVector ChangedFields = PathToUpdateIt.GetChangedFields();
+				bResync = true;
+			}
+		}
 
-				for ( const pxr::TfToken& ChangeField : ChangedFields )
+		// Change on the stage root
+		bool bIsRootLayer = PathToUpdateIt->GetAbsoluteRootOrPrimPath() == pxr::SdfPath::AbsoluteRootPath();
+		if ( bIsRootLayer )
+		{
+			pxr::TfTokenVector ChangedFields = PathToUpdateIt.GetChangedFields();
+
+			for ( const pxr::TfToken& ChangedField : ChangedFields )
+			{
+				StageChangedFields.Add( ANSI_TO_TCHAR( ChangedField.GetString().c_str() ) );
+
+				if ( ChangedField == UsdGeomTokens->metersPerUnit )
 				{
-					if ( ChangeField == UsdGeomTokens->metersPerUnit )
-					{
-						bResync = true; // Force a resync when changing the metersPerUnit since it affects all coordinates
-						break;
-					}
+					bResync = true; // Force a resync when changing the metersPerUnit since it affects all coordinates
+					break;
 				}
 			}
+		}
 
+		// If the change is just about the stage updating some info like startTimeSeconds or framesPerSecond, then we don't
+		// need to refresh all prims. This is important because when undo/redoing, we may resync the movie scene, which shouldn't trigger prim spawning
+		if ( !bIsRootLayer || bResync )
+		{
 			PrimsChangedList.Add( PrimPath, bResync );
 		}
 	}
@@ -204,6 +224,12 @@ void FUsdListenerImpl::HandleUsdNotice( const pxr::UsdNotice::ObjectsChanged& No
 	{
 		FScopedUnrealAllocs UnrealAllocs;
 		OnPrimsChanged.Broadcast( PrimsChangedList );
+	}
+
+	if ( StageChangedFields.Num() > 0 )
+	{
+		FScopedUnrealAllocs UnrealAllocs;
+		OnStageInfoChanged.Broadcast( StageChangedFields );
 	}
 }
 
@@ -222,6 +248,7 @@ void FUsdListenerImpl::HandleLayersChangedNotice( const pxr::SdfNotice::LayersDi
 
 	TArray< FString > LayersNames;
 
+	FScopedUsdAllocs UsdAllocs;
 	[&](const pxr::SdfLayerChangeListVec& ChangeVec)
 	{
 		// Check to see if any layer reloaded. If so, rebuild all of our animations as a single layer changing
@@ -250,6 +277,7 @@ void FUsdListenerImpl::HandleLayersChangedNotice( const pxr::SdfNotice::LayersDi
 		}
 	}( Notice.GetChangeListVec() );
 
+	FScopedUnrealAllocs UnrealAllocs;
 	OnLayersChanged.Broadcast( LayersNames );
 }
 #endif // #if USE_USD_SDK

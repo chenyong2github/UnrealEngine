@@ -27,6 +27,9 @@ FAnimModel_AnimSequenceBase::FAnimModel_AnimSequenceBase(const TSharedRef<IPerso
 	: FAnimModel(InPreviewScene, InEditableSkeleton, InCommandList)
 	, AnimSequenceBase(InAnimSequenceBase)
 {
+	SnapTypes.Add(FAnimModel::FSnapType::Frames.Type, FAnimModel::FSnapType::Frames);
+	SnapTypes.Add(FAnimModel::FSnapType::Notifies.Type, FAnimModel::FSnapType::Notifies);
+
 	UpdateRange();
 
 	// Clear display flags
@@ -36,6 +39,7 @@ FAnimModel_AnimSequenceBase::FAnimModel_AnimSequenceBase(const TSharedRef<IPerso
 	}
 
 	AnimSequenceBase->RegisterOnAnimTrackCurvesChanged(UAnimSequenceBase::FOnAnimTrackCurvesChanged::CreateRaw(this, &FAnimModel_AnimSequenceBase::RefreshTracks));
+	AnimSequenceBase->RegisterOnNotifyChanged(UAnimSequenceBase::FOnNotifyChanged::CreateRaw(this, &FAnimModel_AnimSequenceBase::RefreshSnapTimes));
 	
 	if(GEditor)
 	{
@@ -50,6 +54,7 @@ FAnimModel_AnimSequenceBase::~FAnimModel_AnimSequenceBase()
 		GEditor->UnregisterForUndo(this);
 	}
 
+	AnimSequenceBase->UnregisterOnNotifyChanged(this);
 	AnimSequenceBase->UnregisterOnAnimTrackCurvesChanged(this);
 }
 
@@ -103,6 +108,34 @@ void FAnimModel_AnimSequenceBase::Initialize()
 		FExecuteAction::CreateSP(this, &FAnimModel_AnimSequenceBase::ToggleDisplaySecondary),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateSP(this, &FAnimModel_AnimSequenceBase::IsDisplaySecondaryChecked));
+
+	CommandList->MapAction(
+		Commands.SnapToFrames,
+		FExecuteAction::CreateSP(this, &FAnimModel_AnimSequenceBase::ToggleSnap, FAnimModel::FSnapType::Frames.Type),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FAnimModel_AnimSequenceBase::IsSnapChecked, FAnimModel::FSnapType::Frames.Type), 
+		FIsActionButtonVisible::CreateSP(this, &FAnimModel_AnimSequenceBase::IsSnapAvailable, FAnimModel::FSnapType::Frames.Type));
+
+	CommandList->MapAction(
+		Commands.SnapToNotifies,
+		FExecuteAction::CreateSP(this, &FAnimModel_AnimSequenceBase::ToggleSnap, FAnimModel::FSnapType::Notifies.Type),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FAnimModel_AnimSequenceBase::IsSnapChecked, FAnimModel::FSnapType::Notifies.Type), 
+		FIsActionButtonVisible::CreateSP(this, &FAnimModel_AnimSequenceBase::IsSnapAvailable, FAnimModel::FSnapType::Notifies.Type));
+
+	CommandList->MapAction(
+		Commands.SnapToCompositeSegments,
+		FExecuteAction::CreateSP(this, &FAnimModel_AnimSequenceBase::ToggleSnap, FAnimModel::FSnapType::CompositeSegment.Type),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FAnimModel_AnimSequenceBase::IsSnapChecked, FAnimModel::FSnapType::CompositeSegment.Type),
+		FIsActionButtonVisible::CreateSP(this, &FAnimModel_AnimSequenceBase::IsSnapAvailable, FAnimModel::FSnapType::CompositeSegment.Type));
+
+	CommandList->MapAction(
+		Commands.SnapToMontageSections,
+		FExecuteAction::CreateSP(this, &FAnimModel_AnimSequenceBase::ToggleSnap, FAnimModel::FSnapType::MontageSection.Type),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FAnimModel_AnimSequenceBase::IsSnapChecked, FAnimModel::FSnapType::MontageSection.Type),
+		FIsActionButtonVisible::CreateSP(this, &FAnimModel_AnimSequenceBase::IsSnapAvailable, FAnimModel::FSnapType::MontageSection.Type));
 }
 
 void FAnimModel_AnimSequenceBase::RefreshTracks()
@@ -117,6 +150,9 @@ void FAnimModel_AnimSequenceBase::RefreshTracks()
 
 	// Add curves
 	RefreshCurveTracks();
+
+	// Snaps
+	RefreshSnapTimes();
 
 	// Tell the UI to refresh
 	OnTracksChangedDelegate.Broadcast();
@@ -440,6 +476,19 @@ bool FAnimModel_AnimSequenceBase::ClampToEndTime(float NewEndTime)
 	//if we had a valid sequence length before and our new end time is shorter
 	//then we need to clamp.
 	return (SequenceLength > 0.f && NewEndTime < SequenceLength);
+}
+
+void FAnimModel_AnimSequenceBase::RefreshSnapTimes()
+{
+	SnapTimes.Reset();
+	for(const FAnimNotifyEvent& Notify : AnimSequenceBase->Notifies)
+	{
+		SnapTimes.Emplace(FSnapType::Notifies.Type, (double)Notify.GetTime());
+		if(Notify.NotifyStateClass != nullptr)
+		{
+			SnapTimes.Emplace(FSnapType::Notifies.Type, (double)(Notify.GetTime() + Notify.GetDuration()));
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -307,7 +307,7 @@ namespace Gauntlet
 		/// Returns the cached version of our config. Avoids repeatedly calling GetConfiguration() on derived nodes
 		/// </summary>
 		/// <returns></returns>
-		protected TConfigClass GetCachedConfiguration()
+		private TConfigClass GetCachedConfiguration()
 		{
 			if (CachedConfig == null)
 			{

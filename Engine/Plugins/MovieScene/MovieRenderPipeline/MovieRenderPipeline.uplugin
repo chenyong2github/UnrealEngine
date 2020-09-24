@@ -23,6 +23,11 @@
 			"Name": "LevelSequenceEditor",
 			"Enabled": true,
 			"Optional": true
+		},
+		{
+			"Name": "OpenColorIO",
+			"Enabled": true,
+			"Optional": false
 		}
 	],
 	"Modules": [

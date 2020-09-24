@@ -308,7 +308,13 @@ public:
 			Type = EIntersectionType::Unknown;
 		}
 		else  // Triangles are parallel (and, in fact, coplanar).
-		{ // Directions N0xE0[i0].
+		{ 
+			if (!bReportCoplanarIntersection)
+			{
+				return false;
+			}
+
+			// Directions N0xE0[i0].
 			for (i0 = 0; i0 < 3; ++i0)
 			{
 				dir = N0.UnitCross(E0[i0]);

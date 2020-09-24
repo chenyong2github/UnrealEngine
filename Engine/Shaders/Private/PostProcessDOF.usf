@@ -4,10 +4,27 @@
 	PostProcessDOF.usf: PostProcessing Depth of Field
 =============================================================================*/
 
+#define FAR_BLUR			FAR_BLUR_COUNT >= 1
+#define NEAR_BLUR			NEAR_BLUR_COUNT >= 1
+#define DOF_VIGNETTE		NEAR_BLUR_COUNT == 2
+#define MRT_COUNT			FAR_BLUR_COUNT + (NEAR_BLUR_COUNT > 0 ? 1 : 0)
+
 #include "Common.ush"
-#include "PostProcessCommon.ush"
-#include "DeferredShadingCommon.ush"		// FGBufferData
 #include "DepthOfFieldCommon.ush"
+
+Texture2D SceneColorTexture;
+SamplerState SceneColorSampler;
+
+Texture2D DofFarBlurTexture;
+SamplerState DofFarBlurSampler;
+
+Texture2D DofNearBlurTexture;
+SamplerState DofNearBlurSampler;
+
+Texture2D SunShaftAndDofTexture;
+SamplerState SunShaftAndDofSampler;
+
+float4 BufferSizeAndInvSize;
 
 // todo move to central place
 float ComputeDOFNearFocalMask(float SceneDepth)
@@ -25,7 +42,7 @@ float ComputeDOFFarFocalMask(float SceneDepth)
 	return saturate((SceneDepth - FarFocalPlane) / View.DepthOfFieldFarTransitionRegion);
 }
 
-// Calculate focal masks from ES2's PP CoC.
+// Calculate focal masks from Mobile's PP CoC.
 float2 DecodeDOFFocalMask(float SceneDepth)
 {
 	float2 Ret;
@@ -56,19 +73,18 @@ float2 ComputeDOFFocalMask(float SceneDepth, float SkyWithoutHorizonMask)
 		Ret.x = lerp(Ret.x, 0,  SkyWithoutHorizonMask);
 	}
 
-#if MOBILE_SHADING
 	Ret = DecodeDOFFocalMask(SceneDepth);
-#endif
 
 	return Ret;
 }
 
 float4 ReadFullResAndDepth(float2 UV, in out float Depth)
 {
-	float4 Color = Texture2DSampleLevel(PostprocessInput0, PostprocessInput0Sampler, UV, 0);
-#if MOBILE_SHADING
-	Depth = ConvertFromDeviceZ(Color.a);
-#endif
+	float4 Color = Texture2DSampleLevel(SceneColorTexture, SceneColorSampler, UV, 0);
+	Color.a = Texture2DSampleLevel(SunShaftAndDofTexture, SunShaftAndDofSampler, UV, 0).r;
+
+	Depth = Color.a;
+
 	Color.a = 1.0;
 	return Color;
 }
@@ -83,11 +99,7 @@ void SetupPS(
 #endif
 	)
 {
-#if MOBILE_SHADING
 	float DoFToScreenScale = 4;
-#else
-	float DoFToScreenScale = 2;
-#endif
 
 	// Manually compute UV and ScreenSpacePos from SvPosition to avoid south east shiting of the pixel in bottom right corner
 	// caused by the DestRect.Size() + 1 viewport size done for odd view rect resolution.
@@ -95,16 +107,12 @@ void SetupPS(
 	float2 UV = ViewportUVToBufferUV(ViewportUV);
 	float2 ScreenSpacePos = DoFToScreenScale * float2(ViewportUV.x, 1 - ViewportUV.y) - 1;
 
-	float2 Offset = 0.5f * PostprocessInput0Size.zw;
+	float2 Offset = 0.5f * BufferSizeAndInvSize.zw;
 
 	float MaskDistance = View.DepthOfFieldFocalDistance + View.DepthOfFieldFocalRegion * 0.5f;
 
-#if MOBILE_SHADING
 	// Mobile path gathers Depth later in ReadFullResAndDepth
 	float4 DepthQuad = float4(0,0,0,0);
-#else
-	float4 DepthQuad = GatherSceneDepth(UV, PostprocessInput1Size.zw);
-#endif
 
 	float4 FarColor = 0;
 	float4 NearColor = 0;
@@ -187,7 +195,7 @@ void MainRecombinePS(
 	// SceneColor in full res
 	float2 PixelPosCenter = SvPosition.xy;
 
-	float2 FullResUV = PixelPosCenter * PostprocessInput0Size.zw;
+	float2 FullResUV = PixelPosCenter * BufferSizeAndInvSize.zw;
 
 	// DOF in half res
 	float2 ViewportUV = SvPositionToBufferUV(SvPosition);
@@ -196,12 +204,8 @@ void MainRecombinePS(
 	ViewportUV.x = clamp(ViewportUV.x, DepthOfFieldUVLimit.x, DepthOfFieldUVLimit.z);
 	ViewportUV.y = clamp(ViewportUV.y, DepthOfFieldUVLimit.y, DepthOfFieldUVLimit.w);
 
-#if MOBILE_SHADING
-	float4 SceneColorAndDepth = Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, FullResUV);
-	SceneColorAndDepth.a = ConvertFromDeviceZ(SceneColorAndDepth.a);
-#else
-	float4 SceneColorAndDepth = float4(Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, FullResUV).rgb, CalcSceneDepth(FullResUV));
-#endif
+	float4 SceneColorAndDepth = Texture2DSample(SceneColorTexture, SceneColorSampler, FullResUV);
+	SceneColorAndDepth.a = Texture2DSample(SunShaftAndDofTexture, SunShaftAndDofSampler, FullResUV).r;
 
 	float3 UnfocusedSceneColor = SceneColorAndDepth.rgb;
 
@@ -213,11 +217,11 @@ void MainRecombinePS(
 	float4 DOFAccumLayer3 = float4(0,0,0,0); 
 
 #if FAR_BLUR
-	DOFAccumLayer1 = Texture2DSample(PostprocessInput1, PostprocessInput1Sampler, ViewportUV);
+	DOFAccumLayer1 = Texture2DSample(DofFarBlurTexture, DofFarBlurSampler, ViewportUV);
 #endif
 
 #if NEAR_BLUR
-	DOFAccumLayer3 = Texture2DSample(PostprocessInput2, PostprocessInput2Sampler, ViewportUV);
+	DOFAccumLayer3 = Texture2DSample(DofNearBlurTexture, DofNearBlurSampler, ViewportUV);
 #endif
 
 	float Layer1Mask = DOFAccumLayer1.a;
@@ -225,10 +229,9 @@ void MainRecombinePS(
 //	float Layer2Mask = 1.0f - DOFAccumLayer1.a;
 	float Layer3Mask = DOFAccumLayer3.a;
 	float PerPixelNearMask = ComputeDOFNearFocalMask(SceneColorAndDepth.a);
-#if MOBILE_SHADING
+
 	float2 DoFMasks = DecodeDOFFocalMask(SceneColorAndDepth.a);
 	Layer2Mask = 1.0-DoFMasks.x;
-#endif
 
 	// 3 layers
 	float Div0Bias = 0.0001f;
@@ -260,16 +263,6 @@ void MainRecombinePS(
 
 	// Layer 3: on top of that blend the front half res layer	
 	LayerMerger = lerp(LayerMerger, FrontLayer, saturate(Layer3Mask * 5));
-
-#if SEPARATE_TRANSLUCENCY
-	{
-		//@todo - use UpsampleSeparateTranslucency
-		float4 SeparateTranslucency = Texture2DSample(PostprocessInput3, PostprocessInput3Sampler, FullResUV);
-		       
-		// add RGB, darken by A (this allows to represent translucent and additive blending)
-		LayerMerger.rgb = LayerMerger.rgb * SeparateTranslucency.a + SeparateTranslucency.rgb;
-	}
-#endif
 
 	OutColor.rgb = LayerMerger;
 	OutColor.a = 0;

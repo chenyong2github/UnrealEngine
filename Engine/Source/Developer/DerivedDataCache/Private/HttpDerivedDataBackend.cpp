@@ -987,7 +987,7 @@ bool FHttpDerivedDataBackend::IsServiceReady()
 	}
 	else
 	{
-		UE_LOG(LogDerivedDataCache, Warning, TEXT("Unable to reach HTTP DDC service at %s."), *Domain);
+		UE_LOG(LogDerivedDataCache, Warning, TEXT("Unable to reach HTTP DDC service at %s. Status: %d . Response: %s"), *Domain, Request.GetResponseCode(), *Request.GetResponseAsString());
 	}
 
 	return false;

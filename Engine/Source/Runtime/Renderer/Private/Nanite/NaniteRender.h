@@ -50,6 +50,7 @@ END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FNaniteVisualizeLevelInstanceParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextures)
 	SHADER_PARAMETER(FVector2D, OutputToInputScale)
 	SHADER_PARAMETER(uint32, MaxClusters)
 
@@ -66,6 +67,7 @@ END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FNaniteSelectionOutlineParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextures)
 	SHADER_PARAMETER(FVector2D, OutputToInputScale)
 	SHADER_PARAMETER(uint32, MaxClusters)
 
@@ -458,9 +460,9 @@ struct FRasterResults
 	uint32			RenderFlags;
 
 #if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-	TRefCountPtr<FPooledRDGBuffer>		InstanceDynamicData;
+	TRefCountPtr<FRDGPooledBuffer>		InstanceDynamicData;
 #endif
-	TRefCountPtr<FPooledRDGBuffer>		VisibleClustersSWHW;
+	TRefCountPtr<FRDGPooledBuffer>		VisibleClustersSWHW;
 
 	TRefCountPtr<IPooledRenderTarget>	VisBuffer64;
 	TRefCountPtr<IPooledRenderTarget>	DbgBuffer64;
@@ -611,7 +613,8 @@ void DrawPrePass(
 	);
 
 void DrawBasePass(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
+	FRDGTextureRef SceneDepth,
 	const FScene& Scene,
 	const FViewInfo& View,
 	const FRasterResults& RasterResults

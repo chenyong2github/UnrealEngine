@@ -161,6 +161,8 @@ void FAnimTimelineTrack_FloatCurve::ConvertCurveToMetaData()
 	// We're moving to a metadata curve, we need to clear out the keys.
 	FloatCurve.FloatCurve.Reset();
 	FloatCurve.FloatCurve.AddKey(0.0f, 1.0f);
+
+	ZoomToFit();
 }
 
 void FAnimTimelineTrack_FloatCurve::ConvertMetaDataToCurve()

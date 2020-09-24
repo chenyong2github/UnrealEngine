@@ -74,6 +74,7 @@ private:
 };
 #endif //WITH_MGPU
 
+
 class FD3D12Viewport : public FRHIViewport, public FD3D12AdapterChild
 {
 public:
@@ -100,10 +101,10 @@ public:
 
 	// Accessors.
 	FIntPoint GetSizeXY() const { return FIntPoint(SizeX, SizeY); }
-	FD3D12Texture2D* GetBackBuffer_RenderThread() const { return BackBuffer_RenderThread; }
-	FD3D12Texture2D* GetBackBuffer_RHIThread() const { return BackBuffer_RHIThread; }
 
-	FD3D12Texture2D* GetSDRBackBuffer_RenderThread() const { return (PixelFormat == SDRPixelFormat)? GetBackBuffer_RenderThread() : SDRBackBuffer_RenderThread; }
+	FD3D12Texture2D* GetDummyBackBuffer_RenderThread(bool bInIsSDR) const { return bInIsSDR ? SDRDummyBackBuffer_RenderThread : DummyBackBuffer_RenderThread; }
+
+	FD3D12Texture2D* GetBackBuffer_RHIThread() const { return BackBuffer_RHIThread; }
 	FD3D12Texture2D* GetSDRBackBuffer_RHIThread() const { return (PixelFormat == SDRPixelFormat) ? GetBackBuffer_RHIThread() : SDRBackBuffer_RHIThread; }
 
 	void WaitForFrameEventCompletion();
@@ -135,14 +136,22 @@ public:
 	/** Query the swap chain's current connected output for HDR support. */
 	bool CurrentOutputSupportsHDR() const;
 
-	void AdvanceBackBufferFrame_RenderThread();
-
-	uint32 GetNextPresentGPUIndex() const 
-	{ 
-		return BackBufferGPUIndices.IsValidIndex(CurrentBackBufferIndex_RenderThread) ? BackBufferGPUIndices[CurrentBackBufferIndex_RenderThread] : 0; 
+#if WITH_MGPU
+	/** Advance and get the next present GPU index */
+	void AdvanceExpectedBackBufferIndex_RenderThread();
+	uint32 GetNextPresentGPUIndex() const
+	{
+		FScopeLock Lock(&ExpectedBackBufferIndexLock);
+		return BackBufferGPUIndices.IsValidIndex(ExpectedBackBufferIndex_RenderThread) ? BackBufferGPUIndices[ExpectedBackBufferIndex_RenderThread] : 0;
 	}
+#endif // WITH_MGPU
 
 private:
+
+	/**
+	 * Create the dummy back buffer textures
+	 */
+	FD3D12Texture2D* CreateDummyBackBufferTextures(FD3D12Adapter* InAdapter, EPixelFormat InPixelFormat, uint32 InSizeX, uint32 InSizeY, bool bInIsSDR);
 
 	/** Presents the frame synchronizing with DWM. */
 	void PresentWithVsyncDWM();
@@ -188,23 +197,26 @@ private:
 #endif // D3D12_VIEWPORT_EXPOSES_SWAP_CHAIN
 
 	TArray<TRefCountPtr<FD3D12Texture2D>> BackBuffers;
-	TArray<uint32> BackBufferGPUIndices;
 	uint32 NumBackBuffers;
-	int32 BackbufferMultiGPUBinding; // where INDEX_NONE cycles through the GPU, otherwise the GPU index.
 
-	uint32 CurrentBackBufferIndex_RenderThread;
-	FD3D12Texture2D* BackBuffer_RenderThread;
+	TRefCountPtr<FD3D12Texture2D> DummyBackBuffer_RenderThread; // Dummy back buffer texture which always references the current back buffer on the RHI thread
 	uint32 CurrentBackBufferIndex_RHIThread;
 	FD3D12Texture2D* BackBuffer_RHIThread;
+
+#if WITH_MGPU
+	int32 BackbufferMultiGPUBinding; // where INDEX_NONE cycles through the GPU, otherwise the GPU index.
+	mutable FCriticalSection ExpectedBackBufferIndexLock; // Can very rarely be modified on the RHI thread as well if present is skipped
+	uint32 ExpectedBackBufferIndex_RenderThread; // Expected back buffer GPU index - used and updated on RenderThread!
+	TArray<uint32> BackBufferGPUIndices;
+#endif // WITH_MGPU
 
 	/** 
 	 * When HDR is enabled, SDR backbuffers may be required on some architectures for game DVR or broadcasting
 	 */
 	TArray<TRefCountPtr<FD3D12Texture2D>> SDRBackBuffers;
-	FD3D12Texture2D* SDRBackBuffer_RenderThread;
+	TRefCountPtr<FD3D12Texture2D> SDRDummyBackBuffer_RenderThread;
 	FD3D12Texture2D* SDRBackBuffer_RHIThread;
 	EPixelFormat SDRPixelFormat;
-
 
 	/** A fence value used to track the GPU's progress. */
 	FD3D12Fence Fence;

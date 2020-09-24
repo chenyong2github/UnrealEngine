@@ -65,6 +65,48 @@ float GetCloudVolumetricShadow(in float3 WorldSpace, in float4x4 CloudShadowmapW
 
 
 
+
+
+
+
+float4 GetCloudLuminanceTransmittanceOverFog(
+	float4 NDC, float3 SampledWorldPos, float3 CameraWorldPos,
+	Texture2D<float4> VolumetricCloudColor, SamplerState VolumetricCloudColorSampler,
+	Texture2D<float4> VolumetricCloudDepth, SamplerState VolumetricCloudDepthSampler,
+	float OneOverPreExposure, float4 CurrentVertexFog)
+{
+	float2 ScreenUv = (NDC.xy / NDC.ww) * float2(0.5f, -0.5f) + 0.5f;
+
+	const float CloudFrontDepthKm = Texture2DSample(VolumetricCloudDepth, VolumetricCloudDepthSampler, ScreenUv).r;
+	const float DistanceFromCameraKm = length(SampledWorldPos.xyz - CameraWorldPos) * CENTIMETER_TO_KILOMETER;
+	const float DepthInsideKm = DistanceFromCameraKm - CloudFrontDepthKm;
+	float4 FinalFog = CurrentVertexFog;
+	if (DepthInsideKm > 0.0f)
+	{
+		float4 CloudFog = Texture2DSample(VolumetricCloudColor, VolumetricCloudColorSampler, ScreenUv);
+		CloudFog.rgb *= OneOverPreExposure;
+
+		const float SoftBlendingDistanceKm = 0.5f;// 500 meters
+		const float BlendFactor = saturate(DepthInsideKm / SoftBlendingDistanceKm);
+		const float4 FogToApplyUnder = CurrentVertexFog;
+		const float4 FogToApplyOver = lerp(float4(0.0, 0.0, 0.0, 1.0), CloudFog, BlendFactor);
+
+		// Apply any other fog under the cloud contribution because the cloud data alreayd has heightfog and aerial perspective applied on it.
+		// It is an approximation but it works well practically.
+		FinalFog.rgb = FogToApplyOver.rgb + FogToApplyUnder.rgb * FogToApplyOver.a;
+		// And combine both transmittance.
+		FinalFog.a = FogToApplyOver.a * FogToApplyUnder.a;
+	}
+
+	return FinalFog;
+}
+
+
+
+
+
+
+
 #endif // D_VOLUMETRIC_CLOUD_COMMON
 
 

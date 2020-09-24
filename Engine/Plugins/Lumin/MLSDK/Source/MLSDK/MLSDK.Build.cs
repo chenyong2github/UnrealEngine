@@ -9,11 +9,9 @@ public class MLSDK : ModuleRules
 	public MLSDK(ReadOnlyTargetRules Target) : base(Target)
 	{
 		// Needed for FVector, FQuat and FTransform used in MagicLeapMath.h
-		PrivateDependencyModuleNames.Add("Core");
+		PublicDependencyModuleNames.Add("Core");
 		// Include headers to be public to other modules.
 		PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "Public"));
-
-		Type = ModuleType.External;
 
 		UEBuildPlatformSDK SDK = UEBuildPlatformSDK.GetSDKForPlatform(UnrealTargetPlatform.Lumin.ToString());
 		string MLSDKPath = System.Environment.GetEnvironmentVariable("MLSDK");

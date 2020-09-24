@@ -64,10 +64,6 @@ const uint32 MaxMetalStreams = 31;
 const uint32 MaxMetalStreams = 30;
 #endif
 
-#ifndef METAL_STATISTICS
-#define METAL_STATISTICS 0
-#endif
-
 // Unavailable on iOS, but dealing with this clutters the code.
 enum EMTLTextureType
 {
@@ -112,21 +108,13 @@ extern bool GMetalCommandBufferDebuggingEnabled;
 #ifndef ENABLE_METAL_GPUEVENTS_IN_TEST
 	#define ENABLE_METAL_GPUEVENTS_IN_TEST 0
 #endif
-#define ENABLE_METAL_GPUEVENTS	(UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT || (UE_BUILD_TEST && ENABLE_METAL_GPUEVENTS_IN_TEST) || METAL_STATISTICS)
+#define ENABLE_METAL_GPUEVENTS	(UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT || (UE_BUILD_TEST && ENABLE_METAL_GPUEVENTS_IN_TEST))
 #define ENABLE_METAL_GPUPROFILE	(ENABLE_METAL_GPUEVENTS && 1)
 
 #if ENABLE_METAL_GPUPROFILE
 #define METAL_GPUPROFILE(Code) Code
 #else
 #define METAL_GPUPROFILE(Code) 
-#endif
-
-#if METAL_STATISTICS
-#define METAL_STATISTIC(Code) if (GIsMetalInitialized) { Code; }
-#define METAL_STATISTICS_ONLY(Code) Code
-#else
-#define METAL_STATISTIC(Code)
-#define METAL_STATISTICS_ONLY(Code)
 #endif
 
 #define UNREAL_TO_METAL_BUFFER_INDEX(Index) ((MaxMetalStreams - 1) - Index)

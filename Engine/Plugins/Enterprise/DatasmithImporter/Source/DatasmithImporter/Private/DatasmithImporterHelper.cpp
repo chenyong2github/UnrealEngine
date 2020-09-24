@@ -56,7 +56,7 @@ namespace DatasmithImporterHelperInternal
 				FString Name = ObjectTools::SanitizeObjectName(FPaths::GetBaseFilename(Filename));
 				FString PackageName = ObjectTools::SanitizeInvalidChars(FPaths::Combine( *CorrectPath, *Name ), INVALID_LONGPACKAGE_CHARACTERS);
 
-				UPackage* Pkg = CreatePackage(nullptr, *PackageName);
+				UPackage* Pkg = CreatePackage(*PackageName);
 				if (!ensure(Pkg))
 				{
 					// Failed to create the package to hold this asset for some reason

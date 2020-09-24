@@ -3,16 +3,12 @@
 #include "Units/Debug/RigUnit_VisualDebug.h"
 #include "Units/RigUnitContext.h"
 
-FName FRigUnit_VisualDebugVector::DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const
+FRigUnit_VisualDebugVector_Execute()
 {
-	if (InPinPath == TEXT("Value"))
-	{
-		return BoneSpace;
-	}
-	return NAME_None;
+	FRigUnit_VisualDebugVectorItemSpace::StaticExecute(RigVMExecuteContext, Value, bEnabled, Mode, Color, Thickness, Scale, FRigElementKey(BoneSpace, ERigElementType::Bone), Context);
 }
 
-FRigUnit_VisualDebugVector_Execute()
+FRigUnit_VisualDebugVectorItemSpace_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -26,9 +22,9 @@ FRigUnit_VisualDebugVector_Execute()
 	}
 
 	FTransform WorldOffset = FTransform::Identity;
-	if (BoneSpace != NAME_None && Context.GetBones() != nullptr)
+	if (Space.IsValid())
 	{
-		WorldOffset = Context.GetBones()->GetGlobalTransform(BoneSpace);
+		WorldOffset = Context.Hierarchy->GetGlobalTransform(Space);
 	}
 
 	switch(Mode)
@@ -50,35 +46,27 @@ FRigUnit_VisualDebugVector_Execute()
 	}
 }
 
-FName FRigUnit_VisualDebugQuat::DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const
+FRigUnit_VisualDebugQuat_Execute()
 {
-	if (InPinPath == TEXT("Value"))
-	{
-		return BoneSpace;
-	}
-	return NAME_None;
+	FRigUnit_VisualDebugQuatItemSpace::StaticExecute(RigVMExecuteContext, Value, bEnabled, Thickness, Scale, FRigElementKey(BoneSpace, ERigElementType::Bone), Context);
 }
 
-FRigUnit_VisualDebugQuat_Execute()
+FRigUnit_VisualDebugQuatItemSpace_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
     FTransform Transform = FTransform::Identity;
     Transform.SetRotation(Value);
 
-	FRigUnit_VisualDebugTransform::StaticExecute(RigVMOperatorName, RigVMOperatorIndex, Transform, bEnabled, Thickness, Scale, BoneSpace, Context);
-}
-
-FName FRigUnit_VisualDebugTransform::DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const
-{
-	if (InPinPath == TEXT("Value"))
-	{
-		return BoneSpace;
-	}
-	return NAME_None;
+	FRigUnit_VisualDebugTransformItemSpace::StaticExecute(RigVMExecuteContext, Transform, bEnabled, Thickness, Scale, Space, Context);
 }
 
 FRigUnit_VisualDebugTransform_Execute()
+{
+	FRigUnit_VisualDebugTransformItemSpace::StaticExecute(RigVMExecuteContext, Value, bEnabled, Thickness, Scale, FRigElementKey(BoneSpace, ERigElementType::Bone), Context);
+}
+
+FRigUnit_VisualDebugTransformItemSpace_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -92,9 +80,9 @@ FRigUnit_VisualDebugTransform_Execute()
 	}
 
 	FTransform WorldOffset = FTransform::Identity;
-	if (BoneSpace != NAME_None && Context.GetBones() != nullptr)
+	if (Space.IsValid())
 	{
-		WorldOffset = Context.GetBones()->GetGlobalTransform(BoneSpace);
+		WorldOffset = Context.Hierarchy->GetGlobalTransform(Space);
 	}
 
 	Context.DrawInterface->DrawAxes(WorldOffset, Value, Scale, Thickness);

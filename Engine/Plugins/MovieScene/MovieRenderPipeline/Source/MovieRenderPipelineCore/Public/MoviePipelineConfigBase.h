@@ -109,6 +109,25 @@ public:
 	}
 
 	/**
+	* Finds an array of all settings matching the specific type, including inherited classes.
+	*/
+	TArray<UMoviePipelineSetting*> FindSettings(TSubclassOf<UMoviePipelineSetting> InClass) const
+	{
+		TArray<UMoviePipelineSetting*> FoundSettings;
+
+		TArray<UMoviePipelineSetting*> AllSettings = GetUserSettings();
+		for (UMoviePipelineSetting* Setting : AllSettings)
+		{
+			if (Setting->GetClass()->IsChildOf(InClass))
+			{
+				FoundSettings.Add(Setting);
+			}
+		}
+
+		return FoundSettings;
+	}
+
+	/**
 	* Find a setting of a particular type for this config
 	*/
 	template<typename SettingType>

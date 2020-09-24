@@ -7,10 +7,15 @@
 #include "HelperUtil.h"
 #include "ControlRigBlueprintGeneratedClass.h"
 #include "ControlRigObjectVersion.h"
+#include "Units/Execution/RigUnit_BeginExecution.h"
+#include "Units/Execution/RigUnit_PrepareForExecution.h"
+#include "Units/Execution/RigUnit_InverseExecution.h"
 #if WITH_EDITOR
 #include "ControlRigModule.h"
 #include "Modules/ModuleManager.h"
 #include "RigVMModel/RigVMNode.h"
+#include "Engine/Blueprint.h"
+#include "EdGraphSchema_K2.h"
 #endif// WITH_EDITOR
 
 #define LOCTEXT_NAMESPACE "ControlRig"
@@ -20,24 +25,6 @@ DEFINE_LOG_CATEGORY(LogControlRig);
 DECLARE_STATS_GROUP(TEXT("ControlRig"), STATGROUP_ControlRig, STATCAT_Advanced);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Control Rig Execution"), STAT_RigExecution, STATGROUP_ControlRig, );
 DEFINE_STAT(STAT_RigExecution);
-
-const FName UControlRig::DeprecatedMetaName("Deprecated");
-const FName UControlRig::InputMetaName("Input");
-const FName UControlRig::OutputMetaName("Output");
-const FName UControlRig::AbstractMetaName("Abstract");
-const FName UControlRig::CategoryMetaName("Category");
-const FName UControlRig::DisplayNameMetaName("DisplayName");
-const FName UControlRig::MenuDescSuffixMetaName("MenuDescSuffix");
-const FName UControlRig::ShowVariableNameInTitleMetaName("ShowVariableNameInTitle");
-const FName UControlRig::CustomWidgetMetaName("CustomWidget");
-const FName UControlRig::ConstantMetaName("Constant");
-const FName UControlRig::TitleColorMetaName("TitleColor");
-const FName UControlRig::NodeColorMetaName("NodeColor");
-const FName UControlRig::KeywordsMetaName("Keywords");
-const FName UControlRig::PrototypeNameMetaName("PrototypeName");
-
-const FName UControlRig::ExpandPinByDefaultMetaName("ExpandByDefault");
-const FName UControlRig::DefaultArraySizeMetaName("DefaultArraySize");
 
 const FName UControlRig::OwnerComponent("OwnerComponent");
 
@@ -52,25 +39,45 @@ static TAutoConsoleVariable<int32> CVarControlRigCreateFloatControlsForCurves(
 UControlRig::UControlRig(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, DeltaTime(0.0f)
+	, AbsoluteTime(0.0f)
+	, FramesPerSecond(0.0f)
+	, bAccumulateTime(true)
 #if WITH_EDITOR
 	, ControlRigLog(nullptr)
 	, bEnableControlRigLogging(true)
-	, DrawInterface(nullptr)
-	, DataSourceRegistry(nullptr)
-	, PreviewInstance(nullptr)
-	, bRequiresInitExecution(false)
 #endif
+	, DataSourceRegistry(nullptr)
+	, EventQueue()
+#if WITH_EDITOR
+	, PreviewInstance(nullptr)
+#endif
+	, bRequiresInitExecution(false)
+	, bRequiresSetupEvent(false)
+	, bSetupModeEnabled(false)
+	, bResetInitialTransformsBeforeSetup(true)
+	, bManipulationEnabled(false)
+	, InitBracket(0)
+	, UpdateBracket(0)
+	, PreSetupBracket(0)
+	, PostSetupBracket(0)
+	, InteractionBracket(0)
+	, InterRigSyncBracket(0)
 {
 	VM = ObjectInitializer.CreateDefaultSubobject<URigVM>(this, TEXT("VM"));
 	// create default source registry
 	DataSourceRegistry = CreateDefaultSubobject<UAnimationDataSourceRegistry>(TEXT("DataSourceRegistry"));
+
+	EventQueue.Add(FRigUnit_BeginExecution::EventName);
 }
 
 void UControlRig::BeginDestroy()
 {
 	Super::BeginDestroy();
 	InitializedEvent.Clear();
+	PreSetupEvent.Clear();
+	PostSetupEvent.Clear();
 	ExecutedEvent.Clear();
+	SetInteractionRig(nullptr);
 }
 
 UWorld* UControlRig::GetWorld() const
@@ -104,6 +111,12 @@ void UControlRig::Initialize(bool bInitRigUnits)
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_ControlRig_Initialize);
 
+	if(IsInitializing())
+	{
+		UE_LOG(LogControlRig, Warning, TEXT("%s: Initialize is being called recursively."), *GetPathName());
+		return;
+	}
+
 	if (IsTemplate())
 	{
 		// don't initialize template class 
@@ -115,16 +128,18 @@ void UControlRig::Initialize(bool bInitRigUnits)
 
 	// should refresh mapping 
 	Hierarchy.Initialize();
+	RequestSetup();
 
 	if (bInitRigUnits)
 	{
 		RequestInit();
 	}
 
-#if WITH_EDITOR
 	Hierarchy.ControlHierarchy.OnControlSelected.RemoveAll(this);
 	Hierarchy.ControlHierarchy.OnControlSelected.AddUObject(this, &UControlRig::HandleOnControlSelected);
-#endif
+	Hierarchy.ControlHierarchy.OnControlUISettingsChanged.AddUObject(this, &UControlRig::HandleOnControlUISettingChanged);
+	Hierarchy.OnEventReceived.RemoveAll(this);
+	Hierarchy.OnEventReceived.AddUObject(this, &UControlRig::HandleOnRigEvent);
 }
 
 void UControlRig::InitializeFromCDO()
@@ -134,10 +149,10 @@ void UControlRig::InitializeFromCDO()
 	// copy CDO property you need to here
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
-	UControlRig* CDO = GetClass()->GetDefaultObject<UControlRig>();
+		UControlRig* CDO = GetClass()->GetDefaultObject<UControlRig>();
 
 		// copy hierarchy
-	Hierarchy = CDO->Hierarchy;
+		Hierarchy = CDO->Hierarchy;
 		Hierarchy.Initialize();
 
 		// copy draw container
@@ -149,7 +164,137 @@ void UControlRig::Evaluate_AnyThread()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	Execute(EControlRigState::Update);
+	for (const FName& EventName : EventQueue)
+	{
+		Execute(EControlRigState::Update, EventName);
+	}
+}
+
+
+TArray<FRigVMExternalVariable> UControlRig::GetExternalVariables() const
+{
+	return GetExternalVariablesImpl(true);
+}
+
+TArray<FRigVMExternalVariable> UControlRig::GetExternalVariablesImpl(bool bFallbackToBlueprint) const
+{
+	TArray<FRigVMExternalVariable> ExternalVariables;
+
+	for (TFieldIterator<FProperty> PropertyIt(GetClass()); PropertyIt; ++PropertyIt)
+	{
+		FProperty* Property = *PropertyIt;
+		if(Property->IsNative())
+		{
+			continue;
+		}
+
+		FRigVMExternalVariable ExternalVariable = FRigVMExternalVariable::Make(Property, (UObject*)this);
+		if(!ExternalVariable.IsValid())
+		{
+			UE_LOG(LogControlRig, Warning, TEXT("%s: Property '%s' of type '%s' is not supported."), *GetClass()->GetName(), *Property->GetName(), *Property->GetCPPType());
+			continue;
+		}
+
+		ExternalVariables.Add(ExternalVariable);
+	}
+
+#if WITH_EDITOR
+
+	if (bFallbackToBlueprint)
+	{
+		// if we have a difference in the blueprint variables compared to us - let's 
+		// use those instead. the assumption here is that the blueprint is dirty and
+		// hasn't been compiled yet.
+		if (UBlueprint* Blueprint = Cast<UBlueprint>(GetClass()->ClassGeneratedBy))
+		{
+			TArray<FRigVMExternalVariable> BlueprintVariables;
+			for (const FBPVariableDescription& VariableDescription : Blueprint->NewVariables)
+			{
+				FRigVMExternalVariable ExternalVariable = GetExternalVariableFromDescription(VariableDescription);
+				if (ExternalVariable.TypeName.IsNone())
+				{
+					continue;
+				}
+
+				ExternalVariable.Memory = nullptr;
+
+				BlueprintVariables.Add(ExternalVariable);
+			}
+
+			if (ExternalVariables.Num() != BlueprintVariables.Num())
+			{
+				return BlueprintVariables;
+			}
+
+			TMap<FName, int32> NameMap;
+			for (int32 Index = 0; Index < ExternalVariables.Num(); Index++)
+			{
+				NameMap.Add(ExternalVariables[Index].Name, Index);
+			}
+
+			for (FRigVMExternalVariable BlueprintVariable : BlueprintVariables)
+			{
+				const int32* Index = NameMap.Find(BlueprintVariable.Name);
+				if (Index == nullptr)
+				{
+					return BlueprintVariables;
+				}
+
+				FRigVMExternalVariable ExternalVariable = ExternalVariables[*Index];
+				if (ExternalVariable.bIsArray != BlueprintVariable.bIsArray ||
+					ExternalVariable.bIsPublic != BlueprintVariable.bIsPublic ||
+					ExternalVariable.TypeName != BlueprintVariable.TypeName ||
+					ExternalVariable.TypeObject != BlueprintVariable.TypeObject)
+				{
+					return BlueprintVariables;
+				}
+			}
+		}
+	}
+#endif
+
+	return ExternalVariables;
+}
+
+TArray<FRigVMExternalVariable> UControlRig::GetPublicVariables() const
+{
+	TArray<FRigVMExternalVariable> PublicVariables;
+	TArray<FRigVMExternalVariable> ExternalVariables = GetExternalVariables();
+	for (const FRigVMExternalVariable& ExternalVariable : ExternalVariables)
+	{
+		if (ExternalVariable.bIsPublic)
+		{
+			PublicVariables.Add(ExternalVariable);
+		}
+	}
+	return PublicVariables;
+}
+
+FRigVMExternalVariable UControlRig::GetPublicVariableByName(const FName& InVariableName) const
+{
+	if (FProperty* Property = GetPublicVariableProperty(InVariableName))
+	{
+		return FRigVMExternalVariable::Make(Property, (UObject*)this);
+	}
+	return FRigVMExternalVariable();
+}
+
+bool UControlRig::SupportsEvent(const FName& InEventName) const
+{
+	if (VM)
+	{
+		return VM->ContainsEntry(InEventName);
+	}
+	return false;
+}
+
+TArray<FName> UControlRig::GetSupportedEvents() const
+{
+	if (VM)
+	{
+		return VM->GetEntryNames();
+	}
+	return TArray<FName>();
 }
 
 #if WITH_EDITOR
@@ -169,6 +314,40 @@ void UControlRig::SetDeltaTime(float InDeltaTime)
 	DeltaTime = InDeltaTime;
 }
 
+void UControlRig::SetAbsoluteTime(float InAbsoluteTime, bool InSetDeltaTimeZero)
+{
+	if(InSetDeltaTimeZero)
+	{
+		DeltaTime = 0.f;
+	}
+	AbsoluteTime = InAbsoluteTime;
+	bAccumulateTime = false;
+}
+
+void UControlRig::SetAbsoluteAndDeltaTime(float InAbsoluteTime, float InDeltaTime)
+{
+	AbsoluteTime = InAbsoluteTime;
+	DeltaTime = InDeltaTime;
+}
+
+void UControlRig::SetFramesPerSecond(float InFramesPerSecond)
+{
+	FramesPerSecond = InFramesPerSecond;	
+}
+
+float UControlRig::GetCurrentFramesPerSecond() const
+{
+	if(FramesPerSecond > SMALL_NUMBER)
+	{
+		return FramesPerSecond;
+	}
+	if(DeltaTime > SMALL_NUMBER)
+	{
+		return 1.f / DeltaTime;
+	}
+	return 60.f;
+}
+
 void UControlRig::InstantiateVMFromCDO()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
@@ -183,17 +362,19 @@ void UControlRig::InstantiateVMFromCDO()
 		UControlRig* CDO = GetClass()->GetDefaultObject<UControlRig>();
 		if (VM && CDO && CDO->VM)
 		{
-			VM->CopyFrom(CDO->VM);
-	}
-	else
-	{
+			// reference the literal memory + byte code
+			VM->CopyFrom(CDO->VM, true, true);
+		}
+		else
+		{
 			VM->Reset();
 		}
 	}
+
 	RequestInit();
 }
 
-void UControlRig::Execute(const EControlRigState InState)
+void UControlRig::Execute(const EControlRigState InState, const FName& InEventName)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
@@ -203,30 +384,109 @@ void UControlRig::Execute(const EControlRigState InState)
 		{
 			InstantiateVMFromCDO();
 		}
+
+		if (InState == EControlRigState::Init)
+		{
+			VM->ClearExternalVariables();
+
+			TArray<FRigVMExternalVariable> ExternalVariables = GetExternalVariablesImpl(false);
+			for (FRigVMExternalVariable ExternalVariable : ExternalVariables)
+			{
+				VM->AddExternalVariable(ExternalVariable);
+			}
+		}
 	}
 
+	bool bJustRanInit = false;
 	if (bRequiresInitExecution)
 	{
 		bRequiresInitExecution = false;
 
 		if (InState != EControlRigState::Init)
 		{
-			Execute(EControlRigState::Init);
+			Execute(EControlRigState::Init, InEventName);
+			bJustRanInit = true;
 		}
 	}
 
 	FRigUnitContext Context;
-	Context.DrawInterface = DrawInterface;
+	Context.DrawInterface = &DrawInterface;
 	Context.DrawContainer = &DrawContainer;
 
 	if (InState == EControlRigState::Init)
 	{
 		Context.DataSourceRegistry = DataSourceRegistry;
+		AbsoluteTime = DeltaTime = 0.f;
 	}
 
 	Context.DeltaTime = DeltaTime;
+	Context.AbsoluteTime = AbsoluteTime;
+	Context.FramesPerSecond = GetCurrentFramesPerSecond();
+	Context.bDuringInteraction = IsInteracting();
 	Context.State = InState;
 	Context.Hierarchy = &Hierarchy;
+
+	Context.ToWorldSpaceTransform = FTransform::Identity;
+	Context.OwningComponent = nullptr;
+	Context.OwningActor = nullptr;
+	Context.World = nullptr;
+
+	if (!OuterSceneComponent.IsValid())
+	{
+		USceneComponent* SceneComponentFromRegistry = DataSourceRegistry->RequestSource<USceneComponent>(UControlRig::OwnerComponent);
+		if (SceneComponentFromRegistry)
+		{
+			OuterSceneComponent = SceneComponentFromRegistry;
+		}
+		else
+		{
+			UObject* Parent = this;
+			while (Parent)
+			{
+				Parent = Parent->GetOuter();
+				if (Parent)
+				{
+					if (USceneComponent* SceneComponent = Cast<USceneComponent>(Parent))
+					{
+						OuterSceneComponent = SceneComponent;
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	if (OuterSceneComponent.IsValid())
+	{
+		Context.ToWorldSpaceTransform = OuterSceneComponent->GetComponentToWorld();
+		Context.OwningComponent = OuterSceneComponent.Get();
+		Context.OwningActor = Context.OwningComponent->GetOwner();
+		Context.World = Context.OwningActor->GetWorld();
+	}
+	else
+	{
+		if (ObjectBinding.IsValid())
+		{
+			AActor* HostingActor = ObjectBinding->GetHostingActor();
+			if (HostingActor)
+			{
+				Context.OwningActor = HostingActor;
+				Context.World = HostingActor->GetWorld();
+			}
+			else if (UObject* Owner = ObjectBinding->GetBoundObject())
+			{
+				Context.World = Owner->GetWorld();
+			}
+		}
+
+		if (Context.World == nullptr)
+		{
+			if (UObject* Outer = GetOuter())
+			{
+				Context.World = Outer->GetWorld();
+			}
+		}
+	}
 
 #if WITH_EDITOR
 	Context.Log = ControlRigLog;
@@ -237,14 +497,76 @@ void UControlRig::Execute(const EControlRigState InState)
 #endif
 
 	// execute units
-	ExecuteUnits(Context);
+	if (bRequiresSetupEvent && InState != EControlRigState::Init)
+	{
+		if(!IsRunningPreSetup() && !IsRunningPostSetup())
+		{
+			bRequiresSetupEvent = bSetupModeEnabled;
+
+			if (bResetInitialTransformsBeforeSetup)
+			{
+				if (UControlRig* CDO = Cast<UControlRig>(GetClass()->GetDefaultObject()))
+				{
+					Hierarchy.CopyInitialTransforms(CDO->Hierarchy);
+				}
+			}
+
+			if (PreSetupEvent.IsBound())
+			{
+				FControlRigBracketScope BracketScope(PreSetupBracket);
+				PreSetupEvent.Broadcast(this, EControlRigState::Update, FRigUnit_PrepareForExecution::EventName);
+			}
+
+			ExecuteUnits(Context, FRigUnit_PrepareForExecution::EventName);
+
+			if (PostSetupEvent.IsBound())
+			{
+				FControlRigBracketScope BracketScope(PostSetupBracket);
+				PostSetupEvent.Broadcast(this, EControlRigState::Update, FRigUnit_PrepareForExecution::EventName);
+			}
+
+			if (bSetupModeEnabled)
+			{
+				Hierarchy.BoneHierarchy.ResetTransforms();
+			}
+		}
+		else
+		{
+			UE_LOG(LogControlRig, Warning, TEXT("%s: Setup is being called recursively."), *GetPathName());
+		}
+	}
+
+	if (!bSetupModeEnabled)
+	{
+		if(!IsExecuting())
+		{
+			ExecuteUnits(Context, InEventName);
+
+			if (InState == EControlRigState::Init)
+			{
+				ExecuteUnits(Context, FRigUnit_BeginExecution::EventName);
+			}
+
+			if (InState != EControlRigState::Init)
+			{
+				if (bAccumulateTime)
+				{
+					AbsoluteTime += DeltaTime;
+				}
+			}
+		}
+		else
+		{
+			UE_LOG(LogControlRig, Warning, TEXT("%s: Update is being called recursively."), *GetPathName());
+		}
+	}
 
 #if WITH_EDITOR
-	if (ControlRigLog != nullptr && bEnableControlRigLogging)
+	if (ControlRigLog != nullptr && bEnableControlRigLogging && InState != EControlRigState::Init && !bJustRanInit)
 	{
 		for (const FControlRigLog::FLogEntry& Entry : ControlRigLog->Entries)
 		{
-			if (Entry.OperatorName == NAME_None || Entry.InstructionIndex == INDEX_NONE || Entry.Message.IsEmpty())
+			if (Entry.FunctionName == NAME_None || Entry.InstructionIndex == INDEX_NONE || Entry.Message.IsEmpty())
 			{
 				continue;
 			}
@@ -254,18 +576,18 @@ void UControlRig::Execute(const EControlRigState InState)
 				case EMessageSeverity::CriticalError:
 				case EMessageSeverity::Error:
 				{
-				UE_LOG(LogControlRig, Error, TEXT("Operator[%d] '%s': '%s'"), Entry.InstructionIndex, *Entry.OperatorName.ToString(), *Entry.Message);
+					UE_LOG(LogControlRig, Error, TEXT("Instruction[%d] '%s': '%s'"), Entry.InstructionIndex, *Entry.FunctionName.ToString(), *Entry.Message);
 					break;
 				}
 				case EMessageSeverity::PerformanceWarning:
 				case EMessageSeverity::Warning:
 				{
-				UE_LOG(LogControlRig, Warning, TEXT("Operator[%d] '%s': '%s'"), Entry.InstructionIndex, *Entry.OperatorName.ToString(), *Entry.Message);
+					UE_LOG(LogControlRig, Warning, TEXT("Instruction[%d] '%s': '%s'"), Entry.InstructionIndex, *Entry.FunctionName.ToString(), *Entry.Message);
 					break;
 				}
 				case EMessageSeverity::Info:
 				{
-				UE_LOG(LogControlRig, Display, TEXT("Operator[%d] '%s': '%s'"), Entry.InstructionIndex, *Entry.OperatorName.ToString(), *Entry.Message);
+					UE_LOG(LogControlRig, Display, TEXT("Instruction[%d] '%s': '%s'"), Entry.InstructionIndex, *Entry.FunctionName.ToString(), *Entry.Message);
 					break;
 				}
 				default:
@@ -275,13 +597,20 @@ void UControlRig::Execute(const EControlRigState InState)
 			}
 		}
 	}
+
+	if (bJustRanInit && ControlRigLog != nullptr)
+	{
+		ControlRigLog->KnownMessages.Reset();
+	}
 #endif
+
 
 	if (InState == EControlRigState::Init)
 	{
 		if (InitializedEvent.IsBound())
 		{
-			InitializedEvent.Broadcast(this, EControlRigState::Init);
+			FControlRigBracketScope BracketScope(InitBracket);
+			InitializedEvent.Broadcast(this, EControlRigState::Init, InEventName);
 		}
 	}
 	else if (InState == EControlRigState::Update)
@@ -290,17 +619,19 @@ void UControlRig::Execute(const EControlRigState InState)
 
 		if (ExecutedEvent.IsBound())
 		{
-			ExecutedEvent.Broadcast(this, EControlRigState::Update);
+			FControlRigBracketScope BracketScope(UpdateBracket);
+			ExecutedEvent.Broadcast(this, EControlRigState::Update, InEventName);
 		}
 	}
 
 	if (Context.DrawInterface && Context.DrawContainer)
 	{
+		DrawInterface.Reset();
 		Context.DrawInterface->Instructions.Append(Context.DrawContainer->Instructions);
 
 		for (const FRigControl& Control : Hierarchy.ControlHierarchy)
 		{
-			if (Control.bGizmoEnabled && !Control.bIsTransientControl && Control.bDrawLimits && (Control.bLimitTranslation || Control.bLimitRotation || Control.bLimitScale))
+			if (Control.bGizmoEnabled && Control.bGizmoVisible && !Control.bIsTransientControl && Control.bDrawLimits && (Control.bLimitTranslation || Control.bLimitRotation || Control.bLimitScale))
 			{
 				// for now we don't draw rotational limits
 				if(!Control.bLimitTranslation)
@@ -336,6 +667,37 @@ void UControlRig::Execute(const EControlRigState InState)
 							{
 								MinPos.Z = Control.MinimumValue.Get<float>();
 								MaxPos.Z = Control.MaximumValue.Get<float>();
+								break;
+							}
+						}
+
+						Instruction.Positions.Add(MinPos);
+						Instruction.Positions.Add(MaxPos);
+						break;
+					}
+					case ERigControlType::Integer:
+					{
+						FVector MinPos = FVector::ZeroVector;
+						FVector MaxPos = FVector::ZeroVector;
+
+						switch (Control.PrimaryAxis)
+						{
+							case ERigControlAxis::X:
+							{
+								MinPos.X = (float)Control.MinimumValue.Get<int32>();
+								MaxPos.X = (float)Control.MaximumValue.Get<int32>();
+								break;
+							}
+							case ERigControlAxis::Y:
+							{
+								MinPos.Y = (float)Control.MinimumValue.Get<int32>();
+								MaxPos.Y = (float)Control.MaximumValue.Get<int32>();
+								break;
+							}
+							case ERigControlAxis::Z:
+							{
+								MinPos.Z = (float)Control.MinimumValue.Get<int32>();
+								MaxPos.Z = (float)Control.MaximumValue.Get<int32>();
 								break;
 							}
 						}
@@ -386,6 +748,7 @@ void UControlRig::Execute(const EControlRigState InState)
 					case ERigControlType::Scale:
 					case ERigControlType::Transform:
 					case ERigControlType::TransformNoScale:
+					case ERigControlType::EulerTransform:
 					{
 						FVector MinPos, MaxPos;
 
@@ -408,6 +771,12 @@ void UControlRig::Execute(const EControlRigState InState)
 							{
 								MinPos = Control.MinimumValue.Get<FTransformNoScale>().Location;
 								MaxPos = Control.MaximumValue.Get<FTransformNoScale>().Location;
+								break;
+							}
+							case ERigControlType::EulerTransform:
+							{
+								MinPos = Control.MinimumValue.Get<FEulerTransform>().Location;
+								MaxPos = Control.MaximumValue.Get<FEulerTransform>().Location;
 								break;
 							}
 						}
@@ -444,22 +813,46 @@ void UControlRig::Execute(const EControlRigState InState)
 
 				if (Instruction.Positions.Num() > 0)
 				{
-					DrawInterface->Instructions.Add(Instruction);
+					DrawInterface.Instructions.Add(Instruction);
 				}
 			}
 		}
 	}
 }
 
-void UControlRig::ExecuteUnits(FRigUnitContext& InOutContext)
+void UControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEventName)
 {
 	if (VM)
 	{
-		FRigVMMemoryContainer* LocalMemory[] = { &VM->WorkMemory, &VM->LiteralMemory };
+		FRigVMMemoryContainer* LocalMemory[] = { VM->WorkMemoryPtr, VM->LiteralMemoryPtr };
 		TArray<void*> AdditionalArguments;
 		AdditionalArguments.Add(&InOutContext);
-		VM->Execute(FRigVMMemoryContainerPtrArray(LocalMemory, 2), AdditionalArguments);
+
+		if (InOutContext.State == EControlRigState::Init)
+		{
+			VM->Initialize(FRigVMMemoryContainerPtrArray(LocalMemory, 2), AdditionalArguments);
+		}
+		else
+		{
+			VM->Execute(FRigVMMemoryContainerPtrArray(LocalMemory, 2), AdditionalArguments, InEventName);
+		}
 	}
+}
+
+void UControlRig::RequestInit()
+{
+	bRequiresInitExecution = true;
+	RequestSetup();
+}
+
+void UControlRig::RequestSetup()
+{
+	bRequiresSetupEvent = true;
+}
+
+void UControlRig::SetEventQueue(const TArray<FName>& InEventNames)
+{
+	EventQueue = InEventNames;
 }
 
 URigVM* UControlRig::GetVM()
@@ -574,9 +967,13 @@ void UControlRig::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 
 	Ar.UsingCustomVersion(FControlRigObjectVersion::GUID);
+
+	if (Ar.IsLoading())
+	{
+		Hierarchy.ControlHierarchy.PostLoad();
+	}
 }
 
-// BEGIN IControlRigManipulatable interface
 const TArray<FRigSpace>& UControlRig::AvailableSpaces() const
 {
 	return Hierarchy.SpaceHierarchy.GetSpaces();
@@ -640,6 +1037,21 @@ FRigControl* UControlRig::FindControl(const FName& InControlName)
 	return nullptr;
 }
 
+FTransform UControlRig::SetupControlFromGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform)
+{
+	if (IsSetupModeEnabled())
+	{
+		FRigControl* Control = FindControl(InControlName);
+		if (Control && !Control->bIsTransientControl)
+		{
+			FTransform ParentTransform = Hierarchy.ControlHierarchy.GetParentTransform(Control->Index, false);
+			FTransform OffsetTransform = InGlobalTransform.GetRelativeTransform(ParentTransform);
+			Hierarchy.ControlHierarchy.SetControlOffset(Control->Index, OffsetTransform);
+		}
+	}
+	return InGlobalTransform;
+}
+
 void UControlRig::CreateRigControlsForCurveContainer()
 {
 	const bool bCreateFloatControls = CVarControlRigCreateFloatControlsForCurves->GetInt() == 0 ? false : true;
@@ -654,7 +1066,7 @@ void UControlRig::CreateRigControlsForCurveContainer()
 			{
 				FRigControlValue Value;
 				Value.Set<float>(Curve.Value);
-				FRigControl& Control = Hierarchy.ControlHierarchy.Add(Curve.Name, ERigControlType::Float, NAME_None, NAME_None, Value
+				FRigControl& Control = Hierarchy.ControlHierarchy.Add(Curve.Name, ERigControlType::Float, NAME_None, NAME_None, FTransform::Identity, Value
 	#if WITH_EDITORONLY_DATA
 					, Curve.Name,
 					FTransform::Identity,
@@ -664,11 +1076,12 @@ void UControlRig::CreateRigControlsForCurveContainer()
 				Control.bIsCurve = true;
 			}
 		}
+
 		ControlModified().AddUObject(this, &UControlRig::HandleOnControlModified);
 	}
 }
 
-void UControlRig::HandleOnControlModified(IControlRigManipulatable* Subject, const FRigControl& Control, EControlRigSetKey InSetKey)
+void UControlRig::HandleOnControlModified(UControlRig* Subject, const FRigControl& Control, const FRigControlModifiedContext& Context)
 {
 	if (Control.bIsCurve)
 	{
@@ -691,99 +1104,45 @@ FTransform UControlRig::GetControlGlobalTransform(const FName& InControlName) co
 			const FRigControl& Control = TransientControls[Index];
 			if (Control.Name == InControlName)
 			{
-				FTransform Transform = FTransform::Identity;
-
 				FTransform ParentTransform = FTransform::Identity;
 				if (Control.ParentIndex != INDEX_NONE)
 				{
 					ParentTransform = Hierarchy.BoneHierarchy.GetGlobalTransform(Control.ParentIndex);
 				}
+// 				else if (Control.SpaceIndex != INDEX_NONE)
+// 				{
+// 					ParentTransform = Hierarchy.SpaceHierarchy.GetGlobalTransform(Control.SpaceIndex);
+// 				}
 
-				switch (Control.ControlType)
-				{
-					case ERigControlType::Bool:
-					{
-						// not sure how to extract this from global transform
-						break;
-					}
-					case ERigControlType::Float:
-					{
-						float Value = Control.Value.Get<float>();
-						switch (Control.PrimaryAxis)
-						{
-							case ERigControlAxis::X:
-							{
-								Transform.SetLocation(FVector(Value, 0.f, 0.f));
-								break;
-							}
-							case ERigControlAxis::Y:
-							{
-								Transform.SetLocation(FVector(0.f, Value, 0.f));
-								break;
-							}
-							case ERigControlAxis::Z:
-							{
-								Transform.SetLocation(FVector(0.f, 0.f, Value));
-								break;
-							}
-						}
-						break;
-					}
-					case ERigControlType::Vector2D:
-					{
-						FVector2D Value = Control.Value.Get<FVector2D>();
-						switch (Control.PrimaryAxis)
-						{
-							case ERigControlAxis::X:
-							{
-								Transform.SetLocation(FVector(0.f, Value.X, Value.Y));
-								break;
-							}
-							case ERigControlAxis::Y:
-							{
-								Transform.SetLocation(FVector(Value.X, 0.f, Value.Y));
-								break;
-							}
-							case ERigControlAxis::Z:
-							{
-								Transform.SetLocation(FVector(Value.X, Value.Y, 0.f));
-								break;
-							}
-						}
-						break;
-					}
-					case ERigControlType::Position:
-					{
-						Transform.SetLocation(Control.Value.Get<FVector>());
-						break;
-					}
-					case ERigControlType::Scale:
-					{
-						Transform.SetScale3D(Control.Value.Get<FVector>());
-						break;
-					}
-					case ERigControlType::Rotator:
-					{
-						Transform.SetRotation(FQuat(Control.Value.Get<FRotator>()));
-						break;
-					}
-					case ERigControlType::Transform:
-					{
-						Transform = Control.Value.Get<FTransform>();
-						break;
-					}
-					case ERigControlType::TransformNoScale:
-					{
-						Transform = Control.Value.Get<FTransformNoScale>();
-						break;
-					}
-				}
-				return Transform * ParentTransform;
+				FTransform Transform = Control.GetTransformFromValue(ERigControlValueType::Current);
+				return Transform * Control.OffsetTransform * ParentTransform;
 			}
 		}
 	}
 #endif
 	return Hierarchy.ControlHierarchy.GetGlobalTransform(InControlName);
+}
+
+bool UControlRig::SetControlGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform, const FRigControlModifiedContext& Context)
+{
+	FTransform GlobalTransform = InGlobalTransform;
+	if (IsSetupModeEnabled())
+	{
+		GlobalTransform = SetupControlFromGlobalTransform(InControlName, GlobalTransform);
+	}
+
+	FRigControlValue Value = GetControlValueFromGlobalTransform(InControlName, GlobalTransform);
+	if (OnFilterControl.IsBound())
+	{
+		FRigControl* Control = FindControl(InControlName);
+		if (Control)
+		{
+			OnFilterControl.Broadcast(this, *Control, Value);
+		}
+	}
+
+	SetControlValue(InControlName, Value, true /* notify */, Context);
+	return true;
 }
 
 FRigControlValue UControlRig::GetControlValueFromGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform)
@@ -792,8 +1151,6 @@ FRigControlValue UControlRig::GetControlValueFromGlobalTransform(const FName& In
 
 	if (FRigControl* Control = FindControl(InControlName))
 	{
-		RetVal = Control->Value;
-
 		FTransform ParentTransform = FTransform::Identity;
 		if ((Control->ParentIndex != INDEX_NONE || Control->SpaceIndex != INDEX_NONE) && Control->bIsTransientControl)
 		{
@@ -808,89 +1165,49 @@ FRigControlValue UControlRig::GetControlValueFromGlobalTransform(const FName& In
 		}
 
 		FTransform Transform = InGlobalTransform.GetRelativeTransform(ParentTransform);
-		switch (Control->ControlType)
-		{
-			case ERigControlType::Bool:
-			{
-				// not sure how to extract this from global transform
-				break;
-			}
-			case ERigControlType::Float:
-			{
-				switch (Control->PrimaryAxis)
-				{
-					case ERigControlAxis::X:
-					{
-						RetVal.Set<float>(Transform.GetLocation().X);
-						break;
-					}
-					case ERigControlAxis::Y:
-					{
-						RetVal.Set<float>(Transform.GetLocation().Y);
-						break;
-					}
-					case ERigControlAxis::Z:
-					{
-						RetVal.Set<float>(Transform.GetLocation().Z);
-						break;
-					}
-				}
-				break;
-			}
-			case ERigControlType::Vector2D:
-			{
-				FVector Location = Transform.GetLocation();
-				switch (Control->PrimaryAxis)
-				{
-					case ERigControlAxis::X:
-					{
-						RetVal.Set<FVector2D>(FVector2D(Location.Y, Location.Z));
-						break;
-					}
-					case ERigControlAxis::Y:
-					{
-						RetVal.Set<FVector2D>(FVector2D(Location.X, Location.Z));
-						break;
-					}
-					case ERigControlAxis::Z:
-					{
-						RetVal.Set<FVector2D>(FVector2D(Location.X, Location.Y));
-						break;
-					}
-				}
-				break;
-			}
-			case ERigControlType::Position:
-			{
-				RetVal.Set<FVector>(Transform.GetLocation());
-				break;
-			}
-			case ERigControlType::Scale:
-			{
-				RetVal.Set<FVector>(Transform.GetScale3D());
-				break;
-			}
-			case ERigControlType::Rotator:
-			{
-				RetVal.Set<FRotator>(Transform.GetRotation().Rotator());
-				break;
-			}
-			case ERigControlType::Transform:
-			{
-				RetVal.Set<FTransform>(Transform);
-				break;
-			}
-			case ERigControlType::TransformNoScale:
-			{
-				RetVal.Set<FTransformNoScale>(Transform);
-				break;
-			}
-		}
+		Transform = Transform.GetRelativeTransform(Control->OffsetTransform);
 
-		Control->ApplyLimits(RetVal);
+		FRigControlValue PreviousVal = Control->Value;
+		Control->SetValueFromTransform(Transform, ERigControlValueType::Current);
+		RetVal = Control->Value;
+		Control->Value = PreviousVal;
+
+		if (ShouldApplyLimits())
+		{
+			Control->ApplyLimits(RetVal);
+		}
 	}
 
 	return RetVal;
+}
+
+void UControlRig::SetControlLocalTransform(const FName& InControlName, const FTransform& InLocalTransform, bool bNotify, const FRigControlModifiedContext& Context)
+{
+
+	if (FRigControl* Control = FindControl(InControlName))
+	{
+		FRigControlValue PreviousVal = Control->Value;
+		Control->SetValueFromTransform(InLocalTransform, ERigControlValueType::Current);
+		FRigControlValue ValueToSet = Control->Value;
+		Control->Value = PreviousVal;
+		if (OnFilterControl.IsBound())
+		{
+			OnFilterControl.Broadcast(this, *Control, ValueToSet);
+			
+		}
+		SetControlValue(InControlName, ValueToSet, bNotify, Context);
+	}
+
+}
+
+FTransform UControlRig::GetControlLocalTransform(const FName& InControlName)
+{
+	FRigControl* Control = FindControl(InControlName);
+	if (Control->bIsTransientControl)
+	{
+		return Control->GetTransformFromValue(ERigControlValueType::Current);
+	}
+	return GetControlHierarchy().GetLocalTransform(InControlName);
 }
 
 bool UControlRig::SetControlSpace(const FName& InControlName, const FName& InSpaceName)
@@ -901,7 +1218,6 @@ bool UControlRig::SetControlSpace(const FName& InControlName, const FName& InSpa
 
 UControlRigGizmoLibrary* UControlRig::GetGizmoLibrary() const
 {
-#if WITH_EDITOR
 	if (UControlRig* CDO = Cast<UControlRig>(GetClass()->GetDefaultObject()))
 	{
 		if (!CDO->GizmoLibrary.IsValid())
@@ -913,11 +1229,19 @@ UControlRigGizmoLibrary* UControlRig::GetGizmoLibrary() const
 			return CDO->GizmoLibrary.Get();
 		}
 	}
-#endif
 	return nullptr;
 }
 
-#if WITH_EDITOR
+void UControlRig::HandleOnControlUISettingChanged(FRigHierarchyContainer* Container, const FRigElementKey& InKey)
+{
+	if (InKey.Type == ERigElementType::Control)
+	{
+		if (FRigControl* Control = FindControl(InKey.Name))
+		{
+			ControlModified().Broadcast(this, *Control, FRigControlModifiedContext(EControlRigSetKey::Never));
+		}
+	}
+}
 
 void UControlRig::SelectControl(const FName& InControlName, bool bSelect)
 {
@@ -939,8 +1263,6 @@ bool UControlRig::IsControlSelected(const FName& InControlName)const
 	return Hierarchy.ControlHierarchy.IsSelected(InControlName);
 }
 
-// END IControlRigManipulatable interface
-
 void UControlRig::HandleOnControlSelected(FRigHierarchyContainer* InContainer, const FRigElementKey& InKey, bool bSelected)
 {
 	if (InKey.Type == ERigElementType::Control)
@@ -953,13 +1275,15 @@ void UControlRig::HandleOnControlSelected(FRigHierarchyContainer* InContainer, c
 	}
 }
 
+#if WITH_EDITOR
+
 void UControlRig::UpdateAvailableControls()
 {
 	AvailableControlsOverride = Hierarchy.ControlHierarchy.GetControls();
 	AvailableControlsOverride.Append(TransientControls);
 }
 
-FName UControlRig::AddTransientControl(URigVMPin* InPin, FName InSpaceName)
+FName UControlRig::AddTransientControl(URigVMPin* InPin, FRigElementKey SpaceKey, FTransform OffsetTransform)
 {
 	if (InPin == nullptr)
 	{
@@ -992,14 +1316,16 @@ FName UControlRig::AddTransientControl(URigVMPin* InPin, FName InSpaceName)
 		}
 	}
 
-	if(!InSpaceName.IsNone())
+	if(SpaceKey.IsValid() && SpaceKey.Type == ERigElementType::Bone)
 	{
-		NewControl.ParentIndex = Hierarchy.BoneHierarchy.GetIndex(InSpaceName);
+		NewControl.ParentIndex = Hierarchy.BoneHierarchy.GetIndex(SpaceKey.Name);
 		if (NewControl.ParentIndex != INDEX_NONE)
 		{
 			NewControl.ParentName = Hierarchy.BoneHierarchy[NewControl.ParentIndex].Name;
 		}
 	}
+
+	NewControl.OffsetTransform = OffsetTransform;
 
 	TransientControls.Add(NewControl);
 
@@ -1212,6 +1538,485 @@ void UControlRig::ClearTransientControls()
 }
 
 #endif
+
+void UControlRig::HandleOnRigEvent(FRigHierarchyContainer* InContainer, const FRigEventContext& InEvent)
+{
+	if (RigEventDelegate.IsBound())
+	{
+		RigEventDelegate.Broadcast(InContainer, InEvent);
+	}
+
+	switch (InEvent.Event)
+	{
+		case ERigEvent::RequestAutoKey:
+		{
+			int32 Index = InContainer->GetIndex(InEvent.Key);
+			if (Index != INDEX_NONE && InEvent.Key.Type == ERigElementType::Control)
+			{
+				const FRigControl& Control = InContainer->ControlHierarchy[Index];
+
+				FRigControlModifiedContext Context;
+				Context.SetKey = EControlRigSetKey::Always;
+				Context.LocalTime = InEvent.LocalTime;
+				Context.EventName = InEvent.SourceEventName;
+				ControlModified().Broadcast(this, Control, Context);
+			}
+		}
+	}
+}
+
+void UControlRig::GetControlsInOrder(TArray<FRigControl>& SortedControls) const
+{
+	TArray<FRigElementKey> Keys = Hierarchy.GetAllItems(true);
+	for (const FRigElementKey& Key : Keys)
+	{ 
+		if (Key.Type == ERigElementType::Control)
+		{
+			const FRigControl& RigControl = Hierarchy.ControlHierarchy[Key.Name];
+			FRigControl NewControl(RigControl);
+			SortedControls.Add(NewControl);
+		}
+	}
+}
+
+const FRigInfluenceMap* UControlRig::FindInfluenceMap(const FName& InEventName)
+{
+	if (UControlRig* CDO = GetClass()->GetDefaultObject<UControlRig>())
+	{
+		return CDO->Influences.Find(InEventName);
+	}
+	return nullptr;
+}
+
+void UControlRig::SetInteractionRig(UControlRig* InInteractionRig)
+{
+	if (InteractionRig == InInteractionRig)
+	{
+		return;
+	}
+
+	if (InteractionRig != nullptr)
+	{
+		InteractionRig->ControlModified().RemoveAll(this);
+		InteractionRig->OnInitialized_AnyThread().RemoveAll(this);
+		InteractionRig->OnExecuted_AnyThread().RemoveAll(this);
+		InteractionRig->ControlSelected().RemoveAll(this);
+		OnInitialized_AnyThread().RemoveAll(InteractionRig);
+		OnExecuted_AnyThread().RemoveAll(InteractionRig);
+		ControlSelected().RemoveAll(InteractionRig);
+	}
+
+	InteractionRig = InInteractionRig;
+
+	if (InteractionRig != nullptr)
+	{
+		SetInteractionRigClass(InteractionRig->GetClass());
+
+		InteractionRig->Initialize(true);
+		InteractionRig->CopyPoseFromOtherRig(this);
+		InteractionRig->RequestSetup();
+		InteractionRig->Execute(EControlRigState::Update, FRigUnit_BeginExecution::EventName);
+
+		InteractionRig->ControlModified().AddUObject(this, &UControlRig::HandleInteractionRigControlModified);
+		InteractionRig->OnInitialized_AnyThread().AddUObject(this, &UControlRig::HandleInteractionRigInitialized);
+		InteractionRig->OnExecuted_AnyThread().AddUObject(this, &UControlRig::HandleInteractionRigExecuted);
+		InteractionRig->ControlSelected().AddUObject(this, &UControlRig::HandleInteractionRigControlSelected, false);
+		OnInitialized_AnyThread().AddUObject(InteractionRig, &UControlRig::HandleInteractionRigInitialized);
+		OnExecuted_AnyThread().AddUObject(InteractionRig, &UControlRig::HandleInteractionRigExecuted);
+		ControlSelected().AddUObject(InteractionRig, &UControlRig::HandleInteractionRigControlSelected, true);
+
+		FControlRigBracketScope BracketScope(InterRigSyncBracket);
+		InteractionRig->HandleInteractionRigExecuted(this, EControlRigState::Update, FRigUnit_BeginExecution::EventName);
+	}
+}
+
+void UControlRig::SetInteractionRigClass(TSubclassOf<UControlRig> InInteractionRigClass)
+{
+	if (InteractionRigClass == InInteractionRigClass)
+	{
+		return;
+	}
+
+	InteractionRigClass = InInteractionRigClass;
+
+	if(InteractionRigClass)
+	{
+		if(InteractionRig != nullptr)
+		{
+			if(InteractionRig->GetClass() != InInteractionRigClass)
+			{
+				SetInteractionRig(nullptr);
+			}
+		}
+
+		if(InteractionRig == nullptr)
+		{
+			UControlRig* NewInteractionRig = NewObject<UControlRig>(this, InteractionRigClass);
+			SetInteractionRig(NewInteractionRig);
+		}
+	}
+}
+
+#if WITH_EDITOR
+
+void UControlRig::PreEditChange(FProperty* PropertyAboutToChange)
+{
+	Super::PreEditChange(PropertyAboutToChange);
+
+	if (PropertyAboutToChange && PropertyAboutToChange->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRig, InteractionRig))
+	{
+		SetInteractionRig(nullptr);
+	}
+	else if (PropertyAboutToChange && PropertyAboutToChange->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRig, InteractionRigClass))
+	{
+		SetInteractionRigClass(nullptr);
+	}
+}
+
+void UControlRig::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	if (PropertyChangedEvent.MemberProperty && PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRig, InteractionRig))
+	{
+		UControlRig* NewInteractionRig = InteractionRig;
+		SetInteractionRig(nullptr);
+		SetInteractionRig(NewInteractionRig);
+	}
+	else if (PropertyChangedEvent.MemberProperty && PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRig, InteractionRigClass))
+	{
+		TSubclassOf<UControlRig> NewInteractionRigClass = InteractionRigClass;
+		SetInteractionRigClass(nullptr);
+		SetInteractionRigClass(NewInteractionRigClass);
+		if (NewInteractionRigClass == nullptr)
+		{
+			SetInteractionRig(nullptr);
+		}
+	}
+}
+#endif
+
+void UControlRig::CopyPoseFromOtherRig(UControlRig* Subject)
+{
+	check(Subject);
+
+	const FRigBoneHierarchy& SourceBones = Subject->GetBoneHierarchy();
+	FRigBoneHierarchy& TargetBones = GetBoneHierarchy();
+
+	for (const FRigBone& SourceBone : SourceBones)
+	{
+		int32 Index = TargetBones.GetIndex(SourceBone.Name);
+		if (Index != INDEX_NONE)
+		{
+			TargetBones[Index].LocalTransform = SourceBone.LocalTransform;
+		}
+	}
+
+	TargetBones.RecomputeGlobalTransforms();
+
+	const FRigCurveContainer& SourceCurves = Subject->GetCurveContainer();
+	FRigCurveContainer& TargetCurves = GetCurveContainer();
+
+	for (const FRigCurve& SourceCurve : SourceCurves)
+	{
+		int32 Index = TargetCurves.GetIndex(SourceCurve.Name);
+		if (Index != INDEX_NONE)
+		{
+			TargetCurves[Index].Value = SourceCurve.Value;
+		}
+	}
+}
+
+void UControlRig::HandleInteractionRigControlModified(UControlRig* Subject, const FRigControl& Control, const FRigControlModifiedContext& Context)
+{
+	check(Subject);
+
+	if (IsSyncingWithOtherRig() || IsExecuting())
+	{
+		return;
+	}
+	FControlRigBracketScope BracketScope(InterRigSyncBracket);
+
+	if (Subject != InteractionRig)
+	{
+		return;
+	}
+
+	if (const FRigInfluenceMap* InfluenceMap = Subject->FindInfluenceMap(Context.EventName))
+	{
+		if (const FRigInfluenceEntry* InfluenceEntry = InfluenceMap->Find(Control.GetElementKey()))
+		{
+			for (const FRigElementKey& AffectedKey : *InfluenceEntry)
+			{
+				if (AffectedKey.Type == ERigElementType::Control)
+				{
+					if (const FRigControl* AffectedControl = FindControl(AffectedKey.Name))
+					{
+						QueuedModifiedControls.Add(*AffectedControl);
+					}
+				}
+				else if (
+					AffectedKey.Type == ERigElementType::Bone ||
+					AffectedKey.Type == ERigElementType::Curve)
+				{
+					// special case controls with a CONTROL suffix
+					FName BoneControlName = *FString::Printf(TEXT("%s_CONTROL"), *AffectedKey.Name.ToString());
+					if (const FRigControl* AffectedControl = FindControl(BoneControlName))
+					{
+						QueuedModifiedControls.Add(*AffectedControl);
+					}
+				}
+			}
+		}
+	}
+
+}
+
+void UControlRig::HandleInteractionRigInitialized(UControlRig* Subject, EControlRigState State, const FName& EventName)
+{
+	check(Subject);
+
+	if (IsSyncingWithOtherRig())
+	{
+		return;
+	}
+	FControlRigBracketScope BracketScope(InterRigSyncBracket);
+	RequestInit();
+}
+
+void UControlRig::HandleInteractionRigExecuted(UControlRig* Subject, EControlRigState State, const FName& EventName)
+{
+	check(Subject);
+
+	if (IsSyncingWithOtherRig() || IsExecuting())
+	{
+		return;
+	}
+	FControlRigBracketScope BracketScope(InterRigSyncBracket);
+
+	CopyPoseFromOtherRig(Subject);
+	Execute(EControlRigState::Update, FRigUnit_InverseExecution::EventName);
+
+	FRigControlModifiedContext Context;
+	Context.EventName = FRigUnit_InverseExecution::EventName;
+	Context.SetKey = EControlRigSetKey::DoNotCare;
+
+	for (const FRigControl& QueuedModifiedControl : QueuedModifiedControls)
+	{
+		ControlModified().Broadcast(this, QueuedModifiedControl, Context);
+	}
+}
+
+void UControlRig::HandleInteractionRigControlSelected(UControlRig* Subject, const FRigControl& InControl, bool bSelected, bool bInverted)
+{
+	check(Subject);
+
+	if (IsSyncingWithOtherRig() || IsExecuting())
+	{
+		return;
+	}
+	if (Subject->IsSyncingWithOtherRig() || Subject->IsExecuting())
+	{
+		return;
+	}
+	FControlRigBracketScope BracketScope(InterRigSyncBracket);
+
+	const FRigInfluenceMap* InfluenceMap = nullptr;
+	if (bInverted)
+	{
+		InfluenceMap = FindInfluenceMap(FRigUnit_BeginExecution::EventName);
+	}
+	else
+	{
+		InfluenceMap = Subject->FindInfluenceMap(FRigUnit_BeginExecution::EventName);
+	}
+
+	if (InfluenceMap)
+	{
+		FRigInfluenceMap InvertedMap;
+		if (bInverted)
+		{
+			InvertedMap = InfluenceMap->Inverse();
+			InfluenceMap = &InvertedMap;
+		}
+
+		struct Local
+		{
+			static void SelectAffectedElements(UControlRig* ThisRig, const FRigInfluenceMap* InfluenceMap, const FRigElementKey& InKey, bool bSelected, bool bInverted)
+			{
+				if (const FRigInfluenceEntry* InfluenceEntry = InfluenceMap->Find(InKey))
+				{
+					for (const FRigElementKey& AffectedKey : *InfluenceEntry)
+					{
+						if (AffectedKey.Type == ERigElementType::Control)
+						{
+							ThisRig->SelectControl(AffectedKey.Name, bSelected);
+						}
+
+						if (bInverted)
+						{
+							if (AffectedKey.Type == ERigElementType::Control)
+							{
+								ThisRig->SelectControl(AffectedKey.Name, bSelected);
+							}
+						}
+						else
+						{
+							if (AffectedKey.Type == ERigElementType::Control)
+							{
+								ThisRig->SelectControl(AffectedKey.Name, bSelected);
+							}
+							else if (AffectedKey.Type == ERigElementType::Bone ||
+								AffectedKey.Type == ERigElementType::Curve)
+							{
+								FName ControlName = *FString::Printf(TEXT("%s_CONTROL"), *AffectedKey.Name.ToString());
+								ThisRig->SelectControl(ControlName, bSelected);
+							}
+						}
+					}
+				}
+			}
+		};
+
+		Local::SelectAffectedElements(this, InfluenceMap, InControl.GetElementKey(), bSelected, bInverted);
+
+		if (bInverted)
+		{
+			FString ControlName = InControl.Name.ToString();
+			if (ControlName.EndsWith(TEXT("_CONTROL")))
+			{
+				FString BaseName = ControlName.Left(ControlName.Len() - 8);
+				Local::SelectAffectedElements(this, InfluenceMap, FRigElementKey(*BaseName, ERigElementType::Bone), bSelected, bInverted);
+				Local::SelectAffectedElements(this, InfluenceMap, FRigElementKey(*BaseName, ERigElementType::Curve), bSelected, bInverted);
+			}
+		}
+	}
+}
+
+#if WITH_EDITOR
+
+FEdGraphPinType UControlRig::GetPinTypeFromExternalVariable(const FRigVMExternalVariable& InExternalVariable)
+{
+	FEdGraphPinType PinType;
+	PinType.ResetToDefaults();
+	PinType.PinCategory = NAME_None;
+
+	if (InExternalVariable.TypeName == TEXT("bool"))
+	{
+		PinType.PinCategory = UEdGraphSchema_K2::PC_Boolean;
+	}
+	else if (InExternalVariable.TypeName == TEXT("int32"))
+	{
+		PinType.PinCategory = UEdGraphSchema_K2::PC_Int;
+	}
+	else if (InExternalVariable.TypeName == TEXT("float"))
+	{
+		PinType.PinCategory = UEdGraphSchema_K2::PC_Float;
+	}
+	else if (InExternalVariable.TypeName == TEXT("FName"))
+	{
+		PinType.PinCategory = UEdGraphSchema_K2::PC_Name;
+	}
+	else if (InExternalVariable.TypeName == TEXT("FString"))
+	{
+		PinType.PinCategory = UEdGraphSchema_K2::PC_String;
+	}
+	else if (Cast<UScriptStruct>(InExternalVariable.TypeObject))
+	{
+		PinType.PinCategory = UEdGraphSchema_K2::PC_Struct;
+		PinType.PinSubCategoryObject = InExternalVariable.TypeObject;
+	}
+	else if (Cast<UEnum>(InExternalVariable.TypeObject))
+	{
+		PinType.PinCategory = UEdGraphSchema_K2::PC_Byte;
+		PinType.PinSubCategoryObject = InExternalVariable.TypeObject;
+	}
+
+	if (InExternalVariable.bIsArray)
+	{
+		PinType.ContainerType = EPinContainerType::Array;
+	}
+	else
+	{
+		PinType.ContainerType = EPinContainerType::None;
+	}
+
+	return PinType;
+}
+
+FRigVMExternalVariable UControlRig::GetExternalVariableFromPinType(const FName& InName, const FEdGraphPinType& InPinType, bool bInPublic, bool bInReadonly)
+{
+	FRigVMExternalVariable ExternalVariable;
+	ExternalVariable.Name = InName;
+	ExternalVariable.bIsPublic = bInPublic;
+	ExternalVariable.bIsReadOnly = bInReadonly;
+
+	if (InPinType.ContainerType == EPinContainerType::None)
+	{
+		ExternalVariable.bIsArray = false;
+	}
+	else if (InPinType.ContainerType == EPinContainerType::Array)
+	{
+		ExternalVariable.bIsArray = true;
+	}
+	else
+	{
+		return FRigVMExternalVariable();
+	}
+
+	if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Boolean)
+	{
+		ExternalVariable.TypeName = TEXT("bool");
+	}
+	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Int)
+	{
+		ExternalVariable.TypeName = TEXT("int32");
+	}
+	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Enum ||
+		InPinType.PinCategory == UEdGraphSchema_K2::PC_Byte)
+	{
+		if (UEnum* Enum = Cast<UEnum>(InPinType.PinSubCategoryObject))
+		{
+			ExternalVariable.TypeName = Enum->GetFName();
+			ExternalVariable.TypeObject = Enum;
+		}
+		else
+		{
+			ExternalVariable.TypeName = TEXT("uint8");
+		}
+	}
+	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Float)
+	{
+		ExternalVariable.TypeName = TEXT("float");
+	}
+	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Name)
+	{
+		ExternalVariable.TypeName = TEXT("FName");
+	}
+	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_String)
+	{
+		ExternalVariable.TypeName = TEXT("FString");
+	}
+	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Struct)
+	{
+		if (UScriptStruct* Struct = Cast<UScriptStruct>(InPinType.PinSubCategoryObject))
+		{
+			ExternalVariable.TypeName = *Struct->GetStructCPPName();
+			ExternalVariable.TypeObject = Struct;
+		}
+	}
+
+	return ExternalVariable;
+}
+
+FRigVMExternalVariable UControlRig::GetExternalVariableFromDescription(const FBPVariableDescription& InVariableDescription)
+{
+	bool bIsPublic = !((InVariableDescription.PropertyFlags & CPF_DisableEditOnInstance) == CPF_DisableEditOnInstance);
+	bool bIsReadOnly = ((InVariableDescription.PropertyFlags & CPF_BlueprintReadOnly) == CPF_BlueprintReadOnly);
+	return GetExternalVariableFromPinType(InVariableDescription.VarName, InVariableDescription.VarType, bIsPublic, bIsReadOnly);
+}
+
+#endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
 

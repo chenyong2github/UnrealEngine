@@ -399,6 +399,9 @@ class FMaterialVectorParameterInfo
 {
 	DECLARE_TYPE_LAYOUT(FMaterialVectorParameterInfo, NonVirtual);
 public:
+
+	FMaterialVectorParameterInfo() : DefaultValue(ForceInitToZero) {}
+
 	friend inline bool operator==(const FMaterialVectorParameterInfo& Lhs, const FMaterialVectorParameterInfo& Rhs)
 	{
 		return Lhs.ParameterInfo == Rhs.ParameterInfo && Lhs.DefaultValue == Rhs.DefaultValue;
@@ -497,7 +500,7 @@ class FUniformExpressionSet
 {
 	DECLARE_TYPE_LAYOUT(FUniformExpressionSet, NonVirtual);
 public:
-	FUniformExpressionSet() : UniformBufferLayout(FRHIUniformBufferLayout::Zero) {}
+	FUniformExpressionSet() = default;
 
 	bool IsEmpty() const;
 	bool operator==(const FUniformExpressionSet& ReferenceSet) const;
@@ -532,7 +535,7 @@ public:
 	inline int32 GetNumTextures(EMaterialTextureParameterType Type) const { return UniformTextureParameters[(uint32)Type].Num(); }
 	ENGINE_API void GetGameThreadTextureValue(EMaterialTextureParameterType Type, int32 Index, const UMaterialInterface* MaterialInterface, const FMaterial& Material, UTexture*& OutValue, bool bAllowOverride = true) const;
 	ENGINE_API void GetTextureValue(EMaterialTextureParameterType Type, int32 Index, const FMaterialRenderContext& Context, const FMaterial& Material, const UTexture*& OutValue) const;
-	ENGINE_API void GetTextureValue(int32 Index, const FMaterial& Material, const URuntimeVirtualTexture*& OutValue) const;
+	ENGINE_API void GetTextureValue(int32 Index, const FMaterialRenderContext& Context, const FMaterial& Material, const URuntimeVirtualTexture*& OutValue) const;
 
 protected:
 	union FVTPackedStackAndLayerIndex
@@ -1573,6 +1576,7 @@ public:
 	virtual bool IsFullyRough() const { return false; }
 	virtual bool UseNormalCurvatureToRoughness() const { return false; }
 	virtual bool IsUsingFullPrecision() const { return false; }
+	virtual bool IsUsingAlphaToCoverage() const { return false; }
 	virtual bool IsUsingPreintegratedGFForSimpleIBL() const { return false; }
 	virtual bool IsUsingHQForwardReflections() const { return false; }
 	virtual bool IsUsingPlanarForwardReflections() const { return false; }
@@ -1603,6 +1607,7 @@ public:
 	virtual float GetRefractionDepthBiasValue() const { return 0.0f; }
 	virtual float GetMaxDisplacement() const { return 0.0f; }
 	virtual bool ShouldApplyFogging() const { return false; }
+	virtual bool ShouldApplyCloudFogging() const { return false; }
 	virtual bool ComputeFogPerPixel() const { return false; }
 	virtual bool IsSky() const { return false; }
 	virtual FString GetFriendlyName() const = 0;
@@ -1616,6 +1621,7 @@ public:
 	virtual bool HasRoughnessConnected() const { return false; }
 	virtual bool HasSpecularConnected() const { return false; }
 	virtual bool HasEmissiveColorConnected() const { return false; }
+	virtual bool HasAnisotropyConnected() const { return false; }
 	virtual bool HasAmbientOcclusionConnected() const { return false; }
 	virtual bool RequiresSynchronousCompilation() const { return false; };
 	virtual bool IsDefaultMaterial() const { return false; };
@@ -2409,6 +2415,7 @@ public:
 	ENGINE_API virtual bool IsFullyRough() const override;
 	ENGINE_API virtual bool UseNormalCurvatureToRoughness() const override;
 	ENGINE_API virtual bool IsUsingFullPrecision() const override;
+	ENGINE_API virtual bool IsUsingAlphaToCoverage() const override;
 	ENGINE_API virtual bool IsUsingPreintegratedGFForSimpleIBL() const override;
 	ENGINE_API virtual bool IsUsingHQForwardReflections() const override;
 	ENGINE_API virtual bool IsUsingPlanarForwardReflections() const override;
@@ -2421,8 +2428,10 @@ public:
 	ENGINE_API virtual bool HasBaseColorConnected() const override;
 	ENGINE_API virtual bool HasNormalConnected() const override;
 	ENGINE_API virtual bool HasRoughnessConnected() const override;
+	ENGINE_API virtual bool HasSpecularConnected() const override;	
+	ENGINE_API virtual bool HasEmissiveColorConnected() const override;
+	ENGINE_API virtual bool HasAnisotropyConnected() const override;
 	ENGINE_API virtual bool HasAmbientOcclusionConnected() const override;
-	ENGINE_API virtual bool HasSpecularConnected() const override;	ENGINE_API virtual bool HasEmissiveColorConnected() const override;
 	ENGINE_API virtual FMaterialShadingModelField GetShadingModels() const override;
 	ENGINE_API virtual bool IsShadingModelFromMaterialExpression() const override;
 	ENGINE_API virtual enum ETranslucencyLightingMode GetTranslucencyLightingMode() const override;
@@ -2455,6 +2464,7 @@ public:
 	ENGINE_API virtual float GetRefractionDepthBiasValue() const override;
 	ENGINE_API virtual float GetMaxDisplacement() const override;
 	ENGINE_API virtual bool ShouldApplyFogging() const override;
+	ENGINE_API virtual bool ShouldApplyCloudFogging() const override;
 	ENGINE_API virtual bool IsSky() const override;
 	ENGINE_API virtual bool ComputeFogPerPixel() const override;
 	ENGINE_API virtual bool HasRuntimeVirtualTextureOutput() const override;
@@ -2718,6 +2728,20 @@ public:
 	{
 		FMaterialAttributeDefintion* Attribute = GMaterialPropertyAttributesMap.Find(AttributeID);
 		return Attribute->ValueType;
+	}
+
+	/** Returns the default value of a material property */
+	ENGINE_API static FVector4 GetDefaultValue(EMaterialProperty Property)
+	{
+		FMaterialAttributeDefintion* Attribute = GMaterialPropertyAttributesMap.Find(Property);
+		return Attribute->DefaultValue;
+	}
+
+	/** Returns the default value of a material attribute */
+	ENGINE_API static FVector4 GetDefaultValue(const FGuid& AttributeID)
+	{
+		FMaterialAttributeDefintion* Attribute = GMaterialPropertyAttributesMap.Find(AttributeID);
+		return Attribute->DefaultValue;
 	}
 	
 	/** Returns the shader frequency of a material attribute */
@@ -2988,6 +3012,7 @@ struct FMaterialShaderParameters
 			uint64 bWritesEveryPixelShadowPass : 1;
 			uint64 bHasNormalConnected : 1;
 			uint64 bHasEmissiveColorConnected : 1;
+			uint64 bHasAnisotropyConnected : 1;
 			uint64 bHasVertexPositionOffsetConnected : 1;
 			uint64 bHasPixelDepthOffsetConnected : 1;
 			uint64 bMaterialMayModifyMeshPosition : 1;
@@ -3052,6 +3077,7 @@ struct FMaterialShaderParameters
 		bWritesEveryPixelShadowPass = InMaterial->WritesEveryPixel(true);
 		bHasNormalConnected = InMaterial->HasNormalConnected();
 		bHasEmissiveColorConnected = InMaterial->HasEmissiveColorConnected();
+		bHasAnisotropyConnected = InMaterial->HasAnisotropyConnected();
 		bHasVertexPositionOffsetConnected = InMaterial->HasVertexPositionOffsetConnected();
 		bHasPixelDepthOffsetConnected = InMaterial->HasPixelDepthOffsetConnected();
 		bMaterialMayModifyMeshPosition = InMaterial->MaterialMayModifyMeshPosition();

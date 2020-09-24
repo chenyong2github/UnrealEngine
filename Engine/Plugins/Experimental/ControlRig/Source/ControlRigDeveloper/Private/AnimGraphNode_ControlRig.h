@@ -30,10 +30,10 @@ private:
 	virtual const FAnimNode_CustomProperty* GetCustomPropertyNode() const override { return &Node; }
 
 	// property related things
-	void GetIOParameters(bool bInput, TMap<FName, FRigVMParameter>& OutParameters) const;
+	void GetVariables(bool bInput, TMap<FName, FRigVMExternalVariable>& OutParameters) const;
 
-	TMap<FName, FRigVMParameter> InputParameters;
-	TMap<FName, FRigVMParameter> OutputParameters;
+	TMap<FName, FRigVMExternalVariable> InputVariables;
+	TMap<FName, FRigVMExternalVariable> OutputVariables;
 
 	// we have to override both of it
 	// Rebuild is about rebuilding internal data structre

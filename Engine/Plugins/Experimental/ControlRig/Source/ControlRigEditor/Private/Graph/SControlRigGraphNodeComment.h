@@ -17,6 +17,10 @@ public:
 	virtual void EndUserInteraction() const override;
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
+protected:
+
+	virtual bool IsNodeUnderComment(UEdGraphNode_Comment* InCommentNode, const TSharedRef<SGraphNode> InNodeWidget) const override;
+
 private:
 
 	FLinearColor CachedNodeCommentColor;

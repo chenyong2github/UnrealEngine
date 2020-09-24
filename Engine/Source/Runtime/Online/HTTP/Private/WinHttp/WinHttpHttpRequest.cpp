@@ -8,8 +8,9 @@
 #include "WinHttp/Support/WinHttpConnectionHttp.h"
 #include "GenericPlatform/HttpRequestPayload.h"
 #include "Http.h"
-#include "HAL/PlatformTime.h"
+#include "HttpModule.h"
 
+#include "HAL/PlatformTime.h"
 #include "Containers/StringView.h"
 #include "HAL/FileManager.h"
 
@@ -246,8 +247,7 @@ bool FWinHttpHttpRequest::ProcessRequest()
 		}
 		if (StrongThis->bRequestCancelled)
 		{
-			UE_LOG(LogHttp, Warning, TEXT("WinHttp Request Cancelled"));
-			StrongThis->FinishRequest();
+			// We were cancelled
 			return;
 		}
 		if (!SessionPtr)
@@ -296,8 +296,8 @@ bool FWinHttpHttpRequest::ProcessRequest()
 void FWinHttpHttpRequest::CancelRequest()
 {
 	UE_LOG(LogHttp, Log, TEXT("FWinHttpHttpRequest::CancelRequest() FWinHttpHttpRequest=[%p]"), this);
-	
-	if (RequestFinishTimeSeconds.IsSet())
+
+	if (EHttpRequestStatus::IsFinished(State))
 	{
 		UE_LOG(LogHttp, Warning, TEXT("Attempted to cancel a request that was already finished"));
 		return;
@@ -309,27 +309,20 @@ void FWinHttpHttpRequest::CancelRequest()
 	}
 
 	bRequestCancelled = true;
-	if (Connection.IsValid())
+
+
+	// FinishRequest will cleanup connection
+	if (!IsInGameThread())
 	{
-		if (!Connection->IsComplete())
+		// Always finish on the game thread
+		FHttpModule::Get().GetHttpManager().AddGameThreadTask([StrongThis = StaticCastSharedRef<FWinHttpHttpRequest>(AsShared())]()
 		{
-			Connection->CancelRequest();
-		}
+			StrongThis->FinishRequest();
+		});
 	}
-	else if (State == EHttpRequestStatus::NotStarted)
+	else
 	{
-		if (!IsInGameThread())
-		{
-			// Always finish on the game thread
-			FHttpModule::Get().GetHttpManager().AddGameThreadTask([StrongThis = StaticCastSharedRef<FWinHttpHttpRequest>(AsShared())]()
-			{
-				StrongThis->FinishRequest();
-			});
-		}
-		else
-		{
-			FinishRequest();
-		}
+		FinishRequest();
 	}
 }
 

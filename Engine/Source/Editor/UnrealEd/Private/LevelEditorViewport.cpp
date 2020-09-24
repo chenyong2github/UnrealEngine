@@ -512,7 +512,7 @@ UObject* FLevelEditorViewportClient::GetOrCreateMaterialFromTexture( UTexture* U
 	FString MaterialFullName = TextureShortName + "_Mat";
 	FString NewPackageName = FPackageName::GetLongPackagePath( UnrealTexture->GetOutermost()->GetName() ) + TEXT( "/" ) + MaterialFullName;
 	NewPackageName = UPackageTools::SanitizePackageName( NewPackageName );
-	UPackage* Package = CreatePackage( NULL, *NewPackageName );
+	UPackage* Package = CreatePackage( *NewPackageName );
 
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>( TEXT( "AssetRegistry" ) );
 
@@ -4182,6 +4182,10 @@ void FLevelEditorViewportClient::MouseMove(FViewport* InViewport, int32 x, int32
 			LightRotation = FQuat(UpVector, float(mouseDeltaX)*0.01f) * LightRotation;
 			// Light Zenith rotation (pitch)
 			FVector PitchRotationAxis = FVector::CrossProduct(LightRotation.GetForwardVector(), UpVector);
+			if (FMath::Abs(FVector::DotProduct(LightRotation.GetForwardVector(), UpVector)) > (1.0f - KINDA_SMALL_NUMBER))
+			{
+				PitchRotationAxis = FVector::CrossProduct(LightRotation.GetForwardVector(), FVector(1, 0, 0));
+			}
 			PitchRotationAxis.Normalize();
 			LightRotation = FQuat(PitchRotationAxis, float(mouseDeltaY)*0.01f) * LightRotation;
 

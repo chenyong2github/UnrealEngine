@@ -278,7 +278,7 @@ public:
 
 	virtual void OnClosed() override
 	{
-		SetContentWidget(SNullWidget::NullWidget);
+		ResetContentWidget();
 	}
 
 private:
@@ -1373,6 +1373,14 @@ FSlateColor SAssetViewItem::GetAssetColor() const
 
 bool SAssetViewItem::OnVisualizeTooltip(const TSharedPtr<SWidget>& TooltipContent)
 {
+	// OnVisualizeTooltip will be called when tooltips are opening for any children of SAssetColumnViewRow
+	// So we only want custom visualization for the parent row's SAssetViewItemToolTip
+	TSharedPtr<IToolTip> ThisTooltip = GetToolTip();
+	if (!ThisTooltip.IsValid() || (ThisTooltip->AsWidget() != TooltipContent))
+	{
+		return false;
+	}
+
 	if(OnVisualizeAssetToolTip.IsBound() && TooltipContent.IsValid() && AssetItem && AssetItem->IsFile())
 	{
 		FAssetData ItemAssetData;

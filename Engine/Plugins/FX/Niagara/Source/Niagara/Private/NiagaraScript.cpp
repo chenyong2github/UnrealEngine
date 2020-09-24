@@ -42,8 +42,6 @@
 #include "NiagaraSimulationStageBase.h"
 #include "Async/Async.h"
 
-DECLARE_STATS_GROUP(TEXT("Niagara Detailed"), STATGROUP_NiagaraDetailed, STATCAT_Advanced);
-
 #if ENABLE_COOK_STATS
 namespace NiagaraScriptCookStats
 {
@@ -98,6 +96,7 @@ FNiagaraVMExecutableData::FNiagaraVMExecutableData()
 	, bReadsAttributeData(false)
 	, CompileTime(0.0f)
 #endif
+	, bReadsSignificanceIndex(false)
 {
 }
 
@@ -181,7 +180,6 @@ bool FNiagaraVMExecutableDataId::operator==(const FNiagaraVMExecutableDataId& Re
 		BaseScriptCompileHash != ReferenceSet.BaseScriptCompileHash ||
 #endif
 		bUsesRapidIterationParams != ReferenceSet.bUsesRapidIterationParams ||
-		bUseShaderPermutations != ReferenceSet.bUseShaderPermutations ||
 		bInterpolatedSpawn != ReferenceSet.bInterpolatedSpawn ||
 		bRequiresPersistentIDs != ReferenceSet.bRequiresPersistentIDs )
 	{
@@ -259,15 +257,6 @@ void FNiagaraVMExecutableDataId::AppendKeyString(FString& KeyString, const FStri
 	else
 	{
 		KeyString += TEXT("NORI") + Delimiter;
-	}
-
-	if (bUseShaderPermutations)
-	{
-		KeyString += TEXT("USEPERM_");
-	}
-	else
-	{
-		KeyString += TEXT("NOPERM_");
 	}
 
 	for (int32 Idx = 0; Idx < AdditionalDefines.Num(); Idx++)
@@ -359,7 +348,6 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 	Id = FNiagaraVMExecutableDataId();
 
 	Id.bUsesRapidIterationParams = true;
-	Id.bUseShaderPermutations = true;
 	Id.bInterpolatedSpawn = false;
 	Id.bRequiresPersistentIDs = false;
 	
@@ -375,10 +363,6 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 			if (EmitterOwner->bBakeOutRapidIteration)
 			{
 				Id.bUsesRapidIterationParams = false;
-			}
-			if (!EmitterOwner->bUseShaderPermutations)
-			{
-				Id.bUseShaderPermutations = false;
 			}
 			if (EmitterOwner->bCompressAttributes)
 			{
@@ -516,10 +500,6 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 		if (System->bBakeOutRapidIteration)
 		{
 			Id.bUsesRapidIterationParams = false;
-		}
-		if (!System->bUseShaderPermutations)
-		{
-			Id.bUseShaderPermutations = false;
 		}
 		if (System->bCompressAttributes)
 		{
@@ -958,6 +938,10 @@ void UNiagaraScript::Serialize(FArchive& Ar)
 			ScriptExecutionParamStore.CoalescePaddingInfo();
 		}
 
+		if (!HasValidParameterBindings())
+		{
+			UE_LOG(LogNiagara, Warning, TEXT("Mismatch between binding between RapidIterationParamters and ScriptExecutionParameters for system %s"), *GetFullName());
+		}
 	}
 #endif
 
@@ -1074,6 +1058,17 @@ void UNiagaraScript::PostLoad()
 	if (FPlatformProperties::RequiresCookedData())
 	{
 		ScriptExecutionParamStore.PostLoad();
+
+		// if our bindings aren't valid, then something has gone wrong with our cook and we need to disable this Script, which will in turn
+		// disable the owning script and system
+		if (!HasValidParameterBindings())
+		{
+			UE_LOG(LogNiagara, Error, TEXT("Mismatch between binding between RapidIterationParamters and ScriptExecutionParameters for system %s"), *GetFullName());
+
+			CachedScriptVM.Reset();
+			return;
+		}
+
 		RapidIterationParameters.Bind(&ScriptExecutionParamStore, &ScriptExecutionBoundParameters);
 		ScriptExecutionParamStore.bInitialized = true;
 		ScriptExecutionBoundParameters.Empty();
@@ -1434,7 +1429,32 @@ bool UNiagaraScript::HandleVariableRenames(const TMap<FNiagaraVariable, FNiagara
 	return bConvertedAnything;
 }
 
-bool UNiagaraScript::BinaryToExecData(const TArray<uint8>& InBinaryData, FNiagaraVMExecutableData& OutExecData)
+static bool ValidateExecData(const UNiagaraScript* Script, const FNiagaraVMExecutableData& ExecData, FString& ErrorString)
+{
+	bool IsValid = true;
+
+	for (const auto& Attribute : ExecData.Attributes)
+	{
+		if (!Attribute.IsValid())
+		{
+			ErrorString.Appendf(TEXT("Failure - %s - Attribute [%s] is invalid!\n"), Script ? *Script->GetFullName() : TEXT("<unknown>"), *Attribute.GetName().ToString());
+			IsValid = false;
+		}
+	}
+
+	for (const auto& Parameter : ExecData.Parameters.Parameters)
+	{
+		if (!Parameter.IsValid())
+		{
+			ErrorString.Appendf(TEXT("Failure - %s - Parameter [%s] is invalid!\n"), Script ? *Script->GetFullName() : TEXT("<unknown>"), *Parameter.GetName().ToString());
+			IsValid = false;
+		}
+	}
+
+	return IsValid;
+}
+
+bool UNiagaraScript::BinaryToExecData(const UNiagaraScript* Script, const TArray<uint8>& InBinaryData, FNiagaraVMExecutableData& OutExecData)
 {
 	check(IsInGameThread());
 	if (InBinaryData.Num() == 0)
@@ -1446,12 +1466,27 @@ bool UNiagaraScript::BinaryToExecData(const TArray<uint8>& InBinaryData, FNiagar
 	FObjectAndNameAsStringProxyArchive SafeAr(Ar, false);
 	OutExecData.SerializeData(SafeAr, true);
 
+	FString ValidationErrors;
+	if (!ValidateExecData(Script, OutExecData, ValidationErrors))
+	{
+		UE_LOG(LogNiagara, Display, TEXT("Failed to validate FNiagaraVMExecutableData received from DDC, rejecting!  Reasons:\n%s"), *ValidationErrors);
+		return false;
+	}
+
 	return !SafeAr.IsError();
 }
 
-bool UNiagaraScript::ExecToBinaryData(TArray<uint8>& OutBinaryData, FNiagaraVMExecutableData& InExecData)
+bool UNiagaraScript::ExecToBinaryData(const UNiagaraScript* Script, TArray<uint8>& OutBinaryData, FNiagaraVMExecutableData& InExecData)
 {
 	check(IsInGameThread());
+
+	FString ValidationErrors;
+	if (!ValidateExecData(Script, InExecData, ValidationErrors))
+	{
+		UE_LOG(LogNiagara, Error, TEXT("Failed to validate FNiagaraVMExecutableData being pushed to DDC, rejecting!  Errors:\n%s"), *ValidationErrors);
+		return false;
+	}
+
 	FMemoryWriter Ar(OutBinaryData, true);
 	FObjectAndNameAsStringProxyArchive SafeAr(Ar, false);
 	InExecData.SerializeData(SafeAr, true);
@@ -1728,7 +1763,7 @@ void UNiagaraScript::RequestCompile(bool bForceCompile)
 		if (GetDerivedDataCacheRef().GetSynchronous(*GetNiagaraDDCKeyString(), OutData, GetPathName()))
 		{
 			FNiagaraVMExecutableData ExeData;
-			if (BinaryToExecData(OutData, ExeData))
+			if (BinaryToExecData(this, OutData, ExeData))
 			{
 				COOK_STAT(Timer.AddHit(OutData.Num()));
 				SetVMCompilationResults(LastGeneratedVMId, ExeData, RequestData.Get());
@@ -1746,7 +1781,7 @@ void UNiagaraScript::RequestCompile(bool bForceCompile)
 		{
 			SetVMCompilationResults(LastGeneratedVMId, *ExeData, RequestData.Get());
 			// save result to the ddc
-			if (ExecToBinaryData(OutData, *ExeData))
+			if (ExecToBinaryData(this, OutData, *ExeData))
 			{
 				COOK_STAT(Timer.AddMiss(OutData.Num()));
 				GetDerivedDataCacheRef().Put(*GetNiagaraDDCKeyString(), OutData, GetPathName());
@@ -2017,7 +2052,7 @@ void UNiagaraScript::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatfo
 
 			NewResource->SetScript(this, TargetFeatureLevel, ShaderPlatform, CachedScriptVMId.CompilerVersionID, CachedScriptVMId.AdditionalDefines,
 				CachedScriptVMId.BaseScriptCompileHash,	CachedScriptVMId.ReferencedCompileHashes, 
-				CachedScriptVMId.bUsesRapidIterationParams, CachedScriptVMId.bUseShaderPermutations, GetFriendlyName());
+				CachedScriptVMId.bUsesRapidIterationParams, GetFriendlyName());
 			ResourceToCache = NewResource;
 
 			check(ResourceToCache);
@@ -2086,7 +2121,7 @@ void UNiagaraScript::CacheResourceShadersForRendering(bool bRegenerateId, bool b
 
 			ScriptResource->SetScript(this, CacheFeatureLevel, ShaderPlatform, CachedScriptVMId.CompilerVersionID, CachedScriptVMId.AdditionalDefines,
 				CachedScriptVMId.BaseScriptCompileHash, CachedScriptVMId.ReferencedCompileHashes, 
-				CachedScriptVMId.bUsesRapidIterationParams, CachedScriptVMId.bUseShaderPermutations, GetFriendlyName());
+				CachedScriptVMId.bUsesRapidIterationParams, GetFriendlyName());
 
 			if (FNiagaraUtilities::SupportsGPUParticles(ShaderPlatform))
 			{
@@ -2517,7 +2552,7 @@ bool UNiagaraScript::CanBeRunOnGpu()const
 	}
 	for (const FNiagaraScriptDataInterfaceCompileInfo& InterfaceInfo : CachedScriptVM.DataInterfaceInfo)
 	{
-		if (!InterfaceInfo.CanExecuteOnTarget(ENiagaraSimTarget::GPUComputeSim))
+		if (InterfaceInfo.Type.IsValid() && !InterfaceInfo.CanExecuteOnTarget(ENiagaraSimTarget::GPUComputeSim))
 		{
 			return false;
 		}
@@ -2585,4 +2620,23 @@ bool UNiagaraScript::UsesCollection(const UNiagaraParameterCollection* Collectio
 		}) != NULL;
 	}
 	return false;
+}
+
+bool UNiagaraScript::HasValidParameterBindings() const
+{
+	const int32 RapidIterationParameterSize = RapidIterationParameters.GetParameterDataArray().Num();
+	const int32 ScriptExecutionParameterSize = ScriptExecutionParamStore.GetParameterDataArray().Num();
+
+	for (const auto& Binding : ScriptExecutionBoundParameters)
+	{
+		const int32 ParameterSize = Binding.Parameter.GetSizeInBytes();
+
+		if (((Binding.SrcOffset + ParameterSize) > RapidIterationParameterSize)
+			|| ((Binding.DestOffset + ParameterSize) > ScriptExecutionParameterSize))
+		{
+			return false;
+		}
+	}
+
+	return true;
 }

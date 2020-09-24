@@ -17,26 +17,25 @@
 #include <mach/thread_act.h>
 #include <mach/thread_policy.h>
 #include <libproc.h>
+#include <spawn.h>
 #include "Apple/PostAppleSystemHeaders.h"
 
 #if PLATFORM_MAC_X86
     #include <cpuid.h>
 #endif
 
-void* FMacPlatformProcess::GetDllHandle( const TCHAR* Filename )
+namespace PlatformProcessLimits
+{
+	enum
+	{
+		MaxUserHomeDirLength = MAC_MAX_PATH + 1,
+		MaxArgvParameters	 = 256
+	};
+};
+
+static void* GetDllHandleImpl(NSString* DylibPath, NSString* ExecutableFolder)
 {
 	SCOPED_AUTORELEASE_POOL;
-
-	check(Filename);
-
-	NSFileManager* FileManager = [NSFileManager defaultManager];
-	NSString* DylibPath = [NSString stringWithUTF8String:TCHAR_TO_UTF8(Filename)];
-	NSString* ExecutableFolder = [[[NSBundle mainBundle] executablePath] stringByDeletingLastPathComponent];
-	if (![FileManager fileExistsAtPath:DylibPath])
-	{
-		// If it's not a absolute or relative path, try to find the file in the app bundle
-		DylibPath = [ExecutableFolder stringByAppendingPathComponent:FString(Filename).GetNSString()];
-	}
 
 	// Check if dylib is already loaded
 	void* Handle = dlopen([DylibPath fileSystemRepresentation], RTLD_NOLOAD | RTLD_LAZY | RTLD_LOCAL);
@@ -58,6 +57,42 @@ void* FMacPlatformProcess::GetDllHandle( const TCHAR* Filename )
 	{
 		// Not loaded yet, so try to open it
 		Handle = dlopen([DylibPath fileSystemRepresentation], RTLD_LAZY | RTLD_LOCAL);
+	}
+	return Handle;
+}
+
+void* FMacPlatformProcess::GetDllHandle( const TCHAR* Filename )
+{
+	SCOPED_AUTORELEASE_POOL;
+
+	check(Filename);
+
+	NSString* DylibPath = [NSString stringWithUTF8String:TCHAR_TO_UTF8(Filename)];
+	NSString* ExecutableFolder = [[[NSBundle mainBundle] executablePath] stringByDeletingLastPathComponent];
+	void* Handle = nullptr;
+
+	// On 11.0.0+, system-provided dynamic libraries do not exist on the
+	// filesystem, only in a built-in dynamic linker cache.
+	if (FPlatformMisc::MacOSXVersionCompare(10,16,0) >= 0)
+	{
+		Handle = GetDllHandleImpl(DylibPath, ExecutableFolder);
+		if (!Handle)
+		{
+			// If it's not a absolute or relative path, try to find the file in the app bundle
+			DylibPath = [ExecutableFolder stringByAppendingPathComponent:FString(Filename).GetNSString()];
+	
+			Handle = GetDllHandleImpl(DylibPath, ExecutableFolder);
+		}
+	}
+	else
+	{
+		NSFileManager* FileManager = [NSFileManager defaultManager];
+		if (![FileManager fileExistsAtPath:DylibPath])
+		{
+			// If it's not a absolute or relative path, try to find the file in the app bundle
+			DylibPath = [ExecutableFolder stringByAppendingPathComponent:FString(Filename).GetNSString()];
+		}
+		Handle = GetDllHandleImpl(DylibPath, ExecutableFolder);
 	}
 	if (!Handle)
 	{
@@ -164,510 +199,663 @@ FString FMacPlatformProcess::GetGameBundleId()
 	return FString([[NSBundle mainBundle] bundleIdentifier]);
 }
 
-@interface NSAutoReadPipe : NSObject
-
-/** The pipe itself */
-@property (readonly) NSPipe*			Pipe;
-/** A file associated with the pipe from which we shall read data */
-@property (readonly) NSFileHandle*		File;
-/** Buffer that stores the output from the pipe */
-@property (readonly) NSMutableData*		PipeOutput;
-
-/** Initialization function */
--(id)init;
-
-/** Deallocation function */
--(void)dealloc;
-
-/** Callback function that is invoked when data is pushed onto the pipe */
--(void)readData: (NSNotification *)Notification;
-
-/** Shutdown the background reader, and copy all the data from the pipe as a UTF8 encoded string */
--(void)copyPipeData: (FString&)OutString;
-
-@end
-
-@implementation NSAutoReadPipe
-
--(id)init
-{
-	[super init];
-	
-	_PipeOutput = [NSMutableData new];
-	_Pipe = [NSPipe new];
-	_File = [_Pipe fileHandleForReading];
-	
-	[[NSNotificationCenter defaultCenter] addObserver: self
-											selector: @selector(readData:)
-											name: NSFileHandleDataAvailableNotification
-											object: _File];
-	
-	[_File waitForDataInBackgroundAndNotify];
-	return self;
-}
-
--(void)dealloc
-{
-	[[NSNotificationCenter defaultCenter] removeObserver:self];
-	
-	[_Pipe release];
-	[_PipeOutput release];
-	
-	[super dealloc];
-}
-
--(void)readData: (NSNotification *)Notification
-{
-	NSFileHandle* FileHandle = (NSFileHandle*)Notification.object;
-	
-	// Ensure we're reading from the right file
-	if (ensure(FileHandle == _File))
-	{
-		[_PipeOutput appendData: [FileHandle availableData]];
-		[FileHandle waitForDataInBackgroundAndNotify];
-	}
-}
-
--(void)copyPipeData: (FString&)OutString
-{
-	[[NSNotificationCenter defaultCenter] removeObserver:self];
-	
-	// Read any remaining data in from the pipe
-	NSData* Data = [_File readDataToEndOfFile];
-	if (Data && [Data length])
-	{
-		[_PipeOutput appendData: Data];
-	}
-	
-	// Encode the data as a string
-	NSString* String = [[NSString alloc] initWithData:_PipeOutput encoding:NSUTF8StringEncoding];
-	
-	OutString += FString(String);
-	
-	[String release];
-}
-
-@end // NSAutoReadPipe
-
-void DisableStallingMetalGPUCaptureKeysForChildProcessWhenDebugging(NSTask* childProcess)
-{
-#if WITH_EDITOR
-	if(FPlatformMisc::IsDebuggerPresent())
-	{
-		// - These are the extra environment keys when turning on GPU Frame Capture via Xcode 11.3 in macOS Catalina (10.15.2):
-		//		DYLD_INSERT_LIBRARIES, DYMTL_TOOLS_DYLIB_PATH, GPUTOOLS_LOAD_GTMTLCAPTURE, GT_HOST_URL_MTL and METAL_LOAD_INTERPOSER
-		// - Both DYLD_INSERT_LIBRARIES and METAL_LOAD_INTERPOSER seem to be new for Catalina (10.15.2) compared to Mojave (10.14.6).
-		// - Using DYLD_INSERT_LIBRARIES seem to be causing a stall at child process startup with Xcode debugger attached to the parent process.
-		// - Removing DYLD_INSERT_LIBRARIES removes the stall for child process startup which is especially useful for ShaderCompileWorker when invoking MetalCompiler and it's other child processes tools.
-
-		// Get the current environment and remove the relevant key(s)
-		NSMutableDictionary* childEnvironment = [[NSProcessInfo processInfo].environment mutableCopy];
-		
-		NSArray* metalKeysToRemove = @[@"DYLD_INSERT_LIBRARIES"];
-		
-		[childEnvironment removeObjectsForKeys:metalKeysToRemove];
-		[childProcess setEnvironment:childEnvironment];
-		
-		[childEnvironment release];
-	}
-#endif
-}
-
 bool FMacPlatformProcess::ExecProcess( const TCHAR* URL, const TCHAR* Params, int32* OutReturnCode, FString* OutStdOut, FString* OutStdErr, const TCHAR* OptionalWorkingDirectory)
 {
-	SCOPED_AUTORELEASE_POOL;
+	FString CmdLineParams = Params;
+	FString ExecutableFileName = URL;
+	int32 ReturnCode = -1;
 
-	FString ProcessPath = URL;
-	NSString* LaunchPath = ProcessPath.GetNSString();
-	
-	if (![[NSFileManager defaultManager] fileExistsAtPath: LaunchPath])
+	void* PipeStdOutRead = nullptr;
+	void* PipeStdOutWrite = nullptr;
+	verify(FPlatformProcess::CreatePipe(PipeStdOutRead, PipeStdOutWrite));
+
+	void* PipeStdErrRead = nullptr;
+	void* PipeStdErrWrite = nullptr;
+	verify(FPlatformProcess::CreatePipe(PipeStdErrRead, PipeStdErrWrite));
+
+	bool bInvoked = false;
+
+	const bool bLaunchDetached = true;
+	const bool bLaunchHidden = false;
+	const bool bLaunchReallyHidden = bLaunchHidden;
+
+	FProcHandle ProcHandle = FPlatformProcess::CreateProcInternal(*ExecutableFileName, *CmdLineParams, bLaunchDetached, bLaunchHidden, bLaunchReallyHidden, NULL, 0, OptionalWorkingDirectory, PipeStdOutWrite, PipeStdErrWrite, nullptr);
+	if (ProcHandle.IsValid())
 	{
-		NSString* AppName = [[LaunchPath lastPathComponent] stringByDeletingPathExtension];
-		LaunchPath = [[NSWorkspace sharedWorkspace] fullPathForApplication:AppName];
-	}
-	
-	if ([[NSFileManager defaultManager] fileExistsAtPath: LaunchPath])
-	{
-		if([[NSWorkspace sharedWorkspace] isFilePackageAtPath: LaunchPath])
+		while (FPlatformProcess::IsProcRunning(ProcHandle))
 		{
-			NSBundle* Bundle = [NSBundle bundleWithPath:LaunchPath];
-			LaunchPath = Bundle ? [Bundle executablePath] : NULL;
+			FString NewLineStdOut = FPlatformProcess::ReadPipe(PipeStdOutRead);
+			if (NewLineStdOut.Len() > 0)
+			{
+				if (OutStdOut != nullptr)
+				{
+					*OutStdOut += NewLineStdOut;
+				}
+			}
+			FString NewLineStdErr = FPlatformProcess::ReadPipe(PipeStdErrRead);
+			if (NewLineStdErr.Len() > 0)
+			{
+				if (OutStdErr != nullptr)
+				{
+					*OutStdErr += NewLineStdErr;
+				}
+			}
+			FPlatformProcess::Sleep(0.0);
 		}
+
+		// read the remainder
+		for(;;)
+		{
+			FString NewLineStdOut = FPlatformProcess::ReadPipe(PipeStdOutRead);
+			if (NewLineStdOut.Len() <= 0)
+			{
+				break;
+			}
+
+			if (OutStdOut != nullptr)
+			{
+				*OutStdOut += NewLineStdOut;
+			}
+		}
+
+		for(;;)
+		{
+			FString NewLineStdErr = FPlatformProcess::ReadPipe(PipeStdErrRead);
+			if (NewLineStdErr.Len() <= 0)
+			{
+				break;
+			}
+
+			if (OutStdErr != nullptr)
+			{
+				*OutStdErr += NewLineStdErr;
+			}
+		}
+
+		FPlatformProcess::Sleep(0.0);
+
+		bInvoked = true;
+		bool bGotReturnCode = FPlatformProcess::GetProcReturnCode(ProcHandle, &ReturnCode);
+		check(bGotReturnCode)
+		if (OutReturnCode != nullptr)
+		{
+			*OutReturnCode = ReturnCode;
+		}
+
+		FPlatformProcess::CloseProc(ProcHandle);
 	}
 	else
 	{
-		LaunchPath = NULL;
-	}
-	
-	if(LaunchPath == NULL)
-	{
-		if(OutReturnCode)
+		bInvoked = false;
+		if (OutReturnCode != nullptr)
 		{
-			*OutReturnCode = ENOENT;
+			*OutReturnCode = -1;
 		}
-		if(OutStdErr)
+		if (OutStdOut != nullptr)
 		{
-			*OutStdErr = TEXT("No such executable");
+			*OutStdOut = "";
 		}
-		return false;
+		UE_LOG(LogHAL, Warning, TEXT("Failed to launch Tool. (%s)"), *ExecutableFileName);
 	}
-	
-	NSTask* ProcessHandle = [[NSTask new] autorelease];
-	if (ProcessHandle)
-	{
-		[ProcessHandle setLaunchPath: LaunchPath];
+	FPlatformProcess::ClosePipe(PipeStdOutRead, PipeStdOutWrite);
+	FPlatformProcess::ClosePipe(PipeStdErrRead, PipeStdErrWrite);
+	return bInvoked;
+}
 
-		if (OptionalWorkingDirectory != NULL)
+FProcHandle FMacPlatformProcess::CreateProc( const TCHAR* URL, const TCHAR* Parms, bool bLaunchDetached, bool bLaunchHidden, bool bLaunchReallyHidden, uint32* OutProcessID, int32 PriorityModifier, const TCHAR* OptionalWorkingDirectory, void* PipeWriteChild, void* PipeReadChild)
+{
+	return CreateProcInternal(URL, Parms, bLaunchDetached, bLaunchHidden, bLaunchReallyHidden, OutProcessID, PriorityModifier, OptionalWorkingDirectory, PipeWriteChild, PipeWriteChild, PipeReadChild);
+}
+
+FProcHandle FMacPlatformProcess::CreateProcInternal(const TCHAR* URL, const TCHAR* Parms, bool bLaunchDetached, bool bLaunchHidden, bool bLaunchReallyHidden, uint32* OutProcessID, int32 PriorityModifier, const TCHAR* OptionalWorkingDirectory, void* PipeStdOutChild, void* PipeStdErrChild, void *PipeStdInChild)
+{
+	SCOPED_AUTORELEASE_POOL;
+
+	// @TODO bLaunchHidden bLaunchReallyHidden are not handled
+	// We need an absolute path to executable
+	FString ProcessPath = URL;
+	if (*URL != TEXT('/'))
+	{
+		ProcessPath = FPaths::ConvertRelativePathToFull(ProcessPath);
+	}
+
+	if (!FPaths::FileExists(ProcessPath))
+	{
+		return FProcHandle();
+	}
+
+	FString Commandline = FString::Printf(TEXT("\"%s\""), *ProcessPath);
+	Commandline += TEXT(" ");
+	Commandline += Parms;
+
+	UE_LOG(LogHAL, Verbose, TEXT("FMacPlatformProcess::CreateProc: '%s'"), *Commandline);
+
+	TArray<FString> ArgvArray;
+	int Argc = Commandline.ParseIntoArray(ArgvArray, TEXT(" "), true);
+	char* Argv[PlatformProcessLimits::MaxArgvParameters + 1] = { NULL };	// last argument is NULL, hence +1
+	struct CleanupArgvOnExit
+	{
+		int Argc;
+		char** Argv;	// relying on it being long enough to hold Argc elements
+
+		CleanupArgvOnExit( int InArgc, char *InArgv[] )
+			:	Argc(InArgc)
+			,	Argv(InArgv)
+		{}
+
+		~CleanupArgvOnExit()
 		{
-			NSString* WorkingDirectory = (NSString*)FPlatformString::TCHARToCFString(OptionalWorkingDirectory);
-			[ProcessHandle setCurrentDirectoryPath : WorkingDirectory];
-			CFRelease((CFStringRef)WorkingDirectory);
+			for (int Idx = 0; Idx < Argc; ++Idx)
+			{
+				FMemory::Free(Argv[Idx]);
+			}
 		}
-		
-		TArray<FString> ArgsArray;
-		FString(Params).ParseIntoArray(ArgsArray, TEXT(" "), true);
-		
-		NSMutableArray *Arguments = [[NSMutableArray new] autorelease];
-		
+	} CleanupGuard(Argc, Argv);
+
+	// make sure we do not lose arguments with spaces in them due to Commandline.ParseIntoArray breaking them apart above
+	// @todo this code might need to be optimized somehow and integrated with main argument parser below it
+	TArray<FString> NewArgvArray;
+	if (Argc > 0)
+	{
+		if (Argc > PlatformProcessLimits::MaxArgvParameters)
+		{
+			UE_LOG(LogHAL, Warning, TEXT("FMacPlatformProcess::CreateProc: too many (%d) commandline arguments passed, will only pass %d"),
+				Argc, PlatformProcessLimits::MaxArgvParameters);
+			Argc = PlatformProcessLimits::MaxArgvParameters;
+		}
+
 		FString MultiPartArg;
-		for (int32 Index = 0; Index < ArgsArray.Num(); Index++)
+		for (int32 Index = 0; Index < Argc; Index++)
 		{
 			if (MultiPartArg.IsEmpty())
 			{
-				if ((ArgsArray[Index].StartsWith(TEXT("\"")) && !ArgsArray[Index].EndsWith(TEXT("\""))) // check for a starting quote but no ending quote, excludes quoted single arguments
-					|| (ArgsArray[Index].Contains(TEXT("=\"")) && !ArgsArray[Index].EndsWith(TEXT("\""))) // check for quote after =, but no ending quote, this gets arguments of the type -blah="string string string"
-					|| ArgsArray[Index].EndsWith(TEXT("=\""))) // check for ending quote after =, this gets arguments of the type -blah=" string string string "
+				if ((ArgvArray[Index].StartsWith(TEXT("\"")) && !ArgvArray[Index].EndsWith(TEXT("\""))) // check for a starting quote but no ending quote, excludes quoted single arguments
+					|| (ArgvArray[Index].Contains(TEXT("=\"")) && !ArgvArray[Index].EndsWith(TEXT("\""))) // check for quote after =, but no ending quote, this gets arguments of the type -blah="string string string"
+					|| ArgvArray[Index].EndsWith(TEXT("=\""))) // check for ending quote after =, this gets arguments of the type -blah=" string string string "
 				{
-					MultiPartArg = ArgsArray[Index];
+					MultiPartArg = ArgvArray[Index];
 				}
 				else
 				{
-					NSString* Arg;
-					if (ArgsArray[Index].Contains(TEXT("=\"")))
+					if (ArgvArray[Index].Contains(TEXT("=\"")))
 					{
-						FString SingleArg = ArgsArray[Index];
+						FString SingleArg = ArgvArray[Index];
 						SingleArg = SingleArg.Replace(TEXT("=\""), TEXT("="));
-						Arg = (NSString*)FPlatformString::TCHARToCFString(*SingleArg.TrimQuotes(NULL));
+						NewArgvArray.Add(SingleArg.TrimQuotes(NULL));
 					}
 					else
 					{
-						Arg = (NSString*)FPlatformString::TCHARToCFString(*ArgsArray[Index].TrimQuotes(NULL));
+						NewArgvArray.Add(ArgvArray[Index].TrimQuotes(NULL));
 					}
-					[Arguments addObject: Arg];
-					CFRelease((CFStringRef)Arg);
 				}
 			}
 			else
 			{
 				MultiPartArg += TEXT(" ");
-				MultiPartArg += ArgsArray[Index];
-				if (ArgsArray[Index].EndsWith(TEXT("\"")))
+				MultiPartArg += ArgvArray[Index];
+				if (ArgvArray[Index].EndsWith(TEXT("\"")))
 				{
-					NSString* Arg;
 					if (MultiPartArg.StartsWith(TEXT("\"")))
 					{
-						Arg = (NSString*)FPlatformString::TCHARToCFString(*MultiPartArg.TrimQuotes(NULL));
+						NewArgvArray.Add(MultiPartArg.TrimQuotes(NULL));
+					}
+					else if (MultiPartArg.Contains(TEXT("=\"")))
+					{
+						FString SingleArg = MultiPartArg.Replace(TEXT("=\""), TEXT("="));
+						NewArgvArray.Add(SingleArg.TrimQuotes(nullptr));
 					}
 					else
 					{
-						Arg = (NSString*)FPlatformString::TCHARToCFString(*MultiPartArg.Replace(TEXT("\""), TEXT("")));
+						NewArgvArray.Add(MultiPartArg);
 					}
-					[Arguments addObject: Arg];
-					CFRelease((CFStringRef)Arg);
 					MultiPartArg.Empty();
 				}
 			}
 		}
-		
-		DisableStallingMetalGPUCaptureKeysForChildProcessWhenDebugging(ProcessHandle);
-		
-		[ProcessHandle setArguments: Arguments];
-		
-		NSAutoReadPipe* StdOutPipe = [[NSAutoReadPipe new] autorelease];
-		[ProcessHandle setStandardOutput: (id)[StdOutPipe Pipe]];
-		
-		NSAutoReadPipe* StdErrPipe = [[NSAutoReadPipe new] autorelease];
-		[ProcessHandle setStandardError: (id)[StdErrPipe Pipe]];
+	}
+	// update Argc with the new argument count
+	Argc = NewArgvArray.Num();
 
-		id<NSObject> Activity = [[NSProcessInfo processInfo] beginActivityWithOptions:NSActivityUserInitiated reason:@"ExecProcess"];
-
-		@try
+	if (Argc > 0)	// almost always, unless there's no program name
+	{
+		if (Argc > PlatformProcessLimits::MaxArgvParameters)
 		{
-			[ProcessHandle launch];
-			
-			[ProcessHandle waitUntilExit];
-			
-			if(OutReturnCode)
-			{
-				*OutReturnCode = [ProcessHandle terminationStatus];
-			}
-			
-			if (OutStdOut)
-			{
-				[StdOutPipe copyPipeData: *OutStdOut];
-			}
-			
-			if (OutStdErr)
-			{
-				[StdErrPipe copyPipeData: *OutStdErr];
-			}
-
-			if (Activity)
-			{
-				[[NSProcessInfo processInfo] endActivity:Activity];
-			}
-
-			return true;
+			UE_LOG(LogHAL, Warning, TEXT("FMacPlatformProcess::CreateProc: too many (%d) commandline arguments passed, will only pass %d"),
+				Argc, PlatformProcessLimits::MaxArgvParameters);
+			Argc = PlatformProcessLimits::MaxArgvParameters;
 		}
-		@catch (NSException* Exc)
+
+		for (int Idx = 0; Idx < Argc; ++Idx)
 		{
-			if(OutReturnCode)
-			{
-				*OutReturnCode = ENOENT;
-			}
-			if(OutStdErr)
-			{
-				*OutStdErr = FString([Exc reason]);
-			}
+			FTCHARToUTF8 AnsiBuffer(*NewArgvArray[Idx]);
+			const char* Ansi = AnsiBuffer.Get();
+			size_t AnsiSize = FCStringAnsi::Strlen(Ansi) + 1;	// will work correctly with UTF-8
+			check(AnsiSize);
 
-			if (Activity)
-			{
-				[[NSProcessInfo processInfo] endActivity:Activity];
-			}
+			Argv[Idx] = reinterpret_cast< char* >( FMemory::Malloc(AnsiSize) );
+			check(Argv[Idx]);
 
-			return false;
+			FCStringAnsi::Strncpy(Argv[Idx], Ansi, AnsiSize);	// will work correctly with UTF-8
 		}
-	}
-	return false;
-}
 
-FProcHandle FMacPlatformProcess::CreateProc( const TCHAR* URL, const TCHAR* Parms, bool bLaunchDetached, bool bLaunchHidden, bool bLaunchReallyHidden, uint32* OutProcessID, int32 PriorityModifier, const TCHAR* OptionalWorkingDirectory, void* PipeWriteChild, void * PipeReadChild)
-{
-	// bLaunchDetached, bLaunchHidden, bLaunchReallyHidden are ignored
-
-	SCOPED_AUTORELEASE_POOL;
-
-	// When using OptionalWorkingDirectory, we need an absolute path to executable
-	FString ProcessPath = URL;
-	if (*URL != '/' && OptionalWorkingDirectory)
-	{
-		ProcessPath = FString(BaseDir()) + ProcessPath;
+		// last Argv should be NULL
+		check(Argc <= PlatformProcessLimits::MaxArgvParameters + 1);
+		Argv[Argc] = NULL;
 	}
 
-	NSString* LaunchPath = ProcessPath.GetNSString();
+	extern char ** environ;	// provided by libc
+	pid_t ChildPid = -1;
 
-	if (![[NSFileManager defaultManager] fileExistsAtPath: LaunchPath])
+	posix_spawnattr_t SpawnAttr;
+	posix_spawnattr_init(&SpawnAttr);
+	short int SpawnFlags = 0;
+
+	// Makes spawned processes have its own unique group id so we can kill the entire group without killing the parent
+	SpawnFlags |= POSIX_SPAWN_SETPGROUP;
+
+	// - These are the extra environment keys when turning on GPU Frame Capture via Xcode 11.3 in macOS Catalina (10.15.2):
+	//		DYLD_INSERT_LIBRARIES, DYMTL_TOOLS_DYLIB_PATH, GPUTOOLS_LOAD_GTMTLCAPTURE, GT_HOST_URL_MTL and METAL_LOAD_INTERPOSER
+	// - Both DYLD_INSERT_LIBRARIES and METAL_LOAD_INTERPOSER seem to be new for Catalina (10.15.2) compared to Mojave (10.14.6).
+	// - Using DYLD_INSERT_LIBRARIES seem to be causing a stall at child process startup with Xcode debugger attached to the parent process.
+	// - Removing DYLD_INSERT_LIBRARIES removes the stall for child process startup which is especially useful for ShaderCompileWorker when invoking MetalCompiler and it's other child processes tools.
+	char** EnvVariables = environ;
+	if (WITH_EDITOR && FPlatformMisc::IsDebuggerPresent())
 	{
-		NSString* AppName = [[LaunchPath lastPathComponent] stringByDeletingPathExtension];
-		LaunchPath = [[NSWorkspace sharedWorkspace] fullPathForApplication:AppName];
-	}
-	
-	if ([[NSFileManager defaultManager] fileExistsAtPath: LaunchPath])
-	{
-		if([[NSWorkspace sharedWorkspace] isFilePackageAtPath: LaunchPath])
+		int32 NumEnvVariables = 0;
+		int32 DyldInsertLibrariesEnvVarIndex = -1;
+
+		while (environ[NumEnvVariables])
 		{
-			NSBundle* Bundle = [NSBundle bundleWithPath:LaunchPath];
-			LaunchPath = Bundle ? [Bundle executablePath] : NULL;
-		}
-	}
-	else
-	{
-		LaunchPath = NULL;
-	}
-	
-	if(LaunchPath == NULL)
-	{
-		return FProcHandle(NULL);
-	}
-
-	NSTask* ProcessHandle = [[NSTask alloc] init];
-
-	if (ProcessHandle)
-	{
-		[ProcessHandle setLaunchPath: LaunchPath];
-
-		NSMutableArray *Arguments = [[NSMutableArray alloc] init];
-
-		if (ProcessPath == TEXT("/bin/sh"))
-		{
-			NSString* Arg = (NSString*)FPlatformString::TCHARToCFString(Parms);
-			[Arguments addObject: @"-c"];
-			[Arguments addObject: Arg];
-			CFRelease((CFStringRef)Arg);
-		}
-		else
-		{
-			TArray<FString> ArgsArray;
-			FString(Parms).ParseIntoArray(ArgsArray, TEXT(" "), true);
-
-			FString MultiPartArg;
-			for (int32 Index = 0; Index < ArgsArray.Num(); Index++)
+			if (FCStringAnsi::Strstr(environ[NumEnvVariables], "DYLD_INSERT_LIBRARIES=") == environ[NumEnvVariables])
 			{
-				if (MultiPartArg.IsEmpty())
+				DyldInsertLibrariesEnvVarIndex = NumEnvVariables;
+			}
+			++NumEnvVariables;
+		}
+
+		if (DyldInsertLibrariesEnvVarIndex != -1)
+		{
+			EnvVariables = (char**)FMemory::Malloc(sizeof(char*) + 1);
+
+			int32 NewCount = 0;
+			for (int32 VarIndex = 0; VarIndex < NumEnvVariables; ++VarIndex)
+			{
+				if (VarIndex != DyldInsertLibrariesEnvVarIndex)
 				{
-					if ((ArgsArray[Index].StartsWith(TEXT("\"")) && !ArgsArray[Index].EndsWith(TEXT("\""))) // check for a starting quote but no ending quote, excludes quoted single arguments
-						|| (ArgsArray[Index].Contains(TEXT("=\"")) && !ArgsArray[Index].EndsWith(TEXT("\""))) // check for quote after =, but no ending quote, this gets arguments of the type -blah="string string string"
-						|| ArgsArray[Index].EndsWith(TEXT("=\""))) // check for ending quote after =, this gets arguments of the type -blah=" string string string "
-					{
-						MultiPartArg = ArgsArray[Index];
-					}
-					else
-					{
-						NSString* Arg;
-						if (ArgsArray[Index].Contains(TEXT("=\"")))
-						{
-							FString SingleArg = ArgsArray[Index];
-							SingleArg = SingleArg.Replace(TEXT("=\""), TEXT("="));
-							Arg = (NSString*)FPlatformString::TCHARToCFString(*SingleArg.TrimQuotes(NULL));
-						}
-						else
-						{
-							Arg = (NSString*)FPlatformString::TCHARToCFString(*ArgsArray[Index].TrimQuotes(NULL));
-						}
-						[Arguments addObject: Arg];
-						CFRelease((CFStringRef)Arg);
-					}
-				}
-				else
-				{
-					MultiPartArg += TEXT(" ");
-					MultiPartArg += ArgsArray[Index];
-					if (ArgsArray[Index].EndsWith(TEXT("\"")))
-					{
-						NSString* Arg;
-						if (MultiPartArg.StartsWith(TEXT("\"")))
-						{
-							Arg = (NSString*)FPlatformString::TCHARToCFString(*MultiPartArg.TrimQuotes(NULL));
-						}
-						else
-						{
-							Arg = (NSString*)FPlatformString::TCHARToCFString(*MultiPartArg.Replace(TEXT("\""), TEXT("")));
-						}
-						[Arguments addObject: Arg];
-						CFRelease((CFStringRef)Arg);
-						MultiPartArg.Empty();
-					}
+					EnvVariables[NewCount++] = environ[VarIndex];
 				}
 			}
+			EnvVariables[NewCount] = nullptr;
 		}
-		
-		DisableStallingMetalGPUCaptureKeysForChildProcessWhenDebugging(ProcessHandle);
+	}
 
-		[ProcessHandle setArguments: Arguments];
+	posix_spawn_file_actions_t FileActions;
+	posix_spawn_file_actions_init(&FileActions);
 
-		if (OptionalWorkingDirectory)
-		{
-			NSString* WorkingDirectory = (NSString*)FPlatformString::TCHARToCFString(OptionalWorkingDirectory);
-			[ProcessHandle setCurrentDirectoryPath: WorkingDirectory];
-			CFRelease((CFStringRef)WorkingDirectory);
-		}
+	if (PipeStdOutChild)
+	{
+		posix_spawn_file_actions_adddup2(&FileActions, [(NSFileHandle*)PipeStdOutChild fileDescriptor], STDOUT_FILENO);
+	}
 
-		if (PipeWriteChild)
-		{
-			[ProcessHandle setStandardOutput: (id)PipeWriteChild];
-			[ProcessHandle setStandardError: (id)PipeWriteChild];
-		}
+	if (PipeStdErrChild)
+	{
+		posix_spawn_file_actions_adddup2(&FileActions, [(NSFileHandle*)PipeStdErrChild fileDescriptor], STDERR_FILENO);
+	}
 
-		if (PipeReadChild)
-		{
-			[ProcessHandle setStandardInput : (id)PipeReadChild];
-		}
+	if (PipeStdInChild)
+	{
+		posix_spawn_file_actions_adddup2(&FileActions, [(NSFileHandle*)PipeStdInChild fileDescriptor], STDIN_FILENO);
+	}
 
-		@try
-		{
-			[ProcessHandle launch];
-			
-			if (PriorityModifier != 0)
-			{
-				PriorityModifier = MIN(PriorityModifier, -2);
-				PriorityModifier = MAX(PriorityModifier, 2);
-				// priority values: 20 = lowest, 10 = low, 0 = normal, -10 = high, -20 = highest
-				setpriority(PRIO_PROCESS, [ProcessHandle processIdentifier], -PriorityModifier * 10);
-			}
-		}
-		@catch (NSException* Exc)
-		{
-			FString ExcName([Exc name]);
-			FString ExcReason([Exc reason]);
-			UE_LOG(LogMac, Warning, TEXT("CreateProc failed (%s: %s) %s %s"), *ExcName, *ExcReason, URL, Parms);
+	posix_spawnattr_setflags(&SpawnAttr, SpawnFlags);
+	int PosixSpawnErrNo = posix_spawn(&ChildPid, TCHAR_TO_UTF8(*ProcessPath), &FileActions, &SpawnAttr, Argv, EnvVariables);
+	posix_spawn_file_actions_destroy(&FileActions);
 
-			[ProcessHandle release];
-			ProcessHandle = nil;
-		}
+	posix_spawnattr_destroy(&SpawnAttr);
 
-		[Arguments release];
+	// Free the allocated memory if we modified the env variables instead of using environ directly
+	if (EnvVariables != environ)
+	{
+		FMemory::Free(EnvVariables);
+	}
+
+	if (PosixSpawnErrNo != 0)
+	{
+		UE_LOG(LogHAL, Fatal, TEXT("FMacPlatformProcess::CreateProc: posix_spawn() failed (%d, %s)"), PosixSpawnErrNo, UTF8_TO_TCHAR(strerror(PosixSpawnErrNo)));
+		return FProcHandle();	// produce knowingly invalid handle if for some reason Fatal log (above) returns
+	}
+
+	if (PriorityModifier != 0)
+	{
+		PriorityModifier = MIN(PriorityModifier, -2);
+		PriorityModifier = MAX(PriorityModifier, 2);
+		// priority values: 20 = lowest, 10 = low, 0 = normal, -10 = high, -20 = highest
+		setpriority(PRIO_PROCESS, ChildPid, -PriorityModifier * 10);
 	}
 
 	if (OutProcessID)
 	{
-		*OutProcessID = ProcessHandle ? [ProcessHandle processIdentifier] : 0;
+		*OutProcessID = ChildPid;
 	}
 
-	FProcHandle Handle(ProcessHandle);
-	if(ProcessHandle)
-	{
-		Handle.Activity = [[NSProcessInfo processInfo] beginActivityWithOptions:NSActivityUserInitiated reason:@"CreateProc"];
-		[Handle.Activity retain];
-	}
-
-	return Handle;
+	// [RCL] 2015-03-11 @FIXME: is bLaunchDetached usable when determining whether we're in 'fire and forget' mode? This doesn't exactly match what bLaunchDetached is used for.
+	return FProcHandle(new FProcState(ChildPid, bLaunchDetached));
 }
 
+/*
+ * Return a limited use FProcHandle from a PID. Currently can only use w/ IsProcRunning().
+ *
+ * WARNING (from Arciel): PIDs can and will be reused. We have had that issue
+ * before: the editor was tracking ShaderCompileWorker by their PIDs, and a
+ * long-running process (something from PS4 SDK) got a reused SCW PID,
+ * resulting in compilation never ending.
+ */
 FProcHandle FMacPlatformProcess::OpenProcess(uint32 ProcessID)
 {
-	for (NSRunningApplication *app in[[NSWorkspace sharedWorkspace] runningApplications])
+	pid_t Pid = static_cast< pid_t >(ProcessID);
+
+	// check if actually running
+	int KillResult = kill(Pid, 0);	// no actual signal is sent
+	check(KillResult != -1 || errno != EINVAL);
+
+	// errno == EPERM: don't have permissions to send signal
+	// errno == ESRCH: proc doesn't exist
+	bool bIsRunning = (KillResult == 0);
+	return FProcHandle(bIsRunning ? Pid : -1);
+}
+
+/**
+ * This class exists as an imperfect workaround to allow both "fire and forget" children and children about whose return code we actually care.
+ * (maybe we could fork and daemonize ourselves for the first case instead?)
+ */
+struct FChildWaiterThread : public FRunnable
+{
+	/** Global table of all waiter threads */
+	static TArray<FChildWaiterThread *>		ChildWaiterThreadsArray;
+
+	/** Lock guarding the acess to child waiter threads */
+	static FCriticalSection					ChildWaiterThreadsArrayGuard;
+
+	/** Pid of child to wait for */
+	int ChildPid;
+
+	FChildWaiterThread(pid_t InChildPid)
+		:	ChildPid(InChildPid)
 	{
-		NSLog(@"%@",[app localizedName]);
+		// add ourselves to thread array
+		ChildWaiterThreadsArrayGuard.Lock();
+		ChildWaiterThreadsArray.Add(this);
+		ChildWaiterThreadsArrayGuard.Unlock();
 	}
 
-	return FProcHandle();
+	virtual ~FChildWaiterThread()
+	{
+		// remove
+		ChildWaiterThreadsArrayGuard.Lock();
+		ChildWaiterThreadsArray.RemoveSingle(this);
+		ChildWaiterThreadsArrayGuard.Unlock();
+	}
+
+	virtual uint32 Run()
+	{
+		for(;;)	// infinite loop in case we get EINTR and have to repeat
+		{
+			siginfo_t SignalInfo;
+			if (waitid(P_PID, ChildPid, &SignalInfo, WEXITED))
+			{
+				if (errno != EINTR)
+				{
+					int ErrNo = errno;
+					UE_LOG(LogHAL, Fatal, TEXT("FChildWaiterThread::Run(): waitid for pid %d failed (errno=%d, %s)"), 
+							 static_cast< int32 >(ChildPid), ErrNo, UTF8_TO_TCHAR(strerror(ErrNo)));
+					break;	// exit the loop if for some reason Fatal log (above) returns
+				}
+			}
+			else
+			{
+				check(SignalInfo.si_pid == ChildPid);
+				break;
+			}
+		}
+
+		return 0;
+	}
+
+	virtual void Exit()
+	{
+		// unregister from the array
+		delete this;
+	}
+};
+
+/** See FChildWaiterThread */
+TArray<FChildWaiterThread *> FChildWaiterThread::ChildWaiterThreadsArray;
+/** See FChildWaiterThread */
+FCriticalSection FChildWaiterThread::ChildWaiterThreadsArrayGuard;
+
+/** Initialization constructor. */
+FProcState::FProcState(pid_t InProcessId, bool bInFireAndForget)
+	:	ProcessId(InProcessId)
+	,	bIsRunning(true)  // assume it is
+	,	bHasBeenWaitedFor(false)
+	,	ReturnCode(-1)
+	,	bFireAndForget(bInFireAndForget)
+{
+}
+
+FProcState::~FProcState()
+{
+	if (!bFireAndForget)
+	{
+		// If not in 'fire and forget' mode, try to catch the common problems that leave zombies:
+		// - We don't want to close the handle of a running process as with our current scheme this will certainly leak a zombie.
+		// - Nor we want to leave the handle unwait()ed for.
+		
+		if (bIsRunning)
+		{
+			// Warn the users before going into what may be a very long block
+			UE_LOG(LogHAL, Warning, TEXT("Closing a process handle while the process (pid=%d) is still running - we will block until it exits to prevent a zombie"),
+				GetProcessId()
+			);
+		}
+		else if (!bHasBeenWaitedFor)	// if child is not running, but has not been waited for, still communicate a problem, but we shouldn't be blocked for long in this case.
+		{
+			UE_LOG(LogHAL, Warning, TEXT("Closing a process handle of a process (pid=%d) that has not been wait()ed for - will wait() now to reap a zombie"),
+				GetProcessId()
+			);
+		}
+
+		Wait();	// will exit immediately if everything is Ok
+	}
+	else if (IsRunning())
+	{
+		// warn about leaking a thread ;/
+		UE_LOG(LogHAL, Warning, TEXT("Process (pid=%d) is still running - we will reap it in a waiter thread, but the thread handle is going to be leaked."),
+				 GetProcessId()
+			);
+
+		FChildWaiterThread * WaiterRunnable = new FChildWaiterThread(GetProcessId());
+		// [RCL] 2015-03-11 @FIXME: do not leak
+		FRunnableThread * WaiterThread = FRunnableThread::Create(WaiterRunnable, *FString::Printf(TEXT("waitpid(%d)"), GetProcessId()), 32768 /* needs just a small stack */, TPri_BelowNormal);
+	}
+}
+
+bool FProcState::IsRunning()
+{
+	if (bIsRunning)
+	{
+		check(!bHasBeenWaitedFor);	// check for the sake of internal consistency
+
+		// check if actually running
+		int KillResult = kill(GetProcessId(), 0);	// no actual signal is sent
+		check(KillResult != -1 || errno != EINVAL);
+
+		bIsRunning = (KillResult == 0 || (KillResult == -1 && errno == EPERM));
+
+		// additional check if it's a zombie
+		if (bIsRunning)
+		{
+			for(;;)	// infinite loop in case we get EINTR and have to repeat
+			{
+				siginfo_t SignalInfo;
+				SignalInfo.si_pid = 0;	// if remains 0, treat as child was not waitable (i.e. was running)
+				if (waitid(P_PID, GetProcessId(), &SignalInfo, WEXITED | WNOHANG | WNOWAIT))
+				{
+					if (errno != EINTR)
+					{
+						int ErrNo = errno;
+						UE_LOG(LogHAL, Fatal, TEXT("FMacPlatformProcess::WaitForProc: waitid for pid %d failed (errno=%d, %s)"),
+							static_cast< int32 >(GetProcessId()), ErrNo, UTF8_TO_TCHAR(strerror(ErrNo)));
+						break;	// exit the loop if for some reason Fatal log (above) returns
+					}
+				}
+				else
+				{
+					bIsRunning = ( SignalInfo.si_pid != GetProcessId() );
+					break;
+				}
+			}
+		}
+
+		// If child is a zombie, wait() immediately to free up kernel resources. Higher level code
+		// (e.g. shader compiling manager) can hold on to handle of no longer running process for longer,
+		// which is a dubious, but valid behavior. We don't want to keep zombie around though.
+		if (!bIsRunning)
+		{
+			UE_LOG(LogHAL, Verbose, TEXT("Child %d is no longer running (zombie), Wait()ing immediately."), GetProcessId() );
+			Wait();
+		}
+	}
+
+	return bIsRunning;
+}
+
+bool FProcState::GetReturnCode(int32* ReturnCodePtr)
+{
+	check(!bIsRunning || !"You cannot get a return code of a running process");
+	if (!bHasBeenWaitedFor)
+	{
+		Wait();
+	}
+
+	if (ReturnCode != -1)
+	{
+		if (ReturnCodePtr != NULL)
+		{
+			*ReturnCodePtr = ReturnCode;
+		}
+		return true;
+	}
+
+	return false;
+}
+
+void FProcState::Wait()
+{
+	if (bHasBeenWaitedFor)
+	{
+		return;	// we could try waitpid() another time, but why
+	}
+
+	for(;;)	// infinite loop in case we get EINTR and have to repeat
+	{
+		siginfo_t SignalInfo;
+		if (waitid(P_PID, GetProcessId(), &SignalInfo, WEXITED))
+		{
+			if (errno != EINTR)
+			{
+				int ErrNo = errno;
+				UE_LOG(LogHAL, Fatal, TEXT("FMacPlatformProcess::WaitForProc: waitid for pid %d failed (errno=%d, %s)"),
+					static_cast< int32 >(GetProcessId()), ErrNo, UTF8_TO_TCHAR(strerror(ErrNo)));
+				break;	// exit the loop if for some reason Fatal log (above) returns
+			}
+		}
+		else
+		{
+			check(SignalInfo.si_pid == GetProcessId());
+
+			ReturnCode = (SignalInfo.si_code == CLD_EXITED) ? SignalInfo.si_status : -1;
+			bHasBeenWaitedFor = true;
+			bIsRunning = false;	// set in advance
+			UE_LOG(LogHAL, Verbose, TEXT("Child %d's return code is %d."), GetProcessId(), ReturnCode);
+			break;
+		}
+	}
 }
 
 bool FMacPlatformProcess::IsProcRunning( FProcHandle& ProcessHandle )
 {
-	SCOPED_AUTORELEASE_POOL;
-	return [(NSTask*)ProcessHandle.Get() isRunning];
+	bool bIsRunning = false;
+	FProcState * ProcInfo = ProcessHandle.GetProcessInfo();
+
+	if (ProcInfo)
+	{
+		bIsRunning = ProcInfo->IsRunning();
+	}
+	else if (ProcessHandle.Get() != -1)
+	{
+		// Process opened with OpenProcess() call (we only have pid)
+		int KillResult = kill(ProcessHandle.Get(), 0);	// no actual signal is sent
+		check(KillResult != -1 || errno != EINVAL);
+
+		// errno == EPERM: don't have permissions to send signal
+		// errno == ESRCH: proc doesn't exist
+		bIsRunning = (KillResult == 0);
+	}
+
+	return bIsRunning;
 }
 
 void FMacPlatformProcess::WaitForProc( FProcHandle& ProcessHandle )
 {
-	SCOPED_AUTORELEASE_POOL;
-	[(NSTask*)ProcessHandle.Get() waitUntilExit];
+	FProcState* ProcInfo = ProcessHandle.GetProcessInfo();
+	if (ProcInfo)
+	{
+		ProcInfo->Wait();
+	}
+	else if (ProcessHandle.Get() != -1)
+	{
+		STUBBED("FMacPlatformProcess::WaitForProc() : Waiting on OpenProcess() handle not implemented yet");
+	}
 }
 
-void FMacPlatformProcess::CloseProc( FProcHandle & ProcessHandle )
+void FMacPlatformProcess::CloseProc( FProcHandle& ProcessHandle )
 {
-	SCOPED_AUTORELEASE_POOL;
-	if (ProcessHandle.Activity)
-	{
-		[[NSProcessInfo processInfo] endActivity:ProcessHandle.Activity];
-		[ProcessHandle.Activity release];
-	}
-	[(NSTask*)ProcessHandle.Get() release];
+	// dispose of both handle and process info
+	FProcState* ProcInfo = ProcessHandle.GetProcessInfo();
 	ProcessHandle.Reset();
+
+	delete ProcInfo;
 }
 
 void FMacPlatformProcess::TerminateProc( FProcHandle& ProcessHandle, bool KillTree )
 {
-	SCOPED_AUTORELEASE_POOL;
-
-	if (KillTree)
+	FProcState* ProcInfo = ProcessHandle.GetProcessInfo();
+	if (ProcInfo)
 	{
-		int32 ProcessID = [(NSTask*)ProcessHandle.Get() processIdentifier];
+		const int32 ProcessID = ProcInfo->GetProcessId();
 
-		FProcEnumerator ProcEnumerator;
-
-		while (ProcEnumerator.MoveNext())
+		if (KillTree)
 		{
-			auto Current = ProcEnumerator.GetCurrent();
-			if (Current.GetParentPID() == ProcessID)
+			FProcEnumerator ProcEnumerator;
+
+			while (ProcEnumerator.MoveNext())
 			{
-				kill(Current.GetPID(), SIGTERM);
+				auto Current = ProcEnumerator.GetCurrent();
+				if (Current.GetParentPID() == ProcessID)
+				{
+					kill(Current.GetPID(), SIGTERM);
+				}
 			}
 		}
-	}
 
-	[(NSTask*)ProcessHandle.Get() terminate];
+		int KillResult = kill(ProcessID, SIGTERM);	// graceful
+		check(KillResult != -1 || errno != EINVAL);
+	}
+	else if (ProcessHandle.Get() != -1)
+	{
+		STUBBED("FMacPlatformProcess::TerminateProc() : Terminating OpenProcess() handle not implemented");
+	}
 }
 
 uint32 FMacPlatformProcess::GetCurrentProcessId()
@@ -689,18 +877,22 @@ uint32 FMacPlatformProcess::GetCurrentCoreNumber()
 
 bool FMacPlatformProcess::GetProcReturnCode( FProcHandle& ProcessHandle, int32* ReturnCode )
 {
-	SCOPED_AUTORELEASE_POOL;
-
 	if (IsProcRunning(ProcessHandle))
 	{
 		return false;
 	}
 
-	if (ReturnCode)
+	FProcState* ProcInfo = ProcessHandle.GetProcessInfo();
+	if (ProcInfo)
 	{
-		*ReturnCode = [(NSTask*)ProcessHandle.Get() terminationStatus];
+		return ProcInfo->GetReturnCode(ReturnCode);
 	}
-	return true;
+	else if (ProcessHandle.Get() != -1)
+	{
+		STUBBED("FMacPlatformProcess::GetProcReturnCode() : Return code of OpenProcess() handle not implemented yet");
+	}
+
+	return false;
 }
 
 bool FMacPlatformProcess::IsApplicationRunning( uint32 ProcessId )

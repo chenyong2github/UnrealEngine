@@ -16,7 +16,7 @@ public abstract class DatasmithRevitBaseTarget : TargetRules
 		string RevitVersionString = GetVersion();
 		string ProjectName = "DatasmithRevit" + RevitVersionString;
 		string DynamoNodeProjectName = "DatasmithDynamoNode";
-		
+
 		ExeBinariesSubFolder = Path.Combine("Revit", RevitVersionString);
 		LaunchModuleName = ProjectName;
 
@@ -59,8 +59,9 @@ public abstract class DatasmithRevitBaseTarget : TargetRules
 		string RevitExporterPath = @"$(EngineDir)\Source\Programs\Enterprise\Datasmith\DatasmithRevitExporter";
 		string ProjectFile = Path.Combine(RevitExporterPath, ProjectName, ProjectName+".csproj");
 		string DynamoNodeProjectFile = Path.Combine(RevitExporterPath, ProjectName, DynamoNodeProjectName+".csproj");
-		string BuildCommand = string.Format(@"$(EngineDir)\Build\BatchFiles\MSBuild.bat /t:Build /p:Configuration=Release /p:{1}=%{1}% {0}", ProjectFile, RevitSDKEnvVar);
-		string BuildCommandDynamoNode = string.Format(@"$(EngineDir)\Build\BatchFiles\MSBuild.bat /t:Build /p:Configuration=Release /p:{1}=%{1}% {0}", DynamoNodeProjectFile, RevitSDKEnvVar);
+		string Config = "Release";
+		string BuildCommand = string.Format(@"$(EngineDir)\Build\BatchFiles\MSBuild.bat /t:Build /p:Configuration={2} /p:{1}=%{1}% {0}", ProjectFile, RevitSDKEnvVar, Config);
+		string BuildCommandDynamoNode = string.Format(@"$(EngineDir)\Build\BatchFiles\MSBuild.bat /t:Build /p:Configuration={2} /p:{1}=%{1}% {0}", DynamoNodeProjectFile, RevitSDKEnvVar, Config);
 		string ErrorMsg = string.Format("Cannot build {0}: Environment variable {1} is not defined.", ProjectName, RevitSDKEnvVar);
 
 		// Since the Datasmith Revit Exporter is a C# project, build in batch the release configuration of the Visual Studio C# project file.

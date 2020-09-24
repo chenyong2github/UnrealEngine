@@ -2,8 +2,12 @@
 
 #include "USDLayerUtils.h"
 
-#include "USDTypesConversion.h"
+#include "UnrealUSDWrapper.h"
 #include "USDErrorUtils.h"
+#include "USDLog.h"
+#include "USDTypesConversion.h"
+
+#include "UsdWrappers/SdfLayer.h"
 
 #include "DesktopPlatformModule.h"
 #include "Framework/Application/SlateApplication.h"
@@ -13,9 +17,12 @@
 #if USE_USD_SDK
 
 #include "USDIncludesStart.h"
+	#include "pxr/usd/pcp/layerStack.h"
 	#include "pxr/usd/sdf/layer.h"
+	#include "pxr/usd/sdf/layerUtils.h"
 	#include "pxr/usd/usd/editContext.h"
 	#include "pxr/usd/usd/modelAPI.h"
+	#include "pxr/usd/usd/primCompositionQuery.h"
 	#include "pxr/usd/usd/stage.h"
 	#include "pxr/usd/usdGeom/xform.h"
 #include "USDIncludesEnd.h"
@@ -59,18 +66,27 @@ TOptional< FString > UsdUtils::BrowseUsdFile( EBrowseFileMode Mode, TSharedRef< 
 
 	TArray< FString > OutFiles;
 
+	TArray< FString > SupportedExtensions = UnrealUSDWrapper::GetAllSupportedFileFormats();
+	if ( SupportedExtensions.Num() == 0 )
+	{
+		UE_LOG(LogUsd, Error, TEXT("No file extensions supported by the USD SDK!"));
+		return {};
+	}
+	FString JoinedExtensions = FString::Join(SupportedExtensions, TEXT(";*.")); // Combine "usd" and "usda" into "usd; *.usda"
+	FString FileTypes = FString::Printf(TEXT("usd files (*.%s)|*.%s"), *JoinedExtensions, *JoinedExtensions);
+
 	switch ( Mode )
 	{
 		case EBrowseFileMode::Open :
 
-			if ( DesktopPlatform->OpenFileDialog( ParentWindowHandle, LOCTEXT( "ChooseFile", "Choose file").ToString(), TEXT(""), TEXT(""), TEXT("usd files (*.usd; *.usda; *.usdc)|*.usd; *.usda; *.usdc"), EFileDialogFlags::None, OutFiles ) )
+			if ( DesktopPlatform->OpenFileDialog( ParentWindowHandle, LOCTEXT( "ChooseFile", "Choose file").ToString(), TEXT(""), TEXT(""), *FileTypes, EFileDialogFlags::None, OutFiles ) )
 			{
 				return FPaths::ConvertRelativePathToFull(OutFiles[0]);
 			}
 			break;
 
 		case EBrowseFileMode::Save :
-			if ( DesktopPlatform->SaveFileDialog( ParentWindowHandle, LOCTEXT( "ChooseFile", "Choose file").ToString(), TEXT(""), TEXT(""), TEXT("usd files (*.usd; *.usda; *.usdc)|*.usd; *.usda; *.usdc"), EFileDialogFlags::None, OutFiles ) )
+			if ( DesktopPlatform->SaveFileDialog( ParentWindowHandle, LOCTEXT( "ChooseFile", "Choose file").ToString(), TEXT(""), TEXT(""), *FileTypes, EFileDialogFlags::None, OutFiles ) )
 			{
 				return FPaths::ConvertRelativePathToFull(OutFiles[0]);
 			}
@@ -122,6 +138,124 @@ TUsdStore< pxr::SdfLayerRefPtr > UsdUtils::CreateNewLayer( TUsdStore< pxr::UsdSt
 	}
 
 	return TUsdStore< pxr::SdfLayerRefPtr >( LayerRef );
+}
+
+UE::FSdfLayer UsdUtils::FindLayerForPrim( const pxr::UsdPrim& Prim )
+{
+	if ( !Prim )
+	{
+		return {};
+	}
+
+	FScopedUsdAllocs UsdAllocs;
+
+	pxr::UsdPrimCompositionQuery PrimCompositionQuery( Prim );
+	std::vector< pxr::UsdPrimCompositionQueryArc > CompositionArcs = PrimCompositionQuery.GetCompositionArcs();
+
+	for ( const pxr::UsdPrimCompositionQueryArc& CompositionArc : CompositionArcs )
+	{
+		pxr::SdfLayerHandle IntroducingLayer = CompositionArc.GetIntroducingLayer();
+
+		if ( IntroducingLayer )
+		{
+			return UE::FSdfLayer( IntroducingLayer );
+		}
+	}
+
+	return UE::FSdfLayer( Prim.GetStage()->GetRootLayer() );
+}
+
+UE::FSdfLayer UsdUtils::FindLayerForAttribute( const pxr::UsdAttribute& Attribute, double TimeCode )
+{
+	if ( !Attribute )
+	{
+		return {};
+	}
+
+	FScopedUsdAllocs UsdAllocs;
+
+	for ( const pxr::SdfPropertySpecHandle& PropertySpec : Attribute.GetPropertyStack( TimeCode ) )
+	{
+		if ( PropertySpec->HasDefaultValue() || PropertySpec->GetLayer()->GetNumTimeSamplesForPath( PropertySpec->GetPath() ) > 0 )
+		{
+			return UE::FSdfLayer( PropertySpec->GetLayer() );
+		}
+	}
+
+	return {};
+}
+
+UE::FSdfLayer UsdUtils::FindLayerForSubLayerPath( const UE::FSdfLayer& RootLayer, const FStringView& SubLayerPath )
+{
+	const FString RelativeLayerPath = UE::FSdfLayerUtils::SdfComputeAssetPathRelativeToLayer( RootLayer, SubLayerPath.GetData() );
+
+	return UE::FSdfLayer::FindOrOpen( *RelativeLayerPath );
+}
+
+bool UsdUtils::SetRefOrPayloadLayerOffset( pxr::UsdPrim& Prim, const UE::FSdfLayerOffset& LayerOffset )
+{
+	FScopedUsdAllocs UsdAllocs;
+
+	pxr::UsdPrimCompositionQuery PrimCompositionQuery( Prim );
+	std::vector< pxr::UsdPrimCompositionQueryArc > CompositionArcs = PrimCompositionQuery.GetCompositionArcs();
+
+	for ( const pxr::UsdPrimCompositionQueryArc& CompositionArc : CompositionArcs )
+	{
+		if ( CompositionArc.GetArcType() == pxr::PcpArcTypeReference )
+		{
+			pxr::SdfReferenceEditorProxy ReferenceEditor;
+			pxr::SdfReference OldReference;
+
+			if ( CompositionArc.GetIntroducingListEditor( &ReferenceEditor, &OldReference ) )
+			{
+				pxr::SdfReference NewReference = OldReference;
+				NewReference.SetLayerOffset( pxr::SdfLayerOffset( LayerOffset.Offset, LayerOffset.Scale ) );
+
+				ReferenceEditor.ReplaceItemEdits( OldReference, NewReference );
+
+				return true;
+			}
+		}
+		else if ( CompositionArc.GetArcType() == pxr::PcpArcTypePayload )
+		{
+			pxr::SdfPayloadEditorProxy PayloadEditor;
+			pxr::SdfPayload OldPayload;
+			
+			if ( CompositionArc.GetIntroducingListEditor( &PayloadEditor, &OldPayload ) )
+			{
+				pxr::SdfPayload NewPayload = OldPayload;
+				NewPayload.SetLayerOffset( pxr::SdfLayerOffset( LayerOffset.Offset, LayerOffset.Scale ) );
+
+				PayloadEditor.ReplaceItemEdits( OldPayload, NewPayload );
+
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+UE::FSdfLayerOffset UsdUtils::GetLayerToStageOffset( const pxr::UsdAttribute& Attribute )
+{
+	// Inspired by pxr::_GetLayerToStageOffset
+
+	UE::FSdfLayer AttributeLayer = UsdUtils::FindLayerForAttribute( Attribute, pxr::UsdTimeCode::EarliestTime().GetValue() );
+
+	FScopedUsdAllocs UsdAllocs;
+
+	pxr::UsdResolveInfo ResolveInfo = Attribute.GetResolveInfo( pxr::UsdTimeCode::EarliestTime() );
+
+	pxr::SdfLayerOffset NodeToRootNodeOffset = ResolveInfo.GetNode().GetMapToRoot().GetTimeOffset();
+
+	pxr::SdfLayerOffset LocalOffset = NodeToRootNodeOffset;
+
+	if ( const pxr::SdfLayerOffset* LayerToRootLayerOffset = ResolveInfo.GetNode().GetLayerStack()->GetLayerOffsetForLayer( pxr::SdfLayerRefPtr( AttributeLayer ) ) )
+	{
+		LocalOffset = LocalOffset * (*LayerToRootLayerOffset);
+	}
+
+	return UE::FSdfLayerOffset( LocalOffset.GetOffset(), LocalOffset.GetScale() );
 }
 
 #undef LOCTEXT_NAMESPACE

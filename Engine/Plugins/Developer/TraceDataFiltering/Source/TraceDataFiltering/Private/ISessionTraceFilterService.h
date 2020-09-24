@@ -11,6 +11,7 @@ struct FTraceObjectInfo
 {
 	FString Name;
 	bool bEnabled;
+	bool bReadOnly;
 	uint32 Hash;
 	uint32 OwnerHash;
 };
@@ -33,6 +34,6 @@ public:
 	/** Set timestamp for last processed update (data change) */
 	virtual const FDateTime& GetTimestamp() = 0;
 
-	/** Update filtering state according to user-set preset(s) */
-	virtual void UpdateFilterPresets(const TArray<TSharedPtr<IFilterPreset>>& InPresets) = 0;
+	/** Update filter preset */
+	virtual void UpdateFilterPreset(const TSharedPtr<IFilterPreset> InPreset, bool IsEnabled) = 0;
 };

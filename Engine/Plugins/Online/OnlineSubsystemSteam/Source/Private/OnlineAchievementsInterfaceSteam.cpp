@@ -206,7 +206,7 @@ void FOnlineAchievementsSteam::UpdateAchievementsForUser(const FUniqueNetIdSteam
 		NewAch.LockedDesc = FText::FromString( UTF8_TO_TCHAR( SteamUserStatsPtr->GetAchievementDisplayAttribute(TCHAR_TO_UTF8(*Achievements[AchIdx].Id), "desc") ) );
 		NewAch.UnlockedDesc = NewAch.LockedDesc;
 
-		NewAch.bIsHidden = FCString::Atoi( UTF8_TO_TCHAR( SteamUserStatsPtr->GetAchievementDisplayAttribute(TCHAR_TO_UTF8(*Achievements[AchIdx].Id), "desc") ) ) != 0;
+		NewAch.bIsHidden = FCString::Atoi( UTF8_TO_TCHAR( SteamUserStatsPtr->GetAchievementDisplayAttribute(TCHAR_TO_UTF8(*Achievements[AchIdx].Id), "hidden") ) ) != 0;
 
 		UE_LOG_ONLINE_ACHIEVEMENTS(Verbose, TEXT("Read achievement %d: %s"), AchIdx, *NewAch.ToDebugString());
 		AchievementsForPlayer.Add( NewAch );

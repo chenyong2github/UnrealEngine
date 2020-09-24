@@ -58,6 +58,15 @@ public:
 	static EMagicLeapPassableWorldError GetClosestARPin(const FVector& SearchPoint, FGuid& PinID);
 
 	/**
+	* Returns filtered set of Pins based on the informed parameters.
+	* @param Query Search parameters
+	* @param Pins Output array containing IDs of the found Pins. Valid only if return value is EMagicLeapPassableWorldError::None.
+	* @return Error code representing specific success or failure cases.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "ContentPersistence|MagicLeap")
+	static EMagicLeapPassableWorldError QueryARPins(const FMagicLeapARPinQuery& Query, TArray<FGuid>& Pins);
+
+	/**
 	* Returns the position & orientation of the requested Pin in tracking space
 	* @param PinID ID of the Pin to get the position and orientation for.
 	* @param Position Output param for the position of the Pin in tracking space. Valid only if return value is true.
@@ -88,8 +97,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ContentPersistence|MagicLeap")
 	static EMagicLeapPassableWorldError GetARPinState(const FGuid& PinID, FMagicLeapARPinState& State);
 
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "ContentPersistence|MagicLeap")
+	UFUNCTION(BlueprintCallable, BlueprintPure, meta=(DisplayName="ToString (FMagicLeapARPinState)", CompactNodeTitle="->", ScriptMethod="StateToString"), Category = "ContentPersistence|MagicLeap")
 	static FString GetARPinStateToString(const FMagicLeapARPinState& State);
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, meta=(DisplayName="ToString (ARPinId)", CompactNodeTitle="->", ScriptMethod="IdToString"), Category = "ContentPersistence|MagicLeap")
+	static FString ARPinIdToString(const FGuid& ARPinId);
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "ContentPersistence|MagicLeap")
+	static bool ParseStringToARPinId(const FString& PinIdString, FGuid& ARPinId);
 
 	/**
 	 * Bind a dynamic delegate to the OnMagicLeapARPinUpdated event.
@@ -108,4 +123,57 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ContentPersistence|MagicLeap")
 	static void UnBindToOnMagicLeapARPinUpdatedDelegate(const FMagicLeapARPinUpdatedDelegate& Delegate);
+
+	/**
+	* Set the filter used to query ARPins at the specified frequency (see UMagicLeapARPinSettings). This will alter the results reported via the OnMagicLeapARPinUpdated delegates only
+	* and not the ones by GetClosestARPin() and QueryARPins().
+	* By default the filter includes all available Pin in an unbounded distance. If an ARPin's type changes to one that is not in the specified filter,
+	* or it falls outside the specified search volume, it will be marked as a "deleted" Pin even if it is still present in the environment.
+	* @param InGlobalFilter Filter to use when querying pins for updates.
+	* @return Error code representing specific success or failure cases.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "ContentPersistence|MagicLeap")
+	static EMagicLeapPassableWorldError SetGlobalQueryFilter(const FMagicLeapARPinQuery& InGlobalFilter);
+
+	/**
+	* The current filter used when querying pins for updates.
+	* @param CurrentGlobalFilter the current filter used when querying pins for updates.
+	* @return Error code representing specific success or failure cases.
+	* @see SetGlobalQueryFilter()
+	*/
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "ContentPersistence|MagicLeap")
+	static EMagicLeapPassableWorldError GetGlobalQueryFilter(FMagicLeapARPinQuery& CurrentGlobalFilter);
+
+	/**
+	 * Bind a dynamic delegate to the OnMagicLeapContentBindingFound event.
+	 * 
+	 * The delegate reports a PinID and the set of ObjectIds that were saved (via a MagicLeapARPinComponent) for that Pin.
+	 * This delegate can be used to spawn the actors associated with that ObjectId. Spawn the actor, set the ObjectId and then call
+	 * UMagicLeapARPinComponent::AttemptPinDataRestoration().
+	 * @param Delegate Delegate to bind
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ContentPersistence|MagicLeap")
+	static void BindToOnMagicLeapContentBindingFoundDelegate(const FMagicLeapContentBindingFoundDelegate& Delegate);
+
+	/**
+	 * Unbind a dynamic delegate from the OnMagicLeapContentBindingFound event.
+	 * @param Delegate Delegate to unbind
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ContentPersistence|MagicLeap")
+	static void UnBindToOnMagicLeapContentBindingFoundDelegate(const FMagicLeapContentBindingFoundDelegate& Delegate);
+
+	/**
+	 * Get the user index used to save / load the save game object used for storing all the content bindings (PinID and ObjectID associations in a MagicLeapARPinComponent).
+	 * @return user index for the save game object
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "ContentPersistence|MagicLeap")
+	static int32 GetContentBindingSaveGameUserIndex();
+
+	/**
+	 * Set the user index to be used to save / load the save game object used for storing all the content bindings (PinID and ObjectID associations in a MagicLeapARPinComponent).
+	 * Call this before the first tick of the level.
+	 * @param UserIndex user index to be used for the save game object
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ContentPersistence|MagicLeap")
+	static void SetContentBindingSaveGameUserIndex(int32 UserIndex);
 };

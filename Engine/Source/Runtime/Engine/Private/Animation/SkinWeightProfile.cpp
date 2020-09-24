@@ -71,7 +71,7 @@ static void OnDefaultProfileCVarsChanged(IConsoleVariable* Variable)
 		if (bClearBuffer || bSetBuffer)
 		{
 			// Make sure no pending skeletal mesh LOD updates
-			if (IStreamingManager::Get_Concurrent() && IStreamingManager::Get().IsRenderAssetStreamingEnabled())
+			if (IStreamingManager::Get_Concurrent() && IStreamingManager::Get().IsRenderAssetStreamingEnabled(EStreamableRenderAssetType::SkeletalMesh))
 			{
 				IStreamingManager::Get().GetRenderAssetStreamingManager().BlockTillAllRequestsFinished();
 			}
@@ -104,7 +104,7 @@ static void OnDefaultProfileCVarsChanged(IConsoleVariable* Variable)
 }
 
 int32 GSkinWeightProfilesLoadByDefaultMode = -1;
-static FAutoConsoleVariableRef CVarSkinWeightsLoadByDefaultMode(
+FAutoConsoleVariableRef CVarSkinWeightsLoadByDefaultMode(
 	TEXT("a.SkinWeightProfile.LoadByDefaultMode"),
 	GSkinWeightProfilesLoadByDefaultMode,
 	TEXT("Enables/disables run-time optimization to override the original skin weights with a profile designated as the default to replace it. Can be used to optimize memory for specific platforms or devices")
@@ -114,11 +114,11 @@ static FAutoConsoleVariableRef CVarSkinWeightsLoadByDefaultMode(
 	TEXT("2 = dynamic disabled")
 	TEXT("3 = dynamic enabled"),
 	FConsoleVariableDelegate::CreateStatic(&OnDefaultProfileCVarsChanged),
-	ECVF_Scalability
+	ECVF_Default
 );
 
 int32 GSkinWeightProfilesDefaultLODOverride = -1;
-static FAutoConsoleVariableRef CVarSkinWeightProfilesDefaultLODOverride(
+FAutoConsoleVariableRef CVarSkinWeightProfilesDefaultLODOverride(
 	TEXT("a.SkinWeightProfile.DefaultLODOverride"),
 	GSkinWeightProfilesDefaultLODOverride,
 	TEXT("Override LOD index from which on the default Skin Weight Profile should override the Skeletal Mesh's default Skin Weights"),
@@ -127,7 +127,7 @@ static FAutoConsoleVariableRef CVarSkinWeightProfilesDefaultLODOverride(
 );
 
 int32 GSkinWeightProfilesAllowedFromLOD = -1;
-static FAutoConsoleVariableRef CVarSkinWeightProfilesAllowedFromLOD(
+FAutoConsoleVariableRef CVarSkinWeightProfilesAllowedFromLOD(
 	TEXT("a.SkinWeightProfile.AllowedFromLOD"),
 	GSkinWeightProfilesAllowedFromLOD,
 	TEXT("Override LOD index from which on the Skin Weight Profile can be applied"),

@@ -16,6 +16,9 @@
 #include "Factories/FbxSkeletalMeshImportData.h"
 #include "Factories/FbxStaticMeshImportData.h"
 #include "Factories/FbxTextureImportData.h"
+#include "Factories/ReimportFbxAnimSequenceFactory.h"
+#include "Factories/ReimportFbxSkeletalMeshFactory.h"
+#include "Factories/ReimportFbxStaticMeshFactory.h"
 #include "FbxImporter.h"
 #include "HAL/FileManager.h"
 #include "IContentBrowserSingleton.h"
@@ -89,7 +92,6 @@ UClass* UFbxFactory::ResolveSupportedClass()
 bool UFbxFactory::DetectImportType(const FString& InFilename)
 {
 	UnFbx::FFbxImporter* FFbxImporter = UnFbx::FFbxImporter::GetInstance();
-	UnFbx::FFbxLoggerSetter Logger(FFbxImporter);
 	int32 ImportType = FFbxImporter->GetImportType(InFilename);
 	if ( ImportType == -1)
 	{
@@ -196,46 +198,96 @@ UObject* UFbxFactory::FactoryCreateFile
 	GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPreImport(this, Class, InParent, Name, Type);
 
 	UObject* CreatedObject = NULL;
-	//Look if its a re-import, in that cazse we must call the re-import factory
+	//Look if its a re-import, in that case we must call the re-import factory
 	UObject *ExistingObject = nullptr;
 	if (InParent != nullptr)
 	{
 		ExistingObject = StaticFindObject(UObject::StaticClass(), InParent, *(Name.ToString()));
 		if (ExistingObject)
 		{
-			UStaticMesh *ExistingStaticMesh = Cast<UStaticMesh>(ExistingObject);
-			USkeletalMesh *ExistingSkeletalMesh = Cast<USkeletalMesh>(ExistingObject);
-			UAnimSequence* ExistingAnimSequence = Cast<UAnimSequence>(ExistingObject);
-			UObject *ObjectToReimport = nullptr;
-			if (ExistingStaticMesh)
+			FReimportHandler* ReimportHandler = nullptr;
+			UFactory* ReimportHandlerFactory = nullptr;
+			UAssetImportTask* HandlerOriginalImportTask = nullptr;
+			bool bIsObjectSupported = true;
+			if (Cast<UStaticMesh>(ExistingObject))
 			{
-				ObjectToReimport = ExistingStaticMesh;
+				bIsObjectSupported = true;
+				// Using RF_NoFlags because we want to include class default object, which are used by the reimport manager.
+				for (TObjectIterator<UReimportFbxStaticMeshFactory> ReimportFactoryIterator(RF_NoFlags); ReimportFactoryIterator; ++ReimportFactoryIterator)
+				{
+					HandlerOriginalImportTask = ReimportFactoryIterator->AssetImportTask;
+					ReimportFactoryIterator->AssetImportTask = AssetImportTask;
+					ReimportHandler = *ReimportFactoryIterator;
+					ReimportHandlerFactory = *ReimportFactoryIterator;
+					break;
+				}
 			}
-			else if (ExistingSkeletalMesh)
+			else if (Cast<USkeletalMesh>(ExistingObject))
 			{
-				ObjectToReimport = ExistingSkeletalMesh;
+				bIsObjectSupported = true;
+				// Using RF_NoFlags because we want to include class default object, which are used by the reimport manager.
+				for (TObjectIterator<UReimportFbxSkeletalMeshFactory> ReimportFactoryIterator(RF_NoFlags); ReimportFactoryIterator; ++ReimportFactoryIterator)
+				{
+					HandlerOriginalImportTask = ReimportFactoryIterator->AssetImportTask;
+					ReimportFactoryIterator->AssetImportTask = AssetImportTask;
+					ReimportHandler = *ReimportFactoryIterator;
+					ReimportHandlerFactory = *ReimportFactoryIterator;
+					break;
+				}
 			}
-			else if (ExistingAnimSequence)
+			else if (Cast<UAnimSequence>(ExistingObject))
 			{
-				ObjectToReimport = ExistingAnimSequence;
+				bIsObjectSupported = true;
+				// Using RF_NoFlags because we want to include class default object, which are used by the reimport manager.
+				for (TObjectIterator<UReimportFbxAnimSequenceFactory> ReimportFactoryIterator(RF_NoFlags); ReimportFactoryIterator; ++ReimportFactoryIterator)
+				{
+					HandlerOriginalImportTask = ReimportFactoryIterator->AssetImportTask;
+					ReimportFactoryIterator->AssetImportTask = AssetImportTask;
+					ReimportHandler = *ReimportFactoryIterator;
+					ReimportHandlerFactory = *ReimportFactoryIterator;
+					break;
+				}
 			}
 
-			if (ObjectToReimport != nullptr)
+			if (bIsObjectSupported)
 			{
 				TArray<UObject*> ToReimportObjects;
-				ToReimportObjects.Add(ObjectToReimport);
+				ToReimportObjects.Add(ExistingObject);
 				TArray<FString> Filenames;
 				Filenames.Add(UFactory::CurrentFilename);
 				//Set the new fbx source path before starting the re-import
-				FReimportManager::Instance()->UpdateReimportPaths(ObjectToReimport, Filenames);
+				FReimportManager::Instance()->UpdateReimportPaths(ExistingObject, Filenames);
 				//Do the re-import and exit
 				const bool bIsAutomated = IsAutomatedImport();
 				const bool bShowNotification = !bIsAutomated;
-				FReimportManager::Instance()->ValidateAllSourceFileAndReimport(ToReimportObjects, bShowNotification, /*SourceFileIndex= */ INDEX_NONE, /*bForceNewFile= */ false, bIsAutomated);
-				return ObjectToReimport;
+				const int32 SourceFileIndex = INDEX_NONE;
+				const bool bForceNewFile = false;
+
+				if (ReimportHandler)
+				{
+					const bool bAskForNewFileIfMissing = true;
+					const FString PreferedReimportFile;
+
+					FReimportManager::Instance()->Reimport(ExistingObject, bAskForNewFileIfMissing, bShowNotification, PreferedReimportFile, ReimportHandler, SourceFileIndex, bForceNewFile, bIsAutomated);
+					
+					if (ReimportHandlerFactory)
+					{
+						ReimportHandlerFactory->AssetImportTask = HandlerOriginalImportTask;
+					}
+				}
+				else
+				{
+					FReimportManager::Instance()->ValidateAllSourceFileAndReimport(ToReimportObjects, bShowNotification, SourceFileIndex, bForceNewFile, bIsAutomated);
+				}
+
+				return ExistingObject;
 			}
 		}
 	}
+
+	// logger for all error/warnings
+	UnFbx::FFbxImporter* FbxImporter = UnFbx::FFbxImporter::GetInstance();
+	UnFbx::FFbxLoggerSetter Logger(FbxImporter);
 
 	if ( bDetectImportTypeOnImport)
 	{
@@ -246,9 +298,8 @@ UObject* UFbxFactory::FactoryCreateFile
 			return NULL;
 		}
 	}
-	// logger for all error/warnings
+	
 	// this one prints all messages that are stored in FFbxImporter
-	UnFbx::FFbxImporter* FbxImporter = UnFbx::FFbxImporter::GetInstance();
 	UnFbx::FBXImportOptions* ImportOptions = FbxImporter->GetImportOptions();
 	if (bShowOption)
 	{
@@ -256,8 +307,6 @@ UObject* UFbxFactory::FactoryCreateFile
 		UnFbx::FBXImportOptions::ResetOptions(ImportOptions);
 	}
 	
-	UnFbx::FFbxLoggerSetter Logger(FbxImporter);
-
 	EFBXImportType ForcedImportType = FBXIT_StaticMesh;
 
 	bool bIsObjFormat = false;
@@ -297,7 +346,7 @@ UObject* UFbxFactory::FactoryCreateFile
 	}
 	else if(AssetImportTask && AssetImportTask->Options)
 	{
-		UE_LOG(LogFbx, Warning, TEXT("The options set in the Asset Import Task are not of type UFbxImportUI and will be ignored"));
+		UE_LOG(LogFbx, Display, TEXT("The options set in the Asset Import Task are not of type UFbxImportUI and will be ignored"));
 	}
 
 	//We are not re-importing
@@ -871,7 +920,8 @@ void UFbxFactory::CancelObjectCreation(UnFbx::FFbxImporter* FbxImporter) const
 
 	//Make sure the content browser is in sync after we delete, to avoid stale references.
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
-	ContentBrowserModule.Get().SyncBrowserToAssets(AssetsToDelete);
+	const bool bAllowLockedBrowser = true;
+	ContentBrowserModule.Get().SyncBrowserToAssets(AssetsToDelete, bAllowLockedBrowser);
 }
 
 UObject* UFbxFactory::RecursiveImportNode(UnFbx::FFbxImporter* FbxImporter, void* VoidNode, UObject* InParent, FName InName, EObjectFlags Flags, FScopedSlowTask& SlowTask, TArray<UObject*>& OutNewAssets)

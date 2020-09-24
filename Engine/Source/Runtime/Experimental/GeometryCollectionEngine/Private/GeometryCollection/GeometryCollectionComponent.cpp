@@ -26,6 +26,7 @@
 #include "AI/NavigationSystemHelpers.h"
 #include "Net/UnrealNetwork.h"
 #include "Net/Core/PushModel/PushModel.h"
+#include "PhysicalMaterials/PhysicalMaterial.h"
 
 #if WITH_EDITOR
 #include "AssetToolsModule.h"
@@ -703,6 +704,38 @@ bool UGeometryCollectionComponent::DoCustomNavigableGeometryExport(FNavigableGeo
 	GeomExport.ExportCustomMesh(OutVertexBuffer.GetData(), OutVertexBuffer.Num(), OutIndexBuffer.GetData(), OutIndexBuffer.Num(), GetComponentToWorld());
 
 	return true;
+}
+
+UPhysicalMaterial* UGeometryCollectionComponent::GetPhysicalMaterial() const
+{
+	// Pull material from first mesh element to grab physical material. Prefer an override if one exists
+	UPhysicalMaterial* PhysMatToUse = PhysicalMaterialOverride;
+
+	if(!PhysMatToUse)
+	{
+		// No override, try render materials
+		const int32 NumMaterials = GetNumMaterials();
+
+		if(NumMaterials > 0)
+		{
+			UMaterialInterface* FirstMatInterface = GetMaterial(0);
+
+			if(FirstMatInterface && FirstMatInterface->GetPhysicalMaterial())
+			{
+				PhysMatToUse = FirstMatInterface->GetPhysicalMaterial();
+			}
+		}
+	}
+
+	if(!PhysMatToUse)
+	{
+		// Still no material, fallback on default
+		PhysMatToUse = GEngine->DefaultPhysMaterial;
+	}
+
+	// Should definitely have a material at this point.
+	check(PhysMatToUse);
+	return PhysMatToUse;
 }
 
 void UGeometryCollectionComponent::InitializeComponent()
@@ -1713,15 +1746,6 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 		const bool bValidCollection = DynamicCollection && DynamicCollection->Transform.Num() > 0;
 		if (bValidWorld && bValidCollection)
 		{
-			if (!ChaosMaterial)
-			{
-				ChaosMaterial.Reset(new Chaos::FChaosPhysicsMaterial());
-			}
-			if (PhysicalMaterial)
-			{
-				PhysicalMaterial->CopyTo(*ChaosMaterial);
-			}
-
 			FPhysxUserData::Set<UPrimitiveComponent>(&PhysicsUserData, this);
 
 			FSimulationParameters SimulationParameters;
@@ -1769,7 +1793,12 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 				SimulationParameters.RemoveOnFractureEnabled = SimulationParameters.Shared.RemoveOnFractureIndices.Num() > 0;
 				SimulationParameters.WorldTransform = GetComponentToWorld();
 				SimulationParameters.UserData = static_cast<void*>(&PhysicsUserData);
-				SimulationParameters.PhysicalMaterial = Chaos::MakeSerializable(ChaosMaterial);
+
+				UPhysicalMaterial* EnginePhysicalMaterial = GetPhysicalMaterial();
+				if(ensure(EnginePhysicalMaterial))
+				{
+					SimulationParameters.PhysicalMaterialHandle = EnginePhysicalMaterial->GetPhysicsMaterial();
+				}
 			}
 
 
@@ -2539,13 +2568,14 @@ void UGeometryCollectionComponent::DispatchCommand(const FFieldSystemCommand& In
 {
 	if (PhysicsProxy)
 	{
-		FChaosSolversModule* ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
+		FChaosSolversModule* ChaosModule = FChaosSolversModule::GetModule();
 		checkSlow(ChaosModule);
 
-		PhysicsProxy->GetSolver<Chaos::FPBDRigidsSolver>()->EnqueueCommandImmediate([PhysicsProxy = this->PhysicsProxy, NewCommand = InCommand]()
+		auto Solver = PhysicsProxy->GetSolver<Chaos::FPBDRigidsSolver>();
+		Solver->EnqueueCommandImmediate([Solver, PhysicsProxy = this->PhysicsProxy, NewCommand = InCommand]()
 		{
 			// Pass through nullptr here as geom component commands can never affect other solvers
-			PhysicsProxy->BufferCommand(nullptr, NewCommand);
+			PhysicsProxy->BufferCommand(Solver, NewCommand);
 		});
 	}
 }

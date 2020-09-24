@@ -34,27 +34,10 @@ namespace Insights
 	class FTable;
 	class FTableColumn;
 	class ITableCellValueSorter;
+
+	class FCounterAggregator;
+	class SAggregatorStatus;
 }
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-template<typename Type>
-struct TAggregatedStatsEx
-{
-	static constexpr int32 HistogramLen = 100; // number of buckets per histogram
-
-	TAggregatedStats<Type> BaseStats;
-
-	// Histogram for computing median and lower/upper quartiles.
-	int32 Histogram[HistogramLen];
-	Type DT; // bucket size
-
-	TAggregatedStatsEx()
-	{
-		FMemory::Memzero(Histogram, sizeof(int32) * HistogramLen);
-		DT = Type(1);
-	}
-};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -105,11 +88,11 @@ public:
 	void SelectCounterNode(uint32 CounterId);
 
 private:
-	void UpdateNode(FStatsNodePtr NodePtr);
-
 	void UpdateTree();
 
-	void UpdateStatsInternal();
+	void UpdateNode(FStatsNodePtr NodePtr);
+
+	void FinishAggregation();
 
 	/** Called when the analysis session has changed. */
 	void InsightsManager_OnSessionChanged();
@@ -363,7 +346,7 @@ private:
 	/** Current sorter. It is nullptr if sorting is disabled. */
 	TSharedPtr<Insights::ITableCellValueSorter> CurrentSorter;
 
-	/** Name of the column currently being sorted, NAME_None if sorting is disabled. */
+	/** Name of the column currently being sorted. Can be NAME_None if sorting is disabled (CurrentSorting == nullptr) or if a complex sorting is used (CurrentSorting != nullptr). */
 	FName ColumnBeingSorted;
 
 	/** How we sort the nodes? Ascending or Descending. */
@@ -371,8 +354,8 @@ private:
 
 	//////////////////////////////////////////////////
 
-	double StatsStartTime;
-	double StatsEndTime;
+	TSharedRef<Insights::FCounterAggregator> Aggregator;
+	TSharedPtr<Insights::SAggregatorStatus> AggregatorStatus;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

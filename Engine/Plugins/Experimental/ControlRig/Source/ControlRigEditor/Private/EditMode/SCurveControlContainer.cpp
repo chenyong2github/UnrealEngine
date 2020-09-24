@@ -352,7 +352,7 @@ void SCurveControlContainer::OnSelectionChanged(FDisplayedCurveControlInfoPtr Se
 		}
 	}
 }
-void SCurveControlContainer::OnRigElementSelected(IControlRigManipulatable* ControlRigManp, const FRigControl& Control, bool bSelected)
+void SCurveControlContainer::OnRigElementSelected(UControlRig* Subject, const FRigControl& Control, bool bSelected)
 {
 
 	for(const FDisplayedCurveControlInfoPtr& Item : CurveControlList)

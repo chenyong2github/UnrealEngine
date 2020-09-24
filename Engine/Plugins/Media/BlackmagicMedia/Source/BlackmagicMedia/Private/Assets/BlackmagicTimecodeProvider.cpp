@@ -139,11 +139,19 @@ UBlackmagicTimecodeProvider::UBlackmagicTimecodeProvider(const FObjectInitialize
 	MediaConfiguration.bIsInput = true;
 }
 
-FQualifiedFrameTime UBlackmagicTimecodeProvider::GetQualifiedFrameTime() const
+bool UBlackmagicTimecodeProvider::FetchTimecode(FQualifiedFrameTime& OutFrameTime)
 {
-	FFrameRate Rate = MediaConfiguration.MediaMode.FrameRate;
-	FTimecode Timecode = EventCallback && EventCallback->GetSynchronizationState() == ETimecodeProviderSynchronizationState::Synchronized ? EventCallback->GetTimecode() : FTimecode();
-	return FQualifiedFrameTime(Timecode, Rate);
+	if (!EventCallback || (EventCallback->GetSynchronizationState() != ETimecodeProviderSynchronizationState::Synchronized))
+	{
+		return false;
+	}
+
+	const FFrameRate Rate = MediaConfiguration.MediaMode.FrameRate;
+	const FTimecode Timecode = EventCallback->GetTimecode();
+
+	OutFrameTime = FQualifiedFrameTime(Timecode, Rate);
+
+	return true;
 }
 
 ETimecodeProviderSynchronizationState UBlackmagicTimecodeProvider::GetSynchronizationState() const

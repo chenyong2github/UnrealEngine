@@ -25,6 +25,7 @@ namespace UnrealBuildTool.Rules
 					"RenderCore",
 					"RHI",
 					"RenderCore",
+					"Renderer",
 				});
 
 			PrivateIncludePathModuleNames.AddRange(
@@ -33,6 +34,8 @@ namespace UnrealBuildTool.Rules
 
 			PrivateIncludePaths.AddRange(
 				new string[] {
+					//required for FPostProcessMaterialInputs
+					"../../../../Source/Runtime/Renderer/Private",
 				});
 
 			PublicDependencyModuleNames.AddRange(

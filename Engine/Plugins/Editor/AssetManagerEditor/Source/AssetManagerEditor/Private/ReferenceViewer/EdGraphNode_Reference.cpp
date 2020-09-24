@@ -4,6 +4,7 @@
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "EdGraph/EdGraphPin.h"
 #include "HAL/PlatformFileManager.h"
+#include "SReferenceViewer.h"
 
 #define LOCTEXT_NAMESPACE "ReferenceViewer"
 
@@ -169,7 +170,10 @@ void UEdGraphNode_Reference::AllocateDefaultPins()
 	DependencyPin = CreatePin( EEdGraphPinDirection::EGPD_Output, NAME_None, NAME_None);
 
 	ReferencerPin->bHidden = true;
+	FName PassiveName = ::GetName(EDependencyPinCategory::LinkEndPassive);
+	ReferencerPin->PinType.PinCategory = PassiveName;
 	DependencyPin->bHidden = true;
+	DependencyPin->PinType.PinCategory = PassiveName;
 }
 
 UObject* UEdGraphNode_Reference::GetJumpTargetForDoubleClick() const

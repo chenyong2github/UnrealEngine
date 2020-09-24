@@ -50,10 +50,10 @@ void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& 
 	}
 
 	FRDGTextureRef MaterialLobesTexture = GraphBuilder.CreateTexture(
-		FRDGTextureDesc::Create2DDesc(FIntPoint(ResolutionX, ResolutionY), PF_R16F, FClearValueBinding::None,
-		TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV, false, 1), TEXT("MaterialLobesTexture"));
+		FRDGTextureDesc::Create2D(FIntPoint(ResolutionX, ResolutionY), PF_R16F, FClearValueBinding::None,
+		TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV), TEXT("MaterialLobesTexture"));
 	AddClearRenderTargetPass(GraphBuilder, MaterialLobesTexture, FLinearColor::Black);
-	GraphBuilder.QueueTextureExtraction(MaterialLobesTexture, &StrataData.MaterialLobesTexture);
+	ConvertToExternalTexture(GraphBuilder, MaterialLobesTexture, StrataData.MaterialLobesTexture);
 
 	const uint32 DesiredBufferSize = FMath::Max(4u, ResolutionX * ResolutionY * StrataData.MaxBytesPerPixel);
 	if (StrataData.MaterialLobesBuffer.NumBytes < DesiredBufferSize)

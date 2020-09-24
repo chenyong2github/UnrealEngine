@@ -353,8 +353,7 @@ bool FDTLSContext::Initialize(const int32 MaxPacketSize, const FString& CertId, 
 		{
 			UE_LOG(LogDTLSHandler, Warning, TEXT("Empty certificate identifier"));
 
-			FTimespan Lifetime;
-			Lifetime.FromSeconds(DTLSContext::CVarCertLifetime.GetValueOnAnyThread());
+			FTimespan Lifetime = FTimespan::FromSeconds(DTLSContext::CVarCertLifetime.GetValueOnAnyThread());
 
 			Cert = FDTLSCertStore::Get().CreateCert(Lifetime);
 		}

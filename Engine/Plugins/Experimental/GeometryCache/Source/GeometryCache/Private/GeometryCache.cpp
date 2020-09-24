@@ -89,7 +89,7 @@ void UGeometryCache::Serialize(FArchive& Ar)
 FString UGeometryCache::GetDesc()
 {
 	const int32 NumTracks = Tracks.Num();
-	return FString("%d Tracks", NumTracks);
+	return FString::Printf(TEXT("%d Tracks"), NumTracks);
 }
 
 void UGeometryCache::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const

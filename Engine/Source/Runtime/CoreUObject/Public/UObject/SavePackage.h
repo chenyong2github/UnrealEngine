@@ -6,6 +6,8 @@
 #include "Containers/Set.h"
 #include "Containers/Map.h"
 #include "UObject/NameTypes.h"
+#include "Misc/DateTime.h"
+#include "ObjectMacros.h"
 
 #if !defined(UE_WITH_SAVEPACKAGE)
 #	define UE_WITH_SAVEPACKAGE 1
@@ -13,9 +15,38 @@
 
 class FArchive;
 class FIoBuffer;
-class FLinkerLoad;
-class FLinkerSave;
 class FPackageStoreBulkDataManifest;
+class FSavePackageContext;
+class FArchiveDiffMap;
+class FOutputDevice;
+
+/**
+ * Struct to encapsulate arguments specific to saving one package
+ */
+struct FPackageSaveInfo
+{
+	class UPackage* Package = nullptr;
+	class UObject* Asset = nullptr;
+	FString Filename;
+};
+
+/**
+ * Struct to encapsulate UPackage::Save arguments. 
+ * These arguments are shared between packages when saving multiple packages concurrently.
+ */
+struct FSavePackageArgs
+{
+	class ITargetPlatform* TargetPlatform = nullptr;
+	EObjectFlags TopLevelFlags = RF_NoFlags;
+	uint32 SaveFlags = 0;
+	bool bForceByteSwapping = false; // for FLinkerSave
+	bool bWarnOfLongFilename = false;
+	bool bSlowTask = true;
+	FDateTime FinalTimeStamp;
+	FOutputDevice* Error = nullptr;
+	FArchiveDiffMap* DiffMap = nullptr;
+	FSavePackageContext* SavePackageContext = nullptr;
+};
 
 class FPackageStoreWriter
 {

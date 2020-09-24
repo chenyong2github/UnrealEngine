@@ -32,16 +32,18 @@ public class DX12 : ModuleRules
 		{
 			bool PixAvalable = (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64);
 			if (PixAvalable &&
-			//Target.WindowsPlatform.bUseWindowsSDK10 &&
-			Target.WindowsPlatform.bPixProfilingEnabled &&
-			Target.Configuration != UnrealTargetConfiguration.Shipping &&
-			Target.Configuration != UnrealTargetConfiguration.Test)
+				//Target.WindowsPlatform.bUseWindowsSDK10 &&
+				Target.WindowsPlatform.bPixProfilingEnabled &&
+				Target.Configuration != UnrealTargetConfiguration.Shipping &&
+				Target.Configuration != UnrealTargetConfiguration.Test)
 			{
+				PublicSystemLibraries.Add("dxgi.lib"); // For DXGIGetDebugInterface1
+
 				string Arch = Target.WindowsPlatform.GetArchitectureSubpath();
 				PublicSystemIncludePaths.Add(Target.UEThirdPartySourceDirectory + "/Windows/Pix/Include");
-				LibDir = Target.UEThirdPartySourceDirectory + "/Windows/Pix/Lib/" + Arch + "/";
+				string PixLibDir = Target.UEThirdPartySourceDirectory + "/Windows/Pix/Lib/" + Arch + "/";
 				PublicDelayLoadDLLs.Add("WinPixEventRuntime.dll");
-				PublicAdditionalLibraries.Add(LibDir + "WinPixEventRuntime.lib");
+				PublicAdditionalLibraries.Add(PixLibDir + "WinPixEventRuntime.lib");
 				RuntimeDependencies.Add(System.String.Format("$(EngineDir)/Binaries/ThirdParty/Windows/WinPixEventRuntime/{0}/WinPixEventRuntime.dll", Arch));
 				PublicDefinitions.Add("D3D12_PROFILING_ENABLED=1");
 				PublicDefinitions.Add("PROFILE");

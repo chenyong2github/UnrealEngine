@@ -138,73 +138,17 @@ void GetMipAndSliceInfoFromSRV(ID3D11ShaderResourceView* SRV, int32& MipLevel, i
 	}
 }
 
-void FD3D11DynamicRHI::CheckIfSRVIsResolved(ID3D11ShaderResourceView* SRV)
-{
-#if CHECK_SRV_TRANSITIONS
-	if (IsRunningRHIInSeparateThread() || !SRV)
-	{
-		return;
-	}
-
-	static const auto CheckSRVCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.CheckSRVTransitions"));	
-	if (!CheckSRVCVar->GetValueOnRenderThread())
-	{
-		return;
-	}
-
-	ID3D11Resource* SRVResource = nullptr;
-	SRV->GetResource(&SRVResource);
-
-	int32 MipLevel;
-	int32 NumMips;
-	int32 ArraySlice;
-	int32 NumSlices;
-	GetMipAndSliceInfoFromSRV(SRV, MipLevel, NumMips, ArraySlice, NumSlices);
-
-	//d3d uses -1 to mean 'all mips'
-	int32 LastMip = MipLevel + NumMips - 1;
-	int32 LastSlice = ArraySlice + NumSlices - 1;
-
-	TArray<FUnresolvedRTInfo> RTInfoArray;
-	check(UnresolvedTargetsConcurrencyGuard.Increment() == 1);
-	UnresolvedTargets.MultiFind(SRVResource, RTInfoArray);
-	check(UnresolvedTargetsConcurrencyGuard.Decrement() == 0);
-
-	for (int32 InfoIndex = 0; InfoIndex < RTInfoArray.Num(); ++InfoIndex)
-	{
-		const FUnresolvedRTInfo& RTInfo = RTInfoArray[InfoIndex];
-		int32 RTLastMip = RTInfo.MipLevel + RTInfo.NumMips - 1;		
-		ensureMsgf((MipLevel == -1 || NumMips == -1) || (LastMip < RTInfo.MipLevel || MipLevel > RTLastMip), TEXT("SRV is set to read mips in range %i to %i.  Target %s is unresolved for mip %i"), MipLevel, LastMip, *RTInfo.ResourceName.ToString(), RTInfo.MipLevel);
-		ensureMsgf(NumMips != -1, TEXT("SRV is set to read all mips.  Target %s is unresolved for mip %i"), *RTInfo.ResourceName.ToString(), RTInfo.MipLevel);
-
-		int32 RTLastSlice = RTInfo.ArraySlice + RTInfo.ArraySize - 1;
-		ensureMsgf((ArraySlice == -1 || LastSlice == -1) || (LastSlice < RTInfo.ArraySlice || ArraySlice > RTLastSlice), TEXT("SRV is set to read slices in range %i to %i.  Target %s is unresolved for mip %i"), ArraySlice, LastSlice, *RTInfo.ResourceName.ToString(), RTInfo.ArraySlice);
-		ensureMsgf(ArraySlice == -1 || NumSlices != -1, TEXT("SRV is set to read all slices.  Target %s is unresolved for slice %i"));
-	}
-	SRVResource->Release();
-#endif
-}
-
-extern int32 GEnableDX11TransitionChecks;
 template <EShaderFrequency ShaderFrequency>
 void FD3D11DynamicRHI::InternalSetShaderResourceView(FD3D11BaseShaderResource* Resource, ID3D11ShaderResourceView* SRV, int32 ResourceIndex, FName SRVName, FD3D11StateCache::ESRV_Type SrvType)
 {
 	// Check either both are set, or both are null.
 	check((Resource && SRV) || (!Resource && !SRV));
-	CheckIfSRVIsResolved(SRV);
 
 	//avoid state cache crash
 	if (!((Resource && SRV) || (!Resource && !SRV)))
 	{
 		//UE_LOG(LogRHI, Warning, TEXT("Bailing on InternalSetShaderResourceView on resource: %i, %s"), ResourceIndex, *SRVName.ToString());
 		return;
-	}
-
-	if (Resource)
-	{		
-		const EResourceTransitionAccess CurrentAccess = Resource->GetCurrentGPUAccess();
-		const bool bAccessPass = CurrentAccess == EResourceTransitionAccess::EReadable || (CurrentAccess == EResourceTransitionAccess::ERWBarrier && !Resource->IsDirty()) || CurrentAccess == EResourceTransitionAccess::ERWSubResBarrier;
-		ensureMsgf((GEnableDX11TransitionChecks == 0) || bAccessPass || Resource->GetLastFrameWritten() != PresentCounter, TEXT("Shader resource %s is not GPU readable.  Missing a call to RHITransitionResources()"), *SRVName.ToString());
 	}
 
 	FD3D11BaseShaderResource*& ResourceSlot = CurrentResourcesBoundAsSRVs[ShaderFrequency][ResourceIndex];
@@ -593,7 +537,7 @@ FD3DGPUProfiler::FD3DGPUProfiler(class FD3D11DynamicRHI* InD3DRHI) :
 void FD3DGPUProfiler::PushEvent(const TCHAR* Name, FColor Color)
 {
 #if NV_AFTERMATH
-	if(GDX11NVAfterMathEnabled && bTrackingGPUCrashData)
+	if(GDX11NVAfterMathEnabled && bTrackingGPUCrashData && GDX11NVAfterMathMarkers)
 	{
 		uint32 CRC = 0;
 		if (GPUCrashDataDepth < 0 || PushPopStack.Num() < GPUCrashDataDepth)
@@ -633,7 +577,7 @@ void FD3DGPUProfiler::PushEvent(const TCHAR* Name, FColor Color)
 void FD3DGPUProfiler::PopEvent()
 {
 #if NV_AFTERMATH
-	if (GDX11NVAfterMathEnabled && bTrackingGPUCrashData)
+	if (GDX11NVAfterMathEnabled && bTrackingGPUCrashData && GDX11NVAfterMathMarkers)
 	{
 		PushPopStack.Pop(false);
 	}

@@ -2602,6 +2602,7 @@ ir_rvalue* gen_image_op(
 
 	bool const bIsByteBuffer = (image->type->HlslName != nullptr && !strcmp(image->type->HlslName, "ByteAddressBuffer"));
 	bool const bIsRWByteBuffer = (image->type->HlslName != nullptr && !strcmp(image->type->HlslName, "RWByteAddressBuffer"));
+	bool const bIsRWTexture = (image->type->HlslName != nullptr && !strncmp(image->type->HlslName, "RWTexture", 9));
 	
 	if (strcmp(method, "GetDimensions") == 0)
 	{
@@ -2672,6 +2673,11 @@ ir_rvalue* gen_image_op(
 				}
 			}
 		}
+	}
+	else if (bIsRWTexture && !strcmp(method, "Load") && num_params == 1)
+	{
+		// The "Load" function on RWTexture resources is similar to the [] operator
+		result = new(ctx)ir_dereference_image(image, (ir_rvalue*)param_list.head);
 	}
 	else if((bIsByteBuffer || bIsRWByteBuffer) && !strcmp(method, "Load") && num_params == 1)
 	{

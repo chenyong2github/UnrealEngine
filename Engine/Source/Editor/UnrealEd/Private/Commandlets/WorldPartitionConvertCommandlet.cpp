@@ -549,7 +549,7 @@ bool UWorldPartitionConvertCommandlet::RenameWorldPackageWithSuffix(UWorld* Worl
 UHLODLayer* UWorldPartitionConvertCommandlet::CreateHLODLayerFromINI(const FString& InHLODLayerName)
 {
 	const FString PackagePath = HLODLayerAssetsPath / InHLODLayerName;
-	UPackage* AssetPackage = CreatePackage(NULL, *PackagePath);
+	UPackage* AssetPackage = CreatePackage(*PackagePath);
 	if (!AssetPackage)
 	{
 		UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("Package \"%s\" creation failed"), *PackagePath);

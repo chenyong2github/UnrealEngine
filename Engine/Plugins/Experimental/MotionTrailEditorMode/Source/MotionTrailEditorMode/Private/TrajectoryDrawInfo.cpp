@@ -6,7 +6,12 @@
 #include "TrailHierarchy.h"
 #include "TrajectoryCache.h"
 
-FORCENOINLINE TOptional<FVector2D> FTrailScreenSpaceTransform::ProjectPoint(const FVector& Point) const
+namespace UE
+{
+namespace MotionTrailEditor
+{
+
+TOptional<FVector2D> FTrailScreenSpaceTransform::ProjectPoint(const FVector& Point) const
 {
 	const FPlane Projection = View->Project(Point);
 	if (Projection.W > 0.0f)
@@ -19,13 +24,12 @@ FORCENOINLINE TOptional<FVector2D> FTrailScreenSpaceTransform::ProjectPoint(cons
 	return TOptional<FVector2D>();
 }
 
-TArray<FVector> FCachedTrajectoryDrawInfo::GetTrajectoryPointsForDisplay(const FDisplayContext& InDisplayContext)
+TArray<FVector> FTrajectoryDrawInfo::GetTrajectoryPointsForDisplay(const FDisplayContext& InDisplayContext)
 {
 	// TODO: return all points in range
 	TArray<FVector> TrajectoryPoints;
 	CachedViewRange = InDisplayContext.TimeRange;
 
-	const double Spacing = InDisplayContext.TrailHierarchy->GetEditorMode()->GetTrailOptions()->SecondsPerSegment;
 	TArray<double> TrajectoryTimes = TrajectoryCache->GetAllTimesInRange(InDisplayContext.TimeRange);
 	TrajectoryPoints.Reserve(TrajectoryTimes.Num());
 	
@@ -34,15 +38,13 @@ TArray<FVector> FCachedTrajectoryDrawInfo::GetTrajectoryPointsForDisplay(const F
 		TrajectoryPoints.Add(TrajectoryCache->Get(Time).GetTranslation());
 	}
 
-	TrajectoryPoints.Add(TrajectoryCache->GetInterp(CachedViewRange.GetUpperBoundValue()).GetTranslation());
-
 	return TrajectoryPoints;
 }
 
-void FCachedTrajectoryDrawInfo::GetTickPointsForDisplay(const FDisplayContext& InDisplayContext, TArray<FVector2D>& Ticks, TArray<FVector2D>& TickNormals)
+void FTrajectoryDrawInfo::GetTickPointsForDisplay(const FDisplayContext& InDisplayContext, TArray<FVector2D>& Ticks, TArray<FVector2D>& TickNormals)
 {
 	const double FirstTick = FMath::FloorToDouble(InDisplayContext.TimeRange.GetLowerBoundValue() / InDisplayContext.SecondsPerTick) * InDisplayContext.SecondsPerTick;
-	const double Spacing = InDisplayContext.TrailHierarchy->GetEditorMode()->GetTrailOptions()->SecondsPerSegment;
+	const double Spacing = InDisplayContext.TrailHierarchy->GetSecondsPerSegment();
 
 	for (double TickItr = FirstTick + InDisplayContext.SecondsPerTick; TickItr < InDisplayContext.TimeRange.GetUpperBoundValue(); TickItr += InDisplayContext.SecondsPerTick)
 	{
@@ -62,3 +64,6 @@ void FCachedTrajectoryDrawInfo::GetTickPointsForDisplay(const FDisplayContext& I
 		}
 	}
 }
+
+} // namespace MovieScene
+} // namespace UE

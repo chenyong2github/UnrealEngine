@@ -522,13 +522,9 @@ public:
 
 public:
 
-	/** The last used height for multiple instance windows (in pixels). */
+	/** The last known screen size for the first instance window (in pixels). */
 	UPROPERTY(config)
-	int32 MultipleInstanceLastHeight;
-
-	/** The last used width for multiple instance windows (in pixels). */
-	UPROPERTY(config)
-	int32 MultipleInstanceLastWidth;
+	FIntPoint LastSize;
 
 	/** The last known screen positions of multiple instance windows (in pixels). */
 	UPROPERTY(config)

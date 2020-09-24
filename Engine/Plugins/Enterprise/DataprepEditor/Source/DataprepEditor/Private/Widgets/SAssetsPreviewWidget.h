@@ -57,6 +57,7 @@ namespace AssetPreviewWidget
 	using FAssetPreviewColumn = TSharedRef<IAssetPreviewColumn>;
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSelectionChanged, TSet< UObject* > /** Selected objects */)
+	DECLARE_DELEGATE_RetVal_OneParam(TSharedPtr<SWidget>, FOnContextMenu, TSet< UObject* > /** Selected objects */)
 
 	class SAssetsPreviewWidget : public SCompoundWidget
 	{
@@ -72,8 +73,9 @@ namespace AssetPreviewWidget
 
 		void RequestSort();
 
-		FOnSelectionChanged& OnSelectionChanged() { return OnSelectionChangedDelegate; };
-	
+		FOnSelectionChanged& OnSelectionChanged() { return OnSelectionChangedDelegate; }
+		FOnContextMenu& OnContextMenu() { return OnContextMenuDelegate; }
+
 		FText OnGetHighlightText() const;
 
 		const TSharedPtr< STreeView< IAssetTreeItemPtr > > GetTreeView() const
@@ -94,6 +96,12 @@ namespace AssetPreviewWidget
 		TArray<FString> GetItemsName(const TWeakObjectPtr<UObject>& Asset) const;
 
 		EColumnSortMode::Type GetColumnSortMode(const FName ColumnId) const;
+
+		void SelectMatchingItems(const TSet<UObject*>& InAssets);
+
+		TSet<UObject*> GetSelectedAssets() const;
+
+		void SetSelectedAssets(TSet<UObject*> InSelectionSet, ESelectInfo::Type SelectionInfo);
 
 	private:
 
@@ -117,6 +125,7 @@ namespace AssetPreviewWidget
 
 		void OnColumnSortModeChanged(const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type InSortMode);
 
+		TSharedPtr<SWidget> OnContextMenuOpeningInternal();
 
 		void SetupColumns();
 
@@ -155,6 +164,7 @@ namespace AssetPreviewWidget
 		TArray<FName> PendingColumnsToRemove;
 
 		FOnSelectionChanged OnSelectionChangedDelegate;
+		FOnContextMenu OnContextMenuDelegate;
 
 		FName SortingColumn;
 		EColumnSortMode::Type SortingMode;
@@ -165,7 +175,6 @@ namespace AssetPreviewWidget
 		bool bIsSortDirty = false;
 		bool bRequestedRefresh = false;
 	};
-
 
 	struct IAssetTreeItem
 	{

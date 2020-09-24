@@ -16,7 +16,7 @@ void URevolveProperties::ApplyToCurveSweepOp(const UNewMeshMaterialProperties& M
 	// the user asks.
 	bool bReverseProfileCurve = !RevolveUtil::ProfileIsCCWRelativeRevolve(CurveSweepOpOut.ProfileCurve,
 		RevolutionAxisOrigin, RevolutionAxisDirection, CurveSweepOpOut.bProfileCurveIsClosed);
-	bReverseProfileCurve = bReverseProfileCurve ^ bFlipMesh ^ bClockwise;
+	bReverseProfileCurve = bReverseProfileCurve ^ bFlipMesh ^ bReverseRevolutionDirection;
 	if (bReverseProfileCurve)
 	{
 		for (int32 i = 0; i < CurveSweepOpOut.ProfileCurve.Num() / 2; ++i)
@@ -27,7 +27,7 @@ void URevolveProperties::ApplyToCurveSweepOp(const UNewMeshMaterialProperties& M
 
 	double DegreesOffset = RevolutionDegreesOffset;
 	double DegreesPerStep = RevolutionDegrees / Steps;
-	if (bClockwise)
+	if (bReverseRevolutionDirection)
 	{
 		DegreesPerStep *= -1;
 		DegreesOffset *= -1;
@@ -53,6 +53,7 @@ void URevolveProperties::ApplyToCurveSweepOp(const UNewMeshMaterialProperties& M
 	}
 	CurveSweepOpOut.bSharpNormals = bSharpNormals;
 	CurveSweepOpOut.SharpNormalAngleTolerance = SharpNormalAngleTolerance;
+	CurveSweepOpOut.DiagonalTolerance = DiagonalProportionTolerance;
 	double UVScale = MaterialProperties.UVScale;
 	CurveSweepOpOut.UVScale = FVector2d(UVScale, UVScale);
 	if (bReverseProfileCurve ^ bFlipVs)
@@ -83,7 +84,7 @@ void URevolveProperties::ApplyToCurveSweepOp(const UNewMeshMaterialProperties& M
 	case ERevolvePropertiesQuadSplit::ShortestDiagonal:
 		CurveSweepOpOut.QuadSplitMode = EProfileSweepQuadSplit::ShortestDiagonal;
 		break;
-	case ERevolvePropertiesQuadSplit::Unform:
+	case ERevolvePropertiesQuadSplit::Uniform:
 		CurveSweepOpOut.QuadSplitMode = EProfileSweepQuadSplit::Uniform;
 		break;
 	}

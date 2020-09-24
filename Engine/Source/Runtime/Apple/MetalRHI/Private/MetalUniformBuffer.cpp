@@ -7,6 +7,7 @@
 #include "MetalRHIPrivate.h"
 #include "MetalFrameAllocator.h"
 #include "MetalUniformBuffer.h"
+#include "ShaderParameterStruct.h"
 
 #pragma mark Suballocated Uniform Buffer Implementation
 
@@ -17,20 +18,20 @@ FMetalSuballocatedUniformBuffer::FMetalSuballocatedUniformBuffer(const FRHIUnifo
     , Backing(nil)
     , Shadow(nullptr)
     , ResourceTable()
-#if !UE_BUILD_SHIPPING
+#if METAL_UNIFORM_BUFFER_VALIDATION
     , Validation(InValidation)
-#endif
+#endif // METAL_UNIFORM_BUFFER_VALIDATION
 {
     // Slate can create SingleDraw uniform buffers and use them several frames later. So it must be included.
     if (Usage == UniformBuffer_SingleDraw || Usage == UniformBuffer_MultiFrame)
     {
-        Shadow = FMemory::Malloc(this->GetSize());
+        Shadow = FMemory::Malloc(GetSize());
     }
 }
 
 FMetalSuballocatedUniformBuffer::~FMetalSuballocatedUniformBuffer()
 {
-    if (this->HasShadow())
+    if (HasShadow())
     {
         FMemory::Free(Shadow);
     }
@@ -41,40 +42,19 @@ FMetalSuballocatedUniformBuffer::~FMetalSuballocatedUniformBuffer()
 
 bool FMetalSuballocatedUniformBuffer::HasShadow()
 {
-    return this->Shadow != nullptr;
+    return Shadow != nullptr;
 }
 
-void FMetalSuballocatedUniformBuffer::Update(const void* Contents)
+void FMetalSuballocatedUniformBuffer::Update(const void* Contents, TArray<TRefCountPtr<FRHIResource> > const& InResourceTable)
 {
-    if (this->HasShadow())
+    if (HasShadow())
     {
-        FMemory::Memcpy(this->Shadow, Contents, this->GetSize());
-    }
-    
-    const FRHIUniformBufferLayout& Layout = this->GetLayout();
-    uint32 NumResources = Layout.Resources.Num();
-    if (NumResources > 0)
-    {
-        ResourceTable.Empty(NumResources);
-        ResourceTable.AddZeroed(NumResources);
-        
-        for (uint32 i = 0; i < NumResources; ++i)
-        {
-            FRHIResource* Resource = *(FRHIResource**)((uint8*)Contents + Layout.Resources[i].MemberOffset);
-            
-            // Allow null SRV's in uniform buffers for feature levels that don't support SRV's in shaders
-#if METAL_UNIFORM_BUFFER_VALIDATION
-            if (Validation == EUniformBufferValidation::ValidateResources && !(GMaxRHIFeatureLevel <= ERHIFeatureLevel::ES3_1 && GetLayout().Resources[i].MemberType == UBMT_SRV))
-            {
-                check(Resource);
-            }
-#endif
-            
-            ResourceTable[i] = Resource;
-        }
+        FMemory::Memcpy(Shadow, Contents, GetSize());
     }
 
-    this->PushToGPUBacking(Contents);
+	ResourceTable = InResourceTable;
+
+	PushToGPUBacking(Contents);
 }
 
 // Acquires a region in the current frame's uniform buffer and
@@ -87,12 +67,12 @@ void FMetalSuballocatedUniformBuffer::PushToGPUBacking(const void* Contents)
     FMetalDeviceContext& DeviceContext = GetMetalDeviceContext();
     
     FMetalFrameAllocator* Allocator = DeviceContext.GetUniformAllocator();
-    FMetalFrameAllocator::AllocationEntry Entry = Allocator->AcquireSpace(this->GetSize());
+    FMetalFrameAllocator::AllocationEntry Entry = Allocator->AcquireSpace(GetSize());
     // copy contents into backing
-    this->Backing = Entry.Backing;
-    this->Offset = Entry.Offset;
-    uint8* ConstantSpace = reinterpret_cast<uint8*>([this->Backing contents]) + Entry.Offset;
-    FMemory::Memcpy(ConstantSpace, Contents, this->GetSize());
+    Backing = Entry.Backing;
+    Offset = Entry.Offset;
+    uint8* ConstantSpace = reinterpret_cast<uint8*>([Backing contents]) + Entry.Offset;
+    FMemory::Memcpy(ConstantSpace, Contents, GetSize());
     LastFrameUpdated = DeviceContext.GetFrameNumberRHIThread();
 }
 
@@ -104,6 +84,29 @@ void FMetalSuballocatedUniformBuffer::PrepareToBind()
     FMetalDeviceContext& DeviceContext = GetMetalDeviceContext();
     if(Shadow && LastFrameUpdated < DeviceContext.GetFrameNumberRHIThread())
     {
-        this->PushToGPUBacking(this->Shadow);
+        PushToGPUBacking(Shadow);
+    }
+}
+
+void FMetalSuballocatedUniformBuffer::CopyResourceTable_RenderThread(const void* Contents, TArray<TRefCountPtr<FRHIResource> >& OutResourceTable)
+{
+#if METAL_UNIFORM_BUFFER_VALIDATION
+	if (Validation == EUniformBufferValidation::ValidateResources)
+	{
+		ValidateShaderParameterResourcesRHI(Contents, GetLayout());
+	}
+#endif // METAL_UNIFORM_BUFFER_VALIDATION
+
+	const FRHIUniformBufferLayout& Layout = GetLayout();
+    const uint32 NumResources = Layout.Resources.Num();
+    if (NumResources > 0)
+    {
+		OutResourceTable.Empty(NumResources);
+		OutResourceTable.AddZeroed(NumResources);
+        
+        for (uint32 Index = 0; Index < NumResources; ++Index)
+		{
+			OutResourceTable[Index] = GetShaderParameterResourceRHI(Contents, Layout.Resources[Index].MemberOffset, Layout.Resources[Index].MemberType);
+		}
     }
 }

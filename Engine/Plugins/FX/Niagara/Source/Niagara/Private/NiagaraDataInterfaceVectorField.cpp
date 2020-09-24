@@ -5,7 +5,9 @@
 #include "VectorField/VectorFieldAnimated.h"
 #include "NiagaraShader.h"
 #include "ShaderParameterUtils.h"
-//#include "Internationalization/Internationalization.h"
+#if INTEL_ISPC
+#include "NiagaraDataInterfaceVectorField.ispc.generated.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceVectorField"
 
@@ -23,6 +25,22 @@ static const FName GetVectorFieldTilingAxesName("FieldTilingAxes");
 static const FName GetVectorFieldDimensionsName("FieldDimensions");
 static const FName GetVectorFieldBoundsName("FieldBounds");
 
+#if INTEL_ISPC
+
+#if UE_BUILD_SHIPPING
+const bool GNiagaraVectorFieldUseIspc = true;
+#else
+bool GNiagaraVectorFieldUseIspc = true;
+static FAutoConsoleVariableRef CVarNiagaraVectorFieldUseIspc(
+	TEXT("fx.NiagaraVectorFieldUseIspc"),
+	GNiagaraVectorFieldUseIspc,
+	TEXT("When enabled VectorField will use ISPC for sampling if appropriate."),
+	ECVF_Default
+);
+#endif
+
+#endif
+
 /*--------------------------------------------------------------------------------------------------------------------------*/
 
 UNiagaraDataInterfaceVectorField::UNiagaraDataInterfaceVectorField(FObjectInitializer const& ObjectInitializer)
@@ -33,7 +51,7 @@ UNiagaraDataInterfaceVectorField::UNiagaraDataInterfaceVectorField(FObjectInitia
 	, bTileZ(false)
 {
 	Proxy.Reset(new FNiagaraDataInterfaceProxyVectorField());
-	PushToRenderThread();
+	MarkRenderDataDirty();
 }
 
 /*--------------------------------------------------------------------------------------------------------------------------*/
@@ -53,7 +71,7 @@ void UNiagaraDataInterfaceVectorField::PreEditChange(FProperty* PropertyAboutToC
 void UNiagaraDataInterfaceVectorField::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-	PushToRenderThread();
+	MarkRenderDataDirty();
 }
 #endif //WITH_EDITOR
 
@@ -66,7 +84,7 @@ void UNiagaraDataInterfaceVectorField::PostLoad()
 		Field->ConditionalPostLoad();
 	}
 
-	PushToRenderThread();
+	MarkRenderDataDirty();
 }
 
 void UNiagaraDataInterfaceVectorField::PostInitProperties()
@@ -460,103 +478,62 @@ void UNiagaraDataInterfaceVectorField::SampleVectorField(FVectorVMContext& Conte
 
 	if (StaticVectorField != nullptr && StaticVectorField->bAllowCPUAccess)
 	{
-		const FVector4 TilingAxes = FVector4(bTileX ? 1.0f : 0.0f, bTileY ? 1.0f : 0.0f, bTileZ ? 1.0f : 0.0f, 0.0);
+		const FVector TilingAxes = FVector(bTileX ? 1.0f : 0.0f, bTileY ? 1.0f : 0.0f, bTileZ ? 1.0f : 0.0f);
 
 		const uint32 SizeX = (uint32)StaticVectorField->SizeX;
 		const uint32 SizeY = (uint32)StaticVectorField->SizeY;
 		const uint32 SizeZ = (uint32)StaticVectorField->SizeZ;
-		const FVector4 Size(SizeX, SizeY, SizeZ, 1.0f);
+		const FVector Size(SizeX, SizeY, SizeZ);
 
-		const FVector4 MinBounds(StaticVectorField->Bounds.Min.X, StaticVectorField->Bounds.Min.Y, StaticVectorField->Bounds.Min.Z, 0.f);
+		const FVector MinBounds(StaticVectorField->Bounds.Min.X, StaticVectorField->Bounds.Min.Y, StaticVectorField->Bounds.Min.Z);
 		const FVector BoundSize = StaticVectorField->Bounds.GetSize();
 
-		const FVector4 *Data = StaticVectorField->CPUData.GetData();
-
-		if (ensure(Data && FMath::Min3(SizeX, SizeY, SizeZ) > 0 && BoundSize.GetMin() > SMALL_NUMBER))
+		if (ensure(StaticVectorField->HasCPUData() && FMath::Min3(SizeX, SizeY, SizeZ) > 0 && BoundSize.GetMin() > SMALL_NUMBER))
 		{
-			const FVector4 OneOverBoundSize(FVector::OneVector / BoundSize, 1.0f);
+			const FVector OneOverBoundSize(FVector::OneVector / BoundSize);
 
-			// Math helper
-			static auto FVector4Clamp = [](const FVector4& v, const FVector4& a, const FVector4& b) {
-				return FVector4(FMath::Clamp(v.X, a.X, b.X),
-					FMath::Clamp(v.Y, a.Y, b.Y),
-					FMath::Clamp(v.Z, a.Z, b.Z),
-					FMath::Clamp(v.W, a.W, b.W));
-			};
-
-			static auto FVector4Floor = [](const FVector4& v) {
-				return FVector4(FGenericPlatformMath::FloorToFloat(v.X),
-					FGenericPlatformMath::FloorToFloat(v.Y),
-					FGenericPlatformMath::FloorToFloat(v.Z),
-					FGenericPlatformMath::FloorToFloat(v.W));
-			};
-
-			for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+#if INTEL_ISPC && VECTOR_FIELD_DATA_AS_HALF
+			if (GNiagaraVectorFieldUseIspc)
 			{
-				// Position in Volume Space
-				FVector4 Pos(XParam.Get(), YParam.Get(), ZParam.Get(), 0.0f);
+				TConstArrayView<FFloat16> FieldSamples = StaticVectorField->ReadCPUData();
 
-				// Normalize position
+				ispc::SampleVectorField(XParam.GetDest(), YParam.GetDest(), ZParam.GetDest(),
+					XParam.IsConstant(), YParam.IsConstant(), ZParam.IsConstant(),
+					OutSampleX.GetDest(), OutSampleY.GetDest(), OutSampleZ.GetDest(),
+					(ispc::FHalfVector*) FieldSamples.GetData(), (ispc::FVector&)MinBounds, (ispc::FVector&)OneOverBoundSize,
+					(ispc::FVector&)Size, (ispc::FVector&)TilingAxes, Context.NumInstances);
+			}
+			else
+#endif
+			{
+				for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+				{
+					// Position in Volume Space
+					FVector Pos(XParam.Get(), YParam.Get(), ZParam.Get());
 
-				Pos = (Pos - MinBounds) * OneOverBoundSize;
+					// Normalize position
+					Pos = (Pos - MinBounds) * OneOverBoundSize;
 
-				// Scaled position
-				Pos = Pos * Size;
+					// Scaled position
+					Pos = Pos * Size;
 
-				// Offset by half a cell size due to sample being in the center of its cell
-				Pos = Pos - FVector4(0.5f, 0.5f, 0.5f, 0.0f);
+					// Offset by half a cell size due to sample being in the center of its cell
+					Pos = Pos - FVector(0.5f, 0.5f, 0.5f);
 
-				// 
-				FVector4 Index0 = FVector4Floor(Pos);
-				FVector4 Index1 = Index0 + FVector4(1.0f, 1.0f, 1.0f, 0.0f);
+					const FVector V = StaticVectorField->FilteredSample(Pos, TilingAxes);
 
-				// 
-				FVector4 Fraction = Pos - Index0;
+					// Write final output...
+					*OutSampleX.GetDest() = V.X;
+					*OutSampleY.GetDest() = V.Y;
+					*OutSampleZ.GetDest() = V.Z;
 
-				Index0 = Index0 - TilingAxes*FVector4Floor(Index0 / Size)*Size;
-				Index1 = Index1 - TilingAxes*FVector4Floor(Index1 / Size)*Size;
-
-				Index0 = FVector4Clamp(Index0, FVector4(0.0f), Size - FVector4(1.0f, 1.0f, 1.0f, 0.0f));
-				Index1 = FVector4Clamp(Index1, FVector4(0.0f), Size - FVector4(1.0f, 1.0f, 1.0f, 0.0f));
-
-				// Sample by regular trilinear interpolation:
-
-				// TODO(mv): Optimize indexing for cache? Periodicity is problematic...
-				// TODO(mv): Vectorize?
-				// Fetch corners
-				FVector4 V000 = Data[int(Index0.X + SizeX * Index0.Y + SizeX * SizeY * Index0.Z)];
-				FVector4 V100 = Data[int(Index1.X + SizeX * Index0.Y + SizeX * SizeY * Index0.Z)];
-				FVector4 V010 = Data[int(Index0.X + SizeX * Index1.Y + SizeX * SizeY * Index0.Z)];
-				FVector4 V110 = Data[int(Index1.X + SizeX * Index1.Y + SizeX * SizeY * Index0.Z)];
-				FVector4 V001 = Data[int(Index0.X + SizeX * Index0.Y + SizeX * SizeY * Index1.Z)];
-				FVector4 V101 = Data[int(Index1.X + SizeX * Index0.Y + SizeX * SizeY * Index1.Z)];
-				FVector4 V011 = Data[int(Index0.X + SizeX * Index1.Y + SizeX * SizeY * Index1.Z)];
-				FVector4 V111 = Data[int(Index1.X + SizeX * Index1.Y + SizeX * SizeY * Index1.Z)];
-
-				// Blend x-axis
-				FVector4 V00 = FMath::Lerp(V000, V100, Fraction.X);
-				FVector4 V01 = FMath::Lerp(V001, V101, Fraction.X);
-				FVector4 V10 = FMath::Lerp(V010, V110, Fraction.X);
-				FVector4 V11 = FMath::Lerp(V011, V111, Fraction.X);
-
-				// Blend y-axis
-				FVector4 V0 = FMath::Lerp(V00, V10, Fraction.Y);
-				FVector4 V1 = FMath::Lerp(V01, V11, Fraction.Y);
-
-				// Blend z-axis
-				FVector4 V = FMath::Lerp(V0, V1, Fraction.Z);
-
-				// Write final output...
-				*OutSampleX.GetDest() = V.X;
-				*OutSampleY.GetDest() = V.Y;
-				*OutSampleZ.GetDest() = V.Z;
-
-				XParam.Advance();
-				YParam.Advance();
-				ZParam.Advance();
-				OutSampleX.Advance();
-				OutSampleY.Advance();
-				OutSampleZ.Advance();
+					XParam.Advance();
+					YParam.Advance();
+					ZParam.Advance();
+					OutSampleX.Advance();
+					OutSampleY.Advance();
+					OutSampleZ.Advance();
+				}
 			}
 
 			bSuccess = true;
@@ -589,13 +566,12 @@ void UNiagaraDataInterfaceVectorField::SampleVectorField(FVectorVMContext& Conte
 
 			XParam.Advance();
 			YParam.Advance();
-			ZParam.Advance();	
+			ZParam.Advance();
 			OutSampleX.Advance();
 			OutSampleY.Advance();
 			OutSampleZ.Advance();
 		}
 	}
-
 }
 
 /*--------------------------------------------------------------------------------------------------------------------------*/
@@ -650,11 +626,11 @@ bool UNiagaraDataInterfaceVectorField::CopyToInternal(UNiagaraDataInterface* Des
 	OtherTyped->bTileY = bTileY;
 	OtherTyped->bTileZ = bTileZ;
 
-	OtherTyped->PushToRenderThread();
+	OtherTyped->MarkRenderDataDirty();
 	return true;
 }
 
-void UNiagaraDataInterfaceVectorField::PushToRenderThread()
+void UNiagaraDataInterfaceVectorField::PushToRenderThreadImpl()
 {
 	FNiagaraDataInterfaceProxyVectorField* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyVectorField>();
 

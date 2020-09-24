@@ -1006,7 +1006,7 @@ namespace UnrealBuildTool
 					IOSProvisioningData ProvisioningData = IOSPlatform.ReadProvisioningData(ProjectSettings, bForDistribution);
 					IOSRunTimeVersion = ProjectSettings.RuntimeVersion;
 					IOSRunTimeDevices = ProjectSettings.RuntimeDevices;
-					ValidArchs += " arm64 armv7 armv7s";
+					ValidArchs += " arm64";
 					SupportedPlatforms += " iphoneos";
 					bAutomaticSigning = ProjectSettings.bAutomaticSigning;
 					if (!bAutomaticSigning)
@@ -1025,10 +1025,6 @@ namespace UnrealBuildTool
 					TVOSProvisioningData ProvisioningData = TVOSPlatform.ReadProvisioningData(ProjectSettings, bForDistribution);
 					TVOSRunTimeVersion = ProjectSettings.RuntimeVersion;
 					TVOSRunTimeDevices = ProjectSettings.RuntimeDevices;
-					if (!ValidArchs.Contains("arm64"))
-					{
-						ValidArchs += " arm64 armv7 armv7s";
-					}
 					SupportedPlatforms += " appletvos";
 					if (!bAutomaticSigning)
 					{
@@ -1336,14 +1332,14 @@ namespace UnrealBuildTool
 				string SupportedPlatforms = "macosx";
 				if (InstalledPlatformInfo.IsValidPlatform(UnrealTargetPlatform.IOS, EProjectType.Code))
 				{
-					ValidArchs += " arm64 armv7 armv7s";
+					ValidArchs += " arm64";
 					SupportedPlatforms += " iphoneos";
 				}
 				if (InstalledPlatformInfo.IsValidPlatform(UnrealTargetPlatform.TVOS, EProjectType.Code))
 				{
 					if (ValidArchs == "x86_64")
 					{
-						ValidArchs += " arm64 armv7 armv7s";
+						ValidArchs += " arm64";
 					}
 					SupportedPlatforms += " appletvos";
 				}

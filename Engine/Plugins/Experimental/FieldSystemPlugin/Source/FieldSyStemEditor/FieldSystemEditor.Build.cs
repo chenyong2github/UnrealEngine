@@ -21,7 +21,7 @@ namespace UnrealBuildTool.Rules
                     "PropertyEditor",
                     "RenderCore",
                     "RHI",
-                    "FieldSystemCore",
+					"Chaos",
                     "FieldSystemEngine",
                     "RawMesh",
                     "AssetTools",

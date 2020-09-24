@@ -28,6 +28,7 @@
 #include "Materials/MaterialExpressionShadingPathSwitch.h"
 #include "Materials/MaterialExpressionShaderStageSwitch.h"
 #include "Materials/MaterialExpressionMakeMaterialAttributes.h"
+#include "Materials/MaterialExpressionSetMaterialAttributes.h"
 #include "Materials/MaterialExpressionParameter.h"
 #include "Materials/MaterialExpressionRuntimeVirtualTextureSampleParameter.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
@@ -941,10 +942,12 @@ UMaterial::UMaterial(const FObjectInitializer& ObjectInitializer)
 	OpacityMaskClipValue = 0.3333f;
 	bCastDynamicShadowAsMasked = false;
 	bUsedWithStaticLighting = false;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	D3D11TessellationMode = MTM_NoTessellation;
 	bEnableCrackFreeDisplacement = false;
 	bEnableAdaptiveTessellation = true;
 	MaxDisplacement = 0.0f;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	bEnableSeparateTranslucency = true;
 	bEnableMobileSeparateTranslucency = false;
 	bEnableResponsiveAA = false;
@@ -957,6 +960,7 @@ UMaterial::UMaterial(const FObjectInitializer& ObjectInitializer)
 	bUseMaterialAttributes = false;
 	bCastRayTracedShadows = true;
 	bUseTranslucencyVertexFog = true;
+	bApplyCloudFogging = false;
 	bIsSky = false;
 	bUsedWithWater = false;
 	BlendableLocation = BL_AfterTonemapping;
@@ -1017,27 +1021,46 @@ void UMaterial::GetUsedTextures(TArray<UTexture*>& OutTextures, EMaterialQuality
 {
 	OutTextures.Empty();
 
-	if (QualityLevel == EMaterialQualityLevel::Num)
-	{
-		QualityLevel = GetCachedScalabilityCVars().MaterialQualityLevel;
-	}
-
 	if (!FPlatformProperties::IsServerOnly())
 	{
 		const UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(this);
 
-		for (const FMaterialResource* CurrentResource : MaterialResources)
+		FInt32Range QualityLevelRange(0, EMaterialQualityLevel::Num - 1);
+		if (!bAllQualityLevels)
 		{
-			if (CurrentResource->GetQualityLevel() != QualityLevel && !bAllQualityLevels)
+			if (QualityLevel == EMaterialQualityLevel::Num)
 			{
-				continue;
+				QualityLevel = GetCachedScalabilityCVars().MaterialQualityLevel;
 			}
+			QualityLevelRange = FInt32Range(QualityLevel, QualityLevel);
+		}
 
-			if (CurrentResource->GetFeatureLevel() != FeatureLevel && !bAllFeatureLevels)
+		FInt32Range FeatureLevelRange(0, ERHIFeatureLevel::Num - 1);
+		if (!bAllFeatureLevels)
+		{
+			if (FeatureLevel == ERHIFeatureLevel::Num)
 			{
-				continue;
+				FeatureLevel = GMaxRHIFeatureLevel;
 			}
+			FeatureLevelRange = FInt32Range(FeatureLevel, FeatureLevel);
+		}
 
+		TArray<const FMaterialResource*, TInlineAllocator<4>> MatchedResources;
+		// Parse all relevant quality and feature levels.
+		for (int32 QualityLevelIndex = QualityLevelRange.GetLowerBoundValue(); QualityLevelIndex <= QualityLevelRange.GetUpperBoundValue(); ++QualityLevelIndex)
+		{
+			for (int32 FeatureLevelIndex = FeatureLevelRange.GetLowerBoundValue(); FeatureLevelIndex <= FeatureLevelRange.GetUpperBoundValue(); ++FeatureLevelIndex)
+			{
+				const FMaterialResource* CurrentResource = FindMaterialResource(MaterialResources, (ERHIFeatureLevel::Type)FeatureLevelIndex, (EMaterialQualityLevel::Type)QualityLevelIndex, true);
+				if (CurrentResource)
+				{
+					MatchedResources.AddUnique(CurrentResource);
+				}
+			}
+		}
+
+		for (const FMaterialResource* CurrentResource : MatchedResources)
+		{
 			for (int32 TypeIndex = 0; TypeIndex < NumMaterialTextureParameterTypes; TypeIndex++)
 			{
 				// Iterate over each of the material's texture expressions.
@@ -1091,7 +1114,7 @@ void UMaterial::GetUsedTexturesAndIndices(TArray<UTexture*>& OutTextures, TArray
 
 	if (!FPlatformProperties::IsServerOnly())
 	{
-		const FMaterialResource* CurrentResource = FindMaterialResource(MaterialResources, FeatureLevel, QualityLevel, false);
+		const FMaterialResource* CurrentResource = FindMaterialResource(MaterialResources, FeatureLevel, QualityLevel, true);
 		if (CurrentResource)
 		{
 			TArrayView<const FMaterialTextureParameterInfo> ExpressionsByType[NumMaterialTextureParameterTypes];
@@ -1928,6 +1951,14 @@ bool UMaterial::GetGroupName(const FHashedMaterialParameterInfo& ParameterInfo, 
 					return true;
 				}
 			}
+			else if (const UMaterialExpressionRuntimeVirtualTextureSampleParameter* RVTParameter = Cast<const UMaterialExpressionRuntimeVirtualTextureSampleParameter>(Expression))
+			{
+				if (RVTParameter->ParameterName == ParameterInfo.Name)
+				{
+					OutGroup = RVTParameter->Group;
+					return true;
+				}
+			}
 			else if (const UMaterialExpressionFontSampleParameter* FontParameter = Cast<const UMaterialExpressionFontSampleParameter>(Expression))
 			{
 				if (FontParameter->ParameterName == ParameterInfo.Name)
@@ -2124,11 +2155,6 @@ bool UMaterial::GetScalarParameterValue_New(const FHashedMaterialParameterInfo& 
 #if WITH_EDITOR
 bool UMaterial::GetScalarParameterValue_Legacy(const FHashedMaterialParameterInfo& ParameterInfo, float& OutValue, bool bOveriddenOnly) const
 {
-	if (bOveriddenOnly && !AreExperimentalMaterialLayersEnabled())
-	{
-		return false;
-	}
-
 	// In the case of duplicate parameters with different values, this will return the
 	// first matching expression found, not necessarily the one that's used for rendering
 	UMaterialExpressionScalarParameter* Parameter = nullptr;
@@ -2267,11 +2293,6 @@ bool UMaterial::GetVectorParameterValue_New(const FHashedMaterialParameterInfo& 
 #if WITH_EDITOR
 bool UMaterial::GetVectorParameterValue_Legacy(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor& OutValue, bool bOveriddenOnly) const
 {
-	if (bOveriddenOnly && !AreExperimentalMaterialLayersEnabled())
-	{
-		return false;
-	}
-
 	// In the case of duplicate parameters with different values, this will return the
 	// first matching expression found, not necessarily the one that's used for rendering
 	UMaterialExpressionVectorParameter* Parameter = nullptr;
@@ -2398,10 +2419,8 @@ bool UMaterial::GetTextureParameterValue_New(const FHashedMaterialParameterInfo&
 #if WITH_EDITOR
 bool UMaterial::GetTextureParameterValue_Legacy(const FHashedMaterialParameterInfo& ParameterInfo, UTexture*& OutValue, bool bOveriddenOnly) const
 {
-	if (bOveriddenOnly && !AreExperimentalMaterialLayersEnabled())
-	{
-		return false;
-	}
+	// Actual legacy version of this functionality *ignored* the bOveriddenOnly parameter, which as far as I can tell was an oversight
+	// This version has been updated to match other GetXXXParameterValue_Legacy functions, in order to match current behavior
 
 	// In the case of duplicate parameters with different values, this will return the
 	// first matching expression found, not necessarily the one that's used for rendering
@@ -2416,7 +2435,7 @@ bool UMaterial::GetTextureParameterValue_Legacy(const FHashedMaterialParameterIn
 			{
 				if (ExpressionParameter->IsNamedParameter(ParameterInfo, OutValue))
 				{
-					return true;
+					return !bOveriddenOnly;
 				}
 			}
 			else if (UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(Expression))
@@ -2431,11 +2450,13 @@ bool UMaterial::GetTextureParameterValue_Legacy(const FHashedMaterialParameterIn
 
 				if (Function && Function->GetNamedParameterOfType(ParameterInfo, Parameter, &ParameterOwner))
 				{
-					if (!ParameterOwner->OverrideNamedTextureParameter(ParameterInfo, OutValue))
+					if (ParameterOwner->OverrideNamedTextureParameter(ParameterInfo, OutValue))
 					{
-						Parameter->IsNamedParameter(ParameterInfo, OutValue);
+						return true;
 					}
-					return true;
+
+					Parameter->IsNamedParameter(ParameterInfo, OutValue);
+					return !bOveriddenOnly;
 				}
 			}
 		}
@@ -2453,11 +2474,13 @@ bool UMaterial::GetTextureParameterValue_Legacy(const FHashedMaterialParameterIn
 
 				if (Function && Function->GetNamedParameterOfType(ParameterInfo, Parameter, &ParameterOwner))
 				{
-					if (!ParameterOwner->OverrideNamedTextureParameter(ParameterInfo, OutValue))
+					if (ParameterOwner->OverrideNamedTextureParameter(ParameterInfo, OutValue))
 					{
-						Parameter->IsNamedParameter(ParameterInfo, OutValue);
+						return true;
 					}
-					return true;
+
+					Parameter->IsNamedParameter(ParameterInfo, OutValue);
+					return !bOveriddenOnly;
 				}
 			}
 		}
@@ -2501,10 +2524,8 @@ bool UMaterial::GetRuntimeVirtualTextureParameterValue_New(const FHashedMaterial
 #if WITH_EDITOR
 bool UMaterial::GetRuntimeVirtualTextureParameterValue_Legacy(const FHashedMaterialParameterInfo& ParameterInfo, URuntimeVirtualTexture*& OutValue, bool bOveriddenOnly) const
 {
-	if (bOveriddenOnly && !AreExperimentalMaterialLayersEnabled())
-	{
-		return false;
-	}
+	// Actual legacy version of this functionality *ignored* the bOveriddenOnly parameter, which as far as I can tell was an oversight
+	// This version has been updated to match other GetXXXParameterValue_Legacy functions, in order to match current behavior
 
 	// In the case of duplicate parameters with different values, this will return the
 	// first matching expression found, not necessarily the one that's used for rendering
@@ -2519,7 +2540,7 @@ bool UMaterial::GetRuntimeVirtualTextureParameterValue_Legacy(const FHashedMater
 			{
 				if (ExpressionParameter->IsNamedParameter(ParameterInfo, OutValue))
 				{
-					return true;
+					return !bOveriddenOnly;
 				}
 			}
 			else if (UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(Expression))
@@ -2534,11 +2555,13 @@ bool UMaterial::GetRuntimeVirtualTextureParameterValue_Legacy(const FHashedMater
 
 				if (Function && Function->GetNamedParameterOfType(ParameterInfo, Parameter, &ParameterOwner))
 				{
-					if (!ParameterOwner->OverrideNamedRuntimeVirtualTextureParameter(ParameterInfo, OutValue))
+					if (ParameterOwner->OverrideNamedRuntimeVirtualTextureParameter(ParameterInfo, OutValue))
 					{
-						Parameter->IsNamedParameter(ParameterInfo, OutValue);
+						return true;
 					}
-					return true;
+
+					Parameter->IsNamedParameter(ParameterInfo, OutValue);
+					return !bOveriddenOnly;
 				}
 			}
 		}
@@ -2556,11 +2579,13 @@ bool UMaterial::GetRuntimeVirtualTextureParameterValue_Legacy(const FHashedMater
 
 				if (Function && Function->GetNamedParameterOfType(ParameterInfo, Parameter, &ParameterOwner))
 				{
-					if (!ParameterOwner->OverrideNamedRuntimeVirtualTextureParameter(ParameterInfo, OutValue))
+					if (ParameterOwner->OverrideNamedRuntimeVirtualTextureParameter(ParameterInfo, OutValue))
 					{
-						Parameter->IsNamedParameter(ParameterInfo, OutValue);
+						return true;
 					}
-					return true;
+
+					Parameter->IsNamedParameter(ParameterInfo, OutValue);
+					return !bOveriddenOnly;
 				}
 			}
 		}
@@ -2633,7 +2658,8 @@ bool UMaterial::GetFontParameterValue_Legacy(const FHashedMaterialParameterInfo&
 			{
 				if (ExpressionParameter->IsNamedParameter(ParameterInfo, OutFontValue, OutFontPage))
 				{
-					return true;
+					// NOTE - actual legacy version returned 'true' here, updating to respect bOveriddenOnly to match other GetXXXParameterValue_Legacy implementations
+					return !bOveriddenOnly;
 				}
 			}
 			else if (UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(Expression))
@@ -3868,17 +3894,23 @@ bool UMaterial::CanEditChange(const FProperty* InProperty) const
 			return MaterialDomain == MD_Surface;
 		}
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, D3D11TessellationMode))
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
 			return MaterialDomain == MD_DeferredDecal || MaterialDomain == MD_Surface;
 		}
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bEnableCrackFreeDisplacement) ||
 			PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, MaxDisplacement) ||
 			PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bEnableAdaptiveTessellation)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			)
 		{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			return (MaterialDomain == MD_DeferredDecal || MaterialDomain == MD_Surface) && D3D11TessellationMode != MTM_NoTessellation;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, BlendableLocation) ||
@@ -3932,6 +3964,12 @@ bool UMaterial::CanEditChange(const FProperty* InProperty) const
 			return MaterialDomain != MD_DeferredDecal && MaterialDomain != MD_RuntimeVirtualTexture && IsTranslucentBlendMode(BlendMode);
 		}
 
+		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bApplyCloudFogging))
+		{
+			const bool bApplyFogging = bUseTranslucencyVertexFog;
+			return bApplyFogging && MaterialDomain != MD_DeferredDecal && MaterialDomain != MD_RuntimeVirtualTexture && IsTranslucentBlendMode(BlendMode);
+		}
+
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bIsSky))
 		{
 			return MaterialDomain != MD_DeferredDecal && MaterialDomain != MD_RuntimeVirtualTexture && GetShadingModels().IsUnlit() && (BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked);
@@ -3971,6 +4009,11 @@ void UMaterial::PreEditChange(FProperty* PropertyThatChanged)
 
 void UMaterial::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	return PostEditChangePropertyInternal(PropertyChangedEvent, EPostEditChangeEffectOnShaders::Default);
+}
+
+void UMaterial::PostEditChangePropertyInternal(FPropertyChangedEvent& PropertyChangedEvent, const EPostEditChangeEffectOnShaders EffectOnShaders)
+{
 	// PreEditChange is not enforced to be called before PostEditChange.
 	// CacheResourceShadersForRendering if called will cause a rendering thread race condition with a debug mechanism (bDeletedThroughDeferredCleanup) if there is no flush or
 	// FMaterialUpdateContext present.
@@ -3995,6 +4038,32 @@ void UMaterial::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEve
 			|| (Refraction.UseConstant && FMath::Abs(Refraction.Constant - 1.0f) >= KINDA_SMALL_NUMBER))
 		{
 			bUsesDistortion = true;
+		}
+
+		// check the material attributes for refraction expressions as well
+		if (MaterialAttributes.Expression)
+		{
+			// handle make attribute expressions
+			UMaterialExpressionMakeMaterialAttributes * MakeAttributeExpression = Cast<UMaterialExpressionMakeMaterialAttributes>(MaterialAttributes.Expression);
+			if (MakeAttributeExpression && MakeAttributeExpression->Refraction.Expression)
+			{
+				bUsesDistortion = true;
+			}
+
+			// handle set attribute expressions
+			UMaterialExpressionSetMaterialAttributes * SetAttributeExpression = Cast<UMaterialExpressionSetMaterialAttributes>(MaterialAttributes.Expression);
+			if (SetAttributeExpression)
+			{
+				for (int32 Index = 0; Index < SetAttributeExpression->Inputs.Num(); Index++)
+				{
+					FExpressionInput & Input = SetAttributeExpression->Inputs[Index];
+					FName InputName = SetAttributeExpression->GetInputName(Index);
+					if (InputName == TEXT("Refraction"))
+					{
+						bUsesDistortion = true;
+					}
+				}
+			}
 		}
 	}
 
@@ -4024,7 +4093,7 @@ void UMaterial::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEve
 		UpdateCachedExpressionData();
 
 		// When redirecting an object pointer, we trust that the DDC hash will detect the change and that we don't need to force a recompile.
-		const bool bRegenerateId = PropertyChangedEvent.ChangeType != EPropertyChangeType::Redirected;
+		const bool bRegenerateId = PropertyChangedEvent.ChangeType != EPropertyChangeType::Redirected && EffectOnShaders != EPostEditChangeEffectOnShaders::DoesNotInvalidate;
 		CacheResourceShadersForRendering(bRegenerateId);
 
 		// Ensure that the ReferencedTextureGuids array is up to date.
@@ -4351,6 +4420,18 @@ bool UMaterial::CopyExpressionParameters(UMaterialExpression* Source, UMaterialE
 		DestTex->Group = SourceTex->Group; // Group isn't editor only for textures
 #if WITH_EDITOR
 		DestTex->SortPriority = SourceTex->SortPriority;
+#endif
+	}
+	else if (Source->IsA(UMaterialExpressionRuntimeVirtualTextureSampleParameter::StaticClass()))
+	{
+		UMaterialExpressionRuntimeVirtualTextureSampleParameter* SourceRVT = (UMaterialExpressionRuntimeVirtualTextureSampleParameter*)Source;
+		UMaterialExpressionRuntimeVirtualTextureSampleParameter* DestRVT = (UMaterialExpressionRuntimeVirtualTextureSampleParameter*)Destination;
+
+		DestRVT->Modify();
+		DestRVT->VirtualTexture = SourceRVT->VirtualTexture;
+		DestRVT->Group = SourceRVT->Group;
+#if WITH_EDITORONLY_DATA
+		DestRVT->SortPriority = SourceRVT->SortPriority;
 #endif
 	}
 	else if(Source->IsA(UMaterialExpressionVectorParameter::StaticClass()))
@@ -5012,6 +5093,7 @@ bool UMaterial::GetParameterSortPriority(const FHashedMaterialParameterInfo& Par
 		{
 			UMaterialExpressionParameter* Parameter = Cast<UMaterialExpressionParameter>(Expression);
 			UMaterialExpressionTextureSampleParameter* TextureParameter = Cast<UMaterialExpressionTextureSampleParameter>(Expression);
+			UMaterialExpressionRuntimeVirtualTextureSampleParameter* RVTParameter = Cast<UMaterialExpressionRuntimeVirtualTextureSampleParameter>(Expression);
 			UMaterialExpressionFontSampleParameter* FontParameter = Cast<UMaterialExpressionFontSampleParameter>(Expression);
 			UMaterialExpressionMaterialAttributeLayers* LayersParameter = Cast<UMaterialExpressionMaterialAttributeLayers>(Expression);
 			UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(Expression);
@@ -5024,6 +5106,11 @@ bool UMaterial::GetParameterSortPriority(const FHashedMaterialParameterInfo& Par
 			else if (TextureParameter && TextureParameter->GetParameterName() == ParameterInfo.Name)
 			{
 				OutSortPriority = TextureParameter->SortPriority;
+				return true;
+			}
+			else if (RVTParameter && RVTParameter->GetParameterName() == ParameterInfo.Name)
+			{
+				OutSortPriority = RVTParameter->SortPriority;
 				return true;
 			}
 			else if (FontParameter && FontParameter->GetParameterName() == ParameterInfo.Name)
@@ -5641,9 +5728,6 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 	bool bHasRefraction,
 	bool bUsesShadingModelFromMaterialExpression)
 {
-	static const auto CVarAnisotropicBRDF = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AnisotropicBRDF"));
-	bool bAnisotropicBRDF = CVarAnisotropicBRDF && CVarAnisotropicBRDF->GetValueOnAnyThread();
-	
 	if (Domain == MD_PostProcess)
 	{
 		return InProperty == MP_EmissiveColor || (bBlendableOutputAlpha && InProperty == MP_Opacity);
@@ -5657,10 +5741,10 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 	{
 		return InProperty == MP_BaseColor 
 			|| InProperty == MP_Roughness
-			|| (InProperty == MP_Anisotropy && bAnisotropicBRDF)
+			|| InProperty == MP_Anisotropy
 			|| InProperty == MP_Specular 
 			|| InProperty == MP_Normal
-			|| (InProperty == MP_Tangent && bAnisotropicBRDF)
+			|| InProperty == MP_Tangent
 			|| (InProperty == MP_Opacity && IsTranslucentBlendMode(BlendMode) && BlendMode != BLEND_Modulate);
 	}
 	else if (Domain == MD_DeferredDecal)
@@ -5851,7 +5935,7 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 		Active = ShadingModels.IsLit() && (!bIsTranslucentBlendMode || !bIsVolumetricTranslucencyLightingMode);
 		break;
 	case MP_Anisotropy:
-		Active = bAnisotropicBRDF && ShadingModels.HasAnyShadingModel({ MSM_DefaultLit, MSM_ClearCoat }) && (!bIsTranslucentBlendMode || !bIsVolumetricTranslucencyLightingMode);
+		Active = ShadingModels.HasAnyShadingModel({ MSM_DefaultLit, MSM_ClearCoat }) && (!bIsTranslucentBlendMode || !bIsVolumetricTranslucencyLightingMode);
 		break;
 	case MP_Metallic:
 		// Subsurface models store opacity in place of Metallic in the GBuffer
@@ -5861,7 +5945,7 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 		Active = (ShadingModels.IsLit() && (!bIsTranslucentBlendMode || !bIsNonDirectionalTranslucencyLightingMode)) || bHasRefraction;
 		break;
 	case MP_Tangent:
-		Active = bAnisotropicBRDF && ShadingModels.HasAnyShadingModel({ MSM_DefaultLit, MSM_ClearCoat }) && (!bIsTranslucentBlendMode || !bIsVolumetricTranslucencyLightingMode);
+		Active = ShadingModels.HasAnyShadingModel({ MSM_DefaultLit, MSM_ClearCoat }) && (!bIsTranslucentBlendMode || !bIsVolumetricTranslucencyLightingMode);
 		break;
 	case MP_SubsurfaceColor:
 		Active = ShadingModels.HasAnyShadingModel({ MSM_Subsurface, MSM_PreintegratedSkin, MSM_TwoSidedFoliage, MSM_Cloth });
@@ -5915,7 +5999,9 @@ bool UMaterial::IsPropertyActiveInEditor(EMaterialProperty InProperty) const
 		TranslucencyLightingMode,
 		DecalBlendMode,
 		BlendableOutputAlpha,
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		D3D11TessellationMode != MTM_NoTessellation,
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Refraction.IsConnected(),
 		IsShadingModelFromMaterialExpression());
 }
@@ -5930,7 +6016,9 @@ bool UMaterial::IsPropertyActiveInDerived(EMaterialProperty InProperty, const UM
 		TranslucencyLightingMode,
 		DecalBlendMode,
 		BlendableOutputAlpha,
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		D3D11TessellationMode != MTM_NoTessellation,
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Refraction.IsConnected(),
 		DerivedMaterial->IsShadingModelFromMaterialExpression());
 }

@@ -316,6 +316,7 @@ public:
 	static const uint32 GHardwareMaxGPUSkinBones = 65536;
 	
 	ENGINE_API static bool UseUnlimitedBoneInfluences(uint32 MaxBoneInfluences);
+	ENGINE_API static bool GetUnlimitedBoneInfluences();
 
 	virtual const FShaderResourceViewRHIRef GetPositionsSRV() const = 0;
 	virtual const FShaderResourceViewRHIRef GetTangentsSRV() const = 0;
@@ -365,6 +366,12 @@ public:
 
 		/** The stream to read the blend stream offset and num of influences from */
 		FVertexStreamComponent BlendOffsetCount;
+
+		/** The stream to read for vertex offsets pre skinning */
+		FVertexStreamComponent PreSkinningOffsets;
+
+		/** The stream to read for vertex offsets post skinning */
+		FVertexStreamComponent PostSkinningOffsets;
 
 		/** Number of bone influences */
 		uint32 NumBoneInfluences = 0;
@@ -849,15 +856,6 @@ public:
 
 	struct FDataType : TGPUSkinVertexFactory<BoneInfluenceType>::FDataType
 	{
-		/** stream which has the physical mesh position + height offset */
-		FVertexStreamComponent CoordPositionComponent;
-		/** stream which has the physical mesh coordinate for normal + offset */
-		FVertexStreamComponent CoordNormalComponent;
-		/** stream which has the physical mesh coordinate for tangent + offset */
-		FVertexStreamComponent CoordTangentComponent;
-		/** stream which has the physical mesh vertex indices */
-		FVertexStreamComponent SimulIndicesComponent;
-
 		FShaderResourceViewRHIRef ClothBuffer;
 		// Packed Map: u32 Key, u32 Value
 		TArray<uint64> ClothIndexMapping;
@@ -973,16 +971,25 @@ public:
 	virtual void InitRHI() override;
 	virtual void ReleaseDynamicRHI() override;
 
-protected:
-	/**
-	* Add the decl elements for the streams
-	* @param InData - type with stream components
-	* @param OutElements - vertex decl list to modify
-	*/
-	void AddVertexElements(FDataType& InData, FVertexDeclarationElementList& OutElements);
-
 private:
 	/** stream component data bound to this vertex factory */
 	FDataType MeshMappingData; 
 };
 
+
+template<GPUSkinBoneInfluenceType BoneInfluenceType>
+class TMultipleInfluenceClothVertexFactory : public TGPUSkinAPEXClothVertexFactory<BoneInfluenceType>
+{
+	DECLARE_VERTEX_FACTORY_TYPE(TMultipleInfluenceClothVertexFactory<BoneInfluenceType>);
+
+	typedef TGPUSkinAPEXClothVertexFactory<BoneInfluenceType> Super;
+
+public:
+
+	TMultipleInfluenceClothVertexFactory(ERHIFeatureLevel::Type InFeatureLevel, uint32 InNumVertices)
+		: Super(InFeatureLevel, InNumVertices)
+	{}
+
+	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
+	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
+};

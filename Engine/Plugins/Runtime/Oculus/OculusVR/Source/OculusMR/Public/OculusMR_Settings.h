@@ -11,7 +11,6 @@ enum class EOculusMR_CameraDeviceEnum : uint8
 	CD_None         UMETA(DisplayName = "None"),
 	CD_WebCamera0   UMETA(DisplayName = "Web Camera 0"),
 	CD_WebCamera1   UMETA(DisplayName = "Web Camera 1"),
-	CD_ZEDCamera    UMETA(DisplayName = "ZED Camera"),
 };
 
 UENUM(BlueprintType)
@@ -22,26 +21,10 @@ enum class EOculusMR_ClippingReference : uint8
 };
 
 UENUM(BlueprintType)
-enum class EOculusMR_VirtualGreenScreenType : uint8
-{
-	VGS_Off              UMETA(DisplayName = "Off"),
-	VGS_OuterBoundary    UMETA(DisplayName = "Outer Boundary"),
-	VGS_PlayArea         UMETA(DisplayName = "Play Area")
-};
-
-UENUM(BlueprintType)
 enum class EOculusMR_PostProcessEffects : uint8
 {
 	PPE_Off             UMETA(DisplayName = "Off"),
 	PPE_On				UMETA(DisplayName = "On"),
-};
-
-UENUM(BlueprintType)
-enum class EOculusMR_DepthQuality : uint8
-{
-	DQ_Low              UMETA(DisplayName = "Low"),
-	DQ_Medium           UMETA(DisplayName = "Medium"),
-	DQ_High             UMETA(DisplayName = "High")
 };
 
 UENUM(BlueprintType)
@@ -111,18 +94,6 @@ public:
 	UPROPERTY(Category = OculusMR, EditAnywhere, BlueprintReadWrite, meta = (UIMin = "0.0", UIMax = "0.2"))
 	float ChromaKeySpillRange;
 
-	/** The type of virtual green screen */
-	UPROPERTY(Category = OculusMR, EditAnywhere, BlueprintReadWrite)
-	EOculusMR_VirtualGreenScreenType VirtualGreenScreenType;
-
-	/** Larger values make dynamic lighting effects smoother, but values that are too large make the lighting look flat. */
-	UPROPERTY(Category = OculusMR, EditAnywhere, BlueprintReadWrite, meta = (UIMin = "0.0", UIMax = "16"))
-	float DynamicLightingDepthSmoothFactor;
-
-	/** Sets the maximum depth variation across edges (smaller values set smoother edges) */
-	UPROPERTY(Category = OculusMR, EditAnywhere, BlueprintReadWrite, meta = (UIMin = "0.0", UIMax = "0.1"))
-	float DynamicLightingDepthVariationClampingValue;
-
 	/** Set the amount of post process effects in the MR view for external composition */
 	UPROPERTY(Category = OculusMR, EditAnywhere, BlueprintReadWrite)
 	EOculusMR_PostProcessEffects ExternalCompositionPostProcessEffects;
@@ -156,22 +127,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = OculusMR)
 	void SetIsCasting(bool val);
 
-	/** Is using the in-game lights on the camera frame */
-	UFUNCTION(BlueprintCallable, Category = OculusMR)
-	bool GetUseDynamicLighting() { return bUseDynamicLighting; }
-
-	/** Use the in-game lights on the camera frame */
-	UFUNCTION(BlueprintCallable, Category = OculusMR)
-	void SetUseDynamicLighting(bool val);
-
-	/** The quality level of the depth sensor */
-	UFUNCTION(BlueprintCallable, Category = OculusMR)
-	EOculusMR_DepthQuality GetDepthQuality() { return DepthQuality; }
-
-	/** The quality level of the depth sensor */
-	UFUNCTION(BlueprintCallable, Category = OculusMR)
-	void SetDepthQuality(EOculusMR_DepthQuality val);
-
 	/** Bind the casting camera to the calibrated external camera.
 	  * (Requires a calibrated external camera)
 	  */
@@ -204,20 +159,11 @@ private:
 	UPROPERTY()
 	EOculusMR_CameraDeviceEnum CapturingCamera;
 
-	/** Use the in-game lights on the camera frame */
-	UPROPERTY()
-	bool bUseDynamicLighting;
-
-	/** The quality level of the depth sensor */
-	UPROPERTY()
-	EOculusMR_DepthQuality DepthQuality;
-
 	/** Tracked camera that we want to bind the in-game MR camera to*/
 	int BindToTrackedCameraIndex;
 
 	DECLARE_DELEGATE_TwoParams(OnCompositionMethodChangeDelegate, EOculusMR_CompositionMethod, EOculusMR_CompositionMethod);
 	DECLARE_DELEGATE_TwoParams(OnCapturingCameraChangeDelegate, EOculusMR_CameraDeviceEnum, EOculusMR_CameraDeviceEnum);
-	DECLARE_DELEGATE_TwoParams(OnDepthQualityChangeDelegate, EOculusMR_DepthQuality, EOculusMR_DepthQuality);
 	DECLARE_DELEGATE_TwoParams(OnBooleanSettingChangeDelegate, bool, bool);
 	DECLARE_DELEGATE_TwoParams(OnIntegerSettingChangeDelegate, int, int);
 
@@ -225,8 +171,6 @@ private:
 	OnCompositionMethodChangeDelegate CompositionMethodChangeDelegate;
 	OnCapturingCameraChangeDelegate CapturingCameraChangeDelegate;
 	OnBooleanSettingChangeDelegate IsCastingChangeDelegate;
-	OnBooleanSettingChangeDelegate UseDynamicLightingChangeDelegate;
-	OnDepthQualityChangeDelegate DepthQualityChangeDelegate;
 
 	// Give the OculusMR module access to the delegates so that 
 	friend class FOculusMRModule;

@@ -64,6 +64,14 @@ public:
 			Set("ControlRig.AutoCompileGraph", new IMAGE_BRUSH("Slate/AutoCompile", Icon40x40));
 			Set("ControlRig.AutoCompileGraph.Small", new IMAGE_BRUSH("Slate/AutoCompile", Icon20x20));
 
+			Set("ControlRig.SetupMode", new IMAGE_BRUSH("Slate/SetupMode", Icon40x40));
+			Set("ControlRig.SetupMode.Small", new IMAGE_BRUSH("Slate/SetupMode", Icon20x20));
+
+			Set("ControlRig.UpdateEvent", new IMAGE_BRUSH("Slate/UpdateEvent", Icon40x40));
+			Set("ControlRig.InverseEvent", new IMAGE_BRUSH("Slate/InverseEvent", Icon40x40));
+			Set("ControlRig.UpdateAndInverse", new IMAGE_BRUSH("Slate/UpdateAndInverse", Icon40x40));
+			Set("ControlRig.InverseAndUpdate", new IMAGE_BRUSH("Slate/InverseAndUpdate", Icon40x40));
+
 			Set("ControlRig.Bug.Dot", new IMAGE_BRUSH("Slate/ControlRig_BugDot_32x", Icon16x16));
 			Set("ControlRig.Bug.Normal", new IMAGE_BRUSH("Slate/ControlRig_Bug_28x", Icon14x14));
 			Set("ControlRig.Bug.Open", new IMAGE_BRUSH("Slate/ControlRig_BugOpen_28x", Icon14x14));

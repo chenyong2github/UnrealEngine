@@ -15,18 +15,6 @@ class FMeshParticleVertexFactoryShaderParameters : public FVertexFactoryShaderPa
 public:
 	void Bind(const FShaderParameterMap& ParameterMap)
 	{
-		Transform1.Bind(ParameterMap,TEXT("Transform1"));
-		Transform2.Bind(ParameterMap,TEXT("Transform2"));
-		Transform3.Bind(ParameterMap,TEXT("Transform3"));
-		SubUVParams.Bind(ParameterMap,TEXT("SubUVParams"));
-		SubUVLerp.Bind(ParameterMap,TEXT("SubUVLerp"));
-		ParticleDirection.Bind(ParameterMap, TEXT("ParticleDirection"));
-		RelativeTime.Bind(ParameterMap, TEXT("RelativeTime"));
-		DynamicParameter.Bind(ParameterMap, TEXT("DynamicParameter"));
-		ParticleColor.Bind(ParameterMap, TEXT("ParticleColor"));
-		PrevTransform0.Bind(ParameterMap, TEXT("PrevTransform0"));
-		PrevTransform1.Bind(ParameterMap, TEXT("PrevTransform1"));
-		PrevTransform2.Bind(ParameterMap, TEXT("PrevTransform2"));
 		PrevTransformBuffer.Bind(ParameterMap, TEXT("PrevTransformBuffer"));
 	}
 
@@ -45,55 +33,13 @@ public:
 		FMeshParticleVertexFactory* MeshParticleVF = (FMeshParticleVertexFactory*)VertexFactory;
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FMeshParticleUniformParameters>(), MeshParticleVF->GetUniformBuffer() );
 
-		if (!bInstanced)
-		{
-			const FMeshParticleVertexFactory::FBatchParametersCPU* BatchParameters = (const FMeshParticleVertexFactory::FBatchParametersCPU*)BatchElement.UserData;
-			const FMeshParticleInstanceVertex* Vertex = BatchParameters->InstanceBuffer + BatchElement.UserIndex;
-			const FMeshParticleInstanceVertexDynamicParameter* DynamicVertex = BatchParameters->DynamicParameterBuffer + BatchElement.UserIndex;
-			const FMeshParticleInstanceVertexPrevTransform* PrevTransformVertex = BatchParameters->PrevTransformBuffer + BatchElement.UserIndex;
-
-			ShaderBindings.Add(Transform1, Vertex->Transform[0]);
-			ShaderBindings.Add(Transform2, Vertex->Transform[1]);
-			ShaderBindings.Add(Transform3, Vertex->Transform[2]);
-			ShaderBindings.Add(SubUVParams, FVector4((float)Vertex->SubUVParams[0], (float)Vertex->SubUVParams[1], (float)Vertex->SubUVParams[2], (float)Vertex->SubUVParams[3]));
-			ShaderBindings.Add(SubUVLerp, Vertex->SubUVLerp);
-			ShaderBindings.Add(ParticleDirection, Vertex->Velocity);
-			ShaderBindings.Add(RelativeTime, Vertex->RelativeTime);
-
-			if (BatchParameters->DynamicParameterBuffer)
-			{
-				ShaderBindings.Add(DynamicParameter, FVector4(DynamicVertex->DynamicValue[0], DynamicVertex->DynamicValue[1], DynamicVertex->DynamicValue[2], DynamicVertex->DynamicValue[3]));
-			}
-
-			if (BatchParameters->PrevTransformBuffer && FeatureLevel >= ERHIFeatureLevel::SM5)
-			{
-				ShaderBindings.Add(PrevTransform0, PrevTransformVertex->PrevTransform0);
-				ShaderBindings.Add(PrevTransform1, PrevTransformVertex->PrevTransform1);
-				ShaderBindings.Add(PrevTransform2, PrevTransformVertex->PrevTransform2);
-			}
-
-			ShaderBindings.Add(ParticleColor, FVector4(Vertex->Color.Component(0), Vertex->Color.Component(1), Vertex->Color.Component(2), Vertex->Color.Component(3)));
-		}
-		else if (FeatureLevel >= ERHIFeatureLevel::SM5)
+		if (FeatureLevel >= ERHIFeatureLevel::SM5)
 		{
 			ShaderBindings.Add(PrevTransformBuffer, MeshParticleVF->GetPreviousTransformBufferSRV());
 		}
 	}
 
 private:
-	// Used only when instancing is off (ES2)
-	LAYOUT_FIELD(FShaderParameter, Transform1);
-	LAYOUT_FIELD(FShaderParameter, Transform2);
-	LAYOUT_FIELD(FShaderParameter, Transform3);
-	LAYOUT_FIELD(FShaderParameter, SubUVParams);
-	LAYOUT_FIELD(FShaderParameter, SubUVLerp);
-	LAYOUT_FIELD(FShaderParameter, ParticleDirection);
-	LAYOUT_FIELD(FShaderParameter, RelativeTime);
-	LAYOUT_FIELD(FShaderParameter, DynamicParameter);
-	LAYOUT_FIELD(FShaderParameter, ParticleColor);
-	LAYOUT_FIELD(FShaderParameter, PrevTransform0);
-	LAYOUT_FIELD(FShaderParameter, PrevTransform1);
-	LAYOUT_FIELD(FShaderParameter, PrevTransform2);
 	LAYOUT_FIELD(FShaderResourceParameter, PrevTransformBuffer);
 };
 

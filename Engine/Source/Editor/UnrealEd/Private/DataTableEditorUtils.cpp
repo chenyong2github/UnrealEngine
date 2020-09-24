@@ -763,12 +763,17 @@ void FDataTableEditorUtils::CacheDataTableForEditing(const UDataTable* DataTable
 		return;
 	}
 
+	CacheDataForEditing(DataTable->RowStruct, DataTable->GetRowMap(), OutAvailableColumns, OutAvailableRows);
+}
+
+void FDataTableEditorUtils::CacheDataForEditing(const UScriptStruct* RowStruct, const TMap<FName, uint8*>& RowMap, TArray<FDataTableEditorColumnHeaderDataPtr>& OutAvailableColumns, TArray<FDataTableEditorRowListViewDataPtr>& OutAvailableRows)
+{
 	TArray<FDataTableEditorColumnHeaderDataPtr> OldColumns = OutAvailableColumns;
 	TArray<FDataTableEditorRowListViewDataPtr> OldRows = OutAvailableRows;
 
 	// First build array of properties
 	TArray<const FProperty*> StructProps;
-	for (TFieldIterator<const FProperty> It(DataTable->RowStruct); It; ++It)
+	for (TFieldIterator<const FProperty> It(RowStruct); It; ++It)
 	{
 		const FProperty* Prop = *It;
 		check(Prop);
@@ -813,9 +818,9 @@ void FDataTableEditorUtils::CacheDataTableForEditing(const UDataTable* DataTable
 	}
 
 	// Populate the row data
-	OutAvailableRows.Reset(DataTable->GetRowMap().Num());
+	OutAvailableRows.Reset(RowMap.Num());
 	int32 Index = 0;
-	for (auto RowIt = DataTable->GetRowMap().CreateConstIterator(); RowIt; ++RowIt, ++Index)
+	for (auto RowIt = RowMap.CreateConstIterator(); RowIt; ++RowIt, ++Index)
 	{
 		FText RowName = FText::FromName(RowIt->Key);
 		FDataTableEditorRowListViewDataPtr CachedRowData;
@@ -839,7 +844,7 @@ void FDataTableEditorUtils::CacheDataTableForEditing(const UDataTable* DataTable
 
 		// Always rebuild cell data
 		{
-			uint8* RowData = RowIt.Value();
+			const uint8* RowData = RowIt.Value();
 			for (int32 ColumnIndex = 0; ColumnIndex < StructProps.Num(); ++ColumnIndex)
 			{
 				const FProperty* Prop = StructProps[ColumnIndex];

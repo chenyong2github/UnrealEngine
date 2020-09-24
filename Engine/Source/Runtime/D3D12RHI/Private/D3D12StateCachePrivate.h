@@ -21,10 +21,6 @@
 #define D3D12_STATE_CACHE_DEBUG 0
 #endif
 
-#ifndef USE_D3D12RHI_PRE_PSO_SET_WORKAROUND
-	#define USE_D3D12RHI_PRE_PSO_SET_WORKAROUND 0
-#endif // #ifndef USE_D3D12RHI_PRE_PSO_SET_WORKAROUND
-
 // Uncomment only for debugging of the descriptor heap management; this is very noisy
 //#define VERBOSE_DESCRIPTOR_HEAP_DEBUG 1
 
@@ -352,7 +348,6 @@ protected:
 	bool bNeedSetStencilRef;
 	bool bNeedSetDepthBounds;
 	bool bNeedSetShadingRate;
-	bool bAutoFlushComputeShaderCache;
 	D3D12_RESOURCE_BINDING_TIER ResourceBindingTier;
 
 	struct
@@ -490,10 +485,6 @@ protected:
 		*Shader = StateCacheShaderTraits<TShader>::GetShader(GetGraphicsPipelineState());
 	}
 
-#if USE_D3D12RHI_PRE_PSO_SET_WORKAROUND
-	friend extern void D3D12RHIPrePSOSetWorkaround(ED3D12PipelineType, FD3D12StateCacheBase&);
-#endif // #if USE_D3D12RHI_PRE_PSO_SET_WORKAROUND
-
 	template <ED3D12PipelineType PipelineType>
 	D3D12_STATE_CACHE_INLINE void InternalSetPipelineState()
 	{
@@ -518,10 +509,6 @@ protected:
 		// Set the PSO on the command list if necessary.
 		if (bNeedSetPSO)
 		{
-#if USE_D3D12RHI_PRE_PSO_SET_WORKAROUND
-			D3D12RHIPrePSOSetWorkaround(PipelineType, *this);
-#endif // #if USE_D3D12RHI_PRE_PSO_SET_WORKAROUND
-
 			check(CurrentPSO);
 			SetPipelineState(this->CmdContext, CurrentPSO);
 			PipelineState.Common.bNeedSetPSO = false;
@@ -1015,11 +1002,6 @@ public:
 	void SetComputeBudget(EAsyncComputeBudget ComputeBudget)
 	{
 		PipelineState.Compute.ComputeBudget = ComputeBudget;
-	}
-
-	D3D12_STATE_CACHE_INLINE void AutoFlushComputeShaderCache(bool bEnable)
-	{
-		bAutoFlushComputeShaderCache = bEnable;
 	}
 
 	void FlushComputeShaderCache(bool bForce = false);

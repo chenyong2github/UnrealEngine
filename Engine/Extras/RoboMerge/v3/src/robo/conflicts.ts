@@ -269,7 +269,7 @@ export class Conflicts {
 				setResolvedTimeAsNow(conflict)
 			}
 
-			this.conflictLogger.info(`Conflict for branch ${targetBranchStr} cl ${conflict.cl} seems to be resolved: ${conflict.resolution}`)
+			this.conflictLogger.info(`Conflict for branch ${targetBranchStr} cl ${conflict.cl} seems to be resolved: ${conflict.resolution} by ${conflict.resolvingAuthor}`)
 		}
 
 
@@ -277,7 +277,6 @@ export class Conflicts {
 		
 		// fire events after updating the conflicts state
 		for (const conflict of resolvedConflicts) {
-this.conflictLogger.info(`Reporting unblocked (newly resolved) ${conflict.cl} (${remainingConflicts.length}, ${resolvedConflicts.length}`)
 			this.reportUnblocked(conflict)
 		}
 	}

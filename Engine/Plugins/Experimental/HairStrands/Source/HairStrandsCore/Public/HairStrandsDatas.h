@@ -355,10 +355,50 @@ struct HAIRSTRANDSCORE_API FHairStrandsDatas
 
 	struct FRenderData
 	{
-		TArray<FHairStrandsPositionFormat::Type> RenderingPositions;
-		TArray<FHairStrandsAttributeFormat::Type> RenderingAttributes;
-		TArray<FHairStrandsMaterialFormat::Type> RenderingMaterials;
+		TArray<FHairStrandsPositionFormat::Type>	Positions;
+		TArray<FHairStrandsAttributeFormat::Type>	Attributes;
+		TArray<FHairStrandsMaterialFormat::Type>	Materials;
+		TArray<	FHairStrandsRootIndexFormat::Type>	RootIndices; // Vertex to strands Index
 
 		void Serialize(FArchive& Ar);
 	} RenderData;
+};
+
+/** Hair strands debug data */
+struct HAIRSTRANDSCORE_API FHairStrandsDebugDatas
+{
+	bool IsValid() const { return VoxelData.Num() > 0;  }
+
+	static const uint32 InvalidIndex = ~0u;
+	struct FOffsetAndCount
+	{
+		uint32 Offset = 0u;
+		uint32 Count = 0u;
+	};
+
+	struct FVoxel
+	{
+		uint32 Index0 = InvalidIndex;
+		uint32 Index1 = InvalidIndex;
+	};
+
+	struct FDesc
+	{
+		FVector VoxelMinBound;
+		FVector VoxelMaxBound;
+		FIntVector VoxelResolution;
+		float VoxelSize;
+	};
+
+	FDesc VoxelDescription;
+	TArray<FOffsetAndCount> VoxelOffsetAndCount;
+	TArray<FVoxel> VoxelData;
+
+	struct FResources
+	{
+		FDesc VoxelDescription;
+
+		TRefCountPtr<FRDGPooledBuffer> VoxelOffsetAndCount;
+		TRefCountPtr<FRDGPooledBuffer> VoxelData;
+	};
 };

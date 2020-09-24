@@ -18,7 +18,7 @@ class FTexture2DMipDataProvider_DDC : public FTextureMipDataProvider
 {
 public:
 
-	FTexture2DMipDataProvider_DDC();
+	FTexture2DMipDataProvider_DDC(const UTexture* Texture);
 	~FTexture2DMipDataProvider_DDC();
 
 

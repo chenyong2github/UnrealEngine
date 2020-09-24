@@ -3,102 +3,77 @@ using Dia2Lib;
 
 namespace CruncherSharp
 {
-	/// <summary>
-	/// Represents data inside of a symbol loaded from a PDB. 
-	/// Used to calculate padding, offsets, and child symbols
-	/// </summary>
 	public class CruncherSymbol
 	{
-		public string Name { get; }
-		public string TypeName { get; }
+		public string Name;
+		public string TypeName;
 
-		public bool IsBase { get; }
-		public bool HasChildren { get { return Children.Count > 0; } }
+		public bool IsBase;
 
 		/** Total size of this symbol in bytes */
-		public ulong Size { get; set; }
+		public ulong Size;
 
 		/** Offset of this symbol in bytes */
-		public long Offset { get; set; }
+		public long Offset;
 
 		/** Total padding of this symbol in bytes */
-		public long Padding { get; set; }
-		
-		/// <summary>
-		/// Total padding including the children
-		/// </summary>
-		public long TotalPadding { get; }
+		public long Padding;
+		public List<CruncherSymbol> m_children;
 
-		public List<CruncherSymbol> Children { get; }
+		public CruncherSymbol()
+		{ }
 
-		public CruncherSymbol(string name, ulong size, long offset, IDiaSymbol symbol)
+		public CruncherSymbol(string name, string typeName, ulong size, long offset)
+		{
+			Set(name, typeName, size, offset);
+		}
+
+		public void Set(string name, string typeName, ulong size, long offset)
 		{
 			Name = name;
-			TypeName = symbol != null ? GetBaseType(symbol) : "null";
+			TypeName = typeName;
 			Size = size;
 			Offset = offset;
 			IsBase = Name.IndexOf("Base: ") == 0;
-			Children = new List<CruncherSymbol>();
-
-			if(symbol != null)
-			{
-				ProcessChildren(symbol);
-			}
-
-			TotalPadding = CalcTotalPadding();
 		}
 
-		public CruncherSymbol(IDiaSymbol symbol)
-		{
-			if (symbol == null)
-			{
-				throw new System.NullReferenceException("ERROR: Symbol info is null");
-			}
-
-			Name = symbol.name;
-			Size = symbol.length;
-			ProcessChildren(symbol);
-
-			TypeName = GetBaseType(symbol);	
-			Offset = 0;
-			Children = new List<CruncherSymbol>();
-
-			TotalPadding = CalcTotalPadding();
-		}
-
-		private void ProcessChildren(IDiaSymbol symbol)
+		public void ProcessChildren(IDiaSymbol symbol)
 		{
 			IDiaEnumSymbols children;
 			symbol.findChildren(SymTagEnum.SymTagNull, null, 0, out children);
 
 			foreach (IDiaSymbol child in children)
 			{
-				CruncherSymbol childInfo = ProcessChild(child);
-				if (childInfo != null)
+				CruncherSymbol childInfo;
+				if (ProcessChild(child, out childInfo))
 				{
-					Children.Add(childInfo);
+					AddChild(childInfo);
 				}
 			}
-
-			// Sort children by offset, recalculate padding.
+			// Sort children by offset, recalc padding.
 			// Sorting is not needed normally (for data fields), but sometimes base class order is wrong.
 			if (HasChildren)
 			{
-				Children.Sort(CompareOffsets);
-				for (int i = 0; i < Children.Count; ++i)
+				m_children.Sort(CompareOffsets);
+				for (int i = 0; i < m_children.Count; ++i)
 				{
-					CruncherSymbol child = Children[i];
+					CruncherSymbol child = m_children[i];
 					child.Padding = CalcPadding(child.Offset, i);
 				}
-				Padding = CalcPadding((long)Size, Children.Count);
+				Padding = CalcPadding((long)Size, m_children.Count);
 			}
 		}
 
-		private CruncherSymbol ProcessChild(IDiaSymbol symbol)
+		private bool ProcessChild(IDiaSymbol symbol, out CruncherSymbol info)
 		{
-			if (!IsValidDIASymbol(symbol))
+			info = new CruncherSymbol();
+			if (symbol.isStatic != 0 || (symbol.symTag != (uint)SymTagEnum.SymTagData && symbol.symTag != (uint)SymTagEnum.SymTagBaseClass))
 			{
-				return null;
+				return false;
+			}
+			if (symbol.locationType != LocationType.IsThisRel && symbol.locationType != LocationType.IsNull && symbol.locationType != LocationType.IsBitField)
+			{
+				return false;
 			}
 
 			ulong len = symbol.length;
@@ -114,113 +89,30 @@ namespace CruncherSharp
 				symbolName = "Base: " + symbolName;
 			}
 
-			return new CruncherSymbol(symbolName, len, symbol.offset, null);
-		}
-
-		/**
-		*  If this symbol is a basic type in C/C++ we can extract that data to a string version
-		*  See https://docs.microsoft.com/en-us/visualstudio/debugger/debug-interface-access/basictype?view=vs-2015&redirectedfrom=MSDN
-		*  for more definitions. This can work for function return types/paramaters, or regular member 
-		*  variables
-		*/
-		public static string GetBaseType(IDiaSymbol typeSymbol)
-		{
-			switch (typeSymbol.baseType)
-			{
-				case 0:
-					return string.Empty;
-				case 1:
-					return "void";
-				case 2:
-					return "char";
-				case 3:
-					return "wchar";
-				// signed int
-				case 6:
-					{
-						switch (typeSymbol.length)
-						{
-							case 1:
-								return "int8";
-							case 2:
-								return "int16";
-							case 4:
-								return "int32";
-							case 8:
-								return "int64";
-							default:
-								return "int";
-						}
-					}
-				// unsigned int
-				case 7:
-					switch (typeSymbol.length)
-					{
-						case 1:
-							return "uint8";
-						case 2:
-							return "uint16";
-						case 4:
-							return "uint32";
-						case 8:
-							return "uint64";
-						default:
-							return "uint";
-					}
-				case 8:
-					return "float";
-				case 9:
-					return "BCS";
-				case 10:
-					return "bool";
-				case 13:
-					return "int32";
-				case 14:
-					return "uint32";
-				case 29:
-					return "bit";
-				default:
-					return $"Unhandled: {typeSymbol.baseType}";
-			}
-		}
-
-		/**
-		* @brief	 Returns true if this is a valid symbol for us to display
-		*/
-		private static bool IsValidDIASymbol(IDiaSymbol symbol)
-		{
-			if (symbol.isStatic != 0 || (symbol.symTag != (uint)SymTagEnum.SymTagData && symbol.symTag != (uint)SymTagEnum.SymTagBaseClass))
-			{
-				return false;
-			}
-
-			if (symbol.locationType != LocationType.IsThisRel && symbol.locationType != LocationType.IsNull && symbol.locationType != LocationType.IsBitField)
-			{
-				return false;
-			}
+			info.Set(symbolName, (typeSymbol != null ? typeSymbol.name : ""), len, symbol.offset);
 
 			return true;
 		}
 
-		/** Padding of only this local symbol, does not include children */
 		private long CalcPadding(long offset, int index)
 		{
 			long padding = 0;
 			if (HasChildren && index > 0)
 			{
-				CruncherSymbol lastInfo = Children[index - 1];
+				CruncherSymbol lastInfo = m_children[index - 1];
 				padding = offset - (lastInfo.Offset + (long)lastInfo.Size);
 			}
 			return padding > 0 ? padding : 0;
 		}
 
-		/** Total padding of this symbol which includes all children */
+		public bool HasChildren { get { return m_children != null; } }
+
 		public long CalcTotalPadding()
 		{
 			long totalPadding = Padding;
 			if (HasChildren)
 			{
-				foreach (CruncherSymbol info in Children)
+				foreach (CruncherSymbol info in m_children)
 				{
 					totalPadding += info.Padding;
 				}
@@ -228,15 +120,25 @@ namespace CruncherSharp
 			return totalPadding;
 		}
 
-		/**
-		* @brief	Sorting method used for comparing two symbols
-		*/
+		private void AddChild(CruncherSymbol child)
+		{
+			if (m_children == null)
+			{
+				m_children = new List<CruncherSymbol>();
+			}
+			m_children.Add(child);
+		}
+
 		private static int CompareOffsets(CruncherSymbol x, CruncherSymbol y)
 		{
 			// Base classes have to go first.
-			if ((x.IsBase && !y.IsBase) || (!x.IsBase && y.IsBase))
+			if (x.IsBase && !y.IsBase)
 			{
 				return -1;
+			}
+			if (!x.IsBase && y.IsBase)
+			{
+				return 1;
 			}
 
 			if (x.Offset == y.Offset)

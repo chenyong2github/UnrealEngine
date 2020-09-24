@@ -110,6 +110,10 @@
 		<graph title="Android Thermals" showAverages="1" hideStatPrefix="AndroidCPU/" stacked="1" mainStat="frametime" maxy="100">
 			<statString>AndroidCPU/CPUTemp AndroidCPU/ThermalStatus</statString>
 		</graph>
+		
+		<graph title="Android CPU" showAverages="1" hideStatPrefix="AndroidCPU/" stacked="1" mainStat="frametime" maxy="0">
+			<statString>AndroidCPU/CPUFreqGroup0 AndroidCPU/CPUFreqGroup1 AndroidCPU/CPUFreqGroup2 AndroidCPU/CPUFreqGroup3</statString>
+		</graph>
 
 	</graphGroup>
 

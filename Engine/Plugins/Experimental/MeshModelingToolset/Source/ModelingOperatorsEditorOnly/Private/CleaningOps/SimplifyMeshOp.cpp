@@ -78,6 +78,10 @@ void ComputeSimplify(FDynamicMesh3* TargetMesh, const bool bReproject,
 	{
 		Reducer.SimplifyToTriangleCount(TargetCount);
 	}
+	else if (TargetMode == ESimplifyTargetType::VertexCount)
+	{
+		Reducer.SimplifyToVertexCount(TargetCount);
+	}
 	else if (TargetMode == ESimplifyTargetType::EdgeLength)
 	{
 		Reducer.SimplifyToEdgeLength(TargetEdgeLength);
@@ -149,11 +153,19 @@ void FSimplifyMeshOp::CalculateResult(FProgressCancel* Progress)
 		if (TargetMode == ESimplifyTargetType::Percentage)
 		{
 			ReductionSettings.PercentTriangles = FMath::Max(TargetPercentage / 100., .001);  // Only support triangle percentage and count, but not edge length
+			ReductionSettings.TerminationCriterion = EStaticMeshReductionTerimationCriterion::Triangles;
 		}
 		else if (TargetMode == ESimplifyTargetType::TriangleCount)
 		{
 			int32 NumTris = SrcMeshDescription->Polygons().Num();
 			ReductionSettings.PercentTriangles = (float)TargetCount / (float)NumTris;
+			ReductionSettings.TerminationCriterion = EStaticMeshReductionTerimationCriterion::Triangles;
+		}
+		else if (TargetMode == ESimplifyTargetType::VertexCount)
+		{
+			int32 NumVerts = SrcMeshDescription->Vertices().Num();
+			ReductionSettings.PercentVertices = (float)TargetCount / (float)NumVerts;
+			ReductionSettings.TerminationCriterion = EStaticMeshReductionTerimationCriterion::Vertices;
 		}
 
 		float Error;

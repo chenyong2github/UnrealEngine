@@ -8,6 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/UObjectArray.h"
+#include "UObject/FastReferenceCollectorOptions.h"
 
 /**
  * FWeakObjectPtr is a weak pointer to a UObject. 
@@ -21,6 +22,8 @@ struct FWeakObjectPtr
 {
 public:
 
+	template <typename ReferenceProcessorType, typename CollectorType, typename ArrayPoolType, EFastReferenceCollectorOptions Options>
+	friend class TFastReferenceCollector;
 	friend struct FFieldPath;
 
 	/** Null constructor **/

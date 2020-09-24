@@ -1204,6 +1204,11 @@ FProperty* FKismetCompilerUtilities::CreatePropertyOnScope(UStruct* Scope, const
 		NewProperty = CreatePrimitiveProperty(PropertyScope, ValidatedPropertyName, Type.PinCategory, Type.PinSubCategory, Type.PinSubCategoryObject.Get(), SelfClass, Type.bIsWeakPointer, Schema, MessageLog);
 	}
 
+	if (NewProperty && Type.bIsUObjectWrapper)
+	{
+		NewProperty->SetPropertyFlags(CPF_UObjectWrapper);
+	}
+
 	if (NewContainerProperty && NewProperty && NewProperty->HasAnyPropertyFlags(CPF_ContainsInstancedReference | CPF_InstancedReference))
 	{
 		NewContainerProperty->SetPropertyFlags(CPF_ContainsInstancedReference);
@@ -1243,9 +1248,14 @@ FProperty* FKismetCompilerUtilities::CreatePropertyOnScope(UStruct* Scope, const
 			}
 			else
 			{
-				if (NewMapProperty->ValueProp && NewMapProperty->ValueProp->HasAnyPropertyFlags(CPF_ContainsInstancedReference | CPF_InstancedReference))
+				if (NewMapProperty->ValueProp->HasAnyPropertyFlags(CPF_ContainsInstancedReference | CPF_InstancedReference))
 				{
 					NewContainerProperty->SetPropertyFlags(CPF_ContainsInstancedReference);
+				}
+
+				if (Type.PinValueType.bTerminalIsUObjectWrapper)
+				{
+					NewMapProperty->ValueProp->SetPropertyFlags(CPF_UObjectWrapper);
 				}
 
 				NewProperty = NewMapProperty;

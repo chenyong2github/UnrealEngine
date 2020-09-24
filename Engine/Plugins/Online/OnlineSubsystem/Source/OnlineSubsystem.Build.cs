@@ -20,6 +20,8 @@ public class OnlineSubsystem : ModuleRules
         PublicDefinitions.Add("ONLINESUBSYSTEM_PACKAGE=1");
 		PublicDefinitions.Add("DEBUG_LAN_BEACON=0");
 
+		PublicDefinitions.Add("PLATFORM_MAX_LOCAL_PLAYERS=" + GetPlatformMaxLocalPlayers(Target));
+
 		// OnlineSubsystem cannot depend on Engine!
 		PrivateDependencyModuleNames.AddRange(
 			new string[] { 
@@ -32,5 +34,11 @@ public class OnlineSubsystem : ModuleRules
 				"SignalProcessing",
 			}
 		);
+	}
+
+	protected virtual int GetPlatformMaxLocalPlayers(ReadOnlyTargetRules Target)
+	{
+		// 0 indicates no platform override
+		return 0;
 	}
 }

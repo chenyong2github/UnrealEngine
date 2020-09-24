@@ -2,7 +2,7 @@
 
 #pragma once
 
-struct FMagicLeapVREyeTrackingData
+struct MAGICLEAPEYETRACKER_API FMagicLeapVREyeTrackingData
 {
 public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Average")
@@ -35,7 +35,7 @@ public:
 	bool bRightBlink;
 };
 
-struct FMagicLeapVRStabilityData
+struct MAGICLEAPEYETRACKER_API FMagicLeapVRStabilityData
 {
 
 };

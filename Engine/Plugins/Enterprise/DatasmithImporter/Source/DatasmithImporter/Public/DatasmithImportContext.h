@@ -130,7 +130,10 @@ struct DATASMITHIMPORTER_API FDatasmithAssetsImportContext
 	void ReInit(const FString& NewRootFolder);
 
 	/** The parent context that this context is a part of */
-	FDatasmithImportContext& ParentContext;
+	FDatasmithImportContext* ParentContext;
+	const FDatasmithImportContext& GetParentContext() const { return *ParentContext;  }
+	FDatasmithImportContext& GetParentContext() { return *ParentContext; }
+
 
 	/** Root folder path, used to derive the other paths */
 	FString RootFolderPath;

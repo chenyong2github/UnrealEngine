@@ -15,6 +15,7 @@ class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 {
 	GENERATED_UCLASS_BODY()
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY(config, EditAnywhere, Category = Niagara, meta = (AllowedClasses = "ScriptStruct"))
 	TArray<FSoftObjectPath> AdditionalParameterTypes;
 
@@ -23,6 +24,7 @@ class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 
 	UPROPERTY(config, EditAnywhere, Category = Niagara, meta = (AllowedClasses = "Enum"))
 	TArray<FSoftObjectPath> AdditionalParameterEnums;
+#endif // WITH_EDITORONLY_DATA
 
 	/** Default effect type to use for effects that don't define their own. Can be null. */
 	UPROPERTY(config, EditAnywhere, Category = Niagara, meta = (AllowedClasses = "NiagaraEffectType"))

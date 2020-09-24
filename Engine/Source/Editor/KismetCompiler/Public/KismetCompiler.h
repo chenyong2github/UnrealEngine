@@ -511,6 +511,10 @@ protected:
 	virtual void PrecompileFunction(FKismetFunctionContext& Context, EInternalCompilerFlags InternalFlags);
 
 	/**
+	 * Used for performing custom patching during stage IX of the compilation during load.
+	 */
+	virtual void PreCompileUpdateBlueprintOnLoad(UBlueprint* BP) {}
+	/**
 	 * Second phase of compiling a function graph
 	 *   - Generates an executable statement list
 	 */

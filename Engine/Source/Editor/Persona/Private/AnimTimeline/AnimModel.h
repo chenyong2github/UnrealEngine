@@ -7,6 +7,7 @@
 #include "PersonaDelegates.h"
 #include "UObject/GCObject.h"
 #include "EditorObjectsTracker.h"
+#include "Containers/ArrayView.h"
 
 class FAnimTimelineTrack;
 enum class EViewRangeInterpolation;
@@ -45,6 +46,9 @@ public:
 
 	/** Get the current scrub position */
 	FFrameNumber GetScrubPosition() const;
+
+	/** Get the current scrub time */
+	float GetScrubTime() const;
 
 	/** Set the current scrub position */
 	void SetScrubPosition(FFrameTime NewScrubPostion) const;
@@ -149,8 +153,17 @@ public:
 	 * @param	InSnapMargin	The margin (in seconds) to limit the snap to
 	 * @return true if a snap occurred
 	 */
-	bool Snap(float& InOutTime, float InSnapMargin) const;
-	bool Snap(double& InOutTime, double InSnapMargin) const;
+	bool Snap(float& InOutTime, float InSnapMargin, TArrayView<const FName> InSkippedSnapTypes) const;
+	bool Snap(double& InOutTime, double InSnapMargin, TArrayView<const FName> InSkippedSnapTypes) const;
+
+	/** Toggle the specified snap type */
+	void ToggleSnap(FName InSnapName);
+
+	/** Check whether the specified snap is enabled */
+	bool IsSnapChecked(FName InSnapName) const;
+
+	/** Check whether the specified snap is available */
+	bool IsSnapAvailable(FName InSnapName) const;
 
 	/** Build a context menu for selected items */
 	virtual void BuildContextMenu(FMenuBuilder& InMenuBuilder);
@@ -195,10 +208,10 @@ protected:
 	/** Struct describing the type of a snap */
 	struct FSnapType
 	{
-		FSnapType(const FName& InType, const FText& InDisplayName, bool bInEnabled)
+		FSnapType(const FName& InType, const FText& InDisplayName, TFunction<double(const FAnimModel&, double)> InSnapFunction = nullptr)
 			: Type(InType)
 			, DisplayName(InDisplayName)
-			, bEnabled(bInEnabled)
+			, SnapFunction(InSnapFunction)
 		{}
 
 		/** Identifier for this snap type */
@@ -207,11 +220,14 @@ protected:
 		/** Display name for this snap type */
 		FText DisplayName;
 
-		/** Whether this snap type is enabled */
-		bool bEnabled;
+		/** Optional function to snap with */
+		TFunction<double(const FAnimModel&, double)> SnapFunction;
 
 		/** Built-in snap types */
+		static const FSnapType Frames;
+		static const FSnapType Notifies;
 		static const FSnapType CompositeSegment;
+		static const FSnapType MontageSection;
 	};
 
 	/** Struct describing a time that can be snapped to */

@@ -193,6 +193,46 @@ public:
 	uint32 Mask;
 };
 
+class FBitArrayMemory
+{
+public:
+	/**
+	 * Copy NumBits bits from the source pointer and offset into the dest pointer and offset.
+	 * This function is not suitable for general use because it uses a bit order that is specific to the uint32 internal storage of BitArray
+	 *
+	 * Bits within each word are read or written in the current platform's mathematical bitorder (Data[0] & 0x1, Data[0] & 0x2, ... Data[0] & 0x100, ... Data[0] & 0x80000000, Data[1] & 0x1 ...
+	 * Correctly handles overlap between destination range and source range; the array of destination bits will be a copy of the source bits as they were before the copy started.
+	 * @param DestBits The base location to which the bits are written.
+	 * @param DestOffset The (word-order) bit within DestBits at which to start writing. Can be any value; offsets outside of [0,NumBitsPerDWORD) will be equivalent to modifying the DestBits pointer.
+	 * @param SourceBits The base location from which the bits are read.
+	 * @param SourceOffset The (word-order) bit within SourceBits at which to start reading. Can be any value; offsets outside of [0,NumBitsPerDWORD) will be equivalent to modifying the SourceBits pointer.
+	 * @param NumBits Number of bits to copy. Must be >= 0.
+	 */
+	static CORE_API void MemmoveBitsWordOrder(uint32* DestBits, int32 DestOffset, const uint32* SourceBits, int32 SourceOffset, uint32 NumBits);
+	static inline void MemmoveBitsWordOrder(int32* DestBits, int32 DestOffset, const int32* SourceBits, int32 SourceOffset, uint32 NumBits)
+	{
+		MemmoveBitsWordOrder(reinterpret_cast<uint32*>(DestBits), DestOffset, reinterpret_cast<const uint32*>(SourceBits), SourceOffset, NumBits);
+	}
+
+	/** Given Data and Offset that specify a specific bit in a specific word, modify Data and Offset so that they specify the same bit but that 0 <= Offset < NumBitsPerDWORD. */
+	inline static void ModularizeWordOffset(uint32*& Data, int32& Offset)
+	{
+		ModularizeWordOffset(const_cast<uint32 const*&>(Data), Offset);
+	}
+
+	/** Given Data and Offset that specify a specific bit in a specific word, modify Data and Offset so that they specify the same bit but that 0 <= Offset < NumBitsPerDWORD. */
+	static void ModularizeWordOffset(uint32 const*& Data, int32& Offset);
+
+private:
+
+	/**
+	 * Copy NumBits bits from the source pointer at the given offset into the dest pointer at the given offset.
+	 * It has the same behavior as MemmoveBitsWordOrder under the constaint that DestOffset == SourceOffset.
+	 */
+	static void MemmoveBitsWordOrderAlignedInternal(uint32*const StartDest, const uint32*const StartSource, int32 StartOffset, uint32 NumBits);
+
+	friend class FBitArrayMemoryTest;
+};
 
 /**
  * A dynamically sized bit array.
@@ -203,6 +243,9 @@ class TBitArray
 {
 	template <typename, typename>
 	friend class TScriptBitArray;
+
+	typedef uint32 WordType;
+	static constexpr WordType FullWordMask = (WordType)-1;
 
 public:
 
@@ -218,7 +261,7 @@ public:
 	:	NumBits(0)
 	,	MaxBits(AllocatorInstance.GetInitialCapacity() * NumBitsPerDWORD)
 	{
-		SetWords(GetData(), AllocatorInstance.GetInitialCapacity(), false);
+		// ClearPartialSlackBits is already satisfied since final word does not exist when NumBits == 0
 	}
 
 	/**
@@ -374,6 +417,8 @@ private:
 		ToArray  .MaxBits = FromArray.MaxBits;
 		FromArray.NumBits = 0;
 		FromArray.MaxBits = 0;
+		// No need to call this.ClearPartialSlackBits, because the words we're copying or moving from satisfy the invariant
+		// No need to call FromArray.ClearPartialSlackBits because NumBits == 0 automatically satisfies the invariant
 	}
 
 	template <typename BitArrayType>
@@ -390,6 +435,8 @@ private:
 		if (NumBits)
 		{
 			FMemory::Memcpy(GetData(), Other.GetData(), GetNumWords() * sizeof(uint32));
+			// No need to call ClearPartialSlackBits, because the bits we're copying from satisfy the invariant
+			// If NumBits == 0, the invariant is automatically satisfied so we also don't need ClearPartialSlackBits in that case.
 		}
 	}
 
@@ -405,13 +452,14 @@ public:
 		checkf(NumBits <= MaxBits, TEXT("TBitArray::NumBits (%d) should never be greater than MaxBits (%d)"), NumBits, MaxBits);
 		checkf(NumBits >= 0 && MaxBits >= 0, TEXT("NumBits (%d) and MaxBits (%d) should always be >= 0"), NumBits, MaxBits);
 
+		// Verify the ClearPartialSlackBits invariant
 		const int32 UsedBits = (NumBits % NumBitsPerDWORD);
 		if (UsedBits != 0)
 		{
-			const int32  LastDWORDIndex = NumBits / NumBitsPerDWORD;
-			const uint32 SlackMask = ~0u << UsedBits;
+			const int32 LastDWORDIndex = NumBits / NumBitsPerDWORD;
+			const uint32 SlackMask = FullWordMask << UsedBits;
 
-			uint32 LastDWORD = *(GetData() + LastDWORDIndex);
+			const uint32 LastDWORD = *(GetData() + LastDWORDIndex);
 			checkf((LastDWORD & SlackMask) == 0, TEXT("TBitArray slack bits are non-zero, this will result in undefined behavior."));
 		}
 #endif
@@ -427,8 +475,8 @@ public:
 
 		if (Ar.IsLoading())
 		{
-			// no need for slop when reading
-			BitArray.MaxBits = BitArray.NumBits;
+			// no need for slop when reading; set MaxBits to the smallest legal value that is >= NumBits
+			BitArray.MaxBits = NumBitsPerDWORD * FMath::Max(FBitSet::CalculateNumWords(BitArray.NumBits), (uint32)BitArray.AllocatorInstance.GetInitialCapacity());
 
 			// allocate room for new bits
 			BitArray.Realloc(0);
@@ -451,16 +499,8 @@ public:
 	 */
 	int32 Add(const bool Value)
 	{
-		const int32 Index = NumBits;
-
-		Reserve(Index + 1);
-		++NumBits;
-		(*this)[Index] = Value;
-
-		if (Index % NumBitsPerDWORD == 0)
-		{
-			ClearPartialSlackBits();
-		}
+		const int32 Index = AddUninitialized(1);
+		SetBitNoCheck(Index, Value);
 		return Index;
 	}
 
@@ -468,26 +508,153 @@ public:
 	 * Adds multiple bits to the array with the given value.
 	 * @return The index of the first added bit.
 	 */
-	int32 Add(const bool Value, int32 NumToAdd)
+	int32 Add(const bool Value, int32 NumBitsToAdd)
 	{
-		const int32 Index = NumBits;
-
-		if (NumToAdd > 0)
+		// Support for legacy behavior requires us to silently ignore NumBitsToAdd < 0
+		if (NumBitsToAdd < 0)
 		{
-			Reserve(Index + NumToAdd);
-			NumBits += NumToAdd;
-			for (int32 It = Index, End = It + NumToAdd; It != End; ++It)
-			{
-				(*this)[It] = Value;
-			}
+			return NumBits;
+		}
+		const int32 Index = AddUninitialized(NumBitsToAdd);
+		SetRange(Index, NumBitsToAdd, Value);
+		return Index;
+	}
 
-			if (NumToAdd >= NumBitsPerDWORD - (NumBits % NumBitsPerDWORD))
+	/**
+	 * Adds multiple bits read from the given pointer.
+	 * @param ReadBits The address of sized integers to read the bits from.
+	 *                 Bits are read from ReadBits in the current platform's mathematical bitorder (ReadBits[0] & 0x1, ReadBits[0] & 0x2, ... ReadBits[0] & 0x100, ... ReadBits[0] & 0x80000000, ReadBits[1] & 0x1 ...
+	 * @param NumBitsToAdd The number of bits to add. Must be >= 0.
+	 * @param ReadOffsetBits Number of bits into ReadBits at which to start reading. Must be >= 0.
+	 * @return The index of the first added bit.
+	 */
+	template <typename InWordType>
+	int32 AddRange(const InWordType* ReadBits, int32 NumBitsToAdd, int32 ReadOffsetBits = 0)
+	{
+		const int32 Index = AddUninitialized(NumBitsToAdd);
+		SetRangeFromRange(Index, NumBitsToAdd, ReadBits, ReadOffsetBits);
+		return Index;
+	}
+
+	/**
+	 * Adds multiple bits read from the given BitArray.
+	 * @param ReadBits The value to set the bits to.
+	 * @param NumBitsToAdd The number of bits to add. Must be >= 0.
+	 * @param ReadOffsetBits Number of bits into ReadBits at which to start reading. Must be >= 0.
+	 * @return The index of the first added bit.
+	 */
+	template <typename OtherAllocator>
+	int32 AddRange(const TBitArray<OtherAllocator>& ReadBits, int32 NumBitsToAdd, int32 ReadOffsetBits = 0)
+	{
+		check(0 <= ReadOffsetBits && ReadOffsetBits + NumBitsToAdd <= ReadBits.NumBits);
+		const int32 Index = AddUninitialized(NumBitsToAdd);
+		SetRangeFromRange(Index, NumBitsToAdd, ReadBits, ReadOffsetBits);
+		return Index;
+	}
+
+	/**
+	 * Inserts space for multiple bits at the end of the array.
+	 * The inserted bits are set to arbitrary values and should be written using SetRange or otherwise before being read.
+	 * @param NumBitsToAdd The number of bits to add. Must be >= 0.
+	 */
+	int32 AddUninitialized(int32 NumBitsToAdd)
+	{
+		check(NumBitsToAdd >= 0);
+		int32 AddedIndex = NumBits;
+		if (NumBitsToAdd > 0)
+		{
+			int32 OldLastWordIndex = NumBits == 0 ? -1 : (NumBits - 1) / NumBitsPerDWORD;
+			int32 NewLastWordIndex = (NumBits + NumBitsToAdd - 1) / NumBitsPerDWORD;
+			if (NewLastWordIndex == OldLastWordIndex)
 			{
+				// We're not extending into a new word, so we don't need to reserve more memory and we don't need to clear the unused bits on the final word
+				NumBits += NumBitsToAdd;
+			}
+			else
+			{
+				Reserve(NumBits + NumBitsToAdd);
+				NumBits += NumBitsToAdd;
 				ClearPartialSlackBits();
 			}
 		}
+		return AddedIndex;
+	}
 
-		return Index;
+	/**
+	 * Adds a bit with the given value at the given index in the array.
+	 * @param Value The value of the bit to add
+	 * @param Index - The index at which to add; must be 0 <= Index <= Num().
+	 */
+	void Insert(bool Value, int32 Index)
+	{
+		InsertUninitialized(Index, 1);
+		SetBitNoCheck(Index, Value);
+	}
+
+	/**
+	 * Inserts multiple bits with the given value into the array, starting at the given Index.
+	 * @param Value The value of the bits to add
+	 * @param Index The index at which to add; must be 0 <= Index <= Num().
+	 * @param NumBitsToAdd The number of bits to add. Must be >= 0.
+	 */
+	void Insert(bool Value, int32 Index, int32 NumBitsToAdd)
+	{
+		InsertUninitialized(Index, NumBitsToAdd);
+		SetRange(Index, NumBitsToAdd, Value);
+	}
+
+	/**
+	 * Inserts multiple bits read from the given pointer, starting at the given index.
+	 * @param ReadBits The address of sized integers to read the bits from.
+	 *                 Bits are read from ReadBits in the current platform's mathematical bitorder (ReadBits[0] & 0x1, ReadBits[0] & 0x2, ... ReadBits[0] & 0x100, ... ReadBits[0] & 0x80000000, ReadBits[1] & 0x1 ...
+	 * @param Index The index at which to add; must be 0 <= Index <= Num().
+	 * @param NumBitsToAdd The number of bits to add. Must be >= 0.
+	 * @param ReadOffsetBits Number of bits into ReadBits at which to start reading.
+	 */
+	template <typename InWordType>
+	void InsertRange(const InWordType* ReadBits, int32 Index, int32 NumBitsToAdd, int32 ReadOffsetBits = 0)
+	{
+		InsertUninitialized(Index, NumBitsToAdd);
+		SetRangeFromRange(Index, NumBitsToAdd, ReadBits, ReadOffsetBits);
+	}
+
+	/**
+	 * Inserts multiple bits read from the given BitArray into the array, starting at the given index.
+	 * @param ReadBits The value to set the bits to.
+	 * @param Index The index at which to add; must be 0 <= Index <= Num().
+	 * @param NumBitsToAdd The number of bits to add. Must be >= 0.
+	 * @param ReadOffsetBits Number of bits into ReadBits at which to start reading.
+	 */
+	template <typename OtherAllocator>
+	void InsertRange(const TBitArray<OtherAllocator>& ReadBits, int32 Index, int32 NumBitsToAdd, int32 ReadOffsetBits = 0)
+	{
+		check(0 <= ReadOffsetBits && ReadOffsetBits + NumBitsToAdd <= ReadBits.NumBits);
+		InsertUninitialized(Index, NumBitsToAdd);
+		SetRangeFromRange(Index, NumBitsToAdd, ReadBits, ReadOffsetBits);
+	}
+
+	/**
+	 * Inserts space for multiple bits into the array, starting at the given index.
+	 * The inserted bits are set to arbitrary values and should be written using SetRange or otherwise before being read.
+	 * @param Index The index at which to add; must be 0 <= Index <= Num().
+	 * @param NumBitsToAdd The number of bits to add. Must be >= 0.
+	 */
+	void InsertUninitialized(int32 Index, int32 NumBitsToAdd)
+	{
+		check(0 <= Index && Index <= NumBits);
+		check(NumBitsToAdd >= 0);
+
+		if (NumBitsToAdd > 0)
+		{
+			uint32 OldNumBits = NumBits;
+			AddUninitialized(NumBitsToAdd);
+			uint32 NumToShift = OldNumBits - Index;
+			if (NumToShift > 0)
+			{
+				// MemmoveBitsWordOrder handles overlapping source and dest
+				FBitArrayMemory::MemmoveBitsWordOrder(GetData(), Index + NumBitsToAdd, GetData(), Index, NumToShift);
+			}
+		}
 	}
 
 	/**
@@ -499,19 +666,15 @@ public:
 		ExpectedNumBits = static_cast<int32>(FBitSet::CalculateNumWords(ExpectedNumBits)) * NumBitsPerDWORD;
 		const int32 InitialMaxBits = AllocatorInstance.GetInitialCapacity() * NumBitsPerDWORD;
 
+		NumBits = 0;
+
 		// If we need more bits or can shrink our allocation, do so
+		// Otherwise, reuse current initial allocation
 		if (ExpectedNumBits > MaxBits || MaxBits > InitialMaxBits)
 		{
 			MaxBits = FMath::Max(ExpectedNumBits, InitialMaxBits);
 			Realloc(0);
 		}
-		else
-		{
-			// Reuse current initial allocation but clear used words
-			SetWords(GetData(), GetNumWords(), false);
-		}
-
-		NumBits = 0;
 	}
 
 	/**
@@ -538,9 +701,6 @@ public:
 	 */
 	void Reset()
 	{
-		// We need this because iterators often use whole DWORDs when masking, which includes off-the-end elements
-		SetWords(GetData(), GetNumWords(), false);
-
 		NumBits = 0;
 	}
 
@@ -557,25 +717,16 @@ public:
 		const uint32 NumWords = GetNumWords();
 		const uint32 MaxWords = GetMaxWords();
 
-		if (NumWords > MaxWords)
+		if (NumWords > 0)
 		{
-			AllocatorInstance.ResizeAllocation(0, NumWords, sizeof(uint32));
-			MaxBits = NumWords * NumBitsPerDWORD;
+			if (NumWords > MaxWords)
+			{
+				AllocatorInstance.ResizeAllocation(0, NumWords, sizeof(uint32));
+				MaxBits = NumWords * NumBitsPerDWORD;
+			}
 
-			uint32* Words = GetData();
-			SetWords(Words, NumWords, bValue);
-			Words[NumWords - 1] &= GetLastWordMask();
-		}
-		else if (bValue & (NumWords > 0))
-		{
-			uint32* Words = GetData();
-			SetWords(Words, NumWords - 1, true);
-			Words[NumWords - 1] = GetLastWordMask();
-			SetWords(Words + NumWords, MaxWords - NumWords, false);
-		}
-		else
-		{
-			SetWords(GetData(), MaxWords, false);
+			SetWords(GetData(), NumWords, bValue);
+			ClearPartialSlackBits();
 		}
 	}
 
@@ -601,26 +752,26 @@ public:
 
 	/**
 	 * Sets or unsets a range of bits within the array.
-	 * @param  Index  The index of the first bit to set.
-	 * @param  Num    The number of bits to set.
+	 * @param Index  The index of the first bit to set; must be 0 <= Index <= Num().
+	 * @param NumBitsToSet The number of bits to set, must satisify Index + NumBitsToSet <= Num().
 	 * @param  Value  The value to set the bits to.
 	 */
-	FORCENOINLINE void SetRange(int32 Index, int32 Num, bool Value)
+	FORCENOINLINE void SetRange(int32 Index, int32 NumBitsToSet, bool Value)
 	{
-		check(Index >= 0 && Num >= 0 && Index + Num <= NumBits);
+		check(Index >= 0 && NumBitsToSet >= 0 && Index + NumBitsToSet <= NumBits);
 
-		if (Num == 0)
+		if (NumBitsToSet == 0)
 		{
 			return;
 		}
 
 		// Work out which uint32 index to set from, and how many
 		uint32 StartIndex = Index / NumBitsPerDWORD;
-		uint32 Count      = (Index + Num + (NumBitsPerDWORD - 1)) / NumBitsPerDWORD - StartIndex;
+		uint32 Count      = (Index + NumBitsToSet + (NumBitsPerDWORD - 1)) / NumBitsPerDWORD - StartIndex;
 
 		// Work out masks for the start/end of the sequence
-		uint32 StartMask  = 0xFFFFFFFFu << (Index % NumBitsPerDWORD);
-		uint32 EndMask    = 0xFFFFFFFFu >> (NumBitsPerDWORD - (Index + Num) % NumBitsPerDWORD) % NumBitsPerDWORD;
+		uint32 StartMask  = FullWordMask << (Index % NumBitsPerDWORD);
+		uint32 EndMask    = FullWordMask >> (NumBitsPerDWORD - (Index + NumBitsToSet) % NumBitsPerDWORD) % NumBitsPerDWORD;
 
 		uint32* Data = GetData() + StartIndex;
 		if (Value)
@@ -664,6 +815,60 @@ public:
 	}
 
 	/**
+	 * Sets range of bits within the TBitArray to the values read out of a pointer.
+	 * @param Index  The index of the first bit to set; must be 0 <= Index <= Num().
+	 * @param NumBitsToSet The number of bits to set, must satisify 0 <= NumBitsToSet && Index + NumBitsToSet <= Num().
+	 * @param ReadBits The address of sized integers to read the bits from.
+	 *                 Bits are read from ReadBits in the current platform's mathematical bitorder (ReadBits[0] & 0x1, ReadBits[0] & 0x2, ... ReadBits[0] & 0x100, ... ReadBits[0] & 0x80000000, ReadBits[1] & 0x1 ...
+	 * @param ReadOffsetBits Number of bits into ReadBits at which to start reading. 
+	 */
+	template <typename InWordType>
+	void SetRangeFromRange(int32 Index, int32 NumBitsToSet, const InWordType* ReadBits, int32 ReadOffsetBits = 0)
+	{
+		check(Index >= 0 && NumBitsToSet >= 0 && Index + NumBitsToSet <= NumBits);
+		check(NumBitsToSet == 0 || ReadBits != nullptr);
+
+		// The planned implementation for big endian:
+		// iterate over each InWordType in ReadBits, and upcast it to the TBitArray's WordType. Call MemmoveBitsWordOrder(GetData(), Index + n, &UpcastedWord, ReadOffsetBits, Min(NumBitsToSet, BitsPerWord-ReadOffsetBits) for each word
+		static_assert(PLATFORM_LITTLE_ENDIAN, "SetRangeFromRange does not yet support big endian platforms");
+		FBitArrayMemory::MemmoveBitsWordOrder(GetData(), Index, ReadBits, ReadOffsetBits, NumBitsToSet);
+	}
+
+	/**
+	 * Sets range of bits within this TBitArray to the values read out another TBitArray.
+	 * @param Index  The index of the first bit to set; must be 0 <= Index <= Num().
+	 * @param NumBitsToSet The number of bits to set, must satisify 0 <= NumBitsToSet && Index + NumBitsToSet <= Num().
+	 * @param ReadBits The value to set the bits to.
+	 * @param ReadOffsetBits Number of bits into ReadBits at which to start reading.
+	 */
+	template <typename OtherAllocator>
+	FORCEINLINE void SetRangeFromRange(int32 Index, int32 NumBitsToSet, const TBitArray<OtherAllocator>& ReadBits, int32 ReadOffsetBits = 0)
+	{
+		check(Index >= 0 && NumBitsToSet >= 0 && Index + NumBitsToSet <= NumBits);
+		check(0 <= ReadOffsetBits && ReadOffsetBits + NumBitsToSet <= ReadBits.NumBits);
+		FBitArrayMemory::MemmoveBitsWordOrder(GetData(), Index, ReadBits.GetData(), ReadOffsetBits, NumBitsToSet);
+	}
+
+	/**
+	 * Reads a range of bits within the array and writes them to the given pointer.
+	 * @param Index  The index of the first bit to read; must be 0 <= Index <= Num().
+	 * @param NumBitsToGet The number of bits to read, must satisify 0 <= NumBitsToGet && Index + NumBitsToGet <= Num().
+	 * @param WriteBits The address of sized integers to write the bits to.
+	 *                  Bits are written into WriteBits in the current platform's mathematical bitorder (WriteBits[0] & 0x1, WriteBits[0] & 0x2, ... WriteBits[0] & 0x100, ... WriteBits[0] & 0x80000000, WriteBits[1] & 0x1 ...
+	 * @param WriteOffsetBits Number of bits into WriteBits at which to start writing.
+	 */
+	template <typename InWordType>
+	FORCEINLINE void GetRange(int32 Index, int32 NumBitsToGet, InWordType* WriteBits, int32 WriteOffsetBits = 0) const
+	{
+		check(Index >= 0 && NumBitsToGet >= 0 && Index + NumBitsToGet <= NumBits);
+		check(NumBitsToGet == 0 || WriteBits != nullptr);
+
+		// See SetRangeFromRange for notes on the planned big endian implementation
+		static_assert(PLATFORM_LITTLE_ENDIAN, "SetRangeFromRange does not yet support big endian platforms");
+		FBitArrayMemory::MemmoveBitsWordOrder(WriteBits, WriteOffsetBits, GetData(), Index, NumBitsToGet);
+	}
+
+	/**
 	 * Removes bits from the array.
 	 * @param BaseIndex - The index of the first bit to remove.
 	 * @param NumBitsToRemove - The number of consecutive bits to remove.
@@ -674,20 +879,9 @@ public:
 
 		if (BaseIndex + NumBitsToRemove != NumBits)
 		{
-			// Until otherwise necessary, this is an obviously correct implementation rather than an efficient implementation.
-			FIterator WriteIt(*this);
-			for(FConstIterator ReadIt(*this);ReadIt;++ReadIt)
-			{
-				// If this bit isn't being removed, write it back to the array at its potentially new index.
-				if(ReadIt.GetIndex() < BaseIndex || ReadIt.GetIndex() >= BaseIndex + NumBitsToRemove)
-				{
-					if(WriteIt.GetIndex() != ReadIt.GetIndex())
-					{
-						WriteIt.GetValue() = (bool)ReadIt.GetValue();
-					}
-					++WriteIt;
-				}
-			}
+			// MemmoveBitsWordOrder handles overlapping source and dest
+			uint32 NumToShift = NumBits - (BaseIndex + NumBitsToRemove);
+			FBitArrayMemory::MemmoveBitsWordOrder(GetData(), BaseIndex, GetData(), BaseIndex + NumBitsToRemove, NumToShift);
 		}
 
 		NumBits -= NumBitsToRemove;
@@ -1067,6 +1261,7 @@ public:
 	}
 
 	FORCEINLINE int32 Num() const { return NumBits; }
+	FORCEINLINE int32 Max() const { return MaxBits; }
 	FORCEINLINE FBitReference operator[](int32 Index)
 	{
 		check(Index>=0 && Index<NumBits);
@@ -1477,25 +1672,29 @@ private:
 		const uint32 MaxDWORDs = FBitSet::CalculateNumWords(MaxBits);
 
 		AllocatorInstance.ResizeAllocation(PreviousNumDWORDs,MaxDWORDs,sizeof(uint32));
-
-		if(MaxDWORDs)
-		{
-			// Reset the newly allocated slack DWORDs.
-			FMemory::Memzero((uint32*)AllocatorInstance.GetAllocation() + PreviousNumDWORDs,(MaxDWORDs - PreviousNumDWORDs) * sizeof(uint32));
-		}
+		ClearPartialSlackBits(); // Implement class invariant
 	}
 
+	void SetBitNoCheck(int32 Index, bool Value)
+	{
+		uint32& Word = GetData()[Index/NumBitsPerDWORD];
+		uint32 BitOffset = (Index % NumBitsPerDWORD);
+		Word = (Word & ~(1 << BitOffset)) | (((uint32)Value) << BitOffset);
+	}
 
 	/**
 	 * Clears the slack bits within the final partially relevant DWORD
 	 */
 	void ClearPartialSlackBits()
 	{
+		// TBitArray has a contract about bits outside of the active range - the bits in the final word past NumBits are guaranteed to be 0
+		// This prevents easy-to-make determinism errors from users of TBitArray that do not carefully mask the final word.
+		// It also allows us optimize some operations which would otherwise require us to mask the last word.
 		const int32 UsedBits = NumBits % NumBitsPerDWORD;
 		if (UsedBits != 0)
 		{
 			const int32  LastDWORDIndex = NumBits / NumBitsPerDWORD;
-			const uint32 SlackMask = ~0u >> (NumBitsPerDWORD - UsedBits);
+			const uint32 SlackMask = FullWordMask >> (NumBitsPerDWORD - UsedBits);
 
 			uint32* LastDWORD = (GetData() + LastDWORDIndex);
 			*LastDWORD = *LastDWORD & SlackMask;

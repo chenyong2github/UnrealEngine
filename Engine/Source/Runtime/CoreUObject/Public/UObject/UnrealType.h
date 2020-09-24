@@ -85,6 +85,14 @@ enum class EConvertFromTypeResult
 	Converted
 };
 
+enum class EPropertyObjectReferenceType : uint32
+{
+	None = 0,
+	Strong = 1 << 0,
+	Weak = 1 << 1
+};
+ENUM_CLASS_FLAGS(EPropertyObjectReferenceType);
+
 namespace UE4Property_Private { class FProperty_DoNotUse; }
 
 //
@@ -717,10 +725,11 @@ public:
 	 * Returns true if this property, or in the case of e.g. array or struct properties any sub- property, contains a
 	 * UObject reference.
 	 * @param	EncounteredStructProps		used to check for recursion in arrays
+	 * @param	InReferenceType				type of object reference (strong / weak)
 	 *
-	 * @return true if property (or sub- properties) contain a UObject reference, false otherwise
+	 * @return true if property (or sub- properties) contains the specified type of UObject reference, false otherwise
 	 */
-	virtual bool ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps) const;
+	virtual bool ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps, EPropertyObjectReferenceType InReferenceType = EPropertyObjectReferenceType::Strong) const;
 
 	/**
 	 * Returns true if this property, or in the case of e.g. array or struct properties any sub- property, contains a
@@ -728,7 +737,11 @@ public:
 	 *
 	 * @return true if property (or sub- properties) contain a weak UObject reference, false otherwise
 	 */
-	virtual bool ContainsWeakObjectReference() const;
+	bool ContainsWeakObjectReference() const
+	{
+		TArray<const FStructProperty*> EncounteredStructProps;
+		return ContainsObjectReference(EncounteredStructProps, EPropertyObjectReferenceType::Weak);
+	}
 
 	/**
 	 * Returns true if this property, or in the case of e.g. array or struct properties any sub- property, contains a
@@ -2205,13 +2218,10 @@ public:
 #endif // WITH_EDITORONLY_DATA
 
 	// FProperty interface.
-	virtual bool ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps) const override
+	virtual bool ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps, EPropertyObjectReferenceType InReferenceType = EPropertyObjectReferenceType::Strong) const override
 	{
-		return !TIsWeakPointerType<InTCppType>::Value;
-	}
-	virtual bool ContainsWeakObjectReference() const override
-	{
-		return TIsWeakPointerType<InTCppType>::Value;
+		return (!!(InReferenceType & EPropertyObjectReferenceType::Strong) && !TIsWeakPointerType<InTCppType>::Value) ||
+			(!!(InReferenceType & EPropertyObjectReferenceType::Weak) && TIsWeakPointerType<InTCppType>::Value);
 	}
 	// End of FProperty interface
 
@@ -2304,6 +2314,7 @@ class COREUOBJECT_API FWeakObjectProperty : public TFObjectPropertyBase<FWeakObj
 
 	// FProperty interface
 	virtual void SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const override;
+	virtual void EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps) override;
 private:
 	virtual uint32 GetValueTypeHashInternal(const void* Src) const override;
 public:
@@ -2348,6 +2359,7 @@ class COREUOBJECT_API FLazyObjectProperty : public TFObjectPropertyBase<FLazyObj
 	virtual FName GetID() const override;
 	virtual bool Identical( const void* A, const void* B, uint32 PortFlags ) const override;
 	virtual void SerializeItem( FStructuredArchive::FSlot Slot, void* Value, void const* Defaults ) const override;
+	virtual void EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps) override;
 	// End of FProperty interface
 
 	// FObjectProperty interface
@@ -2395,6 +2407,7 @@ class COREUOBJECT_API FSoftObjectProperty : public TFObjectPropertyBase<FSoftObj
 	virtual void ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const override;
 	virtual const TCHAR* ImportText_Internal( const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* OwnerObject, FOutputDevice* ErrorText ) const override;
 	virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct) override;
+	virtual void EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps) override;
 	// End of FProperty interface
 
 	// FObjectProperty interface
@@ -2619,7 +2632,7 @@ public:
 	virtual bool NetSerializeItem( FArchive& Ar, UPackageMap* Map, void* Data, TArray<uint8> * MetaData = NULL ) const override;
 	virtual void ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const override;
 	virtual const TCHAR* ImportText_Internal( const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* OwnerObject, FOutputDevice* ErrorText ) const override;
-	virtual bool ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps) const override;
+	virtual bool ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps, EPropertyObjectReferenceType InReferenceType = EPropertyObjectReferenceType::Strong) const override;
 	virtual bool SameType(const FProperty* Other) const override;
 	// End of FProperty interface
 
@@ -2845,8 +2858,7 @@ public:
 	virtual void DestroyValueInternal( void* Dest ) const override;
 	virtual bool PassCPPArgsByRef() const override;
 	virtual void InstanceSubobjects( void* Data, void const* DefaultData, UObject* Owner, struct FObjectInstancingGraph* InstanceGraph ) override;
-	virtual bool ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps) const override;
-	virtual bool ContainsWeakObjectReference() const override;
+	virtual bool ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps, EPropertyObjectReferenceType InReferenceType = EPropertyObjectReferenceType::Strong) const override;
 	virtual void EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps) override;
 	virtual bool SameType(const FProperty* Other) const override;
 	virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct) override;
@@ -2891,6 +2903,19 @@ class COREUOBJECT_API FMapProperty : public FMapProperty_Super
 	FScriptMapLayout MapLayout;
 	EMapPropertyFlags MapFlags;
 
+	template <typename CallableType>
+	auto WithScriptMap(void* InMap, CallableType&& Callable) const
+	{
+		if (!!(MapFlags & EMapPropertyFlags::UsesMemoryImageAllocator))
+		{
+			return Callable((FFreezableScriptMap*)InMap);
+		}
+		else
+		{
+			return Callable((FScriptMap*)InMap);
+		}
+	}
+
 public:
 	typedef FMapProperty_Super::TTypeFundamentals TTypeFundamentals;
 	typedef TTypeFundamentals::TCppType TCppType;
@@ -2934,14 +2959,49 @@ public:
 	virtual void DestroyValueInternal(void* Dest) const override;
 	virtual bool PassCPPArgsByRef() const override;
 	virtual void InstanceSubobjects(void* Data, void const* DefaultData, UObject* Owner, struct FObjectInstancingGraph* InstanceGraph) override;
-	virtual bool ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps) const override;
-	virtual bool ContainsWeakObjectReference() const override;
+	virtual bool ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps, EPropertyObjectReferenceType InReferenceType = EPropertyObjectReferenceType::Strong) const override;
 	virtual void EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps) override;
 	virtual bool SameType(const FProperty* Other) const override;
 	virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct) override;
 	// End of FProperty interface
 
 	FString GetCPPTypeCustom(FString* ExtendedTypeText, uint32 CPPExportFlags, const FString& KeyTypeText, const FString& InKeyExtendedTypeText, const FString& ValueTypeText, const FString& InValueExtendedTypeText) const;
+
+	/*
+	 * Helper function to get the number of key/value pairs inside of a map. 
+	 * Used by the garbage collector where for performance reasons the provided map pointer is not guarded
+	 */
+	int32 GetNum(void* InMap) const
+	{
+		return WithScriptMap(InMap, [](auto* Map) { return Map->Num(); });
+	}
+
+	/*
+	 * Helper function to get the sizeof of the map's key/value pair.
+	 * Used by the garbage collector.
+	 */
+	int32 GetPairStride() const
+	{
+		return MapLayout.SetLayout.Size;
+	}
+
+	/*
+	 * Helper function to check if the specified index of a key/value pair in the underlying set is valid.
+	 * Used by the garbage collector where for performance reasons the provided map pointer is not guarded
+	 */
+	bool IsValidIndex(void* InMap, int32 Index) const
+	{
+		return WithScriptMap(InMap, [Index](auto* Map) { return Map->IsValidIndex(Index); });
+	}
+
+	/*
+	 * Helper function to get the pointer to a key/value pair at the specified index.
+	 * Used by the garbage collector where for performance reasons the provided map pointer is not guarded
+	 */
+	uint8* GetPairPtr(void* InMap, int32 Index) const
+	{
+		return WithScriptMap(InMap, [this, Index](auto* Map) { return (uint8*)Map->GetData(Index, MapLayout); });
+	}
 };
 
 // need to break this out a different type so that the DECLARE_CASTED_CLASS_INTRINSIC macro can digest the comma
@@ -2998,14 +3058,52 @@ public:
 	virtual void DestroyValueInternal(void* Dest) const override;
 	virtual bool PassCPPArgsByRef() const override;
 	virtual void InstanceSubobjects(void* Data, void const* DefaultData, UObject* Owner, struct FObjectInstancingGraph* InstanceGraph) override;
-	virtual bool ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps) const override;
-	virtual bool ContainsWeakObjectReference() const override;
+	virtual bool ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps, EPropertyObjectReferenceType InReferenceType = EPropertyObjectReferenceType::Strong) const override;
 	virtual void EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps) override;
 	virtual bool SameType(const FProperty* Other) const override;
 	virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct) override;
 	// End of FProperty interface
 
 	FString GetCPPTypeCustom(FString* ExtendedTypeText, uint32 CPPExportFlags, const FString& ElementTypeText, const FString& InElementExtendedTypeText) const;
+
+	/*
+	 * Helper function to get the number of elements inside of a set.
+	 * Used by the garbage collector where for performance reasons the provided set pointer is not guarded
+	 */
+	int32 GetNum(void* InSet) const
+	{
+		FScriptSet* Set = (FScriptSet*)InSet;
+		return Set->Num();
+	}
+
+	/*
+	 * Helper function to get the size of the set element.
+	 * Used by the garbage collector.
+	 */
+	int32 GetStride() const
+	{
+		return SetLayout.Size;
+	}
+
+	/*
+	 * Helper function to check if the specified index of an element is valid.
+	 * Used by the garbage collector where for performance reasons the provided set pointer is not guarded
+	 */
+	bool IsValidIndex(void* InSet, int32 Index) const
+	{
+		FScriptSet* Set = (FScriptSet*)InSet;
+		return Set->IsValidIndex(Index);
+	}
+
+	/*
+	 * Helper function to get the pointer to an element at the specified index.
+	 * Used by the garbage collector where for performance reasons the provided set pointer is not guarded
+	 */
+	uint8* GetElementPtr(void* InSet, int32 Index) const
+	{
+		FScriptSet* Set = (FScriptSet*)InSet;
+		return (uint8*)Set->GetData(Index, SetLayout);
+	}
 };
 
 /**
@@ -4775,8 +4873,7 @@ public:
 	virtual void InitializeValueInternal( void* Dest ) const override;
 	virtual void InstanceSubobjects( void* Data, void const* DefaultData, UObject* Owner, struct FObjectInstancingGraph* InstanceGraph ) override;
 	virtual int32 GetMinAlignment() const override;
-	virtual bool ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps) const override;
-	virtual bool ContainsWeakObjectReference() const override;
+	virtual bool ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps, EPropertyObjectReferenceType InReferenceType = EPropertyObjectReferenceType::Strong) const override;
 	virtual void EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps) override;
 	virtual bool SameType(const FProperty* Other) const override;
 	virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct) override;
@@ -4854,7 +4951,8 @@ public:
 	virtual bool NetSerializeItem( FArchive& Ar, UPackageMap* Map, void* Data, TArray<uint8> * MetaData = NULL ) const override;
 	virtual void ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const override;
 	virtual const TCHAR* ImportText_Internal( const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* OwnerObject, FOutputDevice* ErrorText ) const override;
-	virtual bool ContainsWeakObjectReference() const override;
+	virtual bool ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps, EPropertyObjectReferenceType InReferenceType = EPropertyObjectReferenceType::Strong) const override;
+	virtual void EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps) override;
 	virtual void InstanceSubobjects( void* Data, void const* DefaultData, UObject* Owner, struct FObjectInstancingGraph* InstanceGraph ) override;
 	virtual bool SameType(const FProperty* Other) const override;
 	// End of FProperty interface
@@ -4908,7 +5006,8 @@ public:
 	virtual bool Identical( const void* A, const void* B, uint32 PortFlags ) const override;
 	virtual bool NetSerializeItem( FArchive& Ar, UPackageMap* Map, void* Data, TArray<uint8> * MetaData = NULL ) const override;
 	virtual void ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const override;
-	virtual bool ContainsWeakObjectReference() const override;
+	virtual bool ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps, EPropertyObjectReferenceType InReferenceType = EPropertyObjectReferenceType::Strong) const override;
+	virtual void EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps) override;
 	virtual void InstanceSubobjects( void* Data, void const* DefaultData, UObject* Owner, struct FObjectInstancingGraph* InstanceGraph ) override;
 	virtual bool SameType(const FProperty* Other) const override;
 	virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct) override;
@@ -5572,7 +5671,7 @@ struct TFieldRange
 // Find a typed field in a struct.
 //
 template <class T>
-UE_DEPRECATED(4.25, "FindField will no longer return properties. Use FindProperty instead or FindUField if you want to find functions or enums.")
+UE_DEPRECATED(4.25, "FindField will no longer return properties. Use FindFProperty instead or FindUField if you want to find functions or enums.")
  T* FindField( const UStruct* Owner, FName FieldName )
 {
 	// We know that a "none" field won't exist in this Struct

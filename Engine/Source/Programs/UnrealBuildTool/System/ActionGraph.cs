@@ -180,12 +180,10 @@ namespace UnrealBuildTool
 				{
 					Executor = new XGE();
 				}
-#if __FASTBUILD_AVAILABLE__
 				else if (BuildConfiguration.bAllowFASTBuild && FASTBuild.IsAvailable())
 				{
 					Executor = new FASTBuild();
 				}
-#endif
 				else if (BuildConfiguration.bAllowDistcc)
 				{
 					Executor = new Distcc();

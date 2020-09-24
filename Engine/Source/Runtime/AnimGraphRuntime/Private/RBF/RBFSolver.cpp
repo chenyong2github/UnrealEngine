@@ -4,7 +4,6 @@
 
 #include "RBF/RBFInterpolator.h"
 
-#include "EngineLogs.h"
 #include "Containers/Set.h"
 #include "Misc/MemStack.h"
 
@@ -67,7 +66,8 @@ void FRBFEntry::AddFromVector(const FVector& InVector)
 FRBFParams::FRBFParams()
 	: TargetDimensions(3)
 	, SolverType(ERBFSolverType::Additive)
-	, Radius(45.f)
+	, Radius(1.f)
+	, bAutomaticRadius(false)
 	, Function(ERBFFunctionType::Gaussian)
 	, DistanceMethod(ERBFDistanceMethod::Euclidean)
 	, TwistAxis(EBoneAxis::BA_X)
@@ -151,8 +151,8 @@ float FRBFSolver::FindDistanceBetweenEntries(const FRBFEntry& A, const FRBFEntry
 
 // Sigma controls the falloff width. The larger the value the narrower the falloff
 static float GetWeightedValue(
-	float Value,
-	float Sigma,
+	float Value, 
+	float KernelWidth, 
 	ERBFFunctionType FalloffFunctionType,
 	bool bBackCompFix = false
 )
@@ -164,7 +164,16 @@ static float GetWeightedValue(
 		case ERBFFunctionType::Linear:
 		case ERBFFunctionType::DefaultFunction:
 		default:
-			return RBFKernel::Linear(Value, Sigma);
+			if (bBackCompFix)
+			{
+				// This is how the old code formulated it. It has no control over the falloff
+				// but ignores all values that have a distance greater than 1.0.
+				return FMath::Max(1.0f - Value, 0.0f);
+			}
+			else
+			{
+				return RBFKernel::Linear(Value, KernelWidth);
+			}
 
 		case ERBFFunctionType::Gaussian:
 			if (bBackCompFix)
@@ -175,7 +184,7 @@ static float GetWeightedValue(
 			}
 			else
 			{
-				return RBFKernel::Gaussian(Value, Sigma);
+				return RBFKernel::Gaussian(Value, KernelWidth);
 			}
 
 		case ERBFFunctionType::Exponential:
@@ -187,14 +196,14 @@ static float GetWeightedValue(
 			}
 			else
 			{
-				return RBFKernel::Exponential(Value, Sigma);
+				return RBFKernel::Exponential(Value, KernelWidth);
 			}
 
 		case ERBFFunctionType::Cubic:
-			return RBFKernel::Cubic(Value, Sigma);
+			return RBFKernel::Cubic(Value, KernelWidth);
 
 		case ERBFFunctionType::Quintic:
-			return RBFKernel::Quintic(Value, Sigma);
+			return RBFKernel::Quintic(Value, KernelWidth);
 		}
 	}
 	else
@@ -203,18 +212,50 @@ static float GetWeightedValue(
 	}
 }
 
+static float GetOptimalKernelWidth(
+	const FRBFParams& Params,
+	const FVector &TwistAxis,
+	const TArrayView<FRBFEntry>& Targets
+	)
+	{
+		float Sum = 0.0f;
+		int Count = 0;
+
+		for (const FRBFEntry& A : Targets)
+		{
+			for (const FRBFEntry& B : Targets)
+			{
+				if (&A != &B)
+				{
+					Sum += GetDistanceBetweenEntries(A, B, Params.DistanceMethod, TwistAxis);
+				Count++;
+				}
+			}
+		}
+
+	return Sum / float(Count);
+}
+
 static auto InterpolativeWeightFunction(
-	const FRBFParams& Params
-)
+	const FRBFParams& Params,
+	const TArrayView<FRBFEntry>& Targets
+	)
 {
-	// This is fairly arbitrary, but is done to maintain a close relationship with how the radius 
-	// controls the falloff distance in the additive solver.
-	float Sigma = FMath::DegreesToRadians(Params.Radius);
 	FVector TwistAxis = Params.GetTwistAxisVector();
 
-	return [Sigma, TwistAxis, &Params](const FRBFEntry& A, const FRBFEntry& B) {
+	float KernelWidth;
+	if (Params.bAutomaticRadius)
+	{
+		KernelWidth = GetOptimalKernelWidth(Params, TwistAxis, Targets);
+	}
+	else 
+	{
+		KernelWidth = FMath::DegreesToRadians(Params.Radius);
+	}
+
+	return [KernelWidth, TwistAxis, &Params](const FRBFEntry& A, const FRBFEntry& B) {
 		float Distance = GetDistanceBetweenEntries(A, B, Params.DistanceMethod, TwistAxis);
-		return GetWeightedValue(Distance, Sigma, Params.Function);
+		return GetWeightedValue(Distance, KernelWidth, Params.Function);
 	};
 }
 
@@ -232,7 +273,7 @@ static bool ValidateInterpolative(
 	TSet<int> InvalidTargetSet;
 
 	InvalidTargets.Empty();
-	if (TRBFInterpolator<FRBFEntry>::GetIdenticalNodePairs(EntryTargets, InterpolativeWeightFunction(Params), InvalidPairs))
+	if (TRBFInterpolator<FRBFEntry>::GetIdenticalNodePairs(EntryTargets, InterpolativeWeightFunction(Params, EntryTargets), InvalidPairs))
 	{
 		// We mark the second of the pair to be invalid. Given how GetInvalidNodePairs iterates over all possible pairs,
 		// this should guarantee to catch them all.
@@ -273,7 +314,7 @@ static void SolveAdditive(
 	const TArray<FRBFTarget>& Targets,
 	const FRBFEntry& Input,
 	float* AllWeights
-)
+	)
 {
 	// Iterate over each pose, adding its contribution
 	for (int32 TargetIdx = 0; TargetIdx < Targets.Num(); TargetIdx++)
@@ -293,7 +334,7 @@ static void SolveAdditive(
 		// Apply custom curve if desired
 		if (Target.bApplyCustomCurve)
 		{
-			Weight = Target.CustomCurve.Eval(Weight, Weight); // default is unmapped Weight
+			Weight = Target.CustomCurve.Eval(Weight, Weight); // default is un-mapped Weight
 		}
 
 		// Add to array of all weights. Don't threshold yet, wait for normalization step.
@@ -312,7 +353,7 @@ TSharedPtr<const FRBFSolverData> FRBFSolver::InitSolver(const FRBFParams& Params
 		for (const FRBFTarget& T : Targets)
 			InitData->EntryTargets.Add(T);
 
-		InitData->Rbf = TRBFInterpolator<FRBFEntry>(InitData->EntryTargets, InterpolativeWeightFunction(Params));
+		InitData->Rbf = TRBFInterpolator<FRBFEntry>(InitData->EntryTargets, InterpolativeWeightFunction(Params, InitData->EntryTargets));
 	}
 
 	return TSharedPtr<const FRBFSolverData>(InitData);
@@ -405,46 +446,46 @@ void FRBFSolver::Solve(
 		{
 			switch (Params.NormalizeMethod)
 			{
-			case ERBFNormalizeMethod::OnlyNormalizeAboveOne:
-			{
-				break;
-			}
-			case ERBFNormalizeMethod::AlwaysNormalize:
-			{
-				WeightScale = 1.f / TotalWeight;
-				break;
-			}
-			case ERBFNormalizeMethod::NormalizeWithinMedian:
-			{
-				if (Params.MedianMax < Params.MedianMin)
+				case ERBFNormalizeMethod::OnlyNormalizeAboveOne:
 				{
 					break;
 				}
-
-				FRBFEntry MedianEntry;
-				while (Input.GetDimensions() > MedianEntry.GetDimensions())
-				{
-					MedianEntry.AddFromVector(Params.MedianReference);
-				}
-
-				float MedianDistance = FindDistanceBetweenEntries(Input, MedianEntry, Params);
-				if (MedianDistance > Params.MedianMax)
-				{
-					break;
-				}
-				if (MedianDistance <= Params.MedianMin)
+				case ERBFNormalizeMethod::AlwaysNormalize:
 				{
 					WeightScale = 1.f / TotalWeight;
 					break;
 				}
+				case ERBFNormalizeMethod::NormalizeWithinMedian:
+				{
+					if (Params.MedianMax < Params.MedianMin)
+					{
+						break;
+					}
 
-				float Bias = FMath::Clamp<float>((MedianDistance - Params.MedianMin) / (Params.MedianMax - Params.MedianMin), 0.f, 1.f);
-				WeightScale = FMath::Lerp<float>(1.f / TotalWeight, 1.f, Bias);
-				break;
-			}
+					FRBFEntry MedianEntry;
+					while (Input.GetDimensions() > MedianEntry.GetDimensions())
+					{
+						MedianEntry.AddFromVector(Params.MedianReference);
+					}
+					
+					float MedianDistance = FindDistanceBetweenEntries(Input, MedianEntry, Params);
+					if (MedianDistance > Params.MedianMax)
+					{
+						break;
+					}
+					if (MedianDistance <= Params.MedianMin)
+					{
+						WeightScale = 1.f / TotalWeight;
+						break;
+					}
+
+					float Bias = FMath::Clamp<float>((MedianDistance - Params.MedianMin) / (Params.MedianMax - Params.MedianMin), 0.f, 1.f);
+					WeightScale = FMath::Lerp<float>(1.f / TotalWeight, 1.f, Bias);
+					break;
+				}
 			}
 		}
-
+		
 		/// TotalWeight : (Params.bNormalizeWeightsBelowSumOfOne ? 1.f / TotalWeight : 1.f);
 		for (int32 TargetIdx = 0; TargetIdx < Targets.Num(); TargetIdx++)
 		{
@@ -506,4 +547,19 @@ float FRBFSolver::GetRadiusForTarget(const FRBFTarget& Target, const FRBFParams&
 	}
 
 	return FMath::Max(Radius, KINDA_SMALL_NUMBER);
+}
+
+
+float FRBFSolver::GetOptimalRadiusForTargets(const FRBFParams& Params, const TArray<FRBFTarget>& Targets)
+{
+	TArray<FRBFEntry, TMemStackAllocator<>> EntryTargets;
+	EntryTargets.Reset(Targets.Num());
+	for (const auto& T : Targets)
+		EntryTargets.Add(T);
+
+	FVector TwistAxis = Params.GetTwistAxisVector();
+
+	float KernelWidth = GetOptimalKernelWidth(Params, TwistAxis, EntryTargets);
+
+	return FMath::RadiansToDegrees(KernelWidth);
 }

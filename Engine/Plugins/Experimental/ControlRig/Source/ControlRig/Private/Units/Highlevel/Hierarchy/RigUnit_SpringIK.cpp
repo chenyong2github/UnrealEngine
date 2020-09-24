@@ -12,14 +12,20 @@ FRigUnit_SpringIK_Execute()
 		return;
 	}
 
-	TArray<int32>& BoneIndices = WorkData.BoneIndices;
-	int32& PoleVectorIndex = WorkData.PoleVectorIndex;
+	TArray<FCachedRigElement>& BoneIndices = WorkData.BoneIndices;
+	FCachedRigElement& CachedPoleVector = WorkData.CachedPoleVector;
 	TArray<FTransform>& Transforms = WorkData.Transforms;
 	FCRSimPointContainer& Simulation = WorkData.Simulation;
 
 	if (Context.State == EControlRigState::Init)
 	{
 		BoneIndices.Reset();
+		CachedPoleVector.Reset();
+		return;
+	}
+
+	if(BoneIndices.Num() == 0)
+	{
 		Simulation.Reset();
 		Simulation.TimeStep = 1.f / 60.f;
 
@@ -34,7 +40,7 @@ FRigUnit_SpringIK_Execute()
 
 			while (EndBoneIndex != INDEX_NONE)
 			{
-				BoneIndices.Add(EndBoneIndex);
+				BoneIndices.Add(FCachedRigElement((*Hierarchy)[EndBoneIndex].Name, Hierarchy));
 				if (EndBoneIndex == StartBoneIndex)
 				{
 					break;
@@ -55,8 +61,8 @@ FRigUnit_SpringIK_Execute()
 		{
 			Simulation.Points.Add(FCRSimPoint());
 
-			FTransform A = Hierarchy->GetInitialTransform(BoneIndices[PointIndex]);
-			FTransform B = Hierarchy->GetInitialTransform(BoneIndices[PointIndex + 1]);
+			FTransform A = Hierarchy->GetInitialGlobalTransform(BoneIndices[PointIndex]);
+			FTransform B = Hierarchy->GetInitialGlobalTransform(BoneIndices[PointIndex + 1]);
 
 			FCRSimLinearSpring Spring;
 			Spring.SubjectA = PointIndex;
@@ -68,7 +74,7 @@ FRigUnit_SpringIK_Execute()
 			// also add the root based springs
 			if (PointIndex > 1 && RootStrength > SMALL_NUMBER && HierarchyStrength > SMALL_NUMBER)
 			{
-				B = Hierarchy->GetInitialTransform(BoneIndices[0]);
+				B = Hierarchy->GetInitialGlobalTransform(BoneIndices[0]);
 				Spring.SubjectA = PointIndex;
 				Spring.SubjectB = 0;
 				Spring.Equilibrium = FMath::Lerp<float>(0.f, (A.GetLocation() - B.GetLocation()).Size(), FMath::Clamp<float>(RootRatio, 0.f, 1.f));
@@ -79,7 +85,7 @@ FRigUnit_SpringIK_Execute()
 			// also add the effector based springs
 			if(PointIndex > 0 && PointIndex < BoneIndices.Num() - 2 && EffectorStrength > SMALL_NUMBER && HierarchyStrength > SMALL_NUMBER)
 			{
-				B = Hierarchy->GetInitialTransform(BoneIndices[BoneIndices.Num() - 1]);
+				B = Hierarchy->GetInitialGlobalTransform(BoneIndices[BoneIndices.Num() - 1]);
 				Spring.SubjectA = PointIndex;
 				Spring.SubjectB = BoneIndices.Num() - 1;
 				Spring.Equilibrium = FMath::Lerp<float>(0.f, (A.GetLocation() - B.GetLocation()).Size(), FMath::Clamp<float>(EffectorRatio, 0.f, 1.f));
@@ -108,9 +114,7 @@ FRigUnit_SpringIK_Execute()
 			}
 		}
 
-		PoleVectorIndex = Hierarchy->GetIndex(PoleVectorSpace);
-
-		return;
+		CachedPoleVector = FCachedRigElement(PoleVectorSpace, Hierarchy);
 	}
 
 	if (BoneIndices.Num() < 3)
@@ -136,9 +140,9 @@ FRigUnit_SpringIK_Execute()
 	}
 
 	FVector PoleTarget = PoleVector;
-	if (PoleVectorIndex != INDEX_NONE)
+	if (CachedPoleVector.IsValid())
 	{
-		const FTransform PoleVectorSpaceTransform = Hierarchy->GetGlobalTransform(PoleVectorIndex);
+		const FTransform PoleVectorSpaceTransform = Hierarchy->GetGlobalTransform(CachedPoleVector);
 		if (PoleVectorKind == EControlRigVectorKind::Direction)
 		{
 			PoleTarget = PoleVectorSpaceTransform.TransformVectorNoScale(PoleTarget);
@@ -260,8 +264,8 @@ FRigUnit_SpringIK_Execute()
 			int32 ParentIndex = (*Hierarchy)[BoneIndices[PointIndex]].ParentIndex;
 			if (ParentIndex != INDEX_NONE)
 			{
-				FTransform InitialTransform = Hierarchy->GetInitialTransform(BoneIndices[PointIndex]);
-				FTransform ParentInitialTransform = Hierarchy->GetInitialTransform(ParentIndex);
+				FTransform InitialTransform = Hierarchy->GetInitialGlobalTransform(BoneIndices[PointIndex]);
+				FTransform ParentInitialTransform = Hierarchy->GetInitialGlobalTransform(ParentIndex);
 				FTransform ParentTransform = Hierarchy->GetGlobalTransform(ParentIndex);
 				float ExpectedDistance = (InitialTransform.GetLocation() - ParentInitialTransform.GetLocation()).Size();
 				if (ExpectedDistance > SMALL_NUMBER && PointIndex < BoneIndices.Num() - 1)

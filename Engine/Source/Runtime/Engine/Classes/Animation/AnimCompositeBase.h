@@ -220,7 +220,7 @@ struct FAnimTrack
 	 * See if any AnimSegment overlaps any of it, and if it does, break it up into RootMotionExtractionPieces.
 	 * Supports animation playing forward and backward. Track segment should be a contiguous range, not wrapping over due to looping.
 	 */
-	void GetRootMotionExtractionStepsForTrackRange(TArray<FRootMotionExtractionStep> & RootMotionExtractionSteps, const float StartTrackPosition, const float EndTrackPosition) const;
+	ENGINE_API void GetRootMotionExtractionStepsForTrackRange(TArray<FRootMotionExtractionStep> & RootMotionExtractionSteps, const float StartTrackPosition, const float EndTrackPosition) const;
 
 	/** Ensure segment times are correctly formed (no gaps and no extra time at the end of the anim reference) */
 	void ValidateSegmentTimes();
@@ -236,7 +236,10 @@ struct FAnimTrack
 	ENGINE_API const FAnimSegment* GetSegmentAtTime(float InTime) const;
 
 	/** Get animation pose function */
+	UE_DEPRECATED(4.26, "Use other GetAnimationPose signature")
 	ENGINE_API void GetAnimationPose(/*out*/ FCompactPose& OutPose,/*out*/ FBlendedCurve& OutCurve, const FAnimExtractContext& ExtractionContext) const;
+	
+	ENGINE_API void GetAnimationPose(FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext) const;
 
 	/** Enable Root motion setting from montage */
 	void EnableRootMotionSettingFromMontage(bool bInEnableRootMotion, const ERootMotionRootLock::Type InRootMotionRootLock);

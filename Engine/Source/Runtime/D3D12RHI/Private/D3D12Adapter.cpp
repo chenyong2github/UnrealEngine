@@ -13,7 +13,7 @@ D3D12Adapter.cpp:D3D12 Adapter implementation.
 #include "Windows/WindowsPlatformMisc.h"
 #endif
 
-#if !PLATFORM_CPU_ARM_FAMILY && (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
+#if !PLATFORM_CPU_ARM_FAMILY && (PLATFORM_WINDOWS)
 	#include "amd_ags.h"
 #endif
 #include "Windows/HideWindowsPlatformTypes.h"
@@ -74,7 +74,7 @@ static bool CheckD3DStoredMessages()
 	TRefCountPtr<ID3D12Debug> d3dDebug;
 	if (SUCCEEDED(D3D12GetDebugInterface(__uuidof(ID3D12Debug), (void**)d3dDebug.GetInitReference())))
 	{
-		FD3D12DynamicRHI* D3D12RHI = (FD3D12DynamicRHI*)GDynamicRHI;
+		FD3D12DynamicRHI* D3D12RHI = FD3D12DynamicRHI::GetD3DRHI();
 		TRefCountPtr<ID3D12InfoQueue> d3dInfoQueue;
 		if (SUCCEEDED(D3D12RHI->GetAdapter().GetD3DDevice()->QueryInterface(__uuidof(ID3D12InfoQueue), (void**)d3dInfoQueue.GetInitReference())))
 		{
@@ -179,9 +179,6 @@ FD3D12Adapter::FD3D12Adapter(FD3D12AdapterDesc& DescIn)
 	, DefaultContextRedirector(this, true, false)
 	, DefaultAsyncComputeContextRedirector(this, true, true)
 	, FrameCounter(0)
-#if D3D12_SUBMISSION_GAP_RECORDER
-	, CurrentContextIndex(0)
-#endif
 	, DebugFlags(0)
 {
 	FMemory::Memzero(&UploadHeapAllocator, sizeof(UploadHeapAllocator));
@@ -217,6 +214,14 @@ FD3D12Adapter::FD3D12Adapter(FD3D12AdapterDesc& DescIn)
 void FD3D12Adapter::Initialize(FD3D12DynamicRHI* RHI)
 {
 	OwningRHI = RHI;
+}
+
+
+/** Callback function called when the GPU crashes, when Aftermath is enabled */
+static void D3D12AftermathCrashCallback(const void* InGPUCrashDump, const uint32_t InGPUCrashDumpSize, void* InUserData)
+{
+	// Forward to shared function which is also called when DEVICE_LOST return value is given
+	D3D12RHI::TerminateOnGPUCrash(nullptr, InGPUCrashDump, InGPUCrashDumpSize);
 }
 
 
@@ -257,6 +262,41 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 				GPUCrashDebuggingMode = (ED3D12GPUCrashDebugginMode)GPUCrashDebuggingModeValue;
 		}
 	}
+
+#if NV_AFTERMATH
+	if (IsRHIDeviceNVIDIA())
+	{
+		// GPUcrash dump handler must be attached prior to device creation
+		static IConsoleVariable* GPUCrashDump = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDump"));
+		if (GPUCrashDebuggingMode == ED3D12GPUCrashDebugginMode::Full || FParse::Param(FCommandLine::Get(), TEXT("gpucrashdump")) || (GPUCrashDump && GPUCrashDump->GetInt()))
+		{
+			HANDLE CurrentThread = ::GetCurrentThread();
+
+			GFSDK_Aftermath_Result Result = GFSDK_Aftermath_EnableGpuCrashDumps(
+				GFSDK_Aftermath_Version_API,
+				GFSDK_Aftermath_GpuCrashDumpWatchedApiFlags_DX,
+				GFSDK_Aftermath_GpuCrashDumpFeatureFlags_Default,
+				D3D12AftermathCrashCallback,
+				nullptr, //Shader debug callback
+				nullptr, // description callback
+				CurrentThread); // user data
+
+			if (Result == GFSDK_Aftermath_Result_Success)
+			{
+				UE_LOG(LogD3D12RHI, Log, TEXT("[Aftermath] Aftermath crash dumping enabled"));
+
+				// enable core Aftermath to set the init flags
+				GDX12NVAfterMathEnabled = 1;
+			}
+			else
+			{
+				UE_LOG(LogD3D12RHI, Log, TEXT("[Aftermath] Aftermath crash dumping failed to initialize (%x)"), Result);
+
+				GDX12NVAfterMathEnabled = 0;
+			}
+		}
+	}
+#endif
 
 	bool bD3d12gpuvalidation = false;
 	if (bWithDebug)
@@ -304,6 +344,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 			UE_LOG(LogD3D12RHI, Warning, TEXT("[DRED] DRED requested but interface was not found, error: %x. DRED only works on Windows 10 1903+."), hr);
 		}
 
+#ifdef __ID3D12DeviceRemovedExtendedDataSettings1_INTERFACE_DEFINED__
 		TRefCountPtr<ID3D12DeviceRemovedExtendedDataSettings1> DredSettings1;
 		hr = D3D12GetDebugInterface(IID_PPV_ARGS(DredSettings1.GetInitReference()));
 		if (SUCCEEDED(hr))
@@ -311,6 +352,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 			DredSettings1->SetBreadcrumbContextEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
 			UE_LOG(LogD3D12RHI, Log, TEXT("[DRED] Dred breadcrumb context enabled"));
 		}
+#endif
 	}
 
 	UE_LOG(LogD3D12RHI, Log, TEXT("InitD3DDevice: -D3DDebug = %s -D3D12GPUValidation = %s"), bWithDebug ? TEXT("on") : TEXT("off"), bD3d12gpuvalidation ? TEXT("on") : TEXT("off"));
@@ -323,7 +365,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 #endif
 
 	bool bDeviceCreated = false;
-#if !PLATFORM_CPU_ARM_FAMILY && (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
+#if !PLATFORM_CPU_ARM_FAMILY && (PLATFORM_WINDOWS)
 	if (IsRHIDeviceAMD() && OwningRHI->GetAmdAgsContext())
 	{
 		auto* CVarShaderDevelopmentMode = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ShaderDevelopmentMode"));
@@ -414,17 +456,44 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 	{
 		if (IsRHIDeviceNVIDIA() && bAllowVendorDevice)
 		{
-			GFSDK_Aftermath_Result Result = GFSDK_Aftermath_DX12_Initialize(GFSDK_Aftermath_Version_API, GFSDK_Aftermath_FeatureFlags_Maximum, RootDevice);
+			static IConsoleVariable* MarkersCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging.Aftermath.Markers"));
+			static IConsoleVariable* CallstackCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging.Aftermath.Callstack"));
+			static IConsoleVariable* ResourcesCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging.Aftermath.ResourceTracking"));
+			static IConsoleVariable* TrackAllCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging.Aftermath.TrackAll"));
+
+			const bool bEnableMarkers = FParse::Param(FCommandLine::Get(), TEXT("aftermathmarkers")) || (MarkersCVar && MarkersCVar->GetInt());
+			const bool bEnableCallstack = FParse::Param(FCommandLine::Get(), TEXT("aftermathcallstack")) || (CallstackCVar && CallstackCVar->GetInt());
+			const bool bEnableResources = FParse::Param(FCommandLine::Get(), TEXT("aftermathresources")) || (ResourcesCVar && ResourcesCVar->GetInt());
+			const bool bEnableAll = FParse::Param(FCommandLine::Get(), TEXT("aftermathall")) || (TrackAllCVar && TrackAllCVar->GetInt());
+
+			uint32 Flags = GFSDK_Aftermath_FeatureFlags_Minimum;
+
+			Flags |= bEnableMarkers ? GFSDK_Aftermath_FeatureFlags_EnableMarkers : 0;
+			Flags |= bEnableCallstack ? GFSDK_Aftermath_FeatureFlags_CallStackCapturing : 0;
+			Flags |= bEnableResources ? GFSDK_Aftermath_FeatureFlags_EnableResourceTracking : 0;
+			Flags |= bEnableAll ? GFSDK_Aftermath_FeatureFlags_Maximum : 0;
+
+			GFSDK_Aftermath_Result Result = GFSDK_Aftermath_DX12_Initialize(GFSDK_Aftermath_Version_API, (GFSDK_Aftermath_FeatureFlags)Flags, RootDevice);
 			if (Result == GFSDK_Aftermath_Result_Success)
 			{
 				UE_LOG(LogD3D12RHI, Log, TEXT("[Aftermath] Aftermath enabled and primed"));
-				SetEmitDrawEvents(true);
-				GDX12NVAfterMathEnabled = 1;
 			}
 			else
 			{
 				UE_LOG(LogD3D12RHI, Log, TEXT("[Aftermath] Aftermath enabled but failed to initialize (%x)"), Result);
 				GDX12NVAfterMathEnabled = 0;
+			}
+
+			if (GDX12NVAfterMathEnabled && (bEnableMarkers || bEnableAll))
+			{
+				SetEmitDrawEvents(true);
+				GDX12NVAfterMathMarkers = 1;
+			}
+
+			GDX12NVAfterMathTrackResources = bEnableResources || bEnableAll;
+			if (GDX12NVAfterMathEnabled && GDX12NVAfterMathTrackResources)
+			{
+				UE_LOG(LogD3D12RHI, Log, TEXT("[Aftermath] Aftermath resource tracking enabled"));
 			}
 		}
 		else
@@ -439,12 +508,17 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 	}
 #endif
 
-#if (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
+#if PLATFORM_WINDOWS
 	if (bWithDebug)
 	{
 		// add vectored exception handler to write the debug device warning & error messages to the log
 		ExceptionHandlerHandle = AddVectoredExceptionHandler(1, D3DVectoredExceptionHandler);
+	}
+#endif // PLATFORM_WINDOWS
 
+#if (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
+	if (bWithDebug)
+	{
 		// Manually load dxgi debug if available
 		HMODULE DxgiDebugDLL = (HMODULE)FPlatformProcess::GetDllHandle(TEXT("dxgidebug.dll"));
 		if (DxgiDebugDLL)
@@ -963,20 +1037,25 @@ void FD3D12Adapter::Cleanup()
 
 		CheckD3DStoredMessages();
 	}
+#endif //  (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
 
+#if PLATFORM_WINDOWS
 	if (ExceptionHandlerHandle != INVALID_HANDLE_VALUE)
 	{
 		RemoveVectoredExceptionHandler(ExceptionHandlerHandle);
 	}
-#endif //  (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
+#endif //  PLATFORM_WINDOWS
 }
 
 void FD3D12Adapter::CreateDXGIFactory(bool bWithDebug)
 {
-	typedef HRESULT(WINAPI *FCreateDXGIFactory2)(UINT, REFIID, void **);
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+	uint32 Flags = bWithDebug ? DXGI_CREATE_FACTORY_DEBUG : 0;
+
+#if PLATFORM_WINDOWS
+	typedef HRESULT(WINAPI* FCreateDXGIFactory2)(UINT, REFIID, void**);
 	FCreateDXGIFactory2 CreateDXGIFactory2FnPtr = nullptr;
 
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 	// Dynamically load this otherwise Win7 fails to boot as it's missing on that DLL
 	HMODULE DxgiDLL = (HMODULE)FPlatformProcess::GetDllHandle(TEXT("dxgi.dll"));
 	check(DxgiDLL);
@@ -987,10 +1066,13 @@ void FD3D12Adapter::CreateDXGIFactory(bool bWithDebug)
 #pragma warning(pop)
 	FPlatformProcess::FreeDllHandle(DxgiDLL);
 
-	uint32 Flags = bWithDebug ? DXGI_CREATE_FACTORY_DEBUG : 0;
 	VERIFYD3D12RESULT(CreateDXGIFactory2FnPtr(Flags, IID_PPV_ARGS(DxgiFactory.GetInitReference())));
-	VERIFYD3D12RESULT(DxgiFactory->QueryInterface(IID_PPV_ARGS(DxgiFactory2.GetInitReference())));
+#elif PLATFORM_HOLOLENS
+	VERIFYD3D12RESULT(::CreateDXGIFactory2(Flags, IID_PPV_ARGS(DxgiFactory.GetInitReference())));
 #endif
+
+	VERIFYD3D12RESULT(DxgiFactory->QueryInterface(IID_PPV_ARGS(DxgiFactory2.GetInitReference())));
+#endif // #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 }
 
 #if D3D12_SUBMISSION_GAP_RECORDER
@@ -1000,31 +1082,31 @@ void FD3D12Adapter::SubmitGapRecorderTimestamps()
 	if (GEnableGapRecorder && GGapRecorderActiveOnBeginFrame)
 	{
 		FrameCounter++;
-		int32 PreviousContext = 1 - CurrentContextIndex;
 		uint64 TotalSubmitWaitGPUCycles = 0;
 
 		int32 CurrentSlotIdx = Device->GetCmdListExecTimeQueryHeap()->GetNextFreeIdx();
 		SubmissionGapRecorder.SetEndFrameSlotIdx(CurrentSlotIdx);
 
 		TArray<FD3D12CommandListManager::FResolvedCmdListExecTime> TimingPairs;
-		Device->GetCommandListManager().GetCommandListTimingResults(TimingPairs, GGapRecorderUseBlockingCall==1);
+		Device->GetCommandListManager().GetCommandListTimingResults(TimingPairs, !!GGapRecorderUseBlockingCall);
 
-		StartOfSubmissionTimestamp[CurrentContextIndex].Empty();
-		EndOfSubmissionTimestamp[CurrentContextIndex].Empty();
+		const int32 NumTimingPairs = TimingPairs.Num();
+		StartOfSubmissionTimestamps.Empty(NumTimingPairs);
+		EndOfSubmissionTimestamps.Empty(NumTimingPairs);
 
 		// Convert Timing Pairs to flat arrays would be good to refactor data structures to make this unnecessary
-		for (int32 i = 0; i < TimingPairs.Num(); i++)
+		for (int32 i = 0; i < NumTimingPairs; i++)
 		{
-			StartOfSubmissionTimestamp[CurrentContextIndex].Add(TimingPairs[i].StartTimestamp);
-			EndOfSubmissionTimestamp[CurrentContextIndex].Add(TimingPairs[i].EndTimestamp);
+			StartOfSubmissionTimestamps.Add(TimingPairs[i].StartTimestamp);
+			EndOfSubmissionTimestamps.Add(TimingPairs[i].EndTimestamp);
 		}
 
-		UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("EndFrame TimingPairs %d StartOfSubmissionTimestamp %d EndOfSubmissionTimestamp %d"), TimingPairs.Num(), StartOfSubmissionTimestamp[CurrentContextIndex].Num(), EndOfSubmissionTimestamp[CurrentContextIndex].Num());
+		UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("EndFrame TimingPairs %d StartOfSubmissionTimestamp %d EndOfSubmissionTimestamp %d"), NumTimingPairs, StartOfSubmissionTimestamps.Num(), EndOfSubmissionTimestamps.Num());
 
 		// Process the timestamp submission gaps for the previous frame
-		if (StartOfSubmissionTimestamp[PreviousContext].Num() > 0 && EndOfSubmissionTimestamp[PreviousContext].Num() > 0)
+		if (NumTimingPairs > 0)
 		{
-			TotalSubmitWaitGPUCycles = SubmissionGapRecorder.SubmitSubmissionTimestampsForFrame(FrameCounter, StartOfSubmissionTimestamp[PreviousContext], EndOfSubmissionTimestamp[PreviousContext]);
+			TotalSubmitWaitGPUCycles = SubmissionGapRecorder.SubmitSubmissionTimestampsForFrame(FrameCounter, StartOfSubmissionTimestamps, EndOfSubmissionTimestamps);
 		}
 
 		double TotalSubmitWaitTimeSeconds = TotalSubmitWaitGPUCycles / (float)FGPUTiming::GetTimingFrequency();
@@ -1043,10 +1125,8 @@ void FD3D12Adapter::SubmitGapRecorderTimestamps()
 			GGPUFrameTime -= TotalSubmitWaitCycles;
 		}
 
-		StartOfSubmissionTimestamp[PreviousContext].Reset();
-		EndOfSubmissionTimestamp[PreviousContext].Reset();
-
-		CurrentContextIndex = 1 - CurrentContextIndex;
+		StartOfSubmissionTimestamps.Reset();
+		EndOfSubmissionTimestamps.Reset();
 
 		GGapRecorderActiveOnBeginFrame = false;
 	}
@@ -1121,7 +1201,7 @@ void FD3D12Adapter::GetLocalVideoMemoryInfo(DXGI_QUERY_VIDEO_MEMORY_INFO* LocalV
 			DXGI_QUERY_VIDEO_MEMORY_INFO TempVideoMemoryInfo;
 			VERIFYD3D12RESULT(Adapter3->QueryVideoMemoryInfo(Index, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &TempVideoMemoryInfo));
 			LocalVideoMemoryInfo->Budget = FMath::Min(LocalVideoMemoryInfo->Budget, TempVideoMemoryInfo.Budget);
-			LocalVideoMemoryInfo->Budget = FMath::Min(LocalVideoMemoryInfo->CurrentUsage, TempVideoMemoryInfo.CurrentUsage);
+			LocalVideoMemoryInfo->CurrentUsage = FMath::Min(LocalVideoMemoryInfo->CurrentUsage, TempVideoMemoryInfo.CurrentUsage);
 		}
 	}
 #endif

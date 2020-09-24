@@ -395,8 +395,8 @@ bool FAudioDevice::Init(Audio::FDeviceId InDeviceID, int32 InMaxSources)
 
 	const UAudioSettings* AudioSettings = GetDefault<UAudioSettings>();
 
-	GlobalMinPitch = FMath::Clamp(AudioSettings->GlobalMinPitchScale, 0.0001f, 4.0f);
-	GlobalMaxPitch = FMath::Clamp(AudioSettings->GlobalMaxPitchScale, 0.0001f, 4.0f);
+	GlobalMinPitch = FMath::Max(AudioSettings->GlobalMinPitchScale, 0.0001f);
+	GlobalMaxPitch = FMath::Max(AudioSettings->GlobalMaxPitchScale, 0.0001f);
 	bAllowCenterChannel3DPanning = AudioSettings->bAllowCenterChannel3DPanning;
 	bAllowPlayWhenSilent = AudioSettings->bAllowPlayWhenSilent;
 	DefaultReverbSendLevel = AudioSettings->DefaultReverbSendLevel_DEPRECATED;
@@ -430,80 +430,80 @@ bool FAudioDevice::Init(Audio::FDeviceId InDeviceID, int32 InMaxSources)
 	{
 		LLM_SCOPE(ELLMTag::AudioMixerPlugins);
 
-		// Cache any plugin settings objects we have loaded
-		UpdateAudioPluginSettingsObjectCache();
+	// Cache any plugin settings objects we have loaded
+	UpdateAudioPluginSettingsObjectCache();
 
-		//Get the requested spatialization plugin and set it up.
-		IAudioSpatializationFactory* SpatializationPluginFactory = AudioPluginUtilities::GetDesiredSpatializationPlugin();
-		if (SpatializationPluginFactory != nullptr)
+	//Get the requested spatialization plugin and set it up.
+	IAudioSpatializationFactory* SpatializationPluginFactory = AudioPluginUtilities::GetDesiredSpatializationPlugin();
+	if (SpatializationPluginFactory != nullptr)
+	{
+		SpatializationPluginInterface = SpatializationPluginFactory->CreateNewSpatializationPlugin(this);
+		if (!IsAudioMixerEnabled())
 		{
-			SpatializationPluginInterface = SpatializationPluginFactory->CreateNewSpatializationPlugin(this);
-			if (!IsAudioMixerEnabled())
-			{
-				//Set up initialization parameters for system level effect plugins:
-				FAudioPluginInitializationParams PluginInitializationParams;
-				PluginInitializationParams.SampleRate = SampleRate;
-				PluginInitializationParams.NumSources = GetMaxSources();
-				PluginInitializationParams.BufferLength = PlatformSettings.CallbackBufferFrameSize;
-				PluginInitializationParams.AudioDevicePtr = this;
-
-				SpatializationPluginInterface->Initialize(PluginInitializationParams);
-			}
-
-			bSpatializationInterfaceEnabled = true;
-			bSpatializationIsExternalSend = SpatializationPluginFactory->IsExternalSend();
-			MaxChannelsSupportedBySpatializationPlugin = SpatializationPluginFactory->GetMaxSupportedChannels();
-			UE_LOG(LogAudio, Log, TEXT("Using Audio Spatialization Plugin: %s is external send: %d"), *(SpatializationPluginFactory->GetDisplayName()), bSpatializationIsExternalSend);
-		}
-		else
-		{
-			UE_LOG(LogAudio, Log, TEXT("Using built-in audio spatialization."));
-		}
-
-		//Get the requested reverb plugin and set it up:
-		IAudioReverbFactory* ReverbPluginFactory = AudioPluginUtilities::GetDesiredReverbPlugin();
-		if (ReverbPluginFactory != nullptr)
-		{
-			ReverbPluginInterface = ReverbPluginFactory->CreateNewReverbPlugin(this);
-			bReverbInterfaceEnabled = true;
-			bReverbIsExternalSend = ReverbPluginFactory->IsExternalSend();
-			UE_LOG(LogAudio, Log, TEXT("Audio Reverb Plugin: %s"), *(ReverbPluginFactory->GetDisplayName()));
-		}
-		else
-		{
-			UE_LOG(LogAudio, Log, TEXT("Using built-in audio reverb."));
-		}
-
-		//Get the requested occlusion plugin and set it up.
-		IAudioOcclusionFactory* OcclusionPluginFactory = AudioPluginUtilities::GetDesiredOcclusionPlugin();
-		if (OcclusionPluginFactory != nullptr)
-		{
-			OcclusionInterface = OcclusionPluginFactory->CreateNewOcclusionPlugin(this);
-			bOcclusionInterfaceEnabled = true;
-			bOcclusionIsExternalSend = OcclusionPluginFactory->IsExternalSend();
-			UE_LOG(LogAudio, Display, TEXT("Audio Occlusion Plugin: %s"), *(OcclusionPluginFactory->GetDisplayName()));
-		}
-		else
-		{
-			UE_LOG(LogAudio, Display, TEXT("Using built-in audio occlusion."));
-		}
-
-		//Get the requested modulation plugin and set it up.
-		if (IAudioModulationFactory* ModulationPluginFactory = AudioPluginUtilities::GetDesiredModulationPlugin())
-		{
-			ModulationInterface = ModulationPluginFactory->CreateNewModulationPlugin(this);
-
 			//Set up initialization parameters for system level effect plugins:
 			FAudioPluginInitializationParams PluginInitializationParams;
 			PluginInitializationParams.SampleRate = SampleRate;
-			PluginInitializationParams.NumSources = GetMaxSources();
+				PluginInitializationParams.NumSources = GetMaxSources();
 			PluginInitializationParams.BufferLength = PlatformSettings.CallbackBufferFrameSize;
 			PluginInitializationParams.AudioDevicePtr = this;
-			ModulationInterface->Initialize(PluginInitializationParams);
 
-			bModulationInterfaceEnabled = true;
-			UE_LOG(LogAudio, Display, TEXT("Audio Modulation Plugin: %s"), *(ModulationPluginFactory->GetDisplayName().ToString()));
+			SpatializationPluginInterface->Initialize(PluginInitializationParams);
 		}
+
+		bSpatializationInterfaceEnabled = true;
+		bSpatializationIsExternalSend = SpatializationPluginFactory->IsExternalSend();
+		MaxChannelsSupportedBySpatializationPlugin = SpatializationPluginFactory->GetMaxSupportedChannels();
+		UE_LOG(LogAudio, Log, TEXT("Using Audio Spatialization Plugin: %s is external send: %d"), *(SpatializationPluginFactory->GetDisplayName()), bSpatializationIsExternalSend);
+	}
+	else
+	{
+		UE_LOG(LogAudio, Log, TEXT("Using built-in audio spatialization."));
+	}
+
+	//Get the requested reverb plugin and set it up:
+	IAudioReverbFactory* ReverbPluginFactory = AudioPluginUtilities::GetDesiredReverbPlugin();
+	if (ReverbPluginFactory != nullptr)
+	{
+		ReverbPluginInterface = ReverbPluginFactory->CreateNewReverbPlugin(this);
+		bReverbInterfaceEnabled = true;
+		bReverbIsExternalSend = ReverbPluginFactory->IsExternalSend();
+		UE_LOG(LogAudio, Log, TEXT("Audio Reverb Plugin: %s"), *(ReverbPluginFactory->GetDisplayName()));
+	}
+	else
+	{
+		UE_LOG(LogAudio, Log, TEXT("Using built-in audio reverb."));
+	}
+
+	//Get the requested occlusion plugin and set it up.
+	IAudioOcclusionFactory* OcclusionPluginFactory = AudioPluginUtilities::GetDesiredOcclusionPlugin();
+	if (OcclusionPluginFactory != nullptr)
+	{
+		OcclusionInterface = OcclusionPluginFactory->CreateNewOcclusionPlugin(this);
+		bOcclusionInterfaceEnabled = true;
+		bOcclusionIsExternalSend = OcclusionPluginFactory->IsExternalSend();
+		UE_LOG(LogAudio, Display, TEXT("Audio Occlusion Plugin: %s"), *(OcclusionPluginFactory->GetDisplayName()));
+	}
+	else
+	{
+		UE_LOG(LogAudio, Display, TEXT("Using built-in audio occlusion."));
+	}
+
+	//Get the requested modulation plugin and set it up.
+	if (IAudioModulationFactory* ModulationPluginFactory = AudioPluginUtilities::GetDesiredModulationPlugin())
+	{
+		ModulationInterface = ModulationPluginFactory->CreateNewModulationPlugin(this);
+
+		//Set up initialization parameters for system level effect plugins:
+		FAudioPluginInitializationParams PluginInitializationParams;
+		PluginInitializationParams.SampleRate = SampleRate;
+			PluginInitializationParams.NumSources = GetMaxSources();
+		PluginInitializationParams.BufferLength = PlatformSettings.CallbackBufferFrameSize;
+		PluginInitializationParams.AudioDevicePtr = this;
+		ModulationInterface->Initialize(PluginInitializationParams);
+
+		bModulationInterfaceEnabled = true;
+		UE_LOG(LogAudio, Display, TEXT("Audio Modulation Plugin: %s"), *(ModulationPluginFactory->GetDisplayName().ToString()));
+	}
 	}
 
 	// allow the platform to startup
@@ -1908,10 +1908,10 @@ bool FAudioDevice::HandleGetDynamicSoundVolumeCommand(const TCHAR* Cmd, FOutputD
 		}
 		else
 		{
-			const float Volume = DeviceManager->GetDynamicSoundVolume(SoundType, SoundName);
-			FString Msg = FString::Printf(TEXT("'%s' Dynamic Volume: %.4f"), *SoundName.GetPlainNameString(), Volume);
-			Ar.Logf(TEXT("%s"), *Msg);
-		}
+		const float Volume = DeviceManager->GetDynamicSoundVolume(SoundType, SoundName);
+		FString Msg = FString::Printf(TEXT("'%s' Dynamic Volume: %.4f"), *SoundName.GetPlainNameString(), Volume);
+		Ar.Logf(TEXT("%s"), *Msg);
+	}
 	}
 	return true;
 }
@@ -3195,12 +3195,12 @@ void FAudioDevice::SetListenerAttenuationOverride(int32 ListenerIndex, const FVe
 			return;
 		}
 
-		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SetListenerAttenuationOverride"), STAT_AudioSetListenerAttenuationOverride, STATGROUP_AudioThreadCommands);
+	DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SetListenerAttenuationOverride"), STAT_AudioSetListenerAttenuationOverride, STATGROUP_AudioThreadCommands);
 
 		ListenerProxies[ListenerIndex].AttenuationOverride = AttenuationPosition;
 		ListenerProxies[ListenerIndex].bUseAttenuationOverride = true;
 
-		FAudioDevice* AudioDevice = this;
+	FAudioDevice* AudioDevice = this;
 		FAudioThread::RunCommandOnAudioThread([AudioDevice, ListenerIndex, AttenuationPosition]()
 		{
 			AudioDevice->SetListenerAttenuationOverride(ListenerIndex, AttenuationPosition);
@@ -3216,12 +3216,12 @@ void FAudioDevice::SetListenerAttenuationOverride(int32 ListenerIndex, const FVe
 			Listener.bUseAttenuationOverride = true;
 			Listener.AttenuationOverride = AttenuationPosition;
 
-			if (!bPrevAttenuationOverride)
-			{
+		if (!bPrevAttenuationOverride)
+		{
 				UpdateVirtualLoops(true);
 			}
 		}
-	}
+		}
 }
 
 void FAudioDevice::ClearListenerAttenuationOverride(int32 ListenerIndex)
@@ -3234,20 +3234,20 @@ void FAudioDevice::ClearListenerAttenuationOverride(int32 ListenerIndex)
 	if (!IsInAudioThread())
 	{
 		if (ListenerIndex >= ListenerProxies.Num())
-		{
-			return;
-		}
+	{
+		return;
+	}
 
-		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.ClearListenerAttenuationOverride"), STAT_AudioClearListenerAttenuationOverride, STATGROUP_AudioThreadCommands);
+	DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.ClearListenerAttenuationOverride"), STAT_AudioClearListenerAttenuationOverride, STATGROUP_AudioThreadCommands);
 
 		ListenerProxies[ListenerIndex].AttenuationOverride = FVector::ZeroVector;
 		ListenerProxies[ListenerIndex].bUseAttenuationOverride = false;
 
-		FAudioDevice* AudioDevice = this;
+	FAudioDevice* AudioDevice = this;
 		FAudioThread::RunCommandOnAudioThread([AudioDevice, ListenerIndex]()
-		{
+	{
 			AudioDevice->ClearListenerAttenuationOverride(ListenerIndex);
-		}, GET_STATID(STAT_AudioClearListenerAttenuationOverride));
+	}, GET_STATID(STAT_AudioClearListenerAttenuationOverride));
 	}
 	else
 	{
@@ -5061,12 +5061,12 @@ bool FAudioDevice::LocationIsAudible(const FVector& Location, const float MaxDis
 
 	const int32 ListenerCount = bInAudioThread ? Listeners.Num() : ListenerProxies.Num();
 	for (int32 i = 0; i < ListenerCount; ++i)
-	{
-		if (LocationIsAudible(Location, i, MaxDistance))
 		{
-			return true;
+		if (LocationIsAudible(Location, i, MaxDistance))
+			{
+				return true;
+			}
 		}
-	}
 
 	return false;
 }
@@ -5095,16 +5095,16 @@ bool FAudioDevice::LocationIsAudible(const FVector& Location, const FTransform& 
 bool FAudioDevice::LocationIsAudible(const FVector& Location, int32 ListenerIndex, float MaxDistance) const
 {
 	if (MaxDistance >= WORLD_MAX)
-	{
-		return true;
-	}
+			{
+				return true;
+			}
 	
 	FVector ListenerTranslation;
 	const bool bAllowOverride = true;
 	if (ListenerIndex == INDEX_NONE || !GetListenerPosition(ListenerIndex, ListenerTranslation, bAllowOverride))
 	{
 		return false;
-	}
+		}
 	
 	const float MaxDistanceSquared = MaxDistance * MaxDistance;
 	return (ListenerTranslation - Location).SizeSquared() < MaxDistanceSquared;
@@ -5173,24 +5173,24 @@ bool FAudioDevice::GetListenerPosition(int32 ListenerIndex, FVector& OutPosition
 {
 	OutPosition = FVector::ZeroVector;
 	if (ListenerIndex == INDEX_NONE)
-	{
+		{
 		return false;
 	}
 
 	if (IsInAudioThread())
-	{
+			{
 		checkf(ListenerIndex < Listeners.Num(), TEXT("Listener Index %u out of range of available Listeners!"), ListenerIndex);
 		const FListener& Listener = Listeners[ListenerIndex];
 		OutPosition = Listener.GetPosition(bAllowOverride);
 		return true;
-	}
+			}
 	else // IsInGameThread()
 	{
 		checkf(ListenerIndex < ListenerProxies.Num(), TEXT("Listener Index %u out of range of available Listeners!"), ListenerIndex);
 		const FListenerProxy& Proxy = ListenerProxies[ListenerIndex];
 		OutPosition = Proxy.GetPosition(bAllowOverride);
 		return true;
-	}
+		}
 	return false;
 }
 
@@ -5208,15 +5208,15 @@ bool FAudioDevice::GetListenerTransform(int32 ListenerIndex, FTransform& OutTran
 		{
 			OutTransform = Listeners[ListenerIndex].Transform;
 			return true;
+			}
 		}
-	}
 	else // IsInGameThread()
 	{
 		if (ListenerIndex < ListenerProxies.Num())
-		{
+	{
 			OutTransform = ListenerProxies[ListenerIndex].Transform;
 			return true;
-		}
+	}
 	}
 	return false;
 }
@@ -5388,13 +5388,13 @@ int32 FAudioDevice::FindClosestListenerIndex(const FVector& Position, float& Out
 
 		const float DistSq = FVector::DistSquared(Position, ListenerPosition);
 		if (DistSq < OutDistanceSq)
-		{
+				{
 			OutDistanceSq = DistSq;
-			ClosestListenerIndex = i;
+					ClosestListenerIndex = i;
+			}
 		}
-	}
 
-	return ClosestListenerIndex;
+		return ClosestListenerIndex;
 }
 
 void FAudioDevice::UnlinkActiveSoundFromComponent(const FActiveSound& InActiveSound)

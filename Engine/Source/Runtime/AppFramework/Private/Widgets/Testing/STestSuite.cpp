@@ -1746,7 +1746,7 @@ struct RichTextHelper
 	static FText GetAliceInWonderland()
 	{
 		return FText::FromString(
-			TEXT("The <a id=\"browser\" href=\"http://en.wikipedia.org/wiki/Dormouse_(Alice%27s_Adventures_in_Wonderland)\" style=\"RichText.Interactive.Text.Hyperlink\">Dormouse</> had closed its eyes by this time, and was going off into a doze; but, on being pinched by the Hatter, it woke up again with a little shriek, and went on: '<RichText.Interactive.Text.Dialogue>-that begins with an M, such as </><a id=\"browser\" href=\"http://en.wikipedia.org/wiki/Mousetrap_(weapon)\" style=\"RichText.Interactive.Text.DialogueHyperlink\">mouse-traps</><RichText.Interactive.Text.Dialogue>, and the moon, and memory, and muchness-you know you say things are \"much of a muchness\"-did you ever see such a thing as a drawing of a muchness?</>'")
+			TEXT("The <a id=\"browser\" href=\"http://en.wikipedia.org/wiki/Dormouse_(Alice%27s_Adventures_in_Wonderland)\" style=\"RichText.Interactive.Text.Hyperlink\">Dormouse</> had closed its eyes by this time, and was going off into a doze; but, on being pinched by the Hatter, it woke up again with a little shriek, and went on: '<RichText.Interactive.Text.Dialogue>-that begins with an M, such as </><a id=\"browser\" href=\"http://en.wikipedia.org/wiki/Mousetrap\" style=\"RichText.Interactive.Text.DialogueHyperlink\">mouse-traps</><RichText.Interactive.Text.Dialogue>, and the moon, and memory, and muchness-you know you say things are \"much of a muchness\"-did you ever see such a thing as a drawing of a muchness?</>'")
 			TEXT("\n\n")
 			TEXT("'<RichText.Interactive.Text.Dialogue>Really, now you ask me,</>' said <a id=\"browser\" href=\"http://en.wikipedia.org/wiki/Alice_(Alice%27s_Adventures_in_Wonderland)\" style=\"RichText.Interactive.Text.Hyperlink\">Alice</>, very much confused, '<RichText.Interactive.Text.Dialogue>I don't think-</>'")
 			TEXT("\n\n")
@@ -3981,7 +3981,7 @@ public:
 									. HAlign(HAlign_Center)
 								[
 									SNew(SImage)
-										. Image( FCoreStyle::Get().GetBrush( TEXT("DefaultAppIcon") ) )
+										. Image( FCoreStyle::Get().GetBrush( TEXT("AppIcon") ) )
 								]
 								+ SVerticalBox::Slot()
 									.AutoHeight()
@@ -4004,7 +4004,7 @@ public:
 										+ SHorizontalBox::Slot()
 										.AutoWidth()
 										[
-											SNew(SImage) .Image( FCoreStyle::Get().GetBrush( TEXT("DefaultAppIcon") ) )
+											SNew(SImage) .Image( FCoreStyle::Get().GetBrush( TEXT("AppIcon") ) )
 										]
 										+ SHorizontalBox::Slot()
 										.AutoWidth()
@@ -5678,7 +5678,7 @@ TSharedRef<SDockTab> SpawnTab(const FSpawnTabArgs& Args, FName TabIdentifier)
 					.Padding( 2.0f )
 					[
 						SNew(SImage)
-						.Image( FCoreStyle::Get().GetBrush( TEXT("DefaultAppIcon") ) )
+						.Image( FCoreStyle::Get().GetBrush( TEXT("AppIcon") ) )
 					]
 					+SHorizontalBox::Slot()
 						.AutoWidth()

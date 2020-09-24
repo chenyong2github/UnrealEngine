@@ -573,7 +573,7 @@ void FObjectPropertyBase::CheckValidObject(void* Value) const
 		bool const bIsDeferringValueLoad = false;
 #endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 
-		if ((PropertyClass != nullptr) && !ObjectClass->IsChildOf(PropertyClass) && !bIsReplacingClassRefs && !bIsDeferringValueLoad)
+		if ((PropertyClass != nullptr) && !ObjectClass->IsChildOf(PropertyClass) && !ObjectClass->GetAuthoritativeClass()->IsChildOf(PropertyClass) && !bIsReplacingClassRefs && !bIsDeferringValueLoad)
 		{
 			UE_LOG(LogProperty, Warning,
 				TEXT("Serialized %s for a property of %s. Reference will be nullptred.\n    Property = %s\n    Item = %s"),
@@ -581,7 +581,7 @@ void FObjectPropertyBase::CheckValidObject(void* Value) const
 				*PropertyClass->GetFullName(),
 				*GetFullName(),
 				*Object->GetFullName()
-				);
+			);
 			SetObjectPropertyValue(Value, nullptr);
 		}
 	}

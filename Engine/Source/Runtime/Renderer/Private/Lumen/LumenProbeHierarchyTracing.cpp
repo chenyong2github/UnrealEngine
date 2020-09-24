@@ -295,8 +295,8 @@ void FDeferredShadingSceneRenderer::RenderLumenProbe(
 			EmitProbeParameters,
 			/* out */ MeshSDFGridParameters);
 
-		FRDGTextureUAVRef ProbeAtlasColorOutput = GraphBuilder.CreateUAV(IndirectLightingAtlasParameters.ProbeAtlasColor, ERDGChildResourceFlags::NoUAVBarrier);
-		FRDGTextureUAVRef ProbeAtlasSampleMaskOutput = GraphBuilder.CreateUAV(IndirectLightingAtlasParameters.ProbeAtlasSampleMask, ERDGChildResourceFlags::NoUAVBarrier);
+		FRDGTextureUAVRef ProbeAtlasColorOutput = GraphBuilder.CreateUAV(IndirectLightingAtlasParameters.ProbeAtlasColor, ERDGUnorderedAccessViewFlags::SkipBarrier);
+		FRDGTextureUAVRef ProbeAtlasSampleMaskOutput = GraphBuilder.CreateUAV(IndirectLightingAtlasParameters.ProbeAtlasSampleMask, ERDGUnorderedAccessViewFlags::SkipBarrier);
 
 		for (int32 HierarchyLevelId = 0; HierarchyLevelId < HierarchyParameters.HierarchyDepth; HierarchyLevelId++)
 		{
@@ -334,8 +334,8 @@ void FDeferredShadingSceneRenderer::RenderLumenProbe(
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "Voxel ProbeTracing");
 
-		FRDGTextureUAVRef ProbeAtlasColorOutput = GraphBuilder.CreateUAV(IndirectLightingAtlasParameters.ProbeAtlasColor, ERDGChildResourceFlags::NoUAVBarrier);
-		FRDGTextureUAVRef ProbeAtlasSampleMaskOutput = GraphBuilder.CreateUAV(IndirectLightingAtlasParameters.ProbeAtlasSampleMask, ERDGChildResourceFlags::NoUAVBarrier);
+		FRDGTextureUAVRef ProbeAtlasColorOutput = GraphBuilder.CreateUAV(IndirectLightingAtlasParameters.ProbeAtlasColor, ERDGUnorderedAccessViewFlags::SkipBarrier);
+		FRDGTextureUAVRef ProbeAtlasSampleMaskOutput = GraphBuilder.CreateUAV(IndirectLightingAtlasParameters.ProbeAtlasSampleMask, ERDGUnorderedAccessViewFlags::SkipBarrier);
 
 		for (int32 HierarchyLevelId = 0; HierarchyLevelId < HierarchyParameters.HierarchyDepth; HierarchyLevelId++)
 		{
@@ -423,17 +423,15 @@ void FDeferredShadingSceneRenderer::RenderLumenProbeOcclusion(
 		ReferencePassParameters.CommonIndirectParameters = CommonParameters;
 		ReferencePassParameters.ProbeOcclusionParameters = ProbeOcclusionParameters;
 		ReferencePassParameters.ProbeOcclusionOutputParameters = CreateProbeOcclusionOutputParameters(
-			GraphBuilder, ProbeOcclusionParameters, ERDGChildResourceFlags::NoUAVBarrier);
+			GraphBuilder, ProbeOcclusionParameters, ERDGUnorderedAccessViewFlags::SkipBarrier);
 		ReferencePassParameters.DispatchParameters = DispatchParameters;
 
 		{
-			FRDGTextureDesc DebugDesc = FRDGTextureDesc::Create2DDesc(
+			FRDGTextureDesc DebugDesc = FRDGTextureDesc::Create2D(
 				ProbeOcclusionParameters.CompressedDepthTexture->Desc.Extent,
 				PF_FloatRGBA,
 				FClearValueBinding::None,
-				/* InFlags = */ TexCreate_None,
-				/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
-				/* bInForceSeparateTargetAndShaderResource = */ false);
+				TexCreate_ShaderResource | TexCreate_UAV);
 
 			FRDGTextureRef DebugOutputTexture = GraphBuilder.CreateTexture(DebugDesc, TEXT("Debug.ProbeHierarchy.VoxelProbeOcclusion"));
 

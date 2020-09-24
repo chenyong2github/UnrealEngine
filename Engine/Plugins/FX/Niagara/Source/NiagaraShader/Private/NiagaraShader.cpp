@@ -177,7 +177,6 @@ bool FNiagaraShaderMapId::operator==(const FNiagaraShaderMapId& ReferenceSet) co
 		|| FeatureLevel != ReferenceSet.FeatureLevel
 		|| CompilerVersionID != ReferenceSet.CompilerVersionID 
 		|| bUsesRapidIterationParams != ReferenceSet.bUsesRapidIterationParams
-		|| bUseShaderPermutations != ReferenceSet.bUseShaderPermutations
 		|| LayoutParams != ReferenceSet.LayoutParams)
 	{
 		return false;
@@ -281,15 +280,6 @@ void FNiagaraShaderMapId::AppendKeyString(FString& KeyString) const
 		KeyString += TEXT("NORI_");
 	}
 	
-	if (bUseShaderPermutations)
-	{
-		KeyString += TEXT("USEPERM_");
-	}
-	else
-	{
-		KeyString += TEXT("NOPERM_");
-	}
-
 	// Add additional defines
 	for (int32 DefinesIndex = 0; DefinesIndex < AdditionalDefines.Num(); DefinesIndex++)
 	{
@@ -358,18 +348,21 @@ TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe> FNiagaraShaderType::Beg
 	NewJob->Input.Environment.IncludeVirtualPathToContentsMap.Add(TEXT("/Engine/Generated/NiagaraEmitterInstance.ush"), Script->HlslOutput);
 	NewJob->Input.Environment.SetDefine(TEXT("SHADER_STAGE_PERMUTATION"), PermutationId);
 
-	if (Script->GetUseShaderPermutations())
+	const bool bUsesSimulationStages = Script->GetUsesSimulationStages();
+	if (bUsesSimulationStages)
 	{
 		NewJob->Input.Environment.SetDefine(TEXT("NIAGARA_SHADER_PERMUTATIONS"), 1);
 		NewJob->Input.Environment.SetDefine(TEXT("DefaultSimulationStageIndex"), 0);
 		NewJob->Input.Environment.SetDefine(TEXT("SimulationStageIndex"), Script->PermutationIdToShaderStageIndex(PermutationId));
+		NewJob->Input.Environment.SetDefine(TEXT("USE_SIMULATION_STAGES"), 1);
 	}
 	else
 	{
-		NewJob->Input.Environment.SetDefine(TEXT("NIAGARA_SHADER_PERMUTATIONS"), 0);
-	}
+		const bool bUsesOldShaderStages = Script->GetUsesOldShaderStages();
 
-	NewJob->Input.Environment.SetDefine(TEXT("USE_SIMULATION_STAGES"), Script->GetUseSimStagesDefine());
+		NewJob->Input.Environment.SetDefine(TEXT("NIAGARA_SHADER_PERMUTATIONS"), 0);
+		NewJob->Input.Environment.SetDefine(TEXT("USE_SIMULATION_STAGES"), bUsesOldShaderStages ? 1 : 0);
+	}
 
 	AddReferencedUniformBufferIncludes(NewJob->Input.Environment, NewJob->Input.SourceFilePrefix, (EShaderPlatform)Target.Platform);
 	

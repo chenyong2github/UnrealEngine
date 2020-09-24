@@ -585,8 +585,7 @@ public:
 		bDiscard = (bDiscard || (!bReadOnly && InSize == RealSize)) && FOpenGL::DiscardFrameBufferToResize();
 
 		// Map buffer is faster in some circumstances and slower in others, decide when to use it carefully.
-		bool const bCanUseMapBuffer = FOpenGL::SupportsMapBuffer() && BaseType::GLSupportsType();
-		bool const bUseMapBuffer = bCanUseMapBuffer && (bReadOnly || OpenGLConsoleVariables::bUseMapBuffer);
+		bool const bUseMapBuffer = BaseType::GLSupportsType() && (bReadOnly || OpenGLConsoleVariables::bUseMapBuffer);
 
 		// If we're able to discard the current data, do so right away
 		// If we can then we should orphan the buffer name & reallocate the backing store only once as calls to glBufferData may do so even when the size is the same.
@@ -679,8 +678,7 @@ public:
 		bDiscard = (bDiscard || InSize == RealSize) && FOpenGL::DiscardFrameBufferToResize();
 
 		// Map buffer is faster in some circumstances and slower in others, decide when to use it carefully.
-		bool const bCanUseMapBuffer = FOpenGL::SupportsMapBuffer() && BaseType::GLSupportsType();
-		bool const bUseMapBuffer = bCanUseMapBuffer && OpenGLConsoleVariables::bUseMapBuffer;
+		bool const bUseMapBuffer = BaseType::GLSupportsType() && OpenGLConsoleVariables::bUseMapBuffer;
 
 		// If we're able to discard the current data, do so right away
 		// If we can then we should orphan the buffer name & reallocate the backing store only once as calls to glBufferData may do so even when the size is the same.
@@ -738,7 +736,7 @@ public:
 		{
 			Bind();
 
-			if ( FOpenGL::SupportsMapBuffer() && BaseType::GLSupportsType() && (OpenGLConsoleVariables::bUseMapBuffer || bIsLockReadOnly))
+			if (BaseType::GLSupportsType() && (OpenGLConsoleVariables::bUseMapBuffer || bIsLockReadOnly))
 			{
 				check(!bLockBufferWasAllocated);
 				if (Type == GL_ARRAY_BUFFER || Type == GL_ELEMENT_ARRAY_BUFFER)
@@ -878,7 +876,7 @@ public:
 
 	static FORCEINLINE bool GLSupportsType()
 	{
-		return FOpenGL::SupportsPixelBuffers();
+		return true;
 	}
 
 	static void CreateType(GLuint& Resource, const void* InData, uint32 InSize)
@@ -901,7 +899,7 @@ public:
 
 	FOpenGLBaseVertexBuffer(uint32 InStride,uint32 InSize,uint32 InUsage): FRHIVertexBuffer(InSize,InUsage), ZeroStrideVertexBuffer(0)
 	{
-		if(!(FOpenGL::SupportsVertexAttribBinding() && OpenGLConsoleVariables::bUseVAB) && InUsage & BUF_ZeroStride )
+		if(!(FOpenGL::SupportsVertexAttribBinding() && OpenGLConsoleVariables::bUseVAB) && (InUsage & BUF_ZeroStride))
 		{
 			ZeroStrideVertexBuffer = FMemory::Malloc( InSize );
 		}
@@ -1426,8 +1424,7 @@ public:
 		EPixelFormat InFormat,
 		bool bInCubemap,
 		bool bInAllocatedStorage,
-		uint32 InFlags,
-		uint8* InTextureRange,
+		ETextureCreateFlags InFlags,
 		const FClearValueBinding& InClearValue
 		)
 	: BaseType(InSizeX,InSizeY,InSizeZ,InNumMips,InNumSamples, InNumSamplesTileMem, InArraySize, InFormat,InFlags, InClearValue)
@@ -1438,13 +1435,11 @@ public:
 		InNumMips,
 		InAttachment
 		)
-	, TextureRange(InTextureRange)
 	, BaseLevel(0)
 	, bCubemap(bInCubemap)
 	{
 		PixelBuffers.AddZeroed(this->GetNumMips() * (bCubemap ? 6 : 1) * GetEffectiveSizeZ());
 		SetAllocatedStorage(bInAllocatedStorage);
-		ClientStorageBuffers.AddZeroed(this->GetNumMips() * (bCubemap ? 6 : 1) * GetEffectiveSizeZ());
 	}
 
 	virtual ~TOpenGLTexture()
@@ -1458,7 +1453,7 @@ public:
 
 			OpenGLTextureDeleted(this);
 
-			auto DeleteGLResources = [OpenGLRHI= OpenGLRHI, Resource=Resource, SRVResource= SRVResource, Target= Target, Flags= this->GetFlags(), TextureRange= TextureRange, Aliased = this->IsAliased()]()
+			auto DeleteGLResources = [OpenGLRHI= OpenGLRHI, Resource=Resource, SRVResource= SRVResource, Target= Target, Flags= this->GetFlags(), Aliased = this->IsAliased()]()
 			{
 				VERIFY_GL_SCOPE();
 				if (Resource != 0)
@@ -1509,11 +1504,6 @@ public:
 
 			RunOnGLRenderContextThread(MoveTemp(DeleteGLResources));
 
-			if (TextureRange)
-			{
-				delete[] TextureRange;
-				TextureRange = nullptr;
-			}
 			ReleaseOpenGLFramebuffers(OpenGLRHI, this);
 		}
 	}
@@ -1589,20 +1579,7 @@ public:
 	 */
 	void Resolve(uint32 MipIndex,uint32 ArrayIndex);
 private:
-
 	TArray< TRefCountPtr<FOpenGLPixelBuffer> > PixelBuffers;
-
-	/** Backing store for all client storage buffers for platforms and textures types where this is faster than PBOs */
-	uint8* TextureRange;
-
-	/** Client storage buffers for platforms and textures types where this is faster than PBOs */
-	struct FOpenGLClientStore
-	{
-		uint8* Data;
-		uint32 Size;
-		bool bReadOnly;
-	};
-	TArray<FOpenGLClientStore> ClientStorageBuffers;
 
 	uint32 GetEffectiveSizeZ( void ) { return this->GetSizeZ() ? this->GetSizeZ() : 1; }
 
@@ -1640,7 +1617,7 @@ static typename TEnableIf<TIsGLResourceWithFence<T>::Value>::Type CheckRHITFence
 class OPENGLDRV_API FOpenGLBaseTexture2D : public FRHITexture2D
 {
 public:
-	FOpenGLBaseTexture2D(uint32 InSizeX, uint32 InSizeY, uint32 InSizeZ, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, uint32 InArraySize, EPixelFormat InFormat, uint32 InFlags, const FClearValueBinding& InClearValue)
+	FOpenGLBaseTexture2D(uint32 InSizeX, uint32 InSizeY, uint32 InSizeZ, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, uint32 InArraySize, EPixelFormat InFormat, ETextureCreateFlags InFlags, const FClearValueBinding& InClearValue)
 	: FRHITexture2D(InSizeX,InSizeY,InNumMips,InNumSamples,InFormat,InFlags, InClearValue)
 	, SampleCount(InNumSamples)
 	, SampleCountTileMem(InNumSamplesTileMem)
@@ -1657,7 +1634,7 @@ private:
 class FOpenGLBaseTexture2DArray : public FRHITexture2DArray
 {
 public:
-	FOpenGLBaseTexture2DArray(uint32 InSizeX, uint32 InSizeY, uint32 InSizeZ, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, uint32 InArraySize, EPixelFormat InFormat, uint32 InFlags, const FClearValueBinding& InClearValue)
+	FOpenGLBaseTexture2DArray(uint32 InSizeX, uint32 InSizeY, uint32 InSizeZ, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, uint32 InArraySize, EPixelFormat InFormat, ETextureCreateFlags InFlags, const FClearValueBinding& InClearValue)
 	: FRHITexture2DArray(InSizeX,InSizeY,InSizeZ,InNumMips,InNumSamples,InFormat,InFlags, InClearValue)
 	{
 		check(InNumSamples == 1);	// OpenGL supports multisampled texture arrays, but they're currently not implemented in OpenGLDrv.
@@ -1668,7 +1645,7 @@ public:
 class FOpenGLBaseTextureCube : public FRHITextureCube
 {
 public:
-	FOpenGLBaseTextureCube(uint32 InSizeX, uint32 InSizeY, uint32 InSizeZ, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, uint32 InArraySize, EPixelFormat InFormat, uint32 InFlags, const FClearValueBinding& InClearValue)
+	FOpenGLBaseTextureCube(uint32 InSizeX, uint32 InSizeY, uint32 InSizeZ, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, uint32 InArraySize, EPixelFormat InFormat, ETextureCreateFlags InFlags, const FClearValueBinding& InClearValue)
 	: FRHITextureCube(InSizeX,InNumMips,InFormat,InFlags,InClearValue)
 	, ArraySize(InArraySize)
 	{
@@ -1687,7 +1664,7 @@ private:
 class FOpenGLBaseTexture3D : public FRHITexture3D
 {
 public:
-	FOpenGLBaseTexture3D(uint32 InSizeX, uint32 InSizeY, uint32 InSizeZ, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, uint32 InArraySize, EPixelFormat InFormat, uint32 InFlags, const FClearValueBinding& InClearValue)
+	FOpenGLBaseTexture3D(uint32 InSizeX, uint32 InSizeY, uint32 InSizeZ, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, uint32 InArraySize, EPixelFormat InFormat, ETextureCreateFlags InFlags, const FClearValueBinding& InClearValue)
 	: FRHITexture3D(InSizeX,InSizeY,InSizeZ,InNumMips,InFormat,InFlags,InClearValue)
 	{
 		check(InNumSamples == 1);	// Can't have multisampled texture 3D. Not supported anywhere.
@@ -2048,7 +2025,7 @@ struct TIsGLProxyObject<FOpenGLShaderResourceViewProxy>
 };
 
 void OPENGLDRV_API OpenGLTextureDeleted(FRHITexture* Texture);
-void OPENGLDRV_API OpenGLTextureAllocated( FRHITexture* Texture , uint32 Flags);
+void OPENGLDRV_API OpenGLTextureAllocated( FRHITexture* Texture , ETextureCreateFlags Flags);
 
 void OPENGLDRV_API ReleaseOpenGLFramebuffers(FOpenGLDynamicRHI* Device, FRHITexture* TextureRHI);
 
@@ -2138,6 +2115,9 @@ public:
 	FOpenGLGPUFence(FName InName)
 		: FRHIGPUFence(InName)
 		, bValidSync(false)
+		, bIsSignaled(false)
+		, ClearIssued(0)
+		, ClearProcessed(0)
 	{}
 
 	~FOpenGLGPUFence() override;
@@ -2150,6 +2130,9 @@ private:
 	UGLsync Fence;
 	// We shadow the sync state to know if/when we need to destroy it.
 	bool bValidSync;
+	mutable bool bIsSignaled;
+	uint32 ClearIssued;
+	uint32 ClearProcessed;
 };
 
 class FOpenGLStagingBuffer final : public FRHIStagingBuffer
@@ -2173,6 +2156,7 @@ private:
 
 	GLuint ShadowBuffer;
 	uint32 ShadowSize;
+	void* Mapping;
 };
 
 template<class T>

@@ -7,14 +7,24 @@
 
 // Insights
 #include "Insights/Table/ViewModels/BaseTreeNode.h"
-#include "Insights/Table/ViewModels/Table.h" // for FTableRowId
 #include "Insights/Table/ViewModels/TableCellValue.h"
 
 namespace Insights
 {
 
-//class FTable;
-//class FTableColumn;
+class FTable;
+
+struct FTableRowId
+{
+	static constexpr int32 InvalidRowIndex = -1;
+
+	FTableRowId(int32 InRowIndex) : RowIndex(InRowIndex), Flags(0) {}
+
+	bool HasValidIndex() const { return RowIndex >= 0; }
+
+	int32 RowIndex;
+	uint32 Flags;
+};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 

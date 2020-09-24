@@ -10,6 +10,7 @@
 #include "Logging/MessageLog.h"
 #include "UObject/FrameworkObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
+#include "Animation/AnimationPoseData.h"
 
 DEFINE_LOG_CATEGORY(LogAnimMarkerSync);
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(ENGINE_API, Animation);
@@ -751,6 +752,13 @@ void UAnimSequenceBase::Serialize(FArchive& Ar)
 
 	// fix up version issue and so on
 	RawCurveData.PostSerialize(Ar);
+}
+
+void UAnimSequenceBase::GetAnimationPose(struct FCompactPose& OutPose, FBlendedCurve & OutCurve, const FAnimExtractContext & ExtractionContext) const
+{
+	FStackCustomAttributes TempAttributes;
+	FAnimationPoseData OutAnimationPoseData(OutPose, OutCurve, TempAttributes);
+	GetAnimationPose(OutAnimationPoseData, ExtractionContext);
 }
 
 void UAnimSequenceBase::HandleAssetPlayerTickedInternal(FAnimAssetTickContext &Context, const float PreviousTime, const float MoveDelta, const FAnimTickRecord &Instance, struct FAnimNotifyQueue& NotifyQueue) const

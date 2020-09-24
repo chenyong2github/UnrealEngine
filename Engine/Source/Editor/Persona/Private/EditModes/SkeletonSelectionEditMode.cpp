@@ -478,11 +478,14 @@ FVector FSkeletonSelectionEditMode::GetWidgetLocation() const
 	int32 BoneIndex = GetAnimPreviewScene().GetSelectedBoneIndex();
 	if (BoneIndex != INDEX_NONE)
 	{
-		const FName BoneName = PreviewMeshComponent->SkeletalMesh->RefSkeleton.GetBoneName(BoneIndex);
+		if (PreviewMeshComponent && PreviewMeshComponent->SkeletalMesh)
+		{
+			const FName BoneName = PreviewMeshComponent->SkeletalMesh->RefSkeleton.GetBoneName(BoneIndex);
 
-		FMatrix BoneMatrix = PreviewMeshComponent->GetBoneMatrix(BoneIndex);
+			const FMatrix BoneMatrix = PreviewMeshComponent->GetBoneMatrix(BoneIndex);
 
-		return BoneMatrix.GetOrigin();
+			return BoneMatrix.GetOrigin();
+		}		
 	}
 	else if (GetAnimPreviewScene().GetSelectedSocket().IsValid())
 	{
@@ -526,7 +529,7 @@ bool FSkeletonSelectionEditMode::HandleClick(FEditorViewportClient* InViewportCl
 		{			
 			// Tell the preview scene that the bone has been selected - this will sort out the skeleton tree, etc.
 			GetAnimPreviewScene().DeselectAll();
-			GetAnimPreviewScene().SetSelectedBone(static_cast<HPersonaBoneProxy*>(HitProxy)->BoneName);
+			GetAnimPreviewScene().SetSelectedBone(static_cast<HPersonaBoneProxy*>(HitProxy)->BoneName, ESelectInfo::OnMouseClick);
 			bHandled = true;
 		}
 		else if ( HitProxy->IsA( HActor::StaticGetType() ) && bSelectingSections)
@@ -554,8 +557,14 @@ bool FSkeletonSelectionEditMode::HandleClick(FEditorViewportClient* InViewportCl
 		
 		if(bHit)
 		{
-			GetAnimPreviewScene().DeselectAll();
-			GetAnimPreviewScene().SetSelectedBone(Result.BoneName);
+			// Clear the current selection if we are not multi-selecting
+			const bool bCtrlDown = InViewportClient->Viewport->KeyState(EKeys::LeftControl) || InViewportClient->Viewport->KeyState(EKeys::RightControl);
+			const bool bShiftDown = InViewportClient->Viewport->KeyState(EKeys::LeftShift) || InViewportClient->Viewport->KeyState(EKeys::RightShift);
+			if (!bCtrlDown && !bShiftDown)
+			{
+				GetAnimPreviewScene().DeselectAll();
+			}
+			GetAnimPreviewScene().SetSelectedBone(Result.BoneName, ESelectInfo::OnMouseClick);
 			bHandled = true;
 		}
 		else

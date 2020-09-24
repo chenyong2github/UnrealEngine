@@ -12,7 +12,7 @@
 /**
  * The non-UI solution specific presentation logic for a collection of messages for a particular system.
  */
-class FMessageLogListingViewModel
+class MESSAGELOG_API FMessageLogListingViewModel
 	: public TSharedFromThis<FMessageLogListingViewModel>
 	, public IMessageLogListing
 {

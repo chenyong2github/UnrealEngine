@@ -43,20 +43,17 @@ namespace GeometryCollectionTest
 	{
 		TGeometryCollectionWrapper() : WrapperBase(WrapperType::GeometryCollection) {}
 		TGeometryCollectionWrapper(
-			TSharedPtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterialIn,
 			TSharedPtr<FGeometryCollection> RestCollectionIn,
 			TSharedPtr<FGeometryDynamicCollection> DynamicCollectionIn,
-			TGeometryCollectionPhysicsProxy<Traits>* PhysObjectIn)
+			FGeometryCollectionPhysicsProxy* PhysObjectIn)
 			: WrapperBase(WrapperType::GeometryCollection)
-			, PhysicalMaterial(PhysicalMaterialIn)
 			, RestCollection(RestCollectionIn)
 			, DynamicCollection(DynamicCollectionIn)
 			, PhysObject(PhysObjectIn) {}
 		static WrapperType StaticType() { return WrapperType::GeometryCollection; }
-		TSharedPtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial;
 		TSharedPtr<FGeometryCollection> RestCollection;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection;
-		TGeometryCollectionPhysicsProxy<Traits>* PhysObject;
+		FGeometryCollectionPhysicsProxy* PhysObject;
 	};
 
 	struct RigidBodyWrapper : public WrapperBase

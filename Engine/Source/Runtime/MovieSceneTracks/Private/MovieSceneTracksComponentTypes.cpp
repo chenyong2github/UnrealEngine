@@ -235,9 +235,7 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 	// --------------------------------------------------------------------------------------------
 	// Set up component transforms
 	{
-		static TCustomPropertyRegistration<FIntermediate3DTransform> CustomComponentTransform;
-
-		CustomComponentTransform.Add(USceneComponent::StaticClass(), "Transform", &GetComponentTransform, &SetComponentTransformAndVelocity);
+		Accessors.ComponentTransform.Add(USceneComponent::StaticClass(), "Transform", &GetComponentTransform, &SetComponentTransformAndVelocity);
 
 		BuiltInComponents->PropertyRegistry.DefineCompositeProperty(ComponentTransform)
 		.AddComposite<&FIntermediate3DTransform::T_X>(BuiltInComponents->FloatResult[0])
@@ -249,7 +247,7 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 		.AddComposite<&FIntermediate3DTransform::S_X>(BuiltInComponents->FloatResult[6])
 		.AddComposite<&FIntermediate3DTransform::S_Y>(BuiltInComponents->FloatResult[7])
 		.AddComposite<&FIntermediate3DTransform::S_Z>(BuiltInComponents->FloatResult[8])
-		.SetCustomAccessors(&CustomComponentTransform)
+		.SetCustomAccessors(&Accessors.ComponentTransform)
 		.Commit();
 	}
 

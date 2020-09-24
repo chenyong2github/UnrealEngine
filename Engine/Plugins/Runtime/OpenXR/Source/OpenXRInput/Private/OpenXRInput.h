@@ -31,9 +31,11 @@ public:
 	struct FOpenXRController
 	{
 		XrActionSet		ActionSet;
-		XrAction		Action;
+		XrAction		GripAction;
+		XrAction		AimAction;
 		XrAction		VibrationAction;
-		int32			DeviceId;
+		int32			GripDeviceId;
+		int32			AimDeviceId;
 
 		FOpenXRController(FOpenXRHMD* HMD, XrActionSet InActionSet, const char* InName);
 	};
@@ -64,8 +66,12 @@ public:
 
 		// IMotionController overrides
 		virtual FName GetMotionControllerDeviceTypeName() const override;
-		virtual bool GetControllerOrientationAndPosition(const int32 ControllerIndex, const EControllerHand DeviceHand, FRotator& OutOrientation, FVector& OutPosition, float WorldToMetersScale) const override;
-		virtual ETrackingStatus GetControllerTrackingStatus(const int32 ControllerIndex, const EControllerHand DeviceHand) const override;
+		virtual bool GetControllerOrientationAndPosition(const int32 ControllerIndex, const FName MotionSource, FRotator& OutOrientation, FVector& OutPosition, float WorldToMetersScale) const override;
+		virtual bool GetControllerOrientationAndPositionForTime(const int32 ControllerIndex, const FName MotionSource, FTimespan Time, bool& OutTimeWasUsed, FRotator& OutOrientation, FVector& OutPosition, bool& OutbProvidedLinearVelocity, FVector& OutLinearVelocity, bool& OutbProvidedAngularVelocity, FVector& OutAngularVelocityRadPerSec, float WorldToMetersScale) const override;
+		virtual ETrackingStatus GetControllerTrackingStatus(const int32 ControllerIndex, const FName MotionSource) const override;
+		virtual bool GetControllerOrientationAndPosition(const int32 ControllerIndex, const EControllerHand DeviceHand, FRotator& OutOrientation, FVector& OutPosition, float WorldToMetersScale) const override { check(false); return false; }
+		virtual ETrackingStatus GetControllerTrackingStatus(const int32 ControllerIndex, const EControllerHand DeviceHand) const override { check(false); return ETrackingStatus::NotTracked; }
+		virtual void EnumerateSources(TArray<FMotionControllerSource>& SourcesOut) const override;
 
 		// IHapticDevice overrides
 		IHapticDevice* GetHapticDevice() override { return (IHapticDevice*)this; }
@@ -83,7 +89,10 @@ public:
 		TArray<XrPath> SubactionPaths;
 		TArray<FOpenXRAction> Actions;
 		TMap<EControllerHand, FOpenXRController> Controllers;
-
+		TMap<FName, EControllerHand> MotionSourceToControllerHandMap;
+		XrAction GetActionForMotionSource(FName MotionSource) const;
+		int32 GetDeviceIDForMotionSource(FName MotionSource) const;
+		bool IsOpenXRInputSupportedMotionSource(const FName MotionSource) const;
 		bool bActionsBound;
 
 		void BuildActions();
@@ -103,7 +112,6 @@ public:
 	virtual TSharedPtr< class IInputDevice > CreateInputDevice(const TSharedRef< FGenericApplicationMessageHandler >& InMessageHandler) override;
 
 private:
-	void RegisterKeys();
 	FOpenXRHMD* GetOpenXRHMD() const;
 
 private:

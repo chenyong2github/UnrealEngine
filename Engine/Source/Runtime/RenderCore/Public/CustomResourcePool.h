@@ -3,12 +3,13 @@
 #pragma once
 #include "CoreMinimal.h"
 
+class FRHICommandListImmediate;
 class RENDERCORE_API ICustomResourcePool
 {
 public:
 	virtual ~ICustomResourcePool() {}
-	virtual void Tick() = 0;
+	virtual void Tick(FRHICommandListImmediate& RHICmdList) = 0;
 
-	static void TickPoolElements();
+	static void TickPoolElements(FRHICommandListImmediate& RHICmdList);
 };
 extern RENDERCORE_API ICustomResourcePool* GCustomResourcePool;

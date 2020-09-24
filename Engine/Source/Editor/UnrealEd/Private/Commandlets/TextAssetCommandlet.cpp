@@ -617,27 +617,27 @@ bool UTextAssetCommandlet::DoTextAssetProcessing(const FProcessingArgs& InArgs)
 						UPackage* Package = nullptr;
 						
 						{
-							TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("LoadPackage"));
+							TRACE_CPUPROFILER_EVENT_SCOPE(LoadPackage);
 							Package = LoadPackage(nullptr, *SourceLongPackageName, LOAD_None);
 						}
 						
 						{
-							TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("SavePackage")); 
+							TRACE_CPUPROFILER_EVENT_SCOPE(SavePackage); 
 							SavePackageHelper(Package, *WorkingFilenames[Bucket], RF_Standalone, GWarn, nullptr, SAVE_KeepGUID);
 						}
 						
 						{
-							TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("ResetLoaders")); 
+							TRACE_CPUPROFILER_EVENT_SCOPE(ResetLoaders); 
 							ResetLoaders(Package);
 						}
 
 						{
-							TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("CollectGarbage"));
+							TRACE_CPUPROFILER_EVENT_SCOPE(CollectGarbage);
 							CollectGarbage(RF_NoFlags, true);
 						}
 
 						{
-							TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("RoundtripTestCleanup"));
+							TRACE_CPUPROFILER_EVENT_SCOPE(RoundtripTestCleanup);
 							FSHAHash& Hash = PhaseHashes[PhaseHashes.AddDefaulted()];
 							HashFile(*WorkingFilenames[Bucket], Hash);
 
@@ -751,12 +751,12 @@ bool UTextAssetCommandlet::DoTextAssetProcessing(const FProcessingArgs& InArgs)
 				UPackage* Package = nullptr;
 
 				UE_LOG(LogTextAsset, Display, TEXT("Resaving asset %s"), *SourceFilename);
-				TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("UTextAssetCommandlet::Resave"));
+				TRACE_CPUPROFILER_EVENT_SCOPE(UTextAssetCommandlet::Resave);
 
 				double Timer = 0.0;
 				{
 					SCOPE_SECONDS_COUNTER(Timer);
-					TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("UTextAssetCommandlet::LoadPackage"));
+					TRACE_CPUPROFILER_EVENT_SCOPE(UTextAssetCommandlet::LoadPackage);
 					Package = LoadPackage(nullptr, *SourceFilename, 0);
 				}
 				IterationPackageLoadTime += Timer;
@@ -768,7 +768,7 @@ bool UTextAssetCommandlet::DoTextAssetProcessing(const FProcessingArgs& InArgs)
 				{
 					{
 						SCOPE_SECONDS_COUNTER(Timer);
-						TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("UTextAssetCommandlet::SavePackage"));
+						TRACE_CPUPROFILER_EVENT_SCOPE(UTextAssetCommandlet::SavePackage);
 						IFileManager::Get().Delete(*DestinationFilename, false, true, true);
 						bSaveSuccessful = SavePackageHelper(Package, *DestinationFilename, RF_Standalone, GWarn, nullptr, SAVE_KeepGUID);
 					}
@@ -780,7 +780,7 @@ bool UTextAssetCommandlet::DoTextAssetProcessing(const FProcessingArgs& InArgs)
 				{
 					if (InArgs.bVerifyJson && InArgs.ProcessingMode == ETextAssetCommandletMode::ResaveText)
 					{
-						TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("UTextAssetCommandlet::VerifyJson"));
+						TRACE_CPUPROFILER_EVENT_SCOPE(UTextAssetCommandlet::VerifyJson);
 						FArchive* File = IFileManager::Get().CreateFileReader(*DestinationFilename);
 						TSharedPtr< FJsonObject > RootObject;
 						TSharedRef< TJsonReader<char> > Reader = TJsonReaderFactory<char>::Create(File);
@@ -790,7 +790,7 @@ bool UTextAssetCommandlet::DoTextAssetProcessing(const FProcessingArgs& InArgs)
 
 					if (InArgs.OutputPath.Len() > 0)
 					{
-						TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("UTextAssetCommandlet::CopyToExternalOutput"));
+						TRACE_CPUPROFILER_EVENT_SCOPE(UTextAssetCommandlet::CopyToExternalOutput);
 						FString CopyFilename = DestinationFilename;
 						FPaths::MakePathRelativeTo(CopyFilename, *FPaths::RootDir());
 						CopyFilename = InArgs.OutputPath / CopyFilename;

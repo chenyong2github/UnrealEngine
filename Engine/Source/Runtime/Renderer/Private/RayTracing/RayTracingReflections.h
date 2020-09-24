@@ -23,6 +23,9 @@ struct FRayTracingReflectionOptions
 	float MaxRoughness = 1.0f;
 	bool bReflectOnlyWater = false;
 	bool bSkyLight = true;
+	bool bDirectLighting = true;
+	bool bEmissiveAndIndirectLighting = true;
+	bool bReflectionCaptures = true;
 };
 
 FRayTracingReflectionOptions GetRayTracingReflectionOptions(const FViewInfo& View, const FScene& Scene);

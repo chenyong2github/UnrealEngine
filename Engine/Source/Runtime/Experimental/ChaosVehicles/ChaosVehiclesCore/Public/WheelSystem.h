@@ -77,9 +77,8 @@ struct CHAOSVEHICLESCORE_API FSimpleWheelConfig
 		, EngineEnabled(false)
 		, TractionControlEnabled(false)
 		, FrictionCombineMethod(EFrictionCombineMethod::Multiply)
-		, CheatLateralFrictionMultiplier(1.0f)
-		, CheatLongitudinalFrictionMultiplier(1.0f)
-		, CheatSkidFactor(1.0f)
+		, LateralFrictionMultiplier(1.0f)
+		, LongitudinalFrictionMultiplier(1.0f)
 		, SideSlipModifier(1.0f)
 	{
 
@@ -110,9 +109,8 @@ struct CHAOSVEHICLESCORE_API FSimpleWheelConfig
 
 	EFrictionCombineMethod FrictionCombineMethod; //#todo: use this variable
 
-	float CheatLateralFrictionMultiplier;
-	float CheatLongitudinalFrictionMultiplier;
-	float CheatSkidFactor;
+	float LateralFrictionMultiplier;
+	float LongitudinalFrictionMultiplier;
 	float SideSlipModifier;
 
 	// #todo: simulated Damage

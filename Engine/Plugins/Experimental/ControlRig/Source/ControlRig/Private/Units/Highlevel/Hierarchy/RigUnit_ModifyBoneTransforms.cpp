@@ -5,105 +5,25 @@
 
 FRigUnit_ModifyBoneTransforms_Execute()
 {
-    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-
-	TArray<int32>& CachedBoneIndices = WorkData.CachedBoneIndices;
-
-	FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
-	if (Hierarchy)
+	TArray<FRigUnit_ModifyTransforms_PerItem> ItemsToModify;
+	for (int32 BoneIndex = 0; BoneIndex < BoneToModify.Num(); BoneIndex++)
 	{
-		switch (Context.State)
-		{
-			case EControlRigState::Init:
-			{
-				CachedBoneIndices.Reset();
-				for (const FRigUnit_ModifyBoneTransforms_PerBone& Entry : BoneToModify)
-				{
-					CachedBoneIndices.Add(Hierarchy->GetIndex(Entry.Bone));
-				}
-				return;
-			}
-			case EControlRigState::Update:
-			{
-				float Minimum = FMath::Min<float>(WeightMinimum, WeightMaximum);
-				float Maximum = FMath::Max<float>(WeightMinimum, WeightMaximum);
-
-				if (Weight <= Minimum + SMALL_NUMBER || FMath::IsNearlyEqual(Minimum, Maximum))
-				{
-					return;
-				}
-
-				if (CachedBoneIndices.Num() == BoneToModify.Num())
-				{
-					float T = FMath::Clamp<float>((Weight - Minimum) / (Maximum - Minimum), 0.f, 1.f);
-					bool bNeedsBlend = T < 1.f - SMALL_NUMBER;
-
-					int32 EntryIndex = 0;
-					for (const FRigUnit_ModifyBoneTransforms_PerBone& Entry : BoneToModify)
-					{
-						int32 BoneIndex = CachedBoneIndices[EntryIndex];
-						if (BoneIndex == INDEX_NONE)
-						{
-							continue;
-						}
-
-						FTransform Transform = Entry.Transform;
-
-						switch (Mode)
-						{
-							case EControlRigModifyBoneMode::OverrideLocal:
-							{
-								if (bNeedsBlend)
-								{
-									Transform = FControlRigMathLibrary::LerpTransform(Hierarchy->GetLocalTransform(BoneIndex), Transform, T);
-								}
-								Hierarchy->SetLocalTransform(BoneIndex, Transform, true);
-								break;
-							}
-							case EControlRigModifyBoneMode::OverrideGlobal:
-							{
-								if (bNeedsBlend)
-								{
-									Transform = FControlRigMathLibrary::LerpTransform(Hierarchy->GetGlobalTransform(BoneIndex), Transform, T);
-								}
-								Hierarchy->SetGlobalTransform(BoneIndex, Transform, true);
-								break;
-							}
-							case EControlRigModifyBoneMode::AdditiveLocal:
-							{
-								if (bNeedsBlend)
-								{
-									Transform = FControlRigMathLibrary::LerpTransform(FTransform::Identity, Transform, T);
-								}
-								Transform = Transform * Hierarchy->GetLocalTransform(BoneIndex);
-								Hierarchy->SetLocalTransform(BoneIndex, Transform, true);
-								break;
-							}
-							case EControlRigModifyBoneMode::AdditiveGlobal:
-							{
-								if (bNeedsBlend)
-								{
-									Transform = FControlRigMathLibrary::LerpTransform(FTransform::Identity, Transform, T);
-								}
-								Transform = Hierarchy->GetGlobalTransform(BoneIndex) * Transform;
-								Hierarchy->SetGlobalTransform(BoneIndex, Transform, true);
-								break;
-							}
-							default:
-							{
-								break;
-							}
-						}
-						EntryIndex++;
-					}
-				}
-			}
-			default:
-			{
-				break;
-			}
-		}
+		FRigUnit_ModifyTransforms_PerItem ItemToModify;
+		ItemToModify.Item = FRigElementKey(BoneToModify[BoneIndex].Bone, ERigElementType::Bone);
+		ItemToModify.Transform = BoneToModify[BoneIndex].Transform;
+		ItemsToModify.Add(ItemToModify);
 	}
+
+	FRigUnit_ModifyTransforms::StaticExecute(
+		RigVMExecuteContext,
+		ItemsToModify,
+		Weight,
+		WeightMinimum,
+		WeightMaximum,
+		Mode,
+		WorkData,
+		ExecuteContext, 
+		Context);
 }
 
 #if WITH_DEV_AUTOMATION_TESTS

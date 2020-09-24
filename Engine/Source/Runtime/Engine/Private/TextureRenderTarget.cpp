@@ -70,6 +70,7 @@ bool FTextureRenderTargetResource::IsSupportedFormat( EPixelFormat Format )
 	switch( Format )
 	{
 	case PF_B8G8R8A8:
+	case PF_R8G8B8A8:
 	case PF_A16B16G16R16:
 	case PF_FloatRGB:
 	case PF_FloatRGBA: // for exporting materials to .obj/.mtl

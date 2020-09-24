@@ -15,7 +15,8 @@ enum class EPhysicsProxyType
 	SingleGeometryParticleType = 5,
 	SingleKinematicParticleType = 6,
 	SingleRigidParticleType = 7,
-	JointConstraintType = 8
+	JointConstraintType = 8,
+	SuspensionConstraintType = 9
 };
 
 namespace Chaos
@@ -30,7 +31,7 @@ public:
 		: Solver(nullptr)
 		, DirtyIdx(INDEX_NONE)
 		, Type(InType)
-		, SyncTimestamp(-1)
+		, SyncTimestamp(new int32(-1))
 	{}
 
 	virtual UObject* GetOwner() const = 0;
@@ -50,7 +51,10 @@ public:
 	int32 GetDirtyIdx() const { return DirtyIdx; }
 	void SetDirtyIdx(const int32 Idx) { DirtyIdx = Idx; }
 	void ResetDirtyIdx() { DirtyIdx = INDEX_NONE; }
-	void SetSyncTimestamp(int32 InTimestamp) { SyncTimestamp = InTimestamp; }
+
+	void SetSyncTimestamp(int32 Timestamp){ *SyncTimestamp = Timestamp; }
+	TSharedPtr<int32,ESPMode::ThreadSafe> GetSyncTimestamp() const { return SyncTimestamp; }
+
 
 protected:
 	// Ensures that derived classes can successfully call this destructor
@@ -65,7 +69,7 @@ private:
 protected:
 	/** Proxy type */
 	EPhysicsProxyType Type;
-	int32 SyncTimestamp;
+	TSharedPtr<int32,ESPMode::ThreadSafe> SyncTimestamp;
 };
 
 struct PhysicsProxyWrapper

@@ -13,6 +13,10 @@
 #include "TextureResource.h"
 #include "UnrealClient.h"
 #include "IMediaTimeSource.h"
+#include "RHIResources.h"
+#include "Async/Async.h"
+#include "RenderingThread.h"
+#include "RendererInterface.h"
 
 class FMediaPlayerFacade;
 class IMediaPlayer;
@@ -47,7 +51,9 @@ public:
 	FMediaTextureResource(UMediaTexture& InOwner, FIntPoint& InOwnerDim, SIZE_T& InOwnerSize, FLinearColor InClearColor, FGuid InTextureGuid, bool bEnableGenMips, uint8 InNumMips);
 
 	/** Virtual destructor. */
-	virtual ~FMediaTextureResource() { }
+	virtual ~FMediaTextureResource() 
+	{
+	}
 
 public:
 
@@ -94,6 +100,12 @@ public:
 	 * @param Params Render parameters.
 	 */
 	void Render(const FRenderParams& Params);
+
+	/**
+	 * Flush out any pending data like texture samples waiting for retirement etc.
+	 * @note this call can stall for noticable amounts of time under certain circumstances
+	 */
+	void FlushPendingData();
 
 public:
 
@@ -178,18 +190,6 @@ protected:
 
 private:
 
-	// Class to maintain a reference to a IMediaTextureSample instance as long  as needed by RHI
-	// (needed not to keep Texture for GPU - that is safe already - but to avoid reusing the buffer too early)
-	class FTextureSampleKeeper : public FRHIResource
-	{
-	public:
-		FTextureSampleKeeper(const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> & InMediaSample)
-			: MediaSample(InMediaSample)
-		{}
-
-		TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> MediaSample;
-	};
-
 	/** Platform uses GL/ES ImageExternal */
 	bool bUsesImageExternal;
 
@@ -230,8 +230,110 @@ private:
 	TWeakPtr<FMediaPlayerFacade, ESPMode::ThreadSafe> PlayerFacadePtr;
 
 	/** cached media sample to postpone releasing it until the next sample rendering as it can get overwritten due to asynchronous rendering */
-	TRefCountPtr<FTextureSampleKeeper> CurrentSample;
+	TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> CurrentSample;
+
+	/** prior samples not yet ready for retirement as GPU may still actively use them */
+	template<typename ObjectRefType> struct TGPUsyncedDataDeleter
+	{
+		~TGPUsyncedDataDeleter()
+		{
+			ENQUEUE_RENDER_COMMAND(DestroyElectraTextureSample)([this](FRHICommandListImmediate& RHICmdList)
+			{
+				RHICmdList.EnqueueLambda([this](FRHICommandListImmediate& CmdList)
+				{
+					Flush();
+				});
+			});
+			FlushRenderingCommands();
+		}
+
+		void Retire(const ObjectRefType& Object)
+		{
+			FRHICommandListImmediate& CommandList = FRHICommandListExecutor::GetImmediateCommandList();
+
+			// Prep "retirement package"
+			FRetiringObjectInfo Info;
+			Info.Object = Object;
+			Info.GPUFence = CommandList.CreateGPUFence(TEXT("MediaTextureResourceReuseFence"));
+
+			// Insert fence. We assume that GPU-workload-wise this marks the spot usage of the sample is done
+			CommandList.WriteGPUFence(Info.GPUFence);
+
+			// Recall for later checking...
+			FScopeLock Lock(&CS);
+			Objects.Push(Info);
+		}
+
+		bool Update()
+		{
+			FScopeLock Lock(&CS);
+
+			// Check for any retired samples that are not done being touched by the GPU...
+			int32 Idx = 0;
+			for (; Idx < Objects.Num(); ++Idx)
+			{
+				// Either no fence present or the fence has been signaled?
+				if (Objects[Idx].GPUFence.IsValid() && !Objects[Idx].GPUFence->Poll())
+				{
+					// No. This one is still busy, we can stop...
+					break;
+				}
+			}
+			// Remove (hence return to the pool / free up fence) all the finished ones...
+			if (Idx != 0)
+			{
+				Objects.RemoveAt(0, Idx);
+			}
+			return Objects.Num() != 0;
+		}
+
+		void Flush()
+		{
+			// See if all samples are ready to be retired now...
+			if (!Update())
+			{
+				// They are. No need for any async task...
+				return;
+			}
+
+			// Some samples still need the GPU to get done. Use async task to get this done...
+			TFunction<void()> FlushTask = [LastObjects{ MoveTemp(Objects) }]()
+			{
+				while (1)
+				{
+					int32 Idx = 0;
+					for (; Idx < LastObjects.Num(); ++Idx)
+					{
+						if (LastObjects[Idx].GPUFence.IsValid() && !LastObjects[Idx].GPUFence->Poll())
+						{
+							break;
+						}
+					}
+					if (Idx == LastObjects.Num())
+					{
+						break;
+					}
+
+					FPlatformProcess::Sleep(5.0f / 1000.0f);
+				}
+			};
+			Async(EAsyncExecution::ThreadPool, MoveTemp(FlushTask));
+		}
+
+		struct FRetiringObjectInfo
+		{
+			ObjectRefType Object;
+			FGPUFenceRHIRef GPUFence;
+		};
+
+		TArray<FRetiringObjectInfo> Objects;
+		FCriticalSection CS;
+	};
+
+	typedef TGPUsyncedDataDeleter<TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>> FPriorSamples;
+
+	TSharedRef<FPriorSamples, ESPMode::ThreadSafe> PriorSamples;
 
 	/** cached params etc. for use with mip generator */
-	TSharedPtr<FGenerateMipsStruct> CachedMipsGenParams;
+	TRefCountPtr<IPooledRenderTarget> MipGenerationCache;
 };

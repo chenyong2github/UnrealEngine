@@ -85,10 +85,9 @@ void UPicpProjectionAPIImpl::SetupOverlayCaptures(const TArray<struct FPicpCamer
 						{
 							// Render chromakey markers:
 							FTextureResource*     ChromakeyMarkerRTTRes = CameraIt.CameraChromakey.ChromakeyMarkerTexture->Resource;
-							FTexture2DResource* ChromakeyMarkerRTTRes2D = ChromakeyMarkerRTTRes?((FTexture2DResource*)ChromakeyMarkerRTTRes):nullptr;
-							if (ChromakeyMarkerRTTRes2D)
+							if (ChromakeyMarkerRTTRes)
 							{
-								NewCamera.Chromakey.ChromakeyMarkerTexture    = ChromakeyMarkerRTTRes2D->GetTexture2DRHI();
+								NewCamera.Chromakey.ChromakeyMarkerTexture    = ChromakeyMarkerRTTRes ? ChromakeyMarkerRTTRes->GetTexture2DRHI() : nullptr;
 								NewCamera.Chromakey.ChromakeyMarkerScale      = CameraIt.CameraChromakey.ChromakeyMarkerScale;
 
 								switch (CameraIt.CameraChromakey.ChromakeyMarkerUVSource)

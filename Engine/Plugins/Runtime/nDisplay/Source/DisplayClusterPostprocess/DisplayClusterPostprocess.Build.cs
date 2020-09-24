@@ -11,6 +11,7 @@ public class DisplayClusterPostprocess : ModuleRules
 			new string[]
 			{
 				"DisplayClusterPostprocess/Private",
+				"DisplayCluster/Private",
 			}
 		);
 
@@ -27,6 +28,9 @@ public class DisplayClusterPostprocess : ModuleRules
 				"DisplayCluster",
 				"OutputRemap",
 				"RHI",
+				"TextureShare",
+				"TextureShareCore",
+				"TextureShareD3D12",
 			}
 		);
 

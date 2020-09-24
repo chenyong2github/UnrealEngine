@@ -6,7 +6,6 @@
 
 #include "HlslParser.h"
 #include "HlslExpressionParser.inl"
-#include "CCIR.h"
 
 namespace CrossCompiler
 {
@@ -791,7 +790,7 @@ namespace CrossCompiler
 		}
 		else
 		{
-			auto Result = ParseGeneralType(Parser.Scanner, ETF_BUILTIN_NUMERIC | ETF_USER_TYPES, SymbolScope, Allocator, &FullType->Specifier);
+			auto Result = ParseGeneralType(Parser.Scanner, ETF_BUILTIN_NUMERIC | ETF_USER_TYPES | (TypeFlags & ETF_ERROR_IF_NOT_USER_TYPE), SymbolScope, Allocator, &FullType->Specifier);
 			if (Result == EParseResult::Matched)
 			{
 				bool bMatched = false;
@@ -848,6 +847,10 @@ namespace CrossCompiler
 				while ((DeclarationFlags & EDF_MULTIPLE) == EDF_MULTIPLE && Parser.Scanner.MatchToken(EHlslToken::Comma));
 
 				*OutDeclaratorList = DeclaratorList;
+			}
+			else if (Result == EParseResult::Error)
+			{
+				return EParseResult::Error;
 			}
 			else if (bCanBeUnmatched && Result == EParseResult::NotMatched)
 			{
@@ -1049,10 +1052,13 @@ namespace CrossCompiler
 	{
 		bool bStrictCheck = false;
 
+		// To help debug
+		AST::FDeclaratorList* PrevDeclaration = nullptr;
+
 		while (Parser.Scanner.HasMoreTokens())
 		{
 			AST::FDeclaratorList* Declaration = nullptr;
-			auto Result = ParseGeneralDeclaration(Parser, Parser.CurrentScope, Allocator, &Declaration, 0, EDF_CONST_ROW_MAJOR | EDF_IN_OUT | EDF_TEXTURE_SAMPLER_OR_BUFFER | EDF_INITIALIZER | EDF_SEMANTIC | EDF_PRIMITIVE_DATA_TYPE | EDF_INTERPOLATION | EDF_UNIFORM);
+			auto Result = ParseGeneralDeclaration(Parser, Parser.CurrentScope, Allocator, &Declaration, ETF_USER_TYPES | ETF_ERROR_IF_NOT_USER_TYPE, EDF_CONST_ROW_MAJOR | EDF_IN_OUT | EDF_TEXTURE_SAMPLER_OR_BUFFER | EDF_INITIALIZER | EDF_SEMANTIC | EDF_PRIMITIVE_DATA_TYPE | EDF_INTERPOLATION | EDF_UNIFORM);
 			if (Result == EParseResult::NotMatched)
 			{
 				auto* Token = Parser.Scanner.PeekToken();
@@ -1081,6 +1087,8 @@ namespace CrossCompiler
 				Parser.Scanner.SourceError(TEXT("Internal error on function parameter!\n"));
 				return ParseResultError();
 			}
+
+			PrevDeclaration = Declaration;
 		}
 
 		return EParseResult::Matched;
@@ -1117,6 +1125,8 @@ namespace CrossCompiler
 			Parser.Scanner.SetCurrentTokenIndex(OriginalToken);
 			return EParseResult::NotMatched;
 		}
+
+		// At this point, any unknown identifiers could be a type being used without forward declaring, so it's a real error
 
 		auto* Function = new(Allocator) AST::FFunction(Allocator, Identifier->SourceInfo);
 		Function->Identifier = Allocator->Strdup(Identifier->String);
@@ -1172,6 +1182,8 @@ Done:
 	{
 		FCreateSymbolScope SymbolScope(Allocator, &Parser.CurrentScope);
 		auto* Block = new(Allocator) AST::FCompoundStatement(Allocator, Parser.Scanner.GetCurrentToken()->SourceInfo);
+		// To help debug
+		AST::FNode* PrevStatement = nullptr;
 		while (Parser.Scanner.HasMoreTokens())
 		{
 			AST::FNode* Statement = nullptr;
@@ -1198,6 +1210,8 @@ Done:
 			{
 				Block->Statements.Add(Statement);
 			}
+
+			PrevStatement = Statement;
 		}
 
 		Parser.Scanner.SourceError(TEXT("'}' expected!"));
@@ -2039,8 +2053,6 @@ Done:
 
 			//Parser.Scanner.Dump();
 
-			IR::FIRCreator IRCreator(&Allocator);
-
 			bool bSuccess = true;
 			TLinearArray<AST::FNode*> Nodes(&Allocator);
 			while (Parser.Scanner.HasMoreTokens())
@@ -2080,8 +2092,6 @@ Done:
 			{
 				return false;
 			}
-
-			IR::FIRCreator IRCreator(&Allocator);
 
 			bool bSuccess = true;
 			TLinearArray<AST::FNode*> Nodes(&Allocator);

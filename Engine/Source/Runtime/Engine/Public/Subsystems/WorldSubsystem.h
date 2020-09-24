@@ -20,7 +20,7 @@ class ENGINE_API UWorldSubsystem : public USubsystem
 public:
 	UWorldSubsystem();
 
-	virtual UWorld* GetWorld() const override;
+	virtual UWorld* GetWorld() const override final;
 	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
 
 	/** Called once all UWorldSubsystems have been initialized */

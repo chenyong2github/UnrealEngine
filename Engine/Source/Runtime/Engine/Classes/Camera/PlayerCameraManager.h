@@ -8,12 +8,14 @@
 #include "Engine/EngineTypes.h"
 #include "GameFramework/Actor.h"
 #include "Camera/CameraTypes.h"
-#include "Camera/CameraShake.h"
 #include "PlayerCameraManager.generated.h"
 
 class AEmitterCameraLensEffectBase;
 class APlayerController;
 class FDebugDisplayInfo;
+class UCameraModifier;
+class UCameraShakeBase;
+class UCameraShakeSourceComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAudioFadeChangeSignature, bool, bFadeOut, float, FadeTime);
 
@@ -277,12 +279,12 @@ private:
 protected:
 	/** List of active camera modifier instances that have a chance to update the final camera POV */
 	UPROPERTY(transient)
-	TArray<class UCameraModifier*> ModifierList;
+	TArray<UCameraModifier*> ModifierList;
 
 public:
 	/** List of modifiers to create by default for this camera */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = CameraModifier)
-	TArray< TSubclassOf<class UCameraModifier> > DefaultModifiers;
+	TArray< TSubclassOf<UCameraModifier> > DefaultModifiers;
 
 	/** Distance to place free camera from view target (used in certain CameraStyles) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Debug)
@@ -556,7 +558,7 @@ public:
 	 * @param Falloff - Exponent that describes the shake intensity falloff curve between InnerRadius and OuterRadius. 1.0 is linear.
 	 * @param bOrientShakeTowardsEpicenter - Changes the rotation of shake to point towards epicenter instead of forward. Useful for things like directional hits.
 	 */
-	static void PlayWorldCameraShake(UWorld* InWorld, TSubclassOf<UCameraShake> Shake, FVector Epicenter, float InnerRadius, float OuterRadius, float Falloff, bool bOrientShakeTowardsEpicenter = false);
+	static void PlayWorldCameraShake(UWorld* InWorld, TSubclassOf<UCameraShakeBase> Shake, FVector Epicenter, float InnerRadius, float OuterRadius, float Falloff, bool bOrientShakeTowardsEpicenter = false);
 
 protected:
 	/** 
@@ -596,25 +598,25 @@ public:
 	 * @return Returns the newly created camera modifier.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Game|Player")
-	virtual class UCameraModifier* AddNewCameraModifier(TSubclassOf<class UCameraModifier> ModifierClass);
+	virtual UCameraModifier* AddNewCameraModifier(TSubclassOf<UCameraModifier> ModifierClass);
 
 	/** 
 	 * Returns camera modifier for this camera of the given class, if it exists. 
 	 * Exact class match only. If there are multiple modifiers of the same class, the first one is returned.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Game|Player")
-	virtual class UCameraModifier* FindCameraModifierByClass(TSubclassOf<class UCameraModifier> ModifierClass);
+	virtual UCameraModifier* FindCameraModifierByClass(TSubclassOf<UCameraModifier> ModifierClass);
 
 	/** 
 	 * Removes the given camera modifier from this camera (if it's on the camera in the first place) and discards it. 
 	 * @return True if successfully removed, false otherwise.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Game|Player")
-	virtual bool RemoveCameraModifier(class UCameraModifier* ModifierToRemove);
+	virtual bool RemoveCameraModifier(UCameraModifier* ModifierToRemove);
 
 protected:
 	/** Internal. Places the given modifier in the ModifierList at the appropriate priority. */
-	virtual bool AddCameraModifierToList(class UCameraModifier* NewModifier);
+	virtual bool AddCameraModifierToList(UCameraModifier* NewModifier);
 
 public:	
 	/**
@@ -780,7 +782,10 @@ public:
 	 * @param UserPlaySpaceRot - Coordinate system to play shake when PlaySpace == CAPS_UserDefined.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
-	virtual class UCameraShake* PlayCameraShake(TSubclassOf<class UCameraShake> ShakeClass, float Scale=1.f, enum ECameraAnimPlaySpace::Type PlaySpace = ECameraAnimPlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
+	virtual UCameraShakeBase* StartCameraShake(TSubclassOf<UCameraShakeBase> ShakeClass, float Scale=1.f, ECameraShakePlaySpace PlaySpace = ECameraShakePlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
+
+	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
+	UMatineeCameraShake* StartMatineeCameraShake(TSubclassOf<UMatineeCameraShake> ShakeClass, float Scale = 1.f, ECameraShakePlaySpace PlaySpace = ECameraShakePlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
 
 	/** 
 	 * Plays a camera shake on this camera.
@@ -791,15 +796,18 @@ public:
 	 * @param UserPlaySpaceRot - Coordinate system to play shake when PlaySpace == CAPS_UserDefined.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
-	virtual class UCameraShake* PlayCameraShakeFromSource(TSubclassOf<class UCameraShake> ShakeClass, class UCameraShakeSourceComponent* SourceComponent, float Scale=1.f, enum ECameraAnimPlaySpace::Type PlaySpace = ECameraAnimPlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
+	virtual UCameraShakeBase* StartCameraShakeFromSource(TSubclassOf<UCameraShakeBase> ShakeClass, UCameraShakeSourceComponent* SourceComponent, float Scale=1.f, ECameraShakePlaySpace PlaySpace = ECameraShakePlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
+
+	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
+	UMatineeCameraShake* StartMatineeCameraShakeFromSource(TSubclassOf<UMatineeCameraShake> ShakeClass, UCameraShakeSourceComponent* SourceComponent, float Scale = 1.f, ECameraShakePlaySpace PlaySpace = ECameraShakePlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
 	
 	/** Immediately stops the given shake instance and invalidates it. */
 	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
-	virtual void StopCameraShake(class UCameraShake* ShakeInstance, bool bImmediately = true);
+	virtual void StopCameraShake(UCameraShakeBase* ShakeInstance, bool bImmediately = true);
 
 	/** Stops playing all shakes of the given class. */
 	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
-	virtual void StopAllInstancesOfCameraShake(TSubclassOf<class UCameraShake> Shake, bool bImmediately = true);
+	virtual void StopAllInstancesOfCameraShake(TSubclassOf<UCameraShakeBase> Shake, bool bImmediately = true);
 
 	/** Stops all active camera shakes on this camera. */
 	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
@@ -807,11 +815,11 @@ public:
 
 	/** Stops playing all shakes of the given class originating from the given source. */
 	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
-	virtual void StopAllInstancesOfCameraShakeFromSource(TSubclassOf<class UCameraShake> Shake, class UCameraShakeSourceComponent* SourceComponent, bool bImmediately = true);
+	virtual void StopAllInstancesOfCameraShakeFromSource(TSubclassOf<UCameraShakeBase> Shake, UCameraShakeSourceComponent* SourceComponent, bool bImmediately = true);
 
 	/** Stops playing all shakes originating from the given source. */
 	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
-	virtual void StopAllCameraShakesFromSource(class UCameraShakeSourceComponent* SourceComponent, bool bImmediately = true);
+	virtual void StopAllCameraShakesFromSource(UCameraShakeSourceComponent* SourceComponent, bool bImmediately = true);
 
 	//
 	//  CameraAnim fades.
@@ -862,8 +870,8 @@ public:
 	 * @param UserPlaySpaceRot  Custom play space, used when PlaySpace is UserDefined.
 	 * @return The CameraAnim instance, which can be stored to manipulate/stop the anim after the fact.
 	 */
-	UFUNCTION(BlueprintCallable, Category="Camera Animation")
-	virtual class UCameraAnimInst* PlayCameraAnim(class UCameraAnim* Anim, float Rate=1.f, float Scale=1.f, float BlendInTime=0.f, float BlendOutTime=0.f, bool bLoop=false, bool bRandomStartTime=false, float Duration=0.f, ECameraAnimPlaySpace::Type PlaySpace=ECameraAnimPlaySpace::CameraLocal, FRotator UserPlaySpaceRot=FRotator::ZeroRotator);
+	UFUNCTION(BlueprintCallable, Category = "Camera Animation")
+	virtual class UCameraAnimInst* PlayCameraAnim(class UCameraAnim* Anim, float Rate = 1.f, float Scale = 1.f, float BlendInTime = 0.f, float BlendOutTime = 0.f, bool bLoop = false, bool bRandomStartTime = false, float Duration = 0.f, ECameraShakePlaySpace PlaySpace = ECameraShakePlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
 	
 	/**
 	 * Stop playing all instances of the indicated CameraAnim.

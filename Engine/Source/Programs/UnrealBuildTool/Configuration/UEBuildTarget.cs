@@ -3435,7 +3435,6 @@ namespace UnrealBuildTool
 			GlobalLinkEnvironment.bSupportEditAndContinue = Rules.bSupportEditAndContinue;
 			GlobalLinkEnvironment.bCreateMapFile = Rules.bCreateMapFile;
 			GlobalLinkEnvironment.bHasExports = Rules.bHasExports;
-			GlobalLinkEnvironment.bAllowASLR = (GlobalCompileEnvironment.Configuration == CppConfiguration.Shipping && Rules.bAllowASLRInShipping);
 			GlobalLinkEnvironment.bUsePDBFiles = Rules.bUsePDBFiles;
 			GlobalLinkEnvironment.BundleDirectory = BuildPlatform.GetBundleDirectory(Rules, Binaries[0].OutputFilePaths);
 			GlobalLinkEnvironment.BundleVersion = Rules.BundleVersion;
@@ -3641,6 +3640,15 @@ namespace UnrealBuildTool
 			else
 			{
 				GlobalCompileEnvironment.Definitions.Add("USE_CHECKS_IN_SHIPPING=0");
+			}
+
+			if (Rules.bUseEstimatedUtcNow)
+			{
+				GlobalCompileEnvironment.Definitions.Add("USE_ESTIMATED_UTCNOW=1");
+			}
+			else
+			{
+				GlobalCompileEnvironment.Definitions.Add("USE_ESTIMATED_UTCNOW=0");
 			}
 
 			// bBuildEditor has now been set appropriately for all platforms, so this is here to make sure the #define
@@ -4071,7 +4079,14 @@ namespace UnrealBuildTool
 			List<string> NewPathList = new List<string>();
 			foreach (string Path in PathList)
 			{
-				NewPathList.Add(System.IO.Path.Combine(BasePath.FullName, Path));
+				if(Path.StartsWith("$(", StringComparison.Ordinal))
+				{
+					NewPathList.Add(Path);
+				}
+				else
+				{
+					NewPathList.Add(System.IO.Path.Combine(BasePath.FullName, Path));
+				}
 			}
 			return NewPathList;
 		}

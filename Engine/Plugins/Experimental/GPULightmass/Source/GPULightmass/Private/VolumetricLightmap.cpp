@@ -10,8 +10,6 @@
 #include "LevelEditorViewport.h"
 #include "Editor.h"
 
-extern int32 GGPULightmassSamplesPerTexel;
-
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FVLMVoxelizationVS, TEXT("/Plugin/GPULightmass/Private/VolumetricLightmapVoxelization.usf"), TEXT("VLMVoxelizationVS"), SF_Vertex);
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FVLMVoxelizationGS, TEXT("/Plugin/GPULightmass/Private/VolumetricLightmapVoxelization.usf"), TEXT("VLMVoxelizationGS"), SF_Geometry);
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FVLMVoxelizationPS, TEXT("/Plugin/GPULightmass/Private/VolumetricLightmapVoxelization.usf"), TEXT("VLMVoxelizationPS"), SF_Pixel);
@@ -199,7 +197,7 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 
 		FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, Parameters, FComputeShaderUtils::GetGroupCount(VoxelizationVolumeMips[MipLevel]->GetDesc().GetSize(), FIntVector(4)));
 
-		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, VoxelizationVolumeMips[MipLevel]->GetRenderTargetItem().UAV);
+		RHICmdList.Transition(FRHITransitionInfo(VoxelizationVolumeMips[MipLevel]->GetRenderTargetItem().UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 	}
 
 	{
@@ -219,7 +217,7 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 			FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, Parameters, FComputeShaderUtils::GetGroupCount(VoxelizationVolumeMips[0]->GetDesc().GetSize(), FIntVector(4)));
 		}
 
-		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToGfx, VoxelizationVolumeMips[0]->GetRenderTargetItem().UAV);
+		RHICmdList.Transition(FRHITransitionInfo(VoxelizationVolumeMips[0]->GetRenderTargetItem().UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 	}
 
 
@@ -318,7 +316,7 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 
 	RHICmdList.EndRenderPass();
 
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, VoxelizationVolumeMips[0]->GetRenderTargetItem().UAV);
+	RHICmdList.Transition(FRHITransitionInfo(VoxelizationVolumeMips[0]->GetRenderTargetItem().UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 
 	{
 		FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
@@ -332,7 +330,7 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 		FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, Parameters, FComputeShaderUtils::GetGroupCount(VoxelizationVolumeMips[0]->GetDesc().GetSize(), FIntVector(4)));
 	}
 
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, VoxelizationVolumeMips[0]->GetRenderTargetItem().UAV);
+	RHICmdList.Transition(FRHITransitionInfo(VoxelizationVolumeMips[0]->GetRenderTargetItem().UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 
 	for (int32 MipLevel = 1; MipLevel < VoxelizationVolumeMips.Num(); MipLevel++)
 	{
@@ -345,7 +343,7 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 
 		FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, Parameters, VoxelizationVolumeMips[MipLevel]->GetDesc().GetSize());
 
-		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, VoxelizationVolumeMips[MipLevel]->GetRenderTargetItem().UAV);
+		RHICmdList.Transition(FRHITransitionInfo(VoxelizationVolumeMips[MipLevel]->GetRenderTargetItem().UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 	}
 
 	{
@@ -368,8 +366,8 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 
 		FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, Parameters, FComputeShaderUtils::GetGroupCount(VoxelizationVolumeMips[MipLevel]->GetDesc().GetSize(), FIntVector(4)));
 
-		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, VoxelizationVolumeMips[MipLevel]->GetRenderTargetItem().UAV);
-		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, BrickAllocatorParameters.UAV);
+		RHICmdList.Transition(FRHITransitionInfo(VoxelizationVolumeMips[MipLevel]->GetRenderTargetItem().UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
+		RHICmdList.Transition(FRHITransitionInfo(BrickAllocatorParameters.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 	}
 
 	FRHIGPUBufferReadback NumBricksReadback(TEXT("NumBricksReadback"));
@@ -422,7 +420,7 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 
 		FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, Parameters, FComputeShaderUtils::GetGroupCount(VoxelizationVolumeMips[MipLevel]->GetDesc().GetSize(), FIntVector(4)));
 
-		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, BrickRequests.UAV);
+		RHICmdList.Transition(FRHITransitionInfo(BrickRequests.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 	}
 
 	for (int32 MipLevel = VoxelizationVolumeMips.Num() - 1; MipLevel >= 0; MipLevel--)
@@ -441,7 +439,7 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 
 		FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, Parameters, FComputeShaderUtils::GetGroupCount(IndirectionTextureDimensions, FIntVector(4)));
 
-		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, IndirectionTexture->GetRenderTargetItem().UAV);
+		RHICmdList.Transition(FRHITransitionInfo(IndirectionTexture->GetRenderTargetItem().UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 	}
 
 	Scene->DestroyRayTracingScene();
@@ -455,7 +453,7 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 	}
 
 	int32 NumCellsPerBrick = 5 * 5 * 5;
-	if (SamplesTaken >= (uint64)NumTotalBricks * NumCellsPerBrick * GGPULightmassSamplesPerTexel)
+	if (SamplesTaken >= (uint64)NumTotalBricks * NumCellsPerBrick * Scene->Settings->GISamples)
 	{
 		return;
 	}
@@ -475,13 +473,16 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 
 	int32 NumSamplesThisFrame = !bLastFewFramesIdle ? 1 : 32;
 
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, VolumetricLightmapData.BrickData.AmbientVector.UAV);
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, VolumetricLightmapData.BrickData.SHCoefficients[0].UAV);
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, VolumetricLightmapData.BrickData.SHCoefficients[1].UAV);
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, VolumetricLightmapData.BrickData.SHCoefficients[2].UAV);
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, VolumetricLightmapData.BrickData.SHCoefficients[3].UAV);
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, VolumetricLightmapData.BrickData.SHCoefficients[4].UAV);
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, VolumetricLightmapData.BrickData.SHCoefficients[5].UAV);
+	FRHITransitionInfo VolumetricLightmapDataRWBarrierTransitions[] = {
+		FRHITransitionInfo(VolumetricLightmapData.BrickData.AmbientVector.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier),
+		FRHITransitionInfo(VolumetricLightmapData.BrickData.SHCoefficients[0].UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier),
+		FRHITransitionInfo(VolumetricLightmapData.BrickData.SHCoefficients[1].UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier),
+		FRHITransitionInfo(VolumetricLightmapData.BrickData.SHCoefficients[2].UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier),
+		FRHITransitionInfo(VolumetricLightmapData.BrickData.SHCoefficients[3].UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier),
+		FRHITransitionInfo(VolumetricLightmapData.BrickData.SHCoefficients[4].UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier),
+		FRHITransitionInfo(VolumetricLightmapData.BrickData.SHCoefficients[5].UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier)
+	};
+	RHICmdList.Transition(MakeArrayView(VolumetricLightmapDataRWBarrierTransitions, UE_ARRAY_COUNT(VolumetricLightmapDataRWBarrierTransitions)));
 
 	for (int32 SampleIndex = 0; SampleIndex < NumSamplesThisFrame; SampleIndex++)
 	{
@@ -556,21 +557,15 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 			// Doing 2 passes no longer makes sense in an amortized setup
 			// for (int32 StitchPass = 0; StitchPass < 2; StitchPass++)
 			{
-				RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, AccumulationBrickData.AmbientVector.UAV);
-				RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, AccumulationBrickData.SHCoefficients[0].UAV);
-				RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, AccumulationBrickData.SHCoefficients[1].UAV);
-				RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, AccumulationBrickData.SHCoefficients[2].UAV);
-				RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, AccumulationBrickData.SHCoefficients[3].UAV);
-				RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, AccumulationBrickData.SHCoefficients[4].UAV);
-				RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, AccumulationBrickData.SHCoefficients[5].UAV);
+				RHICmdList.Transition(FRHITransitionInfo(AccumulationBrickData.AmbientVector.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
+				RHICmdList.Transition(FRHITransitionInfo(AccumulationBrickData.SHCoefficients[0].UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
+				RHICmdList.Transition(FRHITransitionInfo(AccumulationBrickData.SHCoefficients[1].UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
+				RHICmdList.Transition(FRHITransitionInfo(AccumulationBrickData.SHCoefficients[2].UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
+				RHICmdList.Transition(FRHITransitionInfo(AccumulationBrickData.SHCoefficients[3].UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
+				RHICmdList.Transition(FRHITransitionInfo(AccumulationBrickData.SHCoefficients[4].UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
+				RHICmdList.Transition(FRHITransitionInfo(AccumulationBrickData.SHCoefficients[5].UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 
-				RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, VolumetricLightmapData.BrickData.AmbientVector.UAV);
-				RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, VolumetricLightmapData.BrickData.SHCoefficients[0].UAV);
-				RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, VolumetricLightmapData.BrickData.SHCoefficients[1].UAV);
-				RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, VolumetricLightmapData.BrickData.SHCoefficients[2].UAV);
-				RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, VolumetricLightmapData.BrickData.SHCoefficients[3].UAV);
-				RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, VolumetricLightmapData.BrickData.SHCoefficients[4].UAV);
-				RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, VolumetricLightmapData.BrickData.SHCoefficients[5].UAV);
+				RHICmdList.Transition(MakeArrayView(VolumetricLightmapDataRWBarrierTransitions, UE_ARRAY_COUNT(VolumetricLightmapDataRWBarrierTransitions)));
 
 				FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 
@@ -595,14 +590,7 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 
 				FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, Parameters, FIntVector(BricksToCalcThisFrame, 1, 1));
 
-
-				RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, VolumetricLightmapData.BrickData.AmbientVector.UAV);
-				RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, VolumetricLightmapData.BrickData.SHCoefficients[0].UAV);
-				RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, VolumetricLightmapData.BrickData.SHCoefficients[1].UAV);
-				RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, VolumetricLightmapData.BrickData.SHCoefficients[2].UAV);
-				RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, VolumetricLightmapData.BrickData.SHCoefficients[3].UAV);
-				RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, VolumetricLightmapData.BrickData.SHCoefficients[4].UAV);
-				RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, VolumetricLightmapData.BrickData.SHCoefficients[5].UAV);
+				RHICmdList.Transition(MakeArrayView(VolumetricLightmapDataRWBarrierTransitions, UE_ARRAY_COUNT(VolumetricLightmapDataRWBarrierTransitions)));
 			}
 		}
 
@@ -610,19 +598,13 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 
 		SamplesTaken += BricksToCalcThisFrame * NumCellsPerBrick;
 
-		if (SamplesTaken >= (uint64)NumTotalBricks * NumCellsPerBrick * GGPULightmassSamplesPerTexel)
+		if (SamplesTaken >= (uint64)NumTotalBricks * NumCellsPerBrick * Scene->Settings->GISamples)
 		{
 			break;
 		}
 	}
 
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToGfx, VolumetricLightmapData.BrickData.AmbientVector.UAV);
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToGfx, VolumetricLightmapData.BrickData.SHCoefficients[0].UAV);
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToGfx, VolumetricLightmapData.BrickData.SHCoefficients[1].UAV);
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToGfx, VolumetricLightmapData.BrickData.SHCoefficients[2].UAV);
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToGfx, VolumetricLightmapData.BrickData.SHCoefficients[3].UAV);
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToGfx, VolumetricLightmapData.BrickData.SHCoefficients[4].UAV);
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToGfx, VolumetricLightmapData.BrickData.SHCoefficients[5].UAV);
+	RHICmdList.Transition(MakeArrayView(VolumetricLightmapDataRWBarrierTransitions, UE_ARRAY_COUNT(VolumetricLightmapDataRWBarrierTransitions)));
 
 	if (IsRayTracingEnabled())
 	{

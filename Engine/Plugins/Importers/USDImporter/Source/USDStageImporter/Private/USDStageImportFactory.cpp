@@ -3,6 +3,7 @@
 #include "USDStageImportFactory.h"
 
 #include "USDConversionUtils.h"
+#include "USDErrorUtils.h"
 #include "USDStageImporterModule.h"
 #include "USDStageImportOptions.h"
 #include "USDStageImportOptionsWindow.h"
@@ -33,9 +34,10 @@ UUsdStageImportFactory::UUsdStageImportFactory(const FObjectInitializer& ObjectI
 
 	ImportOptions = ObjectInitializer.CreateDefaultSubobject<UUsdStageImportOptions>(this, TEXT("USDStageImportOptions"));
 
-	Formats.Add(TEXT("usd;Universal Scene Descriptor files"));
-	Formats.Add(TEXT("usda;Universal Scene Descriptor files"));
-	Formats.Add(TEXT("usdc;Universal Scene Descriptor files"));
+	for ( const FString& Extension : UnrealUSDWrapper::GetAllSupportedFileFormats() )
+	{
+		Formats.Add( FString::Printf( TEXT( "%s; Universal Scene Descriptor files" ), *Extension ) );
+	}
 }
 
 UObject* UUsdStageImportFactory::FactoryCreateFile(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, const FString& Filename, const TCHAR* Parms, FFeedbackContext* Warn, bool& bOutOperationCanceled)
@@ -43,9 +45,14 @@ UObject* UUsdStageImportFactory::FactoryCreateFile(UClass* InClass, UObject* InP
 	UObject* ImportedObject = nullptr;
 
 #if USE_USD_SDK
-	if (ImportContext.Init(InName.ToString(), Filename, Flags, IsAutomatedImport()))
+	const FString InitialPackagePath =InParent ? InParent->GetName() : TEXT( "/Game/" );
+	const bool bIsReimport = false;
+	const bool bAllowActorImport = true;
+	if (ImportContext.Init(InName.ToString(), Filename, InitialPackagePath, Flags, IsAutomatedImport(), bIsReimport, bAllowActorImport))
 	{
 		GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPreImport( this, InClass, InParent, InName, Parms );
+
+		FScopedUsdMessageLog ScopedMessageLog;
 
 		UUsdStageImporter* USDImporter = IUsdStageImporterModule::Get().GetImporter();
 		USDImporter->ImportFromFile(ImportContext);
@@ -54,9 +61,7 @@ UObject* UUsdStageImportFactory::FactoryCreateFile(UClass* InClass, UObject* InP
 		GEditor->BroadcastLevelActorListChanged();
 		GEditor->RedrawLevelEditingViewports();
 
-		ImportContext.DisplayErrorMessages(ImportContext.bIsAutomated);
-
-		ImportedObject = ImportContext.SceneActor;
+		ImportedObject = ImportContext.ImportedPackage ? Cast<UObject>( ImportContext.ImportedPackage ) : Cast<UObject>( ImportContext.SceneActor );
 	}
 	else
 	{
@@ -72,9 +77,12 @@ bool UUsdStageImportFactory::FactoryCanImport(const FString& Filename)
 {
 	const FString Extension = FPaths::GetExtension(Filename);
 
-	if (Extension == TEXT("usd") || Extension == TEXT("usda") || Extension == TEXT("usdc"))
+	for ( const FString& SupportedExtension : UnrealUSDWrapper::GetAllSupportedFileFormats() )
 	{
-		return true;
+		if ( SupportedExtension.Equals( Extension, ESearchCase::IgnoreCase ) )
+		{
+			return true;
+		}
 	}
 
 	return false;

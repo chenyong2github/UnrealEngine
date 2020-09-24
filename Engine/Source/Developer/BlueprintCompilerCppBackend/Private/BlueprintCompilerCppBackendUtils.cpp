@@ -934,7 +934,7 @@ FString FEmitHelper::GetPCHFilename()
 	FString PCHFilename;
 	IBlueprintCompilerCppBackendModule& BackEndModule = (IBlueprintCompilerCppBackendModule&)IBlueprintCompilerCppBackendModule::Get();
 
-	TBaseDelegate<FString>& PchFilenameQuery = BackEndModule.OnPCHFilenameQuery();
+	TDelegate<FString()>& PchFilenameQuery = BackEndModule.OnPCHFilenameQuery();
 	if (PchFilenameQuery.IsBound())
 	{
 		PCHFilename = PchFilenameQuery.Execute();

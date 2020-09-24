@@ -39,5 +39,12 @@ namespace UE
 		 * @param bUniformScale if false, UVs will be non-uniformly scaled to maximally fill the box
 		 */
 		DYNAMICMESH_API void FitToBox(FDynamicMeshUVOverlay* UVOverlay, const FAxisAlignedBox2d& Box, bool bUniformScale = true);
+
+
+		/**
+		 * For all UV seam elements, apply a small displacement so that they have unique positions. 
+		 * This allows unwelding/re-welding the UVs without breaking the seams (which is horrible but necessary in some cases)
+		 */
+		DYNAMICMESH_API void MakeSeamsDisjoint(FDynamicMeshUVOverlay* UVOverlay);
 	}
 }

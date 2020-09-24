@@ -8,8 +8,11 @@
 #include "Modules/ModuleManager.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include <delayimp.h>
-#if !PLATFORM_CPU_ARM_FAMILY
-	#include "amd_ags.h"
+#if !PLATFORM_HOLOLENS && !PLATFORM_CPU_ARM_FAMILY
+#include "amd_ags.h"
+#define AMD_API_ENABLE 1
+#else
+#define AMD_API_ENABLE 0
 #endif
 #if !PLATFORM_HOLOLENS && !PLATFORM_CPU_ARM_FAMILY
 	#define NV_API_ENABLE 1
@@ -47,7 +50,31 @@ static FAutoConsoleVariableRef CVarDX12NVAfterMathBufferSize(
 	TEXT("Use NV Aftermath for GPU crash analysis in D3D12"),
 	ECVF_ReadOnly
 );
+int32 GDX12NVAfterMathTrackResources = 0;
+static FAutoConsoleVariableRef CVarDX12NVAfterMathTrackResources(
+	TEXT("r.DX12NVAfterMathTrackResources"),
+	GDX12NVAfterMathTrackResources,
+	TEXT("Enable NV Aftermath resource tracing in D3D12"),
+	ECVF_ReadOnly
+);
+int32 GDX12NVAfterMathMarkers = 0;
 #endif
+
+int32 GMinimumWindowsBuildVersionForRayTracing = 0;
+static FAutoConsoleVariableRef CVarMinBuildVersionForRayTracing(
+	TEXT("r.D3D12.DXR.MinimumWindowsBuildVersion"),
+	GMinimumWindowsBuildVersionForRayTracing,
+	TEXT("Sets the minimum Windows build version required to enable ray tracing."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe
+);
+
+int32 GMinimumDriverVersionForRayTracingNVIDIA = 0;
+static FAutoConsoleVariableRef CVarMinDriverVersionForRayTracingNVIDIA(
+	TEXT("r.D3D12.DXR.MinimumDriverVersionNVIDIA"),
+	GMinimumDriverVersionForRayTracingNVIDIA,
+	TEXT("Sets the minimum driver version required to enable ray tracing."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe
+);
 
 static inline int D3D12RHI_PreferAdapterVendor()
 {
@@ -102,7 +129,11 @@ static void SafeCreateDXGIFactory(IDXGIFactory4** DXGIFactory)
 	{
 		bIsQuadBufferStereoEnabled = FParse::Param(FCommandLine::Get(), TEXT("quad_buffer_stereo"));
 
+#if PLATFORM_HOLOLENS
+		CreateDXGIFactory1(__uuidof(IDXGIFactory4), (void**)DXGIFactory);
+#else
 		CreateDXGIFactory(__uuidof(IDXGIFactory4), (void**)DXGIFactory);
+#endif
 	}
 	__except (IsDelayLoadException(GetExceptionInformation()))
 	{
@@ -221,10 +252,12 @@ static bool SupportsHDROutput(FD3D12DynamicRHI* D3DRHI)
 
 bool FD3D12DynamicRHIModule::IsSupported()
 {
+#if !PLATFORM_HOLOLENS
 	if (!FPlatformMisc::VerifyWindowsVersion(10, 0))
 	{
 		return false;
 	}
+#endif
 
 	// If not computed yet
 	if (ChosenAdapters.Num() == 0)
@@ -356,7 +389,19 @@ void FD3D12DynamicRHIModule::FindAdapter()
 				if (bIsNVIDIA) bIsAnyNVIDIA = true;
 
 				// Simple heuristic but without profiling it's hard to do better
-				const bool bIsIntegrated = bIsIntel;
+				bool bIsNonLocalMemoryPresent = false;
+				if (bIsIntel)
+				{
+					TRefCountPtr<IDXGIAdapter3> TempDxgiAdapter3;
+					DXGI_QUERY_VIDEO_MEMORY_INFO NonLocalVideoMemoryInfo;
+					if (SUCCEEDED(TempAdapter->QueryInterface(_uuidof(IDXGIAdapter3), (void**)TempDxgiAdapter3.GetInitReference())) &&
+						TempDxgiAdapter3.IsValid() && SUCCEEDED(TempDxgiAdapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL, &NonLocalVideoMemoryInfo)))
+					{
+						bIsNonLocalMemoryPresent = NonLocalVideoMemoryInfo.Budget != 0;
+					}
+				}
+				const bool bIsIntegrated = bIsIntel && !bIsNonLocalMemoryPresent;
+
 				// PerfHUD is for performance profiling
 				const bool bIsPerfHUD = !FCString::Stricmp(AdapterDesc.Description, TEXT("NVIDIA PerfHUD"));
 
@@ -412,7 +457,7 @@ void FD3D12DynamicRHIModule::FindAdapter()
 #endif // PLATFORM_DESKTOP
 
 	TSharedPtr<FD3D12Adapter> NewAdapter;
-	if (bFavorNonIntegrated && (bIsAnyAMD || bIsAnyNVIDIA))
+	if (bFavorNonIntegrated)
 	{
 		// We assume Intel is integrated graphics (slower than discrete) than NVIDIA or AMD cards and rather take a different one
 		if (FirstWithoutIntegratedAdapter.IsValid())
@@ -472,17 +517,10 @@ FDynamicRHI* FD3D12DynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type RequestedF
 #if ENABLE_RHI_VALIDATION
 	if (FParse::Param(FCommandLine::Get(), TEXT("RHIValidation")))
 	{
-		GValidationRHI = new FValidationRHI(GD3D12RHI);
+		return new FValidationRHI(GD3D12RHI);
 	}
-	else
-	{
-		check(!GValidationRHI);
-	}
-
-	return GValidationRHI ? (FDynamicRHI*)GValidationRHI : (FDynamicRHI*)GD3D12RHI;
-#else
-	return GD3D12RHI;
 #endif
+	return GD3D12RHI;
 }
 
 void FD3D12DynamicRHIModule::StartupModule()
@@ -553,7 +591,7 @@ void FD3D12DynamicRHI::Init()
 	// Need to set GRHIVendorId before calling IsRHIDevice* functions
 	GRHIVendorId = AdapterDesc.VendorId;
 
-#if !PLATFORM_CPU_ARM_FAMILY
+#if AMD_API_ENABLE
 	// Initialize the AMD AGS utility library, when running on an AMD device
 	if (IsRHIDeviceAMD() && bAllowVendorDevice)
 	{
@@ -573,7 +611,7 @@ void FD3D12DynamicRHI::Init()
 		Adapter->InitializeDevices();
 	}
 
-#if !PLATFORM_CPU_ARM_FAMILY
+#if AMD_API_ENABLE
 	// Warn if we are trying to use RGP frame markers but are either running on a non-AMD device
 	// or using an older AMD driver without RGP marker support
 	if (GEmitRgpFrameMarkers && !IsRHIDeviceAMD())
@@ -595,6 +633,16 @@ void FD3D12DynamicRHI::Init()
 	}
 #endif
 
+	// Disable ray tracing for Windows build versions
+	if (GRHISupportsRayTracing
+		&& GMinimumWindowsBuildVersionForRayTracing > 0
+		&& !FPlatformMisc::VerifyWindowsVersion(10, 0, GMinimumWindowsBuildVersionForRayTracing))
+	{
+		GRHISupportsRayTracing = false;
+
+		UE_LOG(LogD3D12RHI, Warning, TEXT("Ray tracing is disabled because it requires Windows 10 version %u"), (uint32)GMinimumWindowsBuildVersionForRayTracing);
+	}
+
 #if NV_API_ENABLE
 	if (IsRHIDeviceNVIDIA() && bAllowVendorDevice)
 	{
@@ -611,6 +659,24 @@ void FD3D12DynamicRHI::Init()
 		else
 		{
 			UE_LOG(LogD3D12RHI, Warning, TEXT("Failed to initialize NVAPI"));
+		}
+
+		// Disable ray tracing for old Nvidia drivers
+		if (GRHISupportsRayTracing
+			&& GMinimumDriverVersionForRayTracingNVIDIA > 0
+			&& NvStatus == NVAPI_OK)
+		{
+			NvU32 DriverVersion = UINT32_MAX;
+			NvAPI_ShortString BranchString("");
+			if (NvAPI_SYS_GetDriverAndBranchVersion(&DriverVersion, BranchString) == NVAPI_OK)
+			{
+				if (DriverVersion < (uint32)GMinimumDriverVersionForRayTracingNVIDIA)
+				{
+					GRHISupportsRayTracing = false;
+
+					UE_LOG(LogD3D12RHI, Warning, TEXT("Ray tracing is disabled because the driver is too old"));
+				}
+			}
 		}
 	}
 #endif
@@ -709,7 +775,7 @@ void FD3D12DynamicRHI::Init()
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM4_REMOVED] = SP_NumPlatforms;
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM5] = SP_PCD3D_SM5;
 
-	GSupportsEfficientAsyncCompute = GRHISupportsParallelRHIExecute && IsRHIDeviceAMD();
+	GSupportsEfficientAsyncCompute = FParse::Param(FCommandLine::Get(), TEXT("ForceAsyncCompute")) || (GRHISupportsParallelRHIExecute && IsRHIDeviceAMD());
 
 	GSupportsDepthBoundsTest = SupportsDepthBoundsTest(this);
 
@@ -745,8 +811,10 @@ void FD3D12DynamicRHI::Init()
 	// - Standalones are added to the deferred deletion queue of its parent FD3D12Adapter
 	GRHIForceNoDeletionLatencyForStreamingTextures = !!PLATFORM_WINDOWS;
 
-	GRHICommandList.GetImmediateCommandList().SetContext(RHIGetDefaultContext());
-	GRHICommandList.GetImmediateAsyncComputeCommandList().SetComputeContext(RHIGetDefaultAsyncComputeContext());
+	// Command lists need the validation RHI context if enabled, so call the global scope version of RHIGetDefaultContext() and RHIGetDefaultAsyncComputeContext().
+	GRHICommandList.GetImmediateCommandList().SetContext(::RHIGetDefaultContext());
+	GRHICommandList.GetImmediateAsyncComputeCommandList().SetComputeContext(::RHIGetDefaultAsyncComputeContext());
+
 	FRenderResource::InitPreRHIResources();
 	GIsRHIInitialized = true;
 }

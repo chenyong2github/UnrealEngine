@@ -154,6 +154,11 @@ public:
 	/** Creates a sub-sequence asset for the specified sub sequence name based on the given master sequence. */
 	static ULevelSequence* CreateSubSequenceForSource(ULevelSequence* InMasterSequence, const FString& SubSequenceTrackName, const FString& SubSequenceAssetName);
 
+	/**
+	 * Array of pairs - key time and the corresponding timecode
+	 */
+	static TArray<TPair<FQualifiedFrameTime, FTimecode> > RecordedTimes;
+
 private:
 	/** Called at the end of each frame in both the Editor and in Game to update all Sources. */
 	virtual void Tick(float DeltaTime) {}

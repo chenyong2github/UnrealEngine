@@ -94,7 +94,7 @@ public:
 	static constexpr float ClipSpaceScaleFactor = float(EffectiveCacheResolutionTexels) / float(FVirtualShadowMap::VirtualMaxResolutionXY);
 
 	// Call at end of frame to extract resouces from the virtual SM array to preserve to next frame
-	void ExtractFrameData(FVirtualShadowMapArray &VirtualShadowMapArray, FRHICommandListImmediate& RHICmdList);
+	void ExtractFrameData(FVirtualShadowMapArray &VirtualShadowMapArray, FRDGBuilder& GraphBuilder);
 
 	/**
 	 * Finds an existing cache entry and moves to the active set or creates a fresh one.
@@ -128,28 +128,28 @@ public:
 	TMap< FIntPoint, TSharedPtr<FVirtualShadowMapCacheEntry> > PrevCacheEntries;
 
 
-	TRefCountPtr<FPooledRDGBuffer>		PrevPageTable;
-	TRefCountPtr<FPooledRDGBuffer>		PrevPageFlags;
-	TRefCountPtr<FPooledRDGBuffer>		PrevHPageFlags;
+	TRefCountPtr<FRDGPooledBuffer>		PrevPageTable;
+	TRefCountPtr<FRDGPooledBuffer>		PrevPageFlags;
+	TRefCountPtr<FRDGPooledBuffer>		PrevHPageFlags;
 
-	TRefCountPtr<FPooledRDGBuffer>		PrevDynamicCasterPageFlags;
+	TRefCountPtr<FRDGPooledBuffer>		PrevDynamicCasterPageFlags;
 	TRefCountPtr<IPooledRenderTarget>	PrevPhysicalPagePool;
-	TRefCountPtr<FPooledRDGBuffer>		PrevPhysicalPageMetaData;
+	TRefCountPtr<FRDGPooledBuffer>		PrevPhysicalPageMetaData;
 
-	TRefCountPtr<FPooledRDGBuffer>		PrevShadowMapProjectionDataBuffer;
-	TRefCountPtr<FPooledRDGBuffer>		PrevPageRectBounds;
+	TRefCountPtr<FRDGPooledBuffer>		PrevShadowMapProjectionDataBuffer;
+	TRefCountPtr<FRDGPooledBuffer>		PrevPageRectBounds;
 
 	// Enough for er lots...
 	static constexpr uint32 MaxStatFrames = 512*1024U;
 	
 	// Stores stats over frames when activated.
-	TRefCountPtr<FPooledRDGBuffer>		AccumulatedStatsBuffer;
+	TRefCountPtr<FRDGPooledBuffer>		AccumulatedStatsBuffer;
 	bool bAccumulatingStats = false;
 	FRHIGPUBufferReadback *GPUBufferReadback = nullptr;
 
 	// HZB of physical pages from previous frame
 	TRefCountPtr<IPooledRenderTarget>			HZBPhysical = nullptr;
-	TRefCountPtr<FPooledRDGBuffer>				HZBPageTable = nullptr;
+	TRefCountPtr<FRDGPooledBuffer>				HZBPageTable = nullptr;
 	uint32										HZBFrameNumber = 0;
 	TMap<int32, FVirtualShadowMapHZBMetadata>	HZBMetadata;
 	

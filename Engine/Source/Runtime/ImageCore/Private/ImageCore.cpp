@@ -55,13 +55,13 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 	else if (SrcImage.Format == ERawImageFormat::RGBA32F)
 	{
 		// Convert from 32-bit linear floating point.
-		const FLinearColor* SrcColors = SrcImage.AsRGBA32F();
+		TArrayView64<const FLinearColor> SrcColors = SrcImage.AsRGBA32F();
 	
 		switch (DestImage.Format)
 		{
 		case ERawImageFormat::G8:
 			{
-				uint8* DestLum = DestImage.AsG8();
+				TArrayView64<uint8> DestLum = DestImage.AsG8();
 				ParallelFor(NumJobs, [NumJobs, DestLum, SrcColors, TexelsPerJob, NumTexels, bDestIsGammaCorrected](int64 JobIndex)
 				{
 					const int64 StartIndex = JobIndex * TexelsPerJob;
@@ -76,12 +76,12 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 
 		case ERawImageFormat::G16:
 		{
-			uint16* DestLum = DestImage.AsG16();
-			ParallelFor(NumJobs, [NumJobs, DestLum, SrcColors, TexelsPerJob, NumTexels, bDestIsGammaCorrected](int32 JobIndex)
+			TArrayView64<uint16>DestLum = DestImage.AsG16();
+			ParallelFor(NumJobs, [NumJobs, DestLum, SrcColors, TexelsPerJob, NumTexels, bDestIsGammaCorrected](int64 JobIndex)
 			{
-				const int32 StartIndex = JobIndex * TexelsPerJob;
-				const int32 EndIndex = FMath::Min(StartIndex + TexelsPerJob, NumTexels);
-				for (int32 TexelIndex = StartIndex; TexelIndex < EndIndex; ++TexelIndex)
+				const int64 StartIndex = JobIndex * TexelsPerJob;
+				const int64 EndIndex = FMath::Min(StartIndex + TexelsPerJob, NumTexels);
+				for (int64 TexelIndex = StartIndex; TexelIndex < EndIndex; ++TexelIndex)
 				{
 					DestLum[TexelIndex] = FMath::Clamp(FMath::FloorToInt(SrcColors[TexelIndex].R * 65535.999f), 0, 65535);
 				}
@@ -91,7 +91,7 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 
 		case ERawImageFormat::BGRA8:
 			{
-				FColor* DestColors = DestImage.AsBGRA8();
+				TArrayView64<FColor> DestColors = DestImage.AsBGRA8();
 				ParallelFor(NumJobs, [DestColors, SrcColors, TexelsPerJob, NumTexels, bDestIsGammaCorrected](int64 JobIndex)
 				{
 					const int64 StartIndex = JobIndex * TexelsPerJob;
@@ -106,7 +106,7 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 		
 		case ERawImageFormat::BGRE8:
 			{
-				FColor* DestColors = DestImage.AsBGRE8();
+				TArrayView64<FColor> DestColors = DestImage.AsBGRE8();
 				ParallelFor(NumJobs, [DestColors, SrcColors, TexelsPerJob, NumTexels, bDestIsGammaCorrected](int64 JobIndex)
 				{
 					const int64 StartIndex = JobIndex * TexelsPerJob;
@@ -121,7 +121,7 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 		
 		case ERawImageFormat::RGBA16:
 			{
-				uint16* DestColors = DestImage.AsRGBA16();
+				TArrayView64<uint16> DestColors = DestImage.AsRGBA16();
 				ParallelFor(NumJobs, [DestColors, SrcColors, TexelsPerJob, NumTexels](int64 JobIndex)
 				{
 					for (int64 TexelIndex = 0; TexelIndex < NumTexels; ++TexelIndex)
@@ -138,7 +138,7 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 		
 		case ERawImageFormat::RGBA16F:
 			{
-				FFloat16Color* DestColors = DestImage.AsRGBA16F();
+				TArrayView64<FFloat16Color> DestColors = DestImage.AsRGBA16F();
 				ParallelFor(NumJobs, [DestColors, SrcColors, TexelsPerJob, NumTexels](int64 JobIndex)
 				{
 					for (int64 TexelIndex = 0; TexelIndex < NumTexels; ++TexelIndex)
@@ -151,7 +151,7 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 
 		case ERawImageFormat::R16F:
 			{
-				FFloat16* DestColors = DestImage.AsR16F();
+				TArrayView64<FFloat16> DestColors = DestImage.AsR16F();
 				ParallelFor(NumJobs, [DestColors, SrcColors, TexelsPerJob, NumTexels](int64 JobIndex)
 				{
 					for (int64 TexelIndex = 0; TexelIndex < NumTexels; ++TexelIndex)
@@ -166,12 +166,12 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 	else if (DestImage.Format == ERawImageFormat::RGBA32F)
 	{
 		// Convert to 32-bit linear floating point.
-		FLinearColor* DestColors = DestImage.AsRGBA32F();
+		TArrayView64<FLinearColor> DestColors = DestImage.AsRGBA32F();
 		switch (SrcImage.Format)
 		{
 		case ERawImageFormat::G8:
 			{
-				const uint8* SrcLum = SrcImage.AsG8();
+				TArrayView64<const uint8> SrcLum = SrcImage.AsG8();
 				for (int64 TexelIndex = 0; TexelIndex < NumTexels; ++TexelIndex)
 				{
 					FColor SrcColor(SrcLum[TexelIndex],SrcLum[TexelIndex],SrcLum[TexelIndex],255);
@@ -194,8 +194,8 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 
 		case ERawImageFormat::G16:
 		{
-			const uint16* SrcLum = SrcImage.AsG16();
-			for (int32 TexelIndex = 0; TexelIndex < NumTexels; ++TexelIndex)
+			TArrayView64<const uint16> SrcLum = SrcImage.AsG16();
+			for (int64 TexelIndex = 0; TexelIndex < NumTexels; ++TexelIndex)
 			{
 				DestColors[TexelIndex] = FLinearColor(SrcLum[TexelIndex] / 65535.0f, SrcLum[TexelIndex] / 65535.0f, SrcLum[TexelIndex] / 65535.0f, 1.0f);
 			}
@@ -204,7 +204,7 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 
 		case ERawImageFormat::BGRA8:
 			{
-				const FColor* SrcColors = SrcImage.AsBGRA8();
+				TArrayView64<const FColor> SrcColors = SrcImage.AsBGRA8();
 				switch ( SrcImage.GammaSpace )
 				{
 				case EGammaSpace::Linear:
@@ -241,7 +241,7 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 
 		case ERawImageFormat::BGRE8:
 			{
-				const FColor* SrcColors = SrcImage.AsBGRE8();
+				TArrayView64<const FColor> SrcColors = SrcImage.AsBGRE8();
 				for (int64 TexelIndex = 0; TexelIndex < NumTexels; ++TexelIndex)
 				{
 					DestColors[TexelIndex] = SrcColors[TexelIndex].FromRGBE();
@@ -251,7 +251,7 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 
 		case ERawImageFormat::RGBA16:
 			{
-				const uint16* SrcColors = SrcImage.AsRGBA16();
+				TArrayView64<const uint16> SrcColors = SrcImage.AsRGBA16();
 				for (int64 TexelIndex = 0; TexelIndex < NumTexels; ++TexelIndex)
 				{
 					int64 SrcIndex = TexelIndex * 4;
@@ -267,7 +267,7 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 
 		case ERawImageFormat::RGBA16F:
 			{
-				const FFloat16Color* SrcColors = SrcImage.AsRGBA16F();
+				TArrayView64<const FFloat16Color> SrcColors = SrcImage.AsRGBA16F();
 				for (int64 TexelIndex = 0; TexelIndex < NumTexels; ++TexelIndex)
 				{
 					DestColors[TexelIndex] = FLinearColor(SrcColors[TexelIndex]);
@@ -277,7 +277,7 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 
 		case ERawImageFormat::R16F:
 		{
-			const FFloat16* SrcColors = SrcImage.AsR16F();
+			TArrayView64<const FFloat16> SrcColors = SrcImage.AsR16F();
 			for (int64 TexelIndex = 0; TexelIndex < NumTexels; ++TexelIndex)
 			{
 				DestColors[TexelIndex] = FLinearColor(SrcColors[TexelIndex].GetFloat(), 0, 0, 1);
@@ -295,7 +295,7 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 	}
 }
 
-static FLinearColor SampleImage(const FLinearColor* Pixels, int Width, int Height, float X, float Y)
+static FLinearColor SampleImage(TArrayView64<const FLinearColor> Pixels, int Width, int Height, float X, float Y)
 {
 	const int64 TexelX0 = FMath::FloorToInt(X);
 	const int64 TexelY0 = FMath::FloorToInt(Y);
@@ -321,15 +321,15 @@ static FLinearColor SampleImage(const FLinearColor* Pixels, int Width, int Heigh
 
 static void ResizeImage(const FImage& SrcImage, FImage& DestImage)
 {
-	const FLinearColor* SrcPixels = SrcImage.AsRGBA32F();
-	FLinearColor* DestPixels = DestImage.AsRGBA32F();
+	TArrayView64<const FLinearColor> SrcPixels = SrcImage.AsRGBA32F();
+	TArrayView64<FLinearColor> DestPixels = DestImage.AsRGBA32F();
 	const float DestToSrcScaleX = (float)SrcImage.SizeX / (float)DestImage.SizeX;
 	const float DestToSrcScaleY = (float)SrcImage.SizeY / (float)DestImage.SizeY;
 
-	for (int32 DestY = 0; DestY < DestImage.SizeY; ++DestY)
+	for (int64 DestY = 0; DestY < DestImage.SizeY; ++DestY)
 	{
 		const float SrcY = (float)DestY * DestToSrcScaleY;
-		for (int32 DestX = 0; DestX < DestImage.SizeX; ++DestX)
+		for (int64 DestX = 0; DestX < DestImage.SizeX; ++DestX)
 		{
 			const float SrcX = (float)DestX * DestToSrcScaleX;
 			const FLinearColor Color = SampleImage(SrcPixels, SrcImage.SizeX, SrcImage.SizeY, SrcX, SrcY);

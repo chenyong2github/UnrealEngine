@@ -350,7 +350,7 @@ FIoStatus FFileIoStoreReader::Initialize(const FIoStoreEnvironment& Environment)
 
 	TUniquePtr<FIoStoreTocResource> TocResourcePtr = MakeUnique<FIoStoreTocResource>();
 	FIoStoreTocResource& TocResource = *TocResourcePtr;
-	FIoStatus Status = FIoStoreTocResource::Read(*TocFilePath, EIoStoreTocReadOptions::ExcludeTocMeta, TocResource);
+	FIoStatus Status = FIoStoreTocResource::Read(*TocFilePath, EIoStoreTocReadOptions::Default, TocResource);
 	if (!Status.IsOk())
 	{
 		return Status;
@@ -668,32 +668,39 @@ void FFileIoStore::ScatterBlock(FFileIoStoreCompressedBlock* CompressedBlock, bo
 			}
 		}
 	}
-	if (CompressedBlock->EncryptionKey.IsValid())
+	if (!CompressedBlock->bFailed)
 	{
-		FAES::DecryptData(CompressedBuffer, CompressedBlock->RawSize, CompressedBlock->EncryptionKey);
-	}
-	uint8* UncompressedBuffer;
-	if (CompressedBlock->CompressionMethod.IsNone())
-	{
-		UncompressedBuffer = CompressedBuffer;
-	}
-	else
-	{
-		if (CompressionContext->UncompressedBufferSize < CompressedBlock->UncompressedSize)
+		if (CompressedBlock->EncryptionKey.IsValid())
 		{
-			FMemory::Free(CompressionContext->UncompressedBuffer);
-			CompressionContext->UncompressedBuffer = reinterpret_cast<uint8*>(FMemory::Malloc(CompressedBlock->UncompressedSize));
-			CompressionContext->UncompressedBufferSize = CompressedBlock->UncompressedSize;
+			FAES::DecryptData(CompressedBuffer, CompressedBlock->RawSize, CompressedBlock->EncryptionKey);
 		}
-		UncompressedBuffer = CompressionContext->UncompressedBuffer;
+		uint8* UncompressedBuffer;
+		if (CompressedBlock->CompressionMethod.IsNone())
+		{
+			UncompressedBuffer = CompressedBuffer;
+		}
+		else
+		{
+			if (CompressionContext->UncompressedBufferSize < CompressedBlock->UncompressedSize)
+			{
+				FMemory::Free(CompressionContext->UncompressedBuffer);
+				CompressionContext->UncompressedBuffer = reinterpret_cast<uint8*>(FMemory::Malloc(CompressedBlock->UncompressedSize));
+				CompressionContext->UncompressedBufferSize = CompressedBlock->UncompressedSize;
+			}
+			UncompressedBuffer = CompressionContext->UncompressedBuffer;
 
-		bool bFailed = !FCompression::UncompressMemory(CompressedBlock->CompressionMethod, UncompressedBuffer, int32(CompressedBlock->UncompressedSize), CompressedBuffer, int32(CompressedBlock->CompressedSize));
-		check(!bFailed);
-	}
+			bool bFailed = !FCompression::UncompressMemory(CompressedBlock->CompressionMethod, UncompressedBuffer, int32(CompressedBlock->UncompressedSize), CompressedBuffer, int32(CompressedBlock->CompressedSize));
+			if (bFailed)
+			{
+				UE_LOG(LogIoDispatcher, Warning, TEXT("Failed decompressing block"));
+				CompressedBlock->bFailed = true;
+			}
+		}
 
-	for (FFileIoStoreBlockScatter& Scatter : CompressedBlock->ScatterList)
-	{
-		FMemory::Memcpy(Scatter.Request->IoBuffer.Data() + Scatter.DstOffset, UncompressedBuffer + Scatter.SrcOffset, Scatter.Size);
+		for (FFileIoStoreBlockScatter& Scatter : CompressedBlock->ScatterList)
+		{
+			FMemory::Memcpy(Scatter.Request->IoBuffer.Data() + Scatter.DstOffset, UncompressedBuffer + Scatter.SrcOffset, Scatter.Size);
+		}
 	}
 
 	if (bIsAsync)
@@ -729,6 +736,7 @@ void FFileIoStore::FinalizeCompressedBlock(FFileIoStoreCompressedBlock* Compress
 	for (FFileIoStoreBlockScatter& Scatter : CompressedBlock->ScatterList)
 	{
 		TRACE_COUNTER_ADD(IoDispatcherTotalBytesScattered, Scatter.Size);
+		Scatter.Request->bFailed |= CompressedBlock->bFailed;
 		check(Scatter.Request->UnfinishedReadsCount > 0);
 		if (--Scatter.Request->UnfinishedReadsCount == 0)
 		{
@@ -780,6 +788,7 @@ FIoRequestImpl* FFileIoStore::GetCompletedRequests()
 			//TRACE_CPUPROFILER_EVENT_SCOPE(ProcessCompletedBlock);
 			for (FFileIoStoreCompressedBlock* CompressedBlock : CompletedRequest->CompressedBlocks)
 			{
+				CompressedBlock->bFailed |= CompletedRequest->bFailed;
 				if (CompressedBlock->RawBlocksCount > 1)
 				{
 					//TRACE_CPUPROFILER_EVENT_SCOPE(HandleComplexBlock);
@@ -840,6 +849,7 @@ FIoRequestImpl* FFileIoStore::GetCompletedRequests()
 
 			check(!CompletedRequest->Buffer);
 			FIoRequestImpl* CompletedIoDispatcherRequest = CompletedRequest->ImmediateScatter.Request;
+			CompletedIoDispatcherRequest->bFailed |= CompletedRequest->bFailed;
 			delete CompletedRequest;
 			check(CompletedIoDispatcherRequest->UnfinishedReadsCount > 0);
 			if (--CompletedIoDispatcherRequest->UnfinishedReadsCount == 0)

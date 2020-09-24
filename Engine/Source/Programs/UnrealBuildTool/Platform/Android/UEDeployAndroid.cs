@@ -462,14 +462,6 @@ namespace UnrealBuildTool
 				OculusMobileDevices = new List<string>();
 			}
 
-			// Handle bPackageForGearVR for backwards compatibility
-			bool bPackageForGearVR = false;
-			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bPackageForGearVR", out bPackageForGearVR);
-			if (bPackageForGearVR && !OculusMobileDevices.Contains("GearGo"))
-			{
-				OculusMobileDevices.Add("GearGo");
-			}
-
 			return OculusMobileDevices;
 		}
 
@@ -2223,15 +2215,25 @@ namespace UnrealBuildTool
 			Text.AppendLine("\t<!-- Application Definition -->");
 			Text.AppendLine("\t<application android:label=\"@string/app_name\"");
 			Text.AppendLine("\t             android:icon=\"@drawable/icon\"");
+			bool bRequestedLegacyExternalStorage = false;
 			if (ExtraApplicationNodeTags != null)
 			{
 				foreach (string Line in ExtraApplicationNodeTags)
 				{
+					if (Line.Contains("requestLegacyExternalStorage"))
+					{
+						bRequestedLegacyExternalStorage = true;
+					}
 					Text.AppendLine("\t             " + Line);
 				}
 			}
 			Text.AppendLine("\t             android:hardwareAccelerated=\"true\"");
 			Text.AppendLine("\t				android:name=\"com.epicgames.ue4.GameApplication\"");
+			if (!bIsForDistribution && SDKLevelInt >= 29 && !bRequestedLegacyExternalStorage)
+			{
+				// work around scoped storage for non-distribution for SDK 29; add to ExtraApplicationNodeTags if you need it for distribution
+				Text.AppendLine("\t				android:requestLegacyExternalStorage=\"true\"");
+			}
 			Text.AppendLine("\t             android:hasCode=\"true\">");
 			if (bShowLaunchImage)
 			{
@@ -2899,10 +2901,8 @@ namespace UnrealBuildTool
 			NDKLevelInt = ToolChain.GetNdkApiLevelInt();
 			if (NDKLevelInt < 21)
 			{
-				if (Arch == "-arm64" || Arch == "-x64")
-				{
-					NDKLevelInt = 21;
-				}
+				// 21 is requred for GL ES3.1
+				NDKLevelInt = 21;
 			}
 
 			// fix up the MinSdkVersion
@@ -3014,10 +3014,10 @@ namespace UnrealBuildTool
 			{
 				bool bDisableV2Signing = false;
 
-				if (GetTargetOculusMobileDevices().Contains("GearGo"))
+				if (GetTargetOculusMobileDevices().Contains("Go"))
 				{
 					bDisableV2Signing = true;
-					Log.TraceInformation("Disabling v2Signing for Oculus Go / Gear VR APK");
+					Log.TraceInformation("Disabling v2Signing for Oculus Go");
 				}
 
 				string KeyAlias, KeyStore, KeyStorePassword, KeyPassword;

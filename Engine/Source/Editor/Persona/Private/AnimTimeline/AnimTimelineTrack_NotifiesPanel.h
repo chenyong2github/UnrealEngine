@@ -39,6 +39,7 @@ private:
 	void OnCommitTrackName(const FText& InText, ETextCommit::Type CommitInfo, int32 TrackIndexToName);
 	EVisibility OnGetTimingNodeVisibility(ETimingElementType::Type ElementType) const;
 	EActiveTimerReturnType HandlePendingRenameTimer(double InCurrentTime, float InDeltaTime, TWeakPtr<SInlineEditableTextBlock> InInlineEditableTextBlock);
+	void HandleNotifyChanged();
 
 	/** The legacy notify panel */
 	TSharedPtr<SAnimNotifyPanel> AnimNotifyPanel;

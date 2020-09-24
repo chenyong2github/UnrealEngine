@@ -5,9 +5,9 @@ import { ContextualLogger } from '../common/logger';
 import { PerforceContext } from '../common/perforce';
 import { Branch, BranchGraphInterface } from '../robo/branch-interfaces';
 
-type TargetName = string & { __targetBrand: any }
-type Stream = string & { __streamBrand: any }
-type BotName = string & { __BotNameBrand: any }
+export type TargetName = string & { __targetBrand: any }
+export type Stream = string & { __streamBrand: any }
+export type BotName = string & { __BotNameBrand: any }
 
 type ComputeResult = Map<Edge, Edge[]>
 
@@ -23,7 +23,7 @@ export class Node {
 	}
 
 	get debugName(): string {
-		return this._debugName || (this.stream as string)
+		return this._debugName || this.stream
 	}
 	
 	private _debugName: string | null = null
@@ -31,13 +31,15 @@ export class Node {
 
 type EdgeFlag = 'automatic' | 'general'
 
-export class Edge {
+export class Edge
+{
 	constructor(
 		public source: Node,
 		public target: Node,
 
-		public flags: Set<EdgeFlag>,
+		public targetName: string, // name of target in bot that owns the edge
 
+		public flags: Set<EdgeFlag>,
 
 		public bot: BotName,					// all edges will be bot-specific in practice, although maybe not necessary
 		public sourceAnnotation: any		// type specified by client code, e.g. NodeBot servicing this edge, or just last cl
@@ -49,11 +51,64 @@ export function makeTargetName(bot: BotName, nodeName: string) {
 	return `${bot}:${nodeName.toLowerCase()}` as TargetName
 }
 
-function makeStream(depotPath: string) {
+function makeBranchId(arg: string | Branch) {
+	let depotPath: string
+	if ((arg as Branch).rootPath) {
+		depotPath = (arg as Branch).rootPath.replace('/...', '')
+	}
+	else {
+		depotPath = arg as string
+	}
+
 	if (!depotPath.match(/^\/\/[\w-.][\/\w-.]*$/)) {
 		throw new Error('Invalid stream path: ' + depotPath)
 	}
 	return depotPath as Stream
+}
+
+/**
+
+What's the plan for bots with different branchspecs monitoring the same node?
+Doesn't matter: branchspecs are just an edge thing
+Nodes are uniquely identified by their rootPath/streamSubpath
+
+NB: one node in the ubergraph can represent multiple nodebots across bots
+
+ */ 
+
+export class GraphAPI {
+	constructor(public graph: Graph) {
+	}
+
+	reset(graph: Graph) {
+		this.graph = graph
+	}
+
+	getNode(name: TargetName) {
+		return this.graph.getNode(name)
+	}
+
+	getBranchGraph(name: BotName) {
+		return this.graph.branchGraphAliases.get(name)
+	}
+
+	findAllRoutesBetween(src: Node, target: Node, flags?: EdgeFlag[], skip?: Set<Node>) {
+		return this.graph.findAllRoutesBetween(src, target, flags, skip)
+	}
+
+	computeImplicitTargets(source: Node, requestedTargets: Map<Node, MergeMode>, allowedBots?: string[]) {
+		return this.graph.computeImplicitTargets(source, requestedTargets, allowedBots)
+	}
+}
+
+type EdgeDump = {
+	target: string
+	flags: string
+}
+
+type NodeDump = {
+	edges: EdgeDump[]
+	aliases: string[]
 }
 
 export class Graph {
@@ -61,31 +116,23 @@ export class Graph {
 	private targetNames = new Map<TargetName, Node>()
 	private edgesBySource = new Map<Node, Set<Edge>>()
 	private edgesByTarget = new Map<Node, Set<Edge>>()
-	private edgesByBot = new Map<string, Set<Edge>>();
+	private edgesByBot = new Map<string, Set<Edge>>()
 
-	private undecoratedAliases = new Map<string, Node[]>()
+	branchGraphAliases = new Map<string, BranchGraphInterface>()
 
-	findOrCreateStreamNode(depotPath: string) {
-		const stream = makeStream(depotPath)
-		return setDefault(this.streamNodes, stream, new Node(stream))
+	findOrCreateStreamNode(depotPath: string | Branch) {
+		const branchId = makeBranchId(depotPath)
+		return setDefault(this.streamNodes, branchId, new Node(branchId))
 	}
 
-	findNodeForStream(depotPath: string) {
-		const stream = makeStream(depotPath)
-		return this.streamNodes.get(stream)
+	findNodeForStream(depotPath: string | Branch) {
+		const branchId = makeBranchId(depotPath)
+		return this.streamNodes.get(branchId)
 	}
 
-	findNodeByAlias(alias: string, logger: ContextualLogger) {
-		const nodes = this.undecoratedAliases.get(alias.toLowerCase())
-		if (nodes) {
-			if (nodes.length !== 1) {
-				logger.info(`Alias '${alias}' is ambiguous`)
-			}
-			else {
-				return nodes[0]
-			}
-		}
-		return null
+	findNodeForBranch(branch: Branch) {
+		// need to standardise on rootpath/stream subpath (maybe rootpath is right?)
+		return this.findNodeForStream(branch.stream!)
 	}
 
 	addEdge(edge: Edge) {
@@ -94,14 +141,10 @@ export class Graph {
 		setDefault(this.edgesByBot, edge.bot, new Set).add(edge)
 	}
 
-	addNameForNode(node: Node, targetName: TargetName, alias?: string) {
+	addNameForNode(node: Node, targetName: TargetName) {
 		// @todo check name is not already assigned to another node
 		this.targetNames.set(targetName, node)
 		node.offerDebugName(targetName)
-
-		if (alias) {
-			setDefault(this.undecoratedAliases, alias.toLowerCase(), []).push(node)
-		}
 	}
 
 	getNode(name: TargetName) {
@@ -142,6 +185,13 @@ export class Graph {
 		return this.findRouteBetweenImpl([], src, seen, target, flags || [])
 	}
 
+	findAllRoutesBetween(src: Node, target: Node, flags?: EdgeFlag[], skip?: Set<Node>) {
+		const seen = skip || new Set<Node>()
+		seen.add(src)
+		const result: Edge[][] = []
+		this.findAllRoutesBetweenImpl(result, [], src, seen, target, flags || [])
+		return result
+	}
 
 	dump() {
 		const nodeNames = new Map<Node, TargetName[]>()
@@ -149,16 +199,18 @@ export class Graph {
 			setDefault(nodeNames, node, []).push(name)
 		}
 
-// for now, just dumping out aliases
-
 		const orderedNodes = [...nodeNames.keys()]
 		sortBy(orderedNodes, node => node.debugName)
 
-		const result: [string, string[]][] = []
+		const result: [string, NodeDump][] = []
 		for (const node of orderedNodes) {
-			const aliases = nodeNames.get(node)!
-			aliases.sort()
-			result.push([node.debugName, aliases])
+			const info: NodeDump = {edges: [], aliases: nodeNames.get(node)!}
+			info.aliases.sort()
+
+			for (const edge of this.getEdgesBySource(node)) {
+				info.edges.push({target: edge.target.debugName, flags: [...edge.flags].join(', ')})
+			}
+			result.push([node.debugName, info])
 		}
 
 		return result
@@ -180,11 +232,25 @@ export class Graph {
 		return null
 	}
 
+	private findAllRoutesBetweenImpl(completeRoutes: Edge[][], routeSoFar: Edge[], src: Node, seen: Set<Node>, target: Node, flags: EdgeFlag[]) {
+		for (const edge of this.getEdgesBySource(src, ...flags)) {
+			if (!seen.has(edge.target)) {
+				const routePlus = [...routeSoFar, edge]
+				if (edge.target === target) {
+					completeRoutes.push(routePlus)
+					return
+				}
+
+				seen.add(edge.target)
+				this.findAllRoutesBetweenImpl(completeRoutes, routePlus, edge.target, seen, target, flags)
+			}
+		}
+		return null
+	}
+
 	// function called this to match NodeBot function
-	computeImplicitTargets(
-		source: Node,
-		requestedTargets: Map<Node, MergeMode>
-	): {status: Success, merges?: ComputeResult, unreachable?: Node[]} {
+	computeImplicitTargets(source: Node, requestedTargets: Map<Node, MergeMode>, allowedBots?: string[])
+		: {status: Success, integrations?: ComputeResult, unreachable?: Node[]} {
 
 		const targetsToFind = new Set<Node>()
 		const skipNodes = new Set<Node>()
@@ -215,7 +281,12 @@ export class Graph {
 			// flood the graph one step to include all unseen direct flowsTo nodes of one branch
 			let anyUnseen = false
 
-			const flowsTo = this.edgesBySource.get(sourceNode) // here's where we will need to be able to filter by bot
+			let flowsTo: Set<Edge> | Edge[] | undefined = this.edgesBySource.get(sourceNode) // here's where we will need to be able to filter by bot
+			if (flowsTo && allowedBots) {
+				// console.log('before: ', flowsTo)
+				flowsTo = [...flowsTo].filter((e: Edge) => allowedBots.indexOf(e.bot) >= 0)
+				// console.log('after: ', flowsTo)
+			}
 			if (flowsTo && !skipNodes.has(sourceNode)) {
 				for (const edge of flowsTo) {
 					const node = edge.target
@@ -258,22 +329,27 @@ export class Graph {
 			return {status: 'failed', unreachable: [...targetsToFind]}
 		}
 
-		return {status: 'succeeded', merges}
+		return {status: 'succeeded', integrations: merges}
 	}
 }
 
 export function addBranchGraph(graph: Graph, branchGraph: BranchGraphInterface) {
 
+	graph.branchGraphAliases.set(branchGraph.botname.toUpperCase(), branchGraph)
+	if (branchGraph.config.alias) {
+		graph.branchGraphAliases.set(branchGraph.config.alias.toUpperCase(), branchGraph)
+
+	}
+
 	const botname = branchGraph.botname as BotName
 	const branchNodes = new Map<Branch, Node>()
 
 	// excluding subpath bots for now
-	const streamBranches = branchGraph.branches.filter(x => x.stream && !x.pathsToMonitor && x.rootPath === x.stream + '/...')
-	for (const branch of streamBranches) {
+	for (const branch of branchGraph.branches) {
 		if (!branch.bot) {
 			throw new Error(`branch ${branch.name} not running!`) // fine, but try again later
 		}
-		const branchNode = graph.findOrCreateStreamNode(branch.stream!)
+		const branchNode = graph.findOrCreateStreamNode(branch)
 		branchNodes.set(branch, branchNode)
 		graph.addNameForNode(branchNode, makeTargetName(botname, branch.name))
 
@@ -282,7 +358,7 @@ export function addBranchGraph(graph: Graph, branchGraph: BranchGraphInterface) 
 		}
 	}
 
-	for (const branch of streamBranches) {
+	for (const branch of branchGraph.branches) {
 		const sourceNode = branchNodes.get(branch)!
 		for (const target of branch.flowsTo) {
 			const flags = new Set<EdgeFlag>()
@@ -294,9 +370,10 @@ export function addBranchGraph(graph: Graph, branchGraph: BranchGraphInterface) 
 				flags.add('general')
 			}
 
+			const targetBranch = branchGraph.getBranch(target)!
 			graph.addEdge(new Edge(sourceNode,
-				branchNodes.get(branchGraph.getBranch(target)!)!,
-				flags, botname, branch.bot!
+				branchNodes.get(targetBranch)!,
+				targetBranch.name, flags, botname, branch.bot!
 			))
 		}
 	}
@@ -336,7 +413,7 @@ class Test {
 					flags.add('automatic')
 				}
 
-				this.graph.addEdge(new Edge(fromNode, targetNode, flags, Test.BOT_NAME, {}))
+				this.graph.addEdge(new Edge(fromNode, targetNode, char, flags, Test.BOT_NAME, {}))
 			}
 		}
 	}
@@ -429,6 +506,16 @@ class Test {
 // 	outer()
 // }
 
+//  _______        _       
+// |__   __|      | |      
+//    | | ___  ___| |_ ___ 
+//    | |/ _ \/ __| __/ __|
+//    | |  __/\__ \ |_\__ \
+//    |_|\___||___/\__|___/
+
+// for unit tests!
+
+
 
 export function runTests(parentLogger: ContextualLogger) {
 
@@ -475,7 +562,7 @@ export function runTests(parentLogger: ContextualLogger) {
 
 		const succeeded = result.status === 'succeeded'
 
-		const formattedResult = succeeded ? test.formatTestComputeTargetsResult(result.merges!) : 'failed'
+		const formattedResult = succeeded ? test.formatTestComputeTargetsResult(result.integrations!) : 'failed'
 		if (expected) {
 			if (!succeeded) {
 				expectedOnFail = expected
@@ -510,7 +597,7 @@ const FLAGMAP: {[name: string]: ChangeFlag} = {
 
 // should probably go in NodeBot, although specifically only dealing with string parsing
 
-// gets tricky straight away deailing with commands for other bots
+// gets tricky straight away dealing with commands for other bots
 // will make target names here
 function parseTargetsAndFlagsImpl(tokens: string[], logger: ContextualLogger, forcedMode?: MergeMode) {
 	const flags = new Set<ChangeFlag>()
@@ -730,7 +817,7 @@ const isDefaultBot = arbitraryEdge.flags.has('general')
 			let found = false
 
 		outer:
-			for (const [firstEdge, furtherEdges] of computeResult.merges!) {
+			for (const [firstEdge, furtherEdges] of computeResult.integrations!) {
 				if (firstEdge.target === nonAutoEdge.target) {
 					found = true
 					break

@@ -26,7 +26,7 @@ void UChaosSolverSettings::UpdateAllProperties()
 // internal
 void UChaosSolverSettings::RegisterSolverActorProvider()
 {
- 	FChaosSolversModule* const ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
+ 	FChaosSolversModule* const ChaosModule = FChaosSolversModule::GetModule();
  	check(ChaosModule);
 	ChaosModule->RegisterSolverActorClassProvider(this);
 }

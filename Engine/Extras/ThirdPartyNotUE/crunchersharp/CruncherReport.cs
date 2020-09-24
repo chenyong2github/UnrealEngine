@@ -8,9 +8,9 @@ namespace CruncherSharp
 	{
 		public CruncherReport(string PDBFile, string CSVFile)
 		{
-			m_CruncherData = new CruncherData();
-			bool result = m_CruncherData.LoadDataFromPdb(PDBFile, null);
-			if (!result)
+			m_CruncherData = new CruncherData(null);
+			string result = m_CruncherData.LoadDataFromPdb(PDBFile, null);
+			if (result == null)
 			{
 				System.Console.WriteLine("Something went wrong loading PDB file, see log. Exiting...");
 				return;

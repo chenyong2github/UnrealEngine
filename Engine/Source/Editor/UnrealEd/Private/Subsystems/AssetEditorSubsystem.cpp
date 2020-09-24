@@ -39,6 +39,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogAssetEditorSubsystem, Log, All);
 UAssetEditorSubsystem::UAssetEditorSubsystem()
 	: Super()
 	, bSavingOnShutdown(false)
+	, bAutoRestoreAndDisableSaving(false)
 	, bRequestRestorePreviouslyOpenAssets(false)
 {
 }
@@ -701,7 +702,7 @@ void UAssetEditorSubsystem::RestorePreviouslyOpenAssets()
 		if (bCleanShutdown)
 		{
 			// Do we have permission to automatically re-open the assets, or should we ask?
-			const bool bAutoRestore = GetDefault<UEditorLoadingSavingSettings>()->bRestoreOpenAssetTabsOnRestart;
+			const bool bAutoRestore = GetDefault<UEditorLoadingSavingSettings>()->bRestoreOpenAssetTabsOnRestart || bAutoRestoreAndDisableSaving;
 
 			if (bAutoRestore)
 			{
@@ -727,6 +728,14 @@ void UAssetEditorSubsystem::RestorePreviouslyOpenAssets()
 			SpawnRestorePreviouslyOpenAssetsNotification(bCleanShutdown, OpenAssets);
 		}
 	}
+}
+
+void UAssetEditorSubsystem::SetAutoRestoreAndDisableSaving(const bool bInAutoRestoreAndDisableSaving)
+{
+	bAutoRestoreAndDisableSaving = bInAutoRestoreAndDisableSaving;
+
+	// Disable any pending request to avoid trying to restore previously opened assets twice
+	bRequestRestorePreviouslyOpenAssets = false;
 }
 
 void UAssetEditorSubsystem::SpawnRestorePreviouslyOpenAssetsNotification(const bool bCleanShutdown, const TArray<FString>& AssetsToOpen)
@@ -832,14 +841,14 @@ void UAssetEditorSubsystem::OnCancelRestorePreviouslyOpenAssets()
 	}
 }
 
-void UAssetEditorSubsystem::SaveOpenAssetEditors(bool bOnShutdown)
+void UAssetEditorSubsystem::SaveOpenAssetEditors(const bool bOnShutdown, const bool bCancelIfDebugger)
 {
-	if (!bSavingOnShutdown)
+	if (!bSavingOnShutdown && !bAutoRestoreAndDisableSaving)
 	{
 		TArray<FString> OpenAssets;
 
-		// Don't save a list of assets to restore if we are running under a debugger
-		if (!FPlatformMisc::IsDebuggerPresent())
+		// If bCancelIfDebugger = true, don't save a list of assets to restore if we are running under a debugger
+		if (!bCancelIfDebugger || !FPlatformMisc::IsDebuggerPresent())
 		{
 			for (const TPair<IAssetEditorInstance*, UObject*>& EditorPair : OpenedEditors)
 			{

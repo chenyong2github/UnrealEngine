@@ -26,6 +26,10 @@ namespace UnrealBuildTool.Rules
 					"ToolMenus",
 					"UnrealEd",
 					"AssetTools",
+					"EditorInteractiveToolsFramework",
+					"AdvancedPreviewScene",
+					"InputCore",
+					"Renderer",
 				});
 			AddEngineThirdPartyPrivateStaticDependencies(Target,
 			 "FBX"

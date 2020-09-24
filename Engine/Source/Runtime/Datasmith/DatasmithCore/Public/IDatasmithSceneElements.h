@@ -4,13 +4,14 @@
 
 #include "DatasmithDefinitions.h"
 #include "DatasmithTypes.h"
+#include "DirectLink/SceneGraphNode.h"
 
 #include "Containers/Map.h"
 #include "Math/Color.h"
-#include "Math/Vector.h"
 #include "Math/Quat.h"
-#include "Templates/SharedPointer.h"
+#include "Math/Vector.h"
 #include "Misc/SecureHash.h"
+#include "Templates/SharedPointer.h"
 
 class IDatasmithCompositeTexture;
 class IDatasmithMaterialIDElement;
@@ -20,7 +21,7 @@ class IDatasmithLevelSequenceElement;
 class IDatasmithLevelVariantSetsElement;
 
 /** Root class for every element in a Datasmith scene */
-class DATASMITHCORE_API IDatasmithElement
+class DATASMITHCORE_API IDatasmithElement : public DirectLink::ISceneGraphNode
 {
 public:
 	virtual ~IDatasmithElement() {}
@@ -35,7 +36,7 @@ public:
 	virtual const TCHAR* GetName() const = 0;
 
 	/** Sets the element name */
-	virtual void SetName( const TCHAR* InName ) = 0;
+	virtual void SetName(const TCHAR* InName) = 0;
 
 	/** Gets the element label used in the UI */
 	virtual const TCHAR* GetLabel() const = 0;
@@ -60,13 +61,13 @@ public:
 	virtual EDatasmithKeyValuePropertyType GetPropertyType() const = 0;
 
 	/** Set the type of this property */
-	virtual void SetPropertyType( EDatasmithKeyValuePropertyType InType ) = 0;
+	virtual void SetPropertyType(EDatasmithKeyValuePropertyType InType) = 0;
 
 	/** Get the value of this property */
 	virtual const TCHAR* GetValue() const = 0;
 
 	/** Sets the value of this property */
-	virtual void SetValue( const TCHAR* Value ) = 0;
+	virtual void SetValue(const TCHAR* Value) = 0;
 };
 
 /** Base definition for Actor Elements like geometry instances, cameras or lights */
@@ -221,7 +222,7 @@ public:
 	virtual int32 GetLightmapSourceUV() const = 0;
 
 	/** Set the source UV channel that will be used at import to generate the lightmap UVs */
-	virtual void SetLightmapSourceUV( int32 UVChannel ) = 0;
+	virtual void SetLightmapSourceUV(int32 UVChannel) = 0;
 
 	/** Set the material slot Id to use the material MaterialPathName*/
 	virtual void SetMaterial(const TCHAR* MaterialPathName, int32 SlotId) = 0;
@@ -362,11 +363,21 @@ public:
 	/** Set if the light color is controlled by temperature */
 	virtual void SetUseTemperature(bool bUseTemperature) = 0;
 
-	/** Get the path of the Ies definition file */
+	/** Get the path of the Ies definition file - DEPRECATED in 4.26: Replaced with GetIesTexturePathName */
 	virtual const TCHAR* GetIesFile() const = 0;
 
-	/** Set the path of the Ies definition file */
+	/** Get the IES texture path */
+	virtual const TCHAR* GetIesTexturePathName() const = 0;
+
+	/** Set the path of the Ies definition file - DEPRECATED in 4.26: Replaced with SetIesTexturePathName */
 	virtual void SetIesFile(const TCHAR* IesFile) = 0;
+
+	/**
+	 * Set the IES texture path
+	 * The path is either the name of an element attached to the scene or
+	 * the path of a UE texture asset, i.e. /Game/.../TextureAssetName.TextureAssetName
+	 */
+	virtual void SetIesTexturePathName(const TCHAR* TextureName) = 0;
 
 	/** Set if this light is controlled by Ies definition file */
 	virtual bool GetUseIes() const = 0;
@@ -549,35 +560,33 @@ class DATASMITHCORE_API IDatasmithCustomActorElement : public IDatasmithActorEle
 public:
 	/** The class name or path to the blueprint to instantiate. */
 	virtual const TCHAR* GetClassOrPathName() const = 0;
-	virtual void SetClassOrPathName( const TCHAR* InClassOrPathName ) = 0;
+	virtual void SetClassOrPathName(const TCHAR* InClassOrPathName) = 0;
 
 	/** Get the total amount of properties in this actor */
 	virtual int32 GetPropertiesCount() const = 0;
 
 	/** Get the property i-th of this actor */
 	virtual const TSharedPtr< IDatasmithKeyValueProperty >& GetProperty(int32 i) const = 0;
-	virtual TSharedPtr< IDatasmithKeyValueProperty >& GetProperty(int32 i) = 0;
 
 	/** Get a property by its name if it exists */
 	virtual const TSharedPtr< IDatasmithKeyValueProperty >& GetPropertyByName(const TCHAR* Name) const = 0;
-	virtual TSharedPtr< IDatasmithKeyValueProperty >& GetPropertyByName(const TCHAR* Name) = 0;
 
 	/** Add a property to this actor */
-	virtual void AddProperty( const TSharedPtr< IDatasmithKeyValueProperty >& Property ) = 0;
+	virtual void AddProperty(const TSharedPtr< IDatasmithKeyValueProperty >& Property) = 0;
 
 	/** Removes a property from this actor, doesn't preserve ordering */
-	virtual void RemoveProperty( const TSharedPtr< IDatasmithKeyValueProperty >& Property ) = 0;
+	virtual void RemoveProperty(const TSharedPtr< IDatasmithKeyValueProperty >& Property) = 0;
 };
 
 class DATASMITHCORE_API IDatasmithLandscapeElement : public IDatasmithActorElement
 {
 public:
 	/** The path to the heightmap file */
-	virtual void SetHeightmap( const TCHAR* FilePath ) = 0;
+	virtual void SetHeightmap(const TCHAR* FilePath) = 0;
 	virtual const TCHAR* GetHeightmap() const = 0;
 
 	/** The name or path to the material to assign to this landscape layer */
-	virtual void SetMaterial( const TCHAR* MaterialPathName ) = 0;
+	virtual void SetMaterial(const TCHAR* MaterialPathName) = 0;
 	virtual const TCHAR* GetMaterial() const = 0;
 };
 
@@ -624,28 +633,52 @@ public:
 	virtual ~IDatasmithMasterMaterialElement() {}
 
 	virtual EDatasmithMasterMaterialType GetMaterialType() const = 0;
-	virtual void SetMaterialType( EDatasmithMasterMaterialType InType ) = 0;
+	virtual void SetMaterialType(EDatasmithMasterMaterialType InType) = 0;
 
 	virtual EDatasmithMasterMaterialQuality GetQuality() const = 0;
-	virtual void SetQuality( EDatasmithMasterMaterialQuality InQuality ) = 0;
+	virtual void SetQuality(EDatasmithMasterMaterialQuality InQuality) = 0;
 
 	/** Only used when the material type is set to Custom. The path name to an existing material to instantiate. */
 	virtual const TCHAR* GetCustomMaterialPathName() const = 0;
-	virtual void SetCustomMaterialPathName( const TCHAR* InPathName ) = 0;
+	virtual void SetCustomMaterialPathName(const TCHAR* InPathName) = 0;
 
 	/** Get the total amount of properties in this material */
 	virtual int32 GetPropertiesCount() const = 0;
 
 	/** Get the property i-th of this material */
 	virtual const TSharedPtr< IDatasmithKeyValueProperty >& GetProperty(int32 i) const = 0;
-	virtual TSharedPtr< IDatasmithKeyValueProperty >& GetProperty(int32 i) = 0;
 
 	/** Get a property by its name if it exists */
 	virtual const TSharedPtr< IDatasmithKeyValueProperty >& GetPropertyByName(const TCHAR* Name) const = 0;
-	virtual TSharedPtr< IDatasmithKeyValueProperty >& GetPropertyByName(const TCHAR* Name) = 0;
 
 	/** Add a property to this material*/
-	virtual void AddProperty( const TSharedPtr< IDatasmithKeyValueProperty >& Property ) = 0;
+	virtual void AddProperty(const TSharedPtr< IDatasmithKeyValueProperty >& Property) = 0;
+};
+
+class DATASMITHCORE_API IDatasmithDecalMaterialElement : public IDatasmithBaseMaterialElement
+{
+public:
+	virtual ~IDatasmithDecalMaterialElement() {}
+
+	/** Get path name of the diffuse texture associated with the material */
+	virtual const TCHAR* GetDiffuseTexturePathName() const = 0;
+
+	/**
+	 * Set path name of the diffuse texture associated with the material
+	 * The path name can be either a package path referring to an existing texture asset
+	 * or a texture name referring a TextureElement in the DatasmithScene
+	 */
+	virtual void SetDiffuseTexturePathName(const TCHAR* DiffuseTexturePathName) = 0;
+
+	/** Get path name of the normal texture associated with the material */
+	virtual const TCHAR* GetNormalTexturePathName() const = 0;
+
+	/**
+	 * Set path name of the normal texture associated with the material
+	 * The path name can be either the name of a texture added to the Datasmith scene
+	 * or a path to an Unreal asset
+	 */
+	virtual void SetNormalTexturePathName(const TCHAR* NormalTexturePathName) = 0;
 };
 
 class DATASMITHCORE_API IDatasmithPostProcessElement : public IDatasmithElement
@@ -701,7 +734,7 @@ public:
 
 	/** Defines the opening of the camera lens, Aperture is 1/fstop, typical lens go down to f/1.2 (large opening), larger numbers reduce the DOF effect */
 	virtual float GetDepthOfFieldFstop() const = 0;
-	virtual void SetDepthOfFieldFstop( float Fstop ) = 0;
+	virtual void SetDepthOfFieldFstop(float Fstop) = 0;
 };
 
 /** Represents the APostProcessVolume object */
@@ -709,16 +742,16 @@ class DATASMITHCORE_API IDatasmithPostProcessVolumeElement : public IDatasmithAc
 {
 public:
 	/** The post process settings to use for this volume. */
-	virtual const TSharedRef< IDatasmithPostProcessElement >& GetSettings() const = 0;
+	virtual TSharedRef< IDatasmithPostProcessElement > GetSettings() const = 0;
 	virtual void SetSettings(const TSharedRef< IDatasmithPostProcessElement >& Settings) = 0;
 
 	/** Whether this volume is enabled or not. */
 	virtual bool GetEnabled() const = 0;
-	virtual void SetEnabled( bool bEnabled ) = 0;
+	virtual void SetEnabled(bool bEnabled) = 0;
 
 	/** Whether this volume covers the whole world, or just the area inside its bounds. */
 	virtual bool GetUnbound() const = 0;
-	virtual void SetUnbound( bool bUnbound) = 0;
+	virtual void SetUnbound(bool bUnbound) = 0;
 };
 
 class DATASMITHCORE_API IDatasmithEnvironmentElement : public IDatasmithLightActorElement
@@ -1399,14 +1432,40 @@ public:
 
 	/** Get the property i-th of this meta data */
 	virtual const TSharedPtr< IDatasmithKeyValueProperty >& GetProperty(int32 i) const = 0;
-	virtual TSharedPtr< IDatasmithKeyValueProperty >& GetProperty(int32 i) = 0;
 
 	/** Get a property by its name if it exists */
 	virtual const TSharedPtr< IDatasmithKeyValueProperty >& GetPropertyByName(const TCHAR* Name) const = 0;
-	virtual TSharedPtr< IDatasmithKeyValueProperty >& GetPropertyByName(const TCHAR* Name) = 0;
 
 	/** Add a property to this meta data */
-	virtual void AddProperty( const TSharedPtr< IDatasmithKeyValueProperty >& Property ) = 0;
+	virtual void AddProperty(const TSharedPtr< IDatasmithKeyValueProperty >& Property) = 0;
+};
+
+class DATASMITHCORE_API IDatasmithDecalActorElement : public IDatasmithCustomActorElement
+{
+public:
+	/** Get the Decal element size */
+	virtual FVector GetDimensions() const = 0;
+
+	/** Set the Decal element size */
+	virtual void SetDimensions(const FVector&) = 0;
+
+	/** Get the path name of the Material associated with the actor */
+	virtual const TCHAR* GetDecalMaterialPathName() const = 0;
+
+	/**
+	 * Set the path name of the Material that the Decal actor uses
+	 * It can be either a package path referring to an existing material asset
+	 * or a material name referring a DecalMaterialElement in the DatasmithScene
+	 * If this is not a DecalMaterialElement or a material with its material domain as DeferredDecal
+	 * The DecalActor generated in Unreal at import will use its default material
+	 */
+	virtual void SetDecalMaterialPathName(const TCHAR*) = 0;
+
+	/** Get the order in which Decal element is rendered. */
+	virtual int32 GetSortOrder() const = 0;
+
+	/** Set the order in which decal elements are rendered.  Higher values draw later (on top). */
+	virtual void SetSortOrder(int32) = 0;
 };
 
 class DATASMITHCORE_API IDatasmithScene : public IDatasmithElement
@@ -1478,6 +1537,18 @@ public:
 	 * @param InProductVersion	The application version
 	 */
 	virtual void SetProductVersion(const TCHAR*) = 0;
+
+	/** Returns the original path resources were stored */
+	virtual const TCHAR* GetResourcePath() const = 0;
+
+	/**
+	 * Sets the original path resources were stored.
+	 *
+	 * @param InResoucePath	The original path
+	 */
+	// #ue_directlink_design: Find a better way to allow DirectLink clients to retrieve assets
+	// associated with elements. Assets will have to be passed over network too
+	virtual void SetResourcePath(const TCHAR*) = 0;
 
 	/** Returns the user identifier who exported the scene */
 	virtual const TCHAR* GetUserID() const = 0;
@@ -1636,7 +1707,7 @@ public:
 	 *
 	 * @param ScreenSize Ratio of the screen clamped between 0 and 1
 	 */
-	virtual void AddLODScreenSize( float ScreenSize ) = 0;
+	virtual void AddLODScreenSize(float ScreenSize) = 0;
 	virtual int32 GetLODScreenSizesCount() const = 0;
 	virtual float GetLODScreenSize(int32 InIndex) const = 0;
 
@@ -1651,6 +1722,7 @@ public:
 	virtual const TSharedPtr< IDatasmithMetaDataElement >& GetMetaData(int32 InIndex) const = 0;
 	virtual TSharedPtr< IDatasmithMetaDataElement > GetMetaData(const TSharedPtr<IDatasmithElement>& Element) = 0;
 	virtual const TSharedPtr< IDatasmithMetaDataElement >& GetMetaData(const TSharedPtr<IDatasmithElement>& Element) const = 0;
+	virtual void RemoveMetaData( const TSharedPtr<IDatasmithMetaDataElement>& Element ) = 0;
 
 	/**
 	 * Adds a level sequence to the scene.

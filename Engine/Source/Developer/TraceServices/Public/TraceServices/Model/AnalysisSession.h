@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Containers/StringFwd.h"
 
 class FName;
 
@@ -40,6 +41,7 @@ public:
 	
 	virtual ILinearAllocator& GetLinearAllocator() = 0;
 	virtual const TCHAR* StoreString(const TCHAR* String) = 0;
+	virtual const TCHAR* StoreString(const FStringView& String) = 0;
 	
 	virtual void AddAnalyzer(IAnalyzer* Analyzer) = 0;
 

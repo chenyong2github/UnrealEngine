@@ -25,6 +25,9 @@
 #include "NiagaraHlslTranslator.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "Misc/SecureHash.h"
+#include "HAL/FileManager.h"
+#include "Misc/Paths.h"
+#include "String/ParseTokens.h"
 
 DECLARE_CYCLE_STAT(TEXT("NiagaraEditor - Graph - FindInputNodes"), STAT_NiagaraEditor_Graph_FindInputNodes, STATGROUP_NiagaraEditor);
 DECLARE_CYCLE_STAT(TEXT("NiagaraEditor - Graph - FindInputNodes_NotFilterUsage"), STAT_NiagaraEditor_Graph_FindInputNodes_NotFilterUsage, STATGROUP_NiagaraEditor);
@@ -380,6 +383,8 @@ TArray<UEdGraphPin*> UNiagaraGraph::FindParameterMapDefaultValuePins(const FName
 {
 	TArray<UEdGraphPin*> DefaultPins;
 
+	TArray<UNiagaraNode*> NodesTraversed;
+	FPinCollectorArray OutputPins;
 	for (UEdGraphNode* Node : Nodes)
 	{
 		UNiagaraNodeOutput* OutNode = Cast<UNiagaraNodeOutput>(Node);
@@ -387,7 +392,7 @@ TArray<UEdGraphPin*> UNiagaraGraph::FindParameterMapDefaultValuePins(const FName
 		{
 			continue;
 		}
-		TArray<UNiagaraNode*> NodesTraversed;
+		NodesTraversed.Reset();
 		BuildTraversal(NodesTraversed, OutNode);
 
 		for (UNiagaraNode* NiagaraNode : NodesTraversed)
@@ -397,7 +402,7 @@ TArray<UEdGraphPin*> UNiagaraGraph::FindParameterMapDefaultValuePins(const FName
 			{
 				continue;
 			}
-			TArray<UEdGraphPin*> OutputPins;
+			OutputPins.Reset();
 			GetNode->GetOutputPins(OutputPins);
 			for (UEdGraphPin* OutputPin : OutputPins)
 			{
@@ -487,13 +492,15 @@ FName UNiagaraGraph::StandardizeName(FName Name, ENiagaraScriptUsage Usage, bool
 		Usage == ENiagaraScriptUsage::DynamicInput || 
 		Usage == ENiagaraScriptUsage::Function;
 
-	TArray<FString> NamePartStrings;
-	TArray<FName> NameParts;
-	Name.ToString().ParseIntoArray(NamePartStrings, TEXT("."));
+	TArray<FStringView, TInlineAllocator<16>> NamePartStrings;
+	TStringBuilder<128> NameAsString;
+	Name.AppendString(NameAsString);
+	UE::String::ParseTokens(NameAsString, TEXT("."), [&NamePartStrings](FStringView Token) { NamePartStrings.Add(Token); });
 
-	for (const FString& NamePartString : NamePartStrings)
+	TArray<FName, TInlineAllocator<16>> NameParts;
+	for (FStringView NamePartString : NamePartStrings)
 	{
-		NameParts.Add(*NamePartString);
+		NameParts.Emplace(NamePartString);
 	}
 	if (NameParts.Num() == 0)
 	{
@@ -863,14 +870,15 @@ UEdGraphPin* UNiagaraGraph::FindParameterMapDefaultValuePin(const FName Variable
 	TArray<UEdGraphPin*> MatchingDefaultPins;
 	
 	TArray<UNiagaraNode*> NodesTraversed;
-	BuildTraversal(NodesTraversed, InUsage, FGuid());
+	BuildTraversal(NodesTraversed, InUsage, FGuid(), true);
 
 	UEdGraphPin* DefaultInputPin = nullptr;
+	FPinCollectorArray OutputPins;
 	for (UNiagaraNode* Node : NodesTraversed)
 	{
 		if (UNiagaraNodeParameterMapGet* GetNode = Cast<UNiagaraNodeParameterMapGet>(Node))
 		{
-			TArray<UEdGraphPin*> OutputPins;
+			OutputPins.Reset();
 			GetNode->GetOutputPins(OutputPins);
 			for (UEdGraphPin* OutputPin : OutputPins)
 			{
@@ -1010,12 +1018,11 @@ void BuildTraversalHelper(TArray<class UNiagaraNode*>& OutNodesTraversed, UNiaga
 
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_Graph_BuildTraversalHelper);
 
-	TArray<UEdGraphPin*> Pins = CurrentNode->GetAllPins();
-	for (int32 i = 0; i < Pins.Num(); i++)
+	for (UEdGraphPin* Pin : CurrentNode->GetAllPins())
 	{
-		if (Pins[i]->Direction == EEdGraphPinDirection::EGPD_Input && Pins[i]->LinkedTo.Num() > 0)
+		if (Pin->Direction == EEdGraphPinDirection::EGPD_Input && Pin->LinkedTo.Num() > 0)
 		{
-			for (UEdGraphPin* LinkedPin : Pins[i]->LinkedTo)
+			for (UEdGraphPin* LinkedPin : Pin->LinkedTo)
 			{
 				UEdGraphPin* TracedPin = bEvaluateStaticSwitches ? UNiagaraNode::TraceOutputPin(LinkedPin) : LinkedPin;
 				if (TracedPin != nullptr)
@@ -1132,7 +1139,7 @@ void UNiagaraGraph::FindInputNodes(TArray<UNiagaraNodeInput*>& OutInputNodes, UN
 
 TArray<FNiagaraVariable> UNiagaraGraph::FindStaticSwitchInputs(bool bReachableOnly) const
 {
-	TArray<UEdGraphNode*> NodesToProcess = bReachableOnly ? FindReachbleNodes() : Nodes;
+	TArray<UEdGraphNode*> NodesToProcess = bReachableOnly ? FindReachableNodes() : Nodes;
 
 	TArray<FNiagaraVariable> Result;
 	for (UEdGraphNode* Node : NodesToProcess)
@@ -1156,13 +1163,14 @@ TArray<FNiagaraVariable> UNiagaraGraph::FindStaticSwitchInputs(bool bReachableOn
 	return Result;
 }
 
-TArray<UEdGraphNode*> UNiagaraGraph::FindReachbleNodes() const
+TArray<UEdGraphNode*> UNiagaraGraph::FindReachableNodes() const
 {
 	TArray<UEdGraphNode*> ResultNodes;
 	TArray<UNiagaraNodeOutput*> OutNodes;
 	FindOutputNodes(OutNodes);
 	ResultNodes.Append(OutNodes);
 
+	FPinCollectorArray OutPins;
 	for (int i = 0; i < ResultNodes.Num(); i++)
 	{
 		UEdGraphNode* Node = ResultNodes[i];
@@ -1174,7 +1182,7 @@ TArray<UEdGraphNode*> UNiagaraGraph::FindReachbleNodes() const
 		UNiagaraNodeStaticSwitch* SwitchNode = Cast<UNiagaraNodeStaticSwitch>(Node);
 		if (SwitchNode)
 		{
-			TArray<UEdGraphPin*> OutPins;
+			OutPins.Reset();
 			SwitchNode->GetOutputPins(OutPins);
 			for (UEdGraphPin* Pin : OutPins)
 			{
@@ -1187,7 +1195,6 @@ TArray<UEdGraphNode*> UNiagaraGraph::FindReachbleNodes() const
 		}
 		else
 		{
-			TArray<UEdGraphPin*> InputPins;
 			for (UEdGraphPin* Pin : Node->GetAllPins())
 			{
 				if (!Pin || Pin->Direction != EEdGraphPinDirection::EGPD_Input)
@@ -1684,13 +1691,18 @@ bool UNiagaraGraph::RenameParameter(const FNiagaraVariable& Parameter, FName New
 			NewScriptVariable->DefaultBinding = (*OldScriptVariable)->DefaultBinding;
 			VariableToScriptVariable.Add(NewParameter, NewScriptVariable);
 		}
-		VariableToScriptVariable.Remove(Parameter);
+
+		if (!bRenameRequestedFromStaticSwitch)
+		{
+			// Static switches take care to remove the last existing parameter themselves, we don't want to remove the parameter if there are still switches with the name around 
+			VariableToScriptVariable.Remove(Parameter);
+		}
 	}
 
 	// Either set the new meta-data or use the existing meta-data.
 	if (!NewScriptVariableFound)
 	{
-		SetPerScriptMetaData(NewParameter, OldMetaData);
+		SetMetaData(NewParameter, OldMetaData);
 	}
 	else
 	{
@@ -2011,16 +2023,58 @@ bool UNiagaraGraph::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor, con
 	// Optionally log out the information for debugging.
 	if (FNiagaraCompileHashVisitor::LogCompileIdGeneration == 2 && InTraversal.Num() > 0)
 	{
-		UE_LOG(LogNiagaraEditor, Log, TEXT("UNiagaraGraph::AppendCompileHash %s %s\n==========================="), *GetFullName(), *InTraversal[InTraversal.Num()- 1]->GetNodeTitle(ENodeTitleType::ListView).ToString());
+		FString RelativePath;
+		UObject* Package = GetOutermost();
+		if (Package != nullptr)
+		{
+			RelativePath += Package->GetName() + TEXT("/");
+		}
+
+
+		UObject* Parent = GetOuter();
+		while (Parent != Package)
+		{
+			bool bSkipName = false;
+			if (Parent->IsA<UNiagaraGraph>()) // Removing common clutter
+				bSkipName = true;
+			else if (Parent->IsA<UNiagaraScriptSourceBase>()) // Removing common clutter
+				bSkipName = true;
+
+			if (!bSkipName)
+				RelativePath = RelativePath + Parent->GetName() + TEXT("/");
+			Parent = Parent->GetOuter();
+		}
+
+	
+		FString ObjName = GetName();
+		FString DumpDebugInfoPath = FPaths::ProjectSavedDir() + TEXT("NiagaraHashes/") + RelativePath ;
+		FPaths::NormalizeDirectoryName(DumpDebugInfoPath);
+		DumpDebugInfoPath.ReplaceInline(TEXT("<"), TEXT("("));
+		DumpDebugInfoPath.ReplaceInline(TEXT(">"), TEXT(")"));
+		DumpDebugInfoPath.ReplaceInline(TEXT("::"), TEXT("=="));
+		DumpDebugInfoPath.ReplaceInline(TEXT("|"), TEXT("_"));
+		DumpDebugInfoPath.ReplaceInline(TEXT("*"), TEXT("-"));
+		DumpDebugInfoPath.ReplaceInline(TEXT("?"), TEXT("!"));
+		DumpDebugInfoPath.ReplaceInline(TEXT("\""), TEXT("\'"));
+
+
+		if (!IFileManager::Get().DirectoryExists(*DumpDebugInfoPath))
+		{
+			if (!IFileManager::Get().MakeDirectory(*DumpDebugInfoPath, true))
+				UE_LOG(LogNiagaraEditor, Warning, TEXT("Failed to create directory for debug info '%s'"), *DumpDebugInfoPath);
+		}
+		FString ExportText = FString::Printf(TEXT("UNiagaraGraph::AppendCompileHash %s %s\n===========================\n"), *GetFullName(), *InTraversal[InTraversal.Num()- 1]->GetNodeTitle(ENodeTitleType::ListView).ToString());
 		for (int32 i = 0; i < InVisitor->Values.Num(); i++)
 		{
-			UE_LOG(LogNiagaraEditor, Log, TEXT("Object[%d]: %s"), i, *InVisitor->Values[i].Object);
+			ExportText += FString::Printf(TEXT("Object[%d]: %s\n"), i, *InVisitor->Values[i].Object);
 			ensure(InVisitor->Values[i].PropertyKeys.Num() == InVisitor->Values[i].PropertyValues.Num());
 			for (int32 j = 0; j < InVisitor->Values[i].PropertyKeys.Num(); j++)
 			{
-				UE_LOG(LogNiagaraEditor, Log, TEXT("\tProperty[%d]: %s = %s"), j, *InVisitor->Values[i].PropertyKeys[j], *InVisitor->Values[i].PropertyValues[j]);
+				ExportText += FString::Printf(TEXT("\tProperty[%d]: %s = %s\n"), j, *InVisitor->Values[i].PropertyKeys[j], *InVisitor->Values[i].PropertyValues[j]);
 			}
 		}
+
+		FNiagaraEditorUtilities::WriteTextFileToDisk(DumpDebugInfoPath, ObjName + TEXT(".txt"), ExportText, true);
 	}
 #endif
 	return true;
@@ -2295,12 +2349,22 @@ void UNiagaraGraph::InvalidateNumericCache()
 FString UNiagaraGraph::GetFunctionAliasByContext(const FNiagaraGraphFunctionAliasContext& FunctionAliasContext)
 {
 	FString FunctionAlias;
+	TSet<UClass*> SkipNodeTypes;
 	for (UEdGraphNode* Node : Nodes)
 	{
 		UNiagaraNode* NiagaraNode = Cast<UNiagaraNode>(Node);
 		if (NiagaraNode != nullptr)
 		{
-			NiagaraNode->AppendFunctionAliasForContext(FunctionAliasContext, FunctionAlias);
+			if (SkipNodeTypes.Contains(NiagaraNode->GetClass()))
+			{
+				continue;
+			}
+			bool OncePerNodeType = false;
+			NiagaraNode->AppendFunctionAliasForContext(FunctionAliasContext, FunctionAlias, OncePerNodeType);
+			if (OncePerNodeType)
+			{
+				SkipNodeTypes.Add(NiagaraNode->GetClass());
+			}
 		}
 	}
 
@@ -2317,7 +2381,7 @@ void UNiagaraGraph::ResolveNumerics(TMap<UNiagaraNode*, bool>& VisitedNodes, UEd
 	UNiagaraNode* NiagaraNode = Cast<UNiagaraNode>(Node);
 	if (NiagaraNode)
 	{
-		TArray<UEdGraphPin*> InputPins;
+		FPinCollectorArray InputPins;
 		NiagaraNode->GetInputPins(InputPins);
 		for (int32 i = 0; i < InputPins.Num(); i++)
 		{
@@ -2727,9 +2791,10 @@ const TMap<FNiagaraVariable, FInputPinsAndOutputPins> UNiagaraGraph::CollectVars
 	GetNodesOfClass<UNiagaraNodeParameterMapSet>(MapSetNodes);
 	GetNodesOfClass<UNiagaraNodeParameterMapGet>(MapGetNodes);
 
+	FPinCollectorArray MapGetOutputPins;
 	for (UNiagaraNodeParameterMapGet* MapGetNode : MapGetNodes)
 	{
-		TArray<UEdGraphPin*> MapGetOutputPins;
+		MapGetOutputPins.Reset();
 		MapGetNode->GetOutputPins(MapGetOutputPins);
 		for (UEdGraphPin* Pin : MapGetOutputPins)
 		{
@@ -2747,9 +2812,10 @@ const TMap<FNiagaraVariable, FInputPinsAndOutputPins> UNiagaraGraph::CollectVars
 		}
 	}
 
+	FPinCollectorArray MapSetInputPins;
 	for (UNiagaraNodeParameterMapSet* MapSetNode : MapSetNodes)
 	{
-		TArray<UEdGraphPin*> MapSetInputPins;
+		MapSetInputPins.Reset();
 		MapSetNode->GetInputPins(MapSetInputPins);
 		for (UEdGraphPin* Pin : MapSetInputPins)
 		{

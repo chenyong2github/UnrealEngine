@@ -213,7 +213,7 @@ protected:
 	void TickResource(FTimespan Timecode);
 
 	/** Update the video sample queue, if necessary. */
-	void UpdateQueue();
+	void UpdatePlayerAndQueue();
 
 	/** Update sample info */
 	void UpdateSampleInfo(const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& Sample);

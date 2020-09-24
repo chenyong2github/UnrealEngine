@@ -256,8 +256,7 @@ void FARCameraSceneViewExtension::RenderARCamera_RenderThread(FRHICommandListImm
 	FUniformBufferRHIRef PassUniformBuffer = CreateSceneTextureUniformBufferDependentOnShadingPath(
 		RHICmdList,
 		InView.GetFeatureLevel(),
-		ESceneTextureSetupMode::None,
-		UniformBuffer_SingleDraw);
+		ESceneTextureSetupMode::None);
 	FUniformBufferStaticBindings GlobalUniformBuffers(PassUniformBuffer);
 	SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
 
@@ -315,7 +314,7 @@ bool FARCameraSceneViewExtension::IsActiveThisFrame(FViewport* InViewport) const
 
 static FName CameraImageParamName(TEXT("CameraImage"));
 
-FRemoteSessionARCameraChannel::FRemoteSessionARCameraChannel(ERemoteSessionChannelMode InRole, TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection)
+FRemoteSessionARCameraChannel::FRemoteSessionARCameraChannel(ERemoteSessionChannelMode InRole, TSharedPtr<IBackChannelConnection, ESPMode::ThreadSafe> InConnection)
 	: IRemoteSessionChannel(InRole, InConnection)
 	, RenderingTextureIndex(0)
 	, Connection(InConnection)
@@ -347,9 +346,10 @@ FRemoteSessionARCameraChannel::FRemoteSessionARCameraChannel(ERemoteSessionChann
 		// Create our image renderer
 		SceneViewExtension = FSceneViewExtensions::NewExtension<FARCameraSceneViewExtension>(*this);
 
-		auto Delegate = FBackChannelDispatchDelegate::FDelegate::CreateRaw(this, &FRemoteSessionARCameraChannel::ReceiveARCameraImage);
-		MessageCallbackHandle = Connection->AddMessageHandler(CAMERA_MESSAGE_ADDRESS, Delegate);
-		Connection->SetMessageOptions(CAMERA_MESSAGE_ADDRESS, 1);
+		auto Delegate = FBackChannelRouteDelegate::FDelegate::CreateRaw(this, &FRemoteSessionARCameraChannel::ReceiveARCameraImage);
+		MessageCallbackHandle = Connection->AddRouteDelegate(CAMERA_MESSAGE_ADDRESS, Delegate);
+		// #agrant todo: need equivalent
+		//Connection->SetMessageOptions(CAMERA_MESSAGE_ADDRESS, 1);
 	}
 }
 
@@ -358,7 +358,7 @@ FRemoteSessionARCameraChannel::~FRemoteSessionARCameraChannel()
 	if (Role == ERemoteSessionChannelMode::Read)
 	{
 		// Remove the callback so it doesn't call back on an invalid this
-		Connection->RemoveMessageHandler(CAMERA_MESSAGE_ADDRESS, MessageCallbackHandle);
+		Connection->RemoveRouteDelegate(CAMERA_MESSAGE_ADDRESS, MessageCallbackHandle);
 	}
 }
 
@@ -416,7 +416,7 @@ void FRemoteSessionARCameraChannel::QueueARCameraImage()
 		return;
 	}
 
-	UARTextureCameraImage* CameraImage = UARBlueprintLibrary::GetCameraImage();
+	UARTexture* CameraImage = UARBlueprintLibrary::GetARTexture(EARTextureType::CameraImage);
 	if (CameraImage != nullptr)
     {
 		CompressionTask = MakeShareable(new FCompressionTask());
@@ -452,10 +452,11 @@ void FRemoteSessionARCameraChannel::SendARCameraImage()
 		TSharedPtr<FCompressionTask, ESPMode::ThreadSafe> SendCompressionTask = CompressionTask;
 		AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [this, SendCompressionTask]()
 		{
-			FBackChannelOSCMessage Msg(CAMERA_MESSAGE_ADDRESS);
-			Msg.Write(SendCompressionTask->Width);
-			Msg.Write(SendCompressionTask->Height);
-			Msg.Write(SendCompressionTask->AsyncTask->GetData());
+			TBackChannelSharedPtr<FBackChannelOSCMessage> Msg = MakeShared<FBackChannelOSCMessage, ESPMode::ThreadSafe>(CAMERA_MESSAGE_ADDRESS);
+
+			Msg->Write(TEXT("Width"), SendCompressionTask->Width);
+			Msg->Write(TEXT("Height"), SendCompressionTask->Height);
+			Msg->Write(TEXT("Data"), SendCompressionTask->AsyncTask->GetData());
 
 			Connection->SendPacket(Msg);
 		});
@@ -469,7 +470,7 @@ UMaterialInterface* FRemoteSessionARCameraChannel::GetPostProcessMaterial() cons
 	return MaterialInstanceDynamic;
 }
 
-void FRemoteSessionARCameraChannel::ReceiveARCameraImage(FBackChannelOSCMessage& Message, FBackChannelOSCDispatch& Dispatch)
+void FRemoteSessionARCameraChannel::ReceiveARCameraImage(IBackChannelPacket& Message)
 {
 	IImageWrapperModule* ImageWrapperModule = FModuleManager::GetModulePtr<IImageWrapperModule>(FName("ImageWrapper"));
 	if (ImageWrapperModule == nullptr)
@@ -485,9 +486,9 @@ void FRemoteSessionARCameraChannel::ReceiveARCameraImage(FBackChannelOSCMessage&
 	DecompressionTaskCount.Increment();
 
 	TSharedPtr<FDecompressedImage, ESPMode::ThreadSafe> DecompressedImage = MakeShareable(new FDecompressedImage());
-	Message << DecompressedImage->Width;
-	Message << DecompressedImage->Height;
-	Message << DecompressedImage->ImageData;
+	Message.Read(TEXT("Width"), DecompressedImage->Width);
+	Message.Read(TEXT("Height"), DecompressedImage->Height);
+	Message.Read(TEXT("Data"), DecompressedImage->ImageData);
 
 	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [this, ImageWrapperModule, DecompressedImage]
 	{
@@ -554,7 +555,7 @@ void FRemoteSessionARCameraChannel::UpdateRenderingTexture()
 }
 
 
-TSharedPtr<IRemoteSessionChannel> FRemoteSessionARCameraChannelFactoryWorker::Construct(ERemoteSessionChannelMode InMode, TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection) const
+TSharedPtr<IRemoteSessionChannel> FRemoteSessionARCameraChannelFactoryWorker::Construct(ERemoteSessionChannelMode InMode, TSharedPtr<IBackChannelConnection, ESPMode::ThreadSafe> InConnection) const
 {
 	// Client side sending only works on iOS with Android coming in the future
 	bool bSessionTypeSupported = UARBlueprintLibrary::IsSessionTypeSupported(EARSessionType::World);

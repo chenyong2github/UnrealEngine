@@ -14,10 +14,23 @@ class FSavedMove_Character;
 class UCharacterMovementComponent;
 struct FRootMotionSourceGroup;
 
-#ifndef CHARACTER_SERIALIZATION_PACKEDBITS_RESERVED_SIZE
-#define CHARACTER_SERIALIZATION_PACKEDBITS_RESERVED_SIZE 256
+// If defined and not zero, deprecated RPCs on UCharacterMovementComponent will not be marked deprecated at compile time, to aid in migration of older projects. New projects should prefer the new API.
+#ifndef SUPPORT_DEPRECATED_CHARACTER_MOVEMENT_RPCS
+#define SUPPORT_DEPRECATED_CHARACTER_MOVEMENT_RPCS 0
 #endif
 
+#if SUPPORT_DEPRECATED_CHARACTER_MOVEMENT_RPCS
+#define DEPRECATED_CHARACTER_MOVEMENT_RPC(...)
+#else
+#define DEPRECATED_CHARACTER_MOVEMENT_RPC(DeprecatedFunction, NewFunction) UE_DEPRECATED_FORGAME(4.26, #DeprecatedFunction "() is deprecated, use " #NewFunction "() instead, or define SUPPORT_DEPRECATED_CHARACTER_MOVEMENT_RPCS=1 in the project and set CVar p.NetUsePackedMovementRPCs=0 to use the old code path.")
+#endif
+
+// Number of bits to reserve in serialization container. Make this large enough to try to avoid re-allocation during the worst case RPC calls (dual move + unacknowledged "old important" move).
+#ifndef CHARACTER_SERIALIZATION_PACKEDBITS_RESERVED_SIZE
+#define CHARACTER_SERIALIZATION_PACKEDBITS_RESERVED_SIZE 1024
+#endif
+
+//////////////////////////////////////////////////////////////////////////
 /**
  * Intermediate data stream used for network serialization of Character RPC data.
  * This is basically an array of bits that is packed/unpacked via NetSerialize into custom data structs on the sending and receiving ends.
@@ -35,10 +48,11 @@ struct ENGINE_API FCharacterNetworkSerializationPackedBits
 	bool NetSerialize(FArchive& Ar, UPackageMap* PackageMap, bool& bOutSuccess);
 	UPackageMap* GetPackageMap() const { return SavedPackageMap; }
 
-	//////////////////////////////////////////////////////////////////////////
+	//------------------------------------------------------------------------
 	// Data
 
-	TBitArray<TInlineAllocator<CHARACTER_SERIALIZATION_PACKEDBITS_RESERVED_SIZE>> DataBits;
+	// TInlineAllocator used with TBitArray takes the number of 32-bit dwords, but the define is in number of bits, so convert here by dividing by 32.
+	TBitArray<TInlineAllocator<CHARACTER_SERIALIZATION_PACKEDBITS_RESERVED_SIZE / NumBitsPerDWORD>> DataBits;
 
 private:
 	UPackageMap* SavedPackageMap;
@@ -57,6 +71,15 @@ struct TStructOpsTypeTraits<FCharacterNetworkSerializationPackedBits> : public T
 //////////////////////////////////////////////////////////////////////////
 // Client to Server movement data
 //////////////////////////////////////////////////////////////////////////
+
+/**
+ * FCharacterNetworkMoveData encapsulates a client move that is sent to the server for UCharacterMovementComponent networking.
+ *
+ * Adding custom data to the network move is accomplished by deriving from this struct, adding new data members, implementing ClientFillNetworkMoveData(), implementing Serialize(), 
+ * and setting up the UCharacterMovementComponent to use an instance of a custom FCharacterNetworkMoveDataContainer (see that struct for more details).
+ * 
+ * @see FCharacterNetworkMoveDataContainer
+ */
 
 struct ENGINE_API FCharacterNetworkMoveData
 {
@@ -86,14 +109,24 @@ public:
 	{
 	}
 
+	/**
+	 * Given a FSavedMove_Character from UCharacterMovementComponent, fill in data in this struct with relevant movement data.
+	 * Note that the instance of the FSavedMove_Character is likely a custom struct of a derived struct of your own, if you have added your own saved move data.
+	 * @see UCharacterMovementComponent::AllocateNewMove()
+	 */
 	virtual void ClientFillNetworkMoveData(const FSavedMove_Character& ClientMove, ENetworkMoveType MoveType);
 
+	/**
+	 * Serialize the data in this struct to or from the given FArchive. This packs or unpacks the data in to a variable-sized data stream that is sent over the
+	 * network from client to server.
+	 * @see UCharacterMovementComponent::CallServerMovePacked
+	 */
 	virtual bool Serialize(UCharacterMovementComponent& CharacterMovement, FArchive& Ar, UPackageMap* PackageMap, ENetworkMoveType MoveType);
 
 	// Indicates whether this was the latest new move, a pending/dual move, or old important move.
 	ENetworkMoveType NetworkMoveType;
 
-	//////////////////////////////////////////////////////////////////////////
+	//------------------------------------------------------------------------
 	// Basic movement data.
 
 	float TimeStamp;
@@ -108,9 +141,13 @@ public:
 };
 
 
+//////////////////////////////////////////////////////////////////////////
 /**
  * Struct used for network RPC parameters between client/server by ACharacter and UCharacterMovementComponent.
- * Overriding Serialize() allows for addition of custom fields by derived implementations.
+ * To extend network move data and add custom parameters, you typically override this struct with a custom derived struct and set the CharacterMovementComponent
+ * to use your container with UCharacterMovementComponent::SetNetworkMoveDataContainer(). Your derived struct would then typically (in the constructor) replace the
+ * NewMoveData, PendingMoveData, and OldMoveData pointers to use your own instances of a struct derived from FCharacterNetworkMoveData, where you add custom fields
+ * and implement custom serialization to be able to pack and unpack your own additional data.
  * 
  * @see UCharacterMovementComponent::SetNetworkMoveDataContainer()
  */
@@ -118,7 +155,9 @@ struct ENGINE_API FCharacterNetworkMoveDataContainer
 {
 public:
 
-	// Default constructor. Sets data storage (NewMoveData, PendingMoveData, OldMoveData) to point to default data members. Override those pointers to point to custom data if you want to use derived classes.
+	/**
+	 * Default constructor. Sets data storage (NewMoveData, PendingMoveData, OldMoveData) to point to default data members. Override those pointers to instead point to custom data if you want to use derived classes.
+	 */
 	FCharacterNetworkMoveDataContainer()
 		: bHasPendingMove(false)
 		, bIsDualHybridRootMotionMove(false)
@@ -134,20 +173,24 @@ public:
 	{
 	}
 
-	// Passes through calls to ClientFillNetworkMoveData on each FCharacterNetworkMoveData matching the client moves. Note that ClientNewMove will never be null, but others may be.
+	/**
+	 * Passes through calls to ClientFillNetworkMoveData on each FCharacterNetworkMoveData matching the client moves. Note that ClientNewMove will never be null, but others may be.
+	 */
 	virtual void ClientFillNetworkMoveData(const FSavedMove_Character* ClientNewMove, const FSavedMove_Character* ClientPendingMove, const FSavedMove_Character* ClientOldMove);
 
-	// Serialize movement data. Passes Serialize calls to each FCharacterNetworkMoveData as applicable, based on bHasPendingMove and bHasOldMove.
+	/**
+	 * Serialize movement data. Passes Serialize calls to each FCharacterNetworkMoveData as applicable, based on bHasPendingMove and bHasOldMove.
+	 */
 	virtual bool Serialize(UCharacterMovementComponent& CharacterMovement, FArchive& Ar, UPackageMap* PackageMap);
 
-	//////////////////////////////////////////////////////////////////////////
+	//------------------------------------------------------------------------
 	// Basic movement data. NewMoveData is the most recent move, PendingMoveData is a move right before it (dual move). OldMoveData is an "important" move not yet acknowledged.
 
 	FORCEINLINE FCharacterNetworkMoveData* GetNewMoveData() const		{ return NewMoveData; }
 	FORCEINLINE FCharacterNetworkMoveData* GetPendingMoveData() const	{ return PendingMoveData; }
 	FORCEINLINE FCharacterNetworkMoveData* GetOldMoveData() const		{ return OldMoveData; }
 
-	//////////////////////////////////////////////////////////////////////////
+	//------------------------------------------------------------------------
 	// Optional pending data used in "dual moves".
 	bool bHasPendingMove;
 	bool bIsDualHybridRootMotionMove;
@@ -170,6 +213,10 @@ private:
 };
 
 
+//////////////////////////////////////////////////////////////////////////
+/**
+ * Structure used internally to handle serialization of FCharacterNetworkMoveDataContainer over the network.
+ */
 USTRUCT()
 struct ENGINE_API FCharacterServerMovePackedBits : public FCharacterNetworkSerializationPackedBits
 {
@@ -223,6 +270,13 @@ public:
 };
 
 
+//////////////////////////////////////////////////////////////////////////
+/**
+ * Response from the server to the client about a move that is being acknowledged.
+ * Internally it mainly copies the FClientAdjustment from the UCharacterMovementComponent indicating the response, as well as
+ * setting a few relevant flags about the response and serializing the response to and from an FArchive for handling the variable-size
+ * payload over the network.
+ */
 struct ENGINE_API FCharacterMoveResponseDataContainer
 {
 public:
@@ -241,8 +295,14 @@ public:
 	{
 	}
 
+	/**
+	 * Copy the FClientAdjustment and set a few flags relevant to that data.
+	 */
 	virtual void ServerFillResponseData(const UCharacterMovementComponent& CharacterMovement, const FClientAdjustment& PendingAdjustment);
 
+	/**
+	 * Serialize the FClientAdjustment data and other internal flags.
+	 */
 	virtual bool Serialize(UCharacterMovementComponent& CharacterMovement, FArchive& Ar, UPackageMap* PackageMap);
 
 	bool IsGoodMove() const		{ return ClientAdjustment.bAckGoodMove;}
@@ -262,7 +322,10 @@ public:
 	FVector_NetQuantizeNormal RootMotionRotation;
 };
 
-
+//////////////////////////////////////////////////////////////////////////
+/**
+ * Structure used internally to handle serialization of FCharacterMoveResponseDataContainer over the network.
+ */
 USTRUCT()
 struct ENGINE_API FCharacterMoveResponsePackedBits : public FCharacterNetworkSerializationPackedBits
 {

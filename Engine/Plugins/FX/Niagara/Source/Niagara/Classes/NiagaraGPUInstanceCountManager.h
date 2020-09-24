@@ -23,7 +23,7 @@ public:
 
 FORCEINLINE uint32 GetTypeHash(const FNiagaraDrawIndirectArgGenTaskInfo& Info)
 {
-	return HashCombine(Info.InstanceCountBufferOffset, HashCombine(Info.NumIndicesPerInstance, Info.StartIndexLocation));
+	return HashCombine(Info.InstanceCountBufferOffset, HashCombine(Info.NumIndicesPerInstance, HashCombine(Info.StartIndexLocation, Info.Flags)));
 }
 
 /** 
@@ -50,6 +50,10 @@ public:
 
 	/** Free the entry and reset it to INDEX_NONE if valid. */
 	void FreeEntry(uint32& BufferOffset);
+
+	/** Free and array of entries, you are expected to reset or change to INDEX_NONE. */
+	void FreeEntryArray(TConstArrayView<uint32> EntryArray);
+
 	uint32 AcquireEntry();
 
 	uint32 AcquireCulledEntry()
@@ -66,7 +70,8 @@ public:
 	bool HasPendingGPUReadback() const;
 
 	/** Add a draw indirect task to generate the draw indirect args. Returns the draw indirect arg buffer offset. */
-	uint32 AddDrawIndirect(uint32 InstanceCountBufferOffset, uint32 NumIndicesPerInstance, uint32 StartIndexLocation, bool bCulled = false);
+	uint32 AddDrawIndirect(uint32 InstanceCountBufferOffset, uint32 NumIndicesPerInstance, uint32 StartIndexLocation,
+		bool bIsInstancedStereoEnabled, bool bCulled);
 	FRWBuffer& GetDrawIndirectBuffer() { return DrawIndirectBuffer; }
 
 	/** 
@@ -81,6 +86,8 @@ public:
 
 	// Generate the draw indirect buffers, and reset all release counts.
 	void UpdateDrawIndirectBuffer(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel);
+
+	static const ERHIAccess kCountBufferDefaultState = ERHIAccess::SRVMask | ERHIAccess::CopySrc;
 
 protected:
 

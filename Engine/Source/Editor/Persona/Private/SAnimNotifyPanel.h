@@ -18,6 +18,7 @@
 #include "SAnimTimingPanel.h"
 #include "EditorUndoClient.h"
 #include "AnimModel.h"
+#include "Containers/ArrayView.h"
 
 class FSlateWindowElementList;
 class SAnimNotifyNode;
@@ -38,7 +39,7 @@ DECLARE_DELEGATE_TwoParams( FReplaceWithBlueprintNotify, FString, FString )
 DECLARE_DELEGATE( FDeselectAllNotifies )
 DECLARE_DELEGATE_OneParam( FOnGetBlueprintNotifyData, TArray<FAssetData>& )
 DECLARE_DELEGATE_OneParam( FOnGetNativeNotifyClasses, TArray<UClass*>&)
-DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnSnapPosition, float& /*InOutTimeToSnap*/, float /*InSnapMargin*/)
+DECLARE_DELEGATE_RetVal_ThreeParams(bool, FOnSnapPosition, float& /*InOutTimeToSnap*/, float /*InSnapMargin*/, TArrayView<const FName> /*InSkippedSnapTypes*/)
 
 class SAnimNotifyNode;
 class SAnimNotifyTrack;
@@ -151,6 +152,10 @@ public:
 
 	TSharedPtr<FUICommandInfo> DeleteNotify;
 
+	TSharedPtr<FUICommandInfo> CopyNotifies;
+
+	TSharedPtr<FUICommandInfo> PasteNotifies;
+
 	virtual void RegisterCommands() override;
 };
 
@@ -248,9 +253,12 @@ public:
 
 	void HandleObjectsSelected(const TArray<UObject*>& InObjects);
 
+	TSharedRef<FUICommandList> GetCommandList() const { return WeakCommandList.Pin().ToSharedRef(); }
+
 private:
 	friend struct FScopedSavedNotifySelection;
 
+	TWeakPtr<FAnimModel> WeakModel;
 	TSharedPtr<SBorder> PanelArea;
 	TSharedPtr<SScrollBar> NotifyTrackScrollBar;
 	class UAnimSequenceBase* Sequence;
@@ -332,7 +340,7 @@ private:
 	FOnSnapPosition OnSnapPosition;
 
 	/** UI commands for this widget */
-	TSharedPtr<FUICommandList> UICommandList;
+	TWeakPtr<FUICommandList> WeakCommandList;
 
 	/** Classes that are known to be derived from blueprint notifies */
 	TArray<FString> NotifyClassNames;

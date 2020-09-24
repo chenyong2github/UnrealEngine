@@ -41,6 +41,11 @@ struct FNiagaraDeviceProfileStateEntry
 	FORCEINLINE void SetState(int32 QualityLevel, ENiagaraPlatformSelectionState State);
 
 	FORCEINLINE bool AllDefaulted()const { return SetQualityLevelMask == 0; }
+
+	FORCEINLINE bool operator==(const FNiagaraDeviceProfileStateEntry& Other)const
+	{
+		return ProfileName == Other.ProfileName && QualityLevelMask == Other.QualityLevelMask && SetQualityLevelMask == Other.SetQualityLevelMask;
+	}
 };
 
 UENUM()
@@ -113,6 +118,8 @@ public:
 
 	FNiagaraPlatformSet(int32 QLMask);
 	FNiagaraPlatformSet();
+
+	bool operator==(const FNiagaraPlatformSet& Other)const;
 
 	/** Is this set active right now. i.e. enabled for the current device profile and quality level. */
 	bool IsActive()const;

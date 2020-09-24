@@ -693,8 +693,7 @@ public:
 		StabilizeControl.Enabled = InState;
 	}
 
-
-	/** location local coordinates of named bone in skeletion, apply additional offset or just use offset if no bone located */
+	/** location local coordinates of named bone in skeleton, apply additional offset or just use offset if no bone located */
 	FVector LocateBoneOffset(const FName InBoneName, const FVector& InExtraOffset) const;
 
 	TUniquePtr<Chaos::FSimpleWheeledVehicle>& PhysicsVehicle()
@@ -895,6 +894,8 @@ protected:
 
 	/** Create and setup the Chaos vehicle */
 	virtual void CreateVehicle();
+
+	virtual void CreatePhysicsVehicle();
 
 	/** Skeletal mesh needs some special handling in the vehicle case */
 	virtual void FixupSkeletalMesh() {}

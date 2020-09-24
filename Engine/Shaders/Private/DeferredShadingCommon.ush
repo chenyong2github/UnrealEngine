@@ -227,6 +227,14 @@ float DecodeIndirectIrradiance(float IndirectIrradiance)
 	return OneOverPreExposure * (exp2( LogL * 16 - 8 ) - LogBlackPoint);	// 1 exp2, 1 smad, 1 ssub
 }
 
+float4 EncodeWorldTangentAndAnisotropy(float3 WorldTangent, float Anisotropy)
+{
+	return float4(
+		EncodeNormal(WorldTangent),
+		Anisotropy * 0.5f + 0.5f
+		);
+}
+
 float ComputeAngleFromRoughness( float Roughness, const float Threshold = 0.04f )
 {
 #if 1
@@ -308,12 +316,36 @@ bool UseSubsurfaceProfile(int ShadingModel)
 	return ShadingModel == SHADINGMODELID_SUBSURFACE_PROFILE || ShadingModel == SHADINGMODELID_EYE;
 }
 
+bool HasCustomGBufferData(int ShadingModelID)
+{
+	switch(ShadingModelID)
+	{
+	case SHADINGMODELID_SUBSURFACE:
+	case SHADINGMODELID_PREINTEGRATED_SKIN:
+	case SHADINGMODELID_CLEAR_COAT:
+	case SHADINGMODELID_SUBSURFACE_PROFILE:
+	case SHADINGMODELID_TWOSIDED_FOLIAGE:
+	case SHADINGMODELID_HAIR:
+	case SHADINGMODELID_CLOTH:
+	case SHADINGMODELID_EYE:
+		return true;
+
+	default:
+		return false;
+	}
+}
+
+bool HasAnisotropy(int SelectiveOutputMask)
+{
+	return (SelectiveOutputMask & HAS_ANISOTROPY_MASK) != 0;
+}
+
 // all values that are output by the forward rendering pass
 struct FGBufferData
 {
 	// normalized
 	float3 WorldNormal;
-	// normalized, only valid if GBUFFER_HAS_TANGENT
+	// normalized, only valid if HAS_ANISOTROPY_MASK in SelectiveOutputMask
 	float3 WorldTangent;
 	// 0..1 (derived from BaseColor, Metalness, Specular)
 	float3 DiffuseColor;
@@ -334,7 +366,7 @@ struct FGBufferData
 	float4 PrecomputedShadowFactors;
 	// 0..1
 	float Roughness;
-	// -1..1, only valid if GBUFFER_HAS_TANGENT
+	// -1..1, only valid if only valid if HAS_ANISOTROPY_MASK in SelectiveOutputMask
 	float Anisotropy;
 	// 0..1 ambient occlusion  e.g.SSAO, wet surface mask, skylight mask, ...
 	float GBufferAO;
@@ -413,7 +445,6 @@ void EncodeGBuffer(
 	out float4 OutGBufferC,
 	out float4 OutGBufferD,
 	out float4 OutGBufferE,
-	out float4 OutGBufferF,
 	out float4 OutGBufferVelocity,
 	float QuantizationBias = 0		// -0.5 to 0.5 random float. Used to bias quantization.
 	)
@@ -425,11 +456,14 @@ void EncodeGBuffer(
 		OutGBufferC = 0;
 		OutGBufferD = 0;
 		OutGBufferE = 0;
-		OutGBufferF = 0.5f;
 	}
 	else
 	{
-#if 1
+#if MOBILE_DEFERRED_SHADING
+		OutGBufferA.rg = UnitVectorToOctahedron( normalize(GBuffer.WorldNormal) ) * 0.5f + 0.5f;
+		OutGBufferA.b = GBuffer.PrecomputedShadowFactors.x;
+		OutGBufferA.a = GBuffer.PerObjectGBufferData;		
+#elif 1
 		OutGBufferA.rgb = EncodeNormal( GBuffer.WorldNormal );
 		OutGBufferA.a = GBuffer.PerObjectGBufferData;
 #else
@@ -460,13 +494,6 @@ void EncodeGBuffer(
 
 		OutGBufferD = GBuffer.CustomData;
 		OutGBufferE = GBuffer.PrecomputedShadowFactors;
-
-#if GBUFFER_HAS_TANGENT
-		OutGBufferF.rgb = EncodeNormal(GBuffer.WorldTangent);
-		OutGBufferF.a = GBuffer.Anisotropy * 0.5f + 0.5f;
-#else
-		OutGBufferF = 0;
-#endif
 	}
 
 #if WRITES_VELOCITY_TO_GBUFFER
@@ -578,7 +605,7 @@ FGBufferData DecodeGBufferData(
 	GBuffer.IndirectIrradiance = 1;
 #endif
 
-	GBuffer.CustomData = !(GBuffer.SelectiveOutputMask & SKIP_CUSTOMDATA_MASK) ? InGBufferD : 0;
+	GBuffer.CustomData = HasCustomGBufferData(GBuffer.ShadingModelID) ? InGBufferD : 0;
 
 	GBuffer.PrecomputedShadowFactors = !(GBuffer.SelectiveOutputMask & SKIP_PRECSHADOW_MASK) ? InGBufferE :  ((GBuffer.SelectiveOutputMask & ZERO_PRECSHADOW_MASK) ? 0 :  1);
 	GBuffer.CustomDepth = ConvertFromDeviceZ(CustomNativeDepth);
@@ -618,18 +645,17 @@ FGBufferData DecodeGBufferData(
 		#endif //USE_DEVELOPMENT_SHADERS
 	}
 
-#if GBUFFER_HAS_TANGENT
-	GBuffer.WorldTangent = DecodeNormal(InGBufferF.rgb);
-	GBuffer.Anisotropy = InGBufferF.a * 2.0f - 1.0f;
-
-	if(bGetNormalizedNormal)
 	{
-		GBuffer.WorldTangent = normalize(GBuffer.WorldTangent);
+		bool bHasAnisoProp = HasAnisotropy(GBuffer.SelectiveOutputMask);
+
+		GBuffer.WorldTangent = bHasAnisoProp ? DecodeNormal(InGBufferF.rgb) : 0;
+		GBuffer.Anisotropy   = bHasAnisoProp ? InGBufferF.a * 2.0f - 1.0f   : 0;
+
+		if (bGetNormalizedNormal && bHasAnisoProp)
+		{
+			GBuffer.WorldTangent = normalize(GBuffer.WorldTangent);
+		}
 	}
-#else
-	GBuffer.WorldTangent = 0;
-	GBuffer.Anisotropy = 0;
-#endif
 
 	GBuffer.Velocity = !(GBuffer.SelectiveOutputMask & SKIP_VELOCITY_MASK) ? InGBufferVelocity : 0;
 
@@ -647,38 +673,29 @@ uint ExtractSubsurfaceProfileInt(FGBufferData BufferData)
 	return uint(BufferData.CustomData.r * 255.0f + 0.5f);
 }
 
-#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
-	// In all but SM5 we need to explicitly declare how many samples are in a multisampled texture.
-	#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
-		#define FMultisampledGBuffer Texture2DMS<float4>
-	#else
-		#define FMultisampledGBuffer Texture2DMS<float4,MSAA_SAMPLE_COUNT>
-	#endif
+#if SHADING_PATH_DEFERRED
 
+#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 	// @param PixelPos relative to left top of the rendertarget (not viewport)
 	FGBufferData GetGBufferDataUint(uint2 PixelPos, bool bGetNormalizedNormal = true)
 	{
-		float4 GBufferA = SceneTexturesStruct.GBufferATextureNonMS.Load(int3(PixelPos, 0));
-		float4 GBufferB = SceneTexturesStruct.GBufferBTextureNonMS.Load(int3(PixelPos, 0));
-		float4 GBufferC = SceneTexturesStruct.GBufferCTextureNonMS.Load(int3(PixelPos, 0));
-		float4 GBufferD = SceneTexturesStruct.GBufferDTextureNonMS.Load(int3(PixelPos, 0));
-		float CustomNativeDepth = SceneTexturesStruct.CustomDepthTextureNonMS.Load(int3(PixelPos, 0)).r;
+		float4 GBufferA = SceneTexturesStruct.GBufferATexture.Load(int3(PixelPos, 0));
+		float4 GBufferB = SceneTexturesStruct.GBufferBTexture.Load(int3(PixelPos, 0));
+		float4 GBufferC = SceneTexturesStruct.GBufferCTexture.Load(int3(PixelPos, 0));
+		float4 GBufferD = SceneTexturesStruct.GBufferDTexture.Load(int3(PixelPos, 0));
+		float CustomNativeDepth = SceneTexturesStruct.CustomDepthTexture.Load(int3(PixelPos, 0)).r;
 		uint CustomStencil = SceneTexturesStruct.CustomStencilTexture.Load(int3(PixelPos, 0)) STENCIL_COMPONENT_SWIZZLE;
 
 		#if ALLOW_STATIC_LIGHTING
-			float4 GBufferE = SceneTexturesStruct.GBufferETextureNonMS.Load(int3(PixelPos, 0));
+			float4 GBufferE = SceneTexturesStruct.GBufferETexture.Load(int3(PixelPos, 0));
 		#else
 			float4 GBufferE = 1;
 		#endif
 
-		#if GBUFFER_HAS_TANGENT
-			float4 GBufferF = SceneTexturesStruct.GBufferFTextureNonMS.Load(int3(PixelPos, 0));
-		#else
-			float4 GBufferF = 0.5f;
-		#endif 
+		float4 GBufferF = SceneTexturesStruct.GBufferFTexture.Load(int3(PixelPos, 0));
 
 		#if WRITES_VELOCITY_TO_GBUFFER
-			float4 GBufferVelocity = SceneTexturesStruct.GBufferVelocityTextureNonMS.Load(int3(PixelPos, 0));
+			float4 GBufferVelocity = SceneTexturesStruct.GBufferVelocityTexture.Load(int3(PixelPos, 0));
 		#else
 			float4 GBufferVelocity = 0;
 		#endif
@@ -695,11 +712,7 @@ uint ExtractSubsurfaceProfileInt(FGBufferData BufferData)
 
 		Out.GBuffer = GetGBufferDataUint(PixelPos, bGetNormalizedNormal);
 
-		// todo: optimize
-		// this is what we want but because WhiteDummy (in case AO is disabled) doesn't support this lookup we do the code below
-//		Out.AmbientOcclusion = ScreenSpaceAOTextureNonMS.Load(int3(PixelPos, 0)).r;
-
-		float4 ScreenSpaceAO = Texture2DSampleLevel(SceneTexturesStruct.ScreenSpaceAOTexture, SceneTexturesStruct.ScreenSpaceAOTextureSampler, (PixelPos + 0.5f) * View.BufferSizeAndInvSize.zw, 0);
+		float4 ScreenSpaceAO = Texture2DSampleLevel(SceneTexturesStruct.ScreenSpaceAOTexture, SceneTexturesStruct_ScreenSpaceAOTextureSampler, (PixelPos + 0.5f) * View.BufferSizeAndInvSize.zw, 0);
 		Out.AmbientOcclusion = ScreenSpaceAO.r;
 
 		return Out;
@@ -709,52 +722,28 @@ uint ExtractSubsurfaceProfileInt(FGBufferData BufferData)
 // @param UV - UV space in the GBuffer textures (BufferSize resolution)
 FGBufferData GetGBufferData(float2 UV, bool bGetNormalizedNormal = true)
 {
-#if 0 //METAL_MRT_PROFILE
-	// @todo metal mrt: The deferred renderer isn't keeping these in tiled memory all the time - we don't know when this makes sense
-	// versus just sampling a bound resolved texture
-	float4 GBufferA = FramebufferFetchMRT(1);
-	float4 GBufferB = FramebufferFetchMRT(2);
-	float4 GBufferC = FramebufferFetchMRT(3);
-	float4 GBufferD = FramebufferFetchMRT(4);
-	// @todo metal mrt: We can't framebuffer fetch the depth, can we jam it in somewhere?
-	float CustomNativeDepth = 0.5;
-	#if ALLOW_STATIC_LIGHTING
-		float4 GBufferE = FramebufferFetchMRT(5);
-	#else
-		float4 GBufferE = 1;
-	#endif
-#else	
-	float4 GBufferA = Texture2DSampleLevel(SceneTexturesStruct.GBufferATexture, SceneTexturesStruct.GBufferATextureSampler, UV, 0);
-	float4 GBufferB = Texture2DSampleLevel(SceneTexturesStruct.GBufferBTexture, SceneTexturesStruct.GBufferBTextureSampler, UV, 0);
-	float4 GBufferC = Texture2DSampleLevel(SceneTexturesStruct.GBufferCTexture, SceneTexturesStruct.GBufferCTextureSampler, UV, 0);
-	float4 GBufferD = Texture2DSampleLevel(SceneTexturesStruct.GBufferDTexture, SceneTexturesStruct.GBufferDTextureSampler, UV, 0);
-	float CustomNativeDepth = Texture2DSampleLevel(SceneTexturesStruct.CustomDepthTexture, SceneTexturesStruct.CustomDepthTextureSampler, UV, 0).r;
+	float4 GBufferA = Texture2DSampleLevel(SceneTexturesStruct.GBufferATexture, SceneTexturesStruct_GBufferATextureSampler, UV, 0);
+	float4 GBufferB = Texture2DSampleLevel(SceneTexturesStruct.GBufferBTexture, SceneTexturesStruct_GBufferBTextureSampler, UV, 0);
+	float4 GBufferC = Texture2DSampleLevel(SceneTexturesStruct.GBufferCTexture, SceneTexturesStruct_GBufferCTextureSampler, UV, 0);
+	float4 GBufferD = Texture2DSampleLevel(SceneTexturesStruct.GBufferDTexture, SceneTexturesStruct_GBufferDTextureSampler, UV, 0);
+	float CustomNativeDepth = Texture2DSampleLevel(SceneTexturesStruct.CustomDepthTexture, SceneTexturesStruct_CustomDepthTextureSampler, UV, 0).r;
 
-#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
 	int2 IntUV = (int2)trunc(UV * View.BufferSizeAndInvSize.xy);
 	uint CustomStencil = SceneTexturesStruct.CustomStencilTexture.Load(int3(IntUV, 0)) STENCIL_COMPONENT_SWIZZLE;
-#else
-	uint CustomStencil = 0;
-#endif
 
 	#if ALLOW_STATIC_LIGHTING
-		float4 GBufferE = Texture2DSampleLevel(SceneTexturesStruct.GBufferETexture, SceneTexturesStruct.GBufferETextureSampler, UV, 0);
+		float4 GBufferE = Texture2DSampleLevel(SceneTexturesStruct.GBufferETexture, SceneTexturesStruct_GBufferETextureSampler, UV, 0);
 	#else
 		float4 GBufferE = 1;
 	#endif
 
-	#if GBUFFER_HAS_TANGENT
-		float4 GBufferF = Texture2DSampleLevel(SceneTexturesStruct.GBufferFTexture, SceneTexturesStruct.GBufferFTextureSampler, UV, 0);
-	#else
-		float4 GBufferF = 0.5f;
-	#endif 
+	float4 GBufferF = Texture2DSampleLevel(SceneTexturesStruct.GBufferFTexture, SceneTexturesStruct_GBufferFTextureSampler, UV, 0);
 
 	#if WRITES_VELOCITY_TO_GBUFFER
-		float4 GBufferVelocity = Texture2DSampleLevel(SceneTexturesStruct.GBufferVelocityTexture, SceneTexturesStruct.GBufferVelocityTextureSampler, UV, 0);
+		float4 GBufferVelocity = Texture2DSampleLevel(SceneTexturesStruct.GBufferVelocityTexture, SceneTexturesStruct_GBufferVelocityTextureSampler, UV, 0);
 	#else
 		float4 GBufferVelocity = 0;
 	#endif
-#endif
 
 	float SceneDepth = CalcSceneDepth(UV);
 	
@@ -764,7 +753,7 @@ FGBufferData GetGBufferData(float2 UV, bool bGetNormalizedNormal = true)
 // Minimal path for just the lighting model, used to branch around unlit pixels (skybox)
 uint GetShadingModelId(float2 UV)
 {
-	return DecodeShadingModelId(Texture2DSampleLevel(SceneTexturesStruct.GBufferBTexture, SceneTexturesStruct.GBufferBTextureSampler, UV, 0).a);
+	return DecodeShadingModelId(Texture2DSampleLevel(SceneTexturesStruct.GBufferBTexture, SceneTexturesStruct_GBufferBTextureSampler, UV, 0).a);
 }
 
 // @param UV - UV space in the GBuffer textures (BufferSize resolution)
@@ -773,13 +762,14 @@ FScreenSpaceData GetScreenSpaceData(float2 UV, bool bGetNormalizedNormal = true)
 	FScreenSpaceData Out;
 
 	Out.GBuffer = GetGBufferData(UV, bGetNormalizedNormal);
-	float4 ScreenSpaceAO = Texture2DSampleLevel(SceneTexturesStruct.ScreenSpaceAOTexture, SceneTexturesStruct.ScreenSpaceAOTextureSampler, UV, 0);
+	float4 ScreenSpaceAO = Texture2DSampleLevel(SceneTexturesStruct.ScreenSpaceAOTexture, SceneTexturesStruct_ScreenSpaceAOTextureSampler, UV, 0);
 
 	Out.AmbientOcclusion = ScreenSpaceAO.r;
 
 	return Out;
 }
 
+#endif
 // [ Jimenez et al. 2016, "Practical Realtime Strategies for Accurate Indirect Occlusion" ]
 float3 AOMultiBounce(float3 BaseColor, float AO)
 {

@@ -17,13 +17,13 @@ struct FWriteBuffer;
 class FLogScope
 {
 public:
-	constexpr explicit		operator bool () const { return true; }
-	uint8*					GetPointer() const;
-	void					Commit() const;
-	const FLogScope&		operator << (bool) const;
-	void					operator += (const FLogScope&) const;
 	template <uint32 Flags>
 	static FLogScope		Enter(uint32 Uid, uint32 Size);
+	uint8*					GetPointer() const;
+	void					Commit() const;
+	void					operator += (const FLogScope&) const;
+	const FLogScope&		operator << (bool) const	{ return *this; }
+	constexpr explicit		operator bool () const		{ return true; }
 
 private:
 	template <class T> void	EnterPrelude(uint32 Size, bool bMaybeHasAux);
@@ -63,17 +63,12 @@ public:
 
 
 ////////////////////////////////////////////////////////////////////////////////
-template <bool>	struct TLogScopeSelector;
-template <>		struct TLogScopeSelector<false>	{ typedef FLogScope Type; };
-template <>		struct TLogScopeSelector<true>	{ typedef FImportantLogScope Type; };
-
-////////////////////////////////////////////////////////////////////////////////
 template <class T>
 struct TLogScope
 {
-	static auto Enter(uint32 Uid, uint32 Size);
-	static auto ScopedEnter(uint32 Uid, uint32 Size);
-	static auto ScopedStampedEnter(uint32 Uid, uint32 Size);
+	static auto			Enter(uint32 ExtraSize=0);
+	static FLogScope	ScopedEnter(uint32 ExtraSize=0);
+	static FLogScope	ScopedStampedEnter(uint32 ExtraSize=0);
 };
 
 } // namespace Private

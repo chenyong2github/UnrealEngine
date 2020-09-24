@@ -8,6 +8,7 @@
 #include "Misc/QualifiedFrameTime.h"
 #include "MovieScene/MovieSceneLiveLinkSection.h"
 #include "Styling/SlateIconFinder.h"
+#include "LevelSequence.h"
 
 #include "LiveLinkComponent.h"
 
@@ -208,7 +209,7 @@ TSharedRef<ISequencerSection> FLiveLinkPropertyTrackEditor::MakeSectionInterface
 
 bool FLiveLinkPropertyTrackEditor::SupportsSequence(UMovieSceneSequence* InSequence) const
 {
-	return (InSequence != nullptr) && (InSequence->GetClass()->GetName() == TEXT("LevelSequence"));
+	return InSequence && InSequence->IsA(ULevelSequence::StaticClass());
 }
 
 bool FLiveLinkPropertyTrackEditor::SupportsType(TSubclassOf<UMovieSceneTrack> Type) const

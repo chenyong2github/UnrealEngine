@@ -52,21 +52,12 @@ void Init( inout BxDFContext Context, half3 N, half3 X, half3 Y, half3 V, half3 
 	//NoL = saturate( NoL );
 	//NoV = saturate( abs( NoV ) + 1e-5 );
 
-#if GBUFFER_HAS_TANGENT
 	Context.XoV = dot(X, V);
 	Context.XoL = dot(X, L);
 	Context.XoH = (Context.XoL + Context.XoV) * InvLenH;
 	Context.YoV = dot(Y, V);
 	Context.YoL = dot(Y, L);
 	Context.YoH = (Context.YoL + Context.YoV) * InvLenH;
-#else
-	Context.XoV = 0.0f;
-	Context.XoL = 0.0f;
-	Context.XoH = 0.0f;
-	Context.YoV = 0.0f;
-	Context.YoL = 0.0f;
-	Context.YoH = 0.0f;
-#endif
 }
 
 // [ de Carpentier 2017, "Decima Engine: Advances in Lighting and AA" ]
@@ -169,21 +160,12 @@ void SphereMaxNoH( inout BxDFContext Context, float SinAlpha, bool bNewtonIterat
 		//NoL = saturate( NoL );
 		//NoV = saturate( abs( NoV ) + 1e-5 );
 
-#if GBUFFER_HAS_TANGENT
 		XoV = dot(X, V);
 		XoL = dot(X, L);
 		XoH = (XoL + XoV) * InvLenH;
 		YoV = dot(Y, V);
 		YoL = dot(Y, L);
 		YoH = (YoL + YoV) * InvLenH;
-#else
-		XoV = 0.0f;
-		XoL = 0.0f;
-		XoH = 0.0f;
-		YoV = 0.0f;
-		YoL = 0.0f;
-		YoH = 0.0f;
-#endif
 	}
 
 	// [ de Carpentier 2017, "Decima Engine: Advances in Lighting and AA" ]
@@ -475,32 +457,38 @@ float3 F_Fresnel( float3 SpecularColor, float VoH )
 //---------------
 // EnvBRDF
 //---------------
-
-#if GBUFFER_HAS_TANGENT
 void ModifyGGXAnisotropicNormalRoughness(float3 WorldTangent, float Anisotropy, inout float Roughness, inout float3 N, float3 V)
 {
-	float3 X = WorldTangent;
-	float3 Y = normalize(cross(N, X));
+	if (abs(Anisotropy) > 0.0f)
+	{
+		float3 X = WorldTangent;
+		float3 Y = normalize(cross(N, X));
 
-	float3 AnisotropicDir = Anisotropy >= 0.0f ? Y : X;
-	float3 AnisotropicT   = cross(AnisotropicDir, V); 
-	float3 AnisotropicN   = cross(AnisotropicT, AnisotropicDir);
+		float3 AnisotropicDir = Anisotropy >= 0.0f ? Y : X;
+		float3 AnisotropicT   = cross(AnisotropicDir, V); 
+		float3 AnisotropicN   = cross(AnisotropicT, AnisotropicDir);
 
-	float AnisotropicStretch = abs(Anisotropy) * saturate(5.0f * Roughness);
-	N = normalize(lerp(N, AnisotropicN, AnisotropicStretch));
+		float AnisotropicStretch = abs(Anisotropy) * saturate(5.0f * Roughness);
+		N = normalize(lerp(N, AnisotropicN, AnisotropicStretch));
 #if 0
-	Roughness *= saturate(1.2f - abs(Anisotropy));
+		Roughness *= saturate(1.2f - abs(Anisotropy));
 #endif
+	}
 }
 
 void GetAnisotropicRoughness(float Alpha, float Anisotropy, out float ax, out float ay)
 {
+#if 1
 	// Anisotropic parameters: ax and ay are the roughness along the tangent and bitangent	
 	// Kulla 2017, "Revisiting Physically Based Shading at Imageworks"
 	ax = max(Alpha * (1.0 + Anisotropy), 0.001f);
 	ay = max(Alpha * (1.0 - Anisotropy), 0.001f);
-}
+#else
+	float K = sqrt(1.0f - 0.95f * Anisotropy);
+	ax = max(Alpha / K, 0.001f);
+	ay = max(Alpha * K, 0.001f);
 #endif
+}
 
 #ifndef PreIntegratedGF
 Texture2D		PreIntegratedGF;

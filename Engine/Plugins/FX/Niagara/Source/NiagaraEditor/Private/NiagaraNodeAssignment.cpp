@@ -120,7 +120,7 @@ void UNiagaraNodeAssignment::PostLoad()
 			{
 				SetNode->ConditionalPostLoad();
 
-				TArray<UEdGraphPin*> InputPins;
+				FPinCollectorArray InputPins;
 				SetNode->GetInputPins(InputPins);
 
 				const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();

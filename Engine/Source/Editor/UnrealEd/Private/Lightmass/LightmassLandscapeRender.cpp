@@ -122,7 +122,7 @@ void RenderLandscapeMaterialForLightmass(const FLandscapeStaticLightingMesh* Lan
 			if (OneFrameResource.IsValidForRendering())
 			{
 				// Set the RHI render target.
-				RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, RenderTarget->GetRenderTargetTexture());
+				RHICmdList.Transition(FRHITransitionInfo(RenderTarget->GetRenderTargetTexture(), ERHIAccess::Unknown, ERHIAccess::RTV));
 
 				FRHIRenderPassInfo RPInfo(RenderTarget->GetRenderTargetTexture(), ERenderTargetActions::Load_Store);
 				RHICmdList.BeginRenderPass(RPInfo, TEXT("CanvasFlushSetup"));

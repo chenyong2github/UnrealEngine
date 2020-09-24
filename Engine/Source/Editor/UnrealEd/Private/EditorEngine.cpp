@@ -93,6 +93,7 @@
 #include "IMediaModule.h"
 #include "Scalability.h"
 #include "PlatformInfo.h"
+#include "Interfaces/ITargetPlatform.h"
 
 // needed for the RemotePropagator
 #include "AudioDevice.h"
@@ -224,11 +225,14 @@
 #include "StudioAnalytics.h"
 #include "Engine/LevelScriptActor.h"
 #include "UObject/UnrealType.h"
-
+#include "Factories/TextureFactory.h"
+#include "Engine/TextureCube.h"
 #if WITH_CHAOS
 #include "ChaosSolversModule.h"
 #endif
 
+#include "DeviceProfiles/DeviceProfile.h"
+#include "DeviceProfiles/DeviceProfileManager.h"
 #include "Rendering/StaticLightingSystemInterface.h"
 
 
@@ -1965,7 +1969,7 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 				}
 				GRenderTargetPool.TickPoolElements();
 				FRDGBuilder::TickPoolElements();
-				ICustomResourcePool::TickPoolElements();
+				ICustomResourcePool::TickPoolElements(RHICmdList);
 			});
 	}
 
@@ -2220,7 +2224,7 @@ void UEditorEngine::Cleanse( bool ClearSelection, bool Redraw, const FText& Tran
 			ResetTransaction(TransReset);
 		}
 
-		// Invalidate hit proxies as they can retain references to objects over a few frames
+		// Notify any handlers of the cleanse.
 		FEditorSupportDelegates::CleanseEditor.Broadcast();
 
 		// Redraw the levels.
@@ -4046,7 +4050,7 @@ void UEditorEngine::BuildReflectionCaptures(UWorld* World)
 
 		// Passing in flag to verify all recaptures, no uploads
 		UReflectionCaptureComponent::UpdateReflectionCaptureContents(World, *UpdateReason, true);
-
+		bool bIsReflectionCaptureCompressionProjectSetting = (bool)IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.ReflectionCaptureCompression"))->GetValueOnAnyThread();
 		for (int32 CaptureIndex = 0; CaptureIndex < ReflectionCapturesToBuild.Num(); CaptureIndex++)
 		{ 
 			UReflectionCaptureComponent* CaptureComponent = ReflectionCapturesToBuild[CaptureIndex];
@@ -4061,6 +4065,13 @@ void UEditorEngine::BuildReflectionCaptures(UWorld* World)
 				UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
 				FReflectionCaptureMapBuildData& CaptureBuildData = Registry->AllocateReflectionCaptureBuildData(CaptureComponent->MapBuildDataId, true);
 				(FReflectionCaptureData&)CaptureBuildData = ReadbackCaptureData;
+
+				CaptureComponent->MaxValueRGBM = GetMaxValueRGBM(CaptureBuildData.FullHDRCapturedData, CaptureBuildData.CubemapSize, CaptureBuildData.Brightness, CaptureComponent->MaxValueRGBM);
+
+				FString TextureName = CaptureComponent->GetName() + TEXT("Texture");
+				TextureName += LexToString(CaptureComponent->MapBuildDataId);
+
+				GenerateEncodedHDRTextureCube(Registry, CaptureBuildData, TextureName, CaptureComponent->MaxValueRGBM, CaptureComponent, bIsReflectionCaptureCompressionProjectSetting);
 
 				CaptureBuildData.FinalizeLoad();
 
@@ -5774,7 +5785,7 @@ AActor* UEditorEngine::ConvertBrushesToStaticMesh(const FString& InStaticMeshPac
 	FName ObjName = *FPackageName::GetLongPackageAssetName(InStaticMeshPackageName);
 
 
-	UPackage* Pkg = CreatePackage(NULL, *InStaticMeshPackageName);
+	UPackage* Pkg = CreatePackage( *InStaticMeshPackageName);
 	check(Pkg != nullptr);
 
 	FVector Location(0.0f, 0.0f, 0.0f);
@@ -7633,7 +7644,9 @@ void UEditorEngine::SetPreviewPlatform(const FPreviewPlatformInfo& NewPreviewPla
 #endif
 
 	// If we have specified a MaterialQualityPlatform ensure its feature level matches the requested feature level.
-	check(NewPreviewPlatform.PreviewShaderFormatName.IsNone() || GetMaxSupportedFeatureLevel(ShaderFormatToLegacyShaderPlatform(NewPreviewPlatform.PreviewShaderFormatName)) == NewPreviewPlatform.PreviewFeatureLevel);
+	EShaderPlatform ShaderPlatform = ShaderFormatToLegacyShaderPlatform(NewPreviewPlatform.PreviewShaderFormatName);
+	ERHIFeatureLevel::Type MaxFeatureLevel = GetMaxSupportedFeatureLevel(ShaderPlatform);
+	check(NewPreviewPlatform.PreviewShaderFormatName.IsNone() || MaxFeatureLevel == NewPreviewPlatform.PreviewFeatureLevel);
 
 	const bool bChangedPreviewShaderPlatform = NewPreviewPlatform.PreviewShaderFormatName != PreviewPlatform.PreviewShaderFormatName;
 	const bool bChangedFeatureLevel = NewPreviewPlatform.PreviewFeatureLevel != PreviewPlatform.PreviewFeatureLevel ||
@@ -7706,6 +7719,19 @@ void UEditorEngine::SetPreviewPlatform(const FPreviewPlatformInfo& NewPreviewPla
 
 	Scalability::ChangeScalabilityPreviewPlatform(PreviewPlatform.GetEffectivePreviewPlatformName());
 
+	UDeviceProfileManager::Get().RestoreDefaultDeviceProfile();
+
+	//Override the current device profile.
+	if (PreviewPlatform.DeviceProfileName != NAME_None)
+	{
+		if (UDeviceProfile* DP = UDeviceProfileManager::Get().FindProfile(PreviewPlatform.DeviceProfileName.ToString(), false))
+		{
+			UDeviceProfileManager::Get().SetOverrideDeviceProfile(DP, true);
+		}
+	}
+
+	PreviewPlatformChanged.Broadcast();
+
 	if (bSaveSettings)
 	{
 		SaveEditorFeatureLevel();
@@ -7722,6 +7748,27 @@ void UEditorEngine::ToggleFeatureLevelPreview()
 	PreviewFeatureLevelChanged.Broadcast(NewPreviewFeatureLevel);
 
 	Scalability::ChangeScalabilityPreviewPlatform(PreviewPlatform.GetEffectivePreviewPlatformName());
+
+	if (PreviewPlatform.bPreviewFeatureLevelActive)
+	{
+		if (PreviewPlatform.DeviceProfileName != NAME_None)
+		{
+			if (UDeviceProfile* DP = UDeviceProfileManager::Get().FindProfile(PreviewPlatform.DeviceProfileName.ToString(), false))
+			{
+				UDeviceProfileManager::Get().SetOverrideDeviceProfile(DP, true);
+			}
+		}
+		else
+		{
+			UDeviceProfileManager::Get().RestoreDefaultDeviceProfile();
+		}
+	}
+	else
+	{
+		UDeviceProfileManager::Get().RestoreDefaultDeviceProfile();
+	}
+
+	PreviewPlatformChanged.Broadcast();
 
 	GEditor->RedrawAllViewports();
 	
@@ -7748,7 +7795,18 @@ void UEditorEngine::LoadEditorFeatureLevel()
 	auto* Settings = GetMutableDefault<UEditorPerProjectUserSettings>();
 	if (Settings->PreviewFeatureLevel >= 0 && Settings->PreviewFeatureLevel < (int32)ERHIFeatureLevel::Num)
 	{
-		SetPreviewPlatform(FPreviewPlatformInfo((ERHIFeatureLevel::Type)Settings->PreviewFeatureLevel, Settings->PreviewShaderFormatName, Settings->bPreviewFeatureLevelActive), false);
+		// Try to map a saved ShaderFormatName to the PreviewPlatformName using ITargetPlatform if we don't have one. 
+		// We now store the PreviewPlatformName explicitly to support preview for platforms we don't have an ITargetPlatform of.
+		if (Settings->PreviewPlatformName == NAME_None && Settings->PreviewShaderFormatName != NAME_None)
+		{
+			const ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatformWithSupport(TEXT("ShaderFormat"), Settings->PreviewShaderFormatName);
+			if (TargetPlatform)
+			{
+				Settings->PreviewPlatformName = FName(*TargetPlatform->IniPlatformName());
+			}
+		}
+
+		SetPreviewPlatform(FPreviewPlatformInfo((ERHIFeatureLevel::Type)Settings->PreviewFeatureLevel, Settings->PreviewPlatformName, Settings->PreviewShaderFormatName, Settings->PreviewDeviceProfileName, Settings->bPreviewFeatureLevelActive), false);
 	}
 }
 
@@ -7756,8 +7814,10 @@ void UEditorEngine::SaveEditorFeatureLevel()
 {
 	auto* Settings = GetMutableDefault<UEditorPerProjectUserSettings>();
 	Settings->PreviewFeatureLevel = (int32)PreviewPlatform.PreviewFeatureLevel;
+	Settings->PreviewPlatformName = PreviewPlatform.PreviewPlatformName;
 	Settings->PreviewShaderFormatName = PreviewPlatform.PreviewShaderFormatName;
 	Settings->bPreviewFeatureLevelActive = PreviewPlatform.bPreviewFeatureLevelActive;
+	Settings->PreviewDeviceProfileName = PreviewPlatform.DeviceProfileName;
 	Settings->PostEditChange();
 }
 

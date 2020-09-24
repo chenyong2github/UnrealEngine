@@ -25,7 +25,7 @@ class UMovieSceneCameraShakeSourceShakeTrack : public UMovieSceneNameableTrack, 
 
 public:
 	MOVIESCENETRACKS_API UMovieSceneSection* AddNewCameraShake(const FFrameNumber KeyTime, const UCameraShakeSourceComponent& ShakeSourceComponent);
-	MOVIESCENETRACKS_API UMovieSceneSection* AddNewCameraShake(const FFrameNumber KeyTime, const TSubclassOf<UCameraShake> ShakeClass, bool bIsAutomaticShake);
+	MOVIESCENETRACKS_API UMovieSceneSection* AddNewCameraShake(const FFrameNumber KeyTime, const TSubclassOf<UCameraShakeBase> ShakeClass, bool bIsAutomaticShake);
 	
 public:
 	// UMovieSceneTrack interface

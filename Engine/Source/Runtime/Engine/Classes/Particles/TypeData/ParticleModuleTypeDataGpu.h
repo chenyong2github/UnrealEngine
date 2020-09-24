@@ -229,6 +229,7 @@ struct FGPUSpriteEmitterInfo
 		, bRemoveHMDRoll(0)
 		, MinFacingCameraBlendDistance(0.f)
 		, MaxFacingCameraBlendDistance(0.f)
+		, Resources(nullptr)
 	{
 	}
 

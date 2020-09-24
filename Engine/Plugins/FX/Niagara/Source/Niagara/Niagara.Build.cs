@@ -15,6 +15,7 @@ public class Niagara : ModuleRules
                 "Core",
                 "Engine",
                 "TimeManagement",
+                "TraceLog",
                 "Renderer",
                 "JsonUtilities",
 				"Landscape",
@@ -38,6 +39,7 @@ public class Niagara : ModuleRules
                 "RHI",
                 "NiagaraVertexFactories",
                 "RenderCore",
+                "IntelISPC",
             }
         );
 

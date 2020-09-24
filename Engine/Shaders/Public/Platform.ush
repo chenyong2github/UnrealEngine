@@ -282,17 +282,18 @@
 
 #elif ES3_1_PROFILE
 	#define FEATURE_LEVEL FEATURE_LEVEL_ES3_1
-	
+
 	#if COMPILER_GLSL_ES3_1
 		#define FCOLOR_COMPONENT_SWIZZLE .bgra  
 		#define FMANUALFETCH_COLOR_COMPONENT_SWIZZLE .bgra
 	#else 
 		#define FCOLOR_COMPONENT_SWIZZLE .rgba
 		#define FMANUALFETCH_COLOR_COMPONENT_SWIZZLE .bgra
-		#if COMPILER_GLSL
-			// A8 textures when sampled have their component in R
-			#define A8_SAMPLE_MASK .r
-		#endif
+	#endif
+
+	#if COMPILER_GLSL || COMPILER_GLSL_ES3_1
+		// A8 textures when sampled have their component in R
+		#define A8_SAMPLE_MASK .r
 	#endif
 #elif VECTORVM_PROFILE
 	#define FEATURE_LEVEL FEATURE_LEVEL_SM5

@@ -14,7 +14,6 @@
 #include "VulkanViewport.h"
 #include "VulkanDynamicRHI.h"
 #include "VulkanPipeline.h"
-#include "VulkanGlobalUniformBuffer.h"
 #include "VulkanPipelineState.h"
 
 // All the current compute pipeline states in use
@@ -31,7 +30,6 @@ public:
 
 	void Reset()
 	{
-		UAVListForAutoFlush.SetNum(0,false);
 		CurrentPipeline = nullptr;
 		CurrentState = nullptr;
 	}
@@ -62,11 +60,6 @@ public:
 	inline const FVulkanComputeShader* GetCurrentShader() const
 	{
 		return CurrentPipeline ? CurrentPipeline->GetShader() : nullptr;
-	}
-
-	inline void AddUAVForAutoFlush(FVulkanUnorderedAccessView* UAV)
-	{
-		UAVListForAutoFlush.Add(UAV);
 	}
 
 	void SetUAVForUBResource(uint32 DescriptorSet, uint32 BindingIndex, FVulkanUnorderedAccessView* UAV);
@@ -151,8 +144,6 @@ public:
 	}
 
 protected:
-	TArray<FVulkanUnorderedAccessView*> UAVListForAutoFlush;
-
 	FVulkanComputePipeline* CurrentPipeline = nullptr;
 	FVulkanComputePipelineDescriptorState* CurrentState = nullptr;
 

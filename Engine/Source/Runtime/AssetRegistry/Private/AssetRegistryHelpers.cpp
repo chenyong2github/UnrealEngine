@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AssetRegistryHelpers.h"
+#include "AssetRegistry/AssetRegistryHelpers.h"
 #include "Modules/ModuleManager.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
 #include "AssetRegistry.h"
 
 TScriptInterface<IAssetRegistry> UAssetRegistryHelpers::GetAssetRegistry()

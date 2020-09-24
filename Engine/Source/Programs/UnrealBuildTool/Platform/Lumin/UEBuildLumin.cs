@@ -196,7 +196,7 @@ namespace UnrealBuildTool
 			LinkEnvironment.SystemLibraryPaths.Add(DirectoryReference.Combine(MLSDKDir, "lib/lumin"));
 			LinkEnvironment.SystemLibraryPaths.Add(DirectoryReference.Combine(MLSDKDir, "lumin/stl/libc++/lib"));
 
-			LinkEnvironment.SystemLibraries.Add("GLESv2");
+			LinkEnvironment.SystemLibraries.Add("GLESv3");
 			LinkEnvironment.SystemLibraries.Add("EGL");
 
 			LinkEnvironment.SystemLibraries.Add("ml_lifecycle");

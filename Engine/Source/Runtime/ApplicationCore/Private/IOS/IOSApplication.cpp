@@ -131,7 +131,7 @@ static TAutoConsoleVariable<float> CVarSafeZone_Landscape_Right(TEXT("SafeZone.L
 static TAutoConsoleVariable<float> CVarSafeZone_Landscape_Bottom(TEXT("SafeZone.Landscape.Bottom"), -1.0f, TEXT("Safe Zone - Landscape - Bottom"));
 
 #if !PLATFORM_TVOS
-UIInterfaceOrientation CachedOrientation = UIInterfaceOrientationPortrait;
+UIInterfaceOrientation FIOSApplication::CachedOrientation = UIInterfaceOrientationPortrait;
 UIEdgeInsets CachedInsets;
 #endif
 
@@ -160,14 +160,14 @@ void FDisplayMetrics::RebuildDisplayMetrics(FDisplayMetrics& OutDisplayMetrics)
 		TAutoConsoleVariable<float>* CVar_Bottom = nullptr;
 
 		//making an assumption that the "normal" landscape mode is Landscape right
-		if (CachedOrientation == UIInterfaceOrientationLandscapeLeft)
+		if (FIOSApplication::CachedOrientation == UIInterfaceOrientationLandscapeLeft)
 		{
 			CVar_Left = &CVarSafeZone_Landscape_Left;
 			CVar_Right = &CVarSafeZone_Landscape_Right;
             CVar_Top = &CVarSafeZone_Landscape_Top;
             CVar_Bottom = &CVarSafeZone_Landscape_Bottom;
 		}
-		else if (CachedOrientation == UIInterfaceOrientationLandscapeRight)
+		else if (FIOSApplication::CachedOrientation == UIInterfaceOrientationLandscapeRight)
 		{
 			CVar_Left = &CVarSafeZone_Landscape_Right;
 			CVar_Right = &CVarSafeZone_Landscape_Left;

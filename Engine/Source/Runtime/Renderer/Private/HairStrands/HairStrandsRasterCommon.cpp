@@ -19,6 +19,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairDeepShadowRasterGlobalParameters, )
 	SHADER_PARAMETER(FIntRect, AtlasRect)
 	SHADER_PARAMETER(FIntPoint, ViewportResolution)
 	SHADER_PARAMETER(uint32, AtlasSlotIndex)
+	SHADER_PARAMETER(FVector4, LayerDepths)
 	SHADER_PARAMETER_TEXTURE(Texture2D<float>, FrontDepthTexture)
 	SHADER_PARAMETER_SRV(StructuredBuffer<FDeepShadowViewInfo>, DeepShadowViewInfoBuffer)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
@@ -32,6 +33,7 @@ static FHairDeepShadowRasterGlobalParameters ConvertToGlobalPassParameter(const 
 	Out.AtlasRect				= In->AtlasRect;
 	Out.ViewportResolution		= In->ViewportResolution;
 	Out.AtlasSlotIndex			= In->AtlasSlotIndex;
+	Out.LayerDepths				= In->LayerDepths;
 	Out.FrontDepthTexture		= In->FrontDepthTexture ? In->FrontDepthTexture->GetRHI() : (FRHITexture*)(GSystemTextures.DepthDummy->GetRenderTargetItem().ShaderResourceTexture);
 	Out.DeepShadowViewInfoBuffer= In->DeepShadowViewInfoBuffer->GetRHI();
 	return Out;

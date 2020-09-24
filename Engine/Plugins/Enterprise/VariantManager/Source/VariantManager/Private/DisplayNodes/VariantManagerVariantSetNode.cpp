@@ -2,32 +2,39 @@
 
 #include "DisplayNodes/VariantManagerVariantSetNode.h"
 
-#include "Textures/SlateIcon.h"
+#include "DisplayNodes/VariantManagerVariantNode.h"
+#include "LevelVariantSets.h"
+#include "SVariantManager.h"
+#include "SVariantManagerTableRow.h"
+#include "ThumbnailGenerator.h"
+#include "Variant.h"
+#include "VariantManager.h"
+#include "VariantManagerDragDropOp.h"
+#include "VariantManagerEditorCommands.h"
+#include "VariantManagerNodeTree.h"
+#include "VariantManagerNodeTree.h"
+#include "VariantManagerSelection.h"
+#include "VariantManagerStyle.h"
+#include "VariantObjectBinding.h"
+#include "VariantSet.h"
+
+#include "AssetThumbnail.h"
+#include "Brushes/SlateImageBrush.h"
+#include "DragAndDrop/ActorDragDropGraphEdOp.h"
+#include "EditorFontGlyphs.h"
+#include "EditorStyleSet.h"
+#include "Engine/Texture2D.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Notifications/NotificationManager.h"
-#include "EditorStyleSet.h"
-#include "EditorFontGlyphs.h"
-#include "Variant.h"
-#include "VariantManager.h"
-#include "VariantSet.h"
-#include "LevelVariantSets.h"
-#include "VariantManagerDragDropOp.h"
-#include "VariantManagerNodeTree.h"
-#include "VariantObjectBinding.h"
-#include "ScopedTransaction.h"
-#include "DragAndDrop/ActorDragDropGraphEdOp.h"
 #include "Input/DragAndDrop.h"
-#include "SVariantManager.h"
-#include "SVariantManagerTableRow.h"
-#include "VariantManagerSelection.h"
-#include "DisplayNodes/VariantManagerVariantNode.h"
+#include "ScopedTransaction.h"
+#include "Textures/SlateIcon.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/Views/SExpanderArrow.h"
-#include "VariantManagerNodeTree.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "Widgets/Views/SExpanderArrow.h"
 
 #define LOCTEXT_NAMESPACE "VariantManagerVariantSetNode"
 
@@ -54,73 +61,134 @@ TSharedRef<SWidget> FVariantManagerVariantSetNode::GetCustomOutlinerContent(TSha
 		.ToolTipText(this, &FVariantManagerDisplayNode::GetDisplayNameToolTipText)
 		.Clipping(EWidgetClipping::ClipToBounds);
 
+	bool bIsFirstRowOfTree = false;
+	TSharedPtr<FVariantManagerNodeTree> PinnedParentTree = ParentTree.Pin();
+	if ( PinnedParentTree.IsValid() )
+	{
+		const TArray< TSharedRef<FVariantManagerDisplayNode> >& RootNodes = PinnedParentTree->GetRootNodes();
+		if ( RootNodes.Num() > 0 && RootNodes[ 0 ] == SharedThis( this ) )
+		{
+			bIsFirstRowOfTree = true;
+		}
+	}
+
 	return
-	SNew(SBox)
-	.HeightOverride(26)
+	SNew( SBorder )
+	.BorderImage( FEditorStyle::GetBrush( "WhiteBrush" ) )
+	.BorderBackgroundColor( FVariantManagerStyle::Get()->GetColor("VariantManager.Panels.LightBackgroundColor") )
+	.Padding( FMargin( 0.0f, bIsFirstRowOfTree ? 0.0f : FVariantManagerStyle::Get()->GetFloat( "VariantManager.Spacings.BorderThickness" ), 0.0f, 0.0f ) )
 	[
-		SNew(SBorder)
-		.VAlign(VAlign_Center)
-		.HAlign(HAlign_Fill)
-		.BorderImage(this, &FVariantManagerDisplayNode::GetNodeBorderImage)
-		.BorderBackgroundColor(this, &FVariantManagerDisplayNode::GetNodeBackgroundTint)
-		.Padding(FMargin(2.0f, 0.0f, 2.0f, 0.0f))
+		SNew(SBox)
+		.HeightOverride(78)
 		[
-			SNew(SHorizontalBox)
-
-			+ SHorizontalBox::Slot()
-			.Padding(FMargin(4.f, 0.f, 4.f, 0.f))
+			SNew(SBorder)
 			.VAlign(VAlign_Center)
-			.MaxWidth(24.0f)
-			.AutoWidth()
+			.HAlign(HAlign_Fill)
+			.BorderImage(this, &FVariantManagerDisplayNode::GetNodeBorderImage)
+			.BorderBackgroundColor(this, &FVariantManagerDisplayNode::GetNodeBackgroundTint)
+			.Padding(FMargin(2.0f, 0.0f, 2.0f, 0.0f))
 			[
-				SNew(SExpanderArrow, InTableRow).IndentAmount(VariantManagerLayoutConstants::IndentAmount)
-			]
+				SNew(SHorizontalBox)
 
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Left)
-			.Padding(FMargin(0.f, 0.f, 4.f, 0.f))
-			.FillWidth(1.0f)
-			[
-				EditableLabel.ToSharedRef()
-			]
-
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Right)
-			.MaxWidth(24.0f)
-			.AutoWidth()
-			.Padding(FMargin(4.f, 0.f, 4.f, 0.f))
-			[
-				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "NoBorder")
-				.ToolTipText(LOCTEXT("AddVariantToolTip", "Add a new variant"))
-				.OnClicked_Lambda([this]
-				{
-					TSharedPtr<FVariantManager> VariantManagerPtr = GetVariantManager().Pin();
-					if (VariantManagerPtr.IsValid())
-					{
-						FScopedTransaction Transaction(FText::Format(
-							LOCTEXT("VariantSetNodeAddVariantTransaction", "Create a new variant for variant set '{0}'"),
-							GetDisplayName()));
-
-						VariantManagerPtr->CreateVariant(&GetVariantSet());
-						VariantManagerPtr->GetVariantManagerWidget()->RefreshVariantTree();
-					}
-
-					return FReply::Handled();
-				})
-				.ContentPadding(FMargin(2.0f, 1.0f))
-				.Content()
+				+ SHorizontalBox::Slot()
+				.Padding(FMargin(4.f, 0.f, 4.f, 0.f))
+				.VAlign(VAlign_Center)
+				.MaxWidth(24.0f)
+				.AutoWidth()
 				[
-					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-					.Text(FEditorFontGlyphs::Plus)
+					SNew(SExpanderArrow, InTableRow).IndentAmount( FVariantManagerStyle::Get()->GetFloat( "VariantManager.Spacings.IndentAmount" ) )
+				]
+
+				+ SHorizontalBox::Slot()
+				.Padding(FMargin(4.f, 0.f, 4.f, 0.f))
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[
+					GetThumbnailWidget()
+				]
+
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Left)
+				.Padding(FMargin(0.f, 0.f, 4.f, 0.f))
+				.FillWidth(1.0f)
+				[
+					EditableLabel.ToSharedRef()
+				]
+
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Right)
+				.MaxWidth(24.0f)
+				.AutoWidth()
+				.Padding(FMargin(4.f, 0.f, 4.f, 0.f))
+				[
+					SNew(SButton)
+					.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+					.ToolTipText(LOCTEXT("AddVariantToolTip", "Add a new variant"))
+					.OnClicked_Lambda([this]
+					{
+						TSharedPtr<FVariantManager> VariantManagerPtr = GetVariantManager().Pin();
+						if (VariantManagerPtr.IsValid())
+						{
+							FScopedTransaction Transaction(FText::Format(
+								LOCTEXT("VariantSetNodeAddVariantTransaction", "Create a new variant for variant set '{0}'"),
+								GetDisplayName()));
+
+							VariantManagerPtr->CreateVariant(&GetVariantSet());
+							VariantManagerPtr->GetVariantManagerWidget()->RefreshVariantTree();
+						}
+
+						return FReply::Handled();
+					})
+					.ContentPadding(FMargin(2.0f, 1.0f))
+					.Content()
+					[
+						SNew(STextBlock)
+						.TextStyle(FEditorStyle::Get(), "NormalText.Important")
+						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+						.Text(FEditorFontGlyphs::Plus)
+					]
 				]
 			]
 		]
 	];
+}
+
+TSharedRef<SWidget> FVariantManagerVariantSetNode::GetThumbnailWidget()
+{
+	TSharedPtr<SWidget> ThumbnailWidget = nullptr;
+
+	// Try using texture2d thumbnails
+	if (UTexture2D* CreatedThumbnail = VariantSet.GetThumbnail())
+	{
+		if (!ImageBrush.IsValid() || ImageBrush->GetResourceObject() != CreatedThumbnail)
+		{
+			ImageBrush = MakeShareable(
+				new FSlateImageBrush((UObject*)CreatedThumbnail, FVector2D(CreatedThumbnail->GetSizeX(), CreatedThumbnail->GetSizeY())));
+		}
+
+		if (ImageBrush.IsValid())
+		{
+			ThumbnailWidget = SNew(SImage).Image(ImageBrush.Get());
+		}
+	}
+
+	// Use default thumbnail graphic for Variants as a fallback
+	if (!ThumbnailWidget.IsValid())
+	{
+		ThumbnailPool = MakeShared<FAssetThumbnailPool>(1, false);
+
+		TSharedRef<FAssetThumbnail> AssetThumbnail = MakeShared<FAssetThumbnail>(&VariantSet, VARIANT_MANAGER_THUMBNAIL_SIZE, VARIANT_MANAGER_THUMBNAIL_SIZE, ThumbnailPool);
+		ThumbnailWidget = AssetThumbnail->MakeThumbnailWidget();
+	}
+
+	return SNew(SBox)
+		.WidthOverride(64)
+		.HeightOverride(64)
+		[
+			ThumbnailWidget.IsValid() ? ThumbnailWidget.ToSharedRef() : SNullWidget::NullWidget
+		];
 }
 
 void FVariantManagerVariantSetNode::SetExpansionState(bool bInExpanded)
@@ -385,7 +453,7 @@ TOptional<EItemDropZone> FVariantManagerVariantSetNode::CanDrop(const FDragDropE
 		{
 			FModifierKeysState ModifierKeysState = FSlateApplication::Get().GetModifierKeys();
 
-			FText NewHoverText = FText::Format( LOCTEXT("CanDrop_ApplyVariantsToSet", "{0} {1} {1}|plural(one=variant,other=variants) to set '{3}'"),
+			FText NewHoverText = FText::Format( LOCTEXT("CanDrop_ApplyVariantsToSet", "{0} {1} {1}|plural(one=variant,other=variants) to set '{2}'"),
 				ModifierKeysState.IsControlDown() ? LOCTEXT("Copy", "Copy") : LOCTEXT("Move", "Move"),
 				NumDraggedVariants,
 				GetVariantSet().GetDisplayText());
@@ -646,6 +714,12 @@ void FVariantManagerVariantSetNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 				VariantManagerPtr->GetVariantManagerWidget()->RefreshVariantTree();
 			}
 		})));
+	MenuBuilder.EndSection();
+
+	MenuBuilder.BeginSection(TEXT("Thumbnail"), LOCTEXT("ThumbnailSectionText", "Thumbnail"));
+	MenuBuilder.AddMenuEntry(FVariantManagerEditorCommands::Get().CreateThumbnailCommand);
+	MenuBuilder.AddMenuEntry(FVariantManagerEditorCommands::Get().LoadThumbnailCommand);
+	MenuBuilder.AddMenuEntry(FVariantManagerEditorCommands::Get().ClearThumbnailCommand);
 	MenuBuilder.EndSection();
 }
 

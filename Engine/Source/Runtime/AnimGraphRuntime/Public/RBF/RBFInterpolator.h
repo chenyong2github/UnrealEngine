@@ -92,8 +92,7 @@ namespace RBFDistanceMetric
 /* A collection of smoothing kernels, all of which map the input of zero to 1.0 and 
    all values on either side as monotonically decreasing as they move away from zero.
    The width of the falloff can be specified using the Sigma parameter.
-   NOTE: These kernels have been tuned to give similar falloff convergence for the same 
-   value of sigma. */
+   */
 namespace RBFKernel
 {
 	/* A simple linear falloff, clamping at zero out when the norm of Value exceeds Sigma */
@@ -105,7 +104,7 @@ namespace RBFKernel
 	/* A gaussian falloff */
 	static inline float Gaussian(float Value, float Sigma)
 	{
-		return FMath::Exp(-0.5f * FMath::Square(Value / (Sigma / 2.0f)));
+		return FMath::Exp(-Value * FMath::Square(1.0f / Sigma));
 	}
 
 	/* An exponential falloff with a sharp peak */
@@ -276,7 +275,7 @@ public:
 	static bool GetIdenticalNodePairs(
 		const TArrayView<T>& InNodes,
 		WeightFuncT InWeightFunc,
-		TArray<TTuple<int, int>> &OutInvalidPairs
+		TArray<TTuple<int, int>>& OutInvalidPairs
 		) 
 	{
 		int NumNodes = InNodes.Num();

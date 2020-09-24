@@ -5,7 +5,6 @@
 #include "EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SlateOptMacros.h"
-#include "Templates/UniquePtr.h"
 #include "TraceServices/AnalysisService.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SScrollBox.h"
@@ -18,13 +17,17 @@
 
 // Insights
 #include "Insights/Common/Stopwatch.h"
+#include "Insights/Common/TimeUtils.h"
 #include "Insights/Table/ViewModels/Table.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/TimingProfilerCommon.h"
 #include "Insights/TimingProfilerManager.h"
+#include "Insights/ViewModels/ThreadTimingTrack.h"
+#include "Insights/ViewModels/TimerAggregation.h"
 #include "Insights/ViewModels/TimerNodeHelper.h"
 #include "Insights/ViewModels/TimersViewColumnFactory.h"
 #include "Insights/ViewModels/TimingGraphTrack.h"
+#include "Insights/Widgets/SAggregatorStatus.h"
 #include "Insights/Widgets/STimersViewTooltip.h"
 #include "Insights/Widgets/STimerTableRow.h"
 #include "Insights/Widgets/STimingProfilerWindow.h"
@@ -43,8 +46,7 @@ STimersView::STimersView()
 	, CurrentSorter(nullptr)
 	, ColumnBeingSorted(GetDefaultColumnBeingSorted())
 	, ColumnSortMode(GetDefaultColumnSortMode())
-	, StatsStartTime(0.0)
-	, StatsEndTime(0.0)
+	, Aggregator(MakeShared<Insights::FTimerAggregator>())
 {
 	FMemory::Memset(bTimerTypeIsVisible, 1);
 }
@@ -204,10 +206,16 @@ void STimersView::Construct(const FArguments& InArgs)
 
 				+ SScrollBox::Slot()
 				[
-					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-					.Padding(0.0f)
+					SNew(SOverlay)
+
+					+ SOverlay::Slot()
+					.HAlign(HAlign_Fill)
+					.VAlign(VAlign_Fill)
 					[
+					//SNew(SBorder)
+					//.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					//.Padding(0.0f)
+					//[
 						SAssignNew(TreeView, STreeView<FTimerNodePtr>)
 						.ExternalScrollbar(ExternalScrollbar)
 						.SelectionMode(ESelectionMode::Multi)
@@ -223,6 +231,15 @@ void STimersView::Construct(const FArguments& InArgs)
 							SAssignNew(TreeViewHeaderRow, SHeaderRow)
 							.Visibility(EVisibility::Visible)
 						)
+					//]
+					]
+
+					+ SOverlay::Slot()
+					.HAlign(HAlign_Right)
+					.VAlign(VAlign_Bottom)
+					.Padding(16.0f)
+					[
+						SAssignNew(AggregatorStatus, Insights::SAggregatorStatus, Aggregator)
 					]
 				]
 			]
@@ -1582,8 +1599,8 @@ void STimersView::ContextMenu_ResetColumns_Execute()
 
 void STimersView::Reset()
 {
-	StatsStartTime = 0.0;
-	StatsEndTime = 0.0;
+	Aggregator->Cancel();
+	Aggregator->SetTimeInterval(0.0, 0.0);
 
 	RebuildTree(true);
 }
@@ -1606,6 +1623,8 @@ void STimersView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		const uint64 WaitTime = static_cast<uint64>(WaitTimeSec / FPlatformTime::GetSecondsPerCycle64());
 		NextTimestamp = Time + WaitTime;
 	}
+
+	Aggregator->Tick(Session, InCurrentTime, InDeltaTime, [this]() { FinishAggregation(); });
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1664,7 +1683,8 @@ void STimersView::RebuildTree(bool bResync)
 		}
 
 		UpdateTree();
-		UpdateStatsInternal();
+		Aggregator->Cancel();
+		Aggregator->Start();
 
 		// Save selection.
 		TArray<FTimerNodePtr> SelectedItems;
@@ -1703,106 +1723,77 @@ void STimersView::RebuildTree(bool bResync)
 
 void STimersView::ResetStats()
 {
-	StatsStartTime = 0.0;
-	StatsEndTime = 0.0;
-
-	UpdateStatsInternal();
+	Aggregator->Cancel();
+	Aggregator->SetTimeInterval(0.0, 0.0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STimersView::UpdateStats(double StartTime, double EndTime)
 {
-	StatsStartTime = StartTime;
-	StatsEndTime = EndTime;
-
-	UpdateStatsInternal();
+	Aggregator->Cancel();
+	Aggregator->SetTimeInterval(StartTime, EndTime);
+	Aggregator->Start();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::UpdateStatsInternal()
+void STimersView::FinishAggregation()
 {
-	if (StatsStartTime >= StatsEndTime)
-	{
-		// keep previous aggregated stats
-		return;
-	}
-
-	FStopwatch AggregationStopwatch;
-	FStopwatch Stopwatch;
-	Stopwatch.Start();
-
 	for (const FTimerNodePtr& NodePtr : TimerNodes)
 	{
 		NodePtr->ResetAggregatedStats();
 	}
 
-	if (Session.IsValid() && Trace::ReadTimingProfilerProvider(*Session.Get()))
+	ApplyAggregation(Aggregator->GetResultTable());
+	Aggregator->ResetResults();
+
+	// Invalidate all tree table rows.
+	for (const FTimerNodePtr NodePtr : TimerNodes)
 	{
-		TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
-		TSharedPtr<STimingView> TimingView = Wnd.IsValid() ? Wnd->GetTimingView() : nullptr;
-
-		auto ThreadFilter = [&TimingView](uint32 ThreadId)
+		TSharedPtr<ITableRow> TableRowPtr = TreeView->WidgetFromItem(NodePtr);
+		if (TableRowPtr.IsValid())
 		{
-			return !TimingView.IsValid() || TimingView->IsCpuTrackVisible(ThreadId);
-		};
-
-		const bool bIsGpuTrackVisible = TimingView.IsValid() && TimingView->IsGpuTrackVisible();
-
-		TUniquePtr<Trace::ITable<Trace::FTimingProfilerAggregatedStats>> AggregationResultTable;
-
-		AggregationStopwatch.Start();
-		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-			const Trace::ITimingProfilerProvider& TimingProfilerProvider = *Trace::ReadTimingProfilerProvider(*Session.Get());
-			AggregationResultTable.Reset(TimingProfilerProvider.CreateAggregation(StatsStartTime, StatsEndTime, ThreadFilter, bIsGpuTrackVisible));
-		}
-		AggregationStopwatch.Stop();
-
-		if (AggregationResultTable.IsValid())
-		{
-			TUniquePtr<Trace::ITableReader<Trace::FTimingProfilerAggregatedStats>> TableReader(AggregationResultTable->CreateReader());
-			while (TableReader->IsValid())
-			{
-				const Trace::FTimingProfilerAggregatedStats* Row = TableReader->GetCurrentRow();
-				FTimerNodePtr TimerNodePtr = GetTimerNode(Row->Timer->Id);
-				if (TimerNodePtr)
-				{
-					TimerNodePtr->SetAggregatedStats(*Row);
-
-					TSharedPtr<ITableRow> TableRowPtr = TreeView->WidgetFromItem(TimerNodePtr);
-					if (TableRowPtr.IsValid())
-					{
-						TSharedPtr<STimerTableRow> RowPtr = StaticCastSharedPtr<STimerTableRow, ITableRow>(TableRowPtr);
-						RowPtr->InvalidateContent();
-					}
-				}
-				TableReader->NextRow();
-			}
+			TSharedPtr<STimerTableRow> RowPtr = StaticCastSharedPtr<STimerTableRow, ITableRow>(TableRowPtr);
+			RowPtr->InvalidateContent();
 		}
 	}
 
-	UpdateTree();
+	UpdateTree(); // grouping + sorting + filtering
 
+	// Ensure the last selected item is visible.
 	const TArray<FTimerNodePtr> SelectedNodes = TreeView->GetSelectedItems();
 	if (SelectedNodes.Num() > 0)
 	{
-		TreeView->RequestScrollIntoView(SelectedNodes[0]);
+		TreeView->RequestScrollIntoView(SelectedNodes.Last());
 	}
+}
 
-	Stopwatch.Stop();
-	const double TotalTime = Stopwatch.GetAccumulatedTime();
-	const double AggregationTime = AggregationStopwatch.GetAccumulatedTime();
-	UE_LOG(TimingProfiler, Log, TEXT("[Timers] Aggregated stats updated in %.4fs (%.4fs + %.4fs)"),
-		TotalTime, AggregationTime, TotalTime - AggregationTime);
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimersView::ApplyAggregation(Trace::ITable<Trace::FTimingProfilerAggregatedStats>* AggregatedStatsTable)
+{
+	if (AggregatedStatsTable)
+	{
+		TUniquePtr<Trace::ITableReader<Trace::FTimingProfilerAggregatedStats>> TableReader(AggregatedStatsTable->CreateReader());
+		while (TableReader->IsValid())
+		{
+			const Trace::FTimingProfilerAggregatedStats* Row = TableReader->GetCurrentRow();
+			FTimerNodePtr TimerNodePtr = GetTimerNode(Row->Timer->Id);
+			if (TimerNodePtr)
+			{
+				TimerNodePtr->SetAggregatedStats(*Row);
+			}
+			TableReader->NextRow();
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FTimerNodePtr STimersView::GetTimerNode(uint32 TimerId) const
 {
-	return (static_cast<int32>(TimerId) < TimerNodes.Num()) ? TimerNodes[TimerId] : nullptr;
+	return (TimerId < (uint32)TimerNodes.Num()) ? TimerNodes[TimerId] : nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

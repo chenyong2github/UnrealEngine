@@ -8,10 +8,12 @@
 
 ULidarPointCloudFileIO* ULidarPointCloudFileIO::Instance = nullptr;
 
+//////////////////////////////////////////////////////////// Settings
+
 void FLidarPointCloudImportSettings::Serialize(FArchive& Ar)
 {
 	int32 Dummy;
-	bool bDummy;
+	bool bDummy = false;
 
 	if (Ar.CustomVer(ULidarPointCloud::PointCloudFileGUID) >= 12)
 	{
@@ -25,6 +27,95 @@ void FLidarPointCloudImportSettings::Serialize(FArchive& Ar)
 		Ar << bDummy;
 	}
 }
+
+//////////////////////////////////////////////////////////// Results
+
+FLidarPointCloudImportResults::FLidarPointCloudImportResults(FThreadSafeBool* bInCancelled /*= nullptr*/, TFunction<void(float)> InProgressCallback /*= TFunction<void(float)>()*/)
+	: Bounds(EForceInit::ForceInit)
+	, OriginalCoordinates(0)
+	, ProgressCallback(MoveTemp(InProgressCallback))
+	, bCancelled(bInCancelled)
+	, ProgressFrequency(UINT64_MAX)
+	, ProgressCounter(0)
+	, TotalProgressCounter(0)
+	, MaxProgressCounter(0)
+{
+}
+
+FLidarPointCloudImportResults::FLidarPointCloudImportResults(FThreadSafeBool* bInCancelled, TFunction<void(float)> InProgressCallback, TFunction<void(const FDoubleBox& Bounds, FDoubleVector)> InInitCallback, TFunction<void(TArray64<FLidarPointCloudPoint>*)> InBufferCallback)
+	: FLidarPointCloudImportResults(bInCancelled, MoveTemp(InProgressCallback))
+{
+	InitCallback = MoveTemp(InInitCallback);
+	BufferCallback = MoveTemp(InBufferCallback);
+}
+
+void FLidarPointCloudImportResults::InitializeOctree(const FDoubleBox& InBounds)
+{
+	InitCallback(InBounds, OriginalCoordinates);
+}
+
+void FLidarPointCloudImportResults::ProcessBuffer(TArray64<FLidarPointCloudPoint>* InPoints)
+{
+	BufferCallback(InPoints);
+	IncrementProgressCounter(InPoints->Num());
+}
+
+void FLidarPointCloudImportResults::SetPointCount(const uint64& InTotalPointCount)
+{
+	SetMaxProgressCounter(InTotalPointCount);
+	Points.Empty(InTotalPointCount);
+}
+
+void FLidarPointCloudImportResults::AddPoint(const float& X, const float& Y, const float& Z, const float& R, const float& G, const float& B, const float& A /*= 1.0f*/)
+{
+	Points.Emplace(X, Y, Z, R, G, B, A);
+	Bounds += Points.Last().Location;
+	IncrementProgressCounter(1);
+}
+
+void FLidarPointCloudImportResults::AddPointsBulk(TArray64<FLidarPointCloudPoint>& InPoints)
+{
+	Points.Append(InPoints);
+	IncrementProgressCounter(InPoints.Num());
+}
+
+void FLidarPointCloudImportResults::CenterPoints()
+{
+	// Get the offset value
+	FVector CenterOffset = Bounds.GetCenter();
+
+	// Apply it to the points
+	for (FLidarPointCloudPoint& Point : Points)
+	{
+		Point.Location -= CenterOffset;
+	}
+
+	// Account for this in the original coordinates
+	OriginalCoordinates += CenterOffset;
+
+	// Shift the bounds
+	Bounds = Bounds.ShiftBy(-CenterOffset);
+}
+
+void FLidarPointCloudImportResults::SetMaxProgressCounter(uint64 MaxCounter)
+{
+	MaxProgressCounter = MaxCounter;
+	ProgressFrequency = MaxProgressCounter / 100;
+}
+
+void FLidarPointCloudImportResults::IncrementProgressCounter(uint64 Increment)
+{
+	ProgressCounter += Increment;
+
+	if (ProgressCallback && ProgressCounter >= ProgressFrequency)
+	{
+		TotalProgressCounter += ProgressCounter;
+		ProgressCounter = 0;
+		ProgressCallback(FMath::Min((double)TotalProgressCounter / MaxProgressCounter, 1.0));
+	}
+}
+
+//////////////////////////////////////////////////////////// File IO Handler
 
 void FLidarPointCloudFileIOHandler::PrepareImport()
 {
@@ -61,47 +152,6 @@ bool FLidarPointCloudFileIOHandler::ValidateImportSettings(TSharedPtr<FLidarPoin
 
 //////////////////////////////////////////////////////////// File IO
 
-bool SerializePoints(const FString& Filename, FLidarPointCloudImportResults& OutImportResults, bool bLoading)
-{
-	FString CacheFilename = (Filename + ".tmp");
-
-	TUniquePtr<FArchive> Ar(bLoading ? IFileManager::Get().CreateFileReader(*CacheFilename) : IFileManager::Get().CreateFileWriter(*CacheFilename, 0));
-	if (Ar)
-	{
-		Ar->Serialize(&OutImportResults.OriginalCoordinates, sizeof(FDoubleVector));
-		Ar->Serialize(&OutImportResults.Bounds, sizeof(FBox));
-
-		int64 NumPoints = OutImportResults.Points.Num();
-		Ar->Serialize(&NumPoints, sizeof(int64));
-
-		if (bLoading)
-		{
-			OutImportResults.Points.Empty(NumPoints);
-			OutImportResults.Points.AddUninitialized(NumPoints);
-		}
-
-		FLidarPointCloudPoint* Data = OutImportResults.Points.GetData();
-
-		int64 ProcessedPoints = 0;
-		while (ProcessedPoints < NumPoints)
-		{
-			int32 BatchSize = FMath::Min(50000000LL, NumPoints - ProcessedPoints);
-
-			Ar->Serialize(Data, BatchSize * sizeof(FLidarPointCloudPoint));
-
-			Data += BatchSize;
-			ProcessedPoints += BatchSize;
-		}
-
-		Ar->Close();
-		Ar = nullptr;
-
-		return true;
-	}
-
-	return false;
-}
-
 bool ULidarPointCloudFileIO::Import(const FString& Filename, TSharedPtr<FLidarPointCloudImportSettings> ImportSettings, FLidarPointCloudImportResults& OutImportResults)
 {
 	bool bSuccess = false;
@@ -113,23 +163,8 @@ bool ULidarPointCloudFileIO::Import(const FString& Filename, TSharedPtr<FLidarPo
 	{
 		if (Handler->ValidateImportSettings(ImportSettings, Filename))
 		{
-			bool bUseCaching = GetDefault<ULidarPointCloudSettings>()->bUseIOCaching;
-
-			// Check for cached file
-			if (bUseCaching && SerializePoints(Filename, OutImportResults, true))
-			{
-				bSuccess = true;
-			}
-			else
-			{
-				Handler->PrepareImport();
-				bSuccess = Handler->HandleImport(Filename, ImportSettings, OutImportResults);
-
-				if (bUseCaching && bSuccess)
-				{
-					SerializePoints(Filename, OutImportResults, false);
-				}
-			}
+			Handler->PrepareImport();
+			bSuccess = Handler->HandleImport(Filename, ImportSettings, OutImportResults);
 		}
 	}
 	else
@@ -255,6 +290,12 @@ void ULidarPointCloudFileIO::SerializeImportSettings(FArchive& Ar, TSharedPtr<FL
 			Ar << FilePath;
 		}
 	}
+}
+
+bool ULidarPointCloudFileIO::FileSupportsConcurrentInsertion(const FString& Filename)
+{
+	FLidarPointCloudFileIOHandler* Handler = FindHandlerByFilename(Filename);
+	return Handler && Handler->SupportsImport() && Handler->SupportsConcurrentInsertion(Filename);
 }
 
 ULidarPointCloudFileIO::ULidarPointCloudFileIO(const FObjectInitializer& ObjectInitializer)

@@ -756,6 +756,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Mobile)
 	uint8 bUseLightmapDirectionality : 1;
 
+	/* Use alpha to coverage for masked material on mobile, make sure MSAA is enabled as well. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Mobile, AdvancedDisplay, meta = (EditCondition = "BlendMode != EBlendMode::BLEND_Opaque"))
+	uint8 bUseAlphaToCoverage : 1;
+
 	/* Forward (including mobile) renderer: use preintegrated GF lut for simple IBL, but will use one more sampler. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = ForwardShading, meta = (DisplayName = "PreintegratedGF For Simple IBL"))
 	uint32 bForwardRenderUsePreintegratedGFForSimpleIBL : 1;
@@ -776,14 +780,17 @@ public:
 	uint8 bNormalCurvatureToRoughness : 1;
 
 	/** The type of tessellation to apply to this object.  Note D3D11 required for anything except MTM_NoTessellation. */
+	UE_DEPRECATED(4.26, "Tessellation is deprecated.")
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Tessellation)
 	TEnumAsByte<enum EMaterialTessellationMode> D3D11TessellationMode;
 
 	/** Prevents cracks in the surface of the mesh when using tessellation. */
+	UE_DEPRECATED(4.26, "Tessellation is deprecated.")
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Tessellation, meta=(DisplayName = "Crack Free Displacement"))
 	uint8 bEnableCrackFreeDisplacement : 1;
 
 	/** Enables adaptive tessellation, which tries to maintain a uniform number of pixels per triangle. */
+	UE_DEPRECATED(4.26, "Tessellation is deprecated.")
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Tessellation, meta=(DisplayName = "Adaptive Tessellation"))
 	uint8 bEnableAdaptiveTessellation : 1;
 
@@ -852,6 +859,10 @@ public:
 	/** When true, translucent materials are fogged. Defaults to true. */
 	UPROPERTY(EditAnywhere, Category=Translucency, meta=(DisplayName = "Apply Fogging"))
 	uint8 bUseTranslucencyVertexFog : 1;
+
+	/** When true, translucent materials receive cloud contribution as part of the fog evaluation, per vertex or per pixel according to the other selected options. This is a rough approximation but can help in some cases. Defaults to false. Fog is applied on clouds, so Apply Fogging must be true to use this feature. */
+	UPROPERTY(EditAnywhere, Category=Translucency, meta=(DisplayName = "Apply Cloud Fogging"))
+	uint8 bApplyCloudFogging : 1;
 
 	/** Unlit and Opaque materials can be used as sky material on a sky dome mesh. When IsSky is true, these meshes will not receive any contribution from the aerial perspective. Height and Volumetric fog effects will still be applied. */
 	UPROPERTY(EditAnywhere, Category=Material, AdvancedDisplay)
@@ -923,6 +934,7 @@ public:
 	UPROPERTY()
 	FGuid StateId;
 
+	UE_DEPRECATED(4.26, "Tessellation is deprecated.")
 	UPROPERTY(EditAnywhere, Category = Tessellation)
 	float MaxDisplacement;
 
@@ -1096,6 +1108,14 @@ public:
 	ENGINE_API virtual bool CanBeClusterRoot() const override;
 	ENGINE_API virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 	//~ End UObject Interface
+
+	enum class EPostEditChangeEffectOnShaders
+	{
+		Default,
+		DoesNotInvalidate
+	};
+
+	ENGINE_API void PostEditChangePropertyInternal(FPropertyChangedEvent& PropertyChangedEvent, const EPostEditChangeEffectOnShaders EffectOnShaders);
 
 #if WITH_EDITOR
 	/** Cancels any currently outstanding compilation jobs for this material. Useful in the material editor when some edits superceds existing, in flight compilation jobs.*/
@@ -1330,7 +1350,11 @@ public:
 	template<typename ExpressionType>
 	ExpressionType* FindExpressionByGUID(const FGuid &InGUID)
 	{
-		return FindExpressionByGUIDRecursive<ExpressionType>(InGUID, Expressions);
+		if (InGUID.IsValid())
+		{
+			return FindExpressionByGUIDRecursive<ExpressionType>(InGUID, Expressions);
+		}
+		return nullptr;
 	}
 
 	/* Get all expressions of the requested type */
@@ -1733,6 +1757,7 @@ public:
 	bool HasNormalConnected() const { return Normal.IsConnected(); }
 	bool HasSpecularConnected() const { return Specular.IsConnected(); }
 	bool HasEmissiveColorConnected() const { return EmissiveColor.IsConnected(); }
+	bool HasAnisotropyConnected() const { return Anisotropy.IsConnected(); }
 
 #if WITH_EDITOR
 	static void NotifyCompilationFinished(UMaterialInterface* Material);

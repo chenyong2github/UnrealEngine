@@ -9,7 +9,7 @@ class UMoviePipelineConfigBase;
 class SMoviePipelineQueueEditor;
 class SWindow;
 class UMoviePipelineExecutorJob;
-class UMovieSceneCinematicShotSection;
+class UMoviePipelineExecutorShot;
 class IDetailsView;
 struct FAssetData;
 
@@ -40,11 +40,11 @@ private:
 	bool IsRenderRemoteEnabled() const;
 
 	/** When they want to edit the current configuration for the job */
-	void OnEditJobConfigRequested(TWeakObjectPtr<UMoviePipelineExecutorJob> InJob, TWeakObjectPtr<UMovieSceneCinematicShotSection> InShot);
+	void OnEditJobConfigRequested(TWeakObjectPtr<UMoviePipelineExecutorJob> InJob, TWeakObjectPtr<UMoviePipelineExecutorShot> InShot);
 	/** When an existing preset is chosen for the specified job. */
-	void OnJobPresetChosen(TWeakObjectPtr<UMoviePipelineExecutorJob> InJob, TWeakObjectPtr<UMovieSceneCinematicShotSection> InShot);
-	void OnConfigUpdatedForJob(TWeakObjectPtr<UMoviePipelineExecutorJob> InJob, UMoviePipelineConfigBase* InConfig);
-	void OnConfigUpdatedForJobToPreset(TWeakObjectPtr<UMoviePipelineExecutorJob> InJob, UMoviePipelineConfigBase* InConfig);
+	void OnJobPresetChosen(TWeakObjectPtr<UMoviePipelineExecutorJob> InJob, TWeakObjectPtr<UMoviePipelineExecutorShot> InShot);
+	void OnConfigUpdatedForJob(TWeakObjectPtr<UMoviePipelineExecutorJob> InJob, TWeakObjectPtr<UMoviePipelineExecutorShot> InShot, UMoviePipelineConfigBase* InConfig);
+	void OnConfigUpdatedForJobToPreset(TWeakObjectPtr<UMoviePipelineExecutorJob> InJob, TWeakObjectPtr<UMoviePipelineExecutorShot> InShot, UMoviePipelineConfigBase* InConfig);
 	void OnConfigWindowClosed();
 
 	void OnSelectionChanged(const TArray<UMoviePipelineExecutorJob*>& InSelectedJobs);

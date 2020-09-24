@@ -3,6 +3,7 @@
 #include "PostProcess/PostProcessVisualizeComplexity.h"
 #include "CanvasTypes.h"
 #include "RenderTargetTemp.h"
+#include "UnrealEngine.h"
 
 class FVisualizeComplexityApplyPS : public FGlobalShader
 {
@@ -123,11 +124,9 @@ FScreenPassTexture AddVisualizeComplexityPass(FRDGBuilder& GraphBuilder, const F
 	PassParameters->DebugViewShaderMode = DVSM_ShaderComplexity;
 	FVisualizeComplexityApplyPS::EQuadOverdraw QuadOverdrawEnum = FVisualizeComplexityApplyPS::EQuadOverdraw::Disable;
 
-	FRDGTextureRef QuadOverdrawTexture = GraphBuilder.TryRegisterExternalTexture(SceneRenderTargets.QuadOverdrawBuffer);
-
-	if (QuadOverdrawTexture && AllowDebugViewShaderMode(DVSM_QuadComplexity, View.GetShaderPlatform(), View.FeatureLevel))
+	if (SceneRenderTargets.QuadOverdrawBuffer && AllowDebugViewShaderMode(DVSM_QuadComplexity, View.GetShaderPlatform(), View.FeatureLevel))
 	{
-		PassParameters->QuadOverdrawTexture = QuadOverdrawTexture;
+		PassParameters->QuadOverdrawTexture = GraphBuilder.RegisterExternalTexture(SceneRenderTargets.QuadOverdrawBuffer);
 		PassParameters->DebugViewShaderMode = DebugViewShaderMode;
 		QuadOverdrawEnum = FVisualizeComplexityApplyPS::EQuadOverdraw::Enable;
 	}
@@ -178,43 +177,4 @@ FScreenPassTexture AddVisualizeComplexityPass(FRDGBuilder& GraphBuilder, const F
 	});
 
 	return MoveTemp(Output);
-}
-
-FRenderingCompositeOutputRef AddVisualizeComplexityPass(
-	FRenderingCompositionGraph& Graph,
-	FRenderingCompositeOutputRef Input,
-	const TArray<FLinearColor>& InColors,
-	FVisualizeComplexityInputs::EColorSamplingMethod InColorSampling,
-	float InComplexityScale,
-	bool bInLegend)
-{
-	FRenderingCompositePass* Pass = Graph.RegisterPass(
-		new(FMemStack::Get()) TRCPassForRDG<1, 1>(
-			[InColors, InColorSampling, InComplexityScale, bInLegend](FRenderingCompositePass* InPass, FRenderingCompositePassContext& InContext)
-	{
-		FRDGBuilder GraphBuilder(InContext.RHICmdList);
-
-		FVisualizeComplexityInputs PassInputs;
-		PassInputs.SceneColor.Texture = InPass->CreateRDGTextureForRequiredInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"));
-		PassInputs.SceneColor.ViewRect = InContext.SceneColorViewRect;
-		PassInputs.Colors = InColors;
-		PassInputs.ColorSamplingMethod = InColorSampling;
-		PassInputs.ComplexityScale = InComplexityScale;
-		PassInputs.bDrawLegend = bInLegend;
-
-		if (FRDGTextureRef OverrideOutputTexture = InPass->FindRDGTextureForOutput(GraphBuilder, ePId_Output0, TEXT("FrameBuffer")))
-		{
-			PassInputs.OverrideOutput.Texture = OverrideOutputTexture;
-			PassInputs.OverrideOutput.ViewRect = InContext.GetSceneColorDestRect(InPass);
-			PassInputs.OverrideOutput.LoadAction = InContext.View.IsFirstInFamily() ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad;
-		}
-
-		FScreenPassTexture PassOutput = AddVisualizeComplexityPass(GraphBuilder, InContext.View, PassInputs);
-
-		InPass->ExtractRDGTextureForOutput(GraphBuilder, ePId_Output0, PassOutput.Texture);
-
-		GraphBuilder.Execute();
-	}));
-	Pass->SetInput(ePId_Input0, Input);
-	return Pass;
 }

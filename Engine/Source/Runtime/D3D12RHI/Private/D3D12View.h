@@ -707,6 +707,7 @@ protected:
 	ViewSubresourceSubsetFlags Flags;
 	FD3D12ResourceLocation* ResourceLocation;
 	FD3D12ResidencyHandle* ResidencyHandle;
+	FD3D12Resource* Resource;
 	CViewSubresourceSubset ViewSubresourceSubset;
 	TDesc Desc;
 
@@ -733,7 +734,7 @@ private:
 	void Initialize(const TDesc& InDesc, FD3D12ResourceLocation& InResourceLocation)
 	{
 		ResourceLocation = &InResourceLocation;
-		FD3D12Resource* Resource = ResourceLocation->GetResource();
+		Resource = ResourceLocation->GetResource();
 		check(Resource);
 
 		ResidencyHandle = Resource->GetResidencyHandle();
@@ -775,7 +776,7 @@ public:
 	inline const TDesc&						GetDesc()					const { checkf(bInitialized, TEXT("Uninitialized D3D12View size %d"), (uint32)sizeof(TDesc)); return Desc; }
 	inline CD3DX12_CPU_DESCRIPTOR_HANDLE	GetView()					const { checkf(bInitialized, TEXT("Uninitialized D3D12View size %d"), (uint32)sizeof(TDesc)); return Descriptor.GetHandle(); }
 	inline uint32							GetDescriptorHeapIndex()	const { checkf(bInitialized, TEXT("Uninitialized D3D12View size %d"), (uint32)sizeof(TDesc)); return Descriptor.GetIndex(); }
-	inline FD3D12Resource*					GetResource()				const { checkf(bInitialized, TEXT("Uninitialized D3D12View size %d"), (uint32)sizeof(TDesc)); return ResourceLocation->GetResource(); }
+	inline FD3D12Resource*					GetResource()				const { checkf(bInitialized, TEXT("Uninitialized D3D12View size %d"), (uint32)sizeof(TDesc)); return Resource; }
 	inline FD3D12ResourceLocation*			GetResourceLocation()		const { checkf(bInitialized, TEXT("Uninitialized D3D12View size %d"), (uint32)sizeof(TDesc)); return ResourceLocation; }
 	inline FD3D12ResidencyHandle*			GetResidencyHandle()		const { checkf(bInitialized, TEXT("Uninitialized D3D12View size %d"), (uint32)sizeof(TDesc)); return ResidencyHandle; }
 	inline const CViewSubresourceSubset&	GetViewSubresourceSubset()	const { checkf(bInitialized, TEXT("Uninitialized D3D12View size %d"), (uint32)sizeof(TDesc)); return ViewSubresourceSubset; }
@@ -798,6 +799,7 @@ class FD3D12ShaderResourceView : public FD3D12BaseShaderResourceView, public FRH
 	bool bContainsDepthPlane;
 	bool bContainsStencilPlane;
 	bool bSkipFastClearFinalize;
+	bool bRequiresResourceStateTracking;
 	uint32 Stride;
 
 public:
@@ -826,6 +828,7 @@ public:
 		Stride = InStride;
 		bContainsDepthPlane   = InResourceLocation.GetResource()->IsDepthStencilResource() && GetPlaneSliceFromViewFormat(InResourceLocation.GetResource()->GetDesc().Format, InDesc.Format) == 0;
 		bContainsStencilPlane = InResourceLocation.GetResource()->IsDepthStencilResource() && GetPlaneSliceFromViewFormat(InResourceLocation.GetResource()->GetDesc().Format, InDesc.Format) == 1;
+		bRequiresResourceStateTracking = InResourceLocation.GetResource()->RequiresResourceStateTracking();
 		bSkipFastClearFinalize = InSkipFastClearFinalize;
 
 #if DO_CHECK
@@ -883,6 +886,7 @@ public:
 	FORCEINLINE bool IsDepthPlaneResource()		const { return bContainsDepthPlane; }
 	FORCEINLINE bool IsStencilPlaneResource()	const { return bContainsStencilPlane; }
 	FORCEINLINE bool GetSkipFastClearFinalize()	const { return bSkipFastClearFinalize; }
+	FORCEINLINE bool RequiresResourceStateTracking() const { return bRequiresResourceStateTracking; }
 };
 
 class FD3D12ShaderResourceViewWithLocation : public FD3D12ShaderResourceView
@@ -1016,7 +1020,7 @@ public:
 	{
 		CreateView(InDSVDesc, InResourceLocation);
 
-		FD3D12Resource* Resource = InResourceLocation.GetResource();
+		check(Resource);
 
 		// Create individual subresource subsets for each plane
 		if (bHasDepth)

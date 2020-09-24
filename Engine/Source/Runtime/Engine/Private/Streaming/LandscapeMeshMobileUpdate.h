@@ -20,18 +20,16 @@ struct FLandscapeMeshMobileUpdateContext
 {
 	typedef int32 EThreadType;
 
-	FLandscapeMeshMobileUpdateContext(ULandscapeLODStreamingProxy* InLandscapeProxy, EThreadType InCurrentThread);
+	FLandscapeMeshMobileUpdateContext(const ULandscapeLODStreamingProxy* InLandscapeProxy, EThreadType InCurrentThread);
 
-	FLandscapeMeshMobileUpdateContext(UStreamableRenderAsset* InLandscapeProxy, EThreadType InCurrentThread);
-
-	UStreamableRenderAsset* GetRenderAsset() const;
+	FLandscapeMeshMobileUpdateContext(const UStreamableRenderAsset* InLandscapeProxy, EThreadType InCurrentThread);
 
 	EThreadType GetCurrentThread() const
 	{
 		return CurrentThread;
 	}
 
-	ULandscapeLODStreamingProxy* LandscapeProxy;
+	const ULandscapeLODStreamingProxy* LandscapeProxy;
 	FLandscapeMobileRenderData* RenderData;
 	EThreadType CurrentThread;
 };
@@ -41,7 +39,7 @@ extern template class TRenderAssetUpdate<FLandscapeMeshMobileUpdateContext>;
 class FLandscapeMeshMobileUpdate : public TRenderAssetUpdate<FLandscapeMeshMobileUpdateContext>
 {
 public:
-	FLandscapeMeshMobileUpdate(ULandscapeLODStreamingProxy* InLandscapeProxy, int32 InRequestedMips);
+	FLandscapeMeshMobileUpdate(ULandscapeLODStreamingProxy* InLandscapeProxy);
 
 	virtual void Abort()
 	{
@@ -51,14 +49,12 @@ public:
 protected:
 
 	virtual ~FLandscapeMeshMobileUpdate() {}
-
-	int32 CurrentFirstLODIdx;
 };
 
 class FLandscapeMeshMobileStreamIn : public FLandscapeMeshMobileUpdate
 {
 public:
-	FLandscapeMeshMobileStreamIn(ULandscapeLODStreamingProxy* InLandscapeProxy, int32 InRequestedMips);
+	FLandscapeMeshMobileStreamIn(ULandscapeLODStreamingProxy* InLandscapeProxy);
 
 	virtual ~FLandscapeMeshMobileStreamIn();
 
@@ -76,7 +72,7 @@ protected:
 class FLandscapeMeshMobileStreamOut : public FLandscapeMeshMobileUpdate
 {
 public:
-	ENGINE_API FLandscapeMeshMobileStreamOut(ULandscapeLODStreamingProxy* InLandscapeProxy, int32 InRequestedMips);
+	ENGINE_API FLandscapeMeshMobileStreamOut(ULandscapeLODStreamingProxy* InLandscapeProxy);
 
 	virtual ~FLandscapeMeshMobileStreamOut() {}
 
@@ -87,7 +83,7 @@ private:
 class FLandscapeMeshMobileStreamIn_IO : public FLandscapeMeshMobileStreamIn
 {
 public:
-	FLandscapeMeshMobileStreamIn_IO(ULandscapeLODStreamingProxy* InLandscapeProxy, int32 InRequestedMips, bool bHighPrio);
+	FLandscapeMeshMobileStreamIn_IO(ULandscapeLODStreamingProxy* InLandscapeProxy, bool bHighPrio);
 
 	virtual ~FLandscapeMeshMobileStreamIn_IO() {}
 
@@ -132,7 +128,7 @@ protected:
 class FLandscapeMeshMobileStreamIn_IO_AsyncReallocate : public FLandscapeMeshMobileStreamIn_IO
 {
 public:
-	ENGINE_API FLandscapeMeshMobileStreamIn_IO_AsyncReallocate(ULandscapeLODStreamingProxy* InLandscapeProxy, int32 InRequestedMips, bool bHighPrio);
+	ENGINE_API FLandscapeMeshMobileStreamIn_IO_AsyncReallocate(ULandscapeLODStreamingProxy* InLandscapeProxy, bool bHighPrio);
 
 	virtual ~FLandscapeMeshMobileStreamIn_IO_AsyncReallocate() {}
 
@@ -150,7 +146,7 @@ protected:
 class FLandscapeMeshMobileStreamIn_GPUDataOnly : public FLandscapeMeshMobileStreamIn
 {
 public:
-	ENGINE_API FLandscapeMeshMobileStreamIn_GPUDataOnly(ULandscapeLODStreamingProxy* InLandscapeProxy, int32 InRequestedMips);
+	ENGINE_API FLandscapeMeshMobileStreamIn_GPUDataOnly(ULandscapeLODStreamingProxy* InLandscapeProxy);
 
 	virtual ~FLandscapeMeshMobileStreamIn_GPUDataOnly() {}
 

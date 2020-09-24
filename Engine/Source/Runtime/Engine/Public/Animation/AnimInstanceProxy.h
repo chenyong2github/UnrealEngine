@@ -114,6 +114,7 @@ public:
 		, AnimClassInterface(nullptr)
 		, Skeleton(nullptr)
 		, SkeletalMeshComponent(nullptr)
+		, MainInstanceProxy(nullptr)
 		, CurrentDeltaSeconds(0.0f)
 		, CurrentTimeDilation(1.0f)
 		, RootNode(nullptr)
@@ -138,6 +139,7 @@ public:
 		, AnimClassInterface(IAnimClassInterface::GetFromClass(Instance->GetClass()))
 		, Skeleton(nullptr)
 		, SkeletalMeshComponent(nullptr)
+		, MainInstanceProxy(nullptr)
 		, CurrentDeltaSeconds(0.0f)
 		, CurrentTimeDilation(1.0f)
 		, RootNode(nullptr)
@@ -345,6 +347,11 @@ public:
 	// Creates an uninitialized tick record in the list for the correct group or the ungrouped array.  If the group is valid, OutSyncGroupPtr will point to the group.
 	FAnimTickRecord& CreateUninitializedTickRecord(int32 GroupIndex, FAnimGroupInstance*& OutSyncGroupPtr);
 
+	// Creates an uninitialized tick record in the list for the correct group or the ungrouped array.  
+	// If the group is valid, OutSyncGroupPtr will point to the group.
+	// Supply the scope to sync with tick records outside this instance
+	FAnimTickRecord& CreateUninitializedTickRecordInScope(int32 GroupIndex, EAnimSyncGroupScope Scope, FAnimGroupInstance*& OutSyncGroupPtr);
+
 	/** Helper function: make a tick record for a sequence */
 	void MakeSequenceTickRecord(FAnimTickRecord& TickRecord, UAnimSequenceBase* Sequence, bool bLooping, float PlayRate, float FinalBlendWeight, float& CurrentTime, FMarkerTickRecord& MarkerTickRecord) const;
 
@@ -365,7 +372,10 @@ public:
 	void GetSlotWeight(const FName& SlotNodeName, float& out_SlotNodeWeight, float& out_SourceWeight, float& out_TotalNodeWeight) const;
 
 	/** Evaluate a pose for a named montage slot */
+	UE_DEPRECATED(4.26, "Use SlotEvaluatePose with other signature")
 	void SlotEvaluatePose(const FName& SlotNodeName, const FCompactPose& SourcePose, const FBlendedCurve& SourceCurve, float InSourceWeight, FCompactPose& BlendedPose, FBlendedCurve& BlendedCurve, float InBlendWeight, float InTotalNodeWeight);
+
+	void SlotEvaluatePose(const FName& SlotNodeName, const FAnimationPoseData& SourceAnimationPoseData, float InSourceWeight, FAnimationPoseData& OutBlendedAnimationPoseData, float InBlendWeight, float InTotalNodeWeight);
 	
 	// Allow slot nodes to store off their weight during ticking
 	void UpdateSlotNodeWeight(const FName& SlotNodeName, float InLocalMontageWeight, float InNodeGlobalWeight);
@@ -805,6 +815,7 @@ protected:
 	static void CacheBonesInputProxy(FAnimInstanceProxy* InputProxy);
 	static void UpdateInputProxy(FAnimInstanceProxy* InputProxy, const FAnimationUpdateContext& Context);
 	static void EvaluateInputProxy(FAnimInstanceProxy* InputProxy, FPoseContext& Output);
+	static void ResetCounterInputProxy(FAnimInstanceProxy* InputProxy);
 
 private:
 	/** The component to world transform of the component we are running on */
@@ -827,6 +838,9 @@ private:
 
 	/** Skeletal mesh component we are attached to. Note that this will be nullptr outside of pre/post update */
 	USkeletalMeshComponent* SkeletalMeshComponent;
+
+	/** Cached ptr to the main instance proxy, which may be "this" */
+	FAnimInstanceProxy* MainInstanceProxy;
 
 	/** The last time passed into PreUpdate() */
 	float CurrentDeltaSeconds;

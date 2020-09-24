@@ -36,6 +36,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
 #include "IMeshReductionInterfaces.h"
+#include "ObjectTools.h"
 
 DEFINE_LOG_CATEGORY(LogFbx);
 
@@ -639,6 +640,8 @@ void FFbxImporter::ReleaseScene()
 	ImportedMaterialData.Clear();
 
 	// reset
+	FbxTextureToUniqueNameMap.Empty();
+	NodeUniqueNameToOriginalNameMap.Empty();
 	CollisionModels.Clear();
 	CreatedObjects.Empty();
 	CurPhase = NOTSTARTED;
@@ -1084,50 +1087,128 @@ bool FFbxImporter::OpenFile(FString Filename)
 	return Result;
 }
 
+TSet<FbxFileTexture*> GetFbxMaterialTextures(const FbxSurfaceMaterial& Material)
+{
+	TSet<FbxFileTexture*> TextureSet;
+
+	int32 TextureIndex;
+	FBXSDK_FOR_EACH_TEXTURE(TextureIndex)
+	{
+		FbxProperty Property = Material.FindProperty(FbxLayerElement::sTextureChannelNames[TextureIndex]);
+
+		if (Property.IsValid())
+		{
+			//We use auto as the parameter type to allow for a generic lambda accepting both FbxProperty and FbxLayeredTexture
+			auto AddSrcTextureToSet =  [&TextureSet](const auto& InObject) {
+				int32 NbTextures = InObject.template GetSrcObjectCount<FbxTexture>();
+				for (int32 TexIndex = 0; TexIndex < NbTextures; ++TexIndex)
+				{
+					FbxFileTexture* Texture = InObject.template GetSrcObject<FbxFileTexture>(TexIndex);
+					if (Texture)
+					{
+						TextureSet.Add(Texture);
+					}
+				}
+			};
+
+			//Here we have to check if it's layered textures, or just textures:
+			const int32 LayeredTextureCount = Property.GetSrcObjectCount<FbxLayeredTexture>();
+			if (LayeredTextureCount > 0)
+			{
+				for (int32 LayerIndex = 0; LayerIndex < LayeredTextureCount; ++LayerIndex)
+				{
+					if (const FbxLayeredTexture* lLayeredTexture = Property.GetSrcObject<FbxLayeredTexture>(LayerIndex))
+					{
+						AddSrcTextureToSet(*lLayeredTexture);
+					}
+				}
+			}
+			else
+			{
+				//no layered texture simply get on the property
+				AddSrcTextureToSet(Property);
+			}
+		}
+	}
+
+	return TextureSet;
+}
+
 void FFbxImporter::FixMaterialClashName()
 {
 	const bool bKeepNamespace = GetDefault<UEditorPerProjectUserSettings>()->bKeepFbxNamespace;
 
 	FbxArray<FbxSurfaceMaterial*> MaterialArray;
 	Scene->FillMaterialArray(MaterialArray);
-	TSet<FString> AllMaterialName;
+
+	TSet<FString> AllMaterialAndTextureNames;
+	TSet<FbxFileTexture*> MaterialTextures;
+
+	auto FixNameIfNeeded = [this, &AllMaterialAndTextureNames](const FString& AssetName, 
+		TFunctionRef<void(const FString& /*UniqueName*/)> ApplyUniqueNameFunction,
+		TFunctionRef<FText(const FString& /*UniqueName*/)> GetErrorTextFunction){
+
+		FString UniqueName(AssetName);
+		if (AllMaterialAndTextureNames.Contains(UniqueName))
+		{
+			//Use the fbx nameclash 1 convention: NAMECLASH1_KEY
+			//This will add _ncl1_
+			FString AssetBaseName = UniqueName + TEXT(NAMECLASH1_KEY);
+			int32 NameIndex = 1;
+			do 
+			{
+				UniqueName = AssetBaseName + FString::FromInt(NameIndex++);
+			} while (AllMaterialAndTextureNames.Contains(UniqueName));
+
+			//Apply the unique name.
+			ApplyUniqueNameFunction(UniqueName);
+			if (!GIsAutomationTesting)
+			{
+				AddTokenizedErrorMessage(
+					FTokenizedMessage::Create(EMessageSeverity::Warning, GetErrorTextFunction(UniqueName)),
+					FFbxErrors::Generic_LoadingSceneFailed);
+			}
+		}
+		AllMaterialAndTextureNames.Add(UniqueName);
+	};
+
+	// First rename materials to unique names and gather their texture.
 	for (int32 MaterialIndex = 0; MaterialIndex < MaterialArray.Size(); ++MaterialIndex)
 	{
 		FbxSurfaceMaterial *Material = MaterialArray[MaterialIndex];
 		FString MaterialName = UTF8_TO_TCHAR(MakeName(Material->GetName()));
+		MaterialTextures.Append(GetFbxMaterialTextures(*Material));
 
 		if (!bKeepNamespace)
 		{
 			Material->SetName(TCHAR_TO_UTF8(*MaterialName));
 		}
 
-		if (AllMaterialName.Contains(MaterialName))
-		{
-			FString OriginalMaterialName = MaterialName;
-			//Use the fbx nameclash 1 convention: NAMECLASH1_KEY
-			//This will add _ncl1_
-			FString MaterialBaseName = MaterialName + TEXT(NAMECLASH1_KEY);
-			int32 NameIndex = 1;
-			MaterialName = MaterialBaseName + FString::FromInt(NameIndex++);
-			while (AllMaterialName.Contains(MaterialName))
-			{
-				MaterialName = MaterialBaseName + FString::FromInt(NameIndex++);
+		FixNameIfNeeded(MaterialName,
+			[&](const FString& UniqueName) { Material->SetName(TCHAR_TO_UTF8(*UniqueName)); },
+			[&](const FString& UniqueName) {
+				return FText::Format(LOCTEXT("FbxImport_MaterialNameClash", "FBX Scene Loading: Found material name clash, name clash can be wrongly reassign at reimport , material '{0}' was renamed '{1}'"), FText::FromString(MaterialName), FText::FromString(UniqueName));
 			}
-			//Rename the Material
-			Material->SetName(TCHAR_TO_UTF8(*MaterialName));
-			if (!GIsAutomationTesting)
-			{
-				AddTokenizedErrorMessage(
-					FTokenizedMessage::Create(EMessageSeverity::Warning,
-						FText::Format(LOCTEXT("FbxImport_MaterialNameClash", "FBX Scene Loading: Found material name clash, name clash can be wrongly reassign at reimport , material '{0}' was rename '{1}'"), FText::FromString(OriginalMaterialName), FText::FromString(MaterialName))),
-					FFbxErrors::Generic_LoadingSceneFailed);
+		);
+	}
+
+	// Then rename make sure the texture have unique names as well.
+	for (FbxFileTexture* CurrentTexture : MaterialTextures)
+	{
+		FString AbsoluteFilename = UTF8_TO_TCHAR(CurrentTexture->GetFileName());
+		FString TextureName = FPaths::GetBaseFilename(AbsoluteFilename);
+		TextureName = ObjectTools::SanitizeObjectName(TextureName);
+
+		FixNameIfNeeded(TextureName,
+			[&](const FString& UniqueName) { FbxTextureToUniqueNameMap.Add(CurrentTexture, UniqueName); },
+			[&](const FString& UniqueName) {
+				return FText::Format(LOCTEXT("FbxImport_TextureNameClash", "FBX Scene Loading: Found texture name clash, name clash can be wrongly reassign at reimport , texture '{0}' was renamed '{1}'"), FText::FromString(TextureName), FText::FromString(UniqueName));
 			}
-		}
-		AllMaterialName.Add(MaterialName);
+		);
 	}
 }
 
-void FFbxImporter::EnsureNodeNameAreValid()
+void FFbxImporter::EnsureNodeNameAreValid(const FString& BaseFilename)
 {
 	const bool bKeepNamespace = GetDefault<UEditorPerProjectUserSettings>()->bKeepFbxNamespace;
 
@@ -1161,14 +1242,19 @@ void FFbxImporter::EnsureNodeNameAreValid()
 				Node->SetName(TCHAR_TO_UTF8(*NodeName));
 			}
 		}
-		if (AllNodeName.Contains(NodeName))
+		// Do not allow node to be named same as filename as this creates problems later on (reimport)
+		if (AllNodeName.Contains(NodeName) || (ImportOptions->bImportScene && 0 == NodeName.Compare(BaseFilename, ESearchCase::IgnoreCase)))
 		{
 			FString UniqueNodeName;
 			do
 			{
 				UniqueNodeName = NodeName + FString::FromInt(CurrentNameIndex++);
 			} while (AllNodeName.Contains(UniqueNodeName));
-			Node->SetName(TCHAR_TO_UTF8(*UniqueNodeName));
+
+			FbxString UniqueName(TCHAR_TO_UTF8(*UniqueNodeName));
+			NodeUniqueNameToOriginalNameMap.FindOrAdd(UniqueName) = Node->GetName();
+			Node->SetName(UniqueName);
+			
 			if (!GIsAutomationTesting)
 			{
 				AddTokenizedErrorMessage(
@@ -1263,7 +1349,8 @@ bool FFbxImporter::ImportFile(FString Filename, bool bPreventMaterialNameClash /
 	// Import the scene.
 	bStatus = Importer->Import(Scene);
 
-	EnsureNodeNameAreValid();
+	const bool bRemovePath = true;
+	EnsureNodeNameAreValid(FPaths::GetBaseFilename(Filename, bRemovePath));
 
 	//Make sure we don't have name clash for materials
 	if (bPreventMaterialNameClash)

@@ -9,7 +9,7 @@
 #include "DetailCategoryBuilder.h"
 #include "IDetailChildrenBuilder.h"
 #include "ContentBrowserDelegates.h"
-#include "AssetRegistry/Public/AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "PropertyCustomizationHelpers.h"
 #include "LandscapeGrassType.h"
 #include "Materials/MaterialExpressionLandscapeGrassOutput.h"

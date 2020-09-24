@@ -225,6 +225,8 @@ void FLidarPointCloudEditor::SelectPointsByFrustum(const FConvexVolume& Selectio
 			(*Data)->bSelected = true;
 		}
 	}	
+
+	PointCloudBeingEdited->Octree.MarkRenderDataInFrustumDirty(SelectionFrustum);
 }
 
 void FLidarPointCloudEditor::DeselectPointsByFrustum(const FConvexVolume& SelectionFrustum)
@@ -250,6 +252,8 @@ void FLidarPointCloudEditor::DeselectPointsByFrustum(const FConvexVolume& Select
 	}
 
 	SelectedPoints.Shrink();
+
+	PointCloudBeingEdited->Octree.MarkRenderDataInFrustumDirty(SelectionFrustum);
 }
 
 void FLidarPointCloudEditor::DeselectPoints()
@@ -260,6 +264,27 @@ void FLidarPointCloudEditor::DeselectPoints()
 	}
 
 	SelectedPoints.Empty();
+
+	PointCloudBeingEdited->Octree.MarkRenderDataDirty();
+}
+
+void FLidarPointCloudEditor::InvertSelection()
+{
+	SelectedPoints.Empty(PointCloudBeingEdited->GetNumVisiblePoints() - SelectedPoints.Num());
+
+	PointCloudBeingEdited->ExecuteActionOnAllPoints([this](FLidarPointCloudPoint* Point){
+		if (Point->bSelected)
+		{
+			Point->bSelected = false;
+		}
+		else
+		{
+			Point->bSelected = true;
+			SelectedPoints.Add(Point);
+		}
+	}, true);
+
+	PointCloudBeingEdited->Octree.MarkRenderDataDirty();
 }
 
 void FLidarPointCloudEditor::DeletePoints()
@@ -401,6 +426,20 @@ TSharedRef<SWidget> FLidarPointCloudEditor::BuildPointCloudStatistics()
 		];
 }
 
+TSharedRef<SWidget> FLidarPointCloudEditor::GenerateNormalsMenuContent()
+{
+	FMenuBuilder MenuBuilder(true, Viewport->GetCommandList());
+
+	MenuBuilder.BeginSection("CalculateNormals", LOCTEXT("CalculateNormals", "Calculate Normals"));
+	{
+		MenuBuilder.AddMenuEntry(FLidarPointCloudEditorCommands::Get().CalculateNormals);
+		MenuBuilder.AddMenuEntry(FLidarPointCloudEditorCommands::Get().CalculateNormalsSelection);
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
+}
+
 TSharedRef<SWidget> FLidarPointCloudEditor::GenerateExtractionMenuContent()
 {
 	FMenuBuilder MenuBuilder(true, Viewport->GetCommandList());
@@ -475,6 +514,7 @@ void FLidarPointCloudEditor::ExtendToolBar()
 			ToolbarBuilder.BeginSection("LidarPointCloudEdit");
 			{
 				ToolbarBuilder.AddToolBarButton(Commands->EditMode);
+				ToolbarBuilder.AddToolBarButton(Commands->InvertSelection);
 				ToolbarBuilder.AddToolBarButton(Commands->HideSelected);
 				ToolbarBuilder.AddToolBarButton(Commands->UnhideAll);
 				ToolbarBuilder.AddComboButton(
@@ -490,6 +530,13 @@ void FLidarPointCloudEditor::ExtendToolBar()
 					LOCTEXT("Extract_Label", "Extract"),
 					LOCTEXT("Extract_Tooltip", "Selection extraction options"),
 					FSlateIcon(FLidarPointCloudStyle::GetStyleSetName(), "LidarPointCloudEditor.Extract")
+				);
+				ToolbarBuilder.AddComboButton(
+					FUIAction(FExecuteAction(), FCanExecuteAction::CreateSP(ThisEditor, &FLidarPointCloudEditor::IsEditMode)),
+					FOnGetContent::CreateSP(ThisEditor, &FLidarPointCloudEditor::GenerateNormalsMenuContent),
+					LOCTEXT("Normals_Label", "Normals"),
+					LOCTEXT("Normals_Tooltip", "Normal Calculation options"),
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "AnimViewportMenu.SetShowNormals")
 				);
 			}
 			ToolbarBuilder.EndSection();
@@ -513,6 +560,7 @@ void FLidarPointCloudEditor::BindEditorCommands()
 	CommandList->MapAction(Commands.BuildCollision, FExecuteAction::CreateSP(this, &FLidarPointCloudEditor::BuildCollision));
 	CommandList->MapAction(Commands.RemoveCollision, FExecuteAction::CreateSP(this, &FLidarPointCloudEditor::RemoveCollision), FCanExecuteAction::CreateSP(this, &FLidarPointCloudEditor::HasCollisionData));
 	CommandList->MapAction(Commands.EditMode, FExecuteAction::CreateSP(this, &FLidarPointCloudEditor::ToggleEditMode), FCanExecuteAction(), FIsActionChecked::CreateSP(this, &FLidarPointCloudEditor::IsEditMode));
+	CommandList->MapAction(Commands.InvertSelection, FExecuteAction::CreateSP(this, &FLidarPointCloudEditor::InvertSelection), FCanExecuteAction::CreateSP(this, &FLidarPointCloudEditor::HasSelectedPoints));
 	CommandList->MapAction(Commands.UnhideAll, FExecuteAction::CreateSP(this, &FLidarPointCloudEditor::UnhideAll));
 	CommandList->MapAction(Commands.HideSelected, FExecuteAction::CreateSP(this, &FLidarPointCloudEditor::HidePoints), FCanExecuteAction::CreateSP(this, &FLidarPointCloudEditor::HasSelectedPoints));
 	CommandList->MapAction(Commands.DeleteSelected, FExecuteAction::CreateSP(this, &FLidarPointCloudEditor::DeletePoints), FCanExecuteAction::CreateSP(this, &FLidarPointCloudEditor::HasSelectedPoints));
@@ -521,6 +569,8 @@ void FLidarPointCloudEditor::BindEditorCommands()
 	CommandList->MapAction(Commands.ExtractCopy, FExecuteAction::CreateSP(this, &FLidarPointCloudEditor::ExtractCopy), FCanExecuteAction::CreateSP(this, &FLidarPointCloudEditor::HasSelectedPoints));
 	CommandList->MapAction(Commands.Merge, FExecuteAction::CreateSP(this, &FLidarPointCloudEditor::Merge));
 	CommandList->MapAction(Commands.Align, FExecuteAction::CreateSP(this, &FLidarPointCloudEditor::Align));
+	CommandList->MapAction(Commands.CalculateNormals, FExecuteAction::CreateSP(this, &FLidarPointCloudEditor::CalculateNormals));
+	CommandList->MapAction(Commands.CalculateNormalsSelection, FExecuteAction::CreateSP(this, &FLidarPointCloudEditor::CalculateNormalsSelection));
 }
 
 TSharedRef<SDockTab> FLidarPointCloudEditor::SpawnTab_Details(const FSpawnTabArgs& Args)
@@ -682,7 +732,6 @@ void FLidarPointCloudEditor::Merge()
 	if (SelectedAssets.Num())
 	{
 		TArray<ULidarPointCloud*> Assets;
-		TArray<FString> Names({"Initializing", "Self"});
 
 		for (int32 i = 0; i < SelectedAssets.Num(); ++i)
 		{
@@ -695,16 +744,12 @@ void FLidarPointCloudEditor::Merge()
 			}
 
 			Assets.Add(Asset);
-			Names.Add(SelectedAssets[i].AssetName.ToString());
 		}
 
-		FScopedSlowTask ProgressDialog(SelectedAssets.Num() + 2, LOCTEXT("Merge", "Merging Point Clouds..."));
+		FScopedSlowTask ProgressDialog(Assets.Num() + 2, LOCTEXT("Merge", "Merging Point Clouds..."));
 		ProgressDialog.MakeDialog();
-		int32 i = 0;
 
-		PointCloudBeingEdited->Merge(Assets, [&ProgressDialog, &i, &Names](float Progress){
-			ProgressDialog.EnterProgressFrame(1.f, FText::FromString(Names[i++]));
-		});
+		PointCloudBeingEdited->Merge(Assets, [&ProgressDialog]() { ProgressDialog.EnterProgressFrame(1.f); });
 	}
 }
 
@@ -757,6 +802,19 @@ void FLidarPointCloudEditor::Align()
 	}
 }
 
+void FLidarPointCloudEditor::CalculateNormals()
+{
+	PointCloudBeingEdited->CalculateNormals(nullptr, nullptr);
+}
+
+void FLidarPointCloudEditor::CalculateNormalsSelection()
+{
+	if (SelectedPoints.Num() > 0)
+	{
+		PointCloudBeingEdited->CalculateNormals(&SelectedPoints, nullptr);
+	}
+}
+
 bool FLidarPointCloudEditor::HasCollisionData() const
 {
 	return PointCloudBeingEdited && PointCloudBeingEdited->HasCollisionData();
@@ -804,7 +862,7 @@ ULidarPointCloud* FLidarPointCloudEditor::CreateNewAsset()
 			const FString PackageName = FPackageName::ObjectPathToPackageName(SaveObjectPath);
 			const FString ObjectName = FPackageName::ObjectPathToObjectName(SaveObjectPath);
 
-			NewPointCloud = NewObject<ULidarPointCloud>(CreatePackage(nullptr, *PackageName), ULidarPointCloud::StaticClass(), FName(*ObjectName), EObjectFlags::RF_Public | EObjectFlags::RF_Standalone);
+			NewPointCloud = NewObject<ULidarPointCloud>(CreatePackage(*PackageName), ULidarPointCloud::StaticClass(), FName(*ObjectName), EObjectFlags::RF_Public | EObjectFlags::RF_Standalone);
 
 			FAssetRegistryModule::AssetCreated(NewPointCloud);
 			NewPointCloud->MarkPackageDirty();

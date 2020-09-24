@@ -7,10 +7,8 @@
 #include "HAL/PlatformTLS.h"
 #include "HAL/TlsAutoCleanup.h"
 #include "Hash/CityHash.h"
-#include "Trace/Trace.h"	
+#include "Trace/Trace.h"
 #include "UObject/NameTypes.h"
-
-#define UE_NET_TRACE_VERSION ENetTraceVersion_BunchChannelIndex
 
 #define UE_NET_TRACE_VALIDATE 1
 
@@ -29,6 +27,7 @@ struct FNetTraceInternal
 	{
 		ENetTraceVersion_Initial = 1,
 		ENetTraceVersion_BunchChannelIndex = 2,
+		ENetTraceVersion_BunchChannelInfo = 3,
 	};
 
 	struct FThreadBuffer : public FTlsAutoCleanup
@@ -46,7 +45,7 @@ struct FNetTraceInternal
 	FORCENOINLINE static FThreadBuffer* CreateThreadBuffer();
 
 	static thread_local FThreadBuffer* ThreadBuffer;
-	static constexpr ENetTraceVersion NetTraceVersion = ENetTraceVersion::ENetTraceVersion_BunchChannelIndex;
+	static constexpr ENetTraceVersion NetTraceVersion = ENetTraceVersion::ENetTraceVersion_BunchChannelInfo;
 };
 
 thread_local FNetTraceInternal::FThreadBuffer* FNetTraceInternal::ThreadBuffer = nullptr;
@@ -275,7 +274,7 @@ void FNetTrace::DiscardBunch(FNetTraceCollector& Collector)
 	Collector.PendingBunchEventIndex = ~0U;
 }
 
-void FNetTrace::EndBunch(FNetTraceCollector& DstCollector, FNetDebugNameId BunchName, uint32 StartPos, uint32 HeaderBits, uint32 BunchBits, int32 ChIndex)
+void FNetTrace::EndBunch(FNetTraceCollector& DstCollector, FNetDebugNameId BunchName, uint32 StartPos, uint32 HeaderBits, uint32 BunchBits, const FNetTraceBunchInfo& BunchInfo)
 {
 #if UE_NET_TRACE_VALIDATE
 	check(DstCollector.PendingBunchEventIndex != ~0U);
@@ -315,7 +314,7 @@ void FNetTrace::EndBunch(FNetTraceCollector& DstCollector, FNetDebugNameId Bunch
 	FNetTracePacketContentEvent* BunchHeaderEvent = &DstCollector.Events.GetData()[BunchEventIndex + 1];
 
 	// ChannelIndex
-	BunchHeaderEvent->ChannelIndex = ChIndex;
+	BunchHeaderEvent->BunchInfo = BunchInfo;
 
 	// EventCount, is stored in start pos
 	BunchHeaderEvent->StartPos = BunchEventCount;
@@ -330,7 +329,7 @@ void FNetTrace::EndBunch(FNetTraceCollector& DstCollector, FNetDebugNameId Bunch
 	++DstCollector.EventCount;
 }
 
-void FNetTrace::TraceBunch(FNetTraceCollector& DstCollector, FName BunchName, uint32 StartPos, uint32 HeaderBits, uint32 BunchBits, int32 ChIndex, const FNetTraceCollector* BunchCollector)
+void FNetTrace::TraceBunch(FNetTraceCollector& DstCollector, const FNetTraceBunchInfo& BunchInfo, FName BunchName, uint32 StartPos, uint32 HeaderBits, uint32 BunchBits, const FNetTraceCollector* BunchCollector)
 {
 	if (&DstCollector != BunchCollector)
 	{
@@ -338,10 +337,10 @@ void FNetTrace::TraceBunch(FNetTraceCollector& DstCollector, FName BunchName, ui
 		FNetTrace::FoldTraceCollector(&DstCollector, BunchCollector, true);
 	}
 		
-	FNetTrace::EndBunch(DstCollector, TraceName(BunchName), StartPos, HeaderBits, BunchBits, ChIndex);
+	FNetTrace::EndBunch(DstCollector, TraceName(BunchName), StartPos, HeaderBits, BunchBits, BunchInfo);
 }
 
-void FNetTrace::TraceBunch(FNetTraceCollector& DstCollector, const TCHAR* BunchName, uint32 StartPos, uint32 HeaderBits, uint32 BunchBits, int32 ChIndex, const FNetTraceCollector* BunchCollector)
+void FNetTrace::TraceBunch(FNetTraceCollector& DstCollector, const FNetTraceBunchInfo& BunchInfo, const TCHAR* BunchName, uint32 StartPos, uint32 HeaderBits, uint32 BunchBits, const FNetTraceCollector* BunchCollector)
 {
 	if (&DstCollector != BunchCollector)
 	{
@@ -349,7 +348,7 @@ void FNetTrace::TraceBunch(FNetTraceCollector& DstCollector, const TCHAR* BunchN
 		FNetTrace::FoldTraceCollector(&DstCollector, BunchCollector, true);
 	}
 		
-	FNetTrace::EndBunch(DstCollector, TraceName(BunchName), StartPos, HeaderBits, BunchBits, ChIndex);
+	FNetTrace::EndBunch(DstCollector, TraceName(BunchName), StartPos, HeaderBits, BunchBits, BunchInfo);
 }
 
 void FNetTrace::PopSendBunch(FNetTraceCollector& Collector)

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Stats/StatsHierarchical.h"
 #include "RigHierarchyDefines.h"
+#include "RigHierarchyPose.h"
 #include "RigCurveContainer.generated.h"
 
 class UControlRig;
@@ -99,19 +100,26 @@ public:
 	// resets all of the transforms back to the initial transform
 	void ResetValues();
 
-	FRigHierarchyContainer* Container;
+	// returns the current pose
+	FRigPose GetPose() const;
 
-#if WITH_EDITOR
+	// sets the current values from the given pose
+	void SetPose(FRigPose& InPose);
+
+	FRigHierarchyContainer* Container;
 
 	bool Select(const FName& InName, bool bSelect = true);
 	bool ClearSelection();
 	TArray<FName> CurrentSelection() const;
 	bool IsSelected(const FName& InName) const;
 
+	FRigElementSelected OnCurveSelected;
+
+#if WITH_EDITOR
+
 	FRigElementAdded OnCurveAdded;
 	FRigElementRemoved OnCurveRemoved;
 	FRigElementRenamed OnCurveRenamed;
-	FRigElementSelected OnCurveSelected;
 
 	TArray<FRigElementKey> ImportCurvesFromSkeleton(const USkeleton* InSkeleton, const FName& InNameSpace, bool bRemoveObsoleteCurves, bool bSelectCurves, bool bNotify);
 
@@ -128,18 +136,19 @@ private:
 	UPROPERTY()
 	TMap<FName, int32> NameToIndexMapping;
 
-#if WITH_EDITORONLY_DATA
 	UPROPERTY(transient)
 	TArray<FName> Selection;
-#endif
 
 	int32 GetIndexSlow(const FName& InName) const;
 
 	void RefreshMapping();
 
+	void AppendToPose(FRigPose& InOutPose) const;
+
 	bool bSuspendNotifications;
 
 	friend struct FRigHierarchyContainer;
+	friend struct FCachedRigElement;
 	friend class UControlRigHierarchyModifier;
 };
 

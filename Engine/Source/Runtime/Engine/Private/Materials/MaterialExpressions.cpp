@@ -106,6 +106,7 @@
 #include "Materials/MaterialExpressionRayTracingQualitySwitch.h"
 #include "Materials/MaterialExpressionGetMaterialAttributes.h"
 #include "Materials/MaterialExpressionHairAttributes.h"
+#include "Materials/MaterialExpressionHairColor.h"
 #include "Materials/MaterialExpressionIf.h"
 #include "Materials/MaterialExpressionInverseLinearInterpolate.h"
 #include "Materials/MaterialExpressionLightmapUVs.h"
@@ -157,6 +158,7 @@
 #include "Materials/MaterialExpressionPixelDepth.h"
 #include "Materials/MaterialExpressionPixelNormalWS.h"
 #include "Materials/MaterialExpressionPower.h"
+#include "Materials/MaterialExpressionSkinningVertexOffsets.h"
 #include "Materials/MaterialExpressionPreSkinnedNormal.h"
 #include "Materials/MaterialExpressionPreSkinnedPosition.h"
 #include "Materials/MaterialExpressionQualitySwitch.h"
@@ -173,7 +175,6 @@
 #include "Materials/MaterialExpressionSaturate.h"
 #include "Materials/MaterialExpressionSceneColor.h"
 #include "Materials/MaterialExpressionSceneDepth.h"
-#include "Materials/MaterialExpressionSceneDepthWithoutWater.h"
 #include "Materials/MaterialExpressionSceneTexelSize.h"
 #include "Materials/MaterialExpressionSceneTexture.h"
 #include "Materials/MaterialExpressionScreenPosition.h"
@@ -238,6 +239,7 @@
 #include "Materials/MaterialExpressionCurveAtlasRowParameter.h"
 #include "Materials/MaterialExpressionMapARPassthroughCameraUV.h"
 #include "Materials/MaterialExpressionShaderStageSwitch.h"
+#include "Materials/MaterialExpressionReflectionCapturePassSwitch.h"
 #include "Materials/MaterialUniformExpressions.h"
 #include "EditorSupportDelegates.h"
 #include "MaterialCompiler.h"
@@ -2370,6 +2372,19 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 		}
 	}
 
+	// Convert texture address mode to matching sampler source mode.
+	// Would be better if ESamplerSourceMode had a Mirror enum that we could also use...
+	ESamplerSourceMode SamplerSourceMode = SSM_Clamp_WorldGroupSettings;
+	switch (TextureAddressMode)
+	{
+	case RVTTA_Clamp:
+		SamplerSourceMode = SSM_Clamp_WorldGroupSettings;
+		break;
+	case RVTTA_Wrap:
+		SamplerSourceMode = SSM_Wrap_WorldGroupSettings;
+		break;
+	}
+
 	// Compile the texture sample code
 	int32 SampleCodeIndex[RuntimeVirtualTexture::MaxTextureLayers] = { INDEX_NONE };
 	for (int32 TexureLayerIndex = 0; TexureLayerIndex < TextureLayerCount; TexureLayerIndex++)
@@ -2378,9 +2393,9 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 			TextureCodeIndex[TexureLayerIndex],
 			CoordinateIndex, 
 			SAMPLERTYPE_VirtualMasks,
-			MipValueIndex, INDEX_NONE, TextureMipLevelMode, SSM_Wrap_WorldGroupSettings,
+			MipValueIndex, INDEX_NONE, TextureMipLevelMode, SamplerSourceMode,
 			TextureReferenceIndex[TexureLayerIndex],
-			false);
+			true);
 	}
 
 	// Compile any unpacking code
@@ -12518,7 +12533,7 @@ UMaterialInterface* UMaterialFunctionInstance::GetPreviewMaterial()
 	if (nullptr == PreviewMaterial)
 	{
 		PreviewMaterial = NewObject<UMaterialInstanceConstant>((UObject*)GetTransientPackage(), FName(TEXT("None")), RF_Transient);
-		PreviewMaterial->SetParentEditorOnly(Parent ? Parent->GetPreviewMaterial() : UMaterial::GetDefaultMaterial(MD_Surface));
+		PreviewMaterial->SetParentEditorOnly(Parent ? Parent->GetPreviewMaterial() : nullptr);
 		OverrideMaterialInstanceParameterValues(PreviewMaterial);
 		PreviewMaterial->PreEditChange(nullptr);
 		PreviewMaterial->PostEditChange();
@@ -12699,8 +12714,6 @@ void FMaterialLayersFunctions::ID::AppendKeyString(FString& KeyString) const
 // FMaterialLayersFunctions
 ///////////////////////////////////////////////////////////////////////////////
 
-const FGuid FMaterialLayersFunctions::UninitializedParentGuid(0u, 0u, 0u, 0u);
-const FGuid FMaterialLayersFunctions::NoParentGuid(1u, 0u, 0u, 0u);
 const FGuid FMaterialLayersFunctions::BackgroundGuid(2u, 0u, 0u, 0u);
 
 const FMaterialLayersFunctions::ID FMaterialLayersFunctions::GetID() const
@@ -12784,22 +12797,27 @@ void FMaterialLayersFunctions::PostSerialize(const FArchive& Ar)
 #if WITH_EDITORONLY_DATA
 	if (Ar.IsLoading())
 	{
-		check(LayerGuids.Num() == ParentLayerGuids.Num());
-		if (LayerGuids.Num() != Layers.Num())
+		if (LayerGuids.Num() != Layers.Num() ||
+			LayerLinkStates.Num() != Layers.Num())
 		{
 			const int32 NumLayers = Layers.Num();
 			LayerGuids.Empty(NumLayers);
-			ParentLayerGuids.Empty(NumLayers);
+			LayerLinkStates.Empty(NumLayers);
 
 			if (NumLayers > 0)
 			{
 				LayerGuids.Add(BackgroundGuid);
-				ParentLayerGuids.Add(NoParentGuid);
+				LayerLinkStates.Add(EMaterialLayerLinkState::Uninitialized);
 
 				for (int32 i = 1; i < NumLayers; ++i)
 				{
-					LayerGuids.Add(FGuid::NewGuid());
-					ParentLayerGuids.Add(UninitializedParentGuid);
+					// Need to allocate deterministic guids for layers loaded from old data
+					// These guids will be saved into any child material layers that have this material as their parent,
+					// But it's possible *this* material may not actually be saved in that case
+					// If that happens, need to ensure that the guids remain consistent if this material is loaded again;
+					// otherwise they will no longer match the guids that were saved into the child material
+					LayerGuids.Add(FGuid(3u, 0u, 0u, i));
+					LayerLinkStates.Add(EMaterialLayerLinkState::Uninitialized);
 				}
 			}
 		}
@@ -12807,9 +12825,9 @@ void FMaterialLayersFunctions::PostSerialize(const FArchive& Ar)
 #endif // WITH_EDITORONLY_DATA
 }
 
-void FMaterialLayersFunctions::AppendBlendedLayer()
+int32 FMaterialLayersFunctions::AppendBlendedLayer()
 {
-	Layers.AddDefaulted();
+	const int32 LayerIndex = Layers.AddDefaulted();
 	Blends.AddDefaulted();
 	LayerStates.Add(true);
 #if WITH_EDITOR
@@ -12818,13 +12836,14 @@ void FMaterialLayersFunctions::AppendBlendedLayer()
 	RestrictToLayerRelatives.Add(false);
 	RestrictToBlendRelatives.Add(false);
 	LayerGuids.Add(FGuid::NewGuid());
-	ParentLayerGuids.Add(NoParentGuid);
+	LayerLinkStates.Add(EMaterialLayerLinkState::NotFromParent);
 #endif
+	return LayerIndex;
 }
 
-void FMaterialLayersFunctions::AddLayerCopy(const FMaterialLayersFunctions& Source, int32 SourceLayerIndex, const FGuid& ParentGuid)
+int32 FMaterialLayersFunctions::AddLayerCopy(const FMaterialLayersFunctions& Source, int32 SourceLayerIndex, EMaterialLayerLinkState LinkState)
 {
-	check(ParentGuid != UninitializedParentGuid);
+	check(LinkState != EMaterialLayerLinkState::Uninitialized);
 	const int32 LayerIndex = Layers.Num();
 
 	Layers.Add(Source.Layers[SourceLayerIndex]);
@@ -12841,13 +12860,14 @@ void FMaterialLayersFunctions::AddLayerCopy(const FMaterialLayersFunctions& Sour
 		RestrictToBlendRelatives.Add(Source.RestrictToBlendRelatives[SourceLayerIndex - 1]);
 	}
 	LayerGuids.Add(Source.LayerGuids[SourceLayerIndex]);
-	ParentLayerGuids.Add(ParentGuid);
+	LayerLinkStates.Add(LinkState);
 #endif
+	return LayerIndex;
 }
 
-void FMaterialLayersFunctions::InsertLayerCopy(const FMaterialLayersFunctions& Source, int32 SourceLayerIndex, const FGuid& ParentGuid, int32 LayerIndex)
+void FMaterialLayersFunctions::InsertLayerCopy(const FMaterialLayersFunctions& Source, int32 SourceLayerIndex, EMaterialLayerLinkState LinkState, int32 LayerIndex)
 {
-	check(ParentGuid != UninitializedParentGuid);
+	check(LinkState != EMaterialLayerLinkState::Uninitialized);
 	check(LayerIndex > 0);
 	Layers.Insert(Source.Layers[SourceLayerIndex], LayerIndex);
 	Blends.Insert(Source.Blends[SourceLayerIndex - 1], LayerIndex - 1);
@@ -12857,7 +12877,7 @@ void FMaterialLayersFunctions::InsertLayerCopy(const FMaterialLayersFunctions& S
 	RestrictToLayerRelatives.Insert(Source.RestrictToLayerRelatives[SourceLayerIndex], LayerIndex);
 	RestrictToBlendRelatives.Insert(Source.RestrictToBlendRelatives[SourceLayerIndex - 1], LayerIndex - 1);
 	LayerGuids.Insert(Source.LayerGuids[SourceLayerIndex], LayerIndex);
-	ParentLayerGuids.Insert(ParentGuid, LayerIndex);
+	LayerLinkStates.Insert(LinkState, LayerIndex);
 #endif
 }
 
@@ -12872,19 +12892,19 @@ void FMaterialLayersFunctions::RemoveBlendedLayerAt(int32 Index)
 #if WITH_EDITOR
 		check(LayerNames.IsValidIndex(Index) && RestrictToLayerRelatives.IsValidIndex(Index) && RestrictToBlendRelatives.IsValidIndex(Index - 1));
 
-		const FGuid& ParentGuid = ParentLayerGuids[Index];
-		if (ParentGuid != NoParentGuid && ParentGuid != UninitializedParentGuid)
+		if (LayerLinkStates[Index] == EMaterialLayerLinkState::LinkedToParent)
 		{
 			// Save the parent guid as explicitly deleted, so it's not added back
-			check(!DeletedParentLayerGuids.Contains(ParentGuid));
-			DeletedParentLayerGuids.Add(ParentGuid);
+			const FGuid& LayerGuid = LayerGuids[Index];
+			check(!DeletedParentLayerGuids.Contains(LayerGuid));
+			DeletedParentLayerGuids.Add(LayerGuid);
 		}
 
 		LayerNames.RemoveAt(Index);
 		RestrictToLayerRelatives.RemoveAt(Index);
 		RestrictToBlendRelatives.RemoveAt(Index - 1);
 		LayerGuids.RemoveAt(Index);
-		ParentLayerGuids.RemoveAt(Index);
+		LayerLinkStates.RemoveAt(Index);
 #endif //WITH_EDITOR
 	}
 }
@@ -12903,9 +12923,7 @@ void FMaterialLayersFunctions::MoveBlendedLayer(int32 SrcLayerIndex, int32 DstLa
 		RestrictToLayerRelatives.Swap(SrcLayerIndex, DstLayerIndex);
 		RestrictToBlendRelatives.Swap(SrcLayerIndex - 1, DstLayerIndex - 1);
 		LayerGuids.Swap(SrcLayerIndex, DstLayerIndex);
-		// Disconnect layers from parent when they're moved at the instance level
-		UnlinkLayerFromParent(SrcLayerIndex);
-		UnlinkLayerFromParent(DstLayerIndex);
+		LayerLinkStates.Swap(SrcLayerIndex, DstLayerIndex);
 #endif //WITH_EDITOR
 	}
 }
@@ -12913,34 +12931,28 @@ void FMaterialLayersFunctions::MoveBlendedLayer(int32 SrcLayerIndex, int32 DstLa
 #if WITH_EDITOR
 void FMaterialLayersFunctions::UnlinkLayerFromParent(int32 Index)
 {
-	check(Index > 0);
-	if (ParentLayerGuids[Index] != NoParentGuid)
+	if (LayerLinkStates[Index] == EMaterialLayerLinkState::LinkedToParent)
 	{
-		check(ParentLayerGuids[Index] != UninitializedParentGuid);
-		DeletedParentLayerGuids.Add(ParentLayerGuids[Index]);
-		ParentLayerGuids[Index] = NoParentGuid;
+		LayerLinkStates[Index] = EMaterialLayerLinkState::UnlinkedFromParent;
 	}
 }
 
 bool FMaterialLayersFunctions::IsLayerLinkedToParent(int32 Index) const
 {
-	if (Index > 0 && Index < ParentLayerGuids.Num())
+	if (LayerLinkStates.IsValidIndex(Index))
 	{
-		const FGuid ParentGuid = ParentLayerGuids[Index];
-		check(ParentGuid != BackgroundGuid);
-		return ParentGuid != UninitializedParentGuid && ParentGuid != NoParentGuid;
+		return LayerLinkStates[Index] == EMaterialLayerLinkState::LinkedToParent;
 	}
 	return false;
 }
 
 void FMaterialLayersFunctions::RelinkLayersToParent()
 {
-	for (const FGuid& ParentGuid : DeletedParentLayerGuids)
+	for (int32 Index = 0; Index < LayerLinkStates.Num(); ++Index)
 	{
-		const int32 LayerIndex = LayerGuids.Find(ParentGuid);
-		if (LayerIndex != INDEX_NONE && ParentLayerGuids[LayerIndex] == NoParentGuid)
+		if (LayerLinkStates[Index] == EMaterialLayerLinkState::UnlinkedFromParent)
 		{
-			ParentLayerGuids[LayerIndex] = ParentGuid;
+			LayerLinkStates[Index] = EMaterialLayerLinkState::LinkedToParent;
 		}
 	}
 	DeletedParentLayerGuids.Empty();
@@ -12948,122 +12960,203 @@ void FMaterialLayersFunctions::RelinkLayersToParent()
 
 bool FMaterialLayersFunctions::HasAnyUnlinkedLayers() const
 {
-	return DeletedParentLayerGuids.Num() > 0;
+	if (DeletedParentLayerGuids.Num() > 0)
+	{
+		return true;
+	}
+	for (int32 Index = 0; Index < LayerLinkStates.Num(); ++Index)
+	{
+		if (LayerLinkStates[Index] == EMaterialLayerLinkState::UnlinkedFromParent)
+		{
+			return true;
+		}
+	}
+	return false;
 }
 #endif // WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA
-void FMaterialLayersFunctions::CopyGuidsToParent()
+void FMaterialLayersFunctions::LinkAllLayersToParent()
 {
-	ParentLayerGuids = LayerGuids;
+	for (int32 Index = 0; Index < LayerLinkStates.Num(); ++Index)
+	{
+		LayerLinkStates[Index] = EMaterialLayerLinkState::LinkedToParent;
+	}
 }
 
 bool FMaterialLayersFunctions::ResolveParent(const FMaterialLayersFunctions& Parent, TArray<int32>& OutRemapLayerIndices)
 {
 	check(LayerGuids.Num() == Layers.Num());
-	check(ParentLayerGuids.Num() == Layers.Num());
+	check(LayerLinkStates.Num() == Layers.Num());
 
 	FMaterialLayersFunctions ResolvedLayers;
-	TArray<int32> ResolvedLayerIndices;
+	TArray<int32> ParentLayerIndices;
 
-	// Start with base layer
 	ResolvedLayers.Empty();
-	ResolvedLayers.AddLayerCopy(*this, 0, NoParentGuid);
 
+	bool bHasUninitializedLinks = false;
+	for (int32 LayerIndex = 0; LayerIndex < Layers.Num(); ++LayerIndex)
+	{
+		const FText& LayerName = LayerNames[LayerIndex];
+		const FGuid& LayerGuid = LayerGuids[LayerIndex];
+		const EMaterialLayerLinkState LinkState = LayerLinkStates[LayerIndex];
+
+		int32 ParentLayerIndex = INDEX_NONE;
+		if (LinkState == EMaterialLayerLinkState::Uninitialized)
+		{
+			bHasUninitializedLinks = true;
+			if (LayerIndex == 0)
+			{
+				// Base layer must match against base layer
+				if (Parent.Layers.Num() > 0)
+				{
+					ParentLayerIndex = 0;
+				}
+			}
+			else
+			{
+				for (int32 CheckLayerIndex = 1; CheckLayerIndex < Parent.Layers.Num(); ++CheckLayerIndex)
+				{
+					// check if name matches, and if we haven't already linked to this parent layer
+					if (LayerName.EqualTo(Parent.LayerNames[CheckLayerIndex]) &&
+						!ParentLayerIndices.Contains(CheckLayerIndex))
+					{
+						ParentLayerIndex = CheckLayerIndex;
+						break;
+					}
+				}
+			}
+
+			int32 ResolvedLayerIndex = INDEX_NONE;
+			if (ParentLayerIndex == INDEX_NONE)
+			{
+				// Didn't find layer in the parent, assume it's local to this material
+				ResolvedLayerIndex = ResolvedLayers.AddLayerCopy(*this, LayerIndex, EMaterialLayerLinkState::NotFromParent);
+				ParentLayerIndices.Add(INDEX_NONE);
+			}
+			else
+			{
+				// See if we match layer in parent
+				if (Layers[LayerIndex] == Parent.Layers[ParentLayerIndex] &&
+					(LayerIndex == 0 || Blends[LayerIndex - 1] == Parent.Blends[ParentLayerIndex - 1]))
+				{
+					// Parent layer matches, so link to parent
+					ResolvedLayerIndex = ResolvedLayers.AddLayerCopy(Parent, ParentLayerIndex, EMaterialLayerLinkState::LinkedToParent);
+				}
+				else
+				{
+					// Parent layer does NOT match, so make the child overriden
+					ResolvedLayerIndex = ResolvedLayers.AddLayerCopy(*this, LayerIndex, EMaterialLayerLinkState::UnlinkedFromParent);
+					ResolvedLayers.LayerGuids[ResolvedLayerIndex] = Parent.LayerGuids[ParentLayerIndex]; // Still need to match guid to parent
+				}
+
+				check(!ParentLayerIndices.Contains(ParentLayerIndex));
+				ParentLayerIndices.Add(ParentLayerIndex);
+			}
+
+			// If link state is Uninitialized, we *always* need to accept the layer in some way, otherwise we risk changing legacy data when loading in new engine
+			check(ResolvedLayerIndex != INDEX_NONE);
+		}
+		else if (LinkState == EMaterialLayerLinkState::LinkedToParent)
+		{
+			check(LayerGuid.IsValid());
+			ParentLayerIndex = Parent.LayerGuids.Find(LayerGuid);
+			if (ParentLayerIndex != INDEX_NONE)
+			{
+				// Layer comes from parent
+				ResolvedLayers.AddLayerCopy(Parent, ParentLayerIndex, EMaterialLayerLinkState::LinkedToParent);
+				check(!ParentLayerIndices.Contains(ParentLayerIndex));
+				ParentLayerIndices.Add(ParentLayerIndex);
+			}
+			// if we didn't find the layer in the parent, that means it was deleted from parent...so it's also deleted in the child
+		}
+		else
+		{
+			// layer not connected to parent
+			check(LayerGuid.IsValid());
+			check(LinkState == EMaterialLayerLinkState::UnlinkedFromParent || LinkState == EMaterialLayerLinkState::NotFromParent);
+
+			// If we are unlinked from parent, track the layer index we were previously linked to
+			ParentLayerIndex = Parent.LayerGuids.Find(LayerGuid);
+			check(ParentLayerIndex == INDEX_NONE || !ParentLayerIndices.Contains(ParentLayerIndex));
+
+			// Update the link state, depending on if we can find this layer in the parent
+			ResolvedLayers.AddLayerCopy(*this, LayerIndex, (ParentLayerIndex == INDEX_NONE) ? EMaterialLayerLinkState::NotFromParent : EMaterialLayerLinkState::UnlinkedFromParent);
+			ParentLayerIndices.Add(ParentLayerIndex);
+		}
+	}
+
+	check(ResolvedLayers.Layers.Num() == ParentLayerIndices.Num());
+
+	// See if parent has any added layers
 	for (int32 ParentLayerIndex = 1; ParentLayerIndex < Parent.Layers.Num(); ++ParentLayerIndex)
 	{
-		const FGuid& ParentGuid = Parent.LayerGuids[ParentLayerIndex];
-		if (DeletedParentLayerGuids.Contains(ParentGuid))
+		if (ParentLayerIndices.Contains(ParentLayerIndex))
 		{
-			// Layer was deleted
-			ResolvedLayers.DeletedParentLayerGuids.Add(ParentGuid);
+			// We already linked this layer to an existing child layer
 			continue;
 		}
 
-		int32 LayerIndex = ParentLayerGuids.Find(ParentGuid);
-		if (LayerIndex == INDEX_NONE)
+		const FGuid& ParentLayerGuid = Parent.LayerGuids[ParentLayerIndex];
+		if (DeletedParentLayerGuids.Contains(ParentLayerGuid))
 		{
-			// Check to see if we have any layers with parents that haven't been initialized yet, that match this parent layer
-			for (int32 CheckLayerIndex = 1; CheckLayerIndex < Layers.Num() && CheckLayerIndex < Parent.Layers.Num(); ++CheckLayerIndex)
+			// Parent layer was previously explicitly overiden/deleted
+			ResolvedLayers.DeletedParentLayerGuids.Add(ParentLayerGuid);
+			continue;
+		}
+
+		if (bHasUninitializedLinks)
+		{
+			// If we had any unitialized links, this means we're loading data saved by a previous version of UE4
+			// In this case, we have no way of determining if this layer was added to parent (and should therefore be kept),
+			// or if this layer was explicitly deleted from child (and should therefore remain deleted).
+			// In order to avoid needlessly changing legacy materials, we assume the layer was explicitly deleted, so we keep it deleted here
+			// If desired, the relink functionality in the editor should allow it to be brought back
+			ResolvedLayers.DeletedParentLayerGuids.Add(ParentLayerGuid);
+			continue;
+		}
+
+		// Find the layer before the newly inserted layer...we insert the new layer in the child at this same position
+		int32 InsertLayerIndex = INDEX_NONE;
+		{
+			int32 CheckLayerIndex = ParentLayerIndex;
+			while (InsertLayerIndex == INDEX_NONE)
 			{
-				if (Layers[CheckLayerIndex] == Parent.Layers[ParentLayerIndex] &&
-					Blends[CheckLayerIndex - 1] && Parent.Blends[CheckLayerIndex - 1] &&
-					ParentLayerGuids[CheckLayerIndex] == UninitializedParentGuid)
+				--CheckLayerIndex;
+				if (CheckLayerIndex == 0)
 				{
-					ParentLayerGuids[CheckLayerIndex] = ParentGuid;
-					LayerIndex = CheckLayerIndex;
-					break;
+					InsertLayerIndex = 0;
+				}
+				else
+				{
+					InsertLayerIndex = ParentLayerIndices.Find(CheckLayerIndex);
 				}
 			}
 		}
 
-		if (LayerIndex != INDEX_NONE)
-		{
-			// We have a copy of the layer from the parent, use that
-			check(LayerIndex != 0); // should not find layer 0
-			check(!ResolvedLayerIndices.Contains(LayerIndex));
-			ResolvedLayers.AddLayerCopy(*this, LayerIndex, ParentGuid);
-			ResolvedLayers.LayerNames[ParentLayerIndex] = Parent.LayerNames[ParentLayerIndex]; // Copy (potentially) updated name from parent
-			ResolvedLayerIndices.Add(LayerIndex);
-		}
-		else
-		{
-			// New layer added from parent
-			ResolvedLayers.AddLayerCopy(Parent, ParentLayerIndex, ParentGuid);
-		}
+		ParentLayerIndices.Insert(ParentLayerIndex, InsertLayerIndex + 1);
+		ResolvedLayers.InsertLayerCopy(Parent, ParentLayerIndex, EMaterialLayerLinkState::LinkedToParent, InsertLayerIndex + 1);
 	}
 
-	// Insert any layers that aren't linked to parent
-	for (int32 LayerIndex = 1; LayerIndex < Layers.Num(); ++LayerIndex)
-	{
-		const FGuid& ParentGuid = ParentLayerGuids[LayerIndex];
-		if (ParentGuid != NoParentGuid && ParentGuid != UninitializedParentGuid)
-		{
-			continue;
-		}
-
-		if (ResolvedLayerIndices.Contains(LayerIndex))
-		{
-			// already added this layer
-			continue;
-		}
-
-		// Layer doesn't exist in parent, merge it in
-		int32 PrevLayerIndex = FMath::Min(LayerIndex - 1, ResolvedLayers.Layers.Num() - 1);
-		while (PrevLayerIndex > 0)
-		{
-			if (ResolvedLayers.LayerGuids[PrevLayerIndex] == LayerGuids[PrevLayerIndex])
-			{
-				break;
-			}
-			--PrevLayerIndex;
-		}
-
-		ResolvedLayers.InsertLayerCopy(*this, LayerIndex, NoParentGuid, PrevLayerIndex + 1);
-	}
-
-	OutRemapLayerIndices.SetNumUninitialized(Layers.Num());
-	OutRemapLayerIndices[0] = 0;
-
-	bool bUpdatedLayers = Layers.Num() != ResolvedLayers.Layers.Num() ||
+	bool bUpdatedLayerIndices = Layers.Num() != ResolvedLayers.Layers.Num() ||
 		DeletedParentLayerGuids.Num() != ResolvedLayers.DeletedParentLayerGuids.Num();
 
-	for (int32 PrevLayerIndex = 1; PrevLayerIndex < Layers.Num(); ++PrevLayerIndex)
+	OutRemapLayerIndices.SetNumUninitialized(Layers.Num());
+	for (int32 PrevLayerIndex = 0; PrevLayerIndex < Layers.Num(); ++PrevLayerIndex)
 	{
 		const FGuid& LayerGuid = LayerGuids[PrevLayerIndex];
-		const int32 LayerIndex = ResolvedLayers.LayerGuids.Find(LayerGuid);
-		OutRemapLayerIndices[PrevLayerIndex] = LayerIndex;
-		if (PrevLayerIndex != LayerIndex)
+		const int32 ResolvedLayerIndex = ResolvedLayers.LayerGuids.Find(LayerGuid);
+		OutRemapLayerIndices[PrevLayerIndex] = ResolvedLayerIndex;
+
+		if (PrevLayerIndex != ResolvedLayerIndex)
 		{
-			bUpdatedLayers = true;
+			bUpdatedLayerIndices = true;
 		}
 	}
 
-	if (bUpdatedLayers)
-	{
-		*this = MoveTemp(ResolvedLayers);
-	}
-	return bUpdatedLayers;
+	*this = MoveTemp(ResolvedLayers);
+
+	return bUpdatedLayerIndices;
 }
 #endif // WITH_EDITORONLY_DATA
 
@@ -17291,6 +17384,72 @@ void UMaterialExpressionSkyAtmosphereDistantLightScatteredLuminance::GetCaption(
 #endif // WITH_EDITOR
 
 ///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionSkinningVertexOffsets
+///////////////////////////////////////////////////////////////////////////////
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+UMaterialExpressionSkinningVertexOffsets::UMaterialExpressionSkinningVertexOffsets(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITORONLY_DATA
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Constants;
+		FConstructorStatics()
+			: NAME_Constants(LOCTEXT("Vectors", "Vectors"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+	MenuCategories.Add(ConstructorStatics.NAME_Constants);
+
+	Outputs.Reset();
+	Outputs.Add(FExpressionOutput(TEXT("Pre Skin Offset"), 1, 1, 1, 1, 0));
+	Outputs.Add(FExpressionOutput(TEXT("Post Skin Offset"), 1, 1, 1, 1, 0));
+	bShaderInputData = true;
+	bShowOutputNameOnPin = true;
+#endif
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+#if WITH_EDITOR
+int32 UMaterialExpressionSkinningVertexOffsets::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (Compiler->GetCurrentShaderFrequency() != SF_Vertex)
+	{
+		return Compiler->Errorf(
+			TEXT("%s only available in the vertex shader, pass through custom interpolators if needed."), 
+			(OutputIndex == 0) ? TEXT("Pre Skin Offset") : TEXT("Post Skin Offset")
+			);
+	}
+
+	switch (OutputIndex)
+	{
+	default:
+		return Compiler->Constant3(0, 0, 0);
+
+	case 0:
+		return Compiler->PreSkinVertexOffset();
+
+	case 1:
+		return Compiler->PostSkinVertexOffset();
+	}
+}
+
+void UMaterialExpressionSkinningVertexOffsets::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Skin Vertex Offset"));
+}
+
+void UMaterialExpressionSkinningVertexOffsets::GetExpressionToolTip(TArray<FString>& OutToolTip)
+{
+	ConvertToMultilineToolTip(TEXT("Returns pre or post skinned offset applied to each vertex for a skeletal mesh, usable in vertex shader only."
+		"Returns <0, 0, 0> for non-skeletal meshes or when disabled."), 40, OutToolTip);
+}
+#endif // WITH_EDITOR
+
+///////////////////////////////////////////////////////////////////////////////
 // UMaterialExpressionPreSkinnedPosition
 ///////////////////////////////////////////////////////////////////////////////
 UMaterialExpressionPreSkinnedPosition::UMaterialExpressionPreSkinnedPosition(const FObjectInitializer& ObjectInitializer)
@@ -17525,11 +17684,14 @@ UMaterialExpressionHairAttributes::UMaterialExpressionHairAttributes(const FObje
 	Outputs.Add(FExpressionOutput(TEXT("V"), 1, 0, 1, 0, 0));
 	Outputs.Add(FExpressionOutput(TEXT("Length"), 1, 1, 0, 0, 0));
 	Outputs.Add(FExpressionOutput(TEXT("Radius"), 1, 0, 1, 0, 0));
-	Outputs.Add(FExpressionOutput(TEXT("Seed")));
+	Outputs.Add(FExpressionOutput(TEXT("Seed"), 1, 1, 0, 0, 0));
 	Outputs.Add(FExpressionOutput(TEXT("World Tangent"), 1, 1, 1, 1, 0));
 	Outputs.Add(FExpressionOutput(TEXT("Root UV"), 1, 1, 1, 0, 0));
 	Outputs.Add(FExpressionOutput(TEXT("BaseColor"), 1, 1, 1, 1, 0));
 	Outputs.Add(FExpressionOutput(TEXT("Roughness"), 1, 1, 0, 0, 0));
+	Outputs.Add(FExpressionOutput(TEXT("Depth"), 1, 1, 0, 0, 0));
+	Outputs.Add(FExpressionOutput(TEXT("Coverage"), 1, 1, 0, 0, 0));
+	Outputs.Add(FExpressionOutput(TEXT("AtlasUVs"), 1, 1, 1, 0, 0));
 #endif
 }
 
@@ -17564,6 +17726,18 @@ int32 UMaterialExpressionHairAttributes::Compile(class FMaterialCompiler* Compil
 	{
 		return Compiler->GetHairRoughness();
 	}
+	else if (OutputIndex == 9)
+	{
+		return Compiler->GetHairDepth();
+	}
+	else if (OutputIndex == 10)
+	{
+		return Compiler->GetHairCoverage();
+	}
+	else if (OutputIndex == 11)
+	{
+		return Compiler->GetHairAtlasUVs();
+	}
 
 	return Compiler->Errorf(TEXT("Invalid input parameter"));
 }
@@ -17574,6 +17748,53 @@ void UMaterialExpressionHairAttributes::GetCaption(TArray<FString>& OutCaptions)
 }
 #endif // WITH_EDITOR
 
+//
+// Hair Color
+//
+
+UMaterialExpressionHairColor::UMaterialExpressionHairColor(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITORONLY_DATA
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Utility;
+		FConstructorStatics()
+			: NAME_Utility(LOCTEXT("Hair Color", "Hair Color"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+	MenuCategories.Add(ConstructorStatics.NAME_Utility);
+
+#endif
+
+#if WITH_EDITORONLY_DATA
+	bShowOutputNameOnPin = true;
+	Outputs.Reset();
+	Outputs.Add(FExpressionOutput(TEXT("Color"), 1, 1, 1, 1, 0));
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionHairColor::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	int32 MelaninInput = Melanin.GetTracedInput().Expression ? Melanin.Compile(Compiler) : Compiler->Constant(0.5f);
+	int32 RednessInput = Redness.GetTracedInput().Expression ? Redness.Compile(Compiler) : Compiler->Constant(0.0f);
+	int32 DyeColorInput = DyeColor.GetTracedInput().Expression ? DyeColor.Compile(Compiler) : Compiler->Constant3(1.f,1.f, 1.f);
+
+	return Compiler->GetHairColorFromMelanin(
+		MelaninInput,
+		RednessInput,
+		DyeColorInput);
+}
+
+void UMaterialExpressionHairColor::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Hair Color"));
+}
+#endif // WITH_EDITOR
 
 //
 //  UMaterialExpressionARPassthroughCameraUVs
@@ -17756,7 +17977,6 @@ UMaterialExpressionVolumetricAdvancedMaterialOutput::UMaterialExpressionVolumetr
 	ConstPhaseG2 = 0.0f;
 	ConstPhaseBlend = 0.0f;
 	PerSamplePhaseEvaluation = false;
-	bGrayScaleMaterial = false;
 
 	MultiScatteringApproximationOctaveCount = 0;
 	ConstMultiScatteringContribution = 0.5f;
@@ -17764,6 +17984,8 @@ UMaterialExpressionVolumetricAdvancedMaterialOutput::UMaterialExpressionVolumetr
 	ConstMultiScatteringEccentricity = 0.5f;
 
 	bGroundContribution = false;
+	bGrayScaleMaterial = false;
+	bRayMarchVolumeShadow = true;
 
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_VolumetricAdvancedOutput);
@@ -17892,6 +18114,61 @@ void UMaterialExpressionVolumetricAdvancedMaterialInput::GetCaption(TArray<FStri
 
 
 ///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionReflectionCapturePassSwitch
+///////////////////////////////////////////////////////////////////////////////
+
+UMaterialExpressionReflectionCapturePassSwitch::UMaterialExpressionReflectionCapturePassSwitch(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Utility;
+		FConstructorStatics()
+			: NAME_Utility(LOCTEXT("Utility", "Utility"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Utility);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionReflectionCapturePassSwitch::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (!Default.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing input Default"));
+	}
+	else if (!Reflection.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing input Reflection"));
+	}
+	else
+	{
+		const int32 Arg1 = Default.Compile(Compiler);
+		const int32 Arg2 = Reflection.Compile(Compiler);
+
+		return Compiler->ReflectionCapturePassSwitch(Arg1, Arg2);
+	}
+}
+
+void UMaterialExpressionReflectionCapturePassSwitch::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Reflection Capture Pass Switch"));
+}
+
+void UMaterialExpressionReflectionCapturePassSwitch::GetExpressionToolTip(TArray<FString>& OutToolTip)
+{
+	ConvertToMultilineToolTip(TEXT("Allows material to define specialized behavior when being rendered into reflection capture views."), 40, OutToolTip);
+}
+#endif // WITH_EDITOR
+
+
+///////////////////////////////////////////////////////////////////////////////
 // UMaterialExpressionCloudSampleAttribute
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -18010,71 +18287,7 @@ FString UMaterialExpressionThinTranslucentMaterialOutput::GetDisplayName() const
 }
 
 
-///////////////////////////////////////////////////////////////////////////////
-// UMaterialExpressionSceneDepthWithoutWater
-///////////////////////////////////////////////////////////////////////////////
-UMaterialExpressionSceneDepthWithoutWater::UMaterialExpressionSceneDepthWithoutWater()
-{
-#if WITH_EDITORONLY_DATA
-	MenuCategories.Add(LOCTEXT("Water", "Water"));
 
-	Outputs.Reset();
-	Outputs.Add(FExpressionOutput(TEXT(""), 1, 1, 0, 0, 0));
-	bShaderInputData = true;
-#endif
-
-	ConstInput = FVector2D(0.f, 0.f);
-}
-
-#if WITH_EDITOR
-int32 UMaterialExpressionSceneDepthWithoutWater::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
-{
-	int32 OffsetIndex = INDEX_NONE;
-	int32 CoordinateIndex = INDEX_NONE;
-	bool bUseOffset = false;
-
-	if (InputMode == EMaterialSceneAttributeInputMode::OffsetFraction)
-	{
-		if (Input.GetTracedInput().Expression)
-		{
-			OffsetIndex = Input.Compile(Compiler);
-		}
-		else
-		{
-			OffsetIndex = Compiler->Constant2(ConstInput.X, ConstInput.Y);
-		}
-		bUseOffset = true;
-	}
-	else if (InputMode == EMaterialSceneAttributeInputMode::Coordinates)
-	{
-		if (Input.GetTracedInput().Expression)
-		{
-			CoordinateIndex = Input.Compile(Compiler);
-		}
-	}
-
-	int32 Result = Compiler->SceneDepthWithoutWater(OffsetIndex, CoordinateIndex, bUseOffset, FallbackDepth);
-	return Result;
-}
-
-void UMaterialExpressionSceneDepthWithoutWater::GetCaption(TArray<FString>& OutCaptions) const
-{
-	OutCaptions.Add(TEXT("Scene Depth Without Water"));
-}
-
-FName UMaterialExpressionSceneDepthWithoutWater::GetInputName(int32 InputIndex) const
-{
-	if (InputIndex == 0)
-	{
-		// Display the current InputMode enum's display name.
-		FByteProperty* InputModeProperty = FindFProperty<FByteProperty>(UMaterialExpressionSceneDepthWithoutWater::StaticClass(), "InputMode");
-		// Can't use GetNameByValue as GetNameStringByValue does name mangling that GetNameByValue does not
-		return *InputModeProperty->Enum->GetNameStringByValue((int64)InputMode.GetValue());
-	}
-	return NAME_None;
-}
-
-#endif // WITH_EDITOR
 
 
 #undef LOCTEXT_NAMESPACE

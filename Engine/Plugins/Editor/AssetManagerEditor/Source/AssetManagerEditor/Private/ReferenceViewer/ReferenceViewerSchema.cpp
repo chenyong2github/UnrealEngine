@@ -3,6 +3,7 @@
 #include "ReferenceViewer/ReferenceViewerSchema.h"
 #include "Textures/SlateIcon.h"
 #include "Misc/Attribute.h"
+#include "SReferenceViewer.h"
 #include "ToolMenus.h"
 #include "EdGraph/EdGraph.h"
 #include "EditorStyleSet.h"
@@ -12,9 +13,92 @@
 #include "Toolkits/GlobalEditorCommonCommands.h"
 #include "ConnectionDrawingPolicy.h"
 
+namespace UE
+{
+namespace DependencyPinCategory
+{
+	FName NamePassive(TEXT("Passive"));
+	FName NameHardUsedInGame(TEXT("Hard"));
+	FName NameHardEditorOnly(TEXT("HardEditorOnly"));
+	FName NameSoftUsedInGame(TEXT("Soft"));
+	FName NameSoftEditorOnly(TEXT("SoftEditorOnly"));
+	const FLinearColor ColorPassive = FLinearColor(128, 128, 128);
+	const FLinearColor ColorHardUsedInGame = FLinearColor(FColor(236, 252, 227)); // RiceFlower
+	const FLinearColor ColorHardEditorOnly = FLinearColor(FColor(118, 126, 114));
+	const FLinearColor ColorSoftUsedInGame = FLinearColor(FColor(145, 66, 117)); // CannonPink
+	const FLinearColor ColorSoftEditorOnly = FLinearColor(FColor(73, 33, 58));
 
-static const FLinearColor RiceFlower = FLinearColor(FColor(236, 252, 227));
-static const FLinearColor CannonPink = FLinearColor(FColor(145, 66, 117));
+}
+}
+
+EDependencyPinCategory ParseDependencyPinCategory(FName PinCategory)
+{
+	if (PinCategory == UE::DependencyPinCategory::NameHardUsedInGame)
+	{
+		return EDependencyPinCategory::LinkEndActive | EDependencyPinCategory::LinkTypeHard | EDependencyPinCategory::LinkTypeUsedInGame;
+	}
+	else if (PinCategory == UE::DependencyPinCategory::NameHardEditorOnly)
+	{
+		return EDependencyPinCategory::LinkEndActive | EDependencyPinCategory::LinkTypeHard;
+	}
+	else if (PinCategory == UE::DependencyPinCategory::NameSoftUsedInGame)
+	{
+		return EDependencyPinCategory::LinkEndActive | EDependencyPinCategory::LinkTypeUsedInGame;
+	}
+	else if (PinCategory == UE::DependencyPinCategory::NameSoftEditorOnly)
+	{
+		return EDependencyPinCategory::LinkEndActive;
+	}
+	else
+	{
+		return EDependencyPinCategory::LinkEndPassive;
+	}
+}
+
+FName GetName(EDependencyPinCategory Category)
+{
+	if ((Category & EDependencyPinCategory::LinkEndMask) == EDependencyPinCategory::LinkEndPassive)
+	{
+		return UE::DependencyPinCategory::NamePassive;
+	}
+	else
+	{
+		switch (Category & EDependencyPinCategory::LinkTypeMask)
+		{
+		case EDependencyPinCategory::LinkTypeHard | EDependencyPinCategory::LinkTypeUsedInGame:
+			return UE::DependencyPinCategory::NameHardUsedInGame;
+		case EDependencyPinCategory::LinkTypeHard:
+			return UE::DependencyPinCategory::NameHardEditorOnly;
+		case EDependencyPinCategory::LinkTypeUsedInGame:
+			return UE::DependencyPinCategory::NameSoftUsedInGame;
+		default:
+			return UE::DependencyPinCategory::NameSoftEditorOnly;
+		}
+	}
+}
+
+
+FLinearColor GetColor(EDependencyPinCategory Category)
+{
+	if ((Category & EDependencyPinCategory::LinkEndMask) == EDependencyPinCategory::LinkEndPassive)
+	{
+		return UE::DependencyPinCategory::ColorPassive;
+	}
+	else
+	{
+		switch (Category & EDependencyPinCategory::LinkTypeMask)
+		{
+		case EDependencyPinCategory::LinkTypeHard | EDependencyPinCategory::LinkTypeUsedInGame:
+			return UE::DependencyPinCategory::ColorHardUsedInGame;
+		case EDependencyPinCategory::LinkTypeHard:
+			return UE::DependencyPinCategory::ColorHardEditorOnly;
+		case EDependencyPinCategory::LinkTypeUsedInGame:
+			return UE::DependencyPinCategory::ColorSoftUsedInGame;
+		default:
+			return UE::DependencyPinCategory::ColorSoftEditorOnly;
+		}
+	}
+}
 
 // Overridden connection drawing policy to use less curvy lines between nodes
 class FReferenceViewerConnectionDrawingPolicy : public FConnectionDrawingPolicy
@@ -33,14 +117,11 @@ public:
 
 	virtual void DetermineWiringStyle(UEdGraphPin* OutputPin, UEdGraphPin* InputPin, /*inout*/ FConnectionParams& Params) override
 	{
-		if (OutputPin->PinType.PinCategory == TEXT("hard") || InputPin->PinType.PinCategory == TEXT("hard"))
-		{
-			Params.WireColor = RiceFlower;
-		}
-		else
-		{
-			Params.WireColor = CannonPink;
-		}
+		EDependencyPinCategory OutputCategory = ParseDependencyPinCategory(OutputPin->PinType.PinCategory);
+		EDependencyPinCategory InputCategory = ParseDependencyPinCategory(InputPin->PinType.PinCategory);
+
+		EDependencyPinCategory Category = !!(OutputCategory & EDependencyPinCategory::LinkEndActive) ? OutputCategory : InputCategory;
+		Params.WireColor = GetColor(Category);
 	}
 };
 
@@ -89,14 +170,7 @@ void UReferenceViewerSchema::GetContextMenuActions(UToolMenu* Menu, UGraphNodeCo
 
 FLinearColor UReferenceViewerSchema::GetPinTypeColor(const FEdGraphPinType& PinType) const
 {
-	if (PinType.PinCategory == TEXT("hard"))
-	{
-		return RiceFlower;
-	}
-	else
-	{
-		return CannonPink;
-	}
+	return GetColor(ParseDependencyPinCategory(PinType.PinCategory));
 }
 
 void UReferenceViewerSchema::BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNodeNotifcation) const

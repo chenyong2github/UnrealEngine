@@ -364,6 +364,8 @@ struct FGfxPipelineDesc
 
 	uint8 SubpassIndex;
 
+	uint8 UseAlphaToCoverage;
+
 	bool operator==(const FGfxPipelineDesc& In) const
 	{
 		if (VertexInputKey != In.VertexInputKey)
@@ -402,6 +404,11 @@ struct FGfxPipelineDesc
 		}
 
 		if (!(SubpassIndex == In.SubpassIndex))
+		{
+			return false;
+		}
+
+		if (!(UseAlphaToCoverage == In.UseAlphaToCoverage))
 		{
 			return false;
 		}

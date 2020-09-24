@@ -6,7 +6,6 @@
 #include "DrawDebugHelpers.h"
 #include "Animation/AnimInstanceProxy.h"
 
-PRAGMA_DISABLE_OPTIMIZATION
 /////////////////////////////////////////////////////
 // AnimNode_CCDIK
 // Implementation of the CCDIK IK Algorithm
@@ -201,4 +200,3 @@ void FAnimNode_CCDIK::GatherDebugData(FNodeDebugData& DebugData)
 	ComponentPose.GatherDebugData(DebugData);
 }
 
-PRAGMA_ENABLE_OPTIMIZATION

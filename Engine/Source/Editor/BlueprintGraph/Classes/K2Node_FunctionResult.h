@@ -49,5 +49,6 @@ class UK2Node_FunctionResult : public UK2Node_FunctionTerminator
 protected:
 	void SyncWithEntryNode();
 	void SyncWithPrimaryResultNode();
+	void MakePinsEditable();
 };
 

@@ -15,7 +15,7 @@ public class MovieRenderPipelineSettings : ModuleRules
 				"UMG",
 				"Slate",
 				"RenderCore",
-				"RHI"
+				"RHI",
 			}
 		);
 
@@ -27,7 +27,8 @@ public class MovieRenderPipelineSettings : ModuleRules
 				"LevelSequence",
 				"Engine",
 				"MovieRenderPipelineCore",
-            }
-        );
+				"OpenColorIO",
+			}
+		);
 	}
 }

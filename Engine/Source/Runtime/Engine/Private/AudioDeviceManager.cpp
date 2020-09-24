@@ -562,7 +562,7 @@ bool FAudioDeviceManager::InitializeManager()
 		MainDeviceParams.AssociatedWorld = GWorld;
 
 		MainAudioDeviceHandle = RequestAudioDevice(MainDeviceParams);
-		
+
 		if (!MainAudioDeviceHandle)
 		{
 			UE_LOG(LogAudio, Display, TEXT("Main audio device could not be initialized. Please check the value for AudioDeviceModuleName and AudioMixerModuleName in [Platform]Engine.ini."));
@@ -1499,7 +1499,7 @@ void FAudioDeviceHandle::AddStackDumpToAudioDeviceContainer()
 	FMemory::Memzero(PlatformDump, MaxPlatformWalkStringCount * sizeof(ANSICHAR));
 
 	FPlatformStackWalk::StackWalkAndDump(PlatformDump, MaxPlatformWalkStringCount - 1, 2);
-	
+
 	FString FormattedDump = TEXT("New Handle Created:\n");
 
 	int32 DumpLength = FCStringAnsi::Strlen(PlatformDump);

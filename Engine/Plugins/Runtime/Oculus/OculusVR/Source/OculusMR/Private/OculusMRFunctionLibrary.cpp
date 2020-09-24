@@ -72,14 +72,6 @@ void UOculusMRFunctionLibrary::GetAllTrackedCamera(TArray<FTrackedCamera>& Track
 			camera.CalibratedOffset = Pose.Position;
 			camera.UserRotation = FRotator::ZeroRotator;
 			camera.UserOffset = FVector::ZeroVector;
-#if PLATFORM_ANDROID
-			ovrpPosef cameraRawPose;
-			FOculusHMDModule::GetPluginWrapper().GetExternalCameraCalibrationRawPose(i, &cameraRawPose);
-			OculusHMD::FPose RawPose;
-			GetOculusHMD()->ConvertPose(cameraRawPose, RawPose);
-			camera.RawRotation = RawPose.Orientation.Rotator();
-			camera.RawOffset = RawPose.Position;
-#endif
 			TrackedCameras.Add(camera);
 		}
 	}

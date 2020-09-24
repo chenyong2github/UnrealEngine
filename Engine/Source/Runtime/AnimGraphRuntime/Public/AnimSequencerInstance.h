@@ -22,6 +22,9 @@ public:
 	virtual void UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, int32 SequenceId, float InPosition, float Weight, bool bFireNotifies);
 	virtual void UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, int32 SequenceId, float InFromPosition, float InToPosition, float Weight, bool bFireNotifies);
 
+	/** Update with Root Motion*/
+	void UpdateAnimTrackWithRootMotion(UAnimSequenceBase* InAnimSequence, int32 SequenceId,const TOptional<FTransform>& RootMotion, float InFromPosition, float InToPosition, float Weight, bool bFireNotifies);
+
 	/** Construct all nodes in this instance */
 	virtual void ConstructNodes() override;
 

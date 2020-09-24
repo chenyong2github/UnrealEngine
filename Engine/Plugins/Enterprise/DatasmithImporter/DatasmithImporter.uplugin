@@ -29,6 +29,11 @@
 			"Name": "DatasmithNativeTranslator",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "DirectLinkTest",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
 		}
 	],
 	"Plugins": [

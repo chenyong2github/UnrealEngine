@@ -21,7 +21,6 @@ void FSourceFilteringTickFunction::ExecuteTick(float DeltaTime, ELevelTick TickT
 		// In case the system is drawing the filtering state the GT should wait for this async task
 		if (Manager->Settings->bDrawFilteringStates && IsValidRef(Manager->DrawTask))
 		{
-			MyCompletionGraphEvent->SetGatherThreadForDontCompleteUntil(ENamedThreads::GameThread);
 			MyCompletionGraphEvent->DontCompleteUntil(Manager->DrawTask);
 		}
 	}

@@ -11,7 +11,7 @@
 #include "RendererInterface.h"
 #include "ShaderParameters.h"
 #include "Shader.h"
-#include "PostProcess/SceneRenderTargets.h"
+#include "SceneRenderTargets.h"
 #include "ShaderParameterUtils.h"
 
 /** Uniform buffer for computing the vertex positional and UV adjustments in the vertex shader. */

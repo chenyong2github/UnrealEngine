@@ -231,8 +231,6 @@
 	// Denoise only AO.
 	#define MAX_SIGNAL_BATCH_SIZE 1
 
-	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_DIFFUSE
-
 	#if DIM_STAGE == STAGE_RECONSTRUCTION
 		#define SIGNAL_ARRAY_SIZE 1
 
@@ -244,8 +242,27 @@
 		#define CONFIG_OUTPUT_TEXTURE_COUNT 1
 
 		#define CONFIG_SAMPLE_SET           SAMPLE_SET_STACKOWIAK_4_SETS
-		#define CONFIG_BILATERAL_DISTANCE_COMPUTATION SIGNAL_WORLD_FREQUENCY_HIT_DISTANCE
 		#define CONFIG_OUTPUT_MODE          OUTPUT_MODE_DRB
+
+		#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_AO
+
+	#elif DIM_STAGE == STAGE_PRE_CONVOLUTION
+		#define SIGNAL_ARRAY_SIZE 1 // first and second momment to measure variance in temporal accumulation.
+
+		// Input and output layout.
+		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_AO_HISTORY
+		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_AO_HISTORY
+
+		#define CONFIG_INPUT_TEXTURE_COUNT 1
+		#define CONFIG_OUTPUT_TEXTURE_COUNT 1
+
+		#define CONFIG_SAMPLE_SET           SAMPLE_SET_HEXAWEB
+		#define CONFIG_CUSTOM_SPREAD_FACTOR 1
+
+		//#define CONFIG_MAX_WITH_REF_DISTANCE 1
+		#define CONFIG_OUTPUT_MODE          OUTPUT_MODE_DRB
+
+		#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_AO
 
 	#elif DIM_STAGE == STAGE_REJECTION_PRE_CONVOLUTION
 		#define SIGNAL_ARRAY_SIZE 2 // first and second momment to measure variance in temporal accumulation.
@@ -257,7 +274,7 @@
 		#define CONFIG_INPUT_TEXTURE_COUNT 1
 		#define CONFIG_OUTPUT_TEXTURE_COUNT 1
 
-		#define CONFIG_BILATERAL_DISTANCE_COMPUTATION SIGNAL_WORLD_FREQUENCY_HIT_DISTANCE
+		#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_AO_HISTORY
 
 	#elif DIM_STAGE == STAGE_POST_FILTERING
 		#define SIGNAL_ARRAY_SIZE 1
@@ -269,10 +286,13 @@
 		#define CONFIG_INPUT_TEXTURE_COUNT 1
 		#define CONFIG_OUTPUT_TEXTURE_COUNT 1
 
-		#define CONFIG_SAMPLE_SET           SAMPLE_SET_STACKOWIAK_4_SETS
-		#define CONFIG_SAMPLE_SUBSET        1
+		#define CONFIG_SAMPLE_SET           SAMPLE_SET_HEXAWEB
+		#define CONFIG_OUTPUT_MODE          OUTPUT_MODE_DRB
+		#define CONFIG_CUSTOM_SPREAD_FACTOR 1
 
 		#define CONFIG_SAMPLE_COUNT_POLICY  SAMPLE_COUNT_POLICY_SAMPLE_ACCUMULATION_BASED
+
+		#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_AO
 
 	#else
 		#error Unexpected stage.
@@ -691,6 +711,18 @@ void MainCS(
 	uint2 GroupThreadId : SV_GroupThreadID,
 	uint GroupThreadIndex : SV_GroupIndex)
 {
+#if CONFIG_SIGNAL_INPUT_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_FLOAT4
+	Texture2D Signal_Textures_0 = SignalInput_Textures_0;
+	Texture2D Signal_Textures_1 = SignalInput_Textures_1;
+	Texture2D Signal_Textures_2 = SignalInput_Textures_2;
+	Texture2D Signal_Textures_3 = SignalInput_Textures_3;
+#else
+	FSSDTexture2D Signal_Textures_0 = SignalInput_Textures_0;
+	FSSDTexture2D Signal_Textures_1 = SignalInput_Textures_1;
+	FSSDTexture2D Signal_Textures_2 = SignalInput_Textures_2;
+	FSSDTexture2D Signal_Textures_3 = SignalInput_Textures_3;
+#endif
+
 	// Find out scene buffer UV.
 	float2 SceneBufferUV = DispatchThreadId * ThreadIdToBufferUV.xy + ThreadIdToBufferUV.zw;
 	if (true)
@@ -718,10 +750,10 @@ void MainCS(
 		FSSDSignalArray RefSamples;
 		FSSDSignalFrequencyArray RefFrequencies;
 		SampleMultiplexedSignals(
-			SignalInput_Textures_0,
-			SignalInput_Textures_1,
-			SignalInput_Textures_2,
-			SignalInput_Textures_3,
+			Signal_Textures_0,
+			Signal_Textures_1,
+			Signal_Textures_2,
+			Signal_Textures_3,
 			GlobalPointClampedSampler,
 			CONFIG_SIGNAL_INPUT_LAYOUT,
 			/* MultiplexedSampleId = */ 0,
@@ -856,11 +888,16 @@ void MainCS(
 				{
 					KernelConfig.RefBilateralDistance[MultiplexId] = RefFrequencies.Array[MultiplexId].WorldBluringRadius;
 				}
+				else if (KernelConfig.BilateralDistanceComputation == SIGNAL_WORLD_FREQUENCY_HIT_DISTANCE)
+				{
+					KernelConfig.RefBilateralDistance[MultiplexId] = RefFrequencies.Array[MultiplexId].ClosestHitDistance;
+				}
 				else
 				{
 					const uint BatchedSignalId = ComputeSignalBatchIdFromSignalMultiplexId(KernelConfig, MultiplexId);
+					FSSDSignalDomainKnowledge DomainKnowledge = GetSignalDomainKnowledge(BatchedSignalId);
 
-					KernelConfig.RefBilateralDistance[MultiplexId] = GetSignalWorldBluringRadius(RefFrequencies.Array[MultiplexId], RefSceneMetadata, BatchedSignalId);
+					KernelConfig.RefBilateralDistance[MultiplexId] = GetSignalWorldBluringRadius(RefFrequencies.Array[MultiplexId], RefSceneMetadata, DomainKnowledge);
 				}
 			}
 		}
@@ -887,7 +924,7 @@ void MainCS(
 
 			// Add a bit of jittering to hide low sample.
 			KernelConfig.bSampleKernelCenter = false;
-			KernelConfig.BufferUV += View.ViewSizeAndInvSize.zw * (E - 0.5) * (KernelConfig.KernelSpreadFactor * (0.5 * 0.5));
+			KernelConfig.BufferUV += View.ViewSizeAndInvSize.zw * (E - 0.5) * (KernelConfig.KernelSpreadFactor);
 		}
 		#endif
 
@@ -900,7 +937,8 @@ void MainCS(
 			for (uint SignalMultiplexId = 0; SignalMultiplexId < SIGNAL_ARRAY_SIZE; SignalMultiplexId++)
 			{
 				const uint BatchedSignalId = ComputeSignalBatchIdFromSignalMultiplexId(KernelConfig, SignalMultiplexId);
-				
+				FSSDSignalDomainKnowledge DomainKnowledge = GetSignalDomainKnowledge(BatchedSignalId);
+
 				uint2 RefPixelCoord = floor(KernelConfig.BufferUV * KernelConfig.BufferSizeAndInvSize.xy);
 				FSSDSignalSample CenterSample = TransformSignalSampleForAccumulation(
 					KernelConfig,
@@ -913,7 +951,7 @@ void MainCS(
 				SampleInfos.Sample = CenterSample;
 				SampleInfos.Frequency = RefFrequencies.Array[SignalMultiplexId];
 				SampleInfos.FinalWeight = 1.0;
-				SampleInfos.InvFrequency = GetSignalWorldBluringRadius(SampleInfos.Frequency, RefSceneMetadata, BatchedSignalId);
+				SampleInfos.InvFrequency = GetSignalWorldBluringRadius(SampleInfos.Frequency, RefSceneMetadata, DomainKnowledge);
 				
 				if (KernelConfig.BilateralDistanceComputation == SIGNAL_WORLD_FREQUENCY_PRECOMPUTED_BLURING_RADIUS)
 				{
@@ -1056,10 +1094,10 @@ void MainCS(
 		{
 			AccumulateKernel(
 				KernelConfig,
-				SignalInput_Textures_0,
-				SignalInput_Textures_1,
-				SignalInput_Textures_2,
-				SignalInput_Textures_3,
+				Signal_Textures_0,
+				Signal_Textures_1,
+				Signal_Textures_2,
+				Signal_Textures_3,
 				/* inout */ UncompressedAccumulators,
 				/* inout */ CompressedAccumulators);
 		}
@@ -1077,10 +1115,10 @@ void MainCS(
 			
 				AccumulateKernel(
 					KernelConfig,
-					SignalInput_Textures_0,
-					SignalInput_Textures_1,
-					SignalInput_Textures_2,
-					SignalInput_Textures_3,
+					Signal_Textures_0,
+					Signal_Textures_1,
+					Signal_Textures_2,
+					Signal_Textures_3,
 					/* inout */ UncompressedAccumulators,
 					/* inout */ CompressedAccumulators);
 			}
@@ -1096,10 +1134,10 @@ void MainCS(
 
 			SampleAndAccumulateCenterSampleAsItsOwnCluster(
 				KernelConfig,
-				SignalInput_Textures_0,
-				SignalInput_Textures_1,
-				SignalInput_Textures_2,
-				SignalInput_Textures_3,
+				Signal_Textures_0,
+				Signal_Textures_1,
+				Signal_Textures_2,
+				Signal_Textures_3,
 				/* inout */ UncompressedAccumulators,
 				/* inout */ CompressedAccumulators);
 		}

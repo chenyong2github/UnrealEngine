@@ -238,7 +238,13 @@ void FTextureRenderTargetVolumeResource::InitDynamicRHI()
 		}
 
 		// Create the RHI texture. Only one mip is used and the texture is targetable for resolve.
-		uint32 TexCreateFlags = bIsSRGB ? TexCreate_SRGB : 0;
+		ETextureCreateFlags TexCreateFlags = bIsSRGB ? TexCreate_SRGB : TexCreate_None;
+
+		if (Owner->bCanCreateUAV)
+		{
+			TexCreateFlags |= TexCreate_UAV;
+		}
+
 		{
 			FRHIResourceCreateInfo CreateInfo = { FClearValueBinding(Owner->ClearColor) };
 			RHICreateTargetableShaderResource3D(

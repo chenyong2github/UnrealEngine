@@ -34,6 +34,7 @@ struct FGeometry
 	FBoxSphereBounds WorldBounds;
 
 	bool bCastShadow;
+	bool bLODsShareStaticLighting;
 
 	TArray<FLightmapRef> LODLightmaps;
 

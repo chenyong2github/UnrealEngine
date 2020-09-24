@@ -10,6 +10,7 @@ public class TimedDataMonitor : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
+				"StageDataCore",
 				"TimeManagement",
 			});
 

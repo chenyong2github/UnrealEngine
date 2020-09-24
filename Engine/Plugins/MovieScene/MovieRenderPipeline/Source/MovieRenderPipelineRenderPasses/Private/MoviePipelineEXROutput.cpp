@@ -173,6 +173,14 @@ bool FEXRImageWriteTask::WriteToDisk()
 				{
 					TUniquePtr<FImagePixelData> QuantizedPixelData = UE::MoviePipeline::QuantizeImagePixelDataToBitDepth(Layer.Get(), 16);
 					QuantizedData.Add(MoveTemp(QuantizedPixelData));
+
+					// Add an entry in the LayerNames table if needed since it matches by Layer pointer but that has changed.
+					FString LayerName = LayerNames.FindOrAdd(Layer.Get());
+					if (LayerName.Len() > 0)
+					{
+						LayerNames.Add(QuantizedData.Last().Get(), LayerName);
+					}
+
 					BytesWritten = CompressRaw<Imf::HALF>(Header, FrameBuffer, QuantizedData.Last().Get());
 				}
 					break;
@@ -194,7 +202,7 @@ bool FEXRImageWriteTask::WriteToDisk()
 			// To complete the file, EXR seeks back into the file and writes the scanline offsets when the file is closed, 
 			// which moves the tellp location. So file length is stored in advance for later use. The output file needs to be
 			// created after the header information is filled.
-			Imf::OutputFile ImfFile(OutputFile, Header);
+			Imf::OutputFile ImfFile(OutputFile, Header, FPlatformMisc::NumberOfCoresIncludingHyperthreads());
 #if WITH_EDITOR
 			try
 #endif
@@ -363,67 +371,112 @@ void UMoviePipelineImageSequenceOutput_EXR::OnRecieveImageDataImpl(FMoviePipelin
 	UMoviePipelineOutputSetting* OutputSettings = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
 	check(OutputSettings);
 
-	FString OutputDirectory = OutputSettings->OutputDirectory.Path;
-	// We need to resolve the filename format string. We combine the folder and file name into one long string first
-	FString FinalFilePath;
-	FMoviePipelineFormatArgs FinalFormatArgs;
-	FString FinalImageSequenceFileName;
-	FString ClipName;
-	const TCHAR* Extension = TEXT("exr");
-	{
-		FString FileNameFormatString = OutputSettings->FileNameFormat;
-
-		// If we're writing more than one render pass out, we need to ensure the file name has the format string in it so we don't
-		// overwrite the same file multiple times. Burn In overlays don't count because they get composited on top of an existing file.
-		const bool bIncludeRenderPass = false;
-		const bool bTestFrameNumber = true;
-
-		UE::MoviePipeline::ValidateOutputFormatString(FileNameFormatString, bIncludeRenderPass, bTestFrameNumber);
-
-		// Create specific data that needs to override 
-		FStringFormatNamedArguments FormatOverrides;
-		FormatOverrides.Add(TEXT("render_pass"), TEXT("")); // Render Passes are included inside the exr file by named layers.
-		FormatOverrides.Add(TEXT("ext"), Extension);
-
-		// This resolves the filename format and gathers metadata from the settings at the same time.
-		GetPipeline()->ResolveFilenameFormatArguments(FileNameFormatString, FormatOverrides, FinalImageSequenceFileName, FinalFormatArgs, &InMergedOutputFrame->FrameOutputState, -InMergedOutputFrame->FrameOutputState.ShotOutputFrameNumber);
-
-		FString FilePathFormatString = OutputDirectory / FileNameFormatString;
-		GetPipeline()->ResolveFilenameFormatArguments(FilePathFormatString, FormatOverrides, FinalFilePath, FinalFormatArgs, &InMergedOutputFrame->FrameOutputState);
-
-		// Create a deterministic clipname by removing frame numbers, file extension, and any trailing .'s
-		UE::MoviePipeline::RemoveFrameNumberFormatStrings(FileNameFormatString, true);
-		GetPipeline()->ResolveFilenameFormatArguments(FileNameFormatString, FormatOverrides, ClipName, FinalFormatArgs, &InMergedOutputFrame->FrameOutputState);
-		ClipName.RemoveFromEnd(Extension);
-		ClipName.RemoveFromEnd(".");
-	}
-
-	TUniquePtr<FEXRImageWriteTask> MultiLayerImageTask = MakeUnique<FEXRImageWriteTask>();
-	MultiLayerImageTask->Filename = FinalFilePath;
-	MultiLayerImageTask->Compression = Compression;
-	MultiLayerImageTask->FileMetadata = FinalFormatArgs.FileMetadata; // This is already merged by ResolveFilenameFormatArgs with the FrameOutputState.
-
-	int32 LayerIndex = 0;
+	// EXR only supports one resolution per file, but in certain scenarios we can get layers with different resolutions. To solve this, we're
+	// going to write one exr file per image resolution. First we loop through all layers to figure out how many sizes we're dealing with.
+	TArray<FIntPoint> Resolutions;
 	for (TPair<FMoviePipelinePassIdentifier, TUniquePtr<FImagePixelData>>& RenderPassData : InMergedOutputFrame->ImageOutputData)
 	{
-		// No quantization required, just copy the data as we will move it into the image write task.
-		TUniquePtr<FImagePixelData> PixelData = RenderPassData.Value->CopyImageData();
-
-		// If there is more than one layer, then we will prefix the layer. The first layer is not prefixed (and gets inserted as RGBA)
-		// as most programs that handle EXRs expect the main image data to be in an unnamed layer.
-		if (LayerIndex > 0)
-		{
-			MultiLayerImageTask->LayerNames.FindOrAdd(PixelData.Get(), RenderPassData.Key.Name);
-		}
-		MultiLayerImageTask->Width = PixelData->GetSize().X;
-		MultiLayerImageTask->Height = PixelData->GetSize().Y;
-		MultiLayerImageTask->Layers.Add(MoveTemp(PixelData));
-		LayerIndex++;
+		Resolutions.AddUnique(RenderPassData.Value->GetSize());
 	}
 
-	ImageWriteQueue->Enqueue(MoveTemp(MultiLayerImageTask));
+	// Then submit multiple write tasks. Layers that don't match the current resolution will be skipped until the correct iteration of the loop.
+	for (int32 Index = 0; Index < Resolutions.Num(); Index++)
+	{
+		FString OutputDirectory = OutputSettings->OutputDirectory.Path;
 
+		// We need to resolve the filename format string. We combine the folder and file name into one long string first
+		FString FinalFilePath;
+		FMoviePipelineFormatArgs FinalFormatArgs;
+		FString FinalImageSequenceFileName;
+		FString ClipName;
+		const TCHAR* Extension = TEXT("exr");
+		{
+			// If we have more than one resolution we'll store it as "_Add" / "_Add(1)" etc.
+			FString FileNameFormatString = OutputSettings->FileNameFormat + "{ExtraTag}";
+
+			// If we're writing more than one render pass out, we need to ensure the file name has the format string in it so we don't
+			// overwrite the same file multiple times. Burn In overlays don't count because they get composited on top of an existing file.
+			const bool bIncludeRenderPass = false;
+			const bool bTestFrameNumber = true;
+
+			UE::MoviePipeline::ValidateOutputFormatString(FileNameFormatString, bIncludeRenderPass, bTestFrameNumber);
+
+			// Create specific data that needs to override 
+			FStringFormatNamedArguments FormatOverrides;
+			FormatOverrides.Add(TEXT("render_pass"), TEXT("")); // Render Passes are included inside the exr file by named layers.
+			FormatOverrides.Add(TEXT("ext"), Extension);
+
+			// The logic for the ExtraTag is a little complicated. If there's only one layer (ideal situation) then it's empty.
+			if (Index == 0)
+			{
+				FormatOverrides.Add(TEXT("ExtraTag"), TEXT(""));
+			}
+			else if(Resolutions.Num() == 2)
+			{
+				// This is our most common case when we have a second file (the only expected one really)
+				FormatOverrides.Add(TEXT("ExtraTag"), TEXT("_Add"));
+			}
+			else
+			{
+				// Finally a fallback in the event we have three or more unique resolutions.
+				FormatOverrides.Add(TEXT("ExtraTag"), FString::Printf(TEXT("_Add(%d)"), Index));
+			}
+
+			// This resolves the filename format and gathers metadata from the settings at the same time.
+			GetPipeline()->ResolveFilenameFormatArguments(FileNameFormatString, FormatOverrides, FinalImageSequenceFileName, FinalFormatArgs, &InMergedOutputFrame->FrameOutputState, -InMergedOutputFrame->FrameOutputState.ShotOutputFrameNumber);
+
+			FString FilePathFormatString = OutputDirectory / FileNameFormatString;
+			GetPipeline()->ResolveFilenameFormatArguments(FilePathFormatString, FormatOverrides, FinalFilePath, FinalFormatArgs, &InMergedOutputFrame->FrameOutputState);
+
+			// Create a deterministic clipname by removing frame numbers, file extension, and any trailing .'s
+			UE::MoviePipeline::RemoveFrameNumberFormatStrings(FileNameFormatString, true);
+			GetPipeline()->ResolveFilenameFormatArguments(FileNameFormatString, FormatOverrides, ClipName, FinalFormatArgs, &InMergedOutputFrame->FrameOutputState);
+			ClipName.RemoveFromEnd(Extension);
+			ClipName.RemoveFromEnd(".");
+		}
+
+		TUniquePtr<FEXRImageWriteTask> MultiLayerImageTask = MakeUnique<FEXRImageWriteTask>();
+		MultiLayerImageTask->Filename = FinalFilePath;
+		MultiLayerImageTask->Compression = Compression;
+		MultiLayerImageTask->FileMetadata = FinalFormatArgs.FileMetadata; // This is already merged by ResolveFilenameFormatArgs with the FrameOutputState.
+
+		int32 LayerIndex = 0;
+		bool bRequiresTransparentOutput = false;
+		for (TPair<FMoviePipelinePassIdentifier, TUniquePtr<FImagePixelData>>& RenderPassData : InMergedOutputFrame->ImageOutputData)
+		{
+			if (RenderPassData.Value->GetSize() != Resolutions[Index])
+			{
+				// If this layer isn't for this resolution, don't add it to the multilayer task, a second task will be created soon.
+				continue;
+			}
+
+			// No quantization required, just copy the data as we will move it into the image write task.
+			TUniquePtr<FImagePixelData> PixelData = RenderPassData.Value->CopyImageData();
+
+			// If there is more than one layer, then we will prefix the layer. The first layer is not prefixed (and gets inserted as RGBA)
+			// as most programs that handle EXRs expect the main image data to be in an unnamed layer.
+			if (LayerIndex == 0)
+			{
+				// Only check the main image pass for transparent output since that's generally considered the 'preview'.
+				FImagePixelDataPayload* Payload = RenderPassData.Value->GetPayload<FImagePixelDataPayload>();
+				bRequiresTransparentOutput = Payload->bRequireTransparentOutput;
+			}
+			else
+			{
+				// If there is more than one layer, then we will prefix the layer. The first layer is not prefixed (and gets inserted as RGBA)
+				// as most programs that handle EXRs expect the main image data to be in an unnamed layer.
+				MultiLayerImageTask->LayerNames.FindOrAdd(PixelData.Get(), RenderPassData.Key.Name);
+			}
+
+			MultiLayerImageTask->Width = Resolutions[Index].X;
+			MultiLayerImageTask->Height = Resolutions[Index].Y;
+			MultiLayerImageTask->Layers.Add(MoveTemp(PixelData));
+			LayerIndex++;
+		}
+
+		ImageWriteQueue->Enqueue(MoveTemp(MultiLayerImageTask));
 #if WITH_EDITOR
-	GetPipeline()->AddFrameToOutputMetadata(ClipName, FinalImageSequenceFileName, InMergedOutputFrame->FrameOutputState, Extension, bOutputAlpha);
+		GetPipeline()->AddFrameToOutputMetadata(ClipName, FinalImageSequenceFileName, InMergedOutputFrame->FrameOutputState, Extension, bRequiresTransparentOutput);
 #endif
+	}
 }

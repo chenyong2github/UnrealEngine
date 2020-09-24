@@ -51,14 +51,15 @@ void MapFallOffColor2SurfaceAlbedoAndDiffuseMeanFreePath(float FalloffColor, flo
 	float X2 = X * X;
 	float X4 = X2 * X2;
 #if 0
-	SurfaceAlbedo = 0.06698*X4 - 0.1405*X2*X + 0.09174*X2 + 0.1278*X - 0.0007324;
-	//map FalOffColor to L with 6 polynomial, error < 6e-3  
-	DiffuseMeanFreePath = 7.674*X4*X2 - 25.13*X4*X + 31.6*X4 - 18.77*X2*X + 4.954*X2 + 0.2557*X + 0.01;
-#else
 	// max error happens around 0.1, which is -4.8e-3. The others are less than 2.5e-3.
-	SurfaceAlbedo = 5.883*X4*X2 - 19.88*X4*X + 26.08*X4 - 16.59 * X2*X + 5.143*X2 + 0.2636 *X + 0.01098;
+	SurfaceAlbedo = 5.883 * X4 * X2 - 19.88 * X4 * X + 26.08 * X4 - 16.59 * X2 * X + 5.143 * X2 + 0.2636 * X + 0.01098;
 	// max error happens around 0.1, which is -3.8e-3.
-	DiffuseMeanFreePath = 4.78*X4*X2 - 5.178*X4*X + 5.2154 *X4 - 4.424 * X2*X + 1.636 * X2 + 0.4067 * X + 0.006853;
+	DiffuseMeanFreePath = 4.78 * X4 * X2 - 5.178 * X4 * X + 5.2154 * X4 - 4.424 * X2 * X + 1.636 * X2 + 0.4067 * X + 0.006853;
+#else
+	// max error happens around 0, which is 1e-4. The others are less than 2e-5.
+	SurfaceAlbedo = 0.906 * X + 0.00004;
+	// max error happens around 0.95, which is -1e-4.
+	DiffuseMeanFreePath = 10.39 * X4 * X -15.18 * X4 + 8.332 * X2 * X -2.039 * X2 + 0.7279 * X - 0.0014;
 #endif
 }
 
@@ -110,7 +111,7 @@ FVector GetSearchLightDiffuseScalingFactor(FLinearColor SurfaceAlbedo)
 }
 
 void ComputeMirroredBSSSKernel(FLinearColor* TargetBuffer, uint32 TargetBufferSize,
-	FLinearColor SurfaceAlbedo, FLinearColor DiffuseMeanFreePath, float WorldUnitScale, float ScatterRadius)
+	FLinearColor SurfaceAlbedo, FLinearColor DiffuseMeanFreePath, float ScatterRadius)
 {
 	check(TargetBuffer);
 	check(TargetBufferSize > 0);
@@ -138,8 +139,9 @@ void ComputeMirroredBSSSKernel(FLinearColor* TargetBuffer, uint32 TargetBufferSi
 			kernel[i].A = Range * sign * FMath::Abs(FMath::Pow(o, Exponent)) / FMath::Pow(Range, Exponent);
 		}
 
-		//Scale the profile sampling radius.
-		const float SpaceScale = ScatterRadius / WorldUnitScale;
+		//Scale the profile sampling radius. This scale enables the sampling between [-3*SpaceScale,+3*SpaceScale] instead of 
+		//the default [-3,3] range when fetching kernel parameters.
+		const float SpaceScale = ScatterRadius * 10.0f;// from cm to mm
 
 		// Calculate the weights:
 		for (int32 i = 0; i < nTotalSamples; i++)

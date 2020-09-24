@@ -8,6 +8,7 @@
 #include "EdGraph/EdGraphNode.h"
 #include "NiagaraEditorCommon.h"
 #include "NiagaraParameterMapHistory.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "Misc/Guid.h"
 #include "UObject/UnrealType.h"
 #include "NiagaraNode.generated.h"
@@ -16,6 +17,8 @@ class UEdGraphPin;
 class INiagaraCompiler;
 struct FNiagaraGraphFunctionAliasContext;
 class FSHA1;
+
+typedef TArray<UEdGraphPin*, TInlineAllocator<16>> FPinCollectorArray;
 
 UCLASS()
 class NIAGARAEDITOR_API UNiagaraNode : public UEdGraphNode
@@ -66,11 +69,19 @@ public:
 	virtual void Compile(class FHlslNiagaraTranslator *Translator, TArray<int32>& Outputs);
 
 	UEdGraphPin* GetInputPin(int32 InputIndex) const;
-	void GetInputPins(TArray<class UEdGraphPin*>& OutInputPins) const;
-	void GetInputPins(TArray<const class UEdGraphPin*>& OutInputPins) const;
 	UEdGraphPin* GetOutputPin(int32 OutputIndex) const;
-	void GetOutputPins(TArray<class UEdGraphPin*>& OutOutputPins) const;
-	void GetOutputPins(TArray<const class UEdGraphPin*>& OutOutputPins) const;
+
+	template<typename ContainerType>
+	void GetInputPins(ContainerType& OutInputPins) const
+	{
+		GetInputPinsInternal<ContainerType>(OutInputPins);
+	}
+	template<typename ContainerType>
+	void GetOutputPins(ContainerType& OutOutputPins) const
+	{
+		GetOutputPinsInternal<ContainerType>(OutOutputPins);
+	}
+
 	UEdGraphPin* GetPinByPersistentGuid(const FGuid& InGuid) const;
 	virtual void ResolveNumerics(const UEdGraphSchema_Niagara* Schema, bool bSetInline, TMap<TPair<FGuid, UEdGraphNode*>, FNiagaraTypeDefinition>* PinCache);
 
@@ -132,7 +143,7 @@ public:
 
 	FOnNodeVisualsChanged& OnVisualsChanged();
 
-	virtual void AppendFunctionAliasForContext(const FNiagaraGraphFunctionAliasContext& InFunctionAliasContext, FString& InOutFunctionAlias) { };
+	virtual void AppendFunctionAliasForContext(const FNiagaraGraphFunctionAliasContext& InFunctionAliasContext, FString& InOutFunctionAlias, bool& OutOnlyOncePerNodeType) { };
 
 	/** Old style compile hash code. To be removed in the future.*/
 	virtual void UpdateCompileHashForNode(FSHA1& HashState) const;
@@ -159,7 +170,7 @@ protected:
 	virtual int32 CompileInputPin(class FHlslNiagaraTranslator *Translator, UEdGraphPin* Pin);
 	virtual bool IsValidPinToCompile(UEdGraphPin* Pin) const;
 
-	void NumericResolutionByPins(const UEdGraphSchema_Niagara* Schema, TArray<UEdGraphPin*>& InputPins, TArray<UEdGraphPin*>& OutputPins,
+	void NumericResolutionByPins(const UEdGraphSchema_Niagara* Schema, TArrayView<UEdGraphPin* const> InputPins, TArrayView<UEdGraphPin* const> OutputPins,
 		bool bFixInline, TMap<TPair<FGuid, UEdGraphNode*>, FNiagaraTypeDefinition>* PinCache);
 
 	/** Route input parameter map to output parameter map if it exists. Note that before calling this function,
@@ -169,6 +180,34 @@ protected:
 #if WITH_EDITORONLY_DATA
 	virtual void GatherForLocalization(FPropertyLocalizationDataGatherer& PropertyLocalizationDataGatherer, const EPropertyLocalizationGathererTextFlags GatherTextFlags) const override;
 #endif
+
+	template<typename ContainerType>
+	void GetInputPinsInternal(ContainerType& OutInputPins) const
+	{
+		OutInputPins.Reset(Pins.Num());
+
+		for (int32 PinIndex = 0; PinIndex < Pins.Num(); PinIndex++)
+		{
+			if (Pins[PinIndex]->Direction == EGPD_Input)
+			{
+				OutInputPins.Add(Pins[PinIndex]);
+			}
+		}
+	}
+
+	template<typename ContainerType>
+	void GetOutputPinsInternal(ContainerType& OutOutputPins) const
+	{
+		OutOutputPins.Reset(Pins.Num());
+
+		for (int32 PinIndex = 0; PinIndex < Pins.Num(); PinIndex++)
+		{
+			if (Pins[PinIndex]->Direction == EGPD_Output)
+			{
+				OutOutputPins.Add(Pins[PinIndex]);
+			}
+		}
+	}
 
 	/** The current change identifier for this node. Used to sync status with UNiagaraScripts.*/
 	UPROPERTY()

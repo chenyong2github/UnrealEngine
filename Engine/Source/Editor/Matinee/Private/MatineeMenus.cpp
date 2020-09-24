@@ -2866,7 +2866,7 @@ void FMatinee::ExportCameraAnimationNameCommitted(const FText& InAnimationPackag
 	if (CommitInfo == ETextCommit::OnEnter)
 	{
 		FString PackageName = InAnimationPackageName.ToString();
-		UPackage* Package = CreatePackage(NULL, *PackageName);
+		UPackage* Package = CreatePackage( *PackageName);
 		check(Package);
 
 		FString ObjectName = FPackageName::GetLongPackageAssetName(PackageName);
@@ -2875,7 +2875,7 @@ void FMatinee::ExportCameraAnimationNameCommitted(const FText& InAnimationPackag
 		if( ExistingPackage == NULL )
 		{
 			// Create the package
-			ExistingPackage = CreatePackage(NULL,*PackageName);
+			ExistingPackage = CreatePackage(*PackageName);
 		}
 
 		// Make sure packages objects are duplicated into are fully loaded.

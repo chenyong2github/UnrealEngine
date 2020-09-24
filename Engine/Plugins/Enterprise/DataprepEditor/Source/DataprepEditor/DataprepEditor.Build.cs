@@ -14,6 +14,7 @@ namespace UnrealBuildTool.Rules
 					"AssetRegistry",
 					"AssetTools",
 					"BlueprintGraph",
+					"Blutility",
 					"Core",
 					"CoreUObject",
 					"DataprepCore",
@@ -28,6 +29,7 @@ namespace UnrealBuildTool.Rules
 					"Kismet",
 					"KismetCompiler",
 					"KismetWidgets",
+					"MainFrame",
 					"MeshDescription",
 					"MeshUtilities",
 					"MeshUtilitiesCommon",
@@ -39,6 +41,7 @@ namespace UnrealBuildTool.Rules
 					"Slate",
 					"SlateCore",
 					"StatsViewer",
+					"ToolMenus",
 					"UnrealEd",
 				}
 			);

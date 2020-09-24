@@ -12,15 +12,16 @@
 #define GMorphTargetDispatchBatchSize 128
 
 RWBuffer<uint> MorphVertexBuffer;
+RWBuffer<int> MorphNormalizationBuffer;
 
 uint4 ThreadOffsets[GMorphTargetDispatchBatchSize / 4];
 float4 MorphTargetWeight[GMorphTargetDispatchBatchSize / 4];
 
 float4 PositionScale;
+float WeightScale;
 uint GlobalDispatchOffset;
 
 Buffer<uint> VertexIndicies;
-Buffer<uint> MorphPermutations;
 Buffer<float> MorphDeltas;
 
 groupshared float LocalWeights[GMorphTargetDispatchBatchSize];
@@ -65,6 +66,7 @@ void LoadLocalData(uint GroupIndex)
 			LocalThreadOffsets[GroupSharedIndex + i] = Offset[i];
 		}
 	}
+
 	GroupMemoryBarrierWithGroupSync();
 }
 
@@ -92,31 +94,34 @@ void GPUMorphUpdateCS(uint2 DispatchId : SV_DispatchThreadID, uint2 GroupId : SV
 			const uint DestVertexIndex = MorphVertexBufferStride * VertexIndicies[WorkItemIndex] + ElementIndex;
 			InterlockedAdd(MorphVertexBuffer[DestVertexIndex], asuint(QuantizedOffset));
 		}
+
+		if (GroupId.x == 0)
+		{
+			int QuantizedWeight = round(Weight * WeightScale);
+			InterlockedAdd(MorphNormalizationBuffer[WorkItemIndex], QuantizedWeight);
+		}
 	}
 }
 
 [numthreads(2, 32, 1)]
 void GPUMorphNormalizeCS(uint2 DispatchId : SV_DispatchThreadID, uint2 GroupId : SV_GroupThreadID, uint GroupIndex : SV_GroupIndex)
 {
-	LoadLocalData(GroupIndex);
-
-	uint2 Offsets;
-	float Weight = FindWeight(DispatchId.y, Offsets);
-
-	const uint WorkItemIndex = DispatchId.y + Offsets.x;
-	if (WorkItemIndex < Offsets.y)
+	const uint WorkItemIndex = DispatchId.y;
+	for (uint i = 0; i < 3; i++)
 	{
-		for (uint i = 0; i < 3; i++)
-		{
-			const uint ElementIndex = 3 * GroupId.x + i;
-			const uint MorphVertexBufferStride = 3u + 3u;
-			const uint DestVertexIndex = MorphVertexBufferStride * MorphPermutations[WorkItemIndex] + ElementIndex;
+		const uint ElementIndex = 3 * GroupId.x + i;
+		const uint MorphVertexBufferStride = 3u + 3u;
+		const uint DestVertexIndex = MorphVertexBufferStride * WorkItemIndex + ElementIndex;
 
-			float Scale = (GroupId.x == 0) ? PositionScale[i] : PositionScale[3];
-			float NomalizedResult = float(asint(MorphVertexBuffer[DestVertexIndex])) * Scale;
-			//normalize directions by 1 / accumulated absolute weights
-			NomalizedResult = (ElementIndex > 2) ? NomalizedResult * Weight : NomalizedResult;
-			MorphVertexBuffer[DestVertexIndex] = asuint(NomalizedResult);
+		float Scale = (GroupId.x == 0) ? PositionScale[i] : PositionScale[3];
+		float NomalizedResult = float(asint(MorphVertexBuffer[DestVertexIndex])) * Scale;
+		//normalize directions by 1 / accumulated absolute weights
+
+		float Weight = float(MorphNormalizationBuffer[WorkItemIndex]) * WeightScale;
+		if(GroupId.x && Weight > 1.0f)
+		{
+			NomalizedResult /= Weight;
 		}
+		MorphVertexBuffer[DestVertexIndex] = asuint(NomalizedResult);
 	}
 }

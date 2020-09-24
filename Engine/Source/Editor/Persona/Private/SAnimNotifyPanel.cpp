@@ -569,7 +569,7 @@ private:
 	float HandleOverflowPan( const FVector2D& ScreenCursorPos, float TrackScreenSpaceXPosition, float TrackScreenSpaceMin, float TrackScreenSpaceMax);
 
 	/** Finds a snap position if possible for the provided scrub handle, if it is not possible, returns -1.0f */
-	float GetScrubHandleSnapPosition(float NotifyLocalX, ENotifyStateHandleHit::Type HandleToCheck);
+	float GetScrubHandleSnapPosition(float NotifyInputX, ENotifyStateHandleHit::Type HandleToCheck);
 
 	virtual FReply OnFocusReceived(const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent) override;
 
@@ -753,6 +753,7 @@ public:
 		SLATE_EVENT( FOnSetInputViewRange, OnSetInputViewRange )
 		SLATE_EVENT( FOnGetTimingNodeVisibility, OnGetTimingNodeVisibility )
 		SLATE_EVENT(FOnInvokeTab, OnInvokeTab)
+		SLATE_ARGUMENT(TSharedPtr<FUICommandList>, CommandList)
 		SLATE_END_ARGS()
 public:
 
@@ -763,6 +764,10 @@ public:
 	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override { UpdateCachedGeometry( AllottedGeometry ); }
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
 	virtual FCursorReply OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const override;
+	virtual bool SupportsKeyboardFocus() const override
+	{
+		return true;
+	}
 	// End of SWidget interface
 
 	/**
@@ -845,8 +850,6 @@ public:
 
 protected:
 
-	void CreateCommands();
-
 	// Build up a "New Notify..." menu
 	template<typename NotifyTypeClass>
 	void MakeNewNotifyPicker(FMenuBuilder& MenuBuilder, bool bIsReplaceWithMenu = false);
@@ -876,9 +879,6 @@ protected:
 	bool IsSingleNodeSelected();
 	// Checks the clipboard for an anim notify buffer, and returns whether there's only one notify
 	bool IsSingleNodeInClipboard();
-
-	/** Function to copy anim notify event */
-	void OnCopyNotifyClicked(int32 NotifyIndex);
 
 	/** Function to check whether it is possible to paste anim notify event */
 	bool CanPasteAnimNotify() const;
@@ -976,7 +976,7 @@ private:
 	}
 
 protected:
-	TSharedPtr<FUICommandList> AnimSequenceEditorActions;
+	TWeakPtr<FUICommandList> WeakCommandList;
 
 	float LastClickedTime;
 
@@ -1327,7 +1327,7 @@ public:
 
 		float CurrentMinSnapDest = MaxSnapDist;
 		float SnapPosition = ScaleInfo.LocalXToInput(WidgetSpaceNotifyPosition);
-		bOutSnapped = OnSnapPosition.IsBound() && OnSnapPosition.Execute(SnapPosition, MaxSnapDist / ScaleInfo.PixelsPerInput);
+		bOutSnapped = OnSnapPosition.IsBound() && !FSlateApplication::Get().GetModifierKeys().IsControlDown() && OnSnapPosition.Execute(SnapPosition, MaxSnapDist / ScaleInfo.PixelsPerInput, TArrayView<const FName>());
 		SnapPosition = ScaleInfo.InputToLocalX(SnapPosition);
 
 		float WidgetSpaceStartPosition = ScaleInfo.InputToLocalX(0.0f);
@@ -1476,29 +1476,6 @@ public:
 
 		return HoverText;
 	}
-};
-
-//////////////////////////////////////////////////////////////////////////
-// FAnimSequenceEditorCommands
-
-class FAnimSequenceEditorCommands : public TCommands<FAnimSequenceEditorCommands>
-{
-public:
-	FAnimSequenceEditorCommands()
-		: TCommands<FAnimSequenceEditorCommands>(
-		TEXT("AnimSequenceEditor"),
-		NSLOCTEXT("Contexts", "AnimSequenceEditor", "Sequence Editor"),
-		NAME_None, FEditorStyle::GetStyleSetName()
-		)
-	{
-	}
-
-	virtual void RegisterCommands() override
-	{
-		UI_COMMAND( SomeSequenceAction, "Some Sequence Action", "Does some sequence action", EUserInterfaceActionType::Button, FInputChord() );
-	}
-public:
-	TSharedPtr<FUICommandInfo> SomeSequenceAction;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -1937,18 +1914,17 @@ FReply SAnimNotifyNode::OnMouseMove( const FGeometry& MyGeometry, const FPointer
 		// Now we know where the marker should be, look for possible snaps on montage marker bars
 		if (FAnimNotifyEvent* AnimNotifyEvent = NodeObjectInterface->GetNotifyEvent())
 		{
-			float NodePositionX = ScaleInfo.InputToLocalX(AnimNotifyEvent->GetTime());
-			float MarkerSnap = GetScrubHandleSnapPosition(NodePositionX, ENotifyStateHandleHit::Start);
+			float InputStartTime = AnimNotifyEvent->GetTime();
+			float MarkerSnap = GetScrubHandleSnapPosition(InputStartTime, ENotifyStateHandleHit::Start);
 			if (MarkerSnap != -1.0f)
 			{
 				// We're near to a snap bar
-				EAnimEventTriggerOffsets::Type Offset = (MarkerSnap < NodePositionX) ? EAnimEventTriggerOffsets::OffsetAfter : EAnimEventTriggerOffsets::OffsetBefore;
+				EAnimEventTriggerOffsets::Type Offset = (MarkerSnap < InputStartTime) ? EAnimEventTriggerOffsets::OffsetAfter : EAnimEventTriggerOffsets::OffsetBefore;
 				AnimNotifyEvent->TriggerTimeOffset = GetTriggerTimeOffsetForType(Offset);
-				NodePositionX = MarkerSnap;
 
 				// Adjust our start marker
 				OldDisplayTime = AnimNotifyEvent->GetTime();
-				AnimNotifyEvent->SetTime(ScaleInfo.LocalXToInput(NodePositionX));
+				AnimNotifyEvent->SetTime(MarkerSnap);
 				AnimNotifyEvent->SetDuration(AnimNotifyEvent->GetDuration() + OldDisplayTime - AnimNotifyEvent->GetTime());
 			}
 			else
@@ -1985,17 +1961,16 @@ FReply SAnimNotifyNode::OnMouseMove( const FGeometry& MyGeometry, const FPointer
 		// Now we know where the scrub handle should be, look for possible snaps on montage marker bars
 		if (FAnimNotifyEvent* AnimNotifyEvent = NodeObjectInterface->GetNotifyEvent())
 		{
-			float NodePositionX = ScaleInfo.InputToLocalX(AnimNotifyEvent->GetTime() + AnimNotifyEvent->GetDuration());
-			float MarkerSnap = GetScrubHandleSnapPosition(NodePositionX, ENotifyStateHandleHit::End);
+			float InputEndTime = AnimNotifyEvent->GetTime() + AnimNotifyEvent->GetDuration();
+			float MarkerSnap = GetScrubHandleSnapPosition(InputEndTime, ENotifyStateHandleHit::End);
 			if (MarkerSnap != -1.0f)
 			{
 				// We're near to a snap bar
-				EAnimEventTriggerOffsets::Type Offset = (MarkerSnap < NodePositionX) ? EAnimEventTriggerOffsets::OffsetAfter : EAnimEventTriggerOffsets::OffsetBefore;
+				EAnimEventTriggerOffsets::Type Offset = (MarkerSnap < InputEndTime) ? EAnimEventTriggerOffsets::OffsetAfter : EAnimEventTriggerOffsets::OffsetBefore;
 				AnimNotifyEvent->EndTriggerTimeOffset = GetTriggerTimeOffsetForType(Offset);
-				NodePositionX = MarkerSnap;
 
 				// Adjust our end marker
-				AnimNotifyEvent->SetDuration(ScaleInfo.LocalXToInput(NodePositionX) - AnimNotifyEvent->GetTime());
+				AnimNotifyEvent->SetDuration(MarkerSnap - AnimNotifyEvent->GetTime());
 			}
 			else
 			{
@@ -2035,20 +2010,17 @@ FReply SAnimNotifyNode::OnMouseButtonUp( const FGeometry& MyGeometry, const FPoi
 	return FReply::Unhandled();
 }
 
-float SAnimNotifyNode::GetScrubHandleSnapPosition( float NotifyLocalX, ENotifyStateHandleHit::Type HandleToCheck )
+float SAnimNotifyNode::GetScrubHandleSnapPosition( float NotifyInputX, ENotifyStateHandleHit::Type HandleToCheck )
 {
 	FTrackScaleInfo ScaleInfo(ViewInputMin.Get(), ViewInputMax.Get(), 0, 0, CachedAllotedGeometrySize);
 
 	const float MaxSnapDist = 5.0f;
 
-	float CurrentMinSnapDistance = MaxSnapDist;
-	float SnapPosition = ScaleInfo.LocalXToInput(NotifyLocalX);
-
-	if(OnSnapPosition.IsBound())
+	if(OnSnapPosition.IsBound() && !FSlateApplication::Get().GetModifierKeys().IsControlDown())
 	{
-		if(OnSnapPosition.Execute(SnapPosition, MaxSnapDist / ScaleInfo.PixelsPerInput))
+		if(OnSnapPosition.Execute(NotifyInputX, MaxSnapDist / ScaleInfo.PixelsPerInput, TArrayView<const FName>()))
 		{
-			return ScaleInfo.InputToLocalX(SnapPosition);
+			return NotifyInputX;
 		}
 	}	
 
@@ -2176,10 +2148,9 @@ FCursorReply SAnimNotifyNode::OnCursorQuery(const FGeometry& MyGeometry, const F
 
 void SAnimNotifyTrack::Construct(const FArguments& InArgs)
 {
-	FAnimSequenceEditorCommands::Register();
-	CreateCommands();
 	SetClipping(EWidgetClipping::ClipToBounds);
 
+	WeakCommandList = InArgs._CommandList;
 	Sequence = InArgs._Sequence;
 	ViewInputMin = InArgs._ViewInputMin;
 	ViewInputMax = InArgs._ViewInputMax;
@@ -2657,6 +2628,7 @@ FReply SAnimNotifyTrack::OnMouseButtonUp( const FGeometry& MyGeometry, const FPo
 		FVector2D CursorPos = MouseEvent.GetScreenSpacePosition();
 		CursorPos = MyGeometry.AbsoluteToLocal(CursorPos);
 		int32 NotifyIndex = GetHitNotifyNode(MyGeometry, CursorPos);
+		LastClickedTime = CalculateTime(MyGeometry, MouseEvent.GetScreenSpacePosition());
 
 		if(NotifyIndex == INDEX_NONE)
 		{
@@ -2789,7 +2761,7 @@ TSharedPtr<SWidget> SAnimNotifyTrack::SummonContextMenu(const FGeometry& MyGeome
 	LastClickedTime = CalculateTime(MyGeometry, MouseEvent.GetScreenSpacePosition());
 
 	const bool bCloseWindowAfterMenuSelection = true;
-	FMenuBuilder MenuBuilder( bCloseWindowAfterMenuSelection, AnimSequenceEditorActions );
+	FMenuBuilder MenuBuilder( bCloseWindowAfterMenuSelection, WeakCommandList.Pin() );
 	FUIAction NewAction;
 
 	INodeObjectInterface* NodeObject = NodeIndex != INDEX_NONE ? NotifyNodes[NodeIndex]->NodeObjectInterface : nullptr;
@@ -2929,7 +2901,6 @@ TSharedPtr<SWidget> SAnimNotifyTrack::SummonContextMenu(const FGeometry& MyGeome
 					// Add menu for changing duration if this is an AnimNotifyState
 					if (NotifyEvent->NotifyStateClass)
 					{
-						// add menu to get threshold weight for triggering this notify
 						TSharedRef<SWidget> NotifyStateDurationWidget = 
 							SNew( SBox )
 							.HAlign( HAlign_Right )
@@ -2966,6 +2937,43 @@ TSharedPtr<SWidget> SAnimNotifyTrack::SummonContextMenu(const FGeometry& MyGeome
 							];
 
 						MenuBuilder.AddWidget(NotifyStateDurationWidget, LOCTEXT("SetAnimStateDuration", "Anim Notify State Duration"));
+
+						TSharedRef<SWidget> NotifyStateDurationFramesWidget = 
+							SNew( SBox )
+							.HAlign( HAlign_Right )
+							.ToolTipText(LOCTEXT("SetAnimStateDurationFrames_ToolTip", "The duration of this Anim Notify State in frames"))
+							[
+								SNew(SBox)
+								.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
+								.WidthOverride(100.0f)
+								[
+									SNew(SNumericEntryBox<int32>)
+									.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+									.MinValue(1)
+									.MinSliderValue(1)
+									.MaxSliderValue(Sequence->GetNumberOfFrames())
+									.Value(Sequence->GetFrameAtTime(NotifyEvent->GetDuration()))
+									.AllowSpin(false)						
+									.OnValueCommitted_Lambda([this, NotifyIndex](int32 InValue, ETextCommit::Type InCommitType)
+									{
+										if ( InCommitType == ETextCommit::OnEnter && AnimNotifies.IsValidIndex(NotifyIndex) )
+										{
+											float NewDuration = FMath::Max(Sequence->GetTimeAtFrame(InValue), SAnimNotifyNode::MinimumStateDuration);
+											float MaxDuration = Sequence->GetPlayLength() - AnimNotifies[NotifyIndex]->GetTime();
+											NewDuration = FMath::Min(NewDuration, MaxDuration);
+											AnimNotifies[NotifyIndex]->SetDuration(NewDuration);
+
+											// If we have a delegate bound to refresh the offsets, call it.
+											// This is used by the montage editor to keep the offsets up to date.
+											OnRequestRefreshOffsets.ExecuteIfBound();
+
+											FSlateApplication::Get().DismissAllMenus();
+										}
+									})
+								]
+							];
+
+						MenuBuilder.AddWidget(NotifyStateDurationFramesWidget, LOCTEXT("SetAnimStateDurationFrames", "Anim Notify State Frames"));
 					}
 				}
 			}
@@ -3006,13 +3014,10 @@ TSharedPtr<SWidget> SAnimNotifyTrack::SummonContextMenu(const FGeometry& MyGeome
 		if ( NodeObject )
 		{
 			// copy notify menu item
-			NewAction.ExecuteAction.BindRaw(
-				this, &SAnimNotifyTrack::OnCopyNotifyClicked, NodeIndex);
-			MenuBuilder.AddMenuEntry(LOCTEXT("Copy", "Copy"), LOCTEXT("CopyToolTip", "Copy animation notify event"), FSlateIcon(), NewAction);
+			MenuBuilder.AddMenuEntry(FAnimNotifyPanelCommands::Get().CopyNotifies);
 
 			// allow it to delete
-			NewAction.ExecuteAction = OnDeleteNotify;
-			MenuBuilder.AddMenuEntry(LOCTEXT("Delete", "Delete"), LOCTEXT("DeleteToolTip", "Delete animation notify"), FSlateIcon(), NewAction);
+			MenuBuilder.AddMenuEntry(FAnimNotifyPanelCommands::Get().DeleteNotify);
 
 			if (NotifyEvent)
 			{
@@ -3052,10 +3057,7 @@ TSharedPtr<SWidget> SAnimNotifyTrack::SummonContextMenu(const FGeometry& MyGeome
 				// paste notify menu item
 				if (IsSingleNodeInClipboard())
 				{
-					NewAction.ExecuteAction.BindRaw(
-						this, &SAnimNotifyTrack::OnPasteNotifyClicked, ENotifyPasteMode::MousePosition, ENotifyPasteMultipleMode::Absolute);
-
-					MenuBuilder.AddMenuEntry(LOCTEXT("Paste", "Paste"), LOCTEXT("PasteToolTip", "Paste animation notify event here"), FSlateIcon(), NewAction);
+					MenuBuilder.AddMenuEntry(FAnimNotifyPanelCommands::Get().PasteNotifies);
 				}
 				else
 				{
@@ -3064,10 +3066,7 @@ TSharedPtr<SWidget> SAnimNotifyTrack::SummonContextMenu(const FGeometry& MyGeome
 
 					MenuBuilder.AddMenuEntry(LOCTEXT("PasteMultRel", "Paste Multiple Relative"), LOCTEXT("PasteMultRelToolTip", "Paste multiple notifies beginning at the mouse cursor, maintaining the same relative spacing as the source."), FSlateIcon(), NewAction);
 
-					NewAction.ExecuteAction.BindRaw(
-						this, &SAnimNotifyTrack::OnPasteNotifyClicked, ENotifyPasteMode::MousePosition, ENotifyPasteMultipleMode::Absolute);
-
-					MenuBuilder.AddMenuEntry(LOCTEXT("PasteMultAbs", "Paste Multiple Absolute"), LOCTEXT("PasteMultAbsToolTip", "Paste multiple notifies beginning at the mouse cursor, maintaining absolute spacing."), FSlateIcon(), NewAction);
+					MenuBuilder.AddMenuEntry(FAnimNotifyPanelCommands::Get().PasteNotifies, NAME_None, LOCTEXT("PasteMultAbs", "Paste Multiple Absolute"), LOCTEXT("PasteMultAbsToolTip", "Paste multiple notifies beginning at the mouse cursor, maintaining absolute spacing."));
 				}
 
 				if(OriginalTime < Sequence->GetPlayLength())
@@ -3120,28 +3119,6 @@ TSharedPtr<SWidget> SAnimNotifyTrack::SummonContextMenu(const FGeometry& MyGeome
 	FSlateApplication::Get().PushMenu(SharedThis(this), WidgetPath, MenuBuilder.MakeWidget(), CursorPos, FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu));
 
 	return TSharedPtr<SWidget>();
-}
-
-void SAnimNotifyTrack::CreateCommands()
-{
-	check(!AnimSequenceEditorActions.IsValid());
-	AnimSequenceEditorActions = MakeShareable(new FUICommandList);
-
-	const FAnimSequenceEditorCommands& Commands = FAnimSequenceEditorCommands::Get();
-
-/*
-	FUICommandList& ActionList = *AnimSequenceEditorActions;
-
-	ActionList.MapAction( 
-		Commands.DeleteNotify, 
-		FExecuteAction::CreateRaw( this, &SAnimNotifyTrack::OnDeleteNotifyClicked )
-		);*/
-
-}
-
-void SAnimNotifyTrack::OnCopyNotifyClicked(int32 NotifyIndex)
-{
-	OnCopyNodes.ExecuteIfBound();
 }
 
 bool SAnimNotifyTrack::CanPasteAnimNotify() const
@@ -3382,7 +3359,6 @@ void SAnimNotifyTrack::Update()
 
 			NodeSlots->AddSlot()
 			.Padding(TAttribute<FMargin>::Create(TAttribute<FMargin>::FGetter::CreateSP(this, &SAnimNotifyTrack::GetNotifyTrackPadding, NotifyIndex)))
-			.VAlign(VAlign_Center)
 			[
 				NotifyPair->AsShared()
 			];
@@ -3412,7 +3388,6 @@ void SAnimNotifyTrack::Update()
 
 		NodeSlots->AddSlot()
 			.Padding(TAttribute<FMargin>::Create(TAttribute<FMargin>::FGetter::CreateSP(this, &SAnimNotifyTrack::GetSyncMarkerTrackPadding, NodeIndex)))
-			.VAlign(VAlign_Center)
 			[
 				AnimSyncMarkerNode->AsShared()
 			];
@@ -3439,7 +3414,7 @@ FReply SAnimNotifyTrack::OnNotifyNodeDragStarted(TSharedRef<SAnimNotifyNode> Not
 	// Check to see if we've already selected the triggering node
 	if (!NotifyNode->bSelected)
 	{
-		SelectTrackObjectNode(NotifyIndex, MouseEvent.IsShiftDown());
+		SelectTrackObjectNode(NotifyIndex, MouseEvent.IsShiftDown(), false);
 	}
 
 	// Sort our nodes so we're acessing them in time order
@@ -3847,6 +3822,7 @@ void SNotifyEdTrack::Construct(const FArguments& InArgs)
 				.OnSetInputViewRange(InArgs._OnSetInputViewRange)
 				.OnGetTimingNodeVisibility(InArgs._OnGetTimingNodeVisibility)
 				.OnInvokeTab(InArgs._OnInvokeTab)
+				.CommandList(PanelRef->GetCommandList())
 			]
 	];
 }
@@ -3862,6 +3838,8 @@ bool SNotifyEdTrack::CanDeleteTrack()
 void FAnimNotifyPanelCommands::RegisterCommands()
 {
 	UI_COMMAND(DeleteNotify, "Delete", "Deletes the selected notifies.", EUserInterfaceActionType::Button, FInputChord(EKeys::Platform_Delete));
+	UI_COMMAND(CopyNotifies, "Copy", "Copy animation notify events.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::C));
+	UI_COMMAND(PasteNotifies, "Paste", "Paste animation notify event here.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::V));
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -3877,6 +3855,8 @@ void SAnimNotifyPanel::Construct(const FArguments& InArgs, const TSharedRef<FAni
 		.InputMax(InArgs._InputMax)
 		.OnSetInputViewRange(InArgs._OnSetInputViewRange));
 
+	WeakModel = InModel;
+	WeakCommandList = InModel->GetCommandList();
 	Sequence = InArgs._Sequence;
 	OnInvokeTab = InArgs._OnInvokeTab;
 	OnNotifiesChanged = InArgs._OnNotifiesChanged;
@@ -4539,7 +4519,23 @@ void SAnimNotifyPanel::OnReplaceSelectedWithNotifyBlueprint(FString NewBlueprint
 
 void SAnimNotifyPanel::OnPasteNodes(SAnimNotifyTrack* RequestTrack, float ClickTime, ENotifyPasteMode::Type PasteMode, ENotifyPasteMultipleMode::Type MultiplePasteType)
 {
-	int32 PasteIdx = RequestTrack->GetTrackIndex();
+	if(RequestTrack == nullptr)
+	{
+		for(TSharedPtr<SAnimNotifyTrack> Track : NotifyAnimTracks)
+		{
+			if(Track->HasKeyboardFocus())
+			{
+				RequestTrack = Track.Get();
+				if(ClickTime == -1.0f)
+				{
+					ClickTime = RequestTrack->GetLastClickedTime();
+				}
+				break;
+			}
+		}
+	}
+
+	int32 PasteIdx = RequestTrack != nullptr ? RequestTrack->GetTrackIndex() : 0;
 	int32 NumTracks = NotifyAnimTracks.Num();
 	FString PropString;
 	const TCHAR* Buffer;
@@ -4558,8 +4554,15 @@ void SAnimNotifyPanel::OnPasteNodes(SAnimNotifyTrack* RequestTrack, float ClickT
 
 		if(ClickTime == -1.0f)
 		{
-			// We want to place the notifies exactly where they were
-			ClickTime = OrigBeginTime;
+			if(PasteMode == ENotifyPasteMode::OriginalTime)
+			{
+				// We want to place the notifies exactly where they were
+				ClickTime = OrigBeginTime;
+			}
+			else
+			{
+				ClickTime = WeakModel.Pin()->GetScrubTime();
+			}
 		}
 
 		// Expand the number of tracks if we don't have enough.
@@ -4648,19 +4651,25 @@ void SAnimNotifyPanel::OnPropertyChanged(UObject* ChangedObject, FPropertyChange
 
 void SAnimNotifyPanel::BindCommands()
 {
-	check(!UICommandList.IsValid());
-
-	UICommandList = MakeShareable(new FUICommandList);
+	TSharedRef<FUICommandList> CommandList = GetCommandList();
 	const FAnimNotifyPanelCommands& Commands = FAnimNotifyPanelCommands::Get();
 
-	UICommandList->MapAction(
+	CommandList->MapAction(
 		Commands.DeleteNotify,
 		FExecuteAction::CreateSP(this, &SAnimNotifyPanel::OnDeletePressed));
+
+	CommandList->MapAction(
+		Commands.CopyNotifies,
+		FExecuteAction::CreateSP(this, &SAnimNotifyPanel::CopySelectedNodesToClipboard));
+
+	CommandList->MapAction(
+		Commands.PasteNotifies,
+		FExecuteAction::CreateSP(this, &SAnimNotifyPanel::OnPasteNodes, (SAnimNotifyTrack*)nullptr, -1.0f, ENotifyPasteMode::MousePosition, ENotifyPasteMultipleMode::Absolute));
 }
 
 FReply SAnimNotifyPanel::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
-	if(UICommandList->ProcessCommandBindings(InKeyEvent))
+	if(GetCommandList()->ProcessCommandBindings(InKeyEvent))
 	{
 		return FReply::Handled();
 	}

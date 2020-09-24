@@ -1,12 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RigUnit_SetCurveValue.h"
+#include "Units/Hierarchy/RigUnit_SetCurveValue.h"
 #include "Units/RigUnitContext.h"
-
-FString FRigUnit_SetCurveValue::GetUnitLabel() const
-{
-	return FString::Printf(TEXT("Set Curve [%s]"), *Curve.ToString());
-}
 
 FRigUnit_SetCurveValue_Execute()
 {
@@ -18,12 +13,12 @@ FRigUnit_SetCurveValue_Execute()
 		{
 			case EControlRigState::Init:
 			{
-				CachedCurveIndex = CurveContainer->GetIndex(Curve);
+				CachedCurveIndex.Reset();
 				// fall through to update
 			}
 			case EControlRigState::Update:
 			{
-				if (CachedCurveIndex != INDEX_NONE)
+				if (CachedCurveIndex.UpdateCache(Curve, CurveContainer))
 				{
 					CurveContainer->SetValue(CachedCurveIndex, Value);
 				}

@@ -6,10 +6,10 @@
 
 class FGoogleARCoreXRTrackingSystem;
 class FGoogleARCorePassthroughCameraRenderer;
+class UTexture;
 
 class FGoogleARCoreXRCamera : public FDefaultXRCamera
 {
-
 public:
 	FGoogleARCoreXRCamera(const FAutoRegister&, FGoogleARCoreXRTrackingSystem& InARCoreSystem, int32 InDeviceID);
 
@@ -24,6 +24,9 @@ public:
 	//~ FDefaultXRCamera
 
 	void ConfigXRCamera(bool bInMatchDeviceCameraFOV, bool bInEnablePassthroughCameraRendering);
+	
+	void UpdateCameraTextures(UTexture* NewCameraTexture, UTexture* DepthTexture, bool bEnableOcclusion);
+
 private:
 	FGoogleARCoreXRTrackingSystem& GoogleARCoreTrackingSystem;
 	FGoogleARCorePassthroughCameraRenderer* PassthroughRenderer;

@@ -47,6 +47,7 @@ enum class EMagicLeapPrivilege : uint8
 	HandMesh,
 	WifiStatusRead,
 	SocialConnectionsInvitesAccess,
+	SecureBrowserWindow,
 };
 
 /**

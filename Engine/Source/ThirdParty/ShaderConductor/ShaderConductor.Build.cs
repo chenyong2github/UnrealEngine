@@ -27,6 +27,12 @@ public class ShaderConductor : ModuleRules
 			string SCLibPath = Path.Combine(Target.UEThirdPartySourceDirectory, "ShaderConductor", "ShaderConductor", "lib", "Win64", "ShaderConductor.lib");
 			PublicAdditionalLibraries.Add(SCLibPath);
 		}
+		else if (Target.Platform == UnrealTargetPlatform.Linux)
+		{
+			string SCBinariesDir = Path.Combine(Target.UEThirdPartyBinariesDirectory, "ShaderConductor", "Linux", "x86_64-unknown-linux-gnu");
+			AddDependency(SCBinariesDir, "libdxcompiler.so");
+			AddDependency(SCBinariesDir, "libShaderConductor.so");
+		}
 		else
 		{
 			string Err = string.Format("Attempt to build against ShaderConductor on unsupported platform {0}", Target.Platform);
@@ -49,6 +55,12 @@ public class ShaderConductor : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
+			PublicDelayLoadDLLs.Add(FullPath);
+			RuntimeDependencies.Add(FullPath);
+			PublicAdditionalLibraries.Add(FullPath);
+		}
+		else if (Target.Platform == UnrealTargetPlatform.Linux)
+        {
 			PublicDelayLoadDLLs.Add(FullPath);
 			RuntimeDependencies.Add(FullPath);
 			PublicAdditionalLibraries.Add(FullPath);

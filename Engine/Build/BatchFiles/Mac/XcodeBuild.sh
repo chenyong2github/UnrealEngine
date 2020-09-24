@@ -62,20 +62,20 @@ if [ "$ACTION" == "build" ]; then
 	# flags based on platform
 	case $PLATFORM in 
 		"IOS")
-			AdditionalFlags += " -deploy"
+			AdditionalFlags="${AdditionalFlags} -deploy"
 		;;
 
 		"TVOS")
-			AdditionalFlags += " -deploy"
+			AdditionalFlags="${AdditionalFlags} -deploy"
 		;;
 	esac
 
 	case $CLANG_STATIC_ANALYZER_MODE in
 		"deep")
-			AdditionalFlags+="-SkipActionHistory"
+			AdditionalFlags="${AdditionalFlags} -SkipActionHistory"
 			;;
 		"shallow")
-			AdditionalFlags+="-SkipActionHistory"
+			AdditionalFlags="${AdditionalFlags} -SkipActionHistory"
 			;;
 	esac
 
@@ -95,8 +95,8 @@ elif [ $ACTION == "clean" ]; then
 	AdditionalFlags="-clean"
 fi
 
-echo Running Engine/Binaries/DotNET/UnrealBuildTool.exe $TARGET $PLATFORM $CONFIGURATION $TRAILINGARGS $AdditionalFlags
-mono Engine/Binaries/DotNET/UnrealBuildTool.exe $TARGET $PLATFORM $CONFIGURATION $TRAILINGARGS $AdditionalFlags
+echo Running Engine/Binaries/DotNET/UnrealBuildTool.exe $TARGET $PLATFORM $CONFIGURATION "$TRAILINGARGS" $AdditionalFlags
+mono Engine/Binaries/DotNET/UnrealBuildTool.exe $TARGET $PLATFORM $CONFIGURATION "$TRAILINGARGS" $AdditionalFlags
 
 ExitCode=$?
 if [ $ExitCode -eq 254 ] || [ $ExitCode -eq 255 ] || [ $ExitCode -eq 2 ]; then

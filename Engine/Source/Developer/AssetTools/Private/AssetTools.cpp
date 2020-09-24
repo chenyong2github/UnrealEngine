@@ -11,6 +11,7 @@
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "Engine/Blueprint.h"
+#include "Engine/SCS_Node.h"
 #include "Exporters/Exporter.h"
 #include "Editor/EditorEngine.h"
 #include "SourceControlOperations.h"
@@ -79,6 +80,7 @@
 #include "AssetTypeActions/AssetTypeActions_MaterialFunction.h"
 #include "AssetTypeActions/AssetTypeActions_MaterialFunctionInstance.h"
 #include "AssetTypeActions/AssetTypeActions_MaterialInstanceConstant.h"
+#include "AssetTypeActions/AssetTypeActions_MaterialInstanceDynamic.h"
 #include "AssetTypeActions/AssetTypeActions_MaterialParameterCollection.h"
 #include "AssetTypeActions/AssetTypeActions_ObjectLibrary.h"
 #include "AssetTypeActions/AssetTypeActions_ParticleSystem.h"
@@ -256,6 +258,7 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_MaterialFunctionLayerBlendInstance));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_MaterialFunctionInstance));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_MaterialInstanceConstant(BlendablesCategoryBit)));
+	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_MaterialInstanceDynamic));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_MaterialInterface));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_MaterialParameterCollection));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_ObjectLibrary));
@@ -487,7 +490,7 @@ UObject* UAssetToolsImpl::CreateAsset(const FString& AssetName, const FString& P
 
 	UClass* ClassToUse = AssetClass ? AssetClass : (Factory ? Factory->GetSupportedClass() : nullptr);
 
-	UPackage* Pkg = CreatePackage(nullptr,*PackageName);
+	UPackage* Pkg = CreatePackage(*PackageName);
 	UObject* NewObj = nullptr;
 	EObjectFlags Flags = RF_Public|RF_Standalone|RF_Transactional;
 	if ( Factory )
@@ -873,13 +876,12 @@ bool UAssetToolsImpl::AdvancedCopyPackages(const TMap<FString, FString>& SourceA
 		TArray<UObject*> NewObjects;
 		TSet<UObject*> NewObjectSet;
 		FString CopyErrors;
-		FScopedSlowTask LoopProgress(SourceAndDestPackages.Num(), LOCTEXT("AdvancedCopying", "Copying files and dependencies..."));
+		FScopedSlowTask LoopProgress(SourceAndDestPackages.Num() * 2 , LOCTEXT("AdvancedCopying", "Copying files and dependencies..."));
 		LoopProgress.MakeDialog();
-		for (auto It = SourceAndDestPackages.CreateConstIterator(); It; ++It)
+		for (const auto& Package : SourceAndDestPackages)
 		{
-
-			FString PackageName = It.Key();
-			FString DestFilename = It.Value();
+			const FString& PackageName = Package.Key;
+			const FString& DestFilename = Package.Value;
 			FString SrcFilename;
 
 			if (FPackageName::DoesPackageExist(PackageName, nullptr, &SrcFilename))
@@ -889,6 +891,22 @@ bool UAssetToolsImpl::AdvancedCopyPackages(const TMap<FString, FString>& SourceA
 				if (Pkg)
 				{
 					Pkg->FullyLoad();
+				}
+			}
+		}
+
+		for (const auto& Package : SourceAndDestPackages)
+		{
+			const FString& PackageName = Package.Key;
+			const FString& DestFilename = Package.Value;
+			FString SrcFilename;
+
+			if (FPackageName::DoesPackageExist(PackageName, nullptr, &SrcFilename))
+			{
+				LoopProgress.EnterProgressFrame();
+				UPackage* Pkg = FindPackage(nullptr, *PackageName);
+				if (Pkg)
+				{
 					FString Name = ObjectTools::SanitizeObjectName(FPaths::GetBaseFilename(SrcFilename));
 					UObject* ExistingObject = StaticFindObject(UObject::StaticClass(), Pkg, *Name);
 					if (ExistingObject)
@@ -914,6 +932,9 @@ bool UAssetToolsImpl::AdvancedCopyPackages(const TMap<FString, FString>& SourceA
 			}
 		}
 
+		TSet<UObject*> ObjectsAndSubObjectsToReplaceWithin;
+		ObjectTools::GatherSubObjectsForReferenceReplacement(NewObjectSet, ExistingObjectSet, ObjectsAndSubObjectsToReplaceWithin);
+
 		for (int32 ObjectIdx = 0; ObjectIdx < NewObjects.Num(); ObjectIdx++)
 		{
 			TMap<UObject*, UObject*> ReplacementMap;
@@ -930,7 +951,7 @@ bool UAssetToolsImpl::AdvancedCopyPackages(const TMap<FString, FString>& SourceA
 					{
 						TArray<UObject*> ObjectsToReplace;
 						ObjectsToReplace.Add(ExistingObjects[DependencyIndex]);
-						ObjectTools::ConsolidateObjects(NewObjects[DependencyIndex], ObjectsToReplace, NewObjectSet, ExistingObjectSet, false);
+						ObjectTools::ConsolidateObjects(NewObjects[DependencyIndex], ObjectsToReplace, ObjectsAndSubObjectsToReplaceWithin, ExistingObjectSet, false);
 					}
 				}
 			}
@@ -1990,7 +2011,7 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 				continue;
 			}
 
-			UPackage* Pkg = CreatePackage(nullptr, *PackageName);
+			UPackage* Pkg = CreatePackage( *PackageName);
 			if(!ensure(Pkg))
 			{
 				// Failed to create the package to hold this asset for some reason
@@ -2114,7 +2135,7 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 							else
 							{
 								// succeed, recreate package since it has been deleted
-								Pkg = CreatePackage(nullptr, *PackageName);
+								Pkg = CreatePackage( *PackageName);
 								Pkg->MarkAsFullyLoaded();
 							}
 						}
@@ -2611,7 +2632,7 @@ bool UAssetToolsImpl::CanCreateAsset(const FString& AssetName, const FString& Pa
 	}
 
 	// Find (or create!) the desired package for this object
-	UPackage* Pkg = CreatePackage(nullptr,*PackageName);
+	UPackage* Pkg = CreatePackage(*PackageName);
 
 	// Handle fully loading packages before creating new objects.
 	TArray<UPackage*> TopLevelPackages;
@@ -2656,7 +2677,7 @@ bool UAssetToolsImpl::CanCreateAsset(const FString& AssetName, const FString& Pa
 				CollectGarbage( GARBAGE_COLLECTION_KEEPFLAGS );
 
 				// Old package will be GC'ed... create a new one here
-				Pkg = CreatePackage(nullptr,*PackageName);
+				Pkg = CreatePackage(*PackageName);
 				Pkg->MarkAsFullyLoaded();
 			}
 			else

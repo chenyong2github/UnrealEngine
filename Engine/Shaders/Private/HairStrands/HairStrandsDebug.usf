@@ -115,7 +115,7 @@ void MainPS(
 		for (uint NodeIt = 0; NodeIt < NodeDesc.Count; ++NodeIt)
 		{
 			const uint NodeOffset = NodeDesc.Offset + NodeIt;
-			const FPackedHairSample Data = NodeData.Load(NodeOffset);
+			const FPackedHairSample Data = NodeData[NodeOffset];
 			const FHairSample Sample = UnpackHairSample(Data);
 
 			if (bAverageAllSamples)

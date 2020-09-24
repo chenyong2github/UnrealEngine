@@ -35,7 +35,11 @@ public:
 	void SwapBuffers()
 	{
 		BufferIndex = (BufferIndex + 1) % BufferCount;
-		check(!DataLocked[BufferIndex]);
+		// A failed check within InternalFlushThreadedLogs can cause a stack overflow. This can
+		// currently fail because InternalFlushThreadedLogs can be called from multiple threads
+		// simultaneously if errors cause SetCurrentThreadAsMasterThread to be called from more
+		// than one thread at once, or while the game thread is in InternalFlushThreadedLogs.
+		//check(!DataLocked[BufferIndex]);
 		Data[BufferIndex].Empty();
 	}
 
@@ -54,7 +58,10 @@ public:
 
 private:
 	static constexpr int32 BufferSize = 4096;
-	static constexpr int32 BufferCount = 2;
+	// BufferCount can be 2 once the check in SwapBuffers can be safely re-enabled. Using more
+	// buffers in the interim minimizes the likelihood of writes to a buffer while it is still
+	// being flushed by another thread.
+	static constexpr int32 BufferCount = 4;
 	TArray<TCHAR, TInlineAllocator<BufferSize>> Data[BufferCount];
 	TBitArray<TInlineAllocator<1>> DataLocked{false, BufferCount};
 	int32 BufferIndex = 0;

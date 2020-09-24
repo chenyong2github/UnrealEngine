@@ -3,7 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "AssetData.h"
+
+#include "AssetRegistry/AssetData.h"
+#include "Containers/BitArray.h"
+#include "Misc/AssetRegistryInterface.h"
 #include "UObject/Linker.h"
 
 class FPackageDependencyData : public FLinkerTables
@@ -14,6 +17,9 @@ public:
 
 	/** Asset Package data, gathered at the same time as dependency data */
 	FAssetPackageData PackageData;
+
+	TBitArray<> ImportUsedInGame;
+	TBitArray<> SoftPackageUsedInGame;
 
 	/**
 	 * Return the package name of the UObject represented by the specified import. 
@@ -34,7 +40,21 @@ public:
 		Ar << ImportMap;
 		Ar << SoftPackageReferenceList;
 		Ar << SearchableNamesMap;
-		
 		PackageData.SerializeForCache(Ar);
+		Ar << ImportUsedInGame;
+		Ar << SoftPackageUsedInGame;
+		if (Ar.IsLoading())
+		{
+			if (!IsValid())
+			{
+				Ar.SetError();
+			}
+		}
+	}
+
+	bool IsValid() const
+	{
+		return ImportUsedInGame.Num() == ImportMap.Num() &&
+			SoftPackageUsedInGame.Num() == SoftPackageReferenceList.Num();
 	}
 };

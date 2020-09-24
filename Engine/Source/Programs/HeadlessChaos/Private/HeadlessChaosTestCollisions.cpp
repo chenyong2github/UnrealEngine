@@ -141,6 +141,7 @@ namespace ChaosTest {
 		Box->X() = TVector<T, 3>(0, 1, 0);
 		Box->R() = TRotation<T, 3>(FQuat::Identity);
 		Box->V() = TVector<T, 3>(0, 0, -1);
+		Box->PreV() = Box->V();
 		Box->P() = Box->X();
 		Box->Q() = Box->R();
 		Box->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
@@ -213,6 +214,7 @@ namespace ChaosTest {
 		Box->X() = TVector<T, 3>(0, 0, 49);
 		Box->R() = TRotation<T, 3>(FQuat::Identity);
 		Box->V() = TVector<T, 3>(0, 0, -1);
+		Box->PreV() = Box->V();
 		Box->P() = Box->X();
 		Box->Q() = Box->R();
 		Box->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
@@ -285,6 +287,7 @@ namespace ChaosTest {
 		Box->X() = TVector<T, 3>(0, 1, 0);
 		Box->R() = TRotation<T, 3>(FQuat::Identity);
 		Box->V() = TVector<T, 3>(0, 0, -1);
+		Box->PreV() = Box->V();
 		Box->P() = Box->X();
 		Box->Q() = Box->R();
 		Box->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
@@ -355,6 +358,7 @@ namespace ChaosTest {
 		Box->X() = TVector<T, 3>(0, 0, 0);
 		Box->R() = TRotation<T, 3>(FQuat::Identity);
 		Box->V() = TVector<T, 3>(0, 0, -100);
+		Box->PreV() = Box->V();
 		Box->P() = Box->X();
 		Box->Q() = Box->R();
 		Box->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
@@ -406,6 +410,69 @@ namespace ChaosTest {
 	}
 	template void CollisionBoxPlaneRestitution<float>();
 
+	// This test will make sure that a dynamic cube colliding with a static floor will have the correct bounce velocity
+	// for a restitution of 0.5
+	// The dynamic cube will collide with one of its vertices onto a face of the static cube
+	template<class T>
+	void CollisionCubeCubeRestitution()
+	{
+		TArrayCollectionArray<bool> Collided;
+		TUniquePtr<FChaosPhysicsMaterial> PhysicsMaterial = MakeUnique<FChaosPhysicsMaterial>();
+		PhysicsMaterial->Friction = (T)0;
+		PhysicsMaterial->Restitution = (T)0.5;
+		TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>> PhysicsMaterials;
+		TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>> PerParticlePhysicsMaterials;
+		TPBDRigidsSOAs<T, 3> Particles;
+		Particles.GetParticleHandles().AddArray(&Collided);
+		Particles.GetParticleHandles().AddArray(&PhysicsMaterials);
+		Particles.GetParticleHandles().AddArray(&PerParticlePhysicsMaterials);
+
+		TGeometryParticleHandle<T, 3>* StaticCube = AppendStaticParticleBox<T>(Particles, TVector<T, 3>(100.0f));
+		StaticCube->X() = TVector<T, 3>(0, 0, -50.0f);
+		TPBDRigidParticleHandle<T, 3>* DynamicCube = AppendDynamicParticleBox<T>(Particles, TVector<T, 3>(100.0f));
+		DynamicCube->X() = TVector<T, 3>(0, 0, 80); // Penetrating by about 5cm
+		DynamicCube->R() = TRotation<T, 3>::FromElements( 0.27059805f, 0.27059805f, 0.0f, 0.923879532f ); // Rotate so that vertex collide
+		DynamicCube->V() = TVector<T, 3>(0, 0, -100);
+		DynamicCube->PreV() = DynamicCube->V();
+		DynamicCube->P() = DynamicCube->X();
+		DynamicCube->Q() = DynamicCube->R();
+		DynamicCube->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
+
+		const float Dt = 1 / 24.;
+
+		FPBDCollisionConstraintAccessor Collisions(Particles, Collided, PhysicsMaterials, PerParticlePhysicsMaterials, 2, 5, T(0));
+
+		Collisions.ComputeConstraints(Dt);
+		EXPECT_EQ(Collisions.NumConstraints(), 1);
+
+		if (Collisions.NumConstraints() <= 0)
+		{
+			return;
+		}
+
+		FCollisionConstraintBase& Constraint = Collisions.GetConstraint(0);
+		if (TPBDRigidParticleHandle<T, 3>* PBDRigid = Constraint.Particle[0]->CastToRigidParticle())
+		{
+			PBDRigid->CollisionParticles()->UpdateAccelerationStructures();
+		}
+		Collisions.UpdateLevelsetConstraint(*Constraint.template As<FPBDCollisionConstraints::FPointContactConstraint>());
+		EXPECT_EQ(Constraint.Particle[0], DynamicCube);
+		EXPECT_EQ(Constraint.Particle[1], StaticCube);
+		EXPECT_TRUE(Constraint.GetNormal().operator==(TVector<T, 3>(0, 0, 1)));
+		EXPECT_TRUE(FMath::Abs(ChaosTest::SignedDistance(*Constraint.Particle[0], Constraint.GetLocation())) < SMALL_THRESHOLD);
+		{
+			INVARIANT_XR_START(DynamicCube);
+			Collisions.Apply(Dt, { Collisions.GetConstraintHandle(0) }, 0, 1);
+			INVARIANT_XR_END(DynamicCube);
+		}
+
+		// This test's tolerances are set to be very crude as to not be over sensitive (for now)
+		EXPECT_TRUE(DynamicCube->V().Z > 10.0f);  // restitution not too low
+		EXPECT_TRUE(DynamicCube->V().Z < 70.0f);  // restitution not too high
+		EXPECT_TRUE(FMath::Abs(DynamicCube->V().X) < 1.0f);
+		EXPECT_TRUE(FMath::Abs(DynamicCube->V().Y) < 1.0f);
+	}
+	template void CollisionCubeCubeRestitution<float>();
 
 	template<class T>
 	void CollisionBoxToStaticBox()
@@ -431,6 +498,7 @@ namespace ChaosTest {
 		Box2->P() = Box2->X();
 		Box2->Q() = Box2->R();
 		Box2->V() = TVector<T, 3>(0, 0, -1);
+		Box2->PreV() = Box2->V();
 		Box2->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
 
 		FBox Region(FVector(.2), FVector(.5));

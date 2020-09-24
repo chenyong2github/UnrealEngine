@@ -21,6 +21,15 @@ struct CONTROLRIG_API FControlRigObjectVersion
 		// Introduced new RigVM as a backend
 		SwitchedToRigVM,
 
+		// Added a new transform as part of the control
+		ControlOffsetTransform,
+
+		// Using a cache data structure for key indices now
+		RigElementKeyCache,
+
+		// Full variable support
+		BlueprintVariableSupport,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

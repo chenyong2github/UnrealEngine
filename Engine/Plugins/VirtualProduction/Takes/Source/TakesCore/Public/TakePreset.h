@@ -10,7 +10,7 @@ class ULevelSequence;
 /**
  * Take preset that is stored as an asset comprising a ULevelSequence, and a set of actor recording sources
  */
-UCLASS()
+UCLASS(BlueprintType)
 class TAKESCORE_API UTakePreset : public UObject
 {
 public:

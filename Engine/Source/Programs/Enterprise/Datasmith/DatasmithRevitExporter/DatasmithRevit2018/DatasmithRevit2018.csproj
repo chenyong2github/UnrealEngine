@@ -58,6 +58,12 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
+	<Compile Include="..\Private\DatasmithRevitDocumentData.cs">
+      <Link>DatasmithRevitExporter\DatasmithRevitDocumentData.cs</Link>
+    </Compile>
+    <Compile Include="..\Private\DatasmithRevitDirectLink.cs">
+      <Link>DatasmithRevitExporter\DatasmithRevitDirectLink.cs</Link>
+    </Compile>
     <Compile Include="..\Private\DatasmithRevitApplication.cs">
       <Link>DatasmithRevitExporter\DatasmithRevitApplication.cs</Link>
     </Compile>
@@ -91,7 +97,7 @@
     <PostBuildEvent>set PUBLISH_DIR=$(ProjectDir)..\..\..\..\..\..\Binaries\Win64\Revit\2018\
 xcopy "$(ProjectDir)$(TargetName).addin" "%25PUBLISH_DIR%25" /Y
 xcopy "$(ProjectDir)$(OutputPath)*.dll" "%25PUBLISH_DIR%25" /Y
-xcopy "$(ProjectDir)..\Resources\Windows\DatasmithIcon32.png" "%25PUBLISH_DIR%25" /Y
+xcopy "$(ProjectDir)..\Resources\Windows\*.png" "%25PUBLISH_DIR%25" /Y
 xcopy "$(ProjectDir)..\Resources\Windows\DatasmithBatchExporter.dyn" "%25PUBLISH_DIR%25" /Y
 	</PostBuildEvent>
   </PropertyGroup>

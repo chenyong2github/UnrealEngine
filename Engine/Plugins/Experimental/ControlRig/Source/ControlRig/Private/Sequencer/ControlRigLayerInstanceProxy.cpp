@@ -287,6 +287,11 @@ void FControlRigLayerInstanceProxy::EvaluateCustomProxy(FAnimInstanceProxy* Inpu
 {
 	FAnimInstanceProxy::EvaluateInputProxy(InputProxy, Output);
 }
+
+void FControlRigLayerInstanceProxy::ResetCounter(FAnimInstanceProxy* InAnimInstanceProxy)
+{
+	FAnimInstanceProxy::ResetCounterInputProxy(InAnimInstanceProxy);
+}
 //////////////////////////////////////////////////////////////////////////////////////////////////
 void FAnimNode_ControlRigInputPose::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
@@ -340,26 +345,29 @@ void FAnimNode_ControlRigInputPose::Evaluate_AnyThread(FPoseContext& Output)
 {
 	if (InputProxy)
 	{
-		Output.Pose.SetBoneContainer(&InputProxy->GetRequiredBones());
-		FPoseContext InputContext(InputProxy, Output.ExpectsAdditivePose());
-
-		// if no linked node, just use Evaluate of proxy
-		if (InputPose.GetLinkNode())
+		FBoneContainer& RequiredBones = InputProxy->GetRequiredBones();
+		if (RequiredBones.IsValid())
 		{
-			InputPose.Evaluate(InputContext);
-		}
-		else
-		{
-			FControlRigLayerInstanceProxy::EvaluateCustomProxy(InputProxy, InputContext);
-		}
+			Output.Pose.SetBoneContainer(&RequiredBones);
+			FPoseContext InputContext(InputProxy, Output.ExpectsAdditivePose());
 
-		Output.Pose.MoveBonesFrom(InputContext.Pose);
-		Output.Curve.MoveFrom(InputContext.Curve);
+			// if no linked node, just use Evaluate of proxy
+			if (InputPose.GetLinkNode())
+			{
+				InputPose.Evaluate(InputContext);
+			}
+			else
+			{
+				FControlRigLayerInstanceProxy::EvaluateCustomProxy(InputProxy, InputContext);
+			}
+
+			Output.Pose.MoveBonesFrom(InputContext.Pose);
+			Output.Curve.MoveFrom(InputContext.Curve);
+			return;
+		}
 	}
-	else
-	{
-		Output.ResetToRefPose();
-	}
+
+	Output.ResetToRefPose();
 }
 
 void FAnimNode_ControlRigInputPose::GatherDebugData(FNodeDebugData& DebugData)
@@ -389,6 +397,9 @@ void FAnimNode_ControlRigInputPose::Link(UAnimInstance* InInputInstance, FAnimIn
 		InputAnimInstance = InInputInstance;
 		InputProxy = InInputProxy;
 		InputPose.SetLinkNode(InputProxy->GetRootNode());
+		
+		// reset counter, so that input proxy can restart
+		FControlRigLayerInstanceProxy::ResetCounter(InputProxy);
 	}
 }
 

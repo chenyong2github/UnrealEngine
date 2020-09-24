@@ -168,6 +168,7 @@ struct FWrapLayer
 #endif
 #if VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
 	VULKAN_EXTERN_EXPORT static void GetPhysicalDeviceProperties2KHR(VkResult Result, VkPhysicalDevice PhysicalDevice, VkPhysicalDeviceProperties2KHR* Properties) VULKAN_LAYER_BODY
+	VULKAN_EXTERN_EXPORT static void GetPhysicalDeviceFeatures2KHR(VkResult Result, VkPhysicalDevice PhysicalDevice, VkPhysicalDeviceFeatures2KHR* Features) VULKAN_LAYER_BODY
 #endif
 	static void GetPhysicalDeviceSurfaceCapabilitiesKHR(VkResult Result, VkPhysicalDevice PhysicalDevice, VkSurfaceKHR Surface, VkSurfaceCapabilitiesKHR* SurfaceCapabilities) VULKAN_LAYER_BODY
 	static void GetPhysicalDeviceSurfaceFormatsKHR(VkResult Result, VkPhysicalDevice PhysicalDevice, VkSurfaceKHR Surface, uint32_t* SurfaceFormatCountPtr, VkSurfaceFormatKHR* SurfaceFormats) VULKAN_LAYER_BODY
@@ -189,11 +190,7 @@ struct FWrapLayer
 
 namespace VulkanRHI
 {
-#if VULKAN_ENABLE_DUMP_LAYER
 	void FlushDebugWrapperLog();
-#else
-	#define FlushDebugWrapperLog()
-#endif
 
 	FORCEINLINE_DEBUGGABLE VkResult  vkCreateInstance(const VkInstanceCreateInfo* CreateInfo, const VkAllocationCallbacks* Allocator, VkInstance* Instance)
 	{
@@ -253,6 +250,13 @@ namespace VulkanRHI
 		FWrapLayer::GetPhysicalDeviceProperties2KHR(VK_RESULT_MAX_ENUM, PhysicalDevice, Properties);
 		VULKANAPINAMESPACE::vkGetPhysicalDeviceProperties2KHR(PhysicalDevice, Properties);
 		FWrapLayer::GetPhysicalDeviceProperties2KHR(VK_SUCCESS, PhysicalDevice, Properties);
+	}
+
+	static FORCEINLINE_DEBUGGABLE void  vkGetPhysicalDeviceFeatures2KHR(VkPhysicalDevice PhysicalDevice, VkPhysicalDeviceFeatures2KHR* Features)
+	{
+		FWrapLayer::GetPhysicalDeviceFeatures2KHR(VK_RESULT_MAX_ENUM, PhysicalDevice, Features);
+		VULKANAPINAMESPACE::vkGetPhysicalDeviceFeatures2KHR(PhysicalDevice, Features);
+		FWrapLayer::GetPhysicalDeviceFeatures2KHR(VK_SUCCESS, PhysicalDevice, Features);
 	}
 #endif
 

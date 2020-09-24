@@ -6,7 +6,7 @@
 #include "Particles/EmitterCameraLensEffectBase.h"
 #include "Components/AudioComponent.h"
 #include "Sound/SoundBase.h"
-#include "Camera/CameraShake.h"
+#include "Camera/CameraShakeBase.h"
 #include "Camera/CameraAnim.h"
 #include "Camera/CameraAnimInst.h"
 #include "Components/ForceFeedbackComponent.h"
@@ -104,21 +104,21 @@ static EAttachLocation::Type GetAttachLocationTypeFromRule(EAttachmentRule Attac
 	return EAttachLocation::KeepWorldPosition;
 }
 
-static ECameraAnimPlaySpace::Type GetCameraAnimPlaySpace(EGameplayCueNotify_EffectPlaySpace EffectPlaySpace)
+static ECameraShakePlaySpace GetCameraShakePlaySpace(EGameplayCueNotify_EffectPlaySpace EffectPlaySpace)
 {
 	switch (EffectPlaySpace)
 	{
 	case EGameplayCueNotify_EffectPlaySpace::WorldSpace:
-		return ECameraAnimPlaySpace::World;
+		return ECameraShakePlaySpace::World;
 
 	case EGameplayCueNotify_EffectPlaySpace::CameraSpace:
-		return ECameraAnimPlaySpace::CameraLocal;
+		return ECameraShakePlaySpace::CameraLocal;
 
 	default:
 		checkf(false, TEXT("GameplayCueNotify: Invalid effect play space [%d]\n"), (uint8)EffectPlaySpace);
 	}
 
-	return ECameraAnimPlaySpace::World;
+	return ECameraShakePlaySpace::World;
 }
 
 
@@ -558,7 +558,7 @@ bool FGameplayCueNotify_CameraShakeInfo::PlayCameraShake(const FGameplayCueNotif
 		return false;
 	}
 
-	const ECameraAnimPlaySpace::Type CameraAnimPlaySpace = GetCameraAnimPlaySpace(PlaySpace);
+	const ECameraShakePlaySpace CameraShakePlaySpace = GetCameraShakePlaySpace(PlaySpace);
 
 	// Check if the camera shake should be played in world for all players.
 	if (bPlayInWorld)
@@ -594,7 +594,7 @@ bool FGameplayCueNotify_CameraShakeInfo::PlayCameraShake(const FGameplayCueNotif
 				continue;
 			}
 
-			UCameraShake* CameraShakeInstance = PC->PlayerCameraManager->PlayCameraShake(CameraShake, (ShakeScale * FalloffIntensity), CameraAnimPlaySpace, FRotator::ZeroRotator);
+			UCameraShakeBase* CameraShakeInstance = PC->PlayerCameraManager->StartCameraShake(CameraShake, (ShakeScale * FalloffIntensity), CameraShakePlaySpace, FRotator::ZeroRotator);
 			OutSpawnResult.CameraShakes.Add(CameraShakeInstance);
 		}
 	}
@@ -605,7 +605,7 @@ bool FGameplayCueNotify_CameraShakeInfo::PlayCameraShake(const FGameplayCueNotif
 
 		if (TargetPC && TargetPC->PlayerCameraManager)
 		{
-			UCameraShake* CameraShakeInstance = TargetPC->PlayerCameraManager->PlayCameraShake(CameraShake, ShakeScale, CameraAnimPlaySpace, FRotator::ZeroRotator);
+			UCameraShakeBase* CameraShakeInstance = TargetPC->PlayerCameraManager->StartCameraShake(CameraShake, ShakeScale, CameraShakePlaySpace, FRotator::ZeroRotator);
 			OutSpawnResult.CameraShakes.Add(CameraShakeInstance);
 		}
 	}
@@ -618,8 +618,10 @@ void FGameplayCueNotify_CameraShakeInfo::ValidateBurstAssets(UObject* Containing
 #if WITH_EDITORONLY_DATA
 	if (CameraShake != nullptr)
 	{
-		UCameraShake* CameraShakeCDO = CameraShake->GetDefaultObject<UCameraShake>();
-		if (CameraShakeCDO->IsLooping())
+		UCameraShakeBase* CameraShakeCDO = CameraShake->GetDefaultObject<UCameraShakeBase>();
+		FCameraShakeInfo CameraShakeInfo;
+		CameraShakeCDO->GetShakeInfo(CameraShakeInfo);
+		if (CameraShakeInfo.Duration.IsInfinite())
 		{
 			ValidationErrors.Add(FText::Format(
 				LOCTEXT("CameraShake_ShouldNotLoop", "Camera shake [{0}] used in slot [{1}] for asset [{2}] will oscillate forever, but the slot is a one-shot (the instance will leak)."),
@@ -670,7 +672,7 @@ bool FGameplayCueNotify_CameraAnimInfo::PlayCameraAnim(const FGameplayCueNotify_
 	APlayerController* TargetPC = SpawnContext.FindLocalPlayerController(EGameplayCueNotify_LocallyControlledSource::TargetActor);
 	if (TargetPC && TargetPC->PlayerCameraManager)
 	{
-		const ECameraAnimPlaySpace::Type CameraAnimPlaySpace = GetCameraAnimPlaySpace(PlaySpace);
+		const ECameraShakePlaySpace CameraAnimPlaySpace = GetCameraShakePlaySpace(PlaySpace);
 
 		OutSpawnResult.CameraAnim = TargetPC->PlayerCameraManager->PlayCameraAnim(CameraAnim, PlayRate, AnimScale, BlendInTime, BlendOutTime, bIsLooping, bRandomStartTime, 0.0f, CameraAnimPlaySpace, FRotator::ZeroRotator);
 	}
@@ -1081,7 +1083,7 @@ void FGameplayCueNotify_LoopingEffects::StopEffects(FGameplayCueNotify_SpawnResu
 	}
 
 	// Stop all camera shakes.
-	for (UCameraShake* CameraShake : SpawnResult.CameraShakes)
+	for (UCameraShakeBase* CameraShake : SpawnResult.CameraShakes)
 	{
 		if (CameraShake)
 		{

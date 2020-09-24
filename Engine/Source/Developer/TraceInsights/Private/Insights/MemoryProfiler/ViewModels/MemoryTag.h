@@ -18,7 +18,7 @@ class FMemoryTag
 	friend class FMemoryTagList;
 
 public:
-	static const FMemoryTagId InvalidTagId = -1;
+	static const FMemoryTagId InvalidTagId = 0;
 
 public:
 	//FMemoryTag();
@@ -39,6 +39,7 @@ public:
 	const FLinearColor& GetColor() const { return Color; }
 	void SetColor(FLinearColor InColor) { Color = InColor; }
 	void SetColorAuto();
+	void SetRandomColor();
 
 	FMemoryTag* GetParent() const { return Parent; }
 	const TSet<FMemoryTag*>& GetChildren() const { return Children; }
@@ -60,6 +61,8 @@ private:
 	FMemoryTag* Parent = nullptr;
 	TSet<FMemoryTag*> Children;
 	TSet<TSharedPtr<FMemoryGraphTrack>> Tracks; // tracks using this LLM tag
+
+	static uint32 HashSeed;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -91,7 +94,7 @@ private:
 
 private:
 	TArray<FMemoryTag*> Tags; // the list of memory tags; owns the allocated memory
-	TMap<uint32, FMemoryTag*> TagIdMap;
+	TMap<FMemoryTagId, FMemoryTag*> TagIdMap;
 	uint32 LastTraceSerialNumber;
 	uint32 SerialNumber;
 	uint64 NextUpdateTimestamp;

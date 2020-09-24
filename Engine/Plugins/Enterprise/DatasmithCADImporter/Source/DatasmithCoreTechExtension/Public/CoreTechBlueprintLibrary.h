@@ -27,7 +27,7 @@ public:
 	 * @return True if successful, false otherwise
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Datasmith | Surface Operations" )
-	static bool RetessellateStaticMesh(UStaticMesh* StaticMesh, const FDatasmithTessellationOptions& TessellationSettings, FText& FailureReason);
+	static bool RetessellateStaticMesh(UStaticMesh* StaticMesh, const FDatasmithRetessellationOptions& TessellationSettings, FText& FailureReason);
 
 	/**
 	 * Re-tessellate LOD 0 of a static mesh if it contains parametric surface data.
@@ -40,5 +40,5 @@ public:
 	 * @return True if successful, false otherwise
 	 */
 	UFUNCTION(Category = "Datasmith | Surface Operations" )
-	static bool RetessellateStaticMeshWithNotification(UStaticMesh* StaticMesh, const FDatasmithTessellationOptions& TessellationSettings, bool bApplyChanges, FText& FailureReason);
+	static bool RetessellateStaticMeshWithNotification(UStaticMesh* StaticMesh, const FDatasmithRetessellationOptions& TessellationSettings, bool bApplyChanges, FText& FailureReason);
 };

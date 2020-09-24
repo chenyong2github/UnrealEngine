@@ -25,7 +25,7 @@ PRAGMA_ENABLE_SHADOW_VARIABLE_WARNINGS
 /** Removes any assignments that don't actually map to a VM op but just move some data around. We look for refs and grab the source data direct. */
 class ir_propagate_non_expressions_visitor final : public ir_rvalue_visitor
 {
-	_mesa_glsl_parse_state *parse_state;
+	_mesa_glsl_parse_state* parse_state;
 
 	struct var_info
 	{
@@ -46,7 +46,7 @@ class ir_propagate_non_expressions_visitor final : public ir_rvalue_visitor
 	TArray<ir_assignment*> non_expr_assignments;
 
 public:
-	ir_propagate_non_expressions_visitor(_mesa_glsl_parse_state *in_state)
+	ir_propagate_non_expressions_visitor(_mesa_glsl_parse_state* in_state)
 	{
 		parse_state = in_state;
 		num_expr = 0;
@@ -98,7 +98,7 @@ public:
 	}
 
 
-	virtual void handle_rvalue(ir_rvalue **rvalue)
+	virtual void handle_rvalue(ir_rvalue** rvalue)
 	{
 		if (rvalue && *rvalue && !in_assignee)
 		{
@@ -114,7 +114,7 @@ public:
 			{
 				//Is there a previous non_expr assignment after any containing expressions?
 				//If so, copy that in place of this rvalue.
-				if (varinfo->latest_expr_assign[search_comp] < varinfo->latest_non_expr_assign[search_comp] )
+				if (varinfo->latest_expr_assign[search_comp] < varinfo->latest_non_expr_assign[search_comp])
 				{
 					ir_assignment* assign = assignments[varinfo->latest_non_expr_assign[search_comp]];
 					check(assign->rhs->as_expression() == nullptr);
@@ -134,7 +134,7 @@ public:
 		return visit_continue;
 	}
 
-	virtual ir_visitor_status visit_enter(ir_assignment *assign)
+	virtual ir_visitor_status visit_enter(ir_assignment* assign)
 	{
 		if (assign->condition)
 		{
@@ -146,12 +146,12 @@ public:
 		return visit_continue;
 	}
 
-	virtual ir_visitor_status visit_leave(ir_assignment *assign)
+	virtual ir_visitor_status visit_leave(ir_assignment* assign)
 	{
 		check(assign->next && assign->prev);
 		ir_variable* lhs = assign->lhs->variable_referenced();
 		var_info& varinfo = var_info_map.FindOrAdd(lhs);
-		
+
 		int32 assign_idx = assignments.Add(assign);
 
 		//Add any new temp or auto assignments. These will be grabbed later to use in replacements in HandleRValue.
@@ -196,7 +196,7 @@ public:
 		return ir_rvalue_visitor::visit_leave(assign);
 	}
 
-	static void run(exec_list *ir, _mesa_glsl_parse_state *state)
+	static void run(exec_list* ir, _mesa_glsl_parse_state* state)
 	{
 		bool progress = false;
 		do
@@ -291,10 +291,10 @@ public:
 		return visit_continue;
 	}
 
-	virtual void handle_rvalue(ir_rvalue **rvalue)
+	virtual void handle_rvalue(ir_rvalue** rvalue)
 	{
 		if (rvalue && *rvalue)
-		{		
+		{
 			if (ir_dereference* deref = (*rvalue)->as_dereference_array())
 			{
 				ir_variable* var = deref->variable_referenced();
@@ -318,10 +318,10 @@ public:
 					}
 				}
 			}
-		}	
+		}
 	}
 
-	virtual ir_visitor_status visit_leave(ir_assignment *assign)
+	virtual ir_visitor_status visit_leave(ir_assignment* assign)
 	{
 		//Dont think this is required.
 		//Previous pass should convert all matrix ops to vec ops so the worst this will be is a Mat[row] = somevec.xyzw so replacing the array deref is is fine.
@@ -388,7 +388,7 @@ public:
 				const glsl_type* vtype = var->type->column_type();
 
 				const char* base_name = var->name ? var->name : "temp";
-				const char *name = ralloc_asprintf(p, "%s_%s", base_name,"col0");
+				const char* name = ralloc_asprintf(p, "%s_%s", base_name, "col0");
 				mv->v[0] = new(p) ir_variable(vtype, name, var->mode);
 				name = ralloc_asprintf(p, "%s_%s", base_name, "col1");
 				mv->v[1] = new(p) ir_variable(vtype, name, var->mode);
@@ -411,7 +411,7 @@ public:
 		return visit_continue;
 	}
 
-	static void run(exec_list *ir, _mesa_glsl_parse_state* state)
+	static void run(exec_list* ir, _mesa_glsl_parse_state* state)
 	{
 		bool progress = false;
 		do
@@ -432,7 +432,7 @@ public:
 };
 
 void vm_matrices_to_vectors(exec_list* ir, _mesa_glsl_parse_state* state)
-{	
+{
 	ir_matrices_to_vectors::run(ir, state);
 }
 
@@ -442,7 +442,7 @@ void vm_matrices_to_vectors(exec_list* ir, _mesa_glsl_parse_state* state)
 /** Replaces any assignments that reference themselves with ones that assign to a new temporary. It is potentially unsafe for the VM to read and write to the same location. */
 class ir_rem_self_ref_assignments_visitor final : public ir_rvalue_visitor
 {
-	_mesa_glsl_parse_state *parse_state;
+	_mesa_glsl_parse_state* parse_state;
 
 	struct replace_info
 	{
@@ -465,7 +465,7 @@ class ir_rem_self_ref_assignments_visitor final : public ir_rvalue_visitor
 	bool progress;
 
 public:
-	ir_rem_self_ref_assignments_visitor(_mesa_glsl_parse_state *in_state)
+	ir_rem_self_ref_assignments_visitor(_mesa_glsl_parse_state* in_state)
 	{
 		parse_state = in_state;
 		progress = false;
@@ -500,36 +500,41 @@ public:
 		return 0;
 	}
 
-	virtual void handle_rvalue(ir_rvalue **rvalue)
+	virtual void handle_rvalue(ir_rvalue** rvalue)
 	{
-		if (curr_assign && rvalue && *rvalue && !in_assignee)
+		if (!rvalue || !*rvalue || in_assignee)
 		{
-			ir_dereference* deref = (*rvalue)->as_dereference();
-			ir_dereference_array* array_deref = (*rvalue)->as_dereference_array();
-			ir_swizzle* swiz = (*rvalue)->as_swizzle();
+			return;
+		}
 
-			ir_variable* search_var = (*rvalue)->variable_referenced();
-			unsigned search_comp = 0;
-			if (swiz)
-			{
-				if (ir_dereference_array* swiz_array_deref = swiz->val->as_dereference_array())
-				{
-					search_comp = get_component_from_matrix_array_deref(swiz_array_deref);
-				}
-				search_comp += swiz->mask.x;
-			}
-			else if (array_deref)
-			{
-				//We can only handle matrix array derefs but these will have an outer swizzle that we'll work with. 
-				check(array_deref->array->type->is_matrix());
-				search_var = nullptr;
-			}
-			else if (!deref || !deref->type->is_scalar())
-			{
-				//If we're not a deref or we're not a straight scalar deref then we should leave this alone.
-				search_var = nullptr;
-			}
+		ir_dereference* deref = (*rvalue)->as_dereference();
+		ir_dereference_array* array_deref = (*rvalue)->as_dereference_array();
+		ir_swizzle* swiz = (*rvalue)->as_swizzle();
 
+		ir_variable* search_var = (*rvalue)->variable_referenced();
+		unsigned search_comp = 0;
+		if (swiz)
+		{
+			if (ir_dereference_array* swiz_array_deref = swiz->val->as_dereference_array())
+			{
+				search_comp = get_component_from_matrix_array_deref(swiz_array_deref);
+			}
+			search_comp += swiz->mask.x;
+		}
+		else if (array_deref)
+		{
+			//We can only handle matrix array derefs but these will have an outer swizzle that we'll work with. 
+			check(array_deref->array->type->is_matrix());
+			search_var = nullptr;
+		}
+		else if (!deref || !deref->type->is_scalar())
+		{
+			//If we're not a deref or we're not a straight scalar deref then we should leave this alone.
+			search_var = nullptr;
+		}
+
+		if (curr_assign)
+		{
 			if (search_var == just_replaced_var && search_comp == just_replaced_comp)
 			{
 				//We've just created a replacement for these vars in this assignment.
@@ -572,9 +577,19 @@ public:
 				}
 			}
 		}
+		else
+		{
+			replace_info* info = to_replace.Find(search_var);
+			if (info && info->component == search_comp)
+			{
+				ir_rvalue* new_rval = new(parse_state) ir_dereference_variable(info->replacement);
+				(*rvalue) = new_rval;
+				progress = true;
+			}
+		}
 	}
 
-	virtual ir_visitor_status visit_enter(ir_assignment *assign)
+	virtual ir_visitor_status visit_enter(ir_assignment* assign)
 	{
 		if (assign->condition)
 		{
@@ -588,7 +603,7 @@ public:
 		return visit_continue;
 	}
 
-	virtual ir_visitor_status visit_leave(ir_assignment *assign)
+	virtual ir_visitor_status visit_leave(ir_assignment* assign)
 	{
 		curr_assign = nullptr;
 		just_replaced_var = nullptr;
@@ -596,7 +611,7 @@ public:
 		return visit_continue;
 	}
 
-	static void run(exec_list *ir, _mesa_glsl_parse_state *state)
+	static void run(exec_list* ir, _mesa_glsl_parse_state* state)
 	{
 		bool progress = false;
 		do

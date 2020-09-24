@@ -379,6 +379,26 @@ FProcHandle FWindowsPlatformProcess::CreateProc( const TCHAR* URL, const TCHAR* 
 	return FProcHandle(ProcInfo.hProcess);
 }
 
+bool FWindowsPlatformProcess::SetProcPriority(FProcHandle& InProcHandle, int32 PriorityModifier)
+{
+	DWORD PriorityClass = NORMAL_PRIORITY_CLASS;
+	if (PriorityModifier < 0)
+	{
+		PriorityClass = (PriorityModifier == -1) ? BELOW_NORMAL_PRIORITY_CLASS : IDLE_PRIORITY_CLASS;
+	}
+	else if (PriorityModifier > 0)
+	{
+		PriorityClass = (PriorityModifier == 1) ? ABOVE_NORMAL_PRIORITY_CLASS : HIGH_PRIORITY_CLASS;
+	}
+
+	if (InProcHandle.IsValid())
+	{
+		return SetPriorityClass(InProcHandle.Get(), PriorityClass);
+	}
+	return false;
+
+}
+
 FProcHandle FWindowsPlatformProcess::OpenProcess(uint32 ProcessID)
 {
 	return FProcHandle(::OpenProcess(PROCESS_ALL_ACCESS, 0, ProcessID));
@@ -551,7 +571,7 @@ bool FWindowsPlatformProcess::GetPerFrameProcessorUsage(uint32 ProcessId, float&
 			LastProcessTime = (double)DeltaProcessCycleTime / DeltaCyclesPerFrame;
 
 			// Idle cycles are stored per core and flipped to allow per-frame calculation
-			const uint32 BufferLength = 512;
+			const uint32 BufferLength = 1024;
 			check(BufferLength >= NumCores * 8);
 
 			static uint64 IdleCycleTimeBuffers[2][BufferLength] = {{0}};
@@ -1067,11 +1087,20 @@ const TCHAR* FWindowsPlatformProcess::UserName(bool bOnlyAlphaNumeric/* = true*/
 void FWindowsPlatformProcess::SetCurrentWorkingDirectoryToBaseDir()
 {
 #if defined(DISABLE_CWD_CHANGES) && DISABLE_CWD_CHANGES != 0
-	check(false);
+	checkf(false, TEXT("Attempting to call 'SetCurrentWorkingDirectoryToBaseDir' while DISABLE_CWD_CHANGES is set!"));
 #else
 	FPlatformMisc::CacheLaunchDir();
-	verify(SetCurrentDirectoryW(BaseDir()));
-#endif
+
+	// Ideally we would log the following errors but this is most likely to fail right at the start of the 
+	// program and any call to UE_LOG at this point will not actually result in anything being written to disk.
+#if DO_CHECK
+	TCHAR SystemError[1024];
+#endif //DO_CHECK
+	
+	verifyf(::SetCurrentDirectoryW(BaseDir()),	TEXT("Failed to set the working directory to '%s' (%s)"), 
+												BaseDir(), 
+												FWindowsPlatformMisc::GetSystemErrorMessage(SystemError, UE_ARRAY_COUNT(SystemError), 0));
+#endif //DISABLE_CWD_CHANGES
 }
 
 /** Get the current working directory (only really makes sense on desktop platforms) */

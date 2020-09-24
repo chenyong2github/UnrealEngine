@@ -5,6 +5,20 @@
 
 FRigUnit_DebugLineStrip_Execute()
 {
+	FRigUnit_DebugLineStripItemSpace::StaticExecute(
+		RigVMExecuteContext, 
+		Points,
+		Color,
+		Thickness,
+		FRigElementKey(Space, ERigElementType::Bone), 
+		WorldOffset, 
+		bEnabled,
+		ExecuteContext, 
+		Context);
+}
+
+FRigUnit_DebugLineStripItemSpace_Execute()
+{
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
 	{
@@ -16,9 +30,9 @@ FRigUnit_DebugLineStrip_Execute()
 		return;
 	}
 
-	if (Space != NAME_None && Context.GetBones() != nullptr)
+	if (Space.IsValid())
 	{
-		FTransform Transform = Context.GetBones()->GetGlobalTransform(Space);
+		FTransform Transform = Context.Hierarchy->GetGlobalTransform(Space);
 		TArray<FVector> PointsTransformed;
 		PointsTransformed.Reserve(Points.Num());
 		for(const FVector& Point : Points)

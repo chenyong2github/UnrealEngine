@@ -5,12 +5,12 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
-/** Implements the VirtualHeightfieldMesh module  */
-class FVirtualHeightfieldMeshEditorModule : public IModuleInterface
+/** Module interface for VirtualHeightfieldMesh editor  extensions. */
+class IVirtualHeightfieldMeshEditorModule : public IModuleInterface
 {
 public:
-	//~ Begin IModuleInterface Interface.
-	virtual void StartupModule() override;
-	virtual void ShutdownModule() override;
-	//~ End IModuleInterface Interface.
+	/** Returns true if the component describes a runtime virtual texture that has streaming low mips. */
+	virtual bool HasMinMaxHeightTexture(class UVirtualHeightfieldMeshComponent* InComponent) const = 0;
+	/** Build the contents of the streaming low mips. */
+	virtual bool BuildMinMaxHeightTexture(class UVirtualHeightfieldMeshComponent* InComponent) const = 0;
 };

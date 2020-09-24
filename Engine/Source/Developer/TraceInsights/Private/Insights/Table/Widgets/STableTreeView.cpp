@@ -18,12 +18,14 @@
 #include "Widgets/Views/STableViewBase.h"
 
 // Insights
+#include "Insights/Common/Stopwatch.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/Table/ViewModels/Table.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/Table/ViewModels/TableTreeNode.h"
 #include "Insights/Table/ViewModels/TreeNodeGrouping.h"
 #include "Insights/Table/ViewModels/TreeNodeSorting.h"
+#include "Insights/Table/ViewModels/UntypedTable.h"
 #include "Insights/Table/Widgets/STableTreeViewTooltip.h"
 #include "Insights/Table/Widgets/STableTreeViewRow.h"
 #include "Insights/TimingProfilerCommon.h"
@@ -79,8 +81,15 @@ STableTreeView::~STableTreeView()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void STableTreeView::Construct(const FArguments& InArgs, TSharedPtr<FTable> InTablePtr)
+{
+	ConstructWidget(InTablePtr);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
+void STableTreeView::ConstructWidget(TSharedPtr<FTable> InTablePtr)
 {
 	check(InTablePtr.IsValid());
 	Table = InTablePtr;
@@ -92,7 +101,7 @@ void STableTreeView::Construct(const FArguments& InArgs, TSharedPtr<FTable> InTa
 	[
 		SNew(SVerticalBox)
 
-		+SVerticalBox::Slot()
+		+ SVerticalBox::Slot()
 		.VAlign(VAlign_Center)
 		.AutoHeight()
 		[
@@ -103,7 +112,7 @@ void STableTreeView::Construct(const FArguments& InArgs, TSharedPtr<FTable> InTa
 				SNew(SVerticalBox)
 
 				// Search box
-				+SVerticalBox::Slot()
+				+ SVerticalBox::Slot()
 				.VAlign(VAlign_Center)
 				.Padding(2.0f)
 				.AutoHeight()
@@ -116,14 +125,14 @@ void STableTreeView::Construct(const FArguments& InArgs, TSharedPtr<FTable> InTa
 				]
 
 				// Group by
-				+SVerticalBox::Slot()
+				+ SVerticalBox::Slot()
 				.VAlign(VAlign_Center)
 				.Padding(2.0f)
 				.AutoHeight()
 				[
 					SNew(SHorizontalBox)
 
-					+SHorizontalBox::Slot()
+					+ SHorizontalBox::Slot()
 					.AutoWidth()
 					.VAlign(VAlign_Center)
 					[
@@ -132,7 +141,7 @@ void STableTreeView::Construct(const FArguments& InArgs, TSharedPtr<FTable> InTa
 						.Margin(FMargin(0.0f, 0.0f, 4.0f, 0.0f))
 					]
 
-					+SHorizontalBox::Slot()
+					+ SHorizontalBox::Slot()
 					.FillWidth(1.0f)
 					.VAlign(VAlign_Center)
 					[
@@ -151,7 +160,7 @@ void STableTreeView::Construct(const FArguments& InArgs, TSharedPtr<FTable> InTa
 		]
 
 		// Tree view
-		+SVerticalBox::Slot()
+		+ SVerticalBox::Slot()
 		.FillHeight(1.0f)
 		.Padding(0.0f, 6.0f, 0.0f, 0.0f)
 		[
@@ -1846,89 +1855,9 @@ void STableTreeView::Reset()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STableTreeView::UpdateSourceTable(TSharedPtr<Trace::IUntypedTable> SourceTable)
-{
-	if (Table->UpdateSourceTable(SourceTable))
-	{
-		RebuildColumns();
-	}
-	RebuildTree(true);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 void STableTreeView::RebuildTree(bool bResync)
 {
-	FStopwatch SyncStopwatch;
-	FStopwatch Stopwatch;
-	Stopwatch.Start();
-
-	if (bResync)
-	{
-		TableTreeNodes.Empty();
-	}
-
-	const int32 PreviousNodeCount = TableTreeNodes.Num();
-
-	TSharedPtr<Trace::IUntypedTable> SourceTable = Table->GetSourceTable();
-	TSharedPtr<Trace::IUntypedTableReader> TableReader = Table->GetTableReader();
-
-	SyncStopwatch.Start();
-	if (Session.IsValid() && SourceTable.IsValid() && TableReader.IsValid())
-	{
-		const int32 TotalRowCount = SourceTable->GetRowCount();
-		if (TotalRowCount != TableTreeNodes.Num())
-		{
-			TableTreeNodes.Empty(TotalRowCount);
-			FName BaseNodeName(TEXT("row"));
-			for (int32 RowIndex = 0; RowIndex < TotalRowCount; ++RowIndex)
-			{
-				TableReader->SetRowIndex(RowIndex);
-				FName NodeName(BaseNodeName, RowIndex + 1);
-				FTableTreeNodePtr NodePtr = MakeShared<FTableTreeNode>(NodeName, Table, RowIndex);
-				NodePtr->SetDefaultSortOrder(RowIndex + 1);
-				TableTreeNodes.Add(NodePtr);
-			}
-			ensure(TableTreeNodes.Num() == TotalRowCount);
-		}
-	}
-	SyncStopwatch.Stop();
-
-	if (bResync || TableTreeNodes.Num() != PreviousNodeCount)
-	{
-		// Save selection.
-		TArray<FTableTreeNodePtr> SelectedItems;
-		TreeView->GetSelectedItems(SelectedItems);
-
-		UpdateTree();
-
-		TreeView->RebuildList();
-
-		// Restore selection.
-		if (SelectedItems.Num() > 0)
-		{
-			TreeView->ClearSelection();
-			for (FTableTreeNodePtr& NodePtr : SelectedItems)
-			{
-				NodePtr = GetNodeByTableRowIndex(NodePtr->GetRowIndex());
-			}
-			SelectedItems.RemoveAll([](const FTableTreeNodePtr& NodePtr) { return !NodePtr.IsValid(); });
-			if (SelectedItems.Num() > 0)
-			{
-				TreeView->SetItemSelection(SelectedItems, true);
-				TreeView->RequestScrollIntoView(SelectedItems.Last());
-			}
-		}
-	}
-
-	Stopwatch.Stop();
-	const double TotalTime = Stopwatch.GetAccumulatedTime();
-	if (TotalTime > 0.01)
-	{
-		const double SyncTime = SyncStopwatch.GetAccumulatedTime();
-		UE_LOG(TimingProfiler, Log, TEXT("[Table] Tree view rebuilt in %.3fs (%.3fs + %.3fs) --> %d rows (%d added)"),
-			TotalTime, SyncTime, TotalTime - SyncTime, TableTreeNodes.Num(), TableTreeNodes.Num() - PreviousNodeCount);
-	}
+	unimplemented();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

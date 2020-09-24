@@ -5,6 +5,42 @@
 #include "RenderGraphDefinitions.h"
 #include "ProfilingDebugging/RealtimeGPUProfiler.h"
 
+/** Macros for create render graph event names and scopes.
+ *
+ *  FRDGEventName Name = RDG_EVENT_NAME("MyPass %sx%s", ViewRect.Width(), ViewRect.Height());
+ *
+ *  RDG_EVENT_SCOPE(GraphBuilder, "MyProcessing %sx%s", ViewRect.Width(), ViewRect.Height());
+ */
+#if RDG_EVENTS == RDG_EVENTS_STRING_REF || RDG_EVENTS == RDG_EVENTS_STRING_COPY
+	#define RDG_EVENT_NAME(Format, ...) FRDGEventName(TEXT(Format), ##__VA_ARGS__)
+	#define RDG_EVENT_SCOPE(GraphBuilder, Format, ...) FRDGEventScopeGuard PREPROCESSOR_JOIN(__RDG_ScopeRef_,__LINE__) ((GraphBuilder), RDG_EVENT_NAME(Format, ##__VA_ARGS__))
+	#define RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Condition, Format, ...) FRDGEventScopeGuard PREPROCESSOR_JOIN(__RDG_ScopeRef_,__LINE__) ((GraphBuilder), RDG_EVENT_NAME(Format, ##__VA_ARGS__), Condition)
+#elif RDG_EVENTS == RDG_EVENTS_NONE
+	#define RDG_EVENT_NAME(Format, ...) FRDGEventName()
+	#define RDG_EVENT_SCOPE(GraphBuilder, Format, ...) 
+	#define RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Condition, Format, ...)
+#else
+	#error "RDG_EVENTS is not a valid value."
+#endif
+
+#if HAS_GPU_STATS
+	#if STATS
+		#define RDG_GPU_STAT_SCOPE(GraphBuilder, StatName) FRDGGPUStatScopeGuard PREPROCESSOR_JOIN(GPUStatEvent_##StatName,__LINE__) ((GraphBuilder), CSV_STAT_FNAME(StatName), GET_STATID(Stat_GPU_##StatName).GetName(), &DrawcallCountCategory_##StatName.Counter);
+	#else
+		#define RDG_GPU_STAT_SCOPE(GraphBuilder, StatName) FRDGGPUStatScopeGuard PREPROCESSOR_JOIN(GPUStatEvent_##StatName,__LINE__) ((GraphBuilder), CSV_STAT_FNAME(StatName), FName(), &DrawcallCountCategory_##StatName.Counter);
+	#endif
+#else
+	#define RDG_GPU_STAT_SCOPE(GraphBuilder, StatName)
+#endif
+
+#if CSV_PROFILER
+	#define RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, StatName) FRDGScopedCsvStatExclusive RDGScopedCsvStatExclusive ## StatName (GraphBuilder, #StatName)
+	#define RDG_CSV_STAT_EXCLUSIVE_SCOPE_CONDITIONAL(GraphBuilder, StatName, bCondition) FRDGScopedCsvStatExclusiveConditional RDGScopedCsvStatExclusiveConditional ## StatName (GraphBuilder, #StatName, bCondition)
+#else
+	#define RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, StatName)
+	#define RDG_CSV_STAT_EXCLUSIVE_SCOPE_CONDITIONAL(GraphBuilder, StatName, bCondition)
+#endif
+
 /** Returns whether the current frame is emitting render graph events. */
 RENDERCORE_API bool GetEmitRDGEvents();
 
@@ -15,7 +51,7 @@ class TRDGScopeStack final
 	static constexpr uint32 kScopeStackDepthMax = 8;
 public:
 	using FPushFunction = void(*)(FRHIComputeCommandList&, const TScopeType*);
-	using FPopFunction = void(*)(FRHIComputeCommandList&);
+	using FPopFunction = void(*)(FRHIComputeCommandList&, const TScopeType*);
 
 	TRDGScopeStack(FRHIComputeCommandList& InRHICmdList, FPushFunction InPushFunction, FPopFunction InPopFunction);
 	~TRDGScopeStack();
@@ -98,8 +134,8 @@ public:
 
 private:
 #if RDG_EVENTS == RDG_EVENTS_STRING_REF || RDG_EVENTS == RDG_EVENTS_STRING_COPY
-	// Event format kept arround to still have a clue what error might be causing the problem in error messages.
-	const TCHAR* EventFormat = nullptr;
+	// Event format kept around to still have a clue what error might be causing the problem in error messages.
+	const TCHAR* EventFormat = TEXT("");
 
 #if RDG_EVENTS == RDG_EVENTS_STRING_COPY
 	// Formated event name if GetEmitRDGEvents() == true.
@@ -108,16 +144,27 @@ private:
 #endif
 };
 
+#if RDG_GPU_SCOPES
+
 class FRDGEventScope final
 {
 public:
-	FRDGEventScope(const FRDGEventScope* InParentScope, FRDGEventName&& InName)
+	FRDGEventScope(const FRDGEventScope* InParentScope, FRDGEventName&& InName, FRHIGPUMask InGPUMask)
 		: ParentScope(InParentScope)
 		, Name(Forward<FRDGEventName&&>(InName))
+#if WITH_MGPU
+		, GPUMask(InGPUMask)
+#endif
 	{}
+
+	/** Returns a formatted path for debugging. */
+	FString GetPath(const FRDGEventName& Event) const;
 
 	const FRDGEventScope* const ParentScope;
 	const FRDGEventName Name;
+#if WITH_MGPU
+	const FRHIGPUMask GPUMask;
+#endif
 };
 
 /** Manages a stack of event scopes. Scopes are recorded ahead of time in a hierarchical fashion
@@ -128,31 +175,17 @@ class RENDERCORE_API FRDGEventScopeStack final
 public:
 	FRDGEventScopeStack(FRHIComputeCommandList& RHICmdList);
 
-	//////////////////////////////////////////////////////////////////////////
-	//! Called during graph setup phase.
-
-	/** Call to begin recording an event scope. */
 	void BeginScope(FRDGEventName&& EventName);
 
-	/** Call to end recording an event scope. */
 	void EndScope();
 
-	//////////////////////////////////////////////////////////////////////////
-	//! Called during graph execute phase.
-
-	/** Call prior to executing the graph. */
 	void BeginExecute();
 
-	/** Call prior to executing a pass in the graph. */
 	void BeginExecutePass(const FRDGPass* Pass);
 
-	/** Call after executing a pass in the graph. */
 	void EndExecutePass();
 
-	/** Call after executing the graph. */
 	void EndExecute();
-
-	//////////////////////////////////////////////////////////////////////////
 
 	const FRDGEventScope* GetCurrentScope() const
 	{
@@ -162,9 +195,11 @@ public:
 private:
 	static bool IsEnabled();
 	TRDGScopeStack<FRDGEventScope> ScopeStack;
+	bool bEventPushed = false;
 };
 
-/** RAII class for begin / end of an event scope through the graph builder. */
+RENDERCORE_API FString GetRDGEventPath(const FRDGEventScope* Scope, const FRDGEventName& Event);
+
 class RENDERCORE_API FRDGEventScopeGuard final
 {
 public:
@@ -177,114 +212,74 @@ private:
 	bool bCondition = true;
 };
 
-/** Macros for create render graph event names and scopes.
- *
- *  FRDGEventName Name = RDG_EVENT_NAME("MyPass %sx%s", ViewRect.Width(), ViewRect.Height());
- *
- *  RDG_EVENT_SCOPE(GraphBuilder, "MyProcessing %sx%s", ViewRect.Width(), ViewRect.Height());
- */
-#if RDG_EVENTS == RDG_EVENTS_STRING_REF || RDG_EVENTS == RDG_EVENTS_STRING_COPY
-	#define RDG_EVENT_NAME(Format, ...) FRDGEventName(TEXT(Format), ##__VA_ARGS__)
-	#define RDG_EVENT_SCOPE(GraphBuilder, Format, ...) FRDGEventScopeGuard PREPROCESSOR_JOIN(__RDG_ScopeRef_,__LINE__) ((GraphBuilder), RDG_EVENT_NAME(Format, ##__VA_ARGS__))
-	#define RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Condition, Format, ...) FRDGEventScopeGuard PREPROCESSOR_JOIN(__RDG_ScopeRef_,__LINE__) ((GraphBuilder), RDG_EVENT_NAME(Format, ##__VA_ARGS__), Condition)
-#elif RDG_EVENTS == RDG_EVENTS_NONE
-	#define RDG_EVENT_NAME(Format, ...) FRDGEventName()
-	#define RDG_EVENT_SCOPE(GraphBuilder, Format, ...) 
-	#define RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Condition, Format, ...)
-#else
-	#error "RDG_EVENTS is not a valid value."
-#endif
-
 //////////////////////////////////////////////////////////////////////////
 //
 // GPU Stats - Aggregated counters emitted to the runtime 'stat GPU' profiler.
 //
 //////////////////////////////////////////////////////////////////////////
 
-class FRDGStatScope final
+class FRDGGPUStatScope final
 {
 public:
-	FRDGStatScope(const FRDGStatScope* InParentScope, const FName& InName, const FName& InStatName)
+	FRDGGPUStatScope(const FRDGGPUStatScope* InParentScope, const FName& InName, const FName& InStatName, int32* InDrawCallCounter)
 		: ParentScope(InParentScope)
 		, Name(InName)
 		, StatName(InStatName)
+		, DrawCallCounter(InDrawCallCounter)
 	{}
 
-	const FRDGStatScope* const ParentScope;
+	const FRDGGPUStatScope* const ParentScope;
 	const FName Name;
 	const FName StatName;
+	int32* DrawCallCounter;
 };
 
-class RENDERCORE_API FRDGStatScopeStack final
+class RENDERCORE_API FRDGGPUStatScopeStack final
 {
 public:
-	FRDGStatScopeStack(FRHIComputeCommandList& RHICmdList);
+	FRDGGPUStatScopeStack(FRHIComputeCommandList& RHICmdList);
 
-	//////////////////////////////////////////////////////////////////////////
-	//! Called during graph setup phase.
+	void BeginScope(const FName& Name, const FName& StatName, int32* DrawCallCounter);
 
-	/** Call to begin recording a stat scope. */
-	void BeginScope(const FName& Name, const FName& StatName);
-
-	/** Call to end recording a stat scope. */
 	void EndScope();
 
-	//////////////////////////////////////////////////////////////////////////
-	//! Called during graph execute phase.
-
-	/** Call prior to executing the graph. */
 	void BeginExecute();
 
-	/** Call prior to executing a pass in the graph. */
 	void BeginExecutePass(const FRDGPass* Pass);
 
-	/** Call after executing the graph. */
 	void EndExecute();
 
-	//////////////////////////////////////////////////////////////////////////
-
-	const FRDGStatScope* GetCurrentScope() const
+	const FRDGGPUStatScope* GetCurrentScope() const
 	{
 		return ScopeStack.GetCurrentScope();
 	}
 
 private:
 	static bool IsEnabled();
-	TRDGScopeStack<FRDGStatScope> ScopeStack;
+	TRDGScopeStack<FRDGGPUStatScope> ScopeStack;
 };
 
-/** RAII class for begin / end of a stat scope through the graph builder. */
-class RENDERCORE_API FRDGStatScopeGuard final
+class RENDERCORE_API FRDGGPUStatScopeGuard final
 {
 public:
-	FRDGStatScopeGuard(FRDGBuilder& InGraphBuilder, const FName& Name, const FName& StatName);
-	FRDGStatScopeGuard(const FRDGStatScopeGuard&) = delete;
-	~FRDGStatScopeGuard();
+	FRDGGPUStatScopeGuard(FRDGBuilder& InGraphBuilder, const FName& Name, const FName& StatName, int32* DrawCallCounter);
+	FRDGGPUStatScopeGuard(const FRDGGPUStatScopeGuard&) = delete;
+	~FRDGGPUStatScopeGuard();
 
 private:
 	FRDGBuilder& GraphBuilder;
 };
 
-#if HAS_GPU_STATS
-	#if STATS
-		#define RDG_GPU_STAT_SCOPE(GraphBuilder, StatName) FRDGStatScopeGuard PREPROCESSOR_JOIN(GPUStatEvent_##StatName,__LINE__) ((GraphBuilder), CSV_STAT_FNAME(StatName), GET_STATID(Stat_GPU_##StatName).GetName());
-	#else
-		#define RDG_GPU_STAT_SCOPE(GraphBuilder, StatName) FRDGStatScopeGuard PREPROCESSOR_JOIN(GPUStatEvent_##StatName,__LINE__) ((GraphBuilder), CSV_STAT_FNAME(StatName), FName());
-	#endif
-#else
-	#define RDG_GPU_STAT_SCOPE(GraphBuilder, StatName)
-#endif
-
-struct FRDGScopes
+struct FRDGGPUScopes
 {
 	const FRDGEventScope* Event = nullptr;
-	const FRDGStatScope* Stat = nullptr;
+	const FRDGGPUStatScope* Stat = nullptr;
 };
 
 /** The complete set of scope stack implementations. */
-struct FRDGScopeStacks
+struct FRDGGPUScopeStacks
 {
-	FRDGScopeStacks(FRHIComputeCommandList& RHICmdList);
+	FRDGGPUScopeStacks(FRHIComputeCommandList& RHICmdList);
 
 	void BeginExecute();
 
@@ -294,21 +289,21 @@ struct FRDGScopeStacks
 
 	void EndExecute();
 
-	FRDGScopes GetCurrentScopes() const;
+	FRDGGPUScopes GetCurrentScopes() const;
 
 	FRDGEventScopeStack Event;
-	FRDGStatScopeStack Stat;
+	FRDGGPUStatScopeStack Stat;
 };
 
-struct FRDGScopeStacksByPipeline
+struct FRDGGPUScopeStacksByPipeline
 {
-	FRDGScopeStacksByPipeline(FRHICommandListImmediate& RHICmdListGraphics, FRHIComputeCommandList& RHICmdListAsyncCompute);
+	FRDGGPUScopeStacksByPipeline(FRHICommandListImmediate& RHICmdListGraphics, FRHIComputeCommandList& RHICmdListAsyncCompute);
 
 	void BeginEventScope(FRDGEventName&& ScopeName);
 
 	void EndEventScope();
 
-	void BeginStatScope(const FName& Name, const FName& StatName);
+	void BeginStatScope(const FName& Name, const FName& StatName, int32* DrawCallCounter);
 
 	void EndStatScope();
 
@@ -320,14 +315,108 @@ struct FRDGScopeStacksByPipeline
 
 	void EndExecute();
 
-	const FRDGScopeStacks& GetScopeStacks(ERDGPipeline Pipeline) const;
+	const FRDGGPUScopeStacks& GetScopeStacks(ERHIPipeline Pipeline) const;
 
-	FRDGScopeStacks& GetScopeStacks(ERDGPipeline Pipeline);
+	FRDGGPUScopeStacks& GetScopeStacks(ERHIPipeline Pipeline);
 
-	FRDGScopes GetCurrentScopes(ERDGPipeline Pipeline) const;
+	FRDGGPUScopes GetCurrentScopes(ERHIPipeline Pipeline) const;
 
-	FRDGScopeStacks Graphics;
-	FRDGScopeStacks AsyncCompute;
+	FRDGGPUScopeStacks Graphics;
+	FRDGGPUScopeStacks AsyncCompute;
 };
+
+#endif
+
+//////////////////////////////////////////////////////////////////////////
+//
+// CPU CSV Stats
+//
+//////////////////////////////////////////////////////////////////////////
+
+#if RDG_CPU_SCOPES
+
+class FRDGCSVStatScope final
+{
+public:
+	FRDGCSVStatScope(const FRDGCSVStatScope* InParentScope, const char* InStatName)
+		: ParentScope(InParentScope)
+		, StatName(InStatName)
+	{}
+
+	const FRDGCSVStatScope* const ParentScope;
+	const char* StatName;
+};
+
+class RENDERCORE_API FRDGCSVStatScopeStack final
+{
+public:
+	FRDGCSVStatScopeStack(FRHIComputeCommandList& RHICmdList, const char* UnaccountedStatName);
+
+	void BeginScope(const char* StatName);
+
+	void EndScope();
+
+	void BeginExecute();
+
+	void BeginExecutePass(const FRDGPass* Pass);
+
+	void EndExecute();
+
+	const FRDGCSVStatScope* GetCurrentScope() const
+	{
+		return ScopeStack.GetCurrentScope();
+	}
+
+private:
+	static bool IsEnabled();
+	TRDGScopeStack<FRDGCSVStatScope> ScopeStack;
+	const char* const UnaccountedStatName;
+};
+
+#if CSV_PROFILER
+
+class RENDERCORE_API FRDGScopedCsvStatExclusive : public FScopedCsvStatExclusive
+{
+public:
+	FRDGScopedCsvStatExclusive(FRDGBuilder& InGraphBuilder, const char* InStatName);
+	~FRDGScopedCsvStatExclusive();
+
+private:
+	FRDGBuilder& GraphBuilder;
+};
+
+class RENDERCORE_API FRDGScopedCsvStatExclusiveConditional : public FScopedCsvStatExclusiveConditional
+{
+public:
+	FRDGScopedCsvStatExclusiveConditional(FRDGBuilder& InGraphBuilder, const char* InStatName, bool bInCondition);
+	~FRDGScopedCsvStatExclusiveConditional();
+
+private:
+	FRDGBuilder& GraphBuilder;
+};
+
+#endif
+
+struct FRDGCPUScopes
+{
+	const FRDGCSVStatScope* CSV = nullptr;
+};
+
+struct FRDGCPUScopeStacks
+{
+	FRDGCPUScopeStacks(FRHIComputeCommandList& RHICmdList, const char* UnaccountedCSVStat);
+
+	void BeginExecute();
+
+	void BeginExecutePass(const FRDGPass* Pass);
+
+	void EndExecute();
+
+	FRDGCPUScopes GetCurrentScopes() const;
+
+	FRDGCSVStatScopeStack CSV;
+};
+
+#endif
 
 #include "RenderGraphEvent.inl"

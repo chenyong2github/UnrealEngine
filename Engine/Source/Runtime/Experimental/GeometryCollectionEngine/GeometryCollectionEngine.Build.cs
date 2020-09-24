@@ -22,8 +22,6 @@ namespace UnrealBuildTool.Rules
 					"Renderer",
                     "PhysX",
                     "FieldSystemEngine",
-                    "GeometryCollectionCore", 
-                    "GeometryCollectionSimulationCore",
 	                "ChaosSolverEngine",
 					"NetCore",
                     "IntelISPC"

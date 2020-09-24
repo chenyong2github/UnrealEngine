@@ -4,10 +4,11 @@
 
 ICustomResourcePool* GCustomResourcePool = nullptr;
 
-void ICustomResourcePool::TickPoolElements()
+void ICustomResourcePool::TickPoolElements(FRHICommandListImmediate& RHICmdList)
 {
+	check(IsInRenderingThread());
 	if (GCustomResourcePool)
 	{
-		GCustomResourcePool->Tick();
+		GCustomResourcePool->Tick(RHICmdList);
 	}
 }

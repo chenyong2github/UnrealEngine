@@ -2547,7 +2547,7 @@ bool FConcertSyncSessionDatabase::SavePackage(const FString& InDstPackageBlobPat
 			if (DstAr)
 			{
 				DstAr->Serialize(PackageBlob.GetData(), PackageBlob.Num());
-				return DstAr->IsError();
+				return !DstAr->IsError();
 			}
 		}
 	}

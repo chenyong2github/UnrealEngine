@@ -19,7 +19,7 @@ enum class EMagicLeapLocationResult : uint8
 
 /** Location request result. */
 USTRUCT(BlueprintType)
-struct FMagicLeapLocationData
+struct MAGICLEAPLOCATION_API FMagicLeapLocationData
 {
 	GENERATED_USTRUCT_BODY()
 

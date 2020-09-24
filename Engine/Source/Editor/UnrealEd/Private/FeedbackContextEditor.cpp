@@ -380,8 +380,20 @@ static void TickSlate(TSharedPtr<SWindow> SlowTaskWindow)
 	// Avoid re-entrancy by ticking the active modal window again. This can happen if thhe slow task window is open and a sibling modal window is open as well.  We only tick slate if we are the active modal window or a child of the active modal window
 	if( SlowTaskWindow.IsValid() && ( FSlateApplication::Get().GetActiveModalWindow() == SlowTaskWindow || SlowTaskWindow->IsDescendantOf( FSlateApplication::Get().GetActiveModalWindow() ) ) )
 	{
+		// Mark begin frame
+		if (GIsRHIInitialized)
+		{
+			ENQUEUE_RENDER_COMMAND(BeginFrameCmd)([](FRHICommandListImmediate& RHICmdList) { RHICmdList.BeginFrame(); });
+		}
+
 		// Tick Slate application
 		FSlateApplication::Get().Tick();
+
+		// End frame so frame fence number gets incremented
+		if (GIsRHIInitialized)
+		{
+			ENQUEUE_RENDER_COMMAND(EndFrameCmd)([](FRHICommandListImmediate& RHICmdList) { RHICmdList.EndFrame(); });
+		}
 
 		// Sync the game thread and the render thread. This is needed if many StatusUpdate are called
 		FSlateApplication::Get().GetRenderer()->Sync();

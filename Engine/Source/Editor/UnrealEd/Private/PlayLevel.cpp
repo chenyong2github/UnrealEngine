@@ -526,10 +526,15 @@ void UEditorEngine::EndPlayMap()
 			// Update the position where the first PIE window will be opened (this also updates its displayed value in "Editor Preferences" --> "Level Editor" --> "Play" --> "New Window Position")
 			if (WindowIndex == 0)
 			{
-				// Only update it if "Always center window to screen" is disabled
-				if (!PlaySettingsConfig->CenterNewWindow)
+				// Remember last known size
+				PlaySettingsConfig->LastSize = PlayInEditorSessionInfo->CachedWindowInfo[0].Size;
+
+				// Only update it if "Always center window to screen" is disabled, and the size was not 0 (which means it is attached to the editor rather than being an standalone window)
+				if (!PlaySettingsConfig->CenterNewWindow && PlaySettingsConfig->LastSize.X > 0 && PlaySettingsConfig->LastSize.Y > 0)
 				{
 					PlaySettingsConfig->NewWindowPosition = PlaySettingsConfig->MultipleInstancePositions[WindowIndex];
+					PlaySettingsConfig->NewWindowWidth = PlaySettingsConfig->LastSize.X;
+					PlaySettingsConfig->NewWindowHeight = PlaySettingsConfig->LastSize.Y;
 				}
 			}
 		}
@@ -1020,6 +1025,20 @@ void UEditorEngine::StartQueuedPlaySessionRequestImpl()
 		return;
 	}
 
+	// End any previous sessions running in separate processes.
+	EndPlayOnLocalPc();
+
+	// If there's level already being played, close it. (This may change GWorld). 
+	if (PlayWorld && PlaySessionRequest->SessionDestination == EPlaySessionDestinationType::InProcess)
+	{
+		// Cache our Play Session Request, as EndPlayMap will clear it. When this function exits the request will be reset anyways.
+		FRequestPlaySessionParams OriginalRequest = PlaySessionRequest.GetValue();
+		// Immediately end the current play world.
+		EndPlayMap(); 
+		// Restore the request as we're now processing it.
+		PlaySessionRequest = OriginalRequest;
+	}
+
 	// We want to use the ULevelEditorPlaySettings that come from the Play Session Request.
 	// By the time this function gets called, these settings are a copy of either the CDO, 
 	// or a user provided instance. The settings may have been modified by the game instance
@@ -1041,9 +1060,6 @@ void UEditorEngine::StartQueuedPlaySessionRequestImpl()
 		FPlayInEditorSessionInfo::FWindowSizeAndPos& NewPos = PlayInEditorSessionInfo->CachedWindowInfo.Add_GetRef(FPlayInEditorSessionInfo::FWindowSizeAndPos());
 		NewPos.Position = Position;
 	}
-
-	// End any previous sessions running in separate processes.
-	EndPlayOnLocalPc();
 
 	// If our settings require us to launch a separate process in any form, we require the user to save
 	// their content so that when the new process reads the data from disk it will match what we have in-editor.
@@ -1964,7 +1980,7 @@ void UEditorEngine::ToggleBetweenPIEandSIE( bool bNewSession )
 			// The Simulate window should show stats
 			EditorViewportClient.SetShowStats( true );
 
-			if( SlatePlayInEditorSession.EditorPlayer.IsValid() )
+			if ( SlatePlayInEditorSession.EditorPlayer.IsValid() && SlatePlayInEditorSession.EditorPlayer.Get()->PlayerController )
 			{
 				// Move the editor camera to where the player was.  
 				FVector ViewLocation;
@@ -2155,7 +2171,7 @@ UWorld* UEditorEngine::CreatePIEWorldByDuplication(FWorldContext &WorldContext, 
 	// Create a package for the PIE world
 	UE_LOG( LogPlayLevel, Log, TEXT("Creating play world package: %s"),  *PlayWorldMapName );	
 
-	UPackage* PlayWorldPackage = CreatePackage(nullptr,*PlayWorldMapName);
+	UPackage* PlayWorldPackage = CreatePackage(*PlayWorldMapName);
 	PlayWorldPackage->SetPackageFlags(PKG_PlayInEditor);
 	PlayWorldPackage->PIEInstanceID = WorldContext.PIEInstance;
 	PlayWorldPackage->FileName = InPackage->FileName;
@@ -2483,14 +2499,6 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 				Blueprint->bDisplayCompilePIEWarning = false;
 			}
 		}
-	}
-
-	// If there's level already being played, close it. (This may change GWorld). 
-	// This also invalidates PlaySessionRequest so don't use it below.
-	if (PlayWorld)
-	{
-		// Immediately end the play world.
-		EndPlayMap();
 	}
 
 	// Register for log processing so we can promote errors/warnings to the message log
@@ -3165,7 +3173,7 @@ TSharedRef<SPIEViewport> UEditorEngine::GeneratePIEViewportWindow(const FRequest
 
 	GameLayerManagerRef->SetSceneViewport(InSlateInfo.SlatePlayInEditorWindowViewport.Get());
 
-	const bool bShouldGameGetMouseControl = InSessionParams.EditorPlaySettings->GameGetsMouseControl || (bEnableStereoRendering && GEngine->XRSystem.IsValid());
+	const bool bShouldGameGetMouseControl = InSessionParams.EditorPlaySettings->GameGetsMouseControl || (bEnableStereoRendering && GEngine && GEngine->XRSystem.IsValid());
 	InSlateInfo.SlatePlayInEditorWindowViewport->SetPlayInEditorGetsMouseControl(bShouldGameGetMouseControl);
 	PieViewportWidget->SetViewportInterface(InSlateInfo.SlatePlayInEditorWindowViewport.ToSharedRef());
 
@@ -3182,7 +3190,8 @@ TSharedRef<SPIEViewport> UEditorEngine::GeneratePIEViewportWindow(const FRequest
 	// Change the system resolution to match our window, to make sure game and slate window are kept synchronized
 	FSystemResolution::RequestResolutionChange(WindowSize.X, WindowSize.Y, EWindowMode::Windowed);
 
-	if (bVRPreview)
+	const bool bHMDIsReady = (GEngine && GEngine->XRSystem.IsValid() && GEngine->XRSystem->GetHMDDevice() && GEngine->XRSystem->GetHMDDevice()->IsHMDConnected());
+	if (bVRPreview && bHMDIsReady)
 	{
 		GEngine->StereoRenderingDevice->EnableStereo(true);
 
@@ -3302,7 +3311,8 @@ void UEditorEngine::GetWindowSizeAndPositionForInstanceIndex(ULevelEditorPlaySet
 	// Now we can position the window. If it is the first window, we can respect the center window flag.
 	if (InInstanceIndex == 0)
 	{
-		if (InEditorPlaySettings.CenterNewWindow)
+		// Center window if CenterNewWindow checked or if NewWindowPosition is FIntPoint::NoneValue (-1,-1)
+		if (InEditorPlaySettings.CenterNewWindow || InEditorPlaySettings.NewWindowPosition == FIntPoint::NoneValue)
 		{
 			// We don't store the last window position in this case, because we want additional windows
 			// to open starting at the top left of the monitor.

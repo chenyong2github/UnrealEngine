@@ -1,11 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	VulkanCommon.usf: Common Vulkan shader code
+	VulkanCommon.ush: Common Vulkan shader code
 =============================================================================*/
 
-// Update this GUID to invalidate Vulkan shaders and force a shader recompilation for the Vulkan RHI.
-// GUID = 97939BC2-746A-481C-B024-9DECD6366A92
-// Glslang 1.1.82.1
+// Update this GUID to improve shader recompilation for Vulkan only shaders
+// GUID = 6CC07ADA-792F-4ED7-8196-B25B9665045A
 
 #pragma once

@@ -78,9 +78,7 @@ FSlateMaterialResource::FSlateMaterialResource(const UMaterialInterface& InMater
 	UpdateMaterialName();
 
 	SlateMaterialResource::CheckInvalidMaterialProxy(MaterialProxy, DebugName);
-
 #else
-
 	MaterialProxy = InMaterialResource.GetRenderProxy();
 #endif
 
@@ -142,6 +140,7 @@ void FSlateMaterialResource::UpdateMaterial(const UMaterialInterface& InMaterial
 void FSlateMaterialResource::ResetMaterial()
 {
 	MaterialObject = nullptr;
+	MaterialProxy = nullptr;
 
 #if SLATE_CHECK_UOBJECT_RENDER_RESOURCES
 	MaterialObjectWeakPtr = nullptr;

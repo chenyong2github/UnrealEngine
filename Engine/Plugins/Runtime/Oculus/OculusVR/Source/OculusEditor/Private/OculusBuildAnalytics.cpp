@@ -11,16 +11,18 @@ FOculusBuildAnalytics* FOculusBuildAnalytics::GetInstance()
 {
 	if (IOculusHMDModule::IsAvailable())
 	{
-		if (FOculusHMDModule::Get().PreInit())
+		if (instance == NULL)
 		{
-			if (instance == 0)
-			{
-				instance = new FOculusBuildAnalytics();
-			}
+			instance = new FOculusBuildAnalytics();
 		}
 	}
 
 	return instance;
+}
+
+bool FOculusBuildAnalytics::IsOculusHMDAvailable()
+{
+	return IOculusHMDModule::IsAvailable() && FOculusHMDModule::Get().PreInit();
 }
 
 void FOculusBuildAnalytics::Shutdown()
@@ -108,10 +110,6 @@ void FOculusBuildAnalytics::OnLauncherWorkerStarted(ILauncherWorkerPtr LauncherW
 				TArray<TEnumAsByte<EOculusMobileDevice::Type>> TargetOculusDevices = Settings->PackageForOculusMobile;
 				TArray<FString> Devices;
 
-				if (TargetOculusDevices.Contains(EOculusMobileDevice::GearGo))
-				{
-					Devices.Add("geargo");
-				}
 				if (TargetOculusDevices.Contains(EOculusMobileDevice::Quest))
 				{
 					Devices.Add("quest");

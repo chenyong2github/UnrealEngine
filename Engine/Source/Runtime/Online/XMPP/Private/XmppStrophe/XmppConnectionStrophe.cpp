@@ -149,9 +149,10 @@ void FXmppConnectionStrophe::Logout()
 
 EXmppLoginStatus::Type FXmppConnectionStrophe::GetLoginStatus() const
 {
-	if (LoginStatus == EXmppLoginStatus::LoggedIn)
+	EXmppLoginStatus::Type CurrentLoginStatus = LoginStatus;
+	if (CurrentLoginStatus == EXmppLoginStatus::LoggedIn || CurrentLoginStatus == EXmppLoginStatus::ProcessingLogin)
 	{
-		return EXmppLoginStatus::LoggedIn;
+		return CurrentLoginStatus;
 	}
 	else
 	{

@@ -212,6 +212,9 @@ private:
 	/** Serializes the timestamped cache of discovered assets. Used for quick loading of data for assets that have not changed on disk */
 	void SerializeCache(FArchive& Ar);
 
+	/* Adds the given PackageName,DiskCachedAssetData pair into NewCachedAssetDataMap, and detects collisions for multiple files with the same PackageName */
+	void AddToCache(FName PackageName, FDiskCachedAssetData* DiskCachedAssetData);
+
 private:
 	/** A critical section to protect data transfer to the main thread */
 	FCriticalSection WorkerThreadCriticalSection;

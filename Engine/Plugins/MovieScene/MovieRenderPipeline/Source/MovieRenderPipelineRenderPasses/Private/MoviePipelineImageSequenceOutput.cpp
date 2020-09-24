@@ -13,13 +13,12 @@
 #include "MovieRenderPipelineCoreModule.h"
 #include "Misc/FrameRate.h"
 #include "MoviePipelineOutputSetting.h"
+#include "MoviePipelineBurnInSetting.h"
 #include "Containers/UnrealString.h"
 #include "Misc/StringFormatArg.h"
 #include "MoviePipelineOutputBase.h"
 #include "MoviePipelineImageQuantization.h"
 
-// Forward Declare
-static TUniquePtr<FImagePixelData> QuantizePixelDataTo8bpp(FImagePixelData* InPixelData);
 
 DECLARE_CYCLE_STAT(TEXT("ImgSeqOutput_RecieveImageData"), STAT_ImgSeqRecieveImageData, STATGROUP_MoviePipeline);
 
@@ -49,29 +48,36 @@ void UMoviePipelineImageSequenceOutputBase::OnRecieveImageDataImpl(FMoviePipelin
 
 	check(InMergedOutputFrame);
 
-	// We do a little special handling for Burn In overlays, because we need to composite them on top of the main image. We may also want to write them
-	// to disk separately from the main file, which may then result in writing a separate image type (ie: jpegs must write burn in as a png for alpha support).
+	UMoviePipelineBurnInSetting* BurnInSettings = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineBurnInSetting>();
+	bool bCompositeBurnInOntoFinalImage = BurnInSettings ? BurnInSettings->bCompositeOntoFinalImage : false;
+
+	// We do a little special handling for Burn In overlays if we are compositing them on top of the main image, otherwise we treat them as normal passes
 	TUniquePtr<FImagePixelData> BurnInImageData = nullptr;
-	for (TPair<FMoviePipelinePassIdentifier, TUniquePtr<FImagePixelData>>& RenderPassData : InMergedOutputFrame->ImageOutputData)
+	if (bCompositeBurnInOntoFinalImage)
 	{
-		if (RenderPassData.Key == FMoviePipelinePassIdentifier(TEXT("BurnInOverlay")))
+		for (TPair<FMoviePipelinePassIdentifier, TUniquePtr<FImagePixelData>>& RenderPassData : InMergedOutputFrame->ImageOutputData)
 		{
-			// Burn in data should always be 8 bit values, this is assumed later when we composite.
-			check(RenderPassData.Value->GetType() == EImagePixelType::Color);
-			BurnInImageData = RenderPassData.Value->CopyImageData();
-			break;
+			if (RenderPassData.Key == FMoviePipelinePassIdentifier(TEXT("BurnInOverlay")))
+			{
+				// Burn in data should always be 8 bit values, this is assumed later when we composite.
+				check(RenderPassData.Value->GetType() == EImagePixelType::Color);
+				BurnInImageData = RenderPassData.Value->CopyImageData();
+				break;
+			}
 		}
 	}
 
 	UMoviePipelineOutputSetting* OutputSettings = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
 	check(OutputSettings);
 
+	UMoviePipelineColorSetting* ColorSetting = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineColorSetting>();
+
 	FString OutputDirectory = OutputSettings->OutputDirectory.Path;
 
 	for (TPair<FMoviePipelinePassIdentifier, TUniquePtr<FImagePixelData>>& RenderPassData : InMergedOutputFrame->ImageOutputData)
 	{
-		// Don't write out the burn in pass in this loop, it will get handled separately (or composited).
-		if (RenderPassData.Key == FMoviePipelinePassIdentifier(TEXT("BurnInOverlay")))
+		// Don't write out the burn in pass in this loop if it is being composited on the final image
+		if (bCompositeBurnInOntoFinalImage && RenderPassData.Key == FMoviePipelinePassIdentifier(TEXT("BurnInOverlay")))
 		{
 			continue;
 		}
@@ -111,7 +117,7 @@ void UMoviePipelineImageSequenceOutputBase::OnRecieveImageDataImpl(FMoviePipelin
 		{
 			// All three of these formats only support 8 bit data, so we need to take the incoming buffer type,
 			// copy it into a new 8-bit array and optionally apply a little noise to the data to help hide gradient banding.
-			QuantizedPixelData = UE::MoviePipeline::QuantizeImagePixelDataToBitDepth(RenderPassData.Value.Get(), 8);
+			QuantizedPixelData = UE::MoviePipeline::QuantizeImagePixelDataToBitDepth(RenderPassData.Value.Get(), 8, nullptr, !(ColorSetting && ColorSetting->OCIOConfiguration.bIsEnabled));
 			break;
 		}
 		case EImageFormat::EXR:
@@ -130,7 +136,7 @@ void UMoviePipelineImageSequenceOutputBase::OnRecieveImageDataImpl(FMoviePipelin
 			FString FileNameFormatString = OutputSettings->FileNameFormat;
 
 			// If we're writing more than one render pass out, we need to ensure the file name has the format string in it so we don't
-			// overwrite the same file multiple times. Burn In overlays don't count because they get composited on top of an existing file.
+			// overwrite the same file multiple times. Burn In overlays don't count if they are getting composited on top of an existing file.
 			const bool bIncludeRenderPass = InMergedOutputFrame->ImageOutputData.Num() - (BurnInImageData ? 1 : 0) > 1;
 			const bool bTestFrameNumber = true;
 
@@ -177,39 +183,6 @@ void UMoviePipelineImageSequenceOutputBase::OnRecieveImageDataImpl(FMoviePipelin
 			}
 		}
 
-		if (IsAlphaSupported())
-		{
-			// Flip the alpha channel output to match what PNG and other specifications expect.
-			switch (QuantizedPixelData->GetType())
-			{
-			case EImagePixelType::Color:
-				TileImageTask->PixelPreProcessors.Add(TAsyncAlphaInvert<FColor>());
-				break;
-			case EImagePixelType::Float16:
-				TileImageTask->PixelPreProcessors.Add(TAsyncAlphaInvert<FFloat16Color>());
-				break;
-			case EImagePixelType::Float32:
-				TileImageTask->PixelPreProcessors.Add(TAsyncAlphaInvert<FLinearColor>());
-				break;
-			}
-		}
-		// We don't flip these right now because we assume that it comes in with the correct Transparent vs. Opaque.
-		else if(!Payload->bRequireTransparentOutput)
-		{
-			// Fill the alpha channel when alpha is not supported/enabled.
-			switch (QuantizedPixelData->GetType())
-			{
-			case EImagePixelType::Color:
-				TileImageTask->PixelPreProcessors.Add(TAsyncAlphaWrite<FColor>(255));
-				break;
-			case EImagePixelType::Float16:
-				TileImageTask->PixelPreProcessors.Add(TAsyncAlphaWrite<FFloat16Color>(1.f));
-				break;
-			case EImagePixelType::Float32:
-				TileImageTask->PixelPreProcessors.Add(TAsyncAlphaWrite<FLinearColor>(1.f));
-				break;
-			}
-		}
 
 		TileImageTask->PixelData = MoveTemp(QuantizedPixelData);
 		

@@ -211,7 +211,9 @@ namespace Chaos
 	template <typename T, int>
 	class TSphere;
 
+	class FConstraintBase;
 	class FJointConstraint;
+	class FSuspensionConstraint;
 
 	class FTriangleMeshImplicitObject;
 }
@@ -233,10 +235,12 @@ public:
 
 	bool IsValid() const;
 
-	Chaos::FJointConstraint* operator->() { return Constraint; }
-	const Chaos::FJointConstraint* operator->() const { return Constraint; }
 
-	Chaos::FJointConstraint* Constraint;
+
+	Chaos::FConstraintBase* operator->() { return Constraint; }
+	const Chaos::FConstraintBase* operator->() const { return Constraint; }
+
+	Chaos::FConstraintBase* Constraint;
 };
 
 class PHYSICSCORE_API FPhysicsShapeReference_Chaos
@@ -361,6 +365,9 @@ public:
 	static void AttachShape(const FPhysicsActorHandle& InActor,const FPhysicsShapeHandle& InNewShape);
 	static void DetachShape(const FPhysicsActorHandle& InActor,FPhysicsShapeHandle& InShape,bool bWakeTouching = true);
 
+	static void AddDisabledCollisionsFor_AssumesLocked(const TMap<FPhysicsActorHandle, TArray< FPhysicsActorHandle > >& InMap);
+	static void RemoveDisabledCollisionsFor_AssumesLocked(TArray< FPhysicsActorHandle > & InPhysicsActors);
+
 	static void SetActorUserData_AssumesLocked(FPhysicsActorHandle& InActorReference,FPhysicsUserData* InUserData);
 
 	static bool IsRigidBody(const FPhysicsActorHandle& InActorReference);
@@ -428,6 +435,8 @@ public:
 	static bool IsGravityEnabled_AssumesLocked(const FPhysicsActorHandle& InActorReference);
 	static void SetGravityEnabled_AssumesLocked(const FPhysicsActorHandle& InActorReference,bool bEnabled);
 
+	static void SetOneWayInteraction_AssumesLocked(const FPhysicsActorHandle& InHandle, bool InOneWayInteraction);
+
 	static float GetSleepEnergyThreshold_AssumesLocked(const FPhysicsActorHandle& InActorReference);
 	static void SetSleepEnergyThreshold_AssumesLocked(const FPhysicsActorHandle& InActorReference,float InEnergyThreshold);
 
@@ -449,6 +458,7 @@ public:
 	static SIZE_T GetResourceSizeEx(const FPhysicsActorHandle& InActorRef);
 
 	static FPhysicsConstraintHandle CreateConstraint(const FPhysicsActorHandle& InActorRef1,const FPhysicsActorHandle& InActorRef2,const FTransform& InLocalFrame1,const FTransform& InLocalFrame2);
+	static FPhysicsConstraintHandle CreateSuspension(const FPhysicsActorHandle& InActorRef, const FVector& InLocalFrame);
 	static void SetConstraintUserData(const FPhysicsConstraintHandle& InConstraintRef,void* InUserData);
 	static void ReleaseConstraint(FPhysicsConstraintHandle& InConstraintRef);
 

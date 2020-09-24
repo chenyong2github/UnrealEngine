@@ -199,8 +199,8 @@ public:
 	virtual IDatasmithExpressionInput& GetNormal() override { return Normal; }
 	virtual const IDatasmithExpressionInput& GetNormal() const override { return Normal; }
 
-	virtual IDatasmithExpressionInput& GetFlatness() override { return Normal; }
-	virtual const IDatasmithExpressionInput& GetFlatness() const override { return Normal; }
+	virtual IDatasmithExpressionInput& GetFlatness() override { return Flatness; }
+	virtual const IDatasmithExpressionInput& GetFlatness() const override { return Flatness; }
 
 	virtual int32 GetInputCount() const override { return 2; }
 	virtual IDatasmithExpressionInput* GetInput( int32 Index ) override { return Index == 0 ? &Normal : &Flatness; }
@@ -321,6 +321,9 @@ public:
 	virtual void SetParentLabel( const TCHAR* InParentLabel ) override { ParentLabel = InParentLabel; }
 	virtual const TCHAR* GetParentLabel() const override;
 
+	virtual void SetShadingModel( const EDatasmithShadingModel InShadingModel ) override { ShadingModel = InShadingModel; }
+	virtual EDatasmithShadingModel GetShadingModel() const override { return ShadingModel; }
+
 protected:
 	FDatasmithExpressionInputImpl< IDatasmithExpressionInput > BaseColor;
 	FDatasmithExpressionInputImpl< IDatasmithExpressionInput > Metallic;
@@ -344,6 +347,7 @@ protected:
 	float OpacityMaskClipValue;
 
 	FString ParentLabel;
+	EDatasmithShadingModel ShadingModel;
 };
 
 template< typename InterfaceType >

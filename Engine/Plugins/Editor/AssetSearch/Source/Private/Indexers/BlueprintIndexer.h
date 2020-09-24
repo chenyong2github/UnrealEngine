@@ -7,6 +7,8 @@
 
 class UBlueprint;
 struct FMemberReference;
+class FSearchSerializer;
+class UBlueprint;
 
 class FBlueprintIndexer : public IAssetIndexer
 {

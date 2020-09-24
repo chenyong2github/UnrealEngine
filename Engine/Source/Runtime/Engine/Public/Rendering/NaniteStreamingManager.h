@@ -116,13 +116,13 @@ public:
 	void	Add( FResources* Resources );
 	void	Remove( FResources* Resources );
 
-	ENGINE_API void BeginAsyncUpdate(FRHICommandListImmediate& RHICmdList);			// Called once per frame before any Nanite rendering has occurred. Must be called before EndUpdate.
+	ENGINE_API void BeginAsyncUpdate(FRDGBuilder& GraphBuilder);			// Called once per frame before any Nanite rendering has occurred. Must be called before EndUpdate.
 	ENGINE_API void EndAsyncUpdate(FRHICommandListImmediate& RHICmdList);			// Called once per frame before any Nanite rendering has occurred. Must be called after BeginUpdate.
 	ENGINE_API bool IsAsyncUpdateInProgress();
 	ENGINE_API void	SubmitFrameStreamingRequests(FRDGBuilder& GraphBuilder);		// Called once per frame after the last request has been added.
 	
 
-	TRefCountPtr< FPooledRDGBuffer >&	GetStreamingRequestsBuffer()		{ return StreamingRequestsBuffer; }
+	TRefCountPtr< FRDGPooledBuffer >&	GetStreamingRequestsBuffer()		{ return StreamingRequestsBuffer; }
 
 	FRHIShaderResourceView*				GetClusterPageDataSRV() const		{ return ClusterPageData.DataBuffer.SRV; }
 	FRHIShaderResourceView*				GetClusterPageHeadersSRV() const	{ return ClusterPageHeaders.DataBuffer.SRV; }
@@ -150,7 +150,7 @@ private:
 	FHeapBuffer				ClusterPageHeaders;
 	FScatterUploadBuffer	ClusterFixupUploadBuffer;
 	FHeapBuffer				Hierarchy;
-	TRefCountPtr< FPooledRDGBuffer > StreamingRequestsBuffer;
+	TRefCountPtr< FRDGPooledBuffer > StreamingRequestsBuffer;
 	
 	uint32					MaxStreamingPages;
 	uint32					MaxPendingPages;
@@ -208,7 +208,7 @@ private:
 	bool ArePageDependenciesCommitted(uint32 RuntimeResourceID, uint32 PageIndex, uint32 DependencyPageStart, uint32 DependencyPageNum);
 
 	// Returns whether any work was done and page/hierarchy buffers were transitioned to compute writable state
-	bool ProcessNewResources( FRHICommandListImmediate& RHICmdList );
+	bool ProcessNewResources( FRDGBuilder& GraphBuilder);
 	
 	uint32 DetermineReadyPages();
 	void InstallReadyPages( uint32 NumReadyPages );

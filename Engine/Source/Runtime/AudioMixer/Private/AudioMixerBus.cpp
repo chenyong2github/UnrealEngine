@@ -159,10 +159,8 @@ namespace Audio
 						Audio::MixInBufferFast(DownmixedBuffer.GetData(), BusDataBufferPtr, NumOutputFrames, AudioBusSend.SendLevel);
 					}
 					// If they're the same channels, just mix it in
-					else
+					else if (ensureMsgf(NumSourceChannels == NumChannels, TEXT("NumSourceChannels=%d, NumChannels=%d"), NumSourceChannels, NumChannels))
 					{
-						check(NumSourceChannels == NumChannels);
-
 						Audio::MixInBufferFast(SourceBufferPtr, BusDataBufferPtr, NumOutputFrames * NumChannels, AudioBusSend.SendLevel);
 					}
 

@@ -7,10 +7,21 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "ComposurePostMoves.h"
 #include "ComposureUVMap.h"
+
 #include "ComposureBlueprintLibrary.generated.h"
 
 class UCameraComponent;
 class USceneCaptureComponent2D;
+
+USTRUCT(BlueprintType)
+struct FComposureActorLayer
+{
+	GENERATED_BODY()
+
+	/** The name of this layer */
+		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Layer)
+		FName Name;
+};
 
 UCLASS(MinimalAPI, meta=(ScriptName="ComposureLibrary"))
 class UComposureBlueprintLibrary : public UBlueprintFunctionLibrary
@@ -47,6 +58,12 @@ class UComposureBlueprintLibrary : public UBlueprintFunctionLibrary
 		UVMapSettings.SetMaterialParameters(Material);
 	}
 	
+	/**
+	 * Get all the actors in this layer
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Composure", meta = (WorldContext = "WorldContextObject"))
+	static TArray<AActor*> GetActors(UObject* WorldContextObject, const FComposureActorLayer& ActorLayer);
+
 	/**
 	 * Converts displacement encoding parameters to decoding parameters.
 	 * Can also be used to convert displacement decoding parameters to encoding parameters.

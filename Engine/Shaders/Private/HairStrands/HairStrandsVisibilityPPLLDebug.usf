@@ -2,7 +2,7 @@
 
 #include "../Common.ush"
 #include "../ShaderPrintCommon.ush"
-#include "HairStrandsVisibilityCommon.ush"
+#include "HairStrandsVisibilityCommon.ush" 
 
 float PPLLMeanListElementCountPerPixel;
 float PPLLMaxTotalListElementCount;

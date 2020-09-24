@@ -111,10 +111,10 @@ bool FHttpRetrySystem::FRequest::ProcessRequest()
 void FHttpRetrySystem::FRequest::SetUrlFromRetryDomains()
 {
 	check(RetryDomains.IsValid());
-	FString OriginalUrlDomain = FPlatformHttp::GetUrlDomain(OriginalUrl);
-	if (!OriginalUrlDomain.IsEmpty())
+	FString OriginalUrlDomainAndPort = FPlatformHttp::GetUrlDomainAndPort(OriginalUrl);
+	if (!OriginalUrlDomainAndPort.IsEmpty())
 	{
-		const FString Url(OriginalUrl.Replace(*OriginalUrlDomain, *RetryDomains->Domains[RetryDomainsIndex]));
+		const FString Url(OriginalUrl.Replace(*OriginalUrlDomainAndPort, *RetryDomains->Domains[RetryDomainsIndex]));
 		HttpRequest->SetURL(Url);
 	}
 }

@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "PostProcess/RenderingCompositionGraph.h"
 #include "PostProcess/PostProcessEyeAdaptation.h"
 #include "ScreenPass.h"
 #include "OverridePassSequence.h"
@@ -66,8 +65,11 @@ struct FTonemapInputs
 	// [Required] Color grading texture used to remap colors.
 	FRDGTextureRef ColorGradingTexture = nullptr;
 
-	// [Optional] Eye adaptation texture used to compute exposure. If this is null, a default exposure value is used instead.
+	// [Optional, SM5+] Eye adaptation texture used to compute exposure. If this is null, a default exposure value is used instead.
 	FRDGTextureRef EyeAdaptationTexture = nullptr;
+
+	// [Optional, ES31] Eye adaptation buffer used to compute exposure. 
+	FRHIShaderResourceView* EyeAdaptationBuffer = nullptr;
 
 	// [Raster Only, Mobile] Flips the image vertically on output.
 	bool bFlipYAxis = false;
@@ -82,57 +84,38 @@ struct FTonemapInputs
 	bool bOutputInHDR = false;
 
 	bool bMetalMSAAHDRDecode = false;
-
-	FRHIShaderResourceView* EyeAdaptationBuffer = nullptr;
 };
 
 FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FTonemapInputs& Inputs);
 
-// derives from TRenderingCompositePassBase<InputCount, OutputCount>
-// ePId_Input0: SceneColor
-// ePId_Input1: BloomCombined (not needed for bDoGammaOnly)
-// ePId_Input2: EyeAdaptation (not needed for bDoGammaOnly)
-// ePId_Input3: LUTsCombined (not needed for bDoGammaOnly)
-class FRCPassPostProcessTonemap : public TRenderingCompositePassBase<4, 1>
+struct FMobileTonemapperInputs
 {
-public:
-	FRCPassPostProcessTonemap(bool bInDoGammaOnly, bool bDoEyeAdaptation, bool bHDROutput, bool bMetalMSAAHDRDecode, bool bIsMobileDof);
+	// [Optional] Render to the specified output. If invalid, a new texture is created and returned.
+	FScreenPassRenderTarget OverrideOutput;
 
-	virtual void Process(FRenderingCompositePassContext& Context) override;
-	virtual void Release() override { delete this; }
-	virtual FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
+	// [Required] HDR scene color to tonemap.
+	FScreenPassTexture SceneColor;
 
-	bool bDoGammaOnly;
-	bool bDoScreenPercentageInTonemapper;
-private:
-	bool bDoEyeAdaptation;
-	bool bHDROutput;
-	bool bMetalMSAAHDRDecode;
-	bool bIsMobileDof;
+	// [Required] Filtered bloom texture to composite with tonemapped scene color. This should be transparent black for no bloom.
+	FScreenPassTexture BloomOutput;
+
+	FScreenPassTexture DofOutput;
+
+	FScreenPassTexture SunShaftAndDof;
+
+	FRHIShaderResourceView* EyeAdaptationBuffer = nullptr;
+
+	// [Raster Only, Mobile] Flips the image vertically on output.
+	bool bFlipYAxis = false;
+
+	// Whether to leave the final output in HDR.
+	bool bOutputInHDR = false;
+
+	bool bMetalMSAAHDRDecode = false;
+
+	bool bUseEyeAdaptation = false;
+
+	bool bSRGBAwareTarget = false;
 };
 
-// derives from TRenderingCompositePassBase<InputCount, OutputCount>
-// ePId_Input0: SceneColor
-// ePId_Input1: BloomCombined (not needed for bDoGammaOnly)
-// ePId_Input2: Dof (not needed for bDoGammaOnly)
-class FRCPassPostProcessTonemapES2 : public TRenderingCompositePassBase<5, 1>
-{
-public:
-	FRCPassPostProcessTonemapES2(const FViewInfo& View, bool bInUsedFramebufferFetch, bool bInSRGBAwareTarget, bool bInDoEyeAdaptation, bool bMetalMSAAHDRDecode);
-
-	// interface FRenderingCompositePass ---------
-
-	virtual void Process(FRenderingCompositePassContext& Context) override;
-	virtual void Release() override { delete this; }
-	virtual FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
-	
-	bool bDoScreenPercentageInTonemapper;
-
-private:
-	const FViewInfo& View;
-
-	bool bUsedFramebufferFetch;
-	bool bSRGBAwareTarget;
-	bool bDoEyeAdaptation;
-	bool bMetalMSAAHDRDecode;
-};
+FScreenPassTexture AddMobileTonemapperPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FMobileTonemapperInputs& Inputs);

@@ -25,6 +25,18 @@ enum ENetProfilerConnectionMode : uint8
 	Count
 };
 
+// Mirrored from EChannelCloseReason on the runtime side
+enum class ENetProfilerChannelCloseReason : uint8
+{
+	Destroyed = 0,
+	Dormancy,
+	LevelUnloaded,
+	Relevancy,
+	TearOff,
+};
+
+TRACESERVICES_API const TCHAR* LexToString(const ENetProfilerChannelCloseReason Value);
+
 struct FNetProfilerName
 {
 	const TCHAR* Name;	// Name
@@ -64,6 +76,33 @@ struct FNetProfilerObjectInstance
 	FNetProfilerLifeTime LifeTime;	// Lifetime of this instance
 };
 
+union FNetProfilerBunchInfo
+{
+	struct
+	{
+		// Must match FNetTraceBunchInfo in runtime code.
+		uint64 ChannelIndex : 20;
+		uint64 Seq : 12;
+		uint64 ChannelCloseReason : 4;
+		uint64 bPartial : 1;
+		uint64 bPartialInitial : 1;
+		uint64 bPartialFinal : 1;
+		uint64 bIsReplicationPaused : 1;
+		uint64 bOpen : 1;
+		uint64 bClose : 1;
+		uint64 bReliable : 1;
+		uint64 bHasPackageMapExports : 1;
+		uint64 bHasMustBeMappedGUIDs : 1;
+
+		// Reserved
+		uint64 bIsValid : 1;
+		uint64 Padding : 18;
+	};
+	uint64 Value;
+
+	static FNetProfilerBunchInfo MakeBunchInfo(uint64 InValue) { FNetProfilerBunchInfo Info; Info.Value = InValue; return Info; }
+};
+
 struct FNetProfilerContentEvent
 {
 	uint64 StartPos : 24;		// Inclusive start position in the packet
@@ -71,11 +110,11 @@ struct FNetProfilerContentEvent
 	uint64 Level : 4;			// Level
 	uint64 Padding : 12;		// Padding
 
-	uint32 EventTypeIndex;		// Will replace name index
-	uint32 NameIndex;			// identify the name / type, should we store the actual Name as well
-	uint32 ObjectInstanceIndex;	// object instance, Non zero if this is a NetObject, we can then look up data by indexing into ObjectInstances
+	FNetProfilerBunchInfo BunchInfo;	
 
-	uint32 ParentIndex;			// Parent to be able to build a tree of nested events?
+	uint32 EventTypeIndex;		// Will replace name index
+	uint32 NameIndex;			// Identify the name / type, should we store the actual Name as well
+	uint32 ObjectInstanceIndex;	// Object instance, Non zero if this is a NetObject, we can then look up data by indexing into ObjectInstances
 };
 
 struct FNetProfilerPacket

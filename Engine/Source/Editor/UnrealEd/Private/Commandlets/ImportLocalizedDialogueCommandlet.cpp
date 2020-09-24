@@ -488,7 +488,7 @@ USoundWave* UImportLocalizedDialogueCommandlet::ConditionalImportSoundWave(const
 USoundWave* UImportLocalizedDialogueCommandlet::ImportSoundWave(const FString& InSoundWavePackageName, const FString& InSoundWaveAssetName, const FString& InWavFilename) const
 {
 	// Find or create the package to host the sound wave
-	UPackage* const SoundWavePackage = CreatePackage(nullptr, *InSoundWavePackageName);
+	UPackage* const SoundWavePackage = CreatePackage( *InSoundWavePackageName);
 	if (!SoundWavePackage)
 	{
 		UE_LOG(LogImportLocalizedDialogueCommandlet, Error, TEXT("Failed to create a sound wave package '%s'."), *InSoundWavePackageName);

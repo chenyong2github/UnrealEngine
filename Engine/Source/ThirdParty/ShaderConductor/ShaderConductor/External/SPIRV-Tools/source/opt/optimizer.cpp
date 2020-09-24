@@ -202,6 +202,13 @@ Optimizer& Optimizer::RegisterPerformancePasses() {
       .RegisterPass(CreateSimplificationPass())
       // UE Change Begin
       .RegisterPass(CreateEliminateDeadMembersPass())
+      .RegisterPass(CreateLocalSingleStoreElimPass())
+      .RegisterPass(CreateBlockMergePass())
+      .RegisterPass(CreateLocalMultiStoreElimPass())
+      .RegisterPass(CreateRedundancyEliminationPass())
+      .RegisterPass(CreateSimplificationPass())
+      .RegisterPass(CreateAggressiveDCEPass())
+      .RegisterPass(CreateCFGCleanupPass());
       // UE Change End
       ;
 }

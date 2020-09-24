@@ -281,7 +281,38 @@ void BuildPoseFromRawDataInternal(const TArray<FRawAnimSequenceTrack>& InAnimati
 	}
 }
 
-void BuildPoseFromRawData(const TArray<FRawAnimSequenceTrack>& InAnimationData, const TArray<struct FTrackToSkeletonMap>& TrackToSkeletonMapTable, FCompactPose& InOutPose, float InTime, EAnimInterpolationType Interpolation, int32 NumFrames, float SequenceLength, FName RetargetSource, const TMap<int32, const FTransformCurve*>* AdditiveBoneTransformCurves /*= nullptr*/)
+void BuildPoseFromRawData(
+	const TArray<FRawAnimSequenceTrack>& InAnimationData, 
+	const TArray<struct FTrackToSkeletonMap>& TrackToSkeletonMapTable, 
+	FCompactPose& InOutPose, 
+	float InTime, 
+	EAnimInterpolationType Interpolation, 
+	int32 NumFrames, 
+	float SequenceLength, 
+	FName RetargetSource, 
+	const TMap<int32, const FTransformCurve*>* AdditiveBoneTransformCurves /*= nullptr*/
+	)
+{
+	USkeleton* MySkeleton = InOutPose.GetBoneContainer().GetSkeletonAsset();
+	if (MySkeleton)
+	{
+		const TArray<FTransform>& RetargetTransforms = MySkeleton->GetRefLocalPoses(RetargetSource);
+		BuildPoseFromRawData(InAnimationData, TrackToSkeletonMapTable, InOutPose, InTime, Interpolation, NumFrames, SequenceLength, RetargetSource, RetargetTransforms, AdditiveBoneTransformCurves);
+	}
+}
+
+void BuildPoseFromRawData(
+	const TArray<FRawAnimSequenceTrack>& InAnimationData, 
+	const TArray<struct FTrackToSkeletonMap>& TrackToSkeletonMapTable, 
+	FCompactPose& InOutPose, 
+	float InTime, 
+	EAnimInterpolationType Interpolation, 
+	int32 NumFrames, 
+	float SequenceLength, 
+	FName SourceName, 
+	const TArray<FTransform>& RetargetTransforms,
+	const TMap<int32, const FTransformCurve*>* AdditiveBoneTransformCurves /*= nullptr*/
+	)
 {
 	int32 KeyIndex1, KeyIndex2;
 	float Alpha;
@@ -327,7 +358,7 @@ void BuildPoseFromRawData(const TArray<FRawAnimSequenceTrack>& InAnimationData, 
 
 		for (const FRetargetTracking& RT : RetargetTracking)
 		{
-			FAnimationRuntime::RetargetBoneTransform(Skeleton, RetargetSource, InOutPose[RT.PoseBoneIndex], RT.SkeletonBoneIndex, RT.PoseBoneIndex, RequiredBones, false);
+			FAnimationRuntime::RetargetBoneTransform(Skeleton, SourceName, RetargetTransforms, InOutPose[RT.PoseBoneIndex], RT.SkeletonBoneIndex, RT.PoseBoneIndex, RequiredBones, false);
 		}
 	}
 }

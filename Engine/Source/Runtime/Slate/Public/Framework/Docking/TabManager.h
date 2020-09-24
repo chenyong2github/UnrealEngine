@@ -586,6 +586,8 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 				
 			public:
 
+				static const TSharedRef<FTabManager::FLayout> NullLayout; /** A dummy layout meant to spawn nothing during (e.g., asset editor) initialization */
+
 				TSharedRef<FLayout> AddArea( const TSharedRef<FArea>& InArea )
 				{
 					Areas.Add( InArea );

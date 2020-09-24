@@ -181,13 +181,11 @@ bool IsSSRTemporalPassRequired(const FViewInfo& View)
 FRDGTextureUAV* CreateScreenSpaceRayTracingDebugUAV(FRDGBuilder& GraphBuilder, const FRDGTextureDesc& Desc, const TCHAR* Name, bool bClear = false)
 #if 1
 {
-	FRDGTextureDesc DebugDesc = FRDGTextureDesc::Create2DDesc(
+	FRDGTextureDesc DebugDesc = FRDGTextureDesc::Create2D(
 		Desc.Extent,
 		PF_FloatRGBA,
 		FClearValueBinding::None,
-		/* InFlags = */ TexCreate_None,
-		/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
-		/* bInForceSeparateTargetAndShaderResource = */ false);
+		TexCreate_ShaderResource | TexCreate_UAV);
 	FRDGTexture* DebugTexture = GraphBuilder.CreateTexture(DebugDesc, Name);
 	FRDGTextureUAVRef DebugOutput = GraphBuilder.CreateUAV(DebugTexture);
 	if (bClear)
@@ -214,8 +212,8 @@ void SetupCommonScreenSpaceRayParameters(
 		// float2 ReducedSceneColorUV = PixelPos / ReducedSceneColor->Extent;
 
 		OutParameters->ColorBufferScaleBias = FVector4(
-			0.5f * SceneTextures.SceneDepthBuffer->Desc.Extent.X / float(PrevSceneColor.SceneColor->Desc.Extent.X),
-			0.5f * SceneTextures.SceneDepthBuffer->Desc.Extent.Y / float(PrevSceneColor.SceneColor->Desc.Extent.Y),
+			0.5f * SceneTextures.SceneDepthTexture->Desc.Extent.X / float(PrevSceneColor.SceneColor->Desc.Extent.X),
+			0.5f * SceneTextures.SceneDepthTexture->Desc.Extent.Y / float(PrevSceneColor.SceneColor->Desc.Extent.Y),
 			-0.5f * View.ViewRect.Min.X / float(PrevSceneColor.SceneColor->Desc.Extent.X),
 			-0.5f * View.ViewRect.Min.Y / float(PrevSceneColor.SceneColor->Desc.Extent.Y));
 
@@ -245,7 +243,7 @@ void SetupCommonScreenSpaceRayParameters(
 
 	OutParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 
-	OutParameters->DebugOutput = CreateScreenSpaceRayTracingDebugUAV(GraphBuilder, SceneTextures.SceneDepthBuffer->Desc, TEXT("DebugSSRT"));
+	OutParameters->DebugOutput = CreateScreenSpaceRayTracingDebugUAV(GraphBuilder, SceneTextures.SceneDepthTexture->Desc, TEXT("DebugSSRT"));
 
 	OutParameters->bRejectUncertainRays = CVarSSGIRejectUncertainRays.GetValueOnRenderThread() ? 1 : 0;
 	OutParameters->bTerminateCertainRay = CVarSSGITerminateCertainRay.GetValueOnRenderThread() ? 1 : 0;
@@ -343,7 +341,6 @@ END_SHADER_PARAMETER_STRUCT()
 BEGIN_SHADER_PARAMETER_STRUCT(FSSRCommonParameters, )
 	SHADER_PARAMETER(FLinearColor, SSRParams)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureSamplerParameters, SceneTextureSamplers)
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 END_SHADER_PARAMETER_STRUCT()
 
@@ -411,7 +408,6 @@ class FSSRTPrevFrameReductionCS : public FGlobalShader
 		SHADER_PARAMETER_SAMPLER(SamplerState, FurthestHZBTextureSampler)
 
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureSamplerParameters, SceneTextureSamplers)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 
 		SHADER_PARAMETER_RDG_TEXTURE_UAV_ARRAY(RWTexture2D<float4>, ReducedSceneColorOutput, [3])
@@ -785,18 +781,16 @@ FPrevSceneColorMip ReducePrevSceneColorMip(
 	// Allocate FPrevSceneColorMip.
 	FPrevSceneColorMip PrevSceneColorMip;
 	{
-		FIntPoint RequiredSize = SceneTextures.SceneDepthBuffer->Desc.Extent / (1 << DownSamplingMip);
+		FIntPoint RequiredSize = SceneTextures.SceneDepthTexture->Desc.Extent / (1 << DownSamplingMip);
 
 		int32 QuantizeMultiple = 1 << (kNumMips - 1);
 		FIntPoint QuantizedSize = FIntPoint::DivideAndRoundUp(RequiredSize, QuantizeMultiple);
 
-		FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
+		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
 			FIntPoint(QuantizeMultiple * QuantizedSize.X, QuantizeMultiple * QuantizedSize.Y),
 			PF_FloatR11G11B10,
 			FClearValueBinding::None,
-			/* InFlags = */ TexCreate_None,
-			/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
-			/* bInForceSeparateTargetAndShaderResource = */ false);
+			TexCreate_ShaderResource | TexCreate_UAV);
 		Desc.NumMips = kNumMips;
 
 		PrevSceneColorMip.SceneColor = GraphBuilder.CreateTexture(Desc, TEXT("SSRTReducedSceneColor"));
@@ -811,7 +805,6 @@ FPrevSceneColorMip ReducePrevSceneColorMip(
 	FSSRTPrevFrameReductionCS::FParameters DefaultPassParameters;
 	{
 		DefaultPassParameters.SceneTextures = SceneTextures;
-		SetupSceneTextureSamplers(&DefaultPassParameters.SceneTextureSamplers);
 		DefaultPassParameters.View = View.ViewUniformBuffer;
 
 		DefaultPassParameters.ReducedSceneColorSize = FVector2D(
@@ -958,7 +951,7 @@ FSSRTTileClassificationParameters RenderHorizonTileClassification(
 	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View)
 {
-	FIntPoint SceneTexturesExtent = SceneTextures.SceneDepthBuffer->Desc.Extent;
+	FIntPoint SceneTexturesExtent = SceneTextures.SceneDepthTexture->Desc.Extent;
 
 	FRDGTextureRef FurthestHZBTexture = GraphBuilder.RegisterExternalTexture(View.HZB);
 	FRDGTextureRef ClosestHZBTexture = GraphBuilder.RegisterExternalTexture(View.ClosestHZB);
@@ -999,13 +992,11 @@ FSSRTTileClassificationParameters RenderHorizonTileClassification(
 		PassParameters->TileClassificationBufferOutput = GraphBuilder.CreateUAV(TileClassificationBuffer);
 
 		{
-			FRDGTextureDesc DebugDesc = FRDGTextureDesc::Create2DDesc(
+			FRDGTextureDesc DebugDesc = FRDGTextureDesc::Create2D(
 				FIntPoint::DivideAndRoundUp(SceneTexturesExtent, 8),
 				PF_FloatRGBA,
 				FClearValueBinding::Transparent,
-				/* InFlags = */ TexCreate_None,
-				/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
-				/* bInForceSeparateTargetAndShaderResource = */ false);
+				TexCreate_ShaderResource | TexCreate_UAV);
 
 			PassParameters->DebugOutput = GraphBuilder.CreateUAV(GraphBuilder.CreateTexture(DebugDesc, TEXT("DebugSSRTTiles")));
 		}
@@ -1050,13 +1041,11 @@ void RenderScreenSpaceReflections(
 	
 	// Alloc inputs for denoising.
 	{
-		FRDGTextureDesc Desc = FPooledRenderTargetDesc::Create2DDesc(
+		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
 			FSceneRenderTargets::Get_FrameConstantsOnly().GetBufferSizeXY(),
 			PF_FloatRGBA, FClearValueBinding(FLinearColor(0, 0, 0, 0)),
-			TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV,
-			false);
+			TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV);
 
-		Desc.AutoWritable = false;
 		Desc.Flags |= GFastVRamConfig.SSR;
 
 		DenoiserInputs->Color = GraphBuilder.CreateTexture(Desc, TEXT("ScreenSpaceReflections"));
@@ -1075,12 +1064,11 @@ void RenderScreenSpaceReflections(
 	CommonParameters.SSRParams = ComputeSSRParams(View, SSRQuality, false);
 	CommonParameters.ViewUniformBuffer = View.ViewUniformBuffer;
 	CommonParameters.SceneTextures = SceneTextures;
-	SetupSceneTextureSamplers(&CommonParameters.SceneTextureSamplers);
 	// Pipe down a mid grey texture when not using TAA's history to avoid wrongly reprojecting current scene color as if previous frame's TAA history.
-	if (InputColor == CurrentSceneColor || !CommonParameters.SceneTextures.SceneVelocityBuffer)
+	if (InputColor == CurrentSceneColor || !CommonParameters.SceneTextures.GBufferVelocityTexture)
 	{
 		// Technically should be 32767.0f / 65535.0f to perfectly null out DecodeVelocityFromTexture(), but 0.5f is good enough.
-		CommonParameters.SceneTextures.SceneVelocityBuffer = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+		CommonParameters.SceneTextures.GBufferVelocityTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.MidGreyDummy);
 	}
 	
 	FRenderTargetBindingSlots RenderTargets;
@@ -1096,7 +1084,7 @@ void RenderScreenSpaceReflections(
 	{
 		// Also bind the depth buffer
 		RenderTargets.DepthStencil = FDepthStencilBinding(
-			SceneTextures.SceneDepthBuffer,
+			SceneTextures.SceneDepthTexture,
 			ERenderTargetLoadAction::ENoAction,
 			ERenderTargetLoadAction::ELoad,
 			FExclusiveDepthStencil::DepthNop_StencilWrite);
@@ -1119,7 +1107,6 @@ void RenderScreenSpaceReflections(
 		{
 			SCOPED_GPU_STAT(RHICmdList, ScreenSpaceReflections);
 			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
-			RHICmdList.SetStencilRef(0x80);
 		
 			FGraphicsPipelineStateInitializer GraphicsPSOInit;
 			FPixelShaderUtils::InitFullscreenPipelineState(RHICmdList, View.ShaderMap, PixelShader, /* out */ GraphicsPSOInit);
@@ -1128,6 +1115,8 @@ void RenderScreenSpaceReflections(
 
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
+
+			RHICmdList.SetStencilRef(0x80);
 
 			FPixelShaderUtils::DrawFullscreenTriangle(RHICmdList);
 		});
@@ -1149,7 +1138,7 @@ void RenderScreenSpaceReflections(
 		{
 			FIntPoint ViewportOffset = View.ViewRect.Min;
 			FIntPoint ViewportExtent = View.ViewRect.Size();
-			FIntPoint BufferSize = SceneTextures.SceneDepthBuffer->Desc.Extent;
+			FIntPoint BufferSize = SceneTextures.SceneDepthTexture->Desc.Extent;
 
 			if (View.PrevViewInfo.TemporalAAHistory.IsValid())
 			{
@@ -1204,7 +1193,6 @@ void RenderScreenSpaceReflections(
 		{
 			SCOPED_GPU_STAT(RHICmdList, ScreenSpaceReflections);
 			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
-			RHICmdList.SetStencilRef(0x80);
 		
 			FGraphicsPipelineStateInitializer GraphicsPSOInit;
 			FPixelShaderUtils::InitFullscreenPipelineState(RHICmdList, View.ShaderMap, PixelShader, /* out */ GraphicsPSOInit);
@@ -1216,6 +1204,8 @@ void RenderScreenSpaceReflections(
 
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
+
+			RHICmdList.SetStencilRef(0x80);
 
 			FPixelShaderUtils::DrawFullscreenTriangle(RHICmdList);
 		});
@@ -1243,7 +1233,6 @@ void RenderScreenSpaceReflections(
 		{
 			SCOPED_GPU_STAT(RHICmdList, ScreenSpaceReflections);
 			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
-			RHICmdList.SetStencilRef(0x80);
 
 			FGraphicsPipelineStateInitializer GraphicsPSOInit;
 			FPixelShaderUtils::InitFullscreenPipelineState(RHICmdList, View.ShaderMap, PixelShader, /* out */ GraphicsPSOInit);
@@ -1260,6 +1249,8 @@ void RenderScreenSpaceReflections(
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), *PassParameters);
 			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
+
+			RHICmdList.SetStencilRef(0x80);
 
 			PassParameters->IndirectDrawParameter->MarkResourceAsUsed();
 
@@ -1297,13 +1288,11 @@ IScreenSpaceDenoiser::FDiffuseIndirectInputs CastStandaloneDiffuseIndirectRays(
 	// Alloc output for the denoiser.
 	IScreenSpaceDenoiser::FDiffuseIndirectInputs DenoiserInputs;
 	{
-		FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
-			CommonParameters.SceneTextures.SceneDepthBuffer->Desc.Extent / CommonParameters.DownscaleFactor,
+		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+			CommonParameters.SceneTextures.SceneDepthTexture->Desc.Extent / CommonParameters.DownscaleFactor,
 			PF_FloatRGBA,
 			FClearValueBinding::Transparent,
-			/* InFlags = */ TexCreate_None,
-			/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
-			/* bInForceSeparateTargetAndShaderResource = */ false);
+			TexCreate_ShaderResource | TexCreate_UAV);
 
 		DenoiserInputs.Color = GraphBuilder.CreateTexture(Desc, TEXT("SSRTDiffuseIndirect"));
 
@@ -1360,8 +1349,8 @@ void TraceProbe(
 			FIntVector(1, 1, 1));
 	}
 
-	FRDGTextureUAVRef ProbeAtlasColorOutput = GraphBuilder.CreateUAV(IndirectLightingAtlasParameters.ProbeAtlasColor, ERDGChildResourceFlags::NoUAVBarrier);
-	FRDGTextureUAVRef ProbeAtlasSampleMaskOutput = GraphBuilder.CreateUAV(IndirectLightingAtlasParameters.ProbeAtlasSampleMask, ERDGChildResourceFlags::NoUAVBarrier);
+	FRDGTextureUAVRef ProbeAtlasColorOutput = GraphBuilder.CreateUAV(IndirectLightingAtlasParameters.ProbeAtlasColor, ERDGUnorderedAccessViewFlags::SkipBarrier);
+	FRDGTextureUAVRef ProbeAtlasSampleMaskOutput = GraphBuilder.CreateUAV(IndirectLightingAtlasParameters.ProbeAtlasSampleMask, ERDGUnorderedAccessViewFlags::SkipBarrier);
 
 	for (int32 HierarchyLevelId = 0; HierarchyLevelId < HierarchyParameters.HierarchyDepth; HierarchyLevelId++)
 	{
@@ -1442,7 +1431,7 @@ void TraceIndirectProbeOcclusion(
 		ScreenSpaceRayTracing::SetupCommonScreenSpaceRayParameters(GraphBuilder, CommonParameters, PrevSceneColor, View, /* out */ &ReferencePassParameters.CommonParameters);
 		ReferencePassParameters.ProbeOcclusionParameters = ProbeOcclusionParameters;
 		ReferencePassParameters.ProbeOcclusionOutputParameters = CreateProbeOcclusionOutputParameters(
-			GraphBuilder, ProbeOcclusionParameters, ERDGChildResourceFlags::NoUAVBarrier);
+			GraphBuilder, ProbeOcclusionParameters, ERDGUnorderedAccessViewFlags::SkipBarrier);
 		ReferencePassParameters.DispatchParameters = DispatchParameters;
 	}
 

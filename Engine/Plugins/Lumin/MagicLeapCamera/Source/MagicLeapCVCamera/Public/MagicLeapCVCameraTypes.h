@@ -5,7 +5,7 @@
 #include "MagicLeapCVCameraTypes.generated.h"
 
 USTRUCT(BlueprintType)
-struct FMagicLeapCVCameraIntrinsicCalibrationParameters
+struct MAGICLEAPCVCAMERA_API FMagicLeapCVCameraIntrinsicCalibrationParameters
 {
 	GENERATED_BODY();
 

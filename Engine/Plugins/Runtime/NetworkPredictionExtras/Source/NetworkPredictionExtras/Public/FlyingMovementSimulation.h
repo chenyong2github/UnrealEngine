@@ -83,7 +83,7 @@ struct FFlyingMovementSyncState
 	}
 };
 
-// Auxiliary state that is input into the simulation. Doesn't change during the simulation tick.
+// Auxiliary state that is input into the simulation.
 struct FFlyingMovementAuxState
 {	
 	float MaxSpeed = 1200.f;

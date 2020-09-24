@@ -2487,10 +2487,14 @@ void FActiveGameplayEffectsContainer::SetActiveGameplayEffectLevel(FActiveGamepl
 	{
 		if (Effect.Handle == ActiveHandle)
 		{
-			Effect.Spec.SetLevel(NewLevel);
-			MarkItemDirty(Effect);
-			Effect.Spec.CalculateModifierMagnitudes();
-			UpdateAllAggregatorModMagnitudes(Effect);
+			if (Effect.Spec.GetLevel() != NewLevel)
+			{
+				Effect.Spec.SetLevel(NewLevel);
+				MarkItemDirty(Effect);
+			
+				Effect.Spec.CalculateModifierMagnitudes();
+				UpdateAllAggregatorModMagnitudes(Effect);
+			}
 			break;
 		}
 	}
@@ -3826,12 +3830,13 @@ bool FActiveGameplayEffectsContainer::NetDeltaSerialize(FNetDeltaSerializeInfo& 
 					// In mixed mode, we only want to replicate to the owner of this channel, minimal replication
 					// data will go to everyone else.
 					const AActor* ParentOwner = Owner->GetOwner();
-					if (!ParentOwner->IsOwnedBy(Connection->OwningActor))
+					const UNetConnection* ParentOwnerNetConnection = ParentOwner->GetNetConnection();
+					if (!ParentOwner->IsOwnedBy(Connection->OwningActor) && (ParentOwnerNetConnection != Connection))
 					{
 						bool bIsChildConnection = false;
 						for (UChildConnection* ChildConnection : Connection->Children)
 						{
-							if (ParentOwner->IsOwnedBy(ChildConnection->OwningActor))
+							if (ParentOwner->IsOwnedBy(ChildConnection->OwningActor) || (ChildConnection == ParentOwnerNetConnection))
 							{
 								bIsChildConnection = true;
 								break;

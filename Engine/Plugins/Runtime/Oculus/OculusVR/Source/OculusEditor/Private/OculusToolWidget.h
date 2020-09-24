@@ -13,7 +13,7 @@
 #include "Widgets/Layout/SScrollBox.h"
 #include "Engine/PostProcessVolume.h"
 #include "Framework/Text/SlateHyperlinkRun.h"
-#include "Components/LightComponent.h"
+#include "Components/LightComponentBase.h"
 
 class SOculusToolWidget;
 
@@ -92,21 +92,42 @@ protected:
 	FReply MobileMultiViewEnable(bool text);
 	EVisibility MobileMultiViewVisibility(FName tag) const;
 
+	FReply MobileMSAAEnable(bool text);
+	EVisibility MobileMSAAVisibility(FName tag) const;
+
 	FReply MobilePostProcessingDisable(bool text);
 	EVisibility MobilePostProcessingVisibility(FName tag) const;
 
-	FReply AndroidManifestGearGo(bool text);
+	FReply AndroidManifestGo(bool text);
 	FReply AndroidManifestQuest(bool text);
 	EVisibility AndroidManifestVisibility(FName tag) const;
 
 	FReply AndroidPackagingFix(bool text);
 	EVisibility AndroidPackagingVisibility(FName tag) const;
 
+	FReply AndroidQuestArchFix(bool text);
+	EVisibility AndroidQuestArchVisibility(FName tag) const;
+
 	FReply AntiAliasingEnable(bool text);
 	EVisibility AntiAliasingVisibility(FName tag) const;
 
 	FReply AllowStaticLightingEnable(bool text);
 	EVisibility AllowStaticLightingVisibility(FName tag) const;
+
+	FReply MobileShaderStaticAndCSMShadowReceiversDisable(bool text);
+	EVisibility MobileShaderStaticAndCSMShadowReceiversVisibility(FName tag) const;
+
+	FReply MobileShaderAllowDistanceFieldShadowsDisable(bool text);
+	EVisibility MobileShaderAllowDistanceFieldShadowsVisibility(FName tag) const;
+
+	FReply MobileShaderAllowMovableDirectionalLightsDisable(bool text);
+	EVisibility MobileShaderAllowMovableDirectionalLightsVisibility(FName tag) const;
+
+	FReply MobileNumDynamicPointLightsFix(bool text);
+	EVisibility MobileNumDynamicPointLightsVisibility(FName tag) const;
+
+	FReply MobileMovableSpotlightsDisable(bool text);
+	EVisibility MobileMovableSpotlightsDisableVisibility(FName tag) const;
 
 	FReply SelectLight(FString lightName);
 	FReply IgnoreLight(FString lightName);
@@ -119,7 +140,7 @@ protected:
 	TArray<TSharedPtr<FString>> Platforms;
 	TMap<FName, SimpleSetting> SimpleSettings;
 
-	TMap<FString, TWeakObjectPtr<ULightComponent> > DynamicLights;
+	TMap<FString, TWeakObjectPtr<ULightComponentBase> > DynamicLights;
 
 	TSharedPtr<SScrollBox> ScrollingContainer;
 

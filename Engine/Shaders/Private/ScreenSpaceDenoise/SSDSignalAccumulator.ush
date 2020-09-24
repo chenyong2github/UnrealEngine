@@ -315,9 +315,8 @@ void DijestSampleClusterInDRB(
 	// Compute final factor to use to with previous bucket.
 	float PreviousBucketFactor = (Accumulator.Previous.SampleCount == 0.0) ? 0.0 : (1.0 - CurrentClusterOpacity * bOccludingCluster);
 
-	// TODO(Denoiser): the big difference in sample count could lead to wrong opacity between sample clusters.
-	//if (PreviousBucketFactor < 1)
-	//	PreviousBucketFactor *= Accumulator.Current.SampleCount * SafeRcp(Accumulator.Previous.SampleCount);
+	// Normalize the previous bucket to respect the desired frequency bucket opacity.
+	PreviousBucketFactor *= Accumulator.Current.SampleCount * SafeRcp(Accumulator.Previous.SampleCount);
 
 	Accumulator.Previous = AddSignal(MulSignal(Accumulator.Previous, PreviousBucketFactor), Accumulator.Current);
 	Accumulator.PreviousInvFrequency = Accumulator.PreviousInvFrequency * PreviousBucketFactor + Accumulator.CurrentInvFrequency;

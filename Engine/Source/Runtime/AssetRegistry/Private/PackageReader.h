@@ -24,6 +24,7 @@ public:
 		VersionTooOld,
 		VersionTooNew,
 		CustomVersionMissing,
+		CustomVersionInvalid,
 	};
 
 	/** Creates a loader for the filename */
@@ -49,6 +50,7 @@ public:
 	bool SerializeExportMap(TArray<FObjectExport>& OutExportMap);
 	bool SerializeSoftPackageReferenceList(TArray<FName>& OutSoftPackageReferenceList);
 	bool SerializeSearchableNamesMap(FPackageDependencyData& OutDependencyData);
+	bool SerializeAssetRegistryDependencyData(FPackageDependencyData& DependencyData);
 
 	/** Returns flags the asset package was saved with */
 	uint32 GetPackageFlags() const;
@@ -74,4 +76,5 @@ private:
 	FPackageFileSummary PackageFileSummary;
 	TArray<FName> NameMap;
 	int64 PackageFileSize;
+	int64 AssetRegistryDependencyDataOffset;
 };

@@ -23,6 +23,7 @@
 #endif // WITH_EDITOR
 
 // Insights
+#include "Insights/Common/InsightsMenuBuilder.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/NetworkingProfiler/NetworkingProfilerManager.h"
@@ -61,6 +62,26 @@ SNetworkingProfilerWindow::SNetworkingProfilerWindow()
 
 SNetworkingProfilerWindow::~SNetworkingProfilerWindow()
 {
+	if (NetStatsView)
+	{
+		HideTab(FNetworkingProfilerTabs::NetStatsViewID);
+		check(NetStatsView == nullptr);
+	}
+
+	if (PacketContentView)
+	{
+		HideTab(FNetworkingProfilerTabs::PacketContentViewID);
+		check(PacketContentView == nullptr);
+	}
+
+	if (PacketView)
+	{
+		HideTab(FNetworkingProfilerTabs::PacketViewID);
+		check(PacketView == nullptr);
+	}
+
+	HideTab(FNetworkingProfilerTabs::ToolbarID);
+
 #if WITH_EDITOR
 	if (DurationActive > 0.0f && FEngineAnalytics::IsAvailable())
 	{
@@ -278,10 +299,10 @@ void SNetworkingProfilerWindow::Construct(const FArguments& InArgs, const TShare
 	FMenuBarBuilder MenuBarBuilder = FMenuBarBuilder(TSharedPtr<FUICommandList>());
 
 	MenuBarBuilder.AddPullDownMenu(
-		LOCTEXT("MenuLabel", "MENU"),
+		LOCTEXT("MenuLabel", "Menu"),
 		FText::GetEmpty(),
 		FNewMenuDelegate::CreateStatic(&SNetworkingProfilerWindow::FillMenu, TabManager),
-		FName(TEXT("MENU"))
+		FName(TEXT("Menu"))
 	);
 
 	TSharedRef<SWidget> Menu = MenuBarBuilder.MakeWidget();
@@ -406,9 +427,7 @@ void SNetworkingProfilerWindow::FillMenu(FMenuBuilder& MenuBuilder, const TShare
 		return;
 	}
 
-#if !WITH_EDITOR
-	//TODO: FGlobalTabmanager::Get()->PopulateTabSpawnerMenu(MenuBuilder, WorkspaceMenu::GetMenuStructure().GetStructureRoot());
-#endif //!WITH_EDITOR
+	FInsightsManager::Get()->GetInsightsMenuBuilder()->PopulateMenu(MenuBuilder);
 
 	TabManager->PopulateLocalTabSpawnerMenu(MenuBuilder);
 }

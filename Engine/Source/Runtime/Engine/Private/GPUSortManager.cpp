@@ -169,7 +169,7 @@ void FCopyUIntBufferCS::SetParameters(
 	for (int32 Index = DestCount; Index < COPYUINTCS_BUFFER_COUNT; ++Index)
 	{
 		// TR-DummyUAVs : those buffers are only ever used here, but there content is never accessed.
-		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWNoBarrier, EResourceTransitionPipeline::EComputeToCompute, NiagaraSortingDummyUAV[Index].Buffer.UAV);
+		RHICmdList.Transition(FRHITransitionInfo(NiagaraSortingDummyUAV[Index].Buffer.UAV, ERHIAccess::Unknown, ERHIAccess::ERWNoBarrier));
 		SetUAVParameter(RHICmdList, ComputeShaderRHI, DestData[Index], NiagaraSortingDummyUAV[Index].Buffer.UAV);
 	}
 
@@ -250,7 +250,8 @@ FGPUSortManager::FValueBuffer::FValueBuffer(int32 InAllocatedCount, int32 InUsed
 	check(InUsedCount >= 0 && InUsedCount <= InAllocatedCount);
 
 	FRHIResourceCreateInfo CreateInfo;
-	VertexBufferRHI = RHICreateVertexBuffer((uint32)InAllocatedCount * sizeof(uint32), BUF_Static | BUF_ShaderResource | BUF_UnorderedAccess, CreateInfo);
+	CreateInfo.DebugName = TEXT("ValueBuffer");
+	VertexBufferRHI = RHICreateVertexBuffer((uint32)InAllocatedCount * sizeof(uint32), BUF_Static | BUF_ShaderResource | BUF_UnorderedAccess, ERHIAccess::SRVGraphics, CreateInfo);
 
 	UInt32SRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(uint32), PF_R32_UINT);
 	UInt32UAV = RHICreateUnorderedAccessView(VertexBufferRHI, PF_R32_UINT);
@@ -403,11 +404,13 @@ void FGPUSortManager::FSortBatch::GenerateKeys(FRHICommandListImmediate& RHICmdL
 {
 	const int32 InitialIndex = 0;
 	FRHIUnorderedAccessView* KeyValueUAVs[] = { SortBuffers->GetKeyBufferUAV(InitialIndex), DynamicValueBuffer->ValueBuffers.Last().UInt32UAV };
+	FRHITransitionInfo KeyValueUAVTransitions[] = {
+		FRHITransitionInfo(SortBuffers->GetKeyBufferUAV(InitialIndex), ERHIAccess::Unknown, ERHIAccess::ERWBarrier), 
+		FRHITransitionInfo(DynamicValueBuffer->ValueBuffers.Last().UInt32UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier),
+	};
 
 	// TR-KeyGen : Sync the keys with the last GPU sort task.
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, KeyValueUAVs[0]);
-	// TR-KeyGen : Make sure the values are safe to write to (could be still in use in the last render).
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, KeyValueUAVs[1]);
+	RHICmdList.Transition(MakeArrayView(KeyValueUAVTransitions, UE_ARRAY_COUNT(KeyValueUAVTransitions)));
 
 	for (const FCallbackInfo& Callback : InCallbacks)
 	{
@@ -422,7 +425,7 @@ void FGPUSortManager::FSortBatch::GenerateKeys(FRHICommandListImmediate& RHICmdL
 	}
 
 	// TR-KeyGen : Those buffers will now be red as input for the compute GPU sort.
-	RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, KeyValueUAVs, UE_ARRAY_COUNT(KeyValueUAVs));
+	RHICmdList.Transition(MakeArrayView(KeyValueUAVTransitions, UE_ARRAY_COUNT(KeyValueUAVTransitions)));
 }
 
 void FGPUSortManager::FSortBatch::SortAndResolve(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type InFeatureLevel)
@@ -449,6 +452,8 @@ void FGPUSortManager::FSortBatch::SortAndResolve(FRHICommandListImmediate& RHICm
 
 			TArray<FRHIUnorderedAccessView*, TInlineAllocator<(COPYUINTCS_BUFFER_COUNT+1)>> TargetUAVs;
 			TArray<int32, TInlineAllocator<COPYUINTCS_BUFFER_COUNT>> TargetSizes;
+			TArray<FRHITransitionInfo, TInlineAllocator<(COPYUINTCS_BUFFER_COUNT + 1)>> UAVTransitions;
+			TArray<FRHITransitionInfo, TInlineAllocator<(COPYUINTCS_BUFFER_COUNT + 1)>> SRVTransitions;
 			for (FValueBuffer& ValueBuffer : DynamicValueBuffer->ValueBuffers)
 			{
 				// The biggest buffer contains 
@@ -456,21 +461,24 @@ void FGPUSortManager::FSortBatch::SortAndResolve(FRHICommandListImmediate& RHICm
 				{
 					TargetUAVs.Add(ValueBuffer.UInt32UAV);
 					TargetSizes.Add(ValueBuffer.UsedCount);
+
+					UAVTransitions.Add(FRHITransitionInfo(ValueBuffer.UInt32UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
+					SRVTransitions.Add(FRHITransitionInfo(ValueBuffer.UInt32UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 				}
 			}
 
 			// TR-SortedValues : The sort value buffers (from the GPU sort dispatches) will now be updated by the FCopyUIntBufferCS dispatch.
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, SortBuffer.FinalValuesUAV);
-			RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, TargetUAVs.GetData(), TargetUAVs.Num());
+			RHICmdList.Transition(FRHITransitionInfo(SortBuffer.FinalValuesUAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute));
+			RHICmdList.Transition(MakeArrayView(UAVTransitions.GetData(), UAVTransitions.Num()));
 
 			CopyUIntBufferToTargets(RHICmdList, InFeatureLevel, SortBuffer.FirstValuesSRV, TargetUAVs.GetData(), TargetSizes.GetData(), 0, TargetUAVs.Num());
 
 			// TR-SortedValues : The other (smaller) buffers containing sorted values have been updated by the FCopyUIntBufferCS dispatch, and can now be red by the Gfx pipeline.
-			RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, TargetUAVs.GetData(), TargetUAVs.Num());
+			RHICmdList.Transition(MakeArrayView(SRVTransitions.GetData(), SRVTransitions.Num()));
 		}
 
 		// TR-SortedValues : Make this readable by the Gfx pipeline.
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, SortBuffer.FinalValuesUAV);
+		RHICmdList.Transition(FRHITransitionInfo(SortBuffer.FinalValuesUAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 	}
 }
 

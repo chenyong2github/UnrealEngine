@@ -9,6 +9,7 @@
 #include "WorkspaceMenuStructureModule.h"
 
 // Insights
+#include "Insights/Common/InsightsMenuBuilder.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/LoadingProfiler/Widgets/SLoadingProfilerWindow.h"
@@ -50,16 +51,15 @@ TSharedPtr<FLoadingProfilerManager> FLoadingProfilerManager::CreateInstance()
 FLoadingProfilerManager::FLoadingProfilerManager(TSharedRef<FUICommandList> InCommandList)
 	: bIsInitialized(false)
 	, bIsAvailable(false)
-	, AvailabilityCheckNextTimestamp(0)
-	, AvailabilityCheckWaitTimeSec(1.0)
 	, CommandList(InCommandList)
 	, ActionManager(this)
 	, ProfilerWindow(nullptr)
-	, bIsTimingViewVisible(true)
-	, bIsEventAggregationTreeViewVisible(true)
-	, bIsObjectTypeAggregationTreeViewVisible(true)
-	, bIsPackageDetailsTreeViewVisible(true)
-	, bIsExportDetailsTreeViewVisible(true)
+	, bIsTimingViewVisible(false)
+	, bIsEventAggregationTreeViewVisible(false)
+	, bIsObjectTypeAggregationTreeViewVisible(false)
+	, bIsPackageDetailsTreeViewVisible(false)
+	, bIsExportDetailsTreeViewVisible(false)
+	, bIsRequestsTreeViewVisible(false)
 {
 }
 
@@ -74,12 +74,17 @@ void FLoadingProfilerManager::Initialize(IUnrealInsightsModule& InsightsModule)
 	}
 	bIsInitialized = true;
 
+	UE_LOG(LoadingProfiler, Log, TEXT("Initialize"));
+
 	// Register tick functions.
 	OnTick = FTickerDelegate::CreateSP(this, &FLoadingProfilerManager::Tick);
-	OnTickHandle = FTicker::GetCoreTicker().AddTicker(OnTick, 1.0f);
+	OnTickHandle = FTicker::GetCoreTicker().AddTicker(OnTick, 0.0f);
 
 	FLoadingProfilerCommands::Register();
 	BindCommands();
+
+	FInsightsManager::Get()->GetSessionChangedEvent().AddSP(this, &FLoadingProfilerManager::OnSessionChanged);
+	OnSessionChanged();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -92,12 +97,16 @@ void FLoadingProfilerManager::Shutdown()
 	}
 	bIsInitialized = false;
 
+	FInsightsManager::Get()->GetSessionChangedEvent().RemoveAll(this);
+
 	FLoadingProfilerCommands::Unregister();
 
 	// Unregister tick function.
 	FTicker::GetCoreTicker().RemoveTicker(OnTickHandle);
 
 	FLoadingProfilerManager::Instance.Reset();
+
+	UE_LOG(LoadingProfiler, Log, TEXT("Shutdown"));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -116,6 +125,7 @@ void FLoadingProfilerManager::BindCommands()
 	ActionManager.Map_ToggleObjectTypeAggregationTreeViewVisibility_Global();
 	ActionManager.Map_TogglePackageDetailsTreeViewVisibility_Global();
 	ActionManager.Map_ToggleExportDetailsTreeViewVisibility_Global();
+	ActionManager.Map_ToggleRequestsTreeViewVisibility_Global();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -128,12 +138,12 @@ void FLoadingProfilerManager::RegisterMajorTabs(IUnrealInsightsModule& InsightsM
 	{
 		// Register tab spawner for the Asset Loading Insights.
 		FTabSpawnerEntry& TabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FInsightsManagerTabs::LoadingProfilerTabId,
-			FOnSpawnTab::CreateRaw(this, &FLoadingProfilerManager::SpawnTab))
+			FOnSpawnTab::CreateRaw(this, &FLoadingProfilerManager::SpawnTab), FCanSpawnTab::CreateRaw(this, &FLoadingProfilerManager::CanSpawnTab))
 			.SetDisplayName(Config.TabLabel.IsSet() ? Config.TabLabel.GetValue() : LOCTEXT("LoadingProfilerTabTitle", "Asset Loading Insights"))
 			.SetTooltipText(Config.TabTooltip.IsSet() ? Config.TabTooltip.GetValue() : LOCTEXT("LoadingProfilerTooltipText", "Open the Asset Loading Insights tab."))
 			.SetIcon(Config.TabIcon.IsSet() ? Config.TabIcon.GetValue() : FSlateIcon(FInsightsStyle::GetStyleSetName(), "LoadingProfiler.Icon.Small"));
 
-		TSharedRef<FWorkspaceItem> Group = Config.WorkspaceGroup.IsValid() ? Config.WorkspaceGroup.ToSharedRef() : WorkspaceMenu::GetMenuStructure().GetToolsCategory();
+		TSharedRef<FWorkspaceItem> Group = Config.WorkspaceGroup.IsValid() ? Config.WorkspaceGroup.ToSharedRef() : FInsightsManager::Get()->GetInsightsMenuBuilder()->GetInsightsToolsGroup();
 		TabSpawnerEntry.SetGroup(Group);
 	}
 }
@@ -162,6 +172,13 @@ TSharedRef<SDockTab> FLoadingProfilerManager::SpawnTab(const FSpawnTabArgs& Args
 	AssignProfilerWindow(Window);
 
 	return DockTab;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FLoadingProfilerManager::CanSpawnTab(const FSpawnTabArgs& Args) const
+{
+	return bIsAvailable;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -199,38 +216,43 @@ FLoadingProfilerActionManager& FLoadingProfilerManager::GetActionManager()
 
 bool FLoadingProfilerManager::Tick(float DeltaTime)
 {
-	if (!bIsAvailable)
+	// Check if session has Load Time events (to spawn the tab), but not too often.
+	if (!bIsAvailable && AvailabilityCheck.Tick())
 	{
-		// Check if session has Load Time events (to spawn the tab), but not too often.
-		const uint64 Time = FPlatformTime::Cycles64();
-		if (Time > AvailabilityCheckNextTimestamp)
+		bool bIsProviderAvailable = false;
+
+		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+		if (Session.IsValid())
 		{
-			AvailabilityCheckWaitTimeSec += 1.0; // increase wait time with 1s
-			const uint64 WaitTime = static_cast<uint64>(AvailabilityCheckWaitTimeSec / FPlatformTime::GetSecondsPerCycle64());
-			AvailabilityCheckNextTimestamp = Time + WaitTime;
+			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-			uint32 TimelineCount = 0;
-
-			TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-			if (Session.IsValid())
+			if (Session->IsAnalysisComplete())
 			{
-				Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-				const Trace::ILoadTimeProfilerProvider* LoadTimeProfilerProvider = Trace::ReadLoadTimeProfilerProvider(*Session.Get());
-				if (LoadTimeProfilerProvider)
-				{
-					TimelineCount = LoadTimeProfilerProvider->GetTimelineCount();
-				}
+				// Never check again during this session.
+				AvailabilityCheck.Disable();
 			}
 
-			if (TimelineCount > 0)
+			const Trace::ILoadTimeProfilerProvider* LoadTimeProfilerProvider = Trace::ReadLoadTimeProfilerProvider(*Session.Get());
+			if (LoadTimeProfilerProvider)
 			{
-				bIsAvailable = true;
+				bIsProviderAvailable = (LoadTimeProfilerProvider->GetTimelineCount() > 0);
+			}
+		}
+		else
+		{
+			// Do not check again until the next session changed event (see OnSessionChanged).
+			AvailabilityCheck.Disable();
+		}
 
-				const FName& TabId = FInsightsManagerTabs::LoadingProfilerTabId;
-				if (FGlobalTabmanager::Get()->HasTabSpawner(TabId))
-				{
-					FGlobalTabmanager::Get()->TryInvokeTab(TabId);
-				}
+		if (bIsProviderAvailable)
+		{
+			bIsAvailable = true;
+
+			const FName& TabId = FInsightsManagerTabs::LoadingProfilerTabId;
+			if (FGlobalTabmanager::Get()->HasTabSpawner(TabId))
+			{
+				UE_LOG(LoadingProfiler, Log, TEXT("Opening the \"Asset Loading Insights\" tab..."));
+				FGlobalTabmanager::Get()->TryInvokeTab(TabId);
 			}
 		}
 	}
@@ -242,9 +264,17 @@ bool FLoadingProfilerManager::Tick(float DeltaTime)
 
 void FLoadingProfilerManager::OnSessionChanged()
 {
+	UE_LOG(LoadingProfiler, Log, TEXT("OnSessionChanged"));
+
 	bIsAvailable = false;
-	AvailabilityCheckNextTimestamp = 0;
-	AvailabilityCheckWaitTimeSec = 1.0;
+	if (FInsightsManager::Get()->GetSession().IsValid())
+	{
+		AvailabilityCheck.Enable(0.3);
+	}
+	else
+	{
+		AvailabilityCheck.Disable();
+	}
 
 	TSharedPtr<SLoadingProfilerWindow> Wnd = GetProfilerWindow();
 	if (Wnd.IsValid())
@@ -315,6 +345,19 @@ void FLoadingProfilerManager::ShowHideExportDetailsTreeView(const bool bIsVisibl
 	if (Wnd.IsValid())
 	{
 		Wnd->ShowHideTab(FLoadingProfilerTabs::ExportDetailsTreeViewID, bIsVisible);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FLoadingProfilerManager::ShowHideRequestsTreeView(const bool bIsVisible)
+{
+	bIsRequestsTreeViewVisible = bIsVisible;
+
+	TSharedPtr<SLoadingProfilerWindow> Wnd = GetProfilerWindow();
+	if (Wnd.IsValid())
+	{
+		Wnd->ShowHideTab(FLoadingProfilerTabs::RequestsTreeViewID, bIsVisible);
 	}
 }
 

@@ -8,7 +8,6 @@
 #include "PipelineStateCache.h"
 #include "RenderGraph.h"
 #include "PostProcess/SceneFilterRendering.h"
-#include "ScenePrivate.h"
 #include "RenderTargetTemp.h"
 #include "CanvasTypes.h"
 
@@ -18,11 +17,11 @@ bool IsHMDHiddenAreaMaskActive();
 // Returns the global engine mini font texture.
 const FTextureRHIRef& GetMiniFontTexture();
 
-// Creates and returns an RDG texture for the view family output.
-FRDGTextureRef CreateViewFamilyTexture(FRDGBuilder& GraphBuilder, const FSceneViewFamily& ViewFamily);
+// Creates and returns an RDG texture for the view family output. Returns null if no RHI texture exists.
+FRDGTextureRef TryCreateViewFamilyTexture(FRDGBuilder& GraphBuilder, const FSceneViewFamily& ViewFamily);
 
 // The vertex shader used by DrawScreenPass to draw a rectangle.
-class FScreenPassVS : public FGlobalShader
+class RENDERER_API FScreenPassVS : public FGlobalShader
 {
 public:
 	DECLARE_GLOBAL_SHADER(FScreenPassVS);
@@ -99,9 +98,11 @@ struct FScreenPassRenderTarget : public FScreenPassTexture
 class FScreenPassTextureViewport
 {
 public:
-	// Creates a viewport that is downscaled by the requested scale factor.
-	static FScreenPassTextureViewport CreateDownscaled(const FScreenPassTextureViewport& Other, uint32 ScaleFactor);
+	// Creates a viewport that is downscaled by an integer multiple.
 	static FScreenPassTextureViewport CreateDownscaled(const FScreenPassTextureViewport& Other, FIntPoint ScaleFactor);
+
+	// Creates a viewport scaled by a floating point multiplier.
+	static FScreenPassTextureViewport CreateScaled(const FScreenPassTextureViewport& Other, FVector2D Scale);
 
 	FScreenPassTextureViewport() = default;
 
@@ -114,6 +115,11 @@ public:
 
 	explicit FScreenPassTextureViewport(FRDGTextureRef InTexture)
 		: FScreenPassTextureViewport(FScreenPassTexture(InTexture))
+	{}
+
+	explicit FScreenPassTextureViewport(FIntPoint InExtent)
+		: Extent(InExtent)
+		, Rect(FIntPoint::ZeroValue, InExtent)
 	{}
 
 	FScreenPassTextureViewport(FIntPoint InExtent, FIntRect InRect)
@@ -136,12 +142,38 @@ public:
 	// Returns whether the viewport covers the full extent of the texture.
 	bool IsFullscreen() const;
 
+	// Returns the ratio of rect size to extent along each axis.
+	FVector2D GetRectToExtentRatio() const;
+
 	// The texture extent, in pixels; defines a super-set [0, 0]x(Extent, Extent).
 	FIntPoint Extent = FIntPoint::ZeroValue;
 
 	// The viewport rect, in pixels; defines a sub-set within [0, 0]x(Extent, Extent).
 	FIntRect Rect;
 };
+
+// Returns an extent downscaled by a multiple of the integer divisor (and clamped to 1).
+FIntPoint GetDownscaledExtent(FIntPoint Extent, FIntPoint Divisor);
+
+// Returns an extent scaled by the floating point scale factor.
+FIntPoint GetScaledExtent(FIntPoint Extent, FVector2D Multiplier);
+FIntPoint GetScaledExtent(FIntPoint Extent, float Multiplier);
+
+// Returns a rect downscaled by a multiple of the integer divisor.
+FIntRect GetDownscaledRect(FIntRect Rect, FIntPoint Divisor);
+
+// Returns a rect scaled by the floating point scale factor.
+FIntRect GetScaledRect(FIntRect Rect, FVector2D Multiplier);
+FIntRect GetScaledRect(FIntRect Rect, float Multiplier);
+
+// Returns the texture viewport downscaled by an integer divisor.
+FScreenPassTextureViewport GetDownscaledViewport(FScreenPassTextureViewport Viewport, FIntPoint Divisor);
+
+// Returns the texture viewport scaled by a float multiplier.
+FScreenPassTextureViewport GetScaledViewport(FScreenPassTextureViewport Viewport, FVector2D Multiplier);
+
+// Returns a rect with the min point at the origin and the max point at Extent.
+FIntRect GetRectFromExtent(FIntPoint Extent);
 
 // Describes the set of shader parameters for a screen pass texture viewport.
 BEGIN_SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, )
@@ -266,38 +298,6 @@ enum class EScreenPassDrawFlags : uint8
 };
 ENUM_CLASS_FLAGS(EScreenPassDrawFlags);
 
-/** Draws a full-viewport triangle with the provided pixel shader type. The destination full-viewport triangle
- *  and interpolated source UV coordinates are derived from the viewport and texture rectangles, respectively.
- *  @param OutputViewport The output viewport defining the render target extent and viewport rect.
- *  @param InputViewport The input viewport defining the rect region to map UV coordinates into.
- *  @param PixelShader The pixel shader instance assigned to the pipeline state.
- *  @param PixelShaderParameters The parameter block assigned to the pixel shader prior to draw.
- */
-template <typename TPixelShaderType>
-void DrawScreenPass(
-	FRHICommandListImmediate& RHICmdList,
-	const FViewInfo& View,
-	const FScreenPassTextureViewport& OutputViewport,
-	const FScreenPassTextureViewport& InputViewport,
-	const TShaderRef<TPixelShaderType>& PixelShader,
-	const typename TPixelShaderType::FParameters& PixelShaderParameters,
-	EScreenPassDrawFlags Flags = EScreenPassDrawFlags::None)
-{
-	TShaderMapRef<FScreenPassVS> ScreenPassVS(View.ShaderMap);
-
-	DrawScreenPass(
-		RHICmdList,
-		View,
-		OutputViewport,
-		InputViewport,
-		FScreenPassPipelineState(ScreenPassVS, PixelShader),
-		Flags,
-		[&](FRHICommandListImmediate&)
-	{
-		SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PixelShaderParameters);
-	});
-}
-
 /** More advanced variant of screen pass drawing. Supports overriding blend / depth stencil
  *  pipeline state, and providing a custom vertex shader. Shader parameters are not bound by
  *  this method, instead the user provides a setup function that is called prior to draw, but
@@ -361,52 +361,129 @@ void DrawScreenPass(
 /** Render graph variant of simpler DrawScreenPass function. Clears graph resources unused by the
  *  pixel shader prior to adding the pass.
  */
-template <typename TPixelShaderType>
-void AddDrawScreenPass(
+template <typename PixelShaderType>
+FORCEINLINE void AddDrawScreenPass(
 	FRDGBuilder& GraphBuilder,
 	FRDGEventName&& PassName,
 	const FViewInfo& View,
 	const FScreenPassTextureViewport& OutputViewport,
 	const FScreenPassTextureViewport& InputViewport,
-	const TShaderRef<TPixelShaderType>& PixelShader,
-	typename TPixelShaderType::FParameters* PixelShaderParameters,
+	const TShaderRef<FShader>& VertexShader,
+	const TShaderRef<PixelShaderType>& PixelShader,
+	FRHIBlendState* BlendState,
+	FRHIDepthStencilState* DepthStencilState,
+	typename PixelShaderType::FParameters* PixelShaderParameters,
 	EScreenPassDrawFlags Flags = EScreenPassDrawFlags::None)
 {
+	check(VertexShader.IsValid());
 	check(PixelShader.IsValid());
 	check(PixelShaderParameters);
 
 	ClearUnusedGraphResources(PixelShader, PixelShaderParameters);
 
+	const FScreenPassPipelineState PipelineState(VertexShader, PixelShader, BlendState, DepthStencilState);
+
 	GraphBuilder.AddPass(
-		Forward<FRDGEventName>(PassName),
+		Forward<FRDGEventName&&>(PassName),
 		PixelShaderParameters,
 		ERDGPassFlags::Raster,
-		[&View, OutputViewport, InputViewport, PixelShader, PixelShaderParameters, Flags] (FRHICommandListImmediate& RHICmdList)
+		[&View, OutputViewport, InputViewport, PipelineState, PixelShader, PixelShaderParameters, Flags](FRHICommandListImmediate& RHICmdList)
 	{
-		DrawScreenPass(RHICmdList, View, OutputViewport, InputViewport, PixelShader, *PixelShaderParameters, Flags);
+		DrawScreenPass(RHICmdList, View, OutputViewport, InputViewport, PipelineState, Flags, [&](FRHICommandListImmediate&)
+		{
+			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PixelShaderParameters);
+		});
 	});
+}
+
+template <typename PixelShaderType>
+FORCEINLINE void AddDrawScreenPass(
+	FRDGBuilder& GraphBuilder,
+	FRDGEventName&& PassName,
+	const FViewInfo& View,
+	const FScreenPassTextureViewport& OutputViewport,
+	const FScreenPassTextureViewport& InputViewport,
+	const TShaderRef<FShader>& VertexShader,
+	const TShaderRef<PixelShaderType>& PixelShader,
+	typename PixelShaderType::FParameters* PixelShaderParameters,
+	EScreenPassDrawFlags Flags = EScreenPassDrawFlags::None)
+{
+	FRHIBlendState* BlendState = FScreenPassPipelineState::FDefaultBlendState::GetRHI();
+	FRHIDepthStencilState* DepthStencilState = FScreenPassPipelineState::FDefaultDepthStencilState::GetRHI();
+	AddDrawScreenPass(GraphBuilder, Forward<FRDGEventName&&>(PassName), View, OutputViewport, InputViewport, VertexShader, PixelShader, BlendState, DepthStencilState, PixelShaderParameters, Flags);
+}
+
+template <typename PixelShaderType>
+FORCEINLINE void AddDrawScreenPass(
+	FRDGBuilder& GraphBuilder,
+	FRDGEventName&& PassName,
+	const FViewInfo& View,
+	const FScreenPassTextureViewport& OutputViewport,
+	const FScreenPassTextureViewport& InputViewport,
+	const TShaderRef<FShader>& VertexShader,
+	const TShaderRef<PixelShaderType>& PixelShader,
+	FRHIBlendState* BlendState,
+	typename PixelShaderType::FParameters* PixelShaderParameters,
+	EScreenPassDrawFlags Flags = EScreenPassDrawFlags::None)
+{
+	FRHIDepthStencilState* DepthStencilState = FScreenPassPipelineState::FDefaultDepthStencilState::GetRHI();
+	AddDrawScreenPass(GraphBuilder, Forward<FRDGEventName&&>(PassName), View, OutputViewport, InputViewport, VertexShader, PixelShader, BlendState, DepthStencilState, PixelShaderParameters, Flags);
+}
+
+template <typename PixelShaderType>
+FORCEINLINE void AddDrawScreenPass(
+	FRDGBuilder& GraphBuilder,
+	FRDGEventName&& PassName,
+	const FViewInfo& View,
+	const FScreenPassTextureViewport& OutputViewport,
+	const FScreenPassTextureViewport& InputViewport,
+	const TShaderRef<FShader>& VertexShader,
+	const TShaderRef<PixelShaderType>& PixelShader,
+	FRHIDepthStencilState* DepthStencilState,
+	typename PixelShaderType::FParameters* PixelShaderParameters,
+	EScreenPassDrawFlags Flags = EScreenPassDrawFlags::None)
+{
+	FRHIBlendState* BlendState = FScreenPassPipelineState::FDefaultBlendState::GetRHI();
+	AddDrawScreenPass(GraphBuilder, Forward<FRDGEventName&&>(PassName), View, OutputViewport, InputViewport, VertexShader, PixelShader, BlendState, DepthStencilState, PixelShaderParameters, Flags);
+}
+
+template <typename PixelShaderType>
+FORCEINLINE void AddDrawScreenPass(
+	FRDGBuilder& GraphBuilder,
+	FRDGEventName&& PassName,
+	const FViewInfo& View,
+	const FScreenPassTextureViewport& OutputViewport,
+	const FScreenPassTextureViewport& InputViewport,
+	const TShaderRef<PixelShaderType>& PixelShader,
+	typename PixelShaderType::FParameters* PixelShaderParameters,
+	EScreenPassDrawFlags Flags = EScreenPassDrawFlags::None)
+{
+	TShaderMapRef<FScreenPassVS> VertexShader(View.ShaderMap);
+	FRHIBlendState* BlendState = FScreenPassPipelineState::FDefaultBlendState::GetRHI();
+	FRHIDepthStencilState* DepthStencilState = FScreenPassPipelineState::FDefaultDepthStencilState::GetRHI();
+	AddDrawScreenPass(GraphBuilder, Forward<FRDGEventName&&>(PassName), View, OutputViewport, InputViewport, VertexShader, PixelShader, BlendState, DepthStencilState, PixelShaderParameters, Flags);
 }
 
 /** Render graph variant of more advanced DrawScreenPass function. Does *not* clear unused graph
  *  resources, since the parameters might be shared between the vertex and pixel shaders.
  */
 template <typename TSetupFunction, typename TPassParameterStruct>
-void AddDrawScreenPass(
+FORCEINLINE void AddDrawScreenPass(
 	FRDGBuilder& GraphBuilder,
 	FRDGEventName&& PassName,
 	const FViewInfo& View,
 	const FScreenPassTextureViewport& OutputViewport,
 	const FScreenPassTextureViewport& InputViewport,
 	const FScreenPassPipelineState& PipelineState,
-	EScreenPassDrawFlags Flags,
 	TPassParameterStruct* PassParameterStruct,
+	EScreenPassDrawFlags Flags,
 	TSetupFunction SetupFunction)
 {
 	PipelineState.Validate();
 	check(PassParameterStruct);
 
 	GraphBuilder.AddPass(
-		Forward<FRDGEventName>(PassName),
+		Forward<FRDGEventName&&>(PassName),
 		PassParameterStruct,
 		ERDGPassFlags::Raster,
 		[&View, OutputViewport, InputViewport, PipelineState, SetupFunction, Flags] (FRHICommandListImmediate& RHICmdList)
@@ -414,6 +491,21 @@ void AddDrawScreenPass(
 		DrawScreenPass(RHICmdList, View, OutputViewport, InputViewport, PipelineState, Flags, SetupFunction);
 	});
 }
+
+template <typename TSetupFunction, typename TPassParameterStruct>
+FORCEINLINE void AddDrawScreenPass(
+	FRDGBuilder& GraphBuilder,
+	FRDGEventName&& PassName,
+	const FViewInfo& View,
+	const FScreenPassTextureViewport& OutputViewport,
+	const FScreenPassTextureViewport& InputViewport,
+	const FScreenPassPipelineState& PipelineState,
+	TPassParameterStruct* PassParameterStruct,
+	TSetupFunction SetupFunction)
+{
+	AddDrawScreenPass(GraphBuilder, Forward<FRDGEventName&&>(PassName), View, OutputViewport, InputViewport, PipelineState, PassParameterStruct, EScreenPassDrawFlags::None, SetupFunction);
+}
+
 /** Helper function which copies a region of an input texture to a region of the output texture,
  *  with support for format conversion. If formats match, the method falls back to a simple DMA
  *  (CopyTexture); otherwise, it rasterizes using a pixel shader. Use this method if the two
@@ -429,7 +521,7 @@ void RENDERER_API AddDrawTexturePass(
 	FIntPoint Size = FIntPoint::ZeroValue);
 
 /** Helper variant which takes a shared viewport instead of unique input / output positions. */
-inline void AddDrawTexturePass(
+FORCEINLINE void AddDrawTexturePass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	FRDGTextureRef InputTexture,
@@ -451,7 +543,7 @@ void DrawCanvasPass(
 	FRHICommandListImmediate& RHICmdList,
 	const FViewInfo& View,
 	FScreenPassTexture Output,
-	TFunction Function)
+	TFunction&& Function)
 {
 	check(Output.IsValid());
 
@@ -468,24 +560,48 @@ void DrawCanvasPass(
 }
 
 template <typename TFunction>
-void AddDrawCanvasPass(
+FORCEINLINE void AddRenderTargetPass(
+	FRDGBuilder& GraphBuilder,
+	FRDGEventName&& PassName,
+	FScreenPassRenderTarget Output,
+	TFunction&& Function)
+{
+	FRenderTargetParameters* PassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
+	PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
+	GraphBuilder.AddPass(MoveTemp(PassName), PassParameters, ERDGPassFlags::Raster, MoveTemp(Function));
+}
+
+template <typename TFunction>
+FORCEINLINE void AddDrawCanvasPass(
 	FRDGBuilder& GraphBuilder,
 	FRDGEventName&& PassName,
 	const FViewInfo& View,
 	FScreenPassRenderTarget Output,
 	TFunction Function)
 {
-	FRenderTargetParameters* PassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
-	PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
-
-	GraphBuilder.AddPass(
-		MoveTemp(PassName),
-		PassParameters,
-		ERDGPassFlags::Raster,
-		[Output, &View, Function](FRHICommandListImmediate& RHICmdList)
+	AddRenderTargetPass(GraphBuilder, MoveTemp(PassName), Output, [Output, &View, Function](FRHICommandListImmediate& RHICmdList)
 	{
 		DrawCanvasPass(RHICmdList, View, Output, Function);
 	});
 }
+
+enum class EDownsampleDepthFilter
+{
+	// Produces a depth value that is not conservative but has consistent error (i.e. picks the sample).
+	Point,
+
+	// Produces a conservative max depth value.
+	Max,
+
+	// Produces a checkerboarded selection of min and max depth values
+	Checkerboard
+};
+
+void AddDownsampleDepthPass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	FScreenPassTexture Input,
+	FScreenPassRenderTarget Output,
+	EDownsampleDepthFilter DownsampleDepthFilter);
 
 #include "ScreenPass.inl"

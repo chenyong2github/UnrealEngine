@@ -12,6 +12,7 @@
 #include "Engine/TextureStreamingTypes.h"
 #include "Components/MeshComponent.h"
 #include "Containers/SortedMap.h"
+#include "LODSyncInterface.h"
 #include "SkinnedMeshComponent.generated.h"
 
 enum class ESkinCacheUsage : uint8;
@@ -102,6 +103,15 @@ namespace EBoneSpaces
 	};
 }
 
+UENUM(BlueprintType, meta = (Bitflags, UseEnumValuesAsMaskValuesInEditor = "true"))
+enum class EVertexOffsetUsageType : uint8
+{
+	None = 0,
+	PreSkinningOffset = (1 << 0),
+	PostSkinningOffset = (1 << 1),
+};
+ENUM_CLASS_FLAGS(EVertexOffsetUsageType);
+
 /** Struct used to indicate one active morph target that should be applied to this USkeletalMesh when rendered. */
 struct FActiveMorphTarget
 {
@@ -165,6 +175,9 @@ struct ENGINE_API FSkelMeshComponentLODInfo
 	/** Vertex buffer used to override skin weights from one of the profiles */
 	FSkinWeightVertexBuffer* OverrideProfileSkinWeights;
 
+	TArray<FVector> PreSkinningOffsets;
+	TArray<FVector> PostSkinningOffsets;
+
 	FSkelMeshComponentLODInfo();
 	~FSkelMeshComponentLODInfo();
 
@@ -189,6 +202,15 @@ struct FSkelMeshRefPoseOverride
 	TArray<FTransform> RefBonePoses;
 };
 
+USTRUCT(BlueprintType)
+struct FVertexOffsetUsage
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "Mesh", meta = (Bitmask, BitmaskEnum = EVertexOffsetUsageType))
+	int32 Usage = 0;
+};
+
 /**
  *
  * Skinned mesh component that supports bone skinned mesh rendering.
@@ -198,7 +220,7 @@ struct FSkelMeshRefPoseOverride
 */
 
 UCLASS(hidecategories=Object, config=Engine, editinlinenew, abstract)
-class ENGINE_API USkinnedMeshComponent : public UMeshComponent
+class ENGINE_API USkinnedMeshComponent : public UMeshComponent, public ILODSyncInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -226,6 +248,9 @@ class ENGINE_API USkinnedMeshComponent : public UMeshComponent
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh")
 	TArray<ESkinCacheUsage> SkinCacheUsage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh", meta=(DisplayName="Pre/Post Skin Deltas Usage"))
+	TArray<FVertexOffsetUsage> VertexOffsetUsage;
 
 	/** const getters for previous transform idea */
 	const TArray<uint8>& GetPreviousBoneVisibilityStates() const
@@ -798,6 +823,10 @@ public:
 	bool GetTwistAndSwingAngleOfDeltaRotationFromRefPose(FName BoneName, float& OutTwistAngle, float& OutSwingAngle) const;
 
 	bool IsSkinCacheAllowed(int32 LodIdx) const;
+	/**
+	 *	Compute SkeletalMesh MinLOD that will be used by this component
+	 */
+	int32 ComputeMinLOD() const;
 
 public:
 	//~ Begin UObject Interface
@@ -1001,6 +1030,22 @@ public:
 	/** Check whether or not a Skin Weight Profile is currently set */
 	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
 	bool IsUsingSkinWeightProfile() const { return bSkinWeightProfileSet == 1;  }
+
+	UE_DEPRECATED(4.26, "GetVertexOffsetUsage() has been deprecated. Support will be dropped in the future.")
+	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
+	int32 GetVertexOffsetUsage(int32 LODIndex) const;
+
+	UE_DEPRECATED(4.26, "SetVertexOffsetUsage() has been deprecated. Support will be dropped in the future.")
+	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
+	void SetVertexOffsetUsage(int32 LODIndex, int32 Usage);
+
+	UE_DEPRECATED(4.26, "SetPreSkinningOffsets() has been deprecated. Support will be dropped in the future.")
+	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
+	void SetPreSkinningOffsets(int32 LODIndex, TArray<FVector> Offsets);
+
+	UE_DEPRECATED(4.26, "SetPostSkinningOffsets() has been deprecated. Support will be dropped in the future.")
+	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
+	void SetPostSkinningOffsets(int32 LODIndex, TArray<FVector> Offsets);
 
 	/** Check whether or not a Skin Weight Profile is currently pending load / create */
 	bool IsSkinWeightProfilePending() const { return bSkinWeightProfilePending == 1; }
@@ -1424,7 +1469,7 @@ public:
 
 	/**
 	 *	Hides the specified bone with name.  Currently this just enforces a scale of 0 for the hidden bones.
-	 *	Compoared to HideBone By Index - This keeps track of list of bones and update when LOD changes
+	 *	Compared to HideBone By Index - This keeps track of list of bones and update when LOD changes
 	 *
 	 *	@param  BoneName            Name of bone to hide
 	 *	@param	PhysBodyOption		Option for physics bodies that attach to the bones to be hidden
@@ -1434,7 +1479,7 @@ public:
 
 	/**
 	 *	UnHide the specified bone with name.  Currently this just enforces a scale of 0 for the hidden bones.
-	 *	Compoared to HideBone By Index - This keeps track of list of bones and update when LOD changes
+	 *	Compared to HideBone By Index - This keeps track of list of bones and update when LOD changes
 	 *	@param  BoneName            Name of bone to unhide
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|SkinnedMesh")
@@ -1495,6 +1540,12 @@ private:
 	 * relative transforms.
 	 */
 	bool GetMissingMasterBoneRelativeTransform(int32 InBoneIndex, FMissingMasterBoneCacheEntry& OutInfo) const;
+
+	// BEGIN ILODSyncComponent
+	virtual int32 GetDesiredSyncLOD() const override;
+	virtual void SetSyncLOD(int32 LODIndex) override;
+	virtual int32 GetNumSyncLODs() const override;
+	// END ILODSyncComponent
 
 	// Animation update rate control.
 public:

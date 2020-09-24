@@ -27,7 +27,6 @@
 #include "Animation/NodeMappingProviderInterface.h"
 #include "Animation/SkinWeightProfile.h"
 #include "Engine/StreamableRenderAsset.h"
-#include "RenderAssetUpdate.h"
 
 #include "SkeletalMesh.generated.h"
 
@@ -447,11 +446,11 @@ struct FSkeletalMaterial
 	ENGINE_API friend bool operator==( const FSkeletalMaterial& LHS, const UMaterialInterface& RHS );
 	ENGINE_API friend bool operator==( const UMaterialInterface& LHS, const FSkeletalMaterial& RHS );
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=SkeletalMesh)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=SkeletalMesh)
 	class UMaterialInterface *	MaterialInterface;
 	
 	/*This name should be use by the gameplay to avoid error if the skeletal mesh Materials array topology change*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = SkeletalMesh)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SkeletalMesh)
 	FName						MaterialSlotName;
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
@@ -527,6 +526,7 @@ private:
 	TUniquePtr<FSkeletalMeshRenderData> SkeletalMeshRenderData;
 
 #if WITH_EDITORONLY_DATA
+public:
 	/*
 	 * This editor data asset is save in the same package has the skeletalmesh, the editor data asset is always loaded.
 	 * If the skeletal mesh is rename the editor data asset will also be rename: the name is SkeletalMeshName_USkeletalMeshEditorData
@@ -537,6 +537,7 @@ private:
 	UPROPERTY()
 	mutable USkeletalMeshEditorData* MeshEditorDataObject;
 
+private:
 	/*
 	 * Return a valid USkeletalMeshEditorData, if the MeshEditorDataPath is invalid it will create the USkeletalMeshEditorData and set the MeshEditorDataPath to point on it.
 	 */
@@ -582,13 +583,19 @@ public:
 	/* Set the Versions of the geo and skinning data. We use those versions to answer to IsLODImportedDataBuildAvailable function. */
 	void SetLODImportedDataVersions(const int32 LODIndex, const ESkeletalMeshGeoImportVersions& InGeoImportVersion, const ESkeletalMeshSkinningImportVersions& InSkinningImportVersion);
 
-	/* Static function that copy the LOD import data from a source skeletal mesh to a destination skeletal mesh*/
+	/* Static function that copy the LOD import data from a source s^keletal mesh to a destination skeletal mesh*/
 	static void CopyImportedData(int32 SrcLODIndex, USkeletalMesh* SrcSkeletalMesh, int32 DestLODIndex, USkeletalMesh* DestSkeletalMesh);
 
 	/* Allocate the space we need. Use this before calling this API in multithreaded. */
 	void ReserveLODImportData(int32 MaxLODIndex);
 	
 	void ForceBulkDataResident(const int32 LODIndex);
+
+	/* Remove the import data for the specified LOD */
+	void EmptyLODImportData(const int32 LODIndex);
+
+	/* Remove the import data for all the LODs */
+	void EmptyAllImportData();
 
 	// End USkeletalMeshEditorData public skeletalmesh API
 	//////////////////////////////////////////////////////////////////////////
@@ -677,7 +684,7 @@ public:
 #endif
 
 	/** List of materials applied to this mesh. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, transient, duplicatetransient, Category=SkeletalMesh)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, transient, duplicatetransient, Category=SkeletalMesh)
 	TArray<FSkeletalMaterial> Materials;
 
 	/** List of bones that should be mirrored. */
@@ -733,6 +740,11 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AssetRegistrySearchable, BlueprintSetter = SetLODSettings, Category = LODSettings)
 	USkeletalMeshLODSettings* LODSettings;
+
+	/** The Default Control Rig To Animate with when used in Sequnecer. */
+	UPROPERTY(EditAnywhere, Category = AnimationRig, meta = (AllowedClasses = "ControlRigBlueprint"))
+	TSoftObjectPtr<UObject> DefaultAnimatingRig;
+
 #endif // WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
@@ -997,8 +1009,6 @@ protected:
 	FOnMeshChanged OnMeshChanged;
 #endif
 
-	TRefCountPtr<FSkeletalMeshUpdate> PendingUpdate;
-
 	friend struct FSkeletalMeshUpdateContext;
 	friend class FSkeletalMeshUpdate;
 
@@ -1121,30 +1131,18 @@ public:
 	//~ End UObject Interface.
 
 	//~ Begin UStreamableRenderAsset Interface.
-	virtual int32 GetLODGroupForStreaming() const final override;
-	virtual int32 GetNumMipsForStreaming() const final override;
-	virtual int32 GetNumNonStreamingMips() const final override;
-	virtual int32 CalcNumOptionalMips() const final override;
 	virtual int32 CalcCumulativeLODSize(int32 NumLODs) const final override;
 	virtual FIoFilenameHash GetMipIoFilenameHash(const int32 MipIndex) const final override;
 	virtual bool DoesMipDataExist(const int32 MipIndex) const final override;
-	virtual bool IsReadyForStreaming() const final override;
-	virtual int32 GetNumResidentMips() const final override;
-	virtual int32 GetNumRequestedMips() const final override;
-	virtual bool CancelPendingMipChangeRequest() final override;
-	virtual bool HasPendingUpdate() const final override;
-	virtual bool IsPendingUpdateLocked() const final override;
 	virtual bool StreamOut(int32 NewMipCount) final override;
 	virtual bool StreamIn(int32 NewMipCount, bool bHighPrio) final override;
-	virtual bool UpdateStreamingStatus(bool bWaitForMipFading = false, TArray<UStreamableRenderAsset*>* DeferredTickCBAssets = nullptr) final override;
+	virtual bool HasPendingRenderResourceInitialization() const;
+	virtual EStreamableRenderAssetType GetRenderAssetType() const final override { return EStreamableRenderAssetType::SkeletalMesh; }
 	//~ End UStreamableRenderAsset Interface.
 
 #if USE_BULKDATA_STREAMING_TOKEN
 	bool GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFilename) const;
 #endif
-
-	void LinkStreaming();
-	void UnlinkStreaming();
 
 	/**
 	* Cancels any pending static mesh streaming actions if possible.
@@ -1358,7 +1356,6 @@ public:
 	*/
 	void InvalidateDeriveDataCacheGUID();
 #endif 
-
 private:
 
 #if WITH_EDITOR
@@ -1368,6 +1365,11 @@ private:
 
 	/** Utility function to help with building the combined socket list */
 	bool IsSocketOnMesh( const FName& InSocketName ) const;
+
+	/**
+	* Create a new GUID for the source Model data, regenerate derived data and re-create any render state based on that.
+	*/
+	void InvalidateRenderData();
 
 #if WITH_EDITORONLY_DATA
 	/**

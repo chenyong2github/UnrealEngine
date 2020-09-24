@@ -270,7 +270,7 @@ class FGeneratePageFlagsFromPixelsCS : public FVirtualPageManagementShader
 	
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapCommonParameters, CommonParameters)
-		SHADER_PARAMETER_STRUCT_REF(FSceneTexturesUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_REF(FForwardLightData, ForwardLightData)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint2>, VisBuffer64)
@@ -475,9 +475,9 @@ void FVirtualShadowMapArray::ClearPhysicalMemory(FRDGBuilder& GraphBuilder, FRDG
 			bool bCacheDataAvailable = VirtualShadowMapArrayCacheManager && VirtualShadowMapArrayCacheManager->PrevPhysicalPageMetaData;
 			if (bCacheDataAvailable)
 			{
-				PassParameters->CachedPhysicalPagesTexture = RegisterExternalTextureWithFallback(GraphBuilder, VirtualShadowMapArrayCacheManager ? VirtualShadowMapArrayCacheManager->PrevPhysicalPagePool : nullptr, GSystemTextures.BlackDummy, TEXT("PrevPhysicalPagePool"));
+				PassParameters->CachedPhysicalPagesTexture = RegisterExternalTextureWithFallback(GraphBuilder, VirtualShadowMapArrayCacheManager ? VirtualShadowMapArrayCacheManager->PrevPhysicalPagePool : nullptr, GSystemTextures.BlackDummy);
 				PassParameters->CachedPageInfos = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(CachedPageInfos));
-				PassParameters->PrevPhysicalPageMetaData = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(VirtualShadowMapArrayCacheManager->PrevPhysicalPageMetaData, TEXT("PrevPhysicalPageMetaData")));
+				PassParameters->PrevPhysicalPageMetaData = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(VirtualShadowMapArrayCacheManager->PrevPhysicalPageMetaData));
 			}
 			PassParameters->PhysicalPageMetaDataOut = GraphBuilder.CreateUAV(PhysicalPageMetaDataRDG);
 
@@ -526,8 +526,8 @@ void FVirtualShadowMapArray::MarkPhysicalPagesRendered(FRDGBuilder& GraphBuilder
 
 	{
 		// One launch per All SMs, since they share page table data structure.
-		FRDGBufferRef PageTableRDG = GraphBuilder.RegisterExternalBuffer(PageTable, TEXT("PageTable"));
-		FRDGBufferRef PhysicalPageMetaDataRDG = GraphBuilder.RegisterExternalBuffer(PhysicalPageMetaData, TEXT("PhysicalPageMetaData"));
+		FRDGBufferRef PageTableRDG = GraphBuilder.RegisterExternalBuffer(PageTable);
+		FRDGBufferRef PhysicalPageMetaDataRDG = GraphBuilder.RegisterExternalBuffer(PhysicalPageMetaData);
 
 		FRDGBufferRef VirtualShadowMapFlagsRDG = CreateStructuredBuffer(GraphBuilder, TEXT("VirtualShadowMapFlags"), VirtualShadowMapFlags);
 
@@ -708,7 +708,7 @@ void FVirtualShadowMapArray::GeneratePageFlagsFromLightGrid(FRDGBuilder& GraphBu
 			}
 
 			FRDGBufferRef VirtualShadowMapIdRemapRDG = CreateStructuredBuffer(GraphBuilder, TEXT("VirtualShadowMapIdRemap"), VirtualShadowMapIdRemap);
-			FRDGTextureRef VisBuffer64 = RegisterExternalTextureWithFallback(GraphBuilder, NaniteRasterResult.VisBuffer64, GSystemTextures.BlackDummy, TEXT("VisBuffer64"));
+			FRDGTextureRef VisBuffer64 = RegisterExternalTextureWithFallback(GraphBuilder, NaniteRasterResult.VisBuffer64, GSystemTextures.BlackDummy);
 
 			FRDGBufferRef ScreenSpaceGridBoundsRDG = nullptr;
 			
@@ -722,11 +722,11 @@ void FVirtualShadowMapArray::GeneratePageFlagsFromLightGrid(FRDGBuilder& GraphBu
 
 				if (bPostBasePass)
 				{
-					PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBufferSingleDraw(GraphBuilder.RHICmdList, ESceneTextureSetupMode::GBuffers | ESceneTextureSetupMode::SceneDepth, View.FeatureLevel);
+					PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder, View.FeatureLevel, ESceneTextureSetupMode::GBuffers | ESceneTextureSetupMode::SceneDepth);
 				}
 				else
 				{
-					PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBufferSingleDraw(GraphBuilder.RHICmdList, ESceneTextureSetupMode::SceneDepth, View.FeatureLevel);
+					PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder, View.FeatureLevel, ESceneTextureSetupMode::SceneDepth);
 				}
 				PassParameters->bPostBasePass = bPostBasePass;
 				
@@ -852,22 +852,22 @@ void FVirtualShadowMapArray::GeneratePageFlagsFromLightGrid(FRDGBuilder& GraphBu
 		}
 
 
-		GraphBuilder.QueueBufferExtraction( PageFlagsRDG,			&PageFlags);
-		GraphBuilder.QueueBufferExtraction( HPageFlagsRDG,			&HPageFlags );
-		GraphBuilder.QueueBufferExtraction( PageTableRDG,			&PageTable );
-		GraphBuilder.QueueBufferExtraction( AllocatedPagesOffsetRDG,&AllocatedPagesOffset );
-		GraphBuilder.QueueBufferExtraction( ShadowMapProjectionDataRDG, &ShadowMapProjectionDataBuffer);
+		ConvertToExternalBuffer(GraphBuilder, PageFlagsRDG,					PageFlags);
+		ConvertToExternalBuffer(GraphBuilder, HPageFlagsRDG,				HPageFlags);
+		ConvertToExternalBuffer(GraphBuilder, PageTableRDG,					PageTable);
+		ConvertToExternalBuffer(GraphBuilder, AllocatedPagesOffsetRDG,		AllocatedPagesOffset);
+		ConvertToExternalBuffer(GraphBuilder, ShadowMapProjectionDataRDG,	ShadowMapProjectionDataBuffer);
 		
 		// Extract page count & other stuff...
 		if (StatsBufferRDG)
 		{
-			GraphBuilder.QueueBufferExtraction(StatsBufferRDG, &StatsBufferRef);
+			ConvertToExternalBuffer(GraphBuilder, StatsBufferRDG, StatsBufferRef);
 		}
 
-		GraphBuilder.QueueBufferExtraction(CachedPageInfosRDG, &CachedPageInfos);
-		GraphBuilder.QueueBufferExtraction( PhysicalPageMetaDataRDG, &PhysicalPageMetaData);
-		GraphBuilder.QueueBufferExtraction( DynamicCasterPageFlagsRDG, &DynamicCasterPageFlags);
-		GraphBuilder.QueueBufferExtraction( PageRectBoundsRDG, &PageRectBounds);
+		ConvertToExternalBuffer(GraphBuilder, CachedPageInfosRDG,			CachedPageInfos);
+		ConvertToExternalBuffer(GraphBuilder, PhysicalPageMetaDataRDG,		PhysicalPageMetaData);
+		ConvertToExternalBuffer(GraphBuilder, DynamicCasterPageFlagsRDG,	DynamicCasterPageFlags);
+		ConvertToExternalBuffer(GraphBuilder, PageRectBoundsRDG,			PageRectBounds);
 	}
 }
 
@@ -929,15 +929,11 @@ void FVirtualShadowMapArray::RenderDebugInfo(FRDGBuilder& GraphBuilder, FVirtual
 			DebugTargetHeight = 2048;
 		}
 
-		FRDGTextureDesc DebugOutputDesc = FRDGTextureDesc::Create2DDesc(
+		FRDGTextureDesc DebugOutputDesc = FRDGTextureDesc::Create2D(
 			FIntPoint(DebugTargetWidth, DebugTargetHeight),
 			PF_A32B32G32R32F,
 			FClearValueBinding::None,
-			TexCreate_None,
-			TexCreate_ShaderResource | TexCreate_UAV,
-			false);
-
-		DebugOutputDesc.DebugName = TEXT("VirtSmDebug");
+			TexCreate_ShaderResource | TexCreate_UAV);
 
 		FRDGTextureRef DebugOutput = GraphBuilder.CreateTexture(
 			DebugOutputDesc,
@@ -949,11 +945,11 @@ void FVirtualShadowMapArray::RenderDebugInfo(FRDGBuilder& GraphBuilder, FVirtual
 		PassParameters->PageFlags			= GraphBuilder.CreateSRV( GraphBuilder.RegisterExternalBuffer( PageFlags ) );
 		PassParameters->HPageFlags			= GraphBuilder.CreateSRV( GraphBuilder.RegisterExternalBuffer( HPageFlags ) );
 
-		PassParameters->PhysicalPagePool	= RegisterExternalTextureWithFallback( GraphBuilder, PhysicalPagePool, GSystemTextures.BlackDummy, TEXT("PhysicalPagePool") );
-		PassParameters->PageTable			= GraphBuilder.CreateSRV( GraphBuilder.RegisterExternalBuffer( PageTable, TEXT("PageTable") ) );
+		PassParameters->PhysicalPagePool	= RegisterExternalTextureWithFallback( GraphBuilder, PhysicalPagePool, GSystemTextures.BlackDummy);
+		PassParameters->PageTable			= GraphBuilder.CreateSRV( GraphBuilder.RegisterExternalBuffer( PageTable ) );
 
-		PassParameters->HZBPhysical			= RegisterExternalTextureWithFallback( GraphBuilder, HZBPhysical, GSystemTextures.BlackDummy, TEXT("HZBPhysical") );
-		PassParameters->HZBPageTable		= GraphBuilder.CreateSRV( GraphBuilder.RegisterExternalBuffer( HZBPageTable ? HZBPageTable : PageTable, TEXT("HZBPageTable") ) );
+		PassParameters->HZBPhysical			= RegisterExternalTextureWithFallback( GraphBuilder, HZBPhysical, GSystemTextures.BlackDummy);
+		PassParameters->HZBPageTable		= GraphBuilder.CreateSRV( GraphBuilder.RegisterExternalBuffer( HZBPageTable ? HZBPageTable : PageTable ));
 
 		PassParameters->DebugTargetWidth = DebugTargetWidth;
 		PassParameters->DebugTargetHeight = DebugTargetHeight;
@@ -980,7 +976,7 @@ void FVirtualShadowMapArray::RenderDebugInfo(FRDGBuilder& GraphBuilder, FVirtual
 			FComputeShaderUtils::GetGroupCount(FIntPoint(DebugTargetWidth, DebugTargetHeight), FVirtualPageManagementShader::DefaultCSGroupXY)
 		);
 
-		GraphBuilder.QueueTextureExtraction(DebugOutput, &DebugVisualizationOutput);
+		ConvertToExternalTexture(GraphBuilder, DebugOutput, DebugVisualizationOutput);
 	}
 }
 

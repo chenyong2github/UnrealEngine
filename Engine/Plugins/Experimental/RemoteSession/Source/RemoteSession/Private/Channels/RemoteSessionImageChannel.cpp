@@ -12,6 +12,8 @@
 #include "Engine/Texture2D.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Modules/ModuleManager.h"
+#include "ImageProviders/RemoteSessionFrameBufferImageProvider.h"
+#include "RemoteSessionUtils.h"
 
 
 DECLARE_CYCLE_STAT(TEXT("RSTextureUpdate"), STAT_TextureUpdate, STATGROUP_Game);
@@ -24,8 +26,19 @@ static FAutoConsoleVariableRef CVarQualityOverride(
 	TEXT("Sets quality (1-100)"),
 	ECVF_Default);
 
+class FRemoteSessionImageChannelFactoryWorker : public IRemoteSessionChannelFactoryWorker
+{
+public:
+	TSharedPtr<IRemoteSessionChannel> Construct(ERemoteSessionChannelMode InMode, TBackChannelSharedPtr<IBackChannelConnection> InConnection) const
+	{
+		return MakeShared<FRemoteSessionImageChannel>(InMode, InConnection);
+	}
+};
 
-FRemoteSessionImageChannel::FImageSender::FImageSender(TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection)
+REGISTER_CHANNEL_FACTORY(FRemoteSessionImageChannel, FRemoteSessionImageChannelFactoryWorker, ERemoteSessionChannelMode::Write);
+
+
+FRemoteSessionImageChannel::FImageSender::FImageSender(TSharedPtr<IBackChannelConnection, ESPMode::ThreadSafe> InConnection)
 {
 	Connection = InConnection;
 	CompressQuality = 0;
@@ -47,7 +60,7 @@ void FRemoteSessionImageChannel::FImageSender::SendRawImageToClients(int32 Width
 	static bool SkipImages = FParse::Param(FCommandLine::Get(), TEXT("remote.noimage"));
 
 	// Can be released on the main thread at anytime so hold onto it
-	TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> LocalConnection = Connection.Pin();
+	TSharedPtr<IBackChannelConnection, ESPMode::ThreadSafe> LocalConnection = Connection.Pin();
 
 	if (LocalConnection.IsValid() && SkipImages == false)
 	{
@@ -64,20 +77,21 @@ void FRemoteSessionImageChannel::FImageSender::SendRawImageToClients(int32 Width
 			const int32 CurrentQuality = QualityMasterSetting > 0 ? QualityMasterSetting : CompressQuality.Load();
 			const TArray64<uint8>& JPGData = ImageWrapper->GetCompressed(CurrentQuality);
 
-			FBackChannelOSCMessage Msg(TEXT("/Screen"));
-			Msg.Write(Width);
-			Msg.Write(Height);
-			Msg.Write(JPGData);
-			Msg.Write(++NumSentImages);
+			TBackChannelSharedPtr<FBackChannelOSCMessage> Msg = MakeShared<FBackChannelOSCMessage, ESPMode::ThreadSafe>(TEXT("/Screen"));
+	
+			Msg->Write(TEXT("Width"), Width);
+			Msg->Write(TEXT("Height"), Height);
+			Msg->Write(TEXT("Data"), JPGData);
+			Msg->Write(TEXT("ImageCount"), ++NumSentImages);
 			LocalConnection->SendPacket(Msg);
 
-			UE_LOG(LogRemoteSession, Verbose, TEXT("Sent image %d in %.02f ms"),
+			UE_LOG(LogRemoteSession, VeryVerbose, TEXT("Sent image %d in %.02f ms"),
 				NumSentImages, (FPlatformTime::Seconds() - TimeNow) * 1000.0);
 		}
 	}
 }
 
-FRemoteSessionImageChannel::FRemoteSessionImageChannel(ERemoteSessionChannelMode InRole, TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection)
+FRemoteSessionImageChannel::FRemoteSessionImageChannel(ERemoteSessionChannelMode InRole, TSharedPtr<IBackChannelConnection, ESPMode::ThreadSafe> InConnection)
 	: IRemoteSessionChannel(InRole, InConnection)
 {
 	Connection = InConnection;
@@ -91,13 +105,16 @@ FRemoteSessionImageChannel::FRemoteSessionImageChannel(ERemoteSessionChannelMode
 	BackgroundThread = nullptr;
 	ScreenshotEvent = nullptr;
 	ExitRequested = false;
+	HaveConfiguredImageProvider = false;
 
+	
 	if (Role == ERemoteSessionChannelMode::Read)
 	{
-		auto Delegate = FBackChannelDispatchDelegate::FDelegate::CreateRaw(this, &FRemoteSessionImageChannel::ReceiveHostImage);
-		MessageCallbackHandle = InConnection->AddMessageHandler(TEXT("/Screen"), Delegate);
+		auto Delegate = FBackChannelRouteDelegate::FDelegate::CreateRaw(this, &FRemoteSessionImageChannel::ReceiveHostImage);
+		MessageCallbackHandle = InConnection->AddRouteDelegate(TEXT("/Screen"), Delegate);
 
-		InConnection->SetMessageOptions(TEXT("/Screen"), 1);
+		// #agrant todo: need equivalent
+		// InConnection->SetMessageOptions(TEXT("/Screen"), 1);
 
 		StartBackgroundThread();
 	}
@@ -111,11 +128,11 @@ FRemoteSessionImageChannel::~FRemoteSessionImageChannel()
 {
 	if (Role == ERemoteSessionChannelMode::Read)
 	{
-		TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> LocalConnection = Connection.Pin();
+		TSharedPtr<IBackChannelConnection, ESPMode::ThreadSafe> LocalConnection = Connection.Pin();
 		if (LocalConnection.IsValid())
 		{
 			// Remove the callback so it doesn't call back on an invalid this
-			LocalConnection->RemoveMessageHandler(TEXT("/Screen"), MessageCallbackHandle);
+			LocalConnection->RemoveRouteDelegate(TEXT("/Screen"), MessageCallbackHandle);
 		}
 		MessageCallbackHandle.Reset();
 
@@ -157,6 +174,12 @@ void FRemoteSessionImageChannel::Tick(const float InDeltaTime)
 
 	if (Role == ERemoteSessionChannelMode::Write)
 	{
+		// If an image provider hasn't been configured yet then set a default
+		if (!HaveConfiguredImageProvider && ImageProvider == nullptr)
+		{
+			SetFramebufferAsImageProvider();
+		}
+
 		if (ImageProvider)
 		{
 			ImageProvider->Tick(InDeltaTime);
@@ -216,7 +239,7 @@ void FRemoteSessionImageChannel::Tick(const float InDeltaTime)
 
 			DecodedTextures[NextImage]->UpdateTextureRegions(0, 1, Region, 4 * QueuedImage->Width, sizeof(FColor), TextureData->GetData(), DataCleanupFunc);
 
-			UE_LOG(LogRemoteSession, Verbose, TEXT("GT: Uploaded image %d"),
+			UE_LOG(LogRemoteSession, VeryVerbose, TEXT("GT: Uploaded image %d"),
 				QueuedImage->ImageIndex);
 		} //-V773
 	}
@@ -228,7 +251,37 @@ void FRemoteSessionImageChannel::SetImageProvider(TSharedPtr<IRemoteSessionImage
 	{
 		ImageProvider = InImageProvider;
 	}
+
+	HaveConfiguredImageProvider = true;
 }
+
+/** Sets up an image provider that mirrors the games framebuffer. Will be the default if no ImageProvider is set. */
+void FRemoteSessionImageChannel::SetFramebufferAsImageProvider()
+{
+	TSharedPtr<FRemoteSessionFrameBufferImageProvider> NewImageProvider = MakeShared<FRemoteSessionFrameBufferImageProvider>(GetImageSender());
+
+	{
+		const URemoteSessionSettings* Settings = URemoteSessionSettings::StaticClass()->GetDefaultObject<URemoteSessionSettings>();
+
+		NewImageProvider->SetCaptureFrameRate(Settings->ImageQuality);
+		SetCompressQuality(Settings->FrameRate);
+	}
+
+	{
+		TWeakPtr<SWindow> InputWindow;
+		TWeakPtr<FSceneViewport> SceneViewport;
+		FRemoteSessionUtils::FindSceneViewport(InputWindow, SceneViewport);
+
+		if (TSharedPtr<FSceneViewport> SceneViewPortPinned = SceneViewport.Pin())
+		{
+			NewImageProvider->SetCaptureViewport(SceneViewPortPinned.ToSharedRef());
+		}
+	}
+
+	SetImageProvider(NewImageProvider);
+}
+
+
 
 void FRemoteSessionImageChannel::SetCompressQuality(int32 InQuality)
 {
@@ -238,18 +291,25 @@ void FRemoteSessionImageChannel::SetCompressQuality(int32 InQuality)
 	}
 }
 
-void FRemoteSessionImageChannel::ReceiveHostImage(FBackChannelOSCMessage& Message, FBackChannelOSCDispatch& Dispatch)
+void FRemoteSessionImageChannel::ReceiveHostImage(IBackChannelPacket& Message)
 {
 	int32 ImageIndex(0);
 
 	TUniquePtr<FImageData> ReceivedImage = MakeUnique<FImageData>();
 
-	Message << ReceivedImage->Width;
-	Message << ReceivedImage->Height;
-	Message << ReceivedImage->ImageData;
-	Message << ImageIndex;
+	Message.Read(TEXT("Width"), ReceivedImage->Width);
+	Message.Read(TEXT("Height"), ReceivedImage->Height);
+	Message.Read(TEXT("Data"), ReceivedImage->ImageData);
+	Message.Read(TEXT("ImageCount"), ImageIndex);
 
 	ReceivedImage->ImageIndex = ImageIndex;
+
+	if (ReceivedImage->Width == 0 ||
+		ReceivedImage->Height == 0)
+	{
+		UE_LOG(LogRemoteSession, Error, TEXT("FRemoteSessionImageChannel: Received zero width/height image. Ignoring!"));
+		return;
+	}
 
 	FScopeLock Lock(&IncomingImageMutex);
 	if (LastIncomingImageIndex > 0 && IncomingEncodedImages.Num() > 1 && IncomingEncodedImages.Last()->ImageIndex > LastIncomingImageIndex)
@@ -265,7 +325,7 @@ void FRemoteSessionImageChannel::ReceiveHostImage(FBackChannelOSCMessage& Messag
 		ScreenshotEvent->Trigger();
 	}
 
-	UE_LOG(LogRemoteSession, Verbose, TEXT("Received Image %d, %d pending"),
+	UE_LOG(LogRemoteSession, VeryVerbose, TEXT("Received Image %d, %d pending"),
 		ImageIndex, IncomingEncodedImages.Num());
 }
 
@@ -286,7 +346,7 @@ void FRemoteSessionImageChannel::ProcessIncomingTextures()
 		Image = MoveTemp(IncomingEncodedImages.Last());
 		LastIncomingImageIndex = Image->ImageIndex;
 
-		UE_LOG(LogRemoteSession, Verbose, TEXT("Processing Image %d, discarding %d other pending images"), 
+		UE_LOG(LogRemoteSession, VeryVerbose, TEXT("Processing Image %d, discarding %d other pending images"),
 			Image->ImageIndex, IncomingEncodedImages.Num() - 1);
 
 		IncomingEncodedImages.Reset();
@@ -317,7 +377,7 @@ void FRemoteSessionImageChannel::ProcessIncomingTextures()
 				}
 				IncomingDecodedImages.Add(MoveTemp(QueuedImage));
 
-				UE_LOG(LogRemoteSession, Verbose, TEXT("finished decompressing image %d in %.02f ms (%d in queue)"),
+				UE_LOG(LogRemoteSession, VeryVerbose, TEXT("finished decompressing image %d in %.02f ms (%d in queue)"),
 					Image->ImageIndex,
 					(FPlatformTime::Seconds() - StartTime) * 1000.0,
 					IncomingEncodedImages.Num());
@@ -382,7 +442,7 @@ uint32 FRemoteSessionImageChannel::Run()
 	return 0;
 }
 
-TSharedPtr<IRemoteSessionChannel> FRemoteSessionImageChannelFactoryWorker::Construct(ERemoteSessionChannelMode InMode, TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection) const
-{
-	return MakeShared<FRemoteSessionImageChannel>(InMode, InConnection);
-}
+
+
+
+

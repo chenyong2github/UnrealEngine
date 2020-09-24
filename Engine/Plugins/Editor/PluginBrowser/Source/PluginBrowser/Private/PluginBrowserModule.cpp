@@ -181,11 +181,13 @@ void FPluginBrowserModule::OnMainFrameLoaded(TSharedPtr<SWindow> InRootWindow, b
 void FPluginBrowserModule::OnNewPluginsPopupSettingsClicked()
 {
 	FGlobalTabmanager::Get()->TryInvokeTab(PluginsEditorTabName);
+	NewPluginsNotification.Pin()->SetCompletionState(SNotificationItem::CS_None);
 	NewPluginsNotification.Pin()->ExpireAndFadeout();
 }
 
 void FPluginBrowserModule::OnNewPluginsPopupDismissClicked()
 {
+	NewPluginsNotification.Pin()->SetCompletionState(SNotificationItem::CS_None);
 	NewPluginsNotification.Pin()->ExpireAndFadeout();
 	UpdatePreviousInstalledPlugins();
 }

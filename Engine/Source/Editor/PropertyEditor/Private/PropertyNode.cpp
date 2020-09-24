@@ -2622,6 +2622,60 @@ void FPropertyNode::BroadcastPropertyResetToDefault()
 	PropertyResetToDefaultEvent.Broadcast();
 }
 
+void FPropertyNode::GetExpandedChildPropertyPaths(TSet<FString>& OutExpandedChildPropertyPaths)
+{
+	TArray<FPropertyNode*> RecursiveStack;
+	RecursiveStack.Add(this);
+
+	do
+	{
+		FPropertyNode* SearchNode = RecursiveStack.Pop();
+		if (SearchNode->HasNodeFlags(EPropertyNodeFlags::Expanded) != 0)
+		{
+			OutExpandedChildPropertyPaths.Add(SearchNode->PropertyPath);
+
+			for (auto Index = 0; Index < SearchNode->GetNumChildNodes(); ++Index)
+			{
+				TSharedPtr<FPropertyNode> ChildNode = SearchNode->GetChildNode(Index);
+				if (ChildNode.IsValid())
+				{
+					RecursiveStack.Push(ChildNode.Get());
+				}
+			}
+		}
+	} while (RecursiveStack.Num() > 0);
+}
+
+void FPropertyNode::SetExpandedChildPropertyNodes(const TSet<FString>& InNodesToExpand)
+{
+	TArray<FPropertyNode*> RecursiveStack;
+	RecursiveStack.Add(this);
+
+	do
+	{
+		FPropertyNode* SearchNode = RecursiveStack.Pop();
+		if (InNodesToExpand.Contains(SearchNode->PropertyPath))
+		{
+			SearchNode->SetNodeFlags(EPropertyNodeFlags::Expanded, true);
+
+			// Lets recurse over this nodes children to see if they need to be expanded
+			for (auto Index = 0; Index < SearchNode->GetNumChildNodes(); ++Index)
+			{
+				TSharedPtr<FPropertyNode> ChildNode = SearchNode->GetChildNode(Index);
+				if (ChildNode.IsValid())
+				{
+					RecursiveStack.Push(ChildNode.Get());
+				}
+			}
+		}
+		else
+		{
+			// Collapse the target node if its not within the list of expanded nodes.
+			SearchNode->SetNodeFlags(EPropertyNodeFlags::Expanded, false);
+		}
+	} while (RecursiveStack.Num() > 0);
+}
+
 void FPropertyNode::SetOnRebuildChildren( FSimpleDelegate InOnRebuildChildren )
 {
 	OnRebuildChildren = InOnRebuildChildren;

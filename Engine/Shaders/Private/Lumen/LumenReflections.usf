@@ -337,7 +337,7 @@ void ReflectionTemporalReprojectionCS(
 		float4 PrevClip = mul(ThisClip, View.ClipToPrevClip);
 		float3 PrevScreen = PrevClip.xyz / PrevClip.w;
 		float3 Velocity = HistoryScreenPosition - PrevScreen;
-		float3 EncodedVelocity = VelocityTexture.SampleLevel(GlobalPointClampedSampler, ScreenUV, 0).xyz;
+		float4 EncodedVelocity = VelocityTexture.SampleLevel(GlobalPointClampedSampler, ScreenUV, 0);
 		bIsDynamicPixel = EncodedVelocity.x > 0.0;
 
 		if (bIsDynamicPixel)

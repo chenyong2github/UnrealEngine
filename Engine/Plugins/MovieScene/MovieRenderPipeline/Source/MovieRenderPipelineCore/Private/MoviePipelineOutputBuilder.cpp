@@ -90,13 +90,24 @@ void FMoviePipelineOutputMerger::OnCompleteRenderPassDataAvailable_AnyThread(TUn
 
 	// If this data was expected and this frame is still in progress, pass the data to the frame.
 	OutputFrame->ImageOutputData.FindOrAdd(Payload->PassIdentifier) = MoveTemp(InData);
-
+	
 	// Check to see if this was the last piece of data needed for this frame.
 	int32 TotalPasses = OutputFrame->ExpectedRenderPasses.Num();
 	int32 SucceededPasses = OutputFrame->ImageOutputData.Num();
 
 	if (SucceededPasses == TotalPasses)
 	{
+		// Sort the output frames. This is only really important for multi-channel formats like EXR, but it lets passes
+		// specify which one should be the thumbnail/default rgba channels instead of a first-come-first-serve.
+		OutputFrame->ImageOutputData.ValueSort([](const TUniquePtr<FImagePixelData>& First, const TUniquePtr<FImagePixelData>& Second) -> bool
+				{
+					FImagePixelDataPayload* FirstPayload = First->GetPayload<FImagePixelDataPayload>();
+					FImagePixelDataPayload* SecondPayload = Second->GetPayload<FImagePixelDataPayload>();
+
+					return FirstPayload->SortingOrder < SecondPayload->SortingOrder;
+				}
+		);
+
 		// Transfer ownership from the map to here; It's important that we use the manually looked up OutputFrame from PendingData
 		// as PendingData uses the equality operator. Some combinations of temporal sampling + slowmo tracks results in different
 		// original source frame numbers, which would cause the tmap lookup to fail and thus returning an empty frame.

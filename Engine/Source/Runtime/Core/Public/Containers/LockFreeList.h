@@ -733,7 +733,7 @@ public:
 		{
 			TDoublePtr LocalMasterState;
 			LocalMasterState.AtomicRead(MasterState);
-			checkLockFreePointerList(!TestBit(LocalMasterState.GetPtr(), MyThread) || !FPlatformProcess::SupportsMultithreading()); // you should not be stalled if you are asking for a task
+			//checkLockFreePointerList(!TestBit(LocalMasterState.GetPtr(), MyThread) || !FPlatformProcess::SupportsMultithreading()); // you should not be stalled if you are asking for a task
 			for (int32 Index = 0; Index < NumPriorities; Index++)
 			{
 				T *Result = PriorityQueues[Index].Pop();

@@ -14,10 +14,18 @@
 #include "WorkspaceMenuStructure.h"
 #include "Features/IModularFeatures.h"
 
+#include "AssetRegistryModule.h"
+#include "EmptySourceFilter.h"
+#include "SourceFilterCollection.h"
+#include "TraceSourceFiltering.h"
+
 #include "STraceSourceFilteringWidget.h"
 #include "SourceFilterStyle.h"
 
 #include "IGameplayInsightsModule.h"
+
+#include "Engine/Blueprint.h"
+#include "Editor.h"
 
 IMPLEMENT_MODULE(FSourceFilteringEditorModule, SourceFilteringEditor);
 
@@ -34,6 +42,12 @@ void FSourceFilteringEditorModule::StartupModule()
 	IUnrealInsightsModule& UnrealInsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");	
 	FOnRegisterMajorTabExtensions& TimingProfilerLayoutExtension = UnrealInsightsModule.OnRegisterMajorTabExtension(FInsightsManagerTabs::TimingProfilerTabId);
 	TimingProfilerLayoutExtension.AddRaw(this, &FSourceFilteringEditorModule::RegisterLayoutExtensions);
+	
+#if WITH_EDITOR
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	AssetRegistryModule.Get().OnInMemoryAssetDeleted().AddRaw(this, &FSourceFilteringEditorModule::HandleAssetDeleted);
+	FEditorDelegates::OnAssetsPreDelete.AddRaw(this, &FSourceFilteringEditorModule::OnAssetsPendingDelete);
+#endif // WITH_EDITOR
 }
 
 void FSourceFilteringEditorModule::ShutdownModule()
@@ -70,3 +84,64 @@ void FSourceFilteringEditorModule::RegisterLayoutExtensions(FInsightsMajorTabExt
 		return DockTab;
 	});
 }
+
+#if WITH_EDITOR
+void FSourceFilteringEditorModule::HandleAssetDeleted(UObject* DeletedObject)
+{
+	// Remove all pending filter deletions for which the class is actually deleted
+	PendingDeletions.RemoveAll([&DeletedObject](FPendingFilterDeletion& PendingDelete)
+	{
+		return PendingDelete.ToDeleteFilterClassObject == DeletedObject;
+	});
+}
+
+void FSourceFilteringEditorModule::OnAssetsPendingDelete(TArray<UObject*> const& ObjectsForDelete)
+{
+	USourceFilterCollection* FilterCollection = FTraceSourceFiltering::Get().GetFilterCollection();
+
+	if (FilterCollection)
+	{
+		TArray<UDataSourceFilter*> Filters;
+		FilterCollection->GetFlatFilters(Filters);
+		for (UDataSourceFilter* Filter : Filters) 
+		{
+			// Check whether or not the to-be deleted objects contains this filter its blueprint class
+			UObject* const* DeletedClassObjectPtr = ObjectsForDelete.FindByPredicate([Filter](UObject* Obj) -> bool
+			{
+				if (UBlueprint* Blueprint = Cast<UBlueprint>(Obj))
+				{
+					return Blueprint->GeneratedClass.Get() == Filter->GetClass();
+				}
+
+				return false;
+			});
+			
+			// If so enqueue a pending deletion, used to keep track of cancelled deletions
+			if (DeletedClassObjectPtr)
+			{
+				UEmptySourceFilter* EmptyFilter = NewObject<UEmptySourceFilter>(FilterCollection);
+				EmptyFilter->MissingClassName = Filter->GetClass()->GetName();
+
+				PendingDeletions.Add({ Filter, EmptyFilter, *DeletedClassObjectPtr });
+				// Replace the to-be removed filter with an empty filter instance
+				FilterCollection->ReplaceFilter(Filter, EmptyFilter);
+			}
+		}
+
+		if (PendingDeletions.Num())
+		{
+			// In case filters are due to be removed, enqueue a callback during the next frame's tick to handle cancelled deletes
+			GEditor->GetTimerManager()->SetTimerForNextTick([FilterCollection, this]()
+			{
+				for (FPendingFilterDeletion& PendingDeletion : PendingDeletions)
+				{
+					FilterCollection->ReplaceFilter(PendingDeletion.ReplacementFilter, PendingDeletion.FilterWithDeletedClass);
+				}
+				PendingDeletions.Empty();
+			});
+		}
+	}
+
+
+}
+#endif // WITH_EDITOR

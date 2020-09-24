@@ -84,8 +84,13 @@ struct DISPLAYCLUSTER_API FDisplayClusterConfigViewport : public FDisplayCluster
 	FString   CameraId;
 	FIntPoint Loc  = FIntPoint::ZeroValue;
 	FIntPoint Size = FIntPoint::ZeroValue;
-	bool      IsRTT = false;
+
+	bool      bIsRTT = false;
 	float     BufferRatio = 1.f;
+
+	int       GPUIndex = -1;                  // Force custom mgpu index for this viewport {view->bOverrideGPUMask=true; view->GPUMask=GPUIndex; }
+	bool      bAllowCrossGPUTransfer = true;  // Control UE4 viewport mgpu transfer View->bAllowCrossGPUTransfer
+	bool      bIsShared = false;              // Share this viewport for all (scene context textures, backbuffer)
 
 	virtual FString ToString() const override;
 	virtual bool    DeserializeFromString(const FString& Line) override;

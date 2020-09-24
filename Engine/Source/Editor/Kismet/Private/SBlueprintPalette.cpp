@@ -56,6 +56,7 @@
 #include "GraphEditorSettings.h"
 #include "UObject/WeakFieldPtr.h"
 #include "BlueprintNodeSpawner.h"
+#include "Dialogs/Dialogs.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintPalette"
 
@@ -93,7 +94,7 @@ static FString GetVarType(UStruct* VarScope, FName VarName, bool bUseObjToolTip,
 			FObjectProperty* ObjProp = CastField<FObjectProperty>(Property);
 			if (bUseObjToolTip && ObjProp && ObjProp->PropertyClass)
 			{
-				VarDesc = ObjProp->PropertyClass->GetToolTipText().ToString();
+				VarDesc = ObjProp->PropertyClass->GetToolTipText(GetDefault<UBlueprintEditorSettings>()->bShowShortTooltips).ToString();
 			}
 
 			// Name of type
@@ -1465,11 +1466,50 @@ void SBlueprintPaletteItem::OnNameTextCommitted(const FText& NewText, ETextCommi
 				}
 			}
 
+			FBPVariableDescription* RepNotifyVar = FBlueprintEditorUtils::GetVariableFromOnRepFunction(Blueprint, GraphAction->FuncName);
+			if (RepNotifyVar)
+			{
+				FSuppressableWarningDialog::FSetupInfo Info(LOCTEXT("RenameRepNotifyMessage", "This function is linked to a RepNotify variable. Renaming it will still allow the variable to be replicated, but this function will not be called. Do you wish to proceed?"),
+					LOCTEXT("RenameRepNotifyTitle", "Rename RepNotify Function?"), TEXT("RenameRepNotifyWarning"));
+				Info.ConfirmText = LOCTEXT("Confirm", "Confirm");
+				Info.CancelText = LOCTEXT("Cancel", "Cancel");
+
+				if (FSuppressableWarningDialog(Info).ShowModal() == FSuppressableWarningDialog::Cancel)
+				{
+					return;
+				}
+			}
+
 			// Make sure we aren't renaming the graph into something that already exists
 			UEdGraph* ExistingGraph = FindObject<UEdGraph>(Graph->GetOuter(), *NewNameString );
 			if (ExistingGraph == nullptr || ExistingGraph == Graph)
 			{
 				const FScopedTransaction Transaction( LOCTEXT( "Rename Function", "Rename Function" ) );
+
+				if (RepNotifyVar)
+				{
+					if (const UEdGraphSchema_K2* K2Schema = Cast<UEdGraphSchema_K2>(Graph->GetSchema()))
+					{
+						Graph->Modify();
+						// make function editable
+						// reconfigure the graph as if it were user created
+						int32 ExtraFunctionFlags = (FUNC_BlueprintCallable | FUNC_BlueprintEvent | FUNC_Public);
+						if (BPTYPE_FunctionLibrary == Blueprint->BlueprintType)
+						{
+							ExtraFunctionFlags |= FUNC_Static;
+						}
+						if (BPTYPE_Const == Blueprint->BlueprintType)
+						{
+							ExtraFunctionFlags |= FUNC_Const;
+						}
+						K2Schema->MarkFunctionEntryAsEditable(Graph, true);
+						K2Schema->AddExtraFunctionFlags(Graph, ExtraFunctionFlags);
+
+						Blueprint->Modify();
+						RepNotifyVar->RepNotifyFunc = NAME_None;
+					}
+				}
+
 				FBlueprintEditorUtils::RenameGraph(Graph, NewNameString );
 			}
 		}

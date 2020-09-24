@@ -806,7 +806,11 @@ void FPendingSearchResultSteam::RemoveSelf()
  */
 void FPendingSearchResultSteam::CancelQuery()
 {
-	SteamMatchmakingServers()->CancelServerQuery(ServerQueryHandle);
+	if (ServerQueryHandle != HSERVERQUERY_INVALID)
+	{
+		SteamMatchmakingServers()->CancelServerQuery(ServerQueryHandle);
+		ServerQueryHandle = HSERVERQUERY_INVALID;
+	}
 }
 
 /**

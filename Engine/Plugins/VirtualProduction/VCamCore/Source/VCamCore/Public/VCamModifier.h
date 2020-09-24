@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -6,44 +6,57 @@
 #include "CoreMinimal.h"
 #include "Roles/LiveLinkCameraTypes.h"
 
-
 #include "VCamModifier.generated.h"
 
-UCLASS(Blueprintable, Abstract)
+class UVCamComponent;
+class UVCamModifierContext;
+
+struct FModifierStackEntry;
+
+UCLASS(Blueprintable, Abstract, EditInlineNew)
 class VCAMCORE_API UVCamModifier : public UObject
 {
 	GENERATED_BODY()
 
 public:
+	virtual void Initialize(UVCamModifierContext* Context);
 
-	virtual void Initialize()  PURE_VIRTUAL(UVCamModifier::Initialize);
+	virtual void Apply(UVCamModifierContext* Context, UCineCameraComponent* CameraComponent, const float DeltaTime) {};
 
-	virtual void Apply(const FLiveLinkCameraBlueprintData& InitialLiveLinkData,
-		UCineCameraComponent* CameraComponent, const float DeltaTime) PURE_VIRTUAL(UVCamModifier::Apply);
+	virtual void PostLoad();
 
-	virtual void SetActive(const bool InActive) { bIsActive = InActive; };
-	virtual bool IsActive() const { return bIsActive; };
+	bool DoesRequireInitialization() const { return bRequiresInitialization; };
+
+	UFUNCTION(BlueprintCallable, Category="VirtualCamera")
+	UVCamComponent* GetOwningVCamComponent() const;
+
+	UFUNCTION(BlueprintCallable, Category = "VirtualCamera")
+	void GetCurrentLiveLinkDataFromOwningComponent(FLiveLinkCameraBlueprintData& LiveLinkData);
+
+	UFUNCTION(BlueprintCallable, Category = "VirtualCamera")
+	void SetEnabled(bool bNewEnabled);
+
+	UFUNCTION(BlueprintPure, Category = "VirtualCamera", meta=(ReturnDisplayName="Enabled"))
+	bool IsEnabled() const;
 
 private:
-	UPROPERTY()
-	bool bIsActive = true;
+	FModifierStackEntry* GetCorrespondingStackEntry() const;
+
+	bool bRequiresInitialization = true;
 };
 
-UCLASS()
+UCLASS(EditInlineNew)
 class VCAMCORE_API UVCamBlueprintModifier : public UVCamModifier
 {
 	GENERATED_BODY()
 
 public:
-
-	virtual void Initialize() override;
-	virtual void Apply(const FLiveLinkCameraBlueprintData& InitialLiveLinkData,
-        UCineCameraComponent* CameraComponent, const float DeltaTime) override;
+	virtual void Initialize(UVCamModifierContext* Context) override;
+	virtual void Apply(UVCamModifierContext* Context, UCineCameraComponent* CameraComponent, const float DeltaTime) override;
 
 	UFUNCTION(BlueprintImplementableEvent, Category="VirtualCamera")
-	void OnInitialize();
+	void OnInitialize(UVCamModifierContext* Context);
 
 	UFUNCTION(BlueprintImplementableEvent, Category="VirtualCamera")
-	void OnApply(const FLiveLinkCameraBlueprintData& InitialLiveLinkData,
-        UCineCameraComponent* CameraComponent, const float DeltaTime);
+	void OnApply(UVCamModifierContext* Context, UCineCameraComponent* CameraComponent, const float DeltaTime);
 };

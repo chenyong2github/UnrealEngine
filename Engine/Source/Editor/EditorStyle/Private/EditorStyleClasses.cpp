@@ -34,6 +34,7 @@ UEditorStyleSettings::UEditorStyleSettings( const FObjectInitializer& ObjectInit
 	GridSnapSize = 16.f;
 
 	bShowFriendlyNames = true;
+	bShowNativeComponentNames = true;
 	LogTimestampMode = ELogTimes::None;
 }
 

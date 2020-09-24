@@ -25,7 +25,6 @@ namespace UnrealBuildTool.Rules
                     "CoreUObject",
                     "Engine",
                     "ControlRig",
-					"EditorFramework",
                     "UnrealEd",
                     "MainFrame",
                     "RigLogicModule",

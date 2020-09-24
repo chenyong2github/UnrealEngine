@@ -109,7 +109,8 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	DrawInGame(InComponent->IsVisible())
 ,	DrawInEditor(InComponent->GetVisibleFlag())
 ,	bReceivesDecals(InComponent->bReceivesDecals)
-,	bOnlyVirtualTexture(false)
+,	bVirtualTextureMainPassDrawAlways(true)
+,	bVirtualTextureMainPassDrawNever(false)
 ,	bOnlyOwnerSee(InComponent->bOnlyOwnerSee)
 ,	bOwnerNoSee(InComponent->bOwnerNoSee)
 ,	bParentSelected(InComponent->ShouldRenderSelected())
@@ -130,7 +131,6 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	bIsComponentLevelVisible(false)
 ,	bCollisionEnabled(InComponent->IsCollisionEnabled())
 ,	bTreatAsBackgroundForOcclusion(InComponent->bTreatAsBackgroundForOcclusion)
-,	bHasMobileMovablePointLightInteraction(false)
 ,	bGoodCandidateForCachedShadowmap(true)
 ,	bNeedsUnbuiltPreviewLighting(!InComponent->IsPrecomputedLightingValid())
 ,	bHasValidSettingsForStaticLighting(InComponent->HasValidSettingsForStaticLighting(false))
@@ -254,7 +254,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 	{
 		for (URuntimeVirtualTexture* VirtualTexture : InComponent->GetRuntimeVirtualTextures())
 		{
-			if (VirtualTexture != nullptr && VirtualTexture->GetEnabled())
+			if (VirtualTexture != nullptr)
 			{
 				RuntimeVirtualTextures.Add(VirtualTexture);
 				RuntimeVirtualTextureMaterialTypes.AddUnique(VirtualTexture->GetMaterialType());
@@ -262,18 +262,18 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 		}
 	}
 
-	// Conditionally remove from the main render pass based on the runtime virtual texture setup
-	ERuntimeVirtualTextureMainPassType MainPassType = InComponent->GetVirtualTextureRenderPassType();
+	// Conditionally remove from the main passes based on the runtime virtual texture setup
 	const bool bRequestVirtualTexture = InComponent->GetRuntimeVirtualTextures().Num() > 0;
-	const bool bUseVirtualTexture = RuntimeVirtualTextures.Num() > 0;
-	if ((MainPassType == ERuntimeVirtualTextureMainPassType::Never && bRequestVirtualTexture) ||
-		(MainPassType == ERuntimeVirtualTextureMainPassType::Exclusive && bUseVirtualTexture))
+	if (bRequestVirtualTexture)
 	{
-		bOnlyVirtualTexture = true;
+		ERuntimeVirtualTextureMainPassType MainPassType = InComponent->GetVirtualTextureRenderPassType();
+		bVirtualTextureMainPassDrawNever = MainPassType == ERuntimeVirtualTextureMainPassType::Never;
+		bVirtualTextureMainPassDrawAlways = MainPassType == ERuntimeVirtualTextureMainPassType::Always;
 	}
 
 	// Modify max draw distance for main pass if we are using virtual texturing
-	if (bUseVirtualTexture && bRenderInMainPass && InComponent->GetVirtualTextureMainPassMaxDrawDistance() > 0.f)
+	const bool bUseVirtualTexture = RuntimeVirtualTextures.Num() > 0;
+	if (bUseVirtualTexture && InComponent->GetVirtualTextureMainPassMaxDrawDistance() > 0.f)
 	{
 		MaxDrawDistance = FMath::Min(MaxDrawDistance, InComponent->GetVirtualTextureMainPassMaxDrawDistance());
 	}
@@ -675,6 +675,24 @@ void FPrimitiveSceneProxy::FDebugMassData::DrawDebugMass(class FPrimitiveDrawInt
 }
 #endif
 
+bool FPrimitiveSceneProxy::DrawInVirtualTextureOnly(bool bEditor) const
+{
+	if (bVirtualTextureMainPassDrawAlways)
+	{
+		return false;
+	}
+	else if (bVirtualTextureMainPassDrawNever)
+	{
+		return true;
+	}
+	// Conditional path tests the flags stored on scene virtual texture.
+	uint8 bHideMaskEditor, bHideMaskGame;
+	Scene->GetRuntimeVirtualTextureHidePrimitiveMask(bHideMaskEditor, bHideMaskGame);
+	const uint8 bHideMask = bEditor ? bHideMaskEditor : bHideMaskGame;
+	const uint8 RuntimeVirtualTextureMask = GetPrimitiveSceneInfo()->GetRuntimeVirtualTextureFlags().RuntimeVirtualTextureMask;
+	return (RuntimeVirtualTextureMask & bHideMask) != 0;
+}
+
 /**
  * Updates the hidden editor view visibility map on the game thread which just enqueues a command on the render thread
  */
@@ -759,7 +777,7 @@ bool FPrimitiveSceneProxy::IsShown(const FSceneView* View) const
 			return false;
 		}
 
-		if (bOnlyVirtualTexture && !View->bIsVirtualTexture && !View->Family->EngineShowFlags.VirtualTexturePrimitives && !IsSelected())
+		if (DrawInVirtualTextureOnly(true) && !View->bIsVirtualTexture && !View->Family->EngineShowFlags.VirtualTexturePrimitives && !IsSelected())
 		{
 			return false;
 		}
@@ -783,7 +801,7 @@ bool FPrimitiveSceneProxy::IsShown(const FSceneView* View) const
 			return false;
 		}
 
-		if (bOnlyVirtualTexture && !View->bIsVirtualTexture)
+		if (DrawInVirtualTextureOnly(false) && !View->bIsVirtualTexture)
 		{
 			return false;
 		}
@@ -848,7 +866,7 @@ bool FPrimitiveSceneProxy::IsShadowCast(const FSceneView* View) const
 		}
 #endif	//#if WITH_EDITOR
 
-		if (bOnlyVirtualTexture && !View->bIsVirtualTexture)
+		if (DrawInVirtualTextureOnly(View->Family->EngineShowFlags.Editor) && !View->bIsVirtualTexture)
 		{
 			return false;
 		}

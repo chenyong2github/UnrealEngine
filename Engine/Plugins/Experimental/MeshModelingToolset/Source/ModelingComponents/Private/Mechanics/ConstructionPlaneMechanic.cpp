@@ -34,8 +34,8 @@ void UConstructionPlaneMechanic::Initialize(UWorld* TargetWorld, const FFrame3d&
 		ETransformGizmoSubElements::StandardTranslateRotate, GetParentTool());
 	PlaneTransformProxy->OnTransformChanged.AddUObject(this, &UConstructionPlaneMechanic::TransformChanged);
 
-	PlaneTransformGizmo->SetActiveTarget(PlaneTransformProxy);
-	PlaneTransformGizmo->SetNewGizmoTransform(Plane.ToFTransform());
+	PlaneTransformGizmo->SetActiveTarget(PlaneTransformProxy, GetParentTool()->GetToolManager());
+	PlaneTransformGizmo->ReinitializeGizmoTransform(Plane.ToFTransform());
 
 	// click to set plane behavior
 	FSelectClickedAction* SetPlaneAction = new FSelectClickedAction();
@@ -88,7 +88,7 @@ void UConstructionPlaneMechanic::SetDrawPlaneFromWorldPos(const FVector3d& Posit
 	{
 		Plane.AlignAxis(2, Normal);
 	}
-	PlaneTransformGizmo->SetActiveTarget(PlaneTransformProxy);
+	PlaneTransformGizmo->SetActiveTarget(PlaneTransformProxy, GetParentTool()->GetToolManager());
 	PlaneTransformGizmo->SetNewGizmoTransform(Plane.ToFTransform());
 
 	OnPlaneChanged.Broadcast();
@@ -97,8 +97,7 @@ void UConstructionPlaneMechanic::SetDrawPlaneFromWorldPos(const FVector3d& Posit
 void UConstructionPlaneMechanic::SetPlaneWithoutBroadcast(const FFrame3d &PlaneIn)
 {
 	Plane = PlaneIn;
-	PlaneTransformGizmo->SetActiveTarget(PlaneTransformProxy);
-	PlaneTransformGizmo->SetNewGizmoTransform(Plane.ToFTransform());
+	PlaneTransformGizmo->ReinitializeGizmoTransform(Plane.ToFTransform());
 }
 
 

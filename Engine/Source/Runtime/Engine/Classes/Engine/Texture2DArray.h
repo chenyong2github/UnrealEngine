@@ -7,6 +7,8 @@
 #include "Engine/Texture2D.h"
 #include "Texture2DArray.generated.h"
 
+extern bool GSupportsTexture2DArrayStreaming;
+
 #define MAX_ARRAY_SLICES 512
 
 UCLASS(HideCategories = Object, MinimalAPI, BlueprintType)
@@ -19,8 +21,6 @@ public:
 	FTexturePlatformData* PlatformData;
 	TMap<FString, FTexturePlatformData*> CookedPlatformData;
 
-	/** Creates and initializes a new Texture2D with the requested settings */
-	ENGINE_API int32 CalculateMipZSize(int32 Mip);
 	/*
 	* Initialize texture source from textures in SourceArray.
 	* @param bUpdateSourceSettings Set to false to prevent overriding current texture settings.
@@ -68,7 +68,6 @@ public:
 	virtual TMap<FString, FTexturePlatformData*> *GetCookedPlatformData() override { return &CookedPlatformData; }
 	//~ End UTexture Interface
 
-#if WITH_EDITORONLY_DATA
 	/** The addressing mode to use for the X axis.*/
 	UPROPERTY(EditAnywhere, Category = Source2D, meta = (DisplayName = "Address X"))
 	TEnumAsByte<enum TextureAddress> AddressX;
@@ -80,11 +79,11 @@ public:
 	/** The addressing mode to use for the Z axis.*/
 	UPROPERTY(EditAnywhere, Category = Source2D, meta = (DisplayName = "Address Z"))
 	TEnumAsByte<enum TextureAddress> AddressZ;
-	
+
+#if WITH_EDITORONLY_DATA
 	/** Add Textures*/
 	UPROPERTY(EditAnywhere, Category = Source2D, meta = (DisplayName = "Source Textures"))
 	TArray<UTexture2D*> SourceTextures;
-
 #endif
 
 	/**
@@ -111,7 +110,11 @@ public:
 
 #endif
 
-	ENGINE_API static bool ShaderPlatformSupportsCompression(EShaderPlatform ShaderPlatform);
+	//~ Begin UStreamableRenderAsset Interface
+	virtual int32 CalcCumulativeLODSize(int32 NumLODs) const final override { return CalcTextureMemorySize(NumLODs); }
+	virtual bool StreamOut(int32 NewMipCount) final override;
+	virtual bool StreamIn(int32 NewMipCount, bool bHighPrio) final override;
+	//~ End UStreamableRenderAsset Interface
 
 protected:
 

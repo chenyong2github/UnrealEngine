@@ -43,53 +43,43 @@ void FDatasmithFacadeElement::SetWorldUnitScale(
 	float InWorldUnitScale
 )
 {
-	WorldUnitScale = InWorldUnitScale;
+	WorldUnitScale = FMath::IsNearlyZero(InWorldUnitScale) ? SMALL_NUMBER : InWorldUnitScale;
 }
 
 FDatasmithFacadeElement::FDatasmithFacadeElement(
-	const TCHAR* InElementName,
-	const TCHAR* InElementLabel
-) :
-	ElementName(InElementName),
-	ElementLabel(InElementLabel)
-{
-}
+	const TSharedRef<IDatasmithElement>& InElement
+)
+	: InternalDatasmithElement(InElement)
+{}
 
-void FDatasmithFacadeElement::HashName()
+void FDatasmithFacadeElement::GetStringHash(const TCHAR* InString, TCHAR OutBuffer[33], size_t BufferSize)
 {
-	ElementName = FMD5::HashAnsiString(*ElementName);
+	FString HashedName = FMD5::HashAnsiString(InString);
+	FCString::Strncpy(OutBuffer, *HashedName, BufferSize);
 }
 
 void FDatasmithFacadeElement::SetName(
 	const TCHAR* InElementName
 )
 {
-	ElementName = InElementName;
+	InternalDatasmithElement->SetName(InElementName);
 }
 
 const TCHAR* FDatasmithFacadeElement::GetName() const
 {
-	return *ElementName;
+	return InternalDatasmithElement->GetName();
 }
 
 void FDatasmithFacadeElement::SetLabel(
 	const TCHAR* InElementLabel
 )
 {
-	ElementLabel = InElementLabel;
+	InternalDatasmithElement->SetLabel(InElementLabel);
 }
 
 const TCHAR* FDatasmithFacadeElement::GetLabel() const
 {
-	return *ElementLabel;
-}
-
-void FDatasmithFacadeElement::AddMetadataString(
-	const TCHAR* InPropertyName,
-	const TCHAR* InPropertyValue
-)
-{
-	// Do nothing by default.
+	return InternalDatasmithElement->GetLabel();
 }
 
 FVector FDatasmithFacadeElement::ConvertTranslation(
@@ -97,20 +87,6 @@ FVector FDatasmithFacadeElement::ConvertTranslation(
 )
 {
 	return ConvertPosition(InVertex.X, InVertex.Y, InVertex.Z);
-}
-
-TSharedPtr<FDatasmithFacadeElement> FDatasmithFacadeElement::Optimize(
-	TSharedPtr<FDatasmithFacadeElement> InElementPtr,
-	bool                                bInNoSingleChild
-)
-{
-	// By default, prevent the Datasmith scene element from being removed by optimization.
-	return InElementPtr;
-}
-
-void FDatasmithFacadeElement::BuildAsset()
-{
-	// By default, there is no Datasmith scene element asset to build.
 }
 
 void FDatasmithFacadeElement::ExportAsset(

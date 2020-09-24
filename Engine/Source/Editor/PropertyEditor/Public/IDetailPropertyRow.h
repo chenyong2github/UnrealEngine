@@ -4,9 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "Misc/Attribute.h"
+
 #include "Layout/Visibility.h"
 #include "Framework/SlateDelegates.h"
 #include "PropertyHandle.h"
+#include "Widgets/Layout/SSplitter.h"
+
 
 class FDetailWidgetRow;
 class FDetailWidgetDecl;

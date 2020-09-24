@@ -31,9 +31,10 @@ struct ENGINE_API FAnimationRecordingSettings
 		, InterpMode(ERichCurveInterpMode::RCIM_Linear)
 		, TangentMode(ERichCurveTangentMode::RCTM_Auto)
 		, bCheckDeltaTimeAtBeginning(true)
-
+		, bRecordTransforms(true)
+		, bRecordCurves(true)
 	{}
-
+	
 	/** Whether to record animation in world space, defaults to true */
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	bool bRecordInWorldSpace;
@@ -64,4 +65,12 @@ struct ENGINE_API FAnimationRecordingSettings
 
 	/** Whether to check DeltaTime at recording for pauses, turned off for TakeRecorder*/
 	bool bCheckDeltaTimeAtBeginning;
+
+	/** Whether or not to record transforms*/
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	bool bRecordTransforms;
+
+	/** Whether or not to record curves*/
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	bool bRecordCurves;
 };

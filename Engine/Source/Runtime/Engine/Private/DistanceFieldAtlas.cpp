@@ -629,6 +629,7 @@ void FDistanceFieldVolumeTextureAtlas::UpdateAllocations(FRHICommandListImmediat
 				Format,
 				1,
 				TexCreate_ShaderResource | TexCreate_UAV,
+				ERHIAccess::SRVMask,
 				CreateInfo);
 			VolumeTextureUAVRHI = RHICreateUnorderedAccessView(VolumeTextureRHI, 0);
 
@@ -649,6 +650,8 @@ void FDistanceFieldVolumeTextureAtlas::UpdateAllocations(FRHICommandListImmediat
 				if (!bRuntimeDownsampling)
 				{
 					*AtlasUpdateDataPtr = RHIBeginUpdateTexture3D(VolumeTextureRHI, 0, UpdateRegion);
+					// This fills in any holes in the update region so we don't upload garbage data to the GPU.
+					FMemory::Memzero(AtlasUpdateDataPtr->Data, AtlasUpdateDataPtr->DataSizeBytes);
 				}
 				else
 				{
@@ -1380,7 +1383,7 @@ void FLandscapeTextureAtlas::InitializeIfNeeded()
 
 		const uint32 SizeX = AddrSpaceAllocator.DimInTexels;
 		const uint32 SizeY = AddrSpaceAllocator.DimInTexels;
-		const uint32 Flags = TexCreate_ShaderResource | TexCreate_UAV;
+		const ETextureCreateFlags Flags = TexCreate_ShaderResource | TexCreate_UAV;
 		const EPixelFormat Format = bHeight ? PF_R8G8 : PF_G8;
 		FRHIResourceCreateInfo CreateInfo(bHeight ? TEXT("HeightFieldAtlas") : TEXT("VisibilityAtlas"));
 
@@ -1562,7 +1565,7 @@ void FLandscapeTextureAtlas::UpdateAllocations(FRHICommandListImmediate& RHICmdL
 		const uint32 SizeX = SourceTexture->GetSizeX();
 		const uint32 SizeY = SourceTexture->GetSizeY();
 		const uint32 DownSampleLevel = CalculateDownSampleLevel(SizeX, SizeY);
-		const uint32 NumMissingMips = SourceTexture->GetNumMips() - SourceTexture->GetCachedNumResidentLODs();
+		const uint32 NumMissingMips = SourceTexture->GetNumMips() - SourceTexture->GetNumResidentMips();
 
 		if (NumMissingMips <= DownSampleLevel)
 		{
@@ -1603,7 +1606,7 @@ void FLandscapeTextureAtlas::UpdateAllocations(FRHICommandListImmediate& RHICmdL
 					continue;
 				}
 
-				const uint32 NumMissingMips = SourceTexture->GetNumMips() - SourceTexture->GetCachedNumResidentLODs();
+				const uint32 NumMissingMips = SourceTexture->GetNumMips() - SourceTexture->GetNumResidentMips();
 				const uint32 SourceMipBias = NumMissingMips > DownSampleLevel ? 0 : DownSampleLevel - NumMissingMips;
 
 				if (NumMissingMips > DownSampleLevel)
@@ -1649,7 +1652,7 @@ void FLandscapeTextureAtlas::UpdateAllocations(FRHICommandListImmediate& RHICmdL
 				break;
 			}
 
-			const uint32 NumMissingMips = SourceTexture->GetNumMips() - SourceTexture->GetCachedNumResidentLODs();
+			const uint32 NumMissingMips = SourceTexture->GetNumMips() - SourceTexture->GetNumResidentMips();
 			const uint32 SourceMipBias = NumMissingMips > DownSampleLevel ? 0 : DownSampleLevel - NumMissingMips;
 
 			if (NumMissingMips > DownSampleLevel)
@@ -1670,7 +1673,7 @@ void FLandscapeTextureAtlas::UpdateAllocations(FRHICommandListImmediate& RHICmdL
 	{
 		FRDGBuilder GraphBuilder(RHICmdList);
 
-		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, AtlasUAVRHI);
+		RHICmdList.Transition(FRHITransitionInfo(AtlasUAVRHI, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 
 		if (SubAllocType == SAT_Height)
 		{
@@ -1688,7 +1691,7 @@ void FLandscapeTextureAtlas::UpdateAllocations(FRHICommandListImmediate& RHICmdL
 				{
 					if (bNeedBarrier)
 					{
-						CmdList.TransitionResource(EResourceTransitionAccess::ERWNoBarrier, EResourceTransitionPipeline::EComputeToCompute, Parameters->RWHeightFieldAtlas);
+						CmdList.Transition(FRHITransitionInfo(Parameters->RWHeightFieldAtlas, ERHIAccess::Unknown, ERHIAccess::ERWNoBarrier));
 					}
 					FComputeShaderUtils::Dispatch(CmdList, ComputeShader, *Parameters, FIntVector(UpdateRegion.X, UpdateRegion.Y, 1));
 				});
@@ -1710,7 +1713,7 @@ void FLandscapeTextureAtlas::UpdateAllocations(FRHICommandListImmediate& RHICmdL
 				{
 					if (bNeedBarrier)
 					{
-						CmdList.TransitionResource(EResourceTransitionAccess::ERWNoBarrier, EResourceTransitionPipeline::EComputeToCompute, Parameters->RWVisibilityAtlas);
+						CmdList.Transition(FRHITransitionInfo(Parameters->RWVisibilityAtlas, ERHIAccess::Unknown, ERHIAccess::ERWNoBarrier));
 					}
 					FComputeShaderUtils::Dispatch(CmdList, ComputeShader, *Parameters, FIntVector(UpdateRegion.X, UpdateRegion.Y, 1));
 				});
@@ -1718,7 +1721,7 @@ void FLandscapeTextureAtlas::UpdateAllocations(FRHICommandListImmediate& RHICmdL
 		}
 
 		GraphBuilder.Execute();
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, AtlasUAVRHI);
+		RHICmdList.Transition(FRHITransitionInfo(AtlasUAVRHI, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
 	}
 }
 

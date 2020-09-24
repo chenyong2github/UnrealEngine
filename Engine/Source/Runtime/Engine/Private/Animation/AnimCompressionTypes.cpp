@@ -722,6 +722,12 @@ struct FGetBonePoseScratchArea : public TThreadSingleton<FGetBonePoseScratchArea
 
 void DecompressPose(FCompactPose& OutPose, const FCompressedAnimSequence& CompressedData, const FAnimExtractContext& ExtractionContext, USkeleton* Skeleton, float SequenceLength, EAnimInterpolationType Interpolation, bool bIsBakedAdditive, FName RetargetSource, FName SourceName, const FRootMotionReset& RootMotionReset)
 {
+	const TArray<FTransform>& RetargetTransforms = Skeleton->GetRefLocalPoses(RetargetSource);
+	DecompressPose(OutPose, CompressedData, ExtractionContext, Skeleton, SequenceLength, Interpolation, bIsBakedAdditive, RetargetTransforms, SourceName, RootMotionReset);
+}
+
+void DecompressPose(FCompactPose& OutPose, const FCompressedAnimSequence& CompressedData, const FAnimExtractContext& ExtractionContext, USkeleton* Skeleton, float SequenceLength, EAnimInterpolationType Interpolation, bool bIsBakedAdditive, const TArray<FTransform>& RetargetTransforms, FName SourceName, const FRootMotionReset& RootMotionReset)
+{
 	const FBoneContainer& RequiredBones = OutPose.GetBoneContainer();
 	const int32 NumTracks = CompressedData.CompressedTrackToSkeletonMapTable.Num();
 
@@ -815,7 +821,7 @@ void DecompressPose(FCompactPose& OutPose, const FCompressedAnimSequence& Compre
 			CompressedData.BoneCompressionCodec->DecompressBone(EvalDecompContext, TrackIndex, RootAtom);
 
 			// @laurent - we should look into splitting rotation and translation tracks, so we don't have to process translation twice.
-			FAnimationRuntime::RetargetBoneTransform(Skeleton, RetargetSource, RootAtom, 0, RootBone, RequiredBones, bIsBakedAdditive);
+			FAnimationRuntime::RetargetBoneTransform(Skeleton, SourceName, RetargetTransforms, RootAtom, 0, RootBone, RequiredBones, bIsBakedAdditive);
 		}
 
 		if (RotationScalePairs.Num() > 0)
@@ -836,7 +842,7 @@ void DecompressPose(FCompactPose& OutPose, const FCompressedAnimSequence& Compre
 	int32 const NumBonesToScaleRetarget = AnimScaleRetargetingPairs.Num();
 	if (NumBonesToScaleRetarget > 0)
 	{
-		TArray<FTransform> const& AuthoredOnRefSkeleton = Skeleton->GetRefLocalPoses(RetargetSource);
+		TArray<FTransform> const& AuthoredOnRefSkeleton = RetargetTransforms;
 
 		for (const BoneTrackPair& BonePair : AnimScaleRetargetingPairs)
 		{
@@ -857,7 +863,7 @@ void DecompressPose(FCompactPose& OutPose, const FCompressedAnimSequence& Compre
 	int32 const NumBonesToRelativeRetarget = AnimRelativeRetargetingPairs.Num();
 	if (NumBonesToRelativeRetarget > 0)
 	{
-		TArray<FTransform> const& AuthoredOnRefSkeleton = Skeleton->GetRefLocalPoses(RetargetSource);
+		TArray<FTransform> const& AuthoredOnRefSkeleton = RetargetTransforms;
 
 		for (const BoneTrackPair& BonePair : AnimRelativeRetargetingPairs)
 		{
@@ -878,7 +884,7 @@ void DecompressPose(FCompactPose& OutPose, const FCompressedAnimSequence& Compre
 	const int32 NumBonesToOrientAndScaleRetarget = OrientAndScaleRetargetingPairs.Num();
 	if (NumBonesToOrientAndScaleRetarget > 0)
 	{
-		const FRetargetSourceCachedData& RetargetSourceCachedData = RequiredBones.GetRetargetSourceCachedData(RetargetSource);
+		const FRetargetSourceCachedData& RetargetSourceCachedData = RequiredBones.GetRetargetSourceCachedData(SourceName, RetargetTransforms);
 		const TArray<FOrientAndScaleRetargetingCachedData>& OrientAndScaleDataArray = RetargetSourceCachedData.OrientAndScaleData;
 		const TArray<int32>& CompactPoseIndexToOrientAndScaleIndex = RetargetSourceCachedData.CompactPoseIndexToOrientAndScaleIndex;
 

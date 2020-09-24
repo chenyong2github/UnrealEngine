@@ -10,9 +10,11 @@
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "Serialization/ArchiveCountMem.h"
 #include "HAL/IConsoleManager.h"
+#include "Interfaces/ITargetPlatform.h"
 #include "UObject/Package.h"
 #include "Materials/MaterialInstance.h"
 #include "ProfilingDebugging/CookStats.h"
+
 
 #if WITH_EDITOR
 #include "GeometryCollection/DerivedDataGeometryCollectionCooker.h"

@@ -275,6 +275,13 @@ public:
 	// Destructor
 	virtual ~FSCSEditorTreeNode() {}
 
+	/**
+	 * Ends the 'Create + enter initial name' transaction of this node. The creation of a node is 'ongoing' as long as the initial name of
+	 * the node is in edition mode. When the text is not in edit mode anymore, the ongoing create transaction ends and the node
+	 * is considered fully created.
+	 */
+	void CloseOngoingCreateTransaction();
+
 protected:
 	// Called when this node is being removed via a RemoveChild call
 	virtual void RemoveMeAsChild() {}
@@ -818,6 +825,13 @@ private:
 	 */
 	FText GetComponentAddSourceToolTipText() const;
 
+/**
+	 * Retrieves tooltip text for the specified Native Component's underlying Name
+	 *
+	 * @returns An FText object containing the Component's Name
+	 */
+	FText GetNativeComponentNameToolTipText() const;
+
 	/**
 	 * Retrieves a tooltip text describing if the component is marked Editor only or not
 	 *
@@ -1028,6 +1042,21 @@ public:
 	   @return The reference of the newly created ActorComponent */
 	UActorComponent* AddNewComponent(UClass* NewComponentClass, UObject* Asset, const bool bSkipMarkBlueprintModified = false, bool bSetFocusToNewItem = true);
 
+	struct FAddedNodeDetails
+	{
+		FSCSEditorTreeNodePtrType NewNodePtr;
+		FSCSEditorTreeNodePtrType ParentNodePtr;
+	};
+
+	/** Adds a new SCS Node to the component Table
+	   @param OutNodeDetails (Out) Struct to be populated by the tree node pointers of the new node and its parent
+	   @param OngoingCreateTransaction (In) The transaction containing the creation of the node. The transaction will remain ongoing until the node gets its initial name from user.
+	   @param NewNode	(In) The SCS node to add
+	   @param Asset		(In) Optional asset to assign to the component
+	   @param bMarkBlueprintModified (In) Whether or not to mark the Blueprint as structurally modified
+	   @param bSetFocusToNewItem (In) Select the new item and activate the inline rename widget (default is true) */
+	void AddNewNode(FAddedNodeDetails& OutNodeDetails, TUniquePtr<FScopedTransaction> OngoingCreateTransaction, USCS_Node* NewNode, UObject* Asset, bool bMarkBlueprintModified, bool bSetFocusToNewItem = true);
+
 	/** Adds a new SCS Node to the component Table
 	   @param OngoingCreateTransaction (In) The transaction containing the creation of the node. The transaction will remain ongoing until the node gets its initial name from user.
 	   @param NewNode	(In) The SCS node to add
@@ -1103,6 +1132,9 @@ public:
 
 	/** Get the currently selected tree nodes */
 	TArray<FSCSEditorTreeNodePtrType> GetSelectedNodes() const;
+
+	/** Get the number of currently selected tree nodes */
+	int32 GetNumSelectedNodes() const { return SCSTreeWidget->GetNumItemsSelected(); }
 
 	/**
 	 * Fills out an events section in ui.

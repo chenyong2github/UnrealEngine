@@ -2878,7 +2878,8 @@ void UAnimMontage::BakeTimeStretchCurve()
 	{
 		if (const FSmartNameMapping* CurveNameMapping = MySkeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName))
 		{
-			if (const USkeleton::AnimCurveUID CurveUID = CurveNameMapping->FindUID(TimeStretchCurveName))
+			const USkeleton::AnimCurveUID CurveUID = CurveNameMapping->FindUID(TimeStretchCurveName);
+			if (CurveUID != SmartName::MaxUID)
 			{
 				TimeStretchFloatCurve = (FFloatCurve*)(GetCurveData().GetCurveData(CurveUID));
 			}

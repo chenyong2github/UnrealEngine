@@ -72,12 +72,6 @@ public:
 
 	FMeshMaterialShader(const FMeshMaterialShaderType::CompiledShaderInitializerType& Initializer);
 
-	// Declared as a friend, so that it can be called from other modules via static linkage, even if the compiler doesn't inline it.
-	FORCEINLINE friend void ValidateAfterBind(const FShaderType* Type, FMeshMaterialShader* Shader)
-	{
-		checkfSlow(Shader->PassUniformBuffer.IsInitialized(), TEXT("FMeshMaterialShader must bind a pass uniform buffer, even if it is just FSceneTexturesUniformParameters: %s"), Type->GetName());
-	}
-
 	void GetShaderBindings(
 		const FScene* Scene,
 		ERHIFeatureLevel::Type FeatureLevel,

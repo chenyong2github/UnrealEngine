@@ -44,6 +44,7 @@
 #include "Framework/Commands/Commands.h"
 #include "Framework/Docking/TabManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Developer/DerivedDataCache/Public/DerivedDataCacheInterface.h"
 
 
 
@@ -271,6 +272,10 @@ public:
 		if (PackagingSettings->bSkipEditorContent)
 		{
 			BuildCookRunParams += TEXT(" -SkipCookingEditorContent");
+		}
+		if (FDerivedDataCacheInterface* DDC = GetDerivedDataCache())
+		{
+			BuildCookRunParams += FString::Printf(TEXT(" -ddc=%s"), DDC->GetGraphName());
 		}
 		if (FApp::IsEngineInstalled())
 		{

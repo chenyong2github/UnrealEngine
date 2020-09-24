@@ -8,7 +8,7 @@
 static const float KISMET_TRACE_DEBUG_IMPACTPOINT_SIZE = 16.f;
 
 
-FCollisionQueryParams ConfigureCollisionParams(FName TraceTag, bool bTraceComplex, const TArray<AActor*>& ActorsToIgnore, bool bIgnoreSelf, UObject* WorldContextObject)
+FCollisionQueryParams ConfigureCollisionParams(FName TraceTag, bool bTraceComplex, const TArray<AActor*>& ActorsToIgnore, bool bIgnoreSelf, const UObject* WorldContextObject)
 {
 	FCollisionQueryParams Params(TraceTag, SCENE_QUERY_STAT_ONLY(KismetTraceUtils), bTraceComplex);
 	Params.bReturnPhysicalMaterial = true;
@@ -16,7 +16,7 @@ FCollisionQueryParams ConfigureCollisionParams(FName TraceTag, bool bTraceComple
 	Params.AddIgnoredActors(ActorsToIgnore);
 	if (bIgnoreSelf)
 	{
-		AActor* IgnoreActor = Cast<AActor>(WorldContextObject);
+		const AActor* IgnoreActor = Cast<AActor>(WorldContextObject);
 		if (IgnoreActor)
 		{
 			Params.AddIgnoredActor(IgnoreActor);
@@ -24,7 +24,7 @@ FCollisionQueryParams ConfigureCollisionParams(FName TraceTag, bool bTraceComple
 		else
 		{
 			// find owner
-			UObject* CurrentObject = WorldContextObject;
+			const UObject* CurrentObject = WorldContextObject;
 			while (CurrentObject)
 			{
 				CurrentObject = CurrentObject->GetOuter();

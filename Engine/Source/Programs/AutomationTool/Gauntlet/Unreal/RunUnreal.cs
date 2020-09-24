@@ -113,7 +113,7 @@ namespace Gauntlet
 				ContextOptions.TestList.Add(TestRequest.CreateRequest(DefaultTestName));
 			}
 
-			bool EditorForAllRoles = Globals.Params.ParseParam("editor") || string.Equals(Globals.Params.ParseValue("build", ""), "editor", StringComparison.OrdinalIgnoreCase);
+			bool EditorForAllRoles = Globals.Params.ParseParam("editor") || string.Equals(ContextOptions.Build, "editor", StringComparison.OrdinalIgnoreCase);
 
 			if (EditorForAllRoles)
 			{

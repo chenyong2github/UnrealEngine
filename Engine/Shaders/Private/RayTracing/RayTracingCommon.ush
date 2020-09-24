@@ -211,9 +211,7 @@ struct FMaterialClosestHitPayload : FMinimalPayload
 										// Unpacked  Packed
 										// offset    bytes
 	// float FMinimalPayload::HitT		// 0         4       32bits
-#if USE_RAYTRACED_TEXTURE_RAYCONE_LOD
 	FRayCone RayCone;					// 4         8       64bits
-#endif // USE_RAYTRACED_TEXTURE_RAYCONE_LOD
 	float3 Radiance;					// 8         6       48bits
 	float3 WorldNormal;					// 24        6       48bits
 	float3 BaseColor;					// 36        6       48bits
@@ -254,13 +252,10 @@ struct FMaterialClosestHitPayload : FMinimalPayload
 	void SetIgnoreTranslucentMaterials() { Flags |= RAY_TRACING_PAYLOAD_FLAG_IGNORE_TRANSLUCENT; }
 	bool IsIgnoreTranslucentMaterials() { return (Flags & RAY_TRACING_PAYLOAD_FLAG_IGNORE_TRANSLUCENT) != 0; }
 
-#if USE_RAYTRACED_TEXTURE_RAYCONE_LOD
 	FRayCone GetRayCone() { return RayCone; }
 	void SetRayCone(FRayCone NewRayCone) { RayCone = NewRayCone; }
-#else // USE_RAYTRACED_TEXTURE_RAYCONE_LOD
-	FRayCone GetRayCone() { return (FRayCone)0; }
-	void SetRayCone(FRayCone NewRayCone) {}
-#endif // USE_RAYTRACED_TEXTURE_RAYCONE_LOD
+
+	bool HasAnisotropy() { return abs(Anisotropy) >= 0.001f; }
 };
 
 // WorldNormal is the vector towards which the ray position will be offseted.
@@ -315,20 +310,19 @@ RayDesc CreatePrimaryRay(float2 UV)
 struct FPackedMaterialClosestHitPayload : FMinimalPayload
 {
 	// float FMinimalPayload::HitT                       // 4  bytes
-#if USE_RAYTRACED_TEXTURE_RAYCONE_LOD
 	FRayCone RayCone;                                    // 8  bytes
-#endif // USE_RAYTRACED_TEXTURE_RAYCONE_LOD
 	uint RadianceAndNormal[3];                           // 12 bytes
 	uint BaseColorAndOpacity[2];                         // 8  bytes
 	uint MetallicAndSpecularAndRoughness;                // 4  bytes
 	uint IorAndShadingModelIDAndBlendingModeAndFlagsAndPrimitiveLightingChannelMask;    // 4  bytes
 	uint PackedIndirectIrradiance[2];                    // 8  bytes
-	uint PackedCustomData;                               // 4  bytes -- HitGroup IN: pixel coords (16 bit packed), OUT: material custom data
+	uint PackedCustomData;                               // 4  bytes
 	uint WorldTangentAndAnisotropy[2];                   // 8  bytes
-	                                                     // 52 to 60 bytes total
+	uint PackedPixelCoord;                               // 4  bytes
+	                                                     // 64 bytes total
 
-	void SetPixelCoordInCustomData(uint2 PixelCoord) { PackedCustomData = (PixelCoord.x & 0xFFFF) | (PixelCoord.y << 16); }
-	uint2 GetPixelCoordFromCustomData() { return uint2(PackedCustomData & 0xFFFF, PackedCustomData >> 16); }
+	void SetPixelCoord(uint2 PixelCoord) { PackedPixelCoord = (PixelCoord.x & 0xFFFF) | (PixelCoord.y << 16); }
+	uint2 GetPixelCoord() { return uint2(PackedPixelCoord & 0xFFFF, PackedPixelCoord >> 16); }
 
 	void SetMinimalPayloadMode() { IorAndShadingModelIDAndBlendingModeAndFlagsAndPrimitiveLightingChannelMask |= RAY_TRACING_PAYLOAD_FLAG_MINIMAL_PAYLOAD << 24; }
 	bool IsMinimalPayloadMode() { return ((IorAndShadingModelIDAndBlendingModeAndFlagsAndPrimitiveLightingChannelMask >> 24) & RAY_TRACING_PAYLOAD_FLAG_MINIMAL_PAYLOAD) != 0; }
@@ -341,13 +335,8 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 	void SetIgnoreTranslucentMaterials() { IorAndShadingModelIDAndBlendingModeAndFlagsAndPrimitiveLightingChannelMask |= RAY_TRACING_PAYLOAD_FLAG_IGNORE_TRANSLUCENT << 24; }
 	bool IsIgnoreTranslucentMaterials() { return ((IorAndShadingModelIDAndBlendingModeAndFlagsAndPrimitiveLightingChannelMask >> 24) & RAY_TRACING_PAYLOAD_FLAG_IGNORE_TRANSLUCENT) != 0; }
 
-#if USE_RAYTRACED_TEXTURE_RAYCONE_LOD
 	FRayCone GetRayCone() { return RayCone; }
 	void SetRayCone(FRayCone NewRayCone) { RayCone = NewRayCone; }
-#else // USE_RAYTRACED_TEXTURE_RAYCONE_LOD
-	FRayCone GetRayCone() { return (FRayCone)0; }
-	void SetRayCone(FRayCone NewRayCone) {}
-#endif // USE_RAYTRACED_TEXTURE_RAYCONE_LOD
 
 	void SetRadiance(in float3 InRadiance)
 	{
@@ -452,9 +441,7 @@ FPackedMaterialClosestHitPayload PackRayTracingPayload(FMaterialClosestHitPayloa
 {
 	FPackedMaterialClosestHitPayload Output = (FPackedMaterialClosestHitPayload)0;
 	Output.HitT = Input.HitT;
-#if USE_RAYTRACED_TEXTURE_RAYCONE_LOD
-	Output.RayCone = RayCone; 
-#endif // USE_RAYTRACED_TEXTURE_RAYCONE_LOD
+	Output.RayCone = RayCone;
 	Output.RadianceAndNormal[0]  = f32tof16(Input.Radiance.x);
 	Output.RadianceAndNormal[0] |= f32tof16(Input.Radiance.y) << 16;
 	Output.RadianceAndNormal[1]  = f32tof16(Input.Radiance.z);
@@ -491,9 +478,7 @@ FMaterialClosestHitPayload UnpackRayTracingPayload(FPackedMaterialClosestHitPayl
 	FMaterialClosestHitPayload Output = (FMaterialClosestHitPayload)0;
 
 	Output.HitT = Input.HitT;
-#if USE_RAYTRACED_TEXTURE_RAYCONE_LOD
 	Output.RayCone = Input.RayCone; 
-#endif // USE_RAYTRACED_TEXTURE_RAYCONE_LOD
 	Output.Radiance           = Input.GetRadiance();
 	Output.WorldNormal        = Input.GetWorldNormal();
 	Output.BaseColor          = Input.GetBaseColor();
@@ -544,7 +529,7 @@ void TraceVisibilityRayPacked(
 	PackedPayload.SetMinimalPayloadMode();
 	PackedPayload.HitT = 0;
 
-	PackedPayload.SetPixelCoordInCustomData(PixelCoord);
+	PackedPayload.SetPixelCoord(PixelCoord);
 
 	// Trace the ray
 
@@ -601,7 +586,7 @@ void TraceMaterialRayPacked(
 	// Set payload inputs
 
 	Payload.SetRayCone(RayCone);
-	Payload.SetPixelCoordInCustomData(PixelCoord);
+	Payload.SetPixelCoord(PixelCoord);
 
 	if (bEnableSkyLightContribution)
 	{
@@ -646,7 +631,7 @@ FMaterialClosestHitPayload TraceMaterialRay(
 	// Set payload inputs
 
 	PackedPayload.SetRayCone(RayCone);
-	PackedPayload.SetPixelCoordInCustomData(PixelCoord);
+	PackedPayload.SetPixelCoord(PixelCoord);
 
 	if (bEnableSkyLightContribution)
 	{
@@ -658,10 +643,6 @@ FMaterialClosestHitPayload TraceMaterialRay(
 	{
 		PackedPayload.SetIgnoreTranslucentMaterials();
 	}
-
-#if RAYGENSHADER
-	PackedPayload.SetPixelCoordInCustomData(DispatchRaysIndex().xy);
-#endif // RAYGENSHADER
 
 	// Trace the ray
 

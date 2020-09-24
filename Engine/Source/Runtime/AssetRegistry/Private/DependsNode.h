@@ -3,23 +3,30 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "AssetData.h"
+
+#include "Algo/BinarySearch.h"
+#include "AssetRegistry/AssetData.h"
+#include "Containers/BitArray.h"
+#include "AssetRegistry/IAssetRegistry.h"
 #include "Misc/AssetRegistryInterface.h"
-
-#define USE_DEPENDS_NODE_LIST_SETS (WITH_EDITOR || IS_PROGRAM)
-
-#if USE_DEPENDS_NODE_LIST_SETS
-typedef TSet<class FDependsNode*> FDependsNodeList;
-#else
-typedef TArray<class FDependsNode*> FDependsNodeList;
-#endif
+#include "PropertyCombinationSet.h"
 
 /** Implementation of IDependsNode */
 class FDependsNode
 {
 public:
-	FDependsNode() {}
-	FDependsNode(const FAssetIdentifier& InIdentifier) : Identifier(InIdentifier) {}
+	typedef TArray<FDependsNode*> FDependsNodeList;
+	static constexpr uint32 PackageFlagWidth = 3;
+	static constexpr uint32 SearchableNameFlagWidth = 0;
+	static constexpr uint32 ManageFlagWidth = 1;
+	typedef TPropertyCombinationSet<PackageFlagWidth> FPackageFlagSet;
+	static constexpr uint32 PackageFlagSetWidth = FPackageFlagSet::StorageBitCount;
+	static constexpr uint32 SearchableNameFlagSetWidth = 0;
+	static constexpr uint32 ManageFlagSetWidth = TPropertyCombinationSet<ManageFlagWidth>::StorageBitCount;
+
+public:
+	FDependsNode() { Construct(); }
+	FDependsNode(const FAssetIdentifier& InIdentifier) : Identifier(InIdentifier) { Construct(); }
 
 	/** Prints the dependencies and referencers for this node to the log */
 	void PrintNode() const;
@@ -28,11 +35,13 @@ public:
 	/** Prints the referencers to this node to the log */
 	void PrintReferencers() const;
 	/** Gets the list of dependencies for this node */
-	void GetDependencies(TArray<FDependsNode*>& OutDependencies, EAssetRegistryDependencyType::Type InDependencyType = EAssetRegistryDependencyType::All) const;
+	void GetDependencies(TArray<FDependsNode*>& OutDependencies, UE::AssetRegistry::EDependencyCategory Category = UE::AssetRegistry::EDependencyCategory::All, const UE::AssetRegistry::FDependencyQuery& Flags = UE::AssetRegistry::FDependencyQuery()) const;
 	/** Gets the list of dependency names for this node */
-	void GetDependencies(TArray<FAssetIdentifier>& OutDependencies, EAssetRegistryDependencyType::Type InDependencyType = EAssetRegistryDependencyType::All) const;
+	void GetDependencies(TArray<FAssetIdentifier>& OutDependencies, UE::AssetRegistry::EDependencyCategory Category = UE::AssetRegistry::EDependencyCategory::All, const UE::AssetRegistry::FDependencyQuery& Flags = UE::AssetRegistry::FDependencyQuery()) const;
+	void GetDependencies(TArray<FAssetDependency>& OutDependencies, UE::AssetRegistry::EDependencyCategory Category = UE::AssetRegistry::EDependencyCategory::All, const UE::AssetRegistry::FDependencyQuery& Flags = UE::AssetRegistry::FDependencyQuery()) const;
 	/** Gets the list of referencers to this node */
-	void GetReferencers(TArray<FDependsNode*>& OutReferencers, EAssetRegistryDependencyType::Type InDependencyType = EAssetRegistryDependencyType::All) const;
+	void GetReferencers(TArray<FDependsNode*>& OutReferencers, UE::AssetRegistry::EDependencyCategory Category = UE::AssetRegistry::EDependencyCategory::All, const UE::AssetRegistry::FDependencyQuery& Flags = UE::AssetRegistry::FDependencyQuery()) const;
+	void GetReferencers(TArray<FAssetDependency>& OutReferencers, UE::AssetRegistry::EDependencyCategory Category = UE::AssetRegistry::EDependencyCategory::All, const UE::AssetRegistry::FDependencyQuery& Flags = UE::AssetRegistry::FDependencyQuery()) const;
 	/** Gets the name of the package that this node represents */
 	FName GetPackageName() const { return Identifier.PackageName; }
 	/** Sets the name of the package that this node represents */
@@ -40,43 +49,43 @@ public:
 	/** Returns the entire identifier */
 	const FAssetIdentifier& GetIdentifier() const { return Identifier; }
 	/** Sets the entire identifier */
-	void SetIdentifier(const FAssetIdentifier& InIdentifier) { Identifier = InIdentifier;  }
+	void SetIdentifier(const FAssetIdentifier& InIdentifier) { Identifier = InIdentifier; }
 	/** Add a dependency to this node */
-	void AddDependency(FDependsNode* InDependency, EAssetRegistryDependencyType::Type InDependencyType = EAssetRegistryDependencyType::Hard, bool bGuaranteedUnique = false);
+	void AddDependency(FDependsNode* InDependency, UE::AssetRegistry::EDependencyCategory InDependencyType, UE::AssetRegistry::EDependencyProperty InProperties);
+	void GetPackageReferencers(TArray<TPair<FAssetIdentifier, FPackageFlagSet>>& OutReferencers);
+	void AddPackageDependencySet(FDependsNode* InDependency, const FPackageFlagSet& PropertyCombinationSet);
 	/** Add a referencer to this node */
-	void AddReferencer(FDependsNode* InReferencer, bool bGuaranteedUnique = false);
+	void AddReferencer(FDependsNode* InReferencer);
 	/** Remove a dependency from this node */
-	void RemoveDependency(FDependsNode* InDependency);
+	void RemoveDependency(FDependsNode* InDependency, UE::AssetRegistry::EDependencyCategory Category = UE::AssetRegistry::EDependencyCategory::All);
 	/** Remove a referencer from this node */
 	void RemoveReferencer(FDependsNode* InReferencer);
+	/** Removes any referencers that no longer have this node as a dependency */
+	void RefreshReferencers();
+	bool ContainsDependency(FDependsNode* InDependency, UE::AssetRegistry::EDependencyCategory Category = UE::AssetRegistry::EDependencyCategory::All) const;
 	/** Clear all dependency records from this node */
-	void ClearDependencies();
+	void ClearDependencies(UE::AssetRegistry::EDependencyCategory Category = UE::AssetRegistry::EDependencyCategory::All);
+	void ClearReferencers();
 	/** Removes Manage dependencies on this node and clean up referencers array. Manage references are the only ones safe to remove at runtime */
 	void RemoveManageReferencesToNode();
+	/** Remove all nodes from referencers and dependencies for which ShouldRemove returns true */
+	void RemoveLinks(const TUniqueFunction<bool(const FDependsNode*)>& ShouldRemove);
 	/** Returns number of connections this node has, both references and dependencies */
 	int32 GetConnectionCount() const;
 	/** Returns amount of memory used by the arrays */
 	uint32 GetAllocatedSize(void) const
 	{
-		return HardDependencies.GetAllocatedSize() + SoftDependencies.GetAllocatedSize() + NameDependencies.GetAllocatedSize() + SoftManageDependencies.GetAllocatedSize() + HardManageDependencies.GetAllocatedSize() + Referencers.GetAllocatedSize();
+		return PackageDependencies.GetAllocatedSize() + PackageFlags.GetAllocatedSize() + NameDependencies.GetAllocatedSize() + ManageDependencies.GetAllocatedSize() + ManageFlags.GetAllocatedSize() + Referencers.GetAllocatedSize();
 	}
 
-	/** Iterate over all the dependencies of this node, filtered by the supplied type parameter, and call the supplied lambda parameter on the record */
-	template <class T>
-	void IterateOverDependencies(T InCallback, EAssetRegistryDependencyType::Type InDependencyType = EAssetRegistryDependencyType::All) const
-	{
-		IterateOverDependencyLists([&InCallback](const FDependsNodeList& InList, EAssetRegistryDependencyType::Type CurrentType)
-		{
-			for (FDependsNode* Dependency : InList)
-			{
-				InCallback(Dependency, CurrentType);
-			}
-		}, InDependencyType);
-	}
+	typedef TUniqueFunction<void(FDependsNode * Dependency, UE::AssetRegistry::EDependencyCategory Category, UE::AssetRegistry::EDependencyProperty Properties, bool bDuplicate)> FIterateDependenciesCallback;
+	/** Iterate over all the dependencies of this node, optionally filtered by the target node, category and query, and call the supplied lambda parameter on the record */
+	void IterateOverDependencies(const FIterateDependenciesCallback& InCallback, UE::AssetRegistry::EDependencyCategory Category = UE::AssetRegistry::EDependencyCategory::All, const UE::AssetRegistry::FDependencyQuery& Flags = UE::AssetRegistry::FDependencyQuery()) const;
+	void IterateOverDependencies(const FIterateDependenciesCallback& InCallback, const FDependsNode* DependsNode, UE::AssetRegistry::EDependencyCategory Category = UE::AssetRegistry::EDependencyCategory::All, const UE::AssetRegistry::FDependencyQuery& Flags = UE::AssetRegistry::FDependencyQuery()) const;
 
-	/** Iterate over all the referencers of this node and call the supplied lambda parameter on the record */
+	/** Iterate over all the referencers of this node and call the supplied lambda parameter on the referencer */
 	template <class T>
-	void IterateOverReferencers(T InCallback) const
+	void IterateOverReferencers(const T& InCallback) const
 	{
 		for (FDependsNode* Referencer : Referencers)
 		{
@@ -84,70 +93,97 @@ public:
 		}
 	}
 
-	void Reserve(int32 InNumHardDependencies, int32 InNumSoftDependencies, int32 InNumNameDependencies, int32 InNumSoftManageDependencies, int32 InNumHardManageDependencies, int32 InNumReferencers)
+	void Reserve(int32 InNumPackageDependencies, int32 InNumNameDependencies, int32 InNumManageDependencies, int32 InNumReferencers)
 	{
-		HardDependencies.Reserve(InNumHardDependencies);
-		SoftDependencies.Reserve(InNumSoftDependencies);
+		PackageDependencies.Reserve(InNumPackageDependencies);
+		PackageFlags.Reserve(InNumPackageDependencies * PackageFlagSetWidth);
 		NameDependencies.Reserve(InNumNameDependencies);
-		SoftManageDependencies.Reserve(InNumSoftManageDependencies);
-		HardManageDependencies.Reserve(InNumHardManageDependencies);
+		ManageDependencies.Reserve(InNumManageDependencies);
+		ManageFlags.Reserve(InNumManageDependencies * ManageFlagSetWidth);
 		Referencers.Reserve(InNumReferencers);
 	}
 
-	void Reserve(const FDependsNode* Other) {
-		Reserve(Other->HardDependencies.Num(), Other->SoftDependencies.Num(), Other->NameDependencies.Num(), Other->SoftManageDependencies.Num(), Other->HardManageDependencies.Num(), Other->Referencers.Num());
+	void Reserve(const FDependsNode* Other)
+	{
+		Reserve(Other->PackageDependencies.Num(), Other->NameDependencies.Num(), Other->ManageDependencies.Num(), Other->Referencers.Num());
 	}
+
+	inline static uint8 PackagePropertiesToByte(UE::AssetRegistry::EDependencyProperty Properties)
+	{
+		return (0x01 * (static_cast<uint8>(Properties & UE::AssetRegistry::EDependencyProperty::Hard) != 0))
+			| (0x02 * (static_cast<uint8>(Properties & UE::AssetRegistry::EDependencyProperty::Game) != 0))
+			| (0x04 * (static_cast<uint8>(Properties & UE::AssetRegistry::EDependencyProperty::Build) != 0));
+	}
+
+	inline static UE::AssetRegistry::EDependencyProperty ByteToPackageProperties(uint8 Bits)
+	{
+		return static_cast<UE::AssetRegistry::EDependencyProperty>(
+			(static_cast<uint32>(UE::AssetRegistry::EDependencyProperty::Hard) * ((Bits & 0x01) != 0))
+			| (static_cast<uint32>(UE::AssetRegistry::EDependencyProperty::Game) * ((Bits & 0x02) != 0))
+			| (static_cast<uint32>(UE::AssetRegistry::EDependencyProperty::Build) * ((Bits & 0x04) != 0))
+			);
+	}
+	inline static uint8 ManagePropertiesToByte(UE::AssetRegistry::EDependencyProperty Properties)
+	{
+		return (0x01 * (static_cast<uint8>(Properties & UE::AssetRegistry::EDependencyProperty::Direct) != 0));
+	}
+
+	inline static UE::AssetRegistry::EDependencyProperty ByteToManageProperties(uint8 Bits)
+	{
+		return static_cast<UE::AssetRegistry::EDependencyProperty>(
+			(static_cast<uint32>(UE::AssetRegistry::EDependencyProperty::Direct) * ((Bits & 0x01) != 0))
+			);
+	}
+
+	struct FSaveScratch
+	{
+		TArray<int32> OutDependencies;
+		TBitArray<> OutFlagBits;
+	};
+	void SerializeSave(FArchive& Ar, const TUniqueFunction<int32(FDependsNode*, bool)>& GetSerializeIndexFromNode, FSaveScratch& Scratch) const;
+	struct FLoadScratch
+	{
+		TArray<int32> InDependencies;
+		TArray<uint32> InFlagBits;
+		TArray<FDependsNode*> PointerDependencies;
+		TArray<int32> SortIndexes;
+	};
+	void SerializeLoad(FArchive& Ar, const TUniqueFunction<FDependsNode*(int32)>& GetNodeFromSerializeIndex, FLoadScratch& Scratch, const FAssetRegistrySerializationOptions& Options);
+
+	void LegacySerializeLoad_BeforeAssetRegistryDependencyFlags(FArchive& Ar, FAssetRegistryVersion::Type Version, FDependsNode* PreallocatedDependsNodeDataBuffer, int32 NumDependsNodes, const FAssetRegistrySerializationOptions& Options,
+		uint32 HardBits, uint32 SoftBits, uint32 HardManageBits, uint32 SoftManageBits);
+	static void LegacySerializeLoad_BeforeAssetRegistryDependencyFlags_GetPropertySetBits(uint32& HardBits, uint32& SoftBits, uint32& HardManageBits, uint32& SoftManageBits);
+
+	bool IsDependencyListSorted(UE::AssetRegistry::EDependencyCategory Category) const;
+	void SetIsDependencyListSorted(UE::AssetRegistry::EDependencyCategory Category, bool bValue);
+	bool IsReferencersSorted() const;
+	void SetIsReferencersSorted(bool bValue);
 
 private:
-
-	/** Iterate over all the separate dependency arrays. Const cast to avoid duplication */
-	template <class T>
-	FORCEINLINE void IterateOverDependencyLists(T InCallback, EAssetRegistryDependencyType::Type InDependencyType = EAssetRegistryDependencyType::All) const
-	{
-		// This iteration is specific so it gets the "most important" references first in the array
-		if (InDependencyType & EAssetRegistryDependencyType::Hard)
-		{
-			InCallback(const_cast<FDependsNodeList&>(HardDependencies), EAssetRegistryDependencyType::Hard);
-		}
-
-		if (InDependencyType & EAssetRegistryDependencyType::Soft)
-		{
-			InCallback(const_cast<FDependsNodeList&>(SoftDependencies), EAssetRegistryDependencyType::Soft);
-		}
-
-		if (InDependencyType & EAssetRegistryDependencyType::HardManage)
-		{
-			InCallback(const_cast<FDependsNodeList&>(HardManageDependencies), EAssetRegistryDependencyType::HardManage);
-		}
-
-		if (InDependencyType & EAssetRegistryDependencyType::SoftManage)
-		{
-			InCallback(const_cast<FDependsNodeList&>(SoftManageDependencies), EAssetRegistryDependencyType::SoftManage);
-		}
-
-		if (InDependencyType & EAssetRegistryDependencyType::SearchableName)
-		{
-			InCallback(const_cast<FDependsNodeList&>(NameDependencies), EAssetRegistryDependencyType::SearchableName);
-		}
-	}
 
 	/** Recursively prints dependencies of the node starting with the specified indent. VisitedNodes should be an empty set at first which is populated recursively. */
 	void PrintDependenciesRecursive(const FString& Indent, TSet<const FDependsNode*>& VisitedNodes) const;
 	/** Recursively prints referencers to the node starting with the specified indent. VisitedNodes should be an empty set at first which is populated recursively. */
 	void PrintReferencersRecursive(const FString& Indent, TSet<const FDependsNode*>& VisitedNodes) const;
 
+	void Construct()
+	{
+		PackageIsSorted = 1;
+		SearchableNameIsSorted = 1;
+		ManageIsSorted = 1;
+		ReferencersIsSorted = 1;
+	}
+
 	/** The name of the package/object this node represents */
 	FAssetIdentifier Identifier;
-	/** The list of hard dependencies for this node */
-	FDependsNodeList HardDependencies;
-	/** The list of soft dependencies for this node */
-	FDependsNodeList SoftDependencies;
-	/** The list of searchable name dependencies for this node */
+	FDependsNodeList PackageDependencies;
 	FDependsNodeList NameDependencies;
-	/** The list of hard manage dependencies for this node */
-	FDependsNodeList SoftManageDependencies;
-	/** The list of soft manage dependencies for this node */
-	FDependsNodeList HardManageDependencies;
-	/** The list of referencers to this node */
+	FDependsNodeList ManageDependencies;
 	FDependsNodeList Referencers;
+	TBitArray<> PackageFlags;
+	TBitArray<> ManageFlags;
+	uint32 PackageIsSorted : 1;
+	uint32 SearchableNameIsSorted : 1;
+	uint32 ManageIsSorted : 1;
+	uint32 ReferencersIsSorted : 1;
 };

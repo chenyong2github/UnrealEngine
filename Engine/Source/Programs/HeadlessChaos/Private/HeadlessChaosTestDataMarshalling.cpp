@@ -11,6 +11,7 @@
 
 #include "Modules/ModuleManager.h"
 #include "Chaos/ChaosMarshallingManager.h"
+#include "Chaos/Framework/PhysicsSolverBase.h"
 
 namespace ChaosTest
 {
@@ -95,41 +96,56 @@ namespace ChaosTest
 	TYPED_TEST(AllTraits, DataMarshalling_Callbacks)
 	{
 		auto* Solver = FChaosSolversModule::GetModule()->CreateSolver<TypeParam>(nullptr, EThreadingMode::SingleThread);
-		Solver->SetEnabled(true);
-
+		
 		int Count = 0;
 		float Time = 0;
-		FSimCallbackHandle* Callback = &Solver->RegisterSimCallback([&Count, &Time](const TArray<FSimCallbackData*>& Data)
-		{
-			EXPECT_EQ(Data.Num(),1);
-			EXPECT_EQ(Data[0]->Data.Int, Count);
-			++Count;
-			EXPECT_EQ(Time,Data[0]->GetStartTime());
-		});
+		const float Dt = 1 / 30.f;
 
-		const float Dt = 1/30.f;
+		struct FDummyInt : public FSimCallbackInput
+		{
+			void Reset() {}
+			int32 Data;
+		};
+
+		struct FCallback : public TSimCallbackObject<FDummyInt>
+		{
+			virtual FSimCallbackOutput* OnPreSimulate_Internal(const float StartTime, const float DeltaTime, const TArrayView<const FSimCallbackInput*>& Inputs) const override
+			{
+				EXPECT_EQ(1 / 30.f, DeltaTime);
+				EXPECT_EQ(Inputs.Num(), 1);
+				EXPECT_EQ(static_cast<const FDummyInt*>(Inputs[0])->Data, *CountPtr);
+				++(*CountPtr);
+				EXPECT_EQ(*Time, Inputs[0]->GetExternalTime());
+				return nullptr;
+			}
+
+			mutable int32* CountPtr;	//mutable because callback shouldn't have side effects, but for testing this is the easiest way
+			float* Time;
+		};
+
+		FCallback* Callback = Solver->CreateAndRegisterSimCallbackObject_External<FCallback>();
+		Callback->CountPtr = &Count;
+		Callback->Time = &Time;
+
 
 		for(int Step = 0; Step < 10; ++Step)
 		{
-			Solver->FindOrCreateCallbackProducerData(*Callback).Data.Int = Step;
+			Callback->GetProducerInputData_External()->Data = Step;
+			
 			Solver->AdvanceAndDispatch_External(Dt);
+			Solver->UpdateGameThreadStructures();
 			Time += Dt;
-
-			Solver->BufferPhysicsResults();
-			Solver->FlipBuffers();
 		}
 		
 		EXPECT_EQ(Count,10);
 
-		Solver->UnregisterSimCallback(*Callback);
+		Solver->UnregisterAndFreeSimCallbackObject_External(Callback);
 
 		for(int Step = 0; Step < 10; ++Step)
 		{
 			Solver->AdvanceAndDispatch_External(Dt);
+			Solver->UpdateGameThreadStructures();
 			Time += Dt;
-
-			Solver->BufferPhysicsResults();
-			Solver->FlipBuffers();
 		}
 
 		EXPECT_EQ(Count,10);
@@ -138,8 +154,7 @@ namespace ChaosTest
 	TYPED_TEST(AllTraits,DataMarshalling_OneShotCallbacks)
 	{
 		auto* Solver = FChaosSolversModule::GetModule()->CreateSolver<TypeParam>(nullptr,EThreadingMode::SingleThread);
-		Solver->SetEnabled(true);
-
+		
 		int Count = 0;
 		Solver->RegisterSimOneShotCallback([&Count]()
 		{
@@ -156,9 +171,7 @@ namespace ChaosTest
 			});
 
 			Solver->AdvanceAndDispatch_External(1/30.f);
-
-			Solver->BufferPhysicsResults();
-			Solver->FlipBuffers();
+			Solver->UpdateGameThreadStructures();
 		}
 
 		EXPECT_EQ(Count,11);

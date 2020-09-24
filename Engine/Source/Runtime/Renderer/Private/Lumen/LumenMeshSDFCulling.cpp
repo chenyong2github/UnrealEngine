@@ -479,9 +479,9 @@ void CullMeshSDFObjectsToProbes(
 
 	// Scatter mesh SDF objects into a temporary array of {ObjectIndex, ProbeIndex}
 	{
-		FRDGBufferUAVRef NumGridCulledMeshSDFObjectsUAV = GraphBuilder.CreateUAV(Context.NumGridCulledMeshSDFObjects, PF_R32_UINT, ERDGChildResourceFlags::NoUAVBarrier);
-		FRDGBufferUAVRef NumCulledObjectsToCompactUAV = GraphBuilder.CreateUAV(Context.NumCulledObjectsToCompact, PF_R32_UINT, ERDGChildResourceFlags::NoUAVBarrier);
-		FRDGBufferUAVRef CulledObjectsToCompactArrayUAV = GraphBuilder.CreateUAV(Context.CulledObjectsToCompactArray, PF_R32_UINT, ERDGChildResourceFlags::NoUAVBarrier);
+		FRDGBufferUAVRef NumGridCulledMeshSDFObjectsUAV = GraphBuilder.CreateUAV(Context.NumGridCulledMeshSDFObjects, PF_R32_UINT, ERDGUnorderedAccessViewFlags::SkipBarrier);
+		FRDGBufferUAVRef NumCulledObjectsToCompactUAV = GraphBuilder.CreateUAV(Context.NumCulledObjectsToCompact, PF_R32_UINT, ERDGUnorderedAccessViewFlags::SkipBarrier);
+		FRDGBufferUAVRef CulledObjectsToCompactArrayUAV = GraphBuilder.CreateUAV(Context.CulledObjectsToCompactArray, PF_R32_UINT, ERDGUnorderedAccessViewFlags::SkipBarrier);
 
 		for (int32 ProbeHierarchyLevelIndex = 0; ProbeHierarchyLevelIndex < ProbeHierarchyParameters.HierarchyDepth; ++ProbeHierarchyLevelIndex)
 		{

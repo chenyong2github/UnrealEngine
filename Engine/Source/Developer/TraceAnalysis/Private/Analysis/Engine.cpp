@@ -142,7 +142,7 @@ const ANSICHAR* IAnalyzer::FThreadInfo::GetName() const
 	const auto* Info = (const FThreads::FInfo*)this;
 	if (Info->Name.Num() <= 0)
 	{
-		return "UnnamedThread";
+		return nullptr;
 	}
 
 	return (const ANSICHAR*)(Info->Name.GetData());
@@ -615,7 +615,7 @@ bool IAnalyzer::FEventData::GetString(const ANSICHAR* FieldName, FStringView& Ou
 
 	if (const FAuxData* Data = Info->GetAuxData(Index))
 	{
-		Out = FStringView((const TCHAR*)(Data->Data), Data->DataSize); // Data combo!
+		Out = FStringView((const TCHAR*)(Data->Data), Data->DataSize / sizeof(TCHAR));
 		return true;
 	}
 
@@ -1440,12 +1440,12 @@ bool FAnalysisEngine::OnDataProtocol2()
 			break;
 		}
 
+		TArrayView<FRotaItem> ActiveRota(Rota.GetData(), ActiveCount);
+		Algo::Sort(ActiveRota);
+
 		int32 MinLogSerial = Rota[0].Serial;
 		if (ActiveCount > 1)
 		{
-			TArrayView<FRotaItem> ActiveRota(Rota.GetData(), ActiveCount);
-			Algo::Sort(ActiveRota);
-
 			int32 MaxLogSerial = Rota[ActiveCount - 1].Serial;
 
 			if ((uint32(MinLogSerial - Serial.Value) & Serial.Mask) == 0)

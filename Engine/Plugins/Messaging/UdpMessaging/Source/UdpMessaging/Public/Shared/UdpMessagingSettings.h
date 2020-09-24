@@ -45,6 +45,16 @@ class UUdpMessagingSettings
 public:
 
 	/**
+	 * Whether UDP messaging is enabled by default. If false -messaging will need to be added
+	 * to the commandline when running non-editor builds.
+	 *
+	 * (Note - in Shipping builds ALLOW_UDP_MESSAGING_SHIPPING=1 must also be defined in TargetRules
+	 * for messaging to be available with or without this setting)
+	 */
+	UPROPERTY(config, EditAnywhere, Category = Availability)
+	bool EnabledByDefault = false;
+
+	/**
 	 * Whether the UDP transport channel is enabled.
 	 * Can be specified on the command line with `-UDPMESSAGING_TRANSPORT_ENABLE=`
 	 */

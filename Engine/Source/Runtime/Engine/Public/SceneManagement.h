@@ -65,8 +65,6 @@ struct ENGINE_API FTemporalLODState
 {
 	/** The last two camera origin samples collected for stateless temporal LOD transitions */
 	FVector	TemporalLODViewOrigin[2];
-	/** The last two fov-like parameters from the projection matrix for stateless temporal LOD transitions */
-	float	TemporalDistanceFactor[2];
 	/** The last two time samples collected for stateless temporal LOD transitions */
 	float	TemporalLODTime[2];
 	/** If non-zero, then we are doing temporal LOD smoothing, this is the time interval. */
@@ -106,7 +104,9 @@ class FSceneViewStateInterface
 {
 public:
 	FSceneViewStateInterface()
-		:	ViewParent( NULL )
+		:	bValidEyeAdaptationTexture(0)
+		,	bValidEyeAdaptationBuffer(0)
+		,	ViewParent(NULL)
 		,	NumChildren( 0 )
 	{}
 	
@@ -213,6 +213,16 @@ public:
 
 	virtual uint32 GetCurrentUnclampedTemporalAASampleIndex() const = 0;
 
+	/** Tells if the eye adaptation texture / buffer exists without attempting to allocate it. */
+	bool HasValidEyeAdaptationTexture() const { return bValidEyeAdaptationTexture; }
+	bool HasValidEyeAdaptationBuffer() const { return bValidEyeAdaptationBuffer; }
+
+	/** Returns the eye adaptation texture (SM5+ only). */
+	virtual IPooledRenderTarget* GetCurrentEyeAdaptationTexture() const = 0;
+
+	/** Returns the eye adaptation buffer (mobile only). */
+	virtual const FExposureBufferData* GetCurrentEyeAdaptationBuffer() const = 0;
+
 	virtual void SetSequencerState(ESequencerState InSequencerState) = 0;
 
 	virtual ESequencerState GetSequencerState() = 0;
@@ -227,6 +237,9 @@ public:
 protected:
 	// Don't allow direct deletion of the view state, Destroy should be called instead.
 	virtual ~FSceneViewStateInterface() {}
+
+	uint8 bValidEyeAdaptationTexture : 1;
+	uint8 bValidEyeAdaptationBuffer : 1;
 
 private:
 	/** This scene state's view parent; NULL if no parent present. */
@@ -1031,7 +1044,7 @@ inline bool DoesPlatformSupportDistanceFieldAO(EShaderPlatform Platform)
 }
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileReflectionCaptureShaderParameters,ENGINE_API)
-	SHADER_PARAMETER(FVector4, Params) // x - inv average brightness, y - sky cubemap max mip, zw - unused
+	SHADER_PARAMETER(FVector4, Params) // x - inv average brightness, y - sky cubemap max mip, z - Max value for RGBM, w - unused
 	SHADER_PARAMETER_TEXTURE(TextureCube, Texture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, TextureSampler)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
@@ -1198,6 +1211,70 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLightShaderParameters, ENGINE_API)
 END_SHADER_PARAMETER_STRUCT()
 
 
+// Movable point light uniform buffer for mobile
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileMovablePointLightUniformShaderParameters,ENGINE_API)
+	SHADER_PARAMETER(FVector4, LightPositionAndInvRadius)
+	SHADER_PARAMETER(FVector4, LightColorAndFalloffExponent)
+	SHADER_PARAMETER(FVector4, SpotLightDirectionAndSpecularScale)
+	SHADER_PARAMETER(FVector4, SpotLightAnglesAndSoftTransitionScaleAndLightShadowType) //xy SpotAngles, z SoftTransitionScale, w LightShadowType if (w&1 == 1) is pointlight, (w&2 == 2) is spotlight, (w&4 == 4) is with shadow
+	SHADER_PARAMETER(FVector4, SpotLightShadowSharpenAndShadowFadeFraction) // x ShadowSharpen, y ShadowFadFraction
+	SHADER_PARAMETER(FVector4, SpotLightShadowmapMinMax)
+	SHADER_PARAMETER(FMatrix, SpotLightShadowWorldToShadowMatrix)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
+
+/** Initializes the movable point light uniform shader parameters. */
+FORCEINLINE FMobileMovablePointLightUniformShaderParameters GetMovablePointLightUniformShaderParameters(
+	const FVector4& LightPositionAndInvRadius,
+	const FVector4& LightColorAndFalloffExponent,
+	const FVector4& SpotLightDirectionAndSpecularScale,
+	const FVector4& SpotLightAnglesAndSoftTransitionScaleAndLightShadowType,
+	const FVector4& SpotLightShadowSharpenAndShadowFadeFraction,
+	const FVector4& SpotLightShadowmapMinMax,
+	const FMatrix& SpotLightShadowWorldToShadowMatrix
+)
+{
+	FMobileMovablePointLightUniformShaderParameters Result;
+	Result.LightPositionAndInvRadius = LightPositionAndInvRadius;
+	Result.LightColorAndFalloffExponent = LightColorAndFalloffExponent;
+	Result.SpotLightDirectionAndSpecularScale = SpotLightDirectionAndSpecularScale;
+	Result.SpotLightAnglesAndSoftTransitionScaleAndLightShadowType = SpotLightAnglesAndSoftTransitionScaleAndLightShadowType;
+	Result.SpotLightShadowSharpenAndShadowFadeFraction = SpotLightShadowSharpenAndShadowFadeFraction;
+	Result.SpotLightShadowmapMinMax = SpotLightShadowmapMinMax;
+	Result.SpotLightShadowWorldToShadowMatrix = SpotLightShadowWorldToShadowMatrix;
+
+	return Result;
+}
+
+FORCEINLINE FMobileMovablePointLightUniformShaderParameters GetDummyMovablePointLightUniformShaderParameters()
+{
+	return GetMovablePointLightUniformShaderParameters(
+		FVector4(),
+		FVector4(),
+		FVector4(),
+		FVector4(),
+		FVector4(),
+		FVector4(),
+		FMatrix()
+	);
+}
+
+/**
+ * Dummy mobile movable point light uniform buffer.
+ */
+class FDummyMovablePointLightUniformBuffer : public TUniformBuffer<FMobileMovablePointLightUniformShaderParameters>
+{
+public:
+
+	/** Default constructor. */
+	FDummyMovablePointLightUniformBuffer()
+	{
+		SetContents(GetDummyMovablePointLightUniformShaderParameters());
+	}
+};
+
+/** Global primitive uniform buffer resource containing identity transformations. */
+extern ENGINE_API TGlobalResource<FDummyMovablePointLightUniformBuffer> GDummyMovablePointLightUniformBuffer;
+
 /** 
  * Encapsulates the data which is used to render a light by the rendering thread. 
  * The constructor is called from the game thread, and after that the rendering thread owns the object.
@@ -1241,11 +1318,6 @@ public:
 	virtual float GetShadowSourceAngleFactor() const { return 1.0f; }
 	virtual float GetTraceDistance() const { return 0.0f; }
 	virtual float GetEffectiveScreenRadius(const FViewMatrices& ShadowViewMatrices) const { return 0.0f; }
-
-	virtual FVector2D GetLightShaftConeParams() const
-	{
-		return FVector2D::ZeroVector;
-	}
 
 	/** Accesses parameters needed for rendering the light. */
 	virtual void GetLightShaderParameters(FLightShaderParameters& PathTracingLightParameters) const {}
@@ -1411,7 +1483,7 @@ public:
 	inline bool GetForceCachedShadowsForMovablePrimitives() const { return bForceCachedShadowsForMovablePrimitives; }
 
 	inline uint32 GetSamplesPerPixel() const { return SamplesPerPixel; }
-
+	inline float GetDeepShadowLayerDistribution() const { return DeepShadowLayerDistribution;  }
 	/**
 	 * Shifts light position and all relevant data by an arbitrary delta.
 	 * Called on world origin changes
@@ -1445,13 +1517,28 @@ public:
 	virtual bool GetCastCloudShadows() const { return false; }
 	virtual float GetCloudShadowExtent() const { return 1.0f; }
 	virtual float GetCloudShadowMapResolutionScale() const { return 1.0f; }
+	virtual float GetCloudShadowRaySampleCountScale() const { return 1.0f; }
 	virtual float GetCloudShadowStrength() const { return 1.0f; }
+	virtual float GetCloudShadowOnAtmosphereStrength() const { return 1.0f; }
+	virtual float GetCloudShadowOnSurfaceStrength() const { return 1.0f; }
+	virtual float GetCloudShadowDepthBias() const { return 0.0f; }
 	virtual FLinearColor GetCloudScatteredLuminanceScale() const { return FLinearColor::White; }
 	virtual bool GetUsePerPixelAtmosphereTransmittance() const { return false; }
+
+	FORCEINLINE void SetMobileMovablePointLightUniformBufferNeedsUpdate(bool bInMobileMovablePointLightUniformBufferNeedsUpdate)
+	{
+		bMobileMovablePointLightUniformBufferNeedsUpdate = bInMobileMovablePointLightUniformBufferNeedsUpdate;
+	}
+
+	FORCEINLINE FRHIUniformBuffer* GetMobileMovablePointLightUniformBufferRHI() const
+	{
+		return MobileMovablePointLightUniformBuffer.GetReference();
+	}
 
 protected:
 
 	friend class FScene;
+	friend class FLightSceneInfo;
 
 	/** The light component. */
 	const ULightComponent* LightComponent;
@@ -1626,6 +1713,24 @@ protected:
 	/** Samples per pixel for ray tracing */
 	uint32 SamplesPerPixel;
 
+	/** Deep shadow layer distribution. */
+	float DeepShadowLayerDistribution;
+
+	/** If this is TRUE, the light's mobile movable point light uniform buffer needs to be updated before it can be used for mobile base pass rendering. */
+	bool bMobileMovablePointLightUniformBufferNeedsUpdate;
+
+	/** Cached ShouldBeRender for mobile, since if the ShouldBeRender is changed we have to update the movable point lights uniform buffer. */
+	bool bMobileMovablePointLightShouldBeRender;
+
+	/** Cached DynamicShadows show flag for mobile, since if the show flag is changed we have to update the movable point lights uniform buffer. */
+	bool bMobileMovablePointLightShouldCastShadow;
+
+	/** Cached the spotlight shadow map min and max value for mobile, since if the value is changed we have to update the movable point lights uniform buffer. */
+	FVector4 MobileMovablePointLightShadowmapMinMax;
+
+	/** The movable point light's uniform buffer for mobile. */
+	TUniformBufferRef<FMobileMovablePointLightUniformShaderParameters> MobileMovablePointLightUniformBuffer;
+
 	/**
 	 * Updates the light proxy's cached transforms.
 	 * @param InLightToWorld - The new light-to-world transform.
@@ -1719,6 +1824,7 @@ public:
 	TUniformBufferRef<FMobileReflectionCaptureShaderParameters> MobileUniformBuffer;
 	FTexture* EncodedHDRCubemap;
 	float EncodedHDRAverageBrightness;
+	float MaxValueRGBM;
 
 	EReflectionCaptureShape::Type Shape;
 
@@ -2770,7 +2876,8 @@ extern ENGINE_API void DrawFrustumWireframe(
 	uint8 DepthPriority
 	);
 
-void BuildConeVerts(float Angle1, float Angle2, float Scale, float XOffset, uint32 NumSides, TArray<FDynamicMeshVertex>& OutVerts, TArray<uint32>& OutIndices);
+extern ENGINE_API FVector CalcConeVert(float Angle1, float Angle2, float AzimuthAngle);
+extern ENGINE_API void BuildConeVerts(float Angle1, float Angle2, float Scale, float XOffset, uint32 NumSides, TArray<FDynamicMeshVertex>& OutVerts, TArray<uint32>& OutIndices);
 
 void BuildCylinderVerts(const FVector& Base, const FVector& XAxis, const FVector& YAxis, const FVector& ZAxis, float Radius, float HalfHeight, uint32 Sides, TArray<FDynamicMeshVertex>& OutVerts, TArray<uint32>& OutIndices);
 
@@ -3035,6 +3142,8 @@ struct FReadOnlyCVARCache
 	int32 NumMobileMovablePointLights;
 	int32 MobileSkyLightPermutation;
 	bool bMobileMovablePointLightsUseStaticBranch;
+	bool bMobileEnableMovableSpotlights;
+	bool bMobileEnableMovableSpotlightsShadow;
 	
 	bool bInitialized;
 	void Init();

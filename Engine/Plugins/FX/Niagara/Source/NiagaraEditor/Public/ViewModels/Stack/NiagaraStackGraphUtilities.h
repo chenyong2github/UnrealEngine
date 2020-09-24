@@ -25,6 +25,7 @@ class UNiagaraStackEditorData;
 class UNiagaraStackErrorItem;
 class FCompileConstantResolver;
 class INiagaraMessage;
+class FNiagaraParameterMapHistoryBuilder;
 
 namespace FNiagaraStackGraphUtilities
 {
@@ -48,6 +49,8 @@ namespace FNiagaraStackGraphUtilities
 	UNiagaraNodeFunctionCall* GetNextModuleNode(UNiagaraNodeFunctionCall& CurrentNode);
 
 	UNiagaraNodeOutput* GetEmitterOutputNodeForStackNode(UNiagaraNode& StackNode);
+
+	ENiagaraScriptUsage GetOutputNodeUsage(UNiagaraNode& StackNode);
 
 	const UNiagaraNodeOutput* GetEmitterOutputNodeForStackNode(const UNiagaraNode& StackNode);
 
@@ -73,6 +76,8 @@ namespace FNiagaraStackGraphUtilities
 	FString GenerateStackFunctionInputEditorDataKey(UNiagaraNodeFunctionCall& FunctionCallNode, FNiagaraParameterHandle InputParameterHandle);
 
 	FString GenerateStackModuleEditorDataKey(UNiagaraNodeFunctionCall& ModuleNode);
+
+	void BuildParameterMapHistoryWithStackContextResolution(UNiagaraEmitter* OwningEmitter, UNiagaraNodeOutput* OutputNodeInChain, UNiagaraNode* NodeToVisit, FNiagaraParameterMapHistoryBuilder& Builder, bool bRecursive = true, bool bFilterForCompilation = true);
 
 	enum class ENiagaraGetStackFunctionInputPinsOptions
 	{

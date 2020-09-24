@@ -59,6 +59,7 @@ TArray<TSharedPtr<FDataprepSchemaAction>> DataprepMenuActionCollectorUtils::Gath
 						TSharedPtr< FDataprepSchemaAction > DataprepMenuAction = OnValidClassFound.Execute( *ChildClass );
 						if ( DataprepMenuAction )
 						{
+							DataprepMenuAction->GeneratedClassObjectPath = ClassObjectPath;
 							Actions.Emplace( MoveTemp( DataprepMenuAction ) );
 						}
 					}

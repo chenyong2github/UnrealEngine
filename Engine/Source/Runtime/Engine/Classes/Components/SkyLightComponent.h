@@ -19,7 +19,7 @@ class UTextureCube;
 /** 
  * A cubemap texture resource that knows how to upload the capture data from a sky capture. 
  */
-class FSkyTextureCubeResource : public FTexture, private FDeferredCleanupInterface
+class ENGINE_API FSkyTextureCubeResource : public FTexture, private FDeferredCleanupInterface
 {
 	// @todo - support compression
 
@@ -167,29 +167,29 @@ class ENGINE_API USkyLightComponent : public ULightComponentBase
 	FColor OcclusionTint;
 
 	/**
-	 * Whether the cloud should contribute to ambiant occlusion onto the atmosphere and other scene elements.
+	 * Whether the cloud should occlude sky contribution within the atmosphere (progressively fading multiple scattering out) or not.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud)
 	uint32 bCloudAmbientOcclusion : 1;
 	/**
 	 * The strength of the ambient occlusion, higher value will block more light.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", SliderExponent = 3.0))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", SliderExponent = 1.0))
 	float CloudAmbientOcclusionStrength;
 	/**
-	 * The world space radius of the cloud ambiant occlusion map around the camera in kilometers.
+	 * The world space radius of the cloud ambient occlusion map around the camera in kilometers.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, meta = (UIMin = "1", ClampMin = "1"))
 	float CloudAmbientOcclusionExtent;
 	/**
-	 * Scale the cloud ambiant occlusion map resolution. The resolution is still clamped to 'r.VolumetricCloud.ShadowMap.MaxResolution'.
+	 * Scale the cloud ambient occlusion map resolution. The resolution is still clamped to 'r.VolumetricCloud.ShadowMap.MaxResolution'.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, meta = (UIMin = "0.25", UIMax = "8", ClampMin = "0.25", SliderExponent = 3.0))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, meta = (UIMin = "0.25", UIMax = "8", ClampMin = "0.25", SliderExponent = 1.0))
 	float CloudAmbientOcclusionMapResolutionScale;
 	/**
-	 * Controls the aperture angle to integrate sky visibility over. 1 Means entire hemisphere and 0 infinitely small solid angle oriented up.
+	 * Controls the cone aperture angle over which the sky occlusion due to volumetric clouds is evaluated. A value of 1 means `take into account the entire hemisphere` resulting in blurry occlusion, while a value of 0 means `take into account a single up occlusion direction up` resulting in sharp occlusion.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, meta = (UIMin = "0.0", UIMax = "0.1", ClampMin = "0.0", ClampMax = "1.0", SliderExponent = 2.0))
 	float CloudAmbientOcclusionApertureScale;
 
 

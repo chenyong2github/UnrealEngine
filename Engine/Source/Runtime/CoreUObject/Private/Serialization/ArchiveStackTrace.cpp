@@ -961,7 +961,7 @@ FLinkerLoad* FArchiveStackTrace::CreateLinkerForPackage(FUObjectSerializeContext
 	UPackage* Package = FindObjectFast<UPackage>(nullptr, *InPackageName);
 	if (!Package)
 	{
-		Package = CreatePackage(nullptr, *InPackageName);
+		Package = CreatePackage(*InPackageName);
 	}
 	// Create an archive for the linker. The linker will take ownership of it.
 	FLargeMemoryReader* PackageReader = new FLargeMemoryReader(PackageData.Data, PackageData.Size, ELargeMemoryReaderFlags::None, *InPackageName);	

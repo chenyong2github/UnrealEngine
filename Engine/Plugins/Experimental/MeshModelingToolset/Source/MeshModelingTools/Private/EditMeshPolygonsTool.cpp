@@ -23,12 +23,14 @@
 #include "DynamicMeshChangeTracker.h"
 #include "Changes/MeshChange.h"
 #include "MeshIndexUtil.h"
+#include "MeshRegionBoundaryLoops.h"
 
 #include "Operations/OffsetMeshRegion.h"
 #include "Operations/InsetMeshRegion.h"
 #include "Operations/SimpleHoleFiller.h"
 #include "MeshTransforms.h"
 
+#include "Algo/ForEach.h"
 #include "Async/ParallelFor.h"
 #include "Containers/BitArray.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -66,7 +68,7 @@ void UEditMeshPolygonsToolActionPropertySet::PostAction(EEditMeshPolygonsToolAct
 
 UEditMeshPolygonsTool::UEditMeshPolygonsTool()
 {
-	SetToolDisplayName(LOCTEXT("EditMeshPolygonsToolName", "Edit PolyGroups"));
+	SetToolDisplayName(LOCTEXT("EditMeshPolygonsToolName", "Edit PolyGroups Tool"));
 }
 
 void UEditMeshPolygonsTool::EnableTriangleMode()
@@ -100,7 +102,7 @@ void UEditMeshPolygonsTool::Setup()
 	}
 
 	// configure secondary render material
-	UMaterialInterface* SelectionMaterial = ToolSetupUtil::GetSelectionMaterial(FLinearColor(0.9f, 0.1f, 0.1f), GetToolManager());
+	UMaterialInterface* SelectionMaterial = ToolSetupUtil::GetSelectionMaterial(FLinearColor::Yellow, GetToolManager());
 	if (SelectionMaterial != nullptr)
 	{
 		DynamicMeshComponent->SetSecondaryRenderMaterial(SelectionMaterial);
@@ -125,6 +127,7 @@ void UEditMeshPolygonsTool::Setup()
 
 	// add properties
 	CommonProps = NewObject<UPolyEditCommonProperties>(this);
+	CommonProps->RestoreProperties(this);
 	AddToolPropertySource(CommonProps);
 	CommonProps->WatchProperty(CommonProps->LocalFrameMode,
 								  [this](ELocalFrameMode) { UpdateMultiTransformerFrame(); });
@@ -133,10 +136,14 @@ void UEditMeshPolygonsTool::Setup()
 								  {
 									  LockedTransfomerFrame = LastTransformerFrame; UpdateMultiTransformerFrame();
 								  });
+	// We are going to SilentUpdate here because otherwise the Watches above will immediately fire (why??)
+	// and cause UpdateMultiTransformerFrame() to be called for each, emitting two spurious Transform changes. 
+	CommonProps->SilentUpdateWatched();
 
 	// set up SelectionMechanic
 	SelectionMechanic = NewObject<UPolygonSelectionMechanic>(this);
 	SelectionMechanic->Setup(this);
+	SelectionMechanic->Properties->RestoreProperties(this);
 	SelectionMechanic->OnSelectionChanged.AddUObject(this, &UEditMeshPolygonsTool::OnSelectionModifiedEvent);
 	if (bTriangleMode)
 	{
@@ -161,7 +168,7 @@ void UEditMeshPolygonsTool::Setup()
 	bInDrag = false;
 
 	MultiTransformer = NewObject<UMultiTransformer>(this);
-	MultiTransformer->Setup(GetToolManager()->GetPairedGizmoManager());
+	MultiTransformer->Setup(GetToolManager()->GetPairedGizmoManager(), GetToolManager());
 	MultiTransformer->OnTransformStarted.AddUObject(this, &UEditMeshPolygonsTool::OnMultiTransformerTransformBegin);
 	MultiTransformer->OnTransformUpdated.AddUObject(this, &UEditMeshPolygonsTool::OnMultiTransformerTransformUpdate);
 	MultiTransformer->OnTransformCompleted.AddUObject(this, &UEditMeshPolygonsTool::OnMultiTransformerTransformEnd);
@@ -224,9 +231,20 @@ void UEditMeshPolygonsTool::Setup()
 	SetToolPropertySourceEnabled(SetUVProperties, false);
 
 
-	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartEditMeshPolygonsTool", "Select PolyGroups to edit mesh. Q to toggle Gizmo Orientation Lock."),
-		EToolMessageLevel::UserNotification);
+	if (bTriangleMode)
+	{
+		SetToolDisplayName(LOCTEXT("EditMeshTrianglesToolName", "Edit Triangles Tool"));
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("OnStartEditMeshPolygonsTool_TriangleMode", "Select Triangles to edit mesh. Q to toggle Gizmo Orientation Lock."),
+			EToolMessageLevel::UserNotification);
+	}
+	else
+	{
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("OnStartEditMeshPolygonsTool", "Select PolyGroups to edit mesh. Q to toggle Gizmo Orientation Lock."),
+			EToolMessageLevel::UserNotification);
+	}
+
 	if (Topology->Groups.Num() < 2)
 	{
 		GetToolManager()->DisplayMessage( LOCTEXT("NoGroupsWarning", "This object has a single PolyGroup. Use the PolyGroups or Select Tool to assign PolyGroups."), EToolMessageLevel::UserWarning);
@@ -235,10 +253,12 @@ void UEditMeshPolygonsTool::Setup()
 
 void UEditMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	CommonProps->SaveProperties(this);
 	ExtrudeProperties->SaveProperties(this);
 	InsetProperties->SaveProperties(this);
 	CutProperties->SaveProperties(this);
 	SetUVProperties->SaveProperties(this);
+	SelectionMechanic->Properties->SaveProperties(this);
 
 	MultiTransformer->Shutdown();
 	SelectionMechanic->Shutdown();
@@ -432,7 +452,7 @@ void UEditMeshPolygonsTool::UpdateMultiTransformerFrame(const FFrame3d* UseFrame
 	}
 
 	LastTransformerFrame = SetFrame;
-	MultiTransformer->SetGizmoPositionFromWorldFrame(SetFrame, true);
+	MultiTransformer->UpdateGizmoPositionFromWorldFrame(SetFrame, true);
 }
 
 
@@ -556,16 +576,16 @@ void UEditMeshPolygonsTool::UpdateDeformerFromSelection(const FGroupTopologySele
 	if (Selection.SelectedCornerIDs.Num() > 0)
 	{
 		//Add all the the Corner's adjacent poly-groups (NbrGroups) to the ongoing array of groups.
-		LinearDeformer.SetActiveHandleCorners(Selection.SelectedCornerIDs);
+		LinearDeformer.SetActiveHandleCorners(Selection.SelectedCornerIDs.Array());
 	}
 	else if (Selection.SelectedEdgeIDs.Num() > 0)
 	{
 		//Add all the the edge's adjacent poly-groups (NbrGroups) to the ongoing array of groups.
-		LinearDeformer.SetActiveHandleEdges(Selection.SelectedEdgeIDs);
+		LinearDeformer.SetActiveHandleEdges(Selection.SelectedEdgeIDs.Array());
 	}
 	else if (Selection.SelectedGroupIDs.Num() > 0)
 	{
-		LinearDeformer.SetActiveHandleFaces(Selection.SelectedGroupIDs);
+		LinearDeformer.SetActiveHandleFaces(Selection.SelectedGroupIDs.Array());
 	}
 }
 
@@ -790,7 +810,6 @@ void UEditMeshPolygonsTool::PrecomputeTopology()
 		[this]() { return &GetSpatial(); },
 		[this]() { return GetShiftToggle(); }
 		);
-	SelectionMechanic->SetShouldSelectEdgeLoopsFunc([this]() { return CommonProps->bSelectEdgeLoops; });
 
 	LinearDeformer.Initialize(Mesh, Topology.Get());
 }
@@ -1443,11 +1462,44 @@ void UEditMeshPolygonsTool::ApplyRetriangulate()
 		FMeshRegionBoundaryLoops RegionLoops(Mesh, Triangles, true);
 		if (!RegionLoops.bFailed && RegionLoops.Loops.Num() == 1 && Triangles.Num() > 1)
 		{
-			Editor.RemoveTriangles(Topology->GetGroupTriangles(GroupID), true);
+			TArray<FMeshRegionBoundaryLoops::VidOverlayMap<FVector2f>> VidUVMaps;
+			if (Mesh->HasAttributes())
+			{
+				const FDynamicMeshAttributeSet* Attributes = Mesh->Attributes();
+				for (int i = 0; i < Attributes->NumUVLayers(); ++i)
+				{
+					VidUVMaps.Emplace();
+					RegionLoops.GetLoopOverlayMap(RegionLoops.Loops[0], *Attributes->GetUVLayer(i), VidUVMaps.Last());
+				}
+			}
+
+			// We don't want to remove isolated vertices while removing triangles because we don't
+			// want to throw away boundary verts. However, this means that we'll have to go back
+			// through these vertices later to throw away isolated internal verts.
+			TArray<int32> OldVertices;
+			MeshIndexUtil::TriangleToVertexIDs(Mesh, Triangles, OldVertices);
+			Editor.RemoveTriangles(Topology->GetGroupTriangles(GroupID), false);
+
 			RegionLoops.Loops[0].Reverse();
 			FSimpleHoleFiller Filler(Mesh, RegionLoops.Loops[0]);
 			Filler.FillType = FSimpleHoleFiller::EFillType::PolygonEarClipping;
 			Filler.Fill(GroupID);
+
+			// Throw away any of the old verts that are still isolated (they were in the interior of the group)
+			Algo::ForEachIf(OldVertices, [Mesh](int32 Vid) { return !Mesh->IsReferencedVertex(Vid); },
+				[Mesh](int32 Vid) { Mesh->RemoveVertex(Vid, false, false); } // Don't try to remove attached tris, don't care about bowties
+			);
+
+			if (Mesh->HasAttributes())
+			{
+				const FDynamicMeshAttributeSet* Attributes = Mesh->Attributes();
+				for (int i = 0; i < Attributes->NumUVLayers(); ++i)
+				{
+					RegionLoops.UpdateLoopOverlayMapValidity(VidUVMaps[i], *Attributes->GetUVLayer(i));
+				}
+				Filler.UpdateAttributes(VidUVMaps);
+			}
+
 			nCompleted++;
 		}
 	}
@@ -1979,9 +2031,8 @@ bool UEditMeshPolygonsTool::BeginMeshEdgeEditChange(TFunctionRef<bool(int32)> Gr
 		return false;
 	}
 	ActiveEdgeSelection.Reserve(NumEdges);
-	for (int32 k = 0; k < NumEdges; ++k)
+	for (int32 EdgeID : ActiveSelection.SelectedEdgeIDs)
 	{
-		int32 EdgeID = ActiveSelection.SelectedEdgeIDs[k];
 		if (GroupEdgeIDFilterFunc(EdgeID))
 		{
 			FSelectedEdge& Edge = ActiveEdgeSelection.Emplace_GetRef();

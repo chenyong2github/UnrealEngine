@@ -42,6 +42,8 @@ void FLoadingSharedState::OnBeginSession(Insights::ITimingViewSession& InSession
 
 	LoadingTracks.Reset();
 
+	LoadTimeProfilerTimelineCount = 0;
+
 	SetColorSchema(3);
 }
 
@@ -57,6 +59,8 @@ void FLoadingSharedState::OnEndSession(Insights::ITimingViewSession& InSession)
 	bShowHideAllLoadingTracks = false;
 
 	LoadingTracks.Reset();
+
+	LoadTimeProfilerTimelineCount = 0;
 
 	GetEventNameDelegate = nullptr;
 }
@@ -75,27 +79,33 @@ void FLoadingSharedState::Tick(Insights::ITimingViewSession& InSession, const Tr
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(InAnalysisSession);
 
-		// Iterate through threads.
-		const Trace::IThreadProvider& ThreadProvider = Trace::ReadThreadProvider(InAnalysisSession);
-		ThreadProvider.EnumerateThreads([this, &InSession, LoadTimeProfilerProvider](const Trace::FThreadInfo& ThreadInfo)
+		const uint64 CurrentLoadTimeProfilerTimelineCount = LoadTimeProfilerProvider->GetTimelineCount();
+		if (CurrentLoadTimeProfilerTimelineCount != LoadTimeProfilerTimelineCount)
 		{
-			// Check available Asset Loading tracks.
-			uint32 LoadingTimelineIndex;
-			if (LoadTimeProfilerProvider->GetCpuThreadTimelineIndex(ThreadInfo.Id, LoadingTimelineIndex))
+			LoadTimeProfilerTimelineCount = CurrentLoadTimeProfilerTimelineCount;
+
+			// Iterate through threads.
+			const Trace::IThreadProvider& ThreadProvider = Trace::ReadThreadProvider(InAnalysisSession);
+			ThreadProvider.EnumerateThreads([this, &InSession, LoadTimeProfilerProvider](const Trace::FThreadInfo& ThreadInfo)
 			{
-				if (!LoadingTracks.Contains(LoadingTimelineIndex))
+				// Check available Asset Loading tracks.
+				uint32 LoadingTimelineIndex;
+				if (LoadTimeProfilerProvider->GetCpuThreadTimelineIndex(ThreadInfo.Id, LoadingTimelineIndex))
 				{
-					//const TCHAR* const GroupName = ThreadInfo.GroupName ? ThreadInfo.GroupName : ThreadInfo.Name;
-					const FString TrackName(ThreadInfo.Name && *ThreadInfo.Name ? FString::Printf(TEXT("Loading - %s"), ThreadInfo.Name) : FString::Printf(TEXT("Loading - Thread %u"), ThreadInfo.Id));
-					TSharedRef<FLoadingTimingTrack> LoadingThreadTrack = MakeShared<FLoadingTimingTrack>(*this, LoadingTimelineIndex, TrackName);
-					static_assert(FTimingTrackOrder::GroupRange > 1000, "Order group range too small");
-					LoadingThreadTrack->SetOrder(FTimingTrackOrder::Cpu - 1000 + LoadingTracks.Num() * 10);
-					LoadingThreadTrack->SetVisibilityFlag(bShowHideAllLoadingTracks);
-					InSession.AddScrollableTrack(LoadingThreadTrack);
-					LoadingTracks.Add(LoadingTimelineIndex, LoadingThreadTrack);
+					if (!LoadingTracks.Contains(LoadingTimelineIndex))
+					{
+						//const TCHAR* const GroupName = ThreadInfo.GroupName ? ThreadInfo.GroupName : ThreadInfo.Name;
+						const FString TrackName(ThreadInfo.Name && *ThreadInfo.Name ? FString::Printf(TEXT("Loading - %s"), ThreadInfo.Name) : FString::Printf(TEXT("Loading - Thread %u"), ThreadInfo.Id));
+						TSharedRef<FLoadingTimingTrack> LoadingThreadTrack = MakeShared<FLoadingTimingTrack>(*this, LoadingTimelineIndex, TrackName);
+						static_assert(FTimingTrackOrder::GroupRange > 1000, "Order group range too small");
+						LoadingThreadTrack->SetOrder(FTimingTrackOrder::Cpu - 1000 + LoadingTracks.Num() * 10);
+						LoadingThreadTrack->SetVisibilityFlag(bShowHideAllLoadingTracks);
+						InSession.AddScrollableTrack(LoadingThreadTrack);
+						LoadingTracks.Add(LoadingTimelineIndex, LoadingThreadTrack);
+					}
 				}
-			}
-		});
+			});
+		}
 	}
 }
 

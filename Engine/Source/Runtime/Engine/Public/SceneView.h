@@ -28,6 +28,7 @@ class FSceneViewFamily;
 class FVolumetricFogViewResources;
 class FIESLightProfileResource;
 class ITemporalUpscaler;
+struct FExposureBufferData;
 
 enum class ERayTracingRenderMode
 {
@@ -666,12 +667,13 @@ enum ETranslucencyVolumeCascade
 	VIEW_UNIFORM_BUFFER_MEMBER(FVector2D, PrevFieldOfViewWideAngles) \
 	VIEW_UNIFORM_BUFFER_MEMBER_EX(FVector4, ViewRectMin, EShaderPrecisionModifier::Half) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FVector4, ViewSizeAndInvSize) \
+	VIEW_UNIFORM_BUFFER_MEMBER(FVector4, LightProbeSizeRatioAndInvSizeRatio) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FVector4, BufferSizeAndInvSize) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FVector4, BufferBilinearUVMinMax) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FVector4, ScreenToViewSpace) \
 	VIEW_UNIFORM_BUFFER_MEMBER(int32, NumSceneColorMSAASamples) \
-	VIEW_UNIFORM_BUFFER_MEMBER_EX(float, PreExposure, EShaderPrecisionModifier::Half) \
-	VIEW_UNIFORM_BUFFER_MEMBER_EX(float, OneOverPreExposure, EShaderPrecisionModifier::Half) \
+	VIEW_UNIFORM_BUFFER_MEMBER(float, PreExposure) \
+	VIEW_UNIFORM_BUFFER_MEMBER(float, OneOverPreExposure) \
 	VIEW_UNIFORM_BUFFER_MEMBER_EX(FVector4, DiffuseOverrideParameter, EShaderPrecisionModifier::Half) \
 	VIEW_UNIFORM_BUFFER_MEMBER_EX(FVector4, SpecularOverrideParameter, EShaderPrecisionModifier::Half) \
 	VIEW_UNIFORM_BUFFER_MEMBER_EX(FVector4, NormalOverrideParameter, EShaderPrecisionModifier::Half) \
@@ -701,6 +703,7 @@ enum ETranslucencyVolumeCascade
 	VIEW_UNIFORM_BUFFER_MEMBER_ARRAY(FVector4, TranslucencyLightingVolumeInvSize, [TVC_MAX]) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FVector4, TemporalAAParams) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FVector4, CircleDOFParams) \
+	VIEW_UNIFORM_BUFFER_MEMBER(uint32, ForceDrawAllVelocities) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, DepthOfFieldSensorWidth) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, DepthOfFieldFocalDistance) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, DepthOfFieldScale) \
@@ -982,6 +985,12 @@ public:
 	/** Half of the view's stereo IPD (- for lhs, + for rhs) */
 	float StereoIPD;
 
+	/** Allow cross GPU transfer for this view */
+	bool bAllowCrossGPUTransfer;
+
+	/** Use custom GPUmask */
+	bool bOverrideGPUMask;
+
 	/** The GPU nodes on which to render this view. */
 	FRHIGPUMask GPUMask;
 
@@ -1053,10 +1062,8 @@ public:
 	/** World origin offset value. Non-zero only for a single frame when origin is rebased */
 	FVector OriginOffsetThisFrame;
 
-	/** FOV based multiplier for cull distance on objects */
+	/** Multiplier for cull distance on objects */
 	float LODDistanceFactor;
-	/** Square of the FOV based multiplier for cull distance on objects */
-	float LODDistanceFactorSquared;
 
 	/** Whether we did a camera cut for this view this frame. */
 	bool bCameraCut;
@@ -1295,11 +1302,6 @@ public:
 	 */
 	FVector GetTemporalLODOrigin(int32 Index, bool bUseLaggedLODTransition = true) const;
 
-	/** Get LOD distance factor: Sqrt(GetLODDistanceFactor()*SphereRadius*SphereRadius / ScreenPercentage) = distance to this LOD transition
-	 * @return distance factor
-	 */
-	float GetLODDistanceFactor() const;
-
 	/** 
 	 * Returns the blend factor between the last two LOD samples
 	 */
@@ -1384,6 +1386,19 @@ public:
 	/** Current ray tracing debug visualization mode */
 	FName CurrentRayTracingDebugVisualizationMode;
 #endif
+	/** Tells if the eye adaptation texture / buffer exists without attempting to allocate it. */
+	bool HasValidEyeAdaptationTexture() const;
+	bool HasValidEyeAdaptationBuffer() const;
+
+	/** Returns the eye adaptation texture (SM5+ only) or null if it doesn't exist. */
+	IPooledRenderTarget* GetEyeAdaptationTexture() const;
+
+	/** Returns the eye adaptation buffer (mobile) or null if it doesn't exist. */
+	const FExposureBufferData* GetEyeAdaptationBuffer() const;
+
+
+protected:
+	FSceneViewStateInterface* EyeAdaptationViewState = nullptr;
 };
 
 //////////////////////////////////////////////////////////////////////////

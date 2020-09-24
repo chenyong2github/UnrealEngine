@@ -8,6 +8,8 @@
 #include "Interfaces/IShaderFormatModule.h"
 #include "hlslcc.h"
 #include "ShaderCore.h"
+#include "ShaderCompilerCore.h"
+#include "DXCWrapper.h"
 
 static FName NAME_VULKAN_ES3_1_ANDROID(TEXT("SF_VULKAN_ES31_ANDROID"));
 static FName NAME_VULKAN_ES3_1_ANDROID_NOUB(TEXT("SF_VULKAN_ES31_ANDROID_NOUB"));
@@ -26,8 +28,8 @@ class FShaderFormatVulkan : public IShaderFormat
 {
 	enum 
 	{
-		UE_SHADER_VULKAN_ES3_1_VER	= 29,
-		UE_SHADER_VULKAN_SM5_VER 	= 29,
+		UE_SHADER_VULKAN_ES3_1_VER	= 30,
+		UE_SHADER_VULKAN_SM5_VER 	= 30,
 	};
 
 	int32 InternalGetVersion(FName Format) const
@@ -112,6 +114,11 @@ public:
 	{
 		return TEXT("Vulkan");
 	}
+
+	virtual bool UsesHLSLcc(const struct FShaderCompilerInput& Input) const override
+	{
+		return !Input.Environment.CompilerFlags.Contains(CFLAG_ForceDXC);
+	}
 };
 
 /**
@@ -120,32 +127,11 @@ public:
 
 static IShaderFormat* Singleton = nullptr;
 
-#if PLATFORM_WINDOWS
-static const TCHAR* GShaderConductorModuleNames[] =
-{
-	TEXT("dxcompiler.dll"),
-	TEXT("ShaderConductor.dll")
-};
-
-static constexpr int32 GNumShaderConductorModules = (int32)UE_ARRAY_COUNT(GShaderConductorModuleNames);
-#endif
-
-class FVulkanShaderFormatModule : public IShaderFormatModule
+class FVulkanShaderFormatModule : public IShaderFormatModule, public FShaderConductorModuleWrapper
 {
 public:
-#if PLATFORM_WINDOWS
-	void* ModuleHandles[GNumShaderConductorModules] = {};
-#endif
-
 	virtual ~FVulkanShaderFormatModule()
 	{
-#if PLATFORM_WINDOWS
-		for (int32 Index = GNumShaderConductorModules - 1; Index >= 0; --Index)
-		{
-			FPlatformProcess::FreeDllHandle(ModuleHandles[Index]);
-		}
-#endif
-
 		delete Singleton;
 		Singleton = nullptr;
 	}
@@ -155,16 +141,6 @@ public:
 		if (!Singleton)
 		{
 			Singleton = new FShaderFormatVulkan();
-
-#if PLATFORM_WINDOWS
-			FString ShaderConductorDir = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/ShaderConductor/Win64/");
-			for (int32 Index = 0; Index < GNumShaderConductorModules; ++Index)
-			{
-				FString ModulePath = ShaderConductorDir + GShaderConductorModuleNames[Index];
-				ModuleHandles[Index] = FPlatformProcess::GetDllHandle(*ModulePath);
-				checkf(ModuleHandles[Index], TEXT("Failed to load module: %s"), *ModulePath);
-			}
-#endif
 		}
 
 		return Singleton;

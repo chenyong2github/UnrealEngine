@@ -14,6 +14,8 @@
 
 #include "LightWeightInstanceManager.generated.h"
 
+
+struct FActorSpawnParameters;
 //DECLARE_DYNAMIC_DELEGATE_RetVal_OneParam(FActorInstanceHandle, FOnActorReady, FActorInstanceHandle, InHandle);
 
 // Used for initializing light weight instances.

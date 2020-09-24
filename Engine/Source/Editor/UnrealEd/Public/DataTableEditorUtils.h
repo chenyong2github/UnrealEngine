@@ -97,7 +97,11 @@ struct UNREALED_API FDataTableEditorUtils
 	static void BroadcastPreChange(UDataTable* DataTable, EDataTableChangeInfo Info);
 	static void BroadcastPostChange(UDataTable* DataTable, EDataTableChangeInfo Info);
 
+	/** Reads a data table and parses out editable copies of rows and columns */
 	static void CacheDataTableForEditing(const UDataTable* DataTable, TArray<FDataTableEditorColumnHeaderDataPtr>& OutAvailableColumns, TArray<FDataTableEditorRowListViewDataPtr>& OutAvailableRows);
+
+	/** Generic version that works with any datatable-like structure */
+	static void CacheDataForEditing(const UScriptStruct* RowStruct, const TMap<FName, uint8*>& RowMap, TArray<FDataTableEditorColumnHeaderDataPtr>& OutAvailableColumns, TArray<FDataTableEditorRowListViewDataPtr>& OutAvailableRows);
 
 	/** Returns all script structs that can be used as a data table row. This only includes loaded ones */
 	static TArray<UScriptStruct*> GetPossibleStructs();

@@ -322,15 +322,18 @@ bool SMoviePipelineQueuePanel::IsRenderRemoteEnabled() const
 	return bHasExecutor && bNotRendering && bAtLeastOneJobAvailable;
 }
 
-void SMoviePipelineQueuePanel::OnJobPresetChosen(TWeakObjectPtr<UMoviePipelineExecutorJob> InJob, TWeakObjectPtr<UMovieSceneCinematicShotSection> InShot)
+void SMoviePipelineQueuePanel::OnJobPresetChosen(TWeakObjectPtr<UMoviePipelineExecutorJob> InJob, TWeakObjectPtr<UMoviePipelineExecutorShot> InShot)
 {
-	// Store the preset so the next job they make will use it.
 	UMovieRenderPipelineProjectSettings* ProjectSettings = GetMutableDefault<UMovieRenderPipelineProjectSettings>();
-	ProjectSettings->LastPresetOrigin = InJob->GetPresetOrigin();
+	if (!InShot.IsValid())
+	{
+		// Store the preset so the next job they make will use it.
+		ProjectSettings->LastPresetOrigin = InJob->GetPresetOrigin();
+	}
 	ProjectSettings->SaveConfig();
 }
 
-void SMoviePipelineQueuePanel::OnEditJobConfigRequested(TWeakObjectPtr<UMoviePipelineExecutorJob> InJob, TWeakObjectPtr<UMovieSceneCinematicShotSection> InShot)
+void SMoviePipelineQueuePanel::OnEditJobConfigRequested(TWeakObjectPtr<UMoviePipelineExecutorJob> InJob, TWeakObjectPtr<UMoviePipelineExecutorShot> InShot)
 {
 	// Only allow one editor open at once for now.
 	if (WeakEditorWindow.IsValid())
@@ -345,17 +348,34 @@ void SMoviePipelineQueuePanel::OnEditJobConfigRequested(TWeakObjectPtr<UMoviePip
 		return;
 	}
 
+	TSubclassOf<UMoviePipelineConfigBase> ConfigType;
+	UMoviePipelineConfigBase* BasePreset = nullptr;
+	UMoviePipelineConfigBase* BaseConfig = nullptr;
+	if (InShot.IsValid())
+	{
+		ConfigType = UMoviePipelineShotConfig::StaticClass();
+		BasePreset = InShot->GetShotOverridePresetOrigin();
+		BaseConfig = InShot->GetShotOverrideConfiguration();
+	}
+	else
+	{
+		ConfigType = UMoviePipelineMasterConfig::StaticClass();
+		BasePreset = InJob->GetPresetOrigin();
+		BaseConfig = InJob->GetConfiguration();
+	}
+
 	TSharedRef<SWindow> EditorWindow =
 		SNew(SWindow)
 		.ClientSize(FVector2D(700, 600));
 
 	TSharedRef<SMoviePipelineConfigPanel> ConfigEditorPanel =
-		SNew(SMoviePipelineConfigPanel, UMoviePipelineMasterConfig::StaticClass())
+		SNew(SMoviePipelineConfigPanel, ConfigType)
 		.Job(InJob)
+		.Shot(InShot)
 		.OnConfigurationModified(this, &SMoviePipelineQueuePanel::OnConfigUpdatedForJob)
 		.OnConfigurationSetToPreset(this, &SMoviePipelineQueuePanel::OnConfigUpdatedForJobToPreset)
-		.BasePreset(InJob->GetPresetOrigin())
-		.BaseConfig(InJob->GetConfiguration());
+		.BasePreset(BasePreset)
+		.BaseConfig(BaseConfig);
 
 	EditorWindow->SetContent(ConfigEditorPanel);
 
@@ -377,33 +397,51 @@ void SMoviePipelineQueuePanel::OnConfigWindowClosed()
 	}
 }
 
-void SMoviePipelineQueuePanel::OnConfigUpdatedForJob(TWeakObjectPtr<UMoviePipelineExecutorJob> InJob, UMoviePipelineConfigBase* InConfig)
+void SMoviePipelineQueuePanel::OnConfigUpdatedForJob(TWeakObjectPtr<UMoviePipelineExecutorJob> InJob, TWeakObjectPtr<UMoviePipelineExecutorShot> InShot, UMoviePipelineConfigBase* InConfig)
 {
 	if (InJob.IsValid())
 	{
-		UMoviePipelineMasterConfig* MasterConfig = Cast<UMoviePipelineMasterConfig>(InConfig);
-		if (MasterConfig)
+		if (InShot.IsValid())
 		{
-			InJob->SetConfiguration(MasterConfig);
+			if (UMoviePipelineShotConfig* ShotConfig = Cast<UMoviePipelineShotConfig>(InConfig))
+			{
+				InShot->SetShotOverrideConfiguration(ShotConfig);
+			}
+		}
+		else
+		{
+			if (UMoviePipelineMasterConfig* MasterConfig = Cast<UMoviePipelineMasterConfig>(InConfig))
+			{
+				InJob->SetConfiguration(MasterConfig);
+			}
 		}
 	}
 
 	OnConfigWindowClosed();
 }
 
-void SMoviePipelineQueuePanel::OnConfigUpdatedForJobToPreset(TWeakObjectPtr<UMoviePipelineExecutorJob> InJob, UMoviePipelineConfigBase* InConfig)
+void SMoviePipelineQueuePanel::OnConfigUpdatedForJobToPreset(TWeakObjectPtr<UMoviePipelineExecutorJob> InJob, TWeakObjectPtr<UMoviePipelineExecutorShot> InShot, UMoviePipelineConfigBase* InConfig)
 {
 	if (InJob.IsValid())
 	{
-		UMoviePipelineMasterConfig* MasterConfig = Cast<UMoviePipelineMasterConfig>(InConfig);
-		if (MasterConfig)
+		if (InShot.IsValid())
 		{
-			InJob->SetPresetOrigin(MasterConfig);
+			if (UMoviePipelineShotConfig* ShotConfig = Cast<UMoviePipelineShotConfig>(InConfig))
+			{
+				InShot->SetShotOverridePresetOrigin(ShotConfig);
+			}
+		}
+		else
+		{
+			if (UMoviePipelineMasterConfig* MasterConfig = Cast<UMoviePipelineMasterConfig>(InConfig))
+			{
+				InJob->SetPresetOrigin(MasterConfig);
+			}
 		}
 	}
 
 	// Store the preset they used as the last set one
-	OnJobPresetChosen(InJob, nullptr);
+	OnJobPresetChosen(InJob, InShot);
 
 	OnConfigWindowClosed();
 }
@@ -579,7 +617,7 @@ void SMoviePipelineQueuePanel::OnSaveAsAsset()
 	
 	// Saving into a new package
 	const FString NewAssetName = FPackageName::GetLongPackageAssetName(PackageName);
-	UPackage* NewPackage = CreatePackage(nullptr, *PackageName);
+	UPackage* NewPackage = CreatePackage(*PackageName);
 	UMoviePipelineQueue* DuplicateQueue = DuplicateObject<UMoviePipelineQueue>(CurrentQueue, NewPackage, *NewAssetName);
 
 	if (DuplicateQueue)

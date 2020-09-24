@@ -83,6 +83,11 @@ public:
 			[
 				ContentWidget.ToSharedRef()
 			], &InWidgetObject);
+
+		// Register an active timer, not an OnTick to determine if item selection changed.
+		// If we use OnTick, it will be potentially stomped by DisableNativeTick, when the
+		// SObjectTableRow is used to wrap the UUserWidget construction.
+		RegisterActiveTimer(0.f, FWidgetActiveTimerDelegate::CreateSP(this, &SObjectTableRow::DetectItemSelectionChanged));
 	}
 
 	virtual ~SObjectTableRow()
@@ -105,10 +110,8 @@ public:
 		return nullptr;
 	}
 
-	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override
+	EActiveTimerReturnType DetectItemSelectionChanged(double InCurrentTime, float InDeltaTime)
 	{
-		SObjectWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
-
 		// List views were built assuming the use of attributes on rows to check on selection status, so there is no
 		// clean way to inform individual rows of changes to the selection state of their current items.
 		// Since event-based selection changes are only really needed in a game scenario, we (crudely) monitor it here to generate events.
@@ -125,6 +128,8 @@ public:
 				}
 			}
 		}
+
+		return EActiveTimerReturnType::Continue;
 	}
 
 	virtual void NotifyItemExpansionChanged(bool bIsExpanded)

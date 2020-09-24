@@ -63,7 +63,6 @@ class FReflectionTraceScreenTexturesCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ColorTexture)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, ClosestHZBTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, SceneDepthTexture)
 		SHADER_PARAMETER(FVector4, HZBUvFactorAndInvFactor)
 		SHADER_PARAMETER(FVector4, PrevScreenPositionScaleBias)
 		SHADER_PARAMETER(float, PrevSceneColorPreExposureCorrection)
@@ -157,7 +156,7 @@ class FReflectionTraceCardsCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenMeshSDFGridParameters, MeshSDFGridParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTracingParameters, ReflectionTracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
-		SHADER_PARAMETER_STRUCT_REF(FSceneTexturesUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FCompactedReflectionTraceParameters, CompactedTraceParameters)
 	END_SHADER_PARAMETER_STRUCT()
 		
@@ -187,7 +186,7 @@ class FReflectionTraceVoxelsCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTracingParameters, ReflectionTracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
-		SHADER_PARAMETER_STRUCT_REF(FSceneTexturesUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FCompactedReflectionTraceParameters, CompactedTraceParameters)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -343,7 +342,7 @@ void TraceReflections(
 				1.0f / HZBUvFactor.X,
 				1.0f / HZBUvFactor.Y);
 
-			const FVector4 ScreenPositionScaleBias = View.GetScreenPositionScaleBias(SceneTextures.SceneDepthBuffer->Desc.Extent, View.ViewRect);
+			const FVector4 ScreenPositionScaleBias = View.GetScreenPositionScaleBias(SceneTextures.SceneDepthTexture->Desc.Extent, View.ViewRect);
 			const FVector2D HZBUVToScreenUVScale = FVector2D(1.0f / HZBUvFactor.X, 1.0f / HZBUvFactor.Y) * FVector2D(2.0f, -2.0f) * FVector2D(ScreenPositionScaleBias.X, ScreenPositionScaleBias.Y);
 			const FVector2D HZBUVToScreenUVBias = FVector2D(-1.0f, 1.0f) * FVector2D(ScreenPositionScaleBias.X, ScreenPositionScaleBias.Y) + FVector2D(ScreenPositionScaleBias.W, ScreenPositionScaleBias.Z);
 			PassParameters->HZBUVToScreenUVScaleBias = FVector4(HZBUVToScreenUVScale, HZBUVToScreenUVBias);
@@ -352,7 +351,7 @@ void TraceReflections(
 		{
 			FIntPoint ViewportOffset = View.ViewRect.Min;
 			FIntPoint ViewportExtent = View.ViewRect.Size();
-			FIntPoint BufferSize = SceneTextures.SceneDepthBuffer->Desc.Extent;
+			FIntPoint BufferSize = SceneTextures.SceneDepthTexture->Desc.Extent;
 
 			if (View.PrevViewInfo.TemporalAAHistory.IsValid())
 			{
@@ -375,14 +374,13 @@ void TraceReflections(
 		PassParameters->SceneTextures = SceneTextures;
 		PassParameters->ColorTexture = InputColor;
 
-		if (InputColor == CurrentSceneColor || !SceneTextures.SceneVelocityBuffer)
+		if (InputColor == CurrentSceneColor || !SceneTextures.GBufferVelocityTexture)
 		{
-			PassParameters->SceneTextures.SceneVelocityBuffer = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+			PassParameters->SceneTextures.GBufferVelocityTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
 		}
 
 		checkf(View.ClosestHZB, TEXT("Lumen screen tracing: ClosestHZB was not setup, should have been setup by FDeferredShadingSceneRenderer::RenderHzb"));
 		PassParameters->ClosestHZBTexture = GraphBuilder.RegisterExternalTexture(View.ClosestHZB, TEXT("ClosestHZB"));
-		PassParameters->SceneDepthTexture = SceneTextures.SceneDepthBuffer;
 		PassParameters->HZBBaseTexelSize = FVector2D(1.0f / View.ClosestHZB->GetDesc().Extent.X, 1.0f / View.ClosestHZB->GetDesc().Extent.Y);
 		PassParameters->MaxHierarchicalScreenTraceIterations = GLumenReflectionHierarchicalScreenTracesMaxIterations;
 		PassParameters->UncertainTraceRelativeDepthThreshold = GLumenReflectionHierarchicalScreenTraceRelativeDepthThreshold;
@@ -455,7 +453,7 @@ void TraceReflections(
 				PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
 				PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
 				PassParameters->IndirectTracingParameters = IndirectTracingParameters;
-				PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBufferSingleDraw(GraphBuilder.RHICmdList, ESceneTextureSetupMode::All, View.FeatureLevel);
+				PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder, View.FeatureLevel);
 				PassParameters->CompactedTraceParameters = CompactedTraceParameters;
 
 				FReflectionTraceCardsCS::FPermutationDomain PermutationVector;
@@ -486,7 +484,7 @@ void TraceReflections(
 		GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
 		PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
 		PassParameters->IndirectTracingParameters = IndirectTracingParameters;
-		PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBufferSingleDraw(GraphBuilder.RHICmdList, ESceneTextureSetupMode::All, View.FeatureLevel);
+		PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder, View.FeatureLevel);
 		PassParameters->CompactedTraceParameters = CompactedTraceParameters;
 
 		FReflectionTraceVoxelsCS::FPermutationDomain PermutationVector;

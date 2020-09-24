@@ -12,22 +12,86 @@
 #include "Animation/AnimData/BoneMaskFilter.h"
 #include "MovieSceneObjectBindingID.h"
 #include "Compilation/MovieSceneTemplateInterrogation.h"
+#include "Channels/MovieSceneIntegerChannel.h"
+#include "Channels/MovieSceneByteChannel.h"
+
+
 #include "MovieSceneControlRigParameterSection.generated.h"
 
+class UAnimSequence;
 
-class UMovieSceneControlRigSection;
+struct CONTROLRIG_API FControlRigBindingHelper
+{
+	static void BindToSequencerInstance(UControlRig* ControlRig);
+	static void UnBindFromSequencerInstance(UControlRig* ControlRig);
+};
+
+struct FEnumParameterNameAndValue //uses uint8
+{
+	FEnumParameterNameAndValue(FName InParameterName, uint8 InValue)
+	{
+		ParameterName = InParameterName;
+		Value = InValue;
+	}
+
+	FName ParameterName;
+
+	uint8 Value;
+};
+
+struct FIntegerParameterNameAndValue
+{
+	FIntegerParameterNameAndValue(FName InParameterName, int32 InValue)
+	{
+		ParameterName = InParameterName;
+		Value = InValue;
+	}
+
+	FName ParameterName;
+
+	int32 Value;
+};
+
+USTRUCT()
+struct CONTROLRIG_API FEnumParameterNameAndCurve
+{
+	GENERATED_USTRUCT_BODY()
+
+	FEnumParameterNameAndCurve()
+	{}
+
+	FEnumParameterNameAndCurve(FName InParameterName);
+
+	UPROPERTY()
+	FName ParameterName;
+
+	UPROPERTY()
+	FMovieSceneByteChannel ParameterCurve;
+};
+
+
+USTRUCT()
+struct CONTROLRIG_API FIntegerParameterNameAndCurve
+{
+	GENERATED_USTRUCT_BODY()
+
+	FIntegerParameterNameAndCurve()
+	{}
+	FIntegerParameterNameAndCurve(FName InParameterName);
+
+	UPROPERTY()
+	FName ParameterName;
+
+	UPROPERTY()
+	FMovieSceneIntegerChannel ParameterCurve;
+};
+
 /**
 *  Data that's queried during an interrogtion
 */
 struct FFloatInterrogationData
 {
 	float Val;
-	FName ParameterName;
-};
-
-struct FBoolInterrogationData
-{
-	bool Val;
 	FName ParameterName;
 };
 
@@ -56,11 +120,20 @@ struct CONTROLRIG_API FChannelMapInfo
 
 	FChannelMapInfo() = default;
 
-	FChannelMapInfo(int32 InControlIndex, int32 InChannelIndex) : ControlIndex(InControlIndex), ChannelIndex(InChannelIndex) {};
+	FChannelMapInfo(int32 InControlIndex, int32 InTotalChannelIndex,  int32 InChannelIndex, int32 InParentControlIndex = INDEX_NONE, FName InChannelTypeName = NAME_None) :
+		ControlIndex(InControlIndex),TotalChannelIndex(InTotalChannelIndex), ChannelIndex(InChannelIndex), ParentControlIndex(InParentControlIndex), ChannelTypeName(InChannelTypeName) {};
 	UPROPERTY()
 	int32 ControlIndex;
 	UPROPERTY()
-	int32 ChannelIndex;
+	int32 TotalChannelIndex;
+	UPROPERTY()
+	int32 ChannelIndex; //channel index for it's type.. (e.g  float, int, bool).
+	UPROPERTY()
+	int32 ParentControlIndex;
+	UPROPERTY()
+	FName ChannelTypeName; 
+
+
 };
 
 /**
@@ -71,6 +144,19 @@ class CONTROLRIG_API UMovieSceneControlRigParameterSection : public UMovieSceneP
 {
 	GENERATED_BODY()
 
+public:
+
+	void AddEnumParameterKey(FName InParameterName, FFrameNumber InTime, uint8 InValue);
+	void AddIntegerParameterKey(FName InParameterName, FFrameNumber InTime, int32 InValue);
+
+	bool RemoveEnumParameter(FName InParameterName);
+	bool RemoveIntegerParameter(FName InParameterName);
+
+	TArray<FEnumParameterNameAndCurve>& GetEnumParameterNamesAndCurves();
+	const TArray<FEnumParameterNameAndCurve>& GetEnumParameterNamesAndCurves() const;
+
+	TArray<FIntegerParameterNameAndCurve>& GetIntegerParameterNamesAndCurves();
+	const TArray<FIntegerParameterNameAndCurve>& GetIntegerParameterNamesAndCurves() const;
 public:
 
 	/** Control Rig that controls us*/
@@ -105,14 +191,33 @@ public:
 	UPROPERTY()
 	TMap<FName, FChannelMapInfo> ControlChannelMap;
 
+protected:
+	/** Enum Curves*/
+	UPROPERTY()
+	TArray<FEnumParameterNameAndCurve> EnumParameterNamesAndCurves;
+
+	/*Integer Curves*/
+	UPROPERTY()
+	TArray<FIntegerParameterNameAndCurve> IntegerParameterNamesAndCurves;
 private:
 	/** Copy of Mask for controls, checked when reconstructing*/
 	TArray<bool> OldControlsMask;
+
 
 public:
 
 	UMovieSceneControlRigParameterSection();
 
+	virtual void SetBlendType(EMovieSceneBlendType InBlendType) override;
+#if WITH_EDITOR
+	//Function to save control rig key when recording.
+	void RecordControlRigKey(FFrameNumber FrameNumber, bool bSetDefault, bool bDoAutoKey);
+
+	//Function to load an Anim Sequence into this section. It will automatically reszie to the section size.
+	//Will return false if fails or is canceled
+	virtual bool LoadAnimSequenceIntoThisSection(UAnimSequence* Sequence, UMovieScene* MovieScene, USkeleton* Skeleton,
+		bool bKeyReduce, float Tolerance);
+#endif
 	const TArray<bool>& GetControlsMask() const
 	{
 		return ControlsMask;
@@ -142,7 +247,6 @@ public:
 		ReconstructChannelProxy(true);
 	}
 
-
 	void FillControlsMask(bool Val)
 	{
 		ControlsMask.Init(Val, ControlsMask.Num());
@@ -168,6 +272,8 @@ public:
 	}
 
 public:
+	/** Recreate with this Control Rig*/
+	void RecreateWithThisControlRig(UControlRig* InControlRig, bool bSetDefault);
 
 	/** Whether or not to key currently, maybe evaluating so don't*/
 	void  SetDoNotKey(bool bIn) const { bDoNotKey = bIn; }
@@ -179,6 +285,12 @@ public:
 
 	/**  Whether or not this section his bool*/
 	bool HasBoolParameter(FName InParameterName) const;
+
+	/**  Whether or not this section his enum*/
+	bool HasEnumParameter(FName InParameterName) const;
+
+	/**  Whether or not this section his int*/
+	bool HasIntegerParameter(FName InParameterName) const;
 
 	/**  Whether or not this section his scalar*/
 	bool HasVector2DParameter(FName InParameterName) const;
@@ -198,6 +310,12 @@ public:
 	/** Adds specified bool parameter. */
 	void AddBoolParameter(FName InParameterName, TOptional<bool> DefaultValue, bool bReconstructChannel);
 
+	/** Adds specified enum parameter. */
+	void AddEnumParameter(FName InParameterName, UEnum* Enum,TOptional<uint8> DefaultValue, bool bReconstructChannel);
+
+	/** Adds specified int parameter. */
+	void AddIntegerParameter(FName InParameterName, TOptional<int32> DefaultValue, bool bReconstructChannel);
+
 	/** Adds a a key for a specific vector parameter. */
 	void AddVectorParameter(FName InParameterName, TOptional<FVector> DefaultValue, bool bReconstructChannel);
 
@@ -210,6 +328,8 @@ public:
 	/** Adds a a key for a specific color parameter*/
 	void AddTransformParameter(FName InParameterName, TOptional<FTransform> DefaultValue, bool bReconstructChannel);
 
+	/** Clear Everything Out*/
+	void ClearAllParameters();
 public:
 	/**
 	* Access the interrogation key for control rig data 
@@ -235,5 +355,6 @@ protected:
 	// We need this because control rig notifications are set on every change even when just changing sequencer time
 	// which forces a sequencer eval, not like the edito where changes are only set on UI changes(changing time doesn't send change delegate)
 	mutable bool bDoNotKey;
+
 
 };

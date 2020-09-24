@@ -42,12 +42,14 @@ FD3D12Viewport::FD3D12Viewport(class FD3D12Adapter* InParent, HWND InWindowHandl
 	bHDRMetaDataSet(false),
 	ColorSpace(DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709),
 	NumBackBuffers(WindowsDefaultNumBackBuffers),
-	BackbufferMultiGPUBinding(0),
-	CurrentBackBufferIndex_RenderThread(0),
-	BackBuffer_RenderThread(nullptr),
+	DummyBackBuffer_RenderThread(nullptr),
 	CurrentBackBufferIndex_RHIThread(0),
 	BackBuffer_RHIThread(nullptr),
-	SDRBackBuffer_RenderThread(nullptr),
+#if WITH_MGPU
+	BackbufferMultiGPUBinding(0),
+	ExpectedBackBufferIndex_RenderThread(0),
+#endif //WITH_MGPU
+	SDRDummyBackBuffer_RenderThread(nullptr),
 	SDRBackBuffer_RHIThread(nullptr),
 	SDRPixelFormat(PF_B8G8R8A8),
 	Fence(InParent, FRHIGPUMask::All(), L"Viewport Fence"),
@@ -264,11 +266,13 @@ void FD3D12Viewport::ConditionalResetSwapChain(bool bIgnoreFocus)
 		}
 		else
 		{
+#if !PLATFORM_HOLOLENS
 			// Check if the viewport's window is focused before resetting the swap chain's fullscreen state.
 			HWND FocusWindow = ::GetFocus();
 			const bool bIsFocused = FocusWindow == WindowHandle;
 			const bool bIsIconic = !!::IsIconic(WindowHandle);
 			if (bIgnoreFocus || (bIsFocused && !bIsIconic))
+#endif
 			{
 				FlushRenderingCommands();
 
@@ -380,13 +384,13 @@ void FD3D12Viewport::ResizeInternal()
 		}
 	}
 
-	CurrentBackBufferIndex_RenderThread = 0;
-	BackBuffer_RenderThread = BackBuffers[CurrentBackBufferIndex_RenderThread].GetReference();
 	CurrentBackBufferIndex_RHIThread = 0;
 	BackBuffer_RHIThread = BackBuffers[CurrentBackBufferIndex_RHIThread].GetReference();
-
-	SDRBackBuffer_RenderThread = SDRBackBuffers[CurrentBackBufferIndex_RenderThread].GetReference();
 	SDRBackBuffer_RHIThread = SDRBackBuffers[CurrentBackBufferIndex_RHIThread].GetReference();
+
+	// Create dummy back buffer which always reference to the actual RHI thread back buffer - can't be bound directly to D3D12
+	DummyBackBuffer_RenderThread = CreateDummyBackBufferTextures(Adapter, PixelFormat, SizeX, SizeY, false);
+	SDRDummyBackBuffer_RenderThread = (SDRBackBuffer_RHIThread != nullptr) ? CreateDummyBackBufferTextures(Adapter, PixelFormat, SizeX, SizeY, true) : nullptr;
 }
 
 HRESULT FD3D12Viewport::PresentInternal(int32 SyncInterval)

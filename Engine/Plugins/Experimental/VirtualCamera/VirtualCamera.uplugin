@@ -31,11 +31,10 @@
 		{
 			"Name": "VirtualCameraEditor",
 			"Type": "Editor",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "PostEngineInit"
 		}
 	],
-	"Plugins":
-	[
+	"Plugins": [
 		{
 			"Name": "MediaIOFramework",
 			"Enabled": true
@@ -54,6 +53,10 @@
 		},
 		{
 			"Name": "VirtualProductionUtilities",
+			"Enabled": true
+		},
+		{
+			"Name": "VCamCore",
 			"Enabled": true
 		}
 	]

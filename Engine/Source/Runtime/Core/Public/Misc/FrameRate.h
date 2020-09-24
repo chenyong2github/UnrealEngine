@@ -177,14 +177,13 @@ inline FFrameTime FFrameRate::AsFrameTime(double TimeInSeconds) const
 	const double       TimeAsFrame = (TimeInSeconds * Numerator) / Denominator;
 	const FFrameNumber FrameNumber = static_cast<int32>(FMath::FloorToDouble(TimeAsFrame));
 
-	double SubFrame = TimeAsFrame - FMath::FloorToDouble(TimeAsFrame);
-	if (SubFrame > 0 )
+	float SubFrame = static_cast<float>(TimeAsFrame - FMath::FloorToDouble(TimeAsFrame));
+	if (SubFrame > 0.f)
 	{
-		SubFrame = FMath::Min(SubFrame, (double)FFrameTime::MaxSubframe);
+		SubFrame = FMath::Min(SubFrame, FFrameTime::MaxSubframe);
 	}
 
-	//@TODO: FLOATPRECISION: FFrameTime needs a general once over for precision (RE: cast to ctor)
-	return FFrameTime(FrameNumber, (float)SubFrame);
+	return FFrameTime(FrameNumber, SubFrame);
 }
 
 inline FFrameNumber FFrameRate::AsFrameNumber(double TimeInSeconds) const
@@ -262,8 +261,12 @@ inline FFrameTime ConvertFrameTime(FFrameTime SourceTime, FFrameRate SourceRate,
 	}
 	//We want NewTime =SourceTime * (DestinationRate/SourceRate);
 	//And want to limit conversions and keep int precision as much as possible
-	int64 NewNumerator = static_cast<int64>(DestinationRate.Numerator) * SourceRate.Denominator;
-	int64 NewDenominator = static_cast<int64>(DestinationRate.Denominator) * SourceRate.Numerator;
+
+	//@todo: These integers should not need the volatile keyword here, but adding it works around
+	//       a compiler bug that results in an uninitialized vector register being used
+	volatile int64 NewNumerator = static_cast<int64>(DestinationRate.Numerator) * SourceRate.Denominator;
+	volatile int64 NewDenominator = static_cast<int64>(DestinationRate.Denominator) * SourceRate.Numerator;
+
 	double NewNumerator_d = double(NewNumerator);
 	double NewDenominator_d = double(NewDenominator);
 	//Now the IntegerPart may have a Float Part, and then the FloatPart may have an IntegerPart,
@@ -274,14 +277,14 @@ inline FFrameTime ConvertFrameTime(FFrameTime SourceTime, FFrameRate SourceRate,
 	const double FloatPartFloored = FMath::FloorToDouble(FloatPart);
 	const int64 FloatAsInt = int64(FloatPartFloored);
 	IntegerPart += FloatAsInt;
-	double SubFrame = FloatPart - FloatPartFloored;
-	if (SubFrame > 0)
+	float SubFrame = static_cast<float>(FloatPart - FloatPartFloored);
+	if (SubFrame > 0.f)
 	{
-		SubFrame = FMath::Min(SubFrame, 0.999999940);
+		SubFrame = FMath::Min(SubFrame, FFrameTime::MaxSubframe);
 	}
 
-	//@TODO: FLOATPRECISION: FFrameTime needs a general once over for precision (RE: cast to ctor)
-	return FFrameTime( (int32)IntegerPart, (float)SubFrame);
+	IntegerPart = FMath::Clamp<int64>(IntegerPart,TNumericLimits<int32>::Min(),TNumericLimits<int32>::Max());
+	return FFrameTime(static_cast<int32>(IntegerPart), SubFrame);
 }
 
 inline FFrameTime FFrameRate::TransformTime(FFrameTime SourceTime, FFrameRate SourceRate, FFrameRate DestinationRate)

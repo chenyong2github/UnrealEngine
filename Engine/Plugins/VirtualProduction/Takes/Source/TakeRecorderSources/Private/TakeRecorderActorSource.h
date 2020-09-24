@@ -147,6 +147,13 @@ public:
 	/** Get the record type. If set to project default, gets the type from the project settings */
 	bool GetRecordToPossessable() const;
 
+	TOptional<FMovieSceneSequenceID> GetSequenceID() const
+	{
+		return SequenceID;
+	}
+
+	void SetSequenceID(FMovieSceneSequenceID InSequenceID) { SequenceID = InSequenceID; }
+
 protected:
 
 	/**
@@ -186,7 +193,7 @@ protected:
 	void CleanExistingDataFromSequence(const FGuid& ForGuid, ULevelSequence& InSequence);
 
 	/** Called as part of PostRecording before Track Recorders are finalized. Calls PostProcessTrackRecordersImpl afterwards for any other post processing you wish to do before Track recorders are finalized. */
-	void PostProcessTrackRecorders();
+	void PostProcessTrackRecorders(ULevelSequence* InSequence);
 
 	/** 
 	* Ensure that the Object Template this recording is recording into has the specified component. Used to initialize dynamically added components that don't exist in the CDO.
@@ -274,6 +281,9 @@ private:
 	virtual FText GetCategoryTextImpl() const;
 	virtual FText GetDisplayTextImpl() const override;
 	virtual FText GetDescriptionTextImpl() const override;
+
+	void ProcessRecordedTimes(ULevelSequence* InSequence);
+
 private:
 	/** Object Binding guid that is created in the Level Sequence when recording starts.*/
 	FGuid CachedObjectBindingGuid;

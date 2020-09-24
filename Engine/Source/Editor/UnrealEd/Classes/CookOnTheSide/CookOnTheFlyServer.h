@@ -140,7 +140,6 @@ private:
 
 	FCookByTheBookOptions* CookByTheBookOptions = nullptr;
 	TUniquePtr<UE::Cook::FPlatformManager> PlatformManager;
-	FCriticalSection RequestLock;
 
 	//////////////////////////////////////////////////////////////////////////
 	// Cook on the fly options
@@ -255,12 +254,13 @@ private:
 	*/
 	void OnTargetPlatformChangedSupportedFormats(const ITargetPlatform* TargetPlatform);
 
-	/* In CookOnTheFly, requests can add a new platform; this function conditionally initializes the requested platform.  Returns false if the given TargetPlatform is not available, else true */
-	bool AddCookOnTheFlyPlatform(ITargetPlatform* TargetPlatform);
 	/* Version of AddCookOnTheFlyPlatform that takes the Platform name instead of an ITargetPlatform*.  Returns the Platform if found */
-	ITargetPlatform* AddCookOnTheFlyPlatform(const FString& PlatformName);
+	const ITargetPlatform* AddCookOnTheFlyPlatform(const FString& PlatformName);
 	/* Internal helper for AddCookOnTheFlyPlatform.  Initializing Platforms must be done on the tickloop thread; Platform data is read only on other threads */
 	void AddCookOnTheFlyPlatformFromGameThread(ITargetPlatform* TargetPlatform);
+
+	/* Callback to recalculate all ITargetPlatform* pointers when they change due to modules reloading */
+	void OnTargetPlatformsInvalidated();
 
 	/* Update polled fields used by CookOnTheFly's network request handlers */
 	void TickNetwork();
@@ -707,7 +707,7 @@ private:
 	 */
 	bool HandleNetworkFileServerNewConnection( const FString& VersionInfo, const FString& PlatformName );
 
-	void GetCookOnTheFlyUnsolicitedFiles(const ITargetPlatform* TargetPlatform, TArray<FString>& UnsolicitedFiles, const FString& Filename, bool bIsCookable);
+	void GetCookOnTheFlyUnsolicitedFiles(const ITargetPlatform* TargetPlatform, const FString& PlatformName, TArray<FString>& UnsolicitedFiles, const FString& Filename, bool bIsCookable);
 
 	/**
 	* Cook requests for a package from network
@@ -939,7 +939,7 @@ private:
 	*/
 	FString GetBaseDirectoryForDLC() const;
 
-	FString GetContentDirecctoryForDLC() const;
+	FString GetContentDirectoryForDLC() const;
 
 	bool IsCreatingReleaseVersion();
 

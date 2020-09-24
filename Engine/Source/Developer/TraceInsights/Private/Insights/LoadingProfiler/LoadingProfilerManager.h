@@ -109,6 +109,11 @@ public:
 	void SetExportDetailsTreeViewVisible(const bool bIsVisible) { bIsExportDetailsTreeViewVisible = bIsVisible; }
 	void ShowHideExportDetailsTreeView(const bool bIsVisible);
 
+	/** @return true, if the Export Details tree view is visible */
+	const bool IsRequestsTreeViewVisible() const { return bIsRequestsTreeViewVisible; }
+	void SetRequestsTreeViewVisible(const bool bIsVisible) { bIsRequestsTreeViewVisible = bIsVisible; }
+	void ShowHideRequestsTreeView(const bool bIsVisible);
+
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	void OnSessionChanged();
@@ -120,6 +125,8 @@ private:
 	/** Called to spawn the Loading Profiler major tab. */
 	TSharedRef<SDockTab> SpawnTab(const FSpawnTabArgs& Args);
 
+	bool CanSpawnTab(const FSpawnTabArgs& Args) const;
+
 	/** Callback called when the Loading Profiler major tab is closed. */
 	void OnTabClosed(TSharedRef<SDockTab> TabBeingClosed);
 
@@ -129,8 +136,7 @@ private:
 private:
 	bool bIsInitialized;
 	bool bIsAvailable;
-	uint64 AvailabilityCheckNextTimestamp;
-	double AvailabilityCheckWaitTimeSec;
+	FAvailabilityCheck AvailabilityCheck;
 
 	/** The delegate to be invoked when this manager ticks. */
 	FTickerDelegate OnTick;
@@ -161,6 +167,9 @@ private:
 
 	/** If the Export Details tree view is visible or hidden. */
 	bool bIsExportDetailsTreeViewVisible;
+
+	/** If the Requests tree view is visible or hidden. */
+	bool bIsRequestsTreeViewVisible;
 
 	/** A shared pointer to the global instance of the Loading Profiler manager. */
 	static TSharedPtr<FLoadingProfilerManager> Instance;

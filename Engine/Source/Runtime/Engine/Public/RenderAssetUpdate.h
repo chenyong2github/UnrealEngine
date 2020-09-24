@@ -9,14 +9,13 @@ RenderAssetUpdate.h: Base class of helpers to stream in and out texture/mesh LOD
 #include "CoreMinimal.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "Async/AsyncWork.h"
-#include "Engine/StreamableRenderAsset.h"
 #include "RenderingThread.h"
+#include "Streaming/StreamableRenderResourceState.h"
+
+class UStreamableRenderAsset;
 
 /** SRA stands for StreamableRenderAsset */
 #define SRA_UPDATE_CALLBACK(FunctionName) [this](const FContext& C){ FunctionName(C); }
-
- // Allows yield to lower priority threads
-#define RENDER_ASSET_STREAMING_SLEEP_DT (0.010f)
 
 ENGINE_API bool IsAssetStreamingSuspended();
 
@@ -49,7 +48,7 @@ public:
 		TS_Init			// The object is in initialization
 	};
 
-	FRenderAssetUpdate(UStreamableRenderAsset* InAsset, int32 InRequestedMips);
+	FRenderAssetUpdate(const UStreamableRenderAsset* InAsset);
 
 	/**
 	* Do or schedule any pending work for a given texture.
@@ -90,17 +89,6 @@ public:
 	{
 		return TaskState == TS_Locked;
 	}
-
-	/** Get the number of requested mips for this update, ignoring cancellation attempts. */
-	int32 GetNumRequestedMips() const
-	{
-		return RequestedMips;
-	}
-
-#if WITH_EDITORONLY_DATA
-	/** Returns whether DDC of this texture needs to be regenerated.  */
-	virtual bool DDCIsInvalid() const { return false; }
-#endif
 
 	/** Return the thread relevant to the next step of execution. */
 	virtual EThreadType GetRelevantThread() const = 0;
@@ -158,11 +146,13 @@ protected:
 	/** The async task to update this object, only one can be active at anytime. It just calls Tick(). */
 	typedef FAutoDeleteAsyncTask<FMipUpdateTask> FAsyncMipUpdateTask;
 
-	/** The index of mip that will end as being the first mip of the intermediate (future) texture/mesh. */
-	int32 PendingFirstMip;
-	/** The total number of mips of the intermediate (future) texture/mesh. */
-	int32 RequestedMips;
-
+	/** The streamable state requested. */
+	const FStreamableRenderResourceState ResourceState;
+	// The resident first LOD resource index. With domain = [0, ResourceState.NumLODs[. NOT THE ASSET LOD INDEX!
+	const int32 CurrentFirstLODIdx = INDEX_NONE;
+	// The requested first LOD resource index. With domain = [0, ResourceState.NumLODs[. NOT THE ASSET LOD INDEX!
+	const int32 PendingFirstLODIdx = INDEX_NONE;
+	
 	/** Critical Section. */
 	FCriticalSection CS;
 
@@ -176,7 +166,7 @@ protected:
 	int32 ScheduledAsyncTasks;
 
 	/** The asset updated **/
-	UStreamableRenderAsset* StreamableAsset;
+	const UStreamableRenderAsset* StreamableAsset = nullptr;
 
 	/** Synchronization used for trigger the task next step execution. */
 	FThreadSafeCounter	TaskSynchronization;
@@ -211,7 +201,7 @@ public:
 	/** A callback used to perform a task in the update process. Each task must be executed on a specific thread. */
 	typedef TFunction<void(const FContext& Context)> FCallback;
 
-	TRenderAssetUpdate(UStreamableRenderAsset* InAsset, int32 InRequestedMips);
+	TRenderAssetUpdate(const UStreamableRenderAsset* InAsset);
 
 	/**
 	* Defines the next step to be executed. The next step will be executed by calling the callback on the specified thread.
@@ -249,8 +239,6 @@ protected:
 		CancelationThread = TT_None;
 		CancelationCallback = nullptr;
 	}
-
-	virtual void InitContext(FContext& Context) const {}
 };
 
 void SuspendRenderAssetStreaming();

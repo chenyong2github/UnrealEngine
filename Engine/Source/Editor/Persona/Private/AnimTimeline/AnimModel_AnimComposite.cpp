@@ -43,7 +43,7 @@ void FAnimModel_AnimComposite::RefreshTracks()
 	RefreshCurveTracks();
 
 	// Snaps
-	RefreshSegmentTimes();
+	RefreshSnapTimes();
 
 	// Tell the UI to refresh
 	OnTracksChangedDelegate.Broadcast();
@@ -51,9 +51,10 @@ void FAnimModel_AnimComposite::RefreshTracks()
 	UpdateRange();
 }
 
-void FAnimModel_AnimComposite::RefreshSegmentTimes()
+void FAnimModel_AnimComposite::RefreshSnapTimes()
 {
-	SnapTimes.Empty();
+	FAnimModel_AnimSequenceBase::RefreshSnapTimes();
+	
 	for(const FAnimSegment& Segment : AnimComposite->AnimationTrack.AnimSegments)
 	{
 		SnapTimes.Add(FSnapTime(FSnapType::CompositeSegment.Type, (double)Segment.StartPos));

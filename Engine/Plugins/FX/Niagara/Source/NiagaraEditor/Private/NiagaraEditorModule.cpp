@@ -233,8 +233,8 @@ public:
 				}
 				else
 				{
-					UE_LOG(LogNiagaraEditor, Error, TEXT("Pin type is invalid! Pin Name '%s' Owning Node '%s'. Turning into standard int definition!"), *InPin->PinName.ToString(),
-						*InPin->GetOwningNode()->GetName());
+					UE_LOG(LogNiagaraEditor, Warning, TEXT("Pin type is invalid! Pin Name '%s' Owning Node '%s'. Turning into standard int definition!"), *InPin->PinName.ToString(),
+						*InPin->GetOwningNode()->GetFullName());
 					InPin->PinType.PinSubCategoryObject = MakeWeakObjectPtr(const_cast<UScriptStruct*>(FNiagaraTypeDefinition::GetIntStruct()));
 					InPin->DefaultValue.Empty();
 					return CreatePin(InPin);
@@ -245,8 +245,8 @@ public:
 				const UEnum* Enum = Cast<const UEnum>(InPin->PinType.PinSubCategoryObject.Get());
 				if (Enum == nullptr)
 				{
-					UE_LOG(LogNiagaraEditor, Error, TEXT("Pin states that it is of Enum type, but is missing its Enum! Pin Name '%s' Owning Node '%s'. Turning into standard int definition!"), *InPin->PinName.ToString(),
-						*InPin->GetOwningNode()->GetName());
+					UE_LOG(LogNiagaraEditor, Warning, TEXT("Pin states that it is of Enum type, but is missing its Enum! Pin Name '%s' Owning Node '%s'. Turning into standard int definition!"), *InPin->PinName.ToString(),
+						*InPin->GetOwningNode()->GetFullName());
 					InPin->PinType.PinCategory = UEdGraphSchema_Niagara::PinCategoryType;
 					InPin->PinType.PinSubCategoryObject = MakeWeakObjectPtr(const_cast<UScriptStruct*>(FNiagaraTypeDefinition::GetIntStruct()));
 					InPin->DefaultValue.Empty();
@@ -742,6 +742,10 @@ class FNiagaraSystemColorParameterTrackEditor : public FNiagaraSystemParameterTr
 void FNiagaraEditorModule::OnPreExit()
 {
 	UDeviceProfileManager::Get().OnManagerUpdated().Remove(DeviceProfileManagerUpdatedHandle);
+	if (GEditor)
+	{
+		CastChecked<UEditorEngine>(GEngine)->OnPreviewPlatformChanged().Remove(PreviewPlatformChangedHandle);
+	}
 
 	// Ensure that we don't have any lingering compiles laying around that will explode after this module shuts down.
 	for (TObjectIterator<UNiagaraSystem> It; It; ++It)
@@ -1178,16 +1182,30 @@ void FNiagaraEditorModule::OnPostEngineInit()
 	if (GEditor)
 	{
 		GEditor->OnExecParticleInvoked().AddRaw(this, &FNiagaraEditorModule::OnExecParticleInvoked);
+
+		PreviewPlatformChangedHandle = CastChecked<UEditorEngine>(GEngine)->OnPreviewPlatformChanged().AddRaw(this, &FNiagaraEditorModule::OnPreviewPlatformChanged);
 	}
 	else
 	{
-		UE_LOG(LogNiagaraEditor, Warning, TEXT("GEditor isn't valid! Particle reset commands will not work for Niagara components!"));
+		UE_LOG(LogNiagaraEditor, Log, TEXT("GEditor isn't valid! Particle reset commands will not work for Niagara components!"));
 	}
 }
 
 void FNiagaraEditorModule::OnDeviceProfileManagerUpdated()
 {
 	FNiagaraPlatformSet::InvalidateCachedData();
+}
+
+void FNiagaraEditorModule::OnPreviewPlatformChanged()
+{
+	FNiagaraPlatformSet::InvalidateCachedData();
+
+	for (TObjectIterator<UNiagaraSystem> It; It; ++It)
+	{
+		UNiagaraSystem* System = *It;
+		check(System);
+		System->OnQualityLevelChanged();
+	}
 }
 
 FNiagaraEditorModule& FNiagaraEditorModule::Get()

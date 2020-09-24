@@ -44,6 +44,8 @@
 
 	#define CONFIG_HISTORY_REJECTION HISTORY_REJECTION_VAR_BOUNDARIES
 
+	#define CONFIG_NORMALIZED_INPUT 1
+
 	#define CONFIG_REJECTION_SAMPLE_SET SAMPLE_SET_3X3_PLUS
 
 	// Uses nearest to not leak informations on geometric edges by bilateral. This is OK because just blury greyscale details.
@@ -109,10 +111,12 @@
 	#define CONFIG_INPUT_TEXTURE_COUNT 1
 	#define CONFIG_HISTORY_TEXTURE_COUNT 1
 
+	#define CONFIG_NORMALIZED_INPUT 1
+
 	#define CONFIG_HISTORY_REJECTION HISTORY_REJECTION_VAR_BOUNDARIES
 
-	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_DIFFUSE
-	#define CONFIG_HISTORY_BILATERAL_PRESET BILATERAL_PRESET_DIFFUSE
+	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_AO_HISTORY
+	#define CONFIG_HISTORY_BILATERAL_PRESET BILATERAL_PRESET_AO_HISTORY
 	#define CONFIG_PATCH_PREV_SCENE_DEPTH 1
 
 	// Use pre transformed rejection buffer that contains pre transformed momment 1 & 2.
@@ -123,6 +127,8 @@
 
 		#define CONFIG_REJECTION_INPUT_MODE               REJECTION_INPUT_MODE_2PRETRANSFORMED_MOMMENTS
 		#define CONFIG_REJECTION_SAMPLE_SET               SAMPLE_SET_3X3_SOBEK2018
+	#else
+		#define CONFIG_REJECTION_SAMPLE_SET SAMPLE_SET_3X3
 	#endif
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_INDIRECT_AND_AO
@@ -306,6 +312,10 @@
 /** Whether should consider the depth velocity to compute the reference scene depth. */
 #ifndef CONFIG_PATCH_PREV_SCENE_DEPTH
 	#define CONFIG_PATCH_PREV_REF_SCENE_DEPTH 0
+#endif
+
+#ifndef CONFIG_NORMALIZED_INPUT
+	#define CONFIG_NORMALIZED_INPUT 0
 #endif
 
 
@@ -510,7 +520,7 @@ void TemporallyAccumulate(
 
 		if (1)
 		{
-			float3 EncodedVelocity = SceneVelocityBuffer.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).xyz;
+			float4 EncodedVelocity = GBufferVelocityTexture.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0);
 			bIsDynamicPixel = EncodedVelocity.x > 0.0;
 
 			if (bIsDynamicPixel)
@@ -533,49 +543,10 @@ void TemporallyAccumulate(
 		GlobalPointClampedSampler,
 		CONFIG_SIGNAL_INPUT_LAYOUT,
 		/* MultiplexedSampleId = */ 0,
-		/* bNormalizeSample = */ false,
+		/* bNormalizeSample = */ CONFIG_NORMALIZED_INPUT != 0,
 		SceneBufferUV,
 		/* out */ CurrentFrameSamples,
 		/* out */ CurrentFrameFrequencies);
-
-	float WorldBluringRadius;
-	float TargetedSampleCount;
-	{
-		float2 ScreenPosition = DenoiserBufferUVToScreenPosition(SceneBufferUV);
-	
-		FSSDSampleSceneInfos RefSceneMetadata = UncompressSampleSceneInfo(
-			CONFIG_METADATA_BUFFER_LAYOUT, /* bPrevFrame = */ false,
-			ScreenPosition, CompressedRefSceneMetadata);
-
-		// Use the diameter, because that is the distance between two pixel.
-		float PixelWorldBluringRadius = ComputeWorldBluringRadiusCausedByPixelSize(RefSceneMetadata);
-		WorldBluringRadius = WorldBluringRadiusToBilateralWorldDistance(PixelWorldBluringRadius);
-	
-		#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_REFLECTIONS
-		{
-			float2 NormalizedScreenMajorAxis;
-			float InifinityMajorViewportRadius;
-			float InifinityMinorViewportRadius;
-			ProjectSpecularLobeToScreenSpace(
-				RefSceneMetadata,
-				/* out */ NormalizedScreenMajorAxis,
-				/* out */ InifinityMajorViewportRadius,
-				/* out */ InifinityMinorViewportRadius);
-
-			InifinityMajorViewportRadius *= View.ViewSizeAndInvSize.x;
-			InifinityMinorViewportRadius *= View.ViewSizeAndInvSize.x;
-
-			TargetedSampleCount = PI * InifinityMajorViewportRadius * InifinityMinorViewportRadius;
-
-			// TODO(Denoiser): try to make this better? * 0.125 to avoid banding caused by floating point precision.
-			TargetedSampleCount = clamp(TargetedSampleCount, 1, TARGETED_SAMPLE_COUNT);
-		}
-		#else
-		{
-			TargetedSampleCount = TARGETED_SAMPLE_COUNT;
-		}
-		#endif
-	}
 
 	// Sample the history buffer.
 	FSSDSignalArray HistorySamples = CreateSignalArrayFromScalarValue(0.0);
@@ -914,7 +885,11 @@ void TemporallyAccumulate(
 			// Clamp the history.
 			#if CONFIG_HISTORY_REJECTION == HISTORY_REJECTION_VAR_BOUNDARIES
 			{
-				const float StdDevMultiplier = 1.25;
+				#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_AO
+					const float StdDevMultiplier = 6.00;
+				#else
+					const float StdDevMultiplier = 1.25;
+				#endif
 
 				// StdDev = sqrt(abs(NeighborSquareAvg - NeighborAvg * NeighborAvg));
 				FSSDSignalSample StdDev = SqrtSignal(AbsSignal(SubtractSignal(NeighborMoment2, PowerSignal(NeighborMoment1, 2))));
@@ -1060,6 +1035,54 @@ void TemporallyAccumulate(
 		{
 			FSSDSignalSample CurrentFrameSample = CurrentFrameSamples.Array[BatchedSignalId];
 			FSSDSignalSample HistorySample = HistorySamples.Array[BatchedSignalId];
+			FSSDSignalFrequency CurrentFrequency = CurrentFrameFrequencies.Array[BatchedSignalId];
+
+			float TargetedSampleCount;
+			{
+				float2 ScreenPosition = DenoiserBufferUVToScreenPosition(SceneBufferUV);
+	
+				FSSDSampleSceneInfos RefSceneMetadata = UncompressSampleSceneInfo(
+					CONFIG_METADATA_BUFFER_LAYOUT, /* bPrevFrame = */ false,
+					ScreenPosition, CompressedRefSceneMetadata);
+
+				// Use the diameter, because that is the distance between two pixel.
+				float PixelWorldBluringRadius = ComputeWorldBluringRadiusCausedByPixelSize(RefSceneMetadata);
+				float WorldBluringRadius = WorldBluringRadiusToBilateralWorldDistance(PixelWorldBluringRadius);
+	
+				#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK
+				{
+					float ResolutionFraction = 0.5;
+					float ToleratedNoiseRatio = 0.25 * rcp(9 * sqrt(2));
+
+					float OutputPixelRadius = CurrentFrequency.WorldBluringRadius * rcp(PixelWorldBluringRadius) * ResolutionFraction;
+
+					TargetedSampleCount = clamp(OutputPixelRadius * OutputPixelRadius * (PI * ToleratedNoiseRatio), 1, TARGETED_SAMPLE_COUNT);
+				}
+				#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_REFLECTIONS
+				{
+					float2 NormalizedScreenMajorAxis;
+					float InifinityMajorViewportRadius;
+					float InifinityMinorViewportRadius;
+					ProjectSpecularLobeToScreenSpace(
+						RefSceneMetadata,
+						/* out */ NormalizedScreenMajorAxis,
+						/* out */ InifinityMajorViewportRadius,
+						/* out */ InifinityMinorViewportRadius);
+
+					InifinityMajorViewportRadius *= View.ViewSizeAndInvSize.x;
+					InifinityMinorViewportRadius *= View.ViewSizeAndInvSize.x;
+
+					TargetedSampleCount = PI * InifinityMajorViewportRadius * InifinityMinorViewportRadius;
+
+					// TODO(Denoiser): try to make this better? * 0.125 to avoid banding caused by floating point precision.
+					TargetedSampleCount = clamp(TargetedSampleCount, 1, TARGETED_SAMPLE_COUNT);
+				}
+				#else
+				{
+					TargetedSampleCount = TARGETED_SAMPLE_COUNT;
+				}
+				#endif
+			}
 
 			float PreviousFrameWeight = min(HistorySample.SampleCount, TargetedSampleCount - CurrentFrameSample.SampleCount);
 			float PreviousFrameMultiplier = HistorySample.SampleCount > 0 ? PreviousFrameWeight / HistorySample.SampleCount : 0;

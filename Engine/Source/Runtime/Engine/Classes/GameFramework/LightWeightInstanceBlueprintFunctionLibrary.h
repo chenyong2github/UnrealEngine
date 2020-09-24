@@ -3,6 +3,8 @@
 #pragma once
 
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "Engine/EngineTypes.h"
+
 #include "LightWeightInstanceBlueprintFunctionLibrary.generated.h"
 
 UCLASS()

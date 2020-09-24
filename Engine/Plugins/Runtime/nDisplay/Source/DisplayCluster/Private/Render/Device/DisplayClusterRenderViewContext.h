@@ -11,6 +11,9 @@ struct FDisplayClusterRenderViewContext
 	FVector  ViewLocation = FVector::ZeroVector;
 	FRotator ViewRotation = FRotator::ZeroRotator;
 
+	// Projection Matrix
+	FMatrix ProjectionMatrix = FMatrix::Identity;
+
 	// World scale
 	float WorldToMeters = 100.f;
 

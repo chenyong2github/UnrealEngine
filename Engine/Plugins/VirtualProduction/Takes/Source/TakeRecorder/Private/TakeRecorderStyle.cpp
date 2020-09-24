@@ -140,6 +140,9 @@ FTakeRecorderStyle::FTakeRecorderStyle()
 	Set("ClassIcon.TakeRecorderActorSource", new FSlateImageBrush(RootToContentDir(TEXT("TakeRecorderActorSource_16x.png")), Icon16x16));
 	Set("ClassThumbnail.TakeRecorderActorSource", new FSlateImageBrush(RootToContentDir(TEXT("TakeRecorderActorSource_64x.png")), Icon64x64));
 
+	Set("ClassIcon.TakeRecorderCameraCutSource", new FSlateImageBrush(RootToContentDir(TEXT("TakeRecorderCameraCutSource_16x.png")), Icon16x16));
+	Set("ClassThumbnail.TakeRecorderCameraCutSource", new FSlateImageBrush(RootToContentDir(TEXT("TakeRecorderCameraCutSource_64x.png")), Icon64x64));
+
 	Set("ClassIcon.TakeRecorderLevelSequenceSource", new FSlateImageBrush(RootToContentDir(TEXT("TakeRecorderLevelSequenceSource_16x.png")), Icon16x16));
 	Set("ClassThumbnail.TakeRecorderLevelSequenceSource", new FSlateImageBrush(RootToContentDir(TEXT("TakeRecorderLevelSequenceSource_64x.png")), Icon64x64));
 

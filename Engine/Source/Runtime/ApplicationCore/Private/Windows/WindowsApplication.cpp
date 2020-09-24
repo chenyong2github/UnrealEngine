@@ -700,6 +700,29 @@ static BOOL CALLBACK MonitorEnumProc(HMONITOR Monitor, HDC MonitorDC, LPRECT Rec
 	return TRUE;
 }
 
+static FIntPoint GetMaxResolutionForDisplay(const DISPLAY_DEVICE& DisplayDevice, int32 NativeWidth, int32 NativeHeight)
+{
+	uint32 MaxWidth = NativeWidth;
+	uint32 MaxHeight = NativeHeight;
+
+	uint32 ModeIndex = 0;
+	DEVMODE DisplayMode;
+	FMemory::Memzero(DisplayMode);
+
+	while (EnumDisplaySettings(DisplayDevice.DeviceName, ModeIndex++, &DisplayMode))
+	{
+		if (DisplayMode.dmPelsWidth > MaxWidth && DisplayMode.dmPelsHeight > MaxHeight)
+		{
+			MaxWidth = DisplayMode.dmPelsWidth;
+			MaxHeight = DisplayMode.dmPelsHeight;
+		}
+
+		FMemory::Memzero(DisplayMode);
+	}
+
+	return FIntPoint(MaxWidth, MaxHeight);
+}
+
 /**
  * Extract hardware information about connect monitors
  * @param OutMonitorInfo - Reference to an array for holding records about each detected monitor
@@ -710,7 +733,6 @@ static void GetMonitorsInfo(TArray<FMonitorInfo>& OutMonitorInfo)
 	DisplayDevice.cb = sizeof(DisplayDevice);
 	DWORD DeviceIndex = 0; // device index
 
-	FMonitorInfo* PrimaryDevice = nullptr;
 	OutMonitorInfo.Empty(2); // Reserve two slots, as that will be the most common maximum
 
 	FString DeviceID;
@@ -756,12 +778,9 @@ static void GetMonitorsInfo(TArray<FMonitorInfo>& OutMonitorInfo)
 							Info.DPI *= DPIScaleFactor;
 						}
 
-						OutMonitorInfo.Add(Info);
+						Info.MaxResolution = GetMaxResolutionForDisplay(DisplayDevice, Info.NativeWidth, Info.NativeHeight);
 
-						if (PrimaryDevice == nullptr && Info.bIsPrimary)
-						{
-							PrimaryDevice = &OutMonitorInfo.Last();
-						}
+						OutMonitorInfo.Add(Info);
 					}
 				}
 				MonitorIndex++;
@@ -1648,6 +1667,18 @@ int32 FWindowsApplication::ProcessMessage( HWND hwnd, uint32 msg, WPARAM wParam,
 			}
 			break;
 
+#if WITH_EDITOR // WM_ENDSESSION was added for Editor analytics purpose to detect when the Editor dies unexpectedly because it gets killed by a logoff/shutdown.
+		case WM_ENDSESSION:
+			{
+				// wParam is true if the user session is going away. Note that WM_SESSION is a follow up for WM_QUERYENDSESSION, so wParam can be false if the user (from UI)
+				// or another application (from WM_QUERYENDSESSION) canceled the shutdown.
+				if (wParam == TRUE) // Shutdown/Reboot/Logoff
+				{
+					FCoreDelegates::OnUserLoginChangedEvent.Broadcast(false, 0, 0);
+				}
+				return DefWindowProc(hwnd, msg, wParam, lParam);
+			}
+#endif
 		case WM_SYSCOMMAND:
 			{
 				switch( wParam & 0xfff0 )

@@ -332,6 +332,14 @@ public:
 	static class UEdGraph* CreateNewGraph(UObject* ParentScope, const FName& GraphName, TSubclassOf<class UEdGraph> GraphClass, TSubclassOf<class UEdGraphSchema> SchemaClass);
 
 	/**
+	 * Creates a new function graph with a signature that matches InNode
+	 *
+	 * @param InNode        Node to copy signature from
+	 * @param InSchemaClass The schema for the new graph
+	 */
+	static void CreateMatchingFunction(UK2Node_CallFunction* InNode, TSubclassOf<class UEdGraphSchema> InSchemaClass);
+
+	/**
 	 * Creates a function graph, but does not add it to the blueprint.  If bIsUserCreated is true, the entry/exit nodes will be editable. 
 	 * SignatureFromObject is used to find signature for entry/exit nodes if using an existing signature.
 	 * The template argument SignatureType should be UClass or UFunction.
@@ -1037,6 +1045,19 @@ public:
 	static void ValidateBlueprintChildVariables(UBlueprint* InBlueprint, const FName InVariableName,
 		TFunction<void(UBlueprint* InChildBP, const FName InVariableName, bool bValidatedVariable)> PostValidationCallback = TFunction<void(UBlueprint*, FName, bool)>());
 
+	/**
+	 * Gets AssetData for all child classes of a given blueprint
+	 * 
+	 * @param InBlueprint    Taget Blueprint
+	 * @param OutChildren    AssetData representing the child blueprints
+	 * @param bInRecursive   if true, will return classes derived from child classes as well
+	 * @return Number of child blueprints found
+	 */
+	static int32 GetChildrenOfBlueprint(UBlueprint* InBlueprint, TArray<FAssetData>& OutChildren, bool bInRecursive = true);
+
+	/** Marks all children of a blueprint as modified */
+	static void MarkBlueprintChildrenAsModified(UBlueprint* InBlueprint);
+
 	/** Rename a Timeline. If bRenameNodes is true, will also rename any timeline nodes associated with this timeline */
 	static bool RenameTimeline (UBlueprint* Blueprint, const FName OldVarName, const FName NewVarName);
 
@@ -1181,6 +1202,9 @@ public:
 
 	/** Gets pointer to PropertyFlags of variable */
 	static uint64* GetBlueprintVariablePropertyFlags(UBlueprint* Blueprint, const FName& VarName);
+
+	/** Gets the variable linked to a RepNotify function, returns nullptr if not found */
+	static FBPVariableDescription* GetVariableFromOnRepFunction(UBlueprint* Blueprint, FName FuncName);
 
 	/** Get RepNotify function name of variable */
 	static FName GetBlueprintVariableRepNotifyFunc(UBlueprint* Blueprint, const FName& VarName);

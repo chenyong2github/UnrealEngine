@@ -111,8 +111,8 @@ private:
 	TQueue<TFunction<void()>, EQueueMode::Mpsc> GT_Tasks;
 
 private:
-	bool bDatabaseOpen = false;
-	double LastConnectionAttempt = 0;
+	volatile bool bDatabaseOpen = false;
+	volatile double LastConnectionAttempt = 0;
 
 	TAtomic<bool> RunThread;
 	FRunnableThread* DatabaseThread = nullptr;

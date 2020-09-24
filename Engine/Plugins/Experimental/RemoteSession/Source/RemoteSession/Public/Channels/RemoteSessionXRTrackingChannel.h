@@ -6,8 +6,8 @@
 #include "XRTrackingSystemBase.h"
 #include "ARSystem.h"
 
-class FBackChannelOSCMessage;
 class FBackChannelOSCDispatch;
+class IBackChannelPacket;
 
 class REMOTESESSION_API FXRTrackingProxy :
 	public FXRTrackingSystemBase
@@ -26,6 +26,7 @@ public:
 	virtual bool EnumerateTrackedDevices(TArray<int32>& OutDevices, EXRTrackedDeviceType Type) override;
 	virtual bool GetCurrentPose(int32 DeviceId, FQuat& OutOrientation, FVector& OutPosition) override;
 	virtual FName GetSystemName() const override;
+	virtual int32 GetXRSystemFlags() const override { return 0; }
 };
 
 class REMOTESESSION_API FRemoteSessionXRTrackingChannel :
@@ -33,7 +34,7 @@ class REMOTESESSION_API FRemoteSessionXRTrackingChannel :
 {
 public:
 
-	FRemoteSessionXRTrackingChannel(ERemoteSessionChannelMode InRole, TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection);
+	FRemoteSessionXRTrackingChannel(ERemoteSessionChannelMode InRole, TSharedPtr<IBackChannelConnection, ESPMode::ThreadSafe> InConnection);
 
 	virtual ~FRemoteSessionXRTrackingChannel();
 
@@ -43,7 +44,7 @@ public:
 	void SendXRTracking();
 
 	/** Handles data coming from the client */
-	void ReceiveXRTracking(FBackChannelOSCMessage& Message, FBackChannelOSCDispatch& Dispatch);
+	void ReceiveXRTracking(IBackChannelPacket& Message);
 
 	/* Begin IRemoteSessionChannel implementation */
 	static const TCHAR* StaticType() { return TEXT("FRemoteSessionXRTrackingChannel"); }
@@ -52,9 +53,9 @@ public:
 
 protected:
 	/** Only to be called by child classes */
-	FRemoteSessionXRTrackingChannel(ERemoteSessionChannelMode InRole, TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection, IARSystemSupport* ARSystemSupport);
+	FRemoteSessionXRTrackingChannel(ERemoteSessionChannelMode InRole, TSharedPtr<IBackChannelConnection, ESPMode::ThreadSafe> InConnection, IARSystemSupport* ARSystemSupport);
 
-	TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> Connection;
+	TSharedPtr<IBackChannelConnection, ESPMode::ThreadSafe> Connection;
 	ERemoteSessionChannelMode Role;
 
 	/** If we're sending, this is GEngine->XRSystem. If we are receiving, this is the previous GEngine->XRSystem */
@@ -72,11 +73,3 @@ private:
 	/** Used to finish construction of the class. Should be called from within the ctors */
 	void Init();
 };
-
-class REMOTESESSION_API FRemoteSessionXRTrackingChannelFactoryWorker : public IRemoteSessionChannelFactoryWorker
-{
-public:
-	virtual const TCHAR* GetType() const override { return FRemoteSessionXRTrackingChannel::StaticType(); }
-	virtual TSharedPtr<IRemoteSessionChannel> Construct(ERemoteSessionChannelMode InMode, TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection) const override;
-};
-

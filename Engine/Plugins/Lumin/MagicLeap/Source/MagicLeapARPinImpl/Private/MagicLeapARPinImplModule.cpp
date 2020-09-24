@@ -10,6 +10,8 @@
 
 DEFINE_LOG_CATEGORY(LogMagicLeapARPinImpl);
 
+constexpr double kPrisonSentenceSec = 5.0;
+
 #if WITH_MLSDK
 EMagicLeapPassableWorldError MLToUnrealPassableWorldError(MLResult result)
 {
@@ -19,12 +21,25 @@ EMagicLeapPassableWorldError MLToUnrealPassableWorldError(MLResult result)
 		case MLPassableWorldResult_LowMapQuality: return EMagicLeapPassableWorldError::LowMapQuality;
 		case MLPassableWorldResult_UnableToLocalize: return EMagicLeapPassableWorldError::UnableToLocalize;
 		case MLPassableWorldResult_ServerUnavailable: return EMagicLeapPassableWorldError::Unavailable;
+		case MLPassableWorldResult_SharedWorldNotEnabled: return EMagicLeapPassableWorldError::SharedWorldNotEnabled;
 		case MLPassableWorldResult_NotFound: return EMagicLeapPassableWorldError::PinNotFound;
 		case MLResult_PrivilegeDenied: return EMagicLeapPassableWorldError::PrivilegeDenied;
 		case MLResult_InvalidParam: return EMagicLeapPassableWorldError::InvalidParam;
 		case MLResult_UnspecifiedFailure: return EMagicLeapPassableWorldError::UnspecifiedFailure;
 	}
 	return EMagicLeapPassableWorldError::UnspecifiedFailure;
+}
+
+EMagicLeapARPinType MLToUnrealPinType(MLPersistentCoordinateFrameType PinType)
+{
+	switch (PinType)
+	{
+		case MLPersistentCoordinateFrameType_SingleUserSingleSession: return EMagicLeapARPinType::SingleUserSingleSession;
+		case MLPersistentCoordinateFrameType_SingleUserMultiSession: return EMagicLeapARPinType::SingleUserMultiSession;
+		case MLPersistentCoordinateFrameType_MultiUserMultiSession: return EMagicLeapARPinType::MultiUserMultiSession;
+	}
+
+	return EMagicLeapARPinType::SingleUserSingleSession;
 }
 #endif //WITH_MLSDK
 
@@ -33,7 +48,8 @@ FMagicLeapARPinImplModule::FMagicLeapARPinImplModule()
 	, bCreateTracker(false)
 	, bPerceptionEnabled(false)
 	, Settings(nullptr)
-	, PreviousTime(0.0)
+	, PreviousTime(FPlatformTime::Seconds())
+	, bHasCompletedPrisonTime(false)
 #if WITH_MLSDK
 	, Tracker(ML_INVALID_HANDLE)
 #endif //WITH_MLSDK
@@ -199,6 +215,70 @@ EMagicLeapPassableWorldError FMagicLeapARPinImplModule::GetClosestARPin(const FV
 	return ErrorReturn;
 }
 
+EMagicLeapPassableWorldError FMagicLeapARPinImplModule::QueryARPins(const FMagicLeapARPinQuery& Query, TArray<FGuid>& Pins)
+{
+	EMagicLeapPassableWorldError ErrorReturn = CreateTracker();
+	if (ErrorReturn == EMagicLeapPassableWorldError::None)
+	{
+		ErrorReturn = EMagicLeapPassableWorldError::Unavailable;
+		const IMagicLeapPlugin& MLPlugin = IMagicLeapPlugin::Get();
+		if (MLPlugin.IsMagicLeapHMDValid())
+		{
+			const float WorldToMetersScale = MLPlugin.GetWorldToMetersScale();
+			const FTransform WorldToTracking = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(nullptr).Inverse();
+#if WITH_MLSDK
+			MLPersistentCoordinateFramesQueryFilter QueryFilter;
+			MLPersistentCoordinateQueryFilterInit(&QueryFilter);
+
+			int32 NumAvailable = 0;
+			GetNumAvailableARPins(NumAvailable);
+
+			int32 MaxResults = Query.MaxResults;
+			// clamp to max possible to avoid unnecesarry data allocation when we do CoordinateFrames.AddZeroed(NumRequested)
+			if (MaxResults < 0 || MaxResults > NumAvailable)
+			{
+				MaxResults = NumAvailable;
+			}
+
+
+			QueryFilter.target_point = MagicLeap::ToMLVector(WorldToTracking.TransformPosition(Query.TargetPoint), WorldToMetersScale);
+			QueryFilter.max_results = MaxResults;
+			QueryFilter.radius_m = Query.Radius / WorldToMetersScale;
+			QueryFilter.sorted = Query.bSorted;
+			QueryFilter.types_mask = 0;
+			for (const EMagicLeapARPinType PinType : Query.Types)
+			{
+				#define MASK_CASE(x) case EMagicLeapARPinType::x: { QueryFilter.types_mask |= MLPersistentCoordinateFrameType_##x; break; }
+				switch (PinType)
+				{
+					MASK_CASE(SingleUserSingleSession)
+					MASK_CASE(SingleUserMultiSession)
+					MASK_CASE(MultiUserMultiSession)
+				}
+			}
+
+			Pins.Reset(MaxResults);
+			Pins.AddZeroed(MaxResults);
+			MLCoordinateFrameUID* ArrayDataPointer = reinterpret_cast<MLCoordinateFrameUID*>(Pins.GetData());
+			uint32 FoundNum = 0;
+
+			MLResult Result = MLPersistentCoordinateFrameQuery(Tracker, &QueryFilter, ArrayDataPointer, &FoundNum);
+			UE_CLOG(MLResult_Ok != Result, LogMagicLeapARPinImpl, Error, TEXT("MLPersistentCoordinateFrameQuery failed with error %s"), UTF8_TO_TCHAR(MLPersistentCoordinateFrameGetResultString(Result)));
+			ErrorReturn = MLToUnrealPassableWorldError(Result);
+
+			// shrink the array
+			Pins.RemoveAt(FoundNum, MaxResults - FoundNum, false);
+			if (FoundNum == 0 && ErrorReturn == EMagicLeapPassableWorldError::None)
+			{
+				ErrorReturn = EMagicLeapPassableWorldError::Unavailable;
+			}
+#endif // WITH_MLSDK
+		}
+	}
+
+	return ErrorReturn;
+}
+
 bool FMagicLeapARPinImplModule::GetARPinPositionAndOrientation_TrackingSpace(const FGuid& PinID, FVector& Position, FRotator& Orientation, bool& PinFoundInEnvironment)
 {
 	const IMagicLeapPlugin& MLPlugin = IMagicLeapPlugin::Get();
@@ -264,6 +344,7 @@ EMagicLeapPassableWorldError FMagicLeapARPinImplModule::GetARPinState(const FGui
 				State.RotationError = OutState.rotation_err_deg;
 				State.TranslationError = OutState.translation_err_m * MLPlugin.GetWorldToMetersScale();
 				State.ValidRadius = OutState.valid_radius_m * MLPlugin.GetWorldToMetersScale();
+				State.PinType = MLToUnrealPinType(OutState.type);
 			}
 			else
 			{
@@ -306,13 +387,27 @@ void FMagicLeapARPinImplModule::OnAppTick()
 	{
 		bCreateTracker = false;
 
+		// temporary, until we figure out why requesting PCF state too soon on app launch causes all PCFs to be cleared in ml_perception_client
+		if (!bHasCompletedPrisonTime)
+		{
+			const double CurrentPrisonTime = FPlatformTime::Seconds();
+			if (CurrentPrisonTime - PreviousTime > kPrisonSentenceSec)
+			{
+				bHasCompletedPrisonTime = true;
+			}
+			else
+			{
+				return;
+			}
+		}
+
 		const double CurrentTime = FPlatformTime::Seconds();
 		if (Settings != nullptr && (CurrentTime - PreviousTime) > static_cast<double>(Settings->UpdateCheckFrequency))
 		{
 			PreviousTime = CurrentTime;
 
 			TArray<FGuid> CurrentARPins;
-			if (GetAvailableARPins(-1, CurrentARPins) == EMagicLeapPassableWorldError::None)
+			if (QueryARPins(GlobalFilter, CurrentARPins) == EMagicLeapPassableWorldError::None)
 			{
 				for (const auto& PinAndState : OldPinsAndStates)
 				{
@@ -349,6 +444,7 @@ void FMagicLeapARPinImplModule::OnAppTick()
 								|| IsDeltaGreaterThanThreshold(OldPinState->ValidRadius, NewPinState.ValidRadius, DeltaThresholds.ValidRadius)
 								|| IsDeltaGreaterThanThreshold(OldPinState->RotationError, NewPinState.RotationError, DeltaThresholds.RotationError)
 								|| IsDeltaGreaterThanThreshold(OldPinState->TranslationError, NewPinState.TranslationError, DeltaThresholds.TranslationError)
+								|| OldPinState->PinType != NewPinState.PinType
 							)
 							{
 								PendingUpdated.Add(PinID);

@@ -103,18 +103,18 @@ public:
 
 	void SetupHeightfieldsForScene(const FScene& Scene, FRHICommandListImmediate& RHICmdList);
 
-	void ClearShadowing(const FViewInfo& View, FRHICommandListImmediate& RHICmdList, const FLightSceneInfo& LightSceneInfo) const;
+	void ClearShadowing(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FLightSceneInfo& LightSceneInfo) const;
 
-	void ComputeShadowMapShadowing(const FViewInfo& View, FRHICommandListImmediate& RHICmdList, const FProjectedShadowInfo* ProjectedShadowInfo) const;
+	void ComputeShadowMapShadowing(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FProjectedShadowInfo* ProjectedShadowInfo) const;
 
 	void ComputeRayTracedShadowing(
+		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View, 
-		FRHICommandListImmediate& RHICmdList, 
 		const FProjectedShadowInfo* ProjectedShadowInfo, 
 		FLightTileIntersectionResources* TileIntersectionResources,
 		class FDistanceFieldObjectBufferResource& CulledObjectBuffers) const;
 
-	void ComputeLighting(const FViewInfo& View, FRHICommandListImmediate& RHICmdList, const FLightSceneInfo& LightSceneInfo) const;
+	void ComputeLighting(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FLightSceneInfo& LightSceneInfo) const;
 
 	void ComputeOcclusionForScreenGrid(
 		const FViewInfo& View, 

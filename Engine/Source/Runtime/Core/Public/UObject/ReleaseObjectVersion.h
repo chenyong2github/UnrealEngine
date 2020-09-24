@@ -103,7 +103,14 @@ struct CORE_API FReleaseObjectVersion
 		FFieldPathOwnerSerialization,
 
 		// New MeshDescription format
+		// This was inadvertently added in UE5. The proper version for it is in in UE5MainStreamObjectVersion
 		MeshDescriptionNewFormat,
+
+		// Pin types include a flag that propagates the 'CPF_UObjectWrapper' flag to generated properties
+		PinTypeIncludesUObjectWrapperFlag,
+
+		// Added Weight member to FMeshToMeshVertData
+		WeightFMeshToMeshVertData,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

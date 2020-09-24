@@ -96,12 +96,13 @@ void VelocityFlattenMain(
 		}
 	}
 
-	float2 Velocity = VelocityTexture[ PixelPos + DepthOffset ].xy;
+	float4 EncodedVelocity = VelocityTexture[ PixelPos + DepthOffset ];
 	float Depth = DepthTexture[ PixelPos + DepthOffset ].x;
 
-	if (Velocity.x > 0.0)
+	float2 Velocity;
+	if (EncodedVelocity.x > 0.0)
 	{
-		Velocity = DecodeVelocityFromTexture(float3(Velocity, 0.0)).xy;
+		Velocity = DecodeVelocityFromTexture(EncodedVelocity).xy;
 	}
 	else
 	{
@@ -127,14 +128,14 @@ void VelocityFlattenMain(
 	bool bInsideViewport = all(PixelPos.xy < Velocity_ViewportMax);
 
 	// 11:11:10  (VelocityLength, VelocityAngle, Depth)
-	float2 EncodedVelocity;
-	EncodedVelocity.x = VelocityPolar.x;
-	EncodedVelocity.y = VelocityPolar.y * (0.5 / PI) + 0.5;
+	float2 EncodedPolarVelocity;
+	EncodedPolarVelocity.x = VelocityPolar.x;
+	EncodedPolarVelocity.y = VelocityPolar.y * (0.5 / PI) + 0.5;
 
 	BRANCH
 	if (bInsideViewport)
 	{
-		OutVelocityFlatTexture[PixelPos] = float3(EncodedVelocity, ConvertFromDeviceZ(Depth)).xyzz;
+		OutVelocityFlatTexture[PixelPos] = float3(EncodedPolarVelocity, ConvertFromDeviceZ(Depth)).xyzz;
 	}
 
 	// Limit velocity

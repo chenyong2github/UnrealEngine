@@ -9,28 +9,7 @@ IMPLEMENT_MODULE( FAssetRegistryModule, AssetRegistry );
 
 void FAssetRegistryModule::StartupModule()
 {
+	// Create the UAssetRegistryImpl default object early, so it is ready for the caller of LoadModuleChecked<FAssetRegistryModule>().Get()
 	LLM_SCOPE(ELLMTag::AssetRegistry);
-
-	AssetRegistry = MakeWeakObjectPtr(const_cast<UAssetRegistryImpl*>(GetDefault<UAssetRegistryImpl>()));
-	ConsoleCommands = new FAssetRegistryConsoleCommands(*this);
+	GetDefault<UAssetRegistryImpl>();
 }
-
-
-void FAssetRegistryModule::ShutdownModule()
-{
-	AssetRegistry = nullptr;
-
-	if ( ConsoleCommands )
-	{
-		delete ConsoleCommands;
-		ConsoleCommands = NULL;
-	}
-}
-
-IAssetRegistry& FAssetRegistryModule::Get() const
-{
-	UAssetRegistryImpl* AssetRegistryPtr = AssetRegistry.Get();
-	check(AssetRegistryPtr);
-	return *AssetRegistryPtr;
-}
-

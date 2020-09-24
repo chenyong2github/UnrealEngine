@@ -3,28 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "RemoteSessionTypes.h"
 
 class IRemoteSessionChannel;
 
-enum class ERemoteSessionChannelMode
-{
-	Read,
-	Write
-};
-
-DECLARE_DELEGATE_ThreeParams(FOnRemoteSessionChannelCreated, TWeakPtr<IRemoteSessionChannel> /*Instance*/, const FString& /*Type*/, ERemoteSessionChannelMode /*Mode*/);
-
-struct REMOTESESSION_API FRemoteSessionChannelInfo
-{
-	FString Type;
-	ERemoteSessionChannelMode Mode;
-	FOnRemoteSessionChannelCreated OnCreated;
-
-	FRemoteSessionChannelInfo() = default;
-	FRemoteSessionChannelInfo(FString InType, ERemoteSessionChannelMode InMode, FOnRemoteSessionChannelCreated InOnCreated)
-		: Type(InType), Mode(InMode), OnCreated(InOnCreated)
-	{ }
-};
 
 class REMOTESESSION_API IRemoteSessionRole
 {
@@ -38,6 +20,9 @@ public:
 	virtual FString GetErrorMessage() const = 0;
 
 	virtual TSharedPtr<IRemoteSessionChannel> GetChannel(const TCHAR* Type) = 0;
+
+	virtual void RegisterChannelChangeDelegate(FOnRemoteSessionChannelChange InDelegate) = 0;
+	virtual void UnregisterChannelChangeDelegate(void* UserObject) = 0;
 
 	template<class T>
 	TSharedPtr<T> GetChannel()

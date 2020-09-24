@@ -77,6 +77,7 @@ public:
 	}
 
 	virtual void SetContentWidget(const TSharedRef<SWidget>& InContentWidget) override;
+	virtual void ResetContentWidget () override;
 
 	virtual bool IsEmpty( ) const override;
 	virtual bool IsInteractive( ) const override;

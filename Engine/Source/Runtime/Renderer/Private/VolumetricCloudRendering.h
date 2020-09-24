@@ -39,18 +39,23 @@ BEGIN_SHADER_PARAMETER_STRUCT(FVolumetricCloudCommonShaderParameters, )
 	SHADER_PARAMETER_ARRAY(FLinearColor, AtmosphericLightCloudScatteredLuminanceScale, [2])
 	SHADER_PARAMETER_ARRAY(float,	CloudShadowmapFarDepthKm, [2])
 	SHADER_PARAMETER_ARRAY(float,	CloudShadowmapStrength, [2])
+	SHADER_PARAMETER_ARRAY(float,	CloudShadowmapDepthBias, [2])
 	SHADER_PARAMETER_ARRAY(float,	CloudShadowmapSampleClount, [2])
 	SHADER_PARAMETER_ARRAY(FVector4,CloudShadowmapSizeInvSize, [2])
+	SHADER_PARAMETER_ARRAY(FVector4,CloudShadowmapTracingSizeInvSize, [2])
 	SHADER_PARAMETER_ARRAY(FMatrix,	CloudShadowmapWorldToLightClipMatrix, [2])
 	SHADER_PARAMETER_ARRAY(FMatrix,	CloudShadowmapWorldToLightClipMatrixInv, [2])
-	SHADER_PARAMETER_ARRAY(FVector,	CloudShadowmapLight0Dir, [2])
+	SHADER_PARAMETER_ARRAY(FVector4, CloudShadowmapTracingPixelScaleOffset, [2])
+	SHADER_PARAMETER_ARRAY(FVector, CloudShadowmapLightDir, [2])
+	SHADER_PARAMETER_ARRAY(FVector, CloudShadowmapLightPos, [2])
+	SHADER_PARAMETER_ARRAY(FVector, CloudShadowmapLightAnchorPos, [2])	// Snapped position on the planet the shadow map rotate around 
 	SHADER_PARAMETER(float,		CloudSkyAOFarDepthKm)
 	SHADER_PARAMETER(float,		CloudSkyAOStrength)
 	SHADER_PARAMETER(float,		CloudSkyAOSampleClount)
 	SHADER_PARAMETER(FVector4,	CloudSkyAOSizeInvSize)
 	SHADER_PARAMETER(FMatrix,	CloudSkyAOWorldToLightClipMatrix)
 	SHADER_PARAMETER(FMatrix,	CloudSkyAOWorldToLightClipMatrixInv)
-	SHADER_PARAMETER(FVector,	CloudSkyAOTrace0Dir)
+	SHADER_PARAMETER(FVector,	CloudSkyAOTraceDir)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVolumetricCloudCommonGlobalShaderParameters, )
@@ -112,7 +117,7 @@ struct FCloudRenderContext
 	bool bSkipAtmosphericLightShadowmap;
 	bool bSecondAtmosphereLightEnabled;
 
-	FUintVector4 SubSetCoordToFullResolutionScaleBias;
+	FUintVector4 TracingCoordToZbufferCoordScaleBias;
 	uint32 NoiseFrameIndexModPattern;
 
 	FVolumeShadowingShaderParametersGlobal0 LightShadowShaderParams0;

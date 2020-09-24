@@ -106,7 +106,7 @@ void SRigStackItem::Construct(const FArguments& InArgs, const TSharedRef<STableV
 
 FText SRigStackItem::GetIndexText() const
 {
-	FString IndexStr = FString::FromInt(WeakStackEntry.Pin()->EntryIndex + 1) + TEXT(".");
+	FString IndexStr = FString::FromInt(WeakStackEntry.Pin()->EntryIndex) + TEXT(".");
 	return FText::FromString(IndexStr);
 }
 
@@ -127,9 +127,12 @@ SControlRigStackView::~SControlRigStackView()
 		{
 			ControlRigEditor.Pin()->GetControlRigBlueprint()->OnModified().Remove(OnModelModified);
 		}
-		if (OnPreviewControlRigUpdatedHandle.IsValid())
+		if (OnControlRigInitializedHandle.IsValid())
 		{
 			ControlRigEditor.Pin()->ControlRig->OnInitialized_AnyThread().Remove(OnControlRigInitializedHandle);
+		}
+		if (OnPreviewControlRigUpdatedHandle.IsValid())
+		{
 			ControlRigEditor.Pin()->OnPreviewControlRigUpdated().Remove(OnPreviewControlRigUpdatedHandle);
 		}
 	}
@@ -267,96 +270,25 @@ void SControlRigStackView::HandleGetChildrenForTree(TSharedPtr<FRigStackEntry> I
 void SControlRigStackView::RefreshTreeView(URigVM* InVM)
 {
 	Operators.Reset();
-
+	
 	if (InVM)
 	{
+		TArray<FString> Labels = InVM->DumpByteCodeAsTextArray(TArray<int32>(), false);
 		FRigVMInstructionArray Instructions = InVM->GetInstructions();
+		ensure(Labels.Num() == Instructions.Num());
 
-		for (int32 InstructionIndex=0; InstructionIndex < Instructions.Num(); InstructionIndex++)
+		for (int32 InstructionIndex = 0; InstructionIndex < Labels.Num(); InstructionIndex++)
 		{
-			FRigVMInstruction Instruction = Instructions[InstructionIndex];
-			switch (Instruction.OpCode)
+			const FRigVMInstruction& Instruction = Instructions[InstructionIndex];
+			FString Label = Labels[InstructionIndex];
+			FString Left, Right;
+			if (Label.Split(TEXT("("), &Left, &Right))
 			{
-				case ERigVMOpCode::Execute_0_Operands:
-				case ERigVMOpCode::Execute_1_Operands:
-				case ERigVMOpCode::Execute_2_Operands:
-				case ERigVMOpCode::Execute_3_Operands:
-				case ERigVMOpCode::Execute_4_Operands:
-				case ERigVMOpCode::Execute_5_Operands:
-				case ERigVMOpCode::Execute_6_Operands:
-				case ERigVMOpCode::Execute_7_Operands:
-				case ERigVMOpCode::Execute_8_Operands:
-				case ERigVMOpCode::Execute_9_Operands:
-				case ERigVMOpCode::Execute_10_Operands:
-				case ERigVMOpCode::Execute_11_Operands:
-				case ERigVMOpCode::Execute_12_Operands:
-				case ERigVMOpCode::Execute_13_Operands:
-				case ERigVMOpCode::Execute_14_Operands:
-				case ERigVMOpCode::Execute_15_Operands:
-				case ERigVMOpCode::Execute_16_Operands:
-				case ERigVMOpCode::Execute_17_Operands:
-				case ERigVMOpCode::Execute_18_Operands:
-				case ERigVMOpCode::Execute_19_Operands:
-				case ERigVMOpCode::Execute_20_Operands:
-				case ERigVMOpCode::Execute_21_Operands:
-				case ERigVMOpCode::Execute_22_Operands:
-				case ERigVMOpCode::Execute_23_Operands:
-				case ERigVMOpCode::Execute_24_Operands:
-				case ERigVMOpCode::Execute_25_Operands:
-				case ERigVMOpCode::Execute_26_Operands:
-				case ERigVMOpCode::Execute_27_Operands:
-				case ERigVMOpCode::Execute_28_Operands:
-				case ERigVMOpCode::Execute_29_Operands:
-				case ERigVMOpCode::Execute_30_Operands:
-				case ERigVMOpCode::Execute_31_Operands:
-				case ERigVMOpCode::Execute_32_Operands:
-				case ERigVMOpCode::Execute_33_Operands:
-				case ERigVMOpCode::Execute_34_Operands:
-				case ERigVMOpCode::Execute_35_Operands:
-				case ERigVMOpCode::Execute_36_Operands:
-				case ERigVMOpCode::Execute_37_Operands:
-				case ERigVMOpCode::Execute_38_Operands:
-				case ERigVMOpCode::Execute_39_Operands:
-				case ERigVMOpCode::Execute_40_Operands:
-				case ERigVMOpCode::Execute_41_Operands:
-				case ERigVMOpCode::Execute_42_Operands:
-				case ERigVMOpCode::Execute_43_Operands:
-				case ERigVMOpCode::Execute_44_Operands:
-				case ERigVMOpCode::Execute_45_Operands:
-				case ERigVMOpCode::Execute_46_Operands:
-				case ERigVMOpCode::Execute_47_Operands:
-				case ERigVMOpCode::Execute_48_Operands:
-				case ERigVMOpCode::Execute_49_Operands:
-				case ERigVMOpCode::Execute_50_Operands:
-				case ERigVMOpCode::Execute_51_Operands:
-				case ERigVMOpCode::Execute_52_Operands:
-				case ERigVMOpCode::Execute_53_Operands:
-				case ERigVMOpCode::Execute_54_Operands:
-				case ERigVMOpCode::Execute_55_Operands:
-				case ERigVMOpCode::Execute_56_Operands:
-				case ERigVMOpCode::Execute_57_Operands:
-				case ERigVMOpCode::Execute_58_Operands:
-				case ERigVMOpCode::Execute_59_Operands:
-				case ERigVMOpCode::Execute_60_Operands:
-				case ERigVMOpCode::Execute_61_Operands:
-				case ERigVMOpCode::Execute_62_Operands:
-				case ERigVMOpCode::Execute_63_Operands:
-				case ERigVMOpCode::Execute_64_Operands:
-				{
-					FRigVMExecuteOp Op = InVM->ByteCode.GetOpAt<FRigVMExecuteOp>(Instruction);
-					FString OperatorLabel = InVM->GetRigVMFunctionName(Op.FunctionIndex);
-					TSharedPtr<FRigStackEntry> NewEntry = MakeShared<FRigStackEntry>(Operators.Num(), ERigStackEntry::Operator, InstructionIndex, Instruction.OpCode, OperatorLabel);
-					Operators.Add(NewEntry);
-					break;
-				}
-				default:
-				{
-					FString OperatorLabel = StaticEnum<ERigVMOpCode>()->GetNameStringByValue((int64)Instruction.OpCode);
-					TSharedPtr<FRigStackEntry> NewEntry = MakeShared<FRigStackEntry>(Operators.Num(), ERigStackEntry::Operator, InstructionIndex, Instruction.OpCode, OperatorLabel);
-					Operators.Add(NewEntry);
-					break;
-				}
+				Label = FString::Printf(TEXT("%s(...)"), *Left);
 			}
+			
+			TSharedPtr<FRigStackEntry> NewEntry = MakeShared<FRigStackEntry>(Operators.Num(), ERigStackEntry::Operator, InstructionIndex, Instruction.OpCode, Label);
+			Operators.Add(NewEntry);
 		}
 
 		// fill the children from the log
@@ -476,7 +408,7 @@ void SControlRigStackView::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 	}
 }
 
-void SControlRigStackView::HandleControlRigInitializedEvent(UControlRig* InControlRig, const EControlRigState InState)
+void SControlRigStackView::HandleControlRigInitializedEvent(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName)
 {
 	TGuardValue<bool> SuspendControllerSelection(bSuspendControllerSelection, true);
 

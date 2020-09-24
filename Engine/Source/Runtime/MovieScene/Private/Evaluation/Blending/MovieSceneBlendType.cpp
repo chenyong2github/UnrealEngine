@@ -19,7 +19,8 @@ FMovieSceneBlendTypeField::FMovieSceneBlendTypeField()
 FMovieSceneBlendTypeField FMovieSceneBlendTypeField::All()
 {
 	FMovieSceneBlendTypeField New;
-	New.Add(EMovieSceneBlendType::Absolute, EMovieSceneBlendType::Additive, EMovieSceneBlendType::Relative);
+	New.Add(EMovieSceneBlendType::Absolute, EMovieSceneBlendType::Additive, EMovieSceneBlendType::Relative,
+			EMovieSceneBlendType::AdditiveFromBase);
 	return New;
 }
 
@@ -69,7 +70,8 @@ int32 FMovieSceneBlendTypeField::Num() const
 	return
 		(Contains(EMovieSceneBlendType::Absolute) ? 1 : 0) +
 		(Contains(EMovieSceneBlendType::Relative) ? 1 : 0) +
-		(Contains(EMovieSceneBlendType::Additive) ? 1 : 0);
+		(Contains(EMovieSceneBlendType::Additive) ? 1 : 0) +
+		(Contains(EMovieSceneBlendType::AdditiveFromBase) ? 1 : 0);
 }
 
 void FMovieSceneBlendTypeFieldIterator::IterateToNext()
@@ -98,6 +100,6 @@ FMovieSceneBlendTypeFieldIterator end(const FMovieSceneBlendTypeField& InField)
 {
 	FMovieSceneBlendTypeFieldIterator It;
 	It.Field = InField;
-	It.Offset = 3;
+	It.Offset = FMovieSceneBlendTypeFieldIterator::MaxValidOffset() + 1;
 	return It;
 }

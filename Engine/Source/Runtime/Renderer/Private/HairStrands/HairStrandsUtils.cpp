@@ -34,11 +34,24 @@ static FAutoConsoleVariableRef CVarDeepShadowAABBScale(TEXT("r.HairStrands.DeepS
 static int32 GHairVisibilityRectOptimEnable = 0;
 static FAutoConsoleVariableRef CVarHairVisibilityRectOptimEnable(TEXT("r.HairStrands.RectLightingOptim"), GHairVisibilityRectOptimEnable, TEXT("Hair Visibility use projected view rect to light only relevant pixels"));
 
+static int32 GHairStrandsComposeAfterTranslucency = 1;
+static FAutoConsoleVariableRef CVarHairStrandsComposeAfterTranslucency(TEXT("r.HairStrands.ComposeAfterTranslucency"), GHairStrandsComposeAfterTranslucency, TEXT("Compose hair rendering with scene color after the translucency pass if true. Otherwise compose hair defor the translucent objects are rendered."));
+
 static float GHairDualScatteringRoughnessOverride = 0;
 static FAutoConsoleVariableRef CVarHairDualScatteringRoughnessOverride(TEXT("r.HairStrands.DualScatteringRoughness"), GHairDualScatteringRoughnessOverride, TEXT("Override all roughness for the dual scattering evaluation. 0 means no override. Default:0"));
 float GetHairDualScatteringRoughnessOverride()
 {
 	return GHairDualScatteringRoughnessOverride;
+}
+
+bool IsHairStrandsComposeAfterTranslucency()
+{
+	return GHairStrandsComposeAfterTranslucency > 0;
+}
+
+float GetDeepShadowAABBScale()
+{
+	return FMath::Max(0.f, GDeepShadowAABBScale);
 }
 
 float SampleCountToSubPixelSize(uint32 SamplePerPixelCount)
@@ -47,6 +60,7 @@ float SampleCountToSubPixelSize(uint32 SamplePerPixelCount)
 	switch (SamplePerPixelCount)
 	{
 	case 1: Scale = 1.f; break;
+	case 2: Scale = 8.f / 16.f; break;
 	case 4: Scale = 8.f / 16.f; break;
 	case 8: Scale = 4.f / 16.f; break;
 	}
@@ -120,7 +134,7 @@ void ComputeWorldToLightClip(
 	const FIntPoint& ShadowResolution)
 {
 	const FSphere SphereBound = PrimitivesBounds.GetSphere();
-	const float SphereRadius = SphereBound.W * GDeepShadowAABBScale;
+	const float SphereRadius = SphereBound.W * GetDeepShadowAABBScale();
 	const FVector LightPosition = LightProxy.GetPosition();
 	const float MinZ = FMath::Max(0.1f, FVector::Distance(LightPosition, SphereBound.Center)) - SphereBound.W;
 	const float MaxZ = FMath::Max(0.2f, FVector::Distance(LightPosition, SphereBound.Center)) + SphereBound.W;
@@ -284,38 +298,4 @@ uint32 PackHairRenderInfoBits(
 	BitField |= bIsOrtho ? 0x1 : 0;
 	BitField |= bIsGPUDriven ? 0x2 : 0;
 	return BitField;
-}
-FHairStrandsProjectionMeshData ExtractMeshData(FSkeletalMeshRenderData* RenderData)
-{
-	FHairStrandsProjectionMeshData MeshData;
-	uint32 LODIndex = 0;
-	for (FSkeletalMeshLODRenderData& LODRenderData : RenderData->LODRenderData)
-	{
-		FHairStrandsProjectionMeshData::LOD& LOD = MeshData.LODs.AddDefaulted_GetRef();
-		uint32 SectionIndex = 0;
-		for (FSkelMeshRenderSection& InSection : LODRenderData.RenderSections)
-		{
-			// Pick between float and halt
-			const uint32 UVSizeInByte = (LODRenderData.StaticVertexBuffers.StaticMeshVertexBuffer.GetUseFullPrecisionUVs() ? 4 : 2) * 2;
-
-			FHairStrandsProjectionMeshData::Section& OutSection = LOD.Sections.AddDefaulted_GetRef();
-			OutSection.UVsChannelOffset = 0; // Assume that we needs to pair meshes based on UVs 0
-			OutSection.UVsChannelCount = LODRenderData.StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
-			OutSection.UVsBuffer = LODRenderData.StaticVertexBuffers.StaticMeshVertexBuffer.GetTexCoordsSRV();
-			OutSection.PositionBuffer = LODRenderData.StaticVertexBuffers.PositionVertexBuffer.GetSRV();
-			OutSection.IndexBuffer = LODRenderData.MultiSizeIndexContainer.GetIndexBuffer()->GetSRV();
-			OutSection.TotalVertexCount = LODRenderData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices();
-			OutSection.TotalIndexCount = LODRenderData.MultiSizeIndexContainer.GetIndexBuffer()->Num();
-			OutSection.NumPrimitives = InSection.NumTriangles;
-			OutSection.VertexBaseIndex = InSection.BaseVertexIndex;
-			OutSection.IndexBaseIndex = InSection.BaseIndex;
-			OutSection.SectionIndex = SectionIndex;
-			OutSection.LODIndex = LODIndex;
-
-			++SectionIndex;
-		}
-		++LODIndex;
-	}
-
-	return MeshData;
 }

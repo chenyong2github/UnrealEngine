@@ -18,10 +18,10 @@ class Error;
 // this is for the protocol, not the data, bump if FShaderCompilerInput or ProcessInputFromArchive changes.
 const int32 ShaderCompileWorkerInputVersion = 13;
 // this is for the protocol, not the data, bump if FShaderCompilerOutput or WriteToOutputArchive changes.
-const int32 ShaderCompileWorkerOutputVersion = 5;
-// this is for the protocol, not the data, bump if FShaderCompilerOutput or WriteToOutputArchive changes.
+const int32 ShaderCompileWorkerOutputVersion = 6;
+// this is for the protocol, not the data.
 const int32 ShaderCompileWorkerSingleJobHeader = 'S';
-// this is for the protocol, not the data, bump if FShaderCompilerOutput or WriteToOutputArchive changes.
+// this is for the protocol, not the data.
 const int32 ShaderCompileWorkerPipelineJobHeader = 'P';
 
 /** Returns true if debug information should be kept for a given platform. */
@@ -50,11 +50,9 @@ enum ECompilerFlags
 	CFLAG_ZeroInitialise,
 	// Explicitly enforce bounds checking on shader platforms that may omit it.
 	CFLAG_BoundsChecking,
-	// Compile ES2 with ES3.1 features
-	CFLAG_FeatureLevelES31,
 	// Force removing unused interpolators for platforms that can opt out
 	CFLAG_ForceRemoveUnusedInterpolators,
-	// Set default precision to highp in a pixel shader (default is mediump on ES2 platforms)
+	// Set default precision to highp in a pixel shader (default is mediump on ES platforms)
 	CFLAG_UseFullPrecisionInPS,
 	// Hint that it is a vertex to geometry shader
 	CFLAG_VertexToGeometryShader,
@@ -79,13 +77,13 @@ enum ECompilerFlags
 	CFLAG_SkipOptimizationsDXC,
 	// Typed UAV loads are disallowed by default, as Windows 7 D3D 11.0 does not support them; this flag allows a shader to use them.
 	CFLAG_AllowTypedUAVLoads,
-	// Enable support of C-style data types for platforms that can. Check for PLATFORM_SUPPORTS_REAL_TYPES.
-	CFLAG_AllowRealTypes,
 	// Prefer shader execution in wave32 mode if possible.
 	CFLAG_Wave32,
 
 	// Force using the SC rewrite functionality before calling DXC on D3D12
 	CFLAG_D3D12ForceShaderConductorRewrite,
+	// Enable support of C-style data types for platforms that can. Check for PLATFORM_SUPPORTS_REAL_TYPES.
+	CFLAG_AllowRealTypes,
 
 	CFLAG_Max,
 };
@@ -320,6 +318,23 @@ struct FShaderCompilerInput
 
 		return Ar;
 	}
+
+	bool IsUsingTessellation() const
+	{
+		switch (Target.GetFrequency())
+		{
+		case SF_Vertex:
+		{
+			const FString* UsingTessellationDefine = Environment.GetDefinitions().Find(TEXT("USING_TESSELLATION"));
+			return (UsingTessellationDefine != nullptr && *UsingTessellationDefine == TEXT("1"));
+		}
+		case SF_Hull:
+		case SF_Domain:
+			return true;
+		default:
+			return false;
+		}
+	}
 };
 
 /** A shader compiler error or warning. */
@@ -341,6 +356,22 @@ struct FShaderCompilerError
 		, HighlightedLineMarker(TEXT(""))
 	{}
 
+	FShaderCompilerError(FString&& InStrippedErrorMessage)
+		: ErrorVirtualFilePath(TEXT(""))
+		, ErrorLineString(TEXT(""))
+		, StrippedErrorMessage(MoveTemp(InStrippedErrorMessage))
+		, HighlightedLine(TEXT(""))
+		, HighlightedLineMarker(TEXT(""))
+	{}
+
+	FShaderCompilerError(FString&& InStrippedErrorMessage, FString&& InHighlightedLine, FString&& InHighlightedLineMarker)
+		: ErrorVirtualFilePath(TEXT(""))
+		, ErrorLineString(TEXT(""))
+		, StrippedErrorMessage(MoveTemp(InStrippedErrorMessage))
+		, HighlightedLine(MoveTemp(InHighlightedLine))
+		, HighlightedLineMarker(MoveTemp(InHighlightedLineMarker))
+	{}
+
 	FString ErrorVirtualFilePath;
 	FString ErrorLineString;
 	FString StrippedErrorMessage;
@@ -360,7 +391,7 @@ struct FShaderCompilerError
 		}
 	}
 
-	/** Returns the error message with source file and source line (if present), as well as a line marker seperated with a LINE_TERMINATOR. */
+	/** Returns the error message with source file and source line (if present), as well as a line marker separated with a LINE_TERMINATOR. */
 	FString GetErrorStringWithLineMarker() const
 	{
 		if (HasLineMarker())
@@ -395,7 +426,10 @@ struct FShaderCompilerError
 	}
 };
 
-/** The output of the shader compiler. */
+/**
+ *	The output of the shader compiler.
+ *	Bump ShaderCompileWorkerOutputVersion if FShaderCompilerOutput changes
+ */
 struct FShaderCompilerOutput
 {
 	FShaderCompilerOutput()
@@ -405,6 +439,7 @@ struct FShaderCompilerOutput
 	,	bSucceeded(false)
 	,	bFailedRemovingUnused(false)
 	,	bSupportsQueryingUsedAttributes(false)
+	,	bUsedHLSLccCompiler(false)
 	{
 	}
 
@@ -420,6 +455,7 @@ struct FShaderCompilerOutput
 	bool bSucceeded;
 	bool bFailedRemovingUnused;
 	bool bSupportsQueryingUsedAttributes;
+	bool bUsedHLSLccCompiler;
 	TArray<FString> UsedAttributes;
 
 	FString OptionalFinalShaderSource;

@@ -265,6 +265,10 @@ int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 								GetObjectsWithOuter(Pkg, ObjectsInPackage, true);
 								for (int32 IndexPackage = 0; IndexPackage < ObjectsInPackage.Num(); IndexPackage++)
 								{
+									for (auto Platform : Platforms)
+									{
+										ObjectsInPackage[IndexPackage]->IsCachedCookedPlatformDataLoaded(Platform);
+									}
 									ObjectsInPackage[IndexPackage]->WillNeverCacheCookedPlatformDataAgain();
 									ObjectsInPackage[IndexPackage]->ClearAllCachedCookedPlatformData();
 								}

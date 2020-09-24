@@ -42,11 +42,9 @@
 #import <StoreKit/StoreKit.h>
 #import <DeviceCheck/DeviceCheck.h>
 
-#if __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
 #import <UserNotifications/UserNotifications.h>
 #include "Async/TaskGraphInterfaces.h"
 #include "Misc/CoreDelegates.h"
-#endif
 
 #if !defined ENABLE_ADVERTISING_IDENTIFIER
 	#define ENABLE_ADVERTISING_IDENTIFIER 0
@@ -1197,7 +1195,6 @@ void FIOSPlatformMisc::RegisterForRemoteNotifications()
 
     dispatch_async(dispatch_get_main_queue(), ^{
 #if !PLATFORM_TVOS && NOTIFICATIONS_ENABLED
-#if __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
 		UNUserNotificationCenter *Center = [UNUserNotificationCenter currentNotificationCenter];
 		[Center requestAuthorizationWithOptions:(UNAuthorizationOptionBadge | UNAuthorizationOptionSound | UNAuthorizationOptionAlert)
 							  completionHandler:^(BOOL granted, NSError * _Nullable error) {
@@ -1215,24 +1212,6 @@ void FIOSPlatformMisc::RegisterForRemoteNotifications()
 									  
 								  }
 							  }];
-#else
-	UIApplication* application = [UIApplication sharedApplication];
-	if ([application respondsToSelector : @selector(registerUserNotificationSettings:)])
-	{
-#ifdef __IPHONE_8_0
-		UIUserNotificationSettings * settings = [UIUserNotificationSettings settingsForTypes : (UIUserNotificationTypeBadge | UIUserNotificationTypeSound | UIUserNotificationTypeAlert) categories:nil];
-		[application registerUserNotificationSettings : settings];
-#endif
-	}
-	else
-	{
-        
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_8_0
-		UIRemoteNotificationType myTypes = UIRemoteNotificationTypeBadge | UIRemoteNotificationTypeAlert | UIRemoteNotificationTypeSound;
-		[application registerForRemoteNotificationTypes : myTypes];
-#endif
-	}
-#endif
 #endif
     });
 }
@@ -1245,17 +1224,8 @@ bool FIOSPlatformMisc::IsRegisteredForRemoteNotifications()
 bool FIOSPlatformMisc::IsAllowedRemoteNotifications()
 {
 #if !PLATFORM_TVOS && NOTIFICATIONS_ENABLED
-#if __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
 	checkf(false, TEXT("For min iOS version >= 10 use FIOSLocalNotificationService::CheckAllowedNotifications."));
 	return true;
-#elif defined(__IPHONE_8_0)
-	UIApplication* application = [UIApplication sharedApplication];
-	UIUserNotificationSettings* Settings = [application currentUserNotificationSettings];
-	int32 AllowedTypes = (int32)[Settings types];
-	return AllowedTypes != UIUserNotificationTypeNone;
-#else
-	return true;
-#endif
 #else
 	return true;
 #endif
@@ -1372,6 +1342,13 @@ FString FIOSPlatformMisc::GetProjectVersion()
 	NSDictionary* infoDictionary = [[NSBundle mainBundle] infoDictionary];
 	FString localVersionString = FString(infoDictionary[@"CFBundleShortVersionString"]);
 	return localVersionString;
+}
+
+FString FIOSPlatformMisc::GetBuildNumber()
+{
+	NSDictionary* infoDictionary = [[NSBundle mainBundle]infoDictionary];
+	FString BuildString = FString(infoDictionary[@"CFBundleVersion"]);
+	return BuildString;
 }
 
 bool FIOSPlatformMisc::RequestDeviceCheckToken(TFunction<void(const TArray<uint8>&)> QuerySucceededFunc, TFunction<void(const FString&, const FString&)> QueryFailedFunc)

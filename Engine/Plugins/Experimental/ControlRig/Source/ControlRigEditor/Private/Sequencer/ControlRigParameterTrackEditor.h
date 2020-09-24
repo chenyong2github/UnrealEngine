@@ -13,10 +13,14 @@
 #include "Sequencer/MovieSceneControlRigParameterTrack.h"
 #include "KeyframeTrackEditor.h"
 #include "Sections/MovieScene3DTransformSection.h"
+#include "AcquiredResources.h"
+#include "MovieSceneToolHelpers.h"
 
 struct FAssetData;
 class FMenuBuilder;
 class USkeleton;
+class UMovieSceneControlRigParameterSection;
+class UFKControlRig;
 
 /**
  * Tools for animation tracks
@@ -46,6 +50,7 @@ public:
 
 	// ISequencerTrackEditor interface
 	virtual void OnRelease() override;
+	virtual void BuildObjectBindingContextMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass) override;
 	virtual void BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass) override;
 	virtual TSharedRef<ISequencerSection> MakeSectionInterface(UMovieSceneSection& SectionObject, UMovieSceneTrack& Track, FGuid ObjectBinding) override;
 	virtual bool SupportsType(TSubclassOf<UMovieSceneTrack> Type) const override;
@@ -54,45 +59,83 @@ public:
 	virtual void OnAddTransformKeysForSelectedObjects(EMovieSceneTransformChannel Channel);
 	virtual bool HasTransformKeyOverridePriority() const override;
 	virtual void ObjectImplicitlyAdded(UObject* InObject)  override;
+	virtual void BuildTrackContextMenu(FMenuBuilder& MenuBuilder, UMovieSceneTrack* InTrack) override;
 
 private:
 
 	void AddControlRigSubMenu(FMenuBuilder& MenuBuilder, TArray<FGuid> ObjectBindings, UMovieSceneTrack* Track);
 
-	/** Control Rig Picked */
-	void AddControlRig(UClass* InClass, UObject* BoundObject, FGuid ObjectBinding, USkeleton* Skeleton);
+	void ToggleFilterAssetBySkeleton();
+	bool IsToggleFilterAssetBySkeleton();
 
+	/** Control Rig Picked */
+	void AddControlRig(UClass* InClass, UObject* BoundActor, FGuid ObjectBinding);
+	void AddControlRig(UClass* InClass, UObject* BoundActor, FGuid ObjectBinding, UControlRig* InExistingControlRig);
+	void AddControlRigFromComponent(FGuid InGuid);
+	void AddFKControlRig(TArray<FGuid> ObjectBindings);
+	
 	/** Delegate for Selection Changed Event */
 	void OnSelectionChanged(TArray<UMovieSceneTrack*> InTracks);
 
 	/** Delegate for MovieScene Changing so we can see if our track got deleted*/
 	void OnSequencerDataChanged(EMovieSceneDataChangeType DataChangeType);
 
+	/** Delegate for when track immediately changes, so we need to do an interaction edit for things like fk/ik*/
+	void OnPreRefreshImmediate();
+
 	/** Delegate for Curve Selection Changed Event */
 	void OnCurveDisplayChanged(FCurveModel* InCurveModel, bool bDisplayed);
 
-	/** Control Rig Delegates*/
-	void HandleControlModified(IControlRigManipulatable* Subject, const FRigControl& Control, EControlRigSetKey InSetKey);
-	void HandleControlSelected(IControlRigManipulatable* Subject, const FRigControl& Control, bool bSelected);
+	/** Actor Added Delegate*/
+	void HandleActorAdded(AActor* Actor, FGuid TargetObjectGuid);
+	/** Add Control Rig Tracks For Skelmesh Components*/
+	void AddTrackForComponent(USceneComponent* Component);
 
+	/** Control Rig Delegates*/
+	void HandleControlModified(UControlRig* Subject, const FRigControl& Control, const FRigControlModifiedContext& Context);
+	void HandleControlSelected(UControlRig* Subject, const FRigControl& Control, bool bSelected);
+	void HandleOnInitialized(UControlRig* Subject, const EControlRigState InState, const FName& InEventName);
 	/** Post Edit Delegates */
 	void OnPropagateObjectChanges(UObject* InChangedObject);
 
 	/** Handle Creattion for SkelMeshComp or Actor Owner, either may have a binding*/
 	FMovieSceneTrackEditor::FFindOrCreateHandleResult FindOrCreateHandleToSceneCompOrOwner(USceneComponent* InComp);
+	
+	/** Import FBX*/
+	void ImportFBX(UMovieSceneControlRigParameterTrack* InTrack, UMovieSceneControlRigParameterSection* InSection, 
+		TArray<FFBXNodeAndChannels>* NodeAndChannels);
+
+	/** Select Bones to Animate on FK Rig*/
+	void SelectFKBonesToAnimate(UFKControlRig* FKControlRig);
+
+	/** Toggle FK Control Rig*/
+	void ToggleFKControlRig(UMovieSceneControlRigParameterTrack* Track, UFKControlRig* FKControlRig);
+
+	/** Convert to FK Control Rig*/
+	void ConvertToFKControlRig(FGuid ObjectBinding, UObject* BoundObject, USkeletalMeshComponent* SkelMeshComp, USkeleton* Skeleton);
+
+	/** Bake To Control Rig Sub Menu*/
+	void BakeToControlRigSubMenu(FMenuBuilder& MenuBuilder, FGuid ObjectBinding, UObject* BoundObject, USkeletalMeshComponent* SkelMeshComp,USkeleton* Skeleton);
+	
+	/** Bake To Control Rig Sub Menu*/
+	void BakeToControlRig(UClass* InClass, FGuid ObjectBinding,UObject* BoundObject, USkeletalMeshComponent* SkelMeshComp, USkeleton* Skeleton);
+
 
 private:
 
 	/** Command Bindings added by the Transform Track Editor to Sequencer and curve editor. */
 	TSharedPtr<FUICommandList> CommandBindings;
+
+	FAcquiredResources AcquiredResources;
+
 public:
 
-	void AddControlKeys(USceneComponent *InSceneComp, IControlRigManipulatable* Manip, FName PropertyName, FName ParameterName, EMovieSceneTransformChannel ChannelsToKey, ESequencerKeyMode KeyMode);
-	void GetControlRigKeys(IControlRigManipulatable* Manip, FName ParameterName, EMovieSceneTransformChannel ChannelsToKey, FGeneratedTrackKeys& OutGeneratedKeys);
+	void AddControlKeys(USceneComponent *InSceneComp, UControlRig* InControlRig, FName PropertyName, FName ParameterName, EMovieSceneTransformChannel ChannelsToKey, ESequencerKeyMode KeyMode, float InLocalTime);
+	void GetControlRigKeys(UControlRig* InControlRig, FName ParameterName, EMovieSceneTransformChannel ChannelsToKey, FGeneratedTrackKeys& OutGeneratedKeys);
 	FKeyPropertyResult AddKeysToControlRig(
-		USceneComponent *InSceneComp, IControlRigManipulatable* Manip, FFrameNumber KeyTime, FGeneratedTrackKeys& GeneratedKeys,
+		USceneComponent *InSceneComp, UControlRig* InControlRig, FFrameNumber KeyTime, FGeneratedTrackKeys& GeneratedKeys,
 		ESequencerKeyMode KeyMode, TSubclassOf<UMovieSceneTrack> TrackClass, FName ControlRigName, FName RigControlName);
-	FKeyPropertyResult AddKeysToControlRigHandle(USceneComponent *InSceneComp, IControlRigManipulatable* Manip,
+	FKeyPropertyResult AddKeysToControlRigHandle(USceneComponent *InSceneComp, UControlRig* InControlRig,
 		FGuid ObjectHandle, FFrameNumber KeyTime, FGeneratedTrackKeys& GeneratedKeys,
 		ESequencerKeyMode KeyMode, TSubclassOf<UMovieSceneTrack> TrackClass, FName ControlRigName, FName RigControlName);
 	/**
@@ -105,25 +148,26 @@ public:
 	 * @param InOutGeneratedTrackKeys The Keys we need to modify. We change these values.
 	 * @param Weight The weight we need to modify the values by.
 	 */
-	bool ModifyOurGeneratedKeysByCurrentAndWeight(UObject* Object, IControlRigManipulatable* Manip, FName RigControlName, UMovieSceneTrack *Track, UMovieSceneSection* SectionToKey, FFrameNumber Time, FGeneratedTrackKeys& InOutGeneratedTotalKeys, float Weight) const;
+	bool ModifyOurGeneratedKeysByCurrentAndWeight(UObject* Object, UControlRig* InControlRig, FName RigControlName, UMovieSceneTrack *Track, UMovieSceneSection* SectionToKey, FFrameNumber Time, FGeneratedTrackKeys& InOutGeneratedTotalKeys, float Weight) const;
 
-	/*
-	bool ShouldFilterAsset(const FAssetData& AssetData);
 
-	void OnControlRigAssetSelected(const FAssetData& AssetData, TArray<FGuid> ObjectBindings, USkeleton* Skeleton);
-
-	void OnControlRigAssetEnterPressed(const TArray<FAssetData>& AssetData, TArray<FGuid> ObjectBindings,  USkeleton* Skeleton);
-	*/
 private:
 	FDelegateHandle SelectionChangedHandle;
 	FDelegateHandle SequencerChangedHandle;
 	FDelegateHandle CurveChangedHandle;
+	FDelegateHandle OnPreRefreshImmediateHandle;
+	FDelegateHandle OnActorAddedToSequencerHandle;
 
 private:
 
 	/** Guard to stop infinite loops when handling control selections*/
 	bool bIsDoingSelection;
 
+	/** Second Selection Guard to handle fact that Sequencer updates Selection on next Clip*/
+	bool bWeSetSequencerSelection;
+
+	/** Whether or not we should check Skeleton when filtering*/
+	bool bFilterAssetBySkeleton;
 };
 
 
@@ -152,6 +196,18 @@ public:
 	virtual bool RequestDeleteKeyArea(const TArray<FName>& KeyAreaNamePath) override;
 
 protected:
+	/** Add Sub Menu */
+	void AddAnimationSubMenuForFK(FMenuBuilder& MenuBuilder, FGuid ObjectBinding, USkeleton* Skeleton, UMovieSceneControlRigParameterSection* Section);
+
+	/** Animation sub menu filter function */
+	bool ShouldFilterAssetForFK(const FAssetData& AssetData);
+
+	/** Animation asset selected */
+	void OnAnimationAssetSelectedForFK(const FAssetData& AssetData,FGuid ObjectBinding, UMovieSceneControlRigParameterSection* Section);
+
+	/** Animation asset enter pressed */
+	void OnAnimationAssetEnterPressedForFK(const TArray<FAssetData>& AssetData, FGuid ObjectBinding, UMovieSceneControlRigParameterSection* Section);
+
 
 	/** The sequencer which is controlling this section. */
 	TWeakPtr<ISequencer> WeakSequencer;

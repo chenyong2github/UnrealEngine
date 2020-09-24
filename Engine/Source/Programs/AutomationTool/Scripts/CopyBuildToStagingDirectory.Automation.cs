@@ -1337,36 +1337,17 @@ public partial class Project : CommandUtils
 	/// <returns>True if the suffix should be staged, false if not, null if unknown</returns>
 	static Nullable<bool> ShouldStageConfigSuffix(DeploymentContext SC, FileReference ConfigFile, string InvariantSuffix)
 	{
-		switch (InvariantSuffix)
+		if (SC.IniSuffixWhitelist != null && SC.IniSuffixWhitelist.Contains(InvariantSuffix))
 		{
-			case ".ini":
-			case "compat.ini":
-			case "deviceprofiles.ini":
-			case "engine.ini":
-			case "enginechunkoverrides.ini":
-			case "game.ini":
-			case "gameplaytags.ini":
-			case "gameusersettings.ini":
-			case "hardware.ini":
-			case "input.ini":
-			case "scalability.ini":
-			case "runtimeoptions.ini":
-			case "installbundle.ini":
-				return true;
-			case "crypto.ini":
-			case "editor.ini":
-			case "editorgameagnostic.ini":
-			case "editorkeybindings.ini":
-			case "editorlayout.ini":
-			case "editorperprojectusersettings.ini":
-			case "editorsettings.ini":
-			case "editorusersettings.ini":
-			case "lightmass.ini":
-			case "pakfilerules.ini":
-				return false;
-			default:
-				return null;
+			return true;
 		}
+
+		if (SC.IniSuffixBlacklist != null && SC.IniSuffixBlacklist.Contains(InvariantSuffix))
+		{
+			return false;
+		}
+
+		return null;
 	}
 
 	public static StagedFileReference ApplyDirectoryRemap(DeploymentContext SC, StagedFileReference InputFile)
@@ -2399,11 +2380,13 @@ public partial class Project : CommandUtils
 							ContainerPatchSourcePath = CombinePaths(Params.GetBasedOnReleaseVersionPath(SC, Params.Client), ContainerWildcard);
 						}
 						bool bGenerateDiffPatch = bShouldGeneratePatch && !ShouldSkipGeneratingPatch(PlatformGameConfig, PakParams.PakName);
+						bool bCompressContainers = PakParams.bCompressed || Params.AdditionalIoStoreOptions.Contains("-compressed");
+
 						IoStoreCommands.Add(GetIoStoreCommandArguments(
 							IoStoreResponseFile,
 							PakParams.PakName,
 							OutputLocation,
-							PakParams.bCompressed,
+							bCompressContainers,
 							CryptoSettings,
 							PakParams.EncryptionKeyGuid,
 							ContainerPatchSourcePath,
@@ -3908,6 +3891,11 @@ public partial class Project : CommandUtils
 				Params.HasDLCName
 				);
 			LogDeploymentContext(SC);
+
+			if (Params.PreModifyDeploymentContextCallback != null)
+			{
+				Params.PreModifyDeploymentContextCallback(Params, SC);
+			}
 
 			// If we're a derived platform make sure we're at the end, otherwise make sure we're at the front
 

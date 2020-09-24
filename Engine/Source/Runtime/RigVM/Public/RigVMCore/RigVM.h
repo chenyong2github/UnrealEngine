@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "RigVMMemory.h"
+#include "RigVMExecuteContext.h"
 #include "RigVMRegistry.h"
 #include "RigVMByteCode.h"
 #include "RigVMStatistics.h"
@@ -128,18 +129,21 @@ public:
 	void Empty();
 
 	// resets the container and clones the input VM
-	void CopyFrom(URigVM* InVM, bool bDeferCopy = false);
+	void CopyFrom(URigVM* InVM, bool bDeferCopy = false, bool bReferenceLiteralMemory = false, bool bReferenceByteCode = false);
+
+	// Initializes all execute ops and their memory.
+	bool Initialize(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void*> AdditionalArguments);
 
 	// Executes the VM.
 	// You can optionally provide external memory to the execution
 	// and provide optional additional operands.
-	bool Execute(FRigVMMemoryContainerPtrArray Memory, TArrayView<void*> AdditionalArguments);
+	bool Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void*> AdditionalArguments, const FName& InEntryName = NAME_None);
 
 	// Executes the VM.
 	// You can optionally provide external memory to the execution
 	// and provide optional additional operands.
 	UFUNCTION(BlueprintCallable, Category = RigVM)
-	bool Execute();
+	bool Execute(const FName& InEntryName = NAME_None);
 
 	// Add a function for execute instructions to this VM.
 	// Execute instructions can then refer to the function by index.
@@ -152,18 +156,48 @@ public:
 
 	// The default mutable work memory
 	UPROPERTY()
-	FRigVMMemoryContainer WorkMemory;
+	FRigVMMemoryContainer WorkMemoryStorage;
+	FRigVMMemoryContainer* WorkMemoryPtr;
+	FORCEINLINE FRigVMMemoryContainer& GetWorkMemory() { return *WorkMemoryPtr; }
+	FORCEINLINE const FRigVMMemoryContainer& GetWorkMemory() const { return *WorkMemoryPtr; }
 
 	// The default const literal memory
 	UPROPERTY()
-	FRigVMMemoryContainer LiteralMemory;
+	FRigVMMemoryContainer LiteralMemoryStorage;
+	FRigVMMemoryContainer* LiteralMemoryPtr;
+	FORCEINLINE FRigVMMemoryContainer& GetLiteralMemory() { return *LiteralMemoryPtr; }
+	FORCEINLINE const FRigVMMemoryContainer& GetLiteralMemory() const { return *LiteralMemoryPtr; }
 
 	// The byte code of the VM
 	UPROPERTY()
-	FRigVMByteCode ByteCode;
+	FRigVMByteCode ByteCodeStorage;
+	FRigVMByteCode* ByteCodePtr;
+	FORCEINLINE FRigVMByteCode& GetByteCode() { return *ByteCodePtr; }
+	FORCEINLINE const FRigVMByteCode& GetByteCode() const { return *ByteCodePtr; }
 
 	// Returns the instructions of the VM
 	const FRigVMInstructionArray& GetInstructions();
+
+	// Returns true if this VM's bytecode contains a given entry
+	bool ContainsEntry(const FName& InEntryName) const;
+
+	// Returns a list of all valid entry names for this VM's bytecode
+	TArray<FName> GetEntryNames() const;
+
+#if WITH_EDITOR
+	// Returns true if the given instruction has been visited during the last run
+	FORCEINLINE bool WasInstructionVisitedDuringLastRun(int32 InIndex) const
+	{
+		if (InstructionVisitedDuringLastRun.IsValidIndex(InIndex))
+		{
+			return InstructionVisitedDuringLastRun[InIndex];
+		}
+		return false;
+	}
+
+	// Returns the order of all instructions during the last run
+	FORCEINLINE const TArray<int32> GetInstructionVisitOrder() const { return InstructionVisitOrder; }
+#endif
 
 	// Returns the parameters of the VM
 	const TArray<FRigVMParameter>& GetParameters() const;
@@ -173,41 +207,48 @@ public:
 
 	// Adds a new input / output to the VM
 	template<class T>
-	FORCEINLINE FRigVMParameter AddPlainParameter(ERigVMParameterType InParameterType, const FName& InName, const FString& InCPPType, const TArray<T>& DefaultValue)
+	FORCEINLINE_DEBUGGABLE FRigVMParameter AddParameter(ERigVMParameterType InParameterType, const FName& InName, const FString& InCPPType, const TArray<T>& DefaultValues)
 	{
-		return AddPlainParameter(InParameterType, InName, InCPPType, (uint8*)DefaultValue.GetData(), sizeof(T), DefaultValue.Num());
+		ensure(InParameterType != ERigVMParameterType::Invalid);
+		ensure(DefaultValues.Num() > 0);
+
+		int32 RegisterIndex = INDEX_NONE;
+		
+		if (DefaultValues.Num() == 1)
+		{
+			RegisterIndex = WorkMemoryPtr->Add<T>(WorkMemoryPtr->SupportsNames() ? InName : NAME_None, DefaultValues[0], 1);
+		}
+		else
+	{
+			RegisterIndex = WorkMemoryPtr->AddFixedArray<T>(WorkMemoryPtr->SupportsNames() ? InName : NAME_None, FRigVMFixedArray<T>(DefaultValues), 1);
+	}
+
+		if (RegisterIndex == INDEX_NONE)
+	{
+			return FRigVMParameter();
+	}
+
+		FName Name = WorkMemoryPtr->SupportsNames() ? GetWorkMemory()[RegisterIndex].Name : InName;
+
+		FRigVMParameter Parameter(InParameterType, Name, RegisterIndex, InCPPType, GetWorkMemory().GetScriptStruct(RegisterIndex));
+		ParametersNameMap.Add(Parameter.Name, Parameters.Add(Parameter));
+		return Parameter;
+
 	}
 
 	// Adds a new input / output to the VM
 	template<class T>
-	FORCEINLINE FRigVMParameter AddStructParameter(ERigVMParameterType InParameterType, const FName& InName, const TArray<T>& DefaultValue)
-	{
-		UScriptStruct* ScriptStruct = T::StaticStruct();
-		return AddStructParameter(InParameterType, InName, ScriptStruct, (uint8*)DefaultValue.GetData(), DefaultValue.Num());
-	}
-
-	// Adds a new input / output to the VM
-	template<class T>
-	FORCEINLINE FRigVMParameter AddPlainParameter(ERigVMParameterType InParameterType, const FName& InName, const FString& InCPPType, T DefaultValue)
+	FORCEINLINE_DEBUGGABLE FRigVMParameter AddParameter(ERigVMParameterType InParameterType, const FName& InName, const FString& InCPPType, const T& DefaultValue)
 	{
 		TArray<T> DefaultValues;
 		DefaultValues.Add(DefaultValue);
-		return AddPlainParameter<T>(InParameterType, InName, InCPPType, DefaultValues);
-	}
-
-	// Adds a new input / output to the VM
-	template<class T>
-	FORCEINLINE FRigVMParameter AddStructParameter(ERigVMParameterType InParameterType, const FName& InName, const T& DefaultValue)
-	{
-		TArray<T> DefaultValues;
-		DefaultValues.Add(DefaultValue);
-		return AddStructParameter<T>(InParameterType, InName, DefaultValues);
+		return AddParameter(InParameterType, InName, InCPPType, DefaultValues);
 	}
 
 	// Retrieve the array size of the parameter
 	int32 GetParameterArraySize(const FRigVMParameter& InParameter) const
 	{
-		return (int32)WorkMemory[InParameter.GetRegisterIndex()].GetTotalElementCount();
+		return (int32)GetWorkMemory()[InParameter.GetRegisterIndex()].GetTotalElementCount();
 	}
 
 	// Retrieve the array size of the parameter
@@ -230,7 +271,7 @@ public:
 	{
 		if (InParameter.GetRegisterIndex() != INDEX_NONE)
 		{
-			return WorkMemory.GetArray<T>(InParameter.GetRegisterIndex())[InArrayIndex];
+			return WorkMemoryPtr->GetFixedArray<T>(InParameter.GetRegisterIndex())[InArrayIndex];
 		}
 		return DefaultValue;
 	}
@@ -256,7 +297,7 @@ public:
 	{
 		if (InParameter.GetRegisterIndex() != INDEX_NONE)
 		{
-			WorkMemory.GetArray<T>(InParameter.GetRegisterIndex())[InArrayIndex] = InNewValue;
+			WorkMemoryPtr->GetFixedArray<T>(InParameter.GetRegisterIndex())[InArrayIndex] = InNewValue;
 		}
 	}
 
@@ -383,70 +424,94 @@ public:
 		SetParameterValue<FTransform>(InParameterName, InValue, InArrayIndex);
 	}
 
+	// Returns the external variables of the VM
+	void ClearExternalVariables() { ExternalVariables.Reset(); }
+
+	// Returns the external variables of the VM
+	const TArray<FRigVMExternalVariable>& GetExternalVariables() const { return ExternalVariables; }
+
+	// Returns an external variable given it's name
+	FRigVMExternalVariable GetExternalVariableByName(const FName& InExternalVariableName);
+
+	// Adds a new external / unowned variable to the VM
+	FORCEINLINE_DEBUGGABLE FRigVMOperand AddExternalVariable(const FRigVMExternalVariable& InExternalVariable)
+	{
+		int32 VariableIndex = ExternalVariables.Add(InExternalVariable);
+		return FRigVMOperand(ERigVMMemoryType::External, VariableIndex);
+	}
+
+	// Adds a new external / unowned variable to the VM
+	template<typename T>
+	FORCEINLINE_DEBUGGABLE FRigVMOperand AddExternalVariable(const FName& InExternalVariableName, T& InValue)
+	{
+		return AddExternalVariable(FRigVMExternalVariable::Make(InExternalVariableName, InValue));
+	}
+
+	// Adds a new external / unowned variable to the VM
+	template<typename T>
+	FORCEINLINE_DEBUGGABLE FRigVMOperand AddExternalVariable(const FName& InExternalVariableName, TArray<T>& InValue)
+	{
+		return AddExternalVariable(FRigVMExternalVariable::Make(InExternalVariableName, InValue));
+	}
+
 	void SetRegisterValueFromString(const FRigVMOperand& InOperand, const FString& InCPPType, const UObject* InCPPTypeObject, const TArray<FString>& InDefaultValues);
 
 	// returns the statistics information
 	FRigVMStatistics GetStatistics() const
 	{
 		FRigVMStatistics Statistics;
-		Statistics.LiteralMemory = LiteralMemory.GetStatistics();
-		Statistics.WorkMemory = WorkMemory.GetStatistics();
-		Statistics.ByteCode = ByteCode.GetStatistics();
-		Statistics.BytesForCaching = FirstPointerForInstruction.GetAllocatedSize() + CachedMemoryPointers.GetAllocatedSize();
+		Statistics.LiteralMemory = LiteralMemoryPtr->GetStatistics();
+		Statistics.WorkMemory = WorkMemoryPtr->GetStatistics();
+		Statistics.ByteCode = ByteCodePtr->GetStatistics();
+		Statistics.BytesForCaching = FirstHandleForInstruction.GetAllocatedSize() + CachedMemoryHandles.GetAllocatedSize();
 		Statistics.BytesForCDO =
 			Statistics.LiteralMemory.TotalBytes +
 			Statistics.WorkMemory.TotalBytes +
 			Statistics.ByteCode.DataBytes +
 			Statistics.BytesForCaching;
-		// Statistics.BytesPerInstance = Statistics.WorkMemory.DataBytes;
-		Statistics.BytesPerInstance = Statistics.BytesForCDO;
+		Statistics.BytesPerInstance =
+			Statistics.WorkMemory.TotalBytes +
+			Statistics.BytesForCaching;
+
 		return Statistics;
 	}
 
+
+#if WITH_EDITOR
+
+	// returns the instructions as text
+	TArray<FString> DumpByteCodeAsTextArray(const TArray<int32>& InInstructionOrder = TArray<int32>(), bool bIncludeLineNumbers = true);
+	FString DumpByteCodeAsText(const TArray<int32>& InInstructionOrder = TArray<int32>(), bool bIncludeLineNumbers = true);
+
+#endif
+
 private:
-
-	FORCEINLINE FRigVMParameter AddPlainParameter(ERigVMParameterType InParameterType, const FName& InName, const FString& InCPPType, const uint8* InPtr, uint16 InSize, int32 InArraySize)
-	{
-		ensure(InParameterType != ERigVMParameterType::Invalid);
-		int32 ArraySize = InArraySize <= 0 ? 1 : InArraySize;
-		int32 RegisterIndex = WorkMemory.AddPlainArray(WorkMemory.SupportsNames() ? InName : NAME_None, InSize, ArraySize, InPtr, 1);
-		if (RegisterIndex == INDEX_NONE)
-		{
-			return FRigVMParameter();
-		}
-		FName Name = WorkMemory.SupportsNames() ? WorkMemory[RegisterIndex].Name : InName;
-		FRigVMParameter Parameter(InParameterType, Name, RegisterIndex, InCPPType, nullptr);
-		ParametersNameMap.Add(Parameter.Name, Parameters.Add(Parameter));
-		return Parameter;
-	}
-
-	FORCEINLINE FRigVMParameter AddStructParameter(ERigVMParameterType InParameterType, const FName& InName, UScriptStruct* InScriptStruct, const uint8* InPtr, int32 InArraySize)
-	{
-		ensure(InParameterType != ERigVMParameterType::Invalid);
-		int32 ArraySize = InArraySize <= 0 ? 1 : InArraySize;
-		int32 RegisterIndex = WorkMemory.AddStructArray(WorkMemory.SupportsNames() ? InName : NAME_None, InScriptStruct, ArraySize, InPtr, 1);
-		if (RegisterIndex == INDEX_NONE)
-		{
-			return FRigVMParameter();
-		}
-		FName Name = WorkMemory.SupportsNames() ? WorkMemory[RegisterIndex].Name : InName;
-		FRigVMParameter Parameter(InParameterType, Name, RegisterIndex, InScriptStruct->GetName(), InScriptStruct);
-		ParametersNameMap.Add(Parameter.Name, Parameters.Add(Parameter));
-		return Parameter;
-	}
 
 	void ResolveFunctionsIfRequired();
 	void RefreshInstructionsIfRequired();
 	void InvalidateCachedMemory();
-	void CacheMemoryPointersIfRequired(FRigVMMemoryContainerPtrArray InMemory);
+	void CacheMemoryHandlesIfRequired(FRigVMMemoryContainerPtrArray InMemory);
+
+#if WITH_EDITOR
+	FString GetOperandLabel(const FRigVMOperand& InOperand) const;
+#endif
 
 	UPROPERTY(transient)
 	FRigVMInstructionArray Instructions;
 
-	UPROPERTY()
-	TArray<FName> FunctionNames;
+	UPROPERTY(transient)
+	FRigVMExecuteContext Context;
 
-	TArray<FRigVMFunctionPtr> Functions;
+	UPROPERTY()
+	TArray<FName> FunctionNamesStorage;
+	TArray<FName>* FunctionNamesPtr;
+	FORCEINLINE TArray<FName>& GetFunctionNames() { return *FunctionNamesPtr; }
+	FORCEINLINE const TArray<FName>& GetFunctionNames() const { return *FunctionNamesPtr; }
+
+	TArray<FRigVMFunctionPtr> FunctionsStorage;
+	TArray<FRigVMFunctionPtr>* FunctionsPtr;
+	FORCEINLINE TArray<FRigVMFunctionPtr>& GetFunctions() { return *FunctionsPtr; }
+	FORCEINLINE const TArray<FRigVMFunctionPtr>& GetFunctions() const { return *FunctionsPtr; }
 
 	UPROPERTY()
 	TArray<FRigVMParameter> Parameters;
@@ -454,9 +519,17 @@ private:
 	UPROPERTY()
 	TMap<FName, int32> ParametersNameMap;
 
-	TArray<uint32> FirstPointerForInstruction;
-	TArray<void*> CachedMemoryPointers;
+	TArray<uint32> FirstHandleForInstruction;
+	TArray<FRigVMMemoryHandle> CachedMemoryHandles;
 	TArray<FRigVMMemoryContainer*> CachedMemory;
+	TArray<FRigVMExternalVariable> ExternalVariables;
+
+#if WITH_EDITOR
+	TArray<bool> InstructionVisitedDuringLastRun;
+	TArray<int32> InstructionVisitOrder;
+#endif
+
+	void CacheSingleMemoryHandle(const FRigVMOperand& InArg, bool bForExecute = false);
 
 	int32 ExecutingThreadId;
 

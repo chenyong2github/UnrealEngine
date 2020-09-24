@@ -8,9 +8,9 @@
 
 #include "../Common.ush"
 #include "../FastMath.ush"
+#include "../SceneTextureParameters.ush"
 
 Texture2D<float> ClosestHZBTexture;
-Texture2D<float> SceneDepthTexture;
 float2 HZBBaseTexelSize;
 float4 HZBUVToScreenUVScaleBias;
 

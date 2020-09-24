@@ -357,7 +357,7 @@ EAppReturnType::Type OpenMessageDialog_Internal(EAppMsgType::Type InMessageType,
 		}
 		else
 		{
-			FDebug::DumpStackTraceToLog();
+			FDebug::DumpStackTraceToLog(ELogVerbosity::Error);
 		}
 	}
 
@@ -818,13 +818,14 @@ bool PromptUserForDirectory(FString& OutDirectory, const FString& Message, const
 	return bFolderSelected;
 }
 
-bool PromptUserIfExistingObject( const FString& Name, const FString& Package, const FString& Group, UPackage* &Pkg )
+bool PromptUserIfExistingObject(const FString& Name, const FString& Package, const FString& Group, UPackage*& Pkg)
+{
+	return PromptUserIfExistingObject(Name, Package, Pkg);
+}
+
+bool PromptUserIfExistingObject(const FString& Name, const FString& Package, UPackage* &Pkg)
 {
 	FString	QualifiedName = Package + TEXT(".");
-	if( Group.Len() > 0 )
-	{
-		QualifiedName += Group + TEXT(".");
-	}
 	QualifiedName += Name;
 
 	// Check for an existing object
@@ -852,11 +853,7 @@ bool PromptUserIfExistingObject( const FString& Name, const FString& Package, co
 				CollectGarbage( GARBAGE_COLLECTION_KEEPFLAGS );
 
 				// Old package will be GC'ed... create a new one here
-				Pkg = CreatePackage(NULL,*Package);
-				if( Group.Len() )
-				{
-					Pkg = CreatePackage(Pkg,*Group);
-				}
+				Pkg = CreatePackage(*Package);
 			}
 			else //failed to delete
 			{

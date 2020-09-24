@@ -359,13 +359,19 @@ int32 UConvertLevelsToExternalActorsCommandlet::Main(const FString& Params)
 		GetSubLevelsToConvert(MainLevel, LevelsToConvert, bRecursiveSubLevel);
 	}
 
+	bool bNeedsResaveSubLevels = false;
 	for(ULevel* Level : LevelsToConvert)
 	{
 		if (!Level->bContainsStableActorGUIDs)
 		{
+			bNeedsResaveSubLevels |= true;
 			UE_LOG(LogConvertLevelsToExternalActorsCommandlet, Error, TEXT("Unable to convert level '%s' with non-stable actor GUIDs. Resave the level before converting."), *Level->GetPackage()->GetName());
-			return 1;
 		}
+	}
+
+	if (bNeedsResaveSubLevels)
+	{
+		return 1;
 	}
 	
 	TArray<UPackage*> PackagesToSave;

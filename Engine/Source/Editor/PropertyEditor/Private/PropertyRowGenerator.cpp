@@ -3,6 +3,7 @@
 #include "PropertyRowGenerator.h"
 #include "PropertyNode.h"
 #include "ObjectPropertyNode.h"
+#include "StructurePropertyNode.h"
 #include "Classes/EditorStyleSettings.h"
 #include "DetailLayoutBuilderImpl.h"
 #include "CategoryPropertyNode.h"
@@ -13,6 +14,7 @@
 #include "PropertyHandleImpl.h"
 #include "IPropertyGenerationUtilities.h"
 #include "EditConditionParser.h"
+#include "UObject/StructOnScope.h"
 
 class FPropertyRowGeneratorUtilities : public IPropertyUtilities
 {
@@ -141,10 +143,7 @@ FPropertyRowGenerator::~FPropertyRowGenerator()
 
 void FPropertyRowGenerator::SetObjects(const TArray<UObject*>& InObjects)
 {
-	// We're setting objects not structs
-	const bool bHasStructRoots = false;
-
-	PreSetObject(InObjects.Num(), bHasStructRoots);
+	PreSetObject(InObjects.Num(), /*bHasStructRoots=*/false);
 	
 	bViewingClassDefaultObject = InObjects.Num() > 0 ? true : false;
 	
@@ -168,6 +167,16 @@ void FPropertyRowGenerator::SetObjects(const TArray<UObject*>& InObjects)
 			RootPropertyNodes[0]->AsObjectNode()->AddObject(Object);
 		}
 	}
+
+	PostSetObject();
+}
+
+void FPropertyRowGenerator::SetStructure(const TSharedPtr<FStructOnScope>& InStruct)
+{
+	PreSetObject(1, /*bHasStructRoots=*/true);
+
+	check(RootPropertyNodes.Num() == 1);
+	RootPropertyNodes[0]->AsStructureNode()->SetStructure(InStruct);
 
 	PostSetObject();
 }
@@ -335,11 +344,6 @@ void FPropertyRowGenerator::Tick(float DeltaTime)
 
 	bool bFullRefresh = ValidatePropertyNodes(RootPropertyNodes);
 
-	if (!bFullRefresh)
-	{
-	
-	}
-
 	for (FDetailLayoutData& LayoutData : DetailLayouts)
 	{
 		if (LayoutData.DetailLayout.IsValid())
@@ -364,14 +368,24 @@ void FPropertyRowGenerator::EnqueueDeferredAction(FSimpleDelegate DeferredAction
 	DeferredActions.Add(DeferredAction);
 }
 
+bool FPropertyRowGenerator::IsPropertyEditingEnabled() const
+{
+	if (!Args.bAllowEditingClassDefaultObjects)
+	{
+		return !bViewingClassDefaultObject;
+	}
+
+	return true;
+}
+
 void FPropertyRowGenerator::ForceRefresh()
 {
 	TArray<UObject*> NewObjectList;
+	TSharedPtr<FStructOnScope> StructData = nullptr;
 
 	for (const TSharedPtr<FComplexPropertyNode>& ComplexRootNode : RootPropertyNodes)
 	{
-		FObjectPropertyNode* RootNode = ComplexRootNode->AsObjectNode();
-		if (RootNode)
+		if (FObjectPropertyNode* RootNode = ComplexRootNode->AsObjectNode())
 		{
 			// Simply re-add the same existing objects to cause a refresh
 			for (TPropObjectIterator Itor(RootNode->ObjectIterator()); Itor; ++Itor)
@@ -383,9 +397,20 @@ void FPropertyRowGenerator::ForceRefresh()
 				}
 			}
 		}
+		else if (FStructurePropertyNode* StructRootNode = ComplexRootNode->AsStructureNode())
+		{
+			StructData = StructRootNode->GetStructData();
+		}
 	}
-
-	SetObjects(NewObjectList);
+	
+	if (StructData && StructData->IsValid())
+	{
+		SetStructure(StructData);
+	}
+	else
+	{
+		SetObjects(NewObjectList);
+	}
 }
 
 TSharedPtr<class FAssetThumbnailPool> FPropertyRowGenerator::GetThumbnailPool() const
@@ -399,10 +424,17 @@ void FPropertyRowGenerator::PreSetObject(int32 NumNewObjects, bool bHasStructRoo
 	for (TSharedPtr<FComplexPropertyNode>& RootNode : RootPropertyNodes)
 	{
 		RootNodesPendingKill.Add(RootNode);
-		FObjectPropertyNode* RootObjectNode = RootNode->AsObjectNode();
-		RootObjectNode->RemoveAllObjects();
-		RootObjectNode->ClearCachedReadAddresses(true);
-		RootObjectNode->ClearObjectPackageOverrides();
+		if (FObjectPropertyNode* RootObjectNode = RootNode->AsObjectNode())
+		{
+			RootObjectNode->RemoveAllObjects();
+			RootObjectNode->ClearObjectPackageOverrides();
+		}
+		else
+		{
+			FStructurePropertyNode* RootStructNode = RootNode->AsStructureNode();
+			RootStructNode->SetStructure(nullptr);
+		}
+		RootNode->ClearCachedReadAddresses(true);
 	}
 
 	RootPropertyNodes.Empty(NumNewObjects);
@@ -423,7 +455,7 @@ void FPropertyRowGenerator::PreSetObject(int32 NumNewObjects, bool bHasStructRoo
 	}
 	else
 	{
-		// todo structs
+		RootPropertyNodes.Add(MakeShared<FStructurePropertyNode>());
 	}
 
 }
@@ -436,7 +468,7 @@ void FPropertyRowGenerator::PostSetObject()
 	InitParams.ArrayOffset = 0;
 	InitParams.ArrayIndex = INDEX_NONE;
 	InitParams.bAllowChildren = true;
-	InitParams.bForceHiddenPropertyVisibility = FPropertySettings::Get().ShowHiddenProperties();
+	InitParams.bForceHiddenPropertyVisibility = FPropertySettings::Get().ShowHiddenProperties() || Args.bShouldShowHiddenProperties;
 	
 	switch (Args.DefaultsOnlyVisibility)
 	{
@@ -614,7 +646,7 @@ bool FPropertyRowGenerator::ValidatePropertyNodes(const FRootPropertyNodeList &P
 	for (const TSharedPtr<FComplexPropertyNode>& RootPropertyNode : RootPropertyNodes)
 	{
 		// Purge any objects that are marked pending kill from the object list
-		if (auto ObjectRoot = RootPropertyNode->AsObjectNode())
+		if (FObjectPropertyNode* ObjectRoot = RootPropertyNode->AsObjectNode())
 		{
 			ObjectRoot->PurgeKilledObjects();
 		}

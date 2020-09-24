@@ -15,6 +15,28 @@
 #include "GenericPlatform/GenericPlatformHttp.h"
 #include "Misc/ConfigCacheIni.h"
 
+const TCHAR* LexToString(const EWebSocketConnectionState State)
+{
+	switch (State)
+	{
+	case EWebSocketConnectionState::NotStarted:
+		return TEXT("NotStarted");
+	case EWebSocketConnectionState::Connecting:
+		return TEXT("Connecting");
+	case EWebSocketConnectionState::Connected:
+		return TEXT("Connected");
+	case EWebSocketConnectionState::FailedToConnect:
+		return TEXT("FailedToConnect");
+	case EWebSocketConnectionState::Disconnected:
+		return TEXT("Disconnected");
+	case EWebSocketConnectionState::Closed:
+		return TEXT("Closed");
+	}
+
+	checkNoEntry();
+	return TEXT("");
+}
+
 FWinHttpWebSocket::FWinHttpWebSocket(const FString& InUrl, const TArray<FString>& InProtocols, const TMap<FString, FString>& InUpgradeHeaders)
 	: Url(InUrl)
 	, Protocols(InProtocols)
@@ -42,10 +64,11 @@ FWinHttpWebSocket::~FWinHttpWebSocket()
 
 void FWinHttpWebSocket::Connect()
 {
-	if (State == EWebSocketConnectionState::Connecting &&
-		State != EWebSocketConnectionState::Connected)
+	if (State == EWebSocketConnectionState::Connecting ||
+		State == EWebSocketConnectionState::Connected)
 	{
 		// Already connecting/connected
+		UE_LOG(LogWebSockets, Verbose, TEXT("WinHttp WebSocket[%p]: Attempted to connect while in the %s state."), this, LexToString(State));
 		return;
 	}
 
@@ -78,17 +101,12 @@ void FWinHttpWebSocket::Connect()
 		return;
 	}
 
+	bSessionCreationInProgress = true;
 	Manager->QuerySessionForUrl(Url, FWinHttpQuerySessionComplete::CreateSP(AsShared(), &FWinHttpWebSocket::HandleSessionCreated));
 }
 
 void FWinHttpWebSocket::Close(const int32 Code, const FString& Reason)
 {
-	if (bCloseRequested)
-	{
-		// Already closing
-		return;
-	}
-
 	switch (State)
 	{
 		case EWebSocketConnectionState::NotStarted:
@@ -96,12 +114,20 @@ void FWinHttpWebSocket::Close(const int32 Code, const FString& Reason)
 		case EWebSocketConnectionState::Disconnected:
 		case EWebSocketConnectionState::Closed:
 		{
-			// Don't do anything
+			// Not connected, ignore close request
+			UE_LOG(LogWebSockets, Verbose, TEXT("WinHttp WebSocket[%p]: Closed socket while in %s state, ignoring"), this, LexToString(State));
 			return;
 		}
 		case EWebSocketConnectionState::Connecting:
 		case EWebSocketConnectionState::Connected:
 		{
+			if (bCloseRequested)
+			{
+				// Already closing
+				UE_LOG(LogWebSockets, Verbose, TEXT("WinHttp WebSocket[%p]: Call to close while another close was in progress."), this);
+				return;
+			}
+
 			bCloseRequested = true;
 
 			if (WebSocket.IsValid())
@@ -131,6 +157,7 @@ void FWinHttpWebSocket::Send(const FString& Data)
 {
 	if (!IsConnected())
 	{
+		UE_LOG(LogWebSockets, Warning, TEXT("WinHttp WebSocket[%p]: Failed to send message, we are not connected"), this);
 		return;
 	}
 
@@ -150,6 +177,7 @@ void FWinHttpWebSocket::Send(const void* Data, SIZE_T Size, bool bIsBinary)
 {
 	if (!IsConnected())
 	{
+		UE_LOG(LogWebSockets, Warning, TEXT("WinHttp WebSocket[%p]: Failed to send message, we are not connected"), this);
 		return;
 	}
 
@@ -191,6 +219,8 @@ FWinHttpWebSocket::FWebSocketMessageSentEvent& FWinHttpWebSocket::OnMessageSent(
 
 void FWinHttpWebSocket::HandleSessionCreated(FWinHttpSession* SessionPtr)
 {
+	bSessionCreationInProgress = false;
+
 	// If we have a close requested, that means there was a call to close before we even started our connection.
 	// We should just stop this connection and call the appropriate delegates
 	if (bCloseRequested)
@@ -255,14 +285,16 @@ void FWinHttpWebSocket::HandleCloseComplete(const EWebSocketConnectionState NewS
 		TEXT("NewState was unexpected value %d"), static_cast<int32>(NewState));
 
 	// If we have an async request (session creation) already pending for this WebSocket, wait until that finishes instead of closing now
-	if (bCloseRequested)
+	if (bSessionCreationInProgress)
 	{
+		UE_LOG(LogWebSockets, Warning, TEXT("WinHttp WebSocket[%p]: connection closed before while session creation in progress. Code=[%u] Reason=[%s]"), this, Code, *Reason);
 		return;
 	}
 
 	// Reset state now that we're closed
 	QueuedCloseCode.Reset();
 	QueuedCloseReason.Reset();
+	bCloseRequested = false;
 
 	// Shutdown our websocket if it's still around
 	if (WebSocket.IsValid())
@@ -289,16 +321,21 @@ void FWinHttpWebSocket::HandleCloseComplete(const EWebSocketConnectionState NewS
 		case EWebSocketConnectionState::Closed:
 		{
 			// We didn't actually have an active connection, so no need to do anything
+			UE_LOG(LogWebSockets, Verbose, TEXT("WinHttp WebSocket[%p]: Connection close occurred while in %s state, ignoring. Code=[%u] Reason=[%s]"), this, LexToString(PreviousState), Code, *Reason);
 			return;
 		}
 		case EWebSocketConnectionState::Connecting:
 		{
+			UE_LOG(LogWebSockets, Log, TEXT("WinHttp WebSocket[%p]: Connection error occurred while connecting. Code=[%u] Reason=[%s]"), this, Code, *Reason);
+
 			TSharedRef<FWinHttpWebSocket> KeepAlive = AsShared();
 			OnConnectionError().Broadcast(Reason);
 			return;
 		}
 		case EWebSocketConnectionState::Connected:
 		{
+			UE_LOG(LogWebSockets, Log, TEXT("WinHttp WebSocket[%p]: Connection closed. Code=[%u] Reason=[%s]"), this, Code, *Reason);
+
 			TSharedRef<FWinHttpWebSocket> KeepAlive = AsShared();
 			OnClosed().Broadcast(Code, Reason, NewState == EWebSocketConnectionState::Closed);
 			return;
@@ -331,7 +368,7 @@ void FWinHttpWebSocket::HandleWebSocketConnected()
 void FWinHttpWebSocket::HandleWebSocketMessage(EWebSocketMessageType MessageType, TArray<uint8>& MessagePayload)
 {
 	TSharedRef<FWinHttpWebSocket> KeepAlive = AsShared();
-	
+
 	if (MessageType == EWebSocketMessageType::Utf8 && OnMessage().IsBound())
 	{
 		const FUTF8ToTCHAR TCHARConverter(reinterpret_cast<const ANSICHAR*>(MessagePayload.GetData()), MessagePayload.Num());
@@ -346,6 +383,8 @@ void FWinHttpWebSocket::HandleWebSocketMessage(EWebSocketMessageType MessageType
 
 void FWinHttpWebSocket::HandleWebSocketClosed(uint16 Code, const FString& Reason, bool bGracefulDisconnect)
 {
+	UE_LOG(LogWebSockets, Verbose, TEXT("WinHttp WebSocket[%p]: Received connection close event. Code=[%u] Reason=[%s] bWasGraceful=[%d]"), this, Code, *Reason, bGracefulDisconnect);
+
 	EWebSocketConnectionState NewState;
 	if (State == EWebSocketConnectionState::Connecting)
 	{

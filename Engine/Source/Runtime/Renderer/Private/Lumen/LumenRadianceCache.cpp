@@ -351,7 +351,7 @@ class FMarkRadianceProbesUsedByScreenProbesCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, RWRadianceProbeIndirectionTexture)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_STRUCT_REF(FSceneTexturesUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
 		SHADER_PARAMETER(uint32, VisualizeLumenScene)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheParameters, RadianceCacheParameters)
@@ -439,7 +439,7 @@ void RadianceCacheMarkUsedProbes(
 		FMarkRadianceProbesUsedByScreenProbesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMarkRadianceProbesUsedByScreenProbesCS::FParameters>();
 		PassParameters->RWRadianceProbeIndirectionTexture = RadianceProbeIndirectionTextureUAV;
 		PassParameters->View = View.ViewUniformBuffer;
-		PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBufferSingleDraw(GraphBuilder.RHICmdList, ESceneTextureSetupMode::SceneDepth, View.FeatureLevel);
+		PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder, View.FeatureLevel, ESceneTextureSetupMode::SceneDepth);
 		PassParameters->ScreenProbeParameters = *ScreenProbeParameters;
 		PassParameters->VisualizeLumenScene = View.Family->EngineShowFlags.VisualizeLumenScene != 0 ? 1 : 0;
 		PassParameters->RadianceCacheParameters = RadianceCacheParameters;
@@ -750,7 +750,7 @@ bool UpdateRadianceCacheState(FRDGBuilder& GraphBuilder, const FViewInfo& View)
 			RadianceProbeAtlasTextureSize,
 			PF_FloatRGB,
 			FClearValueBinding::None,
-			0,
+			TexCreate_None,
 			TexCreate_ShaderResource | TexCreate_UAV,
 			false);
 
@@ -759,7 +759,6 @@ bool UpdateRadianceCacheState(FRDGBuilder& GraphBuilder, const FViewInfo& View)
 			ProbeAtlasDesc,
 			CacheState.RadianceProbeAtlasTexture,
 			TEXT("RadianceProbeAtlasTexture"),
-			true,
 			ERenderTargetTransience::NonTransient);
 	}
 
@@ -773,7 +772,7 @@ bool UpdateRadianceCacheState(FRDGBuilder& GraphBuilder, const FViewInfo& View)
 			FinalRadianceAtlasSize,
 			PF_FloatRGB,
 			FClearValueBinding::Green,
-			0,
+			TexCreate_None,
 			TexCreate_ShaderResource | TexCreate_UAV,
 			false,
 			GRadianceCacheNumMipmaps));
@@ -783,7 +782,6 @@ bool UpdateRadianceCacheState(FRDGBuilder& GraphBuilder, const FViewInfo& View)
 			FinalRadianceAtlasDesc,
 			CacheState.FinalRadianceAtlas,
 			TEXT("RadianceCacheFinalRadianceAtlas"),
-			true,
 			ERenderTargetTransience::NonTransient);
 
 		bResetState = true;
@@ -852,13 +850,11 @@ void FDeferredShadingSceneRenderer::RenderRadianceCache(
 
 		const FIntVector RadianceProbeIndirectionTextureSize = LumenRadianceCache::GetProbeIndirectionTextureSize();
 
-		FPooledRenderTargetDesc ProbeIndirectionDesc = FPooledRenderTargetDesc::CreateVolumeDesc(
-			RadianceProbeIndirectionTextureSize.X, RadianceProbeIndirectionTextureSize.Y, RadianceProbeIndirectionTextureSize.Z,
+		FRDGTextureDesc ProbeIndirectionDesc = FRDGTextureDesc::Create3D(
+			RadianceProbeIndirectionTextureSize,
 			PF_R32_UINT,
 			FClearValueBinding::None,
-			0,
-			TexCreate_ShaderResource | TexCreate_UAV,
-			false);
+			TexCreate_ShaderResource | TexCreate_UAV);
 
 		FRDGTextureRef RadianceProbeIndirectionTexture = GraphBuilder.CreateTexture(FRDGTextureDesc(ProbeIndirectionDesc), TEXT("RadianceProbeIndirectionTexture"));
 		FRDGTextureUAVRef RadianceProbeIndirectionTextureUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RadianceProbeIndirectionTexture));
@@ -896,9 +892,9 @@ void FDeferredShadingSceneRenderer::RenderRadianceCache(
 
 		if (IsValidRef(RadianceCacheState.ProbeFreeList) && RadianceCacheState.ProbeFreeList->Desc.NumElements == MaxNumProbes)
 		{
-			ProbeFreeListAllocator = GraphBuilder.RegisterExternalBuffer(RadianceCacheState.ProbeFreeListAllocator, TEXT("ProbeFreeListAllocator"));
-			ProbeFreeList = GraphBuilder.RegisterExternalBuffer(RadianceCacheState.ProbeFreeList, TEXT("ProbeFreeList"));
-			ProbeLastUsedFrame = GraphBuilder.RegisterExternalBuffer(RadianceCacheState.ProbeLastUsedFrame, TEXT("ProbeLastUsedFrame"));
+			ProbeFreeListAllocator = GraphBuilder.RegisterExternalBuffer(RadianceCacheState.ProbeFreeListAllocator);
+			ProbeFreeList = GraphBuilder.RegisterExternalBuffer(RadianceCacheState.ProbeFreeList);
+			ProbeLastUsedFrame = GraphBuilder.RegisterExternalBuffer(RadianceCacheState.ProbeLastUsedFrame);
 		}
 		else
 		{

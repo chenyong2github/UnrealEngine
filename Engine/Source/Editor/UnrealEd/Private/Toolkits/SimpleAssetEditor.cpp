@@ -231,6 +231,13 @@ FLinearColor FSimpleAssetEditor::GetWorldCentricTabColorScale() const
 void FSimpleAssetEditor::SetPropertyVisibilityDelegate(FIsPropertyVisible InVisibilityDelegate)
 {
 	DetailsView->SetIsPropertyVisibleDelegate(InVisibilityDelegate);
+	DetailsView->ForceRefresh();
+}
+
+void FSimpleAssetEditor::SetPropertyEditingEnabledDelegate(FIsPropertyEditingEnabled InPropertyEditingDelegate)
+{
+	DetailsView->SetIsPropertyEditingEnabledDelegate(InPropertyEditingDelegate);
+	DetailsView->ForceRefresh();
 }
 
 TSharedRef<SDockTab> FSimpleAssetEditor::SpawnPropertiesTab( const FSpawnTabArgs& Args )

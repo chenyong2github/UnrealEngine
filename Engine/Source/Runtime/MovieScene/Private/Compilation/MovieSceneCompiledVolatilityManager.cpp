@@ -9,11 +9,23 @@ namespace UE
 namespace MovieScene
 {
 
+#if WITH_EDITOR
+
+int32 GVolatileSequencesInEditor = 1;
+FAutoConsoleVariableRef CVarVolatileSequencesInEditor(
+	TEXT("Sequencer.VolatileSequencesInEditor"),
+	GVolatileSequencesInEditor,
+	TEXT("(Default: 1) When non-zero, all assets will be treated as volatile in editor. Can be disabled to bypass volatility checks in-editor for more representative runtime performance metrics.\n"),
+	ECVF_Default
+);
+
+#endif
+
 
 FORCEINLINE EMovieSceneSequenceFlags GetEditorVolatilityFlags()
 {
 #if WITH_EDITOR
-	return EMovieSceneSequenceFlags::Volatile;
+	return GVolatileSequencesInEditor ? EMovieSceneSequenceFlags::Volatile : EMovieSceneSequenceFlags::None;
 #else
 	return EMovieSceneSequenceFlags::None;
 #endif

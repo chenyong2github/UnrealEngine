@@ -5,11 +5,13 @@
 #include "USDMemory.h"
 
 #include "UsdWrappers/SdfPath.h"
+#include "UsdWrappers/UsdAttribute.h"
 #include "UsdWrappers/UsdStage.h"
 
 #if USE_USD_SDK
 
 #include "USDIncludesStart.h"
+	#include "pxr/usd/usd/attribute.h"
 	#include "pxr/usd/usd/prim.h"
 #include "USDIncludesEnd.h"
 
@@ -144,6 +146,33 @@ namespace UE
 	{
 #if USE_USD_SDK
 		return Impl->PxrUsdPrim.Get().IsValid();
+#else
+		return false;
+#endif // #if USE_USD_SDK
+	}
+
+	bool FUsdPrim::IsPseudoRoot() const
+	{
+#if USE_USD_SDK
+		return Impl->PxrUsdPrim.Get().IsPseudoRoot();
+#else
+		return false;
+#endif // #if USE_USD_SDK
+	}
+
+	bool FUsdPrim::IsModel() const
+	{
+#if USE_USD_SDK
+		return Impl->PxrUsdPrim.Get().IsModel();
+#else
+		return false;
+#endif // #if USE_USD_SDK
+	}
+
+	bool FUsdPrim::IsGroup() const
+	{
+#if USE_USD_SDK
+		return Impl->PxrUsdPrim.Get().IsGroup();
 #else
 		return false;
 #endif // #if USE_USD_SDK
@@ -284,6 +313,33 @@ namespace UE
 	{
 #if USE_USD_SDK
 		Impl->PxrUsdPrim.Get().Unload();
+#endif // #if USE_USD_SDK
+	}
+
+	TArray< FUsdAttribute > FUsdPrim::GetAttributes() const
+	{
+		TArray< FUsdAttribute > Attributes;
+
+#if USE_USD_SDK
+		FScopedUsdAllocs UsdAllocs;
+
+		for ( const pxr::UsdAttribute& Attribute : Impl->PxrUsdPrim.Get().GetAttributes() )
+		{
+			Attributes.Emplace( Attribute );
+		}
+#endif // #if USE_USD_SDK
+
+		return Attributes;
+	}
+
+	FUsdAttribute FUsdPrim::GetAttribute(const TCHAR* AttrName) const
+	{
+#if USE_USD_SDK
+		FScopedUsdAllocs UsdAllocs;
+
+		return FUsdAttribute( Impl->PxrUsdPrim.Get().GetAttribute( pxr::TfToken( TCHAR_TO_ANSI( AttrName ) ) ) );
+#else
+		return FUsdAttribute{};
 #endif // #if USE_USD_SDK
 	}
 }

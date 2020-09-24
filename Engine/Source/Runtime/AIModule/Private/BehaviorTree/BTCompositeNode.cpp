@@ -622,10 +622,23 @@ uint16 UBTCompositeNode::GetChildExecutionIndex(int32 Index, EBTChildIndex Child
 	const UBTNode* ChildNode = GetChildNode(Index);
 	if (ChildNode)
 	{
-		const int32 Offset = (ChildMode == EBTChildIndex::FirstNode) ? Children[Index].Decorators.Num() : 0;
+		int32 Offset = 0;
+
+		// When getting execution index of the first node we need to consider auxiliary nodes
+		if (ChildMode == EBTChildIndex::FirstNode)
+		{
+			Offset += Children[Index].Decorators.Num();
+
+			// Task nodes may also have service nodes to consider
+			if (UBTTaskNode* ChildTask = Children[Index].ChildTask)
+			{
+				Offset += ChildTask->Services.Num();
+			}
+		}
+
 		return ChildNode->GetExecutionIndex() - Offset;
 	}
-	
+
 	return (LastExecutionIndex + 1);
 }
 

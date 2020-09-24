@@ -433,7 +433,7 @@ SRetainerWidget::EPaintRetainedContentResult SRetainerWidget::PaintRetainedConte
 
 		if ( RenderTargetWidth >= 0 && RenderTargetHeight >= 0 )
 		{
-			const FVector2D ViewOffset = PaintGeometry.DrawPosition.RoundToVector();
+			const FVector2D ViewOffset = PaintGeometry.GetAccumulatedRenderTransform().GetTranslation();
 
 			UTextureRenderTarget2D* RenderTarget = RenderingResources->RenderTarget;
 			FWidgetRenderer* WidgetRenderer = RenderingResources->WidgetRenderer;
@@ -468,14 +468,6 @@ SRetainerWidget::EPaintRetainedContentResult SRetainerWidget::PaintRetainedConte
 				WidgetRenderer->ViewOffset = -ViewOffset;
 
 				bool bRepaintedWidgets = WidgetRenderer->DrawInvalidationRoot(VirtualWindow, RenderTarget, *this, Context, GDeferRetainedRenderingRenderThread != 0);
-
-#if WITH_SLATE_DEBUGGING
-				if (bRepaintedWidgets)
-				{
-					FSlateDebugging::DrawInvalidationRoot(*this, Context.IncomingLayerId+1, *Context.WindowElementList);
-				}
-#endif
-
 				bRenderRequested = false;
 				Shared_WaitingToRender.Remove(this);
 
@@ -612,13 +604,8 @@ bool SRetainerWidget::CustomPrepass(float LayoutScaleMultiplier)
 
 int32 SRetainerWidget::PaintSlowPath(const FSlateInvalidationContext& Context)
 {
-	FGeometry AllottedGeometry = GetPaintSpaceGeometry();
-	const FPaintGeometry PaintGeometry = AllottedGeometry.ToPaintGeometry();
-	const FVector2D RenderSize = PaintGeometry.GetLocalSize() * PaintGeometry.GetAccumulatedRenderTransform().GetMatrix().GetScale().GetVector();
-	const uint32 RenderTargetWidth = FMath::RoundToInt(RenderSize.X);
-	const uint32 RenderTargetHeight = FMath::RoundToInt(RenderSize.Y);
-	const float Scale = AllottedGeometry.Scale;
-	const FVector2D DrawSize = FVector2D(RenderTargetWidth, RenderTargetHeight);
-	const FGeometry RetainedWindowGeometry = FGeometry::MakeRoot(DrawSize * (1 / Scale), FSlateLayoutTransform(Scale, PaintGeometry.DrawPosition));
-	return SCompoundWidget::OnPaint(*Context.PaintArgs, RetainedWindowGeometry, Context.CullingRect, *Context.WindowElementList, Context.IncomingLayerId, Context.WidgetStyle, Context.bParentEnabled);
+	FGeometry OriginalPaintSpaceGeometry = GetPaintSpaceGeometry();
+	FSlateRenderTransform SimplifiedRenderTransform(OriginalPaintSpaceGeometry.GetAccumulatedRenderTransform().GetMatrix().GetScale(), OriginalPaintSpaceGeometry.GetAccumulatedRenderTransform().GetTranslation());
+	const FGeometry NewPaintSpaceGeometry = FGeometry::MakeRoot(OriginalPaintSpaceGeometry.GetLocalSize(), FSlateLayoutTransform()).MakeChild(SimplifiedRenderTransform, FVector2D::ZeroVector);
+	return SCompoundWidget::OnPaint(*Context.PaintArgs, NewPaintSpaceGeometry, Context.CullingRect, *Context.WindowElementList, Context.IncomingLayerId, Context.WidgetStyle, Context.bParentEnabled);
 }

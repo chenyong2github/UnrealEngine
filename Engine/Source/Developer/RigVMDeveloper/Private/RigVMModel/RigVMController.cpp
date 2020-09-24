@@ -14,7 +14,10 @@
 #include "Exporters/Exporter.h"
 #include "UnrealExporter.h"
 #include "Factories.h"
+#include "UObject/CoreRedirects.h"
 #endif
+
+TMap<URigVMController::FControlRigStructPinRedirectorKey, FString> URigVMController::PinPathCoreRedirectors;
 
 URigVMController::URigVMController()
 	: bSuspendNotifications(false)
@@ -174,10 +177,17 @@ URigVMStructNode* URigVMController::AddStructNode(UScriptStruct* InScriptStruct,
 	}
 
 	FString FunctionName = FString::Printf(TEXT("F%s::%s"), *InScriptStruct->GetName(), *InMethodName.ToString());
-	FRigVMFunctionPtr Function = FRigVMRegistry::Get().Find(*FunctionName);
+	FRigVMFunctionPtr Function = FRigVMRegistry::Get().FindFunction(*FunctionName);
 	if (Function == nullptr)
 	{
 		ReportErrorf(TEXT("RIGVM_METHOD '%s' cannot be found."), *FunctionName);
+		return nullptr;
+	}
+
+	FString StructureError;
+	if (!FRigVMStruct::ValidateStruct(InScriptStruct, &StructureError))
+	{
+		ReportErrorf(TEXT("Failed to validate struct '%s': %s"), *InScriptStruct->GetName(), *StructureError);
 		return nullptr;
 	}
 
@@ -200,7 +210,10 @@ URigVMStructNode* URigVMController::AddStructNode(UScriptStruct* InScriptStruct,
 	AddPinsForStruct(InScriptStruct, Node, nullptr, ERigVMPinDirection::Invalid, ExportedDefaultValue, true);
 
 	Graph->Nodes.Add(Node);
-	Graph->MarkPackageDirty();
+	if (!bSuspendNotifications)
+	{
+		Graph->MarkPackageDirty();
+	}
 
 	FRigVMAddStructNodeAction Action;
 	if (bUndo)
@@ -253,27 +266,13 @@ URigVMVariableNode* URigVMController::AddVariableNode(const FName& InVariableNam
 		InCPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath<UObject>(InCPPType);
 	}
 
-	TArray<FRigVMGraphVariableDescription> ExistingVariables = Graph->GetVariableDescriptions();
-	for (const FRigVMGraphVariableDescription& ExistingVariable : ExistingVariables)
-	{
-		if (ExistingVariable.Name == InVariableName)
-		{
-			if (ExistingVariable.CPPType != InCPPType ||
-				ExistingVariable.CPPTypeObject != InCPPTypeObject)
-			{
-				ReportErrorf(TEXT("Cannot add variable '%s' - variable already exists."), *InVariableName.ToString());
-				return nullptr;
-			}
-		}
-	}
-
 	FString Name = GetValidNodeName(InNodeName.IsEmpty() ? FString(TEXT("VariableNode")) : InNodeName);
 	URigVMVariableNode* Node = NewObject<URigVMVariableNode>(Graph, *Name);
 	Node->Position = InPosition;
 
 	if (!bIsGetter)
 	{
-		URigVMPin* ExecutePin = NewObject<URigVMPin>(Node, *URigVMNode::ExecuteContextName);
+		URigVMPin* ExecutePin = NewObject<URigVMPin>(Node, FRigVMStruct::ExecuteContextName);
 		ExecutePin->CPPType = FString::Printf(TEXT("F%s"), *ExecuteContextStruct->GetName());
 		ExecutePin->CPPTypeObject = ExecuteContextStruct;
 		ExecutePin->CPPTypeObjectPath = *ExecutePin->CPPTypeObject->GetPathName();
@@ -283,7 +282,7 @@ URigVMVariableNode* URigVMController::AddVariableNode(const FName& InVariableNam
 
 	URigVMPin* VariablePin = NewObject<URigVMPin>(Node, *URigVMVariableNode::VariableName);
 	VariablePin->CPPType = TEXT("FName");
-	VariablePin->Direction = ERigVMPinDirection::Visible;
+	VariablePin->Direction = ERigVMPinDirection::Hidden;
 	VariablePin->DefaultValue = InVariableName.ToString();
 	VariablePin->CustomWidgetName = TEXT("VariableName");
 	Node->Pins.Add(VariablePin);
@@ -322,7 +321,10 @@ URigVMVariableNode* URigVMController::AddVariableNode(const FName& InVariableNam
 		Pin->bIsExpanded = false;
 	});
 
-	Graph->MarkPackageDirty();
+	if (!bSuspendNotifications)
+	{
+		Graph->MarkPackageDirty();
+	}
 
 	FRigVMAddVariableNodeAction Action;
 	if (bUndo)
@@ -364,6 +366,248 @@ URigVMVariableNode* URigVMController::AddVariableNodeFromObjectPath(const FName&
 	return AddVariableNode(InVariableName, InCPPType, CPPTypeObject, bIsGetter, InDefaultValue, InPosition, InNodeName, bUndo);
 }
 
+void URigVMController::RefreshVariableNode(const FName& InNodeName, const FName& InVariableName, const FString& InCPPType, UObject* InCPPTypeObject, bool bUndo)
+{
+	if (!IsValidGraph())
+	{
+		return;
+	}
+
+	if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Graph->FindNodeByName(InNodeName)))
+	{
+		if (URigVMPin* VariablePin = VariableNode->FindPin(URigVMVariableNode::VariableName))
+		{
+			if (VariablePin->Direction == ERigVMPinDirection::Visible)
+			{
+				if (bUndo)
+				{
+					VariablePin->Modify();
+				}
+				VariablePin->Direction = ERigVMPinDirection::Hidden;
+				Notify(ERigVMGraphNotifType::PinDirectionChanged, VariablePin);
+			}
+
+			if (InVariableName.IsValid() && VariablePin->DefaultValue != InVariableName.ToString())
+			{
+				if (bUndo)
+				{
+					VariablePin->Modify();
+				}
+				VariablePin->DefaultValue = InVariableName.ToString();
+				Notify(ERigVMGraphNotifType::PinDefaultValueChanged, VariablePin);
+				Notify(ERigVMGraphNotifType::VariableRenamed, VariableNode);
+			}
+
+			if (!InCPPType.IsEmpty())
+			{
+				if (URigVMPin* ValuePin = VariableNode->FindPin(URigVMVariableNode::ValueName))
+				{
+					if (ValuePin->CPPType != InCPPType)
+					{
+						if (bUndo)
+						{
+							ValuePin->Modify();
+						}
+
+						BreakAllLinks(ValuePin, ValuePin->GetDirection() == ERigVMPinDirection::Input, bUndo);
+						BreakAllLinksRecursive(ValuePin, ValuePin->GetDirection() == ERigVMPinDirection::Input, false, bUndo);
+
+						// if this is an unsupported datatype...
+						if (InCPPType == FName(NAME_None).ToString())
+						{
+							RemoveNode(VariableNode, bUndo);
+							return;
+						}
+
+						ValuePin->CPPType = InCPPType;
+						ValuePin->CPPTypeObject = InCPPTypeObject;
+						ValuePin->CPPTypeObjectPath = *InCPPTypeObject->GetPathName();
+
+						TArray<URigVMPin*> SubPins = ValuePin->GetSubPins();
+						for(URigVMPin * SubPin : SubPins)
+						{
+							ValuePin->SubPins.Remove(SubPin);
+						}
+
+						if (ValuePin->IsStruct())
+						{
+							FString DefaultValue = ValuePin->DefaultValue;
+							CreateDefaultValueForStructIfRequired(ValuePin->GetScriptStruct(), DefaultValue);
+							AddPinsForStruct(ValuePin->GetScriptStruct(), ValuePin->GetNode(), ValuePin, ValuePin->Direction, DefaultValue, false);
+						}
+
+						Notify(ERigVMGraphNotifType::PinTypeChanged, ValuePin);
+					}
+				}
+			}
+		}
+	}
+}
+
+void URigVMController::RemoveVariableNodes(const FName& InVarName, bool bUndo)
+{
+	if (!IsValidGraph())
+	{
+		return;
+	}
+
+	if (!InVarName.IsValid())
+	{
+		return;
+	}
+
+	FString VarNameStr = InVarName.ToString();
+
+	if (bUndo)
+	{
+		OpenUndoBracket(TEXT("Remove Variable Nodes"));
+	}
+
+	TArray<URigVMNode*> Nodes = Graph->GetNodes();
+	for (URigVMNode* Node : Nodes)
+	{
+		if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Node))
+		{
+			if (URigVMPin* VariablePin = VariableNode->FindPin(URigVMVariableNode::VariableName))
+			{
+				if (VariablePin->GetDefaultValue() == VarNameStr)
+				{
+					RemoveNode(Node, bUndo, true);
+				}
+			}
+		}
+	}
+
+	if (bUndo)
+	{
+		CloseUndoBracket();
+	}
+}
+
+void URigVMController::RenameVariableNodes(const FName& InOldVarName, const FName& InNewVarName, bool bUndo)
+{
+	if (!IsValidGraph())
+	{
+		return;
+	}
+
+	if (!InOldVarName.IsValid() || !InNewVarName.IsValid())
+	{
+		return;
+	}
+
+	FString VarNameStr = InOldVarName.ToString();
+
+	if (bUndo)
+	{
+		OpenUndoBracket(TEXT("Rename Variable Nodes"));
+	}
+
+	TArray<URigVMNode*> Nodes = Graph->GetNodes();
+	for (URigVMNode* Node : Nodes)
+	{
+		if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Node))
+		{
+			if (URigVMPin* VariablePin = VariableNode->FindPin(URigVMVariableNode::VariableName))
+			{
+				if (VariablePin->GetDefaultValue() == VarNameStr)
+				{
+					RefreshVariableNode(Node->GetFName(), InNewVarName, FString(), nullptr, bUndo);
+				}
+			}
+		}
+	}
+
+	if (bUndo)
+	{
+		CloseUndoBracket();
+	}
+}
+
+void URigVMController::ChangeVariableNodesType(const FName& InVarName, const FString& InCPPType, UObject* InCPPTypeObject, bool bUndo)
+{
+	if (!IsValidGraph())
+	{
+		return;
+	}
+
+	if (!InVarName.IsValid())
+	{
+		return;
+	}
+
+	FString VarNameStr = InVarName.ToString();
+
+	if (bUndo)
+	{
+		OpenUndoBracket(TEXT("Change Variable Nodes Type"));
+	}
+
+	TArray<URigVMNode*> Nodes = Graph->GetNodes();
+	for (URigVMNode* Node : Nodes)
+	{
+		if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Node))
+		{
+			if (URigVMPin* VariablePin = VariableNode->FindPin(URigVMVariableNode::VariableName))
+			{
+				if (VariablePin->GetDefaultValue() == VarNameStr)
+				{
+					RefreshVariableNode(Node->GetFName(), InVarName, InCPPType, InCPPTypeObject, bUndo);
+				}
+			}
+		}
+	}
+
+	if (bUndo)
+	{
+		CloseUndoBracket();
+	}
+}
+
+URigVMVariableNode* URigVMController::ReplaceParameterNodeWithVariable(const FName& InNodeName, const FName& InVariableName, const FString& InCPPType, UObject* InCPPTypeObject, bool bUndo)
+{
+	if (!IsValidGraph())
+	{
+		return nullptr;
+	}
+
+	if (URigVMParameterNode* ParameterNode = Cast<URigVMParameterNode>(Graph->FindNodeByName(InNodeName)))
+	{
+		URigVMPin* ParameterValuePin = ParameterNode->FindPin(URigVMParameterNode::ValueName);
+		check(ParameterValuePin);
+
+		FRigVMGraphParameterDescription Description = ParameterNode->GetParameterDescription();
+		
+		URigVMVariableNode* VariableNode = AddVariableNode(
+			InVariableName,
+			InCPPType,
+			InCPPTypeObject,
+			ParameterValuePin->GetDirection() == ERigVMPinDirection::Output,
+			ParameterValuePin->GetDefaultValue(),
+			ParameterNode->GetPosition(),
+			FString(),
+			bUndo);
+
+		if (VariableNode)
+		{
+			URigVMPin* VariableValuePin = VariableNode->FindPin(URigVMVariableNode::ValueName);
+
+			RewireLinks(
+				ParameterValuePin,
+				VariableValuePin,
+				ParameterValuePin->GetDirection() == ERigVMPinDirection::Input,
+				bUndo
+			);
+
+			RemoveNode(ParameterNode, bUndo, true);
+
+			return VariableNode;
+		}
+	}
+
+	return nullptr;
+}
+
 URigVMParameterNode* URigVMController::AddParameterNode(const FName& InParameterName, const FString& InCPPType, UObject* InCPPTypeObject, bool bIsInput, const FString& InDefaultValue, const FVector2D& InPosition, const FString& InNodeName, bool bUndo)
 {
 	if (!IsValidGraph())
@@ -401,7 +645,7 @@ URigVMParameterNode* URigVMController::AddParameterNode(const FName& InParameter
 
 	if (!bIsInput)
 	{
-		URigVMPin* ExecutePin = NewObject<URigVMPin>(Node, *URigVMNode::ExecuteContextName);
+		URigVMPin* ExecutePin = NewObject<URigVMPin>(Node, FRigVMStruct::ExecuteContextName);
 		ExecutePin->CPPType = FString::Printf(TEXT("F%s"), *ExecuteContextStruct->GetName());
 		ExecutePin->CPPTypeObject = ExecuteContextStruct;
 		ExecutePin->CPPTypeObjectPath = *ExecutePin->CPPTypeObject->GetPathName();
@@ -496,7 +740,10 @@ URigVMParameterNode* URigVMController::AddParameterNode(const FName& InParameter
 		Pin->bIsExpanded = false;
 	});
 
-	Graph->MarkPackageDirty();
+	if (!bSuspendNotifications)
+	{
+		Graph->MarkPackageDirty();
+	}
 
 	FRigVMAddParameterNodeAction Action;
 	if (bUndo)
@@ -553,7 +800,10 @@ URigVMCommentNode* URigVMController::AddCommentNode(const FString& InCommentText
 	Node->CommentText = InCommentText;
 
 	Graph->Nodes.Add(Node);
-	Graph->MarkPackageDirty();
+	if (!bSuspendNotifications)
+	{
+		Graph->MarkPackageDirty();
+	}
 
 	FRigVMAddCommentNodeAction Action;
 	if (bUndo)
@@ -678,7 +928,10 @@ URigVMRerouteNode* URigVMController::AddRerouteNodeOnPin(const FString& InPinPat
 	});
 
 	Graph->Nodes.Add(Node);
-	Graph->MarkPackageDirty();
+	if (!bSuspendNotifications)
+	{
+		Graph->MarkPackageDirty();
+	}
 
 	if (bUndo)
 	{
@@ -752,7 +1005,7 @@ URigVMInjectionInfo* URigVMController::AddInjectedNode(const FString& InPinPath,
 		ReportErrorf(TEXT("Cannot find property '%s' on struct type '%s'."), *InInputPinName.ToString(), *InScriptStruct->GetName());
 		return nullptr;
 	}
-	if (!InputProperty->HasMetaData(TEXT("Input")))
+	if (!InputProperty->HasMetaData(FRigVMStruct::InputMetaName))
 	{
 		ReportErrorf(TEXT("Property '%s' on struct type '%s' is not marked as an input."), *InInputPinName.ToString(), *InScriptStruct->GetName());
 		return nullptr;
@@ -763,7 +1016,7 @@ URigVMInjectionInfo* URigVMController::AddInjectedNode(const FString& InPinPath,
 		ReportErrorf(TEXT("Cannot find property '%s' on struct type '%s'."), *InOutputPinName.ToString(), *InScriptStruct->GetName());
 		return nullptr;
 	}
-	if (!OutputProperty->HasMetaData(TEXT("Output")))
+	if (!OutputProperty->HasMetaData(FRigVMStruct::OutputMetaName))
 	{
 		ReportErrorf(TEXT("Property '%s' on struct type '%s' is not marked as an output."), *InOutputPinName.ToString(), *InScriptStruct->GetName());
 		return nullptr;
@@ -1301,8 +1554,7 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 			}
 
 			ReportErrorf(TEXT("Cannot import link '%s -> %s'."), *CreatedLink->SourcePinPath, *CreatedLink->TargetPinPath);
-			CreatedLink->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders);
-			CreatedLink->MarkPendingKill();
+			DestroyObject(CreatedLink);
 		}
 
 		if (bUndo)
@@ -1395,7 +1647,10 @@ bool URigVMController::RemoveNode(URigVMNode* InNode, bool bUndo, bool bRecursiv
 	}
 
 	Graph->Nodes.Remove(InNode);
-	Graph->MarkPackageDirty();
+	if (!bSuspendNotifications)
+	{
+		Graph->MarkPackageDirty();
+	}
 
 	Notify(ERigVMGraphNotifType::NodeRemoved, InNode);
 
@@ -1410,12 +1665,10 @@ bool URigVMController::RemoveNode(URigVMNode* InNode, bool bUndo, bool bRecursiv
 
 	if (URigVMInjectionInfo* InjectionInfo = InNode->GetInjectionInfo())
 	{
-		InjectionInfo->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders);
-		InjectionInfo->MarkPendingKill();
+		DestroyObject(InjectionInfo);
 	}
 
-	InNode->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders);
-	InNode->MarkPendingKill();
+	DestroyObject(InNode);
 
 	if (bUndo)
 	{
@@ -1824,7 +2077,10 @@ bool URigVMController::RenameVariable(const FName& InOldName, const FName& InNew
 	for (URigVMNode* RenamedNode : RenamedNodes)
 	{
 		Notify(ERigVMGraphNotifType::VariableRenamed, RenamedNode);
-		Graph->MarkPackageDirty();
+		if (!bSuspendNotifications)
+		{
+			Graph->MarkPackageDirty();
+		}
 	}
 
 	if (bUndo)
@@ -1889,7 +2145,10 @@ bool URigVMController::RenameParameter(const FName& InOldName, const FName& InNe
 	for (URigVMNode* RenamedNode : RenamedNodes)
 	{
 		Notify(ERigVMGraphNotifType::ParameterRenamed, RenamedNode);
-		Graph->MarkPackageDirty();
+		if (!bSuspendNotifications)
+		{
+			Graph->MarkPackageDirty();
+		}
 	}
 
 	if (bUndo)
@@ -1928,7 +2187,7 @@ void URigVMController::UpdateRerouteNodeAfterChangingLinks(URigVMPin* PinChanged
 	int32 NbTotalSources = Node->Pins[0]->GetSourceLinks(true /* recursive */).Num();
 	int32 NbTotalTargets = Node->Pins[0]->GetTargetLinks(true /* recursive */).Num();
 	int32 NbToplevelSources = Node->Pins[0]->GetSourceLinks(false /* recursive */).Num();
-	int32 NbToplevelTargets = Node->Pins[0]->GetSourceLinks(false /* recursive */).Num();
+	int32 NbToplevelTargets = Node->Pins[0]->GetTargetLinks(false /* recursive */).Num();
 
 	bool bJustTopLevelConnections = (NbTotalSources == NbToplevelSources) && (NbTotalTargets == NbToplevelTargets);
 	bool bOnlyConnectionsOnOneSide = (NbTotalSources == 0) || (NbTotalTargets == 0);
@@ -1977,7 +2236,10 @@ bool URigVMController::SetPinExpansion(URigVMPin* InPin, bool bIsExpanded, bool 
 	InPin->bIsExpanded = bIsExpanded;
 
 	Notify(ERigVMGraphNotifType::PinExpansionChanged, InPin);
-	Graph->MarkPackageDirty();
+	if (!bSuspendNotifications)
+	{
+		Graph->MarkPackageDirty();
+	}
 
 	if (bUndo)
 	{
@@ -2032,7 +2294,10 @@ bool URigVMController::SetPinIsWatched(URigVMPin* InPin, bool bIsWatched, bool b
 	InPin->bRequiresWatch = bIsWatched;
 
 	Notify(ERigVMGraphNotifType::PinWatchedChanged, InPin);
-	Graph->MarkPackageDirty();
+	if (!bSuspendNotifications)
+	{
+		Graph->MarkPackageDirty();
+	}
 
 	if (bUndo)
 	{
@@ -2103,6 +2368,11 @@ void URigVMController::SetPinDefaultValue(URigVMPin* InPin, const FString& InDef
 {
 	check(InPin);
 	ensure(!InDefaultValue.IsEmpty());
+
+	if (InPin->GetDirection() == ERigVMPinDirection::Hidden)
+	{
+		return;
+	}
 
 	FRigVMSetPinDefaultValueAction Action;
 	if (bUndo)
@@ -2176,7 +2446,10 @@ void URigVMController::SetPinDefaultValue(URigVMPin* InPin, const FString& InDef
 		{
 			InPin->DefaultValue = InDefaultValue;
 			Notify(ERigVMGraphNotifType::PinDefaultValueChanged, InPin);
-			Graph->MarkPackageDirty();
+			if (!bSuspendNotifications)
+			{
+				Graph->MarkPackageDirty();
+			}
 		}
 	}
 
@@ -2460,7 +2733,10 @@ URigVMPin* URigVMController::InsertArrayPin(URigVMPin* ArrayPin, int32 InIndex, 
 	}
 
 	Notify(ERigVMGraphNotifType::PinArraySizeChanged, ArrayPin);
-	Graph->MarkPackageDirty();
+	if (!bSuspendNotifications)
+	{
+		Graph->MarkPackageDirty();
+	}
 
 	if (bUndo)
 	{
@@ -2514,7 +2790,10 @@ bool URigVMController::RemoveArrayPin(const FString& InArrayElementPinPath, bool
 		ExistingPin->SetNameFromIndex();
 	}
 
-	Graph->MarkPackageDirty();
+	if (!bSuspendNotifications)
+	{
+		Graph->MarkPackageDirty();
+	}
 	Notify(ERigVMGraphNotifType::PinArraySizeChanged, ArrayPin);
 
 	if (bUndo)
@@ -2544,8 +2823,7 @@ bool URigVMController::RemovePin(URigVMPin* InPinToRemove, bool bUndo)
 		Node->Pins.Remove(InPinToRemove);
 	}
 
-	InPinToRemove->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders);
-	InPinToRemove->MarkPendingKill();
+	DestroyObject(InPinToRemove);
 
 	TArray<URigVMPin*> SubPins = InPinToRemove->GetSubPins();
 	for (URigVMPin* SubPin : SubPins)
@@ -2653,18 +2931,30 @@ bool URigVMController::AddLink(const FString& InOutputPinPath, const FString& In
 		return false;
 	}
 
-	URigVMPin* OutputPin = Graph->FindPin(InOutputPinPath);
+	FString OutputPinPath = InOutputPinPath;
+	FString InputPinPath = InInputPinPath;
+
+	if (FString* RedirectedOutputPinPath = OutputPinRedirectors.Find(OutputPinPath))
+	{
+		OutputPinPath = *RedirectedOutputPinPath;
+	}
+	if (FString* RedirectedInputPinPath = InputPinRedirectors.Find(InputPinPath))
+	{
+		InputPinPath = *RedirectedInputPinPath;
+	}
+
+	URigVMPin* OutputPin = Graph->FindPin(OutputPinPath);
 	if (OutputPin == nullptr)
 	{
-		ReportErrorf(TEXT("Cannot find pin '%s'."), *InOutputPinPath);
+		ReportErrorf(TEXT("Cannot find pin '%s'."), *OutputPinPath);
 		return false;
 	}
 	OutputPin = OutputPin->GetPinForLink();
 
-	URigVMPin* InputPin = Graph->FindPin(InInputPinPath);
+	URigVMPin* InputPin = Graph->FindPin(InputPinPath);
 	if (InputPin == nullptr)
 	{
-		ReportErrorf(TEXT("Cannot find pin '%s'."), *InInputPinPath);
+		ReportErrorf(TEXT("Cannot find pin '%s'."), *InputPinPath);
 		return false;
 	}
 	InputPin = InputPin->GetPinForLink();
@@ -2709,6 +2999,11 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 		ActionStack->BeginAction(Action);
 	}
 
+	if (OutputPin->IsExecuteContext())
+	{
+		BreakAllLinks(OutputPin, false, bUndo);
+	}
+
 	BreakAllLinks(InputPin, true, bUndo);
 	if (bUndo)
 	{
@@ -2731,11 +3026,18 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 	OutputPin->Links.Add(Link);
 	InputPin->Links.Add(Link);
 
-	Graph->MarkPackageDirty();
+	if (!bSuspendNotifications)
+	{
+		Graph->MarkPackageDirty();
+	}
 	Notify(ERigVMGraphNotifType::LinkAdded, Link);
 
 	UpdateRerouteNodeAfterChangingLinks(OutputPin, bUndo);
 	UpdateRerouteNodeAfterChangingLinks(InputPin, bUndo);
+
+	TArray<URigVMNode*> NodesVisited;
+	PotentiallyResolvePrototypeNode(Cast<URigVMPrototypeNode>(InputPin->GetNode()), bUndo, NodesVisited);
+	PotentiallyResolvePrototypeNode(Cast<URigVMPrototypeNode>(OutputPin->GetNode()), bUndo, NodesVisited);
 
 	if (bUndo)
 	{
@@ -2800,11 +3102,13 @@ bool URigVMController::BreakLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool
 			InputPin->Links.Remove(Link);
 			Graph->Links.Remove(Link);
 			
-			Graph->MarkPackageDirty();
+			if (!bSuspendNotifications)
+			{
+				Graph->MarkPackageDirty();
+			}
 			Notify(ERigVMGraphNotifType::LinkRemoved, Link);
 
-			Link->Rename(nullptr, GetTransientPackage());
-			Link->MarkPendingKill();
+			DestroyObject(Link);
 
 			UpdateRerouteNodeAfterChangingLinks(OutputPin, bUndo);
 			UpdateRerouteNodeAfterChangingLinks(InputPin, bUndo);
@@ -3114,6 +3418,320 @@ URigVMRerouteNode* URigVMController::AddFreeRerouteNode(bool bShowAsFullNode, co
 	return Node;
 }
 
+URigVMBranchNode* URigVMController::AddBranchNode(const FVector2D& InPosition, const FString& InNodeName, bool bUndo)
+{
+	if(!IsValidGraph())
+	{
+		return nullptr;
+	}
+
+	FString Name = GetValidNodeName(InNodeName.IsEmpty() ? FString(TEXT("BranchNode")) : InNodeName);
+	URigVMBranchNode* Node = NewObject<URigVMBranchNode>(Graph, *Name);
+	Node->Position = InPosition;
+
+	URigVMPin* ExecutePin = NewObject<URigVMPin>(Node, FRigVMStruct::ExecuteContextName);
+	ExecutePin->DisplayName = FRigVMStruct::ExecuteName;
+	ExecutePin->CPPType = FString::Printf(TEXT("F%s"), *ExecuteContextStruct->GetName());
+	ExecutePin->CPPTypeObject = ExecuteContextStruct;
+	ExecutePin->CPPTypeObjectPath = *ExecutePin->CPPTypeObject->GetPathName();
+	ExecutePin->Direction = ERigVMPinDirection::Input;
+	Node->Pins.Add(ExecutePin);
+
+	URigVMPin* ConditionPin = NewObject<URigVMPin>(Node, *URigVMBranchNode::ConditionName);
+	ConditionPin->CPPType = TEXT("bool");
+	ConditionPin->Direction = ERigVMPinDirection::Input;
+	Node->Pins.Add(ConditionPin);
+
+	URigVMPin* TruePin = NewObject<URigVMPin>(Node, *URigVMBranchNode::TrueName);
+	TruePin->CPPType = ExecutePin->CPPType;
+	TruePin->CPPTypeObject = ExecutePin->CPPTypeObject;
+	TruePin->CPPTypeObjectPath = ExecutePin->CPPTypeObjectPath;
+	TruePin->Direction = ERigVMPinDirection::Output;
+	Node->Pins.Add(TruePin);
+
+	URigVMPin* FalsePin = NewObject<URigVMPin>(Node, *URigVMBranchNode::FalseName);
+	FalsePin->CPPType = ExecutePin->CPPType;
+	FalsePin->CPPTypeObject = ExecutePin->CPPTypeObject;
+	FalsePin->CPPTypeObjectPath = ExecutePin->CPPTypeObjectPath;
+	FalsePin->Direction = ERigVMPinDirection::Output;
+	Node->Pins.Add(FalsePin);
+
+	Graph->Nodes.Add(Node);
+
+	Notify(ERigVMGraphNotifType::NodeAdded, Node);
+
+	if (bUndo)
+	{
+		ActionStack->AddAction(FRigVMAddBranchNodeAction(Node));
+	}
+
+	return Node;
+}
+
+URigVMIfNode* URigVMController::AddIfNode(const FString& InCPPType, const FName& InCPPTypeObjectPath, const FVector2D& InPosition, const FString& InNodeName, bool bUndo)
+{
+	if(!IsValidGraph())
+	{
+		return nullptr;
+	}
+
+	ensure(!InCPPType.IsEmpty());
+
+	UObject* CPPTypeObject = nullptr;
+	if(!InCPPTypeObjectPath.IsNone())
+	{
+		CPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath<UObject>(InCPPTypeObjectPath.ToString());
+		if (CPPTypeObject == nullptr)
+		{
+			ReportErrorf(TEXT("Cannot find cpp type object for path '%s'."), *InCPPTypeObjectPath.ToString());
+			return nullptr;
+		}
+	}
+
+	FString DefaultValue;
+	if(UScriptStruct* ScriptStruct = Cast<UScriptStruct>(CPPTypeObject))
+	{
+		if (ScriptStruct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
+		{
+			ReportErrorf(TEXT("Cannot create an if node for this type '%s'."), *InCPPTypeObjectPath.ToString());
+			return nullptr;
+		}
+		CreateDefaultValueForStructIfRequired(ScriptStruct, DefaultValue);
+	}
+	
+	FString Name = GetValidNodeName(InNodeName.IsEmpty() ? FString(TEXT("IfNode")) : InNodeName);
+	URigVMIfNode* Node = NewObject<URigVMIfNode>(Graph, *Name);
+	Node->Position = InPosition;
+
+	URigVMPin* ConditionPin = NewObject<URigVMPin>(Node, *URigVMIfNode::ConditionName);
+	ConditionPin->CPPType = TEXT("bool");
+	ConditionPin->Direction = ERigVMPinDirection::Input;
+	Node->Pins.Add(ConditionPin);
+
+	URigVMPin* TruePin = NewObject<URigVMPin>(Node, *URigVMIfNode::TrueName);
+	TruePin->CPPType = InCPPType;
+	TruePin->CPPTypeObject = CPPTypeObject;
+	TruePin->CPPTypeObjectPath = InCPPTypeObjectPath;
+	TruePin->Direction = ERigVMPinDirection::Input;
+	TruePin->DefaultValue = DefaultValue;
+	Node->Pins.Add(TruePin);
+
+	if (TruePin->IsStruct())
+	{
+		AddPinsForStruct(TruePin->GetScriptStruct(), Node, TruePin, TruePin->Direction, FString(), false);
+	}
+
+	URigVMPin* FalsePin = NewObject<URigVMPin>(Node, *URigVMIfNode::FalseName);
+	FalsePin->CPPType = InCPPType;
+	FalsePin->CPPTypeObject = CPPTypeObject;
+	FalsePin->CPPTypeObjectPath = InCPPTypeObjectPath;
+	FalsePin->Direction = ERigVMPinDirection::Input;
+	FalsePin->DefaultValue = DefaultValue;
+	Node->Pins.Add(FalsePin);
+
+	if (FalsePin->IsStruct())
+	{
+		AddPinsForStruct(FalsePin->GetScriptStruct(), Node, FalsePin, FalsePin->Direction, FString(), false);
+	}
+
+	URigVMPin* ResultPin = NewObject<URigVMPin>(Node, *URigVMIfNode::ResultName);
+	ResultPin->CPPType = InCPPType;
+	ResultPin->CPPTypeObject = CPPTypeObject;
+	ResultPin->CPPTypeObjectPath = InCPPTypeObjectPath;
+	ResultPin->Direction = ERigVMPinDirection::Output;
+	Node->Pins.Add(ResultPin);
+
+	if (ResultPin->IsStruct())
+	{
+		AddPinsForStruct(ResultPin->GetScriptStruct(), Node, ResultPin, ResultPin->Direction, FString(), false);
+	}
+
+	Graph->Nodes.Add(Node);
+
+	Notify(ERigVMGraphNotifType::NodeAdded, Node);
+
+	if (bUndo)
+	{
+		ActionStack->AddAction(FRigVMAddIfNodeAction(Node));
+	}
+
+	return Node;
+}
+
+URigVMSelectNode* URigVMController::AddSelectNode(const FString& InCPPType, const FName& InCPPTypeObjectPath, const FVector2D& InPosition, const FString& InNodeName, bool bUndo)
+{
+	if (!IsValidGraph())
+	{
+		return nullptr;
+	}
+
+	ensure(!InCPPType.IsEmpty());
+
+	UObject* CPPTypeObject = nullptr;
+	if (!InCPPTypeObjectPath.IsNone())
+	{
+		CPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath<UObject>(InCPPTypeObjectPath.ToString());
+		if (CPPTypeObject == nullptr)
+		{
+			ReportErrorf(TEXT("Cannot find cpp type object for path '%s'."), *InCPPTypeObjectPath.ToString());
+			return nullptr;
+		}
+	}
+
+	FString DefaultValue;
+	if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(CPPTypeObject))
+	{
+		if (ScriptStruct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
+		{
+			ReportErrorf(TEXT("Cannot create a select node for this type '%s'."), *InCPPTypeObjectPath.ToString());
+			return nullptr;
+		}
+		CreateDefaultValueForStructIfRequired(ScriptStruct, DefaultValue);
+	}
+
+	FString Name = GetValidNodeName(InNodeName.IsEmpty() ? FString(TEXT("IfNode")) : InNodeName);
+	URigVMSelectNode* Node = NewObject<URigVMSelectNode>(Graph, *Name);
+	Node->Position = InPosition;
+
+	URigVMPin* IndexPin = NewObject<URigVMPin>(Node, *URigVMSelectNode::IndexName);
+	IndexPin->CPPType = TEXT("int32");
+	IndexPin->Direction = ERigVMPinDirection::Input;
+	Node->Pins.Add(IndexPin);
+
+	URigVMPin* ValuePin = NewObject<URigVMPin>(Node, *URigVMSelectNode::ValueName);
+	ValuePin->CPPType = FString::Printf(TEXT("TArray<%s>"), *InCPPType);
+	ValuePin->CPPTypeObject = CPPTypeObject;
+	ValuePin->CPPTypeObjectPath = InCPPTypeObjectPath;
+	ValuePin->Direction = ERigVMPinDirection::Input;
+	ValuePin->bIsExpanded = true;
+	Node->Pins.Add(ValuePin);
+
+	URigVMPin* ResultPin = NewObject<URigVMPin>(Node, *URigVMSelectNode::ResultName);
+	ResultPin->CPPType = InCPPType;
+	ResultPin->CPPTypeObject = CPPTypeObject;
+	ResultPin->CPPTypeObjectPath = InCPPTypeObjectPath;
+	ResultPin->Direction = ERigVMPinDirection::Output;
+	Node->Pins.Add(ResultPin);
+
+	Graph->Nodes.Add(Node);
+
+	Notify(ERigVMGraphNotifType::NodeAdded, Node);
+
+	SetArrayPinSize(ValuePin->GetPinPath(), 2, DefaultValue, false);
+
+	if (bUndo)
+	{
+		ActionStack->AddAction(FRigVMAddSelectNodeAction(Node));
+	}
+
+	return Node;
+}
+
+URigVMPrototypeNode* URigVMController::AddPrototypeNode(const FName& InNotation, const FVector2D& InPosition, const FString& InNodeName, bool bUndo)
+{
+	if (!IsValidGraph())
+	{
+		return nullptr;
+	}
+
+	ensure(!InNotation.IsNone());
+
+	const FRigVMPrototype* Prototype = FRigVMRegistry::Get().FindPrototype(InNotation);
+	if (Prototype == nullptr)
+	{
+		ReportErrorf(TEXT("Prototype '%s' cannot be found."), *InNotation.ToString());
+		return nullptr;
+	}
+
+	FString Name = GetValidNodeName(InNodeName.IsEmpty() ? Prototype->GetName().ToString() : InNodeName);
+	URigVMPrototypeNode* Node = NewObject<URigVMPrototypeNode>(Graph, *Name);
+	Node->PrototypeNotation = Prototype->GetNotation();
+	Node->Position = InPosition;
+
+	int32 FunctionIndex = INDEX_NONE;
+	FRigVMPrototype::FTypeMap Types;
+	Prototype->Resolve(Types, FunctionIndex);
+
+	for (int32 ArgIndex = 0; ArgIndex < Prototype->NumArgs(); ArgIndex++)
+	{
+		const FRigVMPrototypeArg* Arg = Prototype->GetArg(ArgIndex);
+
+		URigVMPin* Pin = NewObject<URigVMPin>(Node, Arg->GetName());
+		const FRigVMPrototypeArg::FType& Type = Types.FindChecked(Arg->GetName());
+		Pin->CPPType = Type.CPPType;
+		Pin->CPPTypeObject = Type.CPPTypeObject;
+		if (Pin->CPPTypeObject)
+		{
+			Pin->CPPTypeObjectPath = *Pin->CPPTypeObject->GetPathName();
+		}
+		Pin->Direction = Arg->GetDirection();
+		Node->Pins.Add(Pin);
+	}
+
+	Graph->Nodes.Add(Node);
+
+	Notify(ERigVMGraphNotifType::NodeAdded, Node);
+
+	if (bUndo)
+	{
+		ActionStack->AddAction(FRigVMAddPrototypeNodeAction(Node));
+	}
+
+	return Node;
+}
+
+
+URigVMEnumNode* URigVMController::AddEnumNode(const FName& InCPPTypeObjectPath, const FVector2D& InPosition, const FString& InNodeName, bool bUndo)
+{
+	if (!IsValidGraph())
+	{
+		return nullptr;
+	}
+
+    UObject* CPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath<UObject>(InCPPTypeObjectPath.ToString());
+	if (CPPTypeObject == nullptr)
+	{
+		ReportErrorf(TEXT("Cannot find cpp type object for path '%s'."), *InCPPTypeObjectPath.ToString());
+		return nullptr;
+	}
+
+	UEnum* Enum = Cast<UEnum>(CPPTypeObject);
+	if(Enum == nullptr)
+	{
+		ReportErrorf(TEXT("Cpp type object for path '%s' is not an enum."), *InCPPTypeObjectPath.ToString());
+		return nullptr;
+	}
+
+	FString Name = GetValidNodeName(InNodeName.IsEmpty() ? FString(TEXT("IfNode")) : InNodeName);
+	URigVMEnumNode* Node = NewObject<URigVMEnumNode>(Graph, *Name);
+	Node->Position = InPosition;
+
+	URigVMPin* EnumValuePin = NewObject<URigVMPin>(Node, *URigVMEnumNode::EnumValueName);
+	EnumValuePin->CPPType = CPPTypeObject->GetName();
+	EnumValuePin->CPPTypeObject = CPPTypeObject;
+	EnumValuePin->CPPTypeObjectPath = InCPPTypeObjectPath;
+	EnumValuePin->Direction = ERigVMPinDirection::Visible;
+	EnumValuePin->DefaultValue = Enum->GetNameStringByValue(0);
+	Node->Pins.Add(EnumValuePin);
+
+	URigVMPin* EnumIndexPin = NewObject<URigVMPin>(Node, *URigVMEnumNode::EnumIndexName);
+	EnumIndexPin->CPPType = TEXT("int32");
+	EnumIndexPin->Direction = ERigVMPinDirection::Output;
+	EnumIndexPin->DisplayName = TEXT("Result");
+	Node->Pins.Add(EnumIndexPin);
+
+	Graph->Nodes.Add(Node);
+
+	Notify(ERigVMGraphNotifType::NodeAdded, Node);
+
+	if (bUndo)
+	{
+		ActionStack->AddAction(FRigVMAddEnumNodeAction(Node));
+	}
+
+	return Node;
+}
+
 void URigVMController::ForEveryPinRecursively(URigVMPin* InPin, TFunction<void(URigVMPin*)> OnEachPinFunction)
 {
 	OnEachPinFunction(InPin);
@@ -3329,12 +3947,12 @@ void URigVMController::AddPinsForStruct(UStruct* InStruct, URigVMNode* InNode, U
 			}
 		}
 		
-		if (!Pin->IsArray() && !Pin->IsStruct() && DefaultValuePtr != nullptr)
-		{
-			FString DefaultValue = *DefaultValuePtr;
-			PostProcessDefaultValue(Pin, DefaultValue);
-			Pin->DefaultValue = DefaultValue;
-		}
+if (!Pin->IsArray() && !Pin->IsStruct() && DefaultValuePtr != nullptr)
+{
+	FString DefaultValue = *DefaultValuePtr;
+	PostProcessDefaultValue(Pin, DefaultValue);
+	Pin->DefaultValue = DefaultValue;
+}
 	}
 }
 
@@ -3369,7 +3987,7 @@ void URigVMController::AddPinsForArray(FArrayProperty* InArrayProperty, URigVMNo
 			{
 				AddPinsForStruct(StructProperty->Struct, InNode, Pin, Pin->Direction, DefaultValue, bAutoExpandArrays);
 			}
-			else if(!DefaultValue.IsEmpty())
+			else if (!DefaultValue.IsEmpty())
 			{
 				PostProcessDefaultValue(Pin, DefaultValue);
 				Pin->DefaultValue = DefaultValue;
@@ -3403,19 +4021,7 @@ void URigVMController::ConfigurePinFromProperty(FProperty* InProperty, URigVMPin
 {
 	if (InPinDirection == ERigVMPinDirection::Invalid)
 	{
-#if WITH_EDITOR
-		bool bIsInput = InProperty->HasMetaData(TEXT("Input"));
-		bool bIsOutput = InProperty->HasMetaData(TEXT("Output"));
-
-		if (bIsInput)
-		{
-			InOutPin->Direction = bIsOutput ? ERigVMPinDirection::IO : ERigVMPinDirection::Input;
-		}
-		else
-		{
-			InOutPin->Direction = bIsOutput ? ERigVMPinDirection::Output : ERigVMPinDirection::Hidden;
-		}
-#endif
+		InOutPin->Direction = FRigVMStruct::GetPinDirectionFromProperty(InProperty);
 	}
 	else
 	{
@@ -3439,11 +4045,36 @@ void URigVMController::ConfigurePinFromProperty(FProperty* InProperty, URigVMPin
 	InOutPin->bIsConstant = InProperty->HasMetaData(TEXT("Constant"));
 	FString CustomWidgetName = InProperty->GetMetaData(TEXT("CustomWidget"));
 	InOutPin->CustomWidgetName = CustomWidgetName.IsEmpty() ? FName(NAME_None) : FName(*CustomWidgetName);
+
+	if (InProperty->HasMetaData(FRigVMStruct::ExpandPinByDefaultMetaName))
+	{
+		InOutPin->bIsExpanded = true;
+	}
+
 #endif
 
 	FString ExtendedCppType;
 	InOutPin->CPPType = InProperty->GetCPPType(&ExtendedCppType);
 	InOutPin->CPPType += ExtendedCppType;
+
+	InOutPin->bIsDynamicArray = false;
+#if WITH_EDITOR
+	if (InOutPin->Direction == ERigVMPinDirection::Hidden)
+	{
+		if (!InProperty->HasMetaData(TEXT("ArraySize")))
+		{
+			InOutPin->bIsDynamicArray = true;
+		}
+	}
+
+	if (InOutPin->bIsDynamicArray)
+	{
+		if (InProperty->HasMetaData(FRigVMStruct::SingletonMetaName))
+		{
+			InOutPin->bIsDynamicArray = false;
+		}
+	}
+#endif
 
 	FProperty* PropertyForType = InProperty;
 	FArrayProperty* ArrayProperty = CastField<FArrayProperty>(PropertyForType);
@@ -3606,15 +4237,47 @@ int32 URigVMController::DetachLinksFromPinObjects()
 	return Graph->Links.Num();
 }
 
-int32 URigVMController::ReattachLinksToPinObjects()
+int32 URigVMController::ReattachLinksToPinObjects(bool bFollowCoreRedirectors)
 {
 	check(Graph);
 	TGuardValue<bool> SuspendNotifs(bSuspendNotifications, true);
+	FScopeLock Lock(&PinPathCoreRedirectorsLock);
+
+	TMap<FString, FString> RedirectedPinPaths;
+	if (bFollowCoreRedirectors)
+	{
+		for (URigVMLink* Link : Graph->Links)
+		{
+			FString RedirectedSourcePinPath;
+			if (ShouldRedirectPin(Link->SourcePinPath, RedirectedSourcePinPath))
+			{
+				OutputPinRedirectors.FindOrAdd(Link->SourcePinPath, RedirectedSourcePinPath);
+			}
+
+			FString RedirectedTargetPinPath;
+			if (ShouldRedirectPin(Link->TargetPinPath, RedirectedTargetPinPath))
+			{
+				InputPinRedirectors.FindOrAdd(Link->TargetPinPath, RedirectedTargetPinPath);
+			}
+		}
+	}
 
 	// fix up the pin links based on the persisted data
 	TArray<URigVMLink*> NewLinks;
 	for (URigVMLink* Link : Graph->Links)
 	{
+		if (FString* RedirectedSourcePinPath = OutputPinRedirectors.Find(Link->SourcePinPath))
+		{
+			ensure(Link->SourcePin == nullptr);
+			Link->SourcePinPath = *RedirectedSourcePinPath;
+		}
+
+		if (FString* RedirectedTargetPinPath = InputPinRedirectors.Find(Link->TargetPinPath))
+		{
+			ensure(Link->TargetPin == nullptr);
+			Link->TargetPinPath = *RedirectedTargetPinPath;
+		}
+
 		URigVMPin* SourcePin = Link->GetSourcePin();
 		URigVMPin* TargetPin = Link->GetTargetPin();
 		if (SourcePin == nullptr)
@@ -3641,6 +4304,10 @@ int32 URigVMController::ReattachLinksToPinObjects()
 		NewLinks.Add(Link);
 	}
 	Graph->Links = NewLinks;
+
+	InputPinRedirectors.Reset();
+	OutputPinRedirectors.Reset();
+
 	return NewLinks.Num();
 }
 
@@ -3654,7 +4321,173 @@ void URigVMController::RemoveStaleNodes()
 	Graph->Nodes.Remove(nullptr);
 }
 
+void URigVMController::AddPinRedirector(bool bInput, bool bOutput, const FString& OldPinPath, const FString& NewPinPath)
+{
+	if (OldPinPath.IsEmpty() || NewPinPath.IsEmpty() || OldPinPath == NewPinPath)
+	{
+		return;
+	}
+
+	if (bInput)
+	{
+		InputPinRedirectors.FindOrAdd(OldPinPath) = NewPinPath;
+	}
+	if (bOutput)
+	{
+		OutputPinRedirectors.FindOrAdd(OldPinPath) = NewPinPath;
+	}
+}
+
 #if WITH_EDITOR
+
+bool URigVMController::ShouldRedirectPin(UScriptStruct* InOwningStruct, const FString& InOldRelativePinPath, FString& InOutNewRelativePinPath) const
+{
+	FControlRigStructPinRedirectorKey RedirectorKey(InOwningStruct, InOldRelativePinPath);
+	if (const FString* RedirectedPinPath = PinPathCoreRedirectors.Find(RedirectorKey))
+	{
+		InOutNewRelativePinPath = *RedirectedPinPath;
+		return InOutNewRelativePinPath != InOldRelativePinPath;
+	}
+
+	FString RelativePinPath = InOldRelativePinPath;
+	FString PinName, SubPinPath;
+	if (!URigVMPin::SplitPinPathAtStart(RelativePinPath, PinName, SubPinPath))
+	{
+		PinName = RelativePinPath;
+		SubPinPath.Empty();
+	}
+
+	bool bShouldRedirect = false;
+	FCoreRedirectObjectName OldObjectName(*PinName, InOwningStruct->GetFName(), *InOwningStruct->GetOutermost()->GetPathName());
+	FCoreRedirectObjectName NewObjectName = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Property, OldObjectName);
+	if (OldObjectName != NewObjectName)
+	{
+		PinName = NewObjectName.ObjectName.ToString();
+		bShouldRedirect = true;
+	}
+
+	FProperty* Property = InOwningStruct->FindPropertyByName(*PinName);
+	if (Property == nullptr)
+	{
+		return false;
+	}
+
+	if (!SubPinPath.IsEmpty())
+	{
+		if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+		{
+			FString NewSubPinPath;
+			if (ShouldRedirectPin(StructProperty->Struct, SubPinPath, NewSubPinPath))
+			{
+				SubPinPath = NewSubPinPath;
+				bShouldRedirect = true;
+			}
+		}
+		else if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
+		{
+			FString SubPinName, SubSubPinPath;
+			if (URigVMPin::SplitPinPathAtStart(SubPinPath, SubPinName, SubSubPinPath))
+			{
+				if (FStructProperty* InnerStructProperty = CastField<FStructProperty>(ArrayProperty->Inner))
+				{
+					FString NewSubSubPinPath;
+					if (ShouldRedirectPin(InnerStructProperty->Struct, SubSubPinPath, NewSubSubPinPath))
+					{
+						SubSubPinPath = NewSubSubPinPath;
+						SubPinPath = URigVMPin::JoinPinPath(SubPinName, SubSubPinPath);
+						bShouldRedirect = true;
+					}
+				}
+			}
+		}
+	}
+
+	if (bShouldRedirect)
+	{
+		if (SubPinPath.IsEmpty())
+		{
+			InOutNewRelativePinPath = PinName;
+			PinPathCoreRedirectors.Add(RedirectorKey, InOutNewRelativePinPath);
+		}
+		else
+		{
+			InOutNewRelativePinPath = URigVMPin::JoinPinPath(PinName, SubPinPath);
+
+			TArray<FString> OldParts, NewParts;
+			if (URigVMPin::SplitPinPath(InOldRelativePinPath, OldParts) &&
+				URigVMPin::SplitPinPath(InOutNewRelativePinPath, NewParts))
+			{
+				ensure(OldParts.Num() == NewParts.Num());
+
+				FString OldPath = OldParts[0];
+				FString NewPath = NewParts[0];
+				for (int32 PartIndex = 0; PartIndex < OldParts.Num(); PartIndex++)
+				{
+					if (PartIndex > 0)
+					{
+						OldPath = URigVMPin::JoinPinPath(OldPath, OldParts[PartIndex]);
+						NewPath = URigVMPin::JoinPinPath(NewPath, NewParts[PartIndex]);
+					}
+
+					// this is also going to cache paths which haven't been redirected.
+					// consumers of the table have to still compare old != new
+					FControlRigStructPinRedirectorKey SubRedirectorKey(InOwningStruct, OldPath);
+					if (!PinPathCoreRedirectors.Contains(SubRedirectorKey))
+					{
+						PinPathCoreRedirectors.Add(SubRedirectorKey, NewPath);
+					}
+				}
+			}
+		}
+	}
+
+	return bShouldRedirect;
+}
+
+bool URigVMController::ShouldRedirectPin(const FString& InOldPinPath, FString& InOutNewPinPath) const
+{
+	FString PinPathInNode, NodeName;
+	URigVMPin::SplitPinPathAtStart(InOldPinPath, NodeName, PinPathInNode);
+
+	URigVMNode* Node = Graph->FindNode(NodeName);
+	if (URigVMStructNode* StructNode = Cast<URigVMStructNode>(Node))
+	{
+		FString NewPinPathInNode;
+		if (ShouldRedirectPin(StructNode->GetScriptStruct(), PinPathInNode, NewPinPathInNode))
+		{
+			InOutNewPinPath = URigVMPin::JoinPinPath(NodeName, NewPinPathInNode);
+			return true;
+		}
+	}
+	else if (URigVMRerouteNode* RerouteNode = Cast<URigVMRerouteNode>(Node))
+	{
+		URigVMPin* ValuePin = RerouteNode->Pins[0];
+		if (ValuePin->IsStruct())
+		{
+			FString ValuePinPath = ValuePin->GetPinPath();
+			if (InOldPinPath == ValuePinPath)
+			{
+				return false;
+			}
+			else if (!InOldPinPath.StartsWith(ValuePinPath))
+			{
+				return false;
+			}
+
+			FString PinPathInStruct, NewPinPathInStruct;
+			if (URigVMPin::SplitPinPathAtStart(PinPathInNode, NodeName, PinPathInStruct))
+			{
+				if (ShouldRedirectPin(ValuePin->GetScriptStruct(), PinPathInStruct, NewPinPathInStruct))
+				{
+					InOutNewPinPath = URigVMPin::JoinPinPath(ValuePin->GetPinPath(), NewPinPathInStruct);
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
 
 void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode)
 {
@@ -3665,36 +4498,40 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode)
 	}
 
 	URigVMStructNode* StructNode = Cast<URigVMStructNode>(InNode);
-	if (StructNode == nullptr)
+
+	// reroute node may also contain a struct value pin that need to be refreshed
+	URigVMRerouteNode* RerouteNode = Cast<URigVMRerouteNode>(InNode);
+	
+	if (StructNode == nullptr && RerouteNode == nullptr)
 	{
 		return;
 	}
 
 	TGuardValue<bool> SuspendNotifs(bSuspendNotifications, true);
+	FScopeLock Lock(&PinPathCoreRedirectorsLock);
+
 	check(Graph);
 
-	// todo: ensure to keep all links
-
-	TMap<FName, FString> DefaultValues;
-	for (URigVMPin* Pin : InNode->Pins)
+	// step 1/3: keep a record of the current state of the node's pins
+	TMap<FString, FString> DefaultValues;
+	TArray<URigVMPin*> AllPins = InNode->GetAllPinsRecursively();
+	for (URigVMPin* Pin : AllPins)
 	{
 		FString DefaultValue = Pin->GetDefaultValue();
 		if (!DefaultValue.IsEmpty())
 		{
-			DefaultValues.Add(Pin->GetFName(), DefaultValue);
+			FString PinPath, NodeName;
+			URigVMPin::SplitPinPathAtStart(Pin->GetPinPath(), NodeName, PinPath);
+			DefaultValues.Add(PinPath, DefaultValue);
 		}
 	}
 
 	TMap<FString, bool> ExpansionStates;
-	TArray<URigVMPin*> AllPins = InNode->GetAllPinsRecursively();
 	for (URigVMPin* Pin : AllPins)
 	{
-		if (Pin->IsExpanded())
-		{
-			FString PinPath = Pin->GetPinPath();
-			PinPath = PinPath.RightChop(InNode->GetNodePath().Len() + 1);
-			ExpansionStates.Add(PinPath, true);
-		}
+		FString PinPath, NodeName;
+		URigVMPin::SplitPinPathAtStart(Pin->GetPinPath(), NodeName, PinPath);
+		ExpansionStates.Add(PinPath, Pin->IsExpanded());
 	}
 
 	TMap<FString, TArray<URigVMInjectionInfo*>> InjectionInfos;
@@ -3715,27 +4552,132 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode)
 		InjectionOutputPinName = InjectionInfo->OutputPin->GetFName();
 	}
 
-	TArray<URigVMPin*> Pins = InNode->Pins;
-	for (URigVMPin* Pin : Pins)
+	// create a map for pin paths to their respective redirected pins
+	TMap<FString, FString> RedirectedPinPaths;
+	UScriptStruct* OwningStruct = nullptr;
+	if (StructNode)
 	{
-		RemovePin(Pin, false);
+		OwningStruct = StructNode->GetScriptStruct();
 	}
-	InNode->Pins.Reset();
-	Pins.Reset();
-
-	UScriptStruct* ScriptStruct = StructNode->GetScriptStruct();
-
-	FString NodeColorMetadata;
-	ScriptStruct->GetStringMetaDataHierarchical(*URigVMNode::NodeColorName, &NodeColorMetadata);
-	if (!NodeColorMetadata.IsEmpty())
+	else if (RerouteNode)
 	{
-		StructNode->NodeColor = GetColorFromMetadata(NodeColorMetadata);
+		URigVMPin* ValuePin = RerouteNode->Pins[0];
+		if (ValuePin->IsStruct())
+		{
+			OwningStruct = ValuePin->GetScriptStruct();
+		}
+	}
+	else
+	{
+		checkNoEntry();
 	}
 
-	FString ExportedDefaultValue;
-	CreateDefaultValueForStructIfRequired(ScriptStruct, ExportedDefaultValue);
-	AddPinsForStruct(ScriptStruct, StructNode, nullptr, ERigVMPinDirection::Invalid, ExportedDefaultValue, false);
+	if (OwningStruct)
+	{
+		for (URigVMPin* Pin : AllPins)
+		{
+			FString NodeName, PinPath;
+			URigVMPin::SplitPinPathAtStart(Pin->GetPinPath(), NodeName, PinPath);
 
+			if (RerouteNode)
+			{
+				FString ValuePinName, SubPinPath;
+				if (URigVMPin::SplitPinPathAtStart(PinPath, ValuePinName, SubPinPath))
+				{
+					FString RedirectedSubPinPath;
+					if (ShouldRedirectPin(OwningStruct, SubPinPath, RedirectedSubPinPath))
+					{
+						FString RedirectedPinPath = URigVMPin::JoinPinPath(ValuePinName, RedirectedSubPinPath);
+						RedirectedPinPaths.Add(PinPath, RedirectedPinPath);
+					}
+				}
+			}
+			else
+			{
+				FString RedirectedPinPath;
+				if (ShouldRedirectPin(OwningStruct, PinPath, RedirectedPinPath))
+				{
+					RedirectedPinPaths.Add(PinPath, RedirectedPinPath);
+				}
+			}
+		}
+	}
+
+	// step 2/3: clear pins on the node and repopulate the node with new pins
+	if (StructNode != nullptr)
+	{
+		TArray<URigVMPin*> Pins = InNode->Pins;
+		for (URigVMPin* Pin : Pins)
+		{
+			RemovePin(Pin, false);
+		}
+		InNode->Pins.Reset();
+		Pins.Reset();
+
+		UScriptStruct* ScriptStruct = StructNode->GetScriptStruct();
+		if (ScriptStruct == nullptr)
+		{
+			ReportWarningf(
+				TEXT("Control Rig '%s', Node '%s' has no struct assigned. Do you have a broken redirect?"),
+				*StructNode->GetOutermost()->GetPathName(),
+				*StructNode->GetName()
+				);
+
+			RemoveNode(StructNode, false, true);
+			return;
+		}
+
+		FString NodeColorMetadata;
+		ScriptStruct->GetStringMetaDataHierarchical(*URigVMNode::NodeColorName, &NodeColorMetadata);
+		if (!NodeColorMetadata.IsEmpty())
+		{
+			StructNode->NodeColor = GetColorFromMetadata(NodeColorMetadata);
+		}
+
+		FString ExportedDefaultValue;
+		CreateDefaultValueForStructIfRequired(ScriptStruct, ExportedDefaultValue);
+		AddPinsForStruct(ScriptStruct, StructNode, nullptr, ERigVMPinDirection::Invalid, ExportedDefaultValue, false);
+	}
+	else if (RerouteNode != nullptr)
+	{
+		if (RerouteNode->Pins.Num() == 0)
+		{
+			return;
+		}
+
+		URigVMPin* ValuePin = RerouteNode->Pins[0];
+
+		// only repopulate the value pin, which may host a struct
+		TArray<URigVMPin*> Pins = ValuePin->SubPins;
+		for (URigVMPin* Pin : Pins)
+		{
+			RemovePin(Pin, false);
+		}
+		ValuePin->SubPins.Reset();
+		Pins.Reset();
+
+		if (ValuePin->IsStruct())
+		{
+			UScriptStruct* ScriptStruct = ValuePin->GetScriptStruct();
+			if (ScriptStruct == nullptr)
+			{
+				ReportErrorf(
+					TEXT("Control Rig '%s', Node '%s' has no struct assigned. Do you have a broken redirect?"),
+					*RerouteNode->GetOutermost()->GetPathName(),
+					*RerouteNode->GetName()
+				);
+
+				RemoveNode(RerouteNode, false, true);
+				return;
+			}
+
+			FString ExportedDefaultValue;
+			CreateDefaultValueForStructIfRequired(ScriptStruct, ExportedDefaultValue);
+			AddPinsForStruct(ScriptStruct, RerouteNode, ValuePin, ValuePin->Direction, ExportedDefaultValue, false);
+		}
+	}
+
+	// step 3/3: restore states for the pins
 	for (TPair<FString, TArray<URigVMInjectionInfo*>> InjectionPair : InjectionInfos)
 	{
 		if (URigVMPin* Pin = InNode->FindPin(InjectionPair.Key))
@@ -3752,16 +4694,21 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode)
 		{
 			for (URigVMInjectionInfo* InjectionInfo : InjectionPair.Value)
 			{
-				InjectionInfo->Rename(nullptr, GetTransientPackage());
-				InjectionInfo->MarkPendingKill();
 				InjectionInfo->StructNode->Rename(nullptr, InNode->GetGraph());
+				DestroyObject(InjectionInfo);
 			}
 		}
 	}
 
-	for (TPair<FName, FString> DefaultValuePair : DefaultValues)
+	for (TPair<FString, FString> DefaultValuePair : DefaultValues)
 	{
-		if (URigVMPin* Pin = InNode->FindPin(DefaultValuePair.Key.ToString()))
+		FString PinPath = DefaultValuePair.Key;
+		if (RedirectedPinPaths.Contains(PinPath))
+		{
+			PinPath = RedirectedPinPaths.FindChecked(PinPath);
+		}
+
+		if (URigVMPin* Pin = InNode->FindPin(PinPath))
 		{
 			SetPinDefaultValue(Pin, DefaultValuePair.Value, true, false, false);
 		}
@@ -3769,9 +4716,15 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode)
 
 	for (TPair<FString, bool> ExpansionStatePair : ExpansionStates)
 	{
-		if (URigVMPin* Pin = InNode->FindPin(ExpansionStatePair.Key))
+		FString PinPath = ExpansionStatePair.Key;
+		if (RedirectedPinPaths.Contains(PinPath))
 		{
-			SetPinExpansion(Pin->GetPinPath(), ExpansionStatePair.Value, false);
+			PinPath = RedirectedPinPaths.FindChecked(PinPath);
+		}
+
+		if (URigVMPin* Pin = InNode->FindPin(PinPath))
+		{
+			SetPinExpansion(Pin, ExpansionStatePair.Value, false);
 		}
 	}
 
@@ -3885,6 +4838,159 @@ void URigVMController::PostProcessDefaultValue(URigVMPin* Pin, FString& OutDefau
 	}
 }
 
+void URigVMController::PotentiallyResolvePrototypeNode(URigVMPrototypeNode* InNode, bool bUndo)
+{
+	TArray<URigVMNode*> NodesVisited;
+	PotentiallyResolvePrototypeNode(InNode, bUndo, NodesVisited);
+}
+
+void URigVMController::PotentiallyResolvePrototypeNode(URigVMPrototypeNode* InNode, bool bUndo, TArray<URigVMNode*>& NodesVisited)
+{
+	if (InNode == nullptr)
+	{
+		return;
+	}
+
+	if (NodesVisited.Contains(InNode))
+	{
+		return;
+	}
+	NodesVisited.Add(InNode);
+
+	// propagate types first
+	for (URigVMPin* Pin : InNode->Pins)
+	{
+		if (Pin->CPPType.IsEmpty())
+		{
+			TArray<URigVMPin*> LinkedPins = Pin->GetLinkedSourcePins();
+			LinkedPins.Append(Pin->GetLinkedTargetPins());
+
+			for (URigVMPin* LinkedPin : LinkedPins)
+			{
+				if (!LinkedPin->CPPType.IsEmpty())
+				{
+					ChangePinType(Pin, LinkedPin->CPPType, LinkedPin->CPPTypeObjectPath, bUndo);
+					break;
+				}
+			}
+		}
+	}
+
+	// check if the node is resolved
+	FRigVMPrototype::FTypeMap ResolvedTypes;
+	int32 FunctionIndex = InNode->GetResolvedFunctionIndex(&ResolvedTypes);
+	if (FunctionIndex != INDEX_NONE)
+	{
+		// we have a valid node - let's replace this node... first let's find all 
+		// links and all default values
+		TMap<FString, FString> DefaultValues;
+		TArray<TPair<FString, FString>> LinkPaths;
+
+		for (URigVMPin* Pin : InNode->Pins)
+		{
+			FString DefaultValue = Pin->GetDefaultValue();
+			if (!DefaultValue.IsEmpty())
+			{
+				DefaultValues.Add(Pin->GetPinPath(), DefaultValue);
+			}
+
+			TArray<URigVMLink*> Links = Pin->GetSourceLinks(true);
+			Links.Append(Pin->GetTargetLinks(true));
+
+			for (URigVMLink* Link : Links)
+			{
+				LinkPaths.Add(TPair<FString, FString>(Link->GetSourcePin()->GetPinPath(), Link->GetTargetPin()->GetPinPath()));
+			}
+		}
+
+		const FRigVMFunction& Function = FRigVMRegistry::Get().GetFunctions()[FunctionIndex];
+		FString NodeName = InNode->GetName();
+		FVector2D NodePosition = InNode->GetPosition();
+
+		RemoveNode(InNode, bUndo);
+
+		if (URigVMNode* NewNode = AddStructNode(Function.Struct, Function.GetMethodName(), NodePosition, NodeName, bUndo))
+		{
+			// set default values again
+			for (TPair<FString, FString> Pair : DefaultValues)
+			{
+				SetPinDefaultValue(Pair.Key, Pair.Value, true, bUndo, false);
+			}
+
+			// reestablish links
+			for (TPair<FString, FString> Pair : LinkPaths)
+			{
+				AddLink(Pair.Key, Pair.Value, bUndo);
+			}
+		}
+
+		return;
+	}
+	else
+	{
+		// update all of the pins that might have changed now as well!
+		for (URigVMPin* Pin : InNode->Pins)
+		{
+			if (Pin->CPPType.IsEmpty())
+			{
+				if (const FRigVMPrototypeArg::FType* Type = ResolvedTypes.Find(Pin->GetFName()))
+				{
+					if (!Type->CPPType.IsEmpty())
+					{
+						ChangePinType(Pin, Type->CPPType, Type->GetCPPTypeObjectPath(), bUndo);
+					}
+				}
+			}
+		}
+	}
+
+	// then recursively call
+	TArray<URigVMNode*> LinkedNodes = InNode->GetLinkedSourceNodes();
+	LinkedNodes.Append(InNode->GetLinkedTargetNodes());
+	for (URigVMNode* LinkedNode : LinkedNodes)
+	{
+		PotentiallyResolvePrototypeNode(Cast<URigVMPrototypeNode>(LinkedNode), bUndo, NodesVisited);
+	}
+}
+
+bool URigVMController::ChangePinType(const FString& InPinPath, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bUndo)
+{
+	if (!IsValidGraph())
+	{
+		return false;
+	}
+
+	if (URigVMPin* Pin = Graph->FindPin(InPinPath))
+	{
+		return ChangePinType(Pin, InCPPType, InCPPTypeObjectPath, bUndo);
+	}
+
+	return false;
+}
+
+bool URigVMController::ChangePinType(URigVMPin* InPin, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bUndo)
+{
+	if (InPin->CPPType == InCPPType)
+	{
+		return false;
+	}
+
+	FRigVMChangePinTypeAction Action(InPin, InCPPType, InCPPTypeObjectPath);
+
+	InPin->CPPType = InCPPType;
+	InPin->CPPTypeObjectPath = InCPPTypeObjectPath;
+	InPin->CPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath(InPin->CPPTypeObjectPath.ToString());
+
+	Notify(ERigVMGraphNotifType::PinTypeChanged, InPin);
+
+	if (bUndo)
+	{
+		ActionStack->AddAction(Action);
+	}
+
+	return true;
+}
+
 #if WITH_EDITOR
 
 void URigVMController::RewireLinks(URigVMPin* InOldPin, URigVMPin* InNewPin, bool bAsInput, bool bUndo, TArray<URigVMLink*> InLinks)
@@ -3931,3 +5037,9 @@ void URigVMController::RewireLinks(URigVMPin* InOldPin, URigVMPin* InNewPin, boo
 }
 
 #endif
+
+void URigVMController::DestroyObject(UObject* InObjectToDestroy)
+{
+	InObjectToDestroy->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+	InObjectToDestroy->RemoveFromRoot();
+}

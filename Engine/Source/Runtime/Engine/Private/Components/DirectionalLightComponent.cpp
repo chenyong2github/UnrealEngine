@@ -178,7 +178,11 @@ public:
 	uint32 bCastCloudShadows : 1;
 	float CloudShadowExtent;
 	float CloudShadowStrength;
+	float CloudShadowOnAtmosphereStrength;
+	float CloudShadowOnSurfaceStrength;
+	float CloudShadowDepthBias;
 	float CloudShadowMapResolutionScale;
+	float CloudShadowRaySampleCountScale;
 	FLinearColor CloudScatteredLuminanceScale;
 	uint32 bPerPixelAtmosphereTransmittance : 1;
 
@@ -208,7 +212,11 @@ public:
 		bCastCloudShadows(Component->bCastCloudShadows),
 		CloudShadowExtent(Component->CloudShadowExtent),
 		CloudShadowStrength(Component->CloudShadowStrength),
+		CloudShadowOnAtmosphereStrength(Component->CloudShadowOnAtmosphereStrength),
+		CloudShadowOnSurfaceStrength(Component->CloudShadowOnSurfaceStrength),
+		CloudShadowDepthBias(Component->CloudShadowDepthBias),
 		CloudShadowMapResolutionScale(Component->CloudShadowMapResolutionScale),
+		CloudShadowRaySampleCountScale(Component->CloudShadowRaySampleCountScale),
 		CloudScatteredLuminanceScale(Component->CloudScatteredLuminanceScale),
 		bPerPixelAtmosphereTransmittance(Component->bPerPixelAtmosphereTransmittance)
 	{
@@ -362,7 +370,9 @@ public:
 		// Use the minimum of half the world, things further away do not cast shadows,
 		// However, if the cascade bounds are larger, then extend the casting distance far enough to encompass the cascade.
 		OutInitializer.MinLightW = FMath::Min<float>(-HALF_WORLD_MAX, -SubjectBounds.SphereRadius);
-		OutInitializer.MaxDistanceToCastInLightW = SubjectBounds.SphereRadius;
+		// Range must extend to end of cascade bounds
+		const float MaxLightW = SubjectBounds.SphereRadius;
+		OutInitializer.MaxDistanceToCastInLightW = MaxLightW - OutInitializer.MinLightW;
 		OutInitializer.bRayTracedDistanceField = bRayTracedCascade;
 		OutInitializer.CascadeSettings.bFarShadowCascade = !bRayTracedCascade && OutInitializer.CascadeSettings.ShadowSplitIndex >= (int32)NumNearCascades;
 		return true;
@@ -384,7 +394,9 @@ public:
 		// Use the minimum of half the world, things further away do not cast shadows,
 		// However, if the cascade bounds are larger, then extend the casting distance far enough to encompass the cascade.
 		OutInitializer.MinLightW = FMath::Min<float>(-HALF_WORLD_MAX, -OutInitializer.SubjectBounds.SphereRadius);
-		OutInitializer.MaxDistanceToCastInLightW = OutInitializer.SubjectBounds.SphereRadius;
+		// Range must extend to end of cascade bounds
+		const float MaxLightW = OutInitializer.SubjectBounds.SphereRadius;
+		OutInitializer.MaxDistanceToCastInLightW = MaxLightW - OutInitializer.MinLightW;
 
 		// Compute the RSM bounds
 		{
@@ -501,9 +513,25 @@ public:
 	{
 		return CloudShadowMapResolutionScale;
 	}
+	virtual float GetCloudShadowRaySampleCountScale()  const override
+	{
+		return CloudShadowRaySampleCountScale;
+	}
 	virtual float GetCloudShadowStrength()  const override
 	{
 		return CloudShadowStrength;
+	}
+	virtual float GetCloudShadowOnAtmosphereStrength()  const override
+	{
+		return CloudShadowOnAtmosphereStrength;
+	}
+	virtual float GetCloudShadowDepthBias()  const override
+	{
+		return CloudShadowDepthBias;
+	}
+	virtual float GetCloudShadowOnSurfaceStrength()  const override
+	{
+		return CloudShadowOnSurfaceStrength;
 	}
 	virtual FLinearColor GetCloudScatteredLuminanceScale()  const override
 	{
@@ -893,7 +921,19 @@ private:
 			OutCascadeSettings->ShadowSplitIndex = (int32)ShadowSplitIndex;
 		}
 
-		const FSphere CascadeSphere = FDirectionalLightSceneProxy::GetShadowSplitBoundsDepthRange(View, View.ViewMatrices.GetViewOrigin(), SplitNear, SplitFar, OutCascadeSettings);
+
+		// TODO: Move this into a flag in some shadow-system cofiguration struct and set based on this cvar outside setup.
+		static const auto CVarSkyAtmosphereSampleLightShadowmap = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SkyAtmosphere.SampleLightShadowmap"));
+
+		// If enabled & this is the last cascade, then override the near plane used to construct the bounds using the
+		// near plane of the first cacade (AKA the near plane of the view), to ensure the last cascade is inclusive.
+		// We don't set any of the near/far planes etc as that would conflict with the fading.
+		bool bUseNearOverride = (bCastShadowsOnClouds || bCastShadowsOnAtmosphere) 
+			&& (ShadowSplitIndex + 1U) == NumNearAndFarCascades 
+			&& CVarSkyAtmosphereSampleLightShadowmap && CVarSkyAtmosphereSampleLightShadowmap->GetValueOnAnyThread() != 0;
+		
+		const float BoundsCalcNear = bUseNearOverride ? GetSplitDistance(View, 0, bPrecomputedLightingIsValid, bIsRayTracedCascade) : SplitNear;
+		const FSphere CascadeSphere = FDirectionalLightSceneProxy::GetShadowSplitBoundsDepthRange(View, View.ViewMatrices.GetViewOrigin(), BoundsCalcNear, SplitFar, OutCascadeSettings);
 
 		return CascadeSphere;
 	}
@@ -955,7 +995,11 @@ UDirectionalLightComponent::UDirectionalLightComponent(const FObjectInitializer&
 	bCastCloudShadows = 0;
 	CloudShadowExtent = 150.0f;
 	CloudShadowMapResolutionScale = 1.0f;
+	CloudShadowRaySampleCountScale = 1.0f;
 	CloudShadowStrength = 1.0f;
+	CloudShadowOnAtmosphereStrength = 1.0f;
+	CloudShadowOnSurfaceStrength = 1.0f;
+	CloudShadowDepthBias = 0.0f;
 	CloudScatteredLuminanceScale = FLinearColor::White;
 	bPerPixelAtmosphereTransmittance = 0;
 }
@@ -1051,7 +1095,11 @@ bool UDirectionalLightComponent::CanEditChange(const FProperty* InProperty) cons
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, CloudShadowExtent)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, CloudShadowMapResolutionScale)
-			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, CloudShadowStrength))
+			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, CloudShadowRaySampleCountScale)
+			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, CloudShadowStrength)
+			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, CloudShadowOnAtmosphereStrength)
+			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, CloudShadowOnSurfaceStrength)
+			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, CloudShadowDepthBias))
 		{
 			return bCastCloudShadows && bUsedAsAtmosphereSunLight;
 		}

@@ -12,6 +12,8 @@
 #include "UObject/UObjectIterator.h"
 #include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
+#include "Animation/AnimationPoseData.h"
+#include "Animation/CustomAttributesRuntime.h"
 
 #define LOCTEXT_NAMESPACE "BlendSpaceBase"
 
@@ -567,10 +569,20 @@ void UBlendSpaceBase::ResetToRefPose(FCompactPose& OutPose)
 
 void UBlendSpaceBase::GetAnimationPose(TArray<FBlendSampleData>& BlendSampleDataCache, /*out*/ FCompactPose& OutPose, /*out*/ FBlendedCurve& OutCurve)
 {
+	FStackCustomAttributes TempAttributes;
+	FAnimationPoseData AnimationPoseData = { OutPose, OutCurve, TempAttributes };
+	GetAnimationPose(BlendSampleDataCache, AnimationPoseData);
+}
+
+void UBlendSpaceBase::GetAnimationPose(TArray<FBlendSampleData>& BlendSampleDataCache, /*out*/ FAnimationPoseData& OutAnimationPoseData)
+{
 	SCOPE_CYCLE_COUNTER(STAT_BlendSpace_GetAnimPose);
 	FScopeCycleCounterUObject BlendSpaceScope(this);
 
-	if(BlendSampleDataCache.Num() == 0)
+	FCompactPose& OutPose = OutAnimationPoseData.GetPose();
+	FBlendedCurve& OutCurve = OutAnimationPoseData.GetCurve();
+
+	if (BlendSampleDataCache.Num() == 0)
 	{
 		ResetToRefPose(OutPose);
 		return;
@@ -583,6 +595,9 @@ void UBlendSpaceBase::GetAnimationPose(TArray<FBlendSampleData>& BlendSampleData
 
 	TArray<FBlendedCurve, TInlineAllocator<8>> ChildrenCurves;
 	ChildrenCurves.AddZeroed(NumPoses);
+
+	TArray<FStackCustomAttributes, TInlineAllocator<8>> ChildrenAttributes;
+	ChildrenAttributes.AddZeroed(NumPoses);
 
 	TArray<float, TInlineAllocator<8>> ChildrenWeights;
 	ChildrenWeights.AddZeroed(NumPoses);
@@ -612,8 +627,9 @@ void UBlendSpaceBase::GetAnimationPose(TArray<FBlendSampleData>& BlendSampleData
 			{
 				const float Time = FMath::Clamp<float>(BlendSampleDataCache[I].Time, 0.f, Sample.Animation->GetPlayLength());
 
+				FAnimationPoseData ChildAnimationPoseData = { Pose, ChildrenCurves[I], ChildrenAttributes[I] };
 				// first one always fills up the source one
-				Sample.Animation->GetAnimationPose(Pose, ChildrenCurves[I], FAnimExtractContext(Time, true));
+				Sample.Animation->GetAnimationPose(ChildAnimationPoseData, FAnimExtractContext(Time, true));
 			}
 			else
 			{
@@ -634,21 +650,21 @@ void UBlendSpaceBase::GetAnimationPose(TArray<FBlendSampleData>& BlendSampleData
 		{
 			if (bRotationBlendInMeshSpace)
 			{
-				FAnimationRuntime::BlendPosesTogetherPerBoneInMeshSpace(ChildrenPosesView, ChildrenCurves, this, BlendSampleDataCache, OutPose, OutCurve);
+				FAnimationRuntime::BlendPosesTogetherPerBoneInMeshSpace(ChildrenPosesView, ChildrenCurves, ChildrenAttributes, this, BlendSampleDataCache, OutAnimationPoseData);
 			}
 			else
 			{
-				FAnimationRuntime::BlendPosesTogetherPerBone(ChildrenPosesView, ChildrenCurves, this, BlendSampleDataCache, OutPose, OutCurve);
+				FAnimationRuntime::BlendPosesTogetherPerBone(ChildrenPosesView, ChildrenCurves, ChildrenAttributes, this, BlendSampleDataCache, OutAnimationPoseData);
 			}
 		}
 		else
 		{
-			FAnimationRuntime::BlendPosesTogetherPerBone(ChildrenPosesView, ChildrenCurves, this, BlendSampleDataCache, OutPose, OutCurve);
+			FAnimationRuntime::BlendPosesTogetherPerBone(ChildrenPosesView, ChildrenCurves, ChildrenAttributes, this, BlendSampleDataCache, OutAnimationPoseData);
 		}
 	}
 	else
 	{
-		FAnimationRuntime::BlendPosesTogether(ChildrenPosesView, ChildrenCurves, ChildrenWeights, OutPose, OutCurve);
+		FAnimationRuntime::BlendPosesTogether(ChildrenPosesView, ChildrenCurves, ChildrenAttributes, ChildrenWeights, OutAnimationPoseData);
 	}
 
 	// Once all the accumulation and blending has been done, normalize rotations.

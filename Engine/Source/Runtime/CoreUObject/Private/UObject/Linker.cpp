@@ -23,6 +23,7 @@
 #include "UObject/UObjectThreadContext.h"
 #include "UObject/DebugSerializationFlags.h"
 #include "UObject/ObjectResource.h"
+#include "Algo/Transform.h"
 
 DEFINE_LOG_CATEGORY(LogLinker);
 
@@ -771,7 +772,7 @@ FLinkerLoad* GetPackageLinker
 		FPackageName::FixPackageNameCase(PackageNameToCreate, FPathViews::GetExtension(NewFilename));
 #endif
 			// Create the package with the provided long package name.
-			CreatedPackage = CreatePackage(nullptr, *PackageNameToCreate);
+			CreatedPackage = CreatePackage(*PackageNameToCreate);
 			FilenamePkg = CreatedPackage;
 		}
 
@@ -906,6 +907,23 @@ void ResetLoadersForSave(UPackage* Package, const TCHAR* Filename)
 			ResetLoaders( Package );
 		}
 	}
+}
+
+void ResetLoadersForSave(TArrayView<FPackageSaveInfo> InPackages)
+{
+	TSet<FLinkerLoad*> LinkersToReset;
+	Algo::TransformIf(InPackages, LinkersToReset,
+		[](const FPackageSaveInfo& InPackageSaveInfo)
+		{
+			FLinkerLoad* Loader = FLinkerLoad::FindExistingLinkerForPackage(InPackageSaveInfo.Package);
+			return Loader && FPaths::ConvertRelativePathToFull(InPackageSaveInfo.Filename) == FPaths::ConvertRelativePathToFull(Loader->Filename);
+		},
+		[](const FPackageSaveInfo& InPackageSaveInfo)
+		{
+			return FLinkerLoad::FindExistingLinkerForPackage(InPackageSaveInfo.Package);
+		});
+	FlushAsyncLoading();
+	FLinkerManager::Get().ResetLoaders(LinkersToReset);
 }
 
 void EnsureLoadingComplete(UPackage* Package)

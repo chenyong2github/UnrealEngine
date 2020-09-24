@@ -33,7 +33,7 @@ enum class CloudStatus : uint8
 };
 
 USTRUCT(BlueprintType)
-struct FPurchaseItemDetails
+struct MAGICLEAP_API FPurchaseItemDetails
 {
 	GENERATED_BODY()
 
@@ -53,7 +53,7 @@ struct FPurchaseItemDetails
 };
 
 USTRUCT(BlueprintType)
-struct FPurchaseConfirmation
+struct MAGICLEAP_API FPurchaseConfirmation
 {
 	GENERATED_BODY()
 	/*! This is the unique order id for this purchase. */

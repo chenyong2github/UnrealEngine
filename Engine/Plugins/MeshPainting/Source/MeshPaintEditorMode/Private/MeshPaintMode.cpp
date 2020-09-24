@@ -362,11 +362,11 @@ void UMeshPaintMode::OnVertexPaintFinished()
 		{
 			if (SharedMeshToolData)
 			{
+				UpdateCachedVertexDataSize();
 				SharedMeshToolData->Refresh();
 			}
 		}
 	}
-	UpdateCachedVertexDataSize();
 }
 
 void UMeshPaintMode::OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
@@ -710,7 +710,7 @@ void UMeshPaintMode::PropagateVertexColorsToLODs()
 			FComponentReregisterContext ReregisterContext(SelectedComponent);
 		}
 	}
-
+	UpdateCachedVertexDataSize();
 	SharedMeshToolData->Refresh();
 }
 

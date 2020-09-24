@@ -3,11 +3,6 @@
 #include "RigUnit_GetCurveValue.h"
 #include "Units/RigUnitContext.h"
 
-FString FRigUnit_GetCurveValue::GetUnitLabel() const
-{
-	return FString::Printf(TEXT("Get Curve %s"), *Curve.ToString());
-}
-
 FRigUnit_GetCurveValue_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -18,11 +13,11 @@ FRigUnit_GetCurveValue_Execute()
 		{
 			case EControlRigState::Init:
 			{
-				CachedCurveIndex = CurveContainer->GetIndex(Curve);
+				CachedCurveIndex.Reset();
 			}
 			case EControlRigState::Update:
 			{
-				if (CachedCurveIndex != INDEX_NONE)
+				if(CachedCurveIndex.UpdateCache(Curve, CurveContainer))
 				{
 					Value = CurveContainer->GetValue(CachedCurveIndex);
 				}

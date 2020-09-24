@@ -22,6 +22,7 @@
 #include "Camera/PlayerCameraManager.h"
 #include "Components/InputComponent.h"
 #include "GameFramework/ForceFeedbackEffect.h"
+#include "GameFramework/UpdateLevelVisibilityLevelInfo.h"
 #include "GenericPlatform/IInputInterface.h"
 #include "PlayerController.generated.h"
 
@@ -160,44 +161,6 @@ struct ENGINE_API FUpdateLevelStreamingLevelStatus
 	/** Whether we want to force a blocking load */
 	UPROPERTY()
 	uint32 bNewShouldBlockOnLoad : 1;
-};
-
-/** This structure is used to pass arguments to ServerUpdateLevelVisibilty() and ServerUpdateMultipleLevelsVisibility() server RPC functions */
-USTRUCT()
-struct ENGINE_API FUpdateLevelVisibilityLevelInfo
-{
-	GENERATED_BODY();
-
-	FUpdateLevelVisibilityLevelInfo()
-		: PackageName(NAME_None)
-		, FileName(NAME_None)
-		, bIsVisible(false)
-		, bSkipCloseOnError(false)
-	{
-	}
-
-	/**
-	 * @param Level			Level to pull PackageName and FileName from.
-	 * @param bInIsVisible	Default value for bIsVisible.
-	 */
-	FUpdateLevelVisibilityLevelInfo(const class ULevel* const Level, const bool bInIsVisible);
-
-	/** The name of the package for the level whose status changed. */
-	UPROPERTY()
-	FName PackageName;
-
-	/** The name / path of the asset file for the level whose status changed. */
-	UPROPERTY()
-	FName FileName;
-
-	/** The new visibility state for this level. */
-	UPROPERTY()
-	uint32 bIsVisible : 1;
-
-	/** Skip connection close if level can't be found (not net serialized) */
-	uint32 bSkipCloseOnError : 1;
-
-	bool NetSerialize(FArchive& Ar, UPackageMap* PackageMap, bool& bOutSuccess);
 };
 
 template<>
@@ -935,7 +898,7 @@ public:
 	 * @param CustomPlaySpace - Matrix used when Space = CAPS_UserDefined
 	 */
 	UFUNCTION(unreliable, client, BlueprintCallable, Category="Game|Feedback")
-	void ClientPlayCameraAnim(class UCameraAnim* AnimToPlay, float Scale=1.f, float Rate=1.f, float BlendInTime=0.f, float BlendOutTime=0.f, bool bLoop=false, bool bRandomStartTime=false, ECameraAnimPlaySpace::Type Space=ECameraAnimPlaySpace::CameraLocal, FRotator CustomPlaySpace=FRotator::ZeroRotator);
+	void ClientPlayCameraAnim(class UCameraAnim* AnimToPlay, float Scale=1.f, float Rate=1.f, float BlendInTime=0.f, float BlendOutTime=0.f, bool bLoop=false, bool bRandomStartTime=false, ECameraShakePlaySpace Space=ECameraShakePlaySpace::CameraLocal, FRotator CustomPlaySpace=FRotator::ZeroRotator);
 
 	/** 
 	 * Play Camera Shake 
@@ -945,7 +908,7 @@ public:
 	 * @param UserPlaySpaceRot - Matrix used when PlaySpace = CAPS_UserDefined
 	 */
 	UFUNCTION(unreliable, client, BlueprintCallable, Category="Game|Feedback")
-	void ClientPlayCameraShake(TSubclassOf<class UCameraShake> Shake, float Scale = 1.f, ECameraAnimPlaySpace::Type PlaySpace = ECameraAnimPlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
+	void ClientStartCameraShake(TSubclassOf<class UCameraShakeBase> Shake, float Scale = 1.f, ECameraShakePlaySpace PlaySpace = ECameraShakePlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
 
 	/** 
 	 * Play Camera Shake localized to a given source
@@ -953,7 +916,7 @@ public:
 	 * @param SourceComponent - The source from which the camera shakes originates
 	 */
 	UFUNCTION(BlueprintCallable, Category="Game|Feedback")
-	void ClientPlayCameraShakeFromSource(TSubclassOf<class UCameraShake> Shake, class UCameraShakeSourceComponent* SourceComponent);
+	void ClientStartCameraShakeFromSource(TSubclassOf<class UCameraShakeBase> Shake, class UCameraShakeSourceComponent* SourceComponent);
 
 	/**
 	 * Play sound client-side (so only the client will hear it)
@@ -1091,7 +1054,7 @@ public:
 
 	/** Stop camera shake on client.  */
 	UFUNCTION(reliable, client, BlueprintCallable, Category="Game|Feedback")
-	void ClientStopCameraShake(TSubclassOf<class UCameraShake> Shake, bool bImmediately = true);
+	void ClientStopCameraShake(TSubclassOf<class UCameraShakeBase> Shake, bool bImmediately = true);
 
 	/** Stop camera shake on client.  */
 	UFUNCTION(BlueprintCallable, Category="Game|Feedback")

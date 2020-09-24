@@ -51,6 +51,7 @@
 #include "Misc/OutputDevice.h"
 #include "Logging/LogMacros.h"
 #include "Misc/OutputDeviceError.h"
+#include "Async/Async.h"
 
 #if USE_ANDROID_JNI
 extern AAssetManager * AndroidThunkCpp_GetAssetManager();
@@ -145,7 +146,7 @@ static void OverrideCpuThermalSensorFileFromCVar(IConsoleVariable* Var)
 	if (Len < UE_ARRAY_COUNT(AndroidCpuThermalSensorFileBuf))
 	{
 		FCStringAnsi::Strcpy(AndroidCpuThermalSensorFileBuf, TCHAR_TO_ANSI(*Override));
-		UE_LOG(LogAndroid, Display, TEXT("Thermal sensor's filepath was set to `%s`"), AndroidCpuThermalSensorFileBuf);
+		UE_LOG(LogAndroid, Display, TEXT("Thermal sensor's filepath was set to `%s`"), *Override);
 		return;
 	}
 
@@ -166,8 +167,14 @@ static void InitCpuThermalSensor()
 		{
 			fgets(Buf, UE_ARRAY_COUNT(Buf), File);
 			fclose(File);
-			UE_LOG(LogAndroid, Display, TEXT("Detected thermal sensor `%s` at /sys/devices/virtual/thermal/thermal_zone%u/temp"), Buf, Counter);
-			*Buf = 0;
+			char* Ptr = Buf;
+			while (!iscntrl(*Ptr))		// it appears that zone type string ends up with \n symbol
+			{
+				++Ptr;
+			}
+			*Ptr = 0;
+
+			UE_LOG(LogAndroid, Display, TEXT("Detected thermal sensor `%s` at /sys/devices/virtual/thermal/thermal_zone%u/temp"), ANSI_TO_TCHAR(Buf), Counter);
 			++Counter;
 		}
 		else
@@ -185,7 +192,7 @@ static void InitCpuThermalSensor()
 		if (FILE* File = fopen(SensorFilePath, "r"))
 		{
 			FCStringAnsi::Strcpy(AndroidCpuThermalSensorFileBuf, SensorFilePath);
-			UE_LOG(LogAndroid, Display, TEXT("Selecting thermal sensor located at `%s`"), AndroidCpuThermalSensorFileBuf);
+			UE_LOG(LogAndroid, Display, TEXT("Selecting thermal sensor located at `%s`"), ANSI_TO_TCHAR(AndroidCpuThermalSensorFileBuf));
 			fclose(File);
 			return;
 		}
@@ -2458,12 +2465,6 @@ void FAndroidMisc::BeginNamedEvent(const struct FColor& Color, const TCHAR* Text
 #if FRAMEPRO_ENABLED
 	FFrameProProfiler::PushEvent(Text);
 #endif // FRAMEPRO_ENABLED
-#if CPUPROFILERTRACE_ENABLED
-	if (CpuChannel)
-	{
-		FCpuProfilerTrace::OutputBeginDynamicEvent(Text);
-	}
-#endif
 	if (bUseNativeSystrace ? !ATrace_isEnabled() : TraceMarkerFileDescriptor == -1)
 	{
 		return;
@@ -2491,12 +2492,6 @@ void FAndroidMisc::BeginNamedEvent(const struct FColor& Color, const ANSICHAR* T
 #if FRAMEPRO_ENABLED
 	FFrameProProfiler::PushEvent(Text);
 #endif // FRAMEPRO_ENABLED
-#if CPUPROFILERTRACE_ENABLED
-	if (CpuChannel)
-	{
-		FCpuProfilerTrace::OutputBeginDynamicEvent(Text);
-	}
-#endif
 	if (bUseNativeSystrace ? !ATrace_isEnabled() : TraceMarkerFileDescriptor == -1)
 	{
 		return;
@@ -2510,12 +2505,6 @@ void FAndroidMisc::EndNamedEvent()
 #if FRAMEPRO_ENABLED
 	FFrameProProfiler::PopEvent();
 #endif // FRAMEPRO_ENABLED
-#if CPUPROFILERTRACE_ENABLED
-	if (CpuChannel)
-	{
-		FCpuProfilerTrace::OutputEndEvent();
-	}
-#endif
 	if (bUseNativeSystrace ? !ATrace_isEnabled() : TraceMarkerFileDescriptor == -1)
 	{
 		return;
@@ -2909,6 +2898,70 @@ int32 FAndroidMisc::GetNativeDisplayRefreshRate()
 
 }
 
+static FAndroidMemoryWarningContext GAndroidMemoryWarningContext;
+void (*GMemoryWarningHandler)(const FGenericMemoryWarningContext& Context) = NULL;
+void FAndroidMisc::UpdateOSMemoryStatus(EOSMemoryStatusCategory OSMemoryStatusCategory, int value)
+{
+	switch (OSMemoryStatusCategory)
+	{
+		case EOSMemoryStatusCategory::OSTrim:
+		{
+			GAndroidMemoryWarningContext.LastTrimMemoryState = value;
+			break;
+		}
+		case EOSMemoryStatusCategory::MemoryAdvisor:
+		{
+			GAndroidMemoryWarningContext.LastNativeMemoryAdvisorState = value;
+			break;
+		}
+		default:
+			checkNoEntry();
+	}
+
+	if (FTaskGraphInterface::IsRunning())
+	{
+		// Run on game thread to avoid mem handler callback getting confused.
+		AsyncTask(ENamedThreads::GameThread, [AndroidMemoryWarningContext = GAndroidMemoryWarningContext]()
+			{
+				if (GMemoryWarningHandler)
+				{
+					// note that we may also call this when recovering from low memory conditions. (i.e. not in low memory state.)
+					GMemoryWarningHandler(AndroidMemoryWarningContext);
+				}
+			});
+	}
+	else
+	{
+		UE_LOG(LogAndroid, Warning, TEXT("Not calling memory warning handler, received too early. %d, %d"), GAndroidMemoryWarningContext.LastTrimMemoryState, GAndroidMemoryWarningContext.LastNativeMemoryAdvisorState);
+	}
+}
+
+void FAndroidMisc::SetMemoryWarningHandler(void (*InHandler)(const FGenericMemoryWarningContext& Context))
+{
+	check(IsInGameThread());
+	GMemoryWarningHandler = InHandler;
+}
+
+bool FAndroidMisc::HasMemoryWarningHandler()
+{
+	check(IsInGameThread());
+	return GMemoryWarningHandler != nullptr;
+}
+
+bool FAndroidMisc::SupportsBackbufferSampling()
+{
+	static int32 CachedAndroidOpenGLSupportsBackbufferSampling = -1;
+	
+	if (CachedAndroidOpenGLSupportsBackbufferSampling == -1)
+	{
+		bool bAndroidOpenGLSupportsBackbufferSampling = false;
+		GConfig->GetBool(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("bAndroidOpenGLSupportsBackbufferSampling"), bAndroidOpenGLSupportsBackbufferSampling, GEngineIni);
+
+		CachedAndroidOpenGLSupportsBackbufferSampling = (bAndroidOpenGLSupportsBackbufferSampling || FAndroidMisc::ShouldUseVulkan()) ? 1 : 0;
+	}
+
+	return CachedAndroidOpenGLSupportsBackbufferSampling == 1;
+}
 
 
 

@@ -6,11 +6,8 @@ NiagaraEmitterInstance.h: Niagara emitter simulation class
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/WeakObjectPtr.h"
 #include "NiagaraCommon.h"
 #include "NiagaraDataSet.h"
-#include "NiagaraEvents.h"
-#include "NiagaraCollision.h"
 #include "NiagaraEmitterHandle.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraScriptExecutionContext.h"
@@ -144,6 +141,7 @@ public:
 	const FNiagaraParameterStore& GetRendererBoundVariables() const { return RendererBindings; }
 	FNiagaraParameterStore& GetRendererBoundVariables() { return RendererBindings; }
 
+	int32 GetInstanceSeed() const { return InstanceSeed; }
 
 private:
 	void CheckForErrors();
@@ -203,6 +201,7 @@ private:
 	/* The age of the emitter*/
 	float EmitterAge = 0.0f;
 
+	int32 InstanceSeed = FGenericPlatformMath::Rand();
 	int32 TickCount = 0;
 
 	int32 TotalSpawnedParticles = 0;

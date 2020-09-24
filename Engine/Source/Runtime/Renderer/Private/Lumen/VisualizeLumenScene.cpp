@@ -186,7 +186,7 @@ class FVisualizeLumenSceneCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenMeshSDFGridParameters, MeshSDFGridParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVisualizeLumenSceneParameters, VisualizeParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheParameters, RadianceCacheParameters)
-		SHADER_PARAMETER_STRUCT_REF(FSceneTexturesUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWSceneColor)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -269,7 +269,7 @@ class FVisualizeLumenVoxelsCS : public FGlobalShader
 		SHADER_PARAMETER(FIntRect, ViewDimensions)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVisualizeLumenSceneParameters, VisualizeParameters)
-		SHADER_PARAMETER_STRUCT_REF(FSceneTexturesUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWSceneColor)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -293,7 +293,7 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FVisualizeLumenVoxelsCS, "/Engine/Private/Lumen/VisualizeLumenScene.usf", "VisualizeLumenVoxelsCS", SF_Compute);
 
-void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRHICommandListImmediate& RHICmdList)
+void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& GraphBuilder)
 {
 	const FViewInfo& View = Views[0];
 	const bool bVisualizeScene = ViewFamily.EngineShowFlags.VisualizeLumenScene;
@@ -301,17 +301,15 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRHICommandLis
 
 	if (Lumen::ShouldRenderLumenCardsForView(Scene, View) && (bVisualizeScene || bVisualizeVoxels))
 	{
-		SCOPED_DRAW_EVENT(RHICmdList, VisualizeLumenScene);
-
-		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("LumenSceneVisualization"));
+		RDG_EVENT_SCOPE(GraphBuilder, "VisualizeLumenScene");
 
 		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
 		FRDGTextureRef SceneColor = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor());
 		FRDGTextureUAVRef SceneColorUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SceneColor));
 
 		TRefCountPtr<IPooledRenderTarget> ResultSceneColor;
-		GraphBuilder.QueueTextureExtraction(SceneColor, &ResultSceneColor);
+		ConvertToExternalTexture(GraphBuilder, SceneColor, ResultSceneColor);
 
 		RenderScreenProbeGatherVisualizeHardwareTraces(GraphBuilder, View, SceneColor);
 		RenderScreenProbeGatherVisualizeTraces(GraphBuilder, View, SceneColor);
@@ -397,7 +395,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRHICommandLis
 				FVisualizeLumenSceneCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVisualizeLumenSceneCS::FParameters>();
 				PassParameters->ViewDimensions = View.ViewRect;
 				PassParameters->RWSceneColor = SceneColorUAV;
-				PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBufferSingleDraw(RHICmdList, ESceneTextureSetupMode::All, View.FeatureLevel);
+				PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder, View.FeatureLevel);
 				PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
 				PassParameters->VisualizeParameters = VisualizeParameters;
 				LumenRadianceCache::GetParameters(View, GraphBuilder, PassParameters->RadianceCacheParameters);
@@ -425,7 +423,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRHICommandLis
 			FVisualizeLumenVoxelsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVisualizeLumenVoxelsCS::FParameters>();
 			PassParameters->ViewDimensions = View.ViewRect;
 			PassParameters->RWSceneColor = SceneColorUAV;
-			PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBufferSingleDraw(RHICmdList, ESceneTextureSetupMode::All, View.FeatureLevel);
+			PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder, View.FeatureLevel);
 			PassParameters->VisualizeParameters = VisualizeParameters;
 			GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
 
@@ -440,8 +438,6 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRHICommandLis
 				FIntVector(GroupSize.X, GroupSize.Y, 1));
 		}
 
-		GraphBuilder.Execute();
-
 		check(ResultSceneColor.GetReference() == SceneContext.GetSceneColor().GetReference());
 	}
 
@@ -451,8 +447,6 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRHICommandLis
 		&& GLumenVisualizeStats != 0
 		&& View.GlobalDistanceFieldInfo.PageFreeListAllocatorBuffer)
 	{
-		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("LumenSceneStats"));
-
 		FRDGBufferRef GlobalDistanceFieldPageFreeListAllocatorBuffer = GraphBuilder.RegisterExternalBuffer(View.GlobalDistanceFieldInfo.PageFreeListAllocatorBuffer, TEXT("PageFreeListAllocator"));
 
 		FVisualizeLumenSceneStatsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVisualizeLumenSceneStatsCS::FParameters>();
@@ -468,11 +462,9 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRHICommandLis
 			ComputeShader,
 			PassParameters,
 			FIntVector(1, 1, 1));
-
-		GraphBuilder.Execute();
 	}
 
-	RenderLumenRadianceCacheVisualization(RHICmdList);
+	RenderLumenRadianceCacheVisualization(GraphBuilder);
 }
 
 void AddBoxFaceTriangles(FDynamicMeshBuilder& MeshBuilder, int32 FaceIndex)

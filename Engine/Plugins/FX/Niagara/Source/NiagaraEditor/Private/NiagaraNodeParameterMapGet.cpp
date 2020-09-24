@@ -173,7 +173,7 @@ void UNiagaraNodeParameterMapGet::OnNewTypedPinAdded(UEdGraphPin* NewPin)
 {
 	if (NewPin->Direction == EEdGraphPinDirection::EGPD_Output)
 	{
-		TArray<UEdGraphPin*> OutputPins;
+		FPinCollectorArray OutputPins;
 		GetOutputPins(OutputPins);
 
 		FName NewPinName = NewPin->PinName;
@@ -233,7 +233,7 @@ void UNiagaraNodeParameterMapGet::RemoveDynamicPin(UEdGraphPin* Pin)
 
 UEdGraphPin* UNiagaraNodeParameterMapGet::GetDefaultPin(UEdGraphPin* OutputPin) const
 {
-	TArray<UEdGraphPin*> InputPins;
+	FPinCollectorArray InputPins;
 	GetInputPins(InputPins);
 
 	const FGuid* InputGuid = PinOutputToPinDefaultPersistentId.Find(OutputPin->PersistentGuid);
@@ -255,7 +255,7 @@ UEdGraphPin* UNiagaraNodeParameterMapGet::GetDefaultPin(UEdGraphPin* OutputPin) 
 
 UEdGraphPin* UNiagaraNodeParameterMapGet::GetOutputPinForDefault(const UEdGraphPin* DefaultPin) const
 {
-	TArray<UEdGraphPin*> OutputPins;
+	FPinCollectorArray OutputPins;
 	GetOutputPins(OutputPins);
 
 	FGuid OutputGuid;
@@ -285,7 +285,7 @@ UEdGraphPin* UNiagaraNodeParameterMapGet::GetOutputPinForDefault(const UEdGraphP
 void UNiagaraNodeParameterMapGet::PostLoad()
 {
 	Super::PostLoad();
-	TArray<UEdGraphPin*> OutputPins;
+	FPinCollectorArray OutputPins;
 	GetOutputPins(OutputPins);
 	for (int32 i = 0; i < OutputPins.Num(); i++)
 	{
@@ -376,7 +376,7 @@ void UNiagaraNodeParameterMapGet::BuildParameterMapHistory(FNiagaraParameterMapH
 	if (ParamMapIdx != INDEX_NONE)
 	{
 		uint32 NodeIdx = OutHistory.BeginNodeVisitation(ParamMapIdx, this);
-		TArray<UEdGraphPin*> OutputPins;
+		FPinCollectorArray OutputPins;
 		GetOutputPins(OutputPins);
 		for (int32 i = 0; i < OutputPins.Num(); i++)
 		{
@@ -403,9 +403,9 @@ void UNiagaraNodeParameterMapGet::Compile(class FHlslNiagaraTranslator* Translat
 {
 	const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(GetSchema());
 
-	TArray<UEdGraphPin*> InputPins;
+	FPinCollectorArray InputPins;
 	GetInputPins(InputPins);
-	TArray<UEdGraphPin*> OutputPins;
+	FPinCollectorArray OutputPins;
 	GetOutputPins(OutputPins);
 
 	// Initialize the outputs to invalid values.
@@ -420,7 +420,8 @@ void UNiagaraNodeParameterMapGet::Compile(class FHlslNiagaraTranslator* Translat
 	}
 
 	// First compile fully down the hierarchy for our predecessors..
-	TArray<int32> CompileInputs;
+	TArray<int32, TInlineAllocator<16>> CompileInputs;
+	CompileInputs.Reserve(InputPins.Num());
 
 	for (int32 i = 0; i < InputPins.Num(); i++)
 	{
@@ -495,7 +496,7 @@ void UNiagaraNodeParameterMapGet::GatherExternalDependencyData(ENiagaraScriptUsa
 {
 	// If we are referencing any parameter collections, we need to register them here... might want to speeed this up in the future 
 	// by caching any parameter collections locally.
-	TArray<UEdGraphPin*> OutputPins;
+	FPinCollectorArray OutputPins;
 	GetOutputPins(OutputPins);
 	const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(GetSchema());
 

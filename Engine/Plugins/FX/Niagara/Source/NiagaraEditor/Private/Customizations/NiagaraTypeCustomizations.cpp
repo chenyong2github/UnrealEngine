@@ -403,10 +403,10 @@ void FNiagaraVariableAttributeBindingCustomization::CustomizeHeader(TSharedRef<I
 						PropertyHandle->CreatePropertyNameWidget()
 					]
 					.ValueContent()
-					.MaxDesiredWidth(200.f)
 					[
 						SNew(SHorizontalBox)
 						+ SHorizontalBox::Slot()
+						.AutoWidth()
 						.Padding(0.0f, 0.0f, 4.0f, 0.0f)
 						[
 							SNew(SComboButton)
@@ -753,7 +753,8 @@ bool FNiagaraMaterialAttributeBindingCustomization::IsCompatibleNiagaraVariable(
 			InVar.GetType() == FNiagaraTypeDefinition::GetVec2Def() ||
 			InVar.GetType() == FNiagaraTypeDefinition::GetVec3Def() ||
 			InVar.GetType() == FNiagaraTypeDefinition::GetUObjectDef() ||
-			InVar.GetType() == FNiagaraTypeDefinition::GetUTextureDef())
+			InVar.GetType() == FNiagaraTypeDefinition::GetUTextureDef() ||
+			InVar.GetType() == FNiagaraTypeDefinition::GetUTextureRenderTargetDef() )
 		{
 			return true;
 		}
@@ -778,54 +779,43 @@ TArray<TPair<FNiagaraVariableBase, FNiagaraVariableBase> > FNiagaraMaterialAttri
 		bool bUser = true;
 		BaseVars = FNiagaraStackAssetAction_VarBind::FindVariables(BaseEmitter, bSystem, bEmitter, bParticles, bUser);
 
-
-#if 0
-		// Add all user variables...
-		
-		for (const FNiagaraVariable& Var : BaseSystem->GetExposedParameters().ReadParameterVariables())
-		{
-			if (IsCompatibleNiagaraVariable(Var))
-				BaseVars.AddUnique(Var);
-		}
-
-		// Add all system variables
-		for (const FNiagaraVariable& Var : BaseSystem->GetSystemUpdateScript()->GetVMExecutableData().Attributes)
-		{
-			if (FNiagaraParameterMapHistory::IsSystemParameter(Var) && IsCompatibleNiagaraVariable(Var))
-			{
-				BaseVars.AddUnique(Var);
-			}
-		}
-
-		// Add all Emitter variables
-		for (const FNiagaraVariable& Var : BaseSystem->GetSystemUpdateScript()->GetVMExecutableData().Attributes)
-		{
-			if (FNiagaraParameterMapHistory::IsInNamespace(Var, BaseEmitter->GetUniqueEmitterName()) && IsCompatibleNiagaraVariable(Var))
-			{
-				BaseVars.AddUnique(Var);
-			}
-		}
-
 		TArray<UNiagaraScript*> Scripts;
 		Scripts.Add(BaseSystem->GetSystemUpdateScript());
 		Scripts.Add(BaseSystem->GetSystemSpawnScript());
 		BaseEmitter->GetScripts(Scripts, false);
 
-		for (UNiagaraScript* Script : Scripts)
-		{
-			TArray<FNiagaraScriptDataInterfaceInfo>& CachedDIs = Script->GetCachedDefaultDataInterfaces();
-			for (const FNiagaraScriptDataInterfaceInfo& Info : CachedDIs)
+		TMap<FString, FString> EmitterAlias;
+		EmitterAlias.Emplace(FNiagaraConstants::EmitterNamespace.ToString(), BaseEmitter->GetUniqueEmitterName());
+
+		auto FindCachedDI = 
+			[&](const FNiagaraVariableBase& BaseVariable) -> UNiagaraDataInterface*
 			{
-				BaseVars.AddUnique(FNiagaraVariableBase(FNiagaraTypeDefinition(Info.DataInterface->GetClass()), Info.Name));
-			}
-		}
-#endif
+				FName VariableName = BaseVariable.GetName();
+				if (BaseVariable.IsInNameSpace(FNiagaraConstants::EmitterNamespace))
+				{
+					VariableName = FNiagaraVariable::ResolveAliases(BaseVariable, EmitterAlias).GetName();
+				}
+
+				for (UNiagaraScript* Script : Scripts)
+				{
+					TArray<FNiagaraScriptDataInterfaceInfo>& CachedDIs = Script->GetCachedDefaultDataInterfaces();
+					for (const FNiagaraScriptDataInterfaceInfo& Info : CachedDIs)
+					{
+						if (Info.Name == VariableName)
+						{
+							return Info.DataInterface;
+						}
+					}
+				}
+
+				return BaseVariable.GetType().GetClass()->GetDefaultObject<UNiagaraDataInterface>();
+			};
 
 		for (const FNiagaraVariableBase& BaseVar : BaseVars)
 		{
 			if (BaseVar.IsDataInterface())
 			{
-				UNiagaraDataInterface* DI = BaseVar.GetType().GetClass()->GetDefaultObject<UNiagaraDataInterface>();
+				UNiagaraDataInterface* DI = FindCachedDI(BaseVar);
 				if (DI && DI->CanExposeVariables())
 				{
 					TArray<FNiagaraVariableBase> ChildVars;
@@ -847,9 +837,6 @@ TArray<TPair<FNiagaraVariableBase, FNiagaraVariableBase> > FNiagaraMaterialAttri
 				}
 			}
 		}
-
-
-		
 	}
 
 	return Names;

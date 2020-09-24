@@ -623,7 +623,7 @@ void UMaterialInstance::InitResources()
 	}
 
 	// Don't use the instance's parent if it has a circular dependency on the instance.
-	if (SafeParent && SafeParent->IsDependent(this))
+	if (SafeParent && SafeParent->IsDependent_Concurrent(this))
 	{
 		SafeParent = NULL;
 	}
@@ -1220,6 +1220,7 @@ void UMaterialInstance::GetUsedTextures(TArray<UTexture*>& OutTextures, EMateria
 			// Use the uniform expressions from the lowest material instance with static parameters in the chain, if one exists
 			const UMaterialInterface* MaterialToUse = (MaterialInstanceToUse && MaterialInstanceToUse->bHasStaticPermutationResource) ? (const UMaterialInterface*)MaterialInstanceToUse : (const UMaterialInterface*)BaseMaterial;
 
+			TArray<const FMaterialResource*, TInlineAllocator<4>> MatchedResources;
 			// Parse all relevant quality and feature levels.
 			for (int32 QualityLevelIndex = QualityLevelRange.GetLowerBoundValue(); QualityLevelIndex <= QualityLevelRange.GetUpperBoundValue(); ++QualityLevelIndex)
 			{
@@ -1228,9 +1229,14 @@ void UMaterialInstance::GetUsedTextures(TArray<UTexture*>& OutTextures, EMateria
 					const FMaterialResource* MaterialResource = MaterialToUse->GetMaterialResource((ERHIFeatureLevel::Type)FeatureLevelIndex, (EMaterialQualityLevel::Type)QualityLevelIndex);
 					if (MaterialResource)
 					{
-						GetTextureExpressionValues(MaterialResource, OutTextures);
+						MatchedResources.AddUnique(MaterialResource);
 					}
 				}
+			}
+
+			for (const FMaterialResource* MaterialResource : MatchedResources)
+			{
+				GetTextureExpressionValues(MaterialResource, OutTextures);
 			}
 		}
 		else
@@ -1666,6 +1672,28 @@ bool UMaterialInstance::IsDependent(UMaterialInterface* TestDependency)
 	}
 }
 
+bool UMaterialInstance::IsDependent_Concurrent(UMaterialInterface* TestDependency, TMicRecursionGuard RecursionGuard)
+{
+	if (TestDependency == this)
+	{
+		return true;
+	}
+	else if (Parent)
+	{
+		if (RecursionGuard.Contains(this))
+		{
+			return true;
+		}
+
+		RecursionGuard.Set(this);
+		return Parent->IsDependent_Concurrent(TestDependency, RecursionGuard);
+	}
+	else
+	{
+		return false;
+	}
+}
+
 void UMaterialInstanceDynamic::CopyScalarAndVectorParameters(const UMaterialInterface& SourceMaterialToCopyFrom, ERHIFeatureLevel::Type FeatureLevel)
 {
 	check(IsInGameThread());
@@ -1965,7 +1993,7 @@ void UMaterialInstance::GetStaticParameterValues(FStaticParameterSet& OutStaticP
 			ParentParameter.ParameterInfo = ParameterInfo;
 
 			Parent->GetMaterialLayersParameterValue(ParameterInfo, ParentParameter.Value, ExpressionId);
-			ParentParameter.Value.CopyGuidsToParent(); // Set parent guids for layers from parent material
+			ParentParameter.Value.LinkAllLayersToParent(); // Set parent guids for layers from parent material
 
 			ParentParameter.ExpressionGUID = ExpressionId;
 			// If the SourceInstance is overriding this parameter, use its settings
@@ -2084,7 +2112,7 @@ void UMaterialInstance::GetStaticParameterValues(FStaticParameterSet& OutStaticP
 
 void UMaterialInstance::GetAllParametersOfType(EMaterialParameterType Type, TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
 {
-	const UMaterial* Material = GetMaterial();
+	const UMaterial* Material = GetMaterial_Concurrent();
 	int32 NumParameters = CachedLayerParameters.GetNumParameters(Type);
 	if (Material)
 	{
@@ -3944,6 +3972,9 @@ void UMaterialInstance::UpdateStaticPermutation(const FStaticParameterSet& NewPa
 
 	if (bHasStaticPermutationResource != bWantsStaticPermutationResource || bParamsHaveChanged || (bBasePropertyOverridesHaveChanged && bWantsStaticPermutationResource) || bForceStaticPermutationUpdate)
 	{
+		// This will flush the rendering thread which is necessary before changing bHasStaticPermutationResource, since the RT is reading from that directly
+		FlushRenderingCommands();
+
 		bHasStaticPermutationResource = bWantsStaticPermutationResource;
 		StaticParameters = CompareParameters;
 
@@ -3957,9 +3988,8 @@ void UMaterialInstance::UpdateStaticPermutation(const FStaticParameterSet& NewPa
 		}
 		else
 		{
-			// This will flush the rendering thread which is necessary before changing bHasStaticPermutationResource, since the RT is reading from that directly
-			// The update context will also make sure any dependent MI's with static parameters get recompiled
-			FMaterialUpdateContext LocalMaterialUpdateContext;
+			// The update context will make sure any dependent MI's with static parameters get recompiled
+			FMaterialUpdateContext LocalMaterialUpdateContext(FMaterialUpdateContext::EOptions::RecreateRenderStates);
 			LocalMaterialUpdateContext.AddMaterialInstance(this);
 		}
 	}
@@ -4061,12 +4091,14 @@ void UMaterialInstance::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 
 	if (GIsEditor)
 	{
-		// Update virtual textures if necessary
-		//todo[vt]: With many streaming virtual textures this will be slow. Add a flush for runtime virtual texture only? Or maybe work out which primitives or runtime virtual textures are affected flush only affected VT pages?
+		// Brute force all flush virtual textures if this material writes to any runtime virtual texture.
 		const UMaterial* BaseMaterial = GetMaterial();
 		if (BaseMaterial != nullptr && (BaseMaterial->MaterialDomain == EMaterialDomain::MD_RuntimeVirtualTexture || BaseMaterial->GetCachedExpressionData().bHasRuntimeVirtualTextureOutput))
 		{
-			ENQUEUE_RENDER_COMMAND(FlushVTCommand)([ResourcePtr = Resource](FRHICommandListImmediate& RHICmdList) {	GetRendererModule().FlushVirtualTextureCache();	});
+			ENQUEUE_RENDER_COMMAND(FlushVTCommand)([ResourcePtr = Resource](FRHICommandListImmediate& RHICmdList) 
+			{
+				GetRendererModule().FlushVirtualTextureCache();	
+			});
 		}
 	}
 }
@@ -4431,9 +4463,7 @@ void UMaterialInstance::GetBasePropertyOverridesHash(FSHAHash& OutHash)const
 
 bool UMaterialInstance::HasOverridenBaseProperties()const
 {
-	check(IsInGameThread());
-
-	const UMaterial* Material = GetMaterial();
+	const UMaterial* Material = GetMaterial_Concurrent();
 	if (Parent && Material && Material->bUsedAsSpecialEngineMaterial == false &&
 		((FMath::Abs(GetOpacityMaskClipValue() - Parent->GetOpacityMaskClipValue()) > SMALL_NUMBER) ||
 		(GetBlendMode() != Parent->GetBlendMode()) ||

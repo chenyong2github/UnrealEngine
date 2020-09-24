@@ -5,18 +5,250 @@
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailWidgetRow.h"
+#include "IDetailChildrenBuilder.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SVectorInputBox.h"
 #include "Widgets/Input/SRotatorInputBox.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/Input/SComboBox.h"
+#include "SSearchableComboBox.h"
 #include "Editor/SControlRigGizmoNameList.h"
 #include "ControlRigBlueprint.h"
 #include "Graph/ControlRigGraph.h"
 #include "PropertyCustomizationHelpers.h"
+#include "SEnumCombobox.h"
+#include "ControlRig/Private/Units/Execution/RigUnit_BeginExecution.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigElementDetails"
+
+void FRigElementKeyDetails::CustomizeHeader(TSharedRef<IPropertyHandle> InStructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+{
+	BlueprintBeingCustomized = nullptr;
+
+	TArray<UObject*> Objects;
+	InStructPropertyHandle->GetOuterObjects(Objects);
+	for (UObject* Object : Objects)
+	{
+		if (Object->IsA<UControlRigBlueprint>())
+		{
+			BlueprintBeingCustomized = Cast<UControlRigBlueprint>(Object);
+			if (BlueprintBeingCustomized)
+			{
+				break;
+			}
+		}
+	}
+
+	if (BlueprintBeingCustomized == nullptr)
+	{
+		TArray<UPackage*> Packages;
+		InStructPropertyHandle->GetOuterPackages(Packages);
+		for (UPackage* Package : Packages)
+		{
+			if (Package == nullptr)
+			{
+				continue;
+			}
+
+			TArray<UObject*> SubObjects;
+			Package->GetDefaultSubobjects(SubObjects);
+			for (UObject* SubObject : SubObjects)
+			{
+				if (UControlRig* Rig = Cast<UControlRig>(SubObject))
+				{
+					BlueprintBeingCustomized = Cast<UControlRigBlueprint>(Rig->GetClass()->ClassGeneratedBy);
+					if (BlueprintBeingCustomized)
+					{
+						break;
+					}
+				}
+			}
+
+			if (BlueprintBeingCustomized)
+			{
+				break;
+			}
+		}
+	}
+
+	UControlRigGraph* RigGraph = nullptr;
+	if(BlueprintBeingCustomized)
+	{
+		for (UEdGraph* Graph : BlueprintBeingCustomized->UbergraphPages)
+		{
+			RigGraph = Cast<UControlRigGraph>(Graph);
+			if (RigGraph)
+			{
+				break;
+			}
+		}
+	}
+
+	// only allow blueprints with at least one rig graph
+	if (RigGraph == nullptr)
+	{
+		BlueprintBeingCustomized = nullptr;
+	}
+
+	if (BlueprintBeingCustomized == nullptr)
+	{
+		HeaderRow
+		.NameContent()
+		[
+			InStructPropertyHandle->CreatePropertyNameWidget()
+		]
+		.ValueContent()
+		[
+			InStructPropertyHandle->CreatePropertyValueWidget()
+		];
+	}
+	else
+	{
+		TypeHandle = InStructPropertyHandle->GetChildHandle(TEXT("Type"));
+		NameHandle = InStructPropertyHandle->GetChildHandle(TEXT("Name"));
+
+		TypeHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda(
+			[this]()
+			{
+				this->UpdateElementNameList();
+				SetElementName(FString());
+			}
+		));
+
+		UpdateElementNameList();
+
+		HeaderRow
+		.NameContent()
+		[
+			InStructPropertyHandle->CreatePropertyNameWidget()
+		]
+		.ValueContent()
+		.MinDesiredWidth(250.f)
+		[
+			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				TypeHandle->CreatePropertyValueWidget()
+			]
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(4.f, 0.f, 0.f, 0.f)
+			[
+				SNew(SSearchableComboBox)
+				.OptionsSource(&ElementNameList)
+				.OnSelectionChanged(this, &FRigElementKeyDetails::OnElementNameChanged)
+				.OnGenerateWidget(this, &FRigElementKeyDetails::OnGetElementNameWidget)
+				.Content()
+				[
+					SNew(STextBlock)
+					.Text(this, &FRigElementKeyDetails::GetElementNameAsText)
+					.Font(IDetailLayoutBuilder::GetDetailFont())
+				]
+			]
+		];
+	}
+}
+
+void FRigElementKeyDetails::CustomizeChildren(TSharedRef<IPropertyHandle> InStructPropertyHandle, IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+{
+	if (InStructPropertyHandle->IsValidHandle())
+	{
+		// only fill the children if the blueprint cannot be found
+		if (BlueprintBeingCustomized == nullptr)
+		{
+			uint32 NumChildren = 0;
+			InStructPropertyHandle->GetNumChildren(NumChildren);
+
+			for (uint32 ChildIndex = 0; ChildIndex < NumChildren; ChildIndex++)
+			{
+				StructBuilder.AddProperty(InStructPropertyHandle->GetChildHandle(ChildIndex).ToSharedRef());
+			}
+		}
+	}
+}
+
+ERigElementType FRigElementKeyDetails::GetElementType() const
+{
+	ERigElementType ElementType = ERigElementType::None;
+	if (TypeHandle.IsValid())
+	{
+		uint8 Index = 0;
+		TypeHandle->GetValue(Index);
+		ElementType = (ERigElementType)Index;
+	}
+	return ElementType;
+}
+
+FString FRigElementKeyDetails::GetElementName() const
+{
+	FString ElementNameStr;
+	if (NameHandle.IsValid())
+	{
+		FName ElementName;
+		NameHandle->GetValue(ElementName);
+		ElementNameStr = ElementName.ToString();
+	}
+	return ElementNameStr;
+}
+
+void FRigElementKeyDetails::SetElementName(FString InName)
+{
+	if (NameHandle.IsValid())
+	{
+		NameHandle->SetValue(InName);
+	}
+}
+
+void FRigElementKeyDetails::UpdateElementNameList()
+{
+	if (!TypeHandle.IsValid())
+	{
+		return;
+	}
+
+	ElementNameList.Reset();
+
+	if (BlueprintBeingCustomized)
+	{
+		for (UEdGraph* Graph : BlueprintBeingCustomized->UbergraphPages)
+		{
+			if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph))
+			{
+				ElementNameList = RigGraph->GetElementNameList(GetElementType());
+				return;
+			}
+		}
+	}
+}
+
+void FRigElementKeyDetails::OnElementNameChanged(TSharedPtr<FString> InItem, ESelectInfo::Type InSelectionInfo)
+{
+	if (InItem.IsValid())
+	{
+		SetElementName(*InItem);
+	}
+	else
+	{
+		SetElementName(FString());
+	}
+}
+
+TSharedRef<SWidget> FRigElementKeyDetails::OnGetElementNameWidget(TSharedPtr<FString> InItem)
+{
+	return SNew(STextBlock)
+		.Text(FText::FromString(InItem.IsValid() ? *InItem : FString()))
+		.Font(IDetailLayoutBuilder::GetDetailFont());
+}
+
+FText FRigElementKeyDetails::GetElementNameAsText() const
+{
+	return FText::FromString(GetElementName());
+}
 
 void FRigUnitDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
@@ -225,6 +457,13 @@ void FRigElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 					if(BlueprintBeingCustomized)
 					{
 						ContainerBeingCustomized = &BlueprintBeingCustomized->HierarchyContainer;
+						if (UControlRig* DebuggedControlRig = Cast<UControlRig>(BlueprintBeingCustomized->GetObjectBeingDebugged()))
+						{
+							if (!DebuggedControlRig->IsSetupModeEnabled())
+							{
+								ContainerBeingCustomized = DebuggedControlRig->GetHierarchy();
+							}
+						}
 						break;
 					}
 				}
@@ -241,7 +480,17 @@ void FRigElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 
 void FRigElementDetails::SetName(const FText& InNewText, ETextCommit::Type InCommitType)
 {
-	if (FRigHierarchyContainer* Hierarchy = GetHierarchy())
+	FRigHierarchyContainer* Hierarchy = nullptr;
+	if (BlueprintBeingCustomized)
+	{
+		Hierarchy = &BlueprintBeingCustomized->HierarchyContainer;
+	}
+	else
+	{
+		Hierarchy = GetHierarchy();
+	}
+
+	if (Hierarchy)
 	{
 		switch (ElementKeyBeingCustomized.Type)
 		{
@@ -388,6 +637,121 @@ void FRigElementDetails::SetTransformComponent(FTransform& OutTransform, ERigEle
 	}
 }
 
+float FRigElementDetails::GetEulerTransformComponent(const FEulerTransform& InTransform, ERigElementDetailsTransformComponent InComponent)
+{
+	switch (InComponent)
+	{
+		case ERigElementDetailsTransformComponent::TranslationX:
+		{
+			return InTransform.Location.X;
+		}
+		case ERigElementDetailsTransformComponent::TranslationY:
+		{
+			return InTransform.Location.Y;
+		}
+		case ERigElementDetailsTransformComponent::TranslationZ:
+		{
+			return InTransform.Location.Z;
+		}
+		case ERigElementDetailsTransformComponent::RotationRoll:
+		{
+			return InTransform.Rotation.Roll;
+		}
+		case ERigElementDetailsTransformComponent::RotationPitch:
+		{
+			return InTransform.Rotation.Pitch;
+		}
+		case ERigElementDetailsTransformComponent::RotationYaw:
+		{
+			return InTransform.Rotation.Yaw;
+		}
+		case ERigElementDetailsTransformComponent::ScaleX:
+		{
+			return InTransform.Scale.X;
+		}
+		case ERigElementDetailsTransformComponent::ScaleY:
+		{
+			return InTransform.Scale.Y;
+		}
+		case ERigElementDetailsTransformComponent::ScaleZ:
+		{
+			return InTransform.Scale.Z;
+		}
+	}
+	return 0.f;
+}
+
+void FRigElementDetails::SetEulerTransformComponent(FEulerTransform& OutTransform, ERigElementDetailsTransformComponent InComponent, float InNewValue)
+{
+	switch (InComponent)
+	{
+		case ERigElementDetailsTransformComponent::TranslationX:
+		{
+			FVector Translation = OutTransform.Location;
+			Translation.X = InNewValue;
+			OutTransform.Location = Translation;
+			break;
+		}
+		case ERigElementDetailsTransformComponent::TranslationY:
+		{
+			FVector Translation = OutTransform.Location;
+			Translation.Y = InNewValue;
+			OutTransform.Location = Translation;
+			break;
+		}
+		case ERigElementDetailsTransformComponent::TranslationZ:
+		{
+			FVector Translation = OutTransform.Location;
+			Translation.Z = InNewValue;
+			OutTransform.Location = Translation;
+			break;
+		}
+		case ERigElementDetailsTransformComponent::RotationRoll:
+		{
+			FRotator Rotator = OutTransform.Rotation;
+			Rotator.Roll = InNewValue;
+			OutTransform.Rotation = Rotator;
+			break;
+		}
+		case ERigElementDetailsTransformComponent::RotationPitch:
+		{
+			FRotator Rotator = OutTransform.Rotation;
+			Rotator.Pitch = InNewValue;
+			OutTransform.Rotation = Rotator;
+			break;
+		}
+		case ERigElementDetailsTransformComponent::RotationYaw:
+		{
+			FRotator Rotator = OutTransform.Rotation;
+			Rotator.Yaw = InNewValue;
+			OutTransform.Rotation = Rotator;
+			break;
+		}
+		case ERigElementDetailsTransformComponent::ScaleX:
+		{
+			FVector Scale = OutTransform.Scale;
+			Scale.X = InNewValue;
+			OutTransform.Scale = Scale;
+			break;
+		}
+		case ERigElementDetailsTransformComponent::ScaleY:
+		{
+			FVector Scale = OutTransform.Scale;
+			Scale.Y = InNewValue;
+			OutTransform.Scale = Scale;
+			break;
+		}
+		case ERigElementDetailsTransformComponent::ScaleZ:
+		{
+			FVector Scale = OutTransform.Scale;
+			Scale.Z = InNewValue;
+			OutTransform.Scale = Scale;
+			break;
+		}
+	}
+}
+
+
 void FRigBoneDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuilder )
 {
 	FRigElementDetails::CustomizeDetails(DetailBuilder);
@@ -410,6 +774,50 @@ void FRigBoneDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuilder )
 		.Text(this, &FRigElementDetails::GetName)
 		.OnTextCommitted(this, &FRigElementDetails::SetName)
 	];
+
+	// setup influences modifier
+	{
+		FName InfluencesEventName = FRigUnit_BeginExecution::EventName;
+		FRigInfluenceMap InfluenceMap = BlueprintBeingCustomized->Influences.FindOrAdd(InfluencesEventName).Inverse();
+		FRigInfluenceEntryModifier TempModifier = InfluenceMap.GetEntryModifier(ElementKeyBeingCustomized);
+		InfluenceModifier = MakeShareable(new FRigInfluenceEntryModifier(TempModifier));
+		InfluenceModifierStruct = MakeShareable(new FStructOnScope(FRigInfluenceEntryModifier::StaticStruct(), (uint8*)InfluenceModifier.Get()));
+		InfluenceModifierStruct->SetPackage(BlueprintBeingCustomized->GetOutermost());
+
+		IDetailCategoryBuilder& InversionCategory = DetailBuilder.EditCategory(TEXT("Inversion"), LOCTEXT("InversionCategory", "Inversion"));
+		FProperty* AffectedListProperty = FRigInfluenceEntryModifier::StaticStruct()->FindPropertyByName(TEXT("AffectedList"));
+
+		IDetailPropertyRow* AffectedListRow = InversionCategory.AddExternalStructureProperty(InfluenceModifierStruct, AffectedListProperty->GetFName());
+		AffectedListRow->ShouldAutoExpand(true);
+		AffectedListRow->DisplayName(LOCTEXT("AffectingElements", "Affecting Elements"));
+
+		FSimpleDelegate OnInfluencesChangedDelegate = FSimpleDelegate::CreateSP(this, &FRigBoneDetails::OnAffectedListChanged, AffectedListProperty, DetailBuilder.GetPropertyUtilities());
+
+		TSharedPtr<IPropertyHandle> AffectedListHandle = AffectedListRow->GetPropertyHandle();
+		AffectedListHandle->SetOnPropertyValueChanged(OnInfluencesChangedDelegate);
+		AffectedListHandle->SetOnChildPropertyValueChanged(OnInfluencesChangedDelegate);
+	}
+}
+
+void FRigBoneDetails::OnStructContentsChanged(FProperty* InProperty, const TSharedRef<IPropertyUtilities> PropertyUtilities)
+{
+	FPropertyChangedEvent ChangeEvent(InProperty, EPropertyChangeType::ValueSet);
+	PropertyUtilities->NotifyFinishedChangingProperties(ChangeEvent);
+}
+
+void FRigBoneDetails::OnAffectedListChanged(FProperty* InProperty, const TSharedRef<IPropertyUtilities> PropertyUtilities)
+{
+	if (BlueprintBeingCustomized != nullptr && InfluenceModifier.IsValid())
+	{
+		BlueprintBeingCustomized->Modify();
+
+		FName InfluencesEventName = FRigUnit_BeginExecution::EventName;
+		FRigInfluenceMap InverseInfluenceMap = BlueprintBeingCustomized->Influences.FindOrAdd(InfluencesEventName).Inverse();
+		InverseInfluenceMap.SetEntryModifier(ElementKeyBeingCustomized, *InfluenceModifier);
+		BlueprintBeingCustomized->Influences.FindOrAdd(InfluencesEventName) = InverseInfluenceMap.Inverse();
+	}
+
+	OnStructContentsChanged(InProperty, PropertyUtilities);
 }
 
 TArray<TSharedPtr<FString>> FRigControlDetails::ControlTypeList;
@@ -419,8 +827,10 @@ void FRigControlDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 	FRigElementDetails::CustomizeDetails(DetailBuilder);
 
 	DetailBuilder.HideProperty(TEXT("ControlType"));
+	DetailBuilder.HideProperty(TEXT("DisplayName"));
 	DetailBuilder.HideProperty(TEXT("ParentName"));
 	DetailBuilder.HideProperty(TEXT("SpaceName"));
+	DetailBuilder.HideProperty(TEXT("OffsetTransform"));
 	DetailBuilder.HideProperty(TEXT("InitialValue"));
 	DetailBuilder.HideProperty(TEXT("Value"));
 	DetailBuilder.HideProperty(TEXT("bLimitTranslation"));
@@ -430,6 +840,7 @@ void FRigControlDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 	DetailBuilder.HideProperty(TEXT("MinimumValue"));
 	DetailBuilder.HideProperty(TEXT("MaximumValue"));
 	DetailBuilder.HideProperty(TEXT("bIsTransientControl"));
+	DetailBuilder.HideProperty(TEXT("ControlEnum"));
 
 	GizmoNameList.Reset();
 	if (BlueprintBeingCustomized)
@@ -469,6 +880,21 @@ void FRigControlDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 		.Font(IDetailLayoutBuilder::GetDetailFont())
 		.Text(this, &FRigElementDetails::GetName)
 		.OnTextCommitted(this, &FRigElementDetails::SetName)
+	];
+
+	ControlCategory.AddCustomRow(FText::FromString(TEXT("DisplayName")))
+	.NameContent()
+	[
+		SNew(STextBlock)
+		.Text(FText::FromString(TEXT("Display Name")))
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+	]
+	.ValueContent()
+	[
+		SNew(SEditableTextBox)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+		.Text(this, &FRigControlDetails::GetDisplayName)
+		.OnTextCommitted(this, &FRigControlDetails::SetDisplayName, DetailBuilder.GetPropertyUtilities())
 	];
 
 	if (ContainerBeingCustomized == nullptr || !ElementKeyBeingCustomized)
@@ -515,6 +941,14 @@ void FRigControlDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 						Control.MaximumValue = FRigControlValue::Make<float>(1.f);
 						break;
 					}
+					case ERigControlType::Integer:
+					{
+						Control.Value = Control.InitialValue = FRigControlValue::Make<int32>(0);
+						Control.bLimitTranslation = true;
+						Control.MinimumValue = FRigControlValue::Make<int32>(0);
+						Control.MaximumValue = FRigControlValue::Make<int32>(10);
+						break;
+					}
 					case ERigControlType::Vector2D:
 					{
 						Control.Value = Control.InitialValue = FRigControlValue::Make<FVector2D>(FVector2D::ZeroVector);
@@ -556,6 +990,13 @@ void FRigControlDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 						Control.Value = Control.InitialValue = Control.MinimumValue = Control.MaximumValue = FRigControlValue::Make<FTransformNoScale>(Identity);
 						break;
 					}
+					case ERigControlType::EulerTransform:
+					{
+						FEulerTransform Identity = FEulerTransform::Identity;
+						// Helge todo FTransformNoScale::Identity appears to be no good?
+						Control.Value = Control.InitialValue = Control.MinimumValue = Control.MaximumValue = FRigControlValue::Make<FEulerTransform>(Identity);
+						break;
+					}
 					default:
 					{
 						ensure(false);
@@ -563,6 +1004,10 @@ void FRigControlDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 					}
 				}
 
+				if (this->ContainerBeingCustomized != &this->BlueprintBeingCustomized->HierarchyContainer)
+				{
+					this->BlueprintBeingCustomized->HierarchyContainer.ControlHierarchy[Control.Index] = Control;
+				}
 				this->BlueprintBeingCustomized->PropagateHierarchyFromBPToInstances(false, false);
 				this->ContainerBeingCustomized->ControlHierarchy.OnControlUISettingsChanged.Broadcast(this->ContainerBeingCustomized, this->ElementKeyBeingCustomized);
 			}
@@ -578,6 +1023,35 @@ void FRigControlDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 	[
 		ControlType->CreatePropertyValueWidget()
 	];
+
+	if(Control.ControlType != ERigControlType::Bool)
+	{
+		TSharedRef<IPropertyHandle> OffsetTransform = DetailBuilder.GetProperty(TEXT("OffsetTransform"));
+		OffsetTransform->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda(
+			[this, OffsetTransform, &DetailBuilder]()
+			{
+				this->BlueprintBeingCustomized->PropagatePropertyFromBPToInstances(this->GetElementKey(), OffsetTransform->GetProperty());
+			}
+		));
+
+		uint8* ValuePtr = (uint8*)&Control.OffsetTransform;
+		const UStruct* ValueStruct = TBaseStructure<FTransform>::Get();
+
+		TSharedPtr<FStructOnScope> StructToDisplay = MakeShareable(new FStructOnScope(ValueStruct, ValuePtr));
+		FProperty* Property = OffsetTransform->GetProperty();
+
+		IDetailPropertyRow* Row = ControlCategory.AddExternalStructure(StructToDisplay);
+		Row->DisplayName(OffsetTransform->GetPropertyDisplayName());
+		Row->ToolTip(Property->GetToolTipText());
+		Row->ShouldAutoExpand(true);
+		Row->IsEnabled(true);
+
+		FSimpleDelegate OnStructContentsChangedDelegate = FSimpleDelegate::CreateSP(this, &FRigControlDetails::OnStructContentsChanged, Property, DetailBuilder.GetPropertyUtilities());
+
+		TSharedPtr<IPropertyHandle> Handle = Row->GetPropertyHandle();
+		Handle->SetOnPropertyValueChanged(OnStructContentsChangedDelegate);
+		Handle->SetOnChildPropertyValueChanged(OnStructContentsChangedDelegate);
+	}
 
 	FString ControlTypeName = ControlTypeEnum->GetDisplayNameTextByValue((int64)Control.ControlType).ToString();
 
@@ -613,7 +1087,7 @@ void FRigControlDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 					[
 						SNew(SCheckBox)
 						.IsChecked(this, &FRigControlDetails::GetComponentValueBool, ValueType == ERigControlValueType::Initial)
-						.OnCheckStateChanged(this, &FRigControlDetails::SetComponentValueBool, ValueType == ERigControlValueType::Initial)
+						.OnCheckStateChanged(this, &FRigControlDetails::SetComponentValueBool, ValueType == ERigControlValueType::Initial, DetailBuilder.GetPropertyUtilities())
 					]
 				];
 			}
@@ -674,24 +1148,29 @@ void FRigControlDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 						.AllowSpin(true)
 						.IsEnabled(this, &FRigControlDetails::IsEnabled, ValueType)
 						.Value(this, &FRigControlDetails::GetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::TranslationX)
-						.OnValueChanged(this, &FRigControlDetails::SetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::TranslationX)
+						.OnValueChanged(this, &FRigControlDetails::SetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::TranslationX, DetailBuilder.GetPropertyUtilities())
 					]
 				];
 			}
 			break;
 		}
-		case ERigControlType::Vector2D:
-		case ERigControlType::Position:
-		case ERigControlType::Scale:
-		case ERigControlType::Rotator:
-		case ERigControlType::Transform:
-		case ERigControlType::TransformNoScale:
+		case ERigControlType::Integer:
 		{
 			for(int64 ValueTypeIndex = 0; ValueTypeIndex < ValueTypeEnum->GetMaxEnumValue(); ValueTypeIndex++)
 			{
 				ERigControlValueType ValueType = (ERigControlValueType)ValueTypeIndex;
 				FString ValueTypeName = ValueTypeEnum->GetDisplayNameTextByValue(ValueTypeIndex).ToString();
 				FText PropertyLabel = FText::FromString(FString::Printf(TEXT("%s %s"), *ValueTypeName, *ControlTypeName));
+
+				// skip min and max if this is an enum
+				if (Control.ControlEnum != nullptr &&
+					(
+						ValueType == ERigControlValueType::Minimum ||
+						ValueType == ERigControlValueType::Maximum
+						))
+				{
+					continue;
+				}
 
 				if (ValueType == ERigControlValueType::Minimum)
 				{
@@ -706,6 +1185,134 @@ void FRigControlDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 					[
 						DetailBuilder.GetProperty(TEXT("bLimitTranslation"))->CreatePropertyValueWidget()
 					];
+
+					LimitsCategory.AddCustomRow(FText::FromString(TEXT("bDrawLimits")))
+					.NameContent()
+					[
+						DetailBuilder.GetProperty(TEXT("bDrawLimits"))->CreatePropertyNameWidget()
+					]
+					.ValueContent()
+					[
+						DetailBuilder.GetProperty(TEXT("bDrawLimits"))->CreatePropertyValueWidget()
+					];
+				}
+
+				IDetailCategoryBuilder& Category = (ValueType == ERigControlValueType::Minimum || ValueType == ERigControlValueType::Maximum) ? LimitsCategory : ControlCategory;
+
+				if (Control.ControlEnum)
+				{
+					Category.AddCustomRow(PropertyLabel)
+					.NameContent()
+					.VAlign(VAlign_Top)
+					[
+						SNew(STextBlock)
+						.Text(PropertyLabel)
+						.Font(IDetailLayoutBuilder::GetDetailFont())
+						.IsEnabled(this, &FRigControlDetails::IsEnabled, ValueType)
+					]
+					.ValueContent()
+					.MinDesiredWidth(125.0f * 3.0f) // copied from FComponentTransformDetails
+					.MaxDesiredWidth(125.0f * 3.0f)
+					[
+						SNew(SVerticalBox)
+						+ SVerticalBox::Slot()
+						[
+							SNew(SEnumComboBox, Control.ControlEnum)
+							.IsEnabled(this, &FRigControlDetails::IsEnabled, ValueType)
+							.OnEnumSelectionChanged(SEnumComboBox::FOnEnumSelectionChanged::CreateSP(this, &FRigControlDetails::OnControlEnumChanged, ValueType, DetailBuilder.GetPropertyUtilities()))
+							.CurrentValue(this, &FRigControlDetails::GetControlEnumValue, ValueType)
+							.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+						]
+					];
+				}
+				else
+				{
+					Category.AddCustomRow(PropertyLabel)
+					.NameContent()
+					.VAlign(VAlign_Top)
+					[
+						SNew(STextBlock)
+						.Text(PropertyLabel)
+						.Font(IDetailLayoutBuilder::GetDetailFont())
+						.IsEnabled(this, &FRigControlDetails::IsEnabled, ValueType)
+					]
+					.ValueContent()
+					.MinDesiredWidth(125.0f * 3.0f) // copied from FComponentTransformDetails
+					.MaxDesiredWidth(125.0f * 3.0f)
+					[
+						SNew(SVerticalBox)
+						+ SVerticalBox::Slot()
+						[
+							SNew(SNumericEntryBox<int32>)
+							.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+							.AllowSpin(true)
+							.IsEnabled(this, &FRigControlDetails::IsEnabled, ValueType)
+							.Value(this, &FRigControlDetails::GetComponentValueInteger, ValueType)
+							.OnValueChanged(this, &FRigControlDetails::SetComponentValueInteger, ValueType, DetailBuilder.GetPropertyUtilities())
+						]
+					];
+				}
+			}
+			break;
+		}
+		case ERigControlType::Vector2D:
+		case ERigControlType::Position:
+		case ERigControlType::Scale:
+		case ERigControlType::Rotator:
+		case ERigControlType::Transform:
+		case ERigControlType::TransformNoScale:
+		case ERigControlType::EulerTransform:
+		{
+			for(int64 ValueTypeIndex = 0; ValueTypeIndex < ValueTypeEnum->GetMaxEnumValue(); ValueTypeIndex++)
+			{
+				ERigControlValueType ValueType = (ERigControlValueType)ValueTypeIndex;
+				FString ValueTypeName = ValueTypeEnum->GetDisplayNameTextByValue(ValueTypeIndex).ToString();
+				FText PropertyLabel = FText::FromString(FString::Printf(TEXT("%s %s"), *ValueTypeName, *ControlTypeName));
+
+				if (ValueType == ERigControlValueType::Minimum)
+				{
+					FText LimitTranslationLabel = FText::FromString(TEXT("Limit"));
+					FText LimiRotationLabel = LimitTranslationLabel;
+					bool bShowLimitRotation = Control.ControlType == ERigControlType::Rotator;
+
+					if (Control.ControlType == ERigControlType::Transform ||
+						Control.ControlType == ERigControlType::TransformNoScale)
+					{
+						LimitTranslationLabel = FText::FromString(TEXT("Limit Translation"));
+						LimiRotationLabel = FText::FromString(TEXT("Limit Rotation"));
+						bShowLimitRotation = true;
+					}
+
+					if (Control.ControlType != ERigControlType::Rotator)
+					{
+						LimitsCategory.AddCustomRow(LimitTranslationLabel)
+						.NameContent()
+						[
+							SNew(STextBlock)
+							.Text(LimitTranslationLabel)
+						.Font(IDetailLayoutBuilder::GetDetailFont())
+						]
+						.ValueContent()
+						[
+							DetailBuilder.GetProperty(TEXT("bLimitTranslation"))->CreatePropertyValueWidget()
+						];
+					}
+
+
+					if (bShowLimitRotation)
+					{
+						LimitsCategory.AddCustomRow(LimiRotationLabel)
+						.NameContent()
+						[
+							SNew(STextBlock)
+							.Text(LimiRotationLabel)
+							.Font(IDetailLayoutBuilder::GetDetailFont())
+						]
+						.ValueContent()
+						[
+							DetailBuilder.GetProperty(TEXT("bLimitRotation"))->CreatePropertyValueWidget()
+						];
+					}
 
 					LimitsCategory.AddCustomRow(FText::FromString(TEXT("bDrawLimits")))
 					.NameContent()
@@ -749,6 +1356,11 @@ void FRigControlDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 						ValueStruct = TBaseStructure<FTransformNoScale>::Get();
 						break;
 					}
+					case ERigControlType::EulerTransform:
+					{
+						ValueStruct = TBaseStructure<FEulerTransform>::Get();
+						break;
+					}
 					default:
 					{
 						checkNoEntry();
@@ -758,13 +1370,14 @@ void FRigControlDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 				TSharedPtr<FStructOnScope> StructToDisplay = MakeShareable(new FStructOnScope(ValueStruct, ValuePtr));
 
 				IDetailCategoryBuilder& Category = (ValueType == ERigControlValueType::Minimum || ValueType == ERigControlValueType::Maximum) ? LimitsCategory : ControlCategory;
+				FProperty* Property = FRigControl::FindPropertyForValueType(ValueType);
 
 				IDetailPropertyRow* Row = Category.AddExternalStructure(StructToDisplay);
 				Row->DisplayName(PropertyLabel);
+				Row->ToolTip(Property->GetToolTipText());
 				Row->ShouldAutoExpand(true);
 				Row->IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FRigControlDetails::IsEnabled, ValueType)));
 
-				FProperty* Property = FRigControl::FindPropertyForValueType(ValueType);
 				FSimpleDelegate OnStructContentsChangedDelegate = FSimpleDelegate::CreateSP(this, &FRigControlDetails::OnStructContentsChanged, Property, DetailBuilder.GetPropertyUtilities());
 
 				TSharedPtr<IPropertyHandle> Handle = Row->GetPropertyHandle();
@@ -784,14 +1397,17 @@ void FRigControlDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 	switch (Control.ControlType)
 	{
 		case ERigControlType::Float:
+		case ERigControlType::Integer:
 		case ERigControlType::Vector2D:
 		case ERigControlType::Position:
 		case ERigControlType::Scale:
 		case ERigControlType::Rotator:
 		case ERigControlType::Transform:
 		case ERigControlType::TransformNoScale:
+		case ERigControlType::EulerTransform:
 		{
 			DetailBuilder.HideProperty(TEXT("bGizmoEnabled"));
+			DetailBuilder.HideProperty(TEXT("bGizmoVisible"));
 			DetailBuilder.HideProperty(TEXT("GizmoName"));
 
 			GizmoCategory.AddCustomRow(FText::FromString(TEXT("bGizmoEnabled")))
@@ -818,11 +1434,23 @@ void FRigControlDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 				.OnGetNameListContent(this, &FRigControlDetails::GetGizmoNameList)
 				.IsEnabled(this, &FRigControlDetails::IsGizmoEnabled)
 			];
+
+			GizmoCategory.AddCustomRow(FText::FromString(TEXT("bGizmoVisible")))
+			.NameContent()
+			[
+				DetailBuilder.GetProperty(TEXT("bGizmoVisible"))->CreatePropertyNameWidget()
+			]
+			.ValueContent()
+			[
+				DetailBuilder.GetProperty(TEXT("bGizmoVisible"))->CreatePropertyValueWidget()
+			];
+
 			break;
 		}
 		default:
 		{
 			DetailBuilder.HideProperty(TEXT("bGizmoEnabled"));
+			DetailBuilder.HideProperty(TEXT("bGizmoVisible"));
 			DetailBuilder.HideProperty(TEXT("GizmoName"));
 			DetailBuilder.HideProperty(TEXT("GizmoTransform"));
 			DetailBuilder.HideProperty(TEXT("GizmoColor"));
@@ -833,6 +1461,7 @@ void FRigControlDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 	switch (Control.ControlType)
 	{
 		case ERigControlType::Float:
+		case ERigControlType::Integer:
 		case ERigControlType::Vector2D:
 		{
 			break;
@@ -843,12 +1472,169 @@ void FRigControlDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 			break;
 		}
 	}
+
+	if (Control.ControlType == ERigControlType::Integer)
+	{
+		TSharedRef<IPropertyHandle> ControlEnum = DetailBuilder.GetProperty(TEXT("ControlEnum"));
+		ControlEnum->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda(
+			[this, &DetailBuilder]()
+			{
+				DetailBuilder.ForceRefreshDetails();
+
+				if (this->ContainerBeingCustomized != nullptr && this->ElementKeyBeingCustomized)
+				{
+					int32 Index = ContainerBeingCustomized->ControlHierarchy.GetIndex(ElementKeyBeingCustomized.Name);
+					if (Index != INDEX_NONE)
+					{
+						UEnum* ControlEnum = ContainerBeingCustomized->ControlHierarchy[Index].ControlEnum;
+						if (ControlEnum != nullptr)
+						{
+							int32 Maximum = (int32)ControlEnum->GetMaxEnumValue() - 1;
+							ContainerBeingCustomized->ControlHierarchy[Index].MinimumValue.Set<int32>(0);
+							ContainerBeingCustomized->ControlHierarchy[Index].MaximumValue.Set<int32>(Maximum);
+
+							FRigControlValue InitialValue = ContainerBeingCustomized->ControlHierarchy[Index].InitialValue;
+							FRigControlValue Value = ContainerBeingCustomized->ControlHierarchy[Index].Value;
+
+							ContainerBeingCustomized->ControlHierarchy[Index].ApplyLimits(InitialValue);
+							ContainerBeingCustomized->ControlHierarchy[Index].ApplyLimits(Value);
+
+							ContainerBeingCustomized->ControlHierarchy.SetValue(ElementKeyBeingCustomized.Name, InitialValue, ERigControlValueType::Initial);
+							ContainerBeingCustomized->ControlHierarchy.SetValue(ElementKeyBeingCustomized.Name, Value, ERigControlValueType::Current);
+
+							if (UControlRig* DebuggedRig = Cast<UControlRig>(BlueprintBeingCustomized->GetObjectBeingDebugged()))
+							{
+								FRigControlHierarchy& DebuggedControlHierarchy = *((FRigControlHierarchy*)&DebuggedRig->GetControlHierarchy());
+								DebuggedControlHierarchy[Index].MinimumValue.Set<int32>(0);
+								DebuggedControlHierarchy[Index].MaximumValue.Set<int32>(Maximum);
+								DebuggedControlHierarchy.SetValue(ElementKeyBeingCustomized.Name, InitialValue, ERigControlValueType::Initial);
+								DebuggedControlHierarchy.SetValue(ElementKeyBeingCustomized.Name, Value, ERigControlValueType::Current);
+							}
+						}
+					}
+				}
+			}
+		));
+
+		ControlCategory.AddCustomRow(FText::FromString(TEXT("ControlEnum")))
+		.NameContent()
+		[
+			ControlEnum->CreatePropertyNameWidget()
+		]
+		.ValueContent()
+		[
+			ControlEnum->CreatePropertyValueWidget()
+		];
+	}
+
+	// setup influences modifier
+	{
+		FName InfluencesEventName = FRigUnit_BeginExecution::EventName;
+		FRigInfluenceMap& InfluenceMap = BlueprintBeingCustomized->Influences.FindOrAdd(InfluencesEventName);
+		FRigInfluenceEntryModifier TempModifier = InfluenceMap.GetEntryModifier(ElementKeyBeingCustomized);
+		InfluenceModifier = MakeShareable(new FRigInfluenceEntryModifier(TempModifier));
+		InfluenceModifierStruct = MakeShareable(new FStructOnScope(FRigInfluenceEntryModifier::StaticStruct(), (uint8*)InfluenceModifier.Get()));
+		InfluenceModifierStruct->SetPackage(BlueprintBeingCustomized->GetOutermost());
+
+		IDetailCategoryBuilder& InversionCategory = DetailBuilder.EditCategory(TEXT("Inversion"), LOCTEXT("InversionCategory", "Inversion"));
+		FProperty* AffectedListProperty = FRigInfluenceEntryModifier::StaticStruct()->FindPropertyByName(TEXT("AffectedList"));
+
+		IDetailPropertyRow* AffectedListRow = InversionCategory.AddExternalStructureProperty(InfluenceModifierStruct, AffectedListProperty->GetFName());
+		AffectedListRow->ShouldAutoExpand(true);
+		AffectedListRow->DisplayName(LOCTEXT("AffectedElements", "Affected Elements"));
+
+		FSimpleDelegate OnInfluencesChangedDelegate = FSimpleDelegate::CreateSP(this, &FRigControlDetails::OnAffectedListChanged, AffectedListProperty, DetailBuilder.GetPropertyUtilities());
+
+		TSharedPtr<IPropertyHandle> AffectedListHandle = AffectedListRow->GetPropertyHandle();
+		AffectedListHandle->SetOnPropertyValueChanged(OnInfluencesChangedDelegate);
+		AffectedListHandle->SetOnChildPropertyValueChanged(OnInfluencesChangedDelegate);
+	}
 }
 
 void FRigControlDetails::OnStructContentsChanged(FProperty* InProperty, const TSharedRef<IPropertyUtilities> PropertyUtilities)
 {
 	FPropertyChangedEvent ChangeEvent(InProperty, EPropertyChangeType::ValueSet);
 	PropertyUtilities->NotifyFinishedChangingProperties(ChangeEvent);
+}
+
+void FRigControlDetails::OnAffectedListChanged(FProperty* InProperty, const TSharedRef<IPropertyUtilities> PropertyUtilities)
+{
+	if (BlueprintBeingCustomized != nullptr && InfluenceModifier.IsValid())
+	{
+		BlueprintBeingCustomized->Modify();
+
+		FName InfluencesEventName = FRigUnit_BeginExecution::EventName;
+		FRigInfluenceMap& InfluenceMap = BlueprintBeingCustomized->Influences.FindOrAdd(InfluencesEventName);
+		InfluenceMap.SetEntryModifier(ElementKeyBeingCustomized, *InfluenceModifier);
+	}
+
+	OnStructContentsChanged(InProperty, PropertyUtilities);
+}
+
+int32 FRigControlDetails::GetControlEnumValue(ERigControlValueType InValueType) const
+{
+	TOptional<int32> Value = GetComponentValueInteger(InValueType);
+	if (Value.IsSet())
+	{
+		return Value.GetValue();
+	}
+	return 0;
+}
+
+void FRigControlDetails::OnControlEnumChanged(int32 InValue, ESelectInfo::Type InSelectInfo, ERigControlValueType InValueType, const TSharedRef<IPropertyUtilities> PropertyUtilities)
+{
+	if (ContainerBeingCustomized != nullptr && ElementKeyBeingCustomized)
+	{
+		int32 Index = ContainerBeingCustomized->ControlHierarchy.GetIndex(ElementKeyBeingCustomized.Name);
+		if (Index != INDEX_NONE)
+		{
+			FRigControlValue Value = FRigControlValue::Make<int32>(InValue);
+			ContainerBeingCustomized->ControlHierarchy.SetValue(ElementKeyBeingCustomized.Name, Value, InValueType);
+			OnStructContentsChanged(FRigControl::FindPropertyForValueType(InValueType), PropertyUtilities);
+		}
+	}
+}
+
+FText FRigControlDetails::GetDisplayName() const
+{
+	if (ContainerBeingCustomized != nullptr && ElementKeyBeingCustomized)
+	{
+		int32 Index = ContainerBeingCustomized->ControlHierarchy.GetIndex(ElementKeyBeingCustomized.Name);
+		if (Index != INDEX_NONE)
+		{
+			FRigControl Control = ContainerBeingCustomized->ControlHierarchy[ElementKeyBeingCustomized.Name];
+			if (Control.DisplayName.IsNone())
+			{
+				return FText();
+			}
+			return FText::FromName(Control.GetDisplayName());
+		}
+	}
+	return FText();
+}
+
+void FRigControlDetails::SetDisplayName(const FText& InNewText, ETextCommit::Type InCommitType, const TSharedRef<IPropertyUtilities> PropertyUtilities)
+{
+	if (ContainerBeingCustomized != nullptr && ElementKeyBeingCustomized)
+	{
+		int32 Index = ContainerBeingCustomized->ControlHierarchy.GetIndex(ElementKeyBeingCustomized.Name);
+		if (Index != INDEX_NONE)
+		{
+			FRigControl& Control = ContainerBeingCustomized->ControlHierarchy[ElementKeyBeingCustomized.Name];
+
+			FString NewDisplayName = InNewText.ToString().TrimStartAndEnd();
+			if (NewDisplayName.IsEmpty())
+			{
+				Control.DisplayName = FName(NAME_None);
+			}
+			else
+			{
+				Control.DisplayName = *NewDisplayName;
+			}
+
+			OnStructContentsChanged(FRigControl::StaticStruct()->FindPropertyByName(TEXT("DisplayName")), PropertyUtilities);
+		}
+	}
 }
 
 ECheckBoxState FRigControlDetails::GetComponentValueBool(bool bInitial) const
@@ -885,7 +1671,7 @@ ECheckBoxState FRigControlDetails::GetComponentValueBool(bool bInitial) const
 	return ECheckBoxState::Unchecked;
 }
 
-void FRigControlDetails::SetComponentValueBool(ECheckBoxState InNewValue, bool bInitial)
+void FRigControlDetails::SetComponentValueBool(ECheckBoxState InNewValue, bool bInitial, const TSharedRef<IPropertyUtilities> PropertyUtilities)
 {
 	if (ContainerBeingCustomized != nullptr && ElementKeyBeingCustomized)
 	{
@@ -912,18 +1698,12 @@ void FRigControlDetails::SetComponentValueBool(ECheckBoxState InNewValue, bool b
 			if (bInitial)
 			{
 				ContainerBeingCustomized->ControlHierarchy.SetInitialValue(ElementKeyBeingCustomized.Name, Value);
-				if (UControlRig* DebuggedRig = Cast<UControlRig>(BlueprintBeingCustomized->GetObjectBeingDebugged()))
-				{
-					((FRigControlHierarchy*)&DebuggedRig->GetControlHierarchy())->SetInitialValue(ElementKeyBeingCustomized.Name, Value);
-				}
+				OnStructContentsChanged(FRigControl::FindPropertyForValueType(ERigControlValueType::Initial), PropertyUtilities);
 			}
 			else
 			{
 				ContainerBeingCustomized->ControlHierarchy.SetValue(ElementKeyBeingCustomized.Name, Value);
-				if (UControlRig* DebuggedRig = Cast<UControlRig>(BlueprintBeingCustomized->GetObjectBeingDebugged()))
-				{
-					((FRigControlHierarchy*)&DebuggedRig->GetControlHierarchy())->SetValue(ElementKeyBeingCustomized.Name, Value);
-				}
+				OnStructContentsChanged(FRigControl::FindPropertyForValueType(ERigControlValueType::Current), PropertyUtilities);
 			}
 		}
 	}
@@ -950,6 +1730,10 @@ TOptional<float> FRigControlDetails::GetComponentValueFloat(ERigControlValueType
 				case ERigControlType::Float:
 				{
 					return Control.GetValue(InValueType).Get<float>();
+				}
+				case ERigControlType::Integer:
+				{
+					return (float)Control.GetValue(InValueType).Get<int32>();
 				}
 				case ERigControlType::Vector2D:
 				{
@@ -1049,6 +1833,11 @@ TOptional<float> FRigControlDetails::GetComponentValueFloat(ERigControlValueType
 					FTransform Transform = Control.GetValue(InValueType).Get<FTransformNoScale>();
 					return GetTransformComponent(Transform, Component);
 				}
+				case ERigControlType::EulerTransform:
+				{
+					FEulerTransform Transform = Control.GetValue(InValueType).Get<FEulerTransform>();
+					return GetEulerTransformComponent(Transform, Component);
+				}
 				case ERigControlType::Bool:
 				{
 					break;
@@ -1064,12 +1853,12 @@ TOptional<float> FRigControlDetails::GetComponentValueFloat(ERigControlValueType
 	return 0.f;
 }
 
-void FRigControlDetails::SetComponentValueFloat(float InNewValue, ETextCommit::Type InCommitType, ERigControlValueType InValueType, ERigElementDetailsTransformComponent Component)
+void FRigControlDetails::SetComponentValueFloat(float InNewValue, ETextCommit::Type InCommitType, ERigControlValueType InValueType, ERigElementDetailsTransformComponent Component, const TSharedRef<IPropertyUtilities> PropertyUtilities)
 {
-	SetComponentValueFloat(InNewValue, InValueType, Component);
+	SetComponentValueFloat(InNewValue, InValueType, Component, PropertyUtilities);
 }
 
-void FRigControlDetails::SetComponentValueFloat(float InNewValue, ERigControlValueType InValueType, ERigElementDetailsTransformComponent Component)
+void FRigControlDetails::SetComponentValueFloat(float InNewValue, ERigControlValueType InValueType, ERigElementDetailsTransformComponent Component, const TSharedRef<IPropertyUtilities> PropertyUtilities)
 {
 	if (ContainerBeingCustomized != nullptr && ElementKeyBeingCustomized)
 	{
@@ -1207,6 +1996,13 @@ void FRigControlDetails::SetComponentValueFloat(float InNewValue, ERigControlVal
 					Value.Set<FTransformNoScale>(Transform);
 					break;
 				}
+				case ERigControlType::EulerTransform:
+				{
+					FEulerTransform Transform = Value.Get<FEulerTransform>();
+					SetEulerTransformComponent(Transform, Component, InNewValue);
+					Value.Set<FEulerTransform>(Transform);
+					break;
+				}
 				case ERigControlType::Bool:
 				{
 					return;
@@ -1219,10 +2015,69 @@ void FRigControlDetails::SetComponentValueFloat(float InNewValue, ERigControlVal
 			}
 
 			ContainerBeingCustomized->ControlHierarchy.SetValue(ElementKeyBeingCustomized.Name, Value, InValueType);
-			if (UControlRig* DebuggedRig = Cast<UControlRig>(BlueprintBeingCustomized->GetObjectBeingDebugged()))
+			OnStructContentsChanged(FRigControl::FindPropertyForValueType(InValueType), PropertyUtilities);
+		}
+	}
+}
+
+TOptional<int32> FRigControlDetails::GetComponentValueInteger(ERigControlValueType InValueType) const
+{
+	if (ContainerBeingCustomized != nullptr && ElementKeyBeingCustomized)
+	{
+		int32 Index = ContainerBeingCustomized->ControlHierarchy.GetIndex(ElementKeyBeingCustomized.Name);
+		if (Index != INDEX_NONE)
+		{
+			FRigControl Control = ContainerBeingCustomized->ControlHierarchy[ElementKeyBeingCustomized.Name];
+			if (InValueType == ERigControlValueType::Current)
 			{
-				((FRigControlHierarchy*)&DebuggedRig->GetControlHierarchy())->SetValue(ElementKeyBeingCustomized.Name, Value, InValueType);
+				if (UControlRig* DebuggedRig = Cast<UControlRig>(BlueprintBeingCustomized->GetObjectBeingDebugged()))
+				{
+					Control = DebuggedRig->GetControlHierarchy()[Index];
+				}
 			}
+
+			switch (Control.ControlType)
+			{
+				case ERigControlType::Integer:
+				{
+					return Control.GetValue(InValueType).Get<int32>();
+				}
+				default:
+				{
+					break;
+				}
+			}
+		}
+	}
+	return 0;
+}
+
+void FRigControlDetails::SetComponentValueInteger(int32 InNewValue, ERigControlValueType InValueType, const TSharedRef<IPropertyUtilities> PropertyUtilities)
+{
+	if (ContainerBeingCustomized != nullptr && ElementKeyBeingCustomized)
+	{
+		int32 Index = ContainerBeingCustomized->ControlHierarchy.GetIndex(ElementKeyBeingCustomized.Name);
+		if (Index != INDEX_NONE)
+		{
+			const FRigControl& Control = ContainerBeingCustomized->ControlHierarchy[ElementKeyBeingCustomized.Name];
+			FRigControlValue Value = Control.GetValue(InValueType);
+
+			switch (Control.ControlType)
+			{
+				case ERigControlType::Integer:
+				{
+					Value.Set<int32>(InNewValue);
+					break;
+				}
+				default:
+				{
+					ensure(false);
+					break;
+				}
+			}
+
+			ContainerBeingCustomized->ControlHierarchy.SetValue(ElementKeyBeingCustomized.Name, Value, InValueType);
+			OnStructContentsChanged(FRigControl::FindPropertyForValueType(InValueType), PropertyUtilities);
 		}
 	}
 }

@@ -11,6 +11,7 @@ class UNiagaraDataInterface;
 class UNiagaraScript;
 class UNiagaraRendererProperties;
 class UNiagaraNodeFunctionCall;
+class UNiagaraScriptVariable;
 
 UENUM()
 enum class ENiagaraClipboardFunctionInputValueMode
@@ -139,6 +140,9 @@ public:
 
 	UPROPERTY()
 	TArray<const UNiagaraScript*> Scripts;
+
+	UPROPERTY()
+	TArray<const UNiagaraScriptVariable*> ScriptVariables;
 };
 
 class NIAGARAEDITOR_API FNiagaraClipboard

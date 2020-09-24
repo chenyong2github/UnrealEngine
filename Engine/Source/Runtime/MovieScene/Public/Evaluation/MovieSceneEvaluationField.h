@@ -234,6 +234,11 @@ struct MOVIESCENE_API FMovieSceneEntityComponentField
 	void QueryPersistentEntities(FFrameNumber QueryTime, TRange<FFrameNumber>& OutRange, FMovieSceneEvaluationFieldEntitySet& OutEntities) const;
 
 	/**
+	 * Check whether this field contains any one-shot entities
+	 */
+	bool HasAnyOneShotEntities() const;
+
+	/**
 	 * Query the one-shot entities that overlap with the specified query range.
 	 * @note: One-shot entities only ever live for a single frame of evaluation.
 	 *
@@ -274,6 +279,8 @@ private:
  */
 struct MOVIESCENE_API FMovieSceneEntityComponentFieldBuilder
 {
+	static constexpr uint32 InvalidEntityID = ~0u;
+
 	/**
 	 * Construction from a field to populate
 	 */

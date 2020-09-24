@@ -6,6 +6,8 @@
 #include "RendererInterface.h"
 #include "RenderGraphResources.h"
 
+class FViewInfo;
+
 namespace LumenRadianceCache
 {
 	// Must match RadianceCacheCommon.ush

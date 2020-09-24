@@ -4,6 +4,7 @@
 #include "RigVMModel/RigVMNode.h"
 #include "RigVMModel/RigVMGraph.h"
 #include "RigVMModel/RigVMLink.h"
+#include "RigVMModel/Nodes/RigVMPrototypeNode.h"
 #include "RigVMCompiler/RigVMCompiler.h"
 #include "RigVMCore/RigVMExecuteContext.h"
 #include "UObject/Package.h"
@@ -76,6 +77,7 @@ URigVMPin::URigVMPin()
 	, bIsExpanded(false)
 	, bIsConstant(false)
 	, bRequiresWatch(false)
+	, bIsDynamicArray(false)
 	, CPPType(FString())
 	, CPPTypeObject(nullptr)
 	, CPPTypeObjectPath(NAME_None)
@@ -150,11 +152,11 @@ bool URigVMPin::IsExpanded() const
 	return bIsExpanded;
 }
 
-bool URigVMPin::IsConstant() const
+bool URigVMPin::IsDefinedAsConstant() const
 {
 	if (IsArrayElement())
 	{
-		return GetParentPin()->IsConstant();
+		return GetParentPin()->IsDefinedAsConstant();
 	}
 	return bIsConstant;
 }
@@ -196,6 +198,11 @@ bool URigVMPin::IsArrayElement() const
 		return false;
 	}
 	return ParentPin->IsArray();
+}
+
+bool URigVMPin::IsDynamicArray() const
+{
+	return bIsDynamicArray;
 }
 
 int32 URigVMPin::GetPinIndex() const
@@ -259,16 +266,25 @@ bool URigVMPin::IsExecuteContext() const
 	return false;
 }
 
-
 FString URigVMPin::GetDefaultValue() const
+{
+	return GetDefaultValue(FDefaultValueOverride());
+}
+
+FString URigVMPin::GetDefaultValue(const FDefaultValueOverride& InDefaultValueOverride) const
 {
 	/*
 	URigVMPin* PinForDefaultValue = URigVMCompiler::FollowPinForDefaultValue((URigVMPin*)this);
 	if (PinForDefaultValue != this)
 	{
-		return PinForDefaultValue->GetDefaultValue();
+		return PinForDefaultValue->GetDefaultValue(InDefaultValueOverride);
 	}
 	*/
+
+	if (const FString* Override = InDefaultValueOverride.Find(this))
+	{
+		return *Override;
+	}
 
 	if (IsArray())
 	{
@@ -277,7 +293,7 @@ FString URigVMPin::GetDefaultValue() const
 			TArray<FString> ElementDefaultValues;
 			for (URigVMPin* SubPin : SubPins)
 			{
-				FString ElementDefaultValue = SubPin->GetDefaultValue();
+				FString ElementDefaultValue = SubPin->GetDefaultValue(InDefaultValueOverride);
 				if (SubPin->IsStringType())
 				{
 					ElementDefaultValue = TEXT("\"") + ElementDefaultValue + TEXT("\"");
@@ -304,7 +320,7 @@ FString URigVMPin::GetDefaultValue() const
 			TArray<FString> MemberDefaultValues;
 			for (URigVMPin* SubPin : SubPins)
 			{
-				FString MemberDefaultValue = SubPin->GetDefaultValue();
+				FString MemberDefaultValue = SubPin->GetDefaultValue(InDefaultValueOverride);
 				if (SubPin->IsStringType())
 				{
 					MemberDefaultValue = TEXT("\"") + MemberDefaultValue + TEXT("\"");
@@ -374,6 +390,51 @@ UObject* URigVMPin::FindObjectFromCPPTypeObjectPath(const FString& InObjectPath)
 	}
 
 	return FindObject<UObject>(ANY_PACKAGE, *InObjectPath);
+}
+
+FName URigVMPin::GetSliceContext(const FRigVMUserDataArray& InUserData)
+{
+	URigVMPin* RootPin = GetRootPin();
+	if (RootPin != this)
+	{
+		return RootPin->GetSliceContext(InUserData);
+	}
+	return GetNode()->GetSliceContextForPin(this, InUserData);
+}
+
+int32 URigVMPin::GetNumSlices(const FRigVMUserDataArray& InUserData)
+{
+	URigVMPin* RootPin = GetRootPin();
+	if(RootPin != this)
+	{
+		return RootPin->GetNumSlices(InUserData);
+	}
+
+	FName SliceContext = GetSliceContext(InUserData);
+	return GetNode()->GetNumSlicesForContext(SliceContext, InUserData);
+}
+
+bool URigVMPin::ShowInDetailsPanelOnly() const
+{
+#if WITH_EDITOR
+	if (URigVMStructNode* StructNode = Cast<URigVMStructNode>(GetNode()))
+	{
+		if (GetParentPin() == nullptr)
+		{
+			if (UScriptStruct* ScriptStruct = StructNode->GetScriptStruct())
+			{
+				if (FProperty* Property = ScriptStruct->FindPropertyByName(GetFName()))
+				{
+					if (Property->HasMetaData(FRigVMStruct::DetailsOnlyMetaName))
+					{
+						return true;
+					}
+				}
+			}
+		}
+	}
+#endif
+	return false;
 }
 
 void URigVMPin::UpdateCPPTypeObjectIfRequired() const
@@ -658,7 +719,9 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 		return false;
 	}
 
-	if (InSourcePin->GetNode() == InTargetPin->GetNode())
+	URigVMNode* SourceNode = InSourcePin->GetNode();
+	URigVMNode* TargetNode = InTargetPin->GetNode();
+	if (SourceNode == TargetNode)
 	{
 		if (OutFailureReason)
 		{
@@ -696,7 +759,7 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 		return false;
 	}
 
-	if (InTargetPin->IsConstant() && !InSourcePin->IsConstant())
+	if (InTargetPin->IsDefinedAsConstant() && !InSourcePin->IsDefinedAsConstant())
 	{
 		if (OutFailureReason)
 		{
@@ -711,11 +774,76 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 		{
 			*OutFailureReason = TEXT("Source and target pin types are not compatible.");
 		}
+
+		// check if this might be a prototype node
+		if (InSourcePin->CPPType.IsEmpty())
+		{
+			if (URigVMPrototypeNode* PrototypeNode = Cast<URigVMPrototypeNode>(SourceNode))
+			{
+				if (PrototypeNode->SupportsType(InSourcePin, InTargetPin->CPPType))
+				{
+					if (OutFailureReason)
+					{
+						*OutFailureReason = FString();
+					}
+				}
+				else
+				{
+					return false;
+				}
+			}
+			else
+			{
+				return false;
+			}
+		}
+		else if (InTargetPin->CPPType.IsEmpty())
+		{
+			if (URigVMPrototypeNode* PrototypeNode = Cast<URigVMPrototypeNode>(TargetNode))
+			{
+				if (PrototypeNode->SupportsType(InTargetPin, InSourcePin->CPPType))
+				{
+					if (OutFailureReason)
+					{
+						*OutFailureReason = FString();
+					}
+				}
+				else
+				{
+					return false;
+				}
+			}
+			else
+			{
+				return false;
+			}
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	if(!SourceNode->AllowsLinksOn(InSourcePin))
+	{
+		if (OutFailureReason)
+		{
+			*OutFailureReason = TEXT("Node doesn't allow links on this pin.");
+		}
+		return false;
+	}
+
+	if(!TargetNode->AllowsLinksOn(InTargetPin))
+	{
+		if (OutFailureReason)
+		{
+			*OutFailureReason = TEXT("Node doesn't allow links on this pin.");
+		}
 		return false;
 	}
 
 	// only allow to link to specified input / output pins on an injected node
-	if (URigVMInjectionInfo* SourceInjectionInfo = InSourcePin->GetNode()->GetInjectionInfo())
+	if (URigVMInjectionInfo* SourceInjectionInfo = SourceNode->GetInjectionInfo())
 	{
 		if (SourceInjectionInfo->OutputPin != InSourcePin->GetRootPin())
 		{
@@ -728,7 +856,7 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 	}
 
 	// only allow to link to specified input / output pins on an injected node
-	if (URigVMInjectionInfo* TargetInjectionInfo = InTargetPin->GetNode()->GetInjectionInfo())
+	if (URigVMInjectionInfo* TargetInjectionInfo = TargetNode->GetInjectionInfo())
 	{
 		if (TargetInjectionInfo->InputPin != InTargetPin->GetRootPin())
 		{
@@ -747,6 +875,27 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 			*OutFailureReason = TEXT("Source and target pins are already connected.");
 		}
 		return false;
+	}
+
+	TArray<URigVMNode*> SourceNodes;
+	SourceNodes.Add(SourceNode);
+
+	int32 TargetNodeInstructionIndex = TargetNode->GetInstructionIndex();
+	if (TargetNodeInstructionIndex != INDEX_NONE)
+	{
+		for (int32 SourceNodeIndex = 0; SourceNodeIndex < SourceNodes.Num(); SourceNodeIndex++)
+		{
+			if (!SourceNodes[SourceNodeIndex]->IsA<URigVMRerouteNode>())
+			{
+				int32 SourceNodeInstructionIndex = SourceNodes[SourceNodeIndex]->GetInstructionIndex();
+				if (SourceNodeInstructionIndex != INDEX_NONE &&
+					SourceNodeInstructionIndex > TargetNodeInstructionIndex)
+				{
+					return false;
+				}
+				SourceNodes.Append(SourceNodes[SourceNodeIndex]->GetLinkedSourceNodes());
+			}
+		}
 	}
 
 	return true;

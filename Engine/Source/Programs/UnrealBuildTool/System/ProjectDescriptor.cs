@@ -262,6 +262,11 @@ namespace UnrealBuildTool
 			Writer.WriteValue("EngineAssociation", EngineAssociation);
 			Writer.WriteValue("Category", Category);
 			Writer.WriteValue("Description", Description);
+			
+			if (DisableEnginePluginsByDefault)
+			{
+				Writer.WriteValue("DisableEnginePluginsByDefault", DisableEnginePluginsByDefault);
+			}
 
 			// Write the enterprise flag
 			if (IsEnterpriseProject)

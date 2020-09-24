@@ -221,6 +221,9 @@ private:
 	/** Handles Editor map changes */
 	void HandleEditorMapChange( uint32 MapChangeFlags );
 
+	/** Handles deletion of assets */
+	void HandleAssetsDeleted(const TArray<UClass*>& DeletedClasses);
+
 	/** Called when actors are selected or unselected */
 	void OnActorSelectionChanged(const TArray<UObject*>& NewSelection, bool bForceRefresh = false);
 

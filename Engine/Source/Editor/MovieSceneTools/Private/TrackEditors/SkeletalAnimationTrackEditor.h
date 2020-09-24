@@ -11,6 +11,7 @@
 #include "ISequencerSection.h"
 #include "ISequencerTrackEditor.h"
 #include "MovieSceneTrackEditor.h"
+#include "EditModes/SkeletalAnimationTrackEditMode.h"
 
 struct FAssetData;
 class FMenuBuilder;
@@ -18,11 +19,12 @@ class FSequencerSectionPainter;
 class UMovieSceneSkeletalAnimationSection;
 class USkeleton;
 class USkeletalMeshComponent;
+class UAnimSeqExportOption;
 
 /**
  * Tools for animation tracks
  */
-class FSkeletalAnimationTrackEditor : public FMovieSceneTrackEditor
+class FSkeletalAnimationTrackEditor : public FMovieSceneTrackEditor, public FGCObject
 {
 public:
 	/**
@@ -34,6 +36,9 @@ public:
 
 	/** Virtual destructor. */
 	virtual ~FSkeletalAnimationTrackEditor() { }
+
+	//~ FGCObject
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 
 	/**
 	 * Creates an instance of this class.  Called by a sequencer 
@@ -56,6 +61,8 @@ public:
 	virtual TSharedPtr<SWidget> BuildOutlinerEditWidget(const FGuid& ObjectBinding, UMovieSceneTrack* Track, const FBuildEditWidgetParams& Params) override;
 	virtual bool OnAllowDrop(const FDragDropEvent& DragDropEvent, UMovieSceneTrack* Track, int32 RowIndex, const FGuid& TargetObjectGuid) override;
 	virtual FReply OnDrop(const FDragDropEvent& DragDropEvent, UMovieSceneTrack* Track, int32 RowIndex, const FGuid& TargetObjectGuid) override;
+	virtual void OnInitialize() override;
+	virtual void OnRelease() override;
 
 private:
 
@@ -79,10 +86,16 @@ private:
 	void ConstructObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, TArray<FGuid> ObjectBindings);
 
 	/** Callback to Create the Animation Asset, pop open the dialolg*/
-	void HandleCreateAnimationSequence(USkeletalMeshComponent* SkelMeshComp, USkeleton* Skeleton);
+	void HandleCreateAnimationSequence(USkeletalMeshComponent* SkelMeshComp, USkeleton* Skeleton, FGuid Binding, bool bCeateSoftLink);
 
 	/** Callback to Creae the Animation Asset after getting the name*/
-	bool CreateAnimationSequence(const TArray<UObject*> NewAssets,USkeletalMeshComponent* SkelMeshComp);
+	bool CreateAnimationSequence(const TArray<UObject*> NewAssets,USkeletalMeshComponent* SkelMeshComp, FGuid Binding, bool bCreateSoftLink);
+
+	/** Open the linked Anim Sequence*/
+	void OpenLinkedAnimSequence(FGuid Binding);
+
+	/** Can Open the linked Anim Sequence*/
+	bool CanOpenLinkedAnimSequence(FGuid Binding);
 
 	friend class FMovieSceneSkeletalAnimationParamsDetailCustomization;
 
@@ -90,6 +103,18 @@ private:
 	/* Was part of the the section but should be at the track level since it takes the final blended result at the current time, not the section instance value*/
 	bool CreatePoseAsset(const TArray<UObject*> NewAssets, FGuid InObjectBinding);
 	void HandleCreatePoseAsset(FGuid InObjectBinding);
+
+private:
+	/* For Anim Sequence UI Option with be gc'd*/
+	UAnimSeqExportOption* AnimSeqExportOption;
+
+
+private:
+	/* Delegate to handle sequencer changes for auto baking of anim sequences*/
+	FDelegateHandle SequencerSavedHandle;
+	void OnSequencerSaved(ISequencer& InSequence);
+
+
 };
 
 
@@ -120,8 +145,13 @@ public:
 	virtual void BeginSlipSection() override;
 	virtual void SlipSection(FFrameNumber SlipTime) override;
 	virtual void CustomizePropertiesDetailsView(TSharedRef<IDetailsView> DetailsView, const FSequencerSectionPropertyDetailsViewCustomizationParams& InParams) const override;
+	virtual void BuildSectionContextMenu(FMenuBuilder& MenuBuilder, const FGuid& InObjectBinding) override;
+	virtual void BeginDilateSection() override;
+	virtual void DilateSection(const TRange<FFrameNumber>& NewRange, float DilationFactor) override;
 
 
+private:
+	void FindBestBlendSection(FGuid InObjectBinding);
 private:
 
 	/** The section we are visualizing */

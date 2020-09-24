@@ -44,22 +44,12 @@ FScreenPassTexture AddVisualizeLevelInstancePass(FRDGBuilder& GraphBuilder, cons
 
 	RDG_EVENT_SCOPE(GraphBuilder, "EditorVisualizeLevelInstance");
 
-	uint32 MsaaSampleCount = 0;
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FPersistentUniformBuffers& SceneUniformBuffers = View.Family->Scene->GetRenderScene()->UniformBuffers;
+	const uint32 MsaaSampleCount = SceneContext.GetEditorMSAACompositingSampleCount();
 
 	// Patch uniform buffers with updated state for rendering the outline mesh draw commands.
-	{
-		FScene* Scene = View.Family->Scene->GetRenderScene();
-
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
-
-		MsaaSampleCount = SceneContext.GetEditorMSAACompositingSampleCount();
-
-		UpdateEditorPrimitiveView(Scene->UniformBuffers, SceneContext, View, Inputs.SceneColor.ViewRect);
-
-		FSceneTexturesUniformParameters SceneTextureParameters;
-		SetupSceneTextureUniformParameters(SceneContext, View.FeatureLevel, ESceneTextureSetupMode::None, SceneTextureParameters);
-		Scene->UniformBuffers.EditorVisualizeLevelInstancePassUniformBuffer.UpdateUniformBufferImmediate(SceneTextureParameters);
-	}
+	const FViewInfo* EditorView = UpdateEditorPrimitiveView(SceneUniformBuffers, SceneContext, View, Inputs.SceneColor.ViewRect);
 
 	FRDGTextureRef DepthStencilTexture = nullptr;
 
@@ -69,15 +59,10 @@ FScreenPassTexture AddVisualizeLevelInstancePass(FRDGBuilder& GraphBuilder, cons
 			FRDGTextureDesc DepthStencilDesc = Inputs.SceneColor.Texture->Desc;
 			DepthStencilDesc.Reset();
 			DepthStencilDesc.Format = PF_DepthStencil;
-			DepthStencilDesc.Flags = TexCreate_None;
-
 			// This is a reversed Z depth surface, so 0.0f is the far plane.
 			DepthStencilDesc.ClearValue = FClearValueBinding((float)ERHIZBuffer::FarPlane, 0);
-
-			// Mark targetable as TexCreate_ShaderResource because we actually do want to sample from the unresolved MSAA target in this case.
-			DepthStencilDesc.TargetableFlags = TexCreate_DepthStencilTargetable | TexCreate_ShaderResource;
+			DepthStencilDesc.Flags = TexCreate_DepthStencilTargetable | TexCreate_ShaderResource;
 			DepthStencilDesc.NumSamples = MsaaSampleCount;
-			DepthStencilDesc.bForceSharedTargetAndShaderResource = true;
 
 			DepthStencilTexture = GraphBuilder.CreateTexture(DepthStencilDesc, TEXT("LevelInstanceDepth"));
 		}
@@ -86,13 +71,13 @@ FScreenPassTexture AddVisualizeLevelInstancePass(FRDGBuilder& GraphBuilder, cons
 
 		const FScreenPassTextureViewport SceneColorViewport(Inputs.SceneColor);
 
-		
 		auto* PassParameters = GraphBuilder.AllocParameters<FNaniteVisualizeLevelInstanceParameters>();
 		if (bNaniteEnabled)
 		{
 			Nanite::GetEditorVisualizeLevelInstancePassParameters(GraphBuilder, *Scene, View, SceneColorViewport.Rect, NaniteRasterResults, PassParameters);
 		}
 
+		PassParameters->SceneTextures = Inputs.SceneTextures;
 		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
 			DepthStencilTexture,
 			ERenderTargetLoadAction::EClear,

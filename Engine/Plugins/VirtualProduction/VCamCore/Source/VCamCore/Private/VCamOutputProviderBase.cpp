@@ -1,0 +1,256 @@
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "VCamOutputProviderBase.h"
+
+#include "VCamModifierInterface.h"
+#include "VCamComponent.h"
+#include "UObject/UObjectBaseUtility.h"
+#include "Blueprint/UserWidget.h"
+
+#if WITH_EDITOR
+#include "Editor.h"
+#endif
+
+DEFINE_LOG_CATEGORY(LogVCamOutputProvider);
+
+UVCamOutputProviderBase::UVCamOutputProviderBase()
+	: bIsActive(false)
+	, bInitialized(false)
+{
+
+}
+
+UVCamOutputProviderBase::~UVCamOutputProviderBase()
+{
+	Deinitialize();
+}
+
+void UVCamOutputProviderBase::Initialize()
+{
+	bool bWasInitialized = bInitialized;
+	bInitialized = true;
+	
+	// Reactivate the provider if it was previously set to active
+	if (!bWasInitialized && bIsActive)
+	{
+#if WITH_EDITOR
+		// If the editor viewports aren't fully initialized, then delay initialization for the entire Output Provider
+		if (GEditor && GEditor->GetActiveViewport() && (GEditor->GetActiveViewport()->GetSizeXY().X < 1))
+		{
+			bInitialized = false;
+		}
+		else
+#endif
+		{
+			Activate();
+		}
+	}
+}
+
+void UVCamOutputProviderBase::Deinitialize()
+{
+	if (bIsActive)
+	{
+		Deactivate();
+	}
+	
+	bInitialized = false;
+}
+
+void UVCamOutputProviderBase::Activate()
+{
+	CreateUMG();
+	DisplayUMG();
+}
+
+void UVCamOutputProviderBase::Deactivate()
+{
+	DestroyUMG();
+}
+
+void UVCamOutputProviderBase::Tick(const float DeltaTime)
+{
+	if (bIsActive && UMGWidget && UMGClass)
+	{
+		UMGWidget->Tick(DeltaTime);
+	}
+}
+
+void UVCamOutputProviderBase::SetActive(const bool bInActive)
+{
+	bIsActive = bInActive;
+
+	if (bIsActive)
+	{
+		Activate();
+	}
+	else
+	{
+		Deactivate();
+	}
+}
+
+void UVCamOutputProviderBase::SetTargetCamera(const UCineCameraComponent* InTargetCamera)
+{
+	TargetCamera = InTargetCamera;
+
+	NotifyWidgetOfComponentChange();
+}
+
+void UVCamOutputProviderBase::SetUMGClass(const TSubclassOf<UUserWidget> InUMGClass)
+{
+	UMGClass = InUMGClass;
+}
+
+void UVCamOutputProviderBase::CreateUMG()
+{
+	if (!UMGClass)
+	{
+		return;
+	}
+
+	if (UMGWidget)
+	{
+		UE_LOG(LogVCamOutputProvider, Error, TEXT("CreateUMG widget already set - failed to create"));
+		return;
+	}
+
+	UMGWidget = NewObject<UVPFullScreenUserWidget>(this, UVPFullScreenUserWidget::StaticClass());
+	UMGWidget->SetDisplayTypes(DisplayType, DisplayType, DisplayType);
+	UMGWidget->PostProcessDisplayType.bReceiveHardwareInput = true;
+
+	UMGWidget->WidgetClass = UMGClass;
+	UE_LOG(LogVCamOutputProvider, Log, TEXT("CreateUMG widget named %s from class %s"), *UMGWidget->GetName(), *UMGWidget->WidgetClass->GetName());
+}
+
+void UVCamOutputProviderBase::DisplayUMG()
+{
+	if (UMGWidget)
+	{
+		UWorld* ActorWorld = nullptr;
+		int32 WorldType = -1;
+
+		for (const FWorldContext& Context : GEngine->GetWorldContexts())
+		{
+			if (Context.World())
+			{
+				// Prioritize PIE and Game modes if active
+				if ((Context.WorldType == EWorldType::PIE) || (Context.WorldType == EWorldType::Game))
+				{
+					ActorWorld = Context.World();
+					WorldType = (int32)Context.WorldType;
+					break;
+				}
+				else if (Context.WorldType == EWorldType::Editor)
+				{
+					// Only grab the Editor world if PIE and Game aren't available
+					ActorWorld = Context.World();
+					WorldType = (int32)Context.WorldType;
+				}
+			}
+		}
+
+		if (ActorWorld)
+		{
+			UMGWidget->Display(ActorWorld);
+			UE_LOG(LogVCamOutputProvider, Log, TEXT("DisplayUMG widget displayed in WorldType %d"), WorldType);
+		}
+
+		NotifyWidgetOfComponentChange();
+	}
+}
+
+void UVCamOutputProviderBase::DestroyUMG()
+{
+	if (UMGWidget)
+	{
+		if (UMGWidget->IsDisplayed())
+		{
+			UMGWidget->Hide();
+		}
+		UMGWidget->ConditionalBeginDestroy();
+		UMGWidget = nullptr;
+	}
+}
+
+void UVCamOutputProviderBase::NotifyWidgetOfComponentChange() const
+{
+	if (UMGWidget && UMGWidget->IsDisplayed())
+	{
+		UUserWidget* DisplayedWidget = UMGWidget->GetWidget();
+		if (DisplayedWidget && DisplayedWidget->Implements<UVCamModifierInterface>())
+		{
+			if (UVCamComponent* OwningComponent = Cast<UVCamComponent>(this->GetOuter()))
+			{
+				UVCamComponent* CameraComponent = bIsActive ? OwningComponent : nullptr;
+
+				IVCamModifierInterface::Execute_OnVCamComponentChanged(DisplayedWidget, CameraComponent);
+			}
+		}
+
+	}
+}
+
+TSharedPtr<FSceneViewport> UVCamOutputProviderBase::GetTargetSceneViewport() const
+{
+	TSharedPtr<FSceneViewport> SceneViewport;
+
+	if (UVCamComponent* OuterComponent = GetTypedOuter<UVCamComponent>())
+	{
+		SceneViewport = OuterComponent->GetTargetSceneViewport();
+	}
+
+	return SceneViewport;
+}
+
+TWeakPtr<SWindow> UVCamOutputProviderBase::GetTargetInputWindow() const
+{
+	TWeakPtr<SWindow> InputWindow;
+
+	if (UVCamComponent* OuterComponent = GetTypedOuter<UVCamComponent>())
+	{
+		InputWindow = OuterComponent->GetTargetInputWindow();
+	}
+
+	return InputWindow;
+}
+
+#if WITH_EDITOR
+FLevelEditorViewportClient* UVCamOutputProviderBase::GetTargetLevelViewportClient() const
+{
+	FLevelEditorViewportClient* ViewportClient = nullptr;
+
+	if (UVCamComponent* OuterComponent = GetTypedOuter<UVCamComponent>())
+	{
+		ViewportClient = OuterComponent->GetTargetLevelViewportClient();
+	}
+
+	return ViewportClient;
+}
+
+void UVCamOutputProviderBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	FProperty* Property = PropertyChangedEvent.MemberProperty;
+
+	if (Property && PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
+	{
+		static FName NAME_IsActive = GET_MEMBER_NAME_CHECKED(UVCamOutputProviderBase, bIsActive);
+		static FName NAME_UMGClass = GET_MEMBER_NAME_CHECKED(UVCamOutputProviderBase, UMGClass);
+
+		if (Property->GetFName() == NAME_IsActive)
+		{
+			SetActive(bIsActive);
+		}
+		else if (Property->GetFName() == NAME_UMGClass)
+		{
+			if (bIsActive)
+			{
+				SetActive(false);
+				SetActive(true);
+			}
+		}
+	}
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+#endif

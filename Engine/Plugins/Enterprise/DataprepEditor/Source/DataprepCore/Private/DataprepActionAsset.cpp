@@ -56,6 +56,7 @@ UDataprepActionAsset::UDataprepActionAsset()
 	, Label(TEXT("New Action"))
 {
 	bExecutionInterrupted = false;
+	bIsEnabled = true;
 
 	if(!HasAnyFlags(RF_ClassDefaultObject))
 	{

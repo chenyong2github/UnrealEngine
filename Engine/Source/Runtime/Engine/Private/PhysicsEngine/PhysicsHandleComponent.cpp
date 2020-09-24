@@ -263,20 +263,24 @@ void UPhysicsHandleComponent::UpdateDriveSettings()
 		}
 	}
 #elif WITH_CHAOS
-	if (ConstraintHandle.IsValid())
+
+	if (ConstraintHandle.IsValid() && ConstraintHandle.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 	{
 		FPhysicsCommand::ExecuteWrite(ConstraintHandle, [&](const FPhysicsConstraintHandle& InConstraintHandle)
 			{
-				if (bSoftLinearConstraint)
+				if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(ConstraintHandle.Constraint))
 				{
-					ConstraintHandle->SetLinearDriveStiffness(LinearStiffness);
-					ConstraintHandle->SetLinearDriveDamping(LinearDamping);
-				}
+					if (bSoftLinearConstraint)
+					{
+						Constraint->SetLinearDriveStiffness(LinearStiffness);
+						Constraint->SetLinearDriveDamping(LinearDamping);
+					}
 
-				if (bSoftAngularConstraint && bRotationConstrained)
-				{
-					ConstraintHandle->SetAngularDriveStiffness(LinearStiffness);
-					ConstraintHandle->SetAngularDriveDamping(LinearDamping);
+					if (bSoftAngularConstraint && bRotationConstrained)
+					{
+						Constraint->SetAngularDriveStiffness(LinearStiffness);
+						Constraint->SetAngularDriveDamping(LinearDamping);
+					}
 				}
 			});
 	}
@@ -466,23 +470,27 @@ void UPhysicsHandleComponent::TickComponent(float DeltaTime, enum ELevelTick Tic
 			FTransform GrabbedTransform = FTransform::Identity; // @todo : this should be offset from where the user grabbed the asset
 			
 			ConstraintHandle = FChaosEngineInterface::CreateConstraint(KinematicHandle, GrabbedHandle, KinematicTransform, GrabbedTransform);
-			if (ConstraintHandle.IsValid())
+			if (ConstraintHandle.IsValid() && ConstraintHandle.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 			{
+				if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(ConstraintHandle.Constraint))
+				{
+					// need to tie together the instance and the handle for scene read/write locks
+					Constraint->SetUserData(&PhysicsUserData/*has a (void*)FConstraintInstanceBase*/);
+					ConstraintInstance.ConstraintHandle = ConstraintHandle;
 
-				// need to tie together the instance and the handle for scene read/write locks
-				ConstraintHandle->SetUserData(&PhysicsUserData/*has a (void*)FConstraintInstanceBase*/);
-				ConstraintInstance.ConstraintHandle = ConstraintHandle;
-
-				FPhysicsCommand::ExecuteWrite(ConstraintHandle, [&](const FPhysicsConstraintHandle& InConstraintHandle)
+					FPhysicsCommand::ExecuteWrite(ConstraintHandle, [&](const FPhysicsConstraintHandle& InConstraintHandle)
 					{
 						EJointMotionType LocationMotionType = bSoftLinearConstraint ? EJointMotionType::Free : EJointMotionType::Locked;
 						EJointMotionType RotationMotionType = (bSoftAngularConstraint || !bRotationConstrained) ? EJointMotionType::Free : EJointMotionType::Locked;
 
-						ConstraintHandle->SetCollisionEnabled(false);
-						ConstraintHandle->SetLinearVelocityDriveEnabled(TVector<bool, 3>(LocationMotionType == EJointMotionType::Locked));
-						ConstraintHandle->SetAngularSLerpPositionDriveEnabled(RotationMotionType == EJointMotionType::Locked);
+						Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintHandle.Constraint);
+
+						Constraint->SetCollisionEnabled(false);
+						Constraint->SetLinearVelocityDriveEnabled(TVector<bool, 3>(LocationMotionType == EJointMotionType::Locked));
+						Constraint->SetAngularSLerpPositionDriveEnabled(RotationMotionType == EJointMotionType::Locked);
 						UpdateDriveSettings();
 					});
+				}
 			}
 			bPendingConstraint = true;
 		}

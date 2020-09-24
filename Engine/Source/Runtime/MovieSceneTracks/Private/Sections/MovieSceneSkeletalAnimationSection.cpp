@@ -8,6 +8,7 @@
 #include "MovieScene.h"
 #include "UObject/SequencerObjectVersion.h"
 #include "MovieSceneTimeHelpers.h"
+#include "Tracks/MovieSceneSkeletalAnimationTrack.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneSkeletalAnimationSection"
 
@@ -40,12 +41,27 @@ UMovieSceneSkeletalAnimationSection::UMovieSceneSkeletalAnimationSection( const 
 	PlayRate_DEPRECATED = 1.f;
 	bReverse_DEPRECATED = false;
 	SlotName_DEPRECATED = DefaultSlotName;
+#if WITH_EDITORONLY_DATA
+	bShowSkeleton = false;
+#endif
 
 	BlendType = EMovieSceneBlendType::Absolute;
 	EvalOptions.EnableAndSetCompletionMode
 		(GetLinkerCustomVersion(FSequencerObjectVersion::GUID) < FSequencerObjectVersion::WhenFinishedDefaultsToProjectDefault ? 
 			EMovieSceneCompletionMode::RestoreState : 
 			EMovieSceneCompletionMode::ProjectDefault);
+
+	StartLocationOffset = FVector::ZeroVector;
+	StartRotationOffset = FRotator::ZeroRotator;
+	bMatchWithPrevious = true;
+	MatchedBoneName = NAME_None;
+	MatchedLocationOffset = FVector::ZeroVector;
+	MatchedRotationOffset = FRotator::ZeroRotator;
+
+	bMatchTranslation = true;
+	bMatchRotation = true;
+	bMatchIncludeZHeight = false;
+	bMatchIncludePitchRotation = false;
 
 #if WITH_EDITOR
 
@@ -283,6 +299,32 @@ float UMovieSceneSkeletalAnimationSection::GetTotalWeightValue(FFrameTime InTime
 	return ManualWeight *  EvaluateEasing(InTime);
 }
 
+void UMovieSceneSkeletalAnimationSection::SetRange(const TRange<FFrameNumber>& NewRange)
+{
+	UMovieSceneSection::SetRange(NewRange);
+	if (GetRootMotionParams())
+	{
+		GetRootMotionParams()->bRootMotionsDirty = true;
+	}
+}
+void UMovieSceneSkeletalAnimationSection::SetStartFrame(TRangeBound<FFrameNumber> NewStartFrame)
+{
+	UMovieSceneSection::SetStartFrame(NewStartFrame);
+	if (GetRootMotionParams())
+	{
+		GetRootMotionParams()->bRootMotionsDirty = true;
+	}
+
+}
+void UMovieSceneSkeletalAnimationSection::SetEndFrame(TRangeBound<FFrameNumber> NewEndFrame)
+{
+	UMovieSceneSection::SetEndFrame(NewEndFrame);
+	if (GetRootMotionParams())
+	{
+		GetRootMotionParams()->bRootMotionsDirty = true;
+	}
+}
+
 
 #if WITH_EDITOR
 void UMovieSceneSkeletalAnimationSection::PreEditChange(FProperty* PropertyAboutToChange)
@@ -310,9 +352,228 @@ void UMovieSceneSkeletalAnimationSection::PostEditChangeProperty(FPropertyChange
 			PreviousPlayRate = NewPlayRate;
 		}
 	}
-
+	if (GetRootMotionParams())
+	{
+		GetRootMotionParams()->bRootMotionsDirty = true;
+	}
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
+
+void UMovieSceneSkeletalAnimationSection::PostEditImport()
+{
+	if (GetRootMotionParams())
+	{
+		GetRootMotionParams()->bRootMotionsDirty = true;
+	}
+}
+void UMovieSceneSkeletalAnimationSection::PostEditUndo()
+{
+	if (GetRootMotionParams())
+	{
+		GetRootMotionParams()->bRootMotionsDirty = true;
+	}
+}
+
 #endif
+
+TOptional<FTransform> UMovieSceneSkeletalAnimationSection::GetRootMotion(FFrameTime CurrentTime) const
+{
+	if (GetRootMotionParams())
+	{
+		if (GetRootMotionParams()->bRootMotionsDirty)
+		{
+			UMovieSceneSkeletalAnimationTrack* Track = GetTypedOuter<UMovieSceneSkeletalAnimationTrack>();
+			if (Track)
+			{
+				Track->SetUpRootMotions(true);
+			}
+		}
+		return GetRootMotionParams()->GetRootMotion(CurrentTime);
+	}
+	return TOptional<FTransform>();
+}
+
+
+bool UMovieSceneSkeletalAnimationSection::GetRootMotionVelocity(FFrameTime PreviousTime, FFrameTime CurrentTime, FFrameRate FrameRate, 
+	FTransform& OutVelocity, float& OutWeight) const
+{
+	UAnimSequence* AnimSequence = Cast<UAnimSequence>(Params.Animation);
+	if (AnimSequence)
+	{
+		float ManualWeight = 1.f;
+		Params.Weight.Evaluate(CurrentTime, ManualWeight);
+		OutWeight = ManualWeight * EvaluateEasing(CurrentTime);
+		//mz todo we should be able to cache the PreviousTimeSeconds;
+		//mz todo need to get the starting value.
+		float PreviousTimeSeconds = MapTimeToAnimation(PreviousTime, FrameRate);
+		float CurrentTimeSeconds  = MapTimeToAnimation(CurrentTime, FrameRate);
+		OutVelocity = AnimSequence->ExtractRootMotionFromRange(PreviousTimeSeconds, CurrentTimeSeconds);
+		return true;
+	}
+	return false;
+}
+
+FMovieSceneSkeletalAnimRootMotionTrackParams*  UMovieSceneSkeletalAnimationSection::GetRootMotionParams() const
+{
+	UMovieSceneSkeletalAnimationTrack* Track = GetTypedOuter<UMovieSceneSkeletalAnimationTrack>();
+	if (Track)
+	{
+		return &Track->RootMotionParams;
+	}
+	return nullptr;
+}
+
+
+FTransform  UMovieSceneSkeletalAnimationSection::GetOffsetTransform() const
+{
+	FTransform OffsetTransform(FQuat(StartRotationOffset), StartLocationOffset);
+	FTransform MatchedTransform(FQuat(MatchedRotationOffset), MatchedLocationOffset);
+	OffsetTransform *= MatchedTransform;
+	return OffsetTransform;
+}
+
+bool UMovieSceneSkeletalAnimationSection::GetRootMotionTransform(FFrameTime CurrentTime, FFrameRate FrameRate, FTransform& OutTransform, float& OutWeight) const
+{
+	UAnimSequence* AnimSequence = Cast<UAnimSequence>(Params.Animation);
+	FTransform OffsetTransform = GetOffsetTransform();
+	if (AnimSequence && AnimSequence->bForceRootLock == false)
+	{
+		float ManualWeight = 1.f;
+		Params.Weight.Evaluate(CurrentTime, ManualWeight);
+		OutWeight = ManualWeight * EvaluateEasing(CurrentTime);
+
+		float CurrentTimeSeconds = MapTimeToAnimation(CurrentTime, FrameRate);
+		OutTransform = AnimSequence->ExtractRootTrackTransform(CurrentTimeSeconds,nullptr);
+		OutTransform = OutTransform * OffsetTransform;
+		return true;
+	}
+	//for safety always return true for now
+	OutTransform = OffsetTransform;
+	return true;
+}
+
+void UMovieSceneSkeletalAnimationSection::FindBestBlendPoint(USkeletalMeshComponent* SkelMeshComp)
+{
+	UMovieSceneSkeletalAnimationTrack* Track = GetTypedOuter<UMovieSceneSkeletalAnimationTrack>();
+	if (Track)
+	{
+		Track->FindBestBlendPoint(SkelMeshComp, this);
+	}
+}
+
+void UMovieSceneSkeletalAnimationSection::ClearMatchedOffsetTransforms()
+{
+	bMatchWithPrevious = true;
+	MatchedBoneName = NAME_None;
+	MatchedLocationOffset = FVector::ZeroVector;
+	MatchedRotationOffset = FRotator::ZeroRotator;
+	if (GetRootMotionParams())
+	{
+		GetRootMotionParams()->bRootMotionsDirty = true;
+	}
+}
+void UMovieSceneSkeletalAnimationSection::MatchSectionByBoneTransform(USkeletalMeshComponent* SkelMeshComp, FFrameTime CurrentFrame, FFrameRate FrameRate,
+	const FName& BoneName)
+{
+	MatchedBoneName = BoneName;
+	UMovieSceneSkeletalAnimationTrack* Track = GetTypedOuter<UMovieSceneSkeletalAnimationTrack>();
+	if (Track)
+	{
+		FTransform DiffTransform;
+		FVector DiffTranslate;
+		FQuat DiffRotate;
+		Track->MatchSectionByBoneTransform(bMatchWithPrevious,SkelMeshComp, this, CurrentFrame, FrameRate, BoneName, DiffTransform,DiffTranslate,DiffRotate);
+
+		/*
+		StartLocationOffset = bMatchTranslation ? DiffTranslate : FVector::ZeroVector;
+		if (!bMatchIncludeZHeight)
+		{
+			StartLocationOffset.Z = 0.0f;
+		}
+
+		StartRotationOffset = bMatchRotation ? DiffRotate.Rotator() : FRotator::ZeroRotator;
+		if (!bMatchIncludePitchRotation)
+		{
+			StartRotationOffset.Pitch = 0.0f;
+		}
+		*/
+		
+		
+		
+		MatchedLocationOffset = bMatchTranslation ? DiffTranslate : FVector::ZeroVector;
+		if (!bMatchIncludeZHeight)
+		{
+			MatchedLocationOffset.Z = 0.0f;
+		}
+
+		MatchedRotationOffset = bMatchRotation ? DiffRotate.Rotator() : FRotator::ZeroRotator;
+		if (!bMatchIncludePitchRotation)
+		{
+			MatchedRotationOffset.Pitch = 0.0f;
+		}
+		
+		//if we previous we need to multiply the inverses of these out so they stay at their current locations
+		if (bMatchWithPrevious == false)
+		{
+			bool bMultiplyOutInverse = false;
+			FVector InverseLoc(-MatchedLocationOffset);
+			FQuat InverseRot(MatchedRotationOffset.Quaternion().Inverse());
+			for (UMovieSceneSection* Section : Track->AnimationSections)
+			{
+				if (bMultiplyOutInverse)
+				{
+					UMovieSceneSkeletalAnimationSection* AnimSection = Cast<UMovieSceneSkeletalAnimationSection>(Section);
+					if (AnimSection)
+					{
+						AnimSection->MatchedLocationOffset += InverseLoc;
+						AnimSection->MatchedRotationOffset = (AnimSection->MatchedRotationOffset.Quaternion() * InverseRot).Rotator();
+					}
+					break;
+				}
+				if (Section == this) //next ones we multily out
+				{
+					bMultiplyOutInverse = true;
+				}
+			}
+		}
+		
+		GetRootMotionParams()->bRootMotionsDirty = true;
+	}
+}
+
+
+void UMovieSceneSkeletalAnimationSection::ToggleMatchTranslation()
+{
+	bMatchTranslation = bMatchTranslation ? false : true;
+	GetRootMotionParams()->bRootMotionsDirty = true;
+}
+
+void UMovieSceneSkeletalAnimationSection::ToggleMatchRotation()
+{
+	bMatchRotation = bMatchRotation ? false : true;
+	GetRootMotionParams()->bRootMotionsDirty = true;
+}
+
+void UMovieSceneSkeletalAnimationSection::ToggleMatchIncludeZHeight()
+{
+	bMatchIncludeZHeight = bMatchIncludeZHeight ? false : true;
+	GetRootMotionParams()->bRootMotionsDirty = true;
+}
+
+void UMovieSceneSkeletalAnimationSection::ToggleMatchIncludePitchRotation()
+{
+	bMatchIncludePitchRotation = bMatchIncludePitchRotation ? false : true;
+	GetRootMotionParams()->bRootMotionsDirty = true;
+}
+
+#if WITH_EDITORONLY_DATA
+
+void UMovieSceneSkeletalAnimationSection::ToggleShowSkeleton()
+{
+	bShowSkeleton = bShowSkeleton ? false : true;
+}
+
+#endif
+
 
 #undef LOCTEXT_NAMESPACE 

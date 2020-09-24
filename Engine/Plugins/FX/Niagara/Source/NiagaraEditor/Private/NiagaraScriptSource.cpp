@@ -218,7 +218,7 @@ void InitializeNewRapidIterationParametersForNode(const UEdGraphSchema_Niagara* 
 	if (FunctionCallNode != nullptr)
 	{
 		TSet<const UEdGraphPin*> HiddenPins;
-		FCompileConstantResolver Resolver(Emitter);
+		FCompileConstantResolver Resolver(Emitter, ScriptUsage);
 		TArray<const UEdGraphPin*> FunctionInputPins;
 
 		const FString UniqueEmitterName = Emitter ? Emitter->GetUniqueEmitterName() : FString();
@@ -243,7 +243,8 @@ void InitializeNewRapidIterationParametersForNode(const UEdGraphSchema_Niagara* 
 				// Only set a value for the parameter if it's not already set.
 				if (ParameterIndex == INDEX_NONE)
 				{
-					UEdGraphPin* DefaultPin = FunctionCallNode->FindParameterMapDefaultValuePin(FunctionInputPin->PinName, ScriptUsage);
+					FCompileConstantResolver ConstantResolver(Emitter, ScriptUsage);
+					UEdGraphPin* DefaultPin = FunctionCallNode->FindParameterMapDefaultValuePin(FunctionInputPin->PinName, ScriptUsage, ConstantResolver);
 					// Only set values for inputs which don't have a default wired in the script graph, since inputs with wired defaults can't currently use rapid iteration parameters.
 					if (DefaultPin != nullptr && DefaultPin->LinkedTo.Num() == 0)
 					{

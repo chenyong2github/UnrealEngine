@@ -81,36 +81,42 @@ void FAnimNode_LayeredBoneBlend::ReinitializeBoneBlendWeights(const FBoneContain
 	TArray<uint16> const& CurveUIDFinder = RequiredBones.GetUIDToArrayLookupTable();
 	const int32 CurveUIDCount = CurveUIDFinder.Num();
 	const int32 TotalCount = FBlendedCurve::GetValidElementCount(&CurveUIDFinder);
-	CurvePoseSourceIndices.Reset(TotalCount);
-	// initialize with FF - which is default
-	CurvePoseSourceIndices.Init(DEFAULT_SOURCEINDEX, TotalCount);
-
-	// now go through point to correct source indices. Curve only picks one source index
-	for (int32 UIDIndex = 0; UIDIndex < CurveUIDCount; ++UIDIndex)
+	if (TotalCount > 0)
 	{
-		int32 CurrentPoseIndex = CurveUIDFinder[UIDIndex];
-		if (CurrentPoseIndex != MAX_uint16)
-		{
-			SmartName::UID_Type CurveUID = (SmartName::UID_Type)UIDIndex;
+		CurvePoseSourceIndices.Reset(TotalCount);
+		// initialize with FF - which is default
+		CurvePoseSourceIndices.Init(DEFAULT_SOURCEINDEX, TotalCount);
 
-			const FCurveMetaData* CurveMetaData = Skeleton->GetCurveMetaData(CurveUID);
-			if (CurveMetaData)
+		// now go through point to correct source indices. Curve only picks one source index
+		for (int32 UIDIndex = 0; UIDIndex < CurveUIDCount; ++UIDIndex)
+		{
+			int32 CurrentPoseIndex = CurveUIDFinder[UIDIndex];
+			if (CurrentPoseIndex != MAX_uint16)
 			{
-				const TArray<FBoneReference>& LinkedBones = CurveMetaData->LinkedBones;
-				const int32 NumLinkedBones = LinkedBones.Num();
-				for (int32 LinkedBoneIndex = 0; LinkedBoneIndex < NumLinkedBones; ++LinkedBoneIndex)
+				SmartName::UID_Type CurveUID = (SmartName::UID_Type)UIDIndex;
+
+				const FCurveMetaData* CurveMetaData = Skeleton->GetCurveMetaData(CurveUID);
+				if (CurveMetaData)
 				{
-					FCompactPoseBoneIndex CompactPoseIndex = LinkedBones[LinkedBoneIndex].GetCompactPoseIndex(RequiredBones);
-					if (CompactPoseIndex != INDEX_NONE)
+					const TArray<FBoneReference>& LinkedBones = CurveMetaData->LinkedBones;
+					for (int32 LinkedBoneIndex = 0; LinkedBoneIndex < LinkedBones.Num(); ++LinkedBoneIndex)
 					{
-						if (DesiredBoneBlendWeights[CompactPoseIndex.GetInt()].BlendWeight > 0.f)
+						FCompactPoseBoneIndex CompactPoseIndex = LinkedBones[LinkedBoneIndex].GetCompactPoseIndex(RequiredBones);
+						if (CompactPoseIndex != INDEX_NONE)
 						{
-							CurvePoseSourceIndices[CurrentPoseIndex] = DesiredBoneBlendWeights[CompactPoseIndex.GetInt()].SourceIndex;
+							if (DesiredBoneBlendWeights[CompactPoseIndex.GetInt()].BlendWeight > 0.f)
+							{
+								CurvePoseSourceIndices[CurrentPoseIndex] = DesiredBoneBlendWeights[CompactPoseIndex.GetInt()].SourceIndex;
+							}
 						}
 					}
 				}
 			}
 		}
+	}
+	else
+	{
+		CurvePoseSourceIndices.Reset();
 	}
 }
 
@@ -228,6 +234,9 @@ void FAnimNode_LayeredBoneBlend::Evaluate_AnyThread(FPoseContext& Output)
 		TArray<FBlendedCurve> TargetBlendCurves;
 		TargetBlendCurves.SetNum(NumPoses);
 
+		TArray<FStackCustomAttributes> TargetBlendAttributes;
+		TargetBlendAttributes.SetNum(NumPoses);
+
 		for (int32 ChildIndex = 0; ChildIndex < NumPoses; ++ChildIndex)
 		{
 			if (FAnimWeight::IsRelevant(BlendWeights[ChildIndex]))
@@ -237,6 +246,7 @@ void FAnimNode_LayeredBoneBlend::Evaluate_AnyThread(FPoseContext& Output)
 
 				TargetBlendPoses[ChildIndex].MoveBonesFrom(CurrentPoseContext.Pose);
 				TargetBlendCurves[ChildIndex].MoveFrom(CurrentPoseContext.Curve);
+				TargetBlendAttributes[ChildIndex].MoveFrom(CurrentPoseContext.CustomAttributes);
 			}
 			else
 			{
@@ -280,7 +290,9 @@ void FAnimNode_LayeredBoneBlend::Evaluate_AnyThread(FPoseContext& Output)
 		{
 			BlendFlags |= FAnimationRuntime::EBlendPosesPerBoneFilterFlags::MeshSpaceScale;
 		}
-		FAnimationRuntime::BlendPosesPerBoneFilter(BasePoseContext.Pose, TargetBlendPoses, BasePoseContext.Curve, TargetBlendCurves, Output.Pose, Output.Curve, CurrentBoneBlendWeights, BlendFlags, CurveBlendOption);
+
+		FAnimationPoseData AnimationPoseData(Output);
+		FAnimationRuntime::BlendPosesPerBoneFilter(BasePoseContext.Pose, TargetBlendPoses, BasePoseContext.Curve, TargetBlendCurves, BasePoseContext.CustomAttributes, TargetBlendAttributes, AnimationPoseData, CurrentBoneBlendWeights, BlendFlags, CurveBlendOption);
 	}
 }
 

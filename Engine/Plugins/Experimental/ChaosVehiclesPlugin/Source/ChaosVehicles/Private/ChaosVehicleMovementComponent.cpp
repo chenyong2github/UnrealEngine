@@ -21,6 +21,8 @@
 #include "GameFramework/PawnMovementComponent.h"
 #include "Logging/MessageLog.h"
 #include "DisplayDebugHelpers.h"
+#include "Chaos/ChaosEngineInterface.h"
+#include "Chaos/PBDJointConstraintData.h"
 
 #include "ChaosVehicleManager.h"
 #include "SimpleVehicle.h"
@@ -225,8 +227,8 @@ void UChaosVehicleMovementComponent::OnCreatePhysicsState()
 
 		if (PhysScene && FChaosVehicleManager::GetVehicleManagerFromScene(PhysScene))
 		{
-			FixupSkeletalMesh();
 			CreateVehicle();
+			FixupSkeletalMesh();
 
 			if (PVehicle)
 			{
@@ -1079,7 +1081,7 @@ void UChaosVehicleMovementComponent::CreateVehicle()
 			if (ensure(UpdatedPrimitive != nullptr))
 			{
 				// Low level physics representation
-				PVehicle = MakeUnique<Chaos::FSimpleWheeledVehicle>();
+				CreatePhysicsVehicle();
 
 				SetupVehicle();
 
@@ -1327,6 +1329,11 @@ void UChaosVehicleMovementComponent::AddTorqueInRadians(const FVector& Torque, b
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	//#todo: how do we visualize torque?
 #endif
+}
+
+void UChaosVehicleMovementComponent::CreatePhysicsVehicle()
+{
+	PVehicle = MakeUnique<Chaos::FSimpleWheeledVehicle>();
 }
 
 #endif

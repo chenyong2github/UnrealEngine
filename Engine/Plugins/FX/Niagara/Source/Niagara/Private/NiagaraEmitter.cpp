@@ -6,6 +6,7 @@
 #include "NiagaraScriptSourceBase.h"
 #include "NiagaraRendererProperties.h"
 #include "NiagaraSimulationStageBase.h"
+#include "NiagaraTrace.h"
 #include "NiagaraCustomVersion.h"
 #include "UObject/Package.h"
 #include "UObject/Linker.h"
@@ -14,7 +15,6 @@
 #include "NiagaraStats.h"
 #include "NiagaraRenderer.h"
 #include "Modules/ModuleManager.h"
-#include "Misc/ConfigCacheIni.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "NiagaraEditorDataBase.h"
 
@@ -211,6 +211,9 @@ bool UNiagaraEmitter::IsSynchronizedWithParent() const
 
 INiagaraMergeManager::FMergeEmitterResults UNiagaraEmitter::MergeChangesFromParent()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(MergeEmitter);
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT_ON_CHANNEL(*GetPathName(), NiagaraChannel);
+
 	if (GbEnableEmitterChangeIdMergeLogging)
 	{
 		UE_LOG(LogNiagara, Log, TEXT("Emitter %s is merging changes from parent %s because its Change ID was updated."), *GetPathName(),
@@ -807,6 +810,36 @@ UNiagaraEmitter::FOnPropertiesChanged& UNiagaraEmitter::OnRenderersChanged()
 {
 	return OnRenderersChangedDelegate;
 }
+
+void UNiagaraEmitter::HandleVariableRenamed(const FNiagaraVariable& InOldVariable, const FNiagaraVariable& InNewVariable, bool bUpdateContexts)
+{
+	// Rename the variable if it is in use by any renderer properties
+	for (UNiagaraRendererProperties* Prop : GetRenderers())
+	{
+		Prop->Modify(false);
+		Prop->RenameVariable(InOldVariable, InNewVariable, this);
+	}
+
+	if (bUpdateContexts)
+	{
+		FNiagaraSystemUpdateContext UpdateCtx(this, true);
+	}
+}
+
+void UNiagaraEmitter::HandleVariableRemoved(const FNiagaraVariable& InOldVariable, bool bUpdateContexts)
+{
+	// Reset the variable if it is in use by any renderer properties
+	for (UNiagaraRendererProperties* Prop : GetRenderers())
+	{
+		Prop->Modify(false);
+		Prop->RemoveVariable(InOldVariable, this);
+	}
+
+	if (bUpdateContexts)
+	{
+		FNiagaraSystemUpdateContext UpdateCtx(this, true);
+	}
+}
 #endif
 
 bool UNiagaraEmitter::IsEnabledOnPlatform(const FString& PlatformName)const
@@ -1197,6 +1230,9 @@ void UNiagaraEmitter::OnPostCompile()
 	}
 
 	RuntimeEstimation = MemoryRuntimeEstimation();
+#if STATS
+	StatDatabase.ClearStatCaptures();
+#endif
 
 	OnEmitterVMCompiled().Broadcast(this);
 }
@@ -1307,33 +1343,55 @@ bool UNiagaraEmitter::UsesCollection(const class UNiagaraParameterCollection* Co
 
 bool UNiagaraEmitter::CanObtainParticleAttribute(const FNiagaraVariableBase& InVar) const
 {
+	check(!HasAnyFlags(RF_NeedPostLoad));
+
 	if (SpawnScriptProps.Script)
+	{
+		// make sure that this isn't called before our dependents are fully loaded
+		check(!SpawnScriptProps.Script->HasAnyFlags(RF_NeedPostLoad));
+
 		return SpawnScriptProps.Script->GetVMExecutableData().Attributes.Contains(InVar);
+	}
 	return false;
 }
 bool UNiagaraEmitter::CanObtainEmitterAttribute(const FNiagaraVariableBase& InVarWithUniqueNameNamespace) const
 {
+	check(!HasAnyFlags(RF_NeedPostLoad));
+
 	const UNiagaraSystem* Sys = GetTypedOuter<UNiagaraSystem>();
 	if (Sys)
 	{
+		// make sure that this isn't called before our dependents are fully loaded
+		check(!Sys->HasAnyFlags(RF_NeedPostLoad));
+
 		return Sys->CanObtainEmitterAttribute(InVarWithUniqueNameNamespace);
 	}
 	return false;
 }
 bool UNiagaraEmitter::CanObtainSystemAttribute(const FNiagaraVariableBase& InVar) const
 {
+	check(!HasAnyFlags(RF_NeedPostLoad));
+
 	const UNiagaraSystem* Sys = GetTypedOuter<UNiagaraSystem>();
 	if (Sys)
 	{
+		// make sure that this isn't called before our dependents are fully loaded
+		check(!Sys->HasAnyFlags(RF_NeedPostLoad));
+
 		return Sys->CanObtainSystemAttribute(InVar);
 	}
 	return false;
 }
 bool UNiagaraEmitter::CanObtainUserVariable(const FNiagaraVariableBase& InVar) const
 {
+	check(!HasAnyFlags(RF_NeedPostLoad));
+
 	const UNiagaraSystem* Sys = GetTypedOuter<UNiagaraSystem>();
 	if (Sys)
 	{
+		// make sure that this isn't called before our dependents are fully loaded
+		check(!Sys->HasAnyFlags(RF_NeedPostLoad));
+
 		return Sys->CanObtainUserVariable(InVar);
 	}
 	return false;
@@ -1438,6 +1496,10 @@ void UNiagaraEmitter::UpdateFromMergedCopy(const INiagaraMergeManager& MergeMana
 	for (UNiagaraRendererProperties* Renderer : RendererProperties)
 	{
 		Renderer->OnChanged().RemoveAll(this);
+
+		// some renderer properties have been incorrectly flagged as RF_Public meaning that even if we remove them here with the merge
+		// they will be included in a cook; so clear the flag while we're removing them
+		Renderer->ClearFlags(RF_Public);
 	}
 	RendererProperties.Empty();
 
@@ -1486,11 +1548,17 @@ void UNiagaraEmitter::SyncEmitterAlias(const FString& InOldName, const FString& 
 		Script->SyncAliases(RenameMap);
 	}
 
-	for (UNiagaraRendererProperties* Renderer : RendererProperties)
+	// if we haven't yet been postloaded then we'll hold off on updating the renderers as they are dependent on everything
+	// (System/Emitter/Scripts) being fully loaded.
+	if (!HasAnyFlags(RF_NeedPostLoad))
 	{
-		if (Renderer)
+		for (UNiagaraRendererProperties* Renderer : RendererProperties)
 		{
-			Renderer->RenameEmitter(*InOldName, this);
+			if (Renderer)
+			{
+				Renderer->Modify(false);
+				Renderer->RenameEmitter(*InOldName, this);
+			}
 		}
 	}
 }
@@ -1685,6 +1753,9 @@ void UNiagaraEmitter::UpdateChangeId(const FString& Reason)
 		UE_LOG(LogNiagara, Log, TEXT("Emitter %s change id updated. Reason: %s OldId: %s NewId: %s"),
 			*GetPathName(), *Reason, *OldId.ToString(), *ChangeId.ToString());
 	}
+#if STATS
+	StatDatabase.ClearStatCaptures();
+#endif
 }
 
 void UNiagaraEmitter::ScriptRapidIterationParameterChanged()
@@ -1836,6 +1907,11 @@ void UNiagaraEmitter::GenerateStatID()const
 UNiagaraEmitter* UNiagaraEmitter::GetParent() const
 {
 	return Parent;
+}
+
+UNiagaraEmitter* UNiagaraEmitter::GetParentAtLastMerge() const
+{
+	return ParentAtLastMerge;
 }
 
 void UNiagaraEmitter::RemoveParent()

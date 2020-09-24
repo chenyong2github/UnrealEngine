@@ -318,10 +318,6 @@ void FEmptyDynamicRHI::RHIClearMRT(bool bClearColor,int32 NumClearColors,const F
 
 }
 
-void FEmptyDynamicRHI::RHIBindClearMRTValues(bool bClearColor, bool bClearDepth, bool bClearStencil)
-{
-}
-
 void FEmptyDynamicRHI::RHIBlockUntilGPUIdle()
 {
 
@@ -330,16 +326,6 @@ void FEmptyDynamicRHI::RHIBlockUntilGPUIdle()
 uint32 FEmptyDynamicRHI::RHIGetGPUFrameCycles(uint32 GPUIndex)
 {
 	return GGPUFrameTime;
-}
-
-void FEmptyDynamicRHI::RHIAutomaticCacheFlushAfterComputeShader(bool bEnable) 
-{
-
-}
-
-void FEmptyDynamicRHI::RHIFlushComputeShaderCache()
-{
-
 }
 
 void* FEmptyDynamicRHI::RHIGetNativeDevice()

@@ -138,6 +138,24 @@ void FChunkCacheWorker::ReleaseBuffer(int32 ChunkIndex)
 	}
 }
 
+FEvent* FChunkCacheWorker::AcquireNotificationEvent() const
+{
+	return FPlatformProcess::GetSynchEventFromPool();
+}
+
+void FChunkCacheWorker::ReleaseNotificationEvent(FEvent* Event)
+{
+	check(Event != nullptr);
+
+	EventsToRelease.Push(Event);
+
+	// Wake up the thread if it needs it
+	if (QueuedRequestsEvent)
+	{
+		QueuedRequestsEvent->Trigger();
+	}
+}
+
 int32 FChunkCacheWorker::ProcessQueue()
 {
 	SCOPE_SECONDS_ACCUMULATOR(STAT_FChunkCacheWorker_ProcessQueue);
@@ -209,6 +227,16 @@ int32 FChunkCacheWorker::ProcessQueue()
 			}
 		}
 	}
+
+	// Release any pending events
+	if (!EventsToRelease.IsEmpty())
+	{
+		while (FEvent* EventToRelease = EventsToRelease.Pop())
+		{
+			FPlatformProcess::ReturnSynchEventToPool(EventToRelease);
+		}
+	}
+
 	return ProcessedRequests;
 }
 
@@ -400,7 +428,7 @@ void FSignedArchiveReader::Serialize(void* Data, int64 Length)
 	SCOPE_SECONDS_ACCUMULATOR(STAT_SignedArchiveReader_Serialize);
 	INC_DWORD_STAT(STAT_SignedArchiveReader_NumSerializes);
 
-	FEvent* ChunkReadEvent = SignatureChecker->IsMultithreaded() ? FPlatformProcess::GetSynchEventFromPool() : nullptr;
+	FEvent* ChunkReadEvent = SignatureChecker->IsMultithreaded() ? SignatureChecker->AcquireNotificationEvent() : nullptr;
 	
 	// First make sure the chunks we're going to read are actually cached.
 	TArray<FReadInfo> QueuedChunks;
@@ -463,7 +491,7 @@ void FSignedArchiveReader::Serialize(void* Data, int64 Length)
 
 			if (ChunksReadThisLoop == 0)
 			{
-				if (SignatureChecker->IsMultithreaded())
+				if (ChunkReadEvent != nullptr)
 				{
 					ChunkReadEvent->Wait();
 				}
@@ -477,7 +505,11 @@ void FSignedArchiveReader::Serialize(void* Data, int64 Length)
 		while (ChunksToRead > 0);
 	}
 
-	FPlatformProcess::ReturnSynchEventToPool(ChunkReadEvent);
+	if (ChunkReadEvent != nullptr)
+	{
+		SignatureChecker->ReleaseNotificationEvent(ChunkReadEvent);
+		ChunkReadEvent = nullptr;
+	}
 
 	PakOffset += Length;
 

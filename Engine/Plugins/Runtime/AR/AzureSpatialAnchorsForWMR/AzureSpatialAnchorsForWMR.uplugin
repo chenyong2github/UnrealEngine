@@ -1,0 +1,50 @@
+{
+	"FileVersion" : 3,
+	"Version" : 1,
+	"VersionName" : "1.0",
+	"FriendlyName" : "Azure Spatial Anchors For WMR",
+	"Description" : "Microsoft Azure Spatial Anchors implementation for Windows Mixed Reality",
+	"Category" : "Augmented Reality",
+	"CreatedBy" : "Epic Games",
+	"CreatedByURL" : "epicgames.com",
+	"DocsURL" : "",
+	"MarketplaceURL" : "",
+	"SupportURL" : "",
+	"EnabledByDefault" : false,
+	"CanContainContent" : false,
+	"IsExperimentalVersion" : true,
+	"IsBetaVersion" : true,
+	"Installed" : false,
+	"SupportedTargetPlatforms": [
+		"Win64",
+		"HoloLens"
+	],
+	"Modules": [
+		{
+			"Name": "AzureSpatialAnchorsForWMR",
+			"Type": "Runtime",
+			"WhitelistPlatforms": [
+				"Win64",
+				"HoloLens"
+			]
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "AzureSpatialAnchors",
+			"Enabled": true,
+			"WhitelistPlatforms": [
+				"Win64",
+				"HoloLens"
+			]
+		},
+		{
+			"Name": "WindowsMixedReality",
+			"Enabled": true,
+			"WhitelistPlatforms": [
+				"Win64",
+				"HoloLens"
+			]
+		}
+	]
+}

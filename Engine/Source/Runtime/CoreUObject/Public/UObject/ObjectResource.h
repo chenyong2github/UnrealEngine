@@ -357,7 +357,7 @@ struct FObjectExport : public FObjectResource
 	 * Constructors
 	 */
 	COREUOBJECT_API FObjectExport();
-	FObjectExport( UObject* InObject );
+	FObjectExport(UObject* InObject, bool bInNotAlwaysLoadedForEditorGame = true);
 
 	/** Resets the stored Object and any transient flags */
 	COREUOBJECT_API void ResetObject();

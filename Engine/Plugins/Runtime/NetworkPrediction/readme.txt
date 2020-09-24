@@ -2,6 +2,25 @@
 //	Network Prediction Plugin
 // --------------------------------------------------------------------------------------------------------------------
 
+9-2-2020:
+
+Update for root motion. This improves on the previous implementation:
+-UMockRootMotionSource as a base class for "root motion defining thing".
+-New source types can be added without modifying the root motion simulation or driver code.
+-Sources can have networked internal state and parameters.
+-The root motion source is net serialized as a {SourceID, StartTime, Parameters} tuple via TMockRootMotionSourceProxy
+-Sources define how their internal state/parameters are encoded into the Parameters blob via UMockRootMotionSource::SerializePayloadParameters
+-Encoding SourceID is done through a new 
+
+This pattern is very relevenant for things like custom movement modes or other data-driven extensions of simulations.
+
+Minor updates:
+-Trace local frame offset to Insights. 
+-Store latest simulation time in FNetworkPredictionStateView
+-Fix a couple issues where wrong time/frame was being traced, causing bugs in Insights
+
+
+
 8-10-2020:
 
 Initial mock root motion checked in. This is the begining of root motion networking which will find its way into the new movement system.

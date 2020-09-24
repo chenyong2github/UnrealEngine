@@ -69,7 +69,6 @@ URendererSettings::URendererSettings(const FObjectInitializer& ObjectInitializer
 	bSupportAtmosphericFog = true;
 	bSupportSkyAtmosphere = true;
 	bSupportSkinCacheShaders = false;
-	bSupportMaterialLayers = false;
 	GPUSimulationTextureSizeX = 1024;
 	GPUSimulationTextureSizeY = 1024;
 	bEnableRayTracing = 0;
@@ -172,10 +171,27 @@ void URendererSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 
 		ExportValuesToConsoleVariables(PropertyChangedEvent.Property);
 
-		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, ReflectionCaptureResolution) && 
+		if ((PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, ReflectionCaptureResolution) ||
+			(PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, bReflectionCaptureCompression))) &&
 			PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 		{
-			GEditor->BuildReflectionCaptures();
+			if (GEditor != nullptr)
+			{
+				if (GWorld != nullptr && GWorld->FeatureLevel == ERHIFeatureLevel::ES3_1)
+				{
+					// When we feature change from SM5 to ES31 we call BuildReflectionCapture if we have Unbuilt Reflection Components, so no reason to call it again here
+					// This is to make sure that we have valid data for Mobile Preview.
+
+					// ES31->SM5 to be able to capture
+					GEditor->ToggleFeatureLevelPreview();
+					// SM5->ES31 BuildReflectionCaptures are triggered here on callback
+					GEditor->ToggleFeatureLevelPreview();
+				}
+				else
+				{
+					GEditor->BuildReflectionCaptures();
+				}
+			}
 		}
 	}
 }

@@ -260,7 +260,8 @@ struct FExportBundleEntry
 	enum EExportCommandType
 	{
 		ExportCommandType_Create,
-		ExportCommandType_Serialize
+		ExportCommandType_Serialize,
+		ExportCommandType_Count
 	};
 	uint32 LocalExportIndex;
 	uint32 CommandType;

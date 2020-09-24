@@ -627,4 +627,9 @@ void UAnimGraphNode_LinkedInputPose::IterateFunctionParameters(TFunctionRef<void
 	}
 }
 
+bool UAnimGraphNode_LinkedInputPose::IsCompatibleWithGraph(UEdGraph const* Graph) const
+{
+	return Graph->GetFName() == UEdGraphSchema_K2::GN_AnimGraph;
+}
+
 #undef LOCTEXT_NAMESPACE

@@ -142,15 +142,16 @@ public:
 		static const FD3D12RootSignature StaticComputeRootSignature(this, FD3D12RootSignatureDesc::GetStaticComputeRootSignatureDesc());
 		return &StaticComputeRootSignature;
 	}
-#else
+#else // USE_STATIC_ROOT_SIGNATURE
 	FORCEINLINE const FD3D12RootSignature* GetStaticGraphicsRootSignature(){ return nullptr; }
 	FORCEINLINE const FD3D12RootSignature* GetStaticComputeRootSignature() { return nullptr; }
+#endif // USE_STATIC_ROOT_SIGNATURE
 
 	FORCEINLINE FD3D12RootSignature* GetRootSignature(const FD3D12QuantizedBoundShaderState& QBSS) 
 	{
 		return RootSignatureManager.GetRootSignature(QBSS);
 	}
-#endif
+
 	FORCEINLINE FD3D12RootSignatureManager* GetRootSignatureManager()
 	{
 		return &RootSignatureManager;
@@ -388,10 +389,8 @@ protected:
 	uint32 FrameCounter;
 
 #if D3D12_SUBMISSION_GAP_RECORDER
-	TArray<uint64> StartOfSubmissionTimestamp[2];
-	TArray<uint64> EndOfSubmissionTimestamp[2];
-
-	int32 CurrentContextIndex;
+	TArray<uint64> StartOfSubmissionTimestamps;
+	TArray<uint64> EndOfSubmissionTimestamps;
 #endif
 
 #if WITH_MGPU

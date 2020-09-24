@@ -13,6 +13,11 @@
 #include "SceneView.h"
 #include "UnrealClient.h"
 
+namespace UE
+{
+namespace MotionTrailEditor
+{
+
 class FTrail;  
 struct FTrailHierarchyNode;
 class FMapTrajectoryCache;
@@ -37,10 +42,10 @@ class FTrajectoryDrawInfo
 {
 public:
 
-	FTrajectoryDrawInfo(const FLinearColor& InColor, const bool bInIsVisible)
+	FTrajectoryDrawInfo(const FLinearColor& InColor, FTrajectoryCache* InTrajectoryCache)
 		: Color(InColor)
-		, bIsVisible(bInIsVisible)
 		, CachedViewRange(TRange<double>::Empty())
+		, TrajectoryCache(InTrajectoryCache)
 	{}
 
 	virtual ~FTrajectoryDrawInfo() {}
@@ -54,35 +59,20 @@ public:
 		class FTrailHierarchy* TrailHierarchy;
 	};
 
-	virtual TArray<FVector> GetTrajectoryPointsForDisplay(const FDisplayContext& InDisplayContext) = 0;
-	virtual void GetTickPointsForDisplay(const FDisplayContext& InDisplayContext, TArray<FVector2D>& Ticks, TArray<FVector2D>& TickTangents) = 0;
+	TArray<FVector> GetTrajectoryPointsForDisplay(const FDisplayContext& InDisplayContext);
+	void GetTickPointsForDisplay(const FDisplayContext& InDisplayContext, TArray<FVector2D>& Ticks, TArray<FVector2D>& TickTangents);
 
 	// Optionally implemented methods
 	void SetColor(const FLinearColor& InColor) { Color = InColor; }
 	FLinearColor GetColor() const { return Color; }
 
-	void SetIsVisible(bool bInIsVisible) { bIsVisible = bInIsVisible; }
-	bool IsVisible() const { return bIsVisible; }
-
 	virtual const TRange<double>& GetCachedViewRange() const { return CachedViewRange; }
 protected:
 	FLinearColor Color;
-	bool bIsVisible;
 	TRange<double> CachedViewRange;
-};
-
-class FCachedTrajectoryDrawInfo : public FTrajectoryDrawInfo
-{
-public:
-
-	FCachedTrajectoryDrawInfo(const FLinearColor& InColor, const bool bInIsVisible, FTrajectoryCache* InTrajectoryCache)
-		: FTrajectoryDrawInfo(InColor, bInIsVisible)
-		, TrajectoryCache(InTrajectoryCache)
-	{}
-
-	virtual TArray<FVector> GetTrajectoryPointsForDisplay(const FDisplayContext& InDisplayContext) override;
-	virtual void GetTickPointsForDisplay(const FDisplayContext& InDisplayContext, TArray<FVector2D>& Ticks, TArray<FVector2D>& TickNormals) override;
-
-private:
 	FTrajectoryCache* TrajectoryCache;
 };
+
+
+} // namespace MovieScene
+} // namespace UE

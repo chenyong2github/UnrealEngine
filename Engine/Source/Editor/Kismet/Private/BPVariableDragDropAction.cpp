@@ -108,7 +108,7 @@ void FKismetVariableDragDropAction::HoverTargetChanged()
 	UEdGraph* TheHoveredGraph = GetHoveredGraph();
 	if (TheHoveredGraph)
 	{
-		if (Cast<const UEdGraphSchema_K2>(TheHoveredGraph->GetSchema()) == nullptr)
+		if (!TheHoveredGraph->GetSchema()->CanVariableBeDropped(TheHoveredGraph, VariableProperty))
 		{
 			bBadSchema = true;
 		}
@@ -161,9 +161,8 @@ void FKismetVariableDragDropAction::HoverTargetChanged()
 			{
 				SetFeedbackMessageError(FText::Format(LOCTEXT("OrphanedPin_Error", "Cannot make connection to orphaned pin {PinUnderCursor}"), Args));
 			}
-			else
+			else if (const UEdGraphSchema_K2* Schema = Cast<const UEdGraphSchema_K2>(PinUnderCursor->GetSchema()))
 			{
-				const UEdGraphSchema_K2* Schema = CastChecked<const UEdGraphSchema_K2>(PinUnderCursor->GetSchema());
 				const bool bIsExecPin = Schema->IsExecPin(*PinUnderCursor);
 
 				const bool bIsRead = (PinUnderCursor->Direction == EGPD_Input) && !bIsExecPin;
@@ -259,11 +258,21 @@ FReply FKismetVariableDragDropAction::DroppedOnPin(FVector2D ScreenPosition, FVe
 	{
 		if (!TargetPin->bOrphanedPin)
 		{
+			FProperty* VariableProperty = GetVariableProperty();
+			if (!TargetPin->GetSchema()->CanVariableBeDropped(TargetPin->GetOwningNode()->GetGraph(), VariableProperty))
+			{
+				return FReply::Unhandled();
+			}
+
+			bool DropReply = ((UEdGraphSchema*)TargetPin->GetSchema())->RequestVariableDropOnPin(TargetPin->GetOwningNode()->GetGraph(), VariableProperty, TargetPin, GraphPosition, ScreenPosition);
+			if (DropReply)
+			{
+				return FReply::Handled();
+			}
+
 			if (const UEdGraphSchema_K2* Schema = Cast<const UEdGraphSchema_K2>(TargetPin->GetSchema()))
 			{
 				const bool bIsExecPin = Schema->IsExecPin(*TargetPin);
-
-				FProperty* VariableProperty = GetVariableProperty();
 
 				if (CanVariableBeDropped(VariableProperty, *TargetPin->GetOwningNode()->GetGraph()) && !NodeHasSplitPins(TargetPin->GetOwningNode()))
 				{
@@ -298,6 +307,21 @@ FReply FKismetVariableDragDropAction::DroppedOnPin(FVector2D ScreenPosition, FVe
 
 FReply FKismetVariableDragDropAction::DroppedOnNode(FVector2D ScreenPosition, FVector2D GraphPosition)
 {
+	if (UEdGraphNode* TargetNode = GetHoveredNode())
+	{
+		FProperty* VariableProperty = GetVariableProperty();
+		if (!TargetNode->GetSchema()->CanVariableBeDropped(TargetNode->GetGraph(), VariableProperty))
+		{
+			return FReply::Unhandled();
+		}
+
+		bool DropReply = ((UEdGraphSchema*)TargetNode->GetSchema())->RequestVariableDropOnNode(TargetNode->GetGraph(), VariableProperty, TargetNode, GraphPosition, ScreenPosition);
+		if (DropReply)
+		{
+			return FReply::Handled();
+		}
+	}
+
 	UK2Node_Variable* TargetNode = Cast<UK2Node_Variable>(GetHoveredNode());
 
 	if (TargetNode && (VariableName != TargetNode->GetVarName()))
@@ -394,9 +418,15 @@ bool FKismetVariableDragDropAction::CanExecuteMakeSetter(FNodeConstructionParams
 
 FReply FKismetVariableDragDropAction::DroppedOnPanel( const TSharedRef< SWidget >& Panel, FVector2D ScreenPosition, FVector2D GraphPosition, UEdGraph& Graph)
 {	
+	FProperty* VariableProperty = GetVariableProperty();
+	bool  DropReply = ((UEdGraphSchema*)Graph.GetSchema())->RequestVariableDropOnPanel(GetHoveredGraph(), VariableProperty, GraphPosition, ScreenPosition);
+	if (DropReply)
+	{
+		return FReply::Handled();
+	}
+
 	if (Graph.GetSchema()->IsA<UEdGraphSchema_K2>())
 	{
-		FProperty* VariableProperty = GetVariableProperty();
 		if (VariableProperty && CanVariableBeDropped(VariableProperty, Graph))
 		{
 			UStruct* Outer = VariableProperty->GetOwnerChecked<UStruct>();

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	PostProcessSubsurface.cpp: Screenspace subsurface scattering implementation.
+	PostProcessceSetupce.cpp: Screenspace subsurface scattering implementation.
 		Indirect dispatch implementation high level description
 	   1. Initialize counters
 	   2. Setup pass: record the tiles that need to draw Burley and Separable in two different buffer.
@@ -105,6 +105,20 @@ namespace
 		0,
 		TEXT("When zero, Burley SSS adaptively determines the number of samples. When non-zero, this value overrides the sample count.\n"),
 		ECVF_RenderThreadSafe);
+
+	TAutoConsoleVariable<int32> CVarSSSBurleyEnableProfileIdCache(
+		TEXT("r.SSS.Burley.EnableProfileIdCache"),
+		1,
+		TEXT("0: Disable profile id cache using in the sampling pass.\n")
+		TEXT("1: Consumes 1 byte per pixel more memory to make Burley pass much faster. (default)\n"),
+		ECVF_RenderThreadSafe);
+
+	TAutoConsoleVariable<int32> CVarSSSBurleyBilateralFilterKernelFunctionType(
+		TEXT("r.SSS.Burley.BilateralFilterKernelFunctionType"),
+		1,
+		TEXT("0: Depth Only. It is more performant (x2 faster for close view).")
+		TEXT("1: Depth and normal. It leads to better quality in regions like eyelids. (default)"),
+		ECVF_RenderThreadSafe);
 }
 
 // Define to use a custom ps to clear UAV.
@@ -166,6 +180,11 @@ int32 GetSSSQuality()
 	return CVarSSSQuality.GetValueOnRenderThread();
 }
 
+int32 GetSSSBurleyBilateralFilterKernelFunctionType()
+{
+	return CVarSSSBurleyBilateralFilterKernelFunctionType.GetValueOnRenderThread();
+}
+
 // Returns the SS profile texture with a black fallback texture if none exists yet.
 // Actually we do not need this for the burley normalized SSS.
 FRHITexture* GetSubsurfaceProfileTexture(FRHICommandListImmediate& RHICmdList)
@@ -219,29 +238,29 @@ END_SHADER_PARAMETER_STRUCT();
 // Set of common shader parameters shared by all subsurface shaders.
 BEGIN_SHADER_PARAMETER_STRUCT(FSubsurfaceParameters, )
 	SHADER_PARAMETER(FVector4, SubsurfaceParams)
-	SHADER_PARAMETER_STRUCT_REF(FSceneTexturesUniformParameters, SceneUniformBuffer)
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-	SHADER_PARAMETER_SAMPLER(SamplerState, BilinearTextureSampler)
 	SHADER_PARAMETER_TEXTURE(Texture2D, SSProfilesTexture)
 END_SHADER_PARAMETER_STRUCT()
 
-FSubsurfaceParameters GetSubsurfaceCommonParameters(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
+FSubsurfaceParameters GetSubsurfaceCommonParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTextures)
 {
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-
 	const float DistanceToProjectionWindow = View.ViewMatrices.GetProjectionMatrix().M[0][0];
 	const float SSSScaleZ = DistanceToProjectionWindow * GetSubsurfaceRadiusScale();
 	const float SSSScaleX = SSSScaleZ / SUBSURFACE_KERNEL_SIZE * 0.5f;
 
 	const float SSSOverrideNumSamples = float(CVarSSSBurleyNumSamplesOverride.GetValueOnRenderThread());
 
+	if (!SceneTextures)
+	{
+		SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, View.FeatureLevel);
+	}
+
 	FSubsurfaceParameters Parameters;
 	Parameters.SubsurfaceParams = FVector4(SSSScaleX, SSSScaleZ, SSSOverrideNumSamples, 0);
 	Parameters.ViewUniformBuffer = View.ViewUniformBuffer;
-	Parameters.SceneUniformBuffer = CreateSceneTextureUniformBuffer(
-		SceneContext, View.FeatureLevel, ESceneTextureSetupMode::All, EUniformBufferUsage::UniformBuffer_SingleFrame);
-	Parameters.BilinearTextureSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
-	Parameters.SSProfilesTexture = GetSubsurfaceProfileTexture(RHICmdList);
+	Parameters.SceneTextures = SceneTextures;
+	Parameters.SSProfilesTexture = GetSubsurfaceProfileTexture(GraphBuilder.RHICmdList);
 	return Parameters;
 }
 
@@ -276,7 +295,12 @@ bool IsSubsurfaceRequiredForView(const FViewInfo& View)
 	return (bSubsurfaceEnabled && bViewHasSubsurfaceMaterials && !bSimpleDynamicLighting);
 }
 
-uint32 GetSubsurfaceRequiredViewMask(const TArray<FViewInfo>& Views)
+bool IsProfileIdCacheEnabled()
+{
+	return CVarSSSBurleyEnableProfileIdCache.GetValueOnRenderThread() != 0;
+}
+
+uint32 GetSubsurfaceRequiredViewMask(TArrayView<const FViewInfo> Views)
 {
 	const uint32 ViewCount = Views.Num();
 	uint32 ViewMask = 0;
@@ -481,13 +505,15 @@ public:
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, SetupTexture)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWSeparableGroupBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWBurleyGroupBuffer)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, ProfileIdTexture)
 		SHADER_PARAMETER_STRUCT_REF(FSubsurfaceUniformParameters, SubsurfaceUniformParameters)
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FDimensionHalfRes : SHADER_PERMUTATION_BOOL("SUBSURFACE_HALF_RES");
 	class FDimensionCheckerboard : SHADER_PERMUTATION_BOOL("SUBSURFACE_PROFILE_CHECKERBOARD");
 	class FRunningInSeparable : SHADER_PERMUTATION_BOOL("SUBSURFACE_FORCE_SEPARABLE");
-	using FPermutationDomain = TShaderPermutationDomain<FDimensionHalfRes, FDimensionCheckerboard, FRunningInSeparable>;
+	class FDimensionEnableProfileIDCache : SHADER_PERMUTATION_BOOL("ENABLE_PROFILE_ID_CACHE");
+	using FPermutationDomain = TShaderPermutationDomain<FDimensionHalfRes, FDimensionCheckerboard, FRunningInSeparable, FDimensionEnableProfileIDCache>;
 };
 
 IMPLEMENT_GLOBAL_SHADER(FSubsurfaceIndirectDispatchSetupCS, "/Engine/Private/PostProcessSubsurface.usf", "SetupIndirectCS", SF_Compute);
@@ -521,6 +547,7 @@ public:
 		SHADER_PARAMETER_SAMPLER(SamplerState, SubsurfaceSampler1)
 		SHADER_PARAMETER_STRUCT(FSubsurfaceInput, SubsurfaceInput2)   // Profile mask | Velocity
 		SHADER_PARAMETER_SAMPLER(SamplerState, SubsurfaceSampler2)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, ProfileIdTexture)
 	END_SHADER_PARAMETER_STRUCT()
 
 	// Direction of the 1D separable filter.
@@ -546,11 +573,11 @@ public:
 		High,
 		MAX
 	};
-
-	enum class ESubsurfaceSamplerType : uint32
+	
+	enum class EBilateralFilterKernelFunctionType : uint32
 	{
-		PointSampler,
-		NonPointSampler,	//bilinear on LDS or trilinear on texture. 
+		Depth,
+		DepthAndNormal,
 		MAX
 	};
 
@@ -592,16 +619,6 @@ public:
 		return kEventNames[int32(Quality)];
 	}
 
-	static const TCHAR* GetEventName(ESubsurfaceSamplerType SamplerType)
-	{
-		static const TCHAR* const kEventNames[] = {
-			TEXT("PointSampler"),
-			TEXT("NonPointSampler"),
-		};
-		static_assert(UE_ARRAY_COUNT(kEventNames) == int32(ESubsurfaceSamplerType::MAX), "Fix me");
-		return kEventNames[int32(SamplerType)];
-	}
-
 	static const TCHAR* GetEventName(ESubsurfaceType SubsurfaceType)
 	{
 		static const TCHAR* const kEventNames[] = {
@@ -614,11 +631,13 @@ public:
 
 	class FSubsurfacePassFunction : SHADER_PERMUTATION_ENUM_CLASS("SUBSURFACE_PASS", ESubsurfacePass);
 	class FDimensionQuality : SHADER_PERMUTATION_ENUM_CLASS("SUBSURFACE_QUALITY", EQuality);
-	class FSubsurfaceSamplerType : SHADER_PERMUTATION_ENUM_CLASS("SUBSURFACE_SAMPLER_TYPE", ESubsurfaceSamplerType);
+	class FBilateralFilterKernelFunctionType : SHADER_PERMUTATION_ENUM_CLASS("BILATERAL_FILTER_KERNEL_FUNCTION_TYPE", EBilateralFilterKernelFunctionType);
 	class FSubsurfaceType : SHADER_PERMUTATION_ENUM_CLASS("SUBSURFACE_TYPE", ESubsurfaceType);
 	class FDimensionHalfRes : SHADER_PERMUTATION_BOOL("SUBSURFACE_HALF_RES");
 	class FRunningInSeparable : SHADER_PERMUTATION_BOOL("SUBSURFACE_FORCE_SEPARABLE");
-	using FPermutationDomain = TShaderPermutationDomain<FSubsurfacePassFunction, FDimensionQuality, FSubsurfaceSamplerType, FSubsurfaceType, FDimensionHalfRes, FRunningInSeparable>;
+	class FDimensionEnableProfileIDCache : SHADER_PERMUTATION_BOOL("ENABLE_PROFILE_ID_CACHE");
+	using FPermutationDomain = TShaderPermutationDomain<FSubsurfacePassFunction, FDimensionQuality, 
+		FBilateralFilterKernelFunctionType, FSubsurfaceType, FDimensionHalfRes, FRunningInSeparable, FDimensionEnableProfileIDCache>;
 
 	// Returns the sampler state based on the requested SSS filter CVar setting and half resolution setting.
 	static FRHISamplerState* GetSamplerState(bool bHalfRes)
@@ -650,16 +669,13 @@ public:
 				static_cast<int32>(FSubsurfaceIndirectDispatchCS::EQuality::High)));
 	}
 
-	static ESubsurfaceSamplerType GetSamplerType()
+	static EBilateralFilterKernelFunctionType GetBilateralFilterKernelFunctionType()
 	{
-		if (GetSSSFilter())
-		{
-			return ESubsurfaceSamplerType::NonPointSampler;
-		}
-		else
-		{
-			return ESubsurfaceSamplerType::PointSampler;
-		}
+		return static_cast<FSubsurfaceIndirectDispatchCS::EBilateralFilterKernelFunctionType>(
+			FMath::Clamp(
+				GetSSSBurleyBilateralFilterKernelFunctionType(),
+				static_cast<int32>(FSubsurfaceIndirectDispatchCS::EBilateralFilterKernelFunctionType::Depth),
+				static_cast<int32>(FSubsurfaceIndirectDispatchCS::EBilateralFilterKernelFunctionType::DepthAndNormal)));
 	}
 };
 
@@ -686,40 +702,11 @@ class FSubsurfaceSRVResolvePS : public FSubsurfaceShader
 
 IMPLEMENT_GLOBAL_SHADER(FSubsurfaceSRVResolvePS, "/Engine/Private/PostProcessSubsurface.usf", "SubsurfaceViewportCopyPS", SF_Pixel);
 
-//-------------------------------------------------------------------------------------------
-// End indirect dispatch class
-//-------------------------------------------------------------------------------------------
-FRDGTextureRef ResolveTextureToSRV(FRDGBuilder& GraphBuilder, FRDGTextureRef InputTexture, const FViewInfo& View,
-	const FScreenPassTextureViewport& SceneViewport)
-{
-	FRDGTextureDesc SRVDesc = InputTexture->Desc;
-
-	// if this texture can be used as SRV, we ignore this function call.
-	if (SRVDesc.TargetableFlags &TexCreate_ShaderResource)
-	{
-		return InputTexture;
-	}
-
-	SRVDesc.TargetableFlags |= TexCreate_ShaderResource;
-	FRDGTextureRef SRVTextureOutput = GraphBuilder.CreateTexture(SRVDesc, InputTexture->Desc.DebugName);
-
-	FSubsurfaceSRVResolvePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSubsurfaceSRVResolvePS::FParameters>();
-	PassParameters->RenderTargets[0] = FRenderTargetBinding(SRVTextureOutput, ERenderTargetLoadAction::ENoAction);
-	PassParameters->SubsurfaceInput0_Texture = InputTexture;
-	PassParameters->SubsurfaceSampler0 = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-
-	TShaderMapRef<FSubsurfaceSRVResolvePS> PixelShader(View.ShaderMap);
-
-	AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("SubsurfaceTextureResolve"), View, SceneViewport, SceneViewport, PixelShader, PassParameters);
-
-	return SRVTextureOutput;
-}
-
 FRDGTextureRef CreateBlackUAVTexture(FRDGBuilder& GraphBuilder, FRDGTextureDesc SRVDesc, const TCHAR* Name, const FViewInfo& View,
 	const FScreenPassTextureViewport& SceneViewport)
 {
 #ifdef USE_CUSTOM_CLEAR_UAV
-	SRVDesc.TargetableFlags |= TexCreate_ShaderResource | TexCreate_UAV;
+	SRVDesc.Flags |= TexCreate_ShaderResource | TexCreate_UAV;
 	FRDGTextureRef SRVTextureOutput = GraphBuilder.CreateTexture(SRVDesc, Name);
 
 	FSubsurfaceSRVResolvePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSubsurfaceSRVResolvePS::FParameters>();
@@ -815,7 +802,7 @@ class FSubsurfaceRecombinePS : public FSubsurfaceShader
 		// high quality mode.
 		const bool bUseHighQuality = (QualityCVar == -1 && View.AntiAliasingMethod != AAM_TemporalAA);
 
-		if (QualityCVar == 1 || bUseHighQuality)
+		if (QualityCVar == 1 || bUseHighQuality || View.Family->GetTemporalUpscalerInterface() != nullptr)
 		{
 			return EQuality::High;
 		}
@@ -828,75 +815,79 @@ class FSubsurfaceRecombinePS : public FSubsurfaceShader
 
 IMPLEMENT_GLOBAL_SHADER(FSubsurfaceRecombinePS, "/Engine/Private/PostProcessSubsurface.usf", "SubsurfaceRecombinePS", SF_Pixel);
 
-void ComputeSubsurfaceForView(
+void AddSubsurfaceViewPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FScreenPassTextureViewport& SceneViewport,
-	FRDGTextureRef SceneTexture,
-	FRDGTextureRef SceneTextureOutput,
-	ERenderTargetLoadAction SceneTextureLoadAction)
+	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTextures,
+	FRDGTextureRef SceneColorTexture,
+	FRDGTextureRef SceneColorTextureOutput,
+	ERenderTargetLoadAction SceneColorTextureLoadAction)
 {
-	check(SceneTexture);
-	check(SceneTextureOutput);
-	check(SceneViewport.Extent == SceneTexture->Desc.Extent);
+	check(SceneTextures);
+	check(SceneColorTextureOutput);
+	check(SceneViewport.Extent == SceneColorTexture->Desc.Extent);
 
 	const FSceneViewFamily* ViewFamily = View.Family;
 
-	const FRDGTextureDesc& SceneTextureDesc = SceneTexture->Desc;
+	const FRDGTextureDesc& SceneColorTextureDesc = SceneColorTexture->Desc;
 
 	const ESubsurfaceMode SubsurfaceMode = GetSubsurfaceModeForView(View);
 
 	const bool bHalfRes = (SubsurfaceMode == ESubsurfaceMode::HalfRes);
 
-	const bool bCheckerboard = IsSubsurfaceCheckerboardFormat(SceneTextureDesc.Format);
+	const bool bCheckerboard = IsSubsurfaceCheckerboardFormat(SceneColorTextureDesc.Format);
 
 	const uint32 ScaleFactor = bHalfRes ? 2 : 1;
 	
 	//We run in separable mode under three conditions: 1) Run Burley fallback mode. 2) when the screen is in half resolution. 3) OpenGL
 	const bool bForceRunningInSeparable = CVarSSSBurleyQuality.GetValueOnRenderThread() == 0|| bHalfRes || View.GetShaderPlatform() == SP_OPENGL_SM5;
 
+	const bool bUseProfileIdCache = !bForceRunningInSeparable && IsProfileIdCacheEnabled();
+
 	/**
 	 * All subsurface passes within the screen-space subsurface effect can operate at half or full resolution,
 	 * depending on the subsurface mode. The values are precomputed and shared among all Subsurface textures.
 	 */
-	const FScreenPassTextureViewport SubsurfaceViewport = FScreenPassTextureViewport::CreateDownscaled(SceneViewport, ScaleFactor);
+	const FScreenPassTextureViewport SubsurfaceViewport = GetDownscaledViewport(SceneViewport, ScaleFactor);
 
 	const FIntPoint TileDimension = FIntPoint::DivideAndRoundUp(SubsurfaceViewport.Extent, kSubsurfaceGroupSize);
 	const int32 MaxGroupCount = TileDimension.X*TileDimension.Y;
 
-	const FRDGTextureDesc SceneTextureDescriptor = FRDGTextureDesc::Create2DDesc(
+	const FRDGTextureDesc SceneColorTextureDescriptor = FRDGTextureDesc::Create2D(
 		SceneViewport.Extent,
 		PF_FloatRGBA,
 		FClearValueBinding(),
-		TexCreate_None,
-		TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV,
-		false);
+		TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV);
 
-	const FRDGTextureDesc SubsurfaceTextureDescriptor = FRDGTextureDesc::Create2DDesc(
+	const FRDGTextureDesc SubsurfaceTextureDescriptor = FRDGTextureDesc::Create2D(
 		SubsurfaceViewport.Extent,
 		PF_FloatRGBA,
 		FClearValueBinding(),
-		TexCreate_None,
-		TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV,
-		false);
+		TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV);
+
+	const FRDGTextureDesc ProfileIdTextureDescriptor = FRDGTextureDesc::Create2D(
+		SubsurfaceViewport.Extent,
+		PF_R8_UINT,
+		FClearValueBinding(),
+		TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV);
 
 	// Create texture desc with 6 mips if possible, otherwise clamp number of mips to match the viewport resolution
-	const FRDGTextureDesc SubsurfaceTextureWith6MipsDescriptor = FRDGTextureDesc::Create2DDesc(
+	const FRDGTextureDesc SubsurfaceTextureWith6MipsDescriptor = FRDGTextureDesc::Create2D(
 		SubsurfaceViewport.Extent,
 		PF_FloatRGBA,
 		FClearValueBinding(),
-		TexCreate_None,
 		TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV,
-		false,
 		FMath::Min(6u, 1 + FMath::FloorLog2((uint32)SubsurfaceViewport.Extent.GetMin())));
 
-	const FSubsurfaceParameters SubsurfaceCommonParameters = GetSubsurfaceCommonParameters(GraphBuilder.RHICmdList, View);
+	const FSubsurfaceParameters SubsurfaceCommonParameters = GetSubsurfaceCommonParameters(GraphBuilder, View, SceneTextures);
 	const FScreenPassTextureViewportParameters SubsurfaceViewportParameters = GetScreenPassTextureViewportParameters(SubsurfaceViewport);
 	const FScreenPassTextureViewportParameters SceneViewportParameters = GetScreenPassTextureViewportParameters(SceneViewport);
 
-	FRDGTextureRef SetupTexture = SceneTexture;
+	FRDGTextureRef SetupTexture = SceneColorTexture;
 	FRDGTextureRef SubsurfaceSubpassOneTex = nullptr;
 	FRDGTextureRef SubsurfaceSubpassTwoTex = nullptr;
+	FRDGTextureRef ProfileIdTexture = nullptr;
 
 	FRHISamplerState* PointClampSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	FRHISamplerState* BilinearBorderSampler = TStaticSamplerState<SF_Bilinear, AM_Border, AM_Border, AM_Border>::GetRHI();
@@ -906,7 +897,7 @@ void ComputeSubsurfaceForView(
 	TRefCountPtr<IPooledRenderTarget>* QualityHistoryState = ViewState ? &ViewState->SubsurfaceScatteringQualityHistoryRT : NULL;
 
 	//allocate/reallocate the quality history texture. 
-	FRDGTextureRef QualityHistoryTexture = RegisterExternalRenderTarget(GraphBuilder, QualityHistoryState, SceneTextureDescriptor.Extent, TEXT("QualityHistoryTexture"));
+	FRDGTextureRef QualityHistoryTexture = RegisterExternalRenderTarget(GraphBuilder, QualityHistoryState, SceneColorTextureDescriptor.Extent, TEXT("QualityHistoryTexture"));
 	FRDGTextureRef NewQualityHistoryTexture = nullptr;
 
 	/**
@@ -917,6 +908,16 @@ void ComputeSubsurfaceForView(
 	{
 		// Support mipmaps in full resolution only.
 		SetupTexture = GraphBuilder.CreateTexture(bForceRunningInSeparable ? SubsurfaceTextureDescriptor:SubsurfaceTextureWith6MipsDescriptor, TEXT("SubsurfaceSetupTexture"));
+
+		// profile cache to accelerate sampling
+		if (bUseProfileIdCache)
+		{
+			ProfileIdTexture = GraphBuilder.CreateTexture(ProfileIdTextureDescriptor, TEXT("ProfileIdTexture"));
+		}
+		else
+		{
+			ProfileIdTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy, TEXT("ProfileIdTexture"));
+		}
 
 		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
 		FRDGTextureRef VelocityTexture = RegisterExternalRenderTarget(GraphBuilder, &(SceneContext.SceneVelocity), SubsurfaceTextureDescriptor.Extent, TEXT("Velocity")); 
@@ -954,16 +955,20 @@ void ComputeSubsurfaceForView(
 
 		// Call the indirect setup
 		{
-			FRDGTextureSRVDesc SceneTextureSRVDesc = FRDGTextureSRVDesc::Create(SceneTexture);
+			FRDGTextureSRVDesc SceneColorTextureSRVDesc = FRDGTextureSRVDesc::Create(SceneColorTexture);
 			FRDGTextureUAVDesc SetupTextureOutDesc(SetupTexture, 0);
 
 			typedef FSubsurfaceIndirectDispatchSetupCS SHADER;
 			SHADER::FParameters* PassParameters = GraphBuilder.AllocParameters<SHADER::FParameters>();
 			PassParameters->Subsurface = SubsurfaceCommonParameters;
 			PassParameters->Output = SubsurfaceViewportParameters;
-			PassParameters->SubsurfaceInput0 = GetSubsurfaceInput(SceneTexture, SceneViewportParameters);
+			PassParameters->SubsurfaceInput0 = GetSubsurfaceInput(SceneColorTexture, SceneViewportParameters);
 			PassParameters->SubsurfaceSampler0 = PointClampSampler;
 			PassParameters->SetupTexture = GraphBuilder.CreateUAV(SetupTextureOutDesc);
+			if (bUseProfileIdCache)
+			{
+				PassParameters->ProfileIdTexture = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ProfileIdTexture));
+			}
 			PassParameters->RWBurleyGroupBuffer = GraphBuilder.CreateUAV(BurleyGroupBuffer, EPixelFormat::PF_R32_UINT);
 			PassParameters->RWSeparableGroupBuffer = GraphBuilder.CreateUAV(SeparableGroupBuffer, EPixelFormat::PF_R32_UINT);
 			PassParameters->SubsurfaceUniformParameters = UniformBuffer;
@@ -972,6 +977,7 @@ void ComputeSubsurfaceForView(
 			ComputeShaderPermutationVector.Set<SHADER::FDimensionHalfRes>(bHalfRes);
 			ComputeShaderPermutationVector.Set<SHADER::FDimensionCheckerboard>(bCheckerboard);
 			ComputeShaderPermutationVector.Set<SHADER::FRunningInSeparable>(bForceRunningInSeparable);
+			ComputeShaderPermutationVector.Set<SHADER::FDimensionEnableProfileIDCache>(bUseProfileIdCache);
 			TShaderMapRef<SHADER> ComputeShader(View.ShaderMap, ComputeShaderPermutationVector);
 
 			FComputeShaderUtils::AddPass(
@@ -991,7 +997,7 @@ void ComputeSubsurfaceForView(
 		if(!bForceRunningInSeparable)
 		{
 			// Generate mipmap for the diffuse scene color and depth, use bilinear filter
-			FGenerateMips::Execute(&GraphBuilder, SetupTexture, BilinearBorderSampler);
+			FGenerateMips::Execute(GraphBuilder, SetupTexture, BilinearBorderSampler);
 		}
 
 		typedef FSubsurfaceIndirectDispatchCS SHADER;
@@ -1090,22 +1096,27 @@ void ComputeSubsurfaceForView(
 					PassParameters->SubsurfaceSampler2 = PointClampSampler;
 				}
 
+				if (bUseProfileIdCache)
+				{
+					PassParameters->ProfileIdTexture = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ProfileIdTexture));
+				}
+
 				SHADER::FPermutationDomain ComputeShaderPermutationVector;
 				ComputeShaderPermutationVector.Set<SHADER::FSubsurfacePassFunction>(SubsurfacePassFunction);
 				ComputeShaderPermutationVector.Set<SHADER::FDimensionQuality>(SHADER::GetQuality());
-				ComputeShaderPermutationVector.Set<SHADER::FSubsurfaceSamplerType>(SHADER::GetSamplerType());
+                ComputeShaderPermutationVector.Set<SHADER::FBilateralFilterKernelFunctionType>(SHADER::GetBilateralFilterKernelFunctionType());
 				ComputeShaderPermutationVector.Set<SHADER::FSubsurfaceType>(SubsurfaceType);
 				ComputeShaderPermutationVector.Set<SHADER::FDimensionHalfRes>(bHalfRes);
 				ComputeShaderPermutationVector.Set<SHADER::FRunningInSeparable>(bForceRunningInSeparable);
+				ComputeShaderPermutationVector.Set<SHADER::FDimensionEnableProfileIDCache>(bUseProfileIdCache);
 				TShaderMapRef<SHADER> ComputeShader(View.ShaderMap, ComputeShaderPermutationVector);
 
 				FComputeShaderUtils::AddPass(
 					GraphBuilder,
-					RDG_EVENT_NAME("%s(%s %s %s %s%s%s)",
+					RDG_EVENT_NAME("%s(%s %s %s %s%s)",
 						PassInfo.Name,
 						SHADER::GetEventName(ComputeShaderPermutationVector.Get<SHADER::FSubsurfacePassFunction>()),
 						SHADER::GetEventName(ComputeShaderPermutationVector.Get<SHADER::FDimensionQuality>()),
-						SHADER::GetEventName(ComputeShaderPermutationVector.Get<SHADER::FSubsurfaceSamplerType>()),
 						SHADER::GetEventName(ComputeShaderPermutationVector.Get<SHADER::FSubsurfaceType>()),
 						ComputeShaderPermutationVector.Get<SHADER::FDimensionHalfRes>() ? TEXT(" HalfRes") : TEXT(""),
 						ComputeShaderPermutationVector.Get<SHADER::FRunningInSeparable>() ? TEXT(" RunningInSeparable") : TEXT("")),
@@ -1120,8 +1131,8 @@ void ComputeSubsurfaceForView(
 	{
 		FSubsurfaceRecombinePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSubsurfaceRecombinePS::FParameters>();
 		PassParameters->Subsurface = SubsurfaceCommonParameters;
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneTextureOutput, SceneTextureLoadAction);
-		PassParameters->SubsurfaceInput0 = GetSubsurfaceInput(SceneTexture, SceneViewportParameters);
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTextureOutput, SceneColorTextureLoadAction);
+		PassParameters->SubsurfaceInput0 = GetSubsurfaceInput(SceneColorTexture, SceneViewportParameters);
 		PassParameters->SubsurfaceSampler0 = BilinearBorderSampler;
 
 		// Scattering output target is only used when scattering is enabled.
@@ -1170,26 +1181,19 @@ void ComputeSubsurfaceForView(
 	}
 }
 
-FRDGTextureRef ComputeSubsurface(
+FRDGTextureRef AddSubsurfacePass(
 	FRDGBuilder& GraphBuilder,
-	FRDGTextureRef SceneTexture,
-	const TArray<FViewInfo>& Views)
+	TArrayView<const FViewInfo> Views,
+	const uint32 ViewMask,
+	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTextures,
+	FRDGTextureRef SceneColorTexture,
+	FRDGTextureRef SceneColorTextureOutput)
 {
 	const uint32 ViewCount = Views.Num();
 	const uint32 ViewMaskAll = (1 << ViewCount) - 1;
-	const uint32 ViewMask = GetSubsurfaceRequiredViewMask(Views);
+	check(ViewMask);
 
-	// Return the original target if no views have subsurface applied.
-	if (!ViewMask)
-	{
-		return SceneTexture;
-	}
-
-	FRDGTextureDesc SceneColorDesc = SceneTexture->Desc;
-	SceneColorDesc.TargetableFlags |= TexCreate_RenderTargetable;
-	FRDGTextureRef SceneTextureOutput = GraphBuilder.CreateTexture(SceneColorDesc, TEXT("SceneColorSubsurface"));
-
-	ERenderTargetLoadAction SceneTextureLoadAction = ERenderTargetLoadAction::ENoAction;
+	ERenderTargetLoadAction SceneColorTextureLoadAction = ERenderTargetLoadAction::ENoAction;
 
 	const bool bHasNonSubsurfaceView = ViewMask != ViewMaskAll;
 
@@ -1199,37 +1203,31 @@ FRDGTextureRef ComputeSubsurface(
 	 */
 	if (bHasNonSubsurfaceView)
 	{
-		FSubsurfaceViewportCopyPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSubsurfaceViewportCopyPS::FParameters>();
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneTextureOutput, ERenderTargetLoadAction::ENoAction);
-		PassParameters->SubsurfaceInput0_Texture = SceneTexture;
-		PassParameters->SubsurfaceSampler0 = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		RDG_EVENT_SCOPE(GraphBuilder, "SubsurfaceViewportCopy");
 
 		TShaderMapRef<FSubsurfaceViewportCopyPS> PixelShader(Views[0].ShaderMap);
 
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("SubsurfaceViewportCopy"),
-			PassParameters,
-			ERDGPassFlags::Raster,
-			[&Views, ViewMask, ViewCount, PixelShader, SceneTexture, PassParameters](FRHICommandListImmediate& RHICmdList)
+		for (uint32 ViewIndex = 0; ViewIndex < ViewCount; ++ViewIndex)
 		{
-			for (uint32 ViewIndex = 0; ViewIndex < ViewCount; ++ViewIndex)
+			const uint32 ViewBit = 1 << ViewIndex;
+
+			const bool bIsNonSubsurfaceView = (ViewMask & ViewBit) == 0;
+
+			if (bIsNonSubsurfaceView)
 			{
-				const uint32 ViewBit = 1 << ViewIndex;
+				auto* PassParameters = GraphBuilder.AllocParameters<FSubsurfaceViewportCopyPS::FParameters>();
+				PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTextureOutput, SceneColorTextureLoadAction);
+				PassParameters->SubsurfaceInput0_Texture = SceneColorTexture;
+				PassParameters->SubsurfaceSampler0 = TStaticSamplerState<>::GetRHI();
 
-				const bool bIsNonSubsurfaceView = (ViewMask & ViewBit) == 0;
-
-				if (bIsNonSubsurfaceView)
-				{
-					const FViewInfo& View = Views[ViewIndex];
-					const FScreenPassTextureViewport TextureViewport(SceneTexture, View.ViewRect);
-
-					DrawScreenPass(RHICmdList, View, TextureViewport, TextureViewport, PixelShader, *PassParameters);
-				}
+				const FViewInfo& View = Views[ViewIndex];
+				const FScreenPassTextureViewport TextureViewport(SceneColorTexture, View.ViewRect);
+				AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("View%d", ViewIndex), View, TextureViewport, TextureViewport, PixelShader, PassParameters);
+				SceneColorTextureLoadAction = ERenderTargetLoadAction::ELoad;
 			}
-		});
+		}
 
-		// Subsequent render passes should load the texture contents.
-		SceneTextureLoadAction = ERenderTargetLoadAction::ELoad;
+		SceneColorTextureLoadAction = ERenderTargetLoadAction::ELoad;
 	}
 
 	for (uint32 ViewIndex = 0; ViewIndex < ViewCount; ++ViewIndex)
@@ -1243,16 +1241,14 @@ FRDGTextureRef ComputeSubsurface(
 			RDG_EVENT_SCOPE(GraphBuilder, "SubsurfaceScattering(ViewId=%d)", ViewIndex);
 
 			const FViewInfo& View = Views[ViewIndex];
-			const FScreenPassTextureViewport SceneViewport(SceneTexture, View.ViewRect);
+			const FScreenPassTextureViewport SceneViewport(SceneColorTexture, View.ViewRect);
 
-			ComputeSubsurfaceForView(GraphBuilder, View, SceneViewport, SceneTexture, SceneTextureOutput, SceneTextureLoadAction);
-
-			// Subsequent render passes should load the texture contents.
-			SceneTextureLoadAction = ERenderTargetLoadAction::ELoad;
+			AddSubsurfaceViewPass(GraphBuilder, View, SceneViewport, SceneTextures, SceneColorTexture, SceneColorTextureOutput, SceneColorTextureLoadAction);
+			SceneColorTextureLoadAction = ERenderTargetLoadAction::ELoad;
 		}
 	}
 
-	return SceneTextureOutput;
+	return SceneColorTextureOutput;
 }
 
 FScreenPassTexture AddVisualizeSubsurfacePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FVisualizeSubsurfaceInputs& Inputs)
@@ -1269,7 +1265,7 @@ FScreenPassTexture AddVisualizeSubsurfacePass(FRDGBuilder& GraphBuilder, const F
 	const FScreenPassTextureViewport InputViewport(Inputs.SceneColor);
 
 	FSubsurfaceVisualizePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSubsurfaceVisualizePS::FParameters>();
-	PassParameters->Subsurface = GetSubsurfaceCommonParameters(GraphBuilder.RHICmdList, View);
+	PassParameters->Subsurface = GetSubsurfaceCommonParameters(GraphBuilder, View, Inputs.SceneTextures);
 	PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
 	PassParameters->SubsurfaceInput0.Texture = Inputs.SceneColor.Texture;
 	PassParameters->SubsurfaceInput0.Viewport = GetScreenPassTextureViewportParameters(InputViewport);
@@ -1305,32 +1301,28 @@ FScreenPassTexture AddVisualizeSubsurfacePass(FRDGBuilder& GraphBuilder, const F
 	return MoveTemp(Output);
 }
 
-//////////////////////////////////////////////////////////////////////////
-//! Shim methods to hook into the legacy pipeline until the full RDG conversion is complete.
-
-void ComputeSubsurfaceShim(FRHICommandListImmediate& RHICmdList, const TArray<FViewInfo>& Views)
+FRDGTextureRef AddSubsurfacePass(
+	FRDGBuilder& GraphBuilder,
+	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+	TArrayView<const FViewInfo> Views,
+	FRDGTextureRef SceneColorTexture)
 {
-	FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get(RHICmdList);
+	const uint32 ViewMask = GetSubsurfaceRequiredViewMask(Views);
 
-	FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("Subsurface"));
+	if (!ViewMask)
+	{
+		return SceneColorTexture;
+	}
 
-	FRDGTextureRef SceneTexture = GraphBuilder.RegisterExternalTexture(
-		SceneRenderTargets.GetSceneColor(),
-		TEXT("SceneColor"),
-		EResourceTransitionAccess::Unknown);
+	checkf(SceneColorTexture->Desc.NumSamples == 1, TEXT("Subsurface rendering requires the deferred renderer."));
 
-	FRDGTextureRef SceneTextureOutput = ComputeSubsurface(GraphBuilder, SceneTexture, Views);
+	FRDGTextureRef SceneColorOutputTexture = GraphBuilder.CreateTexture(SceneColorTexture->Desc, TEXT("SceneColorSubsurface"));
+	AddSubsurfacePass(GraphBuilder, Views, ViewMask, SceneTexturesUniformBuffer, SceneColorTexture, SceneColorOutputTexture);
 
-	// Extract the result texture out and re-assign it to the scene render targets blackboard.
-	TRefCountPtr<IPooledRenderTarget> SceneTarget;
-	GraphBuilder.QueueTextureExtraction(SceneTextureOutput, &SceneTarget, EResourceTransitionAccess::EWritable);
-	GraphBuilder.Execute();
+	{
+		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+		ConvertToExternalTexture(GraphBuilder, SceneColorOutputTexture, SceneContext.GetSceneColor());
+	}
 
-	SceneRenderTargets.SetSceneColor(SceneTarget);
-
-	// The RT should be released as early as possible to allow sharing of that memory for other purposes.
-	// This becomes even more important with some limited VRam (XBoxOne).
-	SceneRenderTargets.SetLightAttenuation(nullptr);
+	return SceneColorOutputTexture;
 }
-
-//////////////////////////////////////////////////////////////////////////

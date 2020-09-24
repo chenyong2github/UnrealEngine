@@ -499,6 +499,7 @@ void FBoneReferenceCustomization::CustomizeHeader( TSharedRef<IPropertyHandle> S
 			StructPropertyHandle->CreatePropertyNameWidget()
 		]
 		.ValueContent()
+		.MaxDesiredWidth(0.0f)
 		[
 			SNew(SBoneSelectionWidget)
 			.ToolTipText(StructPropertyHandle->GetToolTipText())
@@ -1008,7 +1009,7 @@ TSharedRef<SWidget> SParentPlayerTreeRow::GenerateWidgetForColumn(const FName& C
 		AllowedClasses.Add(UAnimationAsset::StaticClass());
 		HorizBox->AddSlot()
 			.VAlign(VAlign_Center)
-			.AutoWidth()
+			.FillWidth(1.f)
 			[
 				SNew(SObjectPropertyEntryBox)
 				.ObjectPath(this, &SParentPlayerTreeRow::GetCurrentAssetPath)

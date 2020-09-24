@@ -269,11 +269,10 @@ public:
 	/** Drop frame is only support for frame rate of 29.97 or 59.94. */
 	static bool IsDropFormatTimecodeSupported(const FFrameRate& InFrameRate)
 	{
-		// Drop Format Timecode is only valid for 29.97 and 59.94.
-		const FFrameRate TwentyNineNineSeven = FFrameRate(30000, 1001);
-		const FFrameRate FiftyNineNineFour = FFrameRate(60000, 1001);
+		const double InRate = InFrameRate.AsDecimal();
 
-		return InFrameRate == TwentyNineNineSeven || InFrameRate == FiftyNineNineFour;
+		return FMath::IsNearlyEqual(InRate, 30.0/1.001)
+			|| FMath::IsNearlyEqual(InRate, 60.0/1.001);
 	}
 
 	/** If the frame rate support drop frame format and the app wish to use drop frame format by default. */
@@ -286,7 +285,7 @@ public:
 	static CORE_API bool UseDropFormatTimecodeByDefaultWhenSupported();
 
 	/**
-	 * Get the Qualified Timecode formatted in HH:MM:SS:FF or HH;MM;SS;FF depending on if this represents drop-frame timecode or not.
+	 * Get the Qualified Timecode formatted in HH:MM:SS:FF or HH:MM:SS;FF depending on if this represents drop-frame timecode or not.
 	 * @param bForceSignDisplay - Forces the timecode to be prepended with a positive or negative sign.
 								  Standard behavior is to only show the sign when the value is negative.
 	 */
@@ -308,7 +307,7 @@ public:
 
 		if (bDropFrameFormat)
 		{
-			return FString::Printf(TEXT("%s%02d;%02d;%02d;%02d"), SignText, FMath::Abs(Hours), FMath::Abs(Minutes), FMath::Abs(Seconds), FMath::Abs(Frames));
+			return FString::Printf(TEXT("%s%02d:%02d:%02d;%02d"), SignText, FMath::Abs(Hours), FMath::Abs(Minutes), FMath::Abs(Seconds), FMath::Abs(Frames));
 		}
 		else
 		{

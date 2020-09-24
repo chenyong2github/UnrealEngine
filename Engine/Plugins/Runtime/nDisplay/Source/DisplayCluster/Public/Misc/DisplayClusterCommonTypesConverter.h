@@ -49,6 +49,13 @@ public:
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////
+// Forward declarations
+//////////////////////////////////////////////////////////////////////////////////////////////
+template <> FString FDisplayClusterTypesConverter::ToHexString  <float>(const float&   from);
+template <> float   FDisplayClusterTypesConverter::FromHexString<float>(const FString& from);
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////
 // TYPE --> STRING
 //////////////////////////////////////////////////////////////////////////////////////////////
 template <> inline FString FDisplayClusterTypesConverter::ToString<>(const FString& from)    { return from; }
@@ -67,9 +74,20 @@ template <> inline FString FDisplayClusterTypesConverter::ToString<>(const FQuat
 template <> inline FString FDisplayClusterTypesConverter::ToString<>(const FIntPoint& from)  { return from.ToString(); }
 
 // We can't just use FTimecode ToString as that loses information.
-template <> inline FString FDisplayClusterTypesConverter::ToString<>(const FTimecode& from)  { return FString::Printf(TEXT("%d;%d;%d;%d;%d"), from.bDropFrameFormat ? 1 : 0, from.Hours, from.Minutes, from.Seconds, from.Frames); }
-template <> inline FString FDisplayClusterTypesConverter::ToString<>(const FFrameRate& from) { return FString::Printf(TEXT("%d;%d"), from.Numerator, from.Denominator); }
-template <> inline FString FDisplayClusterTypesConverter::ToString<>(const FQualifiedFrameTime& from) { return FString::Printf(TEXT("%d;%s;%d;%d"), from.Time.GetFrame().Value, *FString::SanitizeFloat(from.Time.GetSubFrame()), from.Rate.Numerator, from.Rate.Denominator); }
+template <> inline FString FDisplayClusterTypesConverter::ToString<>(const FTimecode& from)
+{
+	return FString::Printf(TEXT("%d;%d;%d;%d;%d"), from.bDropFrameFormat ? 1 : 0, from.Hours, from.Minutes, from.Seconds, from.Frames);
+}
+
+template <> inline FString FDisplayClusterTypesConverter::ToString<>(const FFrameRate& from)
+{
+	return FString::Printf(TEXT("%d;%d"), from.Numerator, from.Denominator);
+}
+
+template <> inline FString FDisplayClusterTypesConverter::ToString<>(const FQualifiedFrameTime& from)
+{
+	return FString::Printf(TEXT("%d;%s;%d;%d"), from.Time.GetFrame().Value, *ToHexString(from.Time.GetSubFrame()), from.Rate.Numerator, from.Rate.Denominator);
+}
 
 template <> inline FString FDisplayClusterTypesConverter::ToString<>(const EDisplayClusterOperationMode& from)
 {
@@ -249,7 +267,7 @@ template <> inline FQualifiedFrameTime FDisplayClusterTypesConverter::FromString
 	// We are expecting 4 "parts" - Frame, SubFrame, Numerator, Denominator.
 	if (found == 4)
 	{
-		frameTime.Time = FFrameTime(FromString<int32>(parts[0]), FromString<float>(parts[1]));
+		frameTime.Time = FFrameTime(FromString<int32>(parts[0]), FromHexString<float>(parts[1]));
 		frameTime.Rate.Numerator = FromString<int32>(parts[2]);
 		frameTime.Rate.Denominator = FromString<int32>(parts[3]);
 	}

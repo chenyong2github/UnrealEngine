@@ -35,15 +35,13 @@ protected:
 
 private:
 	void OnMapLoadFinished(UWorld* NewWorld);
-	void OnMoviePipelineFinished(UMoviePipeline* InMoviePipeline);
+	void OnMoviePipelineFinished(UMoviePipeline* InMoviePipeline, bool bFatalError);
 	void OnApplicationQuit();
 	void OnTick();
 
 	void BackupState();
 	void ModifyState(const UMoviePipelineExecutorJob* InJob);
 	void RestoreState();
-
-	static UWorld* FindCurrentWorld();
 
 private:
 	/** If using delayed initialization, how many frames are left before we call Initialize. Will be -1 if not actively counting down. */

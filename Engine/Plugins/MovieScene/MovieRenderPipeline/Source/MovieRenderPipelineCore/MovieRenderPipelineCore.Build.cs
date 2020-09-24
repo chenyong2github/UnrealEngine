@@ -31,14 +31,14 @@ public class MovieRenderPipelineCore : ModuleRules
                 "MovieSceneTracks",
 				"LevelSequence",
 				"Engine",
-                "ImageWriteQueue", // For debug tile writing
-            }
-        );
+				"ImageWriteQueue", // For debug tile writing
+				"OpenColorIO",
+			}
+		);
 
 		if (Target.bBuildEditor == true)
         {
 			PublicDependencyModuleNames.Add("MovieSceneTools");
         }
-
 	}
 }

@@ -9,6 +9,8 @@
 #include "AudioMixerPlatformXAudio2.h"
 #include "AudioMixer.h"
 #include "HAL/PlatformAffinity.h"
+#include "HAL/PlatformTime.h"
+#include "HAL/PlatformProcess.h"
 
 #ifndef WITH_XMA2
 #define WITH_XMA2 0

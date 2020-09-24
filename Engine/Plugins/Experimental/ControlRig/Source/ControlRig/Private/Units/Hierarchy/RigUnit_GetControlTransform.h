@@ -8,14 +8,14 @@
 /**
  * GetControlBool is used to retrieve a single Bool from a hierarchy.
  */
-USTRUCT(meta=(DisplayName="Get Control Bool", Category="Controls", DocumentationPolicy = "Strict", Keywords="GetControlBool", PrototypeName = "GetControlValue"))
+USTRUCT(meta=(DisplayName="Get Control Bool", Category="Controls", DocumentationPolicy = "Strict", Keywords="GetControlBool", PrototypeName = "GetControlValue", Varying))
 struct FRigUnit_GetControlBool : public FRigUnit
 {
 	GENERATED_BODY()
 
 	FRigUnit_GetControlBool()
 		: BoolValue(false)
-		, CachedControlIndex(INDEX_NONE)
+		, CachedControlIndex(FCachedRigElement())
 	{}
 
 	RIGVM_METHOD()
@@ -24,7 +24,7 @@ struct FRigUnit_GetControlBool : public FRigUnit
 	/**
 	 * The name of the Control to retrieve the bool for.
 	 */
-	UPROPERTY(meta = (Input, CustomWidget = "ControlName", Constant))
+	UPROPERTY(meta = (Input, CustomWidget = "ControlName" ))
 	FName Control;
 
 	// The current bool of the given bone - or identity in case it wasn't found.
@@ -33,13 +33,13 @@ struct FRigUnit_GetControlBool : public FRigUnit
 
 	// Used to cache the internally used bone index
 	UPROPERTY()
-	int32 CachedControlIndex;
+	FCachedRigElement CachedControlIndex;
 };
 
 /**
  * GetControlFloat is used to retrieve a single Float from a hierarchy.
  */
-USTRUCT(meta=(DisplayName="Get Control Float", Category="Controls", DocumentationPolicy = "Strict", Keywords="GetControlFloat", PrototypeName = "GetControlValue"))
+USTRUCT(meta=(DisplayName="Get Control Float", Category="Controls", DocumentationPolicy = "Strict", Keywords="GetControlFloat", PrototypeName = "GetControlValue", Varying))
 struct FRigUnit_GetControlFloat : public FRigUnit
 {
 	GENERATED_BODY()
@@ -48,7 +48,7 @@ struct FRigUnit_GetControlFloat : public FRigUnit
 		: FloatValue(0.f)
 		, Minimum(0.f)
 		, Maximum(0.f)
-		, CachedControlIndex(INDEX_NONE)
+		, CachedControlIndex(FCachedRigElement())
 	{}
 
 	RIGVM_METHOD()
@@ -57,7 +57,7 @@ struct FRigUnit_GetControlFloat : public FRigUnit
 	/**
 	 * The name of the Control to retrieve the Float for.
 	 */
-	UPROPERTY(meta = (Input, CustomWidget = "ControlName", Constant))
+	UPROPERTY(meta = (Input, CustomWidget = "ControlName" ))
 	FName Control;
 
 	// The current value of the control.
@@ -74,13 +74,54 @@ struct FRigUnit_GetControlFloat : public FRigUnit
 
 	// Used to cache the internally used bone index
 	UPROPERTY()
-	int32 CachedControlIndex;
+	FCachedRigElement CachedControlIndex;
+};
+
+/**
+ * GetControlFloat is used to retrieve a single Integer from a hierarchy.
+ */
+USTRUCT(meta=(DisplayName="Get Control Integer", Category="Controls", DocumentationPolicy = "Strict", Keywords="GetControlInteger,GetControlEnum", PrototypeName = "GetControlValue", Varying))
+struct FRigUnit_GetControlInteger : public FRigUnit
+{
+	GENERATED_BODY()
+
+	FRigUnit_GetControlInteger()
+		: IntegerValue(0)
+		, Minimum(0)
+		, Maximum(0)
+		, CachedControlIndex(FCachedRigElement())
+	{}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	/**
+	 * The name of the Control to retrieve the Integer for.
+	 */
+	UPROPERTY(meta = (Input, CustomWidget = "ControlName" ))
+	FName Control;
+
+	// The current value of the control.
+	UPROPERTY(meta = (Output))
+	int32 IntegerValue;
+
+	// The minimum value of the control.
+	UPROPERTY(meta = (Output))
+	int32 Minimum;
+
+	// The maximum value of the control.
+	UPROPERTY(meta = (Output))
+	int32 Maximum;
+
+	// Used to cache the internally used bone index
+	UPROPERTY()
+	FCachedRigElement CachedControlIndex;
 };
 
 /**
  * GetControlVector2D is used to retrieve a single Vector2D from a hierarchy.
  */
-USTRUCT(meta=(DisplayName="Get Control Vector2D", Category="Controls", DocumentationPolicy = "Strict", Keywords="GetControlVector2D", PrototypeName = "GetControlValue"))
+USTRUCT(meta=(DisplayName="Get Control Vector2D", Category="Controls", DocumentationPolicy = "Strict", Keywords="GetControlVector2D", PrototypeName = "GetControlValue", Varying))
 struct FRigUnit_GetControlVector2D : public FRigUnit
 {
 	GENERATED_BODY()
@@ -89,7 +130,7 @@ struct FRigUnit_GetControlVector2D : public FRigUnit
 		: Vector(FVector2D::ZeroVector)
 		, Minimum(FVector2D::ZeroVector)
 		, Maximum(FVector2D::ZeroVector)
-		, CachedControlIndex(INDEX_NONE)
+		, CachedControlIndex(FCachedRigElement())
 	{}
 
 	RIGVM_METHOD()
@@ -98,7 +139,7 @@ struct FRigUnit_GetControlVector2D : public FRigUnit
 	/**
 	 * The name of the Control to retrieve the Vector2D for.
 	 */
-	UPROPERTY(meta = (Input, CustomWidget = "ControlName", Constant))
+	UPROPERTY(meta = (Input, CustomWidget = "ControlName" ))
 	FName Control;
 
 	// The current value of the control.
@@ -115,13 +156,13 @@ struct FRigUnit_GetControlVector2D : public FRigUnit
 
 	// Used to cache the internally used bone index
 	UPROPERTY()
-	int32 CachedControlIndex;
+	FCachedRigElement CachedControlIndex;
 };
 
 /**
  * GetControlVector is used to retrieve a single Vector from a hierarchy.
  */
-USTRUCT(meta=(DisplayName="Get Control Vector", Category="Controls", DocumentationPolicy = "Strict", Keywords="GetControlVector", PrototypeName = "GetControlValue"))
+USTRUCT(meta=(DisplayName="Get Control Vector", Category="Controls", DocumentationPolicy = "Strict", Keywords="GetControlVector", PrototypeName = "GetControlValue", Varying))
 struct FRigUnit_GetControlVector : public FRigUnit
 {
 	GENERATED_BODY()
@@ -131,7 +172,7 @@ struct FRigUnit_GetControlVector : public FRigUnit
 		, Vector(FVector::ZeroVector)
 		, Minimum(FVector::ZeroVector)
 		, Maximum(FVector::ZeroVector)
-		, CachedControlIndex(INDEX_NONE)
+		, CachedControlIndex(FCachedRigElement())
 	{}
 
 	RIGVM_METHOD()
@@ -140,7 +181,7 @@ struct FRigUnit_GetControlVector : public FRigUnit
 	/**
 	 * The name of the Control to retrieve the Vector for.
 	 */
-	UPROPERTY(meta = (Input, CustomWidget = "ControlName", Constant))
+	UPROPERTY(meta = (Input, CustomWidget = "ControlName" ))
 	FName Control;
 
 	/**
@@ -164,13 +205,13 @@ struct FRigUnit_GetControlVector : public FRigUnit
 
 	// Used to cache the internally used bone index
 	UPROPERTY()
-	int32 CachedControlIndex;
+	FCachedRigElement CachedControlIndex;
 };
 
 /**
  * GetControlRotator is used to retrieve a single Rotator from a hierarchy.
  */
-USTRUCT(meta=(DisplayName="Get Control Rotator", Category="Controls", DocumentationPolicy = "Strict", Keywords="GetControlRotator", PrototypeName = "GetControlValue"))
+USTRUCT(meta=(DisplayName="Get Control Rotator", Category="Controls", DocumentationPolicy = "Strict", Keywords="GetControlRotator", PrototypeName = "GetControlValue", Varying))
 struct FRigUnit_GetControlRotator : public FRigUnit
 {
 	GENERATED_BODY()
@@ -180,7 +221,7 @@ struct FRigUnit_GetControlRotator : public FRigUnit
 		, Rotator(FRotator::ZeroRotator)
 		, Minimum(FRotator::ZeroRotator)
 		, Maximum(FRotator::ZeroRotator)
-		, CachedControlIndex(INDEX_NONE)
+		, CachedControlIndex(FCachedRigElement())
 	{
 	}
 
@@ -190,7 +231,7 @@ struct FRigUnit_GetControlRotator : public FRigUnit
 	/**
 	 * The name of the Control to retrieve the Rotator for.
 	 */
-	UPROPERTY(meta = (Input, CustomWidget = "ControlName", Constant))
+	UPROPERTY(meta = (Input, CustomWidget = "ControlName" ))
 	FName Control;
 
 	/**
@@ -214,13 +255,13 @@ struct FRigUnit_GetControlRotator : public FRigUnit
 
 	// Used to cache the internally used bone index
 	UPROPERTY()
-	int32 CachedControlIndex;
+	FCachedRigElement CachedControlIndex;
 };
 
 /**
  * GetControlTransform is used to retrieve a single transform from a hierarchy.
  */
-USTRUCT(meta=(DisplayName="Get Control Transform", Category="Controls", DocumentationPolicy = "Strict", Keywords="GetControlTransform", PrototypeName = "GetControlValue"))
+USTRUCT(meta=(DisplayName="Get Control Transform", Category="Controls", DocumentationPolicy = "Strict", Keywords="GetControlTransform", PrototypeName = "GetControlValue", Varying))
 struct FRigUnit_GetControlTransform : public FRigUnit
 {
 	GENERATED_BODY()
@@ -230,7 +271,7 @@ struct FRigUnit_GetControlTransform : public FRigUnit
 		, Transform(FTransform::Identity)
 		, Minimum(FTransform::Identity)
 		, Maximum(FTransform::Identity)
-		, CachedControlIndex(INDEX_NONE)
+		, CachedControlIndex(FCachedRigElement())
 	{}
 
 	RIGVM_METHOD()
@@ -239,7 +280,7 @@ struct FRigUnit_GetControlTransform : public FRigUnit
 	/**
 	 * The name of the Control to retrieve the transform for.
 	 */
-	UPROPERTY(meta = (Input, CustomWidget = "ControlName", Constant))
+	UPROPERTY(meta = (Input, CustomWidget = "ControlName" ))
 	FName Control;
 
 	/**
@@ -263,5 +304,5 @@ struct FRigUnit_GetControlTransform : public FRigUnit
 
 	// Used to cache the internally used bone index
 	UPROPERTY()
-	int32 CachedControlIndex;
+	FCachedRigElement CachedControlIndex;
 };

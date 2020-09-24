@@ -24,6 +24,13 @@ namespace UnrealBuildTool
 			DirectoryReference.Combine(UnrealBuildTool.EngineSourceDirectory, "Programs");
 
 		private readonly CommandLineArguments Arguments;
+		
+		/// <summary>
+		/// List of deprecated platforms.
+		/// Don't generate project model for these platforms unless they are specified in "Platforms" console arguments. 
+		/// </summary>
+		/// <returns></returns>
+		private readonly HashSet<UnrealTargetPlatform> DeprecatedPlatforms = new HashSet<UnrealTargetPlatform> { UnrealTargetPlatform.Win32};
 
 
 		/// <summary>
@@ -45,10 +52,16 @@ namespace UnrealBuildTool
 		HashSet<UnrealTargetConfiguration> TargetConfigurations = new HashSet<UnrealTargetConfiguration>();
 
 		/// <summary>
-		/// Projects to generate project filess for
+		/// Projects to generate project files for
 		/// </summary>
 		[CommandLine("-ProjectNames=", ListSeparator = '+')]
 		HashSet<string> ProjectNames = new HashSet<string>();
+
+		/// <summary>
+		/// Should format JSON files in human readable form, or use packed one without indents
+		/// </summary>
+		[CommandLine("-Minimize", Value = "Yes")]
+		private JsonWriterStyle Minimize = JsonWriterStyle.Readable;
 
 		public RiderProjectFileGenerator(FileReference InOnlyGameProject,
 			CommandLineArguments InArguments)
@@ -112,6 +125,9 @@ namespace UnrealBuildTool
 
 				List<UnrealTargetPlatform> FilteredPlatforms = PlatformsToGenerate.Where(it =>
 				{
+					// Skip deprecated platforms if they are not specified in commandline arguments directly 
+					if (DeprecatedPlatforms.Contains(it) && !Platforms.Contains(it)) return false;
+					
 					if (UEBuildPlatform.IsPlatformAvailable(it))
 						return true;
 					Log.TraceWarning(
@@ -129,11 +145,14 @@ namespace UnrealBuildTool
 
 				for (int ProjectFileIndex = 0; ProjectFileIndex < ProjectsToGenerate.Count; ++ProjectFileIndex)
 				{
-					ProjectFile CurProject = ProjectsToGenerate[ProjectFileIndex];
-					if (!CurProject.WriteProjectFile(FilteredPlatforms, ConfigurationsToGenerate.ToList(),
-						PlatformProjectGenerators))
+					RiderProjectFile CurProject = ProjectsToGenerate[ProjectFileIndex] as RiderProjectFile;
+					if(CurProject != null)
 					{
-						return false;
+						if (!CurProject.WriteProjectFile(FilteredPlatforms, ConfigurationsToGenerate.ToList(),
+							PlatformProjectGenerators, Minimize))
+						{
+							return false;
+						}
 					}
 
 					Progress.Write(ProjectFileIndex + 1, TotalProjectFileCount);
@@ -145,15 +164,15 @@ namespace UnrealBuildTool
 			return true;
 		}
 
-		private FileReference GetRiderProjectLocation(TargetRules TargetRulesObject, DirectoryReference GameFolder, string GeneratedProjectName)
+		private FileReference GetRiderProjectLocation(string GeneratedProjectName)
 		{
-			if (TargetRulesObject.Type != TargetType.Program && GameFolder != null)
+			if (OnlyGameProject != null && FileReference.Exists(OnlyGameProject))
 			{
-				return FileReference.Combine(GameFolder, "Intermediate", "ProjectFiles", GeneratedProjectName + ProjectFileExtension);
+				return FileReference.Combine(OnlyGameProject.Directory, "Intermediate", "ProjectFiles", ".Rider", GeneratedProjectName);
 			}
 			else
 			{
-				return GetProjectLocation(GeneratedProjectName);
+				return FileReference.Combine( UnrealBuildTool.EngineDirectory, "Intermediate", "ProjectFiles", ".Rider", GeneratedProjectName);
 			}
 		}
 
@@ -251,7 +270,7 @@ namespace UnrealBuildTool
 					if (GeneratedProjectName == null)
 					{
 						ProjectFile ExistingProjectFile;
-						if (ProjectFileMap.TryGetValue(GetRiderProjectLocation(TargetRulesObject, GameFolder, ProjectFileNameBase), out ExistingProjectFile) &&
+						if (ProjectFileMap.TryGetValue(GetRiderProjectLocation(ProjectFileNameBase), out ExistingProjectFile) &&
 						    ExistingProjectFile.ProjectTargets.Any(x => x.TargetRules.Type == TargetRulesObject.Type))
 						{
 							GeneratedProjectName = TargetRulesObject.Name;
@@ -262,7 +281,7 @@ namespace UnrealBuildTool
 						}
 					}
 
-					FileReference ProjectFilePath = GetRiderProjectLocation(TargetRulesObject, GameFolder, GeneratedProjectName);
+					FileReference ProjectFilePath = GetRiderProjectLocation(GeneratedProjectName);
 					if (TargetRulesObject.Type == TargetType.Game || TargetRulesObject.Type == TargetType.Client ||
 					    TargetRulesObject.Type == TargetType.Server)
 					{
@@ -399,7 +418,7 @@ namespace UnrealBuildTool
 		{
 			ConfigureProjectFileGeneration();
 
-			if (bGeneratingGameProjectFiles || UnrealBuildTool.IsEngineInstalled())
+			if (bGeneratingGameProjectFiles)
 			{
 				MasterProjectPath = OnlyGameProject.Directory;
 				MasterProjectName = OnlyGameProject.GetFileNameWithoutExtension();

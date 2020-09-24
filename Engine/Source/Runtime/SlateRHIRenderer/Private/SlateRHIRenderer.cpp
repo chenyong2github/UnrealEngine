@@ -152,7 +152,7 @@ void FViewportInfo::RecreateDepthBuffer_RenderThread()
 		FTexture2DRHIRef ShaderResourceUnused;
 		FRHIResourceCreateInfo CreateInfo(FClearValueBinding::DepthZero);
 
-		uint32 TargetableTextureFlags = TexCreate_DepthStencilTargetable;
+		ETextureCreateFlags TargetableTextureFlags = TexCreate_DepthStencilTargetable;
 		if (CVarMemorylessDepthStencil.GetValueOnAnyThread() != 0)
 		{
 			// Use Memoryless target, expecting that DepthStencil content is intermediate and can't be preserved between renderpasses
@@ -335,12 +335,12 @@ void FSlateRHIRenderer::CreateViewport(const TSharedRef<SWindow> Window)
 		NewInfo->ProjectionMatrix = CreateProjectionMatrix( Width, Height );
 		if (FPlatformMisc::IsStandaloneStereoOnlyDevice())
 		{
-			NewInfo->PixelFormat = PF_B8G8R8A8;
+			NewInfo->PixelFormat = GetSlateRecommendedColorFormat();
 		}
 #if ALPHA_BLENDED_WINDOWS		
 		if (Window->GetTransparencySupport() == EWindowTransparency::PerPixel)
 		{
-			NewInfo->PixelFormat = PF_B8G8R8A8;
+			NewInfo->PixelFormat = GetSlateRecommendedColorFormat();
 		}
 #endif
 
@@ -466,7 +466,8 @@ void FSlateRHIRenderer::UpdateFullscreenState(const TSharedRef<SWindow> Window, 
 		uint32 ResX = OverrideResX ? OverrideResX : GSystemResolution.ResX;
 		uint32 ResY = OverrideResY ? OverrideResY : GSystemResolution.ResY;
 
-		if ((GIsEditor && Window->IsViewportSizeDrivenByWindow()) || (Window->GetWindowMode() == EWindowMode::WindowedFullscreen))
+		bool bIsRenderingStereo = GEngine && GEngine->XRSystem.IsValid() && GEngine->StereoRenderingDevice.IsValid() && GEngine->StereoRenderingDevice->IsStereoEnabled();
+		if ((GIsEditor && Window->IsViewportSizeDrivenByWindow()) || (Window->GetWindowMode() == EWindowMode::WindowedFullscreen) || bIsRenderingStereo)
 		{
 			ResX = ViewInfo->DesiredWidth;
 			ResY = ViewInfo->DesiredHeight;
@@ -760,10 +761,10 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 				|| !ViewportInfo.HDRSourceRT || ViewportInfo.HDRSourceRT->GetRenderTargetItem().TargetableTexture->GetFormat() != BackBuffer->GetFormat()))
 			{
 				// Composition buffers
-				uint32 BaseFlags = RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform) ? TexCreate_NoFastClearFinalize | TexCreate_DisableDCC : TexCreate_None;
+				ETextureCreateFlags BaseFlags = RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform) ? TexCreate_NoFastClearFinalize | TexCreate_DisableDCC : TexCreate_None;
 
 				FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(ViewportWidth, ViewportHeight),
-					PF_B8G8R8A8,
+					GetSlateRecommendedColorFormat(),
 					FClearValueBinding::Transparent,
 					BaseFlags,
 					TexCreate_ShaderResource | TexCreate_RenderTargetable,
@@ -794,7 +795,11 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 			{
 				bClear = true; // Force a clear of the UI buffer to black
 
-				RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, ViewportInfo.HDRSourceRT->GetRenderTargetItem().TargetableTexture);
+				FRHITransitionInfo Transitions[] = {
+					FRHITransitionInfo(FinalBuffer, ERHIAccess::Unknown, ERHIAccess::ResolveSrc),
+					FRHITransitionInfo(ViewportInfo.HDRSourceRT->GetRenderTargetItem().TargetableTexture, ERHIAccess::Unknown, ERHIAccess::ResolveDst)
+				};
+				RHICmdList.Transition(MakeArrayView(Transitions, UE_ARRAY_COUNT(Transitions)));
 
 				// Grab HDR backbuffer
 				FResolveParams ResolveParams;
@@ -821,8 +826,9 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 
 				GRenderTargetPool.FindFreeElement(RHICmdList, Desc, HDRRenderRT, TEXT("HDRTargetRT"));
 
-				FResolveParams ResolveParams;
-				RHICmdList.CopyToResolveTarget(FinalBuffer, FinalBuffer, ResolveParams);
+				// FIXME: is this necessary?
+				RHICmdList.Transition(FRHITransitionInfo(FinalBuffer, ERHIAccess::Unknown, ERHIAccess::SRVMask));
+
 				BackBuffer = HDRRenderRT->GetRenderTargetItem().TargetableTexture->GetTexture2D();
 			}
 #endif
@@ -834,7 +840,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 
 			RHICmdList.BeginDrawingViewport(ViewportInfo.ViewportRHI, FTextureRHIRef());
 			RHICmdList.SetViewport(0, 0, 0, ViewportWidth, ViewportHeight, 0.0f);
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, BackBuffer);
+			RHICmdList.Transition(FRHITransitionInfo(BackBuffer, ERHIAccess::Unknown, ERHIAccess::RTV));
 
 			{
 				FRHIRenderPassInfo RPInfo(BackBuffer, ERenderTargetActions::Load_Store);
@@ -924,7 +930,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 				if (bLUTStale)
 				{
 					// #todo-renderpasses will this touch every pixel? use NoAction?
-					RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, ViewportInfo.ColorSpaceLUTRT);
+					RHICmdList.Transition(FRHITransitionInfo(ViewportInfo.ColorSpaceLUTRT, ERHIAccess::Unknown, ERHIAccess::RTV));
 					FRHIRenderPassInfo RPInfo(ViewportInfo.ColorSpaceLUTRT, ERenderTargetActions::Load_Store);
 					RHICmdList.BeginRenderPass(RPInfo, TEXT("GenerateLUT"));
 					{
@@ -971,11 +977,14 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 					if (RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform))
 					{
 						IPooledRenderTarget* RenderTargets[] = { ViewportInfo.UITargetRT.GetReference() };
-						FRenderTargetWriteMask::Decode<1>(RHICmdList, ShaderMap, RenderTargets, ViewportInfo.UITargetRTMask, 0, TEXT("UIRTWriteMask"));
+						FRenderTargetWriteMask::Decode(RHICmdList, ShaderMap, RenderTargets, ViewportInfo.UITargetRTMask, TexCreate_None, TEXT("UIRTWriteMask"));
 					}
 
-					RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, FinalBuffer);
-					RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, ViewportInfo.HDRSourceRT->GetRenderTargetItem().TargetableTexture);
+					FRHITransitionInfo Transitions[] = {
+						FRHITransitionInfo(FinalBuffer, ERHIAccess::Unknown, ERHIAccess::RTV),
+						FRHITransitionInfo(ViewportInfo.HDRSourceRT->GetRenderTargetItem().TargetableTexture, ERHIAccess::Unknown, ERHIAccess::SRVGraphics)
+					};
+					RHICmdList.Transition(MakeArrayView(Transitions, UE_ARRAY_COUNT(Transitions)));
 					FRHIRenderPassInfo RPInfo(FinalBuffer, ERenderTargetActions::Load_Store);
 					RHICmdList.BeginRenderPass(RPInfo, TEXT("SlateComposite"));
 					{
@@ -1087,7 +1096,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 				const FVector2D WindowSize = WindowElementList.GetWindowSize();
 				GEngine->StereoRenderingDevice->RenderTexture_RenderThread(RHICmdList, RHICmdList.GetViewportBackBuffer(ViewportInfo.ViewportRHI), ViewportInfo.GetRenderTargetTexture(), WindowSize);
 			}
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, BackBuffer);
+			RHICmdList.Transition(FRHITransitionInfo(BackBuffer, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
 
 			// Fire delegate to inform bound functions the back buffer is ready to be captured.
 			OnBackBufferReadyToPresentDelegate.Broadcast(*DrawCommandParams.Window, BackBuffer);
@@ -1239,7 +1248,7 @@ void FSlateRHIRenderer::DrawWindows_Private(FSlateDrawBuffer& WindowDrawBuffer)
 					}
 					else
 					{
-						UE_LOG(LogSlate, Error, TEXT("The ViewportInfo could not be found for Window '%s'"), *FReflectionMetaData::GetWidgetPath(Window));
+						UE_LOG(LogSlate, Error, TEXT("The ViewportInfo could not be found for Window."));
 						continue;
 					}
 				}
@@ -1544,7 +1553,7 @@ void FSlateRHIRenderer::SetColorVisionDeficiencyType(EColorVisionDeficiency Type
 FSlateUpdatableTexture* FSlateRHIRenderer::CreateUpdatableTexture(uint32 Width, uint32 Height)
 {
 	const bool bCreateEmptyTexture = true;
-	FSlateTexture2DRHIRef* NewTexture = new FSlateTexture2DRHIRef(Width, Height, PF_B8G8R8A8, nullptr, TexCreate_Dynamic, bCreateEmptyTexture);
+	FSlateTexture2DRHIRef* NewTexture = new FSlateTexture2DRHIRef(Width, Height, GetSlateRecommendedColorFormat(), nullptr, TexCreate_Dynamic, bCreateEmptyTexture);
 	if (IsInRenderingThread())
 	{
 		NewTexture->InitResource();
@@ -1639,6 +1648,10 @@ void FSlateRHIRenderer::ClearScenes()
 	}
 }
 
+EPixelFormat FSlateRHIRenderer::GetSlateRecommendedColorFormat()
+{
+	return FPlatformMisc::IsStandaloneStereoOnlyDevice() ? PF_R8G8B8A8 : PF_B8G8R8A8;
+}
 
 FRHICOMMAND_MACRO(FClearCachedRenderingDataCommand)
 {

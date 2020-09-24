@@ -77,6 +77,7 @@ public:
 	virtual void AllocateDefaultPins() override;
 	virtual void ReallocatePinsDuringReconstruction(TArray<UEdGraphPin*>& OldPins) override;
 	virtual void PostPlacedNewNode() override;
+	virtual bool IsCompatibleWithGraph(UEdGraph const* Graph) const override;
 
 	/** UK2Node interface */
 	virtual bool HasExternalDependencies(TArray<UStruct*>* OptionalOutput) const override;

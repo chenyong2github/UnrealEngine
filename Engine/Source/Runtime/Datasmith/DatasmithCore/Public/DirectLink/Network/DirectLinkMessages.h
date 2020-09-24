@@ -1,0 +1,268 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "DirectLink/DirectLinkCommon.h"
+
+#include "CoreMinimal.h"
+
+#include "DirectLinkMessages.generated.h"
+
+namespace DirectLink
+{
+class FScenePipeBase;
+
+
+// Helper function to allocate a UStruct message which memory will be owned and released
+// through FMessageContext.
+// The explicit FMemory::Malloc will match the FMemory::Free used there.
+// This is useful in scenarios where operator new isn't redirected to FMemory::Malloc.
+//
+// usage:
+//    FMyMessage* Message = NewMessage<FMyMessage>();
+//    Endpoint->Publish(Message); // The FMessageEndpoint now owns the Message allocation
+template<typename T, typename... ArgsType>
+T* NewMessage(ArgsType&&... Args)
+{
+	void* Memory = FMemory::Malloc(sizeof(T), alignof(T));
+	return new (Memory) T(Forward<ArgsType>(Args)...);
+}
+
+} // namespace DirectLink
+
+
+
+
+
+
+USTRUCT(meta=(Experimental))
+struct FDirectLinkMsg_EndpointLifecycle
+{
+	GENERATED_BODY()
+
+	enum ELifecycle : uint8
+	{
+		None,
+		Start,
+		Heartbeat,
+		Stop,
+	};
+
+	FDirectLinkMsg_EndpointLifecycle(ELifecycle InLifecycleState = ELifecycle::None, uint32 InEndpointStateRevision = 0)
+		: LifecycleState(InLifecycleState)
+		, EndpointStateRevision(InEndpointStateRevision)
+	{}
+
+	UPROPERTY()
+	uint8 LifecycleState;
+
+	UPROPERTY()
+	uint32 EndpointStateRevision;
+};
+
+
+
+USTRUCT(meta=(Experimental))
+struct FNamedId
+{
+	GENERATED_BODY();
+
+	UPROPERTY()
+	FString Name;
+
+	UPROPERTY()
+	FGuid Id;
+
+	UPROPERTY()
+	bool bIsPublic = false;
+};
+
+USTRUCT(meta=(Experimental))
+struct FDirectLinkMsg_EndpointState
+{
+	GENERATED_BODY();
+	FDirectLinkMsg_EndpointState(uint32 StateRevision=0, uint32 ProtocolVersion=0)
+	: StateRevision(StateRevision)
+	, ProtocolVersion(ProtocolVersion)
+	{}
+
+	UPROPERTY()
+	uint32 StateRevision;
+
+	UPROPERTY()
+	uint32 ProtocolVersion;
+
+	UPROPERTY()
+	FString ComputerName;
+
+	UPROPERTY()
+	FString UserName;
+
+	UPROPERTY()
+	uint32 ProcessId = 0;
+
+	UPROPERTY()
+	FString ExecutableName;
+
+	UPROPERTY()
+	FString NiceName;
+
+	UPROPERTY()
+	TArray<FNamedId> Destinations;
+
+	UPROPERTY()
+	TArray<FNamedId> Sources;
+};
+
+
+
+USTRUCT(meta=(Experimental))
+struct FDirectLinkMsg_QueryEndpointState
+{
+	GENERATED_BODY();
+};
+
+
+
+USTRUCT(meta=(Experimental))
+struct FDirectLinkMsg_OpenStreamRequest
+{
+	GENERATED_BODY();
+	// #ue_directlink_cleanup explicit ctr to force correct init
+
+	UPROPERTY()
+	bool bRequestFromSource = false;
+
+	UPROPERTY()
+	int32 RequestFromStreamPort = DirectLink::InvalidStreamPort;
+
+	UPROPERTY()
+	FGuid SourceGuid;
+
+	UPROPERTY()
+	FGuid DestinationGuid;
+};
+
+
+
+USTRUCT(meta=(Experimental))
+struct FDirectLinkMsg_OpenStreamAnswer
+{
+	GENERATED_BODY();
+
+	UPROPERTY()
+	int32 RecipientStreamPort = DirectLink::InvalidStreamPort;
+
+	UPROPERTY()
+	bool bAccepted = false;
+
+	UPROPERTY()
+	FString Error; // optionnal: may be filled when the request is denied
+
+	UPROPERTY()
+	int32 OpenedStreamPort = DirectLink::InvalidStreamPort;
+};
+
+
+USTRUCT(meta=(Experimental))
+struct FDirectLinkMsg_CloseStreamRequest
+{
+	GENERATED_BODY();
+
+	UPROPERTY()
+	int32 RecipientStreamPort = DirectLink::InvalidStreamPort;
+};
+
+
+
+USTRUCT(meta=(Experimental))
+struct FDirectLinkMsg_DeltaMessage
+{
+	GENERATED_BODY();
+
+	enum EKind
+	{
+		None,
+		SetupScene, // setup the stream for a scene id
+		OpenDelta,
+		SetElements,
+		RemoveElements,
+		CloseDelta,
+	};
+
+	// required for UStructs
+	FDirectLinkMsg_DeltaMessage() = default;
+
+	FDirectLinkMsg_DeltaMessage(EKind Kind, DirectLink::FStreamPort DestinationStreamPort, uint32 BatchNumber, uint32 MessageIndex)
+		: DestinationStreamPort(DestinationStreamPort)
+		, BatchCode(BatchNumber)
+		, MessageCode(MessageIndex)
+		, Kind(Kind)
+	{
+	}
+
+	UPROPERTY()
+	int32 DestinationStreamPort = DirectLink::InvalidStreamPort;
+
+	UPROPERTY()
+	int8 BatchCode = 0;
+
+	UPROPERTY()
+	int32 MessageCode = 0;
+
+	UPROPERTY()
+	uint8 Kind = EKind::None;
+
+	UPROPERTY()
+	TArray<uint8> Payload;
+};
+
+
+USTRUCT(meta=(Experimental))
+struct FDirectLinkMsg_HaveListMessage
+{
+	GENERATED_BODY();
+
+	enum EKind : uint8
+	{
+		None,
+		OpenHaveList, // see Payload
+		HaveListElement, // see NodeIds and Hashes
+		AckDeltaMessage, // trash hack... #ue_directlink_cleanup
+		CloseHaveList,
+	};
+
+	// required for UStructs
+	FDirectLinkMsg_HaveListMessage() = default;
+
+	FDirectLinkMsg_HaveListMessage(EKind Kind, DirectLink::FStreamPort SourceStreamPort, uint32 SyncCycle, uint32 MessageIndex)
+		: SourceStreamPort(SourceStreamPort)
+		, SyncCycle(SyncCycle)
+		, MessageCode(MessageIndex)
+		, Kind(Kind)
+	{
+	}
+
+	UPROPERTY()
+	int32 SourceStreamPort = 0; // FStreamPort
+
+	UPROPERTY()
+	int32 SyncCycle = 0;
+
+	UPROPERTY()
+	int32 MessageCode = 0;
+
+	UPROPERTY()
+	uint8 Kind = 0;
+
+	UPROPERTY()
+	TArray<uint8> Payload;
+
+	UPROPERTY()
+	TArray<int32> NodeIds;
+
+	UPROPERTY()
+	TArray<int32> Hashes;
+};
+
+

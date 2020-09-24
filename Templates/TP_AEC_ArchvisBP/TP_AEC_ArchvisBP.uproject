@@ -72,6 +72,10 @@
 				"Win64",
 				"Mac"
 			]
+		},
+		{
+			"Name": "MovieRenderPipeline",
+			"Enabled": true
 		}
 	]
 }

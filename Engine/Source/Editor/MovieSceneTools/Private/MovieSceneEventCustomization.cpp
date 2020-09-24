@@ -1306,6 +1306,11 @@ void FMovieSceneEventCustomization::SetEventEndpoint(UK2Node* NewEndpoint, UEdGr
 
 	// Forcibly update the panel now that our endpoint has changed
 	PropertyUtilities->ForceRefresh();
+
+	if (NewEndpoint)
+	{
+		FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(NewEndpoint, false);
+	}
 }
 
 void FMovieSceneEventCustomization::CreateEventEndpoint()
@@ -1351,6 +1356,8 @@ void FMovieSceneEventCustomization::CreateEventEndpoint()
 		}
 	}
 
+	UK2Node_CustomEvent* NewEventEndpoint = nullptr;
+
 	FScopedTransaction Transaction(LOCTEXT("CreateEventEndpoint", "Create Event Endpoint"));
 
 	for (const TPair<UMovieSceneSequence*, FSequenceData>& SequencePair : PerSequenceData)
@@ -1388,7 +1395,7 @@ void FMovieSceneEventCustomization::CreateEventEndpoint()
 
 		SequenceDirectorBP->Modify();
 
-		UK2Node_CustomEvent* NewEventEndpoint = FMovieSceneEventUtils::CreateUserFacingEvent(SequenceDirectorBP, Parameters);
+		NewEventEndpoint = FMovieSceneEventUtils::CreateUserFacingEvent(SequenceDirectorBP, Parameters);
 		if (!NewEventEndpoint)
 		{
 			continue;
@@ -1415,6 +1422,11 @@ void FMovieSceneEventCustomization::CreateEventEndpoint()
 	// Ensure that anything listening for property changed notifications are notified of the new binding
 	PropertyHandle->NotifyFinishedChangingProperties();
 	PropertyUtilities->ForceRefresh();
+
+	if (NewEventEndpoint)
+	{
+		FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(NewEventEndpoint, false);
+	}
 }
 
 void FMovieSceneEventCustomization::ClearEventEndpoint()

@@ -5,6 +5,7 @@
 #include "Net/NetworkGranularMemoryLogging.h"
 #include "Engine/LevelStreaming.h"
 #include "Engine/World.h"
+#include "Engine/ActorChannel.h"
 #include "GameFramework/PlayerController.h"
 
 static const int32 MAX_REPLAY_PACKET = 1024 * 2;
@@ -296,4 +297,17 @@ void UReplayNetConnection::SetAnalyticsProvider(TSharedPtr<IAnalyticsProvider> I
 void UReplayNetConnection::SetCheckpointSaveMaxMSPerFrame(const float InCheckpointSaveMaxMSPerFrame)
 {
 	ReplayHelper.CheckpointSaveMaxMSPerFrame = InCheckpointSaveMaxMSPerFrame;
+}
+
+void UReplayNetConnection::NotifyActorChannelCleanedUp(UActorChannel* Channel, EChannelCloseReason CloseReason)
+{
+	Super::NotifyActorChannelCleanedUp(Channel, CloseReason);
+
+	if (Channel && ReplayHelper.HasDeltaCheckpoints())
+	{
+		if (Channel->bOpenedForCheckpoint)
+		{
+			ReplayHelper.RecordingDeltaCheckpointData.ChannelsToClose.Add(Channel->ActorNetGUID, CloseReason);
+		}
+	}
 }

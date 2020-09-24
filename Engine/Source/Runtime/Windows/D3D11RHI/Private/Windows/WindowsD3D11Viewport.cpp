@@ -21,13 +21,7 @@ THIRD_PARTY_INCLUDES_END
 
 static DXGI_SWAP_EFFECT GSwapEffect = DXGI_SWAP_EFFECT_DISCARD;
 static DXGI_SCALING GSwapScaling = DXGI_SCALING_STRETCH;
-static uint32 GSwapChainFlags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 static uint32 GSwapChainBufferCount = 1;
-
-uint32 D3D11GetSwapChainFlags()
-{
-	return GSwapChainFlags;
-}
 
 static int32 GD3D11UseAllowTearing = 1;
 static FAutoConsoleVariableRef CVarD3DUseAllowTearing(
@@ -37,6 +31,7 @@ static FAutoConsoleVariableRef CVarD3DUseAllowTearing(
 	ECVF_RenderThreadSafe| ECVF_ReadOnly
 );
 
+uint32 FD3D11Viewport::GSwapChainFlags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
 FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,uint32 InSizeX,uint32 InSizeY,bool bInIsFullscreen, EPixelFormat InPreferredPixelFormat):
 	D3DRHI(InD3DRHI),
@@ -54,6 +49,7 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 	PixelFormat(InPreferredPixelFormat),
 	PixelColorSpace(EColorSpaceAndEOTF::ERec709_sRGB),
 	bIsFullscreen(bInIsFullscreen),
+	bAllowTearing(false),
 	FrameSyncEvent(InD3DRHI)
 {
 	check(IsInGameThread());
@@ -61,6 +57,8 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 
 	// Ensure that the D3D device has been created.
 	D3DRHI->InitD3DDevice();
+
+	PixelFormat = InD3DRHI->GetDisplayFormat(InPreferredPixelFormat);
 
 	// Create a backbuffer/swapchain for each viewport
 	TRefCountPtr<IDXGIDevice> DXGIDevice;
@@ -83,12 +81,13 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 					GSwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 					GSwapScaling = DXGI_SCALING_NONE;
 					GSwapChainFlags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+					bAllowTearing = true;
 					GSwapChainBufferCount = 2;
 				}
 			}
 		}
 	}
-	uint32 BufferCount = GSwapChainBufferCount;
+
 	// If requested, keep a handle to a DXGIOutput so we can force that display on fullscreen swap
 	uint32 DisplayIndex = D3DRHI->GetHDRDetectedDisplayIndex();
 	bForcedFullscreenDisplay = FParse::Value(FCommandLine::Get(), TEXT("FullscreenDisplay="), DisplayIndex);
@@ -192,7 +191,7 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 			}
 			else
 			{
-				UE_LOG(LogD3D11RHI, Warning, TEXT("CreateSwapChainForHwnd failed with result '%s' (0x%08X), falling back to legacy CreateSwapChain."),
+				UE_LOG(LogD3D11RHI, Log, TEXT("CreateSwapChainForHwnd failed with result '%s' (0x%08X), falling back to legacy CreateSwapChain."),
 					*GetD3D11ErrorString(CreateSwapChainForHwndResult, D3DRHI->GetDevice()),
 					CreateSwapChainForHwndResult);
 			}
@@ -225,11 +224,24 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 				const TCHAR* D3DFormatString = GetD3D11TextureFormatString(SwapChainDesc.BufferDesc.Format);
 
 				UE_LOG(LogD3D11RHI, Error,
-					TEXT("CreateSwapChain invalid arguments: \n")
+					TEXT("CreateSwapChain failed with E_INVALIDARG: \n")
 					TEXT(" Size:%ix%i Format:%s(0x%08X) \n")
 					TEXT(" Windowed:%i SwapEffect:%i Flags: 0x%08X"),
 					SwapChainDesc.BufferDesc.Width, SwapChainDesc.BufferDesc.Height, D3DFormatString, SwapChainDesc.BufferDesc.Format,
 					SwapChainDesc.Windowed, SwapChainDesc.SwapEffect, SwapChainDesc.Flags);
+
+				{
+					UINT FormatSupport = 0;
+					HRESULT FormatSupportResult = D3DRHI->GetDevice()->CheckFormatSupport(SwapChainDesc.BufferDesc.Format, &FormatSupport);
+					if (SUCCEEDED(FormatSupportResult))
+					{
+						UE_LOG(LogD3D11RHI, Error, TEXT("CheckFormatSupport(%s): 0x%08x"), D3DFormatString, FormatSupport);
+					}
+					else
+					{
+						UE_LOG(LogD3D11RHI, Error, TEXT("CheckFormatSupport(%s) failed: 0x%08x"), D3DFormatString, FormatSupportResult);
+					}
+				}
 			}
 			VERIFYD3D11RESULT_EX(CreateSwapChainResult, D3DRHI->GetDevice());
 		}

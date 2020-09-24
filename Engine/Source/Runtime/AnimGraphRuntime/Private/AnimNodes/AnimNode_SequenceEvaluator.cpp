@@ -99,7 +99,8 @@ void FAnimNode_SequenceEvaluator::Evaluate_AnyThread(FPoseContext& Output)
 	check(Output.AnimInstanceProxy != nullptr);
 	if ((Sequence != nullptr) && (Output.AnimInstanceProxy->IsSkeletonCompatible(Sequence->GetSkeleton())))
 	{
-		Sequence->GetAnimationPose(Output.Pose, Output.Curve, FAnimExtractContext(InternalTimeAccumulator, Output.AnimInstanceProxy->ShouldExtractRootMotion()));
+		FAnimationPoseData AnimationPoseData(Output);
+		Sequence->GetAnimationPose(AnimationPoseData, FAnimExtractContext(InternalTimeAccumulator, Output.AnimInstanceProxy->ShouldExtractRootMotion()));
 	}
 	else
 	{

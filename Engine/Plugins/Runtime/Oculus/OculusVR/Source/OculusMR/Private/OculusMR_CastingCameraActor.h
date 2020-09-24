@@ -55,28 +55,16 @@ public:
 	UMaterial* ChromaKeyMaterial;
 
 	UPROPERTY()
-	UMaterial* ChromaKeyLitMaterial;
-
-	UPROPERTY()
 	UMaterial* OpaqueColoredMaterial;
 
 	UPROPERTY()
 	UMaterialInstanceDynamic* ChromaKeyMaterialInstance;
 
 	UPROPERTY()
-	UMaterialInstanceDynamic* ChromaKeyLitMaterialInstance;
-
-	UPROPERTY()
 	UMaterialInstanceDynamic* CameraFrameMaterialInstance;
 
 	UPROPERTY()
 	UMaterialInstanceDynamic* BackdropMaterialInstance;
-
-	UPROPERTY()
-	AOculusMR_BoundaryActor* BoundaryActor;
-
-	UPROPERTY()
-	ASceneCapture2D* BoundarySceneCaptureActor;
 
 	UPROPERTY()
 	class UTexture2D* DefaultTexture_White;
@@ -97,13 +85,11 @@ private:
 
 	bool RefreshExternalCamera();
 	void UpdateCameraColorTexture(const ovrpSizei &colorFrameSize, const ovrpByte* frameData, int rowPitch);
-	void UpdateCameraDepthTexture(const ovrpSizei &depthFrameSize, const float* frameData, int rowPitch);
 
 	void CalibrateTrackedCameraPose();
 	void SetTrackedCameraUserPoseWithCameraTransform();
 	void SetTrackedCameraInitialPoseWithPlayerTransform();
 	void UpdateTrackedCameraPosition();
-	void UpdateBoundaryCapture();
 
 	/** Initialize the tracked physical camera */
 	void SetupTrackedCamera();
@@ -137,6 +123,9 @@ private:
 
 	UPROPERTY()
 	TArray<UTextureRenderTarget2D*> ForegroundRenderTargets;
+
+	UPROPERTY()
+	TArray<double> PoseTimes;
 
 	UPROPERTY()
 	UOculusMR_Settings* MRSettings;

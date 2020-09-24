@@ -217,6 +217,14 @@ struct APPLICATIONCORE_API FGenericPlatformApplicationMisc
 	}
 
 	/*
+	* Returns a texture of the glyph representing the specified button on the specified controller, or nullptr if not supported.
+	*/
+    static class UTexture2D* GetGamepadButtonGlyph(const FGamepadKeyNames::Type& ButtonKey, uint32 ControllerIndex)
+    {
+        return nullptr;
+    }
+    
+	/*
 	* Whether to enable controller motion data polling (by default motion data is enabled)
 	* Some platforms may want to disable it to reduce battery drain
 	*/

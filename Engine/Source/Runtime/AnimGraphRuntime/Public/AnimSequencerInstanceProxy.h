@@ -54,7 +54,7 @@ protected:
 struct FSequencerPlayerAnimSequence : public FSequencerPlayerBase
 {
 	SEQUENCER_INSTANCE_PLAYER_TYPE(FSequencerPlayerAnimSequence, FSequencerPlayerBase)
-
+	TOptional<FTransform> RootMotion;
 	struct FAnimNode_SequenceEvaluator PlayerNode;
 };
 
@@ -85,6 +85,8 @@ public:
 	void UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, uint32 SequenceId, float InPosition, float Weight, bool bFireNotifies);
 	void UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, uint32 SequenceId, TOptional<float> InFromPosition, float InToPosition, float Weight, bool bFireNotifies);
 
+	void UpdateAnimTrackWithRootMotion(UAnimSequenceBase* InAnimSequence, int32 SequenceId, const TOptional<FTransform>& RootMotion, float InFromPosition, float InToPosition, float Weight, bool bFireNotifies);
+
 	/** Reset all nodes in this instance */
 	virtual void ResetNodes();
 
@@ -95,6 +97,9 @@ public:
 	virtual void ConstructNodes();
 
 protected:
+
+	void UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, uint32 SequenceId, const TOptional<FTransform>& FTransform, TOptional<float> InFromPosition, float InToPosition, float Weight, bool bFireNotifies);
+
 	/** Find a player of a specified type */
 	template<typename Type>
 	Type* FindPlayer(uint32 SequenceId) const
@@ -116,6 +121,9 @@ protected:
 
 	/** mapping from sequencer index to internal player index */
 	TMap<uint32, FSequencerPlayerBase*> SequencerToPlayerMap;
+
+	/** custom root motion override sent in from sequencer */
+	TOptional<FTransform> RootMotionOverride;
 
 	void InitAnimTrack(UAnimSequenceBase* InAnimSequence, uint32 SequenceId);
 	void EnsureAnimTrack(UAnimSequenceBase* InAnimSequence, uint32 SequenceId);

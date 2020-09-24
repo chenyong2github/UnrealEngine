@@ -73,13 +73,15 @@ class MESHMODELINGTOOLS_API UBakeMeshAttributeMapsToolProperties : public UInter
 	GENERATED_BODY()
 
 public:
-
+	/** The type of map to generate */
 	UPROPERTY(EditAnywhere, Category = MapSettings)
 	EBakeMapType MapType = EBakeMapType::TangentSpaceNormalMap;
 
+	/** The pixel resolution of the generated map */
 	UPROPERTY(EditAnywhere, Category = MapSettings, meta = (TransientToolProperty))
 	EBakeTextureResolution Resolution = EBakeTextureResolution::Resolution256;
 
+	/** Which UV layer to use to create the map */
 	UPROPERTY(EditAnywhere, Category = MapSettings, meta = (GetOptions = GetUVLayerNamesFunc))
 	FString UVLayer;
 
@@ -153,25 +155,35 @@ public:
 UENUM()
 enum class EBakedCurvatureTypeMode
 {
+	/** Mean Curvature is the average of the Max and Min Principal curvatures */
 	MeanAverage,
-	Gaussian,
+	/** Max Principal Curvature */
 	Max,
-	Min
+	/** Min Principal Curvature */
+	Min,
+	/** Gaussian Curvature is the product of the Max and Min Principal curvatures */
+	Gaussian
 };
 
 UENUM()
 enum class EBakedCurvatureColorMode
 {
+	/** Map curvature values to grayscale such that black is negative, grey is zero, and white is positive */
 	Grayscale,
+	/** Map curvature values to red/blue scale such that red is negative, black is zero, and blue is positive */
 	RedBlue,
+	/** Map curvature values to red/green/blue scale such that red is negative, green is zero, and blue is positive */
 	RedGreenBlue
 };
 
 UENUM()
 enum class EBakedCurvatureClampMode
 {
+	/** Include both negative and positive curvatures */
 	None,
+	/** Clamp negative curvatures to zero */
 	Positive,
+	/** Clamp positive curvatures to zero */
 	Negative
 };
 
@@ -183,18 +195,23 @@ class MESHMODELINGTOOLS_API UBakedCurvatureMapToolProperties : public UInteracti
 {
 	GENERATED_BODY()
 public:
+	/** Type of curvature to compute */
 	UPROPERTY(EditAnywhere, Category = CurvatureMap)
 	EBakedCurvatureTypeMode CurvatureType = EBakedCurvatureTypeMode::MeanAverage;
 
+	/** Color mapping calculated from curvature values */
 	UPROPERTY(EditAnywhere, Category = CurvatureMap)
 	EBakedCurvatureColorMode ColorMode = EBakedCurvatureColorMode::Grayscale;
 
+	/** Scale the maximum curvature value used to compute the mapping to grayscale/color */
 	UPROPERTY(EditAnywhere, Category = CurvatureMap, meta = (UIMin = "0.1", UIMax = "2.0", ClampMin = "0.001", ClampMax = "100.0"))
 	float RangeMultiplier = 1.0;
 
+	/** Scale the minimum curvature value used to compute the mapping to grayscale/color (fraction of maximum) */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = CurvatureMap, meta = (UIMin = "0.0", UIMax = "1.0"))
 	float MinRangeMultiplier = 0.0;
 
+	/** Clamping to apply to curvature values before scaling to color range */
 	UPROPERTY(EditAnywhere, Category = CurvatureMap)
 	EBakedCurvatureClampMode Clamping = EBakedCurvatureClampMode::None;
 
@@ -214,9 +231,11 @@ class MESHMODELINGTOOLS_API UBakedTexture2DImageProperties : public UInteractive
 {
 	GENERATED_BODY()
 public:
+	/** The source texture that is to be resampled into a new texture map */
 	UPROPERTY(EditAnywhere, Category = Texture2D, meta = (TransientToolProperty))
 	UTexture2D* SourceTexture;
 
+	/** The UV layer on the source mesh that corresponds to the SourceTexture */
 	UPROPERTY(EditAnywhere, Category = Texture2D)
 	int32 UVLayer = 0;
 };

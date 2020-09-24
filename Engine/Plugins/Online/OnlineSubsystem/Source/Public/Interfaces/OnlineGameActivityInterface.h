@@ -32,7 +32,7 @@ inline bool operator==(const FOnlineActivityPlayerLocation& Location1, const FOn
 /**
  * Outcome representation of ending an activity.
  */
-enum EOnlineActivityOutcome
+enum class EOnlineActivityOutcome
 {
 	/** Activity has been completed successfully */
 	Completed,
@@ -71,6 +71,23 @@ DECLARE_DELEGATE_ThreeParams(FOnStartActivityComplete, const FUniqueNetId& /* Lo
  * @param Status of whether async action completed successfully or with error
  */
 DECLARE_DELEGATE_FourParams(FOnEndActivityComplete, const FUniqueNetId& /* LocalUserId */, const FString& /* ActivityId */, const EOnlineActivityOutcome& /* Outcome */, const FOnlineError& /* Status */);
+
+/**
+ * Delegate fired when the reset all active activities call has completed
+ *
+ * @param LocalUserId the id of the player this callback is for
+ * @param Status of whether async action completed successfully or with error
+ */
+DECLARE_DELEGATE_TwoParams(FOnResetAllActiveActivitiesComplete, const FUniqueNetId& /* LocalUserId */, const FOnlineError& /* Status */);
+
+/**
+ * Delegate fired when the resume activity call has completed
+ *
+ * @param LocalUserId the id of the player this callback is for
+ * @param ActivityId the id of the activity that was ended
+ * @param Status of whether async action completed successfully or with error
+ */
+DECLARE_DELEGATE_ThreeParams(FOnResumeActivityComplete, const FUniqueNetId& /* LocalUserId */, const FString& /* ActivityId */, const FOnlineError& /* Status */);
 
 /**
  * Delegate fired when a set activity availability call has completed
@@ -113,9 +130,27 @@ public:
 	 * @param ActivityId - Task to end by activity ID
 	 * @param ActivityOutcome - The outcome of the activity (completed, failed, or abandoned)
 	 * @param Parms - Additional data to include with the stop activity request
-	 * @param CompletionDelegate - Completion delegate called when StopActivity call is complete
+	 * @param CompletionDelegate - Completion delegate called when the EndActivity call is complete
 	 */
 	virtual void EndActivity(const FUniqueNetId& LocalUserId, const FString& ActivityId, EOnlineActivityOutcome ActivityOutcome, const FOnlineEventParms& Parms, FOnEndActivityComplete CompletionDelegate) = 0;
+
+	/** 
+	 * resets all in-progress and completed activities.
+	 *
+	 * @param LocalUserId - Id of the player resetting their active activities
+	 * @param CompletionDelegate - Completion delegate called when ResetAllActiveActivities call is complete
+	 */
+	virtual void ResetAllActiveActivities(const FUniqueNetId& LocalUserId, const FOnResetAllActiveActivitiesComplete& CompletionDelegate) = 0;
+
+	/**
+	 * Resume an activity.  Different from StartActivity in that resume continues from current 
+	 * progress where StartActivity will set progress back to 0 before activating the actvity
+	 *
+	 * @param LocalUserId - Id of the player resuming the activity
+	 * @param ActivityId - Task to resume by activity ID
+	 * @param CompletionDelegate - Completion delegate called when the ResumeActivity call is complete
+	 */
+	virtual void ResumeActivity(const FUniqueNetId& LocalUserId, const FString& ActivityId, const FOnResumeActivityComplete& CompletionDelegate) = 0;
 
 	/** 
 	 * Set an activity's availability 

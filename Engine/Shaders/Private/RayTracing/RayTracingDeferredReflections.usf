@@ -15,6 +15,7 @@
 	#define DIM_GENERATE_RAYS 0
 #endif
 
+#include "../HairStrands/HairStrandsVoxelPageCommonStruct.ush"
 #include "../Common.ush"
 
 #define SUPPORT_CONTACT_SHADOWS		0
@@ -44,12 +45,18 @@
 #include "RayTracingReflectionsCommon.ush"
 #include "RayTracingDeferredMaterials.ush"
 #include "RayTracingDeferredReflections.ush"
+#include "RayTracingReflectionEnvironment.ush"
 
 uint2 RayTracingResolution;
 uint2 TileAlignedResolution;
 float ReflectionMaxNormalBias;
+float ReflectionSmoothBias;
 float ReflectionMaxRoughness;
+float AnyHitMaxRoughness;
 int   GlossyReflections;
+int   ShouldDoDirectLighting;
+int   ShouldDoEmissiveAndIndirectLighting;
+int   ShouldDoReflectionCaptures;
 
 RWStructuredBuffer<FSortedReflectionRay>        RayBuffer;
 RWStructuredBuffer<FDeferredMaterialPayload>    MaterialBuffer;
@@ -82,7 +89,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 		const uint2 TileBasePixelPos = uint2(TileIndex % NumTiles.x, TileIndex / NumTiles.x) * TileSize;
 		const uint2 PixelPos         = TileBasePixelPos + uint2(RayIndexInTile % TileSize.x, RayIndexInTile / TileSize.x);
 
-		ReflectionRay = GenerateDeferredReflectionRay(PixelPos, ReflectionMaxNormalBias, ReflectionMaxRoughness, GlossyReflections==1);
+		ReflectionRay = GenerateDeferredReflectionRay(PixelPos, ReflectionMaxNormalBias, ReflectionSmoothBias, GlossyReflections==1);
 		RayBuffer[DispatchThreadId] = ReflectionRay; // Store the ray to be used in shading phase
 	}	
 	#else
@@ -104,8 +111,10 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 		DeferredMaterialPayload.SortKey = RAY_TRACING_DEFERRED_MATERIAL_KEY_RAY_MISS;
 		FRayIntersectionBookmark Bookmark = (FRayIntersectionBookmark)0;
 
-		FGBufferData GBuffer = GetGBufferDataFromSceneTexturesLoad(PixelPos);
-		bool bIsValidPixel = ReflectionRay.Validity > 0;
+		float RoughnessFade = GetRoughnessFade(ReflectionRay.Roughness, ReflectionMaxRoughness);
+
+		bool bIsValidPixel = RoughnessFade > 0;
+
 		if (bIsValidPixel)
 		{
 			TraceDeferredMaterialGatherRay(TLAS,
@@ -136,6 +145,8 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 		return;
 	}
 
+	const bool bSkyLightAffectReflection = ShouldSkyLightAffectReflection();
+
 	float4 ResultColor    = (float4)0;
 	// Unify miss condition with RayTracingReflections.usf
 	//float ResultDistance = DENOISER_MISS_HIT_DISTANCE;
@@ -153,22 +164,50 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 		FRayIntersectionBookmark Bookmark = BookmarkBuffer[DeferredMaterialPayload.PixelCoordinates];
 
 		FPackedMaterialClosestHitPayload PackedPayload = (FPackedMaterialClosestHitPayload)0;
-		PackedPayload.SetEnableSkyLightContribution();
-		PackedPayload.SetPixelCoordInCustomData(PixelPos);
+		if (bSkyLightAffectReflection)
+		{
+			PackedPayload.SetEnableSkyLightContribution();
+		}
+		PackedPayload.SetPixelCoord(PixelPos);
+
+		uint RayFlags = 0;
+		if (ReflectionRay.Roughness >= AnyHitMaxRoughness)
+		{
+			RayFlags |= RAY_FLAG_FORCE_OPAQUE;
+		}
 
 		TraceDeferredMaterialShadingRay(
 			TLAS,
-			RAY_FLAG_FORCE_OPAQUE,
+			RayFlags,
 			RAY_TRACING_MASK_OPAQUE,
 			Ray,
 			Bookmark,
 			PackedPayload);
 
+		const bool bTopLayerRayTraceSkyLightContribution = false;
+
+		// If the closest surface that we found during material gather is transparent,
+		// we can trace another ray that performs full traversal and masked material evaluation.
+		// The assumption here is that majority of the rays will actually hit opaque surfaces and
+		// the win from skipping AHS invocations during initial traversal will lead to overall win on average.
+		if (!PackedPayload.IsHit())
+		{
+			FRayCone RayCone = (FRayCone)0;
+			TraceMaterialRayPacked(
+				PackedPayload,
+				TLAS,
+				0, // RayFlags
+				RAY_TRACING_MASK_OPAQUE,
+				Ray,
+				RayCone,
+				PixelPos,
+				bTopLayerRayTraceSkyLightContribution);
+		}
+
 		if (PackedPayload.IsHit())
 		{
-			bool bShouldDoDirectLighting               = true;
-			bool bShouldDoEmissiveAndIndirectLighting  = true;
-			bool bTopLayerRayTraceSkyLightContribution = false;
+			bool bShouldDoDirectLighting               = ShouldDoDirectLighting != 0;
+			bool bShouldDoEmissiveAndIndirectLighting  = ShouldDoEmissiveAndIndirectLighting != 0;
 			bool bDecoupleSampleGeneration             = false;
 			uint ReflectedShadowsType                  = 1; // Hard shadows
 			
@@ -195,8 +234,34 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 				RayCone,
 				ResultColor.rgb);
 
+			if (ShouldDoReflectionCaptures != 0)
+			{
+				float3 R = reflect(Ray.Direction, PackedPayload.GetWorldNormal());
+				const float NoV = saturate(dot(-Ray.Direction, PackedPayload.GetWorldNormal()));
+				const float Roughness = PackedPayload.GetRoughness();
+				const float RoughnessSq = Roughness * Roughness;
+				const float SpecularOcclusion = GetSpecularOcclusion(NoV, RoughnessSq, 1.0);
+				ResultColor.rgb += EnvBRDF(PackedPayload.GetSpecularColor(), Roughness, NoV) * SpecularOcclusion *
+					CompositeReflectionCapturesAndSkylight(
+						1.0, // CompositeAlpha
+						RayHitWorldPos,
+						R,
+						Roughness,
+						0.0, // IndirectIrradiance,
+						1.0, // IndirectSpecularOcclusion
+						0.0, // ExtraIndirectSpecular
+						ForwardLightData.NumReflectionCaptures,
+						0, // ReflectionCapturesStartIndex
+						0,
+						bSkyLightAffectReflection);
+			}
+
 			ResultColor.rgb *= View.PreExposure;
-			ResultColor.a = ReflectionRay.Validity;
+
+			float RoughnessFade = GetRoughnessFade(ReflectionRay.Roughness, ReflectionMaxRoughness);
+
+			ResultColor.rgb *= RoughnessFade;
+			ResultColor.a = RoughnessFade;
 
 			ResultDistance = PackedPayload.HitT;
 		}

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "ClassTemplateEditorSubsystem.h"
 
+#include "Editor.h"
 #include "Interfaces/IPluginManager.h"
 #include "Internationalization/Text.h"
 #include "Misc/CoreDelegates.h"

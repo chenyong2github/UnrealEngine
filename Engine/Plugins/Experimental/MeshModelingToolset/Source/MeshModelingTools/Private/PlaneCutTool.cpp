@@ -159,7 +159,7 @@ void UPlaneCutTool::Setup()
 	SetPlaneAction->World = this->TargetWorld;
 	SetPlaneAction->OnClickedPositionFunc = [this](const FHitResult& Hit)
 	{
-		SetCutPlaneFromWorldPos(Hit.ImpactPoint, Hit.ImpactNormal);
+		SetCutPlaneFromWorldPos(Hit.ImpactPoint, Hit.ImpactNormal, false);
 		for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
 		{
 			Preview->InvalidateResult();
@@ -200,7 +200,7 @@ void UPlaneCutTool::Setup()
 		ComponentTarget->GetOwnerActor()->GetActorBounds(false, ComponentOrigin, ComponentExtents);
 		CombinedBounds += FBox::BuildAABB(ComponentOrigin, ComponentExtents);
 	}
-	SetCutPlaneFromWorldPos(CombinedBounds.GetCenter(), FVector::UpVector);
+	SetCutPlaneFromWorldPos(CombinedBounds.GetCenter(), FVector::UpVector, true);
 	// hook up callback so further changes trigger recut
 	PlaneTransformProxy->OnTransformChanged.AddUObject(this, &UPlaneCutTool::TransformChanged);
 
@@ -447,15 +447,22 @@ void UPlaneCutTool::TransformChanged(UTransformProxy* Proxy, FTransform Transfor
 }
 
 
-void UPlaneCutTool::SetCutPlaneFromWorldPos(const FVector& Position, const FVector& Normal)
+void UPlaneCutTool::SetCutPlaneFromWorldPos(const FVector& Position, const FVector& Normal, bool bIsInitializing)
 {
 	CutPlaneOrigin = Position;
 
 	FFrame3f CutPlane(Position, Normal);
 	CutPlaneOrientation = (FQuat)CutPlane.Rotation;
 
-	PlaneTransformGizmo->SetActiveTarget(PlaneTransformProxy);
-	PlaneTransformGizmo->SetNewGizmoTransform(CutPlane.ToFTransform());
+	PlaneTransformGizmo->SetActiveTarget(PlaneTransformProxy, GetToolManager());
+	if (bIsInitializing)
+	{
+		PlaneTransformGizmo->ReinitializeGizmoTransform(CutPlane.ToFTransform());
+	}
+	else
+	{
+		PlaneTransformGizmo->SetNewGizmoTransform(CutPlane.ToFTransform());
+	}
 }
 
 

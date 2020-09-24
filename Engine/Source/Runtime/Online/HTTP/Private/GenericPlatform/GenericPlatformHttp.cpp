@@ -262,6 +262,30 @@ FString FGenericPlatformHttp::HtmlEncode(const FStringView UnencodedString)
 	return EncodedString;
 }
 
+FString FGenericPlatformHttp::GetUrlDomainAndPort(const FStringView Url)
+{
+	FStringView Protocol;
+	FStringView DomainAndPort;
+	// split the http protocol portion from domain
+	if (!Split(Url, TEXT("://"), Protocol, DomainAndPort))
+	{
+		DomainAndPort = Url;
+	}
+	// strip off everything but the domain and port portion
+	for (int32 Index = 0; Index < DomainAndPort.Len(); ++Index)
+	{
+		TCHAR Character = DomainAndPort[Index];
+		if (Character == TEXT('/') || Character == TEXT('?') || Character == TEXT('#'))
+		{
+			DomainAndPort.LeftInline(Index);
+			break;
+		}
+	}
+
+	return FString(DomainAndPort);
+}
+
+
 FString FGenericPlatformHttp::GetUrlDomain(const FStringView Url)
 {
 	FStringView Protocol;
@@ -476,7 +500,7 @@ TOptional<uint16> FGenericPlatformHttp::GetUrlPort(const FStringView Url)
 		}
 		else if (PortStringStartIndex.IsSet())
 		{
-			// Beak when we find a non-numeric character or our string is ending
+			// Break when we find a non-numeric character or our string is ending
 			const bool bIsDigit = FChar::IsDigit(Character);
 			const bool bIsLastCharacter = Index + 1 == UrlWithoutScheme.Len();
 			if (!bIsDigit || bIsLastCharacter)

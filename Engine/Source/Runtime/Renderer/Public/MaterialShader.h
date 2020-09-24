@@ -89,11 +89,7 @@ public:
 
 	static FName UniformBufferLayoutName;
 
-	FMaterialShader()
-#if WITH_EDITORONLY_DATA
-		: DebugUniformExpressionUBLayout(FRHIUniformBufferLayout::Zero)
-#endif
-	{}
+	FMaterialShader() = default;
 
 	FMaterialShader(const FMaterialShaderType::CompiledShaderInitializerType& Initializer);
 

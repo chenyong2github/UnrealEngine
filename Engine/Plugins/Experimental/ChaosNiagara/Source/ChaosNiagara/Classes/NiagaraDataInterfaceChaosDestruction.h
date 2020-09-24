@@ -733,7 +733,7 @@ protected:
 	bool BreakingCallback(FNDIChaosDestruction_InstanceData* InstData);
 	bool TrailingCallback(FNDIChaosDestruction_InstanceData* InstData);
 
-	void PushToRenderThread();
+	virtual void PushToRenderThreadImpl() override;
 
 	UPROPERTY()
 	int32 LastSpawnedPointID;

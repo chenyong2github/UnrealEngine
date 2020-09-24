@@ -139,8 +139,10 @@ void MainCS(
 	for (uint MultiplexId = 0; MultiplexId < CONFIG_SIGNAL_BATCH_SIZE; MultiplexId++)
 	{
 		const uint BatchedSignalId = MultiplexId / CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN;
+		FSSDSignalDomainKnowledge DomainKnowledge = GetSignalDomainKnowledge(BatchedSignalId);
+
 		MultiplexedFrequencies.Array[MultiplexId].WorldBluringRadius = GetSignalWorldBluringRadius(
-			MultiplexedFrequencies.Array[MultiplexId], RefSceneMetadata, BatchedSignalId);
+			MultiplexedFrequencies.Array[MultiplexId], RefSceneMetadata, DomainKnowledge);
 	}
 
 	// No need to keep DispatchThreadId, while SceneBufferUV is arround at highest VGPR peak because center of the unique pixel to sample.

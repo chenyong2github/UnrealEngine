@@ -60,6 +60,8 @@ namespace FViewportTestHelper
 				break;
 			case SFG_Max:
 				break;
+			case SFG_Custom:
+				GroupName = TEXT("Custom");
 			default:
 				GroupName = TEXT("Post Process");
 				break;

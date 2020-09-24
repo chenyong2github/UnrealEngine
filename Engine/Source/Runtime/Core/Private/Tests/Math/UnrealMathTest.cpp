@@ -17,6 +17,8 @@
 #include "Math/Quat.h"
 #include "Math/QuatRotationTranslationMatrix.h"
 #include "Misc/AutomationTest.h"
+#include <limits>
+#include <cmath>
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -157,6 +159,56 @@ bool TestQuatsEqual(const FQuat& Q0, const FQuat& Q1, float Tolerance)
 	const bool bEqual = Q0.Equals(Q1, Tolerance);
 	GPassing = GPassing && bEqual;
 	return bEqual;
+}
+
+/**
+ * Tests if a vector (xyz) is normalized (length 1) within a tolerance
+ *
+ * @param Vec0 Vector
+ * @param Tolerance Error allowed for the comparison
+ *
+ * @return true if normalized(ish)
+ */
+bool TestFVector3Normalized(const FVector& Vec0, float Tolerance)
+{
+	GScratch[0] = Vec0.X;
+	GScratch[1] = Vec0.Y;
+	GScratch[2] = Vec0.Z;
+	GScratch[3] = 0.0f;
+	GScratch[4] = 0.0f;
+	GScratch[5] = 0.0f;
+	GScratch[6] = 0.0f;
+	GScratch[7] = 0.0f;
+	GSum = FMath::Sqrt(Vec0.X * Vec0.X + Vec0.Y * Vec0.Y + Vec0.Z * Vec0.Z);
+
+	const bool bNormalized = FMath::IsNearlyEqual(GSum, 1.0f, Tolerance);
+	GPassing = GPassing && bNormalized;
+	return bNormalized;
+}
+
+/**
+ * Tests if a quaternion (xyzw) is normalized (length 1) within a tolerance
+ *
+ * @param Q0 Quaternion
+ * @param Tolerance Error allowed for the comparison
+ *
+ * @return true if normalized(ish)
+ */
+bool TestQuatNormalized(const FQuat& Q0, float Tolerance)
+{
+	GScratch[0] = Q0.X;
+	GScratch[1] = Q0.Y;
+	GScratch[2] = Q0.Z;
+	GScratch[3] = Q0.W;
+	GScratch[4] = 0.0f;
+	GScratch[5] = 0.0f;
+	GScratch[6] = 0.0f;
+	GScratch[7] = 0.0f;
+	GSum = FMath::Sqrt(Q0.X*Q0.X + Q0.Y*Q0.Y + Q0.Z*Q0.Z + Q0.W*Q0.W);
+
+	const bool bNormalized = FMath::IsNearlyEqual(GSum, 1.0f, Tolerance);
+	GPassing = GPassing && bNormalized;
+	return bNormalized;
 }
 
 /**
@@ -1326,6 +1378,31 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		}
 	}
 
+	// Quat -> Axis and Angle
+	{
+		FVector Axis;
+		float Angle;
+
+		// Identity -> X Axis
+		Axis = FQuat::Identity.GetRotationAxis();
+		LogTest(TEXT("FQuat::Identity.GetRotationAxis() == FVector::XAxisVector"), TestFVector3Equal(Axis, FVector::XAxisVector));
+
+		const FQuat QuatArray[] = {
+			FQuat(0.0f, 0.0f, 0.0f, 1.0f),
+			FQuat(1.0f, 0.0f, 0.0f, 0.0f),
+			FQuat(0.0f, 1.0f, 0.0f, 0.0f),
+			FQuat(0.0f, 0.0f, 1.0f, 0.0f),
+			FQuat(0.000046571717f, -0.000068426132f, 0.000290602446f, 0.999999881000f) // length = 0.99999992665
+		};
+
+		for (const FQuat& Q : QuatArray)
+		{
+			Q.ToAxisAndAngle(Axis, Angle);
+			LogTest(TEXT("Quat -> Axis and Angle: Q is Normalized"), TestQuatNormalized(Q, 1e-6f));
+			LogTest(TEXT("Quat -> Axis and Angle: Axis is Normalized"), TestFVector3Normalized(Axis, 1e-6f));
+		}
+	}
+
 	// Quat / Rotator conversion to vectors, matrices
 	{
 		FRotator Rotator0;
@@ -2049,5 +2126,108 @@ bool FMathTruncationTests::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMathIntegerTests, "System.Core.Math.IntegerFunctions", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
+bool FMathIntegerTests::RunTest(const FString& Parameters)
+{
+	// Test CountLeadingZeros8
+	TestEqual(TEXT("CountLeadingZeros8(0)"), FMath::CountLeadingZeros8(0), 8);
+	TestEqual(TEXT("CountLeadingZeros8(1)"), FMath::CountLeadingZeros8(1), 7);
+	TestEqual(TEXT("CountLeadingZeros8(2)"), FMath::CountLeadingZeros8(2), 6);
+	TestEqual(TEXT("CountLeadingZeros8(0x7f)"), FMath::CountLeadingZeros8(0x7f), 1);
+	TestEqual(TEXT("CountLeadingZeros8(0x80)"), FMath::CountLeadingZeros8(0x80), 0);
+	TestEqual(TEXT("CountLeadingZeros8(0xff)"), FMath::CountLeadingZeros8(0xff), 0);
+
+	// Test CountLeadingZeros
+	TestEqual(TEXT("CountLeadingZeros(0)"), FMath::CountLeadingZeros(0), 32);
+	TestEqual(TEXT("CountLeadingZeros(1)"), FMath::CountLeadingZeros(1), 31);
+	TestEqual(TEXT("CountLeadingZeros(2)"), FMath::CountLeadingZeros(2), 30);
+	TestEqual(TEXT("CountLeadingZeros(0x7fffffff)"), FMath::CountLeadingZeros(0x7fffffff), 1);
+	TestEqual(TEXT("CountLeadingZeros(0x80000000)"), FMath::CountLeadingZeros(0x80000000), 0);
+	TestEqual(TEXT("CountLeadingZeros(0xffffffff)"), FMath::CountLeadingZeros(0xffffffff), 0);
+
+	// Test CountLeadingZeros64
+	TestEqual(TEXT("CountLeadingZeros64(0)"), FMath::CountLeadingZeros64(0), uint64(64));
+	TestEqual(TEXT("CountLeadingZeros64(1)"), FMath::CountLeadingZeros64(1), uint64(63));
+	TestEqual(TEXT("CountLeadingZeros64(2)"), FMath::CountLeadingZeros64(2), uint64(62));
+	TestEqual(TEXT("CountLeadingZeros64(0x7fffffff'ffffffff)"), FMath::CountLeadingZeros64(0x7fffffff'ffffffff), uint64(1));
+	TestEqual(TEXT("CountLeadingZeros64(0x80000000'00000000)"), FMath::CountLeadingZeros64(0x80000000'00000000), uint64(0));
+	TestEqual(TEXT("CountLeadingZeros64(0xffffffff'ffffffff)"), FMath::CountLeadingZeros64(0xffffffff'ffffffff), uint64(0));
+
+	// Test FloorLog2
+	TestEqual(TEXT("FloorLog2(0)"), FMath::FloorLog2(0), 0);
+	TestEqual(TEXT("FloorLog2(1)"), FMath::FloorLog2(1), 0);
+	TestEqual(TEXT("FloorLog2(2)"), FMath::FloorLog2(2), 1);
+	TestEqual(TEXT("FloorLog2(3)"), FMath::FloorLog2(3), 1);
+	TestEqual(TEXT("FloorLog2(4)"), FMath::FloorLog2(4), 2);
+	TestEqual(TEXT("FloorLog2(0x7fffffff)"), FMath::FloorLog2(0x7fffffff), 30);
+	TestEqual(TEXT("FloorLog2(0x80000000)"), FMath::FloorLog2(0x80000000), 31);
+	TestEqual(TEXT("FloorLog2(0xffffffff)"), FMath::FloorLog2(0xffffffff), 31);
+
+	// Test FloorLog2_64
+	TestEqual(TEXT("FloorLog2_64(0)"), FMath::FloorLog2_64(0), uint64(0));
+	TestEqual(TEXT("FloorLog2_64(1)"), FMath::FloorLog2_64(1), uint64(0));
+	TestEqual(TEXT("FloorLog2_64(2)"), FMath::FloorLog2_64(2), uint64(1));
+	TestEqual(TEXT("FloorLog2_64(3)"), FMath::FloorLog2_64(3), uint64(1));
+	TestEqual(TEXT("FloorLog2_64(4)"), FMath::FloorLog2_64(4), uint64(2));
+	TestEqual(TEXT("FloorLog2_64(0x7fffffff)"), FMath::FloorLog2_64(0x7fffffff), uint64(30));
+	TestEqual(TEXT("FloorLog2_64(0x80000000)"), FMath::FloorLog2_64(0x80000000), uint64(31));
+	TestEqual(TEXT("FloorLog2_64(0xffffffff)"), FMath::FloorLog2_64(0xffffffff), uint64(31));
+	TestEqual(TEXT("FloorLog2_64(0x7fffffff'ffffffff)"), FMath::FloorLog2_64(0x7fffffff'ffffffff), uint64(62));
+	TestEqual(TEXT("FloorLog2_64(0x80000000'00000000)"), FMath::FloorLog2_64(0x80000000'00000000), uint64(63));
+	TestEqual(TEXT("FloorLog2_64(0xffffffff'ffffffff)"), FMath::FloorLog2_64(0xffffffff'ffffffff), uint64(63));
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNanInfVerificationTest, "System.Core.Math.NaNandInfTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
+bool FNanInfVerificationTest::RunTest(const FString& Parameters)
+{
+	static float FloatNan = FMath::Sqrt(-1.0f);
+	static double DoubleNan = double(FloatNan);
+
+	static float FloatInf = 1.0f / 0.0f;
+	static double DoubleInf = 1.0 / 0.0;
+
+	static float FloatStdNan = std::numeric_limits<float>::quiet_NaN();
+	static double DoubleStdNan = std::numeric_limits<double>::quiet_NaN();
+
+	static float FloatStdInf = std::numeric_limits<float>::infinity();
+	static double DoubleStdInf = std::numeric_limits<double>::infinity();
+
+	static double DoubleMax = std::numeric_limits<double>::max();
+	static float FloatMax = std::numeric_limits<float>::max();
+
+	TestTrue(TEXT("HasQuietNaNFloat"), std::numeric_limits<float>::has_quiet_NaN);
+	TestTrue(TEXT("HasQuietNaNDouble"), std::numeric_limits<double>::has_quiet_NaN);
+	TestTrue(TEXT("HasInfinityFloat"), std::numeric_limits<float>::has_infinity);
+	TestTrue(TEXT("HasInfinityDouble"), std::numeric_limits<double>::has_infinity);
+
+	TestTrue(TEXT("SqrtNegOneIsNanFloat"), std::isnan(FloatNan));
+	TestTrue(TEXT("SqrtNegOneIsNanDouble"), std::isnan(DoubleNan));
+	TestTrue(TEXT("OneOverZeroIsInfFloat"), !std::isfinite(FloatInf) && !std::isnan(FloatInf));
+	TestTrue(TEXT("OneOverZeroIsInfDouble"), !std::isfinite(DoubleInf) && !std::isnan(DoubleInf));
+
+	TestTrue(TEXT("UE4IsNanTrueFloat"), FPlatformMath::IsNaN(FloatNan));
+	TestTrue(TEXT("UE4IsNanFalseFloat"), !FPlatformMath::IsNaN(0.0f));
+	TestTrue(TEXT("UE4IsNanTrueDouble"), FPlatformMath::IsNaN(DoubleNan));
+	TestTrue(TEXT("UE4IsNanFalseDouble"), !FPlatformMath::IsNaN(0.0));
+
+	TestTrue(TEXT("UE4IsFiniteTrueFloat"), FPlatformMath::IsFinite(0.0f) && !FPlatformMath::IsNaN(0.0f));
+	TestTrue(TEXT("UE4IsFiniteFalseFloat"), !FPlatformMath::IsFinite(FloatInf) && !FPlatformMath::IsNaN(FloatInf));
+	TestTrue(TEXT("UE4IsFiniteTrueDouble"), FPlatformMath::IsFinite(0.0) && !FPlatformMath::IsNaN(0.0));
+	TestTrue(TEXT("UE4IsFiniteFalseDouble"), !FPlatformMath::IsFinite(DoubleInf) && !FPlatformMath::IsNaN(DoubleInf));
+
+	TestTrue(TEXT("UE4IsNanStdFloat"), FPlatformMath::IsNaN(FloatStdNan));
+	TestTrue(TEXT("UE4IsNanStdDouble"), FPlatformMath::IsNaN(DoubleStdNan));
+
+	TestTrue(TEXT("UE4IsFiniteStdFloat"), !FPlatformMath::IsFinite(FloatStdInf) && !FPlatformMath::IsNaN(FloatStdInf));
+	TestTrue(TEXT("UE4IsFiniteStdDouble"), !FPlatformMath::IsFinite(DoubleStdInf) && !FPlatformMath::IsNaN(DoubleStdInf));
+
+	// test for Mac/Linux regression where IsFinite did not have a double equivalent so would downcast to a float and return INF.
+	TestTrue(TEXT("UE4IsFiniteDoubleMax"), FPlatformMath::IsFinite(DoubleMax) && !FPlatformMath::IsNaN(DoubleMax));
+	TestTrue(TEXT("UE4IsFiniteFloatMax"), FPlatformMath::IsFinite(FloatMax) && !FPlatformMath::IsNaN(FloatMax));
+
+	return true;
+}
 
 #endif //WITH_DEV_AUTOMATION_TESTS

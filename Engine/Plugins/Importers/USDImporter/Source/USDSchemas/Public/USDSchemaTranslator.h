@@ -4,9 +4,13 @@
 
 #include "CoreMinimal.h"
 
-#include "USDMemory.h"
 #include "UnrealUSDWrapper.h"
+#include "USDMemory.h"
+#include "USDSkeletalDataConversion.h"
 
+#include "UsdWrappers/SdfPath.h"
+#include "UsdWrappers/UsdPrim.h"
+#include "UsdWrappers/UsdStage.h"
 #include "UsdWrappers/UsdTyped.h"
 
 #include "Async/Future.h"
@@ -22,6 +26,7 @@ class FUsdSchemaTranslatorTaskChain;
 class ULevel;
 class USceneComponent;
 class UStaticMesh;
+struct FUsdBlendShape;
 
 class USDSCHEMAS_API FRegisteredSchemaTranslatorHandle
 {
@@ -91,11 +96,17 @@ public:
 
 struct USDSCHEMAS_API FUsdSchemaTranslationContext : public TSharedFromThis< FUsdSchemaTranslationContext >
 {
-	explicit FUsdSchemaTranslationContext( TMap< FString, UObject* >& InPrimPathsToAssets, TMap< FString, UObject* >& InAssetsCache )
-		: PrimPathsToAssets( InPrimPathsToAssets )
+	explicit FUsdSchemaTranslationContext( const UE::FUsdStage& InStage, TMap< FString, UObject* >& InPrimPathsToAssets, TMap< FString, UObject* >& InAssetsCache, UsdUtils::FBlendShapeMap* InBlendShapesByPath = nullptr )
+		: Stage( InStage )
+		, PrimPathsToAssets( InPrimPathsToAssets )
 		, AssetsCache( InAssetsCache )
+		, BlendShapesByPath( InBlendShapesByPath )
 	{
+		MaterialToPrimvarToUVIndex = nullptr;
 	}
+
+	/** pxr::UsdStage we're translating from */
+	UE::FUsdStage Stage;
 
 	/** Level to spawn actors in */
 	ULevel* Level = nullptr;
@@ -117,9 +128,27 @@ struct USDSCHEMAS_API FUsdSchemaTranslationContext : public TSharedFromThis< FUs
 
 	TMap< FString, UObject* >& AssetsCache;
 
+	/** Where we place imported blend shapes, if available */
+	UsdUtils::FBlendShapeMap* BlendShapesByPath;
+
+	/**
+	 * When parsing materials, we keep track of which primvar we mapped to which UV channel.
+	 * When parsing meshes later, we use this data to place the correct primvar values in each UV channel.
+	 */
+	TMap< FString, TMap< FString, int32 > >* MaterialToPrimvarToUVIndex;
+
 	FCriticalSection CriticalSection;
 
 	bool bAllowCollapsing = true;
+
+	/**
+	 * If true, prims with a "LOD" variant set, and "LOD0", "LOD1", etc. variants containing each
+	 * a prim can be parsed into a single UStaticMesh asset with multiple LODs
+	 */
+	bool bAllowInterpretingLODs = true;
+
+	/** If true, we will also try creating UAnimSequence skeletal animation assets when parsing SkelRoot prims */
+	bool bAllowParsingSkeletalAnimations = true;
 
 	bool IsValid() const
 	{
@@ -133,16 +162,32 @@ struct USDSCHEMAS_API FUsdSchemaTranslationContext : public TSharedFromThis< FUs
 
 enum class ESchemaTranslationStatus
 {
+	Pending,
 	InProgress,
 	Done
+};
+
+enum class ESchemaTranslationLaunchPolicy
+{
+	/**
+	 * Task will run on main thread, with the guarantee that no other tasks are being run concurrently to it.
+	 * Note: This is slow, and should not be used for realtime workflows (i.e. USDStage editor)
+	 */
+	ExclusiveSync,
+
+	/** Task will run on main thread, while other tasks may be running concurrently */
+	Sync,
+
+	/** Task may run on another thread, while other tasks may be running concurrently */
+	Async
 };
 
 class USDSCHEMAS_API FUsdSchemaTranslator
 {
 public:
 	explicit FUsdSchemaTranslator( TSharedRef< FUsdSchemaTranslationContext > InContext, const UE::FUsdTyped& InSchema )
-		: Context( InContext )
-		, Schema( InSchema )
+		: PrimPath( InSchema.GetPrim().GetPrimPath() )
+		, Context( InContext )
 	{
 	}
 
@@ -164,16 +209,18 @@ public:
 	bool IsCollapsed( ECollapsingType CollapsingType ) const;
 	virtual bool CanBeCollapsed( ECollapsingType CollapsingType ) const { return false; }
 
+	UE::FUsdPrim GetPrim() const { return Context->Stage.GetPrimAtPath(PrimPath); }
+
 protected:
+	UE::FSdfPath PrimPath;
 	TSharedRef< FUsdSchemaTranslationContext > Context;
-	UE::FUsdTyped Schema;
 };
 
 struct FSchemaTranslatorTask
 {
-	explicit FSchemaTranslatorTask( bool bInAsync, TFunction< bool() > InCallable )
+	explicit FSchemaTranslatorTask( ESchemaTranslationLaunchPolicy InPolicy, TFunction< bool() > InCallable )
 		: Callable( InCallable )
-		, bAsync( bInAsync )
+		, LaunchPolicy( InPolicy )
 		, bIsDone( false )
 	{
 	}
@@ -182,7 +229,8 @@ struct FSchemaTranslatorTask
 	TOptional< TFuture< bool > > Result;
 	TSharedPtr< FSchemaTranslatorTask > Continuation;
 
-	bool bAsync = false;
+	ESchemaTranslationLaunchPolicy LaunchPolicy;
+
 	FThreadSafeBool bIsDone;
 
 	void Start();
@@ -206,10 +254,10 @@ class FUsdSchemaTranslatorTaskChain
 public:
 	virtual ~FUsdSchemaTranslatorTaskChain() = default;
 
-	FUsdSchemaTranslatorTaskChain& Do( bool bAsync, TFunction< bool() > Callable );
-	FUsdSchemaTranslatorTaskChain& Then( bool bAsync, TFunction< bool() > Callable );
+	FUsdSchemaTranslatorTaskChain& Do( ESchemaTranslationLaunchPolicy Policy, TFunction< bool() > Callable );
+	FUsdSchemaTranslatorTaskChain& Then( ESchemaTranslationLaunchPolicy Policy, TFunction< bool() > Callable );
 
-	ESchemaTranslationStatus Execute();
+	ESchemaTranslationStatus Execute(bool bExclusiveSyncTasks = false);
 
 private:
 	TSharedPtr< FSchemaTranslatorTask > CurrentTask;

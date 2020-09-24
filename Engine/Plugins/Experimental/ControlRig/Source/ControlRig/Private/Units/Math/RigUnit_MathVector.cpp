@@ -480,3 +480,13 @@ FRigUnit_MathVectorClampSpatially_Execute()
 		}
 	}
 }
+
+FRigUnit_MathIntersectPlane_Execute()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+
+	FPlane Plane(PlanePoint, PlaneNormal);
+
+	Result = FMath::RayPlaneIntersection(Start, Direction, Plane);
+	Distance = (Start - Result).Size();
+}

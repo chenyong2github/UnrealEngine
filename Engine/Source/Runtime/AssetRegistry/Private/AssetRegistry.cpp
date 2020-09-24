@@ -12,7 +12,7 @@
 #include "UObject/CoreRedirects.h"
 #include "Blueprint/BlueprintSupport.h"
 #include "AssetRegistryPrivate.h"
-#include "ARFilter.h"
+#include "AssetRegistry/ARFilter.h"
 #include "DependsNode.h"
 #include "PackageReader.h"
 #include "GenericPlatform/GenericPlatformChunkInstall.h"
@@ -20,10 +20,10 @@
 #include "Misc/CoreDelegates.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Misc/RedirectCollector.h"
-#include "AssetRegistryModule.h"
 #include "Serialization/LargeMemoryReader.h"
 #include "Misc/ScopeExit.h"
 #include "HAL/ThreadHeartBeat.h"
+#include "AssetRegistryConsoleCommands.h"
 
 #if WITH_EDITOR
 #include "IDirectoryWatcher.h"
@@ -31,6 +31,32 @@
 #include "HAL/PlatformProcess.h"
 #include "HAL/IConsoleManager.h"
 #endif // WITH_EDITOR
+
+static FAssetRegistryConsoleCommands ConsoleCommands; // Registers its various console commands in the constructor
+
+/**
+ * Implementation of IAssetRegistryInterface; forwards calls from the CoreUObject-accessible IAssetRegistryInterface into the AssetRegistry-accessible IAssetRegistry
+ */
+class FAssetRegistryInterface : public IAssetRegistryInterface
+{
+public:
+	virtual void GetDependencies(FName InPackageName, TArray<FName>& OutDependencies,
+		UE::AssetRegistry::EDependencyCategory Category = UE::AssetRegistry::EDependencyCategory::Package,
+		const UE::AssetRegistry::FDependencyQuery& Flags = UE::AssetRegistry::FDependencyQuery()) override
+	{
+		IAssetRegistry::GetChecked().GetDependencies(InPackageName, OutDependencies, Category, Flags);
+	}
+
+protected:
+	/* This function is a workaround for platforms that don't support disable of deprecation warnings on override functions*/
+	virtual void GetDependenciesDeprecated(FName InPackageName, TArray<FName>& OutDependencies, EAssetRegistryDependencyType::Type InDependencyType) override
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		IAssetRegistry::GetChecked().GetDependencies(InPackageName, OutDependencies, InDependencyType);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+};
+FAssetRegistryInterface GAssetRegistryInterface;
 
 // Caching is permanently enabled in editor because memory is not that constrained, disabled by default otherwise
 #define ASSETREGISTRY_CACHE_ALWAYS_ENABLED (WITH_EDITOR)
@@ -68,6 +94,8 @@ static FPreLoadFile GPreLoadAssetRegistry(TEXT("{PROJECT}AssetRegistry.bin"));
 UAssetRegistryImpl::UAssetRegistryImpl(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	LLM_SCOPE(ELLMTag::AssetRegistry);
+
 	const double StartupStartTime = FPlatformTime::Seconds();
 
 	bInitialSearchCompleted = true;
@@ -206,6 +234,13 @@ UAssetRegistryImpl::UAssetRegistryImpl(const FObjectInitializer& ObjectInitializ
 	FCoreDelegates::OnPostEngineInit.AddUObject(this, &UAssetRegistryImpl::RefreshNativeClasses);
 
 	InitRedirectors();
+
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		check(UE::AssetRegistry::Private::IAssetRegistrySingleton::Singleton == nullptr && IAssetRegistryInterface::Default == nullptr);
+		UE::AssetRegistry::Private::IAssetRegistrySingleton::Singleton = this;
+		IAssetRegistryInterface::Default = &GAssetRegistryInterface;
+	}
 }
 
 bool UAssetRegistryImpl::ResolveRedirect(const FString& InPackageName, FString& OutPackageName)
@@ -486,6 +521,13 @@ void UAssetRegistryImpl::RefreshNativeClasses()
 
 UAssetRegistryImpl::~UAssetRegistryImpl()
 {
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		check(UE::AssetRegistry::Private::IAssetRegistrySingleton::Singleton == this && IAssetRegistryInterface::Default == &GAssetRegistryInterface);
+		UE::AssetRegistry::Private::IAssetRegistrySingleton::Singleton = nullptr;
+		IAssetRegistryInterface::Default = nullptr;
+	}
+
 	// Make sure the asset search thread is closed
 	if (BackgroundAssetSearch.IsValid())
 	{
@@ -540,8 +582,8 @@ UAssetRegistryImpl::~UAssetRegistryImpl()
 
 UAssetRegistryImpl& UAssetRegistryImpl::Get()
 {
-	FAssetRegistryModule& Module = FModuleManager::GetModuleChecked<FAssetRegistryModule>("AssetRegistry");
-	return static_cast<UAssetRegistryImpl&>(Module.Get());
+	check(UE::AssetRegistry::Private::IAssetRegistrySingleton::Singleton);
+	return static_cast<UAssetRegistryImpl&>(*UE::AssetRegistry::Private::IAssetRegistrySingleton::Singleton);
 }
 
 void UAssetRegistryImpl::SearchAllAssets(bool bSynchronousSearch)
@@ -918,50 +960,136 @@ bool UAssetRegistryImpl::EnumerateAllAssets(TFunctionRef<bool(const FAssetData&)
 
 bool UAssetRegistryImpl::GetDependencies(const FAssetIdentifier& AssetIdentifier, TArray<FAssetIdentifier>& OutDependencies, EAssetRegistryDependencyType::Type InDependencyType) const
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return State.GetDependencies(AssetIdentifier, OutDependencies, InDependencyType);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+bool UAssetRegistryImpl::GetDependencies(const FAssetIdentifier& AssetIdentifier, TArray<FAssetIdentifier>& OutDependencies, UE::AssetRegistry::EDependencyCategory Category, const UE::AssetRegistry::FDependencyQuery& Flags) const
+{
+	return State.GetDependencies(AssetIdentifier, OutDependencies, Category, Flags);
+}
+
+bool UAssetRegistryImpl::GetDependencies(const FAssetIdentifier& AssetIdentifier, TArray<FAssetDependency>& OutDependencies, UE::AssetRegistry::EDependencyCategory Category, const UE::AssetRegistry::FDependencyQuery& Flags) const
+{
+	return State.GetDependencies(AssetIdentifier, OutDependencies, Category, Flags);
+}
+
+static void ConvertAssetIdentifiersToPackageNames(const TArray<FAssetIdentifier>& AssetIdentifiers, TArray<FName>& OutPackageNames)
+{
+	for (const FAssetIdentifier& AssetId : AssetIdentifiers)
+	{
+		if (AssetId.PackageName != NAME_None)
+		{
+			OutPackageNames.AddUnique(AssetId.PackageName);
+		}
+	}
 }
 
 bool UAssetRegistryImpl::GetDependencies(FName PackageName, TArray<FName>& OutDependencies, EAssetRegistryDependencyType::Type InDependencyType) const
 {
 	TArray<FAssetIdentifier> TempDependencies;
-
-	if (GetDependencies(FAssetIdentifier(PackageName), TempDependencies, InDependencyType))
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (!GetDependencies(PackageName, TempDependencies, InDependencyType))
 	{
-		for (const FAssetIdentifier& AssetId : TempDependencies)
-		{
-			if (AssetId.PackageName != NAME_None)
-			{
-				OutDependencies.AddUnique(AssetId.PackageName);
-			}
-		}
-		return true;
+		return false;
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	ConvertAssetIdentifiersToPackageNames(TempDependencies, OutDependencies);
+	return true;
+}
 
-	return false;
+bool UAssetRegistryImpl::GetDependencies(FName PackageName, TArray<FName>& OutDependencies, UE::AssetRegistry::EDependencyCategory Category, const UE::AssetRegistry::FDependencyQuery& Flags) const
+{
+	TArray<FAssetIdentifier> TempDependencies;
+	if (!GetDependencies(FAssetIdentifier(PackageName), TempDependencies, Category, Flags))
+	{
+		return false;
+	}
+	ConvertAssetIdentifiersToPackageNames(TempDependencies, OutDependencies);
+	return true;
+}
+
+bool IAssetRegistry::K2_GetDependencies(FName PackageName, const FAssetRegistryDependencyOptions& DependencyOptions, TArray<FName>& OutDependencies) const
+{
+	UE::AssetRegistry::FDependencyQuery Flags;
+	bool bResult = false;
+	if (DependencyOptions.GetPackageQuery(Flags))
+	{
+		bResult = GetDependencies(PackageName, OutDependencies, UE::AssetRegistry::EDependencyCategory::Package, Flags) || bResult;
+	}
+	if (DependencyOptions.GetSearchableNameQuery(Flags))
+	{
+		bResult = GetDependencies(PackageName, OutDependencies, UE::AssetRegistry::EDependencyCategory::SearchableName, Flags) || bResult;
+	}
+	if (DependencyOptions.GetManageQuery(Flags))
+	{
+		bResult = GetDependencies(PackageName, OutDependencies, UE::AssetRegistry::EDependencyCategory::Manage, Flags) || bResult;
+	}
+	return bResult;
 }
 
 bool UAssetRegistryImpl::GetReferencers(const FAssetIdentifier& AssetIdentifier, TArray<FAssetIdentifier>& OutReferencers, EAssetRegistryDependencyType::Type InReferenceType) const
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return State.GetReferencers(AssetIdentifier, OutReferencers, InReferenceType);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+bool UAssetRegistryImpl::GetReferencers(const FAssetIdentifier& AssetIdentifier, TArray<FAssetIdentifier>& OutReferencers, UE::AssetRegistry::EDependencyCategory Category, const UE::AssetRegistry::FDependencyQuery& Flags) const
+{
+	return State.GetReferencers(AssetIdentifier, OutReferencers, Category, Flags);
+}
+
+bool UAssetRegistryImpl::GetReferencers(const FAssetIdentifier& AssetIdentifier, TArray<FAssetDependency>& OutReferencers, UE::AssetRegistry::EDependencyCategory Category, const UE::AssetRegistry::FDependencyQuery& Flags) const
+{
+	return State.GetReferencers(AssetIdentifier, OutReferencers, Category, Flags);
 }
 
 bool UAssetRegistryImpl::GetReferencers(FName PackageName, TArray<FName>& OutReferencers, EAssetRegistryDependencyType::Type InReferenceType) const
 {
 	TArray<FAssetIdentifier> TempReferencers;
 
-	if (GetReferencers(FAssetIdentifier(PackageName), TempReferencers, InReferenceType))
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (!GetReferencers(FAssetIdentifier(PackageName), TempReferencers, InReferenceType))
 	{
-		for (const FAssetIdentifier& AssetId : TempReferencers)
-		{
-			if (AssetId.PackageName != NAME_None)
-			{
-				OutReferencers.AddUnique(AssetId.PackageName);
-			}
-		}
-		return true;
+		return false;
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	ConvertAssetIdentifiersToPackageNames(TempReferencers, OutReferencers);
+	return true;
+}
+
+bool UAssetRegistryImpl::GetReferencers(FName PackageName, TArray<FName>& OutReferencers, UE::AssetRegistry::EDependencyCategory Category, const UE::AssetRegistry::FDependencyQuery& Flags) const
+{
+	TArray<FAssetIdentifier> TempReferencers;
+
+	if (!GetReferencers(FAssetIdentifier(PackageName), TempReferencers, Category, Flags))
+	{
+		return false;
+	}
+	ConvertAssetIdentifiersToPackageNames(TempReferencers, OutReferencers);
+	return true;
+}
+
+bool IAssetRegistry::K2_GetReferencers(FName PackageName, const FAssetRegistryDependencyOptions& ReferenceOptions, TArray<FName>& OutReferencers) const
+{
+	UE::AssetRegistry::FDependencyQuery Flags;
+	bool bResult = false;
+	if (ReferenceOptions.GetPackageQuery(Flags))
+	{
+		bResult = GetReferencers(PackageName, OutReferencers, UE::AssetRegistry::EDependencyCategory::Package, Flags) || bResult;
+	}
+	if (ReferenceOptions.GetSearchableNameQuery(Flags))
+	{
+		bResult = GetReferencers(PackageName, OutReferencers, UE::AssetRegistry::EDependencyCategory::SearchableName, Flags) || bResult;
+	}
+	if (ReferenceOptions.GetManageQuery(Flags))
+	{
+		bResult = GetReferencers(PackageName, OutReferencers, UE::AssetRegistry::EDependencyCategory::Manage, Flags) || bResult;
 	}
 
-	return false;
+	return bResult;
 }
 
 const FAssetPackageData* UAssetRegistryImpl::GetAssetPackageData(FName PackageName) const
@@ -1455,6 +1583,7 @@ void UAssetRegistryImpl::PrioritizeSearchPath(const FString& PathToPrioritize)
 
 void UAssetRegistryImpl::AssetCreated(UObject* NewAsset)
 {
+	checkf(GIsEditor, TEXT("Updating the AssetRegistry is only available in editor"));
 	if (ensure(NewAsset) && NewAsset->IsAsset())
 	{
 		// Add the newly created object to the package file cache because its filename can already be
@@ -1483,6 +1612,7 @@ void UAssetRegistryImpl::AssetCreated(UObject* NewAsset)
 
 void UAssetRegistryImpl::AssetDeleted(UObject* DeletedAsset)
 {
+	checkf(GIsEditor, TEXT("Updating the AssetRegistry is only available in editor"));
 	if (ensure(DeletedAsset) && DeletedAsset->IsAsset())
 	{
 		UPackage* DeletedObjectPackage = DeletedAsset->GetOutermost();
@@ -1526,6 +1656,7 @@ void UAssetRegistryImpl::AssetDeleted(UObject* DeletedAsset)
 
 void UAssetRegistryImpl::AssetRenamed(const UObject* RenamedAsset, const FString& OldObjectPath)
 {
+	checkf(GIsEditor, TEXT("Updating the AssetRegistry is only available in editor"));
 	if (ensure(RenamedAsset) && RenamedAsset->IsAsset())
 	{
 		// Add the renamed object to the package file cache because its filename can already be
@@ -1559,6 +1690,7 @@ void UAssetRegistryImpl::AssetRenamed(const UObject* RenamedAsset, const FString
 
 void UAssetRegistryImpl::PackageDeleted(UPackage* DeletedPackage)
 {
+	checkf(GIsEditor, TEXT("Updating the AssetRegistry is only available in editor"));
 	if (ensure(DeletedPackage))
 	{
 		RemovePackageData(*DeletedPackage->GetName());
@@ -1685,6 +1817,7 @@ void UAssetRegistryImpl::Tick(float DeltaTime)
 
 void UAssetRegistryImpl::Serialize(FArchive& Ar)
 {
+	LLM_SCOPE(ELLMTag::AssetRegistry);
 	State.Serialize(Ar, SerializationOptions);
 	CachePathsFromState(State);
 }
@@ -1779,7 +1912,6 @@ uint32 UAssetRegistryImpl::GetAllocatedSize(bool bLogDetailed) const
 
 void UAssetRegistryImpl::LoadPackageRegistryData(FArchive& Ar, TArray<FAssetData*> &AssetDataList) const
 {
-
 	FPackageReader Reader;
 	Reader.OpenPackageFile(&Ar);
 
@@ -1790,7 +1922,7 @@ void UAssetRegistryImpl::LoadPackageRegistryData(FArchive& Ar, TArray<FAssetData
 	TArray<FString> CookedPackageNamesWithoutAssetDataGathered;
 	Reader.ReadAssetRegistryDataIfCookedPackage(AssetDataList, CookedPackageNamesWithoutAssetDataGathered);
 
-	//bool ReadDependencyData(FPackageDependencyData& OutDependencyData);
+	// Dependency Data not currently read for this function
 }
 
 void UAssetRegistryImpl::SaveRegistryData(FArchive& Ar, TMap<FName, FAssetData*>& Data, TArray<FName>* InMaps /* = nullptr */)
@@ -1847,6 +1979,7 @@ void UAssetRegistryImpl::ScanPathsAndFilesSynchronous(const TArray<FString>& InP
 
 void UAssetRegistryImpl::ScanPathsAndFilesSynchronous(const TArray<FString>& InPaths, const TArray<FString>& InSpecificFiles, const TArray<FString>& InBlacklistScanFilters, bool bForceRescan, EAssetDataCacheMode AssetDataCacheMode, TArray<FName>* OutFoundAssets, TArray<FName>* OutFoundPaths)
 {
+	LLM_SCOPE(ELLMTag::AssetRegistry);
 	const double SearchStartTime = FPlatformTime::Seconds();
 
 	// Only scan paths that were not previously synchronously scanned, unless we were asked to force rescan.
@@ -2044,6 +2177,7 @@ void UAssetRegistryImpl::PathDataGathered(const double TickStartTime, TBackgroun
 
 void UAssetRegistryImpl::DependencyDataGathered(const double TickStartTime, TBackgroundGatherResults<FPackageDependencyData>& DependsResults)
 {
+	using namespace UE::AssetRegistry;
 	const bool bFlushFullBuffer = TickStartTime < 0;
 
 	while (DependsResults.Num() > 0)
@@ -2058,9 +2192,12 @@ void UAssetRegistryImpl::DependencyDataGathered(const double TickStartTime, TBac
 
 		// We will populate the node dependencies below. Empty the set here in case this file was already read
 		// Also remove references to all existing dependencies, those will be also repopulated below
-		Node->IterateOverDependencies([Node](FDependsNode* InDependency, EAssetRegistryDependencyType::Type InDependencyType)
+		Node->IterateOverDependencies([Node](FDependsNode* InDependency, UE::AssetRegistry::EDependencyCategory Category, UE::AssetRegistry::EDependencyProperty Properties, bool bDuplicate)
 		{
-			InDependency->RemoveReferencer(Node);
+			if (!bDuplicate)
+			{
+				InDependency->RemoveReferencer(Node);
+			}
 		});
 
 		Node->ClearDependencies();
@@ -2069,7 +2206,8 @@ void UAssetRegistryImpl::DependencyDataGathered(const double TickStartTime, TBac
 		static TArray<FName> ScriptPackagesToSkip = TArray<FName>{ TEXT("/Script/CoreUObject"), TEXT("/Script/Engine"), TEXT("/Script/BlueprintGraph"), TEXT("/Script/UnrealEd") };
 
 		// Determine the new package dependencies
-		TMap<FName, EAssetRegistryDependencyType::Type> PackageDependencies;
+		TMap<FName, FDependsNode::FPackageFlagSet> PackageDependencies;
+		check(Result.ImportUsedInGame.Num() == Result.ImportMap.Num());
 		for (int32 ImportIdx = 0; ImportIdx < Result.ImportMap.Num(); ++ImportIdx)
 		{
 			const FName AssetReference = Result.GetImportPackageName(ImportIdx);
@@ -2080,24 +2218,50 @@ void UAssetRegistryImpl::DependencyDataGathered(const double TickStartTime, TBac
 				continue;
 			}
 
-			// Already processed?
-			if (PackageDependencies.Contains(AssetReference))
-			{
-				continue;
-			}
-
-			PackageDependencies.Add(AssetReference, EAssetRegistryDependencyType::Hard);
+			EDependencyProperty DependencyProperty = EDependencyProperty::Build | EDependencyProperty::Hard;
+			DependencyProperty |= Result.ImportUsedInGame[ImportIdx] ? EDependencyProperty::Game : EDependencyProperty::None;
+			PackageDependencies.FindOrAdd(AssetReference).Add(FDependsNode::PackagePropertiesToByte(DependencyProperty));
 		}
 
-		for (FName SoftPackageName : Result.SoftPackageReferenceList)
+		check(Result.SoftPackageUsedInGame.Num() == Result.SoftPackageReferenceList.Num());
+		for (int32 SoftPackageIdx = 0; SoftPackageIdx < Result.SoftPackageReferenceList.Num(); ++SoftPackageIdx)
 		{
-			// Already processed?
-			if (PackageDependencies.Contains(SoftPackageName))
-			{
-				continue;
-			}
+			FName AssetReference = Result.SoftPackageReferenceList[SoftPackageIdx];
 
-			PackageDependencies.Add(SoftPackageName, EAssetRegistryDependencyType::Soft);
+			EDependencyProperty DependencyProperty = UE::AssetRegistry::EDependencyProperty::Build;
+			DependencyProperty |= (Result.SoftPackageUsedInGame[SoftPackageIdx] ? EDependencyProperty::Game : EDependencyProperty::None);
+			PackageDependencies.FindOrAdd(AssetReference).Add(FDependsNode::PackagePropertiesToByte(DependencyProperty));
+		}
+
+		// Doubly-link all of the PackageDependencies
+		for (TPair<FName, FDependsNode::FPackageFlagSet>& NewDependsIt : PackageDependencies)
+		{
+			FDependsNode* DependsNode = State.CreateOrFindDependsNode(NewDependsIt.Key);
+
+			if (DependsNode != nullptr)
+			{
+				const FAssetIdentifier& Identifier = DependsNode->GetIdentifier();
+				if (DependsNode->GetConnectionCount() == 0 && Identifier.IsPackage())
+				{
+					// This was newly created, see if we need to read the script package Guid
+					FString PackageName = Identifier.PackageName.ToString();
+
+					if (FPackageName::IsScriptPackage(PackageName))
+					{
+						// Get the guid off the script package, this is updated when script is changed
+						UPackage* Package = FindPackage(nullptr, *PackageName);
+
+						if (Package)
+						{
+							FAssetPackageData* ScriptPackageData = State.CreateOrGetAssetPackageData(Identifier.PackageName);
+							ScriptPackageData->PackageGuid = Package->GetGuid();
+						}
+					}
+				}
+
+				Node->AddPackageDependencySet(DependsNode, NewDependsIt.Value);
+				DependsNode->AddReferencer(Node);
+			}
 		}
 
 		for (const TPair<FPackageIndex, TArray<FName>>& SearchableNameList : Result.SearchableNamesMap)
@@ -2140,40 +2304,9 @@ void UAssetRegistryImpl::DependencyDataGathered(const double TickStartTime, TBac
 
 				if (DependsNode != nullptr)
 				{
-					Node->AddDependency(DependsNode, EAssetRegistryDependencyType::SearchableName);
+					Node->AddDependency(DependsNode, EDependencyCategory::SearchableName, EDependencyProperty::None);
 					DependsNode->AddReferencer(Node);
 				}
-			}
-		}
-
-		// Doubly-link all new dependencies for this package
-		for (auto NewDependsIt : PackageDependencies)
-		{
-			FDependsNode* DependsNode = State.CreateOrFindDependsNode(NewDependsIt.Key);
-
-			if (DependsNode != nullptr)
-			{
-				const FAssetIdentifier& Identifier = DependsNode->GetIdentifier();
-				if (DependsNode->GetConnectionCount() == 0 && Identifier.IsPackage())
-				{
-					// This was newly created, see if we need to read the script package Guid
-					FString PackageName = Identifier.PackageName.ToString();
-
-					if (FPackageName::IsScriptPackage(PackageName))
-					{
-						// Get the guid off the script package, this is updated when script is changed
-						UPackage* Package = FindPackage(nullptr, *PackageName);
-
-						if (Package)
-						{
-							FAssetPackageData* ScriptPackageData = State.CreateOrGetAssetPackageData(Identifier.PackageName);
-							ScriptPackageData->PackageGuid = Package->GetGuid();
-						}
-					}
-				}
-
-				Node->AddDependency(DependsNode, NewDependsIt.Value);
-				DependsNode->AddReferencer(Node);
 			}
 		}
 
@@ -2359,7 +2492,8 @@ bool UAssetRegistryImpl::RemoveAssetData(FAssetData* AssetData)
 			}
 		}
 
-		bRemoved = State.RemoveAssetData(AssetData);
+		bool bRemovedDependencyData;
+		State.RemoveAssetData(AssetData, true /* bRemoveDependencyData */, bRemoved, bRemovedDependencyData);
 	}
 
 	return bRemoved;
@@ -2370,11 +2504,18 @@ void UAssetRegistryImpl::RemovePackageData(const FName PackageName)
 	TArray<FAssetData*>* PackageAssetsPtr = State.CachedAssetsByPackageName.Find(PackageName);
 	if (PackageAssetsPtr && PackageAssetsPtr->Num() > 0)
 	{
-		// If there were any referencers, re-add them to a new empty dependency node, as it would be when the referencers are loaded from disk
-		TArray<FName> SoftReferencers;
-		TArray<FName> HardReferencers;
-		GetReferencers(PackageName, SoftReferencers, EAssetRegistryDependencyType::Soft);
-		GetReferencers(PackageName, HardReferencers, EAssetRegistryDependencyType::Hard);
+		FAssetIdentifier PackageAssetIdentifier(PackageName);
+		// If there were any EDependencyCategory::Package referencers, re-add them to a new empty dependency node, as it would be when the referencers are loaded from disk
+		// We do not have to handle SearchableName or Manage referencers, because those categories of dependencies are not created for non-existent AssetIdentifiers
+		TArray<TPair<FAssetIdentifier, FDependsNode::FPackageFlagSet>> PackageReferencers;
+		{
+			FDependsNode** FoundPtr = State.CachedDependsNodes.Find(PackageAssetIdentifier);
+			FDependsNode* DependsNode = FoundPtr ? *FoundPtr : nullptr;
+			if (DependsNode)
+			{
+				DependsNode->GetPackageReferencers(PackageReferencers);
+			}
+		}
 
 		// Copy the array since RemoveAssetData may re-allocate it!
 		TArray<FAssetData*> PackageAssets = *PackageAssetsPtr;
@@ -2383,28 +2524,18 @@ void UAssetRegistryImpl::RemovePackageData(const FName PackageName)
 			RemoveAssetData(PackageAsset);
 		}
 
-		// See if we have to readd the dependency now
-		if (SoftReferencers.Num() > 0 || HardReferencers.Num() > 0)
+		// Readd any referencers, creating an empty DependsNode to hold them
+		if (PackageReferencers.Num())
 		{
-			FDependsNode* NewNode = State.CreateOrFindDependsNode(PackageName);
-
-			auto ReAddDependency = [this, NewNode](const FName& Referencer, EAssetRegistryDependencyType::Type RefType) {
-				FDependsNode* ReferencerNode = State.CreateOrFindDependsNode(Referencer);
+			FDependsNode* NewNode = State.CreateOrFindDependsNode(PackageAssetIdentifier);
+			for (TPair<FAssetIdentifier, FDependsNode::FPackageFlagSet>& Pair : PackageReferencers)
+			{
+				FDependsNode* ReferencerNode = State.CreateOrFindDependsNode(Pair.Key);
 				if (ReferencerNode != nullptr)
 				{
-					ReferencerNode->AddDependency(NewNode, RefType);
+					ReferencerNode->AddPackageDependencySet(NewNode, Pair.Value);
 					NewNode->AddReferencer(ReferencerNode);
 				}
-			};
-
-			for (const FName& SoftRef : SoftReferencers)
-			{
-				ReAddDependency(SoftRef, EAssetRegistryDependencyType::Soft);
-			}
-
-			for (const FName& HardRef : HardReferencers)
-			{
-				ReAddDependency(HardRef, EAssetRegistryDependencyType::Hard);
 			}
 		}
 	}
@@ -2534,6 +2665,7 @@ void UAssetRegistryImpl::OnAssetLoaded(UObject *AssetLoaded)
 
 void UAssetRegistryImpl::ProcessLoadedAssetsToUpdateCache(const double TickStartTime)
 {
+	LLM_SCOPE(ELLMTag::AssetRegistry);
 	check(bInitialSearchCompleted && bUpdateDiskCacheAfterLoad);
 
 	const bool bFlushFullBuffer = TickStartTime < 0;
@@ -2922,7 +3054,7 @@ void PrintAssetRegistryManagementPathsPackageDebugInfo(FDependsNode* Node, const
 		TSet<FDependsNode*> AllVisitedNodes;
 		while (FDependsNode* ReferencingNode = EditorOnlyManagementPaths.FindRef(Node))
 		{
-			UE_LOG(LogAssetRegistry, Display, TEXT("  %s"), *ReferencingNode->GetPackageName().ToString());
+			UE_LOG(LogAssetRegistry, Display, TEXT("  %s"), *ReferencingNode->GetIdentifier().ToString());
 			if (AllVisitedNodes.Contains(ReferencingNode))
 			{
 				UE_LOG(LogAssetRegistry, Display, TEXT("  ... (Circular reference back to %s)"), *ReferencingNode->GetPackageName().ToString());
@@ -2940,34 +3072,39 @@ void PrintAssetRegistryManagementPathsPackageDebugInfo(FDependsNode* Node, const
 }
 #endif // WITH_EDITOR
 
-void UAssetRegistryImpl::SetManageReferences(const TMultiMap<FAssetIdentifier, FAssetIdentifier>& ManagerMap, bool bClearExisting, EAssetRegistryDependencyType::Type RecurseType, ShouldSetManagerPredicate ShouldSetManager)
+void UAssetRegistryImpl::SetManageReferences(const TMultiMap<FAssetIdentifier, FAssetIdentifier>& ManagerMap, bool bClearExisting, UE::AssetRegistry::EDependencyCategory RecurseType, TSet<FDependsNode*>& ExistingManagedNodes, ShouldSetManagerPredicate ShouldSetManager)
 {
-	TSet<FDependsNode*> ExistingManagedNodes;
+	using namespace UE::AssetRegistry;
 
 	// Set default predicate if needed
 	if (!ShouldSetManager)
 	{
-		ShouldSetManager = [](const FAssetIdentifier& Manager, const FAssetIdentifier& Source, const FAssetIdentifier& Target, EAssetRegistryDependencyType::Type DependencyType, EAssetSetManagerFlags::Type Flags)
+		ShouldSetManager = [](const FAssetIdentifier& Manager, const FAssetIdentifier& Source, const FAssetIdentifier& Target, UE::AssetRegistry::EDependencyCategory Category, UE::AssetRegistry::EDependencyProperty Properties, EAssetSetManagerFlags::Type Flags)
 		{
 			return EAssetSetManagerResult::SetButDoNotRecurse;
 		};
 	}
 
-	// Find all nodes with incoming manage dependencies
-	for (const TPair<FAssetIdentifier, FDependsNode*>& Pair : State.CachedDependsNodes)
-	{
-		Pair.Value->IterateOverDependencies([&ExistingManagedNodes](FDependsNode* TestNode, EAssetRegistryDependencyType::Type DependencyType)
-		{
-			ExistingManagedNodes.Add(TestNode);
-		}, EAssetRegistryDependencyType::Manage);
-	}
-
 	if (bClearExisting)
 	{
+		// Find all nodes with incoming manage dependencies
+		for (const TPair<FAssetIdentifier, FDependsNode*>& Pair : State.CachedDependsNodes)
+		{
+			Pair.Value->IterateOverDependencies([&ExistingManagedNodes](FDependsNode* TestNode, EDependencyCategory Category, EDependencyProperty Property, bool bUnique)
+				{
+					ExistingManagedNodes.Add(TestNode);
+				}, EDependencyCategory::Manage);
+		}
+
 		// Clear them
+		for (const TPair<FAssetIdentifier, FDependsNode*>& Pair : State.CachedDependsNodes)
+		{
+			Pair.Value->ClearDependencies(EDependencyCategory::Manage);
+		}
 		for (FDependsNode* NodeToClear : ExistingManagedNodes)
 		{
-			NodeToClear->RemoveManageReferencesToNode();
+			NodeToClear->SetIsReferencersSorted(false);
+			NodeToClear->RefreshReferencers();
 		}
 		ExistingManagedNodes.Empty();
 	}
@@ -2980,7 +3117,7 @@ void UAssetRegistryImpl::SetManageReferences(const TMultiMap<FAssetIdentifier, F
 
 		if (!ManagedNode)
 		{
-			UE_LOG(LogAssetRegistry, Error, TEXT("Cannot set %s to manage asset %s because it does not exist!"), *Pair.Key.ToString(), *Pair.Value.ToString());
+			UE_LOG(LogAssetRegistry, Error, TEXT("Cannot set %s to manage asset %s because %s does not exist!"), *Pair.Key.ToString(), *Pair.Value.ToString(), *Pair.Value.ToString());
 			continue;
 		}
 
@@ -2992,7 +3129,7 @@ void UAssetRegistryImpl::SetManageReferences(const TMultiMap<FAssetIdentifier, F
 	}
 
 	TSet<FDependsNode*> Visited;
-	TMap<FDependsNode*, EAssetRegistryDependencyType::Type> NodesToManage;
+	TMap<FDependsNode*, EDependencyProperty> NodesToManage;
 	TArray<FDependsNode*> NodesToHardReference;
 	TArray<FDependsNode*> NodesToRecurse;
 
@@ -3001,6 +3138,7 @@ void UAssetRegistryImpl::SetManageReferences(const TMultiMap<FAssetIdentifier, F
 	TMap<FDependsNode*, FDependsNode*> EditorOnlyManagementPaths;
 #endif
 
+	TSet<FDependsNode*> NewManageNodes;
 	// For each explicitly set asset
 	for (const TPair<FDependsNode*, TArray<FDependsNode *>>& ExplicitPair : ExplicitMap)
 	{
@@ -3019,7 +3157,7 @@ void UAssetRegistryImpl::SetManageReferences(const TMultiMap<FAssetIdentifier, F
 #if WITH_EDITOR
 										, &EditorOnlyManagementPaths
 #endif
-										](FDependsNode* ReferencingNode, FDependsNode* TargetNode, EAssetRegistryDependencyType::Type DependencyType)
+										](FDependsNode* ReferencingNode, FDependsNode* TargetNode, EDependencyCategory DependencyType, EDependencyProperty DependencyProperties)
 			{
 				// Only recurse if we haven't already visited, and this node passes recursion test
 				if (!Visited.Contains(TargetNode))
@@ -3028,20 +3166,20 @@ void UAssetRegistryImpl::SetManageReferences(const TMultiMap<FAssetIdentifier, F
 						| (ExistingManagedNodes.Contains(TargetNode) ? EAssetSetManagerFlags::TargetHasExistingManager : 0)
 						| (ExplicitMap.Find(TargetNode) && SourceNode != ManagerNode ? EAssetSetManagerFlags::TargetHasDirectManager : 0));
 
-					EAssetSetManagerResult::Type Result = ShouldSetManager(ManagerNode->GetIdentifier(), SourceNode->GetIdentifier(), TargetNode->GetIdentifier(), DependencyType, Flags);
+					EAssetSetManagerResult::Type Result = ShouldSetManager(ManagerNode->GetIdentifier(), SourceNode->GetIdentifier(), TargetNode->GetIdentifier(), DependencyType, DependencyProperties, Flags);
 
 					if (Result == EAssetSetManagerResult::DoNotSet)
 					{
 						return;
 					}
 
-					EAssetRegistryDependencyType::Type ManageType = (Flags & EAssetSetManagerFlags::IsDirectSet) ? EAssetRegistryDependencyType::HardManage : EAssetRegistryDependencyType::SoftManage;
-					NodesToManage.Add(TargetNode, ManageType);
+					EDependencyProperty ManageProperties = (Flags & EAssetSetManagerFlags::IsDirectSet) ? EDependencyProperty::Direct : EDependencyProperty::None;
+					NodesToManage.Add(TargetNode, ManageProperties);
 
 #if WITH_EDITOR
 					if (!GAssetRegistryManagementPathsPackageDebugName.IsEmpty())
 					{
-						EditorOnlyManagementPaths.Add(TargetNode, ReferencingNode);
+						EditorOnlyManagementPaths.Add(TargetNode, ReferencingNode ? ReferencingNode : ManagerNode);
 					}
 #endif
 
@@ -3053,10 +3191,10 @@ void UAssetRegistryImpl::SetManageReferences(const TMultiMap<FAssetIdentifier, F
 			};
 
 			// Check initial node
-			IterateFunction(nullptr, BaseManagedNode, EAssetRegistryDependencyType::Manage);
+			IterateFunction(nullptr, BaseManagedNode, EDependencyCategory::Manage, EDependencyProperty::Direct);
 
 			// Do all recursion first, but only if we have a recurse type
-			if (RecurseType)
+			if (RecurseType != EDependencyCategory::None)
 			{
 				while (NodesToRecurse.Num())
 				{
@@ -3065,19 +3203,34 @@ void UAssetRegistryImpl::SetManageReferences(const TMultiMap<FAssetIdentifier, F
 
 					Visited.Add(SourceNode);
 
-					SourceNode->IterateOverDependencies([&IterateFunction, SourceNode](FDependsNode* TargetNode, EAssetRegistryDependencyType::Type DependencyType)
+					SourceNode->IterateOverDependencies([&IterateFunction, SourceNode](FDependsNode* TargetNode, EDependencyCategory DependencyCategory, EDependencyProperty DependencyProperties, bool bDuplicate)
 						{
-							IterateFunction(SourceNode, TargetNode, DependencyType);
+							IterateFunction(SourceNode, TargetNode, DependencyCategory, DependencyProperties);
 						}, RecurseType);
 				}
 			}
 
-			for (TPair<FDependsNode*, EAssetRegistryDependencyType::Type>& ManagePair : NodesToManage)
+			ManagerNode->SetIsDependencyListSorted(UE::AssetRegistry::EDependencyCategory::Manage, false);
+			for (TPair<FDependsNode*, EDependencyProperty>& ManagePair : NodesToManage)
 			{
+				ManagePair.Key->SetIsReferencersSorted(false);
 				ManagePair.Key->AddReferencer(ManagerNode);
-				ManagerNode->AddDependency(ManagePair.Key, ManagePair.Value);
+				ManagerNode->AddDependency(ManagePair.Key, EDependencyCategory::Manage, ManagePair.Value);
+				NewManageNodes.Add(ManagePair.Key);
 			}
 		}
+	}
+
+	for (FDependsNode* ManageNode : NewManageNodes)
+	{
+		ExistingManagedNodes.Add(ManageNode);
+	}
+	// Restore all nodes to manage dependencies sorted and references sorted, so we can efficiently read them in future operations
+	for (const TPair<FAssetIdentifier, FDependsNode*>& Pair : State.CachedDependsNodes)
+	{
+		FDependsNode* DependsNode = Pair.Value;
+		DependsNode->SetIsDependencyListSorted(UE::AssetRegistry::EDependencyCategory::Manage, true);
+		DependsNode->SetIsReferencersSorted(true);
 	}
 
 #if WITH_EDITOR
@@ -3114,4 +3267,54 @@ bool UAssetRegistryImpl::SetPrimaryAssetIdForObjectPath(const FName ObjectPath, 
 const FAssetData* UAssetRegistryImpl::GetCachedAssetDataForObjectPath(const FName ObjectPath) const
 {
 	return State.GetAssetByObjectPath(ObjectPath);
+}
+
+void FAssetRegistryDependencyOptions::SetFromFlags(const EAssetRegistryDependencyType::Type InFlags)
+{
+	bIncludeSoftPackageReferences = (InFlags & EAssetRegistryDependencyType::Soft);
+	bIncludeHardPackageReferences = (InFlags & EAssetRegistryDependencyType::Hard);
+	bIncludeSearchableNames = (InFlags & EAssetRegistryDependencyType::SearchableName);
+	bIncludeSoftManagementReferences = (InFlags & EAssetRegistryDependencyType::SoftManage);
+	bIncludeHardManagementReferences = (InFlags & EAssetRegistryDependencyType::HardManage);
+}
+
+EAssetRegistryDependencyType::Type FAssetRegistryDependencyOptions::GetAsFlags() const
+{
+	uint32 Flags = EAssetRegistryDependencyType::None;
+	Flags |= (bIncludeSoftPackageReferences ? EAssetRegistryDependencyType::Soft : EAssetRegistryDependencyType::None);
+	Flags |= (bIncludeHardPackageReferences ? EAssetRegistryDependencyType::Hard : EAssetRegistryDependencyType::None);
+	Flags |= (bIncludeSearchableNames ? EAssetRegistryDependencyType::SearchableName : EAssetRegistryDependencyType::None);
+	Flags |= (bIncludeSoftManagementReferences ? EAssetRegistryDependencyType::SoftManage : EAssetRegistryDependencyType::None);
+	Flags |= (bIncludeHardManagementReferences ? EAssetRegistryDependencyType::HardManage : EAssetRegistryDependencyType::None);
+	return (EAssetRegistryDependencyType::Type)Flags;
+}
+
+bool FAssetRegistryDependencyOptions::GetPackageQuery(UE::AssetRegistry::FDependencyQuery& Flags) const
+{
+	Flags = UE::AssetRegistry::FDependencyQuery();
+	if (bIncludeSoftPackageReferences || bIncludeHardPackageReferences)
+	{
+		if (!bIncludeSoftPackageReferences) Flags.Required |= UE::AssetRegistry::EDependencyProperty::Hard;
+		if (!bIncludeHardPackageReferences) Flags.Excluded |= UE::AssetRegistry::EDependencyProperty::Hard;
+		return true;
+	}
+	return false;
+}
+
+bool FAssetRegistryDependencyOptions::GetSearchableNameQuery(UE::AssetRegistry::FDependencyQuery& Flags) const
+{
+	Flags = UE::AssetRegistry::FDependencyQuery();
+	return bIncludeSearchableNames;
+}
+
+bool FAssetRegistryDependencyOptions::GetManageQuery(UE::AssetRegistry::FDependencyQuery& Flags) const
+{
+	Flags = UE::AssetRegistry::FDependencyQuery();
+	if (bIncludeSoftManagementReferences || bIncludeHardManagementReferences)
+	{
+		if (!bIncludeSoftManagementReferences) Flags.Required |= UE::AssetRegistry::EDependencyProperty::Direct;
+		if (!bIncludeHardPackageReferences) Flags.Excluded|= UE::AssetRegistry::EDependencyProperty::Direct;
+		return true;
+	}
+	return false;
 }

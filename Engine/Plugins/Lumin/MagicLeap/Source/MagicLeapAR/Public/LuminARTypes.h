@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 
 #include "MagicLeapHandle.h"
+#include "MagicLeapImageTrackerTypes.h"
 
 #include "ARTypes.h"
 #include "ARTrackable.h"
@@ -57,7 +58,7 @@ enum class ELuminARLineTraceChannel : uint8
 ENUM_CLASS_FLAGS(ELuminARLineTraceChannel);
 
 UCLASS(BlueprintType, Category = "AR AugmentedReality|Light Estimation")
-class ULuminARLightEstimate : public UARBasicLightEstimate
+class MAGICLEAPAR_API ULuminARLightEstimate : public UARBasicLightEstimate
 {
 	GENERATED_BODY()
 
@@ -79,12 +80,12 @@ private:
 };
 
 UCLASS(BlueprintType, Category = "Lumin AR Candidate Image")
-class ULuminARCandidateImage : public UARCandidateImage
+class MAGICLEAPAR_API ULuminARCandidateImage : public UARCandidateImage
 {
 	GENERATED_BODY()
 
 public:
-	static ULuminARCandidateImage* CreateNewLuminARCandidateImage(UTexture2D* InCandidateTexture, FString InFriendlyName, float InPhysicalWidth, float InPhysicalHeight, EARCandidateImageOrientation InOrientation, bool bInUseUnreliablePose, bool bInImageIsStationary)
+	static ULuminARCandidateImage* CreateNewLuminARCandidateImage(UTexture2D* InCandidateTexture, FString InFriendlyName, float InPhysicalWidth, float InPhysicalHeight, EARCandidateImageOrientation InOrientation, bool bInUseUnreliablePose, bool bInImageIsStationary, EMagicLeapImageTargetOrientation InAxisOrientation)
 	{
 		ULuminARCandidateImage* NewARCandidateImage = NewObject<ULuminARCandidateImage>();
 		NewARCandidateImage->CandidateTexture = InCandidateTexture;
@@ -94,6 +95,7 @@ public:
 		NewARCandidateImage->Orientation = InOrientation;
 		NewARCandidateImage->bUseUnreliablePose = bInUseUnreliablePose;
 		NewARCandidateImage->bImageIsStationary = bInImageIsStationary;
+		NewARCandidateImage->AxisOrientation = InAxisOrientation;
 
 		return NewARCandidateImage;
 	}
@@ -105,10 +107,16 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Lumin AR Candidate Image")
 	bool GetImageIsStationary() const { return bImageIsStationary; }
 
+	UFUNCTION(BlueprintPure, Category = "Lumin AR Candidate Image")
+	EMagicLeapImageTargetOrientation GetAxisOrientation() const { return AxisOrientation; }
+
 private:
 	UPROPERTY(EditAnywhere, Category="Lumin AR Candidate Image")
 	bool bUseUnreliablePose;
 
 	UPROPERTY(EditAnywhere, Category="Lumin AR Candidate Image")
 	bool bImageIsStationary;
+
+	UPROPERTY(EditAnywhere, Category="Lumin AR Candidate Image")
+	EMagicLeapImageTargetOrientation AxisOrientation;
 };

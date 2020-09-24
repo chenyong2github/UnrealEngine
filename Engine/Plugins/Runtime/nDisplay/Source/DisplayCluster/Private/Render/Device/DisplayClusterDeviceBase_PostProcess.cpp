@@ -92,7 +92,7 @@ static TAutoConsoleVariable<int32> CVarPostprocessTargetBeforeWarpBlend(
 	ECVF_RenderThreadSafe
 );
 
-void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessRenderTargetBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture) const
+void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessRenderTargetBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const TArray<FDisplayClusterRenderViewport>& RenderViewports) const
 {
 	const bool bEnabled = (CVarPostprocessTargetBeforeWarpBlend.GetValueOnRenderThread() != 0);
 	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Postprocess TARGET before WarpBlend: %d"), bEnabled ? 1 : 0);
@@ -104,7 +104,7 @@ void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessRenderTargetBefore
 			if (CurPP.Operation->IsPostProcessRenderTargetBeforeWarpBlendRequired())
 			{
 				UE_LOG(LogDisplayClusterRender, VeryVerbose, TEXT("Postprocess TARGET before WarpBlend"));
-				CurPP.Operation->PerformPostProcessRenderTargetBeforeWarpBlend_RenderThread(RHICmdList, SrcTexture);
+				CurPP.Operation->PerformPostProcessRenderTargetBeforeWarpBlend_RenderThread(RHICmdList, SrcTexture, RenderViewports);
 			}
 		}
 	}
@@ -194,7 +194,7 @@ static TAutoConsoleVariable<int32> CVarPostprocessTargetAfterWarpBlend(
 	ECVF_RenderThreadSafe
 );
 
-void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessRenderTargetAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture) const
+void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessRenderTargetAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const TArray<FDisplayClusterRenderViewport>& RenderViewports) const
 {
 	const bool bEnabled = (CVarPostprocessTargetAfterWarpBlend.GetValueOnRenderThread() != 0);
 	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Postprocess TARGET after WarpBlend: %d"), bEnabled ? 1 : 0);
@@ -206,7 +206,7 @@ void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessRenderTargetAfterW
 			if (CurPP.Operation->IsPostProcessRenderTargetAfterWarpBlendRequired())
 			{
 				UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Postprocess TARGET after WarpBlend"));
-				CurPP.Operation->PerformPostProcessRenderTargetAfterWarpBlend_RenderThread(RHICmdList, SrcTexture);
+				CurPP.Operation->PerformPostProcessRenderTargetAfterWarpBlend_RenderThread(RHICmdList, SrcTexture, RenderViewports);
 			}
 		}
 	}

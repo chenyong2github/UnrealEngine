@@ -88,6 +88,27 @@ public:
 	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "Movie Render Pipeline")
 	float GetStatusProgress() const;
 
+	UFUNCTION(BlueprintCallable, meta = (DeterminesOutputType = "InConfigType"), Category = "Movie Render Pipeline", meta=(InConfigType="/Script/MovieRenderPipelineCore.MoviePipelineShotConfig"))
+	UMoviePipelineShotConfig* AllocateNewShotOverrideConfig(TSubclassOf<UMoviePipelineShotConfig> InConfigType);
+
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
+	void SetShotOverrideConfiguration(UMoviePipelineShotConfig* InPreset);
+
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
+	void SetShotOverridePresetOrigin(UMoviePipelineShotConfig* InPreset);
+
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	UMoviePipelineShotConfig* GetShotOverrideConfiguration() const
+	{
+		return ShotOverrideConfig;
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	UMoviePipelineShotConfig* GetShotOverridePresetOrigin() const
+	{
+		return ShotOverridePresetOrigin.Get();
+	}
+
 protected:
 	// UMoviePipipelineExecutorShot Interface
 	virtual void SetStatusMessage_Implementation(const FString& InMessage) { StatusMessage = InMessage; }
@@ -117,9 +138,6 @@ public:
 	/** The name of the camera cut section that this shot represents. Can be empty. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
 	FString InnerName;
-
-	UPROPERTY(BlueprintReadWrite, Category = "Movie Render Pipeline")
-	UMoviePipelineShotConfig* ShotOverrideConfig;
 public:
 	/** Transient information used by the active Movie Pipeline working on this shot. */
 	FMoviePipelineCameraCutInfo ShotInfo;
@@ -129,6 +147,13 @@ protected:
 	float Progress;
 	UPROPERTY(Transient)
 	FString StatusMessage;
+
+private:
+	UPROPERTY()
+	UMoviePipelineShotConfig* ShotOverrideConfig;
+
+	UPROPERTY()
+	TSoftObjectPtr<UMoviePipelineShotConfig> ShotOverridePresetOrigin;
 };
 
 /**

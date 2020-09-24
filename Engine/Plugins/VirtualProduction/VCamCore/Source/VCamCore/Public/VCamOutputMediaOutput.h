@@ -1,0 +1,38 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "VCamOutputProviderBase.h"
+#include "MediaCapture.h"
+#include "MediaOutput.h"
+
+#if WITH_EDITOR
+#endif
+
+#include "VCamOutputMediaOutput.generated.h"
+
+UCLASS(meta = (DisplayName = "Media Output Provider"))
+class VCAMCORE_API UVCamOutputMediaOutput: public UVCamOutputProviderBase
+{
+	GENERATED_BODY()
+
+public:
+	virtual void Activate() override;
+	virtual void Deactivate() override;
+
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+
+	// Media Output configuration asset
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
+	UMediaOutput* OutputConfig;
+
+protected:
+	UPROPERTY(Transient)
+	UMediaCapture* MediaCapture = nullptr;
+
+private:
+	void StartCapturing();
+	void StopCapturing();
+};

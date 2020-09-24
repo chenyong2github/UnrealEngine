@@ -114,7 +114,6 @@ class FDiffuseIndirectCompositePS : public FGlobalShader
 
 		SHADER_PARAMETER_STRUCT_INCLUDE(Denoiser::FCommonShaderParameters, DenoiserCommonParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureSamplerParameters, SceneTextureSamplers)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, PassDebugOutput)
@@ -146,7 +145,6 @@ class FAmbientCubemapCompositePS : public FGlobalShader
 		
 		SHADER_PARAMETER_STRUCT_INCLUDE(FAmbientCubemapParameters, AmbientCubemap)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureSamplerParameters, SceneTextureSamplers)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		
 		RENDER_TARGET_BINDING_SLOTS()
@@ -159,7 +157,7 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FReflectionEnvironmentSkyLightingPS);
 	SHADER_USE_PARAMETER_STRUCT(FReflectionEnvironmentSkyLightingPS, FGlobalShader)
 
-		class FHasBoxCaptures : SHADER_PERMUTATION_BOOL("REFLECTION_COMPOSITE_HAS_BOX_CAPTURES");
+	class FHasBoxCaptures : SHADER_PERMUTATION_BOOL("REFLECTION_COMPOSITE_HAS_BOX_CAPTURES");
 	class FHasSphereCaptures : SHADER_PERMUTATION_BOOL("REFLECTION_COMPOSITE_HAS_SPHERE_CAPTURES");
 	class FDFAOIndirectOcclusion : SHADER_PERMUTATION_BOOL("SUPPORT_DFAO_INDIRECT_OCCLUSION");
 	class FSkyLight : SHADER_PERMUTATION_BOOL("ENABLE_SKY_LIGHT");
@@ -191,6 +189,21 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 		}
 
 		return PermutationVector;
+	}
+
+	static FPermutationDomain BuildPermutationVector(const FViewInfo& View, bool bBoxCapturesOnly, bool bSphereCapturesOnly, bool bSupportDFAOIndirectOcclusion, bool bEnableSkyLight, bool bEnableDynamicSkyLight, bool bApplySkyShadowing, bool bRayTracedReflections)
+	{
+		FPermutationDomain PermutationVector;
+
+		PermutationVector.Set<FHasBoxCaptures>(bBoxCapturesOnly);
+		PermutationVector.Set<FHasSphereCaptures>(bSphereCapturesOnly);
+		PermutationVector.Set<FDFAOIndirectOcclusion>(bSupportDFAOIndirectOcclusion);
+		PermutationVector.Set<FSkyLight>(bEnableSkyLight);
+		PermutationVector.Set<FDynamicSkyLight>(bEnableDynamicSkyLight);
+		PermutationVector.Set<FSkyShadowing>(bApplySkyShadowing);
+		PermutationVector.Set<FRayTracedReflections>(bRayTracedReflections);
+
+		return RemapPermutation(PermutationVector);
 	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -247,7 +260,6 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 		SHADER_PARAMETER(int32, CloudSkyAOEnabled)
 
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureSamplerParameters, SceneTextureSamplers)
 
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_STRUCT_REF(FReflectionUniformParameters, ReflectionsParameters)
@@ -420,10 +432,10 @@ void SetupReflectionUniformParameters(const FViewInfo& View, FReflectionUniformP
 	OutParameters.SkyLightCubemapBrightness = SkyAverageBrightness;
 
 	// Note: GBlackCubeArrayTexture has an alpha of 0, which is needed to represent invalid data so the sky cubemap can still be applied
-	FRHITexture* CubeArrayTexture = View.FeatureLevel >= ERHIFeatureLevel::SM5 ? GBlackCubeArrayTexture->TextureRHI : GBlackTextureCube->TextureRHI;
+	FRHITexture* CubeArrayTexture = (SupportsTextureCubeArray(View.FeatureLevel))? GBlackCubeArrayTexture->TextureRHI : GBlackTextureCube->TextureRHI;
 
 	if (View.Family->EngineShowFlags.ReflectionEnvironment
-		&& View.FeatureLevel >= ERHIFeatureLevel::SM5
+		&& SupportsTextureCubeArray(View.FeatureLevel)
 		&& Scene
 		&& Scene->ReflectionSceneData.CubemapArray.IsValid()
 		&& Scene->ReflectionSceneData.RegisteredReflectionCaptures.Num())
@@ -650,7 +662,7 @@ void FDeferredShadingSceneRenderer::SetupCommonDiffuseIndirectParameters(
 	ensure(OutCommonDiffuseParameters.TracingViewportSize.Y <= kMaxTracingResolution);
 
 	OutCommonDiffuseParameters.TracingViewportBufferSize = FIntPoint::DivideAndRoundUp(
-		SceneTextures.SceneDepthBuffer->Desc.Extent, DownscaleFactor);
+		SceneTextures.SceneDepthTexture->Desc.Extent, DownscaleFactor);
 	OutCommonDiffuseParameters.DownscaleFactor = DownscaleFactor;
 	OutCommonDiffuseParameters.RayCountPerPixel = RayCountPerPixel;
 	OutCommonDiffuseParameters.RayStoragePerPixelVector = RayStoragePerPixelVector;
@@ -658,11 +670,12 @@ void FDeferredShadingSceneRenderer::SetupCommonDiffuseIndirectParameters(
 	OutCommonDiffuseParameters.PixelRayIndexOrdinateShift = FMath::Log2(RayStoragePerPixelVector.X);
 
 	OutCommonDiffuseParameters.SceneTextures = SceneTextures;
-	SetupSceneTextureSamplers(&OutCommonDiffuseParameters.SceneTextureSamplers);
 }
 
 void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
-	FRHICommandListImmediate& RHICmdListImmediate,
+	FRDGBuilder& GraphBuilder,
+	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+	FRDGTextureRef SceneColorTexture,
 	bool bIsVisualizePass)
 {
 	using namespace HybridIndirectLighting;
@@ -672,25 +685,14 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 		return;
 	}
 
-	SCOPED_DRAW_EVENT(RHICmdListImmediate, DiffuseIndirectAndAO)
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdListImmediate);
-
-	FRDGBuilder GraphBuilder(RHICmdListImmediate, RDG_EVENT_NAME("DiffuseIndirectAndAmbientOcclusion"));
+	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder, SceneTexturesUniformBuffer);
 	
-	FSceneTextureParameters SceneTextures;
-	SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
-
-	// Fallback to a black texture if no velocity.
-	if (!SceneTextures.SceneVelocityBuffer)
-	{
-		SceneTextures.SceneVelocityBuffer = GSystemTextures.GetBlackDummy(GraphBuilder);
-	}
-
-	FRDGTextureRef SceneColor = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor(), TEXT("SceneColor"));
-
 	for (FViewInfo& View : Views)
 	{
+		RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
+
 		const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
 
 		int32 DenoiseMode = CVarDiffuseIndirectDenoiser.GetValueOnRenderThread();
@@ -862,7 +864,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 		{
 			//ensureMsgf(!bApplySSAO, TEXT("Looks like SSAO has been computed for this view but is being overridden."));
 			ensureMsgf(Views.Num() == 1, TEXT("Need to add support for one AO texture per view in FSceneRenderTargets")); // TODO.
-			GraphBuilder.QueueTextureExtraction(AmbientOcclusionMask, &SceneContext.ScreenSpaceAO);
+			ConvertToExternalTexture(GraphBuilder, AmbientOcclusionMask, SceneContext.ScreenSpaceAO);
 			SceneContext.bScreenSpaceAOIsValid = true;
 		}
 
@@ -882,17 +884,15 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 				PassParameters->ApplyAOToDynamicDiffuseIndirect = 1.0f;
 			}
 
-			const FIntPoint BufferExtent = SceneTextures.SceneDepthBuffer->Desc.Extent;
+			const FIntPoint BufferExtent = SceneTextures.SceneDepthTexture->Desc.Extent;
 
 			{
 				// Placeholder texture for textures pulled in from SSDCommon.ush
-				FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
+				FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
 					FIntPoint(1),
 					PF_R32_UINT,
 					FClearValueBinding::Black,
-					/* InFlags = */ TexCreate_None,
-					/* InTargetableFlags = */ TexCreate_ShaderResource,
-					/* bInForceSeparateTargetAndShaderResource = */ false);
+					TexCreate_ShaderResource);
 				FRDGTextureRef CompressedMetadataPlaceholder = GraphBuilder.CreateTexture(Desc, TEXT("CompressedMetadataPlaceholder"));
 
 				PassParameters->CompressedMetadata[0] = CompressedMetadataPlaceholder;
@@ -924,20 +924,17 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 				1.0f / CommonDiffuseParameters.DownscaleFactor,
 				/* out */ &PassParameters->DenoiserCommonParameters);
 			PassParameters->SceneTextures = SceneTextures;
-			SetupSceneTextureSamplers(&PassParameters->SceneTextureSamplers);
 			PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(
-				SceneColor, ERenderTargetLoadAction::ELoad);
+				SceneColorTexture, ERenderTargetLoadAction::ELoad);
 
 			{
-				FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
-					SceneColor->Desc.Extent,
+				FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+					SceneColorTexture->Desc.Extent,
 					PF_FloatRGBA,
 					FClearValueBinding::None,
-					/* InFlags = */ TexCreate_None,
-					/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
-					/* bInForceSeparateTargetAndShaderResource = */ false);
+					TexCreate_ShaderResource | TexCreate_UAV);
 
 				PassParameters->PassDebugOutput = GraphBuilder.CreateUAV(
 					GraphBuilder.CreateTexture(Desc, TEXT("DebugDiffuseIndirectComposite")));
@@ -968,7 +965,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 				{
 					PermutationVector.Set<FDiffuseIndirectCompositePS::FApplyDiffuseIndirectDim>(1);
 					DiffuseIndirectSampling = TEXT("SSGI");
-					bUpscale = DenoiserOutputs.Textures[0]->Desc.Extent != SceneColor->Desc.Extent;
+					bUpscale = DenoiserOutputs.Textures[0]->Desc.Extent != SceneColorTexture->Desc.Extent;
 				}
 
 				PermutationVector.Set<FDiffuseIndirectCompositePS::FUpscaleDiffuseIndirectDim>(bUpscale);
@@ -1017,11 +1014,10 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 			}
 
 			PassParameters->SceneTextures = SceneTextures;
-			SetupSceneTextureSamplers(&PassParameters->SceneTextureSamplers);
 			PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(
-				SceneColor, ERenderTargetLoadAction::ELoad);
+				SceneColorTexture, ERenderTargetLoadAction::ELoad);
 		
 			TShaderMapRef<FAmbientCubemapCompositePS> PixelShader(View.ShaderMap);
 			GraphBuilder.AddPass(
@@ -1072,30 +1068,16 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 			});
 		} // if (IsAmbientCubemapPassRequired(View))
 	} // for (FViewInfo& View : Views)
-
-	GraphBuilder.Execute();
-
-	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
-
-	if (Lumen::ShouldRenderLumenCardsForView(Scene, Views[0]))
-	{
-		GVisualizeTexture.SetCheckPoint(RHICmdListImmediate, LumenSceneData.AlbedoAtlas);
-		GVisualizeTexture.SetCheckPoint(RHICmdListImmediate, LumenSceneData.NormalAtlas);
-		GVisualizeTexture.SetCheckPoint(RHICmdListImmediate, LumenSceneData.OpacityAtlas);
-		GVisualizeTexture.SetCheckPoint(RHICmdListImmediate, LumenSceneData.DepthBufferAtlas);
-		GVisualizeTexture.SetCheckPoint(RHICmdListImmediate, LumenSceneData.FinalLightingAtlas);
-		GVisualizeTexture.SetCheckPoint(RHICmdListImmediate, LumenSceneData.DepthAtlas);
-	}
 }
 
 void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
-	FRHICommandListImmediate& RHICmdList,
-	TRefCountPtr<IPooledRenderTarget>& DynamicBentNormalAO,
-	const TRefCountPtr<IPooledRenderTarget>& VelocityRT,
+	FRDGBuilder& GraphBuilder,
+	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+	FRDGTextureMSAA SceneColorTexture,
+	FRDGTextureRef DynamicBentNormalAOTexture,
+	FRDGTextureRef VelocityTexture,
 	FHairStrandsRenderingData* HairDatas)
 {
-	check(RHICmdList.IsOutsideRenderPass());
-
 	if (ViewFamily.EngineShowFlags.VisualizeLightCulling 
 		|| ViewFamily.EngineShowFlags.RayTracingDebug
 		|| ViewFamily.EngineShowFlags.PathTracing
@@ -1129,43 +1111,38 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 	bool bApplySkyShadowing = false;
 	if (bDynamicSkyLight)
 	{
-		SCOPED_DRAW_EVENT(RHICmdList, SkyLightDiffuse);
-		SCOPED_GPU_STAT(RHICmdList, SkyLightDiffuse);
-
-		FDistanceFieldAOParameters Parameters(Scene->SkyLight->OcclusionMaxDistance, Scene->SkyLight->Contrast);
+		RDG_EVENT_SCOPE(GraphBuilder, "SkyLightDiffuse");
+		RDG_GPU_STAT_SCOPE(GraphBuilder, SkyLightDiffuse);
 
 		extern int32 GDistanceFieldAOApplyToStaticIndirect;
 		if (Scene->SkyLight->bCastShadows
 			&& !GDistanceFieldAOApplyToStaticIndirect
 			&& ShouldRenderDistanceFieldAO()
+			&& ShouldRenderDistanceFieldLighting()
 			&& ViewFamily.EngineShowFlags.AmbientOcclusion)
 		{
-			// TODO: convert to RDG.
-			bApplySkyShadowing = RenderDistanceFieldLighting(RHICmdList, Parameters, VelocityRT, DynamicBentNormalAO, false, false);
+			bApplySkyShadowing = true;
+			FDistanceFieldAOParameters Parameters(Scene->SkyLight->OcclusionMaxDistance, Scene->SkyLight->Contrast);
+			RenderDistanceFieldLighting(GraphBuilder, SceneTexturesUniformBuffer, Parameters, SceneColorTexture.Target, VelocityTexture, DynamicBentNormalAOTexture, false, false);
 		}
 	}
 
-	SCOPED_DRAW_EVENT(RHICmdList, ReflectionIndirect)
+	RDG_EVENT_SCOPE(GraphBuilder, "ReflectionIndirect");
 
-	check(RHICmdList.IsOutsideRenderPass());
-
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
 
 	const bool bReflectionEnv = ShouldDoReflectionEnvironment();
 
-	FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("DeferredReflectionAndSkyLighting"));
-
-	FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor(), TEXT("SceneColor"));
-	FRDGTextureRef SceneColorSubPixelTexture = nullptr;
-	if (HairDatas)
-	{
-		SceneColorSubPixelTexture = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor());
-	}
 	FRDGTextureRef AmbientOcclusionTexture = GraphBuilder.RegisterExternalTexture(SceneContext.bScreenSpaceAOIsValid ? SceneContext.ScreenSpaceAO : GSystemTextures.WhiteDummy);
-	FRDGTextureRef DynamicBentNormalAOTexture = GraphBuilder.RegisterExternalTexture(DynamicBentNormalAO ? DynamicBentNormalAO : GSystemTextures.WhiteDummy);
+	float DynamicBentNormalAO = 1.0f;
 
-	FSceneTextureParameters SceneTextures;
-	SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
+	if (!DynamicBentNormalAOTexture)
+	{
+		DynamicBentNormalAOTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.WhiteDummy);
+		DynamicBentNormalAO = 0.0f;
+	}
+
+	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
 
 	IScreenSpaceDenoiser::FReflectionsInputs DenoiserInputs;
 	IScreenSpaceDenoiser::FReflectionsRayTracingConfig RayTracingConfig;
@@ -1175,13 +1152,11 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 	int32 UpscaleFactor = int32(1.0f / RayTracingConfig.ResolutionFraction);
 
 	{
-		FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
-			SceneTextures.SceneDepthBuffer->Desc.Extent / UpscaleFactor,
+		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+			SceneTextures.SceneDepthTexture->Desc.Extent / UpscaleFactor,
 			PF_FloatRGBA,
 			FClearValueBinding::None,
-			/* InFlags = */ TexCreate_None,
-			/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV,
-			/* bInForceSeparateTargetAndShaderResource = */ false);
+			TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV);
 
 		DenoiserInputs.Color = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingReflections"));
 
@@ -1253,15 +1228,13 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 				bDenoise = DenoiserMode != 0 && CVarDenoiseSSR.GetValueOnRenderThread();
 				bTemporalFilter = !bDenoise && View.ViewState && ScreenSpaceRayTracing::IsSSRTemporalPassRequired(View);
 
-				FRDGTextureRef CurrentSceneColor = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor());
-
 				ESSRQuality SSRQuality;
 				ScreenSpaceRayTracing::GetSSRQualityForView(View, &SSRQuality, &DenoiserConfig);
 
 				RDG_EVENT_SCOPE(GraphBuilder, "ScreenSpaceReflections(Quality=%d)", int32(SSRQuality));
 
 				ScreenSpaceRayTracing::RenderScreenSpaceReflections(
-					GraphBuilder, SceneTextures, CurrentSceneColor, View, SSRQuality, bDenoise, &DenoiserInputs);
+					GraphBuilder, SceneTextures, SceneColorTexture.Resolve, View, SSRQuality, bDenoise, &DenoiserInputs);
 			}
 			else
 			{
@@ -1294,8 +1267,8 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 				check(View.ViewState);
 				FTAAPassParameters TAASettings(View);
 				TAASettings.Pass = ETAAPassConfig::ScreenSpaceReflections;
-				TAASettings.SceneDepthTexture = SceneTextures.SceneDepthBuffer;
-				TAASettings.SceneVelocityTexture = SceneTextures.SceneVelocityBuffer;
+				TAASettings.SceneDepthTexture = SceneTextures.SceneDepthTexture;
+				TAASettings.SceneVelocityTexture = SceneTextures.GBufferVelocityTexture;
 				TAASettings.SceneColorInput = DenoiserInputs.Color;
 				TAASettings.bOutputRenderTargetable = (
 					ViewPipelineState.bComposePlanarReflections ||
@@ -1337,6 +1310,10 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 		{
 			RDG_GPU_STAT_SCOPE(GraphBuilder, ReflectionEnvironment);
 
+			// Render the reflection environment with tiled deferred culling
+			bool bHasBoxCaptures = (View.NumBoxReflectionCaptures > 0);
+			bool bHasSphereCaptures = (View.NumSphereReflectionCaptures > 0);
+
 			FReflectionEnvironmentSkyLightingPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionEnvironmentSkyLightingPS::FParameters>();
 
 			// Setup the parameters of the shader.
@@ -1369,7 +1346,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 					PassParameters->ContrastAndNormalizeMulAdd = FVector(SkyLightContrast, Mul, Add);
 					PassParameters->OcclusionExponent = SkyLightOcclusionExponent;
 					PassParameters->OcclusionCombineMode = SkyLightOcclusionCombineMode == OCM_Minimum ? 0.0f : 1.0f;
-					PassParameters->ApplyBentNormalAO = DynamicBentNormalAO ? 1.0f : 0.0f;
+					PassParameters->ApplyBentNormalAO = DynamicBentNormalAO;
 					PassParameters->InvSkySpecularOcclusionStrength = 1.0f / FMath::Max(CVarSkySpecularOcclusionStrength.GetValueOnRenderThread(), 0.1f);
 				}
 
@@ -1414,7 +1391,6 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 				PassParameters->PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 				PassParameters->SceneTextures = SceneTextures;
-				SetupSceneTextureSamplers(&PassParameters->SceneTextureSamplers);
 
 				PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 				PassParameters->ReflectionCaptureData = View.ReflectionCaptureUniformBuffer;
@@ -1426,81 +1402,73 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 				PassParameters->ForwardLightData = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
 			}
 
-			PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
+			PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture.Target, ERenderTargetLoadAction::ELoad);
 
-			FReflectionEnvironmentSkyLightingPS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FReflectionEnvironmentSkyLightingPS::FHasBoxCaptures>(View.NumBoxReflectionCaptures > 0);
-			PermutationVector.Set<FReflectionEnvironmentSkyLightingPS::FHasSphereCaptures>(View.NumSphereReflectionCaptures > 0);
-			PermutationVector.Set<FReflectionEnvironmentSkyLightingPS::FDFAOIndirectOcclusion>(DynamicBentNormalAO != NULL);
-			PermutationVector.Set<FReflectionEnvironmentSkyLightingPS::FSkyLight>(bSkyLight);
-			PermutationVector.Set<FReflectionEnvironmentSkyLightingPS::FDynamicSkyLight>(bDynamicSkyLight);
-			PermutationVector.Set<FReflectionEnvironmentSkyLightingPS::FSkyShadowing>(bApplySkyShadowing);
-			PermutationVector.Set<FReflectionEnvironmentSkyLightingPS::FRayTracedReflections>(ViewPipelineState.ReflectionsMethod == EReflectionsMethod::RTR);
-			PermutationVector = FReflectionEnvironmentSkyLightingPS::RemapPermutation(PermutationVector);
+			// Bind hair data
+			const bool bCheckerboardSubsurfaceRendering = IsSubsurfaceCheckerboardFormat(SceneColorTexture.Target->Desc.Format);
 
-			FRHIBlendState* BlendState = nullptr;
+			// ScreenSpace and SortedDeferred ray traced reflections use the same reflection environment shader,
+			// but main RT reflection shader requires a custom path as it evaluates the clear coat BRDF differently.
+			const bool bRequiresSpecializedReflectionEnvironmentShader = RayTracingReflectionOptions.bEnabled
+				&& RayTracingReflectionOptions.Algorithm != FRayTracingReflectionOptions::EAlgorithm::SortedDeferred;
 
-			extern int32 GAOOverwriteSceneColor;
-			if (GetReflectionEnvironmentCVar() == 2 || GAOOverwriteSceneColor)
+			auto PermutationVector = FReflectionEnvironmentSkyLightingPS::BuildPermutationVector(
+				View, bHasBoxCaptures, bHasSphereCaptures, DynamicBentNormalAO != 0.0f,
+				bSkyLight, bDynamicSkyLight, bApplySkyShadowing,
+				bRequiresSpecializedReflectionEnvironmentShader);
+
+			TShaderMapRef<FReflectionEnvironmentSkyLightingPS> PixelShader(View.ShaderMap, PermutationVector);
+			ClearUnusedGraphResources(PixelShader, PassParameters);
+
+			GraphBuilder.AddPass(
+				RDG_EVENT_NAME("ReflectionEnvironmentAndSky %dx%d", View.ViewRect.Width(), View.ViewRect.Height()),
+				PassParameters,
+				ERDGPassFlags::Raster,
+				[PassParameters, &View, PixelShader, bCheckerboardSubsurfaceRendering](FRHICommandList& InRHICmdList)
 			{
-				// override scene color for debugging
-				BlendState = TStaticBlendState<>::GetRHI();
-			}
-			else
-			{
-				// Bind hair data
-				const bool bCheckerboardSubsurfaceRendering = IsSubsurfaceCheckerboardFormat(SceneContext.GetSceneColorFormat());
+				InRHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 
-				if (bCheckerboardSubsurfaceRendering)
+				FGraphicsPipelineStateInitializer GraphicsPSOInit;
+				FPixelShaderUtils::InitFullscreenPipelineState(InRHICmdList, View.ShaderMap, PixelShader, GraphicsPSOInit);
+
+				extern int32 GAOOverwriteSceneColor;
+				if (GetReflectionEnvironmentCVar() == 2 || GAOOverwriteSceneColor)
 				{
-					BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_One>::GetRHI();
+					// override scene color for debugging
+					GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
 				}
 				else
 				{
-					BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
+					if (bCheckerboardSubsurfaceRendering)
+					{
+						GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_One>::GetRHI();
+					}
+					else
+					{
+						GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
+					}
 				}
-			}
 
-			TShaderMapRef<FReflectionEnvironmentSkyLightingPS> PixelShader(View.ShaderMap, PermutationVector);
-			FPixelShaderUtils::AddFullscreenPass(
-				GraphBuilder, View.ShaderMap,
-				RDG_EVENT_NAME(
-					"ReflectionEnvironmentAndSky(%s%s%s%s%s%s%s) %dx%d",
-					PermutationVector.Get<FReflectionEnvironmentSkyLightingPS::FHasBoxCaptures>() ? TEXT(" HasBoxCaptures") : TEXT(""),
-					PermutationVector.Get<FReflectionEnvironmentSkyLightingPS::FHasSphereCaptures>() ? TEXT(" HasSphereCaptures") : TEXT(""),
-					PermutationVector.Get<FReflectionEnvironmentSkyLightingPS::FDFAOIndirectOcclusion>() ? TEXT(" DFAOIndirectOcclusion") : TEXT(""),
-					PermutationVector.Get<FReflectionEnvironmentSkyLightingPS::FSkyLight>() ? TEXT(" SkyLight") : TEXT(""),
-					PermutationVector.Get<FReflectionEnvironmentSkyLightingPS::FDynamicSkyLight>() ? TEXT(" DynamicSkyLight") : TEXT(""),
-					PermutationVector.Get<FReflectionEnvironmentSkyLightingPS::FSkyShadowing>() ? TEXT(" SkyShadowing") : TEXT(""),
-					PermutationVector.Get<FReflectionEnvironmentSkyLightingPS::FRayTracedReflections>() ? TEXT(" RTR") : TEXT(""),
-					View.ViewRect.Width(), View.ViewRect.Height()),
-				PixelShader,
-				PassParameters,
-				View.ViewRect,
-				BlendState);
-		} // if (bRequiresApply)
+				SetGraphicsPipelineState(InRHICmdList, GraphicsPSOInit);
+				SetShaderParameters(InRHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
+				FPixelShaderUtils::DrawFullscreenTriangle(InRHICmdList);
+			});
+		}
 
 		const bool bIsHairSkyLightingEnabled = HairDatas && (bSkyLight || bDynamicSkyLight || bReflectionEnv);
 		if (bIsHairSkyLightingEnabled)
 		{
 			RenderHairStrandsEnvironmentLighting(GraphBuilder, CurrentViewIndex, Views, HairDatas);
 		}
-	} // for (FViewInfo& View : Views)
+	}
 
-	TRefCountPtr<IPooledRenderTarget> OutSceneColor;
-	GraphBuilder.QueueTextureExtraction(SceneColorTexture, &OutSceneColor);
-
-	GraphBuilder.Execute();
-
-	ResolveSceneColor(RHICmdList);
+	AddResolveSceneColorPass(GraphBuilder, Views, SceneColorTexture);
 }
 
 void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLightingHair(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	FHairStrandsRenderingData* HairDatas)
 {
-	check(RHICmdList.IsOutsideRenderPass());
-
 	if (ViewFamily.EngineShowFlags.VisualizeLightCulling || !ViewFamily.EngineShowFlags.Lighting)
 	{
 		return;
@@ -1537,9 +1505,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLightingHair(
 		const bool bIsHairSkyLightingEnabled = HairDatas && (bSkyLight || bDynamicSkyLight || bReflectionEnv);
 		if (bIsHairSkyLightingEnabled)
 		{
-			FRDGBuilder GraphBuilder(RHICmdList);
 			RenderHairStrandsEnvironmentLighting(GraphBuilder, CurrentViewIndex, Views, HairDatas);
-			GraphBuilder.Execute();
 		}
 	}
 }

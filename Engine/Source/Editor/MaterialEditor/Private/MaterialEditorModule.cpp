@@ -34,80 +34,6 @@ namespace MaterialEditorModuleConstants
 	const static FName SettingsSectionName("Material Editor");
 }
 
-class SNewSubstanceMenuEntry : public SCompoundWidget
-{
-public:
-
-	SLATE_BEGIN_ARGS(SNewSubstanceMenuEntry)
-		: _Width(32)
-		, _Height(32)
-	{}
-		SLATE_ARGUMENT(uint32, Width)
-		SLATE_ARGUMENT(uint32, Height)
-		SLATE_ARGUMENT(const FSlateBrush*, Icon)
-	SLATE_END_ARGS()
-
-	void Construct(const FArguments& InArgs)
-	{
-		const FLinearColor AssetColor = FColor(255, 128, 0);
-		ChildSlot
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.Padding(4, 0, 0, 0)
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			[
-				SNew(SOverlay)
-				+ SOverlay::Slot()
-				[
-					SNew(SBox)
-					.WidthOverride(InArgs._Width + 4)
-					.HeightOverride(InArgs._Height + 4)
-					[
-						SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("AssetThumbnail.AssetBackground"))
-						.BorderBackgroundColor(AssetColor.CopyWithNewOpacity(0.3f))
-						.Padding(2.0f)
-						.VAlign(VAlign_Center)
-						.HAlign(HAlign_Center)
-						[
-							SNew(SImage)
-							.Image(InArgs._Icon)
-						]
-					]
-				]
-				+ SOverlay::Slot()
-				.HAlign(HAlign_Fill)
-				.VAlign(VAlign_Bottom)
-				[
-					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
-					.BorderBackgroundColor(AssetColor)
-					.Padding(FMargin(0, FMath::Max(FMath::CeilToFloat(InArgs._Width*0.025f), 3.0f), 0, 0))
-				]
-			]
-
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.Padding(4, 0, 4, 0)
-			[
-				SNew(SVerticalBox)
-				+ SVerticalBox::Slot()
-				.Padding(0, 0, 0, 1)
-				.AutoHeight()
-				[
-					SNew(STextBlock)
-					.Font(FEditorStyle::GetFontStyle("LevelViewportContextMenu.AssetLabel.Text.Font"))
-					.Text(NSLOCTEXT("MaterialEditor", "GetContentText_Substance", "Substance"))
-				]
-			]
-		];
-	}
-};
-
-
-
 /**
  * Material editor module
  */
@@ -138,70 +64,6 @@ public:
 				NSLOCTEXT("MaterialEditorModule", "SettingsDesc", "Settings related to the material editor."),
 				GetMutableDefault<UMaterialEditorSettings>());
 		}
-
-		if(!FEngineBuildSettings::IsInternalBuild() && !FEngineBuildSettings::IsSourceDistribution())
-		{
-			TSharedPtr<IPlugin> SubstancePlugin = IPluginManager::Get().FindPlugin(TEXT("Substance"));
-			if (!SubstancePlugin.IsValid() )
-			{
-				// Extend content browser menu
-				{
-					FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
-					ContentBrowserModule.GetAllAssetContextMenuExtenders().Add(FContentBrowserMenuExtender_SelectedPaths::CreateRaw(this, &FMaterialEditorModule::ExtendContentBrowserAssetContextMenu));
-					ContentBrowserAssetExtenderDelegateHandle = ContentBrowserModule.GetAllAssetContextMenuExtenders().Last().GetHandle();
-				}
-
-				// Extend material editor toolbar
-				{
-
-					TSharedRef<FExtender> ToolbarExtender = MakeShareable(new FExtender);
-					ToolbarExtender->AddToolBarExtension("Graph", EExtensionHook::After, nullptr,
-						FToolBarExtensionDelegate::CreateLambda([this](FToolBarBuilder& ToolbarBuilder)
-					{
-						ToolbarBuilder.BeginSection("Substance");
-						ToolbarBuilder.AddToolBarButton(
-							FUIAction(FExecuteAction::CreateRaw(this, &FMaterialEditorModule::OpenSubstancePluginGetter)),
-							NAME_None,
-							NSLOCTEXT("MaterialEditor", "GetContentText_SubstanceToolbar", "Substance"),
-							NSLOCTEXT("MaterialEditor", "GetContentText_SubstanceTooltip", "Add Substance textures to the project"),
-							FSlateIcon(FEditorStyle::GetStyleSetName(), "MaterialEditor.AddSubstanceSpecialToolbar")
-						);
-						ToolbarBuilder.EndSection();
-					})
-					);
-
-					ToolBarExtensibilityManager->AddExtender(ToolbarExtender);
-				}
-			}
-		}
-
-	}
-	
-	TSharedRef<FExtender> ExtendContentBrowserAssetContextMenu(const TArray<FString>& SelectedPaths)
-	{
-		TSharedRef<FExtender> Extender = MakeShared<FExtender>();
-		Extender->AddMenuExtension(
-			"ContentBrowserNewBasicAsset",
-			EExtensionHook::After,
-			TSharedPtr<FUICommandList>(),
-			FMenuExtensionDelegate::CreateRaw(this, &FMaterialEditorModule::ContentBrowserExtenderFunc, SelectedPaths)
-		);
-		return Extender;
-	}
-
-	void ContentBrowserExtenderFunc(FMenuBuilder& MenuBuilder, const TArray<FString> SelectedPaths)
-	{
-		MenuBuilder.AddMenuEntry(
-			FUIAction(FExecuteAction::CreateRaw(this, &FMaterialEditorModule::OpenSubstancePluginGetter)),
-			SNew(SNewSubstanceMenuEntry).Icon(FEditorStyle::GetBrush("MaterialEditor.AddSubstanceSpecialMenu"))
-		);
-	}
-
-	void OpenSubstancePluginGetter()
-	{
-		IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>(TEXT("MainFrame"));
-		TSharedPtr<SWindow> Window = MainFrameModule.GetParentWindow();
-		IIntroTutorials::Get().LaunchTutorial(TEXT("/Engine/Tutorial/SubEditors/GettingSubstance"), Window);
 	}
 
 	/**
@@ -211,12 +73,6 @@ public:
 	{
 		MenuExtensibilityManager.Reset();
 		ToolBarExtensibilityManager.Reset();
-
-		if (FModuleManager::Get().IsModuleLoaded(TEXT("ContentBrowser")))
-		{
-			FContentBrowserModule& ContentBrowserModule = FModuleManager::GetModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
-			ContentBrowserModule.GetAllAssetContextMenuExtenders().RemoveAll([this](const auto& Delegate) { return Delegate.GetHandle() == ContentBrowserAssetExtenderDelegateHandle; });
-		}
 	}
 
 	/**
@@ -262,12 +118,6 @@ public:
 	{
 		FMaterialEditorUtilities::GetVisibleMaterialParameters(Material, MaterialInstance, VisibleExpressions);
 	}
-
-	virtual bool MaterialLayersEnabled()
-	{
-		static auto* CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SupportMaterialLayers"));
-		return CVar && CVar->GetValueOnAnyThread() == 1;
-	};
 
 	/** Gets the extensibility managers for outside entities to extend material editor's menus and toolbars */
 	virtual TSharedPtr<FExtensibilityManager> GetMenuExtensibilityManager() override { return MenuExtensibilityManager; }

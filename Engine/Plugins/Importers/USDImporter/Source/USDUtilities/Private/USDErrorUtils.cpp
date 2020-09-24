@@ -2,9 +2,16 @@
 
 #include "USDErrorUtils.h"
 
-#if USE_USD_SDK
+#include "IMessageLogListing.h"
+#include "Math/NumericLimits.h"
+#include "MessageLogModule.h"
+#include "Misc/ScopeLock.h"
+#include "Modules/ModuleManager.h"
 
 #include "USDLog.h"
+
+#if USE_USD_SDK
+
 #include "USDMemory.h"
 #include "USDTypesConversion.h"
 
@@ -17,7 +24,11 @@
 #include "pxr/base/tf/errorMark.h"
 #include "USDIncludesEnd.h"
 
+#endif // #if USE_USD_SDK
+
 #define LOCTEXT_NAMESPACE "USDErrorUtils"
+
+#if USE_USD_SDK
 
 namespace UsdUtils
 {
@@ -88,14 +99,12 @@ namespace UsdUtils
 
 		for (const FString& Error : Errors)
 		{
-			UE_LOG(LogUsd, Error, TEXT("%s"), *Error);
+			FUsdLogManager::LogMessage( FTokenizedMessage::Create( EMessageSeverity::Error, FText::FromString( Error ) ) );
 		}
 
 		return Errors.Num() > 0;
 	}
 }; // namespace UsdUtils
-
-#undef LOCTEXT_NAMESPACE
 
 #else // #if USE_USD_SDK
 
@@ -116,3 +125,105 @@ namespace UsdUtils
 
 #endif // #if USE_USD_SDK
 
+namespace UE
+{
+	namespace Internal
+	{
+		FUsdMessageLog::~FUsdMessageLog()
+		{
+			Dump();
+		}
+
+		void FUsdMessageLog::Push( const TSharedRef< FTokenizedMessage >& Message )
+		{
+			TokenizedMessages.Add( Message );
+		}
+
+		void FUsdMessageLog::Dump()
+		{
+			FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked< FMessageLogModule >( "MessageLog" );
+			TSharedRef< IMessageLogListing > LogListing = MessageLogModule.GetLogListing( TEXT("USD") );
+
+			if ( TokenizedMessages.Num() > 0 )
+			{
+				LogListing->AddMessages( TokenizedMessages );
+				LogListing->NotifyIfAnyMessages( LOCTEXT("Log", "There were some issues loading the USD Stage."), EMessageSeverity::Info );
+				TokenizedMessages.Empty();
+			}
+		}
+	}
+}
+
+TOptional< UE::Internal::FUsdMessageLog > FUsdLogManager::MessageLog;
+int32 FUsdLogManager::MessageLogRefCount;
+FCriticalSection FUsdLogManager::MessageLogLock;
+
+void FUsdLogManager::LogMessage( EMessageSeverity::Type Severity, const FText& Message )
+{
+	LogMessage( FTokenizedMessage::Create( Severity, Message ) );
+}
+
+void FUsdLogManager::LogMessage( const TSharedRef< FTokenizedMessage >& Message )
+{
+	bool bMessageProcessed = false;
+
+	if ( MessageLog )
+	{
+		FScopeLock Lock( &MessageLogLock );
+		if ( MessageLog ) // Make sure it's still valid
+		{
+			MessageLog->Push( Message );
+			bMessageProcessed = true;
+		}
+	}
+
+	if ( !bMessageProcessed )
+	{
+		if ( Message->GetSeverity() == EMessageSeverity::CriticalError || Message->GetSeverity() == EMessageSeverity::Error )
+		{
+			UE_LOG( LogUsd, Error, TEXT("%s"), *(Message->ToText().ToString()) );
+		}
+		else if ( Message->GetSeverity() == EMessageSeverity::Warning || Message->GetSeverity() == EMessageSeverity::PerformanceWarning )
+		{
+			UE_LOG( LogUsd, Warning, TEXT("%s"), *(Message->ToText().ToString()) );
+		}
+		else
+		{
+			UE_LOG( LogUsd, Log, TEXT("%s"), *(Message->ToText().ToString()) );
+		}
+	}
+}
+
+void FUsdLogManager::EnableMessageLog()
+{
+	FScopeLock Lock( &MessageLogLock );
+
+	if ( ++MessageLogRefCount == 1 )
+	{
+		MessageLog.Emplace();
+	}
+
+	check( MessageLogRefCount < MAX_int32 );
+}
+
+void FUsdLogManager::DisableMessageLog()
+{
+	FScopeLock Lock( &MessageLogLock );
+
+	if ( --MessageLogRefCount == 0 )
+	{
+		MessageLog.Reset();
+	}
+}
+
+FScopedUsdMessageLog::FScopedUsdMessageLog()
+{
+	FUsdLogManager::EnableMessageLog();
+}
+
+FScopedUsdMessageLog::~FScopedUsdMessageLog()
+{
+	FUsdLogManager::DisableMessageLog();
+}
+
+#undef LOCTEXT_NAMESPACE

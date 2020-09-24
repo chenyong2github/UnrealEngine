@@ -122,6 +122,7 @@
     <Compile Include="Executors\ParallelExecutor.cs" />
     <Compile Include="Executors\SNDBS.cs" />
     <Compile Include="Executors\XGE.cs" />
+    <Compile Include="Executors\Experimental\FASTBuild.cs" />
     <Compile Include="Modes\WriteMetadataMode.cs" />
     <Compile Include="Platform\Android\AndroidPlatformSDK.cs" />
     <Compile Include="Platform\IOS\IOSPostBuildSyncMode.cs" />
@@ -148,6 +149,7 @@
     <Compile Include="ProjectFiles\QMake\QMakefileGenerator.cs" />
     <Compile Include="ProjectFiles\Rider\RiderProjectFile.cs" />
     <Compile Include="ProjectFiles\Rider\RiderProjectFileGenerator.cs" />
+    <Compile Include="ProjectFiles\Rider\ToolchainInfo.cs" />
     <Compile Include="ProjectFiles\VisualStudioCode\VSCodeProjectFileGenerator.cs" />
     <Compile Include="ProjectFiles\VisualStudio\VCProject.cs" />
     <Compile Include="ProjectFiles\VisualStudio\VCProjectFileGenerator.cs" />
@@ -259,13 +261,6 @@
         <Compile Include="Platform\HoloLens\ManifestGenerator.cs" />
         <Compile Include="Platform\HoloLens\WinMDRegistrationInfo.cs" />
       </ItemGroup>
-    </When>
-  </Choose>
-  <Choose>
-    <When Condition="Exists('..\..\..\Restricted\NotForLicensees\Source\Programs\UnrealBuildTool\Executors\FASTBuild.cs')">
-      <PropertyGroup>
-        <DefineConstants>$(DefineConstants);__FASTBUILD_AVAILABLE__</DefineConstants>
-      </PropertyGroup>
     </When>
   </Choose>
   <Choose>

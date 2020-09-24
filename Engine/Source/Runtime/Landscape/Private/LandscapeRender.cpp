@@ -846,7 +846,7 @@ void FLandscapeRenderSystem::PrepareView(const FSceneView* View)
 #endif
 	
 	const bool bExecuteInParallel = FApp::ShouldUseThreadingForPerformance()
-		&& GRenderingThread; // Rendering thread is required to safely use rendering resources in parallel.
+		&& GIsThreadedRendering; // Rendering thread is required to safely use rendering resources in parallel.
 
 	if (bExecuteInParallel)
 	{
@@ -977,8 +977,7 @@ void FLandscapeRenderSystem::FetchHeightmapLODBiases()
 		{
 			if (const FTexture2DResource* TextureResource = (const FTexture2DResource*)SceneProxy->HeightmapTexture->GetResource())
 			{
-				float SectionLODBias = TextureResource->GetCurrentFirstMip();
-				SectionLODBiases[EntityIndex] = SectionLODBias;
+				SectionLODBiases[EntityIndex] = SceneProxy->HeightmapTexture->GetNumMips() - SceneProxy->HeightmapTexture->GetNumResidentMips();
 
 				// TODO: support mipmap LOD bias of XY offset map
 				//XYOffsetmapTexture ? ((FTexture2DResource*)XYOffsetmapTexture->Resource)->GetCurrentFirstMip() : 0.0f);
@@ -1090,7 +1089,7 @@ void FLandscapeRenderSystem::BeginFrame()
 	}
 
 	const bool bExecuteInParallel = FApp::ShouldUseThreadingForPerformance()
-		&& GRenderingThread; // Rendering thread is required to safely use rendering resources in parallel.
+		&& GIsThreadedRendering; // Rendering thread is required to safely use rendering resources in parallel.
 
 	if (bExecuteInParallel)
 	{
@@ -1310,7 +1309,7 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	LastLOD = MaxLOD;	// we always need to go to MaxLOD regardless of LODBias as we could need the lowest LODs due to streaming.
 
 	// Make sure out LastLOD is > of MinStreamedLOD otherwise we would not be using the right LOD->MIP, the only drawback is a possible minor memory usage for overallocating static mesh element batch
-	const int32 MinStreamedLOD = (HeightmapTexture != nullptr && HeightmapTexture->Resource != nullptr) ? FMath::Min<int32>(((FTexture2DResource*)HeightmapTexture->Resource)->GetCurrentFirstMip(), FMath::CeilLogTwo(SubsectionSizeVerts) - 1) : 0;
+	const int32 MinStreamedLOD = HeightmapTexture ? FMath::Min<int32>(HeightmapTexture->GetNumMips() - HeightmapTexture->GetNumResidentMips(), FMath::CeilLogTwo(SubsectionSizeVerts) - 1) : 0;
 	LastLOD = FMath::Max(MinStreamedLOD, LastLOD);
 
 	// Clamp to MaxLODLevel
@@ -1421,7 +1420,9 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 
 			if (FeatureLevel >= ERHIFeatureLevel::SM5)
 			{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				HasTessellationEnabled = LandscapeMaterial->D3D11TessellationMode != EMaterialTessellationMode::MTM_NoTessellation;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 
 			MaterialHasTessellationEnabled.Add(HasTessellationEnabled);
@@ -1837,11 +1838,11 @@ FPrimitiveViewRelevance FLandscapeComponentSceneProxy::GetViewRelevance(const FS
 		(IsSelected() && !GLandscapeEditModeActive) ||
 		(GLandscapeViewMode != ELandscapeViewMode::Normal) ||
 		(CVarLandscapeShowDirty.GetValueOnAnyThread() && GLandscapeDirtyMaterial) ||
-		(GetViewLodOverride(*View) >= 0) ||
+		(GetViewLodOverride(*View) >= 0)
 #else
-		IsSelected() ||
+		IsSelected()
 #endif
-		!IsStaticPathAvailable())
+		)
 	{
 		Result.bDynamicRelevance = true;
 	}
@@ -2523,11 +2524,11 @@ void FLandscapeComponentSceneProxy::GetDynamicMeshElements(const TArray<const FS
 						bIsWireframe ||
 #if WITH_EDITOR
 						(IsSelected() && !GLandscapeEditModeActive) ||
-						(GetViewLodOverride(*View) >= 0) ||
+						ViewFamily.LandscapeLODOverride >= 0
 #else
-						IsSelected() ||
+						IsSelected()
 #endif
-						!IsStaticPathAvailable())
+						)
 					{
 						Mesh.bCanApplyViewModeOverrides = true;
 						Mesh.bUseWireframeSelectionColoring = IsSelected();
@@ -4039,6 +4040,7 @@ public:
 				FName(TEXT("TMaterialCHSFPrecomputedVolumetricLightmapLightingPolicy")),
 				FName(TEXT("TMaterialCHSFNoLightMapPolicy")),
 				FName(TEXT("FRayTracingDynamicGeometryConverterCS")),
+				FName(TEXT("FTrivialMaterialCHS")),
 #endif // RHI_RAYTRACING
 
 			FName(TEXT("FLumenCardVS")),
@@ -4253,10 +4255,10 @@ void ULandscapeComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelCont
 	}
 #endif
 
-	if (IsStreamingRenderAsset(LODStreamingProxy))
+	if (LODStreamingProxy && LODStreamingProxy->IsStreamable())
 	{
 		const float MeshTexelFactor = ForcedLOD >= 0 ?
-			-FMath::Max(LODStreamingProxy->GetNumMipsForStreaming() - ForcedLOD, 1) :
+			-FMath::Max<int32>(LODStreamingProxy->GetStreamableResourceState().MaxNumLODs - ForcedLOD, 1) :
 			(IsRegistered() ? Bounds.SphereRadius * 2.f : 0.f);
 		new (OutStreamingRenderAssets) FStreamingRenderAssetPrimitiveInfo(LODStreamingProxy, Bounds, MeshTexelFactor, PackedRelativeBox_Identity, true);
 	}

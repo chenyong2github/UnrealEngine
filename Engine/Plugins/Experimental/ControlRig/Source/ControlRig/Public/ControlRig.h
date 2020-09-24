@@ -8,13 +8,14 @@
 #include "Engine/EngineBaseTypes.h"
 #include "Templates/SubclassOf.h"
 #include "ControlRigDefines.h"
+#include "ControlRigGizmoLibrary.h"
 #include "Rigs/RigHierarchyContainer.h"
 #include "Units/RigUnitContext.h"
 #include "Animation/NodeMappingProviderInterface.h"
 #include "Units/RigUnit.h"
 #include "Units/Control/RigUnit_Control.h"
-#include "Manipulatable/IControlRigManipulatable.h"
 #include "RigVMCore/RigVM.h"
+#include "Components/SceneComponent.h"
 
 #if WITH_EDITOR
 #include "RigVMModel/RigVMPin.h"
@@ -35,7 +36,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogControlRig, Log, All);
 
 /** Runs logic for mapping input data to transforms (the "Rig") */
 UCLASS(Blueprintable, Abstract, editinlinenew)
-class CONTROLRIG_API UControlRig : public UObject, public INodeMappingProviderInterface, public IControlRigManipulatable
+class CONTROLRIG_API UControlRig : public UObject, public INodeMappingProviderInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -43,29 +44,30 @@ class CONTROLRIG_API UControlRig : public UObject, public INodeMappingProviderIn
 	friend class SControlRigStackView;
 
 public:
-	static const FName DeprecatedMetaName;
-	static const FName InputMetaName;
-	static const FName OutputMetaName;
-	static const FName AbstractMetaName;
-	static const FName CategoryMetaName;
-	static const FName DisplayNameMetaName;
-	static const FName MenuDescSuffixMetaName;
-	static const FName ShowVariableNameInTitleMetaName;
-	static const FName CustomWidgetMetaName;
-	static const FName ConstantMetaName;
-	static const FName TitleColorMetaName;
-	static const FName NodeColorMetaName;
-	static const FName KeywordsMetaName;
-	static const FName PrototypeNameMetaName;
-	static const FName ExpandPinByDefaultMetaName;
-	static const FName DefaultArraySizeMetaName;
+
+	/** Bindable event for external objects to contribute to / filter a control value */
+	DECLARE_EVENT_ThreeParams(UControlRig, FFilterControlEvent, UControlRig*, const FRigControl&, FRigControlValue&);
+
+	/** Bindable event for external objects to be notified of Control changes */
+	DECLARE_EVENT_ThreeParams(UControlRig, FControlModifiedEvent, UControlRig*, const FRigControl&, const FRigControlModifiedContext&);
+
+	/** Bindable event for external objects to be notified that a Control is Selected */
+	DECLARE_EVENT_ThreeParams(UControlRig, FControlSelectedEvent, UControlRig*, const FRigControl&, bool);
 
 	static const FName OwnerComponent;
-
 
 private:
 	/** Current delta time */
 	float DeltaTime;
+
+	/** Current delta time */
+	float AbsoluteTime;
+
+	/** Current delta time */
+	float FramesPerSecond;
+
+	/** true if the rig itself should increase the AbsoluteTime */
+	bool bAccumulateTime;
 
 public:
 	UControlRig();
@@ -77,6 +79,18 @@ public:
 	
 	/** Set the current delta time */
 	void SetDeltaTime(float InDeltaTime);
+
+	/** Set the current absolute time */
+	void SetAbsoluteTime(float InAbsoluteTime, bool InSetDeltaTimeZero = false);
+
+	/** Set the current absolute and delta times */
+	void SetAbsoluteAndDeltaTime(float InAbsoluteTime, float InDeltaTime);
+
+	/** Set the current fps */
+	void SetFramesPerSecond(float InFramesPerSecond);
+
+	/** Returns the current frames per second (this may change over time) */
+	float GetCurrentFramesPerSecond() const;
 
 #if WITH_EDITOR
 	/** Get the category of this ControlRig (for display in menus) */
@@ -95,40 +109,55 @@ public:
 	/** Evaluate at Any Thread */
 	virtual void Evaluate_AnyThread();
 
-	/** input output handling */
-	FORCEINLINE const TArray<FRigVMParameter>& GetParameters() const
-	{
-		return VM->GetParameters();
-	}
+	/** Returns the member properties as an external variable array */
+	TArray<FRigVMExternalVariable> GetExternalVariables() const;
+
+	/** Returns the public member properties as an external variable array */
+	TArray<FRigVMExternalVariable> GetPublicVariables() const;
+
+	/** Returns a public variable given its name */
+	FRigVMExternalVariable GetPublicVariableByName(const FName& InVariableName) const;
+
 	template<class T>
-	FORCEINLINE T GetParameterValue(const FName& InParameterName)
+	FORCEINLINE T GetPublicVariableValue(const FName& InVariableName)
 	{
-		return VM->GetParameterValue<T>(InParameterName);
-	}
-	template<class T>
-	FORCEINLINE void SetParameterValue(const FName& InParameterName, const T& InValue)
-	{
-		VM->SetParameterValue<T>(InParameterName, InValue);
+		return GetPublicVariableByName(InVariableName).GetValue<T>();
 	}
 
+	template<class T>
+	FORCEINLINE void SetPublicVariableValue(const FName& InVariableName, const T& InValue)
+	{
+		GetPublicVariableByName(InVariableName).SetValue<T>();
+	}
+
+	template<class T>
+	FORCEINLINE bool SupportsEvent() const
+	{
+		return SupportsEvent(T::EventName);
+	}
+
+	bool SupportsEvent(const FName& InEventName) const;
+
+	TArray<FName> GetSupportedEvents() const;
+
 	/** Setup bindings to a runtime object (or clear by passing in nullptr). */
-	virtual void SetObjectBinding(TSharedPtr<IControlRigObjectBinding> InObjectBinding) override
+	FORCEINLINE void SetObjectBinding(TSharedPtr<IControlRigObjectBinding> InObjectBinding)
 	{
 		ObjectBinding = InObjectBinding;
 	}
 
-	/** Get bindings to a runtime object */
-	virtual TSharedPtr<IControlRigObjectBinding> GetObjectBinding() const override
+	FORCEINLINE TSharedPtr<IControlRigObjectBinding> GetObjectBinding() const
 	{
 		return ObjectBinding;
 	}
-    /** Get OurName*/
-	virtual FString GetName() const override
+
+	virtual FString GetName() const
 	{
 		FString ObjectName = (GetClass()->GetName());
 		ObjectName.RemoveFromEnd(TEXT("_C"));
 		return ObjectName;
 	}
+
 	FRigHierarchyContainer* GetHierarchy()
 	{
 		return &Hierarchy;
@@ -194,13 +223,22 @@ public:
 	ERigExecutionType ExecutionType;
 
 	/** Execute */
-	void Execute(const EControlRigState State);
+	void Execute(const EControlRigState State, const FName& InEventName);
 
 	/** ExecuteUnits */
-	virtual void ExecuteUnits(FRigUnitContext& InOutContext);
+	virtual void ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEventName);
 
 	/** Requests to perform an init during the next execution */
-	void RequestInit() { bRequiresInitExecution = true;  }
+	void RequestInit();
+
+	/** Requests to perform a setup during the next execution */
+	void RequestSetup();
+
+	/** Returns the queue of events to run */
+	const TArray<FName>& GetEventQueue() const { return EventQueue; }
+
+	/** Sets the queue of events to run */
+	void SetEventQueue(const TArray<FName>& InEventNames);
 
 	URigVM* GetVM();
 
@@ -210,41 +248,129 @@ public:
 	/** Data Source Registry Getter */
 	UAnimationDataSourceRegistry* GetDataSourceRegistry() { return DataSourceRegistry; }
 
-	// BEGIN IControlRigManipulatable interface
-	virtual const TArray<FRigSpace>& AvailableSpaces() const override;
-	virtual FRigSpace* FindSpace(const FName& InSpaceName) override;
-	virtual FTransform GetSpaceGlobalTransform(const FName& InSpaceName) override;
-	virtual bool SetSpaceGlobalTransform(const FName& InSpaceName, const FTransform& InTransform) override;
-	virtual const TArray<FRigControl>& AvailableControls() const override;
-	virtual FRigControl* FindControl(const FName& InControlName) override;
-	virtual FTransform GetControlGlobalTransform(const FName& InControlName) const override;
-	virtual FRigControlValue GetControlValueFromGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform) override;
-	virtual bool SetControlSpace(const FName& InControlName, const FName& InSpaceName) override;
-	virtual UControlRigGizmoLibrary* GetGizmoLibrary() const override;
-	virtual void CreateRigControlsForCurveContainer() override;
+	virtual const TArray<FRigSpace>& AvailableSpaces() const;
+	virtual FRigSpace* FindSpace(const FName& InSpaceName);
+	virtual FTransform GetSpaceGlobalTransform(const FName& InSpaceName);
+	virtual bool SetSpaceGlobalTransform(const FName& InSpaceName, const FTransform& InTransform);
+	virtual const TArray<FRigControl>& AvailableControls() const;
+	virtual FRigControl* FindControl(const FName& InControlName);
+	virtual bool ShouldApplyLimits() const { return !bSetupModeEnabled; }
+	virtual bool IsSetupModeEnabled() const { return bSetupModeEnabled; }
+	virtual FTransform SetupControlFromGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform);
+	virtual FTransform GetControlGlobalTransform(const FName& InControlName) const;
 
+	// Sets the relative value of a Control
+	template<class T>
+	FORCEINLINE_DEBUGGABLE void SetControlValue(const FName& InControlName, T InValue, bool bNotify = true,
+		const FRigControlModifiedContext& Context = FRigControlModifiedContext())
+	{
+		SetControlValueImpl(InControlName, FRigControlValue::Make<T>(InValue), bNotify, Context);
+	}
 
-#if WITH_EDITOR
-	virtual void SelectControl(const FName& InControlName, bool bSelect = true) override;
-	virtual bool ClearControlSelection() override;
-	virtual TArray<FName> CurrentControlSelection() const override;
-	virtual bool IsControlSelected(const FName& InControlName)const override;
-#endif
-	// END IControlRigManipulatable interface
+	// Returns the value of a Control
+	FORCEINLINE_DEBUGGABLE const FRigControlValue& GetControlValue(const FName& InControlName)
+	{
+		const FRigControl* Control = FindControl(InControlName);
+		check(Control);
+		return Control->Value;
+	}
 
-	// Not in IControlRigManipulatable *, but maybe should
+	// Sets the relative value of a Control
+	FORCEINLINE_DEBUGGABLE virtual void SetControlValueImpl(const FName& InControlName, const FRigControlValue& InValue, bool bNotify = true,
+		const FRigControlModifiedContext& Context = FRigControlModifiedContext())
+	{
+		FRigControl* Control = FindControl(InControlName);
+		check(Control);
+
+		Control->Value = InValue;
+
+		if (ShouldApplyLimits())
+		{
+			Control->ApplyLimits(Control->Value);
+		}
+
+		if (bNotify && OnControlModified.IsBound())
+		{
+			OnControlModified.Broadcast(this, *Control, Context);
+		}
+	}
+
+	/** Turn On Interact, MUST Call SetInteractOff*/
+	FORCEINLINE_DEBUGGABLE void SetInteractOn()
+	{
+		++InteractionBracket;
+		++InterRigSyncBracket;
+	}
+
+	/** Turn Off Interact, MUST Have Called SetInteractOn*/
+	FORCEINLINE_DEBUGGABLE void SetInteractOff()
+	{
+		--InteractionBracket;
+		--InterRigSyncBracket;
+	}
+
+	bool SetControlGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform, const FRigControlModifiedContext& Context = FRigControlModifiedContext());
+
+	virtual FRigControlValue GetControlValueFromGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform);
+
+	virtual void SetControlLocalTransform(const FName& InControlName, const FTransform& InLocalTransform, bool bNotify = true, const FRigControlModifiedContext& Context = FRigControlModifiedContext());
+	virtual FTransform GetControlLocalTransform(const FName& InControlName) ;
+
+	virtual bool SetControlSpace(const FName& InControlName, const FName& InSpaceName);
+	virtual UControlRigGizmoLibrary* GetGizmoLibrary() const;
+	virtual void CreateRigControlsForCurveContainer();
+	virtual void GetControlsInOrder(TArray<FRigControl>& SortedControls) const;
+
+	virtual void SelectControl(const FName& InControlName, bool bSelect = true);
+	virtual bool ClearControlSelection();
+	virtual TArray<FName> CurrentControlSelection() const;
+	virtual bool IsControlSelected(const FName& InControlName)const;
+
+	// Returns true if this manipulatable subject is currently
+	// available for manipulation / is enabled.
+	virtual bool ManipulationEnabled() const
+	{
+		return bManipulationEnabled;
+	}
+
+	// Sets the manipulatable subject to enabled or disabled
+	virtual bool SetManipulationEnabled(bool Enabled = true)
+	{
+		if (bManipulationEnabled == Enabled)
+		{
+			return false;
+		}
+		bManipulationEnabled = Enabled;
+		return true;
+	}
+
+	// Returns a event that can be used to subscribe to
+	// filtering control data when needed
+	FFilterControlEvent& ControlFilter() { return OnFilterControl; }
+
+	// Returns a event that can be used to subscribe to
+	// change notifications coming from the manipulated subject.
+	FControlModifiedEvent& ControlModified() { return OnControlModified; }
+
+	// Returns a event that can be used to subscribe to
+	// selection changes coming from the manipulated subject.
+	FControlSelectedEvent& ControlSelected() { return OnControlSelected; }
+
 	bool IsCurveControl(const FRigControl* InRigControl) const;
 
-	DECLARE_EVENT_TwoParams(UControlRig, FControlRigExecuteEvent, class UControlRig*, const EControlRigState);
+	DECLARE_EVENT_ThreeParams(UControlRig, FControlRigExecuteEvent, class UControlRig*, const EControlRigState, const FName&);
 	FControlRigExecuteEvent& OnInitialized_AnyThread() { return InitializedEvent; }
+	FControlRigExecuteEvent& OnPreSetup_AnyThread() { return PreSetupEvent; }
+	FControlRigExecuteEvent& OnPostSetup_AnyThread() { return PostSetupEvent; }
 	FControlRigExecuteEvent& OnExecuted_AnyThread() { return ExecutedEvent; }
+	FRigEventDelegate& OnRigEvent_AnyThread() { return RigEventDelegate; }
 
 private:
 
-	UPROPERTY(VisibleAnywhere, Category = "VM")
+	UPROPERTY()
 	URigVM* VM;
 
-	UPROPERTY(VisibleDefaultsOnly, Category = "Hierarchy")
+	UPROPERTY()
 	FRigHierarchyContainer Hierarchy;
 
 	UPROPERTY()
@@ -267,8 +393,24 @@ private:
 
 private:
 	// Controls for the container
-	void HandleOnControlModified(IControlRigManipulatable* Subject, const FRigControl& Control, EControlRigSetKey InSetKey);
+	void HandleOnControlModified(UControlRig* Subject, const FRigControl& Control, const FRigControlModifiedContext& Context);
 
+	TArray<FRigVMExternalVariable> GetExternalVariablesImpl(bool bFallbackToBlueprint) const;
+
+	FORCEINLINE FProperty* GetPublicVariableProperty(const FName& InVariableName) const
+	{
+		if (FProperty* Property = GetClass()->FindPropertyByName(InVariableName))
+		{
+			if (!Property->IsNative())
+			{
+				if (!Property->HasAllPropertyFlags(CPF_DisableEditOnInstance))
+				{
+					return Property;
+				}
+			}
+		}
+		return nullptr;
+	}
 
 private:
 
@@ -276,30 +418,43 @@ private:
 	FControlRigDrawContainer DrawContainer;
 
 	/** The draw interface for the units to use */
-	FControlRigDrawInterface* DrawInterface;
+	FControlRigDrawInterface DrawInterface;
 
 	/** The registry to access data source */
 	UPROPERTY(transient)
 	UAnimationDataSourceRegistry* DataSourceRegistry;
 
+	/** The event name used during an update */
+	UPROPERTY(transient)
+	TArray<FName> EventQueue;
+
 	/** Copy the VM from the default object */
 	void InstantiateVMFromCDO();
 	
-	/** Broadcasts a notification whenever the controlrig is initialized. */
+	/** Broadcasts a notification whenever the controlrig's memory is initialized. */
 	FControlRigExecuteEvent InitializedEvent;
+
+	/** Broadcasts a notification just before the controlrig is setup. */
+	FControlRigExecuteEvent PreSetupEvent;
+
+	/** Broadcasts a notification whenever the controlrig has been setup. */
+	FControlRigExecuteEvent PostSetupEvent;
 
 	/** Broadcasts a notification whenever the controlrig is executed / updated. */
 	FControlRigExecuteEvent ExecutedEvent;
 
-#if WITH_EDITOR
+	/** Handle a Control UI Settting Changed */
+	void HandleOnControlUISettingChanged(FRigHierarchyContainer* InContainer, const FRigElementKey& InKey);
+
 	/** Handle a Control Being Selected */
 	void HandleOnControlSelected(FRigHierarchyContainer* InContainer, const FRigElementKey& InKey, bool bSelected);
 
+#if WITH_EDITOR
 	/** Update the available controls within the control rig editor */
 	void UpdateAvailableControls();
 
 	/** Remove a transient / temporary control used to interact with a pin */
-	FName AddTransientControl(URigVMPin* InPin, FName InSpaceName = NAME_None);
+	FName AddTransientControl(URigVMPin* InPin, FRigElementKey SpaceKey = FRigElementKey(), FTransform OffsetTransform = FTransform::Identity);
 
 	/** Sets the value of a transient control based on a pin */
 	bool SetTransientControlValue(URigVMPin* InPin);
@@ -315,6 +470,8 @@ private:
 	/** Remove a transient / temporary control used to interact with a bone */
 	FName RemoveTransientControl(const FRigElementKey& InElement);
 
+	static FName GetNameForTransientControl(const FRigElementKey& InElement);
+
 	/** Removes all  transient / temporary control used to interact with pins */
 	void ClearTransientControls();
 
@@ -324,11 +481,112 @@ private:
 
 #endif
 
+	void HandleOnRigEvent(FRigHierarchyContainer* InContainer, const FRigEventContext& InEvent);
+	FRigEventDelegate RigEventDelegate;
+
 	void InitializeFromCDO();
 
-	static FName GetNameForTransientControl(const FRigElementKey& InElement);
+	UPROPERTY()
+	FRigInfluenceMapPerEvent Influences;
 
+	const FRigInfluenceMap* FindInfluenceMap(const FName& InEventName);
+
+	UPROPERTY(transient, BlueprintGetter = GetInteractionRig, BlueprintSetter = SetInteractionRig, Category = "Interaction")
+	UControlRig* InteractionRig;
+
+	UPROPERTY(EditAnywhere, transient, BlueprintGetter = GetInteractionRigClass, BlueprintSetter = SetInteractionRigClass, Category = "Interaction", Meta=(DisplayName="Interaction Rig"))
+	TSubclassOf<UControlRig> InteractionRigClass;
+
+public:
+
+	UFUNCTION(BlueprintGetter)
+	UControlRig* GetInteractionRig() const { return InteractionRig; }
+
+	UFUNCTION(BlueprintSetter)
+	void SetInteractionRig(UControlRig* InInteractionRig);
+
+	UFUNCTION(BlueprintGetter)
+	TSubclassOf<UControlRig> GetInteractionRigClass() const { return InteractionRigClass; }
+
+	UFUNCTION(BlueprintSetter)
+	void SetInteractionRigClass(TSubclassOf<UControlRig> InInteractionRigClass);
+
+	// UObject interface
+#if WITH_EDITOR
+	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+
+private:
+
+	void CopyPoseFromOtherRig(UControlRig* Subject);
+	void HandleInteractionRigControlModified(UControlRig* Subject, const FRigControl& Control, const FRigControlModifiedContext& Context);
+	void HandleInteractionRigInitialized(UControlRig* Subject, EControlRigState State, const FName& EventName);
+	void HandleInteractionRigExecuted(UControlRig* Subject, EControlRigState State, const FName& EventName);
+	void HandleInteractionRigControlSelected(UControlRig* Subject, const FRigControl& InControl, bool bSelected, bool bInverted);
+
+#if WITH_EDITOR
+
+public:
+
+	static FEdGraphPinType GetPinTypeFromExternalVariable(const FRigVMExternalVariable& InExternalVariable);
+	static FRigVMExternalVariable GetExternalVariableFromPinType(const FName& InName, const FEdGraphPinType& InPinType, bool bInPublic = false, bool bInReadonly = false);
+	static FRigVMExternalVariable GetExternalVariableFromDescription(const FBPVariableDescription& InVariableDescription);
+
+#endif
+
+protected:
 	bool bRequiresInitExecution;
+	bool bRequiresSetupEvent;
+	bool bSetupModeEnabled;
+	bool bResetInitialTransformsBeforeSetup;
+	bool bManipulationEnabled;
+
+	int32 InitBracket;
+	int32 UpdateBracket;
+	int32 PreSetupBracket;
+	int32 PostSetupBracket;
+	int32 InteractionBracket;
+	int32 InterRigSyncBracket;
+
+	TWeakObjectPtr<USceneComponent> OuterSceneComponent;
+
+	FORCEINLINE bool IsInitializing() const
+	{
+		return InitBracket > 0;
+	}
+
+	FORCEINLINE bool IsExecuting() const
+	{
+		return UpdateBracket > 0;
+	}
+
+	FORCEINLINE bool IsRunningPreSetup() const
+	{
+		return PreSetupBracket > 0;
+	}
+
+	FORCEINLINE bool IsRunningPostSetup() const
+	{
+		return PostSetupBracket > 0;
+	}
+
+	FORCEINLINE bool IsInteracting() const
+	{
+		return InteractionBracket > 0;
+	}
+
+	FORCEINLINE bool IsSyncingWithOtherRig() const
+	{
+		return InterRigSyncBracket > 0;
+	}
+
+
+	FFilterControlEvent OnFilterControl;
+	FControlModifiedEvent OnControlModified;
+	FControlSelectedEvent OnControlSelected;
+
+	TArray<FRigControl> QueuedModifiedControls;
 
 	friend class FControlRigBlueprintCompilerContext;
 	friend struct FRigHierarchyRef;
@@ -337,7 +595,49 @@ private:
 	friend class SRigHierarchy;
 	friend class UEngineTestControlRig;
  	friend class FControlRigEditMode;
-	friend class FControlRigIOHelper;
 	friend class UControlRigBlueprint;
+	friend class UControlRigComponent;
 	friend class UControlRigBlueprintGeneratedClass;
+	friend class FControlRigInteractionScope;
+	friend class UControlRigValidator;
+};
+
+class CONTROLRIG_API FControlRigBracketScope
+{
+public:
+
+	FORCEINLINE FControlRigBracketScope(int32& InBracket)
+		: Bracket(InBracket)
+	{
+		Bracket++;
+	}
+
+	FORCEINLINE ~FControlRigBracketScope()
+	{
+		Bracket--;
+	}
+
+private:
+
+	int32& Bracket;
+};
+
+class CONTROLRIG_API FControlRigInteractionScope
+{
+public:
+
+	FORCEINLINE FControlRigInteractionScope(UControlRig* InControlRig)
+		: InteractionBracketScope(InControlRig->InteractionBracket)
+		, SyncBracketScope(InControlRig->InterRigSyncBracket)
+	{
+	}
+
+	FORCEINLINE ~FControlRigInteractionScope()
+	{
+	}
+
+private:
+
+	FControlRigBracketScope InteractionBracketScope;
+	FControlRigBracketScope SyncBracketScope;
 };

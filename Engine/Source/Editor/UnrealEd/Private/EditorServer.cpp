@@ -285,21 +285,12 @@ static int32 CleanBSPMaterials(UWorld* InWorld, bool bPreviewOnly, bool bLogBrus
 
 void UEditorEngine::RedrawAllViewports(bool bInvalidateHitProxies)
 {
-	for( int32 ViewportIndex = 0 ; ViewportIndex < AllViewportClients.Num() ; ++ViewportIndex )
+	for (FEditorViewportClient* ViewportClient : AllViewportClients)
 	{
-		FEditorViewportClient* ViewportClient = AllViewportClients[ViewportIndex];
-		if ( ViewportClient && ViewportClient->Viewport )
+		if (ViewportClient)
 		{
-			if ( bInvalidateHitProxies )
-			{
-				// Invalidate hit proxies and display pixels.
-				ViewportClient->Viewport->Invalidate();
-			}
-			else
-			{
-				// Invalidate only display pixels.
-				ViewportClient->Viewport->InvalidateDisplay();
-			}
+			constexpr bool bForceChildViewportRedraw = false;
+			ViewportClient->Invalidate(bForceChildViewportRedraw, bInvalidateHitProxies);
 		}
 	}
 }
@@ -310,25 +301,16 @@ void UEditorEngine::InvalidateChildViewports(FSceneViewStateInterface* InParentV
 	if ( InParentView )
 	{
 		// Iterate over viewports and redraw those that have the specified view as a parent.
-		for( int32 ViewportIndex = 0 ; ViewportIndex < AllViewportClients.Num() ; ++ViewportIndex )
+		for (FEditorViewportClient* ViewportClient : AllViewportClients)
 		{
-			FEditorViewportClient* ViewportClient = AllViewportClients[ViewportIndex];
 			if ( ViewportClient && ViewportClient->ViewState.GetReference() )
 			{
 				if ( ViewportClient->ViewState.GetReference()->HasViewParent() &&
 					ViewportClient->ViewState.GetReference()->GetViewParent() == InParentView &&
 					!ViewportClient->ViewState.GetReference()->IsViewParent() )
 				{
-					if ( bInvalidateHitProxies )
-					{
-						// Invalidate hit proxies and display pixels.
-						ViewportClient->Viewport->Invalidate();
-					}
-					else
-					{
-						// Invalidate only display pixels.
-						ViewportClient->Viewport->InvalidateDisplay();
-					}
+					constexpr bool bForceChildViewportRedraw = false;
+					ViewportClient->Invalidate(bForceChildViewportRedraw, bInvalidateHitProxies);
 				}
 			}
 		}
@@ -437,7 +419,7 @@ bool UEditorEngine::SafeExec( UWorld* InWorld, const TCHAR* InStr, FOutputDevice
 			NewObject = UFactory::StaticImportObject
 			(
 				FactoryClass,
-				CreatePackage(NULL,*(GroupName != TEXT("") ? (PackageName+TEXT(".")+GroupName) : PackageName)),
+				CreatePackage(*(GroupName != TEXT("") ? (PackageName+TEXT(".")+GroupName) : PackageName)),
 				*ObjectName,
 				Flags,
 				bOperationCanceled,
@@ -2307,7 +2289,7 @@ UWorld* UEditorEngine::NewMap()
 	Factory->WorldType = EWorldType::Editor;
 	Factory->bInformEngineOfWorld = true;
 	Factory->FeatureLevel = DefaultWorldFeatureLevel;
-	UPackage* Pkg = CreatePackage( NULL, NULL );
+	UPackage* Pkg = CreatePackage(nullptr);
 	EObjectFlags Flags = RF_Public | RF_Standalone;
 	UWorld* NewWorld = CastChecked<UWorld>(Factory->FactoryCreateNew(UWorld::StaticClass(), Pkg, TEXT("Untitled"), Flags, NULL, GWarn));
 	Context.SetCurrentWorld(NewWorld);
@@ -2631,7 +2613,7 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 					LoadScope.EnterProgressFrame();
 
 					//create a package with the proper name
-					WorldPackage = CreatePackage(NULL, *(MakeUniqueObjectName(NULL, UPackage::StaticClass()).ToString()));
+					WorldPackage = CreatePackage( *(MakeUniqueObjectName(NULL, UPackage::StaticClass()).ToString()));
 
 					LoadScope.EnterProgressFrame();
 
@@ -2870,9 +2852,6 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 					{
 						GEngine->WorldAdded( Context.World() );
 					}
-
-					// Invalidate all the level viewport hit proxies
-					RedrawLevelEditingViewports();
 
 					// Collect any stale components or other objects that are no longer required after loading the map
 					CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS, true);
@@ -4670,12 +4649,8 @@ bool UEditorEngine::Exec_Obj( const TCHAR* Str, FOutputDevice& Ar )
 		}
 		ParseObject<UObject>( Str, TEXT("OLDNAME="), Object, OldPackage );
 		FParse::Value( Str, TEXT("NEWPACKAGE="), NewPackage );
-		UPackage* Pkg = CreatePackage(NULL,*NewPackage);
+		UPackage* Pkg = CreatePackage(*NewPackage);
 		Pkg->SetDirtyFlag(true);
-		if( FParse::Value(Str,TEXT("NEWGROUP="),NewGroup) && FCString::Stricmp(*NewGroup,TEXT("None"))!= 0)
-		{
-			Pkg = CreatePackage( Pkg, *NewGroup );
-		}
 		FParse::Value( Str, TEXT("NEWNAME="), NewName );
 		if( Object )
 		{

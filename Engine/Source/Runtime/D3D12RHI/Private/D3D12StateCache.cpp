@@ -138,7 +138,7 @@ void FD3D12StateCacheBase::ClearSRVs()
 
 void FD3D12StateCacheBase::FlushComputeShaderCache(bool bForce)
 {
-	if (bAutoFlushComputeShaderCache || bForce)
+	if (bForce)
 	{
 		FD3D12CommandListHandle& CommandList = CmdContext->CommandListHandle;
 		CommandList.AddUAVBarrier();
@@ -198,8 +198,8 @@ void FD3D12StateCacheBase::ClearState()
 
 	PipelineState.Graphics.MinDepth = 0.0f;
 	PipelineState.Graphics.MaxDepth = 1.0f;
-
-	bAutoFlushComputeShaderCache = false;
+	PipelineState.Graphics.Combiner = EVRSRateCombiner::VRSRB_Passthrough;
+	PipelineState.Graphics.DrawShadingRate = EVRSShadingRate::VRSSR_1x1;
 }
 
 void FD3D12StateCacheBase::DirtyStateForNewCommandList()
@@ -240,7 +240,9 @@ void FD3D12StateCacheBase::DirtyStateForNewCommandList()
 	{
 		bNeedSetDepthBounds = GSupportsDepthBoundsTest;
 	}
-
+	
+	bNeedSetShadingRate = GRHISupportsVariableRateShading;
+	
 	// Always dirty View and Sampler bindings. We detect the slots that are actually used at Draw/Dispatch time.
 	PipelineState.Common.SRVCache.DirtyAll();
 	PipelineState.Common.UAVCache.DirtyAll();
@@ -1196,8 +1198,13 @@ void FD3D12StateCacheBase::SetShaderResourceView(FD3D12ShaderResourceView* SRV, 
 		}
 
 		// Find the highest set SRV
-		(Cache.BoundMask[ShaderFrequency] == 0) ? Cache.MaxBoundIndex[ShaderFrequency] = INDEX_NONE :
-			Cache.MaxBoundIndex[ShaderFrequency] = FMath::FloorLog2(Cache.BoundMask[ShaderFrequency]);
+		Cache.MaxBoundIndex[ShaderFrequency] =
+			(Cache.BoundMask[ShaderFrequency] == 0)? INDEX_NONE :
+#if MAX_SRVS > 32
+			FMath::FloorLog2_64(Cache.BoundMask[ShaderFrequency]);
+#else
+			FMath::FloorLog2(Cache.BoundMask[ShaderFrequency]);
+#endif
 
 		CurrentShaderResourceViews[ResourceIndex] = SRV;
 		FD3D12ShaderResourceViewCache::DirtySlot(Cache.DirtySlotMask[ShaderFrequency], ResourceIndex);

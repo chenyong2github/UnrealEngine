@@ -178,6 +178,12 @@ void FVulkanWindowsPlatform::GetDeviceExtensions(EGpuVendorId VendorId, TArray<c
 			OutExtensions.Add(VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME);
 		}
 #endif
+#if VULKAN_SUPPORTS_NV_DIAGNOSTIC_CHECKPOINT
+		if (VendorId == EGpuVendorId::Nvidia && bAllowVendorDevice)
+		{
+			OutExtensions.Add(VK_NV_DEVICE_DIAGNOSTICS_CONFIG_EXTENSION_NAME);
+		}
+#endif
 	}
 
 #if VULKAN_SUPPORTS_COLOR_CONVERSIONS
@@ -191,8 +197,6 @@ void FVulkanWindowsPlatform::GetDeviceExtensions(EGpuVendorId VendorId, TArray<c
 	// Fullscreen requires Instance capabilities2
 	OutExtensions.Add(VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME);
 #endif
-	
-	OutExtensions.Add(VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME);
 }
 
 void FVulkanWindowsPlatform::CreateSurface(void* WindowHandle, VkInstance Instance, VkSurfaceKHR* OutSurface)

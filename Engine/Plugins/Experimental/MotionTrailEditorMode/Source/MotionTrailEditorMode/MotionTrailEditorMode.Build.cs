@@ -29,6 +29,7 @@ public class MotionTrailEditorMode : ModuleRules
 				"InputCore",
 				"UnrealEd",
 				"LevelEditor",
+				"AppFramework",
 				
 				"EditorFramework",
                 "EditorInteractiveToolsFramework",

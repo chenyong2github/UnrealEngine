@@ -25,6 +25,7 @@ public:
 protected:
 
 	FReply OnCopyASTClicked();
+	FReply OnCopyByteCodeClicked();
 
 	UControlRigBlueprint* BlueprintBeingCustomized;
 };

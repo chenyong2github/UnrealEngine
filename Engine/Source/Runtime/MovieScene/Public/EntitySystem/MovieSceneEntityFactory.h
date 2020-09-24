@@ -202,35 +202,102 @@ private:
 };
 
 
+enum class EComplexInclusivityFilterMode
+{
+	AllOf,
+	AnyOf
+};
 
 
+struct FComplexInclusivityFilter
+{
+	FComponentMask Mask;
+	EComplexInclusivityFilterMode Mode;
+
+	FComplexInclusivityFilter(const FComponentMask& InMask, EComplexInclusivityFilterMode InMode)
+		: Mask(InMask), Mode(InMode)
+	{}
+
+	static FComplexInclusivityFilter All(std::initializer_list<FComponentTypeID> InComponentTypes)
+	{
+		return FComplexInclusivityFilter(FComponentMask(InComponentTypes), EComplexInclusivityFilterMode::AllOf);
+	}
+
+	static FComplexInclusivityFilter Any(std::initializer_list<FComponentTypeID> InComponentTypes)
+	{
+		return FComplexInclusivityFilter(FComponentMask(InComponentTypes), EComplexInclusivityFilterMode::AnyOf);
+	}
+
+	bool Match(FComponentMask Input) const
+	{
+		switch (Mode)
+		{
+			case EComplexInclusivityFilterMode::AllOf:
+				{
+					FComponentMask Temp = Mask;
+					Temp.CombineWithBitwiseAND(Input, EBitwiseOperatorFlags::MaintainSize);
+					return Temp == Mask;
+				}
+				break;
+			case EComplexInclusivityFilterMode::AnyOf:
+				{
+					FComponentMask Temp = Mask;
+					Temp.CombineWithBitwiseAND(Input, EBitwiseOperatorFlags::MaintainSize);
+					return Temp.Find(true) != INDEX_NONE;
+				}
+				break;
+			default:
+				checkf(false, TEXT("Not implemented"));
+				return false;
+		}
+	}
+};
+
+
+struct FComplexInclusivity
+{
+	FComplexInclusivityFilter Filter;
+	FComponentMask ComponentsToInclude;
+};
+
+/**
+ * A class that contains all the component factory relationships.
+ *
+ * A source component (imported from an entity provider) can trigger the creation of other components on
+ * the same entity or on children entities of its entity.
+ */
 struct FEntityFactories
 {
+	/**
+	 * Defines a component as something that should always be created on every child entity.
+	 */
 	void DefineChildComponent(FComponentTypeID InChildComponent)
 	{
 		ParentToChildComponentTypes.AddUnique(FComponentTypeID::Invalid(), InChildComponent);
 	}
 
+	/**
+	 * Specifies that if a component is present on a parent entity, the given child component should
+	 * be created on any child entity.
+	 */
 	void DefineChildComponent(FComponentTypeID InParentComponent, FComponentTypeID InChildComponent)
 	{
 		ParentToChildComponentTypes.AddUnique(InParentComponent, InChildComponent);
 	}
 
-	void DefineChildComponent(TInlineValue<FChildEntityInitializer>&& InInitializer)
-	{
-		check(InInitializer.IsValid());
-
-		DefineChildComponent(InInitializer->GetParentComponent(), InInitializer->GetChildComponent());
-		// Note: after this line, InInitializer is reset
-		ChildInitializers.Add(MoveTemp(InInitializer));
-	}
-
+	/**
+	 * Makes the given component automatically copied from a parent entity to all its children entities.
+	 */
 	template<typename ComponentType>
 	void DuplicateChildComponent(TComponentTypeID<ComponentType> InComponent)
 	{
 		DefineChildComponent(TDuplicateChildEntityInitializer<ComponentType>(InComponent));
 	}
 
+	/**
+	 * Specifies that if a component is present on a parent entity, the given child component should
+	 * be created on any child entity, and initialized with the given initializer.
+	 */
 	template<typename ParentComponent, typename ChildComponent, typename InitializerCallback>
 	void DefineChildComponent(TComponentTypeID<ParentComponent> InParentType, TComponentTypeID<ChildComponent> InChildType, InitializerCallback&& InInitializer)
 	{
@@ -240,81 +307,58 @@ struct FEntityFactories
 		ChildInitializers.Add(FInitializer(InParentType, InChildType, Forward<InitializerCallback>(InInitializer)));
 	}
 
-	// Indicate that if component A exists, component B must also exist on an entity.
-	// @note: the inverse is not implied (ie B can still exist without A)
-	void DefineMutuallyInclusiveComponent(FComponentTypeID InComponentA, FComponentTypeID InComponentB)
+	/**
+	 * Adds the definition for a child component. The helper methods above are easier and preferrable.
+	 */
+	MOVIESCENE_API void DefineChildComponent(TInlineValue<FChildEntityInitializer>&& InInitializer);
+
+	/**
+	 * Indicates that if the first component exists on an entity, the second component should be created on
+	 * that entity too.
+	 *
+	 * @note: the inverse is not implied (ie B can still exist without A)
+     */
+	MOVIESCENE_API void DefineMutuallyInclusiveComponent(FComponentTypeID InComponentA, FComponentTypeID InComponentB);
+
+	/**
+	 * Specifies a mutual inclusivity relationship. The helper method above is easier and preferrable.
+	 */
+	MOVIESCENE_API void DefineMutuallyInclusiveComponent(TInlineValue<FMutualEntityInitializer>&& InInitializer);
+
+	/**
+	 * Specifies that if an entity matches the given filter, the specified components should be created on it.
+	 */
+	template<typename... ComponentTypes>
+	void DefineComplexInclusiveComponents(const FComplexInclusivityFilter& InFilter, ComponentTypes... InComponents)
 	{
-		MutualInclusivityGraph.AllocateNode(InComponentA.BitIndex());
-		MutualInclusivityGraph.AllocateNode(InComponentB.BitIndex());
-		MutualInclusivityGraph.MakeEdge(InComponentA.BitIndex(), InComponentB.BitIndex());
+		FComponentMask ComponentsToInclude { InComponents... };
+		FComplexInclusivity NewComplexInclusivity { InFilter, ComponentsToInclude };
+		DefineComplexInclusiveComponents(NewComplexInclusivity);
 	}
 
-	void DefineMutuallyInclusiveComponent(TInlineValue<FMutualEntityInitializer>&& InInitializer)
-	{
-		check(InInitializer.IsValid());
+	/**
+	 * Specifies that if an entity matches the given filter, the specified component should be created on it.
+	 */
+	MOVIESCENE_API void DefineComplexInclusiveComponents(const FComplexInclusivityFilter& InFilter, FComponentTypeID InComponent);
 
-		DefineChildComponent(InInitializer->GetComponentA(), InInitializer->GetComponentB());
-		// Note: after this line, InInitializer is reset
-		MutualInitializers.Add(MoveTemp(InInitializer));
-	}
+	/**
+	 * Defines a new complex inclusivity relationship. The helper methods above are easier and preferrable.
+	 */
+	MOVIESCENE_API void DefineComplexInclusiveComponents(const FComplexInclusivity& InInclusivity);
 
-	int32 ComputeChildComponents(const FComponentMask& ParentComponentMask, FComponentMask& ChildComponentMask)
-	{
-		int32 NumNewComponents = 0;
+	/**
+	 * Given a set of components on a parent entity, compute what components should exist on a child entity.
+	 *
+	 * This resolves all the parent-to-child relationships.
+	 */
+	MOVIESCENE_API int32 ComputeChildComponents(const FComponentMask& ParentComponentMask, FComponentMask& ChildComponentMask);
 
-		// Any child components keyed off an invalid parent component type are always relevant
-		for (auto Child = ParentToChildComponentTypes.CreateConstKeyIterator(FComponentTypeID::Invalid()); Child; ++Child)
-		{
-			if (!ChildComponentMask.Contains(Child.Value()))
-			{
-				ChildComponentMask.Set(Child.Value());
-				++NumNewComponents;
-			}
-		}
-
-		for (FComponentMaskIterator It = ParentComponentMask.Iterate(); It; ++It)
-		{
-			FComponentTypeID ParentComponent = FComponentTypeID::FromBitIndex(It.GetIndex());
-			for (auto Child = ParentToChildComponentTypes.CreateConstKeyIterator(ParentComponent); Child; ++Child)
-			{
-				if (!ChildComponentMask.Contains(Child.Value()))
-				{
-					ChildComponentMask.Set(Child.Value());
-					++NumNewComponents;
-				}
-			}
-		}
-
-		return NumNewComponents;
-	}
-
-	int32 ComputeMutuallyInclusiveComponents(FComponentMask& ComponentMask)
-	{
-		FMovieSceneEntitySystemDirectedGraph::FBreadthFirstSearch BFS(&MutualInclusivityGraph);
-
-		int32 NumNewComponents = 0;
-
-		for (FComponentMaskIterator It = ComponentMask.Iterate(); It; ++It)
-		{
-			const uint16 NodeID = static_cast<uint16>(It.GetIndex());
-			if (MutualInclusivityGraph.IsNodeAllocated(NodeID))
-			{
-				BFS.Search(NodeID);
-			}
-		}
-
-		// Ideally would do a bitwise OR here
-		for (TConstSetBitIterator<> It(BFS.GetVisited()); It; ++It)
-		{
-			FComponentTypeID ComponentType = FComponentTypeID::FromBitIndex(It.GetIndex());
-			if (!ComponentMask.Contains(ComponentType))
-			{
-				ComponentMask.Set(ComponentType);
-				++NumNewComponents;
-			}
-		}
-		return NumNewComponents;
-	}
+	/**
+	 * Given a set of components on an entity, computes what other components should also exist on this entity.
+	 *
+	 * This resolves all the mutual and complex inclusivity relationships.
+	 */
+	MOVIESCENE_API int32 ComputeMutuallyInclusiveComponents(FComponentMask& ComponentMask);
 
 	void RunInitializers(const FComponentMask& ParentType, const FComponentMask& ChildType, const FEntityAllocation* ParentAllocation, TArrayView<const int32> ParentAllocationOffsets, const FEntityRange& InChildEntityRange);
 
@@ -323,8 +367,15 @@ struct FEntityFactories
 
 	TMultiMap<FComponentTypeID, FComponentTypeID> ParentToChildComponentTypes;
 	FMovieSceneEntitySystemDirectedGraph MutualInclusivityGraph;
-};
+	TArray<FComplexInclusivity> ComplexInclusivity;
 
+	struct
+	{
+		FComponentMask AllMutualFirsts;
+		FComponentMask AllComplexFirsts;
+	}
+	Masks;
+};
 
 
 }	// using namespace MovieScene

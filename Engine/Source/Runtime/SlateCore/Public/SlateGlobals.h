@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
 #include "Debugging/SlateDebugging.h"
+#include "Trace/SlateTrace.h"
 
 // Enabled cvar GSlateCheckUObjectRenderResources that will check for invalid reference in the slate resources manager
 #define SLATE_CHECK_UOBJECT_RENDER_RESOURCES !UE_BUILD_SHIPPING
@@ -27,6 +28,11 @@
 
 #ifndef SLATE_VERBOSE_NAMED_EVENTS
 	#define SLATE_VERBOSE_NAMED_EVENTS !UE_BUILD_SHIPPING
+#endif
+
+/** Generate an unique identifier  */
+#ifndef UE_SLATE_WITH_WIDGET_UNIQUE_IDENTIFIER
+	#define UE_SLATE_WITH_WIDGET_UNIQUE_IDENTIFIER UE_SLATE_TRACE_ENABLED || WITH_SLATE_DEBUGGING
 #endif
 
 // HOW TO GET AN IN-DEPTH PERFORMANCE ANALYSIS OF SLATE
@@ -68,7 +74,6 @@ extern SLATECORE_API bool GSlateCheckUObjectRenderResourcesShouldLogFatal;
 #endif
 
 #if WITH_SLATE_DEBUGGING
-extern SLATECORE_API bool GSlateInvalidationDebugging;
 extern SLATECORE_API bool GSlateHitTestGridDebugging;
 #endif
 /* Forward declarations

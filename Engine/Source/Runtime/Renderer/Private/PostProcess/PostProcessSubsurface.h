@@ -26,14 +26,13 @@ struct FVisualizeSubsurfaceInputs
 	FScreenPassTexture SceneColor;
 
 	// [Required] The scene textures used to visualize shading models.
-	const FSceneTextureParameters* SceneTextures = nullptr;
+	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTextures = nullptr;
 };
 
 FScreenPassTexture AddVisualizeSubsurfacePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FVisualizeSubsurfaceInputs& Inputs);
 
-//////////////////////////////////////////////////////////////////////////
-//! Shim methods to hook into the legacy pipeline until the full RDG conversion is complete.
-
-void ComputeSubsurfaceShim(FRHICommandListImmediate& RHICmdList, const TArray<FViewInfo>& Views);
-
-//////////////////////////////////////////////////////////////////////////
+FRDGTextureRef AddSubsurfacePass(
+	FRDGBuilder& GraphBuilder,
+	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+	TArrayView<const FViewInfo> Views,
+	FRDGTextureRef SceneColorTexture);

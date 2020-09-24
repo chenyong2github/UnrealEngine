@@ -136,7 +136,7 @@ public:
 
 		int32 FirstPossibleIndex = -1;
 		int32 LastPossibleIndex = -1;
-		int32 FirstKeepIndex = 0;
+		int32 NumOldSamplesAtBegin = 0;
 		for (int32 Idx = 0; Idx < Num; ++Idx)
 		{
 			const TSharedPtr<SampleType, ESPMode::ThreadSafe> & Sample = Samples[Idx];
@@ -158,14 +158,22 @@ public:
 								(SampleTimeRange.GetUpperBoundValue() <= TimeRange.GetLowerBoundValue()))
 				{
 					// Sample is entirely past requested time range, we can stop
+					// (we assume monotonically increasing time stamps here)
 					break;
 				}
 
-				// We must not get here if we already found overlapping samples
-				check(FirstPossibleIndex < 0);
-
-				// Sample is before time range, we will delete is later, no reason to keep it
-				++FirstKeepIndex;
+				// If the incoming data it not monotonically increasing we migth get here after we already found the first overlapping sample
+				// -> we do not count further non-overlapping, older samples into this range
+				if (FirstPossibleIndex < 0)
+				{
+					// Sample is before time range, we will delete is later, no reason to keep it
+					++NumOldSamplesAtBegin;
+				}
+				else
+				{
+					// If we find an older non-verlapping sample after an overlapping one, we move the last possible index on to ensure these samples die ASAP
+					LastPossibleIndex = Idx;
+				}
 			}
 		}
 
@@ -180,20 +188,27 @@ public:
 				int32 BestIndex = FirstPossibleIndex;
 				for (int32 Idx = FirstPossibleIndex; Idx <= LastPossibleIndex; ++Idx)
 				{
-					const TSharedPtr<SampleType, ESPMode::ThreadSafe> & Sample = Samples[Idx];
-					TRange<FMediaTimeStamp> SampleTimeRange = !bReverse ? TRange<FMediaTimeStamp>(Sample->GetTime(), Sample->GetTime() + Sample->GetDuration())
-						: TRange<FMediaTimeStamp>(Sample->GetTime() - Sample->GetDuration(), Sample->GetTime());
-					TRange<FMediaTimeStamp> SampleInRangeRange(TRange<FMediaTimeStamp>::Intersection(SampleTimeRange, TimeRange));
+					const TSharedPtr<SampleType, ESPMode::ThreadSafe>& Sample = Samples[Idx];
 
-					FMediaTimeStamp SampleDuration(SampleInRangeRange.Size<FMediaTimeStamp>());
-					if (SampleDuration >= BestDuration)
+					// Check once more if this sample is actually overlapping as we may get non-monotonically increasing data...
+					TRange<FMediaTimeStamp> SampleTimeRange = !bReverse ? TRange<FMediaTimeStamp>(Sample->GetTime(), Sample->GetTime() + Sample->GetDuration())
+																		: TRange<FMediaTimeStamp>(Sample->GetTime() - Sample->GetDuration(), Sample->GetTime());
+
+					if (TimeRange.Overlaps(SampleTimeRange))
 					{
-						BestDuration = SampleDuration;
-						BestIndex = Idx;
+						// Ok. This one is real, see if it is a better fit than the last one...
+						TRange<FMediaTimeStamp> SampleInRangeRange(TRange<FMediaTimeStamp>::Intersection(SampleTimeRange, TimeRange));
+
+						FMediaTimeStamp SampleDuration(SampleInRangeRange.Size<FMediaTimeStamp>());
+						if (SampleDuration >= BestDuration)
+						{
+							BestDuration = SampleDuration;
+							BestIndex = Idx;
+						}
 					}
 				}
 
-				check(BestIndex >= FirstKeepIndex);
+				check(BestIndex >= NumOldSamplesAtBegin);
 
 				// Found the best. Return it & delete all candidate samples up and including it from the queue
 				OutSample = Samples[BestIndex];
@@ -208,15 +223,15 @@ public:
 		}
 
 		// Any frames considered outdated?
-		if (FirstKeepIndex != 0)
+		if (NumOldSamplesAtBegin != 0)
 		{
 			// In case we got no new frame that fits into the current frame, return the newest of the "old" frames
 			if (!OutSample.IsValid())
 			{
-				OutSample = Samples[FirstKeepIndex - 1];
+				OutSample = Samples[NumOldSamplesAtBegin - 1];
 			}
 			// Cleanup samples that are now considered outdated...
-			Samples.RemoveAt(0, FirstKeepIndex);
+			Samples.RemoveAt(0, NumOldSamplesAtBegin);
 		}
 
 		// Return true if we got a sample...

@@ -209,6 +209,10 @@ public:
 			{
 				bShaderTypeMatches = true;
 			}
+			else if (FCString::Stristr(ShaderType->GetName(), TEXT("FAnisotropy")))
+			{
+				bShaderTypeMatches = true;
+			}
 			else if (FCString::Stristr(ShaderType->GetName(), TEXT("RayTracingDynamicGeometryConverter")))
 			{
 				bShaderTypeMatches = true;
@@ -310,27 +314,26 @@ void  UMaterialEditorPreviewParameters::AssignParameterToGroup(UMaterial* Parent
 		ParameterGroupName = TEXT("None");
 	}
 	IMaterialEditorModule* MaterialEditorModule = &FModuleManager::LoadModuleChecked<IMaterialEditorModule>("MaterialEditor");
-	if (MaterialEditorModule->MaterialLayersEnabled())
+	
+	// Material layers
+	UDEditorMaterialLayersParameterValue* MaterialLayerParam = Cast<UDEditorMaterialLayersParameterValue>(ParameterValue);
+	if (ParameterValue->ParameterInfo.Association == EMaterialParameterAssociation::GlobalParameter)
 	{
-		UDEditorMaterialLayersParameterValue* MaterialLayerParam = Cast<UDEditorMaterialLayersParameterValue>(ParameterValue);
-		if (ParameterValue->ParameterInfo.Association == EMaterialParameterAssociation::GlobalParameter)
+		if (MaterialLayerParam)
 		{
-			if (MaterialLayerParam)
+			ParameterGroupName = FMaterialPropertyHelpers::LayerParamName;
+		}
+		else
+		{
+			FString AppendedGroupName = GlobalGroupPrefix.ToString();
+			if (ParameterGroupName != TEXT("None"))
 			{
-				ParameterGroupName = FMaterialPropertyHelpers::LayerParamName;
+				ParameterGroupName.AppendString(AppendedGroupName);
+				ParameterGroupName = FName(*AppendedGroupName);
 			}
 			else
 			{
-				FString AppendedGroupName = GlobalGroupPrefix.ToString();
-				if (ParameterGroupName != TEXT("None"))
-				{
-					ParameterGroupName.AppendString(AppendedGroupName);
-					ParameterGroupName = FName(*AppendedGroupName);
-				}
-				else
-				{
-					ParameterGroupName = TEXT("Global");
-				}
+				ParameterGroupName = TEXT("Global");
 			}
 		}
 	}
@@ -940,20 +943,19 @@ void  UMaterialEditorInstanceConstant::AssignParameterToGroup(UMaterial* ParentM
 		}
 
 		IMaterialEditorModule* MaterialEditorModule = &FModuleManager::LoadModuleChecked<IMaterialEditorModule>("MaterialEditor");
-		if (MaterialEditorModule->MaterialLayersEnabled())
+
+		// Material layers
+		if (ParameterValue->ParameterInfo.Association == EMaterialParameterAssociation::GlobalParameter)
 		{
-			if (ParameterValue->ParameterInfo.Association == EMaterialParameterAssociation::GlobalParameter)
+			FString AppendedGroupName = GlobalGroupPrefix.ToString();
+			if (ParameterGroupName != TEXT("None"))
 			{
-				FString AppendedGroupName = GlobalGroupPrefix.ToString();
-				if (ParameterGroupName != TEXT("None"))
-				{
-					ParameterGroupName.AppendString(AppendedGroupName);
-					ParameterGroupName = FName(*AppendedGroupName);
-				}
-				else
-				{
-					ParameterGroupName = TEXT("Global");
-				}
+				ParameterGroupName.AppendString(AppendedGroupName);
+				ParameterGroupName = FName(*AppendedGroupName);
+			}
+			else
+			{
+				ParameterGroupName = TEXT("Global");
 			}
 		}
 	}
@@ -1086,11 +1088,6 @@ void UMaterialEditorInstanceConstant::RegenerateArrays()
 			{
 				FTextureParameterValue& SourceParam = SourceInstance->TextureParameterValues[TextureParameterIdx];
 				if(ParameterInfo == SourceParam.ParameterInfo)
-				{
-					ParameterValue.bOverride = true;
-					ParameterValue.ParameterValue = SourceParam.ParameterValue;
-				}
-				if(ParameterInfo.Name.IsEqual(SourceParam.ParameterInfo.Name) && ParameterInfo.Association == SourceParam.ParameterInfo.Association && ParameterInfo.Index == SourceParam.ParameterInfo.Index)
 				{
 					ParameterValue.bOverride = true;
 					ParameterValue.ParameterValue = SourceParam.ParameterValue;
@@ -1384,7 +1381,7 @@ void UMaterialEditorInstanceConstant::ResetOverrides(int32 Index, EMaterialParam
 
 void UMaterialEditorInstanceConstant::CopyToSourceInstance(const bool bForceStaticPermutationUpdate)
 {
-	if (!SourceInstance->IsTemplate(RF_ClassDefaultObject))
+	if (SourceInstance && !SourceInstance->IsTemplate(RF_ClassDefaultObject))
 	{
 		if (bIsFunctionPreviewMaterial)
 		{

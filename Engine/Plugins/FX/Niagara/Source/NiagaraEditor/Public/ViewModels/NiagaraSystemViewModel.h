@@ -106,6 +106,9 @@ public:
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnRequestFocusTab, FName /* TabName */);
 
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnExternalRenameParameter, const FNiagaraVariableBase&, const FNiagaraVariableBase&, UNiagaraEmitter*);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnExternalRemoveParameter, const FNiagaraVariableBase&,  UNiagaraEmitter*);
+
 public:
 	struct FEmitterHandleToDuplicate
 	{
@@ -253,6 +256,9 @@ public:
 	/** Updates all selected emitter's fixed bounds with their current dynamic bounds. */
 	void UpdateEmitterFixedBounds();
 
+	/** Clear the captures stats for all the emitters in the current system. */
+	void ClearEmitterStats();
+
 	/** Isolates the supplied emitters.  This will remove all other emitters from isolation. */
 	NIAGARAEDITOR_API void IsolateEmitters(TArray<FGuid> EmitterHandlesIdsToIsolate);
 
@@ -328,6 +334,14 @@ public:
 	/** Wrapper to set bPendingMessagesChanged after calling a delegate off of a message link. */
 	void ExecuteMessageDelegateAndRefreshMessages(FSimpleDelegate MessageDelegate);
 
+	ENiagaraStatEvaluationType StatEvaluationType = ENiagaraStatEvaluationType::Average;
+	ENiagaraStatDisplayMode StatDisplayMode = ENiagaraStatDisplayMode::Percent;
+
+	void NotifyParameterRemovedExternally(const FNiagaraVariableBase& InVar, UNiagaraEmitter* InOptionalEmitter) { OnExternalRemoveDelegate.Broadcast(InVar, InOptionalEmitter); }
+	void NotifyParameterRenamedExternally(const FNiagaraVariableBase& InOldVar, const FNiagaraVariableBase& InNewVar, UNiagaraEmitter* InOptionalEmitter) { OnExternalRenameDelegate.Broadcast(InOldVar, InNewVar, InOptionalEmitter); }
+
+	FOnExternalRenameParameter& OnParameterRenamedExternally() { return OnExternalRenameDelegate; }
+	FOnExternalRemoveParameter& OnParameterRemovedExternally() { return OnExternalRemoveDelegate; }
 private:
 
 	/** Sends message jobs to FNiagaraMessageManager for all compile events from the last compile. */
@@ -531,6 +545,9 @@ private:
 
 	/** A multicast delegate which is called whenever this has been notified it's owner will be closing. */
 	FOnPreClose OnPreCloseDelegate;
+
+	FOnExternalRenameParameter OnExternalRenameDelegate;
+	FOnExternalRemoveParameter OnExternalRemoveDelegate;
 
 	FOnRequestFocusTab OnRequestFocusTabDelegate;
 

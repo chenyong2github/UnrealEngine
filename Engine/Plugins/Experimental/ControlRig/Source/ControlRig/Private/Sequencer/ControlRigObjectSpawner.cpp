@@ -5,7 +5,7 @@
 #include "MovieSceneSpawnable.h"
 #include "IMovieScenePlayer.h"
 #include "UObject/Package.h"
-#include "ControlRigSkeletalMeshBinding.h"
+#include "ControlRigObjectBinding.h"
 
 TSharedRef<IMovieSceneObjectSpawner> FControlRigObjectSpawner::CreateObjectSpawner()
 {
@@ -39,7 +39,7 @@ UObject* FControlRigObjectSpawner::SpawnObject(FMovieSceneSpawnable& Spawnable, 
 	{
 		FName ObjectName = *(ControlRig->GetClass()->GetName() + Spawnable.GetGuid().ToString() + FString::FromInt(TemplateID.GetInternalValue()));
 		UControlRig* SpawnedObject = NewObject<UControlRig>(ObjectHolderPtr.Get(), ControlRig->GetClass(), ObjectName, RF_Transient);
-		SpawnedObject->SetObjectBinding(MakeShared<FControlRigSkeletalMeshBinding>());
+		SpawnedObject->SetObjectBinding(MakeShared<FControlRigObjectBinding>());
 		ObjectHolderPtr->Objects.Add(SpawnedObject);
 		SpawnedObject->Initialize();
 

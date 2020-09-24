@@ -211,6 +211,7 @@ void FPropertyCaptureHelper::CaptureComponentExceptionProperties(const UActorCom
 		}
 	}
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (const UAtmosphericFogComponent* ComponentAsFogComponent = Cast<const UAtmosphericFogComponent>(Component))
 	{
 		FString DisplayString;
@@ -227,6 +228,7 @@ void FPropertyCaptureHelper::CaptureComponentExceptionProperties(const UActorCom
 			ComponentNames.Pop();
 		}
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 bool IsHiddenFunction(const UStruct* PropertyStructure, const FString& FunctionName)

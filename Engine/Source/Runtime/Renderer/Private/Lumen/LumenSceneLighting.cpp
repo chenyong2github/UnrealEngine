@@ -75,13 +75,13 @@ void FLumenCardTracingInputs::ExtractToScene(FRDGBuilder& GraphBuilder, FScene* 
 
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 
-	GraphBuilder.QueueTextureExtraction(OpacityAtlas, &LumenSceneData.OpacityAtlas);
-	GraphBuilder.QueueTextureExtraction(FinalLightingAtlas, &LumenSceneData.FinalLightingAtlas);
-	GraphBuilder.QueueTextureExtraction(DilatedDepthAtlas, &LumenSceneData.DepthAtlas);
+	ConvertToExternalTexture(GraphBuilder, OpacityAtlas, LumenSceneData.OpacityAtlas);
+	ConvertToExternalTexture(GraphBuilder, FinalLightingAtlas, LumenSceneData.FinalLightingAtlas);
+	ConvertToExternalTexture(GraphBuilder, DilatedDepthAtlas, LumenSceneData.DepthAtlas);
 
 	if (View.ViewState)
 	{
-		GraphBuilder.QueueTextureExtraction(VoxelLighting, &View.ViewState->Lumen.VoxelLighting);
+		ConvertToExternalTexture(GraphBuilder, VoxelLighting, View.ViewState->Lumen.VoxelLighting);
 		View.ViewState->Lumen.VoxelGridResolution = VoxelGridResolution;
 		View.ViewState->Lumen.NumClipmapLevels = NumClipmapLevels;
 		View.ViewState->Lumen.ClipmapWorldToUVScale = ClipmapWorldToUVScale;
@@ -198,8 +198,8 @@ void FLumenCardScatterContext::Init(
 
 	FComputeShaderUtils::ClearUAV(GraphBuilder, View.ShaderMap, GraphBuilder.CreateUAV(FRDGBufferUAVDesc(QuadAllocator, PF_R32_UINT)), 0);
 
-	QuadAllocatorUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(QuadAllocator, PF_R32_UINT), ERDGChildResourceFlags::NoUAVBarrier);
-	QuadDataUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(QuadDataBuffer, PF_R32_UINT), ERDGChildResourceFlags::NoUAVBarrier);
+	QuadAllocatorUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(QuadAllocator, PF_R32_UINT), ERDGUnorderedAccessViewFlags::SkipBarrier);
+	QuadDataUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(QuadDataBuffer, PF_R32_UINT), ERDGUnorderedAccessViewFlags::SkipBarrier);
 
 	Parameters.QuadAllocator = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(QuadAllocator, PF_R32_UINT));
 	Parameters.QuadData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(QuadDataBuffer, PF_R32_UINT));

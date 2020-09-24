@@ -49,6 +49,16 @@ public:
 			return false;
 		}
 
+		// set limits to help decoder
+		{
+			constexpr int32 MinFps = 20;
+			constexpr int32 MaxFps = 34;
+			constexpr int32 NumLtcBits = 80;
+			constexpr int32 NumLtcHalfBits = NumLtcBits * 2;
+			TimecodeDecoder.MinSamplesPerEdge = AudioCapture.GetSampleRate() / (MaxFps * NumLtcHalfBits);
+			TimecodeDecoder.MaxSamplesPerEdge = AudioCapture.GetSampleRate() / (MinFps * NumLtcBits);
+		}
+
 		check(AudioCapture.IsStreamOpen());
 		check(!AudioCapture.IsCapturing());
 
@@ -70,7 +80,7 @@ public:
 		{
 			return;
 		}
-
+		
 		int32 AudioChannelIndex = FMath::Clamp(Owner->AudioChannel-1, 0, NumChannels-1);
 		if (!bWarnedAboutTheInvalidAudioChannel && AudioChannelIndex != Owner->AudioChannel-1)
 		{
@@ -158,9 +168,10 @@ UAudioCaptureTimecodeProvider::UAudioCaptureTimecodeProvider(const FObjectInitia
 
 /* UTimecodeProvider interface implementation
 *****************************************************************************/
-FQualifiedFrameTime UAudioCaptureTimecodeProvider::GetQualifiedFrameTime() const
+bool UAudioCaptureTimecodeProvider::FetchTimecode(FQualifiedFrameTime& OutFrameTime)
 {
-	return FQualifiedFrameTime(GetTimecodeInternal(), GetFrameRateInternal());
+	OutFrameTime = FQualifiedFrameTime(GetTimecodeInternal(), GetFrameRateInternal());
+	return true;
 }
 
 FTimecode UAudioCaptureTimecodeProvider::GetTimecodeInternal() const

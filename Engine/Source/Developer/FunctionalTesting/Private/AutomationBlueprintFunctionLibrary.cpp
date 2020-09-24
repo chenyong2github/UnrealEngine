@@ -622,12 +622,19 @@ public:
 #if WITH_AUTOMATION_TESTS
 		FAutomationTestFramework::Get().OnScreenshotCompared.RemoveAll(this);
 #endif
-		FScreenshotRequest::OnScreenshotRequestProcessed().RemoveAll(this);
+		if (!Done)
+		{
+			FScreenshotRequest::OnScreenshotRequestProcessed().RemoveAll(this);
+			UnlockViewport();
+		}
 	};
 
 	virtual void SetDone() override
 	{
 		FScreenshotRequest::OnScreenshotRequestProcessed().RemoveAll(this);
+		
+		UnlockViewport();
+
 		Done = true;
 	};
 
@@ -635,6 +642,28 @@ public:
 	{
 		FAutomationTestFramework::Get().OnScreenshotCompared.RemoveAll(this);
 		SetDone();
+	};
+
+	void UnlockViewport()
+	{
+#if WITH_EDITOR
+		if (FModuleManager::Get().IsModuleLoaded("LevelEditor"))
+		{
+			FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+			SLevelViewport* LevelViewport = LevelEditor.GetFirstActiveLevelViewport().Get();
+			if (LevelViewport->IsInGameView() && LevelViewport->CanToggleGameView())
+			{
+				LevelViewport->ToggleGameView();
+			}
+			FLevelEditorViewportClient& LevelViewportClient = LevelViewport->GetLevelViewportClient();
+			if (LevelViewportClient.IsAnyActorLocked())
+			{
+				LevelViewportClient.SetActorLock(nullptr);
+				LevelViewportClient.bDisableInput = false;
+				LevelViewportClient.bEnableFading = true;
+			}
+		}
+#endif
 	};
 };
 
@@ -712,7 +741,7 @@ FIntPoint UAutomationBlueprintFunctionLibrary::GetAutomationScreenshotSize(const
 
 FAutomationScreenshotData UAutomationBlueprintFunctionLibrary::BuildScreenshotData(const FString& MapOrContext, const FString& ScreenShotName, int32 Width, int32 Height)
 {
-	FString TestName = TEXT("NoTest");
+	FString TestName = TEXT("");
 	if (FFunctionalTestBase::IsFunctionalTestRunning())
 	{
 		TestName = FFunctionalTestBase::GetRunningTestName();
@@ -1133,7 +1162,7 @@ void UAutomationBlueprintFunctionLibrary::AutomationWaitForLoading(UObject* Worl
 	}
 }
 
-UAutomationEditorTask* UAutomationBlueprintFunctionLibrary::TakeHighResScreenshot(int32 ResX, int32 ResY, FString Filename, ACameraActor* Camera, bool bMaskEnabled, bool bCaptureHDR, EComparisonTolerance ComparisonTolerance, FString ComparisonNotes)
+UAutomationEditorTask* UAutomationBlueprintFunctionLibrary::TakeHighResScreenshot(int32 ResX, int32 ResY, FString Filename, ACameraActor* Camera, bool bMaskEnabled, bool bCaptureHDR, EComparisonTolerance ComparisonTolerance, FString ComparisonNotes, float Delay)
 {
 	UAutomationEditorTask* Task = NewObject<UAutomationEditorTask>();
 	FGCObjectScopeGuard TaskGuard(Task);
@@ -1150,34 +1179,45 @@ UAutomationEditorTask* UAutomationBlueprintFunctionLibrary::TakeHighResScreensho
 
 			FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
 			SLevelViewport* LevelViewport = LevelEditor.GetFirstActiveLevelViewport().Get();
+			if (!LevelViewport->IsInGameView() && LevelViewport->CanToggleGameView())
+			{
+				LevelViewport->ToggleGameView();
+			}
 
 			// Move Viewport to Camera
 			if (Camera)
 			{
 				FLevelEditorViewportClient& LevelViewportClient = LevelViewport->GetLevelViewportClient();
 				// We set the actor lock (pilot mode) and force the viewport to match the camera now.
-				// Then we unset the actor lock to avoid users to move their asset through the viewport unwantedly.
+				// We unset the actor lock later when the screenshot is done. See FScreenshotTakenState.SetDone().
 				LevelViewportClient.SetActorLock(Camera);
-				LevelViewportClient.MoveCameraToLockedActor();
-				LevelViewportClient.SetActorLock(nullptr);
+				LevelViewportClient.UpdateViewForLockedActor();
+				LevelViewportClient.bDisableInput = true;
+				LevelViewportClient.bEnableFading = false;
 			}
 
 			FinishLoadingBeforeScreenshot();
 
-#if WITH_AUTOMATION_TESTS
-			if (GIsAutomationTesting)
-			{
-				if (FAutomationTestBase* CurrentTest = FAutomationTestFramework::Get().GetCurrentTest())
-				{
-					FString Context = CurrentTest->GetTestContext();
-					if (Context.IsEmpty()) { Context = CurrentTest->GetTestName(); }
-					FAutomationScreenshotOptions ComparisonOptions = FAutomationScreenshotOptions(ComparisonTolerance);
-					FAutomationHighResScreenshotGrabber* TempObject = new FAutomationHighResScreenshotGrabber(Context, Filename, ComparisonNotes, ComparisonOptions);
-				} //-V773
-			}
-#endif
 			Task->BindTask(MakeUnique<FScreenshotTakenState>());
-			LevelViewport->GetActiveViewport()->TakeHighResScreenShot();
+
+			// Delay taking the screenshot by a few frames			
+			FTicker::GetCoreTicker().AddTicker(TEXT("ScreenshotDelay"), Delay, [LevelViewport, ComparisonTolerance, ComparisonNotes, Filename](float) {
+					LevelViewport->GetActiveViewport()->TakeHighResScreenShot();
+#if WITH_AUTOMATION_TESTS
+					if (GIsAutomationTesting)
+					{
+						if (FAutomationTestBase* CurrentTest = FAutomationTestFramework::Get().GetCurrentTest())
+						{
+							FString Context = CurrentTest->GetTestContext();
+							if (Context.IsEmpty()) { Context = CurrentTest->GetTestName(); }
+							FAutomationScreenshotOptions ComparisonOptions = FAutomationScreenshotOptions(ComparisonTolerance);
+							FAutomationHighResScreenshotGrabber* TempObject = new FAutomationHighResScreenshotGrabber(Context, Filename, ComparisonNotes, ComparisonOptions);
+						} //-V773
+					}
+#endif
+					return false;
+				}
+			);
 
 			return Task;
 		}

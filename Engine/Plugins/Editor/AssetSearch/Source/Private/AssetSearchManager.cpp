@@ -75,6 +75,8 @@ FAutoConsoleVariableRef CVarTryToGCDuringMissingIndexing(
 	TEXT("Tries to GC occasionally while indexing missing items.")
 );
 
+//DEFINE_LOG_CATEGORY_STATIC(LogAssetSearch, Log, All);
+
 class FUnloadPackageScope
 {
 public:
@@ -266,16 +268,22 @@ void FAssetSearchManager::UpdateScanningAssets()
 void FAssetSearchManager::StartScanningAssets()
 {
 	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
-	AssetRegistry.OnAssetAdded().AddRaw(this, &FAssetSearchManager::OnAssetAdded);
-	AssetRegistry.OnAssetRemoved().AddRaw(this, &FAssetSearchManager::OnAssetRemoved);
-	AssetRegistry.OnFilesLoaded().AddRaw(this, &FAssetSearchManager::OnAssetScanFinished);
-	
-	TArray<FAssetData> TempAssetData;
-	AssetRegistry.GetAllAssets(TempAssetData, true);
-
-	for (const FAssetData& Data : TempAssetData)
+	if (AssetRegistry.IsLoadingAssets())
 	{
-		OnAssetAdded(Data);
+		AssetRegistry.OnFilesLoaded().AddRaw(this, &FAssetSearchManager::OnAssetScanFinished);
+	}
+	else
+	{
+		AssetRegistry.OnAssetAdded().AddRaw(this, &FAssetSearchManager::OnAssetAdded);
+		AssetRegistry.OnAssetRemoved().AddRaw(this, &FAssetSearchManager::OnAssetRemoved);
+
+		TArray<FAssetData> TempAssetData;
+		AssetRegistry.GetAllAssets(TempAssetData, true);
+
+		for (const FAssetData& Data : TempAssetData)
+		{
+			OnAssetAdded(Data);
+		}
 	}
 }
 
@@ -284,8 +292,8 @@ void FAssetSearchManager::StopScanningAssets()
 	if (FAssetRegistryModule* AssetRegistryModule = FModuleManager::GetModulePtr<FAssetRegistryModule>("AssetRegistry"))
 	{
 		AssetRegistryModule->Get().OnAssetAdded().RemoveAll(this);
-		AssetRegistryModule->Get().OnAssetRemoved().AddRaw(this, &FAssetSearchManager::OnAssetRemoved);
-		AssetRegistryModule->Get().OnFilesLoaded().AddRaw(this, &FAssetSearchManager::OnAssetScanFinished);
+		AssetRegistryModule->Get().OnAssetRemoved().RemoveAll(this);
+		AssetRegistryModule->Get().OnFilesLoaded().RemoveAll(this);
 	}
 
 	ProcessAssetQueue.Reset();
@@ -418,11 +426,21 @@ void FAssetSearchManager::OnAssetScanFinished()
 
 	TArray<FAssetData> AllAssets;
 	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
+	AssetRegistry.OnFilesLoaded().RemoveAll(this);
+	AssetRegistry.OnAssetAdded().AddRaw(this, &FAssetSearchManager::OnAssetAdded);
+	AssetRegistry.OnAssetRemoved().AddRaw(this, &FAssetSearchManager::OnAssetRemoved);
+
 	AssetRegistry.GetAllAssets(AllAssets, false);
+
+	for (const FAssetData& Data : AllAssets)
+	{
+		OnAssetAdded(Data);
+	}
 	
 	PendingDatabaseUpdates++;
 	UpdateOperations.Enqueue([this, AssetsAvailable = MoveTemp(AllAssets)]() mutable {
 		FScopeLock ScopedLock(&SearchDatabaseCS);
+		//UE_LOG(LogAssetSearch, Log, TEXT(""));
 		SearchDatabase.RemoveAssetsNotInThisSet(AssetsAvailable);
 		PendingDatabaseUpdates--;
 	});
@@ -771,7 +789,7 @@ bool FAssetSearchManager::Tick_GameThread(float DeltaTime)
 		break;
 	}
 
-	if ((FPlatformTime::Seconds() - LastRecordCountUpdateSeconds) > 30)
+	if (bDatabaseOpen && ((FPlatformTime::Seconds() - LastRecordCountUpdateSeconds) > 30))
 	{
 		LastRecordCountUpdateSeconds = FPlatformTime::Seconds();
 

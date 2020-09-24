@@ -548,7 +548,7 @@ void FAssetRenameManager::PopulateAssetReferencers(TArray<FAssetRenameDataWithRe
 		if (!ReferencersMap.Contains(OldPackageName))
 		{
 			TArray<FName>& Referencers = ReferencersMap.Add(OldPackageName);
-			AssetRegistryModule.Get().GetReferencers(OldPackageName, Referencers, AssetToRename.bOnlyFixSoftReferences ? EAssetRegistryDependencyType::Soft : EAssetRegistryDependencyType::Packages);
+			AssetRegistryModule.Get().GetReferencers(OldPackageName, Referencers, UE::AssetRegistry::EDependencyCategory::Package, AssetToRename.bOnlyFixSoftReferences ? UE::AssetRegistry::EDependencyQuery::Soft : UE::AssetRegistry::EDependencyQuery::NoRequirements);
 		}
 
 		for (const FName& ReferencingPackageName : ReferencersMap.FindChecked(OldPackageName))

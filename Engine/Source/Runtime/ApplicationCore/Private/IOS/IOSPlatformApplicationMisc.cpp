@@ -13,6 +13,8 @@
 #include "IOS/IOSFeedbackContext.h"
 
 FIOSApplication* FIOSPlatformApplicationMisc::CachedApplication = nullptr;
+FGetGamePadGlyphDelegate FIOSPlatformApplicationMisc::GetGamePadGlyphDelegate;
+
 
 EAppReturnType::Type MessageBoxExtImpl( EAppMsgType::Type MsgType, const TCHAR* Text, const TCHAR* Caption )
 {
@@ -213,6 +215,15 @@ bool FIOSPlatformApplicationMisc::IsControllerAssignedToGamepad(int32 Controller
 {
 	FIOSInputInterface* InputInterface = (FIOSInputInterface*)CachedApplication->GetInputInterface();
 	return InputInterface->IsControllerAssignedToGamepad(ControllerId);
+}
+
+class UTexture2D* FIOSPlatformApplicationMisc::GetGamepadButtonGlyph(const FGamepadKeyNames::Type& ButtonKey, uint32 ControllerIndex)
+{
+	if (GetGamePadGlyphDelegate.IsBound())
+	{
+        return GetGamePadGlyphDelegate.Execute(ButtonKey, ControllerIndex);
+	}
+	return nullptr;
 }
 
 void FIOSPlatformApplicationMisc::EnableMotionData(bool bEnable)

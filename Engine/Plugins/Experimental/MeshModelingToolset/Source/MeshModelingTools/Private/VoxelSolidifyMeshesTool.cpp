@@ -33,6 +33,12 @@ void UVoxelSolidifyMeshesTool::SetupProperties()
 	SolidifyProperties = NewObject<UVoxelSolidifyMeshesToolProperties>(this);
 	SolidifyProperties->RestoreProperties(this);
 	AddToolPropertySource(SolidifyProperties);
+
+	SetToolDisplayName(LOCTEXT("VoxelSolidifyMeshesToolName", "Wrap Meshes Tool"));
+	GetToolManager()->DisplayMessage(
+		LOCTEXT("VoxelSolidifyMeshesToolDescription",
+			"Create a new closed/solid shell mesh that wraps the input meshes. Holes will automatically be filled, controlled by the Winding Threshold. UVs, sharp edges, and small/thin features will be lost. Increase Voxel Count to enhance accuracy."),
+		EToolMessageLevel::UserNotification);
 }
 
 
@@ -75,7 +81,7 @@ FString UVoxelSolidifyMeshesTool::GetCreatedAssetName() const
 
 FText UVoxelSolidifyMeshesTool::GetActionName() const
 {
-	return LOCTEXT("VoxelSolidifyMeshes", "Voxel Solidify");
+	return LOCTEXT("VoxelSolidifyMeshes", "Voxel Shell");
 }
 
 

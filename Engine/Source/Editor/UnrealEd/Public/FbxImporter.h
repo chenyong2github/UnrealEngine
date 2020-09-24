@@ -39,6 +39,11 @@ struct FExpressionInput;
 struct FRichCurve;
 struct FStaticMaterial;
 struct FSkeletalMaterial;
+
+namespace AnimationTransformDebug
+{
+	struct FAnimationTransformDebugData;
+}
 // Temporarily disable a few warnings due to virtual function abuse in FBX source files
 #pragma warning( push )
 
@@ -102,7 +107,7 @@ struct FExistingStaticMeshData;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogFbx, Log, All);
 
-#define DEBUG_FBX_NODE( Prepend, FbxNode ) FPlatformMisc::LowLevelOutputDebugStringf( TEXT("%s %s\n"), ANSI_TO_TCHAR(Prepend), ANSI_TO_TCHAR( FbxNode->GetName() ) )
+#define DEBUG_FBX_NODE( Prepend, FbxNode ) FPlatformMisc::LowLevelOutputDebugStringf( TEXT("%s %s\n"), UTF8_TO_TCHAR(Prepend), UTF8_TO_TCHAR( FbxNode->GetName() ) )
 
 #define FBX_METADATA_PREFIX TEXT("FBX.")
 
@@ -357,6 +362,7 @@ public:
 	UNREALED_API void GetAllNodeNameArray(TArray<FString> &AllNodeNames) const;
 	UNREALED_API void GetAnimatedNodeNameArray(TArray<FString> &AnimatedNodeNames) const;
 	UNREALED_API void GetNodeAnimatedPropertyNameArray(const FString &NodeName, TArray<FString> &AnimatedPropertyNames) const;
+	UNREALED_API void GetCustomStringPropertyArray(const FString& NodeName, TArray<TPair<FString, FString>>& CustomPropertyPairs) const;
 
 	UE_DEPRECATED(4.21, "Please use FRichCurve version instead to get tangent weight support")
 	UNREALED_API void GetCurveData(const FString& NodeName, const FString& PropertyName, int32 ChannelIndex, int32 CompositeIndex, FInterpCurveFloat& CurveData, bool bNegative) const;
@@ -865,7 +871,7 @@ public:
 	/**
 	 * Get Animation Time Span - duration of the animation
 	 */
-	FbxTimeSpan GetAnimationTimeSpan(FbxNode* RootNode, FbxAnimStack* AnimStack);
+	UNREALED_API FbxTimeSpan GetAnimationTimeSpan(FbxNode* RootNode, FbxAnimStack* AnimStack);
 
 	/**
 	* When we get exported time we call GetanimationInterval from fbx sdk and it return the layer 0 by default
@@ -1203,7 +1209,59 @@ private:
 	/**
 	* Node with no name we will name it "ncl1_x" x is a a unique counter.
 	*/
-	void EnsureNodeNameAreValid();
+	void EnsureNodeNameAreValid(const FString& BaseFilename);
+
+private:
+	/**
+	 * Helper structure to pass around the common animation parameters.
+	 */
+	struct FAnimCurveImportSettings
+	{
+		FAnimCurveImportSettings(UAnimSequence* InDestSeq, const TArray<FbxNode*>& InNodeArray, const TArray<FbxNode*>& InSortedLinks, const TArray<FName>& InFbxRawBoneNames, const FbxTimeSpan& InAnimTimeSpan)
+			: DestSeq(InDestSeq)
+			, NodeArray(InNodeArray)
+			, SortedLinks(InSortedLinks)
+			, FbxRawBoneNames(InFbxRawBoneNames)
+			, AnimTimeSpan(InAnimTimeSpan)
+		{
+		}
+
+		UAnimSequence* DestSeq;
+		const TArray<FbxNode*>& NodeArray;
+		const TArray<FbxNode*>& SortedLinks;
+		const TArray<FName>& FbxRawBoneNames;
+		const FbxTimeSpan& AnimTimeSpan;
+	};
+
+	/**
+	 * Import the blendshape curves into the UAnimSequence.
+	 * 
+	 * @param AnimImportSettings	Common settings to import animation.
+	 * @param CurAnimStack			The current anim stack we are importing.
+	 * @param OutKeyCount			Out parameter returning the number of keys imported, used to set the number of keys in the sequencer.
+	 */
+	void ImportBlendShapeCurves(FAnimCurveImportSettings& AnimImportSettings, FbxAnimStack* CurAnimStack, int32& OutKeyCount);
+
+	/**
+	 * Import the custom attributes curves into the UAnimSequence.
+	 * 
+	 * @param AnimImportSettings	Common settings to import animation.
+	 * @param OutKeyCount			Out parameter returning the number of keys imported, used to set the number of keys in the sequencer.
+	 * @param OutCurvesNotFound		Out parameter returning a list of curves name already present in the AnimSequence that were not imported, indicating that some curve data are missing during a reimport.
+	 */
+	void ImportAnimationCustomAttribute(FAnimCurveImportSettings& AnimImportSettings, int32& OutKeyCount, TArray<FString>& OutCurvesNotFound);
+
+	/**
+	 * Import the bone transforms curves into the UAnimSequence.
+	 * 
+	 * @param Skeleton				The skeleton for which we are currently importing the animations.
+	 * @param AnimImportSettings	Common settings to import animation.
+	 * @param SkeletalMeshRootNode	The fbx root node of the skeletalmesh.
+	 * @param ResampleRate			The rate at which the animations are resampled.
+	 * @param TransformDebugData	Out parameter data for internal debugging.
+	 * @param OutTotalNumKeys		Out parameter returning the number of keys imported, used to set the number of keys in the sequencer.
+	 */
+	void ImportBoneTracks(USkeleton* Skeleton, FAnimCurveImportSettings& AnimImportSettings, FbxNode* SkeletalMeshRootNode, const int32 ResampleRate, TArray<AnimationTransformDebug::FAnimationTransformDebugData>& TransformDebugData, int32& OutTotalNumKeys);
 
 public:
 	// current Fbx scene we are importing. Make sure to release it after import
@@ -1223,7 +1281,7 @@ public:
 			, Material(nullptr)
 		{}
 
-		FString GetName() const { return FbxMaterial ? ANSI_TO_TCHAR(FbxMaterial->GetName()) : (Material != nullptr ? Material->GetName() : TEXT("None")); }
+		FString GetName() const { return FbxMaterial ? UTF8_TO_TCHAR(FbxMaterial->GetName()) : (Material != nullptr ? Material->GetName() : TEXT("None")); }
 	};
 
 	FbxGeometryConverter* GetGeometryConverter() { return GeometryConverter; }
@@ -1291,6 +1349,18 @@ protected:
 	// Set when importing skeletal meshes if the merge bones step fails. Used to track
 	// YesToAll and NoToAll for an entire scene
 	EAppReturnType::Type LastMergeBonesChoice;
+
+	/**
+	 * A map holding the original name of the renamed fbx nodes, 
+	 * It is used namely to associate collision meshes to their corresponding static mesh if it has been renamed. 
+	 */
+	TMap<FbxString, FbxString> NodeUniqueNameToOriginalNameMap;
+
+	/**
+	 * A map holding pairs of fbx texture that needs to be renamed with the
+	 * associated string to avoid name conflicts.
+	 */
+	TMap<FbxFileTexture*, FString> FbxTextureToUniqueNameMap;
 
 	/**
 	 * Collision model list. The key is fbx node name
@@ -1793,12 +1863,17 @@ private:
 
 private:
 
-
-
 	/**
 	 * Import FbxCurve to anim sequence
 	 */
-	bool ImportCurveToAnimSequence(class UAnimSequence * TargetSequence, const FString& CurveName, const FbxAnimCurve* FbxCurve, int32 CurveFlags,const FbxTimeSpan AnimTimeSpan, const float ValueScale = 1.f) const;
+	bool ImportCurveToAnimSequence(class UAnimSequence * TargetSequence, const FString& CurveName, const FbxAnimCurve* FbxCurve, int32 CurveFlags,const FbxTimeSpan& AnimTimeSpan, float ValueScale = 1.f) const;
+
+	/**
+	 * Import custom attribute (curve or not) to the associated bone.
+	 *
+	 * @return Returns true if the given custom attribute was properly added to the bone, false otherwise.
+	 */
+	bool ImportCustomAttributeToBone(class UAnimSequence* TargetSequence, FbxProperty& InProperty, FName BoneName, const FString& CurveName, const FbxAnimCurve* FbxCurve, const FbxTimeSpan& AnimTimeSpan, float ValueScale=1.f);
 };
 
 

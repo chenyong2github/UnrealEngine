@@ -263,6 +263,7 @@ protected:
 
 	FVivoxVoiceChat& VivoxVoiceChat;
 	FString SessionGroup;
+	bool bReleased = false;
 };
 
 class FVivoxVoiceChat : public FSelfRegisteringExec, public IVoiceChat, protected VivoxClientApi::DebugClientApiEventHandler
@@ -285,6 +286,7 @@ public:
 	virtual FOnVoiceChatDisconnectedDelegate& OnVoiceChatDisconnected() override { return OnVoiceChatDisconnectedDelegate; }
 	virtual FOnVoiceChatReconnectedDelegate& OnVoiceChatReconnected() override { return OnVoiceChatReconnectedDelegate; }
 	virtual IVoiceChatUser* CreateUser() override;
+	virtual void ReleaseUser(IVoiceChatUser* VoiceChatUser) override;
 
 	// IVoiceChatUser
 	virtual void SetSetting(const FString& Name, const FString& Value) override;
@@ -464,9 +466,7 @@ protected:
 
 	FVivoxVoiceChatUser& GetVoiceChatUser();
 	FVivoxVoiceChatUser& GetVoiceChatUser() const;
-	void RegisterVoiceChatUser(FVivoxVoiceChatUser* User);
-	void UnregisterVoiceChatUser(FVivoxVoiceChatUser* User);
 	FCriticalSection VoiceChatUsersCriticalSection;
-	TArray<FVivoxVoiceChatUser*> VoiceChatUsers;
+	TArray<TUniquePtr<FVivoxVoiceChatUser>> VoiceChatUsers;
 	TUniquePtr<FVivoxVoiceChatUser> SingleUserVoiceChatUser;
 };

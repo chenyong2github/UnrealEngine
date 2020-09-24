@@ -45,7 +45,7 @@ enum EStereoLayerShape
 	SLSH_MAX,
 };
 
-UCLASS(EditInlineNew, Abstract, BlueprintType, CollapseCategories, Within = StereoLayerComponent)
+UCLASS(EditInlineNew, Abstract, BlueprintType, CollapseCategories)
 class ENGINE_API UStereoLayerShape : public UObject
 {
 	GENERATED_BODY()

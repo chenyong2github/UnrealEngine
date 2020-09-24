@@ -79,7 +79,7 @@ export class AutoBranchUpdater implements Bot {
 
 	async tick() {
 		if (DISABLE) {
-			return
+			return false
 		}
 
 		let change;
@@ -88,7 +88,7 @@ export class AutoBranchUpdater implements Bot {
 		}
 		catch (err) {
 			this.abuLogger.printException(err, 'Branch specs: error while querying P4 for changes');
-			return;
+			return false
 		}
 
 		if (change !== null && change.change > this.lastCl) {
@@ -100,6 +100,7 @@ export class AutoBranchUpdater implements Bot {
 
 			this._tryReloadBranchDefs();
 		}
+		return true
 	}
 
 	_tryReloadBranchDefs() {

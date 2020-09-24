@@ -8,9 +8,6 @@
 
 #include "VirtualCameraSubsystem.generated.h"
 
-class UWorld;
-class UVirtualCameraUserSettings;
-
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnStreamStarted);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnStreamStopped);
 
@@ -47,13 +44,10 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "VirtualCamera | Streaming")
 	FOnStreamStopped OnStreamStoppedDelegate;
-	
-	UFUNCTION(BlueprintPure, Category = "VirtualCamera")
-	UVirtualCameraUserSettings* GetUserSettings();
-
+ 
 private:
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient) 
 	TScriptInterface<IVirtualCameraController> ActiveCameraController;
 
 	bool bIsStreaming;

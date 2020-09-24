@@ -11,7 +11,7 @@
 #include "Insights/ViewModels/TimingEventSearch.h" // for TTimingEventSearchCache
 #include "Insights/ViewModels/TimingEventsTrack.h"
 
-class FTimingEvent;
+class FThreadTrackEvent;
 class FTimingEventSearchParameters;
 class FGpuTimingTrack;
 class FCpuTimingTrack;
@@ -42,6 +42,8 @@ public:
 
 	bool IsGpuTrackVisible() const;
 	bool IsCpuTrackVisible(uint32 InThreadId) const;
+
+	void GetVisibleCpuThreads(TSet<uint32>& OutSet) const;
 
 	//////////////////////////////////////////////////
 	// ITimingViewExtender interface
@@ -84,6 +86,9 @@ private:
 
 	/** Maps thread group name to thread group info. */
 	TMap<const TCHAR*, FThreadGroup> ThreadGroups;
+
+	uint64 TimingProfilerTimelineCount;
+	uint64 LoadTimeProfilerTimelineCount;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -93,6 +98,8 @@ class FThreadTimingTrack : public FTimingEventsTrack
 	INSIGHTS_DECLARE_RTTI(FThreadTimingTrack, FTimingEventsTrack)
 
 public:
+	typedef typename Trace::ITimeline<Trace::FTimingProfilerEvent>::FTimelineEventInfo TimelineEventInfo;
+
 	explicit FThreadTimingTrack(FThreadTimingSharedState& InSharedState, const FString& InName, const TCHAR* InGroupName, uint32 InTimelineIndex, uint32 InThreadId)
 		: FTimingEventsTrack(InName)
 		, GroupName(InGroupName)
@@ -118,6 +125,7 @@ public:
 
 	virtual void InitTooltip(FTooltipDrawState& InOutTooltip, const ITimingEvent& InTooltipEvent) const override;
 
+	virtual const TSharedPtr<const ITimingEvent> GetEvent(float InPosX, float InPosY, const FTimingTrackViewport& Viewport) const override;
 	virtual const TSharedPtr<const ITimingEvent> SearchEvent(const FTimingEventSearchParameters& InSearchParameters) const override;
 
 	virtual void UpdateEventStats(ITimingEvent& InOutEvent) const override;
@@ -126,16 +134,17 @@ public:
 	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
 
 private:
-	void DrawSelectedEventInfo(const FTimingEvent& SelectedEvent, const FTimingTrackViewport& Viewport, const FDrawContext& DrawContext, const FSlateBrush* WhiteBrush, const FSlateFontInfo& Font) const;
+	void DrawSelectedEventInfo(const FThreadTrackEvent& SelectedEvent, const FTimingTrackViewport& Viewport, const FDrawContext& DrawContext, const FSlateBrush* WhiteBrush, const FSlateFontInfo& Font) const;
 
-	bool FindTimingProfilerEvent(const FTimingEvent& InTimingEvent, TFunctionRef<void(double, double, uint32, const Trace::FTimingProfilerEvent&)> InFoundPredicate) const;
+	bool FindTimingProfilerEvent(const FThreadTrackEvent& InTimingEvent, TFunctionRef<void(double, double, uint32, const Trace::FTimingProfilerEvent&)> InFoundPredicate) const;
 	bool FindTimingProfilerEvent(const FTimingEventSearchParameters& InParameters, TFunctionRef<void(double, double, uint32, const Trace::FTimingProfilerEvent&)> InFoundPredicate) const;
 
-	void GetParentAndRoot(const FTimingEvent& TimingEvent,
-						  TSharedPtr<FTimingEvent>& OutParentTimingEvent,
-						  Trace::FTimingProfilerEvent& OutParentEvent,
-						  TSharedPtr<FTimingEvent>& OutRootTimingEvent,
-						  Trace::FTimingProfilerEvent& OutRootEvent) const;
+	void GetParentAndRoot(const FThreadTrackEvent& TimingEvent,
+						  TSharedPtr<FThreadTrackEvent>& OutParentTimingEvent,
+						  TSharedPtr<FThreadTrackEvent>& OutRootTimingEvent) const;
+
+	static void CreateFThreadTrackEventFromInfo(const TimelineEventInfo& InEventInfo, const TSharedRef<const FBaseTimingTrack> InTrack, int32 InDepth, TSharedPtr<FThreadTrackEvent> &OutTimingEvent);
+	static bool TimerIndexToTimerId(uint32 InTimerIndex, uint32 & OutTimerId);
 
 private:
 	const TCHAR* GroupName;

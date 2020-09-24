@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "IDetailCustomization.h"
-#include "Widgets/Text/STextBlock.h"
 #include "Input/Reply.h"
 
 /** UI customization for UVirtualHeightfieldMeshComponent */
@@ -16,8 +15,16 @@ public:
 protected:
 	FVirtualHeightfieldMeshComponentDetailsCustomization();
 
+	/** Callback for updating virtual texture thumbnail. */
+	void RefreshThumbnail();
+
 	/** Callback for Set Bounds button */
 	FReply SetBounds();
+
+	/** Returns true if MinMax texture build button is enabled */
+	bool IsMinMaxTextureEnabled() const;
+	/** Callback for Build MinMax Texture button */
+	FReply BuildMinMaxTexture();
 
 	//~ Begin IDetailCustomization Interface.
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
@@ -25,4 +32,7 @@ protected:
 
 private:
 	class UVirtualHeightfieldMeshComponent* VirtualHeightfieldMeshComponent;
+	
+	TSharedPtr<class FAssetThumbnailPool> AssetThumbnailPool;
+	TSharedRef<class FAssetThumbnail> AssetThumbnail;
 };

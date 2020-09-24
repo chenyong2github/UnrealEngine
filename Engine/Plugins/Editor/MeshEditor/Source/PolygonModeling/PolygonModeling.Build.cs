@@ -23,7 +23,7 @@ namespace UnrealBuildTool.Rules
 					"SlateCore",
 					"ViewportInteraction",
                     "BlastAuthoring",
-                    "GeometryCollectionCore",
+					"Chaos",
                     "GeometryCollectionEngine",
                     "GeometryCollectionEditor"
                 }

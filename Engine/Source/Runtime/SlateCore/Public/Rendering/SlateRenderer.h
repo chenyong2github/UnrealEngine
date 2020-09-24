@@ -8,6 +8,7 @@
 #include "Rendering/DrawElements.h"
 #include "Templates/RefCounting.h"
 #include "Fonts/FontTypes.h"
+#include "PixelFormat.h"
 
 class FRHITexture2D;
 class FRenderTarget;
@@ -288,6 +289,19 @@ public:
 	virtual bool GenerateDynamicImageResource(FName ResourceName, FSlateTextureDataRef TextureData) { return false; }
 
 	/**
+	 * Creates a resource handle with a specific size and scale (for brushes with dynamic resizing such as vector art)
+	 * A handle is used as fast path for looking up a rendering resource for a given brush when adding Slate draw elements
+	 * This can be cached and stored safely in code.  It will become invalid when a resource is destroyed
+	 * It is expensive to create a resource so do not do it in time sensitive areas
+	 *
+	 * @param	Brush		The brush to get a rendering resource handle
+	 * @param	LocalSize	The local size of the element using the brush (Vector graphics only)
+	 * @param	DrawScale	The draw scale of the element using the brush (Vector graphics only)
+	 * @return	The created resource handle.
+	 */
+	virtual FSlateResourceHandle GetResourceHandle(const FSlateBrush& Brush, FVector2D LocalSize, float DrawScale) = 0;
+
+	/**
 	 * Creates a handle to a Slate resource
 	 * A handle is used as fast path for looking up a rendering resource for a given brush when adding Slate draw elements
 	 * This can be cached and stored safely in code.  It will become invalid when a resource is destroyed
@@ -296,7 +310,11 @@ public:
 	 * @param	Brush		The brush to get a rendering resource handle 
 	 * @return	The created resource handle.  
 	 */
-	virtual FSlateResourceHandle GetResourceHandle( const FSlateBrush& Brush ) = 0;
+	virtual FSlateResourceHandle GetResourceHandle(const FSlateBrush& Brush)
+	{
+		return GetResourceHandle(Brush, FVector2D::ZeroVector, 1.0f);
+	}
+
 
 	/** The default implementation assumes all things are renderable. */
 	virtual bool CanRenderResource(UObject& InResourceObject) const { return true; }
@@ -495,6 +513,8 @@ public:
 											Care must be taken to destroy anything referenced in the context when it is safe to do so.
 	 */
 	virtual void AddWidgetRendererUpdate(const struct FRenderThreadUpdateContext& Context, bool bDeferredRenderTargetUpdate) {}
+
+	virtual EPixelFormat GetSlateRecommendedColorFormat() { return PF_B8G8R8A8; }
 private:
 
 	// Non-copyable

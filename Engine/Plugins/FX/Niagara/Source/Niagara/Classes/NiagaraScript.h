@@ -25,6 +25,8 @@ class UNiagaraConvertInPlaceUtilityBase;
 
 #define NIAGARA_SCRIPT_COMPILE_LOGGING_MEDIUM
 
+DECLARE_STATS_GROUP(TEXT("Niagara Detailed"), STATGROUP_NiagaraDetailed, STATCAT_Advanced);
+
 /** Defines what will happen to unused attributes when a script is run. */
 UENUM()
 enum class EUnusedAttributeBehaviour : uint8
@@ -152,10 +154,6 @@ public:
 	UPROPERTY()
 	uint32 bUsesRapidIterationParams : 1;
 
-	/** Should we use shader permutations to reduce the cost of simulation stages or not */
-	UPROPERTY()
-	uint32 bUseShaderPermutations : 1;
-
 	/** Do we require interpolated spawning */
 	UPROPERTY()
 	uint32 bInterpolatedSpawn : 1;
@@ -189,7 +187,6 @@ public:
 		: CompilerVersionID()
 		, ScriptUsageType(ENiagaraScriptUsage::Function)
 		, bUsesRapidIterationParams(true)
-		, bUseShaderPermutations(true)
 		, bInterpolatedSpawn(false)
 		, bRequiresPersistentIDs(false)
 		, BaseScriptID_DEPRECATED(0, 0, 0, 0)
@@ -356,6 +353,9 @@ public:
 	UPROPERTY()
 	TArray<FNiagaraCompileEvent> LastCompileEvents;
 #endif
+
+	UPROPERTY()
+	uint32 bReadsSignificanceIndex : 1;
 
 	void SerializeData(FArchive& Ar, bool bDDCData);
 	
@@ -614,10 +614,10 @@ public:
 	/** Helper to convert the struct from its binary data out of the DDC to it's actual in-memory version.
 		Do not call this on anything other than the game thread as it depends on the FObjectAndNameAsStringProxyArchive,
 		which calls FindStaticObject which can fail when used in any other thread!*/
-	static bool BinaryToExecData(const TArray<uint8>& InBinaryData, FNiagaraVMExecutableData& OutExecData);
+	static bool BinaryToExecData(const UNiagaraScript* Script, const TArray<uint8>& InBinaryData, FNiagaraVMExecutableData& OutExecData);
 
 	/** Reverse of the BinaryToExecData() function */
-	static bool ExecToBinaryData(TArray<uint8>& OutBinaryData, FNiagaraVMExecutableData& InExecData);
+	static bool ExecToBinaryData(const UNiagaraScript* Script, TArray<uint8>& OutBinaryData, FNiagaraVMExecutableData& InExecData);
 
 	/** Makes a deep copy of any script dependencies, including itself.*/
 	NIAGARA_API virtual UNiagaraScript* MakeRecursiveDeepCopy(UObject* DestOuter, TMap<const UObject*, UObject*>& ExistingConversions) const;
@@ -702,6 +702,9 @@ private:
 
 	/** Generates all of the function bindings for DI that don't require user data */
 	void GenerateDefaultFunctionBindings();
+
+	/** Returns whether the parameter store bindings are valid */
+	bool HasValidParameterBindings() const;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Transient)

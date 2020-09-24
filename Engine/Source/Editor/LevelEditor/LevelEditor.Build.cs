@@ -50,6 +50,7 @@ public class LevelEditor : ModuleRules
 				"StatsViewer",
 				"EditorFramework",
 				"UnrealEd", 
+				"DeveloperSettings",
 				"RenderCore",
 				"DeviceProfileServices",
 				"ContentBrowser",

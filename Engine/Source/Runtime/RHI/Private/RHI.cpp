@@ -76,8 +76,8 @@ static TAutoConsoleVariable<int32> CVarGraphicsAdapter(
 	TEXT("  0: Adapter #0\n")
 	TEXT("  1: Adapter #1, ..."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
-template<typename EnumType>
 
+template<typename EnumType>
 inline FString BuildEnumNameBitList(EnumType Value, const TCHAR*(*GetEnumName)(EnumType))
 {
 	if (Value == EnumType(0))
@@ -110,44 +110,38 @@ inline FString BuildEnumNameBitList(EnumType Value, const TCHAR*(*GetEnumName)(E
 	return MoveTemp(Name);
 }
 
-FString GetResourceTransitionAccessName(EResourceTransitionAccess Access)
+FString GetRHIAccessName(ERHIAccess Access)
 {
 	switch (Access)
 	{
 		// Cases for legacy resource state, to make the huge bit combinations easier to read...
-	case EResourceTransitionAccess::EReadable:  return TEXT("EReadable");
-	case EResourceTransitionAccess::EWritable:  return TEXT("EWritable");
-	case EResourceTransitionAccess::ERWBarrier: return TEXT("ERWBarrier");
-	case EResourceTransitionAccess::ERWNoBarrier: return TEXT("ERWNoBarrier");
-	case EResourceTransitionAccess::ERWSubResBarrier: return TEXT("ERWSubResBarrier");
-	case EResourceTransitionAccess::EMetaData: return TEXT("EMetaData");
-
-		// Special case when all resource bits are set. This represents the initial resource state when resources are created.
-	case EResourceTransitionAccess::InitialMask: return TEXT("Initial");
+	case ERHIAccess::EReadable:  return TEXT("EReadable");
+	case ERHIAccess::EWritable:  return TEXT("EWritable");
+	case ERHIAccess::ERWBarrier: return TEXT("ERWBarrier");
 
 		// All other states are built as a logic OR of state bits.
 	default:
-		return BuildEnumNameBitList<EResourceTransitionAccess>(Access, [](EResourceTransitionAccess AccessBit)
+		return BuildEnumNameBitList<ERHIAccess>(Access, [](ERHIAccess AccessBit)
 		{
 			switch (AccessBit)
 			{
 			default: checkNoEntry(); // fall through
-			case EResourceTransitionAccess::Unknown:             return TEXT("Unknown");
-			case EResourceTransitionAccess::CPURead:             return TEXT("CPURead");
-			case EResourceTransitionAccess::Present:             return TEXT("Present");
-			case EResourceTransitionAccess::IndirectArgs:        return TEXT("IndirectArgs");
-			case EResourceTransitionAccess::VertexOrIndexBuffer: return TEXT("VertexOrIndexBuffer");
-			case EResourceTransitionAccess::SRVCompute:          return TEXT("SRVCompute");
-			case EResourceTransitionAccess::SRVGraphics:         return TEXT("SRVGraphics");
-			case EResourceTransitionAccess::CopySrc:             return TEXT("CopySrc");
-			case EResourceTransitionAccess::ResolveSrc:          return TEXT("ResolveSrc");
-			case EResourceTransitionAccess::DSVRead:		     return TEXT("DSVRead");
-			case EResourceTransitionAccess::UAVCompute:          return TEXT("UAVCompute");
-			case EResourceTransitionAccess::UAVGraphics:         return TEXT("UAVGraphics");
-			case EResourceTransitionAccess::RTV:                 return TEXT("RTV");
-			case EResourceTransitionAccess::CopyDest:            return TEXT("CopyDest");
-			case EResourceTransitionAccess::ResolveDst:          return TEXT("ResolveDst");
-			case EResourceTransitionAccess::DSVWrite:            return TEXT("DSVWrite");
+			case ERHIAccess::Unknown:             return TEXT("Unknown");
+			case ERHIAccess::CPURead:             return TEXT("CPURead");
+			case ERHIAccess::Present:             return TEXT("Present");
+			case ERHIAccess::IndirectArgs:        return TEXT("IndirectArgs");
+			case ERHIAccess::VertexOrIndexBuffer: return TEXT("VertexOrIndexBuffer");
+			case ERHIAccess::SRVCompute:          return TEXT("SRVCompute");
+			case ERHIAccess::SRVGraphics:         return TEXT("SRVGraphics");
+			case ERHIAccess::CopySrc:             return TEXT("CopySrc");
+			case ERHIAccess::ResolveSrc:          return TEXT("ResolveSrc");
+			case ERHIAccess::DSVRead:             return TEXT("DSVRead");
+			case ERHIAccess::UAVCompute:          return TEXT("UAVCompute");
+			case ERHIAccess::UAVGraphics:         return TEXT("UAVGraphics");
+			case ERHIAccess::RTV:                 return TEXT("RTV");
+			case ERHIAccess::CopyDest:            return TEXT("CopyDest");
+			case ERHIAccess::ResolveDst:          return TEXT("ResolveDst");
+			case ERHIAccess::DSVWrite:            return TEXT("DSVWrite");
 			}
 		});
 	}
@@ -180,6 +174,7 @@ FString GetRHIPipelineName(ERHIPipeline Pipeline)
 		}
 	});
 }
+
 
 #if STATS
 #include "Stats/StatsData.h"
@@ -435,7 +430,7 @@ FString FBlendStateInitializerRHI::ToString() const
 	{
 		Result += RenderTargets[Index].ToString();
 	}
-	Result += FString::Printf(TEXT("%d>"), uint32(!!bUseIndependentRenderTargetBlendStates));
+	Result += FString::Printf(TEXT("%d %d>"), uint32(!!bUseIndependentRenderTargetBlendStates), uint32(!!bUseAlphaToCoverage));
 	return Result;
 }
 
@@ -446,13 +441,18 @@ void FBlendStateInitializerRHI::FromString(const FString& InSrc)
 
 void FBlendStateInitializerRHI::FromString(const FStringView& InSrc)
 {
-	constexpr int32 PartCount = MaxSimultaneousRenderTargets * FRenderTarget::NUM_STRING_FIELDS + 1;
+	// files written before bUseAlphaToCoverage change (added in CL 13846572) have one less part
+	constexpr int32 BackwardCompatiblePartCount = MaxSimultaneousRenderTargets * FRenderTarget::NUM_STRING_FIELDS + 1;
+	constexpr int32 PartCount = BackwardCompatiblePartCount + 1;
 
 	TArray<FStringView, TInlineAllocator<PartCount>> Parts;
 	UE::String::ParseTokensMultiple(InSrc.TrimStartAndEnd(), {TEXT('\r'), TEXT('\n'), TEXT('\t'), TEXT('<'), TEXT('>'), TEXT(' ')},
 		[&Parts](FStringView Part) { if (!Part.IsEmpty()) { Parts.Add(Part); } });
 
-	check(Parts.Num() == PartCount && sizeof(bool) == 1); //not a very robust parser
+	checkf((Parts.Num() == PartCount || Parts.Num() == BackwardCompatiblePartCount) && sizeof(bool) == 1, 
+		TEXT("Expecting %d (or %d, for an older format) parts in the blendstate string, got %d"), PartCount, BackwardCompatiblePartCount, Parts.Num()); //not a very robust parser
+	bool bHasAlphaToCoverageField = Parts.Num() == PartCount;
+
 	const FStringView* PartIt = Parts.GetData();
 	for (int32 Index = 0; Index < MaxSimultaneousRenderTargets; Index++)
 	{
@@ -460,7 +460,16 @@ void FBlendStateInitializerRHI::FromString(const FStringView& InSrc)
 		PartIt += FRenderTarget::NUM_STRING_FIELDS;
 	}
 	LexFromString((int8&)bUseIndependentRenderTargetBlendStates, *PartIt++);
-	check(Parts.GetData() + PartCount == PartIt);
+	if (bHasAlphaToCoverageField)
+	{
+		LexFromString((int8&)bUseAlphaToCoverage, *PartIt++);
+		check(Parts.GetData() + PartCount == PartIt);
+	}
+	else
+	{
+		bUseAlphaToCoverage = false;
+		check(Parts.GetData() + BackwardCompatiblePartCount == PartIt);
+	}
 }
 
 uint32 GetTypeHash(const FBlendStateInitializerRHI& Initializer)
@@ -560,7 +569,17 @@ void FRHIResource::FlushPendingDeletes(bool bFlushDeferredDeletes)
 	SCOPE_CYCLE_COUNTER(STAT_DeleteResources);
 
 	check(IsInRenderingThread());
-	FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+
+	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+#if ENABLE_RHI_VALIDATION
+	if (GDynamicRHI)
+	{
+		// Submit all remaining work to the GPU. This also ensures that validation RHI barrier tracking
+		// operations have been flushed before we delete any resources they could be referring to.
+		RHICmdList.SubmitCommandsHint();
+	}
+#endif
+	RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
 	FRHICommandListExecutor::CheckNoOutstandingCmdLists();
 	if (GDynamicRHI)
 	{
@@ -697,6 +716,41 @@ static TAutoConsoleVariable<int32> CVarGPUCrashDebugging(
 	ECVF_ReadOnly
 	);
 
+static TAutoConsoleVariable<int32> CVarGPUCrashDump(
+	TEXT("r.GPUCrashDump"),
+	0,
+	TEXT("Enable vendor specific GPU crash dumps"),
+	ECVF_ReadOnly
+);
+
+static TAutoConsoleVariable<int32> CVarGPUCrashDebuggingAftermathMarkers(
+	TEXT("r.GPUCrashDebugging.Aftermath.Markers"),
+	0,
+	TEXT("Enable draw event markers in Aftermath dumps"),
+	ECVF_ReadOnly
+);
+
+static TAutoConsoleVariable<int32> CVarGPUCrashDebuggingAftermathCallstack(
+	TEXT("r.GPUCrashDebugging.Aftermath.Callstack"),
+	0,
+	TEXT("Enable callstack capture in Aftermath dumps"),
+	ECVF_ReadOnly
+);
+
+static TAutoConsoleVariable<int32> CVarGPUCrashDebuggingAftermathResourceTracking(
+	TEXT("r.GPUCrashDebugging.Aftermath.ResourceTracking"),
+	0,
+	TEXT("Enable resource tracking for Aftermath dumps"),
+	ECVF_ReadOnly
+);
+
+static TAutoConsoleVariable<int32> CVarGPUCrashDebuggingAftermathTrackAll(
+	TEXT("r.GPUCrashDebugging.Aftermath.TrackAll"),
+	1,
+	TEXT("Enable maximum tracking for Aftermath dumps"),
+	ECVF_ReadOnly
+);
+
 namespace RHIConfig
 {
 	bool ShouldSaveScreenshotAfterProfilingGPU()
@@ -748,6 +802,7 @@ bool GRHISupportsAtomicUInt64 = false;
 bool GRHISupportsPipelineStateSortKey = false;
 bool GRHISupportsResummarizeHTile = false;
 bool GRHISupportsExplicitHTile = false;
+bool GRHISupportsExplicitFMask = false;
 bool GRHISupportsDepthUAV = false;
 bool GSupportsParallelRenderingTasksWithSeparateRHIThread = true;
 bool GRHIThreadNeedsKicking = false;
@@ -779,6 +834,7 @@ TRHIGlobal<int32> GMaxTextureDimensions(2048);
 TRHIGlobal<int64> GMaxBufferDimensions(2<<27);
 TRHIGlobal<int32> GMaxVolumeTextureDimensions(2048);
 TRHIGlobal<int32> GMaxCubeTextureDimensions(2048);
+TRHIGlobal<int32> GMaxWorkGroupInvocations(1024);
 bool GRHISupportsRWTextureBuffers = true;
 int32 GMaxTextureArrayLayers = 256;
 int32 GMaxTextureSamplers = 16;
@@ -853,6 +909,8 @@ RHI_API int32 GNumPrimitivesDrawnRHI = 0;
 
 RHI_API uint64 GRHITransitionPrivateData_SizeInBytes = 0;
 RHI_API uint64 GRHITransitionPrivateData_AlignInBytes = 0;
+
+ERHIAccess GRHITextureReadAccessMask = ERHIAccess::ReadOnlyMask;
 
 /** Called once per frame only from within an RHI. */
 void RHIPrivateBeginFrame()
@@ -1346,19 +1404,6 @@ void FRHIRenderPassInfo::Validate() const
 		ensureMsgf(!ColorRenderTargets[ColorIndex].RenderTarget, TEXT("Missing color render target on slot %d"), ColorIndex - 1);
 	}
 
-	if (bGeneratingMips)
-	{
-		if (NumColorRenderTargets == 0)
-		{
-			ensureMsgf(0, TEXT("Missing color render target for which to generate mips!"));
-		}
-
-		for (int32 Index = 1; Index < NumColorRenderTargets; ++Index)
-		{
-			ensureMsgf(ColorRenderTargets[0].RenderTarget->GetSizeXYZ() == ColorRenderTargets[Index].RenderTarget->GetSizeXYZ(), TEXT("Color Render Targets must all have the same dimensions for generating mips!"));
-		}		
-	}
-
 	if (DepthStencilRenderTarget.DepthStencilTarget)
 	{
 		// Ensure NumSamples matches with color RT
@@ -1421,10 +1466,6 @@ FRHIPanicEvent& RHIGetPanicDelegate()
 {
 	return RHIPanicEvent;
 }
-
-
-
-
 
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
 
@@ -1527,7 +1568,6 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	Info.bIsPC = GetSectionBool(Section, "bIsPC");
 	Info.bIsConsole = GetSectionBool(Section, "bIsConsole");
 	Info.bIsAndroidOpenGLES = GetSectionBool(Section, "bIsAndroidOpenGLES");
-	Info.bSupportsDrawIndirect = GetSectionBool(Section, "bSupportsDrawIndirect");
 	Info.bSupportsMobileMultiView = GetSectionBool(Section, "bSupportsMobileMultiView");
 	Info.bSupportsArrayTextureCompression = GetSectionBool(Section, "bSupportsArrayTextureCompression");
 	Info.bSupportsVolumeTextureCompression = GetSectionBool(Section, "bSupportsVolumeTextureCompression");
@@ -1562,6 +1602,7 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	Info.bSupportsGen5TemporalAA = GetSectionBool(Section, "bSupportsGen5TemporalAA");
 	Info.bTargetsTiledGPU = GetSectionBool(Section, "bTargetsTiledGPU");
 	Info.bNeedsOfflineCompiler = GetSectionBool(Section, "bNeedsOfflineCompiler");
+	Info.bSupportsAnisotropicMaterials = GetSectionBool(Section, "bSupportsAnisotropicMaterials");
 	Info.bSupportsComputeFramework = GetSectionBool(Section, "bSupportsComputeFramework");
 }
 
@@ -1597,5 +1638,135 @@ void FGenericDataDrivenShaderPlatformInfo::Initialize()
 				Infos[ShaderPlatform].bContainsValidPlatformInfo = true;
 			}
 		}
+	}
+}
+
+//
+//	Pixel format information.
+//
+
+FPixelFormatInfo	GPixelFormats[PF_MAX] =
+{
+	// Name						BlockSizeX	BlockSizeY	BlockSizeZ	BlockBytes	NumComponents	PlatformFormat	Supported		UnrealFormat
+
+	{ TEXT("unknown"),			0,			0,			0,			0,			0,				0,				0,				PF_Unknown			},
+	{ TEXT("A32B32G32R32F"),	1,			1,			1,			16,			4,				0,				1,				PF_A32B32G32R32F	},
+	{ TEXT("B8G8R8A8"),			1,			1,			1,			4,			4,				0,				1,				PF_B8G8R8A8			},
+	{ TEXT("G8"),				1,			1,			1,			1,			1,				0,				1,				PF_G8				},
+	{ TEXT("G16"),				1,			1,			1,			2,			1,				0,				1,				PF_G16				},
+	{ TEXT("DXT1"),				4,			4,			1,			8,			3,				0,				1,				PF_DXT1				},
+	{ TEXT("DXT3"),				4,			4,			1,			16,			4,				0,				1,				PF_DXT3				},
+	{ TEXT("DXT5"),				4,			4,			1,			16,			4,				0,				1,				PF_DXT5				},
+	{ TEXT("UYVY"),				2,			1,			1,			4,			4,				0,				0,				PF_UYVY				},
+	{ TEXT("FloatRGB"),			1,			1,			1,			4,			3,				0,				1,				PF_FloatRGB			},
+	{ TEXT("FloatRGBA"),		1,			1,			1,			8,			4,				0,				1,				PF_FloatRGBA		},
+	{ TEXT("DepthStencil"),		1,			1,			1,			4,			1,				0,				0,				PF_DepthStencil		},
+	{ TEXT("ShadowDepth"),		1,			1,			1,			4,			1,				0,				0,				PF_ShadowDepth		},
+	{ TEXT("R32_FLOAT"),		1,			1,			1,			4,			1,				0,				1,				PF_R32_FLOAT		},
+	{ TEXT("G16R16"),			1,			1,			1,			4,			2,				0,				1,				PF_G16R16			},
+	{ TEXT("G16R16F"),			1,			1,			1,			4,			2,				0,				1,				PF_G16R16F			},
+	{ TEXT("G16R16F_FILTER"),	1,			1,			1,			4,			2,				0,				1,				PF_G16R16F_FILTER	},
+	{ TEXT("G32R32F"),			1,			1,			1,			8,			2,				0,				1,				PF_G32R32F			},
+	{ TEXT("A2B10G10R10"),      1,          1,          1,          4,          4,              0,              1,				PF_A2B10G10R10		},
+	{ TEXT("A16B16G16R16"),		1,			1,			1,			8,			4,				0,				1,				PF_A16B16G16R16		},
+	{ TEXT("D24"),				1,			1,			1,			4,			1,				0,				1,				PF_D24				},
+	{ TEXT("PF_R16F"),			1,			1,			1,			2,			1,				0,				1,				PF_R16F				},
+	{ TEXT("PF_R16F_FILTER"),	1,			1,			1,			2,			1,				0,				1,				PF_R16F_FILTER		},
+	{ TEXT("BC5"),				4,			4,			1,			16,			2,				0,				1,				PF_BC5				},
+	{ TEXT("V8U8"),				1,			1,			1,			2,			2,				0,				1,				PF_V8U8				},
+	{ TEXT("A1"),				1,			1,			1,			1,			1,				0,				0,				PF_A1				},
+	{ TEXT("FloatR11G11B10"),	1,			1,			1,			4,			3,				0,				0,				PF_FloatR11G11B10	},
+	{ TEXT("A8"),				1,			1,			1,			1,			1,				0,				1,				PF_A8				},	
+	{ TEXT("R32_UINT"),			1,			1,			1,			4,			1,				0,				1,				PF_R32_UINT			},
+	{ TEXT("R32_SINT"),			1,			1,			1,			4,			1,				0,				1,				PF_R32_SINT			},
+
+	// IOS Support
+	{ TEXT("PVRTC2"),			8,			4,			1,			8,			4,				0,				0,				PF_PVRTC2			},
+	{ TEXT("PVRTC4"),			4,			4,			1,			8,			4,				0,				0,				PF_PVRTC4			},
+
+	{ TEXT("R16_UINT"),			1,			1,			1,			2,			1,				0,				1,				PF_R16_UINT			},
+	{ TEXT("R16_SINT"),			1,			1,			1,			2,			1,				0,				1,				PF_R16_SINT			},
+	{ TEXT("R16G16B16A16_UINT"),1,			1,			1,			8,			4,				0,				1,				PF_R16G16B16A16_UINT},
+	{ TEXT("R16G16B16A16_SINT"),1,			1,			1,			8,			4,				0,				1,				PF_R16G16B16A16_SINT},
+	{ TEXT("R5G6B5_UNORM"),     1,          1,          1,          2,          3,              0,              1,              PF_R5G6B5_UNORM		},
+	{ TEXT("R8G8B8A8"),			1,			1,			1,			4,			4,				0,				1,				PF_R8G8B8A8			},
+	{ TEXT("A8R8G8B8"),			1,			1,			1,			4,			4,				0,				1,				PF_A8R8G8B8			},
+	{ TEXT("BC4"),				4,			4,			1,			8,			1,				0,				1,				PF_BC4				},
+	{ TEXT("R8G8"),				1,			1,			1,			2,			2,				0,				1,				PF_R8G8				},
+
+	{ TEXT("ATC_RGB"),			4,			4,			1,			8,			3,				0,				0,				PF_ATC_RGB			},
+	{ TEXT("ATC_RGBA_E"),		4,			4,			1,			16,			4,				0,				0,				PF_ATC_RGBA_E		},
+	{ TEXT("ATC_RGBA_I"),		4,			4,			1,			16,			4,				0,				0,				PF_ATC_RGBA_I		},
+	{ TEXT("X24_G8"),			1,			1,			1,			1,			1,				0,				0,				PF_X24_G8			},
+	{ TEXT("ETC1"),				4,			4,			1,			8,			3,				0,				0,				PF_ETC1				},
+	{ TEXT("ETC2_RGB"),			4,			4,			1,			8,			3,				0,				0,				PF_ETC2_RGB			},
+	{ TEXT("ETC2_RGBA"),		4,			4,			1,			16,			4,				0,				0,				PF_ETC2_RGBA		},
+	{ TEXT("PF_R32G32B32A32_UINT"),1,		1,			1,			16,			4,				0,				1,				PF_R32G32B32A32_UINT},
+	{ TEXT("PF_R16G16_UINT"),	1,			1,			1,			4,			4,				0,				1,				PF_R16G16_UINT},
+
+	// ASTC support
+	{ TEXT("ASTC_4x4"),			4,			4,			1,			16,			4,				0,				0,				PF_ASTC_4x4			},
+	{ TEXT("ASTC_6x6"),			6,			6,			1,			16,			4,				0,				0,				PF_ASTC_6x6			},
+	{ TEXT("ASTC_8x8"),			8,			8,			1,			16,			4,				0,				0,				PF_ASTC_8x8			},
+	{ TEXT("ASTC_10x10"),		10,			10,			1,			16,			4,				0,				0,				PF_ASTC_10x10		},
+	{ TEXT("ASTC_12x12"),		12,			12,			1,			16,			4,				0,				0,				PF_ASTC_12x12		},
+
+	{ TEXT("BC6H"),				4,			4,			1,			16,			3,				0,				1,				PF_BC6H				},
+	{ TEXT("BC7"),				4,			4,			1,			16,			4,				0,				1,				PF_BC7				},
+	{ TEXT("R8_UINT"),			1,			1,			1,			1,			1,				0,				1,				PF_R8_UINT			},
+	{ TEXT("L8"),				1,			1,			1,			1,			1,				0,				0,				PF_L8				},
+	{ TEXT("XGXR8"),			1,			1,			1,			4,			4,				0,				1,				PF_XGXR8 			},
+	{ TEXT("R8G8B8A8_UINT"),	1,			1,			1,			4,			4,				0,				1,				PF_R8G8B8A8_UINT	},
+	{ TEXT("R8G8B8A8_SNORM"),	1,			1,			1,			4,			4,				0,				1,				PF_R8G8B8A8_SNORM	},
+
+	{ TEXT("R16G16B16A16_UINT"),1,			1,			1,			8,			4,				0,				1,				PF_R16G16B16A16_UNORM },
+	{ TEXT("R16G16B16A16_SINT"),1,			1,			1,			8,			4,				0,				1,				PF_R16G16B16A16_SNORM },
+	{ TEXT("PLATFORM_HDR_0"),	0,			0,			0,			0,			0,				0,				0,				PF_PLATFORM_HDR_0   },
+	{ TEXT("PLATFORM_HDR_1"),	0,			0,			0,			0,			0,				0,				0,				PF_PLATFORM_HDR_1   },
+	{ TEXT("PLATFORM_HDR_2"),	0,			0,			0,			0,			0,				0,				0,				PF_PLATFORM_HDR_2   },
+
+	// NV12 contains 2 textures: R8 luminance plane followed by R8G8 1/4 size chrominance plane.
+	// BlockSize/BlockBytes/NumComponents values don't make much sense for this format, so set them all to one.
+	{ TEXT("NV12"),				1,			1,			1,			1,			1,				0,				0,				PF_NV12             },
+
+	{ TEXT("PF_R32G32_UINT"),   1,   		1,			1,			8,			2,				0,				1,				PF_R32G32_UINT      },
+
+	{ TEXT("PF_ETC2_R11_EAC"),  4,   		4,			1,			8,			1,				0,				0,				PF_ETC2_R11_EAC     },
+	{ TEXT("PF_ETC2_RG11_EAC"), 4,   		4,			1,			16,			2,				0,				0,				PF_ETC2_RG11_EAC    },
+	{ TEXT("R8"),				1,			1,			1,			1,			1,				0,				1,				PF_R8				},
+};
+
+static struct FValidatePixelFormats
+{
+	FValidatePixelFormats()
+	{
+		for (int32 Index = 0; Index < UE_ARRAY_COUNT(GPixelFormats); ++Index)
+		{
+			// Make sure GPixelFormats has an entry for every unreal format
+			checkf((EPixelFormat)Index == GPixelFormats[Index].UnrealFormat, TEXT("Missing entry for EPixelFormat %d"), (int32)Index);
+		}
+	}
+} ValidatePixelFormats;
+
+//
+//	CalculateImageBytes
+//
+
+SIZE_T CalculateImageBytes(uint32 SizeX,uint32 SizeY,uint32 SizeZ,uint8 Format)
+{
+	if ( Format == PF_A1 )
+	{
+		// The number of bytes needed to store all 1 bit pixels in a line is the width of the image divided by the number of bits in a byte
+		uint32 BytesPerLine = SizeX / 8;
+		// The number of actual bytes in a 1 bit image is the bytes per line of pixels times the number of lines
+		return sizeof(uint8) * BytesPerLine * SizeY;
+	}
+	else if( SizeZ > 0 )
+	{
+		return static_cast<SIZE_T>(SizeX / GPixelFormats[Format].BlockSizeX) * (SizeY / GPixelFormats[Format].BlockSizeY) * (SizeZ / GPixelFormats[Format].BlockSizeZ) * GPixelFormats[Format].BlockBytes;
+	}
+	else
+	{
+		return static_cast<SIZE_T>(SizeX / GPixelFormats[Format].BlockSizeX) * (SizeY / GPixelFormats[Format].BlockSizeY) * GPixelFormats[Format].BlockBytes;
 	}
 }

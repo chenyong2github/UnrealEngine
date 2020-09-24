@@ -27,6 +27,7 @@ FChannel&				TraceLogChannel			= TraceLogChannelDetail;
 UE_TRACE_EVENT_BEGIN(Trace, ChannelAnnounce, Important)
 	UE_TRACE_EVENT_FIELD(uint32, Id)
 	UE_TRACE_EVENT_FIELD(bool, IsEnabled)
+	UE_TRACE_EVENT_FIELD(bool, ReadOnly)
 	UE_TRACE_EVENT_FIELD(Trace::AnsiString, Name)
 UE_TRACE_EVENT_END()
 
@@ -38,6 +39,7 @@ UE_TRACE_EVENT_END()
 ///////////////////////////////////////////////////////////////////////////////
 static FChannel* volatile	GHeadChannel;			// = nullptr;
 static FChannel* volatile	GNewChannelList;		// = nullptr;
+static bool 				GInitialized;
 
 ////////////////////////////////////////////////////////////////////////////////
 static uint32 GetChannelHash(const ANSICHAR* Input, int32 Length)
@@ -133,13 +135,14 @@ FChannel::Iter FChannel::ReadNew()
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-void FChannel::Initialize(const ANSICHAR* InChannelName)
+void FChannel::Setup(const ANSICHAR* InChannelName, const InitArgs& InArgs)
 {
 	using namespace Private;
 
 	Name.Ptr = InChannelName;
 	Name.Len = GetChannelNameLength(Name.Ptr);
 	Name.Hash = GetChannelHash(Name.Ptr, Name.Len);
+	Args = InArgs;
 
 	// Append channel to the linked list of new channels.
 	for (;; PlatformYield())
@@ -151,6 +154,13 @@ void FChannel::Initialize(const ANSICHAR* InChannelName)
 			break;
 		}
 	}
+
+	// If channel is initialized after the all channels are disabled (post static init) 
+	// this channel needs to be disabled.
+	if (GInitialized)
+	{
+		Enabled = -1;
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -159,7 +169,17 @@ void FChannel::Announce() const
 	UE_TRACE_LOG(Trace, ChannelAnnounce, TraceLogChannel)
 		<< ChannelAnnounce.Id(Name.Hash)
 		<< ChannelAnnounce.IsEnabled(IsEnabled())
-		<< ChannelAnnounce.Name(Name.Ptr);
+		<< ChannelAnnounce.ReadOnly(Args.bReadOnly)
+		<< ChannelAnnounce.Name(Name.Ptr, Name.Len);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+void FChannel::Initialize()
+{
+	// All channels are initialized as enabled (zero), and act like so during
+	// from process start until this method is called (i.e. when Trace is initalized).
+	ToggleAll(false);
+	GInitialized = true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
