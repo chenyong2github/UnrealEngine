@@ -856,6 +856,9 @@ void FDataprepEditor::OnExecutePipeline()
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDataprepEditor::OnExecutePipeline);
 
+	// Clear selection in details tab since selected objects may be gone
+	DetailsView->ShowDetailsObjects(TArray<UObject*>());
+
 	if(!bIsFirstRun)
 	{
 		RestoreFromSnapshot();

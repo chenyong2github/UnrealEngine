@@ -2,6 +2,7 @@
 
 #include "SDataprepEditorViewport.h"
 
+#include "DataprepCorePrivateUtils.h"
 #include "DataprepCoreUtils.h"
 #include "DataprepEditor.h"
 #include "DataprepEditorUtils.h"
@@ -168,10 +169,6 @@ namespace DataprepEditor3DPreviewUtils
 {
 	/** Build the render data based on the current geometry available in the static mesh */
 	void BuildStaticMeshes(TSet<UStaticMesh*>& StaticMeshes, TArray<UStaticMesh*>& BuiltMeshes);
-
-	/** Compile all materials included in the input array*/
-	// Copied from DatasmithImporterImpl::CompileMaterial
-	void CompileMaterials(const TArray< UMaterialInterface* >& Materials);
 
 	void FindMeshComponents(const AActor * InActor, TArray<UStaticMeshComponent*>& MeshComponents, bool bRecursive );
 
@@ -771,20 +768,19 @@ void SDataprepEditorViewport::InitializeDefaultMaterials()
 		return nullptr;
 	};
 
-	const int32 DefaultMaterialsCount = 4;
-
-	TArray< UMaterialInterface* > Materials;
-	Materials.Reserve( DefaultMaterialsCount );
-
 	if(!PreviewMaterial.IsValid())
 	{
 		PreviewMaterial = TWeakObjectPtr<UMaterial>( CreateMaterialFunc("PreviewMaterial") );
-		Materials.Add( PreviewMaterial.Get() );
+		check( PreviewMaterial.IsValid() );
+
+		DataprepCorePrivateUtils::CompileMaterial(PreviewMaterial.Get());
 	}
 
 	if(!TransparentMaterial.IsValid())
 	{
 		TransparentMaterial = TWeakObjectPtr<UMaterialInstanceConstant>( NewObject<UMaterialInstanceConstant>( GetTransientPackage(), NAME_None, EObjectFlags::RF_Transient) );
+		check( TransparentMaterial.IsValid() );
+
 		TransparentMaterial->Parent = PreviewMaterial.Get();
 
 		TransparentMaterial->BasePropertyOverrides.bOverride_BlendMode = true;
@@ -793,27 +789,30 @@ void SDataprepEditorViewport::InitializeDefaultMaterials()
 		TransparentMaterial->SetScalarParameterValueEditorOnly( TEXT("Transparency"), 0.75f );
 		TransparentMaterial->SetVectorParameterValueEditorOnly( TEXT( "DiffuseColor" ), FLinearColor::Gray );
 
-		check( TransparentMaterial.IsValid() );
-
-		Materials.Add( TransparentMaterial.Get() );
+		DataprepCorePrivateUtils::CompileMaterial(TransparentMaterial.Get());
 	}
 
 	if(!XRayMaterial.IsValid())
 	{
 		XRayMaterial = TWeakObjectPtr<UMaterial>( CreateMaterialFunc("xray_master") );
-		Materials.Add( XRayMaterial.Get() );
+		check( XRayMaterial.IsValid() );
+
+		DataprepCorePrivateUtils::CompileMaterial(XRayMaterial.Get());
 	}
 
 	if(!BackFaceMaterial.IsValid())
 	{
 		BackFaceMaterial = TWeakObjectPtr<UMaterial>( CreateMaterialFunc("BackFaceMaterial") );
-		Materials.Add( BackFaceMaterial.Get() );
+
+		DataprepCorePrivateUtils::CompileMaterial(BackFaceMaterial.Get());
 	}
 
 	if(!PerMeshMaterial.IsValid())
 	{
 		PerMeshMaterial = TWeakObjectPtr<UMaterial>( CreateMaterialFunc("PerMeshMaterial") );
-		Materials.Add( PerMeshMaterial.Get() );
+		check( PerMeshMaterial.IsValid() );
+
+		DataprepCorePrivateUtils::CompileMaterial(PerMeshMaterial.Get());
 	}
 
 	if(PerMeshMaterialInstances.Num() == 0)
@@ -828,25 +827,24 @@ void SDataprepEditorViewport::InitializeDefaultMaterials()
 		if(!PerMeshMaterialInstance.IsValid())
 		{
 			PerMeshMaterialInstance = TWeakObjectPtr<UMaterialInstanceConstant>( NewObject<UMaterialInstanceConstant>( GetTransientPackage(), NAME_None, EObjectFlags::RF_Transient) );
+			check( PerMeshMaterialInstance.IsValid() );
+
 			PerMeshMaterialInstance->Parent = PerMeshMaterial.Get();
 
 			check( PerMeshMaterialInstance.IsValid() );
 
 			PerMeshMaterialInstance->SetVectorParameterValueEditorOnly( TEXT( "Color" ), FLinearColor( PerMeshColor[Index] ) );
 
-			Materials.Add( PerMeshMaterialInstance.Get() );
+			DataprepCorePrivateUtils::CompileMaterial(PerMeshMaterialInstance.Get());
 		}
 	}
 
 	if(!ReflectionMaterial.IsValid())
 	{
 		ReflectionMaterial = TWeakObjectPtr<UMaterial>( CreateMaterialFunc("ReflectionMaterial") );
-		Materials.Add( ReflectionMaterial.Get() );
-	}
+		check( ReflectionMaterial.IsValid() );
 
-	if(Materials.Num() > 0)
-	{
-		DataprepEditor3DPreviewUtils::CompileMaterials( Materials );
+		DataprepCorePrivateUtils::CompileMaterial(ReflectionMaterial.Get());
 	}
 }
 
@@ -1650,47 +1648,6 @@ namespace DataprepEditor3DPreviewUtils
 				for ( FStaticMeshLODResources& LODResources : StaticMesh->RenderData->LODResources )
 				{
 					LODResources.bHasColorVertexData = true;
-				}
-			}
-		}
-	}
-
-	// Copied from DatasmithImporterImpl::CompileMaterial
-	void CompileMaterials(const TArray< UMaterialInterface* >& Materials)
-	{
-		if(Materials.Num() > 0)
-		{
-			FMaterialUpdateContext MaterialUpdateContext;
-
-			for(UMaterialInterface* MaterialInterface : Materials)
-			{
-				MaterialUpdateContext.AddMaterialInterface( MaterialInterface );
-
-				if(UMaterialInstanceConstant* ConstantMaterialInstance = Cast< UMaterialInstanceConstant >(MaterialInterface))
-				{
-					// If BlendMode override property has been changed, make sure this combination of the parent material is compiled
-					if ( ConstantMaterialInstance->BasePropertyOverrides.bOverride_BlendMode == true )
-					{
-						ConstantMaterialInstance->ForceRecompileForRendering();
-					}
-					else
-					{
-						// If a static switch is overridden, we need to recompile
-						FStaticParameterSet StaticParameters;
-						ConstantMaterialInstance->GetStaticParameterValues( StaticParameters );
-
-						for ( FStaticSwitchParameter& Switch : StaticParameters.StaticSwitchParameters )
-						{
-							if ( Switch.bOverride )
-							{
-								ConstantMaterialInstance->ForceRecompileForRendering();
-								break;
-							}
-						}
-					}
-
-					ConstantMaterialInstance->PreEditChange( nullptr );
-					ConstantMaterialInstance->PostEditChange();
 				}
 			}
 		}
