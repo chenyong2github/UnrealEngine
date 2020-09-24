@@ -874,6 +874,7 @@ namespace WindowsMixedReality
 		MotionControllerData.DeviceName = GetSystemName();
 		MotionControllerData.ApplicationInstanceID = FApp::GetInstanceId();
 		MotionControllerData.DeviceVisualType = EXRVisualType::Hand;
+		MotionControllerData.HandIndex = Hand;
 
 		MotionControllerData.TrackingStatus = (ETrackingStatus)GetControllerTrackingStatus((WindowsMixedReality::HMDHand)Hand);
 
@@ -1239,8 +1240,16 @@ namespace WindowsMixedReality
 		return true;
 	}
 
+	bool FWindowsMixedRealityHMD::bEnableStereoReentranceGuard = false;
+
 	bool FWindowsMixedRealityHMD::EnableStereo(bool stereo)
 	{
+		if (bEnableStereoReentranceGuard)
+		{
+			return false;
+		}
+
+		bEnableStereoReentranceGuard = true;
 #if WITH_WINDOWS_MIXED_REALITY
 		if (stereo)
 		{
@@ -1251,18 +1260,20 @@ namespace WindowsMixedReality
 				if (FParse::Value(FCommandLine::Get(), TEXT("RemotingAppIp="), RemotingAppIp) &&
 					FParse::Value(FCommandLine::Get(), TEXT("RemotingBitRate="), RemotingBitRate))
 				{
-					ConnectToRemoteHoloLens(*RemotingAppIp, RemotingBitRate, false);
+					FWindowsMixedRealityStatics::ConnectToRemoteHoloLens(*RemotingAppIp, RemotingBitRate, false);
 				}
 			}
 
 			if (bIsStereoDesired && HMD->IsInitialized())
 			{
+				bEnableStereoReentranceGuard = false;
 				return false;
 			}
 
 			FindMRSceneViewport(bIsStereoDesired);
 			if (!bIsStereoDesired)
 			{
+				bEnableStereoReentranceGuard = false;
 				return false;
 			}
 
@@ -1336,6 +1347,8 @@ namespace WindowsMixedReality
 			StopSpeechRecognition();
 		}
 #endif
+		bEnableStereoReentranceGuard = false;
+
 		return bIsStereoDesired;
 	}
 
