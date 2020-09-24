@@ -15,7 +15,7 @@ enum class EDMXPixelMappingRendererType : uint8
 };
 
 UENUM(BlueprintType)
-enum class EDMXPixelFormat : uint8
+enum class EDMXCellFormat : uint8
 {
 	PF_R UMETA(DisplayName = "R"),
 	PF_G UMETA(DisplayName = "G"),

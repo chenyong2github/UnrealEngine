@@ -13,7 +13,7 @@
 #include "Components/DMXPixelMappingFixtureGroupComponent.h"
 #include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
 #include "Components/DMXPixelMappingMatrixComponent.h"
-#include "Components/DMXPixelMappingMatrixPixelComponent.h"
+#include "Components/DMXPixelMappingMatrixCellComponent.h"
 #include "DMXPixelMapping.h"
 #include "Toolkits/DMXPixelMappingToolkit.h"
 #include "Templates/DMXPixelMappingComponentTemplate.h"
@@ -252,7 +252,7 @@ FReply SDMXPixelMappingDesignerView::OnMouseButtonDown(const FGeometry& MyGeomet
 		{
 			SelectedWidgetContextMenuLocation = HitResult.WidgetArranged.Geometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
 			
-			if (UDMXPixelMappingMatrixPixelComponent* MatrixPixelComponent = Cast<UDMXPixelMappingMatrixPixelComponent>(HitResult.Component))
+			if (UDMXPixelMappingMatrixCellComponent* MatrixPixelComponent = Cast<UDMXPixelMappingMatrixCellComponent>(HitResult.Component))
 			{
 				// If a matrix pixel component is selected and it is locked in designer, select the owning Matrix Component instead
 				PendingSelectedComponent = MatrixPixelComponent->IsLockInDesigner() ? MatrixPixelComponent->Parent : HitResult.Component;
@@ -646,7 +646,7 @@ FArrangedWidget SDMXPixelMappingDesignerView::GetArrangedWidgetFromComponent(UDM
 	if (OutputComponent->bLockInDesigner)
 	{
 		if (OutputComponent->GetClass() == UDMXPixelMappingFixtureGroupItemComponent::StaticClass() ||
-			OutputComponent->GetClass() == UDMXPixelMappingMatrixPixelComponent::StaticClass())
+			OutputComponent->GetClass() == UDMXPixelMappingMatrixCellComponent::StaticClass())
 		{
 			UDMXPixelMappingOutputComponent* Parent = CastChecked<UDMXPixelMappingOutputComponent>(OutputComponent->Parent);
 			WidgetToArrange = Parent->GetCachedWidget();

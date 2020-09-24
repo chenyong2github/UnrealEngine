@@ -212,41 +212,41 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "DMX")
 	FProtocolReceivedDelegate OnProtocolReceived;
 
-	/**  Set DMX Pixel value using matrix coordinates. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set Matrix Pixel Value"), Category = "DMX")
-	bool SetMatrixPixel(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate /* Pixel X/Y */, FDMXAttributeName Attribute, int32 Value);
-
-	/**  Get DMX Pixel value using matrix coordinates. */
+	/**  Set DMX Cell value using matrix coordinates. */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
-	bool GetMatrixPixelValue(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate /* Pixel X/Y */, TMap<FDMXAttributeName, int32>& AttributeValueMap);
+	bool SetMatrixCellValue(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate /* Cell coordinate X/Y */, FDMXAttributeName Attribute, int32 Value);
 
-	/**  Get DMX Pixel Channel using matrix coordinates. Returns the Starting Channel relative to the Starting Channel of the patch. */
+	/**  Get DMX Cell value using matrix coordinates. */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
-	bool GetMatrixPixelChannelsRelative(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate /* Pixel X/Y */, TMap<FDMXAttributeName, int32>& AttributeChannelMap);
+	bool GetMatrixCellValue(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate /* Cell coordinate X/Y */, TMap<FDMXAttributeName, int32>& AttributeValueMap);
+
+	/**  Gets the starting channel of each cell attribute at given coordinate, relative to the Starting Channel of the patch. */
+	UFUNCTION(BlueprintCallable, Category = "DMX")
+	bool GetMatrixCellChannelsRelative(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate /* Cell coordinate X/Y */, TMap<FDMXAttributeName, int32>& AttributeChannelMap);
 	
-	/**  Get DMX Pixel Channel using matrix coordinates. Returns the absolute Starting Channel. */
+	/**  Gets the absolute starting channel of each cell attribute at given coordinate */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
-	bool GetMatrixPixelChannelsAbsolute(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate /* Pixel X/Y */, TMap<FDMXAttributeName, int32>& AttributeChannelMap);
+	bool GetMatrixCellChannelsAbsolute(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate /* Cell coordinate X/Y */, TMap<FDMXAttributeName, int32>& AttributeChannelMap);
 
-	/**  Get Matrix Fixture properties. */
+	/**  Get Matrix Fixture properties */
 	UFUNCTION(BlueprintPure, Category = "DMX")
-	bool GetMatrixProperties(UDMXEntityFixturePatch* FixturePatch, FDMXPixelMatrix& MatrixProperties);
+	bool GetMatrixProperties(UDMXEntityFixturePatch* FixturePatch, FDMXFixtureMatrix& MatrixProperties);
 
-	/**  Get all attributes for the matrix pixel. */
+	/**  Get all attributes for the fixture patch. */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
-	bool GetPixelAttributes(UDMXEntityFixturePatch* FixturePatch, TArray<FDMXAttributeName>& PixelAttributes);
+	bool GetCellAttributes(UDMXEntityFixturePatch* FixturePatch, TArray<FDMXAttributeName>& CellAttributes);
 
-	/**  Get data for single pixel. */
+	/**  Get data for single cell. */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
-	bool GetMatrixPixel(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate /* Pixel X/Y */, FDMXPixel& Pixel);
+	bool GetMatrixCell(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate /* Cell coordinate X/Y */, FDMXCell& Cell);
 
-	/**  Get array of all pixels and associated data. */
+	/**  Get array of all cells and associated data. */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
-	bool GetAllMatrixPixels(UDMXEntityFixturePatch* FixturePatch, TArray<FDMXPixel>& Pixels);
+	bool GetAllMatrixCells(UDMXEntityFixturePatch* FixturePatch, TArray<FDMXCell>& Cells);
 
 	/**  Sort an array according to the selected distribution pattern. */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
-	void PixelDistributionSort(EDMXPixelsDistribution InDistribution, int32 InNumXPanels, int32 InNumYPanels, const TArray<int32>& InUnorderedList, TArray<int32>& OutSortedList);
+	void PixelMappingDistributionSort(EDMXPixelMappingDistribution InDistribution, int32 InNumXPanels, int32 InNumYPanels, const TArray<int32>& InUnorderedList, TArray<int32>& OutSortedList);
 
 public:
 	//~ USubsystem interface begin
