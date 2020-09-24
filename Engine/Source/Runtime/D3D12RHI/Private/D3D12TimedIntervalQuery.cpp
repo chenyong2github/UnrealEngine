@@ -145,6 +145,11 @@ public:
 		return false;
 	}
 
+	void PurgeBatches()
+	{
+		Batches.SetNum(0);
+	}
+
 	bool AllocateQueryPair(uint32& QueryId0, uint32& QueryId1)
 	{
 		FScopeLock ScopeLock(&QueryCriticalSection);
@@ -276,5 +281,10 @@ void FD3D12TimedIntervalQueryTracker::ResolveBatches(uint64 TimeStampFrequency, 
 		const uint64 TotalTimeUS = TotalTime * 1e6 / TimeStampFrequency;
 		OnBatchResolvedDelegate.ExecuteIfBound(BatchId, TotalTimeUS);
 	}
+}
+
+void FD3D12TimedIntervalQueryTracker::PurgeOutstandingBatches()
+{
+	QueryPool->PurgeBatches();
 }
 #endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
