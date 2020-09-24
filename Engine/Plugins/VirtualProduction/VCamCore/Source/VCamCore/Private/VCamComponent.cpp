@@ -222,22 +222,28 @@ void UVCamComponent::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 				const int32 ChangedIndex = PropertyChangedEvent.GetArrayIndex(PropertyChangedEvent.GetPropertyName().ToString());
 				if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet)
 				{
-					UVCamOutputProviderBase* ChangedProvider = OutputProviders[ChangedIndex];
-
-					// If we changed the output type, be sure to delete the old one before setting up the new one
-					if (SavedOutputProviders[ChangedIndex] != ChangedProvider)
+					if (OutputProviders.IsValidIndex(ChangedIndex))
 					{
-						DestroyOutputProvider(SavedOutputProviders[ChangedIndex]);
-					}
+						UVCamOutputProviderBase* ChangedProvider = OutputProviders[ChangedIndex];
 
-					if (ChangedProvider)
-					{
-						ChangedProvider->Initialize();
+						// If we changed the output type, be sure to delete the old one before setting up the new one
+						if (SavedOutputProviders.IsValidIndex(ChangedIndex) && (SavedOutputProviders[ChangedIndex] != ChangedProvider))
+						{
+							DestroyOutputProvider(SavedOutputProviders[ChangedIndex]);
+						}
+
+						if (ChangedProvider)
+						{
+							ChangedProvider->Initialize();
+						}
 					}
 				}
 				else if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayRemove)
 				{
-					DestroyOutputProvider(SavedOutputProviders[ChangedIndex]);
+					if (SavedOutputProviders.IsValidIndex(ChangedIndex))
+					{
+						DestroyOutputProvider(SavedOutputProviders[ChangedIndex]);
+					}
 				}
 				else if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayClear)
 				{
