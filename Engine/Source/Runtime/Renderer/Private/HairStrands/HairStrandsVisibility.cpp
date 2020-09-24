@@ -2495,7 +2495,7 @@ static FRDGTextureRef AddHairHairCountToTransmittancePass(
 	FHairCountToCoverageCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FHairCountToCoverageCS::FInputType>(bUseOneChannel ? 1 : 0);
 	TShaderMapRef<FHairCountToCoverageCS> ComputeShader(ViewInfo.ShaderMap, PermutationVector);
-	FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsVisibilityComputeRaster"), ComputeShader, PassParameters, FComputeShaderUtils::GetGroupCount(OutputResolution, FIntPoint(8,8)));
+	FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairHairCountToTransmittancePass"), ComputeShader, PassParameters, FComputeShaderUtils::GetGroupCount(OutputResolution, FIntPoint(8,8)));
 
 	return OutputTexture;
 }
