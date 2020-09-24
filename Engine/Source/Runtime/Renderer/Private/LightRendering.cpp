@@ -1262,11 +1262,11 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLights(
 
 			bool bRenderSimpleLightsStandardDeferred = SortedLightSet.SimpleLights.InstanceData.Num() > 0;
 
-			UE_CLOG(ShouldUseClusteredDeferredShading() && !AreClusteredLightsInLightGrid(), LogRenderer, Warning,
+			UE_CLOG(ShouldUseClusteredDeferredShading() && !AreLightsInLightGrid(), LogRenderer, Warning,
 				TEXT("Clustered deferred shading is enabled, but lights were not injected in grid, falling back to other methods (hint 'r.LightCulling.Quality' may cause this)."));
 
 			// True if the clustered shading is enabled and the feature level is there, and that the light grid had lights injected.
-			if (ShouldUseClusteredDeferredShading() && AreClusteredLightsInLightGrid())
+			if (ShouldUseClusteredDeferredShading() && AreLightsInLightGrid())
 			{
 				// Tell the trad. deferred that the clustered deferred capable lights are taken care of.
 				// This includes the simple lights

@@ -49,9 +49,9 @@ bool FDeferredShadingSceneRenderer::ShouldUseClusteredDeferredShading() const
 	return GUseClusteredDeferredShading != 0 && Scene->GetFeatureLevel() >= ERHIFeatureLevel::SM5;
 }
 
-bool FDeferredShadingSceneRenderer::AreClusteredLightsInLightGrid() const
+bool FDeferredShadingSceneRenderer::AreLightsInLightGrid() const
 {
-	return bClusteredShadingLightsInLightGrid;
+	return bAreLightsInLightGrid;
 }
 
 

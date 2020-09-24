@@ -770,11 +770,15 @@ void FDeferredShadingSceneRenderer::GatherLightsAndComputeLightGrid(FRDGBuilder&
 		bAnyViewUsesForwardLighting |= View.bTranslucentSurfaceLighting || ShouldRenderVolumetricFog() || View.bHasSingleLayerWaterMaterial;
 	}
 	
-	const bool bCullLightsToGrid = GLightCullingQuality 
-		&& (ViewFamily.EngineShowFlags.DirectLighting 
-		&& (IsForwardShadingEnabled(ShaderPlatform) || bAnyViewUsesForwardLighting || IsRayTracingEnabled() || ShouldUseClusteredDeferredShading()));
-	// Store this flag if lights are injected in the grids, check with 'AreClusteredLightsInLightGrid()'
-	bClusteredShadingLightsInLightGrid = bCullLightsToGrid;
+	// TODO: Move decision logic to separate function for readability
+	static const auto EnableVirtualSMCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Shadow.v.Enable"));
+
+	const bool bCullLightsToGrid = GLightCullingQuality
+		&& (ViewFamily.EngineShowFlags.DirectLighting
+			&& (IsForwardShadingEnabled(ShaderPlatform) || bAnyViewUsesForwardLighting || IsRayTracingEnabled() || ShouldUseClusteredDeferredShading() || GAllowLumenScene || EnableVirtualSMCVar->GetValueOnRenderThread() != 0));
+
+	// Store this flag if lights are injected in the grids, check with 'AreLightsInLightGrid()'
+	bAreLightsInLightGrid = bCullLightsToGrid;
 	
 	ComputeLightGrid(GraphBuilder, bCullLightsToGrid, SortedLightSet);
 }

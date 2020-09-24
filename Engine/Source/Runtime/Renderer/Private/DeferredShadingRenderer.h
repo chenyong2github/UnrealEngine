@@ -590,9 +590,9 @@ private:
 	bool ShouldUseClusteredDeferredShading() const;
 
 	/**
-	 * Have the requisite lights been injected into the light grid, AKA can we run the shading pass?
+	 * Have the lights been injected into the light grid?
 	 */
-	bool AreClusteredLightsInLightGrid() const;
+	bool AreLightsInLightGrid() const;
 
 
 	/** Add a clustered deferred shading lighting render pass.	Note: in the future it should take the RenderGraph builder as argument */
@@ -1118,8 +1118,8 @@ private:
 
 #endif // RHI_RAYTRACING
 
-	/** Set to true if the lights needed for clustered shading have been injected in the light grid (set in GatherLightsAndComputeLightGrid). */
-	bool bClusteredShadingLightsInLightGrid;
+	/** Set to true if lights were injected into the light grid (this controlled by somewhat complex logic, this flag is used to cross-check). */
+	bool bAreLightsInLightGrid;
 };
 
 DECLARE_CYCLE_STAT_EXTERN(TEXT("PrePass"), STAT_CLM_PrePass, STATGROUP_CommandListMarkers, );

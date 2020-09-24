@@ -299,7 +299,7 @@ FDeferredShadingSceneRenderer::FDeferredShadingSceneRenderer(const FSceneViewFam
 	: FSceneRenderer(InViewFamily, HitProxyConsumer)
 	, EarlyZPassMode(Scene ? Scene->EarlyZPassMode : DDM_None)
 	, bEarlyZPassMovable(Scene ? Scene->bEarlyZPassMovable : false)
-	, bClusteredShadingLightsInLightGrid(false)
+	, bAreLightsInLightGrid(false)
 {
 	static const auto StencilLODDitherCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.StencilForLODDither"));
 	bDitheredLODTransitionsUseStencil = StencilLODDitherCVar->GetValueOnAnyThread() != 0;
@@ -1981,7 +1981,8 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		&VisibleLightInfos=VisibleLightInfos,
 		&VirtualShadowMapArray=VirtualShadowMapArray,
 		&Views= Views, 
-		VirtualShadowMapArrayCacheManager = Scene->VirtualShadowMapArrayCacheManager](bool bPostBasePass)
+		VirtualShadowMapArrayCacheManager = Scene->VirtualShadowMapArrayCacheManager,
+		this](bool bPostBasePass)
 	{
 		static const auto CVarEnableVirtualSM = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Shadow.v.Enable"));
 
@@ -1993,7 +1994,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			}
 			else
 			{
-				// ensure(LightGridWasBuilt)
+				ensureMsgf(AreLightsInLightGrid(), TEXT("Virtual shadow map setup requires local lights to be injected into the light grid (this may be caused by 'r.LightCulling.Quality=0')."));
 				// ensure(ShadowMapSetupDone)
 				{
 					VirtualShadowMapArray.GeneratePageFlagsFromLightGrid(GraphBuilder, Views, SortedLightSet, VisibleLightInfos, NaniteRasterResults, bPostBasePass, VirtualShadowMapArrayCacheManager);
