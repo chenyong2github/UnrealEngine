@@ -32,7 +32,7 @@ struct FCollisionProfileName
 		: Name(InName)
 	{}
 
-	UPROPERTY(EditAnywhere, Category = Collision)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Collision)
 	FName Name;
 };
 
