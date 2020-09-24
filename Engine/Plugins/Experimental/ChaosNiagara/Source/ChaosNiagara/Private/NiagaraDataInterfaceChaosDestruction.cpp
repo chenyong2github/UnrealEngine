@@ -188,6 +188,8 @@ void UNiagaraDataInterfaceChaosDestruction::BeginDestroy()
 			EventManager->UnregisterHandler(Chaos::EEventType::Trailing, this);
 		}
 	}
+
+	Solvers.Reset();
 #endif
 }
 
@@ -360,11 +362,20 @@ bool UNiagaraDataInterfaceChaosDestruction::Equals(const UNiagaraDataInterface* 
 		return false;
 	}
 
+
+	TArray<AChaosSolverActor*> SolverActors = ChaosSolverActorSet.Array();
+	TArray<AChaosSolverActor*> OtherSolverActors = OtherChaosDestruction->ChaosSolverActorSet.Array();
+
 	bool bResult = true;
-	for (int32 Idx = 0; Idx < ChaosSolverActorSet.Num(); ++Idx)
+	for (int32 Idx = 0; Idx < SolverActors.Num(); ++Idx)
 	{
-		bResult = bResult &&
-			OtherChaosDestruction->ChaosSolverActorSet.Array()[Idx]->GetName().Equals(ChaosSolverActorSet.Array()[Idx]->GetName());
+		AChaosSolverActor* ThisActor = SolverActors[Idx];
+		AChaosSolverActor* OtherActor = OtherSolverActors[Idx];
+
+		if(ThisActor && OtherActor)
+		{
+			bResult = bResult && ThisActor->GetName().Equals(OtherActor->GetName());
+		}
 	}
 
 	return bResult
@@ -441,44 +452,48 @@ bool UNiagaraDataInterfaceChaosDestruction::InitPerInstanceData(void* PerInstanc
 	LastSpawnedPointID = -1;
 	LastSpawnTime = -1.0f;
 	TimeStampOfLastProcessedData = -1.f;
-
-	// If there is no SolverActor specified need to grab the WorldSolver
-	if (ChaosSolverActorSet.Num() == 0)
+	// No need to bind to non-game solvers as they will never generate events.
+	UWorld* CurrentWorld = GetWorld();
+	if(CurrentWorld && CurrentWorld->IsGameWorld())
 	{
+		// If there is no SolverActor specified need to grab the WorldSolver
+		if(ChaosSolverActorSet.Num() == 0)
+		{
 #if INCLUDE_CHAOS
-		if (SystemInstance)
-		{
-			if (UWorld* World = SystemInstance->GetWorld())
+			if(SystemInstance)
 			{
-				int32 NewIdx = Solvers.Add(FSolverData());
-
-				FSolverData& SolverData = Solvers[NewIdx];
-				SolverData.PhysScene = World->GetPhysicsScene();
-				SolverData.Solver = SolverData.PhysScene->GetSolver();
-
-				RegisterWithSolverEventManager(SolverData.Solver);
-			}
-		}
-#endif
-	}
-	//else
-	{
-		// #todo : are solver actors going to exist going forwards?
-		for (AChaosSolverActor* SolverActor : ChaosSolverActorSet)
-		{
-			if (SolverActor)
-			{
-				if (Chaos::FPhysicsSolver* Solver = SolverActor->GetSolver())
+				if(UWorld* World = SystemInstance->GetWorld())
 				{
 					int32 NewIdx = Solvers.Add(FSolverData());
 
 					FSolverData& SolverData = Solvers[NewIdx];
-					SolverData.PhysScene = SolverActor->GetPhysicsScene().Get();
-					SolverData.Solver = Solver;
+					SolverData.PhysScene = World->GetPhysicsScene();
+					SolverData.Solver = SolverData.PhysScene->GetSolver();
+
+					RegisterWithSolverEventManager(SolverData.Solver);
+				}
+			}
+#endif
+		}
+		//else
+		{
+			// #todo : are solver actors going to exist going forwards?
+			for(AChaosSolverActor* SolverActor : ChaosSolverActorSet)
+			{
+				if(SolverActor)
+				{
+					if(Chaos::FPhysicsSolver* Solver = SolverActor->GetSolver())
+					{
+						int32 NewIdx = Solvers.Add(FSolverData());
+
+						FSolverData& SolverData = Solvers[NewIdx];
+						SolverData.PhysScene = SolverActor->GetPhysicsScene().Get();
+						SolverData.Solver = Solver;
 
 #if INCLUDE_CHAOS
-					RegisterWithSolverEventManager(Solver);
+						RegisterWithSolverEventManager(Solver);
 #endif
+					}
 				}
 			}
 		}
