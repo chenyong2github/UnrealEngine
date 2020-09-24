@@ -9,6 +9,7 @@
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://dev.epicgames.com/services",
 	"EnabledByDefault": false,
+	"IsBetaVersion" : true,
 
 	"Modules": [
 		{

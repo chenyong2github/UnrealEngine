@@ -1,4 +1,4 @@
-NOTE: This plugin is unsupported and meant to be something to jump start your development. It does not meet the Epic Games Store requirement for cross store support as is. You will need to add support to ship on EGS
+NOTE: This plugin is experimental and meant to be something to jump start your development. It does not meet the Epic Games Store requirement for cross store support as is. You will need to add support to ship on EGS
 
 Upgrading EOS SDK versions
 	1. Download a new SDK version to the EOS directory
