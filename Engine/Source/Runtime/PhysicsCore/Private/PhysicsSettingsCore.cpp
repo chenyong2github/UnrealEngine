@@ -3,6 +3,25 @@
 #include "PhysicsSettingsCore.h"
 #include "Chaos/ChaosEngineInterface.h"
 
+UPhysicsSettingsCore* UPhysicsSettingsCore::DefaultSettings = nullptr;
+
+void UPhysicsSettingsCore::SetDefaultSettings(UPhysicsSettingsCore* InSettings)
+{
+	DefaultSettings = InSettings;
+}
+
+UPhysicsSettingsCore* UPhysicsSettingsCore::Get()
+{
+	// Use the override if we have it.
+	if (DefaultSettings != nullptr)
+	{
+		return DefaultSettings;
+	}
+
+	// Use CDO otherwise
+	return CastChecked<UPhysicsSettingsCore>(UPhysicsSettingsCore::StaticClass()->GetDefaultObject());
+}
+
 UPhysicsSettingsCore::UPhysicsSettingsCore(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, DefaultGravityZ(-980.f)
@@ -37,3 +56,4 @@ void UPhysicsSettingsCore::PostInitProperties()
 		DefaultShapeComplexity = bDefaultHasComplexCollision_DEPRECATED ? CTF_UseSimpleAndComplex : CTF_UseSimpleAsComplex;
 	}
 }
+
