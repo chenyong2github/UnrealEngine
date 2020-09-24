@@ -186,15 +186,21 @@ void FGeometryCollectionConversion::AppendStaticMesh(const UStaticMesh * StaticM
 		}
 
 		// for each material, add a reference in our GeometryCollectionObject
-		int CurrIdx = 0;
-		UMaterialInterface *CurrMaterial = StaticMeshComponent ? StaticMeshComponent->GetMaterial(CurrIdx) : StaticMesh->GetMaterial(CurrIdx);
-	
-
-		int MaterialStart = GeometryCollectionObject->Materials.Num();
-		while (CurrMaterial)
+		const int32 MaterialStart = GeometryCollectionObject->Materials.Num();
+		const int32 NumMeshMaterials = StaticMesh->StaticMaterials.Num();
+		GeometryCollectionObject->Materials.Reserve(MaterialStart + NumMeshMaterials);
+		
+		for(int32 Index = 0; Index < NumMeshMaterials; ++Index)
 		{
+			UMaterialInterface* CurrMaterial = StaticMeshComponent ?  StaticMeshComponent->GetMaterial(Index) : StaticMesh->GetMaterial(Index);
+			
+			// Possible we have a null entry - replace with default
+			if(CurrMaterial == nullptr)
+			{
+				CurrMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
+			}
+
 			GeometryCollectionObject->Materials.Add(CurrMaterial);
-			CurrMaterial = StaticMeshComponent ?  StaticMeshComponent->GetMaterial(++CurrIdx) : StaticMesh->GetMaterial(++CurrIdx);
 		}
 
 		TManagedArray<FGeometryCollectionSection> & Sections = GeometryCollection->Sections;
