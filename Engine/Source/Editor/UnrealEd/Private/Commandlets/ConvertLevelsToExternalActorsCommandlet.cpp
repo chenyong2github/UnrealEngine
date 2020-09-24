@@ -71,6 +71,10 @@ bool UConvertLevelsToExternalActorsCommandlet::CheckExternalActors(const FString
 		TMap<FName, FName> ActorFiles;
 
 		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+
+		// Let the asset registry process any pending operations before continuing
+		AssetRegistry.Tick(-1);
+
 		FDelegateHandle AddedCheckHandle = AssetRegistry.OnAssetAdded().AddLambda([&ActorFiles](const FAssetData& AssetData)
 		{
 			check(!ActorFiles.Contains(AssetData.ObjectPath));
@@ -88,7 +92,7 @@ bool UConvertLevelsToExternalActorsCommandlet::CheckExternalActors(const FString
 			DuplicatedActorFiles.Add(AssetData.ObjectPath, AssetData.PackageName);			
 		});
 
-		AssetRegistry.ScanPathsSynchronous({LevelExternalPathActors});
+		AssetRegistry.ScanPathsSynchronous({LevelExternalPathActors}, /*bForceRescan*/true, /*bIgnoreBlackListScanFilters*/true);
 
 		AssetRegistry.OnAssetAdded().Remove(AddedCheckHandle);
 		AssetRegistry.OnAssetUpdated().Remove(UpdatedCheckHandle);

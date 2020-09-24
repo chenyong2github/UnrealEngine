@@ -1552,14 +1552,30 @@ bool UAssetRegistryImpl::PathExists(const FName PathToTest) const
 	return CachedPathTree.PathExists(PathToTest);
 }
 
-void UAssetRegistryImpl::ScanPathsSynchronous(const TArray<FString>& InPaths, bool bForceRescan)
+void UAssetRegistryImpl::ScanPathsSynchronous(const TArray<FString>& InPaths, bool bForceRescan, bool bIgnoreBlackListScanFilters)
 {
-	ScanPathsAndFilesSynchronous(InPaths, TArray<FString>(), TArray<FString>(), bForceRescan, EAssetDataCacheMode::UseModularCache);
+	// When ignoring blacklist scan filters, and forcing a rescan of one of the blacklisted folders, remove that folder from the blacklist.
+	// That way, we can now receive assets events such as added / removed / updated.
+	if (bForceRescan && bIgnoreBlackListScanFilters)
+	{
+		for (const FString& Path : InPaths)
+		{
+			for (int i = 0; i < BlacklistScanFilters.Num(); ++i)
+			{
+				if (Path.StartsWith(BlacklistScanFilters[i]))
+				{
+					BlacklistScanFilters.RemoveAt(i--);
+				}
+			}
+		}
+	}
+
+	ScanPathsAndFilesSynchronous(InPaths, TArray<FString>(), BlacklistScanFilters, bForceRescan, EAssetDataCacheMode::UseModularCache);
 }
 
 void UAssetRegistryImpl::ScanFilesSynchronous(const TArray<FString>& InFilePaths, bool bForceRescan)
 {
-	ScanPathsAndFilesSynchronous(TArray<FString>(), InFilePaths, TArray<FString>(), bForceRescan, EAssetDataCacheMode::UseModularCache);
+	ScanPathsAndFilesSynchronous(TArray<FString>(), InFilePaths, BlacklistScanFilters, bForceRescan, EAssetDataCacheMode::UseModularCache);
 }
 
 void UAssetRegistryImpl::PrioritizeSearchPath(const FString& PathToPrioritize)
