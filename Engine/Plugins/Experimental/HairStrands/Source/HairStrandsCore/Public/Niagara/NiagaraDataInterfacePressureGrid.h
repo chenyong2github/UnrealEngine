@@ -11,7 +11,7 @@
 
 /** Data Interface for the strand base */
 UCLASS(EditInlineNew, Category = "Grid", meta = (DisplayName = "Pressure Grid"))
-class HAIRSTRANDSNIAGARA_API UNiagaraDataInterfacePressureGrid : public UNiagaraDataInterfaceVelocityGrid
+class HAIRSTRANDSCORE_API UNiagaraDataInterfacePressureGrid : public UNiagaraDataInterfaceVelocityGrid
 {
 	GENERATED_UCLASS_BODY()
 
