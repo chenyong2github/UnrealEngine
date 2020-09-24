@@ -14,6 +14,7 @@ namespace Private
 
 ////////////////////////////////////////////////////////////////////////////////
 void	Writer_Initialize(const FInitializeDesc&);
+void	Writer_Shutdown();
 void	Writer_Update();
 bool	Writer_SendTo(const ANSICHAR*, uint32);
 bool	Writer_WriteTo(const ANSICHAR*);
@@ -44,6 +45,12 @@ void Initialize(const FInitializeDesc& Desc)
 {
 	Private::Writer_Initialize(Desc);
 	FChannel::Initialize();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void Shutdown()
+{
+	Private::Writer_Shutdown();
 }
 
 ////////////////////////////////////////////////////////////////////////////////

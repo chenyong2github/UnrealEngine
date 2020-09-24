@@ -132,8 +132,8 @@ bool FCsvProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 	}
 	case RouteId_BeginCapture:
 	{
-		RenderThreadId = EventData.GetValue<uint32>("RenderThreadId");
-		RHIThreadId = EventData.GetValue<uint32>("RHIThreadId");
+		RenderThreadId = FTraceAnalyzerUtils::GetThreadIdField(Context, "RenderThreadId");
+		RHIThreadId = FTraceAnalyzerUtils::GetThreadIdField(Context, "RHIThreadId");
 		uint32 CaptureStartFrame = GetFrameNumberForTimestamp(TraceFrameType_Game, Context.EventTime.AsSeconds(EventData.GetValue<uint64>("Cycle")));
 		bEnableCounts = EventData.GetValue<bool>("EnableCounts");
 		const TCHAR* Filename = Session.StoreString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment()));
@@ -147,7 +147,7 @@ bool FCsvProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 		{
 			FlushAtEndOfCapture(*StatSeries, CaptureEndFrame);
 		}
-		
+
 		CsvProfilerProvider.EndCapture(CaptureEndFrame);
 	}
 	}
@@ -325,7 +325,7 @@ void FCsvProfilerAnalyzer::HandleMarker(const FOnEventContext& Context, FThreadS
 	{
 		HandleMarker(Context, ThreadState, InsertedMarker);
 	}
-	
+
 	double Timestamp = Context.EventTime.AsSeconds(Marker.Cycle);
 	uint32 FrameNumber = GetFrameNumberForTimestamp(ThreadState.FrameType, Timestamp);
 	if (Marker.bIsBegin)
@@ -354,7 +354,7 @@ void FCsvProfilerAnalyzer::HandleMarker(const FOnEventContext& Context, FThreadS
 
 			// TODO: if bFoundStart is false, this stat _never_ gets processed. Could we add it to a persistent list so it's considered next time?
 			// Example where this could go wrong: staggered/overlapping exclusive stats ( e.g Abegin, Bbegin, AEnd, BEnd ), where processing ends after AEnd
-			// AEnd would be missing 
+			// AEnd would be missing
 			if (bFoundStart)
 			{
 				check(Marker.StatId == StartMarker.StatId);
@@ -412,7 +412,7 @@ uint32 FCsvProfilerAnalyzer::GetFrameNumberForTimestamp(ETraceFrameType FrameTyp
 	if (FrameStartTimes.Num() == 0 || Timestamp < FrameStartTimes[0])
 	{
 		return 0;
-	} 
+	}
 	else if (Timestamp >= FrameStartTimes.Last())
 	{
 		return FrameStartTimes.Num();

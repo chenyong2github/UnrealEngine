@@ -13,7 +13,7 @@ namespace Private {
 
 ////////////////////////////////////////////////////////////////////////////////
 void*		Writer_MemoryAllocate(SIZE_T, uint32);
-void		Writer_MemoryFree(void*);
+void		Writer_MemoryFree(void*, uint32);
 
 
 
@@ -174,7 +174,8 @@ void Writer_ShutdownPool()
 	for (auto* Page = AtomicLoadRelaxed(&GPoolPageList); Page != nullptr;)
 	{
 		FPoolPage* NextPage = Page->NextPage;
-		Writer_MemoryFree(Page);
+		uint32 PageSize = (NextPage == nullptr) ? GPoolBlockSize : GPoolPageSize;
+		Writer_MemoryFree(Page, PageSize);
 		Page = NextPage;
 	}
 }

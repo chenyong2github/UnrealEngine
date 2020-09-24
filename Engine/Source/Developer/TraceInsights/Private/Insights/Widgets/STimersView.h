@@ -82,8 +82,6 @@ public:
 	void ResetStats();
 	void UpdateStats(double StartTime, double EndTime);
 
-	void ToggleGraphSeries(TSharedRef<FTimingGraphTrack> GraphTrack, FTimerNodeRef NodePtr);
-
 	FTimerNodePtr GetTimerNode(uint32 TimerId) const;
 	void SelectTimerNode(uint32 TimerId);
 
@@ -244,6 +242,15 @@ private:
 	// ResetColumns (ContextMenu)
 	bool ContextMenu_ResetColumns_CanExecute() const;
 	void ContextMenu_ResetColumns_Execute();
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	void ToggleTimingViewEventFilter(FTimerNodePtr TimerNode) const;
+
+	TSharedPtr<FTimingGraphTrack> GetTimingViewMainGraphTrack() const;
+	void ToggleGraphSeries(TSharedRef<FTimingGraphTrack> GraphTrack, FTimerNodeRef NodePtr) const;
+	bool IsSeriesInTimingViewMainGraph(FTimerNodePtr TimerNode) const;
+	void ToggleTimingViewMainGraphEventSeries(FTimerNodePtr TimerNode) const;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 

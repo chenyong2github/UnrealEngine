@@ -45,7 +45,7 @@ private:
 	TSharedRef<SDockTab> SpawnAutomationWindowTab(const FSpawnTabArgs& Args);
 
 	FDelegateHandle SessionAnalysisCompletedHandle;
-	
+
 	FString CommandToExecute;
 
 	bool bAutoQuit = false;

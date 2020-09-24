@@ -443,7 +443,7 @@ protected:
 		, NumberOfPrerequistitesOutstanding(InNumberOfPrerequistitesOutstanding + 1) // + 1 is not a prerequisite, it is a lock to prevent it from executing while it is getting prerequisites, one it is safe to execute, call PrerequisitesComplete
 	{
 		checkThreadGraph(LifeStage.Increment() == int32(LS_Contructed));
-		LLM(InheritedLLMTag = FLowLevelMemTracker::bIsDisabled ? ELLMTag::Untagged : (ELLMTag)FLowLevelMemTracker::Get().GetActiveTag(ELLMTracker::Default));
+		LLM(InheritedLLMTag = FLowLevelMemTracker::bIsDisabled ? nullptr : FLowLevelMemTracker::Get().GetActiveTagData(ELLMTracker::Default));
 	}
 	/** 
 	 *	Sets the desired execution thread. This is not part of the constructor because this information may not be known quite yet duiring construction.
@@ -559,7 +559,7 @@ private:
 
 #endif
 
-	LLM(ELLMTag InheritedLLMTag);
+	LLM(const UE::LLMPrivate::FTagData* InheritedLLMTag);
 };
 
 /** 

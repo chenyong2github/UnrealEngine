@@ -5,7 +5,11 @@
 #include "CoreMinimal.h"
 #include "Logging/LogMacros.h"
 
+#include "TraceServices/Model/TimingProfiler.h"
+
 DECLARE_LOG_CATEGORY_EXTERN(TimingProfilerTests, Log, All);
+
+class FAutomationTestBase;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
@@ -30,7 +34,15 @@ public:
 	{
 		double Interval = 0.01;
 		int32 NumEnumerations = 10000;
+		Trace::EEventSortOrder SortOrder = Trace::EEventSortOrder::ByEndTime;
 	};
 
 	static void RunEnumerateBenchmark(const FEnumerateTestParams& InParams, FCheckValues& OutCheckValues);
+	static void RunEnumerateAsyncBenchmark(const FEnumerateTestParams& InParams, FCheckValues& OutCheckValues);
+	static void RunEnumerateAllTracksBenchmark(const FEnumerateTestParams& InParams, FCheckValues& OutCheckValues);
+	static void RunEnumerateAsyncAllTracksBenchmark(const FEnumerateTestParams& InParams, FCheckValues& OutCheckValues);
+	static bool RunEnumerateSyncAsyncComparisonTest(FAutomationTestBase& Test, const FEnumerateTestParams& InParam, bool bGameThreadOnly);
+
+	static uint32 GetTimelineIndex(const TCHAR* InName);
+	static void VerifyCheckValues(FAutomationTestBase& Test, FCheckValues First, FCheckValues Second);
 };

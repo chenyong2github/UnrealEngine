@@ -17,6 +17,7 @@
 #endif
 
 class FMemoryImage;
+class FMemoryImageString;
 
 class FPointerTableBase
 {
@@ -508,6 +509,12 @@ using TMemoryImageSet = TSet<ElementType, KeyFuncs, FMemoryImageSetAllocator>;
 template <typename KeyType, typename ValueType, typename KeyFuncs = TDefaultMapHashableKeyFuncs<KeyType, ValueType, false>>
 using TMemoryImageMap = TMap<KeyType, ValueType, FMemoryImageSetAllocator, KeyFuncs>;
 
+template <>
+struct TIsContiguousContainer<FMemoryImageString>
+{
+	static constexpr bool Value = true;
+};
+
 class FMemoryImageString
 {
 	DECLARE_EXPORTED_TYPE_LAYOUT(FMemoryImageString, CORE_API, NonVirtual);
@@ -596,12 +603,6 @@ public:
 	}
 
 	inline DataType::ElementAllocatorType& GetAllocatorInstance() { return Data.GetAllocatorInstance(); }
-};
-
-template <>
-struct TIsContiguousContainer<FMemoryImageString>
-{
-	static constexpr bool Value = true;
 };
 
 /** Case insensitive string hash function. */

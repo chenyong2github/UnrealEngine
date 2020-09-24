@@ -24,6 +24,16 @@ public:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+class FStatsNodeSortingByDataType : public Insights::FTableCellValueSorter
+{
+public:
+	FStatsNodeSortingByDataType(TSharedRef<Insights::FTableColumn> InColumnRef);
+
+	virtual void Sort(TArray<Insights::FBaseTreeNodePtr>& NodesToSort, Insights::ESortMode SortMode) const override;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 class FStatsNodeSortingByCount : public Insights::FTableCellValueSorter
 {
 public:
@@ -48,8 +58,11 @@ enum class EStatsGroupingMode
 	/** Creates groups based on stats metadata group names. */
 	ByMetaGroupName,
 
-	/** Creates one group for each stats type. */
+	/** Creates one group for each node type. */
 	ByType,
+
+	/** Creates one group for each data type. */
+	ByDataType,
 
 	/** Creates one group for each logarithmic range ie. 0, [1 .. 10), [10 .. 100), [100 .. 1K), etc. */
 	ByCount,
