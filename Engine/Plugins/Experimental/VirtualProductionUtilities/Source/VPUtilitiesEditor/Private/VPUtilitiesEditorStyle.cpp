@@ -6,14 +6,16 @@
 #include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
 
+#define RootToContentDir VPUtilitiesEditorStyle::StyleInstance->RootToContentDir
+
+#include "Styling/SlateStyleMacros.h"
+
 namespace VPUtilitiesEditorStyle
 {
 	const FName NAME_StyleName(TEXT("VPUtilitiesStyle"));
 
 	static TUniquePtr<FSlateStyleSet> StyleInstance;
 }
-
-#define IMAGE_BRUSH(RelativePath, ...) FSlateImageBrush(VPUtilitiesEditorStyle::StyleInstance->RootToContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
 
 void FVPUtilitiesEditorStyle::Register()
 {
@@ -23,6 +25,8 @@ void FVPUtilitiesEditorStyle::Register()
 	VPUtilitiesEditorStyle::StyleInstance->SetContentRoot(FPaths::EnginePluginsDir() / TEXT("Experimental/VirtualProductionUtilities/Content/Editor/Icons/"));
 
 	VPUtilitiesEditorStyle::StyleInstance->Set("TabIcons.Genlock.Small", new IMAGE_BRUSH("Icon_GenlockTab_16x", Icon16x16));
+
+	VPUtilitiesEditorStyle::StyleInstance->Set("PlacementBrowser.Icons.VirtualProduction", new IMAGE_BRUSH_SVG("VirtualProduction", Icon16x16));
 
 
 	FSlateStyleRegistry::RegisterSlateStyle(*VPUtilitiesEditorStyle::StyleInstance.Get());
@@ -45,4 +49,4 @@ const ISlateStyle& FVPUtilitiesEditorStyle::Get()
 	return *VPUtilitiesEditorStyle::StyleInstance.Get();
 }
 
-#undef IMAGE_BRUSH
+#undef RootToContentDir

@@ -90,6 +90,7 @@ const FPlacementCategoryInfo* FVPUtilitiesEditorModule::GetVirtualProductionPlac
 		{
 			FPlacementCategoryInfo Info(
 				LOCTEXT("VirtualProductionCategoryName", "Virtual Production"),
+				FSlateIcon(FVPUtilitiesEditorStyle::GetStyleSetName(), "PlacementBrowser.Icons.VirtualProduction"),
 				PlacementModeCategoryHandle,
 				TEXT("PMVirtualProduction"),
 				25
