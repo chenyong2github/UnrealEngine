@@ -157,17 +157,17 @@ bool UDMXSubsystem::SetMatrixCellValue(UDMXEntityFixturePatch* FixturePatch, FIn
 			TMap<FDMXAttributeName, int32> AttributeNameChannelMap;
 			GetMatrixCellChannelsAbsolute(FixturePatch, Cell, AttributeNameChannelMap);
 
-			int32 FirstChannelAddress = AttributeNameChannelMap[Attribute];
-			int32 LastChannelAddress = AttributeNameChannelMap[Attribute] + UDMXEntityFixtureType::NumChannelsToOccupy(CellAttribute.DataType) - 1;
+			int32 FirstChannel = AttributeNameChannelMap[Attribute];
+			int32 LastChannel = FirstChannel + UDMXEntityFixtureType::NumChannelsToOccupy(CellAttribute.DataType) - 1;
 
 			TArray<uint8> ByteArr;
 			IntValueToBytes(Value, CellAttribute.DataType, ByteArr, CellAttribute.bUseLSBMode);
 
 			int32 ByteOffset = 0;
-			for (int32 ChannelAddress = FirstChannelAddress; ChannelAddress <= LastChannelAddress; ChannelAddress++)
+			for (int32 Channel = FirstChannel; Channel <= LastChannel; Channel++)
 			{
-				uint32 FinalChannel = ChannelAddress + FixturePatch->GetStartingChannel() - 1;
-				DMXFragmentMap.Add(FinalChannel, ByteArr[ByteOffset]);
+				uint32 ChannelIndex = Channel - 1;
+				DMXFragmentMap.Add(ChannelIndex, ByteArr[ByteOffset]);
 				ByteOffset++;
 			}
 
@@ -284,13 +284,15 @@ bool UDMXSubsystem::GetMatrixCellValue(UDMXEntityFixturePatch* FixturePatch, FIn
 							continue;
 						}
 
-						int32 FirstChannelAddress = AttributeNameChannelKvp.Value;
-						int32 LastChannelAddress = AttributeNameChannelKvp.Value + UDMXEntityFixtureType::NumChannelsToOccupy(CellAttribute.DataType) - 1;
-						check(LastChannelAddress < DMXBuffer.Num());
+						int32 FirstChannel = AttributeNameChannelKvp.Value;
+						int32 LastChannel = FirstChannel + UDMXEntityFixtureType::NumChannelsToOccupy(CellAttribute.DataType) - 1;
 
-						for (int32 ChannelAddress = FirstChannelAddress; ChannelAddress <= LastChannelAddress; ChannelAddress++)
+						for (int32 Channel = FirstChannel; Channel <= LastChannel; Channel++)
 						{
-							ChannelValues.Add(DMXBuffer[ChannelAddress]);
+							int32 ChannelIndex = Channel - 1;
+
+							check(DMXBuffer.IsValidIndex(ChannelIndex));
+							ChannelValues.Add(DMXBuffer[ChannelIndex]);
 						}
 					}
 
