@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
+#include "PixelFormat.h"
 /**
  * Structure for texture format compressor capabilities.
  */
@@ -80,10 +80,15 @@ public:
 	*
 	* @param OutCaps Filled with capability properties of texture format compressor.
 	*/
-	virtual FTextureFormatCompressorCaps GetFormatCapabilitiesEx(const struct FTextureBuildSettings& BuildSettings, uint32 NumMips, const struct FImage& ExampleImage) const
+	virtual FTextureFormatCompressorCaps GetFormatCapabilitiesEx(const struct FTextureBuildSettings& BuildSettings, uint32 NumMips, const struct FImage& ExampleImage, bool bImageHasAlphaChannel) const
 	{
 		return GetFormatCapabilities();
 	}
+
+	/**
+	 * Calculate the final/runtime pixel format for this image on this platform
+	 */
+	virtual EPixelFormat GetPixelFormatForImage(const struct FTextureBuildSettings& BuildSettings, const struct FImage& Image, bool bImageHasAlphaChannel) const = 0;
 
 	/**
 	 * Compresses a single image.
@@ -127,6 +132,9 @@ public:
 		
 		return CompressImage(*Images, BuildSettings, bImageHasAlphaChannel, OutCompressedImage);
 	}
+
+
+
 
 public:
 

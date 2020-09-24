@@ -298,6 +298,25 @@ class FTextureFormatPVR : public ITextureFormat
 		return RetCaps;
 	}
 
+	virtual EPixelFormat GetPixelFormatForImage(const struct FTextureBuildSettings& BuildSettings, const struct FImage& Image, bool bImageHasAlphaChannel) const override
+	{
+		if (BuildSettings.TextureFormatName == GTextureFormatNamePVRTC2)
+		{
+			return PF_PVRTC2;
+		}
+		else if (BuildSettings.TextureFormatName == GTextureFormatNamePVRTC4 || BuildSettings.TextureFormatName == GTextureFormatNamePVRTCN)
+		{
+			return PF_PVRTC4;
+		}
+		else if (BuildSettings.TextureFormatName == GTextureFormatNameAutoPVRTC)
+		{
+			return bImageHasAlphaChannel ? PF_PVRTC4 : PF_PVRTC2;
+		}
+
+		UE_LOG(LogTextureFormatPVR, Fatal, TEXT("Unhandled texture format '%s' given to FTextureFormatPVR::GetPixelFormatForImage()"), *BuildSettings.TextureFormatName.ToString());
+		return PF_Unknown;
+	}
+
 	virtual bool CompressImage(
 		const FImage& InImage,
 		const struct FTextureBuildSettings& BuildSettings,
@@ -310,19 +329,7 @@ class FTextureFormatPVR : public ITextureFormat
 		InImage.CopyTo(Image, ERawImageFormat::BGRA8, BuildSettings.GetGammaSpace());
 		
 		// Get the compressed format
-		EPixelFormat CompressedPixelFormat = PF_Unknown;
-		if (BuildSettings.TextureFormatName == GTextureFormatNamePVRTC2)
-		{
-			CompressedPixelFormat = PF_PVRTC2;
-		}
-		else if (BuildSettings.TextureFormatName == GTextureFormatNamePVRTC4 || BuildSettings.TextureFormatName == GTextureFormatNamePVRTCN)
-		{
-			CompressedPixelFormat = PF_PVRTC4;
-		}
-		else if (BuildSettings.TextureFormatName == GTextureFormatNameAutoPVRTC)
-		{
-			CompressedPixelFormat = bImageHasAlphaChannel ? PF_PVRTC4 : PF_PVRTC2;
-		}
+		EPixelFormat CompressedPixelFormat = GetPixelFormatForImage(BuildSettings, InImage, bImageHasAlphaChannel);
 
 		// Verify Power of 2
 		if ( !ValidateImagePower(Image) )
