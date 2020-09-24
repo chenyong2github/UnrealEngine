@@ -2311,6 +2311,7 @@ namespace WindowsPlatformMiscImpl
 {
 	static bool TryAVX2Instruction()
 	{
+#if defined(__AVX__)
 		__try
 		{
 			_mm256_set1_ps(1.0f);
@@ -2325,6 +2326,9 @@ namespace WindowsPlatformMiscImpl
 		}
 
 		return true;
+#else 
+		return false;
+#endif 
 	}
 }
 PRAGMA_ENABLE_OPTIMIZATION
