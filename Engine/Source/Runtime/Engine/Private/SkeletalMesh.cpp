@@ -1396,7 +1396,7 @@ void USkeletalMesh::BeginDestroy()
 #endif // WITH_EDITORONLY_DATA
 
 	// Release the mesh's render resources now if no pending streaming op.
-	if (!UpdateStreamingStatus())
+	if (!HasPendingInitOrStreaming())
 	{
 		ReleaseResources();
 	}
@@ -1404,7 +1404,7 @@ void USkeletalMesh::BeginDestroy()
 
 bool USkeletalMesh::IsReadyForFinishDestroy()
 {
-	if (UpdateStreamingStatus())
+	if (!Super::IsReadyForFinishDestroy())
 	{
 		return false;
 	}
