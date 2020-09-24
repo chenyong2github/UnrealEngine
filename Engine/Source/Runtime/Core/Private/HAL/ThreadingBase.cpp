@@ -51,7 +51,7 @@ CORE_API FRunnableThread* GAudioThread = nullptr;
 CORE_API bool IsAudioThreadRunning()
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return GAudioThread != nullptr;
+	return (GAudioThread != nullptr) && !GIsAudioThreadSuspended.Load(EMemoryOrder::Relaxed);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 

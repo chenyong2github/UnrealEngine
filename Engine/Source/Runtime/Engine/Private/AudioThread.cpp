@@ -59,16 +59,13 @@ struct FAudioThreadInteractor
 		if (bLastSuspendAudioThread != bSuspendAudioThread)
 		{
 			bLastSuspendAudioThread = bSuspendAudioThread;
-			if (IsAudioThreadRunning())
+			if (bSuspendAudioThread && IsAudioThreadRunning())
 			{
-				if (bSuspendAudioThread)
-				{
-					FAudioThread::SuspendAudioThread();
-				}
-				else
-				{
-					FAudioThread::ResumeAudioThread();
-				}
+				FAudioThread::SuspendAudioThread();
+			}
+			else if (GIsAudioThreadSuspended)
+			{
+				FAudioThread::ResumeAudioThread();
 			}
 			else if (GIsEditor)
 			{
@@ -138,7 +135,7 @@ void FAudioThread::SuspendAudioThread()
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	check(FPlatformTLS::GetCurrentThreadId() == GGameThreadId);
 	check(!GIsAudioThreadSuspended.Load() || CVarSuspendAudioThread.GetValueOnGameThread() != 0);
-	if (bIsAudioThreadRunning)
+	if (bIsAudioThreadRunning.Load())
 	{
 		// Make GC wait on the audio thread finishing processing
 		FAudioCommandFence AudioFence;
