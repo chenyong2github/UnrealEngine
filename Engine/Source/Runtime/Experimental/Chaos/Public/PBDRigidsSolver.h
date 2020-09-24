@@ -41,8 +41,6 @@ class FPerSolverFieldSystem;
 #define GEOMETRY_PREALLOC_COUNT 100
 
 extern int32 ChaosSolverParticlePoolNumFrameUntilShrink;
-extern CHAOS_API int32 ChaosSolverCollisionDefaultIterationsCVar;
-extern CHAOS_API int32 ChaosSolverCollisionDefaultPushoutIterationsCVar;
 
 namespace ChaosTest
 {
@@ -285,7 +283,8 @@ namespace Chaos
 		/**/
 		void SetIterations(const int32 InNumIterations) { GetEvolution()->SetNumIterations(InNumIterations); }
 		void SetPushOutIterations(const int32 InNumIterations) {  GetEvolution()->SetNumPushOutIterations(InNumIterations); }
-		void SetPushOutPairIterations(const int32 InNumIterations) {  GetEvolution()->GetCollisionConstraints().SetPushOutPairIterations(InNumIterations); }
+		void SetCollisionPairIterations(const int32 InNumIterations) { GetEvolution()->GetCollisionConstraints().SetPairIterations(InNumIterations); }
+		void SetCollisionPushOutPairIterations(const int32 InNumIterations) { GetEvolution()->GetCollisionConstraints().SetPushOutPairIterations(InNumIterations); }
 		void SetUseContactGraph(const bool bInUseContactGraph) { GetEvolution()->GetCollisionConstraintsRule().SetUseContactGraph(bInUseContactGraph); }
 
 		/**/

@@ -23,9 +23,10 @@ struct FChaosSolverConfiguration
 	GENERATED_BODY();
 
 	FChaosSolverConfiguration()
-		: CollisionIterations(FEvolution::DefaultNumIterations)
+		: Iterations(FEvolution::DefaultNumIterations)
+		, CollisionPairIterations(FEvolution::DefaultNumCollisionPairIterations)
 		, PushOutIterations(FEvolution::DefaultNumPushOutIterations)
-		, PushOutPairIterations(FEvolution::DefaultNumPushOutPairIterations)
+		, CollisionPushOutPairIterations(FEvolution::DefaultNumCollisionPushOutPairIterations)
 		, ClusterConnectionFactor(1.0f)
 		, ClusterUnionConnectionType(EClusterUnionMethod::DelaunayTriangulation)
 		, bGenerateCollisionData(false)
@@ -34,18 +35,21 @@ struct FChaosSolverConfiguration
 		, bGenerateContactGraph(true)
 	{
 		// Take CVar overrides from the solver
-		CollisionIterations = ChaosSolverCollisionDefaultIterationsCVar;
-		PushOutIterations = ChaosSolverCollisionDefaultPushoutIterationsCVar;
+		//Iterations = ChaosSolverCollisionDefaultIterationsCVar;
+		//PushOutIterations = ChaosSolverCollisionDefaultPushoutIterationsCVar;
 	}
 
 	UPROPERTY(EditAnywhere, Category = "SolverConfiguration|Iterations")
-	int32 CollisionIterations;
+	int32 Iterations;
+
+	UPROPERTY(EditAnywhere, Category = "SolverConfiguration|Iterations")
+	int32 CollisionPairIterations;
 
 	UPROPERTY(EditAnywhere, Category = "SolverConfiguration|Iterations")
 	int32 PushOutIterations;
 
 	UPROPERTY(EditAnywhere, Category = "SolverConfiguration|Iterations")
-	int32 PushOutPairIterations;
+	int32 CollisionPushOutPairIterations;
 
 	UPROPERTY(EditAnywhere, Category = "SolverConfiguration|Clustering")
 	float ClusterConnectionFactor;
