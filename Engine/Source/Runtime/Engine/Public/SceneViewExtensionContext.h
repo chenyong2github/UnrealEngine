@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UnrealClient.h"
 #include "SceneViewExtensionContext.generated.h"
 
 class ISceneViewExtension;
