@@ -2533,7 +2533,7 @@ static TAutoConsoleVariable<float> CVarViewDistanceScaleSecondaryScale(
 	1.0f,
 	TEXT("Controls the secondary view distance scale, Default = 1.0.\n")
 	TEXT("This is an optional scale intended to allow some features or gamemodes to opt-in.\n"),
-	ECVF_RenderThreadSafe);
+	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<float> CVarViewDistanceScale_FieldOfViewMinAngle(
 	TEXT("r.ViewDistanceScale.FieldOfViewMinAngle"),
