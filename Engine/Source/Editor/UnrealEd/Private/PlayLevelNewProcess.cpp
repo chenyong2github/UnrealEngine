@@ -233,9 +233,10 @@ void UEditorEngine::LaunchNewProcess(const FRequestPlaySessionParams& InParams, 
 
 	if (!bIsDedicatedServer)
 	{
-		// Calculate a location for this window to be displayed.
-		FIntPoint WindowSize, WindowPosition;
-		GetWindowSizeAndPositionForInstanceIndex(*InParams.EditorPlaySettings, 0, WindowSize, WindowPosition);
+		// We don't use GetWindowSizeAndPositionForInstanceIndex here because that is for PIE windows and uses a separate system for saving window positions,
+		// so we'll just respect the settings object for viewport size. 
+		FIntPoint WindowSize;
+		InParams.EditorPlaySettings->GetClientWindowSize(WindowSize);
 
 		// If not center window nor NewWindowPosition is FIntPoint::NoneValue (-1,-1)
 		if (!InParams.EditorPlaySettings->CenterNewWindow && InParams.EditorPlaySettings->NewWindowPosition != FIntPoint::NoneValue)
