@@ -4061,8 +4061,10 @@ void UEditorEngine::BuildReflectionCaptures(UWorld* World)
 				UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
 				FReflectionCaptureMapBuildData& CaptureBuildData = Registry->AllocateReflectionCaptureBuildData(CaptureComponent->MapBuildDataId, true);
 				(FReflectionCaptureData&)CaptureBuildData = ReadbackCaptureData;
-
-				CaptureComponent->MaxValueRGBM = GetMaxValueRGBM(CaptureBuildData.FullHDRCapturedData, CaptureBuildData.CubemapSize, CaptureBuildData.Brightness, CaptureComponent->MaxValueRGBM);
+				if (!CaptureComponent->bModifyMaxValueRGBM)
+				{
+					CaptureComponent->MaxValueRGBM = GetMaxValueRGBM(CaptureBuildData.FullHDRCapturedData, CaptureBuildData.CubemapSize, CaptureBuildData.Brightness);
+				}
 
 				FString TextureName = CaptureComponent->GetName() + TEXT("Texture");
 				TextureName += LexToString(CaptureComponent->MapBuildDataId);
