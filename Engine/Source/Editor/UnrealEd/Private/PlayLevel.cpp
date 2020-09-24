@@ -249,7 +249,7 @@ void UEditorEngine::EndPlayMap()
 		if (Actor)
 		{
 			// We need to notify or else the manipulation transform widget won't appear, but only notify once at the end because OnEditorSelectionChanged is expensive for large groups. 
-			SelectActor( Actor, false, false );
+			SelectActor( Actor, true, false );
 		}
 	}	
 	GEditor->GetSelectedActors()->EndBatchSelectOperation(true);
@@ -2690,16 +2690,16 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 			}
 		}
 
+		// This needs to be run before ToggleBetweenPIEandSIE as it creates the list of selected actors.
+		// It only re-selects the actors if you are entering SIE. 
+		TransferEditorSelectionToPlayInstances(InRequestParams.WorldType == EPlaySessionWorldType::SimulateInEditor);
+
 		// If they requested a SIE, we immediately convert the PIE into a SIE. This finds and executes on the first
 		// world context, and doesn't support networking.
 		if (!bUseOnlineSubsystemForLogin && InRequestParams.WorldType == EPlaySessionWorldType::SimulateInEditor)
 		{
 			const bool bNewSession = true;
 			ToggleBetweenPIEandSIE(bNewSession);
-
-			// If we have actors selected in the Editor, save that information and then re-select
-			// the equivalent actors in the SIE session.
-			TransferEditorSelectionToSIEInstances();
 		}
 	}
 
@@ -2990,7 +2990,7 @@ FText GeneratePIEViewportWindowTitle(const EPlayNetMode InNetMode, const ERHIFea
 	return FText::Format(NSLOCTEXT("UnrealEd", "PlayInEditor_WindowTitleFormat", "{GameName} Preview [NetMode: {NetMode}] {FixedFPS} ({PlatformBits}-bit/{RHIName}) {XRSystemName}"), Args);
 }
 
-void UEditorEngine::TransferEditorSelectionToSIEInstances()
+void UEditorEngine::TransferEditorSelectionToPlayInstances(const bool bInSelectInstances)
 {
 	// Make a list of all the selected actors
 	TArray<UObject *> SelectedActors;
@@ -3026,7 +3026,7 @@ void UEditorEngine::TransferEditorSelectionToSIEInstances()
 			AActor* SimActor = EditorUtilities::GetSimWorldCounterpartActor(Actor);
 			if (SimActor && !SimActor->IsHidden())
 			{
-				SelectActor(SimActor, true, false);
+				SelectActor(SimActor, bInSelectInstances, false);
 			}
 		}
 	}
