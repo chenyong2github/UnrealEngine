@@ -1736,6 +1736,15 @@ void FViewInfo::SetupUniformBufferParameters(
 
 	// Default values
 	SetUpViewHairRenderInfo(*this, ViewUniformShaderParameters.HairRenderInfo, ViewUniformShaderParameters.HairRenderInfoBits);
+	
+	if (WaterDataBuffer.IsValid())
+	{
+		ViewUniformShaderParameters.WaterData = WaterDataBuffer.GetReference();
+	}
+	else
+	{
+		ViewUniformShaderParameters.WaterData = GIdentityPrimitiveBuffer.PrimitiveSceneDataBufferSRV;
+	}
 
 	ViewUniformShaderParameters.VTFeedbackBuffer = SceneContext.GetVirtualTextureFeedbackUAV();
 	ViewUniformShaderParameters.QuadOverdraw = SceneContext.GetQuadOverdrawBufferUAV();

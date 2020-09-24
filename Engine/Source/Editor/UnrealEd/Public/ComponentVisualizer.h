@@ -59,7 +59,7 @@ public:
 		Index = INDEX_NONE;
 	}
 
-	bool operator ==(const FPropertyNameAndIndex& InRHS) const 
+	bool operator ==(const FPropertyNameAndIndex& InRHS) const
 	{
 		return (Name == InRHS.Name && Index == InRHS.Index);
 	}
@@ -106,7 +106,7 @@ public:
 		return (ParentOwningActor == InRHS.ParentOwningActor && LastResortComponentPtr == InRHS.LastResortComponentPtr && PropertyChain == InRHS.PropertyChain);
 	}
 
-	bool operator !=(const FComponentPropertyPath& InRHS) const 
+	bool operator !=(const FComponentPropertyPath& InRHS) const
 	{
 		return (ParentOwningActor != InRHS.ParentOwningActor || LastResortComponentPtr != InRHS.LastResortComponentPtr || PropertyChain != InRHS.PropertyChain);
 	}

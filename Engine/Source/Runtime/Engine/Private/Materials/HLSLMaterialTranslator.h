@@ -741,6 +741,9 @@ protected:
 	virtual int32 SkyAtmosphereAerialPerspective(int32 WorldPosition) override;
 	virtual int32 SkyAtmosphereDistantLightScatteredLuminance() override;
 
+	// Water
+	virtual int32 SceneDepthWithoutWater(int32 Offset, int32 ViewportUV, bool bUseOffset, float FallbackDepth) override;
+
 	virtual int32 GetCloudSampleAltitude() override;
 	virtual int32 GetCloudSampleAltitudeInLayer() override;
 	virtual int32 GetCloudSampleNormAltitudeInLayer() override;

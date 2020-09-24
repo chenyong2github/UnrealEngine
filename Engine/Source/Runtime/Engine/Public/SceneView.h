@@ -841,6 +841,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FViewUniformShaderParamete
 	SHADER_PARAMETER_TEXTURE(Texture3D, CameraAerialPerspectiveVolume)
 	SHADER_PARAMETER_SAMPLER(SamplerState, CameraAerialPerspectiveVolumeSampler)
 
+	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, WaterData)
+
 	SHADER_PARAMETER_UAV(RWBuffer<uint>, VTFeedbackBuffer)
 	SHADER_PARAMETER_UAV(RWTexture2D<uint>, QuadOverdraw)
 
@@ -1148,6 +1150,9 @@ public:
 
 	/** Points to the view state's resources if a view state exists. */
 	FForwardLightingViewResources* ForwardLightingResources;
+
+	/** Water rendering related data */
+	FShaderResourceViewRHIRef WaterDataBuffer;
 
 	/** Feature level for this scene */
 	const ERHIFeatureLevel::Type FeatureLevel;
