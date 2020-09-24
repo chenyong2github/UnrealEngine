@@ -612,8 +612,6 @@ uint32 FAssetDataGatherer::Run()
 			};
 
 			TArray<FReadContext> ReadContexts;
-			FString LongPackageNameString;
-			FString FailureReason;
 			for (const FDiscoveredPackageFile& AssetFileData : LocalFilesToSearch)
 			{
 				if (StopTaskCounter.GetValue() != 0)
@@ -622,15 +620,7 @@ uint32 FAssetDataGatherer::Run()
 					break;
 				}
 
-				FailureReason.Reset();
-				LongPackageNameString.Reset();
-				if (!FPackageName::TryConvertFilenameToLongPackageName(AssetFileData.PackageFilename, LongPackageNameString, &FailureReason))
-				{
-					// Conversion is expected to fail when the path has recently been unmounted, fail silent instead of fatal crash
-					continue;
-				}
-
-				const FName PackageName = *LongPackageNameString;
+				const FName PackageName = FName(*FPackageName::FilenameToLongPackageName(AssetFileData.PackageFilename));
 				const FName Extension = FName(*FPaths::GetExtension(AssetFileData.PackageFilename));
 
 				bool bLoadedFromCache = false;
