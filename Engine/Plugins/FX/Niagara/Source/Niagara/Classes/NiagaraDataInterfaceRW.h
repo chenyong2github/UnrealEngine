@@ -115,9 +115,6 @@ public:
 	}
 #endif
 
-	void EmptyVMFunction(FVectorVMContext& Context) {}
-
-
 protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;	
 };
