@@ -18,6 +18,11 @@ internal:
 
 	void CreateContext()
 	{
+		if (coreTextContext != nullptr)
+		{
+			return;
+		}
+
 		coreTextContext = CoreTextServicesManager::GetForCurrentView()->CreateEditContext();
 		coreTextContext->InputPaneDisplayPolicy = CoreTextInputPaneDisplayPolicy::Manual;
 
@@ -25,11 +30,11 @@ internal:
 		SelectionUpdatingToken = coreTextContext->SelectionUpdating += ref new TypedEventHandler<CoreTextEditContext^, CoreTextSelectionUpdatingEventArgs^>(this, &VirtualKeyboardInputContext::OnSelectionUpdating);
 		TextRequestedToken = coreTextContext->TextRequested += ref new TypedEventHandler<CoreTextEditContext^, CoreTextTextRequestedEventArgs^>(this, &VirtualKeyboardInputContext::OnTextRequested);
 		TextUpdatingToken = coreTextContext->TextUpdating += ref new TypedEventHandler<CoreTextEditContext^, CoreTextTextUpdatingEventArgs^>(this, &VirtualKeyboardInputContext::OnTextUpdating);
+		FormatUpdatingToken = coreTextContext->FormatUpdating += ref new TypedEventHandler<CoreTextEditContext^, CoreTextFormatUpdatingEventArgs^>(this, &VirtualKeyboardInputContext::OnFormatUpdating);
 
 		KeyDownCoreWindowToken = CoreWindow::GetForCurrentThread()->KeyDown += ref new TypedEventHandler<CoreWindow^, KeyEventArgs^>(this, &VirtualKeyboardInputContext::OnKeyDownCoreWindow);
 
 		TextEntryWidget->OnSelectionChanged.BindLambda([this]() { OnSelectionChanged(); });
-
 	}
 
 	void DeleteContext()
@@ -42,6 +47,8 @@ internal:
 		coreTextContext->SelectionUpdating -= SelectionUpdatingToken;
 		coreTextContext->TextRequested -= TextRequestedToken;
 		coreTextContext->TextUpdating -= TextUpdatingToken;
+		coreTextContext->FormatUpdating -= FormatUpdatingToken;
+
 		coreTextContext = nullptr;
 	}
 
@@ -82,6 +89,11 @@ internal:
 
 		TextEntryWidget->SetTextFromVirtualKeyboard(FText::FromString(text), ETextEntryType::TextEntryUpdated);
 		TextEntryWidget->SetSelectionFromVirtualKeyboard(args->NewSelection.StartCaretPosition, args->NewSelection.EndCaretPosition);
+	}
+
+	// Needed for autocomplete
+	void OnFormatUpdating(CoreTextEditContext^, CoreTextFormatUpdatingEventArgs^ args)
+	{
 	}
 
 	void OnSelectionChanged()
@@ -166,39 +178,16 @@ internal:
 			start = end = text.Len();
 		}
 
-		auto shift = CoreWindow::GetForCurrentThread()->GetKeyState(VirtualKey::Shift);
-
-		if (shift == CoreVirtualKeyStates::Down || shift == CoreVirtualKeyStates::Locked)
+		if (start == end)
 		{
-			if (start == end)
+			if (start == 0)
 			{
-				extendingSelectionLeft = true;
+				return;
 			}
 
-			if (extendingSelectionLeft)
-			{
-				start = FMath::Max(0, start - 1);
-			}
-			else
-			{
-				end = FMath::Min(oldLen, end - 1);
-			}
+			--start;
 		}
-		else
-		{
-			//no shift block
-			if (start == end)
-			{
-				if (start == 0)
-				{
-					return;
-				}
-
-				--start;
-			}
-
-			end = start;
-		}
+		end = start;
 
 		CoreTextRange selRange;
 		selRange.StartCaretPosition = start;
@@ -222,38 +211,16 @@ internal:
 			start = end = text.Len();
 		}
 
-		auto shift = CoreWindow::GetForCurrentThread()->GetKeyState(VirtualKey::Shift);
-
-		if (shift == CoreVirtualKeyStates::Down || shift == CoreVirtualKeyStates::Locked)
+		if (start == end)
 		{
-			if (start == end)
+			if (end == oldLen)
 			{
-				extendingSelectionLeft = false;
+				return;
 			}
 
-			if (extendingSelectionLeft)
-			{
-				start = FMath::Max(0, start + 1);
-			}
-			else
-			{
-				end = FMath::Min(oldLen, end + 1);
-			}
+			++end;
 		}
-		else
-		{
-			//no shift block
-			if (start == end)
-			{
-				if (end == oldLen)
-				{
-					return;
-				}
-
-				++end;
-			}
-			start = end;
-		}
+		start = end;
 
 		CoreTextRange selRange;
 		selRange.StartCaretPosition = start;
@@ -285,11 +252,11 @@ private:
 	Windows::Foundation::EventRegistrationToken SelectionUpdatingToken;
 	Windows::Foundation::EventRegistrationToken TextRequestedToken;
 	Windows::Foundation::EventRegistrationToken TextUpdatingToken;
+	Windows::Foundation::EventRegistrationToken FormatUpdatingToken;
 	Windows::Foundation::EventRegistrationToken KeyDownCoreWindowToken;
 
 	Windows::UI::Text::Core::CoreTextEditContext^ coreTextContext = nullptr;
 	TSharedPtr<IVirtualKeyboardEntry> TextEntryWidget;
-	bool extendingSelectionLeft = false;
 };
 
 FHoloLensPlatformTextField::FHoloLensPlatformTextField()
