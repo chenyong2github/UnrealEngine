@@ -2837,13 +2837,15 @@ void FBlueprintGraphArgumentLayout::GenerateHeaderRowContent( FDetailWidgetRow& 
 		.AutoWidth()
 		[
 			SNew(SButton)
+			.ButtonStyle(FAppStyle::Get(), TEXT("SimpleButton"))
 			.ContentPadding(0)
 			.IsEnabled(!IsPinEditingReadOnly())
 			.OnClicked(this, &FBlueprintGraphArgumentLayout::OnArgMoveUp)
 			.ToolTipText(LOCTEXT("FunctionArgDetailsArgMoveUpTooltip", "Move this parameter up in the list."))
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("BlueprintEditor.Details.ArgUpButton"))
+				.Image(FEditorStyle::GetBrush("Icons.ChevronUp"))
+				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
 		]
 		+ SHorizontalBox::Slot()
@@ -2851,13 +2853,15 @@ void FBlueprintGraphArgumentLayout::GenerateHeaderRowContent( FDetailWidgetRow& 
 		.Padding(2, 0)
 		[
 			SNew(SButton)
+			.ButtonStyle(FAppStyle::Get(), TEXT("SimpleButton"))
 			.ContentPadding(0)
 			.IsEnabled(!IsPinEditingReadOnly())
 			.OnClicked(this, &FBlueprintGraphArgumentLayout::OnArgMoveDown)
 			.ToolTipText(LOCTEXT("FunctionArgDetailsArgMoveDownTooltip", "Move this parameter down in the list."))
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("BlueprintEditor.Details.ArgDownButton"))
+				.Image(FEditorStyle::GetBrush("Icons.ChevronDown"))
+				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
 		]
 		+ SHorizontalBox::Slot()
@@ -3699,17 +3703,14 @@ void FBlueprintGraphActionDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 
 		TSharedRef<SHorizontalBox> InputsHeaderContentWidget = SNew(SHorizontalBox);
 		TWeakPtr<SWidget> WeakInputsHeaderWidget = InputsHeaderContentWidget;
+
 		InputsHeaderContentWidget->AddSlot()
+			.HAlign(HAlign_Right)
 			[
-				SNew(SHorizontalBox)
-			];
-		InputsHeaderContentWidget->AddSlot()
-			.AutoWidth()
-			[
+
 				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "RoundButton")
-				.ForegroundColor(FEditorStyle::GetSlateColor("DefaultForeground"))
-				.ContentPadding(FMargin(2, 0))
+				.ButtonStyle(FEditorStyle::Get(), "SimpleButton")
+				.ContentPadding(FMargin(1, 0))
 				.OnClicked(this, &FBlueprintGraphActionDetails::OnAddNewInputClicked)
 				.Visibility(this, &FBlueprintGraphActionDetails::GetAddNewInputOutputVisibility)
 				.HAlign(HAlign_Right)
@@ -3718,27 +3719,9 @@ void FBlueprintGraphActionDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 				.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("FunctionNewInputArg")))
 				.IsEnabled(this, &FBlueprintGraphActionDetails::IsAddNewInputOutputEnabled)
 				[
-					SNew(SHorizontalBox)
-
-					+ SHorizontalBox::Slot()
-						.AutoWidth()
-						.Padding(FMargin(0, 1))
-						[
-							SNew(SImage)
-							.Image(FEditorStyle::GetBrush("Plus"))
-						]
-
-					+ SHorizontalBox::Slot()
-						.VAlign(VAlign_Center)
-						.AutoWidth()
-						.Padding(FMargin(2, 0, 0, 0))
-						[
-							SNew(STextBlock)
-							.Font(IDetailLayoutBuilder::GetDetailFontBold())
-							.Text(LOCTEXT("FunctionNewParameterInputArg", "New Parameter"))
-							.Visibility(this, &FBlueprintGraphActionDetails::OnGetSectionTextVisibility, WeakInputsHeaderWidget)
-							.ShadowOffset(FVector2D(1, 1))
-						]
+					SNew(SImage)
+					.Image(FAppStyle::Get().GetBrush("Icons.PlusCircle"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			];
 		InputsCategory.HeaderContent(InputsHeaderContentWidget);
@@ -3753,17 +3736,13 @@ void FBlueprintGraphActionDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 		
 			TSharedRef<SHorizontalBox> OutputsHeaderContentWidget = SNew(SHorizontalBox);
 			TWeakPtr<SWidget> WeakOutputsHeaderWidget = OutputsHeaderContentWidget;
+
 			OutputsHeaderContentWidget->AddSlot()
-				[
-					SNew(SHorizontalBox)
-				];
-			OutputsHeaderContentWidget->AddSlot()
-				.AutoWidth()
+				.HAlign(HAlign_Right)
 				[
 					SNew(SButton)
-					.ButtonStyle(FEditorStyle::Get(), "RoundButton")
-					.ForegroundColor(FEditorStyle::GetSlateColor("DefaultForeground"))
-					.ContentPadding(FMargin(2, 0))
+					.ButtonStyle(FEditorStyle::Get(), "SimpleButton")
+					.ContentPadding(FMargin(1, 0))
 					.OnClicked(this, &FBlueprintGraphActionDetails::OnAddNewOutputClicked)
 					.Visibility(this, &FBlueprintGraphActionDetails::GetAddNewInputOutputVisibility)
 					.HAlign(HAlign_Right)
@@ -3772,29 +3751,11 @@ void FBlueprintGraphActionDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 					.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("FunctionNewOutputArg")))
 					.IsEnabled(this, &FBlueprintGraphActionDetails::IsAddNewInputOutputEnabled)
 					[
-						SNew(SHorizontalBox)
-
-						+ SHorizontalBox::Slot()
-							.AutoWidth()
-							.Padding(FMargin(0, 1))
-					[
 						SNew(SImage)
-							.Image(FEditorStyle::GetBrush("Plus"))
+						.Image(FAppStyle::Get().GetBrush("Icons.PlusCircle"))
+						.ColorAndOpacity(FSlateColor::UseForeground())
 					]
-
-				+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					.AutoWidth()
-					.Padding(FMargin(2, 0, 0, 0))
-					[
-						SNew(STextBlock)
-						.Font(IDetailLayoutBuilder::GetDetailFontBold())
-						.Text(LOCTEXT("FunctionNewOutputArg", "New Parameter"))
-						.Visibility(this, &FBlueprintGraphActionDetails::OnGetSectionTextVisibility, WeakOutputsHeaderWidget)
-						.ShadowOffset(FVector2D(1, 1))
-					]
-				]
-			];
+				];
 			OutputsCategory.HeaderContent(OutputsHeaderContentWidget);
 		}
 	}

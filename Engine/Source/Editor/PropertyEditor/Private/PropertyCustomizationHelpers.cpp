@@ -63,10 +63,9 @@ namespace PropertyCustomizationHelpers
 			OnClickAction = InArgs._OnClickAction;
 
 			SButton::FArguments ButtonArgs = SButton::FArguments()
-				.ButtonStyle( FEditorStyle::Get(), "HoverHintOnly" )
+				.ButtonStyle( FAppStyle::Get(), "SimpleButton" )
 				.OnClicked( this, &SPropertyEditorButton::OnClick )
 				.ToolTipText( InArgs._Text )
-				.ContentPadding( 4.0f )
 				.ForegroundColor( FSlateColor::UseForeground() )
 				.IsFocusable(InArgs._IsFocusable)
 				[ 
@@ -169,7 +168,7 @@ namespace PropertyCustomizationHelpers
 			SNew( SPropertyEditorButton )
 			.Text( LOCTEXT( "ClearButtonLabel", "Clear") )
 			.ToolTipText( OptionalToolTipText.Get().IsEmpty() ? LOCTEXT( "ClearButtonToolTipText", "Clear Path") : OptionalToolTipText )
-			.Image( FEditorStyle::GetBrush("PropertyWindow.Button_Clear") )
+			.Image(FAppStyle::Get().GetBrush("Icons.X"))
 			.OnClickAction( OnClearClicked )
 			.IsEnabled(IsEnabled)
 			.IsFocusable( false );
