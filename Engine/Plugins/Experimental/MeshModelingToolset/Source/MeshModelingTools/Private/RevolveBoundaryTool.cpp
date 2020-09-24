@@ -89,17 +89,21 @@ void URevolveBoundaryTool::Setup()
 	AddToolPropertySource(MaterialProperties);
 	MaterialProperties->RestoreProperties(this);
 
-	UpdateRevolutionAxis(Settings->RevolutionAxis);
+	UpdateRevolutionAxis();
 
 	// The plane mechanic is used for the revolution axis
 	PlaneMechanic = NewObject<UConstructionPlaneMechanic>(this);
 	PlaneMechanic->Setup(this);
-	PlaneMechanic->Initialize(TargetWorld, FFrame3d(Settings->RevolutionAxis));
+	PlaneMechanic->Initialize(TargetWorld, FFrame3d(Settings->AxisOrigin, 
+		FRotator(Settings->AxisPitch, Settings->AxisYaw, 0).Quaternion()));
 	PlaneMechanic->UpdateClickPriority(LoopSelectClickBehavior->GetPriority().MakeLower());
 	PlaneMechanic->bShowGrid = false;
 	PlaneMechanic->OnPlaneChanged.AddLambda([this]() {
-		Settings->RevolutionAxis = PlaneMechanic->Plane.ToFTransform();
-		UpdateRevolutionAxis(Settings->RevolutionAxis);
+		Settings->AxisOrigin = (FVector)PlaneMechanic->Plane.Origin;
+		FRotator AxisOrientation = ((FQuat)PlaneMechanic->Plane.Rotation).Rotator();
+		Settings->AxisPitch = AxisOrientation.Pitch;
+		Settings->AxisYaw = AxisOrientation.Yaw;
+		UpdateRevolutionAxis();
 		});
 
 	PlaneMechanic->SetEnableGridSnaping(Settings->bSnapToWorldGrid);
@@ -169,12 +173,17 @@ void URevolveBoundaryTool::OnClicked(const FInputDeviceRay& ClickPos)
 			FLine3d EdgeLine = FLine3d::FromPoints(ToWorldTranform.TransformPosition((FVector)VertexA), 
 				ToWorldTranform.TransformPosition((FVector)VertexB));
 			
-			FFrame3d RotationAxisFrame(Settings->RevolutionAxis);
-			RotationAxisFrame.Origin = EdgeLine.NearestPoint(HitResult.ImpactPoint);
-			RotationAxisFrame.AlignAxis(0, EdgeLine.Direction);
+			FFrame3d RevolutionAxisFrame;
+			RevolutionAxisFrame.Origin = EdgeLine.NearestPoint(HitResult.ImpactPoint);
+			RevolutionAxisFrame.AlignAxis(0, EdgeLine.Direction);
 
-			PlaneMechanic->SetPlaneWithoutBroadcast(RotationAxisFrame);
-			UpdateRevolutionAxis(RotationAxisFrame.ToFTransform());
+			PlaneMechanic->SetPlaneWithoutBroadcast(RevolutionAxisFrame);
+
+			Settings->AxisOrigin = (FVector)RevolutionAxisFrame.Origin;
+			FRotator AxisOrientation = ((FQuat)RevolutionAxisFrame.Rotation).Rotator();
+			Settings->AxisPitch = AxisOrientation.Pitch;
+			Settings->AxisYaw = AxisOrientation.Yaw;
+			UpdateRevolutionAxis();
 		}
 
 		// Update the preview
@@ -194,10 +203,13 @@ bool URevolveBoundaryTool::CanAccept() const
 	return Preview != nullptr && Preview->HaveValidResult();
 }
 
-void URevolveBoundaryTool::UpdateRevolutionAxis(const FTransform& PlaneTransform)
+/** 
+ * Uses the settings stored in the properties object to update the revolution axis
+ */
+void URevolveBoundaryTool::UpdateRevolutionAxis()
 {
-	RevolutionAxisOrigin = PlaneTransform.GetLocation();
-	RevolutionAxisDirection = PlaneTransform.GetRotation().GetAxisX();
+	RevolutionAxisOrigin = Settings->AxisOrigin;
+	RevolutionAxisDirection = FRotator(Settings->AxisPitch, Settings->AxisYaw, 0).RotateVector(FVector(1, 0, 0));
 	if (Preview)
 	{
 		Preview->InvalidateResult();
@@ -302,11 +314,9 @@ void URevolveBoundaryTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 void URevolveBoundaryTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
-	if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(URevolveBoundaryToolProperties, RevolutionAxis)))
-	{
-		PlaneMechanic->SetPlaneWithoutBroadcast((FFrame3d)Settings->RevolutionAxis);
-		UpdateRevolutionAxis(Settings->RevolutionAxis);
-	}
+	PlaneMechanic->SetPlaneWithoutBroadcast(FFrame3d(Settings->AxisOrigin, 
+		FRotator(Settings->AxisPitch, Settings->AxisYaw, 0).Quaternion()));
+	UpdateRevolutionAxis();
 
 	ComponentTarget->SetOwnerVisibility(Settings->bDisplayOriginalMesh);
 	PlaneMechanic->SetEnableGridSnaping(Settings->bSnapToWorldGrid);
