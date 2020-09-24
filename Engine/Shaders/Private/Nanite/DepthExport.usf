@@ -136,7 +136,10 @@ void DepthExport(uint3 PixelPos : SV_DispatchThreadID)
 				bThisLaneActive = false;
 			}
 		}
-
+	}
+	else if (WaveActiveOnce())
+	{
+		MaterialHTile[TileIndex] = EncodeTileMinMaxDepth(0.0f, 0.0f);
 	}
 
 	MaterialDepth[PixelPos.xy] = MaterialDepthValue;
