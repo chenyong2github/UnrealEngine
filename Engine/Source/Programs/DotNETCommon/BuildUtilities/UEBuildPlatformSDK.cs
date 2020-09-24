@@ -1175,6 +1175,12 @@ namespace Tools.DotNETCommon
 				Msg.AppendLine("    RunUAT Turnkey -command=InstallSdk -platform={0}", PlatformName);
 
 				Log.WriteLine(LogEventType.Error, Options, Msg.ToString());
+
+				// If an SDK is installed but isn't at the right version, make sure the user knows.
+				if (!String.IsNullOrEmpty(ManualSDKVersion))
+				{
+					Log.TraceInformationOnce(Msg.ToString());
+				}
 			}
 		}
 
