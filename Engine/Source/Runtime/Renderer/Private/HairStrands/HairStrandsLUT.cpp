@@ -313,6 +313,7 @@ static FRDGTextureRef AddHairCoverageLUTPass(FRDGBuilder& GraphBuilder, const FV
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("HairStrandsCoverageLUT"),
+		ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 		ComputeShader,
 		Parameters,
 		FComputeShaderUtils::GetGroupCount(OutputResolution, FIntPoint(8,8)));
