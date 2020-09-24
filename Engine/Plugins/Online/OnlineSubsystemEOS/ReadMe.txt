@@ -1,4 +1,6 @@
-NOTE: This plugin is experimental and meant to be something to jump start your development. It does not meet the Epic Games Store requirement for cross store support as is. You will need to add support to ship on EGS
+This plugin is experimental and meant to be something to jump start your development. This plugin has been tested using ShooterGame on Windows
+
+It does not meet the Epic Games Store requirement for cross store support as is. You will need to add support to ship on EGS.
 
 Upgrading EOS SDK versions
 	1. Download a new SDK version to the EOS directory
@@ -8,3 +10,13 @@ Upgrading EOS SDK versions
 	4. On Windows, copy the DLL(s) that you are using to the Engine/Binaries directory (they must be in the same dir as the exe)
 	5. Regenerate your UE4 projects
 	6. Clean (required because the define must be regenerated) & Build
+
+This plugin supports:
+	- EAS/EGS Auth
+	- EAS Presence
+	- EAS Friends
+	- EOS Sessions
+	- EOS Stats
+	- EOS Leaderboards
+	- EOS p2p Sockets
+	- EOS Metrics (session based analytics)
