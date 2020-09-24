@@ -2421,7 +2421,6 @@ public:
 	TUniformBufferRef<FInstancedViewUniformShaderParameters> InstancedCustomDepthViewUniformBuffer;
 	TUniformBufferRef<FViewUniformShaderParameters> VirtualTextureViewUniformBuffer;
 	TUniformBufferRef<FViewUniformShaderParameters> LumenCardCaptureViewUniformBuffer;
-	TUniformBufferRef<FLumenCardPassUniformParameters> LumenCardCapturePassUniformBuffer;
 
 	TUniformBufferRef<FMobileBasePassUniformParameters> MobileOpaqueBasePassUniformBuffer;
 	TUniformBufferRef<FMobileBasePassUniformParameters> MobileCSMOpaqueBasePassUniformBuffer;

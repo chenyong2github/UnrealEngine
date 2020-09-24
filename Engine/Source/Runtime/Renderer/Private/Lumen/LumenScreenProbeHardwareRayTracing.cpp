@@ -781,7 +781,7 @@ void RenderHardwareRayTracingScreenProbeSubpass(FRDGBuilder& GraphBuilder,
 
 	if (bVisualizeHardwareTracing)
 	{
-		GraphBuilder.QueueBufferExtraction(VisualizeHardwareTraces, &GVisualizeHardwareTracesBuffer);
+		ConvertToExternalBuffer(GraphBuilder, VisualizeHardwareTraces, GVisualizeHardwareTracesBuffer);
 	}
 }
 

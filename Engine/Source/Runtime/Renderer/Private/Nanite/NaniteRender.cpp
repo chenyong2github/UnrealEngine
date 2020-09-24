@@ -412,6 +412,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNaniteEmitGBufferParameters, )
 
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)	// To access VTFeedbackBuffer
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FOpaqueBasePassUniformParameters, BasePass)
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardPassUniformParameters, CardPass)
 
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
@@ -4456,12 +4457,13 @@ void DrawLumenMeshCapturePass(
 	const TArray<FCardRenderData, SceneRenderingAllocator>& CardsToRender,
 	const FCullingContext& CullingContext,
 	const FRasterContext& RasterContext,
+	FLumenCardPassUniformParameters* PassUniformParameters,
 	FRDGBufferSRVRef RectMinMaxBufferSRV,
 	uint32 NumRects,
 	FIntPoint ViewportSize,
-	const TRefCountPtr<IPooledRenderTarget>& Color0RT,
-	const TRefCountPtr<IPooledRenderTarget>& Color1RT,
-	const TRefCountPtr<IPooledRenderTarget>& DepthRT
+	FRDGTextureRef AlbedoAtlasTexture,
+	FRDGTextureRef NormalAtlasTexture,
+	FRDGTextureRef DepthAtlasTexture
 	)
 {
 	checkSlow(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
@@ -4470,11 +4472,7 @@ void DrawLumenMeshCapturePass(
 	LLM_SCOPE(ELLMTag::Nanite);
 	RDG_EVENT_SCOPE( GraphBuilder, "Nanite::DrawLumenMeshCapturePass" );
 
-	FRDGTextureRef Color0			= RegisterExternalTextureWithFallback(GraphBuilder, Color0RT, GSystemTextures.BlackDummy);
-	FRDGTextureRef Color1			= RegisterExternalTextureWithFallback(GraphBuilder, Color1RT, GSystemTextures.BlackDummy);
-	FRDGTextureRef CardDepth		= RegisterExternalTextureWithFallback(GraphBuilder, DepthRT, GSystemTextures.BlackDummy);
-	FRDGTextureRef MaterialDepth	= CardDepth;
-	FRDGTextureRef Black			= GraphBuilder.RegisterExternalTexture( GSystemTextures.BlackDummy, TEXT("Black") );
+	FRDGTextureRef BlackTexture = GraphBuilder.RegisterExternalTexture( GSystemTextures.BlackDummy, TEXT("Black") );
 
 	// Visible material mask buffer (currently not used by Lumen, but still must be bound)
 	FRDGBufferDesc   VisibleMaterialsDesc = FRDGBufferDesc::CreateStructuredDesc(4, 1);
@@ -4490,7 +4488,7 @@ void DrawLumenMeshCapturePass(
 		PassParameters->PS.VisBuffer64 = RasterContext.VisBuffer64;
 
 		PassParameters->PS.RenderTargets.DepthStencil = FDepthStencilBinding(
-			CardDepth,
+			DepthAtlasTexture,
 			ERenderTargetLoadAction::ELoad,
 			ERenderTargetLoadAction::ELoad,
 			FExclusiveDepthStencil::DepthRead_StencilWrite
@@ -4530,7 +4528,7 @@ void DrawLumenMeshCapturePass(
 		PassParameters->PS.MaterialDepthTable = Scene.MaterialTables[ENaniteMeshPass::LumenCardCapture].GetDepthTableSRV();
 
 		PassParameters->PS.RenderTargets.DepthStencil = FDepthStencilBinding(
-			CardDepth,
+			DepthAtlasTexture,
 			ERenderTargetLoadAction::ELoad,
 			ERenderTargetLoadAction::ELoad,
 			FExclusiveDepthStencil::DepthWrite_StencilRead
@@ -4570,22 +4568,23 @@ void DrawLumenMeshCapturePass(
 #endif
 		PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(CullingContext.VisibleClustersSWHW);
 
-		PassParameters->MaterialRange = Black;
+		PassParameters->MaterialRange = BlackTexture;
 		PassParameters->GridSize = { 1u, 1u };
 
 		PassParameters->VisibleMaterials = GraphBuilder.CreateSRV(VisibleMaterials, PF_R32_UINT);
 
 		PassParameters->VisBuffer64 = RasterContext.VisBuffer64;
-		PassParameters->DbgBuffer64 = Black;
-		PassParameters->DbgBuffer32 = Black;
+		PassParameters->DbgBuffer64 = BlackTexture;
+		PassParameters->DbgBuffer32 = BlackTexture;
 
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(Color0, ERenderTargetLoadAction::ELoad);
-		PassParameters->RenderTargets[1] = FRenderTargetBinding(Color1, ERenderTargetLoadAction::ELoad);
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(AlbedoAtlasTexture, ERenderTargetLoadAction::ELoad);
+		PassParameters->RenderTargets[1] = FRenderTargetBinding(NormalAtlasTexture, ERenderTargetLoadAction::ELoad);
 
 		PassParameters->View = SharedView->ViewUniformBuffer; // To get VTFeedbackBuffer
+		PassParameters->CardPass = GraphBuilder.CreateUniformBuffer(PassUniformParameters);
 
 		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
-			MaterialDepth,
+			DepthAtlasTexture,
 			ERenderTargetLoadAction::ELoad,
 			ERenderTargetLoadAction::ELoad,
 			FExclusiveDepthStencil::DepthWrite_StencilRead
@@ -4680,7 +4679,7 @@ void DrawLumenMeshCapturePass(
 		FNaniteEmitDepthRectsParameters* PassParameters = GraphBuilder.AllocParameters<FNaniteEmitDepthRectsParameters>();
 
 		PassParameters->PS.VisBuffer64 = RasterContext.VisBuffer64;
-		PassParameters->PS.RenderTargets.DepthStencil = FDepthStencilBinding(CardDepth, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilRead);
+		PassParameters->PS.RenderTargets.DepthStencil = FDepthStencilBinding(DepthAtlasTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilRead);
 
 		auto PixelShader = SharedView->ShaderMap->GetShader<FEmitDepthPS>();
 

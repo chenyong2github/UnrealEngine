@@ -67,6 +67,8 @@ public:
 	{
 		CardsToRender.Reset();
 		MeshDrawCommands.Reset();
+		MeshDrawPrimitiveIds.Reset();
+		CardsToRenderHashMap.Reset();
 		NumCardTexelsToCapture = 0;
 	}
 };
@@ -373,7 +375,7 @@ private:
 	void InitViewsPossiblyAfterPrepass(FRHICommandListImmediate& RHICmdList, struct FILCUpdatePrimTaskData& ILCTaskData);
 	void UpdateLumenCardAtlasAllocation(FRHICommandListImmediate& RHICmdList, const FViewInfo& MainView, bool bReallocateAtlas, bool bRecaptureLumenSceneOnce);
 	void BeginUpdateLumenSceneTasks(FRHICommandListImmediate& RHICmdList);
-	void UpdateLumenScene(FRHICommandListImmediate& RHICmdList);
+	void UpdateLumenScene(FRDGBuilder& GraphBuilder);
 	void RenderLumenSceneLighting(FRDGBuilder& GraphBuilder, FViewInfo& View);
 
 	void RenderDirectLightingForLumenScene(

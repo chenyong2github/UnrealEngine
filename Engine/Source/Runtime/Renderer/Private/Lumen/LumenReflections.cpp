@@ -447,7 +447,7 @@ void UpdateHistoryReflections(
 		ReflectionTemporalState.HistoryScreenPositionScaleBias = View.GetScreenPositionScaleBias(FSceneRenderTargets::Get_FrameConstantsOnly().GetBufferSizeXY(), View.ViewRect);
 
 		// Queue updating the view state's render target reference with the new values
-		GraphBuilder.QueueTextureExtraction(FinalSpecularIndirect, &ReflectionTemporalState.SpecularIndirectHistoryRT);
+		ConvertToExternalTexture(GraphBuilder, FinalSpecularIndirect, ReflectionTemporalState.SpecularIndirectHistoryRT);
 	}
 }
 

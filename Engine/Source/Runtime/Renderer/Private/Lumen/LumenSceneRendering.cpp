@@ -116,6 +116,14 @@ FAutoConsoleVariableRef CVarLumenGIRecaptureLumenSceneEveryFrame(
 	ECVF_RenderThreadSafe
 	);
 
+int32 GLumenSceneNaniteMultiViewCapture = 1;
+FAutoConsoleVariableRef CVarLumenSceneNaniteMultiViewCapture(
+	TEXT("r.LumenScene.NaniteMultiViewCapture"),
+	GLumenSceneNaniteMultiViewCapture,
+	TEXT(""),
+	ECVF_RenderThreadSafe
+);
+
 int32 GLumenSceneUploadCardBufferEveryFrame = 0;
 FAutoConsoleVariableRef CVarLumenSceneUploadCardBufferEveryFrame(
 	TEXT("r.LumenScene.UploadCardBufferEveryFrame"),
@@ -287,7 +295,7 @@ DECLARE_GPU_STAT(UpdateLumenScene);
 
 int32 GLumenSceneGeneration = 0;
 
-IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenCardPassUniformParameters, "LumenCardPass");
+IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FLumenCardPassUniformParameters, "LumenCardPass", SceneTextures);
 
 class FLumenCardVS : public FMeshMaterialShader
 {
@@ -418,7 +426,6 @@ FMeshPassProcessor* CreateLumenCardCapturePassProcessor(const FScene* Scene, con
 
 	FMeshPassProcessorRenderState PassState;
 	PassState.SetViewUniformBuffer(Scene->UniformBuffers.LumenCardCaptureViewUniformBuffer);
-	PassState.SetPassUniformBuffer(Scene->UniformBuffers.LumenCardCapturePassUniformBuffer);
 
 	// Write and test against depth
 	PassState.SetDepthStencilState(TStaticDepthStencilState<true, CF_Greater>::GetRHI());
@@ -513,7 +520,6 @@ FMeshPassProcessor* CreateLumenCardNaniteMeshProcessor(
 
 	FMeshPassProcessorRenderState PassState;
 	PassState.SetViewUniformBuffer(Scene->UniformBuffers.LumenCardCaptureViewUniformBuffer);
-	PassState.SetPassUniformBuffer(Scene->UniformBuffers.LumenCardCapturePassUniformBuffer);
 	PassState.SetNaniteUniformBuffer(Scene->UniformBuffers.NaniteUniformBuffer);
 
 	PassState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Equal, true, CF_Equal>::GetRHI());
@@ -1914,7 +1920,12 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardIdUpload, )
 	RDG_BUFFER_ACCESS(CardIds, ERHIAccess::CopyDest)
 END_SHADER_PARAMETER_STRUCT()
 
-void FDeferredShadingSceneRenderer::UpdateLumenScene(FRHICommandListImmediate& RHICmdList)
+BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardPassParameters, )
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardPassUniformParameters, CardPass)
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
+
+void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 {
 	LLM_SCOPE(ELLMTag::Lumen);
 
@@ -1933,23 +1944,15 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRHICommandListImmediate& R
 		TArray<FCardRenderData, SceneRenderingAllocator>& CardsToRender = LumenCardRenderer.CardsToRender;
 
 		QUICK_SCOPE_CYCLE_COUNTER(UpdateLumenScene);
-		SCOPED_DRAW_EVENTF(RHICmdList, UpdateLumenScene, TEXT("UpdateLumenScene: %u card captures %.3fM texels"), CardsToRender.Num(), LumenCardRenderer.NumCardTexelsToCapture / 1e6f);
-		SCOPED_GPU_STAT(RHICmdList, UpdateLumenScene);
+		RDG_EVENT_SCOPE(GraphBuilder, "UpdateLumenScene: %u card captures %.3fM texels", CardsToRender.Num(), LumenCardRenderer.NumCardTexelsToCapture / 1e6f);
+		SCOPED_GPU_STAT(GraphBuilder.RHICmdList, UpdateLumenScene);
 
-		UpdateCardSceneBuffer(RHICmdList, ViewFamily, Scene);
+		UpdateCardSceneBuffer(GraphBuilder.RHICmdList, ViewFamily, Scene);
 		
 		LumenCardRenderer.CardIdsToRender.Empty(CardsToRender.Num());
 
 		if (CardsToRender.Num() > 0)
 		{
-			FLumenCardPassUniformParameters PassUniformParameters;
-			ESceneTextureSetupMode SceneTextureSetupMode = ESceneTextureSetupMode::None;
-			FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get(RHICmdList);
-			SetupSceneTextureUniformParameters(SceneRenderTargets, Scene->GetFeatureLevel(), SceneTextureSetupMode, PassUniformParameters.SceneTextures);
-			PassUniformParameters.OverrideDiffuseReflectivity = GLumenSceneDiffuseReflectivityOverride > 0 ? 1.0f : 0.0f;
-			PassUniformParameters.DiffuseReflectivityOverride = FMath::Clamp<float>(GLumenSceneDiffuseReflectivityOverride, 0.0f, 1.0f);
-			Scene->UniformBuffers.LumenCardCapturePassUniformBuffer.UpdateUniformBufferImmediate(PassUniformParameters);
-
 			// Prepare primitive Id VB for rendering mesh draw commands.
 			FRHIVertexBuffer* PrimitiveIdVertexBuffer = nullptr;
 			if (LumenCardRenderer.MeshDrawPrimitiveIds.Num() > 0)
@@ -1966,12 +1969,13 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRHICommandListImmediate& R
 				GPrimitiveIdVertexBufferPool.ReturnToFreeList(Entry);
 			}
 
-			TRefCountPtr<FRDGPooledBuffer> PooledRectMinMaxBuffer;
+			FRDGTextureRef DepthAtlasTexture = GraphBuilder.RegisterExternalTexture(LumenSceneData.DepthBufferAtlas);
+			FRDGTextureRef AlbedoAtlasTexture = GraphBuilder.RegisterExternalTexture(LumenSceneData.AlbedoAtlas);
+			FRDGTextureRef NormalAtlasTexture = GraphBuilder.RegisterExternalTexture(LumenSceneData.NormalAtlas);
+
 			uint32 NumRects = 0;
-
+			FRDGBufferRef RectMinMaxBuffer = nullptr;
 			{
-				FRDGBuilder GraphBuilder(RHICmdList);
-
 				// Upload card Ids for batched draws operating on cards to render.
 				TArray<FUintVector4, SceneRenderingAllocator> RectMinMaxToRender;
 				RectMinMaxToRender.Reserve(CardsToRender.Num());
@@ -1988,41 +1992,13 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRHICommandListImmediate& R
 				}
 
 				NumRects = CardsToRender.Num();
-				FRDGBufferRef RectMinMaxBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateUploadDesc(sizeof(FUintVector4), FMath::RoundUpToPowerOfTwo(NumRects)), TEXT("RectMinMaxBuffer"));
-				FRDGBufferSRVRef RectMinMaxBufferSRV = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(RectMinMaxBuffer, PF_R32G32B32A32_UINT));
+				RectMinMaxBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateUploadDesc(sizeof(FUintVector4), FMath::RoundUpToPowerOfTwo(NumRects)), TEXT("RectMinMaxBuffer"));
 
 				FPixelShaderUtils::UploadRectMinMaxBuffer(GraphBuilder, RectMinMaxToRender, RectMinMaxBuffer);
 
-				FRDGTextureRef AlbedoAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.AlbedoAtlas);
-				FRDGTextureRef NormalAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.NormalAtlas);
-				FRDGTextureRef DepthBufferAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.DepthBufferAtlas);
-
-				ClearLumenCards(GraphBuilder, Views[0], AlbedoAtlas, NormalAtlas, DepthBufferAtlas, LumenSceneData.MaxAtlasSize, RectMinMaxBufferSRV, NumRects);
-
-				GraphBuilder.QueueTextureExtraction(AlbedoAtlas, &LumenSceneData.AlbedoAtlas);
-				GraphBuilder.QueueTextureExtraction(NormalAtlas, &LumenSceneData.NormalAtlas);
-				GraphBuilder.QueueTextureExtraction(DepthBufferAtlas, &LumenSceneData.DepthBufferAtlas);
-				GraphBuilder.QueueBufferExtraction(RectMinMaxBuffer, &PooledRectMinMaxBuffer);
-
-				GraphBuilder.Execute();
+				FRDGBufferSRVRef RectMinMaxBufferSRV = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(RectMinMaxBuffer, PF_R32G32B32A32_UINT));
+				ClearLumenCards(GraphBuilder, Views[0], AlbedoAtlasTexture, NormalAtlasTexture, DepthAtlasTexture, LumenSceneData.MaxAtlasSize, RectMinMaxBufferSRV, NumRects);
 			}
-
-			FSceneRenderTargetItem ColorTarget0 = LumenSceneData.AlbedoAtlas->GetRenderTargetItem();
-			FSceneRenderTargetItem ColorTarget1 = LumenSceneData.NormalAtlas->GetRenderTargetItem();
-
-			FRHITexture* RenderTargetArray[2] =
-			{
-				ColorTarget0.TargetableTexture,
-				ColorTarget1.TargetableTexture
-			};
-
-			FRHITexture* CardDepthZ = LumenSceneData.DepthBufferAtlas->GetRenderTargetItem().TargetableTexture.GetReference();
-
-			FRHIRenderPassInfo RPInfo(UE_ARRAY_COUNT(RenderTargetArray), RenderTargetArray, ERenderTargetActions::Load_Store, CardDepthZ, EDepthStencilTargetActions::LoadDepthStencil_StoreDepthStencil, FExclusiveDepthStencil::DepthWrite_StencilWrite);
-			TransitionRenderPassTargets(RHICmdList, RPInfo);
-			RHICmdList.BeginRenderPass(RPInfo, TEXT("LumenCardCapture"));
-
-			bool bAnyNaniteMeshes = false;
 
 			FViewInfo* SharedView = Views[0].CreateSnapshot();
 			{
@@ -2033,65 +2009,79 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRHICommandListImmediate& R
 				// Don't do material texture mip biasing in proxy card rendering
 				SharedView->MaterialTextureMipBias = 0;
 
-				FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-				SharedView->CachedViewUniformShaderParameters = MakeUnique<FViewUniformShaderParameters>();
-
 				TRefCountPtr<IPooledRenderTarget> NullRef;
 				FPlatformMemory::Memcpy(&SharedView->PrevViewInfo.HZB, &NullRef, sizeof(SharedView->PrevViewInfo.HZB));
 
+				SharedView->CachedViewUniformShaderParameters = MakeUnique<FViewUniformShaderParameters>();
 				SharedView->CachedViewUniformShaderParameters->PrimitiveSceneData = Scene->GPUScene.PrimitiveBuffer.SRV;
 				SharedView->CachedViewUniformShaderParameters->InstanceSceneData = Scene->GPUScene.InstanceDataBuffer.SRV;
 				SharedView->CachedViewUniformShaderParameters->LightmapSceneData = Scene->GPUScene.LightmapDataBuffer.SRV;
 				SharedView->ViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*SharedView->CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
 			}
 
+			FLumenCardPassUniformParameters* PassUniformParameters = GraphBuilder.AllocParameters<FLumenCardPassUniformParameters>();
+			SetupSceneTextureUniformParameters(GraphBuilder, Scene->GetFeatureLevel(), /*SceneTextureSetupMode*/ ESceneTextureSetupMode::None, PassUniformParameters->SceneTextures);
+			PassUniformParameters->OverrideDiffuseReflectivity = GLumenSceneDiffuseReflectivityOverride > 0 ? 1.0f : 0.0f;
+			PassUniformParameters->DiffuseReflectivityOverride = FMath::Clamp<float>(GLumenSceneDiffuseReflectivityOverride, 0.0f, 1.0f);
+
 			{
-				QUICK_SCOPE_CYCLE_COUNTER(MeshPass);
-				SCOPED_DRAW_EVENT(RHICmdList, MeshPass);
+				FLumenCardPassParameters* PassParameters = GraphBuilder.AllocParameters<FLumenCardPassParameters>();
+				PassParameters->CardPass = GraphBuilder.CreateUniformBuffer(PassUniformParameters);
+				PassParameters->RenderTargets[0] = FRenderTargetBinding(AlbedoAtlasTexture, ERenderTargetLoadAction::ELoad);
+				PassParameters->RenderTargets[1] = FRenderTargetBinding(NormalAtlasTexture, ERenderTargetLoadAction::ELoad);
+				PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(DepthAtlasTexture, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilNop);
 
-				for (FCardRenderData& CardRenderData : CardsToRender)
-				{
-					bAnyNaniteMeshes = bAnyNaniteMeshes || CardRenderData.NaniteInstanceIds.Num() > 0 || CardRenderData.CardData.bDistantScene;
-
-					if (CardRenderData.NumMeshDrawCommands > 0)
+				GraphBuilder.AddPass(
+					RDG_EVENT_NAME("MeshCardCapture"),
+					PassParameters,
+					ERDGPassFlags::Raster,
+					[this, Scene = Scene, PrimitiveIdVertexBuffer, SharedView, &CardsToRender, PassParameters](FRHICommandList& RHICmdList)
 					{
-						FIntRect AtlasRect = CardRenderData.GetAtlasAllocation();
-						RHICmdList.SetViewport(AtlasRect.Min.X, AtlasRect.Min.Y, 0.0f, AtlasRect.Max.X, AtlasRect.Max.Y, 1.0f);
+						QUICK_SCOPE_CYCLE_COUNTER(MeshPass);
 
-						CardRenderData.PatchView(RHICmdList, Scene, SharedView);
-						Scene->UniformBuffers.LumenCardCaptureViewUniformBuffer.UpdateUniformBufferImmediate(*SharedView->CachedViewUniformShaderParameters);
+						for (FCardRenderData& CardRenderData : CardsToRender)
+						{
+							if (CardRenderData.NumMeshDrawCommands > 0)
+							{
+								FIntRect AtlasRect = CardRenderData.GetAtlasAllocation();
+								RHICmdList.SetViewport(AtlasRect.Min.X, AtlasRect.Min.Y, 0.0f, AtlasRect.Max.X, AtlasRect.Max.Y, 1.0f);
 
-						FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
-						SubmitMeshDrawCommandsRange(
-							LumenCardRenderer.MeshDrawCommands,
-							GraphicsMinimalPipelineStateSet,
-							PrimitiveIdVertexBuffer,
-							0,
-							false,
-							CardRenderData.StartMeshDrawCommandIndex,
-							CardRenderData.NumMeshDrawCommands,
-							1,
-							RHICmdList);
+								CardRenderData.PatchView(RHICmdList, Scene, SharedView);
+								Scene->UniformBuffers.LumenCardCaptureViewUniformBuffer.UpdateUniformBufferImmediate(*SharedView->CachedViewUniformShaderParameters);
+
+								FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
+								SubmitMeshDrawCommandsRange(
+									LumenCardRenderer.MeshDrawCommands,
+									GraphicsMinimalPipelineStateSet,
+									PrimitiveIdVertexBuffer,
+									0,
+									false,
+									CardRenderData.StartMeshDrawCommandIndex,
+									CardRenderData.NumMeshDrawCommands,
+									1,
+									RHICmdList);
+							}
+						}
 					}
-
-					LumenCardRenderer.CardIdsToRender.Add(CardRenderData.CardIndex);
-				}
+				);
 			}
 
-			RHICmdList.EndRenderPass();
+			bool bAnyNaniteMeshes = false;
+
+			for (FCardRenderData& CardRenderData : CardsToRender)
+			{
+				bAnyNaniteMeshes = bAnyNaniteMeshes || CardRenderData.NaniteInstanceIds.Num() > 0 || CardRenderData.CardData.bDistantScene;
+				LumenCardRenderer.CardIdsToRender.Add(CardRenderData.CardIndex);
+			}
 
 			if (DoesPlatformSupportNanite(ShaderPlatform) && bAnyNaniteMeshes)
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(NaniteMeshPass);
 				QUICK_SCOPE_CYCLE_COUNTER(NaniteMeshPass);
 
-				FRDGBuilder GraphBuilder(RHICmdList);
-
-				FRDGBufferRef RectMinMaxBuffer = GraphBuilder.RegisterExternalBuffer(PooledRectMinMaxBuffer, TEXT("RectMinMaxBuffer"));
-				FRDGBufferSRVRef RectMinMaxBufferSRV = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(RectMinMaxBuffer, PF_R32G32B32A32_UINT));
-
 				const FIntPoint DepthAtlasSize = LumenSceneData.DepthBufferAtlas->GetDesc().Extent;
 				const FIntRect DepthAtlasRect = FIntRect(0, 0, DepthAtlasSize.X, DepthAtlasSize.Y);
+				FRDGBufferSRVRef RectMinMaxBufferSRV = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(RectMinMaxBuffer, PF_R32G32B32A32_UINT));
 
 				Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(
 					GraphBuilder,
@@ -2117,8 +2107,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRHICommandListImmediate& R
 					bForceHWRaster,
 					bPrimaryContext);
 
-				static bool bUseMultiViewPath = true;
-				if(bUseMultiViewPath)
+				if (GLumenSceneNaniteMultiViewCapture)
 				{
 					// Multi-view rendering path
 					const uint32 NumCardsToRender = CardsToRender.Num();
@@ -2171,21 +2160,20 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRHICommandListImmediate& R
 				}
 				else
 				{
-					// One call per view
+					RDG_EVENT_SCOPE(GraphBuilder, "RenderLumenCardsWithNanite");
+
+					// One draw call per view
 					for(FCardRenderData& CardRenderData : CardsToRender)
 					{
-						CardRenderData.PatchView(RHICmdList, Scene, SharedView);
-
 						if(CardRenderData.NaniteInstanceIds.Num() > 0)
-						{
-							SCOPED_DRAW_EVENT(RHICmdList, RenderLumenCardWithNanite);
-						
+						{						
 							TArray<Nanite::FInstanceDraw, SceneRenderingAllocator> NaniteInstanceDraws;
 							for( uint32 InstanceID : CardRenderData.NaniteInstanceIds )
 							{
 								NaniteInstanceDraws.Add( Nanite::FInstanceDraw { InstanceID, 0u } );
 							}
-							
+						
+							CardRenderData.PatchView(GraphBuilder.RHICmdList, Scene, SharedView);
 							Nanite::FPackedView PackedView = Nanite::CreatePackedViewFromViewInfo(*SharedView, DepthAtlasSize);
 
 							Nanite::CullRasterize(
@@ -2208,11 +2196,10 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRHICommandListImmediate& R
 				{
 					if (CardRenderData.CardData.bDistantScene)
 					{
-						CardRenderData.PatchView(RHICmdList, Scene, SharedView);
-
 						Nanite::FRasterState RasterState;
 						RasterState.bNearClip = false;
 
+						CardRenderData.PatchView(GraphBuilder.RHICmdList, Scene, SharedView);
 						Nanite::FPackedView PackedView = Nanite::CreatePackedViewFromViewInfo(
 							*SharedView,
 							DepthAtlasSize,
@@ -2237,30 +2224,19 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRHICommandListImmediate& R
 					CardsToRender,
 					CullingContext,
 					RasterContext,
+					PassUniformParameters,
 					RectMinMaxBufferSRV,
 					NumRects,
 					LumenSceneData.MaxAtlasSize,
-					LumenSceneData.AlbedoAtlas,
-					LumenSceneData.NormalAtlas,
-					LumenSceneData.DepthBufferAtlas
+					AlbedoAtlasTexture,
+					NormalAtlasTexture,
+					DepthAtlasTexture
 				);
-
-				GraphBuilder.Execute();
 			}
-
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, ColorTarget0.TargetableTexture);
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, ColorTarget1.TargetableTexture);
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, CardDepthZ);
-
-			GVisualizeTexture.SetCheckPoint(RHICmdList, LumenSceneData.AlbedoAtlas);
-			GVisualizeTexture.SetCheckPoint(RHICmdList, LumenSceneData.NormalAtlas);
-			GVisualizeTexture.SetCheckPoint(RHICmdList, LumenSceneData.DepthBufferAtlas);
 		}
 
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(UploadCardIndexBuffers);
-
-			FRDGBuilder GraphBuilder(RHICmdList);
 
 			{
 				FRDGBufferRef CardIndexBuffer = GraphBuilder.CreateBuffer(
@@ -2287,7 +2263,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRHICommandListImmediate& R
 						}
 					});
 
-				GraphBuilder.QueueBufferExtraction(CardIndexBuffer, &LumenCardRenderer.CardsToRenderIndexBuffer);
+				ConvertToExternalBuffer(GraphBuilder, CardIndexBuffer, LumenCardRenderer.CardsToRenderIndexBuffer);
 			}
 
 			{
@@ -2325,7 +2301,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRHICommandListImmediate& R
 						}
 					});
 
-				GraphBuilder.QueueBufferExtraction(CardHashMapBuffer, &LumenCardRenderer.CardsToRenderHashMapBuffer);
+				ConvertToExternalBuffer(GraphBuilder, CardHashMapBuffer, LumenCardRenderer.CardsToRenderHashMapBuffer);
 			}
 
 			{
@@ -2353,17 +2329,13 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRHICommandListImmediate& R
 						}
 					});
 
-				GraphBuilder.QueueBufferExtraction(VisibleCardsIndexBuffer, &LumenSceneData.VisibleCardsIndexBuffer);
+				ConvertToExternalBuffer(GraphBuilder, VisibleCardsIndexBuffer, LumenSceneData.VisibleCardsIndexBuffer);
 			}
-
-			GraphBuilder.Execute();
 		}
 
 		if (LumenCardRenderer.CardIdsToRender.Num() > 0)
 		{
-			FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("PrefilterLumenSceneDepth"));
 			PrefilterLumenSceneDepth(GraphBuilder, LumenCardRenderer.CardIdsToRender, Views[0]);
-			GraphBuilder.Execute();
 		}
 
 		const float TimeElapsed = FPlatformTime::Seconds() - StartTime;
@@ -2372,10 +2344,6 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRHICommandListImmediate& R
 		{
 			UE_LOG(LogRenderer, Log, TEXT("UpdateLumenScene %u Card Renders %.1fms"), CardsToRender.Num(), TimeElapsed * 1000.0f);
 		}
-
-		LumenCardRenderer.CardsToRender.Reset();
-		LumenCardRenderer.MeshDrawCommands.Reset();
-		LumenCardRenderer.MeshDrawPrimitiveIds.Reset();
 	}
 
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;

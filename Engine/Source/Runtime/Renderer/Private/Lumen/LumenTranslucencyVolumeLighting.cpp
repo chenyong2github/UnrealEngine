@@ -352,15 +352,15 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 
 		if (View.ViewState)
 		{
-			GraphBuilder.QueueTextureExtraction(TranslucencyGIVolumeNewHistory0, &View.ViewState->Lumen.TranslucencyVolume0);
-			GraphBuilder.QueueTextureExtraction(TranslucencyGIVolumeNewHistory1, &View.ViewState->Lumen.TranslucencyVolume1);
+			ConvertToExternalTexture(GraphBuilder, TranslucencyGIVolumeNewHistory0, View.ViewState->Lumen.TranslucencyVolume0);
+			ConvertToExternalTexture(GraphBuilder, TranslucencyGIVolumeNewHistory1, View.ViewState->Lumen.TranslucencyVolume1);
 		}
 
-		GraphBuilder.QueueTextureExtraction(TranslucencyGIVolume0, &View.LumenTranslucencyGIVolume.Texture0);
-		GraphBuilder.QueueTextureExtraction(TranslucencyGIVolume1, &View.LumenTranslucencyGIVolume.Texture1);
+		ConvertToExternalTexture(GraphBuilder, TranslucencyGIVolume0, View.LumenTranslucencyGIVolume.Texture0);
+		ConvertToExternalTexture(GraphBuilder, TranslucencyGIVolume1, View.LumenTranslucencyGIVolume.Texture1);
 
-		GraphBuilder.QueueTextureExtraction(TranslucencyGIVolumeNewHistory0, &View.LumenTranslucencyGIVolume.HistoryTexture0);
-		GraphBuilder.QueueTextureExtraction(TranslucencyGIVolumeNewHistory1, &View.LumenTranslucencyGIVolume.HistoryTexture1);
+		ConvertToExternalTexture(GraphBuilder, TranslucencyGIVolumeNewHistory0, View.LumenTranslucencyGIVolume.HistoryTexture0);
+		ConvertToExternalTexture(GraphBuilder, TranslucencyGIVolumeNewHistory1, View.LumenTranslucencyGIVolume.HistoryTexture1);
 
 		View.LumenTranslucencyGIVolume.GridZParams = ZParams;
 		View.LumenTranslucencyGIVolume.GridPixelSizeShift = FMath::FloorLog2(GTranslucencyFroxelGridPixelSize);

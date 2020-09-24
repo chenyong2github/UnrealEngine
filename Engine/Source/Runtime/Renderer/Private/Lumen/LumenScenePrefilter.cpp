@@ -463,8 +463,8 @@ void FDeferredShadingSceneRenderer::PrefilterLumenSceneDepth(
 		}
 	}
 
-	GraphBuilder.QueueTextureExtraction(OpacityAtlas, &LumenSceneData.OpacityAtlas);
-	GraphBuilder.QueueTextureExtraction(DilatedDepthAtlas, &LumenSceneData.DepthAtlas);
+	ConvertToExternalTexture(GraphBuilder, OpacityAtlas, LumenSceneData.OpacityAtlas);
+	ConvertToExternalTexture(GraphBuilder, DilatedDepthAtlas, LumenSceneData.DepthAtlas);
 }
 
 class FLumenCardPrefilterLightingPS : public FGlobalShader

@@ -414,7 +414,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 
 		RenderRadiosityForLumenScene(GraphBuilder, TracingInputs, GlobalShaderMap, RadiosityAtlas);
 
-		GraphBuilder.QueueTextureExtraction(RadiosityAtlas, &LumenSceneData.RadiosityAtlas);
+		ConvertToExternalTexture(GraphBuilder, RadiosityAtlas, LumenSceneData.RadiosityAtlas);
 
 		FLumenCardScatterContext DirectLightingCardScatterContext;
 		extern float GLumenSceneCardDirectLightingUpdateFrequencyScale;

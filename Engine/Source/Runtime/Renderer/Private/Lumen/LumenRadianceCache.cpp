@@ -1142,16 +1142,12 @@ void FDeferredShadingSceneRenderer::RenderRadianceCache(
 		GraphBuilder.QueueBufferExtraction(ProbeFreeList, &RadianceCacheState.ProbeFreeList);
 		GraphBuilder.QueueBufferExtraction(ProbeAllocator, &RadianceCacheState.ProbeAllocator);
 		GraphBuilder.QueueBufferExtraction(ProbeLastUsedFrame, &RadianceCacheState.ProbeLastUsedFrame);
-		GraphBuilder.QueueTextureExtraction(RadianceProbeIndirectionTexture, &RadianceCacheState.RadianceProbeIndirectionTexture);
-		GraphBuilder.QueueTextureExtraction(RadianceProbeAtlasTexture, &RadianceCacheState.RadianceProbeAtlasTexture);
-		GraphBuilder.QueueTextureExtraction(FinalRadianceAtlas, &RadianceCacheState.FinalRadianceAtlas);
+		ConvertToExternalTexture(GraphBuilder, RadianceProbeIndirectionTexture, RadianceCacheState.RadianceProbeIndirectionTexture);
+		ConvertToExternalTexture(GraphBuilder, RadianceProbeAtlasTexture, RadianceCacheState.RadianceProbeAtlasTexture);
+		ConvertToExternalTexture(GraphBuilder, FinalRadianceAtlas, RadianceCacheState.FinalRadianceAtlas);
 	
 		RadianceCacheParameters.RadianceProbeIndirectionTexture = RadianceProbeIndirectionTexture;
 		RadianceCacheParameters.RadianceCacheFinalRadianceAtlas = FinalRadianceAtlas;
-
-		GVisualizeTexture.SetCheckPoint(GraphBuilder.RHICmdList, RadianceCacheState.RadianceProbeIndirectionTexture);
-		GVisualizeTexture.SetCheckPoint(GraphBuilder.RHICmdList, RadianceCacheState.RadianceProbeAtlasTexture);
-		GVisualizeTexture.SetCheckPoint(GraphBuilder.RHICmdList, RadianceCacheState.FinalRadianceAtlas);
 	}
 	else // GRadianceCacheUpdate != 0
 	{

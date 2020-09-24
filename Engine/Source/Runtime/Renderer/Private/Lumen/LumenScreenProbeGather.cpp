@@ -287,7 +287,7 @@ FRDGTextureRef InitializeOctahedralSolidAngleTexture(
 				FComputeShaderUtils::GetGroupCount(FIntPoint(GLumenOctahedralSolidAngleTextureSize, GLumenOctahedralSolidAngleTextureSize), FOctahedralSolidAngleCS::GetGroupSize()));
 		}
 
-		GraphBuilder.QueueTextureExtraction(OctahedralSolidAngleTexture, &ScreenProbeGatherState.OctahedralSolidAngleTextureRT);
+		ConvertToExternalTexture(GraphBuilder, OctahedralSolidAngleTexture, ScreenProbeGatherState.OctahedralSolidAngleTextureRT);
 		return OctahedralSolidAngleTexture;
 	}
 }

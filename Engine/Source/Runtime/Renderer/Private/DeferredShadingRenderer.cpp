@@ -2078,7 +2078,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, FeatureLevel, SceneTexturesSetupMode);
 	}
 
-	UpdateLumenScene(RHICmdList);
+	UpdateLumenScene(GraphBuilder);
 
 	if (bOcclusionBeforeBasePass)
 	{

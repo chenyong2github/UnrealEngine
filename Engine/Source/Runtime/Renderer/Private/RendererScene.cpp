@@ -941,9 +941,6 @@ void FPersistentUniformBuffers::Initialize()
 
 	LumenCardCaptureViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(ViewUniformBufferParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
 
-	FLumenCardPassUniformParameters LumenCardPassUniformParameters;
-	LumenCardCapturePassUniformBuffer = TUniformBufferRef<FLumenCardPassUniformParameters>::CreateUniformBufferImmediate(LumenCardPassUniformParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
-
 	FMobileShadowDepthPassUniformParameters MobileCSMShadowDepthPassParameters;
 	MobileCSMShadowDepthPassUniformBuffer = TUniformBufferRef<FMobileShadowDepthPassUniformParameters>::CreateUniformBufferImmediate(MobileCSMShadowDepthPassParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
 

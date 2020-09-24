@@ -11,6 +11,7 @@
 
 class FCardRenderData;
 class FVirtualShadowMapArray;
+class FLumenCardPassUniformParameters;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogNanite, Warning, All);
 
@@ -627,12 +628,13 @@ void DrawLumenMeshCapturePass(
 	const TArray<FCardRenderData, SceneRenderingAllocator>& CardsToRender,
 	const FCullingContext& CullingContext,
 	const FRasterContext& RasterContext,
+	FLumenCardPassUniformParameters* PassUniformParameters,
 	FRDGBufferSRVRef RectMinMaxBufferSRV,
 	uint32 NumRects,
 	FIntPoint ViewportSize,
-	const TRefCountPtr<IPooledRenderTarget>& Color0RT,
-	const TRefCountPtr<IPooledRenderTarget>& Color1RT,
-	const TRefCountPtr<IPooledRenderTarget>& DepthRT
+	FRDGTextureRef AlbedoAtlasTexture,
+	FRDGTextureRef NormalAtlasTexture,
+	FRDGTextureRef DepthAtlasTexture
 );
 
 #if WITH_EDITOR
