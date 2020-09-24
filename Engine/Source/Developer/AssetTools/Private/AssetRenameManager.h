@@ -33,7 +33,7 @@ public:
 	bool RenameAssets(const TArray<FAssetRenameData>& AssetsAndNames) const;
 
 	/** Renames assets using the specified names. */
-	void RenameAssetsWithDialog(const TArray<FAssetRenameData>& AssetsAndNames, bool bAutoCheckout = false) const;
+	EAssetRenameResult RenameAssetsWithDialog(const TArray<FAssetRenameData>& AssetsAndNames, bool bAutoCheckout = false) const;
 
 	/** Returns list of objects that soft reference the given soft object path. This will load assets into memory to verify */
 	void FindSoftReferencesToObject(FSoftObjectPath TargetObject, TArray<UObject*>& ReferencingObjects) const;
