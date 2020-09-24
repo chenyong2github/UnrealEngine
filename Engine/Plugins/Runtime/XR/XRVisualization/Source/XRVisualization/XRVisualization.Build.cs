@@ -15,7 +15,8 @@ namespace UnrealBuildTool.Rules
                     "EngineSettings",
                     "RenderCore",
 					"RHI",
-					"HeadMountedDisplay"
+					"HeadMountedDisplay",
+					"ProceduralMeshComponent",
 				}
 			);
         }
