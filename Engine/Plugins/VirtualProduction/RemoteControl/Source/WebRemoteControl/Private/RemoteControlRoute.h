@@ -22,6 +22,13 @@ DECLARE_DELEGATE_OneParam(FWebSocketMessageDelegate, const FRemoteControlWebSock
 
 struct FRemoteControlRoute
 {
+	FRemoteControlRoute(FString InRouteDescription, FHttpPath InPath, EHttpServerRequestVerbs InVerb, FRequestHandlerDelegate InHandler)
+		: RouteDescription(MoveTemp(InRouteDescription))
+		, Path(MoveTemp(InPath))
+		, Verb(InVerb)
+		, Handler(MoveTemp(InHandler))
+	{
+	}
 	/** A description of how the route should be used. */
 	FString RouteDescription;
 	/** Relative path (ie. /remote/object) */
