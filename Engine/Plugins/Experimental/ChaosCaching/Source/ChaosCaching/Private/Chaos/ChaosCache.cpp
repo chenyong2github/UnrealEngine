@@ -76,7 +76,7 @@ void UChaosCache::FlushPendingFrames()
 		QUICK_SCOPE_CYCLE_COUNTER(QSTAT_CacheCalcDuration);
 		float Min = TNumericLimits<float>::Max();
 		float Max = -Min;
-		for(const FPerParticleCacheData ParticleData : ParticleTracks)
+		for(const FPerParticleCacheData& ParticleData : ParticleTracks)
 		{
 			Min = FMath::Min(Min, ParticleData.TransformData.GetBeginTime());
 			Max = FMath::Max(Max, ParticleData.TransformData.GetEndTime());

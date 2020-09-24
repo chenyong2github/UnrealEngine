@@ -352,7 +352,7 @@ TArray< TUsdStore< pxr::UsdGeomPrimvar > > UsdUtils::GetUVSetPrimvars( const pxr
 	TMap<FString, pxr::UsdGeomPrimvar> PrimvarsByName;
 	TMap<int32, TArray<pxr::UsdGeomPrimvar>> UsablePrimvarsByUVIndex;
 	pxr::UsdGeomPrimvarsAPI PrimvarsAPI{ UsdMesh };
-	for ( const pxr::UsdGeomPrimvar Primvar : PrimvarsAPI.GetPrimvars() )
+	for (const pxr::UsdGeomPrimvar& Primvar : PrimvarsAPI.GetPrimvars() )
 	{
 		if ( !Primvar || !Primvar.HasValue() )
 		{

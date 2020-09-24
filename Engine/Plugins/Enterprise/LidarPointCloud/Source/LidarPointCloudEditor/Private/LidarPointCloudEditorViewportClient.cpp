@@ -372,7 +372,7 @@ void FLidarPointCloudEditorViewportClient::OnSelectionEnd(const FIntVector4& Sel
 			// Shared calculations
 			Normals[4] = ViewDirection;
 			Normals[5] = -ViewDirection;
-			Origins[4] = Origins[0] + ViewDirection * 99999999;
+			Origins[4] = Origins[0] + ViewDirection * 99999999.0f;
 
 			// Perspective View
 			if (View->IsPerspectiveProjection())

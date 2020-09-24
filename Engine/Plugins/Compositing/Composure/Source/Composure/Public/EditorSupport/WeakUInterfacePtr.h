@@ -47,7 +47,7 @@ public:
 		return Get();
 	}
 
-	FORCEINLINE void Reset() const
+	FORCEINLINE void Reset()
 	{
 		IntrefacePtr = nullptr;
 		Object.Reset();

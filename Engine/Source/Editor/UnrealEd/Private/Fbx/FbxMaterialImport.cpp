@@ -413,9 +413,9 @@ void UnFbx::FFbxImporter::FixupMaterial( const FbxSurfaceMaterial& FbxMaterial, 
 		else
 		{
 			// use random color because there may be multiple materials, then they can be different 
-			MyColorExpression->DefaultValue.R = 0.5f+(0.5f*FMath::Rand())/RAND_MAX;
-			MyColorExpression->DefaultValue.G = 0.5f+(0.5f*FMath::Rand())/RAND_MAX;
-			MyColorExpression->DefaultValue.B = 0.5f+(0.5f*FMath::Rand())/RAND_MAX;
+			MyColorExpression->DefaultValue.R = 0.5f+(0.5f*FMath::Rand()) / static_cast<float>(RAND_MAX);
+			MyColorExpression->DefaultValue.G = 0.5f+(0.5f*FMath::Rand()) / static_cast<float>(RAND_MAX);
+			MyColorExpression->DefaultValue.B = 0.5f+(0.5f*FMath::Rand()) / static_cast<float>(RAND_MAX);
 		}
 
 		TArray<FExpressionOutput> Outputs = UnrealMaterial->BaseColor.Expression->GetOutputs();

@@ -629,7 +629,7 @@ private:
 	enum { InvalidIndex = -1 };
 	static const SizeType Margin = (30 * 256) / 100;
 
-	FCriticalSection CriticalSection;
+	mutable FCriticalSection CriticalSection;
 
 	FLLMAllocator* Allocator;
 

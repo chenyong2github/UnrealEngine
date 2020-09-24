@@ -79,7 +79,7 @@ bool TryConvertNumber(const FJsonValue& InValue, T& OutNumber)
 {
 	double Double;
 
-	if (InValue.TryGetNumber(Double) && (Double >= TNumericLimits<T>::Min()) && (Double <= TNumericLimits<T>::Max()))
+	if (InValue.TryGetNumber(Double) && (Double >= TNumericLimits<T>::Min()) && (Double <= static_cast<double>(TNumericLimits<T>::Max())))
 	{
 		OutNumber = static_cast<T>(FMath::RoundHalfFromZero(Double));
 

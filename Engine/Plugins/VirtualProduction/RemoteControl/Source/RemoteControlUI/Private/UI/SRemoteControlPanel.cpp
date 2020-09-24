@@ -1305,7 +1305,7 @@ void SRemoteControlPanel::GenerateFieldWidgets()
 	{
 		TSharedRef<SRemoteControlTarget> Target = MakeShared<SRemoteControlTarget>(MapEntry.Key, PanelPtr);
 		RemoteControlTargets.Add(Target);
-		for (const TSharedPtr<SExposedFieldWidget>& Widget : Target->GetFieldWidgets())
+		for (const TSharedRef<SExposedFieldWidget>& Widget : Target->GetFieldWidgets())
 		{
 			FieldWidgetMap.Add(Widget->GetFieldId(), Widget);
 		}
