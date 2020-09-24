@@ -672,13 +672,16 @@ bool FControlRigEditMode::StartTracking(FEditorViewportClient* InViewportClient,
 				}
 			}
 
-			UObject* Blueprint = ControlRig->GetClass()->ClassGeneratedBy;
-			if (Blueprint)
+			if (!IsInLevelEditor())
 			{
-				Blueprint->SetFlags(RF_Transactional);
-				if (bShouldModify)
+				UObject* Blueprint = ControlRig->GetClass()->ClassGeneratedBy;
+				if (Blueprint)
 				{
-					Blueprint->Modify();
+					Blueprint->SetFlags(RF_Transactional);
+					if (bShouldModify)
+					{
+						Blueprint->Modify();
+					}
 				}
 			}
 
