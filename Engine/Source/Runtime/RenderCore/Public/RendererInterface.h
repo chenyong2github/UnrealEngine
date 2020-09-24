@@ -551,14 +551,15 @@ public:
 	FIntRect ViewportRect;
 	FMatrix ViewMatrix;
 	FMatrix ProjMatrix;
-	FRHITexture2D* DepthTexture;
-	FRHITexture2D* NormalTexture;
-	FRHITexture2D* SmallDepthTexture;
-	FRHICommandListImmediate* RHICmdList;
-	FRHIUniformBuffer* ViewUniformBuffer;
+	FRHITexture2D* DepthTexture = nullptr;
+	FRHITexture2D* NormalTexture = nullptr;
+	FRHITexture2D* VelocityTexture = nullptr;
+	FRHITexture2D* SmallDepthTexture = nullptr;
+	FRHICommandListImmediate* RHICmdList = nullptr;
+	FRHIUniformBuffer* ViewUniformBuffer = nullptr;
 	TUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformParams;
-	const FGlobalDistanceFieldParameterData* GlobalDistanceFieldParams;
-	void* Uid; // A unique identifier for the view.
+	const FGlobalDistanceFieldParameterData* GlobalDistanceFieldParams = nullptr;
+	void* Uid = nullptr; // A unique identifier for the view.
 };
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnPostOpaqueRender, class FPostOpaqueRenderParameters&);
 typedef FOnPostOpaqueRender::FDelegate FPostOpaqueRenderDelegate;
