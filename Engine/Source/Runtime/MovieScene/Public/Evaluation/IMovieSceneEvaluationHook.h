@@ -30,6 +30,9 @@ struct FEvaluationHookParams
 	/** The object binding ID for the hook */
 	FGuid ObjectBindingID;
 
+	/** Evaluation context */
+	FMovieSceneContext Context;
+
 	/** The sequence ID for the hook */
 	FMovieSceneSequenceID SequenceID = MovieSceneSequenceID::Root;
 
