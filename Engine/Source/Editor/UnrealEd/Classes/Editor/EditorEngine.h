@@ -3098,8 +3098,8 @@ protected:
 	/** Called when all PIE instances have been successfully logged in */
 	virtual void OnAllPIEInstancesStarted();
 	
-	/** Transfers the current Editor Selection to their SIE counterparts. */
-	void TransferEditorSelectionToSIEInstances();
+	/** Backs up the current editor selection and then clears it. Optionally reselects the instances in the Play world. */
+	void TransferEditorSelectionToPlayInstances(const bool bInSelectInstances);
 	
 	/** Create a new GameInstance for PIE with the specified parameters. */
 	virtual UGameInstance* CreateInnerProcessPIEGameInstance(FRequestPlaySessionParams& InParams, const FGameInstancePIEParameters& InPIEParameters, int32 InPIEInstanceIndex);
