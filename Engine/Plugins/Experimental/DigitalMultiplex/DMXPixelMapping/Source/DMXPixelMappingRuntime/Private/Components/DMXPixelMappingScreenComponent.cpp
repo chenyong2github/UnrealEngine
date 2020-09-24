@@ -32,17 +32,17 @@ UDMXPixelMappingScreenComponent::UDMXPixelMappingScreenComponent()
 	SizeX = 100;
 	SizeY = 100;
 
-	NumXPanels = 10;
-	NumYPanels = 10;
+	NumXCells = 10;
+	NumYCells = 10;
 
-	PixelFormat = EDMXPixelFormat::PF_RGB;
+	PixelFormat = EDMXCellFormat::PF_RGB;
 	bIgnoreAlphaChannel = true;
 
 	RemoteUniverse = 1;
 	StartAddress = 1;
 	PixelIntensity = 1;
 	AlphaIntensity = 1;
-	Distribution = EDMXPixelsDistribution::TopLeftToRight;
+	Distribution = EDMXPixelMappingDistribution::TopLeftToRight;
 
 #if WITH_EDITOR
 	bIsUpdateWidgetRequested = false;
@@ -56,7 +56,7 @@ void UDMXPixelMappingScreenComponent::PostParentAssigned()
 {
 	Super::PostParentAssigned();
 
-	ResizeOutputTarget(NumXPanels, NumYPanels);
+	ResizeOutputTarget(NumXCells, NumYCells);
 }
 
 void UDMXPixelMappingScreenComponent::Tick(float DeltaTime)
@@ -77,10 +77,10 @@ void UDMXPixelMappingScreenComponent::PostEditChangeChainProperty(FPropertyChang
 	// Call the parent at the first place
 	Super::PostEditChangeChainProperty(PropertyChangedChainEvent);
 
-	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, NumXPanels) ||
-		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, NumYPanels))
+	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, NumXCells) ||
+		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, NumYCells))
 	{
-		ResizeOutputTarget(NumXPanels, NumYPanels);
+		ResizeOutputTarget(NumXCells, NumYCells);
 	}
 
 	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, PositionX) ||
@@ -96,8 +96,8 @@ void UDMXPixelMappingScreenComponent::PostEditChangeChainProperty(FPropertyChang
 		CachedWidget->SetHeightOverride(SizeY);
 	}
 
-	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, NumXPanels) ||
-		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, NumYPanels) ||
+	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, NumXCells) ||
+		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, NumYCells) ||
 		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, RemoteUniverse) ||
 		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, StartAddress) ||
 		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, Distribution) ||
@@ -160,7 +160,7 @@ void UDMXPixelMappingScreenComponent::ToggleHighlightSelection(bool bIsSelected)
 
 TSharedRef<SWidget> UDMXPixelMappingScreenComponent::ConstructGrid()
 {
-	if ((NumXPanels * NumYPanels) > MaxGridUICells)
+	if ((NumXCells * NumYCells) > MaxGridUICells)
 	{
 		return SNew(SOverlay)
 			+ SOverlay::Slot()
@@ -176,8 +176,8 @@ TSharedRef<SWidget> UDMXPixelMappingScreenComponent::ConstructGrid()
 			.VAlign(VAlign_Fill)
 			[
 				SNew(SDMXPixelMappingSimpleScreenLayout)
-				.NumXPanels(NumXPanels)
-				.NumYPanels(NumYPanels)
+				.NumXCells(NumXCells)
+				.NumYCells(NumYCells)
 				.Brush(&Brush)
 				.RemoteUniverse(RemoteUniverse)
 				.StartAddress(StartAddress)
@@ -199,8 +199,8 @@ TSharedRef<SWidget> UDMXPixelMappingScreenComponent::ConstructGrid()
 			.VAlign(VAlign_Fill)
 			[
 				SNew(SDMXPixelMappingScreenLayout)
-				.NumXPanels(NumXPanels)
-				.NumYPanels(NumYPanels)
+				.NumXCells(NumXCells)
+				.NumYCells(NumYCells)
 				.Distribution(Distribution)
 				.PixelFormat(PixelFormat)
 				.Brush(&Brush)
@@ -239,99 +239,99 @@ void UDMXPixelMappingScreenComponent::PostLoad()
 {
 	Super::PostLoad();
 
-	ResizeOutputTarget(NumXPanels, NumYPanels);
+	ResizeOutputTarget(NumXCells, NumYCells);
 }
 
 void UDMXPixelMappingScreenComponent::AddColorToSendBuffer(const FColor& InColor, TArray<uint8>& OutDMXSendBuffer)
 {
-	if (PixelFormat == EDMXPixelFormat::PF_R)
+	if (PixelFormat == EDMXCellFormat::PF_R)
 	{
 		OutDMXSendBuffer.Add(InColor.R);
 	}
-	else if (PixelFormat == EDMXPixelFormat::PF_G)
+	else if (PixelFormat == EDMXCellFormat::PF_G)
 	{
 		OutDMXSendBuffer.Add(InColor.G);
 	}
-	else if (PixelFormat == EDMXPixelFormat::PF_B)
+	else if (PixelFormat == EDMXCellFormat::PF_B)
 	{
 		OutDMXSendBuffer.Add(InColor.B);
 	}
-	else if (PixelFormat == EDMXPixelFormat::PF_RG)
+	else if (PixelFormat == EDMXCellFormat::PF_RG)
 	{
 		OutDMXSendBuffer.Add(InColor.R);
 		OutDMXSendBuffer.Add(InColor.G);
 	}
-	else if (PixelFormat == EDMXPixelFormat::PF_RB)
+	else if (PixelFormat == EDMXCellFormat::PF_RB)
 	{
 		OutDMXSendBuffer.Add(InColor.R);
 		OutDMXSendBuffer.Add(InColor.B);
 	}
-	else if (PixelFormat == EDMXPixelFormat::PF_GB)
+	else if (PixelFormat == EDMXCellFormat::PF_GB)
 	{
 		OutDMXSendBuffer.Add(InColor.G);
 		OutDMXSendBuffer.Add(InColor.B);
 	}
-	else if (PixelFormat == EDMXPixelFormat::PF_GR)
-	{
-		OutDMXSendBuffer.Add(InColor.G);
-		OutDMXSendBuffer.Add(InColor.R);
-	}
-	else if (PixelFormat == EDMXPixelFormat::PF_BR)
-	{
-		OutDMXSendBuffer.Add(InColor.B);
-		OutDMXSendBuffer.Add(InColor.R);
-	}
-	else if (PixelFormat == EDMXPixelFormat::PF_BG)
-	{
-		OutDMXSendBuffer.Add(InColor.B);
-		OutDMXSendBuffer.Add(InColor.G);
-	}
-	else if (PixelFormat == EDMXPixelFormat::PF_RGB)
-	{
-		OutDMXSendBuffer.Add(InColor.R);
-		OutDMXSendBuffer.Add(InColor.G);
-		OutDMXSendBuffer.Add(InColor.B);
-	}
-	else if (PixelFormat == EDMXPixelFormat::PF_BRG)
-	{
-		OutDMXSendBuffer.Add(InColor.B);
-		OutDMXSendBuffer.Add(InColor.R);
-		OutDMXSendBuffer.Add(InColor.G);
-	}
-	else if (PixelFormat == EDMXPixelFormat::PF_GRB)
+	else if (PixelFormat == EDMXCellFormat::PF_GR)
 	{
 		OutDMXSendBuffer.Add(InColor.G);
 		OutDMXSendBuffer.Add(InColor.R);
+	}
+	else if (PixelFormat == EDMXCellFormat::PF_BR)
+	{
+		OutDMXSendBuffer.Add(InColor.B);
+		OutDMXSendBuffer.Add(InColor.R);
+	}
+	else if (PixelFormat == EDMXCellFormat::PF_BG)
+	{
+		OutDMXSendBuffer.Add(InColor.B);
+		OutDMXSendBuffer.Add(InColor.G);
+	}
+	else if (PixelFormat == EDMXCellFormat::PF_RGB)
+	{
+		OutDMXSendBuffer.Add(InColor.R);
+		OutDMXSendBuffer.Add(InColor.G);
 		OutDMXSendBuffer.Add(InColor.B);
 	}
-	else if (PixelFormat == EDMXPixelFormat::PF_GBR)
+	else if (PixelFormat == EDMXCellFormat::PF_BRG)
+	{
+		OutDMXSendBuffer.Add(InColor.B);
+		OutDMXSendBuffer.Add(InColor.R);
+		OutDMXSendBuffer.Add(InColor.G);
+	}
+	else if (PixelFormat == EDMXCellFormat::PF_GRB)
+	{
+		OutDMXSendBuffer.Add(InColor.G);
+		OutDMXSendBuffer.Add(InColor.R);
+		OutDMXSendBuffer.Add(InColor.B);
+	}
+	else if (PixelFormat == EDMXCellFormat::PF_GBR)
 	{
 		OutDMXSendBuffer.Add(InColor.G);
 		OutDMXSendBuffer.Add(InColor.B);
 		OutDMXSendBuffer.Add(InColor.R);
 	}
-	else if (PixelFormat == EDMXPixelFormat::PF_RGBA)
+	else if (PixelFormat == EDMXCellFormat::PF_RGBA)
 	{
 		OutDMXSendBuffer.Add(InColor.R);
 		OutDMXSendBuffer.Add(InColor.G);
 		OutDMXSendBuffer.Add(InColor.B);
 		OutDMXSendBuffer.Add(bIgnoreAlphaChannel ? 0 : InColor.A);
 	}
-	else if (PixelFormat == EDMXPixelFormat::PF_GBRA)
+	else if (PixelFormat == EDMXCellFormat::PF_GBRA)
 	{
 		OutDMXSendBuffer.Add(InColor.G);
 		OutDMXSendBuffer.Add(InColor.B);
 		OutDMXSendBuffer.Add(InColor.R);
 		OutDMXSendBuffer.Add(bIgnoreAlphaChannel ? 0 : InColor.A);
 	}
-	else if (PixelFormat == EDMXPixelFormat::PF_BRGA)
+	else if (PixelFormat == EDMXCellFormat::PF_BRGA)
 	{
 		OutDMXSendBuffer.Add(InColor.B);
 		OutDMXSendBuffer.Add(InColor.R);
 		OutDMXSendBuffer.Add(InColor.G);
 		OutDMXSendBuffer.Add(bIgnoreAlphaChannel ? 0 : InColor.A);
 	}
-	else if (PixelFormat == EDMXPixelFormat::PF_GRBA)
+	else if (PixelFormat == EDMXCellFormat::PF_GRBA)
 	{
 		OutDMXSendBuffer.Add(InColor.G);
 		OutDMXSendBuffer.Add(InColor.R);
@@ -378,7 +378,7 @@ void UDMXPixelMappingScreenComponent::SendDMX()
 	if (Protocol.IsValid())
 	{
 		// Sending only if there enough space at least for one pixel
-		if (!FDMXPixelMappingUtils::CanFitPixelIntoChannels(PixelFormat, StartAddress))
+		if (!FDMXPixelMappingUtils::CanFitCellIntoChannels(PixelFormat, StartAddress))
 		{
 			return;
 		}
@@ -560,7 +560,7 @@ void UDMXPixelMappingScreenComponent::RendererOutputTexture()
 			const FVector2D UV = FVector2D(PositionX / TexureSizeX, PositionY / TexureSizeY);
 
 			const FVector2D UVSize(SizeX / TexureSizeX, SizeY / TexureSizeY);
-			const FVector2D UVCellSize(UVSize.X / NumXPanels / 2.f, UVSize.Y / NumYPanels / 2.f);
+			const FVector2D UVCellSize(UVSize.X / NumXCells / 2.f, UVSize.Y / NumYCells / 2.f);
 
 			const FIntPoint TargetSize(OutputTarget->Resource->GetSizeX(), OutputTarget->Resource->GetSizeY());
 			const FIntPoint TextureSize(1, 1);
@@ -580,7 +580,7 @@ void UDMXPixelMappingScreenComponent::RendererOutputTexture()
 				UVCellSize,
 				TargetSize, // TargetSizeX, TargetSizeY Size in screen pixels of the target surface
 				TextureSize, // TextureSize Size in texels of the source texture
-				PixelBlendingQuality,
+				CellBlendingQuality,
 				bStaticCalculateUV,
 				[=](TArray<FColor>& InSurfaceBuffer, FIntRect& InRect) { SetSurfaceBuffer(InSurfaceBuffer, InRect); }
 			);

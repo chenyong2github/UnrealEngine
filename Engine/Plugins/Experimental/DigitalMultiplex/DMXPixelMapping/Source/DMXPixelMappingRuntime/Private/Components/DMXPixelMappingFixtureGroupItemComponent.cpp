@@ -397,7 +397,7 @@ void UDMXPixelMappingFixtureGroupItemComponent::RendererOutputTexture()
 				UVCellSize,
 				TargetSize,
 				TextureSize,
-				PixelBlendingQuality,
+				CellBlendingQuality,
 				bStaticCalculateUV,
 				[=](TArray<FColor>& InSurfaceBuffer, FIntRect& InRect) { SetSurfaceBuffer(InSurfaceBuffer, InRect); }
 			);

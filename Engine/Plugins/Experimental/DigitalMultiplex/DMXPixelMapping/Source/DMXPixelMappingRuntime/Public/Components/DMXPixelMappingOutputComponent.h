@@ -164,7 +164,7 @@ public:
 
     /** The quality level to use when averaging colors during downsampling. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Pixel Settings")
-	EDMXPixelBlendingQuality PixelBlendingQuality;
+	EDMXPixelBlendingQuality CellBlendingQuality;
 
 public:
 #if WITH_EDITORONLY_DATA

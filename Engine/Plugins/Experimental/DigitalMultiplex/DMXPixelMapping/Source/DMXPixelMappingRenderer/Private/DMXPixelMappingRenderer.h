@@ -38,7 +38,7 @@ public:
 		FVector2D UVCellSize = FVector2D(0.f, 0.f);
 		FIntPoint TargetSize;
 		FIntPoint TextureSize;
-		EDMXPixelBlendingQuality PixelBlendingQuality;
+		EDMXPixelBlendingQuality CellBlendingQuality;
 		bool bStaticCalculateUV;
 	};
 
@@ -60,7 +60,7 @@ public:
 		const FVector2D& UVCellSize,
 		const FIntPoint& TargetSize,
 		const FIntPoint& TextureSize,
-		EDMXPixelBlendingQuality PixelBlendingQuality,
+		EDMXPixelBlendingQuality CellBlendingQuality,
 		bool bStaticCalculateUV,
 		SurfaceReadCallback ReadCallback) override;
 	virtual void RenderMaterial(UTextureRenderTarget2D* InRenderTarget, UMaterialInterface* InMaterialInterface) const override;

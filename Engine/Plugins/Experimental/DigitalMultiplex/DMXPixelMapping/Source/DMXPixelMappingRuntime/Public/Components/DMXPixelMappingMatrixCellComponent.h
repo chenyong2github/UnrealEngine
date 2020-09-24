@@ -5,7 +5,8 @@
 #include "Components/DMXPixelMappingOutputDMXComponent.h"
 #include "DMXProtocolTypes.h"
 #include "Library/DMXEntityReference.h"
-#include "DMXPixelMappingMatrixPixelComponent.generated.h"
+
+#include "DMXPixelMappingMatrixCellComponent.generated.h"
 
 class SUniformGridPanel;
 class UTextureRenderTarget2D;
@@ -16,14 +17,14 @@ enum class EDMXColorMode : uint8;
  * Matrix pixel component
  */
 UCLASS()
-class DMXPIXELMAPPINGRUNTIME_API UDMXPixelMappingMatrixPixelComponent
+class DMXPIXELMAPPINGRUNTIME_API UDMXPixelMappingMatrixCellComponent
 	: public UDMXPixelMappingOutputDMXComponent
 {
 	GENERATED_BODY()
 
 public:
 	/** Default Constructor */
-	UDMXPixelMappingMatrixPixelComponent();
+	UDMXPixelMappingMatrixCellComponent();
 
 	//~ Begin UObject implementation
 	virtual void PostLoad() override;
@@ -68,8 +69,8 @@ public:
 	void SetPositionFromParent(const FVector2D& InPosition);
 	void SetSizeFromParent(const FVector2D& InSize);
 
-	void SetPixelCoordinate(FIntPoint InPixelCoordinate) { PixelCoordinate = InPixelCoordinate; }
-	const FIntPoint& GetPixelCoordinate() { return PixelCoordinate; }
+	void SetPixelCoordinate(FIntPoint InPixelCoordinate) { CellCoordinate = InPixelCoordinate; }
+	const FIntPoint& GetPixelCoordinate() { return CellCoordinate; }
 
 	/** Check if a Component can be moved under another one (used for copy/move/duplicate) */
 	virtual bool CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const override;
@@ -81,7 +82,7 @@ private:
 
 public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Pixel Settings")
-	int32 PixelIndex;
+	int32 CellID;
 
 	UPROPERTY()
 	FDMXEntityFixturePatchRef FixturePatchMatrixRef;
@@ -91,7 +92,7 @@ private:
 	UTextureRenderTarget2D* OutputTarget;
 
 	UPROPERTY()
-	FIntPoint PixelCoordinate;
+	FIntPoint CellCoordinate;
 
 #if WITH_EDITORONLY_DATA
 	FSlateBrush Brush;

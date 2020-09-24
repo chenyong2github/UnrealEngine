@@ -6,7 +6,7 @@
 
 #include "Library/DMXEntityFixtureType.h"
 
-enum class EDMXPixelFormat : uint8;
+enum class EDMXCellFormat : uint8;
 
 /**
  *	Core helper classes
@@ -24,16 +24,16 @@ public:
 	 * @param OutSortedList				Templated unsorted array output
 	 */
 	template<typename T>
-	static void TextureDistributionSort(EDMXPixelsDistribution InDistribution, const int32& InNumXPanels, const int32& InNumYPanels, const TArray<T>& InUnorderedList, TArray<T>& OutSortedList)
+	static void TextureDistributionSort(EDMXPixelMappingDistribution InDistribution, const int32& InNumXPanels, const int32& InNumYPanels, const TArray<T>& InUnorderedList, TArray<T>& OutSortedList)
 	{
 		int32 GridSize = InNumXPanels * InNumYPanels;
 
-		if (InDistribution == EDMXPixelsDistribution::TopLeftToRight)
+		if (InDistribution == EDMXPixelMappingDistribution::TopLeftToRight)
 		{
 			// Do nothing this is default
 			OutSortedList = InUnorderedList;
 		}
-		else if (InDistribution == EDMXPixelsDistribution::TopLeftToBottom)
+		else if (InDistribution == EDMXPixelMappingDistribution::TopLeftToBottom)
 		{
 			for (int32 XIndex = 0; XIndex < InNumXPanels; ++XIndex)
 			{
@@ -44,7 +44,7 @@ public:
 				}
 			}
 		}
-		else if (InDistribution == EDMXPixelsDistribution::TopLeftToClockwise)
+		else if (InDistribution == EDMXPixelMappingDistribution::TopLeftToClockwise)
 		{
 			for (int32 YIndex = 0; YIndex < InNumYPanels; ++YIndex)
 			{
@@ -61,7 +61,7 @@ public:
 				}
 			}
 		}
-		else if (InDistribution == EDMXPixelsDistribution::TopLeftToAntiClockwise)
+		else if (InDistribution == EDMXPixelMappingDistribution::TopLeftToAntiClockwise)
 		{
 			int32 Index = 0;
 			for (int32 XIndex = 0; XIndex < InNumXPanels; ++XIndex)
@@ -97,7 +97,7 @@ public:
 				}
 			}
 		}
-		else if (InDistribution == EDMXPixelsDistribution::TopRightToLeft)
+		else if (InDistribution == EDMXPixelMappingDistribution::TopRightToLeft)
 		{
 			for (int32 YIndex = 0; YIndex < InNumYPanels; ++YIndex)
 			{
@@ -108,7 +108,7 @@ public:
 				}
 			}
 		}
-		else if (InDistribution == EDMXPixelsDistribution::BottomLeftToTop)
+		else if (InDistribution == EDMXPixelMappingDistribution::BottomLeftToTop)
 		{
 			for (int32 XIndex = 0; XIndex < InNumXPanels; ++XIndex)
 			{
@@ -119,7 +119,7 @@ public:
 				}
 			}
 		}
-		else if (InDistribution == EDMXPixelsDistribution::TopRightToAntiClockwise)
+		else if (InDistribution == EDMXPixelMappingDistribution::TopRightToAntiClockwise)
 		{
 			for (int32 YIndex = 0; YIndex < InNumYPanels; ++YIndex)
 			{
@@ -136,7 +136,7 @@ public:
 				}
 			}
 		}
-		else if (InDistribution == EDMXPixelsDistribution::BottomLeftToClockwise)
+		else if (InDistribution == EDMXPixelMappingDistribution::BottomLeftToClockwise)
 		{
 			int32 Index = 0;
 
@@ -158,7 +158,7 @@ public:
 				}
 			}
 		}
-		else if (InDistribution == EDMXPixelsDistribution::BottomLeftToRight)
+		else if (InDistribution == EDMXPixelMappingDistribution::BottomLeftToRight)
 		{
 			for (int32 YIndex = 0; YIndex < InNumYPanels; ++YIndex)
 			{
@@ -170,7 +170,7 @@ public:
 				}
 			}
 		}
-		else if (InDistribution == EDMXPixelsDistribution::TopRightToBottom)
+		else if (InDistribution == EDMXPixelMappingDistribution::TopRightToBottom)
 		{
 			for (int32 XIndex = 0; XIndex < InNumXPanels; ++XIndex)
 			{
@@ -181,7 +181,7 @@ public:
 				}
 			}
 		}
-		else if (InDistribution == EDMXPixelsDistribution::BottomLeftAntiClockwise)
+		else if (InDistribution == EDMXPixelMappingDistribution::BottomLeftAntiClockwise)
 		{
 			int32 Index = 0;
 			for (int32 YIndex = 0; YIndex < InNumYPanels; ++YIndex)
@@ -222,7 +222,7 @@ public:
 				}
 			}
 		}
-		else if (InDistribution == EDMXPixelsDistribution::TopRightToClockwise)
+		else if (InDistribution == EDMXPixelMappingDistribution::TopRightToClockwise)
 		{
 			int32 Index = 0;
 
@@ -259,7 +259,7 @@ public:
 				}
 			}
 		}
-		else if (InDistribution == EDMXPixelsDistribution::BottomRightToLeft)
+		else if (InDistribution == EDMXPixelMappingDistribution::BottomRightToLeft)
 		{
 			for (int32 YIndex = 0; YIndex < InNumYPanels; ++YIndex)
 			{
@@ -271,7 +271,7 @@ public:
 				}
 			}
 		}
-		else if (InDistribution == EDMXPixelsDistribution::BottomRightToTop)
+		else if (InDistribution == EDMXPixelMappingDistribution::BottomRightToTop)
 		{
 			for (int32 XIndex = 0; XIndex < InNumXPanels; ++XIndex)
 			{
@@ -283,7 +283,7 @@ public:
 				}
 			}
 		}
-		else if (InDistribution == EDMXPixelsDistribution::BottomRightToClockwise)
+		else if (InDistribution == EDMXPixelMappingDistribution::BottomRightToClockwise)
 		{
 			int32 Index = 0;
 
@@ -324,7 +324,7 @@ public:
 				}
 			}
 		}
-		else if (InDistribution == EDMXPixelsDistribution::BottomRightToAntiClockwise)
+		else if (InDistribution == EDMXPixelMappingDistribution::BottomRightToAntiClockwise)
 		{
 			int32 Index = 0;
 
@@ -373,7 +373,7 @@ public:
 	 * @param					InPixelFormat given pixel format. From 1 up to 4 colors per pixel
 	 * @return Amount of the channels
 	 */
-	DMXPIXELMAPPINGCORE_API static uint32 GetNumChannelsPerPixel(EDMXPixelFormat InPixelFormat);
+	DMXPIXELMAPPINGCORE_API static uint32 GetNumChannelsPerCell(EDMXCellFormat InPixelFormat);
 
 	/**
 	 * Dynamically calculate amount of the channels based on Pixel Format schema
@@ -381,7 +381,7 @@ public:
 	 * @param					InStartAddress start universe address
 	 * @return Max channel value
 	 */
-	DMXPIXELMAPPINGCORE_API static uint32 GetUniverseMaxChannels(EDMXPixelFormat InPixelFormat, uint32 InStartAddress);
+	DMXPIXELMAPPINGCORE_API static uint32 GetUniverseMaxChannels(EDMXCellFormat InPixelFormat, uint32 InStartAddress);
 
 	/**
 	 * Checking is there enough channel space for giver offset
@@ -389,5 +389,5 @@ public:
 	 * @param					InStartAddress start universe address
 	 * @return True if it possible to fit at lease one pixel
 	 */
-	DMXPIXELMAPPINGCORE_API static bool CanFitPixelIntoChannels(EDMXPixelFormat InPixelFormat, uint32 InStartAddress);
+	DMXPIXELMAPPINGCORE_API static bool CanFitCellIntoChannels(EDMXCellFormat InPixelFormat, uint32 InStartAddress);
 };

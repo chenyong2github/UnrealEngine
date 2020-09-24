@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DMXFixtureActorMatrix.h"
+
+#include "Rendering/Texture2DResource.h"
 #include "Components/StaticMeshComponent.h"
 
 void UpdateMatrixTexture(uint8* MatrixData, UTexture2D* DynamicTexture, int32 MipIndex, uint32 NumRegions, FUpdateTextureRegion2D Region, uint32 SrcPitch, uint32 SrcBpp)//, TFunction<void(uint8* SrcData)> DataCleanupFunc = [](uint8*) {})
@@ -87,12 +89,12 @@ void ADMXFixtureActorMatrix::InitializeMatrixFixture()
 	}
 
 	// Get matrix properties
-	FDMXPixelMatrix MatrixProperties;
+	FDMXFixtureMatrix MatrixProperties;
 	UDMXSubsystem* DMXSubsystem = UDMXSubsystem::GetDMXSubsystem_Pure();
 	UDMXEntityFixturePatch* FixturePatch = DMX->GetFixturePatch();
 	DMXSubsystem->GetMatrixProperties(FixturePatch, MatrixProperties);
-	XCells = MatrixProperties.XPixels;
-	YCells = MatrixProperties.YPixels;
+	XCells = MatrixProperties.XCells;
+	YCells = MatrixProperties.YCells;
 
 	// Limit cells [1-64]
 	XCells = FMath::Max(XCells, 1);
@@ -169,9 +171,9 @@ void ADMXFixtureActorMatrix::InitializeMatrixFixture()
 	HasBeenInitialized = true;
 
 	// Set initial fixture state using current DMX data
-	TArray<FDMXPixel> Pixels;
-	DMXSubsystem->GetAllMatrixPixels(FixturePatch, Pixels);
-	PushDMXMatrixPixelData(Pixels);
+	TArray<FDMXCell> Cells;
+	DMXSubsystem->GetAllMatrixCells(FixturePatch, Cells);
+	PushFixtureMatrixCellData(Cells);
 }
 
 // DMX Data is packed based on this convention
@@ -187,8 +189,8 @@ void ADMXFixtureActorMatrix::UpdateMatrixData(int RowIndex, int CellIndex, int C
 }
 
 // NB: Matrix data and effects are hardcoded for now - We could expose that to BP later
-// Pixels should always come in following [top-left to bottom-right] convention
-void ADMXFixtureActorMatrix::PushDMXMatrixPixelData(TArray<FDMXPixel> Pixels)
+// Cells should always come in following [top-left to bottom-right] convention
+void ADMXFixtureActorMatrix::PushFixtureMatrixCellData(TArray<FDMXCell> Cells)
 {
 	if (HasBeenInitialized)
 	{
@@ -202,11 +204,11 @@ void ADMXFixtureActorMatrix::PushDMXMatrixPixelData(TArray<FDMXPixel> Pixels)
 		// get fixture patch
 		UDMXEntityFixturePatch* FixturePatch = DMX->GetFixturePatch();
 
-		for (int CurrentCellIndex = 0; CurrentCellIndex < Pixels.Num(); CurrentCellIndex++)
+		for (int CurrentCellIndex = 0; CurrentCellIndex < Cells.Num(); CurrentCellIndex++)
 		{
 			TMap<FDMXAttributeName, int32> PixelAttributesMap;
-			FDMXPixel Pixel = Pixels[CurrentCellIndex];
-			DMXSubsystem->GetMatrixPixelValue(FixturePatch, Pixel.Coordinate, PixelAttributesMap);
+			FDMXCell Pixel = Cells[CurrentCellIndex];
+			DMXSubsystem->GetMatrixCellValue(FixturePatch, Pixel.Coordinate, PixelAttributesMap);
 
 			for (auto& DMXComponent : DMXComponents)
 			{
@@ -346,12 +348,12 @@ void ADMXFixtureActorMatrix::GenerateEditorMatrixMesh()
 {
 	if (DMX && !GWorld->HasBegunPlay())
 	{
-		FDMXPixelMatrix MatrixProperties;
+		FDMXFixtureMatrix MatrixProperties;
 		UDMXEntityFixturePatch* FixturePatch = DMX->GetFixturePatch();
 		UDMXSubsystem* DMXSubsystem = UDMXSubsystem::GetDMXSubsystem_Pure();
 		DMXSubsystem->GetMatrixProperties(FixturePatch, MatrixProperties);
-		XCells = MatrixProperties.XPixels;
-		YCells = MatrixProperties.YPixels;
+		XCells = MatrixProperties.XCells;
+		YCells = MatrixProperties.YCells;
 
 		// Limit cells [1-64]
 		XCells = FMath::Max(XCells, 1);
