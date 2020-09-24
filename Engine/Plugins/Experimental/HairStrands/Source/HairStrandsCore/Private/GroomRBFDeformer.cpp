@@ -382,7 +382,6 @@ void ApplyDeformationToGroom(const TArray<FRBFDeformedPositions>& DeformedPositi
 	GroomAsset->UpdateHairGroupsInfo();
 	GroomAsset->InitResources(true);
 }
-#endif //#if WITH_EDITORONLY_DATA
 
 static void ExtractSkeletalVertexPosition(
 	const FSkeletalMeshRenderData* SkeletalMeshData,
@@ -446,6 +445,7 @@ namespace GroomDerivedDataCacheUtils
 {
 	FString BuildCardsDerivedDataKeySuffix(uint32 GroupIndex, const TArray<FHairLODSettings>& LODs, TArray<FHairGroupsCardsSourceDescription>& SourceDescriptions);
 }
+#endif // #if WITH_EDITORONLY_DATA
 
 void FGroomRBFDeformer::GetRBFDeformedGroomAsset(const UGroomAsset* InGroomAsset, const UGroomBindingAsset* BindingAsset, UGroomAsset* OutGroomAsset)
 {
