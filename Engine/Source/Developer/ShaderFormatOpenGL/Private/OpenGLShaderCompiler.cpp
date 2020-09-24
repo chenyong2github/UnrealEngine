@@ -32,6 +32,8 @@
 	#include <GL/glcorearb.h>
 	#include <GL/glext.h>
 	#include "SDL.h"
+	#include <stdio.h>
+	#include <wchar.h>
 	typedef SDL_Window*		SDL_HWindow;
 	typedef SDL_GLContext	SDL_HGLContext;
 	struct FPlatformOpenGLContext
