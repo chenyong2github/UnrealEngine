@@ -28,6 +28,7 @@ public:
 	FTimedIntervalQuery BeginInterval(ID3D12GraphicsCommandList* CommandList);
 	void EndInterval(ID3D12GraphicsCommandList* CommandList, FTimedIntervalQuery Interval);
 	void ResolveBatches(uint64 TimeStampFrequency, bool bWait);
+	void PurgeOutstandingBatches();
 	
 	DECLARE_DELEGATE_TwoParams(FOnBatchResolvedDelegate, uint64, uint64);
 	FOnBatchResolvedDelegate OnBatchResolvedDelegate;
