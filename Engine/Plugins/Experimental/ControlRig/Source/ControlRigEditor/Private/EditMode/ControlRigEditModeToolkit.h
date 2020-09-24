@@ -26,6 +26,14 @@ public:
 	virtual FText GetBaseToolkitName() const override { return NSLOCTEXT("AnimationModeToolkit", "DisplayName", "Animation"); }
 	virtual class FEdMode* GetEditorMode() const override { return &EditMode; }
 	virtual TSharedPtr<class SWidget> GetInlineContent() const override { return ModeTools; }
+	virtual bool ProcessCommandBindings(const FKeyEvent& InKeyEvent) const override
+	{
+		if (EditMode.GetCommandBindings() && EditMode.GetCommandBindings()->ProcessCommandBindings(InKeyEvent))
+		{
+			return true;
+		}
+		return false;
+	}
 
 private:
 	/** The edit mode we are bound to */

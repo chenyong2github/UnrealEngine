@@ -140,6 +140,8 @@ public:
 	- this is to ensure preview scene doesn't remove Gizmo actors */
 	bool CanRemoveFromPreviewScene(const USceneComponent* InComponent);
 
+	FUICommandList* GetCommandBindings() const { return CommandBindings.Get(); }
+
 protected:
 
 	// Gizmo related functions wrt enable/selection
@@ -164,6 +166,12 @@ protected:
 
 	/** Toggles visibility of manipulators in the viewport */
 	void ToggleManipulators();
+
+	/** Frame to current Control Selection*/
+	void FrameSelection();
+
+	/** Whether or not we should Frame Selection or not*/
+	bool CanFrameSelection();
 
 	/** Reset Transforms */
 	void ResetTransforms(bool bSelectionOnly);
