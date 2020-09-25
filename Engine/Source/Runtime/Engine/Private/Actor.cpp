@@ -49,7 +49,10 @@
 #include "LevelUtils.h"
 #include "Components/DecalComponent.h"
 #include "GameFramework/InputSettings.h"
+
+#if WITH_EDITOR
 #include "FoliageHelper.h"
+#endif
 
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
