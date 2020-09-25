@@ -36,9 +36,16 @@ namespace Audio
 		// EarlyReflectionSettings controls the initial perceived echoes from a sound, modeling the first few
 		// orders of reflections from a sound source to the listener's ears. 
 		FEarlyReflectionsFastSettings EarlyReflections;
+
 		// LateReflectionSettings controls the long tail diffused echo modeling the higher order reflections
 		// from a sound source to the listener's ears. 
 		FLateReflectionsFastSettings LateReflections;
+
+		// Enables / Disables early reflections.
+		bool bEnableEarlyReflections;
+
+		// Enables / Disables late reflections.
+		bool bEnableLateReflections;
 
 		// Set how reverb module generates reverb when there are 5 or more output channels. 
 		EQuadBehavior QuadBehavior;
@@ -61,16 +68,12 @@ namespace Audio
 
 			const FPlateReverbFastSettings& GetSettings() const;
 
-			// Whether or not to enable late reflections
-			void EnableLateReflections(const bool bInEnableLateReflections);
-
-			// Whether or not to enable late reflections
-			void EnableEarlyReflections(const bool bInEnableEarlyReflections);
-
 			// Creates reverberated audio in OutSamples based upon InSamples
 			// InNumChannels can be 1 or 2 channels.
 			// OutSamples must be greater or equal to 2.
 			void ProcessAudio(const AlignedFloatBuffer& InSamples, const int32 InNumChannels, AlignedFloatBuffer& OutSamples, const int32 OutNumChannels);
+
+			void FlushAudio();
 
 			// Clamp individual settings to values supported by this class.
 			static void ClampSettings(FPlateReverbFastSettings& InOutSettings);
@@ -98,7 +101,5 @@ namespace Audio
 			AlignedFloatBuffer RightAttenuatedSamples;
 			AlignedFloatBuffer ScaledInputBuffer;
 
-			bool bEnableEarlyReflections;
-			bool bEnableLateReflections;
 	};
 }

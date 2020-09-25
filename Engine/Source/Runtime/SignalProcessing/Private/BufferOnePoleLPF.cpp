@@ -26,6 +26,11 @@ void FBufferOnePoleLPF::SetG(float InG)
 void FBufferOnePoleLPF::Reset()
 {
 	SetG(0.0f);
+	FlushAudio();
+}
+
+void FBufferOnePoleLPF::FlushAudio()
+{
 	Z1 = 0.0f;
 }
 

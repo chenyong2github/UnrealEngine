@@ -5,6 +5,8 @@
 UReverbEffect::UReverbEffect(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	bBypassEarlyReflections = true;
+	bBypassLateReflections = false;
 	Density = 1.0f;
 	Diffusion = 1.0f;
 	Gain = 0.32f;
@@ -16,7 +18,6 @@ UReverbEffect::UReverbEffect(const FObjectInitializer& ObjectInitializer)
 	LateGain = 1.26f;
 	LateDelay = 0.011f;
 	AirAbsorptionGainHF = 0.994f;
-	RoomRolloffFactor = 0.0f;
 
 #if WITH_EDITORONLY_DATA
 	bChanged = false;

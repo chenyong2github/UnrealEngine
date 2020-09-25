@@ -59,6 +59,9 @@ namespace Audio
 		// Generates artificial reverberation for InSamples and places results in OutSamples.
 		void ProcessAudio(const AlignedFloatBuffer& InSamples, AlignedFloatBuffer& OutSamples);
 
+		// Sets internal audio samples to silence. 
+		void FlushAudio();
+
 		// Returns the actual number of samples in an internal buffer.
 		int32 GetNumInternalBufferSamples() const;
 
@@ -67,6 +70,8 @@ namespace Audio
 
 		// Process single internal buffer of audio.
 		void ProcessAudioBuffer(const float* InSampleData, const int32 InNum, float* OutSampleData);
+
+		FFDNDelaySettings Settings;
 
 		// Internal buffer size.
 		int32 NumInternalBufferSamples;
