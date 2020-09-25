@@ -129,6 +129,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "VirtualCamera")
 	static TArray<UObject*> GetBoundObjects(FMovieSceneObjectBindingID CameraBindingID);
 
+	/** Enable/Disable debug focus plane*/
+	UFUNCTION(BlueprintCallable, Category = "VirtualCamera")
+	static void EnableDebugFocusPlane(UCineCameraComponent* CineCamera, bool bEnabled);
+
 private:
 
 	static bool DeprojectScreenToWorld(const FVector2D& InScreenPosition, FVector& OutWorldPosition, FVector& OutWorldDirection);
