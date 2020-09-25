@@ -61,13 +61,13 @@ dir /s /b Programs\UnrealBuildTool\*.cs >..\Intermediate\Build\UnrealBuildToolFi
 
 if not exist ..\Platforms goto NoPlatforms
 for /d %%D in (..\Platforms\*) do (
-	if exist %%D\Source\Programs\UnrealBuildTool dir /s /b %%D\Source\Programs\UnrealBuildTool\*.cs >> ..\Intermediate\Build\UnrealBuildToolFiles.txt
+	if exist %%D\Source\Programs\UnrealBuildTool dir /s /b %%D\Source\Programs\UnrealBuildTool\*.cs 2> nul >> ..\Intermediate\Build\UnrealBuildToolFiles.txt
 )
 :NoPlatforms
 
 if not exist ..\Restricted goto NoRestricted
 for /d %%D in (..\Restricted\*) do (
-	if exist %%D\Source\Programs\UnrealBuildTool dir /s /b %%D\Source\Programs\UnrealBuildTool\*.cs >> ..\Intermediate\Build\UnrealBuildToolFiles.txt
+	if exist %%D\Source\Programs\UnrealBuildTool dir /s /b %%D\Source\Programs\UnrealBuildTool\*.cs 2> nul >> ..\Intermediate\Build\UnrealBuildToolFiles.txt
 )
 :NoRestricted
 
