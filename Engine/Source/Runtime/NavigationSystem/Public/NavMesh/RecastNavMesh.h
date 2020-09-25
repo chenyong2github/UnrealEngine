@@ -759,6 +759,11 @@ public:
 	/** Called on world origin changes **/
 	virtual void ApplyWorldOffset(const FVector& InOffset, bool bWorldShift) override;
 
+	virtual void FillNavigationDataChunkActor(const FBox& InBounds, class ANavigationDataChunkActor& DataChunkActor) const override;
+
+	virtual void OnStreamingNavDataAdded(class ANavigationDataChunkActor& InActor) override;
+	virtual void OnStreamingNavDataRemoved(class ANavigationDataChunkActor& InActor) override;
+	
 	virtual void OnStreamingLevelAdded(ULevel* InLevel, UWorld* InWorld) override;
 	virtual void OnStreamingLevelRemoved(ULevel* InLevel, UWorld* InWorld) override;
 	//~ End ANavigationData Interface
@@ -1080,12 +1085,18 @@ private:
 	/** @return Navmesh data chunk that belongs to this actor */
 	URecastNavMeshDataChunk* GetNavigationDataChunk(ULevel* InLevel) const;
 
+	/** @return Navmesh data chunk that belongs to this actor */
+	URecastNavMeshDataChunk* GetNavigationDataChunk(const ANavigationDataChunkActor& InActor) const;
+
 protected:
 	// retrieves RecastNavMeshImpl
 	FPImplRecastNavMesh* GetRecastNavMeshImpl() { return RecastNavMeshImpl; }
 	const FPImplRecastNavMesh* GetRecastNavMeshImpl() const { return RecastNavMeshImpl; }
 
 private:
+	/** @return Navmesh data chunk that belongs to this actor */
+	URecastNavMeshDataChunk* GetNavigationDataChunk(const TArray<UNavigationDataChunk*>& InChunks) const;
+
 	/** NavMesh versioning. */
 	uint32 NavMeshVersion;
 	

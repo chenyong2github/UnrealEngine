@@ -586,6 +586,11 @@ public:
 	virtual bool SupportsRuntimeGeneration() const;
 	virtual bool SupportsStreaming() const;
 	virtual void OnNavigationBoundsChanged();
+
+	virtual void FillNavigationDataChunkActor(const FBox& Bounds, class ANavigationDataChunkActor& DataChunkActor) const {};
+	virtual void OnStreamingNavDataAdded(class ANavigationDataChunkActor& InActor) {};
+	virtual void OnStreamingNavDataRemoved(class ANavigationDataChunkActor& InActor) {};
+	
 	virtual void OnStreamingLevelAdded(ULevel* InLevel, UWorld* InWorld) {};
 	virtual void OnStreamingLevelRemoved(ULevel* InLevel, UWorld* InWorld) {};
 	

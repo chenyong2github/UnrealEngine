@@ -19,6 +19,7 @@
 #include "NavMesh/RecastNavMeshDataChunk.h"
 #include "NavMesh/RecastQueryFilter.h"
 #include "VisualLogger/VisualLogger.h"
+#include "WorldPartition/NavigationData/NavigationDataChunkActor.h"
 
 #if WITH_EDITOR
 #include "ObjectEditorUtils.h"
@@ -1879,8 +1880,18 @@ void ARecastNavMesh::InvalidateAffectedPaths(const TArray<uint32>& ChangedTiles)
 
 URecastNavMeshDataChunk* ARecastNavMesh::GetNavigationDataChunk(ULevel* InLevel) const
 {
+	return GetNavigationDataChunk(InLevel->NavDataChunks);
+}
+
+URecastNavMeshDataChunk* ARecastNavMesh::GetNavigationDataChunk(const ANavigationDataChunkActor& InActor) const
+{
+	return GetNavigationDataChunk(InActor.GetNavDataChunk());
+}
+
+URecastNavMeshDataChunk* ARecastNavMesh::GetNavigationDataChunk(const TArray<UNavigationDataChunk*>& InChunks) const
+{
 	FName ThisName = GetFName();
-	int32 ChunkIndex = InLevel->NavDataChunks.IndexOfByPredicate([&](UNavigationDataChunk* Chunk) 
+	int32 ChunkIndex = InChunks.IndexOfByPredicate([&](UNavigationDataChunk* Chunk)
 	{
 		return Chunk->NavigationDataName == ThisName;
 	});
@@ -1888,7 +1899,7 @@ URecastNavMeshDataChunk* ARecastNavMesh::GetNavigationDataChunk(ULevel* InLevel)
 	URecastNavMeshDataChunk* RcNavDataChunk = nullptr;
 	if (ChunkIndex != INDEX_NONE)
 	{
-		RcNavDataChunk = Cast<URecastNavMeshDataChunk>(InLevel->NavDataChunks[ChunkIndex]);
+		RcNavDataChunk = Cast<URecastNavMeshDataChunk>(InChunks[ChunkIndex]);
 	}
 		
 	return RcNavDataChunk;
@@ -2074,6 +2085,55 @@ void ARecastNavMesh::ApplyWorldOffset(const FVector& InOffset, bool bWorldShift)
 
 	Super::ApplyWorldOffset(InOffset, bWorldShift);
 	RequestDrawingUpdate();
+}
+
+void ARecastNavMesh::FillNavigationDataChunkActor(const FBox& Bounds, ANavigationDataChunkActor& DataChunkActor) const
+{
+	if (RecastNavMeshImpl)
+	{
+		UE_LOG(LogNavigation, Verbose, TEXT("%s Bounds pos: (%s)  size: (%s)."), ANSI_TO_TCHAR(__FUNCTION__), *Bounds.GetCenter().ToString(), *Bounds.GetSize().ToString());
+
+		const TArray<FBox> Boxes({ Bounds });
+		TArray<int32> TileIndices;
+		RecastNavMeshImpl->GetNavMeshTilesIn(Boxes, TileIndices);
+		if (!TileIndices.IsEmpty())
+		{
+			// Add a data chunk for this navmesh
+			URecastNavMeshDataChunk* DataChunk = NewObject<URecastNavMeshDataChunk>(&DataChunkActor);
+			DataChunk->NavigationDataName = GetFName();
+			DataChunkActor.GetMutableNavDataChunk().Add(DataChunk);
+
+			DataChunk->GetTiles(RecastNavMeshImpl, TileIndices, EGatherTilesCopyMode::CopyData);
+		}
+	}
+}
+
+void ARecastNavMesh::OnStreamingNavDataAdded(ANavigationDataChunkActor& InActor)
+{
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMesh_OnStreamingNavDataAdded);
+
+	if (SupportsStreaming() && RecastNavMeshImpl)
+	{
+		URecastNavMeshDataChunk* NavDataChunk = GetNavigationDataChunk(InActor);
+		if (NavDataChunk)
+		{
+			AttachNavMeshDataChunk(*NavDataChunk);
+		}
+	}
+}
+
+void ARecastNavMesh::OnStreamingNavDataRemoved(ANavigationDataChunkActor& InActor)
+{
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMesh_OnStreamingNavDataRemoved);
+
+	if (SupportsStreaming() && RecastNavMeshImpl)
+	{
+		URecastNavMeshDataChunk* NavDataChunk = GetNavigationDataChunk(InActor);
+		if (NavDataChunk)
+		{
+			DetachNavMeshDataChunk(*NavDataChunk);
+		}
+	}
 }
 
 void ARecastNavMesh::OnStreamingLevelAdded(ULevel* InLevel, UWorld* InWorld)

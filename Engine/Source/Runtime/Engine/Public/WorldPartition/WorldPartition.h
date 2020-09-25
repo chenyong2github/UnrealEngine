@@ -130,6 +130,7 @@ public:
 	FBox GetWorldBounds() const;
 
 	void GenerateHLOD();
+	void GenerateNavigationData();
 
 	// Clustering
 	struct FActorCluster

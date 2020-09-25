@@ -148,6 +148,7 @@ public:
 	virtual bool GenerateStreaming(EWorldPartitionStreamingMode Mode, class UWorldPartitionStreamingPolicy* StreamingPolicy) override;
 	virtual void FlushStreaming() override;
 	virtual bool GenerateHLOD() override;
+	virtual bool GenerateNavigationData() override;
 	virtual FName GetActorRuntimeGrid(const AActor* Actor) const override;
 #endif
 

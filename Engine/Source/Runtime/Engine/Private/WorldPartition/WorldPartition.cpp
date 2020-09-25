@@ -38,7 +38,8 @@
 #include "WorldPartition/WorldPartitionEditorHash.h"
 #include "WorldPartition/WorldPartitionEditorSpatialHash.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
-#endif
+#include "Misc/Base64.h"
+#endif //WITH_EDITOR
 
 DEFINE_LOG_CATEGORY(LogWorldPartition);
 
@@ -310,7 +311,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 			}
 		}
 	}
-#endif
+#endif //WITH_EDITOR
 
 	InitState = EWorldPartitionInitState::Initialized;
 
@@ -1266,6 +1267,11 @@ void UWorldPartition::FlushStreaming()
 void UWorldPartition::GenerateHLOD()
 {
 	RuntimeHash->GenerateHLOD();
+}
+
+void UWorldPartition::GenerateNavigationData()
+{
+	RuntimeHash->GenerateNavigationData();
 }
 
 void UWorldPartition::OnPreFixupForPIE(int32 InPIEInstanceID, FSoftObjectPath& ObjectPath)

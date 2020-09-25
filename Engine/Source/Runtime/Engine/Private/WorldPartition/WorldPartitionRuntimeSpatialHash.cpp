@@ -26,6 +26,8 @@
 #include "WorldPartition/HLOD/HLODLayer.h"
 #include "WorldPartition/HLOD/HLODActor.h"
 #include "WorldPartition/HLOD/HLODActorDesc.h"
+#include "WorldPartition/NavigationData/NavigationDataChunkActor.h"
+#include "AI/NavigationSystemBase.h"
 
 #include "AssetRegistryModule.h"
 #include "AssetData.h"
@@ -34,7 +36,7 @@
 #include "LevelUtils.h"
 
 extern UNREALED_API class UEditorEngine* GEditor;
-#endif
+#endif //WITH_EDITOR
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionRuntimeSpatialHash, Log, All);
 
@@ -74,7 +76,7 @@ private:
 	UWorldPartition* WorldPartition;
 	TArray<AActor*> LoadedActors;
 };
-#endif
+#endif //WITH_EDITOR
 
 static int32 GShowRuntimeSpatialHashGridLevel = 0;
 static FAutoConsoleVariableRef CVarShowRuntimeSpatialHashGridLevel(
@@ -492,7 +494,7 @@ struct FSquare2DGridHelper
 			}
 		}
 	}
-#endif
+#endif //WITH_EDITOR
 
 public:
 	FVector Origin;
@@ -868,7 +870,7 @@ static FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPart
 	
 	return PartitionedActors;
 }
-#endif
+#endif //WITH_EDITOR
 
 UWorldPartitionRuntimeSpatialHash::UWorldPartitionRuntimeSpatialHash(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -1003,7 +1005,6 @@ FName UWorldPartitionRuntimeSpatialHash::GetCellName(FName InGridName, int32 InL
 	return FName(*FString::Printf(TEXT("WPRT_%s_%s_Cell_L%d_X%02d_Y%02d"), *PackageNameNoPIEPrefix, *InGridName.ToString(), InLevel, InCellX, InCellY));
 }
 
-#if WITH_EDITOR
 void UWorldPartitionRuntimeSpatialHash::CacheHLODParents()
 {
 	CachedHLODParents.Reset();
@@ -1125,7 +1126,6 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 
 	return true;
 }
-#endif
 
 void UWorldPartitionRuntimeSpatialHash::FlushStreaming()
 {
@@ -1271,7 +1271,89 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD()
 
 	return true;
 }
-#endif
+
+bool UWorldPartitionRuntimeSpatialHash::GenerateNavigationData()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionRuntimeSpatialHash::GenerateNavigationData);
+
+	UE_LOG(LogWorldPartitionRuntimeSpatialHash, Log, TEXT("%s"), ANSI_TO_TCHAR(__FUNCTION__));
+
+	UWorldPartition* WorldPartition = GetOuterUWorldPartition();
+	UWorld* World = WorldPartition->World;
+
+	TArray<TArray<const UWorldPartition::FActorCluster*>> GridActors;
+	GridActors.InsertDefaulted(0, Grids.Num());
+
+	// Generate navmesh
+	// Make sure navigation is added and initialized in EditorMode
+	FNavigationSystem::AddNavigationSystemToWorld(*World, FNavigationSystemRunMode::EditorMode);
+
+	// Invoke navigation data generator
+	FNavigationSystem::Build(*World);
+
+	// For each cell, gather navmesh and generate a datachunk actor
+	const FBox WorldBounds = WorldPartition->GetWorldBounds();
+
+	const int32 GridIndex = 0; //Todo At: only work with grid 0 for now.
+	UE_LOG(LogWorldPartitionRuntimeSpatialHash, Verbose, TEXT("Generate NavDataChunk actor for GridIndex %i."), GridIndex);
+
+	const FSpatialHashRuntimeGrid& RuntimeGrid = Grids[GridIndex];
+	const FSquare2DGridHelper GridHelper = GetPartitionedActors(WorldPartition, WorldBounds, RuntimeGrid, GridActors[GridIndex]);
+	int32 ActorCount = 0;
+
+	const UNavigationSystemBase* NavSystem = World->GetNavigationSystem();
+	if (NavSystem == nullptr)
+	{
+		UE_LOG(LogWorldPartitionRuntimeSpatialHash, Verbose, TEXT("No navigation system to generate navigation data."));
+		return false;
+	}
+
+	GridHelper.ForEachCells([GridHelper, RuntimeGrid, WorldPartition, &ActorCount, World, NavSystem, this](const FIntVector& CellCoord)
+	{
+		const int32 Level = CellCoord.Z;
+		if (Level != 3) //Todo AT, only generate for level 3 for now
+		{
+			return;
+		}
+
+		FBox2D CellBounds;
+		GridHelper.GetCellBounds(CellCoord, CellBounds);
+		const float HalfHeight = 100000.f; //Todo AT: try use WORLD_MAX instead
+		const FBox Bounds(FVector(CellBounds.Min.X, CellBounds.Min.Y, -HalfHeight), FVector(CellBounds.Max.X, CellBounds.Max.Y, HalfHeight));
+
+		if (NavSystem->ContainsNavData(Bounds) == false)
+		{
+			// Skip if there is no navdata for this cell
+			return;
+		}
+
+		const FSquare2DGridHelper::FGridLevel::FGridCell& GridCell = GridHelper.GetCell(CellCoord);
+
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.bDeferConstruction = true;
+		SpawnParams.bCreateActorPackage = true;
+		ANavigationDataChunkActor* DataChunkActor = World->SpawnActor<ANavigationDataChunkActor>(SpawnParams);
+		ActorCount++;
+
+		const FName CellName = GetCellName(RuntimeGrid.GridName, CellCoord.Z, CellCoord.X, CellCoord.Y);
+		DataChunkActor->SetActorLabel(FString::Printf(TEXT("NavDataChunkActor_%s_%s"), *GetName(), *CellName.ToString()));
+			
+		const FVector2D CellCenter = CellBounds.GetCenter();
+		DataChunkActor->SetActorLocation(FVector(CellCenter.X, CellCenter.Y, 0.f));
+			
+		DataChunkActor->CollectNavData(Bounds);
+
+		// Set target grid
+		DataChunkActor->RuntimeGrid = RuntimeGrid.GridName;
+
+		WorldPartition->UpdateActorDesc(DataChunkActor);
+	});
+
+	UE_LOG(LogWorldPartitionRuntimeSpatialHash, Verbose, TEXT("   %i ANavigationDataChunkActor actors added."), ActorCount);
+
+	return true;
+}
+#endif //WITH_EDITOR
 
 FAutoConsoleCommand UWorldPartitionRuntimeSpatialHash::OverrideLoadingRangeCommand(
 	TEXT("wp.Runtime.OverrideRuntimeSpatialHashLoadingRange"),

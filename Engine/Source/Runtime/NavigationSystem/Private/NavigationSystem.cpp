@@ -1834,6 +1834,51 @@ ANavigationData* UNavigationSystemV1::GetNavDataForAgentName(const FName AgentNa
 	return Result;
 }
 
+bool UNavigationSystemV1::ContainsNavData(const FBox& Bounds) const
+{
+	for (const ANavigationData* NavData : NavDataSet)
+	{
+		if (NavData && Bounds.Intersect(NavData->GetBounds()))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void UNavigationSystemV1::AddNavigationDataChunk(ANavigationDataChunkActor& DataChunkActor)
+{
+	for (ANavigationData* NavData : NavDataSet)
+	{
+		if (NavData)
+		{
+			NavData->OnStreamingNavDataAdded(DataChunkActor);
+		}
+	}
+}
+
+void UNavigationSystemV1::RemoveNavigationDataChunk(ANavigationDataChunkActor& DataChunkActor)
+{
+	for (ANavigationData* NavData : NavDataSet)
+	{
+		if (NavData)
+		{
+			NavData->OnStreamingNavDataRemoved(DataChunkActor);
+		}
+	}
+}
+
+void UNavigationSystemV1::FillNavigationDataChunkActor(const FBox& Bounds, ANavigationDataChunkActor& DataChunkActor)
+{
+	for (const ANavigationData* NavData : NavDataSet)
+	{
+		if (NavData)
+		{
+			NavData->FillNavigationDataChunkActor(Bounds, DataChunkActor);
+		}
+	}
+}
+
 ANavigationData* UNavigationSystemV1::GetDefaultNavDataInstance(FNavigationSystem::ECreateIfMissing CreateNewIfNoneFound)
 {
 	checkSlow(IsInGameThread() == true);

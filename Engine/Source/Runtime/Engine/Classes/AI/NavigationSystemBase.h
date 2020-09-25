@@ -238,6 +238,11 @@ public:
 	UE_DEPRECATED(4.20, "GetMainNavData is deprecated. Use FNavigationSystem::GetCurrent<UNavigationSystemV1>()->GetDefaultNavDataInstance instead")
 	INavigationDataInterface* GetMainNavData(int) { return nullptr; }
 
+	virtual bool ContainsNavData(const FBox& Bounds) const { return false; }
+	virtual void AddNavigationDataChunk(class ANavigationDataChunkActor& DataChunkActor) {}
+	virtual void RemoveNavigationDataChunk(class ANavigationDataChunkActor& DataChunkActor) {}
+	virtual void FillNavigationDataChunkActor(const FBox& Bounds, class ANavigationDataChunkActor& DataChunkActor) {}
+
 protected:
 	/**	Sets the Transform the Navigation System will use when converting from FromCoordType
 	 *	to ToCoordType
