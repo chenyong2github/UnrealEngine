@@ -1067,11 +1067,23 @@ void UEditorEngine::StartQueuedPlaySessionRequestImpl()
 	bool bUserWantsInProcess;
 	EditorPlaySettings->GetRunUnderOneProcess(bUserWantsInProcess);
 
-	const bool bIsInProcess = PlaySessionRequest->SessionDestination == EPlaySessionDestinationType::InProcess && bUserWantsInProcess;
+	bool bIsSeparateProcess = PlaySessionRequest->SessionDestination != EPlaySessionDestinationType::InProcess;
+	if (!bUserWantsInProcess)
+	{
+		int32 NumClients;
+		EditorPlaySettings->GetPlayNumberOfClients(NumClients);
 
-	bool bRequestSave = !bIsInProcess;
+		EPlayNetMode NetMode;
+		EditorPlaySettings->GetPlayNetMode(NetMode);
 
-	if (bRequestSave && !SaveMapsForPlaySession())
+		// More than one client will spawn a second process.		
+		bIsSeparateProcess |= NumClients > 1;
+
+		// If they want to run anyone as a client, a dedicated server is started in a separate process.
+		bIsSeparateProcess |= NetMode == EPlayNetMode::PIE_Client;
+	}
+
+	if (bIsSeparateProcess && !SaveMapsForPlaySession())
 	{
 		// Maps did not save, print a warning
 		FText ErrorMsg = LOCTEXT("PIEWorldSaveFail", "PIE failed because map save was canceled");
