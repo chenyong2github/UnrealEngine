@@ -503,7 +503,7 @@ void SRCPanelExposedField::Tick(const FGeometry&, const double, const float)
 	}
 }
 
-void SRCPanelExposedField::GetChildren(TArray<TSharedPtr<FRCPanelTreeNode>>& OutChildren)
+void SRCPanelExposedField::GetNodeChildren(TArray<TSharedPtr<FRCPanelTreeNode>>& OutChildren)
 {
 	OutChildren.Append(ChildWidgets);
 }
@@ -805,7 +805,7 @@ void SRCPanelExposedField::OnLabelCommitted(const FText& InLabel, ETextCommit::T
 	}
 }
 
-void FRCPanelGroup::GetChildren(TArray<TSharedPtr<FRCPanelTreeNode>>& OutChildren)
+void FRCPanelGroup::GetNodeChildren(TArray<TSharedPtr<FRCPanelTreeNode>>& OutChildren)
 {
 	OutChildren.Append(Fields);
 }
@@ -1328,7 +1328,7 @@ TSharedRef<ITableRow> SRemoteControlPanel::OnGenerateRow(TSharedPtr<FRCPanelTree
 
 void SRemoteControlPanel::OnGetGroupChildren(TSharedPtr<FRCPanelTreeNode> Node, TArray<TSharedPtr<FRCPanelTreeNode>>& OutNodes)
 {
-	Node->GetChildren(OutNodes);
+	Node->GetNodeChildren(OutNodes);
 }
 
 void SRemoteControlPanel::SelectActorsInlevel(const TArray<UObject*>& Objects)
@@ -1366,7 +1366,7 @@ void SRemoteControlPanel::GenerateFieldWidgets()
 	{
 		TSharedRef<SRemoteControlTarget> Target = MakeShared<SRemoteControlTarget>(MapEntry.Key, PanelPtr);
 		RemoteControlTargets.Add(Target);
-		for (const TSharedPtr<SRCPanelExposedField>& Widget : Target->GetFieldWidgets())
+		for (const TSharedRef<SRCPanelExposedField>& Widget : Target->GetFieldWidgets())
 		{
 			FieldWidgetMap.Add(Widget->GetFieldId(), Widget);
 		}
