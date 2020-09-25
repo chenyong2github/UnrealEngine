@@ -6,6 +6,7 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Misc/FrameRate.h"
 #include "Misc/Timecode.h"
+#include "MovieSceneObjectBindingID.h"
 #include "VCamBlueprintFunctionLibrary.generated.h"
 
 class UCineCameraComponent;
@@ -124,9 +125,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "VirtualCamera")
 	static float CalculateAutoFocusDistance(FVector2D ReticlePosition, UCineCameraComponent* CineCamera);
 
+	/** Get UObject from Camera Object Bindings*/
+	UFUNCTION(BlueprintCallable, Category = "VirtualCamera")
+	static TArray<UObject*> GetBoundObjects(FMovieSceneObjectBindingID CameraBindingID);
+
 private:
 
 	static bool DeprojectScreenToWorld(const FVector2D& InScreenPosition, FVector& OutWorldPosition, FVector& OutWorldDirection);
 };
-
-
