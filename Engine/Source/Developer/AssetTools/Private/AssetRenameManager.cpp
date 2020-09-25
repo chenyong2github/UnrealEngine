@@ -811,16 +811,7 @@ bool FAssetRenameManager::CheckOutPackages(TArray<FAssetRenameDataWithReferencer
 	{
 		TArray<UPackage*> PackagesCheckedOutOrMadeWritable;
 		TArray<UPackage*> PackagesNotNeedingCheckout;
-		if (ISourceControlModule::Get().IsEnabled())
-		{
-			// SCC is enabled, so allow auto or manual checkout
-			bUserAcceptedCheckout = bAutoCheckout ? AutoCheckOut(PackagesToCheckOut) : FEditorFileUtils::PromptToCheckoutPackages(false, PackagesToCheckOut, &PackagesCheckedOutOrMadeWritable, &PackagesNotNeedingCheckout);
-		}
-		else
-		{
-			// SCC is disabled, so give the user a chance to make any files writable, but don't do that automatically
-			bUserAcceptedCheckout = !bAutoCheckout && FEditorFileUtils::PromptToCheckoutPackages(false, PackagesToCheckOut, &PackagesCheckedOutOrMadeWritable, &PackagesNotNeedingCheckout);
-		}
+		bUserAcceptedCheckout = bAutoCheckout ? AutoCheckOut(PackagesToCheckOut) : FEditorFileUtils::PromptToCheckoutPackages(false, PackagesToCheckOut, &PackagesCheckedOutOrMadeWritable, &PackagesNotNeedingCheckout);
 		if (bUserAcceptedCheckout)
 		{
 			// Make a list of any packages in the list which weren't checked out for some reason
@@ -865,42 +856,63 @@ bool FAssetRenameManager::AutoCheckOut(TArray<UPackage*>& PackagesToCheckOut) co
 	bool bSomethingFailed = false;
 	if (PackagesToCheckOut.Num() > 0)
 	{
-		ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
-		ECommandResult::Type StatusResult = SourceControlProvider.Execute(ISourceControlOperation::Create<FUpdateStatus>(), PackagesToCheckOut);
-
-		if (StatusResult != ECommandResult::Succeeded)
+		if (ISourceControlModule::Get().IsEnabled())
 		{
-			bSomethingFailed = true;
+			ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+			ECommandResult::Type StatusResult = SourceControlProvider.Execute(ISourceControlOperation::Create<FUpdateStatus>(), PackagesToCheckOut);
+
+			if (StatusResult != ECommandResult::Succeeded)
+			{
+				bSomethingFailed = true;
+			}
+			else
+			{
+				for (int32 Index = PackagesToCheckOut.Num() - 1; Index >= 0; --Index)
+				{
+					UPackage* Package = PackagesToCheckOut[Index];
+					FSourceControlStatePtr SourceControlState = SourceControlProvider.GetState(Package, EStateCacheUsage::Use);
+					if (SourceControlState->IsCheckedOutOther())
+					{
+						UE_LOG(LogAssetTools, Warning, TEXT("FAssetRenameManager::AutoCheckOut: package %s is already checked out by someone, will not check out"), *SourceControlState->GetFilename());
+						bSomethingFailed = true;
+					}
+					else if (!SourceControlState->IsCurrent())
+					{
+						UE_LOG(LogAssetTools, Warning, TEXT("FAssetRenameManager::AutoCheckOut: package %s is not at head, will not check out"), *SourceControlState->GetFilename());
+						bSomethingFailed = true;
+					}
+					else if (!SourceControlState->IsSourceControlled() || SourceControlState->CanEdit())
+					{
+						PackagesToCheckOut.RemoveAtSwap(Index);
+					}
+				}
+
+				if (!bSomethingFailed && PackagesToCheckOut.Num() > 0)
+				{
+					bSomethingFailed = (SourceControlProvider.Execute(ISourceControlOperation::Create<FCheckOut>(), PackagesToCheckOut) != ECommandResult::Succeeded);
+					if (!bSomethingFailed)
+					{
+						UE_LOG(LogAssetTools, Warning, TEXT("FAssetRenameManager::AutoCheckOut: was not not able to auto checkout."));
+						PackagesToCheckOut.Empty();
+					}
+				}
+			}
 		}
 		else
 		{
 			for (int32 Index = PackagesToCheckOut.Num() - 1; Index >= 0; --Index)
 			{
 				UPackage* Package = PackagesToCheckOut[Index];
-				FSourceControlStatePtr SourceControlState = SourceControlProvider.GetState(Package, EStateCacheUsage::Use);
-				if (SourceControlState->IsCheckedOutOther())
+				const FString PackageFilename = USourceControlHelpers::PackageFilename(Package);
+
+				if (IFileManager::Get().FileExists(*PackageFilename) && IFileManager::Get().IsReadOnly(*PackageFilename))
 				{
-					UE_LOG(LogAssetTools, Warning, TEXT("FAssetRenameManager::AutoCheckOut: package %s is already checked out by someone, will not check out"), *SourceControlState->GetFilename());
+					UE_LOG(LogAssetTools, Warning, TEXT("FAssetRenameManager::AutoCheckOut: package %s is read-only, will not make writable"), *PackageFilename);
 					bSomethingFailed = true;
 				}
-				else if (!SourceControlState->IsCurrent())
-				{
-					UE_LOG(LogAssetTools, Warning, TEXT("FAssetRenameManager::AutoCheckOut: package %s is not at head, will not check out"), *SourceControlState->GetFilename());
-					bSomethingFailed = true;
-				}
-				else if (!SourceControlState->IsSourceControlled() || SourceControlState->CanEdit())
+				else
 				{
 					PackagesToCheckOut.RemoveAtSwap(Index);
-				}
-			}
-
-			if (!bSomethingFailed && PackagesToCheckOut.Num() > 0)
-			{
-				bSomethingFailed = (SourceControlProvider.Execute(ISourceControlOperation::Create<FCheckOut>(), PackagesToCheckOut) != ECommandResult::Succeeded);
-				if (!bSomethingFailed)
-				{
-					UE_LOG(LogAssetTools, Warning, TEXT("FAssetRenameManager::AutoCheckOut: was not not able to auto checkout."));
-					PackagesToCheckOut.Empty();
 				}
 			}
 		}
