@@ -9,7 +9,9 @@
 #include "Classes/GameFramework/PlayerController.h"
 #include "Classes/Engine/LocalPlayer.h"
 #include "EngineUtils.h"
+#if WITH_EDITOR
 #include "ActorLayerUtilities.h"
+#endif
 
 #include "ComposureLayersEditor/Private/ICompElementManager.h"
 #include "ComposureLayersEditor/Private/CompElementManager.h"
@@ -220,6 +222,7 @@ void UComposureBlueprintLibrary::RefreshComposureElementList()
 
 bool FComposureActorLayer::SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot)
 {
+#if WITH_EDITOR
 	static FName OldDataName("ActorLayer");
 	if (Tag.Type == NAME_StructProperty && Tag.StructName == OldDataName)
 	{
@@ -229,6 +232,6 @@ bool FComposureActorLayer::SerializeFromMismatchedTag(const FPropertyTag& Tag, F
 		Name = OldDataType.Name;
 		return true;
 	}
-
+#endif
 	return false;
 }
