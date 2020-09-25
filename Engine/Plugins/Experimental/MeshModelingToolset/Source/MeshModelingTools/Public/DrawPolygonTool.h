@@ -207,7 +207,7 @@ public:
 
 
 public:
-	virtual void PopLastVertexAction();
+	virtual void ApplyUndoPoints(const TArray<FVector3d>& ClickPointsIn, const TArray<FVector3d>& PolygonVerticesIn);
 
 
 protected:
@@ -324,7 +324,7 @@ protected:
 
 	friend class FDrawPolygonStateChange;
 	int32 CurrentCurveTimestamp = 1;
-	void UndoCurrentOperation();
+	void UndoCurrentOperation(const TArray<FVector3d>& ClickPointsIn, const TArray<FVector3d>& PolygonVerticesIn);
 	bool CheckInCurve(int32 Timestamp) const { return CurrentCurveTimestamp == Timestamp; }
 };
 
@@ -335,11 +335,19 @@ protected:
 class MESHMODELINGTOOLS_API FDrawPolygonStateChange : public FToolCommandChange
 {
 public:
+	using Points = TArray<FVector3d>;
 	bool bHaveDoneUndo = false;
 	int32 CurveTimestamp = 0;
-	FDrawPolygonStateChange(int32 CurveTimestampIn)
+	const Points FixedVertexPoints;
+	const Points PolyPoints;
+
+	FDrawPolygonStateChange(int32 CurveTimestampIn,
+							const Points& FixedVertexPointsIn,
+							const Points& PolyPointsIn)
+		: CurveTimestamp(CurveTimestampIn),
+		FixedVertexPoints(FixedVertexPointsIn),
+		PolyPoints(PolyPointsIn)
 	{
-		CurveTimestamp = CurveTimestampIn;
 	}
 	virtual void Apply(UObject* Object) override {}
 	virtual void Revert(UObject* Object) override;
