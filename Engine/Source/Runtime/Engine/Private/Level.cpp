@@ -54,7 +54,6 @@ Level.cpp: Level-related functions
 #include "AssetRegistryModule.h"
 #include "IAssetRegistry.h"
 #include "AssetData.h"
-#include "FoliageHelper.h"
 #endif
 #include "Engine/LevelStreaming.h"
 #include "LevelUtils.h"
@@ -2255,45 +2254,13 @@ void ULevel::SetUseExternalActors(bool bEnable)
 	}
 }
 
-bool ULevel::CanConvertActorToExternalPackaging(AActor* Actor)
-{
-	check(Actor);
-
-	if (Actor->HasAllFlags(RF_Transient))
-	{
-		return false;
-	}
-
-	if (Actor->IsPendingKill())
-	{
-		return false;
-	}
-
-	if (Actor == Actor->GetLevel()->GetDefaultBrush())
-	{
-		return false;
-	}
-
-	if (Actor->IsChildActor())
-	{
-		return false;
-	}
-
-	if (FFoliageHelper::IsOwnedByFoliage(Actor))
-	{
-		return false;
-	}
-
-	return Actor->SupportsExternalPackaging();
-}
-
 void ULevel::ConvertAllActorsToPackaging(bool bExternal)
 {
 	// Make a copy of the current actor lists since packaging conversion may modify the actor list as a side effect
 	TArray<AActor*> CurrentActors = Actors;
 	for (AActor* Actor : CurrentActors)
 	{
-		if (Actor && CanConvertActorToExternalPackaging(Actor))
+		if (Actor && Actor->SupportsExternalPackaging())
 		{
 			check(Actor->GetLevel() == this);
 			Actor->SetPackageExternal(bExternal);

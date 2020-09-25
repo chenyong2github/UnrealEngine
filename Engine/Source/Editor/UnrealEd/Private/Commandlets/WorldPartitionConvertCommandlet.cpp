@@ -1045,7 +1045,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 	{
 		for(AActor* Actor: ActorList)
 		{
-			if (!Actor || Actor->IsPendingKill() || !ULevel::CanConvertActorToExternalPackaging(Actor))
+			if (!Actor || Actor->IsPendingKill() || !Actor->SupportsExternalPackaging())
 			{
 				continue;
 			}

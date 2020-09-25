@@ -1760,7 +1760,7 @@ public:
 	virtual bool CanDeleteSelectedActor(FText& OutReason) const { return true; }
 
 	/** Does this actor supports external packaging? */
-	virtual bool SupportsExternalPackaging() const { return true; }
+	virtual bool SupportsExternalPackaging() const;
 
 	/** Internal struct used to store information about an actor's components during reconstruction */
 	struct FActorRootComponentReconstructionData

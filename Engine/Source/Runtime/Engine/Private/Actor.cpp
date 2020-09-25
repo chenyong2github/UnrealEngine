@@ -49,6 +49,7 @@
 #include "LevelUtils.h"
 #include "Components/DecalComponent.h"
 #include "GameFramework/InputSettings.h"
+#include "FoliageHelper.h"
 
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
@@ -3134,6 +3135,42 @@ void AActor::PostEditImport()
 bool AActor::IsSelectedInEditor() const
 {
 	return !IsPendingKill() && GSelectedActorAnnotation.Get(this);
+}
+
+bool AActor::SupportsExternalPackaging() const
+{
+	if (HasAllFlags(RF_Transient))
+	{
+		return false;
+	}
+
+	if (IsPendingKill())
+	{
+		return false;
+	}
+
+	if (!IsTemplate())
+	{
+		if (const ULevel* Level = GetLevel())
+		{
+			if (this == Level->GetDefaultBrush())
+			{
+				return false;
+			}
+		}
+
+		if (IsChildActor())
+		{
+			return false;
+		}
+
+		if (FFoliageHelper::IsOwnedByFoliage(this))
+		{
+			return false;
+		}
+	}
+
+	return true;
 }
 #endif
 

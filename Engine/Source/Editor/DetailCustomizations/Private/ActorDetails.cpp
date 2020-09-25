@@ -596,7 +596,7 @@ bool FActorDetails::IsActorPackagingModeEditable() const
 	{
 		if (Actor.IsValid() && Actor->GetLevel())
 		{
-			if (!Actor->GetLevel()->CanConvertActorToExternalPackaging(Actor.Get()))
+			if (!Actor->SupportsExternalPackaging())
 			{
 				return false;
 			}
@@ -638,7 +638,7 @@ void FActorDetails::OnActorPackagingModeChanged(bool bExternal)
 				FMessageDialog::Open(EAppMsgType::Ok, Message);
 				return;
 			}
-			else if (Level->CanConvertActorToExternalPackaging(Actor.Get()))
+			else if (Actor->SupportsExternalPackaging())
 			{
 				ActorsToConvert.Add(Actor.Get());
 			}

@@ -1445,7 +1445,6 @@ void UWorld::RepairWorldSettings()
 		FActorSpawnParameters SpawnInfo;
 		SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 		SpawnInfo.Name = GEngine->WorldSettingsClass->GetFName();
-		SpawnInfo.bCreateActorPackage = false;
 		AWorldSettings* const NewWorldSettings = SpawnActor<AWorldSettings>( GEngine->WorldSettingsClass, SpawnInfo );
 
 		// If there was an existing actor, copy its properties to the new actor (the it will be destroyed by SetWorldSettings)
