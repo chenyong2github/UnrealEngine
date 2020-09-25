@@ -29,6 +29,9 @@ public:
 	/** Reset Transforms for Controls */
 	TSharedPtr< FUICommandInfo > ResetAllTransforms;
 
+	/** Frame selected elements */
+	TSharedPtr<FUICommandInfo> FrameSelection;
+
 	/** Increase Gizmo Size */
 	TSharedPtr< FUICommandInfo > IncreaseGizmoSize;
 
