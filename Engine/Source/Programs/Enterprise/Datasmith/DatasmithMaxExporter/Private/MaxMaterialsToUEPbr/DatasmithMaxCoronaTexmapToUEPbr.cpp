@@ -203,6 +203,12 @@ DatasmithMaxTexmapParser::FNormalMapParameters FDatasmithMaxCoronalNormalToUEPbr
 	return NormalMapParameters;
 }
 
+IDatasmithMaterialExpression* FDatasmithMaxCoronalNormalToUEPbr::Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap )
+{
+	TGuardValue< bool > ForceNormalMapsToLinearGuard( MaxMaterialToUEPbr->ConvertState.bTreatNormalMapsAsLinear, FDatasmithMaxMatWriter::GetCoronaFixNormal( InTexmap ) );
+	return Super::Convert( MaxMaterialToUEPbr, InTexmap );
+}
+
 bool FDatasmithMaxCoronalBitmapToUEPbr::IsSupported( const FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) const
 {
 	return ( InTexmap && InTexmap->ClassID() == CORONABITMAPCLASS );

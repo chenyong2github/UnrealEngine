@@ -53,6 +53,7 @@ public:
 
 		bool bCanBake = true;
 		bool bIsMonoChannel = false; // true if we are parsing a mono channel (ie: opacity)
+		bool bTreatNormalMapsAsLinear = false; // Corona has an option that treats all normal map inputs as linear
 
 		EDatasmithTextureMode DefaultTextureMode = EDatasmithTextureMode::Diffuse;
 
