@@ -6,7 +6,7 @@
 #include "Engine/EngineTypes.h"
 #include "RHIDefinitions.h"
 #include "PackedNormal.h"
-#include "HairStrandsVertexFactory.h"
+#include "RenderGraphResources.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogHairStrands, Log, All);
 
