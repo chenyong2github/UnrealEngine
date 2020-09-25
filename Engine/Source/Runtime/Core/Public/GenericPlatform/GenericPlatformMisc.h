@@ -933,6 +933,8 @@ public:
 	 */
 	static const TCHAR* GamePersistentDownloadDir();
 
+	static const TCHAR* GeneratedConfigDir();
+
 	static const TCHAR* GetUBTPlatform();
 
 	static const TCHAR* GetUBTTarget();
