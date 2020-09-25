@@ -495,9 +495,9 @@ bool UDMXSubsystem::GetMatrixCell(UDMXEntityFixturePatch* FixturePatch, FIntPoin
 		int32 XCells = FixtureMatrix.XCells;
 		int32 YCells = FixtureMatrix.YCells;
 
-		for (int32 YCell = 0; YCell < YCell; YCell++)
+		for (int32 YCell = 0; YCell < YCells; YCell++)
 		{
-			for (int32 XCell = 0; XCell < XCell; XCell++)
+			for (int32 XCell = 0; XCell < XCells; XCell++)
 			{
 				AllIDs.Add(XCell + YCell * XCell);
 			}
