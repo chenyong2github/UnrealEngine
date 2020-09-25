@@ -293,6 +293,11 @@ void FStreamer::AddStreams(FPlayerId PlayerId)
 
 	FPlayerSession* Session = GetPlayerSession(PlayerId);
 	check(Session);
+	
+	cricket::AudioOptions AudioSourceOptions;
+	AudioSourceOptions.echo_cancellation = false;
+	AudioSourceOptions.auto_gain_control = false;
+	AudioSourceOptions.noise_suppression = false;
 
 	if (bPlanB)
 	{
@@ -307,7 +312,7 @@ void FStreamer::AddStreams(FPlayerId PlayerId)
 			Stream = PeerConnectionFactory->CreateLocalMediaStream(TCHAR_TO_ANSI(*StreamId));
 
 			rtc::scoped_refptr<webrtc::AudioTrackInterface> AudioTrackLocal(
-				PeerConnectionFactory->CreateAudioTrack(AudioLabel, PeerConnectionFactory->CreateAudioSource(cricket::AudioOptions{})));
+				PeerConnectionFactory->CreateAudioTrack(AudioLabel, PeerConnectionFactory->CreateAudioSource(AudioSourceOptions)));
 
 			Stream->AddTrack(AudioTrackLocal);
 
@@ -333,7 +338,7 @@ void FStreamer::AddStreams(FPlayerId PlayerId)
 		if (!AudioTrack)
 		{
 			AudioTrack =
-				PeerConnectionFactory->CreateAudioTrack(AudioLabel, PeerConnectionFactory->CreateAudioSource(cricket::AudioOptions{}));
+				PeerConnectionFactory->CreateAudioTrack(AudioLabel, PeerConnectionFactory->CreateAudioSource(AudioSourceOptions));
 		}
 
 		if (!VideoTrack)
@@ -372,7 +377,7 @@ void FStreamer::OnQualityOwnership(FPlayerId PlayerId)
 
 void FStreamer::SendPlayerMessage(PixelStreamingProtocol::EToPlayerMsg Type, const FString& Descriptor)
 {
-	UE_LOG(PixelStreamer, Verbose, TEXT("SendPlayerMessage: %d - %s"), static_cast<int32>(Type), *Descriptor);
+	UE_LOG(PixelStreamer, Log, TEXT("SendPlayerMessage: %d - %s"), static_cast<int32>(Type), *Descriptor);
 
 	FScopeLock PlayersLock(&PlayersCS);
 	for (auto&& PlayerEntry : Players)
