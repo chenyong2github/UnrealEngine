@@ -1265,7 +1265,7 @@ void FGPUSkinCache::ProcessEntry(
 {
 	INC_DWORD_STAT(STAT_GPUSkinCache_NumSectionsProcessed);
 
-	const uint32 NumVertices = BatchElement.GetNumVertices();
+	const int32 NumVertices = BatchElement.GetNumVertices();
 	//#todo-gpuskin Check that stream 0 is the position stream
 	const uint32 InputStreamStart = BatchElement.BaseVertexIndex;
 
@@ -1384,7 +1384,8 @@ void FGPUSkinCache::ProcessEntry(
         InOutEntry->DispatchData[Section].ClothLocalToWorld = ClothLocalToWorld;
         InOutEntry->DispatchData[Section].ClothWorldToLocal = ClothLocalToWorld.Inverse();
 
-		if (ClothVertexBuffer->GetNumVertices() > NumVertices)
+		const int32 NumWrapWeights = InOutEntry->DispatchData[Section].Section->ClothMappingData.Num();
+		if (NumWrapWeights > NumVertices)
 		{
 			InOutEntry->bMultipleClothSkinInfluences = true;
 		}
