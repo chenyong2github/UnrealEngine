@@ -21,6 +21,7 @@
 #include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/Text/STextBlock.h"
 #include "NiagaraSettings.h"
+#include "IDetailPropertyRow.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraPlatformSetCustomization"
 
@@ -93,10 +94,11 @@ void FNiagaraPlatformSetCustomization::CustomizeHeader(TSharedRef<IPropertyHandl
 	
 	BaseSystem = Objects[0]->GetTypedOuter<UNiagaraSystem>();
 	PropertyHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FNiagaraPlatformSetCustomization::OnPropertyValueChanged));
+	PropertyHandle->SetOnChildPropertyValueChanged(FSimpleDelegate::CreateLambda([&]{ TargetPlatformSet->OnChanged(); }));
 
 	HeaderRow
 		.WholeRowContent()
-		[ 	
+		[
 			SAssignNew(QualityLevelWidgetBox, SWrapBox)
 			.UseAllottedSize(true)
 		];
@@ -106,6 +108,8 @@ void FNiagaraPlatformSetCustomization::CustomizeHeader(TSharedRef<IPropertyHandl
 
 void FNiagaraPlatformSetCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
+	TSharedPtr<IPropertyHandle> CVarConditionsHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FNiagaraPlatformSet, CVarConditions));
+	ChildBuilder.AddProperty(CVarConditionsHandle.ToSharedRef());
 }
 
 FText FNiagaraPlatformSetCustomization::GetCurrentText() const
@@ -996,6 +1000,679 @@ void FNiagaraPlatformSetCustomization::OnPropertyValueChanged()
 {
 	GenerateQualityLevelSelectionWidgets();
 	UpdateCachedConflicts();
+	TargetPlatformSet->OnChanged();
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+#include "Widgets/Input/SMultiLineEditableTextBox.h"
+
+/**
+ * Input box for entering CVars into Niagara with auto complete for supported variable types.
+ */
+class SNiagaraConsoleInputBox : public SCompoundWidget
+{
+public:
+	DECLARE_DELEGATE_RetVal(FName, FGetCurrentCVar)
+	DECLARE_DELEGATE_OneParam(FOnTextCommittedDelegate, const FText& /*Text*/)
+
+	SLATE_BEGIN_ARGS(SNiagaraConsoleInputBox)
+		: _SuggestionListPlacement(MenuPlacement_BelowAnchor)
+	{}
+
+	/** Where to place the suggestion list */
+	SLATE_ARGUMENT(EMenuPlacement, SuggestionListPlacement)
+
+		SLATE_EVENT(FOnTextCommittedDelegate, OnTextCommittedEvent)
+
+		SLATE_EVENT(FGetCurrentCVar, GetCurrentCVar)
+
+		/** Delegate to call to close the console */
+		SLATE_EVENT(FSimpleDelegate, OnCloseConsole)
+
+	SLATE_END_ARGS()
+
+	/** Protected console input box widget constructor, called by Slate */
+	SNiagaraConsoleInputBox();
+
+	/**
+	 * Construct this widget.  Called by the SNew() Slate macro.
+	 *
+	 * @param	InArgs	Declaration used by the SNew() macro to construct this widget
+	 */
+	void Construct(const FArguments& InArgs);
+
+	/** Returns the editable text box associated with this widget.  Used to set focus directly. */
+	TSharedRef< SMultiLineEditableTextBox > GetEditableTextBox()
+	{
+		return InputText.ToSharedRef();
+	}
+
+	/** SWidget interface */
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+
+protected:
+
+	virtual bool SupportsKeyboardFocus() const override { return true; }
+
+	// e.g. Tab or Key_Up
+	virtual FReply OnPreviewKeyDown(const FGeometry& MyGeometry, const FKeyEvent& KeyEvent) override;
+
+	/** Handles entering in a command */
+	void OnTextCommitted(const FText& InText, ETextCommit::Type CommitInfo);
+
+	void OnTextChanged(const FText& InText);
+
+	/** Get the maximum width of the selection list */
+	FOptionalSize GetSelectionListMaxWidth() const;
+
+	/** Makes the widget for the suggestions messages in the list view */
+	TSharedRef<ITableRow> MakeSuggestionListItemWidget(TSharedPtr<FString> Message, const TSharedRef<STableViewBase>& OwnerTable);
+
+	void SuggestionSelectionChanged(TSharedPtr<FString> NewValue, ESelectInfo::Type SelectInfo);
+
+	void SetSuggestions(TArray<FString>& Elements, FText Highlight);
+
+	void MarkActiveSuggestion();
+
+	void ClearSuggestions();
+
+	FText GetText() const;
+
+	FReply OnKeyDownHandler(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent);
+
+	FReply OnKeyCharHandler(const FGeometry& MyGeometry, const FCharacterEvent& InCharacterEvent);
+
+private:
+
+	struct FSuggestions
+	{
+		FSuggestions()
+			: SelectedSuggestion(INDEX_NONE)
+		{
+		}
+
+		void Reset()
+		{
+			SelectedSuggestion = INDEX_NONE;
+			SuggestionsList.Reset();
+			SuggestionsHighlight = FText::GetEmpty();
+		}
+
+		bool HasSuggestions() const
+		{
+			return SuggestionsList.Num() > 0;
+		}
+
+		bool HasSelectedSuggestion() const
+		{
+			return SuggestionsList.IsValidIndex(SelectedSuggestion);
+		}
+
+		void StepSelectedSuggestion(const int32 Step)
+		{
+			SelectedSuggestion += Step;
+			if (SelectedSuggestion < 0)
+			{
+				SelectedSuggestion = SuggestionsList.Num() - 1;
+			}
+			else if (SelectedSuggestion >= SuggestionsList.Num())
+			{
+				SelectedSuggestion = 0;
+			}
+		}
+
+		TSharedPtr<FString> GetSelectedSuggestion() const
+		{
+			return SuggestionsList.IsValidIndex(SelectedSuggestion) ? SuggestionsList[SelectedSuggestion] : nullptr;
+		}
+
+		/** INDEX_NONE if not set, otherwise index into SuggestionsList */
+		int32 SelectedSuggestion;
+
+		/** All log messages stored in this widget for the list view */
+		TArray<TSharedPtr<FString>> SuggestionsList;
+
+		/** Highlight text to use for the suggestions list */
+		FText SuggestionsHighlight;
+	};
+
+	/** Editable text widget */
+	TSharedPtr< SMultiLineEditableTextBox > InputText;
+
+	/** history / auto completion elements */
+	TSharedPtr< SMenuAnchor > SuggestionBox;
+
+	/** The list view for showing all log messages. Should be replaced by a full text editor */
+	TSharedPtr< SListView< TSharedPtr<FString> > > SuggestionListView;
+
+	/** Active list of suggestions */
+	FSuggestions Suggestions;
+
+	/** Delegate to call to close the console */
+	FSimpleDelegate OnCloseConsole;
+
+	FGetCurrentCVar GetCurrentCVar;
+
+	FOnTextCommittedDelegate OnTextCommittedEvent;
+
+	/** to prevent recursive calls in UI callback */
+	bool bIgnoreUIUpdate;
+
+	/** true if this widget has been Ticked at least once */
+	bool bHasTicked;
+
+	/** True if we consumed a tab key in OnPreviewKeyDown, so we can ignore it in OnKeyCharHandler as well */
+	bool bConsumeTab;
+
+	FText WorkingText;
+};
+
+static TCHAR* NiagaraCVarHistoryKey = TEXT("NiagaraCVarHistory");
+
+SNiagaraConsoleInputBox::SNiagaraConsoleInputBox()
+	: bIgnoreUIUpdate(false)
+	, bHasTicked(false)
+{
+}
+
+void SNiagaraConsoleInputBox::Construct(const FArguments& InArgs)
+{
+	GetCurrentCVar = InArgs._GetCurrentCVar;
+	OnTextCommittedEvent = InArgs._OnTextCommittedEvent;
+	OnCloseConsole = InArgs._OnCloseConsole;
+
+	WorkingText = FText::FromName(GetCurrentCVar.Execute());
+
+	EPopupMethod PopupMethod = GIsEditor ? EPopupMethod::CreateNewWindow : EPopupMethod::UseCurrentWindow;
+	ChildSlot
+	[
+		SAssignNew(SuggestionBox, SMenuAnchor)
+		.Method(PopupMethod)
+		.Placement(InArgs._SuggestionListPlacement)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			[
+				SAssignNew(InputText, SMultiLineEditableTextBox)
+				.AllowMultiLine(false)
+				.ClearTextSelectionOnFocusLoss(true)
+				.SelectAllTextWhenFocused(true)
+				.Text(TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &SNiagaraConsoleInputBox::GetText)))
+				.OnTextCommitted(this, &SNiagaraConsoleInputBox::OnTextCommitted)
+				.OnTextChanged(this, &SNiagaraConsoleInputBox::OnTextChanged)
+				.OnKeyCharHandler(this, &SNiagaraConsoleInputBox::OnKeyCharHandler)
+				.OnKeyDownHandler(this, &SNiagaraConsoleInputBox::OnKeyDownHandler)
+				.OnIsTypedCharValid(FOnIsTypedCharValid::CreateLambda([](const TCHAR InCh) { return true; })) // allow tabs to be typed into the field
+				.ClearKeyboardFocusOnCommit(true)
+				.ModiferKeyForNewLine(EModifierKey::Shift)
+			]
+		]
+	.MenuContent
+	(
+		SNew(SBorder)
+		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+		.Padding(FMargin(2))
+		[
+			SNew(SBox)
+			.HeightOverride(250) // avoids flickering, ideally this would be adaptive to the content without flickering
+			.MinDesiredWidth(300)
+			.MaxDesiredWidth(this, &SNiagaraConsoleInputBox::GetSelectionListMaxWidth)
+			[
+				SAssignNew(SuggestionListView, SListView< TSharedPtr<FString> >)
+				.ListItemsSource(&Suggestions.SuggestionsList)
+				.SelectionMode(ESelectionMode::Single)							// Ideally the mouse over would not highlight while keyboard controls the UI
+				.OnGenerateRow(this, &SNiagaraConsoleInputBox::MakeSuggestionListItemWidget)
+				.OnSelectionChanged(this, &SNiagaraConsoleInputBox::SuggestionSelectionChanged)
+				.ItemHeight(18)
+			]
+		]
+	)
+	];
+}
+
+void SNiagaraConsoleInputBox::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	bHasTicked = true;
+
+	if (!GIntraFrameDebuggingGameThread && !IsEnabled())
+	{
+		SetEnabled(true);
+	}
+	else if (GIntraFrameDebuggingGameThread && IsEnabled())
+	{
+		SetEnabled(false);
+	}
+}
+
+
+void SNiagaraConsoleInputBox::SuggestionSelectionChanged(TSharedPtr<FString> NewValue, ESelectInfo::Type SelectInfo)
+{
+	if (bIgnoreUIUpdate)
+	{
+		return;
+	}
+
+	Suggestions.SelectedSuggestion = Suggestions.SuggestionsList.IndexOfByPredicate([&NewValue](const TSharedPtr<FString>& InSuggestion)
+		{
+			return InSuggestion == NewValue;
+		});
+
+	MarkActiveSuggestion();
+
+	// If the user selected this suggestion by clicking on it, then go ahead and close the suggestion
+	// box as they've chosen the suggestion they're interested in.
+	if (SelectInfo == ESelectInfo::OnMouseClick)
+	{
+		SuggestionBox->SetIsOpen(false);
+	}
+
+	// Ideally this would set the focus back to the edit control
+//	FWidgetPath WidgetToFocusPath;
+//	FSlateApplication::Get().GeneratePathToWidgetUnchecked( InputText.ToSharedRef(), WidgetToFocusPath );
+//	FSlateApplication::Get().SetKeyboardFocus( WidgetToFocusPath, EFocusCause::SetDirectly );
+}
+
+FOptionalSize SNiagaraConsoleInputBox::GetSelectionListMaxWidth() const
+{
+	// Limit the width of the suggestions list to the work area that this widget currently resides on
+	const FSlateRect WidgetRect(GetCachedGeometry().GetAbsolutePosition(), GetCachedGeometry().GetAbsolutePosition() + GetCachedGeometry().GetAbsoluteSize());
+	const FSlateRect WidgetWorkArea = FSlateApplication::Get().GetWorkArea(WidgetRect);
+	return FMath::Max(300.0f, WidgetWorkArea.GetSize().X - 12.0f);
+}
+
+TSharedRef<ITableRow> SNiagaraConsoleInputBox::MakeSuggestionListItemWidget(TSharedPtr<FString> Text, const TSharedRef<STableViewBase>& OwnerTable)
+{
+	check(Text.IsValid());
+
+	FString SanitizedText = *Text;
+	SanitizedText.ReplaceInline(TEXT("\r\n"), TEXT("\n"), ESearchCase::CaseSensitive);
+	SanitizedText.ReplaceInline(TEXT("\r"), TEXT(" "), ESearchCase::CaseSensitive);
+	SanitizedText.ReplaceInline(TEXT("\n"), TEXT(" "), ESearchCase::CaseSensitive);
+
+	return
+		SNew(STableRow< TSharedPtr<FString> >, OwnerTable)
+		[
+			SNew(STextBlock)
+			.Text(FText::FromString(SanitizedText))
+			.TextStyle(FEditorStyle::Get(), "Log.Normal")
+			.HighlightText(Suggestions.SuggestionsHighlight)
+		];
+}
+
+void SNiagaraConsoleInputBox::OnTextChanged(const FText& InText)
+{
+	if (bIgnoreUIUpdate)
+	{
+		return;
+	}
+	
+	WorkingText = InText;
+
+	const FString& InputTextStr = InputText->GetText().ToString();
+	if (!InputTextStr.IsEmpty())
+	{
+		TArray<FString> AutoCompleteList;
+
+		auto OnConsoleVariable = [&AutoCompleteList](const TCHAR* Name, IConsoleObject* CVar)
+		{
+#if (UE_BUILD_SHIPPING || UE_BUILD_TEST)
+			if (CVar->TestFlags(ECVF_Cheat))
+			{
+				return;
+			}
+#endif // (UE_BUILD_SHIPPING || UE_BUILD_TEST)
+			if (CVar->TestFlags(ECVF_Unregistered))
+			{
+				return;
+			}
+
+			//Don't include commands or types that are not supported
+			bool bSupported = CVar->IsVariableBool() || CVar->IsVariableInt() || CVar->IsVariableFloat();
+			if (!bSupported)
+			{
+				return;
+			}
+
+			AutoCompleteList.Add(Name);
+		};
+
+		IConsoleManager::Get().ForEachConsoleObjectThatContains(FConsoleObjectVisitor::CreateLambda(OnConsoleVariable), *InputTextStr);
+
+		AutoCompleteList.Sort([InputTextStr](const FString& A, const FString& B)
+			{
+				if (A.StartsWith(InputTextStr))
+				{
+					if (!B.StartsWith(InputTextStr))
+					{
+						return true;
+					}
+				}
+				else
+				{
+					if (B.StartsWith(InputTextStr))
+					{
+						return false;
+					}
+				}
+
+				return A < B;
+
+			});
+
+
+		SetSuggestions(AutoCompleteList, FText::FromString(InputTextStr));
+	}
+	else
+	{
+		ClearSuggestions();
+	}
+}
+
+void SNiagaraConsoleInputBox::OnTextCommitted(const FText& InText, ETextCommit::Type CommitInfo)
+{
+	WorkingText = InText;
+	IConsoleManager::Get().AddConsoleHistoryEntry(NiagaraCVarHistoryKey, *InText.ToString());
+	OnTextCommittedEvent.ExecuteIfBound(InText);
+	ClearSuggestions();
+}
+
+FReply SNiagaraConsoleInputBox::OnPreviewKeyDown(const FGeometry& MyGeometry, const FKeyEvent& KeyEvent)
+{
+	if (SuggestionBox->IsOpen())
+	{
+		if (KeyEvent.GetKey() == EKeys::Up || KeyEvent.GetKey() == EKeys::Down)
+		{
+			Suggestions.StepSelectedSuggestion(KeyEvent.GetKey() == EKeys::Up ? -1 : +1);
+			MarkActiveSuggestion();
+
+			return FReply::Handled();
+		}
+		else if (KeyEvent.GetKey() == EKeys::Tab)
+		{
+			if (Suggestions.HasSuggestions())
+			{
+				if (Suggestions.HasSelectedSuggestion())
+				{
+					Suggestions.StepSelectedSuggestion(KeyEvent.IsShiftDown() ? -1 : +1);
+				}
+				else
+				{
+					Suggestions.SelectedSuggestion = 0;
+				}
+				MarkActiveSuggestion();
+			}
+
+			bConsumeTab = true;
+			return FReply::Handled();
+		}
+		else if (KeyEvent.GetKey() == EKeys::Escape)
+		{
+			SuggestionBox->SetIsOpen(false);
+			return FReply::Handled();
+		}
+	}
+	else
+	{
+		if (KeyEvent.GetKey() == EKeys::Up)
+		{
+			// If the command field isn't empty we need you to have pressed Control+Up to summon the history (to make sure you're not just using caret navigation)
+			const bool bIsMultiLine = false;
+			const bool bShowHistory = InputText->GetText().IsEmpty() || KeyEvent.IsControlDown();
+			if (bShowHistory)
+			{
+				TArray<FString> History;
+
+				IConsoleManager::Get().GetConsoleHistory(NiagaraCVarHistoryKey, History);
+
+				SetSuggestions(History, FText::GetEmpty());
+
+				if (Suggestions.HasSuggestions())
+				{
+					Suggestions.StepSelectedSuggestion(-1);
+					MarkActiveSuggestion();
+				}
+			}
+
+			// Need to always handle this for single-line controls to avoid them invoking widget navigation
+			if (!bIsMultiLine || bShowHistory)
+			{
+				return FReply::Handled();
+			}
+		}
+		else if (KeyEvent.GetKey() == EKeys::Escape)
+		{
+			if (InputText->GetText().IsEmpty())
+			{
+				OnCloseConsole.ExecuteIfBound();
+			}
+			else
+			{
+				// Clear the console input area
+				bIgnoreUIUpdate = true;
+				InputText->SetText(FText::GetEmpty());
+				bIgnoreUIUpdate = false;
+
+				ClearSuggestions();
+			}
+
+			return FReply::Handled();
+		}
+	}
+
+	return FReply::Unhandled();
+}
+
+void SNiagaraConsoleInputBox::SetSuggestions(TArray<FString>& Elements, FText Highlight)
+{
+	FString SelectionText;
+	if (Suggestions.HasSelectedSuggestion())
+	{
+		SelectionText = *Suggestions.GetSelectedSuggestion();
+	}
+
+	Suggestions.Reset();
+	Suggestions.SuggestionsHighlight = Highlight;
+
+	for (int32 i = 0; i < Elements.Num(); ++i)
+	{
+		Suggestions.SuggestionsList.Add(MakeShared<FString>(Elements[i]));
+
+		if (Elements[i] == SelectionText)
+		{
+			Suggestions.SelectedSuggestion = i;
+		}
+	}
+	SuggestionListView->RequestListRefresh();
+
+	if (Suggestions.HasSuggestions())
+	{
+		// Ideally if the selection box is open the output window is not changing it's window title (flickers)
+		SuggestionBox->SetIsOpen(true, false);
+		if (Suggestions.HasSelectedSuggestion())
+		{
+			SuggestionListView->RequestScrollIntoView(Suggestions.GetSelectedSuggestion());
+		}
+		else
+		{
+			SuggestionListView->ScrollToTop();
+		}
+	}
+	else
+	{
+		SuggestionBox->SetIsOpen(false);
+	}
+}
+
+void SNiagaraConsoleInputBox::MarkActiveSuggestion()
+{
+	bIgnoreUIUpdate = true;
+	if (Suggestions.HasSelectedSuggestion())
+	{
+		TSharedPtr<FString> SelectedSuggestion = Suggestions.GetSelectedSuggestion();
+
+		SuggestionListView->SetSelection(SelectedSuggestion);
+		SuggestionListView->RequestScrollIntoView(SelectedSuggestion);	// Ideally this would only scroll if outside of the view
+
+		InputText->SetText(FText::FromString(*SelectedSuggestion));
+	}
+	else
+	{
+		SuggestionListView->ClearSelection();
+	}
+	bIgnoreUIUpdate = false;
+}
+
+void SNiagaraConsoleInputBox::ClearSuggestions()
+{
+	SuggestionBox->SetIsOpen(false);
+	Suggestions.Reset();
+}
+
+FText SNiagaraConsoleInputBox::GetText() const
+{
+	return WorkingText;
+}
+
+FReply SNiagaraConsoleInputBox::OnKeyDownHandler(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	return FReply::Unhandled();
+}
+
+FReply SNiagaraConsoleInputBox::OnKeyCharHandler(const FGeometry& MyGeometry, const FCharacterEvent& InCharacterEvent)
+{
+	// A printable key may be used to open the console, so consume all characters before our first Tick
+	if (!bHasTicked)
+	{
+		return FReply::Handled();
+	}
+
+	// Intercept tab if used for auto-complete
+	if (InCharacterEvent.GetCharacter() == '\t' && bConsumeTab)
+	{
+		bConsumeTab = false;
+		return FReply::Handled();
+	}
+
+	return FReply::Unhandled();
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+///
+/// 
+/// 
+void FNiagaraPlatformSetCVarConditionCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+{
+	HeaderRow.NameContent().Widget = StructPropertyHandle->CreatePropertyNameWidget();
+	HeaderRow.ValueContent().Widget = StructPropertyHandle->CreatePropertyValueWidget();
+}
+
+void FNiagaraPlatformSetCVarConditionCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+{
+	PropertyHandle = StructPropertyHandle;
+
+	//Add the CVar name 
+	CVarNameHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FNiagaraPlatformSetCVarCondition, CVarName));
+	
+	ChildBuilder.AddProperty(CVarNameHandle.ToSharedRef()).CustomWidget()
+	[
+		SNew(SNiagaraConsoleInputBox)
+		.GetCurrentCVar(this, &FNiagaraPlatformSetCVarConditionCustomization::GetCurrentCVar)
+		.OnTextCommittedEvent(this, &FNiagaraPlatformSetCVarConditionCustomization::OnTextCommitted)
+		// Always place suggestions above the input line for the output log widget
+		.SuggestionListPlacement(MenuPlacement_AboveAnchor)
+	];
+
+	BoolValueHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FNiagaraPlatformSetCVarCondition, Value));
+
+	TAttribute<EVisibility> BoolVisAttr = TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FNiagaraPlatformSetCVarConditionCustomization::BoolPropertyVisibility));
+	ChildBuilder.AddProperty(BoolValueHandle.ToSharedRef()).Visibility(BoolVisAttr);
+
+	TAttribute<EVisibility> IntVisAttr = TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FNiagaraPlatformSetCVarConditionCustomization::IntPropertyVisibility));
+	MinIntHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FNiagaraPlatformSetCVarCondition, MinInt));
+	ChildBuilder.AddProperty(MinIntHandle.ToSharedRef()).Visibility(IntVisAttr);
+	MaxIntHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FNiagaraPlatformSetCVarCondition, MaxInt));
+	ChildBuilder.AddProperty(MaxIntHandle.ToSharedRef()).Visibility(IntVisAttr);
+
+	TAttribute<EVisibility> FloatVisAttr = TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FNiagaraPlatformSetCVarConditionCustomization::FloatPropertyVisibility));
+	MinFloatHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FNiagaraPlatformSetCVarCondition, MinFloat));
+	ChildBuilder.AddProperty(MinFloatHandle.ToSharedRef()).Visibility(FloatVisAttr);
+	MaxFloatHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FNiagaraPlatformSetCVarCondition, MaxFloat));
+	ChildBuilder.AddProperty(MaxFloatHandle.ToSharedRef()).Visibility(FloatVisAttr);
+}
+
+EVisibility FNiagaraPlatformSetCVarConditionCustomization::BoolPropertyVisibility() const
+{
+	if (FNiagaraPlatformSetCVarCondition* TargetCondition = GetTargetCondition())
+	{
+		if (IConsoleVariable* CVar = TargetCondition->GetCVar())
+		{
+			return CVar->IsVariableBool() ? EVisibility::Visible : EVisibility::Hidden;
+		}
+	}
+	return EVisibility::Hidden;
+}
+
+EVisibility FNiagaraPlatformSetCVarConditionCustomization::IntPropertyVisibility() const
+{
+	if (FNiagaraPlatformSetCVarCondition* TargetCondition = GetTargetCondition())
+	{
+		if (IConsoleVariable* CVar = TargetCondition->GetCVar())
+		{
+			return CVar->IsVariableInt() ? EVisibility::Visible : EVisibility::Hidden;
+		}
+	}
+	return EVisibility::Hidden;
+}
+
+EVisibility FNiagaraPlatformSetCVarConditionCustomization::FloatPropertyVisibility() const
+{
+	if (FNiagaraPlatformSetCVarCondition* TargetCondition = GetTargetCondition())
+	{
+		if (IConsoleVariable* CVar = TargetCondition->GetCVar())
+		{
+			return CVar->IsVariableFloat() ? EVisibility::Visible : EVisibility::Hidden;
+		}
+	}
+	return EVisibility::Hidden;
+}
+
+FName FNiagaraPlatformSetCVarConditionCustomization::GetCurrentCVar()
+{
+	if (FNiagaraPlatformSetCVarCondition* TargetCondition = GetTargetCondition())
+	{
+		return TargetCondition->CVarName;
+	}
+	return TEXT("");
+}
+
+void FNiagaraPlatformSetCVarConditionCustomization::OnTextCommitted(const FText& Text)
+{
+	if (FNiagaraPlatformSetCVarCondition* TargetCondition = GetTargetCondition())
+	{
+		TargetCondition->SetCVar(*Text.ToString());
+	}
+
+	PropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
+}
+
+FNiagaraPlatformSetCVarCondition* FNiagaraPlatformSetCVarConditionCustomization::GetTargetCondition()const
+{
+	TArray<UObject*> Objects;
+	PropertyHandle->GetOuterObjects(Objects);
+	int32 Index = 0;
+	return (FNiagaraPlatformSetCVarCondition*)PropertyHandle->GetValueBaseAddress((uint8*)Objects[Index]);
+}
+
+FNiagaraPlatformSet* FNiagaraPlatformSetCVarConditionCustomization::GetTargetPlatformSet()const
+{
+	TArray<UObject*> Objects;
+	check(PropertyHandle && PropertyHandle->GetParentHandle());
+	TSharedPtr<IPropertyHandle> ParentHandle = PropertyHandle->GetParentHandle();
+	ParentHandle->GetOuterObjects(Objects);
+	int32 Index = 0;
+	return (FNiagaraPlatformSet*)ParentHandle->GetValueBaseAddress((uint8*)Objects[Index]);
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -543,7 +543,7 @@ public:
 	NIAGARA_API	void Reparent(UNiagaraEmitter& InParent);
 #endif
 
-	void OnQualityLevelChanged();
+	void OnScalabilityCVarChanged();
 
 #if WITH_EDITORONLY_DATA
 	NIAGARA_API const TMap<FGuid, UNiagaraMessageDataBase*>& GetMessages() const { return MessageKeyToMessageMap; };

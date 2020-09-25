@@ -105,3 +105,38 @@ private:
 	struct FNiagaraSystemScalabilityOverrides* SystemScalabilityOverrides;
 	struct FNiagaraEmitterScalabilityOverrides* EmitterScalabilityOverrides;
 };
+
+class FNiagaraPlatformSetCVarConditionCustomization : public IPropertyTypeCustomization
+{
+public:
+	/** @return A new instance of this class */
+	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
+	{
+		return MakeShared<FNiagaraPlatformSetCVarConditionCustomization>();
+	}
+
+	/** IPropertyTypeCustomization interface begin */
+	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
+	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
+	/** IPropertyTypeCustomization interface end */
+
+private:
+
+	TSharedPtr<IPropertyHandle> PropertyHandle;
+	TSharedPtr<IPropertyHandle> CVarNameHandle;
+	TSharedPtr<IPropertyHandle> BoolValueHandle;
+	TSharedPtr<IPropertyHandle> MinIntHandle;
+	TSharedPtr<IPropertyHandle> MaxIntHandle;
+	TSharedPtr<IPropertyHandle> MinFloatHandle;
+	TSharedPtr<IPropertyHandle> MaxFloatHandle;
+
+	FName GetCurrentCVar();
+	void OnTextCommitted(const FText& Text);
+
+	FNiagaraPlatformSetCVarCondition* GetTargetCondition()const;
+	FNiagaraPlatformSet* GetTargetPlatformSet()const;
+
+	EVisibility BoolPropertyVisibility() const;
+	EVisibility IntPropertyVisibility() const;
+	EVisibility FloatPropertyVisibility() const;
+};

@@ -99,6 +99,101 @@ struct FNiagaraPlatformSetConflictInfo
 	TArray<FNiagaraPlatformSetConflictEntry> Conflicts;
 };
 
+#if WITH_EDITOR
+//Helper class for accesssing and caching the value of CVars for device profiles.
+struct FDeviceProfileValueCache
+{
+	static void Empty();
+
+	template<typename T>
+	static bool GetValue(const UDeviceProfile* DeviceProfile, FName CVarName, T& OutValue);
+
+private:
+	static bool GetValueInternal(const UDeviceProfile* DeviceProfile, FName CVarName, FString& OutValue);
+
+	typedef TMap<FName, FString> FCVarValueMap;
+	/** Cached values for any polled CVar on particular device profiles. */
+	static TMap<const UDeviceProfile*, FCVarValueMap> CachedDeviceProfileValues;
+	/** Cached values for any polled CVar from the platform ini files. */
+	static TMap<FName, FCVarValueMap> CachedPlatformValues;
+};
+#endif
+
+/** Imposes a condition that a CVar must contain a set value or range of values for a platform set to be enabled. */
+USTRUCT()
+struct NIAGARA_API FNiagaraPlatformSetCVarCondition
+{
+	GENERATED_BODY();
+	
+	FNiagaraPlatformSetCVarCondition();
+
+	/** Returns true if this is ever met for any device profile for the given platform. */
+	bool IsEnabledForPlatform(const FString& PlatformName)const;
+
+	/** Return true if this is met by the given device profile. */
+	bool IsEnabledForDeviceProfile(const UDeviceProfile* DeviceProfile)const;
+
+	/** Returns the CVar for this condition. Can be null if the name give is not a valid CVar or the CVar is removed. */
+	IConsoleVariable* GetCVar()const;
+
+	void SetCVar(FName InCVarName);
+
+	/** The name of the CVar we're testing the value of. */
+	UPROPERTY(EditAnywhere, Category = "CVar")
+	FName CVarName = NAME_None;
+
+	/** The value this CVar must contain for this platform set to be enabled. */
+	UPROPERTY(EditAnywhere, Category = "CVar", meta=(DisplayName="Required Value"))
+	bool Value = true;
+
+	/** If the value of the CVar is less than this minimum then the PlatformSet will not be enabled. */
+	UPROPERTY(EditAnywhere, Category = "CVar", meta = (EditCondition="bUseMinInt", DisplayName = "Minumum Int For Enabled"))
+	int32 MinInt = 1;
+
+	/** If the value of the CVar is greater than this maximum then the PlatformSet will not be enabled. */
+	UPROPERTY(EditAnywhere, Category = "CVar", meta = (EditCondition = "bUseMaxInt", DisplayName = "Maximum Int For Enabled"))
+	int32 MaxInt = 1;
+
+	/** If the value of the CVar is less than this minimum then the PlatformSet will not be enabled. */
+	UPROPERTY(EditAnywhere, Category = "CVar", meta = (EditCondition = "bUseMinFloat", DisplayName = "Minumum Float For Enabled"))
+	float MinFloat = 1.0f;
+
+	/** If the value of the CVar is greater than this maximum then the PlatformSet will not be enabled. */
+	UPROPERTY(EditAnywhere, Category = "CVar", meta = (EditCondition = "bUseMaxFloat", DisplayName = "Maximum Float For Enabled"))
+	float MaxFloat = 1.0f;
+	
+	/** True if we should apply the minimum restriction for int CVars. */
+	UPROPERTY(EditAnywhere, Category = "CVar", meta = (InlineEditConditionToggle))
+	uint32 bUseMinInt : 1;
+	
+	/** True if we should apply the maximum restriction for int CVars. */
+	UPROPERTY(EditAnywhere, Category = "CVar", meta = (InlineEditConditionToggle))
+	uint32 bUseMaxInt : 1;
+
+	/** True if we should apply the minimum restriction for float CVars. */
+	UPROPERTY(EditAnywhere, Category = "CVar", meta = (InlineEditConditionToggle))
+	uint32 bUseMinFloat : 1;
+
+	/** True if we should apply the maximum restriction for float CVars. */
+	UPROPERTY(EditAnywhere, Category = "CVar", meta = (InlineEditConditionToggle))
+	uint32 bUseMaxFloat : 1;
+
+	template<typename T>
+	bool IsEnabledForDeviceProfile_Internal(const UDeviceProfile* DeviceProfile)const;
+
+	FORCEINLINE bool CheckValue(bool CVarValue)const { return CVarValue == Value; }
+	FORCEINLINE bool CheckValue(int32 CVarValue)const { return (!bUseMinInt || CVarValue >= MinInt) && (!bUseMaxInt || CVarValue <= MaxInt); }
+	FORCEINLINE bool CheckValue(float CVarValue)const { return (!bUseMinFloat || CVarValue >= MinFloat) && (!bUseMaxFloat || CVarValue <= MaxFloat); }
+
+	static void OnCVarChanged(IConsoleVariable* CVar);
+private:
+	mutable IConsoleVariable* CachedCVar = nullptr;
+
+	/** 
+	Callbacks for any CVars Niagara has looked at during this run.
+	*/
+	static TMap<FName, FDelegateHandle> CVarChangedDelegateHandles;
+};
 
 USTRUCT()
 struct NIAGARA_API FNiagaraPlatformSet
@@ -147,6 +242,9 @@ public:
 	/** Returns true if the passed platform should prune emitters on cook. */
 	static bool ShouldPruneEmittersOnCook(const FString& PlatformName);
 
+	/** Returns true if the passed platform can modify it's niagara scalability settings at runtime. */
+	static bool CanChangeScalabilityAtRuntime(const UDeviceProfile* DeviceProfile);
+
 	//Editor only public API
 #if WITH_EDITOR
 	/**
@@ -165,12 +263,6 @@ public:
 	/** Invalidates any cached data on this platform set when something has changed. */
 	void OnChanged();
 
-	/** Returns true if the passed platform can modify it's niagara scalability settings at runtime. */
-	static bool CanChangeScalabilityAtRuntime(const UDeviceProfile* DeviceProfile);
-
-	/** Returns true if the passed platform can modify it's niagara scalability settings at runtime. */
-	static bool CanChangeScalabilityAtRuntime(const FString& PlatformName);
-
 	/** Inspects the passed sets and generates an array of all conflicts between these sets. Used to keep arrays of platform sets orthogonal. */
 	static bool GatherConflicts(const TArray<const FNiagaraPlatformSet*>& PlatformSets, TArray<FNiagaraPlatformSetConflictInfo>& OutConflicts);
 #endif
@@ -182,6 +274,11 @@ public:
 	/** States of specific device profiles we've set. */
 	UPROPERTY(EditAnywhere, Category = Platforms)
 	TArray<FNiagaraDeviceProfileStateEntry> DeviceProfileStates;
+
+	/** Set of CVars values we require for this platform set to be enabled. If any of the linked CVars don't have the required values then this platform set will not be enabled. */
+	UPROPERTY(EditAnywhere, Category = Platforms)
+	TArray<FNiagaraPlatformSetCVarCondition> CVarConditions;
+
 private:
 
 	static int32 CachedQualityLevel;
@@ -194,19 +291,19 @@ private:
 
 	mutable bool bEnabledForCurrentProfileAndEffectQuality;
 
-	bool IsEnabled(const UDeviceProfile* Profile, int32 QualityLevel)const;
+	bool IsEnabled(const UDeviceProfile* Profile, int32 QualityLevel, bool bConsiderCurrentStateOnly=false)const;
 
 #if WITH_EDITOR
 	//Data we pull from platform ini files.
 	struct FPlatformIniSettings
 	{
 		FPlatformIniSettings()
-			:bCanChangeQualityLevelAtRuntime(0), bPruneEmittersOnCook(false), EffectsQuality(0)
+			:bCanChangeScalabilitySettingsAtRuntime(0), bPruneEmittersOnCook(false), EffectsQuality(0)
 		{}
-		FPlatformIniSettings(int32 InbCanChangeQualityLevelAtRuntime, int32 InbPruneEmittersOnCook, int32 InEffectsQuality)
-			:bCanChangeQualityLevelAtRuntime(InbCanChangeQualityLevelAtRuntime), bPruneEmittersOnCook(InbPruneEmittersOnCook), EffectsQuality(InEffectsQuality)
+		FPlatformIniSettings(int32 InbCanChangeScalabilitySettingsAtRuntime, int32 InbPruneEmittersOnCook, int32 InEffectsQuality)
+			:bCanChangeScalabilitySettingsAtRuntime(InbCanChangeScalabilitySettingsAtRuntime), bPruneEmittersOnCook(InbPruneEmittersOnCook), EffectsQuality(InEffectsQuality)
 		{}
-		int32 bCanChangeQualityLevelAtRuntime;
+		int32 bCanChangeScalabilitySettingsAtRuntime;
 		int32 bPruneEmittersOnCook;
 		int32 EffectsQuality;
 
@@ -219,7 +316,7 @@ private:
 	//Cached final QualityLevel setting for each device profile.
 	static TMap<const UDeviceProfile*, int32> CachedQLMasksPerDeviceProfile;
 
-	static FPlatformIniSettings GetPlatformIniSettings(const FString& PlatformName);
+	static FPlatformIniSettings& GetPlatformIniSettings(const FString& PlatformName);
 
 	static int32 GetEffectQualityMaskForPlatform(const FString& PlatformName);
 #endif

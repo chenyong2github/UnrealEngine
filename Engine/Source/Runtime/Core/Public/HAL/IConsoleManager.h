@@ -133,7 +133,10 @@ class IConsoleVariable;
 #if !NO_CVARS
 
 /** Console variable delegate type  This is a void callback function. */
-DECLARE_DELEGATE_OneParam( FConsoleVariableDelegate, IConsoleVariable* );
+DECLARE_DELEGATE_OneParam(FConsoleVariableDelegate, IConsoleVariable*);
+
+/** Console variable multicast delegate type. */
+DECLARE_MULTICAST_DELEGATE_OneParam(FConsoleVariableMulticastDelegate, IConsoleVariable*);
 
 /** Console command delegate type (takes no arguments.)  This is a void callback function. */
 DECLARE_DELEGATE( FConsoleCommandDelegate );
@@ -425,6 +428,8 @@ public:
 	 * We also don't call for the SetOnChangedCallback() call as this is up to the caller.
 	 **/
 	virtual void SetOnChangedCallback(const FConsoleVariableDelegate& Callback) = 0;
+
+	virtual FConsoleVariableMulticastDelegate& OnChangedDelegate() = 0;
 
 	// convenience methods
 
@@ -1490,6 +1495,13 @@ public:
 	virtual void SetOnChangedCallback(const FConsoleVariableDelegate &) override
 	{
 		check(false);
+	}
+
+	virtual FConsoleVariableMulticastDelegate& OnChangedDelegate()override
+	{
+		static FConsoleVariableMulticastDelegate Dummy;
+		check(false);
+		return Dummy;
 	}
 
 	virtual EConsoleVariableFlags GetFlags() const override

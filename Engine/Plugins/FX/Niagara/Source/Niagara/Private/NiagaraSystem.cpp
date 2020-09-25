@@ -2401,7 +2401,7 @@ void UNiagaraSystem::ResolveScalabilitySettings()
 	}
 }
 
-void UNiagaraSystem::OnQualityLevelChanged()
+void UNiagaraSystem::OnScalabilityCVarChanged()
 {
 	ResolveScalabilitySettings();
 
@@ -2409,7 +2409,7 @@ void UNiagaraSystem::OnQualityLevelChanged()
 	{
 		if (Handle.GetInstance())
 		{
-			Handle.GetInstance()->OnQualityLevelChanged();
+			Handle.GetInstance()->OnScalabilityCVarChanged();
 		}
 	}
 

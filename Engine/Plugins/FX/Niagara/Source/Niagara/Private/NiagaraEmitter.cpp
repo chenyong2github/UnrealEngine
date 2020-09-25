@@ -1961,7 +1961,7 @@ void UNiagaraEmitter::ResolveScalabilitySettings()
 	}
 }
 
-void UNiagaraEmitter::OnQualityLevelChanged()
+void UNiagaraEmitter::OnScalabilityCVarChanged()
 {
 	ResolveScalabilitySettings();
 }

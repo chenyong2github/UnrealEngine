@@ -109,8 +109,19 @@ public:
 	{
 		return this;
 	}
+	
+	/** Legacy funciton to add old single delegates to the new multicast delegate. */
+	virtual void SetOnChangedCallback(const FConsoleVariableDelegate& Callback) 
+	{
+		OnChangedCallback.Remove(LegacyDelegateHandle);
+		OnChangedCallback.Add(Callback); 
+	}
 
-	virtual void SetOnChangedCallback(const FConsoleVariableDelegate& Callback) { OnChangedCallback = Callback; }
+	/** Returns a multicast delegate with which to register. Called when this CVar changes. */
+	virtual FConsoleVariableMulticastDelegate& OnChangedDelegate()
+	{
+		return OnChangedCallback;
+	}
 
 	// ------
 
@@ -169,7 +180,7 @@ public:
 
 		Flags = (EConsoleVariableFlags)(((uint32)Flags & ECVF_FlagMask) | SetBy);
 
-		OnChangedCallback.ExecuteIfBound(this);
+		OnChangedCallback.Broadcast(this);
 	}
 
 	
@@ -180,7 +191,9 @@ protected: // -----------------------------------------
 	//
 	EConsoleVariableFlags Flags;
 	/** User function to call when the console variable is changed */
-	FConsoleVariableDelegate OnChangedCallback;
+	FConsoleVariableMulticastDelegate OnChangedCallback;
+	/** Store the handle to the delegate assigned via the legacy SetOnChangedCallback() so that the previous can be removed if called again. */
+	FDelegateHandle LegacyDelegateHandle;
 
 	/** True if this console variable has been used on the wrong thread and we have warned about it. */
 	mutable bool bWarnedAboutThreadSafety;
