@@ -10,6 +10,11 @@
 
 using namespace Chaos;
 
+namespace ChaosClothingSimulationClothConsoleVariables
+{
+	TAutoConsoleVariable<bool> CVarLegacyDisablesAccurateWind(TEXT("p.ChaosCloth.LegacyDisablesAccurateWind"), true, TEXT("Whether using the Legacy wind model switches off the accurate wind model, or adds up to it"));
+}
+
 FClothingSimulationCloth::FLODData::FLODData(int32 InNumParticles, const TConstArrayView<uint32>& InIndices, const TArray<TConstArrayView<float>>& InWeightMaps)
 	: NumParticles(InNumParticles)
 	, Indices(InIndices)
@@ -343,6 +348,7 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	float InAngularVelocityScale,
 	float InDragCoefficient,
 	float InLiftCoefficient,
+	bool bInUseLegacyWind,
 	float InDampingCoefficient,
 	float InCollisionThickness,
 	float InFrictionCoefficient,
@@ -377,6 +383,7 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	, AngularVelocityScale(InAngularVelocityScale)
 	, DragCoefficient(InDragCoefficient)
 	, LiftCoefficient(InLiftCoefficient)
+	, bUseLegacyWind(bInUseLegacyWind)
 	, DampingCoefficient(InDampingCoefficient)
 	, CollisionThickness(InCollisionThickness)
 	, FrictionCoefficient(InFrictionCoefficient)
@@ -681,7 +688,16 @@ void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 		Solver->SetGravity(GroupId, GetGravity(Solver));
 
 		// Update wind
-		Solver->SetWindVelocityField(GroupId, DragCoefficient, LiftCoefficient, &GetTriangleMesh(Solver));
+		Solver->SetLegacyWind(GroupId, bUseLegacyWind);
+
+		if (bUseLegacyWind && ChaosClothingSimulationClothConsoleVariables::CVarLegacyDisablesAccurateWind.GetValueOnAnyThread())
+		{
+			Solver->SetWindVelocityField(GroupId, 0.f, 0.f, &GetTriangleMesh(Solver));
+		}
+		else
+		{
+			Solver->SetWindVelocityField(GroupId, DragCoefficient, LiftCoefficient, &GetTriangleMesh(Solver));
+		}
 
 		// Update general solver properties
 		Solver->SetProperties(GroupId, DampingCoefficient, CollisionThickness, FrictionCoefficient);
