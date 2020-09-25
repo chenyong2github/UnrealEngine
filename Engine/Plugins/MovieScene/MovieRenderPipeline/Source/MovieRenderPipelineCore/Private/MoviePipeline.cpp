@@ -42,6 +42,7 @@
 #if WITH_EDITOR
 #include "MovieSceneExportMetadata.h"
 #endif
+#include "Interfaces/Interface_PostProcessVolume.h"
 
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
@@ -1254,18 +1255,70 @@ MoviePipeline::FFrameConstantMetrics UMoviePipeline::CalculateShotFrameMetrics(c
 	UMoviePipelineCameraSetting* CameraSettings = FindOrAddSetting<UMoviePipelineCameraSetting>(InShot);
 	UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSetting<UMoviePipelineAntiAliasingSetting>(InShot);
 
+	// We are overriding blur settings to account for how we sample multiple frames, so
+	// we need to process any camera and post process volume settings for motion blur manually
+
+	// Start by assuming no motion blur
 	Output.ShutterAnglePercentage = 0.0;
 
-	if (GetWorld()->GetFirstPlayerController()->PlayerCameraManager)
+	APlayerCameraManager* PlayerCameraManager = GetWorld()->GetFirstPlayerController()->PlayerCameraManager;
+	if (PlayerCameraManager)
 	{
-		// This only works if you use a Cine Camera (which is almost guranteed with Sequencer)
-		ACameraActor* CameraActor = Cast<ACameraActor>(GetWorld()->GetFirstPlayerController()->PlayerCameraManager->GetViewTarget());
+		// Grab the motion blur setting from the camera, if applicable.
+		ACameraActor* CameraActor = Cast<ACameraActor>(PlayerCameraManager->GetViewTarget());
 		if (CameraActor)
 		{
 			UCameraComponent* CameraComponent = CameraActor->GetCameraComponent();
 			if (CameraComponent)
 			{
 				Output.ShutterAnglePercentage = CameraComponent->PostProcessSettings.MotionBlurAmount;
+			}
+		}
+		
+		// Apply any motion blur settings from post processing blends attached to the camera manager
+		TArray<FPostProcessSettings> const* CameraAnimPPSettings;
+		TArray<float> const* CameraAnimPPBlendWeights;
+		PlayerCameraManager->GetCachedPostProcessBlends(CameraAnimPPSettings, CameraAnimPPBlendWeights);
+		for (int32 PPIdx = 0; PPIdx < CameraAnimPPBlendWeights->Num(); ++PPIdx)
+		{
+			if ((*CameraAnimPPSettings)[PPIdx].bOverride_MotionBlurAmount)
+			{
+				Output.ShutterAnglePercentage = FMath::Lerp(Output.ShutterAnglePercentage, (double)(*CameraAnimPPSettings)[PPIdx].MotionBlurAmount, (*CameraAnimPPBlendWeights)[PPIdx]);
+			}
+		}
+
+		// Apply any motion blur settings from post process volumes in the world
+		FVector ViewLocation = PlayerCameraManager->GetCameraLocation();
+		for (IInterface_PostProcessVolume* PPVolume : GetWorld()->PostProcessVolumes)
+		{
+			const FPostProcessVolumeProperties VolumeProperties = PPVolume->GetProperties();
+
+			// Skip any volumes which are either disabled or don't modify blur amount
+			if (!VolumeProperties.bIsEnabled || !VolumeProperties.Settings->bOverride_MotionBlurAmount)
+			{
+				continue;
+			}
+
+			float LocalWeight = FMath::Clamp(VolumeProperties.BlendWeight, 0.0f, 1.0f);
+			
+			if (!VolumeProperties.bIsUnbound)
+			{
+				float DistanceToPoint = 0.0f;
+				PPVolume->EncompassesPoint(ViewLocation, 0.0f, &DistanceToPoint);
+
+				if (DistanceToPoint >= 0 && DistanceToPoint < VolumeProperties.BlendRadius)
+				{
+					LocalWeight *= FMath::Clamp(1.0f - DistanceToPoint / VolumeProperties.BlendRadius, 0.0f, 1.0f);
+				}
+				else
+				{
+					LocalWeight = 0.0f;
+				}
+			}
+
+			if (LocalWeight > 0.0f)
+			{
+				Output.ShutterAnglePercentage = FMath::Lerp(Output.ShutterAnglePercentage, (double)VolumeProperties.Settings->MotionBlurAmount, LocalWeight);
 			}
 		}
 	}
