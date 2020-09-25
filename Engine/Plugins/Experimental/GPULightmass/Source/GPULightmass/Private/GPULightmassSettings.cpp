@@ -293,6 +293,17 @@ void UGPULightmassSubsystem::Launch()
 			{
 				UE_LOG(LogTemp, Log, TEXT("Static lighting system is created for world %s."), *World->GetPathName(World->GetOuter()));
 
+				ULightComponent::ReassignStationaryLightChannels(World, false, NULL);
+#if WITH_EDITOR
+				if (!GIsEditor)
+				{
+					if (GEngine)
+					{
+						GEngine->OnPostEditorTick().AddStatic(&FStaticLightingSystemInterface::GameTick);
+					}
+				}
+#endif // WITH_EDITOR
+
 				int32 NumPrimitiveComponents = 0;
 				int32 NumLightComponents = 0;
 
