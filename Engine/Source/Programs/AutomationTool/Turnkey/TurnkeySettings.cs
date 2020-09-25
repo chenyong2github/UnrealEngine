@@ -115,6 +115,10 @@ namespace Turnkey
 			string PreviousValue = null;
 
 			SetUserSettings.TryGetValue(VariableName, out PreviousValue);
+			if (Value == null)
+			{
+				SetUserSettings.Remove(VariableName);
+			}
 			SetUserSettings[VariableName] = Value;
 			Save();
 
