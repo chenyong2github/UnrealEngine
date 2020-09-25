@@ -139,6 +139,14 @@ void SSearchableComboBox::RefreshOptions()
 	ComboListView->RequestListRefresh();
 }
 
+void SSearchableComboBox::SetOptionsSource(const TArray<TSharedPtr<FString>>* InOptionsSource)
+{
+	OptionsSource = InOptionsSource;
+
+	FilteredOptionsSource.Empty();
+	FilteredOptionsSource.Append(*OptionsSource);
+}
+
 TSharedRef<ITableRow> SSearchableComboBox::GenerateMenuItemRow(TSharedPtr<FString> InItem, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	if (OnGenerateWidget.IsBound())
