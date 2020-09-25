@@ -6,6 +6,8 @@
 #include "GenericPlatform/GenericPlatformAffinity.h"
 #include "QueuedThreadPool.h"
 #include "ScopeRWLock.h"
+#include "Async/TaskGraphInterfaces.h"
+#include "Misc/IQueuedWork.h"
 
 /** ThreadPool wrapper implementation allowing to schedule
   * up to MaxConcurrency tasks at a time making sub-partitioning
@@ -97,4 +99,107 @@ public:
 		FRWScopeLock ScopeLock(Lock, SLT_Write);
 		QueuedWork.Sort(EQueuedWorkPriority::Normal, Predicate);
 	}
+};
+
+/** ThreadPool wrapper implementation allowing to schedule thread-pool tasks on the task graph.
+  */
+class CORE_API FQueuedThreadPoolTaskGraphWrapper : public FQueuedThreadPool
+{
+public:
+	/**
+	 * InPriorityMapper           Thread-safe function used to map any priority from this Queue to the priority that should be used when scheduling the task on the task graph.
+	 */
+	FQueuedThreadPoolTaskGraphWrapper(TFunction<ENamedThreads::Type (EQueuedWorkPriority)> InPriorityMapper = nullptr)
+		: TaskCount(0)
+		, bIsExiting(0)
+	{
+		if (InPriorityMapper)
+		{
+			PriorityMapper = InPriorityMapper;
+		}
+		else
+		{
+			PriorityMapper = [this](EQueuedWorkPriority InPriority) { return GetDefaultPriorityMapping(InPriority); };
+		}
+	}
+
+	/**
+	 * InDesiredThread           The task-graph desired thread and priority.
+	 */
+	FQueuedThreadPoolTaskGraphWrapper(ENamedThreads::Type InDesiredThread)
+		: TaskCount(0)
+		, bIsExiting(0)
+	{
+		PriorityMapper = [InDesiredThread](EQueuedWorkPriority InPriority) { return InDesiredThread; };
+	}
+
+	~FQueuedThreadPoolTaskGraphWrapper()
+	{
+		Destroy();
+	}
+private:
+	void AddQueuedWork(IQueuedWork* InQueuedWork, EQueuedWorkPriority InPriority = EQueuedWorkPriority::Normal) override
+	{
+		check(bIsExiting == false);
+		TaskCount++;
+		FFunctionGraphTask::CreateAndDispatchWhenReady(
+			[this, InQueuedWork](ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+			{
+				FMemMark Mark(FMemStack::Get());
+				InQueuedWork->DoThreadedWork();
+				OnTaskCompleted(InQueuedWork);
+			},
+			QUICK_USE_CYCLE_STAT(FQueuedThreadPoolTaskGraphWrapper, STATGROUP_ThreadPoolAsyncTasks),
+			nullptr,
+			PriorityMapper(InPriority)
+		);
+	}
+
+	bool RetractQueuedWork(IQueuedWork* InQueuedWork) override
+	{
+		// The task graph doesn't support retraction for now
+		return false;
+	}
+
+	void OnTaskCompleted(IQueuedWork* InQueuedWork)
+	{
+		--TaskCount;
+	}
+
+	int32 GetNumThreads() const override
+	{
+		return FTaskGraphInterface::Get().GetNumWorkerThreads();
+	}
+
+	ENamedThreads::Type GetDefaultPriorityMapping(EQueuedWorkPriority InQueuedWorkPriority)
+	{
+		ENamedThreads::Type DesiredThread = ENamedThreads::AnyNormalThreadNormalTask;
+		if (InQueuedWorkPriority > EQueuedWorkPriority::Normal)
+		{
+			DesiredThread = ENamedThreads::AnyBackgroundThreadNormalTask;
+		}
+		else if (InQueuedWorkPriority < EQueuedWorkPriority::Normal)
+		{
+			DesiredThread = ENamedThreads::AnyHiPriThreadNormalTask;
+		}
+		return DesiredThread;
+	}
+protected:
+	bool Create(uint32 InNumQueuedThreads, uint32 StackSize, EThreadPriority ThreadPriority, const TCHAR* Name) override
+	{
+		return true;
+	}
+
+	void Destroy() override
+	{
+		bIsExiting = true;
+		while (TaskCount != 0)
+		{
+			FPlatformProcess::Sleep(0.01f);
+		}
+	}
+private:
+	TFunction<ENamedThreads::Type (EQueuedWorkPriority)> PriorityMapper;
+	TAtomic<uint32> TaskCount;
+	TAtomic<bool> bIsExiting;
 };
