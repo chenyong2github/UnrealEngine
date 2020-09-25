@@ -13,6 +13,7 @@
 #include "../SHCommon.ush"
 
 #include "LumenScreenTracing.ush"
+#include "../SceneTextureParameters.ush"
 
 #ifndef THREADGROUP_SIZE
 #define THREADGROUP_SIZE 0
@@ -24,9 +25,6 @@
 
 #define DEBUG_VISUALIZE_TRACE_TYPES 0
 
-RWTexture2D<float> RWTraceHit;
-RWTexture2D<float3> RWTraceRadiance;
-
 [numthreads(PROBE_THREADGROUP_SIZE_2D, PROBE_THREADGROUP_SIZE_2D, 1)]
 void ClearTracesCS(
 	uint3 GroupId : SV_GroupID,
@@ -34,7 +32,7 @@ void ClearTracesCS(
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
 	RWTraceRadiance[DispatchThreadId.xy] = 0.0f;
-	RWTraceHit[DispatchThreadId.xy] = EncodeProbeRayDistance(0.0f, false);
+	RWTraceHit[DispatchThreadId.xy] = EncodeProbeRayDistance(0.0f, false, false);
 }
 
 float MaxTraceDistance;
@@ -170,6 +168,7 @@ void ScreenProbeTraceScreenTexturesCS(
 				bHit = bHit && !bUncertain;
 
 				uint2 TraceCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, TraceTexelCoord);
+				bool bFastMoving = false;
 
 				if (bHit)
 				{
@@ -183,19 +182,36 @@ void ScreenProbeTraceScreenTexturesCS(
 					#else
 						RWTraceRadiance[TraceCoord] = Lighting;
 					#endif
+
+					float3 HitWorldVelocity;
+					{
+						float2 HitScreenUV = HitUVz.xy;
+						float2 HitScreenPosition = (HitScreenUV.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+
+						float HitDeviceZ = HitUVz.z;
+						float HitSceneDepth = ConvertFromDeviceZ(HitUVz.z);
+						float3 HitHistoryScreenPosition = GetHistoryScreenPosition(HitScreenPosition, HitScreenUV, HitDeviceZ);
+
+						float3 HitTranslatedWorldPosition = mul(float4(HitScreenPosition * HitSceneDepth, HitSceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
+						HitWorldVelocity = HitTranslatedWorldPosition - GetPrevTranslatedWorldPosition(HitHistoryScreenPosition);
+					}
+
+					float ProbeWorldSpeed = DownsampledWorldSpeed.Load(int3(ScreenProbeAtlasCoord, 0)).x;
+					float HitWorldSpeed = length(HitWorldVelocity);
+
+					//@todo - take velocity direction into account
+					bFastMoving = abs(ProbeWorldSpeed - HitWorldSpeed) / max(SceneDepth, 100.0f) > RelativeSpeedDifferenceToConsiderLightingMoving;
 				}
 
 				if (bHit || bWriteDepthOnMiss)
 				{
 					float HitDistance = min(sqrt(ComputeRayHitSqrDistance(WorldPosition + View.PreViewTranslation, HitUVz)), MaxTraceDistance);
-					RWTraceHit[TraceCoord] = EncodeProbeRayDistance(HitDistance, bHit);
+					RWTraceHit[TraceCoord] = EncodeProbeRayDistance(HitDistance, bHit, bFastMoving);
 				}
 			}
 		}
 	}
 }
-
-Texture2D<float> TraceHit;
 
 uint2 EncodeTraceTexel(uint ScreenProbeIndex, uint2 TraceTexelCoord, float TraceHitDistance)
 {
@@ -387,7 +403,8 @@ void TraceCards(
 			TraceHitDistance = OpaqueHitDistance + length(WorldPosition - SamplePosition);
 		}
 
-		RWTraceHit[TraceCoord] = EncodeProbeRayDistance(TraceHitDistance, bHit);
+		//@todo - set bMoving based on hit object velocity
+		RWTraceHit[TraceCoord] = EncodeProbeRayDistance(TraceHitDistance, bHit, false);
 	}
 }
 
@@ -515,7 +532,7 @@ void TraceVoxels(
 			#endif
 		}
 
-		RWTraceHit[TraceCoord] = EncodeProbeRayDistance(TraceHitDistance, bHit);
+		RWTraceHit[TraceCoord] = EncodeProbeRayDistance(TraceHitDistance, bHit, false);
 	}
 }
 
@@ -560,7 +577,8 @@ void ScreenProbeSetupVisualizeTraces(
 		float SceneDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
 
 		bool bHit;
-		float TraceHitDistance = DecodeProbeRayDistance(TraceHit[TraceCoord].x, bHit);
+		bool bMoving;
+		float TraceHitDistance = DecodeProbeRayDistance(TraceHit[TraceCoord].x, bHit, bMoving);
 
 		float3 WorldPosition = 0;
 		float3 WorldConeDirection = 0;

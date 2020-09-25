@@ -14,7 +14,6 @@
 #include "LumenSceneUtils.h"
 
 extern int32 GLumenScreenProbeGatherNumMips;
-extern int32 GLumenScreenProbeSpatialFilterScatter;
 
 namespace LumenScreenProbeGather 
 {
@@ -58,6 +57,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FScreenProbeParameters, )
 	SHADER_PARAMETER(FIntPoint, ScreenProbeTraceBufferSize)
 	SHADER_PARAMETER(FIntPoint, ScreenProbeGatherBufferSize)
 	SHADER_PARAMETER(float, ScreenProbeGatherMaxMip)
+	SHADER_PARAMETER(float, RelativeSpeedDifferenceToConsiderLightingMoving)
 	SHADER_PARAMETER(uint32, AdaptiveScreenTileSampleResolution)
 	SHADER_PARAMETER(uint32, NumUniformScreenProbes)
 	SHADER_PARAMETER(uint32, MaxNumAdaptiveProbes)
@@ -71,9 +71,10 @@ BEGIN_SHADER_PARAMETER_STRUCT(FScreenProbeParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, TraceRadiance)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, TraceHit)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DownsampledDepth)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DownsampledWorldSpeed)
 
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWTraceRadiance)
-	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RWTraceHit)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, RWTraceHit)
 
 	SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeImportanceSamplingParameters, ImportanceSampling)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FOctahedralSolidAngleParameters, OctahedralSolidAngleParameters)
@@ -87,6 +88,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FScreenProbeGatherParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ScreenProbeRadianceWithBorder)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float3>, ScreenProbeRadianceSHAmbient)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float3>, ScreenProbeRadianceSHDirectional)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>, ScreenProbeMoving)
 END_SHADER_PARAMETER_STRUCT()
 
 extern void GenerateImportanceSamplingRays(

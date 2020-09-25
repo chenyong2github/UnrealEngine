@@ -202,8 +202,9 @@ bool FDeferredShadingSceneRenderer::ShouldRenderVelocities() const
 		const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
 
 		bool bSSGI = ViewPipelineState.bEnableSSGI;
+		bool bLumen = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen;
 		
-		bNeedsVelocity |= bMotionBlur || bTemporalAA || bDistanceFieldAO || bSSRTemporal || bDenoise || bSSGI;
+		bNeedsVelocity |= bMotionBlur || bTemporalAA || bDistanceFieldAO || bSSRTemporal || bDenoise || bSSGI || bLumen;
 	}
 
 	return bNeedsVelocity;
@@ -343,7 +344,9 @@ void FDeferredShadingSceneRenderer::RenderVelocities(
 
 EPixelFormat FVelocityRendering::GetFormat(EShaderPlatform ShaderPlatform)
 {
-	return FDataDrivenShaderPlatformInfo::GetSupportsRayTracing(ShaderPlatform) ? PF_A16B16G16R16 : PF_G16R16;
+	static IConsoleVariable* CVarLumen = IConsoleManager::Get().FindConsoleVariable(TEXT("r.LumenScene"));
+	const bool bNeedVelocityDepth = CVarLumen->GetInt() > 0 || FDataDrivenShaderPlatformInfo::GetSupportsRayTracing(ShaderPlatform);
+	return bNeedVelocityDepth ? PF_A16B16G16R16 : PF_G16R16;
 }
 
 FRDGTextureDesc FVelocityRendering::GetRenderTargetDesc(EShaderPlatform ShaderPlatform)

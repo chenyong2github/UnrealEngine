@@ -488,7 +488,6 @@ void WriteRay(uint2 ScreenProbeCoord, uint2 TracingRayCoord, uint2 SourceTexelCo
 		RWStructuredImportanceSampledRayInfosForTracing[TraceCoord] = PackRayInfo(SourceTexelCoord, SourceLevel);
 	}
 
-#if GENERATE_RAYS_FOR_GATHER_COMPOSITE
 	{
 		uint MipSize = MaxImportanceSamplingOctahedronResolution >> SourceLevel;
 		uint UpsampleKernelSize = MaxImportanceSamplingOctahedronResolution / MipSize;
@@ -502,7 +501,6 @@ void WriteRay(uint2 ScreenProbeCoord, uint2 TracingRayCoord, uint2 SourceTexelCo
 			}
 		}
 	}
-#endif
 }
 
 [numthreads(GENERATE_RAYS_THREADGROUP_SIZE, GENERATE_RAYS_THREADGROUP_SIZE, 1)]
@@ -647,9 +645,7 @@ void ScreenProbeGenerateRaysCS(
 						float PDF;
 						UnpackRaySortInfo(RaysToRefineSorted[ThreadIndex], RayTexelCoord, RayLevel, PDF);
 
-						#if GENERATE_RAYS_FOR_GATHER_COMPOSITE
-							WriteRay(ScreenProbeAtlasCoord, uint2(INVALID_TRACING_COORD, INVALID_TRACING_COORD), RayTexelCoord, RayLevel);
-						#endif
+						WriteRay(ScreenProbeAtlasCoord, uint2(INVALID_TRACING_COORD, INVALID_TRACING_COORD), RayTexelCoord, RayLevel);
 					}
 
 					// Reassign this ray to the new subdivided texel

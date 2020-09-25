@@ -4,6 +4,7 @@
 
 #include "../MonteCarlo.ush"
 #include "../BlueNoise.ush"
+#include "../SceneTextureParameters.ush"
 
 //Note: Also have to change format on C++ side
 #define SH_QUANTIZE_DIRECTIONAL_COEFFICIENTS 0
@@ -26,6 +27,7 @@ uint2 ScreenProbeTraceBufferSize;
 uint2 ScreenProbeGatherBufferSize;
 
 float ScreenProbeGatherMaxMip;
+float RelativeSpeedDifferenceToConsiderLightingMoving;
 
 // Downsample factor from full res to Screen Probe res
 uint ScreenProbeDownsampleFactor;
@@ -37,6 +39,7 @@ uint MaxNumAdaptiveProbes;
 
 // Note: negative if unlit
 Texture2D DownsampledDepth;
+Texture2D DownsampledWorldSpeed;
 
 // [0, ScreenProbeViewSize - 1]
 Buffer<uint> NumAdaptiveScreenProbes;
@@ -132,6 +135,38 @@ float3 GetWorldPositionFromScreenUV(float2 ScreenUV, float SceneDepth)
 	return WorldPosition;
 }
 
+float3 GetHistoryScreenPosition(float2 ScreenPosition, float2 ScreenUV, float DeviceZ)
+{
+	float3 HistoryScreenPosition = float3(ScreenPosition, DeviceZ);
+	bool bIsDynamicPixel = false;
+
+	{
+		float4 ThisClip = float4(HistoryScreenPosition, 1);
+		float4 PrevClip = mul(ThisClip, View.ClipToPrevClip);
+		float3 PrevScreen = PrevClip.xyz / PrevClip.w;
+		float3 Velocity = HistoryScreenPosition - PrevScreen;
+		float4 EncodedVelocity = GBufferVelocityTexture.SampleLevel(GlobalPointClampedSampler, ScreenUV, 0);
+		bIsDynamicPixel = EncodedVelocity.x > 0.0;
+
+		if (bIsDynamicPixel)
+		{
+			Velocity = DecodeVelocityFromTexture(EncodedVelocity);
+		}
+
+		HistoryScreenPosition -= Velocity;
+	}
+
+	return HistoryScreenPosition;
+}
+
+float3 GetPrevTranslatedWorldPosition(float3 HistoryScreenPosition)
+{
+	float HistorySceneDepth = ConvertFromDeviceZ(HistoryScreenPosition.z);
+	float3 PrevPositionTranslatedWorld = mul(float4(HistoryScreenPosition.xy * HistorySceneDepth, HistorySceneDepth, 1), View.PrevScreenToTranslatedWorld).xyz;
+	float3 PrevTranslatedWorldPosition = PrevPositionTranslatedWorld + (View.PreViewTranslation - View.PrevPreViewTranslation);
+	return PrevTranslatedWorldPosition;
+}
+
 uint2 GetTraceBufferCoord(uint2 ScreenProbeAtlasCoord, uint2 TraceTexelCoord)
 {
 	#define DEINTERLEAVED_TRACE_BUFFER_STORAGE 0
@@ -142,25 +177,39 @@ uint2 GetTraceBufferCoord(uint2 ScreenProbeAtlasCoord, uint2 TraceTexelCoord)
 	#endif
 }
 
+RWTexture2D<uint> RWTraceHit;
+RWTexture2D<float3> RWTraceRadiance;
+Texture2D<uint> TraceHit;
+
 float GetProbeMaxHitDistance()
 {
 	return MaxHalfFloat;
+
 }
 
-float EncodeProbeRayDistance(float HitDistance, bool bHit)
+uint EncodeProbeRayDistance(float HitDistance, bool bHit, bool bMoving)
 {
-	return HitDistance * (bHit ? -1.0f : 1.0f);
+	return f32tof16(HitDistance) | (bHit ? 1 << 17 : 0) | (bMoving ? 1 << 18 : 0);
 }
 
-float DecodeProbeRayDistance(float Encoded, out bool bHit)
+float DecodeProbeRayDistance(uint Encoded, out bool bHit, out bool bMoving)
 {
-	bHit = Encoded < 0.0f;
-	return abs(Encoded);
+	bHit = Encoded & (1 << 17);
+	bMoving = Encoded & (1 << 18);
+	return f16tof32(Encoded & 0xFFFF);
 }
 
-float DecodeProbeRayDistance(float Encoded)
+float DecodeProbeRayDistance(uint Encoded, out bool bHit)
 {
-	return abs(Encoded);
+	bool bMoving;
+	return DecodeProbeRayDistance(Encoded, bHit, bMoving);
+}
+
+float DecodeProbeRayDistance(uint Encoded)
+{
+	bool bHit;
+	bool bMoving;
+	return DecodeProbeRayDistance(Encoded, bHit, bMoving);
 }
 
 float EncodeProbeHitDistanceForFiltering(float HitDistance)

@@ -35,6 +35,34 @@ void OctahedralSolidAngleCS(
 }
 
 RWTexture2D<float> RWDownsampledDepth;
+RWTexture2D<float> RWDownsampledWorldSpeed;
+
+void WriteDownsampledProbeGBuffer(float2 ScreenUV, uint2 ScreenProbeAtlasCoord, FGBufferData GBufferData)
+{
+	float DownsampledDepth = GBufferData.Depth;
+
+	if (GBufferData.ShadingModelID == SHADINGMODELID_UNLIT)
+	{
+		// Store unlit in sign bit
+		DownsampledDepth *= -1.0f;
+	}
+
+	RWDownsampledDepth[ScreenProbeAtlasCoord] = DownsampledDepth;
+
+	float3 ProbeWorldVelocity;
+	{
+		float2 ProbeScreenPosition = (ScreenUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+
+		float ProbeDeviceZ = ConvertToDeviceZ(GBufferData.Depth);
+		float ProbeSceneDepth = GBufferData.Depth;
+		float3 ProbeHistoryScreenPosition = GetHistoryScreenPosition(ProbeScreenPosition, ScreenUV, ProbeDeviceZ);
+
+		float3 ProbeTranslatedWorldPosition = mul(float4(ProbeScreenPosition * ProbeSceneDepth, ProbeSceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
+		ProbeWorldVelocity = ProbeTranslatedWorldPosition - GetPrevTranslatedWorldPosition(ProbeHistoryScreenPosition);
+	}
+
+	RWDownsampledWorldSpeed[ScreenProbeAtlasCoord] = length(ProbeWorldVelocity);
+}
 
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
 void ScreenProbeDownsampleDepthUniformCS(
@@ -48,20 +76,10 @@ void ScreenProbeDownsampleDepthUniformCS(
 	{
 		float2 ScreenJitter = GetScreenTileJitter(SCREEN_TEMPORAL_INDEX, 0);
 		int2 SourcePos = min((int2)(ScreenProbeScreenCoord * ScreenProbeDownsampleFactor + uint2(ScreenJitter + .5f)), (int2)(View.ViewRectMin.xy + View.ViewSizeAndInvSize.xy) - 1);
-
+		float2 ScreenUV = (SourcePos + .5f) * View.BufferSizeAndInvSize.zw;
 		FGBufferData GBufferData = GetGBufferDataUint(SourcePos);
-
-		float SceneDepth = ConvertFromDeviceZ(SceneTexturesStruct.SceneDepthTexture.Load(int3(SourcePos, 0)).x);
-
-		float DownsampledDepth = SceneDepth;
-
-		if (GBufferData.ShadingModelID == SHADINGMODELID_UNLIT)
-		{
-			// Store unlit in sign bit
-			DownsampledDepth *= -1.0f;
-		}
-
-		RWDownsampledDepth[DispatchThreadId.xy] = DownsampledDepth;
+		
+		WriteDownsampledProbeGBuffer(ScreenUV, ScreenProbeScreenCoord, GBufferData);
 	}
 }
 
@@ -197,21 +215,12 @@ void ScreenProbeWriteDepthForAdaptiveProbesCS(
 
 		float2 ScreenJitter = GetScreenTileJitter(SCREEN_TEMPORAL_INDEX, ScreenProbeSubsampleIndex);
 		int2 SourcePos = min((int2)(ScreenProbeScreenCoord * ScreenProbeDownsampleFactor + uint2(ScreenJitter + .5f)), (int2)(View.ViewRectMin.xy + View.ViewSizeAndInvSize.xy) - 1);
+		float2 ScreenUV = (SourcePos + .5f) * View.BufferSizeAndInvSize.zw;
 
 		FGBufferData GBufferData = GetGBufferDataUint(SourcePos);
 
-		float SceneDepth = ConvertFromDeviceZ(SceneTexturesStruct.SceneDepthTexture.Load(int3(SourcePos, 0)).x);
-
-		float DownsampledDepth = SceneDepth;
-
-		if (GBufferData.ShadingModelID == SHADINGMODELID_UNLIT)
-		{
-			// Store unlit in sign bit
-			DownsampledDepth *= -1.0f;
-		}
-
 		uint2 ScreenProbeAtlasCoord = uint2(ScreenProbeIndex % ScreenProbeAtlasViewSize.x, ScreenProbeIndex / ScreenProbeAtlasViewSize.x);
-		RWDownsampledDepth[ScreenProbeAtlasCoord] = DownsampledDepth;
+		WriteDownsampledProbeGBuffer(ScreenUV, ScreenProbeAtlasCoord, GBufferData);
 	}
 }
 
@@ -354,6 +363,13 @@ FThreeBandSHVectorRGB GetScreenProbeSH(uint2 ScreenProbeAtlasCoord, float Interp
 	LightingSH.B.V2 = SHCoefficients1Blue.w * InterpolationWeight;
 
 	return LightingSH;
+}
+
+Buffer<float> ScreenProbeMoving;
+
+float GetScreenProbeMoving(uint2 ScreenProbeAtlasCoord, float InterpolationWeight)
+{
+	return ScreenProbeMoving[ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x] * InterpolationWeight;
 }
 
 // Bias the important sampling of SampleBxDF(SHADING_TERM_SPECULAR, ....)
@@ -660,7 +676,7 @@ void ScreenProbeIndirectCS(
 				}
 			}
 #endif
-			float LightingIsValid = (dot(InterpolationWeights, 1) < 1.0f - Epsilon) ? 0.0f : 1.0f;
+			bool bLightingIsValid = dot(InterpolationWeights, 1) > 1.0f - Epsilon;
 
 			#if SCREEN_SPACE_BENT_NORMAL
 			{
@@ -668,8 +684,15 @@ void ScreenProbeIndirectCS(
 			}
 			#endif
 
+			float LightingIsMoving = GetScreenProbeMoving(ScreenProbeAtlasCoord[0], InterpolationWeights.x)
+				+ GetScreenProbeMoving(ScreenProbeAtlasCoord[1], InterpolationWeights.y)
+				+ GetScreenProbeMoving(ScreenProbeAtlasCoord[2], InterpolationWeights.z)
+				+ GetScreenProbeMoving(ScreenProbeAtlasCoord[3], InterpolationWeights.w);
+
+			float EncodedAlpha = (bLightingIsValid ? 1.0f : -1.0f) * max(LightingIsMoving, .001f);
+
 			// FDiffuseIndirectCompositePS applies DiffuseColor
-			RWDiffuseIndirect[DispatchThreadId.xy] = float4(DiffuseLighting * LightingIsValid * Diffuse_Lambert(float3(1, 1, 1)), LightingIsValid);
+			RWDiffuseIndirect[DispatchThreadId.xy] = float4(DiffuseLighting * (bLightingIsValid ? 1.0f : 0.0f) * Diffuse_Lambert(float3(1, 1, 1)), EncodedAlpha);
 
 			float3 SpecularLighting = 0;
 
@@ -741,8 +764,6 @@ Texture2D RoughSpecularIndirectHistory;
 Texture2D DiffuseIndirectDepthHistory;
 Texture2D HistoryConvergence;
 
-float GradientHistoryWeight;
-float GradientSpeedupConvergenceThreshold;
 float HistoryWeight;
 float HistoryConvergenceWeight;
 
@@ -753,50 +774,72 @@ Texture2D VelocityTexture;
 SamplerState VelocityTextureSampler;
 
 float PrevInvPreExposure;
+float InvFractionOfLightingMovingForFullNeighborhoodClamp;
+
+static const int2 kOffsets3x3[8] =
+{
+	int2(-1, -1),
+	int2( 0, -1),
+	int2( 1, -1),
+	int2(-1,  0),
+	int2( 1,  0),
+	int2(-1,  1),
+	int2( 0,  1),
+	int2( 1,  1),
+};
+
+float3 ClampHistory(
+	Texture2D LightingTexture,
+	uint2 ScreenCoord, 
+	uint2 MinScreenCoord, 
+	uint2 MaxScreenCoord,
+	float3 NewLighting,
+	float3 HistoryLighting)
+{
+	float3 NeighborMin = NewLighting;
+	float3 NeighborMax = NewLighting;
+
+	UNROLL
+	for(uint NeighborId = 0; NeighborId < 8; NeighborId++)
+	{
+		int2 SampleOffset = kOffsets3x3[NeighborId];
+
+		uint2 NeighborScreenCoord = ScreenCoord + SampleOffset;
+		NeighborScreenCoord = clamp(NeighborScreenCoord, MinScreenCoord, MaxScreenCoord);
+
+		float3 Lighting = LightingTexture[NeighborScreenCoord].xyz;
+
+		NeighborMin = min(NeighborMin, Lighting);
+		NeighborMax = max(NeighborMax, Lighting);
+	}
+
+	HistoryLighting = clamp(HistoryLighting, NeighborMin, NeighborMax);
+	return HistoryLighting;
+}
 
 void ScreenProbeTemporalReprojectionDepthRejectionPS(
 	float4 SVPosition : SV_POSITION,
 	out float4 OutDiffuseIndirect : SV_Target0,
 	out float4 OutRoughSpecularIndirect : SV_Target1,
-	out float4 OutConvergenceAndLightingGradient : SV_Target2,
+	out float4 OutConvergence : SV_Target2,
 	out float OutDepth : SV_Depth)
 {
 	float2 ScreenUV = SVPosition.xy * View.BufferSizeAndInvSize.zw;
 	float2 ScreenPosition = (ScreenUV.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
 
-	float DeviceZ = Texture2DSampleLevel(SceneTexturesStruct.SceneDepthTexture, SceneTexturesStruct_SceneDepthTextureSampler, ScreenUV, 0).r;
+	float DeviceZ = Texture2DSampleLevel(SceneDepthTexture, GlobalPointClampedSampler, ScreenUV, 0).r;
 	float SceneDepth = ConvertFromDeviceZ(DeviceZ);
-
-	float3 HistoryScreenPosition = float3(ScreenPosition, DeviceZ);
-	bool bIsDynamicPixel = false;
-
-	{
-		float4 ThisClip = float4(HistoryScreenPosition, 1);
-		float4 PrevClip = mul(ThisClip, View.ClipToPrevClip);
-		float3 PrevScreen = PrevClip.xyz / PrevClip.w;
-		float3 Velocity = HistoryScreenPosition - PrevScreen;
-		float4 EncodedVelocity = VelocityTexture.SampleLevel(GlobalPointClampedSampler, ScreenUV, 0);
-		bIsDynamicPixel = EncodedVelocity.x > 0.0;
-
-		if (bIsDynamicPixel)
-		{
-			Velocity = DecodeVelocityFromTexture(EncodedVelocity);
-		}
-
-		HistoryScreenPosition -= Velocity;
-	}
+	float3 HistoryScreenPosition = GetHistoryScreenPosition(ScreenPosition, ScreenUV, DeviceZ);
 
 	float2 HistoryScreenUV = HistoryScreenPosition.xy * HistoryScreenPositionScaleBias.xy + HistoryScreenPositionScaleBias.wz;
 	bool bHistoryWasOffscreen = any(HistoryScreenUV > HistoryUVMinMax.zw) || any(HistoryScreenUV < HistoryUVMinMax.xy);
 	HistoryScreenUV = clamp(HistoryScreenUV, HistoryUVMinMax.xy, HistoryUVMinMax.zw);
 
-	float4 NewDiffuseLighting = Texture2DSampleLevel(DiffuseIndirect, GlobalBilinearClampedSampler, ScreenUV, 0);
-	float3 HistoryDiffuseIndirect = Texture2DSampleLevel(DiffuseIndirectHistory, GlobalBilinearClampedSampler, HistoryScreenUV, 0).xyz * PrevInvPreExposure * View.PreExposure;
+	float4 NewDiffuseLighting = Texture2DSampleLevel(DiffuseIndirect, GlobalPointClampedSampler, ScreenUV, 0);
+	float3 HistoryDiffuseIndirect = Texture2DSampleLevel(DiffuseIndirectHistory, GlobalPointClampedSampler, HistoryScreenUV, 0).xyz * PrevInvPreExposure * View.PreExposure;
 	bool bLightingIsValid = NewDiffuseLighting.w > 0.0f;
+	float LightingIsMoving = abs(NewDiffuseLighting.w);
 
-	float EffectiveGradientHistoryWeight = GradientHistoryWeight;
-	//@todo - tonemap to make it a perceptual control?
-	float NewGradient = bLightingIsValid ? (Luminance(NewDiffuseLighting.xyz) - Luminance(HistoryDiffuseIndirect)) : 0.0f;
 	float EffectiveConvergenceWeight = HistoryConvergenceWeight;
 	float NewConvergence = 1;
 
@@ -804,43 +847,51 @@ void ScreenProbeTemporalReprojectionDepthRejectionPS(
 
 	if (bHistoryWasOffscreen)
 	{ 
-		EffectiveGradientHistoryWeight = 0;
-		NewGradient = 0;
 		EffectiveConvergenceWeight = 0;
 		NewConvergence = 0;
 		EffectiveHistoryWeight = 0;
 	}
 
-	float HistoryDepth = ConvertFromDeviceZ(Texture2DSampleLevel(DiffuseIndirectDepthHistory, GlobalBilinearClampedSampler, HistoryScreenUV, 0).x);
 	float Noise = InterleavedGradientNoise(SVPosition.xy, View.StateFrameIndexMod8);
+	float HistoryDepth = ConvertFromDeviceZ(Texture2DSampleLevel(DiffuseIndirectDepthHistory, GlobalBilinearClampedSampler, HistoryScreenUV, 0).x);
 	float PositionWeight = ComputeHistoryWeightBasedOnPosition(ScreenPosition, SceneDepth, HistoryScreenPosition.xy, HistoryDepth, Noise);
 
-	EffectiveGradientHistoryWeight *= PositionWeight;
-	NewGradient *= PositionWeight;
 	EffectiveConvergenceWeight *= PositionWeight;
 	NewConvergence *= PositionWeight;
 
-	float2 ConvergenceHistoryAndLightingGradient = Texture2DSampleLevel(HistoryConvergence, GlobalBilinearClampedSampler, HistoryScreenUV, 0).xy;
+	float ConvergenceHistory = Texture2DSampleLevel(HistoryConvergence, GlobalBilinearClampedSampler, HistoryScreenUV, 0).x;
 
-	float LightingGradientHistory = ConvergenceHistoryAndLightingGradient.y * 2 - 1;
-	float UpdatedGradient = lerp(NewGradient, LightingGradientHistory, EffectiveGradientHistoryWeight);
-	float UpdatedConvergence = lerp(NewConvergence, ConvergenceHistoryAndLightingGradient.x, EffectiveConvergenceWeight);
-
-	float LightingGradientAlpha = abs(UpdatedGradient) - GradientSpeedupConvergenceThreshold * lerp(.5f, 1.5f, Noise);
-	if (LightingGradientAlpha > 0)
-	{
-		UpdatedConvergence = lerp(UpdatedConvergence, 0, saturate(LightingGradientAlpha));
-	}
-
-	EffectiveHistoryWeight *= PositionWeight * UpdatedConvergence;
-
-	OutDiffuseIndirect = float4(lerp(NewDiffuseLighting.rgb, HistoryDiffuseIndirect.rgb, EffectiveHistoryWeight), 0);
+	float UpdatedConvergence = lerp(NewConvergence, ConvergenceHistory, EffectiveConvergenceWeight);
 
 	float3 NewRoughSpecularLighting = Texture2DSampleLevel(RoughSpecularIndirect, GlobalBilinearClampedSampler, ScreenUV, 0).xyz;
 	float3 HistoryRoughSpecularIndirect = Texture2DSampleLevel(RoughSpecularIndirectHistory, GlobalBilinearClampedSampler, HistoryScreenUV, 0).xyz * PrevInvPreExposure * View.PreExposure;
+
+	// Compute the amount of neighborhood clamp history rejection to apply based on what fraction of the probe directions hit fast moving objects
+	float NeighborhoodClampAmount = saturate(LightingIsMoving * InvFractionOfLightingMovingForFullNeighborhoodClamp);
+	// For performance, skip neighborhood clamp when it would have had a small contribution
+	NeighborhoodClampAmount = saturate((NeighborhoodClampAmount - .2f) / .8f);
+
+	if (NeighborhoodClampAmount > 0 && bLightingIsValid)
+	{
+		uint2 MinScreenCoord = uint2(0, 0);
+		uint2 MaxScreenCoord = (uint2)(View.ViewSizeAndInvSize.xy - 1);
+		float3 ClampedHistoryDiffuseIndirect = ClampHistory(DiffuseIndirect, SVPosition.xy, MinScreenCoord, MaxScreenCoord, NewDiffuseLighting.xyz, HistoryDiffuseIndirect);
+		HistoryDiffuseIndirect = lerp(HistoryDiffuseIndirect, ClampedHistoryDiffuseIndirect, NeighborhoodClampAmount);
+
+		float3 ClampedHistoryRoughSpecularIndirect = ClampHistory(RoughSpecularIndirect, SVPosition.xy, MinScreenCoord, MaxScreenCoord, NewRoughSpecularLighting, HistoryRoughSpecularIndirect);
+		HistoryRoughSpecularIndirect = lerp(HistoryRoughSpecularIndirect, ClampedHistoryRoughSpecularIndirect, NeighborhoodClampAmount);
+	}
+
+	UpdatedConvergence = min(UpdatedConvergence, 1.0f - .5f * NeighborhoodClampAmount);
+	EffectiveHistoryWeight *= UpdatedConvergence * lerp(PositionWeight, 1.0f, NeighborhoodClampAmount);
+
+	OutDiffuseIndirect = float4(lerp(NewDiffuseLighting.rgb, HistoryDiffuseIndirect.rgb, EffectiveHistoryWeight), 0);
 	OutRoughSpecularIndirect = float4(lerp(NewRoughSpecularLighting.rgb, HistoryRoughSpecularIndirect.rgb, EffectiveHistoryWeight), 0);
 
-	OutConvergenceAndLightingGradient = float4(UpdatedConvergence, UpdatedGradient * .5f + .5f, 0, 0);
+	OutDiffuseIndirect.rgb = -min(-OutDiffuseIndirect.rgb, 0.0f);
+	OutRoughSpecularIndirect.rgb = -min(-OutRoughSpecularIndirect.rgb, 0.0f);
+
+	OutConvergence = float4(UpdatedConvergence, 0, 0, 0);
 	OutDepth = DeviceZ;
 }
 

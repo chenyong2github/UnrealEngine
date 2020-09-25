@@ -554,6 +554,8 @@ void TraceScreenProbes(
 
 		ScreenSpaceRayTracing::SetupCommonScreenSpaceRayParameters(GraphBuilder, SceneTextures, PrevSceneColor, View, /* out */ &PassParameters->ScreenSpaceRayParameters);
 
+		PassParameters->ScreenSpaceRayParameters.CommonDiffuseParameters.SceneTextures = SceneTextures;
+
 		{
 			const FVector2D HZBUvFactor(
 				float(View.ViewRect.Width()) / float(2 * View.HZBMipmap0Size.X),

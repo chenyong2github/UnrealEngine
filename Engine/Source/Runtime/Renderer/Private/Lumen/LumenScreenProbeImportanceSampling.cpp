@@ -169,8 +169,7 @@ class FScreenProbeGenerateRaysCS : public FGlobalShader
 
 	class FThreadGroupSize : SHADER_PERMUTATION_SPARSE_INT("GENERATE_RAYS_THREADGROUP_SIZE", 4, 8, 16);
 	class FImportanceSampleLighting : SHADER_PERMUTATION_BOOL("IMPORTANCE_SAMPLE_LIGHTING");
-	class FGenerateRaysForGatherComposite : SHADER_PERMUTATION_BOOL("GENERATE_RAYS_FOR_GATHER_COMPOSITE");
-	using FPermutationDomain = TShaderPermutationDomain<FThreadGroupSize, FImportanceSampleLighting, FGenerateRaysForGatherComposite>;
+	using FPermutationDomain = TShaderPermutationDomain<FThreadGroupSize, FImportanceSampleLighting>;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -317,7 +316,6 @@ void GenerateImportanceSamplingRays(
 		FScreenProbeGenerateRaysCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set< FScreenProbeGenerateRaysCS::FThreadGroupSize >(ScreenProbeParameters.ScreenProbeTracingOctahedronResolution);
 		PermutationVector.Set< FScreenProbeGenerateRaysCS::FImportanceSampleLighting >(bImportanceSampleLighting);
-		PermutationVector.Set< FScreenProbeGenerateRaysCS::FGenerateRaysForGatherComposite >(GLumenScreenProbeSpatialFilterScatter == 0);
 		auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeGenerateRaysCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(

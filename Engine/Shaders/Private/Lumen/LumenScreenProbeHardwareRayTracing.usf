@@ -258,12 +258,6 @@ void EncodeHardwareDetailTraceSnapshot(RayDesc Ray, FLumenHardwareDetailTracingC
 #include "LumenRadianceCacheCommon.ush"
 #include "LumenScreenProbeCommon.ush"
 
-//---------------------------------------
-// Lumen Screen Probe tracing parameters
-RWTexture2D<float> RWTraceHit;
-RWTexture2D<float3> RWTraceRadiance;
-Texture2D<float> TraceHit;
-
 //----------------------------------------
 float MinTraceDistance;
 float MaxTraceDistance;
@@ -866,7 +860,8 @@ RAY_TRACING_ENTRY_RAYGEN(LumenCardHardwareRayTracingRGS)
 		}
 
 		// This shader must always write hit distance even if no hit
-		RWTraceHit[TraceCoord] = EncodeProbeRayDistance(TraceHitDistance, bHit);
+		//@todo - set bMoving based on hit object velocity
+		RWTraceHit[TraceCoord] = EncodeProbeRayDistance(TraceHitDistance, bHit, false);
 	}
 }
 
