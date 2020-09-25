@@ -65,7 +65,11 @@ namespace TextureShareItem
 #endif
 
 	public:
-		void ConnectionLost();
+		void BeginRemoteConnection();
+		void EndRemoteConnection();
+		void RemoteConnectionLost();
+		bool CheckRemoteConnectionLost();
+
 		bool TryFrameSyncLost();
 
 		bool IsConnectionValid() const
@@ -124,6 +128,7 @@ namespace TextureShareItem
 		FSharedResourceSessionData ResourceData;
 		FSharedResource*           SharedResource = nullptr;
 		bool                       bIsSessionStarted = false;
+		bool                       bRemoteConnectionValid = false;
 
 	private:
 		mutable FCriticalSection FrameLockGuard;

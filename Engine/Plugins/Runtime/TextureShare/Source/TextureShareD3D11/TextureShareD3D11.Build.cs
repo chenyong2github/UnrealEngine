@@ -7,8 +7,7 @@ public class TextureShareD3D11 : ModuleRules
 {
 	public TextureShareD3D11(ReadOnlyTargetRules Target) : base(Target)
 	{
-
-			PrivateDependencyModuleNames.AddRange(
+		PrivateDependencyModuleNames.AddRange(
 						new string[]
 						{
 							"Core",
@@ -18,12 +17,12 @@ public class TextureShareD3D11 : ModuleRules
 							"D3D11RHI",
 						});
 
-			PrivateIncludePaths.AddRange(
-				new string[]
-				{
-							"../../../../Source/Runtime/Windows/D3D11RHI/Private",
-							"../../../../Source/Runtime/Windows/D3D11RHI/Private/Windows",
-				});
+		PrivateIncludePaths.AddRange(
+			new string[]
+			{
+						"../../../../Source/Runtime/Windows/D3D11RHI/Private",
+						"../../../../Source/Runtime/Windows/D3D11RHI/Private/Windows",
+			});
 
 		///////////////////////////////////////////////////////////////
 		// Platform specific defines
