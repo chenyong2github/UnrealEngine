@@ -1,18 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DisplayClusterScreenComponent.h"
+#include "Components/DisplayClusterScreenComponent.h"
 #include "Components/StaticMeshComponent.h"
-#include "Engine/GameEngine.h"
+
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/Material.h"
 #include "UObject/ConstructorHelpers.h"
 
 #include "DisplayClusterRootActor.h"
+#include "DisplayClusterConfigurationTypes.h"
 
+#include "Config/IPDisplayClusterConfigManager.h"
 #include "Game/IPDisplayClusterGameManager.h"
 #include "Misc/DisplayClusterGlobals.h"
-#include "EngineDefines.h"
+#include "Misc/DisplayClusterHelpers.h"
+#include "Misc/DisplayClusterStrings.h"
 
 
 UDisplayClusterScreenComponent::UDisplayClusterScreenComponent(const FObjectInitializer& ObjectInitializer)
@@ -21,9 +24,8 @@ UDisplayClusterScreenComponent::UDisplayClusterScreenComponent(const FObjectInit
 	// Children of UDisplayClusterSceneComponent must always Tick to be able to process VRPN tracking
 	PrimaryComponentTick.bCanEverTick = true;
 
+	// Create visual mesh component as a child
 	ScreenGeometryComponent = CreateDefaultSubobject<UStaticMeshComponent>(FName(*(GetName() + FString("_impl"))));
-	check(ScreenGeometryComponent);
-
 	if (ScreenGeometryComponent)
 	{
 		static ConstructorHelpers::FObjectFinder<UStaticMesh> ScreenMesh(TEXT("StaticMesh'/Engine/BasicShapes/Cube.Cube'"));
@@ -41,11 +43,28 @@ UDisplayClusterScreenComponent::UDisplayClusterScreenComponent(const FObjectInit
 void UDisplayClusterScreenComponent::BeginPlay()
 {
 	Super::BeginPlay();
+
+	const UDisplayClusterConfigurationSceneComponentScreen* CfgScreen = Cast<UDisplayClusterConfigurationSceneComponentScreen>(GetConfigParameters());
+	if (CfgScreen)
+	{
+		Size = CfgScreen->Size;
+	}
+
+	// Register visual mesh component
+	if (ScreenGeometryComponent)
+	{
+		ScreenGeometryComponent->RegisterComponent();
+	}
 }
 
-
-void UDisplayClusterScreenComponent::TickComponent( float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction )
+void UDisplayClusterScreenComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	Super::EndPlay(EndPlayReason);
+}
+
+void UDisplayClusterScreenComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	// Update projection screen material
 	static const IPDisplayClusterGameManager* const GameMgr = GDisplayCluster->GetPrivateGameMgr();
 	if (GameMgr)
 	{
@@ -62,27 +81,8 @@ void UDisplayClusterScreenComponent::TickComponent( float DeltaTime, ELevelTick 
 		}
 	}
 
+	// Update screen size
+	SetRelativeScale3D(FVector(0.005f, Size.X / 100.f, Size.Y / 100.f));
+
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-}
-
-void UDisplayClusterScreenComponent::SetSettings(const FDisplayClusterConfigSceneNode* pConfig)
-{
-	const FDisplayClusterConfigScreen* pScreenCfg = static_cast<const FDisplayClusterConfigScreen*>(pConfig);
-	Size = pScreenCfg->Size;
-
-	Super::SetSettings(pConfig);
-}
-
-bool UDisplayClusterScreenComponent::ApplySettings()
-{
-	Super::ApplySettings();
-
-	SetRelativeScale3D(FVector(0.005f, Size.X, Size.Y));
-
-	if (ScreenGeometryComponent)
-	{
-		ScreenGeometryComponent->RegisterComponent();
-	}
-
-	return true;
 }

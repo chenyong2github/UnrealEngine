@@ -1,53 +1,46 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Network/Service/DisplayClusterService.h"
-#include "Network/Session/DisplayClusterSessionBase.h"
 
 #include "Config/IPDisplayClusterConfigManager.h"
-#include "Config/DisplayClusterConfigTypes.h"
+#include "DisplayClusterConfigurationTypes.h"
 
-#include "Misc/DisplayClusterAppExit.h"
 #include "Misc/DisplayClusterGlobals.h"
+#include "Misc/DisplayClusterLog.h"
+
+#include "Interfaces\IPv4\IPv4Endpoint.h"
 
 
-FDisplayClusterService::FDisplayClusterService(const FString& InName, const FString& InAddr, const int32 InPort) :
-	FDisplayClusterServer(InName, InAddr, InPort)
+FDisplayClusterService::FDisplayClusterService(const FString& Name)
+	: FDisplayClusterServer(Name)
 {
 }
 
-bool FDisplayClusterService::IsClusterIP(const FIPv4Endpoint& InEP)
+bool FDisplayClusterService::IsClusterIP(const FIPv4Endpoint& Endpoint)
 {
-	IPDisplayClusterConfigManager* const ConfigMgr = GDisplayCluster->GetPrivateConfigMgr();
-	if (ConfigMgr == nullptr)
+	// Get configuration data
+	const UDisplayClusterConfigurationData* ConfigData = GDisplayCluster->GetPrivateConfigMgr()->GetConfig();
+	if (!ConfigData)
 	{
+		UE_LOG(LogDisplayClusterNetwork, Error, TEXT("Couldn't get configuration data"));
 		return false;
 	}
 
-	TArray<FDisplayClusterConfigClusterNode> Nodes = ConfigMgr->GetClusterNodes();
-	const FString Addr = InEP.Address.ToString();
-	
-	return nullptr != Nodes.FindByPredicate([Addr](const FDisplayClusterConfigClusterNode& Node)
+	const FString Address = Endpoint.Address.ToString();
+	for (const auto& Node : ConfigData->Cluster->Nodes)
 	{
-		return Addr == Node.Addr;
-	});
+		//@todo IP + Hostname comparison
+		if (Node.Value->Host.Equals(Address, ESearchCase::IgnoreCase))
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
-bool FDisplayClusterService::IsConnectionAllowed(FSocket* InSocket, const FIPv4Endpoint& InEP)
+bool FDisplayClusterService::IsConnectionAllowed(FSocket* Socket, const FIPv4Endpoint& Endpoint)
 {
-	// By default any DisplayCluster service must be within a cluster
-	return FDisplayClusterService::IsClusterIP(InEP);
-}
-
-
-//////////////////////////////////////////////////////////////////////////////////////////////
-// IDisplayClusterSessionListener
-//////////////////////////////////////////////////////////////////////////////////////////////
-void FDisplayClusterService::NotifySessionOpen(FDisplayClusterSessionBase* InSession)
-{
-	FDisplayClusterServer::NotifySessionOpen(InSession);
-}
-
-void FDisplayClusterService::NotifySessionClose(FDisplayClusterSessionBase* InSession)
-{
-	FDisplayClusterServer::NotifySessionClose(InSession);
+	// By default only cluster node IP addresses are allowed
+	return FDisplayClusterService::IsClusterIP(Endpoint);
 }

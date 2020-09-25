@@ -2,12 +2,14 @@
 
 #include "Input/Devices/VRPN/Tracker/DisplayClusterVrpnTrackerInputDataHolder.h"
 
-#include "Misc/DisplayClusterCommonTypesConverter.h"
+#include "DisplayClusterConfigurationTypes.h"
+
+#include "Misc/DisplayClusterTypesConverter.h"
 #include "Misc/DisplayClusterLog.h"
 
 
-FDisplayClusterVrpnTrackerInputDataHolder::FDisplayClusterVrpnTrackerInputDataHolder(const FDisplayClusterConfigInput& Config) :
-	FDisplayClusterInputDeviceBase<EDisplayClusterInputDeviceType::VrpnTracker>(Config)
+FDisplayClusterVrpnTrackerInputDataHolder::FDisplayClusterVrpnTrackerInputDataHolder(const FString& DeviceId, const UDisplayClusterConfigurationInputDeviceTracker* CfgDevice)
+	: FDisplayClusterInputDeviceBase<EDisplayClusterInputDeviceType::VrpnTracker>(DeviceId, CfgDevice)
 {
 }
 
@@ -38,9 +40,9 @@ FString FDisplayClusterVrpnTrackerInputDataHolder::SerializeToString() const
 		Result += FString::Printf(TEXT("%d%s%s%s%s%s"),
 			it->Key,
 			SerializationDelimiter,
-			*FDisplayClusterTypesConverter::template ToHexString(it->Value.TrackerLoc),
+			*DisplayClusterTypesConverter::template ToHexString(it->Value.TrackerLoc),
 			SerializationDelimiter,
-			*FDisplayClusterTypesConverter::template ToHexString(it->Value.TrackerQuat),
+			*DisplayClusterTypesConverter::template ToHexString(it->Value.TrackerQuat),
 			SerializationDelimiter);
 	}
 
@@ -61,8 +63,8 @@ bool FDisplayClusterVrpnTrackerInputDataHolder::DeserializeFromString(const FStr
 	for (int i = 0; i < Parsed.Num(); i += SerializationItems)
 	{
 		const int  ch = FCString::Atoi(*Parsed[i]);
-		const FVector  Loc  = FDisplayClusterTypesConverter::template FromHexString<FVector>(Parsed[i + 1]);
-		const FQuat    Quat = FDisplayClusterTypesConverter::template FromHexString<FQuat>(Parsed[i + 2]);
+		const FVector  Loc  = DisplayClusterTypesConverter::template FromHexString<FVector>(Parsed[i + 1]);
+		const FQuat    Quat = DisplayClusterTypesConverter::template FromHexString<FQuat>(Parsed[i + 2]);
 
 		DeviceData.Add(ch, FDisplayClusterVrpnTrackerChannelData{ Loc, Quat });
 	}

@@ -4,16 +4,17 @@
 
 #include "Kismet/GameplayStatics.h"
 #include "Misc/CommandLine.h"
-#include "Config/DisplayClusterConfigTypes.h"
+
 #include "Config/IPDisplayClusterConfigManager.h"
 
 #include "DisplayClusterRootActor.h"
 #include "Camera/CameraComponent.h"
+
 #include "Components/SceneComponent.h"
-#include "DisplayClusterCameraComponent.h"
-#include "DisplayClusterRootComponent.h"
-#include "DisplayClusterSceneComponent.h"
-#include "DisplayClusterScreenComponent.h"
+#include "Components/DisplayClusterCameraComponent.h"
+#include "Components/DisplayClusterRootComponent.h"
+#include "Components/DisplayClusterSceneComponent.h"
+#include "Components/DisplayClusterScreenComponent.h"
 
 #include "Misc/DisplayClusterGlobals.h"
 #include "Misc/DisplayClusterHelpers.h"
@@ -69,25 +70,23 @@ bool FDisplayClusterGameManager::StartScene(UWorld* InWorld)
 
 	// Find nDisplay root actor
 	DisplayClusterRootActor = FindDisplayClusterRootActor(InWorld);
-
 	if (!DisplayClusterRootActor)
 	{
 		// Also search inside streamed levels
 		const TArray<ULevelStreaming*>& StreamingLevels = InWorld->GetStreamingLevels();
-
-		for (const ULevelStreaming* StreamingLevel : StreamingLevels)
+		for (const ULevelStreaming* const StreamingLevel : StreamingLevels)
 		{
-			if (StreamingLevel && (StreamingLevel->GetCurrentState() == ULevelStreaming::ECurrentState::LoadedVisible))
+			if (StreamingLevel && StreamingLevel->GetCurrentState() == ULevelStreaming::ECurrentState::LoadedVisible)
 			{
 				// Look for the actor in those sub-levels that have been loaded already
 				const TSoftObjectPtr<UWorld>& SubWorldAsset = StreamingLevel->GetWorldAsset();
 				DisplayClusterRootActor = FindDisplayClusterRootActor(SubWorldAsset.Get());
+			}
 
-				if (DisplayClusterRootActor)
-				{
-					// Ok, we found it in a sublevel
-					break;
-				}
+			if (DisplayClusterRootActor)
+			{
+				// Ok, we found it in a sublevel
+				break;
 			}
 		}
 	}
@@ -106,7 +105,7 @@ bool FDisplayClusterGameManager::StartScene(UWorld* InWorld)
 
 void FDisplayClusterGameManager::EndScene()
 {
-	FScopeLock lock(&InternalsSyncScope);
+	FScopeLock Lock(&InternalsSyncScope);
 	DisplayClusterRootActor = nullptr;
 	CurrentWorld = nullptr;
 }
@@ -117,134 +116,25 @@ void FDisplayClusterGameManager::EndScene()
 //////////////////////////////////////////////////////////////////////////////////////////////
 ADisplayClusterRootActor* FDisplayClusterGameManager::GetRootActor() const
 {
-	FScopeLock lock(&InternalsSyncScope);
+	FScopeLock Lock(&InternalsSyncScope);
 	return DisplayClusterRootActor;
 }
 
 UDisplayClusterRootComponent* FDisplayClusterGameManager::GetRootComponent() const
 {
-	FScopeLock lock(&InternalsSyncScope);
-	return DisplayClusterRootActor->GetDisplayClusterRootComponent();
-}
-
-TArray<UDisplayClusterScreenComponent*> FDisplayClusterGameManager::GetAllScreens() const
-{
-	FScopeLock lock(&InternalsSyncScope);
-
-	if (!DisplayClusterRootActor)
+	FScopeLock Lock(&InternalsSyncScope);
+	if (DisplayClusterRootActor)
 	{
-		return TArray<UDisplayClusterScreenComponent*>();
+		return DisplayClusterRootActor->GetDisplayClusterRootComponent();
 	}
 
-	return DisplayClusterRootActor->GetDisplayClusterRootComponent()->GetAllScreens();
+	return nullptr;
 }
 
-UDisplayClusterScreenComponent* FDisplayClusterGameManager::GetScreenById(const FString& ScreenID) const
-{
-	FScopeLock lock(&InternalsSyncScope);
 
-	if (!DisplayClusterRootActor)
-	{
-		return nullptr;
-	}
-
-	return DisplayClusterRootActor->GetDisplayClusterRootComponent()->GetScreenById(ScreenID);
-}
-
-int32 FDisplayClusterGameManager::GetScreensAmount() const
-{
-	FScopeLock lock(&InternalsSyncScope);
-
-	if (!DisplayClusterRootActor)
-	{
-		return 0;
-	}
-
-	return DisplayClusterRootActor->GetDisplayClusterRootComponent()->GetScreensAmount();
-}
-
-UDisplayClusterCameraComponent* FDisplayClusterGameManager::GetCameraById(const FString& CameraID) const
-{
-	FScopeLock lock(&InternalsSyncScope);
-
-	if (!DisplayClusterRootActor)
-	{
-		return nullptr;
-	}
-
-	return DisplayClusterRootActor->GetDisplayClusterRootComponent()->GetCameraById(CameraID);
-}
-
-TArray<UDisplayClusterCameraComponent*> FDisplayClusterGameManager::GetAllCameras() const
-{
-	FScopeLock lock(&InternalsSyncScope);
-
-	if (!DisplayClusterRootActor)
-	{
-		return TArray<UDisplayClusterCameraComponent*>();
-	}
-
-	return DisplayClusterRootActor->GetDisplayClusterRootComponent()->GetAllCameras();
-}
-
-int32 FDisplayClusterGameManager::GetCamerasAmount() const
-{
-	FScopeLock lock(&InternalsSyncScope);
-
-	if (!DisplayClusterRootActor)
-	{
-		return 0;
-	}
-
-	return DisplayClusterRootActor->GetDisplayClusterRootComponent()->GetCamerasAmount();
-}
-
-UDisplayClusterCameraComponent* FDisplayClusterGameManager::GetDefaultCamera() const
-{
-	FScopeLock lock(&InternalsSyncScope);
-
-	if (!DisplayClusterRootActor)
-	{
-		return nullptr;
-	}
-
-	return DisplayClusterRootActor->GetDisplayClusterRootComponent()->GetDefaultCamera();
-}
-
-void FDisplayClusterGameManager::SetDefaultCamera(const FString& CameraID)
-{
-	if(!DisplayClusterRootActor)
-	{
-		return;
-	}
-
-	DisplayClusterRootActor->GetDisplayClusterRootComponent()->SetDefaultCamera(CameraID);
-}
-
-UDisplayClusterSceneComponent* FDisplayClusterGameManager::GetNodeById(const FString& NodeId) const
-{
-	FScopeLock lock(&InternalsSyncScope);
-
-	if (!DisplayClusterRootActor)
-	{
-		return nullptr;
-	}
-
-	return DisplayClusterRootActor->GetDisplayClusterRootComponent()->GetNodeById(NodeId);
-}
-
-TArray<UDisplayClusterSceneComponent*> FDisplayClusterGameManager::GetAllNodes() const
-{
-	FScopeLock lock(&InternalsSyncScope);
-
-	if (!DisplayClusterRootActor)
-	{
-		return TArray<UDisplayClusterSceneComponent*>();
-	}
-
-	return DisplayClusterRootActor->GetDisplayClusterRootComponent()->GetAllNodes();
-}
-
+//////////////////////////////////////////////////////////////////////////////////////////////
+// FDisplayClusterGameManager
+//////////////////////////////////////////////////////////////////////////////////////////////
 ADisplayClusterRootActor* FDisplayClusterGameManager::FindDisplayClusterRootActor(UWorld* InWorld)
 {
 	if (InWorld && InWorld->PersistentLevel)

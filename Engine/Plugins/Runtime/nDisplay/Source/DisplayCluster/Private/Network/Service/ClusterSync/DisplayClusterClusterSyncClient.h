@@ -3,16 +3,16 @@
 #pragma once
 
 #include "Network/DisplayClusterClient.h"
-#include "Network/DisplayClusterMessage.h"
-#include "Network/Protocol/IPDisplayClusterClusterSyncProtocol.h"
+#include "Network/Packet/DisplayClusterPacketInternal.h"
+#include "Network/Protocol/IDisplayClusterProtocolClusterSync.h"
 
 
 /**
- * Cluster synchronization client
+ * Cluster synchronization TCP client
  */
 class FDisplayClusterClusterSyncClient
-	: public FDisplayClusterClient
-	, public IPDisplayClusterClusterSyncProtocol
+	: public FDisplayClusterClient<FDisplayClusterPacketInternal, true>
+	, public IDisplayClusterProtocolClusterSync
 {
 public:
 	FDisplayClusterClusterSyncClient();
@@ -20,16 +20,15 @@ public:
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	// IPDisplayClusterClusterSyncProtocol
+	// IDisplayClusterProtocolClusterSync
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual void WaitForGameStart() override;
-	virtual void WaitForFrameStart() override;
-	virtual void WaitForFrameEnd() override;
-	virtual void WaitForTickEnd() override;
+	virtual void WaitForGameStart(double* ThreadWaitTime, double* BarrierWaitTime) override;
+	virtual void WaitForFrameStart(double* ThreadWaitTime, double* BarrierWaitTime) override;
+	virtual void WaitForFrameEnd(double* ThreadWaitTime, double* BarrierWaitTime) override;
 	virtual void GetDeltaTime(float& DeltaSeconds) override;
 	virtual void GetFrameTime(TOptional<FQualifiedFrameTime>& FrameTime) override;
-	virtual void GetSyncData(FDisplayClusterMessage::DataType& SyncData, EDisplayClusterSyncGroup SyncGroup) override;
-	virtual void GetInputData(FDisplayClusterMessage::DataType& InputData) override;
-	virtual void GetEventsData(FDisplayClusterMessage::DataType& EventsData) override;
-	virtual void GetNativeInputData(FDisplayClusterMessage::DataType& NativeInputData) override;
+	virtual void GetSyncData(TMap<FString, FString>& SyncData, EDisplayClusterSyncGroup SyncGroup) override;
+	virtual void GetInputData(TMap<FString, FString>& InputData) override;
+	virtual void GetEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson>>& JsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary>>& BinaryEvents) override;
+	virtual void GetNativeInputData(TMap<FString, FString>& NativeInputData) override;
 };

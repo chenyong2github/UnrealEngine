@@ -3,9 +3,12 @@
 #include "Cluster/Controller/DisplayClusterClusterNodeCtrlSlave.h"
 
 #include "Config/IPDisplayClusterConfigManager.h"
-#include "Network/Service/ClusterEvents/DisplayClusterClusterEventsClient.h"
+#include "Network/Service/ClusterEventsJson/DisplayClusterClusterEventsJsonClient.h"
+#include "Network/Service/ClusterEventsBinary/DisplayClusterClusterEventsBinaryClient.h"
 #include "Network/Service/ClusterSync/DisplayClusterClusterSyncClient.h"
-#include "Network/Service/SwapSync/DisplayClusterSwapSyncClient.h"
+#include "Network/Service/RenderSync/DisplayClusterRenderSyncClient.h"
+
+#include "DisplayClusterConfigurationTypes.h"
 
 #include "Misc/DisplayClusterGlobals.h"
 #include "Misc/DisplayClusterLog.h"
@@ -22,75 +25,90 @@ FDisplayClusterClusterNodeCtrlSlave::~FDisplayClusterClusterNodeCtrlSlave()
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-// IPDisplayClusterClusterSyncProtocol
+// IDisplayClusterProtocolClusterSync
 //////////////////////////////////////////////////////////////////////////////////////////////
-void FDisplayClusterClusterNodeCtrlSlave::WaitForGameStart()
+void FDisplayClusterClusterNodeCtrlSlave::WaitForGameStart(double* ThreadWaitTime, double* BarrierWaitTime)
 {
-	ClusterSyncClient->WaitForGameStart();
+	check(ClusterSyncClient);
+	ClusterSyncClient->WaitForGameStart(ThreadWaitTime, BarrierWaitTime);
 }
 
-void FDisplayClusterClusterNodeCtrlSlave::WaitForFrameStart()
+void FDisplayClusterClusterNodeCtrlSlave::WaitForFrameStart(double* ThreadWaitTime, double* BarrierWaitTime)
 {
-	ClusterSyncClient->WaitForFrameStart();
+	check(ClusterSyncClient);
+	ClusterSyncClient->WaitForFrameStart(ThreadWaitTime, BarrierWaitTime);
 }
 
-void FDisplayClusterClusterNodeCtrlSlave::WaitForFrameEnd()
+void FDisplayClusterClusterNodeCtrlSlave::WaitForFrameEnd(double* ThreadWaitTime, double* BarrierWaitTime)
 {
-	ClusterSyncClient->WaitForFrameEnd();
-}
-
-void FDisplayClusterClusterNodeCtrlSlave::WaitForTickEnd()
-{
-	ClusterSyncClient->WaitForTickEnd();
+	check(ClusterSyncClient);
+	ClusterSyncClient->WaitForFrameEnd(ThreadWaitTime, BarrierWaitTime);
 }
 
 void FDisplayClusterClusterNodeCtrlSlave::GetDeltaTime(float& DeltaSeconds)
 {
+	check(ClusterSyncClient);
 	ClusterSyncClient->GetDeltaTime(DeltaSeconds);
 }
 
 void FDisplayClusterClusterNodeCtrlSlave::GetFrameTime(TOptional<FQualifiedFrameTime>& FrameTime)
 {
+	check(ClusterSyncClient);
 	ClusterSyncClient->GetFrameTime(FrameTime);
 }
 
-void FDisplayClusterClusterNodeCtrlSlave::GetSyncData(FDisplayClusterMessage::DataType& SyncData, EDisplayClusterSyncGroup SyncGroup)
+void FDisplayClusterClusterNodeCtrlSlave::GetSyncData(TMap<FString, FString>& SyncData, EDisplayClusterSyncGroup SyncGroup)
 {
+	check(ClusterSyncClient);
 	ClusterSyncClient->GetSyncData(SyncData, SyncGroup);
 }
 
-void FDisplayClusterClusterNodeCtrlSlave::GetInputData(FDisplayClusterMessage::DataType& InputData)
+void FDisplayClusterClusterNodeCtrlSlave::GetInputData(TMap<FString, FString>& InputData)
 {
+	check(ClusterSyncClient);
 	ClusterSyncClient->GetInputData(InputData);
 }
 
-void FDisplayClusterClusterNodeCtrlSlave::GetEventsData(FDisplayClusterMessage::DataType& EventsData)
+void FDisplayClusterClusterNodeCtrlSlave::GetEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson>>& JsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary>>& BinaryEvents)
 {
-	ClusterSyncClient->GetEventsData(EventsData);
+	check(ClusterSyncClient);
+	ClusterSyncClient->GetEventsData(JsonEvents, BinaryEvents);
 }
 
-void FDisplayClusterClusterNodeCtrlSlave::GetNativeInputData(FDisplayClusterMessage::DataType& NativeInputData)
+void FDisplayClusterClusterNodeCtrlSlave::GetNativeInputData(TMap<FString, FString>& NativeInputData)
 {
+	check(ClusterSyncClient);
 	ClusterSyncClient->GetNativeInputData(NativeInputData);
 }
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-// IPDisplayClusterSwapSyncProtocol
+// IDisplayClusterProtocolRenderSync
 //////////////////////////////////////////////////////////////////////////////////////////////
 void FDisplayClusterClusterNodeCtrlSlave::WaitForSwapSync(double* ThreadWaitTime, double* BarrierWaitTime)
 {
-	check(SwapSyncClient.IsValid());
-	SwapSyncClient->WaitForSwapSync(ThreadWaitTime, BarrierWaitTime);
+	check(RenderSyncClient.IsValid());
+	RenderSyncClient->WaitForSwapSync(ThreadWaitTime, BarrierWaitTime);
 }
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-// IPDisplayClusterClusterEventsProtocol
+// IDisplayClusterProtocolEventsJson
 //////////////////////////////////////////////////////////////////////////////////////////////
-void FDisplayClusterClusterNodeCtrlSlave::EmitClusterEvent(const FDisplayClusterClusterEvent& Event)
+void FDisplayClusterClusterNodeCtrlSlave::EmitClusterEventJson(const FDisplayClusterClusterEventJson& Event)
 {
-	ClusterEventsClient->EmitClusterEvent(Event);
+	check(ClusterEventsJsonClient);
+	ClusterEventsJsonClient->EmitClusterEventJson(Event);
+}
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+// IDisplayClusterProtocolEventsBinary
+//////////////////////////////////////////////////////////////////////////////////////////////
+void FDisplayClusterClusterNodeCtrlSlave::EmitClusterEventBinary(const FDisplayClusterClusterEventBinary& Event)
+{
+	check(ClusterEventsBinaryClient);
+	ClusterEventsBinaryClient->EmitClusterEventBinary(Event);
 }
 
 
@@ -141,11 +159,12 @@ bool FDisplayClusterClusterNodeCtrlSlave::InitializeClients()
 	UE_LOG(LogDisplayClusterCluster, Log, TEXT("%s - initializing slave clients..."), *GetControllerName());
 
 	// Instantiate local clients
-	ClusterSyncClient.Reset(new FDisplayClusterClusterSyncClient);
-	SwapSyncClient.Reset(new FDisplayClusterSwapSyncClient);
-	ClusterEventsClient.Reset(new FDisplayClusterClusterEventsClient);
+	ClusterSyncClient         = MakeUnique<FDisplayClusterClusterSyncClient>();
+	RenderSyncClient          = MakeUnique<FDisplayClusterRenderSyncClient>();
+	ClusterEventsJsonClient   = MakeUnique<FDisplayClusterClusterEventsJsonClient>();
+	ClusterEventsBinaryClient = MakeUnique<FDisplayClusterClusterEventsBinaryClient>();
 
-	return ClusterSyncClient.IsValid() && SwapSyncClient.IsValid() && ClusterEventsClient.IsValid();
+	return ClusterSyncClient && RenderSyncClient && ClusterEventsJsonClient && ClusterEventsBinaryClient;
 }
 
 bool FDisplayClusterClusterNodeCtrlSlave::StartClients()
@@ -158,28 +177,38 @@ bool FDisplayClusterClusterNodeCtrlSlave::StartClients()
 	UE_LOG(LogDisplayClusterCluster, Log, TEXT("%s - initializing slave clients..."), *GetControllerName());
 
 	// Master config
-	FDisplayClusterConfigClusterNode MasterCfg;
-	if (GDisplayCluster->GetPrivateConfigMgr()->GetMasterClusterNode(MasterCfg) == false)
+	const UDisplayClusterConfigurationClusterNode* CfgMaster = GDisplayCluster->GetPrivateConfigMgr()->GetMasterNode();
+	if (!CfgMaster)
 	{
 		UE_LOG(LogDisplayClusterCluster, Error, TEXT("No master node configuration data found"));
 		return false;
 	}
 
+	// Get configuration data
+	const UDisplayClusterConfigurationData* ConfigData = GDisplayCluster->GetPrivateConfigMgr()->GetConfig();
+	if (!ConfigData)
+	{
+		UE_LOG(LogDisplayClusterCluster, Error, TEXT("Couldn't get configuration data"));
+		return false;
+	}
+
 	// Allow children to override master's address
-	OverrideMasterAddr(MasterCfg.Addr);
+	FString HostToUse = CfgMaster->Host;
+	OverrideMasterAddr(HostToUse);
 
-	const FDisplayClusterConfigNetwork CfgNetwork = GDisplayCluster->GetPrivateConfigMgr()->GetConfigNetwork();
-
-	return StartClientWithLogs(ClusterSyncClient.Get(),   MasterCfg.Addr, MasterCfg.Port_CS, CfgNetwork.ClientConnectTriesAmount, CfgNetwork.ClientConnectRetryDelay)
-		&& StartClientWithLogs(SwapSyncClient.Get(),      MasterCfg.Addr, MasterCfg.Port_SS, CfgNetwork.ClientConnectTriesAmount, CfgNetwork.ClientConnectRetryDelay)
-		&& StartClientWithLogs(ClusterEventsClient.Get(), MasterCfg.Addr, MasterCfg.Port_CE, CfgNetwork.ClientConnectTriesAmount, CfgNetwork.ClientConnectRetryDelay);
+	// Start the clients
+	return StartClientWithLogs(ClusterSyncClient.Get(),         HostToUse, ConfigData->Cluster->MasterNode.Ports.ClusterSync,         ConfigData->Cluster->Network.ConnectRetriesAmount, ConfigData->Cluster->Network.ConnectRetryDelay)
+		&& StartClientWithLogs(RenderSyncClient.Get(),          HostToUse, ConfigData->Cluster->MasterNode.Ports.RenderSync,          ConfigData->Cluster->Network.ConnectRetriesAmount, ConfigData->Cluster->Network.ConnectRetryDelay)
+		&& StartClientWithLogs(ClusterEventsJsonClient.Get(),   HostToUse, ConfigData->Cluster->MasterNode.Ports.ClusterEventsJson,   ConfigData->Cluster->Network.ConnectRetriesAmount, ConfigData->Cluster->Network.ConnectRetryDelay)
+		&& StartClientWithLogs(ClusterEventsBinaryClient.Get(), HostToUse, ConfigData->Cluster->MasterNode.Ports.ClusterEventsBinary, ConfigData->Cluster->Network.ConnectRetriesAmount, ConfigData->Cluster->Network.ConnectRetryDelay);
 }
 
 void FDisplayClusterClusterNodeCtrlSlave::StopClients()
 {
 	FDisplayClusterClusterNodeCtrlBase::StopClients();
 
-	ClusterEventsClient->Disconnect();
+	ClusterEventsJsonClient->Disconnect();
+	ClusterEventsBinaryClient->Disconnect();
 	ClusterSyncClient->Disconnect();
-	SwapSyncClient->Disconnect();
+	RenderSyncClient->Disconnect();
 }

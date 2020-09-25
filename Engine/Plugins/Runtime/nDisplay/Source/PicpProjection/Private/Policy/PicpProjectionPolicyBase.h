@@ -15,12 +15,18 @@ class FPicpProjectionPolicyBase
 	: public IDisplayClusterProjectionPolicy
 {
 public:
-	FPicpProjectionPolicyBase(const FString& ViewportId);
+	FPicpProjectionPolicyBase(const FString& ViewportId, const TMap<FString, FString>& InParameters);
 	virtual ~FPicpProjectionPolicyBase() = 0;
 
+public:
 	const FString& GetViewportId() const
 	{
 		return PolicyViewportId;
+	}
+
+	const TMap<FString, FString>& GetParameters() const
+	{
+		return Parameters;
 	}
 
 protected:
@@ -36,5 +42,6 @@ private:
 	// Added 'Policy' prefix to avoid "... hides class name ..." warnings in child classes
 	FString PolicyViewportId;
 	FString PolicyOriginCompId;
+	TMap<FString, FString> Parameters;
 	USceneComponent* PolicyOriginComp = nullptr;
 };

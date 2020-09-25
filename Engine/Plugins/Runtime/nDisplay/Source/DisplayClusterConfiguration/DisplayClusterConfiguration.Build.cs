@@ -7,11 +7,21 @@ public class DisplayClusterConfiguration : ModuleRules
 {
 	public DisplayClusterConfiguration(ReadOnlyTargetRules ROTargetRules) : base(ROTargetRules)
 	{
-		PrivateDependencyModuleNames.AddRange( new string[] {
-			"Core",
-			"CoreUObject",
-			"Engine",
-			"DisplayCluster"
-		});
+		PublicIncludePathModuleNames.AddRange(
+			new string[] {
+				"DisplayCluster",
+				"DisplayClusterInput",
+				"DisplayClusterPostprocess",
+				"DisplayClusterProjection"
+			});
+
+		PrivateDependencyModuleNames.AddRange(
+			new string[] {
+				"Core",
+				"CoreUObject",
+				"Engine",
+				"Json",
+				"JsonUtilities"
+			});
 	}
 }

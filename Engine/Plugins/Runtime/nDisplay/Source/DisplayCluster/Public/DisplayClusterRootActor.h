@@ -31,7 +31,6 @@ public:
 	// AActor
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual void BeginPlay() override;
-	virtual void BeginDestroy() override;
 	virtual void Tick(float DeltaSeconds) override;
 
 public:

@@ -2,8 +2,8 @@
 
 #include "Cluster/Controller/DisplayClusterNodeCtrlBase.h"
 
-#include "Network/DisplayClusterServer.h"
-#include "Network/DisplayClusterClient.h"
+#include "Network/IDisplayClusterServer.h"
+#include "Network/IDisplayClusterClient.h"
 
 #include "Misc/DisplayClusterLog.h"
 
@@ -16,7 +16,7 @@ FDisplayClusterNodeCtrlBase::FDisplayClusterNodeCtrlBase(const FString& CtrlName
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-// IPDisplayClusterNodeController
+// IDisplayClusterNodeController
 //////////////////////////////////////////////////////////////////////////////////////////////
 bool FDisplayClusterNodeCtrlBase::Initialize()
 {
@@ -57,7 +57,7 @@ void FDisplayClusterNodeCtrlBase::Release()
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FDisplayClusterNodeCtrlBase
 //////////////////////////////////////////////////////////////////////////////////////////////
-bool FDisplayClusterNodeCtrlBase::StartServerWithLogs(FDisplayClusterServer* Server) const
+bool FDisplayClusterNodeCtrlBase::StartServerWithLogs(IDisplayClusterServer* Server, const FString& Address, int32 Port) const
 {
 	if (!Server)
 	{
@@ -65,7 +65,7 @@ bool FDisplayClusterNodeCtrlBase::StartServerWithLogs(FDisplayClusterServer* Ser
 		return false;
 	}
 
-	const bool bResult = Server->Start();
+	const bool bResult = Server->Start(Address, Port);
 
 	if (bResult)
 	{
@@ -79,7 +79,7 @@ bool FDisplayClusterNodeCtrlBase::StartServerWithLogs(FDisplayClusterServer* Ser
 	return bResult;
 }
 
-bool FDisplayClusterNodeCtrlBase::StartClientWithLogs(FDisplayClusterClient* Client, const FString& Addr, int32 Port, int32 ClientConnTriesAmount, int32 ClientConnRetryDelay) const
+bool FDisplayClusterNodeCtrlBase::StartClientWithLogs(IDisplayClusterClient* Client, const FString& Address, int32 Port, int32 ClientConnTriesAmount, int32 ClientConnRetryDelay) const
 {
 	if (!Client)
 	{
@@ -87,15 +87,15 @@ bool FDisplayClusterNodeCtrlBase::StartClientWithLogs(FDisplayClusterClient* Cli
 		return false;
 	}
 
-	const bool bResult = Client->Connect(Addr, Port, ClientConnTriesAmount, ClientConnRetryDelay);
+	const bool bResult = Client->Connect(Address, Port, ClientConnTriesAmount, ClientConnRetryDelay);
 
 	if (bResult)
 	{
-		UE_LOG(LogDisplayClusterCluster, Log, TEXT("%s connected to the server %s:%d"), *Client->GetName(), *Addr, Port);
+		UE_LOG(LogDisplayClusterCluster, Log, TEXT("%s connected to the server %s:%d"), *Client->GetName(), *Address, Port);
 	}
 	else
 	{
-		UE_LOG(LogDisplayClusterCluster, Error, TEXT("%s couldn't connect to the server %s:%d"), *Client->GetName(), *Addr, Port);
+		UE_LOG(LogDisplayClusterCluster, Error, TEXT("%s couldn't connect to the server %s:%d"), *Client->GetName(), *Address, Port);
 	}
 
 	return bResult;

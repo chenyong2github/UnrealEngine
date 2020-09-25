@@ -4,9 +4,8 @@
 
 #include "Engine/GameEngine.h"
 
-#include "Config/DisplayClusterConfigTypes.h"
-
 #include "DisplayClusterEnums.h"
+#include "DisplayClusterConfigurationTypes.h"
 
 #include "Tickable.h"
 #include "Stats/Stats2.h"
@@ -15,9 +14,10 @@
 
 
 class IPDisplayClusterClusterManager;
-class IPDisplayClusterNodeController;
 class IPDisplayClusterInputManager;
+class IDisplayClusterNodeController;
 class IDisplayClusterClusterSyncObject;
+class UDisplayClusterConfigurationData;
 
 
 /**
@@ -32,7 +32,9 @@ class DISPLAYCLUSTER_API UDisplayClusterGameEngineTickableHelper
 
 public:
 	virtual ETickableTickType GetTickableTickType() const override
-	{ return ETickableTickType::Always; }
+	{
+		return ETickableTickType::Always;
+	}
 
 	virtual TStatId GetStatId() const override;
 	virtual void Tick(float DeltaSeconds) override;
@@ -54,18 +56,25 @@ public:
 	virtual void Tick(float DeltaSeconds, bool bIdleMode) override;
 	virtual bool LoadMap(FWorldContext& WorldContext, FURL URL, class UPendingNetGame* Pending, FString& Error) override;
 
-	EDisplayClusterOperationMode GetOperationMode() const { return OperationMode; }
+public:
+	EDisplayClusterOperationMode GetOperationMode() const
+	{
+		return OperationMode;
+	}
 
 protected:
 	virtual bool InitializeInternals();
-	EDisplayClusterOperationMode DetectOperationMode();
+	EDisplayClusterOperationMode DetectOperationMode() const;
+	bool GetResolvedNodeId(const UDisplayClusterConfigurationData* ConfigData, FString& NodeId) const;
 
 private:
 	IPDisplayClusterClusterManager* ClusterMgr = nullptr;
-	IPDisplayClusterNodeController* NodeController = nullptr;
 	IPDisplayClusterInputManager*   InputMgr = nullptr;
 
-	FDisplayClusterConfigDebug CfgDebug;
+	IDisplayClusterNodeController* NodeController = nullptr;
+
+	FDisplayClusterConfigurationDiagnostics Diagnostics;
+
 	EDisplayClusterOperationMode OperationMode = EDisplayClusterOperationMode::Disabled;
 
 	UDisplayClusterGameEngineTickableHelper* TickableHelper;

@@ -2,13 +2,15 @@
 
 #include "DisplayClusterVrpnKeyboardInputDevice.h"
 
+#include "DisplayClusterConfigurationTypes.h"
+
 #include "Misc/DisplayClusterHelpers.h"
 #include "Misc/DisplayClusterLog.h"
 #include "Misc/DisplayClusterStrings.h"
 
 
-FDisplayClusterVrpnKeyboardInputDevice::FDisplayClusterVrpnKeyboardInputDevice(const FDisplayClusterConfigInput& Config) :
-	FDisplayClusterVrpnKeyboardInputDataHolder(Config)
+FDisplayClusterVrpnKeyboardInputDevice::FDisplayClusterVrpnKeyboardInputDevice(const FString& DeviceId, const UDisplayClusterConfigurationInputDeviceKeyboard* CfgDevice)
+	: FDisplayClusterVrpnKeyboardInputDataHolder(DeviceId, CfgDevice)
 {
 }
 
@@ -40,15 +42,8 @@ void FDisplayClusterVrpnKeyboardInputDevice::Update()
 
 bool FDisplayClusterVrpnKeyboardInputDevice::Initialize()
 {
-	FString Addr;
-	if (!DisplayClusterHelpers::str::ExtractValue(ConfigData.Params, FString(DisplayClusterStrings::cfg::data::input::Address), Addr))
-	{
-		UE_LOG(LogDisplayClusterInputVRPN, Error, TEXT("%s - device address not found"), *ToString());
-		return false;
-	}
-
 	// Instantiate device implementation
-	DevImpl.Reset(new vrpn_Button_Remote(TCHAR_TO_UTF8(*Addr)));
+	DevImpl.Reset(new vrpn_Button_Remote(TCHAR_TO_UTF8(*Address)));
 	// Register update handler
 	if(DevImpl->register_change_handler(this, &FDisplayClusterVrpnKeyboardInputDevice::HandleKeyboardDevice) != 0)
 	{

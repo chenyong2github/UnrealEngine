@@ -33,10 +33,11 @@
 #include "DynamicResolutionState.h"
 #include "EngineStats.h"
 
-#include "Render\Device\IDisplayClusterRenderDevice.h"
-#include "Render\Device\DisplayClusterRenderViewport.h"
+#include "Render/Device/IDisplayClusterRenderDevice.h"
+#include "Render/Device/DisplayClusterRenderViewport.h"
 
 #include "DisplayClusterEnums.h"
+#include "DisplayClusterSceneViewExtensions.h"
 #include "Misc/DisplayClusterGlobals.h"
 
 
@@ -200,7 +201,24 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 		UpdateDebugViewModeShaders();
 #endif
 
-		ViewFamily.ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions(InViewport);
+		// Gather Scene View Extensions
+		{
+			// Scene View Extension activation with ViewportId granularity only works if you have one ViewFamily per ViewportId
+			check(NumViewsPerFamily == 1);
+
+			// If not in Mono, the number of Views may be a factor of the number of ViewportIds.
+			const uint32 ViewsAmountPerViewport = DCRenderDevice->GetViewsAmountPerViewport();
+			check(ViewsAmountPerViewport > 0);
+
+			const int32 ViewportIdx = (ViewFamilyIdx * NumViewsPerFamily) / ViewsAmountPerViewport;
+			const FDisplayClusterRenderViewport* RenderViewport = DCRenderDevice->GetRenderViewport(ViewportIdx);
+			check(RenderViewport);
+
+			const FString ViewportId = RenderViewport->GetId();
+			FDisplayClusterSceneViewExtensionContext ViewExtensionContext(InViewport, ViewportId);
+
+			ViewFamily.ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions(ViewExtensionContext);
+		}
 
 		for (auto ViewExt : ViewFamily.ViewExtensions)
 		{

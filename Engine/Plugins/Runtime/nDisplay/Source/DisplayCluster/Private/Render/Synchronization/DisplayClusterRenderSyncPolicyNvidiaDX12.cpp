@@ -3,7 +3,8 @@
 #include "Render/Synchronization/DisplayClusterRenderSyncPolicyNvidiaDX12.h"
 
 
-FDisplayClusterRenderSyncPolicyNvidiaDX12::FDisplayClusterRenderSyncPolicyNvidiaDX12()
+FDisplayClusterRenderSyncPolicyNvidiaDX12::FDisplayClusterRenderSyncPolicyNvidiaDX12(const TMap<FString, FString>& Parameters)
+	: FDisplayClusterRenderSyncPolicyNvidiaBase(Parameters)
 {
 }
 

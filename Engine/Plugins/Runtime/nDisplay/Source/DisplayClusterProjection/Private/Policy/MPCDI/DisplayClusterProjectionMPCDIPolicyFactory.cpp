@@ -8,14 +8,6 @@
 #include "DisplayClusterProjectionStrings.h"
 
 
-FDisplayClusterProjectionMPCDIPolicyFactory::FDisplayClusterProjectionMPCDIPolicyFactory()
-{
-}
-
-FDisplayClusterProjectionMPCDIPolicyFactory::~FDisplayClusterProjectionMPCDIPolicyFactory()
-{
-}
-
 TArray<TSharedPtr<FDisplayClusterProjectionPolicyBase>> FDisplayClusterProjectionMPCDIPolicyFactory::GetPolicy()
 {
 	return Policy;
@@ -36,23 +28,23 @@ TSharedPtr<FDisplayClusterProjectionPolicyBase> FDisplayClusterProjectionMPCDIPo
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterProjectionPolicyFactory
 //////////////////////////////////////////////////////////////////////////////////////////////
-TSharedPtr<IDisplayClusterProjectionPolicy> FDisplayClusterProjectionMPCDIPolicyFactory::Create(const FString& PolicyType, const FString& RHIName, const FString& ViewportId)
+TSharedPtr<IDisplayClusterProjectionPolicy> FDisplayClusterProjectionMPCDIPolicyFactory::Create(const FString& PolicyType, const FString& RHIName, const FString& ViewportId, const TMap<FString, FString>& Parameters)
 {
 	UE_LOG(LogDisplayClusterProjectionMPCDI, Log, TEXT("Instantiating projection policy <%s>..."), *PolicyType);
 
-	if (!PolicyType.Compare(DisplayClusterStrings::projection::MPCDI, ESearchCase::IgnoreCase))
+	if (PolicyType.Equals(DisplayClusterProjectionStrings::projection::MPCDI, ESearchCase::IgnoreCase))
 	{
-		TSharedPtr<FDisplayClusterProjectionPolicyBase> Result = MakeShareable(new FDisplayClusterProjectionMPCDIPolicy(ViewportId));
+		TSharedPtr<FDisplayClusterProjectionPolicyBase> Result = MakeShared<FDisplayClusterProjectionMPCDIPolicy>(ViewportId, Parameters);
 		Policy.Add(Result);
 		return StaticCastSharedPtr<IDisplayClusterProjectionPolicy>(Result);
 	}
 
-	if (!PolicyType.Compare(DisplayClusterStrings::projection::Mesh, ESearchCase::IgnoreCase))
+	if (PolicyType.Equals(DisplayClusterProjectionStrings::projection::Mesh, ESearchCase::IgnoreCase))
 	{
-		TSharedPtr<FDisplayClusterProjectionPolicyBase> Result = MakeShareable(new FDisplayClusterProjectionMeshPolicy(ViewportId));
+		TSharedPtr<FDisplayClusterProjectionPolicyBase> Result = MakeShared<FDisplayClusterProjectionMeshPolicy>(ViewportId, Parameters);
 		Policy.Add(Result);
 		return StaticCastSharedPtr<IDisplayClusterProjectionPolicy>(Result);
 	}
 
-	return MakeShareable(new FDisplayClusterProjectionMPCDIPolicy(ViewportId));
+	return MakeShared<FDisplayClusterProjectionMPCDIPolicy>(ViewportId, Parameters);
 };
