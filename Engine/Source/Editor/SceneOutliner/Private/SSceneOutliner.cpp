@@ -1152,19 +1152,22 @@ void SSceneOutliner::CreateFolder()
 {
 	const FName& NewFolderName = Mode->CreateNewFolder();
 
-	// Move any selected folders into the new folder
-	auto PreviouslySelectedItems = OutlinerTreeView->GetSelectedItems();
-	for (const auto& Item : PreviouslySelectedItems)
+	if (NewFolderName != NAME_None)
 	{
-		if (FFolderTreeItem* FolderItem = Item->CastTo<FFolderTreeItem>())
+		// Move any selected folders into the new folder
+		auto PreviouslySelectedItems = OutlinerTreeView->GetSelectedItems();
+		for (const auto& Item : PreviouslySelectedItems)
 		{
-			FolderItem->MoveTo(NewFolderName);
+			if (FFolderTreeItem* FolderItem = Item->CastTo<FFolderTreeItem>())
+			{
+				FolderItem->MoveTo(NewFolderName);
+			}
 		}
-	}
 
-	// At this point the new folder will be in our newly added list, so select it and open a rename when it gets refreshed
-	NewItemActions.Add(NewFolderName, SceneOutliner::ENewItemAction::Select | SceneOutliner::ENewItemAction::Rename);
-	RequestSort();
+		// At this point the new folder will be in our newly added list, so select it and open a rename when it gets refreshed
+		NewItemActions.Add(NewFolderName, SceneOutliner::ENewItemAction::Select | SceneOutliner::ENewItemAction::Rename);
+		RequestSort();
+	}
 }
 
 void SSceneOutliner::CopyFoldersBegin()

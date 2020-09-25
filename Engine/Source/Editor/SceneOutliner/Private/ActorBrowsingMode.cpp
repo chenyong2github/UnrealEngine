@@ -1223,6 +1223,19 @@ FName FActorBrowsingMode::CreateNewFolder()
 {
 	const FScopedTransaction Transaction(LOCTEXT("UndoAction_CreateFolder", "Create Folder"));
 
+	if (ULevelInstanceSubsystem* LevelInstanceSubsystem = RepresentingWorld->GetSubsystem<ULevelInstanceSubsystem>())
+	{
+		for (FSelectionIterator It(*GEditor->GetSelectedActors()); It; ++It)
+		{
+			const AActor* Actor = CastChecked<AActor>(*It);
+			if (LevelInstanceSubsystem->GetParentLevelInstance(Actor) != nullptr)
+			{
+				UE_LOG(LogActorBrowser, Warning, TEXT("Cannot create a folder with actors who are children of a Level Instance"));
+				return NAME_None;
+			}
+		}
+	}
+
 	const FName NewFolderName = FActorFolders::Get().GetDefaultFolderNameForSelection(*RepresentingWorld);
 	FActorFolders::Get().CreateFolderContainingSelection(*RepresentingWorld, NewFolderName);
 
