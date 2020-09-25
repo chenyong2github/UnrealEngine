@@ -49,6 +49,7 @@ public:
 	static const class FLightComponentMapBuildData* GetLightComponentMapBuildData(const ULightComponent* Component);
 	static const class FPrecomputedVolumetricLightmap* GetPrecomputedVolumetricLightmap(UWorld* World);
 	static void EditorTick();
+	static void GameTick(float DeltaSeconds);
 	static bool IsStaticLightingSystemRunning();
 
 	static FStaticLightingSystemInterface* Get();
