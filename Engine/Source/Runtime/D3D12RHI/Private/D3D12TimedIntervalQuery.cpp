@@ -45,7 +45,7 @@ public:
 		return Batches.Num() && Batches.Last().bOpen;
 	}
 
-	void StartBatch(uint64 BatchId)
+	void StartBatch(uint64 BatchId, bool bDeferred)
 	{
 		check(!HasOpenBatch());
 
@@ -53,6 +53,7 @@ public:
 		NewBatch.StartIndex = Batches.Num() == 0 ? 0 : (Batches.Last().StartIndex + Batches.Last().Size) % PoolSize;
 		NewBatch.Size = 0;
 		NewBatch.Id = BatchId;
+		NewBatch.bDeferred = bDeferred;
 		NewBatch.bOpen = true;
 		Batches.Add(NewBatch);
 	}
@@ -81,7 +82,7 @@ public:
 		Batch.bOpen = false;
 	}
 
-	bool GetResolvedBatchResults(bool bWait, uint64& BatchIdOut, TArray<uint64>& QueryResultsOut)
+	bool GetResolvedBatchResults(bool bWait, uint64& BatchIdOut, bool& bDeferredOut, TArray<uint64>& QueryResultsOut)
 	{
 		if (Batches.Num())
 		{
@@ -100,6 +101,7 @@ public:
 					if (Batch.SyncPoint.IsComplete())
 					{
 						BatchIdOut = Batch.Id;
+						bDeferredOut = Batch.bDeferred;
 						QueryResultsOut.SetNum(Batch.Size);
 
 						uint64* MappedResults;
@@ -187,6 +189,7 @@ private:
 		uint64				Id;
 		uint64				TimeStampFrequency;
 		FD3D12CLSyncPoint	SyncPoint;
+		bool				bDeferred;
 		bool				bOpen;
 		
 	};
@@ -219,10 +222,10 @@ FD3D12TimedIntervalQueryTracker::~FD3D12TimedIntervalQueryTracker()
 }
 
 
-void FD3D12TimedIntervalQueryTracker::BeginBatch(uint64 BatchId)
+void FD3D12TimedIntervalQueryTracker::BeginBatch(uint64 BatchId, bool bDeferred)
 {
 	// Start new batch
-	QueryPool->StartBatch(BatchId);
+	QueryPool->StartBatch(BatchId, bDeferred);
 }
 
 
@@ -264,8 +267,9 @@ void FD3D12TimedIntervalQueryTracker::EndInterval(ID3D12GraphicsCommandList* Com
 void FD3D12TimedIntervalQueryTracker::ResolveBatches(uint64 TimeStampFrequency, bool bWait)
 {
 	uint64 BatchId = 0;
+	bool bDeferred = false;
 	TArray<uint64> QueryResults;
-	while (QueryPool->GetResolvedBatchResults(bWait, BatchId, QueryResults))
+	while (QueryPool->GetResolvedBatchResults(bWait, BatchId, bDeferred, QueryResults))
 	{
 		check(QueryResults.Num() % 2 == 0);
 
@@ -279,7 +283,7 @@ void FD3D12TimedIntervalQueryTracker::ResolveBatches(uint64 TimeStampFrequency, 
 		}
 
 		const uint64 TotalTimeUS = TotalTime * 1e6 / TimeStampFrequency;
-		OnBatchResolvedDelegate.ExecuteIfBound(BatchId, TotalTimeUS);
+		OnBatchResolvedDelegate.ExecuteIfBound(BatchId, bDeferred, TotalTimeUS);
 	}
 }
 
