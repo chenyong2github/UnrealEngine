@@ -285,11 +285,11 @@ bool UNiagaraDataInterfaceRenderTargetVolume::GetFunctionHLSL(const FNiagaraData
 	else if (FunctionInfo.DefinitionName == LinearToIndexName)
 	{
 		static const TCHAR* FormatBounds = TEXT(R"(
-			void {FunctionName}(int Linear, out int OutIndexX, out int OutIndexY)
+			void {FunctionName}(int Linear, out int OutIndexX, out int OutIndexY, out int OutIndexZ)
 			{
 				OutIndexX = Linear % {SizeName}.x;
 				OutIndexY = (Linear / {SizeName}.y) % {SizeName}.z;
-				OutIndexZ = Linear / ({SizeName}.y) * {SizeName}.z);
+				OutIndexZ = Linear / ({SizeName}.x * {SizeName}.y);
 			}
 		)");
 		OutHLSL += FString::Format(FormatBounds, ArgsDeclarations);
