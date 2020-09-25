@@ -638,7 +638,7 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRHICommandListImmediate& R
 		if (FXSystem && Views.IsValidIndex(0))
 		{
 			FGPUSortManager* GPUSortManager = FXSystem->GetGPUSortManager();
-			FXSystem->PreRender(RHICmdList, &Views[0].GlobalDistanceFieldInfo.ParameterData, false);
+			FXSystem->PreRender(RHICmdList, Views[0].ViewUniformBuffer, &Views[0].GlobalDistanceFieldInfo.ParameterData, false);
 			if (GPUSortManager)
 			{
 				GPUSortManager->OnPreRender(RHICmdList);

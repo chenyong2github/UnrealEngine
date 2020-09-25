@@ -609,7 +609,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	// Notify the FX system that the scene is about to be rendered.
 	if (FXSystem && ViewFamily.EngineShowFlags.Particles)
 	{
-		FXSystem->PreRender(RHICmdList, NULL, !Views[0].bIsPlanarReflection);
+		FXSystem->PreRender(RHICmdList, Views[0].ViewUniformBuffer, NULL, !Views[0].bIsPlanarReflection);
 		if (FGPUSortManager* GPUSortManager = FXSystem->GetGPUSortManager())
 		{
 			GPUSortManager->OnPreRender(RHICmdList);

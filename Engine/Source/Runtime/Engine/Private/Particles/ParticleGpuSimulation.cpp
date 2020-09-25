@@ -1064,6 +1064,8 @@ public:
 		FRHIUniformBuffer* SceneTexturesUniformBuffer
 		)
 	{
+		check(ViewUniformBuffer != NULL);
+
 		FRHIPixelShader* PixelShaderRHI = RHICmdList.GetBoundPixelShader();
 		FRHISamplerState* SamplerStatePoint = TStaticSamplerState<SF_Point>::GetRHI();
 		FRHISamplerState* SamplerStateLinear = TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI();
@@ -1072,11 +1074,10 @@ public:
 		SetTextureParameter(RHICmdList, PixelShaderRHI, AttributesTexture, AttributesTextureSampler, SamplerStatePoint, InAttributesTexture.TextureRHI);
 		SetTextureParameter(RHICmdList, PixelShaderRHI, CurveTexture, CurveTextureSampler, SamplerStateLinear, GParticleCurveTexture.GetCurveTexture());
 
+		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, PixelShaderRHI, ViewUniformBuffer);
+
 		if (CollisionMode == PCM_DepthBuffer)
 		{
-			check(ViewUniformBuffer != NULL);
-			FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, PixelShaderRHI, ViewUniformBuffer);
-
 			SetUniformBufferParameter(RHICmdList, PixelShaderRHI, GetUniformBufferParameter(SceneTexturesUniformBufferStruct), SceneTexturesUniformBuffer);
 			SetTextureParameter(
 				RHICmdList, 
