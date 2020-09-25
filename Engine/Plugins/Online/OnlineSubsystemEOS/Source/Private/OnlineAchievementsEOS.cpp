@@ -121,8 +121,7 @@ void FOnlineAchievementsEOS::QueryAchievementDescriptions(const FUniqueNetId& Pl
 
 	EOS_Achievements_QueryDefinitionsOptions Options = { };
 	Options.ApiVersion = EOS_ACHIEVEMENTS_QUERYDEFINITIONS_API_LATEST;
-	Options.EpicUserId = EOSSubsystem->UserManager->GetLocalEpicAccountId(LocalUserId);
-	Options.UserId = EOSSubsystem->UserManager->GetLocalProductUserId(LocalUserId);
+	Options.LocalUserId = EOSSubsystem->UserManager->GetLocalProductUserId(LocalUserId);
 
 	FQueryDefinitionsCallback* CallbackObj = new FQueryDefinitionsCallback();
 	CallbackObj->CallbackLambda = [this, LambaPlayerId = FUniqueNetIdEOS(PlayerId), Delegate](const EOS_Achievements_OnQueryDefinitionsCompleteCallbackInfo* Data)

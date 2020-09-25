@@ -150,7 +150,7 @@ void FOnlineStatsEOS::QueryStats(const TSharedRef<const FUniqueNetId> LocalUserI
 			continue;
 		}
 
-		Options.UserId = UserId;
+		Options.LocalUserId = UserId;
 
 		FReadStatsCallback* CallbackObj = new FReadStatsCallback();
 		CallbackObj->CallbackLambda = [this, StatsQueryContext](const EOS_Stats_OnQueryStatsCompleteCallbackInfo* Data)
@@ -159,13 +159,13 @@ void FOnlineStatsEOS::QueryStats(const TSharedRef<const FUniqueNetId> LocalUserI
 			bool bWasSuccessful = Data->ResultCode == EOS_EResult::EOS_Success;
 			if (bWasSuccessful)
 			{
-				FUniqueNetIdEOSPtr StatUserId = EOSSubsystem->UserManager->GetLocalUniqueNetIdEOS(Data->UserId);
+				FUniqueNetIdEOSPtr StatUserId = EOSSubsystem->UserManager->GetLocalUniqueNetIdEOS(Data->TargetUserId);
 				if (StatUserId.IsValid())
 				{
 					char StatNameANSI[EOS_OSS_STRING_BUFFER_LENGTH];
 					EOS_Stats_CopyStatByNameOptions Options = { };
 					Options.ApiVersion = EOS_STATS_COPYSTATBYNAME_API_LATEST;
-					Options.UserId = Data->UserId;
+					Options.TargetUserId = Data->TargetUserId;
 					Options.Name = StatNameANSI;
 
 					TSharedPtr<FOnlineStatsUserStats> UserStats = StatsCache.Emplace(StatUserId.ToSharedRef(), MakeShared<FOnlineStatsUserStats>(StatUserId.ToSharedRef()));
@@ -194,7 +194,7 @@ void FOnlineStatsEOS::QueryStats(const TSharedRef<const FUniqueNetId> LocalUserI
 				char ProductIdString[EOS_PRODUCTUSERID_MAX_LENGTH];
 				ProductIdString[0] = '\0';
 				int32_t BufferSize = EOS_PRODUCTUSERID_MAX_LENGTH;
-				EOS_ProductUserId_ToString(Data->UserId, ProductIdString, &BufferSize);
+				EOS_ProductUserId_ToString(Data->TargetUserId, ProductIdString, &BufferSize);
 				UE_LOG_ONLINE_STATS(Error, TEXT("EOS_Stats_QueryStats() for user (%s) failed with EOS result code (%s)"), ANSI_TO_TCHAR(ProductIdString), ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
 			}
 			if (StatsQueryContext->NumPlayerReads <= 0)
@@ -303,7 +303,7 @@ void FOnlineStatsEOS::WriteStats(EOS_ProductUserId UserId, const FOnlineStatsUse
 
 	EOS_Stats_IngestStatOptions Options = { };
 	Options.ApiVersion = EOS_STATS_INGESTSTAT_API_LATEST;
-	Options.UserId = UserId;
+	Options.LocalUserId = UserId;
 	Options.Stats = EOSData.GetData();
 	Options.StatsCount = EOSData.Num();
 
