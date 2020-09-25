@@ -54,10 +54,10 @@ struct FFBIKConstraintOption
 
 	FFBIKConstraintOption()
 		: Item(NAME_None, ERigElementType::Bone)
-		, OffsetRotation(FRotator::ZeroRotator)
-		, PoleVector(FVector::RightVector)
 		, LinearStiffness(FVector(1.f))
 		, AngularStiffness(FVector::ZeroVector)
+		, PoleVector(FVector::RightVector)
+		, OffsetRotation(FRotator::ZeroRotator)
 	{
 		AngularLimit.LimitType_X = EFBIKBoneLimitType::Free;
 		AngularLimit.LimitType_Y = EFBIKBoneLimitType::Free;
@@ -73,15 +73,22 @@ struct FFBIKConstraintOption
 	bool bEnabled = true;
 
 	UPROPERTY(EditAnywhere, Category = FFBIKConstraintOption)
+	bool bUseStiffness = true;
+
+	/** Scale of [0, 1] and applied to linear motion strength - linear stiffness works on their local frame*/
+	UPROPERTY(EditAnywhere, Category = FFBIKConstraintOption)
+	FVector LinearStiffness; 
+
+	/** Scale of [0, 1] and applied to angular motion strength, xyz is applied to twist, swing1, swing2 */
+	UPROPERTY(EditAnywhere, Category = FFBIKConstraintOption)
+	FVector AngularStiffness;
+
+	UPROPERTY(EditAnywhere, Category = FFBIKConstraintOption)
 	bool bUseAngularLimit = false;
 
 	/** Angular delta limit of this joints local transform. [-Limit, Limit] */
 	UPROPERTY(EditAnywhere, Category = FFBIKConstraintOption)
 	FFBIKBoneLimit AngularLimit;
-
-	// this is offset rotation applied in the constructing of the frame
-	UPROPERTY(EditAnywhere, Category = FFBIKConstraintOption)
-	FRotator OffsetRotation;
 
 	UPROPERTY(EditAnywhere, Category = FFBIKConstraintOption)
 	bool bUsePoleVector = false;
@@ -93,13 +100,9 @@ struct FFBIKConstraintOption
 	UPROPERTY(EditAnywhere, Category = FFBIKConstraintOption)
 	FVector PoleVector; 
 
-	/** Scale of [0, 1] and applied to linear motion strength - linear stiffness works on their local frame*/
+	// this is offset rotation applied when constructing the local frame
 	UPROPERTY(EditAnywhere, Category = FFBIKConstraintOption)
-	FVector LinearStiffness; 
-
-	/** Scale of [0, 1] and applied to angular motion strength, xyz is applied to twist, swing1, swing2 */
-	UPROPERTY(EditAnywhere, Category = FFBIKConstraintOption)
-	FVector AngularStiffness;
+	FRotator OffsetRotation;
 
 	bool IsLinearlyLimited() const 
 	{
