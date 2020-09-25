@@ -2939,6 +2939,11 @@ void ULandscapeInfo::Reset()
 	//SelectedRegion.Empty();
 }
 
+void ULandscapeInfo::RecreateLandscapeInfo(UWorld* InWorld, bool bMapCheck)
+{
+	ULandscapeSubsystem::RecreateLandscapeInfos(InWorld, bMapCheck);
+}
+
 void ULandscapeInfo::FixupProxiesTransform()
 {
 	ALandscape* Landscape = LandscapeActor.Get();
