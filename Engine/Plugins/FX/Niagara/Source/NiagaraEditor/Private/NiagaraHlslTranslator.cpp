@@ -4539,7 +4539,7 @@ bool FHlslNiagaraTranslationStage::ShouldDoSpawnOnlyLogic() const
 	return false;
 }
 
-bool FHlslNiagaraTranslationStage::IsRelevantToSpawnForStage(const FNiagaraParameterMapHistory& InHistory, const FNiagaraVariable& InAliasedVar) const
+bool FHlslNiagaraTranslationStage::IsRelevantToSpawnForStage(const FNiagaraParameterMapHistory& InHistory, const FNiagaraVariable& InAliasedVar, const FNiagaraVariable& InVar) const
 {
 	if (InHistory.IsPrimaryDataSetOutput(InAliasedVar, ScriptUsage) && UNiagaraScript::IsSpawnScript(ScriptUsage))
 	{
@@ -4553,7 +4553,7 @@ bool FHlslNiagaraTranslationStage::IsRelevantToSpawnForStage(const FNiagaraParam
 		}
 		else
 		{
-			return InAliasedVar.IsInNameSpace(IterationSource) || InAliasedVar.IsInNameSpace(FNiagaraConstants::StackContextNamespace);
+			return InVar.IsInNameSpace(IterationSource) && !InVar.IsDataInterface();
 		}
 	}
 	return false;
@@ -4571,6 +4571,7 @@ void FHlslNiagaraTranslator::InitializeParameterMapDefaults(int32 ParamMapHistor
 	UniqueVarToWriteToParamMap.Empty();
 	UniqueVarToChunk.Empty();
 
+	FHlslNiagaraTranslationStage& ActiveStage = TranslationStages[ActiveStageIdx];
 	// First pass just use the current parameter map.
 	{
 		const FNiagaraParameterMapHistory& History = ParamMapHistories[ParamMapHistoryIdx];
@@ -4581,7 +4582,7 @@ void FHlslNiagaraTranslator::InitializeParameterMapDefaults(int32 ParamMapHistor
 			// Only add primary data set outputs at the top of the script if in a spawn script, otherwise they should be left alone.
 			if (TranslationStages[ActiveStageIdx].ShouldDoSpawnOnlyLogic())
 			{
-				if (TranslationStages[ActiveStageIdx].IsRelevantToSpawnForStage(History, AliasedVar) &&
+				if (TranslationStages[ActiveStageIdx].IsRelevantToSpawnForStage(History, AliasedVar, Var) &&
 					!UniqueVars.Contains(Var))
 				{
 					UniqueVars.Add(Var);
@@ -4606,7 +4607,7 @@ void FHlslNiagaraTranslator::InitializeParameterMapDefaults(int32 ParamMapHistor
 			{
 				const FNiagaraVariable& Var = History.Variables[i];
 				const FNiagaraVariable& AliasedVar = History.VariablesWithOriginalAliasesIntact[i];
-				if (TranslationStages[ActiveStageIdx].IsRelevantToSpawnForStage(History, AliasedVar) &&
+				if (TranslationStages[ActiveStageIdx].IsRelevantToSpawnForStage(History, AliasedVar, Var) &&
 					!UniqueVars.Contains(Var))
 				{
 					UniqueVars.Add(Var);
