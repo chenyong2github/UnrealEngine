@@ -12,7 +12,10 @@ class FDisplayClusterRenderSyncPolicySoftwareGeneric
 	: public FDisplayClusterRenderSyncPolicySoftwareBase
 {
 public:
-	FDisplayClusterRenderSyncPolicySoftwareGeneric();
+	static TMap<FString, FString> DefaultParameters;
+
+public:
+	FDisplayClusterRenderSyncPolicySoftwareGeneric(const TMap<FString, FString>& Parameters);
 	virtual ~FDisplayClusterRenderSyncPolicySoftwareGeneric();
 
 public:

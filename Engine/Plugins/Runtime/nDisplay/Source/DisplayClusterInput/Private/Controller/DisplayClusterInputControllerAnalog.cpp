@@ -8,6 +8,7 @@
 #include "Config/IDisplayClusterConfigManager.h"
 #include "Input/IDisplayClusterInputManager.h"
 
+#include "DisplayClusterConfigurationTypes.h"
 
 #define LOCTEXT_NAMESPACE "DisplayClusterInput"
 
@@ -15,8 +16,6 @@
 // Add vrpn analog to UE4 global name-space
 void FAnalogController::Initialize()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterInputAnalog);
-
 	static const FName nDisplayClusterInputCategoryName(TEXT("nDisplayAnalogs"));
 	EKeys::AddMenuCategoryDisplayInfo(nDisplayClusterInputCategoryName, LOCTEXT("nDisplayInputSubCateogry", "nDisplay"), TEXT("GraphEditor.KeyEvent_16x"));
 
@@ -34,26 +33,26 @@ void FAnalogController::Initialize()
 
 void FAnalogController::ProcessStartSession()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterInputAnalog);
-
 	ResetAllBindings();
 
-	IDisplayClusterInputManager&  InputMgr  = *IDisplayCluster::Get().GetInputMgr();
-	IDisplayClusterConfigManager& ConfigMgr = *IDisplayCluster::Get().GetConfigMgr();
-
-	TArray<FString> DeviceNames;
-	InputMgr.GetAxisDeviceIds(DeviceNames);
-	for (const FString& DeviceName : DeviceNames)
+	const UDisplayClusterConfigurationData* ConfigData = IDisplayCluster::Get().GetConfigMgr()->GetConfig();
+	if (!ConfigData)
 	{
-		AddDevice(DeviceName);
+		return;
+	}
 
-		TArray<FDisplayClusterConfigInputSetup> Records = ConfigMgr.GetInputSetupRecords();
-		for (const FDisplayClusterConfigInputSetup& Record : Records)
+	TArray<FString> DeviceIds;
+	IDisplayCluster::Get().GetInputMgr()->GetAxisDeviceIds(DeviceIds);
+	for (const FString& DeviceId : DeviceIds)
+	{
+		AddDevice(DeviceId);
+
+		for (auto& it : ConfigData->Input->InputBinding)
 		{
-			if (DeviceName.Compare(Record.Id, ESearchCase::IgnoreCase) == 0)
+			if (DeviceId.Equals(it.DeviceId, ESearchCase::IgnoreCase))
 			{
-				UE_LOG(LogDisplayClusterInputAnalog, Verbose, TEXT("Binding %s:%d to %s..."), *DeviceName, Record.Channel, *Record.BindName);
-				BindChannel(DeviceName, Record.Channel, Record.BindName);
+				UE_LOG(LogDisplayClusterInputAnalog, Verbose, TEXT("Binding %s:%d to %s..."), *DeviceId, it.Channel, *it.BindTo);
+				BindChannel(DeviceId, it.Channel, it.BindTo);
 			}
 		}
 	}
@@ -61,8 +60,6 @@ void FAnalogController::ProcessStartSession()
 
 void FAnalogController::ProcessEndSession()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterInputAnalog);
-
 	UE_LOG(LogDisplayClusterInputAnalog, Verbose, TEXT("Removing all analog bindings..."));
 
 	ResetAllBindings();
@@ -70,8 +67,6 @@ void FAnalogController::ProcessEndSession()
 
 void FAnalogController::ProcessPreTick()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterInputAnalog);
-
 	IDisplayClusterInputManager& InputMgr = *IDisplayCluster::Get().GetInputMgr();
 	for (auto& DeviceIt : BindMap)
 	{

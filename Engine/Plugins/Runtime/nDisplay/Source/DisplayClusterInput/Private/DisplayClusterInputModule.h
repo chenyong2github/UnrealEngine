@@ -29,7 +29,7 @@ public:
 	// Add new VRPN device input bind from channel to UE4 target (type auto detected by device ID)
 	virtual bool BindVrpnChannel(const FString& VrpnDeviceId, uint32 VrpnChannel, const FString& BindTargetName) override;
 	// Bind all keyboard keys to ue4 (default keyboard and|or nDisplay second keyboard namespaces)
-	virtual bool SetVrpnKeyboardReflectionMode(const FString& VrpnDeviceId, EDisplayClusterInputKeyboardReflectMode ReflectMode) override;
+	virtual bool SetVrpnKeyboardReflectionMode(const FString& VrpnDeviceId, EDisplayClusterInputKeyboardReflectionMode ReflectionMode) override;
 	// Apply all delayed vrpn bindings
 	void UpdateVrpnBindings();
 	// Send vrpn data to UE
@@ -87,11 +87,11 @@ private:
 	struct VrpnKeyboardReflect
 	{
 		FString VrpnDeviceId;
-		EDisplayClusterInputKeyboardReflectMode ReflectMode;
+		EDisplayClusterInputKeyboardReflectionMode ReflectionMode;
 
-		VrpnKeyboardReflect(const FString& DelayedVrpnDeviceId, EDisplayClusterInputKeyboardReflectMode DelayedReflectMode) :
+		VrpnKeyboardReflect(const FString& DelayedVrpnDeviceId, EDisplayClusterInputKeyboardReflectionMode DelayedReflectionMode) :
 			VrpnDeviceId(DelayedVrpnDeviceId),
-			ReflectMode(DelayedReflectMode)
+			ReflectionMode(DelayedReflectionMode)
 		{ }
 	};
 	// A buffer for keyboard reflection settings to be processed on tick

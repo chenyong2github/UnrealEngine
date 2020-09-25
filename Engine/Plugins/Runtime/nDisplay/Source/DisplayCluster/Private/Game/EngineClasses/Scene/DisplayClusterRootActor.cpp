@@ -10,14 +10,15 @@
 #include "HAL/IConsoleManager.h"
 
 #include "Config/IPDisplayClusterConfigManager.h"
-#include "Config/DisplayClusterConfigTypes.h"
+#include "DisplayClusterConfigurationStrings.h"
+#include "DisplayClusterConfigurationTypes.h"
 
 #include "Misc/DisplayClusterAppExit.h"
 #include "Misc/DisplayClusterGlobals.h"
 #include "Misc/DisplayClusterLog.h"
 
-#include "DisplayClusterRootComponent.h"
-#include "DisplayClusterSceneComponentSyncParent.h"
+#include "Components/DisplayClusterRootComponent.h"
+#include "Components/DisplayClusterSceneComponentSyncParent.h"
 #include "DisplayClusterPlayerInput.h"
 
 
@@ -43,28 +44,28 @@ ADisplayClusterRootActor::ADisplayClusterRootActor(const FObjectInitializer& Obj
 
 void ADisplayClusterRootActor::BeginPlay()
 {
-	int32 NativeInputSyncPolicy = 0;
+	Super::BeginPlay();
 
 	// Store current operation mode
 	OperationMode = GDisplayCluster->GetOperationMode();
-
-	if (OperationMode == EDisplayClusterOperationMode::Cluster ||
-		OperationMode == EDisplayClusterOperationMode::Editor)
+	if (OperationMode == EDisplayClusterOperationMode::Cluster)
 	{
+		FString SyncPolicyType;
+
 		// Read native input synchronization settings
 		IPDisplayClusterConfigManager* const ConfigMgr = GDisplayCluster->GetPrivateConfigMgr();
 		if (ConfigMgr)
 		{
-			FDisplayClusterConfigGeneral CfgGeneral = ConfigMgr->GetConfigGeneral();
-			NativeInputSyncPolicy = CfgGeneral.NativeInputSyncPolicy;
-			UE_LOG(LogDisplayClusterGame, Log, TEXT("Native input sync policy: %d"), NativeInputSyncPolicy);
+			const UDisplayClusterConfigurationData* ConfigData = ConfigMgr->GetConfig();
+			if (ConfigData)
+			{
+				SyncPolicyType = ConfigData->Cluster->Sync.InputSyncPolicy.Type;
+				UE_LOG(LogDisplayClusterGame, Log, TEXT("Native input sync policy: %s"), *SyncPolicyType);
+			}
 		}
-	}
 
-	if (OperationMode == EDisplayClusterOperationMode::Cluster)
-	{
 		// Optionally activate native input synchronization
-		if (NativeInputSyncPolicy == 1)
+		if (SyncPolicyType.Equals(DisplayClusterConfigurationStrings::config::cluster::input_sync::InputSyncPolicyReplicateMaster, ESearchCase::IgnoreCase))
 		{
 			APlayerController* const PlayerController = GetWorld()->GetFirstPlayerController();
 			if (PlayerController)
@@ -73,13 +74,6 @@ void ADisplayClusterRootActor::BeginPlay()
 			}
 		}
 	}
-
-	Super::BeginPlay();
-}
-
-void ADisplayClusterRootActor::BeginDestroy()
-{
-	Super::BeginDestroy();
 }
 
 void ADisplayClusterRootActor::Tick(float DeltaSeconds)

@@ -2,7 +2,7 @@
 
 #include "PostProcess/DisplayClusterPostprocessOutputRemap.h"
 
-#include "DisplayClusterPostprocessHelpers.h"
+#include "Misc/DisplayClusterHelpers.h"
 #include "DisplayClusterPostprocessLog.h"
 #include "DisplayClusterPostprocessStrings.h"
 
@@ -27,16 +27,16 @@ FDisplayClusterPostprocessOutputRemap::~FDisplayClusterPostprocessOutputRemap()
 //////////////////////////////////////////////////////////////////////////////////////////////
 bool FDisplayClusterPostprocessOutputRemap::IsPostProcessRenderTargetAfterWarpBlendRequired()
 {
-	return MeshRef>=0;
+	return MeshRef >= 0;
 }
 
-void FDisplayClusterPostprocessOutputRemap::InitializePostProcess(const FString& CfgLine)
+void FDisplayClusterPostprocessOutputRemap::InitializePostProcess(const TMap<FString, FString>& Parameters)
 {
 	// PFM file (optional)
 	FString ExtMeshFile;
-	if (DisplayClusterHelpers::str::ExtractValue(CfgLine, DisplayClusterStrings::cfg::data::postprocess::output_remap::File, ExtMeshFile))
+	if (DisplayClusterHelpers::map::template ExtractValue(Parameters, DisplayClusterPostprocessStrings::output_remap::File, ExtMeshFile))
 	{
-		UE_LOG(LogDisplayClusterPostprocessOutputRemap, Log, TEXT("Found Argument '%s'='%s'"), DisplayClusterStrings::cfg::data::postprocess::output_remap::File, *ExtMeshFile);
+		UE_LOG(LogDisplayClusterPostprocessOutputRemap, Log, TEXT("Found Argument '%s'='%s'"), DisplayClusterPostprocessStrings::output_remap::File, *ExtMeshFile);
 	}
 
 	// Load ext mesh:

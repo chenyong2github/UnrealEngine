@@ -27,7 +27,7 @@ public:
 	};
 
 public:
-	FDisplayClusterProjectionMPCDIPolicy(const FString& ViewportId);
+	FDisplayClusterProjectionMPCDIPolicy(const FString& ViewportId, const TMap<FString, FString>& Parameters);
 	virtual ~FDisplayClusterProjectionMPCDIPolicy();
 
 public:

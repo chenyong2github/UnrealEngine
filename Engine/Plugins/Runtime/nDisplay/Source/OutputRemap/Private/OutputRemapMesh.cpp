@@ -2,13 +2,14 @@
 
 #include "OutputRemapMesh.h"
 #include "OutputRemapLog.h"
-#include "OutputRemapHelpers.h"
 
 #include "Stats/Stats.h"
 #include "Engine/Engine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
+
+#include "Misc/DisplayClusterHelpers.h"
 
 #include "RendererInterface.h"
 #include "RenderResource.h"
@@ -352,7 +353,7 @@ void FOutputRemapMesh::CreateMesh()
 	}
 	else
 	{
-		FString FullPathFileName = DisplayClusterHelpers::config::GetFullPath(FileName);
+		FString FullPathFileName = DisplayClusterHelpers::filesystem::GetFullPathForConfigResource(FileName);
 		bIsValid = Mesh->CreateFromFile(FullPathFileName);
 
 		FileLastAccessDateTime = IFileManager::Get().GetAccessTimeStamp(*FullPathFileName);
@@ -396,7 +397,7 @@ void FOutputRemapMesh::ReloadMesh()
 		if(bForceExtFilesReload)
 		{
 			// Check for file data is modified
-			const FString FullPathFileName = DisplayClusterHelpers::config::GetFullPath(FileName);
+			const FString FullPathFileName = DisplayClusterHelpers::filesystem::GetFullPathForConfigResource(FileName);
 			const FDateTime CurrentDateTime = IFileManager::Get().GetAccessTimeStamp(*FullPathFileName);
 
 			if (CurrentDateTime != FileLastAccessDateTime)

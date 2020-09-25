@@ -6,8 +6,6 @@
 
 bool FButtonState::OnButtonPressed(FGenericApplicationMessageHandler* MessageHandler, int32 ControllerId, bool bIsRepeat)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterInputButton);
-
 	bool bResult = false;
 	for (auto& Key : BindKeys)
 	{
@@ -21,8 +19,6 @@ bool FButtonState::OnButtonPressed(FGenericApplicationMessageHandler* MessageHan
 
 bool FButtonState::OnButtonReleased(FGenericApplicationMessageHandler* MessageHandler, int32 ControllerId, bool bIsRepeat)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterInputButton);
-
 	bool bResult = false;
 	for (auto& Key : BindKeys)
 	{
@@ -40,8 +36,6 @@ float FButtonState::ButtonRepeatDelay = 0.1f;
 
 void FButtonState::UpdateEvents(FGenericApplicationMessageHandler* MessageHandler, int32 ControllerId, double CurrentTime)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterInputButton);
-
 	bool bIsChanged = IsChanged();
 	ApplyChanges();
 

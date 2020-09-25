@@ -100,13 +100,6 @@ private:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
-#if 0
-	virtual void PreUnloadCallback() override;
-	virtual void PostLoadCallback() override;
-	virtual bool SupportsDynamicReloading() override;
-	virtual bool SupportsAutomaticShutdown() override;
-	virtual bool IsGameModule() const override;
-#endif
 
 private:
 	// Is module initialized.

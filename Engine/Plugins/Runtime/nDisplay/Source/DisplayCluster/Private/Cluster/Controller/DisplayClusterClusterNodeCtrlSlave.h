@@ -3,11 +3,11 @@
 #pragma once
 
 #include "Cluster/Controller/DisplayClusterClusterNodeCtrlBase.h"
-#include "Network/DisplayClusterMessage.h"
 
 class FDisplayClusterClusterSyncClient;
-class FDisplayClusterSwapSyncClient;
-class FDisplayClusterClusterEventsClient;
+class FDisplayClusterRenderSyncClient;
+class FDisplayClusterClusterEventsJsonClient;
+class FDisplayClusterClusterEventsBinaryClient;
 
 
 /**
@@ -22,37 +22,44 @@ public:
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	// IPDisplayClusterNodeController
+	// IDisplayClusterNodeController
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual bool IsSlave() const override
-	{ return true; }
+	{
+		return true;
+	}
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	// IPDisplayClusterClusterSyncProtocol
+	// IDisplayClusterProtocolClusterSync
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual void WaitForGameStart()  override final;
-	virtual void WaitForFrameStart() override final;
-	virtual void WaitForFrameEnd()   override final;
-	virtual void WaitForTickEnd()    override final;
+	virtual void WaitForGameStart(double* ThreadWaitTime, double* BarrierWaitTime) override final;
+	virtual void WaitForFrameStart(double* ThreadWaitTime, double* BarrierWaitTime) override final;
+	virtual void WaitForFrameEnd(double* ThreadWaitTime, double* BarrierWaitTime) override final;
 	virtual void GetDeltaTime(float& DeltaSeconds) override;
 	virtual void GetFrameTime(TOptional<FQualifiedFrameTime>& FrameTime) override;
-	virtual void GetSyncData(FDisplayClusterMessage::DataType& SyncData, EDisplayClusterSyncGroup SyncGroup) override;
-	virtual void GetInputData(FDisplayClusterMessage::DataType& InputData) override;
-	virtual void GetEventsData(FDisplayClusterMessage::DataType& EventsData) override;
-	virtual void GetNativeInputData(FDisplayClusterMessage::DataType& NativeInputData) override;
+	virtual void GetSyncData(TMap<FString, FString>& SyncData, EDisplayClusterSyncGroup SyncGroup) override;
+	virtual void GetInputData(TMap<FString, FString>& InputData) override;
+	virtual void GetEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson>>& JsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary>>& BinaryEvents) override;
+	virtual void GetNativeInputData(TMap<FString, FString>& NativeInputData) override;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	// IPDisplayClusterSwapSyncProtocol
+	// IDisplayClusterProtocolRenderSync
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual void WaitForSwapSync(double* ThreadWaitTime, double* BarrierWaitTime) override final;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	// IPDisplayClusterClusterEventsProtocol
+	// IDisplayClusterProtocolEventsJson
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual void EmitClusterEvent(const FDisplayClusterClusterEvent& Event) override;
+	virtual void EmitClusterEventJson(const FDisplayClusterClusterEventJson& Event) override;
+
+public:
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	// IDisplayClusterProtocolEventsBinary
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	virtual void EmitClusterEventBinary(const FDisplayClusterClusterEventBinary& Event) override;
 
 protected:
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -68,7 +75,8 @@ protected:
 
 private:
 	// Cluster node clients
-	TUniquePtr<FDisplayClusterClusterSyncClient>   ClusterSyncClient;
-	TUniquePtr<FDisplayClusterSwapSyncClient>      SwapSyncClient;
-	TUniquePtr<FDisplayClusterClusterEventsClient> ClusterEventsClient;
+	TUniquePtr<FDisplayClusterClusterSyncClient>         ClusterSyncClient;
+	TUniquePtr<FDisplayClusterRenderSyncClient>          RenderSyncClient;
+	TUniquePtr<FDisplayClusterClusterEventsJsonClient>   ClusterEventsJsonClient;
+	TUniquePtr<FDisplayClusterClusterEventsBinaryClient> ClusterEventsBinaryClient;
 };

@@ -2,19 +2,21 @@
 
 #include "Policy/MPCDI/DisplayClusterProjectionMPCDIPolicy.h"
 
-#include "DisplayClusterProjectionHelpers.h"
 #include "DisplayClusterProjectionLog.h"
 #include "DisplayClusterProjectionStrings.h"
 
-#include "Config/DisplayClusterConfigTypes.h"
+#include "IDisplayCluster.h"
+#include "Config/IDisplayClusterConfigManager.h"
 #include "Game/IDisplayClusterGameManager.h"
+
+#include "Misc/DisplayClusterHelpers.h"
 
 #include "Engine/RendererSettings.h"
 #include "Misc/Paths.h"
 
 
-FDisplayClusterProjectionMPCDIPolicy::FDisplayClusterProjectionMPCDIPolicy(const FString& ViewportId)
-	: FDisplayClusterProjectionPolicyBase(ViewportId)
+FDisplayClusterProjectionMPCDIPolicy::FDisplayClusterProjectionMPCDIPolicy(const FString& ViewportId, const TMap<FString, FString>& Parameters)
+	: FDisplayClusterProjectionPolicyBase(ViewportId, Parameters)
 	, MPCDIAPI(IMPCDI::Get())
 	, bIsRenderResourcesInitialized(false)
 {
@@ -51,27 +53,22 @@ bool FDisplayClusterProjectionMPCDIPolicy::HandleAddViewport(const FIntPoint& In
 
 	IMPCDI::ConfigParser CfgData;
 
+	// Pass config line to the MPCDI module
+	if (!MPCDIAPI.LoadConfig(GetParameters(), CfgData))
 	{
-		// Load settings from config file
-		FDisplayClusterConfigProjection CfgProjection;
-		if (!DisplayClusterHelpers::config::GetViewportProjection(GetViewportId(), CfgProjection))
-		{
-			UE_LOG(LogDisplayClusterProjectionMPCDI, Error, TEXT("Couldn't obtain projection info for '%s' viewport"), *GetViewportId());
-			return false;
-		}
+		UE_LOG(LogDisplayClusterProjectionMPCDI, Error, TEXT("Couldn't read MPCDI configuration from the config file"));
+		return false;
+	}
 
-		// Pass config line to the MPCDI module
-		if (!MPCDIAPI.LoadConfig(CfgProjection.Params, CfgData))
-		{
-			UE_LOG(LogDisplayClusterProjectionMPCDI, Error, TEXT("Couldn't read MPCDI configuration from the config file"));
-			return false;
-		}
+	if (FPaths::IsRelative(CfgData.MPCDIFileName))
+	{
+		CfgData.MPCDIFileName = DisplayClusterHelpers::filesystem::GetFullPathForConfigResource(CfgData.MPCDIFileName);
 	}
 
 	// Load MPCDI config
 	if (!MPCDIAPI.Load(CfgData, WarpRef))
 	{
-		UE_LOG(LogDisplayClusterProjectionMPCDI, Warning, TEXT("Couldn't load MPCDI config: %s"), *CfgData.ConfigLineStr);
+		UE_LOG(LogDisplayClusterProjectionMPCDI, Warning, TEXT("Couldn't load MPCDI config"));
 		return false;
 	}
 

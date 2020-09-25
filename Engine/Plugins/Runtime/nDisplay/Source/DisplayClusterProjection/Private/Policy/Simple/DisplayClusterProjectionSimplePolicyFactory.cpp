@@ -6,20 +6,11 @@
 #include "DisplayClusterProjectionLog.h"
 
 
-FDisplayClusterProjectionSimplePolicyFactory::FDisplayClusterProjectionSimplePolicyFactory()
-{
-}
-
-FDisplayClusterProjectionSimplePolicyFactory ::~FDisplayClusterProjectionSimplePolicyFactory()
-{
-}
-
-
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterProjectionPolicyFactory
 //////////////////////////////////////////////////////////////////////////////////////////////
-TSharedPtr<IDisplayClusterProjectionPolicy> FDisplayClusterProjectionSimplePolicyFactory::Create(const FString& PolicyType, const FString& RHIName, const FString& ViewportId)
+TSharedPtr<IDisplayClusterProjectionPolicy> FDisplayClusterProjectionSimplePolicyFactory::Create(const FString& PolicyType, const FString& RHIName, const FString& ViewportId, const TMap<FString, FString>& Parameters)
 {
 	UE_LOG(LogDisplayClusterProjectionSimple, Log, TEXT("Instantiating projection policy <%s>..."), *PolicyType);
-	return MakeShareable(new FDisplayClusterProjectionSimplePolicy(ViewportId));
+	return MakeShared<FDisplayClusterProjectionSimplePolicy>(ViewportId, Parameters);
 }

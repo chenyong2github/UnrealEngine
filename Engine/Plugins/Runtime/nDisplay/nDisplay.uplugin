@@ -103,6 +103,14 @@
 			"WhitelistPlatforms": [
 				"Win64"
 			]
+		},
+		{
+			"Name": "DisplayClusterConfigurator",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"Win64"
+			]
 		}
 	],
 	"Plugins": [

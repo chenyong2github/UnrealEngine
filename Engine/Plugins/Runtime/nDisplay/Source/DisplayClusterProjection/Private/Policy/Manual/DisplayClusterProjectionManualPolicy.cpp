@@ -5,20 +5,17 @@
 #include "DisplayClusterProjectionLog.h"
 #include "DisplayClusterProjectionStrings.h"
 
-#include "Misc/DisplayClusterCommonHelpers.h"
+#include "Misc/DisplayClusterHelpers.h"
 
 #include "IDisplayCluster.h"
-#include "Config/IDisplayClusterConfigManager.h"
 #include "Game/IDisplayClusterGameManager.h"
 
-#include "Config/DisplayClusterConfigTypes.h"
-
-#include "DisplayClusterRootComponent.h"
-#include "DisplayClusterScreenComponent.h"
+#include "Components/DisplayClusterRootComponent.h"
+#include "Components/DisplayClusterScreenComponent.h"
 
 
-FDisplayClusterProjectionManualPolicy::FDisplayClusterProjectionManualPolicy(const FString& ViewportId)
-	: FDisplayClusterProjectionPolicyBase(ViewportId)
+FDisplayClusterProjectionManualPolicy::FDisplayClusterProjectionManualPolicy(const FString& ViewportId, const TMap<FString, FString>& Parameters)
+	: FDisplayClusterProjectionPolicyBase(ViewportId, Parameters)
 {
 }
 
@@ -46,28 +43,20 @@ bool FDisplayClusterProjectionManualPolicy::HandleAddViewport(const FIntPoint& V
 
 	UE_LOG(LogDisplayClusterProjectionManual, Log, TEXT("Initializing internals for the viewport '%s'"), *GetViewportId());
 
-	// Get projection settings of the specified viewport
-	FDisplayClusterConfigProjection CfgProjection;
-	if (!DisplayClusterHelpers::config::GetViewportProjection(GetViewportId(), CfgProjection))
-	{
-		UE_LOG(LogDisplayClusterProjectionManual, Error, TEXT("No projection ID found for viewport '%s'"), *GetViewportId());
-		return false;
-	}
-
 	// Get view rotation
-	if (!DisplayClusterHelpers::str::ExtractValue(CfgProjection.Params, FString(DisplayClusterStrings::cfg::data::projection::manual::Rotation), ViewRotation))
+	if (!DisplayClusterHelpers::map::template ExtractValueFromString(GetParameters(), FString(DisplayClusterProjectionStrings::cfg::manual::Rotation), ViewRotation))
 	{
 		UE_LOG(LogDisplayClusterProjectionManual, Log, TEXT("No rotation specified for projection policy of viewport '%s'"), *GetViewportId());
 	}
 
 	// Get matrix data
 	bool bDataTypeDetermined = false;
-	if (DisplayClusterHelpers::str::ExtractValue(CfgProjection.Params, FString(DisplayClusterStrings::cfg::data::projection::manual::Matrix), ProjectionMatrix[0]) ||
-		DisplayClusterHelpers::str::ExtractValue(CfgProjection.Params, FString(DisplayClusterStrings::cfg::data::projection::manual::MatrixLeft), ProjectionMatrix[0]))
+	if (DisplayClusterHelpers::map::template ExtractValueFromString(GetParameters(), FString(DisplayClusterProjectionStrings::cfg::manual::Matrix),     ProjectionMatrix[0]) ||
+		DisplayClusterHelpers::map::template ExtractValueFromString(GetParameters(), FString(DisplayClusterProjectionStrings::cfg::manual::MatrixLeft), ProjectionMatrix[0]))
 	{
 		if (ViewsAmount == 2)
 		{
-			if (DisplayClusterHelpers::str::ExtractValue(CfgProjection.Params, FString(DisplayClusterStrings::cfg::data::projection::manual::MatrixRight), ProjectionMatrix[1]))
+			if (DisplayClusterHelpers::map::template ExtractValueFromString(GetParameters(), FString(DisplayClusterProjectionStrings::cfg::manual::MatrixRight), ProjectionMatrix[1]))
 			{
 				bDataTypeDetermined = true;
 				DataType = EManualDataType::Matrix;
@@ -84,8 +73,8 @@ bool FDisplayClusterProjectionManualPolicy::HandleAddViewport(const FIntPoint& V
 	{
 		FString AnglesLeft;
 
-		if (DisplayClusterHelpers::str::ExtractValue(CfgProjection.Params, FString(DisplayClusterStrings::cfg::data::projection::manual::Frustum), AnglesLeft) ||
-			DisplayClusterHelpers::str::ExtractValue(CfgProjection.Params, FString(DisplayClusterStrings::cfg::data::projection::manual::FrustumLeft), AnglesLeft))
+		if (DisplayClusterHelpers::map::template ExtractValue(GetParameters(), FString(DisplayClusterProjectionStrings::cfg::manual::Frustum),     AnglesLeft) ||
+			DisplayClusterHelpers::map::template ExtractValue(GetParameters(), FString(DisplayClusterProjectionStrings::cfg::manual::FrustumLeft), AnglesLeft))
 		{
 			if (!ExtractAngles(AnglesLeft, FrustumAngles[0]))
 			{
@@ -97,7 +86,7 @@ bool FDisplayClusterProjectionManualPolicy::HandleAddViewport(const FIntPoint& V
 			{
 				FString AnglesRight;
 
-				if (DisplayClusterHelpers::str::ExtractValue(CfgProjection.Params, FString(DisplayClusterStrings::cfg::data::projection::manual::FrustumRight), AnglesRight))
+				if (DisplayClusterHelpers::map::template ExtractValue(GetParameters(), FString(DisplayClusterProjectionStrings::cfg::manual::FrustumRight), AnglesRight))
 				{
 					if (!ExtractAngles(AnglesRight, FrustumAngles[1]))
 					{
@@ -178,39 +167,27 @@ bool FDisplayClusterProjectionManualPolicy::GetProjectionMatrix(const uint32 Vie
 bool FDisplayClusterProjectionManualPolicy::ExtractAngles(const FString& InAngles, FFrustumAngles& OutAngles)
 {
 	float Left;
-	if (!DisplayClusterHelpers::str::ExtractValue(InAngles, FString(DisplayClusterStrings::cfg::data::projection::manual::AngleL), Left))
+	if (!DisplayClusterHelpers::str::ExtractValue(InAngles, FString(DisplayClusterProjectionStrings::cfg::manual::AngleL), Left))
 	{
-		if (!DisplayClusterHelpers::str::ExtractValue(InAngles, FString(DisplayClusterStrings::cfg::data::projection::manual::AngleLeft), Left))
-		{
-			return false;
-		}
+		return false;
 	}
 
 	float Right;
-	if (!DisplayClusterHelpers::str::ExtractValue(InAngles, FString(DisplayClusterStrings::cfg::data::projection::manual::AngleR), Right))
+	if (!DisplayClusterHelpers::str::ExtractValue(InAngles, FString(DisplayClusterProjectionStrings::cfg::manual::AngleR), Right))
 	{
-		if (!DisplayClusterHelpers::str::ExtractValue(InAngles, FString(DisplayClusterStrings::cfg::data::projection::manual::AngleRight), Right))
-		{
-			return false;
-		}
+		return false;
 	}
 
 	float Top;
-	if (!DisplayClusterHelpers::str::ExtractValue(InAngles, FString(DisplayClusterStrings::cfg::data::projection::manual::AngleT), Top))
+	if (!DisplayClusterHelpers::str::ExtractValue(InAngles, FString(DisplayClusterProjectionStrings::cfg::manual::AngleT), Top))
 	{
-		if (!DisplayClusterHelpers::str::ExtractValue(InAngles, FString(DisplayClusterStrings::cfg::data::projection::manual::AngleTop), Top))
-		{
-			return false;
-		}
+		return false;
 	}
 
 	float Bottom;
-	if (!DisplayClusterHelpers::str::ExtractValue(InAngles, FString(DisplayClusterStrings::cfg::data::projection::manual::AngleB), Bottom))
+	if (!DisplayClusterHelpers::str::ExtractValue(InAngles, FString(DisplayClusterProjectionStrings::cfg::manual::AngleB), Bottom))
 	{
-		if (!DisplayClusterHelpers::str::ExtractValue(InAngles, FString(DisplayClusterStrings::cfg::data::projection::manual::AngleBottom), Bottom))
-		{
-			return false;
-		}
+		return false;
 	}
 
 	OutAngles.Left   = Left;

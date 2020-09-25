@@ -10,6 +10,8 @@
 #include "Windows/HideWindowsPlatformTypes.h"
 #endif
 
+class UDisplayClusterConfigurationInputDeviceAnalog;
+
 
 /**
  * VRPN analog device implementation
@@ -18,7 +20,7 @@ class FDisplayClusterVrpnAnalogInputDevice
 	: public FDisplayClusterVrpnAnalogInputDataHolder
 {
 public:
-	FDisplayClusterVrpnAnalogInputDevice(const FDisplayClusterConfigInput& Config);
+	FDisplayClusterVrpnAnalogInputDevice(const FString& DeviceId, const UDisplayClusterConfigurationInputDeviceAnalog* CfgDevice);
 	virtual ~FDisplayClusterVrpnAnalogInputDevice();
 
 public:

@@ -1,11 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Input/Devices/VRPN/Button/DisplayClusterVrpnButtonInputDataHolder.h"
+#include "DisplayClusterConfigurationTypes.h"
 #include "Misc/DisplayClusterLog.h"
 
 
-FDisplayClusterVrpnButtonInputDataHolder::FDisplayClusterVrpnButtonInputDataHolder(const FDisplayClusterConfigInput& Config) :
-	FDisplayClusterInputDeviceBase<EDisplayClusterInputDeviceType::VrpnButton>(Config)
+FDisplayClusterVrpnButtonInputDataHolder::FDisplayClusterVrpnButtonInputDataHolder(const FString& DeviceId, const UDisplayClusterConfigurationInputDeviceButton* CfgDevice)
+	: FDisplayClusterInputDeviceBase<EDisplayClusterInputDeviceType::VrpnButton>(DeviceId, CfgDevice)
 {
 }
 

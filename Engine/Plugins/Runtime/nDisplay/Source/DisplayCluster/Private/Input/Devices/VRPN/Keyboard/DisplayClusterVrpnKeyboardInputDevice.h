@@ -10,6 +10,8 @@
 #include "Windows/HideWindowsPlatformTypes.h"
 #endif
 
+class UDisplayClusterConfigurationInputDeviceKeyboard;
+
 
 /**
  * VRPN button device implementation
@@ -18,7 +20,7 @@ class FDisplayClusterVrpnKeyboardInputDevice
 	: public FDisplayClusterVrpnKeyboardInputDataHolder
 {
 public:
-	FDisplayClusterVrpnKeyboardInputDevice(const FDisplayClusterConfigInput& Config);
+	FDisplayClusterVrpnKeyboardInputDevice(const FString& DeviceId, const UDisplayClusterConfigurationInputDeviceKeyboard* CfgDevice);
 	virtual ~FDisplayClusterVrpnKeyboardInputDevice();
 
 public:

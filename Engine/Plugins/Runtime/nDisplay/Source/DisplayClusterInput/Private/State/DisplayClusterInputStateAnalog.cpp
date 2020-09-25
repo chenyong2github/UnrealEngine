@@ -7,8 +7,6 @@
 
 bool FAnalogState::OnAnalogChanges(FGenericApplicationMessageHandler* MessageHandler, int32 ControllerId)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterInputAnalog);
-
 	bool bResult = false;
 	for (auto& Key : BindKeys)
 	{
@@ -22,8 +20,6 @@ bool FAnalogState::OnAnalogChanges(FGenericApplicationMessageHandler* MessageHan
 
 void FAnalogState::UpdateEvents(FGenericApplicationMessageHandler* MessageHandler, int32 ControllerId, double CurrentTime)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterInputAnalog);
-
 	if (IsChanged())
 	{
 		ApplyChanges();

@@ -12,9 +12,17 @@ class FDisplayClusterRenderSyncPolicyBase
 	: public IDisplayClusterRenderSyncPolicy
 {
 public:
-	FDisplayClusterRenderSyncPolicyBase();
+	FDisplayClusterRenderSyncPolicyBase(const TMap<FString, FString>& Parameters);
 	virtual ~FDisplayClusterRenderSyncPolicyBase() = 0;
 
 public:
 	void SyncBarrierRenderThread();
+
+	const TMap<FString, FString>& GetParameters() const
+	{
+		return Parameters;
+	}
+
+private:
+	TMap<FString, FString> Parameters;
 };

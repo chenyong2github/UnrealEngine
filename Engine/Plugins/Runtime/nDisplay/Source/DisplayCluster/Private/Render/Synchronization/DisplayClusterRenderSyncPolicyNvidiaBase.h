@@ -12,7 +12,7 @@ class FDisplayClusterRenderSyncPolicyNvidiaBase
 	: public FDisplayClusterRenderSyncPolicyBase
 {
 public:
-	FDisplayClusterRenderSyncPolicyNvidiaBase();
+	FDisplayClusterRenderSyncPolicyNvidiaBase(const TMap<FString, FString>& Parameters);
 	virtual ~FDisplayClusterRenderSyncPolicyNvidiaBase() = 0;
 
 public:

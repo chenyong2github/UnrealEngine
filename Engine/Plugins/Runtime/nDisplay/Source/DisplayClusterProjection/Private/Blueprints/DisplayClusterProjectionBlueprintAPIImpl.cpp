@@ -23,7 +23,7 @@ void UDisplayClusterProjectionBlueprintAPIImpl::CameraPolicySetCamera(const FStr
 
 	IDisplayClusterProjection& Module = IDisplayClusterProjection::Get();
 	
-	TSharedPtr<IDisplayClusterProjectionPolicyFactory> Factory = Module.GetProjectionFactory(DisplayClusterStrings::projection::Camera);
+	TSharedPtr<IDisplayClusterProjectionPolicyFactory> Factory = Module.GetProjectionFactory(DisplayClusterProjectionStrings::projection::Camera);
 	if (Factory.IsValid())
 	{
 		TSharedPtr<FDisplayClusterProjectionCameraPolicyFactory> CameraFactory = StaticCastSharedPtr<FDisplayClusterProjectionCameraPolicyFactory>(Factory);

@@ -7,24 +7,15 @@
 #include "DisplayClusterProjectionStrings.h"
 
 
-FDisplayClusterProjectionEasyBlendPolicyFactory::FDisplayClusterProjectionEasyBlendPolicyFactory()
-{
-}
-
-FDisplayClusterProjectionEasyBlendPolicyFactory::~FDisplayClusterProjectionEasyBlendPolicyFactory()
-{
-}
-
-
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterProjectionPolicyFactory
 //////////////////////////////////////////////////////////////////////////////////////////////
-TSharedPtr<IDisplayClusterProjectionPolicy> FDisplayClusterProjectionEasyBlendPolicyFactory::Create(const FString& PolicyType, const FString& RHIName, const FString& ViewportId)
+TSharedPtr<IDisplayClusterProjectionPolicy> FDisplayClusterProjectionEasyBlendPolicyFactory::Create(const FString& PolicyType, const FString& RHIName, const FString& ViewportId, const TMap<FString, FString>& Parameters)
 {
-	if (RHIName.Compare(DisplayClusterStrings::rhi::D3D11, ESearchCase::IgnoreCase) == 0)
+	if (RHIName.Equals(DisplayClusterProjectionStrings::rhi::D3D11, ESearchCase::IgnoreCase))
 	{
 		UE_LOG(LogDisplayClusterProjectionEasyBlend, Log, TEXT("Instantiating projection policy <%s>..."), *PolicyType);
-		return MakeShareable(new FDisplayClusterProjectionEasyBlendPolicyDX11(ViewportId));
+		return MakeShared<FDisplayClusterProjectionEasyBlendPolicyDX11>(ViewportId, Parameters);
 	}
 
 	UE_LOG(LogDisplayClusterProjectionEasyBlend, Warning, TEXT("There is no implementation of '%s' projection policy for RHI %s"), *PolicyType, *RHIName);
