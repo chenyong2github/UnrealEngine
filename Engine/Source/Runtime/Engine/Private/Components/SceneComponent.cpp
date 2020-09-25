@@ -1768,6 +1768,17 @@ void USceneComponent::SetupAttachment(class USceneComponent* InParent, FName InS
 	}
 }
 
+//This function is used for giving AttachTo different bWeldSimulatedBodies default, but only when called from BP
+bool USceneComponent::K2_AttachTo(class USceneComponent* InParent, FName InSocketName, EAttachLocation::Type AttachLocationType, bool bWeldSimulatedBodies /*= true*/)
+{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FAttachmentTransformRules AttachmentRules(EAttachmentRule::KeepRelative, bWeldSimulatedBodies);
+	ConvertAttachLocation(AttachLocationType, AttachmentRules.LocationRule, AttachmentRules.RotationRule, AttachmentRules.ScaleRule);
+
+	return AttachToComponent(InParent, AttachmentRules, InSocketName);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
 //This function is used for giving AttachToComponent different bWeldSimulatedBodies default, but only when called from BP
 bool USceneComponent::K2_AttachToComponent(USceneComponent* Parent, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule, bool bWeldSimulatedBodies)
 {
@@ -2117,6 +2128,21 @@ bool USceneComponent::AttachToComponent(USceneComponent* Parent, const FAttachme
 	}
 
 	return false;
+}
+
+void USceneComponent::DetachFromParent(bool bMaintainWorldPosition, bool bCallModify)
+{
+	FDetachmentTransformRules DetachmentRules(EDetachmentRule::KeepRelative, bCallModify);
+	if (bMaintainWorldPosition)
+	{
+		DetachmentRules.LocationRule = EDetachmentRule::KeepWorld;
+
+		// force maintain world rotation and scale for backwards compatibility
+		DetachmentRules.RotationRule = EDetachmentRule::KeepWorld;
+		DetachmentRules.ScaleRule = EDetachmentRule::KeepWorld;
+	}
+
+	DetachFromComponent(DetachmentRules);
 }
 
 void USceneComponent::K2_DetachFromComponent(EDetachmentRule LocationRule /*= EDetachmentRule::KeepRelative*/, EDetachmentRule RotationRule /*= EDetachmentRule::KeepRelative*/, EDetachmentRule ScaleRule /*= EDetachmentRule::KeepRelative*/, bool bCallModify /*= true*/)
