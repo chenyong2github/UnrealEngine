@@ -335,6 +335,9 @@ protected:
 	/** Applies the given scale to the current shake offset (only if the result is "relative") */
 	void ApplyScale(float Scale, FCameraShakeUpdateResult& InOutResult) const;
 
+	/** Applies any appropriate system-wide limits */
+	void ApplyLimits(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& InOutResult) const;
+
 	/**
 	 * Modifies the current shake offset to be oriented in the current shake's play space (only if the result is "relative")
 	 *
