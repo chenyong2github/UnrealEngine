@@ -220,7 +220,7 @@ public:
 	 * @param FieldPathInfo the path data from the owner object, including component chain, to this field. (ie. LightComponent0.Intensity)
 	 * @param DesiredDisplayName the display name desired for this control. If the name is not unique preset-wise, a number will be appended.
 	 */
-	TOptional<FRemoteControlProperty> ExposeProperty(FFieldPathInfo FieldPathInfo, const FString& DesiredDisplayName, FGuid GroupId = FGuid());
+	TOptional<FRemoteControlProperty> ExposeProperty(FRCFieldPathInfo FieldPathInfo, TArray<FString> ComponentHierarchy, const FString& DesiredDisplayName, FGuid GroupId = FGuid());
 
 	/**
 	 * Expose a function in this target.
@@ -241,6 +241,13 @@ public:
 	 * @return the field's label or an empty name if not found.
 	 */
 	FName FindFieldLabel(FName FieldName) const;
+
+	/**
+	 * Find a field label using a a field path info.
+	 * @param Path the FieldPathInfo of the field to find.
+	 * @return the field's label or an empty name if not found.
+	 */
+	FName FindFieldLabel(const FRCFieldPathInfo& Path) const;
 
 	/**
 	 * Get a property using its label.

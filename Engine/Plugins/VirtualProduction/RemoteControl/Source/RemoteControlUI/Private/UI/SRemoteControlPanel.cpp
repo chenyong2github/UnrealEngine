@@ -41,7 +41,7 @@
 
 namespace RemoteControlPanelUtil
 {
-	bool FindPropertyHandleRecursive(const TSharedPtr<IPropertyHandle>& PropertyHandle, const FString& QualifiedPropertyName)
+	bool FindPropertyHandleRecursive(const TSharedPtr<IPropertyHandle>& PropertyHandle, const FString& QualifiedPropertyName, bool bRequiresMatchingPath)
 	{
 		if (PropertyHandle && PropertyHandle->IsValidHandle())
 		{
@@ -50,7 +50,7 @@ namespace RemoteControlPanelUtil
 			for (uint32 Index = 0; Index < ChildrenCount; ++Index)
 			{
 				TSharedPtr<IPropertyHandle> ChildHandle = PropertyHandle->GetChildHandle(Index);
-				if (FindPropertyHandleRecursive(ChildHandle, QualifiedPropertyName))
+				if (FindPropertyHandleRecursive(ChildHandle, QualifiedPropertyName, bRequiresMatchingPath))
 				{
 					return true;
 				}
@@ -58,7 +58,14 @@ namespace RemoteControlPanelUtil
 
 			if (PropertyHandle->GetProperty())
 			{
-				if (PropertyHandle->GeneratePathToProperty() == QualifiedPropertyName)
+				if (bRequiresMatchingPath)
+				{
+					if (PropertyHandle->GeneratePathToProperty() == QualifiedPropertyName)
+					{
+						return true;
+					}
+				}
+				else if (PropertyHandle->GetProperty()->GetName() == QualifiedPropertyName)
 				{
 					return true;
 				}
@@ -68,13 +75,13 @@ namespace RemoteControlPanelUtil
 		return false;
 	}
 
-	TSharedPtr<IDetailTreeNode> FindTreeNodeRecursive(const TSharedRef<IDetailTreeNode>& RootNode, const FString& QualifiedPropertyName)
+	TSharedPtr<IDetailTreeNode> FindTreeNodeRecursive(const TSharedRef<IDetailTreeNode>& RootNode, const FString& QualifiedPropertyName, bool bRequiresMatchingPath)
 	{
 		TArray<TSharedRef<IDetailTreeNode>> Children;
 		RootNode->GetChildren(Children);
 		for (TSharedRef<IDetailTreeNode>& Child : Children)
 		{
-			TSharedPtr<IDetailTreeNode> FoundNode = FindTreeNodeRecursive(Child, QualifiedPropertyName);
+			TSharedPtr<IDetailTreeNode> FoundNode = FindTreeNodeRecursive(Child, QualifiedPropertyName, bRequiresMatchingPath);
 			if (FoundNode.IsValid())
 			{
 				return FoundNode;
@@ -82,7 +89,7 @@ namespace RemoteControlPanelUtil
 		}
 
 		TSharedPtr<IPropertyHandle> Handle = RootNode->CreatePropertyHandle();
-		if (FindPropertyHandleRecursive(Handle, QualifiedPropertyName))
+		if (FindPropertyHandleRecursive(Handle, QualifiedPropertyName, bRequiresMatchingPath))
 		{
 			return RootNode;
 		}
@@ -91,11 +98,11 @@ namespace RemoteControlPanelUtil
 	}
 
 	/** Find a node by its name in a detail tree node hierarchy. */
-	TSharedPtr<IDetailTreeNode> FindNode(const TArray<TSharedRef<IDetailTreeNode>>& RootNodes, const FString& QualifiedPropertyName)
+	TSharedPtr<IDetailTreeNode> FindNode(const TArray<TSharedRef<IDetailTreeNode>>& RootNodes, const FString& QualifiedPropertyName, bool bRequiresMatchingPath)
 	{
 		for (const TSharedRef<IDetailTreeNode>& CategoryNode : RootNodes)
 		{
-			TSharedPtr<IDetailTreeNode> FoundNode = FindTreeNodeRecursive(CategoryNode, QualifiedPropertyName);
+			TSharedPtr<IDetailTreeNode> FoundNode = FindTreeNodeRecursive(CategoryNode, QualifiedPropertyName, bRequiresMatchingPath);
 			if (FoundNode.IsValid())
 			{
 				return FoundNode;
@@ -471,7 +478,7 @@ void SRCPanelExposedField::Construct(const FArguments& InArgs, const FRemoteCont
 	FieldType = Field.FieldType;
 	FieldName = Field.FieldName;
 	FieldLabel = Field.Label;
-	QualifiedFieldName = Field.GetQualifiedFieldName();
+	FieldPathInfo = Field.FieldPathInfo;
 	FieldId = Field.Id;
 	RowGenerator = MoveTemp(InRowGenerator);
 	OptionsWidget = InArgs._OptionsContent.Widget;
@@ -608,7 +615,7 @@ void SRCPanelExposedField::GetBoundObjects(TSet<UObject*>& OutBoundObjects) cons
 
 TSharedRef<SWidget> SRCPanelExposedField::ConstructPropertyWidget()
 {
-	if (TSharedPtr<IDetailTreeNode> Node = RemoteControlPanelUtil::FindNode(RowGenerator->GetRootTreeNodes(), QualifiedFieldName))
+	if (TSharedPtr<IDetailTreeNode> Node = RemoteControlPanelUtil::FindNode(RowGenerator->GetRootTreeNodes(), FieldPathInfo.ToPathPropertyString(), true))
 	{
 		TArray<TSharedRef<IDetailTreeNode>> ChildNodes;
 		Node->GetChildren(ChildNodes);
@@ -838,16 +845,18 @@ FExposableProperty::FExposableProperty(const TSharedPtr<IPropertyHandle>& Proper
 	{
 		return;
 	}
+
 	PropertyDisplayName = PropertyHandle->GetPropertyDisplayName().ToString();
 	PropertyName = PropertyHandle->GetProperty()->GetFName();
 
 	if (InOwnerObjects.Num() > 0 && InOwnerObjects[0])
 	{
-		//Get the nested path
-		FieldPathInfo = FFieldPathInfo(PropertyHandle->GeneratePathToProperty());
+		//Build qualified property path for this field
+		constexpr bool bCleanDuplicates = true; //GeneratePathToProperty duplicates container name (Array.Array[1], Set.Set[1], etc...)
+		FieldPathInfo = FRCFieldPathInfo(PropertyHandle->GeneratePathToProperty(), bCleanDuplicates);
 		
-		//Build the component hierarchy
-		if (InOwnerObjects[0]->IsA<UActorComponent>())
+		//Build the component hierarchy if any
+		if (InOwnerObjects[0] && InOwnerObjects[0]->IsA<UActorComponent>())
 		{
 			UObject* CurrentOuter = InOwnerObjects[0];
 			for (;;)
@@ -856,7 +865,7 @@ FExposableProperty::FExposableProperty(const TSharedPtr<IPropertyHandle>& Proper
 				{
 					break;
 				}
-				FieldPathInfo.ComponentChain.Insert(CurrentOuter->GetName(), 0);
+				ComponentChain.Insert(CurrentOuter->GetName(), 0);
 				CurrentOuter = CurrentOuter->GetOuter();
 			}
 		}
@@ -1015,7 +1024,7 @@ bool SRemoteControlPanel::IsExposed(const TSharedPtr<IPropertyHandle>& PropertyH
 				FRemoteControlTarget& Target = Tuple.Value;
 				if (Target.HasBoundObjects({ Property.OwnerObjects[0]}))
 				{
-					if (Target.FindFieldLabel(Property.PropertyName) == NAME_None)
+					if (Target.FindFieldLabel(Property.FieldPathInfo) == NAME_None)
 					{
 						return false;
 					}
@@ -1147,7 +1156,7 @@ FRemoteControlTarget* SRemoteControlPanel::Expose(FExposableProperty&& Property)
 	auto ExposePropertyLambda = 
 		[this, &LastModifiedTarget, GroupId](FRemoteControlTarget& Target, const FExposableProperty& Property)
 		{ 
-			if (TOptional<FRemoteControlProperty> RCProperty = Target.ExposeProperty(Property.FieldPathInfo, Property.PropertyDisplayName, GroupId))
+			if (TOptional<FRemoteControlProperty> RCProperty = Target.ExposeProperty(Property.FieldPathInfo, Property.ComponentChain, Property.PropertyDisplayName, GroupId))
 			{
 				LastModifiedTarget = &Target;
 			}
@@ -1189,7 +1198,7 @@ void SRemoteControlPanel::Unexpose(const TSharedPtr<IPropertyHandle>& Handle)
 		{
 			if (Tuple.Value.HasBoundObjects({ Property.OwnerObjects[0] }))
 			{
-				Preset->Unexpose(Tuple.Value.FindFieldLabel(Property.PropertyName));
+				Preset->Unexpose(Tuple.Value.FindFieldLabel(Property.FieldPathInfo));
 			}
 		}
 	}
@@ -1328,7 +1337,10 @@ TSharedRef<ITableRow> SRemoteControlPanel::OnGenerateRow(TSharedPtr<FRCPanelTree
 
 void SRemoteControlPanel::OnGetGroupChildren(TSharedPtr<FRCPanelTreeNode> Node, TArray<TSharedPtr<FRCPanelTreeNode>>& OutNodes)
 {
-	Node->GetNodeChildren(OutNodes);
+	if (Node.IsValid())
+	{
+		Node->GetNodeChildren(OutNodes);
+	}
 }
 
 void SRemoteControlPanel::SelectActorsInlevel(const TArray<UObject*>& Objects)
@@ -2075,7 +2087,7 @@ TSharedPtr<SRCPanelExposedField> SRemoteControlTarget::AddExposedProperty(const 
 		if (TOptional<FExposedProperty> Property = Panel->Preset->ResolveExposedProperty(RCProperty.Label))
 		{
 			RowGenerator->SetObjects(Property->OwnerObjects);
-			if (TSharedPtr<IDetailTreeNode> Node = RemoteControlPanelUtil::FindNode(RowGenerator->GetRootTreeNodes(), RCProperty.GetQualifiedFieldName()))
+			if (TSharedPtr<IDetailTreeNode> Node = RemoteControlPanelUtil::FindNode(RowGenerator->GetRootTreeNodes(), RCProperty.FieldPathInfo.ToPathPropertyString(), true))
 			{
 				ExposedFieldWidgets.Add(SAssignNew(ExposedFieldWidget, SRCPanelExposedField, RCProperty, RowGenerator, WeakPanel)
 					.EditMode_Raw(this, &SRemoteControlTarget::GetPanelEditMode));
@@ -2124,7 +2136,7 @@ TSharedPtr<SRCPanelExposedField> SRemoteControlTarget::AddExposedFunction(const 
 			continue;
 		}
 
-		if (TSharedPtr<IDetailTreeNode> PropertyNode = RemoteControlPanelUtil::FindNode(RowGenerator->GetRootTreeNodes(), It->GetFName().ToString()))
+		if (TSharedPtr<IDetailTreeNode> PropertyNode = RemoteControlPanelUtil::FindNode(RowGenerator->GetRootTreeNodes(), It->GetFName().ToString(), false))
 		{
 			FNodeWidgets Widget = PropertyNode->CreateNodeWidgets();
 
