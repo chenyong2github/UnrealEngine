@@ -31,7 +31,7 @@ LandscapeEditLayers.cpp: Landscape editing layers mode
 #include "Algo/Count.h"
 #include "LandscapeSettings.h"
 #include "LandscapeRender.h"
-#include "LandscapeSubsystem.h"
+#include "LandscapeInfoMap.h"
 #include "Misc/MessageDialog.h"
 #include "GameFramework/WorldSettings.h"
 #include "UObject/UObjectThreadContext.h"
@@ -129,11 +129,14 @@ private:
 			return;
 		}
 
-		ULandscapeSubsystem::ForEachLandscapeInfo(GWorld, [](ULandscapeInfo* LandscapeInfo)
+		auto& LandscapeInfoMap = ULandscapeInfoMap::GetLandscapeInfoMap(GWorld);
+		for (TPair<FGuid, ULandscapeInfo*>& Pair : LandscapeInfoMap.Map)
 		{
-			LandscapeInfo->ClearDirtyData();
-			return true;
-		});
+			if (Pair.Value)
+			{
+				Pair.Value->ClearDirtyData();
+			}
+		}
 
 		UE_LOG(LogLandscape, Display, TEXT("Landscape.Dirty: Cleared"));
 	}

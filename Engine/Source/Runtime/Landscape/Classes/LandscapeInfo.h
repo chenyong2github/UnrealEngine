@@ -212,7 +212,6 @@ public:
 	/** Recreate all LandscapeInfo objects in given world
 	 *  @param  bMapCheck	Whether to warn about landscape errors
 	 */
-	UE_DEPRECATED(5.0, "Deprecated, please use ULandscapeSubsystem::RecreateLandscapeInfos instead")
 	LANDSCAPE_API static void RecreateLandscapeInfo(UWorld* InWorld, bool bMapCheck);
 
 	/** 

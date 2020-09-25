@@ -13,7 +13,7 @@
 #include "LandscapeInfo.h"
 #include "Engine/Texture2D.h"
 #include "LandscapeLayerInfoObject.h"
-#include "LandscapeSubsystem.h"
+#include "LandscapeInfoMap.h"
 #include "LandscapeDataAccess.h"
 #include "LandscapeRender.h"
 #include "LandscapeGizmoActiveActor.h"
@@ -650,15 +650,15 @@ void ALandscapeGizmoActiveActor::SetTargetLandscape(ULandscapeInfo* LandscapeInf
 		TargetLandscapeInfo = nullptr;
 		if (GetWorld())
 		{
-			ULandscapeSubsystem::ForEachLandscapeInfo(GetWorld(), [this](ULandscapeInfo* CandidateInfo)
+			for (const TPair<FGuid, ULandscapeInfo*>& InfoMapPair : ULandscapeInfoMap::GetLandscapeInfoMap(GetWorld()).Map)
 			{
+				ULandscapeInfo* CandidateInfo = InfoMapPair.Value;
 				if (CandidateInfo && !CandidateInfo->HasAnyFlags(RF_BeginDestroyed) && CandidateInfo->GetLandscapeProxy() != nullptr)
 				{
 					TargetLandscapeInfo = CandidateInfo;
-					return false;
+					break;
 				}
-				return true;
-			});
+			}
 		}
 	}
 	else

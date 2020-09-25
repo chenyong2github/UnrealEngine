@@ -90,7 +90,7 @@
 #include "Editor/ActorPositioning.h"
 #include "Matinee/InterpData.h"
 #include "LandscapeInfo.h"
-#include "LandscapeSubsystem.h"
+#include "LandscapeInfoMap.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Logging/LogScopedCategoryAndVerbosityOverride.h"
@@ -591,11 +591,11 @@ bool UUnrealEdEngine::HandleRecreateLandscapeCollisionCommand(const TCHAR* Str, 
 {
 	if (!PlayWorld && InWorld && InWorld->GetWorldSettings())
 	{
-		ULandscapeSubsystem::ForEachLandscapeInfo(InWorld, [](ULandscapeInfo* LandscapeInfo)
+		for (auto It = ULandscapeInfoMap::GetLandscapeInfoMap(InWorld).Map.CreateIterator(); It; ++It)
 		{
-			LandscapeInfo->RecreateCollisionComponents();
-			return true;
-		});
+			ULandscapeInfo* Info = It.Value();
+			Info->RecreateCollisionComponents();
+		}
 	}
 	return true;
 }
@@ -604,11 +604,11 @@ bool UUnrealEdEngine::HandleRemoveLandscapeXYOffsetsCommand(const TCHAR* Str, FO
 {
 	if (!PlayWorld && InWorld && InWorld->GetWorldSettings())
 	{
-		ULandscapeSubsystem::ForEachLandscapeInfo(InWorld, [](ULandscapeInfo* LandscapeInfo)
+		for (auto It = ULandscapeInfoMap::GetLandscapeInfoMap(InWorld).Map.CreateIterator(); It; ++It)
 		{
-			LandscapeInfo->RemoveXYOffsets();
-			return true;
-		});
+			ULandscapeInfo* Info = It.Value();
+			Info->RemoveXYOffsets();
+		}
 	}
 	return true;
 }

@@ -3779,7 +3779,7 @@ void ALandscapeProxy::PostEditMove(bool bFinished)
 
 	if (bFinished && !GetWorld()->IsGameWorld())
 	{
-		ULandscapeSubsystem::RecreateLandscapeInfos(GetWorld(), true);
+		ULandscapeInfo::RecreateLandscapeInfo(GetWorld(), true);
 		RecreateComponentsState();
 
 		if (SplineComponent)
@@ -4826,7 +4826,7 @@ void ALandscapeStreamingProxy::PostEditChangeProperty(FPropertyChangedEvent& Pro
 			if (GIsEditor && GetWorld() && !GetWorld()->IsPlayInEditor())
 			{
 				// TODO - only need to refresh the old and new landscape info
-				ULandscapeSubsystem::RecreateLandscapeInfos(GetWorld(), false);
+				ULandscapeInfo::RecreateLandscapeInfo(GetWorld(), false);
 				FixupWeightmaps();
 				InitializeProxyLayersWeightmapUsage();
 			}
