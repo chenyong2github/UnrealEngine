@@ -69,6 +69,7 @@ public:
 	void ForEachLevelInstanceChildren(ALevelInstance* LevelInstanceActor, bool bRecursive, TFunctionRef<bool(ALevelInstance*)> Operation) const;
 	void ForEachLevelInstanceEdit(TFunctionRef<bool(ALevelInstance*)> Operation) const;
 	bool HasDirtyChildrenLevelInstances(const ALevelInstance* LevelInstanceActor) const;
+	bool HasEditingChildrenLevelInstances(const ALevelInstance* LevelInstanceActor) const;
 
 	void SetIsTemporarilyHiddenInEditor(ALevelInstance* LevelInstanceActor, bool bIsHidden);
 

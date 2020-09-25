@@ -441,15 +441,15 @@ bool ALevelInstance::CanDeleteSelectedActor(FText& OutReason) const
 		return false;
 	}
 
-	if (IsDirty())
+	if (IsEditing())
 	{
-		OutReason = LOCTEXT("HasDirtyLevel", "Can't delete LevelInstance because it is dirty!");
+		OutReason = LOCTEXT("HasEditingLevel", "Can't delete LevelInstance because it is editing!");
 		return false;
 	}
 
-	if (HasDirtyChildren())
+	if (HasEditingChildren())
 	{
-		OutReason = LOCTEXT("HasDirtryChildLevel", "Can't delete LevelInstance because it has dirty child LevelInstances!");
+		OutReason = LOCTEXT("HasEditingChildLevel", "Can't delete LevelInstance because it has editing child LevelInstances!");
 		return false;
 	}
 	return true;
@@ -596,6 +596,16 @@ bool ALevelInstance::IsEditing() const
 	if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetLevelInstanceSubsystem())
 	{
 		return LevelInstanceSubsystem->IsEditingLevelInstance(this);
+	}
+
+	return false;
+}
+
+bool ALevelInstance::HasEditingChildren() const
+{
+	if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetLevelInstanceSubsystem())
+	{
+		return LevelInstanceSubsystem->HasEditingChildrenLevelInstances(this);
 	}
 
 	return false;

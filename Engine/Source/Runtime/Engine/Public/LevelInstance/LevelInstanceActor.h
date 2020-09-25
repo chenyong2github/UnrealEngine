@@ -58,6 +58,7 @@ public:
 	bool CanEdit(FText* OutReason = nullptr) const;
 	bool CanCommit(FText* OutReason = nullptr) const;
 	bool IsEditing() const;
+	bool HasEditingChildren() const;
 	void Edit(AActor* ContextActor = nullptr);
 	void Commit();
 	void Discard();

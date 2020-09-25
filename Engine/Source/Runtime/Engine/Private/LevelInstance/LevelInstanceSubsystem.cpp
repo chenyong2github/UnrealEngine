@@ -488,6 +488,21 @@ bool ULevelInstanceSubsystem::HasDirtyChildrenLevelInstances(const ALevelInstanc
 	return bDirtyChildren;
 }
 
+bool ULevelInstanceSubsystem::HasEditingChildrenLevelInstances(const ALevelInstance* LevelInstanceActor) const
+{
+	bool bEditingChildren = false;
+	ForEachLevelInstanceChildren(LevelInstanceActor, true, [this, &bEditingChildren](const ALevelInstance* ChildLevelInstanceActor)
+		{
+			if (IsEditingLevelInstance(ChildLevelInstanceActor))
+			{
+				bEditingChildren = true;
+				return false;
+			}
+			return true;
+		});
+	return bEditingChildren;
+}
+
 void ULevelInstanceSubsystem::SetIsTemporarilyHiddenInEditor(ALevelInstance* LevelInstanceActor, bool bIsHidden)
 {
 	if (ULevel* LevelInstanceLevel = GetLevelInstanceLevel(LevelInstanceActor))
