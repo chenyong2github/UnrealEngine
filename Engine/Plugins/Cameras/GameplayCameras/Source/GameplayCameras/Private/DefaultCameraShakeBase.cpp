@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CameraShakeInstance.h"
+#include "DefaultCameraShakeBase.h"
 #include "PerlinNoiseCameraShakePattern.h"
 
-UCameraShakeInstance::UCameraShakeInstance(const FObjectInitializer& ObjInit)
+UDefaultCameraShakeBase::UDefaultCameraShakeBase(const FObjectInitializer& ObjInit)
 	: Super(ObjInit
 				.SetDefaultSubobjectClass<UPerlinNoiseCameraShakePattern>(TEXT("RootShakePattern")))
 {
