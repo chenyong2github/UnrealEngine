@@ -56,14 +56,14 @@ FRemoteSessionInputChannel::FRemoteSessionInputChannel(ERemoteSessionChannelMode
 	}
 	else
 	{
-		DefaultHandler = FSlateApplication::Get().GetPlatformApplication()->GetMessageHandler();
+		TSharedPtr<FGenericApplicationMessageHandler> TargetHandler = FSlateApplication::Get().GetPlatformApplication()->GetMessageHandler();
 
-		PlaybackHandler = MakeShared<FRecordingMessageHandler>(DefaultHandler);
+		PlaybackHandler = MakeShared<FRecordingMessageHandler>(TargetHandler);
 		
 		auto Delegate = FBackChannelRouteDelegate::FDelegate::CreateRaw(this, &FRemoteSessionInputChannel::OnRemoteMessage);
 		MessageCallbackHandle = Connection->AddRouteDelegate(TEXT("/MessageHandler/"), Delegate);
 
-		FSlateApplication::Get().GetPlatformApplication()->SetMessageHandler(PlaybackHandler.ToSharedRef());
+		//FSlateApplication::Get().GetPlatformApplication()->SetMessageHandler(PlaybackHandler.ToSharedRef());
 	}
 }
 
