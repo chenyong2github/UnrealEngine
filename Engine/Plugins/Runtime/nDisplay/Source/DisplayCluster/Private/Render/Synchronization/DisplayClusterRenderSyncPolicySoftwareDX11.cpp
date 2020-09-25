@@ -94,7 +94,8 @@ static NvU32 DisplayAmount = 0;
 static NvDisplayHandle DisplayHandles[NVAPI_MAX_DISPLAYS];
 
 
-FDisplayClusterRenderSyncPolicySoftwareDX11::FDisplayClusterRenderSyncPolicySoftwareDX11()
+FDisplayClusterRenderSyncPolicySoftwareDX11::FDisplayClusterRenderSyncPolicySoftwareDX11(const TMap<FString, FString>& Parameters)
+	: FDisplayClusterRenderSyncPolicySoftwareBase(Parameters)
 {
 	// We check the console variable once at start. The advanced synchronization policy is not 
 	// supposed to be activated/deactivated at runtime. Use .ini settings to set desired value.

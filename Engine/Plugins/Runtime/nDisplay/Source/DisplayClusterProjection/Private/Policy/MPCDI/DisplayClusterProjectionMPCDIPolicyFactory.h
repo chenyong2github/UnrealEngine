@@ -13,14 +13,10 @@ class FDisplayClusterProjectionMPCDIPolicyFactory
 	: public IDisplayClusterProjectionPolicyFactory
 {
 public:
-	FDisplayClusterProjectionMPCDIPolicyFactory();
-	virtual ~FDisplayClusterProjectionMPCDIPolicyFactory();
-
-public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterProjectionPolicyFactory
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual TSharedPtr<IDisplayClusterProjectionPolicy> Create(const FString& PolicyType, const FString& RHIName, const FString& ViewportId) override;
+	virtual TSharedPtr<IDisplayClusterProjectionPolicy> Create(const FString& PolicyType, const FString& RHIName, const FString& ViewportId, const TMap<FString, FString>& Parameters) override;
 
 	TArray<TSharedPtr<FDisplayClusterProjectionPolicyBase>> GetPolicy();
 	TSharedPtr<FDisplayClusterProjectionPolicyBase>         GetPolicyByViewport(const FString& ViewportId);

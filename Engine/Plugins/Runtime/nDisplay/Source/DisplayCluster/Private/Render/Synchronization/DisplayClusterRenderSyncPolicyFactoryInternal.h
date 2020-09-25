@@ -16,5 +16,5 @@ public:
 	virtual ~FDisplayClusterRenderSyncPolicyFactoryInternal();
 
 public:
-	virtual TSharedPtr<IDisplayClusterRenderSyncPolicy> Create(const FString& InPolicyType, const FString& InRHIName) override;
+	virtual TSharedPtr<IDisplayClusterRenderSyncPolicy> Create(const FString& InPolicyType, const FString& InRHIName, const TMap<FString, FString>& Parameters) override;
 };

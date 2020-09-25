@@ -2,10 +2,11 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
 #include "Input/Devices/DisplayClusterInputDeviceTraits.h"
 #include "IDisplayClusterStringSerializable.h"
 
-#include "Config/DisplayClusterConfigTypes.h"
+#include "DisplayClusterConfigurationTypes.h"
 
 
 /**
@@ -20,8 +21,7 @@ public:
 
 	virtual FString GetId() const = 0;
 	virtual FString GetType() const = 0;
-	virtual EDisplayClusterInputDeviceType GetTypeId() const = 0;
-	virtual FDisplayClusterConfigInput     GetConfig() const = 0;
+	virtual EDisplayClusterInputDeviceType    GetTypeId() const = 0;
 
 	virtual bool Initialize() = 0;
 	virtual void PreUpdate() = 0;

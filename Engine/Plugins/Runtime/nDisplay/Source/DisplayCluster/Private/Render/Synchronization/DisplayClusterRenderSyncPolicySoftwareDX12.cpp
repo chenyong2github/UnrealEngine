@@ -14,7 +14,8 @@
 #undef GetRenderTargetFormat
 
 
-FDisplayClusterRenderSyncPolicySoftwareDX12::FDisplayClusterRenderSyncPolicySoftwareDX12()
+FDisplayClusterRenderSyncPolicySoftwareDX12::FDisplayClusterRenderSyncPolicySoftwareDX12(const TMap<FString, FString>& Parameters)
+	: FDisplayClusterRenderSyncPolicySoftwareBase(Parameters)
 {
 }
 

@@ -42,6 +42,7 @@ public:
 	// IDisplayClusterRenderManager
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// Device
+	virtual IDisplayClusterRenderDevice* GetRenderDevice() const override;
 	virtual bool RegisterRenderDeviceFactory(const FString& InDeviceType, TSharedPtr<IDisplayClusterRenderDeviceFactory>& InFactory) override;
 	virtual bool UnregisterRenderDeviceFactory(const FString& InDeviceType) override;
 	// Synchronization
@@ -57,28 +58,6 @@ public:
 	virtual bool RegisterPostprocessOperation(const FString& InName, IPDisplayClusterRenderManager::FDisplayClusterPPInfo& InPPInfo) override;
 	virtual bool UnregisterPostprocessOperation(const FString& InName) override;
 	virtual TMap<FString, IPDisplayClusterRenderManager::FDisplayClusterPPInfo> GetRegisteredPostprocessOperations() const override;
-	// Custom Rendering Post-process
-	virtual void SetStartPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& StartPostProcessingSettings) override;
-	virtual void SetOverridePostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& OverridePostProcessingSettings, float BlendWeight = 1.0f) override;
-	virtual void SetFinalPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& FinalPostProcessingSettings) override;
-	virtual FPostProcessSettings GetUpdatedCinecameraPostProcessing(float DeltaSeconds, UCineCameraComponent* CineCamera) override;
-
-	// Camera
-	virtual void SetViewportCamera(const FString& InCameraId = FString(), const FString& InViewportId = FString()) override;
-
-	// Viewports
-	virtual bool GetViewportRect(const FString& InViewportID, FIntRect& Rect) override;
-	virtual bool SetBufferRatio(const FString& InViewportID, float InBufferRatio) override;
-	virtual bool GetBufferRatio(const FString& InViewportID, float &OutBufferRatio) const override;
-	virtual bool GetViewportProjectionPolicy(const FString& InViewportID, TSharedPtr<IDisplayClusterProjectionPolicy>& OutProjectionPolicy) override;
-	virtual bool GetViewportContext(const FString& InViewportID, int ViewIndex, FDisplayClusterRenderViewContext& OutViewContext) override;
-
-	// Camera API
-	virtual float GetInterpupillaryDistance(const FString& CameraId) const override;
-	virtual void  SetInterpupillaryDistance(const FString& CameraId, float EyeDistance) override;
-	virtual bool  GetEyesSwap(const FString& CameraId) const override;
-	virtual void  SetEyesSwap(const FString& CameraId, bool EyeSwapped) override;
-	virtual bool  ToggleEyesSwap(const FString& CameraId) override;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -96,8 +75,6 @@ private:
 
 private:
 	EDisplayClusterOperationMode CurrentOperationMode;
-	FString ConfigPath;
-	FString ClusterNodeId;
 
 	// Interface pointer to avoid type casting
 	IDisplayClusterRenderDevice* RenderDevicePtr = nullptr;

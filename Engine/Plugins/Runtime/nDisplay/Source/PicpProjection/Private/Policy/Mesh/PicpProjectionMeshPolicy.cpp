@@ -2,16 +2,13 @@
 
 #include "Policy/Mesh/PicpProjectionMeshPolicy.h"
 
-#include "PicpProjectionHelpers.h"
 #include "PicpProjectionLog.h"
 #include "PicpProjectionStrings.h"
 
-#include "DisplayClusterProjectionHelpers.h"
 #include "DisplayClusterProjectionLog.h"
 #include "DisplayClusterProjectionStrings.h"
 #include "PicpProjectionStrings.h"
 
-#include "Config/DisplayClusterConfigTypes.h"
 #include "Game/IDisplayClusterGameManager.h"
 #include "Render/IDisplayClusterRenderManager.h"
 
@@ -19,8 +16,8 @@
 #include "Misc/Paths.h"
 
 
-FPicpProjectionMeshPolicy::FPicpProjectionMeshPolicy(const FString& ViewportId)
-	: FPicpProjectionMPCDIPolicy(ViewportId)
+FPicpProjectionMeshPolicy::FPicpProjectionMeshPolicy(const FString& ViewportId, const TMap<FString, FString>& Parameters)
+	: FPicpProjectionMPCDIPolicy(ViewportId, Parameters)
 {
 }
 
@@ -66,8 +63,6 @@ bool FPicpProjectionMeshPolicy::AssignWarpMesh(UStaticMeshComponent* MeshCompone
 		//@todo: Handle error
 		return false;
 	}
-
-	UE_LOG(LogPicpProjectionMesh, Log, TEXT("PICP Mesh policy BP setup for viewport '%s' has been initialized."), *GetViewportId());
 
 	return true;
 }

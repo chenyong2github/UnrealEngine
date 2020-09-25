@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DisplayClusterSceneComponentSyncThis.h"
+#include "Components/DisplayClusterSceneComponentSyncThis.h"
 
 #include "GameFramework/Actor.h"
 

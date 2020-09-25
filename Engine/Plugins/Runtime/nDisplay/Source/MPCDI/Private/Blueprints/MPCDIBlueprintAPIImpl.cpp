@@ -3,16 +3,14 @@
 #include "Blueprints/MPCDIBlueprintAPIImpl.h"
 
 #include "Engine/TextureRenderTarget2D.h"
-
 #include "UObject/Package.h"
 
 #include "IMPCDI.h"
+#include "MPCDIData.h"
 #include "MPCDILog.h"
 #include "MPCDIRegion.h"
-#include "MPCDIData.h"
-#include "MPCDIWarpTexture.h"
-
 #include "MPCDIStrings.h"
+#include "MPCDIWarpTexture.h"
 
 
 static bool ExportMeshData(FMPCDIRegion* Region, struct FMPCDIGeometryExportData& MeshData)
@@ -90,7 +88,7 @@ bool UMPCDIAPIImpl::GetMPCDIMeshData(const FString& MPCDIFile, const FString& Bu
 
 bool UMPCDIAPIImpl::GetPFMMeshData(const FString& LocalPFMFile, FMPCDIGeometryExportData& MeshData, float PFMScale, bool bIsMPCDIAxis)
 {
-	FString DefID(DisplayClusterStrings::cfg::data::mpcdi::PFMFileDefaultID);
+	FString DefID(DisplayClusterMPCDIStrings::cfg::PFMFileDefaultID);
 	
 	IMPCDI::FRegionLocator RegionLocator;
 

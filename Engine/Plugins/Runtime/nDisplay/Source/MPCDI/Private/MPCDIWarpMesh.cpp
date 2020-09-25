@@ -2,7 +2,6 @@
 
 #include "MPCDIWarpMesh.h"
 #include "MPCDIData.h"
-#include "MPCDIHelpers.h"
 #include "MPCDIWarpHelpers.h"
 
 #include "Shader.h"

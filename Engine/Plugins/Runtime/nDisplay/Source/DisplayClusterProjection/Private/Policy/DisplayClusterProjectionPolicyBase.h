@@ -14,14 +14,28 @@ class FDisplayClusterProjectionPolicyBase
 	: public IDisplayClusterProjectionPolicy
 {
 public:
-	FDisplayClusterProjectionPolicyBase(const FString& ViewportId);
+	FDisplayClusterProjectionPolicyBase(const FString& ViewportId, const TMap<FString, FString>& Parameters);
 	virtual ~FDisplayClusterProjectionPolicyBase() = 0;
 
 	const FString& GetViewportId() const
-	{ return PolicyViewportId; }
+	{
+		return PolicyViewportId;
+	}
 
 	const USceneComponent* const GetOriginComp() const
-	{ return PolicyOriginComp; }
+	{
+		return PolicyOriginComp;
+	}
+
+	TMap<FString, FString>& GetParameters()
+	{
+		return Parameters;
+	}
+
+	const TMap<FString, FString>& GetParameters() const
+	{
+		return Parameters;
+	}
 
 protected:
 	void InitializeOriginComponent(const FString& OriginCopmId);
@@ -31,4 +45,6 @@ private:
 	FString PolicyViewportId;
 	FString PolicyOriginCompId;
 	USceneComponent* PolicyOriginComp = nullptr;
+
+	TMap<FString, FString> Parameters;
 };

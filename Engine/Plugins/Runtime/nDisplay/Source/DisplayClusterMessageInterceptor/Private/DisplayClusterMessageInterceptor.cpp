@@ -101,14 +101,16 @@ void FDisplayClusterMessageInterceptor::SyncMessages()
 			FScopeLock Lock(&ContextQueueCS);
 			ContextMap.GenerateKeyArray(MessageIds);
 		}
-		FDisplayClusterClusterEvent SyncMessagesEvent;
+		FDisplayClusterClusterEventJson SyncMessagesEvent;
 		SyncMessagesEvent.Category = TEXT("nDCI");				// message bus sync message
 		SyncMessagesEvent.Name = ClusterManager->GetNodeId();	// which node got the message
+		SyncMessagesEvent.bIsSystemEvent = true;				// nDisplay internal event
+		SyncMessagesEvent.bShouldDiscardOnRepeat = false;		// Don' discard the events with the same cat/type/name
 		for (const FString& MessageId : MessageIds)
 		{
 			SyncMessagesEvent.Type = MessageId;					// the actually message id we received
 			const bool bMasterOnly = false; //All nodes are broadcasting events to synchronize them across cluster
-			ClusterManager->EmitClusterEvent(SyncMessagesEvent, bMasterOnly);
+			ClusterManager->EmitClusterEventJson(SyncMessagesEvent, bMasterOnly);
 			UE_LOG(LogDisplayClusterInterception, VeryVerbose, TEXT("Emitting cluster event for message %s on frame %d"), *MessageId, GFrameCounter);
 		}
 	}
@@ -148,7 +150,7 @@ void FDisplayClusterMessageInterceptor::SyncMessages()
 	}
 }
 
-void FDisplayClusterMessageInterceptor::HandleClusterEvent(const FDisplayClusterClusterEvent& InEvent)
+void FDisplayClusterMessageInterceptor::HandleClusterEvent(const FDisplayClusterClusterEventJson& InEvent)
 {
 	TArray<TSharedPtr<IMessageContext, ESPMode::ThreadSafe>> ContextToForward;
 	if (InEvent.Category == TEXT("nDCI") && ClusterManager)

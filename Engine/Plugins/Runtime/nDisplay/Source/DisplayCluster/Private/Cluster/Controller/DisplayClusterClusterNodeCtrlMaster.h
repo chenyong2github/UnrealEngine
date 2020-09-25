@@ -5,11 +5,10 @@
 #include "CoreMinimal.h"
 #include "Cluster/Controller/DisplayClusterClusterNodeCtrlSlave.h"
 
-#include "Network/DisplayClusterMessage.h"
-
 class FDisplayClusterClusterSyncService;
-class FDisplayClusterSwapSyncService;
-class FDisplayClusterClusterEventsService;
+class FDisplayClusterRenderSyncService;
+class FDisplayClusterClusterEventsJsonService;
+class FDisplayClusterClusterEventsBinaryService;
 
 
 /**
@@ -24,23 +23,25 @@ public:
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	// IPDisplayClusterClusterSyncProtocol
+	// IDisplayClusterProtocolClusterSync
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual void GetDeltaTime(float& DeltaSeconds) override;
 	virtual void GetFrameTime(TOptional<FQualifiedFrameTime>& FrameTime) override;
-	virtual void GetSyncData(FDisplayClusterMessage::DataType& SyncData, EDisplayClusterSyncGroup SyncGroup) override;
-	virtual void GetInputData(FDisplayClusterMessage::DataType& InputData) override;
-	virtual void GetEventsData(FDisplayClusterMessage::DataType& EventsData) override;
-	virtual void GetNativeInputData(FDisplayClusterMessage::DataType& EventsData) override;
+	virtual void GetSyncData(TMap<FString, FString>& SyncData, EDisplayClusterSyncGroup SyncGroup) override;
+	virtual void GetInputData(TMap<FString, FString>& InputData) override;
+	virtual void GetEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson>>& JsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary>>& BinaryEvents) override;
+	virtual void GetNativeInputData(TMap<FString, FString>& EventsData) override;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	// IPDisplayClusterNodeController
+	// IDisplayClusterNodeController
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual void ClearCache() override;
 
 	virtual bool IsSlave() const override final
-	{ return false; }
+	{
+		return false;
+	}
 
 protected:
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -56,9 +57,10 @@ protected:
 
 private:
 	// Node servers
-	TUniquePtr<FDisplayClusterClusterSyncService>   ClusterSyncServer;
-	TUniquePtr<FDisplayClusterSwapSyncService>      SwapSyncServer;
-	TUniquePtr<FDisplayClusterClusterEventsService> ClusterEventsServer;
+	TUniquePtr<FDisplayClusterClusterSyncService>         ClusterSyncServer;
+	TUniquePtr<FDisplayClusterRenderSyncService>          RenderSyncServer;
+	TUniquePtr<FDisplayClusterClusterEventsJsonService>   ClusterEventsJsonServer;
+	TUniquePtr<FDisplayClusterClusterEventsBinaryService> ClusterEventsBinaryServer;
 
 private:
 	// GetDeltaTime internals
@@ -71,15 +73,16 @@ private:
 
 	// GetSyncData internals
 	TMap<EDisplayClusterSyncGroup, FEvent*> CachedSyncDataEvents;
-	TMap<EDisplayClusterSyncGroup, FDisplayClusterMessage::DataType> CachedSyncData;
+	TMap<EDisplayClusterSyncGroup, TMap<FString, FString>> CachedSyncData;
 
 	// GetInputData internals
 	FEvent* CachedInputDataEvent = nullptr;
-	FDisplayClusterMessage::DataType CachedInputData;
+	TMap<FString, FString> CachedInputData;
 
 	// GetEventsData internals
 	FEvent* CachedEventsDataEvent = nullptr;
-	FDisplayClusterMessage::DataType CachedEventsData;
+	TArray<TSharedPtr<FDisplayClusterClusterEventJson>>   CachedJsonEvents;
+	TArray<TSharedPtr<FDisplayClusterClusterEventBinary>> CachedBinaryEvents;
 
 private:
 	mutable FCriticalSection InternalsSyncScope;

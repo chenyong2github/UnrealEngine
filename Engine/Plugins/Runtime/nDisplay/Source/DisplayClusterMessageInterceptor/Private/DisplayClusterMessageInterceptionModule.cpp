@@ -82,7 +82,7 @@ public:
 			IDisplayClusterClusterManager* ClusterManager = IDisplayCluster::Get().GetClusterMgr();
 			if (ClusterManager && ListenerDelegate.IsBound())
 			{
-				ClusterManager->RemoveClusterEventListener(ListenerDelegate);
+				ClusterManager->RemoveClusterEventJsonListener(ListenerDelegate);
 				ListenerDelegate.Unbind();
 			}
 
@@ -108,8 +108,8 @@ private:
 			IDisplayClusterClusterManager* ClusterManager = IDisplayCluster::Get().GetClusterMgr();
 			if (ClusterManager && !ListenerDelegate.IsBound())
 			{
-				ListenerDelegate = FOnClusterEventListener::CreateRaw(this, &FDisplayClusterMessageInterceptionModule::HandleClusterEvent);
-				ClusterManager->AddClusterEventListener(ListenerDelegate);
+				ListenerDelegate = FOnClusterEventJsonListener::CreateRaw(this, &FDisplayClusterMessageInterceptionModule::HandleClusterEvent);
+				ClusterManager->AddClusterEventJsonListener(ListenerDelegate);
 
 				//Master will send out its interceptor settings to the cluster so everyone uses the same things
 				if (ClusterManager->IsMaster())
@@ -118,13 +118,14 @@ private:
 					const UDisplayClusterMessageInterceptionSettings* CurrentSettings = GetDefault<UDisplayClusterMessageInterceptionSettings>();
 					FMessageInterceptionSettings::StaticStruct()->ExportText(ExportedSettings, &CurrentSettings->InterceptionSettings, nullptr, nullptr, PPF_None, nullptr);
 					
-					FDisplayClusterClusterEvent SettingsEvent;
+					FDisplayClusterClusterEventJson SettingsEvent;
 					SettingsEvent.Category = DisplayClusterInterceptionModuleUtils::MessageInterceptionSetupEventCategory;
 					SettingsEvent.Name = ClusterManager->GetNodeId();
+					SettingsEvent.bIsSystemEvent = true;
 					SettingsEvent.Parameters.FindOrAdd(DisplayClusterInterceptionModuleUtils::MessageInterceptionSetupEventParameterSettings) = MoveTemp(ExportedSettings);
 
 					const bool bMasterOnly = true; 
-					ClusterManager->EmitClusterEvent(SettingsEvent, bMasterOnly);
+					ClusterManager->EmitClusterEventJson(SettingsEvent, bMasterOnly);
 				}
 			}
 
@@ -137,7 +138,7 @@ private:
 		}
 	}
 
-	void HandleClusterEvent(const FDisplayClusterClusterEvent& InEvent)
+	void HandleClusterEvent(const FDisplayClusterClusterEventJson& InEvent)
 	{
 		if (InEvent.Category == DisplayClusterInterceptionModuleUtils::MessageInterceptionSetupEventCategory)
 		{
@@ -189,7 +190,7 @@ private:
 		}
 	}
 
-	void HandleMessageInterceptorSetupEvent(const FDisplayClusterClusterEvent& InEvent)
+	void HandleMessageInterceptorSetupEvent(const FDisplayClusterClusterEventJson& InEvent)
 	{
 		if (Interceptor)
 		{
@@ -216,7 +217,7 @@ private:
 	FMessageInterceptionSettings SynchronizedSettings;
 
 	/** Cluster event listener delegate */
-	FOnClusterEventListener ListenerDelegate;
+	FOnClusterEventJsonListener ListenerDelegate;
 
 	/** Console commands handle. */
 	TUniquePtr<FAutoConsoleCommand> StartMessageSyncCommand;

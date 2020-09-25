@@ -24,19 +24,19 @@ void FDisplayClusterDeviceSideBySideBase::AdjustViewRect(enum EStereoscopicPass 
 	FDisplayClusterRenderViewport& RenderViewport = RenderViewports[ViewportIndex];
 
 	// Provide the Engine with a viewport rectangle
-	const FIntRect& ViewportArea = RenderViewports[ViewportIndex].GetArea();
+	const FIntRect& ViewportRect = RenderViewports[ViewportIndex].GetRect();
 	if (Pass == EStereoscopicPass::eSSP_LEFT_EYE)
 	{
-		X = ViewportArea.Min.X / 2;
+		X = ViewportRect.Min.X / 2;
 	}
 	else if (Pass == EStereoscopicPass::eSSP_RIGHT_EYE)
 	{
-		X = SizeX / 2 + ViewportArea.Min.X / 2;
+		X = SizeX / 2 + ViewportRect.Min.X / 2;
 	}
 
-	Y = ViewportArea.Min.Y;
-	SizeX = ViewportArea.Width() / 2;
-	SizeY = ViewportArea.Height();
+	Y = ViewportRect.Min.Y;
+	SizeX = ViewportRect.Width() / 2;
+	SizeY = ViewportRect.Height();
 
 	// Update view context
 	FDisplayClusterRenderViewContext& ViewContext = RenderViewport.GetContext(ViewIndex);

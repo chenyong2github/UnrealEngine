@@ -4,12 +4,13 @@
 #include "MPCDIRegion.h"
 #include "MPCDILog.h"
 
+#include "Misc/DisplayClusterHelpers.h"
+
 #include "Stats/Stats.h"
 #include "Engine/Engine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Paths.h"
 
-#include "MPCDIHelpers.h"
 #include "MPCDIWarpTexture.h"
 
 THIRD_PARTY_INCLUDES_START
@@ -163,10 +164,9 @@ bool FMPCDIData::AddRegion(const FString& BufferName, const FString& RegionName,
 	return true;
 }
 
-bool FMPCDIData::Load(const FString& MPCIDIFile)
+bool FMPCDIData::Load(const FString& MPCDIFile)
 {
-
-	FString MPCIDIFileFullPath = DisplayClusterHelpers::config::GetFullPath(MPCIDIFile);
+	FString MPCIDIFileFullPath = DisplayClusterHelpers::filesystem::GetFullPathForConfigResource(MPCDIFile);
 	if (!FPaths::FileExists(MPCIDIFileFullPath))
 	{
 		UE_LOG(LogMPCDI, Error, TEXT("File not found: %s"), *MPCIDIFileFullPath);
@@ -212,7 +212,7 @@ bool FMPCDIData::Load(const FString& MPCIDIFile)
 			break;
 		};
 
-		if (!Initialize(MPCIDIFile, MPCDIProfileType))
+		if (!Initialize(MPCDIFile, MPCDIProfileType))
 		{
 			return false;
 		}

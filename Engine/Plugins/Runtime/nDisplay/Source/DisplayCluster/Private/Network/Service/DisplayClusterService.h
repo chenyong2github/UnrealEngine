@@ -3,9 +3,8 @@
 #pragma once
 
 #include "Network/DisplayClusterServer.h"
-#include "Sockets.h"
 
-class FDisplayClusterSessionBase;
+class FSocket;
 struct FIPv4Endpoint;
 
 
@@ -16,18 +15,13 @@ class FDisplayClusterService
 	: public FDisplayClusterServer
 {
 public:
-	FDisplayClusterService(const FString& InName, const FString& InAddr, const int32 InPort);
+	FDisplayClusterService(const FString& Name);
 
 public:
-	static bool IsClusterIP(const FIPv4Endpoint& InEP);
+	// Returns true if requested Endpoint is a part of nDisplay cluster (listed in a config file)
+	static bool IsClusterIP(const FIPv4Endpoint& Endpoint);
 
 protected:
-	virtual bool IsConnectionAllowed(FSocket* InSocket, const FIPv4Endpoint& InEP) override;
-
-protected:
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	// IDisplayClusterSessionListener
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual void NotifySessionOpen(FDisplayClusterSessionBase* InSession) override;
-	virtual void NotifySessionClose(FDisplayClusterSessionBase* InSession) override;
+	// Ask a server implementation if it's  allowed to accept incoming connections from non-cluster addresses
+	virtual bool IsConnectionAllowed(FSocket* Socket, const FIPv4Endpoint& Endpoint) override;
 };
