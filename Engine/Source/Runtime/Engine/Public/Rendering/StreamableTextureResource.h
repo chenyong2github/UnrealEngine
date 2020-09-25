@@ -29,7 +29,7 @@ public:
 	virtual uint32 GetSizeX() const final override { return SizeX; }
 	virtual uint32 GetSizeY() const final override { return SizeY; }
 	virtual uint32 GetSizeZ() const final override { return SizeZ; }
-	virtual void InitRHI() final override;
+	virtual void InitRHI() override;
 	virtual void ReleaseRHI() final override;
 
 	// This is only coherent sync on the rendering thread. To get the gamethread coherent value, use UStreamableRenderResource.CacheStreamableResourceState

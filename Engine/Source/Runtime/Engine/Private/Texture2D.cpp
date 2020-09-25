@@ -899,17 +899,15 @@ FTextureResource* UTexture2D::CreateResource()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UTexture2D::CreateResource)
 
-//#TODO DC Quick fix to disable Async Texture Compilation until a proper fix is in place.
-//#if WITH_EDITOR
-//	if (PrivatePlatformData && !PrivatePlatformData->IsAsyncWorkComplete())
-//	{
-//		FTextureCompilingManager::Get().AddTextures({this});
-//
-//		UnlinkStreaming();
-//		bIsStreamable = false;
-//		return new FTexture2DResource(this, (const FTexture2DResource*)GetDefaultTexture2D(this)->GetResource());
-//	}
-//#endif
+#if WITH_EDITOR
+	if (PrivatePlatformData && !PrivatePlatformData->IsAsyncWorkComplete())
+	{
+		FTextureCompilingManager::Get().AddTextures({this});
+
+		UnlinkStreaming();
+		return new FTexture2DResource(this, GetDefaultTexture2D(this)->GetResource()->GetTexture2DResource());
+	}
+#endif
 
 	if (IsCurrentlyVirtualTextured())
 	{

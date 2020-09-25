@@ -24,12 +24,21 @@ static TAutoConsoleVariable<int32> CVarForceHighestMipOnUITexturesEnabled(
  */
 FTexture2DResource::FTexture2DResource(UTexture2D* InOwner, const FStreamableRenderResourceState& InState)
 	: FStreamableTextureResource(InOwner, InOwner->PlatformData, InState, true)
-	, ResourceMem( InOwner->ResourceMem )
+	, ResourceMem(InOwner->ResourceMem)
 {
 	// Retrieve initial mip data.
 	MipData.AddZeroed(State.MaxNumLODs);
 	InOwner->GetMipData(State.LODCountToAssetFirstLODIdx(State.NumRequestedLODs), MipData.GetData() + State.LODCountToFirstLODIdx(State.NumRequestedLODs));
 
+	CacheSamplerStateInitializer(InOwner);
+}
+
+FTexture2DResource::FTexture2DResource(UTexture2D* InOwner, const FTexture2DResource* InProxiedResource)
+	: FStreamableTextureResource(InOwner, InProxiedResource->PlatformData, FStreamableRenderResourceState(), true)
+	, ResourceMem(InOwner->ResourceMem)
+	, ProxiedResource(InProxiedResource)
+{
+	TextureReferenceRHI = InOwner->TextureReference.TextureReferenceRHI;
 	CacheSamplerStateInitializer(InOwner);
 }
 
@@ -74,6 +83,20 @@ void FTexture2DResource::CacheSamplerStateInitializer(const UTexture2D* InOwner)
 	MipBias = UTexture2D::GetGlobalMipMapLODBias() + DefaultMipBias;
 }
 
+void FTexture2DResource::InitRHI()
+{
+	if (ProxiedResource)
+	{
+		TextureRHI = ProxiedResource->TextureRHI;
+		RHIUpdateTextureReference(TextureReferenceRHI, TextureRHI);
+		SamplerStateRHI = ProxiedResource->SamplerStateRHI;
+		DeferredPassSamplerStateRHI = ProxiedResource->DeferredPassSamplerStateRHI;
+	}
+	else
+	{
+		FStreamableTextureResource::InitRHI();
+	}
+}
 
 void FTexture2DResource::CreateTexture()
 {

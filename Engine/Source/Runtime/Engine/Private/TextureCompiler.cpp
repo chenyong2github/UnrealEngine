@@ -275,16 +275,14 @@ FQueuedThreadPool* FTextureCompilingManager::GetThreadPool() const
 
 bool FTextureCompilingManager::IsAsyncTextureCompilationEnabled() const
 {
-	// #TODO DC Quick fix to force disable async texture compilation until a proper fix is ready
-	return false;
-	/*if (bHasShutdown)
+	if (bHasShutdown)
 	{
 		return false;
 	}
 
 	TextureCompilingManagerImpl::EnsureInitializedCVars();
 
-	return CVarAsyncTextureCompilation.GetValueOnAnyThread() != 0;*/
+	return CVarAsyncTextureCompilation.GetValueOnAnyThread() != 0;
 }
 
 void FTextureCompilingManager::UpdateCompilationNotification()
@@ -450,7 +448,7 @@ void FTextureCompilingManager::FinishCompilation(const TArray<UTexture*>& InText
 			FEvent* Event;
 			FTextureTask() { Event = FPlatformProcess::GetSynchEventFromPool(true); }
 			~FTextureTask() { FPlatformProcess::ReturnSynchEventToPool(Event); }
-			void DoThreadedWork() override { Texture->FinishCachePlatformData(); Event->Trigger(); };
+			void DoThreadedWork() override { FOptionalTaskTagScope Scope(ETaskTag::EParallelGameThread); Texture->FinishCachePlatformData(); Event->Trigger(); };
 			void Abandon() override { }
 		};
 
@@ -479,12 +477,6 @@ void FTextureCompilingManager::FinishCompilation(const TArray<UTexture*>& InText
 			// Be nice with the game thread and tick the progress at 60 fps even when no progress is being made...
 			while (!PendingTask.Event->Wait(16))
 			{
-				// If the task pool is saturated, we want to be able to contribute so we can make some progress quickly...
-				if (GThreadPool->RetractQueuedWork(&PendingTask))
-				{
-					PendingTask.DoThreadedWork();
-				}
-
 				UpdateProgress(0.0f, TextureIndex, InTextures.Num(), TextureName);
 			}
 			UpdateProgress(1.f, TextureIndex++, InTextures.Num(), TextureName);
