@@ -6,6 +6,7 @@
 #include "OnlineStatsEOS.h"
 #include "OnlineLeaderboardsEOS.h"
 #include "OnlineAchievementsEOS.h"
+#include "OnlineStoreEOS.h"
 
 #include "Misc/NetworkVersion.h"
 
@@ -163,6 +164,9 @@ bool FOnlineSubsystemEOS::Init()
 	FParse::Value(FCommandLine::Get(), TEXT("DeploymentId="), DeploymentId);
 	FParse::Value(FCommandLine::Get(), TEXT("EncryptionKey="), EncryptionKey);
 
+	// Check for being launched by EGS
+	bWasLaunchedByEGS = FParse::Param(FCommandLine::Get(), TEXT("EpicPortal"));
+
 	// Create platform instance
 	FEOSPlatformOptions PlatformOptions;
 	FCStringAnsi::Strncpy(PlatformOptions.ClientIdAnsi, TCHAR_TO_UTF8(*ClientId), EOS_OSS_STRING_BUFFER_LENGTH);
@@ -251,6 +255,17 @@ bool FOnlineSubsystemEOS::Init()
 	{
 		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: failed to init EOS platform, couldn't get p2p handle"));
 		return false;
+	}
+	// Disable ecom if not part of EGS
+	if (bWasLaunchedByEGS)
+	{
+		EcomHandle = EOS_Platform_GetEcomInterface(EOSPlatformHandle);
+		if (EcomHandle == nullptr)
+		{
+			UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: failed to init EOS platform, couldn't get ecom handle"));
+			return false;
+		}
+		StoreInterfacePtr = MakeShareable(new FOnlineStoreEOS(this));
 	}
 
 	SocketSubsystem = MakeShareable(new FSocketSubsystemEOS(this));
@@ -398,8 +413,7 @@ IOnlineTitleFilePtr FOnlineSubsystemEOS::GetTitleFileInterface() const
 
 IOnlineStoreV2Ptr FOnlineSubsystemEOS::GetStoreV2Interface() const
 {
-	UE_LOG_ONLINE(Error, TEXT("Store V2 Interface Requested"));
-	return nullptr;
+	return StoreInterfacePtr;
 }
 
 IOnlinePurchasePtr FOnlineSubsystemEOS::GetPurchaseInterface() const

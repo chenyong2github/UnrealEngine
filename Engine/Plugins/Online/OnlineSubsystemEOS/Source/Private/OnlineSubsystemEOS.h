@@ -28,6 +28,9 @@ typedef TSharedPtr<class FOnlineLeaderboardsEOS, ESPMode::ThreadSafe> FOnlineLea
 class FOnlineAchievementsEOS;
 typedef TSharedPtr<class FOnlineAchievementsEOS, ESPMode::ThreadSafe> FOnlineAchievementsEOSPtr;
 
+class FOnlineStoreEOS;
+typedef TSharedPtr<class FOnlineStoreEOS, ESPMode::ThreadSafe> FOnlineStoreEOSPtr;
+
 #ifndef EOS_PRODUCTNAME_MAX_BUFFER_LEN
 	#define EOS_PRODUCTNAME_MAX_BUFFER_LEN 64
 #endif
@@ -103,10 +106,13 @@ PACKAGE_SCOPE:
 		, MetricsHandle(nullptr)
 		, AchievementsHandle(nullptr)
 		, P2PHandle(nullptr)
+		, EcomHandle(nullptr)
 		, UserManager(nullptr)
 		, SessionInterfacePtr(nullptr)
 		, LeaderboardsInterfacePtr(nullptr)
 		, AchievementsInterfacePtr(nullptr)
+		, StoreInterfacePtr(nullptr)
+		, bWasLaunchedByEGS(false)
 	{}
 
 	char ProductNameAnsi[EOS_PRODUCTNAME_MAX_BUFFER_LEN];
@@ -125,6 +131,7 @@ PACKAGE_SCOPE:
 	EOS_HMetrics MetricsHandle;
 	EOS_HAchievements AchievementsHandle;
 	EOS_HP2P P2PHandle;
+	EOS_HEcom EcomHandle;
 
 	/** Manager that handles all user interfaces */
 	FUserManagerEOSPtr UserManager;
@@ -135,6 +142,10 @@ PACKAGE_SCOPE:
 	/** Leaderboards interface pointer */
 	FOnlineLeaderboardsEOSPtr LeaderboardsInterfacePtr;
 	FOnlineAchievementsEOSPtr AchievementsInterfacePtr;
+	/** EGS store interface pointer */
+	FOnlineStoreEOSPtr StoreInterfacePtr;
+
+	bool bWasLaunchedByEGS;
 
 	TSharedPtr<FSocketSubsystemEOS, ESPMode::ThreadSafe> SocketSubsystem;
 };
