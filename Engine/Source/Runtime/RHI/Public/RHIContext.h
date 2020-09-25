@@ -677,7 +677,7 @@ public:
 	}
 
 #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
-	virtual void RHIBackBufferWaitTrackingBeginFrame(uint64 FrameToken)
+	virtual void RHIBackBufferWaitTrackingBeginFrame(uint64 FrameToken, bool bDeferred)
 	{
 		checkNoEntry();
 	}

@@ -23,14 +23,14 @@ public:
 	FD3D12TimedIntervalQueryTracker(FD3D12Device* Device, uint32 MaxIntervalQueriesIn, uint64 InvalidBatchIdIn);
 	~FD3D12TimedIntervalQueryTracker();
 
-	void BeginBatch(uint64 BatchId);
+	void BeginBatch(uint64 BatchId, bool bDeferred);
 	void EndBatch(FD3D12CommandContext& Context);
 	FTimedIntervalQuery BeginInterval(ID3D12GraphicsCommandList* CommandList);
 	void EndInterval(ID3D12GraphicsCommandList* CommandList, FTimedIntervalQuery Interval);
 	void ResolveBatches(uint64 TimeStampFrequency, bool bWait);
 	void PurgeOutstandingBatches();
 	
-	DECLARE_DELEGATE_TwoParams(FOnBatchResolvedDelegate, uint64, uint64);
+	DECLARE_DELEGATE_ThreeParams(FOnBatchResolvedDelegate, uint64, bool, uint64);
 	FOnBatchResolvedDelegate OnBatchResolvedDelegate;
 
 private:
