@@ -1399,7 +1399,7 @@ void UUnrealEdEngine::OnEditorSelectionChanged(UObject* SelectionThatChanged)
 						VisualizersForSelection.Add(FCachedComponentVisualizer(Comp, Visualizer));
 					}
 				}
-				
+
 			}
 		}
 	}
