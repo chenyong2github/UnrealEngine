@@ -374,6 +374,11 @@ UFunction* FTypePromotion::FindLowestMatchingFunc(const FString& Operation, cons
 	return FTypePromotion::Get().FindLowestMatchingFunc_Internal(Operation, InputType, OutPossibleFunctions);
 }
 
+UFunction* FTypePromotion::FindBestMatchingFunc(const FString& Operation, const TArray<UEdGraphPin*>& PinsToConsider)
+{
+	return FTypePromotion::Get().FindBestMatchingFunc_Internal(Operation, PinsToConsider);
+}
+
 static bool PropertyCompatibleWithPin(const FProperty* Param, FEdGraphPinType const& TypeToMatch)
 {
 	const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
@@ -453,6 +458,61 @@ UFunction* FTypePromotion::FindLowestMatchingFunc_Internal(const FString& Operat
 	}
 
 	return LowestFunc;
+}
+
+UFunction* FTypePromotion::FindBestMatchingFunc_Internal(const FString& Operation, const TArray<UEdGraphPin*>& PinsToConsider)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FTypePromotionTable::FindBestMatchingFunc_Internal);
+
+	const FFunctionsList* FuncList = OperatorTable.Find(Operation);
+	if (!FuncList)
+	{
+		return nullptr;
+	}
+
+	// Track the function with the best score
+	UFunction* BestFunc = nullptr;
+	int32 BestScore = -1;
+
+	const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
+		
+	// We have to keep track of what pins we have already given points for, otherwise 
+	// we will end up giving the same pin multiple points.
+	TSet<const UEdGraphPin*> CheckedPins;
+		
+	for (UFunction* Func : *FuncList)
+	{
+		int32 FuncScore = -1;
+		CheckedPins.Reset();
+
+		// For each property in the func, see if it matches any of the given pins
+		for (TFieldIterator<FProperty> PropIt(Func); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
+		{
+			const FProperty* Param = *PropIt;
+			FEdGraphPinType ParamType;
+			if (Schema->ConvertPropertyToPinType(Param, /* out */ ParamType))
+			{
+				for (const UEdGraphPin* Pin : PinsToConsider)
+				{
+					// Give a point for each function parameter that matches up with a pin to consider
+					if (!CheckedPins.Contains(Pin) && Schema->ArePinTypesEquivalent(ParamType, Pin->PinType))
+					{
+						++FuncScore;
+						CheckedPins.Add(Pin);
+						break;
+					}
+				}
+			}
+		}
+
+		// If this function has the best score, then update it! 
+		if (FuncScore > BestScore)
+		{
+			BestScore = FuncScore;
+			BestFunc = Func;
+		}
+	}
+	return BestFunc;
 }
 
 void FTypePromotion::GetAllFuncsForOp(const FString& Operation, TArray<UFunction*>& OutFuncs)

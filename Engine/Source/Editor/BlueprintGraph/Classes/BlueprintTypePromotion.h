@@ -9,7 +9,7 @@
 #include "HAL/IConsoleManager.h"
 
 /** Contains behavior needed to handle type promotion in blueprints */
-class FTypePromotion : private FNoncopyable
+class BLUEPRINTGRAPH_API FTypePromotion : private FNoncopyable
 {
 public:
 
@@ -32,6 +32,12 @@ public:
 	* Ex: Given "Add" and "Vector" this function would return the "Add_VectorFloat" function
 	*/
 	static UFunction* FindLowestMatchingFunc(const FString& Operation, const FEdGraphPinType& InputType, TArray<UFunction*>& OutPossibleFunctions);
+
+	/**
+	* Find the function that is the best match given the pins to consider. 
+	* Ex: Given "Add" operator and an array of two Vector pins, it will return "Add_VectorVector"
+	*/
+	static UFunction* FindBestMatchingFunc(const FString& Operation, const TArray<UEdGraphPin*>& PinsToConsider);
 
 	/** Returns all functions for a specific operation. Will empty the given array and populate it with UFunction pointers */
 	static void GetAllFuncsForOp(const FString& Operation, TArray<UFunction*>& OutFuncs);
@@ -115,6 +121,8 @@ private:
 	FEdGraphPinType GetPromotedType_Internal(const TArray<UEdGraphPin*>& WildcardPins) const;
 
 	UFunction* FindLowestMatchingFunc_Internal(const FString& Operation, const FEdGraphPinType& InputType, TArray<UFunction*>& OutPossibleFunctions);
+	
+	UFunction* FindBestMatchingFunc_Internal(const FString& Operation, const TArray<UEdGraphPin*>& PinsToConsider);
 
 	void GetAllFuncsForOp_Internal(const FString& Operation, TArray<UFunction*>& OutFuncs);
 
