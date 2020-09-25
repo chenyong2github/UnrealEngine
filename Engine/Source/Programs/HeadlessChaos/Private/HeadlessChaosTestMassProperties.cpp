@@ -100,6 +100,7 @@ namespace ChaosTest {
 			Chaos::FMatrix33(1.0f, 1.0f, 1.0f),
 			Chaos::FMatrix33(1000.0f, 1000.0f, 1000.0f),
 			Chaos::FMatrix33(1234.0f, 222.0f, 4321.0f),
+			Chaos::FMatrix33(2.0f, 1.0f, 1.0f),
 			// Random largish inertia
 			RandInertia(100.0f, 10000.0f),
 			RandInertia(100.0f, 10000.0f),
