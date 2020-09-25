@@ -709,7 +709,7 @@ namespace Chaos
 	}
 
 	template <typename Traits>
-	void TPBDRigidsSolver<Traits>::SetExternalTimestampConsumed_External(const int32 Timestamp)
+	void TPBDRigidsSolver<Traits>::SetExternalTimestampConsumed_Internal(const int32 Timestamp)
 	{
 		MEvolution->LatestExternalTimestampConsumed = Timestamp;
 	}
