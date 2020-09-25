@@ -95,6 +95,6 @@ void PointLight_SampleLight(
 	else
 	{
 		OutLightUV = 0.0;
-		OutPdf = 1.0;
+		OutPdf = 1.0 / (4 * PI);
 	}
 }
