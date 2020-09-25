@@ -345,6 +345,15 @@ void UVCamBlueprintFunctionLibrary::EditorSetGameView(bool bIsToggled)
 #endif
 }
 
+void UVCamBlueprintFunctionLibrary::EnableDebugFocusPlane(UCineCameraComponent* CineCamera, bool bEnabled)
+{
+	if (!CineCamera)
+	{
+		return;
+	}
+	CineCamera->FocusSettings.bDrawDebugFocusPlane = bEnabled;
+}
+
 bool UVCamBlueprintFunctionLibrary::DeprojectScreenToWorld(const FVector2D& InScreenPosition, FVector& OutWorldPosition, FVector& OutWorldDirection)
 {
 	FName LevelEditorName(TEXT("LevelEditor"));
