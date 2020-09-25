@@ -6,15 +6,7 @@
 
 ULandscapeInfoMap::ULandscapeInfoMap(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, World(nullptr)
 {
-}
-
-void ULandscapeInfoMap::PostDuplicate(bool bDuplicateForPIE)
-{
-	Super::PostDuplicate(bDuplicateForPIE);
-
-	check(Map.Num() == 0);
 }
 
 void ULandscapeInfoMap::Serialize(FArchive& Ar)
@@ -27,28 +19,8 @@ void ULandscapeInfoMap::Serialize(FArchive& Ar)
 	}
 }
 
-void ULandscapeInfoMap::BeginDestroy()
-{
-	if (World.IsValid())
-	{
-		World->PerModuleDataObjects.Remove(this);
-	}
-
-	Super::BeginDestroy();
-}
-
 void ULandscapeInfoMap::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
 	ULandscapeInfoMap* This = CastChecked<ULandscapeInfoMap>(InThis);
 	Collector.AddReferencedObjects(This->Map, This);
-}
-
-ULandscapeInfoMap& ULandscapeInfoMap::GetLandscapeInfoMap(const UWorld* World)
-{
-	ULandscapeInfoMap *FoundObject = nullptr;
-	World->PerModuleDataObjects.FindItemByClass(&FoundObject);
-
-	checkf(FoundObject, TEXT("ULandscapInfoMap object was not created for this UWorld."));
-
-	return *FoundObject;
 }

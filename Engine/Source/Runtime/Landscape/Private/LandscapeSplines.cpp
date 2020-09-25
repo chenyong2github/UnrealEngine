@@ -40,7 +40,7 @@
 #include "Misc/UObjectToken.h"
 #include "Landscape.h"
 #include "LandscapeLayerInfoObject.h"
-#include "LandscapeInfoMap.h"
+#include "LandscapeSubsystem.h"
 #endif
 
 IMPLEMENT_HIT_PROXY(HLandscapeSplineProxy, HHitProxy);
@@ -81,26 +81,25 @@ struct FLandscapeFixSplines
 			return;
 		}
 
-		auto& LandscapeInfoMap = ULandscapeInfoMap::GetLandscapeInfoMap(GWorld);
-		for (TPair<FGuid, ULandscapeInfo*>& Pair : LandscapeInfoMap.Map)
+		ULandscapeSubsystem::ForEachLandscapeInfo(GWorld, [](ULandscapeInfo* LandscapeInfo)
 		{
-			if (Pair.Value)
+			LandscapeInfo->ForAllLandscapeProxies([](ALandscapeProxy* Proxy)
 			{
-				Pair.Value->ForAllLandscapeProxies([](ALandscapeProxy* Proxy)
+				if (Proxy && Proxy->SplineComponent)
 				{
-					if (Proxy && Proxy->SplineComponent)
-					{
-						Proxy->SplineComponent->RebuildAllSplines();
-					}
-				});
+					Proxy->SplineComponent->RebuildAllSplines();
+				}
+			});
 
-				if (Pair.Value->LandscapeActor && Pair.Value->LandscapeActor->HasLayersContent())
+			if (ALandscape* Landscape = LandscapeInfo->LandscapeActor.Get())
+			{
+				if (Landscape->HasLayersContent())
 				{
-					Pair.Value->LandscapeActor->RequestSplineLayerUpdate();
+					Landscape->RequestSplineLayerUpdate();
 				}
 			}
-		}
-
+			return true;
+		});
 	}
 };
 

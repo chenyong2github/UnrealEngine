@@ -16,7 +16,7 @@
 #include "Tiles/WorldTileCollectionModel.h"
 #include "Engine/WorldComposition.h"
 #include "GameFramework/WorldSettings.h"
-#include "LandscapeInfo.h"
+#include "LandscapeSubsystem.h"
 #include "LandscapeEditorModule.h"
 #include "LandscapeFileFormatInterface.h"
 #include "LandscapeStreamingProxy.h"
@@ -511,7 +511,7 @@ void FWorldTileModel::SetLevelPosition(const FIntVector& InPosition, const FIntP
 	{
 		UpdateLandscapeSectionsOffset(LandscapeOffset); // section offset is 2D 
 		bool bShowWarnings = true;
-		ULandscapeInfo::RecreateLandscapeInfo(LevelCollectionModel.GetWorld(), bShowWarnings);
+		ULandscapeSubsystem::RecreateLandscapeInfos(LevelCollectionModel.GetWorld(), bShowWarnings);
 	}
 	
 	// Transform child levels

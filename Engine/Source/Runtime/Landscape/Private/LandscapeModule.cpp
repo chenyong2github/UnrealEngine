@@ -9,7 +9,6 @@
 #include "Materials/MaterialInterface.h"
 #include "LandscapeComponent.h"
 #include "LandscapeVersion.h"
-#include "LandscapeInfoMap.h"
 #include "Materials/MaterialInstance.h"
 
 #include "LandscapeProxy.h"
@@ -26,26 +25,6 @@ public:
 	void StartupModule() override;
 	void ShutdownModule() override;
 };
-
-/**
- * Add landscape-specific per-world data.
- *
- * @param World A pointer to world that this data should be created for.
- */
-void AddPerWorldLandscapeData(UWorld* World)
-{
-	EObjectFlags NewLandscapeDataFlags = RF_NoFlags;
-	if (!World->PerModuleDataObjects.FindItemByClass<ULandscapeInfoMap>())
-	{
-		if (World->HasAnyFlags(RF_Transactional))
-		{
-			NewLandscapeDataFlags = RF_Transactional;
-		}
-		ULandscapeInfoMap* InfoMap = NewObject<ULandscapeInfoMap>(GetTransientPackage(), NAME_None, NewLandscapeDataFlags);
-		InfoMap->World = World;
-		World->PerModuleDataObjects.Add(InfoMap);
-	}
-}
 
 #if WITH_EDITOR
 /**
@@ -64,32 +43,6 @@ void LandscapeMaterialsParameterValuesGetter(FStaticParameterSet &OutStaticParam
  */
 bool LandscapeMaterialsParameterSetUpdater(FStaticParameterSet &OutStaticParameterSet, UMaterial* Material);
 #endif // WITH_EDITOR
-
-/**
- * Function that will fire every time a world is created.
- *
- * @param World A world that was created.
- * @param IVS Initialization values.
- */
-void WorldCreationEventFunction(UWorld* World)
-{
-	AddPerWorldLandscapeData(World);
-}
-
-/**
- * Function that will fire every time a world is destroyed.
- *
- * @param World A world that's being destroyed.
- */
-void WorldDestroyEventFunction(UWorld* World)
-{
-	World->PerModuleDataObjects.RemoveAll(
-		[](UObject* Object)
-		{
-			return Object != nullptr && Object->IsA(ULandscapeInfoMap::StaticClass());
-		}
-	);
-}
 
 #if WITH_EDITOR
 /**
@@ -144,36 +97,6 @@ void WorldRenameEventFunction(UWorld* World, const TCHAR* InName, UObject* NewOu
 }
 #endif
 
-/**
- * A function that fires everytime a world is duplicated.
- *
- * If there are some objects duplicated during this event fill out
- * ReplacementMap and ObjectsToFixReferences in order to properly fix
- * references in objects created during this duplication.
- *
- * @param World A world that was duplicated.
- * @param bDuplicateForPIE If this duplication was done for PIE.
- * @param ReplacementMap Replacement map (i.e. old object -> new object).
- * @param ObjectsToFixReferences Array of objects that may contain bad
- *		references to old objects.
- */
-void WorldDuplicateEventFunction(UWorld* World, bool bDuplicateForPIE, TMap<UObject*, UObject*>& ReplacementMap, TArray<UObject*>& ObjectsToFixReferences)
-{
-	int32 Index;
-	ULandscapeInfoMap* InfoMap;
-	if (World->PerModuleDataObjects.FindItemByClass(&InfoMap, &Index))
-	{
-		ULandscapeInfoMap* NewInfoMap = Cast<ULandscapeInfoMap>( StaticDuplicateObject(InfoMap, InfoMap->GetOuter()) );
-		NewInfoMap->World = World;
-
-		World->PerModuleDataObjects[Index] = NewInfoMap;
-	}
-	else
-	{
-		AddPerWorldLandscapeData(World);
-	}
-}
-
 void FLandscapeModule::StartupModule()
 {
 #if WITH_EDITOR
@@ -189,22 +112,11 @@ void FLandscapeModule::StartupModule()
 	);
 #endif // WITH_EDITOR
 
-	FWorldDelegates::OnPostWorldCreation.AddStatic(
-		&WorldCreationEventFunction
-	);
-	FWorldDelegates::OnPreWorldFinishDestroy.AddStatic(
-		&WorldDestroyEventFunction
-	);
-
 #if WITH_EDITOR
 	FWorldDelegates::OnPreWorldRename.AddStatic(
 		&WorldRenameEventFunction
 	);
 #endif // WITH_EDITOR
-
-	FWorldDelegates::OnPostDuplicate.AddStatic(
-		&WorldDuplicateEventFunction
-	);
 }
 
 void FLandscapeModule::ShutdownModule()

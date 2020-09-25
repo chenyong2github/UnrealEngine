@@ -29,7 +29,7 @@
 #include "InstancedFoliageActor.h"
 #include "EditorWorldExtension.h"
 #include "LandscapeEdModeTools.h"
-#include "LandscapeInfoMap.h"
+#include "LandscapeSubsystem.h"
 
 //Slate dependencies
 #include "Misc/FeedbackContext.h"
@@ -400,16 +400,14 @@ void FEdModeLandscape::Enter()
 
 	if (UWorld* World = GetWorld())
 	{
-		for (auto It = ULandscapeInfoMap::GetLandscapeInfoMap(World).Map.CreateIterator(); It; ++It)
+		ULandscapeSubsystem::ForEachLandscapeInfo(World, [this](ULandscapeInfo* LandscapeInfo)
 		{
-			if (ULandscapeInfo* LandscapeInfo = It.Value())
+			if (ALandscape* Landscape = LandscapeInfo->LandscapeActor.Get())
 			{
-				if (ALandscape* Landscape = !LandscapeInfo->IsPendingKill() ? LandscapeInfo->LandscapeActor.Get() : nullptr)
-				{
-					Landscape->RegisterLandscapeEdMode(this);
-				}
+				Landscape->RegisterLandscapeEdMode(this);
 			}
-		}
+			return true;
+		});
 	}
 
 	OnLevelActorDeletedDelegateHandle = GEngine->OnLevelActorDeleted().AddSP(this, &FEdModeLandscape::OnLevelActorRemoved);
@@ -606,16 +604,14 @@ void FEdModeLandscape::Exit()
 {
 	if (UWorld* World = GetWorld())
 	{
-		for (auto It = ULandscapeInfoMap::GetLandscapeInfoMap(World).Map.CreateIterator(); It; ++It)
+		ULandscapeSubsystem::ForEachLandscapeInfo(World, [](ULandscapeInfo* LandscapeInfo)
 		{
-			if (ULandscapeInfo* LandscapeInfo = It.Value())
+			if (ALandscape* Landscape = LandscapeInfo->LandscapeActor.Get())
 			{
-				if (ALandscape* Landscape = !LandscapeInfo->IsPendingKill() ? LandscapeInfo->LandscapeActor.Get() : nullptr)
-				{
-					Landscape->UnregisterLandscapeEdMode();
-				}
+				Landscape->UnregisterLandscapeEdMode();
 			}
-		}
+			return true;
+		});
 	}
 
 	GEngine->OnLevelActorDeleted().Remove(OnLevelActorDeletedDelegateHandle);
@@ -701,17 +697,24 @@ void FEdModeLandscape::OnPreSaveWorld(uint32 InSaveFlags, const class UWorld* In
 	// Avoid doing this during cooking to keep determinism and we don't want to do this on GameWorlds.
 	if (!InWorld->IsGameWorld() && !GIsCookerLoadingPackage)
 	{
-		ULandscapeInfoMap& LandscapeInfoMap = ULandscapeInfoMap::GetLandscapeInfoMap(InWorld);
-		for (const TPair<FGuid, ULandscapeInfo*>& Pair : LandscapeInfoMap.Map)
+		// The world we are getting called for is the outer of the level being saved. LandscapeSubsystem exists only on the Owning world
+		const UWorld* OwningWorld = InWorld;
+		if (InWorld->PersistentLevel && InWorld->PersistentLevel->OwningWorld != nullptr)
 		{
-			if (const ULandscapeInfo* LandscapeInfo = Pair.Value)
+			OwningWorld = InWorld->PersistentLevel->OwningWorld;
+		}
+
+		ULandscapeSubsystem::ForEachLandscapeInfo(OwningWorld, [InWorld](ULandscapeInfo* LandscapeInfo)
+		{
+			if (ALandscape* LandscapeActor = LandscapeInfo->LandscapeActor.Get())
 			{
-				if (ALandscape* LandscapeActor = LandscapeInfo->LandscapeActor.Get())
+				if (LandscapeActor->GetTypedOuter<UWorld>() == InWorld)
 				{
 					LandscapeActor->OnPreSave();
 				}
 			}
-		}
+			return true;
+		});
 	}
 }
 
@@ -2223,46 +2226,41 @@ int32 FEdModeLandscape::UpdateLandscapeList()
 	if (World)
 	{
 		int32 Index = 0;
-		auto& LandscapeInfoMap = ULandscapeInfoMap::GetLandscapeInfoMap(World);
-
-		for (auto It = LandscapeInfoMap.Map.CreateIterator(); It; ++It)
+		ULandscapeSubsystem::ForEachLandscapeInfo(World, [&CurrentIndex, &Index, this](ULandscapeInfo* LandscapeInfo)
 		{
-			ULandscapeInfo* LandscapeInfo = It.Value();
-			if (LandscapeInfo && !LandscapeInfo->IsPendingKill())
+			if (ALandscape* Landscape = LandscapeInfo->LandscapeActor.Get())
 			{
-				if (ALandscape* Landscape = LandscapeInfo->LandscapeActor.Get())
-				{
-					Landscape->RegisterLandscapeEdMode(this);
-				}
-
-				ALandscapeProxy* LandscapeProxy = LandscapeInfo->GetLandscapeProxy();
-				if (LandscapeProxy)
-				{
-					if (CurrentToolTarget.LandscapeInfo == LandscapeInfo)
-					{
-						CurrentIndex = Index;
-
-						// Update GizmoActor Landscape Target (is this necessary?)
-						if (CurrentGizmoActor.IsValid())
-						{
-							CurrentGizmoActor->SetTargetLandscape(LandscapeInfo);
-						}
-					}
-
-					int32 MinX, MinY, MaxX, MaxY;
-					int32 Width = 0, Height = 0;
-					if (LandscapeInfo->GetLandscapeExtent(MinX, MinY, MaxX, MaxY))
-					{
-						Width = MaxX - MinX + 1;
-						Height = MaxY - MinY + 1;
-					}
-
-					LandscapeList.Add(FLandscapeListInfo(*LandscapeProxy->GetName(), LandscapeInfo,
-						LandscapeInfo->ComponentSizeQuads, LandscapeInfo->ComponentNumSubsections, Width, Height));
-					Index++;
-				}
+				Landscape->RegisterLandscapeEdMode(this);
 			}
-		}
+
+			ALandscapeProxy* LandscapeProxy = LandscapeInfo->GetLandscapeProxy();
+			if (LandscapeProxy)
+			{
+				if (CurrentToolTarget.LandscapeInfo == LandscapeInfo)
+				{
+					CurrentIndex = Index;
+
+					// Update GizmoActor Landscape Target (is this necessary?)
+					if (CurrentGizmoActor.IsValid())
+					{
+						CurrentGizmoActor->SetTargetLandscape(LandscapeInfo);
+					}
+				}
+
+				int32 MinX, MinY, MaxX, MaxY;
+				int32 Width = 0, Height = 0;
+				if (LandscapeInfo->GetLandscapeExtent(MinX, MinY, MaxX, MaxY))
+				{
+					Width = MaxX - MinX + 1;
+					Height = MaxY - MinY + 1;
+				}
+
+				LandscapeList.Add(FLandscapeListInfo(*LandscapeProxy->GetName(), LandscapeInfo,
+					LandscapeInfo->ComponentSizeQuads, LandscapeInfo->ComponentNumSubsections, Width, Height));
+				Index++;
+			}
+			return true;
+		});
 	}
 
 	if (CurrentIndex == INDEX_NONE)

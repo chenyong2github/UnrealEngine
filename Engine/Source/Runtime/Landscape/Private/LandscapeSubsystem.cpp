@@ -9,11 +9,14 @@
 #include "LandscapeProxy.h"
 #include "LandscapeStreamingProxy.h"
 #include "LandscapeInfo.h"
+#include "LandscapeInfoMap.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "ActorPartition/ActorPartitionSubsystem.h"
 #include "Engine/World.h"
 #include "Math/IntRect.h"
+#include "EngineUtils.h"
+#include "EditorSupportDelegates.h"
 
 static int32 GUseStreamingManagerForCameras = 1;
 static FAutoConsoleVariableRef CVarUseStreamingManagerForCameras(
@@ -23,8 +26,13 @@ static FAutoConsoleVariableRef CVarUseStreamingManagerForCameras(
 
 DECLARE_CYCLE_STAT(TEXT("LandscapeSubsystem Tick"), STAT_LandscapeSubsystemTick, STATGROUP_Landscape);
 
-ULandscapeSubsystem::ULandscapeSubsystem()
+ULandscapeSubsystem::ULandscapeSubsystem(const FObjectInitializer& ObjectInitializer)
+#if WITH_EDITOR
+	: GrassMapsBuilder(nullptr)
+#endif
 {
+	LandscapeInfos = ObjectInitializer.CreateDefaultSubobject<ULandscapeInfoMap>(this, "LandscapeInfoMap");
+	LandscapeInfos->SetFlags(RF_Transactional);
 }
 
 ULandscapeSubsystem::~ULandscapeSubsystem()
@@ -39,6 +47,55 @@ void ULandscapeSubsystem::RegisterActor(ALandscapeProxy* Proxy)
 void ULandscapeSubsystem::UnregisterActor(ALandscapeProxy* Proxy)
 {
 	Proxies.Remove(Proxy);
+}
+
+void ULandscapeSubsystem::ForEachLandscapeInfo(TFunctionRef<bool(ULandscapeInfo*)> Predicate)
+{
+	for (const TPair<FGuid, ULandscapeInfo*>& Pair : LandscapeInfos->Map)
+	{
+		if (Pair.Value && !Pair.Value->IsPendingKill())
+		{
+			if (!Predicate(Pair.Value))
+			{
+				return;
+			}
+		}
+	}
+}
+
+void ULandscapeSubsystem::ForEachLandscapeInfo(const UWorld* InWorld, TFunctionRef<bool(ULandscapeInfo*)> Predicate)
+{
+	if (ULandscapeSubsystem* LandscapeSubsystem = UWorld::GetSubsystem<ULandscapeSubsystem>(InWorld))
+	{
+		LandscapeSubsystem->ForEachLandscapeInfo(Predicate);
+	}
+}
+
+ULandscapeInfo* ULandscapeSubsystem::GetLandscapeInfo(FGuid LandscapeGuid, bool bCreate)
+{
+	ULandscapeInfo* LandscapeInfo = LandscapeInfos->Map.FindRef(LandscapeGuid);
+	if (LandscapeInfo)
+	{
+		return LandscapeInfo;
+	}
+	else if (bCreate)
+	{
+		LandscapeInfo = NewObject<ULandscapeInfo>(LandscapeInfos, NAME_None, RF_Transactional | RF_Transient);
+		LandscapeInfos->Modify(false);
+		LandscapeInfos->Map.Add(LandscapeGuid, LandscapeInfo);
+	}
+
+	return LandscapeInfo;
+}
+
+ULandscapeInfo* ULandscapeSubsystem::GetLandscapeInfo(const UWorld* InWorld, FGuid LandscapeGuid, bool bCreate)
+{
+	if (ULandscapeSubsystem* LandscapeSubsystem = UWorld::GetSubsystem<ULandscapeSubsystem>(InWorld))
+	{
+		return LandscapeSubsystem->GetLandscapeInfo(LandscapeGuid, bCreate);
+	}
+
+	return nullptr;
 }
 
 void ULandscapeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -155,6 +212,74 @@ void ULandscapeSubsystem::Tick(float DeltaTime)
 }
 
 #if WITH_EDITOR
+void ULandscapeSubsystem::RecreateLandscapeInfos(bool bMapCheck)
+{
+	LandscapeInfos->Modify();
+
+	// reset all LandscapeInfo objects
+	for (auto& LandscapeInfoPair : LandscapeInfos->Map)
+	{
+		ULandscapeInfo* LandscapeInfo = LandscapeInfoPair.Value;
+
+		if (LandscapeInfo != nullptr)
+		{
+			LandscapeInfo->Modify();
+			LandscapeInfo->Reset();
+		}
+	}
+
+	TMap<FGuid, TArray<ALandscapeProxy*>> ValidLandscapesMap;
+	// Gather all valid landscapes in the world
+	for (ALandscapeProxy* Proxy : TActorRange<ALandscapeProxy>(GetWorld()))
+	{
+		if (Proxy->GetLevel() &&
+			Proxy->GetLevel()->bIsVisible &&
+			!Proxy->HasAnyFlags(RF_BeginDestroyed) &&
+			!Proxy->IsPendingKill() &&
+			!Proxy->IsPendingKillPending())
+		{
+			ValidLandscapesMap.FindOrAdd(Proxy->GetLandscapeGuid()).Add(Proxy);
+		}
+	}
+
+	// Register landscapes in global landscape map
+	for (auto& ValidLandscapesPair : ValidLandscapesMap)
+	{
+		auto& LandscapeList = ValidLandscapesPair.Value;
+		for (ALandscapeProxy* Proxy : LandscapeList)
+		{
+			Proxy->CreateLandscapeInfo()->RegisterActor(Proxy, bMapCheck);
+		}
+	}
+
+	// Remove empty entries from global LandscapeInfo map
+	for (auto It = LandscapeInfos->Map.CreateIterator(); It; ++It)
+	{
+		ULandscapeInfo* Info = It.Value();
+
+		if (Info != nullptr && Info->GetLandscapeProxy() == nullptr)
+		{
+			Info->MarkPendingKill();
+			It.RemoveCurrent();
+		}
+		else if (Info == nullptr) // remove invalid entry
+		{
+			It.RemoveCurrent();
+		}
+	}
+
+	// We need to inform Landscape editor tools about LandscapeInfo updates
+	FEditorSupportDelegates::WorldChange.Broadcast();
+}
+
+void ULandscapeSubsystem::RecreateLandscapeInfos(UWorld* InWorld, bool bMapCheck)
+{
+	if (ULandscapeSubsystem* LandscapeSubsystem = UWorld::GetSubsystem<ULandscapeSubsystem>(InWorld))
+	{
+		LandscapeSubsystem->RecreateLandscapeInfos(bMapCheck);
+	}
+}
+
 void ULandscapeSubsystem::BuildGrassMaps()
 {
 	GrassMapsBuilder->Build();

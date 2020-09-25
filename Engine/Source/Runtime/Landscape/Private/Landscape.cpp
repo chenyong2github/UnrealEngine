@@ -20,7 +20,6 @@ Landscape.cpp: Terrain rendering
 #include "ShadowMap.h"
 #include "LandscapeComponent.h"
 #include "LandscapeLayerInfoObject.h"
-#include "LandscapeInfoMap.h"
 #include "EditorSupportDelegates.h"
 #include "LandscapeMeshProxyComponent.h"
 #include "LandscapeRender.h"
@@ -1186,41 +1185,23 @@ ALandscape* ALandscapeStreamingProxy::GetLandscapeActor()
 
 ULandscapeInfo* ALandscapeProxy::CreateLandscapeInfo(bool bMapCheck)
 {
-	ULandscapeInfo* LandscapeInfo = nullptr;
-
 	check(LandscapeGuid.IsValid());
 	UWorld* OwningWorld = GetWorld();
 	check(OwningWorld);
 	
-	auto& LandscapeInfoMap = ULandscapeInfoMap::GetLandscapeInfoMap(OwningWorld);
-	LandscapeInfo = LandscapeInfoMap.Map.FindRef(LandscapeGuid);
-
-	if (!LandscapeInfo)
-	{
-		check(!HasAnyFlags(RF_BeginDestroyed));
-		LandscapeInfo = NewObject<ULandscapeInfo>(GetTransientPackage(), NAME_None, RF_Transactional | RF_Transient);
-		LandscapeInfoMap.Modify(false);
-		LandscapeInfoMap.Map.Add(LandscapeGuid, LandscapeInfo);
-	}
+	ULandscapeInfo* LandscapeInfo = ULandscapeSubsystem::GetLandscapeInfo(OwningWorld, LandscapeGuid, /*bCreate*/ true);
 	check(LandscapeInfo);
 	LandscapeInfo->RegisterActor(this, bMapCheck);
-
 	return LandscapeInfo;
 }
 
 ULandscapeInfo* ALandscapeProxy::GetLandscapeInfo() const
 {
-	ULandscapeInfo* LandscapeInfo = nullptr;
-
 	check(LandscapeGuid.IsValid());
 	UWorld* OwningWorld = GetWorld();
-
-	if (OwningWorld != nullptr)
-	{
-		auto& LandscapeInfoMap = ULandscapeInfoMap::GetLandscapeInfoMap(OwningWorld);
-		LandscapeInfo = LandscapeInfoMap.Map.FindRef(LandscapeGuid);
-	}
-	return LandscapeInfo;
+	check(OwningWorld);
+	
+	return  ULandscapeSubsystem::GetLandscapeInfo(OwningWorld, LandscapeGuid, /*bCreate*/false);
 }
 
 FTransform ALandscapeProxy::LandscapeActorToWorld() const
@@ -2535,7 +2516,7 @@ void ALandscapeProxy::Destroyed()
 
 	if (GIsEditor && !World->IsGameWorld())
 	{
-		ULandscapeInfo::RecreateLandscapeInfo(World, false);
+		ULandscapeSubsystem::RecreateLandscapeInfos(World, false);
 
 		if (SplineComponent)
 		{
@@ -3016,70 +2997,6 @@ void ULandscapeInfo::UpdateComponentLayerWhitelist()
 		}
 	});
 }
-
-void ULandscapeInfo::RecreateLandscapeInfo(UWorld* InWorld, bool bMapCheck)
-{
-	check(InWorld);
-
-	ULandscapeInfoMap& LandscapeInfoMap = ULandscapeInfoMap::GetLandscapeInfoMap(InWorld);
-	LandscapeInfoMap.Modify();
-
-	// reset all LandscapeInfo objects
-	for (auto& LandscapeInfoPair : LandscapeInfoMap.Map)
-	{
-		ULandscapeInfo* LandscapeInfo = LandscapeInfoPair.Value;
-
-		if (LandscapeInfo != nullptr)
-		{
-			LandscapeInfo->Modify();
-			LandscapeInfo->Reset();
-		}
-	}
-
-	TMap<FGuid, TArray<ALandscapeProxy*>> ValidLandscapesMap;
-	// Gather all valid landscapes in the world
-	for (ALandscapeProxy* Proxy : TActorRange<ALandscapeProxy>(InWorld))
-	{
-		if (Proxy->GetLevel() &&
-			Proxy->GetLevel()->bIsVisible &&
-			!Proxy->HasAnyFlags(RF_BeginDestroyed) &&
-			!Proxy->IsPendingKill() &&
-			!Proxy->IsPendingKillPending())
-		{
-			ValidLandscapesMap.FindOrAdd(Proxy->GetLandscapeGuid()).Add(Proxy);
-		}
-	}
-
-	// Register landscapes in global landscape map
-	for (auto& ValidLandscapesPair : ValidLandscapesMap)
-	{
-		auto& LandscapeList = ValidLandscapesPair.Value;
-		for (ALandscapeProxy* Proxy : LandscapeList)
-		{
-			Proxy->CreateLandscapeInfo()->RegisterActor(Proxy, bMapCheck);
-		}
-	}
-
-	// Remove empty entries from global LandscapeInfo map
-	for (auto It = LandscapeInfoMap.Map.CreateIterator(); It; ++It)
-	{
-		ULandscapeInfo* Info = It.Value();
-
-		if (Info != nullptr && Info->GetLandscapeProxy() == nullptr)
-		{
-			Info->MarkPendingKill();
-			It.RemoveCurrent();
-		}
-		else if (Info == nullptr) // remove invalid entry
-		{
-			It.RemoveCurrent();
-		}
-	}
-
-	// We need to inform Landscape editor tools about LandscapeInfo updates
-	FEditorSupportDelegates::WorldChange.Broadcast();
-}
-
 
 #endif
 
