@@ -25,6 +25,32 @@ void FVisualizeTexture::ParseCommands(const TCHAR* Cmd, FOutputDevice &Ar)
 		{
 			break;
 		}
+		else if (ParameterCount == 0)
+		{
+			if (!FChar::IsDigit(**Parameter))
+			{
+				const TCHAR* AfterAt = *Parameter;
+
+				while (*AfterAt != 0 && *AfterAt != TCHAR('@'))
+				{
+					++AfterAt;
+				}
+
+				if (*AfterAt == TCHAR('@'))
+				{
+					FString NameWithoutAt = Parameter.Left(AfterAt - *Parameter);
+					Visualize(*NameWithoutAt, FCString::Atoi(AfterAt + 1));
+				}
+				else
+				{
+					Visualize(*Parameter);
+				}
+			}
+			else
+			{
+				Visualize({});
+			}
+		}
 		else if (Parameter == TEXT("fulllist") || Parameter == TEXT("full"))
 		{
 			Config.Flags |= EFlags::FullList;
@@ -121,32 +147,6 @@ void FVisualizeTexture::ParseCommands(const TCHAR* Cmd, FOutputDevice &Ar)
 			Config.RGBMul *= Mul;
 			Config.SingleChannelMul *= Mul;
 			Config.AMul *= Mul;
-		}
-		else if (ParameterCount == 0)
-		{
-			if (!FChar::IsDigit(**Parameter))
-			{
-				const TCHAR* AfterAt = *Parameter;
-
-				while (*AfterAt != 0 && *AfterAt != TCHAR('@'))
-				{
-					++AfterAt;
-				}
-
-				if (*AfterAt == TCHAR('@'))
-				{
-					FString NameWithoutAt = Parameter.Left(AfterAt - *Parameter);
-					Visualize(*NameWithoutAt, FCString::Atoi(AfterAt + 1));
-				}
-				else
-				{
-					Visualize(*Parameter);
-				}
-			}
-			else
-			{
-				Visualize({});
-			}
 		}
 		else
 		{
