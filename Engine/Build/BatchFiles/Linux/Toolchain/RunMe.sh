@@ -17,6 +17,9 @@ if ! $(grep -q "/docker/" /proc/1/cgroup); then
   echo docker run -t --name ${ImageName} -v "${SCRIPT_DIR}:/src" centos:7 /src/${SCRIPT_NAME}
   docker run -t --name ${ImageName} -v "${SCRIPT_DIR}:/src" centos:7 /src/${SCRIPT_NAME}
 
+  # Use if you want a shell when a command fails in the script
+  # docker run -it --name ${ImageName} -v "${SCRIPT_DIR}:/src" centos:7 bash -c "/src/${SCRIPT_NAME}; bash"
+
   echo Removing ${ImageName}...
   docker rm ${ImageName}
 
@@ -28,10 +31,15 @@ else
     ##############################################################################
     # docker root commands
     ##############################################################################
-    yum install -y epel-release centos-release-scl
+    yum install -y epel-release centos-release-scl dnf dnf-plugins-core
+
+    # needed for mingw due to https://pagure.io/fesco/issue/2333
+    dnf -y copr enable alonid/mingw-epel7
+
     yum install -y ncurses-devel patch llvm-toolset-7 llvm-toolset-7-llvm-devel make cmake3 tree zip \
         git wget which gcc-c++ gperf bison flex texinfo bzip2 help2man file unzip autoconf libtool \
-        glibc-static libstdc++-devel libstdc++-static mingw64-gcc mingw64-gcc-c++ mingw64-winpthreads-static
+        glibc-static libstdc++-devel libstdc++-static mingw64-gcc mingw64-gcc-c++ mingw64-winpthreads-static \
+        devtoolset-7-gcc libisl-devel
 
     # Create non-privileged user and workspace
     adduser buildmaster
