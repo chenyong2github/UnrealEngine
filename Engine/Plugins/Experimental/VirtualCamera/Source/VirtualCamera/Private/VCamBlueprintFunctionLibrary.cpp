@@ -3,14 +3,11 @@
 #include "VCamBlueprintFunctionLibrary.h"
 #include "CineCameraComponent.h"
 #include "LevelSequence.h"
-#include "LevelSequenceEditor/Private/LevelSequenceEditorBlueprintLibrary.h"
 #include "VirtualCameraClipsMetaData.h"
-#include "VPUtilitiesEditor/Public/VPUtilitiesEditorBlueprintLibrary.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "AssetData.h"
 #include "VirtualCameraUserSettings.h"
 #include "GameFramework/PlayerController.h"
-
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -20,6 +17,8 @@
 #include "LevelEditorViewport.h"
 #include "SceneView.h"
 #include "SLevelViewport.h"
+#include "LevelSequenceEditor/Private/LevelSequenceEditorBlueprintLibrary.h"
+#include "VPUtilitiesEditor/Public/VPUtilitiesEditorBlueprintLibrary.h"
 #endif
 
 bool UVCamBlueprintFunctionLibrary::IsGameRunning()
@@ -333,6 +332,7 @@ float UVCamBlueprintFunctionLibrary::CalculateAutoFocusDistance(FVector2D Reticl
 	return (bHit) ? Hit.Distance : MaxFocusTraceDistance;
 }
 
+
 void UVCamBlueprintFunctionLibrary::EditorSetGameView(bool bIsToggled)
 {
 #if WITH_EDITOR
@@ -393,4 +393,13 @@ bool UVCamBlueprintFunctionLibrary::DeprojectScreenToWorld(const FVector2D& InSc
 		OutWorldDirection = FVector::ZeroVector;
 	}
 	return bSuccess;
+}
+
+TArray<UObject*> UVCamBlueprintFunctionLibrary::GetBoundObjects(FMovieSceneObjectBindingID CameraBindingID)
+{
+	TArray<UObject*> BoundObjectsArray;
+#if WITH_EDITOR
+	BoundObjectsArray = ULevelSequenceEditorBlueprintLibrary::GetBoundObjects(CameraBindingID);
+#endif
+	return BoundObjectsArray;
 }
