@@ -198,6 +198,7 @@ void FClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, 
 		ClothConfig->AngularVelocityScale,
 		ClothConfig->DragCoefficient,
 		ClothConfig->LiftCoefficient,
+		ClothConfig->bUsePointBasedWindModel,
 		ClothConfig->DampingCoefficient,
 		ClothConfig->CollisionThickness,
 		ClothConfig->FrictionCoefficient,
@@ -276,7 +277,7 @@ void FClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 
 	// Update Solver animatable parameters
 	Solver->SetLocalSpaceLocation(bUseLocalSpaceSimulation ? Context->ComponentToWorld.GetLocation() : TVector<float, 3>(0.f), bNeedsReset);
-	Solver->SetWindVelocity(Context->WindVelocity);
+	Solver->SetWindVelocity(Context->WindVelocity, Context->WindAdaption);
 	Solver->SetGravity(bUseGravityOverride ? GravityOverride : Context->WorldGravity);
 	Solver->EnableClothGravityOverride(!bUseGravityOverride);  // Disable all cloth gravity overrides when the interactor takes over
 
@@ -473,6 +474,7 @@ void FClothingSimulation::RefreshClothConfig(const IClothingSimulationContext* I
 			ClothConfig->AngularVelocityScale,
 			ClothConfig->DragCoefficient,
 			ClothConfig->LiftCoefficient,
+			ClothConfig->bUsePointBasedWindModel,
 			ClothConfig->DampingCoefficient,
 			ClothConfig->CollisionThickness,
 			ClothConfig->FrictionCoefficient,

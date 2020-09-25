@@ -65,11 +65,6 @@ void FClothingSimulationContextNv::FillWorldGravity(const USkeletalMeshComponent
 	FClothingSimulationContextCommon::WorldGravity = FVector(0.f, 0.f, GravityStrength);
 }
 
-void FClothingSimulationContextNv::FillWindVelocity(const USkeletalMeshComponent* InComponent)
-{
-	WindAdaption = FClothingSimulationContextCommon::SetWindFromComponent(InComponent);  // Also update wind adaptation
-}
-
 //=============================================================================
 // FClothingSimulationNv
 //=============================================================================

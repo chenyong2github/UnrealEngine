@@ -27,10 +27,7 @@ protected:
 	virtual void FillWindVelocity(const USkeletalMeshComponent* InComponent);
 	virtual void FillDeltaSeconds(float InDeltaSeconds, float InMaxPhysicsDelta);
 	virtual void FillTeleportMode(const USkeletalMeshComponent* InComponent, float InDeltaSeconds, float InMaxPhysicsDelta);
-	virtual void FillMaxDistanceScale(const USkeletalMeshComponent* Component);
-
-	// Set the wind velocity and return the wind adaptation if required
-	float SetWindFromComponent(const USkeletalMeshComponent* Component);
+	virtual void FillMaxDistanceScale(const USkeletalMeshComponent* InComponent);
 
 public:
 	// Component space bone transforms of the owning component
@@ -47,6 +44,10 @@ public:
 
 	// Wind velocity at the component location
 	FVector WindVelocity;
+
+	// Wind adaption, a measure of how quickly to adapt to the wind speed
+	// when using the legacy wind calculation mode
+	float WindAdaption;
 
 	// Delta for this tick
 	float DeltaSeconds;
