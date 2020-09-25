@@ -169,9 +169,7 @@ UObject* UAlembicImportFactory::FactoryCreateFile(UClass* InClass, UObject* InPa
 		FAbcImportLogger::OutputMessages(PageName);
 	}
 
-	// Determine out parent according to the generated assets outer
-	UObject* OutParent = (ResultAssets.Num() > 0 && InParent != ResultAssets[0]->GetOutermost()) ? ResultAssets[0]->GetOutermost() : InParent;
-	return (ResultAssets.Num() > 0) ? OutParent : nullptr;
+	return (ResultAssets.Num() > 0) ? ResultAssets[0] : nullptr;
 }
 
 TArray<UObject*> UAlembicImportFactory::ImportStaticMesh(FAbcImporter& Importer, UObject* InParent, EObjectFlags Flags)
