@@ -419,6 +419,7 @@ protected:
 	bool HitTest(const FInputDeviceRay& ClickPos, FInputRayHit& ResultOut);
 	void SelectPoint(int32 PointID);
 	bool DeselectPoint(int32 PointID);
+	void UpdateGizmoVisibility();
 	void UpdateGizmoLocation();
 	void UpdatePointLocation(int32 PointID, const FVector3d& NewLocation);
 
