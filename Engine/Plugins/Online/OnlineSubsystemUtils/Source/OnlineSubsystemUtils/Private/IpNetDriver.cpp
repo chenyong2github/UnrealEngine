@@ -99,6 +99,14 @@ TAutoConsoleVariable<float> CVarRcvThreadSleepTimeForWaitableErrorsInSeconds(
 	0.0f, // When > 0 => sleep. When == 0 => yield (if platform supports it). When < 0 => disabled
 	TEXT("Time the receive thread will sleep when a waitable error is returned by a socket operation."));
 
+TAutoConsoleVariable<int32> CVarRcvThreadShouldSleepForLongRecvErrors(
+	TEXT("net.RcvThreadShouldSleepForLongRecvErrors"),
+	0,
+	TEXT("Whether or not the receive thread should sleep for RecvFrom errors which are expected to last a long time. ")
+		TEXT("0 = don't sleep, 1 = sleep, 2 = exit receive thread.")
+	);
+
+
 #if !UE_BUILD_SHIPPING
 TAutoConsoleVariable<int32> CVarNetDebugDualIPs(
 	TEXT("net.DebugDualIPs"),
@@ -123,6 +131,14 @@ namespace IPNetDriverInternal
 	bool ShouldSleepOnWaitError(ESocketErrors SocketError)
 	{
 		return SocketError == ESocketErrors::SE_NO_ERROR || SocketError == ESocketErrors::SE_EWOULDBLOCK || SocketError == ESocketErrors::SE_TRY_AGAIN;
+	}
+
+	/**
+	 * Receive errors which are expected to last a long time and risk spinning the receive thread, which may or may not be recoverable
+	 */
+	bool IsLongRecvError(ESocketErrors SocketError)
+	{
+		return SocketError == SE_ENETDOWN;
 	}
 }
 
@@ -1786,6 +1802,7 @@ uint32 UIpNetDriver::FReceiveThreadRunnable::Run()
 {
 	const FTimespan Timeout = FTimespan::FromMilliseconds(CVarNetIpNetDriverReceiveThreadPollTimeMS.GetValueOnAnyThread());
 	const float SleepTimeForWaitableErrorsInSec = CVarRcvThreadSleepTimeForWaitableErrorsInSeconds.GetValueOnAnyThread();
+	const int32 ActionForLongRecvErrors = CVarRcvThreadShouldSleepForLongRecvErrors.GetValueOnAnyThread();
 
 	UE_LOG(LogNet, Log, TEXT("UIpNetDriver::FReceiveThreadRunnable::Run starting up."));
 
@@ -1844,6 +1861,21 @@ uint32 UIpNetDriver::FReceiveThreadRunnable::Run()
 					IncomingPacket.Error = RecvFromError;
 					const bool bSuccess = DispatchPacket(MoveTemp(IncomingPacket), BytesRead);
 					bReceiveQueueFull = !bSuccess;
+				}
+
+				if (IPNetDriverInternal::IsLongRecvError(RecvFromError))
+				{
+					if (ActionForLongRecvErrors == 1)
+					{
+						if (SleepTimeForWaitableErrorsInSec >= 0.f)
+						{
+							FPlatformProcess::SleepNoStats(SleepTimeForWaitableErrorsInSec);
+						}
+					}
+					else if (ActionForLongRecvErrors == 2)
+					{
+						break;
+					}
 				}
 			}
 		}
