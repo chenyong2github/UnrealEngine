@@ -193,10 +193,6 @@ struct ENGINE_API FCameraShakeInfo
  * the object that contains the actual logic driving how the camera is shaken. Keeping the two
  * separate makes it possible to completely change how a shake works without having to create
  * a completely different asset.
- *
- * Note that this class is marked as "abstract" so that UCameraShakeInstance (defined in the
- * GameplayCameras plug-in) is used as the default type, which adds a perlin noise pattern
- * as its root pattern.
  */
 UCLASS(Abstract, Blueprintable, EditInlineNew)
 class ENGINE_API UCameraShakeBase : public UObject
