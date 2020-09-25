@@ -232,7 +232,7 @@ struct TFrame3
 	/** @return input Ray transformed from local coordinate system of Frame into "World" coordinate system */
 	TRay3<RealType> FromFrame(const TRay3<RealType>& Ray) const
 	{
-		return TRay3<RealType>(ToFramePoint(Ray.Origin), ToFrameVector(Ray.Direction));
+		return TRay3<RealType>(FromFramePoint(Ray.Origin), FromFrameVector(Ray.Direction));
 	}
 
 
@@ -244,7 +244,7 @@ struct TFrame3
 	/** @return input Frame transformed from local coordinate system of this Frame into "World" coordinate system */
 	TFrame3<RealType> FromFrame(const TFrame3<RealType>& Frame) const
 	{
-		return TFrame3<RealType>(ToFramePoint(Frame.Origin), FromFrame(Frame.Rotation));
+		return TFrame3<RealType>(FromFramePoint(Frame.Origin), FromFrame(Frame.Rotation));
 	}
 
 
