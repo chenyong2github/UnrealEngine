@@ -223,7 +223,7 @@ public:
 			FVector2D WindowLocation = Window->IsMorphing() ? Window->GetMorphTargetPosition() : Window->GetPositionInScreen();
 			FVector2D WindowSize = Window->GetDesiredSize();
 			FSlateRect Anchor(WindowLocation.X, WindowLocation.Y, WindowLocation.X, WindowLocation.Y);
-			WindowLocation = FSlateApplication::Get().CalculatePopupWindowPosition( Anchor, WindowSize );
+			WindowLocation = FSlateApplication::Get().CalculatePopupWindowPosition( Anchor, WindowSize, false );
 
 			// Update the window's position!
 			if( Window->IsMorphing() )
