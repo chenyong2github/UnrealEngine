@@ -2,6 +2,8 @@
 
 #include "Camera/CameraShakeBase.h"
 #include "Camera/PlayerCameraManager.h"
+#include "Engine/Engine.h"
+#include "IXRTrackingSystem.h"
 #include "Misc/EnumClassFlags.h"
 
 DECLARE_CYCLE_STAT(TEXT("CameraShakeStartShake"), STAT_StartShake, STATGROUP_Game);
@@ -180,13 +182,16 @@ void UCameraShakeBase::UpdateAndApplyCameraShake(float DeltaTime, float Alpha, F
 	}
 
 	// If the sub-class gave us a delta-transform, we can help with some of the basic functionality
-	// of a camera shake... namely: apply shake scaling and play space transformation.
+	// of a camera shake... namely: apply shake scaling, system limits, and play space transformation.
 	if (!EnumHasAnyFlags(Result.Flags, ECameraShakeUpdateResultFlags::ApplyAsAbsolute))
 	{
 		if (!EnumHasAnyFlags(Result.Flags, ECameraShakeUpdateResultFlags::SkipAutoScale))
 		{
 			ApplyScale(Params, Result);
 		}
+
+		ApplyLimits(Params, Result);
+
 		if (!EnumHasAnyFlags(Result.Flags, ECameraShakeUpdateResultFlags::SkipAutoPlaySpace))
 		{
 			ApplyPlaySpace(Params, Result);
@@ -283,6 +288,19 @@ void UCameraShakeBase::ApplyScale(float Scale, FCameraShakeUpdateResult& InOutRe
 	InOutResult.Location *= Scale;
 	InOutResult.Rotation *= Scale;
 	InOutResult.FOV *= Scale;
+}
+
+void UCameraShakeBase::ApplyLimits(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& InOutResult) const
+{
+	// Don't allow shake to flip pitch past vertical, if not using a headset.
+	// If using a headset, we can't limit the camera locked to your head.
+	if (!GEngine->XRSystem.IsValid() || !GEngine->XRSystem->IsHeadTrackingAllowed())
+	{
+		// Find normalized result when combined, and remove any offset that would push it past the limit.
+		const float NormalizedInputPitch = FRotator::NormalizeAxis(Params.POV.Rotation.Pitch);
+		const float NormalizedOutputPitchOffset = FRotator::NormalizeAxis(InOutResult.Rotation.Pitch);
+		InOutResult.Rotation.Pitch = FMath::ClampAngle(NormalizedInputPitch + NormalizedOutputPitchOffset, -89.9f, 89.9f) - NormalizedInputPitch;
+	}
 }
 
 void UCameraShakeBase::ApplyPlaySpace(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& InOutResult) const
