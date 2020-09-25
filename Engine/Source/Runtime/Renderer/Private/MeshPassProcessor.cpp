@@ -404,28 +404,17 @@ FGraphicsMinimalPipelineStateId FGraphicsMinimalPipelineStateId::GetPipelineStat
 {
 	FGraphicsMinimalPipelineStateId Ret;
 	Ret.bValid = 1;
-	Ret.bComesFromLocalPipelineStateSet = 0;
-
-	Experimental::FHashElementId TableIndex;
-	{
-		FScopeLock Lock(&PersistentIdTableLock);
-		TableIndex = PersistentIdTable.FindId(InPipelineState);
-	}
-
-	if (!TableIndex.IsValid())
-	{
-		Ret.bComesFromLocalPipelineStateSet = 1;
+	Ret.bComesFromLocalPipelineStateSet = 1;
 #if UE_BUILD_DEBUG
-		FGraphicsMinimalPipelineStateInitializer PipelineStateDebug = FGraphicsMinimalPipelineStateInitializer(InPipelineState);
-		check(GetTypeHash(PipelineStateDebug) == GetTypeHash(InPipelineState));
-		check(PipelineStateDebug == InPipelineState);
+	FGraphicsMinimalPipelineStateInitializer PipelineStateDebug = FGraphicsMinimalPipelineStateInitializer(InPipelineState);
+	check(GetTypeHash(PipelineStateDebug) == GetTypeHash(InPipelineState));
+	check(PipelineStateDebug == InPipelineState);
 #endif
-		TableIndex = InOutPassSet.FindOrAddId(InPipelineState);
+	Experimental::FHashElementId TableIndex = InOutPassSet.FindOrAddId(InPipelineState);
 #if UE_BUILD_DEBUG
-		check(InOutPassSet.GetByElementId(TableIndex) == InPipelineState);
+	check(InOutPassSet.GetByElementId(TableIndex) == InPipelineState);
 #endif
-		InNeedsShaderInitialisation = InNeedsShaderInitialisation || InPipelineState.BoundShaderState.NeedsShaderInitialisation();
-	}
+	InNeedsShaderInitialisation = InNeedsShaderInitialisation || InPipelineState.BoundShaderState.NeedsShaderInitialisation();
 
 	checkf(TableIndex.GetIndex() < (MAX_uint32 >> 2), TEXT("One frame FGraphicsMinimalPipelineStateId table overflow!"));
 
