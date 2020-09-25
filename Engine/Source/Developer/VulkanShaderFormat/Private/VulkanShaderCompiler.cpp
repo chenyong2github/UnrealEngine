@@ -1068,13 +1068,13 @@ static void BuildShaderOutput(
 	FVulkanHlslccHeader CCHeader;
 	if (!CCHeader.Read(USFSource, SourceLen))
 	{
-		UE_LOG(LogVulkanShaderCompiler, Error, TEXT("Bad hlslcc header found"));
+		UE_LOG(LogVulkanShaderCompiler, Error, TEXT("Bad hlslcc header found: %s"), *ShaderInput.GenerateShaderName());
 		return;
 	}
 
 	if (!bSourceContainsMetaDataOnly && *USFSource != '#')
 	{
-		UE_LOG(LogVulkanShaderCompiler, Error, TEXT("Bad hlslcc header found! Missing '#'!"));
+		UE_LOG(LogVulkanShaderCompiler, Error, TEXT("Bad hlslcc header found with missing '#' character: %s"), *ShaderInput.GenerateShaderName());
 		return;
 	}
 
