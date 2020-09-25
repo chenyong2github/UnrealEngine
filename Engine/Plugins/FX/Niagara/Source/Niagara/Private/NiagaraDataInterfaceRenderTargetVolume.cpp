@@ -56,14 +56,16 @@ public:
 				if (FRHITexture* TextureRHI = ProxyData->TextureReferenceRHI->GetReferencedTexture())
 				{
 					// Note: Because we control the render target it should not changed underneath us without queueing a request to recreate the UAV.  If that assumption changes we would need to track the UAV.
+					ERHIAccess InitialState = ERHIAccess::SRVMask;
 					if (!ProxyData->UAV.IsValid())
 					{
 						ProxyData->UAV = RHICreateUnorderedAccessView(TextureRHI, 0);
+						InitialState = ERHIAccess::Unknown;
 					}
 
 					OutputUAV = ProxyData->UAV;
-					RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, ProxyData->TextureReferenceRHI->GetReferencedTexture());
-					RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, OutputUAV);
+
+					RHICmdList.Transition(FRHITransitionInfo(OutputUAV, InitialState, ERHIAccess::UAVCompute));
 				}
 			}
 
@@ -82,11 +84,12 @@ public:
 			FNiagaraDataInterfaceProxyRenderTargetVolumeProxy* VFDI = static_cast<FNiagaraDataInterfaceProxyRenderTargetVolumeProxy*>(Context.DataInterface);
 			FRenderTargetVolumeRWInstanceData_RenderThread* ProxyData = VFDI->SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
 			OutputParam.UnsetUAV(RHICmdList, Context.Shader.GetComputeShader());
-			FRHIUnorderedAccessView* OutputUAV = nullptr;
-			if (ProxyData)
+			if (ProxyData && Context.IsOutputStage)
 			{
-				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, ProxyData->TextureReferenceRHI->GetReferencedTexture());
-				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, OutputUAV);
+				if ( FRHIUnorderedAccessView* OutputUAV = ProxyData->UAV )
+				{
+					RHICmdList.Transition(FRHITransitionInfo(OutputUAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
+				}
 			}
 		}
 	}
