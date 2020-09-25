@@ -1102,24 +1102,22 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 		Resources->RootClusterPage.Empty();
 	}
 
-	AddUntrackedAccessPass(GraphBuilder, [this, NumPendingAdds](FRHICommandList& RHICmdList)
 	{
 		FRHIUnorderedAccessView* UAVs[] = { ClusterPageData.DataBuffer.UAV, ClusterPageHeaders.DataBuffer.UAV, Hierarchy.DataBuffer.UAV };
-		RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, UAVs, UE_ARRAY_COUNT(UAVs));
+		GraphBuilder.RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, UAVs, UE_ARRAY_COUNT(UAVs));
 
 		Hierarchy.TotalUpload = 0;
-		Hierarchy.UploadBuffer.ResourceUploadTo( RHICmdList, Hierarchy.DataBuffer, false );
-		ClusterPageHeaders.UploadBuffer.ResourceUploadTo( RHICmdList, ClusterPageHeaders.DataBuffer, false );
-		PageUploader->ResourceUploadTo(RHICmdList, ClusterPageData.DataBuffer);
-
-		if (NumPendingAdds > 1)
-		{
-			PageUploader->Release();
-		}
-	});
+		Hierarchy.UploadBuffer.ResourceUploadTo(GraphBuilder.RHICmdList, Hierarchy.DataBuffer, false);
+		ClusterPageHeaders.UploadBuffer.ResourceUploadTo(GraphBuilder.RHICmdList, ClusterPageHeaders.DataBuffer, false);
+		PageUploader->ResourceUploadTo(GraphBuilder.RHICmdList, ClusterPageData.DataBuffer);
+	}
 
 	PendingAdds.Reset();
-	
+	if (NumPendingAdds > 1)
+	{
+		PageUploader->Release();
+	}
+
 	return true;
 }
 
