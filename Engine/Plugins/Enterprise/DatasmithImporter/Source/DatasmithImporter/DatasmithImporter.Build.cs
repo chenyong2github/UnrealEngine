@@ -26,6 +26,7 @@ namespace UnrealBuildTool.Rules
 					"FreeImage",
 					"InputCore",
 					"InterchangeCore",
+					"InterchangeEngine",
 					"InterchangeNodePlugin",
 					"Json",
 					"Landscape",

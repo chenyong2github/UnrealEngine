@@ -26,8 +26,11 @@ namespace UnrealBuildTool.Rules
 
 			if (Target.bCompileAgainstEngine)
 			{
-				PrivateDependencyModuleNames.Add("Engine");
-
+				PrivateDependencyModuleNames.AddRange(
+					new string[] {
+					"Engine",
+					}
+				);
 			}
 
 			AddEngineThirdPartyPrivateStaticDependencies(Target,

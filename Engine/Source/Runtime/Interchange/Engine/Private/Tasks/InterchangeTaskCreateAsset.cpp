@@ -4,7 +4,7 @@
 #include "Async/TaskGraphInterfaces.h"
 #include "CoreMinimal.h"
 #include "InterchangeFactoryBase.h"
-#include "InterchangeLogPrivate.h"
+#include "InterchangeEngineLogPrivate.h"
 #include "InterchangeManager.h"
 #include "InterchangeSourceData.h"
 #include "InterchangeTranslatorBase.h"
@@ -73,7 +73,7 @@ void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThre
 		if (UE::Interchange::FPackageUtils::IsMapPackageAsset(PackageName))
 		{
 			const FText Message = FText::Format(NSLOCTEXT("Interchange", "AssetNameInUseByMap", "You can not create an asset named '{0}' because there is already a map file with this name in this folder."), FText::FromString(AssetName));
-			UE_LOG(LogInterchangeCore, Warning, TEXT("%s"), *Message.ToString());
+			UE_LOG(LogInterchangeEngine, Warning, TEXT("%s"), *Message.ToString());
 			//Skip this asset
 			return;
 		}
@@ -82,7 +82,7 @@ void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThre
 		if (Pkg == nullptr)
 		{
 			const FText Message = FText::Format(NSLOCTEXT("Interchange", "CannotCreatePackageErrorMsg", "Cannot create package named '{0}', will not import asset {1}."), FText::FromString(PackageName), FText::FromString(AssetName));
-			UE_LOG(LogInterchangeCore, Warning, TEXT("%s"), *Message.ToString());
+			UE_LOG(LogInterchangeEngine, Warning, TEXT("%s"), *Message.ToString());
 			//Skip this asset
 			return;
 		}
@@ -131,14 +131,14 @@ void UE::Interchange::FTaskCreateAsset::DoTask(ENamedThreads::Type CurrentThread
 		if (!PkgPtr || !(*PkgPtr))
 		{
 			const FText Message = FText::Format(NSLOCTEXT("Interchange", "CannotCreateAssetNoPackageErrorMsg", "Cannot create asset named '{1}', package '{0}'was not created properly."), FText::FromString(PackageName), FText::FromString(AssetName));
-			UE_LOG(LogInterchangeCore, Warning, TEXT("%s"), *Message.ToString());
+			UE_LOG(LogInterchangeEngine, Warning, TEXT("%s"), *Message.ToString());
 			return;
 		}
 
 		if (!AsyncHelper->SourceDatas.IsValidIndex(SourceIndex) || !AsyncHelper->Translators.IsValidIndex(SourceIndex))
 		{
 			const FText Message = FText::Format(NSLOCTEXT("Interchange", "CannotCreateAssetMissingDataErrorMsg", "Cannot create asset named '{0}', Source data or translator is invalid."), FText::FromString(AssetName));
-			UE_LOG(LogInterchangeCore, Warning, TEXT("%s"), *Message.ToString());
+			UE_LOG(LogInterchangeEngine, Warning, TEXT("%s"), *Message.ToString());
 			return;
 		}
 

@@ -5,11 +5,6 @@
 #include "CoreMinimal.h"
 #include "Nodes/InterchangeBaseNode.h"
 
-#if WITH_ENGINE
-
-
-#endif
-
 #include "InterchangeSceneNode.generated.h"
 
 

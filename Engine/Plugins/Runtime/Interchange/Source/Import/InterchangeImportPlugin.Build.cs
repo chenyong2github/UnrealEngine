@@ -14,6 +14,7 @@ namespace UnrealBuildTool.Rules
 					"Engine",
 					"InterchangeCore",
 					"InterchangeDispatcher",
+					"InterchangeEngine",
 					"InterchangeNodePlugin",
 					"MeshDescription",
 				}

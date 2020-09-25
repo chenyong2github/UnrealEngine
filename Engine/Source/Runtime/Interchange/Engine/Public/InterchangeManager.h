@@ -23,7 +23,7 @@ namespace UE
 {
 	namespace Interchange
 	{
-		class INTERCHANGECORE_API FScopedSourceData
+		class INTERCHANGEENGINE_API FScopedSourceData
 		{
 		public:
 			explicit FScopedSourceData(const FString& Filename);
@@ -32,7 +32,7 @@ namespace UE
 			TStrongObjectPtr<UInterchangeSourceData> SourceDataPtr = nullptr;
 		};
 
-		class INTERCHANGECORE_API FScopedTranslator
+		class INTERCHANGEENGINE_API FScopedTranslator
 		{
 		public:
 			explicit FScopedTranslator(const UInterchangeSourceData* SourceData);
@@ -110,7 +110,7 @@ namespace UE
 			void CleanUp();
 		};
 
-		class INTERCHANGECORE_API FAsyncImportResult
+		class INTERCHANGEENGINE_API FAsyncImportResult
 		{
 		public:
 			FAsyncImportResult() = default;
@@ -146,7 +146,7 @@ struct FImportAssetParameters
 };
 
 UCLASS(Transient, BlueprintType)
-class INTERCHANGECORE_API UInterchangeManager : public UObject
+class INTERCHANGEENGINE_API UInterchangeManager : public UObject
 {
 	GENERATED_BODY()
 public:

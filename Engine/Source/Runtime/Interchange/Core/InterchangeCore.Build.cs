@@ -7,20 +7,10 @@ public class InterchangeCore : ModuleRules
 	public InterchangeCore(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PublicDependencyModuleNames.AddRange(
-				new string[] {
-					"Core",
-					"CoreUObject",
-				}
-			);
-
-		if(Target.bCompileAgainstEngine)
-        {
-			PrivateDependencyModuleNames.AddRange(
-				new string[] {
-					"AssetRegistry",
-					"Engine",
-				}
-			);
-		}
+			new string[] {
+				"Core",
+				"CoreUObject",
+			}
+		);
 	}
 }

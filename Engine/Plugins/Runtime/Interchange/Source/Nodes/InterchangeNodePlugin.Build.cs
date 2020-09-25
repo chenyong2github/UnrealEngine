@@ -18,7 +18,6 @@ namespace UnrealBuildTool.Rules
 			if(Target.bCompileAgainstEngine)
             {
 				PublicDependencyModuleNames.Add("Engine");
-
 			}
 		}
 	}
