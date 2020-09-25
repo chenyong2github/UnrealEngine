@@ -139,6 +139,11 @@ public:
 	static void EmptySelection();
 
 public:
+
+	/** Refresh Sequencer UI. */
+	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
+	static void RefreshCurrentLevelSequence();
+
 	/** Get the object bound to the given binding ID with the current level sequence editor */
 	UFUNCTION(BlueprintPure, Category="Level Sequence Editor")
 	static TArray<UObject*> GetBoundObjects(FMovieSceneObjectBindingID ObjectBinding);
