@@ -27,8 +27,8 @@ public:
 
 	FVector4 CenterAndExtent[GMaxGlobalDistanceFieldClipmaps];
 	FVector4 WorldToUVAddAndMul[GMaxGlobalDistanceFieldClipmaps];
-	FVector MipWorldToUVScale[GMaxGlobalDistanceFieldClipmaps];
-	FVector MipWorldToUVBias[GMaxGlobalDistanceFieldClipmaps];
+	FVector4 MipWorldToUVScale[GMaxGlobalDistanceFieldClipmaps];
+	FVector4 MipWorldToUVBias[GMaxGlobalDistanceFieldClipmaps];
 	float MipFactor;
 	float MipTransition;
 	FVector PageTableScrollOffset[GMaxGlobalDistanceFieldClipmaps];
@@ -76,12 +76,12 @@ public:
 		Ar << Parameters.GlobalDistanceFieldPageAtlasTexture;
 		Ar << Parameters.GlobalDistanceFieldPageTableTexture;
 		Ar << Parameters.GlobalDistanceFieldMipTexture;
-		Ar << Parameters.GlobalDistanceFieldMipFactor;
-		Ar << Parameters.GlobalDistanceFieldMipTransition;
 		Ar << Parameters.GlobalVolumeCenterAndExtent;
 		Ar << Parameters.GlobalVolumeWorldToUVAddAndMul;
 		Ar << Parameters.GlobalDistanceFieldMipWorldToUVScale;
 		Ar << Parameters.GlobalDistanceFieldMipWorldToUVBias;
+		Ar << Parameters.GlobalDistanceFieldMipFactor;
+		Ar << Parameters.GlobalDistanceFieldMipTransition;
 		Ar << Parameters.GlobalDistanceFieldClipmapSizeInPages;
 		Ar << Parameters.GlobalDistanceFieldInvPageAtlasSize;
 		Ar << Parameters.GlobalVolumeDimension;
@@ -120,12 +120,12 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter, GlobalDistanceFieldPageAtlasTexture)
 	LAYOUT_FIELD(FShaderResourceParameter, GlobalDistanceFieldPageTableTexture)
 	LAYOUT_FIELD(FShaderResourceParameter, GlobalDistanceFieldMipTexture)
-	LAYOUT_FIELD(FShaderParameter, GlobalDistanceFieldMipFactor)
-	LAYOUT_FIELD(FShaderParameter, GlobalDistanceFieldMipTransition)
 	LAYOUT_FIELD(FShaderParameter, GlobalVolumeCenterAndExtent)
 	LAYOUT_FIELD(FShaderParameter, GlobalVolumeWorldToUVAddAndMul)
 	LAYOUT_FIELD(FShaderParameter, GlobalDistanceFieldMipWorldToUVScale)
 	LAYOUT_FIELD(FShaderParameter, GlobalDistanceFieldMipWorldToUVBias)
+	LAYOUT_FIELD(FShaderParameter, GlobalDistanceFieldMipFactor)
+	LAYOUT_FIELD(FShaderParameter, GlobalDistanceFieldMipTransition)
 	LAYOUT_FIELD(FShaderParameter, GlobalDistanceFieldClipmapSizeInPages)	
 	LAYOUT_FIELD(FShaderParameter, GlobalDistanceFieldInvPageAtlasSize)
 	LAYOUT_FIELD(FShaderParameter, GlobalVolumeDimension)

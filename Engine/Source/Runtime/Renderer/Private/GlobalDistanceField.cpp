@@ -1038,8 +1038,8 @@ void FViewInfo::SetupDefaultGlobalDistanceFieldUniformBufferParameters(FViewUnif
 	{
 		ViewUniformShaderParameters.GlobalVolumeCenterAndExtent[Index] = FVector4(0);
 		ViewUniformShaderParameters.GlobalVolumeWorldToUVAddAndMul[Index] = FVector4(0);
-		ViewUniformShaderParameters.GlobalDistanceFieldMipWorldToUVScale[Index] = FVector(0);
-		ViewUniformShaderParameters.GlobalDistanceFieldMipWorldToUVBias[Index] = FVector(0);
+		ViewUniformShaderParameters.GlobalDistanceFieldMipWorldToUVScale[Index] = FVector4(0);
+		ViewUniformShaderParameters.GlobalDistanceFieldMipWorldToUVBias[Index] = FVector4(0);
 	}
 	ViewUniformShaderParameters.GlobalDistanceFieldMipFactor = 1.0f;
 	ViewUniformShaderParameters.GlobalDistanceFieldMipTransition = 0.0f;

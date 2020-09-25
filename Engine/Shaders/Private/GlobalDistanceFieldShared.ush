@@ -11,9 +11,9 @@
 #endif
 
 #if DISTANCE_FIELD_IN_VIEW_UB
-#define MaxGlobalDFAOConeDistance View.MaxGlobalDFAOConeDistance
+	#define MaxGlobalDFAOConeDistance View.MaxGlobalDFAOConeDistance
 #else
-float MaxGlobalDFAOConeDistance;
+	float MaxGlobalDFAOConeDistance;
 #endif
 
 #if PLATFORM_SUPPORTS_DISTANCE_FIELDS
@@ -46,8 +46,8 @@ float MaxGlobalDFAOConeDistance;
 	Texture3D GlobalDistanceFieldMipTexture;
 	float4 GlobalVolumeCenterAndExtent[MAX_GLOBAL_DF_CLIPMAPS];
 	float4 GlobalVolumeWorldToUVAddAndMul[MAX_GLOBAL_DF_CLIPMAPS];
-	float3 GlobalDistanceFieldMipWorldToUVScale[MAX_GLOBAL_DF_CLIPMAPS];
-	float3 GlobalDistanceFieldMipWorldToUVBias[MAX_GLOBAL_DF_CLIPMAPS];
+	float4 GlobalDistanceFieldMipWorldToUVScale[MAX_GLOBAL_DF_CLIPMAPS];
+	float4 GlobalDistanceFieldMipWorldToUVBias[MAX_GLOBAL_DF_CLIPMAPS];
 	float GlobalDistanceFieldMipFactor;
 	float GlobalDistanceFieldMipTransition;
 	float3 GlobalDistanceFieldInvPageAtlasSize;
@@ -118,7 +118,7 @@ float3 ComputeGlobalUV(float3 WorldPosition, uint ClipmapIndex)
 
 float3 ComputeGlobalMipUV(float3 WorldPosition, uint ClipmapIndex)
 {
-	return saturate(WorldPosition * GlobalDistanceFieldMipWorldToUVScale[ClipmapIndex] + GlobalDistanceFieldMipWorldToUVBias[ClipmapIndex]);
+	return saturate(WorldPosition * GlobalDistanceFieldMipWorldToUVScale[ClipmapIndex].xyz + GlobalDistanceFieldMipWorldToUVBias[ClipmapIndex].xyz);
 }
 
 float GetDistanceToNearestSurfaceGlobal(float3 WorldPosition)
