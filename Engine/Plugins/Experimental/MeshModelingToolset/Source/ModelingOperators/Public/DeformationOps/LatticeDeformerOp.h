@@ -19,7 +19,7 @@ public:
 	FLatticeDeformerOp(TSharedPtr<FDynamicMesh3> InOriginalMesh,
 					   TSharedPtr<FFFDLattice> InLattice,
 					   const TArray<FVector3d>& InLatticeControlPoints,
-					   bool InUseCubicInterpolation);
+					   ELatticeInterpolation InInterpolationType);
 
 	// FDynamicMeshOperator implementation
 	void CalculateResult(FProgressCancel* Progress) override;
@@ -30,6 +30,6 @@ protected:
 	const TSharedPtr<const FFFDLattice> Lattice;
 	const TSharedPtr<const FDynamicMesh3> OriginalMesh;
 	const TArray<FVector3d> LatticeControlPoints;
-	bool bUseCubicInterpolation;
+	ELatticeInterpolation InterpolationType;
 };
 

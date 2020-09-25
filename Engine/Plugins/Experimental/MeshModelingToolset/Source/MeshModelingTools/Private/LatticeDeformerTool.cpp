@@ -48,14 +48,16 @@ UInteractiveTool* ULatticeDeformerToolBuilder::BuildTool(const FToolBuilderState
 
 TUniquePtr<FDynamicMeshOperator> ULatticeDeformerOperatorFactory::MakeNewOperator()
 {
-	bool bUseCubicInterpolation =
-		(LatticeDeformerTool->Settings->InterpolationType == ELatticeInterpolationType::Cubic);
+	ELatticeInterpolation OpInterpolationType =
+		(LatticeDeformerTool->Settings->InterpolationType == ELatticeInterpolationType::Cubic) ?
+		ELatticeInterpolation::Cubic :
+		ELatticeInterpolation::Linear;
 
 	TUniquePtr<FLatticeDeformerOp> LatticeDeformOp = MakeUnique<FLatticeDeformerOp>(
 		LatticeDeformerTool->OriginalMesh,
 		LatticeDeformerTool->Lattice,
 		LatticeDeformerTool->ControlPointsMechanic->GetControlPoints(),
-		bUseCubicInterpolation);
+		OpInterpolationType);
 
 	return LatticeDeformOp;
 }

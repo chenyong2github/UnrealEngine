@@ -18,7 +18,7 @@ void FLatticeDeformerOp::CalculateResult(FProgressCancel* Progress)
 	}
 
 	TArray<FVector3d> DeformedPositions;
-	Lattice->GetDeformedMeshVertexPositions(LatticeControlPoints, DeformedPositions, bUseCubicInterpolation, Progress);
+	Lattice->GetDeformedMeshVertexPositions(LatticeControlPoints, DeformedPositions, InterpolationType, Progress);
 
 	check(ResultMesh->VertexCount() == DeformedPositions.Num());
 
@@ -31,9 +31,9 @@ void FLatticeDeformerOp::CalculateResult(FProgressCancel* Progress)
 FLatticeDeformerOp::FLatticeDeformerOp(TSharedPtr<FDynamicMesh3> InOriginalMesh,
 									   TSharedPtr<FFFDLattice> InLattice,
 									   const TArray<FVector3d>& InLatticeControlPoints,
-									   bool InUseCubicInterpolation) :
+									   ELatticeInterpolation InInterpolationType) :
 	Lattice(InLattice),
 	OriginalMesh(InOriginalMesh),
 	LatticeControlPoints(InLatticeControlPoints),
-	bUseCubicInterpolation(InUseCubicInterpolation)
+	InterpolationType(InInterpolationType)
 {}

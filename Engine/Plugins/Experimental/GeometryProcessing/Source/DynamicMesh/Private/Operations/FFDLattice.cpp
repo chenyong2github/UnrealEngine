@@ -112,7 +112,7 @@ void FFFDLattice::ComputeInitialEmbedding(const FDynamicMesh3& Mesh)
 
 void FFFDLattice::GetDeformedMeshVertexPositions(const TArray<FVector3d>& LatticeControlPoints, 
 												 TArray<FVector3d>& OutVertexPositions, 
-												 bool bCubic, 
+												 ELatticeInterpolation Interpolation,
 												 FProgressCancel* Progress) const
 {
 	int NumVertices = VertexEmbeddings.Num();
@@ -120,7 +120,7 @@ void FFFDLattice::GetDeformedMeshVertexPositions(const TArray<FVector3d>& Lattic
 
 	for (int VertexID = 0; VertexID < NumVertices; ++VertexID)
 	{
-		if (bCubic)
+		if (Interpolation == ELatticeInterpolation::Cubic)
 		{
 			OutVertexPositions[VertexID] = InterpolatedPositionCubic(VertexEmbeddings[VertexID], LatticeControlPoints);
 		}

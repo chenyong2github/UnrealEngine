@@ -9,6 +9,14 @@
 class FDynamicMesh3;
 class FProgressCancel;
 
+
+enum class ELatticeInterpolation : uint8
+{
+	Linear = 0,
+	Cubic = 1
+};
+
+
 /** 
  * Free-form deformation lattice. Initialize it with a mesh and desired resolution, get the initial lattice points out.
  * Then pass in deformed lattice points and it will compute deformed mesh vertex positions.
@@ -32,7 +40,7 @@ public:
 	/// deformed mesh vertex positions.
 	void GetDeformedMeshVertexPositions(const TArray<FVector3d>& LatticeControlPoints,
 										TArray<FVector3d>& OutVertexPositions, 
-										bool bCubic = false, 
+										ELatticeInterpolation Interpolation = ELatticeInterpolation::Linear,
 										FProgressCancel* Progress = nullptr) const;
 
 	void GenerateInitialLatticePositions(TArray<FVector3d>& OutLatticePositions) const;
