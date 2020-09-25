@@ -13,7 +13,7 @@ static uint64 PGOFileCounter = 0;
 static FString PGO_GetOutputDirectory()
 {
 	FString PGOOutputDirectory;
-	if (FParse::Value(FCommandLine::Get(), TEXT("pgoprofile="), PGOOutputDirectory))
+	if (FParse::Value(FCommandLine::Get(), TEXT("pgoprofileoutput="), PGOOutputDirectory))
 	{
 		return PGOOutputDirectory;
 	}
