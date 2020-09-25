@@ -348,30 +348,6 @@ struct FRCPresetFieldRenamed
 };
 
 USTRUCT()
-struct FRCPresetFieldsRenamedEvent
-{
-	GENERATED_BODY()
-
-	FRCPresetFieldsRenamedEvent() = default;
-
-	FRCPresetFieldsRenamedEvent(FName InPresetName, TArray<TTuple<FName, FName>> InRenamedFields)
-		: ResponseType(TEXT("FieldsRenamed"))
-		, PresetName(InPresetName)
-	{
-		RenamedFields.Append(InRenamedFields);
-	}
-
-	UPROPERTY()
-	FString ResponseType;
-
-	UPROPERTY()
-	FName PresetName;
-
-	UPROPERTY()
-	TArray<FRCPresetFieldRenamed> RenamedFields;
-};
-
-USTRUCT()
 struct FRCAssetFilter
 {
 	GENERATED_BODY()
