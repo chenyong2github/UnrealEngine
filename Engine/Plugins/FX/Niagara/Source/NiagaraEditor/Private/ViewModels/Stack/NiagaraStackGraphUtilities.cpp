@@ -2512,8 +2512,11 @@ void FNiagaraStackGraphUtilities::FindAffectedScripts(UNiagaraSystem* System, UN
 			Emitter->GetScripts(Scripts, false);
 		}
 
-		OutAffectedScripts.Add(System->GetSystemSpawnScript());
-		OutAffectedScripts.Add(System->GetSystemUpdateScript());
+		if (System != nullptr)
+		{
+			OutAffectedScripts.Add(System->GetSystemSpawnScript());
+			OutAffectedScripts.Add(System->GetSystemUpdateScript());
+		}
 
 		for (UNiagaraScript* Script : Scripts)
 		{
