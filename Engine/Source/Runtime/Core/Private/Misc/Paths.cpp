@@ -396,10 +396,10 @@ FString FPaths::SourceConfigDir()
 
 FString FPaths::GeneratedConfigDir()
 {
-#if PLATFORM_MAC
+#if PLATFORM_MAC // @todo, move this to Mac FPlatformMisc.
 	return FPlatformProcess::UserPreferencesDir();
 #else
-	return FPaths::ProjectSavedDir() + TEXT("Config/");
+	return FPlatformMisc::GeneratedConfigDir();
 #endif
 }
 
