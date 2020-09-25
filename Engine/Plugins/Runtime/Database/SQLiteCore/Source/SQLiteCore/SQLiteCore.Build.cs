@@ -26,6 +26,14 @@ namespace UnrealBuildTool.Rules
 			PrivateDefinitions.Add("SQLITE_ENABLE_FTS4");
 			PrivateDefinitions.Add("SQLITE_ENABLE_FTS5");
 
+			// Enable Deserialization and RTree Subsystem
+			PrivateDefinitions.Add("SQLITE_ENABLE_DESERIALIZE");
+			PrivateDefinitions.Add("SQLITE_ENABLE_RTREE");
+
+			// This is a temporary fix to directly access SQLite API from outside this module. 
+			// There are two API macros in SQLiteEmbedded.c that also need to be removed			
+		    PublicDefinitions.Add("SQLITE_API=SQLITECORE_API");
+
 			// Enable Json extension
 			PrivateDefinitions.Add("SQLITE_ENABLE_JSON1");
 			
