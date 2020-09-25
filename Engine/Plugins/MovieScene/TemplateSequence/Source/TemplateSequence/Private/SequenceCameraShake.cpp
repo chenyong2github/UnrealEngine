@@ -39,7 +39,7 @@ void SetCameraStandInTransform(UObject* Object, const FIntermediate3DTransform& 
 }
 }
 
-USequenceCameraShake::USequenceCameraShake(const FObjectInitializer& ObjInit)
+USequenceCameraShakePattern::USequenceCameraShakePattern(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 	, PlayRate(1.f)
 	, Scale(1.f)
@@ -58,7 +58,7 @@ USequenceCameraShake::USequenceCameraShake(const FObjectInitializer& ObjInit)
 	RegisterCameraStandIn();
 }
 
-void USequenceCameraShake::GetShakeInfoImpl(FCameraShakeInfo& OutInfo) const
+void USequenceCameraShakePattern::GetShakePatternInfoImpl(FCameraShakeInfo& OutInfo) const
 {
 	if (Sequence != nullptr)
 	{
@@ -82,7 +82,7 @@ void USequenceCameraShake::GetShakeInfoImpl(FCameraShakeInfo& OutInfo) const
 	}
 }
 
-void USequenceCameraShake::StartShakeImpl()
+void USequenceCameraShakePattern::StartShakePatternImpl(const FCameraShakeStartParams& Params)
 {
 	using namespace UE::MovieScene;
 
@@ -97,7 +97,7 @@ void USequenceCameraShake::StartShakeImpl()
 	Player->Play(bRandomSegment, bRandomSegment);
 }
 
-void USequenceCameraShake::UpdateShakeImpl(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult)
+void USequenceCameraShakePattern::UpdateShakePatternImpl(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult)
 {
 	using namespace UE::MovieScene;
 
@@ -118,14 +118,14 @@ void USequenceCameraShake::UpdateShakeImpl(const FCameraShakeUpdateParams& Param
 	OutResult.FOV = CameraStandIn->FieldOfView;
 }
 
-void USequenceCameraShake::StopShakeImpl(bool bImmediately)
+void USequenceCameraShakePattern::StopShakePatternImpl(const FCameraShakeStopParams& Params)
 {
 	using namespace UE::MovieScene;
 
 	UMovieScene* MovieScene = Sequence ? Sequence->GetMovieScene() : nullptr;
 	if (ensure(Player != nullptr && MovieScene != nullptr))
 	{
-		if (bImmediately)
+		if (Params.bImmediately)
 		{
 			// Stop playing!
 			Player->Stop();
@@ -145,7 +145,7 @@ void USequenceCameraShake::StopShakeImpl(bool bImmediately)
 	}
 }
 
-void USequenceCameraShake::TeardownShakeImpl()
+void USequenceCameraShakePattern::TeardownShakePatternImpl()
 {
 	using namespace UE::MovieScene;
 
@@ -157,7 +157,7 @@ void USequenceCameraShake::TeardownShakeImpl()
 	}
 }
 
-void USequenceCameraShake::RegisterCameraStandIn()
+void USequenceCameraShakePattern::RegisterCameraStandIn()
 {
 	using namespace UE::MovieScene;
 
