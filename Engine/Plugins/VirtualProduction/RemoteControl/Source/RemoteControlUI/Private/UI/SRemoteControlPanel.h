@@ -146,7 +146,7 @@ private:
 	/** Display name of the field. */
 	FName FieldLabel;
 	/** Qualified field name, with its path to parent */
-	FString QualifiedFieldName;
+	FRCFieldPathInfo FieldPathInfo;
 	/** Id of the field. */
 	FGuid FieldId;
 	/** Whether the row should display its options. */
@@ -355,7 +355,10 @@ struct FExposableProperty
 	FName PropertyName;
 
 	/** Path information for this property */
-	FFieldPathInfo FieldPathInfo;
+	FRCFieldPathInfo FieldPathInfo;
+
+	/** Component hierarchy above the property (SceneComponent, NestedComponent1, NestedComponent2*/
+	TArray<FString> ComponentChain;
 };
 
 /**

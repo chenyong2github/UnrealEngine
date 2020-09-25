@@ -297,12 +297,12 @@ URemoteControlPreset* FRemoteControlPresetLayout::GetOwner()
 	return Owner.Get();
 }
 
-TOptional<FRemoteControlProperty> FRemoteControlTarget::ExposeProperty(FFieldPathInfo FieldPathInfo, const FString& DesiredDisplayName, FGuid GroupId)
+TOptional<FRemoteControlProperty> FRemoteControlTarget::ExposeProperty(FRCFieldPathInfo FieldPathInfo, TArray<FString> ComponentHierarchy, const FString& DesiredDisplayName, FGuid GroupId)
 {
 	Owner->Modify();
 
 	FName FieldLabel = Owner->GenerateUniqueFieldLabel(Alias, DesiredDisplayName);
-	FRemoteControlProperty RCField(FieldLabel, MoveTemp(FieldPathInfo));
+	FRemoteControlProperty RCField(FieldLabel, MoveTemp(FieldPathInfo), MoveTemp(ComponentHierarchy));
 	ExposedProperties.Add(MoveTemp(RCField));
 
 	URemoteControlPreset::FExposeInfo ExposeInfo;
@@ -327,8 +327,8 @@ TOptional<FRemoteControlFunction> FRemoteControlTarget::ExposeFunction(FString R
 
 	Owner->Modify();
 
-	FFieldPathInfo Path{ MoveTemp(RelativeFieldPath) };
-	if (UFunction* Function = Class->FindFunctionByName(FName(Path.GetFieldName())))
+	FRCFieldPathInfo Path{ MoveTemp(RelativeFieldPath) };
+	if (UFunction* Function = Class->FindFunctionByName(Path.GetFieldName()))
 	{
 		FName FieldLabel = Owner->GenerateUniqueFieldLabel(Alias, DesiredDisplayName);
 		RCFunction = FRemoteControlFunction{ FieldLabel, MoveTemp(Path), Function };
@@ -380,6 +380,32 @@ FName FRemoteControlTarget::FindFieldLabel(FName FieldName) const
 	return Label;
 }
 
+FName FRemoteControlTarget::FindFieldLabel(const FRCFieldPathInfo& Path) const
+{
+	FName Label = NAME_None;
+
+	for (const FRemoteControlProperty& RCProperty : ExposedProperties)
+	{
+		if (RCProperty.FieldPathInfo.IsEqual(Path))
+		{
+			Label = RCProperty.Label;
+		}
+	}
+
+	if (Label == NAME_None)
+	{
+		for (const FRemoteControlFunction& RCFunction : ExposedFunctions)
+		{
+			if (RCFunction.FieldPathInfo.IsEqual(Path))
+			{
+				Label = RCFunction.Label;
+			}
+		}
+	}
+
+	return Label;
+}
+
 TOptional<FRemoteControlProperty> FRemoteControlTarget::GetProperty(FGuid PropertyId) const
 {
 	TOptional<FRemoteControlProperty> Field;
@@ -410,13 +436,10 @@ TOptional<FExposedProperty> FRemoteControlTarget::ResolveExposedProperty(FGuid P
 		TArray<UObject*> FieldOwners = RCProperty->ResolveFieldOwners(ResolveBoundObjects());
 		if (FieldOwners.Num() && FieldOwners[0])
 		{
-			TArray<FString> Path;
-			RCProperty->PathRelativeToOwner.ParseIntoArray(Path, TEXT("."));
-			Path.Add(RCProperty->FieldName.ToString());
-			FProperty* Property = FindPropertyRecursive(Cast<UStruct>(FieldOwners[0]->GetClass()), Path);
-			if (Property)
+			//Always resolve exposed property. We might have been pointing to an array element that has been deleted
+			if (RCProperty->FieldPathInfo.Resolve(FieldOwners[0]))
 			{
-				OptionalExposedProperty = FExposedProperty{ Property, FieldOwners };
+				OptionalExposedProperty = FExposedProperty{ RCProperty->FieldPathInfo.GetResolvedData().Field, FieldOwners };
 			}
 		}
 	}
@@ -900,8 +923,7 @@ void URemoteControlPreset::OnObjectPropertyChanged(UObject* Object, struct FProp
 		FPreObjectModifiedCache& CacheEntry = Iter.Value();
 
 		if (CacheEntry.Object == Object
-			&& CacheEntry.Property == Event.Property
-			&& CacheEntry.MemberProperty == Event.MemberProperty)
+			&& CacheEntry.Property == Event.Property)
 		{
 			if (TOptional<FRemoteControlProperty> Property = GetProperty(PropertyId))
 			{
@@ -947,6 +969,7 @@ void URemoteControlPreset::OnPreObjectPropertyChanged(UObject* Object, const cla
 				//If this property is already cached, skip it
 				if (PreObjectModifiedCache.Contains(Property.Id))
 				{
+
 					continue;
 				}
 

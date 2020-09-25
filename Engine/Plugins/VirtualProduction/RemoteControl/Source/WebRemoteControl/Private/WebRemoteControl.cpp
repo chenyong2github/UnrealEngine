@@ -719,11 +719,6 @@ bool FWebRemoteControlModule::HandlePresetSetPropertyRoute(const FHttpServerRequ
 	}
 
 	FRCObjectReference ObjectRef;
-	FString FullPath = RemoteControlProperty->FieldName.ToString();
-	if (!RemoteControlProperty->PathRelativeToOwner.IsEmpty())
-	{
-		FullPath = FString::Printf(TEXT("%s.%s"), *RemoteControlProperty->PathRelativeToOwner, *FullPath);
-	}
 
 	// Replace PropertyValue with the underlying property name.
 	TArray<uint8> NewPayload;
@@ -740,7 +735,7 @@ bool FWebRemoteControlModule::HandlePresetSetPropertyRoute(const FHttpServerRequ
 
 	for (UObject* Object : ExposedProperty->OwnerObjects)
 	{
-		IRemoteControlModule::Get().ResolveObjectProperty(ObjectRef.Access, Object, FullPath, ObjectRef);
+		IRemoteControlModule::Get().ResolveObjectProperty(ObjectRef.Access, Object, RemoteControlProperty->FieldPathInfo.ToString(), ObjectRef);
 
 		NewPayloadReader.Seek(0);
 		bSuccess &= IRemoteControlModule::Get().SetObjectProperties(ObjectRef, Backend);
@@ -792,11 +787,6 @@ bool FWebRemoteControlModule::HandlePresetGetPropertyRoute(const FHttpServerRequ
 	TSharedPtr<TJsonWriter<UCS2CHAR>> JsonWriter = TJsonWriter<UCS2CHAR>::Create(&Writer);
 
 	FRCObjectReference ObjectRef;
-	FString FullPath = RemoteControlProperty->FieldName.ToString();
-	if (!RemoteControlProperty->PathRelativeToOwner.IsEmpty())
-	{
-		FullPath = FString::Printf(TEXT("%s.%s"), *RemoteControlProperty->PathRelativeToOwner, *FullPath);
-	}
 
 	bool bSuccess = true;
 
@@ -806,7 +796,7 @@ bool FWebRemoteControlModule::HandlePresetGetPropertyRoute(const FHttpServerRequ
 
 	for (UObject* Object : ExposedProperty->OwnerObjects)
 	{
-		IRemoteControlModule::Get().ResolveObjectProperty(ERCAccess::READ_ACCESS, Object, FullPath, ObjectRef);
+		IRemoteControlModule::Get().ResolveObjectProperty(ERCAccess::READ_ACCESS, Object, RemoteControlProperty->FieldPathInfo.ToString(), ObjectRef);
 
 		JsonWriter->WriteObjectStart();
 		JsonWriter->WriteValue(TEXT("ObjectPath"), Object->GetPathName());
