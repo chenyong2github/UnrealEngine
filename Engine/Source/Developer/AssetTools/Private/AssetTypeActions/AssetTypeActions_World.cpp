@@ -52,10 +52,7 @@ TArray<FAssetData> FAssetTypeActions_World::GetValidAssetsForPreviewOrEdit(TArra
 		constexpr bool bSaveContentPackages = true;
 		if (FEditorFileUtils::SaveDirtyPackages(bPromptUserToSave, bSaveMapPackages, bSaveContentPackages))
 		{
-			if (FEditorFileUtils::IsMapPackageAsset(AssetData.ObjectPath.ToString()))
-			{
-				AssetsToOpen.Add(AssetData);
-			}
+			AssetsToOpen.Add(AssetData);
 		}
 	}
 
