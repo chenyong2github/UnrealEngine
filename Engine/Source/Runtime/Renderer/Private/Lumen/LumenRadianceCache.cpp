@@ -1138,10 +1138,10 @@ void FDeferredShadingSceneRenderer::RenderRadianceCache(
 				GroupSize);
 		}
 
-		GraphBuilder.QueueBufferExtraction(ProbeFreeListAllocator, &RadianceCacheState.ProbeFreeListAllocator);
-		GraphBuilder.QueueBufferExtraction(ProbeFreeList, &RadianceCacheState.ProbeFreeList);
-		GraphBuilder.QueueBufferExtraction(ProbeAllocator, &RadianceCacheState.ProbeAllocator);
-		GraphBuilder.QueueBufferExtraction(ProbeLastUsedFrame, &RadianceCacheState.ProbeLastUsedFrame);
+		ConvertToExternalBuffer(GraphBuilder, ProbeFreeListAllocator, RadianceCacheState.ProbeFreeListAllocator);
+		ConvertToExternalBuffer(GraphBuilder, ProbeFreeList, RadianceCacheState.ProbeFreeList);
+		ConvertToExternalBuffer(GraphBuilder, ProbeAllocator, RadianceCacheState.ProbeAllocator);
+		ConvertToExternalBuffer(GraphBuilder, ProbeLastUsedFrame, RadianceCacheState.ProbeLastUsedFrame);
 		ConvertToExternalTexture(GraphBuilder, RadianceProbeIndirectionTexture, RadianceCacheState.RadianceProbeIndirectionTexture);
 		ConvertToExternalTexture(GraphBuilder, RadianceProbeAtlasTexture, RadianceCacheState.RadianceProbeAtlasTexture);
 		ConvertToExternalTexture(GraphBuilder, FinalRadianceAtlas, RadianceCacheState.FinalRadianceAtlas);
