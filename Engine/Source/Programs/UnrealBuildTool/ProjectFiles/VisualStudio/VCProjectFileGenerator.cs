@@ -532,6 +532,9 @@ namespace UnrealBuildTool
 				throw new BuildException("Unexpected ProjectFileFormat");
 			}
 
+			// Embed custom comment used by UnrealVS to determine that this is a Unreal solution
+			VCSolutionFileContent.AppendLine("# UnrealEngineGeneratedSolutionVersion=" + AssemblyUtils.ExecutableVersion.ProductVersion);
+
 			IDictionary<MasterProjectFolder, Guid> ProjectFolderGuids = GenerateProjectFolderGuids(RootFolder);
 
 			// Solution folders, files and project entries
