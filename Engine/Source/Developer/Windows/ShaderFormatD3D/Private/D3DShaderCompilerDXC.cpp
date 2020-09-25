@@ -14,7 +14,7 @@
 DEFINE_LOG_CATEGORY_STATIC(LogD3D12ShaderCompiler, Log, All);
 
 // D3D doesn't define a mask for this, so we do so here
-#define SHADER_OPTIMIZATION_LEVEL_MASK (D3D10_SHADER_OPTIMIZATION_LEVEL0 | D3D10_SHADER_OPTIMIZATION_LEVEL1 | D3D10_SHADER_OPTIMIZATION_LEVEL2 | D3D10_SHADER_OPTIMIZATION_LEVEL3)
+#define SHADER_OPTIMIZATION_LEVEL_MASK (D3DCOMPILE_OPTIMIZATION_LEVEL0 | D3DCOMPILE_OPTIMIZATION_LEVEL1 | D3DCOMPILE_OPTIMIZATION_LEVEL2 | D3DCOMPILE_OPTIMIZATION_LEVEL3)
 
 // Disable macro redefinition warning for compatibility with Windows SDK 8+
 #pragma warning(push)
@@ -654,10 +654,10 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 
 	// Ignore backwards compatibility flag (/Gec) as it is deprecated.
 	// #dxr_todo: this flag should not be even passed into this function from the higher level.
-	uint32 DXCFlags = CompileFlags & (~D3D10_SHADER_ENABLE_BACKWARDS_COMPATIBILITY);
+	uint32 DXCFlags = CompileFlags & (~D3DCOMPILE_ENABLE_BACKWARDS_COMPATIBILITY);
 	if (Input.Environment.CompilerFlags.Contains(CFLAG_SkipOptimizationsDXC))
 	{
-		DXCFlags |= D3D10_SHADER_SKIP_OPTIMIZATION;
+		DXCFlags |= D3DCOMPILE_SKIP_OPTIMIZATION;
 	}
 
 	const bool bKeepDebugInfo = Input.Environment.CompilerFlags.Contains(CFLAG_KeepDebugInfo);

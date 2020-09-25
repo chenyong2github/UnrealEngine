@@ -76,7 +76,7 @@ static bool CompileShader( const FString& Filename, const FString& EntryPoint, c
 {
 	uint32 ShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
 #if UE_BUILD_DEBUG
-	ShaderFlags |= D3D10_SHADER_DEBUG;
+	ShaderFlags |= D3DCOMPILE_DEBUG;
 #else
 	ShaderFlags |= D3DCOMPILE_OPTIMIZATION_LEVEL3;
 #endif
@@ -444,9 +444,10 @@ void FSlateDefaultPS::SetDrawEffects( ESlateDrawEffect InDrawEffects )
 	PerElementConstants.GetBufferData().DisableEffect = (uint32)(InDrawEffects & ESlateDrawEffect::DisabledEffect);
 }
 
-void FSlateDefaultPS::SetShaderParams( const FVector4& InShaderParams )
+void FSlateDefaultPS::SetShaderParams(const FShaderParams& InShaderParams)
 {
-	PerElementConstants.GetBufferData().ShaderParams = InShaderParams;
+	PerElementConstants.GetBufferData().ShaderParams = InShaderParams.PixelParams;
+	PerElementConstants.GetBufferData().ShaderParams2 = InShaderParams.PixelParams2;
 }
 
 void FSlateDefaultPS::SetGammaValues(const FVector2D& InGammaValues)

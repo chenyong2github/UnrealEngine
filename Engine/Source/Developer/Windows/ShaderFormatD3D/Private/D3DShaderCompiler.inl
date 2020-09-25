@@ -52,61 +52,61 @@ public:
 			ExtraArguments.Add(Exports);
 		}
 
-		if (D3DCompileFlags & D3D10_SHADER_PREFER_FLOW_CONTROL)
+		if (D3DCompileFlags & D3DCOMPILE_PREFER_FLOW_CONTROL)
 		{
-			D3DCompileFlags &= ~D3D10_SHADER_PREFER_FLOW_CONTROL;
+			D3DCompileFlags &= ~D3DCOMPILE_PREFER_FLOW_CONTROL;
 			ExtraArguments.Add(L"/Gfp");
 		}
 
-		if (D3DCompileFlags & D3D10_SHADER_SKIP_OPTIMIZATION)
+		if (D3DCompileFlags & D3DCOMPILE_SKIP_OPTIMIZATION)
 		{
-			D3DCompileFlags &= ~D3D10_SHADER_SKIP_OPTIMIZATION;
+			D3DCompileFlags &= ~D3DCOMPILE_SKIP_OPTIMIZATION;
 			ExtraArguments.Add(L"/Od");
 		}
 
-		if (D3DCompileFlags & D3D10_SHADER_SKIP_VALIDATION)
+		if (D3DCompileFlags & D3DCOMPILE_SKIP_VALIDATION)
 		{
-			D3DCompileFlags &= ~D3D10_SHADER_SKIP_VALIDATION;
+			D3DCompileFlags &= ~D3DCOMPILE_SKIP_VALIDATION;
 			ExtraArguments.Add(L"/Vd");
 		}
 
-		if (D3DCompileFlags & D3D10_SHADER_AVOID_FLOW_CONTROL)
+		if (D3DCompileFlags & D3DCOMPILE_AVOID_FLOW_CONTROL)
 		{
-			D3DCompileFlags &= ~D3D10_SHADER_AVOID_FLOW_CONTROL;
+			D3DCompileFlags &= ~D3DCOMPILE_AVOID_FLOW_CONTROL;
 			ExtraArguments.Add(L"/Gfa");
 		}
 
-		if (D3DCompileFlags & D3D10_SHADER_PACK_MATRIX_ROW_MAJOR)
+		if (D3DCompileFlags & D3DCOMPILE_PACK_MATRIX_ROW_MAJOR)
 		{
-			D3DCompileFlags &= ~D3D10_SHADER_PACK_MATRIX_ROW_MAJOR;
+			D3DCompileFlags &= ~D3DCOMPILE_PACK_MATRIX_ROW_MAJOR;
 			ExtraArguments.Add(L"/Zpr");
 		}
 
-		if (D3DCompileFlags & D3D10_SHADER_ENABLE_BACKWARDS_COMPATIBILITY)
+		if (D3DCompileFlags & D3DCOMPILE_ENABLE_BACKWARDS_COMPATIBILITY)
 		{
-			D3DCompileFlags &= ~D3D10_SHADER_ENABLE_BACKWARDS_COMPATIBILITY;
+			D3DCompileFlags &= ~D3DCOMPILE_ENABLE_BACKWARDS_COMPATIBILITY;
 			ExtraArguments.Add(L"/Gec");
 		}
 
 		switch (D3DCompileFlags & SHADER_OPTIMIZATION_LEVEL_MASK)
 		{
-		case D3D10_SHADER_OPTIMIZATION_LEVEL0:
-			D3DCompileFlags &= ~D3D10_SHADER_OPTIMIZATION_LEVEL0;
+		case D3DCOMPILE_OPTIMIZATION_LEVEL0:
+			D3DCompileFlags &= ~D3DCOMPILE_OPTIMIZATION_LEVEL0;
 			ExtraArguments.Add(L"/O0");
 			break;
 
-		case D3D10_SHADER_OPTIMIZATION_LEVEL1:
-			D3DCompileFlags &= ~D3D10_SHADER_OPTIMIZATION_LEVEL1;
+		case D3DCOMPILE_OPTIMIZATION_LEVEL1:
+			D3DCompileFlags &= ~D3DCOMPILE_OPTIMIZATION_LEVEL1;
 			ExtraArguments.Add(L"/O1");
 			break;
 
-		case D3D10_SHADER_OPTIMIZATION_LEVEL2:
-			D3DCompileFlags &= ~D3D10_SHADER_OPTIMIZATION_LEVEL2;
+		case D3DCOMPILE_OPTIMIZATION_LEVEL2:
+			D3DCompileFlags &= ~D3DCOMPILE_OPTIMIZATION_LEVEL2;
 			ExtraArguments.Add(L"/O2");
 			break;
 
-		case D3D10_SHADER_OPTIMIZATION_LEVEL3:
-			D3DCompileFlags &= ~D3D10_SHADER_OPTIMIZATION_LEVEL3;
+		case D3DCOMPILE_OPTIMIZATION_LEVEL3:
+			D3DCompileFlags &= ~D3DCOMPILE_OPTIMIZATION_LEVEL3;
 			ExtraArguments.Add(L"/O3");
 			break;
 
@@ -114,9 +114,9 @@ public:
 			break;
 		}
 
-		if (D3DCompileFlags & D3D10_SHADER_DEBUG)
+		if (D3DCompileFlags & D3DCOMPILE_DEBUG)
 		{
-			D3DCompileFlags &= ~D3D10_SHADER_DEBUG;
+			D3DCompileFlags &= ~D3DCOMPILE_DEBUG;
 			bKeepDebugInfo = true;
 		}
 
@@ -238,7 +238,7 @@ inline void ExtractParameterMapFromD3DShader(
 			continue;
 		}
 
-		if (BindDesc.Type == D3D10_SIT_CBUFFER || BindDesc.Type == D3D10_SIT_TBUFFER)
+		if (BindDesc.Type == D3D_SIT_CBUFFER || BindDesc.Type == D3D_SIT_TBUFFER)
 		{
 			const uint32 CBIndex = BindDesc.BindPoint;
 			ID3D1xShaderReflectionConstantBuffer* ConstantBuffer = Reflector->GetConstantBufferByName(BindDesc.Name);
@@ -254,7 +254,7 @@ inline void ExtractParameterMapFromD3DShader(
 					ID3D1xShaderReflectionVariable* Variable = ConstantBuffer->GetVariableByIndex(ConstantIndex);
 					D3D1x_SHADER_VARIABLE_DESC VariableDesc;
 					Variable->GetDesc(&VariableDesc);
-					if (VariableDesc.uFlags & D3D10_SVF_USED)
+					if (VariableDesc.uFlags & D3D_SVF_USED)
 					{
 						bGlobalUniformBufferUsed = true;
 
@@ -290,7 +290,7 @@ inline void ExtractParameterMapFromD3DShader(
 
 			NumCBs = FMath::Max(NumCBs, BindDesc.BindPoint + BindDesc.BindCount);
 		}
-		else if (BindDesc.Type == D3D10_SIT_TEXTURE || BindDesc.Type == D3D10_SIT_SAMPLER)
+		else if (BindDesc.Type == D3D_SIT_TEXTURE || BindDesc.Type == D3D_SIT_SAMPLER)
 		{
 			check(BindDesc.BindCount == 1);
 
@@ -304,12 +304,12 @@ inline void ExtractParameterMapFromD3DShader(
 
 			const uint32 BindCount = 1;
 			EShaderParameterType ParameterType = EShaderParameterType::Num;
-			if (BindDesc.Type == D3D10_SIT_SAMPLER)
+			if (BindDesc.Type == D3D_SIT_SAMPLER)
 			{
 				ParameterType = EShaderParameterType::Sampler;
 				NumSamplers = FMath::Max(NumSamplers, BindDesc.BindPoint + BindCount);
 			}
-			else if (BindDesc.Type == D3D10_SIT_TEXTURE)
+			else if (BindDesc.Type == D3D_SIT_TEXTURE)
 			{
 				ParameterType = EShaderParameterType::SRV;
 				NumSRVs = FMath::Max(NumSRVs, BindDesc.BindPoint + BindCount);
@@ -337,9 +337,9 @@ inline void ExtractParameterMapFromD3DShader(
 				);
 			}
 		}
-		else if (BindDesc.Type == D3D11_SIT_UAV_RWTYPED || BindDesc.Type == D3D11_SIT_UAV_RWSTRUCTURED ||
-			BindDesc.Type == D3D11_SIT_UAV_RWBYTEADDRESS || BindDesc.Type == D3D11_SIT_UAV_RWSTRUCTURED_WITH_COUNTER ||
-			BindDesc.Type == D3D11_SIT_UAV_APPEND_STRUCTURED)
+		else if (BindDesc.Type == D3D_SIT_UAV_RWTYPED || BindDesc.Type == D3D_SIT_UAV_RWSTRUCTURED ||
+			BindDesc.Type == D3D_SIT_UAV_RWBYTEADDRESS || BindDesc.Type == D3D_SIT_UAV_RWSTRUCTURED_WITH_COUNTER ||
+			BindDesc.Type == D3D_SIT_UAV_APPEND_STRUCTURED)
 		{
 			check(BindDesc.BindCount == 1);
 
@@ -395,7 +395,7 @@ inline void ExtractParameterMapFromD3DShader(
 
 			NumUAVs = FMath::Max(NumUAVs, BindDesc.BindPoint + BindCount);
 		}
-		else if (BindDesc.Type == D3D11_SIT_STRUCTURED || BindDesc.Type == D3D11_SIT_BYTEADDRESS)
+		else if (BindDesc.Type == D3D_SIT_STRUCTURED || BindDesc.Type == D3D_SIT_BYTEADDRESS)
 		{
 			check(BindDesc.BindCount == 1);
 			TCHAR OfficialName[1024];

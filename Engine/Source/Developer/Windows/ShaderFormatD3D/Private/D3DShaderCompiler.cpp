@@ -19,7 +19,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogD3D11ShaderCompiler, Log, All);
 #define D3D_OVERLOADS 1
 
 // D3D doesn't define a mask for this, so we do so here
-#define SHADER_OPTIMIZATION_LEVEL_MASK (D3D10_SHADER_OPTIMIZATION_LEVEL0 | D3D10_SHADER_OPTIMIZATION_LEVEL1 | D3D10_SHADER_OPTIMIZATION_LEVEL2 | D3D10_SHADER_OPTIMIZATION_LEVEL3)
+#define SHADER_OPTIMIZATION_LEVEL_MASK (D3DCOMPILE_OPTIMIZATION_LEVEL0 | D3DCOMPILE_OPTIMIZATION_LEVEL1 | D3DCOMPILE_OPTIMIZATION_LEVEL2 | D3DCOMPILE_OPTIMIZATION_LEVEL3)
 
 // Disable macro redefinition warning for compatibility with Windows SDK 8+
 #pragma warning(push)
@@ -49,11 +49,10 @@ static int32 GD3DDumpAMDCodeXLFile = 0;
  */
 static uint32 TranslateCompilerFlagD3D11(ECompilerFlags CompilerFlag)
 {
-	// @TODO - currently d3d11 uses d3d10 shader compiler flags... update when this changes in DXSDK
 	switch(CompilerFlag)
 	{
-	case CFLAG_PreferFlowControl: return D3D10_SHADER_PREFER_FLOW_CONTROL;
-	case CFLAG_AvoidFlowControl: return D3D10_SHADER_AVOID_FLOW_CONTROL;
+	case CFLAG_PreferFlowControl: return D3DCOMPILE_PREFER_FLOW_CONTROL;
+	case CFLAG_AvoidFlowControl: return D3DCOMPILE_AVOID_FLOW_CONTROL;
 	default: return 0;
 	};
 }
@@ -167,73 +166,72 @@ static FString D3D11CreateShaderCompileCommandLine(
 	// add the entry point reference
 	FXCCommandline += FString(TEXT(" /E ")) + EntryFunction;
 
-	// @TODO - currently d3d11 uses d3d10 shader compiler flags... update when this changes in DXSDK
 	// go through and add other switches
-	if(CompileFlags & D3D10_SHADER_PREFER_FLOW_CONTROL)
+	if(CompileFlags & D3DCOMPILE_PREFER_FLOW_CONTROL)
 	{
-		CompileFlags &= ~D3D10_SHADER_PREFER_FLOW_CONTROL;
+		CompileFlags &= ~D3DCOMPILE_PREFER_FLOW_CONTROL;
 		FXCCommandline += FString(TEXT(" /Gfp"));
 	}
 
-	if(CompileFlags & D3D10_SHADER_DEBUG)
+	if(CompileFlags & D3DCOMPILE_DEBUG)
 	{
-		CompileFlags &= ~D3D10_SHADER_DEBUG;
+		CompileFlags &= ~D3DCOMPILE_DEBUG;
 		FXCCommandline += FString(TEXT(" /Zi"));
 	}
 
-	if(CompileFlags & D3D10_SHADER_SKIP_OPTIMIZATION)
+	if(CompileFlags & D3DCOMPILE_SKIP_OPTIMIZATION)
 	{
-		CompileFlags &= ~D3D10_SHADER_SKIP_OPTIMIZATION;
+		CompileFlags &= ~D3DCOMPILE_SKIP_OPTIMIZATION;
 		FXCCommandline += FString(TEXT(" /Od"));
 	}
 
-	if (CompileFlags & D3D10_SHADER_SKIP_VALIDATION)
+	if (CompileFlags & D3DCOMPILE_SKIP_VALIDATION)
 	{
-		CompileFlags &= ~D3D10_SHADER_SKIP_VALIDATION;
+		CompileFlags &= ~D3DCOMPILE_SKIP_VALIDATION;
 		FXCCommandline += FString(TEXT(" /Vd"));
 	}
 
-	if(CompileFlags & D3D10_SHADER_AVOID_FLOW_CONTROL)
+	if(CompileFlags & D3DCOMPILE_AVOID_FLOW_CONTROL)
 	{
-		CompileFlags &= ~D3D10_SHADER_AVOID_FLOW_CONTROL;
+		CompileFlags &= ~D3DCOMPILE_AVOID_FLOW_CONTROL;
 		FXCCommandline += FString(TEXT(" /Gfa"));
 	}
 
-	if(CompileFlags & D3D10_SHADER_PACK_MATRIX_ROW_MAJOR)
+	if(CompileFlags & D3DCOMPILE_PACK_MATRIX_ROW_MAJOR)
 	{
-		CompileFlags &= ~D3D10_SHADER_PACK_MATRIX_ROW_MAJOR;
+		CompileFlags &= ~D3DCOMPILE_PACK_MATRIX_ROW_MAJOR;
 		FXCCommandline += FString(TEXT(" /Zpr"));
 	}
 
-	if(CompileFlags & D3D10_SHADER_ENABLE_BACKWARDS_COMPATIBILITY)
+	if(CompileFlags & D3DCOMPILE_ENABLE_BACKWARDS_COMPATIBILITY)
 	{
-		CompileFlags &= ~D3D10_SHADER_ENABLE_BACKWARDS_COMPATIBILITY;
+		CompileFlags &= ~D3DCOMPILE_ENABLE_BACKWARDS_COMPATIBILITY;
 		FXCCommandline += FString(TEXT(" /Gec"));
 	}
 
 	switch (CompileFlags & SHADER_OPTIMIZATION_LEVEL_MASK)
 	{
-		case D3D10_SHADER_OPTIMIZATION_LEVEL2:
-		CompileFlags &= ~D3D10_SHADER_OPTIMIZATION_LEVEL2;
+		case D3DCOMPILE_OPTIMIZATION_LEVEL2:
+		CompileFlags &= ~D3DCOMPILE_OPTIMIZATION_LEVEL2;
 		FXCCommandline += FString(TEXT(" /O2"));
 			break;
 
-		case D3D10_SHADER_OPTIMIZATION_LEVEL3:
-		CompileFlags &= ~D3D10_SHADER_OPTIMIZATION_LEVEL3;
+		case D3DCOMPILE_OPTIMIZATION_LEVEL3:
+		CompileFlags &= ~D3DCOMPILE_OPTIMIZATION_LEVEL3;
 		FXCCommandline += FString(TEXT(" /O3"));
 			break;
 
-		case D3D10_SHADER_OPTIMIZATION_LEVEL1:
-		CompileFlags &= ~D3D10_SHADER_OPTIMIZATION_LEVEL1;
+		case D3DCOMPILE_OPTIMIZATION_LEVEL1:
+		CompileFlags &= ~D3DCOMPILE_OPTIMIZATION_LEVEL1;
 		FXCCommandline += FString(TEXT(" /O1"));
 			break;
 
-		case D3D10_SHADER_OPTIMIZATION_LEVEL0:
-			CompileFlags &= ~D3D10_SHADER_OPTIMIZATION_LEVEL0;
+		case D3DCOMPILE_OPTIMIZATION_LEVEL0:
+			CompileFlags &= ~D3DCOMPILE_OPTIMIZATION_LEVEL0;
 			break;
 
 		default:
-			Output.Errors.Emplace(TEXT("Unknown D3D10 optimization level"));
+			Output.Errors.Emplace(TEXT("Unknown D3DCOMPILE optimization level"));
 			break;
 	}
 
@@ -956,26 +954,25 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 
 	RemoveUniformBuffersFromSource(Input.Environment, PreprocessedShaderSource);
 
-	// @TODO - currently d3d11 uses d3d10 shader compiler flags... update when this changes in DXSDK
 	// @TODO - implement different material path to allow us to remove backwards compat flag on sm5 shaders
-	uint32 CompileFlags = D3D10_SHADER_ENABLE_BACKWARDS_COMPATIBILITY
+	uint32 CompileFlags = D3DCOMPILE_ENABLE_BACKWARDS_COMPATIBILITY
 		// Unpack uniform matrices as row-major to match the CPU layout.
-		| D3D10_SHADER_PACK_MATRIX_ROW_MAJOR;
+		| D3DCOMPILE_PACK_MATRIX_ROW_MAJOR;
 
 	if (Input.Environment.CompilerFlags.Contains(CFLAG_Debug)) 
 	{
 		//add the debug flags
-		CompileFlags |= D3D10_SHADER_DEBUG | D3D10_SHADER_SKIP_OPTIMIZATION;
+		CompileFlags |= D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 	}
 	else
 	{
 		if (Input.Environment.CompilerFlags.Contains(CFLAG_StandardOptimization))
 		{
-			CompileFlags |= D3D10_SHADER_OPTIMIZATION_LEVEL1;
+			CompileFlags |= D3DCOMPILE_OPTIMIZATION_LEVEL1;
 		}
 		else
 		{
-			CompileFlags |= D3D10_SHADER_OPTIMIZATION_LEVEL3;
+			CompileFlags |= D3DCOMPILE_OPTIMIZATION_LEVEL3;
 		}
 	}
 
