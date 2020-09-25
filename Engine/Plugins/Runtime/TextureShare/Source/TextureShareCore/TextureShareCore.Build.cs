@@ -50,13 +50,22 @@ public class TextureShareCore : ModuleRules
 			// Select Supported Devices:
 			if (Target.bShouldCompileAsDLL)
 			{
-				//@todo: add dx12 target to SDK
-				// Now SDK not support dx12
-				PublicDefinitions.Add("TEXTURESHARELIB_USE_D3D11=1");
-				PublicDefinitions.Add("TEXTURESHARELIB_USE_D3D12=0");
+				// Configure SDK builds:
+				if(Target.LaunchModuleName == "TextureShareSDK_D3D11")
+				{
+					PublicDefinitions.Add("TEXTURESHARELIB_USE_D3D11=1");
+					PublicDefinitions.Add("TEXTURESHARELIB_USE_D3D12=0");
+				}
+				else
+				if (Target.LaunchModuleName == "TextureShareSDK_D3D12")
+				{
+					PublicDefinitions.Add("TEXTURESHARELIB_USE_D3D11=0");
+					PublicDefinitions.Add("TEXTURESHARELIB_USE_D3D12=1");
+				}
 			}
 			else
 			{
+				// Configure UE4 for all targets
 				PublicDefinitions.Add("TEXTURESHARELIB_USE_D3D11=1");
 				PublicDefinitions.Add("TEXTURESHARELIB_USE_D3D12=1");
 			}
