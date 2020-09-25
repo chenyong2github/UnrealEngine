@@ -475,6 +475,17 @@ bool UGroomBindingAsset::IsBindingAssetValid(const UGroomBindingAsset* InBinding
 }
 
 #if WITH_EDITOR
+
+void UGroomBindingAsset::Build()
+{
+	if (Groom && TargetSkeletalMesh)
+	{
+		OnGroomBindingAssetChanged.Broadcast();
+		Reset();
+		CacheDerivedDatas();
+	}
+}
+
 void UGroomBindingAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
