@@ -1,13 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
+#include "IRemoteControlUIModule.h"
+
+#include "CoreMinimal.h"	
 #include "Input/Reply.h"
-#include "PropertyHandle.h"
-#include "PropertyEditorDelegates.h"
+#include "LevelEditor.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-#include "LevelEditor.h"
+#include "PropertyEditorDelegates.h"
+#include "PropertyHandle.h"
 
 class SRemoteControlPanel;
 class URemoteControlPreset;
@@ -15,7 +17,7 @@ class URemoteControlPreset;
 /**
  * A Remote Control module that allows exposing objects and properties from the editor.
  */
-class FRemoteControlUIModule : public IModuleInterface
+class FRemoteControlUIModule : public IRemoteControlUIModule
 {
 public:
 
@@ -43,6 +45,12 @@ public:
 	 * @return The remote control widget.
 	 */
 	TSharedRef<SRemoteControlPanel> CreateRemoteControlPanel(URemoteControlPreset* Preset);
+
+	/** 
+	 * Get the toolbar extension generators.
+	 * Usage: Bind a handler that adds a widget to the out array parameter.
+	 */
+	virtual FOnGenerateExtensions& GetExtensionGenerators() override { return ExtensionsGenerator; }
 
 private:
 	/**
@@ -100,4 +108,7 @@ private:
 
 	/** Holds a weak ptr to the active control panel. */
 	TWeakPtr<SRemoteControlPanel> WeakActivePanel;
+
+	/** Delegate called to gather extensions added externally to the panel. */
+	FOnGenerateExtensions ExtensionsGenerator;
 };
