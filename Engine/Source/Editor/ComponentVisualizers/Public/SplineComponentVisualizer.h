@@ -7,6 +7,7 @@
 #include "HitProxies.h"
 #include "ComponentVisualizer.h"
 #include "Components/SplineComponent.h"
+#include "SplineComponentVisualizer.generated.h"
 
 class AActor;
 class FEditorViewportClient;
@@ -22,6 +23,81 @@ class SSplineGeneratorPanel;
 struct FViewportClick;
 struct FConvexVolume;
 
+/** Tangent handle selection modes. */
+UENUM()
+enum class ESelectedTangentHandle
+{
+	None,
+	Leave,
+	Arrive
+};
+
+/** Selection state data that will be captured by scoped transactions.*/
+UCLASS(Transient)
+class COMPONENTVISUALIZERS_API USplineComponentVisualizerSelectionState : public UObject
+{
+	GENERATED_BODY()
+
+public:
+
+	const FComponentPropertyPath GetSplinePropertyPath() const { return SplinePropertyPath; }
+	void SetSplinePropertyPath(const FComponentPropertyPath& InSplinePropertyPath) { SplinePropertyPath = InSplinePropertyPath; }
+
+	const TSet<int32>& GetSelectedKeys() const { return SelectedKeys; }
+	TSet<int32>& ModifySelectedKeys() { return SelectedKeys; }
+
+	int32 GetLastKeyIndexSelected() const { return LastKeyIndexSelected; }
+	void SetLastKeyIndexSelected(const int32 InLastKeyIndexSelected) { LastKeyIndexSelected = InLastKeyIndexSelected; }
+
+	int32 GetSelectedSegmentIndex() const { return SelectedSegmentIndex; }
+	void SetSelectedSegmentIndex(const int32 InSelectedSegmentIndex) { SelectedSegmentIndex = InSelectedSegmentIndex; }
+
+	int32 GetSelectedTangentHandle() const { return SelectedTangentHandle; }
+	void SetSelectedTangentHandle(const int32 InSelectedTangentHandle) { SelectedTangentHandle = InSelectedTangentHandle; }
+
+	ESelectedTangentHandle GetSelectedTangentHandleType() const { return SelectedTangentHandleType; }
+	void SetSelectedTangentHandleType(const ESelectedTangentHandle InSelectedTangentHandle) { SelectedTangentHandleType = InSelectedTangentHandle; }
+
+	FVector GetSelectedSplinePosition() const { return SelectedSplinePosition; }
+	void SetSelectedSplinePosition(const FVector& InSelectedSplinePosition) { SelectedSplinePosition = InSelectedSplinePosition; }
+
+	FQuat GetCachedRotation() const { return CachedRotation; }
+	void SetCachedRotation(const FQuat& InCachedRotation) { CachedRotation = InCachedRotation; }
+
+protected:
+	/** Property path from the parent actor to the component */
+	UPROPERTY()
+	FComponentPropertyPath SplinePropertyPath;
+
+	/** Indices of keys we have selected */
+	UPROPERTY()
+	TSet<int32> SelectedKeys;
+
+	/** Index of the last key we selected */
+	UPROPERTY()
+	int32 LastKeyIndexSelected = INDEX_NONE;
+
+	/** Index of segment we have selected */
+	UPROPERTY()
+	int32 SelectedSegmentIndex = INDEX_NONE;
+
+	/** Index of tangent handle we have selected */
+	UPROPERTY()
+	int32 SelectedTangentHandle = INDEX_NONE;
+
+	/** The type of the selected tangent handle */
+	UPROPERTY()
+	ESelectedTangentHandle SelectedTangentHandleType = ESelectedTangentHandle::None;
+
+	/** Position on spline we have selected */
+	UPROPERTY()
+	FVector SelectedSplinePosition;
+
+	/** Cached rotation for this point */
+	UPROPERTY()
+	FQuat CachedRotation;
+};
+
 /** Base class for clickable spline editing proxies */
 struct HSplineVisProxy : public HComponentVisProxy
 {
@@ -30,6 +106,11 @@ struct HSplineVisProxy : public HComponentVisProxy
 	HSplineVisProxy(const UActorComponent* InComponent)
 	: HComponentVisProxy(InComponent, HPP_Wireframe)
 	{}
+
+	virtual EMouseCursor::Type GetMouseCursor() override
+	{
+		return EMouseCursor::CardinalCross;
+	}
 };
 
 /** Proxy for a spline key */
@@ -43,6 +124,11 @@ struct HSplineKeyProxy : public HSplineVisProxy
 	{}
 
 	int32 KeyIndex;
+
+	virtual EMouseCursor::Type GetMouseCursor() override
+	{
+		return EMouseCursor::CardinalCross;
+	}
 };
 
 /** Proxy for a spline segment */
@@ -56,6 +142,11 @@ struct HSplineSegmentProxy : public HSplineVisProxy
 	{}
 
 	int32 SegmentIndex;
+
+	virtual EMouseCursor::Type GetMouseCursor() override
+	{
+		return EMouseCursor::CardinalCross;
+	}
 };
 
 /** Proxy for a tangent handle */
@@ -71,6 +162,11 @@ struct HSplineTangentHandleProxy : public HSplineVisProxy
 
 	int32 KeyIndex;
 	bool bArriveTangent;
+
+	virtual EMouseCursor::Type GetMouseCursor() override
+	{
+		return EMouseCursor::CardinalCross;
+	}
 };
 
 /** Accepted modes for snapping points. */
@@ -85,7 +181,7 @@ namespace ESplineComponentSnapMode
 }
 
 /** SplineComponent visualizer/edit functionality */
-class COMPONENTVISUALIZERS_API FSplineComponentVisualizer : public FComponentVisualizer
+class COMPONENTVISUALIZERS_API FSplineComponentVisualizer : public FComponentVisualizer, public FGCObject
 {
 public:
 	FSplineComponentVisualizer();
@@ -112,6 +208,8 @@ public:
 	virtual bool HasFocusOnSelectionBoundingBox(FBox& OutBoundingBox) override;
 	/** Pass snap input to active visualizer */
 	virtual bool HandleSnapTo(const bool bInAlign, const bool bInUseLineTrace, const bool bInUseBounds, const bool bInUsePivot, AActor* InDestination) override;
+	/** Get currently edited component, this is needed to reset the active visualizer after undo/redo */
+	virtual UActorComponent* GetEditedComponent() const override;
 	virtual TSharedPtr<SWidget> GenerateContextMenu() const override;
 	virtual bool IsVisualizingArchetype() const override;
 	//~ End FComponentVisualizer Interface
@@ -122,7 +220,7 @@ public:
 	/** Get the spline component we are currently editing */
 	USplineComponent* GetEditedSplineComponent() const;
 
-	const TSet<int32>& GetSelectedKeys() const { return SelectedKeys; }
+	const TSet<int32>& GetSelectedKeys() const { check(SelectionState); return SelectionState->GetSelectedKeys(); }
 
 protected:
 
@@ -192,6 +290,9 @@ protected:
 	/** Reset temporary modes after inputs are handled. */
 	virtual void ResetTempModes();
 
+	/** Updates the component and selected properties if the component has changed */
+	const USplineComponent* UpdateSelectedSplineComponent(HComponentVisProxy* VisProxy);
+
 	void OnDeleteKey();
 	bool CanDeleteKey() const;
 
@@ -245,42 +346,15 @@ protected:
 
 	void CreateSplineGeneratorPanel();
 
+	// FGCObject interface
+	virtual void AddReferencedObjects(FReferenceCollector& Collector);
+	// End of FGCObject interface
+
 	/** Output log commands */
 	TSharedPtr<FUICommandList> SplineComponentVisualizerActions;
 
-	/** Property path from the parent actor to the component */
-	FComponentPropertyPath SplinePropertyPath;
-
-	/** Index of keys we have selected */
-	TSet<int32> SelectedKeys;
-
-	/** Index of the last key we selected */
-	int32 LastKeyIndexSelected;
-
-	/** Index of segment we have selected */
-	int32 SelectedSegmentIndex;
-
-	/** Index of tangent handle we have selected */
-	int32 SelectedTangentHandle;
-
-	struct ESelectedTangentHandle
-	{
-		enum Type
-		{
-			None,
-			Leave,
-			Arrive
-		};
-	};
-
-	/** The type of the selected tangent handle */
-	ESelectedTangentHandle::Type SelectedTangentHandleType;
-
-	/** Position on spline we have selected */
-	FVector SelectedSplinePosition;
-
-	/** Cached rotation for this point */
-	FQuat CachedRotation;
+	/** Current selection state */
+	USplineComponentVisualizerSelectionState* SelectionState;
 
 	/** Whether we currently allow duplication when dragging */
 	bool bAllowDuplication;

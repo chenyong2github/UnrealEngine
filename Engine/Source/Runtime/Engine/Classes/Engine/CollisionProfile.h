@@ -197,6 +197,10 @@ public:
 	/** Accessor and initializer **/
 	ENGINE_API static UCollisionProfile* Get();
 
+	/** Holds a delegate to be invoked when LoadProfileConfig is called. */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnLoadProfileConfig, UCollisionProfile*);
+	FOnLoadProfileConfig OnLoadProfileConfig;
+
 	/** Begin UObject interface */
 	virtual void PostReloadConfig(class FProperty* PropertyThatWasLoaded) override;
 	/** End UObject interface */
@@ -310,4 +314,10 @@ private:
 	ENGINE_API void AddProfileRedirect(FName OldName, FName NewName);
 
 	friend class FCollisionProfileDetails;
+	friend struct FCollisionProfilePrivateAccessor;
+};
+
+struct ENGINE_API FCollisionProfilePrivateAccessor
+{
+	static bool AddProfileTemplate(FCollisionResponseTemplate& NewProfileData);
 };

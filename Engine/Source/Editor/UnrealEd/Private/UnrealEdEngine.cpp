@@ -83,10 +83,10 @@ void UUnrealEdEngine::Init(IEngineLoop* InEngineLoop)
 	FSourceCodeNavigation::Initialize();
 
 	PackageAutoSaver.Reset(new FPackageAutoSaver);
-	PackageAutoSaver->LoadRestoreFile();	
+	PackageAutoSaver->LoadRestoreFile();
 
 #if !UE_BUILD_DEBUG
-	if( !GEditorSettingsIni.IsEmpty() )
+	if (!GEditorSettingsIni.IsEmpty())
 	{
 		// We need the game agnostic ini for this code
 		PerformanceMonitor = new FPerformanceMonitor;
@@ -131,13 +131,13 @@ void UUnrealEdEngine::Init(IEngineLoop* InEngineLoop)
 	{
 		DDCNotifications.Reset(new FDDCNotifications);
 
-		for( int32 PackageNameIndex=0; PackageNameIndex<PackagesToBeFullyLoadedAtStartup.Num(); PackageNameIndex++ )
+		for (int32 PackageNameIndex = 0; PackageNameIndex < PackagesToBeFullyLoadedAtStartup.Num(); PackageNameIndex++)
 		{
 			const FString& PackageName = PackagesToBeFullyLoadedAtStartup[PackageNameIndex];
 			// Load package if it's found in the package file cache.
-			if( FPackageName::DoesPackageExist( PackageName ) )
+			if (FPackageName::DoesPackageExist(PackageName))
 			{
-				LoadPackage( NULL, *PackageName, LOAD_None );
+				LoadPackage(NULL, *PackageName, LOAD_None);
 			}
 		}
 	}
@@ -148,10 +148,10 @@ void UUnrealEdEngine::Init(IEngineLoop* InEngineLoop)
 
 	// Iterate over the sorted list, constructing a mapping of unlocalized categories to the index the localized category
 	// resides in. This is an optimization to prevent having to localize values repeatedly.
-	for( int32 InfoIndex = 0; InfoIndex < SortedSpriteInfo.Num(); ++InfoIndex )
+	for (int32 InfoIndex = 0; InfoIndex < SortedSpriteInfo.Num(); ++InfoIndex)
 	{
 		const FSpriteCategoryInfo& SpriteInfo = SortedSpriteInfo[InfoIndex];
-		SpriteIDToIndexMap.Add( SpriteInfo.Category, InfoIndex );
+		SpriteIDToIndexMap.Add(SpriteInfo.Category, InfoIndex);
 	}
 
 	if (FPaths::IsProjectFilePathSet() && GIsEditor && !FApp::IsUnattended())
@@ -171,7 +171,7 @@ void UUnrealEdEngine::Init(IEngineLoop* InEngineLoop)
 		PropertyModule.RegisterCustomClassLayout("ProjectPackagingSettings", FOnGetDetailCustomizationInstance::CreateStatic(&FProjectPackagingSettingsCustomization::MakeInstance));
 
 		PropertyModule.RegisterCustomPropertyTypeLayout("LevelEditorPlayNetworkEmulationSettings", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FLevelEditorPlayNetworkEmulationSettingsDetail::MakeInstance));
-		
+
 	}
 
 	if (!IsRunningCommandlet())
@@ -187,10 +187,10 @@ void UUnrealEdEngine::Init(IEngineLoop* InEngineLoop)
 			BaseCookingFlags |= CookerSettings->bIgnoreIniSettingsOutOfDateForIteration ? ECookInitializationFlags::IgnoreIniSettingsOutOfDate : ECookInitializationFlags::None;
 			BaseCookingFlags |= CookerSettings->bIgnoreScriptPackagesOutOfDateForIteration ? ECookInitializationFlags::IgnoreScriptPackagesOutOfDate : ECookInitializationFlags::None;
 		}
-		
+
 		if (CookerSettings->bEnableCookOnTheSide)
 		{
-			if ( ExperimentalSettings->bSharedCookedBuilds )
+			if (ExperimentalSettings->bSharedCookedBuilds)
 			{
 				BaseCookingFlags |= ECookInitializationFlags::IterateSharedBuild | ECookInitializationFlags::IgnoreIniSettingsOutOfDate;
 			}
@@ -215,22 +215,22 @@ void UUnrealEdEngine::Init(IEngineLoop* InEngineLoop)
 	bPivotMovedIndependently = false;
 }
 
-bool CanCookForPlatformInThisProcess( const FString& PlatformName )
+bool CanCookForPlatformInThisProcess(const FString& PlatformName)
 {
 	////////////////////////////////////////
 	// hack remove this hack when we properly support changing the mobileHDR setting 
 	// check if our mobile hdr setting in memory is different from the one which is saved in the config file
-	
-	
+
+
 	FConfigFile PlatformEngineIni;
-	GConfig->LoadLocalIniFile(PlatformEngineIni, TEXT("Engine"), true, *PlatformName );
+	GConfig->LoadLocalIniFile(PlatformEngineIni, TEXT("Engine"), true, *PlatformName);
 
 	FString IniValueString;
 	bool ConfigSetting = false;
-	if ( PlatformEngineIni.GetString( TEXT("/Script/Engine.RendererSettings"), TEXT("r.MobileHDR"), IniValueString ) == false )
+	if (PlatformEngineIni.GetString(TEXT("/Script/Engine.RendererSettings"), TEXT("r.MobileHDR"), IniValueString) == false)
 	{
 		// must always match the RSetting setting because we don't have a config setting
-		return true; 
+		return true;
 	}
 	ConfigSetting = IniValueString.ToBool();
 
@@ -238,7 +238,7 @@ bool CanCookForPlatformInThisProcess( const FString& PlatformName )
 	static TConsoleVariableData<int32>* MobileHDRCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileHDR"));
 	const bool CurrentRSetting = MobileHDRCvar->GetValueOnAnyThread() == 1;
 
-	if ( CurrentRSetting != ConfigSetting )
+	if (CurrentRSetting != ConfigSetting)
 	{
 		UE_LOG(LogUnrealEdEngine, Warning, TEXT("Unable to use cook in editor because r.MobileHDR from Engine ini doesn't match console value r.MobileHDR"));
 		return false;
@@ -248,30 +248,30 @@ bool CanCookForPlatformInThisProcess( const FString& PlatformName )
 }
 
 
-bool UUnrealEdEngine::CanCookByTheBookInEditor(const FString& PlatformName) const 
-{ 	
-	if ( !CookServer )
+bool UUnrealEdEngine::CanCookByTheBookInEditor(const FString& PlatformName) const
+{
+	if (!CookServer)
 	{
 		return false;
 	}
 
-	if ( !CanCookForPlatformInThisProcess(PlatformName) )
+	if (!CanCookForPlatformInThisProcess(PlatformName))
 	{
 		CookServer->ClearAllCookedData();
 		return false;
 	}
 
-	return CookServer->GetCookMode() == ECookMode::CookByTheBookFromTheEditor; 
+	return CookServer->GetCookMode() == ECookMode::CookByTheBookFromTheEditor;
 }
 
 bool UUnrealEdEngine::CanCookOnTheFlyInEditor(const FString& PlatformName) const
 {
-	if ( !CookServer )
+	if (!CookServer)
 	{
 		return false;
 	}
 
-	if ( !CanCookForPlatformInThisProcess(PlatformName) )
+	if (!CanCookForPlatformInThisProcess(PlatformName))
 	{
 		CookServer->ClearAllCookedData();
 		return false;
@@ -280,7 +280,7 @@ bool UUnrealEdEngine::CanCookOnTheFlyInEditor(const FString& PlatformName) const
 	return CookServer->GetCookMode() == ECookMode::CookOnTheFlyFromTheEditor;
 }
 
-void UUnrealEdEngine::StartCookByTheBookInEditor( const TArray<ITargetPlatform*> &TargetPlatforms, const TArray<FString> &CookMaps, const TArray<FString> &CookDirectories, const TArray<FString> &CookCultures, const TArray<FString> &IniMapSections )
+void UUnrealEdEngine::StartCookByTheBookInEditor(const TArray<ITargetPlatform*>& TargetPlatforms, const TArray<FString>& CookMaps, const TArray<FString>& CookDirectories, const TArray<FString>& CookCultures, const TArray<FString>& IniMapSections)
 {
 	UCookOnTheFlyServer::FCookByTheBookStartupOptions StartupOptions;
 	StartupOptions.CookMaps = CookMaps;
@@ -289,11 +289,11 @@ void UUnrealEdEngine::StartCookByTheBookInEditor( const TArray<ITargetPlatform*>
 	StartupOptions.CookCultures = CookCultures;
 	StartupOptions.IniMapSections = IniMapSections;
 
-	CookServer->StartCookByTheBook( StartupOptions );
+	CookServer->StartCookByTheBook(StartupOptions);
 }
 
-bool UUnrealEdEngine::IsCookByTheBookInEditorFinished() const 
-{ 
+bool UUnrealEdEngine::IsCookByTheBookInEditorFinished() const
+{
 	return !CookServer->IsCookByTheBookRunning();
 }
 
@@ -306,9 +306,9 @@ void UUnrealEdEngine::MakeSortedSpriteInfo(TArray<FSpriteCategoryInfo>& OutSorte
 {
 	struct Local
 	{
-		static void AddSortedSpriteInfo(TArray<FSpriteCategoryInfo>& InOutSortedSpriteInfo, const FSpriteCategoryInfo& InSpriteInfo )
+		static void AddSortedSpriteInfo(TArray<FSpriteCategoryInfo>& InOutSortedSpriteInfo, const FSpriteCategoryInfo& InSpriteInfo)
 		{
-			const FSpriteCategoryInfo* ExistingSpriteInfo = InOutSortedSpriteInfo.FindByPredicate([&InSpriteInfo](const FSpriteCategoryInfo& SpriteInfo){ return InSpriteInfo.Category == SpriteInfo.Category; });
+			const FSpriteCategoryInfo* ExistingSpriteInfo = InOutSortedSpriteInfo.FindByPredicate([&InSpriteInfo](const FSpriteCategoryInfo& SpriteInfo) { return InSpriteInfo.Category == SpriteInfo.Category; });
 			if (ExistingSpriteInfo != NULL)
 			{
 				//Already present
@@ -317,14 +317,14 @@ void UUnrealEdEngine::MakeSortedSpriteInfo(TArray<FSpriteCategoryInfo>& OutSorte
 			else
 			{
 				// Add the category to the correct position in the array to keep it sorted
-				const int32 CatIndex = InOutSortedSpriteInfo.IndexOfByPredicate([&InSpriteInfo](const FSpriteCategoryInfo& SpriteInfo){ return InSpriteInfo.DisplayName.CompareTo( SpriteInfo.DisplayName ) < 0; });
+				const int32 CatIndex = InOutSortedSpriteInfo.IndexOfByPredicate([&InSpriteInfo](const FSpriteCategoryInfo& SpriteInfo) { return InSpriteInfo.DisplayName.CompareTo(SpriteInfo.DisplayName) < 0; });
 				if (CatIndex != INDEX_NONE)
 				{
-					InOutSortedSpriteInfo.Insert( InSpriteInfo, CatIndex );
+					InOutSortedSpriteInfo.Insert(InSpriteInfo, CatIndex);
 				}
 				else
 				{
-					InOutSortedSpriteInfo.Add( InSpriteInfo );
+					InOutSortedSpriteInfo.Add(InSpriteInfo);
 				}
 			}
 		}
@@ -333,27 +333,27 @@ void UUnrealEdEngine::MakeSortedSpriteInfo(TArray<FSpriteCategoryInfo>& OutSorte
 	// Iterate over all classes searching for those which derive from AActor and are neither deprecated nor abstract.
 	// It would be nice to only check placeable classes here, but we cannot do that as some non-placeable classes
 	// still end up in the editor (with sprites) procedurally, such as prefab instances and landscape actors.
-	for ( UClass* Class : TObjectRange<UClass>() )
+	for (UClass* Class : TObjectRange<UClass>())
 	{
-		if ( Class->IsChildOf( AActor::StaticClass() )
-		&& !( Class->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated) ) )
+		if (Class->IsChildOf(AActor::StaticClass())
+			&& !(Class->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated)))
 		{
 			// Check if the class default actor has billboard components or arrow components that should be treated as
 			// sprites, and if so, add their categories to the array
 			const AActor* CurDefaultClassActor = Class->GetDefaultObject<AActor>();
-			if ( CurDefaultClassActor )
+			if (CurDefaultClassActor)
 			{
-				for ( UActorComponent* Comp : CurDefaultClassActor->GetComponents() )
+				for (UActorComponent* Comp : CurDefaultClassActor->GetComponents())
 				{
-					const UBillboardComponent* CurSpriteComponent = Cast<UBillboardComponent>( Comp );
-					const UArrowComponent* CurArrowComponent = (CurSpriteComponent ? nullptr : Cast<UArrowComponent>( Comp ));
-					if ( CurSpriteComponent )
+					const UBillboardComponent* CurSpriteComponent = Cast<UBillboardComponent>(Comp);
+					const UArrowComponent* CurArrowComponent = (CurSpriteComponent ? nullptr : Cast<UArrowComponent>(Comp));
+					if (CurSpriteComponent)
 					{
-						Local::AddSortedSpriteInfo( OutSortedSpriteInfo, CurSpriteComponent->SpriteInfo );
+						Local::AddSortedSpriteInfo(OutSortedSpriteInfo, CurSpriteComponent->SpriteInfo);
 					}
-					else if ( CurArrowComponent && CurArrowComponent->bTreatAsASprite )
+					else if (CurArrowComponent && CurArrowComponent->bTreatAsASprite)
 					{
-						Local::AddSortedSpriteInfo( OutSortedSpriteInfo, CurArrowComponent->SpriteInfo );
+						Local::AddSortedSpriteInfo(OutSortedSpriteInfo, CurArrowComponent->SpriteInfo);
 					}
 				}
 			}
@@ -364,8 +364,8 @@ void UUnrealEdEngine::MakeSortedSpriteInfo(TArray<FSpriteCategoryInfo>& OutSorte
 	{
 		FSpriteCategoryInfo SpriteInfo;
 		SpriteInfo.Category = TEXT("Sounds");
-		SpriteInfo.DisplayName = NSLOCTEXT( "SpriteCategory", "Sounds", "Sounds" );
-		Local::AddSortedSpriteInfo( OutSortedSpriteInfo, SpriteInfo );
+		SpriteInfo.DisplayName = NSLOCTEXT("SpriteCategory", "Sounds", "Sounds");
+		Local::AddSortedSpriteInfo(OutSortedSpriteInfo, SpriteInfo);
 	}
 }
 
@@ -382,20 +382,20 @@ UUnrealEdEngine::~UUnrealEdEngine()
 {
 	if (this == GUnrealEd)
 	{
-		GUnrealEd = NULL; 
+		GUnrealEd = NULL;
 	}
 }
 
 
 void UUnrealEdEngine::FinishDestroy()
 {
-	if( CookServer)
+	if (CookServer)
 	{
 		FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(CookServer);
 		FCoreUObjectDelegates::OnObjectModified.RemoveAll(CookServer);
 	}
 
-	if(PackageAutoSaver.Get())
+	if (PackageAutoSaver.Get())
 	{
 		// We've finished shutting down, so disable the auto-save restore
 		PackageAutoSaver->UpdateRestoreFile(false);
@@ -404,7 +404,7 @@ void UUnrealEdEngine::FinishDestroy()
 
 	DDCNotifications.Reset();
 
-	if( PerformanceMonitor )
+	if (PerformanceMonitor)
 	{
 		delete PerformanceMonitor;
 	}
@@ -420,7 +420,7 @@ void UUnrealEdEngine::FinishDestroy()
 
 void UUnrealEdEngine::Tick(float DeltaSeconds, bool bIdleMode)
 {
-	Super::Tick( DeltaSeconds, bIdleMode );
+	Super::Tick(DeltaSeconds, bIdleMode);
 
 	// Increment the "seconds since last autosave" counter, then try to autosave.
 	if (!GSlowTaskOccurred)
@@ -445,7 +445,7 @@ void UUnrealEdEngine::Tick(float DeltaSeconds, bool bIdleMode)
 	}
 	bFirstTick = false;
 
-	if(PackageAutoSaver.Get())
+	if (PackageAutoSaver.Get())
 	{
 		PackageAutoSaver->AttemptAutoSave();
 	}
@@ -458,7 +458,7 @@ void UUnrealEdEngine::Tick(float DeltaSeconds, bool bIdleMode)
 }
 
 
-void UUnrealEdEngine::OnPackageDirtyStateUpdated( UPackage* Pkg)
+void UUnrealEdEngine::OnPackageDirtyStateUpdated(UPackage* Pkg)
 {
 	// The passed in object should never be NULL
 	check(Pkg);
@@ -466,10 +466,10 @@ void UUnrealEdEngine::OnPackageDirtyStateUpdated( UPackage* Pkg)
 	UPackage* Package = Pkg->GetOutermost();
 	const FString PackageName = Package->GetName();
 
-	if( Package->IsDirty() )
+	if (Package->IsDirty())
 	{
 		// Find out if we have already asked the user to modify this package
-		const uint8* PromptState = PackageToNotifyState.Find( Package );
+		const uint8* PromptState = PackageToNotifyState.Find(Package);
 		const bool bAlreadyAsked = PromptState != NULL;
 
 		// During an autosave, packages are saved in the autosave directory which switches off their dirty flags.
@@ -477,7 +477,7 @@ void UUnrealEdEngine::OnPackageDirtyStateUpdated( UPackage* Pkg)
 		// Any callback that happens during an autosave is bogus since a package wasn't marked dirty due to a user modification.
 		const bool bIsAutoSaving = PackageAutoSaver.Get() && PackageAutoSaver->IsAutoSaving();
 
-		if( !bIsAutoSaving && 
+		if (!bIsAutoSaving &&
 			!GIsEditorLoadingPackage && // Don't ask if the package was modified as a result of a load
 			!GIsCookerLoadingPackage)   // don't ask if the package was modified as a result of a cooker load
 		{
@@ -495,7 +495,7 @@ void UUnrealEdEngine::OnPackageDirtyStateUpdated( UPackage* Pkg)
 	{
 		// This package was saved, the user should be prompted again if they checked in the package
 		PackagesDirtiedThisTick.Remove(Package);
-		PackageToNotifyState.Remove( Package );
+		PackageToNotifyState.Remove(Package);
 	}
 }
 
@@ -536,7 +536,7 @@ void UUnrealEdEngine::AttemptModifiedPackageNotification()
 		}
 		SourceControlProvider.Execute(ISourceControlOperation::Create<FUpdateStatus>(), SourceControlHelpers::AbsoluteFilenames(Files), EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateUObject(this, &UUnrealEdEngine::OnSourceControlStateUpdated, Packages));
 	}
-	
+
 	if (bShowWritePermissionWarning)
 	{
 		// Display a toast notification when a writing permission failure occurs.
@@ -662,15 +662,15 @@ void UUnrealEdEngine::OnPostGarbageCollect()
 {
 	// Refresh Editor browsers after GC in case objects where removed.  Note that if the user is currently
 	// playing in a PIE level, we don't want to interrupt performance by refreshing the Generic Browser window.
-	if( GIsEditor && !GIsPlayInEditorWorld )
+	if (GIsEditor && !GIsPlayInEditorWorld)
 	{
 		FEditorDelegates::RefreshAllBrowsers.Broadcast();
 	}
 
 	// Clean up any GCed packages in the PackageToNotifyState
-	for( TMap<TWeakObjectPtr<UPackage>,uint8>::TIterator It(PackageToNotifyState); It; ++It )
+	for (TMap<TWeakObjectPtr<UPackage>, uint8>::TIterator It(PackageToNotifyState); It; ++It)
 	{
-		if( It.Key().IsValid() == false )
+		if (It.Key().IsValid() == false)
 		{
 			It.RemoveCurrent();
 		}
@@ -695,11 +695,11 @@ UWorld* SavedGWorld = NULL;
 void UUnrealEdEngine::OnPreWindowsMessage(FViewport* Viewport, uint32 Message)
 {
 	// Make sure the proper GWorld is set before handling the windows message
-	if( GameViewport && !bIsSimulatingInEditor && GameViewport->Viewport == Viewport && !GIsPlayInEditorWorld )
+	if (GameViewport && !bIsSimulatingInEditor && GameViewport->Viewport == Viewport && !GIsPlayInEditorWorld)
 	{
 		// remember the current GWorld that will be restored in the PostWindowsMessage callback
 		SavedGWorld = GWorld;
-		SetPlayInEditorWorld( PlayWorld );
+		SetPlayInEditorWorld(PlayWorld);
 	}
 	else
 	{
@@ -710,17 +710,17 @@ void UUnrealEdEngine::OnPreWindowsMessage(FViewport* Viewport, uint32 Message)
 
 void UUnrealEdEngine::OnPostWindowsMessage(FViewport* Viewport, uint32 Message)
 {
-	if( SavedGWorld )
+	if (SavedGWorld)
 	{
-		RestoreEditorWorld( SavedGWorld );
-	}		
+		RestoreEditorWorld(SavedGWorld);
+	}
 }
 
 
 void UUnrealEdEngine::OnOpenMatinee()
 {
 	// Register a delegate to pickup when Matinee is closed.
-	UpdateEdModeOnMatineeCloseDelegateHandle = GLevelEditorModeTools().OnEditorModeIDChanged().AddUObject( this, &UUnrealEdEngine::UpdateEdModeOnMatineeClose );
+	UpdateEdModeOnMatineeCloseDelegateHandle = GLevelEditorModeTools().OnEditorModeIDChanged().AddUObject(this, &UUnrealEdEngine::UpdateEdModeOnMatineeClose);
 }
 
 bool UUnrealEdEngine::IsAutosaving() const
@@ -729,47 +729,47 @@ bool UUnrealEdEngine::IsAutosaving() const
 	{
 		return PackageAutoSaver->IsAutoSaving();
 	}
-	
+
 	return false;
 }
 
 
 void UUnrealEdEngine::ConvertMatinees()
 {
-	FVector StartLocation= FVector::ZeroVector;
+	FVector StartLocation = FVector::ZeroVector;
 	UWorld* World = GWorld;
-	if( World )
+	if (World)
 	{
 		ULevel* Level = World->GetCurrentLevel();
-		if( !Level )
+		if (!Level)
 		{
 			Level = World->PersistentLevel;
 		}
 		check(Level);
-		for( TObjectIterator<UInterpData> It; It; ++It )
+		for (TObjectIterator<UInterpData> It; It; ++It)
 		{
 			UInterpData* InterpData = *It;
-			if( InterpData->IsIn( Level ) ) 
+			if (InterpData->IsIn(Level))
 			{
 				// We dont care about renaming references or adding redirectors.  References to this will be old seqact_interps
-				RenameObject( InterpData, Level->GetOutermost(), *InterpData->GetName() );
+				RenameObject(InterpData, Level->GetOutermost(), *InterpData->GetName());
 
 				AMatineeActor* MatineeActor = Level->OwningWorld->SpawnActor<AMatineeActor>(StartLocation, FRotator::ZeroRotator);
 				StartLocation.Y += 50;
-								
+
 				MatineeActor->MatineeData = InterpData;
 				FProperty* MatineeDataProp = NULL;
-				for( FProperty* Property = MatineeActor->GetClass()->PropertyLink; Property != NULL; Property = Property->PropertyLinkNext )
+				for (FProperty* Property = MatineeActor->GetClass()->PropertyLink; Property != NULL; Property = Property->PropertyLinkNext)
 				{
-					if( Property->GetName() == TEXT("MatineeData") )
+					if (Property->GetName() == TEXT("MatineeData"))
 					{
 						MatineeDataProp = Property;
 						break;
 					}
 				}
 
-				FPropertyChangedEvent PropertyChangedEvent( MatineeDataProp ); 
-				MatineeActor->PostEditChangeProperty( PropertyChangedEvent );
+				FPropertyChangedEvent PropertyChangedEvent(MatineeDataProp);
+				MatineeActor->PostEditChangeProperty(PropertyChangedEvent);
 			}
 		}
 	}
@@ -780,23 +780,23 @@ void UUnrealEdEngine::ConvertMatinees()
 void UUnrealEdEngine::ShowActorProperties()
 {
 	// See if we have any unlocked property windows available.  If not, create a new one.
-	if( FSlateApplication::IsInitialized() )	
+	if (FSlateApplication::IsInitialized())
 	{
 		IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>(TEXT("MainFrame"));
 
 		bool bHasUnlockedViews = false;
-	
-		FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>( TEXT("PropertyEditor") );
+
+		FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
 		bHasUnlockedViews = PropertyEditorModule.HasUnlockedDetailViews();
-	
+
 		// If the slate main frame is shown, summon a new property viewer in the Level editor module
-		if(MainFrameModule.IsWindowInitialized())
+		if (MainFrameModule.IsWindowInitialized())
 		{
-			FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>( TEXT("LevelEditor") );
+			FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 			LevelEditorModule.SummonSelectionDetails();
 		}
 
-		if( !bHasUnlockedViews )
+		if (!bHasUnlockedViews)
 		{
 			UpdateFloatingPropertyWindows();
 		}
@@ -809,9 +809,9 @@ bool UUnrealEdEngine::GetMapBuildCancelled() const
 }
 
 
-void UUnrealEdEngine::SetMapBuildCancelled( bool InCancelled )
+void UUnrealEdEngine::SetMapBuildCancelled(bool InCancelled)
 {
-	FUnrealEdMisc::Get().SetMapBuildCancelled( InCancelled );
+	FUnrealEdMisc::Get().SetMapBuildCancelled(InCancelled);
 }
 
 // namespace to match the original in the old loc system
@@ -869,7 +869,7 @@ void UUnrealEdOptions::PostInitProperties()
 
 UUnrealEdOptions* UUnrealEdEngine::GetUnrealEdOptions()
 {
-	if(EditorOptionsInst == NULL)
+	if (EditorOptionsInst == NULL)
 	{
 		EditorOptionsInst = NewObject<UUnrealEdOptions>();
 	}
@@ -877,7 +877,7 @@ UUnrealEdOptions* UUnrealEdEngine::GetUnrealEdOptions()
 	return EditorOptionsInst;
 }
 
- 
+
 void UUnrealEdEngine::CloseEditor()
 {
 	check(GEngine);
@@ -915,10 +915,10 @@ bool UUnrealEdEngine::PreferToStreamLevelsInPIE() const
 void UUnrealEdEngine::RedrawLevelEditingViewports(bool bInvalidateHitProxies)
 {
 	// Redraw Slate based viewports
-	if( FModuleManager::Get().IsModuleLoaded("LevelEditor") )
+	if (FModuleManager::Get().IsModuleLoaded("LevelEditor"))
 	{
-		FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>( "LevelEditor" );
-		LevelEditor.BroadcastRedrawViewports( bInvalidateHitProxies );
+		FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+		LevelEditor.BroadcastRedrawViewports(bInvalidateHitProxies);
 	}
 
 }
@@ -927,47 +927,47 @@ void UUnrealEdEngine::RedrawLevelEditingViewports(bool bInvalidateHitProxies)
 void UUnrealEdEngine::TakeHighResScreenShots()
 {
 	// Tell all viewports to take a screenshot
-	if( FModuleManager::Get().IsModuleLoaded("LevelEditor") )
+	if (FModuleManager::Get().IsModuleLoaded("LevelEditor"))
 	{
-		FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>( "LevelEditor" );
-		LevelEditor.BroadcastTakeHighResScreenShots( );
+		FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+		LevelEditor.BroadcastTakeHighResScreenShots();
 	}
 }
 
 
-void UUnrealEdEngine::SetCurrentClass( UClass* InClass )
+void UUnrealEdEngine::SetCurrentClass(UClass* InClass)
 {
 	USelection* SelectionSet = GetSelectedObjects();
-	SelectionSet->DeselectAll( UClass::StaticClass() );
+	SelectionSet->DeselectAll(UClass::StaticClass());
 
-	if(InClass != NULL)
+	if (InClass != NULL)
 	{
-		SelectionSet->Select( InClass );
+		SelectionSet->Select(InClass);
 	}
 }
 
 
-void UUnrealEdEngine::GetPackageList( TArray<UPackage*>* InPackages, UClass* InClass )
+void UUnrealEdEngine::GetPackageList(TArray<UPackage*>* InPackages, UClass* InClass)
 {
 	InPackages->Empty();
 
-	for( FObjectIterator It ; It ; ++It )
+	for (FObjectIterator It; It; ++It)
 	{
-		if( It->GetOuter() && It->GetOuter() != GetTransientPackage() )
+		if (It->GetOuter() && It->GetOuter() != GetTransientPackage())
 		{
 			UObject* TopParent = NULL;
 
-			if( InClass == NULL || It->IsA( InClass ) )
+			if (InClass == NULL || It->IsA(InClass))
 				TopParent = It->GetOutermost();
 
-			if( Cast<UPackage>(TopParent) )
-				InPackages->AddUnique( (UPackage*)TopParent );
+			if (Cast<UPackage>(TopParent))
+				InPackages->AddUnique((UPackage*)TopParent);
 		}
 	}
 }
 
 
-bool UUnrealEdEngine::CanSavePackage( UPackage* PackageToSave )
+bool UUnrealEdEngine::CanSavePackage(UPackage* PackageToSave)
 {
 	return HasMountWritePersmissionForPackage(PackageToSave->GetName());
 }
@@ -994,19 +994,19 @@ void UUnrealEdEngine::MakeSelectedActorsLevelCurrent()
 
 	// Look to the selected actors for the level to make current.
 	// If actors from multiple levels are selected, do nothing.
-	for ( FSelectionIterator It( GetSelectedActorIterator() ) ; It ; ++It )
+	for (FSelectionIterator It(GetSelectedActorIterator()); It; ++It)
 	{
-		AActor* Actor = static_cast<AActor*>( *It );
-		checkSlow( Actor->IsA(AActor::StaticClass()) );
+		AActor* Actor = static_cast<AActor*>(*It);
+		checkSlow(Actor->IsA(AActor::StaticClass()));
 
 		ULevel* ActorLevel = Actor->GetLevel();
 
-		if ( !LevelToMakeCurrent )
+		if (!LevelToMakeCurrent)
 		{
 			// First assignment.
 			LevelToMakeCurrent = ActorLevel;
 		}
-		else if ( LevelToMakeCurrent != ActorLevel )
+		else if (LevelToMakeCurrent != ActorLevel)
 		{
 			// Actors from multiple levels are selected -- abort.
 			LevelToMakeCurrent = NULL;
@@ -1015,18 +1015,18 @@ void UUnrealEdEngine::MakeSelectedActorsLevelCurrent()
 	}
 
 	// Change the current level to something different
-	if ( LevelToMakeCurrent && !LevelToMakeCurrent->IsCurrentLevel() )
+	if (LevelToMakeCurrent && !LevelToMakeCurrent->IsCurrentLevel())
 	{
-		EditorLevelUtils::MakeLevelCurrent( LevelToMakeCurrent );
+		EditorLevelUtils::MakeLevelCurrent(LevelToMakeCurrent);
 	}
 }
 
 
-int32 UUnrealEdEngine::GetSpriteCategoryIndex( const FName& InSpriteCategory )
+int32 UUnrealEdEngine::GetSpriteCategoryIndex(const FName& InSpriteCategory)
 {
 	// Find the sprite category in the unlocalized to index map, if possible
-	const int32* CategoryIndexPtr = SpriteIDToIndexMap.Find( InSpriteCategory );
-	
+	const int32* CategoryIndexPtr = SpriteIDToIndexMap.Find(InSpriteCategory);
+
 	const int32 CategoryIndex = CategoryIndexPtr ? *CategoryIndexPtr : INDEX_NONE;
 
 	return CategoryIndex;
@@ -1036,7 +1036,7 @@ int32 UUnrealEdEngine::GetSpriteCategoryIndex( const FName& InSpriteCategory )
 void UUnrealEdEngine::ShowLightingStaticMeshInfoWindow()
 {
 	// first invoke the stats viewer tab
-	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>( TEXT("LevelEditor") );
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 	TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
 	LevelEditorTabManager->TryInvokeTab(FName("LevelEditorStatsViewer"));
 
@@ -1049,7 +1049,7 @@ void UUnrealEdEngine::ShowLightingStaticMeshInfoWindow()
 void UUnrealEdEngine::OpenSceneStatsWindow()
 {
 	// first invoke the stats viewer tab
-	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>( TEXT("LevelEditor") );
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 	TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
 	LevelEditorTabManager->TryInvokeTab(FName("LevelEditorStatsViewer"));
 
@@ -1062,7 +1062,7 @@ void UUnrealEdEngine::OpenSceneStatsWindow()
 void UUnrealEdEngine::OpenTextureStatsWindow()
 {
 	// first invoke the stats viewer tab
-	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>( TEXT("LevelEditor") );
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 	TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
 	LevelEditorTabManager->TryInvokeTab(FName("LevelEditorStatsViewer"));
 
@@ -1072,14 +1072,14 @@ void UUnrealEdEngine::OpenTextureStatsWindow()
 }
 
 
-void UUnrealEdEngine::GetSortedVolumeClasses( TArray< UClass* >* VolumeClasses )
+void UUnrealEdEngine::GetSortedVolumeClasses(TArray< UClass* >* VolumeClasses)
 {
 	// Add all of the volume classes to the passed in array and then sort it
-	for( UClass* Class : TObjectRange<UClass>() )
+	for (UClass* Class : TObjectRange<UClass>())
 	{
 		if (Class->IsChildOf(AVolume::StaticClass()) && !Class->HasAnyClassFlags(CLASS_Deprecated | CLASS_Abstract | CLASS_NotPlaceable) && Class->ClassGeneratedBy == nullptr)
 		{
-			VolumeClasses->AddUnique( Class );
+			VolumeClasses->AddUnique(Class);
 		}
 	}
 
@@ -1090,9 +1090,9 @@ void UUnrealEdEngine::GetSortedVolumeClasses( TArray< UClass* >* VolumeClasses )
 void UUnrealEdOptions::GenerateCommandMap()
 {
 	CommandMap.Empty();
-	for(int32 CmdIdx=0; CmdIdx<EditorCommands.Num(); CmdIdx++)
+	for (int32 CmdIdx = 0; CmdIdx < EditorCommands.Num(); CmdIdx++)
 	{
-		FEditorCommand &Cmd = EditorCommands[CmdIdx];
+		FEditorCommand& Cmd = EditorCommands[CmdIdx];
 
 		CommandMap.Add(Cmd.CommandName, CmdIdx);
 	}
@@ -1101,28 +1101,28 @@ void UUnrealEdOptions::GenerateCommandMap()
 
 FString UUnrealEdOptions::GetExecCommand(FKey Key, bool bAltDown, bool bCtrlDown, bool bShiftDown, FName EditorSet)
 {
-	TArray<FEditorKeyBinding> &KeyBindings = EditorKeyBindings->KeyBindings;
+	TArray<FEditorKeyBinding>& KeyBindings = EditorKeyBindings->KeyBindings;
 	FString Result;
 
-	for(int32 BindingIdx=0; BindingIdx<KeyBindings.Num(); BindingIdx++)
+	for (int32 BindingIdx = 0; BindingIdx < KeyBindings.Num(); BindingIdx++)
 	{
-		FEditorKeyBinding &Binding = KeyBindings[BindingIdx];
+		FEditorKeyBinding& Binding = KeyBindings[BindingIdx];
 		int32* CommandIdx = CommandMap.Find(Binding.CommandName);
 
-		if(CommandIdx && EditorCommands.IsValidIndex(*CommandIdx))
+		if (CommandIdx && EditorCommands.IsValidIndex(*CommandIdx))
 		{
-			FEditorCommand &Cmd = EditorCommands[*CommandIdx];
+			FEditorCommand& Cmd = EditorCommands[*CommandIdx];
 
-			if(Cmd.Parent == EditorSet)
+			if (Cmd.Parent == EditorSet)
 			{
 				// See if this key binding matches the key combination passed in.
-				if(bAltDown == Binding.bAltDown && bCtrlDown == Binding.bCtrlDown && bShiftDown == Binding.bShiftDown && Key == Binding.Key)
+				if (bAltDown == Binding.bAltDown && bCtrlDown == Binding.bCtrlDown && bShiftDown == Binding.bShiftDown && Key == Binding.Key)
 				{
 					int32* EditorCommandIdx = CommandMap.Find(Binding.CommandName);
 
-					if(EditorCommandIdx && EditorCommands.IsValidIndex(*EditorCommandIdx))
+					if (EditorCommandIdx && EditorCommands.IsValidIndex(*EditorCommandIdx))
 					{
-						FEditorCommand &EditorCommand = EditorCommands[*EditorCommandIdx];
+						FEditorCommand& EditorCommand = EditorCommands[*EditorCommandIdx];
 						Result = EditorCommand.ExecCommand;
 					}
 					break;
@@ -1141,67 +1141,67 @@ FString UUnrealEdOptions::GetExecCommand(FKey Key, bool bAltDown, bool bCtrlDown
  * @param ActorsToUpdate	The list of actors to update
  * @param ViewClient		The viewport client to apply visibility changes to
  */
-static void InternalUpdateVolumeActorVisibility( TArray<AActor*>& ActorsToUpdate, const FLevelEditorViewportClient& ViewClient, TArray<AActor*>& OutActorsThatChanged )
+static void InternalUpdateVolumeActorVisibility(TArray<AActor*>& ActorsToUpdate, const FLevelEditorViewportClient& ViewClient, TArray<AActor*>& OutActorsThatChanged)
 {
-	for( int32 ActorIdx = 0; ActorIdx < ActorsToUpdate.Num(); ++ActorIdx )
+	for (int32 ActorIdx = 0; ActorIdx < ActorsToUpdate.Num(); ++ActorIdx)
 	{
 		AVolume* VolumeToUpdate = Cast<AVolume>(ActorsToUpdate[ActorIdx]);
 
-		if ( VolumeToUpdate )
+		if (VolumeToUpdate)
 		{
-			const bool bIsVisible = ViewClient.IsVolumeVisibleInViewport( *VolumeToUpdate );
+			const bool bIsVisible = ViewClient.IsVolumeVisibleInViewport(*VolumeToUpdate);
 
 			uint64 OriginalViews = VolumeToUpdate->HiddenEditorViews;
-			if( bIsVisible )
+			if (bIsVisible)
 			{
 				// If the actor should be visible, unset the bit for the actor in this viewport
-				VolumeToUpdate->HiddenEditorViews &= ~((uint64)1<<ViewClient.ViewIndex);	
+				VolumeToUpdate->HiddenEditorViews &= ~((uint64)1 << ViewClient.ViewIndex);
 			}
 			else
 			{
-				if( VolumeToUpdate->IsSelected() )
+				if (VolumeToUpdate->IsSelected())
 				{
 					// We are hiding the actor, make sure its not selected anymore
-					GEditor->SelectActor( VolumeToUpdate, false, true  );
+					GEditor->SelectActor(VolumeToUpdate, false, true);
 				}
 
 				// If the actor should be hidden, set the bit for the actor in this viewport
-				VolumeToUpdate->HiddenEditorViews |= ((uint64)1<<ViewClient.ViewIndex);	
+				VolumeToUpdate->HiddenEditorViews |= ((uint64)1 << ViewClient.ViewIndex);
 			}
 
-			if( OriginalViews != VolumeToUpdate->HiddenEditorViews )
+			if (OriginalViews != VolumeToUpdate->HiddenEditorViews)
 			{
 				// At least one actor has visibility changes
-				OutActorsThatChanged.AddUnique( VolumeToUpdate );
+				OutActorsThatChanged.AddUnique(VolumeToUpdate);
 			}
 		}
 	}
 }
 
 
-void UUnrealEdEngine::UpdateVolumeActorVisibility( UClass* InVolumeActorClass, FLevelEditorViewportClient* InViewport )
+void UUnrealEdEngine::UpdateVolumeActorVisibility(UClass* InVolumeActorClass, FLevelEditorViewportClient* InViewport)
 {
 	TSubclassOf<AActor> VolumeClassToCheck = InVolumeActorClass ? InVolumeActorClass : AVolume::StaticClass();
-	
+
 	// Build a list of actors that need to be updated.  Only take actors of the passed in volume class.  
 	UWorld* World = InViewport ? InViewport->GetWorld() : GWorld;
-	TArray< AActor *> ActorsToUpdate;
-	for( TActorIterator<AActor> It( World, VolumeClassToCheck ); It; ++It)
+	TArray< AActor*> ActorsToUpdate;
+	for (TActorIterator<AActor> It(World, VolumeClassToCheck); It; ++It)
 	{
 		ActorsToUpdate.Add(*It);
 	}
 
-	if( ActorsToUpdate.Num() > 0 )
+	if (ActorsToUpdate.Num() > 0)
 	{
 		TArray< AActor* > ActorsThatChanged;
-		if( !InViewport )
+		if (!InViewport)
 		{
 			// Update the visibility state of each actor for each viewport
-			for( FLevelEditorViewportClient* ViewClient : GetLevelViewportClients() )
+			for (FLevelEditorViewportClient* ViewClient : GetLevelViewportClients())
 			{
 				// Only update the editor frame clients as those are the only viewports right now that show volumes.
-				InternalUpdateVolumeActorVisibility( ActorsToUpdate, *ViewClient, ActorsThatChanged );
-				if( ActorsThatChanged.Num() )
+				InternalUpdateVolumeActorVisibility(ActorsToUpdate, *ViewClient, ActorsThatChanged);
+				if (ActorsThatChanged.Num())
 				{
 					// If actor visibility changed in the viewport, it needs to be redrawn
 					ViewClient->Invalidate();
@@ -1211,30 +1211,30 @@ void UUnrealEdEngine::UpdateVolumeActorVisibility( UClass* InVolumeActorClass, F
 		else
 		{
 			// Only update the editor frame clients as those are the only viewports right now that show volumes.
-			InternalUpdateVolumeActorVisibility( ActorsToUpdate, *InViewport, ActorsThatChanged );
-			if( ActorsThatChanged.Num() )
-			{	
+			InternalUpdateVolumeActorVisibility(ActorsToUpdate, *InViewport, ActorsThatChanged);
+			if (ActorsThatChanged.Num())
+			{
 				// If actor visibility changed in the viewport, it needs to be redrawn
 				InViewport->Invalidate();
 			}
 		}
 
 		// Push all changes in the actors to the scene proxy so the render thread correctly updates visibility
-		for( int32 ActorIdx = 0; ActorIdx < ActorsThatChanged.Num(); ++ActorIdx )
+		for (int32 ActorIdx = 0; ActorIdx < ActorsThatChanged.Num(); ++ActorIdx)
 		{
-			AActor* ActorToUpdate = ActorsThatChanged[ ActorIdx ];
+			AActor* ActorToUpdate = ActorsThatChanged[ActorIdx];
 
 			// Find all registered primitive components and update the scene proxy with the actors updated visibility map
 			TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents;
 			ActorToUpdate->GetComponents(PrimitiveComponents);
 
-			for( int32 ComponentIdx = 0; ComponentIdx < PrimitiveComponents.Num(); ++ComponentIdx )
+			for (int32 ComponentIdx = 0; ComponentIdx < PrimitiveComponents.Num(); ++ComponentIdx)
 			{
 				UPrimitiveComponent* PrimitiveComponent = PrimitiveComponents[ComponentIdx];
 				if (PrimitiveComponent->IsRegistered())
 				{
 					// Push visibility to the render thread
-					PrimitiveComponent->PushEditorVisibilityToProxy( ActorToUpdate->HiddenEditorViews );
+					PrimitiveComponent->PushEditorVisibilityToProxy(ActorToUpdate->HiddenEditorViews);
 				}
 			}
 		}
@@ -1288,9 +1288,9 @@ void UUnrealEdEngine::FixAnyInvertedBrushes(UWorld* World)
 
 void UUnrealEdEngine::RegisterComponentVisualizer(FName ComponentClassName, TSharedPtr<FComponentVisualizer> Visualizer)
 {
-	if( ComponentClassName != NAME_Name )
+	if (ComponentClassName != NAME_Name)
 	{
-		ComponentVisualizerMap.Add(ComponentClassName, Visualizer);		
+		ComponentVisualizerMap.Add(ComponentClassName, Visualizer);
 	}
 }
 
@@ -1307,7 +1307,7 @@ TSharedPtr<FComponentVisualizer> UUnrealEdEngine::FindComponentVisualizer(FName 
 	TSharedPtr<FComponentVisualizer> Visualizer = NULL;
 
 	const TSharedPtr<FComponentVisualizer>* VisualizerPtr = ComponentVisualizerMap.Find(ComponentClassName);
-	if(VisualizerPtr != NULL)
+	if (VisualizerPtr != NULL)
 	{
 		Visualizer = *VisualizerPtr;
 	}
@@ -1332,7 +1332,7 @@ TSharedPtr<class FComponentVisualizer> UUnrealEdEngine::FindComponentVisualizer(
 
 void UUnrealEdEngine::DrawComponentVisualizers(const FSceneView* View, FPrimitiveDrawInterface* PDI)
 {
-	for(FCachedComponentVisualizer& CachedVisualizer : VisualizersForSelection)
+	for (FCachedComponentVisualizer& CachedVisualizer : VisualizersForSelection)
 	{
 		CachedVisualizer.Visualizer->DrawVisualization(CachedVisualizer.ComponentPropertyPath.GetComponent(), View, PDI);
 	}
@@ -1341,7 +1341,7 @@ void UUnrealEdEngine::DrawComponentVisualizers(const FSceneView* View, FPrimitiv
 
 void UUnrealEdEngine::DrawComponentVisualizersHUD(const FViewport* Viewport, const FSceneView* View, FCanvas* Canvas)
 {
-	for(FCachedComponentVisualizer& CachedVisualizer : VisualizersForSelection)
+	for (FCachedComponentVisualizer& CachedVisualizer : VisualizersForSelection)
 	{
 		CachedVisualizer.Visualizer->DrawVisualizationHUD(CachedVisualizer.ComponentPropertyPath.GetComponent(), Viewport, View, Canvas);
 	}
@@ -1349,35 +1349,70 @@ void UUnrealEdEngine::DrawComponentVisualizersHUD(const FViewport* Viewport, con
 
 void UUnrealEdEngine::OnEditorSelectionChanged(UObject* SelectionThatChanged)
 {
-	if(SelectionThatChanged == GetSelectedActors())
+	if (SelectionThatChanged == GetSelectedActors())
 	{
 		// actor selection changed.  Update the list of component visualizers
 		// This is expensive so we do not search for visualizers each time they want to draw
 		VisualizersForSelection.Empty();
 
 		// Iterate over all selected actors
-		for(FSelectionIterator It(GetSelectedActorIterator()); It; ++It)
+		for (FSelectionIterator It(GetSelectedActorIterator()); It; ++It)
 		{
 			AActor* Actor = Cast<AActor>(*It);
-			if(Actor != nullptr)
+			if (Actor != nullptr)
 			{
 				// Then iterate over components of that actor (and recurse through child components)
 				TInlineComponentArray<UActorComponent*> Components;
 				Actor->GetComponents(Components, true);
 
-				for(int32 CompIdx = 0; CompIdx < Components.Num(); CompIdx++)
+				for (int32 CompIdx = 0; CompIdx < Components.Num(); CompIdx++)
 				{
 					UActorComponent* Comp = Components[CompIdx];
-					if(Comp->IsRegistered())
+					if (Comp->IsRegistered())
 					{
 						// Try and find a visualizer
 						TSharedPtr<FComponentVisualizer> Visualizer = FindComponentVisualizer(Comp->GetClass());
-						if(Visualizer.IsValid())
+						if (Visualizer.IsValid())
 						{
 							VisualizersForSelection.Add(FCachedComponentVisualizer(Comp, Visualizer));
 						}
 					}
 				}
+			}
+		}
+	}
+	else if (SelectionThatChanged == GetSelectedComponents())
+	{
+		VisualizersForSelection.Empty();
+
+		// Iterate over all selected components
+		for (FSelectionIterator It(GetSelectedComponentIterator()); It; ++It)
+		{
+			if (UActorComponent* Comp = Cast<UActorComponent>(*It))
+			{
+				if (Comp->IsRegistered())
+				{
+					// Try and find a visualizer
+					TSharedPtr<FComponentVisualizer> Visualizer = FindComponentVisualizer(Comp->GetClass());
+					if (Visualizer.IsValid())
+					{
+						VisualizersForSelection.Add(FCachedComponentVisualizer(Comp, Visualizer));
+					}
+				}
+
+			}
+		}
+	}
+
+	// If there is an undo/redo operation in progress, restore the active component visualizer.
+	if (GIsTransacting)
+	{
+		for (FCachedComponentVisualizer& CachedComponentVisualizer : VisualizersForSelection)
+		{
+			if (CachedComponentVisualizer.Visualizer->GetEditedComponent() != nullptr)
+			{
+				ComponentVisManager.SetActiveComponentVis(GCurrentLevelEditingViewportClient, CachedComponentVisualizer.Visualizer);
+				break;
 			}
 		}
 	}
@@ -1460,7 +1495,7 @@ bool IsBelowFreeDiskSpaceLimit(const TCHAR* TestDir, FText& OutAppendMessage, co
 void UUnrealEdEngine::ValidateFreeDiskSpace() const
 {
 	FText Message = NSLOCTEXT("DriveSpaceDialog", "LowHardDriveSpaceMsgHeader", "The following drive locations have limited free space.\nIt is recommended that you free some space to avoid issues such as crashed and data loss due to files not being able to be written and saved.\n");
-	
+
 	bool bShowWarning = false;
 	bShowWarning |= IsBelowFreeDiskSpaceLimit(FPlatformProcess::BaseDir(), Message, NSLOCTEXT("DriveSpaceDialog", "BaseDirDescriptor", "The base engine directory."));
 	bShowWarning |= IsBelowFreeDiskSpaceLimit(FPlatformMisc::ProjectDir(), Message, NSLOCTEXT("DriveSpaceDialog", "ProjectDirDescriptor", "The project directory."));
