@@ -111,8 +111,11 @@ if [[ ! -z "${BUILD_PROTOBUF_C_DEPEND}" ]]; then
 	# Update Dependencies for the Xcode project
 	#
 
-	cp -a ${PREFIXDIR}/include/protobuf-c Dependencies/protobuf/include/
 	cp -a ${PREFIXDIR}/bin/protoc-gen-c Dependencies/protobuf/bin/protoc-c
+	cp -a ${PREFIXDIR}/include/protobuf-c Dependencies/protobuf/include/
+
+	cp -a ${PREFIXDIR}/lib/libprotobuf-c.a lib/Mac/Release
+	cp -a ${PREFIXDIR}/lib/libprotobuf-c.a lib/Mac/Debug
 
 	checkFilesWereUpdated ${PROTOBUFDEPS[@]}
 	checkFilesAreFatBinaries ${PROTOBUFDEPS[0]}
