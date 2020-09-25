@@ -1623,7 +1623,8 @@ public:
 
 	void UpdateShapeBounds(const FTransform& Transform)
 	{
-		if (MNonFrequentData.Read().Geometry()->HasBoundingBox())
+		const TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>& GeomShared = MNonFrequentData.Read().Geometry();
+		if (GeomShared.IsValid() && GeomShared->HasBoundingBox())
 		{
 			for (auto& Shape : MShapesArray)
 			{
