@@ -23,12 +23,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = Brush, meta = (DisplayName = "Size", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "10.0", DisplayPriority = 1, HideEditConditionToggle, EditCondition = "bSpecifyRadius == false"))
 	float BrushSize;
 
-	/** If true, ignore relative Brush Size and use explicit World Radius */
+	/** If true, ignore relative Brush Size and use explicit world Radius */
 	UPROPERTY(EditAnywhere, Category = Brush, AdvancedDisplay)
 	bool bSpecifyRadius;
 
 	/** Radius of brush */
-	UPROPERTY(EditAnywhere, Category = Brush, AdvancedDisplay, meta = (DisplayName = "Radius", UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.1", ClampMax = "50000.0"))
+	UPROPERTY(EditAnywhere, Category = Brush, AdvancedDisplay, meta = (EditCondition = "bSpecifyRadius",
+		DisplayName = "Radius", UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.1", ClampMax = "50000.0"))
 	float BrushRadius;
 
 	/** Strength of the brush (0.0 - 1.0) */
