@@ -4,6 +4,7 @@
 
 #include "EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "HAL/PlatformApplicationMisc.h"
 #include "SlateOptMacros.h"
 #include "TraceServices/AnalysisService.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -53,6 +54,39 @@ STimersView::STimersView()
 	FMemory::Memset(bTimerTypeIsVisible, 1);
 }
 
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FTimersViewCommands : public TCommands<FTimersViewCommands>
+{
+public:
+	FTimersViewCommands()
+		: TCommands<FTimersViewCommands>(TEXT("STimersViewCommands"), NSLOCTEXT("STimersViewCommands", "Timer View Commands", "Timer View Commands"), NAME_None, FEditorStyle::Get().GetStyleSetName())
+	{
+	}
+
+	virtual ~FTimersViewCommands()
+	{
+	}
+
+	// UI_COMMAND takes long for the compiler to optimize
+	PRAGMA_DISABLE_OPTIMIZATION
+	virtual void RegisterCommands() override
+	{
+		UI_COMMAND(Command_CopyToClipboard, "Copy To Clipboard", "Copies selection to clipboard", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::C));
+	}
+	PRAGMA_ENABLE_OPTIMIZATION
+
+	TSharedPtr<FUICommandInfo> Command_CopyToClipboard;
+};
+
+void STimersView::InitCommandList()
+{
+	FTimersViewCommands::Register();
+	CommandList = MakeShared<FUICommandList>();
+	CommandList->MapAction(FTimersViewCommands::Get().Command_CopyToClipboard, FExecuteAction::CreateSP(this, &STimersView::ContextMenu_CopySelectedToClipboard_Execute), FCanExecuteAction::CreateSP(this, &STimersView::ContextMenu_CopySelectedToClipboard_CanExecute));
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 STimersView::~STimersView()
@@ -62,6 +96,8 @@ STimersView::~STimersView()
 	{
 		FInsightsManager::Get()->GetSessionChangedEvent().RemoveAll(this);
 	}
+
+	FTimersViewCommands::Unregister();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -270,6 +306,8 @@ void STimersView::Construct(const FArguments& InArgs)
 	CreateGroupByOptionsSources();
 	CreateSortings();
 
+	InitCommandList();
+
 	// Register ourselves with the Insights manager.
 	FInsightsManager::Get()->GetSessionChangedEvent().AddSP(this, &STimersView::InsightsManager_OnSessionChanged);
 
@@ -317,7 +355,7 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 	}
 
 	const bool bShouldCloseWindowAfterMenuSelection = true;
-	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, NULL);
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, CommandList.ToSharedRef());
 
 	// Selection menu
 	MenuBuilder.BeginSection("Selection", LOCTEXT("ContextMenu_Header_Selection", "Selection"));
@@ -410,19 +448,14 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 
 	MenuBuilder.BeginSection("Misc", LOCTEXT("ContextMenu_Header_Misc", "Miscellaneous"));
 	{
-		/*TODO
-		FUIAction Action_CopySelectedToClipboard
-		(
-			FExecuteAction::CreateSP(this, &STimersView::ContextMenu_CopySelectedToClipboard_Execute),
-			FCanExecuteAction::CreateSP(this, &STimersView::ContextMenu_CopySelectedToClipboard_CanExecute)
-		);
 		MenuBuilder.AddMenuEntry
 		(
-			LOCTEXT("ContextMenu_Header_Misc_CopySelectedToClipboard", "Copy To Clipboard"),
-			LOCTEXT("ContextMenu_Header_Misc_CopySelectedToClipboard_Desc", "Copies selection to clipboard"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.CopyToClipboard"), Action_CopySelectedToClipboard, NAME_None, EUserInterfaceActionType::Button
+			FTimersViewCommands::Get().Command_CopyToClipboard,
+			NAME_None,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.CopyToClipboard")
 		);
-		*/
 
 		MenuBuilder.AddSubMenu
 		(
@@ -1948,6 +1981,87 @@ void STimersView::ToggleTimingViewMainGraphEventSeries(FTimerNodePtr TimerNode) 
 	{
 		ToggleGraphSeries(GraphTrack.ToSharedRef(), TimerNode.ToSharedRef());
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STimersView::ContextMenu_CopySelectedToClipboard_CanExecute() const
+{
+	const TArray<FTimerNodePtr> SelectedNodes = TreeView->GetSelectedItems();
+
+	return SelectedNodes.Num() > 0;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimersView::ContextMenu_CopySelectedToClipboard_Execute()
+{
+	if (!Table->IsValid())
+	{
+		return;
+	}
+
+	TArray<Insights::FBaseTreeNodePtr> SelectedNodes;
+	for (FTimerNodePtr TimerPtr : TreeView->GetSelectedItems())
+	{
+		SelectedNodes.Add(TimerPtr);
+	}
+
+	if (SelectedNodes.Num() == 0)
+	{
+		return;
+	}
+
+	constexpr TCHAR Separator = TEXT('\t');
+	FString ClipboardText;
+
+	TArray<TSharedRef<Insights::FTableColumn>> VisibleColumns;
+	Table->GetVisibleColumns(VisibleColumns);
+
+	// Table headers
+	for (const TSharedRef<Insights::FTableColumn>& ColumnRef : VisibleColumns)
+	{
+		ClipboardText += ColumnRef->GetShortName().ToString().ReplaceCharWithEscapedChar() + Separator;
+	}
+
+	if (ClipboardText.Len() > 0)
+	{
+		ClipboardText.RemoveAt(ClipboardText.Len() - 1, 1, false);
+		ClipboardText.AppendChar(TEXT('\n'));
+	}
+
+	if (CurrentSorter.IsValid())
+	{
+		CurrentSorter->Sort(SelectedNodes, ColumnSortMode == EColumnSortMode::Ascending ? Insights::ESortMode::Ascending : Insights::ESortMode::Descending);
+	}
+
+	// Selected items
+	for (Insights::FBaseTreeNodePtr Node : SelectedNodes)
+	{
+		for (const TSharedRef<Insights::FTableColumn>& ColumnRef : VisibleColumns)
+		{
+			FText NodeText = ColumnRef->GetValueAsText(*Node);
+			ClipboardText += NodeText.ToString().ReplaceCharWithEscapedChar() + Separator;
+		}
+
+		if (ClipboardText.Len() > 0)
+		{
+			ClipboardText.RemoveAt(ClipboardText.Len() - 1, 1, false);
+			ClipboardText.AppendChar(TEXT('\n'));
+		}
+	}
+
+	if (ClipboardText.Len() > 0)
+	{
+		FPlatformApplicationMisc::ClipboardCopy(*ClipboardText);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply STimersView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	return CommandList->ProcessCommandBindings(InKeyEvent) == true ? FReply::Handled() : FReply::Unhandled();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
