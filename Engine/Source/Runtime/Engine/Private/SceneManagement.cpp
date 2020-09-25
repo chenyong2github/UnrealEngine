@@ -749,6 +749,9 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 
 	SkyIrradianceEnvironmentMap = GIdentityPrimitiveBuffer.SkyIrradianceEnvironmentMapSRV;
 
+	// [todo] Default to some other buffer
+	WaterData = GIdentityPrimitiveBuffer.PrimitiveSceneDataBufferSRV;
+
 	//this can be deleted once sm4 support is removed.
 	if (!PrimitiveSceneData)
 	{

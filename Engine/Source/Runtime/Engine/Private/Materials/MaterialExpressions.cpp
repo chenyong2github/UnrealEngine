@@ -174,6 +174,7 @@
 #include "Materials/MaterialExpressionSaturate.h"
 #include "Materials/MaterialExpressionSceneColor.h"
 #include "Materials/MaterialExpressionSceneDepth.h"
+#include "Materials/MaterialExpressionSceneDepthWithoutWater.h"
 #include "Materials/MaterialExpressionSceneTexelSize.h"
 #include "Materials/MaterialExpressionSceneTexture.h"
 #include "Materials/MaterialExpressionScreenPosition.h"
@@ -238,7 +239,6 @@
 #include "Materials/MaterialExpressionCurveAtlasRowParameter.h"
 #include "Materials/MaterialExpressionMapARPassthroughCameraUV.h"
 #include "Materials/MaterialExpressionShaderStageSwitch.h"
-#include "Materials/MaterialExpressionReflectionCapturePassSwitch.h"
 #include "Materials/MaterialUniformExpressions.h"
 #include "EditorSupportDelegates.h"
 #include "MaterialCompiler.h"
@@ -18072,61 +18072,6 @@ void UMaterialExpressionVolumetricAdvancedMaterialInput::GetCaption(TArray<FStri
 
 
 ///////////////////////////////////////////////////////////////////////////////
-// UMaterialExpressionReflectionCapturePassSwitch
-///////////////////////////////////////////////////////////////////////////////
-
-UMaterialExpressionReflectionCapturePassSwitch::UMaterialExpressionReflectionCapturePassSwitch(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-	// Structure to hold one-time initialization
-	struct FConstructorStatics
-	{
-		FText NAME_Utility;
-		FConstructorStatics()
-			: NAME_Utility(LOCTEXT("Utility", "Utility"))
-		{
-		}
-	};
-	static FConstructorStatics ConstructorStatics;
-
-#if WITH_EDITORONLY_DATA
-	MenuCategories.Add(ConstructorStatics.NAME_Utility);
-#endif
-}
-
-#if WITH_EDITOR
-int32 UMaterialExpressionReflectionCapturePassSwitch::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
-{
-	if (!Default.GetTracedInput().Expression)
-	{
-		return Compiler->Errorf(TEXT("Missing input Default"));
-	}
-	else if (!Reflection.GetTracedInput().Expression)
-	{
-		return Compiler->Errorf(TEXT("Missing input Reflection"));
-	}
-	else
-	{
-		const int32 Arg1 = Default.Compile(Compiler);
-		const int32 Arg2 = Reflection.Compile(Compiler);
-
-		return Compiler->ReflectionCapturePassSwitch(Arg1, Arg2);
-	}
-}
-
-void UMaterialExpressionReflectionCapturePassSwitch::GetCaption(TArray<FString>& OutCaptions) const
-{
-	OutCaptions.Add(TEXT("Reflection Capture Pass Switch"));
-}
-
-void UMaterialExpressionReflectionCapturePassSwitch::GetExpressionToolTip(TArray<FString>& OutToolTip)
-{
-	ConvertToMultilineToolTip(TEXT("Allows material to define specialized behavior when being rendered into reflection capture views."), 40, OutToolTip);
-}
-#endif // WITH_EDITOR
-
-
-///////////////////////////////////////////////////////////////////////////////
 // UMaterialExpressionCloudSampleAttribute
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -18245,7 +18190,71 @@ FString UMaterialExpressionThinTranslucentMaterialOutput::GetDisplayName() const
 }
 
 
+///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionSceneDepthWithoutWater
+///////////////////////////////////////////////////////////////////////////////
+UMaterialExpressionSceneDepthWithoutWater::UMaterialExpressionSceneDepthWithoutWater()
+{
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(LOCTEXT("Water", "Water"));
 
+	Outputs.Reset();
+	Outputs.Add(FExpressionOutput(TEXT(""), 1, 1, 0, 0, 0));
+	bShaderInputData = true;
+#endif // WITH_EDITORONLY_DATA
+
+	ConstInput = FVector2D(0.f, 0.f);
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionSceneDepthWithoutWater::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	int32 OffsetIndex = INDEX_NONE;
+	int32 CoordinateIndex = INDEX_NONE;
+	bool bUseOffset = false;
+
+	if (InputMode == EMaterialSceneAttributeInputMode::OffsetFraction)
+	{
+		if (Input.GetTracedInput().Expression)
+		{
+			OffsetIndex = Input.Compile(Compiler);
+		}
+		else
+		{
+			OffsetIndex = Compiler->Constant2(ConstInput.X, ConstInput.Y);
+		}
+		bUseOffset = true;
+	}
+	else if (InputMode == EMaterialSceneAttributeInputMode::Coordinates)
+	{
+		if (Input.GetTracedInput().Expression)
+		{
+			CoordinateIndex = Input.Compile(Compiler);
+		}
+	}
+
+	int32 Result = Compiler->SceneDepthWithoutWater(OffsetIndex, CoordinateIndex, bUseOffset, FallbackDepth);
+	return Result;
+}
+
+void UMaterialExpressionSceneDepthWithoutWater::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Scene Depth Without Water"));
+}
+
+FName UMaterialExpressionSceneDepthWithoutWater::GetInputName(int32 InputIndex) const
+{
+	if (InputIndex == 0)
+	{
+		// Display the current InputMode enum's display name.
+		FByteProperty* InputModeProperty = FindFProperty<FByteProperty>(UMaterialExpressionSceneDepthWithoutWater::StaticClass(), "InputMode");
+		// Can't use GetNameByValue as GetNameStringByValue does name mangling that GetNameByValue does not
+		return *InputModeProperty->Enum->GetNameStringByValue((int64)InputMode.GetValue());
+	}
+	return NAME_None;
+}
+
+#endif // WITH_EDITOR
 
 
 #undef LOCTEXT_NAMESPACE
