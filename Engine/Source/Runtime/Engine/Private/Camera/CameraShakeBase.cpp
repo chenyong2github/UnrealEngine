@@ -143,7 +143,7 @@ void UCameraShakeBase::UpdateAndApplyCameraShake(float DeltaTime, float Alpha, F
 	{
 		// Advance progress into the shake.
 		const float ShakeDuration = ActiveInfo.Duration.Get();
-		State.ElapsedTime = FMath::Min(State.ElapsedTime + DeltaTime, ShakeDuration);
+		State.ElapsedTime = State.ElapsedTime + DeltaTime;
 		if (State.ElapsedTime >= ShakeDuration)
 		{
 			// The shake has ended.
