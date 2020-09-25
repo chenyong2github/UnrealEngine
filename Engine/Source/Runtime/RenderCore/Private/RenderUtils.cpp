@@ -89,6 +89,55 @@ FArchive& operator<<(FArchive& Ar, FPackedRGBA16N& N)
 	return Ar;
 }
 
+/**
+ * Bulk data interface for providing a single black color used to initialize a
+ * volume texture.
+ */
+class FBlackVolumeTextureResourceBulkDataInterface : public FResourceBulkDataInterface
+{
+public:
+
+	/** Default constructor. */
+	FBlackVolumeTextureResourceBulkDataInterface(uint8 Alpha)
+		: Color(0, 0, 0, Alpha)
+	{
+	}
+
+	/** Default constructor. */
+	FBlackVolumeTextureResourceBulkDataInterface(FColor InColor)
+		: Color(InColor)
+	{
+	}
+
+	/**
+	 * Returns a pointer to the bulk data.
+	 */
+	virtual const void* GetResourceBulkData() const override
+	{
+		return &Color;
+	}
+
+	/** 
+	 * @return size of resource memory
+	 */
+	virtual uint32 GetResourceBulkDataSize() const override
+	{
+		return sizeof(Color);
+	}
+
+	/**
+	 * Free memory after it has been used to initialize RHI resource 
+	 */
+	virtual void Discard() override
+	{
+	}
+
+private:
+
+	/** Storage for the color. */
+	FColor Color;
+};
+
 //
 // FWhiteTexture implementation
 //
@@ -104,7 +153,9 @@ public:
 	virtual void InitRHI() override
 	{
 		// Create the texture RHI.  		
-		FRHIResourceCreateInfo CreateInfo(TEXT("ColoredTexture"));
+		FBlackVolumeTextureResourceBulkDataInterface BlackTextureBulkData(FColor(R, G, B, A));
+		FRHIResourceCreateInfo CreateInfo(&BlackTextureBulkData);
+		CreateInfo.DebugName = TEXT("ColoredTexture");
 		ETextureCreateFlags CreateFlags = TexCreate_ShaderResource;
 		if(bWithUAV)
 		{
@@ -113,12 +164,6 @@ public:
 		// BGRA typed UAV is unsupported per D3D spec, use RGBA here.
 		FTexture2DRHIRef Texture2D = RHICreateTexture2D(1, 1, PF_R8G8B8A8, 1, 1, CreateFlags, CreateInfo);
 		TextureRHI = Texture2D;
-
-		// Write the contents of the texture.
-		uint32 DestStride;
-		FColor* DestBuffer = (FColor*)RHILockTexture2D(Texture2D, 0, RLM_WriteOnly, DestStride, false);
-		*DestBuffer = FColor(R, G, B, A);
-		RHIUnlockTexture2D(Texture2D, 0, false);
 
 		// Create the sampler state RHI resource.
 		FSamplerStateInitializerRHI SamplerStateInitializer(SF_Point,AM_Wrap,AM_Wrap,AM_Wrap);
@@ -191,49 +236,6 @@ public:
 };
 
 FVertexBufferWithSRV* GWhiteVertexBufferWithSRV = new TGlobalResource<FWhiteVertexBuffer>;
-
-/**
- * Bulk data interface for providing a single black color used to initialize a
- * volume texture.
- */
-class FBlackVolumeTextureResourceBulkDataInterface : public FResourceBulkDataInterface
-{
-public:
-
-	/** Default constructor. */
-	FBlackVolumeTextureResourceBulkDataInterface(uint8 Alpha)
-		: Color(0, 0, 0, Alpha)
-	{
-	}
-
-	/**
-	 * Returns a pointer to the bulk data.
-	 */
-	virtual const void* GetResourceBulkData() const override
-	{
-		return &Color;
-	}
-
-	/** 
-	 * @return size of resource memory
-	 */
-	virtual uint32 GetResourceBulkDataSize() const override
-	{
-		return sizeof(Color);
-	}
-
-	/**
-	 * Free memory after it has been used to initialize RHI resource 
-	 */
-	virtual void Discard() override
-	{
-	}
-
-private:
-
-	/** Storage for the color. */
-	FColor Color;
-};
 
 /**
  * A class representing a 1x1x1 black volume texture.
