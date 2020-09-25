@@ -62,8 +62,6 @@ void UCameraShakeBase::StartShake(APlayerCameraManager* Camera, float Scale, ECa
 	// Note that single-instance shakes can be restarted while they're running.
 	checkf(!State.bIsActive || bSingleInstance, TEXT("Starting to play a shake that was already playing."));
 
-	const bool bIsRestarting = State.bIsActive;
-
 	// Remember the various settings for this run.
 	// Note that the camera manager can be null, for example in unit tests.
 	CameraManager = Camera;
@@ -75,12 +73,50 @@ void UCameraShakeBase::StartShake(APlayerCameraManager* Camera, float Scale, ECa
 	// Acquire info about the shake we're running.
 	GetShakeInfo(ActiveInfo);
 
-	// Set the active state.
-	State.ElapsedTime = 0.f;
-	State.bIsActive = true;
 	State.bHasDuration = ActiveInfo.Duration.IsFixed();
 	State.bHasBlendIn = ActiveInfo.BlendIn > 0.f;
 	State.bHasBlendOut = ActiveInfo.BlendOut > 0.f;
+
+	// Initialize our running state.
+	const bool bIsRestarting = State.bIsActive;
+	if (!bIsRestarting)
+	{
+		// Set the active state.
+		State.ElapsedTime = 0.f;
+		State.bIsActive = true;
+	}
+	else
+	{
+		// Single instance shake is being restarted... let's see if we need to
+		// reverse a blend out into a blend in.
+		if (State.bHasDuration && State.bHasBlendIn && State.bHasBlendOut)
+		{
+			const float BlendOutStartTime = ActiveInfo.Duration.Get() - ActiveInfo.BlendOut;
+			if (State.ElapsedTime > BlendOutStartTime)
+			{
+				// We had started blending out... let's start at an equivalent weight into the blend in.
+				const float BlendOutCurrentTime = State.ElapsedTime - BlendOutStartTime;
+				State.ElapsedTime = ActiveInfo.BlendIn * (1.f - BlendOutCurrentTime / ActiveInfo.BlendOut);
+				// Because this means we are shortening the shake (by the amount that we start into the
+				// blend in, instead of starting from zero), we need to lengthen the shake to make it
+				// last the same duration as it's supposed to.
+				ActiveInfo.Duration = FCameraShakeDuration(ActiveInfo.Duration.Get() + State.ElapsedTime);
+			}
+			else
+			{
+				// We had not started blending out, so we were at 100%. Let's go back to the beginning
+				// but skip the blend in time.
+				State.ElapsedTime = 0.f;
+				State.bHasBlendIn = false;
+				ActiveInfo.BlendIn = 0.f;
+			}
+		}
+		else
+		{
+			// We either don't have blending, or our shake pattern is doing custom stuff.
+			State.ElapsedTime = 0.f;
+		}
+	}
 
 	// Let the root pattern initialize itself.
 	if (RootShakePattern)
