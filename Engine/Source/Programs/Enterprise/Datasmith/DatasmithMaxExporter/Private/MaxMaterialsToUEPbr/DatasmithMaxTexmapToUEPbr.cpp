@@ -783,26 +783,24 @@ IDatasmithMaterialExpression* FDatasmithMaxTexmapToUEPbrUtils::ConvertBitMap(FDa
 		}
 	}
 
-	bool bFoundTextureElement = false;
-
 	for (int32 TextureIndex = 0; TextureIndex < MaxMaterialToUEPbr->ConvertState.DatasmithScene->GetTexturesCount(); ++TextureIndex)
 	{
 		const TSharedPtr< IDatasmithTextureElement >& TextureElement = MaxMaterialToUEPbr->ConvertState.DatasmithScene->GetTexture(TextureIndex);
 
 		if (ActualBitmapName == TextureElement->GetName())
 		{
-			TextureElement->SetTextureMode(TextureMode);
-
-			if (TextureElement->GetRGBCurve() > 0.f &&
-				(TextureElement->GetTextureMode() == EDatasmithTextureMode::Normal || TextureElement->GetTextureMode() == EDatasmithTextureMode::NormalGreenInv))
+			if ( TextureElement->GetTextureMode() != TextureMode )
 			{
-				if (bIsSRGB)
+				TextureElement->SetTextureMode(TextureMode);
+
+				if ( bIsSRGB && TextureElement->GetRGBCurve() > 0.f &&
+					MaxMaterialToUEPbr->ConvertState.bTreatNormalMapsAsLinear == false &&
+					( TextureElement->GetTextureMode() == EDatasmithTextureMode::Normal || TextureElement->GetTextureMode() == EDatasmithTextureMode::NormalGreenInv ) )
 				{
-					TextureElement->SetRGBCurve(TextureElement->GetRGBCurve() * 2.2f); // In UE, normal maps are not considered sRGB so adjust the RGB curve in consequence.
+					TextureElement->SetRGBCurve(TextureElement->GetRGBCurve() * 2.2f); // In UE, normal maps are always imported as linear so adjust the RGB curve to compensate.
 				}
 			}
 
-			bFoundTextureElement = true;
 			break;
 		}
 	}
