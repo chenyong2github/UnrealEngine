@@ -5,7 +5,7 @@
 #include "Camera/CameraShakeBase.h"
 #include "CameraShakeTestObjects.generated.h"
 
-UCLASS()
+UCLASS(NotBlueprintable, HideDropdown)
 class UConstantCameraShakePattern : public UCameraShakePattern
 {
 public:
@@ -19,7 +19,7 @@ private:
 	virtual void UpdateShakePatternImpl(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult) override;
 };
 
-UCLASS()
+UCLASS(NotBlueprintable, HideDropdown)
 class UConstantCameraShake : public UCameraShakeBase
 {
 public:
