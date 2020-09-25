@@ -854,7 +854,7 @@ namespace Audio
 					else
 					{
 						// If the bus is not registered, make a new entry. This will default to an automatic audio bus until explicitly made manual later.
-						TSharedPtr<FMixerAudioBus> NewAudioBus(new FMixerAudioBus(this, true, InitParams.NumInputChannels));
+						TSharedPtr<FMixerAudioBus> NewAudioBus(new FMixerAudioBus(this, true, FMath::Min(2, InitParams.NumInputChannels)));
 
 						// Add a send to it. This will not have a bus instance id (i.e. won't output audio), but 
 						// we register the send anyway in the event that this bus does play, we'll know to send this
