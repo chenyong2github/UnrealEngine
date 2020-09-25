@@ -47,6 +47,7 @@
 #include "ShaderPrint.h"
 #include "GpuDebugRendering.h"
 #include "HairStrands/HairStrandsRendering.h"
+#include "PhysicsField/PhysicsFieldComponent.h"
 #include "GPUSortManager.h"
 
 static TAutoConsoleVariable<int32> CVarStencilForLODDither(
@@ -1499,6 +1500,12 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		{
 			bool bSplitDispatch = !GDoPrepareDistanceFieldSceneAfterRHIFlush;
 			PrepareDistanceFieldScene(RHICmdList, bSplitDispatch);
+		}
+
+		if (Scene)
+		{
+			FViewInfo& View = Views[0];
+			Scene->UpdatePhysicsField(RHICmdList, View);
 		}
 
 		if (!GDoPrepareDistanceFieldSceneAfterRHIFlush && (GRHINeedsExtraDeletionLatency || !GRHICommandList.Bypass()))
