@@ -31,7 +31,7 @@ struct TQuaternion
 	void SetAxisAngleD(const FVector3<RealType>& Axis, RealType AngleDeg);
 	void SetAxisAngleR(const FVector3<RealType>& Axis, RealType AngleRad);
 	void SetFromTo(const FVector3<RealType>& From, const FVector3<RealType>& To);
-	void SetToSlerp(const TQuaternion<RealType>& From, const TQuaternion<RealType>& To, RealType InterpT);
+	void SetToSlerp(TQuaternion<RealType> From, TQuaternion<RealType> To, RealType InterpT);
 	void SetFromRotationMatrix(const TMatrix3<RealType>& RotationMatrix);
 
 	static TQuaternion<RealType> Zero() { return TQuaternion<RealType>((RealType)0, (RealType)0, (RealType)0, (RealType)0); }
@@ -59,6 +59,11 @@ struct TQuaternion
 	FVector3<RealType> InverseMultiply(const FVector3<RealType>& Other) const;
 
 	TMatrix3<RealType> ToRotationMatrix() const;
+
+	constexpr TQuaternion<RealType> operator-() const
+	{
+		return TQuaternion<RealType>(-X, -Y, -Z, -W);
+	}
 
 
 	// available for porting:
@@ -376,17 +381,28 @@ void TQuaternion<RealType>::SetFromTo(const FVector3<RealType>& From, const FVec
 
 
 template<typename RealType>
-void TQuaternion<RealType>::SetToSlerp( const TQuaternion<RealType>& From, const TQuaternion<RealType>& To, RealType InterpT)
+void TQuaternion<RealType>::SetToSlerp( TQuaternion<RealType> From, TQuaternion<RealType> To, RealType InterpT)
 {
+	From.Normalize();
+	To.Normalize();
 	RealType cs = From.Dot(To);
-	RealType angle = (RealType)acos(cs);
+
+	// Q and -Q are equivalent, but if we try to Slerp between them we will get nonsense instead of 
+	// just returning Q. Depending on how the Quaternion was constructed it is possible
+	// that the sign flips. So flip it back.
+	if (cs < (RealType)-0.99)
+	{
+		From = -From;
+	}
+
+	RealType angle = TMathUtil<RealType>::ACos(cs);
 	if (TMathUtil<RealType>::Abs(angle) >= TMathUtil<RealType>::ZeroTolerance)
 	{
-		RealType sn = (RealType)sin(angle);
-		RealType invSn = 1 / sn;
+		RealType sn = TMathUtil<RealType>::Sin(angle);
+		RealType invSn = (RealType)1 / sn;
 		RealType tAngle = InterpT * angle;
-		RealType coeff0 = (RealType)sin(angle - tAngle) * invSn;
-		RealType coeff1 = (RealType)sin(tAngle) * invSn;
+		RealType coeff0 = TMathUtil<RealType>::Sin(angle - tAngle) * invSn;
+		RealType coeff1 = TMathUtil<RealType>::Sin(tAngle) * invSn;
 		X = coeff0 * From.X + coeff1 * To.X;
 		Y = coeff0 * From.Y + coeff1 * To.Y;
 		Z = coeff0 * From.Z + coeff1 * To.Z;
@@ -399,6 +415,8 @@ void TQuaternion<RealType>::SetToSlerp( const TQuaternion<RealType>& From, const
 		Z = From.Z;
 		W = From.W;
 	}
+
+	Normalize();	// be safe
 }
 
 
