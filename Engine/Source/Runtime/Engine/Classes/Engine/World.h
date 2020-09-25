@@ -1223,6 +1223,7 @@ private:
 	/** Creates the dynamic source and static level collections if they don't already exist. */
 	void ConditionallyCreateDefaultLevelCollections();
 
+
 public:
 
 	/** Handle to the active audio device for this world. */
@@ -1351,6 +1352,11 @@ public:
 	/** Default global physics scene. */
 	TSharedPtr<FPhysScene_Chaos> DefaultPhysicsScene_Chaos;
 #endif
+
+	/** Physics Field component. */
+	UPROPERTY(Transient)
+	class UPhysicsFieldComponent* PhysicsField;
+
 private:
 
 	/** Array of components that need to wait on tasks before end of frame updates */

@@ -6879,6 +6879,43 @@ int32 FHLSLMaterialTranslator::DistanceFieldGradient(int32 PositionArg)
 	return AddCodeChunk(MCT_Float3, TEXT("GetDistanceFieldGradientGlobal(%s)"), *GetParameterCode(PositionArg));
 }
 
+int32 FHLSLMaterialTranslator::SamplePhysicsField(int32 PositionArg, const int32 OutputType, const int32 TargetIndex)
+{
+	if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	if (PositionArg == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	if (TargetIndex != INDEX_NONE)
+	{
+		if (OutputType == EFieldOutputType::Field_Output_Vector)
+		{
+			return AddCodeChunk(MCT_Float3, TEXT("MatPhysicsField_SamplePhysicsVectorField(%s,%d)"), *GetParameterCode(PositionArg), static_cast<uint8>(TargetIndex));
+		}
+		else if (OutputType == EFieldOutputType::Field_Output_Scalar)
+		{
+			return AddCodeChunk(MCT_Float3, TEXT("MatPhysicsField_SamplePhysicsScalarField(%s,%d)"), *GetParameterCode(PositionArg), static_cast<uint8>(TargetIndex));
+		}
+		else if (OutputType == EFieldOutputType::Field_Output_Integer)
+		{
+			return AddCodeChunk(MCT_Float3, TEXT("MatPhysicsField_SamplePhysicsIntegerField(%s,%d)"), *GetParameterCode(PositionArg), static_cast<uint8>(TargetIndex));
+		}
+		else
+		{
+			return INDEX_NONE;
+		}
+	}
+	else
+	{
+		return INDEX_NONE;
+	}
+}
+
 int32 FHLSLMaterialTranslator::AtmosphericFogColor( int32 WorldPosition )
 {
 	if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)
