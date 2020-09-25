@@ -72,6 +72,7 @@ TPBDEvolution<T, d>::TPBDEvolution(TPBDParticles<T, d>&& InParticles, TKinematic
 {
 	// Add group arrays
 	TArrayCollection::AddArray(&MGroupGravityForces);
+	TArrayCollection::AddArray(&MGroupForceRules);
 	TArrayCollection::AddArray(&MGroupCollisionThicknesses);
 	TArrayCollection::AddArray(&MGroupSelfCollisionThicknesses);
 	TArrayCollection::AddArray(&MGroupCoefficientOfFrictions);
@@ -228,11 +229,12 @@ void TPBDEvolution<T, d>::AdvanceOneTimeStep(const T Dt)
 
 				InitForceRule.Apply(Particles, Dt, Index); // F = TV(0)
 				MGroupGravityForces[ParticleGroupId].Apply(Particles, Dt, Index); // F += M * G
-				for (TFunction<void(TPBDParticles<T, d>&, const T, const int32)>& ForceRule : MForceRules)
+
+				if (MGroupForceRules[ParticleGroupId])
 				{
-					ForceRule(Particles, Dt, Index); // F += M * A
+					MGroupForceRules[ParticleGroupId](Particles, Dt, Index); // F += M * A
 				}
-			
+
 				MGroupVelocityFields[ParticleGroupId].Apply(Particles, Dt, Index);
 
 				if (MKinematicUpdate)
