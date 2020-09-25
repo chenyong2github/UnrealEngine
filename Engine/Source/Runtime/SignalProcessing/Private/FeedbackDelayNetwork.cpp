@@ -34,11 +34,12 @@ FFDNDelaySettings FFDNDelaySettings::DefaultRightDelays(float InSampleRate)
 }
 
 FFeedbackDelayNetwork::FFeedbackDelayNetwork(int32 InMaxNumInternalBufferSamples, const FFDNDelaySettings& InSettings)
+:	Settings(InSettings)
 {
 	// num internal buffer samples must be less than the minimum delay line and abide by memory alignment.
 	NumInternalBufferSamples = FMath::Min(
-		FMath::Min(InSettings.APF0DelayNumSamples, InSettings.APF1DelayNumSamples),
-		FMath::Min(InSettings.APF2DelayNumSamples, InSettings.APF3DelayNumSamples));
+		FMath::Min(Settings.APF0DelayNumSamples, Settings.APF1DelayNumSamples),
+		FMath::Min(Settings.APF2DelayNumSamples, Settings.APF3DelayNumSamples));
 
 	NumInternalBufferSamples = FMath::Min(NumInternalBufferSamples, InMaxNumInternalBufferSamples);
 
@@ -50,16 +51,16 @@ FFeedbackDelayNetwork::FFeedbackDelayNetwork(int32 InMaxNumInternalBufferSamples
 	}
 
 	// Allocate delay lines.
-	DelayLine0 = MakeUnique<FAlignedBlockBuffer>((2 * InSettings.APF0DelayNumSamples) + NumInternalBufferSamples, NumInternalBufferSamples);
-	DelayLine1 = MakeUnique<FAlignedBlockBuffer>((2 * InSettings.APF1DelayNumSamples) + NumInternalBufferSamples, NumInternalBufferSamples);
-	DelayLine2 = MakeUnique<FAlignedBlockBuffer>((2 * InSettings.APF2DelayNumSamples) + NumInternalBufferSamples, NumInternalBufferSamples);
-	DelayLine3 = MakeUnique<FAlignedBlockBuffer>((2 * InSettings.APF3DelayNumSamples) + NumInternalBufferSamples, NumInternalBufferSamples);
+	DelayLine0 = MakeUnique<FAlignedBlockBuffer>((2 * Settings.APF0DelayNumSamples) + NumInternalBufferSamples, NumInternalBufferSamples);
+	DelayLine1 = MakeUnique<FAlignedBlockBuffer>((2 * Settings.APF1DelayNumSamples) + NumInternalBufferSamples, NumInternalBufferSamples);
+	DelayLine2 = MakeUnique<FAlignedBlockBuffer>((2 * Settings.APF2DelayNumSamples) + NumInternalBufferSamples, NumInternalBufferSamples);
+	DelayLine3 = MakeUnique<FAlignedBlockBuffer>((2 * Settings.APF3DelayNumSamples) + NumInternalBufferSamples, NumInternalBufferSamples);
 
 	// Initialize delay lines
-	DelayLine0->AddZeros(InSettings.APF0DelayNumSamples);
-	DelayLine1->AddZeros(InSettings.APF1DelayNumSamples);
-	DelayLine2->AddZeros(InSettings.APF2DelayNumSamples);
-	DelayLine3->AddZeros(InSettings.APF3DelayNumSamples);
+	DelayLine0->AddZeros(Settings.APF0DelayNumSamples);
+	DelayLine1->AddZeros(Settings.APF1DelayNumSamples);
+	DelayLine2->AddZeros(Settings.APF2DelayNumSamples);
+	DelayLine3->AddZeros(Settings.APF3DelayNumSamples);
 
 	// Initialize internal buffers
 	WorkBuffer0.Reset(NumInternalBufferSamples);
@@ -154,7 +155,7 @@ void FFeedbackDelayNetwork::ProcessAudioBuffer(const float* InSampleData, const 
 		for (int32 j = 0; j < 4; j++)
 		{
 			AllPassOut[j] = (DelayInput[j] * -Coefficients.APFG[j]) + DelayOut[j];
-			// Note the reasignment of lpz. dont fuck it up.
+			// Note the reasignment of lpz. 
 			LPFZ[j] = UnderflowClamp((AllPassOut[j] * Coefficients.LPFA[j]) + (LPFZ[j] * Coefficients.LPFB[j]));
 			OutSampleData[i] += LPFZ[j];
 		}
@@ -176,5 +177,26 @@ void FFeedbackDelayNetwork::ProcessAudioBuffer(const float* InSampleData, const 
 	DelayLine1->AddSamples(WorkBuffer1Data, InNum);
 	DelayLine2->AddSamples(WorkBuffer2Data, InNum);
 	DelayLine3->AddSamples(WorkBuffer3Data, InNum);
+}
+
+void FFeedbackDelayNetwork::FlushAudio()
+{
+	for (int32 i = 0; i < 4; i++)
+	{
+		LPFZ[i] = 0.f;
+		FMO[i] = 0.f;
+	}
+
+	DelayLine0->ClearSamples();
+	DelayLine0->AddZeros(Settings.APF0DelayNumSamples);
+
+	DelayLine1->ClearSamples();
+	DelayLine1->AddZeros(Settings.APF1DelayNumSamples);
+
+	DelayLine2->ClearSamples();
+	DelayLine2->AddZeros(Settings.APF2DelayNumSamples);
+
+	DelayLine3->ClearSamples();
+	DelayLine3->AddZeros(Settings.APF3DelayNumSamples);
 }
 
