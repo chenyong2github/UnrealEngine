@@ -62,55 +62,35 @@ struct REMOTECONTROL_API FRemoteControlPresetGroup
 
 	FRemoteControlPresetGroup() = default;
 
-	FRemoteControlPresetGroup(FName InName, FRemoteControlPresetLayout* InLayout)
+	FRemoteControlPresetGroup(FName InName, FGuid InId)
 		: Name(InName)
-		, Id(FGuid::NewGuid())
-		, OwnerLayout(InLayout)
+		, Id(MoveTemp(InId))
 	{}
 
-	/** Append a field to the group's field list. */
-	void AddField(FGuid FieldId);
-	/** Insert a field in the group. */
-	void InsertFieldAt(FGuid FieldId, int32 Index);
-	/** Remove a field using the field's name. */
-	void RemoveField(FGuid FieldId);
-	/** Remove a field at a provided index. */
-	void RemoveFieldAt(int32 Index);
-	/** Swap two fields using indices. */
-	void SwapFields(int32 FirstIndex, int32 SecondIndex);
-
-	/** Get the fields' name under this group. */
+	/** Get the fields under this group. */
 	const TArray<FGuid>& GetFields() const;
+
+	/** Get the fields under this group (Non-const)*/
+	TArray<FGuid>& AccessFields();
 
 	friend bool operator==(const FRemoteControlPresetGroup& LHS, const FRemoteControlPresetGroup& RHS)
 	{
 		return LHS.Id == RHS.Id;
 	}
-
+ 
 public:
 	/** Name of this group. */
 	UPROPERTY()
 	FName Name;
 
+	/** This group's ID. */
 	UPROPERTY()
 	FGuid Id;
-
-private:
-	/** Get the cache from the RemoteControlPreset that holds this preset. */
-	RemoteControlPreset::FRemoteControlCache* GetPresetCache() const;
-	/** Get the preset that owns this group. */
-	URemoteControlPreset* GetOwnerPreset() const;
 
 private:
 	/** The list of exposed fields under this group. */
 	UPROPERTY()
 	TArray<FGuid> Fields;
-
-private:
-	/** The layout that owns this group. */
-	FRemoteControlPresetLayout* OwnerLayout;
-
-	friend struct FRemoteControlPresetLayout;
 };
 
 /** Layout that holds groups of fields. */
@@ -139,9 +119,12 @@ struct REMOTECONTROL_API FRemoteControlPresetLayout
 
 	/** Fetch a group using its name. */
 	FRemoteControlPresetGroup* GetGroupByName(FName GroupName);
+	
+	/** Create a group in the layout. */
+	FRemoteControlPresetGroup& CreateGroup(FName GroupName, FGuid GroupId);
 
 	/** Create a group in the layout. */
-	FRemoteControlPresetGroup* CreateGroup(FName GroupName = NAME_None);
+	FRemoteControlPresetGroup& CreateGroup();
 
 	/** Find the group that holds the specified field. */
 	FRemoteControlPresetGroup* FindGroupFromField(FGuid FieldId);
@@ -161,10 +144,42 @@ struct REMOTECONTROL_API FRemoteControlPresetLayout
 	/** Get this layout's groups. */
 	const TArray<FRemoteControlPresetGroup>& GetGroups() const;
 
+	/** Append a field to the group's field list. */
+	void AddField(FGuid GroupId, FGuid FieldId);
+
+	/** Insert a field in the group. */
+	void InsertFieldAt(FGuid GroupId, FGuid FieldId, int32 Index);
+
+	/** Remove a field using the field's name. */
+	void RemoveField(FGuid GroupId, FGuid FieldId);
+
+	/** Remove a field at a provided index. */
+	void RemoveFieldAt(FGuid GroupId, int32 Index);
+
 	/** Get the preset that owns this layout. */
 	URemoteControlPreset* GetOwner();
 
-	void PostSerialize(const FArchive& Ar);
+	// Layout operation delegates
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnGroupAdded, const FRemoteControlPresetGroup& /*NewGroup*/);
+	FOnGroupAdded& OnGroupAdded() { return OnGroupAddedDelegate; }
+
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnGroupDeleted, FRemoteControlPresetGroup/*DeletedGroup*/);
+	FOnGroupDeleted& OnGroupDeleted() { return OnGroupDeletedDelegate; }
+
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnGroupOrderChanged, const TArray<FGuid>& /*GroupIds*/);
+	FOnGroupOrderChanged& OnGroupOrderChanged() { return OnGroupOrderChangedDelegate; }
+
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnGroupRenamed, const FGuid& /*GroupId*/, FName /*NewName*/);
+	FOnGroupRenamed& OnGroupRenamed() { return OnGroupRenamedDelegate; }
+
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnFieldAdded, const FGuid& /*GroupId*/, const FGuid& /*FieldId*/, int32 /*FieldPosition*/);
+	FOnFieldAdded& OnFieldAdded() { return OnFieldAddedDelegate; }
+
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnFieldDeleted, const FGuid& /*GroupId*/, const FGuid& /*FieldId*/, int32 /*FieldPosition*/);
+	FOnFieldDeleted& OnFieldDeleted() { return OnFieldDeletedDelegate; }
+
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnFieldOrderChanged, const FGuid& /*GroupId*/, const TArray<FGuid>& /*FieldIds*/);
+	FOnFieldOrderChanged& OnFieldOrderChanged() { return OnFieldOrderChangedDelegate; }
 
 private:
 	/** The list of groups under this layout. */
@@ -174,6 +189,15 @@ private:
 	/** The preset that owns this layout. */
 	UPROPERTY()
 	TWeakObjectPtr<URemoteControlPreset> Owner = nullptr;
+
+	// Layout operation delegates
+	FOnGroupAdded OnGroupAddedDelegate;
+	FOnGroupDeleted OnGroupDeletedDelegate;
+	FOnGroupOrderChanged OnGroupOrderChangedDelegate;
+	FOnGroupRenamed OnGroupRenamedDelegate;
+	FOnFieldAdded OnFieldAddedDelegate;
+	FOnFieldDeleted OnFieldDeletedDelegate;
+	FOnFieldOrderChanged OnFieldOrderChangedDelegate;
 };
 
 /**
@@ -418,6 +442,12 @@ public:
 	void Unexpose(FName FieldLabel);
 
 	/**
+	 * Unexpose a field from the preset.
+	 * @param  FieldId the field's id.
+	 */
+	void Unexpose(const FGuid& FieldId);
+
+	/**
 	 * Create a new target under this preset.
 	 * @param TargetObjects The objects to group under a common alias for the target.
 	 * @return The new target's alias if successful.
@@ -486,19 +516,16 @@ private:
 	void OnExpose(const FExposeInfo& Info);
 	void OnUnexpose(FGuid UnexposedFieldId);
 	
-	// Cache operations.
+	//~ Cache operations.
 	void CacheFieldsData();
 	void CacheFieldLayoutData();
 
-	//Keep track of any property change to notify if one of the exposed property has changed
+	//~ Keep track of any property change to notify if one of the exposed property has changed
 	void OnObjectPropertyChanged(UObject* Object, struct FPropertyChangedEvent& Event);
-
 	void OnPreObjectPropertyChanged(UObject* Object, const class FEditPropertyChain& PropertyChain);
 
-	/**
-	 * Get a field ptr using it's id.
-	 */
-	FRemoteControlField* GetField(FGuid FieldId);
+	/** Get a field ptr using it's id. */
+	FRemoteControlField* GetFieldPtr(FGuid FieldId);
 
 private:
 	/** The mappings of alias to targets. */
@@ -534,14 +561,5 @@ private:
 
 	friend FRemoteControlTarget;
 	friend FRemoteControlPresetLayout;
-	friend FRemoteControlPresetGroup;
 };
 
-template<>
-struct TStructOpsTypeTraits<FRemoteControlPresetLayout> : public TStructOpsTypeTraitsBase2<FRemoteControlPresetLayout>
-{
-	enum
-	{
-		WithPostSerialize = true
-	};
-};

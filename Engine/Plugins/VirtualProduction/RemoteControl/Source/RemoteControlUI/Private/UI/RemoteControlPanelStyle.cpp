@@ -60,9 +60,8 @@ void FRemoteControlPanelStyle::Initialize()
 	ButtonTextStyle.ShadowColorAndOpacity.A /= 2;
 	StyleSet->Set("RemoteControlPanel.Button.TextStyle", ButtonTextStyle);
 
-	StyleSet->Set("RemoteControlPanel.Selection", new BOX_BRUSH("Common/GroupBorderLight", FMargin(4.0f / 16.0f)));
-	StyleSet->Set("RemoteControlPanel.FieldsSectionBorder", new BOX_BRUSH("Common/GroupBorder_FlatTop", FMargin(4.0f / 16.0f)));
-	StyleSet->Set("RemoteControlPanel.HeaderSectionBorder", new BOX_BRUSH("Common/DarkGroupBorder", FMargin(4.0f / 16.0f)));
+	// Default to transparent
+	StyleSet->Set("RemoteControlPanel.ExposedFieldBorder", new FSlateNoResource());
 
 	FEditableTextBoxStyle SectionNameTextBoxStyle = FCoreStyle::Get().GetWidgetStyle< FEditableTextBoxStyle >("NormalEditableTextBox");
 	SectionNameTextBoxStyle.BackgroundImageNormal = BOX_BRUSH("Common/GroupBorderLight", FMargin(4.0f / 16.0f));
@@ -70,7 +69,7 @@ void FRemoteControlPanelStyle::Initialize()
 
 	StyleSet->Set("RemoteControlPanel.Settings", new IMAGE_BRUSH("Icons/GeneralTools/Settings_40x", Icon20x20));
 	
-	StyleSet->Set("RemoteControlPanel.GroupBorder", new CORE_BOX_BRUSH("Common/GroupBorder_Shape", FMargin(4.0f / 16.0f), FLinearColor(1,1,1,0.2)));
+	StyleSet->Set("RemoteControlPanel.GroupBorder", new BOX_BRUSH("Common/DarkGroupBorder", FMargin(4.0f / 16.0f)));
 	StyleSet->Set("RemoteControlPanel.HorizontalDash", new IMAGE_BRUSH("Common/HorizontalDottedLine_16x1px", FVector2D(16.0f, 1.0f), FLinearColor::White, ESlateBrushTileType::Horizontal));
 	StyleSet->Set("RemoteControlPanel.VerticalDash", new IMAGE_BRUSH("Common/VerticalDottedLine_1x16px", FVector2D(1.0f, 16.0f), FLinearColor::White, ESlateBrushTileType::Vertical));
 
