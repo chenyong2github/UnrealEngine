@@ -83,16 +83,18 @@ namespace Metasound
 
 	FWaveAsset::FDecoderInputPtr FWaveAsset::CreateDecoderInput(const FWaveAssetReadRef& InWaveRef)
 	{				
-		FName OldFormat = FAudioDeviceManager::Get()->GetActiveAudioDevice()->GetRuntimeFormat(
-			const_cast<USoundWave*>(InWaveRef->GetSoundWave())
-		);
+		if (InWaveRef->GetSoundWave())
+		{
+			FName OldFormat = FAudioDeviceManager::Get()->GetActiveAudioDevice()->GetRuntimeFormat(
+				const_cast<USoundWave*>(InWaveRef->GetSoundWave())
+			);
 
-		TUniquePtr<Audio::IDecoderInput> Input = Audio::CreateBackCompatDecoderInput(
-			OldFormat,
-			InWaveRef->GetSoundWave()
-		);		
-		return FWaveAsset::FDecoderInputPtr(Input.Release());
-
+			TUniquePtr<Audio::IDecoderInput> Input = Audio::CreateBackCompatDecoderInput(
+				OldFormat,
+				InWaveRef->GetSoundWave()
+			);
+			return FWaveAsset::FDecoderInputPtr(Input.Release());
+		}
 		return nullptr;
 	}
 }

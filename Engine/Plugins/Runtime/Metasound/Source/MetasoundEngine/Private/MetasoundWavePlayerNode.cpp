@@ -137,39 +137,42 @@ namespace Metasound
 
 		FWaveAssetReadRef Wave = InputCol.GetDataReadReferenceOrConstruct<FWaveAsset>(TEXT("Wave"));
 
-		FWaveAsset::FDecoderInputPtr Input = FWaveAsset::CreateDecoderInput(Wave);
-		if (Input)
+		if(Wave->GetSoundWave())
 		{
-			ICodecRegistry::FCodecPtr Codec = ICodecRegistry::Get().FindCodecByParsingInput(Input.Get());
-			if (Codec)
+			FWaveAsset::FDecoderInputPtr Input = FWaveAsset::CreateDecoderInput(Wave);
+			if (Input)
 			{
-				IDecoderOutput::FRequirements Reqs 
-				{ 
-					Float32_Interleaved, 
-					InParams.OperatorSettings.GetNumFramesPerBlock(), 
-					static_cast<int32>(InParams.OperatorSettings.GetSampleRate()) 
-				};
-				TUniquePtr<IDecoderOutput> Output = IDecoderOutput::Create(Reqs);
-				TUniquePtr<IDecoder> Decoder = Codec->CreateDecoder(Input.Get(), Output.Get());
+				ICodecRegistry::FCodecPtr Codec = ICodecRegistry::Get().FindCodecByParsingInput(Input.Get());
+				if (Codec)
+				{
+					IDecoderOutput::FRequirements Reqs 
+					{ 
+						Float32_Interleaved, 
+						InParams.OperatorSettings.GetNumFramesPerBlock(), 
+						static_cast<int32>(InParams.OperatorSettings.GetSampleRate()) 
+					};
+					TUniquePtr<IDecoderOutput> Output = IDecoderOutput::Create(Reqs);
+					TUniquePtr<IDecoder> Decoder = Codec->CreateDecoder(Input.Get(), Output.Get());
 
-				return MakeUnique<FWavePlayerOperator>(
-					InParams.OperatorSettings, 
-					Wave, 
-					MoveTemp(Input), 
-					MoveTemp(Output), 
-					MoveTemp(Decoder)
-				);
+					return MakeUnique<FWavePlayerOperator>(
+						InParams.OperatorSettings, 
+						Wave, 
+						MoveTemp(Input), 
+						MoveTemp(Output), 
+						MoveTemp(Decoder)
+					);
+				}
+				else
+				{
+					AddBuildError<FWavePlayerError>(OutErrors, TEXT("FailedToFindCodec"),
+						LOCTEXT("FailedToFindCodec", "Failed to find codec for opening the supplied Wave"));
+				}
 			}
 			else
 			{
-				AddBuildError<FWavePlayerError>(OutErrors, TEXT("FailedToFindCodec"),
-					LOCTEXT("FailedToFindCodec", "Failed to find codec for opening the supplied Wave"));
+				AddBuildError<FWavePlayerError>(OutErrors, TEXT("FailedToParseInput"),
+					LOCTEXT("FailedToParseInput", "Failed to parse the compressed data"));
 			}
-		}
-		else
-		{
-			AddBuildError<FWavePlayerError>(OutErrors, TEXT("FailedToParseInput"),
-				LOCTEXT("FailedToParseInput", "Failed to parse the compressed data"));
 		}
 
 		// Create the player without any inputs, will just produce silence.
