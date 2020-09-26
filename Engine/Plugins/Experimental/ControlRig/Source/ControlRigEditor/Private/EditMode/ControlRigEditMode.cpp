@@ -323,6 +323,11 @@ void FControlRigEditMode::Enter()
 
 void FControlRigEditMode::Exit()
 {
+	if (UControlRig* ControlRig = GetControlRig(true))
+	{
+		ControlRig->ClearControlSelection();
+	}
+
 	if (InteractionScope)
 	{
 
