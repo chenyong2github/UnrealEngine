@@ -12,7 +12,6 @@
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/StructOnScope.h"
-#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "RemoteControlPreset" 
 
