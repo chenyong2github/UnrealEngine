@@ -56,6 +56,7 @@
 #include "Chaos/Core.h"
 #include "Chaos/HeightField.h"
 #include "Chaos/ImplicitObjectTransformed.h"
+#include "PhysicsEngine/BodySetup.h"
 #include "PhysicsEngine/Experimental/ChaosDerivedData.h"
 #include "Chaos/ChaosArchive.h"
 #endif
@@ -456,8 +457,9 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 				if(bCreateSimpleCollision)
 				{
 					TUniquePtr<Chaos::FPerShapeData> NewSimpleShape = Chaos::FPerShapeData::CreatePerShapeData(ShapeArray.Num());
-
-					HeightfieldRef->HeightfieldSimple->SetScale(FinalScale);
+					
+					FVector FinalSimpleCollisionScale(LandscapeScale.X* SimpleCollisionScale, LandscapeScale.Y* SimpleCollisionScale, LandscapeScale.Z* LANDSCAPE_ZSCALE);
+					HeightfieldRef->HeightfieldSimple->SetScale(FinalSimpleCollisionScale);
 					TUniquePtr<Chaos::TImplicitObjectTransformed<float, 3>> ChaosSimpleHeightFieldFromCooked = MakeUnique<Chaos::TImplicitObjectTransformed<float, 3>>(MakeSerializable(HeightfieldRef->HeightfieldSimple), Chaos::TRigidTransform<float, 3>(FTransform::Identity));
 
 					FCollisionFilterData QueryFilterDataSimple = QueryFilterData;
