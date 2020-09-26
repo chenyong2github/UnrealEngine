@@ -202,7 +202,7 @@ void ADMXFixtureActor::PushDMXData(TMap<FDMXAttributeName, int32> AttributesMap)
 					if (d1)
 					{
 						float TargetValue = SingleComponent->RemapValue(*d1);
-						if (SingleComponent->IsTargetValid(TargetValue))
+						if (SingleComponent->IsTargetValid(TargetValue) || SetInitialFixtureState)
 						{
 							if (SingleComponent->UseInterpolation)
 							{
@@ -235,7 +235,7 @@ void ADMXFixtureActor::PushDMXData(TMap<FDMXAttributeName, int32> AttributesMap)
 					{
 						float Channel1TargetValue = DoubleComponent->RemapValue(0, *d1);
 						float Channel2TargetValue = DoubleComponent->RemapValue(1, *d2);
-						if (DoubleComponent->IsTargetValid(0, Channel1TargetValue) && DoubleComponent->IsTargetValid(1, Channel2TargetValue))
+						if ((DoubleComponent->IsTargetValid(0, Channel1TargetValue) && DoubleComponent->IsTargetValid(1, Channel2TargetValue)) || SetInitialFixtureState)
 						{
 							if (DoubleComponent->UseInterpolation)
 							{
@@ -276,7 +276,7 @@ void ADMXFixtureActor::PushDMXData(TMap<FDMXAttributeName, int32> AttributesMap)
 					int a = (d4) ? *d4 : ColorComponent->BitResolution;
 
 					FLinearColor NewTargetColor = ColorComponent->RemapColor(r, g, b, a);
-					if (ColorComponent->IsColorValid(NewTargetColor))
+					if (ColorComponent->IsColorValid(NewTargetColor) || SetInitialFixtureState)
 					{
 						ColorComponent->SetTargetColor(NewTargetColor);
 						ColorComponent->SetComponent(NewTargetColor);

@@ -536,7 +536,7 @@ void ADMXFixtureActorMatrix::GenerateMatrixBeam()
 	FVector Normal = FVector(0, 0, 1);
 
 	// Build quads
-	float MaxDistance = MatrixWidth * MatrixHeight * 0.01f;
+	float MaxDistance = FMath::Sqrt(MatrixWidth * MatrixHeight) * 0.33f;
 	MaxDistance = FMath::Min(MaxDistance, 50.0f);
 
 	float QuadDistance = MaxDistance / NbrSamples;
