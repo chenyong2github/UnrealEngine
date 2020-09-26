@@ -44,7 +44,9 @@ public:
 		float InReverbDelay,
 		float InDiffusion,
 		float InDensity,
-		float InAirAbsorption
+		float InAirAbsorption,
+		bool bInBypassEarlyReflections,
+		bool bInBypassLateReflections
 	);
 
 	FAudioReverbEffect& operator=(class UReverbEffect* InReverbEffect);
@@ -60,6 +62,7 @@ public:
 	/** Overall volume of effect */
 	float		Volume;					// 0.0 to 1.0
 
+
 	/** Platform agnostic parameters that define a reverb effect. Min < Default < Max */
 	float		Density;				// 0.0 < 1.0 < 1.0
 	float		Diffusion;				// 0.0 < 1.0 < 1.0
@@ -73,6 +76,9 @@ public:
 	float		LateDelay;				// 0.0 < 0.011 < 0.1	Seconds
 	float		AirAbsorptionGainHF;	// 0.892 < 0.994 < 1.0
 	float		RoomRolloffFactor;		// 0.0 < 0.0 < 10.0
+
+	bool bBypassEarlyReflections;
+	bool bBypassLateReflections;
 };
 
 /**
@@ -229,7 +235,6 @@ protected:
 	bool bEQActive;
 	bool bReverbChanged;
 	bool bEQChanged;
-	bool bUseLegacyReverb;
 };
 
 // end 
