@@ -24,6 +24,7 @@
 #include "SSearchableItemList.h"
 #include "SSearchableTreeView.h"
 #include "UObject/StructOnScope.h"
+#include "UObject/UnrealType.h"
 #include "Templates/SharedPointer.h"
 
 #include "Widgets/DeclarativeSyntaxSupport.h"
@@ -111,34 +112,15 @@ namespace RemoteControlPanelUtil
 
 		return nullptr;
 	}
-	
-	/** Recursively create a property widget. */
-	TSharedRef<SWidget> CreatePropertyWidget(const TSharedPtr<IDetailTreeNode>& Node, FName FieldLabel, bool bGenerateChildren = false)
+
+	TSharedRef<SWidget> CreateNodeValueWidget(const TSharedPtr<IDetailTreeNode>& Node)
 	{
 		FNodeWidgets NodeWidgets = Node->CreateNodeWidgets();
 
-		TSharedRef<SVerticalBox> VerticalWrapper = SNew(SVerticalBox);
 		TSharedRef<SHorizontalBox> FieldWidget = SNew(SHorizontalBox);
 
-		if (NodeWidgets.NameWidget && NodeWidgets.ValueWidget)
+		if (NodeWidgets.ValueWidget)
 		{
-			TSharedPtr<SWidget> NameWidget;
-			if (FieldLabel == NAME_None)
-			{
-				NameWidget = NodeWidgets.NameWidget;
-			}
-			else
-			{
-				NameWidget = SNullWidget::NullWidget;
-			}
-
-			FieldWidget->AddSlot()
-				.Padding(FMargin(3.0f, 2.0f))
-				.AutoWidth()
-				[
-					NameWidget.ToSharedRef()
-				];
-
 			FieldWidget->AddSlot()
 				.Padding(FMargin(3.0f, 2.0f))
 				.HAlign(HAlign_Right)
@@ -157,29 +139,7 @@ namespace RemoteControlPanelUtil
 				];
 		}
 
-		VerticalWrapper->AddSlot()
-			.AutoHeight()
-			[
-				FieldWidget
-			];
-
-		if (bGenerateChildren)
-		{
-			TArray<TSharedRef<IDetailTreeNode>> ChildNodes;
-			Node->GetChildren(ChildNodes);
-			
-			for (const TSharedRef<IDetailTreeNode>& ChildNode : ChildNodes)
-			{
-				VerticalWrapper->AddSlot()
-					.AutoHeight()
-					.Padding(5.0f, 0.0f)
-					[
-						CreatePropertyWidget(ChildNode, TEXT(""))
-					];
-			}
-		}
-
-		return VerticalWrapper;
+		return FieldWidget;
 	}
 
 	/** Handle creating the widget to select a function.  */
@@ -238,7 +198,7 @@ namespace RemoteControlPanelUtil
 				Name.RemoveFromStart(DefaultPrefix, ESearchCase::CaseSensitive);
 				Name.RemoveFromEnd(CPostfix, ESearchCase::CaseSensitive);
 			}
-			return Library ? Library->GetName().RightChop(DefaultPrefix.Len()) : FString();
+			return Name;
 		}
 
 		virtual UBlueprintFunctionLibrary* GetLibrary() override
@@ -307,6 +267,66 @@ namespace RemoteControlPanelUtil
 			SNew(STextBlock)
 			.ColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, 0.5f))
 			.Text(LOCTEXT("WidgetCannotBeDisplayed", "Widget cannot be displayed."))
+		];
+	}
+
+	struct FMakeFieldWidgetArgs
+	{
+		TSharedPtr<SWidget> DragHandle;
+		TSharedPtr<SWidget> NameWidget;
+		TSharedPtr<SWidget> RenameButton;
+		TSharedPtr<SWidget> ValueWidget;
+		TSharedPtr<SWidget> OptionsButton;
+		TSharedPtr<SWidget> UnexposeButton;
+	};
+
+	TSharedRef<SWidget> MakeFieldWidget(const FMakeFieldWidgetArgs& Args)
+	{
+		auto WidgetOrNull = [](const TSharedPtr<SWidget>& Widget){return Widget ? Widget.ToSharedRef() : SNullWidget::NullWidget; };
+
+		return SNew(SHorizontalBox)
+		// Drag and drop handle
+		+ SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		[
+			WidgetOrNull(Args.DragHandle)
+		]
+		// Field name
+		+ SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		[
+			WidgetOrNull(Args.NameWidget)
+		]
+		// Rename button
+		+ SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		[
+			WidgetOrNull(Args.RenameButton)
+		]
+		// Field value
+		+ SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Right)
+		.FillWidth(1.0f)
+		[
+			WidgetOrNull(Args.ValueWidget)
+		]
+		// Show options button
+		+ SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		[
+			WidgetOrNull(Args.OptionsButton)
+		]
+		// Unexpose button
+		+ SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		[
+			WidgetOrNull(Args.UnexposeButton)
 		];
 	}
 }
@@ -465,11 +485,21 @@ private:
 	TWeakPtr<SFieldGroup> GroupWidget;
 };
 
-void FRCPanelFieldChildNode::Construct(const FArguments& InArgs)
+void FRCPanelFieldChildNode::Construct(const FArguments& InArgs, const TSharedRef<IDetailTreeNode>& InNode)
 {
+	TArray<TSharedRef<IDetailTreeNode>> ChildNodes;
+	InNode->GetChildren(ChildNodes);
+
+	Algo::Transform(ChildNodes, ChildrenNodes, [](const TSharedRef<IDetailTreeNode>& ChildNode) { return SNew(FRCPanelFieldChildNode, ChildNode); });
+	
+	FNodeWidgets Widgets = InNode->CreateNodeWidgets();
+	RemoteControlPanelUtil::FMakeFieldWidgetArgs Args;
+	Args.NameWidget = Widgets.NameWidget;
+	Args.ValueWidget = RemoteControlPanelUtil::CreateNodeValueWidget(InNode);
+
 	ChildSlot
 	[
-		InArgs._Content.Widget
+		RemoteControlPanelUtil::MakeFieldWidget(Args)
 	];
 }
 
@@ -483,6 +513,11 @@ void SRCPanelExposedField::Construct(const FArguments& InArgs, const FRemoteCont
 	RowGenerator = MoveTemp(InRowGenerator);
 	OptionsWidget = InArgs._OptionsContent.Widget;
 	bEditMode = InArgs._EditMode;
+	if (InArgs._ChildWidgets)
+	{
+		ChildWidgets = *InArgs._ChildWidgets;
+	}
+
 	WeakPanel = MoveTemp(InPanel);
 
 	if (InArgs._Content.Widget != SNullWidget::NullWidget)
@@ -576,7 +611,7 @@ void SRCPanelExposedField::OnObjectsReplaced(const TMap<UObject*, UObject*>& Rep
 	if (bObjectsReplaced)
 	{
 		RowGenerator->SetObjects(NewObjectList);
-		ChildSlot.AttachWidget(ConstructPropertyWidget());
+		ChildSlot.AttachWidget(ConstructWidget());
 	}
 }
 
@@ -595,7 +630,7 @@ void SRCPanelExposedField::Refresh()
 		});
 
 	RowGenerator->SetObjects(Objects);
-	ChildSlot.AttachWidget(ConstructPropertyWidget());
+	ChildSlot.AttachWidget(ConstructWidget());
 }
 
 void SRCPanelExposedField::GetBoundObjects(TSet<UObject*>& OutBoundObjects) const
@@ -613,121 +648,60 @@ void SRCPanelExposedField::GetBoundObjects(TSet<UObject*>& OutBoundObjects) cons
 }
 
 
-TSharedRef<SWidget> SRCPanelExposedField::ConstructPropertyWidget()
+TSharedRef<SWidget> SRCPanelExposedField::ConstructWidget()
 {
-	if (TSharedPtr<IDetailTreeNode> Node = RemoteControlPanelUtil::FindNode(RowGenerator->GetRootTreeNodes(), FieldPathInfo.ToPathPropertyString(), true))
+	if (FieldType == EExposedFieldType::Property)
 	{
-		TArray<TSharedRef<IDetailTreeNode>> ChildNodes;
-		Node->GetChildren(ChildNodes);
-
-		for (const TSharedRef<IDetailTreeNode>& ChildNode : ChildNodes)
+		if (TSharedPtr<IDetailTreeNode> Node = RemoteControlPanelUtil::FindNode(RowGenerator->GetRootTreeNodes(), FieldPathInfo.ToPathPropertyString(), true))
 		{
-			ChildWidgets.Add(
-				SNew(FRCPanelFieldChildNode)
-				[
-					RemoteControlPanelUtil::CreatePropertyWidget(ChildNode, TEXT(""), true)
-				]);
-		}
+			TArray<TSharedRef<IDetailTreeNode>> ChildNodes;
+			Node->GetChildren(ChildNodes);
+			ChildWidgets.Reset(ChildNodes.Num());
 
-		return MakeFieldWidget(RemoteControlPanelUtil::CreatePropertyWidget(MoveTemp(Node), FieldLabel));
+			for (const TSharedRef<IDetailTreeNode>& ChildNode : ChildNodes)
+			{
+				ChildWidgets.Add(SNew(FRCPanelFieldChildNode, ChildNode));
+			}
+
+			return MakeFieldWidget(RemoteControlPanelUtil::CreateNodeValueWidget(MoveTemp(Node)));
+		}
 	}
 	return SNullWidget::NullWidget;
 }
 
 TSharedRef<SWidget> SRCPanelExposedField::MakeFieldWidget(const TSharedRef<SWidget>& InWidget)
 {
-	const FMargin TopButtonPadding(0.f, 1.5f, 0.f, 0.f);
-	return SNew(SBorder)
-		.Padding(0.0f)
-		.BorderImage(this, &SRCPanelExposedField::GetBorderImage)
+	RemoteControlPanelUtil::FMakeFieldWidgetArgs Args;
+	Args.DragHandle = SNew(SBox)
+		.Visibility(this, &SRCPanelExposedField::GetVisibilityAccordingToEditMode, EVisibility::Hidden)
 		[
-			SNew(SHorizontalBox)
-			// Drag and drop handle
-			+ SHorizontalBox::Slot()
-			.Padding(2.0f)
-			.AutoWidth()
-			[
-				SNew(SBox)
-				.Padding(TopButtonPadding)
-				.Visibility(this, &SRCPanelExposedField::GetVisibilityAccordingToEditMode, EVisibility::Hidden)
-				[
-					SNew(SDragHandle)
-					.FieldWidget(AsShared())
-				]
-			]
-			// Field Name and Value
-			+ SHorizontalBox::Slot()
-			.FillWidth(1.0f)
-			[
-				SNew(SVerticalBox)
-				+ SVerticalBox::Slot()
-				[
-					SNew(SHorizontalBox)
-					// Field name
-					+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Top)
-					.Padding(0, 4.0f)
-					.AutoWidth()
-					[
-						SAssignNew(NameTextBox, SInlineEditableTextBlock)
-						.Text(FText::FromName(FieldLabel))
-						.OnTextCommitted(this, &SRCPanelExposedField::OnLabelCommitted)
-						.OnVerifyTextChanged(this, &SRCPanelExposedField::OnVerifyItemLabelChanged)
-						.IsReadOnly_Lambda([this] () { return !bEditMode.Get(); })
-					]
-					// Rename button
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Top)
-					.HAlign(HAlign_Left)
-					.Padding(0, 1.0f)
-					[
-						SNew(SButton)
-						.Visibility(this, &SRCPanelExposedField::GetVisibilityAccordingToEditMode, EVisibility::Collapsed)
-						.ButtonStyle(FEditorStyle::Get(), "FlatButton")
-						.OnClicked_Lambda([this] () {
-								bNeedsRename = true;
-								return FReply::Handled();	
-							})
-						[
-							SNew(STextBlock)
-							.TextStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Button.TextStyle")
-							.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-							.Text(FText::FromString(FString(TEXT("\xf044"))) /*fa-edit*/)
-						]
-					]
-					// Field value
-					+ SHorizontalBox::Slot()
-					.FillWidth(1.0f)
-					.HAlign(HAlign_Right)
-					[
-						InWidget
-					]
-					// Show options button
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Top)
-					.HAlign(HAlign_Right)
-					.Padding(0, 1.0f)
-					[
-						SNew(SButton)
-						.Visibility(this, &SRCPanelExposedField::GetOptionsButtonVisibility)
-						.ButtonStyle(FEditorStyle::Get(), "FlatButton")
-						.OnClicked_Lambda([this]() { bShowOptions = !bShowOptions; return FReply::Handled(); })
-						[
-							SNew(STextBlock)
-							.TextStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Button.TextStyle")
-							.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-							.Text(FText::FromString(FString(TEXT("\xf067"))) /*fa-plus*/)
-						]
-					]
-					// Unexpose button
-					+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Top)
-					.Padding(TopButtonPadding)
-					.AutoWidth()
-					[
-						SNew(SButton)
+			SNew(SDragHandle)
+			.FieldWidget(AsShared())
+		];
+
+	Args.NameWidget = SAssignNew(NameTextBox, SInlineEditableTextBlock)
+		.Text(FText::FromName(FieldLabel))
+		.OnTextCommitted(this, &SRCPanelExposedField::OnLabelCommitted)
+		.OnVerifyTextChanged(this, &SRCPanelExposedField::OnVerifyItemLabelChanged)
+		.IsReadOnly_Lambda([this]() { return !bEditMode.Get(); });
+
+	Args.RenameButton = SNew(SButton)
+		.Visibility(this, &SRCPanelExposedField::GetVisibilityAccordingToEditMode, EVisibility::Collapsed)
+		.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+		.OnClicked_Lambda([this]() {
+		bNeedsRename = true;
+		return FReply::Handled();
+			})
+		[
+			SNew(STextBlock)
+			.TextStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Button.TextStyle")
+				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+				.Text(FText::FromString(FString(TEXT("\xf044"))) /*fa-edit*/)
+		];
+
+	Args.ValueWidget = InWidget;
+
+	Args.UnexposeButton = SNew(SButton)
 						.Visibility(this, &SRCPanelExposedField::GetVisibilityAccordingToEditMode, EVisibility::Collapsed)
 						.OnClicked(this, &SRCPanelExposedField::HandleUnexposeField)
 						.ButtonStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.UnexposeButton")
@@ -736,20 +710,23 @@ TSharedRef<SWidget> SRCPanelExposedField::MakeFieldWidget(const TSharedRef<SWidg
 							.TextStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Button.TextStyle")
 							.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
 							.Text(FText::FromString(FString(TEXT("\xf00d"))) /*fa-times*/)
-						]
-					]
-				]
-				// Optional field content (metadata, function arguments, etc.)
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				[
-					SNew(SBox)
-					.Visibility_Lambda([this]() {return bShowOptions ? EVisibility::Visible : EVisibility::Collapsed; })
-					[
-						OptionsWidget.ToSharedRef()
-					]
-				]
-			]
+						];
+	Args.OptionsButton = SNew(SButton)
+						.Visibility(this, &SRCPanelExposedField::GetOptionsButtonVisibility)
+						.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+						.OnClicked_Lambda([this]() { bShowOptions = !bShowOptions; return FReply::Handled(); })
+						[
+							SNew(STextBlock)
+							.TextStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Button.TextStyle")
+							.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+							.Text(FText::FromString(FString(TEXT("\xf067"))) /*fa-plus*/)
+						];
+
+	return SNew(SBorder)
+		.Padding(0.0f)
+		.BorderImage(this, &SRCPanelExposedField::GetBorderImage)
+		[
+			RemoteControlPanelUtil::MakeFieldWidget(Args)
 		];
 }
 
@@ -896,7 +873,6 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 
 	OnPropertyChangedHandle = FCoreUObjectDelegates::OnObjectPropertyChanged.AddSP(this, &SRemoteControlPanel::OnObjectPropertyChange);
 
-	ReloadBlueprintLibraries();
 	GEditor->OnObjectsReplaced().AddSP(this, &SRemoteControlPanel::OnObjectsReplaced);
 
 	RegisterPresetDelegates();
@@ -1062,11 +1038,6 @@ FRemoteControlPresetLayout& SRemoteControlPanel::GetLayout()
 	return Preset->Layout;
 }
 
-FReply SRemoteControlPanel::OnMouseButtonUp(const FGeometry&, const FPointerEvent&)
-{
-	return FReply::Handled();
-}
-
 void SRemoteControlPanel::RegisterEvents()
 {
 	if (GEditor)
@@ -1075,13 +1046,11 @@ void SRemoteControlPanel::RegisterEvents()
 		GEditor->OnBlueprintReinstanced().AddLambda(
 			[this]()
 			{
-				ReloadBlueprintLibraries();
 				Refresh();
 			});
 		IHotReloadModule::Get().OnHotReload().AddLambda(
 			[this](bool)
 			{
-				ReloadBlueprintLibraries();
 				Refresh();
 			});
 	}
@@ -1106,11 +1075,6 @@ void SRemoteControlPanel::Refresh()
 	}
 }
 
-void SRemoteControlPanel::ClearSelection()
-{
-	TreeView->ClearSelection();
-}
-
 void SRemoteControlPanel::OnSelectionChanged(TSharedPtr<FRCPanelTreeNode> Node, ESelectInfo::Type SelectInfo)
 {
 	if (!Node || SelectInfo != ESelectInfo::OnMouseClick)
@@ -1124,13 +1088,22 @@ void SRemoteControlPanel::OnSelectionChanged(TSharedPtr<FRCPanelTreeNode> Node, 
 		Field->GetBoundObjects(Objects);
 
 		TArray<UObject*> OwnerActors;
-		Algo::Transform(Objects, OwnerActors, &UObject::GetTypedOuter<AActor>);
+		for (UObject* Object : Objects)
+		{
+			if (Object->IsA<AActor>())
+			{
+				OwnerActors.Add(Object);
+			}
+			else
+			{
+				OwnerActors.Add(Object->GetTypedOuter<AActor>());
+			}
+		}
 		
 		for (UObject* Object : Objects)
 		{
 			SelectActorsInlevel(OwnerActors);
 		}
-
 	}
 }
 
@@ -1209,13 +1182,16 @@ TSharedRef<SWidget> SRemoteControlPanel::CreateBlueprintLibraryPicker()
 	using namespace RemoteControlPanelUtil;
 
 	TArray<TSharedPtr<FTreeNode>> Nodes;
+	TSet<FName> LibraryNames;
+
 	for (auto It = TObjectIterator<UBlueprintFunctionLibrary>(EObjectFlags::RF_NoFlags); It; ++It)
 	{
-		if (It->GetClass() != UBlueprintFunctionLibrary::StaticClass() && !It->GetClass()->GetName().StartsWith(TEXT("SKEL_")))
+		if (!LibraryNames.Contains(It->GetClass()->GetFName()) && It->GetClass() != UBlueprintFunctionLibrary::StaticClass() && !It->GetClass()->GetName().StartsWith(TEXT("SKEL_")))
 		{
 			TSharedPtr<FRCLibraryNode> Node = MakeShared<FRCLibraryNode>();
 			Node->Library = *It;
 			Nodes.Add(Node);
+			LibraryNames.Add(It->GetClass()->GetFName());
 		}
 	}
 
@@ -1307,6 +1283,7 @@ TSharedRef<ITableRow> SRemoteControlPanel::OnGenerateRow(TSharedPtr<FRCPanelTree
 		.OnDragEnter_Lambda([Field = Node->AsField()](const FDragDropEvent& Event) { Field->SetIsHovered(true); })
 		.OnDragLeave_Lambda([Field = Node->AsField()](const FDragDropEvent& Event) { Field->SetIsHovered(false); })
 		.OnDrop_Lambda(OnDropLambda)
+		.Padding(FMargin(20.f, 0.f, 0.f, 0.f))
 		.ShowSelection(false)
 		[
 			Node->AsField().ToSharedRef()
@@ -1315,22 +1292,10 @@ TSharedRef<ITableRow> SRemoteControlPanel::OnGenerateRow(TSharedPtr<FRCPanelTree
 	else
 	{
 		return SNew(STableRow<TSharedPtr<SWidget>>, OwnerTable)
+		.Padding(FMargin(30.f, 0.f, 0.f, 0.f))
 		.ShowSelection(false)
 		[
-			SNew(SBorder)
-			.Padding(FMargin(10.0f, 0.0f))
-			.BorderBackgroundColor(FLinearColor(1.0f,1.0f,1.0f,0.5f))
-			.BorderImage(FRemoteControlPanelStyle::Get()->GetBrush("RemoteControlPanel.ExposedFieldBorder"))
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.FillWidth(1.0f)
-				.HAlign(HAlign_Right)
-				.Padding(FMargin(0.0f, 4.0f))
-				[
-					Node->AsFieldChild().ToSharedRef()
-				]
-			]
+			Node->AsFieldChild().ToSharedRef()
 		];
 	}
 }
@@ -1407,12 +1372,6 @@ void SRemoteControlPanel::RefreshGroups()
 	TreeView->RequestListRefresh();
 }
 
-void SRemoteControlPanel::SelectGroup(const TSharedPtr<FRCPanelGroup>& FieldGroup)
-{
-	TreeView->SetSelection(FieldGroup);
-	TreeView->RequestScrollIntoView(FieldGroup);
-}
-
 void SRemoteControlPanel::OnEditModeCheckboxToggle(ECheckBoxState State)
 {
 	bIsInEditMode = State == ECheckBoxState::Checked ? true : false;
@@ -1421,19 +1380,6 @@ void SRemoteControlPanel::OnEditModeCheckboxToggle(ECheckBoxState State)
 		TreeView->ClearSelection();
 	}
 	OnEditModeChange.ExecuteIfBound(SharedThis(this), bIsInEditMode);
-}
-
-void SRemoteControlPanel::ReloadBlueprintLibraries()
-{
-	BlueprintLibraries.Reset();
-	for (auto It = TObjectIterator<UBlueprintFunctionLibrary>(EObjectFlags::RF_NoFlags); It; ++It)
-	{
-		if (It->GetClass() != UBlueprintFunctionLibrary::StaticClass())
-		{
-			FListEntry ListEntry{ It->GetClass()->GetName(), FSoftObjectPtr(*It) };
-			BlueprintLibraries.Add(MakeShared<FListEntry>(MoveTemp(ListEntry)));
-		}
-	}
 }
 
 void SRemoteControlPanel::OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementObjectMap)
@@ -1446,7 +1392,13 @@ void SRemoteControlPanel::OnObjectsReplaced(const TMap<UObject*, UObject*>& Repl
 
 void SRemoteControlPanel::OnObjectPropertyChange(UObject* InObject, FPropertyChangedEvent& InChangeEvent)
 {
-	if ((InChangeEvent.ChangeType & (EPropertyChangeType::ArrayAdd | EPropertyChangeType::ArrayClear | EPropertyChangeType::ArrayRemove)) != 0)
+	EPropertyChangeType::Type TypesNeedingRefresh = EPropertyChangeType::ArrayAdd | EPropertyChangeType::ArrayClear | EPropertyChangeType::ArrayRemove | EPropertyChangeType::ValueSet;
+	auto IsRelevantProperty = [] (FFieldClass* PropertyClass) 
+		{
+			return PropertyClass && PropertyClass == FArrayProperty::StaticClass() || PropertyClass == FSetProperty::StaticClass() || PropertyClass == FMapProperty::StaticClass();
+		};
+
+	if ((InChangeEvent.ChangeType & TypesNeedingRefresh) != 0 && InChangeEvent.MemberProperty && IsRelevantProperty(InChangeEvent.MemberProperty->GetClass()))
 	{
 		for (const TSharedRef<SRemoteControlTarget>& Target : RemoteControlTargets)
 		{
@@ -1455,6 +1407,8 @@ void SRemoteControlPanel::OnObjectPropertyChange(UObject* InObject, FPropertyCha
 				Target->RefreshTargetWidgets();
 			}
 		}
+
+		TreeView->RequestTreeRefresh();
 	}
 }
 
@@ -2129,6 +2083,7 @@ TSharedPtr<SRCPanelExposedField> SRemoteControlTarget::AddExposedFunction(const 
 	}
 
 	RowGenerator->SetStructure(RCFunction.FunctionArguments);
+	TArray<TSharedPtr<FRCPanelFieldChildNode>> ChildNodes;
 	for (TFieldIterator<FProperty> It(RCFunction.Function); It; ++It)
 	{
 		if (!It->HasAnyPropertyFlags(CPF_Parm) || It->HasAnyPropertyFlags(CPF_OutParm | CPF_ReturnParm))
@@ -2138,42 +2093,7 @@ TSharedPtr<SRCPanelExposedField> SRemoteControlTarget::AddExposedFunction(const 
 
 		if (TSharedPtr<IDetailTreeNode> PropertyNode = RemoteControlPanelUtil::FindNode(RowGenerator->GetRootTreeNodes(), It->GetFName().ToString(), false))
 		{
-			FNodeWidgets Widget = PropertyNode->CreateNodeWidgets();
-
-			if (Widget.NameWidget && Widget.ValueWidget)
-			{
-				TSharedPtr<SBox> ValueBox;
-				TSharedRef<SHorizontalBox> FieldWidget =
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					.Padding(FMargin(3.0f, 7.0f, 3.0f, 0.0f))
-					.AutoWidth()
-					[
-						SNew(STextBlock)
-						.Text(FText::FromString(It->GetName()))
-					]
-				+ SHorizontalBox::Slot()
-					.Padding(FMargin(3.0f, 2.0f))
-					.AutoWidth()
-					[
-						Widget.ValueWidget.ToSharedRef()
-					];
-
-				ArgsTarget->AddSlot()
-					.AutoHeight()
-					.Padding(FMargin(0.0f, 0.0f))
-					[
-						FieldWidget
-					];
-			}
-			else if (Widget.WholeRowWidget)
-			{
-				ArgsTarget->AddSlot()
-					.AutoHeight()
-					[
-						Widget.WholeRowWidget.ToSharedRef()
-					];
-			}
+			ChildNodes.Add(SNew(FRCPanelFieldChildNode, PropertyNode.ToSharedRef()));
 		}
 	}
 
@@ -2192,36 +2112,15 @@ TSharedPtr<SRCPanelExposedField> SRemoteControlTarget::AddExposedFunction(const 
 			]
 		];
 
-	TSharedRef<SWidget> ArgsWidget =
-		SNew(SBox)
-		.Visibility_Raw(this, &SRemoteControlTarget::GetVisibilityAccordingToEditMode)
-		.Padding(FMargin(5.0f, 3.0f))
-		[
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("ArgumentsLabel", "Arguments"))
-			]
-			+ SVerticalBox::Slot()
-			.Padding(5.0f, 2.0f, 5.0f, 0.0f)
-			.AutoHeight()
-			[
-				ArgsTarget
-			]
-		];
+	RemoteControlPanelUtil::FMakeFieldWidgetArgs Args;
 
 	ExposedFieldWidgets.Add(
 		SAssignNew(ExposedFieldWidget, SRCPanelExposedField, RCFunction, RowGenerator, WeakPanel)
 		.EditMode_Raw(this, &SRemoteControlTarget::GetPanelEditMode)
+		.ChildWidgets(&ChildNodes)
 		.Content()
 		[
 			MoveTemp(ButtonWidget)
-		]
-		.OptionsContent()
-		[
-			MoveTemp(ArgsWidget)
 		]
 	);
 

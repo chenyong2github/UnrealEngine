@@ -11,6 +11,31 @@
 
 #include "RemoteControlModels.generated.h"
 
+namespace RemoteControlModels
+{
+	static FName Name_UIMin = TEXT("UIMin");
+	static FName Name_UIMax = TEXT("UIMax");
+	static FName Name_ClampMin = TEXT("ClampMin");
+	static FName Name_ClampMax = TEXT("ClampMax");
+	static FName Name_ToolTip = TEXT("ToolTip");
+
+	static TMap<FName, FString> SanitizeMetadata(const TMap<FName, FString>& InMetadata)
+	{
+		TMap<FName, FString> OutMetadata;
+		auto IsValid = [] (const TTuple<FName, FString>& InTuple)
+			{
+				return InTuple.Key == Name_UIMin
+					|| InTuple.Key == Name_UIMax
+					|| InTuple.Key == Name_ClampMin
+					|| InTuple.Key == Name_ClampMax
+					|| InTuple.Key == Name_ToolTip;
+			};
+
+		Algo::TransformIf(InMetadata, OutMetadata, IsValid, [](const TTuple<FName, FString>& InTuple) { return InTuple; });
+		return OutMetadata;
+	}
+}
+
 USTRUCT()
 struct FRCPropertyDescription
 {
@@ -25,6 +50,7 @@ struct FRCPropertyDescription
 		checkSlow(Property);
 
 		#if WITH_EDITOR
+		Metadata = Property->GetMetaDataMap() ? RemoteControlModels::SanitizeMetadata(*Property->GetMetaDataMap()) : TMap<FName, FString>();
 		Description = Property->GetMetaData("ToolTip");
 		#endif
 	}
@@ -37,6 +63,9 @@ struct FRCPropertyDescription
 	
 	UPROPERTY()
 	FString Type;
+
+	UPROPERTY()
+	TMap<FName, FString> Metadata;
 };
 
 USTRUCT()
