@@ -13,7 +13,6 @@ UENUM(BlueprintType)
 enum class EDisplayClusterOperationMode : uint8
 {
 	Cluster = 0,
-	Standalone,
 	Editor,
 	Disabled
 };

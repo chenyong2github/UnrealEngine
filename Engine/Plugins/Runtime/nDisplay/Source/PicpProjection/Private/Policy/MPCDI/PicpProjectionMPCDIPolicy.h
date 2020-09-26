@@ -30,7 +30,7 @@ public:
 		Mesh
 	};
 
-	FPicpProjectionMPCDIPolicy(const FString& ViewportId);
+	FPicpProjectionMPCDIPolicy(const FString& ViewportId, const TMap<FString, FString>& Parameters);
 	virtual ~FPicpProjectionMPCDIPolicy();
 
 	//////////////////////////////////////////////////////////////////////////////////////////////

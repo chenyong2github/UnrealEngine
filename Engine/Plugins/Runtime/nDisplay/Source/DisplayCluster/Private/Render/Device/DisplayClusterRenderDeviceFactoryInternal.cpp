@@ -26,59 +26,59 @@ FDisplayClusterRenderDeviceFactoryInternal::~FDisplayClusterRenderDeviceFactoryI
 TSharedPtr<IDisplayClusterRenderDevice, ESPMode::ThreadSafe> FDisplayClusterRenderDeviceFactoryInternal::Create(const FString& InDeviceType, const FString& InRHIName)
 {
 	// Monoscopic
-	if (InDeviceType.Compare(DisplayClusterStrings::args::dev::Mono, ESearchCase::IgnoreCase) == 0)
+	if (InDeviceType.Equals(DisplayClusterStrings::args::dev::Mono, ESearchCase::IgnoreCase))
 	{
-		if (InRHIName.Compare(DisplayClusterStrings::rhi::D3D11, ESearchCase::IgnoreCase) == 0)
+		if (InRHIName.Equals(DisplayClusterStrings::rhi::D3D11, ESearchCase::IgnoreCase))
 		{
 			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating DX11 monoscopic device..."));
-			return MakeShareable(new FDisplayClusterDeviceMonoscopicDX11);
+			return MakeShared<FDisplayClusterDeviceMonoscopicDX11, ESPMode::ThreadSafe>();
 		}
-		else if (InRHIName.Compare(DisplayClusterStrings::rhi::D3D12, ESearchCase::IgnoreCase) == 0)
+		else if (InRHIName.Equals(DisplayClusterStrings::rhi::D3D12, ESearchCase::IgnoreCase))
 		{
 			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating DX12 monoscopic device..."));
-			return MakeShareable(new FDisplayClusterDeviceMonoscopicDX12);
+			return MakeShared<FDisplayClusterDeviceMonoscopicDX12, ESPMode::ThreadSafe>();
 		}
 	}
 	// Quad buffer stereo
-	else if (InDeviceType.Compare(DisplayClusterStrings::args::dev::QBS, ESearchCase::IgnoreCase) == 0)
+	else if (InDeviceType.Equals(DisplayClusterStrings::args::dev::QBS, ESearchCase::IgnoreCase))
 	{
-		if (InRHIName.Compare(DisplayClusterStrings::rhi::D3D11, ESearchCase::IgnoreCase) == 0)
+		if (InRHIName.Equals(DisplayClusterStrings::rhi::D3D11, ESearchCase::IgnoreCase))
 		{
 			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating D3D11 quad buffer stereo device..."));
-			return MakeShareable(new FDisplayClusterDeviceQuadBufferStereoDX11);
+			return MakeShared<FDisplayClusterDeviceQuadBufferStereoDX11, ESPMode::ThreadSafe>();
 		}
-		else if (InRHIName.Compare(DisplayClusterStrings::rhi::D3D12, ESearchCase::IgnoreCase) == 0)
+		else if (InRHIName.Equals(DisplayClusterStrings::rhi::D3D12, ESearchCase::IgnoreCase))
 		{
 			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating D3D12 quad buffer stereo device..."));
-			return MakeShareable(new FDisplayClusterDeviceQuadBufferStereoDX12);
+			return MakeShared<FDisplayClusterDeviceQuadBufferStereoDX12, ESPMode::ThreadSafe>();
 		}
 	}
 	// Side-by-side
-	else if (InDeviceType.Compare(DisplayClusterStrings::args::dev::SbS, ESearchCase::IgnoreCase) == 0)
+	else if (InDeviceType.Equals(DisplayClusterStrings::args::dev::SbS, ESearchCase::IgnoreCase))
 	{
-		if (InRHIName.Compare(DisplayClusterStrings::rhi::D3D11, ESearchCase::IgnoreCase) == 0)
+		if (InRHIName.Equals(DisplayClusterStrings::rhi::D3D11, ESearchCase::IgnoreCase))
 		{
 			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating D3D11 side-by-side stereo device..."));
-			return MakeShareable(new FDisplayClusterDeviceSideBySideDX11);
+			return MakeShared<FDisplayClusterDeviceSideBySideDX11, ESPMode::ThreadSafe>();
 		}
-		else if (InRHIName.Compare(DisplayClusterStrings::rhi::D3D12, ESearchCase::IgnoreCase) == 0)
+		else if (InRHIName.Equals(DisplayClusterStrings::rhi::D3D12, ESearchCase::IgnoreCase))
 		{
 			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating D3D12 side-by-side stereo device..."));
-			return MakeShareable(new FDisplayClusterDeviceSideBySideDX12);
+			return MakeShared<FDisplayClusterDeviceSideBySideDX12, ESPMode::ThreadSafe>();
 		}
 	}
 	// Top-bottom
-	else if (InDeviceType.Compare(DisplayClusterStrings::args::dev::TB, ESearchCase::IgnoreCase) == 0)
+	else if (InDeviceType.Equals(DisplayClusterStrings::args::dev::TB, ESearchCase::IgnoreCase))
 	{
-		if (InRHIName.Compare(DisplayClusterStrings::rhi::D3D11, ESearchCase::IgnoreCase) == 0)
+		if (InRHIName.Equals(DisplayClusterStrings::rhi::D3D11, ESearchCase::IgnoreCase))
 		{
 			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating D3D11 top-bottom stereo device..."));
-			return MakeShareable(new FDisplayClusterDeviceTopBottomDX11);
+			return MakeShared<FDisplayClusterDeviceTopBottomDX11, ESPMode::ThreadSafe>();
 		}
-		else if (InRHIName.Compare(DisplayClusterStrings::rhi::D3D12, ESearchCase::IgnoreCase) == 0)
+		else if (InRHIName.Equals(DisplayClusterStrings::rhi::D3D12, ESearchCase::IgnoreCase))
 		{
 			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating D3D12 top-bottom stereo device..."));
-			return MakeShareable(new FDisplayClusterDeviceTopBottomDX12);
+			return MakeShared<FDisplayClusterDeviceTopBottomDX12, ESPMode::ThreadSafe>();
 		}
 	}
 

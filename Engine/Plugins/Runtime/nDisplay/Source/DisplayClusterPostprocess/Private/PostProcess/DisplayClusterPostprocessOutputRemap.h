@@ -29,7 +29,7 @@ public:
 
 	virtual void PerformPostProcessRenderTargetAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* InOutTexture, const TArray<FDisplayClusterRenderViewport>& RenderViewports) const override;
 
-	virtual void InitializePostProcess(const FString& CfgLine) override;
+	virtual void InitializePostProcess(const TMap<FString, FString>& Parameters) override;
 
 protected:
 	bool InitializeResources_RenderThread(const FIntPoint& ScreenSize) const;

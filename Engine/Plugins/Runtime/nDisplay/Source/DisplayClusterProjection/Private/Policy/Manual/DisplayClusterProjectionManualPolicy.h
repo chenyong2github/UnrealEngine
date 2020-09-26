@@ -12,7 +12,7 @@ class FDisplayClusterProjectionManualPolicy
 	: public FDisplayClusterProjectionPolicyBase
 {
 public:
-	FDisplayClusterProjectionManualPolicy(const FString& ViewportId);
+	FDisplayClusterProjectionManualPolicy(const FString& ViewportId, const TMap<FString, FString>& Parameters);
 	virtual ~FDisplayClusterProjectionManualPolicy();
 
 public:

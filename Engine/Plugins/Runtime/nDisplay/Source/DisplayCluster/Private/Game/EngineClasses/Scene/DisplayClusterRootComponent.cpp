@@ -1,18 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DisplayClusterRootComponent.h"
+#include "Components/DisplayClusterRootComponent.h"
 
-#include "Config/DisplayClusterConfigTypes.h"
-#include "Cluster/IPDisplayClusterClusterManager.h"
 #include "Config/IPDisplayClusterConfigManager.h"
-#include "Config/DisplayClusterConfigTypes.h"
-#include "Game/IPDisplayClusterGameManager.h"
+#include "DisplayClusterConfigurationTypes.h"
 
-#include "Camera/CameraComponent.h"
-
-#include "DisplayClusterCameraComponent.h"
-#include "DisplayClusterSceneComponent.h"
-#include "DisplayClusterScreenComponent.h"
+#include "Components/DisplayClusterCameraComponent.h"
+#include "Components/DisplayClusterMeshComponent.h"
+#include "Components/DisplayClusterScreenComponent.h"
+#include "Components/DisplayClusterXformComponent.h"
 
 #include "Misc/DisplayClusterGlobals.h"
 #include "Misc/DisplayClusterHelpers.h"
@@ -29,6 +25,8 @@ UDisplayClusterRootComponent::UDisplayClusterRootComponent(const FObjectInitiali
 
 void UDisplayClusterRootComponent::BeginPlay()
 {
+	Super::BeginPlay();
+
 	// Store current operation mode on BeginPlay (not in the constructor)
 	const EDisplayClusterOperationMode OperationMode = GDisplayCluster->GetOperationMode();
 
@@ -38,42 +36,38 @@ void UDisplayClusterRootComponent::BeginPlay()
 		// Build nDisplay hierarchy
 		InitializeHierarchy();
 	}
-
-	Super::BeginPlay();
 }
 
-void UDisplayClusterRootComponent::BeginDestroy()
+void UDisplayClusterRootComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	{
-		FScopeLock lock(&InternalsSyncScope);
+		FScopeLock Lock(&InternalsSyncScope);
 
 		// Clean containers. We store only pointers so there is no need to do any additional
 		// operations. All components will be destroyed by the engine.
-		ScreenComponents.Reset();
+		XformComponents.Reset();
 		CameraComponents.Reset();
-		SceneNodeComponents.Reset();
+		ScreenComponents.Reset();
+		MeshComponents.Reset();
+		AllComponents.Reset();
 	}
 
-	Super::BeginDestroy();
+	Super::EndPlay(EndPlayReason);
 }
 
 bool UDisplayClusterRootComponent::InitializeHierarchy()
 {
-	// Now create all child components
-	if (!(CreateCameras() && CreateScreens() && CreateNodes()))
+	const UDisplayClusterConfigurationData* ConfigData = GDisplayCluster->GetPrivateConfigMgr()->GetConfig();
+	if (!ConfigData)
 	{
-		UE_LOG(LogDisplayClusterGame, Error, TEXT("An error occurred during DisplayCluster root initialization"));
 		return false;
 	}
 
-	// Let components initialize ourselves
-	for (auto it = SceneNodeComponents.CreateIterator(); it; ++it)
-	{
-		if (it->Value->ApplySettings() == false)
-		{
-			UE_LOG(LogDisplayClusterGame, Warning, TEXT("Coulnd't initialize DisplayCluster node: ID=%s"), *it->Key);
-		}
-	}
+	// Spawn all components
+	SpawnComponents<UDisplayClusterXformComponent,  UDisplayClusterConfigurationSceneComponentXform> (ConfigData->Scene->Xforms,  XformComponents,  AllComponents);
+	SpawnComponents<UDisplayClusterCameraComponent, UDisplayClusterConfigurationSceneComponentCamera>(ConfigData->Scene->Cameras, CameraComponents, AllComponents);
+	SpawnComponents<UDisplayClusterScreenComponent, UDisplayClusterConfigurationSceneComponentScreen>(ConfigData->Scene->Screens, ScreenComponents, AllComponents);
+	SpawnComponents<UDisplayClusterMeshComponent,   UDisplayClusterConfigurationSceneComponentMesh>  (ConfigData->Scene->Meshes,  MeshComponents,   AllComponents);
 
 	// Check if default camera was specified in command line arguments
 	FString DefaultCamId;
@@ -87,175 +81,175 @@ bool UDisplayClusterRootComponent::InitializeHierarchy()
 		}
 	}
 
-	return true;
-}
-
-bool UDisplayClusterRootComponent::CreateScreens()
-{
-	// Create screens
-	const IPDisplayClusterConfigManager* const ConfigMgr = GDisplayCluster->GetPrivateConfigMgr();
-	if (!ConfigMgr)
+	// If no default camera set, try to set the first one
+	if (DefaultCameraComponent == nullptr)
 	{
-		UE_LOG(LogDisplayClusterGame, Error, TEXT("Couldn't get config manager interface"));
-		return false;
-	}
-
-	const TArray<FDisplayClusterConfigScreen> Screens = ConfigMgr->GetScreens();
-	for (const FDisplayClusterConfigScreen& Screen : Screens)
-	{
-		// Create screen component
-		UDisplayClusterScreenComponent* NewScreenComp = NewObject<UDisplayClusterScreenComponent>(GetOwner(), FName(*Screen.Id), RF_Transient);
-		check(NewScreenComp);
-
-		NewScreenComp->AttachToComponent(this, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
-		NewScreenComp->RegisterComponent();
-		NewScreenComp->SetSettings(&Screen);
-
-		// Store the screen
-		ScreenComponents.Add(Screen.Id, NewScreenComp);
-		SceneNodeComponents.Add(Screen.Id, NewScreenComp);
-	}
-
-	return true;
-}
-
-bool UDisplayClusterRootComponent::CreateNodes()
-{
-	// Create other nodes
-	const TArray<FDisplayClusterConfigSceneNode> SceneNodes = GDisplayCluster->GetPrivateConfigMgr()->GetSceneNodes();
-	for (const FDisplayClusterConfigSceneNode& Node : SceneNodes)
-	{
-		UDisplayClusterSceneComponent* NewSceneNode = NewObject<UDisplayClusterSceneComponent>(GetOwner(), FName(*Node.Id), RF_Transient);
-		check(NewSceneNode);
-
-		NewSceneNode->AttachToComponent(this, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
-		NewSceneNode->RegisterComponent();
-		NewSceneNode->SetSettings(&Node);
-
-		SceneNodeComponents.Add(Node.Id, NewSceneNode);
-	}
-
-	return true;
-}
-
-bool UDisplayClusterRootComponent::CreateCameras()
-{
-	// Get all cameras listed in the config file
-	const TArray<FDisplayClusterConfigCamera> Cameras = GDisplayCluster->GetPrivateConfigMgr()->GetCameras();
-	
-	// Instantiate each camera within hierarchy of this root
-	for (const FDisplayClusterConfigCamera& Camera : Cameras)
-	{
-		UDisplayClusterCameraComponent* NewCameraComponent = NewObject<UDisplayClusterCameraComponent>(GetOwner(), FName(*Camera.Id), RF_Transient);
-		check(NewCameraComponent);
-
-		NewCameraComponent->AttachToComponent(this, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
-		NewCameraComponent->RegisterComponent();
-		NewCameraComponent->SetSettings(&Camera);
-
-		CameraComponents.Add(Camera.Id, NewCameraComponent);
-		SceneNodeComponents.Add(Camera.Id, NewCameraComponent);
-
-		if (!DefaultCameraComponent)
+		if (CameraComponents.Num() > 0)
 		{
-			DefaultCameraComponent = NewCameraComponent;
+			// There is no guarantee that default camera is the first one listed in a config file
+			SetDefaultCamera(CameraComponents.CreateConstIterator()->Key);
+		}
+		else
+		{
+			UE_LOG(LogDisplayClusterGame, Error, TEXT("No cameras found"));
+			return false;
 		}
 	}
 
-	// At least one camera must be set up
-	if (CameraComponents.Num() == 0)
-	{
-		UE_LOG(LogDisplayClusterGame, Warning, TEXT("No cameras found"));
-		return false;
-	}
-
-	return CameraComponents.Num() > 0;
-}
-
-
-TArray<UDisplayClusterScreenComponent*> UDisplayClusterRootComponent::GetAllScreens() const
-{
-	FScopeLock lock(&InternalsSyncScope);
-	return GetMapValues<UDisplayClusterScreenComponent>(ScreenComponents);
-}
-
-UDisplayClusterScreenComponent* UDisplayClusterRootComponent::GetScreenById(const FString& id) const
-{
-	FScopeLock lock(&InternalsSyncScope);
-	return GetItem<UDisplayClusterScreenComponent>(ScreenComponents, id, FString("GetScreenById"));
+	return true;
 }
 
 int32 UDisplayClusterRootComponent::GetScreensAmount() const
 {
-	FScopeLock lock(&InternalsSyncScope);
+	FScopeLock Lock(&InternalsSyncScope);
 	return ScreenComponents.Num();
 }
 
-UDisplayClusterCameraComponent* UDisplayClusterRootComponent::GetCameraById(const FString& id) const
+UDisplayClusterScreenComponent* UDisplayClusterRootComponent::GetScreenById(const FString& ScreenId) const
 {
-	FScopeLock lock(&InternalsSyncScope);
-	return GetItem<UDisplayClusterCameraComponent>(CameraComponents, id, FString("GetCameraById"));
+	FScopeLock Lock(&InternalsSyncScope);
+	if (ScreenComponents.Contains(ScreenId))
+	{
+		return ScreenComponents[ScreenId];
+	}
+
+	return nullptr;
 }
 
-TArray<UDisplayClusterCameraComponent*> UDisplayClusterRootComponent::GetAllCameras() const
+void UDisplayClusterRootComponent::GetAllScreens(TMap<FString, UDisplayClusterScreenComponent*>& OutScreens) const
 {
-	FScopeLock lock(&InternalsSyncScope);
-	return GetMapValues<UDisplayClusterCameraComponent>(CameraComponents);
+	FScopeLock Lock(&InternalsSyncScope);
+	OutScreens = ScreenComponents;
 }
 
 int32 UDisplayClusterRootComponent::GetCamerasAmount() const
 {
-	FScopeLock lock(&InternalsSyncScope);
+	FScopeLock Lock(&InternalsSyncScope);
 	return CameraComponents.Num();
+}
+
+UDisplayClusterCameraComponent* UDisplayClusterRootComponent::GetCameraById(const FString& CameraId) const
+{
+	FScopeLock Lock(&InternalsSyncScope);
+	if (CameraComponents.Contains(CameraId))
+	{
+		return CameraComponents[CameraId];
+	}
+
+	return nullptr;
+}
+
+void UDisplayClusterRootComponent::GetAllCameras(TMap<FString, UDisplayClusterCameraComponent*>& OutCameras) const
+{
+	FScopeLock Lock(&InternalsSyncScope);
+	OutCameras = CameraComponents;
 }
 
 UDisplayClusterCameraComponent* UDisplayClusterRootComponent::GetDefaultCamera() const
 {
-	FScopeLock lock(&InternalsSyncScope);
+	FScopeLock Lock(&InternalsSyncScope);
 	return DefaultCameraComponent;
 }
 
-void UDisplayClusterRootComponent::SetDefaultCamera(const FString& id)
+void UDisplayClusterRootComponent::SetDefaultCamera(const FString& CameraId)
 {
-	FScopeLock lock(&InternalsSyncScope);
+	FScopeLock Lock(&InternalsSyncScope);
 
-	UDisplayClusterCameraComponent* NewDefaultCamera = GetCameraById(id);
+	UDisplayClusterCameraComponent* NewDefaultCamera = GetCameraById(CameraId);
 	if (NewDefaultCamera)
 	{
 		DefaultCameraComponent = NewDefaultCamera;
 	}
 }
 
-UDisplayClusterSceneComponent* UDisplayClusterRootComponent::GetNodeById(const FString& id) const
+int32 UDisplayClusterRootComponent::GetMeshesAmount() const
 {
-	FScopeLock lock(&InternalsSyncScope);
-	return GetItem<UDisplayClusterSceneComponent>(SceneNodeComponents, id, FString("GetNodeById"));
+	FScopeLock Lock(&InternalsSyncScope);
+	return MeshComponents.Num();
 }
 
-TArray<UDisplayClusterSceneComponent*> UDisplayClusterRootComponent::GetAllNodes() const
+UDisplayClusterMeshComponent* UDisplayClusterRootComponent::GetMeshById(const FString& MeshId) const
 {
-	FScopeLock lock(&InternalsSyncScope);
-	return GetMapValues<UDisplayClusterSceneComponent>(SceneNodeComponents);
-}
-
-// Extracts array of values from a map
-template <typename ObjType>
-TArray<ObjType*> UDisplayClusterRootComponent::GetMapValues(const TMap<FString, ObjType*>& container) const
-{
-	TArray<ObjType*> items;
-	container.GenerateValueArray(items);
-	return items;
-}
-
-// Gets item by id. Performs checks and logging.
-template <typename DataType>
-DataType* UDisplayClusterRootComponent::GetItem(const TMap<FString, DataType*>& container, const FString& id, const FString& logHeader) const
-{
-	if (container.Contains(id))
+	FScopeLock Lock(&InternalsSyncScope);
+	if (MeshComponents.Contains(MeshId))
 	{
-		return container[id];
+		return MeshComponents[MeshId];
 	}
 
-	UE_LOG(LogDisplayClusterGame, Warning, TEXT("%s: ID not found <%s>. Return nullptr."), *logHeader, *id);
 	return nullptr;
+}
+
+void UDisplayClusterRootComponent::GetAllMeshes(TMap<FString, UDisplayClusterMeshComponent*>& OutMeshes) const
+{
+	FScopeLock Lock(&InternalsSyncScope);
+	OutMeshes = MeshComponents;
+}
+
+int32 UDisplayClusterRootComponent::GetXformsAmount() const
+{
+	FScopeLock Lock(&InternalsSyncScope);
+	return XformComponents.Num();
+}
+
+UDisplayClusterXformComponent* UDisplayClusterRootComponent::GetXformById(const FString& XformId) const
+{
+	FScopeLock Lock(&InternalsSyncScope);
+	if (XformComponents.Contains(XformId))
+	{
+		return XformComponents[XformId];
+	}
+
+	return nullptr;
+}
+
+void UDisplayClusterRootComponent::GetAllXforms(TMap<FString, UDisplayClusterXformComponent*>& OutXforms) const
+{
+	FScopeLock Lock(&InternalsSyncScope);
+	OutXforms = XformComponents;
+}
+
+int32 UDisplayClusterRootComponent::GetComponentsAmount() const
+{
+	FScopeLock Lock(&InternalsSyncScope);
+	return AllComponents.Num();
+}
+
+UDisplayClusterSceneComponent* UDisplayClusterRootComponent::GetComponentById(const FString& ComponentId) const
+{
+	FScopeLock Lock(&InternalsSyncScope);
+	if (AllComponents.Contains(ComponentId))
+	{
+		return AllComponents[ComponentId];
+	}
+
+	return nullptr;
+}
+
+void UDisplayClusterRootComponent::GetAllComponents(TMap<FString, UDisplayClusterSceneComponent*>& OutComponents) const
+{
+	FScopeLock Lock(&InternalsSyncScope);
+	OutComponents = AllComponents;
+}
+
+template <typename TComp, typename TCfgData>
+void UDisplayClusterRootComponent::SpawnComponents(const TMap<FString, TCfgData*>& InConfigData, TMap<FString, TComp*>& OutTypedMap, TMap<FString, UDisplayClusterSceneComponent*>& OutAllMap)
+{
+	for (const auto& it : InConfigData)
+	{
+		if (!OutAllMap.Contains(it.Key))
+		{
+			TComp* NewComponent = NewObject<TComp>(this, FName(*it.Key));
+			if (NewComponent)
+			{
+				NewComponent->SetId(it.Key);
+				NewComponent->SetConfigParameters(it.Value);
+				NewComponent->AttachToComponent(this, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
+				NewComponent->RegisterComponent();
+
+				// Save references
+				OutAllMap.Emplace(it.Key, NewComponent);
+				OutTypedMap.Emplace(it.Key, NewComponent);
+			}
+		}
+	}
 }

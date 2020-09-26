@@ -1,11 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DisplayClusterVrpnKeyboardInputDataHolder.h"
+#include "DisplayClusterConfigurationTypes.h"
 #include "Misc/DisplayClusterLog.h"
 
 
-FDisplayClusterVrpnKeyboardInputDataHolder::FDisplayClusterVrpnKeyboardInputDataHolder(const FDisplayClusterConfigInput& Config) :
-	FDisplayClusterInputDeviceBase<EDisplayClusterInputDeviceType::VrpnKeyboard>(Config)
+FDisplayClusterVrpnKeyboardInputDataHolder::FDisplayClusterVrpnKeyboardInputDataHolder(const FString& DeviceId, const UDisplayClusterConfigurationInputDeviceKeyboard* CfgDevice)
+	: FDisplayClusterInputDeviceBase<EDisplayClusterInputDeviceType::VrpnKeyboard>(DeviceId, CfgDevice)
 {
 }
 

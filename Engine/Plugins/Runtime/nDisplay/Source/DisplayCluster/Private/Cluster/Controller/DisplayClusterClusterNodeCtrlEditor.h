@@ -4,8 +4,6 @@
 
 #include "Cluster/Controller/DisplayClusterClusterNodeCtrlMaster.h"
 
-#include "Network/DisplayClusterMessage.h"
-
 
 /**
  * Editor node controller implementation.

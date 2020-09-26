@@ -2,11 +2,10 @@
 
 #include "Render/Synchronization/DisplayClusterRenderSyncPolicyNvidiaBase.h"
 
-#include "Config/IPDisplayClusterConfigManager.h"
-#include "Config/DisplayClusterConfigTypes.h"
-
 #include "Misc/DisplayClusterGlobals.h"
+#include "Misc/DisplayClusterHelpers.h"
 #include "Misc/DisplayClusterLog.h"
+#include "Misc/DisplayClusterTypesConverter.h"
 
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
@@ -27,12 +26,13 @@ namespace
 	static IUnknown*       D3DDevice     = nullptr;
 	static IDXGISwapChain* DXGISwapChain = nullptr;
 
-	static NvU32 RequestedGroup   = 1;
-	static NvU32 RequestedBarrier = 1;
+	static uint32 RequestedGroup   = 1;
+	static uint32 RequestedBarrier = 1;
 }
 
 
-FDisplayClusterRenderSyncPolicyNvidiaBase::FDisplayClusterRenderSyncPolicyNvidiaBase()
+FDisplayClusterRenderSyncPolicyNvidiaBase::FDisplayClusterRenderSyncPolicyNvidiaBase(const TMap<FString, FString>& Parameters)
+	: FDisplayClusterRenderSyncPolicyBase(Parameters)
 {
 	const NvAPI_Status NvApiResult = NvAPI_Initialize();
 	if (NvApiResult != NVAPI_OK)
@@ -75,12 +75,15 @@ bool FDisplayClusterRenderSyncPolicyNvidiaBase::SynchronizeClusterRendering(int3
 	// Check if all required objects are available
 	if (!D3DDevice || !DXGISwapChain)
 	{
+		UE_LOG(LogDisplayClusterRenderSync, Warning, TEXT("Couldn't get DX resources, no swap synchronization will be performed"));
 		// Present frame on a higher level
 		return true;
 	}
 
 	if (bNvApiIBarrierSet && D3DDevice && DXGISwapChain)
 	{
+		UE_LOG(LogDisplayClusterRenderSync, VeryVerbose, TEXT("NVAPI: presenting the frame with sync..."));
+
 		// Present frame via NVIDIA API
 		const NvAPI_Status NvApiResult = NvAPI_D3D1x_Present(D3DDevice, DXGISwapChain, (UINT)InOutSyncInterval, (UINT)0);
 		if (NvApiResult != NVAPI_OK)
@@ -90,11 +93,14 @@ bool FDisplayClusterRenderSyncPolicyNvidiaBase::SynchronizeClusterRendering(int3
 			return true;
 		}
 
+		UE_LOG(LogDisplayClusterRenderSync, VeryVerbose, TEXT("NVAPI: the frame has been presented successfully"));
+
 		// We presented current frame so no need to present it on higher level
 		return false;
 	}
 	else
 	{
+		UE_LOG(LogDisplayClusterRenderSync, VeryVerbose, TEXT("NVAPI: Can't synchronize frame presentation"));
 		// Something went wrong, let upper level present this frame
 		return true;
 	}
@@ -136,14 +142,8 @@ bool FDisplayClusterRenderSyncPolicyNvidiaBase::InitializeNvidiaSwapLock()
 		return false;
 	}
 
-	// Get requested sync group and barrier from config file (or defaults)
-	IPDisplayClusterConfigManager* const ConfigMgr = GDisplayCluster->GetPrivateConfigMgr();
-	if (ConfigMgr)
-	{
-		FDisplayClusterConfigNvidia CfgNvidia = ConfigMgr->GetConfigNvidia();
-		RequestedGroup   = static_cast<NvU32>(CfgNvidia.SyncGroup);
-		RequestedBarrier = static_cast<NvU32>(CfgNvidia.SyncBarrier);
-	}
+	DisplayClusterHelpers::map::template ExtractValueFromString(GetParameters(), FString("SyncGroup"),   RequestedGroup);
+	DisplayClusterHelpers::map::template ExtractValueFromString(GetParameters(), FString("SyncBarrier"), RequestedBarrier);
 
 	// Join swap group
 	NvApiResult = NvAPI_D3D1x_JoinSwapGroup(D3DDevice, DXGISwapChain, RequestedGroup, true);

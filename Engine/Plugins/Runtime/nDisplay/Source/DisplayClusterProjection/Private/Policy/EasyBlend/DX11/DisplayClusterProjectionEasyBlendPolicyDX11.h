@@ -14,17 +14,14 @@ class FDisplayClusterProjectionEasyBlendPolicyDX11
 	: public FDisplayClusterProjectionEasyBlendPolicyBase
 {
 public:
-	FDisplayClusterProjectionEasyBlendPolicyDX11(const FString& ViewportId)
-		: FDisplayClusterProjectionEasyBlendPolicyBase(ViewportId)
-	{ }
-
-	virtual ~FDisplayClusterProjectionEasyBlendPolicyDX11()
+	FDisplayClusterProjectionEasyBlendPolicyDX11(const FString& ViewportId, const TMap<FString, FString>& Parameters)
+		: FDisplayClusterProjectionEasyBlendPolicyBase(ViewportId, Parameters)
 	{ }
 
 protected:
-	virtual TSharedPtr<FDisplayClusterProjectionEasyBlendViewAdapterBase> CreateViewAdapter(const FDisplayClusterProjectionEasyBlendViewAdapterBase::FInitParams& InitParams) override
+	virtual TUniquePtr<FDisplayClusterProjectionEasyBlendViewAdapterBase> CreateViewAdapter(const FDisplayClusterProjectionEasyBlendViewAdapterBase::FInitParams& InitParams) override
 	{
 		UE_LOG(LogDisplayClusterProjectionEasyBlend, Log, TEXT("Instantiating EasyBlend DX11 viewport adapter..."));
-		return MakeShareable(new FDisplayClusterProjectionEasyBlendViewAdapterDX11(InitParams));
+		return MakeUnique<FDisplayClusterProjectionEasyBlendViewAdapterDX11>(InitParams);
 	}
 };

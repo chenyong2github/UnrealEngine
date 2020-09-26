@@ -5,8 +5,6 @@
 #include "Config/IDisplayClusterConfigManager.h"
 #include "IPDisplayClusterManager.h"
 
-#include "Misc/DisplayClusterBuildConfig.h"
-
 
 /**
  * Config manager private interface
@@ -18,8 +16,4 @@ class IPDisplayClusterConfigManager
 public:
 	virtual ~IPDisplayClusterConfigManager()
 	{ }
-
-#ifdef DISPLAY_CLUSTER_USE_DEBUG_STANDALONE_CONFIG
-	virtual bool IsRunningDebugAuto() const = 0;
-#endif
 };

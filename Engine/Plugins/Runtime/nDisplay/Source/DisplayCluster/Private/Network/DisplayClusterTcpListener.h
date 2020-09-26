@@ -6,13 +6,16 @@
 #include "Sockets.h"
 #include "HAL/Runnable.h"
 #include "Delegates/DelegateCombinations.h"
+
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 
 #include "Misc/DisplayClusterConstants.h"
 
 
+
 /**
- * TCP connection listener
+ * TCP connection listener. Listens for incoming connections and
+ * redirects those requests to the specific server implementations.
  */
 class FDisplayClusterTcpListener
 	: public FRunnable
@@ -27,13 +30,18 @@ public:
 public:
 
 	bool StartListening(const FString& InAddr, const int32 InPort);
-	bool StartListening(const FIPv4Endpoint& InEP);
+	bool StartListening(const FIPv4Endpoint& Endpoint);
 	void StopListening();
 
-	bool IsActive() const;
+	bool IsActive() const
+	{
+		return bIsListening;
+	}
 
 	inline TOnConnectionAcceptedDelegate& OnConnectionAccepted()
-	{ return OnConnectionAcceptedDelegate; }
+	{
+		return OnConnectionAcceptedDelegate;
+	}
 
 protected:
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -44,6 +52,9 @@ protected:
 	virtual void Stop() override;
 	virtual void Exit() override;
 
+protected:
+	bool GenIPv4Endpoint(const FString& Addr, const int32 Port, FIPv4Endpoint& EP) const;
+
 private:
 	// Socket name
 	FString Name;
@@ -53,8 +64,6 @@ private:
 	FIPv4Endpoint Endpoint;
 	// Holds the thread object
 	TUniquePtr<FRunnableThread> ThreadObj;
-	// Sync access
-	FCriticalSection InternalsCritSec;
 	// Listening state
 	bool bIsListening = false;
 

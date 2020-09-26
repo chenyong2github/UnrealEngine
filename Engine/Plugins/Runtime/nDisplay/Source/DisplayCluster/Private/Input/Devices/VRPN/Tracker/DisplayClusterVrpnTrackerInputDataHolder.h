@@ -2,10 +2,12 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+
 #include "Input/Devices/DisplayClusterInputDeviceTraits.h"
 #include "Input/Devices/DisplayClusterInputDeviceBase.h"
 
-#include "CoreMinimal.h"
+class UDisplayClusterConfigurationInputDeviceTracker;
 
 
 /**
@@ -15,7 +17,7 @@ class FDisplayClusterVrpnTrackerInputDataHolder
 	: public FDisplayClusterInputDeviceBase<EDisplayClusterInputDeviceType::VrpnTracker>
 {
 public:
-	FDisplayClusterVrpnTrackerInputDataHolder(const FDisplayClusterConfigInput& Config);
+	FDisplayClusterVrpnTrackerInputDataHolder(const FString& DeviceId, const UDisplayClusterConfigurationInputDeviceTracker* CfgDevice);
 	virtual ~FDisplayClusterVrpnTrackerInputDataHolder();
 
 public:
@@ -23,6 +25,9 @@ public:
 	// IDisplayClusterInputDevice
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual bool Initialize() override;
+
+	virtual FString GetType() const override
+	{ return FString("tracker"); }
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////

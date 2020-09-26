@@ -10,17 +10,19 @@
 
 #include "IDisplayCluster.h"
 
+#include "DisplayClusterConfigurationTypes.h"
+
 #include "Cluster/DisplayClusterClusterEvent.h"
-
-#include "Config/DisplayClusterConfigTypes.h"
 #include "Config/IPDisplayClusterConfigManager.h"
-
 #include "Render/IPDisplayClusterRenderManager.h"
+#include "Render/Device/IDisplayClusterRenderDevice.h"
 
-#include "Misc/DisplayClusterCommonHelpers.h"
-#include "Misc/DisplayClusterCommonTypesConverter.h"
 #include "Misc/DisplayClusterGlobals.h"
 #include "Misc/DisplayClusterLog.h"
+#include "Misc/DisplayClusterHelpers.h"
+#include "Misc/DisplayClusterTypesConverter.h"
+
+#include "UObject/ConstructorHelpers.h"
 
 
 // Calibration patterns control
@@ -71,7 +73,7 @@ void ADisplayClusterTestPatternsActor::BeginPlay()
 	// Set main cluster event handler. This is an entry point for any incoming cluster events.
 	OnClusterEvent.BindUObject(this, &ADisplayClusterTestPatternsActor::OnClusterEventHandler);
 	// Subscribe for cluster events
-	IDisplayCluster::Get().GetClusterMgr()->AddClusterEventListener(OnClusterEvent);
+	IDisplayCluster::Get().GetClusterMgr()->AddClusterEventJsonListener(OnClusterEvent);
 
 	// Use our postprocess component if we're running without nDisplay
 	PostProcessComponent->bEnabled = (OperationMode != EDisplayClusterOperationMode::Cluster);
@@ -88,7 +90,7 @@ void ADisplayClusterTestPatternsActor::BeginPlay()
 void ADisplayClusterTestPatternsActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	// Unsubscribe from cluster events
-	IDisplayCluster::Get().GetClusterMgr()->RemoveClusterEventListener(OnClusterEvent);
+	IDisplayCluster::Get().GetClusterMgr()->RemoveClusterEventJsonListener(OnClusterEvent);
 
 	Super::EndPlay(EndPlayReason);
 }
@@ -101,8 +103,12 @@ void ADisplayClusterTestPatternsActor::Tick(float DeltaSeconds)
 		static IPDisplayClusterRenderManager* const RenderMgr = GDisplayCluster->GetPrivateRenderMgr();
 		for (auto it = ViewportPPSettings.CreateConstIterator(); it; ++it)
 		{
-			// Assign current post-process settigns for each viewport
-			RenderMgr->SetOverridePostProcessingSettings(it->Key, it->Value, 1.f);
+			IDisplayClusterRenderDevice* RenderDevice = RenderMgr->GetRenderDevice();
+			if (RenderDevice)
+			{
+				// Assign current post-process settigns for each viewport
+				RenderDevice->SetOverridePostProcessingSettings(it->Key, it->Value, 1.f);
+			}
 		}
 	}
 
@@ -117,12 +123,15 @@ void ADisplayClusterTestPatternsActor::InitializeInternals()
 	// Initialize defaults for nDisplay viewports
 	if (OperationMode != EDisplayClusterOperationMode::Disabled)
 	{
-		const TArray<FDisplayClusterConfigViewport> LocalViewports = DisplayClusterHelpers::config::GetLocalViewports();
-		
-		// For each local viewport create a PP settings structure with no PP material assigned
-		for (auto it = LocalViewports.CreateConstIterator(); it; ++it)
+		// Get local node configuration
+		const UDisplayClusterConfigurationClusterNode* Node = GDisplayCluster->GetConfigMgr()->GetLocalNode();
+		if (Node)
 		{
-			ViewportPPSettings.Emplace(it->Id, CreatePPSettings(nullptr));
+			// For each local viewport create a PP settings structure with no PP material assigned
+			for (auto& it : Node->Viewports)
+			{
+				ViewportPPSettings.Emplace(it.Key, CreatePPSettings(nullptr));
+			}
 		}
 	}
 }
@@ -177,7 +186,7 @@ void ADisplayClusterTestPatternsActor::InitializeMaterials()
 
 void ADisplayClusterTestPatternsActor::UpdatePattern(const TMap<FString, FString>& Params)
 {
-	FScopeLock lock(&InternalsSyncScope);
+	FScopeLock Lock(&InternalsSyncScope);
 
 	TArray<FString> ViewportIds;
 	FString PatternId;
@@ -272,7 +281,7 @@ void ADisplayClusterTestPatternsActor::SetupMaterialParameters(UMaterialInstance
 	{
 		if (it->Value.Type == EParamType::TypeScalar)
 		{
-			DynamicMaterialInstance->SetScalarParameterValue(FName(*it->Key), FDisplayClusterTypesConverter::FromString<float>(it->Value.Value));
+			DynamicMaterialInstance->SetScalarParameterValue(FName(*it->Key), DisplayClusterTypesConverter::template FromString<float>(it->Value.Value));
 		}
 		else if (it->Value.Type == EParamType::TypeVector)
 		{
@@ -281,10 +290,10 @@ void ADisplayClusterTestPatternsActor::SetupMaterialParameters(UMaterialInstance
 			TArray<FString> ValueComponents;
 			it->Value.Value.ParseIntoArray(ValueComponents, TEXT(","));
 
-			Value.R = (ValueComponents.Num() > 0 ? FDisplayClusterTypesConverter::FromString<float>(ValueComponents[0]) : 0.f);
-			Value.G = (ValueComponents.Num() > 1 ? FDisplayClusterTypesConverter::FromString<float>(ValueComponents[1]) : 0.f);
-			Value.B = (ValueComponents.Num() > 2 ? FDisplayClusterTypesConverter::FromString<float>(ValueComponents[2]) : 0.f);
-			Value.A = (ValueComponents.Num() > 3 ? FDisplayClusterTypesConverter::FromString<float>(ValueComponents[3]) : 0.f);
+			Value.R = (ValueComponents.Num() > 0 ? DisplayClusterTypesConverter::FromString<float>(ValueComponents[0]) : 0.f);
+			Value.G = (ValueComponents.Num() > 1 ? DisplayClusterTypesConverter::FromString<float>(ValueComponents[1]) : 0.f);
+			Value.B = (ValueComponents.Num() > 2 ? DisplayClusterTypesConverter::FromString<float>(ValueComponents[2]) : 0.f);
+			Value.A = (ValueComponents.Num() > 3 ? DisplayClusterTypesConverter::FromString<float>(ValueComponents[3]) : 0.f);
 
 			DynamicMaterialInstance->SetVectorParameterValue(FName(*it->Key), Value);
 		}
@@ -370,7 +379,7 @@ void ADisplayClusterTestPatternsActor::OnConsoleVariableChangedPattern(IConsoleV
 	UpdatePattern(ParamMap);
 }
 
-void ADisplayClusterTestPatternsActor::OnClusterEventHandler(const FDisplayClusterClusterEvent& Event)
+void ADisplayClusterTestPatternsActor::OnClusterEventHandler(const FDisplayClusterClusterEventJson& Event)
 {
 	// Skip all events except of nDisplay:calibration:pattern
 	if (Event.Category.Equals(GStrEventCategory, ESearchCase::IgnoreCase))

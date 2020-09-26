@@ -50,7 +50,7 @@ public:
 	 * @return true if success
 	 */
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Reflect VRPN Keyboard"), Category = "DisplayClusterInput")
-	virtual bool SetVrpnKeyboardReflectionMode(const FString& VrpnDeviceId, EDisplayClusterInputKeyboardReflectMode ReflectMode) override;
+	virtual bool SetVrpnKeyboardReflectionMode(const FString& VrpnDeviceId, EDisplayClusterInputKeyboardReflectionMode ReflectionMode) override;
 
 	/**
 	* Bind VRPN tracker to a hand controller

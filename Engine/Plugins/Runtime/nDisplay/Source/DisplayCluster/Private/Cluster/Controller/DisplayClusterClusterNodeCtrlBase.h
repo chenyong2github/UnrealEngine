@@ -15,13 +15,6 @@ public:
 	FDisplayClusterClusterNodeCtrlBase(const FString& CtrlName, const FString& NodeName);
 	virtual ~FDisplayClusterClusterNodeCtrlBase() = 0;
 
-public:
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	// IPDisplayClusterNodeController
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual bool IsStandalone() const override final
-	{ return false; }
-
 protected:
 	virtual void OverrideMasterAddr(FString& Addr)
 	{ }

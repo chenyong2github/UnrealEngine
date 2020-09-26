@@ -12,6 +12,6 @@ class FDisplayClusterRenderSyncPolicyNvidiaDX12
 	: public FDisplayClusterRenderSyncPolicyNvidiaBase
 {
 public:
-	FDisplayClusterRenderSyncPolicyNvidiaDX12();
+	FDisplayClusterRenderSyncPolicyNvidiaDX12(const TMap<FString, FString>& Parameters);
 	virtual ~FDisplayClusterRenderSyncPolicyNvidiaDX12();
 };

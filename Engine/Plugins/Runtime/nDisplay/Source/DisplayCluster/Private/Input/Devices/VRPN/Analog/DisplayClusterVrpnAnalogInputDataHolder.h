@@ -3,10 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
 #include "Input/Devices/DisplayClusterInputDeviceBase.h"
 #include "Input/Devices/DisplayClusterInputDeviceTraits.h"
 
-struct FDisplayClusterConfigInput;
+class UDisplayClusterConfigurationInputDeviceAnalog;
 
 
 /**
@@ -16,7 +17,7 @@ class FDisplayClusterVrpnAnalogInputDataHolder
 	: public FDisplayClusterInputDeviceBase<EDisplayClusterInputDeviceType::VrpnAnalog>
 {
 public:
-	FDisplayClusterVrpnAnalogInputDataHolder(const FDisplayClusterConfigInput& Config);
+	FDisplayClusterVrpnAnalogInputDataHolder(const FString& DeviceId, const UDisplayClusterConfigurationInputDeviceAnalog* CfgDevice);
 	virtual ~FDisplayClusterVrpnAnalogInputDataHolder();
 
 public:
@@ -24,6 +25,9 @@ public:
 	// IDisplayClusterInputDevice
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual bool Initialize() override;
+
+	virtual FString GetType() const override
+	{ return FString("analog"); }
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////

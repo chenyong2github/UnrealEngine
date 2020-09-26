@@ -2,13 +2,15 @@
 
 #include "Input/Devices/VRPN/Analog/DisplayClusterVrpnAnalogInputDevice.h"
 
+#include "DisplayClusterConfigurationTypes.h"
+
 #include "Misc/DisplayClusterHelpers.h"
 #include "Misc/DisplayClusterLog.h"
 #include "Misc/DisplayClusterStrings.h"
 
 
-FDisplayClusterVrpnAnalogInputDevice::FDisplayClusterVrpnAnalogInputDevice(const FDisplayClusterConfigInput& Config) :
-	FDisplayClusterVrpnAnalogInputDataHolder(Config)
+FDisplayClusterVrpnAnalogInputDevice::FDisplayClusterVrpnAnalogInputDevice(const FString& DeviceId, const UDisplayClusterConfigurationInputDeviceAnalog* CfgDevice)
+	: FDisplayClusterVrpnAnalogInputDataHolder(DeviceId, CfgDevice)
 {
 }
 
@@ -31,15 +33,8 @@ void FDisplayClusterVrpnAnalogInputDevice::Update()
 
 bool FDisplayClusterVrpnAnalogInputDevice::Initialize()
 {
-	FString Addr;
-	if (!DisplayClusterHelpers::str::ExtractValue(ConfigData.Params, FString(DisplayClusterStrings::cfg::data::input::Address), Addr))
-	{
-		UE_LOG(LogDisplayClusterInputVRPN, Error, TEXT("%s - device address not found"), *ToString());
-		return false;
-	}
-
 	// Instantiate device implementation
-	DevImpl.Reset(new vrpn_Analog_Remote(TCHAR_TO_UTF8(*Addr)));
+	DevImpl.Reset(new vrpn_Analog_Remote(TCHAR_TO_UTF8(*Address)));
 	
 	// Register update handler
 	if (DevImpl->register_change_handler(this, &FDisplayClusterVrpnAnalogInputDevice::HandleAnalogDevice) != 0)
