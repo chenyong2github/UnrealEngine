@@ -105,7 +105,7 @@ void UNiagaraNodeAssignment::PostLoad()
 		TMap<FString, FString> AliasMap;
 		AliasMap.Add(OldFunctionCallName, FunctionDisplayName + TEXT(".") + VarNamespace);
 		FNiagaraVariable RemapVar = FNiagaraVariable(AssignmentTarget_DEPRECATED.GetType(), *(OldFunctionCallName + TEXT(".") + TargetHandle.GetName().ToString()));
-		FNiagaraVariable NewVar = FNiagaraParameterMapHistory::ResolveAliases(RemapVar, AliasMap, TEXT("."));
+		FNiagaraVariable NewVar = FNiagaraParameterMapHistory::ResolveAliases(RemapVar, AliasMap);
 		Converted.Add(RemapVar, NewVar);
 
 		bool bConvertedAnything = false;
