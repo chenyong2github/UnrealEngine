@@ -110,6 +110,11 @@ else
 	)
 fi
 
+# Unreal uses the dwarf-2 format.  Updating it will require removing '-gdwarf-2' from:
+#   Engine/Source/Programs/UnrealBuildTool/Platform/Mac/MacToolChain.cs
+export CFLAGS="-gdwarf-2"
+export CXXFLAGS="-gdwarf-2"
+
 for SLICE in "${SLICES[@]}"
 do
 	set BUILD_CFLAGS="-fvisibility=hidden -mmacosx-version-min=10.12 -stdlib=libc++"

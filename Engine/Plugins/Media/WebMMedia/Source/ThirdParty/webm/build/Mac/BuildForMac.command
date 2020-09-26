@@ -103,6 +103,12 @@ fi
 mkdir -p $BUILD_DIR
 cd $BUILD_DIR
 cp ${SCRIPT_DIR}/CMakeLists.txt $SOURCE_DIR/CMakeLists.txt
+
+# Unreal uses the dwarf-2 format.  Updating it will require removing '-gdwarf-2' from:
+#   Engine/Source/Programs/UnrealBuildTool/Platform/Mac/MacToolChain.cs
+export CFLAGS="-gdwarf-2"
+export CXXFLAGS="-gdwarf-2"
+
 echo "#######################################"
 echo "# Configuring $VER"
 cmake -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" $SOURCE_DIR > $SCRIPT_DIR/build.log
