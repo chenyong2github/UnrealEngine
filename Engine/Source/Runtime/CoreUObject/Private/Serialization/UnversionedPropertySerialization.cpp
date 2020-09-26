@@ -712,6 +712,12 @@ static bool CanUseUnversionedPropertySerialization(FConfigFile& TargetIni)
 	return TargetIni.GetBool(TEXT("Core.System"), TEXT("CanUseUnversionedPropertySerialization"), /* out */ bAllow) && bAllow;
 }
 
+static bool CanUseUnversionedPropertySerializationForServerOnly(FConfigFile& TargetIni)
+{
+	bool bAllow;
+	return TargetIni.GetBool(TEXT("Core.System"), TEXT("CanUseUnversionedPropertySerializationForServerOnly"), /* out */ bAllow) && bAllow;
+}
+
 static struct
 {
 	FRWLock Lock;
@@ -739,6 +745,11 @@ bool CanUseUnversionedPropertySerialization(const ITargetPlatform* Target)
 	FConfigFile TargetIni;
 	FConfigCacheIni::LoadLocalIniFile(TargetIni, TEXT("Engine"), /* base INI */ true, *Target->IniPlatformName());
 	bool bTargetValue = CanUseUnversionedPropertySerialization(TargetIni);
+	if (Target->IsServerOnly())
+	{
+		bTargetValue = bTargetValue && CanUseUnversionedPropertySerializationForServerOnly(TargetIni);
+	}
+
 			
 	GUPSIniValueCache.PlatformValues.Add(TargetID, bTargetValue);
 
