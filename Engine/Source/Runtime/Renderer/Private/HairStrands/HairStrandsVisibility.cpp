@@ -2544,12 +2544,19 @@ class FVisiblityRasterComputeCS : public FGlobalShader
 public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) 
 	{ 
-		// TODO:
-		//if (!FDataDrivenShaderPlatformInfo::GetInfo(Parameters.Platform).bSupportsUInt64ImageAtomics))
+		//if (!FDataDrivenShaderPlatformInfo::GetSupportsUInt64ImageAtomics(Parameters.Platform))
+		//{
 		//	return false;
+		//}
+		if (IsVulkanPlatform(Parameters.Platform))
+		{
+			return false;
+		}
 
 		if (!IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform))
+		{
 			return false;
+		}
 
 		if (IsPCPlatform(Parameters.Platform))
 		{
