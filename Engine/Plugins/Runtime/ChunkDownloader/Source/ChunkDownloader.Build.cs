@@ -21,10 +21,5 @@ public class ChunkDownloader : ModuleRules
 			new string[] {
 			}
 		);
-
-		if (Target.Configuration == UnrealTargetConfiguration.DebugGame)
-		{
-			PCHUsage = PCHUsageMode.NoSharedPCHs;
-		}
 	}
 }
