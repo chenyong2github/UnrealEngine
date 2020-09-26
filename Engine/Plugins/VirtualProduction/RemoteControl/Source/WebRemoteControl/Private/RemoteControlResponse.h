@@ -145,3 +145,75 @@ struct FGetMetadataResponse
 	UPROPERTY()
 	TMap<FString, FString> Metadata;
 };
+
+USTRUCT()
+struct FRCPresetFieldsRenamedEvent
+{
+	GENERATED_BODY()
+
+	FRCPresetFieldsRenamedEvent() = default;
+
+	FRCPresetFieldsRenamedEvent(FName InPresetName, TArray<TTuple<FName, FName>> InRenamedFields)
+		: Type(TEXT("PresetFieldsRenamed"))
+		, PresetName(InPresetName)
+		, RenamedFields(MoveTemp(InRenamedFields))
+	{
+	}
+
+	UPROPERTY()
+	FString Type;
+
+	UPROPERTY()
+	FName PresetName;
+
+	UPROPERTY()
+	TArray<FRCPresetFieldRenamed> RenamedFields;
+};
+
+USTRUCT()
+struct FRCPresetFieldsRemovedEvent
+{
+	GENERATED_BODY()
+
+	FRCPresetFieldsRemovedEvent() = default;
+
+	FRCPresetFieldsRemovedEvent(FName InPresetName, TArray<FName> InRemovedFields)
+		: Type(TEXT("PresetFieldsRemoved"))
+		, PresetName(InPresetName)
+		, RemovedFields(MoveTemp(InRemovedFields))
+	{
+	}
+
+	UPROPERTY()
+	FString Type;
+
+	UPROPERTY()
+	FName PresetName;
+
+	UPROPERTY()
+	TArray<FName> RemovedFields;
+};
+
+USTRUCT()
+struct FRCPresetFieldsAddedEvent
+{
+	GENERATED_BODY()
+
+	FRCPresetFieldsAddedEvent() = default;
+
+	FRCPresetFieldsAddedEvent(FName InPresetName, FRCPresetDescription InPresetAddition)
+		: Type(TEXT("PresetFieldsAdded"))
+		, PresetName(InPresetName)
+		, Description(MoveTemp(InPresetAddition))
+	{
+	}
+
+	UPROPERTY()
+	FString Type;
+
+	UPROPERTY()
+	FName PresetName;
+
+	UPROPERTY()
+	FRCPresetDescription Description;
+};

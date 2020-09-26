@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
+#include "RemoteControlField.h"
 #include "UObject/StructOnScope.h"
 #include "UObject/WeakFieldPtr.h"
 
@@ -104,7 +105,7 @@ struct FRCObjectReference
 	TWeakObjectPtr<UStruct> ContainerType;
 
 	/** Path to the property under the Object */
-	TArray<FString> NestedPath;
+	FRCFieldPathInfo PropertyPathInfo;
 };
 
 /**
