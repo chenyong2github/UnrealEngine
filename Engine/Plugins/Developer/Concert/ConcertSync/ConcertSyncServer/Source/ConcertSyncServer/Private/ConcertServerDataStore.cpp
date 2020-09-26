@@ -64,7 +64,7 @@ EConcertSessionResponseCode FConcertServerDataStore::OnCompareExchange(const FCo
 	{
 		// If the version or value matches.
 		if ((Request.ExpectedVersion != 0 && Request.ExpectedVersion == Result.Value->Version) ||
-		    (Request.ExpectedVersion == 0 && Result.Value->SerializedValue.UncompressedPayloadSize == Request.Expected.UncompressedPayloadSize && Result.Value->SerializedValue.CompressedPayload == Request.Expected.CompressedPayload))
+		    (Request.ExpectedVersion == 0 && Result.Value->SerializedValue.UncompressedPayloadSize == Request.Expected.UncompressedPayloadSize && Result.Value->SerializedValue.CompressedPayload.Bytes == Request.Expected.CompressedPayload.Bytes))
 		{
 			// Replace the current value with the desired one.
 			Result = DataStore.Store(Request.Key, Result.Value->TypeName, Request.Desired);

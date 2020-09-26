@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConcertMessageData.h"
+#include "ConcertLogGlobal.h"
 #include "IdentifierTable/ConcertTransportArchives.h"
 
 #include "Misc/App.h"
@@ -238,6 +239,7 @@ bool DeserializePayloadImpl(const UScriptStruct* InEventType, void* InOutEventDa
 
 bool SerializeBinaryPayload(const UScriptStruct* InEventType, const void* InEventData, int32& OutUncompressedDataSizeBytes, TArray<uint8>& OutCompressedData)
 {
+	SCOPED_CONCERT_TRACE(ConcertPayload_SerializeBinaryPayload);
 	return SerializePayloadImpl(InEventType, InEventData, OutUncompressedDataSizeBytes, OutCompressedData, [](const UScriptStruct* InSourceEventType, const void* InSourceEventData, TArray<uint8>& OutSerializedData)
 	{
 		FConcertIdentifierWriter Archive(nullptr, OutSerializedData);
@@ -249,6 +251,7 @@ bool SerializeBinaryPayload(const UScriptStruct* InEventType, const void* InEven
 
 bool DeserializeBinaryPayload(const UScriptStruct* InEventType, void* InOutEventData, const int32 InUncompressedDataSizeBytes, const TArray<uint8>& InCompressedData)
 {
+	SCOPED_CONCERT_TRACE(ConcertPayload_DeserializeBinaryPayload);
 	return DeserializePayloadImpl(InEventType, InOutEventData, InUncompressedDataSizeBytes, InCompressedData, [](const UScriptStruct* InTargetEventType, void* InOutTargetEventData, const TArray<uint8>& InSerializedData)
 	{
 		FConcertIdentifierReader Archive(nullptr, InSerializedData);
@@ -260,6 +263,7 @@ bool DeserializeBinaryPayload(const UScriptStruct* InEventType, void* InOutEvent
 
 bool SerializeCborPayload(const UScriptStruct* InEventType, const void* InEventData, int32& OutUncompressedDataSizeBytes, TArray<uint8>& OutCompressedData)
 {
+	SCOPED_CONCERT_TRACE(ConcertPayload_SerializeCborPayload);
 	return SerializePayloadImpl(InEventType, InEventData, OutUncompressedDataSizeBytes, OutCompressedData, [](const UScriptStruct* InSourceEventType, const void* InSourceEventData, TArray<uint8>& OutSerializedData)
 	{
 		FMemoryWriter Writer(OutSerializedData);
@@ -271,6 +275,7 @@ bool SerializeCborPayload(const UScriptStruct* InEventType, const void* InEventD
 
 bool DeserializeCborPayload(const UScriptStruct* InEventType, void* InOutEventData, const int32 InUncompressedDataSizeBytes, const TArray<uint8>& InCompressedData)
 {
+	SCOPED_CONCERT_TRACE(ConcertPayload_DeserializeCborPayload);
 	return DeserializePayloadImpl(InEventType, InOutEventData, InUncompressedDataSizeBytes, InCompressedData, [](const UScriptStruct* InTargetEventType, void* InOutTargetEventData, const TArray<uint8>& InSerializedData)
 	{
 		FMemoryReader Reader(InSerializedData);
@@ -292,7 +297,7 @@ bool FConcertSessionSerializedPayload::SetPayload(const UScriptStruct* InPayload
 {
 	check(InPayloadType && InPayloadData);
 	PayloadTypeName = *InPayloadType->GetPathName();
-	return PayloadDetail::SerializeBinaryPayload(InPayloadType, InPayloadData, UncompressedPayloadSize, CompressedPayload);
+	return PayloadDetail::SerializeBinaryPayload(InPayloadType, InPayloadData, UncompressedPayloadSize, CompressedPayload.Bytes);
 }
 
 bool FConcertSessionSerializedPayload::GetPayload(FStructOnScope& OutPayload) const
@@ -303,7 +308,7 @@ bool FConcertSessionSerializedPayload::GetPayload(FStructOnScope& OutPayload) co
 		OutPayload.Initialize(PayloadType);
 		const UStruct* PayloadStruct = OutPayload.GetStruct();
 		check(PayloadStruct->IsA<UScriptStruct>());
-		return PayloadDetail::DeserializeBinaryPayload((UScriptStruct*)PayloadStruct, OutPayload.GetStructMemory(), UncompressedPayloadSize, CompressedPayload);
+		return PayloadDetail::DeserializeBinaryPayload((UScriptStruct*)PayloadStruct, OutPayload.GetStructMemory(), UncompressedPayloadSize, CompressedPayload.Bytes);
 	}
 	return false;
 }
@@ -315,7 +320,7 @@ bool FConcertSessionSerializedPayload::GetPayload(const UScriptStruct* InPayload
 	if (PayloadType)
 	{
 		check(InPayloadType->IsChildOf(PayloadType));
-		return PayloadDetail::DeserializeBinaryPayload((UScriptStruct*)InPayloadType, InOutPayloadData, UncompressedPayloadSize, CompressedPayload);
+		return PayloadDetail::DeserializeBinaryPayload((UScriptStruct*)InPayloadType, InOutPayloadData, UncompressedPayloadSize, CompressedPayload.Bytes);
 	}
 	return false;
 }
@@ -331,7 +336,7 @@ bool FConcertSessionSerializedCborPayload::SetPayload(const UScriptStruct* InPay
 {
 	check(InPayloadType && InPayloadData);
 	PayloadTypeName = *InPayloadType->GetPathName();
-	return PayloadDetail::SerializeCborPayload(InPayloadType, InPayloadData, UncompressedPayloadSize, CompressedPayload);
+	return PayloadDetail::SerializeCborPayload(InPayloadType, InPayloadData, UncompressedPayloadSize, CompressedPayload.Bytes);
 }
 
 bool FConcertSessionSerializedCborPayload::GetPayload(FStructOnScope& OutPayload) const
@@ -342,7 +347,7 @@ bool FConcertSessionSerializedCborPayload::GetPayload(FStructOnScope& OutPayload
 		OutPayload.Initialize(PayloadType);
 		const UStruct* PayloadStruct = OutPayload.GetStruct();
 		check(PayloadStruct->IsA<UScriptStruct>());
-		return PayloadDetail::DeserializeCborPayload((UScriptStruct*)PayloadStruct, OutPayload.GetStructMemory(), UncompressedPayloadSize, CompressedPayload);
+		return PayloadDetail::DeserializeCborPayload((UScriptStruct*)PayloadStruct, OutPayload.GetStructMemory(), UncompressedPayloadSize, CompressedPayload.Bytes);
 	}
 	return false;
 }
@@ -354,7 +359,7 @@ bool FConcertSessionSerializedCborPayload::GetPayload(const UScriptStruct* InPay
 	if (PayloadType)
 	{
 		check(InPayloadType->IsChildOf(PayloadType));
-		return PayloadDetail::DeserializeCborPayload((UScriptStruct*)InPayloadType, InOutPayloadData, UncompressedPayloadSize, CompressedPayload);
+		return PayloadDetail::DeserializeCborPayload((UScriptStruct*)InPayloadType, InOutPayloadData, UncompressedPayloadSize, CompressedPayload.Bytes);
 	}
 	return false;
 }

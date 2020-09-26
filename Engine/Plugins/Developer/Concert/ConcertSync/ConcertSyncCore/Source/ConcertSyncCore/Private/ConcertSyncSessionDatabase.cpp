@@ -645,7 +645,7 @@ public:
 	{
 		FConcertSessionSerializedCborPayload ClientInfoPayload;
 		verify(ClientInfoPayload.SetTypedPayload(InClientInfo));
-		return Statement_SetEndpointData.BindAndExecute(InEndpointId, InClientInfo.UserName, ClientInfoPayload.UncompressedPayloadSize, ClientInfoPayload.CompressedPayload);
+		return Statement_SetEndpointData.BindAndExecute(InEndpointId, InClientInfo.UserName, ClientInfoPayload.UncompressedPayloadSize, ClientInfoPayload.CompressedPayload.Bytes);
 	}
 
 	/** Set the endpoint data from endpoints for the given endpoint_id */
@@ -655,7 +655,7 @@ public:
 	{
 		FConcertSessionSerializedCborPayload ClientInfoPayload;
 		ClientInfoPayload.PayloadTypeName = *FConcertClientInfo::StaticStruct()->GetPathName();
-		if (Statement_GetEndpointDataForId.BindAndExecuteSingle(InEndpointId, ClientInfoPayload.UncompressedPayloadSize, ClientInfoPayload.CompressedPayload))
+		if (Statement_GetEndpointDataForId.BindAndExecuteSingle(InEndpointId, ClientInfoPayload.UncompressedPayloadSize, ClientInfoPayload.CompressedPayload.Bytes))
 		{
 			verify(ClientInfoPayload.GetTypedPayload(OutClientInfo));
 			return true;
@@ -673,7 +673,7 @@ public:
 		return Statement_GetAllEndpointData.Execute([&ClientInfoPayload, &InCallback](const FGetAllEndpointData& InStatement)
 		{
 			FGuid EndpointId;
-			if (InStatement.GetColumnValues(EndpointId, ClientInfoPayload.UncompressedPayloadSize, ClientInfoPayload.CompressedPayload))
+			if (InStatement.GetColumnValues(EndpointId, ClientInfoPayload.UncompressedPayloadSize, ClientInfoPayload.CompressedPayload.Bytes))
 			{
 				FConcertClientInfo ClientInfo;
 				verify(ClientInfoPayload.GetTypedPayload(ClientInfo));
@@ -804,7 +804,7 @@ public:
 	{
 		FConcertSessionSerializedCborPayload PackageInfoPayload;
 		verify(PackageInfoPayload.SetTypedPayload(InPackageInfo));
-		return Statement_SetPackageEvent.BindAndExecute(InPackageEventId, InPackageNameId, InPackageRevision, PackageInfoPayload.UncompressedPayloadSize, PackageInfoPayload.CompressedPayload, InTransactionEventIdAtSave, InDataFilename);
+		return Statement_SetPackageEvent.BindAndExecute(InPackageEventId, InPackageNameId, InPackageRevision, PackageInfoPayload.UncompressedPayloadSize, PackageInfoPayload.CompressedPayload.Bytes, InTransactionEventIdAtSave, InDataFilename);
 	}
 
 	/** Get the package event from package_events for the given package_event_id */
@@ -814,7 +814,7 @@ public:
 	{
 		FConcertSessionSerializedCborPayload PackageInfoPayload;
 		PackageInfoPayload.PayloadTypeName = *FConcertPackageInfo::StaticStruct()->GetPathName();
-		if (Statement_GetPackageEventForId.BindAndExecuteSingle(InPackageEventId, OutPackageRevision, PackageInfoPayload.UncompressedPayloadSize, PackageInfoPayload.CompressedPayload, OutDataFilename))
+		if (Statement_GetPackageEventForId.BindAndExecuteSingle(InPackageEventId, OutPackageRevision, PackageInfoPayload.UncompressedPayloadSize, PackageInfoPayload.CompressedPayload.Bytes, OutDataFilename))
 		{
 			verify(PackageInfoPayload.GetTypedPayload(OutPackageInfo));
 			return true;
@@ -861,7 +861,7 @@ public:
 	{
 		FConcertSessionSerializedCborPayload PackageInfoPayload;
 		PackageInfoPayload.PayloadTypeName = *FConcertPackageInfo::StaticStruct()->GetPathName();
-		if (Statement_GetPackageDataForRevision.BindAndExecuteSingle(InPackageId, InPackageRevision, PackageInfoPayload.UncompressedPayloadSize, PackageInfoPayload.CompressedPayload, OutDataFilename))
+		if (Statement_GetPackageDataForRevision.BindAndExecuteSingle(InPackageId, InPackageRevision, PackageInfoPayload.UncompressedPayloadSize, PackageInfoPayload.CompressedPayload.Bytes, OutDataFilename))
 		{
 			verify(PackageInfoPayload.GetTypedPayload(OutPackageInfo));
 			return true;
@@ -926,7 +926,7 @@ public:
 	FAddActivityData Statement_AddActivityData;
 	bool AddActivityData(const FGuid& InEndpointId, const EConcertSyncActivityEventType InEventType, const int64 InEventId, const FConcertSessionSerializedCborPayload& InEventSummary, int64& OutActivityId)
 	{
-		if (Statement_AddActivityData.BindAndExecute(InEndpointId, FDateTime::UtcNow(), InEventType, InEventId, InEventSummary.PayloadTypeName, InEventSummary.UncompressedPayloadSize, InEventSummary.CompressedPayload))
+		if (Statement_AddActivityData.BindAndExecute(InEndpointId, FDateTime::UtcNow(), InEventType, InEventId, InEventSummary.PayloadTypeName, InEventSummary.UncompressedPayloadSize, InEventSummary.CompressedPayload.Bytes))
 		{
 			OutActivityId = Database.GetLastInsertRowId();
 			return true;
@@ -939,7 +939,7 @@ public:
 	FSetActivityData Statement_SetActivityData;
 	bool SetActivityData(const int64 InActivityId, const FGuid& InEndpointId, const FDateTime InEventTime, const EConcertSyncActivityEventType InEventType, const int64 InEventId, const FConcertSessionSerializedCborPayload& InEventSummary)
 	{
-		return Statement_SetActivityData.BindAndExecute(InActivityId, InEndpointId, InEventTime, InEventType, InEventId, InEventSummary.PayloadTypeName, InEventSummary.UncompressedPayloadSize, InEventSummary.CompressedPayload);
+		return Statement_SetActivityData.BindAndExecute(InActivityId, InEndpointId, InEventTime, InEventType, InEventId, InEventSummary.PayloadTypeName, InEventSummary.UncompressedPayloadSize, InEventSummary.CompressedPayload.Bytes);
 	}
 
 	/** Get the activity data from activities for the given activity_id */
@@ -947,7 +947,7 @@ public:
 	FGetActivityDataForId Statement_GetActivityDataForId;
 	bool GetActivityDataForId(const int64 InActivityId, FGuid& OutEndpointId, FDateTime& OutEventTime, EConcertSyncActivityEventType& OutEventType, int64& OutEventId, FConcertSessionSerializedCborPayload& OutEventSummary)
 	{
-		return Statement_GetActivityDataForId.BindAndExecuteSingle(InActivityId, OutEndpointId, OutEventTime, OutEventType, OutEventId, OutEventSummary.PayloadTypeName, OutEventSummary.UncompressedPayloadSize, OutEventSummary.CompressedPayload);
+		return Statement_GetActivityDataForId.BindAndExecuteSingle(InActivityId, OutEndpointId, OutEventTime, OutEventType, OutEventId, OutEventSummary.PayloadTypeName, OutEventSummary.UncompressedPayloadSize, OutEventSummary.CompressedPayload.Bytes);
 	}
 
 	/** Get the activity data from activities for the given event_id and event_type */
@@ -955,7 +955,7 @@ public:
 	FGetActivityDataForEvent Statement_GetActivityDataForEvent;
 	bool GetActivityDataForEvent(const int64 InEventId, const EConcertSyncActivityEventType InEventType, int64& OutActivityId, FGuid& OutEndpointId, FDateTime& OutEventTime, FConcertSessionSerializedCborPayload& OutEventSummary)
 	{
-		return Statement_GetActivityDataForEvent.BindAndExecuteSingle(InEventId, InEventType, OutActivityId, OutEndpointId, OutEventTime, OutEventSummary.PayloadTypeName, OutEventSummary.UncompressedPayloadSize, OutEventSummary.CompressedPayload);
+		return Statement_GetActivityDataForEvent.BindAndExecuteSingle(InEventId, InEventType, OutActivityId, OutEndpointId, OutEventTime, OutEventSummary.PayloadTypeName, OutEventSummary.UncompressedPayloadSize, OutEventSummary.CompressedPayload.Bytes);
 	}
 
 	/** Get the event_type from activities for the given activity_id */
@@ -979,7 +979,7 @@ public:
 			EConcertSyncActivityEventType EventType = EConcertSyncActivityEventType::Connection;
 			int64 EventId = 0;
 			FConcertSessionSerializedCborPayload EventSummary;
-			if (InStatement.GetColumnValues(ActivityId, EndpointId, EventTime, EventType, EventId, EventSummary.PayloadTypeName, EventSummary.UncompressedPayloadSize, EventSummary.CompressedPayload))
+			if (InStatement.GetColumnValues(ActivityId, EndpointId, EventTime, EventType, EventId, EventSummary.PayloadTypeName, EventSummary.UncompressedPayloadSize, EventSummary.CompressedPayload.Bytes))
 			{
 				return InCallback(ActivityId, EndpointId, EventTime, EventType, EventId, MoveTemp(EventSummary));
 			}
@@ -999,7 +999,7 @@ public:
 			FDateTime EventTime;
 			int64 EventId = 0;
 			FConcertSessionSerializedCborPayload EventSummary;
-			if (InStatement.GetColumnValues(ActivityId, EndpointId, EventTime, EventId, EventSummary.PayloadTypeName, EventSummary.UncompressedPayloadSize, EventSummary.CompressedPayload))
+			if (InStatement.GetColumnValues(ActivityId, EndpointId, EventTime, EventId, EventSummary.PayloadTypeName, EventSummary.UncompressedPayloadSize, EventSummary.CompressedPayload.Bytes))
 			{
 				return InCallback(ActivityId, EndpointId, EventTime, EventId, MoveTemp(EventSummary));
 			}
@@ -1020,7 +1020,7 @@ public:
 			EConcertSyncActivityEventType EventType = EConcertSyncActivityEventType::Connection;
 			int64 EventId = 0;
 			FConcertSessionSerializedCborPayload EventSummary;
-			if (InStatement.GetColumnValues(ActivityId, EndpointId, EventTime, EventType, EventId, EventSummary.PayloadTypeName, EventSummary.UncompressedPayloadSize, EventSummary.CompressedPayload))
+			if (InStatement.GetColumnValues(ActivityId, EndpointId, EventTime, EventType, EventId, EventSummary.PayloadTypeName, EventSummary.UncompressedPayloadSize, EventSummary.CompressedPayload.Bytes))
 			{
 				return InCallback(ActivityId, EndpointId, EventTime, EventType, EventId, MoveTemp(EventSummary));
 			}
@@ -2531,6 +2531,8 @@ bool FConcertSyncSessionDatabase::LoadTransaction(const FString& InTransactionFi
 
 bool FConcertSyncSessionDatabase::SavePackage(const FString& InDstPackageBlobPathname, const FConcertPackageInfo& InPackageInfo, FConcertPackageDataStream& InPackageDataStream) const
 {
+	SCOPED_CONCERT_TRACE(FConcertSyncSessionDatabase_SavePackage);
+
 	// Decide if the package data should be stored compressed.
 	PackageDataUtil::EPackageDataFormat PackageDataFormat = ShouldCompressPackageData(InPackageDataStream.DataSize) ? PackageDataUtil::EPackageDataFormat::PackageDataCompressed : PackageDataUtil::EPackageDataFormat::PackageDataUncompressed;
 	if (PackageDataFormat == PackageDataUtil::EPackageDataFormat::PackageDataCompressed)

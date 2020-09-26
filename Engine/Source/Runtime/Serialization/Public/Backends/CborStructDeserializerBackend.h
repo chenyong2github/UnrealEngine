@@ -31,6 +31,7 @@ public:
 	virtual const FString& GetLastErrorMessage() const override;
 	virtual bool GetNextToken(EStructDeserializerBackendTokens& OutToken) override;
 	virtual bool ReadProperty(FProperty* Property, FProperty* Outer, void* Data, int32 ArrayIndex) override;
+	virtual bool ReadPODArray(FArrayProperty* ArrayProperty, void* Data) override;
 	virtual void SkipArray() override;
 	virtual void SkipStructure() override;
 

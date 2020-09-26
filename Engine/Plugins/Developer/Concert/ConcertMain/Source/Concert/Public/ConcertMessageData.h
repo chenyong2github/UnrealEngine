@@ -233,6 +233,37 @@ struct FConcertSessionFilter
 };
 
 USTRUCT()
+struct FConcertByteArray
+{
+	GENERATED_BODY()
+
+	bool Serialize(FArchive& Ar)
+	{
+		int32 Num = Bytes.Num();
+		Ar << Num;
+		if (Ar.IsLoading())
+		{
+			Bytes.AddUninitialized(Num);
+		}
+		Ar.Serialize(Bytes.GetData(), Num);
+		return true;
+	}
+
+	UPROPERTY()
+	TArray<uint8> Bytes;
+};
+
+template<>
+struct TStructOpsTypeTraits<FConcertByteArray> : public TStructOpsTypeTraitsBase2<FConcertByteArray>
+{
+	enum
+	{
+		WithSerializer = true,
+	};
+};
+
+
+USTRUCT()
 struct FConcertSessionSerializedPayload
 {
 	GENERATED_BODY()
@@ -267,7 +298,7 @@ struct FConcertSessionSerializedPayload
 
 	/** The data of the user-defined payload (stored as compressed binary for compact transfer). */
 	UPROPERTY()
-	TArray<uint8> CompressedPayload;
+	FConcertByteArray CompressedPayload;
 };
 
 USTRUCT()
@@ -305,5 +336,5 @@ struct FConcertSessionSerializedCborPayload
 
 	/** The data of the user-defined payload (stored as compressed Cbor for compact transfer). */
 	UPROPERTY()
-	TArray<uint8> CompressedPayload;
+	FConcertByteArray CompressedPayload;
 };

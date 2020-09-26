@@ -326,7 +326,7 @@ void FConcertServerWorkspace::HandlePackageUpdateEvent(const FConcertSessionCont
 				FConcertPackageDataStream PackageDataStream { 
 					PackageDataAr.Get(),
 					PackageDataAr ? PackageDataAr->TotalSize() : 0,
-					Event.Package.PackageData.Num() ? &Event.Package.PackageData : nullptr
+					Event.Package.PackageData.Bytes.Num() ? &Event.Package.PackageData.Bytes : nullptr
 				};
 
 				AddPackageActivity(PackageActivityBasePart, Package.Info, PackageDataStream);
@@ -1031,8 +1031,8 @@ EConcertSessionResponseCode FConcertServerWorkspace::FillPackageEvent(FConcertSy
 	if (CanExchangePackageDataAsByteArray(InPackageEvent.PackageDataStream.DataSize))
 	{
 		// Store the package data directly in the package event.
-		OutPackageEvent.Package.PackageData.AddUninitialized(InPackageEvent.PackageDataStream.DataSize);
-		InPackageEvent.PackageDataStream.DataAr->Serialize(OutPackageEvent.Package.PackageData.GetData(), InPackageEvent.PackageDataStream.DataSize);
+		OutPackageEvent.Package.PackageData.Bytes.AddUninitialized(InPackageEvent.PackageDataStream.DataSize);
+		InPackageEvent.PackageDataStream.DataAr->Serialize(OutPackageEvent.Package.PackageData.Bytes.GetData(), InPackageEvent.PackageDataStream.DataSize);
 	}
 	else if (FileSharingService)
 	{
@@ -1052,6 +1052,6 @@ TSharedPtr<FArchive> FConcertServerWorkspace::GetPackageDataStream(const FConcer
 {
 	return !Package.FileId.IsEmpty() ?
 		FileSharingService->CreateReader(Package.FileId) : // Package data is not embedded with the activty itself, but linked.
-		MakeShared<FMemoryReader>(Package.PackageData); // Package data is embedded in the activity object.
+		MakeShared<FMemoryReader>(Package.PackageData.Bytes); // Package data is embedded in the activity object.
 }
 
