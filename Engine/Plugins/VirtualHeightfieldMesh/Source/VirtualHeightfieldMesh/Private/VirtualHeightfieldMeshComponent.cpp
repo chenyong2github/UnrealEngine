@@ -82,7 +82,9 @@ FBoxSphereBounds UVirtualHeightfieldMeshComponent::CalcBounds(const FTransform& 
 
 FPrimitiveSceneProxy* UVirtualHeightfieldMeshComponent::CreateSceneProxy()
 {
-	return new FVirtualHeightfieldMeshSceneProxy(this);
+	const FStaticFeatureLevel FeatureLevel = GetScene() ? GetScene()->GetFeatureLevel() : ERHIFeatureLevel::SM5;
+	const bool bIsEnabled = VirtualHeightfieldMesh::IsEnabled(FeatureLevel);
+	return bIsEnabled ? new FVirtualHeightfieldMeshSceneProxy(this) : nullptr;
 }
 
 void UVirtualHeightfieldMeshComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials) const
