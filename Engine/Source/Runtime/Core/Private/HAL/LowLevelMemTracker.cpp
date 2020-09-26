@@ -453,7 +453,7 @@ static FName LLMGetTagUniqueName(ELLMTag Tag)
 	{
 		return UniqueNames[Index];
 	}
-	else if (Index <= LLM_CUSTOM_TAG_END)
+	else if (LLM_CUSTOM_TAG_START <= Index && Index <= LLM_CUSTOM_TAG_END)
 	{
 		static FName CustomNames[LLM_CUSTOM_TAG_COUNT];
 		static bool bCustomNamesInitialized = false;
