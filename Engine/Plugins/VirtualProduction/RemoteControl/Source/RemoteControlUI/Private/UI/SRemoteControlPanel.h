@@ -45,7 +45,7 @@ struct FRCPanelTreeNode
 	virtual ~FRCPanelTreeNode() {}
 
 	/** Get this tree node's childen. */
-	virtual void GetChildren(TArray<TSharedPtr<FRCPanelTreeNode>>& OutChildren) {}
+	virtual void GetNodeChildren(TArray<TSharedPtr<FRCPanelTreeNode>>& OutChildren) {}
 	/** Get this node's ID if any. */
 	virtual FGuid GetId() = 0;
 	/** Get get this node's type. */
@@ -94,7 +94,7 @@ struct SRCPanelExposedField : public SCompoundWidget, public FRCPanelTreeNode
 	void Tick(const FGeometry&, const double, const float);
 
 	//~ SRCPanelTreeNode Interface 
-	virtual void GetChildren(TArray<TSharedPtr<FRCPanelTreeNode>>& OutChildren) override;
+	virtual void GetNodeChildren(TArray<TSharedPtr<FRCPanelTreeNode>>& OutChildren) override;
 	virtual TSharedPtr<SRCPanelExposedField> AsField() override;
 	virtual FGuid GetId() override;
 	virtual FRCPanelTreeNode::ENodeType GetType() override;
@@ -188,7 +188,7 @@ struct FRCPanelGroup : public FRCPanelTreeNode, public TSharedFromThis<FRCPanelG
 	{}
 
 	//~ SRCPanelTreeNode Interface
-	virtual void GetChildren(TArray<TSharedPtr<FRCPanelTreeNode>>& OutChildren) override;
+	virtual void GetNodeChildren(TArray<TSharedPtr<FRCPanelTreeNode>>& OutChildren) override;
 	virtual FGuid GetId() override;
 	virtual ENodeType GetType() override;
 	virtual TSharedPtr<FRCPanelGroup> AsGroup() override;
