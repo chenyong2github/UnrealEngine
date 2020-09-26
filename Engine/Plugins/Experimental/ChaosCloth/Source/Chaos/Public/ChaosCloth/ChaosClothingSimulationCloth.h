@@ -50,6 +50,7 @@ namespace Chaos
 			float InAngularVelocityScale,
 			float InDragCoefficient,
 			float InLiftCoefficient,
+			bool bInUseLegacyWind,
 			float InDampingCoefficient,
 			float InCollisionThickness,
 			float InFrictionCoefficient,
@@ -181,6 +182,7 @@ namespace Chaos
 		float AngularVelocityScale;  // Angular ratio factor applied to the reference bone transforms
 		float DragCoefficient;
 		float LiftCoefficient;
+		bool bUseLegacyWind;
 		float DampingCoefficient;
 		float CollisionThickness;
 		float FrictionCoefficient;

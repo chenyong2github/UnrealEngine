@@ -119,7 +119,7 @@ void FClothingSimulationContextCommon::FillWorldGravity(const USkeletalMeshCompo
 
 void FClothingSimulationContextCommon::FillWindVelocity(const USkeletalMeshComponent* InComponent)
 {
-	SetWindFromComponent(InComponent);
+	InComponent->GetWindForCloth_GameThread(WindVelocity, WindAdaption);
 }
 
 void FClothingSimulationContextCommon::FillDeltaSeconds(float InDeltaSeconds, float InMaxPhysicsDelta)
@@ -134,16 +134,9 @@ void FClothingSimulationContextCommon::FillTeleportMode(const USkeletalMeshCompo
 		InComponent->ClothTeleportMode;
 }
 
-float FClothingSimulationContextCommon::SetWindFromComponent(const USkeletalMeshComponent* Component)
+void FClothingSimulationContextCommon::FillMaxDistanceScale(const USkeletalMeshComponent* InComponent)
 {
-	float WindAdaption;
-	Component->GetWindForCloth_GameThread(WindVelocity, WindAdaption);
-	return WindAdaption;
-}
-
-void FClothingSimulationContextCommon::FillMaxDistanceScale(const USkeletalMeshComponent* Component)
-{
-	MaxDistanceScale = Component->GetClothMaxDistanceScale();
+	MaxDistanceScale = InComponent->GetClothMaxDistanceScale();
 }
 
 //==============================================================================
