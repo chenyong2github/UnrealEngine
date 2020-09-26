@@ -2075,14 +2075,12 @@ static bool CompileToGlslWithShaderConductor(
 			Pos = PreprocessedShader.Find(TEXT("TextureExternal"), ESearchCase::CaseSensitive, ESearchDir::FromStart, Pos + 15);
 			if (Pos != INDEX_NONE)
 			{
-#if !PLATFORM_WINDOWS
-	#if !PLATFORM_MAC
-				if (swscanf(&PreprocessedShader[Pos], TEXT("TextureExternal %ls"), TextureExternalName) == 1)
-	#else
-				if (sscanf(TCHAR_TO_ANSI(&PreprocessedShader[Pos]), "TextureExternal %s", TextureExternalName) == 1)
-	#endif
-#else
+#if PLATFORM_WINDOWS
 				if (swscanf_s(&PreprocessedShader[Pos], TEXT("TextureExternal %ls"), TextureExternalName, 256) == 1)
+#elif PLATFORM_MAC
+				if (sscanf(TCHAR_TO_ANSI(&PreprocessedShader[Pos]), "TextureExternal %s", TextureExternalName) == 1)
+#else // PLATFORM_LINUX
+				if (swscanf(TCHAR_TO_WCHAR(&PreprocessedShader[Pos]), L"TextureExternal %ls", TextureExternalName) == 1)
 #endif
 				{
 					FString Name = TextureExternalName;
