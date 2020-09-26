@@ -143,6 +143,9 @@ public:
 #endif
 
 #if WITH_EDITORONLY_DATA
+	/** Build/rebuild a binding asset */
+	void Build();
+
 	FString BuildDerivedDataKeySuffix(USkeletalMesh* Source, USkeletalMesh* Target, UGroomAsset* Groom, uint32 NumInterpolationPoints);
 	void CacheDerivedDatas();
 	void InvalidateBinding();
