@@ -115,7 +115,6 @@ struct FVOscillator
 /**
  * Legacy camera shake which can do either oscillation or run camera anims.
  */
-
 UCLASS(Blueprintable)
 class ENGINE_API UMatineeCameraShake : public UCameraShakeBase
 {
@@ -225,6 +224,13 @@ public:
 	/** Sets actor for playing camera anims */
 	void SetTempCameraAnimActor(AActor* Actor) { TempCameraActorForCameraAnims = Actor; }
 
+private:
+
+	void DoStartShake();
+	void DoUpdateShake(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult);
+	void DoStopShake(bool bImmediately);
+	bool DoGetIsFinished() const;
+
 protected:
 
 	/** Current location sinusoidal offset. */
@@ -250,17 +256,33 @@ protected:
 
 private:
 
-	// UCameraShakeBase interface
-	virtual void GetShakeInfoImpl(FCameraShakeInfo& OutInfo) const override;
-	virtual void StartShakeImpl() override;
-	virtual void UpdateShakeImpl(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult) override;
-	virtual bool IsFinishedImpl() const override;
-	virtual void StopShakeImpl(bool bImmediately) override;
-
-private:
-
 	float CurrentBlendInTime;
 	float CurrentBlendOutTime;
 	bool bBlendingIn : 1;
 	bool bBlendingOut : 1;
+
+	friend class UMatineeCameraShakePattern;
 };
+
+/**
+ * Shake pattern for the UMatineeCameraShake class.
+ *
+ * It doesn't do anything because, for backwards compatibility reasons, all the data
+ * was left on the shake class itself... so this pattern delegates everything back
+ * to the owner shake.
+ */
+UCLASS()
+class ENGINE_API UMatineeCameraShakePattern : public UCameraShakePattern
+{
+	GENERATED_BODY()
+
+private:
+
+	// UCameraShakePattern interface
+	virtual void GetShakePatternInfoImpl(FCameraShakeInfo& OutInfo) const override;
+	virtual void StartShakePatternImpl(const FCameraShakeStartParams& Params) override;
+	virtual void UpdateShakePatternImpl(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult) override;
+	virtual bool IsFinishedImpl() const override;
+	virtual void StopShakePatternImpl(const FCameraShakeStopParams& Params) override;
+};
+
