@@ -28,7 +28,6 @@ namespace UnrealBuildTool.Rules
                     "Engine",
                     "ControlRig",
                     "RigLogicLib",
-                    "MessageLog",
                     "RigVM",
                     "Projects"
                 }
@@ -37,9 +36,10 @@ namespace UnrealBuildTool.Rules
             if (Target.Type == TargetType.Editor)
             {
                 PublicDependencyModuleNames.Add("UnrealEd");
-            }
+				PublicDependencyModuleNames.Add("MessageLog");
+			}
 
-            PrivateDependencyModuleNames.AddRange(
+			PrivateDependencyModuleNames.AddRange(
                 new string[]
                 {
                     "AnimationCore"
