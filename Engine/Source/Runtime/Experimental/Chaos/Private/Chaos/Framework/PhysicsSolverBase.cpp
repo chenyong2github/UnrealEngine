@@ -52,11 +52,12 @@ namespace Chaos
 		ENamedThreads::HighTaskPriority // if we don't have hi pri threads, then use normal priority threads at high task priority instead
 	);
 
-	FPhysicsSolverAdvanceTask::FPhysicsSolverAdvanceTask(FPhysicsSolverBase& InSolver, TArray<TFunction<void()>>&& InQueue, TArray<FPushPhysicsData*>&& InPushData, FReal InDt)
+	FPhysicsSolverAdvanceTask::FPhysicsSolverAdvanceTask(FPhysicsSolverBase& InSolver, TArray<TFunction<void()>>&& InQueue, TArray<FPushPhysicsData*>&& InPushData, FReal InDt, int32 InInputDataExternalTimestamp)
 		: Solver(InSolver)
 		, Queue(MoveTemp(InQueue))
 		, PushData(MoveTemp(InPushData))
 		, Dt(InDt)
+		, InputDataExternalTimestamp(InInputDataExternalTimestamp)
 	{
 	}
 
@@ -89,6 +90,7 @@ namespace Chaos
 		SCOPE_CYCLE_COUNTER(STAT_ChaosTick);
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Physics);
 
+		Solver.SetExternalTimestampConsumed_Internal(InputDataExternalTimestamp);
 		Solver.ProcessPushedData_Internal(PushData);
 
 		// Handle our solver commands
