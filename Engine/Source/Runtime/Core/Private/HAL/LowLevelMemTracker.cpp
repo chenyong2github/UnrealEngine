@@ -2340,7 +2340,7 @@ namespace LLMPrivate
 	int32 FLLMAllocator::GetBinIndex(size_t Size) const
 	{
 		int BinIndex = 0;
-		while (BinIndex < NumBins && Bins[BinIndex].BinSize < Size)
+		while (BinIndex < NumBins && static_cast<size_t>(Bins[BinIndex].BinSize) < Size)
 		{
 			++BinIndex;
 		}
