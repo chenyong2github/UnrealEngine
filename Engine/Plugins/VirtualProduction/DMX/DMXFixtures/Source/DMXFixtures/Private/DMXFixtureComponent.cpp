@@ -111,35 +111,39 @@ TArray<FLinearColor> UDMXFixtureComponent::GetTextureCenterColors(UTexture2D* Te
 {
 	TArray<FLinearColor> PixelColorArray;
 	PixelColorArray.SetNumZeroed(NumCells, true);
-
-	// use render thread to access pixel data
-	FRenderCommandFence Fence;
-	ENQUEUE_RENDER_COMMAND(GetPixelColors)
-	(
-		[Texture, &PixelColorArray, NumCells](FRHICommandListImmediate& RHICmdList)
-		{
-			FTexture2DResource* uTex2DRes = (FTexture2DResource*)Texture->Resource;
-			FIntVector Size = uTex2DRes->TextureRHI->GetSizeXYZ();
-			TArray<FColor> Data;
-			FIntRect Rect(0, 0, Size.X, Size.Y);
-			RHICmdList.ReadSurfaceData(uTex2DRes->TextureRHI, Rect, Data, FReadSurfaceDataFlags());
-
-			// sample pixel in the middle of each 'cell'
-			TArray<FLinearColor> Out;
-			int32 V = FMath::FloorToInt(Size.Y *0.5f) - 1;
-			for (int32 i = 0; i < NumCells; i++)
+	if (Texture)
+	{
+		FRenderCommandFence Fence;
+		ENQUEUE_RENDER_COMMAND(GetPixelColors)
+		(
+			[Texture, &PixelColorArray, NumCells](FRHICommandListImmediate& RHICmdList)
 			{
-				int32 U = (((i/float(NumCells)) + (0.5f/NumCells)) * Size.X) - 1;
-				Out.Add(Data[V * Size.X + U]);
+				FTexture2DResource* uTex2DRes = (FTexture2DResource*)Texture->Resource;
+				if (uTex2DRes)
+				{
+					FIntVector Size = uTex2DRes->TextureRHI->GetSizeXYZ();
+					TArray<FColor> Data;
+					FIntRect Rect(0, 0, Size.X, Size.Y);
+					RHICmdList.ReadSurfaceData(uTex2DRes->TextureRHI, Rect, Data, FReadSurfaceDataFlags());
+
+					// sample pixel in the middle of each 'cell'
+					TArray<FLinearColor> Out;
+					int32 V = FMath::FloorToInt(Size.Y * 0.5f) - 1;
+					for (int32 i = 0; i < NumCells; i++)
+					{
+						int32 U = (((i / float(NumCells)) + (0.5f / NumCells)) * Size.X) - 1;
+						Out.Add(Data[V * Size.X + U]);
+					}
+
+					PixelColorArray = std::move(Out);
+				}
 			}
+		);
 
-			PixelColorArray = std::move(Out);
-		}
-	);
-
-	// wait for render thread to finish
-	Fence.BeginFence();
-	Fence.Wait();
+		// wait for render thread to finish
+		Fence.BeginFence();
+		Fence.Wait();
+	}
 
 	return PixelColorArray;
 }
