@@ -91,6 +91,9 @@ namespace CharacterMovementCVars
 
 	static int32 AlwaysResetPhysics = 0;
 	static FAutoConsoleVariableRef CVarAlwaysResetPhysics(TEXT("p.AlwaysResetPhysics"), AlwaysResetPhysics, TEXT(""));
+
+	static int32 ApplyAsyncSleepState = 1;
+	static FAutoConsoleVariableRef CVarApplyAsyncSleepState(TEXT("p.ApplyAsyncSleepState"), ApplyAsyncSleepState, TEXT(""));
 }
 
 namespace PhysicsReplicationCVars
@@ -360,8 +363,8 @@ bool FPhysicsReplication::ApplyRigidBodyState(float DeltaSeconds, FBodyInstance*
 				AsyncDesiredState.LinearVelocity = NewState.LinVel;
 				AsyncDesiredState.AngularVelocity = NewState.AngVel;
 				AsyncDesiredState.Proxy = static_cast<FRigidParticlePhysicsProxy*>(BI->GetPhysicsActorHandle()->GetProxy());
+				AsyncDesiredState.bShouldSleep = bShouldSleep;
 
-				//should we pass in sleep state?
 				CurAsyncData->Buffer.Add(AsyncDesiredState);
 			}
 
@@ -613,8 +616,13 @@ void FPhysicsReplication::ApplyAsyncDesiredState(const float DeltaSeconds, const
 			Handle->SetV(NewLinVel);
 			Handle->SetW(FMath::DegreesToRadians(NewAngVel));
 
+			EObjectStateType ObjectStateType = EObjectStateType::Dynamic;
+			if ((CharacterMovementCVars::ApplyAsyncSleepState != 0) && State.bShouldSleep)
+			{
+				ObjectStateType = EObjectStateType::Sleeping;
+			}
 			auto* Solver = Proxy->GetSolver<FPBDRigidsSolver>();
-			Solver->GetEvolution()->SetParticleObjectState(Handle, EObjectStateType::Dynamic);
+			Solver->GetEvolution()->SetParticleObjectState(Handle, ObjectStateType);
 		}
 	}
 }
