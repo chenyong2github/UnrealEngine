@@ -2152,7 +2152,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::PerInstanceTickPostSimulate(void* Pe
 	FGrid2DCollectionRWInstanceData_GameThread* InstanceData = static_cast<FGrid2DCollectionRWInstanceData_GameThread*>(PerInstanceData);
 	bool bNeedsReset = false;
 
-	if (InstanceData->NeedsRealloc)
+	if (InstanceData->NeedsRealloc && InstanceData->NumCells.X > 0 && InstanceData->NumCells.Y > 0)
 	{
 		InstanceData->NeedsRealloc = false;
 		
