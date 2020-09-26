@@ -76,7 +76,11 @@ bool IsHairStrandsEnabled(EHairStrandsShaderType Type, EShaderPlatform Platform)
 	case EHairStrandsShaderType::Strands:	return GHairStrandsEnable > 0 && (Platform != EShaderPlatform::SP_NumPlatforms ? IsHairStrandsGeometrySupported(Platform) : true);
 	case EHairStrandsShaderType::Cards:		return GHairCardsEnable > 0;
 	case EHairStrandsShaderType::Meshes:	return GHairMeshesEnable > 0;
-	case EHairStrandsShaderType::Tool:		return PLATFORM_DESKTOP && PLATFORM_WINDOWS && (GHairCardsEnable > 0 || GHairMeshesEnable > 0 || GHairStrandsEnable > 0);
+#if PLATFORM_DESKTOP && PLATFORM_WINDOWS
+	case EHairStrandsShaderType::Tool:		return (GHairCardsEnable > 0 || GHairMeshesEnable > 0 || GHairStrandsEnable > 0);
+#else
+	case EHairStrandsShaderType::Tool:		return false;
+#endif
 	case EHairStrandsShaderType::All :		return GHairStrandsGlobalEnable > 0 && (GHairCardsEnable > 0 || GHairMeshesEnable > 0 || GHairStrandsEnable > 0);
 	}
 	return false;
