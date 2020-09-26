@@ -331,7 +331,7 @@ public:
 	FString CustomWriteFunction;
 
 	bool ShouldDoSpawnOnlyLogic() const;
-	bool IsRelevantToSpawnForStage(const FNiagaraParameterMapHistory& InHistory, const FNiagaraVariable& InAliasedVar) const;
+	bool IsRelevantToSpawnForStage(const FNiagaraParameterMapHistory& InHistory, const FNiagaraVariable& InAliasedVar, const FNiagaraVariable& InVar) const;
 	int32 CurrentCallID = 0;
 	bool bCallIDInitialized = false;
 };
