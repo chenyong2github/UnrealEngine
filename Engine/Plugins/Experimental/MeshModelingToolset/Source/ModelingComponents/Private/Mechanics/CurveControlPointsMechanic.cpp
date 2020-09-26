@@ -758,6 +758,14 @@ void UCurveControlPointsMechanic::ChangeSelection(int32 NewPointID, bool bAddToS
 	UpdateGizmoLocation();
 }
 
+void UCurveControlPointsMechanic::UpdateGizmoVisibility()
+{
+	if (PointTransformGizmo)
+	{
+		PointTransformGizmo->SetVisibility( (SelectedPointIDs.Num() > 0) && (!bInsertPointToggle) );
+	}
+}
+
 void UCurveControlPointsMechanic::UpdateGizmoLocation()
 {
 	if (!PointTransformGizmo)
@@ -765,11 +773,7 @@ void UCurveControlPointsMechanic::UpdateGizmoLocation()
 		return;
 	}
 
-	if (SelectedPointIDs.Num() == 0)
-	{
-		PointTransformGizmo->SetVisibility(false);
-	}
-	else
+	if (SelectedPointIDs.Num() > 0)
 	{
 		FVector3d NewGizmoLocation;
 		for (int32 PointID : SelectedPointIDs)
@@ -779,8 +783,9 @@ void UCurveControlPointsMechanic::UpdateGizmoLocation()
 		NewGizmoLocation /= SelectedPointIDs.Num();
 
 		PointTransformGizmo->ReinitializeGizmoTransform(FTransform((FQuat)DrawPlane.Rotation, (FVector)NewGizmoLocation));
-		PointTransformGizmo->SetVisibility(true);
 	}
+
+	UpdateGizmoVisibility();
 }
 
 void UCurveControlPointsMechanic::SetPlane(const FFrame3d& DrawPlaneIn)
@@ -1000,6 +1005,7 @@ void UCurveControlPointsMechanic::OnUpdateModifierState(int ModifierID, bool bIs
 	else if (ModifierID == CtrlModifierId)
 	{
 		bInsertPointToggle = bIsOn;
+		UpdateGizmoVisibility();
 	}
 }
 
