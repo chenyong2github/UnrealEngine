@@ -251,6 +251,39 @@ bool ShouldRenderRadianceCache(const FScene* Scene, const FViewInfo& View)
 	return Lumen::ShouldRenderLumenForView(Scene, View) && GLumenRadianceCache && View.Family->EngineShowFlags.LumenDiffuseIndirect;
 }
 
+class FClearProbeFreeList : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FClearProbeFreeList)
+	SHADER_USE_PARAMETER_STRUCT(FClearProbeFreeList, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<int>, RWProbeFreeListAllocator)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWProbeFreeList)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWProbeLastUsedFrame)
+		SHADER_PARAMETER(uint32, MaxNumProbes)
+	END_SHADER_PARAMETER_STRUCT()
+
+public:
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+
+	static uint32 GetGroupSize()
+	{
+		return 64;
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FClearProbeFreeList, "/Engine/Private/Lumen/LumenRadianceCache.usf", "ClearProbeFreeListCS", SF_Compute);
+
 class FClearProbeIndirectionCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FClearProbeIndirectionCS)
@@ -909,9 +942,22 @@ void FDeferredShadingSceneRenderer::RenderRadianceCache(
 
 		if (!bPersistentCache || !IsValidRef(RadianceCacheState.ProbeFreeListAllocator))
 		{
-			FComputeShaderUtils::ClearUAV(GraphBuilder, View.ShaderMap, ProbeFreeListAllocatorUAV, 0);
-			FComputeShaderUtils::ClearUAV(GraphBuilder, View.ShaderMap, ProbeFreeListUAV, 0);
-			FComputeShaderUtils::ClearUAV(GraphBuilder, View.ShaderMap, ProbeLastUsedFrameUAV, 0);
+			FClearProbeFreeList::FParameters* PassParameters = GraphBuilder.AllocParameters<FClearProbeFreeList::FParameters>();
+			PassParameters->RWProbeFreeListAllocator = ProbeFreeListAllocatorUAV;
+			PassParameters->RWProbeFreeList = ProbeFreeListUAV;
+			PassParameters->RWProbeLastUsedFrame = ProbeLastUsedFrameUAV;
+			PassParameters->MaxNumProbes = MaxNumProbes;
+
+			auto ComputeShader = View.ShaderMap->GetShader<FClearProbeFreeList>();
+
+			const FIntVector GroupSize = FComputeShaderUtils::GetGroupCount(MaxNumProbes, FClearProbeFreeList::GetGroupSize());
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("ClearProbeFreeList"),
+				ComputeShader,
+				PassParameters,
+				GroupSize);
 		}
 		
 		// Propagate probes from last frame to the new frame's indirection

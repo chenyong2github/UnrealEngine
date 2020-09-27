@@ -27,6 +27,31 @@ void ClearProbeIndirectionCS(
 	RWRadianceProbeIndirectionTexture[DispatchThreadId] = INVALID_PROBE_INDEX;
 }
 
+RWBuffer<int> RWProbeFreeListAllocator;
+RWBuffer<uint> RWProbeFreeList;
+RWBuffer<uint> RWProbeLastUsedFrame;
+uint MaxNumProbes;
+
+[numthreads(THREADGROUP_SIZE, 1, 1)]
+void ClearProbeFreeListCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	uint ThreadIndex = DispatchThreadId.x;
+
+	if (ThreadIndex == 0)
+	{
+		RWProbeFreeListAllocator[0] = 0;
+	}
+
+	if (ThreadIndex < MaxNumProbes)
+	{
+		RWProbeFreeList[ThreadIndex] = 0;
+		RWProbeLastUsedFrame[ThreadIndex] = 0;
+	}
+}
+
 uint2 DownsampledViewSize;
 float DownsampleFactor; 
 uint VisualizeLumenScene;
@@ -150,9 +175,6 @@ void MarkRadianceProbesUsedByScreenProbesCS(
 	}
 }
 
-RWBuffer<int> RWProbeFreeListAllocator;
-RWBuffer<uint> RWProbeFreeList;
-RWBuffer<uint> RWProbeLastUsedFrame;
 Texture3D<uint> LastFrameRadianceProbeIndirectionTexture;
 float LastFrameRadianceProbeCoordToWorldPositionScale[RADIANCE_PROBE_MAX_CLIPMAPS];
 float3 LastFrameRadianceProbeCoordToWorldPositionBias[RADIANCE_PROBE_MAX_CLIPMAPS];
@@ -214,7 +236,6 @@ RWBuffer<float4> RWProbeTraceData;
 Buffer<uint> ProbeFreeList;
 uint ProbesUpdateEveryNFrames;
 uint NumProbeTracesBudget;
-uint MaxNumProbes;
 
 Buffer<uint> NewProbeTraceAllocator;
 
