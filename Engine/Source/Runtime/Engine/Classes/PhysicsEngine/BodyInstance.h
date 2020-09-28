@@ -738,9 +738,6 @@ public:
 	/** Clear accumulated forces on this body */
 	void ClearForces(bool bAllowSubstepping = true);
 
-	/** If set to true, this body will treat bodies that do not have the flag set as having infinite mass */
-	void SetOneWayInteraction(bool InOneWayInteraction = true);
-
 	/** Add a torque to this body */
 	void AddTorqueInRadians(const FVector& Torque, bool bAllowSubstepping = true, bool bAccelChange = false);
 	/** Clear accumulated torques on this body */
