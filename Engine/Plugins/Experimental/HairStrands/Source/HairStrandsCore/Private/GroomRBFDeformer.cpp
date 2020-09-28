@@ -534,13 +534,17 @@ void FGroomRBFDeformer::GetRBFDeformedGroomAsset(const UGroomAsset* InGroomAsset
 			}
 
 			Mesh->ConditionalPostLoad();
-			DeformStaticMeshPositions(Mesh, MeshVertexPositionsBuffer_Target, BindingAsset->HairGroupDatas[Desc.GroupIndex].RenRootData.MeshProjectionLODs[MeshLODIndex]);
-
-			// Update the procedural mesh key of the deformed meshed
+			if (Desc.GroupIndex >= 0)
 			{
-				TArray<FHairGroupsCardsSourceDescription> Descriptions;
-				Descriptions.Add(Desc);
-				Desc.ProceduralMeshKey = GroomDerivedDataCacheUtils::BuildCardsDerivedDataKeySuffix(Desc.GroupIndex, OutGroomAsset->HairGroupsLOD[Desc.GroupIndex].LODs, Descriptions);
+				DeformStaticMeshPositions(Mesh, MeshVertexPositionsBuffer_Target, BindingAsset->HairGroupDatas[Desc.GroupIndex].RenRootData.MeshProjectionLODs[MeshLODIndex]);
+
+				// Update the procedural mesh key of the deformed meshed
+
+				{
+					TArray<FHairGroupsCardsSourceDescription> Descriptions;
+					Descriptions.Add(Desc);
+					Desc.ProceduralMeshKey = GroomDerivedDataCacheUtils::BuildCardsDerivedDataKeySuffix(Desc.GroupIndex, OutGroomAsset->HairGroupsLOD[Desc.GroupIndex].LODs, Descriptions);
+				}
 			}
 		} 
 
