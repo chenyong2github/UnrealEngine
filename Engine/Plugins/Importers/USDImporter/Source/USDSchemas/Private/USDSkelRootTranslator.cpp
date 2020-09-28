@@ -299,32 +299,6 @@ namespace UsdSkelRootTranslatorImpl
 		PoseableMeshComponent.MorphTargetWeights[ WeightIndex ] = Weight;
 	}
 
-	// Adapted from UsdSkel_CacheImpl::ReadScope::_FindOrCreateSkinningQuery because we need to manually create these on UsdGeomMeshes we already have
-	pxr::UsdSkelSkinningQuery CreateSkinningQuery( const pxr::UsdGeomMesh& SkinnedMesh, const pxr::UsdSkelSkeletonQuery& SkeletonQuery )
-	{
-		pxr::UsdPrim SkinnedPrim = SkinnedMesh.GetPrim();
-		if ( !SkinnedPrim )
-		{
-			return {};
-		}
-
-		const pxr::UsdSkelAnimQuery& AnimQuery = SkeletonQuery.GetAnimQuery();
-
-		pxr::UsdSkelBindingAPI SkelBindingAPI{ SkinnedPrim };
-
-		return pxr::UsdSkelSkinningQuery(
-			SkinnedPrim,
-			SkeletonQuery ? SkeletonQuery.GetJointOrder() : pxr::VtTokenArray(),
-			AnimQuery ? AnimQuery.GetBlendShapeOrder() : pxr::VtTokenArray(),
-			SkelBindingAPI.GetJointIndicesAttr(),
-			SkelBindingAPI.GetJointWeightsAttr(),
-			SkelBindingAPI.GetGeomBindTransformAttr(),
-			SkelBindingAPI.GetJointsAttr(),
-			SkelBindingAPI.GetBlendShapesAttr(),
-			SkelBindingAPI.GetBlendShapeTargetsRel()
-		);
-	}
-
 	bool LoadAllSkeletalData(
 		pxr::UsdSkelCache& InSkeletonCache,
 		const pxr::UsdSkelRoot& InSkeletonRoot,
@@ -404,7 +378,7 @@ namespace UsdSkelRootTranslatorImpl
 		[ &LODIndexToSkeletalMeshImportDataMap, &LODIndexToMaterialInfoMap, &SkelQuery, InTime, &InMaterialToPrimvarsUVSetNames, &InOutUsedMorphTargetNames, OutBlendShapes, &StageInfo ]
 		( const pxr::UsdGeomMesh& LODMesh, int32 LODIndex )
 		{
-			pxr::UsdSkelSkinningQuery SkinningQuery = CreateSkinningQuery( LODMesh, SkelQuery );
+			pxr::UsdSkelSkinningQuery SkinningQuery = UsdUtils::CreateSkinningQuery( LODMesh, SkelQuery );
 			if ( !SkinningQuery )
 			{
 				return true; // Continue trying other LODs
@@ -879,7 +853,7 @@ namespace UsdSkelRootTranslatorImpl
 							AnimSequence->SetSkeleton(SkeletalMesh->Skeleton);
 
 							TUsdStore<pxr::VtArray<pxr::UsdSkelSkinningQuery>> SkinningTargets = Binding.GetSkinningTargets();
-							UsdToUnreal::ConvertSkelAnim( SkelQuery, &SkinningTargets.Get(), &NewBlendShapes, AnimSequence );
+							UsdToUnreal::ConvertSkelAnim( SkelQuery, &SkinningTargets.Get(), &NewBlendShapes, Context->bAllowInterpretingLODs, AnimSequence );
 
 							if ( AnimSequence->GetRawAnimationData().Num() != 0 || AnimSequence->RawCurveData.FloatCurves.Num() != 0 )
 							{

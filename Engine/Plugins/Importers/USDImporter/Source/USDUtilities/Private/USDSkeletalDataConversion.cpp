@@ -371,6 +371,8 @@ namespace SkelDataConversionImpl
 	 */
 	void SetFloatCurveData( UAnimSequence* Sequence, FName CurveName, const FRichCurve& SourceData )
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE( SkelDataConversionImpl::SetFloatCurveData );
+
 		if ( !Sequence )
 		{
 			return;
@@ -417,6 +419,15 @@ namespace SkelDataConversionImpl
 		}
 		else
 		{
+			if ( !( Curve->FloatCurve == SourceData ) )
+			{
+				FUsdLogManager::LogMessage(
+						EMessageSeverity::Warning,
+						FText::Format( LOCTEXT( "OverwritingMorphTargetCurves", "Overwriting animation curve for morph target '{0}' with different data! If the Skeletal Mesh has multiple LODs, make sure each LOD mesh that wants to animate a certain blend shape does so with the same blend shape curve." ),
+						FText::FromName( CurveName ) )
+				);
+			}
+
 			Curve->FloatCurve.Reset();
 			Curve->SetCurveTypeFlags( Curve->GetCurveTypeFlags() | AACF_DefaultCurve );
 		}
@@ -426,6 +437,7 @@ namespace SkelDataConversionImpl
 		if ( Curve )
 		{
 			Curve->FloatCurve = SourceData;
+			Curve->FloatCurve.RemoveRedundantKeys( KINDA_SMALL_NUMBER );
 		}
 		else
 		{
@@ -441,6 +453,8 @@ namespace SkelDataConversionImpl
 	 */
 	TArray<FRichCurve> ResolveWeightsForBlendShapeCurve( const UsdUtils::FUsdBlendShape& PrimaryBlendShape, const FRichCurve& ChannelWeightCurve )
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE( SkelDataConversionImpl::ConvertSkinnedMesh );
+
 		int32 NumInbetweens = PrimaryBlendShape.Inbetweens.Num();
 		if ( NumInbetweens == 0 )
 		{
@@ -1563,7 +1577,7 @@ bool UsdToUnreal::ConvertSkinnedMesh(const pxr::UsdSkelSkinningQuery& SkinningQu
 
 // Using UsdSkelSkeletonQuery instead of UsdSkelAnimQuery as it automatically does the joint remapping when we ask it to compute joint transforms.
 // It also initializes the joint transforms with the rest pose, if available, in case the animation doesn't provide data for all joints.
-bool UsdToUnreal::ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeletonQuery, const pxr::VtArray<pxr::UsdSkelSkinningQuery>* InSkinningTargets, const UsdUtils::FBlendShapeMap* InBlendShapes, UAnimSequence* OutSkeletalAnimationAsset )
+bool UsdToUnreal::ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeletonQuery, const pxr::VtArray<pxr::UsdSkelSkinningQuery>* InSkinningTargets, const UsdUtils::FBlendShapeMap* InBlendShapes, bool bInInterpretLODs, UAnimSequence* OutSkeletalAnimationAsset )
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE( UsdToUnreal::ConvertSkelAnim );
 
@@ -1712,6 +1726,8 @@ bool UsdToUnreal::ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeleto
 		if ( NumSkelAnimChannels > 0 )
 		{
 			// Create a float curve for each blend shape channel. These will be copied for each blend shape that uses it
+			// Don't remove redundant keys because if there are blendshapes with inbetweens that use this channel,
+			// we want to make sure that we don't miss the frames where the curve would have reached the exact weight of a blend shape
 			ERichCurveInterpMode CurveInterpMode = Stage.Get()->GetInterpolationType() == pxr::UsdInterpolationTypeHeld ? ERichCurveInterpMode::RCIM_Constant : ERichCurveInterpMode::RCIM_Linear;
 			TArray<FRichCurve> SkelAnimChannelCurves;
 			SkelAnimChannelCurves.SetNum( NumSkelAnimChannels );
@@ -1731,29 +1747,35 @@ bool UsdToUnreal::ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeleto
 					Curve.SetKeyInterpMode( NewKeyHandle, CurveInterpMode );
 				}
 			}
-			for ( FRichCurve& ChannelCurve : SkelAnimChannelCurves )
+
+			TSet<FString> ProcessedLODParentPaths;
+
+			// Since we may need to switch variants to parse LODs, we could invalidate references to SkinningQuery objects, so we need
+			// to keep track of these by path and construct one whenever we need them
+			TArray<pxr::SdfPath> PathsToSkinnedPrims;
+			for ( const pxr::UsdSkelSkinningQuery SkinningQuery : *InSkinningTargets )
 			{
-				ChannelCurve.RemoveRedundantKeys( SMALL_NUMBER );
+				// In USD, the skinning target need not be a mesh, but for Unreal we are only interested in skinning meshes
+				if ( pxr::UsdGeomMesh SkinningMesh = pxr::UsdGeomMesh( SkinningQuery.GetPrim() ) )
+				{
+					PathsToSkinnedPrims.Add( SkinningMesh.GetPrim().GetPath() );
+				}
 			}
 
-			// Use the skel anim channel curves to create curves for each morph target
-			for ( const pxr::UsdSkelSkinningQuery& SkinningQuery : *InSkinningTargets )
+			TFunction<bool( const pxr::UsdGeomMesh&, int32 )> CreateCurvesForLOD =
+			[ &InUsdSkeletonQuery, InBlendShapes, NumSkelAnimChannels, &SkelAnimChannelOrder, &SkelAnimChannelCurves, OutSkeletalAnimationAsset ]
+			( const pxr::UsdGeomMesh& LODMesh, int32 LODIndex )
 			{
+				pxr::UsdSkelSkinningQuery SkinningQuery = UsdUtils::CreateSkinningQuery( LODMesh, InUsdSkeletonQuery );
 				if ( !SkinningQuery )
 				{
-					continue;
-				}
-
-				// Only care about mesh skinning targets
-				if ( !pxr::UsdGeomMesh( SkinningQuery.GetPrim() ) )
-				{
-					continue;
+					return true; // Continue trying other LODs
 				}
 
 				pxr::VtTokenArray MeshChannelOrder;
 				if ( !SkinningQuery.GetBlendShapeOrder( &MeshChannelOrder ) )
 				{
-					continue;
+					return true;
 				}
 
 				pxr::SdfPathVector BlendShapeTargets;
@@ -1764,7 +1786,7 @@ bool UsdToUnreal::ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeleto
 				int32 NumMeshChannels = static_cast< int32 >( MeshChannelOrder.size() );
 				if ( NumMeshChannels != static_cast< int32 >( BlendShapeTargets.size() ) )
 				{
-					continue;
+					return true;
 				}
 
 				pxr::SdfPath MeshPath = SkinningQuery.GetPrim().GetPath();
@@ -1789,9 +1811,11 @@ bool UsdToUnreal::ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeleto
 
 						if ( !PrimaryBlendShapeCurve )
 						{
-							FUsdLogManager::LogMessage( EMessageSeverity::Warning,
-														FText::Format( LOCTEXT("NoChannelForPrimary", "Could not find a float channel to apply to primary blend shape '{0}'"),
-														FText::FromString( PrimaryBlendShapePath ) ) );
+							FUsdLogManager::LogMessage(
+								EMessageSeverity::Warning,
+								FText::Format( LOCTEXT( "NoChannelForPrimary", "Could not find a float channel to apply to primary blend shape '{0}'" ),
+								FText::FromString( PrimaryBlendShapePath ) )
+							);
 							continue;
 						}
 
@@ -1806,9 +1830,11 @@ bool UsdToUnreal::ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeleto
 							TArray<FRichCurve> RemappedBlendShapeCurves = SkelDataConversionImpl::ResolveWeightsForBlendShapeCurve( *FoundPrimaryBlendShape, *PrimaryBlendShapeCurve );
 							if ( RemappedBlendShapeCurves.Num() != FoundPrimaryBlendShape->Inbetweens.Num() + 1 )
 							{
-								FUsdLogManager::LogMessage( EMessageSeverity::Warning,
-															FText::Format( LOCTEXT("FailedToRemapInbetweens", "Failed to remap inbetween float curves for blend shape '{0}'"),
-															FText::FromString( PrimaryBlendShapePath ) ) );
+								FUsdLogManager::LogMessage(
+									EMessageSeverity::Warning,
+									FText::Format( LOCTEXT( "FailedToRemapInbetweens", "Failed to remap inbetween float curves for blend shape '{0}'" ),
+									FText::FromString( PrimaryBlendShapePath ) )
+								);
 								continue;
 							}
 
@@ -1823,6 +1849,44 @@ bool UsdToUnreal::ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeleto
 							}
 						}
 					}
+				}
+
+				return true;
+			};
+
+			for ( const pxr::SdfPath& SkinnedPrimPath : PathsToSkinnedPrims )
+			{
+				pxr::UsdPrim SkinnedPrim = Stage.Get()->GetPrimAtPath( SkinnedPrimPath );
+				if ( !SkinnedPrim )
+				{
+					continue;
+				}
+
+				pxr::UsdGeomMesh SkinnedMesh{ SkinnedPrim };
+				if ( !SkinnedMesh )
+				{
+					continue;
+				}
+
+				pxr::UsdPrim ParentPrim = SkinnedMesh.GetPrim().GetParent();
+				FString ParentPrimPath = UsdToUnreal::ConvertPath( ParentPrim.GetPath() );
+
+				bool bInterpretedLODs = false;
+				if ( bInInterpretLODs && ParentPrim && !ProcessedLODParentPaths.Contains( ParentPrimPath ) )
+				{
+					// At the moment we only consider a single mesh per variant, so if multiple meshes tell us to process the same parent prim, we skip.
+					// This check would also prevent us from getting in here in case we just have many meshes children of a same prim, outside
+					// of a variant. In this case they don't fit the "one mesh per variant" pattern anyway, and we want to fallback to ignoring LODs
+					ProcessedLODParentPaths.Add( ParentPrimPath );
+
+					// WARNING: After this is called, references to objects that were inside any of the LOD Meshes will be invalidated!
+					bInterpretedLODs = UsdUtils::IterateLODMeshes( ParentPrim, CreateCurvesForLOD );
+				}
+
+				if ( !bInterpretedLODs )
+				{
+					// Refresh reference to this prim as it could have been inside a variant that was temporarily switched by IterateLODMeshes
+					CreateCurvesForLOD( SkinnedMesh, 0 );
 				}
 			}
 		}
@@ -2092,7 +2156,11 @@ void UsdUtils::ResolveWeightsForBlendShape( const UsdUtils::FUsdBlendShape& InBl
 		return;
 	}
 
-	OutInbetweenWeights.SetNumZeroed( NumInbetweens );
+	OutInbetweenWeights.SetNumUninitialized( NumInbetweens );
+	for ( float& OutInbetweenWeight : OutInbetweenWeights )
+	{
+		OutInbetweenWeight = 0.0f;
+	}
 
 	if ( FMath::IsNearlyEqual( InWeight, 0.0f ) )
 	{
@@ -2149,6 +2217,33 @@ void UsdUtils::ResolveWeightsForBlendShape( const UsdUtils::FUsdBlendShape& InBl
 }
 
 #if USE_USD_SDK
+
+// Adapted from UsdSkel_CacheImpl::ReadScope::_FindOrCreateSkinningQuery because we need to manually create these on UsdGeomMeshes we already have
+pxr::UsdSkelSkinningQuery UsdUtils::CreateSkinningQuery( const pxr::UsdGeomMesh& SkinnedMesh, const pxr::UsdSkelSkeletonQuery& SkeletonQuery )
+{
+	pxr::UsdPrim SkinnedPrim = SkinnedMesh.GetPrim();
+	if ( !SkinnedPrim )
+	{
+		return {};
+	}
+
+	const pxr::UsdSkelAnimQuery& AnimQuery = SkeletonQuery.GetAnimQuery();
+
+	pxr::UsdSkelBindingAPI SkelBindingAPI{ SkinnedPrim };
+
+	return pxr::UsdSkelSkinningQuery(
+		SkinnedPrim,
+		SkeletonQuery ? SkeletonQuery.GetJointOrder() : pxr::VtTokenArray(),
+		AnimQuery ? AnimQuery.GetBlendShapeOrder() : pxr::VtTokenArray(),
+		SkelBindingAPI.GetJointIndicesAttr(),
+		SkelBindingAPI.GetJointWeightsAttr(),
+		SkelBindingAPI.GetGeomBindTransformAttr(),
+		SkelBindingAPI.GetJointsAttr(),
+		SkelBindingAPI.GetBlendShapesAttr(),
+		SkelBindingAPI.GetBlendShapeTargetsRel()
+	);
+}
+
 bool UnrealToUsd::ConvertSkeleton( const USkeleton* Skeleton, pxr::UsdSkelSkeleton& UsdSkeleton )
 {
 	if ( !Skeleton )

@@ -63,18 +63,7 @@ namespace UsdStageImporterImpl
 			}
 		}
 
-		UE::FUsdStage Stage;
-		if (ImportContext.bReadFromStageCache)
-		{
-			// Attempt to open the stage from the static stage cache before reading file
-			Stage = UnrealUSDWrapper::OpenStage(*FilePath, EUsdInitialLoadSet::LoadAll);
-		}
-		else
-		{
-			// Always re-read file, ignoring stage cache
-			const bool bReadFromCache = false;
-			Stage = UnrealUSDWrapper::OpenStage(*FilePath, EUsdInitialLoadSet::LoadAll, bReadFromCache);
-		}
+		UE::FUsdStage Stage = UnrealUSDWrapper::OpenStage( *FilePath, EUsdInitialLoadSet::LoadAll, ImportContext.bReadFromStageCache );
 
 		TArray<FString> ErrorStrings = UsdUtils::GetErrorsAndStopMonitoring();
 		FString Error = FString::Join(ErrorStrings, TEXT("\n"));
@@ -669,6 +658,16 @@ namespace UsdStageImporterImpl
 			ObjectsToRemap.Add(Asset, MovedAsset);
 		}
 
+		// Soft object ptrs won't update, so we need to do it manually as we use PreviewMesh when fetching AssetImportData
+		// Note that we need to do this even if we never replaced/overwrote assets, as we will at least move from transient to the published folder
+		if ( USkeletalMesh* MovedMeshAsset = Cast<USkeletalMesh>( MovedAsset ) )
+		{
+			if ( USkeleton* Skeleton = MovedMeshAsset->Skeleton )
+			{
+				Skeleton->SetPreviewMesh( MovedMeshAsset );
+			}
+		}
+
 		// Important as some assets (e.g. material instances) are created with no flags
 		MovedAsset->SetFlags(ImportContext.ImportObjectFlags);
 		MovedAsset->ClearFlags(EObjectFlags::RF_Transient | EObjectFlags::RF_DuplicateTransient | EObjectFlags::RF_NonPIEDuplicateTransient);
@@ -1004,19 +1003,36 @@ namespace UsdStageImporterImpl
 		}
 	}
 
-	void CopySkeletonAssignment(FUsdStageImportContext& ImportContext, UObject* ExistingAsset, UObject* NewAsset)
+	void CopySkeletonAssignment( FUsdStageImportContext& ImportContext, UObject* ExistingAsset, UObject* NewAsset )
 	{
-		USkeletalMesh* ExistingSkeletalMesh = Cast<USkeletalMesh>(ExistingAsset);
-		USkeletalMesh* NewSkeletalMesh = Cast<USkeletalMesh>(NewAsset);
-
-		if (!ExistingSkeletalMesh || !NewSkeletalMesh)
+		USkeletalMesh* ExistingSkeletalMesh = Cast<USkeletalMesh>( ExistingAsset );
+		USkeletalMesh* NewSkeletalMesh = Cast<USkeletalMesh>( NewAsset );
+		if ( ExistingSkeletalMesh && NewSkeletalMesh )
 		{
-			return;
+			// Never assign a transient skeleton
+			if ( ExistingSkeletalMesh->Skeleton && ExistingSkeletalMesh->Skeleton->GetOutermost() == GetTransientPackage() )
+			{
+				return;
+			}
+
+			// Assign even if ExistingSkeletalMesh has nullptr skeleton because we must be able to cleanup the
+			// abandoned Skeleton in the transient package
+			NewSkeletalMesh->Skeleton = ExistingSkeletalMesh->Skeleton;
 		}
 
-		// Assign even if ExistingSkeletalMesh has nullptr skeleton because we must be able to cleanup the
-		// abandoned Skeleton in the transient package
-		NewSkeletalMesh->Skeleton = ExistingSkeletalMesh->Skeleton;
+		UAnimSequence* ExistingAnimSequence = Cast<UAnimSequence>( ExistingAsset );
+		UAnimSequence* NewAnimSequence = Cast<UAnimSequence>( NewAsset );
+		if ( ExistingAnimSequence && NewAnimSequence )
+		{
+			// Never assign a transient skeleton
+			USkeleton* ExistingSkeleton = ExistingAnimSequence->GetSkeleton();
+			if ( ExistingSkeleton && ExistingSkeleton->GetOutermost() == GetTransientPackage() )
+			{
+				return;
+			}
+
+			NewAnimSequence->SetSkeleton( ExistingSkeleton );
+		}
 	}
 
 	// Adapted from FDatasmithImporterImpl::FixReferencesForObject
@@ -1219,19 +1235,36 @@ bool UUsdStageImporter::ReimportSingleAsset(FUsdStageImportContext& ImportContex
 	}
 	TranslationContext->CompleteTasks();
 
-	if (UObject** FoundImportedObject = ImportContext.PrimPathsToAssets.Find(OriginalImportData->PrimPath))
+	// Look for our reimported asset in the assets cache as we may have multiple assets with the same prim path
+	UObject* ReimportedObject = nullptr;
+	for ( TPair<FString, UObject*> AssetPair : ImportContext.AssetsCache )
+	{
+		UObject* Asset = AssetPair.Value;
+		UUsdAssetImportData* NewAssetImportData = UsdUtils::GetAssetImportData( Asset );
+
+		if ( Asset &&
+			 NewAssetImportData &&
+			 Asset->GetClass() == OriginalAsset->GetClass() &&
+			 NewAssetImportData->PrimPath.Equals( OriginalImportData->PrimPath, ESearchCase::CaseSensitive ) )
+		{
+			ReimportedObject = Asset;
+			break;
+		}
+	}
+
+	if ( ReimportedObject )
 	{
 		UsdStageImporterImpl::UpdateAssetImportData( ImportContext.AssetsCache, ImportContext.FilePath, ImportContext.ImportOptions);
 
 		// Assign things from the original assets before we publish the reimported asset, overwriting it
-		UsdStageImporterImpl::CopyOriginalMaterialAssignment(ImportContext, OriginalAsset, *FoundImportedObject);
-		UsdStageImporterImpl::CopySkeletonAssignment(ImportContext, OriginalAsset, *FoundImportedObject);
+		UsdStageImporterImpl::CopyOriginalMaterialAssignment(ImportContext, OriginalAsset, ReimportedObject );
+		UsdStageImporterImpl::CopySkeletonAssignment(ImportContext, OriginalAsset, ReimportedObject );
 
 		// Just publish the one asset we wanted to reimport. Note that we may have other assets here too, but we'll ignore those e.g. a displayColor material or a skeleton
-		OutReimportedAsset = UsdStageImporterImpl::PublishAsset(ImportContext, *FoundImportedObject, OriginalAsset->GetOutermost()->GetPathName(), ObjectsToRemap);
+		OutReimportedAsset = UsdStageImporterImpl::PublishAsset(ImportContext, ReimportedObject, OriginalAsset->GetOutermost()->GetPathName(), ObjectsToRemap);
 		UsdStageImporterImpl::RemapReferences( ImportContext, ObjectsToRemap );
 
-		bSuccess = OutReimportedAsset != nullptr && TranslationContext->CurrentlyUsedAssets.Contains( *FoundImportedObject );
+		bSuccess = OutReimportedAsset != nullptr && TranslationContext->CurrentlyUsedAssets.Contains( ReimportedObject );
 	}
 
 	UsdStageImporterImpl::Cleanup( ImportContext.SceneActor, nullptr, ImportContext.ImportOptions->ExistingActorPolicy );
