@@ -328,6 +328,9 @@ public:
 			NewSegment->VirtualTextureLodBias = CopyFromSegment->VirtualTextureLodBias;
 			NewSegment->VirtualTextureCullMips = CopyFromSegment->VirtualTextureCullMips;
 			NewSegment->VirtualTextureRenderPassType = CopyFromSegment->VirtualTextureRenderPassType;
+			NewSegment->bRenderCustomDepth = CopyFromSegment->bRenderCustomDepth;
+			NewSegment->CustomDepthStencilWriteMask = CopyFromSegment->CustomDepthStencilWriteMask;
+			NewSegment->CustomDepthStencilValue = CopyFromSegment->CustomDepthStencilValue;
 		}
 
 		Start->ConnectedSegments.Add(FLandscapeSplineConnection(NewSegment, 0));
@@ -708,6 +711,9 @@ public:
 		NewSegment->VirtualTextureLodBias = Segment->VirtualTextureLodBias;
 		NewSegment->VirtualTextureCullMips = Segment->VirtualTextureCullMips;
 		NewSegment->VirtualTextureRenderPassType = Segment->VirtualTextureRenderPassType;
+		NewSegment->bRenderCustomDepth = Segment->bRenderCustomDepth;
+		NewSegment->CustomDepthStencilWriteMask = Segment->CustomDepthStencilWriteMask;
+		NewSegment->CustomDepthStencilValue = Segment->CustomDepthStencilValue;
 
 		Segment->Connections[0].TangentLen *= t;
 		Segment->Connections[1].ControlPoint->ConnectedSegments.Remove(FLandscapeSplineConnection(Segment, 1));
