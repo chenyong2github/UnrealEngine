@@ -320,7 +320,7 @@ private:
 	EResimType MResimType;
 
 	bool MGravityEnabled;
-	bool MOneWayInteraction;
+	bool MOneWayInteraction = false;
 };
 
 inline FChaosArchive& operator<<(FChaosArchive& Ar,FParticleDynamicMisc& Data)
