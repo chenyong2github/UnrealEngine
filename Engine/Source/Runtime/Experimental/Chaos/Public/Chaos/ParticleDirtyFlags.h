@@ -250,7 +250,6 @@ public:
 		Ar << MAngularEtherDrag;
 		Ar << MObjectState;
 		Ar << MGravityEnabled;
-		Ar << MOneWayInteraction;
 	}
 
 	template <typename TOther>
@@ -262,7 +261,6 @@ public:
 		SetGravityEnabled(Other.GravityEnabled());
 		SetCollisionGroup(Other.CollisionGroup());
 		SetResimType(Other.ResimType());
-		SetOneWayInteraction(Other.OneWayInteraction());
 	}
 
 	template <typename TOther>
@@ -273,8 +271,7 @@ public:
 			&& AngularEtherDrag() == Other.AngularEtherDrag()
 			&& GravityEnabled() == Other.GravityEnabled()
 			&& CollisionGroup() == Other.CollisionGroup()
-			&& ResimType() == Other.ResimType()
-			&& OneWayInteraction() == Other.OneWayInteraction();
+			&& ResimType() == Other.ResimType();
 	}
 
 	bool operator==(const FParticleDynamicMisc& Other) const
@@ -300,9 +297,6 @@ public:
 	EResimType ResimType() const { return MResimType; }
 	void SetResimType(EResimType Type) { MResimType = Type; }
 
-	bool OneWayInteraction() const { return MOneWayInteraction; }
-	void SetOneWayInteraction(bool InOneWayInteraction) { MOneWayInteraction = InOneWayInteraction; }
-
 private:
 	FReal MLinearEtherDrag;
 	FReal MAngularEtherDrag;
@@ -312,7 +306,6 @@ private:
 	EResimType MResimType;
 
 	bool MGravityEnabled;
-	bool MOneWayInteraction;
 };
 
 inline FChaosArchive& operator<<(FChaosArchive& Ar,FParticleDynamicMisc& Data)
