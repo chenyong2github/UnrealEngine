@@ -191,6 +191,9 @@ void FUsdPrimViewModel::ToggleVisibility()
 
 	if ( pxr::UsdGeomImageable UsdGeomImageable = pxr::UsdGeomImageable( UsdPrim ) )
 	{
+		// MakeInvisible/MakeVisible internally seem to trigger multiple notices, so group them up to prevent some unnecessary updates
+		pxr::SdfChangeBlock SdfChangeBlock;
+
 		if ( RowData->IsVisible() )
 		{
 			UsdGeomImageable.MakeInvisible();
