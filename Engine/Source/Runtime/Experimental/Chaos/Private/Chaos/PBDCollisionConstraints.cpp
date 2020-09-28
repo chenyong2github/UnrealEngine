@@ -524,7 +524,7 @@ namespace Chaos
 
 		for (FRigidBodyPointContactConstraint& Contact : Constraints.SinglePointConstraints)
 		{
-			Collisions::Update(Contact, MCullDistance);
+			Collisions::Update(Contact, MCullDistance, MShapePadding);
 			if (Contact.GetPhi() < MCullDistance)
 			{
 				Contact.Timestamp = LifespanCounter;
@@ -548,7 +548,7 @@ namespace Chaos
 
 		for (FRigidBodyMultiPointContactConstraint& Contact : Constraints.MultiPointConstraints)
 		{
-			Collisions::UpdateManifold(Contact, MCullDistance);
+			Collisions::UpdateManifold(Contact, MCullDistance, MShapePadding);
 			if (Contact.GetPhi() < MCullDistance)
 			{
 				Contact.Timestamp = LifespanCounter;
