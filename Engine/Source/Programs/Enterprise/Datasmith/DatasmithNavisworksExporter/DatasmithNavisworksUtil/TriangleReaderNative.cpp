@@ -16,19 +16,20 @@
 #define lcodieD(x) STRINGIFY_(x)
 #import lcodieD(Navisworks_API/lcodieD.dll) rename_namespace("NavisworksIntegratedAPI") // renaming to omit API version(e.g. NavisworksIntegratedAPI17) 
 
+using namespace DatasmithNavisworksUtilImpl;
 
-bool DoesTriangleHaveInvalidNormals(DatasmithNavisworksUtilImpl::FGeometry& Geom, uint32_t TriangleIndex, double NormalThreshold)
+bool DoesTriangleHaveInvalidNormals(FGeometry& Geom, uint32_t TriangleIndex, double NormalThreshold)
 {
 	const uint32_t TriangleBaseVertexIndex = TriangleIndex * 3;
+	FGeometry::NormalType TypedThreshold = static_cast<FGeometry::NormalType>(NormalThreshold);
+	FGeometry::NormalType* NormalPtr = Geom.Normals.data() + TriangleBaseVertexIndex * 3;
 
 	// Find out if any triangle normal is invalid
-	for (uint32_t VertexIndex = TriangleBaseVertexIndex; VertexIndex < TriangleBaseVertexIndex + 3; ++VertexIndex)
+	for (uint32_t I = 0; I < 3; ++I, NormalPtr += 3)
 	{
-		double X = Geom.Normals[VertexIndex * 3 + 0];
-		double Y = Geom.Normals[VertexIndex * 3 + 1];
-		double Z = Geom.Normals[VertexIndex * 3 + 2];
-
-		if ((abs(X) <= NormalThreshold) && (abs(Y) <= NormalThreshold) && (abs(Z) <= NormalThreshold))
+		if ((abs(NormalPtr[0]) <= TypedThreshold)
+			&& (abs(NormalPtr[1]) <= TypedThreshold)
+			&& (abs(NormalPtr[2]) <= TypedThreshold))
 		{
 			return true;
 		}
@@ -103,19 +104,20 @@ public:
 		return Vector3d{ Result[Result.size() - 3], Result[Result.size() - 2], Result[Result.size() - 1] };
 	}
 
-	void ConvertNormal(NavisworksIntegratedAPI::InwSimpleVertex* SimpleVertex, std::vector<double>& Result)
+	void ConvertNormal(NavisworksIntegratedAPI::InwSimpleVertex* SimpleVertex, std::vector<DatasmithNavisworksUtilImpl::FGeometry::NormalType>& Result)
 	{
 		ExtractVectorFromVariant(SimpleVertex->normal, Result, 3);
 	}
 
-	void ConvertUV(NavisworksIntegratedAPI::InwSimpleVertex* SimpleVertex, std::vector<double>& Result)
+	void ConvertUV(NavisworksIntegratedAPI::InwSimpleVertex* SimpleVertex, std::vector<DatasmithNavisworksUtilImpl::FGeometry::UvType>& Result)
 	{
 		ExtractVectorFromVariant(SimpleVertex->tex_coord, Result, 2);
 	}
 
-	void ExtractVectorFromVariant(const _variant_t& variant, std::vector<double>& Result, int Count)
+	template<typename ComponentType>
+	static void ExtractVectorFromVariant(const _variant_t& Variant, std::vector<ComponentType>& Result, const int Count)
 	{
-		SAFEARRAY* ComArray = variant.parray;
+		SAFEARRAY* ComArray = Variant.parray;
 		HRESULT Hr;
 		if (SUCCEEDED(Hr = SafeArrayLock(ComArray)))
 		{
@@ -177,11 +179,12 @@ public:
 
 			double Scale = 1.0 / sqrt(TriangleArea);
 			Vector3d Normal = TriangleNormal * Scale;
-			for (int I = 0; I < 3; ++I)
+			FGeometry::NormalType* NormalPtr = Geometry->Normals.data() + BaseIndex * 3;
+			for (int I = 0; I < 3; ++I, NormalPtr += 3)
 			{
-				Geometry->Normals[(BaseIndex + I) * 3 + 0] = Normal.X;
-				Geometry->Normals[(BaseIndex + I) * 3 + 1] = Normal.Y;
-				Geometry->Normals[(BaseIndex + I) * 3 + 2] = Normal.Z;
+				NormalPtr[0] = static_cast<FGeometry::NormalType>(Normal.X);
+				NormalPtr[1] = static_cast<FGeometry::NormalType>(Normal.Y);
+				NormalPtr[2] = static_cast<FGeometry::NormalType>(Normal.Z);
 			}
 		}
 
@@ -265,8 +268,11 @@ DatasmithNavisworksUtilImpl::FTriangleReaderNative::~FTriangleReaderNative()
 {
 }
 
+DatasmithNavisworksUtilImpl::FAllocationStats DatasmithNavisworksUtilImpl::FTriangleReaderNative::AllocationStats;
+
 void DatasmithNavisworksUtilImpl::FTriangleReaderNative::Read(void* FragmentIUnknownPtr, DatasmithNavisworksUtilImpl::FGeometry& Geom, FGeometrySettings& Settings)
 {
+	Geom.ModificationStarted();
 	NavisworksIntegratedAPI::InwOaFragment3Ptr Fragment(static_cast<IUnknown*>(FragmentIUnknownPtr));
 	SimplePrimitivesCallback Callback;
 	Callback.Geometry = &Geom;
@@ -286,11 +292,64 @@ void DatasmithNavisworksUtilImpl::FTriangleReaderNative::Read(void* FragmentIUnk
 	{
 		Geom.UVs.resize(Geom.VertexCount * 2, 0.0);
 	}
+	Geom.ModificationEnded();
+}
+
+DatasmithNavisworksUtilImpl::FGeometry* DatasmithNavisworksUtilImpl::FTriangleReaderNative::GetNewGeometry()
+{
+	return new FGeometry(*this);
+}
+
+void DatasmithNavisworksUtilImpl::FTriangleReaderNative::ReleaseGeometry(FGeometry* Geometry)
+{
+	delete Geometry;
+}
+
+DatasmithNavisworksUtilImpl::FGeometry* DatasmithNavisworksUtilImpl::FTriangleReaderNative::MakeLeanCopy(FGeometry* Geometry)
+{
+	FGeometry* Result = new FGeometry(*this);
+
+	Result->ModificationStarted();
+	Result->TriangleCount = Geometry->TriangleCount;
+	Result->VertexCount = Geometry->VertexCount;
+
+	Result->Coords = Geometry->Coords;
+	Result->Normals = Geometry->Normals;
+	Result->UVs = Geometry->UVs;
+	Result->Indices = Geometry->Indices;
+
+	Result->ModificationEnded();
+	
+	return Result;
+}
+
+void FTriangleReaderNative::ClearBuffer(FGeometry* Geom)
+{
+	// Clear geometry buffer but keep allocations (std::vector::clear doesn't reallocate)
+	Geom->ModificationStarted();
+	Geom->TriangleCount = 0;
+	Geom->VertexCount = 0;
+	Geom->Coords.clear();
+	Geom->Normals.clear();
+	Geom->UVs.clear();
+	Geom->Indices.clear();
+	Geom->ModificationEnded();
 }
 
 inline void CombineHash(std::size_t& A, const std::size_t& B)
 {
 	A = A ^ (B + 0x9e3779b9 + (A << 6) + (A >> 2));
+}
+
+DatasmithNavisworksUtilImpl::FGeometry::FGeometry(FTriangleReaderNative& TriangleReader)
+	: TriangleReader(TriangleReader)
+{
+	FTriangleReaderNative::AllocationStats.Add(*this);
+}
+
+DatasmithNavisworksUtilImpl::FGeometry::~FGeometry()
+{
+	FTriangleReaderNative::AllocationStats.Remove(*this);
 }
 
 uint64_t DatasmithNavisworksUtilImpl::FGeometry::ComputeHash()
@@ -304,14 +363,14 @@ uint64_t DatasmithNavisworksUtilImpl::FGeometry::ComputeHash()
 		CombineHash(Hash, std::hash<double>()(Value));
 	}
 
-	for (double Value : Normals)
+	for (NormalType Value : Normals)
 	{
-		CombineHash(Hash, std::hash<double>()(Value));
+		CombineHash(Hash, std::hash<NormalType>()(Value));
 	}
 
-	for (double Value : UVs)
+	for (UvType Value : UVs)
 	{
-		CombineHash(Hash, std::hash<double>()(Value));
+		CombineHash(Hash, std::hash<UvType>()(Value));
 	}
 
 	CombineHash(Hash, std::hash<uint32_t>()(TriangleCount));
@@ -337,11 +396,11 @@ void DatasmithNavisworksUtilImpl::FGeometry::Optimize()
 		}
 		for (int I = 0; I < 3; ++I)
 		{
-			CombineHash(Hash, std::hash<double>()(Normals[VertexIndex * 3 + I]));
+			CombineHash(Hash, std::hash<NormalType>()(Normals[VertexIndex * 3 + I]));
 		}
 		for (int I = 0; I < 2; ++I)
 		{
-			CombineHash(Hash, std::hash<double>()(UVs[VertexIndex * 2 + I]));
+			CombineHash(Hash, std::hash<UvType>()(UVs[VertexIndex * 2 + I]));
 		}
 		VertexHashes[VertexIndex] = Hash;
 	}
@@ -407,3 +466,51 @@ void DatasmithNavisworksUtilImpl::FGeometry::Optimize()
 		Index = OldVertexIndexToNew[Index];
 	}
 }
+
+void DatasmithNavisworksUtilImpl::FGeometry::ModificationStarted()
+{
+	FTriangleReaderNative::AllocationStats.Remove(*this);
+}
+
+void DatasmithNavisworksUtilImpl::FGeometry::ModificationEnded()
+{
+	FTriangleReaderNative::AllocationStats.Add(*this);
+}
+
+void DatasmithNavisworksUtilImpl::FAllocationStats::Add(DatasmithNavisworksUtilImpl::FGeometry& Geometry)
+{
+	GeometryCount++;
+	
+	TriangleCount += Geometry.TriangleCount;
+	VertexCount += Geometry.VertexCount;
+
+	CoordBytesUsed += Geometry.Coords.size() * sizeof(Geometry.Coords[0]);
+	NormalBytesUsed += Geometry.Normals.size() * sizeof(Geometry.Normals[0]);
+	UvBytesUsed += Geometry.UVs.size() * sizeof(Geometry.UVs[0]);
+	IndexBytesUsed += Geometry.Indices.size() * sizeof(Geometry.Indices[0]);
+
+	CoordBytesReserved += Geometry.Coords.capacity() * sizeof(Geometry.Coords[0]);
+	NormalBytesReserved += Geometry.Normals.capacity() * sizeof(Geometry.Normals[0]);
+	UvBytesReserved += Geometry.UVs.capacity() * sizeof(Geometry.UVs[0]);
+	IndexBytesReserved += Geometry.Indices.capacity() * sizeof(Geometry.Indices[0]);
+}
+
+void DatasmithNavisworksUtilImpl::FAllocationStats::Remove(DatasmithNavisworksUtilImpl::FGeometry& Geometry)
+{
+	GeometryCount--;
+	
+	TriangleCount -= Geometry.TriangleCount;
+	VertexCount -= Geometry.VertexCount;
+
+	CoordBytesUsed -= Geometry.Coords.size() * sizeof(Geometry.Coords[0]);
+	NormalBytesUsed -= Geometry.Normals.size() * sizeof(Geometry.Normals[0]);
+	UvBytesUsed -= Geometry.UVs.size() * sizeof(Geometry.UVs[0]);
+	IndexBytesUsed -= Geometry.Indices.size() * sizeof(Geometry.Indices[0]);
+
+	CoordBytesReserved -= Geometry.Coords.capacity() * sizeof(Geometry.Coords[0]);
+	NormalBytesReserved -= Geometry.Normals.capacity() * sizeof(Geometry.Normals[0]);
+	UvBytesReserved -= Geometry.UVs.capacity() * sizeof(Geometry.UVs[0]);
+	IndexBytesReserved -= Geometry.Indices.capacity() * sizeof(Geometry.Indices[0]);
+}
+
+
