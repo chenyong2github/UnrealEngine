@@ -1510,6 +1510,10 @@ ULandscapeSplineControlPoint::ULandscapeSplineControlPoint(const FObjectInitiali
 	bPlaceSplineMeshesInStreamingLevels = true;
 	bCastShadow = true;
 
+	bRenderCustomDepth = false;
+	CustomDepthStencilWriteMask = ERendererStencilMask::ERSM_Default;
+	CustomDepthStencilValue = 0;
+
 	// transients
 	bSelected = false;
 #endif
@@ -2023,6 +2027,27 @@ void ULandscapeSplineControlPoint::UpdateSplinePoints(bool bUpdateCollision, boo
 			MeshComponent->MarkRenderStateDirty();
 		}
 
+		if (MeshComponent->bRenderCustomDepth != bRenderCustomDepth)
+		{
+			MeshComponent->Modify();
+			MeshComponent->bRenderCustomDepth = bRenderCustomDepth;
+			MeshComponent->MarkRenderStateDirty();
+		}
+
+		if (MeshComponent->CustomDepthStencilWriteMask != CustomDepthStencilWriteMask)
+		{
+			MeshComponent->Modify();
+			MeshComponent->CustomDepthStencilWriteMask = CustomDepthStencilWriteMask;
+			MeshComponent->MarkRenderStateDirty();
+		}
+
+		if (MeshComponent->CustomDepthStencilValue != CustomDepthStencilValue)
+		{
+			MeshComponent->Modify();
+			MeshComponent->CustomDepthStencilValue = CustomDepthStencilValue;
+			MeshComponent->MarkRenderStateDirty();
+		}
+
 		if (bComponentNeedsRegistering)
 		{
 			MeshComponent->RegisterComponent();
@@ -2279,6 +2304,10 @@ ULandscapeSplineSegment::ULandscapeSplineSegment(const FObjectInitializer& Objec
 	TranslucencySortPriority = 0;
 	bPlaceSplineMeshesInStreamingLevels = true;
 	bCastShadow = true;
+
+	bRenderCustomDepth = false;
+	CustomDepthStencilWriteMask = ERendererStencilMask::ERSM_Default;
+	CustomDepthStencilValue = 0;
 
 	bEnableCollision_DEPRECATED = true;
 	BodyInstance.SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
@@ -3012,6 +3041,10 @@ void ULandscapeSplineSegment::UpdateSplinePoints(bool bUpdateCollision, bool bUp
 			MeshComponent->VirtualTextureCullMips = VirtualTextureCullMips;
 			MeshComponent->VirtualTextureMainPassMaxDrawDistance = VirtualTextureMainPassMaxDrawDistance;
 			MeshComponent->VirtualTextureRenderPassType = VirtualTextureRenderPassType;
+
+			MeshComponent->SetRenderCustomDepth(bRenderCustomDepth);
+			MeshComponent->SetCustomDepthStencilWriteMask(CustomDepthStencilWriteMask);
+			MeshComponent->SetCustomDepthStencilValue(CustomDepthStencilValue);
 
 			MeshComponent->SetCastShadow(bCastShadow);
 			MeshComponent->InvalidateLightingCache();
