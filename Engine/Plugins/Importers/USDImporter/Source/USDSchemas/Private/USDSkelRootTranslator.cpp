@@ -19,6 +19,7 @@
 
 #include "Animation/AnimSequence.h"
 #include "Animation/Skeleton.h"
+#include "AnimationUtils.h"
 #include "Components/PoseableMeshComponent.h"
 #include "Components/SkinnedMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
@@ -770,6 +771,9 @@ namespace UsdSkelRootTranslatorImpl
 
 				if ( SkeletalMesh )
 				{
+					Context->CurrentlyUsedAssets.Add( SkeletalMesh );
+					Context->CurrentlyUsedAssets.Add( SkeletalMesh->Skeleton );
+
 					FScopeLock Lock( &Context->CriticalSection );
 					{
 						Context->PrimPathsToAssets.Add( SkelRootPath, SkeletalMesh );
@@ -805,6 +809,11 @@ namespace UsdSkelRootTranslatorImpl
 						{
 							Context->BlendShapesByPath->Append( NewBlendShapes );
 						}
+					}
+
+					for ( const FSkeletalMaterial& SkeletalMaterial : SkeletalMesh->Materials )
+					{
+						Context->CurrentlyUsedAssets.Add( SkeletalMaterial.MaterialInterface );
 					}
 				}
 
@@ -879,6 +888,7 @@ namespace UsdSkelRootTranslatorImpl
 								AnimSequence->AssetImportData = ImportData;
 
 								Context->AssetsCache.Add( HashString, AnimSequence );
+								Context->CurrentlyUsedAssets.Add( AnimSequence );
 							}
 							else
 							{
@@ -938,6 +948,11 @@ USceneComponent* FUsdSkelRootTranslator::CreateComponents()
 						Context->ObjectFlags,
 						Context->bAllowInterpretingLODs
 					);
+
+					for ( UMaterialInterface* OverrideMaterial : SkinnedMeshComponent->OverrideMaterials )
+					{
+						Context->CurrentlyUsedAssets.Add( OverrideMaterial );
+					}
 				}
 			}
 		}

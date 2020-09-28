@@ -2,6 +2,7 @@
 
 #include "USDConversionUtils.h"
 
+#include "USDAssetImportData.h"
 #include "USDErrorUtils.h"
 #include "USDLog.h"
 #include "USDTypesConversion.h"
@@ -9,6 +10,8 @@
 #include "UsdWrappers/UsdPrim.h"
 
 #include "Algo/Copy.h"
+#include "Animation/AnimSequence.h"
+#include "Animation/Skeleton.h"
 #include "CineCameraActor.h"
 #include "CineCameraComponent.h"
 #include "Components/DirectionalLightComponent.h"
@@ -20,7 +23,11 @@
 #include "Engine/DirectionalLight.h"
 #include "Engine/PointLight.h"
 #include "Engine/RectLight.h"
+#include "Engine/SkeletalMesh.h"
 #include "Engine/SkyLight.h"
+#include "Engine/StaticMesh.h"
+#include "Engine/Texture.h"
+#include "GeometryCache.h"
 #include "ObjectTools.h"
 
 #if USE_USD_SDK
@@ -665,6 +672,45 @@ double UsdUtils::GetDefaultTimeCode()
 #else
 	return 0.0;
 #endif
+}
+
+UUsdAssetImportData* UsdUtils::GetAssetImportData( UObject* Asset )
+{
+	UUsdAssetImportData* ImportData = nullptr;
+#if WITH_EDITORONLY_DATA
+	if ( UStaticMesh* Mesh = Cast<UStaticMesh>( Asset ) )
+	{
+		ImportData = Cast<UUsdAssetImportData>( Mesh->AssetImportData );
+	}
+	else if ( USkeleton* Skeleton = Cast<USkeleton>( Asset ) )
+	{
+		if ( USkeletalMesh* SkMesh = Skeleton->GetPreviewMesh() )
+		{
+			ImportData = Cast<UUsdAssetImportData>( SkMesh->AssetImportData );
+		}
+	}
+	else if ( USkeletalMesh* SkMesh = Cast<USkeletalMesh>( Asset ) )
+	{
+		ImportData = Cast<UUsdAssetImportData>( SkMesh->AssetImportData );
+	}
+	else if ( UAnimSequence* SkelAnim = Cast<UAnimSequence>( Asset ) )
+	{
+		ImportData = Cast<UUsdAssetImportData>( SkelAnim->AssetImportData );
+	}
+	else if ( UMaterialInterface* Material = Cast<UMaterialInterface>( Asset ) )
+	{
+		ImportData = Cast<UUsdAssetImportData>( Material->AssetImportData );
+	}
+	else if ( UTexture* Texture = Cast<UTexture>( Asset ) )
+	{
+		ImportData = Cast<UUsdAssetImportData>( Texture->AssetImportData );
+	}
+	else if ( UGeometryCache* GeometryCache = Cast<UGeometryCache>( Asset ) )
+	{
+		ImportData = Cast<UUsdAssetImportData>( GeometryCache->AssetImportData );
+	}
+#endif
+	return ImportData;
 }
 
 #if USE_USD_SDK
