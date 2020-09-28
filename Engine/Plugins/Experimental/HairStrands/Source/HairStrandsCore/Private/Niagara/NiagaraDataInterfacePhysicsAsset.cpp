@@ -158,7 +158,7 @@ void CreateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAs
 							}
 						}
 						//UE_LOG(LogPhysicsAsset, Warning, TEXT("PhysicsAsset = %s | SkeletalMesh = %d | Num Capsules = %d | Num Spheres = %d | Num Boxes = %d"), *PhysicsAsset->GetName(), SkeletalMeshs[ComponentIndex].Get(), 
-						//	NumCapsules, NumSpheres, NumBoxes);
+						//				NumCapsules, NumSpheres, NumBoxes);
 					}
 				}
 			}
@@ -180,7 +180,10 @@ void CreateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAs
 		OutAssetArrays->PreviousInverse.SetNum(NumTransforms);
 		OutAssetArrays->ElementExtent.SetNum(NumExtents);
 
-		uint32 ElementCount = 0;
+		uint32 BoxCount = OutAssetArrays->ElementOffsets.BoxOffset;
+		uint32 SphereCount = OutAssetArrays->ElementOffsets.SphereOffset;
+		uint32 CapsuleCount = OutAssetArrays->ElementOffsets.CapsuleOffset;
+
 		for (int32 ComponentIndex = 0; ComponentIndex < SkeletalMeshs.Num(); ++ComponentIndex)
 		{
 			TWeakObjectPtr<USkeletalMeshComponent> SkeletalMesh = SkeletalMeshs[ComponentIndex];
@@ -215,35 +218,37 @@ void CreateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAs
 								for (const FKBoxElem& BoxElem : BodySetup->AggGeom.BoxElems)
 								{
 									const FTransform RestElement = FTransform(BoxElem.Rotation, BoxElem.Center) * RestTransform;
-									FillCurrentTransforms(RestElement, ElementCount, OutAssetArrays->RestTransform, OutAssetArrays->RestInverse);
-									--ElementCount;
+									FillCurrentTransforms(RestElement, BoxCount, OutAssetArrays->RestTransform, OutAssetArrays->RestInverse);
+									--BoxCount;
 
 									const FTransform ElementTransform = FTransform(BoxElem.Rotation, BoxElem.Center) * BoneTransform;
-									OutAssetArrays->ElementExtent[ElementCount] = FVector4(BoxElem.X, BoxElem.Y, BoxElem.Z, 0);
-									FillCurrentTransforms(ElementTransform, ElementCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
+									OutAssetArrays->ElementExtent[BoxCount] = FVector4(BoxElem.X, BoxElem.Y, BoxElem.Z, 0);
+									FillCurrentTransforms(ElementTransform, BoxCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
 								}
 
 								for (const FKSphereElem& SphereElem : BodySetup->AggGeom.SphereElems)
 								{
 									const FTransform RestElement = FTransform(SphereElem.Center) * RestTransform;
-									FillCurrentTransforms(RestElement, ElementCount, OutAssetArrays->RestTransform, OutAssetArrays->RestInverse);
-									--ElementCount;
+									FillCurrentTransforms(RestElement, SphereCount, OutAssetArrays->RestTransform, OutAssetArrays->RestInverse);
+									--SphereCount;
 
 									const FTransform ElementTransform = FTransform(SphereElem.Center) * BoneTransform;
-									OutAssetArrays->ElementExtent[ElementCount] = FVector4(SphereElem.Radius, 0, 0, 0);
-									FillCurrentTransforms(ElementTransform, ElementCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
+									OutAssetArrays->ElementExtent[SphereCount] = FVector4(SphereElem.Radius, 0, 0, 0);
+									FillCurrentTransforms(ElementTransform, SphereCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
 								}
 
 								for (const FKSphylElem& CapsuleElem : BodySetup->AggGeom.SphylElems)
 								{
 									const FTransform RestElement = FTransform(CapsuleElem.Rotation, CapsuleElem.Center) * RestTransform;
-									FillCurrentTransforms(RestElement, ElementCount, OutAssetArrays->RestTransform, OutAssetArrays->RestInverse);
-									--ElementCount;
+									FillCurrentTransforms(RestElement, CapsuleCount, OutAssetArrays->RestTransform, OutAssetArrays->RestInverse);
+									--CapsuleCount;
 
 									const FTransform ElementTransform = FTransform(CapsuleElem.Rotation, CapsuleElem.Center) * BoneTransform;
-									OutAssetArrays->ElementExtent[ElementCount] = FVector4(CapsuleElem.Radius, CapsuleElem.Length, 0, 0);
-									FillCurrentTransforms(ElementTransform, ElementCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
+									OutAssetArrays->ElementExtent[CapsuleCount] = FVector4(CapsuleElem.Radius, CapsuleElem.Length, 0, 0);
+									FillCurrentTransforms(ElementTransform, CapsuleCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
 								}
+
+								
 							}
 						}
 					}
@@ -284,7 +289,9 @@ void UpdateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAs
 					TArray<FTransform> RestTransforms;
 					FAnimationRuntime::FillUpComponentSpaceTransforms(*RefSkeleton, RefSkeleton->GetRefBonePose(), RestTransforms);
 
-					uint32 ElementCount = 0;
+					uint32 BoxCount = OutAssetArrays->ElementOffsets.BoxOffset;
+					uint32 SphereCount = OutAssetArrays->ElementOffsets.SphereOffset;
+					uint32 CapsuleCount = OutAssetArrays->ElementOffsets.CapsuleOffset;
 					for (const UBodySetup* BodySetup : PhysicsAsset->SkeletalBodySetups)
 					{
 						const FName BoneName = BodySetup->BoneName;
@@ -296,19 +303,19 @@ void UpdateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAs
 							for (const FKBoxElem& BoxElem : BodySetup->AggGeom.BoxElems)
 							{
 								const FTransform ElementTransform = FTransform(BoxElem.Rotation, BoxElem.Center) * BoneTransform;
-								FillCurrentTransforms(ElementTransform, ElementCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
+								FillCurrentTransforms(ElementTransform, BoxCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
 							}
 
 							for (const FKSphereElem& SphereElem : BodySetup->AggGeom.SphereElems)
 							{
 								const FTransform ElementTransform = FTransform(SphereElem.Center) * BoneTransform;
-								FillCurrentTransforms(ElementTransform, ElementCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
+								FillCurrentTransforms(ElementTransform, SphereCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
 							}
 
 							for (const FKSphylElem& CapsuleElem : BodySetup->AggGeom.SphylElems)
 							{
 								const FTransform ElementTransform = FTransform(CapsuleElem.Rotation, CapsuleElem.Center) * BoneTransform;
-								FillCurrentTransforms(ElementTransform, ElementCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
+								FillCurrentTransforms(ElementTransform, CapsuleCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
 							}
 						}
 					}
