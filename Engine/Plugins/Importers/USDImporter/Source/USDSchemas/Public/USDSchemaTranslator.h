@@ -128,6 +128,9 @@ struct USDSCHEMAS_API FUsdSchemaTranslationContext : public TSharedFromThis< FUs
 
 	TMap< FString, UObject* >& AssetsCache;
 
+	/** Subset of AssetsCache with assets that were created for/reused by the current translation context. Useful as AssetsCache may contain older/other things */
+	TSet<UObject*> CurrentlyUsedAssets;
+
 	/** Where we place imported blend shapes, if available */
 	UsdUtils::FBlendShapeMap* BlendShapesByPath;
 
