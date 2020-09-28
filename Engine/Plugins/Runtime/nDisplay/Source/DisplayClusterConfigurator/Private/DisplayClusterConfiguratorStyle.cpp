@@ -92,27 +92,28 @@ TSharedRef< FSlateStyleSet > FDisplayClusterConfiguratorStyle::Create()
 	Style->Set("DisplayClusterConfigurator.Toolbar.EditConfig", new IMAGE_BRUSH("Toolbar/EditConfig_40x", Icon40x40));
 
 	// TreeItems
-	Style->Set("DisplayClusterConfigurator.TreeItems.Scene", new IMAGE_BRUSH("TreeItems/Scene_12x", Icon12x12));
-	Style->Set("DisplayClusterConfigurator.TreeItems.Cluster", new IMAGE_BRUSH("TreeItems/Cluster_12x", Icon12x12));
-	Style->Set("DisplayClusterConfigurator.TreeItems.Input", new IMAGE_BRUSH("TreeItems/Input_12x", Icon12x12));
+	Style->Set("DisplayClusterConfigurator.TreeItems.Scene", new IMAGE_BRUSH("TreeItems/Scene_16x", Icon16x16));
+	Style->Set("DisplayClusterConfigurator.TreeItems.Cluster", new IMAGE_BRUSH("TreeItems/Cluster_16x", Icon16x16));
+	Style->Set("DisplayClusterConfigurator.TreeItems.Input", new IMAGE_BRUSH("TreeItems/Input_16x", Icon16x16));
 	Style->Set("DisplayClusterConfigurator.TreeItems.Container", new IMAGE_BRUSH("TreeItems/Container_12x", Icon12x12));
 
 	// Scene Components
-	Style->Set("DisplayClusterConfigurator.TreeItems.SceneComponentXform", new IMAGE_BRUSH("TreeItems/SceneComponentXform_12x", Icon12x12));
-	Style->Set("DisplayClusterConfigurator.TreeItems.SceneComponentScreen", new IMAGE_BRUSH("TreeItems/SceneComponentScreen_12x", Icon12x12));
-	Style->Set("DisplayClusterConfigurator.TreeItems.SceneComponentCamera", new IMAGE_BRUSH("TreeItems/SceneComponentCamera_12x", Icon12x12));
-	Style->Set("DisplayClusterConfigurator.TreeItems.SceneComponentMesh", new IMAGE_BRUSH("TreeItems/SceneComponentMesh_12x", Icon12x12));
+	Style->Set("DisplayClusterConfigurator.TreeItems.SceneComponentXform", new IMAGE_BRUSH("TreeItems/SceneComponentXform_16x", Icon16x16));
+	Style->Set("DisplayClusterConfigurator.TreeItems.SceneComponentScreen", new IMAGE_BRUSH("TreeItems/SceneComponentScreen_16x", Icon16x16));
+	Style->Set("DisplayClusterConfigurator.TreeItems.SceneComponentCamera", new IMAGE_BRUSH("TreeItems/SceneComponentCamera_16x", Icon16x16));
+	Style->Set("DisplayClusterConfigurator.TreeItems.SceneComponentMesh", new IMAGE_BRUSH("TreeItems/SceneComponentMesh_16x", Icon16x16));
 
 	// Cluster
-	Style->Set("DisplayClusterConfigurator.TreeItems.ClusterNode", new IMAGE_BRUSH("TreeItems/ClusterNode_12x", Icon12x12));
-	Style->Set("DisplayClusterConfigurator.TreeItems.Viewport", new IMAGE_BRUSH("TreeItems/Viewport_12x", Icon12x12));
+	Style->Set("DisplayClusterConfigurator.TreeItems.ClusterNode", new IMAGE_BRUSH("TreeItems/ClusterNode_16x", Icon16x16));
+	Style->Set("DisplayClusterConfigurator.TreeItems.Viewport", new IMAGE_BRUSH("TreeItems/Viewport_16x", Icon16x16));
 	Style->Set("DisplayClusterConfigurator.TreeItems.Postprocess", new IMAGE_BRUSH("TreeItems/Postprocess_12x", Icon12x12));
 
 	// Input
-	Style->Set("DisplayClusterConfigurator.TreeItems.InputDeviceAnalog", new IMAGE_BRUSH("TreeItems/InputDeviceAnalog_12x", Icon12x12));
-	Style->Set("DisplayClusterConfigurator.TreeItems.InputDeviceButton", new IMAGE_BRUSH("TreeItems/InputDeviceButton_12x", Icon12x12));
-	Style->Set("DisplayClusterConfigurator.TreeItems.InputDeviceKeyboard", new IMAGE_BRUSH("TreeItems/InputDeviceKeyboard_12x", Icon12x12));
-	Style->Set("DisplayClusterConfigurator.TreeItems.InputDeviceTracker", new IMAGE_BRUSH("TreeItems/InputDeviceTracker_12x", Icon12x12));
+	Style->Set("DisplayClusterConfigurator.TreeItems.InputContainer",      new IMAGE_BRUSH("TreeItems/InputContainer_16x", Icon16x16));
+	Style->Set("DisplayClusterConfigurator.TreeItems.InputDeviceAnalog",   new IMAGE_BRUSH("TreeItems/InputDeviceAnalog_16x", Icon16x16));
+	Style->Set("DisplayClusterConfigurator.TreeItems.InputDeviceButton",   new IMAGE_BRUSH("TreeItems/InputDeviceButton_16x", Icon16x16));
+	Style->Set("DisplayClusterConfigurator.TreeItems.InputDeviceKeyboard", new IMAGE_BRUSH("TreeItems/InputDeviceKeyboard_16x", Icon16x16));
+	Style->Set("DisplayClusterConfigurator.TreeItems.InputDeviceTracker",  new IMAGE_BRUSH("TreeItems/InputDeviceTracker_16x", Icon16x16));
 
 
 	// Icons

@@ -80,7 +80,7 @@ void FDisplayClusterConfiguratorViewInputBuilder::AddInputVRPNAnalogContainer(FD
 {
 	FName ParentName = *ParentNodeId;
 	const FName NodeName = *NodeId;
-	TSharedRef<IDisplayClusterConfiguratorTreeItem> DisplayNode = MakeShared<FDisplayClusterConfiguratorTreeItemInput>(NodeName, ConfiguratorTreePtr.Pin().ToSharedRef(), ToolkitPtr.Pin().ToSharedRef(), InObjectToEdit, "DisplayClusterConfigurator.TreeItems.Container");
+	TSharedRef<IDisplayClusterConfiguratorTreeItem> DisplayNode = MakeShared<FDisplayClusterConfiguratorTreeItemInput>(NodeName, ConfiguratorTreePtr.Pin().ToSharedRef(), ToolkitPtr.Pin().ToSharedRef(), InObjectToEdit, "DisplayClusterConfigurator.TreeItems.InputContainer");
 	Output.Add(DisplayNode, ParentName, FDisplayClusterConfiguratorTreeItemInput::GetTypeId());
 }
 
@@ -88,7 +88,7 @@ void FDisplayClusterConfiguratorViewInputBuilder::AddInputVRPNButtonContainer(FD
 {
 	FName ParentName = *ParentNodeId;
 	const FName NodeName = *NodeId;
-	TSharedRef<IDisplayClusterConfiguratorTreeItem> DisplayNode = MakeShared<FDisplayClusterConfiguratorTreeItemInput>(NodeName, ConfiguratorTreePtr.Pin().ToSharedRef(), ToolkitPtr.Pin().ToSharedRef(), InObjectToEdit, "DisplayClusterConfigurator.TreeItems.Container");
+	TSharedRef<IDisplayClusterConfiguratorTreeItem> DisplayNode = MakeShared<FDisplayClusterConfiguratorTreeItemInput>(NodeName, ConfiguratorTreePtr.Pin().ToSharedRef(), ToolkitPtr.Pin().ToSharedRef(), InObjectToEdit, "DisplayClusterConfigurator.TreeItems.InputContainer");
 	Output.Add(DisplayNode, ParentName, FDisplayClusterConfiguratorTreeItemInput::GetTypeId());
 }
 
@@ -96,7 +96,7 @@ void FDisplayClusterConfiguratorViewInputBuilder::AddInputVRPNKeyboardContainer(
 {
 	FName ParentName = *ParentNodeId;
 	const FName NodeName = *NodeId;
-	TSharedRef<IDisplayClusterConfiguratorTreeItem> DisplayNode = MakeShared<FDisplayClusterConfiguratorTreeItemInput>(NodeName, ConfiguratorTreePtr.Pin().ToSharedRef(), ToolkitPtr.Pin().ToSharedRef(), InObjectToEdit, "DisplayClusterConfigurator.TreeItems.Container");
+	TSharedRef<IDisplayClusterConfiguratorTreeItem> DisplayNode = MakeShared<FDisplayClusterConfiguratorTreeItemInput>(NodeName, ConfiguratorTreePtr.Pin().ToSharedRef(), ToolkitPtr.Pin().ToSharedRef(), InObjectToEdit, "DisplayClusterConfigurator.TreeItems.InputContainer");
 	Output.Add(DisplayNode, ParentName, FDisplayClusterConfiguratorTreeItemInput::GetTypeId());
 }
 
@@ -104,7 +104,7 @@ void FDisplayClusterConfiguratorViewInputBuilder::AddInputVRPNTrackerContainer(F
 {
 	FName ParentName = *ParentNodeId;
 	const FName NodeName = *NodeId;
-	TSharedRef<IDisplayClusterConfiguratorTreeItem> DisplayNode = MakeShared<FDisplayClusterConfiguratorTreeItemInput>(NodeName, ConfiguratorTreePtr.Pin().ToSharedRef(), ToolkitPtr.Pin().ToSharedRef(), InObjectToEdit, "DisplayClusterConfigurator.TreeItems.Container");
+	TSharedRef<IDisplayClusterConfiguratorTreeItem> DisplayNode = MakeShared<FDisplayClusterConfiguratorTreeItemInput>(NodeName, ConfiguratorTreePtr.Pin().ToSharedRef(), ToolkitPtr.Pin().ToSharedRef(), InObjectToEdit, "DisplayClusterConfigurator.TreeItems.InputContainer");
 	Output.Add(DisplayNode, ParentName, FDisplayClusterConfiguratorTreeItemInput::GetTypeId());
 }
 
