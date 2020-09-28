@@ -1093,26 +1093,28 @@ void FUsdLevelSequenceHelperImpl::UpdateMovieSceneReadonlyFlag( UMovieScene& Mov
 
 void FUsdLevelSequenceHelperImpl::UpdateMovieSceneTimeRanges( UMovieScene& MovieScene, const FLayerTimeInfo& LayerTimeInfo )
 {
-	if ( !LayerTimeInfo.IsAnimated() )
-	{
-		return;
-	}
-
-	const double StartTimeCode = LayerTimeInfo.StartTimeCode.Get(0.0);
-	const double EndTimeCode = LayerTimeInfo.EndTimeCode.Get(0.0);
-	const double TimeCodesPerSecond = GetTimeCodesPerSecond();
 	const double FramesPerSecond = GetFramesPerSecond();
 
-	const FFrameRate DestFrameRate = MovieScene.GetTickResolution();
-	const FFrameNumber StartFrame  = UsdLevelSequenceHelperImpl::RoundAsFrameNumber( DestFrameRate, StartTimeCode / TimeCodesPerSecond );
-	const FFrameNumber EndFrame    = UsdLevelSequenceHelperImpl::RoundAsFrameNumber( DestFrameRate, EndTimeCode / TimeCodesPerSecond );
+	if ( LayerTimeInfo.IsAnimated() )
+	{
+		const double StartTimeCode = LayerTimeInfo.StartTimeCode.Get(0.0);
+		const double EndTimeCode = LayerTimeInfo.EndTimeCode.Get(0.0);
+		const double TimeCodesPerSecond = GetTimeCodesPerSecond();
 
-	TRange< FFrameNumber > TimeRange = TRange<FFrameNumber>::Inclusive( StartFrame, EndFrame );
+		const FFrameRate DestFrameRate = MovieScene.GetTickResolution();
+		const FFrameNumber StartFrame  = UsdLevelSequenceHelperImpl::RoundAsFrameNumber( DestFrameRate, StartTimeCode / TimeCodesPerSecond );
+		const FFrameNumber EndFrame    = UsdLevelSequenceHelperImpl::RoundAsFrameNumber( DestFrameRate, EndTimeCode / TimeCodesPerSecond );
+		TRange< FFrameNumber > TimeRange = TRange<FFrameNumber>::Inclusive( StartFrame, EndFrame );
 
+		MovieScene.SetPlaybackRange( TimeRange );
+		MovieScene.SetViewRange( StartTimeCode / TimeCodesPerSecond -1.0f, 1.0f + EndTimeCode / TimeCodesPerSecond );
+		MovieScene.SetWorkingRange( StartTimeCode / TimeCodesPerSecond -1.0f, 1.0f + EndTimeCode / TimeCodesPerSecond );
+	}
+
+	// Always set these even if we're not animated because if a child layer IS animated and has a different framerate we'll get a warning
+	// from the sequencer. Realistically it makes no difference because if the root layer is not animated (i.e. has 0 for start and end timecodes)
+	// nothing will actually play, but this just prevents the warning
 	MovieScene.SetDisplayRate( FFrameRate( FramesPerSecond, 1 ) );
-	MovieScene.SetPlaybackRange( TimeRange );
-	MovieScene.SetViewRange( StartTimeCode / TimeCodesPerSecond -1.0f, 1.0f + EndTimeCode / TimeCodesPerSecond );
-	MovieScene.SetWorkingRange( StartTimeCode / TimeCodesPerSecond -1.0f, 1.0f + EndTimeCode / TimeCodesPerSecond );
 }
 
 void FUsdLevelSequenceHelperImpl::OnObjectTransacted(UObject* Object, const class FTransactionObjectEvent& Event)
