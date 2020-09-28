@@ -269,7 +269,7 @@ struct FOpenGLStream
 		, Offset(0)
 		, Divisor(0)
 	{}
-	FOpenGLVertexBuffer *VertexBuffer;
+	FOpenGLBuffer *VertexBuffer;
 	uint32 Stride;
 	uint32 Offset;
 	uint32 Divisor;

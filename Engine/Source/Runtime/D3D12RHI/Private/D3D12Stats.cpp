@@ -281,71 +281,22 @@ float FD3D12EventNode::GetTiming()
 	return Result;
 }
 
-void UpdateBufferStats(FD3D12ResourceLocation* ResourceLocation, bool bAllocating, uint32 BufferType)
+void UpdateBufferStats(FName Name, int64 RequestedSize)
 {
-	uint64 RequestedSize = ResourceLocation->GetSize();
-
-	const bool bUniformBuffer = BufferType == D3D12_BUFFER_TYPE_CONSTANT;
-	const bool bIndexBuffer = BufferType == D3D12_BUFFER_TYPE_INDEX;
-	const bool bVertexBuffer = BufferType == D3D12_BUFFER_TYPE_VERTEX;
-
-	if (bAllocating)
-	{
-		if (bUniformBuffer)
-		{
-			INC_MEMORY_STAT_BY(STAT_UniformBufferMemory, RequestedSize);
-		}
-		else if (bIndexBuffer)
-		{
-			INC_MEMORY_STAT_BY(STAT_IndexBufferMemory, RequestedSize);
-		}
-		else if (bVertexBuffer)
-		{
-			INC_MEMORY_STAT_BY(STAT_VertexBufferMemory, RequestedSize);
-		}
-		else
-		{
-			INC_MEMORY_STAT_BY(STAT_StructuredBufferMemory, RequestedSize);
-		}
+	INC_MEMORY_STAT_BY_FName(Name, RequestedSize);
 
 #if PLATFORM_WINDOWS
-		// this is a work-around on Windows. Due to the fact that there is no way
-		// to hook the actual d3d allocations it is very difficult to track memory
-		// in the normal way. The problem is that some buffers are allocated from
-		// the allocators and some are allocated from the device. Ideally this
-		// tracking would be moved to where the actual d3d resource is created and
-		// released and the tracking could be re-enabled in the buddy allocator.
-		// The problem is that the releasing of resources happens in a generic way
-		// (see FD3D12ResourceLocation) 
-		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::Meshes, RequestedSize, ELLMTracker::Default, ELLMAllocType::None);
-		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::GraphicsPlatform, RequestedSize, ELLMTracker::Platform, ELLMAllocType::None);
+	// this is a work-around on Windows. Due to the fact that there is no way
+	// to hook the actual d3d allocations it is very difficult to track memory
+	// in the normal way. The problem is that some buffers are allocated from
+	// the allocators and some are allocated from the device. Ideally this
+	// tracking would be moved to where the actual d3d resource is created and
+	// released and the tracking could be re-enabled in the buddy allocator.
+	// The problem is that the releasing of resources happens in a generic way
+	// (see FD3D12ResourceLocation) 
+	LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::Meshes, RequestedSize, ELLMTracker::Default, ELLMAllocType::None);
+	LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::GraphicsPlatform, RequestedSize, ELLMTracker::Platform, ELLMAllocType::None);
 #endif
-	}
-	else
-	{
-		if (bUniformBuffer)
-		{
-			DEC_MEMORY_STAT_BY(STAT_UniformBufferMemory, RequestedSize);
-		}
-		else if (bIndexBuffer)
-		{
-			DEC_MEMORY_STAT_BY(STAT_IndexBufferMemory, RequestedSize);
-		}
-		else if (bVertexBuffer)
-		{
-			DEC_MEMORY_STAT_BY(STAT_VertexBufferMemory, RequestedSize);
-		}
-		else
-		{
-			DEC_MEMORY_STAT_BY(STAT_StructuredBufferMemory, RequestedSize);
-		}
-
-#if PLATFORM_WINDOWS
-		// this is a work-around on Windows. See comment above.
-		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::Meshes, -(int64)RequestedSize, ELLMTracker::Default, ELLMAllocType::None);
-		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::GraphicsPlatform, -(int64)RequestedSize, ELLMTracker::Platform, ELLMAllocType::None);
-#endif
-	}
 }
 
 #if NV_AFTERMATH

@@ -186,7 +186,7 @@ static FORCEINLINE ShaderStage::EStage GetAndVerifyShaderStageAndVulkanShader(FR
 
 void FVulkanCommandListContext::RHISetStreamSource(uint32 StreamIndex, FRHIVertexBuffer* VertexBufferRHI, uint32 Offset)
 {
-	FVulkanVertexBuffer* VertexBuffer = ResourceCast(VertexBufferRHI);
+	FVulkanResourceMultiBuffer* VertexBuffer = ResourceCast(VertexBufferRHI);
 	if (VertexBuffer != nullptr)
 	{
 		PendingGfxState->SetStreamSource(StreamIndex, VertexBuffer->GetHandle(), Offset + VertexBuffer->GetOffset());
@@ -253,7 +253,7 @@ void FVulkanCommandListContext::RHIDispatchComputeShader(uint32 ThreadGroupCount
 void FVulkanCommandListContext::RHIDispatchIndirectComputeShader(FRHIVertexBuffer* ArgumentBufferRHI, uint32 ArgumentOffset)
 {
 	static_assert(sizeof(FRHIDispatchIndirectParameters) == sizeof(VkDispatchIndirectCommand), "Dispatch indirect doesn't match!");
-	FVulkanVertexBuffer* ArgumentBuffer = ResourceCast(ArgumentBufferRHI);
+	FVulkanResourceMultiBuffer* ArgumentBuffer = ResourceCast(ArgumentBufferRHI);
 
 	FVulkanCmdBuffer* Cmd = CommandBufferManager->GetActiveCmdBuffer();
 	ensure(Cmd->IsOutsideRenderPass());
@@ -667,7 +667,7 @@ void FVulkanCommandListContext::RHIDrawPrimitiveIndirect(FRHIVertexBuffer* Argum
 	VkCommandBuffer CmdBuffer = Cmd->GetHandle();
 	PendingGfxState->PrepareForDraw(Cmd);
 
-	FVulkanVertexBuffer* ArgumentBuffer = ResourceCast(ArgumentBufferRHI);
+	FVulkanResourceMultiBuffer* ArgumentBuffer = ResourceCast(ArgumentBufferRHI);
 
 
 	VulkanRHI::vkCmdDrawIndirect(CmdBuffer, ArgumentBuffer->GetHandle(), ArgumentBuffer->GetOffset() + ArgumentOffset, 1, sizeof(VkDrawIndirectCommand));
@@ -688,7 +688,7 @@ void FVulkanCommandListContext::RHIDrawIndexedPrimitive(FRHIIndexBuffer* IndexBu
 	RHI_DRAW_CALL_STATS(PendingGfxState->PrimitiveType, NumInstances*NumPrimitives);
 	checkf(GRHISupportsFirstInstance || FirstInstance == 0, TEXT("FirstInstance must be 0, see GRHISupportsFirstInstance"));
 
-	FVulkanIndexBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
+	FVulkanResourceMultiBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
 	FVulkanCmdBuffer* Cmd = CommandBufferManager->GetActiveCmdBuffer();
 	VkCommandBuffer CmdBuffer = Cmd->GetHandle();
 	PendingGfxState->PrepareForDraw(Cmd);
@@ -710,13 +710,13 @@ void FVulkanCommandListContext::RHIDrawIndexedIndirect(FRHIIndexBuffer* IndexBuf
 #endif
 	RHI_DRAW_CALL_INC();
 
-	FVulkanIndexBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
+	FVulkanResourceMultiBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
 	FVulkanCmdBuffer* Cmd = CommandBufferManager->GetActiveCmdBuffer();
 	VkCommandBuffer CmdBuffer = Cmd->GetHandle();
 	PendingGfxState->PrepareForDraw(Cmd);
 	VulkanRHI::vkCmdBindIndexBuffer(CmdBuffer, IndexBuffer->GetHandle(), IndexBuffer->GetOffset(), IndexBuffer->GetIndexType());
 
-	FVulkanStructuredBuffer* ArgumentBuffer = ResourceCast(ArgumentsBufferRHI);
+	FVulkanResourceMultiBuffer* ArgumentBuffer = ResourceCast(ArgumentsBufferRHI);
 	VkDeviceSize ArgumentOffset = DrawArgumentsIndex * sizeof(VkDrawIndexedIndirectCommand);
 
 
@@ -735,13 +735,13 @@ void FVulkanCommandListContext::RHIDrawIndexedPrimitiveIndirect(FRHIIndexBuffer*
 #endif
 	RHI_DRAW_CALL_INC();
 
-	FVulkanIndexBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
+	FVulkanResourceMultiBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
 	FVulkanCmdBuffer* Cmd = CommandBufferManager->GetActiveCmdBuffer();
 	VkCommandBuffer CmdBuffer = Cmd->GetHandle();
 	PendingGfxState->PrepareForDraw(Cmd);
 	VulkanRHI::vkCmdBindIndexBuffer(CmdBuffer, IndexBuffer->GetHandle(), IndexBuffer->GetOffset(), IndexBuffer->GetIndexType());
 
-	FVulkanVertexBuffer* ArgumentBuffer = ResourceCast(ArgumentBufferRHI);
+	FVulkanResourceMultiBuffer* ArgumentBuffer = ResourceCast(ArgumentBufferRHI);
 
 
 	VulkanRHI::vkCmdDrawIndexedIndirect(CmdBuffer, ArgumentBuffer->GetHandle(), ArgumentBuffer->GetOffset() + ArgumentOffset, 1, sizeof(VkDrawIndexedIndirectCommand));
@@ -912,7 +912,7 @@ void FVulkanCommandListContext::PrepareParallelFromBase(const FVulkanCommandList
 void FVulkanCommandListContext::RHICopyToStagingBuffer(FRHIVertexBuffer* SourceBufferRHI, FRHIStagingBuffer* StagingBufferRHI, uint32 Offset, uint32 NumBytes)
 {
 	FVulkanCmdBuffer* CmdBuffer = CommandBufferManager->GetActiveCmdBuffer();
-	FVulkanVertexBuffer* VertexBuffer = ResourceCast(SourceBufferRHI);
+	FVulkanResourceMultiBuffer* VertexBuffer = ResourceCast(SourceBufferRHI);
 
 	ensure(CmdBuffer->IsOutsideRenderPass());
 	ensureMsgf((SourceBufferRHI->GetUsage() & BUF_SourceCopy) != 0, TEXT("Buffers used as copy source need to be created with BUF_SourceCopy"));

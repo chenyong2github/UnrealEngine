@@ -47,7 +47,7 @@ public:
 		bIsDSetsKeyDirty |= bDirty;
 	}
 
-	inline void SetStorageBuffer(uint8 DescriptorSet, uint32 BindingIndex, const FVulkanStructuredBuffer* StructuredBuffer)
+	inline void SetStorageBuffer(uint8 DescriptorSet, uint32 BindingIndex, const FVulkanResourceMultiBuffer* StructuredBuffer)
 	{
 		check(StructuredBuffer && (StructuredBuffer->GetBufferUsageFlags() & VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) == VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 		MarkDirty(DSWriter[DescriptorSet].WriteStorageBuffer(BindingIndex, StructuredBuffer->GetCurrentAllocation(), StructuredBuffer->GetOffset(), StructuredBuffer->GetCurrentSize()));

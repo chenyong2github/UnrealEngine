@@ -127,7 +127,7 @@ void FD3D12CommandContext::RHIDispatchComputeShader(uint32 ThreadGroupCountX, ui
 
 void FD3D12CommandContext::RHIDispatchIndirectComputeShader(FRHIVertexBuffer* ArgumentBufferRHI, uint32 ArgumentOffset)
 {
-	FD3D12VertexBuffer* ArgumentBuffer = RetrieveObject<FD3D12VertexBuffer>(ArgumentBufferRHI);
+	FD3D12Buffer* ArgumentBuffer = RetrieveObject<FD3D12Buffer>(ArgumentBufferRHI);
 
 	if (IsDefaultContext())
 	{
@@ -225,21 +225,21 @@ void ProcessResource(FD3D12CommandContext& Context, const FRHITransitionInfo& In
 	break;
 	case FRHITransitionInfo::EType::VertexBuffer:
 	{
-		FD3D12VertexBuffer* VertexBuffer = Context.RetrieveObject<FD3D12VertexBuffer>(Info.VertexBuffer);
+		FD3D12Buffer* VertexBuffer = Context.RetrieveObject<FD3D12Buffer>(Info.VertexBuffer);
 		check(VertexBuffer);
 		Function(Info, VertexBuffer->GetResource());
 	}
 	break;
 	case FRHITransitionInfo::EType::IndexBuffer:
 	{
-		FD3D12IndexBuffer* IndexBuffer = Context.RetrieveObject<FD3D12IndexBuffer>(Info.IndexBuffer);
+		FD3D12Buffer* IndexBuffer = Context.RetrieveObject<FD3D12Buffer>(Info.IndexBuffer);
 		check(IndexBuffer);
 		Function(Info, IndexBuffer->GetResource());
 	}
 	break;
 	case FRHITransitionInfo::EType::StructuredBuffer:
 	{
-		FD3D12StructuredBuffer* StructuredBuffer = Context.RetrieveObject<FD3D12StructuredBuffer>(Info.StructuredBuffer);
+		FD3D12Buffer* StructuredBuffer = Context.RetrieveObject<FD3D12Buffer>(Info.StructuredBuffer);
 		check(StructuredBuffer);
 		Function(Info, StructuredBuffer->GetResource());
 	}
@@ -440,7 +440,7 @@ void FD3D12CommandContext::RHICopyToStagingBuffer(FRHIVertexBuffer* SourceBuffer
 	check(StagingBuffer);
 	ensureMsgf(!StagingBuffer->bIsLocked, TEXT("Attempting to Copy to a locked staging buffer. This may have undefined behavior"));
 
-	FD3D12VertexBuffer* VertexBuffer = RetrieveObject<FD3D12VertexBuffer>(SourceBufferRHI);
+	FD3D12Buffer* VertexBuffer = RetrieveObject<FD3D12Buffer>(SourceBufferRHI);
 	check(VertexBuffer);
 
 	ensureMsgf((SourceBufferRHI->GetUsage() & BUF_SourceCopy) != 0, TEXT("Buffers used as copy source need to be created with BUF_SourceCopy"));
@@ -1630,16 +1630,15 @@ void FD3D12CommandContext::RHIDrawIndexedPrimitive(FRHIIndexBuffer* IndexBufferR
 
 	uint32 IndexCount = StateCache.GetVertexCountAndIncrementStat(NumPrimitives);
 
-	FD3D12IndexBuffer* RHIIndexBuffer = FD3D12DynamicRHI::ResourceCast(IndexBufferRHI);
 	FD3D12Buffer* IndexBuffer = RetrieveObject<FD3D12Buffer>(IndexBufferRHI);
 
 	// Verify that we are not trying to read outside the index buffer range
 	// test is an optimized version of: StartIndex + IndexCount <= IndexBuffer->GetSize() / IndexBuffer->GetStride() 
-	checkf((StartIndex + IndexCount) * RHIIndexBuffer->GetStride() <= RHIIndexBuffer->GetSize(),
-		TEXT("Start %u, Count %u, Type %u, Buffer Size %u, Buffer stride %u"), StartIndex, IndexCount, StateCache.GetGraphicsPipelinePrimitiveType(), RHIIndexBuffer->GetSize(), RHIIndexBuffer->GetStride());
+	checkf((StartIndex + IndexCount) * IndexBuffer->GetStride() <= IndexBuffer->GetSize(),
+		TEXT("Start %u, Count %u, Type %u, Buffer Size %u, Buffer stride %u"), StartIndex, IndexCount, StateCache.GetGraphicsPipelinePrimitiveType(), IndexBuffer->GetSize(), IndexBuffer->GetStride());
 
 	// determine 16bit vs 32bit indices
-	const DXGI_FORMAT Format = (RHIIndexBuffer->GetStride() == sizeof(uint16) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT);
+	const DXGI_FORMAT Format = (IndexBuffer->GetStride() == sizeof(uint16) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT);
 	StateCache.SetIndexBuffer(IndexBuffer->ResourceLocation, Format, 0);
 	StateCache.ApplyState<D3D12PT_Graphics>();
 
