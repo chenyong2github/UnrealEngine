@@ -99,6 +99,11 @@ namespace UsdUtils
 	 * Note: This assumes that the morph targets in InBlendShape are sorted by weight.
 	 */
 	USDUTILITIES_API void ResolveWeightsForBlendShape( const FUsdBlendShape& InBlendShape, float InWeight, float& OutPrimaryWeight, TArray<float>& OutInbetweenWeights );
+
+#if USE_USD_SDK
+	/** Allows creation of a skinning query from the underlying skinned mesh and skeleton. Adapted from the USD SDK implementation */
+	USDUTILITIES_API pxr::UsdSkelSkinningQuery CreateSkinningQuery( const pxr::UsdGeomMesh& SkinnedMesh, const pxr::UsdSkelSkeletonQuery& SkeletonQuery );
+#endif // USE_USD_SDK
 }
 
 #if USE_USD_SDK
@@ -143,10 +148,11 @@ namespace UsdToUnreal
 	 * @param InUsdSkeletonQuery - SkinningQuery with the data to convert
 	 * @param InSkinningTargets - Skinned meshes that use the skeleton of InUsdSkeletonQuery. Required to fetch the blend shape ordering of each mesh. Optional (can be nullptr to ignore)
 	 * @param InBlendShapes - Converted blend shape data that will be used to interpret blend shape weights as morph target weight float curves. Optional (can be nullptr to ignore)
+	 * @param InInterpretLODs - Whether we try parsing animation data from all LODs of skinning meshes that are inside LOD variant sets
 	 * @param OutSkeletalAnimationAsset - Output parameter that will be filled with the converted data
 	 * @return Whether the conversion was successful or not.
 	 */
-	USDUTILITIES_API bool ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeletonQuery, const pxr::VtArray<pxr::UsdSkelSkinningQuery>* InSkinningTargets, const UsdUtils::FBlendShapeMap* InBlendShapes, UAnimSequence* OutSkeletalAnimationAsset );
+	USDUTILITIES_API bool ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeletonQuery, const pxr::VtArray<pxr::UsdSkelSkinningQuery>* InSkinningTargets, const UsdUtils::FBlendShapeMap* InBlendShapes, bool bInInterpretLODs, UAnimSequence* OutSkeletalAnimationAsset );
 
 	/**
 	 * Builds a USkeletalMesh and USkeleton from the imported data in SkelMeshImportData
