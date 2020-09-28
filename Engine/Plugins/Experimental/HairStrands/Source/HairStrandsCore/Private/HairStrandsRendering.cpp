@@ -23,25 +23,6 @@
 #include "GroomManager.h"
 #include "GroomInstance.h"
 
-// Just to be sure, also added this in Eigen.Build.cs
-#ifndef EIGEN_MPL2_ONLY
-#define EIGEN_MPL2_ONLY
-#endif
-
-#if defined(_MSC_VER) && USING_CODE_ANALYSIS
-#pragma warning(push)
-#pragma warning(disable:6294) // Ill-defined for-loop:  initial condition does not satisfy test.  Loop body not executed.
-#endif
-THIRD_PARTY_INCLUDES_START
-#include <Eigen/Core>
-#include <Eigen/Dense>
-#include <Eigen/Sparse>
-#include <Eigen/SparseLU>
-THIRD_PARTY_INCLUDES_END
-#if defined(_MSC_VER) && USING_CODE_ANALYSIS
-#pragma warning(pop)
-#endif
-
 static int32 GHairDeformationType = 0;
 static FAutoConsoleVariableRef CVarHairDeformationType(TEXT("r.HairStrands.DeformationType"), GHairDeformationType, TEXT("Type of procedural deformation applied on hair strands (0:use simulation's output, 1:use rest strands, 2: use rest guides, 3:wave pattern, 4:follow root normal)"));
 
@@ -1248,7 +1229,7 @@ void ComputeHairStrandsInterpolation(
 		{		
 			FBufferTransitionQueue TransitionQueue;
 
-			assert(Instance->HairGroupPublicPtr->ClusterDataIndex > 0);
+			//assert(Instance->HairGroupPublicPtr->ClusterDataIndex > 0);
 			FHairStrandClusterData::FHairGroup& HairGroupCluster =  InClusterData->HairGroups[Instance->HairGroupPublicData->ClusterDataIndex];
 
 			if (HairGroupCluster.bVisible)
