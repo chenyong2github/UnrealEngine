@@ -12,8 +12,6 @@ struct FUsdStageImportContext;
 class USDSTAGEIMPORTER_API UUsdStageImporter
 {
 public:
-	static UUsdAssetImportData* GetAssetImportData(UObject* Asset);
-
 	void ImportFromFile(FUsdStageImportContext& ImportContext);
 
 	bool ReimportSingleAsset(FUsdStageImportContext& ImportContext, UObject* OriginalAsset, UUsdAssetImportData* OriginalImportData, UObject*& OutReimportedAsset);
