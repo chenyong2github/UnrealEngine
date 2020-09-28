@@ -712,8 +712,9 @@ void ULandscapeComponent::UpdatedSharedPropertiesFromActor()
 	bCastShadowAsTwoSided = LandscapeProxy->bCastShadowAsTwoSided;
 	bAffectDistanceFieldLighting = LandscapeProxy->bAffectDistanceFieldLighting;
 	bRenderCustomDepth = LandscapeProxy->bRenderCustomDepth;
-	SetCullDistance(LandscapeProxy->LDMaxDrawDistance);
+	CustomDepthStencilWriteMask = LandscapeProxy->CustomDepthStencilWriteMask;
 	CustomDepthStencilValue = LandscapeProxy->CustomDepthStencilValue;
+	SetCullDistance(LandscapeProxy->LDMaxDrawDistance);
 	LightingChannels = LandscapeProxy->LightingChannels;
 }
 
@@ -2581,8 +2582,9 @@ void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape)
 		bAffectDistanceFieldLighting = Landscape->bAffectDistanceFieldLighting;
 		LightingChannels = Landscape->LightingChannels;
 		bRenderCustomDepth = Landscape->bRenderCustomDepth;
-		LDMaxDrawDistance = Landscape->LDMaxDrawDistance;		
+		CustomDepthStencilWriteMask = Landscape->CustomDepthStencilWriteMask;
 		CustomDepthStencilValue = Landscape->CustomDepthStencilValue;
+		LDMaxDrawDistance = Landscape->LDMaxDrawDistance;
 		ComponentSizeQuads = Landscape->ComponentSizeQuads;
 		NumSubsections = Landscape->NumSubsections;
 		SubsectionSizeQuads = Landscape->SubsectionSizeQuads;
