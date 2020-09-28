@@ -323,7 +323,7 @@ namespace DatasmithNavisworks
 
 		private const string HOST_NAME = "Navisworks";
 		private const string VENDOR_NAME = "Autodesk Inc.";
-		private const string PRODUCT_NAME = "Navisworks Manage"; // TODO: identify?
+
 		private StreamWriter LogStream;
 
 		public override CommandState CanExecute()
@@ -737,9 +737,9 @@ namespace DatasmithNavisworks
 					try
 					{
 
-						string ProductVersion = "1.0"; // TODO:
+						string ProductVersion = Autodesk.Navisworks.Api.Application.Version.ApiMajor + "." + Autodesk.Navisworks.Api.Application.Version.ApiMinor;
 						FDatasmithFacadeScene DatasmithScene =
-							new FDatasmithFacadeScene(HOST_NAME, VENDOR_NAME, PRODUCT_NAME, ProductVersion);
+							new FDatasmithFacadeScene(HOST_NAME, VENDOR_NAME, Autodesk.Navisworks.Api.Application.Version.Runtime, ProductVersion);
 						DatasmithScene.PreExport();
 
 						SceneContext SceneContext = new SceneContext
@@ -870,6 +870,8 @@ namespace DatasmithNavisworks
 							LogStream?.Flush();
 						}
 
+						PrintAllocationStats(SceneContext);
+
 						{
 							EventInfo("Preparing Merged Meshes");
 							MergeMeshesForNodeTree(SceneContext, ProgressBar);
@@ -879,6 +881,8 @@ namespace DatasmithNavisworks
 							}
 							EventInfo("Done - Preparing Merged Meshes");
 						}
+
+						PrintAllocationStats(SceneContext);
 
 						{
 							EventInfo("Optimizing Intermediate scene");
@@ -909,6 +913,7 @@ namespace DatasmithNavisworks
 
 							EventInfo("Done - Creating Meshes");
 						}
+						PrintAllocationStats(SceneContext);
 
 						{
 							EventInfo("Creating Actors");
@@ -995,6 +1000,42 @@ namespace DatasmithNavisworks
 			}
 
 			return 0;
+		}
+
+		private void PrintAllocationStats(SceneContext SceneContext)
+		{
+			TriangleReader TriangleReader = SceneContext.TriangleReader;
+			EventInfo("Geometry Allocation Stats:");
+
+			Info($"  GeometryCount={TriangleReader.GetGeometryCount()}");
+			Info($"  TriangleCount={TriangleReader.GetTriangleCount()}");
+			Info($"  VertexCount={TriangleReader.GetVertexCount()}");
+
+			Info($"  CoordBytesUsed={TriangleReader.GetCoordBytesUsed()}");
+			Info($"  NormalBytesUsed={TriangleReader.GetNormalBytesUsed()}");
+			Info($"  UvBytesUsed={TriangleReader.GetUvBytesUsed()}");
+			Info($"  IndexBytesUsed={TriangleReader.GetIndexBytesUsed()}");
+
+			Info($"  CoordBytesReserved={TriangleReader.GetCoordBytesReserved()}");
+			Info($"  NormalBytesReserved={TriangleReader.GetNormalBytesReserved()}");
+			Info($"  UvBytesReserved={TriangleReader.GetUvBytesReserved()}");
+			Info($"  IndexBytesReserved={TriangleReader.GetIndexBytesReserved()}");
+
+			ulong TotalMemoryReserved = TriangleReader.GetCoordBytesReserved() +
+			                                  TriangleReader.GetNormalBytesReserved() +
+			                                  TriangleReader.GetUvBytesReserved() +
+			                                  TriangleReader.GetIndexBytesReserved();
+			Info($"  *TotalMemoryReserved={TotalMemoryReserved}");
+
+			ulong TotalMemoryUsed = TriangleReader.GetCoordBytesUsed() +
+			                                  TriangleReader.GetNormalBytesUsed() +
+			                                  TriangleReader.GetUvBytesUsed() +
+			                                  TriangleReader.GetIndexBytesUsed();
+			Info($"  *TotalMemoryUsed={TotalMemoryUsed}");
+
+			ulong ExpectedMemoryUsed = TriangleReader.GetTriangleCount() * 4 * 3 +
+			                                      TriangleReader.GetVertexCount() * (8 * 3 + 4 * 5);
+			Info($"  *ExpectedMemoryUsed={ExpectedMemoryUsed}");
 		}
 
 		private void ExportCameras(SceneContext SceneContext)
@@ -2186,7 +2227,7 @@ namespace DatasmithNavisworks
 				ReadParams.SetNormalThreshold(SceneContext.NormalThreshold);
 
 				// SceneContext.TriangleSizeThreshold, SceneContext.PositionThreshold, SceneContext.NormalThreshold
-				Geometry SourceGeometry = DatasmithNavisworksUtil.TriangleReader.ReadGeometry(Fragment, ReadParams);
+				Geometry SourceGeometry = SceneContext.TriangleReader.ReadGeometry(Fragment, ReadParams);
 				if (!GeometryUtil.HasNonDegenerateTriangles(SourceGeometry, SceneContext.PositionThreshold))
 				{
 					// Store empty object for convenience(we can't drop fragments - need to preserve count and order of fragments so that other instances match)
@@ -2804,6 +2845,7 @@ namespace DatasmithNavisworks
 		class SceneContext
 		{
 			public InwOpState10 State;
+			public DatasmithNavisworksUtil.TriangleReader TriangleReader = new TriangleReader();
 
 			public int ModelItemCount; // Total item count, as read using Navisworks api
 			public List<SceneItem> SceneItemList = new List<SceneItem>(); // All scene items acquired from the Navisworks scene
@@ -3101,6 +3143,8 @@ namespace DatasmithNavisworks
 		private Vector3d PickedPoint;
 		public ExporterDockPanePlugin.DockPaneControlPresenter DockPanePresenter;
 
+		private TriangleReader LocalTriangleReader = new TriangleReader();
+
 		public override bool MouseDown(View View,
 			KeyModifiers Modifiers,
 			ushort Button,
@@ -3161,7 +3205,7 @@ namespace DatasmithNavisworks
 			return false;
 		}
 
-		private static Vector3d SnapIntersectionPointToGeometryVertex(View View, ModelItem Item, int X, int Y, Vector3d Point)
+		private Vector3d SnapIntersectionPointToGeometryVertex(View View, ModelItem Item, int X, int Y, Vector3d Point)
 		{
 			InwOaPath Path = Autodesk.Navisworks.Api.ComApi.ComApiBridge.ToInwOaPath(Item);
 			InwNodeFragsColl Fragments = Path.Fragments();
@@ -3218,7 +3262,7 @@ namespace DatasmithNavisworks
 					break;
 				}
 
-				Geometry Geometry = DatasmithNavisworksUtil.TriangleReader.ReadGeometry(Fragment, new GeometrySettings());
+				Geometry Geometry = LocalTriangleReader.ReadGeometry(Fragment, new GeometrySettings());
 				TransformMatrix LocalToWorldTransform = Converters.ConvertMatrix(Fragment.GetLocalToWorldMatrix());
 				foreach (GeometryVertex Vertex in GeometryUtil.EnumerateVertices(Geometry))
 				{
