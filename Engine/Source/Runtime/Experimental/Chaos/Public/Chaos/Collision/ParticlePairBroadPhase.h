@@ -25,11 +25,12 @@ namespace Chaos
 		using FParticlePair = TVector<FParticleHandle*, 2>;
 		using FAABB = TAABB<FReal, 3>;
 
-		FParticlePairBroadPhase(const TArray<FParticlePair>* InParticlePairs, const TArray<FParticleHandle*>* InParticlesA, const TArray<FParticleHandle*>* InParticlesB, const FReal InCullDistance)
+		FParticlePairBroadPhase(const TArray<FParticlePair>* InParticlePairs, const TArray<FParticleHandle*>* InParticlesA, const TArray<FParticleHandle*>* InParticlesB, const FReal InCullDistance, const FReal InShapePadding)
 			: ParticlePairs(InParticlePairs)
 			, ParticlesA(InParticlesA)
 			, ParticlesB(InParticlesB)
 			, CullDistance(InCullDistance)
+			, ShapePadding(InShapePadding)
 		{
 		}
 
@@ -100,7 +101,7 @@ namespace Chaos
 			if (Box0.Intersects(Box1))
 			{
 
-				NarrowPhase.GenerateCollisions(ConstraintsArray, Dt, ParticleA, ParticleB, CullDistance, StatData);
+				NarrowPhase.GenerateCollisions(ConstraintsArray, Dt, ParticleA, ParticleB, CullDistance, ShapePadding, StatData);
 			}
 		}
 
@@ -108,5 +109,6 @@ namespace Chaos
 		const TArray<FParticleHandle*>* ParticlesA;
 		const TArray<FParticleHandle*>* ParticlesB;
 		FReal CullDistance;
+		FReal ShapePadding;
 	};
 }

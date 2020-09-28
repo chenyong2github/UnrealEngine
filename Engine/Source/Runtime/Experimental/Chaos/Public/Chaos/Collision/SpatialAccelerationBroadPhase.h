@@ -69,16 +69,22 @@ namespace Chaos
 	public:
 		using FAccelerationStructure = ISpatialAcceleration<TAccelerationStructureHandle<FReal, 3>, FReal, 3>;
 
-		FSpatialAccelerationBroadPhase(const TPBDRigidsSOAs<FReal, 3>& InParticles, const FReal InThickness, const FReal InVelocityInflation)
-			: FBroadPhase(InThickness, InVelocityInflation)
+		FSpatialAccelerationBroadPhase(const TPBDRigidsSOAs<FReal, 3>& InParticles, const FReal InBoundsExpansion, const FReal InVelocityInflation, const FReal InShapePadding)
+			: FBroadPhase(InBoundsExpansion, InVelocityInflation)
 			, Particles(InParticles)
 			, SpatialAcceleration(nullptr)
+			, ShapePadding(InShapePadding)
 		{
 		}
 
 		void SetSpatialAcceleration(const FAccelerationStructure* InSpatialAcceleration)
 		{
 			SpatialAcceleration = InSpatialAcceleration;
+		}
+
+		void SetShapePadding(FReal InShapePadding)
+		{
+			ShapePadding = InShapePadding;
 		}
 
 		/**
@@ -310,7 +316,7 @@ namespace Chaos
 						// Each particle has a heuristic for cull distance, we take the larger one to decrease the chance
 						// that a constraint will get culled prematurely.
 						const FReal CullDistance = FMath::Max(Particle1CullDistance, Box2Thickness);
-						NarrowPhase.GenerateCollisions(NewConstraints, Dt, Particle1.Handle(), Particle2.Handle(), CullDistance, StatData);
+						NarrowPhase.GenerateCollisions(NewConstraints, Dt, Particle1.Handle(), Particle2.Handle(), CullDistance, ShapePadding, StatData);
 					}
 
 					{
@@ -325,6 +331,7 @@ namespace Chaos
 
 		const TPBDRigidsSOAs<FReal, 3>& Particles;
 		const FAccelerationStructure* SpatialAcceleration;
+		FReal ShapePadding;
 
 		FIgnoreCollisionManager IgnoreCollisionManager;
 	};

@@ -14,6 +14,33 @@ namespace Chaos
 	class FImplicitObject;
 	class FPBDCollisionConstraintHandle;
 
+	// Data returned by the low-level collision functions
+	class CHAOS_API FContactPoint
+	{
+	public:
+		FVec3 LocalContactPoints[2];	// Local-space contact points on the two bodies
+		FVec3 LocalContactNormal;		// Local-space contact normal
+
+		FVec3 Location;					// World-space contact location
+		FVec3 Normal;					// World-space contact normal
+		FReal Phi;						// Contact separation (negative for overlap)
+
+		FContactPoint()
+			: Normal(1, 0, 0)
+			, Phi(TNumericLimits<FReal>::Max()) {}
+	};
+
+	class CHAOS_API FManifoldPoint
+	{
+	public:
+		static bool IsMatch(const FContactPoint& A, const FContactPoint& B);
+
+		FManifoldPoint() {}
+		FManifoldPoint(const FContactPoint& InContactPoint) : ContactPoint(InContactPoint) {}
+
+		FContactPoint ContactPoint;
+	};
+
 	/*
 	*
 	*/
@@ -214,6 +241,10 @@ namespace Chaos
 
 		static typename Base::FType StaticType() { return Base::FType::SinglePoint; };
 
+		TArrayView<const FManifoldPoint> GetManifoldPoints() const { return MakeArrayView(ManifoldPoints); }
+		void UpdateManifold(const FContactPoint& ContactPoint);
+		void ClearManifold();
+
 	protected:
 		// For use by derived types that can be used as point constraints in Update
 		FRigidBodyPointContactConstraint(typename Base::FType InType) : Base(InType) {}
@@ -231,6 +262,16 @@ namespace Chaos
 			const EContactShapesType ShapesType)
 			: Base(Particle0, Implicit0, Simplicial0, Transform0, Particle1, Implicit1, Simplicial1, Transform1, InType, ShapesType)
 		{}
+
+		bool AreMatchingContactPoints(const FContactPoint& A, const FContactPoint& B) const;
+		int32 FindManifoldPoint(const FContactPoint& ContactPoint) const;
+		int32 AddManifoldPoint(const FContactPoint& ContactPoint);
+		void UpdateManifoldPoint(int32 ManifoldPointIndex, const FContactPoint& ContactPoint);
+		bool SetActiveManifoldPoint(int32 ManifoldPointIndex);
+		bool SetActiveContactPoint(const FContactPoint& ContactPoint);
+
+		// @todo(chaos): inline array
+		TArray<FManifoldPoint> ManifoldPoints;
 	};
 
 
