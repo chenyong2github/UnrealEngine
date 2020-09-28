@@ -11,10 +11,10 @@
 #include "HAL/PlatformAtomics.h"
 #include "HAL/PlatformStackWalk.h"
 #include "Serialization/Archive.h"
+#include "DiagnosticLogger.h"
 #endif
 
 #if CRASH_REPORT_WITH_MTBF && !PLATFORM_SEH_EXCEPTIONS_DISABLED
-extern void LogCrcEvent(const TCHAR*);
 
 static ANSICHAR CrashStackTrace[8*1024] = {0};
 
@@ -27,7 +27,7 @@ void SaveCrcCrashException(EXCEPTION_POINTERS* ExceptionInfo)
 	{
 		TCHAR CrashEventLog[64];
 		FCString::Sprintf(CrashEventLog, TEXT("CRC/Crash:%d"), ExceptionInfo->ExceptionRecord->ExceptionCode);
-		LogCrcEvent(CrashEventLog);
+		FDiagnosticLogger::Get().LogEvent(CrashEventLog);
 
 		uint64 MonitoredEditorPid;
 		if (FParse::Value(GetCommandLineW(), TEXT("-MONITOR="), MonitoredEditorPid))
@@ -52,7 +52,7 @@ void SaveCrcCrashException(EXCEPTION_POINTERS* ExceptionInfo)
 			FPlatformStackWalk::StackWalkAndDump(CrashStackTrace, UE_ARRAY_COUNT(CrashStackTrace), 0);
 			if (CrashStackTrace[0] != 0)
 			{
-				LogCrcEvent(ANSI_TO_TCHAR(CrashStackTrace));
+				FDiagnosticLogger::Get().LogEvent(ANSI_TO_TCHAR(CrashStackTrace));
 			}
 		}
 	}
