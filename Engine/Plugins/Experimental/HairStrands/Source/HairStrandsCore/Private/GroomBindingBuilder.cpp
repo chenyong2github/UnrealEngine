@@ -9,6 +9,8 @@
 #include "Async/ParallelFor.h"
 #include "GlobalShader.h"
 
+#if WITH_EDITORONLY_DATA
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Eigen for large matrix inversion
 // Just to be sure, also added this in Eigen.Build.cs
@@ -28,6 +30,8 @@ THIRD_PARTY_INCLUDES_START
 THIRD_PARTY_INCLUDES_END
 #if defined(_MSC_VER) && USING_CODE_ANALYSIS
 #pragma warning(pop)
+#endif
+
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -89,6 +93,7 @@ float FHairStrandsRootUtils::PackUVsToFloat(const FVector2D& UV)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // RBF weighting
 
+#if WITH_EDITORONLY_DATA
 namespace GroomBinding_RBFWeighting
 {
 	struct FPointsSampler
@@ -417,6 +422,8 @@ namespace GroomBinding_RBFWeighting
 		}
 	}
 }// namespace GroomBinding_RBFWeighting
+
+#endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Root projection
@@ -1186,6 +1193,7 @@ namespace GroomBinding_Transfer
 // Main entry (CPU path)
 static bool InternalBuildBinding_CPU(UGroomBindingAsset* BindingAsset, bool bInitResources)
 {
+#if WITH_EDITORONLY_DATA
 	if (!BindingAsset ||
 		!BindingAsset->Groom ||
 		!BindingAsset->TargetSkeletalMesh ||
@@ -1304,13 +1312,15 @@ static bool InternalBuildBinding_CPU(UGroomBindingAsset* BindingAsset, bool bIni
 	{
 		BindingAsset->InitResource();
 	}
-
+#endif
 	return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // GPU path
 
+
+#if WITH_EDITORONLY_DATA
 namespace GroomBinding_GPU
 {
 	template<typename ReadBackType>
@@ -1775,10 +1785,13 @@ namespace GroomBinding_GPU
 	}
 } // namespace GroomBinding_GPU
 
+#endif
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Main entry (GPU path)
 static void InternalBuildBinding_GPU(FRDGBuilder& GraphBuilder, UGroomBindingAsset* BindingAsset)
 {
+#if WITH_EDITORONLY_DATA
 	if (!BindingAsset ||
 		!BindingAsset->Groom ||
 		!BindingAsset->TargetSkeletalMesh ||
@@ -1915,6 +1928,8 @@ static void InternalBuildBinding_GPU(FRDGBuilder& GraphBuilder, UGroomBindingAss
 			GroomBinding_GPU::ComputeInterpolationWeights(BindingAsset, TargetRenderData, TransferData->TransferredPositions);
 			BindingAsset->QueryStatus = UGroomBindingAsset::EQueryStatus::Completed;
 		});
+
+#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
