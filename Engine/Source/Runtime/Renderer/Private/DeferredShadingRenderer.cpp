@@ -1502,7 +1502,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			PrepareDistanceFieldScene(RHICmdList, bSplitDispatch);
 		}
 
-		if (Views.Num() > 0)
+		if (Scene)
 		{
 			FViewInfo& View = Views[0];
 			Scene->UpdatePhysicsField(RHICmdList, View);
