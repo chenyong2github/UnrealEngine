@@ -458,6 +458,8 @@ FReply SDMXPixelMappingDesignerView::OnDragDetected(const FGeometry& MyGeometry,
 		if (DraggingWidgets.Num())
 		{
 			TSharedRef<FSelectedComponentDragDropOp> DragOp = FSelectedComponentDragDropOp::New(ToolkitWeakPtr.Pin(), DraggingWidgets);
+			DragOp->SetDecoratorVisibility(false);
+
 			return FReply::Handled().BeginDragDrop(DragOp);
 		}
 	}
