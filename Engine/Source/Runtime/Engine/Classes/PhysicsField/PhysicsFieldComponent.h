@@ -7,7 +7,7 @@
 #include "UObject/ObjectMacros.h"
 #include "RHI.h"
 #include "RenderResource.h"
-#include "PrimitiveSceneProxy.h"
+
 #include "PhysicsFieldComponent.generated.h"
 
 /** Max targets array*/
