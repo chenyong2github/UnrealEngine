@@ -1861,9 +1861,7 @@ struct FRHITransitionInfo : public FRHISubresourceRange
 	{
 		class FRHIResource* Resource = nullptr;
 		class FRHITexture* Texture;
-		class FRHIBuffer* VertexBuffer;
-		class FRHIBuffer* IndexBuffer;
-		class FRHIBuffer* StructuredBuffer;
+		class FRHIBuffer* Buffer;
 		class FRHIUnorderedAccessView* UAV;
 	};
 
@@ -1871,9 +1869,7 @@ struct FRHITransitionInfo : public FRHISubresourceRange
 	{
 		Unknown,
 		Texture,
-		VertexBuffer,
-		IndexBuffer,
-		StructuredBuffer,
+		Buffer,
 		UAV
 	} Type = EType::Unknown;
 

@@ -221,36 +221,22 @@ void ProcessResource(FD3D12CommandContext& Context, const FRHITransitionInfo& In
 		FRHITransitionInfo LocalInfo = Info;
 		LocalInfo.MipIndex = UAV->GetViewSubresourceSubset().MostDetailedMip();
 		Function(LocalInfo, UAV->GetResource());
+		break;
 	}
-	break;
-	case FRHITransitionInfo::EType::VertexBuffer:
+	case FRHITransitionInfo::EType::Buffer:
 	{
-		FD3D12Buffer* VertexBuffer = Context.RetrieveObject<FD3D12Buffer>(Info.VertexBuffer);
-		check(VertexBuffer);
-		Function(Info, VertexBuffer->GetResource());
+		FD3D12Buffer* Buffer = Context.RetrieveObject<FD3D12Buffer>(Info.Buffer);
+		check(Buffer);
+		Function(Info, Buffer->GetResource());
+		break;
 	}
-	break;
-	case FRHITransitionInfo::EType::IndexBuffer:
-	{
-		FD3D12Buffer* IndexBuffer = Context.RetrieveObject<FD3D12Buffer>(Info.IndexBuffer);
-		check(IndexBuffer);
-		Function(Info, IndexBuffer->GetResource());
-	}
-	break;
-	case FRHITransitionInfo::EType::StructuredBuffer:
-	{
-		FD3D12Buffer* StructuredBuffer = Context.RetrieveObject<FD3D12Buffer>(Info.StructuredBuffer);
-		check(StructuredBuffer);
-		Function(Info, StructuredBuffer->GetResource());
-	}
-	break;
 	case FRHITransitionInfo::EType::Texture:
 	{
 		FD3D12TextureBase* Texture = Context.RetrieveTextureBase(Info.Texture);
 		check(Texture);
 		Function(Info, Texture->GetResource());
+		break;
 	}
-	break;
 	default:
 		checkNoEntry();
 		break;

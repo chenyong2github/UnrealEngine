@@ -207,7 +207,7 @@ FVulkanUnorderedAccessView::~FVulkanUnorderedAccessView()
 {
 	TextureView.Destroy(*Device);
 	BufferView = nullptr;
-	SourceVertexBuffer = nullptr;
+	SourceBuffer = nullptr;
 	SourceTexture = nullptr;
 	Device = nullptr;
 }
@@ -219,44 +219,23 @@ void FVulkanUnorderedAccessView::UpdateView()
 #endif
 
 	// update the buffer view for dynamic VB backed buffers (or if it was never set)
-	if (SourceVertexBuffer != nullptr)
+	if (SourceBuffer != nullptr)
 	{
-		if (SourceVertexBuffer->IsVolatile() && VolatileLockCounter != SourceVertexBuffer->GetVolatileLockCounter())
+		if (BufferViewFormat != PF_Unknown)
 		{
-			BufferView = nullptr;
-			VolatileLockCounter = SourceVertexBuffer->GetVolatileLockCounter();
-		}
+			if (SourceBuffer->IsVolatile() && VolatileLockCounter != SourceBuffer->GetVolatileLockCounter())
+			{
+				BufferView = nullptr;
+				VolatileLockCounter = SourceBuffer->GetVolatileLockCounter();
+			}
 
-		if (BufferView == nullptr || SourceVertexBuffer->IsDynamic())
-		{
-			// thanks to ref counting, overwriting the buffer will toss the old view
-			BufferView = new FVulkanBufferView(Device);
-			BufferView->Create(SourceVertexBuffer.GetReference(), BufferViewFormat, SourceVertexBuffer->GetOffset(), SourceVertexBuffer->GetSize());
+			if (BufferView == nullptr || SourceBuffer->IsDynamic())
+			{
+				// thanks to ref counting, overwriting the buffer will toss the old view
+				BufferView = new FVulkanBufferView(Device);
+				BufferView->Create(SourceBuffer.GetReference(), BufferViewFormat, SourceBuffer->GetOffset(), SourceBuffer->GetSize());
+			}
 		}
-	}
-	else if (SourceIndexBuffer != nullptr)
-	{
-		if (SourceIndexBuffer->IsVolatile() && VolatileLockCounter != SourceIndexBuffer->GetVolatileLockCounter())
-		{
-			BufferView = nullptr;
-			VolatileLockCounter = SourceIndexBuffer->GetVolatileLockCounter();
-		}
-
-		if (BufferView == nullptr || SourceIndexBuffer->IsDynamic())
-		{
-			// thanks to ref counting, overwriting the buffer will toss the old view
-			BufferView = new FVulkanBufferView(Device);
-			BufferView->Create(SourceIndexBuffer.GetReference(), BufferViewFormat, SourceIndexBuffer->GetOffset(), SourceIndexBuffer->GetSize());
-		}
-	}
-	else if (SourceStructuredBuffer)
-	{
-		// Nothing...
-		//if (SourceStructuredBuffer->IsVolatile() && VolatileLockCounter != SourceStructuredBuffer->GetVolatileLockCounter())
-		//{
-		//	BufferView = nullptr;
-		//	VolatileLockCounter = SourceStructuredBuffer->GetVolatileLockCounter();
-		//}
 	}
 	else if (TextureView.View == VK_NULL_HANDLE)
 	{
@@ -294,7 +273,7 @@ FUnorderedAccessViewRHIRef FVulkanDynamicRHI::RHICreateUnorderedAccessView(FRHIB
 
 	FVulkanUnorderedAccessView* UAV = new FVulkanUnorderedAccessView(Device);
 	// delay the shader view create until we use it, so we just track the source info here
-	UAV->SourceStructuredBuffer = Buffer;
+	UAV->SourceBuffer = Buffer;
 
 	//#todo-rco: bUseUAVCounter and bAppendBuffer
 
@@ -316,7 +295,7 @@ FUnorderedAccessViewRHIRef FVulkanDynamicRHI::RHICreateUnorderedAccessView(FRHIB
 	FVulkanUnorderedAccessView* UAV = new FVulkanUnorderedAccessView(Device);
 	// delay the shader view create until we use it, so we just track the source info here
 	UAV->BufferViewFormat = (EPixelFormat)Format;
-	UAV->SourceVertexBuffer = Buffer;
+	UAV->SourceBuffer = Buffer;
 
 	return UAV;
 }
@@ -419,7 +398,7 @@ void FVulkanCommandListContext::ClearUAV(TRHICommandList_RecursiveHazardous<FVul
 	if (!bFloat)
 	{
 		EPixelFormat Format;
-		if (UnorderedAccessView->SourceVertexBuffer)
+		if (UnorderedAccessView->SourceBuffer)
 		{
 			Format = UnorderedAccessView->BufferViewFormat;
 		}
@@ -449,9 +428,9 @@ void FVulkanCommandListContext::ClearUAV(TRHICommandList_RecursiveHazardous<FVul
 		ValueType = EClearReplacementValueType::Float;
 	}
 
-	if (UnorderedAccessView->SourceVertexBuffer)
+	if (UnorderedAccessView->SourceBuffer)
 	{
-		uint32 NumElements = UnorderedAccessView->SourceVertexBuffer->GetSize() / GPixelFormats[UnorderedAccessView->BufferViewFormat].BlockBytes;
+		uint32 NumElements = UnorderedAccessView->SourceBuffer->GetSize() / GPixelFormats[UnorderedAccessView->BufferViewFormat].BlockBytes;
 		ClearUAVShader_T<EClearReplacementResourceType::Buffer, 4, false>(RHICmdList, UnorderedAccessView, NumElements, 1, 1, ClearValue, ValueType);
 	}
 	else if (UnorderedAccessView->SourceTexture)
