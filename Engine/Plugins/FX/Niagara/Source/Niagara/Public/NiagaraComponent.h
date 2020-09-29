@@ -109,6 +109,10 @@ private:
 	UPROPERTY(EditAnywhere, Category = Parameters)
 	uint32 bForceSolo : 1;
 
+	/** When true the GPU simulation debug display will enabled, allowing information used during simulation to be visualized. */
+	UPROPERTY(EditAnywhere, Category = Parameters)
+	uint32 bEnableGpuComputeDebug : 1;
+
 	TUniquePtr<FNiagaraSystemInstance> SystemInstance;
 
 	/** Defines the mode use when updating the System age. */
@@ -205,6 +209,7 @@ public:
 	void UnregisterWithScalabilityManager();
 
 	void PostSystemTick_GameThread();
+	void OnSystemComplete();
 
 	public:
 
@@ -232,8 +237,7 @@ public:
 
 	TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe> GetSystemSimulation();
 
-	bool InitializeSystem();
-	void OnSystemComplete();
+	bool InitializeSystem();	
 	void DestroyInstance();
 
 	void OnPooledReuse(UWorld* NewWorld);
@@ -249,6 +253,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Is In Forced Solo Mode"))
 	bool GetForceSolo()const { return bForceSolo; }
+
+	UFUNCTION(BlueprintCallable, Category = Niagara)
+	void SetGpuComputeDebug(bool bEnableDebug);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get Age Update Mode"))
 	ENiagaraAgeUpdateMode GetAgeUpdateMode() const;
@@ -429,6 +436,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = Niagara)
 	UNiagaraDataInterface* GetDataInterface(const FString &Name);
+
+	/** 
+		The significant index for this component. i.e. this is the Nth most significant instance of it's system in the scene. 
+		Passed to the script to allow us to scale down internally for less significant systems instances.
+	*/
+	FORCEINLINE void SetSystemSignificanceIndex(int32 InIndex) 	{ if(SystemInstance) SystemInstance->SetSystemSignificanceIndex(InIndex); }
 
 	//~ Begin UObject Interface.
 	virtual void PostLoad() override;

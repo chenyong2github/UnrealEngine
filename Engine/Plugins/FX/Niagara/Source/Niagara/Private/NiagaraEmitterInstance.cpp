@@ -511,12 +511,6 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 		}
 	}	
 
-	if (GPUExecContext)
-	{
-		GPUExecContext->BakeVariableNamesForIterationLookup();
-	}
-
-
 	MaxInstanceCount = CachedEmitter->GetMaxInstanceCount();
 	ParticleDataSet->SetMaxInstanceCount(MaxInstanceCount);
 
@@ -527,6 +521,7 @@ void FNiagaraEmitterInstance::ResetSimulation(bool bKillExisting /*= true*/)
 {
 	EmitterAge = 0;
 	TickCount = 0;
+	InstanceSeed = FGenericPlatformMath::Rand();
 	CachedBounds.Init();
 
 	if (MinOverallocation > 100 && GbNiagaraShowAllocationWarnings)
@@ -997,6 +992,10 @@ bool FNiagaraEmitterInstance::HandleCompletion(bool bForce)
 
 	if (IsComplete())
 	{
+		if( GPUExecContext )
+		{
+			GPUExecContext->Reset(Batcher);
+		}
 		ParticleDataSet->ResetBuffers();
 		if (EventInstanceData.IsValid())
 		{
@@ -1182,6 +1181,10 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 
 	if (ExecutionState == ENiagaraExecutionState::InactiveClear)
 	{
+		if (GPUExecContext)
+		{
+			GPUExecContext->Reset(Batcher);
+		}
 		Data.ResetBuffers();
 		ExecutionState = ENiagaraExecutionState::Inactive;
 		return;
@@ -1284,6 +1287,7 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 		EmitterParameters.EmitterTotalSpawnedParticles = TotalSpawnedParticles;
 		EmitterParameters.EmitterAge = EmitterAge;
 		EmitterParameters.EmitterRandomSeed = CachedEmitter->RandomSeed;
+		EmitterParameters.EmitterInstanceSeed = InstanceSeed;
 	}
 
 	/* GPU simulation -  we just create an FNiagaraComputeExecutionContext, queue it, and let the batcher take care of the rest

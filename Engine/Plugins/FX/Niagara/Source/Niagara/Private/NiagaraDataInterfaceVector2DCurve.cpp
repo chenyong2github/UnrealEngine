@@ -18,6 +18,8 @@ const FName UNiagaraDataInterfaceVector2DCurve::SampleCurveName("SampleVector2DC
 UNiagaraDataInterfaceVector2DCurve::UNiagaraDataInterfaceVector2DCurve(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	ExposedName = TEXT("Vector2 Curve");
+
 	SetDefaultLUT();
 }
 

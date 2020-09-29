@@ -5,11 +5,12 @@
 #include "NiagaraDataInterfaceRW.h"
 #include "ClearQuad.h"
 #include "NiagaraComponent.h"
-#include "NiagaraStats.h"
+#include "Niagara/Private/NiagaraStats.h"
 
 #include "NiagaraDataInterfaceGrid2DCollection.generated.h"
 
 class FNiagaraSystemInstance;
+class UTextureRenderTarget;
 class UTextureRenderTarget2D;
 
 class FGrid2DBuffer
@@ -33,14 +34,25 @@ struct FGrid2DCollectionRWInstanceData_GameThread
 {
 	FIntPoint NumCells = FIntPoint(EForceInit::ForceInitToZero);
 	FIntPoint NumTiles = FIntPoint(EForceInit::ForceInitToZero);
+	int32 NumAttributes = 0;
 	FVector2D CellSize = FVector2D::ZeroVector;
 	FVector2D WorldBBoxSize = FVector2D::ZeroVector;
 	EPixelFormat PixelFormat = EPixelFormat::PF_R32_FLOAT;
+#if WITH_EDITOR
+	bool bPreviewGrid = false;
+	FIntVector4 PreviewAttribute = FIntVector4(INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE);
+#endif
 
 	/** A binding to the user ptr we're reading the RT from (if we are). */
 	FNiagaraParameterDirectBinding<UObject*> RTUserParamBinding;
 
-	UTextureRenderTarget2D* TargetTexture = nullptr;
+	UTextureRenderTarget2D* TargetTexture = nullptr;	
+	TArray<FNiagaraVariableBase> Vars;
+	TArray<uint32> Offsets;
+
+	bool NeedsRealloc = false;
+
+	int32 FindAttributeIndexByName(const FName& InName, int32 NumChannels);
 };
 
 struct FGrid2DCollectionRWInstanceData_RenderThread
@@ -55,7 +67,16 @@ struct FGrid2DCollectionRWInstanceData_RenderThread
 	FGrid2DBuffer* CurrentData = nullptr;
 	FGrid2DBuffer* DestinationData = nullptr;
 
-	FTextureRHIRef RenderTargetToCopyTo;
+	FTextureRHIRef RenderTargetToCopyTo; 
+	TArray<int32> AttributeIndices;
+	TArray<FName> Vars;
+	TArray<int32> VarComponents;
+	TArray<uint32> Offsets;
+
+#if WITH_EDITOR
+	bool bPreviewGrid = false;
+	FIntVector4 PreviewAttribute = FIntVector4(INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE);
+#endif
 
 	void BeginSimulate(FRHICommandList& RHICmdList);
 	void EndSimulate(FRHICommandList& RHICmdList);
@@ -75,6 +96,7 @@ struct FNiagaraDataInterfaceProxyGrid2DCollectionProxy : public FNiagaraDataInte
 	/* List of proxy data for each system instances*/
 	// #todo(dmp): this should all be refactored to avoid duplicate code
 	TMap<FNiagaraSystemInstanceID, FGrid2DCollectionRWInstanceData_RenderThread> SystemInstancesToProxyData_RT;
+
 };
 
 UCLASS(EditInlineNew, Category = "Grid", meta = (DisplayName = "Grid2D Collection", Experimental), Blueprintable, BlueprintType)
@@ -95,6 +117,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Grid2DCollection", meta = (ToolTip = "Changes the format used to store data inside the grid, low bit formats save memory and performance."))
 	ENiagaraGpuBufferFormat BufferFormat;
 
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(Transient, EditAnywhere, Category = "Grid2DCollection", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bPreviewGrid : 1;
+
+	UPROPERTY(Transient, EditAnywhere, Category = "Grid2DCollection", meta = (EditCondition = "bPreviewGrid", ToolTip = "When enabled allows you to preview the grid in a debug display") )
+	FName PreviewAttribute = NAME_None;
+#endif
+
 	virtual void PostInitProperties() override;
 	
 	//~ UNiagaraDataInterface interface
@@ -113,13 +143,22 @@ public:
 	virtual void DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
 	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
 	virtual int32 PerInstanceDataSize()const override { return sizeof(FGrid2DCollectionRWInstanceData_GameThread); }
+	virtual bool PerInstanceTickPostSimulate(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
 	virtual bool HasPreSimulateTick() const override { return true; }
+	virtual bool HasPostSimulateTick() const override { return true; }
 
 	virtual bool CanExposeVariables() const override { return true;}
 	virtual void GetExposedVariables(TArray<FNiagaraVariableBase>& OutVariables) const override;
 	virtual bool GetExposedVariableValue(const FNiagaraVariableBase& InVariable, void* InPerInstanceData, FNiagaraSystemInstance* InSystemInstance, void* OutData) const override;
-
 	//~ UNiagaraDataInterface interface END
+
+private:
+	static void CollectAttributesForScript(UNiagaraScript* Script, FName VariableName, TArray<FNiagaraVariableBase>& OutVariables, TArray<uint32>& OutVariableOffsets, int32& TotalAttributes, TArray<FText>* OutWarnings = nullptr);
+public:
+	/** Finds all attributes by locating the variable name inside the parameter stores. */
+	void FindAttributesByName(FName DataInterfaceName, TArray<FNiagaraVariableBase>& OutVariables, TArray<uint32>& OutVariableOffsets, int32& OutNumAttribChannelsFound, TArray<FText>* OutWarnings = nullptr) const;
+	/** Finds all attributes by locating the data interface amongst the parameter stores. */
+	void FindAttributes(TArray<FNiagaraVariableBase>& OutVariables, TArray<uint32>& OutVariableOffsets, int32& OutNumAttribChannelsFound, TArray<FText>* OutWarnings = nullptr) const;
 
 	// Fills a texture render target 2d with the current data from the simulation
 	// #todo(dmp): this will eventually go away when we formalize how data makes it out of Niagara
@@ -138,6 +177,8 @@ public:
 	void GetWorldBBoxSize(FVectorVMContext& Context);
 	void GetCellSize(FVectorVMContext& Context);
 	void GetNumCells(FVectorVMContext& Context);
+	void SetNumCells(FVectorVMContext& Context);
+	void GetAttributeIndex(FVectorVMContext& Context, const FName& InName, int32 NumChannels);
 
 	static const FString NumTilesName;
 
@@ -145,12 +186,63 @@ public:
 	static const FString OutputGridName;
 	static const FString SamplerName;
 
+	static const FName ClearCellFunctionName;
+	static const FName CopyPreviousToCurrentForCellFunctionName;
+
 	static const FName SetValueFunctionName;
 	static const FName GetValueFunctionName;
 	static const FName SampleGridFunctionName;
 
+	static const FName SetVector4ValueFunctionName;
+	static const FName GetVector4ValueFunctionName;
+	static const FName SampleGridVector4FunctionName;
 
+	static const FName SetVector3ValueFunctionName;
+	static const FName GetVector3ValueFunctionName;
+	static const FName SampleGridVector3FunctionName;
+
+	static const FName SetVector2ValueFunctionName;
+	static const FName GetVector2ValueFunctionName;
+	static const FName SampleGridVector2FunctionName;
+
+	static const FName SetFloatValueFunctionName;
+	static const FName GetFloatValueFunctionName;
+	static const FName SampleGridFloatFunctionName;
+	
+	static const FString AttributeIndicesBaseName;
+	static const TCHAR* VectorComponentNames[];
+
+	static const FName SetNumCellsFunctionName;
+
+	static const FName GetVector4AttributeIndexFunctionName;
+	static const FName GetVector3AttributeIndexFunctionName;
+	static const FName GetVector2AttributeIndexFunctionName;
+	static const FName GetFloatAttributeIndexFunctionName;
+
+	static const FString AnonymousAttributeString;
+
+#if WITH_EDITOR
+	virtual bool SupportsSetupAndTeardownHLSL() const { return true; }
+	virtual bool GenerateSetupHLSL(FNiagaraDataInterfaceGPUParamInfo& DIInstanceInfo, TConstArrayView<FNiagaraVariable> InArguments, bool bSpawnOnly, bool bPartialWrites, TArray<FText>& OutErrors, FString& OutHLSL) const;
+	virtual bool GenerateTeardownHLSL(FNiagaraDataInterfaceGPUParamInfo& DIInstanceInfo, TConstArrayView<FNiagaraVariable> InArguments, bool bSpawnOnly, bool bPartialWrites, TArray<FText>& OutErrors, FString& OutHLSL) const;
+	virtual bool SupportsIterationSourceNamespaceAttributesHLSL() const override { return true; }
+	virtual bool GenerateIterationSourceNamespaceReadAttributesHLSL(FNiagaraDataInterfaceGPUParamInfo& DIInstanceInfo, const FNiagaraVariable& IterationSourceVar, TConstArrayView<FNiagaraVariable> InArguments, TConstArrayView<FNiagaraVariable> InAttributes, TConstArrayView<FString> InAttributeHLSLNames, bool bInSetToDefaults, bool bPartialWrites, TArray<FText>& OutErrors, FString& OutHLSL) const override;
+	virtual bool GenerateIterationSourceNamespaceWriteAttributesHLSL(FNiagaraDataInterfaceGPUParamInfo& DIInstanceInfo, const FNiagaraVariable& IterationSourceVar, TConstArrayView<FNiagaraVariable> InArguments, TConstArrayView<FNiagaraVariable> InAttributes, TConstArrayView<FString> InAttributeHLSLNames, bool bPartialWrites, TArray<FText>& OutErrors, FString& OutHLSL) const override;
+#endif
+
+	static int32 GetComponentCountFromFuncName(const FName& FuncName);
+	static FNiagaraTypeDefinition GetValueTypeFromFuncName(const FName& FuncName);
+	static bool CanCreateVarFromFuncName(const FName& FuncName);
 protected:
+	void WriteSetHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, int32 InNumChannels, FString& OutHLSL);
+	void WriteGetHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, int32 InNumChannels, FString& OutHLSL);
+	void WriteSampleHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, int32 InNumChannels, FString& OutHLSL);
+	void WriteAttributeGetIndexHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, int32 InNumChannels, FString& OutHLSL);
+
+	const TCHAR* TypeDefinitionToHLSLTypeString(const FNiagaraTypeDefinition& InDef) const;
+	FName TypeDefinitionToGetFunctionName(const FNiagaraTypeDefinition& InDef) const;
+	FName TypeDefinitionToSetFunctionName(const FNiagaraTypeDefinition& InDef) const;
+
 	//~ UNiagaraDataInterface interface
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 

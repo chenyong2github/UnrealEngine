@@ -233,6 +233,27 @@ public:
 //////////////////////////////////////////////////////////////////////////
 
 UENUM()
+enum class ENDISkeletalMesh_SourceMode : uint8
+{
+	/**
+	Default behavior.
+	- Use "Source" when specified (either set explicitly or via blueprint with Set Niagara Skeletal Mesh Component).
+	- When no source is specified, fall back on attached actor or component.
+	*/
+	Default,
+
+	/**
+	Only use "Source" (either set explicitly or via blueprint with Set Niagara Skeletal Mesh Component).
+	*/
+	Source,
+
+	/**
+	Only use the parent actor or component the system is attached to.
+	*/
+	AttachParent
+};
+
+UENUM()
 enum class ENDISkeletalMesh_SkinningMode : uint8
 {
 	Invalid = (uint8)-1 UMETA(Hidden),
@@ -339,7 +360,6 @@ public:
 	int32 GetFilteredSocketBoneOffset() const { return FilteredSocketBoneOffset; }
 
 protected:
-
 	FVertexBufferRHIRef BufferTriangleUniformSamplerProbaRHI = nullptr;
 	FShaderResourceViewRHIRef BufferTriangleUniformSamplerProbaSRV = nullptr;
 	FVertexBufferRHIRef BufferTriangleUniformSamplerAliasRHI = nullptr;
@@ -391,6 +411,10 @@ protected:
 	uint32 VertexCount = 0;
 	uint32 InputWeightStride = 0;
 	bool bUseGpuUniformlyDistributedSampling = false;
+
+#if STATS
+	int64 GPUMemoryUsage = 0;
+#endif
 };
 
 /**
@@ -440,6 +464,10 @@ private:
 
 	bool bBoneGpuBufferValid = false;
 	bool bPrevBoneGpuBufferValid = false;
+
+#if STATS
+	int64 GPUMemoryUsage = 0;
+#endif
 };
 
 struct FNDISkeletalMesh_InstanceData
@@ -572,6 +600,10 @@ class NIAGARA_API UNiagaraDataInterfaceSkeletalMesh : public UNiagaraDataInterfa
 public:
 
 	DECLARE_NIAGARA_DI_PARAMETER();
+
+	/** Controls how to retrieve the Skeletal Mesh Component to attach to. */
+	UPROPERTY(EditAnywhere, Category = "Mesh")
+	ENDISkeletalMesh_SourceMode SourceMode;
 	
 #if WITH_EDITORONLY_DATA
 	/** Mesh used to sample from when not overridden by a source actor from the scene. Only available in editor for previewing. This is removed in cooked builds. */
@@ -634,7 +666,8 @@ public:
 	virtual void PostInitProperties()override; 
 	virtual void PostLoad()override;
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;	
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif
 	//~ UObject interface END
 

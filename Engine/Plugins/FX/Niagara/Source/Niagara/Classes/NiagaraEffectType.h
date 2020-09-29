@@ -56,9 +56,12 @@ struct FNiagaraSystemScalabilitySettings
 	/** Controls whether distance culling is enabled. */
 	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (InlineEditConditionToggle))
 	uint32 bCullByDistance : 1;
-	/** Controls whether instance count culling is enabled. */
-	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (InlineEditConditionToggle))
+	/** Controls whether we should cull systems based on how many instances with the same Effect Type are active. */
+	UPROPERTY(EditAnywhere, Category = "Scalability", DisplayName = "Cull By Effect Type Instance Count", meta = (InlineEditConditionToggle))
 	uint32 bCullMaxInstanceCount : 1;
+	/** Controls whether we should cull systems based on how many instances of the system are active. */
+	UPROPERTY(EditAnywhere, Category = "Scalability", DisplayName = "Cull By System Instance Count", meta = (InlineEditConditionToggle))
+	uint32 bCullPerSystemMaxInstanceCount : 1;
 	/** Controls whether visibility culling is enabled. */
 	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (InlineEditConditionToggle))
 	uint32 bCullByMaxTimeWithoutRender : 1;
@@ -67,10 +70,22 @@ struct FNiagaraSystemScalabilitySettings
 	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bCullByDistance"))
 	float MaxDistance;
 
-	/** Effects of this type will fail to spawn when total active instance count exceeds this number. */
-	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bCullMaxInstanceCount"))
-	float MaxInstances;
-	
+	/** 
+	Effects of this type will be culled when total active instances using this same EffectType exceeds this number. 
+	If the effect type has a significance handler, instances are sorted by their significance and only the N most significant will be kept. The rest are culled.
+	If it does not have a significance handler, instance count culling will be applied at spawn time only. New FX that would exceed the counts are not spawned/activated.
+	*/
+	UPROPERTY(EditAnywhere, Category = "Scalability", DisplayName = "Max Effect Type Instances", meta = (EditCondition = "bCullMaxInstanceCount"))
+	int32 MaxInstances;
+
+	/**
+	Effects of this type will be culled when total active instances of the same NiagaraSystem exceeds this number. 
+	If the effect type has a significance handler, instances are sorted by their significance and only the N most significant will be kept. The rest are culled.
+	If it does not have a significance handler, instance count culling will be applied at spawn time only. New FX that would exceed the counts are not spawned/activated.
+	*/
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bCullPerSystemMaxInstanceCount"))
+	int32 MaxSystemInstances;
+
 	//TODO:
 	/** The effect is culled when it's bounds take up less that this fraction of the total screen area. Only usable with fixed bounds. */
 	//float ScreenFraction;
@@ -105,8 +120,11 @@ struct FNiagaraSystemScalabilityOverride : public FNiagaraSystemScalabilitySetti
 	UPROPERTY(EditAnywhere, Category = "Override")
 	uint32 bOverrideDistanceSettings : 1;
 	/** Controls whether we override the instance count culling settings. */
-	UPROPERTY(EditAnywhere, Category = "Override")
+	UPROPERTY(EditAnywhere, Category = "Override", DisplayName = "Override Effect Type Instance Count Settings")
 	uint32 bOverrideInstanceCountSettings : 1;
+	/** Controls whether we override the per system instance count culling settings. */
+	UPROPERTY(EditAnywhere, Category = "Override", DisplayName = "Override System Instance Count Settings")
+	uint32 bOverridePerSystemInstanceCountSettings : 1;
 	/** Controls whether we override the visibility culling settings. */
 	UPROPERTY(EditAnywhere, Category = "Override")
 	uint32 bOverrideTimeSinceRendererSettings : 1;
@@ -178,6 +196,46 @@ struct FNiagaraEmitterScalabilityOverrides
 
 //////////////////////////////////////////////////////////////////////////
 
+class UNiagaraComponent;
+struct FNiagaraScalabilityState;
+
+/**
+Base class for significance handlers. 
+These allow Niagara's scalability system to determine the relative significance of different FX in the scene.
+Some basic ones are provided but projects are free to implement their own more complex determinations of significance.
+For example, FX attached to the player character could be given higher priority.
+*/
+UCLASS(abstract, EditInlineNew)
+class NIAGARA_API UNiagaraSignificanceHandler : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	virtual void CalculateSignificance(TArray<UNiagaraComponent*>& Components, TArray<FNiagaraScalabilityState>& OutState)PURE_VIRTUAL(CalculateSignificance, );
+};
+
+/** Significance is determined by the system's distance to the nearest camera. Closer systems are more significant. */
+UCLASS(EditInlineNew, meta = (DisplayName = "Distance"))
+class NIAGARA_API UNiagaraSignificanceHandlerDistance : public UNiagaraSignificanceHandler
+{
+	GENERATED_BODY()
+
+public:
+	virtual void CalculateSignificance(TArray<UNiagaraComponent*>& Components, TArray<FNiagaraScalabilityState>& OutState) override;
+};
+
+/** Significance is determined by the system's age. Newer systems are more significant. */
+UCLASS(EditInlineNew, meta = (DisplayName = "Age"))
+class NIAGARA_API UNiagaraSignificanceHandlerAge : public UNiagaraSignificanceHandler
+{
+	GENERATED_BODY()
+
+public:
+	virtual void CalculateSignificance(TArray<UNiagaraComponent*>& Components, TArray<FNiagaraScalabilityState>& OutState) override;
+};
+
+//////////////////////////////////////////////////////////////////////////
+
 /** Contains settings and working data shared among many NiagaraSystems that share some commonality of type. For example ImpactFX vs EnvironmentalFX. */
 UCLASS()
 class NIAGARA_API UNiagaraEffectType : public UObject
@@ -195,21 +253,25 @@ class NIAGARA_API UNiagaraEffectType : public UObject
 	//UObject Interface END
 
 	/** How regularly effects of this type are checked for scalability. */
-	UPROPERTY(EditAnywhere, Category = "Effect Type")
+	UPROPERTY(EditAnywhere, Category = "Scalability")
 	ENiagaraScalabilityUpdateFrequency UpdateFrequency;
 
 	/** How effects of this type react when they fail the cull checks. */
-	UPROPERTY(EditAnywhere, Category = "Effect Type")
+	UPROPERTY(EditAnywhere, Category = "Scalability")
 	ENiagaraCullReaction CullReaction;
+
+	/** Used to determine the relative significance of FX in the scene which is used in other scalability systems such as instance count culling. */
+	UPROPERTY(EditAnywhere, Instanced, Category = "Scalability")
+	UNiagaraSignificanceHandler* SignificanceHandler;
 
 	/** Cull settings to use at each detail level. */
 	UPROPERTY()
 	TArray<FNiagaraSystemScalabilitySettings> DetailLevelScalabilitySettings_DEPRECATED;
 
-	UPROPERTY(EditAnywhere, Category = "Effect Type")
+	UPROPERTY(EditAnywhere, Category = "Scalability")
 	FNiagaraSystemScalabilitySettingsArray SystemScalabilitySettings;
 	
-	UPROPERTY(EditAnywhere, Category = "Effect Type")
+	UPROPERTY(EditAnywhere, Category = "Scalability")
 	FNiagaraEmitterScalabilitySettingsArray EmitterScalabilitySettings;
 
 	FORCEINLINE int32* GetCycleCounter(bool bGameThread, bool bConcurrent);
@@ -224,14 +286,20 @@ class NIAGARA_API UNiagaraEffectType : public UObject
 	const FNiagaraSystemScalabilitySettings& GetActiveSystemScalabilitySettings()const;
 	const FNiagaraEmitterScalabilitySettings& GetActiveEmitterScalabilitySettings()const;
 
+	UNiagaraSignificanceHandler* GetSignificanceHandler()const { return SignificanceHandler; }
+
 	float GetAverageFrameTime_GT() { return AvgTimeMS_GT; }
 	float GetAverageFrameTime_GT_CNC() { return AvgTimeMS_GT_CNC; }
 	float GetAverageFrameTime_RT() { return AvgTimeMS_RT; }
 
 	/** Total number of instances across all systems for this effect type. */
-	uint32 NumInstances;
+	int32 NumInstances;
+
+	/** Marks that there have been new systems added for this effect type since it's last scalability manager update. Will force a manager update. */
+	uint32 bNewSystemsSinceLastScalabilityUpdate : 1;
 
 private:
+
 	float AvgTimeMS_GT;
 	float AvgTimeMS_GT_CNC;
 	float AvgTimeMS_RT;

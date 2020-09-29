@@ -397,7 +397,7 @@ void FNiagaraGPUInstanceCountManager::ReleaseGPUReadback()
 
 void FNiagaraGPUInstanceCountManager::EnqueueGPUReadback(FRHICommandListImmediate& RHICmdList)
 {
-	if (UsedInstanceCounts)
+	if (UsedInstanceCounts > 0 && (UsedInstanceCounts != FreeEntries.Num()))
 	{
 		if (!CountReadback)
 		{

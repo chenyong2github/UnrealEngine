@@ -379,7 +379,7 @@ void UNiagaraNodeEmitter::BuildParameterMapHistory(FNiagaraParameterMapHistoryBu
 				for (int32 SrcVarIdx = 0; SrcVarIdx < History.Variables.Num(); SrcVarIdx++)
 				{
 					FNiagaraVariable& Var = History.Variables[SrcVarIdx];
-					Var = FNiagaraParameterMapHistory::ResolveAliases(Var, RenameMap, TEXT("."));
+					Var = FNiagaraParameterMapHistory::ResolveAliases(Var, RenameMap);
 
 					int32 ExistingIdx = OutHistory.Histories[ParamMapIdx].FindVariable(Var.GetName(), Var.GetType());
 					if (ExistingIdx == INDEX_NONE)

@@ -10,6 +10,7 @@
 #include "NiagaraDataInterfaceGrid3DCollection.generated.h"
 
 class FNiagaraSystemInstance;
+class UTextureRenderTarget;
 class UTextureRenderTargetVolume;
 
 class FGrid3DBuffer

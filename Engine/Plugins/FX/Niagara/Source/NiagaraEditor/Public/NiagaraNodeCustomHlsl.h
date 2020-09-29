@@ -41,6 +41,8 @@ public:
 
 	virtual bool ReferencesVariable(const FNiagaraVariableBase& InVar) const;
 
+	static bool GetTokensFromString(const FString& InHlsl, TArray<FString>& OutTokens, bool IncludeComments = true);
+
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 

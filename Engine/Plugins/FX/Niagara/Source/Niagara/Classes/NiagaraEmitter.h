@@ -239,6 +239,11 @@ public:
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	NIAGARA_API FOnPropertiesChanged& OnPropertiesChanged();
 	NIAGARA_API FOnRenderersChanged& OnRenderersChanged();
+	/** Helper method for when a rename has been detected within the graph. Covers renaming the internal renderer bindings.*/
+	NIAGARA_API void HandleVariableRenamed(const FNiagaraVariable& InOldVariable, const FNiagaraVariable& InNewVariable, bool bUpdateContexts);
+	/** Helper method for when a rename has been detected within the graph. Covers resetting the internal renderer bindings.*/
+	NIAGARA_API void HandleVariableRemoved(const FNiagaraVariable& InOldVariable, bool bUpdateContexts);
+
 #endif
 	virtual bool NeedsLoadForTargetPlatform(const ITargetPlatform* TargetPlatform) const override;
 	void Serialize(FArchive& Ar)override;
@@ -482,16 +487,10 @@ public:
 	const TArray<UNiagaraRendererProperties*>& GetRenderers() const { return RendererProperties; }
 
 	template<typename TAction>
-	void ForEachEnabledRenderer(TAction Func) const
-	{
-		for (UNiagaraRendererProperties* Renderer : RendererProperties)
-		{
-			if (Renderer && Renderer->GetIsEnabled() && Renderer->IsSimTargetSupported(this->SimTarget))
-			{
-				Func(Renderer);
-			}
-		}
-	}
+	void ForEachEnabledRenderer(TAction Func) const;
+
+	template<typename TAction>
+	void ForEachScript(TAction Func) const;
 
 	void NIAGARA_API AddRenderer(UNiagaraRendererProperties* Renderer);
 
@@ -544,7 +543,7 @@ public:
 	NIAGARA_API	void Reparent(UNiagaraEmitter& InParent);
 #endif
 
-	void OnQualityLevelChanged();
+	void OnScalabilityCVarChanged();
 
 #if WITH_EDITORONLY_DATA
 	NIAGARA_API const TMap<FGuid, UNiagaraMessageDataBase*>& GetMessages() const { return MessageKeyToMessageMap; };
@@ -666,3 +665,29 @@ private:
 	TMap<FGuid, UNiagaraMessageDataBase*> MessageKeyToMessageMap;
 #endif
 };
+
+
+template<typename TAction>
+void UNiagaraEmitter::ForEachEnabledRenderer(TAction Func) const
+{
+	for (UNiagaraRendererProperties* Renderer : RendererProperties)
+	{
+		if (Renderer && Renderer->GetIsEnabled() && Renderer->IsSimTargetSupported(this->SimTarget))
+		{
+			Func(Renderer);
+		}
+	}
+}
+template<typename TAction>
+void UNiagaraEmitter::ForEachScript(TAction Func) const
+{
+	Func(SpawnScriptProps.Script);
+	Func(UpdateScriptProps.Script);
+
+	Func(GPUComputeScript);
+
+	for (auto& EventScriptProps : EventHandlerScriptProps)
+	{
+		Func(EventScriptProps.Script);
+	}
+}

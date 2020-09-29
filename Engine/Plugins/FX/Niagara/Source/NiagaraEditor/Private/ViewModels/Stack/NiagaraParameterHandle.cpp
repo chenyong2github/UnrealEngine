@@ -171,3 +171,8 @@ bool FNiagaraParameterHandle::IsDataInstanceHandle() const
 	return Namespace == FNiagaraConstants::DataInstanceNamespace;
 }
 
+bool FNiagaraParameterHandle::IsStackContextHandle() const
+{
+	return Namespace == FNiagaraConstants::StackContextNamespace;
+}
+

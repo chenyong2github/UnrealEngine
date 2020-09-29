@@ -19,7 +19,7 @@ struct FNDIArrayImplHelper<bool> : public FNDIArrayImplHelperBase<bool>
 {
 	typedef FNiagaraBool TVMArrayType;
 	static constexpr TCHAR const* HLSLValueTypeName = TEXT("bool");
-	static constexpr TCHAR const* HLSLBufferTypeName = TEXT("bool");
+	static constexpr TCHAR const* HLSLBufferTypeName = TEXT("int");
 	static constexpr EPixelFormat PixelFormat = PF_R8_UINT;
 	static const FNiagaraTypeDefinition& GetTypeDefinition() { return FNiagaraTypeDefinition::GetBoolDef(); }
 	static const bool GetDefaultValue() { return false; }

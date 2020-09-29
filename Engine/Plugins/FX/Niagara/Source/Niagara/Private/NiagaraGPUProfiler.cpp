@@ -1,6 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraGPUProfiler.h"
+#include "HAL/IConsoleManager.h"
 
 int32 GNiagaraGpuProfilingEnabled = 0;
 static FAutoConsoleVariableRef CVarNiagaraGpuProfilingEnabled(

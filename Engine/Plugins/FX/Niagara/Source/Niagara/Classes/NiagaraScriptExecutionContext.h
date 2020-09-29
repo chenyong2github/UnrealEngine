@@ -173,6 +173,7 @@ struct FNiagaraScriptExecutionContextBase
 	static uint32 TickCounter;
 
 	int32 HasInterpolationParameters : 1;
+	int32 bAllowParallel : 1;
 #if STATS
 	TArray<FStatScopeData> StatScopeData;
 	TMap<TStatIdData const*, float> ExecutionTimings;
@@ -278,6 +279,22 @@ struct FNiagaraGpuSpawnInfo
 	uint32 MaxParticleCount = 0;
 	int32 SpawnInfoStartOffsets[NIAGARA_MAX_GPU_SPAWN_INFOS];
 	FNiagaraGpuSpawnInfoParams SpawnInfoParams[NIAGARA_MAX_GPU_SPAWN_INFOS];
+
+	void Reset()
+	{
+		EventSpawnTotal = 0;
+		SpawnRateInstances = 0;
+		MaxParticleCount = 0;
+		for (int32 i = 0; i < NIAGARA_MAX_GPU_SPAWN_INFOS; ++i)
+		{
+			SpawnInfoStartOffsets[i] = 0;
+
+			SpawnInfoParams[i].IntervalDt = 0;
+			SpawnInfoParams[i].InterpStartDt = 0;
+			SpawnInfoParams[i].SpawnGroup = 0;
+			SpawnInfoParams[i].GroupSpawnStartIndex = 0;
+		}		
+	}
 };
 
 class FNiagaraRHIUniformBufferLayout : public FRHIResource
@@ -313,7 +330,6 @@ struct FNiagaraComputeExecutionContext
 	void Reset(NiagaraEmitterInstanceBatcher* Batcher);
 
 	void InitParams(UNiagaraScript* InGPUComputeScript, ENiagaraSimTarget InSimTarget, const uint32 InDefaultSimulationStageIndex, int32 InMaxUpdateIterations, const TSet<uint32> InSpawnStages);
-	void BakeVariableNamesForIterationLookup();
 	void DirtyDataInterfaces();
 	bool Tick(FNiagaraSystemInstance* ParentSystemInstance);
 

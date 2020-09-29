@@ -257,6 +257,15 @@ void UNiagaraStackParameterStoreEntry::OnRenamed(FText NewName)
 			FNiagaraStackGraphUtilities::SetLinkedValueHandleForFunctionInput(*LinkedPin, ParameterHandle);
 		}
 
+		UObject* OwnerObj = Owner.Get();
+		UNiagaraSystem* System = Cast<UNiagaraSystem>(OwnerObj);
+		UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(OwnerObj);
+		if (System)
+			System->HandleVariableRenamed(FNiagaraVariable(InputType, ParameterName), FNiagaraVariable(InputType, VariableName), true);
+		if (Emitter)
+			Emitter->HandleVariableRenamed(FNiagaraVariable(InputType, ParameterName), FNiagaraVariable(InputType, VariableName), true);
+		
+
 		ParameterName = VariableName;
 		DisplayName = FText::FromName(ParameterName);
 	}
@@ -293,6 +302,16 @@ void UNiagaraStackParameterStoreEntry::Delete()
 	//remove from store
 	Owner->Modify();
 	ParameterStore->RemoveParameter(FNiagaraVariable(InputType, ParameterName));
+
+	// Update anything that was referencing that parameter
+	UObject* OwnerObj = Owner.Get();
+	UNiagaraSystem* System = Cast<UNiagaraSystem>(OwnerObj);
+	UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(OwnerObj);
+	if (System)
+		System->HandleVariableRemoved(FNiagaraVariable(InputType, ParameterName),  true);
+	if (Emitter)
+		Emitter->HandleVariableRemoved(FNiagaraVariable(InputType, ParameterName), true);
+
 
 	// Notify the system view model that the DI has been modifier.
 	if (CachedSystemViewModel.IsValid() && DataInterface != nullptr)

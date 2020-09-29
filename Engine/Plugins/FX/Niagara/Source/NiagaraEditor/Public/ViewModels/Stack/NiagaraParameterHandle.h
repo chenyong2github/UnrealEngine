@@ -67,6 +67,8 @@ public:
 
 	bool IsDataInstanceHandle() const;
 
+	bool IsStackContextHandle() const;
+
 private:
 	FName ParameterHandleName;
 	FName Name;

@@ -35,6 +35,7 @@
 #include "EdGraphUtilities.h"
 #include "ObjectTools.h"
 #include "NiagaraMessageManager.h"
+#include "NiagaraSimulationStageBase.h"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara - StackGraphUtilities - RelayoutGraph"), STAT_NiagaraEditor_StackGraphUtilities_RelayoutGraph, STATGROUP_NiagaraEditor);
 
@@ -327,6 +328,95 @@ const UNiagaraNodeOutput* FNiagaraStackGraphUtilities::GetEmitterOutputNodeForSt
 	return GetEmitterOutputNodeForStackNodeInternal<const UNiagaraNodeOutput, const UNiagaraNode>(StackNode);
 }
 
+TArray<FName> FNiagaraStackGraphUtilities::StackContextResolution(UNiagaraEmitter* OwningEmitter, UNiagaraNodeOutput* OutputNodeInChain)
+{
+	TArray<FName> PossibleRootNames;
+	ENiagaraScriptUsage Usage = OutputNodeInChain->GetUsage();
+	FName StageName;
+	FName AlternateStageName;
+	switch (Usage)
+	{
+		case ENiagaraScriptUsage::Function:
+		case ENiagaraScriptUsage::Module:
+		case ENiagaraScriptUsage::DynamicInput:
+			break;
+		case ENiagaraScriptUsage::ParticleSpawnScript:
+		case ENiagaraScriptUsage::ParticleSpawnScriptInterpolated:
+		case ENiagaraScriptUsage::ParticleUpdateScript:
+		case ENiagaraScriptUsage::ParticleEventScript:
+			StageName = TEXT("Particles");
+			break;
+		case ENiagaraScriptUsage::ParticleSimulationStageScript:
+		{
+			if (OwningEmitter)
+			{
+				UNiagaraSimulationStageBase* Base = OwningEmitter->GetSimulationStageById(OutputNodeInChain->GetUsageId());
+				if (Base)
+					StageName = Base->GetStackContextReplacementName();
+			}
+			
+			if (StageName == NAME_None)
+				StageName = TEXT("Particles");
+		}
+		break;
+		case ENiagaraScriptUsage::ParticleGPUComputeScript:
+			StageName = TEXT("Particles");
+			break;
+		case ENiagaraScriptUsage::EmitterSpawnScript:
+		case ENiagaraScriptUsage::EmitterUpdateScript:
+			StageName = TEXT("Emitter");
+			{
+				if (OwningEmitter)
+				{
+					FString EmitterAliasStr = OwningEmitter->GetUniqueEmitterName();
+					if (EmitterAliasStr.Len())
+					{
+						StageName = *EmitterAliasStr;
+						AlternateStageName = TEXT("Emitter");
+					}
+				}
+			}
+			break;
+		case ENiagaraScriptUsage::SystemSpawnScript:
+		case ENiagaraScriptUsage::SystemUpdateScript:
+			StageName = TEXT("System");
+			break;
+	}
+
+	if (StageName != NAME_None)	
+		PossibleRootNames.Add(StageName);
+	if (AlternateStageName != NAME_None)
+		PossibleRootNames.Add(AlternateStageName);
+
+	return PossibleRootNames;
+}
+
+void FNiagaraStackGraphUtilities::BuildParameterMapHistoryWithStackContextResolution(UNiagaraEmitter* OwningEmitter, UNiagaraNodeOutput* OutputNodeInChain, UNiagaraNode* NodeToVisit, FNiagaraParameterMapHistoryBuilder& Builder, bool bRecursive /*= true*/, bool bFilterForCompilation /*= true*/)
+{
+	bool bSetUsage = false;
+	if (OwningEmitter && OutputNodeInChain)
+	{
+		ENiagaraScriptUsage Usage = OutputNodeInChain->GetUsage();
+		FName StageName;
+		if (Usage == ENiagaraScriptUsage::ParticleSimulationStageScript)
+		{
+			UNiagaraSimulationStageBase* Base = OwningEmitter->GetSimulationStageById(OutputNodeInChain->GetUsageId());
+			if (Base)
+				StageName = Base->GetStackContextReplacementName();
+		}
+		Builder.BeginUsage(Usage, StageName);
+		bSetUsage = true;
+	}
+
+	NodeToVisit->BuildParameterMapHistory(Builder, bRecursive, bFilterForCompilation);
+
+	if (bSetUsage)
+	{
+		Builder.EndUsage();
+	}
+}
+
+
 UNiagaraNodeInput* FNiagaraStackGraphUtilities::GetEmitterInputNodeForStackNode(UNiagaraNode& StackNode)
 {
 	// Since the stack graph can have arbitrary branches when traversing inputs, the only safe way to get the initial input
@@ -577,6 +667,7 @@ void FNiagaraStackGraphUtilities::GetStackFunctionInputPins(UNiagaraNodeFunction
 	FNiagaraParameterMapHistoryBuilder Builder;
 	Builder.SetIgnoreDisabled(bIgnoreDisabled);
 	Builder.ConstantResolver = ConstantResolver;
+	
 	FunctionCallNode.BuildParameterMapHistory(Builder, false, false);
 	
 	if (Builder.Histories.Num() == 1)
@@ -2421,8 +2512,11 @@ void FNiagaraStackGraphUtilities::FindAffectedScripts(UNiagaraSystem* System, UN
 			Emitter->GetScripts(Scripts, false);
 		}
 
-		OutAffectedScripts.Add(System->GetSystemSpawnScript());
-		OutAffectedScripts.Add(System->GetSystemUpdateScript());
+		if (System != nullptr)
+		{
+			OutAffectedScripts.Add(System->GetSystemSpawnScript());
+			OutAffectedScripts.Add(System->GetSystemUpdateScript());
+		}
 
 		for (UNiagaraScript* Script : Scripts)
 		{
@@ -2639,6 +2733,7 @@ void FNiagaraStackGraphUtilities::GetNamespacesForNewWriteParameters(EStackEditC
 	}
 
 	OutNamespacesForNewParameters.Add(FNiagaraConstants::TransientNamespace);
+	OutNamespacesForNewParameters.Add(FNiagaraConstants::StackContextNamespace);
 }
 
 bool FNiagaraStackGraphUtilities::TryRenameAssignmentTarget(UNiagaraNodeAssignment& OwningAssignmentNode, FNiagaraVariable CurrentAssignmentTarget, FName NewAssignmentTargetName)

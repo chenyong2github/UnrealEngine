@@ -410,12 +410,12 @@ void UNiagaraDataInterfaceCollisionQuery::PerformQueryAsyncCPU(FVectorVMContext 
 		bool Skip = IsSkipTrace.GetAndAdvance().GetValue();
 		ensure(!Pos.ContainsNaN());
 
-		*OutQueryID.GetDestAndAdvance() = Skip ? 0 : InstanceData->CollisionBatch.SubmitQuery(Pos, End, TraceChannel);
+		*OutQueryID.GetDestAndAdvance() = Skip ? INDEX_NONE : InstanceData->CollisionBatch.SubmitQuery(Pos, End, TraceChannel);
 
 		// try to retrieve a query with the supplied query ID
 		FNiagaraDICollsionQueryResult Res;
 		int32 ID = InIDParam.GetAndAdvance();
-		if (ID > 0 && InstanceData->CollisionBatch.GetQueryResult(ID, Res))
+		if (ID != INDEX_NONE && InstanceData->CollisionBatch.GetQueryResult(ID, Res))
 		{
 			*OutQueryValid.GetDestAndAdvance() = FNiagaraBool(true);
 			*OutInsideMesh.GetDestAndAdvance() = FNiagaraBool(Res.IsInsideMesh);

@@ -15,6 +15,8 @@ const FName UNiagaraDataInterfaceCurve::SampleCurveName(TEXT("SampleCurve"));
 UNiagaraDataInterfaceCurve::UNiagaraDataInterfaceCurve(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	ExposedName = TEXT("Float Curve");
+
 	SetDefaultLUT();
 }
 

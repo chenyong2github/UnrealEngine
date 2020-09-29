@@ -170,16 +170,9 @@ void UNiagaraComponentRendererProperties::CacheFromCompiledData(const FNiagaraDa
 
 void UNiagaraComponentRendererProperties::PostDuplicate(bool bDuplicateForPIE)
 {
-	if (ComponentType)
-	{
-		// sharing the same template component would mean changes in one emitter would be reflected in the other emitter,
-		// so we create a new template object instead
-		CreateTemplateComponent();
-	}
-	else
-	{
-		TemplateComponent = nullptr;
-	}
+	// sharing the same template component would mean changes in one emitter would be reflected in the other emitter,
+	// so we create a new template object instead
+	TemplateComponent = DuplicateObject(TemplateComponent, this);
 }
 
 void UNiagaraComponentRendererProperties::InitCDOPropertiesAfterModuleStartup()
@@ -210,7 +203,7 @@ FNiagaraRenderer* UNiagaraComponentRendererProperties::CreateEmitterRenderer(ERH
 
 void UNiagaraComponentRendererProperties::CreateTemplateComponent()
 {
-	TemplateComponent = NewObject<USceneComponent>(this, ComponentType, NAME_None, RF_ArchetypeObject | RF_Public);
+	TemplateComponent = NewObject<USceneComponent>(this, ComponentType, NAME_None, RF_ArchetypeObject);
 	TemplateComponent->SetVisibility(false);
 	TemplateComponent->SetAutoActivate(false);
 	TemplateComponent->SetComponentTickEnabled(false);

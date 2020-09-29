@@ -51,6 +51,7 @@ namespace NiagaraParameterMapSectionID
 		ENGINE,
 		TRANSIENT,
 		PARAMETERCOLLECTION,
+		STACK_CONTEXT,
 		DATA_INSTANCE,
 
 		Num

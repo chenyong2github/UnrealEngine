@@ -5,6 +5,7 @@
 #include "NiagaraMergeable.h"
 #include "NiagaraCommon.h"
 #include "NiagaraTypes.h"
+#include "NiagaraConstants.h"
 #include "NiagaraSimulationStageBase.generated.h"
 
 class UNiagaraScript;
@@ -34,6 +35,8 @@ public:
 
 	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
 #if WITH_EDITOR
+	/** Return the FName to use in place of the default for the location in the stack context. If this would be the default, return NAME_None.*/
+	virtual FName GetStackContextReplacementName() const { return NAME_None; }
 	void SetEnabled(bool bEnabled);
 	void RequestRecompile();
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -69,6 +72,8 @@ public:
 
 	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
 #if WITH_EDITOR
+	virtual FName GetStackContextReplacementName() const override; 
+
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 };

@@ -2,6 +2,7 @@
 #pragma once
 
 #include "NiagaraDataInterface.h"
+#include "NiagaraDataInterfaceRW.h"
 #include "ClearQuad.h"
 #include "NiagaraComponent.h"
 #include "NiagaraDataInterfaceRenderTarget2D.generated.h"
@@ -50,12 +51,11 @@ struct FNiagaraDataInterfaceProxyRenderTarget2DProxy : public FNiagaraDataInterf
 };
 
 UCLASS(EditInlineNew, Category = "Grid", meta = (DisplayName = "Render Target 2D", Experimental), Blueprintable, BlueprintType)
-class NIAGARA_API UNiagaraDataInterfaceRenderTarget2D : public UNiagaraDataInterface
+class NIAGARA_API UNiagaraDataInterfaceRenderTarget2D : public UNiagaraDataInterfaceRWBase
 {
 	GENERATED_UCLASS_BODY()
 
 public:
-
 	DECLARE_NIAGARA_DI_PARAMETER();	
 		
 	virtual void PostInitProperties() override;
@@ -67,6 +67,7 @@ public:
 	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;
 
 	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
+	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 
 	// GPU sim functionality
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
@@ -90,18 +91,18 @@ public:
 	void SetSize(FVectorVMContext& Context);
 
 	static const FName SetValueFunctionName;
-	static const FName GetValueFunctionName;
 	static const FName SetSizeFunctionName;
 	static const FName GetSizeFunctionName;
-	
+	static const FName LinearToIndexName;
+
 	static const FString SizeName;
+	static const FString RWOutputName;
 	static const FString OutputName;
 
-protected:
-	//~ UNiagaraDataInterface interface
-	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
+	UPROPERTY(EditAnywhere, Category = "Render Target")
+	FIntPoint Size;
 
-	//~ UNiagaraDataInterface interface END
+protected:
 
 	static FNiagaraVariableBase ExposedRTVar;
 	

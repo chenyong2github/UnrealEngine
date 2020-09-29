@@ -27,6 +27,7 @@
 #include "NiagaraScript.h"
 #include "NiagaraRendererProperties.h"
 #include "NiagaraSimulationStageBase.h"
+#include "NiagaraTrace.h"
 #include "Serialization/MemoryReader.h"
 #include "../../Niagara/Private/NiagaraPrecompileContainer.h"
 
@@ -477,37 +478,73 @@ void FNiagaraCompileRequestData::FinishPrecompile(UNiagaraScriptSource* ScriptSo
 		int32 NumSimStageNodes = 0;
 		for (UNiagaraNodeOutput* FoundOutputNode : OutputNodes)
 		{
-			// Map all for this output node
-			FNiagaraParameterMapHistoryWithMetaDataBuilder Builder;
-			Builder.ConstantResolver = ConstantResolver;
-			Builder.AddGraphToCallingGraphContextStack(NodeGraphDeepCopy);
-			Builder.RegisterEncounterableVariables(EncounterableVariables);
-
-			FString TranslationName = TEXT("Emitter");
-			Builder.BeginTranslation(TranslationName);
-			Builder.EnableScriptWhitelist(true, FoundOutputNode->GetUsage());
-			Builder.BuildParameterMaps(FoundOutputNode, true);
-			
-			ensure(Builder.Histories.Num() <= 1);
-
-			for (FNiagaraParameterMapHistory& History : Builder.Histories)
+			FName SimStageName;
+			bool bStageEnabled = true;
+			if (FoundOutputNode->GetUsage() == ENiagaraScriptUsage::ParticleSimulationStageScript && SimStages)
 			{
-				History.OriginatingScriptUsage = FoundOutputNode->GetUsage();
-				for (FNiagaraVariable& Var : History.Variables)
+				const FGuid& UsageId = FoundOutputNode->GetUsageId();
+
+				// Find the matching simstage to the output node
+				for (UNiagaraSimulationStageBase* SimStage : *SimStages)
 				{
-					if (Var.GetType() == FNiagaraTypeDefinition::GetGenericNumericDef())
+					if (SimStage && SimStage->Script)
 					{
-						UE_LOG(LogNiagaraEditor, Log, TEXT("Invalid numeric parameter found! %s"), *Var.GetName().ToString())
+						if (SimStage->Script->GetUsageId() == UsageId)
+						{
+							bStageEnabled = SimStage->bEnabled;
+							UNiagaraSimulationStageGeneric* GenericStage = Cast<UNiagaraSimulationStageGeneric>(SimStage);
+							if (GenericStage && SimStage->bEnabled)
+							{
+								SimStageName = (GenericStage->IterationSource == ENiagaraIterationSource::DataInterface) ? GenericStage->DataInterface.BoundVariable.GetName() : FName();
+								break;
+							}
+						}
 					}
 				}
 			}
-			if (FoundOutputNode->GetUsage() == ENiagaraScriptUsage::ParticleSimulationStageScript)
-			{
-				NumSimStageNodes++;
-			}
 
-			PrecompiledHistories.Append(Builder.Histories);
-			Builder.EndTranslation(TranslationName);
+			if (bStageEnabled)
+			{
+				// Map all for this output node
+				FNiagaraParameterMapHistoryWithMetaDataBuilder Builder;
+				Builder.ConstantResolver = ConstantResolver;
+				Builder.AddGraphToCallingGraphContextStack(NodeGraphDeepCopy);
+				Builder.RegisterEncounterableVariables(EncounterableVariables);
+
+				FString TranslationName = TEXT("Emitter");
+				Builder.BeginTranslation(TranslationName);
+				Builder.BeginUsage(FoundOutputNode->GetUsage(), SimStageName);
+				Builder.EnableScriptWhitelist(true, FoundOutputNode->GetUsage());
+				Builder.BuildParameterMaps(FoundOutputNode, true);
+				Builder.EndUsage();
+
+				ensure(Builder.Histories.Num() <= 1);
+
+				for (FNiagaraParameterMapHistory& History : Builder.Histories)
+				{
+					History.OriginatingScriptUsage = FoundOutputNode->GetUsage();
+					for (FNiagaraVariable& Var : History.Variables)
+					{
+						if (Var.GetType() == FNiagaraTypeDefinition::GetGenericNumericDef())
+						{
+							UE_LOG(LogNiagaraEditor, Log, TEXT("Invalid numeric parameter found! %s"), *Var.GetName().ToString())
+						}
+					}
+				}
+
+				if (FoundOutputNode->GetUsage() == ENiagaraScriptUsage::ParticleSimulationStageScript)
+				{
+					NumSimStageNodes++;
+				}
+
+				PrecompiledHistories.Append(Builder.Histories);
+				Builder.EndTranslation(TranslationName);
+			}
+			else
+			{
+				// Add in a blank spot
+				PrecompiledHistories.Emplace();
+			}
 		}
 
 		if (SimStages && NumSimStageNodes)
@@ -626,6 +663,9 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 		TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> InvalidPtr;
 		return InvalidPtr;
 	}
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(NiagaraPrecompile);
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT_ON_CHANNEL(LogPackage ? *LogPackage->GetName() : *InObj->GetName(), NiagaraChannel);
 
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_ScriptSource_PreCompile);
 	double StartTime = FPlatformTime::Seconds();
@@ -1194,6 +1234,17 @@ int32 FHlslNiagaraCompiler::CompileScript(const FNiagaraCompileRequestData* InCo
 	return JobID;
 }
 
+void FHlslNiagaraCompiler::FixupVMAssembly(FString& Asm)
+{
+	for (int32 OpCode = 0; OpCode < VectorVM::GetNumOpCodes(); ++OpCode)
+	{
+		//TODO: reduce string ops here by moving these out to a static list.
+		FString ToReplace = TEXT("__OP__") + LexToString(OpCode) + TEXT("(");
+		FString Replacement = VectorVM::GetOpName(EVectorVMOp(OpCode)) + TEXT("(");
+		Asm.ReplaceInline(*ToReplace, *Replacement);
+	}
+}
+
 //TODO: Map Lines of HLSL to their source Nodes and flag those nodes with errors associated with their lines.
 void FHlslNiagaraCompiler::DumpDebugInfo(const FNiagaraCompileResults& CompileResult, const FShaderCompilerInput& Input, bool bGPUScript)
 {
@@ -1299,6 +1350,7 @@ TOptional<FNiagaraCompileResults> FHlslNiagaraCompiler::GetCompileResult(int32 J
 			Errors += ShaderError.StrippedErrorMessage + "\n";
 		}
 		Error(FText::Format(LOCTEXT("VectorVMCompileErrorMessageFormat", "The Vector VM compile failed.  Errors:\n{0}"), FText::FromString(Errors)));
+		DumpHLSLText(Results.Data->LastHlslTranslation, CompilationJob->CompileResults.DumpDebugInfoPath);
 	}
 
 	if (!Results.bVMSucceeded)
@@ -1319,6 +1371,7 @@ TOptional<FNiagaraCompileResults> FHlslNiagaraCompiler::GetCompileResult(int32 J
 		Results.Data->ByteCode = CompilationOutput.ByteCode;
 		Results.Data->NumTempRegisters = CompilationOutput.MaxTempRegistersUsed + 1;
 		Results.Data->LastAssemblyTranslation = CompilationOutput.AssemblyAsString;
+		FixupVMAssembly(Results.Data->LastAssemblyTranslation);
 		Results.Data->LastOpCount = CompilationOutput.NumOps;
 
 		if (GbForceNiagaraVMBinaryDump != 0 && Results.Data.IsValid())

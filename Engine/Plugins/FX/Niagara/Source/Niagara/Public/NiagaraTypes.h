@@ -995,6 +995,7 @@ public:
 	static const FNiagaraTypeDefinition& GetUObjectDef() { return UObjectDef; }
 	static const FNiagaraTypeDefinition& GetUMaterialDef() { return UMaterialDef; }
 	static const FNiagaraTypeDefinition& GetUTextureDef() { return UTextureDef; }
+	static const FNiagaraTypeDefinition& GetUTextureRenderTargetDef() { return UTextureRenderTargetDef; }
 
 	static const FNiagaraTypeDefinition& GetHalfDef() { return HalfDef; }
 	static const FNiagaraTypeDefinition& GetHalfVec2Def() { return HalfVec2Def; }
@@ -1068,6 +1069,7 @@ private:
 	static FNiagaraTypeDefinition UObjectDef;
 	static FNiagaraTypeDefinition UMaterialDef;
 	static FNiagaraTypeDefinition UTextureDef;
+	static FNiagaraTypeDefinition UTextureRenderTargetDef;
 
 	static FNiagaraTypeDefinition HalfDef;
 	static FNiagaraTypeDefinition HalfVec2Def;
@@ -1093,6 +1095,7 @@ private:
 	static UClass* UObjectClass;
 	static UClass* UMaterialClass;
 	static UClass* UTextureClass;
+	static UClass* UTextureRenderTargetClass;
 
 	static UEnum* SimulationTargetEnum;
 	static UEnum* ScriptUsageEnum;
@@ -1576,7 +1579,7 @@ struct FNiagaraVariable : public FNiagaraVariableBase
 		return Ret;
 	}
 
-	static NIAGARA_API FNiagaraVariable ResolveAliases(const FNiagaraVariable& InVar, const TMap<FString, FString>& InAliases, const TCHAR* InJoinSeparator = TEXT("."));
+	static NIAGARA_API FNiagaraVariable ResolveAliases(const FNiagaraVariable& InVar, const TMap<FString, FString>& InAliases, const TMap<FString, FString>& InStartOnlyAliases = TMap<FString, FString>(), const TCHAR* InJoinSeparator = TEXT("."));
 
 	static int32 SearchArrayForPartialNameMatch(const TArray<FNiagaraVariable>& Variables, const FName& VariableName)
 	{
@@ -1646,6 +1649,7 @@ inline void FNiagaraVariable::SetValue<bool>(const bool& Data)
 
 // Any change to this structure, or it's GetVariables implementation will require a bump in the CustomNiagaraVersion so that we
 // properly rebuild the scripts
+// You must pad this struct and the results of GetVariables() to a 16 byte boundry.
 struct alignas(16) FNiagaraGlobalParameters
 {
 #if WITH_EDITOR
@@ -1656,10 +1660,16 @@ struct alignas(16) FNiagaraGlobalParameters
 	float EngineInvDeltaTime = 0.0f;
 	float EngineTime = 0.0f;
 	float EngineRealTime = 0.0f;
+	int32 QualityLevel = 0;
+
+	int32 _Pad0;
+	int32 _Pad1;
+	int32 _Pad2;
 };
 
 // Any change to this structure, or it's GetVariables implementation will require a bump in the CustomNiagaraVersion so that we
 // properly rebuild the scripts
+// You must pad this struct and the results of GetVariables() to a 16 byte boundry.
 struct alignas(16) FNiagaraSystemParameters
 {
 #if WITH_EDITOR
@@ -1674,10 +1684,16 @@ struct alignas(16) FNiagaraSystemParameters
 	int32 EngineTickCount = 0;
 	int32 EngineEmitterCount = 0;
 	int32 EngineAliveEmitterCount = 0;
+	int32 SignificanceIndex = 0;
+
+	int32 _Pad0;
+	int32 _Pad1;
+	int32 _Pad2;
 };
 
 // Any change to this structure, or it's GetVariables implementation will require a bump in the CustomNiagaraVersion so that we
 // properly rebuild the scripts
+// You must pad this struct and the results of GetVariables() to a 16 byte boundry.
 struct alignas(16) FNiagaraOwnerParameters
 {
 #if WITH_EDITOR
@@ -1701,6 +1717,7 @@ struct alignas(16) FNiagaraOwnerParameters
 
 // Any change to this structure, or it's GetVariables implementation will require a bump in the CustomNiagaraVersion so that we
 // properly rebuild the scripts
+// You must pad this struct and the results of GetVariables() to a 16 byte boundry.
 struct alignas(16) FNiagaraEmitterParameters
 {
 #if WITH_EDITOR
@@ -1712,9 +1729,9 @@ struct alignas(16) FNiagaraEmitterParameters
 	float EmitterSpawnCountScale = 1.0f;
 	float EmitterAge = 0.0f;
 	int32 EmitterRandomSeed = 0;
+	int32 EmitterInstanceSeed = 0;
 
 	// todo - what else should be inserted here?  we could put an array of spawninfos/interp spawn values
 	int32 _Pad0;
 	int32 _Pad1;
-	int32 _Pad2;
 };

@@ -54,7 +54,7 @@ public:
 protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 
-	void PushToRenderThread();
+	virtual void PushToRenderThreadImpl() override;
 
 	static const FName SampleTexture2DName;
 	static const FName SampleVolumeTextureName;
