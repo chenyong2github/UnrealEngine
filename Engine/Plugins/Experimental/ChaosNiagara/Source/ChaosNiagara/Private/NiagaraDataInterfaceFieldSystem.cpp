@@ -40,9 +40,52 @@ static const FName GetFieldBoundsName(TEXT("GetFieldBounds"));
 
 //------------------------------------------------------------------------------------------------------------
 
-static const TArray<EFieldPhysicsType> NDIFielsSystemVectorTypes = GetFieldTargetTypes(EFieldOutputType::Field_Output_Vector);
-static const TArray<EFieldPhysicsType> NDIFielsSystemScalarTypes = GetFieldTargetTypes(EFieldOutputType::Field_Output_Scalar);
-static const TArray<EFieldPhysicsType> NDIFielsSystemIntegerTypes = GetFieldTargetTypes(EFieldOutputType::Field_Output_Integer);
+static const TArray<EFieldPhysicsType> VectorTypes = { EFieldPhysicsType::Field_LinearForce, 
+													   EFieldPhysicsType::Field_LinearVelocity,
+													   EFieldPhysicsType::Field_AngularVelociy, 
+													   EFieldPhysicsType::Field_AngularTorque, 
+													   EFieldPhysicsType::Field_PositionTarget};
+
+enum EFieldVectorIndices
+{
+	Vector_LinearForce,
+	Vector_LinearVelocity,
+	Vector_AngularVelocity,
+	Vector_AngularTorque,
+	Vector_PositionTarget
+};
+
+static const TArray<EFieldPhysicsType> ScalarTypes = { EFieldPhysicsType::Field_ExternalClusterStrain,
+													   EFieldPhysicsType::Field_Kill,
+													   EFieldPhysicsType::Field_SleepingThreshold,
+												       EFieldPhysicsType::Field_DisableThreshold,
+													   EFieldPhysicsType::Field_InternalClusterStrain,
+													   EFieldPhysicsType::Field_DynamicConstraint};
+
+enum EFieldScalarIndices
+{
+	Scalar_ExternalClusterStrain,
+	Scalar_Kill,
+	Scalar_SleepingThreshold,
+	Scalar_DisableThreshold,
+	Scalar_InternalClusterStrain,
+	Scalar_DynamicConstraint
+};
+
+static const TArray<EFieldPhysicsType> IntegerTypes = { EFieldPhysicsType::Field_DynamicState, 
+														EFieldPhysicsType::Field_ActivateDisabled,
+														EFieldPhysicsType::Field_CollisionGroup,
+														EFieldPhysicsType::Field_PositionAnimated,
+														EFieldPhysicsType::Field_PositionStatic};
+
+enum EFieldIntegerIndices
+{
+	Integer_DynamicState,
+	Integer_ActivateDisabled,
+	Integer_CollisionGroup,
+	Integer_PositionAnimated,
+	Integer_PositionStatic
+};
 
 //------------------------------------------------------------------------------------------------------------
 
@@ -421,10 +464,10 @@ void BakeFieldArrays(const TArray<TWeakObjectPtr<UFieldSystem>>& FieldSystems, c
 {
 	const int32 FieldSize = OutAssetArrays->FieldDimensions.X * OutAssetArrays->FieldDimensions.Y * OutAssetArrays->FieldDimensions.Z;
 
-	OutAssetArrays->ArrayFieldDatas.Init(0.0, FieldSize * 4 * NDIFielsSystemVectorTypes.Num());
-	OutAssetArrays->VectorFieldDatas.Init(FVector(0.f), FieldSize * NDIFielsSystemVectorTypes.Num());
-	OutAssetArrays->ScalarFieldDatas.Init(0.0, FieldSize * NDIFielsSystemScalarTypes.Num());
-	OutAssetArrays->IntegerFieldDatas.Init(0, FieldSize * NDIFielsSystemIntegerTypes.Num());
+	OutAssetArrays->ArrayFieldDatas.Init(0.0, FieldSize * 4 * VectorTypes.Num());
+	OutAssetArrays->VectorFieldDatas.Init(FVector(0.f), FieldSize * VectorTypes.Num());
+	OutAssetArrays->ScalarFieldDatas.Init(0.0, FieldSize * ScalarTypes.Num());
+	OutAssetArrays->IntegerFieldDatas.Init(0, FieldSize * IntegerTypes.Num());
 
 	TArray<ContextIndex> IndicesArray;
 	ContextIndex::ContiguousIndices(IndicesArray, FieldSize);
@@ -459,10 +502,10 @@ void BakeFieldArrays(const TArray<TWeakObjectPtr<UFieldSystem>>& FieldSystems, c
 	};
 
 	int32 VectorBegin = 0;
-	for (int32 TypeIndex = 0; TypeIndex < NDIFielsSystemVectorTypes.Num(); ++TypeIndex)
+	for (int32 TypeIndex = 0; TypeIndex < VectorTypes.Num(); ++TypeIndex)
 	{
 		TArrayView<FVector> ResultsView(&(OutAssetArrays->VectorFieldDatas[0]) + VectorBegin, FieldSize);
-		FFieldNode<FVector>* CommandRoot = GetFieldNode<FVector>(FieldSystems, NDIFielsSystemVectorTypes[TypeIndex]);
+		FFieldNode<FVector>* CommandRoot = GetFieldNode<FVector>(FieldSystems, VectorTypes[TypeIndex]);
 		if (CommandRoot)
 		{
 			CommandRoot->Evaluate(FieldContext, ResultsView);
@@ -478,10 +521,10 @@ void BakeFieldArrays(const TArray<TWeakObjectPtr<UFieldSystem>>& FieldSystems, c
 		VectorBegin += FieldSize;
 	}
 	int32 ScalarBegin = 0;
-	for (int32 TypeIndex = 0; TypeIndex < NDIFielsSystemScalarTypes.Num(); ++TypeIndex)
+	for (int32 TypeIndex = 0; TypeIndex < ScalarTypes.Num(); ++TypeIndex)
 	{
 		TArrayView<float> ResultsView(&(OutAssetArrays->ScalarFieldDatas[0]) + ScalarBegin, FieldSize);
-		FFieldNode<float>* CommandRoot = GetFieldNode<float>(FieldSystems, NDIFielsSystemScalarTypes[TypeIndex]);
+		FFieldNode<float>* CommandRoot = GetFieldNode<float>(FieldSystems, ScalarTypes[TypeIndex]);
 		if (CommandRoot)
 		{
 			CommandRoot->Evaluate(FieldContext, ResultsView);
@@ -489,10 +532,10 @@ void BakeFieldArrays(const TArray<TWeakObjectPtr<UFieldSystem>>& FieldSystems, c
 		ScalarBegin += FieldSize;
 	}
 	int32 IntegerBegin = 0;
-	for (int32 TypeIndex = 0; TypeIndex < NDIFielsSystemIntegerTypes.Num(); ++TypeIndex)
+	for (int32 TypeIndex = 0; TypeIndex < IntegerTypes.Num(); ++TypeIndex)
 	{
 		TArrayView<int32> ResultsView(&(OutAssetArrays->IntegerFieldDatas[0]) + IntegerBegin, FieldSize);
-		FFieldNode<int32>* CommandRoot = GetFieldNode<int32>(FieldSystems, NDIFielsSystemIntegerTypes[TypeIndex]);
+		FFieldNode<int32>* CommandRoot = GetFieldNode<int32>(FieldSystems, IntegerTypes[TypeIndex]);
 		if (CommandRoot)
 		{
 			CommandRoot->Evaluate(FieldContext, ResultsView);
@@ -589,13 +632,13 @@ void FNDIFieldSystemBuffer::Update()
 				CreateInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT, false>(ThisBuffer->AssetArrays->FieldNodesOffsets.Num(), ThisBuffer->AssetArrays->FieldNodesOffsets.GetData(), ThisBuffer->FieldNodesOffsetsBuffer);
 
 				CreateInternalTexture<float, 4, EPixelFormat::PF_A32B32G32R32F, false>(
-					ThisBuffer->AssetArrays->FieldDimensions.X, ThisBuffer->AssetArrays->FieldDimensions.Y, ThisBuffer->AssetArrays->FieldDimensions.Z * NDIFielsSystemVectorTypes.Num(),
+					ThisBuffer->AssetArrays->FieldDimensions.X, ThisBuffer->AssetArrays->FieldDimensions.Y, ThisBuffer->AssetArrays->FieldDimensions.Z * VectorTypes.Num(),
 					ThisBuffer->AssetArrays->ArrayFieldDatas.GetData(), ThisBuffer->VectorFieldTexture);
 				CreateInternalTexture<float, 1, EPixelFormat::PF_R32_FLOAT, false>(
-					ThisBuffer->AssetArrays->FieldDimensions.X, ThisBuffer->AssetArrays->FieldDimensions.Y, ThisBuffer->AssetArrays->FieldDimensions.Z * NDIFielsSystemScalarTypes.Num(),
+					ThisBuffer->AssetArrays->FieldDimensions.X, ThisBuffer->AssetArrays->FieldDimensions.Y, ThisBuffer->AssetArrays->FieldDimensions.Z * ScalarTypes.Num(),
 					ThisBuffer->AssetArrays->ScalarFieldDatas.GetData(), ThisBuffer->ScalarFieldTexture);
 				CreateInternalTexture<int32, 1, EPixelFormat::PF_R32_SINT, false>(
-					ThisBuffer->AssetArrays->FieldDimensions.X, ThisBuffer->AssetArrays->FieldDimensions.Y, ThisBuffer->AssetArrays->FieldDimensions.Z * NDIFielsSystemIntegerTypes.Num(),
+					ThisBuffer->AssetArrays->FieldDimensions.X, ThisBuffer->AssetArrays->FieldDimensions.Y, ThisBuffer->AssetArrays->FieldDimensions.Z * IntegerTypes.Num(),
 					ThisBuffer->AssetArrays->IntegerFieldDatas.GetData(), ThisBuffer->IntegerFieldTexture);
 			}
 		);
@@ -611,13 +654,13 @@ void FNDIFieldSystemBuffer::InitRHI()
 		CreateInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT, true>(AssetArrays->FieldNodesOffsets.Num(), AssetArrays->FieldNodesOffsets.GetData(), FieldNodesOffsetsBuffer);
 
 		CreateInternalTexture<float, 4, EPixelFormat::PF_A32B32G32R32F, true>(
-			AssetArrays->FieldDimensions.X, AssetArrays->FieldDimensions.Y, AssetArrays->FieldDimensions.Z * NDIFielsSystemVectorTypes.Num(),
+			AssetArrays->FieldDimensions.X, AssetArrays->FieldDimensions.Y, AssetArrays->FieldDimensions.Z * VectorTypes.Num(),
 			AssetArrays->ArrayFieldDatas.GetData(), VectorFieldTexture);
 		CreateInternalTexture<float, 1, EPixelFormat::PF_R32_FLOAT, true>(
-			AssetArrays->FieldDimensions.X, AssetArrays->FieldDimensions.Y, AssetArrays->FieldDimensions.Z * NDIFielsSystemScalarTypes.Num(),
+			AssetArrays->FieldDimensions.X, AssetArrays->FieldDimensions.Y, AssetArrays->FieldDimensions.Z * ScalarTypes.Num(),
 			AssetArrays->ScalarFieldDatas.GetData(), ScalarFieldTexture);
 		CreateInternalTexture<int32, 1, EPixelFormat::PF_R32_SINT, true>(
-			AssetArrays->FieldDimensions.X, AssetArrays->FieldDimensions.Y, AssetArrays->FieldDimensions.Z * NDIFielsSystemIntegerTypes.Num(),
+			AssetArrays->FieldDimensions.X, AssetArrays->FieldDimensions.Y, AssetArrays->FieldDimensions.Z * IntegerTypes.Num(),
 			AssetArrays->IntegerFieldDatas.GetData(), IntegerFieldTexture);
 	}
 }
@@ -1374,7 +1417,7 @@ void SampleVectorField(FVectorVMContext& Context, const EFieldPhysicsType Vector
 		const FIntVector FieldDimensions = InstData->FieldSystemBuffer->AssetArrays->FieldDimensions;
 		const int32 TypeSize = FieldDimensions.X * FieldDimensions.Y * FieldDimensions.Z;
 
-		const FVector FieldSize(FieldDimensions.X, FieldDimensions.Y, FieldDimensions.Z * NDIFielsSystemVectorTypes.Num());
+		const FVector FieldSize(FieldDimensions.X, FieldDimensions.Y, FieldDimensions.Z * VectorTypes.Num());
 		const FVector BoundSize = MaxBounds - MinBounds;
 		const FVector InverseBounds = (BoundSize.X > 0.0 && BoundSize.Y > 0.0 && BoundSize.Z > 0.0) ?
 			FVector(1, 1, 1) / BoundSize : FVector(0, 0, 0);
@@ -1391,8 +1434,8 @@ void SampleVectorField(FVectorVMContext& Context, const EFieldPhysicsType Vector
 				FMath::Clamp(SamplePoint.Y, 0.0f, 1.0f),
 				FMath::Clamp(SamplePoint.Z, 0.0f, 1.0f));
 
-			SamplePoint.Z = (NDIFielsSystemVectorTypes.Num() != 0) ?
-				(SamplePoint.Z * (1.0 - 1.0 / FieldDimensions.Z) + VectorIndex) / NDIFielsSystemVectorTypes.Num() : SamplePoint.Z;
+			SamplePoint.Z = (VectorTypes.Num() != 0) ?
+				(SamplePoint.Z * (1.0 - 1.0 / FieldDimensions.Z) + VectorIndex) / VectorTypes.Num() : SamplePoint.Z;
 
 			SamplePoint = SamplePoint * FieldSize;
 
@@ -1481,7 +1524,7 @@ void SampleScalarField(FVectorVMContext& Context, const EFieldPhysicsType Scalar
 		const FIntVector FieldDimensions = InstData->FieldSystemBuffer->AssetArrays->FieldDimensions;
 		const int32 TypeSize = FieldDimensions.X * FieldDimensions.Y * FieldDimensions.Z;
 
-		const FVector FieldSize(FieldDimensions.X, FieldDimensions.Y, FieldDimensions.Z * NDIFielsSystemScalarTypes.Num());
+		const FVector FieldSize(FieldDimensions.X, FieldDimensions.Y, FieldDimensions.Z * ScalarTypes.Num());
 		const FVector BoundSize = MaxBounds - MinBounds;
 		const FVector InverseBounds = (BoundSize.X > 0.0 && BoundSize.Y > 0.0 && BoundSize.Z > 0.0) ?
 			FVector(1, 1, 1) / BoundSize : FVector(0, 0, 0);
@@ -1498,8 +1541,8 @@ void SampleScalarField(FVectorVMContext& Context, const EFieldPhysicsType Scalar
 				FMath::Clamp(SamplePoint.Y, 0.0f, 1.0f),
 				FMath::Clamp(SamplePoint.Z, 0.0f, 1.0f));
 
-			SamplePoint.Z = (NDIFielsSystemScalarTypes.Num() != 0) ?
-				(SamplePoint.Z * (1.0 - 1.0 / FieldDimensions.Z) + VectorIndex) / NDIFielsSystemScalarTypes.Num() : SamplePoint.Z;
+			SamplePoint.Z = (ScalarTypes.Num() != 0) ?
+				(SamplePoint.Z * (1.0 - 1.0 / FieldDimensions.Z) + VectorIndex) / ScalarTypes.Num() : SamplePoint.Z;
 
 			SamplePoint = SamplePoint * FieldSize;
 
@@ -1585,7 +1628,7 @@ void SampleIntegerField(FVectorVMContext& Context, const EFieldPhysicsType Scala
 		const FIntVector FieldDimensions = InstData->FieldSystemBuffer->AssetArrays->FieldDimensions;
 		const int32 TypeSize = FieldDimensions.X * FieldDimensions.Y * FieldDimensions.Z;
 
-		const FVector FieldSize(FieldDimensions.X, FieldDimensions.Y, FieldDimensions.Z * NDIFielsSystemIntegerTypes.Num());
+		const FVector FieldSize(FieldDimensions.X, FieldDimensions.Y, FieldDimensions.Z * IntegerTypes.Num());
 		const FVector BoundSize = MaxBounds - MinBounds;
 		const FVector InverseBounds = (BoundSize.X > 0.0 && BoundSize.Y > 0.0 && BoundSize.Z > 0.0) ?
 			FVector(1, 1, 1) / BoundSize : FVector(0, 0, 0);
@@ -1602,8 +1645,8 @@ void SampleIntegerField(FVectorVMContext& Context, const EFieldPhysicsType Scala
 				FMath::Clamp(SamplePoint.Y, 0.0f, 1.0f),
 				FMath::Clamp(SamplePoint.Z, 0.0f, 1.0f));
 
-			SamplePoint.Z = (NDIFielsSystemIntegerTypes.Num() != 0) ?
-				(SamplePoint.Z * (1.0 - 1.0 / FieldDimensions.Z) + VectorIndex) / NDIFielsSystemIntegerTypes.Num() : SamplePoint.Z;
+			SamplePoint.Z = (IntegerTypes.Num() != 0) ?
+				(SamplePoint.Z * (1.0 - 1.0 / FieldDimensions.Z) + VectorIndex) / IntegerTypes.Num() : SamplePoint.Z;
 
 			SamplePoint = SamplePoint * FieldSize;
 
@@ -1669,97 +1712,97 @@ void SampleIntegerField(FVectorVMContext& Context, const EFieldPhysicsType Scala
 void UNiagaraDataInterfaceFieldSystem::SampleLinearVelocity(FVectorVMContext& Context)
 {
 	SampleVectorField(Context, EFieldPhysicsType::Field_LinearVelocity, 
-		EFieldVectorType::Vector_LinearVelocity);
+		EFieldVectorIndices::Vector_LinearVelocity);
 }
 
 void UNiagaraDataInterfaceFieldSystem::SampleAngularVelocity(FVectorVMContext& Context)
 {
 	SampleVectorField(Context, EFieldPhysicsType::Field_AngularVelociy, 
-		EFieldVectorType::Vector_AngularVelocity);
+		EFieldVectorIndices::Vector_AngularVelocity);
 }
 
 void UNiagaraDataInterfaceFieldSystem::SampleLinearForce(FVectorVMContext& Context)
 {
 	SampleVectorField(Context, EFieldPhysicsType::Field_LinearForce, 
-		EFieldVectorType::Vector_LinearForce);
+		EFieldVectorIndices::Vector_LinearForce);
 }
 
 void UNiagaraDataInterfaceFieldSystem::SampleAngularTorque(FVectorVMContext& Context)
 {
 	SampleVectorField(Context, EFieldPhysicsType::Field_AngularTorque,
-		EFieldVectorType::Vector_AngularTorque);
+		EFieldVectorIndices::Vector_AngularTorque);
 }
 
 void UNiagaraDataInterfaceFieldSystem::SamplePositionTarget(FVectorVMContext& Context)
 {
 	SampleVectorField(Context, EFieldPhysicsType::Field_PositionStatic, 
-		EFieldVectorType::Vector_PositionTarget);
+		EFieldVectorIndices::Vector_PositionTarget);
 }
 
 void UNiagaraDataInterfaceFieldSystem::SampleExternalClusterStrain(FVectorVMContext& Context)
 {
 	SampleScalarField(Context, EFieldPhysicsType::Field_ExternalClusterStrain, 
-		EFieldScalarType::Scalar_ExternalClusterStrain);
+		EFieldScalarIndices::Scalar_ExternalClusterStrain);
 }
 
 void UNiagaraDataInterfaceFieldSystem::SampleInternalClusterStrain(FVectorVMContext& Context)
 {
 	SampleScalarField(Context, EFieldPhysicsType::Field_InternalClusterStrain,
-		EFieldScalarType::Scalar_InternalClusterStrain);
+		EFieldScalarIndices::Scalar_InternalClusterStrain);
 }
 
 void UNiagaraDataInterfaceFieldSystem::SampleSleepingThreshold(FVectorVMContext& Context)
 {
 	SampleScalarField(Context, EFieldPhysicsType::Field_SleepingThreshold,
-		EFieldScalarType::Scalar_SleepingThreshold);
+		EFieldScalarIndices::Scalar_SleepingThreshold);
 }
 
 void UNiagaraDataInterfaceFieldSystem::SampleDisableThreshold(FVectorVMContext& Context)
 {
 	SampleScalarField(Context, EFieldPhysicsType::Field_DisableThreshold,
-		EFieldScalarType::Scalar_DisableThreshold);
+		EFieldScalarIndices::Scalar_DisableThreshold);
 }
 
 void UNiagaraDataInterfaceFieldSystem::SampleFieldKill(FVectorVMContext& Context)
 {
 	SampleScalarField(Context, EFieldPhysicsType::Field_Kill,
-		EFieldScalarType::Scalar_Kill);
+		EFieldScalarIndices::Scalar_Kill);
 }
 
 void UNiagaraDataInterfaceFieldSystem::SampleDynamicConstraint(FVectorVMContext& Context)
 {
 	SampleScalarField(Context, EFieldPhysicsType::Field_DynamicConstraint,
-		EFieldScalarType::Scalar_DynamicConstraint);
+		EFieldScalarIndices::Scalar_DynamicConstraint);
 }
 
 void UNiagaraDataInterfaceFieldSystem::SampleDynamicState(FVectorVMContext& Context)
 {
 	SampleIntegerField(Context, EFieldPhysicsType::Field_DynamicState,
-		EFieldIntegerType::Integer_DynamicState);
+		EFieldIntegerIndices::Integer_DynamicState);
 }
 
 void UNiagaraDataInterfaceFieldSystem::SampleCollisionGroup(FVectorVMContext& Context)
 {
 	SampleIntegerField(Context, EFieldPhysicsType::Field_CollisionGroup,
-		EFieldIntegerType::Integer_CollisionGroup);
+		EFieldIntegerIndices::Integer_CollisionGroup);
 }
 
 void UNiagaraDataInterfaceFieldSystem::SamplePositionStatic(FVectorVMContext& Context)
 {
 	SampleIntegerField(Context, EFieldPhysicsType::Field_PositionStatic,
-		EFieldIntegerType::Integer_PositionStatic);
+		EFieldIntegerIndices::Integer_PositionStatic);
 }
 
 void UNiagaraDataInterfaceFieldSystem::SamplePositionAnimated(FVectorVMContext& Context)
 {
 	SampleIntegerField(Context, EFieldPhysicsType::Field_PositionAnimated,
-		EFieldIntegerType::Integer_PositionAnimated);
+		EFieldIntegerIndices::Integer_PositionAnimated);
 }
 
 void UNiagaraDataInterfaceFieldSystem::SampleActivateDisabled(FVectorVMContext& Context)
 {
 	SampleIntegerField(Context, EFieldPhysicsType::Field_ActivateDisabled,
-		EFieldIntegerType::Integer_ActivateDisabled);
+		EFieldIntegerIndices::Integer_ActivateDisabled);
 }
 
 bool UNiagaraDataInterfaceFieldSystem::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)

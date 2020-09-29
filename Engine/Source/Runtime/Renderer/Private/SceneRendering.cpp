@@ -31,7 +31,6 @@
 #include "Matinee/MatineeActor.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "PostProcess/PostProcessSubsurface.h"
-#include "PhysicsField/PhysicsFieldComponent.h"
 #include "HdrCustomResolveShaders.h"
 #include "WideCustomResolveShaders.h"
 #include "PipelineStateCache.h"
@@ -1086,40 +1085,6 @@ void SetupPrecomputedVolumetricLightmapUniformBufferParameters(const FScene* Sce
 	}
 }
 
-void SetupPhysicsFieldUniformBufferParameters(const FScene* Scene, FEngineShowFlags EngineShowFlags, FViewUniformShaderParameters& ViewUniformShaderParameters)
-{
-	if (Scene && Scene->PhysicsField && Scene->PhysicsField->FieldResource)
-	{
-		ViewUniformShaderParameters.PhysicsFieldClipmapTexture = OrBlack3DIfNull(Scene->PhysicsField->FieldResource->FieldClipmap.Buffer);
-		ViewUniformShaderParameters.PhysicsFieldClipmapCenter = Scene->PhysicsField->FieldResource->FieldInfos.ClipmapCenter;
-		ViewUniformShaderParameters.PhysicsFieldClipmapDistance = Scene->PhysicsField->FieldResource->FieldInfos.ClipmapDistance;
-		ViewUniformShaderParameters.PhysicsFieldClipmapResolution = Scene->PhysicsField->FieldResource->FieldInfos.ClipmapResolution;
-		ViewUniformShaderParameters.PhysicsFieldClipmapExponent = Scene->PhysicsField->FieldResource->FieldInfos.ClipmapExponent;
-		ViewUniformShaderParameters.PhysicsFieldClipmapCount = Scene->PhysicsField->FieldResource->FieldInfos.ClipmapCount;
-		ViewUniformShaderParameters.PhysicsFieldTargetCount = Scene->PhysicsField->FieldResource->FieldInfos.TargetCount;
-		ViewUniformShaderParameters.PhysicsFieldVectorTargets = Scene->PhysicsField->FieldResource->FieldInfos.VectorTargets;
-		ViewUniformShaderParameters.PhysicsFieldScalarTargets = Scene->PhysicsField->FieldResource->FieldInfos.ScalarTargets;
-		ViewUniformShaderParameters.PhysicsFieldIntegerTargets = Scene->PhysicsField->FieldResource->FieldInfos.IntegerTargets;
-	}
-	else
-	{
-		FRHITexture* BlackVolume = (GBlackVolumeTexture && GBlackVolumeTexture->TextureRHI) ? GBlackVolumeTexture->TextureRHI : GBlackTexture->TextureRHI;
-		TStaticArray<int32, MAX_TARGETS_ARRAY, MAX_TARGETS_ARRAY> EmptyTargets;
-
-		ViewUniformShaderParameters.PhysicsFieldClipmapTexture = BlackVolume;
-		ViewUniformShaderParameters.PhysicsFieldClipmapCenter = FVector::ZeroVector;
-		ViewUniformShaderParameters.PhysicsFieldClipmapDistance = 1.0;
-		ViewUniformShaderParameters.PhysicsFieldClipmapResolution = 2;
-		ViewUniformShaderParameters.PhysicsFieldClipmapExponent = 1;
-		ViewUniformShaderParameters.PhysicsFieldClipmapCount = 1;
-		ViewUniformShaderParameters.PhysicsFieldTargetCount = 0;
-		ViewUniformShaderParameters.PhysicsFieldVectorTargets = EmptyTargets;
-		ViewUniformShaderParameters.PhysicsFieldScalarTargets = EmptyTargets;
-		ViewUniformShaderParameters.PhysicsFieldIntegerTargets = EmptyTargets;
-	}
-}
-
-
 FIntPoint FViewInfo::GetSecondaryViewRectSize() const
 {
 	return FIntPoint(
@@ -1431,8 +1396,6 @@ void FViewInfo::SetupUniformBufferParameters(
 	SetupVolumetricFogUniformBufferParameters(ViewUniformShaderParameters);
 
 	SetupPrecomputedVolumetricLightmapUniformBufferParameters(Scene, Family->EngineShowFlags, ViewUniformShaderParameters);
-
-	SetupPhysicsFieldUniformBufferParameters(Scene, Family->EngineShowFlags, ViewUniformShaderParameters);
 
 	// Setup view's shared sampler for material texture sampling.
 	{
