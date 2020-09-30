@@ -9,6 +9,7 @@
 
 #include "DetailLayoutBuilder.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Images/SImage.h"
 #include "DetailCategoryBuilder.h"
@@ -55,7 +56,10 @@ void FDMXEntityFixtureTypeFunctionsDetails::CustomizeDetails(IDetailLayoutBuilde
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Fill)
 			[
-				SNew(SDMXFunctionItemListViewBox, DMXEditorPtr.Pin(), ModesHandleArray)
+				SNew(SBox)
+				[
+					SNew(SDMXFunctionItemListViewBox, DMXEditorPtr.Pin(), ModesHandleArray)
+				]
 			];
 	}
 }
