@@ -32,9 +32,7 @@ void FDMXPixelMappingDetailCustomization_FixtureGroupItem::CustomizeDetails(IDet
 	IDetailCategoryBuilder& OutputSettingsCategory = DetailLayout->EditCategory("Output Settings", FText::GetEmpty(), ECategoryPriority::Important);
 
 	// Add Function and ColorMode properties at the beginning
-	TSharedPtr<IPropertyHandle> ExtraAttributesHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, ExtraAttributes), UDMXPixelMappingFixtureGroupItemComponent::StaticClass());
 	TSharedPtr<IPropertyHandle> ColorModePropertyHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, ColorMode), UDMXPixelMappingFixtureGroupItemComponent::StaticClass());
-	OutputSettingsCategory.AddProperty(ExtraAttributesHandle);
 	OutputSettingsCategory.AddProperty(ColorModePropertyHandle);
 
 	// Register attributes
@@ -113,7 +111,9 @@ void FDMXPixelMappingDetailCustomization_FixtureGroupItem::CustomizeDetails(IDet
 			.AddProperty(Attribute->Handle)
 			.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FDMXPixelMappingDetailCustomization_FixtureGroupItem::GetMonochromeRowVisibilty, Attribute.Get())));
 	}
-	
+
+	TSharedPtr<IPropertyHandle> ExtraAttributesHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, ExtraAttributes), UDMXPixelMappingFixtureGroupItemComponent::StaticClass());
+	OutputSettingsCategory.AddProperty(ExtraAttributesHandle);
 }
 
 bool FDMXPixelMappingDetailCustomization_FixtureGroupItem::CheckComponentsDMXColorMode(const EDMXColorMode DMXColorMode) const
