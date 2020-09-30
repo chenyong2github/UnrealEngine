@@ -668,14 +668,34 @@ void FDMXFixtureTypeSharedData::DuplicateFunctions(const TArray<TSharedPtr<FDMXF
 
 void FDMXFixtureTypeSharedData::DeleteFunctions(const TArray<TSharedPtr<FDMXFixtureFunctionItem>>& FunctionsToDelete)
 {
+	FArrayProperty* ModesProperty = FindFProperty<FArrayProperty>(UDMXEntityFixtureType::StaticClass(), GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, Modes));
+	FArrayProperty* FunctionsProperty = FindFProperty<FArrayProperty>(FDMXFixtureMode::StaticStruct(), GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, Functions));
+	FEditPropertyChain PropertyChain;
+	PropertyChain.AddHead(ModesProperty);
+	PropertyChain.AddTail(FunctionsProperty);
+	PropertyChain.SetActiveMemberPropertyNode(ModesProperty);
+	PropertyChain.SetActivePropertyNode(FunctionsProperty);
+
 	TArray<FFunctionRef> FunctionReferences = FFunctionRef::GetFunctionReferences(FunctionsToDelete);
+	if (FunctionReferences.Num() == 0)
+	{
+		return;
+	}
+
+	UDMXEntityFixtureType* FixtureType = FunctionReferences[0].FixtureType.Get();
+	if (!FixtureType)
+	{
+		return;
+	}
+
+	const FScopedTransaction Transaction = FScopedTransaction(LOCTEXT("DMXFixtureTypeSharedData.DeletedFunction", "DMX Editor: Deleted Fixture Type Function"));
+
+	FixtureType->PreEditChange(PropertyChain);
+	FixtureType->Modify();
 
 	for (const FFunctionRef& FuncRef : FunctionReferences)
 	{
-		if (!FuncRef.FixtureType.IsValid())
-		{
-			continue;
-		}
+		check(FuncRef.FixtureType == FixtureType);
 
 		FDMXFixtureMode* ModePtr = FuncRef.FixtureType->Modes.FindByPredicate([&](const FDMXFixtureMode& Mode) {
 			return Mode.ModeName == FuncRef.ModeName;
@@ -687,28 +707,14 @@ void FDMXFixtureTypeSharedData::DeleteFunctions(const TArray<TSharedPtr<FDMXFixt
 			});
 		check(IndexOfFunction != INDEX_NONE);
 
-		// Transaction
-		const FScopedTransaction Transaction = FScopedTransaction(LOCTEXT("DMXFixtureTypeSharedData.DeletedFunction", "DMX Editor: Deleted Fixture Type Function"));
-		
-		FArrayProperty* ModesProperty = FindFProperty<FArrayProperty>(UDMXEntityFixtureType::StaticClass(), GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, Modes));
-		FArrayProperty* FunctionsProperty = FindFProperty<FArrayProperty>(FDMXFixtureMode::StaticStruct(), GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, Functions));
-		FEditPropertyChain PropertyChain;
-		PropertyChain.AddHead(ModesProperty);
-		PropertyChain.AddTail(FunctionsProperty);
-		PropertyChain.SetActiveMemberPropertyNode(ModesProperty);
-		PropertyChain.SetActivePropertyNode(FunctionsProperty);
-
-		FuncRef.FixtureType->PreEditChange(PropertyChain);
-		FuncRef.FixtureType->Modify();
-
 		ModePtr->Functions.RemoveAt(IndexOfFunction);
-
-		FPropertyChangedEvent PropertyChangedEvent(FunctionsProperty, EPropertyChangeType::ArrayRemove);
-		FPropertyChangedChainEvent PropertyChangedChainEvent(PropertyChain, PropertyChangedEvent);
-		FuncRef.FixtureType->PostEditChangeChainProperty(PropertyChangedChainEvent);
-
-		FDMXEditorUtils::AutoAssignedAddresses(FuncRef.FixtureType.Get());
 	}
+
+	FPropertyChangedEvent PropertyChangedEvent(FunctionsProperty, EPropertyChangeType::ArrayRemove);
+	FPropertyChangedChainEvent PropertyChangedChainEvent(PropertyChain, PropertyChangedEvent);
+	FixtureType->PostEditChangeChainProperty(PropertyChangedChainEvent);
+
+	FDMXEditorUtils::AutoAssignedAddresses(FixtureType);
 }
 
 void FDMXFixtureTypeSharedData::CopyFunctionsToClipboard(const TArray<TSharedPtr<FDMXFixtureFunctionItem>>& FunctionItems)
