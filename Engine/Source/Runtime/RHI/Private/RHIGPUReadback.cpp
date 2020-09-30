@@ -102,18 +102,15 @@ FRHIGPUTextureReadback::FRHIGPUTextureReadback(FName RequestName) : FRHIGPUMemor
 
 void FRHIGPUTextureReadback::EnqueueCopyRDG(FRHICommandList& RHICmdList, FRHITexture* SourceTexture, FResolveRect Rect)
 {
-	FResolveParams ResolveParams(Rect);
-	ResolveParams.SourceAccessFinal = ERHIAccess::Unknown;
-	ResolveParams.DestAccessFinal = ERHIAccess::Unknown;
-	EnqueueCopyInternal(RHICmdList, SourceTexture, ResolveParams);
+	// SourceTexture is already in CopySrc state (handled by RDG)
+	EnqueueCopyInternal(RHICmdList, SourceTexture, FResolveParams(Rect));
 }
 
 void FRHIGPUTextureReadback::EnqueueCopy(FRHICommandList& RHICmdList, FRHITexture* SourceTexture, FResolveRect Rect)
 {
-	FResolveParams ResolveParams(Rect);
-	ResolveParams.SourceAccessFinal = ERHIAccess::CopySrc;
-	ResolveParams.DestAccessFinal = ERHIAccess::CopyDest;
-	EnqueueCopyInternal(RHICmdList, SourceTexture, ResolveParams);
+	// In the non-RDG version, we don't know what state the source texture will already be in, so transition it to CopySrc.
+	RHICmdList.Transition(FRHITransitionInfo(SourceTexture, ERHIAccess::Unknown, ERHIAccess::CopySrc));
+	EnqueueCopyInternal(RHICmdList, SourceTexture, FResolveParams(Rect));
 }
 
 void FRHIGPUTextureReadback::EnqueueCopyInternal(FRHICommandList& RHICmdList, FRHITexture* SourceTexture, FResolveParams ResolveParams)
@@ -126,31 +123,41 @@ void FRHIGPUTextureReadback::EnqueueCopyInternal(FRHICommandList& RHICmdList, FR
 		ensure(SourceTexture->GetTexture2D());
 
 		// Assume for now that every enqueue happens on a texture of the same format and size (when reused).
-		if (!DestinationStagingBuffer)
+		if (!DestinationStagingTexture)
 		{
 			FIntVector TextureSize = SourceTexture->GetSizeXYZ();
 
 			FString FenceName = Fence->GetFName().ToString();
 			FRHIResourceCreateInfo CreateInfo(*FenceName);
-			DestinationStagingBuffer = RHICreateTexture2D(TextureSize.X, TextureSize.Y, SourceTexture->GetFormat(), 1, 1, TexCreate_CPUReadback | TexCreate_HideInVisualizeTexture, CreateInfo);
+			DestinationStagingTexture = RHICreateTexture2D(TextureSize.X, TextureSize.Y, SourceTexture->GetFormat(), 1, 1, TexCreate_CPUReadback | TexCreate_HideInVisualizeTexture, CreateInfo);
 		}
 
+		// We need the destination texture to be writable from a copy operation
+		RHICmdList.Transition(FRHITransitionInfo(DestinationStagingTexture, ERHIAccess::Unknown, ERHIAccess::CopyDest));
+
+		// Ensure this copy call does not perform any transitions. We're handling them manually.
+		ResolveParams.SourceAccessFinal = ERHIAccess::Unknown;
+		ResolveParams.DestAccessFinal = ERHIAccess::Unknown;
+
 		// Transfer memory GPU -> CPU
-		RHICmdList.Transition(FRHITransitionInfo(DestinationStagingBuffer, ERHIAccess::Unknown, ERHIAccess::CopyDest));
-		RHICmdList.CopyToResolveTarget(SourceTexture, DestinationStagingBuffer, ResolveParams);
+		RHICmdList.CopyToResolveTarget(SourceTexture, DestinationStagingTexture, ResolveParams);
+
+		// Transition the dest to CPURead *before* signaling the fence, otherwise ordering is not guaranteed.
+		RHICmdList.Transition(FRHITransitionInfo(DestinationStagingTexture, ERHIAccess::CopyDest, ERHIAccess::CPURead));
 		RHICmdList.WriteGPUFence(Fence);
+
 		LastCopyGPUMask = RHICmdList.GetGPUMask();
 	}
 }
 
 void* FRHIGPUTextureReadback::Lock(uint32 NumBytes)
 {
-	if (DestinationStagingBuffer)
+	if (DestinationStagingTexture)
 	{
 		void* ResultsBuffer = nullptr;
 		int32 BufferWidth = 0, BufferHeight = 0;
 		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-		RHICmdList.MapStagingSurface(DestinationStagingBuffer, Fence.GetReference(), ResultsBuffer, BufferWidth, BufferHeight);
+		RHICmdList.MapStagingSurface(DestinationStagingTexture, Fence.GetReference(), ResultsBuffer, BufferWidth, BufferHeight);
 		return ResultsBuffer;
 	}
 	else
@@ -161,11 +168,11 @@ void* FRHIGPUTextureReadback::Lock(uint32 NumBytes)
 
 void FRHIGPUTextureReadback::LockTexture(FRHICommandListImmediate& RHICmdList, void*& OutBufferPtr, int32& OutRowPitchInPixels)
 {
-	if (DestinationStagingBuffer)
+	if (DestinationStagingTexture)
 	{
 		void* ResultsBuffer = nullptr;
 		int32 BufferWidth = 0, BufferHeight = 0;
-		RHICmdList.MapStagingSurface(DestinationStagingBuffer, Fence.GetReference(), ResultsBuffer, BufferWidth, BufferHeight);
+		RHICmdList.MapStagingSurface(DestinationStagingTexture, Fence.GetReference(), ResultsBuffer, BufferWidth, BufferHeight);
 		OutBufferPtr = ResultsBuffer;
 		OutRowPitchInPixels = BufferWidth;
 	}
@@ -178,8 +185,8 @@ void FRHIGPUTextureReadback::LockTexture(FRHICommandListImmediate& RHICmdList, v
 
 void FRHIGPUTextureReadback::Unlock()
 {
-	ensure(DestinationStagingBuffer);
+	ensure(DestinationStagingTexture);
 
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-	RHICmdList.UnmapStagingSurface(DestinationStagingBuffer);
+	RHICmdList.UnmapStagingSurface(DestinationStagingTexture);
 }
