@@ -315,38 +315,64 @@ void SDMXFixturePatcher::OnDragEnterChannel(int32 UniverseID, int32 ChannelID, c
 		{
 			if (UDMXEntityFixturePatch* FixturePatch = Cast<UDMXEntityFixturePatch>(DraggedEntities[0]))
 			{
-				// Compensate Drag Offset
-				int32 StartingChannel = ChannelID - FixturePatchDragDropOp->GetChannelOffset();
-				int32 ChannelSpan = FixturePatch->GetChannelSpan();
-
-				// Keep the starting channel in valid range
-				StartingChannel = ClampStartingChannel(StartingChannel, ChannelSpan);
+				const int32 ChannelSpan = FixturePatch->GetChannelSpan();
+				const int32 NewStartingChannel = [this, ChannelID, &FixturePatchDragDropOp, ChannelSpan]()
+				{
+					int32 StartingChannel = ChannelID - FixturePatchDragDropOp->GetChannelOffset();
+					return ClampStartingChannel(StartingChannel, ChannelSpan);
+				}();
 
 				// Update the ChannelOffset
-				int32 NewChannelOffset = ChannelID - StartingChannel;
+				const int32 NewChannelOffset = ChannelID - NewStartingChannel;
 				FixturePatchDragDropOp->SetChannelOffset(NewChannelOffset);
 
 				// Patch the node but do not transact it (transact on drop or leave instead)
 				const TSharedPtr<SDMXPatchedUniverse>& Universe = PatchedUniversesByID.FindChecked(UniverseID);
 
-				bool bCreateTransaction = false;
-				bool bPatchSuccess = Universe->Patch(DraggedNode, StartingChannel, bCreateTransaction);
+				const bool bCreateTransaction = false;
+				bool bPatchSuccess = Universe->Patch(DraggedNode, NewStartingChannel, bCreateTransaction);
+			
+				// If patching wasn't successful, try to move as close to the hovered node as possible
+				if (!bPatchSuccess)
+				{
+					const bool bIsHoveredChannelInFrontOfPatch = [UniverseID, NewStartingChannel, FixturePatch]()
+					{
+						bool bUniverseInFront = UniverseID < FixturePatch->UniverseID;
+						bool ChannelInFront = UniverseID == FixturePatch->UniverseID && NewStartingChannel < FixturePatch->GetStartingChannel();
+
+						return bUniverseInFront || ChannelInFront;
+					}();
+
+					if (bIsHoveredChannelInFrontOfPatch)
+					{
+						for (int32 Channel = FixturePatch->GetStartingChannel() - 1; Channel >= NewStartingChannel; Channel--)
+						{
+							// Try to patch as close as possible, but consider any approximation a success
+							bool bCloserApproximation = Universe->Patch(DraggedNode, Channel, bCreateTransaction);
+							bPatchSuccess = bPatchSuccess ? true : bCloserApproximation;
+						}
+					}
+					else
+					{
+						for (int32 Channel = FixturePatch->GetStartingChannel() + 1; Channel <= NewStartingChannel; Channel++)
+						{
+							// Try to patch as close as possible, but consider any approximation a success
+							bool bCloserApproximation = Universe->Patch(DraggedNode, Channel, bCreateTransaction);
+							bPatchSuccess = bPatchSuccess ? true : bCloserApproximation;
+						}
+					}
+				}
 
 				if (bPatchSuccess)
 				{
-					TSharedRef<SWidget> DragDropDecorator = CreateDragDropDecorator(FixturePatch, StartingChannel);
+					TSharedRef<SWidget> DragDropDecorator = CreateDragDropDecorator(FixturePatch, NewStartingChannel);
 					FixturePatchDragDropOp->SetCustomFeedbackWidget(DragDropDecorator);
 				}
 				else if (!DraggedNode->IsPatched())
 				{
-					// Inform users if the patch cannot be patched because it would exceed remaining channels
-					UDMXEntityFixturePatch* Patch = DraggedNode->GetFixturePatch().Get();
-					if (Patch)
+					if (NewStartingChannel + ChannelSpan > DMX_UNIVERSE_SIZE)
 					{
-						if (StartingChannel + ChannelSpan > DMX_UNIVERSE_SIZE)
-						{
-							FixturePatchDragDropOp->SetFeedbackMessageError(LOCTEXT("CannotDragDropOnOccupiedChannels", "Channels range overflows max channels address (512)"));
-						}
+						FixturePatchDragDropOp->SetFeedbackMessageError(LOCTEXT("CannotDragDropOnOccupiedChannels", "Channels range overflows max channels address (512)"));
 					}
 				}
 			}
