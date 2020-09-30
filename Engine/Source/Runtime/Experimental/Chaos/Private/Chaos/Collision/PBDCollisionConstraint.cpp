@@ -4,16 +4,16 @@
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
-float ChaosManifoldMatchPositionTolerance = 0.05f;		// % of object size position tolerance
-float ChaosManifoldMatchNormalTolerance = 0.02f;		// Dot product tolerance
-FAutoConsoleVariableRef CVarChaosManifoldMatchPositionTolerance(TEXT("p.Chaos.Collision.ManifoldMatchPositionTolerance"), ChaosManifoldMatchPositionTolerance, TEXT("A tolerance as a percent of object size used to determine if two contact points are the same"));
-FAutoConsoleVariableRef CVarChaosManifoldMatchNormalTolerance(TEXT("p.Chaos.Collision.ManifoldMatchNormalTolerance"), ChaosManifoldMatchNormalTolerance, TEXT("A tolerance on the normal dot product used to determine if two contact points are the same"));
-
-bool bChaosUseIncrementalManifold = false;
-FAutoConsoleVariableRef CVarChaisUseIncrementalManifold(TEXT("p.Chaos.Collision.UseIncrementalManifold"), bChaosUseIncrementalManifold, TEXT(""));
-
 namespace Chaos
 {
+	float ChaosManifoldMatchPositionTolerance = 0.2f;		// % of object size position tolerance
+	float ChaosManifoldMatchNormalTolerance = 0.02f;		// Dot product tolerance
+	FAutoConsoleVariableRef CVarChaosManifoldMatchPositionTolerance(TEXT("p.Chaos.Collision.ManifoldMatchPositionTolerance"), ChaosManifoldMatchPositionTolerance, TEXT("A tolerance as a fraction of object size used to determine if two contact points are the same"));
+	FAutoConsoleVariableRef CVarChaosManifoldMatchNormalTolerance(TEXT("p.Chaos.Collision.ManifoldMatchNormalTolerance"), ChaosManifoldMatchNormalTolerance, TEXT("A tolerance on the normal dot product used to determine if two contact points are the same"));
+
+	bool bChaosUseIncrementalManifold = false;
+	FAutoConsoleVariableRef CVarChaisUseIncrementalManifold(TEXT("p.Chaos.Collision.UseIncrementalManifold"), bChaosUseIncrementalManifold, TEXT(""));
+
 	FString FCollisionConstraintBase::ToString() const
 	{
 		return FString::Printf(TEXT("Particle:%s, Levelset:%s, AccumulatedImpulse:%s"), *Particle[0]->ToString(), *Particle[1]->ToString(), *AccumulatedImpulse.ToString());
@@ -33,7 +33,8 @@ namespace Chaos
 		if(ParticleIdxs[MinIdx] < OtherParticleIdxs[OtherMinIdx])
 		{
 			return true;
-		} else if(ParticleIdxs[MinIdx] == OtherParticleIdxs[OtherMinIdx])
+		} 
+		else if(ParticleIdxs[MinIdx] == OtherParticleIdxs[OtherMinIdx])
 		{
 			return ParticleIdxs[!MinIdx] < OtherParticleIdxs[!OtherMinIdx];
 		}
@@ -100,15 +101,16 @@ namespace Chaos
 			int32 ManifoldPointIndex = FindManifoldPoint(ContactPoint);
 			if (ManifoldPointIndex >= 0)
 			{
-				UpdateManifoldPoint(ManifoldPointIndex, ContactPoint);
+				SetManifoldPoint(ManifoldPointIndex, ContactPoint);
 			}
 			else
 			{
 				ManifoldPointIndex = AddManifoldPoint(ContactPoint);
 			}
-			SetActiveManifoldPoint(ManifoldPointIndex);
 		}
-		else
+
+		// @todo(chaos): Legacy behaviour - not needed if using the manifold
+		if (ContactPoint.Phi < Manifold.Phi)
 		{
 			SetActiveContactPoint(ContactPoint);
 		}
@@ -125,31 +127,39 @@ namespace Chaos
 		return ManifoldPoints.Add(ContactPoint);
 	}
 
-	void FRigidBodyPointContactConstraint::UpdateManifoldPoint(int32 ManifoldPointIndex, const FContactPoint& ContactPoint)
+	void FRigidBodyPointContactConstraint::SetManifoldPoint(int32 ManifoldPointIndex, const FContactPoint& ContactPoint)
 	{
 		ManifoldPoints[ManifoldPointIndex].ContactPoint = ContactPoint;
 	}
 
-	bool FRigidBodyPointContactConstraint::SetActiveManifoldPoint(int32 ManifoldPointIndex)
-	{
-		if (SetActiveContactPoint(ManifoldPoints[ManifoldPointIndex].ContactPoint))
-		{
-			return true;
-		}
-		return false;
-	}
-
-	bool FRigidBodyPointContactConstraint::SetActiveContactPoint(const FContactPoint& ContactPoint)
+	void FRigidBodyPointContactConstraint::SetActiveContactPoint(const FContactPoint& ContactPoint)
 	{
 		// @todo(chaos): once we settle on manifolds we should just store the index
-		if (ContactPoint.Phi < Manifold.Phi)
-		{
-			Manifold.Location = ContactPoint.Location;
-			Manifold.Normal = ContactPoint.Normal;
-			Manifold.Phi = ContactPoint.Phi;
-			return true;
-		}
-		return false;
+		Manifold.Location = ContactPoint.Location;
+		Manifold.Normal = ContactPoint.Normal;
+		Manifold.Phi = ContactPoint.Phi;
+	}
+
+	FManifoldPoint& FRigidBodyPointContactConstraint::SetActiveManifoldPoint(
+		int32 ManifoldPointIndex,
+		const FVec3& P0,
+		const FRotation3& Q0,
+		const FVec3& P1,
+		const FRotation3& Q1)
+	{
+		FManifoldPoint& ManifoldPoint = ManifoldPoints[ManifoldPointIndex];
+
+		// Update the world-space point state based on current particle transforms
+		FVec3 ContactPos0 = P0 + Q0.RotateVector(ManifoldPoint.ContactPoint.LocalContactPoints[0]);
+		FVec3 ContactPos1 = P1 + Q1.RotateVector(ManifoldPoint.ContactPoint.LocalContactPoints[1]);
+		FVec3 ContactNormal = Q1.RotateVector(ManifoldPoint.ContactPoint.LocalContactNormal);
+		ManifoldPoint.ContactPoint.Location = 0.5f * (ContactPos0 + ContactPos1);
+		ManifoldPoint.ContactPoint.Normal = ContactNormal;
+		ManifoldPoint.ContactPoint.Phi = FVec3::DotProduct(ContactPos0 - ContactPos1, ContactNormal);
+	
+		SetActiveContactPoint(ManifoldPoint.ContactPoint);
+
+		return ManifoldPoint;
 	}
 
 

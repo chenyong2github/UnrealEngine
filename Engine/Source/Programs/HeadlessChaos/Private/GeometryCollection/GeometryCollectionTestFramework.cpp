@@ -269,6 +269,10 @@ namespace GeometryCollectionTest
 	, Solver(nullptr)
 	{
 		Solver = Module->CreateSolver<Traits>(nullptr,Parameters.ThreadingMode);	//until refactor is done, solver must be created after thread change
+
+		// Units tests settings
+		Solver->SetCollisionCullDistance(0.0f);
+		Solver->SetCollisionShapePadding(0.0f);
 	}
 
 	template<typename Traits>

@@ -31,26 +31,28 @@ DEFINE_LOG_CATEGORY_STATIC(LogPBDRigidsSolver, Log, All);
 int32 ChaosSolverDebugDrawShapes = 0;
 int32 ChaosSolverDebugDrawCollisions = 0;
 int32 ChaosSolverDebugDrawBounds = 0;
+int32 ChaosSolverDrawTransforms = 0;
 FAutoConsoleVariableRef CVarChaosSolverDrawShapes(TEXT("p.Chaos.Solver.DebugDrawShapes"), ChaosSolverDebugDrawShapes, TEXT("Draw Shapes (0 = never; 1 = end of frame)."));
 FAutoConsoleVariableRef CVarChaosSolverDrawCollisions(TEXT("p.Chaos.Solver.DebugDrawCollisions"), ChaosSolverDebugDrawCollisions, TEXT("Draw Collisions (0 = never; 1 = end of frame)."));
-FAutoConsoleVariableRef CVarChaosSolverDrawBPBounds(TEXT("p.Chaos.Solver.DebugDrawBounds"), ChaosSolverDebugDrawBounds, TEXT("Draw bounding volumes inside the broadphase (0 = never; 1 = end of frame)."));
+FAutoConsoleVariableRef CVarChaosSolverDrawBounds(TEXT("p.Chaos.Solver.DebugDrawBounds"), ChaosSolverDebugDrawBounds, TEXT("Draw bounding volumes inside the broadphase (0 = never; 1 = end of frame)."));
+FAutoConsoleVariableRef CVarChaosSolverDrawTransforms(TEXT("p.Chaos.Solver.DebugDrawTransforms"), ChaosSolverDrawTransforms, TEXT("Draw particle transforms (0 = never; 1 = end of frame)."));
 
 Chaos::DebugDraw::FChaosDebugDrawSettings ChaosSolverDebugDebugDrawSettings(
-	/* ArrowSize =			*/ 1.5f,
-	/* BodyAxisLen =		*/ 4.0f,
-	/* ContactLen =			*/ 4.0f,
-	/* ContactWidth =		*/ 2.0f,
+	/* ArrowSize =			*/ 10.0f,
+	/* BodyAxisLen =		*/ 30.0f,
+	/* ContactLen =			*/ 30.0f,
+	/* ContactWidth =		*/ 15.0f,
 	/* ContactPhiWidth =	*/ 0.0f,
 	/* ContactOwnerWidth =	*/ 0.0f,
-	/* ConstraintAxisLen =	*/ 5.0f,
+	/* ConstraintAxisLen =	*/ 30.0f,
 	/* JointComSize =		*/ 2.0f,
 	/* LineThickness =		*/ 3.0f,
-	/* DrawScale =			*/ 7.0f,
+	/* DrawScale =			*/ 1.0f,
 	/* FontHeight =			*/ 10.0f,
 	/* FontScale =			*/ 1.5f,
 	/* ShapeThicknesScale = */ 1.0f,
 	/* PointSize =			*/ 2.0f,
-	/* VelScale =			*/ 0.0f,
+	/* VelScale =			*/ 1.0f,
 	/* AngVelScale =		*/ 0.0f,
 	/* DrawPriority =		*/ 10.0f
 );
@@ -1201,6 +1203,10 @@ namespace Chaos
 		if (ChaosSolverDebugDrawBounds == 1)
 		{
 			DebugDraw::DrawParticleBounds(FRigidTransform3(), Particles.GetAllParticlesView(), &ChaosSolverDebugDebugDrawSettings);
+		}
+		if (ChaosSolverDrawTransforms == 1)
+		{
+			DebugDraw::DrawParticleTransforms(FRigidTransform3(), Particles.GetAllParticlesView(), &ChaosSolverDebugDebugDrawSettings);
 		}
 #endif
 	}
