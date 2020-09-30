@@ -298,9 +298,6 @@ private:
 			/** Whether the pass writes to a UAV. */
 			uint32 bUAVAccess : 1;
 
-			/** Whether the pass has untracked outputs. */
-			uint32 bUntrackedOutputs : 1;
-
 			/** Whether this pass allocated a texture through the pool. */
 			IF_RDG_ENABLE_DEBUG(uint32 bFirstTextureAllocated : 1);
 		};
