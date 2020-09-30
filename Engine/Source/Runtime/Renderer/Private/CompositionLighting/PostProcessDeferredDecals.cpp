@@ -457,7 +457,7 @@ void AddDeferredDecalPass(
 	// Attempt to clear the D-Buffer if it's appropriate for this view.
 	const EDecalDBufferMaskTechnique DBufferMaskTechnique = GetDBufferMaskTechnique(ShaderPlatform);
 
-	const auto CreateOrImportTexture = [&](TRefCountPtr<IPooledRenderTarget>& Target, const FRDGTextureDesc& Desc, const TCHAR* Name)
+	const auto CreateOrImportTexture = [&](TRefCountPtr<IPooledRenderTarget>& Target, const FRDGTextureDesc& Desc, const TCHAR* Name, ERDGTextureFlags Flags = ERDGTextureFlags::None)
 	{
 		if (Target)
 		{
@@ -465,7 +465,7 @@ void AddDeferredDecalPass(
 		}
 		else
 		{
-			FRDGTextureRef Texture = GraphBuilder.CreateTexture(Desc, Name);
+			FRDGTextureRef Texture = GraphBuilder.CreateTexture(Desc, Name, Flags);
 			ConvertToExternalTexture(GraphBuilder, Texture, Target);
 			return Texture;
 		}
@@ -547,22 +547,26 @@ void AddDeferredDecalPass(
 
 			FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(PassTextures.Depth.Target->Desc.Extent, PF_B8G8R8A8, FClearValueBinding::None, BaseFlags);
 
+			ERDGTextureFlags RDGTexFlags = DBufferMaskTechnique != EDecalDBufferMaskTechnique::Disabled
+				? ERDGTextureFlags::MaintainCompression
+				: ERDGTextureFlags::None;
+
 			{
 				Desc.Flags = BaseFlags | GFastVRamConfig.DBufferA;
 				Desc.ClearValue = FClearValueBinding::Black;
-				PassTextures.DBufferA = CreateOrImportTexture(SceneContext.DBufferA, Desc, TEXT("DBufferA"));
+				PassTextures.DBufferA = CreateOrImportTexture(SceneContext.DBufferA, Desc, TEXT("DBufferA"), RDGTexFlags);
 			}
 
 			{
 				Desc.Flags = BaseFlags | GFastVRamConfig.DBufferB;
 				Desc.ClearValue = FClearValueBinding(FLinearColor(128.0f / 255.0f, 128.0f / 255.0f, 128.0f / 255.0f, 1));
-				PassTextures.DBufferB = CreateOrImportTexture(SceneContext.DBufferB, Desc, TEXT("DBufferB"));
+				PassTextures.DBufferB = CreateOrImportTexture(SceneContext.DBufferB, Desc, TEXT("DBufferB"), RDGTexFlags);
 			}
 
 			{
 				Desc.Flags = BaseFlags | GFastVRamConfig.DBufferC;
 				Desc.ClearValue = FClearValueBinding(FLinearColor(0, 0, 0, 1));
-				PassTextures.DBufferC = CreateOrImportTexture(SceneContext.DBufferC, Desc, TEXT("DBufferC"));
+				PassTextures.DBufferC = CreateOrImportTexture(SceneContext.DBufferC, Desc, TEXT("DBufferC"), RDGTexFlags);
 			}
 
 			if (DBufferMaskTechnique == EDecalDBufferMaskTechnique::PerPixel)

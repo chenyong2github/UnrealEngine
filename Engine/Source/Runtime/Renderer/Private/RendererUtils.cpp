@@ -9,11 +9,11 @@ class FRTWriteMaskDecodeCS : public FGlobalShader
 public:
 	DECLARE_GLOBAL_SHADER(FRTWriteMaskDecodeCS);
 
-	static const uint32 MaxRenderTargetCount = 3;
+	static const uint32 MaxRenderTargetCount = 4;
 	static const uint32 ThreadGroupSizeX = 8;
 	static const uint32 ThreadGroupSizeY = 8;
 
-	class FNumRenderTargets : SHADER_PERMUTATION_INT("NUM_RENDER_TARGETS", MaxRenderTargetCount + 1);
+	class FNumRenderTargets : SHADER_PERMUTATION_RANGE_INT("NUM_RENDER_TARGETS", 1, MaxRenderTargetCount);
 	using FPermutationDomain = TShaderPermutationDomain<FNumRenderTargets>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -125,7 +125,7 @@ void FRenderTargetWriteMask::Decode(
 
 	for (uint32 Index = 0; Index < NumRenderTargets; ++Index)
 	{
-		PassParameters->RTWriteMaskInputs[Index] = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMetaData(RenderTargets[Index], ERDGTextureMetaDataAccess::CompressedSurface));
+		PassParameters->RTWriteMaskInputs[Index] = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMetaData(RenderTargets[Index], ERDGTextureMetaDataAccess::CMask));
 	}
 
 	FRTWriteMaskDecodeCS::FPermutationDomain PermutationVector;

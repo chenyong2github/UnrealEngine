@@ -113,7 +113,10 @@ enum class ERDGTextureFlags : uint8
 	None = 0,
 
 	/** Tag the texture to survive through frame, that is important for multi GPU alternate frame rendering. */
-	MultiFrame = 1 << 0
+	MultiFrame = 1 << 0,
+
+	/** Prevents metadata decompression on this texture. */
+	MaintainCompression = 1 << 1,
 };
 ENUM_CLASS_FLAGS(ERDGTextureFlags);
 
@@ -181,7 +184,10 @@ enum class ERDGTextureMetaDataAccess : uint8
 	HTile,
 
 	/** the FMask plane is used. */
-	FMask
+	FMask,
+
+	/** the CMask plane is used. */
+	CMask
 };
 
 /** Returns the associated FRHITransitionInfo plane index. */
