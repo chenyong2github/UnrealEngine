@@ -95,14 +95,14 @@ public:
 	FDMXEntityFixturePatchRef FixturePatchMatrixRef;
 
 	/** Extra attributes for the whole Matrix Fixture */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Setting")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings")
 	TArray<FDMXPixelMappingExtraAttribute> ExtraAttributes;
 
 	/** Extra attributes for each Matrix Fixture Cell */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Setting")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings")
 	TArray<FDMXPixelMappingExtraAttribute> ExtraCellAttributes;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Setting")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings")
 	EDMXColorMode ColorMode;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings", meta = (DisplayName = "R"))
