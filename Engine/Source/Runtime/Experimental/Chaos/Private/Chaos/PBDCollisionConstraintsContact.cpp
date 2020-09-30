@@ -7,7 +7,7 @@
 #include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/Utilities.h"
 
-PRAGMA_DISABLE_OPTIMIZATION
+//PRAGMA_DISABLE_OPTIMIZATION
 
 #if INTEL_ISPC
 #include "PBDCollisionConstraints.ispc.generated.h"
