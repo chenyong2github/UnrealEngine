@@ -95,7 +95,7 @@ namespace Chaos
 		static constexpr int32 DefaultNumCollisionPairIterations = 4;
 		static constexpr int32 DefaultNumPushOutIterations = 4;
 		static constexpr int32 DefaultNumCollisionPushOutPairIterations = 4;
-		static constexpr float DefaultCollisionShapePadding = 0.0f;
+		static constexpr float DefaultCollisionShapePadding = 2.0f;
 		static constexpr float DefaultCollisionCullDistance = 5.0f;
 
 		// @todo(chaos): Required by clustering - clean up
