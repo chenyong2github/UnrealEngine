@@ -553,11 +553,8 @@ void ScatterTilesToObjects(FRHICommandListImmediate& RHICmdList, const FViewInfo
 	}
 	RHICmdList.Transition(MakeArrayView(TransitionInfos.GetData(), TransitionInfos.Num()));
 
-	// Note: PS4 needs special handling due to a current RHI bug. Screen scissor is only update when a RT is setup, which is not the case here are 
-	// the pass writes out only to a UAV.
-	const bool bNeedRenderTarget = GRHIRequiresRenderTargetForPixelShaderUAVs || IsPS4Platform(View.GetShaderPlatform());
 	FRHIRenderPassInfo RPInfo(FRHIRenderPassInfo::NoRenderTargets);
-	if (bNeedRenderTarget)
+	if (GRHIRequiresRenderTargetForPixelShaderUAVs)
 	{
 		TRefCountPtr<IPooledRenderTarget> Dummy;
 		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(TileListGroupSize, PF_B8G8R8A8, FClearValueBinding::None, TexCreate_None, TexCreate_RenderTargetable, false));
