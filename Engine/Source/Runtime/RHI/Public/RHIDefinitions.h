@@ -546,6 +546,11 @@ public:
 		return Infos[Platform].bSupportsAnisotropicMaterials;
 	}
 
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportsUInt64ImageAtomics(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsUInt64ImageAtomics;
+	}
+
 private:
 	static FGenericDataDrivenShaderPlatformInfo Infos[SP_NumPlatforms];
 
