@@ -1343,7 +1343,7 @@ namespace Chaos
 
 				if (Chaos_Collision_UseManifoldClipSolve && bChaosUseIncrementalManifold)
 				{
-					if (FRigidBodyPointContactConstraint* PointConstraint = Constraint.As<FRigidBodyPointContactConstraint>())
+					if (FRigidBodyPointContactConstraint* PointConstraint = Constraint.template As<FRigidBodyPointContactConstraint>())
 					{
 						ApplyPushOutManifold(*PointConstraint, IsTemporarilyStatic, IterationParameters, ParticleParameters);
 					}
