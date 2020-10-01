@@ -568,13 +568,9 @@ namespace Chaos
 			FDebugDrawQueue::GetInstance().DrawDebugLine(Pos, Pos + 0.01f * Settings.VelScale * SimSpace.LinearAcceleration, FColor::Yellow, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
 			FDebugDrawQueue::GetInstance().DrawDebugLine(Pos, Pos + 0.01f * Settings.AngVelScale * SimSpace.AngularAcceleration, FColor::Orange, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
 		}
-#endif
-
-
 
 		void DrawParticleShapes(const FRigidTransform3& SpaceTransform, const TParticleView<TGeometryParticles<float, 3>>& ParticlesView, const FColor& Color, const FChaosDebugDrawSettings* Settings)
 		{
-#if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				for (auto& Particle : ParticlesView)
@@ -582,12 +578,10 @@ namespace Chaos
 					DrawParticleShapesImpl(SpaceTransform, GetHandleHelper(&Particle), Color, GetChaosDebugDrawSettings(Settings));
 				}
 			}
-#endif
 		}
 
 		void DrawParticleShapes(const FRigidTransform3& SpaceTransform, const TParticleView<TKinematicGeometryParticles<float, 3>>& ParticlesView, const FColor& Color, const FChaosDebugDrawSettings* Settings)
 		{
-#if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				for (auto& Particle : ParticlesView)
@@ -595,12 +589,10 @@ namespace Chaos
 					DrawParticleShapesImpl(SpaceTransform, GetHandleHelper(&Particle), Color, GetChaosDebugDrawSettings(Settings));
 				}
 			}
-#endif
 		}
 
 		void DrawParticleShapes(const FRigidTransform3& SpaceTransform, const TParticleView<TPBDRigidParticles<float, 3>>& ParticlesView, const FColor& Color, const FChaosDebugDrawSettings* Settings)
 		{
-#if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				for (auto& Particle : ParticlesView)
@@ -608,32 +600,26 @@ namespace Chaos
 					DrawParticleShapesImpl(SpaceTransform, GetHandleHelper(&Particle), Color, GetChaosDebugDrawSettings(Settings));
 				}
 			}
-#endif
 		}
 
 		void DrawParticleShapes(const FRigidTransform3& SpaceTransform, const TGeometryParticleHandle<float, 3>* Particle, const FColor& Color, const FChaosDebugDrawSettings* Settings)
 		{
-#if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				DrawParticleShapesImpl(SpaceTransform, Particle, Color, GetChaosDebugDrawSettings(Settings));
 			}
-#endif
 		}
 
 		void DrawParticleShapes(const FRigidTransform3& SpaceTransform, const TGeometryParticle<float, 3>* Particle, const FColor& Color, const FChaosDebugDrawSettings* Settings)
 		{
-#if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				DrawParticleShapesImpl(SpaceTransform, Particle, Color, GetChaosDebugDrawSettings(Settings));
 			}
-#endif
 		}
 
 		void DrawParticleBounds(const FRigidTransform3& SpaceTransform, const TParticleView<TGeometryParticles<float, 3>>& ParticlesView, const FChaosDebugDrawSettings* Settings)
 		{
-#if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				for (auto& Particle : ParticlesView)
@@ -641,12 +627,10 @@ namespace Chaos
 					DrawParticleBoundsImpl(SpaceTransform, GetHandleHelper(&Particle), GetChaosDebugDrawSettings(Settings));
 				}
 			}
-#endif
 		}
 
 		void DrawParticleBounds(const FRigidTransform3& SpaceTransform, const TParticleView<TKinematicGeometryParticles<float, 3>>& ParticlesView, const FChaosDebugDrawSettings* Settings)
 		{
-#if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				for (auto& Particle : ParticlesView)
@@ -654,12 +638,10 @@ namespace Chaos
 					DrawParticleBoundsImpl(SpaceTransform, GetHandleHelper(&Particle), GetChaosDebugDrawSettings(Settings));
 				}
 			}
-#endif
 		}
 
 		void DrawParticleBounds(const FRigidTransform3& SpaceTransform, const TParticleView<TPBDRigidParticles<float, 3>>& ParticlesView, const FChaosDebugDrawSettings* Settings)
 		{
-#if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				for (auto& Particle : ParticlesView)
@@ -667,12 +649,10 @@ namespace Chaos
 					DrawParticleBoundsImpl(SpaceTransform, GetHandleHelper(&Particle), GetChaosDebugDrawSettings(Settings));
 				}
 			}
-#endif
 		}
 
 		void DrawParticleTransforms(const FRigidTransform3& SpaceTransform, const TParticleView<TGeometryParticles<float, 3>>& ParticlesView, const FChaosDebugDrawSettings* Settings)
 		{
-#if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				int32 Index = 0;
@@ -681,12 +661,10 @@ namespace Chaos
 					DrawParticleTransformImpl(SpaceTransform, GetHandleHelper(&Particle), Index++, 1.0f, GetChaosDebugDrawSettings(Settings));
 				}
 			}
-#endif
 		}
 
 		void DrawParticleTransforms(const FRigidTransform3& SpaceTransform, const TParticleView<TKinematicGeometryParticles<float, 3>>& ParticlesView, const FChaosDebugDrawSettings* Settings)
 		{
-#if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				int32 Index = 0;
@@ -695,12 +673,10 @@ namespace Chaos
 					DrawParticleTransformImpl(SpaceTransform, GetHandleHelper(&Particle), Index++, 1.0f, GetChaosDebugDrawSettings(Settings));
 				}
 			}
-#endif
 		}
 
 		void DrawParticleTransforms(const FRigidTransform3& SpaceTransform, const TParticleView<TPBDRigidParticles<float, 3>>& ParticlesView, const FChaosDebugDrawSettings* Settings)
 		{
-#if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				int32 Index = 0;
@@ -709,12 +685,10 @@ namespace Chaos
 					DrawParticleTransformImpl(SpaceTransform, GetHandleHelper(&Particle), Index++, 1.0f, GetChaosDebugDrawSettings(Settings));
 				}
 			}
-#endif
 		}
 
 		void DrawParticleCollisions(const FRigidTransform3& SpaceTransform, const TGeometryParticleHandle<float, 3>* Particle, const FPBDCollisionConstraints& Collisions, const FChaosDebugDrawSettings* Settings)
 		{
-#if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				for (const Chaos::FPBDCollisionConstraintHandle * ConstraintHandle : Collisions.GetConstConstraintHandles())
@@ -726,12 +700,10 @@ namespace Chaos
 					}
 				}
 			}
-#endif
 		}
 
 		void DrawCollisions(const FRigidTransform3& SpaceTransform, const FPBDCollisionConstraints& Collisions, float ColorScale, const FChaosDebugDrawSettings* Settings)
 		{
-#if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				for (int32 ConstraintIndex = 0; ConstraintIndex < Collisions.NumConstraints(); ++ConstraintIndex)
@@ -739,12 +711,10 @@ namespace Chaos
 					DrawCollisionImpl(SpaceTransform, Collisions.GetConstraint(ConstraintIndex), ColorScale, GetChaosDebugDrawSettings(Settings));
 				}
 			}
-#endif
 		}
 
 		void DrawCollisions(const FRigidTransform3& SpaceTransform, const TArray<FPBDCollisionConstraintHandle*>& ConstraintHandles, float ColorScale, const FChaosDebugDrawSettings* Settings)
 		{
-#if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				for (const FPBDCollisionConstraintHandle* ConstraintHandle : ConstraintHandles)
@@ -752,13 +722,11 @@ namespace Chaos
 					DrawCollisionImpl(SpaceTransform, ConstraintHandle, ColorScale, GetChaosDebugDrawSettings(Settings));
 				}
 			}
-#endif
 		}
 
 
 		void DrawJointConstraints(const FRigidTransform3& SpaceTransform, const TArray<FPBDJointConstraintHandle*>& ConstraintHandles, float ColorScale, uint32 FeatureMask, const FChaosDebugDrawSettings* Settings)
 		{
-#if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				for (const FPBDJointConstraintHandle* ConstraintHandle : ConstraintHandles)
@@ -766,12 +734,10 @@ namespace Chaos
 					DrawJointConstraintImpl(SpaceTransform, ConstraintHandle, ColorScale, FeatureMask, GetChaosDebugDrawSettings(Settings));
 				}
 			}
-#endif
 		}
 
 		void DrawJointConstraints(const FRigidTransform3& SpaceTransform, const FPBDJointConstraints& Constraints, float ColorScale, uint32 FeatureMask, const FChaosDebugDrawSettings* Settings)
 		{
-#if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.NumConstraints(); ++ConstraintIndex)
@@ -779,17 +745,15 @@ namespace Chaos
 					DrawJointConstraintImpl(SpaceTransform, Constraints.GetConstraintHandle(ConstraintIndex), ColorScale, FeatureMask, GetChaosDebugDrawSettings(Settings));
 				}
 			}
-#endif
 		}
 
 		void DrawSimulationSpace(const FSimulationSpace& SimSpace, const FChaosDebugDrawSettings* Settings)
 		{
-#if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				DrawSimulationSpaceImpl(SimSpace, GetChaosDebugDrawSettings(Settings));
 			}
-#endif
 		}
+#endif
 	}
 }
