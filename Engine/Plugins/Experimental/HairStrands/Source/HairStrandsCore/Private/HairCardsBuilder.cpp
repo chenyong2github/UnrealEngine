@@ -23,6 +23,7 @@
 #include "Engine/StaticMesh.h"
 #include "MeshAttributes.h"
 #include "StaticMeshAttributes.h"
+#include "PhysicsEngine/BodySetup.h"
 
 #if WITH_EDITOR
 

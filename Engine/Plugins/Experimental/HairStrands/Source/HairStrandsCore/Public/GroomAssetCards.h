@@ -10,7 +10,7 @@
 
 class UMaterialInterface;
 class UStaticMesh;
-
+class UTexture2D;
 
 UENUM(BlueprintType)
 enum class EHairCardsClusterType : uint8
