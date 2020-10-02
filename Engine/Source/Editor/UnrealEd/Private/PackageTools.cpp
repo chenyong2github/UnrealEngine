@@ -30,6 +30,7 @@
 
 
 #include "ObjectTools.h"
+#include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Kismet2/KismetReinstanceUtilities.h"
 #include "BusyCursor.h"

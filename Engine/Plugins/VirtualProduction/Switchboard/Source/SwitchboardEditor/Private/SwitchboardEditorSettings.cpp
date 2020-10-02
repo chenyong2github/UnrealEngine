@@ -2,7 +2,7 @@
 
 #include "SwitchboardEditorSettings.h"
 #include "GenericPlatform/GenericPlatformProperties.h"
-
+#include "Misc/Paths.h"
 
 USwitchboardEditorSettings::USwitchboardEditorSettings()
 {

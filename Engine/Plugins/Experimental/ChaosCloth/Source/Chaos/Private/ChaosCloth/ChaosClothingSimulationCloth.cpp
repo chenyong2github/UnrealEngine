@@ -7,6 +7,7 @@
 #include "ChaosCloth/ChaosWeightMapTarget.h"
 #include "ChaosCloth/ChaosClothPrivate.h"
 #include "Containers/ArrayView.h"
+#include "HAL/IConsoleManager.h"
 
 using namespace Chaos;
 
