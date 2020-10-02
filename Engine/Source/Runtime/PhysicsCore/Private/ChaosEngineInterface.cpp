@@ -579,6 +579,16 @@ FVector FChaosEngineInterface::GetWorldVelocityAtPoint_AssumesLocked(const FPhys
 	return FVector(0);
 }
 
+#if WITH_CHAOS
+FVector FChaosEngineInterface::GetWorldVelocityAtPoint_AssumesLocked(const Chaos::TKinematicGeometryParticleHandle<float, 3>* Kinematic, const FVector& InPoint)
+{
+	const Chaos::TPBDRigidParticleHandle<float, 3>* Rigid = Kinematic->CastToRigidParticle();
+	const Chaos::FVec3 COM = Rigid ? Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(Rigid) : Chaos::FParticleUtilitiesGT::GetActorWorldTransform(Rigid).GetTranslation();
+	const Chaos::FVec3 Diff = InPoint - COM;
+	return Kinematic->V() - Chaos::FVec3::CrossProduct(Diff, Kinematic->W());
+}
+#endif
+
 FTransform FChaosEngineInterface::GetComTransform_AssumesLocked(const FPhysicsActorHandle& InActorReference)
 {
 	if(ensure(FChaosEngineInterface::IsValid(InActorReference)))
