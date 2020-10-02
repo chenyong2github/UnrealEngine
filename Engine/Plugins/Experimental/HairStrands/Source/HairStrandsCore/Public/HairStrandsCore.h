@@ -6,6 +6,7 @@
 #include "Modules/ModuleManager.h"
 
 class UStaticMesh;
+class UTexture2D;
 
 //typedef UTexture2D* (TCreateTextureHelper*)(FName Package, const FIntPoint& Resolution);
 typedef void (*TTextureAllocation)(UTexture2D* Out, const FIntPoint& Resolution, uint32 MipCount);

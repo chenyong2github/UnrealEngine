@@ -4,6 +4,7 @@
 #include "OnlineExternalUIInterfaceApple.h"
 #include "OnlineSubsystemApple.h"
 #include "OnlineSubsystemAppleAttributes.h"
+#include "Misc/ConfigCacheIni.h"
 
 #if PLATFORM_MAC
 #elif PLATFORM_IOS || PLATFORM_TVOS
