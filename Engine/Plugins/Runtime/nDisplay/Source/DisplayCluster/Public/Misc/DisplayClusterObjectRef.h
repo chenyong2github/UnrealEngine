@@ -95,11 +95,14 @@ private:
 		{
 			UWorld* CurrentWorld = nullptr;
 
+#if WITH_EDITORONLY_DATA
 			if (GIsEditor)
 			{
 				CurrentWorld = GEditor->GetEditorWorldContext().World();
 			}
-			else if (UGameEngine* GameEngine = Cast<UGameEngine>(GEngine))
+			else
+#endif
+			if (UGameEngine* GameEngine = Cast<UGameEngine>(GEngine))
 			{
 				CurrentWorld = GameEngine->GetGameWorld();
 			}
