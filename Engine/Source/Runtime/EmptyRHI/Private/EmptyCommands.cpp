@@ -29,7 +29,7 @@ void FEmptyDynamicRHI::RHIDispatchComputeShader(uint32 ThreadGroupCountX, uint32
 
 }
 
-void FEmptyDynamicRHI::RHIDispatchIndirectComputeShader(FRHIVertexBuffer* ArgumentBufferRHI, uint32 ArgumentOffset)
+void FEmptyDynamicRHI::RHIDispatchIndirectComputeShader(FRHIBuffer* ArgumentBufferRHI, uint32 ArgumentOffset)
 { 
 	FEmptyVertexBuffer* ArgumentBuffer = ResourceCast(ArgumentBufferRHI);
 
@@ -225,93 +225,34 @@ void FEmptyDynamicRHI::RHIDrawPrimitive(uint32 PrimitiveType, uint32 BaseVertexI
 {
 }
 
-void FEmptyDynamicRHI::RHIDrawPrimitiveIndirect(uint32 PrimitiveType, FRHIVertexBuffer* ArgumentBufferRHI, uint32 ArgumentOffset)
+void FEmptyDynamicRHI::RHIDrawPrimitiveIndirect(uint32 PrimitiveType, FRHIBuffer* ArgumentBufferRHI, uint32 ArgumentOffset)
 {
-	FEmptyVertexBuffer* ArgumentBuffer = ResourceCast(ArgumentBufferRHI);
+	FEmptyBuffer* ArgumentBuffer = ResourceCast(ArgumentBufferRHI);
 
 }
 
 
-void FEmptyDynamicRHI::RHIDrawIndexedPrimitive(FRHIIndexBuffer* IndexBufferRHI, uint32 PrimitiveType, int32 BaseVertexIndex, uint32 FirstInstance,
+void FEmptyDynamicRHI::RHIDrawIndexedPrimitive(FRHIBuffer* IndexBufferRHI, uint32 PrimitiveType, int32 BaseVertexIndex, uint32 FirstInstance,
 	uint32 NumVertices, uint32 StartIndex, uint32 NumPrimitives, uint32 NumInstances)
 {
-	FEmptyIndexBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
+	FEmptyBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
 
 }
 
-void FEmptyDynamicRHI::RHIDrawIndexedIndirect(FRHIIndexBuffer* IndexBufferRHI, uint32 PrimitiveType, FRHIStructuredBuffer* ArgumentsBufferRHI, int32 DrawArgumentsIndex, uint32 NumInstances)
+void FEmptyDynamicRHI::RHIDrawIndexedIndirect(FRHIBuffer* IndexBufferRHI, uint32 PrimitiveType, FRHIBuffer* ArgumentsBufferRHI, int32 DrawArgumentsIndex, uint32 NumInstances)
 {
-	FEmptyIndexBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
-	FEmptyStructuredBuffer* ArgumentsBuffer = ResourceCast(ArgumentsBufferRHI);
+	FEmptyBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
+	FEmptyBuffer* ArgumentsBuffer = ResourceCast(ArgumentsBufferRHI);
 
 }
 
-void FEmptyDynamicRHI::RHIDrawIndexedPrimitiveIndirect(uint32 PrimitiveType, FRHIIndexBuffer* IndexBufferRHI, FRHIVertexBuffer* ArgumentBufferRHI,uint32 ArgumentOffset)
+void FEmptyDynamicRHI::RHIDrawIndexedPrimitiveIndirect(uint32 PrimitiveType, FRHIBuffer* IndexBufferRHI, FRHIBuffer* ArgumentBufferRHI,uint32 ArgumentOffset)
 {
-	FEmptyIndexBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
-	FEmptyVertexBuffer* ArgumentBuffer = ResourceCast(ArgumentBufferRHI);
+	FEmptyBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
+	FEmptyBuffer* ArgumentBuffer = ResourceCast(ArgumentBufferRHI);
 
 }
 
-
-/** Some locally global variables to track the pending primitive information uised in RHIEnd*UP functions */
-static void *GPendingDrawPrimitiveUPVertexData = NULL;
-static uint32 GPendingNumVertices;
-static uint32 GPendingVertexDataStride;
-
-static void *GPendingDrawPrimitiveUPIndexData = NULL;
-static uint32 GPendingPrimitiveType;
-static uint32 GPendingNumPrimitives;
-static uint32 GPendingMinVertexIndex;
-static uint32 GPendingIndexDataStride;
-
-void FEmptyDynamicRHI::RHIBeginDrawPrimitiveUP( uint32 PrimitiveType, uint32 NumPrimitives, uint32 NumVertices, uint32 VertexDataStride, void*& OutVertexData)
-{
-	checkSlow(GPendingDrawPrimitiveUPVertexData == NULL);
-//	GPendingDrawPrimitiveUPVertexData = 
-	OutVertexData = GPendingDrawPrimitiveUPVertexData;
-
-	GPendingPrimitiveType = PrimitiveType;
-	GPendingNumPrimitives = NumPrimitives;
-	GPendingNumVertices = NumVertices;
-	GPendingVertexDataStride = VertexDataStride;
-}
-
-
-void FEmptyDynamicRHI::RHIEndDrawPrimitiveUP()
-{
-
-	// free used mem
-	GPendingDrawPrimitiveUPVertexData = NULL;
-}
-
-void FEmptyDynamicRHI::RHIBeginDrawIndexedPrimitiveUP( uint32 PrimitiveType, uint32 NumPrimitives, uint32 NumVertices, uint32 VertexDataStride, void*& OutVertexData, uint32 MinVertexIndex, uint32 NumIndices, uint32 IndexDataStride, void*& OutIndexData)
-{
-	checkSlow(GPendingDrawPrimitiveUPVertexData == NULL);
-	checkSlow(GPendingDrawPrimitiveUPIndexData == NULL);
-
-//	GPendingDrawPrimitiveUPVertexData = 
-	OutVertexData = GPendingDrawPrimitiveUPVertexData;
-
-//	GPendingDrawPrimitiveUPIndexData = 
-	OutIndexData = GPendingDrawPrimitiveUPIndexData;
-
-	GPendingPrimitiveType = PrimitiveType;
-	GPendingNumPrimitives = NumPrimitives;
-	GPendingMinVertexIndex = MinVertexIndex;
-	GPendingIndexDataStride = IndexDataStride;
-
-	GPendingNumVertices = NumVertices;
-	GPendingVertexDataStride = VertexDataStride;
-}
-
-void FEmptyDynamicRHI::RHIEndDrawIndexedPrimitiveUP()
-{
-
-	// free used mem
-	GPendingDrawPrimitiveUPIndexData = NULL;
-	GPendingDrawPrimitiveUPVertexData = NULL;
-}
 
 void FEmptyDynamicRHI::RHIClearMRT(bool bClearColor,int32 NumClearColors,const FLinearColor* ClearColorArray,bool bClearDepth,float Depth,bool bClearStencil,uint32 Stencil)
 {
