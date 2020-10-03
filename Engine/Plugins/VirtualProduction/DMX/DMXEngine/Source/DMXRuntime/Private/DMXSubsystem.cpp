@@ -151,11 +151,16 @@ bool UDMXSubsystem::SetMatrixCellValue(UDMXEntityFixturePatch* FixturePatch, FIn
 			return false;
 		}
 
+		TMap<FDMXAttributeName, int32> AttributeNameChannelMap;
+		GetMatrixCellChannelsAbsolute(FixturePatch, Cell, AttributeNameChannelMap);
+
 		IDMXFragmentMap DMXFragmentMap;
 		for (const FDMXFixtureCellAttribute& CellAttribute : FixtureMatrixConfig.CellAttributes)
 		{
-			TMap<FDMXAttributeName, int32> AttributeNameChannelMap;
-			GetMatrixCellChannelsAbsolute(FixturePatch, Cell, AttributeNameChannelMap);
+			if (!AttributeNameChannelMap.Contains(Attribute))
+			{
+				continue;
+			}
 
 			int32 FirstChannel = AttributeNameChannelMap[Attribute];
 			int32 LastChannel = FirstChannel + UDMXEntityFixtureType::NumChannelsToOccupy(CellAttribute.DataType) - 1;
@@ -166,8 +171,7 @@ bool UDMXSubsystem::SetMatrixCellValue(UDMXEntityFixturePatch* FixturePatch, FIn
 			int32 ByteOffset = 0;
 			for (int32 Channel = FirstChannel; Channel <= LastChannel; Channel++)
 			{
-				uint32 ChannelIndex = Channel - 1;
-				DMXFragmentMap.Add(ChannelIndex, ByteArr[ByteOffset]);
+				DMXFragmentMap.Add(Channel, ByteArr[ByteOffset]);
 				ByteOffset++;
 			}
 
