@@ -60,7 +60,7 @@ void FAssetTypeActions_TextureRenderTarget::ExecuteCreateStatic(TArray<TWeakObje
 			}
 			else if (TexRT2DArray)
 			{
-				NewObj = TexRT2DArray->ConstructTexture2DArray(CreatePackage(NULL, *PackageName), Name, Object->GetMaskedFlags());
+				NewObj = TexRT2DArray->ConstructTexture2DArray(CreatePackage(*PackageName), Name, Object->GetMaskedFlags());
 			}
 			else if( TexRT )
 			{
