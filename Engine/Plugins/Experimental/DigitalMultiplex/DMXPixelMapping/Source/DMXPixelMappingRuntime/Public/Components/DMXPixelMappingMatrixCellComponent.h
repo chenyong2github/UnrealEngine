@@ -29,6 +29,8 @@ public:
 	//~ Begin UObject implementation
 	virtual void PostLoad() override;
 
+	virtual void PostInitProperties() override;
+
 #if WITH_EDITOR
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent) override;
 
@@ -42,6 +44,10 @@ public:
 	virtual void Render() override;
 	virtual void RenderAndSendDMX() override;
 	virtual void PostParentAssigned() override;
+
+#if WITH_EDITOR
+	virtual FString GetUserFriendlyName() const override;
+#endif
 	//~ End UDMXPixelMappingBaseComponent implementation
 
 	//~ Begin UDMXPixelMappingOutputComponent implementation
@@ -50,8 +56,6 @@ public:
 	virtual void ToggleHighlightSelection(bool bIsSelected) override;
 
 	virtual void UpdateWidget() override;
-
-	virtual FString GetWidgetName() const override;
 #endif // WITH_EDITOR	
 
 	virtual UTextureRenderTarget2D* GetOutputTexture() override;

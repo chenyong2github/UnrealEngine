@@ -17,10 +17,10 @@
 #include "Library/DMXEntityFixtureType.h"
 #include "Library/DMXEntityFixturePatch.h"
 
-
 #include "Engine/TextureRenderTarget2D.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Layout/SScaleBox.h"
 
 #define LOCTEXT_NAMESPACE "DMXPixelMappingMatrixComponent"
 
@@ -63,11 +63,16 @@ void UDMXPixelMappingMatrixComponent::PostLoad()
 }
 
 #if WITH_EDITOR
-
 void UDMXPixelMappingMatrixComponent::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent)
 {
 	// Call the parent at the first place
 	Super::PostEditChangeChainProperty(PropertyChangedChainEvent);
+
+	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, FixturePatchMatrixRef))
+	{
+		check(PatchNameWidget.IsValid());
+		PatchNameWidget->SetText(FText::FromString(GetUserFriendlyName()));
+	}
 
 	if (PropertyChangedChainEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
@@ -123,7 +128,9 @@ void UDMXPixelMappingMatrixComponent::PostEditChangeChainProperty(FPropertyChang
 		PreviousEditorColor = EditorColor;
 	}	
 }
+#endif // WITH_EDITOR
 
+#if WITH_EDITOR
 void UDMXPixelMappingMatrixComponent::RenderEditorPreviewTexture()
 {
 	UTextureRenderTarget2D* OutTarget = GetOutputTexture();
@@ -152,18 +159,37 @@ void UDMXPixelMappingMatrixComponent::RenderEditorPreviewTexture()
 		}
 	}
 }
+#endif // WITH_EDITOR
 
+#if WITH_EDITOR
 const FText UDMXPixelMappingMatrixComponent::GetPaletteCategory()
 {
 	return LOCTEXT("Common", "Common");
 }
+#endif // WITH_EDITOR
 
+#if WITH_EDITOR
 TSharedRef<SWidget> UDMXPixelMappingMatrixComponent::BuildSlot(TSharedRef<SConstraintCanvas> InCanvas)
 {
 	CachedWidget =
 		SNew(SBox)
 		.HeightOverride(SizeX)
 		.WidthOverride(SizeY);
+
+	CachedLabelBox =
+		SNew(SBox)
+		.WidthOverride(SizeY)
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Top)
+		[
+			SNew(SScaleBox)
+			.Stretch(EStretch::ScaleToFit)
+			.StretchDirection(EStretchDirection::DownOnly)
+			[
+				SAssignNew(PatchNameWidget, STextBlock)
+				.Text(FText::FromString(GetUserFriendlyName()))
+			]
+		];
 
 	Slot =
 		&InCanvas->AddSlot()
@@ -173,12 +199,11 @@ TSharedRef<SWidget> UDMXPixelMappingMatrixComponent::BuildSlot(TSharedRef<SConst
 		[
 			SNew(SOverlay)
 			+ SOverlay::Slot()
-			.Padding(FMargin(0.0f, -20.0f))
+			.Padding(FMargin(0.0f, -16.0f))
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Fill)
 			[
-				SNew(STextBlock)
-				.Text(FText::FromString(GetName()))
+				CachedLabelBox.ToSharedRef()
 			]
 			+ SOverlay::Slot()
 			.HAlign(HAlign_Fill)
@@ -197,12 +222,15 @@ TSharedRef<SWidget> UDMXPixelMappingMatrixComponent::BuildSlot(TSharedRef<SConst
 	Slot->Offset(FMargin(PositionX, PositionY, 0.f, 0.f));
 	CachedWidget->SetWidthOverride(SizeX);
 	CachedWidget->SetHeightOverride(SizeY);
+	CachedLabelBox->SetWidthOverride(SizeX);
 
 	UpdateWidget();
 
 	return CachedWidget.ToSharedRef();
 }
+#endif // WITH_EDITOR
 
+#if WITH_EDITOR
 void UDMXPixelMappingMatrixComponent::ToggleHighlightSelection(bool bIsSelected)
 {
 	Super::ToggleHighlightSelection(bIsSelected);
@@ -214,7 +242,9 @@ void UDMXPixelMappingMatrixComponent::ToggleHighlightSelection(bool bIsSelected)
 		InComponent->ToggleHighlightSelection(bIsSelected);
 	}, true);
 }
+#endif // WITH_EDITOR
 
+#if WITH_EDITOR
 void UDMXPixelMappingMatrixComponent::UpdateWidget()
 {
 	// Hide in designer view
@@ -227,9 +257,7 @@ void UDMXPixelMappingMatrixComponent::UpdateWidget()
 		CachedWidget->SetContent(SNew(SImage).Image(&Brush));
 	}
 }
-
 #endif // WITH_EDITOR
-
 
 const FName& UDMXPixelMappingMatrixComponent::GetNamePrefix()
 {
@@ -297,6 +325,18 @@ void UDMXPixelMappingMatrixComponent::PostParentAssigned()
 
 	ResizeOutputTarget(SizeX, SizeY);
 }
+
+#if WITH_EDITOR
+FString UDMXPixelMappingMatrixComponent::GetUserFriendlyName() const
+{
+	if (UDMXEntityFixturePatch* Patch = FixturePatchMatrixRef.GetFixturePatch())
+	{
+		return FString::Printf(TEXT("Fixture Matrix: %s"), *Patch->GetDisplayName());
+	}
+
+	return FString(TEXT("Fixture Matrix: No Fixture Patch"));
+}
+#endif // WITH_EDITOR
 
 void UDMXPixelMappingMatrixComponent::Tick(float DeltaTime)
 {
@@ -449,6 +489,7 @@ void UDMXPixelMappingMatrixComponent::SetSizeInternal(const FVector2D& InSize)
 	const uint32 TotalPixelSizeY = PixelSize.Y * NumPixels.Y;
 	CachedWidget->SetWidthOverride(TotalPixelSizeX);
 	CachedWidget->SetHeightOverride(TotalPixelSizeY);
+	CachedLabelBox->SetWidthOverride(TotalPixelSizeX);
 
 	ResizeOutputTarget(TotalPixelSizeX, TotalPixelSizeY);
 #endif // WITH_EDITOR
@@ -521,6 +562,7 @@ void UDMXPixelMappingMatrixComponent::SetSizeWithinMaxBoundaryBox()
 #if WITH_EDITOR
 	CachedWidget->SetWidthOverride(SizeX);
 	CachedWidget->SetHeightOverride(SizeY);
+	CachedLabelBox->SetWidthOverride(SizeX);
 
 	ResizeOutputTarget(SizeX, SizeY);
 #endif // WITH_EDITOR
