@@ -14,6 +14,7 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Layout/SScaleBox.h"
 
 #if WITH_EDITOR
 #include "SDMXPixelMappingEditorWidgets.h"
@@ -94,6 +95,7 @@ void UDMXPixelMappingScreenComponent::PostEditChangeChainProperty(FPropertyChang
 	{
 		CachedWidget->SetWidthOverride(SizeX);
 		CachedWidget->SetHeightOverride(SizeY);
+		CachedLabelBox->SetWidthOverride(SizeX);
 	}
 
 	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, NumXCells) ||
@@ -115,12 +117,16 @@ void UDMXPixelMappingScreenComponent::PostEditChangeChainProperty(FPropertyChang
 		Brush.TintColor = EditorColor;
 	}
 }
+#endif // WITH_EDITOR
 
+#if WITH_EDITOR
 const FText UDMXPixelMappingScreenComponent::GetPaletteCategory()
 {
 	return LOCTEXT("Common", "Common");
 }
+#endif // WITH_EDITOR
 
+#if WITH_EDITOR
 TSharedRef<SWidget> UDMXPixelMappingScreenComponent::BuildSlot(TSharedRef<SConstraintCanvas> InCanvas)
 {
 	CachedWidget =
@@ -150,26 +156,44 @@ TSharedRef<SWidget> UDMXPixelMappingScreenComponent::BuildSlot(TSharedRef<SConst
 
 	return CachedWidget.ToSharedRef();
 }
+#endif // WITH_EDITOR
 
+#if WITH_EDITOR
 void UDMXPixelMappingScreenComponent::ToggleHighlightSelection(bool bIsSelected)
 {
 	Super::ToggleHighlightSelection(bIsSelected);
 
 	Brush.TintColor = GetEditorColor(bIsSelected);
 }
+#endif // WITH_EDITOR
 
+#if WITH_EDITOR
 TSharedRef<SWidget> UDMXPixelMappingScreenComponent::ConstructGrid()
 {
+	CachedLabelBox =
+		SNew(SBox)
+		.WidthOverride(SizeY)
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Top)
+		[
+			SNew(SScaleBox)
+			.Stretch(EStretch::ScaleToFit)
+			.StretchDirection(EStretchDirection::DownOnly)
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(GetUserFriendlyName()))
+			]
+		];
+
 	if ((NumXCells * NumYCells) > MaxGridUICells)
 	{
 		return SNew(SOverlay)
 			+ SOverlay::Slot()
-			.Padding(FMargin(0.0f, -20.0f))
+			.Padding(FMargin(0.0f, -16.0f))
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Fill)
 			[
-				SNew(STextBlock)
-				.Text(FText::FromString(GetName()))
+				CachedLabelBox.ToSharedRef()
 			]
 			+ SOverlay::Slot()
 			.HAlign(HAlign_Fill)
@@ -187,12 +211,11 @@ TSharedRef<SWidget> UDMXPixelMappingScreenComponent::ConstructGrid()
 	{
 		return SNew(SOverlay)
 			+ SOverlay::Slot()
-			.Padding(FMargin(0.0f, -20.0f))
+			.Padding(FMargin(0.0f, -16.0f))
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Fill)
 			[
-				SNew(STextBlock)
-				.Text(FText::FromString(GetName()))
+				CachedLabelBox.ToSharedRef()
 			]
 			+ SOverlay::Slot()
 			.HAlign(HAlign_Fill)
@@ -208,12 +231,13 @@ TSharedRef<SWidget> UDMXPixelMappingScreenComponent::ConstructGrid()
 				.StartAddress(StartAddress)
 				.bShowAddresses(bShowAddresses)
 				.bShowUniverse(bShowUniverse)
-			];
-			
+			];			
 		
 	}
 }
+#endif // WITH_EDITOR
 
+#if WITH_EDITOR
 void UDMXPixelMappingScreenComponent::UpdateWidget()
 {
 	// Hide in designer view
@@ -226,7 +250,6 @@ void UDMXPixelMappingScreenComponent::UpdateWidget()
 		CachedWidget->SetContent(ConstructGrid());
 	}
 }
-
 #endif // WITH_EDITOR
 
 const FName& UDMXPixelMappingScreenComponent::GetNamePrefix()
@@ -537,6 +560,7 @@ void UDMXPixelMappingScreenComponent::SetSizeInternal(const FVector2D& InSize)
 	{
 		CachedWidget->SetWidthOverride(SizeX);
 		CachedWidget->SetHeightOverride(SizeY);
+		CachedLabelBox->SetWidthOverride(SizeX);
 	}
 #endif // WITH_EDITOR
 }

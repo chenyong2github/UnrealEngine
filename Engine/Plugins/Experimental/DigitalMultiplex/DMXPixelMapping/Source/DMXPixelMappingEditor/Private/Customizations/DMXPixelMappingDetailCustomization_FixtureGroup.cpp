@@ -60,7 +60,7 @@ TSharedRef<ITableRow> FDMXPixelMappingDetailCustomization_FixtureGroup::Generate
 					SNew(SBox)
 					[
 						SNew(STextBlock)
-						.Text(FText::FromString(FixturePatch->GetName()))
+						.Text(FText::FromString(FixturePatch->GetDisplayName()))
 					]
 				];
 		}

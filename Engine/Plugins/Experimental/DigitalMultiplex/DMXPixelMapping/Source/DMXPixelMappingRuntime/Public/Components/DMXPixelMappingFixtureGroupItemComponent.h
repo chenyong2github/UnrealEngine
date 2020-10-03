@@ -37,6 +37,10 @@ public:
 	virtual void Render() override;
 	virtual void RenderAndSendDMX() override;
 	virtual void PostParentAssigned() override;
+
+#if WITH_EDITOR
+	virtual FString GetUserFriendlyName() const override;
+#endif
 	//~ End UDMXPixelMappingBaseComponent implementation
 
 	//~ Begin UDMXPixelMappingOutputComponent implementation
@@ -44,8 +48,10 @@ public:
 	virtual TSharedRef<SWidget> BuildSlot(TSharedRef<SConstraintCanvas> InCanvas) override;
 	virtual void ToggleHighlightSelection(bool bIsSelected) override;
 	virtual bool IsVisibleInDesigner() const override;
+
 	virtual void UpdateWidget() override;
 #endif // WITH_EDITOR	
+
 	virtual UTextureRenderTarget2D* GetOutputTexture() override;
 	virtual FVector2D GetSize() override;
 	virtual FVector2D GetPosition() override;
@@ -123,6 +129,8 @@ private:
 
 #if WITH_EDITORONLY_DATA
 	FSlateBrush Brush;
+
+	TSharedPtr<STextBlock> PatchNameWidget;
 #endif
 
 private:
