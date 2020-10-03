@@ -39,6 +39,10 @@ public:
 	virtual void Render() override;
 	virtual void RenderAndSendDMX() override;
 	virtual void PostParentAssigned() override;
+
+#if WITH_EDITOR
+	virtual FString GetUserFriendlyName() const override;
+#endif
 	//~ End UDMXPixelMappingBaseComponent implementation
 
 	//~ Begin FTickableGameObject begin
@@ -158,6 +162,8 @@ private:
 	FSlateBrush Brush;
 
 	bool bIsUpdateWidgetRequested;
+
+	TSharedPtr<STextBlock> PatchNameWidget;
 #endif
 
 	float PositionXCached;

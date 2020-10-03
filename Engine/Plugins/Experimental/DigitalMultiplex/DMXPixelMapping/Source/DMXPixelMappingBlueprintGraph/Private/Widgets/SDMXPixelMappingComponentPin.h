@@ -3,11 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "EditorStyleSet.h"
 #include "SGraphPin.h"
-#include "SNameComboBox.h"
 #include "ScopedTransaction.h"
+#include "Widgets/Input/SComboBox.h"
 
 #include "DMXPixelMapping.h"
+
+struct FComponentUserFriendlyNameTable;
 
 /** 
  * Cusotom widget for Pixel Mapping component pin.
@@ -24,7 +27,7 @@ public:
 	{
 		DMXPixelMappingWeakPtr = InDMXPixelMapping;
 
-		InDMXPixelMapping->GetAllComponentsNamesOfClass<TComponentClass>(NameList);
+		NameTable = FComponentUserFriendlyNameTable(InDMXPixelMapping);
 
 		SGraphPin::Construct(SGraphPin::FArguments(), InGraphPinObj);
 	}
@@ -38,31 +41,48 @@ protected:
 	 */
 	virtual TSharedRef<SWidget>	GetDefaultValueWidget() override
 	{
-		TSharedPtr<FName> CurrentlySelectedName;
+		NameTable.GetUserFriendlyNames(UserFriendlyNameList);
 
-		if (GraphPinObj)
+		// Preserve previous selection if possible
+		const FName SelectedComponentName = [&]()
 		{
-			// Preserve previous selection, or set to first in list
-			FName PreviousSelection = FName(*GraphPinObj->GetDefaultAsString());
-			for (TSharedPtr<FName> ListNamePtr : NameList)
-			{
-				if (PreviousSelection == *ListNamePtr.Get())
+			if (GraphPinObj)
+			{				
+				FName PreviousSelection = FName(*GraphPinObj->GetDefaultAsString());
+
+				if (NameTable.Contains(PreviousSelection))
 				{
-					CurrentlySelectedName = ListNamePtr;
-					break;
+					return PreviousSelection;
 				}
-			}
+				else if (NameTable.Num() > 0)
+				{
+					return NameTable.First().Key;
+				}
+			}				
+			return FName(NAME_None);
+		}();
 
-			// Reset to default name
-			SetNameToPin(CurrentlySelectedName);
-		}
+		SetNameToPin(SelectedComponentName);
 
-		return SAssignNew(ComboBox, SNameComboBox)
-				.ContentPadding(FMargin(6.0f, 2.0f))
-				.OptionsSource(&NameList)
-				.InitiallySelectedItem(CurrentlySelectedName)
-				.OnSelectionChanged(this, &SDMXPixelMappingComponentPin::ComboBoxSelectionChanged)
-				.Visibility(this, &SGraphPin::GetDefaultValueVisibility);
+		// Show the user friendly name, instead of the component's FName
+		FString UserFriendlyName = NameTable.GetUserFriendlyName(SelectedComponentName);
+		const TSharedPtr<FString>* SelectedUserFriendlyNamePtr = UserFriendlyNameList.FindByPredicate([UserFriendlyName](const TSharedPtr<FString>& TestedUserFriendlyName) {
+			return TestedUserFriendlyName->Equals(UserFriendlyName);
+			});
+		const TSharedPtr<FString> SelectedUserFriendlyName = SelectedUserFriendlyNamePtr ? *SelectedUserFriendlyNamePtr : nullptr;
+
+		return SAssignNew(ComboBox, SComboBox<TSharedPtr<FString>>)
+			.ContentPadding(FMargin(2.0f, 2.0f, 2.0f, 1.0f))
+			.OptionsSource(&UserFriendlyNameList)
+			.InitiallySelectedItem(SelectedUserFriendlyName)
+			.OnGenerateWidget(this, &SDMXPixelMappingComponentPin::GenerateComboBoxEntry)
+			.OnSelectionChanged(this, &SDMXPixelMappingComponentPin::ComboBoxSelectionChanged)
+			.IsEnabled(this, &SGraphPin::IsEditingEnabled)
+			.Visibility(this, &SGraphPin::GetDefaultValueVisibility)
+			[
+				SNew(STextBlock)
+				.Text(this, &SDMXPixelMappingComponentPin::GetSelectedUserFriendlyName)
+			];
 	}
 
 	/**
@@ -71,17 +91,40 @@ protected:
 	 * @param NameItem The newly selected item in the combo box
 	 * @param SelectInfo Provides context on how the selection changed
 	 */
-	void ComboBoxSelectionChanged(TSharedPtr<FName> NameItem, ESelectInfo::Type SelectInfo)
+	void ComboBoxSelectionChanged(TSharedPtr<FString> UserFriendlyNameItem, ESelectInfo::Type SelectInfo)
 	{
-		SetNameToPin(NameItem);
+		if (GraphPinObj && UserFriendlyNameItem.IsValid())
+		{
+			FString UserFriendlyName = *UserFriendlyNameItem.Get();
+			FName ComponentName = NameTable.GetComponentName(UserFriendlyName);
+
+			SetNameToPin(ComponentName);
+		}
 	}
-private:
 	
-	/** Set name from Combo Box to input pin */
-	void SetNameToPin(TSharedPtr<FName> NameItem)
+private:	
+	TSharedRef<SWidget> GenerateComboBoxEntry(TSharedPtr<FString> UserFriendlyName)
 	{
-		FName Name = NameItem.IsValid() ? *NameItem : NAME_None;
-		if (auto Schema = (GraphPinObj ? GraphPinObj->GetSchema() : NULL))
+		return
+			SNew(STextBlock)
+			.Text(FText::FromString(*UserFriendlyName));
+	}
+
+	FText GetSelectedUserFriendlyName() const
+	{
+		if (GraphPinObj)
+		{
+			FName Selection = FName(*GraphPinObj->GetDefaultAsString());
+			return FText::FromString(NameTable.GetUserFriendlyName(Selection));
+		}
+
+		return FText::GetEmpty();
+	}
+
+	/** Set name from Combo Box to input pin */
+	void SetNameToPin(const FName& Name)
+	{
+		if (const UEdGraphSchema* Schema = (GraphPinObj ? GraphPinObj->GetSchema() : nullptr))
 		{
 			FString NameAsString = Name.ToString();
 			if (GraphPinObj->GetDefaultAsString() != NameAsString)
@@ -99,8 +142,93 @@ private:
 	TWeakObjectPtr<UDMXPixelMapping> DMXPixelMappingWeakPtr;
 
 	/** Reference to Combo Box object */
-	TSharedPtr<SNameComboBox> ComboBox;
+	TSharedPtr<SComboBox<TSharedPtr<FString>>> ComboBox;
+
+	TArray<TSharedPtr<FString>> UserFriendlyNameList;
+
+	/** Maps component FNames to the corresponding UserFriendly Name displayed in pixel mapping designer */
+	struct FComponentUserFriendlyNameTable
+	{
+		FComponentUserFriendlyNameTable()
+		{}
+
+		FComponentUserFriendlyNameTable(UDMXPixelMapping* PixelMapping)
+		{
+			if (PixelMapping)
+			{
+				TArray<TComponentClass*> ComponentArr;
+				PixelMapping->GetAllComponentsOfClass<TComponentClass>(ComponentArr);
+				for (const TComponentClass* Component : ComponentArr)
+				{
+					if (Component)
+					{
+						// GetUserFriendlyName will display what is shown everywhere else in the UI
+						TTuple<FName, FString> Tuple = TTuple<FName, FString>(Component->GetFName(), Component->GetUserFriendlyName());
+						ComponentUserFriendlyNameArr.Add(Tuple);
+					}
+				}
+			}
+		}
+
+		bool Contains(const FName& ComponentName) const
+		{
+			int32 Index = ComponentUserFriendlyNameArr.IndexOfByPredicate([&ComponentName](const TTuple<FName, FString>& ComponentUserFriendlyKvp) {
+				return ComponentUserFriendlyKvp.Key == ComponentName;
+				});
+			return Index != INDEX_NONE;
+		}
+
+		void GetUserFriendlyNames(TArray<TSharedPtr<FString>>& OutUserFriendlyNames)
+		{
+			OutUserFriendlyNames.Reset();
+			for (const TTuple<FName, FString>& ComponentUserFriendlyKvp : ComponentUserFriendlyNameArr)
+			{
+				OutUserFriendlyNames.Add(MakeShared<FString>(ComponentUserFriendlyKvp.Value));
+			}
+		}
+
+		FString GetUserFriendlyName(const FName& ComponentName) const
+		{
+			int32 Index = ComponentUserFriendlyNameArr.IndexOfByPredicate([&ComponentName](const TTuple<FName, FString>& ComponentUserFriendlyKvp) {
+				return ComponentUserFriendlyKvp.Key == ComponentName;
+				});
+
+			if (Index != INDEX_NONE)
+			{
+				return ComponentUserFriendlyNameArr[Index].Value;
+			}
+
+			return FString(TEXT("None"));
+		}
+
+		FName GetComponentName(const FString& UserFriendlyName) const
+		{
+			for (const TTuple<FName, FString>& ComponentUserFriendlyKvp : ComponentUserFriendlyNameArr)
+			{
+				if (ComponentUserFriendlyKvp.Value == UserFriendlyName)
+				{
+					return ComponentUserFriendlyKvp.Key;
+				}
+			}
+
+			return NAME_None;
+		}
+
+		int32 Num() const
+		{
+			return ComponentUserFriendlyNameArr.Num();
+		}
+
+		TTuple<FName, FString> First() const
+		{
+			check(ComponentUserFriendlyNameArr.Num() > 0);
+			return ComponentUserFriendlyNameArr[0];
+		}
+
+	private:
+		TArray<TTuple<FName, FString>> ComponentUserFriendlyNameArr;
+	};
 
 	/** List of available component names */
-	TArray<TSharedPtr<FName>> NameList;
+	FComponentUserFriendlyNameTable NameTable;
 };

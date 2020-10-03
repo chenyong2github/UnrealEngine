@@ -184,6 +184,9 @@ protected:
 
 	/** Cached designer widget */
 	TSharedPtr<SBox> CachedWidget;
+
+	/** Cached label box */
+	TSharedPtr<SBox> CachedLabelBox;
 #endif
 
 private:

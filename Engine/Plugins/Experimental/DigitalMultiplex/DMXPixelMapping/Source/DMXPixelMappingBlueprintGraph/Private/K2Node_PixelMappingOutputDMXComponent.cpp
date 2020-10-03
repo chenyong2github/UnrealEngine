@@ -16,7 +16,7 @@ const FName UK2Node_PixelMappingOutputDMXComponent::OutOutputDMXComponentPinName
 
 FText UK2Node_PixelMappingOutputDMXComponent::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
-	return LOCTEXT("NodeTitle", "Get Pixel Mapping Output DMX Component");
+	return LOCTEXT("NodeTitle", "Get DMX Pixel Mapping Output Component");
 }
 
 void UK2Node_PixelMappingOutputDMXComponent::AllocateDefaultPins()

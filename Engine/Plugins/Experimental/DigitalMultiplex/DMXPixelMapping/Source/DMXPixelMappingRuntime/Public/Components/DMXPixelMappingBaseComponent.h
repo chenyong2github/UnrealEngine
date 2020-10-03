@@ -183,8 +183,10 @@ public:
 		return false;
 	}
 
-	/** Displayed on the hierarchy view */
-	virtual FString GetWidgetName() const;
+#if WITH_EDITOR
+	/** Returns the name of the component used across all widgets that draw it */
+	virtual FString GetUserFriendlyName() const;
+#endif // WITH_EDITOR
 
 private:
 	/** Set array index of this componet. It should be called if component belong to some parent */

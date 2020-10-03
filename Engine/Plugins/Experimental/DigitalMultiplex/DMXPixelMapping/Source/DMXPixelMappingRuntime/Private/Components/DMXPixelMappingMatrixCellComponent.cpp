@@ -50,6 +50,15 @@ void UDMXPixelMappingMatrixCellComponent::PostLoad()
 	GetOutputTexture();
 }
 
+void UDMXPixelMappingMatrixCellComponent::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+#if WITH_EDITOR
+	void UpdateWidget();
+#endif // WITH_EDITOR	
+}
+
 #if WITH_EDITOR
 void UDMXPixelMappingMatrixCellComponent::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent)
 {
@@ -77,7 +86,9 @@ void UDMXPixelMappingMatrixCellComponent::PostEditChangeChainProperty(FPropertyC
 		Brush.TintColor = EditorColor;
 	}
 }
+#endif // WITH_EDITOR
 
+#if WITH_EDITOR
 TSharedRef<SWidget> UDMXPixelMappingMatrixCellComponent::BuildSlot(TSharedRef<SConstraintCanvas> InCanvas)
 {
 	CachedWidget =
@@ -107,14 +118,18 @@ TSharedRef<SWidget> UDMXPixelMappingMatrixCellComponent::BuildSlot(TSharedRef<SC
 
 	return CachedWidget.ToSharedRef();
 }
+#endif // WITH_EDITOR
 
+#if WITH_EDITOR
 void UDMXPixelMappingMatrixCellComponent::ToggleHighlightSelection(bool bIsSelected)
 {
 	Super::ToggleHighlightSelection(bIsSelected);
 
 	Brush.TintColor = GetEditorColor(bIsSelected);
 }
+#endif // WITH_EDITOR
 
+#if WITH_EDITOR
 void UDMXPixelMappingMatrixCellComponent::UpdateWidget()
 {
 	if (UDMXPixelMappingMatrixComponent* MatrixComponent = Cast<UDMXPixelMappingMatrixComponent>(Parent))
@@ -133,12 +148,6 @@ void UDMXPixelMappingMatrixCellComponent::UpdateWidget()
 		}
 	}
 }
-
-FString UDMXPixelMappingMatrixCellComponent::GetWidgetName() const
-{
-	return FString::Printf(TEXT("%s (Cell %d)"), *GetName(), CellID);
-}
-
 #endif // WITH_EDITOR
 
 void UDMXPixelMappingMatrixCellComponent::PostParentAssigned()
@@ -147,6 +156,18 @@ void UDMXPixelMappingMatrixCellComponent::PostParentAssigned()
 
 	GetOutputTexture();
 }
+
+#if WITH_EDITOR
+FString UDMXPixelMappingMatrixCellComponent::GetUserFriendlyName() const
+{
+	if (UDMXEntityFixturePatch* Patch = FixturePatchMatrixRef.GetFixturePatch())
+	{
+		return FString::Printf(TEXT("%s: Cell %d"), *Patch->GetDisplayName(), CellID);
+	}
+
+	return FString(TEXT("Invalid Patch"));
+}
+#endif // WITH_EDITOR
 
 const FName& UDMXPixelMappingMatrixCellComponent::GetNamePrefix()
 {
