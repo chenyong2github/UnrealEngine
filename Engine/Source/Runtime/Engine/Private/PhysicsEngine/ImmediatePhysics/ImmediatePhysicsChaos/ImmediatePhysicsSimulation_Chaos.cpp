@@ -172,6 +172,7 @@ Chaos::DebugDraw::FChaosDebugDrawSettings ChaosImmPhysDebugDebugDrawSettings(
 	/* PointSize =			*/ 2.0f,
 	/* VelScale =			*/ 0.0f,
 	/* AngVelScale =		*/ 0.0f,
+	/* ImpulseScale =		*/ 0.0f,
 	/* DrawPriority =		*/ 10.0f
 );
 
@@ -186,6 +187,7 @@ FAutoConsoleVariableRef CVarChaosImmPhysLineThickness(TEXT("p.Chaos.ImmPhys.Debu
 FAutoConsoleVariableRef CVarChaosImmPhysLineShapeThickness(TEXT("p.Chaos.ImmPhys.DebugDraw.ShapeLineThicknessScale"), ChaosImmPhysDebugDebugDrawSettings.ShapeThicknesScale, TEXT("Shape lineThickness multiplier."));
 FAutoConsoleVariableRef CVarChaosImmPhysVelScale(TEXT("p.Chaos.ImmPhys.DebugDraw.VelScale"), ChaosImmPhysDebugDebugDrawSettings.VelScale, TEXT("If >0 show velocity when drawing particle transforms."));
 FAutoConsoleVariableRef CVarChaosImmPhysAngVelScale(TEXT("p.Chaos.ImmPhys.DebugDraw.AngVelScale"), ChaosImmPhysDebugDebugDrawSettings.AngVelScale, TEXT("If >0 show angular velocity when drawing particle transforms."));
+FAutoConsoleVariableRef CVarChaosImmPhysImpulseScale(TEXT("p.Chaos.Solver.DebugDraw.ImpulseScale"), ChaosImmPhysDebugDebugDrawSettings.ImpulseScale, TEXT("If >0 show impulses when drawing collisions."));
 FAutoConsoleVariableRef CVarChaosImmPhysScale(TEXT("p.Chaos.ImmPhys.DebugDraw.Scale"), ChaosImmPhysDebugDebugDrawSettings.DrawScale, TEXT("Scale applied to all Chaos Debug Draw line lengths etc."));
 #endif
 

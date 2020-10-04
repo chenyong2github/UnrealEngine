@@ -17,41 +17,43 @@ namespace Chaos
 		{
 		public:
 			FChaosDebugDrawSettings(
-				float ArrowSize,
-				float BodyAxisLen,
-				float ContactLen,
-				float ContactWidth,
-				float ContactPhiWidth,
-				float ContactOwnerWidth,
-				float ConstraintAxisLen,
-				float JointComSize,
-				float LineThickness,
-				float DrawScale,
-				float FontHeight,
-				float FontScale,
-				float ShapeThicknesScale,
-				float PointSize,
-				float VelScale,
-				float AngVelScale,
-				int DrawPriority
+				float InArrowSize,
+				float InBodyAxisLen,
+				float InContactLen,
+				float InContactWidth,
+				float InContactPhiWidth,
+				float InContactOwnerWidth,
+				float InConstraintAxisLen,
+				float InJointComSize,
+				float InLineThickness,
+				float InDrawScale,
+				float InFontHeight,
+				float InFontScale,
+				float InShapeThicknesScale,
+				float InPointSize,
+				float InVelScale,
+				float InAngVelScale,
+				float InImpulseScale,
+				int InDrawPriority
 			)
-				: ArrowSize(ArrowSize)
-				, BodyAxisLen(BodyAxisLen)
-				, ContactLen(ContactLen)
-				, ContactWidth(ContactWidth)
-				, ContactPhiWidth(ContactPhiWidth)
-				, ContactOwnerWidth(ContactOwnerWidth)
-				, ConstraintAxisLen(ConstraintAxisLen)
-				, JointComSize(JointComSize)
-				, LineThickness(LineThickness)
-				, DrawScale(DrawScale)
-				, FontHeight(FontHeight)
-				, FontScale(FontScale)
-				, ShapeThicknesScale(ShapeThicknesScale)
-				, PointSize(PointSize)
-				, VelScale(VelScale)
-				, AngVelScale(AngVelScale)
-				, DrawPriority(DrawPriority)
+				: ArrowSize(InArrowSize)
+				, BodyAxisLen(InBodyAxisLen)
+				, ContactLen(InContactLen)
+				, ContactWidth(InContactWidth)
+				, ContactPhiWidth(InContactPhiWidth)
+				, ContactOwnerWidth(InContactOwnerWidth)
+				, ConstraintAxisLen(InConstraintAxisLen)
+				, JointComSize(InJointComSize)
+				, LineThickness(InLineThickness)
+				, DrawScale(InDrawScale)
+				, FontHeight(InFontHeight)
+				, FontScale(InFontScale)
+				, ShapeThicknesScale(InShapeThicknesScale)
+				, PointSize(InPointSize)
+				, VelScale(InVelScale)
+				, AngVelScale(InAngVelScale)
+				, ImpulseScale(InImpulseScale)
+				, DrawPriority(InDrawPriority)
 			{}
 
 			float ArrowSize;
@@ -70,6 +72,7 @@ namespace Chaos
 			float PointSize;
 			float VelScale;
 			float AngVelScale;
+			float ImpulseScale;
 			int DrawPriority;
 		};
 

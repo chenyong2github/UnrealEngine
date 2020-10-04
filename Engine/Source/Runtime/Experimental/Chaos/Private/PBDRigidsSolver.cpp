@@ -30,10 +30,14 @@ DEFINE_LOG_CATEGORY_STATIC(LogPBDRigidsSolver, Log, All);
 
 // DebugDraw CVars
 #if CHAOS_DEBUG_DRAW
-int32 ChaosSolverDebugDrawShapes = 0;
-int32 ChaosSolverDebugDrawCollisions = 0;
+
+// Must be 0 when checked in...
+#define CHAOS_SOLVER_ENABLE_DEBUG_DRAW 0
+
+int32 ChaosSolverDebugDrawShapes = CHAOS_SOLVER_ENABLE_DEBUG_DRAW;
+int32 ChaosSolverDebugDrawCollisions = CHAOS_SOLVER_ENABLE_DEBUG_DRAW;
 int32 ChaosSolverDebugDrawBounds = 0;
-int32 ChaosSolverDrawTransforms = 0;
+int32 ChaosSolverDrawTransforms = CHAOS_SOLVER_ENABLE_DEBUG_DRAW;
 FAutoConsoleVariableRef CVarChaosSolverDrawShapes(TEXT("p.Chaos.Solver.DebugDrawShapes"), ChaosSolverDebugDrawShapes, TEXT("Draw Shapes (0 = never; 1 = end of frame)."));
 FAutoConsoleVariableRef CVarChaosSolverDrawCollisions(TEXT("p.Chaos.Solver.DebugDrawCollisions"), ChaosSolverDebugDrawCollisions, TEXT("Draw Collisions (0 = never; 1 = end of frame)."));
 FAutoConsoleVariableRef CVarChaosSolverDrawBounds(TEXT("p.Chaos.Solver.DebugDrawBounds"), ChaosSolverDebugDrawBounds, TEXT("Draw bounding volumes inside the broadphase (0 = never; 1 = end of frame)."));
@@ -48,7 +52,7 @@ Chaos::DebugDraw::FChaosDebugDrawSettings ChaosSolverDebugDebugDrawSettings(
 	/* ContactOwnerWidth =	*/ 0.0f,
 	/* ConstraintAxisLen =	*/ 30.0f,
 	/* JointComSize =		*/ 2.0f,
-	/* LineThickness =		*/ 3.0f,
+	/* LineThickness =		*/ 2.0f,
 	/* DrawScale =			*/ 1.0f,
 	/* FontHeight =			*/ 10.0f,
 	/* FontScale =			*/ 1.5f,
@@ -56,6 +60,7 @@ Chaos::DebugDraw::FChaosDebugDrawSettings ChaosSolverDebugDebugDrawSettings(
 	/* PointSize =			*/ 2.0f,
 	/* VelScale =			*/ 1.0f,
 	/* AngVelScale =		*/ 0.0f,
+	/* ImpulseScale =		*/ 0.05f,
 	/* DrawPriority =		*/ 10.0f
 );
 FAutoConsoleVariableRef CVarChaosSolverArrowSize(TEXT("p.Chaos.Solver.DebugDraw.ArrowSize"), ChaosSolverDebugDebugDrawSettings.ArrowSize, TEXT("ArrowSize."));
@@ -69,6 +74,7 @@ FAutoConsoleVariableRef CVarChaosSolverLineThickness(TEXT("p.Chaos.Solver.DebugD
 FAutoConsoleVariableRef CVarChaosSolverLineShapeThickness(TEXT("p.Chaos.Solver.DebugDraw.ShapeLineThicknessScale"), ChaosSolverDebugDebugDrawSettings.ShapeThicknesScale, TEXT("Shape lineThickness multiplier."));
 FAutoConsoleVariableRef CVarChaosSolverVelScale(TEXT("p.Chaos.Solver.DebugDraw.VelScale"), ChaosSolverDebugDebugDrawSettings.VelScale, TEXT("If >0 show velocity when drawing particle transforms."));
 FAutoConsoleVariableRef CVarChaosSolverAngVelScale(TEXT("p.Chaos.Solver.DebugDraw.AngVelScale"), ChaosSolverDebugDebugDrawSettings.AngVelScale, TEXT("If >0 show angular velocity when drawing particle transforms."));
+FAutoConsoleVariableRef CVarChaosSolverImpulseScale(TEXT("p.Chaos.Solver.DebugDraw.ImpulseScale"), ChaosSolverDebugDebugDrawSettings.ImpulseScale, TEXT("If >0 show impulses when drawing collisions."));
 FAutoConsoleVariableRef CVarChaosSolverScale(TEXT("p.Chaos.Solver.DebugDraw.Scale"), ChaosSolverDebugDebugDrawSettings.DrawScale, TEXT("Scale applied to all Chaos Debug Draw line lengths etc."));
 
 #endif
@@ -103,8 +109,13 @@ FAutoConsoleVariableRef CVarChaosSolverCleanupCommandsOnDestruction(TEXT("p.Chao
 int32 ChaosSolverCollisionDeferNarrowPhase = 0;
 FAutoConsoleVariableRef CVarChaosSolverCollisionDeferNarrowPhase(TEXT("p.Chaos.Solver.Collision.DeferNarrowPhase"), ChaosSolverCollisionDeferNarrowPhase, TEXT("Create contacts for all broadphase pairs, perform NarrowPhase later."));
 
+// Old manifold system
 int32 ChaosSolverCollisionUseManifolds = 0;
 FAutoConsoleVariableRef CVarChaosSolverCollisionUseManifolds(TEXT("p.Chaos.Solver.Collision.UseManifolds"), ChaosSolverCollisionUseManifolds, TEXT("Enable/Disable use of manifoldes in collision."));
+
+// New manifold system
+int32 ChaosSolverCollisionUseIncrememtalManifolds = 0;
+FAutoConsoleVariableRef CVarChaosUseIncrementalManifold(TEXT("p.Chaos.Solver.Collision.UseIncrementalManifolds"), ChaosSolverCollisionUseIncrememtalManifolds, TEXT("Enable/Disable use of incremental manifolds"));
 
 int32 ChaosVisualDebuggerEnable = 1;
 FAutoConsoleVariableRef CVarChaosVisualDebuggerEnable(TEXT("p.Chaos.VisualDebuggerEnable"), ChaosVisualDebuggerEnable, TEXT("Enable/Disable pushing/saving data to the visual debugger"));
@@ -718,6 +729,7 @@ namespace Chaos
 	{
 		MEvolution->GetCollisionDetector().GetNarrowPhase().GetContext().bDeferUpdate = (ChaosSolverCollisionDeferNarrowPhase != 0);
 		MEvolution->GetCollisionDetector().GetNarrowPhase().GetContext().bAllowManifolds = (ChaosSolverCollisionUseManifolds != 0);
+		MEvolution->GetCollisionDetector().GetNarrowPhase().GetContext().bUseIncrementalManifold = (ChaosSolverCollisionUseIncrememtalManifolds != 0);
 
 		// Apply CVAR overrides if set
 		{
