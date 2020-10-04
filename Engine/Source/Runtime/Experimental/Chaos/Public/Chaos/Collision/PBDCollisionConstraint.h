@@ -18,9 +18,10 @@ namespace Chaos
 	class CHAOS_API FContactPoint
 	{
 	public:
-		FVec3 LocalContactPoints[2];	// Local-space contact points on the two bodies
-		FVec3 LocalContactNormal;		// Local-space contact normal
+		FVec3 ShapeContactPoints[2];	// Shape-space contact points on the two bodies
+		FVec3 ShapeContactNormal;		// Shape-space contact normal relative to second body
 
+		// @todo(chaos): these do not need to be stored here (they can be derived from above)
 		FVec3 Location;					// World-space contact location
 		FVec3 Normal;					// World-space contact normal
 		FReal Phi;						// Contact separation (negative for overlap)
@@ -33,12 +34,47 @@ namespace Chaos
 	class CHAOS_API FManifoldPoint
 	{
 	public:
-		FManifoldPoint() : NetApplyImpulse(0) {}
-		FManifoldPoint(const FContactPoint& InContactPoint) : ContactPoint(InContactPoint), NetApplyImpulse(0), NetPushOutImpulse(0) {}
+		FManifoldPoint() 
+			: CoMContactPoints{ FVec3(0), FVec3(0) }
+			, CoMContactNormal(0)
+			, PrevCoMContactPoint1(0)
+			, NetImpulse(0)
+			, NetPushOut(0)
+			, PrevPhi(0)
+			, InitialPhi(0)
+			, bPotentialRestingContact(false)
+			, bInsideStaticFrictionCone(false)
+			, bRestitutionEnabled(false)
+			, bActive(false)
+			{}
 
-		FContactPoint ContactPoint;
-		FVec3 NetApplyImpulse;
-		FVec3 NetPushOutImpulse;
+		FManifoldPoint(const FContactPoint& InContactPoint) 
+			: ContactPoint(InContactPoint)
+			, CoMContactPoints{ FVec3(0), FVec3(0) }
+			, CoMContactNormal(0)
+			, PrevCoMContactPoint1(0)
+			, NetImpulse(0)
+			, NetPushOut(0)
+			, PrevPhi(0)
+			, InitialPhi(0)
+			, bPotentialRestingContact(false)
+			, bInsideStaticFrictionCone(false)
+			, bRestitutionEnabled(false)
+			, bActive(false)
+		{}
+
+		FContactPoint ContactPoint;			// Shape-space data from low-level collision detection
+		FVec3 CoMContactPoints[2];			// CoM-space contact points on the two bodies
+		FVec3 CoMContactNormal;				// CoM-space contact normal relative to second body
+		FVec3 PrevCoMContactPoint1;			// CoM-space contact point on second body at previous transforms (used for static friction)
+		FVec3 NetImpulse;					// Total impulse applied at this contact point
+		FVec3 NetPushOut;					// Total pushout applied at this contact point
+		FReal PrevPhi;						// Contact seperation from previous position (used for pushout restitution)
+		FReal InitialPhi;					// Contact separation at first contact (used for pushout restitution)
+		bool bPotentialRestingContact;		// Whether this may be a resting contact (used for static fricton)
+		bool bInsideStaticFrictionCone;		// Whether we are inside the static friction cone (used in PushOut)
+		bool bRestitutionEnabled;			// Whether restitution was added in the apply step (used in PushOut)
+		bool bActive;						// Whether this contact applied an impulse
 	};
 
 	/*
@@ -199,10 +235,10 @@ namespace Chaos
 
 		FString ToString() const;
 
-		FRigidTransform3 ImplicitTransform[2]; // { Point, Volume }
-		FGeometryParticleHandle* Particle[2]; // { Point, Volume }
-		FVec3 AccumulatedImpulse;
-		FCollisionContact Manifold;// @todo(chaos): rename
+		FRigidTransform3 ImplicitTransform[2];		// Local-space transforms of the shape (relative to particle)
+		FGeometryParticleHandle* Particle[2];
+		FVec3 AccumulatedImpulse;					// @todo(chaos): we need to accumulate angular impulse separately
+		FCollisionContact Manifold					;// @todo(chaos): rename
 		int32 Timestamp;
 		
 		void SetConstraintHandle(FPBDCollisionConstraintHandle* InHandle) { ConstraintHandle = InHandle; }
@@ -225,7 +261,10 @@ namespace Chaos
 		using Base = FCollisionConstraintBase;
 		using FGeometryParticleHandle = TGeometryParticleHandle<FReal, 3>;
 
-		FRigidBodyPointContactConstraint() : Base(Base::FType::SinglePoint) {}
+		FRigidBodyPointContactConstraint() 
+			: Base(Base::FType::SinglePoint)
+			, bUseIncrementalManifold(false)
+		{}
 		FRigidBodyPointContactConstraint(
 			FGeometryParticleHandle* Particle0, 
 			const FImplicitObject* Implicit0, 
@@ -235,11 +274,15 @@ namespace Chaos
 			const FImplicitObject* Implicit1, 
 			const TBVHParticles<FReal, 3>* Simplicial1, 
 			const FRigidTransform3& Transform1,
-			const EContactShapesType ShapesType)
+			const EContactShapesType ShapesType,
+			const bool bInUseIncrementalManifold)
 			: Base(Particle0, Implicit0, Simplicial0, Transform0, Particle1, Implicit1, Simplicial0, Transform1, Base::FType::SinglePoint, ShapesType)
+			, bUseIncrementalManifold(bInUseIncrementalManifold)
 		{}
 
 		static typename Base::FType StaticType() { return Base::FType::SinglePoint; };
+
+		bool UseIncrementalManifold() const { return bUseIncrementalManifold; }
 
 		TArrayView<FManifoldPoint> GetManifoldPoints() { return MakeArrayView(ManifoldPoints); }
 		TArrayView<const FManifoldPoint> GetManifoldPoints() const { return MakeArrayView(ManifoldPoints); }
@@ -269,16 +312,19 @@ namespace Chaos
 			typename Base::FType InType, 
 			const EContactShapesType ShapesType)
 			: Base(Particle0, Implicit0, Simplicial0, Transform0, Particle1, Implicit1, Simplicial1, Transform1, InType, ShapesType)
+			, bUseIncrementalManifold(false)
 		{}
 
 		bool AreMatchingContactPoints(const FContactPoint& A, const FContactPoint& B) const;
 		int32 FindManifoldPoint(const FContactPoint& ContactPoint) const;
+		void InitManifoldPoint(FManifoldPoint& ManifoldPoint);
 		int32 AddManifoldPoint(const FContactPoint& ContactPoint);
-		void SetManifoldPoint(int32 ManifoldPointIndex, const FContactPoint& ContactPoint);
+		void UpdateManifoldPoint(int32 ManifoldPointIndex, const FContactPoint& ContactPoint);
 		void SetActiveContactPoint(const FContactPoint& ContactPoint);
 
 		// @todo(chaos): inline array
 		TArray<FManifoldPoint> ManifoldPoints;
+		bool bUseIncrementalManifold;
 	};
 
 
