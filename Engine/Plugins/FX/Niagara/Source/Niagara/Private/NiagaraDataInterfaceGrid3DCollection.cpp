@@ -507,7 +507,7 @@ bool UNiagaraDataInterfaceGrid3DCollection::InitPerInstanceData(void* PerInstanc
 		RT_Proxy->OutputSimulationStages_DEPRECATED = RT_OutputShaderStages;
 		RT_Proxy->IterationSimulationStages_DEPRECATED = RT_IterationShaderStages;
 
-		RT_Proxy->SetElementCount(TargetData->NumCells.X * TargetData->NumCells.Y * TargetData->NumCells.Z);
+		RT_Proxy->SetElementCount(TargetData->NumCells);
 
 		if (RT_Resource && RT_Resource->TextureRHI.IsValid())
 		{

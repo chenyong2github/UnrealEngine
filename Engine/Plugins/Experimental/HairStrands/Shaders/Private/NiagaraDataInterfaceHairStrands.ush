@@ -164,7 +164,7 @@ void DIHairStrands_ResetBoundingBox(in FDIHairStrandsContext DIContext, out bool
 {
 	FunctionStatus = false;
 
-	if(GDispatchThreadId.x == 0)
+	if(GLinearThreadId == 0)
 	{
 		FunctionStatus = true;
 

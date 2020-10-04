@@ -7,6 +7,9 @@
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraRenderer.h"
+#if WITH_EDITOR
+#include "NiagaraGpuComputeDebug.h"
+#endif
 #include "Engine/TextureRenderTargetVolume.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceRenderTargetVolume"
@@ -223,6 +226,9 @@ bool UNiagaraDataInterfaceRenderTargetVolume::Equals(const UNiagaraDataInterface
 	const UNiagaraDataInterfaceRenderTargetVolume* OtherTyped = CastChecked<const UNiagaraDataInterfaceRenderTargetVolume>(Other);
 	return
 		OtherTyped != nullptr &&
+#if WITH_EDITORONLY_DATA
+		OtherTyped->bPreviewRenderTarget == bPreviewRenderTarget &&
+#endif
 		OtherTyped->Size == Size;
 }
 
@@ -240,6 +246,9 @@ bool UNiagaraDataInterfaceRenderTargetVolume::CopyToInternal(UNiagaraDataInterfa
 	}
 
 	DestinationTyped->Size = Size;
+#if WITH_EDITORONLY_DATA
+	DestinationTyped->bPreviewRenderTarget = bPreviewRenderTarget;
+#endif
 	return true;
 }
 
@@ -325,7 +334,9 @@ bool UNiagaraDataInterfaceRenderTargetVolume::InitPerInstanceData(void* PerInsta
 	InstanceData->TargetTexture->bCanCreateUAV = true;
 	InstanceData->TargetTexture->OverrideFormat = EPixelFormat::PF_A16B16G16R16;
 	InstanceData->TargetTexture->ClearColor = FLinearColor(0.0, 0, 0, 0);
-
+#if WITH_EDITORONLY_DATA
+	InstanceData->bPreviewTexture = bPreviewRenderTarget;
+#endif
 	FNiagaraSystemInstanceID SysID = SystemInstance->GetId();
 	ManagedRenderTargets.Emplace(SysID, InstanceData->TargetTexture);
 
@@ -339,10 +350,13 @@ bool UNiagaraDataInterfaceRenderTargetVolume::InitPerInstanceData(void* PerInsta
 			FRenderTargetVolumeRWInstanceData_RenderThread* TargetData = &RT_Proxy->SystemInstancesToProxyData_RT.Add(RT_InstanceID);
 
 			TargetData->Size = RT_InstanceData.Size;
+#if WITH_EDITORONLY_DATA
+			TargetData->bPreviewTexture = RT_InstanceData.bPreviewTexture;
+#endif
 			TargetData->TextureReferenceRHI = RT_TargetTexture->TextureReference.TextureReferenceRHI;
 			TargetData->UAV.SafeRelease();
 
-			RT_Proxy->SetElementCount(TargetData->Size.X * TargetData->Size.Y * TargetData->Size.Z);
+			RT_Proxy->SetElementCount(TargetData->Size);
 		}
 	);
 	return true;
@@ -439,6 +453,10 @@ bool UNiagaraDataInterfaceRenderTargetVolume::PerInstanceTickPostSimulate(void* 
 
 	bool bUpdateRT = true;
 
+#if WITH_EDITORONLY_DATA
+	InstanceData->bPreviewTexture = bPreviewRenderTarget;
+#endif
+
 	// Do we need to update the texture?
 	if (InstanceData->TargetTexture != nullptr)
 	{
@@ -467,10 +485,13 @@ bool UNiagaraDataInterfaceRenderTargetVolume::PerInstanceTickPostSimulate(void* 
 				if (ensureMsgf(TargetData != nullptr, TEXT("InstanceData was not found for %llu"), RT_InstanceID))
 				{
 					TargetData->Size = RT_InstanceData.Size;
+#if WITH_EDITORONLY_DATA
+					TargetData->bPreviewTexture = RT_InstanceData.bPreviewTexture;
+#endif
 					TargetData->TextureReferenceRHI = RT_TargetTexture->TextureReference.TextureReferenceRHI;
 					TargetData->UAV.SafeRelease();
 
-					RT_Proxy->SetElementCount(TargetData->Size.X * TargetData->Size.Y * TargetData->Size.Z);
+					RT_Proxy->SetElementCount(TargetData->Size);
 				}
 			}
 		);
@@ -481,25 +502,20 @@ bool UNiagaraDataInterfaceRenderTargetVolume::PerInstanceTickPostSimulate(void* 
 
 void FNiagaraDataInterfaceProxyRenderTargetVolumeProxy::PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context)
 {
-	//FRHIRenderPassInfo RPInfo(RenderTargetVolumeRHI, MakeRenderTargetActions(LoadAction, ERenderTargetStoreAction::EStore));
-	//TransitionRenderPassTargets(RHICmdList, RPInfo);
-	//RHICmdList.BeginRenderPass(RPInfo, TEXT("UpdateTargetVolume"));
-	//RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, (float)Dims.X, (float)Dims.Y, 1.0f);
-	//RHICmdList.EndRenderPass();
-	//RHICmdList.CopyToResolveTarget(RenderTargetVolumeRHI, TextureVolumeRHI, FResolveParams());
+#if WITH_EDITOR
+	FRenderTargetVolumeRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
 
-	//FGrid2DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
-
-	//if (ProxyData->RenderTargetToCopyTo != nullptr && ProxyData->CurrentData != nullptr && ProxyData->CurrentData->GridBuffer.Buffer != nullptr)
-	//{
-	//	RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, ProxyData->CurrentData->GridBuffer.Buffer);
-	//	RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, ProxyData->RenderTargetToCopyTo);
-
-	//	FRHICopyTextureInfo CopyInfo;
-	//	RHICmdList.CopyTexture(ProxyData->CurrentData->GridBuffer.Buffer, ProxyData->RenderTargetToCopyTo, CopyInfo);
-
-	//	RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, ProxyData->RenderTargetToCopyTo);
-	//}
+	if (ProxyData && ProxyData->bPreviewTexture && ProxyData->TextureReferenceRHI.IsValid())
+	{
+		if (FNiagaraGpuComputeDebug* GpuComputeDebug = Context.Batcher->GetGpuComputeDebug())
+		{
+			if ( FRHITexture* RHITexture = ProxyData->TextureReferenceRHI->GetReferencedTexture() )
+			{
+				GpuComputeDebug->AddTexture(RHICmdList, Context.SystemInstanceID, SourceDIName, RHITexture);
+			}
+		}
+	}
+#endif
 }
 
 #undef LOCTEXT_NAMESPACE
