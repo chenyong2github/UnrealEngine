@@ -424,7 +424,7 @@ bool UNiagaraDataInterfaceGrid3D::GetFunctionHLSL(const FNiagaraDataInterfaceGPU
 	static const TCHAR* FormatSample = TEXT(R"(
 			void {FunctionName}(out float3 Out_Unit)
 			{
-				const uint Linear = GDispatchThreadId.x;
+				const uint Linear = GLinearThreadId;
 				const uint IndexX = Linear % {NumCellsName}.x;
 				const uint IndexY = (Linear / {NumCellsName}.x) % {NumCellsName}.y;
 				const uint IndexZ = Linear / ({NumCellsName}.x * {NumCellsName}.y);				
@@ -441,7 +441,7 @@ bool UNiagaraDataInterfaceGrid3D::GetFunctionHLSL(const FNiagaraDataInterfaceGPU
 	static const TCHAR* FormatSample = TEXT(R"(
 			void {FunctionName}(out int Out_IndexX, out int Out_IndexY, out int Out_IndexZ)
 			{
-				const uint Linear = GDispatchThreadId.x;
+				const uint Linear = GLinearThreadId;
 				Out_IndexX = Linear % {NumCellsName}.x;
 				Out_IndexY = (Linear / {NumCellsName}.x) % {NumCellsName}.y;
 				Out_IndexZ = Linear / ({NumCellsName}.x * {NumCellsName}.y);
@@ -901,7 +901,7 @@ bool UNiagaraDataInterfaceGrid2D::GetFunctionHLSL(const FNiagaraDataInterfaceGPU
 	static const TCHAR* FormatSample = TEXT(R"(
 			void {FunctionName}(out float2 Out_Unit)
 			{
-				const uint Linear = GDispatchThreadId.x;
+				const uint Linear = GLinearThreadId;
 				const uint IndexX = Linear % {NumCellsName}.x;
 				const uint IndexY = Linear / {NumCellsName}.x;				
 
@@ -917,7 +917,7 @@ bool UNiagaraDataInterfaceGrid2D::GetFunctionHLSL(const FNiagaraDataInterfaceGPU
 	static const TCHAR* FormatSample = TEXT(R"(
 			void {FunctionName}(out int Out_IndexX, out int Out_IndexY)
 			{
-				const uint Linear = GDispatchThreadId.x;
+				const uint Linear = GLinearThreadId;
 				Out_IndexX = Linear % {NumCellsName}.x;
 				Out_IndexY = Linear / {NumCellsName}.x;				
 			}

@@ -533,7 +533,14 @@ void NiagaraEmitterInstanceBatcher::DispatchStage(FDispatchInstance& DispatchIns
 	}
 	else
 	{
-		Run(Tick, Instance, 0, IterationInterface->ElementCount, ComputeShader, RHICmdList, ViewUniformBuffer, Instance->SpawnInfo, false, DefaultSimulationStageIndex, StageIndex, IterationInterface);
+		// Verify the number of elements isn't higher that what we can handle
+		checkf(
+			uint64(IterationInterface->ElementCount.X) * uint64(IterationInterface->ElementCount.Y) * uint64(IterationInterface->ElementCount.Z) < uint64(TNumericLimits<int32>::Max()),
+			TEXT("ElementCount(%d, %d, %d) for IterationInterface(%s) overflows an int32 this is not allowed"),
+			IterationInterface->ElementCount.X, IterationInterface->ElementCount.Y, IterationInterface->ElementCount.Z, *IterationInterface->SourceDIName.ToString()
+		);
+		const uint32 TotalNumInstances = IterationInterface->ElementCount.X * IterationInterface->ElementCount.Y * IterationInterface->ElementCount.Z;
+		Run(Tick, Instance, 0, TotalNumInstances, ComputeShader, RHICmdList, ViewUniformBuffer, Instance->SpawnInfo, false, DefaultSimulationStageIndex, StageIndex, IterationInterface);
 	}
 
 	// for long running dispatches we may want to issue a hint to the command list to break things up
@@ -1728,7 +1735,7 @@ void NiagaraEmitterInstanceBatcher::SetConstantBuffers(FRHICommandList &RHICmdLi
 /* Kick off a simulation/spawn run
  */
 void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData* Instance, uint32 UpdateStartInstance, const uint32 TotalNumInstances, const FNiagaraShaderRef& Shader,
-	FRHICommandList &RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, const FNiagaraGpuSpawnInfo& SpawnInfo, bool bCopyBeforeStart, uint32 DefaultSimulationStageIndex, uint32 SimulationStageIndex, FNiagaraDataInterfaceProxy *IterationInterface, bool HasRunParticleStage)
+	FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, const FNiagaraGpuSpawnInfo& SpawnInfo, bool bCopyBeforeStart, uint32 DefaultSimulationStageIndex, uint32 SimulationStageIndex, FNiagaraDataInterfaceProxy* IterationInterface, bool HasRunParticleStage)
 {
 	FNiagaraComputeExecutionContext* Context = Instance->Context;
 
@@ -1836,7 +1843,6 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 	SetShaderValue(RHICmdList, ComputeShader, Shader->DefaultSimulationStageIndexParam, DefaultSimulationStageIndex);					// 0, except if several stages are defined
 	SetShaderValue(RHICmdList, ComputeShader, Shader->SimulationStageIndexParam, SimulationStageIndex);					// 0, except if several stages are defined
 
-	const uint32 ShaderThreadGroupSize = FNiagaraShader::GetGroupSize(ShaderPlatform);
 	{
 		// Packed data where X = Instance Count, Y = Iteration Index, Z = Num Iterations
 		int32 SimulationStageIterationInfo[3] = { -1, 0, 0 };
@@ -1858,18 +1864,21 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 		SetShaderValue(RHICmdList, ComputeShader, Shader->SimulationStageNormalizedIterationIndexParam, SimulationStageNormalizedIterationIndex);
 	}
 
-	uint32 NumThreadGroups = 1;
-	if (TotalNumInstances > ShaderThreadGroupSize)
+	// Execute the dispatch
 	{
-		NumThreadGroups = FMath::Min(NIAGARA_MAX_COMPUTE_THREADGROUPS, FMath::DivideAndRoundUp(TotalNumInstances, ShaderThreadGroupSize));
-	}
+		const uint32 ThreadGroupSize = FNiagaraShader::GetGroupSize(ShaderPlatform);
+		checkf(ThreadGroupSize <= NiagaraComputeMaxThreadGroupSize, TEXT("ShaderPlatform(%d) is set to ThreadGroup size (%d) which is > the NiagaraComputeMaxThreadGroupSize(%d)"), ShaderPlatform, ThreadGroupSize, NiagaraComputeMaxThreadGroupSize);
+		const uint32 TotalThreadGroups = FMath::DivideAndRoundUp(TotalNumInstances, ThreadGroupSize);
 
-	SetConstantBuffers(RHICmdList, Shader, Tick, Instance);
+		const uint32 ThreadGroupCountZ = 1;
+		const uint32 ThreadGroupCountY = FMath::DivideAndRoundUp(TotalThreadGroups, NiagaraMaxThreadGroupCountPerDimension);
+		const uint32 ThreadGroupCountX = FMath::DivideAndRoundUp(TotalThreadGroups, ThreadGroupCountY);
 
-	// Dispatch, if anything needs to be done
-	if (TotalNumInstances)
-	{
-		DispatchComputeShader(RHICmdList, Shader.GetShader(), NumThreadGroups, 1, 1);
+		SetShaderValue(RHICmdList, ComputeShader, Shader->DispatchThreadIdToLinearParam, ThreadGroupCountY > 1 ? ThreadGroupCountX * ThreadGroupSize : 0);
+
+		SetConstantBuffers(RHICmdList, Shader, Tick, Instance);
+
+		DispatchComputeShader(RHICmdList, Shader.GetShader(), ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
 	}
 
 #if WITH_EDITORONLY_DATA

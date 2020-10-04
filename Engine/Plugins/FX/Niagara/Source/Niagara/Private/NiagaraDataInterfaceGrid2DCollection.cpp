@@ -1536,7 +1536,6 @@ bool UNiagaraDataInterfaceGrid2DCollection::InitPerInstanceData(void* PerInstanc
 		InstanceData->NumCells.Y = FMath::Max(1, int32(float(InstanceData->NumCells.Y) * GNiagaraGrid2DResolutionMultiplier));
 	}
 
-
 	// If we are setting the grid from the voxel size, then recompute NumVoxels and change bbox	
 	if (SetGridFromMaxAxis)
 	{
@@ -1661,7 +1660,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::InitPerInstanceData(void* PerInstanc
 		RT_Proxy->OutputSimulationStages_DEPRECATED = RT_OutputShaderStages;
 		RT_Proxy->IterationSimulationStages_DEPRECATED = RT_IterationShaderStages;
 
-		RT_Proxy->SetElementCount(TargetData->NumCells.X * TargetData->NumCells.Y);
+		RT_Proxy->SetElementCount(TargetData->NumCells);
 
 		
 		if (RT_Resource && RT_Resource->TextureRHI.IsValid())
@@ -2142,6 +2141,12 @@ void UNiagaraDataInterfaceGrid2DCollection::SetNumCells(FVectorVMContext& Contex
 			InstData->NumCells.X = NewNumCellsX;
 			InstData->NumCells.Y = NewNumCellsY;
 
+			if (!FMath::IsNearlyEqual(GNiagaraGrid2DResolutionMultiplier, 1.0f))
+			{
+				InstData->NumCells.X = FMath::Max(1, int32(float(InstData->NumCells.X) * GNiagaraGrid2DResolutionMultiplier));
+				InstData->NumCells.Y = FMath::Max(1, int32(float(InstData->NumCells.Y) * GNiagaraGrid2DResolutionMultiplier));
+			}
+
 			InstData->NeedsRealloc = OldNumCells != InstData->NumCells;
 		}
 	}
@@ -2199,7 +2204,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::PerInstanceTickPostSimulate(void* Pe
 			TargetData->CurrentData = nullptr;
 			TargetData->DestinationData = nullptr;
 			
-			RT_Proxy->SetElementCount(TargetData->NumCells.X* TargetData->NumCells.Y);
+			RT_Proxy->SetElementCount(TargetData->NumCells);
 
 			if (RT_Resource && RT_Resource->TextureRHI.IsValid())
 			{

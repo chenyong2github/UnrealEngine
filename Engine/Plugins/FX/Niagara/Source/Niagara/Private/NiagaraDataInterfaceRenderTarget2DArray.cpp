@@ -8,6 +8,9 @@
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraRenderer.h"
+#if WITH_EDITOR
+#include "NiagaraGpuComputeDebug.h"
+#endif
 #include "Engine/TextureRenderTarget2DArray.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceRenderTarget2DArray"
@@ -229,6 +232,9 @@ bool UNiagaraDataInterfaceRenderTarget2DArray::Equals(const UNiagaraDataInterfac
 	const UNiagaraDataInterfaceRenderTarget2DArray* OtherTyped = CastChecked<const UNiagaraDataInterfaceRenderTarget2DArray>(Other);
 	return
 		OtherTyped != nullptr &&
+#if WITH_EDITORONLY_DATA
+		OtherTyped->bPreviewRenderTarget == bPreviewRenderTarget &&
+#endif
 		OtherTyped->Size == Size;
 }
 
@@ -246,6 +252,9 @@ bool UNiagaraDataInterfaceRenderTarget2DArray::CopyToInternal(UNiagaraDataInterf
 	}
 
 	DestinationTyped->Size = Size;
+#if WITH_EDITORONLY_DATA
+	DestinationTyped->bPreviewRenderTarget = bPreviewRenderTarget;
+#endif
 	return true;
 }
 
@@ -332,6 +341,9 @@ bool UNiagaraDataInterfaceRenderTarget2DArray::InitPerInstanceData(void* PerInst
 	InstanceData->TargetTexture->bCanCreateUAV = true;
 	InstanceData->TargetTexture->OverrideFormat = EPixelFormat::PF_A16B16G16R16;
 	InstanceData->TargetTexture->ClearColor = FLinearColor(0.0, 0, 0, 0);
+#if WITH_EDITORONLY_DATA
+	InstanceData->bPreviewTexture = bPreviewRenderTarget;
+#endif
 
 	FNiagaraSystemInstanceID SysID = SystemInstance->GetId();
 	ManagedRenderTargets.Add(SysID) = InstanceData->TargetTexture;
@@ -345,6 +357,9 @@ bool UNiagaraDataInterfaceRenderTarget2DArray::InitPerInstanceData(void* PerInst
 			FRenderTarget2DArrayRWInstanceData_RenderThread* TargetData = &RT_Proxy->SystemInstancesToProxyData_RT.Add(RT_InstanceID);
 
 			TargetData->Size = RT_InstanceData.Size;
+#if WITH_EDITORONLY_DATA
+			TargetData->bPreviewTexture = RT_InstanceData.bPreviewTexture;
+#endif
 			TargetData->TextureReferenceRHI = RT_TargetTexture->TextureReference.TextureReferenceRHI;
 			TargetData->UAV.SafeRelease();
 
@@ -445,6 +460,10 @@ bool UNiagaraDataInterfaceRenderTarget2DArray::PerInstanceTickPostSimulate(void*
 
 	bool bUpdateRT = true;
 
+#if WITH_EDITORONLY_DATA
+	InstanceData->bPreviewTexture = bPreviewRenderTarget;
+#endif
+
 	// Do we need to update the texture?
 	if (InstanceData->TargetTexture != nullptr)
 	{
@@ -473,6 +492,9 @@ bool UNiagaraDataInterfaceRenderTarget2DArray::PerInstanceTickPostSimulate(void*
 				if (ensureMsgf(TargetData != nullptr, TEXT("InstanceData was not found for %llu"), RT_InstanceID))
 				{
 					TargetData->Size = RT_InstanceData.Size;
+#if WITH_EDITORONLY_DATA
+					TargetData->bPreviewTexture = RT_InstanceData.bPreviewTexture;
+#endif
 					TargetData->TextureReferenceRHI = RT_TargetTexture->TextureReference.TextureReferenceRHI;
 					TargetData->UAV.SafeRelease();
 
@@ -487,7 +509,20 @@ bool UNiagaraDataInterfaceRenderTarget2DArray::PerInstanceTickPostSimulate(void*
 
 void FNiagaraDataInterfaceProxyRenderTarget2DArrayProxy::PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context)
 {
+#if WITH_EDITOR
+	FRenderTarget2DArrayRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
 
+	if (ProxyData && ProxyData->bPreviewTexture && ProxyData->TextureReferenceRHI.IsValid())
+	{
+		if (FNiagaraGpuComputeDebug* GpuComputeDebug = Context.Batcher->GetGpuComputeDebug())
+		{
+			if (FRHITexture* RHITexture = ProxyData->TextureReferenceRHI->GetReferencedTexture())
+			{
+				GpuComputeDebug->AddTexture(RHICmdList, Context.SystemInstanceID, SourceDIName, RHITexture);
+			}
+		}
+	}
+#endif
 }
 
 #undef LOCTEXT_NAMESPACE
