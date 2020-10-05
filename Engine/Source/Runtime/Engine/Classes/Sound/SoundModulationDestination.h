@@ -36,6 +36,31 @@ struct ENGINE_API FSoundModulationDestinationSettings
 };
 
 
+/** Default parameter destination settings for source audio object. */
+USTRUCT(BlueprintType)
+struct ENGINE_API FSoundModulationDefaultSettings
+{
+	GENERATED_USTRUCT_BODY()
+
+	FSoundModulationDefaultSettings();
+
+	/** Volume modulation */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modulation", meta = (DisplayName = "Volume", AudioParam = "Volume"))
+	FSoundModulationDestinationSettings VolumeModulationDestination;
+
+	/** Pitch modulation */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modulation", meta = (DisplayName = "Pitch", AudioParam = "Pitch"))
+	FSoundModulationDestinationSettings PitchModulationDestination;
+
+	/** Highpass modulation */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modulation", meta = (DisplayName = "Highpass", AudioParam = "HPFCutoffFrequency"))
+	FSoundModulationDestinationSettings HighpassModulationDestination;
+
+	/** Lowpass modulation */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modulation", meta = (DisplayName = "Lowpass", AudioParam = "LPFCutoffFrequency"))
+	FSoundModulationDestinationSettings LowpassModulationDestination;
+};
+
 namespace Audio
 {
 	struct ENGINE_API FModulationDestination
