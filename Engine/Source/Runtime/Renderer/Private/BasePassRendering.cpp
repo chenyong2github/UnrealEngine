@@ -622,21 +622,23 @@ void SetupSharedOpaqueBasePassParameters(
 		IPooledRenderTarget* DBufferB = bIsDBufferEnabled && SceneRenderTargets.DBufferB ? SceneRenderTargets.DBufferB : GSystemTextures.DefaultNormal8Bit;
 		IPooledRenderTarget* DBufferC = bIsDBufferEnabled && SceneRenderTargets.DBufferC ? SceneRenderTargets.DBufferC : GSystemTextures.BlackAlphaOneDummy;
 
-		BasePassParameters.DBufferATexture = GetRDG(DBufferA);
-		BasePassParameters.DBufferBTexture = GetRDG(DBufferB);
-		BasePassParameters.DBufferCTexture = GetRDG(DBufferC);
-		BasePassParameters.DBufferATextureSampler = TStaticSamplerState<>::GetRHI();
-		BasePassParameters.DBufferBTextureSampler = TStaticSamplerState<>::GetRHI();
-		BasePassParameters.DBufferCTextureSampler = TStaticSamplerState<>::GetRHI();
-
+		ERDGTextureFlags Flags = ERDGTextureFlags::None;
 		if ((RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform) || IsUsingPerPixelDBufferMask(View.GetShaderPlatform())) && SceneRenderTargets.DBufferMask)
 		{
 			BasePassParameters.DBufferRenderMask = GetRDG(SceneRenderTargets.DBufferMask);
+			Flags = ERDGTextureFlags::MaintainCompression;
 		}
 		else
 		{
 			BasePassParameters.DBufferRenderMask = WhiteDummy;
 		}
+
+		BasePassParameters.DBufferATexture = GetRDG(DBufferA, Flags);
+		BasePassParameters.DBufferBTexture = GetRDG(DBufferB, Flags);
+		BasePassParameters.DBufferCTexture = GetRDG(DBufferC, Flags);
+		BasePassParameters.DBufferATextureSampler = TStaticSamplerState<>::GetRHI();
+		BasePassParameters.DBufferBTextureSampler = TStaticSamplerState<>::GetRHI();
+		BasePassParameters.DBufferCTextureSampler = TStaticSamplerState<>::GetRHI();
 	}
 
 	// Single Layer Water

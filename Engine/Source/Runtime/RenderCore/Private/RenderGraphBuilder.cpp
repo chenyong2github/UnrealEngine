@@ -277,7 +277,7 @@ inline FRDGViewHandle GetHandleIfNoUAVBarrier(FRDGViewRef Resource)
 	return FRDGViewHandle::Null;
 }
 
-inline EResourceTransitionFlags GetTextureViewTransitionFlags(FRDGViewRef Resource)
+inline EResourceTransitionFlags GetTextureViewTransitionFlags(FRDGViewRef Resource, FRDGTextureRef Texture)
 {
 	if (Resource)
 	{
@@ -301,6 +301,13 @@ inline EResourceTransitionFlags GetTextureViewTransitionFlags(FRDGViewRef Resour
 			}
 		}
 		break;
+		}
+	}
+	else
+	{
+		if (EnumHasAnyFlags(Texture->Flags, ERDGTextureFlags::MaintainCompression))
+		{
+			return EResourceTransitionFlags::MaintainCompression;
 		}
 	}
 	return EResourceTransitionFlags::None;
@@ -1329,7 +1336,7 @@ void FRDGBuilder::SetupPass(FRDGPass* Pass)
 	{
 		check(Access != ERHIAccess::Unknown);
 		const FRDGViewHandle NoUAVBarrierHandle = GetHandleIfNoUAVBarrier(TextureView);
-		const EResourceTransitionFlags TransitionFlags = GetTextureViewTransitionFlags(TextureView);
+		const EResourceTransitionFlags TransitionFlags = GetTextureViewTransitionFlags(TextureView, Texture);
 
 		auto& PassState = Pass->TextureStates.FindOrAdd(Texture);
 		PassState.ReferenceCount++;
@@ -2088,6 +2095,17 @@ void FRDGBuilder::BeginResourceRHI(FRDGPassHandle PassHandle, FRDGTextureSRVRef 
 			PooledTexture->FMaskSRV = RHICreateShaderResourceViewFMask((FRHITexture2D*)PooledTexture->Texture);
 		}
 		SRV->ResourceRHI = PooledTexture->FMaskSRV;
+		check(SRV->ResourceRHI);
+		return;
+	}
+
+	if (SRV->Desc.MetaData == ERDGTextureMetaDataAccess::CMask)
+	{
+		if (!PooledTexture->CMaskSRV)
+		{
+			PooledTexture->CMaskSRV = RHICreateShaderResourceViewWriteMask((FRHITexture2D*)PooledTexture->Texture);
+		}
+		SRV->ResourceRHI = PooledTexture->CMaskSRV;
 		check(SRV->ResourceRHI);
 		return;
 	}
