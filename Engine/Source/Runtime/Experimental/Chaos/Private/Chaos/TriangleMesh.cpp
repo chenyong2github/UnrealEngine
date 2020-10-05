@@ -1317,4 +1317,12 @@ void TTriangleMesh<T>::RemoveDegenerateElements()
 	}
 }
 
+#ifdef __clang__
+#if PLATFORM_WINDOWS
 template class Chaos::TTriangleMesh<float>;
+#else
+template class CHAOS_API Chaos::TTriangleMesh<float>;
+#endif
+#else
+template class Chaos::TTriangleMesh<float>;
+#endif
