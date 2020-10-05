@@ -385,7 +385,7 @@ uint32 FVoiceEngineImpl::RegisterLocalTalker(uint32 LocalUserNum)
 {
 	if (!VoiceCapture.IsValid())
 	{
-		VoiceCapture = FVoiceModule::Get().CreateVoiceCapture();
+		VoiceCapture = FVoiceModule::Get().CreateVoiceCapture("");
 
 		if (!VoiceCapture.IsValid())
 		{
