@@ -5,6 +5,7 @@
 #include "DMXEditorLog.h"
 #include "DMXEditorSettings.h"
 #include "DMXEditorStyle.h"
+#include "DMXEditorUtils.h"
 #include "DMXSubsystem.h"
 #include "Interfaces/IDMXProtocol.h"
 #include "Interfaces/IDMXProtocolUniverse.h"
@@ -496,6 +497,8 @@ void SDMXActivityMonitor::AddMonitoredUniversesToProtocol()
 
 void SDMXActivityMonitor::OnProtocolSelected(FName NewProtocolName)
 {
+	FDMXEditorUtils::ZeroAllDMXBuffers();
+
 	ClearDisplay();
 	SetProtocol(NewProtocolName);
 
