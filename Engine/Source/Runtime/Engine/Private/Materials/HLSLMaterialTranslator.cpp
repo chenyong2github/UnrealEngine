@@ -952,15 +952,6 @@ bool FHLSLMaterialTranslator::Translate()
 			Errorf(TEXT("Material using the DeferredDecal domain need to use the BlendModel Translucent (this saves performance)"));
 		}
 
-		if (Domain == MD_RuntimeVirtualTexture)
-		{
-			// Add connected material output nodes to the runtime virtual texture output mask.
-			MaterialCompilationOutput.RuntimeVirtualTextureOutputAttributeMask |= Material->HasBaseColorConnected() ? (1 << (uint8)ERuntimeVirtualTextureAttributeType::BaseColor) : 0;
-			MaterialCompilationOutput.RuntimeVirtualTextureOutputAttributeMask |= Material->HasNormalConnected() ? (1 << (uint8)ERuntimeVirtualTextureAttributeType::Normal) : 0;
-			MaterialCompilationOutput.RuntimeVirtualTextureOutputAttributeMask |= Material->HasRoughnessConnected() ? (1 << (uint8)ERuntimeVirtualTextureAttributeType::Roughness) : 0;
-			MaterialCompilationOutput.RuntimeVirtualTextureOutputAttributeMask |= Material->HasSpecularConnected() ? (1 << (uint8)ERuntimeVirtualTextureAttributeType::Specular) : 0;
-		}
-
 		if (MaterialCompilationOutput.bNeedsSceneTextures)
 		{
 			if (Domain != MD_DeferredDecal && Domain != MD_PostProcess)
@@ -7479,17 +7470,8 @@ int32 FHLSLMaterialTranslator::CustomOutput(class UMaterialExpressionCustomOutpu
 
 int32 FHLSLMaterialTranslator::VirtualTextureOutput(uint8 AttributeMask)
 {
-	if (Material->GetMaterialDomain() == MD_RuntimeVirtualTexture)
-	{
-		// RuntimeVirtualTextureOutput would priority over the output material attributes here
-		// But that could be considered confusing for the user so we error instead
-		Errorf(TEXT("RuntimeVirtualTextureOutput nodes are not used when the Material Domain is set to 'Virtual Texture'"));
-	}
-	else
-	{
-		MaterialCompilationOutput.bHasRuntimeVirtualTextureOutputNode |= AttributeMask != 0;
-		MaterialCompilationOutput.RuntimeVirtualTextureOutputAttributeMask |= AttributeMask;
-	}
+	MaterialCompilationOutput.bHasRuntimeVirtualTextureOutputNode |= AttributeMask != 0;
+	MaterialCompilationOutput.RuntimeVirtualTextureOutputAttributeMask |= AttributeMask;
 
 	// return value is not used
 	return INDEX_NONE;
