@@ -22,6 +22,7 @@ class UDisplayClusterConfigurationCluster;
 class UDisplayClusterConfigurationInput;
 class UDisplayClusterConfigurationScene;
 class UDisplayClusterConfigurationSceneComponent;
+class UDisplayClusterConfigurationSceneComponentMesh;
 class UDisplayClusterConfigurationViewport;
 
 template<typename NumericType>
