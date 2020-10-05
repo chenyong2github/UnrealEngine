@@ -2231,6 +2231,7 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	bool bIsEventProcess = false;
 
 	// If the raytracing flag change, then force to recreate resources
+	#if RHI_RAYTRACING
 	bool bRayTracingGeometryChanged = false;
 	if (GroomAsset)
 	{
@@ -2247,6 +2248,7 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 			}
 		}
 	}
+	#endif
 
 	const bool bRecreateResources = bAssetChanged || bBindingAssetChanged || PropertyThatChanged == nullptr || bSourceSkeletalMeshChanged || bRayTracingGeometryChanged;
 	if (bRecreateResources)
