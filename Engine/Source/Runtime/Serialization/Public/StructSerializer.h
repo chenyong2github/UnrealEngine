@@ -35,6 +35,18 @@ enum class EStructSerializerReferenceLoopPolicies
 	Serialize
 };
 
+/**
+ * Enumerates policies for serializing map property type.
+ */
+enum class EStructSerializerMapPolicies
+{
+	/** Write map normally, as key value pair. */
+	KeyValuePair,
+
+	/** Ignore keys and write values as array. */
+	Array,
+};
+
 
 /**
  * Structure for UStruct serialization policies.
@@ -47,6 +59,9 @@ struct FStructSerializerPolicies
 	/** Holds the policy for reference loops. */
 	EStructSerializerReferenceLoopPolicies ReferenceLoops;
 
+	/** Policies dicting how maps are being written out */
+	EStructSerializerMapPolicies MapSerialization;
+
 	/** Predicate for performing advanced filtering of struct properties. 
 		If set, the predicate should return true for all properties it wishes to include in the output.
 	 */
@@ -56,6 +71,7 @@ struct FStructSerializerPolicies
 	FStructSerializerPolicies()
 		: NullValues(EStructSerializerNullValuePolicies::Serialize)
 		, ReferenceLoops(EStructSerializerReferenceLoopPolicies::Ignore)
+		, MapSerialization(EStructSerializerMapPolicies::KeyValuePair)
 		, PropertyFilter()
 	{ }
 };
@@ -86,6 +102,19 @@ public:
 	 * @see Deserialize
 	 */
 	SERIALIZATION_API static void Serialize( const void* Struct, UStruct& TypeInfo, IStructSerializerBackend& Backend, const FStructSerializerPolicies& Policies );
+
+	/**
+	 * Serializes a given element of a data structure of the specified type using the specified policy.
+	 *
+	 * @param Address The address of the container of the property to serialize.
+	 * @param Property The property to serialize.
+	 * @param ElementIndex The index of the element to serialize if property is a container.
+	 * @param Backend The serialization backend to use.
+	 * @param Policies The serialization policies to use.
+	 * @see Deserialize
+	 */
+	SERIALIZATION_API static void SerializeElement(const void* Address, FProperty* Property, int32 ElementIndex, IStructSerializerBackend& Backend, const FStructSerializerPolicies& Policies);
+
 
 	/**
 	 * Serializes a given data structure of the specified type using the default policy.
