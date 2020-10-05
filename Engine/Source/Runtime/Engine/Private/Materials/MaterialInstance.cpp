@@ -4025,9 +4025,9 @@ void UMaterialInstance::UpdateStaticPermutation(const FStaticParameterSet& NewPa
 	UpdateStaticPermutation(NewParameters, BasePropertyOverrides, false, MaterialUpdateContext);
 }
 
-void UMaterialInstance::UpdateStaticPermutation()
+void UMaterialInstance::UpdateStaticPermutation(FMaterialUpdateContext* MaterialUpdateContext)
 {
-	UpdateStaticPermutation(StaticParameters, BasePropertyOverrides);
+	UpdateStaticPermutation(StaticParameters, MaterialUpdateContext);
 }
 
 void UMaterialInstance::UpdateParameterNames()

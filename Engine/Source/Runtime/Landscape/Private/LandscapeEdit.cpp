@@ -419,8 +419,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				MaterialIndexToDisabledTessellationMaterial[MaterialIndex] = TessellatedMaterialIndex;
 
 				TessellationMaterialInstance->SetParentEditorOnly(MaterialInstance);
-				Context.AddMaterialInstance(TessellationMaterialInstance); // must be done after SetParent
 				TessellationMaterialInstance->bDisableTessellation = true;
+				TessellationMaterialInstance->UpdateStaticPermutation(&Context); // must be done after SetParent
 				TessellationMaterialInstance->PostEditChange();
 			}
 		}
