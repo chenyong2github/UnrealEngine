@@ -33,12 +33,12 @@ namespace Chaos
 	class CHAOS_API FManifoldPoint
 	{
 	public:
-		static bool IsMatch(const FContactPoint& A, const FContactPoint& B);
-
-		FManifoldPoint() {}
-		FManifoldPoint(const FContactPoint& InContactPoint) : ContactPoint(InContactPoint) {}
+		FManifoldPoint() : NetApplyImpulse(0) {}
+		FManifoldPoint(const FContactPoint& InContactPoint) : ContactPoint(InContactPoint), NetApplyImpulse(0), NetPushOutImpulse(0) {}
 
 		FContactPoint ContactPoint;
+		FVec3 NetApplyImpulse;
+		FVec3 NetPushOutImpulse;
 	};
 
 	/*
@@ -241,7 +241,15 @@ namespace Chaos
 
 		static typename Base::FType StaticType() { return Base::FType::SinglePoint; };
 
+		TArrayView<FManifoldPoint> GetManifoldPoints() { return MakeArrayView(ManifoldPoints); }
 		TArrayView<const FManifoldPoint> GetManifoldPoints() const { return MakeArrayView(ManifoldPoints); }
+		FManifoldPoint& SetActiveManifoldPoint(
+			int32 ManifoldPointIndex,
+			const FVec3& P0,
+			const FRotation3& Q0,
+			const FVec3& P1,
+			const FRotation3& Q1);
+
 		void UpdateManifold(const FContactPoint& ContactPoint);
 		void ClearManifold();
 
@@ -266,9 +274,8 @@ namespace Chaos
 		bool AreMatchingContactPoints(const FContactPoint& A, const FContactPoint& B) const;
 		int32 FindManifoldPoint(const FContactPoint& ContactPoint) const;
 		int32 AddManifoldPoint(const FContactPoint& ContactPoint);
-		void UpdateManifoldPoint(int32 ManifoldPointIndex, const FContactPoint& ContactPoint);
-		bool SetActiveManifoldPoint(int32 ManifoldPointIndex);
-		bool SetActiveContactPoint(const FContactPoint& ContactPoint);
+		void SetManifoldPoint(int32 ManifoldPointIndex, const FContactPoint& ContactPoint);
+		void SetActiveContactPoint(const FContactPoint& ContactPoint);
 
 		// @todo(chaos): inline array
 		TArray<FManifoldPoint> ManifoldPoints;

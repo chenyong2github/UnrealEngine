@@ -140,7 +140,7 @@ namespace Chaos
 				return false;
 			}
 
-			auto* RigidParticle= SweptParticle->CastToRigidParticle();
+			auto* RigidParticle = SweptParticle->CastToRigidParticle();
 			if (RigidParticle)
 			{
 				Dir = RigidParticle->P() - RigidParticle->X();
@@ -171,8 +171,8 @@ namespace Chaos
 				// We subtract length to get the total penetration at at end of frame.
 				// Project penetration vector onto geometry normal for correct phi.
 				FReal Dot = FMath::Abs(FVec3::DotProduct(ContactNormal, -Dir));
-				OutPhi = (HitTime - Length) * Dot; 
-				
+				OutPhi = (HitTime - Length) * Dot;
+
 				// TOI is between [0,1], used to compute particle position
 				OutTOI = HitTime / Length;
 			}
@@ -260,9 +260,10 @@ namespace Chaos
 
 			if (ensure(GJKPenetration<true>(A, B, BToATM, Penetration, ClosestA, ClosestBInA, Normal, 0.5f * ShapePadding, InitialDir, 0.5f * ShapePadding, &NumIterations)))
 			{
+				// GJK output is all in the local space of A. We need to transform the B-relative position and the normal in to B-space
 				Contact.LocalContactPoints[0] = ClosestA;
 				Contact.LocalContactPoints[1] = BToATM.InverseTransformPosition(ClosestBInA);
-				Contact.LocalContactNormal = Normal;
+				Contact.LocalContactNormal = -BToATM.InverseTransformVector(Normal);
 				Contact.Location = ATM.TransformPosition(ClosestA);
 				Contact.Normal = -ATM.TransformVectorNoScale(Normal);
 				Contact.Phi = -Penetration;
@@ -328,6 +329,9 @@ namespace Chaos
 			{
 				if (B.GJKContactPoint(*ScaledConvexImplicit, AToBTM, CullDistance, Location, Normal, ContactPhi))
 				{
+					Contact.LocalContactPoints[0] = AToBTM.InverseTransformPosition(Location);
+					Contact.LocalContactPoints[1] = Location;
+					Contact.LocalContactNormal = Normal;
 					Contact.Phi = ContactPhi;
 					Contact.Location = BTransform.TransformPosition(Location);
 					Contact.Normal = BTransform.TransformVectorNoScale(Normal);
@@ -335,10 +339,13 @@ namespace Chaos
 			}
 			else if (const TImplicitObjectInstanced<GeometryA>* InstancedConvexImplicit = A.template GetObject<const TImplicitObjectInstanced<GeometryA> >())
 			{
-				if (const GeometryA * InstancedInnerObject = static_cast<const GeometryA*>(InstancedConvexImplicit->GetInstancedObject()))
+				if (const GeometryA* InstancedInnerObject = static_cast<const GeometryA*>(InstancedConvexImplicit->GetInstancedObject()))
 				{
 					if (B.GJKContactPoint(*InstancedInnerObject, AToBTM, CullDistance, Location, Normal, ContactPhi))
 					{
+						Contact.LocalContactPoints[0] = AToBTM.InverseTransformPosition(Location);
+						Contact.LocalContactPoints[1] = Location;
+						Contact.LocalContactNormal = Normal;
 						Contact.Phi = ContactPhi;
 						Contact.Location = BTransform.TransformPosition(Location);
 						Contact.Normal = BTransform.TransformVectorNoScale(Normal);
@@ -349,6 +356,9 @@ namespace Chaos
 			{
 				if (B.GJKContactPoint(*ConvexImplicit, AToBTM, CullDistance, Location, Normal, ContactPhi))
 				{
+					Contact.LocalContactPoints[0] = AToBTM.InverseTransformPosition(Location);
+					Contact.LocalContactPoints[1] = Location;
+					Contact.LocalContactNormal = Normal;
 					Contact.Phi = ContactPhi;
 					Contact.Location = BTransform.TransformPosition(Location);
 					Contact.Normal = BTransform.TransformVectorNoScale(Normal);
@@ -373,6 +383,9 @@ namespace Chaos
 			{
 				if (B.SweepGeom(ADowncast, AToBTM, LocalDir, Length, OutTime, Location, Normal, FaceIndex, 0.0f, true))
 				{
+					Contact.LocalContactPoints[0] = AToBTM.InverseTransformPosition(Location);
+					Contact.LocalContactPoints[1] = Location;
+					Contact.LocalContactNormal = Normal;
 					Contact.Location = BTransform.TransformPosition(Location);
 					Contact.Normal = BTransform.TransformVectorNoScale(Normal);
 					ComputeSweptContactPhiAndTOIHelper(Contact.Normal, Dir, Length, OutTime, TOI, Contact.Phi);
@@ -401,7 +414,7 @@ namespace Chaos
 
 			Utilities::CastHelper(A, AStartTransform, [&](const auto& ADowncast, const FRigidTransform3& AFullTM)
 			{
-				if(B.LowLevelSweepGeom(ADowncast, AToBTM, LocalDir, Length, OutTime, Location, Normal, FaceIndex, 0.0f, true))
+				if (B.LowLevelSweepGeom(ADowncast, AToBTM, LocalDir, Length, OutTime, Location, Normal, FaceIndex, 0.0f, true))
 				{
 					Contact.Location = BTransform.TransformPosition(Location);
 					Contact.Normal = BTransform.TransformVectorNoScale(Normal);
@@ -510,7 +523,7 @@ namespace Chaos
 				Constraint.InitManifold();
 
 				const FVec3 PlaneNormal = WorldTransform1.InverseTransformVectorNoScale(ContactPoint.Normal);
-				const FVec3 PlanePos = WorldTransform1.InverseTransformPosition(ContactPoint.Location - ContactPoint.Phi*ContactPoint.Normal);
+				const FVec3 PlanePos = WorldTransform1.InverseTransformPosition(ContactPoint.Location - ContactPoint.Phi * ContactPoint.Normal);
 				Constraint.SetManifoldPlane(1, FaceIndex, PlaneNormal, PlanePos);
 
 				//
@@ -527,7 +540,7 @@ namespace Chaos
 		}
 
 
-		void UpdateIterativeManifold(FRigidBodyMultiPointContactConstraint&  Constraint, const FRigidTransform3& WorldTransform0, const FRigidTransform3& WorldTransform1, const FReal CullDistance)
+		void UpdateIterativeManifold(FRigidBodyMultiPointContactConstraint& Constraint, const FRigidTransform3& WorldTransform0, const FRigidTransform3& WorldTransform1, const FReal CullDistance)
 		{
 			auto SumSampleData = [&](FRigidBodyMultiPointContactConstraint& LambdaConstraint) -> TVector<float, 3>
 			{
@@ -552,7 +565,7 @@ namespace Chaos
 				Constraint.InitManifold();
 
 				FVec3 PlaneNormal = WorldTransform1.InverseTransformVectorNoScale(ContactPoint.Normal);
-				FVec3 PlanePosition = WorldTransform1.InverseTransformPosition(ContactPoint.Location - ContactPoint.Phi*ContactPoint.Normal);
+				FVec3 PlanePosition = WorldTransform1.InverseTransformPosition(ContactPoint.Location - ContactPoint.Phi * ContactPoint.Normal);
 				Constraint.SetManifoldPlane(1, INDEX_NONE, PlaneNormal, PlanePosition);
 			}
 
@@ -583,7 +596,7 @@ namespace Chaos
 					}
 				}
 
-				if (Delta > SmallestDelta) 
+				if (Delta > SmallestDelta)
 				{
 					Constraint.SetManifoldPoint(SmallestIndex, SurfaceSample);
 				}
@@ -629,7 +642,7 @@ namespace Chaos
 		}
 
 
-		void UpdateBoxBoxManifold(FCollisionConstraintBase&  Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
+		void UpdateBoxBoxManifold(FCollisionConstraintBase& Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
 		{
 			// @todo(chaos) : Stub Update Manifold
 			//   Stub function for updating the manifold prior to the Apply and ApplyPushOut
@@ -638,8 +651,8 @@ namespace Chaos
 		template<typename T_TRAITS>
 		void ConstructBoxBoxConstraints(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const FRigidTransform3& LocalTransform0, const FRigidTransform3& LocalTransform1, const FReal CullDistance, const FReal ShapePadding, FCollisionConstraintsArray& NewConstraints)
 		{
-			const TBox<FReal, 3> * Object0 = Implicit0->template GetObject<const TBox<FReal, 3> >();
-			const TBox<FReal, 3> * Object1 = Implicit1->template GetObject<const TBox<FReal, 3> >();
+			const TBox<FReal, 3>* Object0 = Implicit0->template GetObject<const TBox<FReal, 3> >();
+			const TBox<FReal, 3>* Object1 = Implicit1->template GetObject<const TBox<FReal, 3> >();
 			if (ensure(Object0 && Object1))
 			{
 				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::BoxBox);
@@ -673,7 +686,7 @@ namespace Chaos
 			UpdateContactPoint(Constraint, BoxHeightFieldContactPoint(A, ATransform, B, BTransform, CullDistance, ShapePadding));
 		}
 
-		void UpdateBoxHeightFieldManifold(FCollisionConstraintBase&  Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
+		void UpdateBoxHeightFieldManifold(FCollisionConstraintBase& Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
 		{
 			// @todo(chaos) : Stub Update Manifold
 			//   Stub function for updating the manifold prior to the Apply and ApplyPushOut
@@ -683,8 +696,8 @@ namespace Chaos
 		void ConstructBoxHeightFieldConstraints(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const FRigidTransform3& LocalTransform0, const FRigidTransform3& LocalTransform1, const FReal CullDistance, const FReal ShapePadding, FCollisionConstraintsArray& NewConstraints)
 		{
 
-			const TBox<FReal, 3> * Object0 = Implicit0->template GetObject<const TBox<FReal, 3> >();
-			const FHeightField * Object1 = Implicit1->template GetObject<const FHeightField >();
+			const TBox<FReal, 3>* Object0 = Implicit0->template GetObject<const TBox<FReal, 3> >();
+			const FHeightField* Object1 = Implicit1->template GetObject<const FHeightField >();
 			if (ensure(Object0 && Object1))
 			{
 				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::BoxHeightField);
@@ -712,11 +725,11 @@ namespace Chaos
 		{
 			// @todo(chaos): manifold, shapepadding
 
-			FCollisionContact & Contact = Constraint.Manifold;
+			FCollisionContact& Contact = Constraint.Manifold;
 
 #if USING_CODE_ANALYSIS
 			MSVC_PRAGMA(warning(push))
-				MSVC_PRAGMA(warning(disable : ALL_CODE_ANALYSIS_WARNINGS))
+			MSVC_PRAGMA(warning(disable : ALL_CODE_ANALYSIS_WARNINGS))
 #endif	// USING_CODE_ANALYSIS
 
 			const FRigidTransform3 BoxToPlaneTransform(BoxTransform.GetRelativeTransform(PlaneTransform));
@@ -767,7 +780,7 @@ namespace Chaos
 			}
 		}
 
-		void UpdateBoxPlaneManifold(FCollisionConstraintBase&  Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
+		void UpdateBoxPlaneManifold(FCollisionConstraintBase& Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
 		{
 			// @todo(chaos) : Stub Update Manifold
 			//   Stub function for updating the manifold prior to the Apply and ApplyPushOut
@@ -778,7 +791,7 @@ namespace Chaos
 		void ConstructBoxPlaneConstraints(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const FRigidTransform3& LocalTransform0, const FRigidTransform3& LocalTransform1, const FReal CullDistance, const FReal ShapePadding, FCollisionConstraintsArray& NewConstraints)
 		{
 
-			const TBox<FReal, 3> * Object0 = Implicit0->template GetObject<const TBox<FReal, 3> >();
+			const TBox<FReal, 3>* Object0 = Implicit0->template GetObject<const TBox<FReal, 3> >();
 			const TPlane<FReal, 3>* Object1 = Implicit1->template GetObject<const TPlane<FReal, 3> >();
 			if (ensure(Object0 && Object1))
 			{
@@ -813,7 +826,7 @@ namespace Chaos
 			UpdateContactPoint(Constraint, BoxTriangleMeshContactPoint(Box0, WorldTransform0, TriangleMesh1, WorldTransform1, CullDistance, ShapePadding));
 		}
 
-		void UpdateBoxTriangleMeshManifold(FCollisionConstraintBase&  Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
+		void UpdateBoxTriangleMeshManifold(FCollisionConstraintBase& Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
 		{
 
 		}
@@ -821,7 +834,7 @@ namespace Chaos
 		template<typename T_TRAITS>
 		void ConstructBoxTriangleMeshConstraints(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const FRigidTransform3& LocalTransform0, const FRigidTransform3& LocalTransform1, const FReal CullDistance, const FReal ShapePadding, FCollisionConstraintsArray& NewConstraints)
 		{
-			const TBox<FReal, 3> * Object0 = Implicit0->template GetObject<const TBox<FReal, 3> >();
+			const TBox<FReal, 3>* Object0 = Implicit0->template GetObject<const TBox<FReal, 3> >();
 			if (ensure(Object0))
 			{
 				if (const TImplicitObjectScaled<FTriangleMeshImplicitObject>* ScaledTriangleMesh = Implicit1->template GetObject<const TImplicitObjectScaled<FTriangleMeshImplicitObject>>())
@@ -839,7 +852,7 @@ namespace Chaos
 						NewConstraints.Add(Constraint);
 					}
 				}
-				else if(const FTriangleMeshImplicitObject* TriangleMesh = Implicit1->template GetObject<const FTriangleMeshImplicitObject>())
+				else if (const FTriangleMeshImplicitObject* TriangleMesh = Implicit1->template GetObject<const FTriangleMeshImplicitObject>())
 				{
 					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::BoxTriMesh);
 					if (T_TRAITS::bImmediateUpdate)
@@ -870,14 +883,24 @@ namespace Chaos
 		{
 			FContactPoint Result;
 
+			const FReal R1 = Sphere1.GetRadius() + 0.5f * ShapePadding;
+			const FReal R2 = Sphere2.GetRadius() + 0.5f * ShapePadding;
+
+			// World-space contact
 			const FVec3 Center1 = Sphere1Transform.TransformPosition(Sphere1.GetCenter());
 			const FVec3 Center2 = Sphere2Transform.TransformPosition(Sphere2.GetCenter());
 			const FVec3 Direction = Center1 - Center2;
 			const FReal Size = Direction.Size();
-			const FReal NewPhi = Size - (Sphere1.GetRadius() + Sphere2.GetRadius()) - ShapePadding;
+			const FVec3 Normal = Size > SMALL_NUMBER ? Direction / Size : FVec3(0, 0, 1);
+			const FReal NewPhi = Size - (R1 + R1);
+
+			Result.LocalContactPoints[0] = Sphere1Transform.InverseTransformVector(-R1 * Normal);
+			Result.LocalContactPoints[1] = Sphere2Transform.InverseTransformVector(R2 * Normal);
+			Result.LocalContactNormal = Sphere2Transform.InverseTransformVector(Normal);
+
 			Result.Phi = NewPhi;
-			Result.Normal = Size > SMALL_NUMBER ? Direction / Size : FVec3(0, 0, 1);
-			Result.Location = Center1 - Sphere1.GetRadius() * Result.Normal;
+			Result.Normal = Normal;
+			Result.Location = Center1 - R1 * Result.Normal;
 
 			return Result;
 		}
@@ -887,7 +910,7 @@ namespace Chaos
 			UpdateContactPoint(Constraint, SphereSphereContactPoint(Sphere1, Sphere1Transform, Sphere2, Sphere2Transform, CullDistance, ShapePadding + Constraint.Manifold.RestitutionPadding));
 		}
 
-		void UpdateSphereSphereManifold(FCollisionConstraintBase&  Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
+		void UpdateSphereSphereManifold(FCollisionConstraintBase& Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
 		{
 			// @todo(chaos) : Stub Update Manifold
 			//   Stub function for updating the manifold prior to the Apply and ApplyPushOut
@@ -929,7 +952,7 @@ namespace Chaos
 		{
 			UpdateContactPoint(Constraint, SphereHeightFieldContactPoint(A, ATransform, B, BTransform, CullDistance, ShapePadding));
 		}
-		
+
 		void UpdateSphereHeightFieldConstraintSwept(TGeometryParticleHandle<FReal, 3>* Particle0, const TSphere<FReal, 3>& A, const FRigidTransform3& ATransform, const FHeightField& B, const FRigidTransform3& BTransform, const FVec3& Dir, const FReal Length, const FReal CullDistance, FRigidBodySweptPointContactConstraint& Constraint)
 		{
 			FReal TOI = 1.0f;
@@ -937,7 +960,7 @@ namespace Chaos
 			SetSweptConstraintTOI(Particle0, TOI, Length, Dir, Constraint);
 		}
 
-		void UpdateSphereHeightFieldManifold(FCollisionConstraintBase&  Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
+		void UpdateSphereHeightFieldManifold(FCollisionConstraintBase& Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
 		{
 			// @todo(chaos) : Stub Update Manifold
 			//   Stub function for updating the manifold prior to the Apply and ApplyPushOut
@@ -948,7 +971,7 @@ namespace Chaos
 		{
 
 			const TSphere<FReal, 3>* Object0 = Implicit0->template GetObject<const TSphere<FReal, 3> >();
-			const FHeightField * Object1 = Implicit1->template GetObject<const FHeightField >();
+			const FHeightField* Object1 = Implicit1->template GetObject<const FHeightField >();
 			if (ensure(Object0 && Object1))
 			{
 				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::SphereHeightField);
@@ -984,28 +1007,36 @@ namespace Chaos
 		//  Sphere-Plane
 		//
 
-		void UpdateSpherePlaneConstraint(const TSphere<FReal, 3>& Sphere, const FRigidTransform3& SphereTransform, const TPlane<FReal, 3>& Plane, const FRigidTransform3& PlaneTransform, const FReal CullDistance, const FReal ShapePadding, FRigidBodyPointContactConstraint& Constraint)
+		FContactPoint SpherePlaneContactPoint(const TSphere<FReal, 3>& Sphere, const FRigidTransform3& SphereTransform, const TPlane<FReal, 3>& Plane, const FRigidTransform3& PlaneTransform, const FReal CullDistance, const FReal ShapePadding)
 		{
-			// @todo(chaos): manifold, shapepadding
+			FContactPoint Result;
 
-			FCollisionContact & Contact = Constraint.Manifold;
+			FReal SphereRadius = Sphere.GetRadius() + 0.5f * ShapePadding;
 
-			const FRigidTransform3 SphereToPlaneTransform(PlaneTransform.Inverse() * SphereTransform);
-			const FVec3 SphereCenter = SphereToPlaneTransform.TransformPosition(Sphere.GetCenter());
+			FVec3 SpherePosWorld = SphereTransform.TransformPosition(Sphere.GetCenter());
+			FVec3 SpherePosPlane = PlaneTransform.InverseTransformPosition(SpherePosWorld);
 
-			FVec3 NewNormal;
-			FReal NewPhi = Plane.PhiWithNormal(SphereCenter, NewNormal);
-			NewPhi -= Sphere.GetRadius() - Contact.RestitutionPadding;
+			FVec3 NormalPlane;
+			FReal Phi = Plane.PhiWithNormal(SpherePosPlane, NormalPlane) - SphereRadius - 0.5f * ShapePadding;	// Adding plane's share of padding
+			FVec3 NormalWorld = PlaneTransform.TransformVector(NormalPlane);
+			FVec3 Location = SpherePosWorld - SphereRadius * NormalWorld;
 
-			if (NewPhi < Contact.Phi)
-			{
-				Contact.Phi = NewPhi;
-				Contact.Normal = PlaneTransform.TransformVectorNoScale(NewNormal);
-				Contact.Location = SphereCenter - Contact.Normal * Sphere.GetRadius();
-			}
+			Result.LocalContactPoints[0] = SphereTransform.InverseTransformPosition(Location);
+			Result.LocalContactPoints[1] = PlaneTransform.InverseTransformPosition(Location + Phi * NormalWorld);
+			Result.LocalContactNormal = PlaneTransform.InverseTransformVector(NormalWorld);
+			Result.Phi = Phi;
+			Result.Normal = NormalWorld;
+			Result.Location = Location;
+
+			return Result;
 		}
 
-		void UpdateSpherePlaneManifold(FCollisionConstraintBase&  Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
+		void UpdateSpherePlaneConstraint(const TSphere<FReal, 3>& Sphere, const FRigidTransform3& SphereTransform, const TPlane<FReal, 3>& Plane, const FRigidTransform3& PlaneTransform, const FReal CullDistance, const FReal ShapePadding, FRigidBodyPointContactConstraint& Constraint)
+		{
+			UpdateContactPoint(Constraint, SpherePlaneContactPoint(Sphere, SphereTransform, Plane, PlaneTransform, CullDistance, ShapePadding + Constraint.Manifold.RestitutionPadding));
+		}
+
+		void UpdateSpherePlaneManifold(FCollisionConstraintBase& Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
 		{
 			// @todo(chaos) : Stub Update Manifold
 			//   Stub function for updating the manifold prior to the Apply and ApplyPushOut
@@ -1043,16 +1074,22 @@ namespace Chaos
 		{
 			FContactPoint Result;
 
-			const FRigidTransform3 SphereToBoxTransform(SphereTransform * BoxTransform.Inverse());	//todo: this should use GetRelative
-			const FVec3 SphereCenterInBox = SphereToBoxTransform.TransformPosition(Sphere.GetCenter());
+			const FVec3 SphereWorld = SphereTransform.TransformPosition(Sphere.GetCenter());	// World-space sphere pos
+			const FVec3 SphereBox = BoxTransform.InverseTransformPosition(SphereWorld);			// Box-space sphere pos
 
-			FVec3 NewNormal;
-			FReal NewPhi = Box.PhiWithNormal(SphereCenterInBox, NewNormal);
-			NewPhi -= Sphere.GetRadius() - ShapePadding;
+			FVec3 NormalBox;																	// Box-space normal
+			FReal PhiToSphereCenter = Box.PhiWithNormal(SphereBox, NormalBox);
+			FReal Phi = PhiToSphereCenter - Sphere.GetRadius() - ShapePadding;
+			
+			FVec3 NormalWorld = BoxTransform.TransformVectorNoScale(NormalBox);
+			FVec3 LocationWorld = SphereWorld - (Sphere.GetRadius() + 0.5f * ShapePadding) * NormalWorld;
 
-			Result.Phi = NewPhi;
-			Result.Normal = BoxTransform.TransformVectorNoScale(NewNormal);
-			Result.Location = SphereTransform.TransformPosition(Sphere.GetCenter()) - Result.Normal * Sphere.GetRadius();
+			Result.LocalContactPoints[0] = SphereTransform.InverseTransformPosition(LocationWorld);
+			Result.LocalContactPoints[1] = BoxTransform.InverseTransformPosition(LocationWorld - Phi * NormalWorld);
+			Result.LocalContactNormal = NormalBox;
+			Result.Phi = Phi;
+			Result.Normal = NormalWorld;
+			Result.Location = LocationWorld;
 			return Result;
 		}
 
@@ -1062,7 +1099,7 @@ namespace Chaos
 			UpdateContactPoint(Constraint, SphereBoxContactPoint(Sphere, SphereTransform, Box, BoxTransform, CullDistance, ShapePadding + Constraint.Manifold.RestitutionPadding));
 		}
 
-		void UpdateSphereBoxManifold(FCollisionConstraintBase&  Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
+		void UpdateSphereBoxManifold(FCollisionConstraintBase& Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
 		{
 			// @todo(chaos) : Stub Update Manifold
 			//   Stub function for updating the manifold prior to the Apply and ApplyPushOut
@@ -1073,7 +1110,7 @@ namespace Chaos
 		{
 
 			const TSphere<FReal, 3>* Object0 = Implicit0->template GetObject<const TSphere<FReal, 3> >();
-			const TBox<FReal, 3> * Object1 = Implicit1->template GetObject<const TBox<FReal, 3> >();
+			const TBox<FReal, 3>* Object1 = Implicit1->template GetObject<const TBox<FReal, 3> >();
 			if (ensure(Object0 && Object1))
 			{
 				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::SphereBox);
@@ -1111,9 +1148,14 @@ namespace Chaos
 			{
 				FReal NewPhi = DeltaLen - (A.GetRadius() + B.GetRadius()) - ShapePadding;
 				FVec3 Dir = Delta / DeltaLen;
+				FVec3 Location = A1 + Dir * A.GetRadius();
+				FVec3 Normal = -Dir;
+				Result.LocalContactPoints[0] = ATransform.InverseTransformPosition(Location);
+				Result.LocalContactPoints[1] = BTransform.InverseTransformPosition(Location);
+				Result.LocalContactNormal = BTransform.InverseTransformVector(Normal);
 				Result.Phi = NewPhi;
-				Result.Normal = -Dir;
-				Result.Location = A1 + Dir * A.GetRadius();
+				Result.Normal = Normal;
+				Result.Location = Location;
 			}
 
 			return Result;
@@ -1125,7 +1167,7 @@ namespace Chaos
 			UpdateContactPoint(Constraint, SphereCapsuleContactPoint(A, ATransform, B, BTransform, CullDistance, ShapePadding + Constraint.Manifold.RestitutionPadding));
 		}
 
-		void UpdateSphereCapsuleManifold(FCollisionConstraintBase&  Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
+		void UpdateSphereCapsuleManifold(FCollisionConstraintBase& Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
 		{
 			// @todo(chaos) : Stub Update Manifold
 			//   Stub function for updating the manifold prior to the Apply and ApplyPushOut
@@ -1193,7 +1235,7 @@ namespace Chaos
 			SetSweptConstraintTOI(Particle0, TOI, Length, Dir, Constraint);
 		}
 
-		void UpdateSphereTriangleMeshManifold(FCollisionConstraintBase&  Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
+		void UpdateSphereTriangleMeshManifold(FCollisionConstraintBase& Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
 		{
 
 		}
@@ -1294,9 +1336,14 @@ namespace Chaos
 			{
 				FReal NewPhi = DeltaLen - (A.GetRadius() + B.GetRadius()) - ShapePadding;
 				FVec3 Dir = Delta / DeltaLen;
+				FVec3 Normal = -Dir;
+				FVec3 Location = P1 + Dir * A.GetRadius();
+				Result.LocalContactPoints[0] = ATransform.InverseTransformPosition(Location);
+				Result.LocalContactPoints[1] = BTransform.InverseTransformPosition(Location);
+				Result.LocalContactNormal = BTransform.InverseTransformVector(Normal);
 				Result.Phi = NewPhi;
-				Result.Normal = -Dir;
-				Result.Location = P1 + Dir * A.GetRadius();
+				Result.Normal = Normal;
+				Result.Location = Location;
 			}
 
 			return Result;
@@ -1308,7 +1355,7 @@ namespace Chaos
 			UpdateContactPoint(Constraint, CapsuleCapsuleContactPoint(A, ATransform, B, BTransform, CullDistance, ShapePadding + Constraint.Manifold.RestitutionPadding));
 		}
 
-		void UpdateCapsuleCapsuleManifold(FCollisionConstraintBase&  Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
+		void UpdateCapsuleCapsuleManifold(FCollisionConstraintBase& Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
 		{
 			// @todo(chaos) : Stub Update Manifold
 			//   Stub function for updating the manifold prior to the Apply and ApplyPushOut
@@ -1317,8 +1364,8 @@ namespace Chaos
 		template<typename T_TRAITS>
 		void ConstructCapsuleCapsuleConstraints(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const FRigidTransform3& LocalTransform0, const FRigidTransform3& LocalTransform1, const FReal CullDistance, const FReal ShapePadding, FCollisionConstraintsArray& NewConstraints)
 		{
-			const TCapsule<FReal> * Object0 = Implicit0->template GetObject<const TCapsule<FReal> >();
-			const TCapsule<FReal> * Object1 = Implicit1->template GetObject<const TCapsule<FReal> >();
+			const TCapsule<FReal>* Object0 = Implicit0->template GetObject<const TCapsule<FReal> >();
+			const TCapsule<FReal>* Object1 = Implicit1->template GetObject<const TCapsule<FReal> >();
 			if (ensure(Object0 && Object1))
 			{
 				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::CapsuleCapsule);
@@ -1372,7 +1419,7 @@ namespace Chaos
 		 * For box face collisions, the box owns the manifold plane, and the capsule edge nearest the box face is used to generate manifold points.
 		 * For box edge collision with the capsule edge, the capsule owns the manifold plane, and the capsule edge is projected onto the box plane to generate the manifold points.
 		 * For box edge with capsule vertex collisions, only the single near point/plane is used in the manifold.
-		 * 
+		 *
 		 */
 		void UpdateCapsuleBoxManifold(const TCapsule<FReal>& Capsule, const FRigidTransform3& CapsuleTM, const FAABB3& Box, const FRigidTransform3& BoxTM, const FReal CullDistance, const FReal ShapePadding, FRigidBodyMultiPointContactConstraint& Constraint)
 		{
@@ -1500,7 +1547,7 @@ namespace Chaos
 				bool bUseVert0 = ((CapsuleVert1 - CapsuleVert0).SizeSquared() > DistanceToleranceSq) && ((CapsuleVert0 - CapsuleClosestBoxSpace).SizeSquared() > DistanceToleranceSq);
 				bool bUseVert1 = ((CapsuleVert1 - CapsuleClosestBoxSpace).SizeSquared() > DistanceToleranceSq);
 				if (bUseVert0)
-				{ 
+				{
 					Constraint.AddManifoldPoint(CapsuleToBoxTM.InverseTransformPosition(CapsuleVert0));
 				}
 				if (bUseVert1)
@@ -1525,7 +1572,7 @@ namespace Chaos
 
 				// Project the capsule edge onto the box face
 				FReal FaceAxisSign = FMath::Sign(NormalBoxSpace[FaceAxisIndex]);
-				FReal FacePos = (FaceAxisSign >= 0.0f)? Box.Max()[FaceAxisIndex] : Box.Min()[FaceAxisIndex];
+				FReal FacePos = (FaceAxisSign >= 0.0f) ? Box.Max()[FaceAxisIndex] : Box.Min()[FaceAxisIndex];
 				FVec3 CapsuleVert0 = CapsuleToBoxTM.TransformPosition(Capsule.GetX1());
 				FVec3 CapsuleVert1 = CapsuleToBoxTM.TransformPosition(Capsule.GetX2());
 				Utilities::ProjectPointOntoAxisAlignedPlane(CapsuleVert0, CapsuleRadiusDir, FaceAxisIndex, FaceAxisSign, FacePos);
@@ -1571,8 +1618,8 @@ namespace Chaos
 		template<typename T_TRAITS>
 		void ConstructCapsuleBoxConstraints(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const FRigidTransform3& LocalTransform0, const FRigidTransform3& LocalTransform1, const FReal CullDistance, const FReal ShapePadding, const FCollisionContext& Context, FCollisionConstraintsArray& NewConstraints)
 		{
-			const TCapsule<FReal> * Object0 = Implicit0->template GetObject<const TCapsule<FReal>>();
-			const TBox<FReal, 3> * Object1 = Implicit1->template GetObject<const TBox<FReal, 3>>();
+			const TCapsule<FReal>* Object0 = Implicit0->template GetObject<const TCapsule<FReal>>();
+			const TBox<FReal, 3>* Object1 = Implicit1->template GetObject<const TBox<FReal, 3>>();
 			if (ensure(Object0 && Object1))
 			{
 				if (T_TRAITS::bAllowManifold)
@@ -1635,7 +1682,7 @@ namespace Chaos
 			SetSweptConstraintTOI(Particle0, TOI, Length, Dir, Constraint);
 		}
 
-		void UpdateCapsuleHeightFieldManifold(FCollisionConstraintBase&  Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
+		void UpdateCapsuleHeightFieldManifold(FCollisionConstraintBase& Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
 		{
 			// @todo(chaos) : Stub Update Manifold
 			//   Stub function for updating the manifold prior to the Apply and ApplyPushOut
@@ -1646,8 +1693,8 @@ namespace Chaos
 		{
 			CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_Collisions_ConstructCapsuleHeightFieldConstraints, ConstraintsDetailedStats);
 
-			const TCapsule<FReal> * Object0 = Implicit0->template GetObject<const TCapsule<FReal> >();
-			const FHeightField * Object1 = Implicit1->template GetObject<const FHeightField >();
+			const TCapsule<FReal>* Object0 = Implicit0->template GetObject<const TCapsule<FReal> >();
+			const FHeightField* Object1 = Implicit1->template GetObject<const FHeightField >();
 			if (ensure(Object0 && Object1))
 			{
 				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::CapsuleHeightField);
@@ -1668,8 +1715,8 @@ namespace Chaos
 		void ConstructCapsuleHeightFieldConstraintsSwept(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const FRigidTransform3& LocalTransform0, const FRigidTransform3& LocalTransform1, const FReal CullDistance, const FVec3& Dir, FReal Length, FCollisionConstraintsArray& NewConstraints)
 		{
 			CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_Collisions_ConstructCapsuleHeightFieldConstraintsSwept, ConstraintsDetailedStats);
-			const TCapsule<FReal> * Object0 = Implicit0->template GetObject<const TCapsule<FReal> >();
-			const FHeightField * Object1 = Implicit1->template GetObject<const FHeightField >();
+			const TCapsule<FReal>* Object0 = Implicit0->template GetObject<const TCapsule<FReal> >();
+			const FHeightField* Object1 = Implicit1->template GetObject<const FHeightField >();
 			if (ensure(Object0 && Object1))
 			{
 				FRigidBodySweptPointContactConstraint Constraint = FRigidBodySweptPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::CapsuleHeightField);
@@ -1727,7 +1774,7 @@ namespace Chaos
 		}
 
 
-		void UpdateCapsuleTriangleMeshManifold(FCollisionConstraintBase&  Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
+		void UpdateCapsuleTriangleMeshManifold(FCollisionConstraintBase& Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
 		{
 
 		}
@@ -1737,7 +1784,7 @@ namespace Chaos
 		{
 			CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_Collisions_ConstructCapsuleTriangleMeshConstraints, ConstraintsDetailedStats);
 
-			const TCapsule<FReal> * Object0 = Implicit0->template GetObject<const TCapsule<FReal> >();
+			const TCapsule<FReal>* Object0 = Implicit0->template GetObject<const TCapsule<FReal> >();
 			if (ensure(Object0))
 			{
 				if (const TImplicitObjectScaled<FTriangleMeshImplicitObject>* ScaledTriangleMesh = Implicit1->template GetObject<const TImplicitObjectScaled<FTriangleMeshImplicitObject>>())
@@ -1781,7 +1828,7 @@ namespace Chaos
 		{
 			CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_Collisions_ConstructCapsuleTriangleMeshConstraintsSwept, ConstraintsDetailedStats);
 
-			const TCapsule<FReal> * Object0 = Implicit0->template GetObject<const TCapsule<FReal> >();
+			const TCapsule<FReal>* Object0 = Implicit0->template GetObject<const TCapsule<FReal> >();
 			if (ensure(Object0))
 			{
 				if (const TImplicitObjectScaled<FTriangleMeshImplicitObject>* ScaledTriangleMesh = Implicit1->template GetObject<const TImplicitObjectScaled<FTriangleMeshImplicitObject>>())
@@ -1862,7 +1909,7 @@ namespace Chaos
 			SetSweptConstraintTOI(Particle0, TOI, Length, Dir, Constraint);
 		}
 
-		void UpdateConvexConvexManifold(FCollisionConstraintBase&  ConstraintBase, const FRigidTransform3& WorldTransform0, const FRigidTransform3& WorldTransform1, const FReal CullDistance, const FReal ShapePadding)
+		void UpdateConvexConvexManifold(FCollisionConstraintBase& ConstraintBase, const FRigidTransform3& WorldTransform0, const FRigidTransform3& WorldTransform1, const FReal CullDistance, const FReal ShapePadding)
 		{
 			// @todo(chaos): shapepadding
 			CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_Collisions_UpdateConvexConvexManifold, ConstraintsDetailedStats);
@@ -1962,7 +2009,7 @@ namespace Chaos
 			SetSweptConstraintTOI(Particle0, TOI, Length, Dir, Constraint);
 		}
 
-		void UpdateConvexHeightFieldManifold(FCollisionConstraintBase&  Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
+		void UpdateConvexHeightFieldManifold(FCollisionConstraintBase& Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
 		{
 			// @todo(chaos) : Stub Update Manifold
 			//   Stub function for updating the manifold prior to the Apply and ApplyPushOut
@@ -1972,7 +2019,7 @@ namespace Chaos
 		void ConstructConvexHeightFieldConstraints(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const FRigidTransform3& LocalTransform0, const FRigidTransform3& LocalTransform1, const FReal CullDistance, const FReal ShapePadding, FCollisionConstraintsArray& NewConstraints)
 		{
 			CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_Collisions_ConstructConvexHeightFieldConstraints, ConstraintsDetailedStats);
-			const FHeightField * Object1 = Implicit1->template GetObject<const FHeightField >();
+			const FHeightField* Object1 = Implicit1->template GetObject<const FHeightField >();
 			if (ensure(Implicit0->IsConvex() && Object1))
 			{
 				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::ConvexHeightField);
@@ -1993,7 +2040,7 @@ namespace Chaos
 		void ConstructConvexHeightFieldConstraintsSwept(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const FRigidTransform3& LocalTransform0, const FRigidTransform3& LocalTransform1, const FReal CullDistance, const FVec3& Dir, FReal Length, FCollisionConstraintsArray& NewConstraints)
 		{
 			CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_Collisions_ConstructConvexHeightFieldConstraintsSwept, ConstraintsDetailedStats);
-			const FHeightField * Object1 = Implicit1->template GetObject<const FHeightField >();
+			const FHeightField* Object1 = Implicit1->template GetObject<const FHeightField >();
 			if (ensure(Implicit0->IsConvex() && Object1))
 			{
 				FRigidBodySweptPointContactConstraint Constraint = FRigidBodySweptPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::ConvexHeightField);
@@ -2023,7 +2070,7 @@ namespace Chaos
 			{
 				return GJKImplicitScaledTriMeshSweptContactPoint<FConvex>(A, ATransform, *ScaledTriangleMesh, BStartTransform, Dir, Length, CullDistance, TOI);
 			}
-			else if(const FTriangleMeshImplicitObject* TriangleMesh = B.template GetObject<const FTriangleMeshImplicitObject>())
+			else if (const FTriangleMeshImplicitObject* TriangleMesh = B.template GetObject<const FTriangleMeshImplicitObject>())
 			{
 				return GJKImplicitSweptContactPoint<FConvex>(A, ATransform, *TriangleMesh, BStartTransform, Dir, Length, CullDistance, TOI);
 			}
@@ -2031,7 +2078,7 @@ namespace Chaos
 			ensure(false);
 			return FContactPoint();
 		}
-		
+
 		template <typename TriMeshType>
 		void UpdateConvexTriangleMeshConstraint(const FImplicitObject& Convex0, const FRigidTransform3& WorldTransform0, const TriMeshType& TriangleMesh1, const FRigidTransform3& WorldTransform1, const FReal CullDistance, const FReal ShapePadding, FRigidBodyPointContactConstraint& Constraint)
 		{
@@ -2050,7 +2097,7 @@ namespace Chaos
 		}
 
 
-		void UpdateConvexTriangleMeshManifold(FCollisionConstraintBase&  Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
+		void UpdateConvexTriangleMeshManifold(FCollisionConstraintBase& Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
 		{
 
 		}
@@ -2068,7 +2115,7 @@ namespace Chaos
 					{
 						FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
 						FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
-						UpdateConvexTriangleMeshConstraint(*Implicit0, WorldTransform0, *ScaledTriangleMesh , WorldTransform1, CullDistance, ShapePadding, Constraint);
+						UpdateConvexTriangleMeshConstraint(*Implicit0, WorldTransform0, *ScaledTriangleMesh, WorldTransform1, CullDistance, ShapePadding, Constraint);
 						NewConstraints.TryAdd(CullDistance, Constraint);
 					}
 					else
@@ -2151,7 +2198,7 @@ namespace Chaos
 			}
 
 			const TBVHParticles<FReal, 3>* SampleParticles = Constraint.Manifold.Simplicial[0];
-			if(!SampleParticles)
+			if (!SampleParticles)
 			{
 				ParticlesTM = FRigidTransform3(Particle0->P(), Particle0->Q());
 				SampleParticles = Particle0->CollisionParticles().Get();
@@ -2164,7 +2211,7 @@ namespace Chaos
 			}
 		}
 
-		void UpdateLevelsetLevelsetManifold(FCollisionConstraintBase&  Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
+		void UpdateLevelsetLevelsetManifold(FCollisionConstraintBase& Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
 		{
 			// @todo(chaos) : Stub Update Manifold
 			//   Stub function for updating the manifold prior to the Apply and ApplyPushOut
@@ -2859,10 +2906,10 @@ namespace Chaos
 				return;
 			}
 
-			if(Implicit0OuterType == FImplicitObjectUnionClustered::StaticType())
+			if (Implicit0OuterType == FImplicitObjectUnionClustered::StaticType())
 			{
 				const FImplicitObjectUnionClustered* Union0 = Implicit0->template GetObject<FImplicitObjectUnionClustered>();
-				if(Implicit1->HasBoundingBox())
+				if (Implicit1->HasBoundingBox())
 				{
 					TArray<Pair<Pair<const FImplicitObject*, const TBVHParticles<FReal, 3>*>, FRigidTransform3>> Children;
 
@@ -2874,14 +2921,14 @@ namespace Chaos
 
 					Union0->FindAllIntersectingClusteredObjects(Children, QueryBounds);
 
-					for(const Pair<Pair<const FImplicitObject*, const TBVHParticles<FReal, 3>*>, FRigidTransform3>& Child0 : Children)
+					for (const Pair<Pair<const FImplicitObject*, const TBVHParticles<FReal, 3>*>, FRigidTransform3>& Child0 : Children)
 					{
 						ConstructConstraints<T_TRAITS>(Particle0, Particle1, Child0.First.First, Child0.First.Second, Implicit1, Simplicial1, Child0.Second * LocalTransform0, LocalTransform1, CullDistance, ShapePadding, Context, NewConstraints);
 					}
 				}
 				else
 				{
-					for(const TUniquePtr<FImplicitObject>& Child0 : Union0->GetObjects())
+					for (const TUniquePtr<FImplicitObject>& Child0 : Union0->GetObjects())
 					{
 						const TPBDRigidParticleHandle<FReal, 3>* OriginalParticle = Union0->FindParticleForImplicitObject(Child0.Get());
 						ConstructConstraints<T_TRAITS>(Particle0, Particle1, Child0.Get(), OriginalParticle ? OriginalParticle->CollisionParticles().Get() : Simplicial0, Implicit1, Simplicial1, LocalTransform0, LocalTransform1, CullDistance, ShapePadding, Context, NewConstraints);
@@ -2904,13 +2951,13 @@ namespace Chaos
 				return;
 			}
 
-			if(Implicit1OuterType == FImplicitObjectUnionClustered::StaticType())
+			if (Implicit1OuterType == FImplicitObjectUnionClustered::StaticType())
 			{
 				const FImplicitObjectUnionClustered* Union1 = Implicit1->template GetObject<FImplicitObjectUnionClustered>();
-				if(Implicit0->HasBoundingBox())
+				if (Implicit0->HasBoundingBox())
 				{
 					TArray<Pair<Pair<const FImplicitObject*, const TBVHParticles<FReal, 3>*>, FRigidTransform3>> Children;
-					
+
 					// Need to get transformed bounds of 0 in the space of 1
 					FRigidTransform3 TM0 = LocalTransform0 * Collisions::GetTransform(Particle0);
 					FRigidTransform3 TM1 = LocalTransform1 * Collisions::GetTransform(Particle1);
@@ -2922,14 +2969,14 @@ namespace Chaos
 						Union1->FindAllIntersectingClusteredObjects(Children, QueryBounds);
 					}
 
-					for(const Pair<Pair<const FImplicitObject*, const TBVHParticles<FReal, 3>*>, FRigidTransform3>& Child1 : Children)
+					for (const Pair<Pair<const FImplicitObject*, const TBVHParticles<FReal, 3>*>, FRigidTransform3>& Child1 : Children)
 					{
 						ConstructConstraints<T_TRAITS>(Particle0, Particle1, Implicit0, Simplicial0, Child1.First.First, Child1.First.Second, LocalTransform0, Child1.Second * LocalTransform1, CullDistance, ShapePadding, Context, NewConstraints);
 					}
 				}
 				else
 				{
-					for(const TUniquePtr<FImplicitObject>& Child1 : Union1->GetObjects())
+					for (const TUniquePtr<FImplicitObject>& Child1 : Union1->GetObjects())
 					{
 						const TPBDRigidParticleHandle<FReal, 3>* OriginalParticle = Union1->FindParticleForImplicitObject(Child1.Get());
 						ConstructConstraints<T_TRAITS>(Particle0, Particle1, Implicit0, Simplicial0, Child1.Get(), OriginalParticle ? OriginalParticle->CollisionParticles().Get() : Simplicial1, LocalTransform0, LocalTransform1, CullDistance, ShapePadding, Context, NewConstraints);
@@ -3104,7 +3151,7 @@ namespace Chaos
 		{
 			EImplicitObjectType Implicit0Type = Implicit0 ? GetInnerType(Implicit0->GetType()) : ImplicitObjectType::Unknown;
 			EImplicitObjectType Implicit1Type = Implicit1 ? GetInnerType(Implicit1->GetType()) : ImplicitObjectType::Unknown;
-			
+
 			if (!Implicit0 || !Implicit1)
 			{
 				return false;
