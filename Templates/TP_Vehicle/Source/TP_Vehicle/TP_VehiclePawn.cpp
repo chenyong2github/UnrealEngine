@@ -31,6 +31,8 @@ const FName ATP_VehiclePawn::LookRightBinding("LookRight");
 
 #define LOCTEXT_NAMESPACE "VehiclePawn"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 ATP_VehiclePawn::ATP_VehiclePawn()
 {
 	// Car mesh
@@ -285,3 +287,5 @@ void ATP_VehiclePawn::SetupInCarHUD()
 }
 
 #undef LOCTEXT_NAMESPACE
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
