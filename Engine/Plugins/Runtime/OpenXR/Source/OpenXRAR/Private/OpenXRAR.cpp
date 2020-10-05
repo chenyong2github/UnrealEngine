@@ -16,15 +16,22 @@
 #define LOCTEXT_NAMESPACE "OpenXRAR"
 
 DECLARE_CYCLE_STAT(TEXT("Process Mesh Updates"), STAT_FOpenXRARSystem_ProcessMeshUpdates, STATGROUP_OPENXRAR);
+DECLARE_CYCLE_STAT(TEXT("ARTrackedGeometry Added"), STAT_FOpenXRARSystem_ARTrackedGeometryAdded_GameThread, STATGROUP_OPENXRAR);
+DECLARE_CYCLE_STAT(TEXT("ARTrackedGeometry Updated"), STAT_FOpenXRARSystem_ARTrackedGeometryUpdated_GameThread, STATGROUP_OPENXRAR);
+DECLARE_CYCLE_STAT(TEXT("ARTrackedGeometry Removed"), STAT_FOpenXRARSystem_ARTrackedGeometryRemoved_GameThread, STATGROUP_OPENXRAR);
 
 
 FOpenXRARSystem::FOpenXRARSystem()
 {
 	SpawnARActorDelegateHandle = UARLifeCycleComponent::OnSpawnARActorDelegate.AddRaw(this, &FOpenXRARSystem::OnSpawnARActor);
+
+	IModularFeatures::Get().RegisterModularFeature(IOpenXRARTrackedGeometryHolder::GetModularFeatureName(), this);
 }
 
 FOpenXRARSystem::~FOpenXRARSystem()
 {
+	IModularFeatures::Get().UnregisterModularFeature(IOpenXRARTrackedGeometryHolder::GetModularFeatureName(), this);
+
 	UARLifeCycleComponent::OnSpawnARActorDelegate.Remove(SpawnARActorDelegateHandle);
 
 	OnStopARSession();
@@ -471,7 +478,8 @@ void FOpenXRARSystem::AddOrUpdateMesh_GameThread(FOpenXRMeshUpdate* CurrentMesh)
 	if (FoundTrackedGeometryGroup == nullptr)
 	{
 		// We haven't seen this one before so add it to our set
-		FTrackedGeometryGroup TrackedGeometryGroup(NewObject<UARTrackedGeometry>());
+		UARTrackedGeometry* NewARTrackedGeometery = CurrentMesh->ConstructNewTrackedGeometry(nullptr);
+		FTrackedGeometryGroup TrackedGeometryGroup(NewARTrackedGeometery);
 		TrackedGeometryGroups.Add(CurrentMesh->Id, TrackedGeometryGroup);
 
 		FoundTrackedGeometryGroup = TrackedGeometryGroups.Find(CurrentMesh->Id);
@@ -483,33 +491,12 @@ void FOpenXRARSystem::AddOrUpdateMesh_GameThread(FOpenXRMeshUpdate* CurrentMesh)
 	}
 
 	UARTrackedGeometry* NewUpdatedGeometry = FoundTrackedGeometryGroup->TrackedGeometry;
-	UARComponent* NewUpdatedARComponent = FoundTrackedGeometryGroup->ARComponent;
-
-	check(NewUpdatedGeometry != nullptr);
-
-	if (CurrentMesh->Vertices.Num() > 0)
-	{
-		// Update MRMesh if it's available
-		if (auto MRMesh = NewUpdatedGeometry->GetUnderlyingMesh())
-		{
-			// MRMesh takes ownership of the data in the arrays at this point
-			MRMesh->UpdateMesh(CurrentMesh->LocalToTrackingTransform.GetLocation(), CurrentMesh->LocalToTrackingTransform.GetRotation(), CurrentMesh->LocalToTrackingTransform.GetScale3D(), CurrentMesh->Vertices, CurrentMesh->Indices);
-		}
-	}
-
-	// Update the tracking data, it MUST be done after UpdateMesh
-	NewUpdatedGeometry->UpdateTrackedGeometry(TrackingSystem->GetARCompositionComponent().ToSharedRef(),
-		GFrameCounter,
-		FPlatformTime::Seconds(),
-		CurrentMesh->LocalToTrackingTransform,
-		TrackingSystem->GetARCompositionComponent()->GetAlignmentTransform());
-	// Mark this as a world mesh that isn't recognized as a particular scene type, since it is loose triangles
-	NewUpdatedGeometry->SetObjectClassification(CurrentMesh->Type);
-	NewUpdatedGeometry->SetTrackingState(CurrentMesh->TrackingState);
+	CurrentMesh->UpdateTrackedGeometry(NewUpdatedGeometry, TrackingSystem->GetARCompositionComponent());
 
 	// Trigger the proper notification delegate
 	if (!bIsAdd)
 	{
+		UARComponent* NewUpdatedARComponent = FoundTrackedGeometryGroup->ARComponent;
 		if (NewUpdatedARComponent)
 		{
 			NewUpdatedARComponent->Update(NewUpdatedGeometry);
@@ -566,6 +553,90 @@ void FOpenXRARSystem::OnSpawnARActor(AARActor* NewARActor, UARComponent* NewARCo
 		UE_LOG(LogOpenXRAR, Warning, TEXT("AR NativeID not found.  Make sure to set this on the ARComponent!"));
 	}
 }
+
+void FOpenXRARSystem::ARTrackedGeometryAdded(FOpenXRARTrackedGeometryData* InData)
+{
+	auto Task = FSimpleDelegateGraphTask::FDelegate::CreateThreadSafeSP(this, &FOpenXRARSystem::ARTrackedGeometryAdded_GameThread, InData);
+	FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(Task, GET_STATID(STAT_FOpenXRARSystem_ARTrackedGeometryAdded_GameThread), nullptr, ENamedThreads::GameThread);
+}
+
+void FOpenXRARSystem::ARTrackedGeometryUpdated(FOpenXRARTrackedGeometryData* InData)
+{
+	auto Task = FSimpleDelegateGraphTask::FDelegate::CreateThreadSafeSP(this, &FOpenXRARSystem::ARTrackedGeometryUpdated_GameThread, InData);
+	FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(Task, GET_STATID(STAT_FOpenXRARSystem_ARTrackedGeometryUpdated_GameThread), nullptr, ENamedThreads::GameThread);
+
+}
+
+void FOpenXRARSystem::ARTrackedGeometryRemoved(FOpenXRARTrackedGeometryData* InData)
+{
+	auto Task = FSimpleDelegateGraphTask::FDelegate::CreateThreadSafeSP(this, &FOpenXRARSystem::ARTrackedGeometryRemoved_GameThread, InData);
+	FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(Task, GET_STATID(STAT_FOpenXRARSystem_ARTrackedGeometryRemoved_GameThread), nullptr, ENamedThreads::GameThread);
+}
+
+
+void FOpenXRARSystem::ARTrackedGeometryAdded_GameThread(FOpenXRARTrackedGeometryData* InData)
+{
+	if (InData == nullptr) { return; }
+
+	// We haven't seen this one before so add it to our set
+	FTrackedGeometryGroup TrackedGeometryGroup(InData->ConstructNewTrackedGeometry(TrackingSystem->GetARCompositionComponent()));
+	TrackedGeometryGroups.Add(InData->Id, TrackedGeometryGroup);
+
+	InData->UpdateTrackedGeometry(TrackedGeometryGroup.TrackedGeometry, TrackingSystem->GetARCompositionComponent());
+
+	AARActor::RequestSpawnARActor(InData->Id, SessionConfig->GetQRCodeComponentClass());
+	delete InData;
+}
+
+void FOpenXRARSystem::ARTrackedGeometryUpdated_GameThread(FOpenXRARTrackedGeometryData* InData)
+{
+	if (InData == nullptr) { return; }
+
+	FTrackedGeometryGroup* TrackedGeometryGroup = TrackedGeometryGroups.Find(InData->Id);
+	if (TrackedGeometryGroup != nullptr)
+	{
+		UARTrackedGeometry* FoundGeometry = TrackedGeometryGroup->TrackedGeometry;
+		UARTrackedQRCode* UpdatedQRCode = Cast<UARTrackedQRCode>(FoundGeometry);
+		check(UpdatedQRCode != nullptr);
+
+		InData->UpdateTrackedGeometry(UpdatedQRCode, TrackingSystem->GetARCompositionComponent());
+
+		if (TrackedGeometryGroup->ARComponent != nullptr)
+		{
+			TrackedGeometryGroup->ARComponent->Update(UpdatedQRCode);
+			TriggerOnTrackableUpdatedDelegates(UpdatedQRCode);
+		}
+	}
+
+	delete InData;
+}
+
+void FOpenXRARSystem::ARTrackedGeometryRemoved_GameThread(FOpenXRARTrackedGeometryData* InData)
+{
+	if (InData == nullptr) { return; }
+
+	FTrackedGeometryGroup* TrackedGeometryGroup = TrackedGeometryGroups.Find(InData->Id);
+	if (TrackedGeometryGroup != nullptr)
+	{
+		if (TrackedGeometryGroup->ARComponent)
+		{
+			check(TrackedGeometryGroup->ARActor);
+
+			TrackedGeometryGroup->ARComponent->Remove(TrackedGeometryGroup->TrackedGeometry);
+			AARActor::RequestDestroyARActor(TrackedGeometryGroup->ARActor);
+		}
+
+		check(TrackedGeometryGroup->TrackedGeometry);
+		TrackedGeometryGroup->TrackedGeometry->SetTrackingState(EARTrackingState::NotTracking);
+
+		TrackedGeometryGroups.Remove(InData->Id);
+		TriggerOnTrackableRemovedDelegates(TrackedGeometryGroup->TrackedGeometry);
+	}
+
+	delete InData;
+}
+
+
 
 //=========== End of Tracked Geometries =============================================
 
