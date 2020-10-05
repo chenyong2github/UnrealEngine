@@ -364,6 +364,7 @@ void EvaluateRadialFalloffScalar(in float3 SamplePosition, in int NodeOffset,
 		SetFalloffValue(NodesParams[NodeOffset + RADIAL_FALLOFF_FALLOFF],
 						NodesParams[NodeOffset + RADIAL_FALLOFF_MAGNITUDE],
 						DeltaDistance, ScalarDatas);
+		
 	}
 	ContextDatas[LocalIndex++] = ScalarDatas;
 }
@@ -616,11 +617,12 @@ void EvaluateSumScalar(in float3 SamplePosition, in int NodeOffset,
 	LocalIndex -= HasRight + HasLeft;
 
 	const int FieldOperation = NodesParams[NodeOffset + SUM_SCALAR_OPERATION];
+	const bool UnitOperation = (FieldOperation == MULTIPLY_OP) || (FieldOperation == DIVIDE_OP);
 
 	int OffsetIndex = LocalIndex;
-	const float ScalarRight = HasRight ? ContextDatas[OffsetIndex] : 0.0;
+	const float ScalarRight = HasRight ? ContextDatas[OffsetIndex] : UnitOperation ? 1.0 : 0.0;
 	OffsetIndex += HasRight;
-	const float ScalarLeft = HasLeft ? ContextDatas[OffsetIndex] : 0.0;
+	const float ScalarLeft = HasLeft ? ContextDatas[OffsetIndex] : UnitOperation ? 1.0 : 0.0;
 
 	float ScalarDatas = 0.0;
 	if (FieldOperation == MULTIPLY_OP)
@@ -663,13 +665,14 @@ void EvaluateSumVector(in float3 SamplePosition, in int NodeOffset,
 	LocalIndex -= HasScalar + HasRight * 3 + HasLeft * 3;
 
 	const int FieldOperation = NodesParams[NodeOffset + SUM_VECTOR_OPERATION];
+	const bool UnitOperation = (FieldOperation == MULTIPLY_OP) || (FieldOperation == DIVIDE_OP);
 
 	int OffsetIndex = LocalIndex;
 	const float ScalarMagnitude = HasScalar ? ContextDatas[OffsetIndex] : 1.0;
 	OffsetIndex += HasScalar;
-	const float3 VectorRight = HasRight ? float3(ContextDatas[OffsetIndex], ContextDatas[OffsetIndex + 1], ContextDatas[OffsetIndex + 2]) : float3(0, 0, 0);
+	const float3 VectorRight = HasRight ? float3(ContextDatas[OffsetIndex], ContextDatas[OffsetIndex + 1], ContextDatas[OffsetIndex + 2]) : UnitOperation ? float3(1,1,1) : float3(0, 0, 0);
 	OffsetIndex += HasRight * 3;
-	const float3 VectorLeft = HasLeft ? float3(ContextDatas[OffsetIndex], ContextDatas[OffsetIndex + 1], ContextDatas[OffsetIndex + 2]) : float3(0, 0, 0);
+	const float3 VectorLeft = HasLeft ? float3(ContextDatas[OffsetIndex], ContextDatas[OffsetIndex + 1], ContextDatas[OffsetIndex + 2]) : UnitOperation ? float3(1, 1, 1) : float3(0, 0, 0);
 
 	float3 VectorDatas = float3(0.0, 0.0, 0.0);
 	if (FieldOperation == MULTIPLY_OP)
@@ -964,7 +967,7 @@ void BuildPhysicsFieldClipmapCS(
 			
 			for (int TargetType = 0; TargetType < MAX_TARGETS_ARRAY; ++TargetType)
 			{
-				const int TargetIndex = PhysicsTargets[ TargetType];
+				const int TargetIndex = PhysicsTargets[TargetType];
 				
 				[branch]
 				if (TargetIndex != -1)

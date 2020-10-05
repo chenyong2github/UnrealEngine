@@ -610,7 +610,7 @@ void UNiagaraDataInterfacePhysicsField::SamplePhysicsIntegerField(FVectorVMConte
 		SampleResults.Init(0, Context.NumInstances);
 
 		TArray<int32> SampleMax;
-		SampleMax.Init(-INT32_MAX, Context.NumInstances);
+		SampleMax.Init(0, Context.NumInstances);
 
 		const EFieldPhysicsType PhysicsType = GetFieldTargetTypes(EFieldOutputType::Field_Output_Integer)[IntegerTarget];
 		EvaluateFieldNodes<int32, FIntegerFieldOperator>(InstData->FieldCommands, PhysicsType, FieldContext, SampleResults, SampleMax);
@@ -669,7 +669,7 @@ void UNiagaraDataInterfacePhysicsField::SamplePhysicsScalarField(FVectorVMContex
 		SampleResults.Init(0, Context.NumInstances);
 
 		TArray<float> SampleMax;
-		SampleMax.Init(-FLT_MAX, Context.NumInstances);
+		SampleMax.Init(0, Context.NumInstances);
 
 		const EFieldPhysicsType PhysicsType = GetFieldTargetTypes(EFieldOutputType::Field_Output_Scalar)[ScalarTarget];
 		EvaluateFieldNodes<float, FScalarFieldOperator>(InstData->FieldCommands, PhysicsType, FieldContext, SampleResults, SampleMax);
