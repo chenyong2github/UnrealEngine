@@ -44,7 +44,6 @@ FAutoConsoleVariableRef CVarChaosSolverParticlePoolNumFrameUntilShrink(TEXT("p.C
 
 // Iteration count cvars
 // These override the engine config if >= 0
-// Engine defaults
 int32 ChaosSolverIterations = -1;
 int32 ChaosSolverPushOutIterations = -1;
 int32 ChaosSolverCollisionIterations = -1;
@@ -53,6 +52,13 @@ FAutoConsoleVariableRef CVarChaosSolverIterations(TEXT("p.Chaos.Solver.Iteration
 FAutoConsoleVariableRef CVarChaosSolverCollisionIterations(TEXT("p.Chaos.Solver.Collision.Iterations"), ChaosSolverCollisionIterations, TEXT("Override number of collision iterations per solver iteration (-1 to use config)"));
 FAutoConsoleVariableRef CVarChaosSolverPushOutIterations(TEXT("p.Chaos.Solver.PushoutIterations"), ChaosSolverPushOutIterations, TEXT("Override number of solver pushout iterations (-1 to use config)"));
 FAutoConsoleVariableRef CVarChaosSolverCollisionPushOutIterations(TEXT("p.Chaos.Solver.Collision.PushOutIterations"), ChaosSolverCollisionPushOutIterations, TEXT("Override number of collision iterations per solver iteration (-1 to use config)"));
+
+// Collision detection cvars
+// These override the engine config if >= 0
+float ChaosSolverCullDistance = -1.0f;
+float ChaosSolverShapePadding = -1.0f;
+FAutoConsoleVariableRef CVarChaosSolverCullDistance(TEXT("p.Chaos.Solver.Collision.CullDistance"), ChaosSolverCullDistance, TEXT("Override cull distance (if >= 0)"));
+FAutoConsoleVariableRef CVarChaosSolverShapePadding(TEXT("p.Chaos.Solver.Collision.ShapePadding"), ChaosSolverShapePadding, TEXT("Override shape padding (if >= 0)"));
 
 int32 ChaosSolverCleanupCommandsOnDestruction = 1;
 FAutoConsoleVariableRef CVarChaosSolverCleanupCommandsOnDestruction(TEXT("p.Chaos.Solver.CleanupCommandsOnDestruction"), ChaosSolverCleanupCommandsOnDestruction, TEXT("Whether or not to run internal command queue cleanup on solver destruction (0 = no cleanup, >0 = cleanup all commands)"));
@@ -65,7 +71,6 @@ FAutoConsoleVariableRef CVarChaosSolverCollisionUseManifolds(TEXT("p.Chaos.Solve
 
 int32 ChaosVisualDebuggerEnable = 1;
 FAutoConsoleVariableRef CVarChaosVisualDebuggerEnable(TEXT("p.Chaos.VisualDebuggerEnable"), ChaosVisualDebuggerEnable, TEXT("Enable/Disable pushing/saving data to the visual debugger"));
-
 
 namespace Chaos
 {
@@ -677,21 +682,32 @@ namespace Chaos
 		MEvolution->GetCollisionDetector().GetNarrowPhase().GetContext().bDeferUpdate = (ChaosSolverCollisionDeferNarrowPhase != 0);
 		MEvolution->GetCollisionDetector().GetNarrowPhase().GetContext().bAllowManifolds = (ChaosSolverCollisionUseManifolds != 0);
 
-		if (ChaosSolverIterations >= 0)
+		// Apply CVAR overrides if set
 		{
-			SetIterations(ChaosSolverIterations);
-		}
-		if (ChaosSolverCollisionIterations >= 0)
-		{
-			SetCollisionPairIterations(ChaosSolverCollisionIterations);
-		}
-		if (ChaosSolverPushOutIterations >= 0)
-		{
-			SetPushOutIterations(ChaosSolverPushOutIterations);
-		}
-		if (ChaosSolverCollisionPushOutIterations >= 0)
-		{
-			SetCollisionPushOutPairIterations(ChaosSolverCollisionPushOutIterations);
+			if (ChaosSolverIterations >= 0)
+			{
+				SetIterations(ChaosSolverIterations);
+			}
+			if (ChaosSolverCollisionIterations >= 0)
+			{
+				SetCollisionPairIterations(ChaosSolverCollisionIterations);
+			}
+			if (ChaosSolverPushOutIterations >= 0)
+			{
+				SetPushOutIterations(ChaosSolverPushOutIterations);
+			}
+			if (ChaosSolverCollisionPushOutIterations >= 0)
+			{
+				SetCollisionPushOutPairIterations(ChaosSolverCollisionPushOutIterations);
+			}
+			if (ChaosSolverShapePadding >= 0.0f)
+			{
+				SetCollisionShapePadding(ChaosSolverShapePadding);
+			}
+			if (ChaosSolverCullDistance >= 0.0f)
+			{
+				SetCollisionCullDistance(ChaosSolverCullDistance);
+			}
 		}
 
 		UE_LOG(LogPBDRigidsSolver, Verbose, TEXT("PBDRigidsSolver::Tick(%3.5f)"), DeltaTime);
@@ -1216,6 +1232,8 @@ namespace Chaos
 		SetCollisionPairIterations(InConfig.CollisionPairIterations);
 		SetPushOutIterations(InConfig.PushOutIterations);
 		SetCollisionPushOutPairIterations(InConfig.CollisionPushOutPairIterations);
+		SetCollisionShapePadding(InConfig.CollisionShapePadding);
+		SetCollisionCullDistance(InConfig.CollisionCullDistance);
 		SetGenerateCollisionData(InConfig.bGenerateCollisionData);
 		SetGenerateBreakingData(InConfig.bGenerateBreakData);
 		SetGenerateTrailingData(InConfig.bGenerateTrailingData);

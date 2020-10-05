@@ -4,6 +4,14 @@
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
+float ChaosManifoldMatchPositionTolerance = 0.05f;		// % of object size position tolerance
+float ChaosManifoldMatchNormalTolerance = 0.02f;		// Dot product tolerance
+FAutoConsoleVariableRef CVarChaosManifoldMatchPositionTolerance(TEXT("p.Chaos.Collision.ManifoldMatchPositionTolerance"), ChaosManifoldMatchPositionTolerance, TEXT("A tolerance as a percent of object size used to determine if two contact points are the same"));
+FAutoConsoleVariableRef CVarChaosManifoldMatchNormalTolerance(TEXT("p.Chaos.Collision.ManifoldMatchNormalTolerance"), ChaosManifoldMatchNormalTolerance, TEXT("A tolerance on the normal dot product used to determine if two contact points are the same"));
+
+bool bChaosUseIncrementalManifold = false;
+FAutoConsoleVariableRef CVarChaisUseIncrementalManifold(TEXT("p.Chaos.Collision.UseIncrementalManifold"), bChaosUseIncrementalManifold, TEXT(""));
+
 namespace Chaos
 {
 	FString FCollisionConstraintBase::ToString() const
@@ -32,6 +40,118 @@ namespace Chaos
 
 		return false;
 	}
+
+	// Are the two manifold points the same point?
+	// Ideally a contact is considered the same as one from the previous iteration if
+	//		The contact is Vertex - Plane and there was a prior iteration collision on the same Vertex
+	//		The contact is Edge - Edge and a prior iteration collision contained both edges
+	//
+	// But we don’t have feature IDs. So in the meantime contact points will be considered the "same" if
+	//		Vertex - Plane - the local space contact position on either body is within some tolerance
+	//		Edge - Edge - ?? hard...
+	bool FRigidBodyPointContactConstraint::AreMatchingContactPoints(const FContactPoint& A, const FContactPoint& B) const
+	{
+		// @todo(chaos): cache tolerances?
+		const FReal Size0 = Particle[0]->Geometry()->BoundingBox().Extents().Max();
+		const FReal Size1 = Particle[1]->Geometry()->BoundingBox().Extents().Max();
+		const FReal DistanceTolerance = FMath::Min(Size0, Size1) * ChaosManifoldMatchPositionTolerance;
+		const FReal NormalTolerance = ChaosManifoldMatchNormalTolerance;
+
+		// If normal has changed a lot, it is a different contact
+		// (This was only here to detect bad normals - it is not right for edge-edge contact tracking, but we don't do a good job of that yet anyway!)
+		FReal NormalDot = FVec3::DotProduct(A.Normal, B.Normal);
+		if (NormalDot < 1.0f - NormalTolerance)
+		{
+			return false;
+		}
+
+		// If either point in local space is the same, it is the same contact
+		const float DistanceTolerance2 = DistanceTolerance * DistanceTolerance;
+		for (int32 BodyIndex = 0; BodyIndex < 2; ++BodyIndex)
+		{
+			FVec3 DR = A.LocalContactPoints[BodyIndex] - B.LocalContactPoints[BodyIndex];
+			FReal DRLen2 = DR.SizeSquared();
+			if (DRLen2 < DistanceTolerance2)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	int32 FRigidBodyPointContactConstraint::FindManifoldPoint(const FContactPoint& ContactPoint) const
+	{
+		const int32 NumManifoldPoints = ManifoldPoints.Num();
+		for (int32 ManifoldPointIndex = 0; ManifoldPointIndex < NumManifoldPoints; ++ManifoldPointIndex)
+		{
+			if (AreMatchingContactPoints(ContactPoint, ManifoldPoints[ManifoldPointIndex].ContactPoint))
+			{
+				return ManifoldPointIndex;
+			}
+		}
+		return INDEX_NONE;
+	}
+
+	void FRigidBodyPointContactConstraint::UpdateManifold(const FContactPoint& ContactPoint)
+	{
+		if (bChaosUseIncrementalManifold)
+		{
+			int32 ManifoldPointIndex = FindManifoldPoint(ContactPoint);
+			if (ManifoldPointIndex >= 0)
+			{
+				UpdateManifoldPoint(ManifoldPointIndex, ContactPoint);
+			}
+			else
+			{
+				ManifoldPointIndex = AddManifoldPoint(ContactPoint);
+			}
+			SetActiveManifoldPoint(ManifoldPointIndex);
+		}
+		else
+		{
+			SetActiveContactPoint(ContactPoint);
+		}
+	}
+
+	void FRigidBodyPointContactConstraint::ClearManifold()
+	{
+		ManifoldPoints.Reset();
+	}
+
+	int32 FRigidBodyPointContactConstraint::AddManifoldPoint(const FContactPoint& ContactPoint)
+	{
+		// @todo(chaos): remove the least useful manifold point when we hit some point limit...
+		return ManifoldPoints.Add(ContactPoint);
+	}
+
+	void FRigidBodyPointContactConstraint::UpdateManifoldPoint(int32 ManifoldPointIndex, const FContactPoint& ContactPoint)
+	{
+		ManifoldPoints[ManifoldPointIndex].ContactPoint = ContactPoint;
+	}
+
+	bool FRigidBodyPointContactConstraint::SetActiveManifoldPoint(int32 ManifoldPointIndex)
+	{
+		if (SetActiveContactPoint(ManifoldPoints[ManifoldPointIndex].ContactPoint))
+		{
+			return true;
+		}
+		return false;
+	}
+
+	bool FRigidBodyPointContactConstraint::SetActiveContactPoint(const FContactPoint& ContactPoint)
+	{
+		// @todo(chaos): once we settle on manifolds we should just store the index
+		if (ContactPoint.Phi < Manifold.Phi)
+		{
+			Manifold.Location = ContactPoint.Location;
+			Manifold.Normal = ContactPoint.Normal;
+			Manifold.Phi = ContactPoint.Phi;
+			return true;
+		}
+		return false;
+	}
+
 
 	void FRigidBodyMultiPointContactConstraint::InitManifoldTolerance(const FRigidTransform3& ParticleTransform0, const FRigidTransform3& ParticleTransform1, const FReal InPositionTolerance, const FReal InRotationTolerance)
 	{

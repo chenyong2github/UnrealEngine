@@ -187,7 +187,7 @@ namespace ImmediatePhysics_Chaos
 			: Particles()
 			, Joints()
 			, Collisions(Particles, CollidedParticles, ParticleMaterials, PerParticleMaterials, 0, 0, ChaosImmediate_Collision_CullDistance, ChaosImmediate_Collision_ShapePadding)
-			, BroadPhase(&ActivePotentiallyCollidingPairs, nullptr, nullptr, ChaosImmediate_Collision_CullDistance)
+			, BroadPhase(&ActivePotentiallyCollidingPairs, nullptr, nullptr, ChaosImmediate_Collision_CullDistance, ChaosImmediate_Collision_ShapePadding)
 			, NarrowPhase()
 			, CollisionDetector(BroadPhase, NarrowPhase, Collisions)
 			, JointsRule(0, Joints)

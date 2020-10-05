@@ -86,7 +86,8 @@ namespace Chaos
 		
 	}
 
-	
+	// Calculate the penetration depth of two geometries.
+	// OutClosestA and OutClosestB are the closest or deepest-penetrating points on the two geometries, both in the space of A.
 	// This function will be faster if bNegativePenetrationAllowed is false, so don't use the feature if not required
 	template <bool bNegativePenetrationAllowed = false, typename T, typename TGeometryA, typename TGeometryB>
 	bool GJKPenetration(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM, T& OutPenetration, TVec3<T>& OutClosestA, TVec3<T>& OutClosestB, TVec3<T>& OutNormal, const T InThicknessA = 0, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T InThicknessB = 0, int32* OutNumIterations = nullptr)
