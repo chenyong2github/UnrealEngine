@@ -17,8 +17,6 @@
 #include "UObject/ReflectedTypeAccessors.h"
 #include "UObject/Class.h"
 
-DEFINE_LOG_CATEGORY(LogSlateDebugger);
-
 #define LOCTEXT_NAMESPACE "ConsoleSlateDebugger"
 
 FConsoleSlateDebugger::FConsoleSlateDebugger()
