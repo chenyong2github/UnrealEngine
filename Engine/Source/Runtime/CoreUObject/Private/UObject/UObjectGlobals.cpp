@@ -1020,7 +1020,7 @@ public:
 			{
 				// get the calls debug callstack and 
 				FString DebugStackString;
-				for (const auto& DebugData : DebugDataStack)
+				for (const FName& DebugData : DebugDataStack)
 				{
 					DebugStackString += DebugData.ToString();
 					DebugStackString += TEXT("->");
@@ -2590,20 +2590,25 @@ FObjectInitializer::FObjectInitializer()
 	, ObjectArchetype(nullptr)
 	, bCopyTransientsFromClassDefaults(false)
 	, bShouldInitializePropsFromArchetype(false)
-	, bSubobjectClassInitializationAllowed(true)
 	, InstanceGraph(nullptr)
-	, LastConstructedObject(nullptr)
-#if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
-	, bIsDeferredInitializer(false)
-#endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 {
-	FUObjectThreadContext& ThreadContext = FUObjectThreadContext::Get();
-	// Mark we're in the constructor now.	
-	ThreadContext.IsInConstructor++;
-	LastConstructedObject = ThreadContext.ConstructedObject;
-	ThreadContext.ConstructedObject = Obj;
-	ThreadContext.PushInitializer(this);
+	Construct_Internal();
 }	
+
+FObjectInitializer::FObjectInitializer(UObject* InObj, const FStaticConstructObjectParameters& StaticConstructParams)
+	: Obj(InObj)
+	, ObjectArchetype(StaticConstructParams.Template)
+	, bCopyTransientsFromClassDefaults(StaticConstructParams.bCopyTransientsFromClassDefaults)
+	, bShouldInitializePropsFromArchetype(true)
+	, InstanceGraph(StaticConstructParams.InstanceGraph)
+{
+	if (StaticConstructParams.SubobjectOverrides)
+	{
+		SubobjectOverrides = *StaticConstructParams.SubobjectOverrides;
+	}
+
+	Construct_Internal();
+}
 
 FObjectInitializer::FObjectInitializer(UObject* InObj, UObject* InObjectArchetype, bool bInCopyTransientsFromClassDefaults, bool bInShouldInitializeProps, struct FObjectInstancingGraph* InInstanceGraph)
 	: Obj(InObj)
@@ -2611,12 +2616,12 @@ FObjectInitializer::FObjectInitializer(UObject* InObj, UObject* InObjectArchetyp
 	  // if the SubobjectRoot NULL, then we want to copy the transients from the template, otherwise we are doing a duplicate and we want to copy the transients from the class defaults
 	, bCopyTransientsFromClassDefaults(bInCopyTransientsFromClassDefaults)
 	, bShouldInitializePropsFromArchetype(bInShouldInitializeProps)
-	, bSubobjectClassInitializationAllowed(true)
 	, InstanceGraph(InInstanceGraph)
-	, LastConstructedObject(nullptr)
-#if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
-	, bIsDeferredInitializer(false)
-#endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
+{
+	Construct_Internal();
+}
+
+void FObjectInitializer::Construct_Internal()
 {
 	FUObjectThreadContext& ThreadContext = FUObjectThreadContext::Get();
 	// Mark we're in the constructor now.
@@ -2921,7 +2926,7 @@ void FObjectInitializer::InstanceSubobjects(UClass* Class, bool bNeedInstancing,
 		UseInstancingGraph->AddNewObject(Obj, ObjectArchetype);
 	}
 	// Add any default subobjects
-	for (auto& SubobjectInit : ComponentInits.SubobjectInits)
+	for (const FSubobjectsToInit::FSubobjectInit& SubobjectInit : ComponentInits.SubobjectInits)
 	{
 		UseInstancingGraph->AddNewObject(SubobjectInit.Subobject, SubobjectInit.Template);
 	}
@@ -2936,7 +2941,7 @@ void FObjectInitializer::InstanceSubobjects(UClass* Class, bool bNeedInstancing,
 		for (int32 Index = 0; Index < ComponentInits.SubobjectInits.Num(); Index++)
 		{
 			UObject* Subobject = ComponentInits.SubobjectInits[Index].Subobject;
-			UObject* Template = ComponentInits	.SubobjectInits[Index].Template;
+			UObject* Template = ComponentInits.SubobjectInits[Index].Template;
 
 #if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 			if ( !Subobject->HasAnyFlags(RF_NeedLoad) || bIsDeferredInitializer )
@@ -3060,51 +3065,161 @@ void FObjectInitializer::InitProperties(UObject* Obj, UClass* DefaultsClass, UOb
 	}
 }
 
-/**  Add an override, make sure it is legal **/
-void FObjectInitializer::FOverrides::Add(FName InComponentName, UClass* InComponentClass, FObjectInitializer const& ObjectInitializer)
+void FObjectInitializer::FOverrides::Add(FName InComponentName, UClass* InComponentClass, const TArrayView<const FName>* InFullComponentPath)
 {
+	auto GetSubobjectPath = [InComponentName, InFullComponentPath]()
+	{
+		if (InFullComponentPath)
+		{
+			FString SubobjectPath;
+			for (FName SubobjectName : *InFullComponentPath)
+			{
+				SubobjectPath += (SubobjectPath.IsEmpty() ? TEXT("") : TEXT("."));
+				SubobjectPath += SubobjectName.ToString();
+			}
+			return SubobjectPath;
+		}
+
+		return InComponentName.ToString();
+	};
+
 	const int32 Index = Find(InComponentName);
 	if (Index == INDEX_NONE)
 	{
-		Overrides.Emplace(FOverride(InComponentName, InComponentClass));
+		FOverride& Override = Overrides.Emplace_GetRef(FOverride(InComponentName));
+		Override.ComponentClass = InComponentClass;
+		Override.bDoNotCreate = (InComponentClass == nullptr);
 	}
-	else if (InComponentClass && Overrides[Index].ComponentClass)
+	else if (InComponentClass)
 	{
-		// if a base class is asking for an override, the existing override (which we are going to use) had better be derived
-		if (!IsLegalOverride(Overrides[Index].ComponentClass, InComponentClass))
+		if (Overrides[Index].ComponentClass)
 		{
-			UE_LOG(LogUObjectGlobals, Error, TEXT("%s is not a legal override for component %s because it does not derive from %s. Will use %s when constructing component."),
-				*Overrides[Index].ComponentClass->GetFullName(), *InComponentName.ToString(), *InComponentClass->GetFullName(), *InComponentClass->GetFullName());
+			// if a base class is asking for an override, the existing override (which we are going to use) had better be derived
+			if (!IsLegalOverride(Overrides[Index].ComponentClass, InComponentClass))
+			{
+				UE_LOG(LogUObjectGlobals, Error, TEXT("%s is not a legal override for component %s because it does not derive from %s. Will use %s when constructing component."),
+					*Overrides[Index].ComponentClass->GetFullName(), *GetSubobjectPath(), *InComponentClass->GetFullName(), *InComponentClass->GetFullName());
 
+				Overrides[Index].ComponentClass = InComponentClass;
+			}
+		}
+		else
+		{
+			// if the existing recorded component class is null then we could either have suboverrides in which case we still want to use the class,
+			// or it could be marked do not create, but since the base class may create it as non-optional we still want to record the class
 			Overrides[Index].ComponentClass = InComponentClass;
 		}
+	}
+	else
+	{
+		// Warn about existing overrides but the parent marking it DoNotCreate
+		// Note that even if we report an error, these overrides may still get used if the component is created as non-optional
+		if (Overrides[Index].ComponentClass)
+		{
+			UE_LOG(LogUObjectGlobals, Error, TEXT("%s is not a legal override for component %s because a parent class is marking it do not create."),
+				*Overrides[Index].ComponentClass->GetFullName(), *GetSubobjectPath());
+		}
+		if (Overrides[Index].SubOverrides)
+		{
+			UE_LOG(LogUObjectGlobals, Error, TEXT("Component %s has recorded nested subobject overrides, but won't be created because a parent class is marking it do not create."),
+				*GetSubobjectPath());
+		}
+
+		Overrides[Index].bDoNotCreate = true;
+	}
+}
+
+void FObjectInitializer::FOverrides::Add(FStringView InComponentPath, UClass* InComponentClass)
+{
+	TArray<FName> ComponentPath;
+
+	int32 PeriodIndex;
+	while (InComponentPath.FindChar(TEXT('.'), PeriodIndex))
+	{
+		ComponentPath.Add(FName(PeriodIndex, InComponentPath.GetData()));
+		InComponentPath.RemovePrefix(PeriodIndex+1);
+	}
+	ComponentPath.Add(FName(InComponentPath.Len(), InComponentPath.GetData()));
+
+	TArrayView<const FName> PathArrayView(ComponentPath);
+	Add(PathArrayView, InComponentClass, &PathArrayView);
+}
+
+void FObjectInitializer::FOverrides::Add(TArrayView<const FName> InComponentPath, UClass* InComponentClass, const TArrayView<const FName>* InFullComponentPath)
+{
+	if (InComponentPath.Num() > 1)
+	{
+		const FName ComponentName = InComponentPath[0];
+		int32 Index = Find(ComponentName);
+		if (Index == INDEX_NONE)
+		{
+			Index = Overrides.Emplace(FOverride(ComponentName));
+		}
+		if (!Overrides[Index].SubOverrides)
+		{
+			Overrides[Index].SubOverrides = MakeUnique<FOverrides>();
+		}
+
+		Overrides[Index].SubOverrides->Add(InComponentPath.Slice(1, InComponentPath.Num()-1), InComponentClass, (InFullComponentPath ? InFullComponentPath : &InComponentPath));
+	}
+	else
+	{
+		Add(InComponentPath[0], InComponentClass, (InFullComponentPath ? InFullComponentPath : &InComponentPath));
 	}
 }
 
 /**  Retrieve an override, or TClassToConstructByDefault::StaticClass or nullptr if this was removed by a derived class **/
-UClass* FObjectInitializer::FOverrides::Get(FName InComponentName, UClass* ReturnType, UClass* ClassToConstructByDefault, FObjectInitializer const& ObjectInitializer) const
+FObjectInitializer::FOverrides::FOverrideDetails FObjectInitializer::FOverrides::Get(FName InComponentName, UClass* ReturnType, UClass* ClassToConstructByDefault, bool bOptional) const
 {
+	FOverrideDetails Result;
+
 	const int32 Index = Find(InComponentName);
-	UClass* BaseComponentClass = ClassToConstructByDefault;
 	if (Index == INDEX_NONE)
 	{
-		return BaseComponentClass; // no override so just do what the base class wanted
+		Result.Class = ClassToConstructByDefault; // no override so just do what the base class wanted
+		Result.SubOverrides = nullptr;
+	}
+	else if (Overrides[Index].bDoNotCreate && bOptional)
+	{
+		Result.Class = nullptr;   // the override is of nullptr, which means "don't create this component"
+		Result.SubOverrides = nullptr; // and if we're not creating this component also don't need sub-overrides
 	}
 	else if (Overrides[Index].ComponentClass)
 	{
 		if (IsLegalOverride(Overrides[Index].ComponentClass, ReturnType)) // if THE base class is asking for a T, the existing override (which we are going to use) had better be derived
 		{
-			return Overrides[Index].ComponentClass; // the override is of an acceptable class, so use it
+			Result.Class = Overrides[Index].ComponentClass; // the override is of an acceptable class, so use it
+
+			if (Overrides[Index].bDoNotCreate)
+			{
+				UE_LOG(LogUObjectGlobals, Error, TEXT("Ignored DoNotCreateDefaultSubobject for %s as it's marked as required. Creating %s."), *InComponentName.ToString(), *Result.Class->GetName());
+			}
 		}
 		else
 		{
+			if (Overrides[Index].bDoNotCreate)
+			{
+				UE_LOG(LogUObjectGlobals, Error, TEXT("Ignored DoNotCreateDefaultSubobject for %s as it's marked as required. Creating %s."), *InComponentName.ToString(), *ClassToConstructByDefault->GetName());
+			}
 			UE_LOG(LogUObjectGlobals, Error, TEXT("%s is not a legal override for component %s because it does not derive from %s. Using %s to construct component."),
 				*Overrides[Index].ComponentClass->GetFullName(), *InComponentName.ToString(), *ReturnType->GetFullName(), *ClassToConstructByDefault->GetFullName());
 
-			return ClassToConstructByDefault;
+			Result.Class = ClassToConstructByDefault;
 		}
+		Result.SubOverrides = Overrides[Index].SubOverrides.Get();
 	}
-	return nullptr;  // the override is of nullptr, which means "don't create this component"
+	else
+	{
+		if (Overrides[Index].bDoNotCreate)
+		{
+			UE_LOG(LogUObjectGlobals, Error, TEXT("Ignored DoNotCreateDefaultSubobject for %s as it's marked as required. Creating %s."), *InComponentName.ToString(), *ClassToConstructByDefault->GetName());
+		}
+
+		Result.Class = ClassToConstructByDefault; // Only sub-overrides were overriden, so use the base class' desire
+		Result.SubOverrides = Overrides[Index].SubOverrides.Get();
+	}
+
+	return Result;  
 }
 bool FObjectInitializer::FOverrides::IsLegalOverride(const UClass* DerivedComponentClass, const UClass* BaseComponentClass)
 {
@@ -3119,6 +3234,29 @@ void FObjectInitializer::AssertIfSubobjectSetupIsNotAllowed(const FName Subobjec
 {
 	UE_CLOG(!bSubobjectClassInitializationAllowed, LogUObjectGlobals, Fatal,
 		TEXT("%s.%s: Subobject class setup is only allowed in base class constructor call (in the initialization list)"), Obj ? *Obj->GetFullName() : TEXT("NULL"), *SubobjectName.GetPlainNameString());
+}
+
+void FObjectInitializer::AssertIfSubobjectSetupIsNotAllowed(const FStringView SubobjectName) const
+{
+	UE_CLOG(!bSubobjectClassInitializationAllowed, LogUObjectGlobals, Fatal,
+		TEXT("%s.%.*s: Subobject class setup is only allowed in base class constructor call (in the initialization list)"), Obj ? *Obj->GetFullName() : TEXT("NULL"), SubobjectName.Len(), SubobjectName.GetData());
+}
+
+void FObjectInitializer::AssertIfSubobjectSetupIsNotAllowed(TArrayView<const FName> SubobjectNames) const
+{
+	auto MakeSubobjectPath = [&SubobjectNames]()
+	{
+		FString SubobjectPath;
+		for (FName SubobjectName : SubobjectNames)
+		{
+			SubobjectPath += (SubobjectPath.IsEmpty() ? TEXT("") : TEXT("."));
+			SubobjectPath += SubobjectName.ToString();
+		}
+		return SubobjectPath;
+	};
+
+	UE_CLOG(!bSubobjectClassInitializationAllowed, LogUObjectGlobals, Fatal,
+		TEXT("%s.%s: Subobject class setup is only allowed in base class constructor call (in the initialization list)"), Obj ? *Obj->GetFullName() : TEXT("NULL"), *MakeSubobjectPath());
 }
 
 #if DO_CHECK
@@ -3192,7 +3330,7 @@ UObject* StaticConstructObject_Internal(const FStaticConstructObjectParameters& 
 	if (!bRecycledSubobject)
 	{		
 		STAT(FScopeCycleCounterUObject ConstructorScope(InClass, GET_STATID(STAT_ConstructObject)));
-		(*InClass->ClassConstructor)( FObjectInitializer(Result, InTemplate, Params.bCopyTransientsFromClassDefaults, true, Params.InstanceGraph) );
+		(*InClass->ClassConstructor)(FObjectInitializer(Result, Params));
 	}
 	
 	if( GIsEditor && GUndo && (InFlags & RF_Transactional) && !(InFlags & RF_NeedLoad) && !InClass->IsChildOf(UField::StaticClass()) )
@@ -3745,19 +3883,15 @@ UScriptStruct* GetFallbackStruct()
 
 UObject* FObjectInitializer::CreateDefaultSubobject(UObject* Outer, FName SubobjectFName, UClass* ReturnType, UClass* ClassToCreateByDefault, bool bIsRequired, bool bIsTransient) const
 {
-	UE_CLOG(!FUObjectThreadContext::Get().IsInConstructor, LogClass, Fatal, TEXT("Subobjects cannot be created outside of UObject constructors. UObject constructing subobjects cannot be created using new or placement new operator."));
+	UE_CLOG(!FUObjectThreadContext::Get().IsInConstructor, LogUObjectGlobals, Fatal, TEXT("Subobjects cannot be created outside of UObject constructors. UObject constructing subobjects cannot be created using new or placement new operator."));
 	if (SubobjectFName == NAME_None)
 	{
-		UE_LOG(LogClass, Fatal, TEXT("Illegal default subobject name: %s"), *SubobjectFName.ToString());
+		UE_LOG(LogUObjectGlobals, Fatal, TEXT("Illegal default subobject name: %s"), *SubobjectFName.ToString());
 	}
 
-	UObject* Result = NULL;
-	UClass* OverrideClass = ComponentOverrides.Get(SubobjectFName, ReturnType, ClassToCreateByDefault, *this);
-	if (!OverrideClass && bIsRequired)
-	{
-		OverrideClass = ClassToCreateByDefault;
-		UE_LOG(LogClass, Warning, TEXT("Ignored DoNotCreateDefaultSubobject for %s as it's marked as required. Creating %s."), *SubobjectFName.ToString(), *OverrideClass->GetName());
-	}
+	UObject* Result = nullptr;
+	FOverrides::FOverrideDetails ComponentOverride = SubobjectOverrides.Get(SubobjectFName, ReturnType, ClassToCreateByDefault, !bIsRequired);
+	UClass* OverrideClass = ComponentOverride.Class;
 	if (OverrideClass)
 	{
 		check(OverrideClass->IsChildOf(ReturnType));
@@ -3767,7 +3901,7 @@ UObject* FObjectInitializer::CreateDefaultSubobject(UObject* Outer, FName Subobj
 			// Attempts to create an abstract class will return null. If it is not optional or the owning class is not also abstract report a warning.
 			if (!bIsRequired && !Outer->GetClass()->HasAnyClassFlags(CLASS_Abstract))
 			{
-				UE_LOG(LogClass, Warning, TEXT("Required default subobject %s not created as requested class %s is abstract. Returning null."), *SubobjectFName.ToString(), *OverrideClass->GetName());
+				UE_LOG(LogUObjectGlobals, Warning, TEXT("Required default subobject %s not created as requested class %s is abstract. Returning null."), *SubobjectFName.ToString(), *OverrideClass->GetName());
 			}
 		}
 		else
@@ -3788,7 +3922,7 @@ UObject* FObjectInitializer::CreateDefaultSubobject(UObject* Outer, FName Subobj
 			// We only need to check the name as ConstructObject would fail anyway if an object of the same name but different class already existed.
 			if (ConstructedSubobjects.Find(SubobjectFName) != INDEX_NONE)
 			{
-				UE_LOG(LogClass, Fatal, TEXT("Default subobject %s %s already exists for %s."), *OverrideClass->GetName(), *SubobjectFName.ToString(), *Outer->GetFullName());
+				UE_LOG(LogUObjectGlobals, Fatal, TEXT("Default subobject %s %s already exists for %s."), *OverrideClass->GetName(), *SubobjectFName.ToString(), *Outer->GetFullName());
 			}
 			else
 			{
@@ -3799,6 +3933,7 @@ UObject* FObjectInitializer::CreateDefaultSubobject(UObject* Outer, FName Subobj
 			Params.Outer = Outer;
 			Params.Name = SubobjectFName;
 			Params.SetFlags = SubobjectFlags;
+			Params.SubobjectOverrides = ComponentOverride.SubOverrides;
 
 			Result = StaticConstructObject_Internal(Params);
 			if (!bIsTransient && (bOwnerArchetypeIsNotNative || bOwnerTemplateIsNotCDO))

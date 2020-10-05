@@ -13,6 +13,7 @@
 #include "UObject/LinkerInstancingContext.h"
 #include "Misc/OutputDeviceRedirector.h"
 #include "Containers/ArrayView.h"
+#include "Containers/StringView.h"
 #include "Templates/Function.h"
 #include "Templates/IsArrayOrRefOfType.h"
 #include "Serialization/ArchiveUObject.h"
@@ -724,6 +725,14 @@ public:
 	 */
 	FObjectInitializer(UObject* InObj, UObject* InObjectArchetype, bool bInCopyTransientsFromClassDefaults, bool bInShouldInitializeProps, struct FObjectInstancingGraph* InInstanceGraph = nullptr);
 
+	/** Special constructor for static construct object internal that passes along the params block directly */
+	FObjectInitializer(UObject* InObj, const FStaticConstructObjectParameters& StaticConstructParams);
+
+private:
+	/** Helper for the common behaviors in the constructors */
+	void Construct_Internal();
+
+public:
 	~FObjectInitializer();
 
 	/** 
@@ -830,10 +839,10 @@ public:
 	 * @param	SubobjectName	name of the new component or subobject
 	 * @param	Class			The class to use for the specified subobject or component.
 	 */
-	FObjectInitializer const& SetDefaultSubobjectClass(FName SubobjectName, UClass* Class) const
+	const FObjectInitializer& SetDefaultSubobjectClass(FName SubobjectName, UClass* Class) const
 	{
 		AssertIfSubobjectSetupIsNotAllowed(SubobjectName);
-		ComponentOverrides.Add(SubobjectName, Class, *this);
+		SubobjectOverrides.Add(SubobjectName, Class);
 		return *this;
 	}
 
@@ -842,7 +851,7 @@ public:
 	 * @param	SubobjectName	name of the new component or subobject
 	 */
 	template<class T>
-	FObjectInitializer const& SetDefaultSubobjectClass(FName SubobjectName) const
+	const FObjectInitializer& SetDefaultSubobjectClass(FName SubobjectName) const
 	{
 		return SetDefaultSubobjectClass(SubobjectName, T::StaticClass());
 	}
@@ -851,10 +860,76 @@ public:
 	 * Indicates that a base class should not create a component
 	 * @param	SubobjectName	name of the new component or subobject to not create
 	 */
-	FObjectInitializer const& DoNotCreateDefaultSubobject(FName SubobjectName) const
+	const FObjectInitializer& DoNotCreateDefaultSubobject(FName SubobjectName) const
 	{
 		AssertIfSubobjectSetupIsNotAllowed(SubobjectName);
-		ComponentOverrides.Add(SubobjectName, nullptr, *this);
+		SubobjectOverrides.Add(SubobjectName, nullptr);
+		return *this;
+	}
+
+	/**
+	 * Sets the class to use for a subobject defined in a nested subobject, the class must be a subclass of the class used when calling CreateDefaultSubobject.
+	 * @param	SubobjectName	path to the new component or subobject
+	 * @param	Class			The class to use for the specified subobject or component.
+	 */
+	const FObjectInitializer& SetNestedDefaultSubobjectClass(FStringView SubobjectName, UClass* Class) const
+	{
+		AssertIfSubobjectSetupIsNotAllowed(SubobjectName);
+		SubobjectOverrides.Add(SubobjectName, Class);
+		return *this;
+	}
+
+	/**
+	 * Sets the class to use for a subobject defined in a nested subobject, the class must be a subclass of the class used when calling CreateDefaultSubobject.
+	 * @param	SubobjectName	path to the new component or subobject
+	 * @param	Class			The class to use for the specified subobject or component.
+	 */
+	const FObjectInitializer& SetNestedDefaultSubobjectClass(TArrayView<const FName> SubobjectNames, UClass* Class) const
+	{
+		AssertIfSubobjectSetupIsNotAllowed(SubobjectNames);
+		SubobjectOverrides.Add(SubobjectNames, Class);
+		return *this;
+	}
+
+	/**
+	 * Sets the class to use for a subobject defined in a nested subobject, the class must be a subclass of the class used when calling CreateDefaultSubobject.
+	 * @param	SubobjectName	path to the new component or subobject
+	 */
+	template<class T>
+	const FObjectInitializer& SetNestedDefaultSubobjectClass(FStringView SubobjectName) const
+	{
+		return SetNestedDefaultSubobjectClass(SubobjectName, T::StaticClass());
+	}
+
+	/**
+	 * Sets the class to use for a subobject defined in a nested subobject, the class must be a subclass of the class used when calling CreateDefaultSubobject.
+	 * @param	SubobjectName	path to the new component or subobject
+	 */
+	template<class T>
+	const FObjectInitializer& SetNestedDefaultSubobjectClass(TArrayView<const FName> SubobjectNames) const
+	{
+		return SetNestedDefaultSubobjectClass(SubobjectNames, T::StaticClass());
+	}
+
+	/**
+	 * Indicates that a subobject should not create a component if created using CreateOptionalDefaultSubobject
+	 * @param	SubobjectName	name of the new component or subobject to not create
+	 */
+	const FObjectInitializer& DoNotCreateNestedDefaultSubobject(FStringView SubobjectName) const
+	{
+		AssertIfSubobjectSetupIsNotAllowed(SubobjectName);
+		SubobjectOverrides.Add(SubobjectName, nullptr);
+		return *this;
+	}
+
+	/**
+	 * Indicates that a subobject should not create a component if created using CreateOptionalDefaultSubobject
+	 * @param	SubobjectName	name of the new component or subobject to not create
+	 */
+	const FObjectInitializer& DoNotCreateNestedDefaultSubobject(TArrayView<const FName> SubobjectNames) const
+	{
+		AssertIfSubobjectSetupIsNotAllowed(SubobjectNames);
+		SubobjectOverrides.Add(SubobjectNames, nullptr);
 		return *this;
 	}
 
@@ -927,10 +1002,22 @@ private:
 	struct FOverrides
 	{
 		/**  Add an override, make sure it is legal **/
-		void Add(FName InComponentName, UClass* InComponentClass, FObjectInitializer const& ObjectInitializer);
+		void Add(FName InComponentName, UClass* InComponentClass, const TArrayView<const FName>* FullPath = nullptr);
+
+		/**  Add a potentially nested override, make sure it is legal **/
+		void Add(FStringView InComponentPath, UClass* InComponentClass);
+
+		/**  Add a potentially nested override, make sure it is legal **/
+		void Add(TArrayView<const FName> InComponentPath, UClass* InComponentClass, const TArrayView<const FName>* FullPath = nullptr);
+
+		struct FOverrideDetails
+		{
+			UClass* Class = nullptr;
+			FOverrides* SubOverrides = nullptr;
+		};
 
 		/**  Retrieve an override, or TClassToConstructByDefault::StaticClass or nullptr if this was removed by a derived class **/
-		UClass* Get(FName InComponentName, UClass* ReturnType, UClass* ClassToConstructByDefault, FObjectInitializer const& ObjectInitializer) const;
+		FOverrideDetails Get(FName InComponentName, UClass* ReturnType, UClass* ClassToConstructByDefault, bool bOptional) const;
 
 	private:
 		static bool IsLegalOverride(const UClass* DerivedComponentClass, const UClass* BaseComponentClass);
@@ -950,13 +1037,31 @@ private:
 		/**  Element of the override array **/
 		struct FOverride
 		{
-			FName	ComponentName;
-			UClass* ComponentClass;
-			FOverride(FName InComponentName, UClass *InComponentClass)
+			FName ComponentName;
+			UClass* ComponentClass = nullptr;
+			TUniquePtr<FOverrides> SubOverrides;
+			bool bDoNotCreate = false;
+			FOverride(FName InComponentName)
 				: ComponentName(InComponentName)
-				, ComponentClass(InComponentClass)
 			{
 			}
+
+			FOverride& operator=(const FOverride& Other)
+			{
+				ComponentName = Other.ComponentName;
+				ComponentClass = Other.ComponentClass;
+				SubOverrides = (Other.SubOverrides ? MakeUnique<FOverrides>(*Other.SubOverrides) : nullptr);
+				bDoNotCreate = Other.bDoNotCreate;
+				return *this;
+			}
+
+			FOverride(const FOverride& Other)
+			{
+				*this = Other;
+			}
+
+			FOverride(FOverride&&) = default;
+			FOverride& operator=(FOverride&&) = default;
 		};
 		/**  The override array **/
 		TArray<FOverride, TInlineAllocator<8> > Overrides;
@@ -991,6 +1096,12 @@ private:
 	/** Asserts if SetDefaultSubobjectClass or DoNotCreateOptionalDefaultSuobject are called inside of the constructor body */
 	void AssertIfSubobjectSetupIsNotAllowed(const FName SubobjectName) const;
 
+	/** Asserts if SetDefaultSubobjectClass or DoNotCreateOptionalDefaultSuobject are called inside of the constructor body */
+	void AssertIfSubobjectSetupIsNotAllowed(FStringView SubobjectName) const;
+
+	/** Asserts if SetDefaultSubobjectClass or DoNotCreateOptionalDefaultSuobject are called inside of the constructor body */
+	void AssertIfSubobjectSetupIsNotAllowed(TArrayView<const FName> SubobjectNames) const;
+
 	/**  object to initialize, from static allocate object, after construction **/
 	UObject* Obj;
 	/**  object to copy properties from **/
@@ -1000,11 +1111,15 @@ private:
 	/**  If true, initialize the properties **/
 	bool bShouldInitializePropsFromArchetype;
 	/**  Only true until ObjectInitializer has not reached the base UObject class */
-	bool bSubobjectClassInitializationAllowed;
+	bool bSubobjectClassInitializationAllowed = true;
+#if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
+	/**  */
+	bool bIsDeferredInitializer = false;
+#endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 	/**  Instance graph **/
 	struct FObjectInstancingGraph* InstanceGraph;
 	/**  List of component classes to override from derived classes **/
-	mutable FOverrides ComponentOverrides;
+	mutable FOverrides SubobjectOverrides;
 	/**  List of component classes to initialize after the C++ constructors **/
 	mutable FSubobjectsToInit ComponentInits;
 #if !UE_BUILD_SHIPPING
@@ -1012,12 +1127,9 @@ private:
 	mutable TArray<FName, TInlineAllocator<8>> ConstructedSubobjects;
 #endif
 	/**  Previously constructed object in the callstack */
-	UObject* LastConstructedObject;
+	UObject* LastConstructedObject = nullptr;
 
-#if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
-	/**  */
-	bool bIsDeferredInitializer : 1;
-#endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
+	friend struct FStaticConstructObjectParameters;
 };
 
 /**
@@ -1059,7 +1171,14 @@ struct FStaticConstructObjectParameters
 	/** Assign an external Package to the created object if non-null */
 	UPackage* ExternalPackage = nullptr;
 
+private:
+	FObjectInitializer::FOverrides* SubobjectOverrides = nullptr;
+
+public:
+
 	COREUOBJECT_API FStaticConstructObjectParameters(const UClass* InClass);
+
+	friend FObjectInitializer;
 };
 
 /**
