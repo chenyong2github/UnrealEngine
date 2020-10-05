@@ -2299,7 +2299,7 @@ float3 CalculateAnisotropyTangent(FMaterialPixelParameters Parameters, FPixelMat
 #if CLEAR_COAT_BOTTOM_NORMAL && (NUM_MATERIAL_OUTPUTS_CLEARCOATBOTTOMNORMAL > 0)
 	Normal =  ClearCoatBottomNormal0(Parameters);
 	#if MATERIAL_TANGENTSPACENORMAL
-		Normal = TransformTangentVectorToWorld(Parameters.TangentToWorld, Normal));
+		Normal = TransformTangentVectorToWorld(Parameters.TangentToWorld, Normal);
 	#endif
 #endif
 
