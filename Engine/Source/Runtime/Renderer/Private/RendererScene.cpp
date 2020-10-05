@@ -21,7 +21,6 @@
 #include "SceneTypes.h"
 #include "SceneInterface.h"
 #include "Components/PrimitiveComponent.h"
-#include "PhysicsField/PhysicsFieldComponent.h"
 #include "MaterialShared.h"
 #include "SceneManagement.h"
 #include "PrecomputedLightVolume.h"
@@ -1879,37 +1878,6 @@ void FScene::AddOrRemoveDecal_RenderThread(FDeferredDecalProxy* Proxy, bool bAdd
 				break;
 			}
 		}
-	}
-}
-
-void FScene::SetPhysicsField(FPhysicsFieldSceneProxy* PhysicsFieldSceneProxy)
-{
-	check(PhysicsFieldSceneProxy);
-	FScene* Scene = this;
-
-	ENQUEUE_RENDER_COMMAND(FSetPhysicsFieldCommand)(
-		[Scene, PhysicsFieldSceneProxy](FRHICommandListImmediate& RHICmdList)
-		{
-			Scene->PhysicsField = PhysicsFieldSceneProxy;
-		});
-}
-
-void FScene::ResetPhysicsField()
-{
-	FScene* Scene = this;
-
-	ENQUEUE_RENDER_COMMAND(FResetPhysicsFieldCommand)(
-		[Scene](FRHICommandListImmediate& RHICmdList)
-		{
-			Scene->PhysicsField = nullptr;
-		});
-}
-
-void FScene::UpdatePhysicsField(FRHICommandListImmediate& RHICmdList, FViewInfo& View)
-{
-	if (PhysicsField)
-	{
-		PhysicsField->FieldResource->FieldInfos.ViewOrigin = View.ViewMatrices.GetViewOrigin();
 	}
 }
 
@@ -4385,10 +4353,6 @@ public:
 	virtual void RemoveSkyAtmosphere(FSkyAtmosphereSceneProxy* SkyAtmosphereSceneProxy) override {}
 	virtual FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() override { return NULL; }
 	virtual const FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() const override { return NULL; }
-
-	virtual void SetPhysicsField(FPhysicsFieldSceneProxy* PhysicsFieldSceneProxy) override {}
-	virtual void ResetPhysicsField() override {}
-	virtual void UpdatePhysicsField(FRHICommandListImmediate& RHICmdList, FViewInfo& View) override {}
 
 	virtual void AddVolumetricCloud(FVolumetricCloudSceneProxy* VolumetricCloudSceneProxy) override {}
 	virtual void RemoveVolumetricCloud(FVolumetricCloudSceneProxy* VolumetricCloudSceneProxy) override {}

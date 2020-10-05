@@ -759,15 +759,6 @@ enum ETranslucencyVolumeCascade
 	VIEW_UNIFORM_BUFFER_MEMBER(FVector4, HairRenderInfo) \
 	VIEW_UNIFORM_BUFFER_MEMBER(uint32, EnableSkyLight) \
 	VIEW_UNIFORM_BUFFER_MEMBER(uint32, HairRenderInfoBits) \
-	VIEW_UNIFORM_BUFFER_MEMBER(FVector, PhysicsFieldClipmapCenter) \
-	VIEW_UNIFORM_BUFFER_MEMBER(float, PhysicsFieldClipmapDistance) \
-	VIEW_UNIFORM_BUFFER_MEMBER(int, PhysicsFieldClipmapResolution) \
-	VIEW_UNIFORM_BUFFER_MEMBER(int, PhysicsFieldClipmapExponent) \
-	VIEW_UNIFORM_BUFFER_MEMBER(int, PhysicsFieldClipmapCount) \
-	VIEW_UNIFORM_BUFFER_MEMBER(int, PhysicsFieldTargetCount) \
-	VIEW_UNIFORM_BUFFER_MEMBER_ARRAY(int, PhysicsFieldVectorTargets, [16]) \
-	VIEW_UNIFORM_BUFFER_MEMBER_ARRAY(int, PhysicsFieldScalarTargets, [16]) \
-	VIEW_UNIFORM_BUFFER_MEMBER_ARRAY(int, PhysicsFieldIntegerTargets, [16]) \
 
 #define VIEW_UNIFORM_BUFFER_MEMBER(type, identifier) \
 	SHADER_PARAMETER(type, identifier)
@@ -853,8 +844,6 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FViewUniformShaderParamete
 
 	SHADER_PARAMETER_UAV(RWBuffer<uint>, VTFeedbackBuffer)
 	SHADER_PARAMETER_UAV(RWTexture2D<uint>, QuadOverdraw)
-
-	SHADER_PARAMETER_TEXTURE(Texture3D<float>, PhysicsFieldClipmapTexture)
 
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 

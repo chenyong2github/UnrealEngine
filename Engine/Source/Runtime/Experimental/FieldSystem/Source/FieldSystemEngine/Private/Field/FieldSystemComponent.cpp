@@ -7,7 +7,6 @@
 #include "Field/FieldSystemCoreAlgo.h"
 #include "Field/FieldSystemSceneProxy.h"
 #include "Field/FieldSystemNodes.h"
-#include "PhysicsField/PhysicsFieldComponent.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/CoreMiscDefines.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
@@ -19,7 +18,6 @@ DEFINE_LOG_CATEGORY_STATIC(FSC_Log, NoLogging, All);
 UFieldSystemComponent::UFieldSystemComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, FieldSystem(nullptr)
-	, IsGlobalField(false)
 	, ChaosModule(nullptr)
 	, bHasPhysicsState(false)
 {
@@ -93,6 +91,7 @@ void UFieldSystemComponent::OnDestroyPhysicsState()
 
 	ChaosModule = nullptr;
 
+
 	bHasPhysicsState = false;
 }
 
@@ -144,14 +143,6 @@ void UFieldSystemComponent::DispatchCommand(const FFieldSystemCommand& InCommand
 						}
 					});
 				});
-			}
-		}
-		if (IsGlobalField)
-		{
-			UWorld* World = GetWorld();
-			if (World && World->PhysicsField)
-			{
-				World->PhysicsField->BufferCommand(InCommand);
 			}
 		}
 	}
