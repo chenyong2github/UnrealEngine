@@ -19,7 +19,7 @@
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define NANITE_DERIVEDDATA_VER TEXT("BEF7ACD2-BFF8-4B83-8A38-7B370FC1C7F6")
+#define NANITE_DERIVEDDATA_VER TEXT("F9D57879-6720-47A9-8983-B5B8C415CB58")
 
 #define USE_IMPLICIT_TANGENT_SPACE		1	// must match define in ExportGBuffer.usf
 #define CONSTRAINED_CLUSTER_CACHE_SIZE	32
@@ -3885,61 +3885,45 @@ static uint32 BuildCoarseRepresentation(
 		CoarseRepresentation.MaterialIndexes,
 		CoarseMaterialTris,
 		CoarseMaterialRanges);
+	check(CoarseMaterialRanges.Num() <= OldSections.Num());
 
 	// Rebuild section data.
 	Sections.Reset(CoarseMaterialRanges.Num());
-	for (const FMaterialRange& Range : CoarseMaterialRanges)
+	for (const FStaticMeshSection& OldSection : OldSections)
 	{
-		FStaticMeshSection Section;
+		// Add new sections based on the computed material ranges
+		// Enforce the same material order as OldSections
+		const FMaterialRange* FoundRange = CoarseMaterialRanges.FindByPredicate([&OldSection](const FMaterialRange& Range) { return Range.MaterialIndex == OldSection.MaterialIndex; });
 
-		// The index of the material with which to render this section.
-		Section.MaterialIndex = Range.MaterialIndex;
-
-		// Range of vertices and indices used when rendering this section.
-		Section.FirstIndex = Range.RangeStart * 3;
-		Section.NumTriangles = Range.RangeLength;
-		Section.MinVertexIndex = TNumericLimits<uint32>::Max();
-		Section.MaxVertexIndex = TNumericLimits<uint32>::Min();
-
-		for (uint32 TriangleIndex = 0; TriangleIndex < (Range.RangeStart + Range.RangeLength); ++TriangleIndex)
+		// Sections can actually be removed from the coarse mesh if their source data doesn't contain enough triangles
+		if(FoundRange)
 		{
-			const FMaterialTriangle& Triangle = CoarseMaterialTris[TriangleIndex];
+			// Copy properties from original mesh sections.
+			FStaticMeshSection Section(OldSection);
 
-			// Update min vertex index
-			Section.MinVertexIndex = FMath::Min(Section.MinVertexIndex, Triangle.Index0);
-			Section.MinVertexIndex = FMath::Min(Section.MinVertexIndex, Triangle.Index1);
-			Section.MinVertexIndex = FMath::Min(Section.MinVertexIndex, Triangle.Index2);
+			// Range of vertices and indices used when rendering this section.
+			Section.FirstIndex = FoundRange->RangeStart * 3;
+			Section.NumTriangles = FoundRange->RangeLength;
+			Section.MinVertexIndex = TNumericLimits<uint32>::Max();
+			Section.MaxVertexIndex = TNumericLimits<uint32>::Min();
 
-			// Update max vertex index
-			Section.MaxVertexIndex = FMath::Max(Section.MaxVertexIndex, Triangle.Index0);
-			Section.MaxVertexIndex = FMath::Max(Section.MaxVertexIndex, Triangle.Index1);
-			Section.MaxVertexIndex = FMath::Max(Section.MaxVertexIndex, Triangle.Index2);
-		}
-
-		// Copy properties from original mesh sections.
-		int32 OldSectionIndex = INDEX_NONE;
-		for (int32 SectionIndex = 0; SectionIndex < OldSections.Num(); ++SectionIndex)
-		{
-			const FStaticMeshSection& OldSection = OldSections[SectionIndex];
-			if (OldSection.MaterialIndex == Section.MaterialIndex)
+			for (uint32 TriangleIndex = 0; TriangleIndex < (FoundRange->RangeStart + FoundRange->RangeLength); ++TriangleIndex)
 			{
-				Section.bCastShadow = OldSection.bCastShadow;
-				Section.bEnableCollision = OldSection.bEnableCollision;
-			#if WITH_EDITORONLY_DATA
-				for (int32 TexCoord = 0; TexCoord < MAX_STATIC_TEXCOORDS; ++TexCoord)
-				{
-					Section.UVDensities[TexCoord] = OldSection.UVDensities[TexCoord];
-					Section.Weights[TexCoord] = OldSection.Weights[TexCoord];
-				}
-			#endif
-				OldSectionIndex = SectionIndex;
-				break;
-			}
-		}
+				const FMaterialTriangle& Triangle = CoarseMaterialTris[TriangleIndex];
 
-		// Make sure we found a matching original mesh section
-		check(OldSectionIndex != INDEX_NONE);
-		Sections.Add(Section);
+				// Update min vertex index
+				Section.MinVertexIndex = FMath::Min(Section.MinVertexIndex, Triangle.Index0);
+				Section.MinVertexIndex = FMath::Min(Section.MinVertexIndex, Triangle.Index1);
+				Section.MinVertexIndex = FMath::Min(Section.MinVertexIndex, Triangle.Index2);
+
+				// Update max vertex index
+				Section.MaxVertexIndex = FMath::Max(Section.MaxVertexIndex, Triangle.Index0);
+				Section.MaxVertexIndex = FMath::Max(Section.MaxVertexIndex, Triangle.Index1);
+				Section.MaxVertexIndex = FMath::Max(Section.MaxVertexIndex, Triangle.Index2);
+			}
+
+			Sections.Add(Section);
+		}
 	}
 
 	// Rebuild index data.
