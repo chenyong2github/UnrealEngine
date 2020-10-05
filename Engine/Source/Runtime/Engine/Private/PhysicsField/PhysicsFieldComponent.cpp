@@ -173,7 +173,10 @@ public:
 
 		if (FieldResource)
 		{
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, FieldResource->FieldClipmap.UAV);
+			FRHITransitionInfo Transitions[] = {
+				FRHITransitionInfo(FieldResource->FieldClipmap.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
+			};
+			RHICmdList.Transition(MakeArrayView(Transitions, UE_ARRAY_COUNT(Transitions)));
 
 			SetSRVParameter(RHICmdList, ShaderRHI, NodesParams, FieldResource->NodesParams.SRV);
 			SetSRVParameter(RHICmdList, ShaderRHI, NodesOffsets, FieldResource->NodesOffsets.SRV);
