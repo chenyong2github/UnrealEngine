@@ -402,9 +402,13 @@ void FAudioEffectsManager::AddReferencedObjects( FReferenceCollector& Collector 
  */
 void FAudioEffectsManager::SetReverbSettings( const FReverbSettings& ReverbSettings, bool bForce)
 {
-	/** Update the settings if the reverb type has changed */
-	if( ReverbSettings.bApplyReverb && (ReverbSettings.ReverbEffect != CurrentReverbAsset || bForce || 
-		!FMath::IsNearlyEqual(ReverbSettings.Volume, CurrentReverbSettings.Volume)))
+	/** Update the settings if the reverb has changed */
+	const bool bSetNewReverb = (ReverbSettings.bApplyReverb != CurrentReverbSettings.bApplyReverb) || 
+		(ReverbSettings.ReverbEffect != CurrentReverbAsset) || 
+		bForce || 
+		!FMath::IsNearlyEqual(ReverbSettings.Volume, CurrentReverbSettings.Volume);
+
+	if(bSetNewReverb)
 	{
 		FString CurrentReverbName = CurrentReverbAsset ? CurrentReverbAsset->GetName() : TEXT("None");
 		FString NextReverbName = ReverbSettings.ReverbEffect ? ReverbSettings.ReverbEffect->GetName() : TEXT("None");
@@ -432,8 +436,10 @@ void FAudioEffectsManager::SetReverbSettings( const FReverbSettings& ReverbSetti
 		{
 			DestinationReverbEffect.Time = FApp::GetCurrentTime() + ReverbSettings.FadeTime;
 		}
+
 		DestinationReverbEffect.Volume = ReverbSettings.Volume;
-		if( !ReverbSettings.ReverbEffect )
+
+		if((nullptr == ReverbSettings.ReverbEffect) || !ReverbSettings.bApplyReverb)
 		{
 			DestinationReverbEffect.Volume = 0.0f;
 		}
