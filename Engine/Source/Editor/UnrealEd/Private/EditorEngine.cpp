@@ -1298,6 +1298,12 @@ void UEditorEngine::AddReferencedObjects(UObject* InThis, FReferenceCollector& C
 		Collector.AddReferencedObject( This->ActorFactories[ Index ], This );
 	}
 
+	// If a PIE session is about to start, keep the settings object alive.
+	if (This->PlaySessionRequest.IsSet() && This->PlaySessionRequest->EditorPlaySettings)
+	{
+		Collector.AddReferencedObject(This->PlaySessionRequest->EditorPlaySettings, This);
+	}
+
 	// If we're in a PIE session, ensure we keep the current settings object alive.
 	if (This->PlayInEditorSessionInfo.IsSet() && This->PlayInEditorSessionInfo->OriginalRequestParams.EditorPlaySettings)
 	{
