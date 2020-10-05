@@ -49,7 +49,7 @@ struct FImageView2D
 	{
 		SizeX = Image.SizeX;
 		SizeY = Image.SizeY;
-		SliceColors = Image.AsRGBA32F() + SliceIndex * SizeY * SizeX;
+		SliceColors = (&Image.AsRGBA32F()[0]) + SliceIndex * SizeY * SizeX;
 	}
 
 	/** Access a single texel. */
@@ -984,7 +984,7 @@ void ITextureCompressorModule::GenerateMipChain(
 
 		if ( Settings.bDownsampleWithAverage == false )
 		{
-			FMemory::Memcpy( IntermediateDst.AsRGBA32F(), DestImage.AsRGBA32F(),
+			FMemory::Memcpy( (&IntermediateDst.AsRGBA32F()[0]), (&DestImage.AsRGBA32F()[0]),
 				IntermediateDst.SizeX * IntermediateDst.SizeY * IntermediateDst.NumSlices * sizeof(FLinearColor) );
 		}
 
@@ -1007,7 +1007,7 @@ void ITextureCompressorModule::GenerateMipChain(
 		}
 
 		// last destination becomes next source
-		FMemory::Memcpy(IntermediateSrc.AsRGBA32F(), IntermediateDst.AsRGBA32F(),
+		FMemory::Memcpy((&IntermediateSrc.AsRGBA32F()[0]), (&IntermediateDst.AsRGBA32F()[0]),
 			IntermediateDst.SizeX * IntermediateDst.SizeY * IntermediateDst.NumSlices * sizeof(FLinearColor));
 
 		// Sizes for the next iteration.
@@ -1040,7 +1040,7 @@ struct FImageViewLongLat
 	/** Initialization constructor. */
 	explicit FImageViewLongLat(FImage& Image)
 	{
-		ImageColors = Image.AsRGBA32F();
+		ImageColors = (&Image.AsRGBA32F()[0]);
 		SizeX = Image.SizeX;
 		SizeY = Image.SizeY;
 	}
@@ -1566,7 +1566,7 @@ void ITextureCompressorModule::AdjustImageColors(FImage& Image, const FTextureBu
 		const FLinearColor ChromaKeyTarget = InBuildSettings.ChromaKeyColor;
 		const float ChromaKeyThreshold = InBuildSettings.ChromaKeyThreshold + SMALL_NUMBER;
 		const int32 NumPixels = Image.SizeX * Image.SizeY * Image.NumSlices;
-		FLinearColor* ImageColors = Image.AsRGBA32F();
+		TArrayView64<FLinearColor> ImageColors = Image.AsRGBA32F();
 
 		int32 NumJobs = FTaskGraphInterface::Get().GetNumWorkerThreads();
 		int32 NumPixelsEachJob = NumPixels / NumJobs;
@@ -1690,7 +1690,7 @@ static void ComputeBokehAlpha(FImage& Image)
 	check( Image.SizeX > 0 && Image.SizeY > 0 );
 
 	const int32 NumPixels = Image.SizeX * Image.SizeY * Image.NumSlices;
-	FLinearColor* ImageColors = Image.AsRGBA32F();
+	TArrayView64<FLinearColor> ImageColors = Image.AsRGBA32F();
 
 	// compute LinearAverage
 	FLinearColor LinearAverage;
@@ -1740,7 +1740,7 @@ static void ReplicateRedChannel( TArray<FImage>& InOutMipChain )
 	for ( uint32 MipIndex = 0; MipIndex < MipCount; ++MipIndex )
 	{
 		FImage& SrcMip = InOutMipChain[MipIndex];
-		FLinearColor* FirstColor = SrcMip.AsRGBA32F();
+		FLinearColor* FirstColor = (&SrcMip.AsRGBA32F()[0]);
 		FLinearColor* LastColor = FirstColor + (SrcMip.SizeX * SrcMip.SizeY * SrcMip.NumSlices);
 		for ( FLinearColor* Color = FirstColor; Color < LastColor; ++Color )
 		{
@@ -1758,7 +1758,7 @@ static void ReplicateAlphaChannel( TArray<FImage>& InOutMipChain )
 	for ( uint32 MipIndex = 0; MipIndex < MipCount; ++MipIndex )
 	{
 		FImage& SrcMip = InOutMipChain[MipIndex];
-		FLinearColor* FirstColor = SrcMip.AsRGBA32F();
+		FLinearColor* FirstColor = (&SrcMip.AsRGBA32F()[0]);
 		FLinearColor* LastColor = FirstColor + (SrcMip.SizeX * SrcMip.SizeY * SrcMip.NumSlices);
 		for ( FLinearColor* Color = FirstColor; Color < LastColor; ++Color )
 		{
@@ -1773,7 +1773,7 @@ static void ReplicateAlphaChannel( TArray<FImage>& InOutMipChain )
  */
 static void FlipGreenChannel( FImage& Image )
 {
-	FLinearColor* FirstColor = Image.AsRGBA32F();
+	FLinearColor* FirstColor = (&Image.AsRGBA32F()[0]);
 	FLinearColor* LastColor = FirstColor + (Image.SizeX * Image.SizeY * Image.NumSlices);
 	for ( FLinearColor* Color = FirstColor; Color < LastColor; ++Color )
 	{
@@ -1787,7 +1787,7 @@ static void FlipGreenChannel( FImage& Image )
 static bool DetectAlphaChannel(const FImage& InImage)
 {
 	// Uncompressed data is required to check for an alpha channel.
-	const FLinearColor* SrcColors = InImage.AsRGBA32F().GetData();
+	const FLinearColor* SrcColors = (&InImage.AsRGBA32F()[0]);
 	const FLinearColor* LastColor = SrcColors + (InImage.SizeX * InImage.SizeY * InImage.NumSlices);
 	while (SrcColors < LastColor)
 	{
@@ -1807,7 +1807,7 @@ static void ApplyYCoCgBlockScale(TArray<FImage>& InOutMipChain)
 	for (uint32 MipIndex = 0; MipIndex < MipCount; ++MipIndex)
 	{
 		FImage& SrcMip = InOutMipChain[MipIndex];
-		FLinearColor* FirstColor = SrcMip.AsRGBA32F().GetData();
+		FLinearColor* FirstColor = (&SrcMip.AsRGBA32F()[0]);
 
 		int32 BlockWidthX = SrcMip.SizeX / 4;
 		int32 BlockWidthY = SrcMip.SizeY / 4;
@@ -1881,8 +1881,8 @@ void ApplyCompositeTexture(FImage& RoughnessSourceMips, const FImage& NormalSour
 	check(RoughnessSourceMips.SizeX == NormalSourceMips.SizeX);
 	check(RoughnessSourceMips.SizeY == NormalSourceMips.SizeY);
 
-	FLinearColor* FirstColor = RoughnessSourceMips.AsRGBA32F();
-	const FLinearColor* NormalColors = NormalSourceMips.AsRGBA32F();
+	FLinearColor* FirstColor = (&RoughnessSourceMips.AsRGBA32F()[0]);
+	const FLinearColor* NormalColors = (&NormalSourceMips.AsRGBA32F()[0]);
 
 	FLinearColor* LastColor = FirstColor + (RoughnessSourceMips.SizeX * RoughnessSourceMips.SizeY * RoughnessSourceMips.NumSlices);
 	for ( FLinearColor* Color = FirstColor; Color < LastColor; ++Color, ++NormalColors )
@@ -2021,15 +2021,16 @@ static bool CompressMipChain(
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(CompressMipChain)
 
+	const bool bImageHasAlphaChannel = DetectAlphaChannel(MipChain[0]);
+
 	// now call the Ex version now that we have the proper MipChain
-	const FTextureFormatCompressorCaps CompressorCaps = TextureFormat->GetFormatCapabilitiesEx(Settings, MipChain.Num(), MipChain[0]);
+	const FTextureFormatCompressorCaps CompressorCaps = TextureFormat->GetFormatCapabilitiesEx(Settings, MipChain.Num(), MipChain[0], bImageHasAlphaChannel);
 	OutNumMipsInTail = CompressorCaps.NumMipsInTail;
 	OutExtData = CompressorCaps.ExtData;
 
 	TIndirectArray<FAsyncCompressionTask> AsyncCompressionTasks;
 	int32 MipCount = MipChain.Num();
 	check(MipCount >= (int32)CompressorCaps.NumMipsInTail);
-	const bool bImageHasAlphaChannel = DetectAlphaChannel(MipChain[0]);
 	const int32 MinAsyncCompressionSize = 128;
 	const bool bAllowParallelBuild = TextureFormat->AllowParallelBuild();
 	bool bCompressionSucceeded = true;
@@ -2120,7 +2121,7 @@ static bool CompressMipChain(
 static void NormalizeMip(FImage& InOutMip)
 {
 	const uint32 NumPixels = InOutMip.SizeX * InOutMip.SizeY * InOutMip.NumSlices;
-	FLinearColor* ImageColors = InOutMip.AsRGBA32F();
+	TArrayView64<FLinearColor> ImageColors = InOutMip.AsRGBA32F();
 	for(uint32 CurPixelIndex = 0; CurPixelIndex < NumPixels; ++CurPixelIndex)
 	{
 		FLinearColor& Color = ImageColors[CurPixelIndex];
