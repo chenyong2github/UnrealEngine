@@ -6,6 +6,8 @@
 #include "VehicleWheel.h"
 #include "TP_VehicleWheelFront.generated.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 UCLASS()
 class UTP_VehicleWheelFront : public UVehicleWheel
 {
@@ -15,5 +17,6 @@ public:
 	UTP_VehicleWheelFront();
 };
 
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 

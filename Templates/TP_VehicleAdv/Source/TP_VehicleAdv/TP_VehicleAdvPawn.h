@@ -13,6 +13,8 @@ class UTextRenderComponent;
 class UInputComponent;
 class UAudioComponent;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 UCLASS(config=Game)
 class ATP_VehicleAdvPawn : public AWheeledVehicle
 {
@@ -145,3 +147,5 @@ public:
 	/** Returns EngineSoundComponent subobject **/
 	FORCEINLINE UAudioComponent* GetEngineSoundComponent() const { return EngineSoundComponent; }
 };
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

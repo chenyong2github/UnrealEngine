@@ -2,6 +2,8 @@
 
 #include "TP_VehicleWheelFront.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 UTP_VehicleWheelFront::UTP_VehicleWheelFront()
 {
 	ShapeRadius = 35.f;
@@ -9,3 +11,6 @@ UTP_VehicleWheelFront::UTP_VehicleWheelFront()
 	bAffectedByHandbrake = false;
 	SteerAngle = 50.f;
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+

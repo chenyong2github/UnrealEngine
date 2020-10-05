@@ -35,6 +35,8 @@ const FName ATP_VehicleAdvPawn::EngineAudioRPM("RPM");
 
 #define LOCTEXT_NAMESPACE "VehiclePawn"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 ATP_VehicleAdvPawn::ATP_VehicleAdvPawn()
 {
 	// Car mesh
@@ -375,3 +377,5 @@ void ATP_VehicleAdvPawn::UpdatePhysicsMaterial()
 }
 
 #undef LOCTEXT_NAMESPACE
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
