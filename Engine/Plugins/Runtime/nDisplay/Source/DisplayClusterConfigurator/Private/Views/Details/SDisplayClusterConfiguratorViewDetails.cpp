@@ -27,6 +27,8 @@ SDisplayClusterConfiguratorViewDetails::~SDisplayClusterConfiguratorViewDetails(
 	PropertyView->UnregisterInstancedCustomPropertyLayout(UDisplayClusterConfigurationCluster::StaticClass());
 	PropertyView->UnregisterInstancedCustomPropertyLayout(UDisplayClusterConfigurationInput::StaticClass());
 
+	PropertyView->UnregisterInstancedCustomPropertyLayout(UDisplayClusterConfigurationViewport::StaticClass());
+
 	PropertyView->UnregisterInstancedCustomPropertyLayout(UDisplayClusterConfigurationSceneComponentXform::StaticClass());
 	PropertyView->UnregisterInstancedCustomPropertyLayout(UDisplayClusterConfigurationSceneComponentScreen::StaticClass());
 	PropertyView->UnregisterInstancedCustomPropertyLayout(UDisplayClusterConfigurationSceneComponentCamera::StaticClass());
@@ -76,6 +78,10 @@ void SDisplayClusterConfiguratorViewDetails::Construct(const FArguments& InArgs,
 		FOnGetDetailCustomizationInstance::CreateStatic(&FDisplayClusterConfiguratorDetailCustomization::MakeInstance<FDisplayClusterConfiguratorClusterDetailCustomization>, ToolkitPtr));
 	PropertyView->RegisterInstancedCustomPropertyLayout(UDisplayClusterConfigurationInput::StaticClass(),
 		FOnGetDetailCustomizationInstance::CreateStatic(&FDisplayClusterConfiguratorDetailCustomization::MakeInstance<FDisplayClusterConfiguratorInputDetailCustomization>, ToolkitPtr));
+
+	// Cluster nodes
+	PropertyView->RegisterInstancedCustomPropertyLayout(UDisplayClusterConfigurationViewport::StaticClass(),
+		FOnGetDetailCustomizationInstance::CreateStatic(&FDisplayClusterConfiguratorDetailCustomization::MakeInstance<FDisplayClusterConfiguratorViewportDetailCustomization>, ToolkitPtr));
 
 	// Scene components
 	PropertyView->RegisterInstancedCustomPropertyLayout(UDisplayClusterConfigurationSceneComponentXform::StaticClass(),

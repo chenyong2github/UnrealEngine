@@ -9,6 +9,7 @@
 
 #include "DisplayClusterConfigurationTypes.generated.h"
 
+class UStaticMesh;
 struct FPropertyChangedChainEvent;
 
 UENUM()
@@ -215,11 +216,24 @@ public:
 	UDisplayClusterConfigurationSceneComponentMesh(const FString& InParentId, const FVector& InLocation, const FRotator& InRotation, const FString& InTrackerId, int32 InTrackerCh, const FString& InAssetPath)
 		: UDisplayClusterConfigurationSceneComponent(InParentId, InLocation, InRotation, InTrackerId, InTrackerCh)
 		, AssetPath(InAssetPath)
+#if WITH_EDITOR
+		, Asset(nullptr)
+#endif
 	{ }
 
+#if WITH_EDITOR
+	/** Load static mesh from AssetPath */
+	void LoadAssets();
+#endif
+
 public:
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY()
 	FString AssetPath;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UStaticMesh* Asset;
+#endif
 };
 
 UCLASS()
@@ -360,7 +374,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = nDisplay)
 	FString Camera;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = nDisplay, meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "10.0", UIMax = "10.0"))
 	float BufferRatio;
 
 	UPROPERTY(EditAnywhere, Category = nDisplay)

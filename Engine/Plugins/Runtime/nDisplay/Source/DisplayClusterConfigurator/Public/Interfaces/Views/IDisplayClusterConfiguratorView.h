@@ -16,4 +16,7 @@ public:
 
 public:
 	virtual TSharedRef<SWidget> CreateWidget() = 0;
+
+	virtual void SetEnabled(bool bInEnabled) {};
+	virtual bool GetIsEnabled() const { return false; };
 };

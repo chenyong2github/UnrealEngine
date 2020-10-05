@@ -18,7 +18,8 @@ public:
 	FDisplayClusterConfiguratorViewViewport(const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit);
 
 	//~ Begin IDisplayClusterConfiguratorView Interface
-	TSharedRef<SWidget> CreateWidget() override;
+	virtual TSharedRef<SWidget> CreateWidget() override;
+	virtual void SetEnabled(bool bInEnabled) override;
 	//~ End IDisplayClusterConfiguratorView Interface
 
 	//~ Begin IDisplayClusterConfiguratorViewViewport Interface
