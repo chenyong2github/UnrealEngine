@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "IOpenXRARTrackedMeshHolder.h"
+#include "IOpenXRARTrackedGeometryHolder.h"
 #include "IOpenXRHMDPlugin.h"
 #include "ARSystemSupportBase.h"
 #include "ARTraceResult.h"
@@ -20,6 +20,7 @@ DECLARE_STATS_GROUP(TEXT("OpenXRAR"), STATGROUP_OPENXRAR, STATCAT_Advanced);
 class FOpenXRARSystem :
 	public FARSystemSupportBase,
 	public IOpenXRARTrackedMeshHolder,
+	public IOpenXRARTrackedGeometryHolder,
 	public FGCObject,
 	public TSharedFromThis<FOpenXRARSystem, ESPMode::ThreadSafe>
 {
@@ -236,6 +237,15 @@ private:
 	//for networked callbacks
 	FDelegateHandle SpawnARActorDelegateHandle;
 
+
+	//IOpenXRARTrackedGeometryHolder
+	virtual void ARTrackedGeometryAdded(FOpenXRARTrackedGeometryData* InData);
+	virtual void ARTrackedGeometryUpdated(FOpenXRARTrackedGeometryData* InData);
+	virtual void ARTrackedGeometryRemoved(FOpenXRARTrackedGeometryData* InData);
+
+	void ARTrackedGeometryAdded_GameThread(FOpenXRARTrackedGeometryData* InData);
+	void ARTrackedGeometryUpdated_GameThread(FOpenXRARTrackedGeometryData* InData);
+	void ARTrackedGeometryRemoved_GameThread(FOpenXRARTrackedGeometryData* InData);
 };
 
 
