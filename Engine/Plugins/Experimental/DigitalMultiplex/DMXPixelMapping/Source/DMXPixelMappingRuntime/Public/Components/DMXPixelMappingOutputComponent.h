@@ -206,7 +206,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	/** The color displayed in editor */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Editor Settings", Meta = (EditCondition = "bEditableEditorColor"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Editor Settings")
 	FLinearColor EditorColor = FLinearColor::Blue;
 
 	/** If true, the editor color is editable */
