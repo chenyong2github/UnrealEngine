@@ -29,9 +29,9 @@ public class DX9 : ModuleRules
 			LibDir = DirectXSDKDir + "/Lib/x86/";
 		}
 
-		//if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.HoloLens)
+		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
-			//PublicSystemIncludePaths.Add(DirectXSDKDir + "/include");
+			PublicSystemIncludePaths.Add(DirectXSDKDir + "/include");
 
 			PublicAdditionalLibraries.AddRange(
 				new string[] {
