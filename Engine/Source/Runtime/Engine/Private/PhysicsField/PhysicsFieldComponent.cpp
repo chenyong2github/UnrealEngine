@@ -143,7 +143,7 @@ public:
 		OutEnvironment.SetDefine(TEXT("BUILD_FIELD_THREADGROUP_SIZEX"), ThreadGroupSize);
 		OutEnvironment.SetDefine(TEXT("BUILD_FIELD_THREADGROUP_SIZEY"), ThreadGroupSize);
 		OutEnvironment.SetDefine(TEXT("BUILD_FIELD_THREADGROUP_SIZEZ"), ThreadGroupSize);
-		OutEnvironment.SetDefine(TEXT("MAX_OFFSETS_SIZE"), EFieldPhysicsType::Field_PhysicsType_Max - 1);
+		OutEnvironment.SetDefine(TEXT("MAX_TARGETS_ARRAY"), MAX_TARGETS_ARRAY);
 	}
 
 	FBuildPhysicsFieldClipmapCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -160,14 +160,15 @@ public:
 		ClipmapCount.Bind(Initializer.ParameterMap, TEXT("ClipmapCount"));
 		ClipmapExponent.Bind(Initializer.ParameterMap, TEXT("ClipmapExponent"));
 
-		DatasOffsets.Bind(Initializer.ParameterMap, TEXT("DatasOffsets"));
+		PhysicsTargets.Bind(Initializer.ParameterMap, TEXT("PhysicsTargets"));
+		TargetCount.Bind(Initializer.ParameterMap, TEXT("TargetCount"));
 	}
 
 	FBuildPhysicsFieldClipmapCS()
 	{
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, FPhysicsFieldResource* FieldResource, const TStaticArray<int32,EFieldPhysicsType::Field_PhysicsType_Max-1, EFieldPhysicsType::Field_PhysicsType_Max-1> InDatasOffsets)
+	void SetParameters(FRHICommandList& RHICmdList, FPhysicsFieldResource* FieldResource)
 	{
 		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 
@@ -186,7 +187,8 @@ public:
 			SetShaderValue(RHICmdList, ShaderRHI, ClipmapCenter, FieldResource->FieldInfos.ClipmapCenter);
 			SetShaderValue(RHICmdList, ShaderRHI, ClipmapExponent, FieldResource->FieldInfos.ClipmapExponent);
 
-			SetShaderValue(RHICmdList, ShaderRHI, DatasOffsets, InDatasOffsets);
+			SetShaderValue(RHICmdList, ShaderRHI, PhysicsTargets, FieldResource->FieldInfos.PhysicsTargets);
+			SetShaderValue(RHICmdList, ShaderRHI, TargetCount, FieldResource->FieldInfos.TargetCount);
 		}
 	}
 
@@ -211,7 +213,8 @@ private:
 	LAYOUT_FIELD(FShaderParameter, ClipmapCount);
 	LAYOUT_FIELD(FShaderParameter, ClipmapExponent);
 
-	LAYOUT_FIELD(FShaderParameter, DatasOffsets);
+	LAYOUT_FIELD(FShaderParameter, PhysicsTargets);
+	LAYOUT_FIELD(FShaderParameter, TargetCount);
 };
 
 IMPLEMENT_SHADER_TYPE(, FBuildPhysicsFieldClipmapCS, TEXT("/Engine/Private/PhysicsFieldBuilder.usf"), TEXT("BuildPhysicsFieldClipmapCS"), SF_Compute);
@@ -223,13 +226,15 @@ IMPLEMENT_SHADER_TYPE(, FBuildPhysicsFieldClipmapCS, TEXT("/Engine/Private/Physi
 */
 
 FPhysicsFieldResource::FPhysicsFieldResource(const int32 TargetCount, const TArray<EFieldPhysicsType>& TargetTypes, 
-		const TStaticArray<int32, MAX_TARGETS_ARRAY, MAX_TARGETS_ARRAY>& VectorTargets, const TStaticArray<int32, MAX_TARGETS_ARRAY, MAX_TARGETS_ARRAY>& ScalarTargets, const TStaticArray<int32, MAX_TARGETS_ARRAY, MAX_TARGETS_ARRAY>& IntegerTargets) : FRenderResource()
+		const FPhysicsFieldInfos::TargetsOffsetsType& VectorTargets, const FPhysicsFieldInfos::TargetsOffsetsType& ScalarTargets, 
+	    const FPhysicsFieldInfos::TargetsOffsetsType& IntegerTargets, const FPhysicsFieldInfos::TargetsOffsetsType& PhysicsTargets) : FRenderResource()
 {
 	FieldInfos.TargetCount = TargetCount;
 	FieldInfos.TargetTypes = TargetTypes;
 	FieldInfos.VectorTargets = VectorTargets;
 	FieldInfos.ScalarTargets = ScalarTargets;
 	FieldInfos.IntegerTargets = IntegerTargets;
+	FieldInfos.PhysicsTargets = PhysicsTargets;
 
 	FieldInfos.ClipmapExponent = GPhysicsFieldClipmapExponent;
 	FieldInfos.ClipmapCount = GPhysicsFieldClipmapCount;
@@ -240,7 +245,7 @@ FPhysicsFieldResource::FPhysicsFieldResource(const int32 TargetCount, const TArr
 void FPhysicsFieldResource::InitRHI()
 {
 	const int32 DatasCount = FieldInfos.ClipmapCount * FieldInfos.TargetCount;
-	InitInternalTexture<float, 1, EPixelFormat::PF_R32_FLOAT>(FieldInfos.ClipmapResolution, FieldInfos.ClipmapResolution, FieldInfos.ClipmapResolution * DatasCount + DatasCount-1, FieldClipmap);
+	InitInternalTexture<float, 4, EPixelFormat::PF_A32B32G32R32F>(FieldInfos.ClipmapResolution, FieldInfos.ClipmapResolution, FieldInfos.ClipmapResolution * DatasCount + DatasCount-1, FieldClipmap);
 	InitInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT>(EFieldPhysicsType::Field_PhysicsType_Max + 1, TargetsOffsets);
 }
 
@@ -263,18 +268,6 @@ void FPhysicsFieldResource::UpdateResource(FRHICommandListImmediate& RHICmdList,
 	UpdateInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT>(NodesCount, NodesOffsetsDatas, NodesOffsets);
 	UpdateInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT>(EFieldPhysicsType::Field_PhysicsType_Max + 1, TargetsOffsetsDatas, TargetsOffsets);
 
-	int32 DatasIndex = 0;
-	TStaticArray<int32, EFieldPhysicsType::Field_PhysicsType_Max-1, EFieldPhysicsType::Field_PhysicsType_Max-1> DatasOffsets;
-	for (int32 i = 0; i < EFieldPhysicsType::Field_PhysicsType_Max-1; ++i)
-	{
-		DatasOffsets[i] = -1;
-	}
-	for (auto& TargetType : FieldInfos.TargetTypes)
-	{
-		DatasOffsets[TargetType-1] = DatasIndex;
-		DatasIndex += (GetFieldTargetOutput(TargetType) == EFieldOutputType::Field_Output_Vector) ? 3 : 1;
-	}
-
 	FieldInfos.ClipmapCenter = FieldInfos.ViewOrigin;
 
 	TShaderMapRef<FBuildPhysicsFieldClipmapCS> ComputeShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5));
@@ -282,7 +275,7 @@ void FPhysicsFieldResource::UpdateResource(FRHICommandListImmediate& RHICmdList,
 
 	const uint32 NumGroups = FMath::DivideAndRoundUp<int32>(FieldInfos.ClipmapResolution, FBuildPhysicsFieldClipmapCS::ThreadGroupSize);
 
-	ComputeShader->SetParameters(RHICmdList, this, DatasOffsets);
+	ComputeShader->SetParameters(RHICmdList, this);
 	DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), NumGroups, NumGroups, NumGroups);
 	ComputeShader->UnsetParameters(RHICmdList, this);
 }
@@ -293,37 +286,41 @@ void FPhysicsFieldResource::UpdateResource(FRHICommandListImmediate& RHICmdList,
 
 void FPhysicsFieldInstance::InitInstance( const TArray<EFieldPhysicsType>& TargetTypes)
 {
-	TStaticArray<int32,MAX_TARGETS_ARRAY, MAX_TARGETS_ARRAY> VectorTargets(-1), ScalarTargets(-1), IntegerTargets(-1);
+	FPhysicsFieldInfos::TargetsOffsetsType VectorTargets(-1), ScalarTargets(-1), IntegerTargets(-1), PhysicsTargets(-1);
 
 	static const TArray<EFieldPhysicsType> VectorTypes = GetFieldTargetTypes(EFieldOutputType::Field_Output_Vector);
 	static const TArray<EFieldPhysicsType> ScalarTypes = GetFieldTargetTypes(EFieldOutputType::Field_Output_Scalar);
 	static const TArray<EFieldPhysicsType> IntegerTypes = GetFieldTargetTypes(EFieldOutputType::Field_Output_Integer);
 
 	int32 TargetIndex = 0;
-	int32 TargetCount = 0;
+	int32 VectorCount = 0, ScalarCount = 0, IntegerCount = 0;
 	for (auto& TargetType : TargetTypes)
 	{
 		const EFieldOutputType OutputType = GetFieldTargetIndex(VectorTypes, ScalarTypes, IntegerTypes, TargetType, TargetIndex);
 		if (OutputType == EFieldOutputType::Field_Output_Vector)
 		{
-			VectorTargets[TargetIndex] = TargetCount;
-			TargetCount += 3;
+			VectorTargets[TargetIndex] = VectorCount;
+			PhysicsTargets[TargetType - 1] = VectorCount;
+			VectorCount += 1;
 		}
 		else if (OutputType == EFieldOutputType::Field_Output_Scalar)
 		{
-			ScalarTargets[TargetIndex] = TargetCount;
-			TargetCount += 1;
+			ScalarTargets[TargetIndex] = ScalarCount;
+			PhysicsTargets[TargetType - 1] = ScalarCount;
+			ScalarCount += 1;
 		}
 		else if (OutputType == EFieldOutputType::Field_Output_Integer)
 		{
-			IntegerTargets[TargetIndex] = TargetCount;
-			TargetCount += 1;
+			IntegerTargets[TargetIndex] = IntegerCount;
+			PhysicsTargets[TargetType - 1] = IntegerCount;
+			IntegerCount += 1;
 		}
 	}
+	const int32 TargetCount = FMath::Max3(VectorCount, ScalarCount, IntegerCount);
 	
 	if (!FieldResource)
 	{
-		FieldResource = new FPhysicsFieldResource(TargetCount, TargetTypes, VectorTargets, ScalarTargets, IntegerTargets);
+		FieldResource = new FPhysicsFieldResource(TargetCount, TargetTypes, VectorTargets, ScalarTargets, IntegerTargets, PhysicsTargets);
 
 		FPhysicsFieldResource* LocalFieldResource = FieldResource;
 		ENQUEUE_RENDER_COMMAND(FInitPhysicsFieldResourceCommand)(
@@ -780,8 +777,22 @@ void UPhysicsFieldComponent::OnRegister()
 		FieldInstance = new FPhysicsFieldInstance();
 
 		//static const TArray<EFieldPhysicsType> TargetTypes = {EFieldPhysicsType::Field_LinearForce};
-		static const TArray<EFieldPhysicsType> TargetTypes = { EFieldPhysicsType::Field_LinearForce,
-																EFieldPhysicsType::Field_LinearVelocity};
+		/*static const TArray<EFieldPhysicsType> TargetTypes = { EFieldPhysicsType::Field_LinearForce,
+																EFieldPhysicsType::Field_LinearVelocity};*/
+
+		TArray<EFieldPhysicsType> TargetTypes = {  EFieldPhysicsType::Field_LinearForce,
+												   EFieldPhysicsType::Field_ExternalClusterStrain,
+												   EFieldPhysicsType::Field_Kill,
+												   EFieldPhysicsType::Field_LinearVelocity,
+												   EFieldPhysicsType::Field_AngularVelociy,
+												   EFieldPhysicsType::Field_AngularTorque,
+												   EFieldPhysicsType::Field_InternalClusterStrain,
+												   EFieldPhysicsType::Field_DisableThreshold,
+												   EFieldPhysicsType::Field_SleepingThreshold,
+												   EFieldPhysicsType::Field_PositionTarget,
+												   EFieldPhysicsType::Field_DynamicConstraint };
+		TargetTypes.Sort();
+
 		/*static const TArray<EFieldPhysicsType> TargetTypes = {	EFieldPhysicsType::Field_LinearForce,
 																EFieldPhysicsType::Field_LinearVelocity,
 																EFieldPhysicsType::Field_AngularVelociy,

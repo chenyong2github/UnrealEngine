@@ -22,9 +22,9 @@ struct FDIPhysicsFieldContext
 	int ClipmapExponent;
 	int ClipmapCount;
 	int TargetCount;
-	int VectorTargets[MAX_TARGETS];
-	int ScalarTargets[MAX_TARGETS];
-	int IntegerTargets[MAX_TARGETS];
+	int VectorTargets[MAX_TARGETS_ARRAY];
+	int ScalarTargets[MAX_TARGETS_ARRAY];
+	int IntegerTargets[MAX_TARGETS_ARRAY];
 };
 
 #define DIPhysicsField_DECLARE_CONSTANTS(NAME)\
@@ -35,9 +35,9 @@ int ClipmapResolution_##NAME;\
 int ClipmapExponent_##NAME;\
 int ClipmapCount_##NAME;\
 int TargetCount_##NAME;\
-int VectorTargets_##NAME[MAX_TARGETS];\
-int ScalarTargets_##NAME[MAX_TARGETS];\
-int IntegerTargets_##NAME[MAX_TARGETS];\
+int VectorTargets_##NAME[MAX_TARGETS_ARRAY];\
+int ScalarTargets_##NAME[MAX_TARGETS_ARRAY];\
+int IntegerTargets_##NAME[MAX_TARGETS_ARRAY];\
 
 #define DIPhysicsField_MAKE_CONTEXT(NAME)\
 FDIPhysicsFieldContext DIContext; \

@@ -16,7 +16,7 @@
 Buffer<float> NodesParams;
 Buffer<int> NodesOffsets;
 Buffer<int> TargetsOffsets;
-RWTexture3D<float> FieldClipmap;
+RWTexture3D<float4> FieldClipmap;
 
 int ClipmapResolution;
 float ClipmapDistance;
@@ -24,7 +24,8 @@ float3 ClipmapCenter;
 int ClipmapCount;
 int ClipmapExponent;
 
-int DatasOffsets[MAX_OFFSETS_SIZE];
+int TargetCount;
+int PhysicsTargets[MAX_TARGETS_ARRAY];
 
 /* -----------------------------------------------------------------
  * Reandom Vector + Perlin Noise
@@ -79,7 +80,7 @@ float Lerp(float X, float A, float B)
 	return A + X * (B - A);
 }
 
-float PerlinNoise(float X, float Y, float Z)
+float PerlinNoise(inout  float X, inout float Y, inout float Z)
 {
 	float Xfl = floor(X);
 	float Yfl = floor(Y);
@@ -500,20 +501,24 @@ void EvaluateNoiseScalar(in float3 SamplePosition, in int NodeOffset, inout floa
 								        NodesParams[NodeOffset + NOISE_ROTATIONY],
 								        NodesParams[NodeOffset + NOISE_ROTATIONZ],
 									    NodesParams[NodeOffset + NOISE_ROTATIONW]);
+	
+	const float3 NoiseTranslation = float3(NodesParams[NodeOffset + NOISE_TRANSLATIONX],
+								           NodesParams[NodeOffset + NOISE_TRANSLATIONY],
+								           NodesParams[NodeOffset + NOISE_TRANSLATIONZ]);
 
 	const float3 NoiseScale = float3(NodesParams[NodeOffset + NOISE_SCALEX],
 							         NodesParams[NodeOffset + NOISE_SCALEY],
 								     NodesParams[NodeOffset + NOISE_SCALEZ]);
 
 	const float3 DeltaBound = ClipmapDistance * 2;
-	const float3 MinBounds = ClipmapCenter - ClipmapDistance;
+	const float3 MinBounds = NoiseTranslation - ClipmapDistance;
 	const float3 LocalVector = FieldRotateVectorByQuat((SamplePosition - MinBounds) * NoiseScale, NoiseRotation);
 
 	const float3 LocalCoord = float3((DeltaBound.x != 0.0) ? LocalVector.x / DeltaBound.x : 0.0,
 									  (DeltaBound.y != 0.0) ? LocalVector.y / DeltaBound.y : 0.0,
 									  (DeltaBound.z != 0.0) ? LocalVector.z / DeltaBound.z : 0.0);
 
-	const float3 ReducedCoord = min(max(LocalCoord, 0.0), 1.0);
+	float3 ReducedCoord = saturate(LocalCoord);
 
 	const float NoiseValue = PerlinNoise(ReducedCoord.x, ReducedCoord.y, ReducedCoord.z); //FastGradientPerlinNoise3D_TEX(ReducedCoord);
 	ContextDatas[LocalIndex++] = NoiseValue * (NodesParams[NodeOffset + NOISE_MAX_RANGE] -
@@ -940,21 +945,31 @@ void BuildPhysicsFieldClipmapCS(
 {
 	if (all(DispatchThreadId.xyz < int3(ClipmapResolution, ClipmapResolution, ClipmapResolution)))
 	{
-		for (int LocalClipmapIndex = 0; LocalClipmapIndex < ClipmapCount; ++LocalClipmapIndex)
+		for (int ClipmapIndex = 0; ClipmapIndex < ClipmapCount; ++ClipmapIndex)
 		{
-			const float ClipmapExtent = ClipmapDistance * pow(ClipmapExponent, LocalClipmapIndex + 1 - ClipmapCount);
+			const float ClipmapExtent = ClipmapDistance * pow(ClipmapExponent, ClipmapIndex + 1 - ClipmapCount);
 		
 			const float3 SampleUV = (DispatchThreadId.xyz + 0.5) / ClipmapResolution;
 			const float3 SamplePosition = ClipmapCenter + (SampleUV - 0.5) * 2.0 * ClipmapExtent;
 			
-			for (int LocalTargetType = 0; LocalTargetType < MAX_OFFSETS_SIZE; ++LocalTargetType)
+			for (int TargetIndex = 0; TargetIndex < TargetCount; ++TargetIndex)
 			{
-				const int LocalDatasIndex = DatasOffsets[LocalTargetType];
+				const int DatasOffset = ClipmapIndex + TargetIndex * ClipmapCount;
+					
+				uint3 TextureCoordinates = DispatchThreadId;
+				TextureCoordinates.z += ClipmapResolution * DatasOffset + DatasOffset;
+				
+				FieldClipmap[TextureCoordinates] = float4(0, 0, 0, 0);
+			}
+			
+			for (int TargetType = 0; TargetType < MAX_TARGETS_ARRAY; ++TargetType)
+			{
+				const int TargetIndex = PhysicsTargets[ TargetType];
 				
 				[branch]
-				if (LocalDatasIndex != -1)
+				if (TargetIndex != -1)
 				{
-					const int DatasOffset = LocalClipmapIndex + LocalDatasIndex * ClipmapCount;
+					const int DatasOffset = ClipmapIndex + TargetIndex * ClipmapCount;
 					
 					uint3 TextureCoordinates = DispatchThreadId;
 					TextureCoordinates.z += ClipmapResolution * DatasOffset + DatasOffset;
@@ -962,19 +977,15 @@ void BuildPhysicsFieldClipmapCS(
 					float ContextDatas[MAX_DATAS];
 					int LocalIndex = 0;
 
-					SampleFieldDatas(SamplePosition, ContextDatas, LocalIndex, LocalTargetType+1);
+					SampleFieldDatas(SamplePosition, ContextDatas, LocalIndex, TargetType + 1);
 		
 					if (LocalIndex == 3)
 					{
-						FieldClipmap[TextureCoordinates] = ContextDatas[0];
-						TextureCoordinates.z += (ClipmapResolution + 1) * ClipmapCount;
-						FieldClipmap[TextureCoordinates] = ContextDatas[1];
-						TextureCoordinates.z += (ClipmapResolution + 1) * ClipmapCount;
-						FieldClipmap[TextureCoordinates] = ContextDatas[2];
+						FieldClipmap[TextureCoordinates] += float4(ContextDatas[0], ContextDatas[1], ContextDatas[2], 0);
 					}
 					else if (LocalIndex == 1)
 					{
-						FieldClipmap[TextureCoordinates] = ContextDatas[0];
+						FieldClipmap[TextureCoordinates] += float4(0,0,0, ContextDatas[0]);
 					}
 				}
 			}

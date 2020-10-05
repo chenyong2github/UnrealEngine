@@ -8,7 +8,7 @@
 
 #include "Common.ush"
 
-#define MAX_TARGETS 16
+#define MAX_TARGETS_ARRAY 16
 
 #if SUPPORTS_INDEPENDENT_SAMPLERS
 #define PhysicsFieldSampler GlobalTrilinearClampedSampler
@@ -43,11 +43,11 @@ int PhysicsField_GetClipmapIndex(in float3 WorldPosition, in float3 ClipmapCente
 	return clamp(ClipmapIndex, 0, ClipmapCount - 1);
 }
 
-float3 PhysicsField_SamplePhysicsVectorField(in float3 WorldPosition, in int VectorTarget, in int VectorTargets[MAX_TARGETS], in int TargetCount, in float3 ClipmapCenter,
-			in float ClipmapDistance, in int ClipmapExponent, in int ClipmapCount, in int ClipmapResolution, in Texture3D<float> ClipmapTexture)
+float3 PhysicsField_SamplePhysicsVectorField(in float3 WorldPosition, in int VectorTarget, in int VectorTargets[MAX_TARGETS_ARRAY], in int TargetCount, in float3 ClipmapCenter,
+			in float ClipmapDistance, in int ClipmapExponent, in int ClipmapCount, in int ClipmapResolution, in Texture3D<float4> ClipmapTexture)
 {
 	float3 FieldValue = float3(0, 0, 0);
-	if (VectorTarget != -1 && VectorTarget < MAX_TARGETS)
+	if (VectorTarget != -1 && VectorTarget < MAX_TARGETS_ARRAY)
 	{
 		const int TargetIndex = VectorTargets[VectorTarget];
 		if (TargetIndex != -1)
@@ -58,23 +58,17 @@ float3 PhysicsField_SamplePhysicsVectorField(in float3 WorldPosition, in int Vec
 			
 			const int4 TargetOffsets = PhysicsField_ComputeTargetOffsets(ClipmapIndex, TargetIndex, TargetCount, ClipmapCount, ClipmapResolution);
 			SampleUV.z = (TargetOffsets.w != 0) ? (SampleOffset + TargetOffsets.x) / TargetOffsets.w : 0.5;
-			FieldValue.x = ClipmapTexture.SampleLevel(PhysicsFieldSampler, SampleUV, 0);
-			
-			SampleUV.z = (TargetOffsets.w != 0) ? (SampleOffset + TargetOffsets.y) / TargetOffsets.w : 0.5;
-			FieldValue.y = ClipmapTexture.SampleLevel(PhysicsFieldSampler, SampleUV, 0);
-			
-			SampleUV.z = (TargetOffsets.w != 0) ? (SampleOffset + TargetOffsets.z) / TargetOffsets.w : 0.5;
-			FieldValue.z = ClipmapTexture.SampleLevel(PhysicsFieldSampler, SampleUV, 0);
+			FieldValue = ClipmapTexture.SampleLevel(PhysicsFieldSampler, SampleUV, 0).xyz;
 		}
 	}
 	return FieldValue;
 }
 
-float PhysicsField_SamplePhysicsScalarField(in float3 WorldPosition, in int ScalarTarget, in int ScalarTargets[MAX_TARGETS], in int TargetCount, in float3 ClipmapCenter,
-			in float ClipmapDistance, in int ClipmapExponent, in int ClipmapCount, in int ClipmapResolution, in Texture3D<float> ClipmapTexture)
+float PhysicsField_SamplePhysicsScalarField(in float3 WorldPosition, in int ScalarTarget, in int ScalarTargets[MAX_TARGETS_ARRAY], in int TargetCount, in float3 ClipmapCenter,
+			in float ClipmapDistance, in int ClipmapExponent, in int ClipmapCount, in int ClipmapResolution, in Texture3D<float4> ClipmapTexture)
 {
 	float FieldValue = 0.0;
-	if (ScalarTarget != -1 && ScalarTarget < MAX_TARGETS)
+	if (ScalarTarget != -1 && ScalarTarget < MAX_TARGETS_ARRAY)
 	{
 		const int TargetIndex = ScalarTargets[ScalarTarget];
 		if (TargetIndex != -1)
@@ -85,17 +79,17 @@ float PhysicsField_SamplePhysicsScalarField(in float3 WorldPosition, in int Scal
 			
 			const int4 TargetOffsets = PhysicsField_ComputeTargetOffsets(ClipmapIndex, TargetIndex, TargetCount, ClipmapCount, ClipmapResolution);
 			SampleUV.z = (TargetOffsets.w != 0) ? (SampleOffset + TargetOffsets.x) / TargetOffsets.w : 0.5;
-			FieldValue = ClipmapTexture.SampleLevel(PhysicsFieldSampler, SampleUV, 0);
+			FieldValue = ClipmapTexture.SampleLevel(PhysicsFieldSampler, SampleUV, 0).w;
 		}
 	}
 	return FieldValue;
 }
 
-int PhysicsField_SamplePhysicsIntegerField(in float3 WorldPosition, in int IntegerTarget, in int IntegerTargets[MAX_TARGETS], in int TargetCount, in float3 ClipmapCenter,
-			in float ClipmapDistance, in int ClipmapExponent, in int ClipmapCount, in int ClipmapResolution, in Texture3D<float> ClipmapTexture)
+int PhysicsField_SamplePhysicsIntegerField(in float3 WorldPosition, in int IntegerTarget, in int IntegerTargets[MAX_TARGETS_ARRAY], in int TargetCount, in float3 ClipmapCenter,
+			in float ClipmapDistance, in int ClipmapExponent, in int ClipmapCount, in int ClipmapResolution, in Texture3D<float4> ClipmapTexture)
 {
 	int FieldValue = 0.0;
-	if (IntegerTarget != -1 && IntegerTarget < MAX_TARGETS)
+	if (IntegerTarget != -1 && IntegerTarget < MAX_TARGETS_ARRAY)
 	{
 		const int TargetIndex = IntegerTargets[IntegerTarget];
 		if (TargetIndex != -1)
@@ -106,7 +100,7 @@ int PhysicsField_SamplePhysicsIntegerField(in float3 WorldPosition, in int Integ
 			
 			const int4 TargetOffsets = PhysicsField_ComputeTargetOffsets(ClipmapIndex, TargetIndex, TargetCount, ClipmapCount, ClipmapResolution);
 			SampleUV.z = (TargetOffsets.w != 0) ? (SampleOffset + TargetOffsets.x) / TargetOffsets.w : 0.5;
-			FieldValue = ClipmapTexture.SampleLevel(PhysicsFieldSampler, SampleUV, 0);
+			FieldValue = ClipmapTexture.SampleLevel(PhysicsFieldSampler, SampleUV, 0).w;
 		}
 	}
 	return FieldValue;

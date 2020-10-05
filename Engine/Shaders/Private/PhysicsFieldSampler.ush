@@ -23,16 +23,16 @@
 	#define PhysicsFieldScalarTargets			View.PhysicsFieldScalarTargets
 	#define PhysicsFieldIntegerTargets			View.PhysicsFieldIntegerTargets
 #else
-	Texture3D<float>	PhysicsFieldClipmapTexture;
+	Texture3D<float4>	PhysicsFieldClipmapTexture;
 	float3		PhysicsFieldClipmapCenter;
 	float		PhysicsFieldClipmapDistance;
 	int			PhysicsFieldClipmapResolution;
 	int			PhysicsFieldClipmapExponent;
 	int			PhysicsFieldClipmapCount;
 	int			PhysicsFieldTargetCount;
-	int			PhysicsFieldVectorTargets[MAX_TARGETS];
-	int			PhysicsFieldScalarTargets[MAX_TARGETS];
-	int			PhysicsFieldIntegerTargets[MAX_TARGETS];
+	int			PhysicsFieldVectorTargets[MAX_TARGETS_ARRAY];
+	int			PhysicsFieldScalarTargets[MAX_TARGETS_ARRAY];
+	int			PhysicsFieldIntegerTargets[MAX_TARGETS_ARRAY];
 #endif
 
 float3 MatPhysicsField_SamplePhysicsVectorField(float3 WorldPosition, int VectorTarget)
@@ -41,13 +41,13 @@ float3 MatPhysicsField_SamplePhysicsVectorField(float3 WorldPosition, int Vector
 				PhysicsFieldClipmapExponent, PhysicsFieldClipmapCount, PhysicsFieldClipmapResolution, PhysicsFieldClipmapTexture);
 }
 
-float SamplePhysicsScalarField(float3 WorldPosition, int ScalarTarget)
+float MatPhysicsField_SamplePhysicsScalarField(float3 WorldPosition, int ScalarTarget)
 {
 	return PhysicsField_SamplePhysicsScalarField(WorldPosition, ScalarTarget, PhysicsFieldScalarTargets, PhysicsFieldTargetCount, PhysicsFieldClipmapCenter, PhysicsFieldClipmapDistance,
 				PhysicsFieldClipmapExponent, PhysicsFieldClipmapCount, PhysicsFieldClipmapResolution, PhysicsFieldClipmapTexture);
 }
 
-int SamplePhysicsIntegerField(float3 WorldPosition, int IntegerTarget)
+int MatPhysicsField_SamplePhysicsIntegerField(float3 WorldPosition, int IntegerTarget)
 {
 	return PhysicsField_SamplePhysicsIntegerField(WorldPosition, IntegerTarget, PhysicsFieldIntegerTargets, PhysicsFieldTargetCount, PhysicsFieldClipmapCenter, PhysicsFieldClipmapDistance,
 				PhysicsFieldClipmapExponent, PhysicsFieldClipmapCount, PhysicsFieldClipmapResolution, PhysicsFieldClipmapTexture);
