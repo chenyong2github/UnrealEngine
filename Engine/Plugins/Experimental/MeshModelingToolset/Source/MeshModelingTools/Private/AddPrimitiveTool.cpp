@@ -140,7 +140,7 @@ void UAddPrimitiveTool::Setup()
 	PreviewMesh = NewObject<UPreviewMesh>(this, TEXT("PreviewMesh"));
 	PreviewMesh->CreateInWorld(TargetWorld, FTransform::Identity);
 	PreviewMesh->SetVisible(false);
-	PreviewMesh->SetMaterial(MaterialProperties->Material);
+	PreviewMesh->SetMaterial(MaterialProperties->Material.Get());
 	PreviewMesh->EnableWireframe(MaterialProperties->bWireframe);
 
 	UpdatePreviewMesh();
@@ -171,7 +171,7 @@ void UAddPrimitiveTool::Render(IToolsContextRenderAPI* RenderAPI)
 void UAddPrimitiveTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	PreviewMesh->EnableWireframe(MaterialProperties->bWireframe);
-	PreviewMesh->SetMaterial(MaterialProperties->Material);
+	PreviewMesh->SetMaterial(MaterialProperties->Material.Get());
 	UpdatePreviewMesh();
 }
 

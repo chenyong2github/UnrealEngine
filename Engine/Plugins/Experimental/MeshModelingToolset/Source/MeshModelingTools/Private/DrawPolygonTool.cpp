@@ -139,7 +139,14 @@ void UDrawPolygonTool::Setup()
 	PreviewMesh = NewObject<UPreviewMesh>(this, TEXT("DrawPolygonPreviewMesh"));
 	PreviewMesh->CreateInWorld(this->TargetWorld, FTransform::Identity);
 	PreviewMesh->SetVisible(false);
-	PreviewMesh->SetMaterial(MaterialProperties->Material);
+	{
+		UMaterialInterface* Material = nullptr;
+		if ( MaterialProperties->Material.IsValid() )
+		{
+			Material = MaterialProperties->Material.Get();
+		}
+		PreviewMesh->SetMaterial(Material);
+	}
 	bPreviewUpdatePending = false;
 
 	// initialize snapping engine and properties
@@ -1007,7 +1014,7 @@ void UDrawPolygonTool::EmitCurrentPolygon()
 
 	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
 		AssetAPI, TargetWorld,
-		&Mesh, PlaneFrameOut.ToTransform(), BaseName, MaterialProperties->Material);
+		&Mesh, PlaneFrameOut.ToTransform(), BaseName, MaterialProperties->Material.Get());
 	if (NewActor != nullptr)
 	{
 		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), NewActor);
@@ -1035,7 +1042,7 @@ void UDrawPolygonTool::UpdateLivePreview()
 	if (GeneratePolygonMesh(PolygonVertices, PolygonHolesVertices, &Mesh, PlaneFrame, false, ExtrudeDist, false))
 	{
 		PreviewMesh->SetTransform(PlaneFrame.ToFTransform());
-		PreviewMesh->SetMaterial(MaterialProperties->Material);
+		PreviewMesh->SetMaterial(MaterialProperties->Material.Get());
 		PreviewMesh->EnableWireframe(MaterialProperties->bWireframe);
 		PreviewMesh->UpdatePreview(&Mesh);
 	}
