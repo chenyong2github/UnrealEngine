@@ -342,9 +342,9 @@ void FVulkanPendingComputeState::SetUAVForUBResource(uint32 DescriptorSet, uint3
 	{
 		// make sure any dynamically backed UAV points to current memory
 		UAV->UpdateView();
-		if (UAV->SourceStructuredBuffer)
+		if (UAV->SourceBuffer && UAV->BufferViewFormat == PF_Unknown)
 		{
-			CurrentState->SetStorageBuffer(DescriptorSet, BindingIndex, UAV->SourceStructuredBuffer);
+			CurrentState->SetStorageBuffer(DescriptorSet, BindingIndex, UAV->SourceBuffer);
 		}
 		else if (UAV->BufferView)
 		{
@@ -607,9 +607,9 @@ void FVulkanPendingGfxState::SetUAVForUBResource(uint8 DescriptorSet, uint32 Bin
 	{
 		// make sure any dynamically backed UAV points to current memory
 		UAV->UpdateView();
-		if (UAV->SourceStructuredBuffer)
+		if (UAV->SourceBuffer && UAV->BufferViewFormat == PF_Unknown)
 		{
-			CurrentState->SetStorageBuffer(DescriptorSet, BindingIndex, UAV->SourceStructuredBuffer);
+			CurrentState->SetStorageBuffer(DescriptorSet, BindingIndex, UAV->SourceBuffer);
 		}
 		else if (UAV->BufferView)
 		{

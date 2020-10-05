@@ -1207,9 +1207,6 @@ public:
 class FVulkanUnorderedAccessView : public FRHIUnorderedAccessView, public VulkanRHI::FDeviceChild
 {
 public:
-	// the potential resources to refer to with the UAV object
-	TRefCountPtr<FVulkanResourceMultiBuffer> SourceStructuredBuffer;
-
 	FVulkanUnorderedAccessView(FVulkanDevice* Device)
 		: VulkanRHI::FDeviceChild(Device)
 		, MipLevel(0)
@@ -1227,9 +1224,8 @@ public:
 	FVulkanTextureView TextureView;
 	uint32 MipLevel;
 
-	// The vertex buffer this UAV comes from (can be null)
-	TRefCountPtr<FVulkanResourceMultiBuffer> SourceVertexBuffer;
-	TRefCountPtr<FVulkanResourceMultiBuffer> SourceIndexBuffer;
+	// The buffer this UAV comes from (can be null)
+	TRefCountPtr<FVulkanResourceMultiBuffer> SourceBuffer;
 	TRefCountPtr<FVulkanBufferView> BufferView;
 	EPixelFormat BufferViewFormat;
 

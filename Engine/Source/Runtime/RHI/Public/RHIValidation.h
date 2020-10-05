@@ -231,16 +231,8 @@ public:
 				Identity = Info.Texture->GetTransitionIdentity(Info); 
 				break;
 
-			case FRHITransitionInfo::EType::VertexBuffer:
-				Identity = Info.VertexBuffer->GetWholeResourceIdentity();
-				break;
-
-			case FRHITransitionInfo::EType::IndexBuffer:
-				Identity = Info.IndexBuffer->GetWholeResourceIdentity(); 
-				break;
-
-			case FRHITransitionInfo::EType::StructuredBuffer:
-				Identity = Info.StructuredBuffer->GetWholeResourceIdentity();
+			case FRHITransitionInfo::EType::Buffer:
+				Identity = Info.Buffer->GetWholeResourceIdentity();
 				break;
 
 			case FRHITransitionInfo::EType::UAV: 
@@ -1456,22 +1448,7 @@ public:
 	virtual FShaderResourceViewRHIRef CreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, const FShaderResourceViewInitializer& Initializer) override final
 	{
 		FShaderResourceViewRHIRef SRV = RHI->CreateShaderResourceView_RenderThread(RHICmdList, Initializer);
-
-		switch (Initializer.GetType())
-		{
-		default: checkNoEntry(); // fallthrough
-
-		case FShaderResourceViewInitializer::EType::IndexBufferSRV:
-			SRV->ViewIdentity = Initializer.AsIndexBufferSRV().Buffer->GetWholeResourceIdentity();
-			break;
-
-		case FShaderResourceViewInitializer::EType::StructuredBufferSRV:
-			SRV->ViewIdentity = Initializer.AsStructuredBufferSRV().Buffer->GetWholeResourceIdentity();
-			break;
-
-		case FShaderResourceViewInitializer::EType::VertexBufferSRV:
-			SRV->ViewIdentity = Initializer.AsVertexBufferSRV().Buffer->GetWholeResourceIdentity();
-		}
+		SRV->ViewIdentity = Initializer.AsBufferSRV().Buffer->GetWholeResourceIdentity();
 
 		return SRV;
 	}
