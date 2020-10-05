@@ -22,6 +22,16 @@ public:
 	virtual const FDisplayClusterConfiguratorCommands& GetCommands() const override;
 	//~ End IDisplayClusterConfigurator Interface
 
+public:
+	static void ReadOnlySink();
+
+	static FDelegateHandle RegisterOnReadOnly(const FOnDisplayClusterConfiguratorReadOnlyChangedDelegate& Delegate);
+
+	static void UnregisterOnReadOnly(FDelegateHandle DelegateHandle);
+
 private:
 	TSharedPtr<FDisplayClusterConfiguratorAssetTypeActions> ConfiguratorAssetTypeAction;
+
+private:
+	static FOnDisplayClusterConfiguratorReadOnlyChanged OnDisplayClusterConfiguratorReadOnlyChanged;
 };

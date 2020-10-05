@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DisplayClusterConfigurationTypes.h"
-
+#include "DisplayClusterConfigurationLog.h"
 
 UDisplayClusterConfigurationData::UDisplayClusterConfigurationData()
 {
@@ -71,4 +71,25 @@ void UDisplayClusterConfigurationClusterNode::PostEditChangeChainProperty(FPrope
 	OnPostEditChangeChainProperty.Broadcast(PropertyChangedEvent);
 }
 
+#endif
+
+#if WITH_EDITOR
+void UDisplayClusterConfigurationSceneComponentMesh::LoadAssets()
+{
+	Asset = nullptr;
+	
+	if (AssetPath.Contains(TEXT("//"), ESearchCase::CaseSensitive))
+	{
+		UE_LOG(LogDisplayClusterConfiguration, Error, TEXT("Attempted to create a package with name containing double slashes. PackageName: %s"), *AssetPath);
+	}
+	else
+	{
+		Asset = LoadObject<UStaticMesh>(nullptr, *AssetPath, nullptr, LOAD_Quiet | LOAD_NoWarn);
+
+		if (Asset == nullptr)
+		{
+			UE_LOG(LogDisplayClusterConfiguration, Error, TEXT("Can't load asset with PackageName %s"), *AssetPath);
+		}
+	}
+}
 #endif

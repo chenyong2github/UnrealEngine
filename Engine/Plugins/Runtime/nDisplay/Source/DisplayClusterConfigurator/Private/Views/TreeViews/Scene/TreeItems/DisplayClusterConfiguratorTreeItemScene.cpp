@@ -43,7 +43,10 @@ bool FDisplayClusterConfiguratorTreeItemScene::IsHovered() const
 
 FReply FDisplayClusterConfiguratorTreeItemScene::HandleDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	if (!IsRoot())
+	TSharedPtr<IDisplayClusterConfiguratorViewTree> ViewTree = ViewTreePtr.Pin();
+	check(ViewTree.IsValid());
+	
+	if (!IsRoot() && ViewTree->GetIsEnabled())
 	{
 		return FReply::Handled().BeginDragDrop(FDisplayClusterConfiguratorViewSceneDragDrop::New(ToolkitPtr.Pin().ToSharedRef(), ViewTreePtr.Pin().ToSharedRef(), SharedThis(this)));
 	}

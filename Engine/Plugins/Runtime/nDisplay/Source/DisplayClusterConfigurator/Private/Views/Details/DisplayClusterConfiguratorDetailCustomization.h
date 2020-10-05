@@ -17,6 +17,7 @@ class IPropertyHandle;
 class SDisplayClusterConfigurationSearchableComboBox;
 class SEditableTextBox;
 class SWidget;
+class UDisplayClusterConfigurationData;
 class UDisplayClusterConfigurationCluster;
 class UDisplayClusterConfigurationInput;
 class UDisplayClusterConfigurationScene;
@@ -108,6 +109,41 @@ public:
 	/** End IDetailCustomization interface */
 };
 
+class FDisplayClusterConfiguratorViewportDetailCustomization final
+	: public FDisplayClusterConfiguratorDetailCustomization
+{
+public:
+	CONSTRUCT_CUSTOMIZATION(FDisplayClusterConfiguratorViewportDetailCustomization, FDisplayClusterConfiguratorDetailCustomization)
+
+	/** IDetailCustomization interface */
+	virtual void CustomizeDetails(IDetailLayoutBuilder& InLayoutBuilder) override;
+	/** End IDetailCustomization interface */
+
+private:
+	void ResetCameraOptions();
+
+	void AddCameraRow();
+
+	TSharedRef<SWidget> MakeCameraOptionComboWidget(TSharedPtr<FString> InItem);
+
+	void OnCameraSelected(TSharedPtr<FString> InCamera, ESelectInfo::Type SelectInfo);
+
+	FText GetSelectedCameraText() const;
+
+private:
+	TArray< TSharedPtr< FString > >	CameraOptions;
+
+	TSharedPtr<IPropertyHandle> CameraHandle;
+
+	TSharedPtr<FString>	NoneOption;
+
+	TWeakObjectPtr<UDisplayClusterConfigurationViewport> ConfigurationViewportPtr;
+
+	TWeakObjectPtr<UDisplayClusterConfigurationData> ConfigurationDataPtr;
+
+	TSharedPtr<SDisplayClusterConfigurationSearchableComboBox> CameraComboBox;
+};
+
 /**
  * Input Detail Customization
  */
@@ -149,6 +185,8 @@ protected:
 	void AddTrackerIdRow();
 
 	FText GetSelectedTrackerIdText() const;
+
+	EVisibility GetLocationAndRotationVisibility() const;
 
 protected:
 	TWeakObjectPtr<UDisplayClusterConfigurationSceneComponent> SceneComponenPtr;
@@ -200,6 +238,18 @@ class FDisplayClusterConfiguratorSceneComponentMeshDetailCustomization final
 {
 public:
 	CONSTRUCT_CUSTOMIZATION(FDisplayClusterConfiguratorSceneComponentMeshDetailCustomization, FDisplayClusterConfiguratorSceneComponentDetailCustomization)
+
+	/** IDetailCustomization interface */
+	virtual void CustomizeDetails(IDetailLayoutBuilder& InLayoutBuilder) override;
+	/** End IDetailCustomization interface */
+
+private:
+	void OnAssetValueChanged();
+
+private:
+	TWeakObjectPtr<UDisplayClusterConfigurationSceneComponentMesh> SceneComponentMeshPtr;
+
+	TSharedPtr<IPropertyHandle> AssetHandle;
 };
 
 /**

@@ -31,6 +31,14 @@ TSharedRef<SWidget> FDisplayClusterConfiguratorViewViewport::CreateWidget()
 	return ViewViewport.ToSharedRef();
 }
 
+void FDisplayClusterConfiguratorViewViewport::SetEnabled(bool bInEnabled)
+{
+	if (ViewViewport.IsValid())
+	{
+		ViewViewport->SetEnabled(bInEnabled);
+	}
+}
+
 TSharedRef<IDisplayClusterConfiguratorPreviewScene> FDisplayClusterConfiguratorViewViewport::GetPreviewScene() const
 {
 	return PreviewScene.ToSharedRef();

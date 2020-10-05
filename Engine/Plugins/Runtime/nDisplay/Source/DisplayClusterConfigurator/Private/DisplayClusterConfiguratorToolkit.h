@@ -108,10 +108,11 @@ private:
 	void ImportConfig_Clicked();
 
 	void SaveToFile_Clicked();
+
 	void EditConfig_Clicked();
 	//~ End UI command handlers
 
-	void CreateNotification();
+	void OnReadOnlyChanged(bool bReadOnly);
 
 	void BindCommands();
 
