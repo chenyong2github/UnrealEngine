@@ -25,6 +25,9 @@ namespace Chaos
 	{
 #if CHAOS_DEBUG_DRAW
 
+		// NOTE: These settings should never really be used - they are the fallback defaults
+		// if the user does not specify settings in the debug draw call.
+		// See PBDRigidsColver.cpp and ImmediatePhysicsSimulation_Chaos.cpp for example.
 		FChaosDebugDrawSettings ChaosDefaultDebugDebugDrawSettings(
 			/* ArrowSize =			*/ 1.5f,
 			/* BodyAxisLen =		*/ 4.0f,

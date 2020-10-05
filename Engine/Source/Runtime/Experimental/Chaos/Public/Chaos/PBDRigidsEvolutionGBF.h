@@ -91,10 +91,10 @@ namespace Chaos
 		using FRigidClustering = TPBDRigidClustering<TPBDRigidsEvolutionGBF<Traits>, FPBDCollisionConstraints, FReal, 3>;
 
 		// Default iteration counts
-		static constexpr int32 DefaultNumIterations = 4;
-		static constexpr int32 DefaultNumCollisionPairIterations = 4;
-		static constexpr int32 DefaultNumPushOutIterations = 4;
-		static constexpr int32 DefaultNumCollisionPushOutPairIterations = 4;
+		static constexpr int32 DefaultNumIterations = 2;
+		static constexpr int32 DefaultNumCollisionPairIterations = 3;
+		static constexpr int32 DefaultNumPushOutIterations = 2;
+		static constexpr int32 DefaultNumCollisionPushOutPairIterations = 3;
 		static constexpr float DefaultCollisionShapePadding = 2.0f;
 		static constexpr float DefaultCollisionCullDistance = 5.0f;
 

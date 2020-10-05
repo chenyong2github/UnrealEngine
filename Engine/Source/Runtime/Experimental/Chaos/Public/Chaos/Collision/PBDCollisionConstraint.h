@@ -39,8 +39,9 @@ namespace Chaos
 			, CoMContactNormal(0)
 			, PrevCoMContactPoint1(0)
 			, NetImpulse(0)
+			, NetAngularImpulses{ FVec3(0), FVec3(0) }
 			, NetPushOut(0)
-			, PrevPhi(0)
+			, InitialContactVelocity(0)
 			, InitialPhi(0)
 			, bPotentialRestingContact(false)
 			, bInsideStaticFrictionCone(false)
@@ -54,8 +55,9 @@ namespace Chaos
 			, CoMContactNormal(0)
 			, PrevCoMContactPoint1(0)
 			, NetImpulse(0)
+			, NetAngularImpulses{ FVec3(0), FVec3(0) }
 			, NetPushOut(0)
-			, PrevPhi(0)
+			, InitialContactVelocity(0)
 			, InitialPhi(0)
 			, bPotentialRestingContact(false)
 			, bInsideStaticFrictionCone(false)
@@ -67,9 +69,10 @@ namespace Chaos
 		FVec3 CoMContactPoints[2];			// CoM-space contact points on the two bodies
 		FVec3 CoMContactNormal;				// CoM-space contact normal relative to second body
 		FVec3 PrevCoMContactPoint1;			// CoM-space contact point on second body at previous transforms (used for static friction)
-		FVec3 NetImpulse;					// Total impulse applied at this contact point
+		FVec3 NetImpulse;					// Total impulse applied by this contact point
+		FVec3 NetAngularImpulses[2];		// Total angular impulse applied by this contact point on each body
 		FVec3 NetPushOut;					// Total pushout applied at this contact point
-		FReal PrevPhi;						// Contact seperation from previous position (used for pushout restitution)
+		FReal InitialContactVelocity;		// Contact velocity at start of frame (used for restitution)
 		FReal InitialPhi;					// Contact separation at first contact (used for pushout restitution)
 		bool bPotentialRestingContact;		// Whether this may be a resting contact (used for static fricton)
 		bool bInsideStaticFrictionCone;		// Whether we are inside the static friction cone (used in PushOut)
@@ -315,7 +318,7 @@ namespace Chaos
 			, bUseIncrementalManifold(false)
 		{}
 
-		bool AreMatchingContactPoints(const FContactPoint& A, const FContactPoint& B) const;
+		bool AreMatchingContactPoints(const FContactPoint& A, const FContactPoint& B, FReal& OutScore) const;
 		int32 FindManifoldPoint(const FContactPoint& ContactPoint) const;
 		void InitManifoldPoint(FManifoldPoint& ManifoldPoint);
 		int32 AddManifoldPoint(const FContactPoint& ContactPoint);

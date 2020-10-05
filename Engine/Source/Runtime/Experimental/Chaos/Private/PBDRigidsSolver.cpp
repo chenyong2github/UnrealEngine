@@ -30,12 +30,12 @@ DEFINE_LOG_CATEGORY_STATIC(LogPBDRigidsSolver, Log, All);
 #if CHAOS_DEBUG_DRAW
 
 // Must be 0 when checked in...
-#define CHAOS_SOLVER_ENABLE_DEBUG_DRAW 0
+#define CHAOS_SOLVER_ENABLE_DEBUG_DRAW 1
 
 int32 ChaosSolverDebugDrawShapes = CHAOS_SOLVER_ENABLE_DEBUG_DRAW;
 int32 ChaosSolverDebugDrawCollisions = CHAOS_SOLVER_ENABLE_DEBUG_DRAW;
 int32 ChaosSolverDebugDrawBounds = 0;
-int32 ChaosSolverDrawTransforms = CHAOS_SOLVER_ENABLE_DEBUG_DRAW;
+int32 ChaosSolverDrawTransforms = 0;
 FAutoConsoleVariableRef CVarChaosSolverDrawShapes(TEXT("p.Chaos.Solver.DebugDrawShapes"), ChaosSolverDebugDrawShapes, TEXT("Draw Shapes (0 = never; 1 = end of frame)."));
 FAutoConsoleVariableRef CVarChaosSolverDrawCollisions(TEXT("p.Chaos.Solver.DebugDrawCollisions"), ChaosSolverDebugDrawCollisions, TEXT("Draw Collisions (0 = never; 1 = end of frame)."));
 FAutoConsoleVariableRef CVarChaosSolverDrawBounds(TEXT("p.Chaos.Solver.DebugDrawBounds"), ChaosSolverDebugDrawBounds, TEXT("Draw bounding volumes inside the broadphase (0 = never; 1 = end of frame)."));
@@ -45,12 +45,12 @@ Chaos::DebugDraw::FChaosDebugDrawSettings ChaosSolverDebugDebugDrawSettings(
 	/* ArrowSize =			*/ 10.0f,
 	/* BodyAxisLen =		*/ 30.0f,
 	/* ContactLen =			*/ 30.0f,
-	/* ContactWidth =		*/ 15.0f,
+	/* ContactWidth =		*/ 6.0f,
 	/* ContactPhiWidth =	*/ 0.0f,
 	/* ContactOwnerWidth =	*/ 0.0f,
 	/* ConstraintAxisLen =	*/ 30.0f,
 	/* JointComSize =		*/ 2.0f,
-	/* LineThickness =		*/ 2.0f,
+	/* LineThickness =		*/ 1.5f,
 	/* DrawScale =			*/ 1.0f,
 	/* FontHeight =			*/ 10.0f,
 	/* FontScale =			*/ 1.5f,
@@ -112,7 +112,7 @@ int32 ChaosSolverCollisionUseManifolds = 0;
 FAutoConsoleVariableRef CVarChaosSolverCollisionUseManifolds(TEXT("p.Chaos.Solver.Collision.UseManifolds"), ChaosSolverCollisionUseManifolds, TEXT("Enable/Disable use of manifoldes in collision."));
 
 // New manifold system
-int32 ChaosSolverCollisionUseIncrememtalManifolds = 0;
+int32 ChaosSolverCollisionUseIncrememtalManifolds = 1;
 FAutoConsoleVariableRef CVarChaosUseIncrementalManifold(TEXT("p.Chaos.Solver.Collision.UseIncrementalManifolds"), ChaosSolverCollisionUseIncrememtalManifolds, TEXT("Enable/Disable use of incremental manifolds"));
 
 int32 ChaosVisualDebuggerEnable = 1;
