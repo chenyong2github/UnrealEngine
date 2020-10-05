@@ -10,14 +10,14 @@
 namespace Chaos
 {
 	template<class T>
-	class CHAOS_API TTriangleMesh
+	class TTriangleMesh
 	{
 	public:
-		TTriangleMesh();
-		TTriangleMesh(TArray<TVector<int32, 3>>&& Elements, const int32 StartIdx = 0, const int32 EndIdx = -1, const bool CullDegenerateElements=true);
-		TTriangleMesh(const TTriangleMesh& Other) = delete;
-		TTriangleMesh(TTriangleMesh&& Other);
-		~TTriangleMesh();
+		CHAOS_API TTriangleMesh();
+		CHAOS_API TTriangleMesh(TArray<TVector<int32, 3>>&& Elements, const int32 StartIdx = 0, const int32 EndIdx = -1, const bool CullDegenerateElements=true);
+		CHAOS_API TTriangleMesh(const TTriangleMesh& Other) = delete;
+		CHAOS_API TTriangleMesh(TTriangleMesh&& Other);
+		CHAOS_API ~TTriangleMesh();
 
 		/**
 		 * Initialize the \c TTriangleMesh.
@@ -25,10 +25,10 @@ namespace Chaos
 		 *	\p CullDegenerateElements removes faces with degenerate indices, and 
 		 *	will change the order of \c MElements.
 		 */
-		void Init(TArray<TVector<int32, 3>>&& Elements, const int32 StartIdx = 0, const int32 EndIdx = -1, const bool CullDegenerateElements=true);
-		void Init(const TArray<TVector<int32, 3>>& Elements, const int32 StartIdx = 0, const int32 EndIdx = -1, const bool CullDegenerateElements=true);
+		CHAOS_API void Init(TArray<TVector<int32, 3>>&& Elements, const int32 StartIdx = 0, const int32 EndIdx = -1, const bool CullDegenerateElements=true);
+		CHAOS_API void Init(const TArray<TVector<int32, 3>>& Elements, const int32 StartIdx = 0, const int32 EndIdx = -1, const bool CullDegenerateElements=true);
 
-		void ResetAuxiliaryStructures();
+		CHAOS_API void ResetAuxiliaryStructures();
 
 		/**
 		 * Returns the closed interval of the smallest vertex index used by 
@@ -36,12 +36,12 @@ namespace Chaos
 		 *
 		 * If this mesh is empty, the second index of the range will be negative.
 		 */
-		TVector<int32, 2> GetVertexRange() const;
+		CHAOS_API TVector<int32, 2> GetVertexRange() const;
 
 		/** Returns the set of vertices used by triangles. */
-		TSet<int32> GetVertices() const;
+		CHAOS_API TSet<int32> GetVertices() const;
 		/** Returns the unique set of vertices used by this triangle mesh. */
-		void GetVertexSet(TSet<int32>& VertexSet) const;
+		CHAOS_API void GetVertexSet(TSet<int32>& VertexSet) const;
 
 		/**
 		 * Extends the vertex range.
@@ -49,7 +49,7 @@ namespace Chaos
 		 * Since the vertex range is built from connectivity, it won't include any 
 		 * free vertices that either precede the first vertex, or follow the last.
 		 */
-		void ExpandVertexRange(const int32 StartIdx, const int32 EndIdx)
+		FORCEINLINE void ExpandVertexRange(const int32 StartIdx, const int32 EndIdx)
 		{
 			const TVector<int32, 2> CurrRange = GetVertexRange();
 			if (StartIdx <= CurrRange[0] && EndIdx >= CurrRange[1])
@@ -59,7 +59,7 @@ namespace Chaos
 			}
 		}
 
-		const TArray<TVector<int32, 3>>& GetElements() const& { return MElements; }
+		FORCEINLINE const TArray<TVector<int32, 3>>& GetElements() const& { return MElements; }
 		/**
 		 * Move accessor for topology array.
 		 *
@@ -70,9 +70,9 @@ namespace Chaos
 		 * Triangles = MoveTemp(TriMesh).GetElements(); // steals TriMesh::MElements back to Triangles
 		 * \endcode
 		 */
-		TArray<TVector<int32, 3>> GetElements() && { return MoveTemp(MElements); }
+		FORCEINLINE TArray<TVector<int32, 3>> GetElements() && { return MoveTemp(MElements); }
 
-		const TArray<TVector<int32, 3>>& GetSurfaceElements() const& { return MElements; }
+		FORCEINLINE const TArray<TVector<int32, 3>>& GetSurfaceElements() const& { return MElements; }
 		/**
 		 * Move accessor for topology array.
 		 *
@@ -83,17 +83,17 @@ namespace Chaos
 		 * Triangles = MoveTemp(TriMesh).GetSurfaceElements(); // steals TriMesh::MElements back to Triangles
 		 * \endcode
 		 */
-		TArray<TVector<int32, 3>> GetSurfaceElements() && { return MoveTemp(MElements); }
+		FORCEINLINE TArray<TVector<int32, 3>> GetSurfaceElements() && { return MoveTemp(MElements); }
 
-		int32 GetNumElements() const { return MElements.Num(); }
+		FORCEINLINE int32 GetNumElements() const { return MElements.Num(); }
 
-		const TMap<int32, TSet<uint32>>& GetPointToNeighborsMap() const;
-		const TSet<uint32>& GetNeighbors(const int32 Element) const { return GetPointToNeighborsMap()[Element]; }
+		CHAOS_API const TMap<int32, TSet<uint32>>& GetPointToNeighborsMap() const;
+		FORCEINLINE const TSet<uint32>& GetNeighbors(const int32 Element) const { return GetPointToNeighborsMap()[Element]; }
 
-		TConstArrayView<TArray<int32>> GetPointToTriangleMap() const;  // Return an array view using global indexation. Only elements starting at MStartIdx will be valid!
-		const TArray<int32>& GetCoincidentTriangles(const int32 Element) const { return GetPointToTriangleMap()[Element]; }
+		CHAOS_API TConstArrayView<TArray<int32>> GetPointToTriangleMap() const;  // Return an array view using global indexation. Only elements starting at MStartIdx will be valid!
+		FORCEINLINE const TArray<int32>& GetCoincidentTriangles(const int32 Element) const { return GetPointToTriangleMap()[Element]; }
 
-		TSet<int32> GetNRing(const int32 Element, const int32 N) const
+		FORCEINLINE TSet<int32> GetNRing(const int32 Element, const int32 N) const
 		{
 			TSet<int32> Neighbors;
 			TSet<uint32> LevelNeighbors, PrevLevelNeighbors;
@@ -130,42 +130,42 @@ namespace Chaos
 			return Neighbors;
 		}
 
-		TArray<Chaos::TVector<int32, 2>> GetUniqueAdjacentPoints() const;
-		TArray<Chaos::TVector<int32, 4>> GetUniqueAdjacentElements() const;
+		CHAOS_API TArray<Chaos::TVector<int32, 2>> GetUniqueAdjacentPoints() const;
+		CHAOS_API TArray<Chaos::TVector<int32, 4>> GetUniqueAdjacentElements() const;
 
 		/** The GetFaceNormals functions assume Counter Clockwise triangle windings in a Left Handed coordinate system
 			If this is not the case the returned face normals may be inverted
 		*/
-		TArray<TVector<T, 3>> GetFaceNormals(const TConstArrayView<TVector<T, 3>>& Points, const bool ReturnEmptyOnError = true) const;
-		void GetFaceNormals(TArray<TVector<T, 3>>& Normals, const TConstArrayView<TVector<T, 3>>& Points, const bool ReturnEmptyOnError = true) const;
-		TArray<TVector<T, 3>> GetFaceNormals(const TParticles<T, 3>& InParticles, const bool ReturnEmptyOnError = true) const
+		CHAOS_API TArray<TVector<T, 3>> GetFaceNormals(const TConstArrayView<TVector<T, 3>>& Points, const bool ReturnEmptyOnError = true) const;
+		CHAOS_API void GetFaceNormals(TArray<TVector<T, 3>>& Normals, const TConstArrayView<TVector<T, 3>>& Points, const bool ReturnEmptyOnError = true) const;
+		FORCEINLINE TArray<TVector<T, 3>> GetFaceNormals(const TParticles<T, 3>& InParticles, const bool ReturnEmptyOnError = true) const
 		{ return GetFaceNormals(InParticles.X(), ReturnEmptyOnError); }
 
-		TArray<TVector<T, 3>> GetPointNormals(const TConstArrayView<TVector<T, 3>>& points, const bool ReturnEmptyOnError = true);
-		TArray<TVector<T, 3>> GetPointNormals(const TParticles<T, 3>& InParticles, const bool ReturnEmptyOnError = true)
+		CHAOS_API TArray<TVector<T, 3>> GetPointNormals(const TConstArrayView<TVector<T, 3>>& points, const bool ReturnEmptyOnError = true);
+		FORCEINLINE TArray<TVector<T, 3>> GetPointNormals(const TParticles<T, 3>& InParticles, const bool ReturnEmptyOnError = true)
 		{ return GetPointNormals(InParticles.X(), ReturnEmptyOnError); }
 
-		void GetPointNormals(TArrayView<TVector<T, 3>> PointNormals, const TConstArrayView<TVector<T, 3>>& FaceNormals, const bool bUseGlobalArray);
+		CHAOS_API void GetPointNormals(TArrayView<TVector<T, 3>> PointNormals, const TConstArrayView<TVector<T, 3>>& FaceNormals, const bool bUseGlobalArray);
 		/** \brief Get per-point normals. 
 		 * This const version of this function requires \c GetPointToTriangleMap() 
 		 * to be called prior to invoking this function. 
 		 * @param bUseGlobalArray When true, fill the array from the StartIdx to StartIdx + NumIndices - 1 positions, otherwise fill the array from the 0 to NumIndices - 1 positions.
 		 */
-		void GetPointNormals(TArrayView<TVector<T, 3>> PointNormals, const TConstArrayView<TVector<T, 3>>& FaceNormals, const bool bUseGlobalArray) const;
+		CHAOS_API void GetPointNormals(TArrayView<TVector<T, 3>> PointNormals, const TConstArrayView<TVector<T, 3>>& FaceNormals, const bool bUseGlobalArray) const;
 
-		static TTriangleMesh<T> GetConvexHullFromParticles(const TConstArrayView<TVector<T, 3>>& points);
+		static CHAOS_API TTriangleMesh<T> GetConvexHullFromParticles(const TConstArrayView<TVector<T, 3>>& points);
 		/** Deprecated. Use TArrayView version. */
-		static TTriangleMesh<T> GetConvexHullFromParticles(const TParticles<T, 3>& InParticles)
+		static FORCEINLINE TTriangleMesh<T> GetConvexHullFromParticles(const TParticles<T, 3>& InParticles)
 		{ return GetConvexHullFromParticles(InParticles.X()); }
 
 		/**
 		 * @ret The connectivity of this mesh represented as a collection of unique segments.
 		 */
-		TSegmentMesh<T>& GetSegmentMesh();
+		CHAOS_API TSegmentMesh<T>& GetSegmentMesh();
 		/** @ret A map from all face indices, to the indices of their associated edges. */
-		const TArray<TVector<int32, 3>>& GetFaceToEdges();
+		CHAOS_API const TArray<TVector<int32, 3>>& GetFaceToEdges();
 		/** @ret A map from all edge indices, to the indices of their containing faces. */
-		const TArray<TVector<int32, 2>>& GetEdgeToFaces();
+		CHAOS_API const TArray<TVector<int32, 2>>& GetEdgeToFaces();
 
 		/**
 		 * @ret Curvature between adjacent faces, specified on edges in radians.
@@ -173,31 +173,31 @@ namespace Chaos
 		 * Curvature between adjacent faces is measured by the angle between face normals,
 		 * where a curvature of 0 means they're coplanar.
 		 */
-		TArray<T> GetCurvatureOnEdges(const TArray<TVector<T, 3>>& faceNormals);
+		CHAOS_API TArray<T> GetCurvatureOnEdges(const TArray<TVector<T, 3>>& faceNormals);
 		/** @brief Helper that generates face normals on the fly. */
-		TArray<T> GetCurvatureOnEdges(const TConstArrayView<TVector<T, 3>>& points);
+		CHAOS_API TArray<T> GetCurvatureOnEdges(const TConstArrayView<TVector<T, 3>>& points);
 
 		/**
 		 * @ret The maximum curvature at points from connected edges, specified in radians.
 		 * @param edgeCurvatures - a curvature per edge.
 		 * The greater the number, the sharper the crease. -FLT_MAX denotes free particles.
 		 */
-		TArray<T> GetCurvatureOnPoints(const TArray<T>& edgeCurvatures);
+		CHAOS_API TArray<T> GetCurvatureOnPoints(const TArray<T>& edgeCurvatures);
 		/** @brief Helper that generates edge curvatures on the fly. */
-		TArray<T> GetCurvatureOnPoints(const TConstArrayView<TVector<T, 3>>& points);
+		CHAOS_API TArray<T> GetCurvatureOnPoints(const TConstArrayView<TVector<T, 3>>& points);
 
 		/**
 		 * Get the set of point indices that live on the boundary (an edge with only 1 
 		 * coincident face).
 		 */
-		TSet<int32> GetBoundaryPoints();
+		CHAOS_API TSet<int32> GetBoundaryPoints();
 
 		/**
 		 * Find vertices that are coincident within the subset @param TestIndices 
 		 * of given coordinates @param Points, and return a correspondence mapping
 		 * from redundant vertex index to consolidated vertex index.
 		 */
-		TMap<int32, int32> FindCoincidentVertexRemappings(
+		CHAOS_API TMap<int32, int32> FindCoincidentVertexRemappings(
 			const TArray<int32>& TestIndices,
 			const TConstArrayView<TVector<T, 3>>& Points);
 
@@ -208,25 +208,25 @@ namespace Chaos
 		 * @param CoincidentVertices - indices of points that are coincident to another point.
 		 * @param RestrictToLocalIndexRange - ignores points outside of the index range used by this mesh.
 		 */
-		TArray<int32> GetVertexImportanceOrdering(
+		CHAOS_API TArray<int32> GetVertexImportanceOrdering(
 		    const TConstArrayView<TVector<T, 3>>& Points,
 		    const TArray<T>& PointCurvatures,
 		    TArray<int32>* CoincidentVertices = nullptr,
 		    const bool RestrictToLocalIndexRange = false);
 		/** @brief Helper that generates point curvatures on the fly. */
-		TArray<int32> GetVertexImportanceOrdering(
+		CHAOS_API TArray<int32> GetVertexImportanceOrdering(
 		    const TConstArrayView<TVector<T, 3>>& Points,
 		    TArray<int32>* CoincidentVertices = nullptr,
 		    const bool RestrictToLocalIndexRange = false);
 
 		/** @brief Reorder vertices according to @param Order. */
-		void RemapVertices(const TArray<int32>& Order);
-		void RemapVertices(const TMap<int32, int32>& Remapping);
+		CHAOS_API void RemapVertices(const TArray<int32>& Order);
+		CHAOS_API void RemapVertices(const TMap<int32, int32>& Remapping);
 
-		void RemoveDuplicateElements();
-		void RemoveDegenerateElements();
+		CHAOS_API void RemoveDuplicateElements();
+		CHAOS_API void RemoveDegenerateElements();
 
-		static void InitEquilateralTriangleXY(TTriangleMesh<T>& TriMesh, TParticles<T, 3>& Particles)
+		static FORCEINLINE void InitEquilateralTriangleXY(TTriangleMesh<T>& TriMesh, TParticles<T, 3>& Particles)
 		{
 			const int32 Idx = Particles.Size();
 			Particles.AddParticles(3);
@@ -241,7 +241,7 @@ namespace Chaos
 
 			TriMesh.Init(MoveTemp(Elements));
 		}
-		static void InitEquilateralTriangleYZ(TTriangleMesh<T>& TriMesh, TParticles<T, 3>& Particles)
+		static FORCEINLINE void InitEquilateralTriangleYZ(TTriangleMesh<T>& TriMesh, TParticles<T, 3>& Particles)
 		{
 			const int32 Idx = Particles.Size();
 			Particles.AddParticles(3);
@@ -258,16 +258,16 @@ namespace Chaos
 		}
 
 	private:
-		void InitHelper(const int32 StartIdx, const int32 EndIdx, const bool CullDegenerateElements=true);
+		CHAOS_API void InitHelper(const int32 StartIdx, const int32 EndIdx, const bool CullDegenerateElements=true);
 
-		int32 GlobalToLocal(int32 GlobalIdx) const
+		FORCEINLINE int32 GlobalToLocal(int32 GlobalIdx) const
 		{
 			const int32 LocalIdx = GlobalIdx - MStartIdx;
 			check(LocalIdx >= 0 && LocalIdx < MNumIndices);
 			return LocalIdx;
 		}
 
-		int32 LocalToGlobal(int32 LocalIdx) const
+		FORCEINLINE int32 LocalToGlobal(int32 LocalIdx) const
 		{
 			const int32 GlobalIdx = LocalIdx + MStartIdx;
 			check(GlobalIdx >= MStartIdx && GlobalIdx < MStartIdx + MNumIndices);
@@ -286,4 +286,15 @@ namespace Chaos
 		int32 MStartIdx;
 		int32 MNumIndices;
 	};
+
+#ifdef __clang__
+#if PLATFORM_WINDOWS
+	extern template class TTriangleMesh<float>;
+#else
+	extern template class CHAOS_API TTriangleMesh<float>;
+#endif
+#else
+	extern template class TTriangleMesh<float>;
+#endif
+
 }
