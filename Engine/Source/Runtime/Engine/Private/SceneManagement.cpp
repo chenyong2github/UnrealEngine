@@ -749,6 +749,7 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 
 	SkyIrradianceEnvironmentMap = GIdentityPrimitiveBuffer.SkyIrradianceEnvironmentMapSRV;
 
+	PhysicsFieldClipmapTexture = BlackVolume;
 
 	// [todo] Default to some other buffer
 	WaterData = GIdentityPrimitiveBuffer.PrimitiveSceneDataBufferSRV;
