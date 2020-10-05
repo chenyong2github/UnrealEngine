@@ -176,6 +176,10 @@ public:
 	/** Specifies what space the locked axis is in */
 	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "bLockedAxisEnable"))
 	ENiagaraMeshLockedAxisSpace LockedAxisSpace;
+
+	/** Local offset of the mesh pivot */
+	UPROPERTY(EditAnywhere, Category = "Mesh Rendering")
+	FVector PivotOffset;
 	
 	/** Enables frustum culling of individual mesh particles */
 	UPROPERTY(EditAnywhere, Category = "Visibility")
