@@ -3,7 +3,9 @@
 #include "SwitchboardMenuEntry.h"
 
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/Commands/Commands.h"
 #include "Framework/Commands/UIAction.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "GenericPlatform/GenericPlatformMisc.h"
 #include "GenericPlatform/GenericPlatformProcess.h"
 #include "LevelEditor.h"

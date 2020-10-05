@@ -20,6 +20,7 @@
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
 #include "GeometryCollection/GeometryCollectionUtility.h"
 #include "Logging/LogMacros.h"
+#include "Materials/Material.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 
 
