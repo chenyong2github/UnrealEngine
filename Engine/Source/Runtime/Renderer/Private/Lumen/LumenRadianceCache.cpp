@@ -774,51 +774,6 @@ bool UpdateRadianceCacheState(FRDGBuilder& GraphBuilder, const FViewInfo& View)
 
 	const int32 ClipmapResolution = LumenRadianceCache::GetClipmapGridResolution();
 	const int32 NumClipmaps = LumenRadianceCache::GetNumClipmaps();
-	const FIntPoint RadianceProbeAtlasTextureSize = LumenRadianceCache::GetProbeAtlasTextureSize();
-
-	if (!CacheState.RadianceProbeAtlasTexture.IsValid()
-		|| CacheState.RadianceProbeAtlasTexture->GetDesc().Extent != RadianceProbeAtlasTextureSize)
-	{
-		FPooledRenderTargetDesc ProbeAtlasDesc = FPooledRenderTargetDesc::Create2DDesc(
-			RadianceProbeAtlasTextureSize,
-			PF_FloatRGB,
-			FClearValueBinding::None,
-			TexCreate_None,
-			TexCreate_ShaderResource | TexCreate_UAV,
-			false);
-
-		GRenderTargetPool.FindFreeElement(
-			GraphBuilder.RHICmdList,
-			ProbeAtlasDesc,
-			CacheState.RadianceProbeAtlasTexture,
-			TEXT("RadianceProbeAtlasTexture"),
-			ERenderTargetTransience::NonTransient);
-	}
-
-	const FIntPoint FinalRadianceAtlasSize = LumenRadianceCache::GetFinalRadianceAtlasTextureSize();
-
-	if (!CacheState.FinalRadianceAtlas.IsValid()
-		|| CacheState.FinalRadianceAtlas->GetDesc().Extent != FinalRadianceAtlasSize
-		|| CacheState.FinalRadianceAtlas->GetDesc().NumMips != GRadianceCacheNumMipmaps)
-	{
-		FPooledRenderTargetDesc FinalRadianceAtlasDesc = FPooledRenderTargetDesc(FPooledRenderTargetDesc::Create2DDesc(
-			FinalRadianceAtlasSize,
-			PF_FloatRGB,
-			FClearValueBinding::Green,
-			TexCreate_None,
-			TexCreate_ShaderResource | TexCreate_UAV,
-			false,
-			GRadianceCacheNumMipmaps));
-
-		GRenderTargetPool.FindFreeElement(
-			GraphBuilder.RHICmdList,
-			FinalRadianceAtlasDesc,
-			CacheState.FinalRadianceAtlas,
-			TEXT("RadianceCacheFinalRadianceAtlas"),
-			ERenderTargetTransience::NonTransient);
-
-		bResetState = true;
-	}
 
 	const FVector NewViewOrigin = View.ViewMatrices.GetViewOrigin();
 
@@ -873,9 +828,51 @@ void FDeferredShadingSceneRenderer::RenderRadianceCache(
 		RDG_EVENT_SCOPE(GraphBuilder, "RadianceCache");
 
 		const TArray<FRadianceCacheClipmap> LastFrameClipmaps = View.ViewState->RadianceCacheState.Clipmaps;
-		const bool bResizedHistoryState = UpdateRadianceCacheState(GraphBuilder, View);
+		bool bResizedHistoryState = UpdateRadianceCacheState(GraphBuilder, View);
 
 		FRadianceCacheState& RadianceCacheState = View.ViewState->RadianceCacheState;
+
+		const FIntPoint RadianceProbeAtlasTextureSize = LumenRadianceCache::GetProbeAtlasTextureSize();
+		FRDGTextureRef RadianceProbeAtlasTexture = nullptr;
+
+		if (RadianceCacheState.RadianceProbeAtlasTexture.IsValid()
+			&& RadianceCacheState.RadianceProbeAtlasTexture->GetDesc().Extent == RadianceProbeAtlasTextureSize)
+		{
+			RadianceProbeAtlasTexture = GraphBuilder.RegisterExternalTexture(RadianceCacheState.RadianceProbeAtlasTexture);
+		}
+		else
+		{
+			FRDGTextureDesc ProbeAtlasDesc = FRDGTextureDesc::Create2D(
+				RadianceProbeAtlasTextureSize,
+				PF_FloatRGB,
+				FClearValueBinding::None,
+				TexCreate_ShaderResource | TexCreate_UAV);
+
+			RadianceProbeAtlasTexture = GraphBuilder.CreateTexture(ProbeAtlasDesc, TEXT("RadianceProbeAtlasTexture"));
+		}
+
+		const FIntPoint FinalRadianceAtlasSize = LumenRadianceCache::GetFinalRadianceAtlasTextureSize();
+		FRDGTextureRef FinalRadianceAtlas = nullptr;
+
+		if (RadianceCacheState.FinalRadianceAtlas.IsValid()
+			&& RadianceCacheState.FinalRadianceAtlas->GetDesc().Extent == FinalRadianceAtlasSize
+			&& RadianceCacheState.FinalRadianceAtlas->GetDesc().NumMips == GRadianceCacheNumMipmaps)
+		{
+			FinalRadianceAtlas = GraphBuilder.RegisterExternalTexture(RadianceCacheState.FinalRadianceAtlas);
+		}
+		else
+		{
+			FRDGTextureDesc FinalRadianceAtlasDesc = FRDGTextureDesc::Create2D(
+				FinalRadianceAtlasSize,
+				PF_FloatRGB,
+				FClearValueBinding::None,
+				TexCreate_ShaderResource | TexCreate_UAV,
+				GRadianceCacheNumMipmaps);
+
+			FinalRadianceAtlas = GraphBuilder.CreateTexture(FinalRadianceAtlasDesc, TEXT("RadianceCacheFinalRadianceAtlas"));
+			bResizedHistoryState = true;
+		}
+
 		LumenRadianceCache::GetParameters(View, GraphBuilder, RadianceCacheParameters);
 		
 		RadianceCacheParameters.RadianceProbeIndirectionTexture = nullptr;
@@ -995,9 +992,6 @@ void FDeferredShadingSceneRenderer::RenderRadianceCache(
 					GroupSize);
 			}
 		}
-
-		FRDGTextureRef RadianceProbeAtlasTexture = GraphBuilder.RegisterExternalTexture(RadianceCacheState.RadianceProbeAtlasTexture);
-		FRDGTextureRef FinalRadianceAtlas = GraphBuilder.RegisterExternalTexture(RadianceCacheState.FinalRadianceAtlas);
 
 		FRDGTextureUAVRef FinalRadianceAtlasUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(FinalRadianceAtlas));
 		FRDGTextureUAVRef RadianceProbeTextureUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RadianceProbeAtlasTexture));
