@@ -249,6 +249,17 @@ public:
 	virtual void GetDefaultUniverseSettings(uint16 InUniverseID, FJsonObject& OutSettings) const = 0;
 
 	/**
+	 * Zeroes Input DMX Buffers in all active Universes
+	 */
+	virtual void ZeroInputBuffers() = 0;
+
+	/**
+	 * Zeroes Output DMX Buffers in all active Universes
+	 */
+	virtual void ZeroOutputBuffers() = 0;
+
+
+	/**
 	 * Called on when a Universe Input Buffer was updated
 	 * Event Parameters: FName ProtocolName, uint16 UniverseID, const TArray<uint8>& InputBuffer
 	 */

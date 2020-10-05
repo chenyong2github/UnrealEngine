@@ -4,6 +4,7 @@
 
 #include "DMXEditorLog.h"
 #include "DMXEditorSettings.h"
+#include "DMXEditorUtils.h"
 #include "DetailLayoutBuilder.h"
 #include "Interfaces/IDMXProtocolUniverse.h"
 #include "Widgets/SNameListPicker.h"
@@ -200,7 +201,7 @@ void SDMXChannelsMonitor::SaveMonitorSettings() const
 
 FReply SDMXChannelsMonitor::OnClearButtonClicked()
 {
-	Clear();
+	FDMXEditorUtils::ZeroAllDMXBuffers();
 
 	return FReply::Handled();
 }
@@ -299,17 +300,6 @@ void SDMXChannelsMonitor::UpdateChannelValueWidgets()
 	for (uint32 ChannelID = 0; ChannelID < DMX_UNIVERSE_SIZE; ++ChannelID)
 	{
 		ChannelValueWidgets[ChannelID]->SetValue(Buffer[ChannelID]);
-	}
-}
-
-void SDMXChannelsMonitor::Clear()
-{
-	if (IDMXProtocolPtr DMXProtocolPtr = IDMXProtocol::Get(ProtocolName))
-	{
-		if (IDMXProtocolUniversePtr Universe = DMXProtocolPtr->GetUniverseById(UniverseID))
-		{
-			Universe->ZeroInputDMXBuffer();
-		}
 	}
 }
 
