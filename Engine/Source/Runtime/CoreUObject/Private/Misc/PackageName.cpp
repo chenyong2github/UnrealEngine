@@ -1460,11 +1460,26 @@ void FPackageName::IteratePackagesInDirectory(const FString& RootDir, const FPac
 	IFileManager::Get().IterateDirectoryStatRecursively(*RootDir, PackageVisitor);
 }
 
-void FPackageName::QueryRootContentPaths( TArray<FString>& OutRootContentPaths )
+void FPackageName::QueryRootContentPaths(TArray<FString>& OutRootContentPaths, bool bIncludeReadOnlyRoots, bool bWithoutLeadingSlashes, bool bWithoutTrailingSlashes)
 {
 	const FLongPackagePathsSingleton& Paths = FLongPackagePathsSingleton::Get();
-	const bool bIncludeReadOnlyRoots = false;	// Don't include Script or Temp paths
 	Paths.GetValidLongPackageRoots( OutRootContentPaths, bIncludeReadOnlyRoots );
+
+	if (bWithoutTrailingSlashes || bWithoutLeadingSlashes)
+	{
+		for (FString& It : OutRootContentPaths)
+		{
+			if (bWithoutTrailingSlashes && It.Len() > 1 && It[It.Len() - 1] == TEXT('/'))
+			{
+				It.RemoveAt(It.Len() - 1, /*Count*/ 1, /*bAllowShrinking*/ false);
+			}
+
+			if (bWithoutLeadingSlashes && It.Len() > 1 && It[0] == TEXT('/'))
+			{
+				It.RemoveAt(0, /*Count*/ 1, /*bAllowShrinking*/ false);
+			}
+		}
+	}
 }
 
 void FPackageName::EnsureContentPathsAreRegistered()

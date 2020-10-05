@@ -433,8 +433,11 @@ public:
 	 * Queries all of the root content paths, like "/Game/", "/Engine/", and any dynamically added paths
 	 *
 	 * @param	OutRootContentPaths	[Out] List of content paths
+	 * @param	bIncludeReadOnlyRoots	  Include read only root content paths such as "/Temp/"
+	 * @param	bWithoutLeadingSlashes	  Strip slash at start of each path to end up with "Game/"
+	 * @param	bWithoutTrailingSlashes	  Strip trailing slash at end of each path to end up with "/Game"
 	 */
-	static void QueryRootContentPaths( TArray<FString>& OutRootContentPaths );
+	static void QueryRootContentPaths( TArray<FString>& OutRootContentPaths, bool bIncludeReadOnlyRoots = false, bool bWithoutLeadingSlashes = false, bool bWithoutTrailingSlashes = false);
 	
 	/** If the FLongPackagePathsSingleton is not created yet, this function will create it and thus allow mount points to be added */
 	static void EnsureContentPathsAreRegistered();
