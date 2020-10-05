@@ -23,6 +23,7 @@
 #include "AssetRegistryModule.h"
 #include "GroomBindingBuilder.h"
 #include "GroomTextureBuilder.h"
+#include "GroomBindingAsset.h"
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -245,11 +246,7 @@ void FGroomActions::ExecuteCreateBindingAsset(TArray<TWeakObjectPtr<UGroomAsset>
 				CurrentOptions->TargetSkeletalMesh->ConditionalPostLoad();
 
 				UGroomBindingAsset* BindingAsset = CreateGroomBindinAsset(GroomAsset.Get(), CurrentOptions->SourceSkeletalMesh, CurrentOptions->TargetSkeletalMesh, CurrentOptions->NumInterpolationPoints);
-
-				// The binding task will generate and set the binding value back to the binding asset.
-				// This code is not thread safe.
-				const bool bUseGPU = true;
-				FGroomBindingBuilder::BuildBinding(BindingAsset, bUseGPU, true);
+				BindingAsset->Build();
 			}
 		}
 	}

@@ -59,7 +59,8 @@ public class RigLogicLib : ModuleRules
                 Target.Platform == UnrealTargetPlatform.PS4 ||
                 Target.Platform == UnrealTargetPlatform.XboxOne)
         {
-            PublicDefinitions.Add("TERSE_ENABLE_SSE=1");
+            // Disable SSE in serialization for now as there's no way to pass the -msse3 flag to the compiler currently
+            // PublicDefinitions.Add("TERSE_ENABLE_SSE=1");
             PrivateDefinitions.Add("RL_BUILD_WITH_SSE=1");
         }
     }

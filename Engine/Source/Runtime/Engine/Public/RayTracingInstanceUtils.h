@@ -15,5 +15,16 @@ enum ERaytracingInstanceMask
 	RaytracingInstanceMask_All				= 0xFF
 };
 
-ENGINE_API void AddOpaqueRaytracingInstance(const FMatrix& InstanceTransform, const FRayTracingGeometry* RayTracingGeometry, const uint32 Mask, TArray<struct FRayTracingInstance>& OutRayTracingInstances);
+ENGINE_API void AddOpaqueRaytracingInstance(
+	const FMatrix& InstanceTransform, 
+	const FRayTracingGeometry* RayTracingGeometry, 
+	const uint32 Mask, 
+	TArray<struct FRayTracingInstance>& OutRayTracingInstances);
+
+ENGINE_API void AddOpaqueRaytracingInstance(
+	const FMatrix& InstanceTransform, 
+	const FRayTracingGeometry* RayTracingGeometry, 
+	const uint32 Mask, 
+	const TArray<FMeshBatch>& Materials, 
+	TArray<FRayTracingInstance>& OutRayTracingInstances);
 #endif

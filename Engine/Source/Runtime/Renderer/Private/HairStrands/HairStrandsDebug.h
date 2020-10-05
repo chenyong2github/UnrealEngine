@@ -53,26 +53,18 @@ struct FHairStrandsDebugData
 	{
 		FRDGBufferRef ShadingPointBuffer = nullptr;
 		FRDGBufferRef ShadingPointCounter = nullptr;
-
 		FRDGBufferRef SampleBuffer = nullptr;
 		FRDGBufferRef SampleCounter = nullptr;
-	};
+	} Resources;
 
 	bool IsValid() const
 	{
-		return ShadingPointBuffer && ShadingPointCounter && SampleBuffer &&	SampleCounter;
+		return Resources.ShadingPointBuffer && Resources.ShadingPointCounter && Resources.SampleBuffer && Resources.SampleCounter;
 	}
 
 	static Data CreateData(FRDGBuilder& GraphBuilder);
-	static Data ImportData(FRDGBuilder& GraphBuilder, const FHairStrandsDebugData& In);
-	static void ExtractData(FRDGBuilder& GraphBuilder, Data& In, FHairStrandsDebugData& Out);
 	static void SetParameters(FRDGBuilder& GraphBuilder, Data& In, FWriteParameters& Out);
-	static void SetParameters(FRDGBuilder& GraphBuilder, Data& In, FReadParameters& Out);
-
-	TRefCountPtr<FRDGPooledBuffer> ShadingPointBuffer;
-	TRefCountPtr<FRDGPooledBuffer> ShadingPointCounter;
-	TRefCountPtr<FRDGPooledBuffer> SampleBuffer;
-	TRefCountPtr<FRDGPooledBuffer> SampleCounter;
+	static void SetParameters(FRDGBuilder& GraphBuilder, const Data& In, FReadParameters& Out);
 };
 
 void RenderHairStrandsDebugInfo(

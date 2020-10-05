@@ -999,10 +999,10 @@ static void UpdateHairAccelerationStructure(FRHICommandList& RHICmdList, FRayTra
 	RHICmdList.BuildAccelerationStructures(MakeArrayView(&Params, 1));
 }
 
-static void BuildHairAccelerationStructure(FRHICommandList& RHICmdList, uint32 RaytracingVertexCount, FVertexBufferRHIRef& PositionBuffer, FRayTracingGeometry* OutRayTracingGeometry)
+static void BuildHairAccelerationStructure_Strands(FRHICommandList& RHICmdList, uint32 RaytracingVertexCount, FVertexBufferRHIRef& PositionBuffer, FRayTracingGeometry* OutRayTracingGeometry)
 {
 	FRayTracingGeometryInitializer Initializer;
-	static const FName DebugName("Hair");
+	static const FName DebugName("HairStrands");
 	static int32 DebugNumber = 0;
 	Initializer.DebugName = FName(DebugName, DebugNumber++);
 	Initializer.IndexBuffer = nullptr;
@@ -1020,8 +1020,61 @@ static void BuildHairAccelerationStructure(FRHICommandList& RHICmdList, uint32 R
 	Initializer.Segments.Add(Segment);
 
 	OutRayTracingGeometry->SetInitializer(Initializer);
-	OutRayTracingGeometry->RayTracingGeometryRHI = RHICreateRayTracingGeometry(Initializer);
-	RHICmdList.BuildAccelerationStructure(OutRayTracingGeometry->RayTracingGeometryRHI);
+	OutRayTracingGeometry->InitRHI();
+}
+
+static void BuildHairAccelerationStructure_Cards(FRHICommandList& RHICmdList, 	
+	FHairCardsRestResource* RestResource,
+	FHairCardsDeformedResource* DeformedResource,
+	FRayTracingGeometry* OutRayTracingGeometry)
+{
+	FRayTracingGeometryInitializer Initializer;
+	static const FName DebugName("HairCards");
+	static int32 DebugNumber = 0;
+	Initializer.DebugName = FName(DebugName, DebugNumber++);
+	Initializer.IndexBuffer = RestResource->RestIndexBuffer.IndexBufferRHI;
+	Initializer.IndexBufferOffset = 0;
+	Initializer.GeometryType = RTGT_Triangles;
+	Initializer.TotalPrimitiveCount = RestResource->PrimitiveCount;
+	Initializer.bFastBuild = true;
+	Initializer.bAllowUpdate = true;
+
+	FRayTracingGeometrySegment Segment;
+	Segment.VertexBuffer = DeformedResource->GetBuffer(FHairCardsDeformedResource::Current).Buffer; // This will likely flicker result in half speed motion as everyother frame will use the wrong buffer
+	Segment.VertexBufferStride = FHairCardsPositionFormat::SizeInByte;
+	Segment.VertexBufferElementType = FHairCardsPositionFormat::VertexElementType;
+	Segment.NumPrimitives = RestResource->PrimitiveCount;
+	Initializer.Segments.Add(Segment);
+
+	OutRayTracingGeometry->SetInitializer(Initializer);
+	OutRayTracingGeometry->InitRHI();
+}
+
+static void BuildHairAccelerationStructure_Meshes(FRHICommandList& RHICmdList,
+	FHairMeshesRestResource* RestResource,
+	FHairMeshesDeformedResource* DeformedResource,
+	FRayTracingGeometry* OutRayTracingGeometry)
+{
+	FRayTracingGeometryInitializer Initializer;
+	static const FName DebugName("HairCards");
+	static int32 DebugNumber = 0;
+	Initializer.DebugName = FName(DebugName, DebugNumber++);
+	Initializer.IndexBuffer = RestResource->IndexBuffer.IndexBufferRHI;
+	Initializer.IndexBufferOffset = 0;
+	Initializer.GeometryType = RTGT_Triangles;
+	Initializer.TotalPrimitiveCount = RestResource->PrimitiveCount;
+	Initializer.bFastBuild = true;
+	Initializer.bAllowUpdate = true;
+
+	FRayTracingGeometrySegment Segment;
+	Segment.VertexBuffer = DeformedResource->GetBuffer(FHairMeshesDeformedResource::Current).Buffer;
+	Segment.VertexBufferStride = FHairCardsPositionFormat::SizeInByte;
+	Segment.VertexBufferElementType = FHairCardsPositionFormat::VertexElementType;
+	Segment.NumPrimitives = RestResource->PrimitiveCount;
+	Initializer.Segments.Add(Segment);
+
+	OutRayTracingGeometry->SetInitializer(Initializer);
+	OutRayTracingGeometry->InitRHI();
 }
 #endif // RHI_RAYTRACING
 
@@ -1262,34 +1315,41 @@ void ComputeHairStrandsInterpolation(
 		}
 
 		#if RHI_RAYTRACING
-		if (IsHairRayTracingEnabled() && Instance->GeometryType == EHairGeometryType::Strands)
+		if (Instance->Strands.RenRaytracingResource)
 		{
-			// #hair_todo: make it work again
-			//FBufferTransitionQueue TransitionQueue;
-			//FRDGBuilder GraphBuilder(RHICmdList);
-			//// #hair_todo: move this somewhere else?
-			//const float HairRadiusScaleRT = (GHairRaytracingRadiusScale > 0 ? GHairRaytracingRadiusScale : Instance->Strands.Modifier.HairRaytracingRadiusScale);
-			//AddGenerateRaytracingGeometryPass(
-			//	GraphBuilder,
-			//	Instance->Strands.RestResource->GetVertexCount(),// Input.RenderVertexCount,
-			//	MaxOutHairRadius* HairRadiusScaleRT,
-			//	Instance->Strands.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::Current),// Input.OutHairPositionOffset,
-			//	Instance->Strands.DeformedResource->GetBuffer(FHairStrandsDeformedResource::Current).SRV,// Output.VFInput.Strands.PositionBuffer,
-			//	Instance->Strands.RenRaytracingResource->PositionBuffer.UAV,// Input.RaytracingPositionBuffer->UAV,
-			//	TransitionQueue);
-			//
-			//	GraphBuilder.Execute();
-			//	TransitBufferToReadable(RHICmdList, TransitionQueue);
-			//
-			//FRHIUnorderedAccessView* UAV = Input.RaytracingPositionBuffer->UAV;
-			//RHICmdList.Transition(FRHITransitionInfo(Input.RaytracingPositionBuffer->UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute));
-			//
-			//const bool bNeedFullBuild = !Input.bIsRTGeometryInitialized;
-			//if (bNeedFullBuild)
-			//	BuildHairAccelerationStructure(RHICmdList, Input.RaytracingVertexCount, Input.RaytracingPositionBuffer->Buffer, Input.RaytracingGeometry);
-			//else
-			//	UpdateHairAccelerationStructure(RHICmdList, Input.RaytracingGeometry);
-			//Input.bIsRTGeometryInitialized = true;
+			const float HairRadiusScaleRT = (GHairRaytracingRadiusScale > 0 ? GHairRaytracingRadiusScale : Instance->Strands.Modifier.HairRaytracingRadiusScale);
+
+			FBufferTransitionQueue TransitionQueue;
+
+			AddGenerateRaytracingGeometryPass(
+				GraphBuilder,
+				ShaderMap,
+				Instance->Strands.RestResource->GetVertexCount(),
+				MaxOutHairRadius * HairRadiusScaleRT,
+				Instance->Strands.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::Current),// Input.OutHairPositionOffset,
+				Instance->Strands.DeformedResource->GetBuffer(FHairStrandsDeformedResource::Current).SRV,// Output.VFInput.Strands.PositionBuffer,
+				Instance->Strands.RenRaytracingResource->PositionBuffer.UAV,
+				TransitionQueue);
+
+			TransitBufferToReadable(GraphBuilder, TransitionQueue);
+
+			GraphBuilder.AddPass(
+			RDG_EVENT_NAME("HairStrandsUpdateBLAS"),
+			ERDGPassFlags::NeverCull,
+			[Instance](FRHICommandList& RHICmdList)
+			{
+				const bool bNeedFullBuild = !Instance->Strands.RenRaytracingResource->bIsRTGeometryInitialized;
+				if (bNeedFullBuild)
+				{
+					BuildHairAccelerationStructure_Strands(RHICmdList, Instance->Strands.RenRaytracingResource->VertexCount, Instance->Strands.RenRaytracingResource->PositionBuffer.Buffer, &Instance->Strands.RenRaytracingResource->RayTracingGeometry);
+				}
+				else
+				{
+					UpdateHairAccelerationStructure(RHICmdList, &Instance->Strands.RenRaytracingResource->RayTracingGeometry);
+				}
+				Instance->Strands.RenRaytracingResource->bIsRTGeometryInitialized = true;
+
+			});
 		}
 		#endif
 
@@ -1361,13 +1421,8 @@ void ComputeHairStrandsInterpolation(
 
 			}
 			TransitBufferToReadable(GraphBuilder, TransitionQueue);
-		}
 
-		// Deform cards geometry
-		if (bIsCardsValid)
-		{
-			FBufferTransitionQueue TransitionQueue;
-		
+			// Deform cards geometry
 			AddHairCardsDeformationPass(
 				GraphBuilder,
 				ShaderMap,
@@ -1375,13 +1430,62 @@ void ComputeHairStrandsInterpolation(
 				Instance,
 				MeshLODIndex,
 				TransitionQueue);
-		
 			TransitBufferToReadable(GraphBuilder, TransitionQueue);
+
+			#if RHI_RAYTRACING
+			if (LOD.RaytracingResource)
+			{
+				GraphBuilder.AddPass(
+					RDG_EVENT_NAME("HairCardsUpdateBLAS"),
+					ERDGPassFlags::NeverCull,
+					[Instance, HairLODIndex](FRHICommandList& RHICmdList)
+					{
+
+						FHairGroupInstance::FCards::FLOD& LocalLOD = Instance->Cards.LODs[HairLODIndex];
+
+						const bool bNeedFullBuild = !LocalLOD.RaytracingResource->bIsRTGeometryInitialized;
+						if (bNeedFullBuild)
+						{
+							BuildHairAccelerationStructure_Cards(RHICmdList, LocalLOD.RestResource, LocalLOD.DeformedResource,  &LocalLOD.RaytracingResource->RayTracingGeometry);
+						}
+						else
+						{
+							UpdateHairAccelerationStructure(RHICmdList, &LocalLOD.RaytracingResource->RayTracingGeometry);
+						}
+						LocalLOD.RaytracingResource->bIsRTGeometryInitialized = true;
+					});
+			}
+			#endif
 		}
 	}
 	else if (Instance->GeometryType == EHairGeometryType::Meshes)
 	{
-		// Not needed
+		#if RHI_RAYTRACING
+		const uint32 HairLODIndex = Instance->HairGroupPublicData->GetIntLODIndex();
+		FHairGroupInstance::FMeshes::FLOD& LOD = Instance->Meshes.LODs[HairLODIndex];
+		if (LOD.RaytracingResource && !LOD.RaytracingResource->bIsRTGeometryInitialized)
+		{
+			GraphBuilder.AddPass(
+				RDG_EVENT_NAME("HairMeshesUpdateBLAS"),
+				ERDGPassFlags::NeverCull,
+				[Instance, HairLODIndex](FRHICommandList& RHICmdList)
+			{
+
+				FHairGroupInstance::FMeshes::FLOD& LocalLOD = Instance->Meshes.LODs[HairLODIndex];
+				
+				const bool bNeedFullBuild = !LocalLOD.RaytracingResource->bIsRTGeometryInitialized;
+				if (bNeedFullBuild)
+				{
+					BuildHairAccelerationStructure_Meshes(RHICmdList, LocalLOD.RestResource, LocalLOD.DeformedResource,  &LocalLOD.RaytracingResource->RayTracingGeometry);
+				}
+				else
+				{
+					UpdateHairAccelerationStructure(RHICmdList, &LocalLOD.RaytracingResource->RayTracingGeometry);
+				}
+				LocalLOD.RaytracingResource->bIsRTGeometryInitialized = true;
+			});
+		}
+		#endif
 	}
 
 	Instance->HairGroupPublicData->VFInput.GeometryType = Instance->GeometryType;

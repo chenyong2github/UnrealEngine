@@ -12,7 +12,9 @@
 #include "HairStrandsVoxelPageCommon.ush"
 #include "HairStrandsDebugCommon.ush"  
 
+#define VOXEL_TRAVERSAL_DEBUG_PAGEOCCUPANCY 0
 #define VOXEL_TRAVERSAL_DEBUG 0
+#define VOXEL_TRAVERSAL_FORCE_MIP_ENABLE 1
 #if PERMUTATION_TRAVERSAL == 1
 	#define VOXEL_TRAVERSAL_TYPE VOXEL_TRAVERSAL_LINEAR_MIPMAP
 #else
@@ -22,6 +24,7 @@
 
 float2 OutputResolution; 
 uint bDrawPage;
+int ForcedMipLevel;
 uint MacroGroupId;
 uint MacroGroupCount;
 uint MaxTotalPageIndexCount;
@@ -46,6 +49,12 @@ uint GetVoxelPageIndex(uint3 InPageIndexCoord, uint3 InPageIndexResolution, uint
 {
 	const uint LinearPageIndexCoord = CoordToIndex(InPageIndexCoord, InPageIndexResolution, InLinearPageIndexOffset);
 	return VirtualVoxel.PageIndexBuffer.Load(LinearPageIndexCoord);
+}
+
+uint2 GetVoxelPageIndexOccupancy(uint3 InPageIndexCoord, uint3 InPageIndexResolution, uint InLinearPageIndexOffset)
+{
+	const uint LinearPageIndexCoord = CoordToIndex(InPageIndexCoord, InPageIndexResolution, InLinearPageIndexOffset);
+	return VirtualVoxel.PageIndexOccupancyBuffer.Load(LinearPageIndexCoord);
 }
 
 [numthreads(8, 8, 1)]
@@ -499,7 +508,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 	bool bIsValid = false;
 	float3 HitColor = 0;
-	if (bDrawPage)
+	if (bDrawPage > 0)
 	{
 		// Reverse-Z
 		const float3 O = View.WorldCameraOrigin;
@@ -532,7 +541,18 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 				const float3 HitP = Offset + O + ((Dither+StepIt)*Delta + HitT.x) * D;
 				const int3 PageIndexCoord = PositionToCoord(HitP, NodeDesc.MinAABB, NodeDesc.MaxAABB, NodeDesc.PageIndexResolution);
 				const uint PageIndex = GetVoxelPageIndex(PageIndexCoord, NodeDesc.PageIndexResolution, NodeDesc.PageIndexOffset);
-				if (PageIndex != INVALID_VOXEL_PAGE_INDEX)
+
+				bool bHasValidData = true;
+				if (bDrawPage == 2)
+				{
+					const uint2 PageIndexOccuancy = GetVoxelPageIndexOccupancy(PageIndexCoord, NodeDesc.PageIndexResolution, NodeDesc.PageIndexOffset);
+					const int3 VoxelCoord = PositionToCoord(HitP, NodeDesc.MinAABB, NodeDesc.MaxAABB, NodeDesc.VirtualResolution);
+					const int3 VoxelBasePageCoord = PageIndexCoord * VirtualVoxel.PageResolution;
+					const int3 VoxelRelativeCoord = VoxelCoord - VoxelBasePageCoord;
+					bHasValidData = DoesVoxelContainData(PageIndexOccuancy, VoxelRelativeCoord);
+				}
+
+				if (PageIndex != INVALID_VOXEL_PAGE_INDEX && bHasValidData)
 				{
 					const uint3 PageCoord = IndexToCoord(PageIndex, VirtualVoxel.PageCountResolution);
 
@@ -575,6 +595,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		TraversalSettings.TanConeAngle		= 0;
 		TraversalSettings.bIsPrimaryRay		= true;
 		TraversalSettings.PixelRadius		= -1;
+		TraversalSettings.ForcedMip			= ForcedMipLevel;
 
 		TraversalResult = ComputeHairCountVirtualVoxel(
 			WP0,
@@ -582,6 +603,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 			CommonDesc,
 			NodeDesc,
 			VirtualVoxel.PageIndexBuffer,
+			VirtualVoxel.PageIndexOccupancyBuffer,
 			VirtualVoxel.PageTexture,
 			TraversalSettings);
 

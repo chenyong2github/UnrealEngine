@@ -245,7 +245,6 @@ void MainPS(
 			const bool bPlotDualScatteringContribution = true;
 			if (!bPlotDualScatteringContribution)
 			{
-				TransmittanceData.Transmittance = 1;
 				TransmittanceData.LocalScattering = 1;
 				TransmittanceData.GlobalScattering = 1;
 				TransmittanceData.ScatteringComponent = InHairComponents;
@@ -253,40 +252,28 @@ void MainPS(
 			}
 			else
 			{
-				FHairTransmittanceMask TransmittanceMask;
-				TransmittanceMask.Transmittance = 1;
-				TransmittanceMask.HairCount = 0;
-				TransmittanceMask.Visibility = 1;
-
-				TransmittanceData.Transmittance = TransmittanceMask.Transmittance;
-				TransmittanceData.HairCount = TransmittanceMask.HairCount;
-				TransmittanceData.GlobalScattering = 1;
-				TransmittanceData.LocalScattering = 0;
-				TransmittanceData.ScatteringComponent = InHairComponents | HAIR_COMPONENT_MULTISCATTER;
-				TransmittanceData.OpaqueVisibility = TransmittanceMask.Visibility;
-
 				const float3 L = PixelDir_Local;
 				const float3 T = T_Local;
 				const float3 V = V_Local;
-				{
-					const float SinLightAngle = dot(L, T);
+				const float SinLightAngle = dot(L, T);
 
-					// Compute the transmittance based on precompute Hair transmittance LUT
-					HairAverageScattering AverageScattering = SampleHairLUT(HairScatteringLUTTexture, HairLUTSampler, P.BaseColor, P.Roughness, SinLightAngle);
-					TransmittanceData.A_front = AverageScattering.A_front;
-					TransmittanceData.A_back = AverageScattering.A_back;
-				}
+				// Compute the transmittance based on precompute Hair transmittance LUT
+				FHairAverageScattering AverageScattering = SampleHairLUT(HairScatteringLUTTexture, HairLUTSampler, P.BaseColor, P.Roughness, SinLightAngle);
 
-				ComputeDualScatteringTerms(
-					TransmittanceData,
+				FHairTransmittanceMask TransmittanceMask;
+				TransmittanceMask.HairCount = 0;
+				TransmittanceMask.Visibility = 1;
+				TransmittanceMask.Transmittance = 1;
+
+				TransmittanceData = ComputeDualScatteringTerms(
+					TransmittanceMask,
+					AverageScattering,
 					P.Roughness,
 					SampleBacklit,
 					V,
 					L,
 					T,
-					InHairComponents,
-					TransmittanceData.GlobalScattering,
-					TransmittanceData.LocalScattering);
+					InHairComponents);
 			}
 
 			FGBufferData HairGBuffer = (FGBufferData)0;

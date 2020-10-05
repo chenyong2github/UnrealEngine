@@ -12,6 +12,7 @@
 #include "MeshMaterialShader.h"
 #include "HairStrandsInterface.h"
 #include "GroomInstance.h"
+#include "SystemTextures.h" 
 
 template<typename T> inline void VFC_BindParam(FMeshDrawSingleShaderBindings& ShaderBindings, const FShaderResourceParameter& Param, T* Value) { if (Param.IsBound() && Value) ShaderBindings.Add(Param, Value); }
 template<typename T> inline void VFC_BindParam(FMeshDrawSingleShaderBindings& ShaderBindings, const FShaderParameter& Param, const T& Value) { if (Param.IsBound()) ShaderBindings.Add(Param, Value); }
@@ -22,49 +23,88 @@ inline FHairGroupInstance& GetInput(const FHairCardsVertexFactory* VF, uint32 Gr
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Cards based vertex factory
+IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FHairCardsVertexFactoryUniformShaderParameters, "HairCardsVF");
+
+FHairCardsUniformBuffer CreateHairCardsVFUniformBuffer(
+	uint32 Current,
+	const FHairGroupInstance* Instance,
+	const uint32 LODIndex,
+	EHairGeometryType GeometryType)
+{
+	FHairCardsVertexFactoryUniformShaderParameters UniformParameters;
+
+	// #hair_todo: add non-manual vertex fetching support
+	// if (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
+	// else
+	//  Set default value to unused buffer
+
+	if (GeometryType == EHairGeometryType::Cards)
+	{
+		const FHairGroupInstance::FCards::FLOD& LOD = Instance->Cards.LODs[LODIndex];
+
+		// Cards atlas UV are inverted so fetching needs to be inverted on the y-axis
+		UniformParameters.bInvertUV = 1;
+		UniformParameters.PositionBuffer = LOD.DeformedResource->GetBuffer(Current == 0 ? FHairCardsDeformedResource::Current : FHairCardsDeformedResource::Previous).SRV.GetReference();
+		UniformParameters.PreviousPositionBuffer = LOD.DeformedResource->GetBuffer(Current == 0 ? FHairCardsDeformedResource::Previous : FHairCardsDeformedResource::Current).SRV.GetReference();
+		UniformParameters.NormalsBuffer = LOD.RestResource->NormalsBuffer.SRV.GetReference();
+		UniformParameters.UVsBuffer = LOD.RestResource->UVsBuffer.SRV.GetReference();
+
+		UniformParameters.DepthTexture = LOD.RestResource->DepthTexture;
+		UniformParameters.DepthSampler = LOD.RestResource->DepthSampler;
+		UniformParameters.TangentTexture = LOD.RestResource->TangentTexture;
+		UniformParameters.TangentSampler = LOD.RestResource->TangentSampler;
+		UniformParameters.CoverageTexture = LOD.RestResource->CoverageTexture;
+		UniformParameters.CoverageSampler = LOD.RestResource->CoverageSampler;
+		UniformParameters.AttributeTexture = LOD.RestResource->AttributeTexture;
+		UniformParameters.AttributeSampler = LOD.RestResource->AttributeSampler;
+	}
+	else if (GeometryType == EHairGeometryType::Meshes)
+	{
+		const FHairGroupInstance::FMeshes::FLOD& LOD = Instance->Meshes.LODs[LODIndex];
+
+		// Meshes UV are not inverted so no need to invert the y-axis
+		UniformParameters.bInvertUV = 0;
+		UniformParameters.PositionBuffer = LOD.DeformedResource->GetBuffer(Current == 0 ? FHairMeshesDeformedResource::Current : FHairMeshesDeformedResource::Previous).SRV.GetReference();
+		UniformParameters.PreviousPositionBuffer = LOD.DeformedResource->GetBuffer(Current == 0 ? FHairMeshesDeformedResource::Previous : FHairMeshesDeformedResource::Current).SRV.GetReference();
+		UniformParameters.NormalsBuffer = LOD.RestResource->NormalsBuffer.SRV.GetReference();
+		UniformParameters.UVsBuffer = LOD.RestResource->UVsBuffer.SRV.GetReference();
+
+		UniformParameters.DepthTexture = LOD.RestResource->DepthTexture;
+		UniformParameters.DepthSampler = LOD.RestResource->DepthSampler;
+		UniformParameters.TangentTexture = LOD.RestResource->TangentTexture;
+		UniformParameters.TangentSampler = LOD.RestResource->TangentSampler;
+		UniformParameters.CoverageTexture = LOD.RestResource->CoverageTexture;
+		UniformParameters.CoverageSampler = LOD.RestResource->CoverageSampler;
+		UniformParameters.AttributeTexture = LOD.RestResource->AttributeTexture;
+		UniformParameters.AttributeSampler = LOD.RestResource->AttributeSampler;
+	}
+
+	FRHITexture* DefaultTexture = GSystemTextures.BlackDummy->GetShaderResourceRHI();
+	FSamplerStateRHIRef DefaultSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+	if (!UniformParameters.DepthTexture)		{ UniformParameters.DepthTexture = DefaultTexture;	  }
+	if (!UniformParameters.TangentTexture)		{ UniformParameters.TangentTexture = DefaultTexture;  }
+	if (!UniformParameters.CoverageTexture)		{ UniformParameters.CoverageTexture = DefaultTexture; }
+	if (!UniformParameters.AttributeTexture)	{ UniformParameters.AttributeTexture = DefaultTexture;}
+
+	if (!UniformParameters.DepthSampler)		{ UniformParameters.DepthSampler = DefaultSampler;	  }
+	if (!UniformParameters.TangentSampler)		{ UniformParameters.TangentSampler = DefaultSampler;  }
+	if (!UniformParameters.CoverageSampler)		{ UniformParameters.CoverageSampler = DefaultSampler; }
+	if (!UniformParameters.AttributeSampler)	{ UniformParameters.AttributeSampler = DefaultSampler;}
+
+	//return TUniformBufferRef<FHairCardsVertexFactoryUniformShaderParameters>::CreateUniformBufferImmediate(UniformParameters, UniformBuffer_MultiFrame);
+	return TUniformBufferRef<FHairCardsVertexFactoryUniformShaderParameters>::CreateUniformBufferImmediate(UniformParameters, UniformBuffer_MultiFrame);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Cards based vertex factory
 
 class FHairCardsVertexFactoryShaderParameters : public FVertexFactoryShaderParameters
 {
 	DECLARE_TYPE_LAYOUT(FHairCardsVertexFactoryShaderParameters, NonVirtual);
 public:
-	LAYOUT_FIELD(FShaderParameter, InvertUV);
-	LAYOUT_FIELD(FShaderResourceParameter, PositionBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, PreviousPositionBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, NormalsBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, UVsBuffer);
-	
-	LAYOUT_FIELD(FShaderResourceParameter, CardsAtlasRectBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, CardsDimensionBuffer);
-
-	LAYOUT_FIELD(FShaderResourceParameter, DepthTexture);
-	LAYOUT_FIELD(FShaderResourceParameter, DepthSampler);
-	LAYOUT_FIELD(FShaderResourceParameter, TangentTexture);
-	LAYOUT_FIELD(FShaderResourceParameter, TangentSampler);
-	LAYOUT_FIELD(FShaderResourceParameter, CoverageTexture);
-	LAYOUT_FIELD(FShaderResourceParameter, CoverageSampler);
-	LAYOUT_FIELD(FShaderResourceParameter, AttributeTexture);
-	LAYOUT_FIELD(FShaderResourceParameter, AttributeSampler); 
-
 	void Bind(const FShaderParameterMap& ParameterMap)
 	{
-		PositionBuffer.Bind(ParameterMap, TEXT("HairCardsVF_PositionBuffer"));
-		PreviousPositionBuffer.Bind(ParameterMap, TEXT("HairCardsVF_PreviousPositionBuffer"));
-		NormalsBuffer.Bind(ParameterMap, TEXT("HairCardsVF_NormalsBuffer"));
-		UVsBuffer.Bind(ParameterMap, TEXT("HairCardsVF_VertexUVsBuffer"));
-
-		CardsAtlasRectBuffer.Bind(ParameterMap, TEXT("HairCardsVF_CardsAtlasRectBuffer"));
-		CardsDimensionBuffer.Bind(ParameterMap, TEXT("HairCardsVF_CardsDimensionBuffer"));
-
-		DepthTexture.Bind(ParameterMap, TEXT("HairCardsVF_DepthTexture"));
-		DepthSampler.Bind(ParameterMap, TEXT("HairCardsVF_DepthSampler"));
-		TangentTexture.Bind(ParameterMap, TEXT("HairCardsVF_TangentTexture"));
-		TangentSampler.Bind(ParameterMap, TEXT("HairCardsVF_TangentSampler"));
-		CoverageTexture.Bind(ParameterMap, TEXT("HairCardsVF_CoverageTexture"));
-		CoverageSampler.Bind(ParameterMap, TEXT("HairCardsVF_CoverageSampler"));
-		AttributeTexture.Bind(ParameterMap, TEXT("HairCardsVF_AttributeTexture"));
-		AttributeSampler.Bind(ParameterMap, TEXT("HairCardsVF_AttributeSampler"));
-
-		InvertUV.Bind(ParameterMap, TEXT("HairCardsVF_bInvertUV"));		
 	}
 
 	void GetElementShaderBindings(
@@ -87,68 +127,25 @@ public:
 		const uint32 LODIndex = GroupPublicData->GetIntLODIndex();
 		const FHairGroupInstance& Instance = GetInput(VF, GroupIndex);
 		
+		// Decode VertexFactoryUserData as VertexFactoryUniformBuffer
+		FRHIUniformBuffer* VertexFactoryUniformBuffer = nullptr;
+		check(Instance.GeometryType == EHairGeometryType::Cards || Instance.GeometryType == EHairGeometryType::Meshes);
 		if (Instance.GeometryType == EHairGeometryType::Cards)
 		{
 			const FHairGroupInstance::FCards::FLOD& LOD = Instance.Cards.LODs[LODIndex];
-			VFC_BindParam(ShaderBindings, PositionBuffer, LOD.DeformedResource->GetBuffer(FHairCardsDeformedResource::Current).SRV.GetReference());
-			VFC_BindParam(ShaderBindings, PreviousPositionBuffer, LOD.DeformedResource->GetBuffer(FHairCardsDeformedResource::Previous).SRV.GetReference());
-			VFC_BindParam(ShaderBindings, NormalsBuffer, LOD.RestResource->NormalsBuffer.SRV.GetReference());
-			VFC_BindParam(ShaderBindings, UVsBuffer, LOD.RestResource->UVsBuffer.SRV.GetReference());
-
-			// Cards atlas UV are inverted so fetching needs to be inverted on the y-axis
-			VFC_BindParam(ShaderBindings, InvertUV, 1);
-
-			if (LOD.RestResource->DepthTexture)
-			{
-				ShaderBindings.AddTexture(DepthTexture, DepthSampler, LOD.RestResource->DepthSampler, LOD.RestResource->DepthTexture); 
-			}
-
-			if (LOD.RestResource->TangentTexture)
-			{
-				ShaderBindings.AddTexture(TangentTexture, TangentSampler, LOD.RestResource->TangentSampler, LOD.RestResource->TangentTexture);
-			}
-
-			if (LOD.RestResource->CoverageTexture)
-			{
-				ShaderBindings.AddTexture(CoverageTexture, CoverageSampler, LOD.RestResource->CoverageSampler, LOD.RestResource->CoverageTexture);
-			}
-
-			if (LOD.RestResource->AttributeTexture)
-			{
-				ShaderBindings.AddTexture(AttributeTexture, AttributeSampler, LOD.RestResource->AttributeSampler, LOD.RestResource->AttributeTexture);
-			}
+			check(LOD.UniformBuffer);
+			const uint32 UniformIndex = LOD.DeformedResource->GetIndex(FHairCardsDeformedResource::Current);
+			VertexFactoryUniformBuffer = LOD.UniformBuffer[UniformIndex];
 		}
 		else if (Instance.GeometryType == EHairGeometryType::Meshes)
 		{
 			const FHairGroupInstance::FMeshes::FLOD& LOD = Instance.Meshes.LODs[LODIndex];
-			VFC_BindParam(ShaderBindings, PositionBuffer, LOD.DeformedResource->GetBuffer(FHairMeshesDeformedResource::Current).SRV.GetReference());
-			VFC_BindParam(ShaderBindings, PreviousPositionBuffer, LOD.DeformedResource->GetBuffer(FHairMeshesDeformedResource::Previous).SRV.GetReference());
-			VFC_BindParam(ShaderBindings, NormalsBuffer, LOD.RestResource->NormalsBuffer.SRV.GetReference());
-			VFC_BindParam(ShaderBindings, UVsBuffer, LOD.RestResource->UVsBuffer.SRV.GetReference());
-
-			// Meshes UV are not inverted so no need to invert the y-axis
-			VFC_BindParam(ShaderBindings, InvertUV, 0);
-
-			if (LOD.RestResource->DepthTexture)
-			{
-				ShaderBindings.AddTexture(DepthTexture, DepthSampler, LOD.RestResource->DepthSampler, LOD.RestResource->DepthTexture);
-			}
-
-			if (LOD.RestResource->TangentTexture)
-			{
-				ShaderBindings.AddTexture(TangentTexture, TangentSampler, LOD.RestResource->TangentSampler, LOD.RestResource->TangentTexture);
-			}
-
-			if (LOD.RestResource->CoverageTexture)
-			{
-				ShaderBindings.AddTexture(CoverageTexture, CoverageSampler, LOD.RestResource->CoverageSampler, LOD.RestResource->CoverageTexture);
-			}
-
-			if (LOD.RestResource->AttributeTexture)
-			{
-				ShaderBindings.AddTexture(AttributeTexture, AttributeSampler, LOD.RestResource->AttributeSampler, LOD.RestResource->AttributeTexture);
-			}
+			check(LOD.UniformBuffer);
+			const uint32 UniformIndex = LOD.DeformedResource->GetIndex(FHairMeshesDeformedResource::Current);
+			VertexFactoryUniformBuffer = LOD.UniformBuffer[UniformIndex];
 		}
+
+		ShaderBindings.Add(Shader->GetUniformBufferParameter<FHairCardsVertexFactoryUniformShaderParameters>(), VertexFactoryUniformBuffer);
 	}
 };
 
@@ -229,6 +226,43 @@ void FHairCardsVertexFactory::InitRHI()
 
 	InitDeclaration(Elements);
 	check(IsValidRef(GetDeclaration()));
+
+	// Pre-allocate all the uniform buffers for all the LODs (and current/previous swap-option)
+	for (int32 GroupIt = 0, GroupCount=Data.Instances.Num(); GroupIt < GroupCount; GroupIt++)
+	{
+		FHairGroupInstance* HairInstance = Data.Instances[GroupIt];
+		check(HairInstance->HairGroupPublicData);
+
+		// Material - Cards
+		if (IsHairStrandsEnabled(EHairStrandsShaderType::Cards, GMaxRHIShaderPlatform))
+		{
+			uint32 CardsLODIndex = 0;
+			for (const FHairGroupInstance::FCards::FLOD& LOD : HairInstance->Cards.LODs)
+			{
+				if (LOD.IsValid())
+				{
+					HairInstance->Cards.LODs[CardsLODIndex].UniformBuffer[0] = CreateHairCardsVFUniformBuffer(0, HairInstance, CardsLODIndex, EHairGeometryType::Cards);
+					HairInstance->Cards.LODs[CardsLODIndex].UniformBuffer[1] = CreateHairCardsVFUniformBuffer(1, HairInstance, CardsLODIndex, EHairGeometryType::Cards);
+				}
+				++CardsLODIndex;
+			}
+		}
+
+		// Material - Meshes
+		if (IsHairStrandsEnabled(EHairStrandsShaderType::Meshes, GMaxRHIShaderPlatform))
+		{
+			uint32 MeshesLODIndex = 0;
+			for (const FHairGroupInstance::FMeshes::FLOD& LOD : HairInstance->Meshes.LODs)
+			{
+				if (LOD.IsValid())
+				{
+					HairInstance->Meshes.LODs[MeshesLODIndex].UniformBuffer[0] = CreateHairCardsVFUniformBuffer(0, HairInstance, MeshesLODIndex, EHairGeometryType::Meshes);
+					HairInstance->Meshes.LODs[MeshesLODIndex].UniformBuffer[1] = CreateHairCardsVFUniformBuffer(1, HairInstance, MeshesLODIndex, EHairGeometryType::Meshes);
+				}
+				++MeshesLODIndex;
+			}
+		}
+	}
 }
 
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FHairCardsVertexFactory, SF_Vertex,		FHairCardsVertexFactoryShaderParameters);

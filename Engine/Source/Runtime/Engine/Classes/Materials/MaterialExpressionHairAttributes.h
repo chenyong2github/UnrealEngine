@@ -14,6 +14,10 @@ class UMaterialExpressionHairAttributes : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
 
+	/** If enabled, this nodes outputs a tangent space tangent, otherwise it outputs a world space tangent. */
+	UPROPERTY(EditAnywhere, Category = MaterialExpressionHairAttributes)
+	uint32 bUseTangentSpace : 1;
+
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
