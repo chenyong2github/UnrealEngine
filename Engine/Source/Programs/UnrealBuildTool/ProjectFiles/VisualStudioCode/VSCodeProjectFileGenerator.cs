@@ -492,7 +492,7 @@ namespace UnrealBuildTool
 				{
 					VCSharpProjectFile VCSharpProject = Project as VCSharpProjectFile;
 
-					if (VCSharpProject.IsDotNETCoreProject() == bBuildingForDotNetCore)
+					if (bBuildingForDotNetCore || !VCSharpProject.IsDotNETCoreProject())
 					{
 						string ProjectName = Project.ProjectFilePath.GetFileNameWithoutExtension();
 
@@ -504,7 +504,7 @@ namespace UnrealBuildTool
 						{
 							CsProjectInfo Info = VCSharpProject.GetProjectInfo(Config);
 
-							if (!Info.IsDotNETCoreProject() && Info.Properties.ContainsKey("OutputPath"))
+							if (Info.Properties.ContainsKey("OutputPath"))
 							{
 								ProjectData.EOutputType OutputType;
 								string OutputTypeName;
@@ -681,35 +681,24 @@ namespace UnrealBuildTool
 
 							string CleanParam = Command == "Clean" ? "-clean" : null;
 
-							if (bBuildingForDotNetCore)
+							if (HostPlatform == UnrealTargetPlatform.Win64)
 							{
-								OutFile.AddField("command", "dotnet");
+								OutFile.AddField("command", MakePathString(FileReference.Combine(UE4ProjectRoot, "Engine", "Build", "BatchFiles", Command + ".bat")));
+								CleanParam = null;
 							}
 							else
 							{
-								if (HostPlatform == UnrealTargetPlatform.Win64)
-								{
-									OutFile.AddField("command", MakePathString(FileReference.Combine(UE4ProjectRoot, "Engine", "Build", "BatchFiles", Command + ".bat")));
-									CleanParam = null;
-								}
-								else
-								{
-									OutFile.AddField("command", MakePathString(FileReference.Combine(UE4ProjectRoot, "Engine", "Build", "BatchFiles", HostPlatform.ToString(), "Build.sh")));
+								OutFile.AddField("command", MakePathString(FileReference.Combine(UE4ProjectRoot, "Engine", "Build", "BatchFiles", HostPlatform.ToString(), "Build.sh")));
 
-									if (Command == "Clean")
-									{
-										CleanParam = "-clean";
-									}
+								if (Command == "Clean")
+								{
+									CleanParam = "-clean";
 								}
 							}
+							
 
 							OutFile.BeginArray("args");
 							{
-								if (bBuildingForDotNetCore)
-								{
-									OutFile.AddUnnamedField(MakeUnquotedPathString(FileReference.Combine(UE4ProjectRoot, "Engine", "Binaries", "DotNET", "UnrealBuildTool_NETCore.dll"), EPathType.Relative));
-								}
-
 								OutFile.AddUnnamedField(Target.Name);
 								OutFile.AddUnnamedField(BuildProduct.Platform.ToString());
 								OutFile.AddUnnamedField(BuildProduct.Config.ToString());
@@ -784,7 +773,14 @@ namespace UnrealBuildTool
 							OutFile.AddField("group", "build");
 							if (bIsDotNetCore)
 							{
-								OutFile.AddField("command", "dotnet");
+								if (Utils.IsRunningOnMono)
+								{
+									OutFile.AddField("command", MakePathString(FileReference.Combine(UE4ProjectRoot, "Engine", "Build", "BatchFiles", HostPlatform.ToString(), "RunDotnet.sh")));
+								}
+								else
+								{
+									OutFile.AddField("command", "dotnet");
+								}
 							}
 							else
 							{
@@ -802,24 +798,7 @@ namespace UnrealBuildTool
 								if (bIsDotNetCore)
 								{
 									OutFile.AddUnnamedField(Command.ToLower());
-								}
-								else
-								{
-									OutFile.AddUnnamedField("/t:" + Command.ToLower());
-								}
-								
-								DirectoryReference BuildRoot = HostPlatform == UnrealTargetPlatform.Win64 ? UE4ProjectRoot : DirectoryReference.Combine(UE4ProjectRoot, "Engine");
-								OutFile.AddUnnamedField(MakeUnquotedPathString(InProject.SourceProject.ProjectFilePath, EPathType.Relative, BuildRoot));
 
-								OutFile.AddUnnamedField("/p:GenerateFullPaths=true");
-								if (HostPlatform == UnrealTargetPlatform.Win64)
-								{
-									OutFile.AddUnnamedField("/p:DebugType=portable");
-								}
-								OutFile.AddUnnamedField("/verbosity:minimal");
-
-								if (bIsDotNetCore)
-								{
 									OutFile.AddUnnamedField("--configuration");
 									OutFile.AddUnnamedField(BuildProduct.Config.ToString());
 									OutFile.AddUnnamedField("--output");
@@ -827,6 +806,18 @@ namespace UnrealBuildTool
 								}
 								else
 								{
+									OutFile.AddUnnamedField("/t:" + Command.ToLower());
+								
+									DirectoryReference BuildRoot = HostPlatform == UnrealTargetPlatform.Win64 ? UE4ProjectRoot : DirectoryReference.Combine(UE4ProjectRoot, "Engine");
+									OutFile.AddUnnamedField(MakeUnquotedPathString(InProject.SourceProject.ProjectFilePath, EPathType.Relative, BuildRoot));
+
+									OutFile.AddUnnamedField("/p:GenerateFullPaths=true");
+									if (HostPlatform == UnrealTargetPlatform.Win64)
+									{
+										OutFile.AddUnnamedField("/p:DebugType=portable");
+									}
+									OutFile.AddUnnamedField("/verbosity:minimal");
+
 									OutFile.AddUnnamedField("/p:Configuration=" + BuildProduct.Config.ToString());
 								}
 							}
@@ -1046,11 +1037,9 @@ namespace UnrealBuildTool
 
 				if (bIsDotNetCore)
 				{
-					OutFile.AddField("program", "dotnet");
+					OutFile.AddField("program", MakeUnquotedPathString(InExecutable, EPathType.Absolute));
 					OutFile.BeginArray("args");
 					{
-						OutFile.AddUnnamedField(MakePathString(InExecutable));
-
 						if (InArgs != null)
 						{
 							foreach (string Arg in InArgs)
@@ -1139,6 +1128,10 @@ namespace UnrealBuildTool
 				List<string> Args = new List<string>();
 				Args.Add("-projectfiles");
 				Args.Add("-vscode");
+				if (bBuildingForDotNetCore)
+				{
+					Args.Add("-dotnetcore");
+				}
 
 				if (bForeignProject)
 				{
@@ -1151,11 +1144,14 @@ namespace UnrealBuildTool
 					PreLaunchTask = "UnrealBuildTool " + HostPlatform.ToString() + " Development Build";
 				}
 
+				FileReference UbtPath = bBuildingForDotNetCore
+					? FileReference.Combine(UE4ProjectRoot, "Engine", "Binaries", "DotNET", "UnrealBuildTool", "UnrealBuildTool")
+					: FileReference.Combine(UE4ProjectRoot, "Engine", "Binaries", "DotNET", "UnrealBuildTool.exe");
 				WriteSingleCSharpLaunchConfig(
 					OutFile,
 					"Generate Project Files",
 					PreLaunchTask,
-					FileReference.Combine(UE4ProjectRoot, "Engine", "Binaries", "DotNET", "UnrealBuildTool.exe"),
+					UbtPath,
 					Args.ToArray(),
 					bBuildingForDotNetCore
 				);

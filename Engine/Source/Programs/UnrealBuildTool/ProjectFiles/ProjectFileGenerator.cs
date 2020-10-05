@@ -1609,7 +1609,13 @@ namespace UnrealBuildTool
 				DirectoryReference ProjectDirectory = DirectoryReference.Combine(UnrealBuildTool.EngineSourceDirectory, "Programs", ProjectDirectoryName);
 				if (DirectoryReference.Exists(ProjectDirectory))
 				{
-					FileReference ProjectFileName = FileReference.Combine(ProjectDirectory, "UnrealBuildTool.csproj");
+					string ProjectName = "UnrealBuildTool.csproj";
+					if (AllowDotNetCoreProjects)
+					{
+						ProjectName = "UnrealBuildToolCore.csproj";
+					}
+
+					FileReference ProjectFileName = FileReference.Combine(ProjectDirectory, ProjectName);
 
 					if (FileReference.Exists(ProjectFileName))
 					{
@@ -2803,13 +2809,16 @@ namespace UnrealBuildTool
                 try
                 {
 
+	                bool configsFound = false;
                     // Parse the project and ensure both Development and Debug configurations are present
                     foreach (string Config in XElement.Load(InProject.ProjectFilePath.FullName).Elements("{http://schemas.microsoft.com/developer/msbuild/2003}PropertyGroup")
                                            .Where(node => node.Attribute("Condition") != null)
                                            .Select(node => node.Attribute("Condition").ToString())
                                            .ToList())
                     {
-                        if (Config.Contains("Development|"))
+	                    configsFound = true;
+
+						if (Config.Contains("Development|"))
                         {
                             bFoundDevelopmentConfig = true;
                         }
@@ -2818,6 +2827,28 @@ namespace UnrealBuildTool
                             bFoundDebugConfig = true;
                         }
                     }
+
+                    // for a net core project the PropertyGroup namespace changes, so lets see if we can find if its a project like that, net core also provides a hand semicolon separated list of configurations.
+                    // This is optional and defaults to Debug;Release if not present which still means Development is not present
+					// as such we we expect every proj to have configurations presents.
+					if (!configsFound)
+					{
+	                    foreach (string Config in XElement.Load(InProject.ProjectFilePath.FullName).Elements("PropertyGroup")
+		                    .Elements("Configurations")
+	                        .SelectMany(node => node.Value.Split(';'))
+	                        .ToList())
+	                    {
+		                    if (Config == "Development")
+		                    {
+								bFoundDevelopmentConfig = true;
+		                    }
+							else if (Config == "Debug")
+		                    {
+			                    bFoundDebugConfig = true;
+		                    }
+	                    }
+
+					}
                 }
                 catch
                 {

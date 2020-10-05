@@ -47,21 +47,24 @@ namespace UnrealBuildTool
 				return Result.Success ? Result.Groups[1].Value : "";
 			}
 
-			// otherwise, get iTunes "Version"
-			string DllPath = Registry.GetValue("HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\Apple Inc.\\Apple Mobile Device Support\\Shared", "iTunesMobileDeviceDLL", null) as string;
-			if (string.IsNullOrEmpty(DllPath) || !File.Exists(DllPath))
+			if (IsWindows())
 			{
-				DllPath = Registry.GetValue("HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\Apple Inc.\\Apple Mobile Device Support\\Shared", "MobileDeviceDLL", null) as string;
+				// otherwise, get iTunes "Version"
+				string DllPath = Registry.GetValue("HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\Apple Inc.\\Apple Mobile Device Support\\Shared", "iTunesMobileDeviceDLL", null) as string;
 				if (string.IsNullOrEmpty(DllPath) || !File.Exists(DllPath))
 				{
-					DllPath = FindWindowsStoreITunesDLL();
+					DllPath = Registry.GetValue("HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\Apple Inc.\\Apple Mobile Device Support\\Shared", "MobileDeviceDLL", null) as string;
+					if (string.IsNullOrEmpty(DllPath) || !File.Exists(DllPath))
+					{
+						DllPath = FindWindowsStoreITunesDLL();
 
+					}
 				}
-			}
 
-			if (!string.IsNullOrEmpty(DllPath) && File.Exists(DllPath))
-			{
-				return FileVersionInfo.GetVersionInfo(DllPath).FileVersion;
+				if (!string.IsNullOrEmpty(DllPath) && File.Exists(DllPath))
+				{
+					return FileVersionInfo.GetVersionInfo(DllPath).FileVersion;
+				}
 			}
 
 			return null;

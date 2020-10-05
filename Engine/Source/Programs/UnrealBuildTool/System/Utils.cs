@@ -24,7 +24,7 @@ namespace UnrealBuildTool
 		/// Whether we are currently running on Mono platform.  We cache this statically because it is a bit slow to check.
 		/// </summary>
 #if NET_CORE
-		public static readonly bool IsRunningOnMono = true;
+		public static readonly bool IsRunningOnMono = !RuntimeInformation.IsOSPlatform(OSPlatform.Windows); // TODO: This check seems to mainly be used to determine if this is running on windows or not. Should be refactored.
 #else
 		public static readonly bool IsRunningOnMono = Type.GetType("Mono.Runtime") != null;
 #endif
@@ -94,8 +94,9 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="InputString">String to search for variable names</param>
 		/// <param name="AdditionalVariables">Lookup of variable names to values</param>
+		/// <param name="bUseAdditionalVariablesOnly">If true, then Environment.GetEnvironmentVariable will not be used if the var is not found in AdditionalVariables</param>
 		/// <returns>String with all variables replaced</returns>
-		public static string ExpandVariables(string InputString, Dictionary<string, string> AdditionalVariables = null)
+		public static string ExpandVariables(string InputString, Dictionary<string, string> AdditionalVariables = null, bool bUseAdditionalVariablesOnly = false)
 		{
 			string Result = InputString;
 			for (int Idx = Result.IndexOf("$("); Idx != -1; Idx = Result.IndexOf("$(", Idx))
@@ -111,10 +112,13 @@ namespace UnrealBuildTool
 				string Name = Result.Substring(Idx + 2, EndIdx - (Idx + 2));
 
 				// Find the value for it, either from the dictionary or the environment block
-				string Value;
+				string Value = null;
 				if (AdditionalVariables == null || !AdditionalVariables.TryGetValue(Name, out Value))
 				{
-					Value = Environment.GetEnvironmentVariable(Name);
+					if (bUseAdditionalVariablesOnly == false)
+					{
+						Value = Environment.GetEnvironmentVariable(Name);
+					}
 					if (Value == null)
 					{
 						Idx = EndIdx + 1;

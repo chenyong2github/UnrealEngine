@@ -48,13 +48,20 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The path to UBT
 		/// </summary>
+#if NET_CORE
+		public static readonly FileReference UnrealBuildToolPath = FileReference.FindCorrectCase(new FileReference(Path.ChangeExtension(Assembly.GetExecutingAssembly().GetOriginalLocation(), "exe")));
+#else
 		public static readonly FileReference UnrealBuildToolPath = FileReference.FindCorrectCase(new FileReference(Assembly.GetExecutingAssembly().GetOriginalLocation()));
-
+#endif
 		/// <summary>
 		/// The full name of the Root UE4 directory
 		/// </summary>
+#if NET_CORE
+		// net core builds are in a subdirectory of DotNet binaries
+		public static readonly DirectoryReference RootDirectory = DirectoryReference.Combine(UnrealBuildToolPath.Directory, "..", "..", "..", "..");
+#else
 		public static readonly DirectoryReference RootDirectory = DirectoryReference.Combine(UnrealBuildToolPath.Directory, "..", "..", "..");
-
+#endif
 		/// <summary>
 		/// The full name of the Engine directory
 		/// </summary>

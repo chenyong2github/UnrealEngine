@@ -160,7 +160,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		private static Assembly CompileAssembly(FileReference OutputAssemblyPath, List<FileReference> SourceFileNames, List<string> ReferencedAssembies, List<string> PreprocessorDefines = null, bool TreatWarningsAsErrors = false)
+		private static Assembly CompileAssembly(FileReference OutputAssemblyPath, HashSet<FileReference> SourceFileNames, List<string> ReferencedAssembies, List<string> PreprocessorDefines = null, bool TreatWarningsAsErrors = false)
 		{
 			CSharpParseOptions ParseOptions = new CSharpParseOptions(
 				languageVersion:LanguageVersion.Latest, 
@@ -176,7 +176,7 @@ namespace UnrealBuildTool
 				SyntaxTree Tree = CSharpSyntaxTree.ParseText(Source, ParseOptions, SourceFileName.FullName);
 
 				IEnumerable<Diagnostic> Diagnostics = Tree.GetDiagnostics();
-				if (Diagnostics.Count() > 0)
+				if (Diagnostics.Any())
 				{
 					Log.TraceWarning($"Errors generated while parsing '{SourceFileName.FullName}'");
 					LogDiagnostics(Tree.GetDiagnostics());
@@ -214,19 +214,38 @@ namespace UnrealBuildTool
 			MetadataReferences.Add(MetadataReference.CreateFromFile(Assembly.Load("System.Collections").Location));
 			MetadataReferences.Add(MetadataReference.CreateFromFile(Assembly.Load("System.IO").Location));
 			MetadataReferences.Add(MetadataReference.CreateFromFile(Assembly.Load("System.IO.FileSystem").Location));
+			MetadataReferences.Add(MetadataReference.CreateFromFile(Assembly.Load("System.Linq").Location));
 			MetadataReferences.Add(MetadataReference.CreateFromFile(Assembly.Load("System.Console").Location));
 			MetadataReferences.Add(MetadataReference.CreateFromFile(Assembly.Load("System.Runtime.Extensions").Location));
+			MetadataReferences.Add(MetadataReference.CreateFromFile(Assembly.Load("netstandard").Location));
+			
+			// process start dependencies
+			MetadataReferences.Add(MetadataReference.CreateFromFile(Assembly.Load("System.ComponentModel.Primitives").Location));
+			MetadataReferences.Add(MetadataReference.CreateFromFile(Assembly.Load("System.Diagnostics.Process").Location));
+			
+			// registry access
 			MetadataReferences.Add(MetadataReference.CreateFromFile(Assembly.Load("Microsoft.Win32.Registry").Location));
+
+			// RNGCryptoServiceProvider, used to generate random hex bytes
+			MetadataReferences.Add(MetadataReference.CreateFromFile(Assembly.Load("System.Security.Cryptography.Algorithms").Location));
+			MetadataReferences.Add(MetadataReference.CreateFromFile(Assembly.Load("System.Security.Cryptography.Csp").Location));
+
 			MetadataReferences.Add(MetadataReference.CreateFromFile(typeof(UnrealBuildTool).Assembly.Location));
 			MetadataReferences.Add(MetadataReference.CreateFromFile(typeof(FileReference).Assembly.Location));
+			MetadataReferences.Add(MetadataReference.CreateFromFile(typeof(UEBuildPlatformSDK).Assembly.Location));
 
 			CSharpCompilationOptions CompilationOptions = new CSharpCompilationOptions(
 				outputKind:OutputKind.DynamicallyLinkedLibrary,
-				optimizationLevel:OptimizationLevel.Release,
+#if DEBUG
+				optimizationLevel: OptimizationLevel.Debug,
+#else
+				// Optimize the managed code in Development
+				optimizationLevel: OptimizationLevel.Release,
+#endif
 				warningLevel:4,
 				assemblyIdentityComparer:DesktopAssemblyIdentityComparer.Default,
 				reportSuppressedDiagnostics:true
-				);
+			);
 
 			CSharpCompilation Compilation = CSharpCompilation.Create(
 				assemblyName:OutputAssemblyPath.GetFileNameWithoutAnyExtensions(),

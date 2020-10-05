@@ -24,6 +24,16 @@ rem ## Check to make sure that we have a Binaries directory with at least one de
 rem ## in order to run.  It's possible the user acquired source but did not download and unpack the other prerequiste binaries.
 if not exist ..\Build\BinaryPrerequisitesMarker.dat goto Error_MissingBinaryPrerequisites
 
+if "%UE_USE_DOTNET%" == "1" (
+	echo Using Net Core for UBT
+
+	rem ## Verify that dotnet is present
+	call "%~dp0GetDotnetPath.bat"
+	if errorlevel 1 goto Error_NoDotnetSDK
+	REM ## Skip msbuild detection if using dotnet as this is done for us by dotnet-cli
+	goto :NoVsWhere
+)
+
 rem ## Get the path to MSBuild
 call "%~dp0GetMSBuildPath.bat"
 if errorlevel 1 goto Error_NoVisualStudioEnvironment
@@ -74,14 +84,26 @@ for /d %%D in (..\Restricted\*) do (
 fc /b ..\Intermediate\Build\UnrealBuildToolFiles.txt ..\Intermediate\Build\UnrealBuildToolPrevFiles.txt >nul 2>nul
 if not errorlevel 1 goto SkipClean
 copy /y ..\Intermediate\Build\UnrealBuildToolFiles.txt ..\Intermediate\Build\UnrealBuildToolPrevFiles.txt >nul
-%MSBUILD_EXE% /nologo /verbosity:quiet Programs\UnrealBuildTool\UnrealBuildTool.csproj /property:Configuration=Development /property:Platform=AnyCPU /target:Clean
+if "%UE_USE_DOTNET%" == "1" (
+	dotnet clean Programs\UnrealBuildTool\UnrealBuildToolCore.csproj -c Development
+) else (
+	%MSBUILD_EXE% /nologo /verbosity:quiet Programs\UnrealBuildTool\UnrealBuildTool.csproj /property:Configuration=Development /property:Platform=AnyCPU /target:Clean
+)
 :SkipClean
-%MSBUILD_EXE% /nologo /verbosity:quiet Programs\UnrealBuildTool\UnrealBuildTool.csproj /property:Configuration=Development /property:Platform=AnyCPU /target:Build
+if "%UE_USE_DOTNET%" == "1" (
+	dotnet build Programs\UnrealBuildTool\UnrealBuildToolCore.csproj -c Development 
+) else (
+	%MSBUILD_EXE% /nologo /verbosity:quiet Programs\UnrealBuildTool\UnrealBuildTool.csproj /property:Configuration=Development /property:Platform=AnyCPU /target:Build
+)
 if errorlevel 1 goto Error_UBTCompileFailed
 
 rem ## Run UnrealBuildTool to generate Visual Studio solution and project files
 rem ## NOTE: We also pass along any arguments to the GenerateProjectFiles.bat here
-..\Binaries\DotNET\UnrealBuildTool.exe -ProjectFiles %*
+if "%UE_USE_DOTNET%" == "1" (
+	..\Binaries\DotNET\UnrealBuildTool\UnrealBuildTool.exe -ProjectFiles %*
+) else (
+	..\Binaries\DotNET\UnrealBuildTool.exe -ProjectFiles %*
+)
 if errorlevel 1 goto Error_ProjectGenerationFailed
 
 rem ## Success!
@@ -114,6 +136,13 @@ goto Exit
 :Error_RequireNugetPackageManager
 echo.
 echo UE5 requires the NuGet Package Manager to be installed to use %MSBUILD_EXE%. Please run the Visual Studio Installer and add it from the individual components list (in the 'Code Tools' category).
+echo.
+pause
+goto Exit
+
+:Error_NoDotnetSDK
+echo.
+echo GenerateProjectFiles ERROR: Unable to find a install of Dotnet SDK.  Please make sure you have it installed and that `dotnet` is a globally available command.
 echo.
 pause
 goto Exit
