@@ -188,10 +188,12 @@ public:
 	ENGINE_API void BlockUntilAllBuildsComplete();
 
 	/** Called once per frame, fetches completed tasks and applies them to the scene. */
-	ENGINE_API void ProcessAsyncTasks();
+	ENGINE_API void ProcessAsyncTasks(bool bLimitExecutionTime = false);
 
 	/** Exposes UObject references used by the async build. */
 	ENGINE_API void AddReferencedObjects(FReferenceCollector& Collector);
+
+	ENGINE_API virtual FString GetReferencerName() const override;
 
 	/** Blocks until it is safe to shut down (worker threads are idle). */
 	ENGINE_API void Shutdown();
@@ -203,18 +205,13 @@ public:
 	}
 
 private:
+	TUniquePtr<FQueuedThreadPool> ThreadPool;
 
 	/** Builds a single task with the given threadpool.  Called from the worker thread. */
 	void Build(FAsyncCardRepresentationTask* Task, class FQueuedThreadPool& ThreadPool);
 
-	/** Thread that will build any tasks in TaskQueue and exit when there are no more. */
-	class TUniquePtr<class FBuildCardRepresentationThreadRunnable> ThreadRunnable;
-
 	/** Game-thread managed list of tasks in the async system. */
 	TArray<FAsyncCardRepresentationTask*> ReferencedTasks;
-
-	/** Tasks that have not yet started processing yet. */
-	TLockFreePointerListLIFO<FAsyncCardRepresentationTask> TaskQueue;
 
 	/** Tasks that have completed processing. */
 	TLockFreePointerListLIFO<FAsyncCardRepresentationTask> CompletedTasks;
@@ -222,8 +219,6 @@ private:
 	class IMeshUtilities* MeshUtilities;
 
 	mutable FCriticalSection CriticalSection;
-
-	friend class FBuildCardRepresentationThreadRunnable;
 };
 
 /** Global build queue. */

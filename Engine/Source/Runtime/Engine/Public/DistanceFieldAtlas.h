@@ -412,7 +412,7 @@ public:
 	ENGINE_API void BlockUntilAllBuildsComplete();
 
 	/** Called once per frame, fetches completed tasks and applies them to the scene. */
-	ENGINE_API void ProcessAsyncTasks();
+	ENGINE_API void ProcessAsyncTasks(bool bLimitExecutionTime = false);
 
 	/** Exposes UObject references used by the async build. */
 	ENGINE_API virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
@@ -425,23 +425,18 @@ public:
 
 	int32 GetNumOutstandingTasks() const
 	{
+		FScopeLock Lock(&CriticalSection);
 		return ReferencedTasks.Num();
 	}
 
 private:
+	TUniquePtr<FQueuedThreadPool> ThreadPool;
 
 	/** Builds a single task with the given threadpool.  Called from the worker thread. */
 	void Build(FAsyncDistanceFieldTask* Task, class FQueuedThreadPool& ThreadPool);
 
-	/** Thread that will build any tasks in TaskQueue and exit when there are no more. */
-	class TUniquePtr<class FBuildDistanceFieldThreadRunnable> ThreadRunnable;
-
 	/** Game-thread managed list of tasks in the async system. */
 	TArray<FAsyncDistanceFieldTask*> ReferencedTasks;
-
-	/** Tasks that have not yet started processing yet. */
-	// consider changing this from FIFO to Unordered, which may be faster
-	TLockFreePointerListLIFO<FAsyncDistanceFieldTask> TaskQueue;
 
 	/** Tasks that have completed processing. */
 	// consider changing this from FIFO to Unordered, which may be faster
@@ -449,9 +444,7 @@ private:
 
 	class IMeshUtilities* MeshUtilities;
 
-	FCriticalSection CriticalSection;
-
-	friend class FBuildDistanceFieldThreadRunnable;
+	mutable FCriticalSection CriticalSection;
 };
 
 /** Global build queue. */

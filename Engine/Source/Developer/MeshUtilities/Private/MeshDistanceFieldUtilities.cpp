@@ -188,6 +188,8 @@ private:
 
 void FMeshDistanceFieldAsyncTask::DoWork()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshDistanceFieldAsyncTask::DoWork);
+
 	FMeshBuildDataProvider kDOPDataProvider(*kDopTree);
 	const FVector DistanceFieldVoxelSize(VolumeBounds.GetSize() / FVector(VolumeDimensions.X, VolumeDimensions.Y, VolumeDimensions.Z));
 	const float VoxelDiameterSqr = DistanceFieldVoxelSize.SizeSquared();
@@ -328,6 +330,8 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 	bool bGenerateAsIfTwoSided,
 	FDistanceFieldVolumeData& OutData)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshUtilities::GenerateSignedDistanceFieldVolumeData);
+
 	if (DistanceFieldResolutionScale > 0)
 	{
 		const double StartTime = FPlatformTime::Seconds();

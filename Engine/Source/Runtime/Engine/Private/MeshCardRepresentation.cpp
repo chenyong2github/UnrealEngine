@@ -17,6 +17,8 @@
 #include "Engine/StaticMesh.h"
 #include "Misc/AutomationTest.h"
 #include "Async/ParallelFor.h"
+#include "Misc/QueuedThreadPoolWrapper.h"
+#include "Async/Async.h"
 
 #if WITH_EDITOR
 #include "DerivedDataCacheInterface.h"
@@ -148,131 +150,11 @@ static FAutoConsoleVariableRef CVarCardRepresentationAsyncBuildQueue(
 	ECVF_Default | ECVF_ReadOnly
 	);
 
-class FBuildCardRepresentationThreadRunnable : public FRunnable
-{
-public:
-	/** Initialization constructor. */
-	FBuildCardRepresentationThreadRunnable(
-		FCardRepresentationAsyncQueue* InAsyncQueue
-		)
-		: NextThreadIndex(0)
-		, AsyncQueue(*InAsyncQueue)
-		, Thread(nullptr)
-		, bIsRunning(false)
-		, bForceFinish(false)
-	{}
-
-	virtual ~FBuildCardRepresentationThreadRunnable()
-	{
-		check(!bIsRunning);
-	}
-
-	// FRunnable interface.
-	virtual bool Init() { bIsRunning = true; return true; }
-	virtual void Exit() { bIsRunning = false; }
-	virtual void Stop() { bForceFinish = true; }
-	virtual uint32 Run();
-
-	void Launch()
-	{
-		check(!bIsRunning);
-
-		// Calling Reset will call Kill which in turn will call Stop and set bForceFinish to true.
-		Thread.Reset();
-
-		// Now we can set bForceFinish to false without being overwritten by the old thread shutting down.
-		bForceFinish = false;
-		Thread.Reset(FRunnableThread::Create(this, *FString::Printf(TEXT("BuildCardRepresentationThread%u"), NextThreadIndex), 0, TPri_SlightlyBelowNormal, FPlatformAffinity::GetPoolThreadMask()));
-
-		// Set this now before exiting so that IsRunning() returns true without having to wait on the thread to be completely started.
-		bIsRunning = true;
-		NextThreadIndex++;
-	}
-
-	inline bool IsRunning() { return bIsRunning; }
-
-private:
-
-	int32 NextThreadIndex;
-
-	FCardRepresentationAsyncQueue& AsyncQueue;
-
-	/** The runnable thread */
-	TUniquePtr<FRunnableThread> Thread;
-
-	TUniquePtr<FQueuedThreadPool> WorkerThreadPool;
-
-	volatile bool bIsRunning;
-	volatile bool bForceFinish;
-};
-
-FQueuedThreadPool* CreateCardWorkerThreadPool()
-{
-	/*
-	const int32 NumThreads = FMath::Max<int32>(FPlatformMisc::NumberOfCoresIncludingHyperthreads() - 2, 1);
-	FQueuedThreadPool* WorkerThreadPool = FQueuedThreadPool::Allocate();
-	WorkerThreadPool->Create(NumThreads, 32 * 1024, TPri_BelowNormal);
-	return WorkerThreadPool;
-	*/
-
-	return nullptr;
-}
-
-uint32 FBuildCardRepresentationThreadRunnable::Run()
-{
-	bool bHasWork = true;
-	
-	// Do not exit right away if no work to do as it often leads to stop and go problems
-	// when tasks are being queued at a slower rate than the processor capability to process them.
-	const uint64 ExitAfterIdleCycle = static_cast<uint64>(10.0 / FPlatformTime::GetSecondsPerCycle64()); // 10s
-
-	uint64 LastWorkCycle = FPlatformTime::Cycles64();
-	while (!bForceFinish && (bHasWork || (FPlatformTime::Cycles64() - LastWorkCycle) < ExitAfterIdleCycle))
-	{
-		// LIFO build order, since meshes actually visible in a map are typically loaded last
-		FAsyncCardRepresentationTask* Task = AsyncQueue.TaskQueue.Pop();
-
-		FQueuedThreadPool* ThreadPool = nullptr;
-
-#if WITH_EDITOR
-		ThreadPool = GLargeThreadPool;
-#endif
-
-		if (Task)
-		{
-			if (!ThreadPool)
-			{
-				if (!WorkerThreadPool)
-				{
-					WorkerThreadPool.Reset(CreateCardWorkerThreadPool());
-				}
-
-				ThreadPool = WorkerThreadPool.Get();
-			}
-
-			AsyncQueue.Build(Task, *ThreadPool);
-			LastWorkCycle = FPlatformTime::Cycles64();
-
-			bHasWork = true;
-		}
-		else
-		{
-			bHasWork = false;
-			FPlatformProcess::Sleep(.01f);
-		}
-	}
-
-	WorkerThreadPool = nullptr;
-
-	return 0;
-}
-
 FAsyncCardRepresentationTask::FAsyncCardRepresentationTask()
 	: StaticMesh(nullptr)
 	, GenerateSource(nullptr)
 {
 }
-
 
 FCardRepresentationAsyncQueue::FCardRepresentationAsyncQueue() 
 {
@@ -280,7 +162,7 @@ FCardRepresentationAsyncQueue::FCardRepresentationAsyncQueue()
 	MeshUtilities = NULL;
 #endif
 
-	ThreadRunnable = MakeUnique<FBuildCardRepresentationThreadRunnable>(this);
+	ThreadPool = MakeUnique<FQueuedThreadPoolWrapper>(GThreadPool, -1, [](EQueuedWorkPriority) { return EQueuedWorkPriority::Lowest; });
 }
 
 FCardRepresentationAsyncQueue::~FCardRepresentationAsyncQueue()
@@ -301,21 +183,23 @@ void FCardRepresentationAsyncQueue::AddTask(FAsyncCardRepresentationTask* Task)
 		ReferencedTasks.Add(Task);
 	}
 
-	if (GUseAsyncCardRepresentationBuildQueue)
-	{
-		TaskQueue.Push(Task);
-
-		// Logic protection when called from multiple threads
-		FScopeLock Lock(&CriticalSection);
-		if (!ThreadRunnable->IsRunning())
+	auto BuildLambda =
+		[this, Task]()
 		{
-			ThreadRunnable->Launch();
-		}
+			// To avoid deadlocks, we must queue the inner build tasks on another thread pool, so use the task graph.
+			// Put on background thread to avoid interfering with game-thread bound tasks
+			FQueuedThreadPoolTaskGraphWrapper TaskGraphWrapper(ENamedThreads::AnyBackgroundThreadNormalTask);
+			Build(Task, TaskGraphWrapper);
+		};
+
+	// If we're already in worker threads there is no need to launch an async task.
+	if (GUseAsyncCardRepresentationBuildQueue || !IsInGameThread())
+	{
+		AsyncPool(*ThreadPool, MoveTemp(BuildLambda));
 	}
 	else
 	{
-		TUniquePtr<FQueuedThreadPool> WorkerThreadPool(CreateCardWorkerThreadPool());
-		Build(Task, *WorkerThreadPool);
+		BuildLambda();
 	}
 #else
 	UE_LOG(LogStaticMesh,Fatal,TEXT("Tried to build a card representation without editor support (this should have been done during cooking)"));
@@ -385,7 +269,7 @@ void FCardRepresentationAsyncQueue::BlockUntilAllBuildsComplete()
 	while (GetNumOutstandingTasks() > 0);
 }
 
-void FCardRepresentationAsyncQueue::Build(FAsyncCardRepresentationTask* Task, FQueuedThreadPool& ThreadPool)
+void FCardRepresentationAsyncQueue::Build(FAsyncCardRepresentationTask* Task, FQueuedThreadPool& BuildThreadPool)
 {
 #if WITH_EDITOR
 	
@@ -398,7 +282,7 @@ void FCardRepresentationAsyncQueue::Build(FAsyncCardRepresentationTask* Task, FQ
 			Task->StaticMesh->GetName(),
 			Task->SourceMeshData,
 			LODModel,
-			ThreadPool,
+			BuildThreadPool,
 			Task->GenerateSource->RenderData->Bounds,
 			Task->GenerateSource->RenderData->LODResources[0].DistanceFieldData,
 			*Task->GeneratedCardRepresentation);
@@ -420,19 +304,28 @@ void FCardRepresentationAsyncQueue::AddReferencedObjects(FReferenceCollector& Co
 	}
 }
 
-void FCardRepresentationAsyncQueue::ProcessAsyncTasks()
+FString FCardRepresentationAsyncQueue::GetReferencerName() const
+{
+	return TEXT("FCardRepresentationAsyncQueue");
+}
+
+void FCardRepresentationAsyncQueue::ProcessAsyncTasks(bool bLimitExecutionTime)
 {
 #if WITH_EDITOR
 	TRACE_CPUPROFILER_EVENT_SCOPE(FCardRepresentationAsyncQueue::ProcessAsyncTasks)
 
-	TArray<FAsyncCardRepresentationTask*> LocalCompletedTasks;
-	CompletedTasks.PopAll(LocalCompletedTasks);
-
-	for (int TaskIndex = 0; TaskIndex < LocalCompletedTasks.Num(); TaskIndex++)
+	const double MaxProcessingTime = 0.016f;
+	double StartTime = FPlatformTime::Seconds();
+	while (!bLimitExecutionTime || (FPlatformTime::Seconds() - StartTime) < MaxProcessingTime)
 	{
+		FAsyncCardRepresentationTask* Task = CompletedTasks.Pop();
+		if (Task == nullptr)
+		{
+			break;
+		}
+	
 		// We want to count each resource built from a DDC miss, so count each iteration of the loop separately.
 		COOK_STAT(auto Timer = CardRepresentationCookStats::UsageStats.TimeSyncWork());
-		FAsyncCardRepresentationTask* Task = LocalCompletedTasks[TaskIndex];
 
 		{
 			FScopeLock Lock(&CriticalSection);
@@ -467,32 +360,11 @@ void FCardRepresentationAsyncQueue::ProcessAsyncTasks()
 
 		delete Task;
 	}
-
-	bool bRemainingTasks = false;
-	{
-		FScopeLock Lock(&CriticalSection);
-		bRemainingTasks = ReferencedTasks.Num() > 0;
-	}
-
-	if (bRemainingTasks && !ThreadRunnable->IsRunning())
-	{
-		ThreadRunnable->Launch();
-	}
 #endif
 }
 
 void FCardRepresentationAsyncQueue::Shutdown()
 {
-	ThreadRunnable->Stop();
-	bool bLogged = false;
-
-	while (ThreadRunnable->IsRunning())
-	{
-		if (!bLogged)
-		{
-			bLogged = true;
-			UE_LOG(LogStaticMesh,Log,TEXT("Abandoning remaining async card representation tasks for shutdown"));
-		}
-		FPlatformProcess::Sleep(0.01f);
-	}
+	UE_LOG(LogStaticMesh, Log, TEXT("Abandoning remaining async card representation tasks for shutdown"));
+	ThreadPool->Destroy();
 }

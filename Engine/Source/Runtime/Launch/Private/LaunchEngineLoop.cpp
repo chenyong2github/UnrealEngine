@@ -4897,13 +4897,13 @@ void FEngineLoop::Tick()
 		if (GDistanceFieldAsyncQueue)
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_FEngineLoop_Tick_GDistanceFieldAsyncQueue);
-			GDistanceFieldAsyncQueue->ProcessAsyncTasks();
+			GDistanceFieldAsyncQueue->ProcessAsyncTasks(true);
 		}
 		
 		if (GCardRepresentationAsyncQueue)
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_FEngineLoop_Tick_GCardRepresentationAsyncQueue);
-			GCardRepresentationAsyncQueue->ProcessAsyncTasks();
+			GCardRepresentationAsyncQueue->ProcessAsyncTasks(true);
 		}
 #if !UE_SERVER
 		// tick media framework
@@ -5746,18 +5746,19 @@ void FEngineLoop::AppPreExit( )
 
 	FCoreDelegates::OnExit.Broadcast();
 
+	// Clean up the thread pool
+	// GThreadPool might be a wrapper around GLargeThreadPool so we have to destroy it first
+	if (GThreadPool != nullptr)
+	{
+		GThreadPool->Destroy();
+	}
+
 #if WITH_EDITOR
 	if (GLargeThreadPool != nullptr)
 	{
 		GLargeThreadPool->Destroy();
 	}
 #endif // WITH_EDITOR
-
-	// Clean up the thread pool
-	if (GThreadPool != nullptr)
-	{
-		GThreadPool->Destroy();
-	}
 
 	if (GBackgroundPriorityThreadPool != nullptr)
 	{
