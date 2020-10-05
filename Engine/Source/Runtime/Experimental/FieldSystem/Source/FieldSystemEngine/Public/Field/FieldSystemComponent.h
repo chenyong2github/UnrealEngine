@@ -41,6 +41,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Field")
 	UFieldSystem* FieldSystem;
 
+	UPROPERTY(EditAnywhere, Category = "Field")
+	bool IsGlobalField;
+
 	//
 	// Blueprint based field interface
 	//
