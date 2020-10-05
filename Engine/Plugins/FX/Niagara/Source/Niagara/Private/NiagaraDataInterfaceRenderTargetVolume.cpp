@@ -300,7 +300,7 @@ bool UNiagaraDataInterfaceRenderTargetVolume::GetFunctionHLSL(const FNiagaraData
 			void {FunctionName}(int Linear, out int OutIndexX, out int OutIndexY, out int OutIndexZ)
 			{
 				OutIndexX = Linear % {SizeName}.x;
-				OutIndexY = (Linear / {SizeName}.y) % {SizeName}.z;
+				OutIndexY = (Linear / {SizeName}.x) % {SizeName}.y;
 				OutIndexZ = Linear / ({SizeName}.x * {SizeName}.y);
 			}
 		)");
