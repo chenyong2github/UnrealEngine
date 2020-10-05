@@ -51,12 +51,15 @@ public:
 	virtual void ToggleHighlightSelection(bool bIsSelected) override;
 
 	virtual void UpdateWidget() override;
+#endif // WITH_EDITOR
+
 	virtual UTextureRenderTarget2D* GetOutputTexture() override;
 	virtual FVector2D GetSize() override;
 	virtual FVector2D GetPosition() override;
 	virtual void SetPosition(const FVector2D& InPosition) override;
 	virtual void SetSize(const FVector2D& InSize) override;
 
+#if WITH_EDITOR
 	virtual void SetZOrder(int32 NewZOrder) override;
 #endif // WITH_EDITOR
 	//~ End UDMXPixelMappingOutputComponent implementation
