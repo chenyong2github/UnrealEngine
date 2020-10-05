@@ -153,7 +153,12 @@ bool FPackageReader::ReadAssetRegistryData(TArray<FAssetData*>& AssetDataList)
 	}
 
 	// Determine the package name and path
-	FString PackageName = FPackageName::FilenameToLongPackageName(PackageFilename);
+	FString PackageName;
+	if (!FPackageName::TryConvertFilenameToLongPackageName(PackageFilename, PackageName))
+	{
+		// Path was possibly unmounted
+		return false;
+	}
 
 	using namespace UE::AssetRegistry;
 
@@ -330,7 +335,14 @@ bool FPackageReader::ReadAssetRegistryDataIfCookedPackage(TArray<FAssetData*>& A
 
 bool FPackageReader::ReadDependencyData(FPackageDependencyData& OutDependencyData)
 {
-	OutDependencyData.PackageName = FName(*FPackageName::FilenameToLongPackageName(PackageFilename));
+	FString PackageNameString;
+	if (!FPackageName::TryConvertFilenameToLongPackageName(PackageFilename, PackageNameString))
+	{
+		// Path was possibly unmounted
+		return false;
+	}
+
+	OutDependencyData.PackageName = FName(*PackageNameString);
 	OutDependencyData.PackageData.DiskSize = PackageFileSize;
 	OutDependencyData.PackageData.PackageGuid = PackageFileSummary.Guid;
 
