@@ -410,6 +410,7 @@ namespace AutomationTool
 			Settings.IndentChars = "  ";
 			Settings.NewLineChars = "\n";
 
+			DirectoryReference.CreateDirectory(File.Directory);
 			using(XmlWriter Writer = XmlWriter.Create(File.FullName, Settings))
 			{
 				CompiledSchema.Write(Writer);
