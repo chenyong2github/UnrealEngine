@@ -1861,9 +1861,9 @@ struct FRHITransitionInfo : public FRHISubresourceRange
 	{
 		class FRHIResource* Resource = nullptr;
 		class FRHITexture* Texture;
-		class FRHIVertexBuffer* VertexBuffer;
-		class FRHIIndexBuffer* IndexBuffer;
-		class FRHIStructuredBuffer* StructuredBuffer;
+		class FRHIBuffer* VertexBuffer;
+		class FRHIBuffer* IndexBuffer;
+		class FRHIBuffer* StructuredBuffer;
 		class FRHIUnorderedAccessView* UAV;
 	};
 

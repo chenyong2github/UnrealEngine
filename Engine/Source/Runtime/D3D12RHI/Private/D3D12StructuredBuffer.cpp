@@ -38,7 +38,7 @@ FStructuredBufferRHIRef FD3D12DynamicRHI::CreateStructuredBuffer_RenderThread(FR
 	// can be addressed correctly with element based offsets.
 	const uint32 Alignment = ((InUsage & (BUF_ByteAddressBuffer | BUF_DrawIndirect)) == 0) ? Stride : 4;
 
-	FD3D12StructuredBuffer* NewBuffer = GetAdapter().CreateRHIBuffer<FD3D12StructuredBuffer>(&RHICmdList, Desc, Alignment, Stride, Size, InUsage, ED3D12ResourceStateMode::Default, CreateInfo);
+	FD3D12Buffer* NewBuffer = GetAdapter().CreateRHIBuffer(&RHICmdList, Desc, Alignment, Stride, Size, InUsage | BUF_StructuredBuffer, ED3D12ResourceStateMode::Default, CreateInfo);
 	if (NewBuffer->ResourceLocation.IsTransient())
 	{
 		// TODO: this should ideally be set in platform-independent code, since this tracking is for the high level
@@ -59,7 +59,7 @@ FStructuredBufferRHIRef FD3D12DynamicRHI::RHICreateStructuredBuffer(uint32 Strid
 	// can be addressed correctly with element based offsets.
 	const uint32 Alignment = ((InUsage & (BUF_ByteAddressBuffer | BUF_DrawIndirect)) == 0) ? Stride : 4;
 
-	FD3D12StructuredBuffer* NewBuffer = GetAdapter().CreateRHIBuffer<FD3D12StructuredBuffer>(nullptr, Desc, Alignment, Stride, Size, InUsage, ED3D12ResourceStateMode::Default, CreateInfo);
+	FD3D12Buffer* NewBuffer = GetAdapter().CreateRHIBuffer(nullptr, Desc, Alignment, Stride, Size, InUsage | BUF_StructuredBuffer, ED3D12ResourceStateMode::Default, CreateInfo);
 	if (NewBuffer->ResourceLocation.IsTransient())
 	{
 		// TODO: this should ideally be set in platform-independent code, since this tracking is for the high level
@@ -69,19 +69,14 @@ FStructuredBufferRHIRef FD3D12DynamicRHI::RHICreateStructuredBuffer(uint32 Strid
 	return NewBuffer;
 }
 
-FD3D12StructuredBuffer::~FD3D12StructuredBuffer()
-{
-	UpdateBufferStats<FD3D12StructuredBuffer>(&ResourceLocation, false);
-}
-
 void* FD3D12DynamicRHI::RHILockStructuredBuffer(FRHICommandListImmediate& RHICmdList, FRHIStructuredBuffer* StructuredBufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
 {
-	FD3D12StructuredBuffer* Buffer = FD3D12DynamicRHI::ResourceCast(StructuredBufferRHI);
+	FD3D12Buffer* Buffer = FD3D12DynamicRHI::ResourceCast(StructuredBufferRHI);
 	return LockBuffer(&RHICmdList, Buffer, Buffer->GetSize(), Buffer->GetUsage(), Offset, Size, LockMode);
 }
 
 void FD3D12DynamicRHI::RHIUnlockStructuredBuffer(FRHICommandListImmediate& RHICmdList, FRHIStructuredBuffer* StructuredBufferRHI)
 {
-	FD3D12StructuredBuffer* Buffer = FD3D12DynamicRHI::ResourceCast(StructuredBufferRHI);
+	FD3D12Buffer* Buffer = FD3D12DynamicRHI::ResourceCast(StructuredBufferRHI);
 	UnlockBuffer(&RHICmdList, Buffer, Buffer->GetUsage());
 }

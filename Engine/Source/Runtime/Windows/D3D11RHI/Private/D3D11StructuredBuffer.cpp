@@ -2,8 +2,10 @@
 
 #include "D3D11RHIPrivate.h"
 
-FStructuredBufferRHIRef FD3D11DynamicRHI::RHICreateStructuredBuffer(uint32 Stride,uint32 Size,uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
+FStructuredBufferRHIRef FD3D11DynamicRHI::RHICreateStructuredBuffer(uint32 Stride, uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
+	InUsage |= BUF_StructuredBuffer;
+
 	// Explicitly check that the size is nonzero before allowing CreateStructuredBuffer to opaquely fail.
 	check(Size > 0);
 	// Check for values that will cause D3D calls to fail
@@ -25,11 +27,6 @@ FStructuredBufferRHIRef FD3D11DynamicRHI::RHICreateStructuredBuffer(uint32 Strid
 	{
 		// Setup bind flags so we can create a writeable UAV to the buffer
 		Desc.BindFlags |= D3D11_BIND_UNORDERED_ACCESS;
-	}
-
-	if (InUsage & BUF_StreamOutput)
-	{
-		Desc.BindFlags |= D3D11_BIND_STREAM_OUTPUT;
 	}
 
 	Desc.CPUAccessFlags = (InUsage & BUF_AnyDynamic) ? D3D11_CPU_ACCESS_WRITE : 0;
@@ -89,7 +86,7 @@ FStructuredBufferRHIRef FD3D11DynamicRHI::RHICreateStructuredBuffer(uint32 Strid
 		CreateInfo.ResourceArray->Discard();
 	}
 
-	return new FD3D11StructuredBuffer(StructuredBufferResource,Stride,Size,InUsage);
+	return new FD3D11Buffer(StructuredBufferResource, Size, InUsage, Stride);
 }
 
 FStructuredBufferRHIRef FD3D11DynamicRHI::CreateStructuredBuffer_RenderThread(
@@ -105,7 +102,7 @@ FStructuredBufferRHIRef FD3D11DynamicRHI::CreateStructuredBuffer_RenderThread(
 
 void* FD3D11DynamicRHI::LockStructuredBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIStructuredBuffer* StructuredBufferRHI,uint32 Offset,uint32 Size,EResourceLockMode LockMode)
 {
-	FD3D11StructuredBuffer* StructuredBuffer = ResourceCast(StructuredBufferRHI);
+	FD3D11Buffer* StructuredBuffer = ResourceCast(StructuredBufferRHI);
 	
 	// If this resource is bound to the device, unbind it
 	ConditionalClearShaderResource(StructuredBuffer, true);
@@ -170,7 +167,7 @@ void* FD3D11DynamicRHI::LockStructuredBuffer_BottomOfPipe(FRHICommandListImmedia
 
 void FD3D11DynamicRHI::UnlockStructuredBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIStructuredBuffer* StructuredBufferRHI)
 {
-	FD3D11StructuredBuffer* StructuredBuffer = ResourceCast(StructuredBufferRHI);
+	FD3D11Buffer* StructuredBuffer = ResourceCast(StructuredBufferRHI);
 
 	// Determine whether the Structured buffer is dynamic or not.
 	D3D11_BUFFER_DESC Desc;

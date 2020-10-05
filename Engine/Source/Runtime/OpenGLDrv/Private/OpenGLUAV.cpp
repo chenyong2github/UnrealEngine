@@ -7,10 +7,10 @@
 #include "OpenGLDrvPrivate.h"
 #include "ClearReplacementShaders.h"
 
-FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(FRHIVertexBuffer* VertexBufferRHI, uint32 Stride, uint8 Format)
+FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(FRHIBuffer* BufferRHI, uint32 Stride, uint8 Format)
 {
 	ensureMsgf(Stride == GPixelFormats[Format].BlockBytes, TEXT("provided stride: %i was not consitent with Pixelformat: %s"), Stride, GPixelFormats[Format].Name);
-	return FOpenGLDynamicRHI::RHICreateShaderResourceView(FShaderResourceViewInitializer(VertexBufferRHI, EPixelFormat(Format)));
+	return FOpenGLDynamicRHI::RHICreateShaderResourceView(FShaderResourceViewInitializer(BufferRHI, EPixelFormat(Format)));
 }
 
 // Binds the specified buffer range to a texture resource and selects glTexBuffer or glTexBufferRange 
@@ -37,12 +37,13 @@ static void BindGLTexBufferRange(GLenum Target, GLenum InternalFormat, GLuint Bu
 
 FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(const FShaderResourceViewInitializer& Initializer)
 {
+	FShaderResourceViewInitializer::FBufferShaderResourceViewInitializer Desc = Initializer.AsBufferSRV();
+	FRHIBuffer* BufferRHI = Desc.Buffer;
+
 	switch (Initializer.GetType())
 	{
 		case FShaderResourceViewInitializer::EType::VertexBufferSRV:
 		{
-			FShaderResourceViewInitializer::FVertexBufferShaderResourceViewInitializer Desc = Initializer.AsVertexBufferSRV();
-			FRHIVertexBuffer* VertexBufferRHI = Desc.VertexBuffer;
 			const uint8 Format = Desc.Format;
 
 			FShaderResourceViewRHIRef Result = new FOpenGLShaderResourceViewProxy([=, OGLRHI = this](FRHIShaderResourceView* OwnerRHI)
@@ -53,9 +54,9 @@ FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(const F
 				{
 					FOpenGL::GenTextures(1, &TextureID);
 					UE_CLOG(!GPixelFormats[Format].Supported, LogRHI, Error, TEXT("Unsupported EPixelFormat %d"), Format);
-					if (VertexBufferRHI)
+					if (BufferRHI)
 					{
-						FOpenGLVertexBuffer* VertexBuffer = FOpenGLDynamicRHI::ResourceCast(VertexBufferRHI);
+						FOpenGLBuffer* VertexBuffer = FOpenGLDynamicRHI::ResourceCast(BufferRHI);
 
 						const uint32 FormatBPP = GPixelFormats[Format].BlockBytes;
 
@@ -70,7 +71,7 @@ FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(const F
 				// and the next draw will take care of cleaning it up; or
 				// next operation that needs the stage will switch something else in on it.
 
-				return new FOpenGLShaderResourceView(OGLRHI, TextureID, GL_TEXTURE_BUFFER, VertexBufferRHI, Format);
+				return new FOpenGLShaderResourceView(OGLRHI, TextureID, GL_TEXTURE_BUFFER, BufferRHI, Format);
 			});
 
 			return Result;
@@ -78,16 +79,13 @@ FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(const F
 
 		case FShaderResourceViewInitializer::EType::StructuredBufferSRV:
 		{
-			FShaderResourceViewInitializer::FStructuredBufferShaderResourceViewInitializer Desc = Initializer.AsStructuredBufferSRV();
-			FRHIStructuredBuffer* StructuredBufferRHI = Desc.StructuredBuffer;
-
 			return new FOpenGLShaderResourceViewProxy([=](FRHIShaderResourceView* OwnerRHI)
 			{
 				VERIFY_GL_SCOPE();
 				GLuint TextureID = 0;
 				if (FOpenGL::SupportsResourceView())
 				{
-					FOpenGLStructuredBuffer* StructuredBuffer = ResourceCast(StructuredBufferRHI);
+					FOpenGLBuffer* StructuredBuffer = ResourceCast(BufferRHI);
 					FOpenGL::GenTextures(1, &TextureID);
 					CachedSetupTextureStage(GetContextStateForCurrentContext(), FOpenGL::GetMaxCombinedTextureImageUnits() - 1, GL_TEXTURE_BUFFER, TextureID, -1, 1);
 					uint32 Stride = StructuredBuffer->GetStride();
@@ -101,9 +99,6 @@ FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(const F
 
 		case FShaderResourceViewInitializer::EType::IndexBufferSRV:
 		{
-			FShaderResourceViewInitializer::FIndexBufferShaderResourceViewInitializer Desc = Initializer.AsIndexBufferSRV();
-			FRHIIndexBuffer* IndexBufferRHI = Desc.IndexBuffer;
-
 			return new FOpenGLShaderResourceViewProxy([=](FRHIShaderResourceView* OwnerRHI)
 			{
 				VERIFY_GL_SCOPE();
@@ -111,16 +106,16 @@ FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(const F
 				if (FOpenGL::SupportsResourceView())
 				{
 					FOpenGL::GenTextures(1, &TextureID);
-					if (IndexBufferRHI)
+					if (BufferRHI)
 					{
-						FOpenGLIndexBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
+						FOpenGLBuffer* IndexBuffer = ResourceCast(BufferRHI);
 						CachedSetupTextureStage(GetContextStateForCurrentContext(), FOpenGL::GetMaxCombinedTextureImageUnits() - 1, GL_TEXTURE_BUFFER, TextureID, -1, 1);
-						uint32 Stride = IndexBufferRHI->GetStride();
+						uint32 Stride = BufferRHI->GetStride();
 						GLenum Format = (Stride == 2) ? GL_R16UI : GL_R32UI;
 						BindGLTexBufferRange(GL_TEXTURE_BUFFER, Format, IndexBuffer->Resource, Desc.StartOffsetBytes, Desc.NumElements, Stride);
 					}
 				}
-				return new FOpenGLShaderResourceView(this, TextureID, GL_TEXTURE_BUFFER, IndexBufferRHI);
+				return new FOpenGLShaderResourceView(this, TextureID, GL_TEXTURE_BUFFER, BufferRHI);
 			});
 		}
 
@@ -141,7 +136,7 @@ void FOpenGLDynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV,
 	VERIFY_GL_SCOPE();
 
 	FOpenGLShaderResourceView* SRVGL = FOpenGLDynamicRHI::ResourceCast(SRV);
-	FOpenGLIndexBuffer* IBGL = FOpenGLDynamicRHI::ResourceCast(IndexBuffer);
+	FOpenGLBuffer* IBGL = FOpenGLDynamicRHI::ResourceCast(IndexBuffer);
 
 	check(SRVGL);
 	check(!SRVGL->VertexBuffer);
@@ -176,7 +171,7 @@ void FOpenGLDynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV,
 	VERIFY_GL_SCOPE();
 
 	FOpenGLShaderResourceView* SRVGL = FOpenGLDynamicRHI::ResourceCast(SRV);
-	FOpenGLVertexBuffer* VBGL = FOpenGLDynamicRHI::ResourceCast(VertexBuffer);
+	FOpenGLBuffer* VBGL = FOpenGLDynamicRHI::ResourceCast(VertexBuffer);
 	const FOpenGLTextureFormat& GLFormat = GOpenGLTextureFormats[Format];
 	
 	check(SRVGL);
@@ -199,7 +194,7 @@ void FOpenGLDynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV,
 	}
 }
 
-FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(FRHIIndexBuffer* BufferRHI)
+FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(FRHIBuffer* BufferRHI)
 {
 	return FOpenGLDynamicRHI::RHICreateShaderResourceView(FShaderResourceViewInitializer(BufferRHI));
 }
@@ -217,22 +212,22 @@ FOpenGLShaderResourceView::~FOpenGLShaderResourceView()
 	}
 }
 
-FUnorderedAccessViewRHIRef FOpenGLDynamicRHI::RHICreateUnorderedAccessView(FRHIStructuredBuffer* StructuredBufferRHI, bool bUseUAVCounter, bool bAppendBuffer)
+FUnorderedAccessViewRHIRef FOpenGLDynamicRHI::RHICreateUnorderedAccessView(FRHIBuffer* BufferRHI, bool bUseUAVCounter, bool bAppendBuffer)
 {
-	FOpenGLStructuredBuffer* StructuredBuffer = ResourceCast(StructuredBufferRHI);
+	FOpenGLBuffer* Buffer = ResourceCast(BufferRHI);
 	// emulate structured buffer of specific size as typed buffer
 	if (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1)
 	{
 		// ES3.1 cross-compiler converts StructuredBuffer<type4> into Buffer<type4> and StructuredBuffer<type> into Buffer<type>
 		// type can be float, int and uint
-		check(StructuredBuffer->GetStride() == 16 || StructuredBuffer->GetStride() == 4);
-		if (StructuredBuffer->GetStride() == 16)
+		check(Buffer->GetStride() == 16 || Buffer->GetStride() == 4);
+		if (Buffer->GetStride() == 16)
 		{
-			return new FOpenGLStructuredBufferUnorderedAccessView(this, StructuredBufferRHI, PF_A32B32G32R32F);
+			return new FOpenGLStructuredBufferUnorderedAccessView(this, BufferRHI, PF_A32B32G32R32F);
 		}
-		else if (StructuredBuffer->GetStride() == 4)
+		else if (Buffer->GetStride() == 4)
 		{
-			return new FOpenGLStructuredBufferUnorderedAccessView(this, StructuredBufferRHI, PF_R32_FLOAT);
+			return new FOpenGLStructuredBufferUnorderedAccessView(this, BufferRHI, PF_R32_FLOAT);
 		}
 	}
 	
@@ -268,7 +263,7 @@ FOpenGLVertexBufferUnorderedAccessView::FOpenGLVertexBufferUnorderedAccessView(	
 	OpenGLRHI(InOpenGLRHI)
 {
 	VERIFY_GL_SCOPE();
-	FOpenGLVertexBuffer* InVertexBuffer = FOpenGLDynamicRHI::ResourceCast(InVertexBufferRHI);
+	FOpenGLBuffer* InVertexBuffer = FOpenGLDynamicRHI::ResourceCast(InVertexBufferRHI);
 
 
 	const FOpenGLTextureFormat& GLFormat = GOpenGLTextureFormats[Format];
@@ -293,7 +288,7 @@ FOpenGLVertexBufferUnorderedAccessView::FOpenGLVertexBufferUnorderedAccessView(	
 
 uint32 FOpenGLVertexBufferUnorderedAccessView::GetBufferSize()
 {
-	FOpenGLVertexBuffer* VertexBuffer = FOpenGLDynamicRHI::ResourceCast(VertexBufferRHI.GetReference());
+	FOpenGLBuffer* VertexBuffer = FOpenGLDynamicRHI::ResourceCast(VertexBufferRHI.GetReference());
 	return VertexBufferRHI->GetSize();
 }
 
@@ -311,21 +306,9 @@ FOpenGLVertexBufferUnorderedAccessView::~FOpenGLVertexBufferUnorderedAccessView(
 }
 
 
-FUnorderedAccessViewRHIRef FOpenGLDynamicRHI::RHICreateUnorderedAccessView(FRHIVertexBuffer* VertexBufferRHI,uint8 Format)
+FUnorderedAccessViewRHIRef FOpenGLDynamicRHI::RHICreateUnorderedAccessView(FRHIBuffer* BufferRHI, uint8 Format)
 {
-	FOpenGLVertexBuffer* VertexBuffer = ResourceCast(VertexBufferRHI);
-	return new FOpenGLVertexBufferUnorderedAccessView(this, VertexBufferRHI, Format);
-}
-
-FUnorderedAccessViewRHIRef FOpenGLDynamicRHI::RHICreateUnorderedAccessView(FRHIIndexBuffer* IndexBufferRHI, uint8 Format)
-{
-	checkf(0, TEXT("Not implemented!"));
-	return nullptr;
-}
-
-FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(FRHIStructuredBuffer* StructuredBufferRHI)
-{
-	return FOpenGLDynamicRHI::RHICreateShaderResourceView(FShaderResourceViewInitializer(StructuredBufferRHI));
+	return new FOpenGLVertexBufferUnorderedAccessView(this, BufferRHI, Format);
 }
 
 void FOpenGLDynamicRHI::RHIClearUAVFloat(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FVector4& Values)
@@ -449,7 +432,7 @@ FOpenGLStructuredBufferUnorderedAccessView::FOpenGLStructuredBufferUnorderedAcce
 	, OpenGLRHI(InOpenGLRHI)
 {
 	VERIFY_GL_SCOPE();
-	FOpenGLStructuredBuffer* InStructuredBuffer = FOpenGLDynamicRHI::ResourceCast(InStructuredBufferRHI);
+	FOpenGLBuffer* InStructuredBuffer = FOpenGLDynamicRHI::ResourceCast(InStructuredBufferRHI);
 	const FOpenGLTextureFormat& GLFormat = GOpenGLTextureFormats[InFormat];
 
 	GLuint TextureID = 0;
@@ -471,7 +454,7 @@ FOpenGLStructuredBufferUnorderedAccessView::FOpenGLStructuredBufferUnorderedAcce
 
 uint32 FOpenGLStructuredBufferUnorderedAccessView::GetBufferSize()
 {
-	FOpenGLStructuredBuffer* StructuredBuffer = FOpenGLDynamicRHI::ResourceCast(StructuredBufferRHI.GetReference());
+	FOpenGLBuffer* StructuredBuffer = FOpenGLDynamicRHI::ResourceCast(StructuredBufferRHI.GetReference());
 	return StructuredBuffer->GetSize();
 }
 
