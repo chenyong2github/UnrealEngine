@@ -56,6 +56,13 @@ namespace AudioModulation
 		void SoloBusMix(const USoundControlBusMix& InBusMix);
 
 #if !UE_BUILD_SHIPPING
+		virtual void SetDebugBusFilter(const FString* InFilter);
+		virtual void SetDebugMixFilter(const FString* InFilter);
+		virtual void SetDebugMatrixEnabled(bool bInIsEnabled);
+		virtual void SetDebugGeneratorsEnabled(bool bInIsEnabled);
+		virtual void SetDebugGeneratorFilter(const FString* InFilter);
+		virtual void SetDebugGeneratorTypeFilter(const FString* InFilter, bool bInIsEnabled);
+
 		virtual bool OnPostHelp(FCommonViewportClient* ViewportClient, const TCHAR* Stream) override;
 		virtual int32 OnRenderStat(FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const UFont& Font, const FVector* ViewLocation, const FRotator* ViewRotation) override;
 		virtual bool OnToggleStat(FCommonViewportClient* ViewportClient, const TCHAR* Stream) override;
