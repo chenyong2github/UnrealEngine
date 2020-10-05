@@ -1263,7 +1263,7 @@ TSharedRef<ITableRow> SRemoteControlPanel::OnGenerateRow(TSharedPtr<FRCPanelTree
 			if (TSharedPtr<FExposedFieldDragDropOp> DragDropOp = Event.GetOperationAs<FExposedFieldDragDropOp>())
 			{
 				FGuid GroupId = GetGroupId(Field);;
-				if (TSharedPtr<FRCPanelGroup>* Group = FieldGroups.FindByPredicate([GroupId](const TSharedPtr<FRCPanelGroup>& Group) { return Group->Id == GroupId; }))
+				if (TSharedPtr<FRCPanelGroup>* Group = FieldGroups.FindByPredicate([GroupId](const TSharedPtr<FRCPanelGroup>& TargetGroup) { return TargetGroup->Id == GroupId; }))
 				{
 					if (DragDropOp->IsOfType<FExposedFieldDragDropOp>())
 					{
