@@ -305,6 +305,7 @@ public:
 			UStruct* ContainerType = ObjectAccess.ContainerType.Get();
 
 			FStructSerializerPolicies Policies;
+			Policies.MapSerialization = EStructSerializerMapPolicies::Array;
 			if (ObjectAccess.Property.IsValid())
 			{
 				if (ObjectAccess.PropertyPathInfo.IsResolved())
@@ -330,7 +331,15 @@ public:
 
 			if (bCanSerialize)
 			{
-				FStructSerializer::Serialize(ObjectAccess.ContainerAdress, *ObjectAccess.PropertyPathInfo.GetResolvedData().Struct, Backend, Policies);
+				//Serialize the element if we're looking for a member or serialize the full object if not
+				if (ObjectAccess.PropertyPathInfo.IsResolved())
+				{
+					FStructSerializer::SerializeElement(ObjectAccess.ContainerAdress, ObjectAccess.PropertyPathInfo.GetResolvedData().Field, ObjectAccess.PropertyPathInfo.GetFieldSegment(ObjectAccess.PropertyPathInfo.GetSegmentCount()-1).ArrayIndex, Backend, Policies);
+				}
+				else
+				{
+					FStructSerializer::Serialize(ObjectAccess.ContainerAdress, *ObjectAccess.ContainerType, Backend, Policies);
+				}
 				return true;
 			}
 		}
@@ -379,7 +388,16 @@ public:
 				};
 			}
 
-			bool bSuccess = FStructDeserializer::Deserialize(ObjectAccess.ContainerAdress, *ObjectAccess.PropertyPathInfo.GetResolvedData().Struct, Backend, Policies);
+			//Serialize the element if we're looking for a member or serialize the full object if not
+			bool bSuccess = false;
+			if (ObjectAccess.PropertyPathInfo.IsResolved())
+			{
+				bSuccess = FStructDeserializer::DeserializeElement(ObjectAccess.ContainerAdress, *ObjectAccess.PropertyPathInfo.GetResolvedData().Struct, ObjectAccess.PropertyPathInfo.GetFieldSegment(ObjectAccess.PropertyPathInfo.GetSegmentCount() - 1).ArrayIndex, Backend, Policies);
+			}
+			else
+			{
+				bSuccess = FStructDeserializer::Deserialize(ObjectAccess.ContainerAdress, *ContainerType, Backend, Policies);
+			}
 
 			// if we are generating a transaction, also generate post edit property event, event if the change ended up unsuccessful
 			// this is to match the pre edit change call that can unregister components for example
