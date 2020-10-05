@@ -2121,6 +2121,8 @@ bool ULandscapeMeshCollisionComponent::RecreateCollision()
 	{
 		MeshRef = NULL;
 		MeshGuid = FGuid();
+		CachedHeightFieldSamples.Heights.Empty();
+		CachedHeightFieldSamples.Holes.Empty();
 	}
 
 	return Super::RecreateCollision();
