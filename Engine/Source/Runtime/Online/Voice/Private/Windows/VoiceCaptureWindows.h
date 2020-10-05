@@ -63,6 +63,8 @@ public:
 		FString DeviceName;
 		/** Enumerated capture device guid */
 		GUID DeviceId;
+		/** If this is the default device. */
+		bool bIsDefault;
 	};
 
 	/** DirectSound8 Interface */
