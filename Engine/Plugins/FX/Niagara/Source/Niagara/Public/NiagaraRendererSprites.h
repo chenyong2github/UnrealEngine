@@ -24,6 +24,8 @@ public:
 	virtual void CreateRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher)override;
 	virtual void ReleaseRenderThreadResources()override;
 
+	virtual int32 GetMaxIndirectArgs() const override;
+
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector, const FNiagaraSceneProxy *SceneProxy) const override;
 	virtual FNiagaraDynamicDataBase* GenerateDynamicData(const FNiagaraSceneProxy* Proxy, const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitter) const override;
 	virtual int GetDynamicDataSize()const override;
@@ -39,24 +41,27 @@ private:
 	{
 		FGlobalDynamicReadBuffer& DynamicReadBuffer;
 		FParticleRenderData ParticleData;
+		FGlobalDynamicReadBuffer::FAllocation IntData;
 	};
 
-	FCPUSimParticleDataAllocation ConditionalAllocateCPUSimParticleData(FNiagaraDynamicDataSprites *DynamicDataSprites, const FNiagaraRendererLayout* RendererLayout, FGlobalDynamicReadBuffer& DynamicReadBuffer) const;
+	FCPUSimParticleDataAllocation ConditionalAllocateCPUSimParticleData(FNiagaraDynamicDataSprites *DynamicDataSprites, const FNiagaraRendererLayout* RendererLayout, FGlobalDynamicReadBuffer& DynamicReadBuffer, bool bNeedsGPUVis) const;
 	TUniformBufferRef<class FNiagaraSpriteUniformParameters> CreatePerViewUniformBuffer(const FSceneView* View, const FSceneViewFamily& ViewFamily, const FNiagaraSceneProxy *SceneProxy, const FNiagaraRendererLayout* RendererLayout, const FNiagaraDynamicDataSprites* DynamicDataSprites) const;
 	void SetVertexFactoryParticleData(
 		class FNiagaraSpriteVertexFactory& VertexFactory,
-		FNiagaraDynamicDataSprites *DynamicDataSprites,
+		int32& OutCulledGPUParticleCountOffset,
+		FNiagaraDynamicDataSprites* DynamicDataSprites,
 		FCPUSimParticleDataAllocation& CPUSimParticleDataAllocation,
 		const FSceneView* View,
 		class FNiagaraSpriteVFLooseParameters& VFLooseParams,
-		const FNiagaraSceneProxy *SceneProxy,
+		const FNiagaraSceneProxy* SceneProxy,
 		const FNiagaraRendererLayout* RendererLayout
 	) const;
 	void CreateMeshBatchForView(
 		const FSceneView* View,
 		const FSceneViewFamily& ViewFamily,
-		const FNiagaraSceneProxy *SceneProxy,
-		FNiagaraDynamicDataSprites *DynamicDataSprites,
+		const FNiagaraSceneProxy* SceneProxy,
+		int32 CulledGPUParticleCountOffset,
+		FNiagaraDynamicDataSprites* DynamicDataSprites,
 		FMeshBatch& OutMeshBatch,
 		class FNiagaraSpriteVFLooseParameters& VFLooseParams,
 		class FNiagaraMeshCollectorResourcesSprite& OutCollectorResources,
@@ -74,11 +79,16 @@ private:
 	uint32 bRemoveHMDRollInVR : 1;
 	uint32 bSortOnlyWhenTranslucent : 1;
 	uint32 bGpuLowLatencyTranslucency : 1;
+	uint32 bEnableDistanceCulling : 1;
 	float MinFacingCameraBlendDistance;
 	float MaxFacingCameraBlendDistance;
+	FVector2D DistanceCullRange;
 	FNiagaraCutoutVertexBuffer CutoutVertexBuffer;
 	int32 NumCutoutVertexPerSubImage = 0;
 	uint32 MaterialParamValidMask = 0;
+
+	int32 RendererVisTagOffset;
+	int32 RendererVisibility;
 
 	int32 VFBoundOffsetsInParamStore[ENiagaraSpriteVFLayout::Type::Num];
 	uint32 bSetAnyBoundVars : 1;
