@@ -667,7 +667,10 @@ namespace AudioModulation
 		TArray<FModulatorBusMixStageSettings> StageSettings;
 		for (const FSoundControlBusMixStage& Stage : InStages)
 		{
-			StageSettings.Emplace(Stage, AudioDeviceId);
+			if (Stage.Bus)
+			{
+				StageSettings.Emplace(Stage, AudioDeviceId);
+			}
 		}
 	
 		RunCommandOnProcessingThread([this, MixId, StageSettings, InFadeTime]()
