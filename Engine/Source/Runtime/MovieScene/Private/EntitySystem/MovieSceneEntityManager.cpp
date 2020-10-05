@@ -10,6 +10,7 @@
 #include "UObject/StrongObjectPtr.h"
 #include "Containers/SortedMap.h"
 
+#include "Async/TaskGraphInterfaces.h"
 #include "Misc/FeedbackContext.h"
 
 #include "EntitySystem/EntityAllocationIterator.h"
@@ -539,9 +540,9 @@ bool FEntityManager::IsHandleValid(FEntityHandle InEntityHandle) const
 
 EEntityThreadingModel FEntityManager::GetThreadingModel() const
 {
-	const bool bShouldThread = 
-		EntityAllocations.Num() >= GThreadedEvaluationAllocationThreshold ||
-		EntityLocations.Num() >= GThreadedEvaluationEntityThreshold;
+	const bool bShouldThread = FTaskGraphInterface::IsMultithread() &&
+		(EntityAllocations.Num() >= GThreadedEvaluationAllocationThreshold ||
+		EntityLocations.Num() >= GThreadedEvaluationEntityThreshold);
 
 	return bShouldThread ? EEntityThreadingModel::TaskGraph : EEntityThreadingModel::NoThreading;
 }
