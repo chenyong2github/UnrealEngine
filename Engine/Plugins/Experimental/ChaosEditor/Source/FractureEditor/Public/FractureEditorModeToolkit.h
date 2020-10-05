@@ -13,7 +13,6 @@ class IDetailsView;
 class IPropertyHandle;
 class SScrollBox;
 class UFractureTool;
-class UEditableMesh;
 struct FFractureContext;
 class FGeometryCollection;
 class SGeometryCollectionOutliner;

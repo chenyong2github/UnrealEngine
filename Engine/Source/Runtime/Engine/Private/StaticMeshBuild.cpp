@@ -268,16 +268,9 @@ bool UStaticMesh::BuildInternal(bool bInSilent, TArray<FText> * OutErrors)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::BuildInternal);
 
-	// If we're controlled by an editable mesh do not build. The editable mesh will build us
-	if (EditableMesh)
-	{
-		if (FApp::CanEverRender())
-		{
-			InitResources();
-		}
-
-		return false;
-	}
+#if WITH_EDITORONLY_DATA
+	check(EditableMesh_DEPRECATED == nullptr);
+#endif
 
 	FFormatNamedArguments Args;
 	Args.Add( TEXT("Path"), FText::FromString( GetPathName() ) );

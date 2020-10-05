@@ -189,9 +189,6 @@ public:
 	/** Pointer to the data used to render this geometry collection with Nanite. */
 	TUniquePtr<class FGeometryCollectionNaniteData> NaniteData;
 
-	/** The editable mesh representation of this geometry collection */
-	class UObject* EditableMesh;
-	
 	UPROPERTY(EditAnywhere, Category = "Materials")
 	TArray<UMaterialInterface*> Materials;
 

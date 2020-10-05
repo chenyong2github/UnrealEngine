@@ -10,7 +10,6 @@
 
 class FUICommandList;
 class UVREditorMode;
-enum class EEditableMeshElementType;
 
 DECLARE_DELEGATE_FourParams(FOnRadialMenuGenerated, FMenuBuilder&, TSharedPtr<FUICommandList>, UVREditorMode*, float&);
 

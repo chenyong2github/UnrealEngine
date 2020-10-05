@@ -11,7 +11,6 @@
 
 #include "FractureTool.generated.h"
 
-class UEditableMesh;
 class UGeometryCollection;
 class UFractureTool;
 
@@ -19,7 +18,6 @@ struct FFractureContext
 {
 	AActor* OriginalActor;
 	UPrimitiveComponent* OriginalPrimitiveComponent;
-// 	const UEditableMesh* SourceMesh;
 
 	UGeometryCollection* FracturedGeometryCollection;
 	FString ParentName;

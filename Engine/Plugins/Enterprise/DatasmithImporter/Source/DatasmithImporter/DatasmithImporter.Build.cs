@@ -49,7 +49,6 @@ namespace UnrealBuildTool.Rules
 					"SlateCore",
 					"SourceControl",
 					"StaticMeshDescription",
-					"StaticMeshEditorExtension",
 					"ToolMenus",
 					"UnrealEd",
 					"VariantManager",

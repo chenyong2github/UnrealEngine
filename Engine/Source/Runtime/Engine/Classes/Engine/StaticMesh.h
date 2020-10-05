@@ -789,12 +789,10 @@ protected:
 	friend class FStaticMeshUpdate;
 
 public:
-	/** The editable mesh representation of this static mesh */
-	// @todo: Maybe we don't want this visible in the details panel in the end; for now, this might aid debugging.
-	UPROPERTY(Instanced)
-	class UObject* EditableMesh;
-
 #if WITH_EDITORONLY_DATA
+	UPROPERTY(Instanced)
+	class UObject* EditableMesh_DEPRECATED;
+
 	UPROPERTY(EditAnywhere, Category = Collision)
 	class UStaticMesh* ComplexCollisionMesh;
 #endif
