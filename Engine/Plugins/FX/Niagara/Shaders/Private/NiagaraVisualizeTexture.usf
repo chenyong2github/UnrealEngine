@@ -103,7 +103,8 @@ void Main(
 #elif TEXTURE_TYPE == 2
 	float4 Color = float4(0,0,0,1);
 	{
-		Color = Texture3DSample(Texture3DObject, TextureSampler, float3(Input.UV, TextureSlice));
+		float W = (float(TextureSlice) + 0.5f) / float(TextureDimensions.z);
+		Color = Texture3DSample(Texture3DObject, TextureSampler, float3(Input.UV, W));
 	}
 #endif
 	OutColor = ContainsNaNInf(Color);
