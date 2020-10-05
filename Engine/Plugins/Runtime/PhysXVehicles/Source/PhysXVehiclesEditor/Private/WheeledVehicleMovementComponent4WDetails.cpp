@@ -13,6 +13,8 @@
 
 #define LOCTEXT_NAMESPACE "WheeledVehicleMovementComponent4WDetails"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 //////////////////////////////////////////////////////////////
 // This class customizes various settings in WheeledVehicleMovementComponent4W
 //////////////////////////////////////////////////////////////
@@ -219,3 +221,4 @@ FWheeledVehicleMovementComponent4WDetails::FTorqueCurveEditor::FTorqueCurveEdito
 
 #undef LOCTEXT_NAMESPACE
 
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

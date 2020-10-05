@@ -34,6 +34,7 @@ enum EWheelSweepType
 	Complex	UMETA(DisplayName="Complex")	
 };
 
+class UE_DEPRECATED(4.26, "PhysX is deprecated. Use the UChaosVehicleWheel from the ChaosVehiclePhysics Plugin.") UVehicleWheel;
 UCLASS(BlueprintType, Blueprintable)
 class PHYSXVEHICLES_API UVehicleWheel : public UObject
 {

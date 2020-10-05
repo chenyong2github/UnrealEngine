@@ -14,6 +14,8 @@
 #include "ConsoleSettings.h"
 #endif // ALLOW_CONSOLE
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 class FPhysXVehiclesPlugin : public IPhysXVehiclesPlugin
 {
 private:
@@ -117,9 +119,4 @@ public:
 
 IMPLEMENT_MODULE(FPhysXVehiclesPlugin, PhysXVehicles )
 
-
-
-
-
-
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

@@ -9,6 +9,8 @@
 
 #define LOCTEXT_NAMESPACE "A3Nodes"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 UAnimGraphNode_WheelHandler::UAnimGraphNode_WheelHandler(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -57,3 +59,5 @@ bool UAnimGraphNode_WheelHandler::IsCompatibleWithGraph(const UEdGraph* TargetGr
 }
 
 #undef LOCTEXT_NAMESPACE
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

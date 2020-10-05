@@ -15,6 +15,8 @@
 FName AWheeledVehicle::VehicleMovementComponentName(TEXT("MovementComp"));
 FName AWheeledVehicle::VehicleMeshComponentName(TEXT("VehicleMesh"));
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 AWheeledVehicle::AWheeledVehicle(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -52,3 +54,4 @@ class UWheeledVehicleMovementComponent* AWheeledVehicle::GetVehicleMovementCompo
 	return VehicleMovement;
 }
 
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

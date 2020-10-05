@@ -32,6 +32,7 @@
 
 #define LOCTEXT_NAMESPACE "UWheeledVehicleMovementComponent"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 #if PHYSICS_INTERFACE_PHYSX
 /**
@@ -667,6 +668,7 @@ void PxVehicleComputeTireForceDefault
 	tireAlignMoment=fMy;
 }
 #endif // WITH_PHYSX
+
 
 void UWheeledVehicleMovementComponent::GenerateTireForces( UVehicleWheel* Wheel, const FTireShaderInput& Input, FTireShaderOutput& Output )
 {
@@ -2139,3 +2141,5 @@ FWheelSetup::FWheelSetup()
 {
 
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
