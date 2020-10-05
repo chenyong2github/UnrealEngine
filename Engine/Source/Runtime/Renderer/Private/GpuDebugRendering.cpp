@@ -82,7 +82,7 @@ namespace ShaderDrawDebug
 		return IsShaderDrawDebugEnabled() && IsShaderDrawDebugEnabled(View.GetShaderPlatform());
 	}
 
-	struct ShaderDrawDebugElement
+	struct FPackedShaderDrawElement
 	{
 		float Pos0[3]; // This is not packed as fp16 to be able to debug large scale data while preserving accuracy at short range.
 		float Pos1[3];
@@ -242,7 +242,7 @@ namespace ShaderDrawDebug
 		}
 
 		FRDGBuilder GraphBuilder(InRHICmdList);
-		FRDGBufferRef DataBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(ShaderDrawDebugElement), GetMaxElementCount()), TEXT("ShaderDrawDataBuffer"));
+		FRDGBufferRef DataBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FPackedShaderDrawElement), GetMaxElementCount()), TEXT("ShaderDrawDataBuffer"));
 		FRDGBufferRef IndirectBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndirectParameters>(1), TEXT("ShaderDrawDataIndirectBuffer"));
 
 		FShaderDrawDebugClearCS::FParameters* Parameters = GraphBuilder.AllocParameters<FShaderDrawDebugClearCS::FParameters>();
@@ -268,7 +268,7 @@ namespace ShaderDrawDebug
 
 		if (IsShaderDrawLocked() && !LockedData.bIsLocked)
 		{
-			LockedData.Buffer.Initialize(sizeof(ShaderDrawDebugElement), GetMaxElementCount(), 0U, TEXT("ShaderDrawDataBuffer"));
+			LockedData.Buffer.Initialize(sizeof(FPackedShaderDrawElement), GetMaxElementCount(), 0U, TEXT("ShaderDrawDataBuffer"));
 			LockedData.IndirectBuffer.Initialize(sizeof(uint32), 4, PF_R32_UINT, BUF_DrawIndirect, TEXT("ShaderDrawDataIndirectBuffer"));
 		}
 
@@ -374,7 +374,7 @@ namespace ShaderDrawDebug
 		if (IsShaderDrawLocked() && !LockedData.bIsLocked)
 		{
 			{
-				const uint32 NumElements = LockedData.Buffer.NumBytes / sizeof(ShaderDrawDebugElement);
+				const uint32 NumElements = LockedData.Buffer.NumBytes / sizeof(FPackedShaderDrawElement);
 
 				FShaderDrawDebugCopyCS::FPermutationDomain PermutationVector;
 				PermutationVector.Set<FShaderDrawDebugCopyCS::FBufferType>(0);
