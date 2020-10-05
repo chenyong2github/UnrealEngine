@@ -12,6 +12,7 @@ const FName IDisplayClusterConfiguratorViewTree::Columns::Group("Group");
 
 FDisplayClusterConfiguratorViewTree::FDisplayClusterConfiguratorViewTree(const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit)
 	: ToolkitPtr(InToolkit)
+	, bEnabled(false)
 {}
 
 TSharedRef<SWidget> FDisplayClusterConfiguratorViewTree::CreateWidget()
@@ -42,6 +43,11 @@ void FDisplayClusterConfiguratorViewTree::OnObjectSelected()
 EDisplayClusterConfiguratorTreeFilterResult FDisplayClusterConfiguratorViewTree::HandleFilterConfiguratorTreeItem(const FDisplayClusterConfiguratorTreeFilterArgs& InArgs, const TSharedPtr<IDisplayClusterConfiguratorTreeItem>& InItem)
 {
 	return ViewTree->HandleFilterConfiguratonTreeItem(InArgs, InItem);
+}
+
+void FDisplayClusterConfiguratorViewTree::SetEnabled(bool bInEnabled)
+{
+	bEnabled = bInEnabled;
 }
 
 UDisplayClusterConfiguratorEditorData* FDisplayClusterConfiguratorViewTree::GetEditorData() const

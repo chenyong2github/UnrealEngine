@@ -7,6 +7,10 @@
 
 class FDisplayClusterConfiguratorCommands;
 
+// Read only delegate
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnDisplayClusterConfiguratorReadOnlyChanged, bool /* bInEnabled */);
+using FOnDisplayClusterConfiguratorReadOnlyChangedDelegate = FOnDisplayClusterConfiguratorReadOnlyChanged::FDelegate;
+
 /**
  * Configurator editor module
  */

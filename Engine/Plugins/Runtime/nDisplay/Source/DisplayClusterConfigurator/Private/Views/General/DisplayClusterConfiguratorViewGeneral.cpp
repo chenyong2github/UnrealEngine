@@ -18,3 +18,11 @@ TSharedRef<SWidget> FDisplayClusterConfiguratorViewGeneral::CreateWidget()
 
 	return ViewDetails.ToSharedRef();
 }
+
+void FDisplayClusterConfiguratorViewGeneral::SetEnabled(bool bInEnabled)
+{
+	if (ViewDetails.IsValid())
+	{
+		ViewDetails->SetEnabled(bInEnabled);
+	}
+}
