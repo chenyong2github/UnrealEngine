@@ -1168,7 +1168,7 @@ private:
 	FText WorkingText;
 };
 
-static TCHAR* NiagaraCVarHistoryKey = TEXT("NiagaraCVarHistory");
+static const TCHAR* NiagaraCVarHistoryKey = TEXT("NiagaraCVarHistory");
 
 SNiagaraConsoleInputBox::SNiagaraConsoleInputBox()
 	: bIgnoreUIUpdate(false)
