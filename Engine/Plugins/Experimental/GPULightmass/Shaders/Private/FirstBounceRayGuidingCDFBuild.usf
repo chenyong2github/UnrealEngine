@@ -7,7 +7,6 @@
 int NumRayGuidingTrialSamples;
 
 RWTexture2D<uint> RayGuidingLuminance;
-RWTexture2D<uint> RayGuidingSampleCount;
 RWTexture2D<float> RayGuidingCDFX;
 RWTexture2D<float> RayGuidingCDFY;
 
@@ -34,14 +33,10 @@ void FirstBounceRayGuidingCDFBuildCS(
 		{
 			for(int dy = -FilterKernelSize; dy <= FilterKernelSize; dy++)
 			{
-				int2 FinalPosition = ClusterPosition * DIRECTIONAL_BINS_ONE_DIM + clamp(ThreadId.xy + int2(dx, dy), int2(0, 0), int2(DIRECTIONAL_BINS_ONE_DIM - 1,DIRECTIONAL_BINS_ONE_DIM - 1));
-				int SampleCount = RayGuidingSampleCount[BatchedTiles[TileIndex].WorkingSetPosition / GPreviewLightmapPhysicalTileSize * CDF_TILE_SIZE + FinalPosition];
-				float Sum = asfloat(RayGuidingLuminance[BatchedTiles[TileIndex].WorkingSetPosition / GPreviewLightmapPhysicalTileSize * CDF_TILE_SIZE + FinalPosition]);
-				Value += Sum / max(1, SampleCount);
+				int2 FinalPosition = ClusterPosition * DIRECTIONAL_BINS_ONE_DIM + clamp(ThreadId.xy + int2(dx, dy), int2(0, 0), int2(DIRECTIONAL_BINS_ONE_DIM - 1, DIRECTIONAL_BINS_ONE_DIM - 1));
+				Value += asfloat(RayGuidingLuminance[BatchedTiles[TileIndex].WorkingSetPosition / GPreviewLightmapPhysicalTileSize * CDF_TILE_SIZE + FinalPosition]);
 			}
 		}
-		
-		//Value = sqrt(Value);
 
 		float PrefixSum = WavePrefixSum(Value) + Value;
 		if (ThreadId.x == DIRECTIONAL_BINS_ONE_DIM - 1)
