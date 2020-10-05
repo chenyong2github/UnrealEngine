@@ -193,6 +193,38 @@ namespace AudioModulation
 		});
 	}
 
+#if !UE_BUILD_SHIPPING
+	void FAudioModulationSystem::SetDebugBusFilter(const FString* InFilter)
+	{
+		Debugger.SetDebugBusFilter(InFilter);
+	}
+
+	void FAudioModulationSystem::SetDebugGeneratorsEnabled(bool bInIsEnabled)
+	{
+		Debugger.SetDebugGeneratorsEnabled(bInIsEnabled);
+	}
+
+	void FAudioModulationSystem::SetDebugGeneratorFilter(const FString* InFilter)
+	{
+		Debugger.SetDebugGeneratorFilter(InFilter);
+	}
+
+	void FAudioModulationSystem::SetDebugGeneratorTypeFilter(const FString* InFilter, bool bInEnabled)
+	{
+		Debugger.SetDebugGeneratorTypeFilter(InFilter, bInEnabled);
+	}
+
+	void FAudioModulationSystem::SetDebugMatrixEnabled(bool bInIsEnabled)
+	{
+		Debugger.SetDebugMatrixEnabled(bInIsEnabled);
+	}
+
+	void FAudioModulationSystem::SetDebugMixFilter(const FString* InNameFilter)
+	{
+		Debugger.SetDebugMixFilter(InNameFilter);
+	}
+#endif // !UE_BUILD_SHIPPING
+
 	bool FAudioModulationSystem::GetModulatorValue(const Audio::FModulatorHandle& InModulatorHandle, float& OutValue) const
 	{
 		const EModulatorType ModulatorType = static_cast<EModulatorType>(InModulatorHandle.GetTypeId());

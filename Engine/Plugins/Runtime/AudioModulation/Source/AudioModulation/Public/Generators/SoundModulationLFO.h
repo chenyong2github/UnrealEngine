@@ -100,6 +100,7 @@ namespace AudioModulation
 #if !UE_BUILD_SHIPPING
 		static const FString DebugName;
 
+		virtual void GetDebugCategories(TArray<FString>& OutDebugCategories) const override;
 		virtual void GetDebugValues(TArray<FString>& OutDebugValues) const override;
 		virtual const FString& GetDebugName() const override;
 #endif // !UE_BUILD_SHIPPING

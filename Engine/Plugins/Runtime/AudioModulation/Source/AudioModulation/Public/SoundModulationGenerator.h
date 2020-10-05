@@ -32,6 +32,8 @@ namespace AudioModulation
 #if !UE_BUILD_SHIPPING
 		virtual void GetDebugValues(TArray<FString>& OutDebugValues) const { }
 
+		virtual void GetDebugCategories(TArray<FString>& OutDebugCategories) const { }
+
 		// Required for instance look-up in factory registration
 		virtual const FString& GetDebugName() const { static const FString Invalid; return Invalid; }
 #endif // !UE_BUILD_SHIPPING
