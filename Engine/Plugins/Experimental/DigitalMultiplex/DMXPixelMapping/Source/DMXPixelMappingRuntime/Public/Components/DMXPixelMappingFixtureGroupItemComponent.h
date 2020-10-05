@@ -74,10 +74,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Selected Patch")
 	FDMXEntityFixturePatchRef FixturePatchRef;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Setting")
-	TArray<FDMXPixelMappingExtraAttribute> ExtraAttributes;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Setting")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings")
 	EDMXColorMode ColorMode;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings", meta = (DisplayName = "R"))
@@ -115,6 +112,10 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings", meta = (DisplayName = "Intensity Attribute"))
 	FDMXAttributeName MonochromeIntensity;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings", meta = (DisplayAfter = "MonochromeIntensity"))
+	TArray<FDMXPixelMappingExtraAttribute> ExtraAttributes;
+
 
 private:
 	UPROPERTY(Transient)
