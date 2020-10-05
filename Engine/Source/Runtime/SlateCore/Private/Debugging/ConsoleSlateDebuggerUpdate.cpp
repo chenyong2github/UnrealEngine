@@ -303,15 +303,7 @@ FConsoleSlateDebuggerUpdate::FWidgetInfo::FWidgetInfo(const SWidget* Widget, EWi
 	PaintSize = Widget->GetPersistentState().AllottedGeometry.GetAbsoluteSize();
 	WidgetName = FReflectionMetaData::GetWidgetDebugInfo(Widget);
 
-	while(Widget)
-	{
-		if (Widget->Advanced_IsWindow())
-		{
-			WindowId = reinterpret_cast<TSWindowId>(Widget);
-			break;
-		}
-		Widget = Widget->GetParentWidget().Get();
-	}
+	WindowId = FConsoleSlateDebuggerUtility::FindWindowId(Widget);
 }
 
 void FConsoleSlateDebuggerUpdate::FWidgetInfo::Update(const SWidget* Widget, EWidgetUpdateFlags InUpdateFlags)
@@ -326,7 +318,7 @@ void FConsoleSlateDebuggerUpdate::HandleWidgetUpdate(const FSlateDebuggingWidget
 {
 	if (Args.Widget) // can become nullptr in fast path when a Tick or an ActiveTimer remove it from the list
 	{
-		const TSWidgetId WidgetId = reinterpret_cast<TSWidgetId>(Args.Widget);
+		const FConsoleSlateDebuggerUtility::TSWidgetId WidgetId = FConsoleSlateDebuggerUtility::GetId(Args.Widget);
 
 		EWidgetUpdateFlags UpdateFlags = Args.UpdateFlags;
 		if (Args.Widget->Advanced_IsInvalidationRoot())
@@ -361,7 +353,7 @@ void FConsoleSlateDebuggerUpdate::HandlePaintDebugInfo(const FPaintArgs& InArgs,
 {
 	++InOutLayerId;
 
-	const TSWindowId PaintWindow = reinterpret_cast<TSWindowId>(InOutDrawElements.GetPaintWindow());
+	const FConsoleSlateDebuggerUtility::TSWindowId PaintWindow = FConsoleSlateDebuggerUtility::GetId(InOutDrawElements.GetPaintWindow());
 	int32 NumberOfWidget = 0;
 	TArray<const FString*, TInlineAllocator<100>> NamesToDisplay;
 	const FSlateBrush* FocusBrush = FCoreStyle::Get().GetBrush(TEXT("FocusRectangle"));
