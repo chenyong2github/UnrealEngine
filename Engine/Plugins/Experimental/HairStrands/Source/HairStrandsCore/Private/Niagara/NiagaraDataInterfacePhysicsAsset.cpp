@@ -783,6 +783,8 @@ void UNiagaraDataInterfacePhysicsAsset::GetFunctions(TArray<FNiagaraFunctionSign
 	{
 		FNiagaraFunctionSignature Sig;
 		Sig.Name = GetNumBoxesName;
+		Sig.bSupportsGPU = true;
+		Sig.bSupportsCPU = false;
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Physics Asset")));
@@ -793,6 +795,8 @@ void UNiagaraDataInterfacePhysicsAsset::GetFunctions(TArray<FNiagaraFunctionSign
 	{
 		FNiagaraFunctionSignature Sig;
 		Sig.Name = GetNumSpheresName;
+		Sig.bSupportsGPU = true;
+		Sig.bSupportsCPU = false;
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Physics Asset")));
@@ -803,6 +807,8 @@ void UNiagaraDataInterfacePhysicsAsset::GetFunctions(TArray<FNiagaraFunctionSign
 	{
 		FNiagaraFunctionSignature Sig;
 		Sig.Name = GetNumCapsulesName;
+		Sig.bSupportsGPU = true;
+		Sig.bSupportsCPU = false;
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Physics Asset")));
@@ -813,6 +819,8 @@ void UNiagaraDataInterfacePhysicsAsset::GetFunctions(TArray<FNiagaraFunctionSign
 	{
 		FNiagaraFunctionSignature Sig;
 		Sig.Name = GetClosestPointName;
+		Sig.bSupportsGPU = true;
+		Sig.bSupportsCPU = false;
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Physics Asset")));
@@ -828,6 +836,8 @@ void UNiagaraDataInterfacePhysicsAsset::GetFunctions(TArray<FNiagaraFunctionSign
 	{
 		FNiagaraFunctionSignature Sig;
 		Sig.Name = GetClosestElementName;
+		Sig.bSupportsGPU = true;
+		Sig.bSupportsCPU = false;
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Physics Asset")));
@@ -840,6 +850,8 @@ void UNiagaraDataInterfacePhysicsAsset::GetFunctions(TArray<FNiagaraFunctionSign
 	{
 		FNiagaraFunctionSignature Sig;
 		Sig.Name = GetElementPointName;
+		Sig.bSupportsGPU = true;
+		Sig.bSupportsCPU = false;
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Physics Asset")));
@@ -856,6 +868,8 @@ void UNiagaraDataInterfacePhysicsAsset::GetFunctions(TArray<FNiagaraFunctionSign
 	{
 		FNiagaraFunctionSignature Sig;
 		Sig.Name = GetElementDistanceName;
+		Sig.bSupportsGPU = true;
+		Sig.bSupportsCPU = false;
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Physics Asset")));
@@ -869,6 +883,8 @@ void UNiagaraDataInterfacePhysicsAsset::GetFunctions(TArray<FNiagaraFunctionSign
 	{
 		FNiagaraFunctionSignature Sig;
 		Sig.Name = GetClosestDistanceName;
+		Sig.bSupportsGPU = true;
+		Sig.bSupportsCPU = false;
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Physics Asset")));
@@ -881,6 +897,8 @@ void UNiagaraDataInterfacePhysicsAsset::GetFunctions(TArray<FNiagaraFunctionSign
 	{
 		FNiagaraFunctionSignature Sig;
 		Sig.Name = GetTexturePointName;
+		Sig.bSupportsGPU = true;
+		Sig.bSupportsCPU = false;
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Physics Asset")));
@@ -893,6 +911,8 @@ void UNiagaraDataInterfacePhysicsAsset::GetFunctions(TArray<FNiagaraFunctionSign
 	{
 		FNiagaraFunctionSignature Sig;
 		Sig.Name = GetProjectionPointName;
+		Sig.bSupportsGPU = true;
+		Sig.bSupportsCPU = false;
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Physics Asset")));
