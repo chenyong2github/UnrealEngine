@@ -134,7 +134,7 @@ FNiagaraRendererSprites::FNiagaraRendererSprites(ERHIFeatureLevel::Type FeatureL
 	if (Emitter->GetRendererBoundVariables().IsEmpty() == false)
 	{
 		const TArray< const FNiagaraVariableAttributeBinding*>& VFBindings = Properties->GetAttributeBindings();
-		check(VFBindings.Num() == ENiagaraSpriteVFLayout::Type::Num);
+		check(VFBindings.Num() >= ENiagaraSpriteVFLayout::Type::Num);
 
 		for (int32 i = 0; i < ENiagaraSpriteVFLayout::Type::Num; i++)
 		{
