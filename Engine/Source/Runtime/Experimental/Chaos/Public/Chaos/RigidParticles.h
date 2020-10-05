@@ -89,7 +89,6 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 		TArrayCollection::AddArray(&MIsland);
 		TArrayCollection::AddArray(&MToBeRemovedOnFracture);
 		TArrayCollection::AddArray(&MGravityEnabled);
-		TArrayCollection::AddArray(&MOneWayInteraction);
 		TArrayCollection::AddArray(&MResimType);
 	}
 	TRigidParticles(const TRigidParticles<T, d>& Other) = delete;
@@ -109,7 +108,6 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 		, MCollisionConstraintFlags(MoveTemp(Other.MCollisionConstraintFlags))
 		, MObjectState(MoveTemp(Other.MObjectState))
 		, MGravityEnabled(MoveTemp(Other.MGravityEnabled))
-		, MOneWayInteraction(MoveTemp(Other.MOneWayInteraction))
 		, MResimType(MoveTemp(Other.MResimType))
 	{
 		TArrayCollection::AddArray(&MF);
@@ -132,7 +130,6 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 		TArrayCollection::AddArray(&MIsland);
 		TArrayCollection::AddArray(&MToBeRemovedOnFracture);
 		TArrayCollection::AddArray(&MGravityEnabled);
-		TArrayCollection::AddArray(&MOneWayInteraction);
 		TArrayCollection::AddArray(&MResimType);
 	}
 
@@ -204,9 +201,6 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 
 	FORCEINLINE const bool& GravityEnabled(const int32 Index) const { return MGravityEnabled[Index]; }
 	FORCEINLINE bool& GravityEnabled(const int32 Index) { return MGravityEnabled[Index]; }
-
-	FORCEINLINE const bool& OneWayInteraction(const int32 Index) const { return MOneWayInteraction[Index]; }
-	FORCEINLINE bool& OneWayInteraction(const int32 Index) { return MOneWayInteraction[Index]; }
 
 	FORCEINLINE EResimType ResimType(const int32 Index) const { return MResimType[Index]; }
 	FORCEINLINE EResimType& ResimType(const int32 Index) { return MResimType[Index]; }
@@ -311,7 +305,6 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 	TArrayCollectionArray<bool> MToBeRemovedOnFracture;
 	TArrayCollectionArray<EObjectStateType> MObjectState;
 	TArrayCollectionArray<bool> MGravityEnabled;
-	TArrayCollectionArray<bool> MOneWayInteraction;
 	TArrayCollectionArray<EResimType> MResimType;
 
 	TArray<TSleepData<T, d>> MSleepData;
