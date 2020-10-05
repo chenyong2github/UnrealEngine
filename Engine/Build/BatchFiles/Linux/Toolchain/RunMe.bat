@@ -2,9 +2,9 @@
 
 
 
-set TOOLCHAIN_VERSION=v16
+set TOOLCHAIN_VERSION=v17
 
-set LLVM_VERSION=9.0.1
+set LLVM_VERSION=10.0.1
 
 
 
@@ -12,7 +12,7 @@ set SVN_BINARY=%CD%\..\..\..\..\..\..\Binaries\ThirdParty\svn\Win64\svn.exe
 
 set CMAKE_BINARY=%CD%\..\..\..\..\..\..\Extras\ThirdPartyNotUE\CMake\bin\cmake.exe
 
-set PYTHON_BINARY=%CD%\..\..\..\..\..\..\Binaries\ThirdParty\Python\Win64\python.exe
+set PYTHON_BINARY=%CD%\..\..\..\..\Binaries\ThirdParty\Python\Win64\python.exe
 
 set NSIS_BINARY=C:\Program Files (x86)\NSIS\Bin\makensis.exe
 
@@ -62,7 +62,7 @@ unzip -o %ROOT_DIR:\=/%/%FILENAME%-windows.zip -d OUTPUT
 
 
 
-set GIT_LLVM_RELEASE_HASH=c1a0a213378a458fbea1a5c77b315c7dce08fd05
+set GIT_LLVM_RELEASE_HASH=ef32c611aa214dea855364efd7ba451ec5ec3f74
 
 git clone https://github.com/llvm/llvm-project source
 pushd source
@@ -76,7 +76,7 @@ pushd build_llvm
 
 
 
-%CMAKE_BINARY% -G "Visual Studio 15 2017 Win64" -DLLVM_TEMPORARILY_ALLOW_OLD_TOOLCHAIN=ON -DCMAKE_INSTALL_PREFIX="../install" -DPYTHON_EXECUTABLE="%PYTHON_BINARY%" "../source/llvm"
+%CMAKE_BINARY% -G "Visual Studio 16 2019" -DLLVM_TEMPORARILY_ALLOW_OLD_TOOLCHAIN=ON -DCMAKE_INSTALL_PREFIX="..\install" -DPYTHON_EXECUTABLE="%PYTHON_BINARY%" "..\source\llvm"
 
 %CMAKE_BINARY% --build . --target install --config MinSizeRel
 
@@ -91,8 +91,8 @@ pushd build_lld
 
 
 
-%CMAKE_BINARY% -G "Visual Studio 15 2017 Win64" -DLLVM_TEMPORARILY_ALLOW_OLD_TOOLCHAIN=ON -DCMAKE_INSTALL_PREFIX="../install" -DPYTHON_EXECUTABLE="%PYTHON_BINARY%" -DLLVM_CONFIG_PATH="../install/bin/llvm-config.exe" "../source/lld"
-%CMAKE_BINARY% -G "Visual Studio 15 2017 Win64" -DLLVM_TEMPORARILY_ALLOW_OLD_TOOLCHAIN=ON -DCMAKE_INSTALL_PREFIX="../install" -DPYTHON_EXECUTABLE="%PYTHON_BINARY%" -DLLVM_CONFIG_PATH="../install/bin/llvm-config.exe" "../source/lld"
+%CMAKE_BINARY% -G "Visual Studio 16 2019" -DLLVM_TEMPORARILY_ALLOW_OLD_TOOLCHAIN=ON -DCMAKE_INSTALL_PREFIX="..\install" -DPYTHON_EXECUTABLE="%PYTHON_BINARY%" -DLLVM_CONFIG_PATH="..\install\bin\llvm-config.exe" "..\source\lld"
+%CMAKE_BINARY% -G "Visual Studio 16 2019" -DLLVM_TEMPORARILY_ALLOW_OLD_TOOLCHAIN=ON -DCMAKE_INSTALL_PREFIX="..\install" -DPYTHON_EXECUTABLE="%PYTHON_BINARY%" -DLLVM_CONFIG_PATH="..\install\bin\llvm-config.exe" "..\source\lld"
 %CMAKE_BINARY% --build . --target install --config MinSizeRel
 
 
@@ -103,7 +103,7 @@ mkdir build_clang
 pushd build_clang
 
 
-%CMAKE_BINARY% -G "Visual Studio 15 2017 Win64" -DCMAKE_INSTALL_PREFIX="../install" -DPYTHON_EXECUTABLE="%PYTHON_BINARY%" "../source/clang"
+%CMAKE_BINARY% -G "Visual Studio 16 2019" -DCMAKE_INSTALL_PREFIX="..\install" -DPYTHON_EXECUTABLE="%PYTHON_BINARY%" "..\source\clang"
 %CMAKE_BINARY% --build . --target install --config MinSizeRel
 
 
@@ -132,6 +132,10 @@ for %%G in (aarch64-unknown-linux-gnueabi x86_64-unknown-linux-gnu) do (
     copy "install\bin\llvm-ar.exe" OUTPUT\%%G\bin
 
     copy "install\bin\llvm-profdata.exe" OUTPUT\%%G\bin
+
+    copy "install\bin\llvm-symbolizer.exe" OUTPUT\%%G\bin
+
+    copy "install\bin\llvm-objcopy.exe" OUTPUT\%%G\bin
 
     copy "install\bin\LTO.dll" OUTPUT\%%G\bin
 
