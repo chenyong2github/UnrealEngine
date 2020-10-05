@@ -227,10 +227,15 @@ struct FNiagaraDataInterfaceProxy : TSharedFromThis<FNiagaraDataInterfaceProxy, 
 	// number of elements to output to
 	FIntVector ElementCount;
 
+	// Offset into instance count buffer to use as the 'real' element count
+	// it's execpted that ElementCount will be >= to this value, could be replaced by DispatchIndirect in the future
+	uint32 GPUInstanceCountOffset = INDEX_NONE;
+
 	void SetElementCount(uint32 Count) { ElementCount = FIntVector(Count, 1, 1); }
 	void SetElementCount(const FIntPoint& Count) { ElementCount = FIntVector(Count.X, Count.Y, 1); }
 	void SetElementCount(const FIntVector& Count) { ElementCount = Count; }
-
+	void SetGPUInstanceCountOffset(uint32 InstanceCountOffset) { GPUInstanceCountOffset = InstanceCountOffset; }
+	
 	virtual bool IsOutputStage_DEPRECATED(uint32 CurrentStage) const { return OutputSimulationStages_DEPRECATED.Contains(CurrentStage); }
 	virtual bool IsIterationStage_DEPRECATED(uint32 CurrentStage) const { return IterationSimulationStages_DEPRECATED.Contains(CurrentStage); }
 
