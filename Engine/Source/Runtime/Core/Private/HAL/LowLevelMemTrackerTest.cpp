@@ -20,6 +20,7 @@ bool FLLMScopeTest::RunTest(const FString& Parameters)
 	int* AllocationByNameExisting = nullptr;
 	int* AllocationByNameNew = nullptr;
 	int* AllocationByTag = nullptr;
+	int* AllocationByTag3 = nullptr;
 	FLowLevelMemTracker& LocalLLM = FLowLevelMemTracker::Get();
 	bool bIsEnabled = FLowLevelMemTracker::IsEnabled();
 	{
@@ -51,7 +52,7 @@ bool FLLMScopeTest::RunTest(const FString& Parameters)
 	}
 	{
 		LLM_SCOPE_BYTAG(LLMTestParentTag_LLMTestChildTag3);
-		AllocationByTag = new int[10];
+		AllocationByTag3 = new int[10];
 		if (bIsEnabled)
 		{
 			TestEqual(TEXT("Parsed parent tag has proper name"), LocalLLM.GetActiveTagData(ELLMTracker::Default)->GetName(), FName(TEXT("LLMTestParentTag_LLMTestChildTag3")));
@@ -61,6 +62,8 @@ bool FLLMScopeTest::RunTest(const FString& Parameters)
 	delete[] AllocationByNameExisting;
 	delete[] AllocationByNameNew;
 	delete[] AllocationByTag;
+	delete[] AllocationByTag3;
+
 	return true;
 }
 
