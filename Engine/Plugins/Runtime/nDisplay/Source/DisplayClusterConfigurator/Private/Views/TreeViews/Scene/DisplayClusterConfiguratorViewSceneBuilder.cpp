@@ -74,14 +74,14 @@ void FDisplayClusterConfiguratorViewSceneBuilder::AddScene(FDisplayClusterConfig
 	for (const TPair<FString, UDisplayClusterConfigurationSceneComponentCamera*>& CameraPair : Cameras)
 	{
 		UDisplayClusterConfigurationSceneComponentCamera* Component = CameraPair.Value;
-		UnsordedComponents.Add(FComponentData(*Component->ParentId, FDisplayClusterConfiguratorTreeItemScene::GetTypeId(), *CameraPair.Key, Component, "DisplayClusterConfigurator.TreeItems.SceneComponentXform"));
+		UnsordedComponents.Add(FComponentData(*Component->ParentId, FDisplayClusterConfiguratorTreeItemScene::GetTypeId(), *CameraPair.Key, Component, "DisplayClusterConfigurator.TreeItems.SceneComponentCamera"));
 	}
 
 	const TMap<FString, UDisplayClusterConfigurationSceneComponentScreen*>& Screens = InConfig->Scene->Screens;
 	for (const TPair<FString, UDisplayClusterConfigurationSceneComponentScreen*>& ScreenPair : Screens)
 	{
 		UDisplayClusterConfigurationSceneComponentScreen* Component = ScreenPair.Value;
-		UnsordedComponents.Add(FComponentData(*Component->ParentId, FDisplayClusterConfiguratorTreeItemScene::GetTypeId(), *ScreenPair.Key, Component, "DisplayClusterConfigurator.TreeItems.SceneComponentCamera"));
+		UnsordedComponents.Add(FComponentData(*Component->ParentId, FDisplayClusterConfiguratorTreeItemScene::GetTypeId(), *ScreenPair.Key, Component, "DisplayClusterConfigurator.TreeItems.SceneComponentScreen"));
 	}
 
 	const TMap<FString, UDisplayClusterConfigurationSceneComponentMesh*>& Meshes = InConfig->Scene->Meshes;
