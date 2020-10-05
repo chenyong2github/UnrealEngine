@@ -74,7 +74,7 @@ private:
  * This interface is used by all queued thread pools. It used as a callback by
  * FQueuedThreads and is used to queue asynchronous work for callers.
  */
-class FQueuedThreadPool
+class CORE_API FQueuedThreadPool
 {
 public:
 	/**
