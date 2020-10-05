@@ -209,6 +209,9 @@ struct FDMXLibraryExecutionToken : IMovieSceneExecutionToken
 		TArray<float> ChannelsValues;
 		const FFrameTime Time = Context.GetTime();
 
+		// Reset previous fragments
+		DMXFragmentMaps.Reset();
+
 		// Add the Patches' function channels values to the Fragment Maps so that we can send
 		// them later all at once for each affected universe on each protocol
 		for (const FDMXFixturePatchChannel& PatchChannel : Section->GetFixturePatchChannels())
