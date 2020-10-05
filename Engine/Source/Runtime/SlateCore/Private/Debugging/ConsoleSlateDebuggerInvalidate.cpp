@@ -341,20 +341,6 @@ void FConsoleSlateDebuggerInvalidate::HandleSetInvalidateRootReasonFilter(const 
 	}
 }
 
-FConsoleSlateDebuggerInvalidate::TSWindowId FConsoleSlateDebuggerInvalidate::GetWidgetWindowId(const SWidget* Widget) const
-{
-	while (Widget)
-	{
-		if (Widget->Advanced_IsWindow())
-		{
-			return reinterpret_cast<TSWindowId>(Widget);
-		}
-		Widget = Widget->GetParentWidget().Get();
-	}
-
-	return FConsoleSlateDebuggerInvalidate::InvalidWindowId;
-}
-
 int32 FConsoleSlateDebuggerInvalidate::GetInvalidationPriority(EInvalidateWidgetReason InvalidationInfo, ESlateDebuggingInvalidateRootReason InvalidationRootReason) const
 {
 	InvalidationInfo &= InvalidateWidgetReasonFilter;
@@ -433,11 +419,11 @@ const FLinearColor& FConsoleSlateDebuggerInvalidate::GetColor(const FInvalidatio
 }
 
 FConsoleSlateDebuggerInvalidate::FInvalidationInfo::FInvalidationInfo(const FSlateDebuggingInvalidateArgs& Args, int32 InInvalidationPriority, bool bBuildWidgetName, bool bUseWidgetPathAsName)
-	: WidgetInvalidatedId(reinterpret_cast<TSWidgetId>(Args.WidgetInvalidated))
-	, WidgetInvalidatorId(reinterpret_cast<TSWidgetId>(Args.WidgetInvalidateInvestigator))
+	: WidgetInvalidatedId(FConsoleSlateDebuggerUtility::GetId(Args.WidgetInvalidated))
+	, WidgetInvalidatorId(FConsoleSlateDebuggerUtility::GetId(Args.WidgetInvalidateInvestigator))
 	, WidgetInvalidated(Args.WidgetInvalidated->DoesSharedInstanceExist() ? Args.WidgetInvalidated->AsShared() : TWeakPtr<const SWidget>())
 	, WidgetInvalidator(Args.WidgetInvalidateInvestigator && Args.WidgetInvalidateInvestigator->DoesSharedInstanceExist() ? Args.WidgetInvalidateInvestigator->AsShared() : TWeakPtr<const SWidget>())
-	, WindowId(FConsoleSlateDebuggerInvalidate::InvalidWindowId)
+	, WindowId(FConsoleSlateDebuggerUtility::InvalidWindowId)
 	, WidgetReason(Args.InvalidateWidgetReason)
 	, InvalidationRootReason(Args.InvalidateInvalidationRootReason)
 	, InvalidationPriority(InInvalidationPriority)
@@ -453,7 +439,7 @@ FConsoleSlateDebuggerInvalidate::FInvalidationInfo::FInvalidationInfo(const FSla
 
 void FConsoleSlateDebuggerInvalidate::FInvalidationInfo::ReplaceInvalidated(const FSlateDebuggingInvalidateArgs& InArgs, int32 InInvalidationPriority, bool bInBuildWidgetName, bool bInUseWidgetPathAsName)
 {
-	if (WidgetInvalidatorId == InvalidWidgetId)
+	if (WidgetInvalidatorId == FConsoleSlateDebuggerUtility::InvalidWidgetId)
 	{
 		WidgetInvalidatorId = WidgetInvalidatedId;
 		WidgetInvalidator = MoveTemp(WidgetInvalidated);
@@ -461,7 +447,7 @@ void FConsoleSlateDebuggerInvalidate::FInvalidationInfo::ReplaceInvalidated(cons
 	}
 
 	check(InArgs.WidgetInvalidated);
-	WidgetInvalidatedId = reinterpret_cast<TSWidgetId>(InArgs.WidgetInvalidated);
+	WidgetInvalidatedId = FConsoleSlateDebuggerUtility::GetId(InArgs.WidgetInvalidated);
 	WidgetInvalidated = InArgs.WidgetInvalidated->DoesSharedInstanceExist() ? InArgs.WidgetInvalidated->AsShared() : TWeakPtr<const SWidget>();
 	if (bInBuildWidgetName)
 	{
@@ -475,7 +461,7 @@ void FConsoleSlateDebuggerInvalidate::FInvalidationInfo::ReplaceInvalidated(cons
 
 void FConsoleSlateDebuggerInvalidate::FInvalidationInfo::ReplaceInvalidator(const FSlateDebuggingInvalidateArgs& InArgs, int32 InInvalidationPriority, bool bInBuildWidgetName, bool bInUseWidgetPathAsName)
 {
-	WidgetInvalidatorId = reinterpret_cast<TSWidgetId>(InArgs.WidgetInvalidateInvestigator);
+	WidgetInvalidatorId = FConsoleSlateDebuggerUtility::GetId(InArgs.WidgetInvalidateInvestigator);
 	if (bInBuildWidgetName)
 	{
 		WidgetInvalidatorName = bInUseWidgetPathAsName ? FReflectionMetaData::GetWidgetPath(InArgs.WidgetInvalidateInvestigator) : FReflectionMetaData::GetWidgetDebugInfo(InArgs.WidgetInvalidateInvestigator);
@@ -525,8 +511,8 @@ void FConsoleSlateDebuggerInvalidate::HandleWidgetInvalidated(const FSlateDebugg
 		return;
 	}
 
-	const TSWidgetId WidgetInvalidatedId = reinterpret_cast<TSWidgetId>(Args.WidgetInvalidated);
-	const TSWidgetId WidgetInvalidatorId = reinterpret_cast<TSWidgetId>(Args.WidgetInvalidateInvestigator);
+	const FConsoleSlateDebuggerUtility::TSWidgetId WidgetInvalidatedId = FConsoleSlateDebuggerUtility::GetId(Args.WidgetInvalidated);
+	const FConsoleSlateDebuggerUtility::TSWidgetId WidgetInvalidatorId = FConsoleSlateDebuggerUtility::GetId(Args.WidgetInvalidateInvestigator);
 
 	const int32 InvalidationPriority = GetInvalidationPriority(Args.InvalidateWidgetReason, Args.InvalidateInvalidationRootReason);
 	if (InvalidationPriority == 0)
@@ -613,8 +599,8 @@ void FConsoleSlateDebuggerInvalidate::ProcessFrameList()
 
 		if (TSharedPtr<const SWidget> Invalidated = FrameInvalidationInfo.WidgetInvalidated.Pin())
 		{
-			FrameInvalidationInfo.WindowId = GetWidgetWindowId(Invalidated.Get());
-			if (FrameInvalidationInfo.WindowId != InvalidWindowId)
+			FrameInvalidationInfo.WindowId = FConsoleSlateDebuggerUtility::FindWindowId(Invalidated.Get());
+			if (FrameInvalidationInfo.WindowId != FConsoleSlateDebuggerUtility::InvalidWindowId)
 			{
 				FrameInvalidationInfo.DisplayColor = GetColor(FrameInvalidationInfo);
 				FrameInvalidationInfo.InvalidationTime = CurrentTime;
@@ -638,7 +624,7 @@ void FConsoleSlateDebuggerInvalidate::HandlePaintDebugInfo(const FPaintArgs& InA
 {
 	++InOutLayerId;
 
-	const TSWindowId PaintWindow = reinterpret_cast<TSWindowId>(InOutDrawElements.GetPaintWindow());
+	const FConsoleSlateDebuggerUtility::TSWindowId PaintWindow = FConsoleSlateDebuggerUtility::GetId(InOutDrawElements.GetPaintWindow());
 	FSlateFontInfo FontInfo = FCoreStyle::Get().GetFontStyle("SmallFont");
 	const FSlateBrush* BoxBrush = FCoreStyle::Get().GetBrush("WhiteBrush");
 	const FSlateBrush* CheckerboardBrush = FCoreStyle::Get().GetBrush("Checkerboard");
@@ -675,7 +661,7 @@ void FConsoleSlateDebuggerInvalidate::HandlePaintDebugInfo(const FPaintArgs& InA
 		TextElementY += 108.f;
 	}
 
-	TArray<TSWidgetId, TInlineAllocator<32>> AlreadyProcessedInvalidatedId;
+	TArray<FConsoleSlateDebuggerUtility::TSWidgetId, TInlineAllocator<32>> AlreadyProcessedInvalidatedId;
 	for (const FInvalidationInfo& InvalidationInfo : InvalidationInfos)
 	{
 		if (InvalidationInfo.WindowId != PaintWindow)
@@ -686,12 +672,12 @@ void FConsoleSlateDebuggerInvalidate::HandlePaintDebugInfo(const FPaintArgs& InA
 		{
 			continue;
 		}
-		if (InvalidationInfo.WidgetInvalidatorId != InvalidWidgetId && AlreadyProcessedInvalidatedId.Contains(InvalidationInfo.WidgetInvalidatorId))
+		if (InvalidationInfo.WidgetInvalidatorId != FConsoleSlateDebuggerUtility::InvalidWidgetId && AlreadyProcessedInvalidatedId.Contains(InvalidationInfo.WidgetInvalidatorId))
 		{
 			continue;
 		}
 		AlreadyProcessedInvalidatedId.Add(InvalidationInfo.WidgetInvalidatedId);
-		if (InvalidationInfo.WidgetInvalidatorId != InvalidWidgetId)
+		if (InvalidationInfo.WidgetInvalidatorId != FConsoleSlateDebuggerUtility::InvalidWidgetId)
 		{
 			AlreadyProcessedInvalidatedId.Add(InvalidationInfo.WidgetInvalidatorId);
 		}
