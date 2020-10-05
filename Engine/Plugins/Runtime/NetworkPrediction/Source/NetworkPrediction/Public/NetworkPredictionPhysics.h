@@ -295,7 +295,7 @@ private:
 // ------------------------------------------------------------------------------------------------------
 // Generic model def for physics actors with no backing simulation
 // ------------------------------------------------------------------------------------------------------
-struct FGenericPhysicsModelDef : FNetworkPredictionModelDef
+struct NETWORKPREDICTION_API FGenericPhysicsModelDef : FNetworkPredictionModelDef
 {
 	NP_MODEL_BODY();
 
