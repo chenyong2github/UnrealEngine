@@ -10,6 +10,16 @@
 
 #define MAX_TARGETS 16
 
+#if SUPPORTS_INDEPENDENT_SAMPLERS
+
+#define PhysicsFieldSampler GlobalTrilinearClampedSampler
+
+#else
+
+SamplerState PhysicsFieldSampler;
+
+#endif
+
 float3 PhysicsField_ComputeSampleUV(in float3 WorldPosition, in int ClipmapIndex, in float3 ClipmapCenter, in float ClipmapDistance, in int ClipmapExponent, in int ClipmapCount)
 {
 	const float ClipmapExtent = ClipmapDistance * pow(ClipmapExponent, ClipmapIndex + 1 - ClipmapCount);
@@ -51,13 +61,13 @@ float3 PhysicsField_SamplePhysicsVectorField( in float3 WorldPosition, in int Ve
 			
 			const int4 TargetOffsets = PhysicsField_ComputeTargetOffsets(ClipmapIndex, TargetIndex, TargetCount, ClipmapCount, ClipmapResolution);
 			SampleUV.z = (TargetOffsets.w != 0) ? (SampleOffset + TargetOffsets.x) / TargetOffsets.w : 0.5;
-			FieldValue.x = ClipmapTexture.SampleLevel(GlobalTrilinearClampedSampler, SampleUV, 0);
+			FieldValue.x = ClipmapTexture.SampleLevel(PhysicsFieldSampler, SampleUV, 0);
 			
 			SampleUV.z = (TargetOffsets.w != 0) ? (SampleOffset + TargetOffsets.y) / TargetOffsets.w : 0.5;
-			FieldValue.y = ClipmapTexture.SampleLevel(GlobalTrilinearClampedSampler, SampleUV, 0);
+			FieldValue.y = ClipmapTexture.SampleLevel(PhysicsFieldSampler, SampleUV, 0);
 			
 			SampleUV.z = (TargetOffsets.w != 0) ? (SampleOffset + TargetOffsets.z) / TargetOffsets.w : 0.5;
-			FieldValue.z = ClipmapTexture.SampleLevel(GlobalTrilinearClampedSampler, SampleUV, 0);
+			FieldValue.z = ClipmapTexture.SampleLevel(PhysicsFieldSampler, SampleUV, 0);
 		}
 	}
 	return FieldValue;
@@ -78,7 +88,7 @@ float PhysicsField_SamplePhysicsScalarField(in float3 WorldPosition, in int Scal
 			
 			const int4 TargetOffsets = PhysicsField_ComputeTargetOffsets(ClipmapIndex, TargetIndex, TargetCount, ClipmapCount, ClipmapResolution);
 			SampleUV.z = (TargetOffsets.w != 0) ? (SampleOffset + TargetOffsets.x) / TargetOffsets.w : 0.5;
-			FieldValue = ClipmapTexture.SampleLevel(GlobalTrilinearClampedSampler, SampleUV, 0);
+			FieldValue = ClipmapTexture.SampleLevel(PhysicsFieldSampler, SampleUV, 0);
 		}
 	}
 	return FieldValue;
@@ -99,7 +109,7 @@ int PhysicsField_SamplePhysicsIntegerField(in float3 WorldPosition, in int Integ
 			
 			const int4 TargetOffsets = PhysicsField_ComputeTargetOffsets(ClipmapIndex, TargetIndex, TargetCount, ClipmapCount, ClipmapResolution);
 			SampleUV.z = (TargetOffsets.w != 0) ? (SampleOffset + TargetOffsets.x) / TargetOffsets.w : 0.5;
-			FieldValue = ClipmapTexture.SampleLevel(GlobalTrilinearClampedSampler, SampleUV, 0);
+			FieldValue = ClipmapTexture.SampleLevel(PhysicsFieldSampler, SampleUV, 0);
 		}
 	}
 	return FieldValue;

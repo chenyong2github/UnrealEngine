@@ -475,8 +475,8 @@ void EvaluateRandomVector(in float3 SamplePosition, in int NodeOffset,
 void EvaluateSumScalar(in float3 SamplePosition, in int NodeOffset,
 				inout float ContextDatas[MAX_DATAS], inout int LocalIndex)
 {
-	const bool HasRight = NodesParams[NodeOffset + SUM_SCALAR_RIGHT];
-	const bool HasLeft = NodesParams[NodeOffset + SUM_SCALAR_LEFT];
+	const int HasRight = NodesParams[NodeOffset + SUM_SCALAR_RIGHT];
+	const int HasLeft = NodesParams[NodeOffset + SUM_SCALAR_LEFT];
 
 	LocalIndex -= HasRight + HasLeft;
 
@@ -521,9 +521,9 @@ void EvaluateSumScalar(in float3 SamplePosition, in int NodeOffset,
 void EvaluateSumVector(in float3 SamplePosition, in int NodeOffset,
 				inout float ContextDatas[MAX_DATAS], inout int LocalIndex)
 {
-	const bool HasScalar = NodesParams[NodeOffset + SUM_VECTOR_SCALAR];
-	const bool HasRight = NodesParams[NodeOffset + SUM_VECTOR_RIGHT];
-	const bool HasLeft = NodesParams[NodeOffset + SUM_VECTOR_LEFT];
+	const int HasScalar = NodesParams[NodeOffset + SUM_VECTOR_SCALAR];
+	const int HasRight = NodesParams[NodeOffset + SUM_VECTOR_RIGHT];
+	const int HasLeft = NodesParams[NodeOffset + SUM_VECTOR_LEFT];
 
 	LocalIndex -= HasScalar + HasRight * 3 + HasLeft * 3;
 
@@ -596,8 +596,8 @@ void EvaluateConversionInteger(in float3 SamplePosition, in int NodeOffset,
 void EvaluateCullingInteger(in float3 SamplePosition, in int NodeOffset,
 				inout float ContextDatas[MAX_DATAS], inout int LocalIndex)
 {
-	const bool HasScalar = NodesParams[NodeOffset + CULLING_SCALAR];
-	const bool HasInput = NodesParams[NodeOffset + CULLING_INPUT];
+	const int HasScalar = NodesParams[NodeOffset + CULLING_SCALAR];
+	const int HasInput = NodesParams[NodeOffset + CULLING_INPUT];
 
 	LocalIndex -= HasScalar + HasInput;
 
@@ -621,8 +621,8 @@ void EvaluateCullingInteger(in float3 SamplePosition, in int NodeOffset,
 void EvaluateCullingScalar(in float3 SamplePosition, in int NodeOffset,
 				inout float ContextDatas[MAX_DATAS], inout int LocalIndex)
 {
-	const bool HasScalar = NodesParams[NodeOffset + CULLING_SCALAR];
-	const bool HasInput = NodesParams[NodeOffset + CULLING_INPUT];
+	const int HasScalar = NodesParams[NodeOffset + CULLING_SCALAR];
+	const int HasInput = NodesParams[NodeOffset + CULLING_INPUT];
 
 	LocalIndex -= HasScalar + HasInput;
 
@@ -646,8 +646,8 @@ void EvaluateCullingScalar(in float3 SamplePosition, in int NodeOffset,
 void EvaluateCullingVector(in float3 SamplePosition, in int NodeOffset,
 				inout float ContextDatas[MAX_DATAS], inout int LocalIndex)
 {
-	const bool HasScalar = NodesParams[NodeOffset + CULLING_SCALAR];
-	const bool HasInput = NodesParams[NodeOffset + CULLING_INPUT];
+	const int HasScalar = NodesParams[NodeOffset + CULLING_SCALAR];
+	const int HasInput = NodesParams[NodeOffset + CULLING_INPUT];
 
 	LocalIndex -= HasScalar + HasInput * 3;
 
