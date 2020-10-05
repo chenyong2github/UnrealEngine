@@ -309,6 +309,7 @@ bool WebRemoteControlUtils::GetStructParametersDelimiters(TConstArrayView<uint8>
 		{
 			// this should mean we reached the parameters field, record the start and ending offset
 		case EJsonNotation::ObjectStart:
+		case EJsonNotation::ArrayStart:
 			if (FBlockDelimiters* Delimiters = InOutStructParameters.Find(JsonReader->GetIdentifier()))
 			{
 				Delimiters->BlockStart = Reader.Tell() - sizeof(PayloadCharType);
@@ -328,6 +329,7 @@ bool WebRemoteControlUtils::GetStructParametersDelimiters(TConstArrayView<uint8>
 			break;
 			// This means we should be done with the request object
 		case EJsonNotation::ObjectEnd:
+		case EJsonNotation::ArrayEnd:
 			break;
 			// Read the reset to default property
 		case EJsonNotation::Error:
