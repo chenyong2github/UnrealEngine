@@ -14,6 +14,7 @@
 #include "Widgets/Input/SComboBox.h"
 
 class UGroomAsset;
+class UMaterialInterface;
 class IGroomCustomAssetEditorToolkit;
 
 class FGroomMaterialDetails : public IDetailCustomization
