@@ -236,13 +236,13 @@ public:
 	}
 
 	// @param guaranteed only to be valid if the vertex buffer is valid
-	FUnorderedAccessViewRHIRef GetUAV() const
+	FRHIUnorderedAccessView* GetUAV() const
 	{
 		return UAVValue;
 	}
 
 	// @param guaranteed only to be valid if the Normalization Buffer is valid
-	FUnorderedAccessViewRHIRef GetNormalizationUAV() const
+	FRHIUnorderedAccessView* GetNormalizationUAV() const
 	{
 		return NormalizationBufferUAV;
 	}

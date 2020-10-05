@@ -1309,15 +1309,15 @@ FRHICOMMAND_MACRO(FRHICommandEndUAVOverlap)
 
 FRHICOMMAND_MACRO(FRHICommandBeginSpecificUAVOverlap)
 {
-	TArrayView<FRHIUnorderedAccessView*> UAVs;
-	FORCEINLINE_DEBUGGABLE FRHICommandBeginSpecificUAVOverlap(TArrayView<FRHIUnorderedAccessView*> InUAVs) : UAVs(InUAVs) {}
+	TArrayView<FRHIUnorderedAccessView* const> UAVs;
+	FORCEINLINE_DEBUGGABLE FRHICommandBeginSpecificUAVOverlap(TArrayView<FRHIUnorderedAccessView* const> InUAVs) : UAVs(InUAVs) {}
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
 FRHICOMMAND_MACRO(FRHICommandEndSpecificUAVOverlap)
 {
-	TArrayView<FRHIUnorderedAccessView*> UAVs;
-	FORCEINLINE_DEBUGGABLE FRHICommandEndSpecificUAVOverlap(TArrayView<FRHIUnorderedAccessView*> InUAVs) : UAVs(InUAVs) {}
+	TArrayView<FRHIUnorderedAccessView* const> UAVs;
+	FORCEINLINE_DEBUGGABLE FRHICommandEndSpecificUAVOverlap(TArrayView<FRHIUnorderedAccessView* const> InUAVs) : UAVs(InUAVs) {}
 	RHI_API void Execute(FRHICommandListBase & CmdList);
 };
 
@@ -2618,7 +2618,7 @@ public:
 		EndUAVOverlap(MakeArrayView(UAVs, 1));
 	}
 
-	FORCEINLINE_DEBUGGABLE void BeginUAVOverlap(TArrayView<FRHIUnorderedAccessView*> UAVs)
+	FORCEINLINE_DEBUGGABLE void BeginUAVOverlap(TArrayView<FRHIUnorderedAccessView* const> UAVs)
 	{
 		if (Bypass())
 		{
@@ -2632,7 +2632,7 @@ public:
 		ALLOC_COMMAND(FRHICommandBeginSpecificUAVOverlap)(MakeArrayView(InlineUAVs, UAVs.Num()));
 	}
 
-	FORCEINLINE_DEBUGGABLE void EndUAVOverlap(TArrayView<FRHIUnorderedAccessView*> UAVs)
+	FORCEINLINE_DEBUGGABLE void EndUAVOverlap(TArrayView<FRHIUnorderedAccessView* const> UAVs)
 	{
 		if (Bypass())
 		{
