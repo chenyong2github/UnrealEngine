@@ -41,7 +41,7 @@ enum EImportLODType
 	ILT_IndividualActors UMETA(DisplayName = "Individual Actors")
 };
 
-UCLASS(config=EditorPerProjectUserSettings, MinimalAPI)
+UCLASS(BlueprintType, config=EditorPerProjectUserSettings, MinimalAPI)
 class USpeedTreeImportData : public UAssetImportData
 {
 	GENERATED_UCLASS_BODY()
