@@ -293,14 +293,7 @@ void FPathContextMenu::MakeSetColorSubMenu(UToolMenu* Menu)
 
 void FPathContextMenu::ExecuteExplore()
 {
-	for (const FContentBrowserItem& SelectedItem : SelectedFolders)
-	{
-		FString ItemFilename;
-		if (SelectedItem.GetItemPhysicalPath(ItemFilename) && FPaths::DirectoryExists(ItemFilename))
-		{
-			FPlatformProcess::ExploreFolder(*IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*ItemFilename));
-		}
-	}
+	ContentBrowserUtils::ExploreFolders(SelectedFolders, ParentContent.Pin().ToSharedRef());
 }
 
 bool FPathContextMenu::CanExecuteRename() const

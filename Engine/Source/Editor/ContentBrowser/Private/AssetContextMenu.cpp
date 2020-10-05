@@ -670,14 +670,7 @@ void FAssetContextMenu::ExecuteSyncToAssetTree()
 
 void FAssetContextMenu::ExecuteFindInExplorer()
 {
-	for (const FContentBrowserItem& SelectedItem : SelectedFiles)
-	{
-		FString ItemFilename;
-		if (SelectedItem.GetItemPhysicalPath(ItemFilename) && FPaths::FileExists(ItemFilename))
-		{
-			FPlatformProcess::ExploreFolder(*IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*ItemFilename));
-		}
-	}
+	ContentBrowserUtils::ExploreFolders(SelectedFiles, AssetView.Pin().ToSharedRef());
 }
 
 bool FAssetContextMenu::CanExecuteEditItems() const

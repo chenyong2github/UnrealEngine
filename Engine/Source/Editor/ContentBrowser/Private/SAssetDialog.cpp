@@ -465,19 +465,7 @@ FReply SAssetDialog::ExecuteDeleteFolderConfirmed()
 
 void SAssetDialog::ExecuteExplore()
 {
-	const TArray<FContentBrowserItem> SelectedItems = AssetPicker->GetAssetView()->GetSelectedItems();
-	for (const FContentBrowserItem& SelectedItem : SelectedItems)
-	{
-		FString ItemFilename;
-		if (SelectedItem.GetItemPhysicalPath(ItemFilename))
-		{
-			const bool bExists = SelectedItem.IsFile() ? FPaths::FileExists(ItemFilename) : FPaths::DirectoryExists(ItemFilename);
-			if (bExists)
-			{
-				FPlatformProcess::ExploreFolder(*IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*ItemFilename));
-			}
-		}
-	}
+	ContentBrowserUtils::ExploreFolders(AssetPicker->GetAssetView()->GetSelectedItems(), AssetPicker->GetAssetView().ToSharedRef());
 }
 
 bool SAssetDialog::CanExecuteCreateNewFolder() const

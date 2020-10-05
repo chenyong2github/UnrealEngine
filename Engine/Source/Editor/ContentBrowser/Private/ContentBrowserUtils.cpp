@@ -468,6 +468,44 @@ FText ContentBrowserUtils::GetExploreFolderText()
 	return FText::Format(NSLOCTEXT("GenericPlatform", "ShowInFileManager", "Show in {FileManagerName}"), Args);
 }
 
+void ContentBrowserUtils::ExploreFolders(const TArray<FContentBrowserItem>& InItems, const TSharedRef<SWidget>& InParentContent)
+{
+	TArray<FString> ExploreItems;
+
+	for (const FContentBrowserItem& SelectedItem : InItems)
+	{
+		FString ItemFilename;
+		if (SelectedItem.GetItemPhysicalPath(ItemFilename))
+		{
+			const bool bExists = SelectedItem.IsFile() ? FPaths::FileExists(ItemFilename) : FPaths::DirectoryExists(ItemFilename);
+			if (bExists)
+			{
+				ExploreItems.Add(IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*ItemFilename));
+			}
+		}
+	}
+
+	const int32 BatchSize = 10;
+	const FText FileManagerName = FPlatformMisc::GetFileManagerName();
+	const bool bHasMultipleBatches = ExploreItems.Num() > BatchSize;
+	for (int32 i = 0; i < ExploreItems.Num(); ++i)
+	{
+		bool bIsBatchBoundary = (i % BatchSize) == 0;
+		if (bHasMultipleBatches && bIsBatchBoundary)
+		{
+			int32 RemainingCount = ExploreItems.Num() - i;
+			int32 NextCount = FMath::Min(BatchSize, RemainingCount);
+			FText Prompt = FText::Format(LOCTEXT("ExecuteExploreConfirm", "Show {0} {0}|plural(one=item,other=items) in {1}?\nThere {2}|plural(one=is,other=are) {2} remaining."), NextCount, FileManagerName, RemainingCount);
+			if (FMessageDialog::Open(EAppMsgType::YesNo, Prompt) != EAppReturnType::Yes)
+			{
+				return;
+			}
+		}
+
+		FPlatformProcess::ExploreFolder(*ExploreItems[i]);
+	}
+}
+
 template <typename OutputContainerType>
 void ConvertLegacySelectionToVirtualPathsImpl(TArrayView<const FAssetData> InAssets, TArrayView<const FString> InFolders, const bool InUseFolderPaths, OutputContainerType& OutVirtualPaths)
 {

@@ -67,6 +67,9 @@ namespace ContentBrowserUtils
 	/** Gets the platform specific text for the "explore" command (FPlatformProcess::ExploreFolder) */
 	FText GetExploreFolderText();
 
+	/** Perform a batched "explore" operation on the specified file and/or folder paths */
+	void ExploreFolders(const TArray<FContentBrowserItem>& InItems, const TSharedRef<SWidget>& InParentContent);
+
 	/** Convert a legacy asset and path selection to their corresponding virtual paths for content browser data items */
 	void ConvertLegacySelectionToVirtualPaths(TArrayView<const FAssetData> InAssets, TArrayView<const FString> InFolders, const bool InUseFolderPaths, TArray<FName>& OutVirtualPaths);
 	void ConvertLegacySelectionToVirtualPaths(TArrayView<const FAssetData> InAssets, TArrayView<const FString> InFolders, const bool InUseFolderPaths, TSet<FName>& OutVirtualPaths);
