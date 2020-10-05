@@ -4,6 +4,7 @@
 
 #include "TriangleReaderNative.h"
 
+
 DatasmithNavisworksUtil::GeometrySettings::GeometrySettings()
 	: Handle(new DatasmithNavisworksUtilImpl::FGeometrySettings)
 	, bIsDisposed(false)
@@ -40,13 +41,14 @@ void DatasmithNavisworksUtil::GeometrySettings::SetNormalThreshold(double Value)
 	Handle->NormalThreshold = Value;
 }
 
-DatasmithNavisworksUtil::Geometry::Geometry(DatasmithNavisworksUtilImpl::FGeometry* Reader)
-	: Handle(Reader)
+DatasmithNavisworksUtil::Geometry::Geometry(TriangleReader^ InOwner, DatasmithNavisworksUtilImpl::FGeometry* InGeometry)
+	: Owner(InOwner)
+	, NativeGeometry(InGeometry)
 	, bIsDisposed(false)
 {
 	Update();
 
-	Hash = Reader->ComputeHash();
+	Hash = InGeometry->ComputeHash();
 }
 
 DatasmithNavisworksUtil::Geometry::~Geometry()
@@ -61,17 +63,17 @@ DatasmithNavisworksUtil::Geometry::~Geometry()
 
 void DatasmithNavisworksUtil::Geometry::!Geometry()
 {
-	delete Handle;
+	Owner->ReleaseGeometry(this);
 }
 
 bool DatasmithNavisworksUtil::Geometry::Equals(Geometry^ Other)
 {
-	return (Handle->VertexCount == Other->Handle->VertexCount)
-		&& (Handle->Coords == Other->Handle->Coords)
-		&& (Handle->Normals == Other->Handle->Normals)
-		&& (Handle->UVs == Other->Handle->UVs)
-		&& (Handle->TriangleCount == Other->Handle->TriangleCount)
-		&& (Handle->Indices == Other->Handle->Indices)
+	return (NativeGeometry->VertexCount == Other->NativeGeometry->VertexCount)
+		&& (NativeGeometry->Coords == Other->NativeGeometry->Coords)
+		&& (NativeGeometry->Normals == Other->NativeGeometry->Normals)
+		&& (NativeGeometry->UVs == Other->NativeGeometry->UVs)
+		&& (NativeGeometry->TriangleCount == Other->NativeGeometry->TriangleCount)
+		&& (NativeGeometry->Indices == Other->NativeGeometry->Indices)
 		;
 }
 
@@ -82,65 +84,164 @@ int DatasmithNavisworksUtil::Geometry::GetHashCode()
 
 void DatasmithNavisworksUtil::Geometry::Update()
 {
-	VertexCount = Handle->VertexCount;
-	Coords = Handle->Coords.data();
-	Normals = Handle->Normals.data();
-	UVs = Handle->UVs.data();
+	VertexCount = NativeGeometry->VertexCount;
+	Coords = NativeGeometry->Coords.data();
+	Normals = NativeGeometry->Normals.data();
+	UVs = NativeGeometry->UVs.data();
 
-	TriangleCount = Handle->TriangleCount;
-	Indices = Handle->Indices.data();
+	TriangleCount = NativeGeometry->TriangleCount;
+	Indices = NativeGeometry->Indices.data();
 }
 
 void DatasmithNavisworksUtil::Geometry::Optimize()
 {
-	Handle->Optimize();
+	NativeGeometry->Optimize();
 
 	Update();
 }
 
 bool DatasmithNavisworksUtil::Geometry::Append(Geometry^ Other)
 {
-	if (Handle->Coords.size() + Other->Handle->VertexCount * 3 > Handle->Coords.capacity())
+	if (NativeGeometry->Coords.size() + Other->NativeGeometry->VertexCount * 3 > NativeGeometry->Coords.capacity())
 	{
 		return false;
 	}
-	if (Handle->Indices.size() + Other->Handle->TriangleCount * 3 > Handle->Indices.capacity())
+	if (NativeGeometry->Indices.size() + Other->NativeGeometry->TriangleCount * 3 > NativeGeometry->Indices.capacity())
 	{
 		return false;
 	}
 
-	Handle->Coords.insert(Handle->Coords.end(), Other->Handle->Coords.begin(), Other->Handle->Coords.end());
-	Handle->Normals.insert(Handle->Normals.end(), Other->Handle->Normals.begin(), Other->Handle->Normals.end());
-	Handle->UVs.insert(Handle->UVs.end(), Other->Handle->UVs.begin(), Other->Handle->UVs.end());
+	NativeGeometry->ModificationStarted();
+	NativeGeometry->Coords.insert(NativeGeometry->Coords.end(), Other->NativeGeometry->Coords.begin(), Other->NativeGeometry->Coords.end());
+	NativeGeometry->Normals.insert(NativeGeometry->Normals.end(), Other->NativeGeometry->Normals.begin(), Other->NativeGeometry->Normals.end());
+	NativeGeometry->UVs.insert(NativeGeometry->UVs.end(), Other->NativeGeometry->UVs.begin(), Other->NativeGeometry->UVs.end());
 
-	for (uint32_t Index : Other->Handle->Indices)
+	for (uint32_t Index : Other->NativeGeometry->Indices)
 	{
-		Handle->Indices.push_back(Index + Handle->VertexCount);
+		NativeGeometry->Indices.push_back(Index + NativeGeometry->VertexCount);
 	}
 
-	Handle->VertexCount += Other->Handle->VertexCount;
-	Handle->TriangleCount += Other->Handle->TriangleCount;
+	NativeGeometry->VertexCount += Other->NativeGeometry->VertexCount;
+	NativeGeometry->TriangleCount += Other->NativeGeometry->TriangleCount;
 
 	Update();
+	NativeGeometry->ModificationEnded();
 	return true;
 }
 
-DatasmithNavisworksUtil::Geometry^ DatasmithNavisworksUtil::Geometry::ReserveGeometry(uint32_t VertexCount, uint32_t TriangleCount)
+DatasmithNavisworksUtil::TriangleReader::TriangleReader()
+	: NativeTriangleReader(new DatasmithNavisworksUtilImpl::FTriangleReaderNative)
+	, bIsDisposed(false)
+	, BufferOwnerGeometry(nullptr)
 {
-	DatasmithNavisworksUtilImpl::FGeometry* Geom = new DatasmithNavisworksUtilImpl::FGeometry;
+	BufferGeometry = NativeTriangleReader->GetNewGeometry();
+}
+
+DatasmithNavisworksUtil::TriangleReader::~TriangleReader()
+{
+	if (bIsDisposed)
+	{
+		return;
+	}
+	this->!TriangleReader();
+	bIsDisposed = true;
+}
+
+void DatasmithNavisworksUtil::TriangleReader::!TriangleReader()
+{
+	NativeTriangleReader->ReleaseGeometry(BufferGeometry);
+	delete NativeTriangleReader;
+}
+
+DatasmithNavisworksUtil::Geometry^ DatasmithNavisworksUtil::TriangleReader::ReadGeometry(Autodesk::Navisworks::Api::Interop::ComApi::InwOaFragment3^ Fragment, GeometrySettings^ Settings)
+{
+	// If there's a buffer owner Geometry object and it's not disposed(disposed had its Geometry released)
+	// disown the Buffer by making a lean(without 'slack' bytes) copy of it
+	Geometry^ BufferOwner = safe_cast<Geometry^>(BufferOwnerGeometry.Target);
+	if (BufferOwner != nullptr && !BufferOwner->IsDisposed())
+	{
+		BufferOwner->NativeGeometry = NativeTriangleReader->MakeLeanCopy(BufferGeometry);
+		BufferOwner->Update();
+	}
+	NativeTriangleReader->ClearBuffer(BufferGeometry);
+
+	NativeTriangleReader->Read(System::Runtime::InteropServices::Marshal::GetIUnknownForObject(Fragment).ToPointer(), *BufferGeometry, *Settings->Handle);
+	
+	Geometry^ Result = gcnew Geometry(this, BufferGeometry); // Make new geometry own the Buffer(it will be disowned when next geometry is read)
+	BufferOwnerGeometry.Target = Result; // Store buffer owner weak reference
+	return Result;
+}
+
+DatasmithNavisworksUtil::Geometry^ DatasmithNavisworksUtil::TriangleReader::ReserveGeometry(uint32_t VertexCount, uint32_t TriangleCount)
+{
+	DatasmithNavisworksUtilImpl::FGeometry* Geom = NativeTriangleReader->GetNewGeometry();
 	Geom->Coords.reserve(VertexCount * 3);
 	Geom->Normals.reserve(VertexCount * 3);
 	Geom->UVs.reserve(VertexCount * 2);
 	Geom->Indices.reserve(TriangleCount * 3);
-	return gcnew Geometry(Geom);
+	return gcnew Geometry(this, Geom);
 }
 
-
-DatasmithNavisworksUtil::Geometry^ DatasmithNavisworksUtil::TriangleReader::ReadGeometry(Autodesk::Navisworks::Api::Interop::ComApi::InwOaFragment3^ Fragment, GeometrySettings^ Settings)
+uint64_t DatasmithNavisworksUtil::TriangleReader::GetGeometryCount()
 {
-	DatasmithNavisworksUtilImpl::FTriangleReaderNative Reader;
-	DatasmithNavisworksUtilImpl::FGeometry* Geom = new DatasmithNavisworksUtilImpl::FGeometry;
-	Reader.Read(System::Runtime::InteropServices::Marshal::GetIUnknownForObject(Fragment).ToPointer(), *Geom, *Settings->Handle);
-	return gcnew Geometry(Geom);
+	return NativeTriangleReader->AllocationStats.GeometryCount;
+}
+
+uint64_t DatasmithNavisworksUtil::TriangleReader::GetTriangleCount()
+{
+	return NativeTriangleReader->AllocationStats.TriangleCount;
+}
+
+uint64_t DatasmithNavisworksUtil::TriangleReader::GetVertexCount()
+{
+	return NativeTriangleReader->AllocationStats.VertexCount;
+}
+
+uint64_t DatasmithNavisworksUtil::TriangleReader::GetCoordBytesUsed()
+{
+	return NativeTriangleReader->AllocationStats.CoordBytesUsed;
+}
+
+uint64_t DatasmithNavisworksUtil::TriangleReader::GetNormalBytesUsed()
+{
+	return NativeTriangleReader->AllocationStats.NormalBytesUsed;
+}
+
+uint64_t DatasmithNavisworksUtil::TriangleReader::GetUvBytesUsed()
+{
+	return NativeTriangleReader->AllocationStats.UvBytesUsed;
+}
+
+uint64_t DatasmithNavisworksUtil::TriangleReader::GetIndexBytesUsed()
+{
+	return NativeTriangleReader->AllocationStats.IndexBytesUsed;
+}
+
+uint64_t DatasmithNavisworksUtil::TriangleReader::GetCoordBytesReserved()
+{
+	return NativeTriangleReader->AllocationStats.CoordBytesReserved;
+}
+
+uint64_t DatasmithNavisworksUtil::TriangleReader::GetNormalBytesReserved()
+{
+	return NativeTriangleReader->AllocationStats.NormalBytesReserved;
+}
+
+uint64_t DatasmithNavisworksUtil::TriangleReader::GetUvBytesReserved()
+{
+	return NativeTriangleReader->AllocationStats.UvBytesReserved;
+}
+
+uint64_t DatasmithNavisworksUtil::TriangleReader::GetIndexBytesReserved()
+{
+	return NativeTriangleReader->AllocationStats.IndexBytesReserved;
+}
+
+void DatasmithNavisworksUtil::TriangleReader::ReleaseGeometry(Geometry^ Geometry)
+{
+	if (BufferGeometry != Geometry->NativeGeometry) // Buffer will be released when TriangleReader is disposed
+	{
+		NativeTriangleReader->ReleaseGeometry(Geometry->NativeGeometry);
+	}
 }
 
