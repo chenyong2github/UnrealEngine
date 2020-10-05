@@ -34,6 +34,8 @@ void FPicpProjectionPolicyBase::InitializeOriginComponent(const FString& OriginC
 		return;
 	}
 
+	USceneComponent* PolicyOriginComp = nullptr;
+
 	UDisplayClusterRootComponent* const RootComp = GameMgr->GetRootComponent();
 	if (RootComp)
 	{
@@ -53,7 +55,10 @@ void FPicpProjectionPolicyBase::InitializeOriginComponent(const FString& OriginC
 
 	if (!PolicyOriginComp)
 	{
+		PolicyOriginComponentRef.ResetSceneComponent();
 		UE_LOG(LogPicpProjectionMPCDI, Error, TEXT("Couldn't set origin component"));
 		return;
 	}
+
+	PolicyOriginComponentRef.SetSceneComponent(PolicyOriginComp);
 }
