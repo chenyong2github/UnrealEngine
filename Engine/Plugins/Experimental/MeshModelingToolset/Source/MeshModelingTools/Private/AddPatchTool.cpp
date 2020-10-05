@@ -78,8 +78,7 @@ void UAddPatchTool::Setup()
 	PreviewMesh = NewObject<UPreviewMesh>(this, TEXT("PreviewMesh"));
 	PreviewMesh->CreateInWorld(TargetWorld, FTransform::Identity);
 	PreviewMesh->SetVisible(false);
-	PreviewMesh->SetMaterial(MaterialProperties->Material);
-
+	PreviewMesh->SetMaterial(MaterialProperties->Material.Get());
 	GeneratePreviewBaseMesh();
 
 	WorldBounds = FBox(ForceInit);
@@ -129,7 +128,7 @@ void UAddPatchTool::Render(IToolsContextRenderAPI* RenderAPI)
 void UAddPatchTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	PreviewMesh->EnableWireframe(MaterialProperties->bWireframe);
-	PreviewMesh->SetMaterial(MaterialProperties->Material);
+	PreviewMesh->SetMaterial(MaterialProperties->Material.Get());
 	GeneratePreviewBaseMesh();
 }
 

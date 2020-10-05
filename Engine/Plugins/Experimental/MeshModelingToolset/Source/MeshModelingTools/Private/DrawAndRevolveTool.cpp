@@ -224,8 +224,9 @@ void UDrawAndRevolveTool::GenerateAsset(const FDynamicMeshOpResult& Result)
 {
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("RevolveToolTransactionName", "Revolve Tool"));
 
+
 	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
-		AssetAPI, TargetWorld, Result.Mesh.Get(), Result.Transform, TEXT("RevolveResult"), MaterialProperties->Material);
+		AssetAPI, TargetWorld, Result.Mesh.Get(), Result.Transform, TEXT("RevolveResult"), MaterialProperties->Material.Get());
 
 	if (NewActor != nullptr)
 	{
@@ -247,7 +248,7 @@ void UDrawAndRevolveTool::StartPreview()
 	Preview->Setup(TargetWorld, RevolveOpCreator);
 	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
 
-	Preview->ConfigureMaterials(MaterialProperties->Material,
+	Preview->ConfigureMaterials(MaterialProperties->Material.Get(),
 		ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
 	Preview->PreviewMesh->EnableWireframe(MaterialProperties->bWireframe);
 
@@ -269,7 +270,7 @@ void UDrawAndRevolveTool::OnPropertyModified(UObject* PropertySet, FProperty* Pr
 	{
 		if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UNewMeshMaterialProperties, Material)))
 		{
-			Preview->ConfigureMaterials(MaterialProperties->Material,
+			Preview->ConfigureMaterials(MaterialProperties->Material.Get(),
 				ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
 		}
 
