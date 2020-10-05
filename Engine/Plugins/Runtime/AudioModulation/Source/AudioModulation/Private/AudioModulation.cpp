@@ -77,6 +77,39 @@ namespace AudioModulation
 		ModSystem->DeactivateGenerator(InGenerator);
 	}
 
+#if !UE_BUILD_SHIPPING
+	void FAudioModulation::SetDebugBusFilter(const FString* InNameFilter)
+	{
+		ModSystem->SetDebugBusFilter(InNameFilter);
+	}
+
+	void FAudioModulation::SetDebugGeneratorFilter(const FString* InFilter)
+	{
+		ModSystem->SetDebugGeneratorFilter(InFilter);
+	}
+
+	void FAudioModulation::SetDebugGeneratorTypeFilter(const FString* InFilter, bool bInIsEnabled)
+	{
+		ModSystem->SetDebugGeneratorTypeFilter(InFilter, bInIsEnabled);
+	}
+
+	void FAudioModulation::SetDebugGeneratorsEnabled(bool bInIsEnabled)
+	{
+		ModSystem->SetDebugGeneratorsEnabled(bInIsEnabled);
+	}
+
+	void FAudioModulation::SetDebugMatrixEnabled(bool bInIsEnabled)
+	{
+		ModSystem->SetDebugMatrixEnabled(bInIsEnabled);
+	}
+
+	void FAudioModulation::SetDebugMixFilter(const FString* InNameFilter)
+	{
+		ModSystem->SetDebugMixFilter(InNameFilter);
+	}
+
+#endif // !UE_BUILD_SHIPPING
+
 	void FAudioModulation::SaveMixToProfile(const USoundControlBusMix& InBusMix, const int32 InProfileIndex)
 	{
 		ModSystem->SaveMixToProfile(InBusMix, InProfileIndex);

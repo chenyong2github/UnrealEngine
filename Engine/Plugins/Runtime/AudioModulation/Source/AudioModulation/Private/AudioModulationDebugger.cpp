@@ -5,6 +5,7 @@
 #if !UE_BUILD_SHIPPING
 #include "CoreMinimal.h"
 #include "Async/TaskGraphInterfaces.h"
+#include "AudioModulation.h"
 #include "AudioModulationLogging.h"
 #include "AudioModulationSystem.h"
 #include "AudioThread.h"
@@ -19,21 +20,151 @@
 #include "SoundModulationValue.h"
 
 
-static float AudioModulationDebugUpdateRateCVar = 0.25f;
+namespace AudioModulation
+{
+	namespace Debug
+	{
+		using FDebugViewUpdateFunction = TUniqueFunction<void(FAudioModulation& /*InModulation*/, const FString* /*InFilter*/)>;
+		void UpdateObjectFilter(const TArray<FString>& Args, UWorld* World, FDebugViewUpdateFunction InUpdateViewFunc)
+		{
+			if (!World)
+			{
+				return;
+			}
+
+			const FString* FilterString = nullptr;
+			if (Args.Num() > 0)
+			{
+				FilterString = &Args[0];
+			}
+
+			FAudioDeviceHandle DeviceHandle = World->GetAudioDevice();
+			if (DeviceHandle.IsValid())
+			{
+				if (GEngine)
+				{
+					GEngine->Exec(World, TEXT("au.Debug.SoundModulators 1"));
+				}
+
+				if (IAudioModulation* Modulation = DeviceHandle->ModulationInterface.Get())
+				{
+					FAudioModulation& ModulationImpl = *static_cast<FAudioModulation*>(Modulation);
+					InUpdateViewFunc(ModulationImpl, FilterString);
+				}
+			}
+		}
+	}
+}
+
+static float AudioModulationDebugUpdateRateCVar = 0.1f;
 FAutoConsoleVariableRef CVarAudioModulationDebugUpdateRate(
 	TEXT("au.Debug.SoundModulators.UpdateRate"),
 	AudioModulationDebugUpdateRateCVar,
 	TEXT("Sets update rate for modulation debug statistics (in seconds).\n")
-	TEXT("Default: 0.25f"),
+	TEXT("Default: 0.1f"),
 	ECVF_Default);
 
+static FAutoConsoleCommandWithWorldAndArgs CVarAudioModulationDebugBuses(
+	TEXT("au.Debug.SoundModulators.Filter.Buses"),
+	TEXT("Sets substring by which to filter mixes in matrix view. Arguments:\n"
+		"Enabled (Optional, ex. True, False. Default: True) - Whether or not to enable showing buses.\n"
+		"Filter (Optional, Default: null) - Whether or not to filter buses by name using the provided substring.\n"),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+	{
+		using namespace AudioModulation;
+		Debug::UpdateObjectFilter(Args, World, [](FAudioModulation& InModulation, const FString* InFilter)
+		{
+			InModulation.SetDebugBusFilter(InFilter);
+		});
+	}));
+
+static FAutoConsoleCommandWithWorldAndArgs CVarAudioModulationDebugMixes(
+	TEXT("au.Debug.SoundModulators.Filter.Mixes"),
+	TEXT("Sets substring by which to filter mixes in matrix view. Arguments:\n"
+		"Filter - Filter bus mixes by name using the provided substring.\n"),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+	{
+		using namespace AudioModulation;
+		Debug::UpdateObjectFilter(Args, World, [](FAudioModulation& InModulation, const FString* InFilter)
+		{
+			InModulation.SetDebugMixFilter(InFilter);
+		});
+	}));
+
+static FAutoConsoleCommandWithWorldAndArgs CVarAudioModulationDebugMatrix(
+	TEXT("au.Debug.SoundModulators.Enable.Matrix"),
+	TEXT("Whether or not to enable mix matrix. Arguments:\n"
+		"Enabled (Default: 1/True) - Whether or not to have matrix view enabled.\n"),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+	{
+		using namespace AudioModulation;
+		Debug::UpdateObjectFilter(Args, World, [](FAudioModulation& InModulation, const FString* InFilter)
+		{
+			if (InFilter)
+			{
+				const bool bEnabled = InFilter->ToBool();
+				InModulation.SetDebugMatrixEnabled(bEnabled);
+			}
+		});
+	}));
+
+static FAutoConsoleCommandWithWorldAndArgs CVarAudioModulationSetDebugGeneratorFilter(
+	TEXT("au.Debug.SoundModulators.Filter.Generators"),
+	TEXT("Sets substring by which to filter generators. Arguments:\n"
+		"Name - Filter generators by name using the provided substring.\n"),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+	{
+		using namespace AudioModulation;
+
+		Debug::UpdateObjectFilter(Args, World, [](FAudioModulation& InModulation, const FString* InFilter)
+		{
+			InModulation.SetDebugGeneratorFilter(InFilter);
+		});
+	}));
+
+static FAutoConsoleCommandWithWorldAndArgs CVarAudioModulationSetDebugGeneratorFilterType(
+	TEXT("au.Debug.SoundModulators.Filter.Generators.Type"),
+	TEXT("Whether to display or hide Generator type provided (defaults to show if enablement boolean not provided). Arguments:\n"
+		"Name (Optional, Default: null) - Filter generators type to display/hide (Empty/null clears any currently set filter).\n"
+		"Enabled (Optional, Default: True) - True to show, false to hide.\n"),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+	{
+		using namespace AudioModulation;
+
+		bool bEnabled = true;
+		if (Args.Num() > 1)
+		{
+			bEnabled = Args[1].ToBool();
+		}
+		Debug::UpdateObjectFilter(Args, World, [bEnabled](FAudioModulation& InModulation, const FString* InFilter)
+		{
+			InModulation.SetDebugGeneratorTypeFilter(InFilter, bEnabled);
+		});
+	}));
+
+static FAutoConsoleCommandWithWorldAndArgs CVarAudioModulationDebugEnableGenerators(
+	TEXT("au.Debug.SoundModulators.Enable.Generators"),
+	TEXT("Whether or not to enable displaying generators. Arguments:\n"
+		"Enabled (Default: 1/True) - Whether or not to have generators view enabled.\n"),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+	{
+		using namespace AudioModulation;
+		Debug::UpdateObjectFilter(Args, World, [](FAudioModulation& InModulation, const FString* InFilter)
+		{
+			if (InFilter)
+			{
+				const bool bEnabled = InFilter->ToBool();
+				InModulation.SetDebugGeneratorsEnabled(bEnabled);
+			}
+		});
+	}));
 
 namespace AudioModulation
 {
 	namespace Debug
 	{
 		const int32 MaxNameLength = 40;
-		const int32 XIndent       = 36;
+		const int32 XIndent = 36;
 
 		FColor GetUnitRenderColor(const float Value)
 		{
@@ -42,40 +173,21 @@ namespace AudioModulation
 				: FColor::Green;
 		}
 
-		int32 RenderStatGenerators(const FGeneratorDebugInfo& GeneratorDebugInfo, FCanvas& Canvas, int32 X, int32 Y, const UFont& Font)
+		int32 RenderStatGenerators(const FString& Name, const FGeneratorDebugInfo& GeneratorDebugInfo, int32 CellWidth, FCanvas& Canvas, int32 X, int32 Y, const UFont& Font)
 		{
 			int32 Height = 12;
 			int32 Width = 12;
 			Font.GetStringHeightAndWidth(TEXT("@"), Height, Width);
 
-			int32 CellWidth = 0;
-			for (const FString& Category : GeneratorDebugInfo.Categories)
-			{
-				CellWidth = FMath::Max(CellWidth, Category.Len());
-			}
-
-			for (const FGeneratorDebugInfo::FInstanceValues& InstanceInfo : GeneratorDebugInfo.FilteredInstances)
-			{
-				for (const FString& Value : InstanceInfo)
-				{
-					CellWidth = FMath::Max(CellWidth, Value.Len());
-				}
-			}
-
-			Canvas.DrawShadowedString(X + XIndent, Y, TEXT("Active Generators:"), &Font, FColor::Red);
 			Y += Height;
 			X += XIndent;
+
+			Canvas.DrawShadowedString(X, Y, *(Name + TEXT(":")), &Font, FColor::Red);
+			Y += Height;
 
 			// Print Category Titles
 			{
 				int32 RowX = X;
-
-				Canvas.DrawShadowedString(RowX, Y, TEXT("Name"), &Font, FColor::White);
-				RowX += Width * CellWidth;
-
-				Canvas.DrawShadowedString(RowX, Y, TEXT("Ref Count"), &Font, FColor::White);
-				RowX += Width * CellWidth;
-
 				for (const FString& Category : GeneratorDebugInfo.Categories)
 				{
 					Canvas.DrawShadowedString(RowX, Y, *Category, &Font, FColor::White);
@@ -90,8 +202,7 @@ namespace AudioModulation
 				int32 RowX = X;
 
 				// Validate that all instances have the same number of values as there are registered categories.
-				// 2 "extra" are from parent generator proxy that include proxy's Name & Ref Count.
-				ensure(InstanceValues.Num() == GeneratorDebugInfo.Categories.Num() + 2);
+				ensure(InstanceValues.Num() == GeneratorDebugInfo.Categories.Num());
 
 				for (const FString& Value : InstanceValues)
 				{
@@ -105,7 +216,9 @@ namespace AudioModulation
 					RowX += Width * CellWidth;
 				}
 			}
-			Y += Height;
+
+			// Add space after, so twice the height
+			Y += Height * 2;
 
 			return Y;
 		}
@@ -281,6 +394,8 @@ namespace AudioModulation
 	FAudioModulationDebugger::FAudioModulationDebugger()
 		: bActive(0)
 		, bShowRenderStatMix(1)
+		, bShowGenerators(0)
+		, bEnableAllGenerators(0)
 		, ElapsedSinceLastUpdate(0.0f)
 	{
 	}
@@ -344,7 +459,9 @@ namespace AudioModulation
 		for (const FModulatorGeneratorProxy* Proxy : FilteredGeneratorProxies)
 		{
 			FGeneratorDebugInfo::FInstanceValues Values = Proxy->GetDebugValues();
-			RefreshedFilteredGenerators.FindOrAdd(Proxy->GetDebugName()).FilteredInstances.Emplace(MoveTemp(Values));
+			FGeneratorDebugInfo& DebugInfo = RefreshedFilteredGenerators.FindOrAdd(Proxy->GetDebugName());
+			DebugInfo.FilteredInstances.Emplace(MoveTemp(Values));
+			DebugInfo.Categories = Proxy->GetDebugCategories();
 		}
 
 		FFunctionGraphTask::CreateAndDispatchWhenReady([this, RefreshedFilteredBuses, RefreshedFilteredMixes, RefreshedFilteredGenerators]()
@@ -355,17 +472,28 @@ namespace AudioModulation
 			FilteredMixes = RefreshedFilteredMixes;
 			FilteredMixes.Sort(&Debug::CompareNames<FControlBusMixDebugInfo>);
 
-			FGeneratorSortMap NewFilteredMap = RefreshedFilteredGenerators;
-			for (TPair<FString, FGeneratorDebugInfo>& NewInfoPair : NewFilteredMap)
+			FGeneratorSortMap NewFilteredMap;
+			if (bShowGenerators)
 			{
-				if (FGeneratorDebugInfo* LastDebugInfo = FilteredGeneratorsMap.Find(NewInfoPair.Key))
+				NewFilteredMap = RefreshedFilteredGenerators;
+				for (TPair<FString, FGeneratorDebugInfo>& NewInfoPair : NewFilteredMap)
 				{
-					NewInfoPair.Value.bEnabled = LastDebugInfo->bEnabled;
+					FGeneratorDebugInfo* LastDebugInfo = FilteredGeneratorsMap.Find(NewInfoPair.Key);
+					NewInfoPair.Value.bEnabled = bEnableAllGenerators
+						|| (LastDebugInfo && LastDebugInfo->bEnabled);
+
+					if (bool* Value = RequestedGeneratorUpdate.Find(NewInfoPair.Key))
+					{
+						NewInfoPair.Value.bEnabled = *Value;
+					}
+
 					if (!NewInfoPair.Value.bEnabled)
 					{
 						NewInfoPair.Value.FilteredInstances.Reset();
 					}
 				}
+				bEnableAllGenerators = 0;
+				RequestedGeneratorUpdate.Reset();
 			}
 
 			FilteredGeneratorsMap = MoveTemp(NewFilteredMap);
@@ -388,6 +516,81 @@ namespace AudioModulation
 		return true;
 	}
 
+	void FAudioModulationDebugger::SetDebugBusFilter(const FString* InNameFilter)
+	{
+		check(IsInGameThread());
+
+		if (InNameFilter)
+		{
+			BusStringFilter = *InNameFilter;
+		}
+		else
+		{
+			BusStringFilter.Reset();
+		}
+	}
+
+	void FAudioModulationDebugger::SetDebugMatrixEnabled(bool bInIsEnabled)
+	{
+		bShowRenderStatMix = bInIsEnabled;
+	}
+
+	void FAudioModulationDebugger::SetDebugMixFilter(const FString* InNameFilter)
+	{
+		check(IsInGameThread());
+
+		if (InNameFilter)
+		{
+			MixStringFilter = *InNameFilter;
+		}
+		else
+		{
+			MixStringFilter.Reset();
+		}
+	}
+
+	void FAudioModulationDebugger::SetDebugGeneratorsEnabled(bool bInIsEnabled)
+	{
+		check(IsInGameThread());
+
+		bShowGenerators = bInIsEnabled;
+		bEnableAllGenerators = 1;
+	}
+
+	void FAudioModulationDebugger::SetDebugGeneratorFilter(const FString* InFilter)
+	{
+		check(IsInGameThread());
+
+		if (InFilter)
+		{
+			bShowGenerators = 1;
+			GeneratorStringFilter = *InFilter;
+		}
+		else
+		{
+			GeneratorStringFilter.Reset();
+		}
+	}
+
+	void FAudioModulationDebugger::SetDebugGeneratorTypeFilter(const FString* InFilter, bool bInIsEnabled)
+	{
+		check(IsInGameThread());
+
+		if (InFilter)
+		{
+			bShowGenerators |= bInIsEnabled;
+			RequestedGeneratorUpdate.Add(*InFilter, bInIsEnabled);
+		}
+		else
+		{
+			bShowGenerators = bInIsEnabled;
+			if (bInIsEnabled)
+			{
+				bEnableAllGenerators = 1;
+			}
+		}
+	}
+
 	int32 FAudioModulationDebugger::OnRenderStat(FCanvas& Canvas, int32 X, int32 Y, const UFont& Font)
 	{
 		check(IsInGameThread());
@@ -404,11 +607,31 @@ namespace AudioModulation
 			Y = Debug::RenderStatMixMatrix(FilteredMixes, FilteredBuses, Canvas, X, Y, Font);
 		}
 
+		int32 CellWidth = 0;
 		for (const TPair<FString, FGeneratorDebugInfo>& GeneratorStatPair : FilteredGeneratorsMap)
 		{
-			if (GeneratorStatPair.Value.bEnabled)
+			for (const FString& Category : GeneratorStatPair.Value.Categories)
 			{
-				Y = Debug::RenderStatGenerators(GeneratorStatPair.Value, Canvas, X, Y, Font);
+				CellWidth = FMath::Max(CellWidth, Category.Len());
+			}
+
+			for (const FGeneratorDebugInfo::FInstanceValues& InstanceInfo : GeneratorStatPair.Value.FilteredInstances)
+			{
+				for (const FString& Value : InstanceInfo)
+				{
+					CellWidth = FMath::Max(CellWidth, Value.Len());
+				}
+			}
+		}
+
+		if (bShowGenerators)
+		{
+			for (const TPair<FString, FGeneratorDebugInfo>& GeneratorStatPair : FilteredGeneratorsMap)
+			{
+				if (GeneratorStatPair.Value.bEnabled)
+				{
+					Y = Debug::RenderStatGenerators(GeneratorStatPair.Key, GeneratorStatPair.Value, CellWidth, Canvas, X, Y, Font);
+				}
 			}
 		}
 
