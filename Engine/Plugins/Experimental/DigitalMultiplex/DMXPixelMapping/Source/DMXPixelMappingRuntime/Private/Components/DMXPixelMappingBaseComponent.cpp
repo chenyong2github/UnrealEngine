@@ -93,10 +93,12 @@ void UDMXPixelMappingBaseComponent::ForComponentAndChildren(UDMXPixelMappingBase
 	}
 }
 
-FString UDMXPixelMappingBaseComponent::GetWidgetName() const
+#if WITH_EDITOR
+FString UDMXPixelMappingBaseComponent::GetUserFriendlyName() const
 {
 	return GetName();
 }
+#endif // WITH_EDITOR
 
 UDMXPixelMappingBaseComponent* UDMXPixelMappingBaseComponent::GetChildAt(int32 InIndex) const
 {

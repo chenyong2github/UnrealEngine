@@ -16,7 +16,7 @@ const FName UK2Node_PixelMappingRendererComponent::OutRendererComponentPinName(T
 
 FText UK2Node_PixelMappingRendererComponent::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
-	return LOCTEXT("NodeTitle", "Get Pixel Mapping Renderer Component");
+	return LOCTEXT("NodeTitle", "Get DMX Pixel Mapping Renderer Component");
 }
 
 void UK2Node_PixelMappingRendererComponent::AllocateDefaultPins()
@@ -83,4 +83,3 @@ void UK2Node_PixelMappingRendererComponent::OnPixelMappingChanged(UDMXPixelMappi
 }
 
 #undef LOCTEXT_NAMESPACE
-

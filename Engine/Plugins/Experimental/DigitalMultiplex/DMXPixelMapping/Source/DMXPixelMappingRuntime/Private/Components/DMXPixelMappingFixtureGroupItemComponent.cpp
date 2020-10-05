@@ -15,6 +15,9 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "Misc/ITransaction.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SScaleBox.h"
+
+#define LOCTEXT_NAMESPACE "DMXPixelMappingFixtureGroupItemComponent"
 
 const FVector2D UDMXPixelMappingFixtureGroupItemComponent::MixPixelSize = FVector2D(1.f);
 
@@ -114,6 +117,18 @@ void UDMXPixelMappingFixtureGroupItemComponent::PostParentAssigned()
 	SetPositionInBoundaryBox(FVector2D(PositionX, PositionY));
 }
 
+#if WITH_EDITOR
+FString UDMXPixelMappingFixtureGroupItemComponent::GetUserFriendlyName() const
+{
+	if (UDMXEntityFixturePatch* Patch = FixturePatchRef.GetFixturePatch())
+	{
+		return Patch->GetDisplayName();
+	}
+
+	return FString(TEXT("Fixture Group Item: No Fixture Patch"));
+}
+#endif // WITH_EDITOR
+
 void UDMXPixelMappingFixtureGroupItemComponent::PostLoad()
 {
 	Super::PostLoad();
@@ -126,7 +141,6 @@ const FName& UDMXPixelMappingFixtureGroupItemComponent::GetNamePrefix()
 }
 
 #if WITH_EDITOR
-
 void UDMXPixelMappingFixtureGroupItemComponent::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent)
 {
 	// Call the parent at the first place
@@ -134,7 +148,12 @@ void UDMXPixelMappingFixtureGroupItemComponent::PostEditChangeChainProperty(FPro
 
 	FName&& PropertyName = PropertyChangedChainEvent.GetPropertyName();
 
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, SizeX) ||
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, FixturePatchRef))
+	{
+		check(PatchNameWidget.IsValid());
+		PatchNameWidget->SetText(FText::FromString(GetUserFriendlyName()));
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, SizeX) ||
 		PropertyName == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, SizeY))
 	{
 		SetSizeWithinBoundaryBox(FVector2D(SizeX, SizeY));
@@ -154,13 +173,30 @@ void UDMXPixelMappingFixtureGroupItemComponent::PostEditChangeChainProperty(FPro
 		Brush.TintColor = EditorColor;
 	}
 }
+#endif // WITH_EDITOR
 
+#if WITH_EDITOR
 TSharedRef<SWidget> UDMXPixelMappingFixtureGroupItemComponent::BuildSlot(TSharedRef<SConstraintCanvas> InCanvas)
 {
 	CachedWidget =
 		SNew(SBox)
 		.HeightOverride(SizeX)
 		.WidthOverride(SizeY);
+
+	CachedLabelBox =
+		SNew(SBox)
+		.WidthOverride(SizeY)
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Top)
+		[
+			SNew(SScaleBox)
+			.Stretch(EStretch::ScaleToFit)
+			.StretchDirection(EStretchDirection::DownOnly)
+			[
+				SAssignNew(PatchNameWidget, STextBlock)
+				.Text(FText::FromString(GetUserFriendlyName()))
+			]
+		];
 
 	Slot =
 		&InCanvas->AddSlot()
@@ -170,12 +206,11 @@ TSharedRef<SWidget> UDMXPixelMappingFixtureGroupItemComponent::BuildSlot(TShared
 		[
 			SNew(SOverlay)
 			+ SOverlay::Slot()
-			.Padding(FMargin(2.0f, 2.0f))
+			.Padding(FMargin(0.0f, -16.0f))
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Fill)
 			[
-				SNew(STextBlock)
-				.Text(FText::FromString(GetName()))
+				CachedLabelBox.ToSharedRef()
 			]
 			+ SOverlay::Slot()
 			.HAlign(HAlign_Fill)
@@ -200,13 +235,16 @@ TSharedRef<SWidget> UDMXPixelMappingFixtureGroupItemComponent::BuildSlot(TShared
 	Slot->Offset(FMargin(PositionX, PositionY, 0.f, 0.f));
 	CachedWidget->SetWidthOverride(SizeX);
 	CachedWidget->SetHeightOverride(SizeY);
+	CachedLabelBox->SetWidthOverride(SizeX);
 
 	UpdateWidget();
 
 
 	return CachedWidget.ToSharedRef();
 }
+#endif // WITH_EDITOR
 
+#if WITH_EDITOR
 void UDMXPixelMappingFixtureGroupItemComponent::ToggleHighlightSelection(bool bIsSelected)
 {
 	Super::ToggleHighlightSelection(bIsSelected);
@@ -223,7 +261,9 @@ void UDMXPixelMappingFixtureGroupItemComponent::ToggleHighlightSelection(bool bI
 		Brush.TintColor = FixturePatch->EditorColor;
 	}
 }
+#endif // WITH_EDITOR
 
+#if WITH_EDITOR
 bool UDMXPixelMappingFixtureGroupItemComponent::IsVisibleInDesigner() const
 {
 	if (UDMXPixelMappingFixtureGroupComponent* FixtureGroupComponent = Cast<UDMXPixelMappingFixtureGroupComponent>(Parent))
@@ -238,7 +278,9 @@ bool UDMXPixelMappingFixtureGroupItemComponent::IsVisibleInDesigner() const
 
 	return bVisibleInDesigner;
 }
+#endif // WITH_EDITOR
 
+#if WITH_EDITOR
 void UDMXPixelMappingFixtureGroupItemComponent::UpdateWidget()
 {
 	if (UDMXPixelMappingFixtureGroupComponent* FixtureGroupComponent = Cast<UDMXPixelMappingFixtureGroupComponent>(Parent))
@@ -254,7 +296,6 @@ void UDMXPixelMappingFixtureGroupItemComponent::UpdateWidget()
 		}
 	}
 }
-
 #endif // WITH_EDITOR
 
 void UDMXPixelMappingFixtureGroupItemComponent::ResetDMX()
@@ -591,7 +632,10 @@ void UDMXPixelMappingFixtureGroupItemComponent::SetSizeWithinBoundaryBox(const F
 		{
 			CachedWidget->SetWidthOverride(SizeX);
 			CachedWidget->SetHeightOverride(SizeY);
+			CachedLabelBox->SetWidthOverride(SizeX);
 		}
 #endif // WITH_EDITOR
 	}
 }
+
+#undef LOCTEXT_NAMESPACE
