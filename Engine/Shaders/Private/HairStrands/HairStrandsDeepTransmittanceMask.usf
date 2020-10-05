@@ -84,6 +84,69 @@ RWStructuredBuffer<FPackedHairTransmittanceMask> OutputColor;
 #endif
 
 #if PERMUTATION_TRANSMITTANCE_TYPE == PERMUTATION_TRANSMITTANCE_DEEP_SHADOW
+
+FHairTransmittanceMask ComputeTransmittance(
+	float3 WorldPosition,
+	FGBufferData GBuffer, 
+	FTransmittanceSettings Settings,
+	float4				InLayerDepths,
+	Texture2D<float>	FrontDepthTexture,
+	Texture2D<float4>	DomTexture,
+	Texture3D<float4>	HairLUTTexture,
+	SamplerState		LinearSampler)
+{
+	FHairTransmittanceMask Out = InitHairTransmittanceMask();
+	{
+		const bool bIsDirectionalLight = Settings.LightPosition.w == 0;
+
+		// LightSpacePosition is 'WorldPosition' in LightSpace (TexelCoord.XY / NDC Depth.Z)
+		const float3 LightSpacePosition = ToLightPosition(WorldPosition, Settings.WorldToLightTransform) * float3(Settings.DeepShadowResolution, 1) + float3(Settings.DeepShadowOffset, 0); 
+		const float3 L = bIsDirectionalLight ? Settings.LightDirection : normalize(Settings.LightPosition.xyz - WorldPosition);
+		const float3 T = GBuffer.WorldNormal;
+		const float SinLightAngle = dot(L, T);
+
+		float DepthBias = 0;
+		if (Settings.DeepShadowDepthBiasScale > 0)
+		{
+			#if 0 
+			const float DephtBiasSlope = 6;
+			const float DefaultDepthBias = LAYER_DEPTH0 * Settings.DeepShadowDepthBiasScale; 
+			DepthBias = (CosLightAngle*DephtBiasSlope + 1) * DefaultDepthBias;
+			#else
+			DepthBias = InLayerDepths[0] * Settings.DeepShadowDepthBiasScale;
+			#endif
+		}
+
+		// Compute the number of hair count between light & shading point
+		float HairCount = 0;
+		if (Settings.TransmittanceKernelType == 3)
+		{
+			HairCount = SampleDOM_PCSS(LightSpacePosition.xyz, Settings.DeepShadowResolution, DepthBias, InLayerDepths, FrontDepthTexture, DomTexture, LinearSampler, Settings.TransmittanceKernelApertureInDegree, Settings.Random.xy);
+		}
+		else if (Settings.TransmittanceKernelType == 2)
+		{
+			HairCount = SampleDOM_PCF(LightSpacePosition.xyz, DepthBias, InLayerDepths, FrontDepthTexture, DomTexture);
+		}
+		else if (Settings.TransmittanceKernelType == 1)
+		{
+			HairCount = SampleDOM_PCF2x2(LightSpacePosition.xyz, DepthBias, InLayerDepths, FrontDepthTexture, DomTexture);
+		}
+		else
+		{
+			HairCount = 0;
+		}
+
+		Out = ComputeTransmittanceFromHairCount(HairCount * Settings.DeepShadowDensityScale, 1, GBuffer, SinLightAngle, HairLUTTexture, LinearSampler);
+
+		if (Settings.DebugMode != 0)
+		{
+			Out.Transmittance = ComputeDomDebugColor(WorldPosition, Settings.WorldToLightTransform, InLayerDepths, FrontDepthTexture, LinearSampler);
+			Out.HairCount = 1;
+		}
+	}
+	return Out;
+}
+
 [numthreads(TRANSMITTANCE_GROUP_SIZE, 1, 1)]
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
@@ -264,6 +327,7 @@ FHairTransmittanceMask ComputeTransmittanceVoxel(
 			CommonDesc,
 			NodeDesc,
 			VirtualVoxel.PageIndexBuffer,
+			VirtualVoxel.PageIndexOccupancyBuffer,
 			VirtualVoxel.PageTexture,
 			TraversalSettings);
 		InitHairTraversalResult();

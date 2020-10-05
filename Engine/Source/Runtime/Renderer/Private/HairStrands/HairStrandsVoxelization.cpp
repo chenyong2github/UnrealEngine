@@ -445,6 +445,7 @@ static void AddAllocateVoxelPagesPass(
 	const uint32 IndirectDispatchGroupSize,
 	uint32& OutTotalPageIndexCount,
 	FRDGBufferRef& OutPageIndexBuffer,
+	FRDGBufferRef& OutPageIndexOccupancyBuffer,
 	FRDGBufferRef& OutPageToPageIndexBuffer,
 	FRDGBufferRef& OutPageIndexCoordBuffer,
 	FRDGBufferRef& OutNodeDescBuffer,
@@ -509,6 +510,7 @@ static void AddAllocateVoxelPagesPass(
 	check(OutTotalPageIndexCount > 0);
 	
 	FRDGBufferRef PageIndexBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), OutTotalPageIndexCount), TEXT("PageIndexBuffer"));
+	FRDGBufferRef PageIndexOccupancyBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32)*2, OutTotalPageIndexCount), TEXT("PageIndexOccupancyBuffer"));
 	FRDGBufferRef PageIndexCoordBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), OutTotalPageIndexCount), TEXT("PageIndexCoordBuffer"));
 	FRDGBufferRef PageIndexGlobalCounter = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 2), TEXT("PageIndexGlobalCounter"));
 	FRDGBufferRef NodeDescBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FPackedVirtualVoxelNodeDesc), MacroGroupCount), TEXT("VirtualVoxelNodeDescBuffer"));
@@ -518,6 +520,7 @@ static void AddAllocateVoxelPagesPass(
 	FRDGBufferRef PageToPageIndexBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), TotalPageCount), TEXT("PageToPageIndexBuffer"));
 
 	FRDGBufferUAVRef PageIndexBufferUAV = GraphBuilder.CreateUAV(PageIndexBuffer, PF_R32_UINT);
+	FRDGBufferUAVRef PageIndexOccupancyBufferUAV = GraphBuilder.CreateUAV(PageIndexOccupancyBuffer, PF_R32G32_UINT);
 	FRDGBufferUAVRef PageIndexGlobalCounterUAV = GraphBuilder.CreateUAV(PageIndexGlobalCounter, PF_R32_UINT);
 	
 	// Stored FVoxelizationViewInfo structs
@@ -527,6 +530,7 @@ static void AddAllocateVoxelPagesPass(
 	FRDGBufferRef PageIndexAllocationIndirectBufferArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(MacroGroupCount), TEXT("PageIndexAllocationIndirectBufferArgs"));
 
 	AddClearUAVPass(GraphBuilder, PageIndexBufferUAV, 0u);
+	AddClearUAVPass(GraphBuilder, PageIndexOccupancyBufferUAV, 0u);
 	AddClearUAVPass(GraphBuilder, PageIndexGlobalCounterUAV, 0u);
 
 	// Allocate page index for all instance group
@@ -778,6 +782,7 @@ static void AddAllocateVoxelPagesPass(
 	}
 
 	OutPageIndexBuffer = PageIndexBuffer;
+	OutPageIndexOccupancyBuffer = PageIndexOccupancyBuffer;
 	OutPageToPageIndexBuffer = PageToPageIndexBuffer;
 	OutPageIndexCoordBuffer = PageIndexCoordBuffer;
 	OutNodeDescBuffer = NodeDescBuffer;
@@ -826,6 +831,7 @@ FVirtualVoxelResources AllocateVirtualVoxelResources(
 		Out.Parameters.Common.IndirectDispatchGroupSize,
 		Out.Parameters.Common.PageIndexCount,
 		Out.PageIndexBuffer,
+		Out.PageIndexOccupancyBuffer,
 		PageToPageIndexBuffer,
 		Out.PageIndexCoordBuffer,
 		Out.NodeDescBuffer,
@@ -851,10 +857,11 @@ FVirtualVoxelResources AllocateVirtualVoxelResources(
 		Out.PageTexture = GraphBuilder.CreateTexture(Desc, TEXT("VoxelPageTexture"));
 	}
 
-	Out.Parameters.Common.PageIndexBuffer		= GraphBuilder.CreateSRV(Out.PageIndexBuffer, PF_R32_UINT);
-	Out.Parameters.Common.PageIndexCoordBuffer	= GraphBuilder.CreateSRV(Out.PageIndexCoordBuffer, PF_R8G8B8A8_UINT);
-	Out.Parameters.Common.NodeDescBuffer		= GraphBuilder.CreateSRV(Out.NodeDescBuffer); 
-	Out.Parameters.PageTexture					= Out.PageTexture;
+	Out.Parameters.Common.PageIndexBuffer			= GraphBuilder.CreateSRV(Out.PageIndexBuffer, PF_R32_UINT);
+	Out.Parameters.Common.PageIndexOccupancyBuffer	= GraphBuilder.CreateSRV(Out.PageIndexOccupancyBuffer, PF_R32G32_UINT);
+	Out.Parameters.Common.PageIndexCoordBuffer		= GraphBuilder.CreateSRV(Out.PageIndexCoordBuffer, PF_R8G8B8A8_UINT);
+	Out.Parameters.Common.NodeDescBuffer			= GraphBuilder.CreateSRV(Out.NodeDescBuffer); 
+	Out.Parameters.PageTexture						= Out.PageTexture;
 
 	if (Out.PageIndexBuffer && Out.NodeDescBuffer)
 	{
@@ -1225,6 +1232,7 @@ class FVirtualVoxelPatchPageIndexWithMipDataCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, PageIndexGlobalCounter)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, PageToPageIndexBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, OutPageIndexBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint2>, OutPageIndexOccupancyBuffer)
 
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -1311,6 +1319,8 @@ static void AddVirtualVoxelGenerateMipPass(
 	// Patch the page index buffer with page whose voxels are empty after the voxelization is done
 	FRDGBufferSRVRef PageToPageIndexBufferSRV = GraphBuilder.CreateSRV(InPageToPageIndexBuffer, PF_R32_UINT);
 	FRDGBufferUAVRef PageIndexBufferUAV = GraphBuilder.CreateUAV(VoxelResources.PageIndexBuffer, PF_R32_UINT);
+	FRDGBufferUAVRef PageIndexOccupancyBufferUAV = GraphBuilder.CreateUAV(VoxelResources.PageIndexOccupancyBuffer, PF_R32G32_UINT);
+	
 	const bool bPatchEmptyPage = GHairVirtualVoxelInvalidEmptyPageIndex > 0;
 	if (bPatchEmptyPage)
 	{
@@ -1323,6 +1333,7 @@ static void AddVirtualVoxelGenerateMipPass(
 		Parameters->DensityTexture = VoxelResources.PageTexture;
 		Parameters->PageToPageIndexBuffer = PageToPageIndexBufferSRV;
 		Parameters->OutPageIndexBuffer = PageIndexBufferUAV;
+		Parameters->OutPageIndexOccupancyBuffer = PageIndexOccupancyBufferUAV;
 		Parameters->IndirectDispatchArgs = MipIndirectArgsBuffers[LastMipIt-1];
 
 		TShaderMapRef<FVirtualVoxelPatchPageIndexWithMipDataCS> ComputeShader(View.ShaderMap);

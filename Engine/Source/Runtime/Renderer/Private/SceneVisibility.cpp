@@ -2805,10 +2805,11 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 
 	// Hair strands are not rendered into the base pass (bRenderInMainPass=0) and so this 
 	// adds a special pass for allowing hair strands to be selectable.
-	if (View.bAllowTranslucentPrimitivesInHitProxy && ViewRelevance.bHairStrands)
+	if (ViewRelevance.bHairStrands)
 	{
-		PassMask.Set(EMeshPass::HitProxy);
-		View.NumVisibleDynamicMeshElements[EMeshPass::HitProxy] += NumElements;
+		const EMeshPass::Type MeshPassType = View.bAllowTranslucentPrimitivesInHitProxy ? EMeshPass::HitProxy : EMeshPass::HitProxyOpaqueOnly;
+		PassMask.Set(MeshPassType);
+		View.NumVisibleDynamicMeshElements[MeshPassType] += NumElements;
 	}
 #endif
 

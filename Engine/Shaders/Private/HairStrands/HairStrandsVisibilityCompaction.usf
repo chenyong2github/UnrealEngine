@@ -44,11 +44,6 @@ RWTexture2D<uint4> OutCategorizationTexture;
 	RWTexture2D<float2> OutVelocityTexture;
 #endif
 
-float TransmittanceToCoverage(float InTransmittance)
-{
-	return saturate(min(1 - InTransmittance, 1) / CoverageThreshold);
-}
-
 groupshared uint AllocationNodeCount;
 groupshared uint AllocationNodeOffset;
 
@@ -247,7 +242,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		#endif		
 		}
 
-		Categorization.PixelCoverage = TransmittanceToCoverage(TotalTransmittance);
+		Categorization.PixelCoverage = TransmittanceToCoverage(TotalTransmittance, CoverageThreshold);
 
 	#if PERMUTATION_VELOCITY != VELOCITY_TYPE_NONE
 		float2 VelocityOutput = 0;
@@ -502,7 +497,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 			Categorization.SampleCount = NodeDesc.Count;
 
 		#if PERMUTATION_VIEWTRANSMITTANCE == 1
-			Categorization.PixelCoverage = TransmittanceToCoverage(ViewTransmittanceTexture.Load(uint3(PixelCoord, 0)));
+			Categorization.PixelCoverage = TransmittanceToCoverage(ViewTransmittanceTexture.Load(uint3(PixelCoord, 0)), CoverageThreshold);
 		#else
 			Categorization.PixelCoverage = SampleDesc.ValidSampleCount / float(PERMUTATION_MSAACOUNT);
 		#endif
@@ -789,7 +784,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 			}
 
 			#if PERMUTATION_VIEWTRANSMITTANCE == 1
-			Categorization.PixelCoverage = TransmittanceToCoverage(ViewTransmittanceTexture.Load(uint3(PixelCoord,0)));
+			Categorization.PixelCoverage = TransmittanceToCoverage(ViewTransmittanceTexture.Load(uint3(PixelCoord,0)), CoverageThreshold);
 			#else
 			Categorization.PixelCoverage = SampleDesc.ValidSampleCount / float(PERMUTATION_MSAACOUNT);
 			#endif

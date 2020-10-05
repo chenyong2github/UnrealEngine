@@ -30,15 +30,6 @@ public:
 	UPROPERTY(Transient)
 	TArray<class UNiagaraComponent*> NiagaraComponents;
 
-	/** 
-	 * When activated, the groom will be attached and skinned onto the skeletal mesh, if the groom component is a child of a skeletal/skinned component.
-	 * This requires the following projection settings: 
-	 * - Rendering settings: 'Skin cache' enabled
-	 * - Animation settings: 'Tick Animation On Skeletal Mesh Init' disabled
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Groom")
-	bool bBindGroomToSkeletalMesh;
-
 	// Kept for debugging mesh transfer
 	UPROPERTY()
 	class USkeletalMesh* SourceSkeletalMesh;
@@ -140,7 +131,6 @@ public:
 	void SetHairRootScale(float Scale);
 	void SetHairWidth(float HairWidth);
 	void SetScatterSceneLighting(bool Enable);
-	void SetBinding(bool bBind);
 	void SetBinding(UGroomBindingAsset* InBinding);
 	void SetUseCards(bool InbUseCards);
 	void SetValidation(bool bEnable) { bValidationEnable = bEnable; }

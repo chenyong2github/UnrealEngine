@@ -245,6 +245,8 @@ struct FHairStrandsRaytracingResource : public FRenderResource
 {
 	/** Build the hair strands resource */
 	FHairStrandsRaytracingResource(const FHairStrandsDatas& HairStrandsDatas);
+	FHairStrandsRaytracingResource(const FHairCardsDatas& InData);
+	FHairStrandsRaytracingResource(const FHairMeshesDatas& InData);
 
 	/* Init the buffer */
 	virtual void InitRHI() override;
@@ -257,7 +259,8 @@ struct FHairStrandsRaytracingResource : public FRenderResource
 
 	FRWBuffer PositionBuffer;
 	FRayTracingGeometry RayTracingGeometry;
-	uint32 VertexCount;
+	uint32 VertexCount = 0;
+	bool bIsRTGeometryInitialized = false;
 };
 #endif
 

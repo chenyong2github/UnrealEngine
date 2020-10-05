@@ -268,7 +268,7 @@ float3 HairShadingRef(FGBufferData GBuffer, float3 L, float3 V, half3 N, uint2 R
 // [Marschner et al. 2003, "Light Scattering from Human Hair Fibers"]
 // [Pekelis et al. 2015, "A Data-Driven Light Scattering Model for Hair"]
 
-float3 HairShading( FGBufferData GBuffer, float3 L, float3 V, half3 N, float Shadow, FHairTransmittanceData HairTransmittance, float Backlit, float Area, uint2 Random )
+float3 HairShading( FGBufferData GBuffer, float3 L, float3 V, half3 N, float Shadow, FHairTransmittanceData HairTransmittance, float InBacklit, float Area, uint2 Random )
 {
 	// to prevent NaN with decals
 	// OR-18489 HERO: IGGY: RMB on E ability causes blinding hair effect
@@ -276,7 +276,7 @@ float3 HairShading( FGBufferData GBuffer, float3 L, float3 V, half3 N, float Sha
 	float ClampedRoughness = clamp(GBuffer.Roughness, 1/255.0f, 1.0f);
 
 	//const float3 DiffuseN	= OctahedronToUnitVector( GBuffer.CustomData.xy * 2 - 1 );
-	//const float Backlit	= GBuffer.CustomData.z;
+	const float Backlit	= min(InBacklit, HairTransmittance.bUseLegacyAbsorption ? 1 : GBuffer.CustomData.z);
 
 #if HAIR_REFERENCE
 	// todo: ClampedRoughness is missing for this code path

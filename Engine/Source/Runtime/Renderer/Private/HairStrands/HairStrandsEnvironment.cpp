@@ -483,7 +483,7 @@ void RenderHairStrandsEnvironmentLighting(
 	check(ViewIndex < uint32(Views.Num()));
 	check(ViewIndex < uint32(HairDatas->HairVisibilityViews.HairDatas.Num()));	
 	const FHairStrandsVisibilityData& VisibilityData = HairDatas->HairVisibilityViews.HairDatas[ViewIndex];
-	const bool bRenderHairLighting = VisibilityData.NodeIndex && VisibilityData.NodeData && HairDatas->MacroGroupsPerViews.Views[ViewIndex].VirtualVoxelResources.IsValid();
+	const bool bRenderHairLighting = VisibilityData.NodeIndex && VisibilityData.NodeData && HairDatas->MacroGroupsPerViews.Views[ViewIndex].VirtualVoxelResources.IsValid() && VisibilityData.CategorizationTexture;
 	if (!bRenderHairLighting)
 	{
 		return;
@@ -493,19 +493,14 @@ void RenderHairStrandsEnvironmentLighting(
 	FHairStrandsDebugData::Data DebugData;
 	if (bDebugSamplingEnable)
 	{
-		DebugData = FHairStrandsDebugData::CreateData(GraphBuilder);
+		HairDatas->DebugData.Resources = FHairStrandsDebugData::CreateData(GraphBuilder);
 	}
 
 	const FViewInfo& View = Views[ViewIndex];
 	const FHairStrandsMacroGroupDatas& MacroGroupDatas = HairDatas->MacroGroupsPerViews.Views[ViewIndex];
 	for (const FHairStrandsMacroGroupData& MacroGroupData : HairDatas->MacroGroupsPerViews.Views[ViewIndex].Datas)
 	{
-		AddHairStrandsEnvironmentLightingPassPS(GraphBuilder, View, VisibilityData, MacroGroupDatas, MacroGroupData, nullptr, bDebugSamplingEnable ? &DebugData : nullptr);
-	}
-
-	if (bDebugSamplingEnable)
-	{
-		FHairStrandsDebugData::ExtractData(GraphBuilder, DebugData, HairDatas->DebugData);
+		AddHairStrandsEnvironmentLightingPassPS(GraphBuilder, View, VisibilityData, MacroGroupDatas, MacroGroupData, nullptr, bDebugSamplingEnable ? &HairDatas->DebugData.Resources : nullptr);
 	}
 }
 
@@ -524,7 +519,7 @@ void RenderHairStrandsAmbientOcclusion(
 	{
 		check(ViewIndex < uint32(HairDatas->HairVisibilityViews.HairDatas.Num()));
 		const FHairStrandsVisibilityData& VisibilityData = HairDatas->HairVisibilityViews.HairDatas[ViewIndex];
-		const bool bRenderHairLighting = VisibilityData.NodeIndex && VisibilityData.NodeData && HairDatas->MacroGroupsPerViews.Views[ViewIndex].VirtualVoxelResources.IsValid();
+		const bool bRenderHairLighting = VisibilityData.NodeIndex && VisibilityData.NodeData && HairDatas->MacroGroupsPerViews.Views[ViewIndex].VirtualVoxelResources.IsValid() && VisibilityData.CategorizationTexture;
 		if (!bRenderHairLighting)
 		{
 			continue;

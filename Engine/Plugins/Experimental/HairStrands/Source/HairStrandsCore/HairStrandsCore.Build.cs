@@ -6,7 +6,12 @@ namespace UnrealBuildTool.Rules
 	{
 		public HairStrandsCore(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.Add(ModuleDirectory + "/Private");
+			// Include Renderer/Private to have access to default resources
+			PrivateIncludePaths.AddRange(
+				new string[] {
+					ModuleDirectory + "/Private",
+					EngineDirectory + "/Source/Runtime/Renderer/Private",
+				});
 			PublicIncludePaths.Add(ModuleDirectory + "/Public");
 
 			PrivateDependencyModuleNames.AddRange(
