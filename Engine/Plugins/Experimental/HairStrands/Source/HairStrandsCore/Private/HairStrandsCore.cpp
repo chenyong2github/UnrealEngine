@@ -71,7 +71,7 @@ void FHairStrandsCore::RegisterAssetHelper(const FHairAssetHelper& Helper)
 #if WITH_EDITOR
 UTexture2D* FHairStrandsCore::CreateTexture(const FString& InPackageName, const FIntPoint& Resolution, const FString& Suffix, TTextureAllocation TextureAllocation)
 {
-	if (HairStrandsCore_AssetHelper.CreateFilename == nullptr && HairStrandsCore_AssetHelper.RegisterAsset == nullptr)
+	if (HairStrandsCore_AssetHelper.CreateFilename == nullptr || HairStrandsCore_AssetHelper.RegisterAsset == nullptr)
 	{
 		return nullptr;
 	}
@@ -119,7 +119,7 @@ void FHairStrandsCore::ResizeTexture(UTexture2D* Out, const FIntPoint& Resolutio
 
 UStaticMesh* FHairStrandsCore::CreateStaticMesh(const FString& InPackageName, const FString& Suffix)
 {
-	if (HairStrandsCore_AssetHelper.CreateFilename == nullptr && HairStrandsCore_AssetHelper.RegisterAsset == nullptr)
+	if (HairStrandsCore_AssetHelper.CreateFilename == nullptr || HairStrandsCore_AssetHelper.RegisterAsset == nullptr)
 	{
 		return nullptr;
 	}
