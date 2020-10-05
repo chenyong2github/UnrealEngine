@@ -33,7 +33,7 @@ public:
 	virtual EDMXSendResult SendDMXZeroUniverse(uint16 UniverseID, bool bForceSendDMX /** = false */) override { return EDMXSendResult::Success; }
 	virtual uint16 GetFinalSendUniverseID(uint16 InUniverseID) const override { return InUniverseID; }
 	virtual bool IsEnabled() const override { return true; }
-	virtual void SetSendDMXEnabled(bool bEnabled) { };
+	virtual void SetSendDMXEnabled(bool bEnabled) {};
 	virtual bool IsSendDMXEnabled() const { return false; };
 	virtual void SetReceiveDMXEnabled(bool bEnabled) {};
 	virtual bool IsReceiveDMXEnabled() const override { return false; };
@@ -47,6 +47,8 @@ public:
 	virtual uint16 GetMinUniverseID() const override { return 0; }
 	virtual uint16 GetMaxUniverses() const override { return 1; }
 	virtual void GetDefaultUniverseSettings(uint16 InUniverseID, FJsonObject& OutSettings) const {}
+	virtual void ZeroInputBuffers() override {};
+	virtual void ZeroOutputBuffers() override {};
 
 	DECLARE_DERIVED_EVENT(FDMXProtocolArtNet, IDMXProtocol::FOnUniverseInputBufferUpdated, FOnUniverseInputBufferUpdated);
 	virtual FOnUniverseInputBufferUpdated& GetOnUniverseInputBufferUpdated() override { return OnUniverseInputBufferUpdated; }
