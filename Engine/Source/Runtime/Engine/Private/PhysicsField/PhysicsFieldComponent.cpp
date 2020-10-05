@@ -374,7 +374,6 @@ void FPhysicsFieldInstance::UpdateInstance(const TArray<FFieldSystemCommand>& In
 			}
 		}
 		FFieldNodeBase* TargetNode = nullptr;
-		TArray<FFieldNodeBase*> CompositeNodes;
 		if (TargetRoots.Num() == 1)
 		{
 			TargetNode = TargetRoots[0];
@@ -384,58 +383,48 @@ void FPhysicsFieldInstance::UpdateInstance(const TArray<FFieldSystemCommand>& In
 			const EFieldOutputType OutputType = GetFieldTargetOutput(TargetType);
 			if (OutputType == EFieldOutputType::Field_Output_Vector)
 			{
-				FFieldNode<FVector>* PreviousNode = nullptr;
+				FFieldNode<FVector>* PreviousNode = StaticCast<FFieldNode<FVector>*>(TargetRoots[0]->NewCopy());
 				FFieldNode<FVector>* NextNode = nullptr;
-				for (auto& TargetRoot : TargetRoots)
+				for (int32 TargetIndex = 1; TargetIndex < TargetRoots.Num(); ++TargetIndex)
 				{
-					NextNode = StaticCast<FFieldNode<FVector>*>(TargetRoot);
+					NextNode = StaticCast<FFieldNode<FVector>*>(TargetRoots[TargetIndex]->NewCopy());
 					PreviousNode = new FSumVector(1.0, nullptr, PreviousNode,
 						NextNode, EFieldOperationType::Field_Add);
-
-					CompositeNodes.Add(PreviousNode);
 				}
+				TargetNode = PreviousNode;
 			}
 			else if (OutputType == EFieldOutputType::Field_Output_Scalar)
 			{
-				FFieldNode<float>* PreviousNode = nullptr;
+				FFieldNode<float>* PreviousNode = StaticCast<FFieldNode<float>*>(TargetRoots[0]->NewCopy());
 				FFieldNode<float>* NextNode = nullptr;
-				for (auto& TargetRoot : TargetRoots)
+				for (int32 TargetIndex = 1; TargetIndex < TargetRoots.Num(); ++TargetIndex)
 				{
-					NextNode = StaticCast<FFieldNode<float>*>(TargetRoot);
+					NextNode = StaticCast<FFieldNode<float>*>(TargetRoots[TargetIndex]->NewCopy());
 					PreviousNode = new FSumScalar(1.0, PreviousNode,
 						NextNode, EFieldOperationType::Field_Add);
-
-					CompositeNodes.Add(PreviousNode);
 				}
+				TargetNode = PreviousNode;
 			}
 			else if (OutputType == EFieldOutputType::Field_Output_Integer)
 			{
-				FFieldNode<float>* PreviousNode = nullptr;
+				FFieldNode<float>* PreviousNode = new FConversionField<int32, float>(StaticCast<FFieldNode<int32>*>(TargetRoots[0]->NewCopy()));
 				FFieldNode<float>* NextNode = nullptr;
-				for (auto& TargetRoot : TargetRoots)
+				for (int32 TargetIndex = 1; TargetIndex < TargetRoots.Num(); ++TargetIndex)
 				{
-					NextNode = new FConversionField<int32, float>(StaticCast<FFieldNode<int32>*>(TargetRoot));
+					NextNode = new FConversionField<int32, float>(StaticCast<FFieldNode<int32>*>(TargetRoots[TargetIndex]->NewCopy()));
 					PreviousNode = new FSumScalar(1.0, PreviousNode,
 						NextNode, EFieldOperationType::Field_Add);
-
-					CompositeNodes.Add(PreviousNode);
-					CompositeNodes.Add(NextNode);
 				}
+				TargetNode = PreviousNode;
 			}
-			TargetNode = CompositeNodes.Last();
 		}
 		const int32 PreviousNodes = NodesOffsets.Num();
 		if (TargetNode)
 		{
 			BuildNodeParams(TargetNode);
+			if (TargetRoots.Num() > 1) delete TargetNode;
 		}
 		TargetsOffsets[TargetType + 1] = NodesOffsets.Num()- PreviousNodes;
-
-		for (int32 CompositeIndex = CompositeNodes.Num()-1; CompositeIndex >= 0; --CompositeIndex)
-		{
-			delete CompositeNodes[CompositeIndex];
-		}
-		CompositeNodes.Empty();
 	}
 	for (uint32 FieldIndex = 1; FieldIndex < TargetsCount + 1; ++FieldIndex)
 	{
