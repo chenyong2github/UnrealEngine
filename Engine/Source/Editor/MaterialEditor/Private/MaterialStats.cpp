@@ -57,7 +57,7 @@ void FShaderPlatformSettings::ClearResources()
 			PlatformData[i].MaterialResourcesStats = nullptr;
 		}
 
-		PlatformData[i].ArrShaderNames.Empty();
+		PlatformData[i].ArrShaderEntries.Empty();
 
 		PlatformData[i].bCompilingShaders = false;
 		PlatformData[i].bNeedShaderRecompilation = true;
@@ -66,19 +66,19 @@ void FShaderPlatformSettings::ClearResources()
 
 FText FShaderPlatformSettings::GetSelectedShaderViewComboText(EMaterialQualityLevel::Type QualityLevel) const
 {
-	if (PlatformData[QualityLevel].ArrShaderNames.Num() == 0)
+	if (PlatformData[QualityLevel].ArrShaderEntries.Num() == 0)
 	{
 		return FText::FromString(TEXT("-Compiling-Shaders-"));
 	}
 
-	return FText::FromName(PlatformData[QualityLevel].ComboBoxSelectedName);
+	return FText::FromString(PlatformData[QualityLevel].ComboBoxSelectedEntry.Text);
 }
 
-void FShaderPlatformSettings::OnShaderViewComboSelectionChanged(TSharedPtr<FName> Item, EMaterialQualityLevel::Type QualityType)
+void FShaderPlatformSettings::OnShaderViewComboSelectionChanged(TSharedPtr<FMaterialShaderEntry> Item, EMaterialQualityLevel::Type QualityType)
 {
 	if (Item.IsValid())
 	{
-		PlatformData[QualityType].ComboBoxSelectedName = *Item.Get();
+		PlatformData[QualityType].ComboBoxSelectedEntry = *Item.Get();
 		PlatformData[QualityType].bUpdateShaderCode = true;
 	}
 }
@@ -101,16 +101,19 @@ FText FShaderPlatformSettings::GetShaderCode(const EMaterialQualityLevel::Type Q
 	// check if shader compilation is done and extract shader code
 	if (bCompilationFinished)
 	{
-		TMap<FHashedName, TShaderRef<FShader>> ShaderMap;
+		TMap<FShaderId, TShaderRef<FShader>> ShaderMap;
 		MaterialShaderMap->GetShaderList(ShaderMap);
 
-		const auto Entry = ShaderMap.Find(PlatformData[QualityType].ComboBoxSelectedName);
+		const FShaderId& ShaderId = PlatformData[QualityType].ComboBoxSelectedEntry.ShaderId;
+
+		const auto Entry = ShaderMap.Find(ShaderId);
 		if (Entry != nullptr)
 		{
 			const TShaderRef<FShader>& Shader = *Entry;
 
-			const FName ShaderFName = Shader.GetType()->GetFName();
-			const FMemoryImageString* ShaderSource = MaterialShaderMap->GetShaderSource(ShaderFName);
+			const FName VertexFactoryName = Shader.GetVertexFactoryType()->GetFName();
+			const FName ShaderTypeName = Shader.GetType()->GetFName();
+			const FMemoryImageString* ShaderSource = MaterialShaderMap->GetShaderSource(VertexFactoryName, ShaderTypeName);
 			if (ShaderSource != nullptr)
 			{
 				PlatformData[QualityType].bUpdateShaderCode = false;
@@ -221,15 +224,23 @@ bool FShaderPlatformSettings::Update()
 					TMap<FShaderId, TShaderRef<FShader>> ShaderMap;
 					MaterialShaderMap->GetShaderList(ShaderMap);
 
-					QualityItem.ArrShaderNames.Empty();
+					QualityItem.ArrShaderEntries.Empty();
 					for (const auto& Entry : ShaderMap)
 					{
-						QualityItem.ArrShaderNames.Add(MakeShareable(new FName(Entry.Value.GetType()->GetFName())));
+						FShaderType* EntryShader = Entry.Value.GetType();
+						FVertexFactoryType* VertexFactory = Entry.Value.GetVertexFactoryType();
+						FString ShaderName = FString::Printf(TEXT("%s/%s"), VertexFactory->GetName(), EntryShader->GetName());
+						QualityItem.ArrShaderEntries.Add(MakeShareable(new FMaterialShaderEntry{ Entry.Key, ShaderName }));
 					}
 
-					if (QualityItem.ArrShaderNames.Num() > 0)
+					if (QualityItem.ArrShaderEntries.Num() > 0)
 					{
-						QualityItem.ComboBoxSelectedName = *QualityItem.ArrShaderNames[0];
+						QualityItem.ArrShaderEntries.Sort([](const TSharedPtr<FMaterialShaderEntry>& First, const TSharedPtr<FMaterialShaderEntry>& Second)
+							{
+								return First->Text < Second->Text;
+							});
+
+						QualityItem.ComboBoxSelectedEntry = *QualityItem.ArrShaderEntries[0];
 					}
 				}
 
@@ -701,10 +712,10 @@ TSharedRef<SDockTab> FMaterialStats::SpawnTab_ShaderCode(const FSpawnTabArgs& Ar
 	TSharedPtr<FShaderPlatformSettings> PlatformPtr = GetPlatformSettings(PlatformID);
 	check(PlatformPtr.IsValid());
 
-	TSharedRef<SComboBox<TSharedPtr<FName>>> ShaderBox = SNew(SComboBox<TSharedPtr<FName>>)
-		.OptionsSource(PlatformPtr->GetShaderNames(QualityLevel))
-		.OnGenerateWidget_Lambda([](TSharedPtr<FName> Value) { return SNew(STextBlock).Text(FText::FromName(*Value.Get())); })
-		.OnSelectionChanged_Lambda([PlatformPtr, QualityLevel](TSharedPtr<FName> Item, ESelectInfo::Type SelectInfo) { PlatformPtr->OnShaderViewComboSelectionChanged(Item, QualityLevel); })
+	TSharedRef<SComboBox<TSharedPtr<FMaterialShaderEntry>>> ShaderBox = SNew(SComboBox<TSharedPtr<FMaterialShaderEntry>>)
+		.OptionsSource(PlatformPtr->GetShaderEntries(QualityLevel))
+		.OnGenerateWidget_Lambda([](TSharedPtr<FMaterialShaderEntry> Value) { return SNew(STextBlock).Text(FText::FromString(Value->Text)); })
+		.OnSelectionChanged_Lambda([PlatformPtr, QualityLevel](TSharedPtr<FMaterialShaderEntry> Item, ESelectInfo::Type SelectInfo) { PlatformPtr->OnShaderViewComboSelectionChanged(Item, QualityLevel); })
 		[
 			SNew(STextBlock)
 			.Text_Lambda([PlatformPtr, QualityLevel]() { return PlatformPtr->GetSelectedShaderViewComboText(QualityLevel); })

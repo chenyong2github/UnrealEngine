@@ -1577,6 +1577,11 @@ void FMaterialShaderMap::Compile(
 	}
 }
 
+static FHashedName PreprocessedSourceKeyFromName(FName VertexFactoryName, FName VertexTypeName)
+{
+	return FHashedName(FString::Printf(TEXT("%s/%s"), *VertexFactoryName.ToString(), *VertexTypeName.ToString()));
+}
+
 FShader* FMaterialShaderMap::ProcessCompilationResultsForSingleJob(FShaderCompileJob* SingleJob, const FShaderPipelineType* ShaderPipeline, const FSHAHash& MaterialShaderMapHash)
 {
 	check(SingleJob);
@@ -1624,8 +1629,10 @@ FShader* FMaterialShaderMap::ProcessCompilationResultsForSingleJob(FShaderCompil
 	// add shader source
 	{
 		// Keep the preprocessed source list sorted by type name
-		const int32 Index = Algo::LowerBoundBy(GetMutableContent()->ShaderProcessedSource, CurrentJob.ShaderType->GetHashedName(), [](const FMaterialProcessedSource& Value) { return Value.Name; });
-		GetMutableContent()->ShaderProcessedSource.EmplaceAt(Index, CurrentJob.ShaderType->GetHashedName(), *CurrentJob.Output.OptionalFinalShaderSource);
+		const FHashedName Key = CurrentJob.VFType ? PreprocessedSourceKeyFromName(CurrentJob.VFType->GetFName(), CurrentJob.ShaderType->GetFName()) : FHashedName(CurrentJob.ShaderType->GetFName());
+
+		const int32 Index = Algo::LowerBoundBy(GetMutableContent()->ShaderProcessedSource, Key, [](const FMaterialProcessedSource& Value) { return Value.Name; });
+		GetMutableContent()->ShaderProcessedSource.EmplaceAt(Index, Key, *CurrentJob.Output.OptionalFinalShaderSource);
 	}
 #endif
 
@@ -2169,11 +2176,13 @@ void FMaterialShaderMap::LoadMissingShadersFromMemory(const FMaterial* Material)
 #endif // WITH_EDITOR
 
 #if WITH_EDITOR
-const FMemoryImageString* FMaterialShaderMap::GetShaderSource(const FName ShaderTypeName) const
+const FMemoryImageString* FMaterialShaderMap::GetShaderSource(const FName VertexFactoryName, const FName ShaderTypeName) const
 {
+	const FHashedName Key = PreprocessedSourceKeyFromName(VertexFactoryName, ShaderTypeName);
+
 	for (const FMaterialProcessedSource& Source : GetContent()->ShaderProcessedSource)
 	{
-		if (Source.Name == ShaderTypeName)
+		if (Source.Name == Key)
 		{
 			return &Source.Source;
 		}

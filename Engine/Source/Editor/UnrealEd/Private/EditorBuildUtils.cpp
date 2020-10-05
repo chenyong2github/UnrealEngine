@@ -1533,10 +1533,10 @@ void FMaterialOfflineCompilation::CopyPlatformSpecificStats()
 		return;
 	}
 
-	TMap<FHashedName, TShaderRef<FShader>> SrcShaders;
+	TMap<FShaderId, TShaderRef<FShader>> SrcShaders;
 	SrcShaderMap->GetShaderList(SrcShaders);
 
-	TMap<FHashedName, TShaderRef<FShader>> DstShaders;
+	TMap<FShaderId, TShaderRef<FShader>> DstShaders;
 	DstShaderMap->GetShaderList(DstShaders);
 
 	for (auto Pair : SrcShaders)

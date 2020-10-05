@@ -66,6 +66,12 @@ struct FShaderStatsInfo
 	}
 };
 
+struct FMaterialShaderEntry
+{
+	FShaderId ShaderId;
+	FString Text;
+};
+
 /** structure used to manage shader compilation and source code extraction for a specified shader platform
 *   used for building the material stats */
 struct FShaderPlatformSettings
@@ -81,10 +87,10 @@ public:
 
 		/** array of shader ids for this platform; needed to fill ComboBox in MaterialEditor's shader viewer
 		* generated from ShaderID.ShaderType->GetFName() */
-		TArray<TSharedPtr<FName>> ArrShaderNames;
+		TArray<TSharedPtr<FMaterialShaderEntry>> ArrShaderEntries;
 
 		/** ComboBox current entry */
-		FName ComboBoxSelectedName;
+		FMaterialShaderEntry ComboBoxSelectedEntry;
 
 		/** flag that marks the usage of this data structure */
 		bool bExtractStats = false;
@@ -181,7 +187,7 @@ public:
 	FORCEINLINE TWeakPtr<class SDockTab> GetCodeViewerTab(const EMaterialQualityLevel::Type QualityLevel);
 
 	/** returns an array with the names of all the compiled shaders for this material with specified quality level */
-	FORCEINLINE const TArray<TSharedPtr<FName>> *GetShaderNames(const EMaterialQualityLevel::Type QualityLevel);
+	FORCEINLINE const TArray<TSharedPtr<FMaterialShaderEntry>> *GetShaderEntries(const EMaterialQualityLevel::Type QualityLevel);
 
 	/** when set this flag will indicate the presence of this material with a particular quality level inside the stats widget */
 	void SetExtractStatsFlag(const EMaterialQualityLevel::Type QualityType, const bool bValue);
@@ -219,7 +225,7 @@ public:
 	FText GetSelectedShaderViewComboText(EMaterialQualityLevel::Type QualityLevel) const;
 
 	/** callback function called when we change the content of the shader viewer combo-box, used to select a different shader to be displayed */
-	void OnShaderViewComboSelectionChanged(TSharedPtr<FName> Item, EMaterialQualityLevel::Type QualityType);
+	void OnShaderViewComboSelectionChanged(TSharedPtr<FMaterialShaderEntry> Item, EMaterialQualityLevel::Type QualityType);
 
 	/** returns the actual shader source selected by the shaders viewer's combo-box */
 	FText GetShaderCode(const EMaterialQualityLevel::Type QualityType);
@@ -568,10 +574,10 @@ FORCEINLINE TWeakPtr<class SDockTab> FShaderPlatformSettings::GetCodeViewerTab(c
 	return SomePlatformData.CodeViewerTab;
 }
 
-FORCEINLINE const TArray<TSharedPtr<FName>> *FShaderPlatformSettings::GetShaderNames(const EMaterialQualityLevel::Type QualityLevel)
+FORCEINLINE const TArray<TSharedPtr<FMaterialShaderEntry>> *FShaderPlatformSettings::GetShaderEntries(const EMaterialQualityLevel::Type QualityLevel)
 {
 	FPlatformData& SomePlatformData = GetPlatformData(QualityLevel);
-	return &SomePlatformData.ArrShaderNames;
+	return &SomePlatformData.ArrShaderEntries;
 }
 
 FORCEINLINE void FShaderPlatformSettings::SetExtractStatsFlag(const EMaterialQualityLevel::Type QualityType, const bool bValue)

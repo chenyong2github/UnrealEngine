@@ -1113,7 +1113,7 @@ public:
 	bool TryToAddToExistingCompilationTask(FMaterial* Material);
 
 #if WITH_EDITOR
-	ENGINE_API const FMemoryImageString *GetShaderSource(const FName ShaderTypeName) const;
+	ENGINE_API const FMemoryImageString *GetShaderSource(FName VertexFactoryName, FName ShaderTypeName) const;
 #endif
 
 	/** Builds a list of the shaders in a shader map. */
