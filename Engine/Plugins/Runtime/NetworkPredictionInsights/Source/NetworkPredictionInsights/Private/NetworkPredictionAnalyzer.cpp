@@ -111,7 +111,7 @@ bool FNetworkPredictionAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOn
 			ensureMsgf(TraceID > 0, TEXT("Invalid TraceID when analyzing SystemFault: %s"), StoredString);
 
 			NetworkPredictionProvider.WriteSystemFault(
-				EventData.GetValue<uint32>("SimulationID"),
+				TraceID,
 				EngineFrameNumber,
 				StoredString);
 			break;
