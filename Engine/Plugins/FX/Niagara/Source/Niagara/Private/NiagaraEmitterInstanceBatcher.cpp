@@ -835,8 +835,8 @@ void NiagaraEmitterInstanceBatcher::UpdateFreeIDBuffers(FRHICommandList& RHICmdL
 void NiagaraEmitterInstanceBatcher::UpdateInstanceCountManager(FRHICommandListImmediate& RHICmdList)
 {
 	// Resize dispatch buffer count
+	int32 TotalDispatchCount = 0;
 	{
-		int32 TotalDispatchCount = 0;
 		for (FNiagaraGPUSystemTick& Tick : Ticks_RT)
 		{
 			TotalDispatchCount += (int32)Tick.TotalDispatches;
@@ -858,7 +858,10 @@ void NiagaraEmitterInstanceBatcher::UpdateInstanceCountManager(FRHICommandListIm
 		GPUInstanceCounterManager.ResizeBuffers(RHICmdList, FeatureLevel, TotalDispatchCount);
 	}
 
-	// Update the instance counts from the GPU readback.
+	// Don't consume the readback data if we have no ticks as they will be gone forever
+	// This causes an issue with sequencer ticks @ 30hz but the engine ticking @ 60hz
+	// The readback really needs to be changed to not rely on the tick being enqueued, we should be pushing this data back
+	if (TotalDispatchCount > 0)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_NiagaraGPUReadback_RT);
 		const uint32* Counts = GPUInstanceCounterManager.GetGPUReadback();
