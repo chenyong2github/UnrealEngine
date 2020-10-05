@@ -77,6 +77,11 @@ static FAutoConsoleVariableRef CVarHairStrandsVoxelComputeRasterMaxVoxelCount(TE
 static int32 GHairVirtualVoxelUseImmediatePageAllocation = 1;
 static FAutoConsoleVariableRef CVarHairVirtualVoxelUseImmediatePageAllocation(TEXT("r.HairStrands.Voxelization.Virtual.UseDirectPageAllocation"), GHairVirtualVoxelUseImmediatePageAllocation, TEXT("Use the indirect page allocation code path, but force internally direct page allocation (for debugging purpose only)."));
 
+static float GHairVirtualVoxelRaytracing_ShadowOcclusionThreshold= 1;
+static float GHairVirtualVoxelRaytracing_SkyOcclusionThreshold = 1;
+static FAutoConsoleVariableRef CVarHairVirtualVoxelRaytracing_ShadowOcclusionThreshold(TEXT("r.RayTracing.Shadows.HairOcclusionThreshold"), GHairVirtualVoxelRaytracing_ShadowOcclusionThreshold, TEXT("Define the number of hair that need to be crossed, before casting occlusion (default = 1)"), ECVF_RenderThreadSafe);
+static FAutoConsoleVariableRef CVarHairVirtualVoxelRaytracing_SkyOcclusionThreshold(TEXT("r.RayTracing.Sky.HairOcclusionThreshold"), GHairVirtualVoxelRaytracing_SkyOcclusionThreshold, TEXT("Define the number of hair that need to be crossed, before casting occlusion (default = 1)"), ECVF_RenderThreadSafe);
+
 bool IsHairStrandsVoxelizationEnable()
 {
 	return GHairVoxelizationEnable > 0;
@@ -813,8 +818,10 @@ FVirtualVoxelResources AllocateVirtualVoxelResources(
 	Out.Parameters.Common.DepthBiasScale_Environment= GetHairStrandsVoxelizationDepthBiasScale_Environment();
 	Out.Parameters.Common.SteppingScale				= FMath::Clamp(GHairStransVoxelRaymarchingSteppingScale, 1.f, 10.f);
 	Out.Parameters.Common.NodeDescCount				= MacroGroups.Datas.Num();
-	Out.Parameters.Common.IndirectDispatchGroupSize = 64;
-	
+	Out.Parameters.Common.IndirectDispatchGroupSize = 64;	
+	Out.Parameters.Common.Raytracing_ShadowOcclusionThreshold	= FMath::Max(0.f, GHairVirtualVoxelRaytracing_ShadowOcclusionThreshold);
+	Out.Parameters.Common.Raytracing_SkyOcclusionThreshold		= FMath::Max(0.f, GHairVirtualVoxelRaytracing_SkyOcclusionThreshold);
+
 	Out.Parameters.Common.HairCoveragePixelRadiusAtDepth1	= ComputeMinStrandRadiusAtDepth1(FIntPoint(View.ViewRect.Width(), View.ViewRect.Height()), View.FOV, 1/*SampleCount*/, 1/*RasterizationScale*/).Primary;
 	Out.Parameters.Common.HairCoverageLUT					= GetHairLUT(GraphBuilder, View).Textures[HairLUTType_Coverage];
 	Out.Parameters.Common.HairCoverageSampler				= TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
