@@ -89,6 +89,8 @@ void FSoundControlBusMixStageLayoutCustomization::CustomizeHeader(TSharedRef<IPr
 
 void FSoundControlBusMixStageLayoutCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
+	ChildBuilder.AddProperty(StructPropertyHandle);
+
 	uint32 NumChildren;
 	StructPropertyHandle->GetNumChildren(NumChildren);
 
@@ -102,14 +104,6 @@ void FSoundControlBusMixStageLayoutCustomization::CustomizeChildren(TSharedRef<I
 	}
 
 	TSharedRef<IPropertyHandle> BusHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundControlBusMixStage, Bus)).ToSharedRef();
-
-	TAttribute<EVisibility> BusInfoVisibility = TAttribute<EVisibility>::Create([BusHandle]()
-	{
-		UObject* Bus = nullptr;
-		BusHandle->GetValue(Bus);
-		return Bus && Bus->IsA<USoundControlBus>() ? EVisibility::Visible : EVisibility::Hidden;
-	});
-
 	ChildBuilder.AddProperty(BusHandle);
 
 	TSharedRef<IPropertyHandle> NormalizedValueHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FSoundModulationMixValue, TargetValue)).ToSharedRef();
