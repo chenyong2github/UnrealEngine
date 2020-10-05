@@ -61,6 +61,10 @@ protected:
 	 */
 	virtual uint8 GetChildFormatVersion(FName Format, const struct FTextureBuildSettings* BuildSettings) const = 0;
 
+	/**
+	 * Make the child type think about if they need a key string or not, by making it pure virtual
+	 */
+	virtual FString GetChildDerivedDataKeyString(const class UTexture& Texture, const FTextureBuildSettings* BuildSettings) const = 0;
 
 
 public:
@@ -76,7 +80,7 @@ public:
 		}
 	}
 
-	virtual uint16 GetVersion(FName Format, const struct FTextureBuildSettings* BuildSettings) const override
+	virtual uint16 GetVersion(FName Format, const struct FTextureBuildSettings* BuildSettings) const final
 	{
 		uint16 BaseVersion = GetBaseFormatObject(Format)->GetVersion(Format, BuildSettings);
 		checkf(BaseVersion < 256, TEXT("BaseFormat for %s had too large a version (%d), must fit in 8bits"), *Format.ToString(), BaseVersion);
@@ -87,6 +91,13 @@ public:
 		return (BaseVersion << 8) | ChildVersion;
 	}
 
+	virtual FString GetDerivedDataKeyString(const class UTexture& Texture, const FTextureBuildSettings* BuildSettings) const final
+	{
+		FString BaseString = GetBaseFormatObject(BuildSettings->TextureFormatName)->GetDerivedDataKeyString(Texture, BuildSettings);
+		FString ChildString = GetChildDerivedDataKeyString(Texture, BuildSettings);
+
+		return BaseString + ChildString;
+	}
 
 	virtual EPixelFormat GetPixelFormatForImage(const struct FTextureBuildSettings& BuildSettings, const struct FImage& ExampleImage, bool bImageHasAlphaChannel) const override 
 	{
