@@ -433,7 +433,7 @@ FOcclusionResult ComputeOcclusion(
 		#if USE_HAIR_LIGHTING
 		if (ShadingModelID != SHADINGMODELID_HAIR && bUseHairVoxel)
 		{
-			MinimalPayload.HitT = TraverseHair(PixelCoord, RandSequence, Ray.Origin, Ray.Direction, MinimalPayload.HitT, HairOcclusionThreshold);
+			MinimalPayload.HitT = TraverseHair(PixelCoord, RandSequence, Ray.Origin, Ray.Direction, MinimalPayload.HitT, VirtualVoxel.Raytracing_ShadowOcclusionThreshold);
 		}
 		#endif
 

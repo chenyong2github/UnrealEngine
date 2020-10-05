@@ -84,13 +84,6 @@ static TAutoConsoleVariable<int32> CVarRayTracingShadowsLODTransitionEnd(
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<float> CVarRayTracingShadowsHairOcclusionThreshold(
-	TEXT("r.RayTracing.Shadows.HairOcclusionThreshold"),
-	1,
-	TEXT("Define the number of hair that need to be crossed, before casting occlusion (default = 1)"),
-	ECVF_RenderThreadSafe
-);
-
 bool EnableRayTracingShadowTwoSidedGeometry()
 {
 	return CVarRayTracingShadowsEnableTwoSidedGeometry.GetValueOnRenderThread() != 0;
@@ -146,7 +139,6 @@ class FOcclusionRGS : public FGlobalShader
 		SHADER_PARAMETER(float, TraceDistance)
 		SHADER_PARAMETER(float, LODTransitionStart)
 		SHADER_PARAMETER(float, LODTransitionEnd)
-		SHADER_PARAMETER(float, HairOcclusionThreshold)
 		SHADER_PARAMETER(uint32, bTransmissionSamplingDistanceCulling)
 		SHADER_PARAMETER(uint32, TransmissionSamplingTechnique)
 		SHADER_PARAMETER(uint32, RejectionSamplingTrials)
@@ -295,8 +287,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 		if (bUseHairLighting)
 		{
 			const bool bUseHairVoxel = CVarRayTracingShadowsEnableHairVoxel.GetValueOnRenderThread() > 0;
-			PassParameters->bUseHairVoxel = (HairResources->bUseHairVoxel && bUseHairVoxel && !IsHairRayTracingEnabled()) ? 1 : 0;
-			PassParameters->HairOcclusionThreshold = FMath::Max(0.f, CVarRayTracingShadowsHairOcclusionThreshold.GetValueOnRenderThread());
+			PassParameters->bUseHairVoxel = (HairResources->bUseHairVoxel && bUseHairVoxel) ? 1 : 0;
 			PassParameters->HairCategorizationTexture = HairResources->CategorizationTexture;
 			PassParameters->HairLightChannelMaskTexture = HairResources->LightChannelMaskTexture;
 			PassParameters->VirtualVoxel = HairResources->VoxelResources->UniformBuffer;
