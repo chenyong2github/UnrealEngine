@@ -187,8 +187,11 @@ void SkyLightEvaluate(
 		#if USE_HAIR_LIGHTING
 		if (GBufferData.ShadingModelID != SHADINGMODELID_HAIR)
 		{
-			//fixme
-			//MinimalPayload.HitT = TraverseHair(PixelCoord, Ray.Origin, Ray.Direction, MinimalPayload.HitT);
+			const float HairOcclusionThreshold = 1;
+			RandomSequence RandSequence;
+			uint LinearIndex = CalcLinearIndex(PixelCoord);
+			RandomSequence_Initialize(RandSequence, LinearIndex, View.StateFrameIndex);
+			MinimalPayload.HitT = TraverseHair(PixelCoord, RandSequence, Ray.Origin, Ray.Direction, MinimalPayload.HitT, VirtualVoxel.Raytracing_SkyOcclusionThreshold);
 		}
 		#endif
 
