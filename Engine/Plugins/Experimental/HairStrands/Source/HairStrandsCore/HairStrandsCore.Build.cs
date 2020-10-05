@@ -24,7 +24,6 @@ namespace UnrealBuildTool.Rules
 					"Renderer",
 					"VectorVM",
 					"RHI",
-					"Eigen",
 					"StaticMeshDescription"
 				});
 
@@ -34,6 +33,7 @@ namespace UnrealBuildTool.Rules
 					new string[]
 					{
 					"DerivedDataCache",
+					"Eigen",
 					});
 			}
 		}
