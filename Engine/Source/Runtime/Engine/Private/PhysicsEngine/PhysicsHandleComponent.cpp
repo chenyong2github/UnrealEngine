@@ -278,8 +278,8 @@ void UPhysicsHandleComponent::UpdateDriveSettings()
 
 					if (bSoftAngularConstraint && bRotationConstrained)
 					{
-						Constraint->SetAngularDriveStiffness(LinearStiffness);
-						Constraint->SetAngularDriveDamping(LinearDamping);
+						Constraint->SetAngularDriveStiffness(AngularStiffness);
+						Constraint->SetAngularDriveDamping(AngularDamping);
 					}
 				}
 			});
