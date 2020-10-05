@@ -104,7 +104,7 @@ void UUsdStageAssetImportFactory::CleanUp()
 
 bool UUsdStageAssetImportFactory::CanReimport(UObject* Obj, TArray<FString>& OutFilenames)
 {
-	if (UUsdAssetImportData* ImportData = UUsdStageImporter::GetAssetImportData(Obj))
+	if (UUsdAssetImportData* ImportData = UsdUtils::GetAssetImportData(Obj))
 	{
 		OutFilenames.Add(ImportData->GetFirstFilename());
 		return true;
@@ -120,7 +120,7 @@ void UUsdStageAssetImportFactory::SetReimportPaths(UObject* Obj, const TArray<FS
 		return;
 	}
 
-	if (UUsdAssetImportData* ImportData = UUsdStageImporter::GetAssetImportData(Obj))
+	if (UUsdAssetImportData* ImportData = UsdUtils::GetAssetImportData(Obj))
 	{
 		ImportData->UpdateFilenameOnly(NewReimportPaths[0]);
 	}
@@ -134,7 +134,7 @@ EReimportResult::Type UUsdStageAssetImportFactory::Reimport(UObject* Obj)
 		return EReimportResult::Failed;
 	}
 
-	UUsdAssetImportData* ImportData = UUsdStageImporter::GetAssetImportData(Obj);
+	UUsdAssetImportData* ImportData = UsdUtils::GetAssetImportData(Obj);
 	if (!ImportData)
 	{
 		FUsdLogManager::LogMessage( EMessageSeverity::Error, FText::Format( LOCTEXT( "ReimportErrorNoImportData", "Failed to reimport asset '{0}' as it doesn't seem to have import data!" ), FText::FromName( Obj->GetFName() ) ) );

@@ -26,6 +26,7 @@ namespace UnrealBuildTool.Rules
 					"DesktopPlatform",
 					"EditorStyle",
 					"Engine",
+					"GeometryCache", // Just so that we can fetch its AssetImportData
 					"MaterialBaking", // So that we can use the BakeMaterials function
 					"MaterialEditor",
 					"MeshDescription",
