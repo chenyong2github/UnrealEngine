@@ -16,6 +16,9 @@
 
 struct FPhysicsFieldInfos
 {
+	/** Type of targets offsets */
+	using TargetsOffsetsType = TStaticArray<int32, MAX_TARGETS_ARRAY, MAX_TARGETS_ARRAY>;
+
 	/** Size of the datas stored on each voxels*/
 	int32 TargetCount = 1;
 
@@ -23,13 +26,16 @@ struct FPhysicsFieldInfos
 	TArray<EFieldPhysicsType> TargetTypes;
 
 	/** Vector Targets Offsets*/
-	TStaticArray<int32, MAX_TARGETS_ARRAY, MAX_TARGETS_ARRAY> VectorTargets;
+	TargetsOffsetsType VectorTargets;
 
 	/** Scalar Targets Offsets*/
-	TStaticArray<int32, MAX_TARGETS_ARRAY, MAX_TARGETS_ARRAY> ScalarTargets;
+	TargetsOffsetsType ScalarTargets;
 
 	/** Integer targets offsets */
-	TStaticArray<int32, MAX_TARGETS_ARRAY, MAX_TARGETS_ARRAY> IntegerTargets;
+	TargetsOffsetsType IntegerTargets;
+
+	/** Physics targets offsets */
+	TargetsOffsetsType PhysicsTargets;
 
 	/** Clipmap  Center */
 	FVector ClipmapCenter = FVector::ZeroVector;
@@ -73,7 +79,9 @@ public:
 	FPhysicsFieldInfos FieldInfos;
 
 	/** Default constructor. */
-	FPhysicsFieldResource(const int32 TargetCount, const TArray<EFieldPhysicsType>& TargetTypes, const TStaticArray<int32, MAX_TARGETS_ARRAY, MAX_TARGETS_ARRAY>& VectorTargets, const TStaticArray<int32, MAX_TARGETS_ARRAY, MAX_TARGETS_ARRAY>& ScalarTargets, const TStaticArray<int32, MAX_TARGETS_ARRAY, MAX_TARGETS_ARRAY>& IntegerTargets);
+	FPhysicsFieldResource(const int32 TargetCount, const TArray<EFieldPhysicsType>& TargetTypes,
+		const FPhysicsFieldInfos::TargetsOffsetsType& VectorTargets, const FPhysicsFieldInfos::TargetsOffsetsType& ScalarTargets,
+		const FPhysicsFieldInfos::TargetsOffsetsType& IntegerTargets, const FPhysicsFieldInfos::TargetsOffsetsType& PhysicsTargets);
 
 	/** Release Field resources. */
 	virtual void ReleaseRHI() override;
