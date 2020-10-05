@@ -8,6 +8,9 @@
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraRenderer.h"
+#if WITH_EDITOR
+#include "NiagaraGpuComputeDebug.h"
+#endif
 #include "Engine/TextureRenderTarget2D.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceRenderTarget2D"
@@ -216,6 +219,9 @@ bool UNiagaraDataInterfaceRenderTarget2D::Equals(const UNiagaraDataInterface* Ot
 	const UNiagaraDataInterfaceRenderTarget2D* OtherTyped = CastChecked<const UNiagaraDataInterfaceRenderTarget2D>(Other);
 	return
 		OtherTyped != nullptr &&
+#if WITH_EDITORONLY_DATA
+		OtherTyped->bPreviewRenderTarget == bPreviewRenderTarget &&
+#endif
 		OtherTyped->Size == Size;
 }
 
@@ -233,6 +239,9 @@ bool UNiagaraDataInterfaceRenderTarget2D::CopyToInternal(UNiagaraDataInterface* 
 	}
 
 	DestinationTyped->Size = Size;
+#if WITH_EDITORONLY_DATA
+	DestinationTyped->bPreviewRenderTarget = bPreviewRenderTarget;
+#endif
 	return true;
 }
 
@@ -318,6 +327,9 @@ bool UNiagaraDataInterfaceRenderTarget2D::InitPerInstanceData(void* PerInstanceD
 	InstanceData->TargetTexture->RenderTargetFormat = RTF_RGBA16f;
 	InstanceData->TargetTexture->ClearColor = FLinearColor(0.0, 0, 0, 0);
 	InstanceData->TargetTexture->bAutoGenerateMips = false;
+#if WITH_EDITORONLY_DATA
+	InstanceData->bPreviewTexture = bPreviewRenderTarget;
+#endif
 	FNiagaraSystemInstanceID SysID = SystemInstance->GetId();
 	ManagedRenderTargets.Add(SysID) = InstanceData->TargetTexture;
 
@@ -329,11 +341,13 @@ bool UNiagaraDataInterfaceRenderTarget2D::InitPerInstanceData(void* PerInstanceD
 		check(!RT_Proxy->SystemInstancesToProxyData_RT.Contains(InstanceID));
 		FRenderTarget2DRWInstanceData_RenderThread* TargetData = &RT_Proxy->SystemInstancesToProxyData_RT.Add(InstanceID);
 
-		TargetData->DebugTargetTexture = TexPtr;
 		TargetData->Size = RT_InstanceData.Size;
+#if WITH_EDITORONLY_DATA
+		TargetData->Size = RT_InstanceData.bPreviewTexture;
+#endif
 
-		RT_Proxy->SetElementCount(TargetData->Size.X * TargetData->Size.Y);
-		TargetData->RenderTargetToCopyTo = nullptr;
+		RT_Proxy->SetElementCount(TargetData->Size);
+		TargetData->TextureRHI = nullptr;
 	});
 	return true;
 }
@@ -427,9 +441,11 @@ bool UNiagaraDataInterfaceRenderTarget2D::PerInstanceTickPostSimulate(void* PerI
 	bool bNeedsReset = false;
 
 	{
-
 		FTextureResource* RT_Resource = nullptr;
 
+#if WITH_EDITORONLY_DATA
+		InstanceData->bPreviewTexture = bPreviewRenderTarget;
+#endif
 
 		bool bUpdateRT = true;
 		if (InstanceData->TargetTexture)
@@ -463,20 +479,20 @@ bool UNiagaraDataInterfaceRenderTarget2D::PerInstanceTickPostSimulate(void* PerI
 				if (!TargetData)
 					return;
 
-				TargetData->DebugTargetTexture = TexPtr;
+				#if WITH_EDITORONLY_DATA
+					TargetData->bPreviewTexture = RT_InstanceData.bPreviewTexture;
+				#endif
+
 				TargetData->Size = RT_InstanceData.Size;
-				RT_Proxy->SetElementCount(TargetData->Size.X* TargetData->Size.Y);
+				RT_Proxy->SetElementCount(TargetData->Size);
 				if (RT_Resource && RT_Resource->TextureRHI.IsValid())
 				{
-					//if (TargetData->RenderTargetToCopyTo != RT_Resource->TextureRHI)
-					{
-						TargetData->RenderTargetToCopyTo =RT_Resource->TextureRHI; //  TexPtr->TextureReference.TextureReferenceRHI crashes when creating the UAV
-						TargetData->UAV = RHICreateUnorderedAccessView(TargetData->RenderTargetToCopyTo, 0);
-					}
+					TargetData->TextureRHI = RT_Resource->TextureRHI;
+					TargetData->UAV = RHICreateUnorderedAccessView(TargetData->TextureRHI, 0);
 				}
 				else
 				{
-					TargetData->RenderTargetToCopyTo = nullptr;
+					TargetData->TextureRHI = nullptr;
 					TargetData->UAV = nullptr;
 				}
 
@@ -497,18 +513,17 @@ void FNiagaraDataInterfaceProxyRenderTarget2DProxy::PostStage(FRHICommandList& R
 
 void FNiagaraDataInterfaceProxyRenderTarget2DProxy::PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context)
 {
-
 	FRenderTarget2DRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
 
-	if (ProxyData->RenderTargetToCopyTo != nullptr)
+#if WITH_EDITOR
+	if (ProxyData && ProxyData->bPreviewTexture && ProxyData->TextureRHI.IsValid())
 	{
-
-		//FRHICopyTextureInfo CopyInfo;
-		//RHICmdList.CopyTexture(ProxyData->CurrentData->GridBuffer.Buffer, ProxyData->RenderTargetToCopyTo, CopyInfo);
-
-		//RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, ProxyData->RenderTargetToCopyTo);
-		//RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, ProxyData->UAV);
+		if (FNiagaraGpuComputeDebug* GpuComputeDebug = Context.Batcher->GetGpuComputeDebug())
+		{
+			GpuComputeDebug->AddTexture(RHICmdList, Context.SystemInstanceID, SourceDIName, ProxyData->TextureRHI);
+		}
 	}
+#endif
 }
 
 void FNiagaraDataInterfaceProxyRenderTarget2DProxy::ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context)

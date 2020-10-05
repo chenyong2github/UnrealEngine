@@ -225,7 +225,7 @@ bool UNiagaraDataInterfaceVelocityGrid::InitPerInstanceData(void* PerInstanceDat
 	FNDIVelocityGridData* InstanceData = new (PerInstanceData) FNDIVelocityGridData();
 	check(InstanceData);
 
-	const int32 ElementCount = (GridSize.X + 1)*(GridSize.Y + 1)*(GridSize.Z + 1);
+	const FIntVector ElementCount = GridSize + FIntVector(1, 1, 1);
 
 	FNDIVelocityGridProxy* ThisProxy = GetProxyAs<FNDIVelocityGridProxy>();
 	ENQUEUE_RENDER_COMMAND(FNiagaraDIPushInitialInstanceDataToRT) (
@@ -265,7 +265,7 @@ bool UNiagaraDataInterfaceVelocityGrid::PerInstanceTick(void* PerInstanceData, F
 
 		if (InstanceData->NeedResize)
 		{
-			const int32 ElementCount = (InstanceData->GridSize.X + 1) * (InstanceData->GridSize.Y + 1) * (InstanceData->GridSize.Z + 1);
+			const FIntVector ElementCount = InstanceData->GridSize + FIntVector(1, 1, 1);
 
 			FNDIVelocityGridProxy* ThisProxy = GetProxyAs<FNDIVelocityGridProxy>();
 			ENQUEUE_RENDER_COMMAND(FNiagaraDIPushInitialInstanceDataToRT) (

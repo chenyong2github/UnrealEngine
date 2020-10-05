@@ -13,17 +13,37 @@ class UTextureRenderTarget2DArray;
 
 struct FRenderTarget2DArrayRWInstanceData_GameThread
 {
+	FRenderTarget2DArrayRWInstanceData_GameThread()
+	{
+#if WITH_EDITORONLY_DATA
+		bPreviewTexture = false;
+#endif
+	}
+
 	FIntVector Size = FIntVector(EForceInit::ForceInitToZero);
 	
 	UTextureRenderTarget2DArray* TargetTexture = nullptr;
+#if WITH_EDITORONLY_DATA
+	uint32 bPreviewTexture : 1;
+#endif
 };
 
 struct FRenderTarget2DArrayRWInstanceData_RenderThread
 {
+	FRenderTarget2DArrayRWInstanceData_RenderThread()
+	{
+#if WITH_EDITORONLY_DATA
+		bPreviewTexture = false;
+#endif
+	}
+
 	FIntVector Size = FIntVector(EForceInit::ForceInitToZero);
 	
 	FTextureReferenceRHIRef TextureReferenceRHI;
 	FUnorderedAccessViewRHIRef UAV;
+#if WITH_EDITORONLY_DATA
+	uint32 bPreviewTexture : 1;
+#endif
 };
 
 struct FNiagaraDataInterfaceProxyRenderTarget2DArrayProxy : public FNiagaraDataInterfaceProxy
@@ -95,8 +115,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Render Target")
 	FIntVector Size;
 
-protected:
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(Transient, EditAnywhere, Category = "Render Target")
+	uint8 bPreviewRenderTarget : 1;
+#endif
 
+protected:
 	static FNiagaraVariableBase ExposedRTVar;
 	
 	UPROPERTY(Transient)

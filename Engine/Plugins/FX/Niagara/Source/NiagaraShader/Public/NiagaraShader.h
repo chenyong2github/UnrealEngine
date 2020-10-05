@@ -37,14 +37,12 @@ public:
 
 	static uint32 GetGroupSize(EShaderPlatform Platform)
 	{
-		if (Platform == SP_XBOXONE_D3D12 || Platform == SP_PS4)
+		//-TODO: Should come from DDPI
+		if (Platform == SP_PS4)
 		{
 			return 64;
 		}
-		else
-		{
-			return 32;
-		}
+		return 32;
 	}
 
 	static void ModifyCompilationEnvironment(const FNiagaraShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -122,6 +120,7 @@ public:
 
 	LAYOUT_FIELD(FShaderParameter, SimulationStageIterationInfoParam);
 	LAYOUT_FIELD(FShaderParameter, SimulationStageNormalizedIterationIndexParam);
+	LAYOUT_FIELD(FShaderParameter, DispatchThreadIdToLinearParam);
 
 	LAYOUT_FIELD(FShaderParameter, ComponentBufferSizeReadParam);
 	LAYOUT_FIELD(FShaderParameter, ComponentBufferSizeWriteParam);

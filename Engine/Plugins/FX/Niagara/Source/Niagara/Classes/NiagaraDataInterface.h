@@ -225,9 +225,12 @@ struct FNiagaraDataInterfaceProxy : TSharedFromThis<FNiagaraDataInterfaceProxy, 
 	TSet<int> IterationSimulationStages_DEPRECATED;
 	
 	// number of elements to output to
-	uint32 ElementCount;
+	FIntVector ElementCount;
 
-	void SetElementCount(uint32 Count) { ElementCount = Count;  }
+	void SetElementCount(uint32 Count) { ElementCount = FIntVector(Count, 1, 1); }
+	void SetElementCount(const FIntPoint& Count) { ElementCount = FIntVector(Count.X, Count.Y, 1); }
+	void SetElementCount(const FIntVector& Count) { ElementCount = Count; }
+
 	virtual bool IsOutputStage_DEPRECATED(uint32 CurrentStage) const { return OutputSimulationStages_DEPRECATED.Contains(CurrentStage); }
 	virtual bool IsIterationStage_DEPRECATED(uint32 CurrentStage) const { return IterationSimulationStages_DEPRECATED.Contains(CurrentStage); }
 
