@@ -61,15 +61,16 @@ struct FRCPanelTreeNode
 struct FRCPanelFieldChildNode : public SCompoundWidget, public FRCPanelTreeNode
 {
 	SLATE_BEGIN_ARGS(FRCPanelFieldChildNode)
-		: _Content()
 		{}
-	SLATE_DEFAULT_SLOT(FArguments, Content)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, const TSharedRef<IDetailTreeNode>& InNode);
+	virtual void GetNodeChildren(TArray<TSharedPtr<FRCPanelTreeNode>>& OutChildren) { return OutChildren.Append(ChildrenNodes); }
 	virtual FGuid GetId() { return FGuid(); }
 	virtual ENodeType GetType() { return FRCPanelTreeNode::FieldChild; }
 	virtual TSharedPtr<SWidget> AsFieldChild() { return AsShared(); }
+
+	TArray<TSharedPtr<FRCPanelFieldChildNode>> ChildrenNodes;
 };
 
 /**
@@ -79,10 +80,12 @@ struct SRCPanelExposedField : public SCompoundWidget, public FRCPanelTreeNode
 {
 	SLATE_BEGIN_ARGS(SRCPanelExposedField)
 		: _Content()
+		, _ChildWidgets(nullptr)
 		, _EditMode(true)
 	{}
 	SLATE_DEFAULT_SLOT(FArguments, Content)
 	SLATE_NAMED_SLOT(FArguments, OptionsContent)
+	SLATE_ARGUMENT(const TArray<TSharedPtr<FRCPanelFieldChildNode>>*, ChildWidgets)
 	SLATE_ATTRIBUTE(bool, EditMode)
 	SLATE_END_ARGS()
 
@@ -123,7 +126,7 @@ struct SRCPanelExposedField : public SCompoundWidget, public FRCPanelTreeNode
 
 private:
 	/** Construct a property widget. */
-	TSharedRef<SWidget> ConstructPropertyWidget();
+	TSharedRef<SWidget> ConstructWidget();
 	/** Create the wrapper around the field value widget. */
 	TSharedRef<SWidget> MakeFieldWidget(const TSharedRef<SWidget>& InWidget);
 	/** Get the widget's visibility according to the panel's mode. */
@@ -418,9 +421,6 @@ public:
 	 */
 	FRemoteControlPresetLayout& GetLayout();
 
-	//~ FWidget interface
-	virtual FReply OnMouseButtonUp(const FGeometry&, const FPointerEvent&) override;
-
 private:
 	/** Holds information about a group drag and drop event  */
 	struct FGroupDragEvent
@@ -448,12 +448,6 @@ private:
 
 	/** Re-create the sections of the panel. */
 	void Refresh();
-
-	/** Select a section by name */
-	void SelectGroup(const TSharedPtr<FRCPanelGroup>& FieldGroup);
-
-	/** Clear the section selection. */
-	void ClearSelection();
 
 	void OnSelectionChanged(TSharedPtr<FRCPanelTreeNode> Node, ESelectInfo::Type SelectInfo);
 
@@ -483,9 +477,6 @@ private:
 
 	/** Handle the using toggling the edit mode check box. */
 	void OnEditModeCheckboxToggle(ECheckBoxState State);
-
-	/** Rebuild the blueprint library list. */
-	void ReloadBlueprintLibraries();
 
 	/** Handler called when objects are replaced ie. When an actor construction script runs.  */
 	void OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementObjectMap);
@@ -530,16 +521,10 @@ private:
 	TArray<TSharedRef<SRemoteControlTarget>> RemoteControlTargets;
 	/** Whether the panel is in edit mode. */
 	bool bIsInEditMode;
-	/** Whether the panel needs to be refreshed on the next tick. */
-	bool bNeedsRefresh = false;
 	/** Holds the blueprint library picker widget. */
 	TSharedPtr<class SMenuAnchor> BlueprintLibraryPicker;
-	/** Holds a list of all the blueprint libraries. */
-	TArray<TSharedPtr<FListEntry>> BlueprintLibraries;
 	/** Delegate called when the edit mode changes. */
 	FOnEditModeChange OnEditModeChange;
-	/** Id of the last selected section. */
-	FGuid LastSelectedGroupId;
 	/** Handle to the delegate called when an object property change is detected. */
 	FDelegateHandle OnPropertyChangedHandle;
 	/** Map of field ids to field widgets. */
