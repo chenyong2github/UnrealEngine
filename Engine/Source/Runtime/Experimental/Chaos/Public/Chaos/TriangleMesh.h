@@ -15,7 +15,7 @@ namespace Chaos
 	public:
 		CHAOS_API TTriangleMesh();
 		CHAOS_API TTriangleMesh(TArray<TVector<int32, 3>>&& Elements, const int32 StartIdx = 0, const int32 EndIdx = -1, const bool CullDegenerateElements=true);
-		CHAOS_API TTriangleMesh(const TTriangleMesh& Other) = delete;
+		TTriangleMesh(const TTriangleMesh& Other) = delete;
 		CHAOS_API TTriangleMesh(TTriangleMesh&& Other);
 		CHAOS_API ~TTriangleMesh();
 
