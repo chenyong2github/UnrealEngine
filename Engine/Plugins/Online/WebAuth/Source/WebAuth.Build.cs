@@ -23,6 +23,9 @@ public class WebAuth : ModuleRules
 			// PublicFrameworks.Add("AuthenticationServices");
 			// PublicDefinitions.Add("WEBAUTH_PLATFORM_IOS_12");
 
+			// << Also add these lines to your project's build.cs when building for iOS 13+
+			// PublicDefinitions.Add("WEBAUTH_PLATFORM_IOS_13");
+
 			// iOS 11+ legacy support
 			PublicFrameworks.Add("SafariServices");
 		}
