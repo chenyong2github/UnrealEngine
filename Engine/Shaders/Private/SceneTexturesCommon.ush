@@ -8,7 +8,7 @@
 
 #include "Common.ush"
 
-#if COMPILER_DXC && PIXELSHADER
+#if VULKAN_PROFILE && COMPILER_DXC && PIXELSHADER
 #	include "/Engine/Public/Platform/Vulkan/VulkanSubpassSupport.ush"
 #endif
 
