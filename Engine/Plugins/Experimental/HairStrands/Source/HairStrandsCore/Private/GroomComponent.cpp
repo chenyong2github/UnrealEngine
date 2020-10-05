@@ -2231,8 +2231,8 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	bool bIsEventProcess = false;
 
 	// If the raytracing flag change, then force to recreate resources
-	#if RHI_RAYTRACING
 	bool bRayTracingGeometryChanged = false;
+	#if RHI_RAYTRACING
 	if (GroomAsset)
 	{
 		for (const FHairGroupInstance* Instance : HairGroupInstances)
