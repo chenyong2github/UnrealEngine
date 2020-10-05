@@ -6782,9 +6782,9 @@ int32 FHLSLMaterialTranslator::GetHairSeed()
 	return AddCodeChunk(MCT_Float1, TEXT("MaterialExpressionGetHairSeed(Parameters)"));
 }
 
-int32 FHLSLMaterialTranslator::GetHairTangent()
+int32 FHLSLMaterialTranslator::GetHairTangent(bool bUseTangentSpace)
 {
-	return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionGetHairTangent(Parameters)"));
+	return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionGetHairTangent(Parameters, %s)"), bUseTangentSpace ? TEXT("true") : TEXT("false"));
 }
 
 int32 FHLSLMaterialTranslator::GetHairRootUV()

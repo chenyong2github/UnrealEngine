@@ -17634,6 +17634,8 @@ UMaterialExpressionHairAttributes::UMaterialExpressionHairAttributes(const FObje
 
 #endif
 
+	bUseTangentSpace = true;
+
 #if WITH_EDITORONLY_DATA
 	bShowOutputNameOnPin = true;
 
@@ -17643,7 +17645,7 @@ UMaterialExpressionHairAttributes::UMaterialExpressionHairAttributes(const FObje
 	Outputs.Add(FExpressionOutput(TEXT("Length"), 1, 1, 0, 0, 0));
 	Outputs.Add(FExpressionOutput(TEXT("Radius"), 1, 0, 1, 0, 0));
 	Outputs.Add(FExpressionOutput(TEXT("Seed"), 1, 1, 0, 0, 0));
-	Outputs.Add(FExpressionOutput(TEXT("World Tangent"), 1, 1, 1, 1, 0));
+	Outputs.Add(FExpressionOutput(TEXT("Tangent"), 1, 1, 1, 1, 0));
 	Outputs.Add(FExpressionOutput(TEXT("Root UV"), 1, 1, 1, 0, 0));
 	Outputs.Add(FExpressionOutput(TEXT("BaseColor"), 1, 1, 1, 1, 0));
 	Outputs.Add(FExpressionOutput(TEXT("Roughness"), 1, 1, 0, 0, 0));
@@ -17670,7 +17672,7 @@ int32 UMaterialExpressionHairAttributes::Compile(class FMaterialCompiler* Compil
 	}
 	else if (OutputIndex == 5)
 	{
-		return Compiler->GetHairTangent();
+		return Compiler->GetHairTangent(bUseTangentSpace);
 	}
 	else if (OutputIndex == 6)
 	{

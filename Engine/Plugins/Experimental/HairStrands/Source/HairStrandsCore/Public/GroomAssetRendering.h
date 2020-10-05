@@ -52,6 +52,10 @@ struct HAIRSTRANDSCORE_API FHairShadowSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ShadowSettings", AdvancedDisplay, meta = (ClampMin = "0.0001", UIMin = "0.001", UIMax = "10.0", SliderExponent = 6))
 	float HairRaytracingRadiusScale;
 
+	/** Enable hair strands geomtry for raytracing */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ShadowSettings", AdvancedDisplay)
+	bool bUseHairRaytracingGeometry;
+
 	/** Enable stands voxelize for casting shadow and environment occlusion */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ShadowSettings", AdvancedDisplay)
 	bool bVoxelize;

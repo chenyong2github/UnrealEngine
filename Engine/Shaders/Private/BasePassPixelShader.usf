@@ -83,6 +83,12 @@ float NormalCurvatureToRoughness(float3 WorldNormal)
 #include "ShadingModels.ush"
 #endif
 
+#if MATERIAL_SHADINGMODEL_HAIR
+#ifndef USE_HAIR_COMPLEX_TRANSMITTANCE
+#define USE_HAIR_COMPLEX_TRANSMITTANCE 0
+#endif
+#endif
+
 #ifndef COMPILER_GLSL
 	#define COMPILER_GLSL 0
 #endif
@@ -1102,6 +1108,10 @@ void FPixelShaderInOut_MainPS(
 			float3 L = normalize( V - N * dot(V,N) );
 			DiffuseDir = L;
 			DiffuseColorForIndirect = 2*PI * HairShading( GBuffer, L, V, N, 1, TransmittanceData, 0, 0.2, uint2(0,0));
+
+			#if USE_HAIR_COMPLEX_TRANSMITTANCE
+			GBuffer.CustomData.a = 1.f / 255.f;
+			#endif
 		}
 		#endif
 

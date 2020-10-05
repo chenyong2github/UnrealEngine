@@ -170,7 +170,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 	const uint SectionIndex = TriangleIndex.SectionIndex;
 
-	if (!(Pass_SectionStart <= SectionIndex && SectionIndex <= Pass_SectionStart + Pass_SectionCount))
+	if (!(Pass_SectionStart <= SectionIndex && SectionIndex < Pass_SectionStart + Pass_SectionCount))
 		return;
 
 	// Compute the slod index of the resources for the section index (this is done in multiple pass

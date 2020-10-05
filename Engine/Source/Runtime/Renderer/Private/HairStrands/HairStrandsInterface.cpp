@@ -19,8 +19,8 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogHairRendering, Log, All);
 
-static int32 GHairStrandsRaytracingEnable = 0;
-static FAutoConsoleVariableRef CVarHairStrandsRaytracingEnable(TEXT("r.HairStrands.Raytracing"), GHairStrandsRaytracingEnable, TEXT("Enable/Disable hair strands raytracing (fallback onto raster techniques"));
+static int32 GHairStrandsRaytracingEnable = 1;
+static FAutoConsoleVariableRef CVarHairStrandsRaytracingEnable(TEXT("r.HairStrands.Raytracing"), GHairStrandsRaytracingEnable, TEXT("Enable/Disable hair strands raytracing geometry. This is anopt-in option per groom asset/groom instance."));
 
 static int32 GHairStrandsGlobalEnable = 1;
 static FAutoConsoleVariableRef CVarHairStrandsGlobalEnable(TEXT("r.HairStrands.Enable"), GHairStrandsGlobalEnable, TEXT("Enable/Disable the entire hair strands system. This affects all geometric representations (i.e., strands, cards, and meshes)."));
@@ -54,7 +54,7 @@ bool IsHairRayTracingEnabled()
 bool IsHairStrandsSupported(EHairStrandsShaderType Type, EShaderPlatform Platform)
 {
 	// For now cards/meshes have the same restriction than for hair strands + limited set of mobile
-	const bool Cards_Meshes_All = IsHairStrandsGeometrySupported(Platform) || (Platform == SP_PCD3D_ES3_1/* && GetMaxSupportedFeatureLevel(Platform) == ERHIFeatureLevel::SM5*/);
+	const bool Cards_Meshes_All = IsHairStrandsGeometrySupported(Platform) || (Platform == SP_PCD3D_ES3_1 || Platform == SP_METAL_SM5/* && GetMaxSupportedFeatureLevel(Platform) == ERHIFeatureLevel::SM5*/);
 
 	switch (Type)
 	{

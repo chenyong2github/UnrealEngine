@@ -511,9 +511,6 @@ class FDeferredLightPS : public FGlobalShader
 		HairTransmittanceBufferMaxCount.Bind(Initializer.ParameterMap, TEXT("HairTransmittanceBufferMaxCount"));
 		ScreenShadowMaskSubPixelTexture.Bind(Initializer.ParameterMap, TEXT("ScreenShadowMaskSubPixelTexture")); // TODO hook the shader itself
 
-		HairLUTTexture.Bind(Initializer.ParameterMap, TEXT("HairLUTTexture"));
-		HairLUTSampler.Bind(Initializer.ParameterMap, TEXT("HairLUTSampler"));
-		HairComponents.Bind(Initializer.ParameterMap, TEXT("HairComponents"));
 		HairShadowMaskValid.Bind(Initializer.ParameterMap, TEXT("HairShadowMaskValid"));
 		HairDualScatteringRoughnessOverride.Bind(Initializer.ParameterMap, TEXT("HairDualScatteringRoughnessOverride"));
 
@@ -736,28 +733,6 @@ private:
 			}
 		}
 
-		if (HairLUTTexture.IsBound())
-		{
-			IPooledRenderTarget* HairLUTTextureResource = GSystemTextures.HairLUT0;
-			SetTextureParameter(
-				RHICmdList,
-				ShaderRHI,
-				HairLUTTexture,
-				HairLUTSampler,
-				TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(),
-				HairLUTTextureResource ? HairLUTTextureResource->GetRenderTargetItem().ShaderResourceTexture : GBlackVolumeTexture->TextureRHI);
-		}
-
-		if (HairComponents.IsBound())
-		{
-			uint32 InHairComponents = ToBitfield(GetHairComponents());
-			SetShaderValue(
-				RHICmdList,
-				ShaderRHI,
-				HairComponents,
-				InHairComponents);
-		}
-
 		if (HairDualScatteringRoughnessOverride.IsBound())
 		{
 			const float DualScatteringRoughness = GetHairDualScatteringRoughnessOverride();
@@ -834,9 +809,6 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter, HairVisibilityNodeData);
 	LAYOUT_FIELD(FShaderResourceParameter, ScreenShadowMaskSubPixelTexture);
 
-	LAYOUT_FIELD(FShaderResourceParameter, HairLUTTexture);
-	LAYOUT_FIELD(FShaderResourceParameter, HairLUTSampler);
-	LAYOUT_FIELD(FShaderParameter, HairComponents);
 	LAYOUT_FIELD(FShaderParameter, HairShadowMaskValid);
 	LAYOUT_FIELD(FShaderParameter, HairDualScatteringRoughnessOverride);
 
@@ -1218,8 +1190,8 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLights(
 {
 	const EShaderPlatform ShaderPlatformForFeatureLevel = GShaderPlatformForFeatureLevel[FeatureLevel];
 
-	const bool bUseHairLighting = HairDatas != nullptr;
-	const FHairStrandsVisibilityViews* InHairVisibilityViews = HairDatas ? &HairDatas->HairVisibilityViews : nullptr;
+	const bool bUseHairLighting = HairDatas != nullptr && HairDatas->HairVisibilityViews.HairDatas.Num() > 0 && HairDatas->HairVisibilityViews.HairDatas[0].CategorizationTexture;
+	const FHairStrandsVisibilityViews* InHairVisibilityViews = bUseHairLighting ? &HairDatas->HairVisibilityViews : nullptr;
 
 	RDG_EVENT_SCOPE(GraphBuilder, "Lights");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, Lights);

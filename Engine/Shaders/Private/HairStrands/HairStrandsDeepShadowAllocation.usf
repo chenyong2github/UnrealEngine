@@ -62,10 +62,10 @@ float DegreesToRadians(float InDeg)
 	return InDeg / 180.f * PI;
 }
 
-float ComputeMinStrandRadiusAtDepth1(const int2 Resolution, const float FOV, const float InRasterizationScale)
+float ComputeMinStrandRadiusAtDepth1(const int2 Resolution, const float InFOVInRad, const float InRasterizationScale)
 {
 	const float DiameterToRadius = 0.5f;
-	const float vFOV = DegreesToRadians(FOV);
+	const float vFOV = InFOVInRad;
 	const float StrandDiameterAtDepth1 = tan(vFOV * 0.5f) / (0.5f * Resolution.y);
 	return DiameterToRadius * InRasterizationScale * StrandDiameterAtDepth1;
 }
@@ -83,7 +83,7 @@ void ComputeWorldToLightClip(
 	const bool bIsDirectional	= LightPositions[SlotIndex].w == 0;
 
 	float3 Center = GetCenter(World_AABB);
-	OutLightDirection = bIsDirectional ? LightDirection : normalize(LightPosition - Center);
+	OutLightDirection = bIsDirectional ? LightDirection : -normalize(LightPosition - Center);
 
 	const float4x4 Coarse_WorldToLight = ComputeWorldToLight(World_AABB, LightDirection, LightPosition, bIsDirectional);
 

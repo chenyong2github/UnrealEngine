@@ -812,6 +812,14 @@ FHairStrandsRaytracingResource::FHairStrandsRaytracingResource(const FHairStrand
 	PositionBuffer(), VertexCount(InData.GetNumPoints()*12)  
 {}
 
+FHairStrandsRaytracingResource::FHairStrandsRaytracingResource(const FHairCardsDatas& InData) :
+	PositionBuffer(), VertexCount(InData.Cards.GetNumVertices())
+{}
+
+FHairStrandsRaytracingResource::FHairStrandsRaytracingResource(const FHairMeshesDatas& InData) :
+	PositionBuffer(), VertexCount(InData.Meshes.GetNumVertices())
+{}
+
 void FHairStrandsRaytracingResource::InitRHI()
 {
 	check(IsInRenderingThread());
