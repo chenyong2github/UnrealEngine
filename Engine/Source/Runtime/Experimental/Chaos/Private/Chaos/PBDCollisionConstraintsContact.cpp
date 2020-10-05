@@ -47,6 +47,9 @@ namespace Chaos
 		FReal Chaos_Collision_CollisionClipTolerance = 0.1f;
 		FAutoConsoleVariableRef CVarChaosCollisionClipTolerance(TEXT("p.Chaos.Collision.ClipTolerance"), Chaos_Collision_CollisionClipTolerance, TEXT(""));
 
+		bool Chaos_Collision_CheckManifoldComplete = false;
+		FAutoConsoleVariableRef CVarChaosCollisionCheckManifoldComplete(TEXT("p.Chaos.Collision.CheckManifoldComplete"), Chaos_Collision_CheckManifoldComplete, TEXT(""));
+
 		extern void UpdateManifold(FRigidBodyMultiPointContactConstraint& Constraint, const FReal CullDistance, const FReal ShapePadding)
 		{
 			const FRigidTransform3 Transform0 = GetTransform(Constraint.Particle[0]);
@@ -797,7 +800,11 @@ namespace Chaos
 			for (int32 PairIt = 0; PairIt < IterationParameters.NumPairIterations; ++PairIt)
 			{
 				// Update the contact information based on current particles' positions
-				Collisions::Update(Constraint, ParticleParameters.CullDistance, ParticleParameters.ShapePadding);
+				bool bRequiresCollisionUpdate = true;
+				if (bRequiresCollisionUpdate)
+				{
+					Collisions::Update(Constraint, ParticleParameters.CullDistance, ParticleParameters.ShapePadding);
+				}
 
 				// Permanently disable a constraint that is beyond the cull distance
 				if (Constraint.GetPhi() >= ParticleParameters.CullDistance)
@@ -1159,7 +1166,11 @@ namespace Chaos
 
 			for (int32 PairIt = 0; PairIt < IterationParameters.NumPairIterations; ++PairIt)
 			{
-				Update(Constraint, ParticleParameters.CullDistance, ParticleParameters.ShapePadding);
+				bool bRequiresCollisionUpdate = true;
+				if (bRequiresCollisionUpdate)
+				{
+					Update(Constraint, ParticleParameters.CullDistance, ParticleParameters.ShapePadding);
+				}
 
 				// Permanently disable a constraint that is beyond the cull distance
 				if (Constraint.GetPhi() >= ParticleParameters.CullDistance)
@@ -1171,7 +1182,10 @@ namespace Chaos
 					return;
 				}
 
-				if (Constraint.GetPhi() >= 0.0f && !Chaos_Collision_UseAccumulatedImpulseClipSolve)
+				// Note: Cannot early-out here if using impulse clipping (which supports negative incremental corrections as long as net correction is positive)
+				// @todo(chaos): remove this early out when we settle on manifolds
+				const bool bIsAccumulatingImpulses = Constraint.UseIncrementalManifold() || (Chaos_Collision_UseAccumulatedImpulseClipSolve != 0);
+				if (Constraint.GetPhi() >= 0.0f && !bIsAccumulatingImpulses)
 				{
 					return;
 				}
@@ -1183,7 +1197,7 @@ namespace Chaos
 						ApplyPushOutManifold(*PointConstraint, IsTemporarilyStatic, IterationParameters, ParticleParameters);
 					}
 				}
-				else if (Chaos_Collision_UseAccumulatedImpulseClipSolve)
+				else if (Chaos_Collision_UseAccumulatedImpulseClipSolve != 0)
 				{
 					ApplyPushOutContactAccImpulse(Constraint.Manifold, Particle0, Particle1, IsTemporarilyStatic, IterationParameters, ParticleParameters, Constraint.AccumulatedImpulse);
 				}
