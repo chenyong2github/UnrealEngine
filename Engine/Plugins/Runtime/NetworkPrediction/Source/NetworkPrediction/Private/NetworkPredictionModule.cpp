@@ -28,7 +28,11 @@ class FNetworkPredictionModule : public INetworkPredictionModule
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
+	void OnModulesChanged(FName ModuleThatChanged, EModuleChangeReason ReasonForChange);
+	void FinalizeNetworkPredictionTypes();
+
 	FDelegateHandle PieHandle;
+	FDelegateHandle ModulesChangedHandle;
 };
 
 void FNetworkPredictionModule::StartupModule()
@@ -45,11 +49,20 @@ void FNetworkPredictionModule::StartupModule()
 		}
 	});
 
-	FCoreDelegates::OnPostEngineInit.AddLambda([]()
+	ModulesChangedHandle = FModuleManager::Get().OnModulesChanged().AddRaw(this, &FNetworkPredictionModule::OnModulesChanged);
+	
+	if (GIsRunning)
 	{
 		FGlobalCueTypeTable::Get().FinalizeTypes();
-		FNetworkPredictionModelDefRegistry::Get().FinalizeTypes();
-	});
+	}
+	else
+	{
+		FCoreDelegates::OnPostEngineInit.AddLambda([this]()
+		{
+			FGlobalCueTypeTable::Get().FinalizeTypes();
+			this->FinalizeNetworkPredictionTypes();
+		});
+	}
 
 #if WITH_EDITOR
 	PieHandle = FEditorDelegates::PreBeginPIE.AddLambda([this](const bool bBegan)
@@ -72,6 +85,12 @@ void FNetworkPredictionModule::StartupModule()
 
 void FNetworkPredictionModule::ShutdownModule()
 {
+	if (ModulesChangedHandle.IsValid())
+	{
+		FModuleManager::Get().OnModulesChanged().Remove(ModulesChangedHandle);
+		ModulesChangedHandle.Reset();
+	}
+
 #if WITH_EDITOR
 	FEditorDelegates::PreBeginPIE.Remove(PieHandle);
 
@@ -80,6 +99,31 @@ void FNetworkPredictionModule::ShutdownModule()
 		SettingsModule->UnregisterSettings("Project", "Project", "Network Prediction");
 	}
 #endif
+}
+
+void FNetworkPredictionModule::OnModulesChanged(FName ModuleThatChanged, EModuleChangeReason ReasonForChange)
+{
+	// If we haven't finished loading, don't do per module finalizing
+	if (GIsRunning == false)
+	{
+		return;
+	}
+
+	switch (ReasonForChange)
+	{
+	case EModuleChangeReason::ModuleLoaded:
+		FinalizeNetworkPredictionTypes();
+		break;
+
+	case EModuleChangeReason::ModuleUnloaded:
+		FinalizeNetworkPredictionTypes();
+		break;
+	}
+}
+
+void FNetworkPredictionModule::FinalizeNetworkPredictionTypes()
+{
+	FNetworkPredictionModelDefRegistry::Get().FinalizeTypes();
 }
 
 IMPLEMENT_MODULE( FNetworkPredictionModule, NetworkPrediction )
