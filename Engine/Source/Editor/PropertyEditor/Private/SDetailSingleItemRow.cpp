@@ -497,6 +497,15 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 						[
 							ValueWidget.ToSharedRef()
 						]
+						// extension widget
+						+ SHorizontalBox::Slot()
+						.HAlign(HAlign_Right)
+						.VAlign(VAlign_Center)
+						.Padding(3,0,3,0)
+						.AutoWidth()
+						[
+							ExtensionWidget.ToSharedRef()
+						]
 					];
 			}
 			else
@@ -564,16 +573,6 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 				.AutoWidth()
 				[
 					CreateKeyframeButton(*Customization, InOwnerTreeNode)
-				];
-
-			// extension widget
-			RightColumnBox->AddSlot()
-				.HAlign(HAlign_Left)
-				.VAlign(VAlign_Center)
-				.Padding(5,0,0,0)
-				.AutoWidth()
-				[
-					ExtensionWidget.ToSharedRef()
 				];
 
 			// fetch global extension widgets 
