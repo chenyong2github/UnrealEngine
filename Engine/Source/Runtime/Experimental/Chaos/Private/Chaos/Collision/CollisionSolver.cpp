@@ -235,16 +235,6 @@ namespace Chaos
 			TPBDRigidParticleHandle<FReal, 3>* PBDRigid0 = Particle0->CastToRigidParticle();
 			TPBDRigidParticleHandle<FReal, 3>* PBDRigid1 = Particle1->CastToRigidParticle();
 
-			// If we used restitution in the Apply step, we need to make sure that PushOut enforces the same distance that
-			// the velocity solve step should have applied if it fully resolved
-			FReal ContactResitutionPadding = 0.0f;
-			if (Chaos_Manifold_PushOut_Restitution)
-			{
-				// For zero restitution we put back at original distance
-				// @todo(chaos): pushout restitution
-			}
-			ContactResitutionPadding = FMath::Max(0.0f, ContactResitutionPadding);
-
 			// Calculate the position error we need to correct, including static friction and restitution
 			// Position correction uses the deepest point on each body (see velocity correction which uses average contact)
 			const bool bApplyStaticFriction = (ManifoldPoint.bInsideStaticFrictionCone && Chaos_Manifold_PushOut_StaticFriction);
@@ -252,11 +242,21 @@ namespace Chaos
 			const FVec3 RelativeContactPoint0 = Q0 * ManifoldPoint.CoMContactPoints[0];
 			const FVec3 RelativeContactPoint1 = Q1 * LocalContactPoint1;
 			const FVec3 ContactNormal = Q1 * ManifoldPoint.CoMContactNormal;
-			const FVec3 ContactError = (P1 + RelativeContactPoint1) - (P0 + RelativeContactPoint0) + ContactResitutionPadding * ContactNormal;
+			FVec3 ContactError = (P1 + RelativeContactPoint1) - (P0 + RelativeContactPoint0);
 
-			// We never pull the contact together here unless we have already applied some positive correction, in which case we may undo some of that
-			const FReal ContactErrorNormal = FVec3::DotProduct(ContactError, ContactNormal);
-			if ((ContactErrorNormal < 0.0f) && ManifoldPoint.NetPushOut.IsNearlyZero())
+			// Remove any negative contact errors, but keep tangential error in case we need to correct friction slippage
+			FReal ContactErrorNormal = FVec3::DotProduct(ContactError, ContactNormal);
+			if (ContactErrorNormal < 0.0f)
+			{
+				ContactError = ContactError - ContactErrorNormal * ContactNormal;
+				ContactErrorNormal = 0.0f;
+			}
+
+			if (!bApplyStaticFriction && (ContactErrorNormal < KINDA_SMALL_NUMBER))
+			{
+				return;
+			}
+			else if (ContactError.Size() < KINDA_SMALL_NUMBER)
 			{
 				return;
 			}
@@ -291,17 +291,7 @@ namespace Chaos
 				}
 			}
 
-			// Ensure that the accumulated pushout on this contact point is positive.
-			// We are allowed to have negative pushout in an iteration if it partially undoes
-			// some previous positive pushout. If we have gone negative, we undo all pushout
-			// from this contact.
 			FVec3 NetPushOut = ManifoldPoint.NetPushOut + PushOut;
-			const FReal NetPushOutNormalLen = FVec3::DotProduct(NetPushOut, ContactNormal);
-			if (NetPushOutNormalLen <= (FReal)0)
-			{
-				NetPushOut = FVec3(0);
-				PushOut = -ManifoldPoint.NetPushOut;
-			}
 			ManifoldPoint.NetPushOut = NetPushOut;
 
 			if (bIsRigidDynamic0)
@@ -361,22 +351,32 @@ namespace Chaos
 				return;
 			}
 
+			// If we applied restitution in the velocity solve step, we also apply it here
+			FReal TargetVelocityNormal = 0.0f;
+			if (ManifoldPoint.bRestitutionEnabled && Chaos_Manifold_PushOut_Restitution)
+			{
+				TargetVelocityNormal = FMath::Max(0.0f, -Contact.Restitution * ManifoldPoint.InitialContactVelocity);
+			}
+
+			// Calculate constraint-space inverse mass
 			const FMatrix33 InvI0 = bIsRigidDynamic0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) * Contact.InvInertiaScale0 : FMatrix33(0);
 			const FMatrix33 InvI1 = bIsRigidDynamic1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) * Contact.InvInertiaScale1 : FMatrix33(0);
 			const FMatrix33 ContactMassInv =
 				(bIsRigidDynamic0 ? ComputeFactorMatrix3(RelativeContactPoint0, InvI0, PBDRigid0->InvM()) : FMatrix33(0)) +
 				(bIsRigidDynamic1 ? ComputeFactorMatrix3(RelativeContactPoint1, InvI1, PBDRigid1->InvM()) : FMatrix33(0));
 
+			// Calculate the impulse to get the desired target normal velocity
+			// We are ignoring both static and dynamic friction here
 			FVec3 Impulse = FVec3(0);
-			FReal ImpulseDenominator = FVec3::DotProduct(ContactNormal, ContactMassInv * ContactNormal);
+			const FReal ImpulseDenominator = FVec3::DotProduct(ContactNormal, ContactMassInv * ContactNormal);
 			if (FMath::Abs(ImpulseDenominator) > SMALL_NUMBER)
 			{
-				Impulse = (-ContactVelocityNormal / ImpulseDenominator) * ContactNormal;
+				const FReal ContactVelocityError = TargetVelocityNormal - ContactVelocityNormal;
+				Impulse = (ContactVelocityError / ImpulseDenominator) * ContactNormal;
 			}
 
 			if (bIsRigidDynamic0)
 			{
-				// Velocity update for next step
 				const FVec3 AngularImpulse = FVec3::CrossProduct(RelativeContactPoint0, Impulse);
 				const FVec3 DV0 = PBDRigid0->InvM() * Impulse;
 				const FVec3 DW0 = InvI0 * AngularImpulse;
@@ -387,7 +387,6 @@ namespace Chaos
 
 			if (bIsRigidDynamic1)
 			{
-				// Velocity update for next step
 				const FVec3 AngularImpulse = FVec3::CrossProduct(RelativeContactPoint1, -Impulse);
 				const FVec3 DV1 = -PBDRigid1->InvM() * Impulse;
 				const FVec3 DW1 = InvI1 * AngularImpulse;

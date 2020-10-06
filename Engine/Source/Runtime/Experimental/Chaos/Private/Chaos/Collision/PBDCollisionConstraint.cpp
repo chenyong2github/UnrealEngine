@@ -9,11 +9,14 @@ namespace Chaos
 {
 	float Chaos_Manifold_MatchPositionTolerance = 0.3f;		// Fraction of object size position tolerance
 	float Chaos_Manifold_MatchNormalTolerance = 0.02f;		// Dot product tolerance
-	FAutoConsoleVariableRef CVarChaos_Manifold_MatchPositionTolerance(TEXT("p.Chaos.Collision.ManifoldMatchPositionTolerance"), Chaos_Manifold_MatchPositionTolerance, TEXT("A tolerance as a fraction of object size used to determine if two contact points are the same"));
-	FAutoConsoleVariableRef CVarChaos_Manifold_MatchNormalTolerance(TEXT("p.Chaos.Collision.ManifoldMatchNormalTolerance"), Chaos_Manifold_MatchNormalTolerance, TEXT("A tolerance on the normal dot product used to determine if two contact points are the same"));
+	FAutoConsoleVariableRef CVarChaos_Manifold_MatchPositionTolerance(TEXT("p.Chaos.Collision.Manifold.MatchPositionTolerance"), Chaos_Manifold_MatchPositionTolerance, TEXT("A tolerance as a fraction of object size used to determine if two contact points are the same"));
+	FAutoConsoleVariableRef CVarChaos_Manifold_MatchNormalTolerance(TEXT("p.Chaos.Collision.Manifold.MatchNormalTolerance"), Chaos_Manifold_MatchNormalTolerance, TEXT("A tolerance on the normal dot product used to determine if two contact points are the same"));
 
 	bool bChaos_Manifold_UpdateMatchedContact = true;
-	FAutoConsoleVariableRef CVarChaos_Manifold_UpdateMatchedContact(TEXT("p.Chaos.Collision.UpdateMatchedContact"), bChaos_Manifold_UpdateMatchedContact, TEXT(""));
+	FAutoConsoleVariableRef CVarChaos_Manifold_UpdateMatchedContact(TEXT("p.Chaos.Collision.Manifold.UpdateMatchedContact"), bChaos_Manifold_UpdateMatchedContact, TEXT(""));
+
+	int32 Chaos_Manifold_MinArraySize = 0;
+	FAutoConsoleVariableRef CVarChaos_Manifold_MinArraySize(TEXT("p.Chaos.Collision.Manifold.MinArraySize"), Chaos_Manifold_MinArraySize, TEXT(""));
 
 	FString FCollisionConstraintBase::ToString() const
 	{
@@ -106,6 +109,9 @@ namespace Chaos
 				{
 					BestMatchIndex = ManifoldPointIndex;
 					BestMatchScore = Score;
+
+					// Just take the first one that meets the tolerances
+					break;
 				}
 			}
 		}
@@ -183,6 +189,10 @@ namespace Chaos
 	int32 FRigidBodyPointContactConstraint::AddManifoldPoint(const FContactPoint& ContactPoint)
 	{
 		// @todo(chaos): remove the least useful manifold point when we hit some point limit...
+		if (ManifoldPoints.Max() < Chaos_Manifold_MinArraySize)
+		{
+			ManifoldPoints.Reserve(Chaos_Manifold_MinArraySize);
+		}
 		int32 ManifoldPointIndex = ManifoldPoints.Add(ContactPoint);
 
 		InitManifoldPoint(ManifoldPoints[ManifoldPointIndex]);
