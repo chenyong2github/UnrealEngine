@@ -80,7 +80,10 @@ public:
 
 	void UpdateLevelsetConstraint(FPointContactConstraint& Constraint) 
 	{
-		Collisions::UpdateLevelsetLevelsetConstraint<ECollisionUpdateType::Deepest>(FReal(0), Constraint);
+		FRigidTransform3 WorldTransform0 = Constraint.ImplicitTransform[0] * Collisions::GetTransform(Constraint.Particle[0]);
+		FRigidTransform3 WorldTransform1 = Constraint.ImplicitTransform[1] * Collisions::GetTransform(Constraint.Particle[1]);
+
+		Collisions::UpdateLevelsetLevelsetConstraint<ECollisionUpdateType::Deepest>(WorldTransform0, WorldTransform1, FReal(0), Constraint);
 	}
 
 	int32 NumConstraints() const

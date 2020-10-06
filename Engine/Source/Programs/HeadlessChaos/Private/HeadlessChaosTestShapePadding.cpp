@@ -61,7 +61,7 @@ namespace ChaosTest {
 			Box1->Geometry().Get(),
 			nullptr,
 			FRigidTransform3(),
-			EContactShapesType::BoxBox);
+			EContactShapesType::BoxBox, false);
 
 		{
 			FReal Padding = 0.0f;
