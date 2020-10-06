@@ -48,6 +48,11 @@ public:
 	*/
 	virtual FName GetPlatformName(const FGuid& PlatformGuid) const = 0;
 
+	/*
+	 * Get a GUID from a nice platform name
+	*/
+	virtual FGuid GetPlatformGuid(const FName & PlatformName) const = 0;
+
 	//~ Capture devices
 
 	/**
@@ -94,6 +99,15 @@ public:
 	 * @see GetPlayerFactories, RegisterPlayerFactory, UnregisterPlayerFactory
 	 */
 	virtual IMediaPlayerFactory* GetPlayerFactory(const FName& FactoryName) const = 0;
+
+	/**
+	 * Get a media player factory by GUID.
+	 *
+	 * @param FactoryGuid The GUID of the factory / player.
+	 * @return The factory, or nullptr if not found.
+	 * @see GetPlayerFactories, RegisterPlayerFactory, UnregisterPlayerFactory
+	 */
+	virtual IMediaPlayerFactory* GetPlayerFactory(const FGuid& PlayerPluginGuid) const = 0;
 
 	/**
 	 * Register a media player factory.

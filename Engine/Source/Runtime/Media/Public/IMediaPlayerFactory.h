@@ -103,6 +103,14 @@ public:
 	virtual FName GetPlayerName() const = 0;
 
 	/**
+	 * Get the GUID for this player plugin.
+	 *
+	 * @return Media player GUID (usually corresponds to a player name)
+	 * @see GetPlayerName
+	 */
+	virtual FGuid GetPlayerPluginGUID() const = 0;
+
+	/**
 	 * Get the names of platforms that the media player supports.
 	 *
 	 * The returned platforms names must match the ones returned by
