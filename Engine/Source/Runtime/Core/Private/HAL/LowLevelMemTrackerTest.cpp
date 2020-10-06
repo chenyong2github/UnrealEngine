@@ -4,6 +4,8 @@
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
 
 #include "LowLevelMemTrackerPrivate.h"
+
+#include "Containers/Set.h"
 #include "Misc/AutomationTest.h"
 
 LLM_DEFINE_TAG(LLMTestParentTag_LLMTestChildTag1, NAME_None, TEXT("LLMTestParentTag")); // A test tag to verify that child tags can be declared before parent tags
@@ -64,6 +66,29 @@ bool FLLMScopeTest::RunTest(const FString& Parameters)
 	delete[] AllocationByTag;
 	delete[] AllocationByTag3;
 
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLLMMiscTest, "System.Core.LLM.Misc", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+
+bool FLLMMiscTest::RunTest(const FString& Parameters)
+{
+	// Test LLMGetTagUniqueNames
+	TSet<FName> UniqueNames;
+	for (int32 Tag = 0; Tag < static_cast<int32>(LLM_TAG_COUNT); ++Tag)
+	{
+		FName Name = LLMGetTagUniqueName(static_cast<ELLMTag>(Tag));
+		if ((0 <= Tag && Tag < static_cast<int32>(ELLMTag::GenericTagCount)) || (LLM_CUSTOM_TAG_START <= Tag && Tag <= LLM_CUSTOM_TAG_END))
+		{
+			bool bAlreadySet;
+			UniqueNames.Add(Name, &bAlreadySet);
+			TestTrue(TEXT("LLMGetTagUniqueNames are unique"), !Name.IsNone() && !bAlreadySet);
+		}
+		else
+		{
+			TestTrue(TEXT("LLMGetTagUniqueName returns None for invalid tags"), Name.IsNone());
+		}
+	}
 	return true;
 }
 

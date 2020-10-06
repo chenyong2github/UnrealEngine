@@ -442,18 +442,26 @@ namespace LLMPrivate
 static FName TagName_CustomName(TEXT("CustomName"));
 static FName TagName_Untagged(TEXT("Untagged"));
 
-static FName LLMGetTagUniqueName(ELLMTag Tag)
+FName LLMGetTagUniqueName(ELLMTag Tag)
 {
 #define LLM_TAG_NAME_ARRAY(Enum,Str,Stat,Group,ParentTag) FName(TEXT(#Enum)),
 	static const FName UniqueNames[] = { LLM_ENUM_GENERIC_TAGS(LLM_TAG_NAME_ARRAY) };
 #undef LLM_TAG_NAME_ARRAY
 
 	int32 Index = static_cast<int32>(Tag);
-	if (Index >= 0 && Index < UE_ARRAY_COUNT(UniqueNames))
+	if (Index < 0)
+	{
+		return NAME_None;
+	}
+	else if (Index < UE_ARRAY_COUNT(UniqueNames))
 	{
 		return UniqueNames[Index];
 	}
-	else if (LLM_CUSTOM_TAG_START <= Index && Index <= LLM_CUSTOM_TAG_END)
+	else if (Index < LLM_CUSTOM_TAG_START)
+	{
+		return NAME_None;
+	}
+	else if (Index <= LLM_CUSTOM_TAG_END)
 	{
 		static FName CustomNames[LLM_CUSTOM_TAG_COUNT];
 		static bool bCustomNamesInitialized = false;
@@ -461,7 +469,7 @@ static FName LLMGetTagUniqueName(ELLMTag Tag)
 		{
 			TStringBuilder<256> UniqueNameBuffer;
 
-			for (int32 CreateIndex = LLM_CUSTOM_TAG_START; CreateIndex < LLM_CUSTOM_TAG_END; ++CreateIndex)
+			for (int32 CreateIndex = LLM_CUSTOM_TAG_START; CreateIndex <= LLM_CUSTOM_TAG_END; ++CreateIndex)
 			{
 				UniqueNameBuffer.Reset();
 				UniqueNameBuffer.Appendf(TEXT("ELLMTag%d"), CreateIndex);
