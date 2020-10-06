@@ -9,6 +9,8 @@
 #include "SPackagesDialog.h"
 #include "Widgets/Views/SListView.h"
 #include "AssetRegistryModule.h"
+#include "IAssetTools.h"
+#include "AssetToolsModule.h"
 
 IMPLEMENT_MODULE( FPackagesDialogModule, PackagesDialog );
 
@@ -198,12 +200,24 @@ void FPackagesDialogModule::AddPackageItem(UPackage* InPackage, ECheckBoxState I
 	FName AssetName;
 	FName OwnerName;
 
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
+
 	// Lookup for the first asset in the package
-	ForEachObjectWithPackage(InPackage, [&AssetName, &OwnerName](UObject* InnerObject)
+	ForEachObjectWithPackage(InPackage, [&AssetName, &OwnerName, &AssetToolsModule](UObject* InnerObject)
 	{
 		if (InnerObject->IsAsset())
 		{
-			AssetName = InnerObject->GetFName();
+			TWeakPtr<IAssetTypeActions> AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(InnerObject->GetClass());
+
+			if (AssetTypeActions.IsValid())
+			{
+				AssetName = *AssetTypeActions.Pin()->GetObjectDisplayName(InnerObject);
+			}
+			else
+			{
+				AssetName = InnerObject->GetFName();
+			}
+
 			OwnerName = InnerObject->GetOutermostObject()->GetFName();
 			return false;
 		}

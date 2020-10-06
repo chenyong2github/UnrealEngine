@@ -88,6 +88,9 @@ public:
 	/** Returns the categories that this asset type appears in. The return value is one or more flags from EAssetTypeCategories.  */
 	virtual uint32 GetCategories() = 0;
 
+	/** Returns the display name for that object. */
+	virtual FString GetObjectDisplayName(UObject* Object) const = 0;
+
 	/** Returns array of sub-menu names that this asset type is parented under in the Asset Creation Context Menu. */
 	virtual const TArray<FText>& GetSubMenus() const = 0;
 

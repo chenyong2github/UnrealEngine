@@ -14,4 +14,5 @@ public:
 	virtual FColor GetTypeColor() const override { return FColor(0,232,0); }
 	virtual UClass* GetSupportedClass() const override { return AActor::StaticClass(); }
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::None; }
+	virtual FString GetObjectDisplayName(UObject* Object) const override { return CastChecked<AActor>(Object)->GetActorLabel(); }
 };
