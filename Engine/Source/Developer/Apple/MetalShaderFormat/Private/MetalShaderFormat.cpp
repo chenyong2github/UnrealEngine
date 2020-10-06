@@ -23,6 +23,9 @@ DEFINE_LOG_CATEGORY(LogMetalShaderCompiler)
 
 #define WRITE_METAL_SHADER_SOURCE_ARCHIVE 0
 
+// Set this define to get additional logging information about Metal toolchain setup.
+#define CHECK_METAL_COMPILER_TOOLCHAIN_SETUP 0
+
 extern bool StripShader_Metal(TArray<uint8>& Code, class FString const& DebugPath, bool const bNative);
 extern uint64 AppendShader_Metal(class FName const& Format, class FString const& ArchivePath, const FSHAHash& Hash, TArray<uint8>& Code);
 extern bool FinalizeLibrary_Metal(class FName const& Format, class FString const& ArchivePath, class FString const& LibraryPath, TSet<uint64> const& Shaders, class FString const& DebugOutputDir);
@@ -529,9 +532,6 @@ const FString& FMetalCompilerToolchain::GetCompilerVersionString(EShaderPlatform
 
 void FMetalCompilerToolchain::Init()
 {
-	// Set this define to get additional logging information about Metal toolchain setup.
-#define CHECK_METAL_COMPILER_TOOLCHAIN_SETUP 0
-
 	bToolchainAvailable = false;
 	bToolchainBinariesPresent = false;
 	bSkipPCH = true;
@@ -596,7 +596,6 @@ void FMetalCompilerToolchain::Init()
 		 UE_LOG(LogMetalCompilerSetup, Warning, TEXT("Failed to set up Metal toolchain. See log above. Shaders will not be compiled offline."));
 	}
 #endif
-#undef CHECK_METAL_COMPILER_TOOLCHAIN_SETUP
 }
 
 void FMetalCompilerToolchain::Teardown()
@@ -724,8 +723,10 @@ FMetalCompilerToolchain::EMetalToolchainStatus FMetalCompilerToolchain::DoWindow
 	bool bUseLocalMetalToolchain = FPaths::FileExists(*MetalFrontendBinaryCommand[AppleSDKMac]) && FPaths::FileExists(*MetalFrontendBinaryCommand[AppleSDKMobile]);
 	if (!bUseLocalMetalToolchain)
 	{
+#if CHECK_METAL_COMPILER_TOOLCHAIN_SETUP
 		UE_LOG(LogMetalCompilerSetup, Display, TEXT("Searching for Metal toolchain, but it doesn't appear to be installed."));
 		UE_LOG(LogMetalCompilerSetup, Display, TEXT("Searched for %s and %s"), *MetalFrontendBinaryCommand[AppleSDKMac], *MetalFrontendBinaryCommand[AppleSDKMobile]);
+#endif
 		return EMetalToolchainStatus::ToolchainNotFound;
 	}
 
@@ -740,7 +741,9 @@ FMetalCompilerToolchain::EMetalToolchainStatus FMetalCompilerToolchain::DoWindow
 		!FPaths::FileExists(*MetalLibBinaryCommand[AppleSDKMac]) ||
 		!FPaths::FileExists(*MetalLibBinaryCommand[AppleSDKMobile]))
 	{
+#if CHECK_METAL_COMPILER_TOOLCHAIN_SETUP
 		UE_LOG(LogMetalCompilerSetup, Warning, TEXT("Missing toolchain binaries."))
+#endif
 		return EMetalToolchainStatus::ToolchainNotFound;
 	}
 
