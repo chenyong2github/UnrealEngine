@@ -35,6 +35,16 @@ namespace StructSerializerTest
 	}
 
 	template<>
+	void CopyKeys(TMap<FString, FVector>& OutMap, const TMap<FString, FVector>& SourceMap)
+	{
+		OutMap.Empty(SourceMap.Num());
+		Algo::ForEach(SourceMap, [&OutMap](const TPair<FString, FVector>& Other)
+		{
+			OutMap.Add(Other.Key, FVector(76.7f));
+		});
+	}
+
+	template<>
 	void CopyKeys(TMap<FString, FStructSerializerBuiltinTestStruct>& OutMap, const TMap<FString, FStructSerializerBuiltinTestStruct>& SourceMap)
 	{
 		OutMap.Empty(SourceMap.Num());
@@ -321,6 +331,9 @@ namespace StructSerializerTest
 				FStructSerializerArrayTestStruct TestStruct = OriginalStruct.Arrays;
 				FStructSerializerArrayTestStruct TestStruct2(NoInit);
 				TestStruct2.ByteArray.SetNumUninitialized(TestStruct.ByteArray.Num());
+				TestStruct2.ByteArray[0] = 89;
+				TestStruct2.ByteArray[1] = 91;
+				TestStruct2.ByteArray[2] = 93;
 
 				const FName Member = GET_MEMBER_NAME_CHECKED(FStructSerializerArrayTestStruct, ByteArray);
 				FProperty* Property = FindFProperty<FProperty>(FStructSerializerArrayTestStruct::StaticStruct(), Member);
