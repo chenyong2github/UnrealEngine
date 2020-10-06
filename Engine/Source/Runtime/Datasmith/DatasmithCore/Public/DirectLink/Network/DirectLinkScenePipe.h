@@ -10,7 +10,6 @@
 #include "IMessageContext.h"
 
 class FMessageEndpoint;
-struct FDirectLinkMsg_HaveListMessage;
 struct FMessageAddress;
 
 namespace DirectLink

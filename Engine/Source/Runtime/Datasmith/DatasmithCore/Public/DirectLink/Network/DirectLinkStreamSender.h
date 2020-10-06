@@ -16,7 +16,7 @@ class FRemoteSceneView;
 class FHaveListReceiver;
 
 /**
- * This is used to sync a Stream over MessagBus. See also: FStreamReceiver
+ * This is used to sync a Stream over MessageBus. See also: FStreamReceiver
  *
  * It keeps an Hash table of what the remote receiver already have, and diff with that.
  * There is no handling of bad connection in this class. We accept arbitrary delays
