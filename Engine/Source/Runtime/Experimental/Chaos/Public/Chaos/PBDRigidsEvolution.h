@@ -453,6 +453,14 @@ public:
 		}
 	}
 
+	CHAOS_API void ResetConstraints()
+	{
+		for(FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
+		{
+			ConstraintRule->ResetConstraints();
+		}
+	}
+
 	//TEMP: this is only needed while clustering continues to use indices directly
 	const auto& GetActiveClusteredArray() const { return Particles.GetActiveClusteredArray(); }
 	const auto& GetNonDisabledClusteredArray() const { return Particles.GetNonDisabledClusteredArray(); }
