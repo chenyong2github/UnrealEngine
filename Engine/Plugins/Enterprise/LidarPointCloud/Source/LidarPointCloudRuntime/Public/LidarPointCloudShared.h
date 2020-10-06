@@ -142,6 +142,16 @@ struct LIDARPOINTCLOUDRUNTIME_API FDoubleVector
 		return FDoubleVector(X / Scale, Y / Scale, Z / Scale);
 	}
 
+	FORCEINLINE FDoubleVector operator^(const FDoubleVector& V) const
+	{
+		return FDoubleVector
+		(
+			Y * V.Z - Z * V.Y,
+			Z * V.X - X * V.Z,
+			X * V.Y - Y * V.X
+		);
+	}
+
 	FORCEINLINE bool Equals(const FDoubleVector& V, float Tolerance = KINDA_SMALL_NUMBER) const
 	{
 		return FMath::Abs(X - V.X) <= Tolerance && FMath::Abs(Y - V.Y) <= Tolerance && FMath::Abs(Z - V.Z) <= Tolerance;
@@ -158,6 +168,16 @@ struct LIDARPOINTCLOUDRUNTIME_API FDoubleVector
 	}
 
 	FORCEINLINE float GetMax() const { return FMath::Max3(X, Y, Z); }
+
+	/** Ported solution from FQuat::RotateVector */
+	FORCEINLINE FDoubleVector RotateVector(const FQuat& Quat) const
+	{
+		const FDoubleVector V = *this;
+		const FDoubleVector Q(Quat.X, Quat.Y, Quat.Z);
+		const FDoubleVector T = (Q ^ V) * 2;
+		const FDoubleVector Result = V + (T * Quat.W) + (Q ^ T);
+		return Result;
+	}
 
 	FORCEINLINE FVector ToVector() const { return FVector(X, Y, Z); }
 	FORCEINLINE FIntVector ToIntVector() const { return FIntVector(X, Y, Z); }
