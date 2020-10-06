@@ -242,7 +242,7 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 
 		Style->Set("BoxShadow", new BOX_BRUSH("Common/BoxShadow", FMargin(5.0f / 64.0f)));
 
-		Style->Set("FocusRectangle", new BORDER_BRUSH("Old/DashedBorder", FMargin(6.0f / 32.0f)));
+		Style->Set("FocusRectangle", new FSlateRoundedBoxBrush(FStyleColors::Transparent, InputFocusRadius, FStyleColors::Primary, InputFocusThickness));
 	}
 
 	// Important colors

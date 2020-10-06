@@ -653,8 +653,6 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 
 	Set( "Editor.AppIcon", new IMAGE_BRUSH( "Icons/EditorAppIcon", Icon24x24) );
 
-	Set( "FocusRectangle", new BORDER_BRUSH( "Old/DashedBorder", FMargin(6.0f/32.0f) ) );
-
 	Set( "MarqueeSelection", new BORDER_BRUSH( "Old/DashedBorder", FMargin(6.0f/32.0f) ) );
 
 	Set( "GenericLock", new IMAGE_BRUSH( "Icons/padlock_locked_16x", Icon16x16 ) );

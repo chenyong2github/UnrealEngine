@@ -926,7 +926,7 @@ bool SWidget::HasAnyUserFocusOrFocusedDescendants() const
 
 const FSlateBrush* SWidget::GetFocusBrush() const
 {
-	return FCoreStyle::Get().GetBrush("FocusRectangle");
+	return FAppStyle::Get().GetBrush("FocusRectangle");
 }
 
 bool SWidget::HasMouseCapture() const
