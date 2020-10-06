@@ -14,6 +14,9 @@
 #include "Intersection/IntersectionUtil.h"
 #include "PreviewMesh.h"
 
+#include "BaseBehaviors/SingleClickBehavior.h"
+#include "Selection/SelectClickedAction.h"
+
 #include "BaseGizmos/GizmoComponents.h"
 #include "BaseGizmos/TransformGizmo.h"
 #include "BaseGizmos/IntervalGizmo.h"
@@ -171,6 +174,20 @@ void UMeshSpaceDeformerTool::Setup()
 	GizmoCenter = 0.5 * (AABBMin + AABBMax);
 
 
+	// add click to set plane behavior
+	SetPointInWorldConnector = MakePimpl<FSelectClickedAction>();
+	SetPointInWorldConnector->World = this->TargetWorld;
+	SetPointInWorldConnector->OnClickedPositionFunc = [this](const FHitResult& Hit)
+	{
+		SetGizmoPlaneFromWorldPos(Hit.ImpactPoint, -Hit.ImpactNormal, false);
+	};
+
+	USingleClickInputBehavior* ClickToSetPlaneBehavior = NewObject<USingleClickInputBehavior>();
+	ClickToSetPlaneBehavior->ModifierCheckFunc = FInputDeviceState::IsCtrlKeyDown;
+	ClickToSetPlaneBehavior->Initialize(SetPointInWorldConnector.Get());
+	AddInputBehavior(ClickToSetPlaneBehavior);
+
+
 	// Create a new TransformGizmo and associated TransformProxy. The TransformProxy will not be the
 	// parent of any Components in this case, we just use it's transform and change delegate.
 	TransformProxy = NewObject<UTransformProxy>(this);
@@ -185,7 +202,7 @@ void UMeshSpaceDeformerTool::Setup()
 	// wire these to the input 
 
 	// The initial range for the intervals.
-	const float InitialVerticalIntervalSize = AABBHalfExtents.Z;
+	const float InitialVerticalIntervalSize = AABBHalfExtents.Length();
 
 	// create sources for the interval parameters
 
@@ -493,11 +510,43 @@ void UMeshSpaceDeformerTool::UpdateOpParameters(FMeshSpaceDeformerOp& MeshSpaceD
 
 void UMeshSpaceDeformerTool::OnTick(float DeltaTime)
 {
+	if (TransformGizmo != nullptr)
+	{
+		TransformGizmo->bSnapToWorldGrid = this->bSnapToWorldGrid;
+	}
+
 	if (Preview != nullptr)
 	{
 		Preview->Tick(DeltaTime);
 	}
 }
+
+
+
+void UMeshSpaceDeformerTool::SetGizmoPlaneFromWorldPos(const FVector& Position, const FVector& Normal, bool bIsInitializing)
+{
+	GizmoCenter = Position;
+
+	FFrame3f GizmoPlane(Position, Normal);
+	GizmoOrientation = (FQuat)GizmoPlane.Rotation;
+	GizmoFrame = FFrame3d(FVector3d(GizmoCenter), FQuaterniond(GizmoOrientation));
+
+	TransformGizmo->SetActiveTarget(TransformProxy, GetToolManager());
+	if (bIsInitializing)
+	{
+		TransformGizmo->ReinitializeGizmoTransform(GizmoPlane.ToFTransform());
+	}
+	else
+	{
+		TransformGizmo->SetNewGizmoTransform(GizmoPlane.ToFTransform());
+	}
+
+	if (Preview != nullptr)
+	{
+		Preview->InvalidateResult();
+	}
+}
+
 
 #undef LOCTEXT_NAMESPACE
 
