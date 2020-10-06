@@ -388,7 +388,7 @@ FText SNiagaraStackFunctionInputValue::GetDataValueText() const
 
 FText SNiagaraStackFunctionInputValue::GetDynamicValueText() const
 {
-	if (FunctionInput->GetDynamicInputNode() != nullptr)
+	if (UNiagaraNodeFunctionCall* NodeFunctionCall = FunctionInput->GetDynamicInputNode())
 	{
 		if (!FunctionInput->GetIsExpanded())
 		{
@@ -398,7 +398,8 @@ FText SNiagaraStackFunctionInputValue::GetDynamicValueText() const
 				return CollapsedText;
 			}
 		}
-		return FText::FromString(FName::NameToDisplayString(FunctionInput->GetDynamicInputNode()->GetFunctionName(), false));
+		FString FunctionName = NodeFunctionCall->FunctionScript ? NodeFunctionCall->FunctionScript->GetName() : NodeFunctionCall->Signature.Name.ToString();
+		return FText::FromString(FName::NameToDisplayString(FunctionName, false));
 	}
 	else
 	{
