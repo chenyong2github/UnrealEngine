@@ -1030,7 +1030,7 @@ namespace Chaos
 			FVec3 Location = SpherePosWorld - SphereRadius * NormalWorld;
 
 			Result.ShapeContactPoints[0] = SphereTransform.InverseTransformPosition(Location);
-			Result.ShapeContactPoints[1] = PlaneTransform.InverseTransformPosition(Location + Phi * NormalWorld);
+			Result.ShapeContactPoints[1] = PlaneTransform.InverseTransformPosition(Location - Phi * NormalWorld);
 			Result.ShapeContactNormal = PlaneTransform.InverseTransformVector(NormalWorld);
 			Result.Phi = Phi;
 			Result.Normal = NormalWorld;
@@ -2216,7 +2216,7 @@ namespace Chaos
 				const FImplicitObject* Obj1 = Constraint.Manifold.Implicit[1];
 				SampleObject<UpdateType>(*Obj1, LevelsetTM, *SampleParticles, ParticlesTM, CullDistance, Constraint);
 
-				// @todo(chaos): clean up SampleObject, make it use UpdateConstraint, and then remove this...
+				// @todo(chaos): clean up SampleObject: make it return a FContactPoint and use UpdateConstraint, and then remove this...
 				if (Constraint.UseIncrementalManifold())
 				{
 					FContactPoint ContactPoint;
@@ -2224,7 +2224,7 @@ namespace Chaos
 					ContactPoint.Normal = Constraint.Manifold.Normal;
 					ContactPoint.Phi = Constraint.Manifold.Phi;
 					ContactPoint.ShapeContactPoints[0] = WorldTransform0.InverseTransformPosition(Constraint.Manifold.Location);
-					ContactPoint.ShapeContactPoints[1] = WorldTransform1.InverseTransformPosition(Constraint.Manifold.Location);
+					ContactPoint.ShapeContactPoints[1] = WorldTransform1.InverseTransformPosition(Constraint.Manifold.Location - Constraint.Manifold.Phi * Constraint.Manifold.Normal);
 					ContactPoint.ShapeContactNormal = WorldTransform1.InverseTransformVector(Constraint.Manifold.Normal);
 					Constraint.UpdateManifold(ContactPoint);
 				}
@@ -2257,13 +2257,15 @@ namespace Chaos
 			{
 				Constraint.Particle[0] = Particle0;
 				Constraint.Particle[1] = Particle1;
+				Constraint.ImplicitTransform[0] = LocalTransform0;
+				Constraint.ImplicitTransform[1] = LocalTransform1;
 				Constraint.SetManifold(Implicit0, Simplicial0, Implicit1, Simplicial1);
 			}
 
 			if (T_TRAITS::bImmediateUpdate)
 			{
-				FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
-				FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
+				FRigidTransform3 WorldTransform0 = Constraint.ImplicitTransform[0] * Collisions::GetTransform(Constraint.Particle[0]);
+				FRigidTransform3 WorldTransform1 = Constraint.ImplicitTransform[1] * Collisions::GetTransform(Constraint.Particle[1]);
 				UpdateLevelsetLevelsetConstraint<ECollisionUpdateType::Deepest>(WorldTransform0, WorldTransform1, CullDistance, Constraint);
 				NewConstraints.TryAdd(CullDistance, Constraint);
 			}
