@@ -1100,8 +1100,6 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 					check(TextureIndices);
 					uint32 Index = FPlatformMath::CountTrailingZeros(TextureIndices);
 					
-					// No support for 3-component types in dxc/SPIRV/MSL - need to expose my workarounds there too
-					BufferIndices &= ~(1ull << (uint64)Index);
 					TextureIndices &= ~(1ull << uint64(Index));
 					
 					OutputData.TypedBuffers |= (1 << Index);
