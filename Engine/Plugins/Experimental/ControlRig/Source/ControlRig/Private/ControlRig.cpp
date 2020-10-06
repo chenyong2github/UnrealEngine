@@ -626,7 +626,6 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 
 	if (Context.DrawInterface && Context.DrawContainer)
 	{
-		DrawInterface.Reset();
 		Context.DrawInterface->Instructions.Append(Context.DrawContainer->Instructions);
 
 		for (const FRigControl& Control : Hierarchy.ControlHierarchy)
