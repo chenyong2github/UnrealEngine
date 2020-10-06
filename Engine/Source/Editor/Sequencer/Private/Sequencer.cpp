@@ -6292,7 +6292,7 @@ void FSequencer::AddNodesToExistingNodeGroup(const TArray<TSharedRef<FSequencerD
 
 void FSequencer::SynchronizeExternalSelectionWithSequencerSelection()
 {
-	if ( bUpdatingSequencerSelection || !IsLevelEditorSequencer() || ExactCast<ULevelSequence>(GetFocusedMovieSceneSequence()) == nullptr )
+	if ( bUpdatingSequencerSelection || !IsLevelEditorSequencer() )
 	{
 		return;
 	}
@@ -6491,7 +6491,7 @@ void FSequencer::SynchronizeSequencerSelectionWithExternalSelection()
 	}
 
 	UMovieSceneSequence* Sequence = GetFocusedMovieSceneSequence();
-	if( !IsLevelEditorSequencer() || ExactCast<ULevelSequence>(Sequence) == nullptr )
+	if( !IsLevelEditorSequencer() )
 	{
 		// Only level sequences have a full update here, but we still want filters to update for UMG animations
 		NodeTree->RequestFilterUpdate();
