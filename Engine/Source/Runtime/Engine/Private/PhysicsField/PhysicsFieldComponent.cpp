@@ -174,7 +174,7 @@ public:
 
 		if (FieldResource)
 		{
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, FieldResource->FieldClipmap.UAV);
+			RHICmdList.Transition(FRHITransitionInfo(FieldResource->FieldClipmap.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 
 			SetSRVParameter(RHICmdList, ShaderRHI, NodesParams, FieldResource->NodesParams.SRV);
 			SetSRVParameter(RHICmdList, ShaderRHI, NodesOffsets, FieldResource->NodesOffsets.SRV);
@@ -197,7 +197,8 @@ public:
 		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 
 		SetUAVParameter(RHICmdList, ShaderRHI, FieldClipmap, nullptr);
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, FieldResource->FieldClipmap.UAV);
+
+		RHICmdList.Transition(FRHITransitionInfo(FieldResource->FieldClipmap.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute));
 	}
 
 private:
