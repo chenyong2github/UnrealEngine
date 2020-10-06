@@ -76,10 +76,10 @@ FString FHLMediaPlayer::GetInfo() const
     return GetUrl();
 }
 
-FName FHLMediaPlayer::GetPlayerName() const
+FGuid FHLMediaPlayer::GetPlayerPluginGUID() const
 {
-    static FName PlayerName(TEXT("HLMediaPlayer"));
-    return PlayerName;
+	static FGuid PlayerPluginGUID(0x6505c26f, 0xec614c0e, 0xb5be5be1, 0x57fac58e);
+	return PlayerPluginGUID;
 }
 
 IMediaSamples& FHLMediaPlayer::GetSamples()
