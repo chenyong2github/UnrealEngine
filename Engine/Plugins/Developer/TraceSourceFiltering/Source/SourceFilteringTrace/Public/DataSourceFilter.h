@@ -22,7 +22,7 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, Category = TraceSourceFiltering)
 	bool DoesActorPassFilter(const AActor* InActor) const;
-	bool DoesActorPassFilter_Implementation(const AActor* InActor) const;
+	virtual bool DoesActorPassFilter_Implementation(const AActor* InActor) const;
 
 	/** Begin IDataSourceFilterInterface overrides */
 	virtual void SetEnabled(bool bState) override;	
