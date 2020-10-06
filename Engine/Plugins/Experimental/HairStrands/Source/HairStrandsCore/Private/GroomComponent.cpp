@@ -806,6 +806,7 @@ public:
 		Result.bRenderInMainPass	= bUseCardsOrMesh;
 		Result.bShadowRelevance		= true;
 		Result.bDynamicRelevance	= true;
+		Result.bRenderCustomDepth	= ShouldRenderCustomDepth();
 
 		// Selection only
 		#if WITH_EDITOR
