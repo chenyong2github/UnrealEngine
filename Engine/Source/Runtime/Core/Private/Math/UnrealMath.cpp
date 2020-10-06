@@ -3280,6 +3280,7 @@ PrecLoop:
 	else
 	{
 		UE_LOG(LogUnrealMath, Log, TEXT("Expression Error : Unrecognized Operator"));
+		return 0;
 	}
 
 	*pResult = V;
