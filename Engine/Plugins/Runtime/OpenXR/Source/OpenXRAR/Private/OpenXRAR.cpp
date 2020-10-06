@@ -33,8 +33,6 @@ FOpenXRARSystem::~FOpenXRARSystem()
 	IModularFeatures::Get().UnregisterModularFeature(IOpenXRARTrackedGeometryHolder::GetModularFeatureName(), this);
 
 	UARLifeCycleComponent::OnSpawnARActorDelegate.Remove(SpawnARActorDelegateHandle);
-
-	OnStopARSession();
 }
 
 void FOpenXRARSystem::SetTrackingSystem(TSharedPtr<FXRTrackingSystemBase, ESPMode::ThreadSafe> InTrackingSystem)
