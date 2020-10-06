@@ -13,6 +13,7 @@
 #if IS_MATERIAL_SHADER
     // for materials, these are in the view UB
 	#define PhysicsFieldClipmapTexture			View.PhysicsFieldClipmapTexture
+	#define PhysicsFieldClipmapSampler			View.PhysicsFieldClipmapSampler
 	#define PhysicsFieldClipmapCenter			View.PhysicsFieldClipmapCenter
 	#define PhysicsFieldClipmapDistance			View.PhysicsFieldClipmapDistance
 	#define PhysicsFieldClipmapResolution		View.PhysicsFieldClipmapResolution
@@ -24,6 +25,7 @@
 	#define PhysicsFieldIntegerTargets			View.PhysicsFieldIntegerTargets
 #else
 	Texture3D<float4>	PhysicsFieldClipmapTexture;
+	SamplerState PhysicsFieldClipmapSampler;
 	float3		PhysicsFieldClipmapCenter;
 	float		PhysicsFieldClipmapDistance;
 	int			PhysicsFieldClipmapResolution;
@@ -38,19 +40,19 @@
 float3 MatPhysicsField_SamplePhysicsVectorField(float3 WorldPosition, int VectorTarget)
 {
 	return PhysicsField_SamplePhysicsVectorField(WorldPosition, VectorTarget, PhysicsFieldVectorTargets, PhysicsFieldTargetCount, PhysicsFieldClipmapCenter, PhysicsFieldClipmapDistance,
-				PhysicsFieldClipmapExponent, PhysicsFieldClipmapCount, PhysicsFieldClipmapResolution, PhysicsFieldClipmapTexture);
+				PhysicsFieldClipmapExponent, PhysicsFieldClipmapCount, PhysicsFieldClipmapResolution, PhysicsFieldClipmapTexture, PhysicsFieldClipmapSampler);
 }
 
 float MatPhysicsField_SamplePhysicsScalarField(float3 WorldPosition, int ScalarTarget)
 {
 	return PhysicsField_SamplePhysicsScalarField(WorldPosition, ScalarTarget, PhysicsFieldScalarTargets, PhysicsFieldTargetCount, PhysicsFieldClipmapCenter, PhysicsFieldClipmapDistance,
-				PhysicsFieldClipmapExponent, PhysicsFieldClipmapCount, PhysicsFieldClipmapResolution, PhysicsFieldClipmapTexture);
+				PhysicsFieldClipmapExponent, PhysicsFieldClipmapCount, PhysicsFieldClipmapResolution, PhysicsFieldClipmapTexture, PhysicsFieldClipmapSampler);
 }
 
 int MatPhysicsField_SamplePhysicsIntegerField(float3 WorldPosition, int IntegerTarget)
 {
 	return PhysicsField_SamplePhysicsIntegerField(WorldPosition, IntegerTarget, PhysicsFieldIntegerTargets, PhysicsFieldTargetCount, PhysicsFieldClipmapCenter, PhysicsFieldClipmapDistance,
-				PhysicsFieldClipmapExponent, PhysicsFieldClipmapCount, PhysicsFieldClipmapResolution, PhysicsFieldClipmapTexture);
+				PhysicsFieldClipmapExponent, PhysicsFieldClipmapCount, PhysicsFieldClipmapResolution, PhysicsFieldClipmapTexture, PhysicsFieldClipmapSampler);
 }
 
 #endif // FEATURE_LEVEL >= FEATURE_LEVEL_SM5

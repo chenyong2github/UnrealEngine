@@ -25,6 +25,7 @@ static const FName GetPhysicsFieldBoundsName(TEXT("GetPhysicsFieldBounds"));
 //------------------------------------------------------------------------------------------------------------
 
 const FString UNiagaraDataInterfacePhysicsField::ClipmapTextureName(TEXT("ClipmapTexture_"));
+const FString UNiagaraDataInterfacePhysicsField::ClipmapSamplerName(TEXT("ClipmapSampler_"));
 const FString UNiagaraDataInterfacePhysicsField::ClipmapCenterName(TEXT("ClipmapCenter_"));
 const FString UNiagaraDataInterfacePhysicsField::ClipmapDistanceName(TEXT("ClipmapDistance_"));
 const FString UNiagaraDataInterfacePhysicsField::ClipmapResolutionName(TEXT("ClipmapResolution_"));
@@ -42,6 +43,7 @@ struct FNDIPhysicsFieldParametersName
 	FNDIPhysicsFieldParametersName(const FString& Suffix)
 	{
 		ClipmapTextureName = UNiagaraDataInterfacePhysicsField::ClipmapTextureName + Suffix;
+		ClipmapSamplerName = UNiagaraDataInterfacePhysicsField::ClipmapSamplerName + Suffix;
 		ClipmapCenterName = UNiagaraDataInterfacePhysicsField::ClipmapCenterName + Suffix;
 		ClipmapDistanceName = UNiagaraDataInterfacePhysicsField::ClipmapDistanceName + Suffix;
 		ClipmapResolutionName = UNiagaraDataInterfacePhysicsField::ClipmapResolutionName + Suffix;
@@ -54,6 +56,7 @@ struct FNDIPhysicsFieldParametersName
 	}
 
 	FString ClipmapTextureName;
+	FString ClipmapSamplerName;
 	FString ClipmapCenterName;
 	FString ClipmapDistanceName;
 	FString ClipmapResolutionName;
@@ -111,6 +114,7 @@ public:
 		FNDIPhysicsFieldParametersName ParamNames(*ParameterInfo.DataInterfaceHLSLSymbol);
 
 		ClipmapTexture.Bind(ParameterMap, *ParamNames.ClipmapTextureName);
+		ClipmapSampler.Bind(ParameterMap, *ParamNames.ClipmapSamplerName);
 		ClipmapCenter.Bind(ParameterMap, *ParamNames.ClipmapCenterName);
 		ClipmapDistance.Bind(ParameterMap, *ParamNames.ClipmapDistanceName);
 		ClipmapResolution.Bind(ParameterMap, *ParamNames.ClipmapResolutionName);
@@ -140,6 +144,7 @@ public:
 			FPhysicsFieldResource* FieldResource = ProxyData->FieldResource;
 
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, ClipmapTexture, FieldResource->FieldClipmap.SRV);
+			SetSamplerParameter(RHICmdList, ComputeShaderRHI, ClipmapSampler, TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapCenter, FieldResource->FieldInfos.ClipmapCenter);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapDistance, FieldResource->FieldInfos.ClipmapDistance);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapResolution, FieldResource->FieldInfos.ClipmapResolution);
@@ -155,6 +160,7 @@ public:
 		{
 			TStaticArray<int32, MAX_TARGETS_ARRAY, MAX_TARGETS_ARRAY> EmptyTargets;
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, ClipmapTexture, FNiagaraRenderer::GetDummyTextureReadBuffer2D());
+			SetSamplerParameter(RHICmdList, ComputeShaderRHI, ClipmapSampler, TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapCenter, FVector::ZeroVector);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapDistance, 1);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapResolution, 2);
@@ -174,6 +180,7 @@ public:
 private:
 
 	LAYOUT_FIELD(FShaderResourceParameter, ClipmapTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, ClipmapSampler);
 	LAYOUT_FIELD(FShaderParameter, ClipmapCenter);
 	LAYOUT_FIELD(FShaderParameter, ClipmapDistance);
 	LAYOUT_FIELD(FShaderParameter, ClipmapResolution);
