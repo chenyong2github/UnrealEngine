@@ -320,6 +320,10 @@ class MESHMODELINGTOOLS_API UPolyEditExtrudeProperties : public UInteractiveTool
 public:
 	UPROPERTY(EditAnywhere, Category = Extrude)
 	EPolyEditExtrudeDirection Direction = EPolyEditExtrudeDirection::SelectionNormal;
+
+	/** Controls whether extruding an entire patch should create a solid or an open shell */
+	UPROPERTY(EditAnywhere, Category = Extrude)
+	bool bShellsToSolids = true;
 };
 
 

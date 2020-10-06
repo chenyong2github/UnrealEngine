@@ -6,7 +6,8 @@
 #include "Selections/MeshVertexSelection.h"
 #include "DynamicMeshChangeTracker.h"
 #include "Selections/MeshConnectedComponents.h"
-
+#include "Operations/ExtrudeMesh.h"
+#include "DynamicSubmesh3.h"
 
 FOffsetMeshRegion::FOffsetMeshRegion(FDynamicMesh3* mesh) : Mesh(mesh)
 {
@@ -36,11 +37,20 @@ bool FOffsetMeshRegion::Apply()
 	{
 		FOffsetInfo& Region = OffsetRegions[k];
 		Region.InitialTriangles = MoveTemp(RegionComponents.Components[k].Indices);
-		if (ApplyOffset(Region, (bHaveVertexNormals) ? nullptr : &Normals) == false)
+		bool bRegionOK = false;
+
+		TArray<int32> AllTriangles;
+		FMeshConnectedComponents::GrowToConnectedTriangles(Mesh, Region.InitialTriangles, AllTriangles);
+		if (AllTriangles.Num() == Region.InitialTriangles.Num() && bOffsetFullComponentsAsSolids)
 		{
-			bAllOK = false;
+			bRegionOK = ApplySolidExtrude(Region, (bHaveVertexNormals) ? nullptr : &Normals);
 		}
-		else
+		else 
+		{
+			bRegionOK = ApplyOffset(Region, (bHaveVertexNormals) ? nullptr : &Normals);
+		}
+
+		if ( bRegionOK )
 		{
 			AllModifiedTriangles.Append(Region.InitialTriangles);
 			for (TArray<int32>& RegionTris : Region.StitchTriangles)
@@ -48,10 +58,80 @@ bool FOffsetMeshRegion::Apply()
 				AllModifiedTriangles.Append(RegionTris);
 			}
 		}
+		else
+		{
+			bAllOK = false;
+		}
 	}
 
 	return bAllOK;
 
+
+}
+
+
+bool FOffsetMeshRegion::ApplySolidExtrude(FOffsetInfo& Region, FMeshNormals* UseNormals)
+{
+	FDynamicSubmesh3 SubmeshCalc(Mesh, Region.InitialTriangles);
+	FDynamicMesh3& Submesh = SubmeshCalc.GetSubmesh();
+
+	FExtrudeMesh Extruder(&Submesh);
+	Extruder.ExtrudedPositionFunc = this->OffsetPositionFunc;
+	Extruder.DefaultExtrudeDistance = this->DefaultOffsetDistance;
+	Extruder.UVScaleFactor = this->UVScaleFactor;
+	Extruder.IsPositiveOffset = bIsPositiveOffset;
+
+	bool bOK = Extruder.Apply();
+	if (bOK == false)
+	{
+		return false;
+	}
+
+	if (ChangeTracker)
+	{
+		ChangeTracker->SaveTriangles(Region.InitialTriangles, true);
+	}
+
+	FDynamicMeshEditor Editor(Mesh);
+	Editor.RemoveTriangles(Region.InitialTriangles, true);
+
+	FMeshIndexMappings Mappings;
+	Editor.AppendMesh(&Submesh, Mappings);
+
+	// transfer tris and groups back
+	// TODO: loops
+	for (FExtrudeMesh::FExtrusionInfo& ExtrudeRegionInfo : Extruder.Extrusions)
+	{
+		for (TArray<int32>& StitchTriSet : ExtrudeRegionInfo.StitchTriangles)
+		{
+			for (int32 k = 0; k < StitchTriSet.Num(); ++k)
+			{
+				StitchTriSet[k] = Mappings.GetNewTriangle(StitchTriSet[k]);
+			}
+			Region.StitchTriangles.Add(StitchTriSet);
+		}
+		for (TArray<int32>& StitchGroupSet : ExtrudeRegionInfo.StitchPolygonIDs)
+		{
+			for (int32 k = 0; k < StitchGroupSet.Num(); ++k)
+			{
+				StitchGroupSet[k] = Mappings.GetNewGroup(StitchGroupSet[k]);
+			}
+			Region.StitchPolygonIDs.Add(StitchGroupSet);
+		}
+
+		for (int32 GroupID : ExtrudeRegionInfo.OffsetTriGroups)
+		{
+			Region.OffsetGroups.Add(Mappings.GetNewGroup(GroupID));
+		}
+	}
+
+	Region.bIsSolid = true;
+
+	//Region.BaseLoops[LoopIndex].InitializeFromVertices(Mesh, BaseLoopV);
+	//Region.OffsetLoops[LoopIndex].InitializeFromVertices(Mesh, OffsetLoopV);
+	//LoopIndex++;
+
+	return true;
 
 }
 
@@ -73,6 +153,15 @@ bool FOffsetMeshRegion::ApplyOffset(FOffsetInfo& Region, FMeshNormals* UseNormal
 	}
 
 	FDynamicMeshEditor Editor(Mesh);
+
+	// keep track of offset groups
+	if (Mesh->HasTriangleGroups())
+	{
+		for (int32 gid : Region.InitialTriangles)
+		{
+			Region.OffsetGroups.AddUnique(Mesh->GetTriangleGroup(gid));
+		}
+	}
 
 	TArray<FDynamicMeshEditor::FLoopPairSet> LoopPairs;
 	bOK = Editor.DisconnectTriangles(Region.InitialTriangles, LoopPairs, true);

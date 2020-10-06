@@ -452,7 +452,8 @@ void UEditMeshPolygonsTool::UpdateMultiTransformerFrame(const FFrame3d* UseFrame
 	}
 
 	LastTransformerFrame = SetFrame;
-	MultiTransformer->UpdateGizmoPositionFromWorldFrame(SetFrame, true);
+	//MultiTransformer->UpdateGizmoPositionFromWorldFrame(SetFrame, true);
+	MultiTransformer->InitializeGizmoPositionFromWorldFrame(SetFrame, true);
 }
 
 
@@ -656,6 +657,10 @@ void UEditMeshPolygonsTool::OnTick(float DeltaTime)
 		if (SelectionMechanic->HasSelection())
 		{
 			MultiTransformer->SetGizmoVisibility(true);
+
+			// update frame because we might be here due to an undo event/etc, rather than an explicit selection change
+			LastGeometryFrame = SelectionMechanic->GetSelectionFrame(true, &LastGeometryFrame);
+			UpdateMultiTransformerFrame();
 		}
 		else
 		{
@@ -996,17 +1001,28 @@ void UEditMeshPolygonsTool::ApplyExtrude(bool bIsOffset)
 	Extruder.OffsetPositionFunc = [&](const FVector3d& Pos, const FVector3f& Normal, int32 VertexID) {
 		return Pos + ExtrudeDist * (bIsOffset ? (FVector3d)Normal : ExtrudeDir);
 	};
+	Extruder.bIsPositiveOffset = (ExtrudeDist > 0);
+	Extruder.bOffsetFullComponentsAsSolids = ExtrudeProperties->bShellsToSolids;
 	Extruder.ChangeTracker = MakeUnique<FDynamicMeshChangeTracker>(Mesh);
 	Extruder.ChangeTracker->BeginChange();
 	Extruder.Apply();
 
 	FMeshNormals::QuickComputeVertexNormalsForTriangles(*Mesh, Extruder.AllModifiedTriangles);
 
+	// construct new selection
+	FGroupTopologySelection NewSelection;
+	for (const FOffsetMeshRegion::FOffsetInfo& Info : Extruder.OffsetRegions)
+	{
+		for (int32 gid : Info.OffsetGroups)
+		{
+			NewSelection.SelectedGroupIDs.Add(gid);
+		}
+	}
+
 	// emit undo
-	FGroupTopologySelection CurSelection = SelectionMechanic->GetActiveSelection();
 	TUniquePtr<FMeshChange> MeshChange = MakeUnique<FMeshChange>(Extruder.ChangeTracker->EndChange());
 	CompleteMeshEditChange( (bIsOffset) ? LOCTEXT("PolyMeshOffsetChange", "Offset") : LOCTEXT("PolyMeshExtrudeChange", "Extrude"),
-		MoveTemp(MeshChange), CurSelection);
+		MoveTemp(MeshChange), NewSelection);
 
 	ExtrudeHeightMechanic = nullptr;
 	CurrentToolMode = ECurrentToolMode::TransformSelection;
