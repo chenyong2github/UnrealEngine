@@ -76,9 +76,9 @@ uint3 EncodeVoxelKey(float3 VoxelPos)
 
 uint EncodeNormalBits(float3 WorldNormal)
 {
-	return	(WorldNormal.x >= 0 ? 4 : 0) |
-			(WorldNormal.y >= 0 ? 2 : 0) |
-			(WorldNormal.z >= 0 ? 1 : 0);
+	return	(WorldNormal.x >= 0.01 ? 4 : 0) |
+			(WorldNormal.y >= 0.01 ? 2 : 0) |
+			(WorldNormal.z >= 0.01 ? 1 : 0);
 }
 
 #define ATOMIC_ADD_FLOAT(Value, Increment) \
