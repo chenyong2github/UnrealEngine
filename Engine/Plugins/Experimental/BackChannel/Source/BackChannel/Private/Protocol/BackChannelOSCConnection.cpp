@@ -63,6 +63,16 @@ void FBackChannelOSCConnection::RemoveRouteDelegate(FStringView Path, FDelegateH
 	FScopeLock Lock(&PacketMutex);
 	DispatchMap.RemoveRoute(Path, InHandle);
 }
+
+void FBackChannelOSCConnection::SetBufferSizes(int32 DesiredSendSize, int32 DesiredReceiveSize)
+{
+	if (Connection.IsValid())
+	{
+		Connection->SetBufferSizes(DesiredSendSize, DesiredReceiveSize);
+	}
+}
+
+
 /*
 FDelegateHandle FBackChannelOSCConnection::AddMessageHandler(const TCHAR* Path, FBackChannelDispatchDelegate::FDelegate Delegate)
 {

@@ -52,13 +52,18 @@ public:
 	virtual FSocket* GetSocket() override { return Socket; }
 
 	/* Todo - Proper stats */
-	uint32	GetPacketsReceived() const override;
+	virtual uint32	GetPacketsReceived() const override;
+
+	/* Set the specified send and receive buffer sizes, if supported */
+	virtual void SetBufferSizes(int32 DesiredSendSize, int32 DesiredReceiveSize) override;
 
 private:
 	static int32 SendBufferSize;
 	static int32 ReceiveBufferSize;
+	static double LastStatResetTime;
 
 	void					CloseWithError(const TCHAR* Error, FSocket* InSocket=nullptr);
+	void					ResetStatsIfTime();
 	
 	/* Attempts to set the specified buffer size on our socket, will drop by 50% each time until success */
 	void					SetSocketBufferSizes(FSocket* NewSocket, int32 DesiredSendSize, int32 DesiredReceiveSize);
@@ -68,4 +73,15 @@ private:
 	FSocket*				Socket;
 	bool					IsListener;
 	uint32					PacketsReceived;
+
+	struct FConnectionStats
+	{
+		int32		PacketsSent = 0;
+		int32		PacketsReceived = 0;
+		int32		BytesSent = 0;
+		int32		BytesReceived = 0;
+		int32		Errors = 0;
+	};
+
+	FConnectionStats		Stats;
 };
