@@ -73,7 +73,7 @@ void FSlateNullRenderer::ReleaseDynamicResource( const FSlateBrush& InBrush )
 {
 }
 
-void FSlateNullRenderer::PrepareToTakeScreenshot(const FIntRect& Rect, TArray<FColor>* OutColorData)
+void FSlateNullRenderer::PrepareToTakeScreenshot(const FIntRect& Rect, TArray<FColor>* OutColorData, SWindow* InScreenshotWindow)
 {
 	if (OutColorData)
 	{
