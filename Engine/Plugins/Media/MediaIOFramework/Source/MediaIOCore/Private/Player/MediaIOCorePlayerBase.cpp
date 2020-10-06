@@ -7,6 +7,8 @@
 #include "HAL/IConsoleManager.h"
 #include "IMediaEventSink.h"
 #include "IMediaOptions.h"
+#include "IMediaModule.h"
+#include "IMediaPlayerFactory.h"
 #include "ITimeManagementModule.h"
 #include "MediaIOCoreModule.h"
 #include "MediaIOCoreSamples.h"
@@ -502,9 +504,13 @@ TArray<ITimedDataInputChannel*> FMediaIOCorePlayerBase::GetChannels() const
 
 FText FMediaIOCorePlayerBase::GetDisplayName() const
 {
-	return FText::Format(LOCTEXT("PlayerDisplayName", "{0} - {1}"), FText::FromName(GetPlayerName()), FText::FromString(GetUrl()));
+	IMediaModule* MediaModule = FModuleManager::Get().GetModulePtr<IMediaModule>("MediaModule");
+	if (!MediaModule)
+	{
+		return FText::GetEmpty();
+	}
+	return FText::Format(LOCTEXT("PlayerDisplayName", "{0} - {1}"), FText::FromName(MediaModule->GetPlayerFactory(GetPlayerPluginGUID())->GetPlayerName()), FText::FromString(GetUrl()));
 }
-
 ETimedDataInputEvaluationType FMediaIOCorePlayerBase::GetEvaluationType() const
 {
 	if (bUseTimeSynchronization)
