@@ -59,4 +59,8 @@ protected:
 
 	/** Holds a reference to the SceneViewport SWindow */
 	TWeakPtr<SWindow> SceneViewportWindow;
+
+	FRemoteSesstionImageCaptureStats CaptureStats;
 };
+
+
