@@ -115,9 +115,9 @@ UObject* FLevelSequenceActorSpawner::SpawnObject(FMovieSceneSpawnable& Spawnable
 	}
 
 	// We use the net addressable name for spawnables on any non-editor, non-standalone world (ie, all clients, servers and PIE worlds)
-	const bool bUseNetAddressableName = (WorldContext->WorldType != EWorldType::Editor) && (WorldContext->GetNetMode() != ENetMode::NM_Standalone);
+	const bool bUseNetAddressableName = Spawnable.bNetAddressableName && (WorldContext->WorldType != EWorldType::Editor) && (WorldContext->GetNetMode() != ENetMode::NM_Standalone);
 
-	FName SpawnName = bUseNetAddressableName ? Spawnable.GetNetAddressableName(Player) :
+	FName SpawnName = bUseNetAddressableName ? Spawnable.GetNetAddressableName(Player, TemplateID) :
 #if WITH_EDITOR
 		// Construct the object with the same name that we will set later on the actor to avoid renaming it inside SetActorLabel
 		MakeUniqueObjectName(WorldContext->PersistentLevel, ObjectTemplate->GetClass(), *Spawnable.GetName());
