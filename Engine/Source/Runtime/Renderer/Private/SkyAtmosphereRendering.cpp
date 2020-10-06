@@ -1293,10 +1293,20 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRDGBuilder& GraphBuilder)
 			PassParameters->AtmosphereLightDirection0 = -Light0->Proxy->GetDirection();
 			PassParameters->AtmosphereLightColor0 = Light0->Proxy->GetColor();
 		}
+		else
+		{
+			PassParameters->AtmosphereLightDirection0 = FVector4(0.0f, 0.0f, 1.0f, 1.0f);
+			PassParameters->AtmosphereLightColor0 = FLinearColor::Black;
+		}
 		if (Light1)
 		{
 			PassParameters->AtmosphereLightDirection1 = -Light1->Proxy->GetDirection();
 			PassParameters->AtmosphereLightColor1 = Light1->Proxy->GetColor();
+		}
+		else
+		{
+			PassParameters->AtmosphereLightDirection1 = FVector4(0.0f, 0.0f, 1.0f, 1.0f);
+			PassParameters->AtmosphereLightColor1 = FLinearColor::Black;
 		}
 		PassParameters->DistantSkyLightSampleAltitude = CVarSkyAtmosphereDistantSkyLightLUTAltitude.GetValueOnAnyThread();
 
