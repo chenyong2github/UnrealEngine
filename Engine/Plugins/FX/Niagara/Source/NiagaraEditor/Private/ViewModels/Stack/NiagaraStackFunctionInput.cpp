@@ -444,9 +444,17 @@ FText UNiagaraStackFunctionInput::GetValueToolTip() const
 			}
 			break;
 		case EValueMode::Dynamic:
-			if (InputValues.DynamicNode->FunctionScript != nullptr)
+			if (UNiagaraScript* FunctionScript = InputValues.DynamicNode->FunctionScript)
 			{
-				ValueToolTipCache = InputValues.DynamicNode->FunctionScript->Description;
+				FText FunctionName = FText::FromString(FName::NameToDisplayString(InputValues.DynamicNode->GetFunctionName(), false));
+				if (FunctionScript->Description.IsEmptyOrWhitespace())
+				{
+					ValueToolTipCache = FText::Format(FText::FromString("Compiled Name: {0}"), FunctionName);
+				}
+				else
+				{
+					ValueToolTipCache = FText::Format(FText::FromString("{0}\n\nCompiled Name: {1}"), FunctionScript->Description, FunctionName);
+				}
 			}
 			break;
 		case EValueMode::InvalidOverride:
