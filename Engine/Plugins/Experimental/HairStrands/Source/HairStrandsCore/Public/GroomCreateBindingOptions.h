@@ -9,15 +9,16 @@
 #include "GroomAsset.h"
 #include "GroomCreateBindingOptions.generated.h"
 
-UCLASS(BlueprintType, config = EditorPerProjectUserSettings, HideCategories = ("Hidden"))
+UCLASS(BlueprintType, config = EditorPerProjectUserSettings, autoCollapseCategories = (Conversion), hideCategories = (Hidden))
 class HAIRSTRANDSCORE_API UGroomCreateBindingOptions : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 	/** Skeletal mesh on which the groom has been authored. This is optional, and used only if the hair
-		binding is done a different mesh than the one which it has been authored */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ShowOnlyInnerProperties), Category = Conversion)
+		binding is done a different mesh than the one which it has been authored, i.e., only if the curves 
+		roots and the surface geometry don't aligned and need to be wrapped/transformed. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, meta = (ShowOnlyInnerProperties), Category = Conversion)
 	USkeletalMesh* SourceSkeletalMesh;
 
 	/** Skeletal mesh on which the groom is attached to. */
