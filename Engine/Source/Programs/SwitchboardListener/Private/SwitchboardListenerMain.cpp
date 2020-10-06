@@ -115,6 +115,7 @@ bool RunSwitchboardListener(int ArgC, TCHAR* ArgV[])
 	{
 		const double CurrentTime = FPlatformTime::Seconds();
 		const double DeltaTime = CurrentTime - LastTime;
+		LastTime = CurrentTime;
 
 		FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
 
@@ -128,12 +129,10 @@ bool RunSwitchboardListener(int ArgC, TCHAR* ArgV[])
 		GLog->FlushThreadedLogs();
 
 		// Run garbage collection for the UObjects for the rest of the frame or at least to 2 ms
-		IncrementalPurgeGarbage(true, FMath::Max<float>(0.002f, IdealFrameTime - (FPlatformTime::Seconds() - LastTime)));
+		IncrementalPurgeGarbage(true, FMath::Max<float>(0.002f, IdealFrameTime - (FPlatformTime::Seconds() - CurrentTime)));
 
 		// Throttle main thread main fps by sleeping if we still have time
-		FPlatformProcess::Sleep(FMath::Max<float>(0.0f, IdealFrameTime - (FPlatformTime::Seconds() - LastTime)));
-
-		LastTime = CurrentTime;
+		FPlatformProcess::Sleep(FMath::Max<float>(0.0f, IdealFrameTime - (FPlatformTime::Seconds() - CurrentTime)));
 	}
 
 	return true;

@@ -1,4 +1,5 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
+
 import base64
 import json
 import uuid
@@ -59,6 +60,12 @@ def create_keep_alive_message():
     cmd_id = uuid.uuid4()
     keep_alive_cmd = {'command': 'keep alive', 'id': str(cmd_id)}
     message = json.dumps(keep_alive_cmd).encode() + b'\x00'
+    return (cmd_id, message)
+
+def create_get_sync_status_message(program_id):
+    cmd_id = uuid.uuid4()
+    cmd = {'command': 'get sync status', 'id': str(cmd_id), 'uuid': str(program_id)}
+    message = json.dumps(cmd).encode() + b'\x00'
     return (cmd_id, message)
 
 def decode_message(msg_in_bytes):

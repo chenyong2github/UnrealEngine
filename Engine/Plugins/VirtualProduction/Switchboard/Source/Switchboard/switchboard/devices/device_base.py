@@ -258,3 +258,21 @@ class Device(QtCore.QObject):
         device_recording.timecode_in = timecode_in
 
         return device_recording
+
+    @classmethod
+    def plug_into_ui(cls, menubar, tabs):
+        ''' Plugins can take this opportunity to add their own options to the UI
+        '''
+        pass
+
+    @classmethod
+    def added_device(cls, device):
+        ''' DeviceManager informing that this plugin device has been created and added.
+        '''
+        pass
+
+    @classmethod
+    def removed_device(cls, device):
+        ''' DeviceManager informing that this plugin device has been removed.
+        '''
+        pass
