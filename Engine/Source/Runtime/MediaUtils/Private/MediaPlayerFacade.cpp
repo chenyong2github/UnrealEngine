@@ -340,7 +340,7 @@ FName FMediaPlayerFacade::GetPlayerName() const
 	{
 		return NAME_None;
 	}
-	return CurrentPlayer->GetPlayerName();
+	return MediaModule->GetPlayerFactory(CurrentPlayer->GetPlayerPluginGUID())->GetPlayerName();
 }
 
 
@@ -1003,7 +1003,7 @@ TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> FMediaPlayerFacade::GetPlayerForUr
 	}
 
 	// reuse existing player if requested
-	if (Player.IsValid() && (PlayerName == Player->GetPlayerName()))
+	if (Player.IsValid() && (PlayerName == MediaModule->GetPlayerFactory(Player->GetPlayerPluginGUID())->GetPlayerName()))
 	{
 		return Player;
 	}
@@ -1039,7 +1039,7 @@ TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> FMediaPlayerFacade::GetPlayerForUr
 	// try to reuse existing player
 	if (Player.IsValid())
 	{
-		IMediaPlayerFactory* Factory = MediaModule->GetPlayerFactory(Player->GetPlayerName());
+		IMediaPlayerFactory* Factory = MediaModule->GetPlayerFactory(Player->GetPlayerPluginGUID());
 
 		if ((Factory != nullptr) && Factory->CanPlayUrl(Url, Options))
 		{

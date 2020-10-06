@@ -580,10 +580,10 @@ FString FAvfMediaPlayer::GetInfo() const
 }
 
 
-FName FAvfMediaPlayer::GetPlayerName() const
+FGuid FAvfMediaPlayer::GetPlayerPluginGUID() const
 {
-	static FName PlayerName(TEXT("AvfMedia"));
-	return PlayerName;
+	static FGuid PlayerPluginGUID(0xef660169, 0xa304472b, 0xb69e1281, 0xc1687654);
+	return PlayerPluginGUID;
 }
 
 
