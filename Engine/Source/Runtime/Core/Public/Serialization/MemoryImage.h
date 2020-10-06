@@ -62,7 +62,10 @@ inline bool operator!=(const FMemoryImageNamePointer& Lhs, const FMemoryImageNam
 }
 inline bool operator<(const FMemoryImageNamePointer& Lhs, const FMemoryImageNamePointer& Rhs)
 {
-	if (Lhs.Name != Rhs.Name) return Lhs.Name.FastLess(Rhs.Name);
+	if (Lhs.Name != Rhs.Name)
+	{
+		return Lhs.Name.LexicalLess(Rhs.Name);
+	}
 	return Lhs.Offset < Rhs.Offset;
 }
 
