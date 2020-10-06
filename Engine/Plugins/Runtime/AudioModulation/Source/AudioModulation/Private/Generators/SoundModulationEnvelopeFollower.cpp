@@ -35,6 +35,14 @@ namespace AudioModulation
 					{
 						AudioBusPatch = MixerDevice->AddPatchForAudioBus(BusId, Params.Gain);
 						EnvelopeFollower = FEnvelopeFollower(MixerDevice->SampleRate, Params.AttackTime, Params.ReleaseTime, Audio::EPeakMode::Peak);
+						if (Params.bInvert)
+						{
+							CurrentValue = 1.0f - EnvelopeFollower.GetCurrentValue();
+						}
+						else
+						{
+							CurrentValue = EnvelopeFollower.GetCurrentValue();
+						}
 					}
 				}
 			});
@@ -43,7 +51,7 @@ namespace AudioModulation
 
 	float FEnvelopeFollowerGenerator::GetValue() const
 	{
-		return EnvelopeFollower.GetCurrentValue();
+		return CurrentValue;
 	}
 
 	bool FEnvelopeFollowerGenerator::IsBypassed() const
@@ -85,6 +93,14 @@ namespace AudioModulation
 		}
 
 		EnvelopeFollower.ProcessAudio(Amp);
+		if (Params.bInvert)
+		{
+			CurrentValue = 1.0f - EnvelopeFollower.GetCurrentValue();
+		}
+		else
+		{
+			CurrentValue = EnvelopeFollower.GetCurrentValue();
+		}
 	}
 
 #if !UE_BUILD_SHIPPING
