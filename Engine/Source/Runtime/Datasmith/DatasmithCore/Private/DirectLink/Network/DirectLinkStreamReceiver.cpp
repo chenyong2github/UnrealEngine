@@ -108,7 +108,7 @@ FStreamReceiver::FStreamReceiver(TSharedPtr<FMessageEndpoint, ESPMode::ThreadSaf
 }
 
 
-void FStreamReceiver::HandleDeltaMessage(const FDirectLinkMsg_DeltaMessage& Message)
+void FStreamReceiver::HandleDeltaMessage(FDirectLinkMsg_DeltaMessage& Message)
 {
 	PipeFromNetwork.HandleDeltaMessage(Message);
 }
