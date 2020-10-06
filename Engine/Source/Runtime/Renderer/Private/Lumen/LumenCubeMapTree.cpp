@@ -397,7 +397,7 @@ void UpdateLumenCubeMapTrees(const FDistanceFieldSceneData& DistanceFieldSceneDa
 			}
 
 			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.PrimitiveToDFObjectIndexBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::EWritable));
-			LumenSceneData.ByteBufferUploadBuffer.ResourceUploadTo(RHICmdList, LumenSceneData.PrimitiveToDFObjectIndexBuffer, false);
+			LumenSceneData.UploadPrimitiveBuffer.ResourceUploadTo(RHICmdList, LumenSceneData.PrimitiveToDFObjectIndexBuffer, false);
 			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.PrimitiveToDFObjectIndexBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::EReadable));
 		}
 	}
