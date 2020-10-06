@@ -273,7 +273,7 @@ void FConcurrencyGroup::UpdateGeneration(FActiveSound* NewActiveSound)
 					const float APriority = A.GetAlwaysPlay() ? A.GetHighestPriority(true /* bIgnoreAlwaysPlay */) + MAX_SOUND_PRIORITY + 1.0f : A.GetHighestPriority();
 					const float BPriority = B.GetAlwaysPlay() ? B.GetHighestPriority(true /* bIgnoreAlwaysPlay */) + MAX_SOUND_PRIORITY + 1.0f : B.GetHighestPriority();
 
-					// If sounds share the same priority, newer sounds will be sorted first to avoid volume ping-ponging 
+					// If sounds share the same priority, newer sounds will be sorted last to avoid volume ping-ponging 
 					if (FMath::IsNearlyEqual(APriority, BPriority, KINDA_SMALL_NUMBER))
 					{
 						return A.GetPlayOrder() < B.GetPlayOrder();
@@ -358,8 +358,8 @@ void FConcurrencyGroup::CullSoundsDueToMaxConcurrency()
 
 					// Newer sounds pushed forward in sort to make them more likely to be culled if PreventNew
 					return ResolutionRule == EMaxConcurrentResolutionRule::StopLowestPriorityThenPreventNew
-						? A.GetPlayOrder() < B.GetPlayOrder()
-						: A.GetPlayOrder() > B.GetPlayOrder();
+						? A.GetPlayOrder() > B.GetPlayOrder()
+						: A.GetPlayOrder() < B.GetPlayOrder();
 				}
 				break;
 
@@ -380,25 +380,18 @@ void FConcurrencyGroup::CullSoundsDueToMaxConcurrency()
 
 	ActiveSounds.Sort(FCompareActiveSounds(Settings.ResolutionRule));
 
-	const int32 NumActiveSounds = ActiveSounds.Num();
-	const int32 NumSoundsToStop = NumActiveSounds - Settings.MaxCount;
-	check(NumSoundsToStop > 0);
-
 	// Need to make a new list when stopping the sounds since the process of stopping an active sound
 	// will remove the sound from this concurrency group's ActiveSounds array.
-	int32 i = 0;
-	for (; i < NumSoundsToStop; ++i)
+	const int32 NumSoundsToStop = ActiveSounds.Num() - Settings.MaxCount;
+	check(NumSoundsToStop > 0);
+	for (int32 i = 0; i < ActiveSounds.Num(); ++i)
 	{
 		FActiveSound* ActiveSound = ActiveSounds[i];
 		check(ActiveSound);
-		ActiveSound->bShouldStopDueToMaxConcurrency = true;
-	}
 
-	for (; i < NumActiveSounds; ++i)
-	{
-		ActiveSounds[i]->bShouldStopDueToMaxConcurrency = false;
+		const bool bShouldStop = i < NumSoundsToStop;
+		ActiveSound->bShouldStopDueToMaxConcurrency = bShouldStop;
 	}
-
 }
 
 FSoundConcurrencyManager::FSoundConcurrencyManager(class FAudioDevice* InAudioDevice)
