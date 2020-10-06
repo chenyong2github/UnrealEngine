@@ -57,7 +57,9 @@ UNiagaraSpriteRendererProperties::UNiagaraSpriteRendererProperties()
 	FNiagaraTypeDefinition MaterialDef(UMaterialInterface::StaticClass());
 	MaterialUserParamBinding.Parameter.SetType(MaterialDef);
 
-	AttributeBindings.Reserve(17);
+	AttributeBindings.Reserve(18);
+
+	// NOTE: These bindings' indices have to align to their counterpart in ENiagaraSpriteVFLayout
 	AttributeBindings.Add(&PositionBinding);
 	AttributeBindings.Add(&ColorBinding);
 	AttributeBindings.Add(&VelocityBinding);
@@ -75,6 +77,8 @@ UNiagaraSpriteRendererProperties::UNiagaraSpriteRendererProperties()
 	AttributeBindings.Add(&MaterialRandomBinding);
 	AttributeBindings.Add(&CustomSortingBinding);
 	AttributeBindings.Add(&NormalizedAgeBinding);
+
+	// The remaining bindings are not associated with attributes in the VF layout
 	AttributeBindings.Add(&RendererVisibilityTagBinding);
 }
 
