@@ -203,11 +203,14 @@ public:
 	/** Destructor */
 	virtual ~FOpenXRHMD();
 
+
+	void OnBeginRendering_RHIThread();
+	void OnFinishRendering_RHIThread();
+
 	/** @return	True if the HMD was initialized OK */
 	OPENXRHMD_API bool IsInitialized() const;
 	OPENXRHMD_API bool IsRunning() const;
 	OPENXRHMD_API bool IsFocused() const;
-	void FinishRendering();
 
 	OPENXRHMD_API int32 AddActionDevice(XrAction Action);
 	OPENXRHMD_API void ResetActionDevices();

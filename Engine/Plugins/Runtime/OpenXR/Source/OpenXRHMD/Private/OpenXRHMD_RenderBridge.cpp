@@ -6,11 +6,19 @@
 #include "OpenXRCore.h"
 #include "OpenXRPlatformRHI.h"
 
+void FOpenXRRenderBridge::BeginDrawing()
+{
+	if (OpenXRHMD)
+	{
+		OpenXRHMD->OnBeginRendering_RHIThread();
+	}
+}
+
 bool FOpenXRRenderBridge::Present(int32& InOutSyncInterval)
 {
 	if (OpenXRHMD)
 	{
-		OpenXRHMD->FinishRendering();
+		OpenXRHMD->OnFinishRendering_RHIThread();
 	}
 
 	InOutSyncInterval = 0; // VSync off

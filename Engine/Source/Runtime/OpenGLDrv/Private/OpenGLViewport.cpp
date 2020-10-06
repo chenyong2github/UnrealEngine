@@ -111,6 +111,11 @@ void FOpenGLDynamicRHI::RHIBeginDrawingViewport(FRHIViewport* ViewportRHI, FRHIT
 		FRHIRenderTargetView RTV(DrawingViewport->GetBackBuffer(), ERenderTargetLoadAction::ELoad);
 		SetRenderTargets(1, &RTV, nullptr);
 	}
+
+	if (IsValidRef(CustomPresent))
+	{
+		CustomPresent->BeginDrawing();
+	}
 }
 
 void FOpenGLDynamicRHI::RHIEndDrawingViewport(FRHIViewport* ViewportRHI,bool bPresent,bool bLockToVsync)
