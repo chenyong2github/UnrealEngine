@@ -428,6 +428,7 @@ public:
 	 *
 	 * @param OutTransform : result
 	 */
+	UE_DEPRECATED(4.26.0, "Please use BlendTransform() for weighted blending")
 	static void BlendTransformsByWeight(FTransform& OutTransform, const TArray<FTransform>& Transforms, const TArray<float>& Weights);
 
 	/** 
