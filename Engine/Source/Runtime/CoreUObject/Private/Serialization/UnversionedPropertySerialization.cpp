@@ -733,7 +733,9 @@ bool CanUseUnversionedPropertySerialization(const ITargetPlatform* Target)
 		return CanUseUnversionedPropertySerialization();
 	}
 
-	int32 TargetID = Target->GetPlatformOrdinal();
+	const bool bIsServerOnly = Target->IsServerOnly();
+	const int32 IsServerOnlyBit = bIsServerOnly << 31;
+	const int32 TargetID = IsServerOnlyBit | Target->GetPlatformOrdinal();
 
 	FWriteScopeLock Scope(GUPSIniValueCache.Lock);
 
@@ -745,7 +747,7 @@ bool CanUseUnversionedPropertySerialization(const ITargetPlatform* Target)
 	FConfigFile TargetIni;
 	FConfigCacheIni::LoadLocalIniFile(TargetIni, TEXT("Engine"), /* base INI */ true, *Target->IniPlatformName());
 	bool bTargetValue = CanUseUnversionedPropertySerialization(TargetIni);
-	if (Target->IsServerOnly())
+	if (bIsServerOnly)
 	{
 		bTargetValue = bTargetValue && CanUseUnversionedPropertySerializationForServerOnly(TargetIni);
 	}
