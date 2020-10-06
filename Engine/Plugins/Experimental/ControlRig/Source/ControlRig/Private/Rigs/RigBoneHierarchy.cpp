@@ -483,8 +483,8 @@ void FRigBoneHierarchy::Sort()
 		}
 		else
 		{
-			// as as a root
-			HierarchyTree.Add(Index);
+			// add as a root
+			HierarchyTree.FindOrAdd(Index);
 			RootArray.Add(Index);
 		}
 	}
