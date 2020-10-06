@@ -655,10 +655,10 @@ bool FPBDConstraintGraph::SleepInactive(const int32 Island, const TArrayCollecti
 			{
 				NumDynamicParticles++;
 
-				const FReal LinearSpeed2 = PBDRigid->V().SizeSquared();
+				const FReal LinearSpeed2 = PBDRigid->VSmooth().SizeSquared();
 				MaxLinearSpeed2 = FMath::Max(LinearSpeed2,MaxLinearSpeed2);
 
-				const FReal AngularSpeed2 = PBDRigid->W().SizeSquared();
+				const FReal AngularSpeed2 = PBDRigid->WSmooth().SizeSquared();
 				MaxAngularSpeed2 = FMath::Max(AngularSpeed2,MaxAngularSpeed2);
 
 				bool bThresholdsSet = false;
