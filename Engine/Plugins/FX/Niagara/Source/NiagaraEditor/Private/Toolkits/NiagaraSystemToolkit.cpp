@@ -712,12 +712,8 @@ TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_GeneratedCode(const FSpawnT
 {
 	check(Args.GetTabId().TabType == GeneratedCodeTabID);
 
-	TSharedRef<SDockTab> SpawnedTab =
-		SNew(SDockTab)
-		[
-			SNew(SNiagaraGeneratedCodeView, SystemViewModel.ToSharedRef())
-		];
-
+	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab);
+	SpawnedTab->SetContent(SNew(SNiagaraGeneratedCodeView, SystemViewModel.ToSharedRef(), SpawnedTab));
 	return SpawnedTab;
 }
 
