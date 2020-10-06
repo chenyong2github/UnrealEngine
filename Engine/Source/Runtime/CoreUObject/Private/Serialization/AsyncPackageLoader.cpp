@@ -12,6 +12,7 @@
 
 volatile int32 GIsLoaderCreated;
 TUniquePtr<IAsyncPackageLoader> GPackageLoader;
+bool GAsyncLoadingAllowed = true;
 
 #if !UE_BUILD_SHIPPING
 static void LoadPackageCommand(const TArray<FString>& Args)
@@ -528,6 +529,11 @@ IAsyncPackageLoader& GetAsyncPackageLoader()
 	return *GPackageLoader;
 }
 
+void SetAsyncLoadingAllowed(bool bAllowAsyncLoading)
+{
+	GAsyncLoadingAllowed = bAllowAsyncLoading;
+}
+
 void InitAsyncThread()
 {
 	LLM_SCOPE(ELLMTag::AsyncLoading);
@@ -653,6 +659,7 @@ bool IsAsyncLoadingSuspendedInternal()
 int32 LoadPackageAsync(const FString& InName, const FGuid* InGuid /*= nullptr*/, const TCHAR* InPackageToLoadFrom /*= nullptr*/, FLoadPackageAsyncDelegate InCompletionDelegate /*= FLoadPackageAsyncDelegate()*/, EPackageFlags InPackageFlags /*= PKG_None*/, int32 InPIEInstanceID /*= INDEX_NONE*/, int32 InPackagePriority /*= 0*/, const FLinkerInstancingContext* InstancingContext /*=nullptr*/)
 {
 	LLM_SCOPE(ELLMTag::AsyncLoading);
+	UE_CLOG(!GAsyncLoadingAllowed, LogStreaming, Fatal, TEXT("Requesting async load of \"%s\" when async loading is not allowed (after shutdown). Please fix higher level code."), *InName);
 	return GetAsyncPackageLoader().LoadPackage(InName, InGuid, InPackageToLoadFrom, InCompletionDelegate, InPackageFlags, InPIEInstanceID, InPackagePriority, InstancingContext);
 }
 
