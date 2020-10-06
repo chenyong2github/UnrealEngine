@@ -53,8 +53,8 @@ public:
 	virtual FString GetContentVersion() const = 0;
 
 	// Finds all dependencies for InBundleName, including InBundleName
-	// Sets bSkippedUnknownBundles if information for InBundleName or a dependency can't be found
-	virtual TSet<FName> GetBundleDependencies(FName InBundleName, bool* bSkippedUnknownBundles /*= nullptr*/) const = 0;
+	// SkippedUnknownBundles contains any unknown bundles that may have been found
+	virtual TSet<FName> GetBundleDependencies(FName InBundleName, TSet<FName>* SkippedUnknownBundles = nullptr) const = 0;
 
 	// Gets the state of content on disk
 	// BundleNames contains all dependencies and has been deduped
