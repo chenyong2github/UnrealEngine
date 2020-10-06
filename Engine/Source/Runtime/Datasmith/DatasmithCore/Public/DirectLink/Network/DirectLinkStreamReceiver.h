@@ -26,7 +26,7 @@ public:
 		FStreamPort ReceiverStreamPort,
 		const TSharedRef<ISceneReceiver>& Consumer);
 
-	void HandleDeltaMessage(const FDirectLinkMsg_DeltaMessage& Message);
+	void HandleDeltaMessage(FDirectLinkMsg_DeltaMessage& Message);
 
 	virtual FCommunicationStatus GetCommunicationStatus() const override;
 

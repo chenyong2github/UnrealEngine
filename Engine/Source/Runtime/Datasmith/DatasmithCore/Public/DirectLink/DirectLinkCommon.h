@@ -70,8 +70,8 @@ protected:
 static constexpr uint8 kMagic = 0xd1;
 
 // DirectLink exchanges messages between pairs. Those versions numbers helps making sure pairs are compatible
-static constexpr uint8 kCurrentProtocolVersion = 8;
-static constexpr uint8 kMinSupportedProtocolVersion = 8; // oldest supported version
+static constexpr uint8 kCurrentProtocolVersion = 9;
+static constexpr uint8 kMinSupportedProtocolVersion = 9; // oldest supported version
 
 enum class ESerializationStatus
 {
