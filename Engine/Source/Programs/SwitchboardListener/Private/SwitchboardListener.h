@@ -11,6 +11,9 @@ struct FSwitchboardDisconnectTask;
 struct FSwitchboardSendFileToClientTask;
 struct FSwitchboardStartTask;
 struct FSwitchboardReceiveFileFromClientTask;
+struct FSwitchboardGetSyncStatusTask;
+struct FSwitchboardMessageFuture;
+
 class FInternetAddr;
 class FSocket;
 class FTcpListener;
@@ -35,12 +38,17 @@ private:
 	bool KillAllProcesses();
 	bool ReceiveFileFromClient(const FSwitchboardReceiveFileFromClientTask& InReceiveFileFromClientTask);
 	bool SendFileToClient(const FSwitchboardSendFileToClientTask& InSendFileToClientTask);
+	bool GetSyncStatus(const FSwitchboardGetSyncStatusTask& InGetSyncStatusTask);
+	FRunningProcess* FindOrStartFlipModeMonitorForUUID(const FGuid& UUID);
 
 	void CleanUpDisconnectedSockets();
 	void DisconnectClient(const FIPv4Endpoint& InClientEndpoint);
-	bool HandleRunningProcesses();
+	void HandleRunningProcesses(TArray<FRunningProcess>& Processes, bool bNotifyThatProgramEnded);
 
 	bool SendMessage(const FString& InMessage, const FIPv4Endpoint& InEndpoint);
+	void SendMessageFutures();
+
+	bool EquivalentTaskFutureExists(uint32 TaskEquivalenceHash) const;
 
 private:
 	TUniquePtr<FIPv4Endpoint> Endpoint;
@@ -53,4 +61,6 @@ private:
 	TQueue<TUniquePtr<FSwitchboardTask>, EQueueMode::Spsc> ScheduledTasks;
 	TQueue<TUniquePtr<FSwitchboardTask>, EQueueMode::Spsc> DisconnectTasks;
 	TArray<FRunningProcess> RunningProcesses;
+	TArray<FRunningProcess> FlipModeMonitors;
+	TArray<FSwitchboardMessageFuture> MessagesFutures;
 };

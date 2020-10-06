@@ -14,8 +14,18 @@ public class SwitchboardListener : ModuleRules
 				"Json",
 				"Networking",
 				"Projects", // for LaunchEngineLoop.cpp dependency
+				"JsonUtilities",
 			}
 		);
+
+		if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
+        {
+			PrivateDependencyModuleNames.AddRange(
+				new string[] {
+					"NVAPI",
+				}
+			);
+		}
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {

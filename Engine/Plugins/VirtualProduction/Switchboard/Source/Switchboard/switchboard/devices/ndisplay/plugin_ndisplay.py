@@ -1,10 +1,14 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
+
 from switchboard import message_protocol
 from switchboard.config import CONFIG, Setting, SETTINGS
 from switchboard.devices.device_base import Device
 from switchboard.devices.device_widget_base import AddDeviceDialog
 from switchboard.devices.unreal.plugin_unreal import DeviceUnreal, DeviceWidgetUnreal
 from switchboard.switchboard_logging import LOGGER
+
+from .ndisplay_monitor_ui import nDisplayMonitorUI
+from .ndisplay_monitor    import nDisplayMonitor
 
 from PySide2 import QtWidgets
 
@@ -146,6 +150,9 @@ class DevicenDisplay(DeviceUnreal):
     setting_render_api = Setting("render_api", "Render API", "dx12", possible_values=["dx11", "dx12"])
     setting_render_mode = Setting("render_mode", "Render Mode", "Mono", possible_values=["Mono", "Frame sequential", "Side-by-Side", "Top-bottom"])
 
+    ndisplay_monitor_ui = None
+    ndisplay_monitor = None
+
     def __init__(self, name, ip_address, **kwargs):
         super().__init__(name, ip_address, **kwargs)
 
@@ -170,6 +177,11 @@ class DevicenDisplay(DeviceUnreal):
         self.setting_render_mode.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
 
         self.unreal_client.send_file_completed_delegate = self.on_ndisplay_config_transfer_complete
+        self.unreal_client.get_sync_status_delegate = self.on_get_sync_status
+
+        # create monitor if it doesn't exist
+        if not self.__class__.ndisplay_monitor:
+            self.__class__.ndisplay_monitor = nDisplayMonitor(None)
 
     @staticmethod
     def plugin_settings():
@@ -222,6 +234,11 @@ class DevicenDisplay(DeviceUnreal):
         map_name = ""
         super().launch(map_name)
 
+    def on_get_sync_status(self, message):
+        ''' Called when 'get sync status' is received.
+        '''
+        self.__class__.ndisplay_monitor.on_get_sync_status(device=self, message=message)
+
     def launch(self, map_name):
         destination = "%TEMP%/ndisplay/%RANDOM%.cfg"
         source = self.setting_ndisplay_config_file.get_value()
@@ -231,3 +248,36 @@ class DevicenDisplay(DeviceUnreal):
         else:
             LOGGER.error(f"{self.name}: Could not find nDisplay config file at {source}")
             self.widget._close()
+
+    @classmethod
+    def plug_into_ui(cls, menubar, tabs):
+        ''' Implementation of base class function that allows plugin to inject UI elements.
+        '''
+
+        # Create Monitor UI if it doesn't exist
+        if not cls.ndisplay_monitor_ui:
+            cls.ndisplay_monitor_ui = nDisplayMonitorUI(parent=tabs, monitor=cls.ndisplay_monitor)
+
+        # Add our monitor UI to the main tabs in the UI
+        tabs.addTab(cls.ndisplay_monitor_ui, 'nDisplay &Monitor')
+
+    @classmethod
+    def added_device(cls, device):
+        ''' Implementation of base class function. Called when one of our plugin devices has een added.
+        '''
+
+        if not cls.ndisplay_monitor:
+            return
+
+        cls.ndisplay_monitor.added_device(device)
+
+    @classmethod
+    def removed_device(cls, device):
+        ''' Implementation of base class function. Called when one of our plugin devices has been removed.
+        '''
+
+        if not cls.ndisplay_monitor:
+            return
+
+        cls.ndisplay_monitor.removed_device(device)
+

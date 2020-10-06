@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Interfaces/IPv4/IPv4Endpoint.h"
+#include "Templates/TypeHash.h"
 
 enum class ESwitchboardTaskType : uint8
 {
@@ -14,6 +15,8 @@ enum class ESwitchboardTaskType : uint8
 	SendFileToClient,
 	Disconnect,
 	KeepAlive,
+	GetSyncStatus,
+	GetFlipMode,
 };
 
 struct FSwitchboardTask
@@ -22,6 +25,40 @@ struct FSwitchboardTask
 	FString Name;
 	FGuid TaskID;
 	FIPv4Endpoint Recipient;
+
+	FSwitchboardTask(ESwitchboardTaskType InType, FString InName, FGuid InTaskID, FIPv4Endpoint InRecipient)
+		: Type(InType)
+		, Name(InName)
+		, TaskID(InTaskID)
+		, Recipient(InRecipient)
+	{}
+
+	/** Calculates a hash that should be the same for equivalent Tasks, even if their TaskID is different */
+	virtual uint32 GetEquivalenceHash() const
+	{
+		return HashCombine(GetTypeHash(Type), GetTypeHash(Recipient));
+	}
+	
+	virtual ~FSwitchboardTask()
+	{}
+};
+
+struct FSwitchboardGetSyncStatusTask : public FSwitchboardTask
+{
+	FSwitchboardGetSyncStatusTask(const FGuid& InTaskId, const FIPv4Endpoint& InEndpoint, const FGuid& InProgramID)
+		: FSwitchboardTask{ ESwitchboardTaskType::GetSyncStatus, TEXT("get sync status"), InTaskId, InEndpoint }
+		, ProgramID(InProgramID)
+	{}
+
+	/** ID of the program that we wish to get the FlipMode of */
+	FGuid ProgramID;
+
+	//~ Begin FSwitchboardTask interface
+	virtual uint32 GetEquivalenceHash() const override
+	{
+		return HashCombine(FSwitchboardTask::GetEquivalenceHash(), GetTypeHash(ProgramID));
+	}
+	//~ End FSwitchboardTask interface
 };
 
 struct FSwitchboardStartTask : public FSwitchboardTask
@@ -35,6 +72,14 @@ struct FSwitchboardStartTask : public FSwitchboardTask
 
 	FString Command;
 	FString Arguments;
+
+	//~ Begin FSwitchboardTask interface
+	virtual uint32 GetEquivalenceHash() const override
+	{
+		uint32 Hash = HashCombine(FSwitchboardTask::GetEquivalenceHash(), GetTypeHash(Command));
+		return HashCombine(Hash, GetTypeHash(Arguments));
+	}
+	//~ End FSwitchboardTask interface
 };
 
 struct FSwitchboardKillTask : public FSwitchboardTask
@@ -45,6 +90,13 @@ struct FSwitchboardKillTask : public FSwitchboardTask
 	{}
 
 	FGuid ProgramID; // unique ID of process to kill
+
+	//~ Begin FSwitchboardTask interface
+	virtual uint32 GetEquivalenceHash() const override
+	{
+		return HashCombine(FSwitchboardTask::GetEquivalenceHash(), GetTypeHash(ProgramID));
+	}
+	//~ End FSwitchboardTask interface
 };
 
 struct FSwitchboardKillAllTask : public FSwitchboardTask
@@ -64,6 +116,14 @@ struct FSwitchboardReceiveFileFromClientTask : public FSwitchboardTask
 
 	FString Destination;
 	FString FileContent;
+
+	//~ Begin FSwitchboardTask interface
+	virtual uint32 GetEquivalenceHash() const override
+	{
+		uint32 Hash = HashCombine(FSwitchboardTask::GetEquivalenceHash(), GetTypeHash(Destination));
+		return HashCombine(Hash, GetTypeHash(FileContent));
+	}
+	//~ End FSwitchboardTask interface
 };
 
 struct FSwitchboardSendFileToClientTask : public FSwitchboardTask
@@ -74,6 +134,13 @@ struct FSwitchboardSendFileToClientTask : public FSwitchboardTask
 	{}
 
 	FString Source;
+
+	//~ Begin FSwitchboardTask interface
+	virtual uint32 GetEquivalenceHash() const override
+	{
+		return HashCombine(FSwitchboardTask::GetEquivalenceHash(), GetTypeHash(Source));
+	}
+	//~ End FSwitchboardTask interface
 };
 
 struct FSwitchboardDisconnectTask : public FSwitchboardTask

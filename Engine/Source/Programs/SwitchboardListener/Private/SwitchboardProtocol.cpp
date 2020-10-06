@@ -2,8 +2,10 @@
 
 #include "SwitchboardProtocol.h"
 #include "SwitchboardTasks.h"
+#include "SyncStatus.h"
 
 #include "Dom/JsonValue.h"
+#include "JsonObjectConverter.h"
 #include "Policies/CondensedJsonPrintPolicy.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
@@ -15,7 +17,9 @@ FString CreateMessage(const FString& InStateDescription, bool bInState, const TM
 	FString Message;
 	TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> JsonWriter = TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&Message);
 	JsonWriter->WriteObjectStart();
-	JsonWriter->WriteValue(InStateDescription, bInState);
+	JsonWriter->WriteValue(InStateDescription, bInState); // TODO: Phase out this field and replace with two below because parser now needs to check all possibilities.
+	JsonWriter->WriteValue(TEXT("command"), InStateDescription);
+	JsonWriter->WriteValue(TEXT("bAck"), bInState);
 	for (const auto& Value : InAdditionalFields)
 	{
 		JsonWriter->WriteValue(Value.Key, Value.Value);
@@ -23,6 +27,17 @@ FString CreateMessage(const FString& InStateDescription, bool bInState, const TM
 	JsonWriter->WriteObjectEnd();
 	JsonWriter->Close();
 	return Message;
+}
+
+FString CreateTaskDeclinedMessage(const FSwitchboardTask& InTask, const FString& InErrorMessage)
+{
+	return CreateMessage(
+		InTask.Name, 
+		false, 
+		{ 
+			{ TEXT("id"), InTask.TaskID.ToString() }, 
+			{ TEXT("error"), InErrorMessage},
+		});
 }
 
 FString CreateCommandAcceptedMessage(const FGuid& InMessageID)
@@ -58,7 +73,9 @@ FString CreateProgramEndedMessage(const FString& InProgramID, int InReturnCode, 
 	FString Message;
 	TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> JsonWriter = TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&Message);
 	JsonWriter->WriteObjectStart();
-	JsonWriter->WriteValue(TEXT("program ended"), true);
+	JsonWriter->WriteValue(TEXT("program ended"), true); // TODO: Phase out this field and replace with two below because parser now needs to check all possibilities.
+	JsonWriter->WriteValue(TEXT("command"), TEXT("program ended"));
+	JsonWriter->WriteValue(TEXT("bAck"), true);
 	JsonWriter->WriteValue(TEXT("program id"), InProgramID);
 	JsonWriter->WriteValue(TEXT("returncode"), InReturnCode);
 	JsonWriter->WriteValue(TEXT("output"), InProgramOutput);
@@ -66,6 +83,28 @@ FString CreateProgramEndedMessage(const FString& InProgramID, int InReturnCode, 
 	JsonWriter->Close();
 	return Message;
 }
+
+FString CreateSyncStatusMessage(const FSyncStatus& SyncStatus)
+{
+	FString SyncStatusJsonString;
+	const bool bJsonStringOk = FJsonObjectConverter::UStructToJsonObjectString(SyncStatus, SyncStatusJsonString);
+
+	check(bJsonStringOk);
+
+	FString Message;
+
+	TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> JsonWriter = TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&Message);
+	JsonWriter->WriteObjectStart();
+	JsonWriter->WriteValue(TEXT("get sync status"), true); // TODO: Phase out this field and replace with two below because parser now needs to check all possibilities.
+	JsonWriter->WriteValue(TEXT("command"), TEXT("get sync status"));
+	JsonWriter->WriteValue(TEXT("bAck"), true);
+	JsonWriter->WriteRawJSONValue(TEXT("syncStatus"), SyncStatusJsonString);
+	JsonWriter->WriteObjectEnd();
+	JsonWriter->Close();
+
+	return Message;
+}
+
 
 FString CreateReceiveFileFromClientCompletedMessage(const FString& InDestinationPath)
 {
@@ -166,6 +205,18 @@ bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndp
 	{
 		OutTask = MakeUnique<FSwitchboardKeepAliveTask>(MessageID, InEndpoint);
 		return true;
+	}
+	else if (CommandName == TEXT("get sync status"))
+	{
+		TSharedPtr<FJsonValue> UUIDField = JsonData->TryGetField(TEXT("uuid"));
+
+		FGuid ProgramID;
+
+		if (FGuid::Parse(UUIDField->AsString(), ProgramID))
+		{
+			OutTask = MakeUnique<FSwitchboardGetSyncStatusTask>(MessageID, InEndpoint, ProgramID);
+			return true;
+		}
 	}
 
 	return false;
