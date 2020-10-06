@@ -515,7 +515,10 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 		UBlueprint* Blueprint = SequenceEditor->FindDirectorBlueprint(InitParams.RootSequence);
 		if (Blueprint)
 		{
-			FBlueprintActionDatabase::Get().RefreshAssetActions(Blueprint);
+			if (FBlueprintActionDatabase* Database = FBlueprintActionDatabase::TryGet())
+			{
+				Database->RefreshAssetActions(Blueprint);
+			}
 		}
 	}
 
@@ -886,7 +889,10 @@ void FSequencer::ResetToNewRootSequence(UMovieSceneSequence& NewSequence)
 		UBlueprint* Blueprint = SequenceEditor->FindDirectorBlueprint(&NewSequence);
 		if (Blueprint)
 		{
-			FBlueprintActionDatabase::Get().RefreshAssetActions(Blueprint);
+			if (FBlueprintActionDatabase* Database = FBlueprintActionDatabase::TryGet())
+			{
+				Database->RefreshAssetActions(Blueprint);
+			}
 		}
 	}
 
@@ -1028,7 +1034,10 @@ void FSequencer::FocusSequenceInstance(UMovieSceneSubSection& InSubSection)
 		UBlueprint* Blueprint = SequenceEditor->FindDirectorBlueprint(FocusedSequence);
 		if (Blueprint)
 		{
-			FBlueprintActionDatabase::Get().RefreshAssetActions(Blueprint);
+			if (FBlueprintActionDatabase* Database = FBlueprintActionDatabase::TryGet())
+			{
+				Database->RefreshAssetActions(Blueprint);
+			}
 		}
 	}
 
