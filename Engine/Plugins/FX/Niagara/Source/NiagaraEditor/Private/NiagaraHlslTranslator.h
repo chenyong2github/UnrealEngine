@@ -704,7 +704,10 @@ private:
 
 	// List of primary output variables encountered that need to be properly handled in spawn scripts.
 	TArray<FNiagaraVariable> UniqueVars;
-	
+
+	// List of variables for interpolated spawning
+	TArray<FNiagaraVariable> InterpSpawnVariables;
+
 	// Map of primary ouput variable description to its default value pin
 	TMap<FNiagaraVariable, const UEdGraphPin*> UniqueVarToDefaultPin;
 	
