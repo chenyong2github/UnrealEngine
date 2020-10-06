@@ -1,0 +1,254 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreTypes.h"
+#include "Math/NumericLimits.h"
+#include "Math/UnrealMathUtility.h"
+#include "Templates/AndOrNot.h"
+#include "Templates/ChooseClass.h"
+#include "Templates/EnableIf.h"
+#include "Templates/Identity.h"
+#include "Templates/IsConst.h"
+#include "Templates/PointerIsConvertibleFromTo.h"
+#include "Templates/UnrealTemplate.h"
+#include "Traits/IsContiguousContainer.h"
+#include "Traits/IsVoidType.h"
+
+#include <initializer_list>
+
+/**
+ * A non-owning view of a contiguous region of memory.
+ *
+ * Prefer to use the aliases \ref FConstMemoryView or \ref FMutableMemoryView over this type.
+ *
+ * Functions that modify a view clamp sizes and offsets to always return a sub-view of the input.
+ */
+template <typename DataType>
+class TMemoryView
+{
+	static_assert(TIsVoidType<DataType>::Value, "DataMust be cv-qualified void");
+
+public:
+	/** Construct an empty view. */
+	constexpr TMemoryView() = default;
+
+	/** Construct a view of InSize bytes starting at InData. */
+	constexpr inline TMemoryView(DataType* InData, uint64 InSize) : Data(InData), DataSize(InSize) {}
+
+	template <typename OtherDataType, typename = typename TEnableIf<TPointerIsConvertibleFromTo<OtherDataType, DataType>::Value>::Type>
+	constexpr inline TMemoryView(const TMemoryView<OtherDataType>& InView) : Data(InView.Data), DataSize(InView.DataSize) {}
+
+	/** Returns a pointer to the start of the view. */
+	constexpr inline DataType* GetData() const { return Data; }
+
+	/** Returns the number of bytes in the view. */
+	constexpr inline uint64 Size() const { return DataSize; }
+
+	/** Returns whether the view has a size of 0 regardless of its data pointer. */
+	constexpr inline bool IsEmpty() const { return DataSize == 0; }
+
+	/** Resets to an empty view. */
+	constexpr inline void Reset() { *this = TMemoryView(); }
+
+	/** Returns the left-most part of the view by taking the given number of bytes from the left. */
+	constexpr inline TMemoryView Left(uint64 InSize) const
+	{
+		TMemoryView View(*this);
+		View.LeftInline(InSize);
+		return View;
+	}
+
+	/** Returns the left-most part of the view by chopping the given number of bytes from the right. */
+	constexpr inline TMemoryView LeftChop(uint64 InSize) const
+	{
+		TMemoryView View(*this);
+		View.LeftChopInline(InSize);
+		return View;
+	}
+
+	/** Returns the right-most part of the view by taking the given number of bytes from the right. */
+	inline TMemoryView Right(uint64 InSize) const
+	{
+		TMemoryView View(*this);
+		View.RightInline(InSize);
+		return View;
+	}
+
+	/** Returns the right-most part of the view by chopping the given number of bytes from the left. */
+	inline TMemoryView RightChop(uint64 InSize) const
+	{
+		TMemoryView View(*this);
+		View.RightChopInline(InSize);
+		return View;
+	}
+
+	/** Returns the middle part of the view by taking up to the given number of bytes from the given position. */
+	inline TMemoryView Mid(uint64 InOffset, uint64 InSize = TNumericLimits<uint64>::Max()) const
+	{
+		TMemoryView View(*this);
+		View.MidInline(InOffset, InSize);
+		return View;
+	}
+
+	/** Modifies the view to be the given number of bytes from the left. */
+	constexpr inline void LeftInline(uint64 InSize)
+	{
+		DataSize = FMath::Min(DataSize, InSize);
+	}
+
+	/** Modifies the view by chopping the given number of bytes from the right. */
+	constexpr inline void LeftChopInline(uint64 InSize)
+	{
+		DataSize -= FMath::Min(DataSize, InSize);
+	}
+
+	/** Modifies the view to be the given number of bytes from the right. */
+	inline void RightInline(uint64 InSize)
+	{
+		const uint64 OldSize = DataSize;
+		const uint64 NewSize = FMath::Min(OldSize, InSize);
+		Data = GetDataAtOffsetNoCheck(OldSize - NewSize);
+		DataSize = NewSize;
+	}
+
+	/** Modifies the view by chopping the given number of bytes from the left. */
+	inline void RightChopInline(uint64 InSize)
+	{
+		const uint64 Offset = FMath::Min(DataSize, InSize);
+		Data = GetDataAtOffsetNoCheck(Offset);
+		DataSize -= Offset;
+	}
+
+	/** Modifies the view to be the middle part by taking up to the given number of bytes from the given offset. */
+	inline void MidInline(uint64 InOffset, uint64 InSize = TNumericLimits<uint64>::Max())
+	{
+		RightChopInline(InOffset);
+		LeftInline(InSize);
+	}
+
+	/** Returns whether this view fully contains the other view. */
+	template <typename OtherDataType>
+	inline bool Contains(const TMemoryView<OtherDataType>& InView) const
+	{
+		return Data <= InView.Data && GetDataAtOffsetNoCheck(DataSize) >= InView.GetDataAtOffsetNoCheck(InView.DataSize);
+	}
+
+	/** Returns whether this view intersects the other view. */
+	template <typename OtherDataType>
+	inline bool Intersects(const TMemoryView<OtherDataType>& InView) const
+	{
+		return Data < InView.GetDataAtOffsetNoCheck(InView.DataSize) && InView.Data < GetDataAtOffsetNoCheck(DataSize);
+	}
+
+	/** Returns whether the bytes of this view are equal or less/greater than the bytes of the other view. */
+	template <typename OtherDataType>
+	inline int32 CompareBytes(const TMemoryView<OtherDataType>& InView) const
+	{
+		const int32 Compare = Data == InView.Data ? 0 : FMemory::Memcmp(Data, InView.Data, FMath::Min(DataSize, InView.DataSize));
+		return Compare || DataSize == InView.DataSize ? Compare : DataSize < InView.DataSize ? -1 : 1;
+	}
+
+	/** Returns whether the bytes of this views are equal to the bytes of the other view. */
+	template <typename OtherDataType>
+	inline bool EqualBytes(const TMemoryView<OtherDataType>& InView) const
+	{
+		return DataSize == InView.DataSize && (Data == InView.Data || FMemory::Memcmp(Data, InView.Data, DataSize) == 0);
+	}
+
+	/** Returns whether the data pointers and sizes of this view and the other view are equal. */
+	template <typename OtherDataType>
+	constexpr inline bool Equals(const TMemoryView<OtherDataType>& InView) const
+	{
+		return DataSize == InView.DataSize && (DataSize == 0 || Data == InView.Data);
+	}
+
+	/** Returns whether the data pointers and sizes of this view and the other view are equal. */
+	template <typename OtherDataType>
+	constexpr inline bool operator==(const TMemoryView<OtherDataType>& InView) const
+	{
+		return Equals(InView);
+	}
+
+	/** Returns whether the data pointers and sizes of this view and the other view are not equal. */
+	template <typename OtherDataType>
+	constexpr inline bool operator!=(const TMemoryView<OtherDataType>& InView) const
+	{
+		return !Equals(InView);
+	}
+
+	/** Advances the start of the view by an offset, which is clamped to stay within the view. */
+	constexpr inline TMemoryView& operator+=(uint64 InOffset)
+	{
+		RightChopInline(InOffset);
+		return *this;
+	}
+
+private:
+	/** Returns the data pointer advanced by an offset in bytes. */
+	inline DataType* GetDataAtOffsetNoCheck(uint64 InOffset) const
+	{
+		using ByteType = typename TChooseClass<TIsConst<DataType>::Value, const uint8, uint8>::Result;
+		return reinterpret_cast<ByteType*>(Data) + InOffset;
+	}
+
+	template <typename OtherDataType>
+	friend class TMemoryView;
+
+private:
+	DataType* Data = nullptr;
+	uint64 DataSize = 0;
+};
+
+/** Advances the start of the view by an offset, which is clamped to stay within the view. */
+template <typename DataType>
+constexpr inline TMemoryView<DataType> operator+(const TMemoryView<DataType>& View, uint64 Offset)
+{
+	return TMemoryView<DataType>(View) += Offset;
+}
+
+/** Advances the start of the view by an offset, which is clamped to stay within the view. */
+template <typename DataType>
+constexpr inline TMemoryView<DataType> operator+(uint64 Offset, const TMemoryView<DataType>& View)
+{
+	return TMemoryView<DataType>(View) += Offset;
+}
+
+/** Make a non-owning mutable view of Size bytes starting at Data. */
+constexpr inline TMemoryView<void> MakeMemoryView(void* Data, uint64 Size)
+{
+	return TMemoryView<void>(Data, Size);
+}
+
+/** Make a non-owning const view of Size bytes starting at Data. */
+constexpr inline TMemoryView<const void> MakeMemoryView(const void* Data, uint64 Size)
+{
+	return TMemoryView<const void>(Data, Size);
+}
+
+/**
+ * Make a non-owning view of the memory of the initializer list.
+ *
+ * This overload is only available when the element type does not need to be deduced.
+ */
+template <typename T>
+constexpr inline TMemoryView<const void> MakeMemoryView(std::initializer_list<typename TIdentity<T>::Type> List)
+{
+	return TMemoryView<const void>(GetData(List), GetNum(List) * sizeof(T));
+}
+
+/** Make a non-owning view of the memory of the contiguous container. */
+template <typename ContainerType, typename TEnableIf<TIsContiguousContainer<ContainerType>::Value>::Type* = nullptr>
+constexpr inline auto MakeMemoryView(ContainerType&& Container)
+{
+	using ElementType = typename TRemovePointer<decltype(GetData(DeclVal<ContainerType>()))>::Type;
+	constexpr bool bIsConst = TIsConst<ElementType>::Value;
+	using DataType = typename TChooseClass<bIsConst, const void, void>::Result;
+	return TMemoryView<DataType>(GetData(Container), GetNum(Container) * sizeof(ElementType));
+}
+
+/** A non-owning mutable view of a contiguous region of memory. */
+using FMutableMemoryView = TMemoryView<void>;
+
+/** A non-owning const view of a contiguous region of memory. */
+using FConstMemoryView = TMemoryView<const void>;
