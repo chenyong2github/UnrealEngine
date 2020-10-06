@@ -41,6 +41,9 @@ public:
 	/* Remove a delegate handle */
 	void RemoveRouteDelegate(FStringView Path, FDelegateHandle& InHandle) override;
 
+	/* Sets the send and receive buffer sizes*/
+	void SetBufferSizes(int32 DesiredSendSize, int32 DesiredReceiveSize) override;
+
 public:
 
 	bool StartReceiveThread();

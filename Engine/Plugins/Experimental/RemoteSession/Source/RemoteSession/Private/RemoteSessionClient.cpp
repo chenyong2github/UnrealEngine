@@ -249,7 +249,7 @@ void FRemoteSessionClient::OnReceiveChannelList(IBackChannelPacket& Message)
 	}
 	else
 	{
-		// hard code these for now
+		// #agrant-todo hard code these for now
 		FRemoteSessionChannelInfo Info;
 		Info.Type = TEXT("FRemoteSessionImageChannel");
 		Info.Mode = ERemoteSessionChannelMode::Read;
@@ -257,7 +257,7 @@ void FRemoteSessionClient::OnReceiveChannelList(IBackChannelPacket& Message)
 
 		Info.Type = TEXT("FRemoteSessionInputChannel");
 		Info.Mode = ERemoteSessionChannelMode::Write;
-		RequestChannel(Info);
+		//RequestChannel(Info);
 	}
 }
 

@@ -12,8 +12,6 @@
 #include "Modules/ModuleManager.h"
 #include "Widgets/SWindow.h"
 
-DECLARE_CYCLE_STAT(TEXT("RSFrameBufferCap"), STAT_FrameBufferCapture, STATGROUP_Game);
-DECLARE_CYCLE_STAT(TEXT("RSImageCompression"), STAT_ImageCompression, STATGROUP_Game);
 
 static int32 FramerateMasterSetting = 0;
 static FAutoConsoleVariableRef CVarFramerateOverride(
@@ -128,6 +126,28 @@ void FRemoteSessionFrameBufferImageProvider::CreateFrameGrabber(TSharedRef<FScen
 
 void FRemoteSessionFrameBufferImageProvider::Tick(const float InDeltaTime)
 {
+	const int kMaxPendingFrames = 1;
+
+	const double TimeNow = FPlatformTime::Seconds();
+	const double ElapsedImageTimeMS = (TimeNow - LastSentImageTime) * 1000;
+	const int32 DesiredFrameTimeMS = 1000 / FramerateMasterSetting;
+
+	if (ElapsedImageTimeMS < DesiredFrameTimeMS)
+	{
+		return;
+	}
+
+	if (TimeNow - CaptureStats.LastUpdateTime >= 1.0)
+	{	
+		SET_DWORD_STAT(STAT_RSCaptureCount, CaptureStats.FramesCaptured);
+		SET_DWORD_STAT(STAT_RSSkippedFrames, CaptureStats.FramesSkipped);
+
+		CaptureStats = FRemoteSesstionImageCaptureStats();
+		CaptureStats.LastUpdateTime = TimeNow;
+	}	
+
+	SCOPE_CYCLE_COUNTER(STAT_RSCaptureTime);
+
 	if (FrameGrabber.IsValid())
 	{
 		if (ViewportResized)
@@ -138,8 +158,7 @@ void FRemoteSessionFrameBufferImageProvider::Tick(const float InDeltaTime)
 				CreateFrameGrabber(SceneViewportPinned.ToSharedRef());
 			}
 			ViewportResized = false;
-		}
-		SCOPE_CYCLE_COUNTER(STAT_FrameBufferCapture);
+		}		
 
 		if (FrameGrabber)
 		{
@@ -148,14 +167,13 @@ void FRemoteSessionFrameBufferImageProvider::Tick(const float InDeltaTime)
 			TArray<FCapturedFrameData> Frames = FrameGrabber->GetCapturedFrames();
 
 			if (Frames.Num())
-			{
-				const double ElapsedImageTimeMS = (FPlatformTime::Seconds() - LastSentImageTime) * 1000;
-				const int32 DesiredFrameTimeMS = 1000 / FramerateMasterSetting;
-
+			{		
 				// Encoding/decoding can take longer than a frame, so skip if we're still processing the previous frame
-				if (NumDecodingTasks->GetValue() == 0 && ElapsedImageTimeMS >= DesiredFrameTimeMS)
+				if (NumDecodingTasks->GetValue() <= kMaxPendingFrames)
 				{
 					NumDecodingTasks->Increment();
+
+					CaptureStats.FramesCaptured++;
 
 					FCapturedFrameData& LastFrame = Frames.Last();
 					FIntPoint Size = LastFrame.BufferSize;
@@ -163,9 +181,9 @@ void FRemoteSessionFrameBufferImageProvider::Tick(const float InDeltaTime)
 					TWeakPtr<FThreadSafeCounter, ESPMode::ThreadSafe> WeakNumDecodingTasks = NumDecodingTasks;
 					TWeakPtr<FRemoteSessionImageChannel::FImageSender, ESPMode::ThreadSafe> WeakImageSender = ImageSender;
 
-					AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [WeakNumDecodingTasks, WeakImageSender, Size, ColorData=MoveTemp(ColorData)]() mutable
+					AsyncTask(ENamedThreads::AnyHiPriThreadHiPriTask, [WeakNumDecodingTasks, WeakImageSender, Size, ColorData=MoveTemp(ColorData)]() mutable
 					{
-						SCOPE_CYCLE_COUNTER(STAT_ImageCompression);
+						SCOPE_CYCLE_COUNTER(STAT_RSCompressTime);
 
 						if (WeakImageSender.IsValid())
 						{
@@ -186,9 +204,17 @@ void FRemoteSessionFrameBufferImageProvider::Tick(const float InDeltaTime)
 						}
 
 					});
-
-					LastSentImageTime = FPlatformTime::Seconds();
 				}
+				else
+				{
+					CaptureStats.FramesSkipped++;
+				}
+
+				LastSentImageTime = FPlatformTime::Seconds();
+			}
+			else
+			{
+				CaptureStats.FramesSkipped++;
 			}
 		}
 	}
