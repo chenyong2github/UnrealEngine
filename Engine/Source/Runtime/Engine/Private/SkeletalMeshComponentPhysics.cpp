@@ -2903,7 +2903,7 @@ void USkeletalMeshComponent::ProcessClothCollisionWithEnvironment()
 						FMatrix ShapeLocalPose = FPhysicsInterface::GetLocalTransform(Shape).ToMatrixWithScale();
 
 #if WITH_CHAOS
-                        check(false);
+						// TODO: Add missing Chaos Cloth collision with environment
 #else
 						switch(GeoType)
 						{
