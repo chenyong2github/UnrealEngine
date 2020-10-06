@@ -328,7 +328,6 @@ private:
 	TStrongObjectPtr<UControlRigEditModeDelegateHelper> DelegateHelper;
 
 	friend class FControlRigEditorModule;
-	friend class UControlRigPickerWidget;
 	friend class FControlRigEditor;
 	friend class FControlRigEditModeGenericDetails;
 	friend class UControlRigEditModeDelegateHelper;
