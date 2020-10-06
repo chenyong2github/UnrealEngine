@@ -711,6 +711,12 @@ void FD3D11DynamicRHI::RHIBeginDrawingViewport(FRHIViewport* ViewportRHI, FRHITe
 
 	// Set an initially disabled scissor rect.
 	RHISetScissorRect(false,0,0,0,0);
+
+	FRHICustomPresent* CustomPresent = Viewport->GetCustomPresent();
+	if (CustomPresent)
+	{
+		CustomPresent->BeginDrawing();
+	}
 }
 
 void FD3D11DynamicRHI::RHIEndDrawingViewport(FRHIViewport* ViewportRHI,bool bPresent,bool bLockToVsync)
