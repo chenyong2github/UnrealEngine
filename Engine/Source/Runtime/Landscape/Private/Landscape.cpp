@@ -302,14 +302,15 @@ void ULandscapeComponent::CheckGenerateLandscapePlatformData(bool bIsCooking, co
 			// The DDC is only useful when cooking (see else).
 
 			COOK_STAT(auto Timer = LandscapeCookStats::UsageStats.TimeSyncWork());
-			if (PlatformData.LoadFromDDC(NewSourceHash, this))
-			{
-				COOK_STAT(Timer.AddHit(PlatformData.GetPlatformDataSize()));
-			}
-			else
+// Temporarily disabling DDC use. See FORT-317076.
+// 			if (PlatformData.LoadFromDDC(NewSourceHash, this))
+// 			{
+// 				COOK_STAT(Timer.AddHit(PlatformData.GetPlatformDataSize()));
+// 			}
+// 			else
 			{
 				GeneratePlatformVertexData(TargetPlatform);
-				PlatformData.SaveToDDC(NewSourceHash, this);
+// 				PlatformData.SaveToDDC(NewSourceHash, this);
 				COOK_STAT(Timer.AddMiss(PlatformData.GetPlatformDataSize()));
 			}
 		}
