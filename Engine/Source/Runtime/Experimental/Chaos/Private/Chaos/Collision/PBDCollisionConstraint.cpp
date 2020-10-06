@@ -63,9 +63,27 @@ namespace Chaos
 		OutScore = 0.0f;
 
 		// @todo(chaos): cache tolerances?
-		const FReal Size0 = Particle[0]->Geometry()->BoundingBox().Extents().Max();
-		const FReal Size1 = Particle[1]->Geometry()->BoundingBox().Extents().Max();
-		const FReal DistanceTolerance = FMath::Min(Size0, Size1) * Chaos_Manifold_MatchPositionTolerance;
+		FReal DistanceTolerance = 0.0f;
+		if (Particle[0]->Geometry()->HasBoundingBox() && Particle[1]->Geometry()->HasBoundingBox())
+		{
+			const FReal Size0 = Particle[0]->Geometry()->BoundingBox().Extents().Max();
+			const FReal Size1 = Particle[1]->Geometry()->BoundingBox().Extents().Max();
+			DistanceTolerance = FMath::Min(Size0, Size1) * Chaos_Manifold_MatchPositionTolerance;
+		}
+		else if (Particle[0]->Geometry()->HasBoundingBox())
+		{
+			const FReal Size0 = Particle[0]->Geometry()->BoundingBox().Extents().Max();
+			DistanceTolerance = Size0 * Chaos_Manifold_MatchPositionTolerance;
+		}
+		else if (Particle[1]->Geometry()->HasBoundingBox())
+		{
+			const FReal Size1 = Particle[1]->Geometry()->BoundingBox().Extents().Max();
+			DistanceTolerance = Size1 * Chaos_Manifold_MatchPositionTolerance;
+		}
+		else
+		{
+			return false;
+		}
 		const FReal NormalTolerance = Chaos_Manifold_MatchNormalTolerance;
 
 		// If normal has changed a lot, it is a different contact

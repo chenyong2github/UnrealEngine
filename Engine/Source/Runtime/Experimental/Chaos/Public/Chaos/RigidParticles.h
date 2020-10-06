@@ -61,7 +61,7 @@ static constexpr int8 ObjectStateBitCount = NumBitsNeeded((int8)EObjectStateType
 template<class T, int d>
 class TRigidParticles : public TKinematicGeometryParticles<T, d>
 {
-  public:
+public:
 	using TArrayCollection::Size;
     using TParticles<T, d>::X;
     using TGeometryParticles<T, d>::R;
@@ -69,6 +69,8 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 	CHAOS_API TRigidParticles()
 	    : TKinematicGeometryParticles<T, d>()
 	{
+		TArrayCollection::AddArray(&MVSmooth);
+		TArrayCollection::AddArray(&MWSmooth);
 		TArrayCollection::AddArray(&MF);
 		TArrayCollection::AddArray(&MT);
 		TArrayCollection::AddArray(&MLinearImpulse);
@@ -94,6 +96,8 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 	TRigidParticles(const TRigidParticles<T, d>& Other) = delete;
 	CHAOS_API TRigidParticles(TRigidParticles<T, d>&& Other)
 	    : TKinematicGeometryParticles<T, d>(MoveTemp(Other))
+		, MVSmooth(MoveTemp(Other.MVSmooth))
+		, MWSmooth(MoveTemp(Other.MWSmooth))
 		, MF(MoveTemp(Other.MF))
 		, MT(MoveTemp(Other.MT))
 		, MLinearImpulse(MoveTemp(Other.MLinearImpulse))
@@ -110,6 +114,8 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 		, MGravityEnabled(MoveTemp(Other.MGravityEnabled))
 		, MResimType(MoveTemp(Other.MResimType))
 	{
+		TArrayCollection::AddArray(&MVSmooth);
+		TArrayCollection::AddArray(&MWSmooth);
 		TArrayCollection::AddArray(&MF);
 		TArrayCollection::AddArray(&MT);
 		TArrayCollection::AddArray(&MLinearImpulse);
@@ -135,6 +141,12 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 
 	CHAOS_API virtual ~TRigidParticles()
 	{}
+
+	FORCEINLINE const TVector<T, d>& VSmooth(const int32 Index) const { return MVSmooth[Index]; }
+	FORCEINLINE TVector<T, d>& VSmooth(const int32 Index) { return MVSmooth[Index]; }
+
+	FORCEINLINE const TVector<T, d>& WSmooth(const int32 Index) const { return MWSmooth[Index]; }
+	FORCEINLINE TVector<T, d>& WSmooth(const int32 Index) { return MWSmooth[Index]; }
 
 	FORCEINLINE const TVector<T, d>& Torque(const int32 Index) const { return MT[Index]; }
 	FORCEINLINE TVector<T, d>& Torque(const int32 Index) { return MT[Index]; }
@@ -284,7 +296,9 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 	FORCEINLINE TArray<EObjectStateType>& AllObjectState() { return MObjectState; }
 	FORCEINLINE TArray<bool>& AllGravityEnabled() { return MGravityEnabled; }
 
-  private:
+private:
+	TArrayCollectionArray<TVector<T, d>> MVSmooth;
+	TArrayCollectionArray<TVector<T, d>> MWSmooth;
 	TArrayCollectionArray<TVector<T, d>> MF;
 	TArrayCollectionArray<TVector<T, d>> MT;
 	TArrayCollectionArray<TVector<T, d>> MLinearImpulse;

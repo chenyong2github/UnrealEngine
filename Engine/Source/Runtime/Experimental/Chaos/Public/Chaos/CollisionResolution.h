@@ -52,7 +52,7 @@ namespace Chaos
 
 		// @todo(chaos): this is only called in tests - should it really be exposed?
 		template<ECollisionUpdateType UpdateType>
-		void CHAOS_API UpdateLevelsetLevelsetConstraint(const FReal CullDistance, FRigidBodyPointContactConstraint& Constraint);
+		void UpdateLevelsetLevelsetConstraint(const FRigidTransform3& WorldTransform0, const FRigidTransform3& WorldTransform1, const FReal CullDistance, FRigidBodyPointContactConstraint& Constraint);
 
 	}
 }
