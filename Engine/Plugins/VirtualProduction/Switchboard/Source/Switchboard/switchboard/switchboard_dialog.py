@@ -166,6 +166,9 @@ class SwitchboardDialog(QtCore.QObject):
         self.window.menu_delete_config.triggered.connect(self.menu_delete_config)
         self.window.update_settings.triggered.connect(self.menu_update_settings)
 
+        # Plugin UI
+        self.device_manager.plug_into_ui(self.window.menu_bar, self.window.tabs_main)
+
         # Update the UI
         self.p4_refresh_cl()
         CONFIG.P4_PATH.signal_setting_changed.connect(lambda: self.p4_refresh_cl())

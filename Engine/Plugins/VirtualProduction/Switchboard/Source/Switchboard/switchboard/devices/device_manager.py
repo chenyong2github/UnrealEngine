@@ -1,4 +1,5 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
+
 from switchboard.config import CONFIG, SETTINGS
 from switchboard.switchboard_logging import LOGGER
 from switchboard import config_osc as osc
@@ -11,6 +12,7 @@ from PySide2 import QtCore, QtGui
 import importlib
 import inspect
 import os
+import traceback
 
 
 DEVICE_PLUGIN_PACKAGE = "switchboard.devices"
@@ -45,6 +47,10 @@ class DeviceManager(QtCore.QObject):
         self._devices[device.device_hash] = device
 
         device.widget.set_name_validator(self._device_name_validator)
+
+        # Notify the plugin
+        device.__class__.added_device(device)
+
         self.signal_device_added.emit(device)
         return device
 
@@ -57,7 +63,7 @@ class DeviceManager(QtCore.QObject):
             try:
                 plugin_module = importlib.import_module(plugin)
             except:
-                LOGGER.error(f"Error while loading plugin: {plugin}")
+                LOGGER.error(f"Error while loading plugin: {plugin}\n\n=== Traceback BEGIN ===\n{traceback.format_exc()}=== Traceback END ===\n")
                 continue
             members = inspect.getmembers(plugin_module, inspect.isclass)
             for (name, c) in members:
@@ -105,6 +111,9 @@ class DeviceManager(QtCore.QObject):
 
         # Set status to delete
         device.status = DeviceStatus.DELETE
+
+        # Notify the plugin
+        device.__class__.removed_device(device)
 
         self.signal_device_removed.emit(device.device_hash, device.device_type, device.name)
 
@@ -162,6 +171,10 @@ class DeviceManager(QtCore.QObject):
             if device.name.lower() == name.lower():
                 return False
         return True
+
+    def plug_into_ui(self, menubar, tabs):
+        for plugin in self._plugins.values():
+            plugin.plug_into_ui(menubar, tabs)
 
 
 class DeviceNameValidator(QtGui.QValidator):
