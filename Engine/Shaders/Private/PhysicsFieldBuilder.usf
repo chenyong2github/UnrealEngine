@@ -281,8 +281,8 @@ void EvaluateRadialMaskInteger(in float3 SamplePosition, in int NodeOffset,
 	const int MaskCondition = NodesParams[NodeOffset + RADIAL_MASK_INTEGER_SET_MASK_CONDITION];
 	
 	ContextDatas[LocalIndex++] = (MaskCondition == SET_ALWAYS) ? DeltaResult :
-					 (MaskCondition == SET_IFF_NOT_INTERIOR && DeltaResult != NodesParams[NodeOffset + RADIAL_MASK_INTEGER_INTERIOR_VALUE]) ? DeltaResult :
-					 (MaskCondition == SET_IFF_NOT_EXTERIOR && DeltaResult != NodesParams[NodeOffset + RADIAL_MASK_INTEGER_EXTERIOR_VALUE]) ? DeltaResult : 0;
+					 ((MaskCondition == SET_IFF_NOT_INTERIOR) && (ContextDatas[LocalIndex] != NodesParams[NodeOffset + RADIAL_MASK_INTEGER_INTERIOR_VALUE])) ? DeltaResult :
+					 ((MaskCondition == SET_IFF_NOT_EXTERIOR) && (ContextDatas[LocalIndex] != NodesParams[NodeOffset + RADIAL_MASK_INTEGER_EXTERIOR_VALUE])) ? DeltaResult : ContextDatas[LocalIndex];
 }
 
 /* -----------------------------------------------------------------
@@ -350,6 +350,7 @@ void EvaluateRadialFalloffScalar(in float3 SamplePosition, in int NodeOffset,
 							inout float ContextDatas[MAX_DATAS], inout int LocalIndex)
 {
 	float ScalarDatas = NodesParams[NodeOffset + RADIAL_FALLOFF_DEFAULT];
+	const float DeltaRange = NodesParams[NodeOffset + RADIAL_FALLOFF_MAX_RANGE] - NodesParams[NodeOffset + RADIAL_FALLOFF_MIN_RANGE];
 
 	const float3 DeltaPosition = float3(NodesParams[NodeOffset + RADIAL_FALLOFF_POSITIONX],
 									    NodesParams[NodeOffset + RADIAL_FALLOFF_POSITIONY],
@@ -362,9 +363,8 @@ void EvaluateRadialFalloffScalar(in float3 SamplePosition, in int NodeOffset,
 		const float DeltaDistance = 1.0 - LocalDistance / FieldRadius;
 
 		SetFalloffValue(NodesParams[NodeOffset + RADIAL_FALLOFF_FALLOFF],
-						NodesParams[NodeOffset + RADIAL_FALLOFF_MAGNITUDE],
-						DeltaDistance, ScalarDatas);
-		
+						1.0, DeltaDistance, ScalarDatas);
+		ScalarDatas = NodesParams[NodeOffset + RADIAL_FALLOFF_MAGNITUDE] * (NodesParams[NodeOffset + RADIAL_FALLOFF_MIN_RANGE] + ScalarDatas * DeltaRange);
 	}
 	ContextDatas[LocalIndex++] = ScalarDatas;
 }
@@ -390,7 +390,8 @@ void EvaluateRadialFalloffScalar(in float3 SamplePosition, in int NodeOffset,
 void EvaluatePlaneFalloffScalar(in float3 SamplePosition, in int NodeOffset,
 					inout float ContextDatas[MAX_DATAS], inout int LocalIndex)
 {
-	float ScalarDatas = NodesParams[NodeOffset + RADIAL_FALLOFF_DEFAULT];
+	float ScalarDatas = NodesParams[NodeOffset + PLANE_FALLOFF_DEFAULT];
+	const float DeltaRange = NodesParams[NodeOffset + PLANE_FALLOFF_MAX_RANGE] - NodesParams[NodeOffset + PLANE_FALLOFF_MIN_RANGE];
 
 	const float3 PlaneBase = float3(NodesParams[NodeOffset + PLANE_FALLOFF_POSITIONX],
 								    NodesParams[NodeOffset + PLANE_FALLOFF_POSITIONY],
@@ -410,8 +411,8 @@ void EvaluatePlaneFalloffScalar(in float3 SamplePosition, in int NodeOffset,
 		const float DeltaDistance = 1.0 + LocalDistance / PlaneDistance;
 		
 		SetFalloffValue(NodesParams[NodeOffset + PLANE_FALLOFF_FALLOFF],
-						NodesParams[NodeOffset + PLANE_FALLOFF_MAGNITUDE], DeltaDistance,
-						ScalarDatas);
+						1.0, DeltaDistance, ScalarDatas);
+		ScalarDatas = NodesParams[NodeOffset + PLANE_FALLOFF_MAGNITUDE] * (NodesParams[NodeOffset + PLANE_FALLOFF_MIN_RANGE] + ScalarDatas * DeltaRange);
 	}
 	ContextDatas[LocalIndex++] = ScalarDatas;
 }
@@ -440,7 +441,9 @@ void EvaluatePlaneFalloffScalar(in float3 SamplePosition, in int NodeOffset,
 void EvaluateBoxFalloffScalar(in float3 SamplePosition, in int NodeOffset,
 					inout float ContextDatas[MAX_DATAS], inout int LocalIndex)
 {
-	float ScalarDatas = NodesParams[NodeOffset + RADIAL_FALLOFF_DEFAULT];
+	float ScalarDatas = NodesParams[NodeOffset + BOX_FALLOFF_DEFAULT];
+	
+	const float DeltaRange = NodesParams[NodeOffset + BOX_FALLOFF_MAX_RANGE] - NodesParams[NodeOffset + BOX_FALLOFF_MIN_RANGE];
 
 	const float4 BoxRotation = float4(NodesParams[NodeOffset + BOX_FALLOFF_ROTATIONX],
 								      NodesParams[NodeOffset + BOX_FALLOFF_ROTATIONY],
@@ -460,8 +463,8 @@ void EvaluateBoxFalloffScalar(in float3 SamplePosition, in int NodeOffset,
 										BoxScale.z != 0.0 ? 1.0 / BoxScale.z : 0.0);
 
 	const float3 LocalPosition = FieldUnRotateVectorByQuat(SamplePosition - BoxTranslation, BoxRotation) * InverseScale;
-
-	const float3 DeltaPosition = abs(LocalPosition) - float3(1.0, 1.0, 1.0);
+	
+	const float3 DeltaPosition = abs(LocalPosition) - float3(50.0, 50.0, 50.0);
 	const int ClosestAxis = ((DeltaPosition.x > DeltaPosition.y) && (DeltaPosition.x > DeltaPosition.z)) ? 0 : (DeltaPosition.y > DeltaPosition.z) ? 1 : 2;
 	const float OutsideDistance = length(max(DeltaPosition, 0.0));
 
@@ -469,11 +472,11 @@ void EvaluateBoxFalloffScalar(in float3 SamplePosition, in int NodeOffset,
 
 	if (LocalDistance < 0.0)
 	{
-		const float DeltaDistance = 1.0 + LocalDistance;
+		const float DeltaDistance = -LocalDistance / 50.0;
 		
 		SetFalloffValue(NodesParams[NodeOffset + BOX_FALLOFF_FALLOFF],
-						NodesParams[NodeOffset + BOX_FALLOFF_MAGNITUDE],
-						DeltaDistance, ScalarDatas);
+						1.0,DeltaDistance, ScalarDatas);
+		ScalarDatas = NodesParams[NodeOffset + BOX_FALLOFF_MAGNITUDE] * (NodesParams[NodeOffset + BOX_FALLOFF_MIN_RANGE] + ScalarDatas * DeltaRange);
 	}
 	ContextDatas[LocalIndex++] = ScalarDatas;
 }
@@ -523,7 +526,7 @@ void EvaluateNoiseScalar(in float3 SamplePosition, in int NodeOffset, inout floa
 
 	const float NoiseValue = PerlinNoise(ReducedCoord.x, ReducedCoord.y, ReducedCoord.z); //FastGradientPerlinNoise3D_TEX(ReducedCoord);
 	ContextDatas[LocalIndex++] = NoiseValue * (NodesParams[NodeOffset + NOISE_MAX_RANGE] -
-								  NodesParams[NodeOffset + NOISE_MIN_RANGE]) / 2.0
+								  NodesParams[NodeOffset + NOISE_MIN_RANGE]) 
 				+ NodesParams[NodeOffset + NOISE_MIN_RANGE];
 }
 

@@ -77,6 +77,7 @@ public:
 
 	/** Shader attributes names */
 	static const FString ClipmapTextureName;
+	static const FString ClipmapSamplerName;
 	static const FString ClipmapCenterName;
 	static const FString ClipmapDistanceName;
 	static const FString ClipmapResolutionName;
