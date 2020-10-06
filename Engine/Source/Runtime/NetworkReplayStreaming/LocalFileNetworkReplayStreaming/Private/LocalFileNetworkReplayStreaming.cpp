@@ -2613,7 +2613,7 @@ FString FLocalFileNetworkReplayStreamer::GetAutomaticDemoName() const
 				UE_LOG(LogLocalFileReplay, Log, TEXT("FLocalFileNetworkReplayStreamer::GetAutomaticDemoName. Unable to determine free space in %s."), *GetDemoPath());
 				return AutoPrefix + FDateTime::Now().ToString();
 			}
-			uint64 MinFreeSpace = LocalFileReplay::CVarReplayRecordingMinSpace.GetValueOnGameThread();
+			uint64 MinFreeSpace = LocalFileReplay::CVarReplayRecordingMinSpace.GetValueOnAnyThread();
 
 			const FString WildCardPath = GetDemoFullFilename(AutoPrefix + FString(TEXT("*")));
 
