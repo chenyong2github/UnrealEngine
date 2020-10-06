@@ -13,28 +13,6 @@
 
 #if DDPI_HAS_EXTENDED_PLATFORMINFO_DATA
 
-enum class DDPIPlatformSdkStatus : uint8
-{
-	Unknown,
-	Querying,
-	Valid,
-	OutOfDate,
-	NoSdk,
-	Error,
-	FlashValid,
-	FlashOutOfDate,
-	// @todo turnkey: add AutoSdkValid and ManualSdkValid, with Valid a Combination of both
-};
-
-struct FDDPISdkInfo
-{
-	DDPIPlatformSdkStatus Status;
-	FText SdkErrorInformation;
-	FString InstalledVersion;
-	FString AutoSDKVersion; // only valid for platform, not device
-	FString MinAllowedVersion;
-	FString MaxAllowedVersion;
-};
 
 /** Available icon sizes (see FPlatformIconPaths) */
 enum class EPlatformIconSize : uint8
@@ -154,26 +132,7 @@ struct FDataDrivenPlatformInfo
 
 #if DDPI_HAS_EXTENDED_PLATFORMINFO_DATA
 
-private:
-	// Information about the validity of using a platform, discovered via Turnkey
-	FDDPISdkInfo SdkInfo;
-
-	// Information about the validity of each connected device (by string, discovered by Turnkey)
-	TMap<FString, FDDPISdkInfo> PerDeviceStatus;
-
 public:
-	DDPIPlatformSdkStatus GetSdkStatus(bool bBlockIfQuerying = true) const
-	{
-		check(!(bBlockIfQuerying && SdkInfo.Status == DDPIPlatformSdkStatus::Querying));
-		return SdkInfo.Status;
-	}
-
-	const FDDPISdkInfo& GetSdkInfo(bool bBlockIfQuerying = true) const
-	{
-		check(!(bBlockIfQuerying && SdkInfo.Status == DDPIPlatformSdkStatus::Querying));
-		return SdkInfo;
-	}
-
 
 
 	// setting moved from PlatformInfo::FTargetPlatformInfo
@@ -216,11 +175,6 @@ public:
 	/** Whether or not this editor/program has compiled in support for this platform (by looking for TargetPlatform style DLLs, without loading them) */
 	bool bHasCompiledTargetSupport;
 
-
-	// Get the status of a device, or Unknown if not specified
-	CORE_API DDPIPlatformSdkStatus GetStatusForDeviceId(const FString& DeviceId) const;
-	CORE_API const FDDPISdkInfo& GetSdkInfoForDeviceId(const FString& DeviceId) const;
-	CORE_API void ClearDeviceStatus();
 
 
 	/** Get the icon name (for FEditorStyle) used by the given icon type for this platform */
@@ -287,6 +241,7 @@ struct CORE_API FDataDrivenPlatformInfoRegistry
 	static const FDataDrivenPlatformInfo& GetPlatformInfo(FName PlatformName);
 	static const FDataDrivenPlatformInfo& GetPlatformInfo(const char* PlatformName);
 
+
 	// get just names or just infos, 
 	static const TArray<FName> GetSortedPlatformNames();
 	static const TArray<const FDataDrivenPlatformInfo*>& GetSortedPlatformInfos();
@@ -325,22 +280,20 @@ struct CORE_API FDataDrivenPlatformInfoRegistry
 	static bool HasCompiledSupportForPlatform(FName PlatformName, EPlatformNameType PlatformNameType);
 
 	/**
-	 * Runs UAT to update Sdk status (can be called after user chooses an option that had a bad Sdk status)
-	 */
-	static void UpdateSdkStatus();
-
-	/**
-	 * Run UAT to update per device flash/software information (each Id should be in the standard DeviceId format of Platform@Device)
-	 */
-	static void UpdateDeviceSdkStatus(TArray<FString> PlatformDeviceIds);
-
-	/**
 	 * Wipes out cached device status for all devices in a platform (or all platforms if PlatformName is empty)
 	 */
 	static void ClearDeviceStatus(FName PlatformName);
 
-private:
 	static FDataDrivenPlatformInfo& DeviceIdToInfo(FString DeviceId, FString* OutDeviceName = nullptr);
+
+private:
+	/**
+	 * Get a modifiable DDPI object, for Turnkey to update it's info
+	 */
+	friend class FTurkeySupportModule;
+	static FDataDrivenPlatformInfo& GetMutablePlatformInfo(FName PlatformName);
+	static TMap<FName, FDataDrivenPlatformInfo>& GetMutablePlatformInfos();
+
 
 #endif
 };

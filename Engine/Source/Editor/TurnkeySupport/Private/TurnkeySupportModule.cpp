@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TurnkeySupportModule.h"
+#include "TurnkeySupport.h"
 
 #include "SlateOptMacros.h"
 #include "Widgets/Images/SImage.h"
@@ -46,11 +47,18 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Developer/DerivedDataCache/Public/DerivedDataCacheInterface.h"
 
+#include "Misc/MonitoredProcess.h"
+
 
 
 
 DEFINE_LOG_CATEGORY(LogTurnkeySupport);
 #define LOCTEXT_NAMESPACE "FTurnkeySupportModule"
+
+namespace 
+{
+	FCriticalSection GTurnkeySection;
+}
 
 
 enum class EPrepareContentMode : uint8
@@ -241,7 +249,7 @@ public:
 				return;
 			}
 
-			if (PlatformInfo->DataDrivenPlatformInfo->GetSdkStatus() != DDPIPlatformSdkStatus::Valid && ShowBadSDKDialog(IniPlatformName) == false)
+			if (ITurnkeySupportModule::Get().GetSdkInfo(IniPlatformName).Status != ETurnkeyPlatformSdkStatus::Valid && ShowBadSDKDialog(IniPlatformName) == false)
 			{
 				return;
 			}
@@ -654,17 +662,16 @@ static TAttribute<FText> MakeSdkStatusAttribute(FName IniPlatformName, TSharedPt
 	return TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateLambda([IniPlatformName, DisplayString, DeviceId]()
 	{
 		// get the status, or Unknown if it's not there
-		const FDataDrivenPlatformInfo& Info = FDataDrivenPlatformInfoRegistry::GetPlatformInfo(IniPlatformName);
-		DDPIPlatformSdkStatus Status = DeviceId.Len() ? Info.GetStatusForDeviceId(DeviceId) : Info.GetSdkStatus(false);
+		ETurnkeyPlatformSdkStatus Status = DeviceId.Len() ? ITurnkeySupportModule::Get().GetSdkInfoForDeviceId(DeviceId).Status : ITurnkeySupportModule::Get().GetSdkInfo(IniPlatformName, false).Status;
 
 		// @todo turnkey: Have premade FText's by SdkStatus for speed
 		const TCHAR* Desc =
-			Status == DDPIPlatformSdkStatus::Querying ? TEXT("Querying...") :
-			Status == DDPIPlatformSdkStatus::Valid ? TEXT("Valid Sdk") :
-			Status == DDPIPlatformSdkStatus::OutOfDate ? TEXT("Outdated Sdk") :
-			Status == DDPIPlatformSdkStatus::NoSdk ? TEXT("No Sdk") :
-			Status == DDPIPlatformSdkStatus::FlashValid ? TEXT("Valid Flash") :
-			Status == DDPIPlatformSdkStatus::FlashOutOfDate ? TEXT("Outdated Flash") :
+			Status == ETurnkeyPlatformSdkStatus::Querying ? TEXT("Querying...") :
+			Status == ETurnkeyPlatformSdkStatus::Valid ? TEXT("Valid Sdk") :
+			Status == ETurnkeyPlatformSdkStatus::OutOfDate ? TEXT("Outdated Sdk") :
+			Status == ETurnkeyPlatformSdkStatus::NoSdk ? TEXT("No Sdk") :
+			Status == ETurnkeyPlatformSdkStatus::FlashValid ? TEXT("Valid Flash") :
+			Status == ETurnkeyPlatformSdkStatus::FlashOutOfDate ? TEXT("Outdated Flash") :
 			TEXT("???");
 		return FText::FromString(FString::Printf(TEXT("%s (%s)"), *DisplayString, Desc));
 	}));
@@ -782,8 +789,7 @@ static void MakeTurnkeyPlatformMenu(FMenuBuilder& MenuBuilder, FName IniPlatform
 				FText(),
 				FNewMenuDelegate::CreateLambda([UBTPlatformString, IniPlatformName, DeviceName, DeviceId](FMenuBuilder& SubMenuBuilder)
 				{
-					const FDataDrivenPlatformInfo& DDPI = FDataDrivenPlatformInfoRegistry::GetPlatformInfo(IniPlatformName);
-					const FDDPISdkInfo& SdkInfo = DDPI.GetSdkInfoForDeviceId(DeviceId);
+					FTurnkeySdkInfo SdkInfo = ITurnkeySupportModule::Get().GetSdkInfoForDeviceId(DeviceId);
 					FFormatOrderedArguments Args = { FText::FromString(SdkInfo.InstalledVersion), FText::FromString(SdkInfo.MinAllowedVersion),FText::FromString(SdkInfo.MaxAllowedVersion) };
 					SubMenuBuilder.AddWidget(
 						SNew(STextBlock)
@@ -815,7 +821,7 @@ static void MakeTurnkeyPlatformMenu(FMenuBuilder& MenuBuilder, FName IniPlatform
 
 	MenuBuilder.BeginSection("SdkManagement", LOCTEXT("TurnkeySection_Sdks", "Sdk Managment"));
 
-	const FDDPISdkInfo& SdkInfo = DDPI.GetSdkInfo(true);
+	const FTurnkeySdkInfo& SdkInfo = ITurnkeySupportModule::Get().GetSdkInfo(IniPlatformName, true);
 	FFormatOrderedArguments Args = { FText::FromString(SdkInfo.InstalledVersion), FText::FromString(SdkInfo.AutoSDKVersion),FText::FromString(SdkInfo.MinAllowedVersion),FText::FromString(SdkInfo.MaxAllowedVersion) };
 	MenuBuilder.AddWidget(
 		SNew(STextBlock)
@@ -825,7 +831,7 @@ static void MakeTurnkeyPlatformMenu(FMenuBuilder& MenuBuilder, FName IniPlatform
 	);
 
 	const TCHAR* NoDevice = nullptr;
-	if (DDPI.GetSdkStatus() == DDPIPlatformSdkStatus::OutOfDate)
+	if (SdkInfo.Status == ETurnkeyPlatformSdkStatus::OutOfDate)
 	{
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("Turnkey_InstallSdkMinimal", "Update Sdk (Prefer Minimal)"),
@@ -841,7 +847,7 @@ static void MakeTurnkeyPlatformMenu(FMenuBuilder& MenuBuilder, FName IniPlatform
 			FExecuteAction::CreateStatic(TurnkeyInstallSdk, UBTPlatformString, true, false, NoDevice)
 		);
 	}
-	else if (DDPI.GetSdkStatus() == DDPIPlatformSdkStatus::Valid)
+	else if (SdkInfo.Status == ETurnkeyPlatformSdkStatus::Valid)
 	{
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("Turnkey_InstallSdkMinimal", "Force Reinstall Sdk (Prefer Minimal)"),
@@ -1077,6 +1083,8 @@ static void GenerateDeviceProxyMenuParams(TSharedPtr<ITargetDeviceProxy> DeviceP
 
 TSharedRef<SWidget> FTurnkeySupportModule::MakeTurnkeyMenu() const
 {
+	FTurnkeySupportCommands::Register();
+
 	const FTurnkeySupportCommands& Commands = FTurnkeySupportCommands::Get();
 
 	const bool bShouldCloseWindowAfterMenuSelection = true;
@@ -1161,11 +1169,12 @@ TSharedRef<SWidget> FTurnkeySupportModule::MakeTurnkeyMenu() const
 						);
 				}
 
-				// gather any unknown status devices to query at the end
+				ITurnkeySupportModule& TurnkeySupport = ITurnkeySupportModule::Get();
+				// gath	er any unknown status devices to query at the end
 				for (const TSharedPtr<ITargetDeviceProxy> Proxy : DeviceProxies)
 				{
 					FString DeviceId = Proxy->GetTargetDeviceId(NAME_None);
-					if (Pair.Value.GetStatusForDeviceId(DeviceId) == DDPIPlatformSdkStatus::Unknown)
+					if (TurnkeySupport.GetSdkInfoForDeviceId(DeviceId).Status == ETurnkeyPlatformSdkStatus::Unknown)
 					{
 						DeviceIdsToQuery.Add(DeviceId);
 					}
@@ -1204,7 +1213,7 @@ TSharedRef<SWidget> FTurnkeySupportModule::MakeTurnkeyMenu() const
 
 	MenuBuilder.BeginSection("AllPlatforms", LOCTEXT("TurnkeyMenu_ManagePlatforms", "Content/Sdk/Device Management"));
 	TMap<FName, const FDataDrivenPlatformInfo*> UncompiledPlatforms;
-	for (const auto Pair : FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())
+	for (const auto& Pair : FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())
 	{
 		if (Pair.Value.bIsFakePlatform || Pair.Value.bEnabledForUse == false)
 		{
@@ -1303,18 +1312,348 @@ TSharedRef<SWidget> FTurnkeySupportModule::MakeTurnkeyMenu() const
 	// now kick-off any devices that need to be updated
 	if (DeviceIdsToQuery.Num() > 0)
 	{
-		FDataDrivenPlatformInfoRegistry::UpdateDeviceSdkStatus(DeviceIdsToQuery);
+		ITurnkeySupportModule::Get().UpdateSdkInfoForDevices(DeviceIdsToQuery);
 	}
 
 	return MenuBuilder.MakeWidget();
 }
 
-/* IModuleInterface implementation
- *****************************************************************************/
+
+
+
+
+
+// some shared functionality
+static void PrepForTurnkeyReport(FString& Command, FString& BaseCommandline, FString& ReportFilename)
+{
+	static int ReportIndex = 0;
+
+	FString LogFilename = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectIntermediateDir(), *FString::Printf(TEXT("TurnkeyLog_%d.log"), ReportIndex)));
+	ReportFilename = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectIntermediateDir(), *FString::Printf(TEXT("TurnkeyReport_%d.log"), ReportIndex++)));
+
+	// make sure intermediate directory exists
+	IFileManager::Get().MakeDirectory(*FPaths::ProjectIntermediateDir());
+
+	Command = TEXT("{EngineDir}Build/BatchFiles/RunuAT");
+	//	Command = TEXT("{EngineDir}/Binaries/DotNET/AutomationTool.exe");
+	BaseCommandline = FString::Printf(TEXT("Turnkey -utf8output -WaitForUATMutex -command=VerifySdk -ReportFilename=\"%s\" -log=\"%s\""), *ReportFilename, *LogFilename);
+
+	// convert into appropriate calls for the current platform
+	FPlatformProcess::ModifyCreateProcParams(Command, BaseCommandline, FGenericPlatformProcess::ECreateProcHelperFlags::AppendPlatformScriptExtension | FGenericPlatformProcess::ECreateProcHelperFlags::RunThroughShell);
+}
+
+bool GetSdkInfoFromTurnkey(FString Line, FName& PlatformName, FString& DeviceId, FTurnkeySdkInfo& SdkInfo)
+{
+	int32 Colon = Line.Find(TEXT(": "));
+
+	if (Colon < 0)
+	{
+		return false;
+	}
+
+	// break up the string
+	FString PlatformString = Line.Mid(0, Colon);
+	FString Info = Line.Mid(Colon + 2);
+
+	int32 AtSign = PlatformString.Find(TEXT("@"));
+	if (AtSign > 0)
+	{
+		// return the platform@name as the deviceId, then remove the @name part for the platform
+		DeviceId = ConvertToDDPIDeviceId(PlatformString);
+		PlatformString = PlatformString.Mid(0, AtSign);
+	}
+
+	// get the DDPI name
+	PlatformName = FName(*ConvertToDDPIPlatform(PlatformString));
+
+	// parse out the results from the (key=val, key=val) result from turnkey
+	FString StatusString;
+	FString FlagsString;
+	FParse::Value(*Info, TEXT("Status="), StatusString);
+	FParse::Value(*Info, TEXT("Flags="), FlagsString);
+	FParse::Value(*Info, TEXT("Installed="), SdkInfo.InstalledVersion);
+	FParse::Value(*Info, TEXT("AutoSDK="), SdkInfo.AutoSDKVersion);
+	FParse::Value(*Info, TEXT("MinAllowed="), SdkInfo.MinAllowedVersion);
+	FParse::Value(*Info, TEXT("MaxAllowed="), SdkInfo.MaxAllowedVersion);
+
+	SdkInfo.Status = ETurnkeyPlatformSdkStatus::Unknown;
+	if (StatusString == TEXT("Valid"))
+	{
+		SdkInfo.Status = ETurnkeyPlatformSdkStatus::Valid;
+	}
+	else
+	{
+		if (FlagsString.Contains(TEXT("AutoSdk_InvalidVersionExists")) || FlagsString.Contains(TEXT("InstalledSdk_InvalidVersionExists")))
+		{
+			SdkInfo.Status = ETurnkeyPlatformSdkStatus::OutOfDate;
+		}
+		else
+		{
+			SdkInfo.Status = ETurnkeyPlatformSdkStatus::NoSdk;
+		}
+	}
+
+	return true;
+}
+
+// FDataDrivenPlatformInfo& DeviceIdToInfo(FString DeviceId, FString* OutDeviceName)
+// {
+// 	TArray<FString> PlatformAndDevice;
+// 	DeviceId.ParseIntoArray(PlatformAndDevice, TEXT("@"), true);
+// 
+// 	if (OutDeviceName)
+// 	{
+// 		*OutDeviceName = PlatformAndDevice[1];
+// 	}
+// 
+// 	FString DDPIPlatformName = ConvertToDDPIPlatform(PlatformAndDevice[0]);
+// 
+// 	checkf(DataDrivenPlatforms.Contains(*DDPIPlatformName), TEXT("DataDrivenPlatforms map did not contain the DDPI Platform %s"), *DDPIPlatformName);
+// 
+// 	// have to convert back to Windows from Win64
+// 	return DataDrivenPlatforms[*DDPIPlatformName];
+// 
+// }
+
+
+void FTurnkeySupportModule::UpdateSdkInfo()
+{
+	// make sure all known platforms are in the map
+	if (PerPlatformSdkInfo.Num() == 0)
+	{
+		for (auto& It : FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())
+		{
+			PerPlatformSdkInfo.Add(It.Key, FTurnkeySdkInfo());
+		}
+	}
+
+	// don't run UAT from commandlets (like the cooker) that are often launched from UAT and this will go poorly
+	if (IsRunningCommandlet())
+	{
+		return;
+	}
+
+
+	FString Command, BaseCommandline, ReportFilename;
+	PrepForTurnkeyReport(Command, BaseCommandline, ReportFilename);
+	// get status for all platforms
+	FString Commandline = BaseCommandline + TEXT(" -platform=all");
+
+	UE_LOG(LogInit, Log, TEXT("Running Turnkey SDK detection: '%s %s'"), *Command, *Commandline);
+
+	{
+		FScopeLock Lock(&GTurnkeySection);
+
+		// reset status to unknown
+		for (auto& It : PerPlatformSdkInfo)
+		{
+			It.Value.Status = ETurnkeyPlatformSdkStatus::Querying;
+		}
+
+		// reset the per-device status when querying general Sdk status
+		ClearDeviceStatus();
+	}
+
+	FMonitoredProcess* TurnkeyProcess = new FMonitoredProcess(Command, Commandline, true, false);
+	TurnkeyProcess->OnCompleted().BindLambda([this, ReportFilename, TurnkeyProcess](int32 ExitCode)
+	{
+		AsyncTask(ENamedThreads::GameThread, [this, ReportFilename, TurnkeyProcess, ExitCode]()
+		{
+			FScopeLock Lock(&GTurnkeySection);
+
+			if (ExitCode == 0 || ExitCode == 10)
+			{
+				TArray<FString> Contents;
+				if (FFileHelper::LoadFileToStringArray(Contents, *ReportFilename))
+				{
+					for (FString& Line : Contents)
+					{
+						UE_LOG(LogTemp, Log, TEXT("Turnkey Platform: %s"), *Line);
+
+						// parse a Turnkey line
+						FName PlatformName;
+						FString Unused;
+						FTurnkeySdkInfo SdkInfo;
+						if (GetSdkInfoFromTurnkey(Line, PlatformName, Unused, SdkInfo) == false)
+						{
+							continue;
+						}
+
+						// check if we had already set a ManualSDK - and don't set it again. Because of the way AutoSDKs are activated in the editor after the first call to Turnkey,
+						// future calls to Turnkey will inherit the AutoSDK env vars, and it won't be able to determine the manual SDK versions anymore. If we use the editor to
+						// install an SDK via Turnkey, it will directly update the installed version based on the result of that command, not this Update operation
+
+						FString OriginalManualInstallValue = PerPlatformSdkInfo[PlatformName].InstalledVersion;
+
+						// set it into the platform
+						PerPlatformSdkInfo[PlatformName] = SdkInfo;
+
+						// restore the original installed version if it set after the first time
+						if (OriginalManualInstallValue.Len() > 0)
+						{
+							PerPlatformSdkInfo[PlatformName].InstalledVersion = OriginalManualInstallValue;
+						}
+
+
+						UE_LOG(LogTemp, Log, TEXT("[TEST] Turnkey Platform: %s - %d, Installed: %s, AudoSDK: %s, Allowed: %s-%s"), *PlatformName.ToString(), (int)SdkInfo.Status, *SdkInfo.InstalledVersion,
+							*SdkInfo.AutoSDKVersion, *SdkInfo.MinAllowedVersion, *SdkInfo.MaxAllowedVersion);
+					}
+				}
+			}
+			else
+			{
+				for (auto& It : PerPlatformSdkInfo)
+				{
+					It.Value.Status = ETurnkeyPlatformSdkStatus::Error;
+					It.Value.SdkErrorInformation = FText::Format(NSLOCTEXT("Turnkey", "TurnkeyError_ReturnedError", "Turnkey returned an error, code {0}"), { ExitCode });
+
+					// @todo turnkey error description!
+				}
+			}
+
+
+			for (auto& It : PerPlatformSdkInfo)
+			{
+				if (It.Value.Status == ETurnkeyPlatformSdkStatus::Querying)
+				{
+					// fake platforms won't come back, just skip it
+					if (FDataDrivenPlatformInfoRegistry::GetPlatformInfo(It.Key).bIsFakePlatform)
+					{
+						It.Value.Status = ETurnkeyPlatformSdkStatus::Unknown;
+					}
+					else
+					{
+						It.Value.Status = ETurnkeyPlatformSdkStatus::Error;
+						It.Value.SdkErrorInformation = NSLOCTEXT("Turnkey", "TurnkeyError_NotReturned", "The platform's Sdk status was not returned from Turnkey");
+					}
+				}
+			}
+
+			// cleanup
+			delete TurnkeyProcess;
+			IFileManager::Get().Delete(*ReportFilename);
+		});
+	});
+
+	// run it
+	TurnkeyProcess->Launch();
+}
+
+void FTurnkeySupportModule::UpdateSdkInfoForDevices(TArray<FString> PlatformDeviceIds)
+{
+	FString Command, BaseCommandline, ReportFilename;
+	PrepForTurnkeyReport(Command, BaseCommandline, ReportFilename);
+
+	// the platform part of the Id may need to be converted to be turnkey (ie UBT) proper
+
+	FString Commandline = BaseCommandline + FString(TEXT(" -Device=")) + FString::JoinBy(PlatformDeviceIds, TEXT("+"), [](FString Id) { return ConvertToUATDeviceId(Id); });
+
+	UE_LOG(LogInit, Log, TEXT("Running Turnkey SDK detection: '%s %s'"), *Command, *Commandline);
+
+	{
+		FScopeLock Lock(&GTurnkeySection);
+
+		// set status to querying
+		FTurnkeySdkInfo DefaultInfo;
+		DefaultInfo.Status = ETurnkeyPlatformSdkStatus::Querying;
+		for (const FString& Id : PlatformDeviceIds)
+		{
+			PerDeviceSdkInfo.Add(ConvertToDDPIDeviceId(Id), DefaultInfo);
+		}
+	}
+
+	FMonitoredProcess* TurnkeyProcess = new FMonitoredProcess(Command, Commandline, true, false);
+	TurnkeyProcess->OnCompleted().BindLambda([this, ReportFilename, TurnkeyProcess, PlatformDeviceIds](int32 ExitCode)
+	{
+		AsyncTask(ENamedThreads::GameThread, [this, ReportFilename, TurnkeyProcess, PlatformDeviceIds, ExitCode]()
+		{
+			FScopeLock Lock(&GTurnkeySection);
+
+			if (ExitCode == 0 || ExitCode == 10)
+			{
+				TArray<FString> Contents;
+				if (FFileHelper::LoadFileToStringArray(Contents, *ReportFilename))
+				{
+					for (FString& Line : Contents)
+					{
+						FName PlatformName;
+						FString DDPIDeviceId;
+						FTurnkeySdkInfo SdkInfo;
+						if (GetSdkInfoFromTurnkey(Line, PlatformName, DDPIDeviceId, SdkInfo) == false)
+						{
+							continue;
+						}
+
+						// skip over non-device lines
+						if (DDPIDeviceId.Len() == 0)
+						{
+							continue;
+						}
+
+						UE_LOG(LogTemp, Log, TEXT("Turnkey Device: %s"), *Line);
+
+						PerDeviceSdkInfo[DDPIDeviceId] = SdkInfo;
+
+						UE_LOG(LogTemp, Log, TEXT("[TEST] Turnkey Device: %s - %d, Installed: %s, Allowed: %s-%s"), *DDPIDeviceId, (int)SdkInfo.Status, *SdkInfo.InstalledVersion,
+							*SdkInfo.MinAllowedVersion, *SdkInfo.MaxAllowedVersion);
+					}
+				}
+			}
+
+			for (const FString& Id : PlatformDeviceIds)
+			{
+				FTurnkeySdkInfo& SdkInfo = PerDeviceSdkInfo[ConvertToDDPIDeviceId(Id)];
+				if (SdkInfo.Status == ETurnkeyPlatformSdkStatus::Querying)
+				{
+					SdkInfo.Status = ETurnkeyPlatformSdkStatus::Error;
+					SdkInfo.SdkErrorInformation = NSLOCTEXT("Turnkey", "TurnkeyError_DeviceNotReturned", "A device's Sdk status was not returned from Turnkey");
+				}
+			}
+
+			// cleanup
+			delete TurnkeyProcess;
+			IFileManager::Get().Delete(*ReportFilename);
+		});
+	});
+
+	// run it
+	TurnkeyProcess->Launch();
+}
+
+FTurnkeySdkInfo FTurnkeySupportModule::GetSdkInfo(FName PlatformName, bool bBlockIfQuerying) const
+{
+	FScopeLock Lock(&GTurnkeySection);
+
+	// return the status, or Unknown info if not known
+	return PerPlatformSdkInfo.FindRef(ConvertToDDPIPlatform(PlatformName));
+}
+
+FTurnkeySdkInfo FTurnkeySupportModule::GetSdkInfoForDeviceId(const FString& DeviceId) const
+{
+	FScopeLock Lock(&GTurnkeySection);
+
+	// return the status, or Unknown info if not known
+	return PerDeviceSdkInfo.FindRef(ConvertToDDPIDeviceId(DeviceId));
+}
+
+void FTurnkeySupportModule::ClearDeviceStatus(FName PlatformName)
+{
+	FScopeLock Lock(&GTurnkeySection);
+
+	FString Prefix = ConvertToDDPIPlatform(PlatformName.ToString()) + "@";
+	for (auto& Pair : PerDeviceSdkInfo)
+	{
+		if (PlatformName == NAME_None || Pair.Key.StartsWith(Prefix))
+		{
+			Pair.Value.Status = ETurnkeyPlatformSdkStatus::Unknown;
+		}
+	}
+}
+
+
 
 void FTurnkeySupportModule::StartupModule( )
 {
-	FTurnkeySupportCommands::Register();
 }
 
 
@@ -1365,7 +1704,7 @@ if (UGameMapsSettings::GetGameDefaultMap().IsEmpty())
 	return;
 }
 
-if (/*PlatformInfo->DataDrivenPlatformInfo->GetSdkStatus() != DDPIPlatformSdkStatus::Valid ||*/ (bProjectHasCode && PlatformInfo->DataDrivenPlatformInfo->bUsesHostCompiler && !FSourceCodeNavigation::IsCompilerAvailable()))
+if (/*PlatformInfo->DataDrivenPlatformInfo->GetSdkStatus() != ETurnkeyPlatformSdkStatus::Valid ||*/ (bProjectHasCode && PlatformInfo->DataDrivenPlatformInfo->bUsesHostCompiler && !FSourceCodeNavigation::IsCompilerAvailable()))
 {
 	if (!ShowBadSDKDialog(PlatformInfo->IniPlatformName))
 	{

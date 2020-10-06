@@ -8,6 +8,7 @@
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "Misc/CoreMisc.h"
+#include "Interfaces/IturnkeySupportModule.h"
 
 static bool RequiresBuild()
 {
@@ -50,7 +51,7 @@ bool FIOSCustomIconProjectBuildMutatorFeature ::RequiresProjectBuild(const FName
 	const PlatformInfo::FTargetPlatformInfo* const PlatInfo = PlatformInfo::FindPlatformInfo(InPlatformInfoName);
 	check(PlatInfo);
 
-	if (PlatInfo->DataDrivenPlatformInfo->GetSdkStatus() == DDPIPlatformSdkStatus::Valid)
+	if (ITurnkeySupportModule::Get().GetSdkInfo(PlatInfo->IniPlatformName).Status == ETurnkeyPlatformSdkStatus::Valid)
 	{
 		const ITargetPlatform* const Platform = GetTargetPlatformManager()->FindTargetPlatform(PlatInfo->Name.ToString());
 		if (Platform)

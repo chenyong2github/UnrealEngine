@@ -35,6 +35,7 @@ public class IOSPlatformEditor : ModuleRules
 			new string[] {
 				"GameProjectGeneration",
 				"Settings",
+				"TurnkeySupport",
 			}
 		);
 	}

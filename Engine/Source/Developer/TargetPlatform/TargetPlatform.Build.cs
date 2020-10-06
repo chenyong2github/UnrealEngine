@@ -18,6 +18,7 @@ public class TargetPlatform : ModuleRules
 
 		PrivateIncludePathModuleNames.Add("Engine");
 		PrivateIncludePathModuleNames.Add("PhysicsCore");
+		PrivateIncludePathModuleNames.Add("TurnkeySupport");
 
 		// no need for all these modules if the program doesn't want developer tools at all (like UnrealFileServer)
 		if (!Target.bBuildRequiresCookedData && Target.bBuildDeveloperTools)

@@ -3,11 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
 #include "Interfaces/ITurnkeySupportModule.h"
 
-
-DECLARE_LOG_CATEGORY_EXTERN(LogTurnkeySupport, Log, All);
 
 /**
  * Editor main frame module
@@ -22,6 +19,19 @@ public:
 	 */
 	virtual TSharedRef<SWidget> MakeTurnkeyMenu() const override;
 
+	/**
+	 * @return	The newly-created menu widget
+	 */
+	virtual void UpdateSdkInfo() override;
+
+	/**
+	 * Runs Turnkey to get the Sdk information for a list of devices
+	 */
+	virtual void UpdateSdkInfoForDevices(TArray<FString> DeviceIds) override;
+
+	virtual FTurnkeySdkInfo GetSdkInfo(FName PlatformName, bool bBlockIfQuerying = true) const override;
+	virtual FTurnkeySdkInfo GetSdkInfoForDeviceId(const FString& DeviceId) const override;
+	virtual void ClearDeviceStatus(FName PlatformName=NAME_None) override;
 public:
 
 	// IModuleInterface interface
@@ -36,5 +46,10 @@ public:
 
 
 private:
+	// Information about the validity of using a platform, discovered via Turnkey
+	TMap<FName, FTurnkeySdkInfo> PerPlatformSdkInfo;
+
+	// Information about the validity of each connected device (by string, discovered by Turnkey)
+	TMap<FString, FTurnkeySdkInfo> PerDeviceSdkInfo;
 
 };

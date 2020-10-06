@@ -20,6 +20,7 @@
 #include "Interfaces/ITextureFormatModule.h"
 #include "PlatformInfo.h"
 #include "DesktopPlatformModule.h"
+#include "Interfaces/ITurnkeySupportModule.h"
 
 #if PHYSICS_INTERFACE_PHYSX
 #include "IPhysXCooking.h"
@@ -88,7 +89,7 @@ public:
 		, bHasInitErrors(false)
 		, bIgnoreFirstDelegateCall(true)
 	{
-		FDataDrivenPlatformInfoRegistry::UpdateSdkStatus();
+		ITurnkeySupportModule::Get().UpdateSdkInfo();
 
 #if AUTOSDKS_ENABLED		
 		
@@ -1134,10 +1135,10 @@ protected:
 
 		if (bTPInitialized)
 		{
-			FDataDrivenPlatformInfoRegistry::UpdateSdkStatus();
+			ITurnkeySupportModule::Get().UpdateSdkInfo();
 		}
 
-		FDataDrivenPlatformInfoRegistry::ClearDeviceStatus(PlatformName);
+		ITurnkeySupportModule::Get().ClearDeviceStatus(PlatformName);
 		Invalidate();
 
 		return bTPInitialized;
