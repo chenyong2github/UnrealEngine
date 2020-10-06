@@ -7,16 +7,20 @@
 
 namespace Chaos
 {
-	float ChaosManifoldMatchPositionTolerance = 0.2f;		// % of object size position tolerance
-	float ChaosManifoldMatchNormalTolerance = 0.02f;		// Dot product tolerance
-	FAutoConsoleVariableRef CVarChaosManifoldMatchPositionTolerance(TEXT("p.Chaos.Collision.ManifoldMatchPositionTolerance"), ChaosManifoldMatchPositionTolerance, TEXT("A tolerance as a fraction of object size used to determine if two contact points are the same"));
-	FAutoConsoleVariableRef CVarChaosManifoldMatchNormalTolerance(TEXT("p.Chaos.Collision.ManifoldMatchNormalTolerance"), ChaosManifoldMatchNormalTolerance, TEXT("A tolerance on the normal dot product used to determine if two contact points are the same"));
+	float Chaos_Manifold_MatchPositionTolerance = 0.3f;		// Fraction of object size position tolerance
+	float Chaos_Manifold_MatchNormalTolerance = 0.02f;		// Dot product tolerance
+	FAutoConsoleVariableRef CVarChaos_Manifold_MatchPositionTolerance(TEXT("p.Chaos.Collision.ManifoldMatchPositionTolerance"), Chaos_Manifold_MatchPositionTolerance, TEXT("A tolerance as a fraction of object size used to determine if two contact points are the same"));
+	FAutoConsoleVariableRef CVarChaos_Manifold_MatchNormalTolerance(TEXT("p.Chaos.Collision.ManifoldMatchNormalTolerance"), Chaos_Manifold_MatchNormalTolerance, TEXT("A tolerance on the normal dot product used to determine if two contact points are the same"));
+
+	bool bChaos_Manifold_UpdateMatchedContact = true;
+	FAutoConsoleVariableRef CVarChaos_Manifold_UpdateMatchedContact(TEXT("p.Chaos.Collision.UpdateMatchedContact"), bChaos_Manifold_UpdateMatchedContact, TEXT(""));
 
 	FString FCollisionConstraintBase::ToString() const
 	{
 		return FString::Printf(TEXT("Particle:%s, Levelset:%s, AccumulatedImpulse:%s"), *Particle[0]->ToString(), *Particle[1]->ToString(), *AccumulatedImpulse.ToString());
 	}
 
+	// @todo(chaos): this is not an obvious implementation of operator<. We should make it a named predicate
 	bool FCollisionConstraintBase::operator<(const FCollisionConstraintBase& Other) const
 	{
 		//sort constraints by the smallest particle idx in them first
@@ -51,31 +55,37 @@ namespace Chaos
 	//		Edge - Edge - ?? hard...
 	//		Face - Face - ?? hard...
 	//
-	bool FRigidBodyPointContactConstraint::AreMatchingContactPoints(const FContactPoint& A, const FContactPoint& B) const
+	bool FRigidBodyPointContactConstraint::AreMatchingContactPoints(const FContactPoint& A, const FContactPoint& B, FReal& OutScore) const
 	{
+		OutScore = 0.0f;
+
 		// @todo(chaos): cache tolerances?
 		const FReal Size0 = Particle[0]->Geometry()->BoundingBox().Extents().Max();
 		const FReal Size1 = Particle[1]->Geometry()->BoundingBox().Extents().Max();
-		const FReal DistanceTolerance = FMath::Min(Size0, Size1) * ChaosManifoldMatchPositionTolerance;
-		const FReal NormalTolerance = ChaosManifoldMatchNormalTolerance;
+		const FReal DistanceTolerance = FMath::Min(Size0, Size1) * Chaos_Manifold_MatchPositionTolerance;
+		const FReal NormalTolerance = Chaos_Manifold_MatchNormalTolerance;
 
 		// If normal has changed a lot, it is a different contact
 		// (This was only here to detect bad normals - it is not right for edge-edge contact tracking, but we don't do a good job of that yet anyway!)
-		FReal NormalDot = FVec3::DotProduct(A.Normal, B.Normal);
+		FReal NormalDot = FVec3::DotProduct(A.ShapeContactNormal, B.ShapeContactNormal);
 		if (NormalDot < 1.0f - NormalTolerance)
 		{
 			return false;
 		}
 
 		// If either point in local space is the same, it is the same contact
-		const float DistanceTolerance2 = DistanceTolerance * DistanceTolerance;
-		for (int32 BodyIndex = 0; BodyIndex < 2; ++BodyIndex)
+		if (DistanceTolerance > 0.0f)
 		{
-			FVec3 DR = A.ShapeContactPoints[BodyIndex] - B.ShapeContactPoints[BodyIndex];
-			FReal DRLen2 = DR.SizeSquared();
-			if (DRLen2 < DistanceTolerance2)
+			const float DistanceTolerance2 = DistanceTolerance * DistanceTolerance;
+			for (int32 BodyIndex = 0; BodyIndex < 2; ++BodyIndex)
 			{
-				return true;
+				FVec3 DR = A.ShapeContactPoints[BodyIndex] - B.ShapeContactPoints[BodyIndex];
+				FReal DRLen2 = DR.SizeSquared();
+				if (DRLen2 < DistanceTolerance2)
+				{
+					OutScore = FMath::Clamp(1.0f - DRLen2 / DistanceTolerance2, 0.0f, 1.0f);
+					return true;
+				}
 			}
 		}
 
@@ -85,14 +95,21 @@ namespace Chaos
 	int32 FRigidBodyPointContactConstraint::FindManifoldPoint(const FContactPoint& ContactPoint) const
 	{
 		const int32 NumManifoldPoints = ManifoldPoints.Num();
+		int32 BestMatchIndex = INDEX_NONE;
+		FReal BestMatchScore = 0.0f;
 		for (int32 ManifoldPointIndex = 0; ManifoldPointIndex < NumManifoldPoints; ++ManifoldPointIndex)
 		{
-			if (AreMatchingContactPoints(ContactPoint, ManifoldPoints[ManifoldPointIndex].ContactPoint))
+			FReal Score = 0.0f;
+			if (AreMatchingContactPoints(ContactPoint, ManifoldPoints[ManifoldPointIndex].ContactPoint, Score))
 			{
-				return ManifoldPointIndex;
+				if (Score > BestMatchScore)
+				{
+					BestMatchIndex = ManifoldPointIndex;
+					BestMatchScore = Score;
+				}
 			}
 		}
-		return INDEX_NONE;
+		return BestMatchIndex;
 	}
 
 	void FRigidBodyPointContactConstraint::UpdateManifold(const FContactPoint& ContactPoint)
@@ -139,18 +156,28 @@ namespace Chaos
 		const FVec3 LocalContactPoint0 = ImplicitTransform[0].TransformPosition(ManifoldPoint.ContactPoint.ShapeContactPoints[0]);	// Particle Space
 		const FVec3 LocalContactPoint1 = ImplicitTransform[1].TransformPosition(ManifoldPoint.ContactPoint.ShapeContactPoints[1]);	// Particle Space
 		const FVec3 LocalContactNormal = ImplicitTransform[1].TransformVector(ManifoldPoint.ContactPoint.ShapeContactNormal);		// Particle Space
+
+		const FVec3 CoMContactPoint0 = Particle0->RotationOfMass().Inverse() * (LocalContactPoint0 - Particle0->CenterOfMass());
+		const FVec3 CoMContactPoint1 = Particle1->RotationOfMass().Inverse() * (LocalContactPoint1 - Particle1->CenterOfMass());
+		const FVec3 CoMContactNormal = Particle1->RotationOfMass().Inverse() * LocalContactNormal;
+		ManifoldPoint.CoMContactPoints[0] = CoMContactPoint0;
+		ManifoldPoint.CoMContactPoints[1] = CoMContactPoint1;
+		ManifoldPoint.CoMContactNormal = CoMContactNormal;
+
 		const FVec3 PrevWorldContactLocation0 = Particle0->X() + Particle0->R() * LocalContactPoint0;
 		const FVec3 PrevWorldContactLocation1 = Particle1->X() + Particle1->R() * LocalContactPoint1;
 		const FVec3 PrevWorldContactNormal = Particle1->R() * LocalContactNormal;
 		const FReal PrevPhi = FVec3::DotProduct(PrevWorldContactLocation0 - PrevWorldContactLocation1, PrevWorldContactNormal);
-		const FVec3 LocalPrevContactPoint1 = Particle1->R().Inverse() * (PrevWorldContactLocation0 - PrevPhi * PrevWorldContactNormal - Particle1->X());	// Particle Space
+		const FVec3 PrevLocalContactPoint1 = Particle1->R().Inverse() * (PrevWorldContactLocation0 - PrevPhi * PrevWorldContactNormal - Particle1->X());	// Particle Space
+		const FVec3 PrevCoMContactPoint1 = Particle1->RotationOfMass().Inverse()* (PrevLocalContactPoint1 - Particle1->CenterOfMass());
+		const FVec3 PrevWorldContactVel0 = Particle0->PreV() + FVec3::CrossProduct(Particle0->PreW(), PrevWorldContactLocation0 - Particle0->X());
+		const FVec3 PrevWorldContactVel1 = Particle1->PreV() + FVec3::CrossProduct(Particle1->PreW(), PrevWorldContactLocation1 - Particle1->X());
+		const FReal PrevWorldContactVelNorm = FVec3::DotProduct(PrevWorldContactVel0 - PrevWorldContactVel1, PrevWorldContactNormal);
+		ManifoldPoint.PrevCoMContactPoint1 = PrevCoMContactPoint1;
+		ManifoldPoint.InitialContactVelocity = PrevWorldContactVelNorm;
 
-		ManifoldPoint.CoMContactPoints[0] = Particle0->RotationOfMass().Inverse() * (LocalContactPoint0 - Particle0->CenterOfMass());
-		ManifoldPoint.CoMContactPoints[1] = Particle1->RotationOfMass().Inverse() * (LocalContactPoint1 - Particle1->CenterOfMass());
-		ManifoldPoint.CoMContactNormal = Particle1->RotationOfMass().Inverse() * LocalContactNormal;
-		ManifoldPoint.PrevCoMContactPoint1 = Particle1->RotationOfMass().Inverse() * (LocalPrevContactPoint1 - Particle1->CenterOfMass());
+		// NOTE: This is incorrect of we are updating the point each iteration (which we are - see UpdateManifoldPoint)
 		ManifoldPoint.InitialPhi = ManifoldPoint.ContactPoint.Phi;
-		ManifoldPoint.PrevPhi = PrevPhi;
 	}
 
 	int32 FRigidBodyPointContactConstraint::AddManifoldPoint(const FContactPoint& ContactPoint)
@@ -168,9 +195,12 @@ namespace Chaos
 		// We really need to know that it's exactly the same contact and not just a close one to update it here
 		// otherwise the PrevLocalContactPoint1 we calculated is not longer for the correct point.
 		// @todo(chaos): this will give us an incorrect InitialPhi until we have a proper one-shot manifold
-		FManifoldPoint& ManifoldPoint = ManifoldPoints[ManifoldPointIndex];
-		ManifoldPoint.ContactPoint = ContactPoint;
-		InitManifoldPoint(ManifoldPoint);
+		if (bChaos_Manifold_UpdateMatchedContact)
+		{
+			FManifoldPoint& ManifoldPoint = ManifoldPoints[ManifoldPointIndex];
+			ManifoldPoint.ContactPoint = ContactPoint;
+			InitManifoldPoint(ManifoldPoint);
+		}
 	}
 
 	void FRigidBodyPointContactConstraint::SetActiveContactPoint(const FContactPoint& ContactPoint)
