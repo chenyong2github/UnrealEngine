@@ -174,14 +174,11 @@ public:
 
 	/** Sets filtered stages of a given class to a provided target value for active instance of mix. Does not update UObject definition of mix.
 	 * @param Mix - Mix to modify
-	 * @param AddressFilter - Address filter to apply to provided mix's stages.
-	 * @param BusClass - Filters buses by subclass.
+	 * @param AddressFilter - (Optional) Address filter to apply to provided mix's stages.
+	 * @param ParamClassFilter - (Optional) Filters buses by parameter class.
+	 * @param ParamFilter - (Optional) Filters buses by parameter.
 	 * @param Value - Target value to mix filtered stages to.
 	 * @param FadeTime - If non-negative, updates the fade time for the resulting bus stages found matching the provided filter.
-	 * @param AttackTime - If non-negative, updates the attack time for the resulting bus stages found matching the provided filter.
-	 * @param ReleaseTime - If non-negative, updates the release time for the resulting bus stages found matching the provided filter.
-	 * @param bUpdateObject - If true, will dirty mix object and update stages on the SoundControlBusMix object in addition to updating 
-	 * the audio thread proxy.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Set Control Bus Mix By Filter", meta = (
 		AdvancedDisplay = "6",
