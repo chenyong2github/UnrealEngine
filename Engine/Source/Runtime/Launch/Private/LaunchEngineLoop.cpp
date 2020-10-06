@@ -4107,6 +4107,9 @@ void FEngineLoop::Exit()
 
 	// Make sure we're not in the middle of loading something.
 	{
+		// From now on it's not allowed to request new async loads
+		SetAsyncLoadingAllowed(false);
+
 		bool bFlushOnExit = true;
 		if (GConfig)
 		{
@@ -4115,7 +4118,7 @@ void FEngineLoop::Exit()
 		}
 		if (bFlushOnExit)
 		{
-	FlushAsyncLoading();
+			FlushAsyncLoading();
 		}
 		else
 		{
