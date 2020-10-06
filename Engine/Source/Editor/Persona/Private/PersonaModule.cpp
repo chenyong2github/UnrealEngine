@@ -205,11 +205,11 @@ static void SetupPersonaToolkit(const TSharedRef<FPersonaToolkit>& Toolkit, cons
 	}
 }
 
-TSharedRef<IPersonaToolkit> FPersonaModule::CreatePersonaToolkit(UObject* InAsset, const FPersonaToolkitArgs& PersonaToolkitArgs) const
+TSharedRef<IPersonaToolkit> FPersonaModule::CreatePersonaToolkit(UObject* InAsset, const FPersonaToolkitArgs& PersonaToolkitArgs, USkeleton* InSkeleton) const
 {
 	TSharedRef<FPersonaToolkit> NewPersonaToolkit(new FPersonaToolkit());
 
-	NewPersonaToolkit->Initialize(InAsset);
+	NewPersonaToolkit->Initialize(InAsset, InSkeleton);
 
 	SetupPersonaToolkit(NewPersonaToolkit, PersonaToolkitArgs);
 

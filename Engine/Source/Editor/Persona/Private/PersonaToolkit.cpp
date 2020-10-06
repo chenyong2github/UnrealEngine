@@ -36,7 +36,7 @@ static void FindCounterpartAssets(const UObject* InAsset, TWeakObjectPtr<USkelet
 	OutMesh = const_cast<USkeletalMesh*>(CounterpartMesh);
 }
 
-void FPersonaToolkit::Initialize(UObject* InAsset)
+void FPersonaToolkit::Initialize(UObject* InAsset, USkeleton* InSkeleton)
 {
 	Asset = InAsset;
 	InitialAssetClass = Asset->GetClass();
@@ -45,6 +45,8 @@ void FPersonaToolkit::Initialize(UObject* InAsset)
 	{
 		Mesh = PreviewMeshInterface->GetPreviewMesh();
 	}
+
+	Skeleton = InSkeleton;
 }
 
 void FPersonaToolkit::Initialize(USkeleton* InSkeleton)
