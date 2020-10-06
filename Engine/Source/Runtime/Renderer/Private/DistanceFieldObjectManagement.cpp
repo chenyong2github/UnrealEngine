@@ -708,23 +708,17 @@ void FDeferredShadingSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRHIC
 						RangeCount == 1
 					);
 
-					FRHIUnorderedAccessView* ObjectBufferUAVs[2];
-					ObjectBufferUAVs[0] = ObjectBuffers->Data.UAV;
-					ObjectBufferUAVs[1] = ObjectBuffers->Bounds.UAV;
-
-					if (bResizedDFObjectData || bResizedDFObjectBounds)
-					{
-						RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, ObjectBufferUAVs, 2);
-					}
-					else
-					{
-						RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, ObjectBufferUAVs, 2);
-					}
+					TStaticArray<FRHITransitionInfo, 2> TransitionInfos;
+					TransitionInfos[0] = FRHITransitionInfo(ObjectBuffers->Data.UAV, ERHIAccess::Unknown, bResizedDFObjectData ? ERHIAccess::ERWBarrier : ERHIAccess::EWritable);
+					TransitionInfos[1] = FRHITransitionInfo(ObjectBuffers->Bounds.UAV, ERHIAccess::Unknown, bResizedDFObjectBounds ? ERHIAccess::ERWBarrier : ERHIAccess::EWritable);
+					RHICmdList.Transition(TransitionInfos);
 
 					DistanceFieldSceneData.UploadDistanceFieldDataBuffer.ResourceUploadTo(RHICmdList, ObjectBuffers->Data, false);
 					DistanceFieldSceneData.UploadDistanceFieldBoundsBuffer.ResourceUploadTo(RHICmdList, ObjectBuffers->Bounds, false);
 
-					RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, ObjectBufferUAVs, 2);
+					TransitionInfos[0] = FRHITransitionInfo(ObjectBuffers->Data.UAV, ERHIAccess::Unknown, ERHIAccess::EReadable);
+					TransitionInfos[1] = FRHITransitionInfo(ObjectBuffers->Bounds.UAV, ERHIAccess::Unknown, ERHIAccess::EReadable);
+					RHICmdList.Transition(TransitionInfos);
 				}
 			}
 		}
@@ -897,22 +891,17 @@ void FDeferredShadingSceneRenderer::UpdateGlobalHeightFieldObjectBuffers(FRHICom
 						}
 					}
 
-					if (bResizedHeighFieldObjectData || bResizedHeighFieldObjectBounds)
-					{
-						RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, ObjectBuffers->Data.UAV);
-						RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, ObjectBuffers->Bounds.UAV);
-					}
-					else
-					{
-						RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, ObjectBuffers->Data.UAV);
-						RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, ObjectBuffers->Bounds.UAV);
-					}
+					TStaticArray<FRHITransitionInfo, 2> TransitionInfos;
+					TransitionInfos[0] = FRHITransitionInfo(ObjectBuffers->Data.UAV, ERHIAccess::Unknown, bResizedHeighFieldObjectData ? ERHIAccess::ERWBarrier : ERHIAccess::EWritable);
+					TransitionInfos[1] = FRHITransitionInfo(ObjectBuffers->Bounds.UAV, ERHIAccess::Unknown, bResizedHeighFieldObjectBounds ? ERHIAccess::ERWBarrier : ERHIAccess::EWritable);
+					RHICmdList.Transition(TransitionInfos);
 
 					DistanceFieldSceneData.UploadHeightFieldDataBuffer.ResourceUploadTo(RHICmdList, ObjectBuffers->Data, false);
 					DistanceFieldSceneData.UploadHeightFieldBoundsBuffer.ResourceUploadTo(RHICmdList, ObjectBuffers->Bounds, false);
 
-					RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, ObjectBuffers->Data.UAV);
-					RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, ObjectBuffers->Bounds.UAV);
+					TransitionInfos[0] = FRHITransitionInfo(ObjectBuffers->Data.UAV, ERHIAccess::Unknown, ERHIAccess::EReadable);
+					TransitionInfos[1] = FRHITransitionInfo(ObjectBuffers->Bounds.UAV, ERHIAccess::Unknown, ERHIAccess::EReadable);
+					RHICmdList.Transition(TransitionInfos);
 				}
 			}
 		}

@@ -898,7 +898,7 @@ void ClearAtlas(FRHICommandListImmediate& RHICmdList, const TRefCountPtr<IPooled
 	RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearAtlas"));
 
 	RHICmdList.EndRenderPass();
-	RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, Atlas->GetRenderTargetItem().TargetableTexture);
+	RHICmdList.Transition(FRHITransitionInfo(Atlas->GetRenderTargetItem().TargetableTexture, ERHIAccess::Unknown, ERHIAccess::EReadable));
 }
 
 void ClearAtlasesToDebugValues(FRHICommandListImmediate& RHICmdList, FLumenSceneData& LumenSceneData)
@@ -1820,18 +1820,9 @@ void UpdateCardSceneBuffer(FRHICommandListImmediate& RHICmdList, const FSceneVie
 			}
 		}
 
-		if (bResizedCardData)
-		{
-			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, LumenSceneData.CardBuffer.UAV);
-		}
-		else
-		{
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, LumenSceneData.CardBuffer.UAV);
-		}
-
+		RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.CardBuffer.UAV, ERHIAccess::Unknown, bResizedCardData ? ERHIAccess::ERWBarrier : ERHIAccess::EWritable));
 		LumenSceneData.UploadBuffer.ResourceUploadTo(RHICmdList, LumenSceneData.CardBuffer, false);
-
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, LumenSceneData.CardBuffer.UAV);
+		RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.CardBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::EReadable));
 	}
 
 	UpdateLumenCubeMapTrees(Scene->DistanceFieldSceneData, LumenSceneData, RHICmdList, Scene->Primitives.Num());

@@ -238,18 +238,9 @@ void UpdateLumenCubeMapTrees(const FDistanceFieldSceneData& DistanceFieldSceneDa
 				}
 			}
 
-			if (bResizedCubeMapTreeData)
-			{
-				RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, LumenSceneData.CubeMapTreeBuffer.UAV);
-			}
-			else
-			{
-				RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, LumenSceneData.CubeMapTreeBuffer.UAV);
-			}
-
+			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.CubeMapTreeBuffer.UAV, ERHIAccess::Unknown, bResizedCubeMapTreeData ? ERHIAccess::ERWBarrier : ERHIAccess::EWritable));
 			LumenSceneData.UploadCubeMapTreeBuffer.ResourceUploadTo(RHICmdList, LumenSceneData.CubeMapTreeBuffer, false);
-
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, LumenSceneData.CubeMapTreeBuffer.UAV);
+			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.CubeMapTreeBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::EReadable));
 		}
 	}
 
@@ -281,18 +272,9 @@ void UpdateLumenCubeMapTrees(const FDistanceFieldSceneData& DistanceFieldSceneDa
 				}
 			}
 
-			if (bResizedCubeMapData)
-			{
-				RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, LumenSceneData.CubeMapBuffer.UAV);
-			}
-			else
-			{
-				RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, LumenSceneData.CubeMapBuffer.UAV);
-			}
-
+			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.CubeMapBuffer.UAV, ERHIAccess::Unknown, bResizedCubeMapData ? ERHIAccess::ERWBarrier : ERHIAccess::EWritable));
 			LumenSceneData.UploadCubeMapBuffer.ResourceUploadTo(RHICmdList, LumenSceneData.CubeMapBuffer, false);
-
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, LumenSceneData.CubeMapBuffer.UAV);
+			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.CubeMapBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::EReadable));
 		}
 	}
 
@@ -344,18 +326,9 @@ void UpdateLumenCubeMapTrees(const FDistanceFieldSceneData& DistanceFieldSceneDa
 				}
 			}
 
-			if (bResizedIndexElements)
-			{
-				RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, LumenSceneData.DFObjectToCubeMapTreeIndexBuffer.UAV);
-			}
-			else
-			{
-				RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, LumenSceneData.DFObjectToCubeMapTreeIndexBuffer.UAV);
-			}
-
+			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.DFObjectToCubeMapTreeIndexBuffer.UAV, ERHIAccess::Unknown, bResizedIndexElements ? ERHIAccess::ERWBarrier : ERHIAccess::EWritable));
 			LumenSceneData.ByteBufferUploadBuffer.ResourceUploadTo(RHICmdList, LumenSceneData.DFObjectToCubeMapTreeIndexBuffer, false);
-
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, LumenSceneData.DFObjectToCubeMapTreeIndexBuffer.UAV);
+			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.DFObjectToCubeMapTreeIndexBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::EReadable));
 		}
 	}
 	
@@ -381,6 +354,8 @@ void UpdateLumenCubeMapTrees(const FDistanceFieldSceneData& DistanceFieldSceneDa
 
 		if (bBufferResized)
 		{
+			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.PrimitiveToDFObjectIndexBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
+
 			const uint32 DeltaIndicesSizeInBytesForPrimitives = IndicesSizeInBytesForPrimitives - LumenSceneData.PrimitiveToDFObjectIndexBufferSize;
 			const uint32 DstOffset = LumenSceneData.PrimitiveToDFObjectIndexBufferSize;
 			MemsetResource(RHICmdList, LumenSceneData.PrimitiveToDFObjectIndexBuffer, DFObjectIndexInvalid, DeltaIndicesSizeInBytesForPrimitives, DstOffset);
@@ -421,20 +396,10 @@ void UpdateLumenCubeMapTrees(const FDistanceFieldSceneData& DistanceFieldSceneDa
 				}
 			}
 
-			if (bBufferResized)
-			{
-				RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, LumenSceneData.PrimitiveToDFObjectIndexBuffer.UAV);
-			}
-			else
-			{
-				RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, LumenSceneData.PrimitiveToDFObjectIndexBuffer.UAV);
-			}
-
-			LumenSceneData.UploadPrimitiveBuffer.ResourceUploadTo(RHICmdList, LumenSceneData.PrimitiveToDFObjectIndexBuffer, false);
-
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, LumenSceneData.PrimitiveToDFObjectIndexBuffer.UAV);
+			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.PrimitiveToDFObjectIndexBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::EWritable));
+			LumenSceneData.ByteBufferUploadBuffer.ResourceUploadTo(RHICmdList, LumenSceneData.PrimitiveToDFObjectIndexBuffer, false);
+			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.PrimitiveToDFObjectIndexBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::EReadable));
 		}
-
 	}
 
 	// Reset arrays, but keep allocated memory for 1024 elements
