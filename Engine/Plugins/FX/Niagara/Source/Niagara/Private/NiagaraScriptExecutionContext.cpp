@@ -194,10 +194,12 @@ bool FNiagaraScriptExecutionContextBase::CanExecute()const
 TArrayView<const uint8> FNiagaraScriptExecutionContextBase::GetScriptLiterals() const
 {
 #if WITH_EDITORONLY_DATA
-	return Parameters.GetScriptLiterals();
-#else
-	return MakeArrayView(Script->GetVMExecutableData().ScriptLiterals);
+	if (!Script->IsScriptCooked())
+	{
+		return Parameters.GetScriptLiterals();
+	}
 #endif
+	return MakeArrayView(Script->GetVMExecutableData().ScriptLiterals);
 }
 
 //////////////////////////////////////////////////////////////////////////
