@@ -13,6 +13,7 @@ class NIAGARAEDITOR_API FNiagaraScratchPadScriptViewModel : public FNiagaraScrip
 public:
 	DECLARE_MULTICAST_DELEGATE(FOnRenamed);
 	DECLARE_MULTICAST_DELEGATE(FOnPinnedChanged);
+	DECLARE_MULTICAST_DELEGATE(FOnChangesApplied);
 
 public:
 	FNiagaraScratchPadScriptViewModel();
@@ -59,6 +60,8 @@ public:
 
 	FOnPinnedChanged& OnPinnedChanged();
 
+	FOnChangesApplied& OnChangesApplied();
+
 	FSimpleDelegate& OnRequestDiscardChanges();
 
 private:
@@ -88,5 +91,6 @@ private:
 
 	FOnRenamed OnRenamedDelegate;
 	FOnPinnedChanged OnPinnedChangedDelegate;
+	FOnChangesApplied OnChangesAppliedDelegate;
 	FSimpleDelegate OnRequestDiscardChangesDelegate;
 };
