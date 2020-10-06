@@ -217,7 +217,18 @@ namespace Chaos
 				{
 					ensure(!PendingTasks || PendingTasks->IsComplete());	//if mode changed we should have already blocked
 					FPhysicsSolverAdvanceTask ImmediateTask(*this,MoveTemp(CommandQueue),MoveTemp(PushData), DtWithPause, MarshallingManager.GetExternalTimestampConsumed_External());
+#if !UE_BUILD_SHIPPING
+					if (bStealAdvanceTasksForTesting)
+					{
+						StolenSolverAdvanceTasks.Emplace(MoveTemp(ImmediateTask));
+					}
+					else
+					{
+						ImmediateTask.AdvanceSolver();
+					}
+#else
 					ImmediateTask.AdvanceSolver();
+#endif
 				}
 				else
 				{
@@ -404,5 +415,17 @@ namespace Chaos
 		FSolverPreAdvance EventPreSolve;
 		FSolverPreBuffer EventPreBuffer;
 		FSolverPostAdvance EventPostSolve;
+
+
+#if !UE_BUILD_SHIPPING
+	// Solver testing utility
+	private:
+		// instead of running advance task in single threaded, put in array for manual execution control for unit tests.
+		bool bStealAdvanceTasksForTesting;
+		TArray<FPhysicsSolverAdvanceTask> StolenSolverAdvanceTasks;
+	public:
+		void SetStealAdvanceTasks_ForTesting(bool bInStealAdvanceTasksForTesting);
+		void PopAndExecuteStolenAdvanceTask_ForTesting();
+#endif
 	};
 }

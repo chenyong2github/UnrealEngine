@@ -135,6 +135,89 @@ namespace ChaosTest {
 		}
 	}
 
+	GTEST_TEST(EngineInterface, AccelerationStructureHasSyncTimestamp_MultiFrameDelay)
+	{
+		//make sure acceleration structure has appropriate sync time when PT falls behind GT
+
+		FChaosScene Scene(nullptr);
+		Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
+		Scene.GetSolver()->SetStealAdvanceTasks_ForTesting(true); // prevents execution on StartFrame so we can execute task manually.
+
+		EXPECT_EQ(Scene.GetSpacialAcceleration()->GetSyncTimestamp(), 0);	//timestamp of 0 because we flush when scene is created
+
+		FVec3 Grav(0, 0, -1);
+		Scene.SetUpForFrame(&Grav, 1, 99999, 99999, 10, false);
+
+		// Game thread enqueues second solver task before first completes (we did not execute advance task)
+		Scene.StartFrame();
+		Scene.EndFrame();
+		Scene.StartFrame();
+
+		// Execute first enqueued advance task
+		Scene.GetSolver()->PopAndExecuteStolenAdvanceTask_ForTesting();
+
+		// No EndFrame called after PT execution, stamp should still be 0.
+		EXPECT_EQ(Scene.GetSpacialAcceleration()->GetSyncTimestamp(), 0);
+		
+		// Endframe update structure to stamp 1, as we have completed 1 frame on PT.
+		Scene.EndFrame();
+		EXPECT_EQ(Scene.GetSpacialAcceleration()->GetSyncTimestamp(), 1);
+
+		Scene.StartFrame();
+		
+		// PT catches up during this frame
+		Scene.GetSolver()->PopAndExecuteStolenAdvanceTask_ForTesting();
+		Scene.GetSolver()->PopAndExecuteStolenAdvanceTask_ForTesting();
+		Scene.EndFrame();
+		
+		// New structure should be at 3 as PT/GT are in sync.
+		EXPECT_EQ(Scene.GetSpacialAcceleration()->GetSyncTimestamp(), 3);
+	
+	}
+
+	GTEST_TEST(EngineInterface,AccelerationStructureHasSyncTimestamp_MultiFrameDelay2)
+	{
+		//make sure acceleration structure has appropriate sync time when PT falls behind GT
+
+		FChaosScene Scene(nullptr);
+		Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
+		Scene.GetSolver()->SetStealAdvanceTasks_ForTesting(true); // prevents execution on StartFrame so we can execute task manually.
+
+		EXPECT_EQ(Scene.GetSpacialAcceleration()->GetSyncTimestamp(),0);	//timestamp of 0 because we flush when scene is created
+
+		FVec3 Grav(0,0,-1);
+		Scene.SetUpForFrame(&Grav, 1,99999,99999,10,false);
+
+		// PT not finished yet (we didn't execute solver task), should still be 0.
+		Scene.StartFrame();
+		Scene.EndFrame();
+		EXPECT_EQ(Scene.GetSpacialAcceleration()->GetSyncTimestamp(),0);
+
+		// PT not finished yet (we didn't execute solver task), should still be 0.
+		Scene.StartFrame();
+		Scene.EndFrame();
+		EXPECT_EQ(Scene.GetSpacialAcceleration()->GetSyncTimestamp(),0);
+
+		// First PT task finished this frame, we are two behind, now at time 1.
+		Scene.StartFrame();
+		Scene.GetSolver()->PopAndExecuteStolenAdvanceTask_ForTesting();
+		Scene.EndFrame();
+		EXPECT_EQ(Scene.GetSpacialAcceleration()->GetSyncTimestamp(),1);
+
+		// Remaining two PT tasks finish, we are caught up, but still time 1 as EndFrame has not updated our structure.
+		Scene.GetSolver()->PopAndExecuteStolenAdvanceTask_ForTesting();
+		Scene.GetSolver()->PopAndExecuteStolenAdvanceTask_ForTesting();
+		EXPECT_EQ(Scene.GetSpacialAcceleration()->GetSyncTimestamp(),1);
+
+		// PT task this frame finishes before EndFrame, putting us at 4, in sync with GT.
+		Scene.StartFrame();
+		Scene.GetSolver()->PopAndExecuteStolenAdvanceTask_ForTesting();
+		Scene.EndFrame();
+		EXPECT_EQ(Scene.GetSpacialAcceleration()->GetSyncTimestamp(),4);
+	}
+
+
+
 	GTEST_TEST(EngineInterface,CreateActorPostFlush)
 	{
 		FChaosScene Scene(nullptr);
