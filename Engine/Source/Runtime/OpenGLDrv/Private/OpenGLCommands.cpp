@@ -205,7 +205,7 @@ static FOpenGLBuffer* FindExpandedZeroStrideBuffer(FOpenGLBuffer* ZeroStrideVert
 	const int32 SizeToFill = VertexElementSize * VertexTypeSize;
 	void* RESTRICT SourceData = ZeroStrideVertexBuffer->GetZeroStrideBuffer();
 	check(SourceData);
-	TRefCountPtr<FOpenGLBuffer> ExpandedVB = new FOpenGLBuffer(0, Size, BUF_Static, NULL);
+	TRefCountPtr<FOpenGLBuffer> ExpandedVB = new FOpenGLBuffer(GL_ARRAY_BUFFER, 0, Size, BUF_Static, nullptr);
 	uint8* RESTRICT Data = ExpandedVB->Lock(0, Size, false, true);
 
 	switch (SizeToFill)
@@ -969,7 +969,7 @@ void FOpenGLDynamicRHI::UpdateSRV(FOpenGLShaderResourceView* SRV)
 		uint32 SizeY = Texture2D->GetSizeY();
 		
 		uint32 MipBytes = SizeX * SizeY;
-		TRefCountPtr<FOpenGLPixelBuffer> PixelBuffer = new FOpenGLPixelBuffer(GL_PIXEL_UNPACK_BUFFER, 0, MipBytes, BUF_Dynamic);
+		TRefCountPtr<FOpenGLPixelBuffer> PixelBuffer = new FOpenGLPixelBuffer(GL_PIXEL_UNPACK_BUFFER, 0, MipBytes, BUF_Dynamic, nullptr);
 		
 		glBindBuffer( GL_PIXEL_PACK_BUFFER, 0 );
 		glBindBuffer( GL_PIXEL_PACK_BUFFER, PixelBuffer->Resource );

@@ -434,7 +434,7 @@ public:
 	{ }
 
 	TOpenGLBuffer(GLenum InType, uint32 InStride, uint32 InSize, uint32 InUsage,
-		const void *InData = NULL, bool bStreamedDraw = false, GLuint ResourceToUse = 0, uint32 ResourceSize = 0)
+		const void *InData, bool bStreamedDraw = false, GLuint ResourceToUse = 0, uint32 ResourceSize = 0)
 	: BaseType(InStride,InSize,InUsage)
 	, Resource(0)
 	, Type(InType)
