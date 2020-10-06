@@ -155,13 +155,13 @@ public:
 	virtual bool HandleExport(const FString& Filename, class ULidarPointCloud* PointCloud) { return false; }
 
 	/** Returns a shared pointer for the import settings of this importer. */
-	virtual TSharedPtr<FLidarPointCloudImportSettings> GetImportSettings(const FString& Filename) const = 0;
+	virtual TSharedPtr<FLidarPointCloudImportSettings> GetImportSettings(const FString& Filename) const { return TSharedPtr<FLidarPointCloudImportSettings>(new FLidarPointCloudImportSettings(Filename)); }
 
 	/**
 	 * Returns true if the given file supports importing and building an octree concurrently.
 	 * False if the data needs caching first.
 	 */
-	virtual bool SupportsConcurrentInsertion(const FString& Filename) const = 0;
+	virtual bool SupportsConcurrentInsertion(const FString& Filename) const { return false; }
 
 	/**
 	 * Must return true if the provided UID is of supported Import Settings type.
