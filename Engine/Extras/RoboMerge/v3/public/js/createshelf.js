@@ -335,7 +335,7 @@ function shelfWarning(message) {
 }
 
 function shelfSuccess(message) {
-    $(`<div class="alert alert-success show" role="alert">`).html(`<strong>SUCCESS!</strong> ${message}`).appendTo($('#result'))
+    $(`<div class="alert alert-success show" role="alert">`).html(message).appendTo($('#result'))
     $('#nextSteps').removeClass("initiallyHidden")
     $('#returnbutton').removeClass("initiallyHidden")
 }
