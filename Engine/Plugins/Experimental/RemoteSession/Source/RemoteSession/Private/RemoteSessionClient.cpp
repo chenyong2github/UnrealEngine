@@ -257,7 +257,7 @@ void FRemoteSessionClient::OnReceiveChannelList(IBackChannelPacket& Message)
 
 		Info.Type = TEXT("FRemoteSessionInputChannel");
 		Info.Mode = ERemoteSessionChannelMode::Write;
-		//RequestChannel(Info);
+		RequestChannel(Info);
 	}
 }
 
