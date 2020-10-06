@@ -115,6 +115,9 @@ namespace Chaos
 		, bPaused_External(false)
 		, Owner(InOwner)
 		, TraitIdx(InTraitIdx)
+#if !UE_BUILD_SHIPPING
+		, bStealAdvanceTasksForTesting(false)
+#endif
 	{
 	}
 
@@ -195,6 +198,25 @@ namespace Chaos
 			Proxy->SetSyncTimestamp(SpatialData.SyncTimestamp);
 		}
 	}
+
+#if !UE_BUILD_SHIPPING
+	void FPhysicsSolverBase::SetStealAdvanceTasks_ForTesting(bool bInStealAdvanceTasksForTesting)
+	{
+		bStealAdvanceTasksForTesting = bInStealAdvanceTasksForTesting;
+	}
+
+	void FPhysicsSolverBase::PopAndExecuteStolenAdvanceTask_ForTesting()
+	{
+		ensure(ThreadingMode == EThreadingModeTemp::SingleThread);
+		if (ensure(StolenSolverAdvanceTasks.Num() > 0))
+		{
+			StolenSolverAdvanceTasks[0].AdvanceSolver();
+			StolenSolverAdvanceTasks.RemoveAt(0);
+		}
+	}
+#endif
+
+
 
 	//////////////////////////////////////////////////////////////////////////
 }
