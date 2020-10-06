@@ -2908,6 +2908,11 @@ public:
 		return GPUSkinCache;
 	}
 
+	FComputeFramework* GetComputeFramework() override
+	{
+		return ComputeFramework;
+	}
+
 #if RHI_RAYTRACING
 	virtual FRayTracingDynamicGeometryCollection* GetRayTracingDynamicGeometryCollection() override
 	{

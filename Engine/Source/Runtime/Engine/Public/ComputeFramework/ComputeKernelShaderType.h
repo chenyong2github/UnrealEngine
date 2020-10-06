@@ -21,12 +21,47 @@ struct FComputeKernelShaderPermutationParameters : public FShaderPermutationPara
 class FComputeKernelShaderType : public FShaderType
 {
 public:
+	typedef FShader::CompiledShaderInitializerType CompiledShaderInitializerType;
+
+	FComputeKernelShaderType(
+		FTypeLayoutDesc& InTypeLayout,
+		const TCHAR* InName,
+		const TCHAR* InSourceFilename,
+		const TCHAR* InFunctionName,
+		uint32 InFrequency,					// ugly - ignored for Niagara shaders but needed for IMPLEMENT_SHADER_TYPE macro magic
+		int32 InTotalPermutationCount,
+		ConstructSerializedType InConstructSerializedRef,
+		ConstructCompiledType InConstructCompiledRef,
+		ModifyCompilationEnvironmentType InModifyCompilationEnvironmentRef,
+		ShouldCompilePermutationType InShouldCompilePermutationRef,
+		ValidateCompiledResultType InValidateCompiledResultRef,
+		uint32 InTypeSize,
+		const FShaderParametersMetadata* InRootParametersMetadata = nullptr
+		)
+		: FShaderType(
+			EShaderTypeForDynamicCast::ComputeKernel,
+			InTypeLayout, 
+			InName, 
+			InSourceFilename, 
+			InFunctionName, 
+			SF_Compute, 
+			InTotalPermutationCount,
+			InConstructSerializedRef,
+			InConstructCompiledRef,
+			InModifyCompilationEnvironmentRef,
+			InShouldCompilePermutationRef,
+			InValidateCompiledResultRef,
+			InTypeSize,
+			InRootParametersMetadata
+			)
+	{
+	}
+
 	TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe> BeginCompileShader(
 		EShaderPlatform ShaderPlatform,
 		FComputeKernelResource* KernelShader,
 		TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& InOutNewJobs
 		);
-
 
 	bool ShouldCache(EShaderPlatform ShaderPlatform, const FComputeKernelResource* KernelShader) const
 	{

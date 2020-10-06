@@ -124,6 +124,8 @@ public:
 #endif
 	//=========================================================================
 
+	FComputeKernelResource* GetResource() { return KernelResource.Get(); }
+
 private:
 #if WITH_EDITOR
 	/* Entry point to initiate any [re]compilation necessary due to changes. */

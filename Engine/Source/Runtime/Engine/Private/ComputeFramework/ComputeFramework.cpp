@@ -1,10 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ComputeFramework/ComputeFramework.h"
+#include "ComputeFramework/ComputeKernel.h"
 #include "ComputeFramework/ComputeGraph.h"
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
 #include "RHIDefinitions.h"
+#include "ComputeFramework/ComputeKernelShaderMap.h"
+#include "ComputeFramework/ComputeKernelShader.h"
+#include "ProfilingDebugging/RealtimeGPUProfiler.h"
+
+DECLARE_GPU_STAT_NAMED(ComputeFramework_ExecuteBatches, TEXT("ComputeFramework::ExecuteBatches"));
 
 static int32 GComputeFrameworkMode = 0;
 static FAutoConsoleVariableRef CVarComputeFrameworkMode(
@@ -21,6 +27,41 @@ bool SupportsComputeFramework(ERHIFeatureLevel::Type FeatureLevel, EShaderPlatfo
 	return GComputeFrameworkMode > 0
 		&& FeatureLevel >= ERHIFeatureLevel::SM5
 		&& FDataDrivenShaderPlatformInfo::GetSupportsComputeFramework(ShaderPlatform);
+}
+
+void FComputeGraph::Initialize(UComputeGraph* ComputeGraph)
+{
+	for (auto& Invocation : ComputeGraph->GetShaderInvocationList())
+	{
+		FKernelInvocation KernelInvocation = {
+			Invocation.ComputeKernel ? Invocation.ComputeKernel->GetFName() : "NULL Kernel",
+			FName("InvocationName"),
+			FIntVector(1, 1, 1),
+			Invocation.ComputeKernel ? Invocation.ComputeKernel->GetResource() : nullptr
+			};
+
+		KernelInvocations.Emplace(KernelInvocation);
+	}
+}
+
+void FComputeFramework::EnqueueForExecution(const FComputeGraph* ComputeGraph)
+{
+	//ExternalBuffers.Append(ComputeGraph.ExternalBuffers);
+	//TransientBuffers.Append(ComputeGraph.TransientBuffers);
+
+	for (auto& Invocation : ComputeGraph->KernelInvocations)
+	{
+		FShaderInvocation ShaderInvocation = {
+			Invocation.KernelName,
+			Invocation.InvocationName,
+			Invocation.DispatchDim,
+			Invocation.KernelResource ? 
+				Invocation.KernelResource->ShaderMap_RT->GetShader<FComputeKernelShader>(0) : 
+				GetGlobalShaderMap(ERHIFeatureLevel::SM5)->GetShader<FComputeKernelShader>()
+			};
+
+		ComputeShaders.Emplace(ShaderInvocation);
+	}
 }
 
 struct FComputeExecutionBuffer
@@ -41,70 +82,84 @@ void FComputeFramework::ExecuteBatches(
 	FRHICommandListImmediate& RHICmdList
 	)
 {
-	FRDGBuilder GraphBuilder(RHICmdList);
-
-	TArray<FComputeExecutionBuffer> ExecutionBuffers;
-
-	for (auto& ExtRes : ExternalBuffers)
+	if (ComputeShaders.IsEmpty())
 	{
-		TCHAR ResName[FComputeResource::MAX_NAME_LENGTH];
-		ExtRes.Name.ToString(ResName);
-
-		ExecutionBuffers.Emplace(
-			ExtRes.Name,
-			GraphBuilder.RegisterExternalBuffer(ExtRes.Buffer, ResName)
-			);
+		return;
 	}
 
-	for (auto& TransRes : TransientBuffers)
+	FMemMark MemStackMark(FMemStack::Get());
 	{
-		TCHAR ResName[FComputeResource::MAX_NAME_LENGTH];
-		TransRes.Name.ToString(ResName);
+		SCOPED_DRAW_EVENTF(RHICmdList, ComputeFramework_ExecuteBatches, TEXT("ComputeFramework::ExecuteBatches"));
+		SCOPED_GPU_STAT(RHICmdList, ComputeFramework_ExecuteBatches);
 
-		FRDGBufferDesc BufferDesc;
-		
-		EComputeExecutionBufferType BufferType = (EComputeExecutionBufferType)TransRes.BufferType;
-		switch (BufferType)
+		FRDGBuilder GraphBuilder(RHICmdList);
+
+		TArray<FComputeExecutionBuffer> ExecutionBuffers;
+
+		for (auto& ExtRes : ExternalBuffers)
 		{
-		case EComputeExecutionBufferType::Buffer:
-			BufferDesc = FRDGBufferDesc::CreateBufferDesc(TransRes.BytesPerElement, TransRes.ElementCount);
-			break;
+			TCHAR ResName[FComputeResource::MAX_NAME_LENGTH];
+			ExtRes.Name.ToString(ResName);
 
-		case EComputeExecutionBufferType::StructuredBuffer:
-			BufferDesc = FRDGBufferDesc::CreateStructuredDesc(TransRes.BytesPerElement, TransRes.ElementCount);
-			break;
-
-		case EComputeExecutionBufferType::ByteAddressBuffer:
-			BufferDesc = FRDGBufferDesc::CreateByteAddressDesc(TransRes.BytesPerElement * TransRes.ElementCount);
-			break;
-
-		default:
-			check(!"Unsupported buffer type");
-			break;
+			ExecutionBuffers.Emplace(
+				ExtRes.Name,
+				GraphBuilder.RegisterExternalBuffer(ExtRes.Buffer, ResName)
+				);
 		}
 
-		ExecutionBuffers.Emplace(
-			TransRes.Name,
-			GraphBuilder.CreateBuffer(BufferDesc, ResName)
-			);
-	}
+		for (auto& TransRes : TransientBuffers)
+		{
+			TCHAR ResName[FComputeResource::MAX_NAME_LENGTH];
+			TransRes.Name.ToString(ResName);
 
-	for (auto& Compute : ComputeShaders)
-	{
-		TCHAR KernelName[FComputeKernelInvocation::MAX_NAME_LENGTH];
-		Compute.KernelName.ToString(KernelName);
+			FRDGBufferDesc BufferDesc;
+		
+			EComputeExecutionBufferType BufferType = (EComputeExecutionBufferType)TransRes.BufferType;
+			switch (BufferType)
+			{
+			case EComputeExecutionBufferType::Buffer:
+				BufferDesc = FRDGBufferDesc::CreateBufferDesc(TransRes.BytesPerElement, TransRes.ElementCount);
+				break;
 
-		TCHAR InvocationName[FComputeKernelInvocation::MAX_NAME_LENGTH];
-		Compute.InvocationName.ToString(InvocationName);
+			case EComputeExecutionBufferType::StructuredBuffer:
+				BufferDesc = FRDGBufferDesc::CreateStructuredDesc(TransRes.BytesPerElement, TransRes.ElementCount);
+				break;
 
-		/*
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("Compute[%s]: %s", KernelName, InvocationName),
-			Compute.Shader,
-			{},
-			Compute.DispatchDim
-			);
-		*/
+			case EComputeExecutionBufferType::ByteAddressBuffer:
+				BufferDesc = FRDGBufferDesc::CreateByteAddressDesc(TransRes.BytesPerElement * TransRes.ElementCount);
+				break;
+
+			default:
+				check(!"Unsupported buffer type");
+				break;
+			}
+
+			ExecutionBuffers.Emplace(
+				TransRes.Name,
+				GraphBuilder.CreateBuffer(BufferDesc, ResName)
+				);
+		}
+
+		for (auto& Compute : ComputeShaders)
+		{
+			TCHAR KernelName[FComputeKernelInvocation::MAX_NAME_LENGTH];
+			Compute.KernelName.ToString(KernelName);
+
+			TCHAR InvocationName[FComputeKernelInvocation::MAX_NAME_LENGTH];
+			Compute.InvocationName.ToString(InvocationName);
+
+			auto* Params = GraphBuilder.AllocParameters<FComputeKernelShader::FParameters>();
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("Compute[%s]: %s", KernelName, InvocationName),
+				ERDGPassFlags::Compute,
+				Compute.Shader,
+				Params,
+				Compute.DispatchDim
+				);
+		}
+
+		GraphBuilder.Execute();
 	}
 }

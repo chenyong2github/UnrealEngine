@@ -3,6 +3,9 @@
 #pragma once
 
 #include "ComputeFramework/ComputeKernelShaderMap.h"
+#include "ComputeFramework/ComputeKernelShader.h"
+
+class FComputeKernelShader;
 
 struct FComputeKernelCompilationResults
 {
@@ -30,7 +33,11 @@ public:
 		);
 #endif
 
-private:
+	TShaderRef<FComputeKernelShader> GetShader(int32 PermutationId) const
+	{
+		return ShaderMap_RT->GetShader<FComputeKernelShader>(PermutationId);
+	}
+
 	FComputeKernelCompilationResults CompilationResults;
 
 	/*
@@ -47,6 +54,7 @@ private:
 	 */
 	FComputeKernelShaderMap* ShaderMap_RT;
 
+private:
 	/*
 	 * Contains the compiling IDs of this shader map when it is being compiled asynchronously.
 	 * This can be used to access the shader map during async compiling.

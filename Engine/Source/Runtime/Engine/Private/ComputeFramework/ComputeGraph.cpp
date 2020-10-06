@@ -14,3 +14,11 @@ bool UComputeGraph::RemoveKernel(FComputeKernelInvocationHandle KernelInvocation
 {
 	return false;
 }
+
+void UComputeGraph::PostLoad()
+{
+	Super::PostLoad();
+
+	KernelInvocations.Reset();
+	KernelInvocations.Emplace();
+}

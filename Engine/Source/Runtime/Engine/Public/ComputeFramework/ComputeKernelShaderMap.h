@@ -5,7 +5,7 @@
 #include "RHI.h"
 #include "RHIDefinitions.h"
 #include "Serialization/MemoryImage.h"
-#include "Shader.h"
+#include "ComputeFramework/ComputeKernelShaderType.h"
 
 
 class FComputeKernelResource;
@@ -89,6 +89,18 @@ public:
 	 * Returns true if the shader map was being compiled and was added.
 	 */
 	bool TryToAddToExistingCompilationTask(FComputeKernelResource* KernelShader);
+
+	template<typename ShaderType> 
+	TShaderRef<ShaderType> GetShader(int32 PermutationId) const 
+	{ 
+		return TShaderRef<ShaderType>(GetContent()->GetShader<ShaderType>(PermutationId), *this); 
+	}
+
+	TShaderRef<FShader> GetShader(FShaderType* ShaderType, int32 PermutationId) const 
+	{ 
+		return TShaderRef<FShader>(GetContent()->GetShader(ShaderType, PermutationId), *this);
+	}
+
 
 
 

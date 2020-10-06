@@ -126,7 +126,7 @@ struct FKernelBinding
  * scheduler will extract parallel/serial execution from this DAG description.
  */
 UCLASS()
-class UComputeGraph : public UObject
+class ENGINE_API UComputeGraph : public UObject
 {
 	GENERATED_BODY()
 
@@ -167,6 +167,12 @@ public:
 		);
 
 	void RemoveBinding(FComputeBindingHandle Binding);
+
+	TArray<FComputeKernelInvocation> GetShaderInvocationList() { return KernelInvocations; }
+
+
+	// TEMP
+	void PostLoad() override;
 
 private:
 	/* Represents all the invocation nodes of the graph. */

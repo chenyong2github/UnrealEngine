@@ -2,7 +2,7 @@
 
 #include "ComputeFramework/ComputeKernelShaderMap.h"
 #include "ShaderCompiler.h"
-#include "ComputeFramework/ComputeKernelShaderType.h"
+#include "RHI.h"
 #include "ComputeFramework/ComputeKernelResource.h"
 #include "ComputeFramework/ComputeKernel.h"
 

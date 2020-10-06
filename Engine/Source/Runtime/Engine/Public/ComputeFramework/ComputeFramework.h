@@ -2,20 +2,15 @@
 
 #pragma once
 
-#include "RHIDefinitions.h"
-#include "Shader.h"
 #include "Templates/RefCounting.h"
 
+class FRDGPooledBuffer;
+class FComputeKernelResource;
 class FComputeKernelShader;
 
-extern ENGINE_API bool SupportsComputeFramework(ERHIFeatureLevel::Type FeatureLevel, EShaderPlatform ShaderPlatform);
+class UComputeGraph;
 
-class FRDGPooledBuffer;
-struct FComputeExecutionExternalBufferDesc
-{
-	FName Name;
-	TRefCountPtr<FRDGPooledBuffer> Buffer;
-};
+extern ENGINE_API bool SupportsComputeFramework(ERHIFeatureLevel::Type FeatureLevel, EShaderPlatform ShaderPlatform);
 
 enum class EComputeExecutionBufferType
 {
@@ -34,17 +29,43 @@ struct FComputeExecutionBufferDesc
 	uint32 ElementCount = 0;
 };
 
-struct FComputeExecutionShader
+struct FComputeExecutionExternalBufferDesc
 {
-	FName KernelName;
-	FName InvocationName;
-	FIntVector DispatchDim;
-	TShaderRef<FComputeKernelShader> Shader;
+	FName Name;
+	TRefCountPtr<FRDGPooledBuffer> Buffer;
+};
+
+class FComputeGraph
+{
+public:
+	struct FKernelInvocation
+	{
+		FName KernelName;
+		FName InvocationName;
+		FIntVector DispatchDim;
+		FComputeKernelResource* KernelResource = nullptr;
+	};
+
+	void Initialize(UComputeGraph* ComputeGraph);
+
+	TArray<FKernelInvocation> KernelInvocations;
 };
 
 class FComputeFramework
 {
 public:
+	struct FShaderInvocation
+	{
+		FName KernelName;
+		FName InvocationName;
+		FIntVector DispatchDim;
+		TShaderRef<FComputeKernelShader> Shader;
+	};
+
+	void EnqueueForExecution(
+		const FComputeGraph* ComputeGraph
+		);
+
 	void ExecuteBatches(
 		FRHICommandListImmediate& RHICmdList
 		);
@@ -52,5 +73,5 @@ public:
 private:
 	TArray<FComputeExecutionExternalBufferDesc> ExternalBuffers;
 	TArray<FComputeExecutionBufferDesc> TransientBuffers;
-	TArray<FComputeExecutionShader> ComputeShaders;
+	TArray<FShaderInvocation> ComputeShaders;
 };
