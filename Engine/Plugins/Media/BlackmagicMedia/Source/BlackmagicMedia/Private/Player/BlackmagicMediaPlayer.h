@@ -60,7 +60,7 @@ public:
 	//~ IMediaPlayer interface
 
 	virtual void Close() override;
-	virtual FName GetPlayerName() const override;
+	virtual FGuid GetPlayerPluginGUID() const override;
 
 	virtual bool Open(const FString& Url, const IMediaOptions* Options) override;
 

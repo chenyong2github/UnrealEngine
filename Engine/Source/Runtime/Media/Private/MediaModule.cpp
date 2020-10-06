@@ -61,6 +61,18 @@ public:
 		return FName();
 	}
 
+	virtual FGuid GetPlatformGuid(const FName& PlatformName) const override
+	{
+		for (const FPlatformInfo& Info : PlatformInfo)
+		{
+			if (Info.Name == PlatformName)
+			{
+				return Info.Guid;
+			}
+		}
+		return FGuid();
+	}
+
 	virtual const TArray<IMediaCaptureSupport*>& GetCaptureSupports() const override
 	{
 		return CaptureSupports;
@@ -81,6 +93,19 @@ public:
 		for (IMediaPlayerFactory* Factory : PlayerFactories)
 		{
 			if (Factory->GetPlayerName() == FactoryName)
+			{
+				return Factory;
+			}
+		}
+
+		return nullptr;
+	}
+
+	virtual IMediaPlayerFactory* GetPlayerFactory(const FGuid& PlayerpPluginGUID) const override
+	{
+		for (IMediaPlayerFactory* Factory : PlayerFactories)
+		{
+			if (Factory->GetPlayerPluginGUID() == PlayerpPluginGUID)
 			{
 				return Factory;
 			}

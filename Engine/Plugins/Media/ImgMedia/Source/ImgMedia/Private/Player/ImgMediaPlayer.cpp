@@ -104,10 +104,10 @@ FString FImgMediaPlayer::GetInfo() const
 }
 
 
-FName FImgMediaPlayer::GetPlayerName() const
+FGuid FImgMediaPlayer::GetPlayerPluginGUID() const
 {
-	static FName PlayerName(TEXT("ImgMedia"));
-	return PlayerName;
+	static FGuid PlayerPluginGUID(0x0e4a60c0, 0x2c5947ea, 0xb233562a, 0x57e5761c);
+	return PlayerPluginGUID;
 }
 
 
