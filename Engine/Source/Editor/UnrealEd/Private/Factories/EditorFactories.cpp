@@ -4825,16 +4825,20 @@ bool UTextureFactory::IsImportResolutionValid(int32 Width, int32 Height, bool bA
 	// Check if the texture is above the supported resolution and prompt the user if they wish to continue if it is
 	if ( Width > MaximumSupportedResolution || Height > MaximumSupportedResolution )
 	{
-		if ( EAppReturnType::Yes != FMessageDialog::Open( EAppMsgType::YesNo, FText::Format(
-				NSLOCTEXT("UnrealEd", "Warning_LargeTextureImport", "Attempting to import {0} x {1} texture, proceed?\nLargest supported texture size: {2} x {3}"),
-				FText::AsNumber(Width), FText::AsNumber(Height), FText::AsNumber(MaximumSupportedResolution), FText::AsNumber(MaximumSupportedResolution)) ) )
+		if ((Width * Height) > FMath::Square(MaximumSupportedVirtualTextureResolution))
 		{
+			Warn->Log(ELogVerbosity::Error, *FText::Format(
+				NSLOCTEXT("UnrealEd", "Warning_TextureSizeTooLarge", "Texture is too large to import. The current maximun is {0} pixels"),
+				FText::AsNumber(FMath::Square(MaximumSupportedVirtualTextureResolution))
+				).ToString());
+
 			bValid = false;
 		}
 
-		if (bValid && (Width * Height) > FMath::Square(MaximumSupportedVirtualTextureResolution))
+		if ( bValid && EAppReturnType::Yes != FMessageDialog::Open( EAppMsgType::YesNo, FText::Format(
+				NSLOCTEXT("UnrealEd", "Warning_LargeTextureImport", "Attempting to import {0} x {1} texture, proceed?\nLargest supported texture size: {2} x {3}"),
+				FText::AsNumber(Width), FText::AsNumber(Height), FText::AsNumber(MaximumSupportedResolution), FText::AsNumber(MaximumSupportedResolution)) ) )
 		{
-			Warn->Log(ELogVerbosity::Error, *NSLOCTEXT("UnrealEd", "Warning_TextureSizeTooLarge", "Texture is too large to import").ToString());
 			bValid = false;
 		}
 	}
