@@ -7,6 +7,7 @@
 #include "IMovieScenePlayer.h"
 #include "Misc/StringBuilder.h"
 #include "GameFramework/Actor.h"
+#include "Components/StaticMeshComponent.h"
 
 struct FIsSpawnable
 {
@@ -49,7 +50,7 @@ void FMovieSceneSpawnable::CopyObjectTemplate(UObject& InSourceObject, UMovieSce
 	MovieSceneSequence.MarkPackageDirty();
 }
 
-FName FMovieSceneSpawnable::GetNetAddressableName(IMovieScenePlayer& Player) const
+FName FMovieSceneSpawnable::GetNetAddressableName(IMovieScenePlayer& Player, FMovieSceneSequenceID SequenceID) const
 {
 	UObject* PlayerObject = Player.AsUObject();
 	if (!PlayerObject)
@@ -61,6 +62,9 @@ FName FMovieSceneSpawnable::GetNetAddressableName(IMovieScenePlayer& Player) con
 
 	// Spawnable name
 	AddressableName.Append(*Name, Name.Len());
+
+	// SequenceID
+	AddressableName.Appendf(TEXT("_0x%08X"), SequenceID.GetInternalValue());
 
 	// Spawnable GUID
 	AddressableName.Appendf(TEXT("_%08X%08X%08X%08X"), Guid.A, Guid.B, Guid.C, Guid.D);
@@ -78,4 +82,15 @@ FName FMovieSceneSpawnable::GetNetAddressableName(IMovieScenePlayer& Player) con
 	}
 
 	return FName(AddressableName.Len(), AddressableName.GetData());
+}
+
+void FMovieSceneSpawnable::AutoSetNetAddressableName()
+{
+	bNetAddressableName = false;
+
+	AActor* Actor = Cast<AActor>(ObjectTemplate);
+	if (Actor && Actor->FindComponentByClass<UStaticMeshComponent>() != nullptr)
+	{
+		bNetAddressableName = true;
+	}
 }

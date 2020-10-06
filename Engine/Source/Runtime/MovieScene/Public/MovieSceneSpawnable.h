@@ -7,6 +7,8 @@
 #include "Misc/Guid.h"
 #include "MovieSceneSpawnable.generated.h"
 
+struct FMovieSceneSequenceID;
+
 class IMovieScenePlayer;
 class UMovieSceneSequence;
 
@@ -32,7 +34,8 @@ struct FMovieSceneSpawnable
 	GENERATED_BODY()
 
 	FMovieSceneSpawnable()
-		: bContinuouslyRespawn(true)
+		: bContinuouslyRespawn(false)
+		, bNetAddressableName(false)
 		, bEvaluateTracksWhenNotSpawned(false)
 		, ObjectTemplate(nullptr)
 		, Ownership(ESpawnOwnership::InnerSequence)
@@ -44,7 +47,8 @@ struct FMovieSceneSpawnable
 
 	/** FMovieSceneSpawnable initialization constructor */
 	FMovieSceneSpawnable(const FString& InitName, UObject& InObjectTemplate)
-		: bContinuouslyRespawn(true)
+		: bContinuouslyRespawn(false)
+		, bNetAddressableName(false)
 		, bEvaluateTracksWhenNotSpawned(false)
 		, Guid(FGuid::NewGuid())
 		, Name(InitName)
@@ -225,7 +229,12 @@ public:
 	/**
 	 * Get the name to use for spawning this object into a networked level
 	 */
-	MOVIESCENE_API FName GetNetAddressableName(IMovieScenePlayer& Player) const;
+	MOVIESCENE_API FName GetNetAddressableName(IMovieScenePlayer& Player, FMovieSceneSequenceID SequenceID) const;
+
+	/**
+	 * Automatically determine a value for bNetAddressableName based on the spawnable type
+	 */
+	MOVIESCENE_API void AutoSetNetAddressableName();
 
 	/** Array of tags that can be used for grouping and categorizing. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=Actor)
@@ -234,6 +243,10 @@ public:
 	/** When enabled, this spawnable will always be respawned if it gets destroyed externally. When disabled, this object will only ever be spawned once for each spawn key even if it is destroyed externally. */
 	UPROPERTY(EditAnywhere, Category=Actor)
 	bool bContinuouslyRespawn;
+
+	/** When enabled, the actor will be spawned with a unique name so that it can be addressable between clients and servers. */
+	UPROPERTY(EditAnywhere, Category=Actor)
+	bool bNetAddressableName;
 
 	/** When enabled, any tracks on this object binding or its children will still be evaluated even when the object is not spawned. */
 	UPROPERTY(EditAnywhere, Category=Actor)
