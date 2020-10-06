@@ -40,14 +40,13 @@ namespace UnrealBuildTool.Rules
 			}
 
 			// Currently, E57 is only supported on Windows
-			const bool bSupportLibE57 = true;
+			bool bSupportLibE57 = true;
 
 			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				RuntimeDependencies.Add(Path.Combine(PluginDirectory, "Source", "ThirdParty", "LasZip", "Win64", "laszip.dll"));
 				if(bSupportLibE57)
 				{
-					AppendStringToPublicDefinition("LIBE57SUPPORTED", "1");
 					RuntimeDependencies.Add(Path.Combine(PluginDirectory, "Source", "ThirdParty", "LibE57", "Win64", "xerces-c_3_2.dll"));
 					RuntimeDependencies.Add(Path.Combine(PluginDirectory, "Source", "ThirdParty", "LibE57", "Win64", "E57UE4.dll"));
 				}
@@ -55,7 +54,14 @@ namespace UnrealBuildTool.Rules
 			else if (Target.Platform == UnrealTargetPlatform.Mac)
 			{
 				RuntimeDependencies.Add(Path.Combine(PluginDirectory, "Source", "ThirdParty", "LasZip", "Mac", "laszip.dylib"));
+				bSupportLibE57 = false;
 			}
+			else
+			{
+				bSupportLibE57 = false;
+			}
+
+			AppendStringToPublicDefinition("LIBE57SUPPORTED", bSupportLibE57 ? "1" : "0");
 		}
 	}
 }
