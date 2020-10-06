@@ -5,12 +5,6 @@
 #include "CoreMinimal.h"
 #include "LidarPointCloudShared.h"
 #include "LidarPointCloudFileIO.h"
-#include "Kismet/BlueprintFunctionLibrary.h"
-
-#if WITH_EDITOR
-#include "Widgets/SWidget.h"
-#endif
-
 #include "LidarPointCloudFileIO_LAS.generated.h"
 
 class ULidarPointCloud;
@@ -29,11 +23,8 @@ struct FLidarPointCloudImportSettings_LAS : public FLidarPointCloudImportSetting
 	}
 };
 
-/**
- * Inherits from UBlueprintFunctionLibrary to allow exposure to Blueprint Library in the same class.
- */
 UCLASS()
-class LIDARPOINTCLOUDRUNTIME_API ULidarPointCloudFileIO_LAS : public UBlueprintFunctionLibrary, public FLidarPointCloudFileIOHandler
+class LIDARPOINTCLOUDRUNTIME_API ULidarPointCloudFileIO_LAS : public UObject, public FLidarPointCloudFileIOHandler
 {
 	GENERATED_BODY()
 
@@ -48,12 +39,20 @@ public:
 
 	virtual bool SupportsConcurrentInsertion(const FString& Filename) const override;
 
-	ULidarPointCloudFileIO_LAS() { ULidarPointCloudFileIO::RegisterHandler(this, { "LAS", "LAZ" }); }
+	ULidarPointCloudFileIO_LAS()
+	{
+		ULidarPointCloudFileIO::RegisterHandler(this, { "LAS" });
+#if LASZIPSUPPORTED
+		ULidarPointCloudFileIO::RegisterHandler(this, { "LAZ" });
+#endif
+	}
 
 private:
 	bool HandleImportLAS(const FString& Filename, FLidarPointCloudImportResults& OutImportResults);
-	bool HandleImportLAZ(const FString& Filename, FLidarPointCloudImportResults& OutImportResults);
-
 	bool HandleExportLAS(const FString& Filename, ULidarPointCloud* PointCloud);
+
+#if LASZIPSUPPORTED
+	bool HandleImportLAZ(const FString& Filename, FLidarPointCloudImportResults& OutImportResults);
 	bool HandleExportLAZ(const FString& Filename, ULidarPointCloud* PointCloud);
+#endif
 };
