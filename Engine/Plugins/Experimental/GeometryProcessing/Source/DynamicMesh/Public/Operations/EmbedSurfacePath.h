@@ -141,7 +141,11 @@ public:
 };
 
 /**
- * Embed a 2D path into a mesh by projection, starting the walk from a given triangle.
+ * Embed a 2D path into a mesh by projection, starting the walk from a given triangle.  Optionally select the triangles inside the path.
  */
 bool DYNAMICMESH_API EmbedProjectedPath(FDynamicMesh3* Mesh, int StartTriID, FFrame3d Frame, const TArray<FVector2d>& Path2D, TArray<int>& OutPathVertices, TArray<int>& OutVertexCorrespondence, bool bClosePath, FMeshFaceSelection *EnclosedFaces = nullptr, double PtSnapVertexOrEdgeThresholdSq = FMathf::ZeroTolerance*100);
 
+/**
+ * Embed multiple 2D paths into a mesh by projection, starting the walks from the given triangles.  Optionally select the triangles inside the paths.
+ */
+bool DYNAMICMESH_API EmbedProjectedPaths(FDynamicMesh3* Mesh, const TArrayView<const int> StartTriIDs, FFrame3d Frame, const TArrayView<const TArray<FVector2d>> AllPaths, TArray<TArray<int>>& OutAllPathVertices, TArray<TArray<int>>& OutAllVertexCorrespondence, bool bClosePaths, FMeshFaceSelection* EnclosedFaces, double PtSnapVertexOrEdgeThresholdSq = FMathf::ZeroTolerance*100);
