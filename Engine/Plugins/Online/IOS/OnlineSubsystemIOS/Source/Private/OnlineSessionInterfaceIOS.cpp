@@ -364,7 +364,7 @@ bool FOnlineSessionIOS::DestroySession(FName SessionName, const FOnDestroySessio
 #if !PLATFORM_TVOS
 	
 	FNamedOnlineSession* Session = GetNamedSession(SessionName);
-	if (Session == NULL)
+	if (Session != NULL)
 	{
 		FGameCenterSessionDelegate* ExistingGKSession = *GKSessions.Find( SessionName );
 		[ExistingGKSession shutdownSession];
