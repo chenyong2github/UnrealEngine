@@ -51,8 +51,11 @@ namespace GeometryCollectionTest
 	{
 		using Traits = TypeParam;
 		FReal  Scale = 100.0f;
-		CreationParameters Params; Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Box; Params.SimplicialType = ESimplicialType::Chaos_Simplicial_Box;
-		FVector BoxScale(Scale); Params.GeomTransform.SetScale3D(BoxScale); // Box dimensions
+		CreationParameters Params; 
+		Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Box; 
+		Params.SimplicialType = ESimplicialType::Chaos_Simplicial_Box;
+		FVector BoxScale(Scale); 
+		Params.GeomTransform.SetScale3D(BoxScale); // Box dimensions
 		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->template As<RigidBodyWrapper>();
 
