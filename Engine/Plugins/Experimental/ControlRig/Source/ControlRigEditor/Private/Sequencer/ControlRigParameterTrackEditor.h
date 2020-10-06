@@ -163,9 +163,6 @@ private:
 	/** Guard to stop infinite loops when handling control selections*/
 	bool bIsDoingSelection;
 
-	/** Second Selection Guard to handle fact that Sequencer updates Selection on next Clip*/
-	bool bWeSetSequencerSelection;
-
 	/** Whether or not we should check Skeleton when filtering*/
 	bool bFilterAssetBySkeleton;
 };
