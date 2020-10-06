@@ -46,6 +46,8 @@ namespace AudioModulation
 
 	void FAudioModulationSystem::Initialize(const FAudioPluginInitializationParams& InitializationParams)
 	{
+		AudioDeviceId = InitializationParams.AudioDevicePtr->DeviceID;
+
 		// Load all parameters listed in settings and keep loaded.  Must be done on initialization as
 		// soft object paths cannot be loaded on non-game threads (data from parameters is copied to a proxy
 		// in 'GetParameter' via the audio thread)
