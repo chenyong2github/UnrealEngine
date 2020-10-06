@@ -1476,12 +1476,12 @@ void FOpenXRHMD::EnumerateViews(FPipelinedFrameState& PipelineState)
 		PipelineState.Views.SetNum(ViewCount, false);
 		XR_ENSURE(xrLocateViews(Session, &ViewInfo, &PipelineState.ViewState, PipelineState.Views.Num(), &ViewCount, PipelineState.Views.GetData()));
 
-		for (IOpenXRExtensionPlugin* Module : PipelineState.PluginViews)
+		for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
 		{
-			if (Module)
+			if (PipelineState.PluginViews.Contains(Module))
 			{
 				TArray<XrView> Views;
-				Module->GetViewLocations(Session, Views);
+				Module->GetViewLocations(Session, PipelineState.FrameState.predictedDisplayTime, DeviceSpaces[HMDDeviceId].Space, Views);
 				check(Views.Num() > 0);
 				PipelineState.Views.Append(Views);
 			}
@@ -1938,6 +1938,10 @@ void FOpenXRHMD::OnBeginRendering_GameThread()
 	XrFrameWaitInfo WaitInfo;
 	WaitInfo.type = XR_TYPE_FRAME_WAIT_INFO;
 	WaitInfo.next = nullptr;
+	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+	{
+		WaitInfo.next = Module->OnWaitFrame(Session, WaitInfo.next);
+	}
 
 	XrFrameState FrameState{XR_TYPE_FRAME_STATE};
 	XR_ENSURE(xrWaitFrame(Session, &WaitInfo, &FrameState));
