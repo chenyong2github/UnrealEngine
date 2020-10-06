@@ -1,0 +1,8 @@
+#include "Common.ush"
+
+[numthreads(32, 1, 1)]
+void Main(
+	uint DispatchIndex : SV_DispatchThreadID,
+	uint GroupIndex : SV_GroupIndex)
+{
+}
