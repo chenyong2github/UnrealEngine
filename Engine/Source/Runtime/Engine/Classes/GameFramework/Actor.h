@@ -3374,9 +3374,6 @@ public:
 	FRenderCommandFence DetachFence;
 
 private:
-	/** Sets the friendly actor label and name */
-	void SetActorLabelInternal(const FString& NewActorLabelDirty, bool bMakeGloballyUniqueFName, bool bMarkDirty);
-
 	/** Helper that already assumes the Hit info is reversed, and avoids creating a temp FHitResult if possible. */
 	void InternalDispatchBlockingHit(UPrimitiveComponent* MyComp, UPrimitiveComponent* OtherComp, bool bSelfMoved, FHitResult const& Hit);
 

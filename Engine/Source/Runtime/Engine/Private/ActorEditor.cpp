@@ -938,13 +938,7 @@ const FString& AActor::GetActorLabel() const
 	return ActorLabel;
 }
 
-void AActor::SetActorLabel( const FString& NewActorLabelDirty, bool bMarkDirty )
-{
-	const bool bMakeGloballyUniqueFName = false;
-	SetActorLabelInternal(NewActorLabelDirty, bMakeGloballyUniqueFName, bMarkDirty );
-}
-
-void AActor::SetActorLabelInternal(const FString& NewActorLabelDirty, bool bMakeGloballyUniqueFName, bool bMarkDirty)
+void AActor::SetActorLabel(const FString& NewActorLabelDirty, bool bMarkDirty)
 {
 	// Clean up the incoming string a bit
 	FString NewActorLabel = NewActorLabelDirty.TrimStartAndEnd();
@@ -966,44 +960,6 @@ void AActor::SetActorLabelInternal(const FString& NewActorLabelDirty, bool bMake
 				// Store new label
 				Modify(bMarkDirty);
 				ActorLabel = MoveTemp(NewActorLabel);
-			}
-		}
-
-
-		// Next, update the actor's name
-		{
-			// Generate an object name for the actor's label
-			const FName OldActorName = GetFName();
-			FName NewActorName = MakeObjectNameFromDisplayLabel(GetActorLabel(), OldActorName);
-
-			// Has anything changed?
-			if (OldActorName != NewActorName)
-			{
-				// Try to rename the object
-				UObject* NewOuter = NULL;		// Outer won't be changing
-				ERenameFlags RenFlags = bMakeGloballyUniqueFName ? (REN_DontCreateRedirectors | REN_ForceGlobalUnique) : REN_DontCreateRedirectors;
-				bool bCanRename = Rename(*NewActorName.ToString(), NewOuter, REN_Test | REN_DoNotDirty | REN_NonTransactional | RenFlags);
-				if (bCanRename)
-				{
-					// NOTE: Will assert internally if rename fails
-					const bool bWasRenamed = Rename(*NewActorName.ToString(), NewOuter, RenFlags);
-				}
-				else
-				{
-					// Unable to rename the object.  Use a unique object name variant.
-					NewActorName = MakeUniqueObjectName(bMakeGloballyUniqueFName ? ANY_PACKAGE : GetOuter(), GetClass(), NewActorName);
-
-					bCanRename = Rename(*NewActorName.ToString(), NewOuter, REN_Test | REN_DoNotDirty | REN_NonTransactional | RenFlags);
-					if (bCanRename)
-					{
-						// NOTE: Will assert internally if rename fails
-						const bool bWasRenamed = Rename(*NewActorName.ToString(), NewOuter, RenFlags);
-					}
-					else
-					{
-						// Unable to rename the object.  Oh well, not a big deal.
-					}
-				}
 			}
 		}
 	}
