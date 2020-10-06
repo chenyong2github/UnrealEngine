@@ -37,20 +37,9 @@ class FLightmapPathTracingRGS : public FGlobalShader
 	SHADER_USE_ROOT_PARAMETER_STRUCT(FLightmapPathTracingRGS, FGlobalShader)
 
 	class FUseIrradianceCaching : SHADER_PERMUTATION_BOOL("USE_IRRADIANCE_CACHING");
-	class FVisualizeIrradianceCache : SHADER_PERMUTATION_BOOL("VISUALIZE_IRRADIANCE_CACHE");
 	class FUseFirstBounceRayGuiding : SHADER_PERMUTATION_BOOL("USE_FIRST_BOUNCE_RAY_GUIDING");
 
-	using FPermutationDomain = TShaderPermutationDomain<FUseIrradianceCaching, FVisualizeIrradianceCache, FUseFirstBounceRayGuiding>;
-	
-	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
-	{
-		if (!PermutationVector.Get<FUseIrradianceCaching>())
-		{
-			PermutationVector.Set<FVisualizeIrradianceCache>(false);
-		}
-
-		return PermutationVector;
-	}
+	using FPermutationDomain = TShaderPermutationDomain<FUseIrradianceCaching, FUseFirstBounceRayGuiding>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
