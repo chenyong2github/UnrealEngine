@@ -8,17 +8,141 @@
 #include "DirectLink/SceneSnapshot.h"
 
 #include "MessageEndpoint.h"
+#include "Misc/Compression.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
 
 namespace DirectLink
 {
 
+namespace Internal
+{
+
+
 int32 GetDeltaMessageTargetSizeByte()
 {
 	static int32 i = 64*1024; // #ue_directlink_config
 	return i;
 }
+
+enum class ECompressionMethod
+{
+	ECM_ZLib = 1,
+	ECM_Gzip = 2,
+	ECM_LZ4  = 3,
+};
+
+
+FName GetMethodName(ECompressionMethod MethodCode)
+{
+	switch (MethodCode)
+	{
+		case ECompressionMethod::ECM_ZLib: return NAME_Zlib;
+		case ECompressionMethod::ECM_Gzip: return NAME_Gzip;
+		case ECompressionMethod::ECM_LZ4:  return NAME_LZ4;
+		default: ensure(0); return NAME_None;
+	}
+}
+
+
+bool CompressInline(TArray<uint8>& UncompressedData, ECompressionMethod Method)
+{
+	int32 UncompressedSize = UncompressedData.Num();
+	FName MethodName = GetMethodName(Method);
+	int32 CompressedSize = FCompression::CompressMemoryBound(MethodName, UncompressedSize);
+
+	TArray<uint8> CompressedData;
+	int32 HeaderSize = 5;
+	CompressedData.AddUninitialized(CompressedSize + HeaderSize);
+
+	// header
+	{
+		FMemoryWriter Ar(CompressedData);
+		uint8 MethodCode = uint8(Method);
+		Ar << MethodCode;
+		Ar << UncompressedSize;
+		check(HeaderSize == Ar.Tell());
+	}
+
+	if (FCompression::CompressMemory(MethodName, CompressedData.GetData() + HeaderSize, CompressedSize, UncompressedData.GetData(), UncompressedSize))
+	{
+		float CompressionRatio = float(CompressedSize) / UncompressedSize;
+		UE_LOG(LogDirectLinkNet, Verbose, TEXT("Message compression: %f%% (%d -> %d, %s)"), 100*CompressionRatio, UncompressedSize, CompressedSize, *MethodName.ToString());
+		CompressedData.SetNum(CompressedSize + HeaderSize, true);
+		UncompressedData = MoveTemp(CompressedData);
+
+		return true;
+	}
+
+	UE_LOG(LogDirectLinkNet, Verbose, TEXT("Message compression failed"));
+	return false;
+}
+
+bool DecompressInline(TArray<uint8>& CompressedData)
+{
+	ECompressionMethod Method;
+	uint8* BufferStart = nullptr;
+	int32 UncompressedSize = -1;
+	int32 CompressedSize = CompressedData.Num();
+	int32 HeaderSize = 0;
+	{
+		FMemoryReader Ar(CompressedData);
+		uint8 MethodCode = 0;
+		Ar << MethodCode;
+		Method = ECompressionMethod(MethodCode);
+		Ar << UncompressedSize;
+		HeaderSize = Ar.Tell();
+	}
+
+	FName MethodName = GetMethodName(Method);
+	if (MethodName != NAME_None)
+	{
+		TArray<uint8> UncompressedData;
+		UncompressedData.SetNumUninitialized(UncompressedSize);
+		bool Ok = FCompression::UncompressMemory(MethodName, UncompressedData.GetData(), UncompressedData.Num(), CompressedData.GetData() + HeaderSize, CompressedData.Num()-HeaderSize);
+		if (Ok)
+		{
+			CompressedData = MoveTemp(UncompressedData);
+			return true;
+		}
+	}
+	return false;
+}
+
+
+// returns true when the message is compressed
+bool CompressInline(FDirectLinkMsg_DeltaMessage& UncompressedMessage)
+{
+	check(UncompressedMessage.CompressedPayload == false);
+
+	if (UncompressedMessage.Payload.Num() > 100)
+	{
+		UncompressedMessage.CompressedPayload = CompressInline(UncompressedMessage.Payload, ECompressionMethod::ECM_ZLib);
+	}
+	return UncompressedMessage.CompressedPayload;
+}
+
+
+// returns true when the message is in an uncompressed state
+bool DecompressInline(FDirectLinkMsg_DeltaMessage& Message)
+{
+	if (Message.CompressedPayload)
+	{
+		if (DecompressInline(Message.Payload))
+		{
+			Message.CompressedPayload = false;
+		}
+		else
+		{
+			UE_LOG(LogDirectLinkNet, Error, TEXT("DeltaMessage: Decompression error"));
+			return false;
+		}
+	}
+	return true;
+}
+
+} // namespace Internal
+
 
 
 template<typename MessageType>
@@ -73,6 +197,7 @@ void FScenePipeToNetwork::OpenDelta(FOpenDeltaArg& OpenDeltaArg)
 
 void FScenePipeToNetwork::Send(FDirectLinkMsg_DeltaMessage* Message)
 {
+	Internal::CompressInline(*Message);
 	SendInternal(Message, Message->Payload.Num());
 }
 
@@ -85,7 +210,7 @@ void FScenePipeFromNetwork::Send(FDirectLinkMsg_HaveListMessage* Message)
 
 void FScenePipeToNetwork::InitSetElementBuffer()
 {
-	SetElementBuffer.Reset(GetDeltaMessageTargetSizeByte());
+	SetElementBuffer.Reset(Internal::GetDeltaMessageTargetSizeByte());
 }
 
 
@@ -97,7 +222,7 @@ void FScenePipeToNetwork::OnSetElement(FSetElementArg& SetElementArg)
 	Ar << SetElementArg.ElementIndexHint;
 	check(Status == ESerializationStatus::Ok); // write should never be an issue
 
-	if (SetElementBuffer.Num() >= 0.9 * GetDeltaMessageTargetSizeByte())
+	if (SetElementBuffer.Num() >= Internal::GetDeltaMessageTargetSizeByte())
 	{
 		SendSetElementBuffer();
 	}
@@ -110,11 +235,11 @@ void FScenePipeToNetwork::SendSetElementBuffer()
 		FDirectLinkMsg_DeltaMessage::SetElements,
 		RemoteStreamPort, BatchNumber, NextMessageNumber++
 	);
-	// #ue_directlink_optim Investigate FCompression::CompressMemory
-	Message->Payload = MoveTemp(SetElementBuffer);
-	InitSetElementBuffer();
 
+	Message->Payload = MoveTemp(SetElementBuffer);
 	Send(Message);
+
+	InitSetElementBuffer();
 }
 
 
@@ -150,7 +275,7 @@ void FScenePipeToNetwork::OnCloseDelta(FCloseDeltaArg& CloseDeltaArg)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-void FScenePipeFromNetwork::HandleDeltaMessage(const FDirectLinkMsg_DeltaMessage& Message)
+void FScenePipeFromNetwork::HandleDeltaMessage(FDirectLinkMsg_DeltaMessage& Message)
 {
 	UE_LOG(LogDirectLinkNet, Verbose, TEXT("Delta message received: b:%d m:%d k:%d"), Message.BatchCode, Message.MessageCode, Message.Kind);
 	if (Message.BatchCode == 0)
@@ -186,7 +311,7 @@ void FScenePipeFromNetwork::HandleDeltaMessage(const FDirectLinkMsg_DeltaMessage
 	}
 	else
 	{
-		MessageBuffer.Add(Message.MessageCode, MoveTemp(const_cast<FDirectLinkMsg_DeltaMessage&>(Message)));
+		MessageBuffer.Add(Message.MessageCode, MoveTemp(Message));
 	}
 }
 
@@ -266,7 +391,7 @@ void FScenePipeFromNetwork::OnCloseHaveList()
 }
 
 
-void FScenePipeFromNetwork::DelegateDeltaMessage(const FDirectLinkMsg_DeltaMessage& Message)
+void FScenePipeFromNetwork::DelegateDeltaMessage(FDirectLinkMsg_DeltaMessage& Message)
 {
 	UE_LOG(LogDirectLinkNet, Verbose, TEXT("Delta message transmited: b:%d m:%d k:%d"), Message.BatchCode, Message.MessageCode, Message.Kind);
 
@@ -276,6 +401,11 @@ void FScenePipeFromNetwork::DelegateDeltaMessage(const FDirectLinkMsg_DeltaMessa
 		RemoteStreamPort, Message.BatchCode, Message.MessageCode
 	);
 	Send(AckMessage);
+
+	if (!Internal::DecompressInline(Message))
+	{
+		return; // log by DecompressInline
+	}
 
 	// process message
 	check(Consumer);

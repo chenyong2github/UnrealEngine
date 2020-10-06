@@ -220,6 +220,9 @@ struct FDirectLinkMsg_DeltaMessage
 	uint8 Kind = EKind::None;
 
 	UPROPERTY()
+	bool CompressedPayload = false;
+
+	UPROPERTY()
 	TArray<uint8> Payload;
 };
 
