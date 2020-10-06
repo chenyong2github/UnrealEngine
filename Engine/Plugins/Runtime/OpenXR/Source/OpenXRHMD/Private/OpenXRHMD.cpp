@@ -1800,41 +1800,6 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 		Projection.fov = View.fov;
 	}
 
-	// xrBeginFrame is called _AFTER_ data the above data is cloned for RHI because xrBeginFrame will unblock xrWaitFrame in the game thread
-	// and that could otherwise lead to data races.
-	if (bIsReady)
-	{
-		XrFrameBeginInfo BeginInfo;
-		BeginInfo.type = XR_TYPE_FRAME_BEGIN_INFO;
-		BeginInfo.next = nullptr;
-		XrTime DisplayTime = PipelinedFrameStateRHI.FrameState.predictedDisplayTime;
-		for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
-		{
-			BeginInfo.next = Module->OnBeginFrame(Session, DisplayTime, BeginInfo.next);
-		}
-		XrResult Result = xrBeginFrame(Session, &BeginInfo);
-		if (XR_SUCCEEDED(Result))
-		{
-			bIsRendering = true;
-
-			Swapchain->IncrementSwapChainIndex_RHIThread(PipelineState.FrameState.predictedDisplayPeriod);
-			if (bDepthExtensionSupported && !bNeedReAllocatedDepth)
-			{
-				ensure(DepthSwapchain != nullptr);
-				DepthSwapchain->IncrementSwapChainIndex_RHIThread(PipelineState.FrameState.predictedDisplayPeriod);
-			}
-		}
-		else
-		{
-			static bool bLoggedBeginFrameFailure = false;
-			if (!bLoggedBeginFrameFailure)
-			{
-				UE_LOG(LogHMD, Error, TEXT("Unexpected error on xrBeginFrame. Error code was %s."), OpenXRResultToString(Result));
-				bLoggedBeginFrameFailure = true;
-			}
-		}
-	}
-
 	// Snapshot new poses for late update.
 	UpdateDeviceLocations();
 }
@@ -2019,7 +1984,44 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 	return true;
 }
 
-void FOpenXRHMD::FinishRendering()
+void FOpenXRHMD::OnBeginRendering_RHIThread()
+{
+	ensure(IsInRenderingThread() || IsInRHIThread());
+	if (bIsReady)
+	{
+		XrFrameBeginInfo BeginInfo;
+		BeginInfo.type = XR_TYPE_FRAME_BEGIN_INFO;
+		BeginInfo.next = nullptr;
+		XrTime DisplayTime = PipelinedFrameStateRHI.FrameState.predictedDisplayTime;
+		for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+		{
+			BeginInfo.next = Module->OnBeginFrame(Session, DisplayTime, BeginInfo.next);
+		}
+		XrResult Result = xrBeginFrame(Session, &BeginInfo);
+		if (XR_SUCCEEDED(Result))
+		{
+			bIsRendering = true;
+
+			Swapchain->IncrementSwapChainIndex_RHIThread(PipelinedFrameStateRHI.FrameState.predictedDisplayPeriod);
+			if (bDepthExtensionSupported && !bNeedReAllocatedDepth)
+			{
+				ensure(DepthSwapchain != nullptr);
+				DepthSwapchain->IncrementSwapChainIndex_RHIThread(PipelinedFrameStateRHI.FrameState.predictedDisplayPeriod);
+			}
+		}
+		else
+		{
+			static bool bLoggedBeginFrameFailure = false;
+			if (!bLoggedBeginFrameFailure)
+			{
+				UE_LOG(LogHMD, Error, TEXT("Unexpected error on xrBeginFrame. Error code was %s."), OpenXRResultToString(Result));
+				bLoggedBeginFrameFailure = true;
+			}
+		}
+	}
+}
+
+void FOpenXRHMD::OnFinishRendering_RHIThread()
 {
 	ensure(IsInRenderingThread() || IsInRHIThread());
 	if (!Swapchain)

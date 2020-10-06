@@ -841,6 +841,12 @@ void FVulkanCommandListContext::RHIBeginDrawingViewport(FRHIViewport* ViewportRH
 	check(ViewportRHI);
 	FVulkanViewport* Viewport = ResourceCast(ViewportRHI);
 	RHI->DrawingViewport = Viewport;
+
+	FRHICustomPresent* CustomPresent = Viewport->GetCustomPresent();
+	if (CustomPresent)
+	{
+		CustomPresent->BeginDrawing();
+	}
 }
 
 void FVulkanCommandListContext::RHIEndDrawingViewport(FRHIViewport* ViewportRHI, bool bPresent, bool bLockToVsync)
