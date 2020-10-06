@@ -2,6 +2,7 @@
 
 #include "RigVMCore/RigVMMemory.h"
 #include "UObject/AnimObjectVersion.h"
+#include "UObject/ReleaseObjectVersion.h"
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/Package.h"
 #include "RigVMModule.h"
@@ -76,6 +77,7 @@ bool FRigVMRegister::Serialize(FArchive& Ar)
 bool FRigVMRegisterOffset::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
+	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 
 	if (Ar.CustomVer(FAnimObjectVersion::GUID) < FAnimObjectVersion::StoreMarkerNamesOnSkeleton)
 	{
@@ -85,8 +87,56 @@ bool FRigVMRegisterOffset::Serialize(FArchive& Ar)
 	Ar << Segments;
 	Ar << Type;
 	Ar << CPPType;
-	Ar << ScriptStructPath;
+
+	if (Ar.IsLoading() && Ar.CustomVer(FReleaseObjectVersion::GUID) < FReleaseObjectVersion::SerializeRigVMOffsetSegmentPaths)
+	{
+		FName ScriptStructPath;
+		Ar << ScriptStructPath;
+
+		ScriptStruct = FindObject<UScriptStruct>(ANY_PACKAGE, *ScriptStructPath.ToString());
+	}
+	else
+	{
+		Ar << ScriptStruct;
+	}
+
 	Ar << ElementSize;
+
+	if (Ar.IsLoading())
+	{
+		if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::SerializeRigVMOffsetSegmentPaths)
+		{
+			FString SegmentPath;
+			Ar << ParentScriptStruct;
+			Ar << SegmentPath;
+			Ar << ArrayIndex;
+
+			if (Ar.IsTransacting())
+			{
+				CachedSegmentPath = SegmentPath;
+			}
+			else if (ParentScriptStruct != nullptr && !SegmentPath.IsEmpty())
+			{
+				int32 InitialOffset = ArrayIndex * ParentScriptStruct->GetStructureSize();
+				FRigVMRegisterOffset TempOffset(ParentScriptStruct, SegmentPath, InitialOffset, ElementSize);
+				if (TempOffset.GetSegments().Num() == Segments.Num())
+				{
+					Segments = TempOffset.GetSegments();
+					CachedSegmentPath = SegmentPath;
+				}
+				else
+				{
+					checkNoEntry();
+				}
+			}
+		}
+	}
+	else
+	{
+		Ar << ParentScriptStruct;
+		Ar << CachedSegmentPath;
+		Ar << ArrayIndex;
+	}
 
 	return true;
 }
@@ -96,12 +146,22 @@ FRigVMRegisterOffset::FRigVMRegisterOffset(UScriptStruct* InScriptStruct, const 
 	, Type(ERigVMRegisterType::Plain)
 	, CPPType()
 	, ScriptStruct(nullptr)
-	, ScriptStructPath()
+	, ParentScriptStruct(nullptr)
+	, ArrayIndex(0)
 	, ElementSize(InElementSize)
-#if WITH_EDITORONLY_DATA
 	, CachedSegmentPath(InSegmentPath)
-#endif
 {
+	ParentScriptStruct = InScriptStruct;
+
+	if (ParentScriptStruct)
+	{
+		ArrayIndex = InInitialOffset / InScriptStruct->GetStructureSize();
+	}
+	else
+	{
+		ArrayIndex = InInitialOffset / InElementSize;
+	}
+
 	struct FRigVMRegisterOffsetBuilder
 	{
 		static void WalkStruct(UStruct* InStruct, const FString& InPath, FRigVMRegisterOffset& Offset)
@@ -239,10 +299,6 @@ FRigVMRegisterOffset::FRigVMRegisterOffset(UScriptStruct* InScriptStruct, const 
 		SegmentPath = SegmentPath.Replace(TEXT("["), TEXT("."));
 		SegmentPath = SegmentPath.Replace(TEXT("]"), TEXT("."));
 		FRigVMRegisterOffsetBuilder::WalkStruct(InScriptStruct, SegmentPath, *this);
-		if (ScriptStruct != nullptr)
-		{
-			ScriptStructPath = *ScriptStruct->GetPathName();
-		}
 		if (Type == ERigVMRegisterType::Plain)
 		{
 			if (CPPType == TEXT("FName"))
@@ -292,6 +348,14 @@ bool FRigVMRegisterOffset::operator == (const FRigVMRegisterOffset& InOther) con
 	{
 		return false;
 	}
+	if (ParentScriptStruct != InOther.ParentScriptStruct)
+	{
+		return false;
+	}
+	if (CachedSegmentPath != InOther.CachedSegmentPath)
+	{
+		return false;
+	}
 	for (int32 Index = 0; Index < Segments.Num(); Index++)
 	{
 		if (Segments[Index] != InOther.Segments[Index])
@@ -304,14 +368,6 @@ bool FRigVMRegisterOffset::operator == (const FRigVMRegisterOffset& InOther) con
 
 UScriptStruct* FRigVMRegisterOffset::GetScriptStruct() const
 {
-	if (ScriptStruct == nullptr)
-	{
-		if (ScriptStructPath != NAME_None)
-		{
-			FRigVMRegisterOffset* MutableThis = (FRigVMRegisterOffset*)this;
-			MutableThis->ScriptStruct = FindObject<UScriptStruct>(ANY_PACKAGE, *ScriptStructPath.ToString());
-		}
-	}
 	return ScriptStruct;
 }
 

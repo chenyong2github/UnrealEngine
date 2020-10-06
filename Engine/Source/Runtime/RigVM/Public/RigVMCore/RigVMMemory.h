@@ -271,8 +271,10 @@ public:
 		, Type(ERigVMRegisterType::Invalid)
 		, CPPType(NAME_None)
 		, ScriptStruct(nullptr)
-		, ScriptStructPath(NAME_None)
+		, ParentScriptStruct(nullptr)
+		, ArrayIndex(0)
 		, ElementSize(0)
+		, CachedSegmentPath() 
 	{
 	}
 
@@ -310,19 +312,20 @@ private:
 	UPROPERTY()
 	FName CPPType;
 
-	UPROPERTY(transient)
+	UPROPERTY()
 	UScriptStruct* ScriptStruct;
 
 	UPROPERTY()
-	FName ScriptStructPath;
+	UScriptStruct* ParentScriptStruct;
+
+	UPROPERTY()
+	int32 ArrayIndex;
 
 	UPROPERTY()
 	uint16 ElementSize;
 
-#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	FString CachedSegmentPath;
-#endif
 
 	friend struct FRigVMRegisterOffsetBuilder;
 	friend class URigVM;
