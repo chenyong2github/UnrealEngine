@@ -114,6 +114,9 @@ struct CORE_API FReleaseObjectVersion
 		// Animation graph node bindings displayed as pins
 		AnimationGraphNodeBindingsDisplayedAsPins,
 
+		// Serialized rigvm offset segment paths
+		SerializeRigVMOffsetSegmentPaths,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
