@@ -137,7 +137,7 @@ public:
 	/**
 	* Callback to provide the pose and fov of each view that was provided in GetViewConfigurations
 	*/
-	virtual void GetViewLocations(XrSession InSession, TArray<XrView>& OutViews)
+	virtual void GetViewLocations(XrSession InSession, XrTime InDisplayTime, XrSpace InViewSpace, TArray<XrView>& OutViews)
 	{
 	}
 
@@ -166,6 +166,11 @@ public:
 	}
 
 	virtual const void* OnBeginSession(XrSession InSession, const void* InNext)
+	{
+		return InNext;
+	}
+
+	virtual const void* OnWaitFrame(XrSession InSession, const void* InNext)
 	{
 		return InNext;
 	}
