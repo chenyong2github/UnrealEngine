@@ -495,10 +495,9 @@ void FEndpoint::FInternalThreadState::Handle_HaveListMessage(const FDirectLinkMs
 
 void FEndpoint::FInternalThreadState::Handle_EndpointLifecycle(const FDirectLinkMsg_EndpointLifecycle& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
 {
-	// #ue_directlink_quality ignore incompatible peers (based on serial revision)
-
 	const FMessageAddress& RemoteEndpointAddress = Context->GetSender();
-	if (IsMine(RemoteEndpointAddress))
+
+	if (IsMine(RemoteEndpointAddress) || IsIgnoredEndpoint(RemoteEndpointAddress))
 	{
 		return;
 	}
@@ -552,16 +551,29 @@ void FEndpoint::FInternalThreadState::Handle_QueryEndpointState(const FDirectLin
 void FEndpoint::FInternalThreadState::Handle_EndpointState(const FDirectLinkMsg_EndpointState& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
 {
 	const FMessageAddress& RemoteEndpointAddress = Context->GetSender();
-	if (IsMine(RemoteEndpointAddress))
+	if (IsMine(RemoteEndpointAddress) || IsIgnoredEndpoint(RemoteEndpointAddress))
 	{
 		return;
 	}
 
+	// check protocol compatibility
+	if (kMinSupportedProtocolVersion > Message.ProtocolVersion
+		|| kCurrentProtocolVersion < Message.MinProtocolVersion)
 	{
-		FDirectLinkMsg_EndpointState& RemoteState = RemoteEndpointDescriptions.FindOrAdd(RemoteEndpointAddress);
-		RemoteState = Message;
-		MarkRemoteAsSeen(RemoteEndpointAddress);
+		bool bAlreadyIn = false;
+		IgnoredEndpoints.Add(RemoteEndpointAddress, &bAlreadyIn);
+		UE_CLOG(!bAlreadyIn, LogDirectLinkNet, Warning, TEXT("Endpoint '%s': Remote Endpoint %s ignored, incompatible protocol versions. Supported: [%d..%d], Remote [%d..%d]")
+			, *SharedState.NiceName, *Message.NiceName
+			, kMinSupportedProtocolVersion, kCurrentProtocolVersion
+			, Message.MinProtocolVersion, Message.ProtocolVersion
+		);
+		return;
+		// #ue_directlink_design We could have a fancier handling than a simple 'ghosting'. UI could eg display a grayed out endpoint.
 	}
+
+	FDirectLinkMsg_EndpointState& RemoteState = RemoteEndpointDescriptions.FindOrAdd(RemoteEndpointAddress);
+	RemoteState = Message;
+	MarkRemoteAsSeen(RemoteEndpointAddress);
 
 	UE_CLOG(SharedState.bDebugLog, LogDirectLinkNet, Log, TEXT("Endpoint '%s' Handle_EndpointState"), *SharedState.NiceName);
 	UE_CLOG(SharedState.bDebugLog, LogDirectLinkNet, Log, TEXT("%s"), *ToString_dbg());
@@ -571,10 +583,26 @@ void FEndpoint::FInternalThreadState::Handle_EndpointState(const FDirectLinkMsg_
 void FEndpoint::FInternalThreadState::Handle_OpenStreamRequest(const FDirectLinkMsg_OpenStreamRequest& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
 {
 	// #ue_directlink_cleanup refuse connection if local connection point is private
+	// #ue_directlink_cleanup endpoint messages should be flagged Reliable
+
 	const FMessageAddress& RemoteEndpointAddress = Context->GetSender();
 
 	FDirectLinkMsg_OpenStreamAnswer* Answer = NewMessage<FDirectLinkMsg_OpenStreamAnswer>();
 	Answer->RecipientStreamPort = Message.RequestFromStreamPort;
+
+	auto DenyConnection = [&](const FString& Reason)
+	{
+		Answer->bAccepted = false;
+		Answer->Error = TEXT("connection already active"); // #ue_directlink_cleanup merge with OpenStream, and enum to text
+		UE_LOG(LogDirectLinkNet, Log, TEXT("Endpoint '%s': Refused connection: %s"), *SharedState.NiceName, *Reason);
+		MessageEndpoint->Send(Answer, RemoteEndpointAddress);
+	};
+
+	if (IsIgnoredEndpoint(RemoteEndpointAddress))
+	{
+		DenyConnection(TEXT("Request from incompatible endpoint"));
+		return;
+	}
 
 	// first, check if that stream is already opened
 	{
@@ -586,10 +614,7 @@ void FEndpoint::FInternalThreadState::Handle_OpenStreamRequest(const FDirectLink
 				// #ue_directlink_cleanup implement a robust handling of duplicated connections, reopened connections, etc...
 				if (Stream.Status == FStreamDescription::EConnectionState::Active)
 				{
-					Answer->bAccepted = false; // #ue_directlink_cleanup send the same enum as returned by OpenStream
-					Answer->Error = TEXT("connection already active"); // #ue_directlink_cleanup merge with OpenStream, and enum to text
-					UE_CLOG(SharedState.bDebugLog, LogDirectLinkNet, Log, TEXT("Endpoint '%s': Send FDirectLinkMsg_OpenStreamAnswer (refused, already active)"), *SharedState.NiceName);
-					MessageEndpoint->Send(Answer, RemoteEndpointAddress);
+					DenyConnection(TEXT("Connection already active"));
 					return;
 				}
 			}
@@ -607,9 +632,13 @@ void FEndpoint::FInternalThreadState::Handle_OpenStreamRequest(const FDirectLink
 		NewSender = MakeSender(Message.SourceGuid, RemoteEndpointAddress, Message.RequestFromStreamPort);
 	}
 
-	Answer->bAccepted = NewSender.IsValid() || NewReceiver.IsValid();
 
-	if (Answer->bAccepted)
+	Answer->bAccepted = NewSender.IsValid() || NewReceiver.IsValid();
+	if (!Answer->bAccepted)
+	{
+		DenyConnection(TEXT("Unknown"));
+	}
+	else
 	{
 		FRWScopeLock _(SharedState.StreamsLock, SLT_Write);
 		FStreamPort StreamPort = ++SharedState.StreamPortIdGenerator;
@@ -626,8 +655,7 @@ void FEndpoint::FInternalThreadState::Handle_OpenStreamRequest(const FDirectLink
 		NewStream.Status = FStreamDescription::EConnectionState::Active;
 		NewStream.LastRemoteLifeSign = Now_s;
 	}
-
-	UE_CLOG(SharedState.bDebugLog, LogDirectLinkNet, Log, TEXT("Endpoint '%s': Send FDirectLinkMsg_OpenStreamAnswer (accepted)"), *SharedState.NiceName);
+	UE_LOG(LogDirectLinkNet, Log, TEXT("Endpoint '%s': Accepted connection"), *SharedState.NiceName);
 	MessageEndpoint->Send(Answer, RemoteEndpointAddress);
 
 	UE_CLOG(SharedState.bDebugLog, LogDirectLinkNet, Verbose, TEXT("Endpoint '%s': Handle_OpenStreamRequest"), *SharedState.NiceName);
@@ -700,6 +728,12 @@ void FEndpoint::FInternalThreadState::Handle_CloseStreamRequest(const FDirectLin
 bool FEndpoint::FInternalThreadState::IsMine(const FMessageAddress& MaybeRemoteAddress) const
 {
 	return MessageEndpoint->GetAddress() == MaybeRemoteAddress;
+}
+
+
+bool FEndpoint::FInternalThreadState::IsIgnoredEndpoint(const FMessageAddress& MaybeRemoteAddress) const
+{
+	return IgnoredEndpoints.Contains(MaybeRemoteAddress);
 }
 
 
@@ -906,7 +940,7 @@ void FEndpoint::FInternalThreadState::Init()
 void FEndpoint::FInternalThreadState::Run()
 {
 	// setup local endpoint description (aka replicated state)
-	ThisDescription = FDirectLinkMsg_EndpointState(1, kCurrentProtocolVersion);
+	ThisDescription = FDirectLinkMsg_EndpointState(1, kMinSupportedProtocolVersion, kCurrentProtocolVersion);
 	ThisDescription.ComputerName = FPlatformProcess::ComputerName();
 	ThisDescription.UserName = FPlatformProcess::UserName();
 	ThisDescription.ProcessId = (int32)FPlatformProcess::GetCurrentProcessId();

@@ -176,6 +176,11 @@ private:
 		 * @returns whether given address is this address */
 		bool IsMine(const FMessageAddress& MaybeRemoteAddress) const;
 
+		/**
+		 * Check if the given address is an incompatible endpoint
+		 */
+		bool IsIgnoredEndpoint(const FMessageAddress& Address) const;
+
 		/** Note on state replication:
 		 * On local state edition (eg. when a source is added) the new state is broadcasted.
 		 * On top of that, the state revision is broadcasted on heartbeats every few seconds.
@@ -210,6 +215,7 @@ private:
 		double LastEndpointCleanupTime_s = 0;
 		mutable uint32 LastBroadcastedStateRevision = 0;
 		TMap<FMessageAddress, double> RemoteLastSeenTime;
+		TSet<FMessageAddress> IgnoredEndpoints;
 	};
 
 	/** Inner thread allows async network communication, which avoids user thread to be locked on every sync. */
