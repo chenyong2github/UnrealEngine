@@ -148,6 +148,16 @@ public:
 
 	FFrameNumber MapTimeToSectionFrame(FFrameTime InPosition) const;
 
+	EMovieSceneServerClientMask GetNetworkMask() const
+	{
+		return (EMovieSceneServerClientMask)NetworkMask;
+	}
+
+	void SetNetworkMask(EMovieSceneServerClientMask InNetworkMask)
+	{
+		NetworkMask = (uint8)InNetworkMask;
+	}
+
 public:
 
 	//~ UMovieSceneSection interface
@@ -175,6 +185,9 @@ private:
 
 	UPROPERTY()
 	float PrerollTime_DEPRECATED;
+
+	UPROPERTY(EditAnywhere, Category="Networking", meta=(Bitmask, BitmaskEnum=EMovieSceneServerClientMask))
+	uint8 NetworkMask;
 
 protected:
 

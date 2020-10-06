@@ -34,7 +34,7 @@ FORCEINLINE EMovieSceneSequenceFlags GetEditorVolatilityFlags()
 
 TUniquePtr<FCompiledDataVolatilityManager> FCompiledDataVolatilityManager::Construct(IMovieScenePlayer& Player, FMovieSceneCompiledDataID RootDataID, UMovieSceneCompiledDataManager* CompiledDataManager)
 {
-	EMovieSceneSequenceFlags SequenceFlags = CompiledDataManager->GetEntry(RootDataID).AccumulatedFlags | GetEditorVolatilityFlags();
+	EMovieSceneSequenceFlags SequenceFlags = CompiledDataManager->GetEntryRef(RootDataID).AccumulatedFlags | GetEditorVolatilityFlags();
 	if (!EnumHasAnyFlags(SequenceFlags, EMovieSceneSequenceFlags::Volatile))
 	{
 		return nullptr;
@@ -71,7 +71,7 @@ bool FCompiledDataVolatilityManager::HasSequenceBeenRecompiled(FMovieSceneCompil
 {
 	const FGuid* CachedSignature = CachedCompilationSignatures.Find(SequenceID);
 
-	FMovieSceneCompiledDataEntry CompiledEntry = CompiledDataManager->GetEntry(DataID);
+	const FMovieSceneCompiledDataEntry& CompiledEntry = CompiledDataManager->GetEntryRef(DataID);
 	return CachedSignature == nullptr || *CachedSignature != CompiledEntry.CompiledSignature;
 }
 
@@ -101,21 +101,23 @@ void FCompiledDataVolatilityManager::UpdateCachedSignatures(IMovieScenePlayer& P
 {
 	CachedCompilationSignatures.Reset();
 
-	const FMovieSceneCompiledDataEntry RootEntry = CompiledDataManager->GetEntry(RootDataID);
-	CachedCompilationSignatures.Add(MovieSceneSequenceID::Root, RootEntry.CompiledSignature);
-
-	UMovieSceneSequence* RootSequence = RootEntry.GetSequence();
-	if (RootSequence)
 	{
-		Player.State.AssignSequence(MovieSceneSequenceID::Root, *RootSequence, Player);
+		const FMovieSceneCompiledDataEntry& RootEntry = CompiledDataManager->GetEntryRef(RootDataID);
+		CachedCompilationSignatures.Add(MovieSceneSequenceID::Root, RootEntry.CompiledSignature);
+
+		UMovieSceneSequence* RootSequence = RootEntry.GetSequence();
+		if (RootSequence)
+		{
+			Player.State.AssignSequence(MovieSceneSequenceID::Root, *RootSequence, Player);
+		}
 	}
 
 	if (const FMovieSceneSequenceHierarchy* Hierarchy = CompiledDataManager->FindHierarchy(RootDataID))
 	{
 		for (const TTuple<FMovieSceneSequenceID, FMovieSceneSubSequenceData>& SubData : Hierarchy->AllSubSequenceData())
 		{
-			const FMovieSceneCompiledDataID    SubDataID = CompiledDataManager->GetSubDataID(RootDataID, SubData.Key);
-			const FMovieSceneCompiledDataEntry SubEntry  = CompiledDataManager->GetEntry(SubDataID);
+			const FMovieSceneCompiledDataID     SubDataID = CompiledDataManager->GetSubDataID(RootDataID, SubData.Key);
+			const FMovieSceneCompiledDataEntry& SubEntry  = CompiledDataManager->GetEntryRef(SubDataID);
 
 			CachedCompilationSignatures.Add(SubData.Key, SubEntry.CompiledSignature);
 
