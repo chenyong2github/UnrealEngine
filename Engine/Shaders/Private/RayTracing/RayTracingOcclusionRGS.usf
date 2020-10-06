@@ -531,7 +531,8 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 	FOcclusionResult Occlusion = InitOcclusionResult();
 	FOcclusionResult HairOcclusion = InitOcclusionResult();
 
-	uint LocalSamplesPerPixel = ENABLE_MULTIPLE_SAMPLES_PER_PIXEL ? SamplesPerPixel : 1;
+	const uint RequestedSamplePerPixel = ENABLE_MULTIPLE_SAMPLES_PER_PIXEL ? SamplesPerPixel : 1;
+	uint LocalSamplesPerPixel = RequestedSamplePerPixel;
 
 	if (all(PixelCoord >= LightScissor.xy) && all(PixelCoord <= LightScissor.zw))
 	{
@@ -613,7 +614,7 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 				float3(1,0,0),
 				LightParameters,
 				TransmissionProfileParams,
-				1);
+				RequestedSamplePerPixel);
 		}
 		#endif
 	}
@@ -622,7 +623,7 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 	#if USE_HAIR_LIGHTING
 	{
 		// the channel assignment is documented in ShadowRendering.cpp (look for Light Attenuation channel assignment)
-		const float HairShadow = OcclusionToShadow(HairOcclusion, LocalSamplesPerPixel);
+		const float HairShadow = OcclusionToShadow(HairOcclusion, RequestedSamplePerPixel);
 		const float FadedShadow = Square(HairShadow);
 		const float4 OutColor = EncodeLightAttenuation(FadedShadow.xxxx);
 		RWSubPixelOcclusionMaskUAV[PixelCoord] = OutColor;
