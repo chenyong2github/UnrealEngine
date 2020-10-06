@@ -649,7 +649,7 @@ void ClearScratchCubemaps(FRHICommandListImmediate& RHICmdList, int32 TargetSize
 }
 
 /** Captures the scene for a reflection capture by rendering the scene multiple times and copying into a cubemap texture. */
-void CaptureSceneToScratchCubemap(FRHICommandListImmediate& RHICmdList, FSceneRenderer* SceneRenderer, ECubeFace CubeFace, int32 CubemapSize, bool bCapturingForSkyLight, bool bLowerHemisphereIsBlack, const FLinearColor& LowerHemisphereColor)
+void CaptureSceneToScratchCubemap(FRHICommandListImmediate& RHICmdList, FSceneRenderer* SceneRenderer, ECubeFace CubeFace, int32 CubemapSize, bool bCapturingForSkyLight, bool bLowerHemisphereIsBlack, const FLinearColor& LowerHemisphereColor, bool bCapturingForMobile)
 {
 	FMemMark MemStackMark(FMemStack::Get());
 
@@ -697,8 +697,10 @@ void CaptureSceneToScratchCubemap(FRHICommandListImmediate& RHICmdList, FSceneRe
 				// When capturing reflection captures, support forcing all low hemisphere lighting to be black
 				SkyLightParametersValue = FVector(0, 0, bLowerHemisphereIsBlack ? 1.0f : 0.0f);
 			}
-			else if (Scene->SkyLight && !Scene->SkyLight->bHasStaticLighting)
+			else if (!bCapturingForMobile && Scene->SkyLight && !Scene->SkyLight->bHasStaticLighting)	
 			{
+				// Mobile renderer can't blend reflections with a sky at runtime, so we dont use this path when capturing for a mobile renderer
+				
 				// When capturing reflection captures and there's a stationary sky light, mask out any pixels whose depth classify it as part of the sky
 				// This will allow changing the stationary sky light at runtime
 				SkyLightParametersValue = FVector(1, Scene->SkyLight->SkyDistanceThreshold, 0);
@@ -887,7 +889,7 @@ void EndReflectionCaptureSlowTask(int32 NumCaptures)
  * Allocates reflection captures in the scene's reflection cubemap array and updates them by recapturing the scene.
  * Existing captures will only be uploaded.  Must be called from the game thread.
  */
-void FScene::AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent*>& NewCaptures, const TCHAR* CaptureReason, bool bVerifyOnlyCapturing)
+void FScene::AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent*>& NewCaptures, const TCHAR* CaptureReason, bool bVerifyOnlyCapturing, bool bCapturingForMobile)
 {
 	if (NewCaptures.Num() > 0)
 	{
@@ -971,7 +973,7 @@ void FScene::AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent
 					});
 
 				// Recapture all reflection captures now that we have reallocated the cubemap array
-				UpdateAllReflectionCaptures(CaptureReason, bVerifyOnlyCapturing);
+				UpdateAllReflectionCaptures(CaptureReason, bVerifyOnlyCapturing, bCapturingForMobile);
 			}
 			else
 			{
@@ -996,7 +998,7 @@ void FScene::AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent
 
 					if (bAllocated)
 					{
-						CaptureOrUploadReflectionCapture(CurrentComponent, bVerifyOnlyCapturing);
+						CaptureOrUploadReflectionCapture(CurrentComponent, bVerifyOnlyCapturing, bCapturingForMobile);
 					}
 				}
 
@@ -1022,7 +1024,7 @@ void FScene::AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent
 }
 
 /** Updates the contents of all reflection captures in the scene.  Must be called from the game thread. */
-void FScene::UpdateAllReflectionCaptures(const TCHAR* CaptureReason, bool bVerifyOnlyCapturing)
+void FScene::UpdateAllReflectionCaptures(const TCHAR* CaptureReason, bool bVerifyOnlyCapturing, bool bCapturingForMobile)
 {
 	if (IsReflectionEnvironmentAvailable(GetFeatureLevel()))
 	{
@@ -1046,7 +1048,7 @@ void FScene::UpdateAllReflectionCaptures(const TCHAR* CaptureReason, bool bVerif
 
 			CaptureIndex++;
 			UReflectionCaptureComponent* CurrentComponent = *It;
-			CaptureOrUploadReflectionCapture(CurrentComponent, bVerifyOnlyCapturing);
+			CaptureOrUploadReflectionCapture(CurrentComponent, bVerifyOnlyCapturing, bCapturingForMobile);
 		}
 
 		EndReflectionCaptureSlowTask(NumCapturesForStatus);
@@ -1262,7 +1264,8 @@ void CaptureSceneIntoScratchCubemap(
 	float SkyLightNearPlane,
 	bool bLowerHemisphereIsBlack, 
 	bool bCaptureEmissiveOnly,
-	const FLinearColor& LowerHemisphereColor
+	const FLinearColor& LowerHemisphereColor,
+	bool bCapturingForMobile
 	)
 {
 	int32 SupersampleCaptureFactor = FMath::Clamp(GSupersampleCaptureFactor, MinSupersampleCaptureFactor, MaxSupersampleCaptureFactor);
@@ -1354,9 +1357,9 @@ void CaptureSceneIntoScratchCubemap(
 		FSceneRenderer* SceneRenderer = FSceneRenderer::CreateSceneRenderer(&ViewFamily, NULL);
 
 		ENQUEUE_RENDER_COMMAND(CaptureCommand)(
-			[SceneRenderer, CubeFace, CubemapSize, bCapturingForSkyLight, bLowerHemisphereIsBlack, LowerHemisphereColor](FRHICommandListImmediate& RHICmdList)
+			[SceneRenderer, CubeFace, CubemapSize, bCapturingForSkyLight, bLowerHemisphereIsBlack, LowerHemisphereColor, bCapturingForMobile](FRHICommandListImmediate& RHICmdList)
 			{
-				CaptureSceneToScratchCubemap(RHICmdList, SceneRenderer, (ECubeFace)CubeFace, CubemapSize, bCapturingForSkyLight, bLowerHemisphereIsBlack, LowerHemisphereColor);
+				CaptureSceneToScratchCubemap(RHICmdList, SceneRenderer, (ECubeFace)CubeFace, CubemapSize, bCapturingForSkyLight, bLowerHemisphereIsBlack, LowerHemisphereColor, bCapturingForMobile);
 
 				if (!bCapturingForSkyLight)
 				{
@@ -1394,7 +1397,7 @@ void CopyToSceneArray(FRHICommandListImmediate& RHICmdList, FScene* Scene, FRefl
  * Updates the contents of the given reflection capture by rendering the scene. 
  * This must be called on the game thread.
  */
-void FScene::CaptureOrUploadReflectionCapture(UReflectionCaptureComponent* CaptureComponent, bool bVerifyOnlyCapturing)
+void FScene::CaptureOrUploadReflectionCapture(UReflectionCaptureComponent* CaptureComponent, bool bVerifyOnlyCapturing, bool bCapturingForMobile)
 {
 	if (IsReflectionEnvironmentAvailable(GetFeatureLevel()))
 	{
@@ -1477,7 +1480,7 @@ void FScene::CaptureOrUploadReflectionCapture(UReflectionCaptureComponent* Captu
 			if (CaptureComponent->ReflectionSourceType == EReflectionSourceType::CapturedScene)
 			{
 				bool const bCaptureStaticSceneOnly = CVarReflectionCaptureStaticSceneOnly.GetValueOnGameThread() != 0;
-				CaptureSceneIntoScratchCubemap(this, CaptureComponent->GetComponentLocation() + CaptureComponent->CaptureOffset, ReflectionCaptureSize, false, bCaptureStaticSceneOnly, 0, false, false, FLinearColor());
+				CaptureSceneIntoScratchCubemap(this, CaptureComponent->GetComponentLocation() + CaptureComponent->CaptureOffset, ReflectionCaptureSize, false, bCaptureStaticSceneOnly, 0, false, false, FLinearColor(), bCapturingForMobile);
 			}
 			else if (CaptureComponent->ReflectionSourceType == EReflectionSourceType::SpecifiedCubemap)
 			{
@@ -1625,7 +1628,8 @@ void FScene::UpdateSkyCaptureContents(
 		if (CaptureComponent->SourceType == SLS_CapturedScene)
 		{
 			bool bStaticSceneOnly = CaptureComponent->Mobility == EComponentMobility::Static;
-			CaptureSceneIntoScratchCubemap(this, CaptureComponent->GetComponentLocation(), CaptureComponent->CubemapResolution, true, bStaticSceneOnly, CaptureComponent->SkyDistanceThreshold, CaptureComponent->bLowerHemisphereIsBlack, bCaptureEmissiveOnly, CaptureComponent->LowerHemisphereColor);
+			bool bCapturingForMobile = false;
+			CaptureSceneIntoScratchCubemap(this, CaptureComponent->GetComponentLocation(), CaptureComponent->CubemapResolution, true, bStaticSceneOnly, CaptureComponent->SkyDistanceThreshold, CaptureComponent->bLowerHemisphereIsBlack, bCaptureEmissiveOnly, CaptureComponent->LowerHemisphereColor, bCapturingForMobile);
 		}
 		else if (CaptureComponent->SourceType == SLS_SpecifiedCubemap)
 		{
