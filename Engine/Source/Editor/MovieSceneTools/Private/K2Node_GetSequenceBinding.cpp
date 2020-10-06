@@ -176,7 +176,7 @@ UMovieScene* UK2Node_GetSequenceBinding::GetObjectMovieScene() const
 				SequenceSignatureCache.Reset();
 				SequenceHierarchyCache = FMovieSceneSequenceHierarchy();
 
-				UMovieSceneCompiledDataManager::CompileHierarchy(Sequence, &SequenceHierarchyCache);
+				UMovieSceneCompiledDataManager::CompileHierarchy(Sequence, &SequenceHierarchyCache, EMovieSceneServerClientMask::All);
 
 				for (const TTuple<FMovieSceneSequenceID, FMovieSceneSubSequenceData>& Pair : SequenceHierarchyCache.AllSubSequenceData())
 				{

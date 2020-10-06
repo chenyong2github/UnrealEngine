@@ -169,13 +169,23 @@ public:
 
 	UMovieSceneCompiledDataManager();
 
+#if WITH_EDITOR
+	static UMovieSceneCompiledDataManager* GetPrecompiledData(EMovieSceneServerClientMask EmulatedMask = EMovieSceneServerClientMask::All);
+#else
 	static UMovieSceneCompiledDataManager* GetPrecompiledData();
+#endif
 
 	UMovieSceneCompiledData* MakeCompiledData(UMovieSceneSequence* Sequence) const;
 
+	void SetEmulatedNetworkMask(EMovieSceneServerClientMask NewMask);
+
 	void Reset(UMovieSceneSequence* Sequence);
 
+	void DestroyAllData();
+
 	FMovieSceneCompiledDataID GetDataID(UMovieSceneSequence* Sequence);
+
+	FMovieSceneCompiledDataID FindDataID(UMovieSceneSequence* Sequence) const;
 
 	void DestroyTemplate(FMovieSceneCompiledDataID DataID);
 
@@ -185,7 +195,11 @@ public:
 
 	bool IsDirty(const FMovieSceneCompiledDataEntry& Entry) const;
 
-	FMovieSceneCompiledDataEntry GetEntry(FMovieSceneCompiledDataID DataID) const
+	/**
+	 * Return a reference to a compiled data entry.
+	 * WARNING: This reference will become invalid if any sequence in this manager is (re)compiled
+	 */
+	const FMovieSceneCompiledDataEntry& GetEntryRef(FMovieSceneCompiledDataID DataID) const
 	{
 		check(CompiledDataEntries.IsValidIndex(DataID.Value));
 		return CompiledDataEntries[DataID.Value];
@@ -214,7 +228,7 @@ public:
 
 	void Compile(FMovieSceneCompiledDataID DataID, UMovieSceneSequence* Sequence);
 
-	static bool CompileHierarchy(UMovieSceneSequence* Sequence, FMovieSceneSequenceHierarchy* InOutHierarchy);
+	static bool CompileHierarchy(UMovieSceneSequence* Sequence, FMovieSceneSequenceHierarchy* InOutHierarchy, EMovieSceneServerClientMask NetworkMask);
 
 	void CopyCompiledData(UMovieSceneSequence* Sequence);
 	void LoadCompiledData(UMovieSceneSequence* Sequence);
@@ -244,6 +258,8 @@ private:
 	void ProcessTrack(FMovieSceneCompiledDataEntry* OutEntry, const FMovieSceneBinding* ObjectBinding, UMovieSceneTrack* Track, const FTrackGatherParameters& Params, FMovieSceneGatheredCompilerData* OutCompilerData, TSet<FGuid>* OutCompiledSignatures);
 
 	void ProcessSubTrack(FMovieSceneCompiledDataEntry* OutEntry, UMovieSceneSubTrack* SubTrack, const FGuid& ObjectBindingId, const FTrackGatherParameters& Params, FMovieSceneGatheredCompilerData* OutCompilerData);
+
+	void DestroyData(FMovieSceneCompiledDataID DataID);
 
 private:
 
@@ -279,6 +295,8 @@ private:
 	FGuid CompilerVersion;
 
 	uint32 ReallocationVersion;
+
+	EMovieSceneServerClientMask NetworkMask;
 };
 
 
