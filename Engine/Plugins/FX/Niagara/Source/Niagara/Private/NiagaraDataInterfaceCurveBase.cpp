@@ -66,21 +66,24 @@ void UNiagaraDataInterfaceCurveBase::PostLoad()
 	Super::PostLoad();
 
 #if WITH_EDITORONLY_DATA
-	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
+	if (HasEditorData)
+	{
+		const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
 
-	if (NiagaraVer < FNiagaraCustomVersion::LatestVersion)
-	{
-		UpdateLUT();
-	}
-	else
-	{
-		if (GIsEditor)
+		if (NiagaraVer < FNiagaraCustomVersion::LatestVersion)
 		{
-			TArray<float> OldLUT = ShaderLUT;
 			UpdateLUT();
-			if (GNiagaraLUTVerifyPostLoad && !CompareLUTS(OldLUT))
+		}
+		else
+		{
+			if (GIsEditor)
 			{
-				UE_LOG(LogNiagara, Log, TEXT("PostLoad LUT generation is out of sync. Please investigate. %s"), *GetPathName());
+				TArray<float> OldLUT = ShaderLUT;
+				UpdateLUT();
+				if (GNiagaraLUTVerifyPostLoad && !CompareLUTS(OldLUT))
+				{
+					UE_LOG(LogNiagara, Log, TEXT("PostLoad LUT generation is out of sync. Please investigate. %s"), *GetPathName());
+				}
 			}
 		}
 	}
@@ -94,10 +97,12 @@ void UNiagaraDataInterfaceCurveBase::Serialize(FArchive& Ar)
 	// Push to render thread if loading
 	if (Ar.IsLoading())
 	{
-#if WITH_EDITORONLY_DATA
 		// Sometimes curves are out of date which needs to be tracked down
 		// Temporarily we will make sure they are up to date in editor builds
-		if (GetClass() != UNiagaraDataInterfaceCurveBase::StaticClass())
+#if WITH_EDITORONLY_DATA
+		HasEditorData = !Ar.IsFilterEditorOnly();
+
+		if (HasEditorData && GetClass() != UNiagaraDataInterfaceCurveBase::StaticClass())
 		{
 			UpdateLUT(true);
 		}
