@@ -17,7 +17,7 @@ void UConstructionPlaneMechanic::Setup(UInteractiveTool* ParentToolIn)
 
 void UConstructionPlaneMechanic::Shutdown()
 {
-	GetParentTool()->GetToolManager()->GetPairedGizmoManager()->DestroyAllGizmosByOwner(GetParentTool());
+	GetParentTool()->GetToolManager()->GetPairedGizmoManager()->DestroyAllGizmosByOwner(this);
 }
 
 
@@ -31,7 +31,7 @@ void UConstructionPlaneMechanic::Initialize(UWorld* TargetWorld, const FFrame3d&
 
 	PlaneTransformProxy = NewObject<UTransformProxy>(this);
 	PlaneTransformGizmo = GizmoManager->CreateCustomTransformGizmo(
-		ETransformGizmoSubElements::StandardTranslateRotate, GetParentTool());
+		ETransformGizmoSubElements::StandardTranslateRotate, this);
 	PlaneTransformProxy->OnTransformChanged.AddUObject(this, &UConstructionPlaneMechanic::TransformChanged);
 
 	PlaneTransformGizmo->SetActiveTarget(PlaneTransformProxy, GetParentTool()->GetToolManager());

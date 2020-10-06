@@ -114,7 +114,7 @@ void UCurveControlPointsMechanic::Setup(UInteractiveTool* ParentToolIn)
 	PointTransformProxy = NewObject<UTransformProxy>(this);
 	PointTransformGizmo = GizmoManager->CreateCustomTransformGizmo(
 		ETransformGizmoSubElements::TranslateAxisX | ETransformGizmoSubElements::TranslateAxisY | ETransformGizmoSubElements::TranslatePlaneXY,
-		GetParentTool());
+		this);
 	PointTransformProxy->OnTransformChanged.AddUObject(this, &UCurveControlPointsMechanic::GizmoTransformChanged);
 	PointTransformProxy->OnBeginTransformEdit.AddUObject(this, &UCurveControlPointsMechanic::GizmoTransformStarted);
 	PointTransformProxy->OnEndTransformEdit.AddUObject(this, &UCurveControlPointsMechanic::GizmoTransformEnded);
@@ -187,16 +187,13 @@ void UCurveControlPointsMechanic::SetWorld(UWorld* World)
 
 void UCurveControlPointsMechanic::Shutdown()
 {
+	// Calls shutdown on gizmo and destroys it.
+	GetParentTool()->GetToolManager()->GetPairedGizmoManager()->DestroyAllGizmosByOwner(this);
+
 	if (PreviewGeometryActor)
 	{
 		PreviewGeometryActor->Destroy();
 		PreviewGeometryActor = nullptr;
-	}
-
-	if (PointTransformGizmo)
-	{
-		PointTransformGizmo->Shutdown();
-		PointTransformGizmo = nullptr;
 	}
 }
 

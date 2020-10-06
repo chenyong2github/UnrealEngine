@@ -82,8 +82,8 @@ void ULatticeControlPointsMechanic::Setup(UInteractiveTool* ParentToolIn)
 	
 	// TODO: Maybe don't have the gizmo's axes flip around when it crosses the origin, if possible?
 	// TODO: Enable local vs world gizmo switching (UETOOL-2356)
-	PointTransformGizmo = GizmoManager->CreateCustomTransformGizmo(ETransformGizmoSubElements::FullTranslateRotateScale,
-																   GetParentTool());
+	PointTransformGizmo = GizmoManager->CreateCustomTransformGizmo(
+		ETransformGizmoSubElements::FullTranslateRotateScale, this);
 
 	PointTransformProxy->OnTransformChanged.AddUObject(this, &ULatticeControlPointsMechanic::GizmoTransformChanged);
 	PointTransformProxy->OnBeginTransformEdit.AddUObject(this, &ULatticeControlPointsMechanic::GizmoTransformStarted);
@@ -149,14 +149,9 @@ void ULatticeControlPointsMechanic::Shutdown()
 		PreviewGeometryActor = nullptr;
 	}
 
-	if (PointTransformGizmo)
-	{
-		PointTransformGizmo->Shutdown();
-		PointTransformGizmo = nullptr;
-	}
-
+	// Calls shutdown on gizmo and destroys it.
 	UInteractiveGizmoManager* GizmoManager = GetParentTool()->GetToolManager()->GetPairedGizmoManager();
-	GizmoManager->DestroyAllGizmosByOwner(GetParentTool());
+	GizmoManager->DestroyAllGizmosByOwner(this);
 }
 
 
