@@ -2661,7 +2661,7 @@ void UMaterialInstance::ForceRecompileForRendering()
 }
 #endif // WITH_EDITOR
 
-void UMaterialInstance::InitStaticPermutation()
+void UMaterialInstance::InitStaticPermutation(EMaterialShaderPrecompileMode PrecompileMode)
 {
 	UpdateOverridableBaseProperties();
 
@@ -2673,7 +2673,7 @@ void UMaterialInstance::InitStaticPermutation()
 	if ( FApp::CanEverRender() ) 
 	{
 		// Cache shaders for the current platform to be used for rendering
-		CacheResourceShadersForRendering(EMaterialShaderPrecompileMode::Default, ResourcesToFree);
+		CacheResourceShadersForRendering(PrecompileMode, ResourcesToFree);
 	}
 
 	DeleteDeferredResources(ResourcesToFree);
