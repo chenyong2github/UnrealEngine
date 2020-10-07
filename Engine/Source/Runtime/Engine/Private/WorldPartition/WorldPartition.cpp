@@ -10,6 +10,7 @@
 #include "WorldPartition/WorldPartitionLevelStreamingPolicy.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
+#include "WorldPartition/DataLayer/DataLayerHelper.h"
 #include "Algo/Accumulate.h"
 #include "Algo/Transform.h"
 #include "Algo/RemoveIf.h"
@@ -640,6 +641,7 @@ UWorldPartition::FActorCluster::FActorCluster(const FWorldPartitionActorDesc* Ac
 {
 	check(GridPlacement != EActorGridPlacement::None);
 	Actors.Add(ActorDesc->GetGuid());
+	DataLayersID = FDataLayersHelper::ComputeDataLayerID(DataLayers);
 }
 
 void UWorldPartition::FActorCluster::Add(const UWorldPartition::FActorCluster& ActorCluster)
@@ -676,6 +678,16 @@ void UWorldPartition::FActorCluster::Add(const UWorldPartition::FActorCluster& A
 		{
 			GridPlacement = EActorGridPlacement::Bounds;
 		}
+	}
+
+	// Merge DataLayers
+	if (DataLayersID != ActorCluster.DataLayersID)
+	{
+		for (const FName& DataLayer : ActorCluster.DataLayers)
+		{
+			DataLayers.AddUnique(DataLayer);
+		}
+		DataLayersID = FDataLayersHelper::ComputeDataLayerID(DataLayers);
 	}
 }
 

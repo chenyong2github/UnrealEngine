@@ -53,6 +53,9 @@ class UWorldPartitionRuntimeCell : public UObject
 	virtual FLinearColor GetDebugColor() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetDebugColor, return FLinearColor::Black;);
 	virtual bool IsAlwaysLoaded() const { return bIsAlwaysLoaded; }
 	virtual void SetIsAlwaysLoaded(bool bInIsAlwaysLoaded) { bIsAlwaysLoaded = bInIsAlwaysLoaded; }
+	void SetDataLayers(const TArray<FName> InDataLayers) { check(DataLayers.IsEmpty()); DataLayers = InDataLayers; }
+	bool HasDataLayers() const { return !DataLayers.IsEmpty(); }
+	const TArray<FName>& GetDataLayers() const { return DataLayers; }
 
 #if WITH_EDITOR
 	virtual void AddActorToCell(FName Package, FName Path) PURE_VIRTUAL(UWorldPartitionRuntimeCell::AddActorToCell,);
@@ -72,4 +75,7 @@ protected:
 private:
 	UPROPERTY()
 	TMap<const TSubclassOf<UWorldPartitionRuntimeCellData>, const UWorldPartitionRuntimeCellData*> CellDataMap;
+
+	UPROPERTY()
+	TArray<FName> DataLayers;
 };

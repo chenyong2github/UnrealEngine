@@ -139,6 +139,8 @@ public:
 		EActorGridPlacement	GridPlacement;
 		FName				RuntimeGrid;
 		FBox				Bounds;
+		TArray<FName>		DataLayers;
+		uint32				DataLayersID;
 
 		FActorCluster(const FWorldPartitionActorDesc* ActorDesc);
 		void Add(const FActorCluster& ActorCluster);
@@ -181,9 +183,7 @@ public:
 #if WITH_EDITOR
 	TMap<FGuid, TUniquePtr<FWorldPartitionActorDesc>> Actors;
 	class ULayersSubsystem* LayerSubSystem;
-	FDelegateHandle OnLayersChangedHandle;
-	FDelegateHandle OnActorsLayersChangedHandle;
-
+	
 	static TUniquePtr<FWorldPartitionActorDescFactory> DefaultActorDescFactory;
 	static TMap<FName, FWorldPartitionActorDescFactory*> ActorDescFactories;
 
