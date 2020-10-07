@@ -70,8 +70,6 @@ private:
 	bool bAccumulateTime;
 
 public:
-	UControlRig();
-
 	virtual void Serialize(FArchive& Ar) override;
 #if WITH_EDITOR
 	virtual void PostEditUndo() override;
