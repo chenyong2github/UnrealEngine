@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Misc/SingleThreadRunnable.h"
+#include "GenericPlatform/GenericPlatformFile.h"
 #include "RHIDefinitions.h"
 
 class FEvent;
