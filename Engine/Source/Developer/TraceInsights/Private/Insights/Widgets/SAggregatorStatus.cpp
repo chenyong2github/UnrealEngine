@@ -132,7 +132,7 @@ FText SAggregatorStatus::GetTooltipText() const
 	else
 	{
 		const double Duration = Aggregator->GetCurrentOperationDuration();
-		return FText::Format(LOCTEXT("DefaultTooltip_Fmt2", "Computing aggregated stats...\nElapsed Time: {0}\nElapsed Time (op {1}): {2}"),
+		return FText::Format(LOCTEXT("DefaultTooltip_Fmt3", "Computing aggregated stats...\nElapsed Time: {0}\nElapsed Time (op {1}): {2}"),
 			FText::FromString(TimeUtils::FormatTime(TotalDuration, TimeUtils::Second)),
 			FText::AsNumber(OperationCount),
 			FText::FromString(TimeUtils::FormatTime(Duration, TimeUtils::Second)));

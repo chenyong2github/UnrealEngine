@@ -748,7 +748,7 @@ TSharedRef<SDockTab> FGroomCustomAssetEditorToolkit::SpawnTab_PreviewGroomCompon
 
 	return SNew(SDockTab)
 		.Icon(FEditorStyle::GetBrush("GenericEditor.Tabs.Properties"))
-		.Label(LOCTEXT("PreviewGroomComponentTab", "Component"))
+		.Label(LOCTEXT("GroomComponentTab", "Component"))
 		.TabColorScale(GetTabColorScale())
 		[
 			DetailView_PreviewGroomComponent.ToSharedRef()

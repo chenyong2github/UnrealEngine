@@ -54,7 +54,7 @@ void UMoviePipelineLinearExecutorBase::StartPipelineByIndex(int32 InPipelineInde
 	if (!Queue->GetJobs()[CurrentPipelineIndex]->GetConfiguration())
 	{
 		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Found null config in list of configs to render. Aborting the pipeline processing!"));
-		OnExecutorErroredImpl(nullptr, true, LOCTEXT("NullPipelineError", "Found null config in list of configs to render with. Does your config have the wrong outer?"));
+		OnExecutorErroredImpl(nullptr, true, LOCTEXT("NullConfigError", "Found null config in list of configs to render with. Does your config have the wrong outer?"));
 		OnExecutorFinishedImpl();
 		return;
 	}
