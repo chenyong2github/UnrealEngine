@@ -17,7 +17,7 @@ DECLARE_DELEGATE_OneParam( FOnModeChangeRequested, FName );
 
 
 // This is the base class for a persona mode widget
-class KISMET_API SModeWidget : public SCompoundWidget
+class UNREALED_API SModeWidget : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SModeWidget)

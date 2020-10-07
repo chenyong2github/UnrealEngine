@@ -68,7 +68,7 @@ public:
 /////////////////////////////////////////////////////
 // FWorkflowTabFactory
 
-class KISMET_API FWorkflowTabFactory : public TSharedFromThis<FWorkflowTabFactory>
+class UNREALED_API FWorkflowTabFactory : public TSharedFromThis<FWorkflowTabFactory>
 {
 protected:
 	FName TabIdentifier;
@@ -131,7 +131,7 @@ protected:
 	void EnableTabPadding();
 
 	/** Callback function for spawning the tab */
-	TSharedRef<SDockTab> OnSpawnTab(const FSpawnTabArgs& SpawnArgs, TWeakPtr<FTabManager> WeakTabManager) const;
+	virtual TSharedRef<SDockTab> OnSpawnTab(const FSpawnTabArgs& SpawnArgs, TWeakPtr<FTabManager> WeakTabManager) const;
 
 	/** Callback function for checking to see if a tab can/should be spawned */
 	bool CanSpawnTab(const FSpawnTabArgs& SpawnArgs, TWeakPtr<FTabManager> WeakTabManager) const;
@@ -163,7 +163,7 @@ private:
 /////////////////////////////////////////////////////
 // FDocumentTabFactory
 
-class KISMET_API FDocumentTabFactory : public FWorkflowTabFactory
+class UNREALED_API FDocumentTabFactory : public FWorkflowTabFactory
 {
 public:
 	// Saves the state for this tab

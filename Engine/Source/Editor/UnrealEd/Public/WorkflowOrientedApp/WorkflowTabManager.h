@@ -26,7 +26,7 @@ namespace EDocumentOpenBehavior
 /////////////////////////////////////////////////////
 // FWorkflowAllowedTabSet
 
-class KISMET_API FWorkflowAllowedTabSet
+class UNREALED_API FWorkflowAllowedTabSet
 {
 public:
 	// Searches this set for a factory with the specified ID, or returns NULL.
@@ -57,7 +57,7 @@ private:
 /////////////////////////////////////////////////////
 // FTabInfo
 
-class FTabInfo : public TSharedFromThis<FTabInfo>
+class UNREALED_API FTabInfo : public TSharedFromThis<FTabInfo>
 {
 public:
 	FTabInfo(const TSharedRef<SDockTab>& InTab, const TSharedPtr<FDocumentTabFactory>& InSpawner, const TSharedPtr<class FDocumentTracker>& InTracker);
@@ -243,7 +243,7 @@ protected:
 
 DECLARE_DELEGATE_OneParam(FOnTabActivated, TSharedPtr<SDockTab>);
 
-class KISMET_API FDocumentTracker : public TSharedFromThis<FDocumentTracker>
+class UNREALED_API FDocumentTracker : public TSharedFromThis<FDocumentTracker>
 {
 public:
 	FDocumentTracker();
@@ -276,6 +276,8 @@ public:
 		NavigateForwards,
 		// Going forward or back in the history
 		NavigatingHistory,
+		// Same as OpenNewDocument, but does not create a "Document" tab
+		SpawnManagedDocument,
 
 		// Deprecated, treated the same as OpenNewDocument
 		CreateHistoryEvent,

@@ -15,7 +15,7 @@ class FExtender;
 /////////////////////////////////////////////////////
 // FApplicationMode
 
-class KISMET_API FApplicationMode : public TSharedFromThis<FApplicationMode>
+class UNREALED_API FApplicationMode : public TSharedFromThis<FApplicationMode>
 {
 protected:
 	// The layout to use in this mode

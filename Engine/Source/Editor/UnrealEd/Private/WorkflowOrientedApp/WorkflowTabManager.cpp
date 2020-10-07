@@ -543,7 +543,8 @@ void FDocumentTracker::SetTabManager( const TSharedRef<FTabManager>& InTabManage
 
 TSharedPtr<SDockTab> FDocumentTracker::OpenDocument(TSharedPtr<FTabPayload> InPayload, EOpenDocumentCause InOpenCause)
 {
-	if(FSlateApplication::Get().GetModifierKeys().IsControlDown())
+	// Managed document spawn can occur at times like 'Ctrl + Z' to undo, don't force them to spawn a new tab.
+	if(FSlateApplication::Get().GetModifierKeys().IsControlDown() && InOpenCause != SpawnManagedDocument)
 	{
 		InOpenCause = FDocumentTracker::ForceOpenNewDocument;
 	}
@@ -566,7 +567,7 @@ TSharedPtr<SDockTab> FDocumentTracker::OpenDocument(TSharedPtr<FTabPayload> InPa
 		return nullptr;
 	}
 
-	if(InOpenCause == OpenNewDocument || InOpenCause == RestorePreviousDocument)
+	if(InOpenCause == OpenNewDocument || InOpenCause == RestorePreviousDocument || InOpenCause == SpawnManagedDocument)
 	{
 		// If the current tab matches we'll re-use it.
 		TSharedPtr<FTabInfo> LastEditedTabInfo = GetLastEditedTabInfo();
@@ -741,7 +742,7 @@ TSharedPtr<SDockTab> FDocumentTracker::NavigateCurrentTab(TSharedPtr<FTabPayload
 
 TSharedPtr<SDockTab> FDocumentTracker::OpenNewTab(TSharedPtr<FGenericTabHistory> InTabHistory, EOpenDocumentCause InOpenCause)
 {
-	ensure(InOpenCause == ForceOpenNewDocument || InOpenCause == OpenNewDocument || InOpenCause == RestorePreviousDocument || InOpenCause == NavigatingHistory);
+	ensure(InOpenCause == ForceOpenNewDocument || InOpenCause == OpenNewDocument || InOpenCause == RestorePreviousDocument || InOpenCause == NavigatingHistory || InOpenCause == SpawnManagedDocument);
 
 	TSharedPtr<FDocumentTabFactory> Factory = InTabHistory->GetFactory().Pin();
 	TSharedPtr<SDockTab> NewTab;

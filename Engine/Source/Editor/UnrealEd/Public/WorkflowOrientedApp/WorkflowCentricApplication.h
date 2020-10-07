@@ -16,7 +16,7 @@ DECLARE_DELEGATE_RetVal_TwoParams(TSharedRef<FApplicationMode>, FWorkflowApplica
 /////////////////////////////////////////////////////
 // FWorkflowCentricApplication
 
-class KISMET_API FWorkflowCentricApplication : public FAssetEditorToolkit
+class UNREALED_API FWorkflowCentricApplication : public FAssetEditorToolkit
 {
 public:
 	// IToolkit interface

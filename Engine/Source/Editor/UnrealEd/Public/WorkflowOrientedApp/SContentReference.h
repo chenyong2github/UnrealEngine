@@ -17,7 +17,7 @@ class SBorder;
 class SComboButton;
 
 // This widget is a content reference, which can optionally show buttons for interacting with the reference
-class KISMET_API SContentReference : public SCompoundWidget
+class UNREALED_API SContentReference : public SCompoundWidget
 {
 public:
 
