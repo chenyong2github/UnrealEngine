@@ -502,21 +502,22 @@ MaterialFloat4 ClampedPow(MaterialFloat4 X,MaterialFloat4 Y)
 	return pow(max(abs(X),MaterialFloat4(POW_CLAMP,POW_CLAMP,POW_CLAMP,POW_CLAMP)),Y);
 } 
 
-MaterialFloat PositiveClampedPow(MaterialFloat X,MaterialFloat Y)
+/* Pow function that will return 0 if Base is <=0. This ensures that no compiler expands pow into exp(Exponent * log(Base)) with Base=0 */
+MaterialFloat PositiveClampedPow(MaterialFloat Base, MaterialFloat Exponent)
 {
-	return pow(max(X,POW_CLAMP),Y);
+	return (Base <= 0.0f) ? 0.0f : pow(Base, Exponent);
 }
-MaterialFloat2 PositiveClampedPow(MaterialFloat2 X,MaterialFloat2 Y)
+MaterialFloat2 PositiveClampedPow(MaterialFloat2 Base, MaterialFloat2 Exponent)
 {
-	return pow(max(X,MaterialFloat2(POW_CLAMP,POW_CLAMP)),Y);
+	return MaterialFloat2(PositiveClampedPow(Base.x, Exponent.x), PositiveClampedPow(Base.y, Exponent.y)); 
 }
-MaterialFloat3 PositiveClampedPow(MaterialFloat3 X,MaterialFloat3 Y)
+MaterialFloat3 PositiveClampedPow(MaterialFloat3 Base, MaterialFloat3 Exponent)
 {
-	return pow(max(X,MaterialFloat3(POW_CLAMP,POW_CLAMP,POW_CLAMP)),Y);
+	return MaterialFloat3(PositiveClampedPow(Base.xy, Exponent.xy), PositiveClampedPow(Base.z, Exponent.z)); 
 }  
-MaterialFloat4 PositiveClampedPow(MaterialFloat4 X,MaterialFloat4 Y)
+MaterialFloat4 PositiveClampedPow(MaterialFloat4 Base, MaterialFloat4 Exponent)
 {
-	return pow(max(X,MaterialFloat4(POW_CLAMP,POW_CLAMP,POW_CLAMP,POW_CLAMP)),Y);
+	return MaterialFloat4(PositiveClampedPow(Base.xy, Exponent.xy), PositiveClampedPow(Base.zw, Exponent.zw)); 
 } 
 
 float DDX(float Input)
