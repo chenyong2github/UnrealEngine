@@ -3,8 +3,8 @@
 #include "Widgets/SDirectLinkStreamManager.h"
 
 #include "DatasmithExporterManager.h"
-#include "DirectLink/Network/DirectLinkEndpoint.h"
-#include "DirectLink/Network/DirectLinkMessages.h"
+#include "DirectLinkEndpoint.h"
+#include "DirectLinkMessages.h"
 
 #include "DesktopPlatformModule.h"
 #include "Framework/Application/SlateApplication.h"
@@ -215,7 +215,7 @@ void SDirectLinkStreamManager::Construct(const FArguments& InArgs, const TShared
 		.DefaultLabel( LOCTEXT("DestinationColumnLabel", "Destination") )
 		.SortMode( this, &SDirectLinkStreamManager::GetColumnSortMode, SDirectLinkStreamManagerUtils::DestinationColumnId )
 		.OnSort( this, &SDirectLinkStreamManager::OnColumnSortModeChanged );
-		
+
 	ChildSlot
 	[
 		SNew( SVerticalBox )
@@ -524,7 +524,7 @@ FReply SDirectLinkStreamManager::OnChangeCacheDirectoryClicked()
 		DirectLinkCacheDirectory = NewFolderSelected;
 		OnCacheDirectoryChanged.ExecuteIfBound( DirectLinkCacheDirectory );
 	}
-	
+
 	return FReply::Handled();
 }
 

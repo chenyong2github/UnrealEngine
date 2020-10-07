@@ -5,7 +5,7 @@
 #include "DatasmithRuntimeBlueprintLibrary.h"
 
 #include "DatasmithTranslatorModule.h"
-#include "DirectLink/Network/DirectLinkEndpoint.h"
+#include "DirectLinkEndpoint.h"
 #include "MasterMaterials/DatasmithMasterMaterialManager.h"
 #include "MaterialSelectors/DatasmithRevitLiveMaterialSelector.h"
 

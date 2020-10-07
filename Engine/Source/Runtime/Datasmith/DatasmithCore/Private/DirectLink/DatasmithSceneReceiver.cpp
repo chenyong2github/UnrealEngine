@@ -2,15 +2,17 @@
 
 #include "DirectLink/DatasmithSceneReceiver.h"
 
-#include "DirectLink/DirectLinkCommon.h"
-#include "DirectLink/DirectLinkLog.h"
-#include "DirectLink/Misc.h"
-#include "DirectLink/SceneSnapshot.h"
 
 #include "DatasmithCore.h"
 #include "DatasmithSceneFactory.h"
 #include "DatasmithSceneGraphSharedState.h"
 #include "IDatasmithSceneElements.h"
+#include "DirectLink/DatasmithDirectLinkTools.h"
+
+#include "DirectLinkCommon.h"
+#include "DirectLinkLog.h"
+#include "DirectLinkMisc.h"
+#include "DirectLinkSceneSnapshot.h"
 
 
 /* #ue_directlink_design
@@ -84,7 +86,7 @@ void FDatasmithSceneReceiver::FinalSnapshot(const DirectLink::FSceneSnapshot& Sc
 		Current->Elements.Add(NodeId, Element);
 
 		const TCHAR* ElementTypeName = GetElementTypeName(Element.Get());
-		UE_LOG(LogDatasmith, Display, TEXT("OnAddElement -> %s'%s' id=%d"), ElementTypeName, *Name, NodeId);
+// 		UE_LOG(LogDatasmith, Display, TEXT("OnAddElement -> %s'%s' id=%d"), ElementTypeName, *Name, NodeId);
 		check(Element);
 
 		FFinalizableNode& Node = Nodes.AddDefaulted_GetRef();

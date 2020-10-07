@@ -4,7 +4,7 @@
 
 #include "DatasmithDirectLink.h"
 #include "DatasmithExporterManager.h"
-#include "DirectLink/Network/DirectLinkEndpoint.h"
+#include "DirectLinkEndpoint.h"
 #include "Widgets/SDirectLinkStreamManager.h"
 
 #include "Containers/Queue.h"
@@ -62,7 +62,7 @@ FDirectLinkUI::FDirectLinkUI()
 {
 	FString ConfigPath = DirectLinkUIUtils::GetConfigPath();
 	FString DirectLinkCacheSectionAndValue = DirectLinkUIUtils::GetConfigCacheDirectorySectionAndValue();
-	
+
 	FScopeLock Lock( &CriticalSectionCacheDirectory );
 	if ( !GConfig->GetString( *DirectLinkCacheSectionAndValue, *DirectLinkCacheSectionAndValue, DirectLinkCacheDirectory, ConfigPath ) )
 	{
