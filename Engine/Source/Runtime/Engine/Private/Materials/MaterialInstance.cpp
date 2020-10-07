@@ -3268,15 +3268,13 @@ bool UMaterialInstance::IsCachedCookedPlatformDataLoaded( const ITargetPlatform*
 void UMaterialInstance::ClearCachedCookedPlatformData( const ITargetPlatform *TargetPlatform )
 {
 	// Make sure that all CacheShaders render thead commands are finished before we destroy FMaterialResources.
+	// TODO - is this needed, since we're using DeferredDeleteArray now?
 	FlushRenderingCommands();
 
 	TArray<FMaterialResource*> *CachedMaterialResourcesForPlatform = CachedMaterialResourcesForCooking.Find( TargetPlatform );
-	if ( CachedMaterialResourcesForPlatform != NULL )
+	if ( CachedMaterialResourcesForPlatform != nullptr )
 	{
-		for (int32 CachedResourceIndex = 0; CachedResourceIndex < CachedMaterialResourcesForPlatform->Num(); CachedResourceIndex++)
-		{
-			delete (*CachedMaterialResourcesForPlatform)[CachedResourceIndex];
-		}
+		FMaterial::DeferredDeleteArray(*CachedMaterialResourcesForPlatform);
 	}
 	CachedMaterialResourcesForCooking.Remove( TargetPlatform );
 }
@@ -3285,15 +3283,13 @@ void UMaterialInstance::ClearCachedCookedPlatformData( const ITargetPlatform *Ta
 void UMaterialInstance::ClearAllCachedCookedPlatformData()
 {
 	// Make sure that all CacheShaders render thead commands are finished before we destroy FMaterialResources.
+	// TODO - is this needed, since we're using DeferredDeleteArray now?
 	FlushRenderingCommands();
 
-	for ( auto It : CachedMaterialResourcesForCooking )
+	for ( auto& It : CachedMaterialResourcesForCooking )
 	{
 		TArray<FMaterialResource*> &CachedMaterialResourcesForPlatform = It.Value;
-		for (int32 CachedResourceIndex = 0; CachedResourceIndex < CachedMaterialResourcesForPlatform.Num(); CachedResourceIndex++)
-		{
-			delete (CachedMaterialResourcesForPlatform)[CachedResourceIndex];
-		}
+		FMaterial::DeferredDeleteArray(CachedMaterialResourcesForPlatform);
 	}
 
 	CachedMaterialResourcesForCooking.Empty();

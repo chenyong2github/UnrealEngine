@@ -1476,17 +1476,13 @@ public:
 	ENGINE_API static void DeferredDelete(FMaterial* Material);
 
 	template<typename TMaterial>
-	static void DeferredDeleteArray(TArray<TRefCountPtr<TMaterial>>& Materials)
+	static void DeleteMaterialsOnRenderThread(TArray<TRefCountPtr<TMaterial>>& MaterialsRenderThread)
 	{
-		if (Materials.Num() > 0)
+		if (MaterialsRenderThread.Num() > 0)
 		{
-			for (FMaterial* Material : Materials)
+			ENQUEUE_RENDER_COMMAND(DeferredDestroyMaterialArray)([MaterialsRenderThread = MoveTemp(MaterialsRenderThread)](FRHICommandListImmediate& RHICmdList) mutable
 			{
-				Material->PrepareDestroy_GameThread();
-			}
-			ENQUEUE_RENDER_COMMAND(DeferredDestroyMaterialArray)([Materials = MoveTemp(Materials)](FRHICommandListImmediate& RHICmdList) mutable
-			{
-				for (auto& Material : Materials)
+				for (auto& Material : MaterialsRenderThread)
 				{
 					TMaterial* MaterialToDestroy = Material.GetReference();
 					MaterialToDestroy->PrepareDestroy_RenderThread();
@@ -1494,7 +1490,54 @@ public:
 					delete MaterialToDestroy;
 				}
 			});
-			Materials.Empty(); // technically not required after MoveTemp(), but make it explicit
+		}
+	}
+
+	template<typename TMaterial>
+	static void DeferredDeleteArray(TArray<TRefCountPtr<TMaterial>>& Materials)
+	{
+		if (Materials.Num() > 0)
+		{
+			TArray<TRefCountPtr<TMaterial>> MaterialsRenderThread;
+			for (TRefCountPtr<TMaterial>& Material : Materials)
+			{
+				TMaterial* MaterialToDestroy = Material.GetReference();
+				if (MaterialToDestroy->PrepareDestroy_GameThread())
+				{
+					MaterialsRenderThread.Add(MoveTemp(Material));
+				}
+				else
+				{
+					Material.SafeRelease();
+					delete MaterialToDestroy;
+				}
+			}
+
+			Materials.Empty();
+			DeleteMaterialsOnRenderThread(MaterialsRenderThread);
+		}
+	}
+
+	template<typename TMaterial>
+	static void DeferredDeleteArray(TArray<TMaterial*>& Materials)
+	{
+		if (Materials.Num() > 0)
+		{
+			TArray<TRefCountPtr<TMaterial>> MaterialsRenderThread;
+			for (TMaterial* Material : Materials)
+			{
+				if (Material->PrepareDestroy_GameThread())
+				{
+					MaterialsRenderThread.Add(Material);
+				}
+				else
+				{
+					delete Material;
+				}
+			}
+
+			Materials.Empty();
+			DeleteMaterialsOnRenderThread(MaterialsRenderThread);
 		}
 	}
 
