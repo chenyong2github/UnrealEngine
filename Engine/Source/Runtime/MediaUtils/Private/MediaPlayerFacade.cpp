@@ -1002,16 +1002,16 @@ TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> FMediaPlayerFacade::GetPlayerForUr
 		PlayerName = NAME_None;
 	}
 
-	// reuse existing player if requested
-	if (Player.IsValid() && (PlayerName == MediaModule->GetPlayerFactory(Player->GetPlayerPluginGUID())->GetPlayerName()))
-	{
-		return Player;
-	}
-
 	if (MediaModule == nullptr)
 	{
 		UE_LOG(LogMediaUtils, Error, TEXT("Failed to load Media module"));
 		return nullptr;
+	}
+
+	// reuse existing player if requested
+	if (Player.IsValid() && (PlayerName == MediaModule->GetPlayerFactory(Player->GetPlayerPluginGUID())->GetPlayerName()))
+	{
+		return Player;
 	}
 
 	// try to create requested player
