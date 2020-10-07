@@ -359,26 +359,22 @@ void FPyOnlineDocsWriter::GenerateFiles(const FString& InPythonStubPath)
 		PyCommandStr.Appendf(TEXT("subprocess.check_call(['%s', '-m', 'ensurepip'])\n"), *PythonPath);						// ... so this call ensures that pip is definitely available, even if the above call broke it
 		PyCommandStr.Appendf(TEXT("subprocess.check_call(['%s', '-m', 'pip', 'install', '-q', '--no-warn-script-location', 'sphinx'])\n"), *PythonPath);
 		
-		PyCommandStr.Append(TEXT("import sphinx.cmd.build\n"));
-
 		// Alternate technique calling pip as a Python command though above is recommended by pip.
-		//
-		//FString PyCommandStr = TEXT(
-		//	"import pip\n"
-		//	"pip.main(['install', 'sphinx'])\n"
-		//	"import sphinx\n");
+		//PyCommandStr.Append(TEXT("import pip\n"));
+		//PyCommandStr.Append(TEXT("pip.main(['install', 'sphinx'])\n"));
 
 		// Un-import full unreal module so Sphinx will use generated stub version of unreal module
 		PyCommandStr.Append(TEXT("del unreal\n"));
 		PyCommandStr.Append(TEXT("del sys.modules['unreal']\n"));
 
 		// Add on Sphinx build command
+		PyCommandStr.Append(TEXT("import sphinx.cmd.build\n"));
 		PyCommandStr.Appendf(TEXT("sphinx.cmd.build.build_main(['-b', 'html', '%s', '%s'])\n"), *GetSourcePath(), *GetBuildPath());
 
 		UE_LOG(LogPython, Display, TEXT(
 			"Calling Sphinx in PythonPlugin/SphinxDocs to generate the HTML...\n\n"
 			"%s\n\n"
-			"This can take a long time - 16+ minutes for full build on test system...\n"),
+			"This can take a long time - 25+ minutes for full build on test system...\n"),
 			*PyCommandStr);
 
 #if !NO_LOGGING
