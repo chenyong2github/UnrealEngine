@@ -1014,10 +1014,16 @@ void UUnrealEdEngine::MakeSelectedActorsLevelCurrent()
 		}
 	}
 
-	// Change the current level to something different
-	if ( LevelToMakeCurrent && !LevelToMakeCurrent->IsCurrentLevel() )
+	if (LevelToMakeCurrent)
 	{
-		EditorLevelUtils::MakeLevelCurrent( LevelToMakeCurrent );
+		if (!LevelToMakeCurrent->IsCurrentLevel())
+		{
+			// Change the current level to something different
+			EditorLevelUtils::MakeLevelCurrent(LevelToMakeCurrent);
+		}
+		// Set the Level tab's selected level.
+		TArray<class ULevel*> SelectedLevelsList(&LevelToMakeCurrent, 1);
+		LevelToMakeCurrent->GetWorld()->SetSelectedLevels(SelectedLevelsList);
 	}
 }
 
