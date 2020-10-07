@@ -2,6 +2,7 @@
 
 #include "DisplayClusterConfigurationTypes.h"
 #include "DisplayClusterConfigurationLog.h"
+#include "Engine/StaticMesh.h"
 
 UDisplayClusterConfigurationData::UDisplayClusterConfigurationData()
 {
