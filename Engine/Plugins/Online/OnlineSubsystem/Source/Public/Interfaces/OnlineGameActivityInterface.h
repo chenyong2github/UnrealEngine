@@ -42,6 +42,14 @@ enum class EOnlineActivityOutcome
 	Cancelled
 };
 
+/** 
+ * Task ids for in progress and completed activity tasks to be reset
+ */
+struct FOnlineActivityTasksToReset
+{
+	TArray<FString> InProgressTasks;
+	TArray<FString> CompletedTasks;
+};
 
 /** 
  * Multicast delegate fired when an activity request has happened
@@ -49,7 +57,7 @@ enum class EOnlineActivityOutcome
  * @param LocalUserId the id of the player this callback is for
  * @param ActivityId the id of the activity for activation
  * @param SessionInfo the session search results for the the activity
-*/
+ */
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnGameActivityActivationRequested, const FUniqueNetId& /* LocalUserId */, const FString& /* ActivityId */, const FOnlineSessionSearchResult* /* SessionInfo */ );
 typedef FOnGameActivityActivationRequested::FDelegate FOnGameActivityActivationRequestedDelegate;
 
@@ -144,13 +152,14 @@ public:
 
 	/**
 	 * Resume an activity.  Different from StartActivity in that resume continues from current 
-	 * progress where StartActivity will set progress back to 0 before activating the actvity
+	 * progress where StartActivity will set progress back to 0 before activating the activity
 	 *
 	 * @param LocalUserId - Id of the player resuming the activity
 	 * @param ActivityId - Task to resume by activity ID
+	 * @param TasksToReset - Optional argument to specify which in-progress and completed tasks of an activity to reset.  Leaving this empty will reset all tasks
 	 * @param CompletionDelegate - Completion delegate called when the ResumeActivity call is complete
 	 */
-	virtual void ResumeActivity(const FUniqueNetId& LocalUserId, const FString& ActivityId, const FOnResumeActivityComplete& CompletionDelegate) = 0;
+	virtual void ResumeActivity(const FUniqueNetId& LocalUserId, const FString& ActivityId, const TOptional<FOnlineActivityTasksToReset>& TasksToReset, const FOnResumeActivityComplete& CompletionDelegate) = 0;
 
 	/** 
 	 * Set an activity's availability 
