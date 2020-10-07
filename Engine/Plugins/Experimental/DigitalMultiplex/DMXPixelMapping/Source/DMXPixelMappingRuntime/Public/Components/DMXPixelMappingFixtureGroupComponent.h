@@ -7,6 +7,7 @@
 #include "DMXPixelMappingFixtureGroupComponent.generated.h"
 
 class UDMXLibrary;
+class STextBlock;
 class SUniformGridPanel;
 
 /**
