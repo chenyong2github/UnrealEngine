@@ -71,16 +71,18 @@ void UHierarchicalLODSettings::PostEditChangeProperty(struct FPropertyChangedEve
 	}
 }
 
-FHierarchicalLODBuilder::FHierarchicalLODBuilder(UWorld* InWorld)
-:	World(InWorld)
+FHierarchicalLODBuilder::FHierarchicalLODBuilder(UWorld* InWorld, bool bInPersistentLevelOnly /*= false*/)
+	: World(InWorld)
+	, bPersistentLevelOnly(bInPersistentLevelOnly)
 {
 	checkf(InWorld != nullptr, TEXT("Invalid nullptr world provided"));
 	HLODSettings = GetDefault<UHierarchicalLODSettings>();
 }
 
 FHierarchicalLODBuilder::FHierarchicalLODBuilder()
-	: World(nullptr), 
-	  HLODSettings(nullptr)
+	: World(nullptr)
+	, bPersistentLevelOnly(false)
+	, HLODSettings(nullptr)
 {
 	EnsureRetrievingVTablePtrDuringCtor(TEXT("FHierarchicalLODBuilder()"));
 }
@@ -679,6 +681,12 @@ bool FHierarchicalLODBuilder::ShouldBuildHLODForLevel(const UWorld* InWorld, con
 {
 	check(InWorld);
 	if (!InLevel)
+	{
+		return false;
+	}
+
+	// If we only want to build HLODs for the persistent level
+	if (bPersistentLevelOnly && InLevel != InWorld->PersistentLevel)
 	{
 		return false;
 	}
