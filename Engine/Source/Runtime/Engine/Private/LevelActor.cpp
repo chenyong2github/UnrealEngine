@@ -9,7 +9,6 @@
 #include "Misc/App.h"
 #include "UObject/Package.h"
 #include "Misc/PackageName.h"
-#include "Misc/DateTime.h"
 #include "UObject/ScriptStackTracker.h"
 #include "EngineStats.h"
 #include "EngineGlobals.h"
@@ -260,128 +259,6 @@ void LineCheckTracker::CaptureLineCheck(int32 LineCheckFlags, const FVector* Ext
 /*-----------------------------------------------------------------------------
 	Level actor management.
 -----------------------------------------------------------------------------*/
-
-#if WITH_EDITOR
-/** 
- * Generates a 102-bits actor GUID:
- *	- Bits 101-54 hold the user MAC address.
- *	- Bits 53-0 hold a microseconds timestamp.
-  *
- * Notes:
- *	- The timestamp is stored in microseconds for a total of 54 bits, enough to cover
- *	  the next 570 years.
- *	- The highest 72 bits are appended to the name in base-64.
- *	- The lowest 30 bits of the timestamp are stored in the name number. This is to
- *	  minimize the total names generated for globally unique names (string part will
- *	  change every ~17 minutes for a specific actor class).
- *  - The name number bit 30 is reserved to know if this is a globally unique name. This
- *	  is not 100% safe, but should cover most cases.
- *  - The name number bit 31 is reserved to preserve the  fast path name generation (see
- *	  GFastPathUniqueNameGeneration).
- **/
-class FActorGUIDGenerator
-{
-public:
-	FActorGUIDGenerator()
-		: Origin(FDateTime(2020, 1, 1))
-		, MacAddress(FPlatformMisc::GetMacAddress())
-		, Counter(0)
-	{
-		check(MacAddress.Num() == 6);
-	}
-
-	FName NewActorGUID(FName BaseName)
-	{
-		uint8 HighPart[9];
-
-		const FDateTime Now = FDateTime::Now();
-		check(Now > Origin);
-
-		const FTimespan Elapsed = FDateTime::Now() - Origin;
-		const uint64 ElapsedUs = (uint64)Elapsed.GetTotalMilliseconds() * 1000 + (Counter++ % 1000);
-
-		// Copy 48-bits MAC address
-		FMemory::Memcpy(HighPart, MacAddress.GetData(), 6);
-		
-		// Append the high part of the timestamp (will change every ~17 minutes)
-		const uint64 ElapsedUsHighPart = ElapsedUs >> 30;
-		FMemory::Memcpy(HighPart + 6, &ElapsedUsHighPart, 3);
-
-		// Make final name
-		TStringBuilderWithBuffer<TCHAR, NAME_SIZE> StringBuilder;
-		StringBuilder += BaseName.ToString();
-		StringBuilder += TEXT("_");
-		StringBuilder += FBase64::Encode(HighPart, 9);
-
-		return FName(*StringBuilder, (ElapsedUs & 0x3fffffff) | (1 << 30));
-	}
-	
-private:
-	const FDateTime Origin;
-	const TArray<uint8> MacAddress;
-	uint32 Counter;
-};
-#endif
-
-FName FActorSpawnUtils::MakeUniqueActorName(ULevel* Level, const UClass* Class, FName BaseName, bool bGloballyUnique)
-{
-	FName NewActorName;
-
-#if WITH_EDITOR
-	if (bGloballyUnique)
-	{
-		static FActorGUIDGenerator ActorGUIDGenerator;
-
-		do
-		{
-			NewActorName = ActorGUIDGenerator.NewActorGUID(BaseName);
-		}
-		while (StaticFindObjectFast(nullptr, Level, NewActorName));
-	}
-	else
-#endif
-	{
-		NewActorName = MakeUniqueObjectName(Level, Class, BaseName);
-	}
-
-	return NewActorName;
-}
-
-bool FActorSpawnUtils::IsGloballyUniqueName(FName Name)
-{
-#if WITH_EDITOR
-	if (Name.GetNumber() & (1 << 30))
-	{
-		const FString PlainName = Name.GetPlainNameString();
-		const int32 PlainNameLen = PlainName.Len();
-		
-		// Parse a name like this: StaticMeshActor_cCCECUPVj1cA
-		if (PlainNameLen >= 13 && PlainName[PlainNameLen - 13] == '_')
-		{
-			uint8 Dest[16];
-			if (FBase64::Decode(&PlainName[PlainNameLen - 12], 12, Dest))
-			{
-				return true;
-			}
-		}
-	}
-#endif
-
-	return false;
-}
-
-FName FActorSpawnUtils::GetBaseName(FName Name)
-{
-#if WITH_EDITOR
-	if (IsGloballyUniqueName(Name))
-	{
-		return *Name.GetPlainNameString().LeftChop(13);
-	}
-#endif
-
-	return *Name.GetPlainNameString();
-}
-
 // LOOKING_FOR_PERF_ISSUES
 #define PERF_SHOW_MULTI_PAWN_SPAWN_FRAMES (!(UE_BUILD_SHIPPING || UE_BUILD_TEST)) && (LOOKING_FOR_PERF_ISSUES || !WITH_EDITORONLY_DATA)
 
@@ -507,72 +384,43 @@ AActor* UWorld::SpawnActor( UClass* Class, FTransform const* UserTransformPtr, c
 		LevelToSpawnIn = (SpawnParameters.Owner != NULL) ? SpawnParameters.Owner->GetLevel() : CurrentLevel;
 	}
 
-	// Use class's default actor as a template if none provided.
-	AActor* Template = SpawnParameters.Template ? SpawnParameters.Template : Class->GetDefaultObject<AActor>();
-	check(Template);
-
 	FName NewActorName = SpawnParameters.Name;
-	UPackage* ExternalPackage = nullptr;
-	bool bNeedGloballyUniqueName = false;
-
-#if WITH_EDITOR
-	// Generate the actor's Guid
-	FGuid ActorGuid;
-	if (SpawnParameters.OverrideActorGuid.IsValid())
+	AActor* Template = SpawnParameters.Template;
+		
+	if( !Template )
 	{
-		ActorGuid = SpawnParameters.OverrideActorGuid;
+		// Use class's default actor as a template.
+		Template = Class->GetDefaultObject<AActor>();
 	}
-	else
-	{
-		ActorGuid = FGuid::NewGuid();
-	}
-
-	// Generate and set the actor's external package if needed
-	if (SpawnParameters.OverridePackage)
-	{
-		ExternalPackage = SpawnParameters.OverridePackage;
-	}
-	else if (LevelToSpawnIn->IsUsingExternalActors() && SpawnParameters.bCreateActorPackage && !(SpawnParameters.ObjectFlags & RF_Transient))
-	{
-		if (CastChecked<AActor>(Class->GetDefaultObject())->SupportsExternalPackaging())
-		{
-			// @todo FH: needs to handle mark package dirty and asset creation notification
-			ExternalPackage = ULevel::CreateActorPackage(LevelToSpawnIn->GetPackage(), ActorGuid);
-		}
-	}
-
-	bNeedGloballyUniqueName = !!ExternalPackage;
-#endif
+	check(Template);
 
 	if (NewActorName.IsNone())
 	{
 		// If we are using a template object and haven't specified a name, create a name relative to the template, otherwise let the default object naming behavior in Stat
-		const FName BaseName = Template->HasAnyFlags(RF_ClassDefaultObject) ? Class->GetFName() : *Template->GetFName().GetPlainNameString();
-
-		NewActorName = FActorSpawnUtils::MakeUniqueActorName(LevelToSpawnIn, Template->GetClass(), BaseName, bNeedGloballyUniqueName);
-	}
-	else if (StaticFindObjectFast(nullptr, LevelToSpawnIn, NewActorName) || (bNeedGloballyUniqueName != FActorSpawnUtils::IsGloballyUniqueName(NewActorName)))
-	{
-		// If the supplied name is already in use or doesn't respect globally uniqueness, then either fail in the requested manner or determine a new name to use if the caller indicates that's ok
-		switch(SpawnParameters.NameMode)
+		if (!Template->HasAnyFlags(RF_ClassDefaultObject))
 		{
-		case FActorSpawnParameters::ESpawnActorNameMode::Requested:
-			NewActorName = FActorSpawnUtils::MakeUniqueActorName(LevelToSpawnIn, Template->GetClass(), FActorSpawnUtils::GetBaseName(NewActorName), bNeedGloballyUniqueName);
-			break;
+			NewActorName = MakeUniqueObjectName(LevelToSpawnIn, Template->GetClass(), *Template->GetFName().GetPlainNameString());
+		}
+	}
+	else if (StaticFindObjectFast(nullptr, LevelToSpawnIn, NewActorName))
+	{
+		// If the supplied name is already in use, then either fail in the requested manner or determine a new name to use if the caller indicates that's ok
 
-		case FActorSpawnParameters::ESpawnActorNameMode::Required_Fatal:
-			UE_LOG(LogSpawn, Fatal, TEXT("Cannot generate unique name for '%s' in level '%s'."), *NewActorName.ToString(), *LevelToSpawnIn->GetFullName());
+		if (SpawnParameters.NameMode == FActorSpawnParameters::ESpawnActorNameMode::Requested)
+		{
+			NewActorName = MakeUniqueObjectName(LevelToSpawnIn, Template->GetClass(), *NewActorName.GetPlainNameString());
+		}
+		else
+		{
+			if (SpawnParameters.NameMode == FActorSpawnParameters::ESpawnActorNameMode::Required_Fatal)
+			{
+				UE_LOG(LogSpawn, Fatal, TEXT("An actor of name '%s' already exists in level '%s'."), *NewActorName.ToString(), *LevelToSpawnIn->GetFullName());
+			}
+			else if (SpawnParameters.NameMode == FActorSpawnParameters::ESpawnActorNameMode::Required_ErrorAndReturnNull)
+			{
+				UE_LOG(LogSpawn, Error, TEXT("An actor of name '%s' already exists in level '%s'."), *NewActorName.ToString(), *LevelToSpawnIn->GetFullName());
+			}
 			return nullptr;
-
-		case FActorSpawnParameters::ESpawnActorNameMode::Required_ErrorAndReturnNull:
-			UE_LOG(LogSpawn, Error, TEXT("Cannot generate unique name for '%s' in level '%s'."), *NewActorName.ToString(), *LevelToSpawnIn->GetFullName());
-			return nullptr;
-
-		case FActorSpawnParameters::ESpawnActorNameMode::Required_ReturnNull:
-			return nullptr;
-
-		default:
-			check(0);
 		}
 	}
 
@@ -629,6 +477,32 @@ AActor* UWorld::SpawnActor( UClass* Class, FTransform const* UserTransformPtr, c
 	}
 
 	EObjectFlags ActorFlags = SpawnParameters.ObjectFlags;
+
+	UPackage* ExternalPackage = nullptr;
+#if WITH_EDITOR
+	// Generate the actor's Guid
+	FGuid ActorGuid;
+	if (SpawnParameters.OverrideActorGuid.IsValid())
+	{
+		ActorGuid = SpawnParameters.OverrideActorGuid;
+	}
+	else
+	{
+		ActorGuid = FGuid::NewGuid();
+	}
+
+	// Generate and set the actor's external package if needed
+	// Set actor's package
+	if (SpawnParameters.OverridePackage)
+	{
+		ExternalPackage = SpawnParameters.OverridePackage;
+	}
+	else if (LevelToSpawnIn->IsUsingExternalActors() && SpawnParameters.bCreateActorPackage && !(SpawnParameters.ObjectFlags & RF_Transient))
+	{
+		// @todo FH: needs to handle mark package dirty and asset creation notification
+		ExternalPackage = ULevel::CreateActorPackage(LevelToSpawnIn->GetPackage(), ActorGuid);
+	}
+#endif
 
 	// actually make the actor object
 	AActor* const Actor = NewObject<AActor>(LevelToSpawnIn, Class, NewActorName, ActorFlags, Template, false/*bCopyTransientsFromClassDefaults*/, nullptr/*InInstanceGraph*/, ExternalPackage);
