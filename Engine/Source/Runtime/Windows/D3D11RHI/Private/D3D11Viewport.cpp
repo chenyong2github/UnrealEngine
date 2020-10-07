@@ -368,6 +368,17 @@ bool FD3D11Viewport::PresentChecked(int32 SyncInterval)
 	{
 		if (SwapChain.IsValid())
 		{
+			// Check if the viewport's swap chain has been invalidated by DXGI.
+			BOOL bSwapChainFullscreenState;
+			TRefCountPtr<IDXGIOutput> SwapChainOutput;
+			SwapChain->GetFullscreenState(&bSwapChainFullscreenState, SwapChainOutput.GetInitReference());
+			// Can't compare BOOL with bool...
+			if ((!!bSwapChainFullscreenState) != bIsFullscreen)
+			{
+				ValidState = (VIEWPORT_INVALID | VIEWPORT_FULLSCREEN_LOST);
+			}
+			else
+			{
 			// Present the back buffer to the viewport window.
 			uint32 Flags = 0;
 			if( (GetSwapChainFlags() & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING) != 0 && !SyncInterval && !bIsFullscreen )
@@ -393,6 +404,7 @@ bool FD3D11Viewport::PresentChecked(int32 SyncInterval)
 				}
 			}
 #endif
+		}
 		}
 
 		if (IsValidRef(CustomPresent))
