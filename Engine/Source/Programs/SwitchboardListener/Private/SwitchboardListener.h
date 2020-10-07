@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#include "Containers/Queue.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 
 struct FRunningProcess;
