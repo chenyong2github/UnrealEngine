@@ -594,35 +594,6 @@ public:
 	EObjectFlags ObjectFlags;		
 };
 
-/* World actors spawmning helper functions */
-struct ENGINE_API FActorSpawnUtils
-{
-	/**
-	 * Function to generate a locally or globally unique actor name. To generate a globally unique name, we store an epoch number
-	 * in the name number (while maintaining compatibility with fast path name generation, see GFastPathUniqueNameGeneration) and
-	 * also append an unique user id to the name.
-	 *
-	 * @param	Level			the new actor level
-	 * @param	Class			the new actor class
-	 * @param	BaseName		optional base name
-	 * @param	bGloballyUnique	whether to create a globally unique name
-	 * @return	generated actor name
-	**/
-	static FName MakeUniqueActorName(ULevel* Level, const UClass* Class, FName BaseName, bool bGloballyUnique);
-
-	/**
-	 * Determine if an actor name is globally unique or not.
-	 *
-	 * @param	Name			the name to check
-	 * @return true if the provided name is globally unique
-	**/
-	static bool IsGloballyUniqueName(FName Name);
-
-	/**
-	 * Return the base ename (without any number of globally unique identifier).
-	**/
-	static FName GetBaseName(FName Name);
-};
 
 /**
  *  This encapsulate World's async trace functionality. This contains two buffers of trace data buffer and alternates it for each tick. 

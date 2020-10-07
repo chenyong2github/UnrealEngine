@@ -849,17 +849,17 @@ UObject* ULevelFactory::FactoryCreateText
 				FName ActorSourceName(NAME_None);
 				FParse::Value( Str, TEXT("NAME="), ActorSourceName );
 				ActorUniqueName = ActorSourceName;
-
+				// Make sure this name is unique.
 				AActor* Found=nullptr;
 				if( ActorUniqueName!=NAME_None )
 				{
 					// look in the current level for the same named actor
 					Found = FindObject<AActor>( World->GetCurrentLevel(), *ActorUniqueName.ToString() );
 				}
-
-				// Make sure this name is unique. We need to do this upfront because we also want to potentially create the Associated BP class using the same name.
-				bool bNeedGloballyUniqueName = World->GetCurrentLevel()->IsUsingExternalActors() && CastChecked<AActor>(TempClass->GetDefaultObject())->SupportsExternalPackaging();
-				ActorUniqueName = FActorSpawnUtils::MakeUniqueActorName(World->GetCurrentLevel(), TempClass, FActorSpawnUtils::GetBaseName(ActorUniqueName), bNeedGloballyUniqueName);
+				if( Found )
+				{
+					ActorUniqueName = MakeUniqueObjectName( World->GetCurrentLevel(), TempClass, ActorUniqueName );
+				}
 
 				// Get parent name for attachment.
 				FName ActorParentName(NAME_None);
