@@ -4858,19 +4858,6 @@ void FSlateEditorStyle::FStyle::SetupLevelEditorStyle()
 		Set( "LevelEditor.EditorModes.Menu", new IMAGE_BRUSH( "Icons/icon_Editor_Modes_16x", Icon16x16 ) );
 
 
-		Set( "ToolPalette.DockingTab", FCheckBoxStyle()
-			.SetCheckBoxType(ESlateCheckBoxType::ToggleButton)
-			.SetPadding( FMargin(16.0f, 2.0f, 16.0f, 2.0f ) )
-			.SetCheckedImage(             FSlateBoxBrush( RootToCoreContentDir("Docking/Tab_Shape.png"),  2.f/8.0f, FColor(62, 62, 62) ) )
-			.SetCheckedHoveredImage(      FSlateBoxBrush( RootToCoreContentDir("Docking/Tab_Shape.png"),  2.f/8.0f, FColor(62, 62, 62) ) )
-			.SetCheckedPressedImage(      FSlateBoxBrush( RootToCoreContentDir("Docking/Tab_Shape.png"),  2.f/8.0f, FColor(62, 62, 62) ) )
-			.SetUncheckedImage(           FSlateBoxBrush( RootToCoreContentDir("Docking/Tab_Shape.png"),  2.f/8.0f, FColor(45, 45, 45) ) )
-			.SetUncheckedHoveredImage(    FSlateBoxBrush( RootToCoreContentDir("Docking/Tab_Shape.png"),  2.f/8.0f, FColor(54, 54, 54) ) )    			
-			.SetUncheckedPressedImage(    FSlateBoxBrush( RootToCoreContentDir("Docking/Tab_Shape.png"),  2.f/8.0f, FColor(54, 54, 54) ) )    			   
-			.SetUndeterminedImage(        FSlateNoResource() )
-			.SetUndeterminedHoveredImage( FSlateNoResource() )
-			.SetUndeterminedPressedImage( FSlateNoResource() )
-		);	
 		Set( "ToolPalette.DockingWell", new FSlateColorBrush(FLinearColor(FColor(34, 34, 34, 255))));
 
 		Set("LevelEditor.SelectMode", new IMAGE_BRUSH("Icons/icon_DefaultEdMode_40x", Icon40x40));

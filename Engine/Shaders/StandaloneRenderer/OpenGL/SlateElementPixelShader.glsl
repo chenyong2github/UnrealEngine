@@ -243,19 +243,19 @@ vec4 GetRoundedBoxElementColor()
 
 	// Compute the border intensity and fill intensity with a smooth transition
 	float spread = 0.5;
-    float bi = smoothstep(spread, -spread, dext);
-    float fi = smoothstep(spread, -spread, din);
+	float bi = smoothstep(spread, -spread, dext);
+	float fi = smoothstep(spread, -spread, din);
 
-    // alpha blend the external color 
-	vec4 fill = Color;
-    vec4 border = ShaderParams2.bgra;
-    vec4 OutColor = mix(border, fill, float(thickness > radius));
-    OutColor.a = 0.0;
+	// alpha blend the external color 
+	vec4 fill = GetDefaultElementColor();
+	vec4 border = ShaderParams2.bgra;
+	vec4 OutColor = mix(border, fill, float(thickness > radius));
+	OutColor.a = 0.0;
 
-    // blend in the border and fill colors
-    OutColor = mix(OutColor, border, bi);
-    OutColor = mix(OutColor, fill, fi);
-    return OutColor;
+	// blend in the border and fill colors
+	OutColor = mix(OutColor, border, bi);
+	OutColor = mix(OutColor, fill, fi);
+	return OutColor;
 }
 
 vec4 GetSplineElementColor()

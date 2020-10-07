@@ -158,19 +158,19 @@ float4 GetRoundedBoxElementColor( VertexOut InVertex )
 
 	// Compute the border intensity and fill intensity with a smooth transition
 	float spread = 0.5;
-    float bi = smoothstep(spread, -spread, dext);
-    float fi = smoothstep(spread, -spread, din);
+	float bi = smoothstep(spread, -spread, dext);
+	float fi = smoothstep(spread, -spread, din);
 
-    // alpha blend the external color 
-	float4 fill = InVertex.Color;
-    float4 border = ShaderParams2;
-    float4 OutColor = lerp(border, fill, float(thickness > radius));
-    OutColor.a = 0.0;
+	// alpha blend the external color 
+	float4 fill = GetColor(InVertex, InVertex.TextureCoordinates.xy * InVertex.TextureCoordinates.zw);
+	float4 border = ShaderParams2;
+	float4 OutColor = lerp(border, fill, float(thickness > radius));
+	OutColor.a = 0.0;
 
-    // blend in the border and fill colors
-    OutColor = lerp(OutColor, border, bi);
-    OutColor = lerp(OutColor, fill, fi);
-    return OutColor;
+	// blend in the border and fill colors
+	OutColor = lerp(OutColor, border, bi);
+	OutColor = lerp(OutColor, fill, fi);
+	return OutColor;
 }
 
 float4 GetSplineElementColor( VertexOut InVertex )

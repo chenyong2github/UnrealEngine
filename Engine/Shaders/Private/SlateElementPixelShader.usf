@@ -262,20 +262,20 @@ half4 GetRoundedBoxElementColor( VertexToPixelInterpolants InVertex )
 
 	// Compute the border intensity and fill intensity with a smooth transition
 	float spread = 0.5;
-    float bi = smoothstep(spread, -spread, dext);
-    float fi = smoothstep(spread, -spread, din);
+	float bi = smoothstep(spread, -spread, dext);
+	float fi = smoothstep(spread, -spread, din);
 
-	half4 fill = InVertex.Color;
-    half4 border = ShaderParams2;
+	half4 fill = GetColor(InVertex, GetUV(InVertex, 0) * GetUV(InVertex, 1)); //InVertex.Color;
+	half4 border = ShaderParams2;
 
-    // alpha blend the external color 
-    half4 OutColor = lerp(border, fill, half(thickness > radius));
-    OutColor.a = 0.0;
+	// alpha blend the external color 
+	half4 OutColor = lerp(border, fill, half(thickness > radius));
+	OutColor.a = 0.0;
 
-    // blend in the border and fill colors
-    OutColor = lerp(OutColor, border, bi);
-    OutColor = lerp(OutColor, fill, fi);
-    return OutColor;
+	// blend in the border and fill colors
+	OutColor = lerp(OutColor, border, bi);
+	OutColor = lerp(OutColor, fill, fi);
+	return OutColor;
 }
 #endif
 

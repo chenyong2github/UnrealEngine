@@ -59,17 +59,29 @@ public:
 	 *
 	 * @param InColor The color value to assign.
 	 */
-	FSlateColor( const FLinearColor& InColor )
+	FSlateColor(const FLinearColor& InColor)
 		: SpecifiedColor(InColor)
 		, ColorUseRule(ESlateColorStylingMode::UseColor_Specified)
 	{ }
 
+
 	/**
+	 * Creates a new Slate color with the specified values.
+	 *
+	 * @param InColor The color value to assign.
+	 */
+	FSlateColor(const FColor InColor)
+		: SpecifiedColor(InColor.ReinterpretAsLinear())
+		, ColorUseRule(ESlateColorStylingMode::UseColor_Specified)
+	{ }
+
+
+	/*
 	 * Creates a new Slate color that is linked to the given values.
 	 *
 	 * @param InColor The color value to assign.
 	 */
-	FSlateColor( const TSharedRef< FLinearColor >& InColor )
+	FSlateColor(const TSharedRef< FLinearColor >& InColor)
 		: SpecifiedColor(*InColor)
 		, ColorUseRule(ESlateColorStylingMode::UseColor_Specified)
 	{ }
