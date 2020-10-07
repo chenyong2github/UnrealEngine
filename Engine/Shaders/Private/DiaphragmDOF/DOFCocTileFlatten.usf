@@ -235,18 +235,18 @@ void CocFlattenMainCS(
 
 		// Perform wave flattening first.
 		#if CONFIG_FLATTEN_METHOD == FLATTEN_METHOD_WAVE_MINMAX
-			TileSample.FgdMinCoc = WaveAllMin(TileSample.FgdMinCoc);
-			TileSample.FgdMaxCoc = WaveAllMax(TileSample.FgdMaxCoc);
-			TileSample.BgdMinCoc = WaveAllMin(TileSample.BgdMinCoc);
-			TileSample.BgdMaxCoc = WaveAllMax(TileSample.BgdMaxCoc);
-			TileSample.BgdMinIntersectableCoc = WaveAllMin(TileSample.BgdMinIntersectableCoc);
+			TileSample.FgdMinCoc = WaveActiveAllMin(TileSample.FgdMinCoc);
+			TileSample.FgdMaxCoc = WaveActiveAllMax(TileSample.FgdMaxCoc);
+			TileSample.BgdMinCoc = WaveActiveAllMin(TileSample.BgdMinCoc);
+			TileSample.BgdMaxCoc = WaveActiveAllMax(TileSample.BgdMaxCoc);
+			TileSample.BgdMinIntersectableCoc = WaveActiveAllMin(TileSample.BgdMinIntersectableCoc);
 
 			if (WaveGetLaneCount() == DEFAULT_GROUP_BORDER_SIZE * DEFAULT_GROUP_BORDER_SIZE)
 			{
 				// NOP: because no need to gather the result of all waves of the group, because there is
 				// only one wave per group.
 			}
-			else if (WaveOnce())
+			else if (WaveIsFirstLane())
 		#endif
 		
 		// Atomic LDS reduce by reinterpret casting float as uint.

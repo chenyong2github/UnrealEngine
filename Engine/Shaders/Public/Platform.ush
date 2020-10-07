@@ -379,36 +379,43 @@
 #define uniform
 #endif
 
+#if PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS
+#define COMPILER_SUPPORTS_WAVE_ONCE			1
+#define COMPILER_SUPPORTS_WAVE_VOTE			1
+#define COMPILER_SUPPORTS_WAVE_MINMAX		1
+#define COMPILER_SUPPORTS_WAVE_BIT_ORAND	1
+#endif
+
 // If compiler lane management in a wave.
 //	WaveGetLaneCount()
 //	WaveGetLaneIndex()
-//	if (WaveOnce()) { ... }
+//	if (WaveIsFirstLane()) { ... }
 #ifndef COMPILER_SUPPORTS_WAVE_ONCE
 #define COMPILER_SUPPORTS_WAVE_ONCE 0
 #endif
 
 // Whether the compiler exposes voting on all lanes:
-//	WaveAnyTrue(MyBool)
-//	WaveAnyTrue(MyBool)
-//	WaveAllEqual(MyBool)
+//	WaveActiveAnyTrue(MyBool)
+//	WaveActiveAnyTrue(MyBool)
+//	WaveActiveAllEqual(MyBool)
 #ifndef COMPILER_SUPPORTS_WAVE_VOTE
 #define COMPILER_SUPPORTS_WAVE_VOTE 0
 #endif
 
 // Whether the compiler exposes min max instructions across all lane of the wave.
-//	WaveAllMin(MyFloat)
-//	WaveAllMin(MyInt)
-//	WaveAllMin(MyUint)
-//	WaveAllMax(MyFloat)
-//	WaveAllMax(MyInt)
-//	WaveAllMax(MyUint)
+//	WaveActiveAllMin(MyFloat)
+//	WaveActiveAllMin(MyInt)
+//	WaveActiveAllMin(MyUint)
+//	WaveActiveAllMax(MyFloat)
+//	WaveActiveAllMax(MyInt)
+//	WaveActiveAllMax(MyUint)
 #ifndef COMPILER_SUPPORTS_WAVE_MINMAX
 #define COMPILER_SUPPORTS_WAVE_MINMAX 0
 #endif
 
 // Whether the compiler exposes OR and AND bit operation all lanes:
-//	WaveAllBitAnd(MyMask)
-//	WaveAllBitOr(MyMask)
+//	WaveActiveBitAnd(MyMask)
+//	WaveActiveBitOr(MyMask)
 #ifndef COMPILER_SUPPORTS_WAVE_BIT_ORAND
 #define COMPILER_SUPPORTS_WAVE_BIT_ORAND 0
 #endif
@@ -799,6 +806,20 @@ uint2 UnpackUlongType(UlongType Value)
 
 #endif
 
+// Prefix sum of Bits masked to the bits lower than Index.
+uint MaskedBitCount( uint2 Bits, uint Index )
+{
+	bool bLow = Index < 32;
+
+	uint Mask = 1 << ( Index - ( bLow ? 0 : 32 ) );
+	Mask -= 1;
+
+	uint Offset;
+	Offset  = countbits( Bits.x & ( bLow ? Mask : ~0u ) );
+	Offset += countbits( Bits.y & ( bLow ? 0 : Mask ) );
+	return Offset;
+}
+
 #if PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS
 #ifdef COMPILER_SUPPORTS_TO_SCALAR_MEMORY
 #error Conflict of the ToScalarMemory definition.
@@ -806,6 +827,31 @@ uint2 UnpackUlongType(UlongType Value)
 
 #define COMPILER_SUPPORTS_TO_SCALAR_MEMORY 1
 #define ToScalarMemory(x) WaveReadLaneFirst(x)
+
+#ifndef COMPILER_SUPPORTS_MASKED_BIT_COUNT
+#define COMPILER_SUPPORTS_MASKED_BIT_COUNT 1
+uint MaskedBitCount( uint2 Bits )
+{
+	return MaskedBitCount( Bits, WaveGetLaneIndex() );
+}
+#endif
+
+#if COMPILER_DXC
+uint2 WaveBallot( bool Expr )
+{
+	return WaveActiveBallot( Expr ).xy;
+}
+#endif
+
+#ifndef WaveReadLaneLast
+uint WaveGetActiveLaneIndexLast()
+{
+	uint2 ActiveMask = WaveActiveBallot( true ).xy;
+	return firstbithigh( ActiveMask.y ? ActiveMask.y : ActiveMask.x ) + ( ActiveMask.y ? 32 : 0 );
+}
+
+#define WaveReadLaneLast(x) WaveReadLaneAt( x, WaveGetActiveLaneIndexLast() )
+#endif
 
 #endif // PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS
 

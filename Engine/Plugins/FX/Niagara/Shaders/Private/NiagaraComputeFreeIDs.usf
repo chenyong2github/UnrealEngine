@@ -37,7 +37,7 @@ void ComputeFreeIDs(uint3 GroupId : SV_GroupID, uint3 GroupThreadId : SV_GroupTh
 	if(NumGroupFreeIDs > 0)
 	{
 		uint GroupWriteStart;
-		if (WaveActiveOnce())
+		if (WaveIsFirstLane())
 		{
 			// Add to the global write offset. The previous offset is where we start writing in the output buffer.
 			// We can reduce the number of atomic adds by processing multiple sub-groups in the shader, such that each lane
@@ -47,9 +47,7 @@ void ComputeFreeIDs(uint3 GroupId : SV_GroupID, uint3 GroupThreadId : SV_GroupTh
 		}
 
 		// Broadcast the global write offset to all lanes.
-		// TODO: WaveReadFirstLane is actually called WaveReadLaneFirst in HLSL, despite what the docs say, so we need to change our defines for
-		// other platforms to use the HLSL name or we'll run into trouble when we'll compile for SM6.
-		GroupWriteStart = WaveReadFirstLane(GroupWriteStart);
+		GroupWriteStart = WaveReadLaneFirst(GroupWriteStart);
 
 		if(IsFree)
 		{

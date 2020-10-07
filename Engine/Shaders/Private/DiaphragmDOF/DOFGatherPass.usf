@@ -268,7 +268,7 @@ void GatherMainCS(
 			bDoFastGathering = TileSuggestion.bCanDofastGathering;
 
 		#elif COMPILER_SUPPORTS_WAVE_VOTE
-			bDoFastGathering = WaveAllTrue(TileSuggestion.bCanDofastGathering || bSkipGathering);
+			bDoFastGathering = WaveActiveAllTrue(TileSuggestion.bCanDofastGathering || bSkipGathering);
 
 		#else
 			RequiresAccurateGather = 0;

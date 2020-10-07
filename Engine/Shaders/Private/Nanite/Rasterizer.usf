@@ -235,7 +235,7 @@ void RasterizeTri(
 	float ZY = Z0;
 
 #if COMPILER_SUPPORTS_WAVE_VOTE
-	bool bScanLine = WaveAnyTrue( MaxPixel.x - MinPixel.x > 4 );
+	bool bScanLine = WaveActiveAnyTrue( MaxPixel.x - MinPixel.x > 4 );
 #else
 	bool bScanLine = false;
 #endif
@@ -826,7 +826,7 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 	GroupMemoryBarrierWithGroupSync();
 
 	uint VisibleIndex = 0;
-	if (WaveOnce())
+	if (WaveIsFirstLane())
 	{
 		// Avoid per thread reads from LDS.
 		VisibleIndex = ReadLDS_UInt(0, SCRATCH_CLUSTER_INDEX);
@@ -995,7 +995,7 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 	uint4 TriangleReferenceBlock;
 	uint4 VertexReferenceBlocks[2];
 	
-	if (WaveOnce())
+	if (WaveIsFirstLane())
 	{
 		TriangleReferenceBlock   = ReadLDS_UInt4(0, SCRATCH_TRIANGLE_REFS);
 		VertexReferenceBlocks[0] = ReadLDS_UInt4(0, SCRATCH_VERTEX_REFS);

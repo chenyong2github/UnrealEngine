@@ -949,7 +949,7 @@ void CandidateCull(
 	uint ScalarInstanceId = ToScalarMemory(VisibleCluster.InstanceId);
 	
 	// If all pixels happen to hit the same instance we can scalarize the instance dependent parts of the code
-	if (WaveAllTrue(VisibleCluster.InstanceId == ScalarInstanceId))
+	if (WaveActiveAllTrue(VisibleCluster.InstanceId == ScalarInstanceId))
 	{
 		CandidateCullInner(VisibleCluster, ScalarInstanceId, CandidateIndex, GroupIndex);
 	}

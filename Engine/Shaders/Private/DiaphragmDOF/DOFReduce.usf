@@ -389,11 +389,11 @@ void ReduceCS(
 		#if SCATTER_ALLOC_METHOD == SCATTER_ALLOC_METHOD_WAVE
 		{
 			#if DIM_HYBRID_SCATTER_FGD
-				ForegroundScatterGroupMask = WaveAllBitOr((bScatterThisColor && bIsForeground) ? ScatteringGroupMask : 0);
+				ForegroundScatterGroupMask = WaveActiveBitOr((bScatterThisColor && bIsForeground) ? ScatteringGroupMask : 0);
 			#endif
 			
 			#if DIM_HYBRID_SCATTER_BGD
-				BackgroundScatterGroupMask = WaveAllBitOr((bScatterThisColor && !bIsForeground) ? ScatteringGroupMask : 0);
+				BackgroundScatterGroupMask = WaveActiveBitOr((bScatterThisColor && !bIsForeground) ? ScatteringGroupMask : 0);
 			#endif
 		}
 		#elif SCATTER_ALLOC_METHOD == SCATTER_ALLOC_METHOD_ATOMIC

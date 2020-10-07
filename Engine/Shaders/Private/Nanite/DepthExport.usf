@@ -45,7 +45,7 @@ void DepthExport(uint3 PixelPos : SV_DispatchThreadID)
 
 	// Calculate the HTile tile index once per wave (scalar optimization)
 	uint TileIndex = 0;
-	if (WaveActiveOnce())
+	if (WaveIsFirstLane())
 	{
 		const uint PlatformConfig	= DepthExportConfig.x;
 		const uint PixelsWide		= DepthExportConfig.y;
@@ -70,7 +70,7 @@ void DepthExport(uint3 PixelPos : SV_DispatchThreadID)
 	// pixels. This is an optimization of course, but it also will preserve
 	// existing plane equation compression for scene depth tiles rasterized
 	// outside of Nanite.
-	const bool TileHasNanite = WaveAnyTrue(VisibleClusterIndex != 0xFFFFFFFF);
+	const bool TileHasNanite = WaveActiveAnyTrue(VisibleClusterIndex != 0xFFFFFFFF);
 	if (TileHasNanite)
 	{
 		float SceneDepthValue = SceneDepth[PixelPos.xy];
@@ -102,13 +102,13 @@ void DepthExport(uint3 PixelPos : SV_DispatchThreadID)
 
 		GroupMemoryBarrierWithGroupSync();
 
-		const float TileMinSceneDepth = WaveAllMin(SceneDepthValue);
-		const float TileMaxSceneDepth = WaveAllMax(SceneDepthValue);
+		const float TileMinSceneDepth = WaveActiveAllMin(SceneDepthValue);
+		const float TileMaxSceneDepth = WaveActiveAllMax(SceneDepthValue);
 
-		const float TileMinMaterialDepth = WaveAllMin(MaterialDepthValue);
-		const float TileMaxMaterialDepth = WaveAllMax(MaterialDepthValue);
+		const float TileMinMaterialDepth = WaveActiveAllMin(MaterialDepthValue);
+		const float TileMaxMaterialDepth = WaveActiveAllMax(MaterialDepthValue);
 
-		if (WaveActiveOnce())
+		if (WaveIsFirstLane())
 		{
 			SceneHTile[TileIndex] = EncodeTileMinMaxDepth(TileMinSceneDepth, TileMaxSceneDepth);
 			MaterialHTile[TileIndex] = EncodeTileMinMaxDepth(TileMinMaterialDepth, TileMaxMaterialDepth);
@@ -126,10 +126,10 @@ void DepthExport(uint3 PixelPos : SV_DispatchThreadID)
 		bool bThisLaneActive     = true;
 		while (bThisLaneActive)
 		{
-			if (MaterialBucketId == WaveReadFirstLane(MaterialBucketId))
+			if (MaterialBucketId == WaveReadLaneFirst(MaterialBucketId))
 			{
-				uint ActiveVisibleMaterialMask = WaveAllBitOr(VisibleMaterialMask);
-				if (ThisLaneIndex == WaveGetFirstActiveLaneIndex())
+				uint ActiveVisibleMaterialMask = WaveActiveBitOr(VisibleMaterialMask);
+				if (ThisLaneIndex == WaveGetActiveLaneIndexFirst())
 				{
 					InterlockedOr(VisibleMaterials[MaterialBucketId], ActiveVisibleMaterialMask);
 				}
@@ -137,7 +137,7 @@ void DepthExport(uint3 PixelPos : SV_DispatchThreadID)
 			}
 		}
 	}
-	else if (WaveActiveOnce())
+	else if (WaveIsFirstLane())
 	{
 		MaterialHTile[TileIndex] = EncodeTileMinMaxDepth(0.0f, 0.0f);
 	}

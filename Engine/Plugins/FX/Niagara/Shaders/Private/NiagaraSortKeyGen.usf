@@ -116,7 +116,7 @@ void CullingEpilogue(in bool bCulled, in uint GroupTID)
 
 #if USE_WAVE_INTRINSICS
 	uint CullWaveCount = WaveActiveCountBits(!bCulled);
-	if (WaveOnce())
+	if (WaveIsFirstLane())
 	{
 		InterlockedAdd(OutCulledParticleCounts[CountOffset], CullWaveCount);
 	}

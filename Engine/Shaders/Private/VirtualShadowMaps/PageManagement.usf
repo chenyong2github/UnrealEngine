@@ -328,7 +328,7 @@ void MarkPage(uint VirtualShadowMapId, uint MipLevel, FScreenPixelData Pixel)
 		// Reduce any lanes that want to scatter to the same lane as the first across wave and issue single atomic
 		// Any lanes that don't match the first issue separate atomics
 		// This gets the vast majority of the benefits since the pages picked by a pixel are highly coherent
-		uint FirstLanePageOffset = WaveReadFirstLane(PageOffset);
+		uint FirstLanePageOffset = WaveReadLaneFirst(PageOffset);
 		bool MatchesFirstLane = (PageOffset == FirstLanePageOffset);
 		uint MatchesFirstLaneCount = WaveActiveCountBits(MatchesFirstLane);
 

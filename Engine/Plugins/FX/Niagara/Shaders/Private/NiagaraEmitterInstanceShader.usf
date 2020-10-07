@@ -555,7 +555,7 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 			uint PrefixCounts = WavePrefixCountBits(bDoAcquire);
 			if (NumCounters > 0)
 			{
-				if (WaveActiveOnce())
+				if (WaveIsFirstLane())
 				{
 					uint RetPrevIdx;
 					InterlockedAdd(RWInstanceCounts[WriteInstanceCountOffset], NumCounters, RetPrevIdx);
@@ -564,7 +564,7 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 
 				if (bDoAcquire)
 				{
-					PrevIdx = WaveReadFirstLane(PrevIdx);
+					PrevIdx = WaveReadLaneFirst(PrevIdx);
 					PrevIdx += PrefixCounts;
 				}
 			}	

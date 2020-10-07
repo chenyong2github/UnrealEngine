@@ -158,7 +158,7 @@ float4 MainMotionBlurCommon(float2 ColorUV, float2 ColorPixelPos)
 	// Only use fast path if all threads of the compute shader would.
 	#if COMPILER_SUPPORTS_WAVE_VOTE
 	{
-		bFastPath = WaveAllTrue(bFastPath);
+		bFastPath = WaveActiveAllTrue(bFastPath);
 	}
 	#elif COMPUTESHADER
 	{
