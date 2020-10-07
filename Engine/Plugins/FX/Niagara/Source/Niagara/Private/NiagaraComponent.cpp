@@ -296,6 +296,13 @@ FPrimitiveViewRelevance FNiagaraSceneProxy::GetViewRelevance(const FSceneView* V
 	}
 	Relevance.bDynamicRelevance = true;
 
+	Relevance.bRenderCustomDepth = ShouldRenderCustomDepth();
+	Relevance.bDrawRelevance = IsShown(View) && View->Family->EngineShowFlags.Particles;
+	Relevance.bShadowRelevance = IsShadowCast(View);
+	Relevance.bRenderInMainPass = ShouldRenderInMainPass();
+	Relevance.bUsesLightingChannels = GetLightingChannelMask() != GetDefaultLightingChannelMask();
+	Relevance.bTranslucentSelfShadow = bCastVolumetricTranslucentShadow;
+
 	for (FNiagaraRenderer* Renderer : EmitterRenderers)
 	{
 		if (Renderer)
