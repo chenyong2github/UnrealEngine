@@ -654,13 +654,13 @@ FProcState::~FProcState()
 		if (bIsRunning)
 		{
 			// Warn the users before going into what may be a very long block
-			UE_LOG(LogHAL, Warning, TEXT("Closing a process handle while the process (pid=%d) is still running - we will block until it exits to prevent a zombie"),
+			UE_LOG(LogHAL, Log, TEXT("Closing a process handle while the process (pid=%d) is still running - we will block until it exits to prevent a zombie"),
 				GetProcessId()
 			);
 		}
 		else if (!bHasBeenWaitedFor)	// if child is not running, but has not been waited for, still communicate a problem, but we shouldn't be blocked for long in this case.
 		{
-			UE_LOG(LogHAL, Warning, TEXT("Closing a process handle of a process (pid=%d) that has not been wait()ed for - will wait() now to reap a zombie"),
+			UE_LOG(LogHAL, Log, TEXT("Closing a process handle of a process (pid=%d) that has not been wait()ed for - will wait() now to reap a zombie"),
 				GetProcessId()
 			);
 		}
@@ -670,7 +670,7 @@ FProcState::~FProcState()
 	else if (IsRunning())
 	{
 		// warn about leaking a thread ;/
-		UE_LOG(LogHAL, Warning, TEXT("Process (pid=%d) is still running - we will reap it in a waiter thread, but the thread handle is going to be leaked."),
+		UE_LOG(LogHAL, Log, TEXT("Process (pid=%d) is still running - we will reap it in a waiter thread, but the thread handle is going to be leaked."),
 				 GetProcessId()
 			);
 
