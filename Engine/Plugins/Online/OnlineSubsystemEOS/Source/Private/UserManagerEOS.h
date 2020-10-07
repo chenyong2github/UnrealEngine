@@ -311,6 +311,10 @@ PACKAGE_SCOPE:
 	FUniqueNetIdEOSPtr GetLocalUniqueNetIdEOS(int32 LocalUserNum) const;
 	FUniqueNetIdEOSPtr GetLocalUniqueNetIdEOS(EOS_ProductUserId UserId) const;
 	FUniqueNetIdEOSPtr GetLocalUniqueNetIdEOS(EOS_EpicAccountId AccountId) const;
+	FUniqueNetIdEOSPtr GetLocalUniqueNetIdEOS() const
+	{
+		return GetLocalUniqueNetIdEOS(GetDefaultLocalUser());
+	}
 
 	int32 GetLocalUserNumFromUniqueNetId(const FUniqueNetId& NetId) const;
 
@@ -335,7 +339,7 @@ PACKAGE_SCOPE:
 	void FriendStatusChanged(const EOS_Friends_OnFriendsUpdateInfo* Data);
 	void LoginStatusChanged(const EOS_Auth_LoginStatusChangedCallbackInfo* Data);
 
-	int32 GetDefaultLocalUser() { return DefaultLocalUser; }
+	int32 GetDefaultLocalUser() const { return DefaultLocalUser; }
 
 private:
 	void RemoveLocalUser(int32 LocalUserNum);
