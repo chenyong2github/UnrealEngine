@@ -17,8 +17,6 @@
 #include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorCanvasNode.h"
 #include "Interfaces/Views/OutputMapping/IDisplayClusterConfiguratorOutputMappingSlot.h"
 
-#include "SDisplayClusterConfiguratorGraphEditor.h"
-
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
