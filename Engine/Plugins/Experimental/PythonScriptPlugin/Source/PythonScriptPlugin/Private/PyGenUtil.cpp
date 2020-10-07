@@ -1636,6 +1636,7 @@ FString PythonizeName(const FString& InName, const EPythonizeNameCase InNameCase
 		TEXT("and"),
 		TEXT("as"),
 		TEXT("assert"),
+		TEXT("async"),
 		TEXT("break"),
 		TEXT("class"),
 		TEXT("continue"),
