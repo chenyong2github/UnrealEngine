@@ -1103,9 +1103,14 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 	}
 
 	{
-		FRHIUnorderedAccessView* UAVs[] = { ClusterPageData.DataBuffer.UAV, ClusterPageHeaders.DataBuffer.UAV, Hierarchy.DataBuffer.UAV };
-		GraphBuilder.RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, UAVs, UE_ARRAY_COUNT(UAVs));
-
+		FRHITransitionInfo Transitions[3] =
+		{
+			FRHITransitionInfo(ClusterPageData.DataBuffer.UAV,		ERHIAccess::Unknown, ERHIAccess::UAVCompute),
+			FRHITransitionInfo(ClusterPageHeaders.DataBuffer.UAV,	ERHIAccess::Unknown, ERHIAccess::UAVCompute),
+			FRHITransitionInfo(Hierarchy.DataBuffer.UAV,			ERHIAccess::Unknown, ERHIAccess::UAVCompute)
+		};
+		GraphBuilder.RHICmdList.Transition(Transitions);
+		
 		Hierarchy.TotalUpload = 0;
 		Hierarchy.UploadBuffer.ResourceUploadTo(GraphBuilder.RHICmdList, Hierarchy.DataBuffer, false);
 		ClusterPageHeaders.UploadBuffer.ResourceUploadTo(GraphBuilder.RHICmdList, ClusterPageHeaders.DataBuffer, false);
@@ -1640,9 +1645,15 @@ void FStreamingManager::EndAsyncUpdate(FRHICommandListImmediate& RHICmdList)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UploadPages);
 
+		if(!AsyncState.bBuffersTransitionedToWrite)
 		{
-			FRHIUnorderedAccessView* UAVs[] = { ClusterPageData.DataBuffer.UAV, ClusterPageHeaders.DataBuffer.UAV, Hierarchy.DataBuffer.UAV };
-			RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, UAVs, UE_ARRAY_COUNT(UAVs));
+			FRHITransitionInfo Transitions[3] =
+			{
+				FRHITransitionInfo(ClusterPageData.DataBuffer.UAV,		ERHIAccess::Unknown, ERHIAccess::UAVCompute),
+				FRHITransitionInfo(ClusterPageHeaders.DataBuffer.UAV,	ERHIAccess::Unknown, ERHIAccess::UAVCompute),
+				FRHITransitionInfo(Hierarchy.DataBuffer.UAV,			ERHIAccess::Unknown, ERHIAccess::UAVCompute)
+			};
+			RHICmdList.Transition(Transitions);
 		}
 
 		PageUploader->ResourceUploadTo(RHICmdList, ClusterPageData.DataBuffer);
@@ -1651,10 +1662,7 @@ void FStreamingManager::EndAsyncUpdate(FRHICommandListImmediate& RHICmdList)
 		Hierarchy.UploadBuffer.ResourceUploadTo(RHICmdList, Hierarchy.DataBuffer, false);
 
 		// NOTE: We need an additional barrier here to make sure pages are finished uploading before fixups can be applied.
-		{
-			FRHIUnorderedAccessView* UAVs[] = { ClusterPageData.DataBuffer.UAV };
-			RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, UAVs, UE_ARRAY_COUNT(UAVs));
-		}
+		RHICmdList.Transition(FRHITransitionInfo(ClusterPageData.DataBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
 		ClusterFixupUploadBuffer.ResourceUploadTo(RHICmdList, ClusterPageData.DataBuffer, false);
 		
 		NumPendingPages -= AsyncState.NumReadyPages;
@@ -1664,8 +1672,14 @@ void FStreamingManager::EndAsyncUpdate(FRHICommandListImmediate& RHICmdList)
 	// Transition resource back to read
 	if(AsyncState.bBuffersTransitionedToWrite)
 	{
-		FRHIUnorderedAccessView* UAVs[] = { Hierarchy.DataBuffer.UAV , ClusterPageData.DataBuffer.UAV, ClusterPageHeaders.DataBuffer.UAV };
-		RHICmdList.TransitionResources( EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, UAVs, UE_ARRAY_COUNT(UAVs) );
+		FRHITransitionInfo Transitions[3] =
+		{
+			FRHITransitionInfo(ClusterPageData.DataBuffer.UAV,		ERHIAccess::UAVCompute, ERHIAccess::SRVMask),
+			FRHITransitionInfo(ClusterPageHeaders.DataBuffer.UAV,	ERHIAccess::UAVCompute, ERHIAccess::SRVMask),
+			FRHITransitionInfo(Hierarchy.DataBuffer.UAV,			ERHIAccess::UAVCompute, ERHIAccess::SRVMask)
+		};
+		RHICmdList.Transition(Transitions);
+
 		AsyncState.bBuffersTransitionedToWrite = false;
 	}
 
