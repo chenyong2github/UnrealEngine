@@ -46,6 +46,7 @@ class DeviceUnreal(Device):
         self.unreal_client.program_kill_failed_delegate = self.on_program_kill_failed
         self.unreal_client.receive_file_completed_delegate = self.on_file_received
         self.unreal_client.receive_file_failed_delegate = self.on_file_receive_failed
+        self.unreal_client.delegates["state"] = self.on_listener_state
 
         self._remote_programs_start_queue = {} # key: message_id, name
         self._running_remote_program_names = {} # key: program id, value: program name
@@ -132,8 +133,9 @@ class DeviceUnreal(Device):
         p4_path = CONFIG.P4_PATH.get_value()
         args = f'-F "%change%" -c {client_name} cstat {p4_path}/...#have'
 
-        mid, msg = message_protocol.create_start_process_message("p4", args)
-        self._remote_programs_start_queue[mid] = "cstat"
+        program_name = "cstat"
+        mid, msg = message_protocol.create_start_process_message("p4", args, program_name)
+        self._remote_programs_start_queue[mid] = program_name
 
         self.unreal_client.send_message(msg)
 
@@ -160,8 +162,9 @@ class DeviceUnreal(Device):
             sync_args = f"-c{workspace} sync {p4_path}/...@{changelist}"
 
         LOGGER.info(f"{self.name}: Sending sync command: {sync_tool} {sync_args}")
-        mid, msg = message_protocol.create_start_process_message(sync_tool, sync_args)
-        self._remote_programs_start_queue[mid] = "sync"
+        program_name = "sync"
+        mid, msg = message_protocol.create_start_process_message(sync_tool, sync_args, program_name)
+        self._remote_programs_start_queue[mid] = program_name
         self.unreal_client.send_message(msg)
         self.status = DeviceStatus.SYNCING
 
@@ -173,8 +176,9 @@ class DeviceUnreal(Device):
         engine_path = CONFIG.ENGINE_DIR.get_value(self.name)
         build_tool = os.path.join(engine_path, "Binaries", "DotNET", "UnrealBuildTool")
         build_args = f"UE4Editor Win64 Development {CONFIG.UPROJECT_PATH.get_value(self.name)} -progress"
-        mid, msg = message_protocol.create_start_process_message(build_tool, build_args)
-        self._remote_programs_start_queue[mid] = "build"
+        program_name = "build"
+        mid, msg = message_protocol.create_start_process_message(build_tool, build_args, program_name)
+        self._remote_programs_start_queue[mid] = program_name
         LOGGER.info(f"{self.name}: Sending build command: {build_tool} {build_args}")
         self.unreal_client.send_message(msg)
         self.status = DeviceStatus.BUILDING
@@ -219,8 +223,10 @@ class DeviceUnreal(Device):
         engine_path, args = self.generate_unreal_command_line(map_name)
         LOGGER.info(f"Launching UE4: {engine_path} {args}")
 
-        mid, msg = message_protocol.create_start_process_message(engine_path, args)
-        self._remote_programs_start_queue[mid] = "unreal"
+        program_name = "unreal"
+
+        mid, msg = message_protocol.create_start_process_message(engine_path, args, program_name)
+        self._remote_programs_start_queue[mid] = program_name
 
         self.unreal_client.send_message(msg)
 
@@ -228,15 +234,19 @@ class DeviceUnreal(Device):
         if unexpected:
             self.device_qt_handler.signal_device_client_disconnected.emit(self)
 
-    def on_program_started(self, program_id, message_id):
-        program_name = self._remote_programs_start_queue.pop(message_id)
-        LOGGER.info(f"{self.name}: {program_name} with id {program_id} was successfully started")
+    def do_program_running_update(self, program_name, program_id):
+
         if program_name == "unreal":
             self.status = DeviceStatus.OPEN
             self.send_osc_message(osc.OSC_ADD_SEND_TARGET, [SETTINGS.IP_ADDRESS, CONFIG.OSC_SERVER_PORT])
 
         self._running_remote_program_names[program_id] = program_name
         self._running_remote_program_ids[program_name] = program_id
+
+    def on_program_started(self, program_id, message_id):
+        program_name = self._remote_programs_start_queue.pop(message_id)
+        LOGGER.info(f"{self.name}: {program_name} with id {program_id} was successfully started")
+        self.do_program_running_update(program_name=program_name, program_id=program_id)
 
     def on_program_start_failed(self, error, message_id):
         program_name = self._remote_programs_start_queue.pop(message_id)
@@ -306,6 +316,18 @@ class DeviceUnreal(Device):
         if len(roles) > 0:
             LOGGER.error(f"{self.name}: Error receiving role file from listener and device claims to have these roles: {' | '.join(roles)}")
             LOGGER.error(f"Error: {error}")
+
+    def on_listener_state(self, message):
+        ''' Message expected to be received upon connection with the listener.
+        It contains the state of the listener. Particularly useful when Switchboard
+        reconnects.
+        '''
+        
+        for process in message['runningProcesses']:
+            program_name = process['name']
+            program_id = process['uuid']
+            self.do_program_running_update(program_name=program_name, program_id=program_id)
+        
 
     def transport_paths(self, device_recording):
         """

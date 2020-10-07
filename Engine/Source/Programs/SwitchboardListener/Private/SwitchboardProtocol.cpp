@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SwitchboardProtocol.h"
+
+#include "SwitchboardPacket.h"
 #include "SwitchboardTasks.h"
 #include "SyncStatus.h"
 
@@ -126,7 +128,6 @@ FString CreateSendFileToClientFailedMessage(const FString& InSourcePath, const F
 	return CreateMessage(TEXT("receive file complete"), false, { { TEXT("source"), InSourcePath }, { TEXT("error"), InError } });
 }
 
-
 bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndpoint, TUniquePtr<FSwitchboardTask>& OutTask)
 {
 	TSharedRef<TJsonReader<TCHAR>> Reader = FJsonStringReader::Create(InCommand);
@@ -155,8 +156,9 @@ bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndp
 	{
 		TSharedPtr<FJsonValue> ExeField = JsonData->TryGetField(TEXT("exe"));
 		TSharedPtr<FJsonValue> ArgsField = JsonData->TryGetField(TEXT("args"));
+		TSharedPtr<FJsonValue> NameField = JsonData->TryGetField(TEXT("name"));
 
-		OutTask = MakeUnique<FSwitchboardStartTask>(MessageID, InEndpoint, ExeField->AsString(), ArgsField->AsString());
+		OutTask = MakeUnique<FSwitchboardStartTask>(MessageID, InEndpoint, ExeField->AsString(), ArgsField->AsString(), NameField->AsString());
 		return true;
 	}
 	else if (CommandName == TEXT("kill"))
