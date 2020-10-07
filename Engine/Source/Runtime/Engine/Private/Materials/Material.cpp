@@ -3823,6 +3823,7 @@ void UMaterial::PropagateDataToMaterialProxy()
 {
 	UpdateMaterialRenderProxy(*DefaultMaterialInstance);
 }
+
 #if WITH_EDITOR
 void UMaterial::BeginCacheForCookedPlatformData( const ITargetPlatform *TargetPlatform )
 {
@@ -3876,15 +3877,13 @@ bool UMaterial::IsCachedCookedPlatformDataLoaded( const ITargetPlatform* TargetP
 void UMaterial::ClearCachedCookedPlatformData( const ITargetPlatform *TargetPlatform )
 {
 	// Make sure that all CacheShaders render thead commands are finished before we destroy FMaterialResources.
+	// TODO - is this needed, since we're using DeferredDeleteArray now?
 	FlushRenderingCommands();
 
 	TArray<FMaterialResource*> *CachedMaterialResourcesForPlatform = CachedMaterialResourcesForCooking.Find( TargetPlatform );
-	if ( CachedMaterialResourcesForPlatform != NULL )
+	if ( CachedMaterialResourcesForPlatform != nullptr)
 	{
-		for (int32 CachedResourceIndex = 0; CachedResourceIndex < CachedMaterialResourcesForPlatform->Num(); CachedResourceIndex++)
-		{
-			delete (*CachedMaterialResourcesForPlatform)[CachedResourceIndex];
-		}
+		FMaterial::DeferredDeleteArray(*CachedMaterialResourcesForPlatform);
 	}
 	CachedMaterialResourcesForCooking.Remove( TargetPlatform );
 }
@@ -3892,19 +3891,18 @@ void UMaterial::ClearCachedCookedPlatformData( const ITargetPlatform *TargetPlat
 void UMaterial::ClearAllCachedCookedPlatformData()
 {
 	// Make sure that all CacheShaders render thead commands are finished before we destroy FMaterialResources.
+	// TODO - is this needed, since we're using DeferredDeleteArray now?
 	FlushRenderingCommands();
 
-	for ( auto It : CachedMaterialResourcesForCooking )
+	for ( auto& It : CachedMaterialResourcesForCooking )
 	{
 		TArray<FMaterialResource*> &CachedMaterialResourcesForPlatform = It.Value;
-		for (int32 CachedResourceIndex = 0; CachedResourceIndex < CachedMaterialResourcesForPlatform.Num(); CachedResourceIndex++)
-		{
-			delete (CachedMaterialResourcesForPlatform)[CachedResourceIndex];
-		}
+		FMaterial::DeferredDeleteArray(CachedMaterialResourcesForPlatform);
 	}
 	CachedMaterialResourcesForCooking.Empty();
 }
-#endif
+#endif // WITH_EDITOR
+
 #if WITH_EDITOR
 bool UMaterial::CanEditChange(const FProperty* InProperty) const
 {
