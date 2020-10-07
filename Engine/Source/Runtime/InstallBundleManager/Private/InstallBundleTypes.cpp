@@ -11,6 +11,7 @@ const TCHAR* LexToString(EInstallBundleSourceType Type)
 	static const TCHAR* Strings[] =
 	{
 		TEXT("Bulk"),
+		TEXT("Launcher"),
 		TEXT("BuildPatchServices"),
 #if WITH_PLATFORM_INSTALL_BUNDLE_SOURCE
 		TEXT("Platform"),
