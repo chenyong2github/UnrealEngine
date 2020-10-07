@@ -148,6 +148,8 @@ namespace Chaos
 			void Add(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth, int32 LODIndex);
 			void Remove(FClothingSimulationSolver* Solver);
 
+			void Update(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth);
+
 			void Enable(FClothingSimulationSolver* Solver, bool bEnable) const;
 
 			void ResetStartPose(FClothingSimulationSolver* Solver) const;
