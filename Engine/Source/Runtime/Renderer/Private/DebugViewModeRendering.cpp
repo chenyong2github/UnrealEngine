@@ -92,27 +92,9 @@ IMPLEMENT_MATERIAL_SHADER_TYPE(,FDebugViewModeVS,TEXT("/Engine/Private/DebugView
 IMPLEMENT_MATERIAL_SHADER_TYPE(,FDebugViewModeHS,TEXT("/Engine/Private/DebugViewModeVertexShader.usf"),TEXT("MainHull"),SF_Hull);	
 IMPLEMENT_MATERIAL_SHADER_TYPE(,FDebugViewModeDS,TEXT("/Engine/Private/DebugViewModeVertexShader.usf"),TEXT("MainDomain"),SF_Domain);
 
-ENGINE_API bool GetDebugViewMaterial(const UMaterialInterface* InMaterialInterface, EDebugViewShaderMode InDebugViewMode, ERHIFeatureLevel::Type InFeatureLevel,const FMaterialRenderProxy*& OutMaterialRenderProxy, const FMaterial*& OutMaterial);
-
-
 bool FDebugViewModeVS::ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 {
-	if (AllowDebugViewVSDSHS(Parameters.Platform))
-	{
-		// If it comes from FDebugViewModeMaterialProxy, compile it.
-		if (Parameters.MaterialParameters.bIsMaterialDebugViewMode)
-		{
-			return true;
-		}
-		// Otherwise we only cache it if this for the shader complexity.
-		else if (GCacheShaderComplexityShaders)
-		{
-			return !FDebugViewModeInterface::AllowFallbackToDefaultMaterial(Parameters.MaterialParameters.TessellationMode,
-				Parameters.MaterialParameters.bHasVertexPositionOffsetConnected,
-				Parameters.MaterialParameters.bHasPixelDepthOffsetConnected) || Parameters.MaterialParameters.bIsDefaultMaterial;
-		}
-	}
-	return false;
+	return AllowDebugViewVSDSHS(Parameters.Platform) && EnumHasAllFlags(Parameters.Flags, EShaderPermutationFlags::HasEditorOnlyData);
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FDebugViewModePassParameters, )
@@ -227,54 +209,50 @@ FDebugViewModeMeshProcessor::FDebugViewModeMeshProcessor(
 	}
 }
 
+void AddDebugViewModeShaderTypes(ERHIFeatureLevel::Type FeatureLevel,
+	EMaterialTessellationMode MaterialTessellationMode,
+	const FVertexFactoryType* VertexFactoryType,
+	FMaterialShaderTypes& OutShaderTypes)
+{
+	const bool bNeedsHSDS = RHISupportsTessellation(GShaderPlatformForFeatureLevel[FeatureLevel])
+		&& VertexFactoryType->SupportsTessellationShaders()
+		&& MaterialTessellationMode != MTM_NoTessellation;
+
+	OutShaderTypes.AddShaderType<FDebugViewModeVS>();
+	if (bNeedsHSDS)
+	{
+		OutShaderTypes.AddShaderType<FDebugViewModeDS>();
+		OutShaderTypes.AddShaderType<FDebugViewModeHS>();
+	}
+}
+
 void FDebugViewModeMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId)
 {
-	const FMaterial* BatchMaterial = MeshBatch.MaterialRenderProxy->GetMaterialNoFallback(FeatureLevel);
-
-	if (!DebugViewModeInterface || !BatchMaterial)
+	if (!DebugViewModeInterface)
 	{
 		return;
 	}
 
-	const UMaterialInterface* ResolvedMaterial = MeshBatch.MaterialRenderProxy->GetMaterialInterface();
-	if (!DebugViewModeInterface->bNeedsMaterialProperties && FDebugViewModeInterface::AllowFallbackToDefaultMaterial(BatchMaterial))
-	{
-		ResolvedMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
-	}
-
-	const FMaterialRenderProxy* MaterialRenderProxy = nullptr;
-	const FMaterial* Material = nullptr;
-
-	if (DebugViewMode == DVSM_ShaderComplexity && GCacheShaderComplexityShaders)
-	{
-		Material = ResolvedMaterial->GetMaterialResource(FeatureLevel);
-		MaterialRenderProxy  = ResolvedMaterial->GetRenderProxy();
-
-		if (!Material || !MaterialRenderProxy || !Material->HasValidGameThreadShaderMap() ||  !Material->GetRenderingThreadShaderMap())
-		{
-			return;
-		}
-	}
-	else if (!GetDebugViewMaterial(ResolvedMaterial, DebugViewMode, FeatureLevel, MaterialRenderProxy, Material))
+	const FMaterialRenderProxy* MaterialRenderProxy = MeshBatch.MaterialRenderProxy;
+	const FMaterial* BatchMaterial = MaterialRenderProxy->GetMaterialNoFallback(FeatureLevel);
+	if (!BatchMaterial)
 	{
 		return;
+	}
+
+	const FMaterial* Material = BatchMaterial;
+	if (!DebugViewModeInterface->bNeedsMaterialProperties && FDebugViewModeInterface::AllowFallbackToDefaultMaterial(Material))
+	{
+		MaterialRenderProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+		Material = MaterialRenderProxy->GetMaterialNoFallback(FeatureLevel);
+		check(Material);
 	}
 
 	FVertexFactoryType* VertexFactoryType = MeshBatch.VertexFactory->GetType();
-
 	const EMaterialTessellationMode MaterialTessellationMode = Material->GetTessellationMode();
-	const bool bNeedsHSDS = RHISupportsTessellation(GShaderPlatformForFeatureLevel[FeatureLevel])
-			&& VertexFactoryType->SupportsTessellationShaders()
-			&& MaterialTessellationMode != MTM_NoTessellation;
 
 	FMaterialShaderTypes ShaderTypes;
-	ShaderTypes.AddShaderType<FDebugViewModeVS>();
-	if (bNeedsHSDS)
-	{
-		ShaderTypes.AddShaderType<FDebugViewModeDS>();
-		ShaderTypes.AddShaderType<FDebugViewModeHS>();
-	}
-	DebugViewModeInterface->AddShaderTypes(FeatureLevel, ShaderTypes);
+	DebugViewModeInterface->AddShaderTypes(FeatureLevel, MaterialTessellationMode, VertexFactoryType, ShaderTypes);
 
 	FMaterialShaders Shaders;
 	if (!Material->TryGetShaders(ShaderTypes, VertexFactoryType, Shaders))
@@ -311,7 +289,7 @@ void FDebugViewModeMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBa
 		ViewModeParamName);
 
 	// Shadermap can be null while shaders are compiling.
-	if (DebugViewModeInterface->bNeedsInstructionCount && BatchMaterial->GetRenderingThreadShaderMap())
+	if (DebugViewModeInterface->bNeedsInstructionCount)
 	{
 		UpdateInstructionCount(ShaderElementData, BatchMaterial, VertexFactoryType);
 	}

@@ -119,6 +119,7 @@ public:
 		const FMaterial* Material,
 		FSharedShaderCompilerEnvironment* MaterialEnvironment,
 		EShaderPlatform Platform,
+		EShaderPermutationFlags PermutationFlags,
 		TArray<TRefCountPtr<FShaderCommonCompileJob>>& NewJobs,
 		const FString& DebugDescription,
 		const FString& DebugExtension
@@ -128,6 +129,7 @@ public:
 		EShaderCompileJobPriority Priority,
 		uint32 ShaderMapId,
 		EShaderPlatform Platform,
+		EShaderPermutationFlags PermutationFlags,
 		const FMaterial* Material,
 		FSharedShaderCompilerEnvironment* MaterialEnvironment,
 		const FShaderPipelineType* ShaderPipeline,
@@ -155,16 +157,16 @@ public:
 	 * @param Material - The material to check.
 	 * @return True if this shader type should be cached.
 	 */
-	bool ShouldCompilePermutation(EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, int32 PermutationId) const;
+	bool ShouldCompilePermutation(EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, int32 PermutationId, EShaderPermutationFlags Flags) const;
 
-	static bool ShouldCompilePipeline(const FShaderPipelineType* ShaderPipelineType, EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters);
+	static bool ShouldCompilePipeline(const FShaderPipelineType* ShaderPipelineType, EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, EShaderPermutationFlags Flags);
 
 	/**
 	 * Sets up the environment used to compile an instance of this shader type.
 	 * @param Platform - Platform to compile for.
 	 * @param Environment - The shader compile environment that the function modifies.
 	 */
-	void SetupCompileEnvironment(EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, int32 PermutationId, FShaderCompilerEnvironment& Environment) const;
+	void SetupCompileEnvironment(EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, int32 PermutationId, EShaderPermutationFlags Flags, FShaderCompilerEnvironment& Environment) const;
 };
 
 struct FMaterialShaderTypes

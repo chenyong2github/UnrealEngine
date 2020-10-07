@@ -23,6 +23,7 @@
 class FShaderCompileJob;
 class FShaderPipelineCompileJob;
 class FVertexFactoryType;
+class FMaterialShaderMap;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogShaderCompilers, Log, All);
 
@@ -30,6 +31,13 @@ class FShaderCompileJob;
 class FShaderPipelineCompileJob;
 
 #define DEBUG_INFINITESHADERCOMPILE 0
+
+enum class EShaderCompilerWorkerType : uint8
+{
+	None,
+	LocalThread,
+	XGE,
+};
 
 enum class EShaderCompileJobType : uint8
 {
@@ -51,10 +59,45 @@ enum class EShaderCompileJobPriority : uint8
 };
 static const int32 NumShaderCompileJobPriorities = (int32)EShaderCompileJobPriority::Num;
 
+inline const TCHAR* ShaderCompileJobPriorityToString(EShaderCompileJobPriority v)
+{
+	switch (v)
+	{
+	case EShaderCompileJobPriority::None: return TEXT("None");
+	case EShaderCompileJobPriority::Low: return TEXT("Low");
+	case EShaderCompileJobPriority::Normal: return TEXT("Normal");
+	case EShaderCompileJobPriority::High: return TEXT("High");
+	case EShaderCompileJobPriority::ForceLocal: return TEXT("ForceLocal");
+	default: checkNoEntry(); return TEXT("");
+	}
+}
+
+/** Results for a single compiled shader map. */
+struct FShaderMapCompileResults
+{
+	FShaderMapCompileResults() :
+		bAllJobsSucceeded(true),
+		bSkipResultProcessing(false)
+	{}
+
+	TArray<TRefCountPtr<class FShaderCommonCompileJob>> FinishedJobs;
+	FThreadSafeCounter NumPendingJobs;
+	bool bAllJobsSucceeded;
+	bool bSkipResultProcessing;
+};
+
+struct FPendingShaderMapCompileResults
+	: public FShaderMapCompileResults
+	, public FRefCountBase
+{};
+using FPendingShaderMapCompileResultsPtr = TRefCountPtr<FPendingShaderMapCompileResults>;
+
 /** Stores all of the common information used to compile a shader or pipeline. */
 class FShaderCommonCompileJob : public TIntrusiveLinkedList<FShaderCommonCompileJob>
 {
 public:
+	FPendingShaderMapCompileResultsPtr PendingShaderMap;
+
 	mutable FThreadSafeCounter NumRefs;
 	int32 JobIndex;
 	uint32 Hash;
@@ -65,6 +108,7 @@ public:
 	EShaderCompileJobType Type;
 	EShaderCompileJobPriority Priority;
 	EShaderCompileJobPriority PendingPriority;
+	EShaderCompilerWorkerType CurrentWorker;
 
 	/** true if the results of the shader compile have been processed. */
 	uint8 bFinalized : 1;
@@ -112,6 +156,7 @@ protected:
 		Type(InType),
 		Priority(InPriroity),
 		PendingPriority(EShaderCompileJobPriority::None),
+		CurrentWorker(EShaderCompilerWorkerType::None),
 		bFinalized(false),
 		bSucceeded(false)
 	{
@@ -249,9 +294,21 @@ public:
 		return NumPendingJobs[(int32)InPriority];
 	}
 
-	int32 GetNumPendingJobs();
+	inline int32 GetNumOutstandingJobs() const
+	{
+		return NumOutstandingJobs.GetValue();
+	}
 
-	int32 GetPendingJobs(EShaderCompileJobPriority InPriority, int32 NumJobsRequested, TArray<FShaderCommonCompileJobPtr>& OutJobs);
+	int32 GetNumPendingJobs() const;
+
+	int32 GetPendingJobs(EShaderCompilerWorkerType InWorkerType, EShaderCompileJobPriority InPriority, int32 MinNumJobs, int32 MaxNumJobs, TArray<FShaderCommonCompileJobPtr>& OutJobs);
+
+	inline int32 SubtractNumOutstandingJobs(int32 Value)
+	{
+		const int32 PrevNumOutstandingJobs = NumOutstandingJobs.Subtract(Value);
+		check(PrevNumOutstandingJobs >= Value);
+		return PrevNumOutstandingJobs - Value;
+	}
 
 private:
 	void InternalAddJob(FShaderCommonCompileJob* Job);
@@ -262,16 +319,23 @@ private:
 	int32 InternalFindJobIndex(uint32 InJobHash, uint32 InJobId, const KeyType& InKey) const
 	{
 		const int32 TypeIndex = (int32)JobType::Type;
+		uint32 CurrentPriorityIndex = 0u;
+		int32 CurrentIndex = INDEX_NONE;
 		for (int32 Index = JobHash[TypeIndex].First(InJobHash); JobHash[TypeIndex].IsValid(Index); Index = JobHash[TypeIndex].Next(Index))
 		{
 			const FShaderCommonCompileJob* Job = Jobs[TypeIndex][Index].GetReference();
 			check(Job->Type == JobType::Type);
-			if (Job->Id == InJobId && static_cast<const JobType*>(Job)->Key == InKey)
+
+			// We find the job that matches the key with the highest priority
+			if (Job->Id == InJobId &&
+				(uint32)Job->Priority >= CurrentPriorityIndex &&
+				static_cast<const JobType*>(Job)->Key == InKey)
 			{
-				return Index;
+				CurrentPriorityIndex = (uint32)Job->Priority;
+				CurrentIndex = Index;
 			}
 		}
-		return INDEX_NONE;
+		return CurrentIndex;
 	}
 
 	template<typename JobType, typename KeyType>
@@ -318,10 +382,13 @@ private:
 	FShaderCommonCompileJob* PendingJobs[NumShaderCompileJobPriorities];
 	int32 NumPendingJobs[NumShaderCompileJobPriorities];
 
+	/** Number of jobs currently being compiled.  This includes PendingJobs and any jobs that have been assigned to workers but aren't complete yet. */
+	FThreadSafeCounter NumOutstandingJobs;
+
 	TArray<FShaderCommonCompileJobPtr> Jobs[NumShaderCompileJobTypes];
 	TArray<int32> FreeIndices[NumShaderCompileJobTypes];
 	FHashTable JobHash[NumShaderCompileJobTypes];
-	FRWLock Lock;
+	mutable FRWLock Lock;
 };
 
 class FGlobalShaderTypeCompiler
@@ -330,12 +397,12 @@ public:
 	/**
 	* Enqueues compilation of a shader of this type.
 	*/
-	ENGINE_API static void BeginCompileShader(const FGlobalShaderType* ShaderType, int32 PermutationId, EShaderPlatform Platform, TArray<FShaderCommonCompileJobPtr>& NewJobs);
+	ENGINE_API static void BeginCompileShader(const FGlobalShaderType* ShaderType, int32 PermutationId, EShaderPlatform Platform, EShaderPermutationFlags PermutationFlags, TArray<FShaderCommonCompileJobPtr>& NewJobs);
 
 	/**
 	* Enqueues compilation of a shader pipeline of this type.
 	*/
-	ENGINE_API static void BeginCompileShaderPipeline(EShaderPlatform Platform, const FShaderPipelineType* ShaderPipeline, TArray<FShaderCommonCompileJobPtr>& NewJobs);
+	ENGINE_API static void BeginCompileShaderPipeline(EShaderPlatform Platform, EShaderPermutationFlags PermutationFlags, const FShaderPipelineType* ShaderPipeline, TArray<FShaderCommonCompileJobPtr>& NewJobs);
 
 	/** Either returns an equivalent existing shader of this type, or constructs a new instance. */
 	static FShader* FinishCompileShader(const FGlobalShaderType* ShaderType, const FShaderCompileJob& CompileJob, const FShaderPipelineType* ShaderPipelineType);
@@ -558,21 +625,6 @@ private:
 
 #endif // PLATFORM_WINDOWS
 
-/** Results for a single compiled shader map. */
-struct FShaderMapCompileResults
-{
-	FShaderMapCompileResults() :
-		NumPendingJobs(0),
-		bAllJobsSucceeded(true),
-		bSkipResultProcessing(false)
-	{}
-
-	int32 NumPendingJobs;
-	bool bAllJobsSucceeded;
-	TArray<FShaderCommonCompileJobPtr> FinishedJobs;
-	bool bSkipResultProcessing;
-};
-
 /** Results for a single compiled and finalized shader map. */
 using FShaderMapFinalizeResults = FShaderMapCompileResults;
 
@@ -641,18 +693,15 @@ private:
 
 	/** Tracks whether we are compiling while the game is running.  If true, we need to throttle down shader compiling CPU usage to avoid starving the runtime threads. */
 	bool bCompilingDuringGame;
-	/** Queue of tasks that haven't been assigned to a worker yet. */
-	TArray<FShaderCommonCompileJobPtr> CompileQueue[NumShaderCompileJobPriorities];
-	/** Map from shader map Id to the compile results for that map, used to gather compiled results. */
-	TMap<int32, FShaderMapCompileResults> ShaderMapJobs;
 
-	/** Number of jobs currently being compiled.  This includes CompileQueue and any jobs that have been assigned to workers but aren't complete yet. */
-	int32 NumOutstandingJobs;
+	/** Map from shader map Id to the compile results for that map, used to gather compiled results. */
+	TMap<int32, FPendingShaderMapCompileResultsPtr> ShaderMapJobs;
 
 	/** Number of jobs currently being compiled.  This includes CompileQueue and any jobs that have been assigned to workers but aren't complete yet. */
 	int32 NumExternalJobs;
 
 	void ReleaseJob(FShaderCommonCompileJobPtr& Job);
+	void ReleaseJob(FShaderCommonCompileJob* Job);
 
 	/** Critical section used to gain access to the variables above that are shared by both the main thread and the FShaderCompileThreadRunnable. */
 	FCriticalSection CompileQueueSection;
@@ -740,15 +789,8 @@ public:
 	
 	ENGINE_API FShaderCompilingManager();
 
-	int32 GetNumPendingJobs() const
-	{
-		int32 Num = 0;
-		for (int32 PriorityIndex = 0; PriorityIndex < NumShaderCompileJobPriorities; ++PriorityIndex)
-		{
-			Num += CompileQueue[PriorityIndex].Num();
-		}
-		return Num;
-	}
+	ENGINE_API int32 GetNumPendingJobs() const;
+	ENGINE_API int32 GetNumOutstandingJobs() const;
 
 	/** 
 	 * Returns whether to display a notification that shader compiling is happening in the background. 
@@ -757,7 +799,7 @@ public:
 	bool ShouldDisplayCompilingNotification() const 
 	{ 
 		// Heuristic based on the number of jobs outstanding
-		return NumOutstandingJobs > 80 || GetNumPendingJobs() > 80 || NumExternalJobs > 10;
+		return GetNumOutstandingJobs() > 80 || GetNumPendingJobs() > 80 || NumExternalJobs > 10;
 	}
 
 	bool AllowAsynchronousShaderCompiling() const 
@@ -771,7 +813,7 @@ public:
 	 */
 	bool IsCompiling() const
 	{
-		return NumOutstandingJobs > 0 || PendingFinalizeShaderMaps.Num() > 0 || GetNumPendingJobs() > 0 || NumExternalJobs > 0;
+		return GetNumOutstandingJobs() > 0 || PendingFinalizeShaderMaps.Num() > 0 || GetNumPendingJobs() > 0 || NumExternalJobs > 0;
 	}
 
 	/**
@@ -790,7 +832,7 @@ public:
 	 */
 	int32 GetNumRemainingJobs() const
 	{
-		return NumOutstandingJobs + NumExternalJobs;
+		return GetNumOutstandingJobs() + NumExternalJobs;
 	}
 
 	void SetExternalJobs(int32 NumJobs)
@@ -933,6 +975,7 @@ extern ENGINE_API FOnGlobalShadersCompilation& GetOnGlobalShaderCompilation();
 * @param	OutdatedShaderPipelineTypes		Optional list of shader pipeline types, will trigger compilation job for shader pipeline types found in this list even if the map already has the pipeline.
 */
 extern ENGINE_API void VerifyGlobalShaders(EShaderPlatform Platform, bool bLoadedFromCacheFile, const TArray<const FShaderType*>* OutdatedShaderTypes = nullptr, const TArray<const FShaderPipelineType*>* OutdatedShaderPipelineTypes = nullptr);
+extern ENGINE_API void VerifyGlobalShaders(EShaderPlatform Platform, const ITargetPlatform* TargetPlatform, bool bLoadedFromCacheFile, const TArray<const FShaderType*>* OutdatedShaderTypes = nullptr, const TArray<const FShaderPipelineType*>* OutdatedShaderPipelineTypes = nullptr);
 
 /**
 * Forces a recompile of the global shaders.

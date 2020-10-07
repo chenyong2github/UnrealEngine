@@ -242,7 +242,7 @@ NIAGARASHADER_API void FNiagaraShaderScript::GetShaderMapId(EShaderPlatform Plat
 		if (TargetPlatform)
 		{
 #if WITH_EDITOR
-			OutId.LayoutParams.InitializeForPlatform(TargetPlatform->IniPlatformName(), TargetPlatform->HasEditorOnlyData());
+			OutId.LayoutParams.InitializeForPlatform(TargetPlatform);
 #else
 			UE_LOG(LogShaders, Error, TEXT("FNiagaraShaderScript::GetShaderMapId: TargetPlatform is not null, but a cooked executable cannot target platforms other than its own."));
 #endif

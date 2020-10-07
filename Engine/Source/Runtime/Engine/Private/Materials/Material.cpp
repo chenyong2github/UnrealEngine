@@ -2994,10 +2994,6 @@ bool UMaterial::IsTextureForceRecompileCacheRessource(UTexture *Texture)
 
 void UMaterial::UpdateMaterialShaderCacheAndTextureReferences()
 {
-	// If the material changes, then the debug view material must reset to prevent parameters mismatch
-	void ClearDebugViewMaterials(UMaterialInterface*);
-	ClearDebugViewMaterials(this);
-
 	//Cancel any current compilation jobs that are in flight for this material.
 	CancelOutstandingCompilation();
 
@@ -4096,10 +4092,6 @@ void UMaterial::PostEditChangePropertyInternal(FPropertyChangedEvent& PropertyCh
 	// CacheResourceShadersForRendering if called will cause a rendering thread race condition with a debug mechanism (bDeletedThroughDeferredCleanup) if there is no flush or
 	// FMaterialUpdateContext present.
 	FlushRenderingCommands();
-
-	// If the material changes, then the debug view material must reset to prevent parameters mismatch
-	void ClearDebugViewMaterials(UMaterialInterface*);
-	ClearDebugViewMaterials(this);
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 

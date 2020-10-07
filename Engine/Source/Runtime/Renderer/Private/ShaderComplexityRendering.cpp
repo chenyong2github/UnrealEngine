@@ -103,8 +103,13 @@ void FComplexityAccumulateInterface::GetDebugViewModeShaderBindings(
 
 
 
-void FComplexityAccumulateInterface::AddShaderTypes(ERHIFeatureLevel::Type InFeatureLevel, FMaterialShaderTypes& OutShaderTypes) const
+void FComplexityAccumulateInterface::AddShaderTypes(ERHIFeatureLevel::Type InFeatureLevel,
+	EMaterialTessellationMode InMaterialTessellationMode,
+	const FVertexFactoryType* InVertexFactoryType,
+	FMaterialShaderTypes& OutShaderTypes) const
 {
+	AddDebugViewModeShaderTypes(InFeatureLevel, InMaterialTessellationMode, InVertexFactoryType, OutShaderTypes);
+
 	FComplexityAccumulatePS::FPermutationDomain PermutationVector;
 	EShaderPlatform ShaderPlatform = GShaderPlatformForFeatureLevel[InFeatureLevel];
 	FComplexityAccumulatePS::EQuadOverdraw QuadOverdraw = AllowDebugViewShaderMode(DVSM_QuadComplexity, ShaderPlatform, InFeatureLevel) ? FComplexityAccumulatePS::EQuadOverdraw::Enable : FComplexityAccumulatePS::EQuadOverdraw::Disable;

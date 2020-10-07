@@ -81,6 +81,7 @@ public:
 		uint32 ShaderMapId,
 		int32 PermutationId,
 		EShaderPlatform Platform,
+		EShaderPermutationFlags PermutationFlags,
 		const FMaterial* Material,
 		FSharedShaderCompilerEnvironment* MaterialEnvironment,
 		const FVertexFactoryType* VertexFactoryType,
@@ -94,6 +95,7 @@ public:
 		uint32 ShaderMapId,
 		int32 PermutationId,
 		EShaderPlatform Platform,
+		EShaderPermutationFlags PermutationFlags,
 		const FMaterial* Material,
 		FSharedShaderCompilerEnvironment* MaterialEnvironment,
 		const FVertexFactoryType* VertexFactoryType,
@@ -123,17 +125,17 @@ public:
 	 * @param VertexFactoryType - The vertex factory type to check.
 	 * @return True if this shader type should be cached.
 	 */
-	bool ShouldCompilePermutation(EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, const FVertexFactoryType* VertexFactoryType, int32 PermutationId) const;
+	bool ShouldCompilePermutation(EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, const FVertexFactoryType* VertexFactoryType, int32 PermutationId, EShaderPermutationFlags Flags) const;
 
-	static bool ShouldCompileVertexFactoryPermutation(const FVertexFactoryType* VertexFactoryType, EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters);
+	static bool ShouldCompileVertexFactoryPermutation(const FVertexFactoryType* VertexFactoryType, EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, EShaderPermutationFlags Flags);
 
-	static bool ShouldCompilePipeline(const FShaderPipelineType* ShaderPipelineType, EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, const FVertexFactoryType* VertexFactoryType);
+	static bool ShouldCompilePipeline(const FShaderPipelineType* ShaderPipelineType, EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, const FVertexFactoryType* VertexFactoryType, EShaderPermutationFlags Flags);
 
 	/**
 	 * Sets up the environment used to compile an instance of this shader type.
 	 * @param Platform - Platform to compile for.
 	 * @param Environment - The shader compile environment that the function modifies.
 	 */
-	void SetupCompileEnvironment(EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, const FVertexFactoryType* VertexFactoryType, int32 PermutationId, FShaderCompilerEnvironment& Environment) const;
+	void SetupCompileEnvironment(EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, const FVertexFactoryType* VertexFactoryType, int32 PermutationId, EShaderPermutationFlags PermutationFlags, FShaderCompilerEnvironment& Environment) const;
 };
 

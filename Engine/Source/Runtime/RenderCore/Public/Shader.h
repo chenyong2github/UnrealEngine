@@ -616,17 +616,46 @@ public:
 
 }; // FShaderParameterBindings
 
+// Flags that can specialize shader permutations compiled for specific platforms
+enum class EShaderPermutationFlags : uint32
+{
+	None = 0u,
+	HasEditorOnlyData = (1u << 0),
+};
+ENUM_CLASS_FLAGS(EShaderPermutationFlags);
+
+inline EShaderPermutationFlags GetCurrentShaderPermutationFlags()
+{
+	EShaderPermutationFlags Result = EShaderPermutationFlags::None;
+#if WITH_EDITORONLY_DATA
+	Result |= EShaderPermutationFlags::HasEditorOnlyData;
+#endif
+	return Result;
+}
+
+inline EShaderPermutationFlags GetShaderPermutationFlags(const FPlatformTypeLayoutParameters& LayoutParams)
+{
+	EShaderPermutationFlags Result = EShaderPermutationFlags::None;
+	if (LayoutParams.WithEditorOnly()) Result |= EShaderPermutationFlags::HasEditorOnlyData;
+	return Result;
+}
+
 struct FShaderPermutationParameters
 {
 	// Shader platform to compile to.
 	const EShaderPlatform Platform;
 
-	/** Unique permutation identifier of the material shader type. */
+	// Unique permutation identifier of the material shader type.
 	const int32 PermutationId;
 
-	explicit FShaderPermutationParameters(EShaderPlatform InPlatform, int32 InPermutationId = 0)
+	// Flags that describe the permutation
+	const EShaderPermutationFlags Flags;
+
+	// Default to include editor-only shaders, to maintain backwards-compatibility
+	explicit FShaderPermutationParameters(EShaderPlatform InPlatform, int32 InPermutationId = 0, EShaderPermutationFlags InFlags = EShaderPermutationFlags::HasEditorOnlyData)
 		: Platform(InPlatform)
 		, PermutationId(InPermutationId)
+		, Flags(InFlags)
 	{}
 };
 

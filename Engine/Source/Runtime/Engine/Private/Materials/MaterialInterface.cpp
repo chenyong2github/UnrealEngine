@@ -338,11 +338,6 @@ bool UMaterialInterface::IsReadyForFinishDestroy()
 void UMaterialInterface::BeginDestroy()
 {
 	ParentRefFence.BeginFence();
-
-	// If the material changes, then the debug view material must reset to prevent parameters mismatch
-	void ClearDebugViewMaterials(UMaterialInterface*);
-	ClearDebugViewMaterials(this);
-
 	Super::BeginDestroy();
 }
 
