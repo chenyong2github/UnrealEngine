@@ -6,12 +6,11 @@
 #include "BackChannel/Protocol/OSC/BackChannelOSCConnection.h"
 #include "HAL/CriticalSection.h"
 
-#include "Tickable.h"
 
 class FBackChannelOSCConnection;
 enum class ERemoteSessionChannelMode;
 
-class FRemoteSessionRole : public IRemoteSessionUnmanagedRole, FRunnable
+class FRemoteSessionRole : public IRemoteSessionUnmanagedRole
 {
 protected:
 	enum class ConnectionState
@@ -72,15 +71,9 @@ public:
 
 	virtual TSharedPtr<IRemoteSessionChannel> GetChannel(const TCHAR* Type) override;
 
-	void			SetReceiveInBackground(bool bValue);
-
 protected:
 
-	void			StartBackgroundThread();
-	void			StopBackgroundThread();
-
-	uint32			Run();
-	
+		
 	void			CreateOSCConnection(TSharedRef<IBackChannelSocketConnection> InConnection);
 	
 	void			SendLegacyVersionCheck();
@@ -92,8 +85,8 @@ protected:
 	void 			CreateChannels(const TArray<FRemoteSessionChannelInfo>& Channels);
 	void 			CreateChannel(const FRemoteSessionChannelInfo& Channel);	
 	
-	void	AddChannel(const TSharedPtr<IRemoteSessionChannel>& InChannel);
-	void	ClearChannels();
+	void	        AddChannel(const TSharedPtr<IRemoteSessionChannel>& InChannel);
+	void	        ClearChannels();
 	
 
 	/* Queues the next state to be processed on the next tick. It's an error to call this when there is another state pending */
@@ -127,12 +120,9 @@ private:
 	FString					ErrorMessage;
 	
 	TArray<TSharedPtr<IRemoteSessionChannel>> Channels;
-	FThreadSafeBool			ThreadExitRequested;
-	FThreadSafeBool			ThreadRunning;
-
+	
 	ConnectionState			CurrentState = ConnectionState::Disconnected;
 	ConnectionState			PendingState = ConnectionState::Unknown;
-
 
 	FString					RemoteVersion;
 };
