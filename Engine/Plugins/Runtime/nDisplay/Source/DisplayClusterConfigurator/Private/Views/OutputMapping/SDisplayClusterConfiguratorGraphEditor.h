@@ -14,7 +14,6 @@ class FDisplayClusterConfiguratorViewOutputMapping;
 class FDisplayClusterConfiguratorToolkit;
 class FMenuBuilder;
 class FUICommandList;
-class SDisplayClusterConfiguratorCanvasNode;
 class SDisplayClusterConfiguratorGraphEditor;
 class SGraphNode;
 class UDisplayClusterConfiguratorGraph;
