@@ -116,11 +116,12 @@ private:
 class FPackageItem : public TSharedFromThis<FPackageItem>
 {
 public:
-	FPackageItem(UPackage* InPackage, const FString& InAssetName, const FString& InFileName, ECheckBoxState InState, bool InDisabled = false, FString InIconName=TEXT("SavePackages.SCC_DlgNoIcon"), FString InIconToolTip=TEXT(""))
+	FPackageItem(UPackage* InPackage, const FString& InAssetName, const FString& InFileName, const FString& InOwnerName, ECheckBoxState InState, bool InDisabled = false, FString InIconName=TEXT("SavePackages.SCC_DlgNoIcon"), FString InIconToolTip=TEXT(""))
 		: Package(InPackage)
 		, AssetName(InAssetName)
 		, PackageName(FPackageName::ObjectPathToPackageName(InPackage->GetName()))
 		, FileName(InFileName)
+		, OwnerName(InOwnerName)
 		, State(InState)
 		, Disabled(InDisabled)
 		, IconName(InIconName)
@@ -228,6 +229,13 @@ public:
 	const FString& GetFileName() const { return FileName; }
 
 	/**
+	 * Gets the name of the file owner item
+	 *
+	 * @return the name of the file owner item
+	 */
+	const FString& GetOwnerName() const { return OwnerName; }
+
+	/**
 	 * Gets the icon name of the checkbox item
 	 *
 	 * @return the icon name of the checkbox item
@@ -316,6 +324,7 @@ private:
 	FString AssetName;						// Name of the asset to display
 	FString PackageName;					// Name of the package to display
 	FString FileName;						// Name of the file
+	FString OwnerName;						// Name of the owner of the file
 	ECheckBoxState State;					// The state of the checkbox
 	bool Disabled; 							// if the entry is disabled
 	FString IconName; 						// Name of an icon to show next to the checkbox
