@@ -3370,6 +3370,9 @@ public:
 	void SetPlayInEditorInitialNetMode(ENetMode InNetMode)
 	{
 		PlayInEditorNetMode = InNetMode;
+
+		// Disable audio playback on PIE dedicated server
+		bAllowAudioPlayback = bAllowAudioPlayback && PlayInEditorNetMode != NM_DedicatedServer;
 	}
 
 private:
