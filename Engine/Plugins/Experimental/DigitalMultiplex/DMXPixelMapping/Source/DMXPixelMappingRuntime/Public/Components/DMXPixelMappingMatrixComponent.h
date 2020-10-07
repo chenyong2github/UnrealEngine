@@ -10,6 +10,7 @@
 
 class UTextureRenderTarget2D;
 class UDMXLibrary;
+class STextBlock;
 enum class EDMXColorMode : uint8;
 
 /**

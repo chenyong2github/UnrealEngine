@@ -8,6 +8,7 @@
 #include "IMediaOptions.h"
 #include "IMediaPlayerFactory.h"
 #include "Internationalization/Internationalization.h"
+#include "Misc/Guid.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
