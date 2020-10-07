@@ -82,6 +82,8 @@ void SGraphNodeAnimTransition::PerformSecondPassLayout(const TMap< UObject*, TSh
 
 			TransIndex = Transitions.IndexOfByKey(TransNode);
 			NumOfTrans = Transitions.Num();
+
+			PrevStateNodeWidgetPtr = PrevNodeWidget;
 		}
 	}
 
@@ -318,9 +320,10 @@ FLinearColor SGraphNodeAnimTransition::StaticGetTransitionColor(UAnimStateTransi
 }
 
 FSlateColor SGraphNodeAnimTransition::GetTransitionColor() const
-{
+{	
+	// Highlight the transition node when the node is hovered or when the previous state is hovered
 	UAnimStateTransitionNode* TransNode = CastChecked<UAnimStateTransitionNode>(GraphNode);
-	return StaticGetTransitionColor(TransNode, IsHovered());
+	return StaticGetTransitionColor(TransNode, (IsHovered() || (PrevStateNodeWidgetPtr.IsValid() && PrevStateNodeWidgetPtr.Pin()->IsHovered())));
 }
 
 const FSlateBrush* SGraphNodeAnimTransition::GetTransitionIconImage() const

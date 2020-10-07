@@ -15,6 +15,7 @@
 #include "Animation/AnimNode_StateMachine.h"
 #include "AnimGraphNode_StateMachineBase.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
+#include "SGraphPanel.h"
 
 #define LOCTEXT_NAMESPACE "SGraphNodeAnimState"
 
@@ -170,6 +171,46 @@ FSlateColor SGraphNodeAnimState::GetBorderBackgroundColor() const
 	}
 
 	return InactiveStateColor;
+}
+
+void SGraphNodeAnimState::OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	// Add pins to the hover set so outgoing transitions arrows remains highlighted while the mouse is over the state node
+	if (const UAnimStateNodeBase* StateNode = Cast<UAnimStateNodeBase>(GraphNode))
+	{
+		if (const UEdGraphPin* OutputPin = StateNode->GetOutputPin())
+		{
+			TSharedPtr<SGraphPanel> OwnerPanel = GetOwnerPanel();
+			check(OwnerPanel.IsValid());
+
+			for (int32 LinkIndex = 0; LinkIndex < OutputPin->LinkedTo.Num(); ++LinkIndex)
+			{
+				OwnerPanel->AddPinToHoverSet(OutputPin->LinkedTo[LinkIndex]);
+			}
+		}
+	}
+	
+	SGraphNode::OnMouseEnter(MyGeometry, MouseEvent);
+}
+
+void SGraphNodeAnimState::OnMouseLeave(const FPointerEvent& MouseEvent)
+{
+	// Remove manually added pins from the hover set
+	if (const UAnimStateNodeBase* StateNode = Cast<UAnimStateNodeBase>(GraphNode))
+	{
+		if(const UEdGraphPin* OutputPin = StateNode->GetOutputPin())
+		{
+			TSharedPtr<SGraphPanel> OwnerPanel = GetOwnerPanel();
+			check(OwnerPanel.IsValid());
+
+			for (int32 LinkIndex = 0; LinkIndex < OutputPin->LinkedTo.Num(); ++LinkIndex)
+			{
+				OwnerPanel->RemovePinFromHoverSet(OutputPin->LinkedTo[LinkIndex]);
+			}
+		}
+	}
+
+	SGraphNode::OnMouseLeave(MouseEvent);
 }
 
 void SGraphNodeAnimState::UpdateGraphNode()

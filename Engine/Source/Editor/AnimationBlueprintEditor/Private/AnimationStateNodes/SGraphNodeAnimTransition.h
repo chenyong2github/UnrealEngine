@@ -44,6 +44,9 @@ public:
 private:
 	TSharedPtr<STextEntryPopup> TextEntryWidget;
 
+	/** Cache of the widget representing the previous state node */
+	mutable TWeakPtr<SNode> PrevStateNodeWidgetPtr;
+
 private:
 	FText GetPreviewCornerText(bool reverse) const;
 	FSlateColor GetTransitionColor() const;
