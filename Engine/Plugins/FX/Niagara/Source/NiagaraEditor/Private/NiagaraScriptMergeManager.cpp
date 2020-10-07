@@ -1124,7 +1124,7 @@ void FNiagaraScriptMergeManager::GetForcedChangeIds(
 		}
 		else if (MatchingParentFunctionNodePtr != nullptr && MatchingParentAtLastMergeFunctionNodePtr != nullptr)
 		{
-			if ((*MatchingParentAtLastMergeFunctionNodePtr)->GetChangeId() == (*MatchingParentAtLastMergeFunctionNodePtr)->GetChangeId())
+			if ((*MatchingParentFunctionNodePtr)->GetChangeId() == (*MatchingParentAtLastMergeFunctionNodePtr)->GetChangeId())
 			{
 				// If both the parent and parent at last merge agree on the change id, then the most recent changes will have happened in
 				// the instance so we can force the instance change id.
