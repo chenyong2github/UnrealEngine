@@ -92,6 +92,9 @@ enum class ETargetPlatformFeatures
 	
 	/* Can we use the virtual texture streaming system on this platform. */
 	VirtualTextureStreaming,
+
+	/* The platform makes use of extra cook-time file region metadata in its packaging process. */
+	CookFileRegionMetadata,
 };
 
 enum class EPlatformAuthentication

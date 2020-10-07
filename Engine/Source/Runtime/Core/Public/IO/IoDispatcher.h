@@ -1015,6 +1015,7 @@ struct FIoStoreWriterSettings
 	uint64 MemoryMappingAlignment = 0;
 	uint64 WriterMemoryLimit = 0;
 	bool bEnableCsvOutput = false;
+	bool bEnableFileRegions = false;
 };
 
 enum class EIoContainerFlags : uint8
@@ -1102,8 +1103,8 @@ public:
 	FIoStoreWriter& operator=(const FIoStoreWriter&) = delete;
 
 	UE_NODISCARD CORE_API FIoStatus	Initialize(const FIoStoreWriterContext& Context, const FIoContainerSettings& ContainerSettings);
-	UE_NODISCARD CORE_API FIoStatus	Append(const FIoChunkId& ChunkId, const FIoChunkHash& ChunkHash, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions);
-	UE_NODISCARD CORE_API FIoStatus	Append(const FIoChunkId& ChunkId, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions);
+	UE_NODISCARD CORE_API FIoStatus	Append(const FIoChunkId& ChunkId, const FIoChunkHash& ChunkHash, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions, TArrayView<const FFileRegion> Regions);
+	UE_NODISCARD CORE_API FIoStatus	Append(const FIoChunkId& ChunkId, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions, TArrayView<const FFileRegion> Regions);
 	UE_NODISCARD CORE_API TIoStatusOr<FIoStoreWriterResult> Flush();
 
 private:

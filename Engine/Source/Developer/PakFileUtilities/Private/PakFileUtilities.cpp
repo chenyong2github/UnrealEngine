@@ -484,6 +484,7 @@ struct FPakCommandLineParameters
 		, bAsyncCompression(false)
 		, bAlignFilesLargerThanBlock(false)
 		, bForceCompress(false)
+		, bFileRegions(false)
 	{
 	}
 
@@ -507,6 +508,7 @@ struct FPakCommandLineParameters
 	bool bAsyncCompression;
 	bool bAlignFilesLargerThanBlock;	// Align files that are larger than block size
 	bool bForceCompress; // Force all files that request compression to be compressed, even if that results in a larger file size
+	bool bFileRegions; // Enables the processing and output of cook file region metadata, used during packaging on some platforms.
 };
 
 struct FPakInputPair
@@ -871,7 +873,7 @@ bool FCompressedFileBuffer::CompressFileToWorkingBuffer(const FPakInputPair& InF
 	return true;
 }
 
-bool PrepareCopyFileToPak(const FString& InMountPoint, const FPakInputPair& InFile, uint8*& InOutPersistentBuffer, int64& InOutBufferSize, FPakEntryPair& OutNewEntry, uint8*& OutDataToWrite, int64& OutSizeToWrite, const FKeyChain& InKeyChain)
+bool PrepareCopyFileToPak(const FString& InMountPoint, const FPakInputPair& InFile, uint8*& InOutPersistentBuffer, int64& InOutBufferSize, FPakEntryPair& OutNewEntry, uint8*& OutDataToWrite, int64& OutSizeToWrite, const FKeyChain& InKeyChain, TArray<FFileRegion>* OutFileRegions)
 {	
 	TUniquePtr<FArchive> FileHandle(IFileManager::Get().CreateFileReader(*InFile.Source));
 	bool bFileExists = FileHandle.IsValid();
@@ -918,6 +920,16 @@ bool PrepareCopyFileToPak(const FString& InMountPoint, const FPakInputPair& InFi
 			// Calculate the buffer hash value
 			FSHA1::HashBuffer(InOutPersistentBuffer,FileSize,OutNewEntry.Info.Hash);			
 			OutDataToWrite = InOutPersistentBuffer;
+		}
+
+		if (OutFileRegions)
+		{
+			// Read the matching regions file, if it exists.
+			TUniquePtr<FArchive> RegionsFile(IFileManager::Get().CreateFileReader(*(InFile.Source + FFileRegion::RegionsFileExtension)));
+			if (RegionsFile.IsValid())
+			{
+				FFileRegion::SerializeFileRegions(*RegionsFile.Get(), *OutFileRegions);
+			}
 		}
 	}
 	return bFileExists;
@@ -1082,6 +1094,11 @@ void ProcessCommandLine(const TCHAR* CmdLine, const TArray<FString>& NonOptionAr
 	if (FParse::Param(CmdLine, TEXT("ForceCompress")))
 	{
 		CmdLineParameters.bForceCompress = true;
+	}
+
+	if (FParse::Param(CmdLine, TEXT("FileRegions")))
+	{
+		CmdLineParameters.bFileRegions = true;
 	}
 
 	FString DesiredCompressionFormats;
@@ -1946,6 +1963,18 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 		return false;
 	}
 
+	TUniquePtr<FArchive> PakFileRegionsHandle;
+	if (CmdLineParameters.bFileRegions)
+	{
+		FString RegionsFilename = FString(Filename) + FFileRegion::RegionsFileExtension;
+		PakFileRegionsHandle.Reset(IFileManager::Get().CreateFileWriter(*RegionsFilename));
+		if (!PakFileRegionsHandle)
+		{
+			UE_LOG(LogPakFile, Error, TEXT("Unable to create pak regions file \"%s\"."), *RegionsFilename);
+			return false;
+		}
+	}
+
 	FPakInfo Info;
 	Info.bEncryptedIndex = (InKeyChain.MasterEncryptionKey && CmdLineParameters.EncryptIndex);
 	Info.EncryptionKeyGuid = InKeyChain.MasterEncryptionKey ? InKeyChain.MasterEncryptionKey->Guid : FGuid();
@@ -2187,6 +2216,7 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 		}
 	}
 
+	TArray<FFileRegion> AllFileRegions;
 	for (int32 FileIndex = 0; FileIndex < FilesToAdd.Num(); FileIndex++)
 	{
 		bool bDeleted = FilesToAdd[FileIndex].bIsDeleteRecord;
@@ -2298,6 +2328,8 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 			}
 		}
 
+		TArray<FFileRegion> CurrentFileRegions;
+
 		bool bCopiedToPak;
 		int64 SizeToWrite = 0;
 		uint8* DataToWrite = nullptr;
@@ -2316,7 +2348,7 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 		}
 		else
 		{
-			bCopiedToPak = PrepareCopyFileToPak(MountPoint, FilesToAdd[FileIndex], ReadBuffer, BufferSize, NewEntry, DataToWrite, SizeToWrite, InKeyChain);
+			bCopiedToPak = PrepareCopyFileToPak(MountPoint, FilesToAdd[FileIndex], ReadBuffer, BufferSize, NewEntry, DataToWrite, SizeToWrite, InKeyChain, CmdLineParameters.bFileRegions ? &CurrentFileRegions : nullptr);
 			DataToWrite = ReadBuffer;
 		}
 
@@ -2393,6 +2425,11 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 			PakFileHandle->Serialize(DataToWrite, SizeToWrite);
 			int64 EndOffset = PakFileHandle->Tell();
 
+			if (CmdLineParameters.bFileRegions)
+			{
+				FFileRegion::AccumulateFileRegions(AllFileRegions, Offset, PayloadOffset, EndOffset, CurrentFileRegions);
+			}
+
 			UE_LOG(LogPakFile, Verbose, TEXT("%14llu [header] - %14llu - %14llu : %14llu header+file %s."), Offset, PayloadOffset, EndOffset, EndOffset - Offset, *NewEntry.Filename);
 
 			// Update offset now and store it in the index (and only in index)
@@ -2451,6 +2488,8 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 		}
 		AsyncCompressors[FileIndex].CleanUp();
 	}
+
+	uint64 LastEntryOffset = PakFileHandle->Tell();
 
 	FMemory::Free(PaddingBuffer);
 	FMemory::Free(ReadBuffer);
@@ -2622,6 +2661,12 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 	// Save the FPakInfo, which has offset, size, and hash value for the PrimaryIndex, at the end of the PakFile
 	Info.Serialize(*PakFileHandle, FPakInfo::PakFile_Version_Latest);
 
+	if (CmdLineParameters.bFileRegions)
+	{
+		// Add a final region to include the headers / data at the end of the .pak, after the last file payload.
+		FFileRegion::AccumulateFileRegions(AllFileRegions, LastEntryOffset, LastEntryOffset, PakFileHandle->Tell(), {});
+	}
+
 	UE_LOG(LogPakFile, Display, TEXT("Added %d files, %lld bytes total, time %.2lfs."), Index.Num(), PakFileHandle->TotalSize(), FPlatformTime::Seconds() - StartTime);
 	UE_LOG(LogPakFile, Display, TEXT("PrimaryIndex size: %d bytes"), PrimaryIndexData.Num());
 	UE_LOG(LogPakFile, Display, TEXT("PathHashIndex size: %d bytes"), PathHashIndexData.Num());
@@ -2674,6 +2719,13 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 
 	PakFileHandle->Close();
 	PakFileHandle.Reset();
+
+	if (CmdLineParameters.bFileRegions)
+	{
+		FFileRegion::SerializeFileRegions(*PakFileRegionsHandle.Get(), AllFileRegions);
+		PakFileRegionsHandle->Close();
+		PakFileRegionsHandle.Reset();
+	}
 
 #if DETAILED_UNREALPAK_TIMING
 	UE_LOG(LogPakFile, Display, TEXT("Detailed timing stats"));

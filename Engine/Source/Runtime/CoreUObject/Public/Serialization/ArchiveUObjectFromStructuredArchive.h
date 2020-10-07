@@ -30,7 +30,13 @@ public:
 	virtual FArchive& operator<<(FWeakObjectPtr& Value) override;
 	//~ End FArchive Interface
 
+	virtual void PushShufflePattern(EDataShufflePattern Pattern) override;
+	virtual void PopShufflePattern() override;
+
 private:
+
+	int64 ShuffleStart = 0;
+	EDataShufflePattern CurrentPattern = EDataShufflePattern::None;
 
 	TArray<FLazyObjectPtr> LazyObjectPtrs;
 	TArray<FWeakObjectPtr> WeakObjectPtrs;
