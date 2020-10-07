@@ -124,7 +124,7 @@ public:
 };
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenCardPassUniformParameters, )
-	SHADER_PARAMETER_STRUCT(FSceneTexturesUniformParameters, SceneTextures)
+	SHADER_PARAMETER_STRUCT(FSceneTextureUniformParameters, SceneTextures)
 	SHADER_PARAMETER(float, OverrideDiffuseReflectivity)
 	SHADER_PARAMETER(float, DiffuseReflectivityOverride)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
