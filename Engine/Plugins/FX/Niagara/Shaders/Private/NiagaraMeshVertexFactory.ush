@@ -1138,6 +1138,18 @@ float4 VertexFactoryGetTranslatedPrimitiveVolumeBounds(FVertexFactoryInterpolant
 		TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.DynamicParameter3);
 #endif
 
+#if USE_PARTICLE_LOCAL_TO_WORLD
+		TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.ParticleToWorld[0]);
+		TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.ParticleToWorld[1]);
+		TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.ParticleToWorld[2]);
+#endif
+
+#if USE_PARTICLE_WORLD_TO_LOCAL
+		TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.WorldToParticle[0]);
+		TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.WorldToParticle[1]);
+		TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.WorldToParticle[2]);
+#endif
+
 		return O;
 	}
 
