@@ -178,7 +178,7 @@ namespace Chaos
 		, AsyncExternalAcceleration(nullptr)
 		, bIsSingleThreaded(InIsSingleThreaded)
 		, bCanStartAsyncTasks(true)
-		, LatestExternalTimestampConsumed(-1)
+		, LatestExternalTimestampConsumed_Internal(-1)
 		, NumIterations(InNumIterations)
 		, NumPushOutIterations(InNumPushOutIterations)
 		, SpatialCollectionFactory(new FDefaultCollectionFactory())
@@ -443,7 +443,7 @@ namespace Chaos
 		{
 			ApplyParticlePendingData(PendingData, *InternalAcceleration, false);
 		}
-		InternalAcceleration->SetSyncTimestamp(LatestExternalTimestampConsumed);
+		InternalAcceleration->SetSyncTimestamp(LatestExternalTimestampConsumed_Internal);
 		InternalAccelerationQueue.Reset();
 	}
 
@@ -470,8 +470,8 @@ namespace Chaos
 		//other queues are no longer needed since we've flushed all operations and now have a pristine structure
 		InternalAccelerationQueue.Reset();
 
-		AsyncInternalAcceleration->SetSyncTimestamp(LatestExternalTimestampConsumed);
-		AsyncExternalAcceleration->SetSyncTimestamp(LatestExternalTimestampConsumed);
+		AsyncInternalAcceleration->SetSyncTimestamp(LatestExternalTimestampConsumed_Internal);
+		AsyncExternalAcceleration->SetSyncTimestamp(LatestExternalTimestampConsumed_Internal);
 	}
 
 	//TODO: make static and _External suffix

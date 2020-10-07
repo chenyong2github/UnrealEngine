@@ -234,13 +234,13 @@ public:
 	void FreePullData_External(FPullPhysicsData* PullData);
 
 	/** Returns the timestamp associated with inputs consumed. Note the simulation may be pending, but any data associated with timestamp <= returned value has been passed */
-	int32 GetExternalTimestampConsumed_External() const { return InternalTimestamp; }
+	int32 GetExternalTimestampConsumed_External() const { return InternalTimestamp_External; }
 
 	/** Returns the timestamp associated with inputs enqueued. */
-	int32 GetExternalTimestamp_External() const { return ExternalTimestamp; }
+	int32 GetExternalTimestamp_External() const { return ExternalTimestamp_External; }
 
 	/** Returns the amount of external time pushed so far. Any external commands or events should be associated with this time */
-	FReal GetExternalTime_External() const { return ExternalTime; }
+	FReal GetExternalTime_External() const { return ExternalTime_External; }
 
 	/** Used to delay marshalled data. This is mainly used for testing at the moment */
 	void SetTickDelay_External(int32 InDelay) { Delay = InDelay; }
@@ -249,7 +249,7 @@ public:
 	FPullPhysicsData* GetCurrentPullData_Internal() { return CurPullData; }
 
 	/** Hands pull data off to external thread */
-	void FinalizePullData_Internal();
+	void FinalizePullData_Internal(int32 LatestExternalTimestampConsumed);
 
 	/** Pops and returns the earliest pull data available. nullptr means results are not ready or no work is pending */
 	FPullPhysicsData* PopPullData_External()
@@ -260,10 +260,10 @@ public:
 	}
 		
 private:
-	FReal ExternalTime;	//the global time external thread is currently at
-	int32 ExternalTimestamp; //the global timestamp external thread is currently at (1 per frame)
-	FReal SimTime;	//the global time the sim is at (once Step_External is called this time advances, even though the actual sim work has yet to be done)
-	int32 InternalTimestamp;	//the global timestamp the sim is at (consumes 1 or more frames per internal tick)
+	FReal ExternalTime_External;	//the global time external thread is currently at
+	int32 ExternalTimestamp_External; //the global timestamp external thread is currently at (1 per frame)
+	FReal SimTime_External;	//the global time the sim is at (once Step_External is called this time advances, even though the actual sim work has yet to be done)
+	int32 InternalTimestamp_External;	//the global timestamp the sim is at (consumes 1 or more frames per internal tick)
 	
 	//push
 	FPushPhysicsData* ProducerData;
@@ -279,7 +279,7 @@ private:
 
 	int32 Delay;
 
-	void PrepareExternalQueue();
+	void PrepareExternalQueue_External();
 	void PreparePullData();
 };
 }; // namespace Chaos

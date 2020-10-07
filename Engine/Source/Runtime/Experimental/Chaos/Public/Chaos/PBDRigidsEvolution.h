@@ -791,7 +791,8 @@ protected:
 	bool bCanStartAsyncTasks;
 
 public:
-	int32 LatestExternalTimestampConsumed;	//The latest external timestamp we consumed inputs from. Needed for synchronizing different DTs
+	//The latest external timestamp we consumed inputs from, assigned to evolution when solver task executes, is used to stamp output data.
+	int32 LatestExternalTimestampConsumed_Internal;	
 
 protected:
 
