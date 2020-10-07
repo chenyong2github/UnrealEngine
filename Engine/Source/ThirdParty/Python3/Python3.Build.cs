@@ -52,10 +52,9 @@ public class Python3 : Python
 						new PythonSDKPaths(
 							Path.Combine(PythonBinaryTPSDir, PlatformDir),
 							new List<string>() {
-								Path.Combine(PythonSourceTPSDir, PlatformDir, "include", "python3.7"),
-								Path.Combine(PythonSourceTPSDir, PlatformDir, "include", Target.Architecture)
+								Path.Combine(PythonSourceTPSDir, PlatformDir, "include", "python3.7m")
 							},
-							new List<string>() { Path.Combine(PythonSourceTPSDir, PlatformDir, "lib", "libpython3.7.a") }),
+							new List<string>() { Path.Combine(PythonSourceTPSDir, PlatformDir, "lib", "libpython3.7m.a") }),
 				});
 				PublicSystemLibraries.Add("util");	// part of libc
 			}
@@ -68,7 +67,7 @@ public class Python3 : Python
 	{
 		if (Target.Platform == UnrealTargetPlatform.Linux && IsEnginePython)
 		{
-			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Python/Linux/lib/libpython3.7.so.1.0");
+			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Python/Linux/lib/libpython3.7m.so.1.0");
 		}
 	}
 }
