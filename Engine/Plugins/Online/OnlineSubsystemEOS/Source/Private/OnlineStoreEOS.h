@@ -35,7 +35,7 @@ public:
 PACKAGE_SCOPE:
 	FOnlineStoreEOS(FOnlineSubsystemEOS* InSubsystem);
 
-	bool HandleOffersExec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar);
+	bool HandleEcomExec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar);
 
 private:
 	/** Default constructor disabled */

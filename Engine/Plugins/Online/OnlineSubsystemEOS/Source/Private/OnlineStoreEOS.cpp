@@ -131,20 +131,24 @@ TSharedPtr<FOnlineStoreOffer> FOnlineStoreEOS::GetOffer(const FUniqueOfferId& Of
 	return nullptr;
 }
 
-bool FOnlineStoreEOS::HandleOffersExec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+bool FOnlineStoreEOS::HandleEcomExec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
-	QueryOffers(*EOSSubsystem->UserManager->GetLocalUniqueNetIdEOS(),
-		FOnQueryOnlineStoreOffersComplete::CreateLambda([this](bool bWasSuccessful, const TArray<FUniqueOfferId>& OfferIds, const FString& ErrorStr)
+	if (FParse::Command(&Cmd, TEXT("OFFERS")))
 	{
-		UE_LOG_ONLINE(Error, TEXT("QueryOffers: %s with error (%s)"), bWasSuccessful ? TEXT("succeeded") : TEXT("failed"), *ErrorStr);
-
-		for (const FUniqueOfferId& OfferId : OfferIds)
+		QueryOffers(*EOSSubsystem->UserManager->GetLocalUniqueNetIdEOS(),
+			FOnQueryOnlineStoreOffersComplete::CreateLambda([this](bool bWasSuccessful, const TArray<FUniqueOfferId>& OfferIds, const FString& ErrorStr)
 		{
-			UE_LOG_ONLINE(Error, TEXT("OfferId: %s"), *OfferId);
-		}
+			UE_LOG_ONLINE(Error, TEXT("QueryOffers: %s with error (%s)"), bWasSuccessful ? TEXT("succeeded") : TEXT("failed"), *ErrorStr);
 
-	}));
-	return true;
+			for (const FUniqueOfferId& OfferId : OfferIds)
+			{
+				UE_LOG_ONLINE(Error, TEXT("OfferId: %s"), *OfferId);
+			}
+
+		}));
+		return true;
+	}
+	return false;
 }
 
 #endif
