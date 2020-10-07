@@ -4963,6 +4963,18 @@ int32 UMaterial::GetLayerParameterIndex(EMaterialParameterAssociation Associatio
 }
 
 #if WITH_EDITOR
+
+void UMaterial::GetReferencedTexturesAndOverrides(TSet<const UTexture*>& InOutTextures) const
+{
+	for (UObject* UsedObject : CachedExpressionData.ReferencedTextures)
+	{
+		if (const UTexture* UsedTexture = Cast<UTexture>(UsedObject))
+		{
+			InOutTextures.Add(UsedTexture);
+		}
+	}
+}
+
 FExpressionInput* UMaterial::GetExpressionInputForProperty(EMaterialProperty InProperty)
 {
 	switch (InProperty)
