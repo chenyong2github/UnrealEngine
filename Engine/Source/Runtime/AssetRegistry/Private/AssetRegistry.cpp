@@ -1568,6 +1568,11 @@ void UAssetRegistryImpl::ScanPathsSynchronous(const TArray<FString>& InPaths, bo
 				}
 			}
 		}
+
+		if (BackgroundAssetSearch.IsValid())
+		{
+			BackgroundAssetSearch->SetBlacklistScanFilters(BlacklistScanFilters);
+		}
 	}
 
 	ScanPathsAndFilesSynchronous(InPaths, TArray<FString>(), BlacklistScanFilters, bForceRescan, EAssetDataCacheMode::UseModularCache);
