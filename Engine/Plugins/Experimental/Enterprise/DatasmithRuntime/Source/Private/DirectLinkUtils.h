@@ -7,8 +7,8 @@
 #include "DatasmithRuntimeBlueprintLibrary.h"
 
 #include "DirectLink/DatasmithSceneReceiver.h"
-#include "DirectLink/Network/DirectLinkEndpoint.h"
-#include "DirectLink/Network/DirectLinkISceneProvider.h"
+#include "DirectLinkEndpoint.h"
+#include "DirectLinkSceneProvider.h"
 
 #include "Misc/ScopeRWLock.h"
 #include "Tickable.h"

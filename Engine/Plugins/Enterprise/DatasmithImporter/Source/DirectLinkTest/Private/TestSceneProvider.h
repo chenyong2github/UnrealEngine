@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "DirectLink/DirectLinkCommon.h"
-#include "DirectLink/Network/DirectLinkISceneProvider.h"
+#include "DirectLinkCommon.h"
+#include "DirectLinkSceneProvider.h"
 
 
 class FDatasmithSceneReceiver;
