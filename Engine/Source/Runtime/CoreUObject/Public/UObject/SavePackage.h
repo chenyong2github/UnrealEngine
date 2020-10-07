@@ -68,13 +68,14 @@ public:
 	{
 		FName	PackageName;
 		FString	LooseFilePath;
+		uint64  RegionsOffset;
 
 		TArray<FIoBuffer> Exports;
 	};
 
 	/** Write 'uexp' data
 	  */
-	virtual void WriteExports(const ExportsInfo& Info, const FIoBuffer& ExportsData) = 0;
+	virtual void WriteExports(const ExportsInfo& Info, const FIoBuffer& ExportsData, const TArray<FFileRegion>& FileRegions) = 0;
 
 	struct FBulkDataInfo
 	{
@@ -92,7 +93,7 @@ public:
 
 	/** Write 'ubulk' data
 	  */
-	virtual void WriteBulkdata(const FBulkDataInfo& Info, const FIoBuffer& BulkData) = 0;
+	virtual void WriteBulkdata(const FBulkDataInfo& Info, const FIoBuffer& BulkData, const TArray<FFileRegion>& FileRegions) = 0;
 };
 
 class FLooseFileWriter : public FPackageStoreWriter
@@ -102,8 +103,8 @@ public:
 	COREUOBJECT_API ~FLooseFileWriter();
 
 	COREUOBJECT_API virtual void WriteHeader(const HeaderInfo& Info, const FIoBuffer& HeaderData) override;
-	COREUOBJECT_API virtual void WriteExports(const ExportsInfo& Info, const FIoBuffer& ExportsData) override;
-	COREUOBJECT_API virtual void WriteBulkdata(const FBulkDataInfo& Info, const FIoBuffer& BulkData) override;
+	COREUOBJECT_API virtual void WriteExports(const ExportsInfo& Info, const FIoBuffer& ExportsData, const TArray<FFileRegion>& FileRegions) override;
+	COREUOBJECT_API virtual void WriteBulkdata(const FBulkDataInfo& Info, const FIoBuffer& BulkData, const TArray<FFileRegion>& FileRegions) override;
 
 private:
 };

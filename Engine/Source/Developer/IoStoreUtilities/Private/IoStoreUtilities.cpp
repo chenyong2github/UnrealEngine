@@ -604,6 +604,8 @@ struct FCookedFileStatData
 	int64 FileSize = 0;
 	EFileType FileType = PackageHeader;
 	EFileExt FileExt = UMap;
+
+	TArray<FFileRegion> FileRegions;
 };
 
 using FCookedFileStatMap = TMap<FString, FCookedFileStatData>;
@@ -638,6 +640,8 @@ struct FContainerTargetFile
 	int64 ExportBundlesHeaderSize = 0;
 
 	uint64 HeaderSerialSize = 0;
+
+	TArray<FFileRegion> FileRegions;
 };
 
 struct FIoStoreArguments
@@ -2539,7 +2543,7 @@ static void FinalizeInitialLoadMeta(
 	}
 };
 
-static FIoBuffer CreateExportBundleBuffer(const FContainerTargetFile& TargetFile, const TArray<FObjectExport>& ObjectExports, const FIoBuffer UExpBuffer)
+static FIoBuffer CreateExportBundleBuffer(const FContainerTargetFile& TargetFile, const TArray<FObjectExport>& ObjectExports, const FIoBuffer UExpBuffer, TArray<FFileRegion>* InOutFileRegions = nullptr)
 {
 	const FPackage* Package = TargetFile.Package;
 	check(TargetFile.PackageHeaderData.Num() > 0);
@@ -2547,6 +2551,9 @@ static FIoBuffer CreateExportBundleBuffer(const FContainerTargetFile& TargetFile
 	FIoBuffer BundleBuffer(BundleBufferSize);
 	FMemory::Memcpy(BundleBuffer.Data(), TargetFile.PackageHeaderData.GetData(), TargetFile.PackageHeaderData.Num());
 	uint64 BundleBufferOffset = TargetFile.PackageHeaderData.Num();
+
+	TArray<FFileRegion> OutputRegions;
+
 	for (const FExportBundle& ExportBundle : TargetFile.Package->ExportBundles)
 	{
 		for (const FExportGraphNode* Node : ExportBundle.Nodes)
@@ -2554,14 +2561,40 @@ static FIoBuffer CreateExportBundleBuffer(const FContainerTargetFile& TargetFile
 			if (Node->BundleEntry.CommandType == FExportBundleEntry::ExportCommandType_Serialize)
 			{
 				const FObjectExport& ObjectExport = ObjectExports[Package->ExportIndexOffset + Node->BundleEntry.LocalExportIndex];
-				const int64 Offset = ObjectExport.SerialOffset - Package->UAssetSize;
-				check(uint64(Offset + ObjectExport.SerialSize) <= UExpBuffer.DataSize());
+				const uint64 Offset = uint64(ObjectExport.SerialOffset - Package->UAssetSize);
+				const uint64 End = uint64(Offset + ObjectExport.SerialSize);
+				check(End <= UExpBuffer.DataSize());
 				FMemory::Memcpy(BundleBuffer.Data() + BundleBufferOffset, UExpBuffer.Data() + Offset, ObjectExport.SerialSize);
+
+				if (InOutFileRegions)
+				{
+					// Find overlapping regions and adjust them to match the new offset of the export data
+					for (const FFileRegion& Region : *InOutFileRegions)
+					{
+						uint64 RegionStart = Region.Offset;
+						uint64 RegionEnd = RegionStart + Region.Length;
+
+						if (Offset <= RegionStart && RegionEnd <= End)
+						{
+							FFileRegion NewRegion = Region;
+							NewRegion.Offset -= Offset;
+							NewRegion.Offset += BundleBufferOffset;
+							OutputRegions.Add(NewRegion);
+						}
+					}
+				}
+
 				BundleBufferOffset += ObjectExport.SerialSize;
 			}
 		}
 	}
 	check(BundleBufferOffset == BundleBuffer.DataSize());
+
+	if (InOutFileRegions)
+	{
+		*InOutFileRegions = OutputRegions;
+	}
+
 	return BundleBuffer;
 }
 
@@ -3413,6 +3446,12 @@ void InitializeContainerTargetsAndPackages(
 						TargetFile.ChunkId = CreateChunkId(Package->GlobalPackageId, 0, EIoChunkType::ExportBundleData, *TargetFile.TargetPath);
 						TargetFile.NameMapBuilder = &Package->LocalNameMapBuilder;
 					}
+
+					if (TargetFile.bForceUncompressed && !SourceFile.bNeedsEncryption)
+					{
+						// Only keep the regions for the file if neither compression nor encryption are enabled, otherwise the regions will be meaningless.
+						TargetFile.FileRegions = CookedFileStatData->FileRegions;
+					}
 				}
 			}
 
@@ -3959,7 +3998,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 			WriteOptions.DebugName = TEXT("ContainerHeader");
 			FIoStatus Status = ContainerTarget->IoStoreWriter->Append(
 				CreateIoChunkId(ContainerTarget->Header.ContainerId.Value(), 0, EIoChunkType::ContainerHeader),
-				FIoBuffer(FIoBuffer::Wrap, Ar.GetData(), Ar.TotalSize()), WriteOptions);
+				FIoBuffer(FIoBuffer::Wrap, Ar.GetData(), Ar.TotalSize()), WriteOptions, {});
 
 			UE_CLOG(!Status.IsOk(), LogIoStore, Error, TEXT("Failed to serialize container header"));
 		}
@@ -3989,10 +4028,11 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 
 				const FContainerTargetFile& TargetFile = *ReadFileTask.ContainerTargetFile;
 
+				TArray<FFileRegion> FileRegionsCopy = TargetFile.FileRegions;
 				uint64 BufferSize = ReadFileTask.IoBuffer.DataSize();
 				if (!TargetFile.bIsBulkData)
 				{
-					ReadFileTask.IoBuffer = CreateExportBundleBuffer(TargetFile, ObjectExports, ReadFileTask.IoBuffer);
+					ReadFileTask.IoBuffer = CreateExportBundleBuffer(TargetFile, ObjectExports, ReadFileTask.IoBuffer, &FileRegionsCopy);
 				}
 
 				FIoWriteOptions WriteOptions;
@@ -4000,7 +4040,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 				WriteOptions.bForceUncompressed = TargetFile.bForceUncompressed;
 				WriteOptions.bIsMemoryMapped = TargetFile.bIsMemoryMappedBulkData;
 				WriteOptions.FileName = TargetFile.DestinationPath;
-				FIoStatus Status = ReadFileTask.IoStoreWriter->Append(TargetFile.ChunkId, TargetFile.ChunkHash, ReadFileTask.IoBuffer, WriteOptions);
+				FIoStatus Status = ReadFileTask.IoStoreWriter->Append(TargetFile.ChunkId, TargetFile.ChunkHash, ReadFileTask.IoBuffer, WriteOptions, FileRegionsCopy);
 				UE_CLOG(!Status.IsOk(), LogIoStore, Fatal, TEXT("Failed to append chunk to container file due to '%s'"), *Status.ToString());
 
 				ReadFileTask.IoBuffer = FIoBuffer();
@@ -4058,7 +4098,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 		IOSTORE_CPU_SCOPE(SerializeInitialLoadMeta);
 		FIoWriteOptions WriteOptions;
 		WriteOptions.DebugName = TEXT("LoaderInitialLoadMeta");
-		const FIoStatus Status = GlobalIoStoreWriter->Append(CreateIoChunkId(0, 0, EIoChunkType::LoaderInitialLoadMeta), FIoBuffer(FIoBuffer::Wrap, InitialLoadArchive.GetData(), InitialLoadArchive.TotalSize()), WriteOptions);
+		const FIoStatus Status = GlobalIoStoreWriter->Append(CreateIoChunkId(0, 0, EIoChunkType::LoaderInitialLoadMeta), FIoBuffer(FIoBuffer::Wrap, InitialLoadArchive.GetData(), InitialLoadArchive.TotalSize()), WriteOptions, {});
 		if (!Status.IsOk())
 		{
 			UE_LOG(LogIoStore, Error, TEXT("Failed to save initial load meta data to container file"));
@@ -4084,10 +4124,10 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 		FIoWriteOptions WriteOptions;
 		WriteOptions.DebugName = TEXT("LoaderGlobalNames");
 		FIoStatus NameStatus = GlobalIoStoreWriter->Append(CreateIoChunkId(0, 0, EIoChunkType::LoaderGlobalNames), 
-													 FIoBuffer(FIoBuffer::Wrap, Names.GetData(), Names.Num()), WriteOptions);
+													 FIoBuffer(FIoBuffer::Wrap, Names.GetData(), Names.Num()), WriteOptions, {});
 		WriteOptions.DebugName = TEXT("LoaderGlobalNameHashes");
 		FIoStatus HashStatus = GlobalIoStoreWriter->Append(CreateIoChunkId(0, 0, EIoChunkType::LoaderGlobalNameHashes),
-													 FIoBuffer(FIoBuffer::Wrap, Hashes.GetData(), Hashes.Num()), WriteOptions);
+													 FIoBuffer(FIoBuffer::Wrap, Hashes.GetData(), Hashes.Num()), WriteOptions, {});
 		
 		if (!NameStatus.IsOk() || !HashStatus.IsOk())
 		{
@@ -4351,7 +4391,7 @@ int32 CreateContentPatch(const FIoStoreArguments& Arguments, const FIoStoreWrite
 				FIoWriteOptions WriteOptions;
 				WriteOptions.bIsMemoryMapped = ChunkInfo.bIsMemoryMapped;
 				WriteOptions.bForceUncompressed = ChunkInfo.bForceUncompressed; 
-				FIoStatus Status = IoStoreWriter.Append(ChunkInfo.Id, ChunkInfo.Hash, ChunkBuffer.ConsumeValueOrDie(), WriteOptions);
+				FIoStatus Status = IoStoreWriter.Append(ChunkInfo.Id, ChunkInfo.Hash, ChunkBuffer.ConsumeValueOrDie(), WriteOptions, {});
 				UE_CLOG(!Status.IsOk(), LogIoStore, Fatal, TEXT("Failed to append chunk to container file due to '%s'"), *Status.ToString());
 			}
 			return true;
@@ -5096,15 +5136,18 @@ class FCookedFileVisitor : public IPlatformFile::FDirectoryStatVisitor
 {
 	FCookedFileStatMap& CookedFileStatMap;
 	FContainerSourceSpec* ContainerSpec = nullptr;
+	bool bFileRegions;
 
 public:
-	FCookedFileVisitor(FCookedFileStatMap& InCookedFileSizes, FContainerSourceSpec* InContainerSpec)
+	FCookedFileVisitor(FCookedFileStatMap& InCookedFileSizes, FContainerSourceSpec* InContainerSpec, bool bInFileRegions)
 		: CookedFileStatMap(InCookedFileSizes)
 		, ContainerSpec(InContainerSpec)
+		, bFileRegions(bInFileRegions)
 	{}
 
-	FCookedFileVisitor(FCookedFileStatMap& InFileSizes)
+	FCookedFileVisitor(FCookedFileStatMap& InFileSizes, bool bInFileRegions)
 		: CookedFileStatMap(InFileSizes)
+		, bFileRegions(bInFileRegions)
 	{}
 
 	virtual bool Visit(const TCHAR* FilenameOrDirectory, const FFileStatData& StatData)
@@ -5157,6 +5200,13 @@ public:
 			FileEntry.NormalizedPath = Path;
 		}
 
+		// Read the matching regions file, if it exists.
+		TUniquePtr<FArchive> RegionsFile;
+		if (bFileRegions)
+		{
+			RegionsFile.Reset(IFileManager::Get().CreateFileReader(*(Path + FFileRegion::RegionsFileExtension)));
+		}
+
 		FCookedFileStatData& CookedFileStatData = CookedFileStatMap.Add(MoveTemp(Path));
 		CookedFileStatData.FileSize = StatData.FileSize;
 		CookedFileStatData.FileExt = FCookedFileStatData::EFileExt(ExtIndex);
@@ -5172,6 +5222,12 @@ public:
 		{
 			CookedFileStatData.FileType = FCookedFileStatData::BulkData;
 		}
+
+		if (RegionsFile.IsValid())
+		{
+			FFileRegion::SerializeFileRegions(*RegionsFile.Get(), CookedFileStatData.FileRegions);
+		}
+
 		return true;
 	}
 };
@@ -5278,17 +5334,23 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 
 	ParseSizeArgument(CmdLine, TEXT("-alignformemorymapping="), GeneralIoWriterSettings.MemoryMappingAlignment, DefaultMemoryMappingAlignment);
 	ParseSizeArgument(CmdLine, TEXT("-compressionblocksize="), GeneralIoWriterSettings.CompressionBlockSize, DefaultCompressionBlockSize);
-	ParseSizeArgument(CmdLine, TEXT("-blocksize="), GeneralIoWriterSettings.CompressionBlockAlignment);
+	bool bUseDefaultCompressionBlockAlignment = true;
+	if (ParseSizeArgument(CmdLine, TEXT("-blocksize="), GeneralIoWriterSettings.CompressionBlockAlignment))
+	{
+		bUseDefaultCompressionBlockAlignment = false;
+	}
 
 	uint64 PatchPaddingAlignment = 0;
 	if (ParseSizeArgument(CmdLine, TEXT("-patchpaddingalign"), PatchPaddingAlignment))
 	{
+		bUseDefaultCompressionBlockAlignment = false;
 		if (!GeneralIoWriterSettings.CompressionBlockAlignment || PatchPaddingAlignment < GeneralIoWriterSettings.CompressionBlockAlignment)
 		{
 			GeneralIoWriterSettings.CompressionBlockAlignment = PatchPaddingAlignment;
 		}
 	}
-	if (!GeneralIoWriterSettings.CompressionBlockAlignment)
+
+	if (bUseDefaultCompressionBlockAlignment)
 	{
 		GeneralIoWriterSettings.CompressionBlockAlignment = DefaultCompressionBlockAlignment;
 	}
@@ -5468,8 +5530,12 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 			}
 		}
 
+		// Enable file region metadata if required by the target platform.
+		bool bFileRegions = Arguments.TargetPlatform->SupportsFeature(ETargetPlatformFeatures::CookFileRegionMetadata);
+		GeneralIoWriterSettings.bEnableFileRegions = bFileRegions;
+
 		UE_LOG(LogIoStore, Display, TEXT("Searching for cooked assets in folder '%s'"), *Arguments.CookedDir);
-		FCookedFileVisitor CookedFileVistor(Arguments.CookedFileStatMap, nullptr);
+		FCookedFileVisitor CookedFileVistor(Arguments.CookedFileStatMap, nullptr, bFileRegions);
 		IFileManager::Get().IterateDirectoryStatRecursively(*Arguments.CookedDir, CookedFileVistor);
 		UE_LOG(LogIoStore, Display, TEXT("Found '%d' files"), Arguments.CookedFileStatMap.Num());
 

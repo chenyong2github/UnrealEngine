@@ -1589,7 +1589,7 @@ ESavePackageResult WriteAdditionalExportFiles(FSaveContext& SaveContext)
 				{
 					WriteOptions |= EAsyncWriteOptions::WriteFileToDisk;
 				}
-				SavePackageUtilities::AsyncWriteFile(SaveContext.AsyncWriteAndHashSequence, MoveTemp(DataPtr), Size, *Writer.GetArchiveName(), WriteOptions);
+				SavePackageUtilities::AsyncWriteFile(SaveContext.AsyncWriteAndHashSequence, MoveTemp(DataPtr), Size, *Writer.GetArchiveName(), WriteOptions, {});
 			}
 		}
 		SaveContext.AdditionalFilesFromExports.Empty();
@@ -1771,12 +1771,13 @@ ESavePackageResult FinalizeFile(FStructuredArchive::FRecord& StructuredArchiveRo
 				const int32 ExportCount = Linker->ExportMap.Num();
 
 				ExportsInfo.Exports.Reserve(ExportCount);
+				ExportsInfo.RegionsOffset = HeaderSize;
 
 				for (const FObjectExport& Export : Linker->ExportMap)
 				{
 					ExportsInfo.Exports.Add(FIoBuffer(IoBuffer.Data() + Export.SerialOffset, Export.SerialSize, IoBuffer));
 				}
-				SavePackageContext->PackageStoreWriter->WriteExports(ExportsInfo, FIoBuffer(ExportsData, DataSize - HeaderSize, IoBuffer));
+				SavePackageContext->PackageStoreWriter->WriteExports(ExportsInfo, FIoBuffer(ExportsData, DataSize - HeaderSize, IoBuffer), Linker->FileRegions);
 			}
 			else
 			{
@@ -1787,11 +1788,11 @@ ESavePackageResult FinalizeFile(FStructuredArchive::FRecord& StructuredArchiveRo
 				}
 				if (SaveContext.IsCooking())
 				{
-					SavePackageUtilities::AsyncWriteFileWithSplitExports(SaveContext.AsyncWriteAndHashSequence, FLargeMemoryPtr(Writer->ReleaseOwnership()), DataSize, Linker->Summary.TotalHeaderSize, *PathToSave, WriteOptions);
+					SavePackageUtilities::AsyncWriteFileWithSplitExports(SaveContext.AsyncWriteAndHashSequence, FLargeMemoryPtr(Writer->ReleaseOwnership()), DataSize, Linker->Summary.TotalHeaderSize, *PathToSave, WriteOptions, Linker->FileRegions);
 				}
 				else
 				{
-					SavePackageUtilities::AsyncWriteFile(SaveContext.AsyncWriteAndHashSequence, FLargeMemoryPtr(Writer->ReleaseOwnership()), DataSize, *PathToSave, WriteOptions);
+					SavePackageUtilities::AsyncWriteFile(SaveContext.AsyncWriteAndHashSequence, FLargeMemoryPtr(Writer->ReleaseOwnership()), DataSize, *PathToSave, WriteOptions, Linker->FileRegions);
 				}
 			}
 			SaveContext.CloseLinkerArchives();

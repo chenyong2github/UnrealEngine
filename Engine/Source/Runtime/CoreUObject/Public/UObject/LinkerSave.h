@@ -59,10 +59,13 @@ public:
 		int64 BulkDataFlagsPos;
 		/** Bulk data flags at the time of serialization */
 		uint32 BulkDataFlags;
+		/** Any data shuffle pattern that applies to this bulk data */
+		EDataShufflePattern BulkDataShufflePattern;
 		/** The bulkdata */
 		FUntypedBulkData* BulkData;
 	};
 	TArray<FBulkDataStorageInfo> BulkDataToAppend;
+	TArray<FFileRegion> FileRegions;
 
 	/** A mapping of package name to generated script SHA keys */
 	COREUOBJECT_API static TMap<FString, TArray<uint8> > PackagesToScriptSHAMap;

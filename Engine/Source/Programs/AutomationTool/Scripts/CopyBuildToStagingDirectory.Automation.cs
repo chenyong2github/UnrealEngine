@@ -625,6 +625,12 @@ public partial class Project : CommandUtils
 					continue;
 				}
 
+				// Skip region files. These are cook-time metadata files that never need to ship.
+				if (CookedFile.HasExtension(FileRegion.RegionsFileExtension))
+				{
+					continue;
+				}
+
 				// json files have never been staged
 				// metallib files cannot *currently* be staged as UFS as the Metal API needs to mmap them from files on disk in order to function efficiently
 				if (!CookedFile.HasExtension(".json") && !CookedFile.HasExtension(".metallib"))
@@ -907,6 +913,12 @@ public partial class Project : CommandUtils
 					{
 						// Skip metadata directory
 						if (CookedFile.Directory.IsUnderDirectory(SC.MetadataDir))
+						{
+							continue;
+						}
+
+						// Skip region files. These are cook-time metadata files that never need to ship.
+						if (CookedFile.HasExtension(FileRegion.RegionsFileExtension))
 						{
 							continue;
 						}
@@ -2055,7 +2067,10 @@ public partial class Project : CommandUtils
 		string CompressionFormats = "";
 		if (PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PakFileCompressionFormats", out CompressionFormats))
 		{
-			CompressionFormats = " -compressionformats=" + CompressionFormats;
+			if (!string.IsNullOrWhiteSpace(CompressionFormats))
+			{
+				CompressionFormats = " -compressionformats=" + CompressionFormats;
+			}
 		}
 
 		Func<string, string> GetPostFix = PakFilename => GetPakFilePostFix(bShouldGeneratePatch, Params.HasIterateSharedCookedBuild, PlatformGameConfig, PakFilename);
