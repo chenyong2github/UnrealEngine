@@ -2890,10 +2890,10 @@ void FD3D12DynamicRHI::RHIAliasTextureResources(FTextureRHIRef& DestTextureRHI, 
 
 	for (FD3D12TextureBase::FDualLinkedObjectIterator It(DestTexture, SrcTexture); It; ++It)
 	{
-		DestTexture = It.GetFirst();
-		SrcTexture = It.GetSecond();
+		FD3D12TextureBase* DestLinkedTexture = It.GetFirst();
+		FD3D12TextureBase* SrcLinkedTexture = It.GetSecond();
 
-		DestTexture->AliasResources(SrcTexture);
+		DestLinkedTexture->AliasResources(SrcLinkedTexture);
 	}
 }
 
@@ -2932,38 +2932,43 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateAliasedD3D12Texture2D
 	const DXGI_FORMAT PlatformShaderResourceFormat = FindShaderResourceDXGIFormat(PlatformResourceFormat, bSRGB);
 	const DXGI_FORMAT PlatformRenderTargetFormat = FindShaderResourceDXGIFormat(PlatformResourceFormat, bSRGB);
 
-	TD3D12Texture2D<BaseResourceType>* Texture2D = new TD3D12Texture2D<BaseResourceType>(Device, SizeX, SizeY, SizeZ, NumMips, NumSamples, SourceTexture->GetFormat(), false, SourceTexture->GetFlags(), SourceTexture->GetClearBinding());
-
-	// Set up the texture bind flags.
-	bool bCreateRTV = (TextureDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET) != 0;
-	bool bCreateDSV = (TextureDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) != 0;
-
-	const D3D12_RESOURCE_STATES State = D3D12_RESOURCE_STATE_COMMON;
-
-	if (bCreateRTV)
+	TD3D12Texture2D<BaseResourceType>* Texture2D = Adapter->CreateLinkedObject<TD3D12Texture2D<BaseResourceType>>(Device->GetGPUMask(), [&](FD3D12Device* Device)
 	{
-		Texture2D->SetCreatedRTVsPerSlice(false, NumMips);
-		Texture2D->SetNumRenderTargetViews(NumMips);
+		TD3D12Texture2D<BaseResourceType>* NewTexture = new TD3D12Texture2D<BaseResourceType>(Device, SizeX, SizeY, SizeZ, NumMips, NumSamples, SourceTexture->GetFormat(), false, SourceTexture->GetFlags(), SourceTexture->GetClearBinding());
 
-		// Create a render target view for each array index and mip index.
-		// These are null because we'll be aliasing them shortly.
-		for (uint32 ArrayIndex = 0; ArrayIndex < ArraySize; ArrayIndex++)
+		// Set up the texture bind flags.
+		bool bCreateRTV = (TextureDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET) != 0;
+		bool bCreateDSV = (TextureDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) != 0;
+
+		const D3D12_RESOURCE_STATES State = D3D12_RESOURCE_STATE_COMMON;
+
+		if (bCreateRTV)
 		{
-			for (uint32 MipIndex = 0; MipIndex < NumMips; MipIndex++)
+			NewTexture->SetCreatedRTVsPerSlice(false, NumMips);
+			NewTexture->SetNumRenderTargetViews(NumMips);
+
+			// Create a render target view for each array index and mip index.
+			// These are null because we'll be aliasing them shortly.
+			for (uint32 ArrayIndex = 0; ArrayIndex < ArraySize; ArrayIndex++)
 			{
-				Texture2D->SetRenderTargetViewIndex(nullptr, ArrayIndex * NumMips + MipIndex);
+				for (uint32 MipIndex = 0; MipIndex < NumMips; MipIndex++)
+				{
+					NewTexture->SetRenderTargetViewIndex(nullptr, ArrayIndex * NumMips + MipIndex);
+				}
 			}
 		}
-	}
 
-	if (bCreateDSV)
-	{
-		// Create a depth-stencil-view for the texture.
-		for (uint32 AccessType = 0; AccessType < FExclusiveDepthStencil::MaxIndex; ++AccessType)
+		if (bCreateDSV)
 		{
-			Texture2D->SetDepthStencilView(nullptr, AccessType);
+			// Create a depth-stencil-view for the texture.
+			for (uint32 AccessType = 0; AccessType < FExclusiveDepthStencil::MaxIndex; ++AccessType)
+			{
+				NewTexture->SetDepthStencilView(nullptr, AccessType);
+			}
 		}
-	}
+
+		return NewTexture;
+	});
 
 	RHIAliasTextureResources((FTextureRHIRef&)Texture2D, (FTextureRHIRef&)SourceTexture);
 
