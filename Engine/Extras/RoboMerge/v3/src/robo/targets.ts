@@ -237,7 +237,8 @@ export class DescriptionParser {
 			}
 		}
 		else if (command !== 'ROBOMERGE-EDIGRATE' &&
-				 command !== 'ROBOMERGE-COMMAND') {
+				 command !== 'ROBOMERGE-COMMAND' && 
+				 command !== 'ROBOMERGE-CONFLICT') {
 			// add syntax error for unknown command
 			this.errors.push(`Unknown command '${command}`)
 		}
