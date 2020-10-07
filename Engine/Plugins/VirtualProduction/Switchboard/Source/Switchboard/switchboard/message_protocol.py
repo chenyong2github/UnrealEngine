@@ -4,9 +4,9 @@ import base64
 import json
 import uuid
 
-def create_start_process_message(prog_path, prog_args):
+def create_start_process_message(prog_path, prog_args, prog_name):
     cmd_id = uuid.uuid4()
-    start_cmd = {'command': 'start', 'id': str(cmd_id), 'exe': prog_path, 'args': prog_args}
+    start_cmd = {'command': 'start', 'id': str(cmd_id), 'exe': prog_path, 'args': prog_args, 'name':prog_name}
     message = json.dumps(start_cmd).encode() + b'\x00'
     return (cmd_id, message)
 
