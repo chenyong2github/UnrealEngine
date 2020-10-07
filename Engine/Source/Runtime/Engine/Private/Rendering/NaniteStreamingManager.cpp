@@ -1653,7 +1653,7 @@ void FStreamingManager::EndAsyncUpdate(FRHICommandListImmediate& RHICmdList)
 		// NOTE: We need an additional barrier here to make sure pages are finished uploading before fixups can be applied.
 		{
 			FRHIUnorderedAccessView* UAVs[] = { ClusterPageData.DataBuffer.UAV };
-			RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, UAVs, UE_ARRAY_COUNT(UAVs));
+			RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, UAVs, UE_ARRAY_COUNT(UAVs));
 		}
 		ClusterFixupUploadBuffer.ResourceUploadTo(RHICmdList, ClusterPageData.DataBuffer, false);
 		
