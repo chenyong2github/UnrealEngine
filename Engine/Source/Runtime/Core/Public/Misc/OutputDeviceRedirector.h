@@ -91,7 +91,7 @@ private:
 	* Assumes that the caller holds a lock on SynchronizationObject.
 	* @param bUseAllDevices - if true this method will use all output devices
 	*/
-	void InternalFlushThreadedLogs(TLocalOutputDevicesArray& InBufferedDevices, TLocalOutputDevicesArray& InUnbufferedDevices, bool bUseAllDevices);
+	void InternalFlushThreadedLogs(TLocalOutputDevicesArray& InBufferedDevices, bool bUseAllDevices);
 	void InternalFlushThreadedLogs(bool bUseAllDevices);
 
 	/** Locks OutputDevices arrays so that nothing can be added or removed from them */
