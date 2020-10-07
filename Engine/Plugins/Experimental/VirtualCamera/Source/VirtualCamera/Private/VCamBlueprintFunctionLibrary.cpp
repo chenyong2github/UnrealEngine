@@ -8,7 +8,6 @@
 #include "AssetData.h"
 #include "VirtualCameraUserSettings.h"
 #include "GameFramework/PlayerController.h"
-
 #if WITH_EDITOR
 #include "Editor.h"
 #include "EditorAssetLibrary.h"
@@ -85,6 +84,13 @@ int32 UVCamBlueprintFunctionLibrary::GetLevelSequenceLengthInFrames(const ULevel
 	}
 
 	return 0;
+}
+
+
+int32 UVCamBlueprintFunctionLibrary::TimecodeToFrameAmount(FTimecode Timecode, const FFrameRate& InFrameRate)
+{
+	return Timecode.ToFrameNumber(InFrameRate).Value; 
+
 }
 
 FTimecode UVCamBlueprintFunctionLibrary::GetLevelSequenceFrameAsTimecode(const ULevelSequence* LevelSequence, int32 InFrame)
