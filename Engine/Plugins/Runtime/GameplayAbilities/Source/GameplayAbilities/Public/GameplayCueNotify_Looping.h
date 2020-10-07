@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameplayCueNotify_Instanced.h"
+#include "GameplayCueNotify_Actor.h"
 #include "GameplayCueNotifyTypes.h"
 #include "GameplayCueNotify_Looping.generated.h"
 
@@ -15,7 +15,7 @@
  *	The game is responsible for defining the start/stop by adding/removing the gameplay cue.
  */
 UCLASS(Blueprintable, notplaceable, Category = "GameplayCueNotify", Meta = (ShowWorldContextPin, DisplayName = "GCN Looping", ShortTooltip = "A GameplayCueNotify that has a duration that is driven by the game."))
-class AGameplayCueNotify_Looping : public AGameplayCueNotify_Instanced
+class AGameplayCueNotify_Looping : public AGameplayCueNotify_Actor
 {
 	GENERATED_BODY()
 

@@ -13,6 +13,12 @@ const float DefaultBurstLatentLifetime = 5.0f;
 //////////////////////////////////////////////////////////////////////////
 AGameplayCueNotify_BurstLatent::AGameplayCueNotify_BurstLatent()
 {
+	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
+
+	PrimaryActorTick.bStartWithTickEnabled = false;
+	bAutoDestroyOnRemove = true;
+	NumPreallocatedInstances = 3;
+
 	Recycle();
 }
 

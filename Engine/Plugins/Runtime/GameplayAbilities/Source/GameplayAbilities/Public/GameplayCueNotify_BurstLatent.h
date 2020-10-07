@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameplayCueNotify_Instanced.h"
+#include "GameplayCueNotify_Actor.h"
 #include "GameplayCueNotifyTypes.h"
 #include "GameplayCueNotify_BurstLatent.generated.h"
 
@@ -15,7 +15,7 @@
  *	Since it is instanced, it can do latent things like time lines or delays.
  */
 UCLASS(Blueprintable, notplaceable, Category = "GameplayCueNotify", Meta = (ShowWorldContextPin, DisplayName = "GCN Burst Latent", ShortTooltip = "A one-off GameplayCueNotify that can use latent actions such as timelines."))
-class AGameplayCueNotify_BurstLatent : public AGameplayCueNotify_Instanced
+class AGameplayCueNotify_BurstLatent : public AGameplayCueNotify_Actor
 {
 	GENERATED_BODY()
 

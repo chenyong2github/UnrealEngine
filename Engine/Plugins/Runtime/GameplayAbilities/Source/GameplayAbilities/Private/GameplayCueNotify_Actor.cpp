@@ -7,6 +7,7 @@
 #include "AbilitySystemStats.h"
 #include "AbilitySystemGlobals.h"
 #include "GameplayCueManager.h"
+#include "GameplayCueNotifyTypes.h"
 
 
 namespace FAbilitySystemTweaks
@@ -43,12 +44,47 @@ AGameplayCueNotify_Actor::AGameplayCueNotify_Actor(const FObjectInitializer& Obj
 
 void AGameplayCueNotify_Actor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (UGameplayCueManager::IsGameplayCueRecylingEnabled() && (EndPlayReason == EEndPlayReason::Destroyed))
+	{
+		UWorld* World = GetWorld();
+		if (World && !World->IsPlayingReplay() && (World->WorldType == EWorldType::Game))
+		{
+			UE_LOG(LogGameplayCueNotify, Error, TEXT("GameplayCueNotify [%s] is calling EndPlay(). This should not happen since they are recycled through the GameplayCueManager."), *GetName());
+		}
+	}
+
 	if (EndPlayReason == EEndPlayReason::Destroyed)
 	{
 		UAbilitySystemGlobals::Get().GetGameplayCueManager()->NotifyGameplayCueActorEndPlay(this);
 	}
 
 	Super::EndPlay(EndPlayReason);
+}
+
+void AGameplayCueNotify_Actor::K2_DestroyActor()
+{
+	if (UGameplayCueManager::IsGameplayCueRecylingEnabled())
+	{
+		UE_LOG(LogGameplayCueNotify, Warning, TEXT("GameplayCueNotify [%s] is calling DesotryActor(). This is not necessary as GCs will be cleaned up and recycled automatically."), *GetName());
+	}
+	else
+	{
+		Super::K2_DestroyActor();
+	}
+}
+
+void AGameplayCueNotify_Actor::Destroyed()
+{
+	if (UGameplayCueManager::IsGameplayCueRecylingEnabled())
+	{
+		UWorld* World = GetWorld();
+		if (World && !World->IsPlayingReplay() && (World->WorldType == EWorldType::Game))
+		{
+			UE_LOG(LogGameplayCueNotify, Error, TEXT("GameplayCueNotify [%s] is calling Destroyed(). This should not happen since they are recycled through the GameplayCueManager."), *GetName());
+		}
+	}
+
+	Super::Destroyed();
 }
 
 #if WITH_EDITOR
@@ -261,11 +297,21 @@ bool AGameplayCueNotify_Actor::OnActive_Implementation(AActor* MyTarget, const F
 
 bool AGameplayCueNotify_Actor::WhileActive_Implementation(AActor* MyTarget, const FGameplayCueParameters& Parameters)
 {
+	if (IsHidden())
+	{
+		SetActorHiddenInGame(false);
+	}
+
 	return false;
 }
 
 bool AGameplayCueNotify_Actor::OnRemove_Implementation(AActor* MyTarget, const FGameplayCueParameters& Parameters)
 {
+	if (!IsHidden())
+	{
+		SetActorHiddenInGame(true);
+	}
+
 	return false;
 }
 

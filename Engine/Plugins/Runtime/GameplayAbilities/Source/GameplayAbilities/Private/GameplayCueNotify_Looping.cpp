@@ -8,7 +8,12 @@
 //////////////////////////////////////////////////////////////////////////
 AGameplayCueNotify_Looping::AGameplayCueNotify_Looping()
 {
+	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
+
+	PrimaryActorTick.bStartWithTickEnabled = false;
+	bAutoDestroyOnRemove = true;
 	bAllowMultipleWhileActiveEvents = false;
+	NumPreallocatedInstances = 3;
 
 	DefaultPlacementInfo.AttachPolicy = EGameplayCueNotify_AttachPolicy::AttachToTarget;
 

@@ -30,6 +30,9 @@ class GAMEPLAYABILITIES_API AGameplayCueNotify_Actor : public AActor
 protected:
 	virtual void BeginPlay() override;
 
+	virtual void K2_DestroyActor() override;
+	virtual void Destroyed() override;
+
 public:
 	virtual void SetOwner( AActor* NewOwner ) override;
 
