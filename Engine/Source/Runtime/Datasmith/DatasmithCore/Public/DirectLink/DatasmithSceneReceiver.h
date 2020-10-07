@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "DirectLink/DeltaConsumer.h"
-#include "DirectLink/ElementSnapshot.h"
+#include "DirectLinkDeltaConsumer.h"
+#include "DirectLinkElementSnapshot.h"
 
 
 class IDatasmithElement;

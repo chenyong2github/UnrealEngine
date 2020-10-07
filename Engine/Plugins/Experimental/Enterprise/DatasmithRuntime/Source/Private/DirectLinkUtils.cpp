@@ -7,9 +7,9 @@
 
 #include "DatasmithCore.h"
 #include "DatasmithTranslatorModule.h"
-#include "DirectLink/DirectLinkCommon.h"
-#include "DirectLink/DirectLinkLog.h"
-#include "DirectLink/Network/DirectLinkISceneProvider.h"
+#include "DirectLinkCommon.h"
+#include "DirectLinkLog.h"
+#include "DirectLinkSceneProvider.h"
 #include "MasterMaterials/DatasmithMasterMaterialManager.h"
 #include "MaterialSelectors/DatasmithRevitLiveMaterialSelector.h"
 
