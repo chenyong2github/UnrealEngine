@@ -603,7 +603,7 @@ public:
 	 * Recompiles static permutations if necessary.
 	 * Note: This modifies material variables used for rendering and is assumed to be called within a FMaterialUpdateContext!
 	 */
-	ENGINE_API void InitStaticPermutation();
+	ENGINE_API void InitStaticPermutation(EMaterialShaderPrecompileMode PrecompileMode = EMaterialShaderPrecompileMode::Default);
 
 	ENGINE_API void UpdateOverridableBaseProperties();
 

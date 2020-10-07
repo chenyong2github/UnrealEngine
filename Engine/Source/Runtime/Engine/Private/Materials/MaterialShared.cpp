@@ -3670,7 +3670,7 @@ FMaterialUpdateContext::~FMaterialUpdateContext()
 		MI->UpdateCachedLayerParameters();
 #endif
 		MI->RecacheUniformExpressions(true);
-		MI->InitStaticPermutation();//bHasStaticPermutation can change.
+		MI->InitStaticPermutation(EMaterialShaderPrecompileMode::None);//bHasStaticPermutation can change.
 		if (MI->bHasStaticPermutationResource)
 		{
 			NumInstancesWithStaticPermutations++;
