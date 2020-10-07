@@ -75,6 +75,7 @@ type NodeOptionFields = BranchBase & CommonOptionFields & {
 	forceAll: boolean
 	visibility: string[] | string
 	blockAssetFlow: string[]
+	disallowDeadend: boolean
 
 	streamDepot: string
 	streamName: string

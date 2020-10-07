@@ -1587,7 +1587,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 
 		const args = parsedLines.arguments
 		if (optTargetBranch || (args.length + defaultTargets.length) > 0) {
-			computeTargets(this.branch, this.ubergraph, change.change, info, args, defaultTargets, this.nodeBotLogger, optTargetBranch)
+			computeTargets(this.branch, this.ubergraph, change.change, info, args, defaultTargets, this.nodeBotLogger, !this.branch.config.disallowDeadend, optTargetBranch)
 		}
 
 		if (!info.errors) {

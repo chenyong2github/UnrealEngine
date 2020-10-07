@@ -5,6 +5,7 @@ import * as System from './system'
 import * as bent from 'bent'
 import { Perforce } from './test-perforce'
 import { BlockAssets } from './tests/block-assets'
+import { BlockIgnore } from './tests/block-ignore'
 import { ConfirmBinaryStomp } from './tests/confirm-binary-stomp'
 import { ConfirmTextResolve } from './tests/confirm-text-resolve'
 import { ConfirmTextResolveBinaryStomp } from './tests/confirm-text-resolve-binary-stomp'
@@ -181,6 +182,7 @@ async function go() {
 		new ComplexCrossBot3(p4),
 
 		new TestTerminal(p4),
+		new BlockIgnore(p4) // 40
 	]
 
 	// const testToDebug = availableTests[30]
