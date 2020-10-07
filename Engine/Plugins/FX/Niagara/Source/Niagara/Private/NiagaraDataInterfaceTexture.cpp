@@ -34,8 +34,11 @@ struct FNiagaraDataInterfaceProxyTexture : public FNiagaraDataInterfaceProxy
 
 	virtual void PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override
 	{
-		// Make sure the texture is readable, we don't know where it's coming from.
-		RHICmdList.Transition(FRHITransitionInfo(TextureReferenceRHI->GetReferencedTexture(), ERHIAccess::Unknown, ERHIAccess::SRVMask));
+		if (TextureReferenceRHI.IsValid())
+		{
+			// Make sure the texture is readable, we don't know where it's coming from.
+			RHICmdList.Transition(FRHITransitionInfo(TextureReferenceRHI->GetReferencedTexture(), ERHIAccess::Unknown, ERHIAccess::SRVMask));
+		}
 	}
 };
 
