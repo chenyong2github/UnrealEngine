@@ -716,7 +716,6 @@ namespace EMaterialShaderMapUsage
 		MaterialExportOpacity,
 		MaterialExportOpacityMask,
 		MaterialExportSubSurfaceColor,
-		DebugViewMode,
 	};
 }
 
@@ -872,6 +871,8 @@ public:
 
 	/** Ensure content is valid - for example overrides are set deterministically for serialization and sorting */
 	bool IsContentValid() const;
+
+	inline EShaderPermutationFlags GetPermutationFlags() const { return GetShaderPermutationFlags(LayoutParams); }
 
 #if WITH_EDITOR
 	/** Updates the Id's static parameter set data. Reset the override parameters for deterministic serialization *and* comparison */
@@ -1852,6 +1853,8 @@ public:
 
 	ENGINE_API bool TryGetShaders(const FMaterialShaderTypes& InTypes, const FVertexFactoryType* InVertexFactoryType, FMaterialShaders& OutShaders) const;
 
+	ENGINE_API bool HasShaders(const FMaterialShaderTypes& InTypes, const FVertexFactoryType* InVertexFactoryType) const;
+
 	ENGINE_API void SubmitCompileJobs(EShaderCompileJobPriority Priority) const;
 
 	/** Returns a string that describes the material's usage for debugging purposes. */
@@ -2589,9 +2592,6 @@ protected:
 	/** Useful for debugging. */
 	ENGINE_API virtual FString GetBaseMaterialPathName() const override;
 	ENGINE_API virtual FString GetDebugName() const override;
-
-	friend class FDebugViewModeMaterialProxy; // Needed to redirect compilation
-
 };
 
 /**
@@ -3102,13 +3102,6 @@ struct FMaterialShaderParameters
 			uint64 bIsDitheredLODTransition : 1;
 			uint64 bIsUsedWithInstancedStaticMeshes : 1;
 			uint64 bHasRuntimeVirtualTextureOutput : 1;
-			uint64 bIsMaterialTexCoordScale : 1;
-			uint64 bIsMaterialDebugViewMode : 1;
-			uint64 bIsMaterialMeshTexCoordSizeAccuracy : 1;
-			uint64 bMaterialIsPrimitiveDistanceAccuracy : 1;
-			uint64 bMaterialIsRequiredTextureResolution : 1;
-			uint64 bMaterialIsComplexityAccumulate : 1;
-			uint64 bMaterialIsLODColoration : 1;
 			uint64 bIsUsedWithLidarPointCloud : 1;
 			uint64 bIsUsedWithVirtualHeightfieldMesh : 1;
 			uint64 bIsStencilTestEnabled : 1;
@@ -3170,17 +3163,6 @@ struct FMaterialShaderParameters
 		bIsUsedWithLidarPointCloud = InMaterial->IsUsedWithLidarPointCloud();
 		bIsUsedWithVirtualHeightfieldMesh = InMaterial->IsUsedWithVirtualHeightfieldMesh();
 		bIsStencilTestEnabled = InMaterial->IsStencilTestEnabled();
-
-		// See FDebugViewModeMaterialProxy::GetFriendlyName()
-		// TODO seems horrible that friendly name controls which shaders get compiled, should refactor this to use regular accessors
-		const FString FriendlyName = InMaterial->GetFriendlyName();
-		bIsMaterialTexCoordScale = FriendlyName.Contains(TEXT("MaterialTexCoordScale"));
-		bIsMaterialDebugViewMode = FriendlyName.Contains(TEXT("DebugViewMode"));
-		bIsMaterialMeshTexCoordSizeAccuracy = FriendlyName.Contains(TEXT("MeshTexCoordSizeAccuracy"));
-		bMaterialIsPrimitiveDistanceAccuracy = FriendlyName.Contains(TEXT("PrimitiveDistanceAccuracy"));
-		bMaterialIsRequiredTextureResolution = FriendlyName.Contains(TEXT("RequiredTextureResolution"));
-		bMaterialIsComplexityAccumulate = FriendlyName.Contains(TEXT("ComplexityAccumulate"));
-		bMaterialIsLODColoration = FriendlyName.Contains(TEXT("LODColoration"));
 	}
 };
 

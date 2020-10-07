@@ -4483,12 +4483,12 @@ int32 FHLSLMaterialTranslator::TextureSample(
 	}
 
 	const FString UVs = CoerceParameter(CoordinateIndex, UVsType);
-	const bool bStoreTexCoordScales = ShaderFrequency == SF_Pixel && TextureReferenceIndex != INDEX_NONE && Material && Material->GetShaderMapUsage() == EMaterialShaderMapUsage::DebugViewMode;
-	const bool bStoreAvailableVTLevel = ShaderFrequency == SF_Pixel && TextureReferenceIndex != INDEX_NONE && Material && Material->GetShaderMapUsage() == EMaterialShaderMapUsage::DebugViewMode;
+	const bool bStoreTexCoordScales = ShaderFrequency == SF_Pixel && TextureReferenceIndex != INDEX_NONE;
+	const bool bStoreAvailableVTLevel = ShaderFrequency == SF_Pixel && TextureReferenceIndex != INDEX_NONE;
 
 	if (bStoreTexCoordScales)
 	{
-		AddCodeChunk(MCT_Float, TEXT("StoreTexCoordScale(Parameters.TexCoordScalesParams, %s, %d)"), *UVs, (int)TextureReferenceIndex);
+		AddCodeChunk(MCT_Float, TEXT("MaterialStoreTexCoordScale(Parameters, %s, %d)"), *UVs, (int)TextureReferenceIndex);
 	}
 
 	int32 VTStackIndex = INDEX_NONE;
@@ -4614,7 +4614,7 @@ int32 FHLSLMaterialTranslator::TextureSample(
 	if (bStoreTexCoordScales)
 	{
 		FString SamplingCode = CoerceParameter(SamplingCodeIndex, MCT_Float4);
-		AddCodeChunk(MCT_Float, TEXT("StoreTexSample(Parameters.TexCoordScalesParams, %s, %d)"), *SamplingCode, (int)TextureReferenceIndex);
+		AddCodeChunk(MCT_Float, TEXT("MaterialStoreTexSample(Parameters, %s, %d)"), *SamplingCode, (int)TextureReferenceIndex);
 	}
 
 	return SamplingCodeIndex;

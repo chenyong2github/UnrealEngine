@@ -36,7 +36,19 @@ void FPlatformTypeLayoutParameters::InitializeForArchive(FArchive& Ar)
 	check(Ar.IsSaving());
 	if (Ar.IsCooking())
 	{
-		InitializeForPlatform(Ar.CookingTarget()->IniPlatformName(), Ar.CookingTarget()->HasEditorOnlyData());
+		InitializeForPlatform(Ar.CookingTarget());
+	}
+	else
+	{
+		InitializeForCurrent();
+	}
+}
+
+void FPlatformTypeLayoutParameters::InitializeForPlatform(const ITargetPlatform* TargetPlatform)
+{
+	if (TargetPlatform)
+	{
+		InitializeForPlatform(TargetPlatform->IniPlatformName(), TargetPlatform->HasEditorOnlyData());
 	}
 	else
 	{
