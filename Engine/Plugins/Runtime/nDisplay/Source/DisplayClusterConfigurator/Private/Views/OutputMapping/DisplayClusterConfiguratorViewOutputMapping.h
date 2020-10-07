@@ -46,6 +46,8 @@ public:
 
 	virtual bool IsShowWindowCornerImage() const override
 	{ return bShowWindowCornerImage; }
+
+	virtual void SetViewportPreviewTexture(const FString& NodeId, const FString& ViewportId, UTexture* InTexture) override;
 	//~ End IDisplayClusterConfiguratorView Interface
 
 	void ToggleShowWindowInfo();

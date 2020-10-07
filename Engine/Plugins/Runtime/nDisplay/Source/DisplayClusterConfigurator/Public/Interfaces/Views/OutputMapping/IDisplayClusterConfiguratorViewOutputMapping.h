@@ -4,6 +4,8 @@
 
 #include "Interfaces/Views/IDisplayClusterConfiguratorView.h"
 
+class UTexture;
+
 /**
  * The Interface for controll the Output Mapping Мiew
  */
@@ -39,4 +41,6 @@ public:
 	virtual FDelegateHandle RegisterOnShowOutsideViewports(const FOnShowOutsideViewportsDelegate& Delegate) = 0;
 
 	virtual void UnregisterOnShowOutsideViewports(FDelegateHandle DelegateHandle) = 0;
+
+	virtual void SetViewportPreviewTexture(const FString& NodeId, const FString& ViewportId, UTexture* InTexture) = 0;
 };
