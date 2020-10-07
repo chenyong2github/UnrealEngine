@@ -419,7 +419,7 @@ public:
 	 * @return								true unless the delete operation was aborted.
 	 */
 	virtual bool edactDeleteSelected( UWorld* InWorld, bool bVerifyDeletionCanHappen=true, bool bWarnAboutReferences = true, bool bWarnAboutSoftReferences = true) override;
-
+
 	/**
 	 * Creates a new group from the current selection removing any existing groups.
 	 */
@@ -680,7 +680,14 @@ public:
 	 * @return true if level streaming should prefer to stream levels from disk instead of duplicating them from editor world
 	 */
 	virtual bool PreferToStreamLevelsInPIE() const override;
-	
+
+	/**
+	 * Duplicate the currently selected actors.
+	 *
+	 * This is a high level routine which may ultimately call edactDuplicateSelected
+	 */
+	void DuplicateSelectedActors(UWorld* InWorld);
+
 	/**
 	 * If all selected actors belong to the same level, that level is made the current level.
 	 */
