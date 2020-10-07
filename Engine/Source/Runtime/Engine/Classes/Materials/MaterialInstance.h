@@ -672,6 +672,9 @@ public:
 	ENGINE_API virtual TArrayView<UObject* const> GetReferencedTextures() const override final { return CachedReferencedTextures; }
 
 #if WITH_EDITOR
+	/** Add to the set any texture referenced by expressions, including nested functions, as well as any overrides from parameters. */
+	ENGINE_API virtual void GetReferencedTexturesAndOverrides(TSet<const UTexture*>& InOutTextures) const;
+
 	ENGINE_API void UpdateCachedLayerParameters();
 #endif
 

@@ -4019,6 +4019,31 @@ void UMaterialInstance::UpdateStaticPermutation(const FStaticParameterSet& NewPa
 	}
 }
 
+void UMaterialInstance::GetReferencedTexturesAndOverrides(TSet<const UTexture*>& InOutTextures) const
+{
+	for (UObject* UsedObject : CachedReferencedTextures)
+	{
+		if (const UTexture* UsedTexture = Cast<UTexture>(UsedObject))
+		{
+			InOutTextures.Add(UsedTexture);
+		}
+	}
+
+	// Loop on all override parameters, since child MICs might not override some parameters of parent MICs.
+	const UMaterialInstance* MaterialInstance = this;
+	while (MaterialInstance)
+	{
+		for (const FTextureParameterValue& TextureParam : TextureParameterValues)
+		{
+			if (TextureParam.ParameterValue)
+			{
+				InOutTextures.Add(TextureParam.ParameterValue);
+			}
+		}
+		MaterialInstance = Cast<UMaterialInstance>(MaterialInstance->Parent);
+	}
+}
+
 // From MaterialCachedData.cpp
 extern void FMaterialCachedParameters_UpdateForLayerParameters(FMaterialCachedParameters& Parameters, const FMaterialCachedExpressionContext& Context, UMaterialInstance* ParentMaterialInstance, const FStaticMaterialLayersParameter& LayerParameters);
 
