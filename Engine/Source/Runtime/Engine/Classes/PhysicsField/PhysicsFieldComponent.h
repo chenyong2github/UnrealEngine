@@ -157,7 +157,7 @@ public:
 */
 
 UCLASS(meta = (BlueprintSpawnableComponent))
-class ENGINE_API UPhysicsFieldComponent : public UPrimitiveComponent
+class ENGINE_API UPhysicsFieldComponent : public USceneComponent
 {
 	GENERATED_BODY()
 
@@ -165,16 +165,10 @@ public:
 
 	UPhysicsFieldComponent();
 
-	//~ Begin UPrimitiveComponent Interface.
-	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
-	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials) const override;
-	//~ End UPrimitiveComponent Interface.
-
 	//~ Begin UActorComponent Interface.
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual void SendRenderDynamicData_Concurrent() override;
 	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
 	virtual void DestroyRenderState_Concurrent() override;
@@ -190,35 +184,22 @@ public:
 
 	/** The instance of the field system. */
 	FPhysicsFieldInstance* FieldInstance = nullptr;
+
+	/** Scene proxy to be sent to the render thread. */
+	class FPhysicsFieldSceneProxy* FieldProxy = nullptr;
 };
 
-class FPhysicsFieldSceneProxy final : public FPrimitiveSceneProxy
+//class FPhysicsFieldSceneProxy final : public FPrimitiveSceneProxy
+class FPhysicsFieldSceneProxy 
 {
 public:
-	SIZE_T GetTypeHash() const override;
+	//SIZE_T GetTypeHash() const override;
 
 	/** Initialization constructor. */
 	explicit FPhysicsFieldSceneProxy(class UPhysicsFieldComponent* PhysicsFieldComponent);
 
 	/** Destructor. */
 	~FPhysicsFieldSceneProxy();
-
-	/**
-	 *	Called when the rendering thread adds the proxy to the scene.
-	 *	This function allows for generating renderer-side resources.
-	 *	Called in the rendering thread.
-	 */
-	virtual void CreateRenderThreadResources() override;
-
-	/**
-	* Computes view relevance for this scene proxy.
-	*/
-	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
-
-	/**
-	 * Computes the memory footprint of this scene proxy.
-	 */
-	virtual uint32 GetMemoryFootprint() const override;
 
 	/** The vector field resource which this proxy is visualizing. */
 	FPhysicsFieldResource* FieldResource = nullptr;
