@@ -321,6 +321,9 @@ bool FSwitchboardListener::StartProcess(const FSwitchboardStartTask& InRunTask)
 
 	if (!NewProcess.Handle.IsValid() || !FPlatformProcess::IsProcRunning(NewProcess.Handle))
 	{
+		// Close process in case it just didn't run
+		FPlatformProcess::CloseProc(NewProcess.Handle);
+
 		// close pipes
 		FPlatformProcess::ClosePipe(NewProcess.ReadPipe, NewProcess.WritePipe);
 
@@ -732,6 +735,9 @@ FRunningProcess* FSwitchboardListener::FindOrStartFlipModeMonitorForUUID(const F
 
 	if (!MonitorProcess.Handle.IsValid() || !FPlatformProcess::IsProcRunning(MonitorProcess.Handle))
 	{
+		// Close process in case it just didn't run
+		FPlatformProcess::CloseProc(MonitorProcess.Handle);
+
 		// Close unused pipes
 		FPlatformProcess::ClosePipe(MonitorProcess.ReadPipe, MonitorProcess.WritePipe);
 
