@@ -202,9 +202,18 @@ namespace ChaosTest {
 	void InitEvolutionSettings(T_Evolution& Evolution)
 	{
 		// Settings used for unit tests
-		float ShapePadding = 0.0f;
+		const float ShapePadding = 0.0f;
+		const float CullDistance = 0.0f;
 		Evolution.GetCollisionConstraints().SetShapePadding(ShapePadding);
 		Evolution.GetBroadPhase().SetShapePadding(ShapePadding);
+		Evolution.GetCollisionConstraints().SetCullDistance(CullDistance);
+		Evolution.GetBroadPhase().SetBoundsThickness(CullDistance);
+	}
+
+	template<typename T_SOLVER>
+	void InitSolverSettings(T_SOLVER& Solver)
+	{
+		InitEvolutionSettings(*Solver->GetEvolution());
 	}
 
 }

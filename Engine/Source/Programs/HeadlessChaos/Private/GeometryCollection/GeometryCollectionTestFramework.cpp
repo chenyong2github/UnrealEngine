@@ -9,6 +9,7 @@
 #include "Generators/SphereGenerator.h"
 #include "Generators/GridBoxMeshGenerator.h"
 
+#include "HeadlessChaosTestUtility.h"
 #include "ChaosSolversModule.h"
 #include "Chaos/ErrorReporter.h"
 
@@ -269,15 +270,7 @@ namespace GeometryCollectionTest
 	, Solver(nullptr)
 	{
 		Solver = Module->CreateSolver<Traits>(nullptr,Parameters.ThreadingMode);	//until refactor is done, solver must be created after thread change
-
-		// Units tests settings
-		//Solver->SetIterations(1);
-		//Solver->SetCollisionPairIterations(1);
-		//Solver->SetPushOutIterations(3);
-		//Solver->SetCollisionPushOutPairIterations(2);
-		Solver->SetCollisionCullDistance(0.0f);
-		Solver->SetCollisionShapePadding(0.0f);
-
+		ChaosTest::InitSolverSettings(Solver);
 	}
 
 	template<typename Traits>
