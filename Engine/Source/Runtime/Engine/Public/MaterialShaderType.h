@@ -197,7 +197,7 @@ struct FMaterialShaderTypes
 
 struct FMaterialShaders
 {
-	const FMaterialShaderMap* ShaderMap;
+	const FShaderMapBase* ShaderMap;
 	FShaderPipeline* Pipeline;
 	FShader* Shaders[SF_NumGraphicsFrequencies];
 

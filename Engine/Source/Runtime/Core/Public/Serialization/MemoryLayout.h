@@ -15,6 +15,7 @@ class FSHA1;
 class FMemoryImageWriter;
 class FMemoryUnfreezeContent;
 class FPointerTableBase;
+class ITargetPlatform;
 struct FTypeLayoutDesc;
 struct FPlatformTypeLayoutParameters;
 
