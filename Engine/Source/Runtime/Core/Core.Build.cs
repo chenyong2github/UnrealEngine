@@ -14,6 +14,8 @@ public class Core : ModuleRules
 
 		PrivateDependencyModuleNames.Add("BuildSettings");
 
+		PrivateDependencyModuleNames.Add("BLAKE3");
+
 		PublicDependencyModuleNames.Add("TraceLog");
 		PublicIncludePaths.Add("Runtime/TraceLog/Public");
 
