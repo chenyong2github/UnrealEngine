@@ -1973,16 +1973,15 @@ bool UPhysicalMaterialFactoryNew::ConfigureProperties()
 }
 UObject* UPhysicalMaterialFactoryNew::FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
 {
-	if (PhysicalMaterialClass != nullptr)
-	{
-		return NewObject<UPhysicalMaterial>(InParent, PhysicalMaterialClass, Name, Flags | RF_Transactional);
-	}
-	else
-	{
-		// if we have no data asset class, use the passed-in class instead
-		check(Class->IsChildOf(UPhysicalMaterial::StaticClass()));
-		return NewObject<UPhysicalMaterial>(InParent, Class, Name, Flags);
-	}
+	EObjectFlags MaterialFlags = PhysicalMaterialClass.Get() ? Flags | RF_Transactional : Flags;
+	UClass* ClassToUse = PhysicalMaterialClass.Get() ? PhysicalMaterialClass.Get() : Class;
+	
+	check(ClassToUse->IsChildOf(UPhysicalMaterial::StaticClass()));
+
+	UPhysicalMaterial* NewMaterial = NewObject<UPhysicalMaterial>(InParent, ClassToUse, Name, MaterialFlags);
+	// A call to get will ensure any physics-engine specific data is built
+	NewMaterial->GetPhysicsMaterial();
+	return NewMaterial;
 }
 
 /*------------------------------------------------------------------------------
