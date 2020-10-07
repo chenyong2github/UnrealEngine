@@ -769,14 +769,14 @@ namespace Chaos
 		{
 			//pass information back to external thread
 			//we skip dt=0 case because sync data should be identical if dt = 0
-			MarshallingManager.FinalizePullData_Internal();
+			MarshallingManager.FinalizePullData_Internal(MEvolution->LatestExternalTimestampConsumed_Internal);
 		}
 	}
 
 	template <typename Traits>
 	void TPBDRigidsSolver<Traits>::SetExternalTimestampConsumed_Internal(const int32 Timestamp)
 	{
-		MEvolution->LatestExternalTimestampConsumed = Timestamp;
+		MEvolution->LatestExternalTimestampConsumed_Internal = Timestamp;
 	}
 
 	template <typename Traits>
