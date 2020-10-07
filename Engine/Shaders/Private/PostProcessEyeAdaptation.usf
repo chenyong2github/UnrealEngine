@@ -65,6 +65,9 @@ float2 ComputeWeightedTextureAverageAlphaSubRegion(
 	uint2 RectMin,
 	uint2 RectMax)
 {
+	if( ((SubRectMax.x - SubRectMin.x)==0) || ((SubRectMax.y - SubRectMin.y)==0) )
+		return float2(0.0, 0.0000000001f);
+
 	// The inverse of the Region of Interest size.
 	const float InvRectWidth = 1.f / float(RectMax.x - RectMin.x);
 	const float InvRectHeight = 1.f / float(RectMax.y - RectMin.y);
@@ -190,11 +193,11 @@ void BasicEyeAdaptationPS(in float4 UVAndScreenPos : TEXCOORD0, out float4 OutCo
 #if COMPUTESHADER
 	// There are TGSIZE*TGSIZE threads. Each thread will calculate the luminance for its own subregions from a TGSIZE*TGSIZE screen grid
 	const uint2 SubRectMin = uint2(
-		((Color_ViewportMax.x - Color_ViewportMin.y) * GTId.x) / TGSIZE,
+		((Color_ViewportMax.x - Color_ViewportMin.x) * GTId.x) / TGSIZE,
 		((Color_ViewportMax.y - Color_ViewportMin.y) * GTId.y) / TGSIZE);
 
 	const uint2 SubRectMax = uint2(
-		((Color_ViewportMax.x - Color_ViewportMin.y) * (GTId.x + 1)) / TGSIZE,
+		((Color_ViewportMax.x - Color_ViewportMin.x) * (GTId.x + 1)) / TGSIZE,
 		((Color_ViewportMax.y - Color_ViewportMin.y) * (GTId.y + 1)) / TGSIZE);
 
 	const float2 LogLumAveWithWeight = ComputeWeightedTextureAverageAlphaSubRegion(ColorTexture, SubRectMin, SubRectMax, Color_ViewportMin, Color_ViewportMax);
