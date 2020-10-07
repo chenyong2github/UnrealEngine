@@ -178,13 +178,13 @@ FText FHLMediaPlayerTracks::GetTrackDisplayName(EMediaTrackType TrackType, int32
         case EMediaTrackType::Audio:
             if (TrackIndex < static_cast<int32>(PlaybackItem->AudioTrackCount()))
             {
-                DisplayName = FText::Format(LOCTEXT("UnnamedStreamFormat", "Audio Track {0}"), FText::AsNumber(TrackIndex));
+                DisplayName = FText::Format(LOCTEXT("AudioTrackName", "Audio Track {0}"), FText::AsNumber(TrackIndex));
             }
             break;
         case EMediaTrackType::Video:
             if (TrackIndex < static_cast<int32>(PlaybackItem->VideoTrackCount()))
             {
-                DisplayName = FText::Format(LOCTEXT("UnnamedStreamFormat", "Video Track {0}"), FText::AsNumber(TrackIndex));
+                DisplayName = FText::Format(LOCTEXT("VideoTrackName", "Video Track {0}"), FText::AsNumber(TrackIndex));
             }
             break;
         }

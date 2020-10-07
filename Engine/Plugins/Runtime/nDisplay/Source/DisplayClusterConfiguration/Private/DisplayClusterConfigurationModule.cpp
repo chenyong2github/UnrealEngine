@@ -52,5 +52,3 @@ bool FDisplayClusterConfigurationModule::SaveConfig(const UDisplayClusterConfigu
 }
 
 IMPLEMENT_MODULE(FDisplayClusterConfigurationModule, DisplayClusterConfiguration);
-
-#undef LOCTEXT_NAMESPACE
