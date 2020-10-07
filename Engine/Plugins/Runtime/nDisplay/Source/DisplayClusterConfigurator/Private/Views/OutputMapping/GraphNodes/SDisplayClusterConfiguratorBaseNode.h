@@ -54,6 +54,17 @@ public:
 	 */
 	virtual void OnSelectedItemCleared();
 
+	/** Sets the default background brush for node */
+	virtual void SetBackgroundDefaultBrush() {};
+
+	/**
+	 * Sets the background brush from texture
+	 *
+	 * @param InTexture					Texture input
+	 *
+	 */
+	virtual void SetBackgroundBrushFromTexture(UTexture* InTexture) {};
+
 	//~ Begin SWidget interface
 	virtual bool SupportsKeyboardFocus() const override;
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;

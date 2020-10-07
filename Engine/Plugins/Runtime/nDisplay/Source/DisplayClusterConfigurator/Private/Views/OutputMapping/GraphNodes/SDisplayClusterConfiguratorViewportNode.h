@@ -10,6 +10,7 @@
 class FDisplayClusterConfiguratorOutputMappingViewportSlot;
 class FDisplayClusterConfiguratorToolkit;
 class IDisplayClusterConfiguratorTreeItem;
+class SImage;
 class UDisplayClusterConfigurationViewport;
 class UDisplayClusterConfiguratorViewportNode;
 
@@ -35,10 +36,15 @@ public:
 	virtual void SetNodePositionOffset(const FVector2D InLocalOffset) override;
 	virtual void SetNodeSize(const FVector2D InLocalSize) override;
 	virtual void OnSelectedItemSet(const TSharedRef<IDisplayClusterConfiguratorTreeItem>& InTreeItem) override;
+
+	virtual void SetBackgroundDefaultBrush() override;
+
+	virtual void SetBackgroundBrushFromTexture(UTexture* InTexture) override;
 	//~ End of SDisplayClusterConfiguratorBaseNode interface
 
 private:
-	FSlateColor GetBackgroundColor() const;
+	FSlateColor GetDefaultBackgroundColor() const;
+	FSlateColor GetImageBackgroundColor() const;
 
 	const FSlateBrush* GetBorderBrush() const;
 	FText GetPositionAndSizeText() const;
@@ -51,4 +57,8 @@ private:
 	TWeakPtr<FDisplayClusterConfiguratorOutputMappingViewportSlot> ViewportSlotPtr;
 
 	TWeakObjectPtr<UDisplayClusterConfigurationViewport> CfgViewportPtr;
+
+	FSlateBrush BackgroundActiveBrush;
+
+	TSharedPtr<SImage> BackgroundImage;
 };
