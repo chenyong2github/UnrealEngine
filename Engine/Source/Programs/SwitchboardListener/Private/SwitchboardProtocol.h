@@ -4,11 +4,23 @@
 
 #include "CoreMinimal.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
+#include "JsonObjectConverter.h"
 
+struct FSwitchboardPacket;
 struct FSwitchboardTask;
 struct FSyncStatus;
 
 //~ Messages sent from Listener to Switchboard
+
+template<typename InStructType>
+FString CreateMessage(const InStructType& InStruct)
+{
+	FString Message;
+	const bool bMessageOk = FJsonObjectConverter::UStructToJsonObjectString(InStruct, Message);
+	check(bMessageOk);
+	return Message;
+}
+
 FString CreateTaskDeclinedMessage(const FSwitchboardTask& InTask, const FString& InErrorMessage);
 FString CreateCommandAcceptedMessage(const FGuid& InMessageID);
 FString CreateCommandDeclinedMessage(const FGuid& InMessageID, const FString& InErrorMessage);

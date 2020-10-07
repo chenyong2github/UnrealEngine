@@ -177,7 +177,7 @@ class DevicenDisplay(DeviceUnreal):
         self.setting_render_mode.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
 
         self.unreal_client.send_file_completed_delegate = self.on_ndisplay_config_transfer_complete
-        self.unreal_client.get_sync_status_delegate = self.on_get_sync_status
+        self.unreal_client.delegates['get sync status'] = self.on_get_sync_status
 
         # create monitor if it doesn't exist
         if not self.__class__.ndisplay_monitor:
