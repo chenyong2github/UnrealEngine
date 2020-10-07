@@ -19,6 +19,7 @@
 #include "Serialization/ArchiveProxy.h"
 #include "UObject/RenderingObjectVersion.h"
 #include "Serialization/MemoryImage.h"
+#include "HAL/ThreadSafeBool.h"
 #include <atomic>
 
 // For FShaderUniformBufferParameter
@@ -216,6 +217,11 @@ public:
 		return NumRHIShaders;
 	}
 
+	inline bool IsValidShaderIndex(int32 ShaderIndex) const
+	{
+		return ShaderIndex >= 0 && ShaderIndex < NumRHIShaders;
+	}
+
 	inline bool HasShader(int32 ShaderIndex) const
 	{
 		return RHIShaders[ShaderIndex].load(std::memory_order_acquire) != nullptr;
@@ -384,6 +390,8 @@ class RENDERCORE_API FShaderMapPointerTable : public FPointerTableBase
 public:
 	virtual int32 AddIndexedPointer(const FTypeLayoutDesc& TypeDesc, void* Ptr) override;
 	virtual void* GetIndexedPointer(const FTypeLayoutDesc& TypeDesc, uint32 i) const override;
+
+	virtual FShaderMapPointerTable* Clone() const { return new FShaderMapPointerTable(*this); }
 
 	virtual void SaveToArchive(FArchive& Ar, void* FrozenContent, bool bInlineShaderResources) const;
 	virtual void LoadFromArchive(FArchive& Ar, void* FrozenContent, bool bInlineShaderResources, bool bLoadedByCookedMaterial);
@@ -624,26 +632,26 @@ struct FShaderPermutationParameters
 
 struct FShaderCompiledShaderInitializerType
 {
-	FShaderType* Type;
+	const FShaderType* Type;
 	FShaderTarget Target;
 	const TArray<uint8>& Code;
 	const FShaderParameterMap& ParameterMap;
 	const FSHAHash& OutputHash;
 	FSHAHash MaterialShaderMapHash;
 	const FShaderPipelineType* ShaderPipeline;
-	FVertexFactoryType* VertexFactoryType;
+	const FVertexFactoryType* VertexFactoryType;
 	uint32 NumInstructions;
 	uint32 NumTextureSamplers;
 	uint32 CodeSize;
 	int32 PermutationId;
 
 	RENDERCORE_API FShaderCompiledShaderInitializerType(
-		FShaderType* InType,
+		const FShaderType* InType,
 		int32 InPermutationId,
 		const FShaderCompilerOutput& CompilerOutput,
 		const FSHAHash& InMaterialShaderMapHash,
 		const FShaderPipelineType* InShaderPipeline,
-		FVertexFactoryType* InVertexFactoryType
+		const FVertexFactoryType* InVertexFactoryType
 	);
 };
 
@@ -833,7 +841,7 @@ class TShaderRefBase
 {
 public:
 	TShaderRefBase() : ShaderContent(nullptr), ShaderMap(nullptr) {}
-	TShaderRefBase(ShaderType* InShader, const FShaderMapBase& InShaderMap) : ShaderContent(InShader), ShaderMap(&InShaderMap) {}
+	TShaderRefBase(ShaderType* InShader, const FShaderMapBase& InShaderMap) : ShaderContent(InShader), ShaderMap(&InShaderMap) { checkSlow(InShader); }
 	TShaderRefBase(const TShaderRefBase&) = default;
 
 	template<typename OtherShaderType, typename OtherPointerTableType>
@@ -852,13 +860,13 @@ public:
 	template<typename OtherShaderType, typename OtherPointerTableType>
 	static TShaderRefBase<ShaderType, PointerTableType> Cast(const TShaderRefBase<OtherShaderType, OtherPointerTableType>& Rhs)
 	{
-		return TShaderRefBase<ShaderType, PointerTableType>(static_cast<ShaderType*>(Rhs.GetShader()), Rhs.GetShaderMapChecked());
+		return TShaderRefBase<ShaderType, PointerTableType>(static_cast<ShaderType*>(Rhs.GetShader()), Rhs.GetShaderMap());
 	}
 
 	template<typename OtherShaderType, typename OtherPointerTableType>
 	static TShaderRefBase<ShaderType, PointerTableType> ReinterpretCast(const TShaderRefBase<OtherShaderType, OtherPointerTableType>& Rhs)
 	{
-		return TShaderRefBase<ShaderType, PointerTableType>(reinterpret_cast<ShaderType*>(Rhs.GetShader()), Rhs.GetShaderMapChecked());
+		return TShaderRefBase<ShaderType, PointerTableType>(reinterpret_cast<ShaderType*>(Rhs.GetShader()), Rhs.GetShaderMap());
 	}
 
 	inline bool IsValid() const { return ShaderContent != nullptr; }
@@ -946,6 +954,12 @@ public:
 #endif // RHI_RAYTRACING
 
 private:
+	TShaderRefBase(ShaderType* InShader, const FShaderMapBase* InShaderMap)
+		: ShaderContent(InShader), ShaderMap(InShaderMap)
+	{
+		checkSlow((!InShader && !InShaderMap) || (InShader && InShaderMap));
+	}
+
 	ShaderType* ShaderContent;
 	const FShaderMapBase* ShaderMap;
 };
@@ -1100,6 +1114,36 @@ public:
 		return (ShaderTypeForDynamicCast == EShaderTypeForDynamicCast::OCIO) ? reinterpret_cast<FOpenColorIOShaderType*>(this) : nullptr;
 	}
 
+	FORCEINLINE const FGlobalShaderType* AsGlobalShaderType() const
+	{
+		checkf(ShaderTypeForDynamicCast == EShaderTypeForDynamicCast::Global, TEXT("ShaderType %s is not Global"), GetName());
+		return reinterpret_cast<const FGlobalShaderType*>(this);
+	}
+
+	FORCEINLINE const FMaterialShaderType* AsMaterialShaderType() const
+	{
+		checkf(ShaderTypeForDynamicCast == EShaderTypeForDynamicCast::Material, TEXT("ShaderType %s is not Material"), GetName());
+		return reinterpret_cast<const FMaterialShaderType*>(this);
+	}
+
+	FORCEINLINE const FMeshMaterialShaderType* AsMeshMaterialShaderType() const
+	{
+		checkf(ShaderTypeForDynamicCast == EShaderTypeForDynamicCast::MeshMaterial, TEXT("ShaderType %s is not MeshMaterial"), GetName());
+		return reinterpret_cast<const FMeshMaterialShaderType*>(this);
+	}
+
+	FORCEINLINE const FNiagaraShaderType* AsNiagaraShaderType() const
+	{
+		checkf(ShaderTypeForDynamicCast == EShaderTypeForDynamicCast::Niagara, TEXT("ShaderType %s is not Niagara"), GetName());
+		return reinterpret_cast<const FNiagaraShaderType*>(this);
+	}
+
+	FORCEINLINE const FOpenColorIOShaderType* AsOpenColorIOShaderType() const
+	{
+		checkf(ShaderTypeForDynamicCast == EShaderTypeForDynamicCast::OCIO, TEXT("ShaderType %s is not OCIO"), GetName());
+		return reinterpret_cast<const FOpenColorIOShaderType*>(this);
+	}
+
 	inline EShaderTypeForDynamicCast GetTypeForDynamicCast() const
 	{
 		return ShaderTypeForDynamicCast;
@@ -1166,14 +1210,9 @@ public:
 	}
 
 	/** Adds include statements for uniform buffers that this shader type references, and builds a prefix for the shader file with the include statements. */
-	void AddReferencedUniformBufferIncludes(FShaderCompilerEnvironment& OutEnvironment, FString& OutSourceFilePrefix, EShaderPlatform Platform);
+	void AddReferencedUniformBufferIncludes(FShaderCompilerEnvironment& OutEnvironment, FString& OutSourceFilePrefix, EShaderPlatform Platform) const;
 
-	void FlushShaderFileCache(const TMap<FString, TArray<const TCHAR*> >& ShaderFileToUniformBufferVariables)
-	{
-		ReferencedUniformBufferStructsCache.Empty();
-		GenerateReferencedUniformBuffers(SourceFilename, Name, ShaderFileToUniformBufferVariables, ReferencedUniformBufferStructsCache);
-		bCachedUniformBufferStructDeclarations = false;
-	}
+	void FlushShaderFileCache(const TMap<FString, TArray<const TCHAR*> >& ShaderFileToUniformBufferVariables);
 
 	void DumpDebugInfo();
 	void GetShaderStableKeyParts(struct FStableShaderKeyAndValue& SaveKeyVal);
@@ -1207,14 +1246,14 @@ private:
 
 protected:
 	/** Tracks what platforms ReferencedUniformBufferStructsCache has had declarations cached for. */
-	bool bCachedUniformBufferStructDeclarations;
+	mutable FThreadSafeBool bCachedUniformBufferStructDeclarations;
 
 	/**
 	* Cache of referenced uniform buffer includes.
 	* These are derived from source files so they need to be flushed when editing and recompiling shaders on the fly.
 	* FShaderType::Initialize will add an entry for each referenced uniform buffer, but the declarations are added on demand as shaders are compiled.
 	*/
-	TMap<const TCHAR*, FCachedUniformBufferDeclaration> ReferencedUniformBufferStructsCache;
+	mutable TMap<const TCHAR*, FCachedUniformBufferDeclaration> ReferencedUniformBufferStructsCache;
 
 };
 
@@ -1615,6 +1654,7 @@ public:
 	~FShaderPipeline();
 
 	void AddShader(FShader* Shader, int32 PermutationId);
+	FShader* FindOrAddShader(FShader* Shader, int32 PermutationId);
 
 	inline uint32 GetNumShaders() const
 	{
@@ -1701,7 +1741,7 @@ class FShaderPipelineRef
 {
 public:
 	FShaderPipelineRef() : ShaderPipeline(nullptr), ShaderMap(nullptr) {}
-	FShaderPipelineRef(FShaderPipeline* InPipeline, const FShaderMapBase& InShaderMap) : ShaderPipeline(InPipeline), ShaderMap(&InShaderMap) {}
+	FShaderPipelineRef(FShaderPipeline* InPipeline, const FShaderMapBase& InShaderMap) : ShaderPipeline(InPipeline), ShaderMap(&InShaderMap) { checkSlow(InPipeline); }
 
 	inline bool IsValid() const { return ShaderPipeline != nullptr; }
 	inline bool IsNull() const { return ShaderPipeline == nullptr; }
@@ -1750,12 +1790,12 @@ public:
 	/** Destructor ensures pipelines cleared up. */
 	~FShaderMapContent()
 	{
-		Empty();
+		Empty(nullptr);
 	}
 
 	EShaderPlatform GetShaderPlatform() const { return Platform; }
 
-	void Validate(const FShaderMapBase& InShaderMap);
+	void Validate(const FShaderMapBase& InShaderMap) const;
 
 	/** Finds the shader with the given type.  Asserts on failure. */
 	template<typename ShaderType>
@@ -1774,7 +1814,7 @@ public:
 	}
 
 	/** Finds the shader with the given type.  May return NULL. */
-	FShader* GetShader(FShaderType* ShaderType, int32 PermutationId = 0) const
+	FShader* GetShader(const FShaderType* ShaderType, int32 PermutationId = 0) const
 	{
 		return GetShader(ShaderType->GetHashedName(), PermutationId);
 	}
@@ -1858,7 +1898,7 @@ public:
 	}
 
 	/** clears out all shaders and deletes shader pipelines held in the map */
-	void Empty();
+	void Empty(const FPointerTableBase* PointerTable);
 
 	inline FShaderPipeline* GetShaderPipeline(const FHashedName& PipelineTypeName) const
 	{
@@ -1881,7 +1921,7 @@ public:
 	void UpdateHash(FSHA1& Hasher) const;
 
 protected:
-	void EmptyShaderPipelines();
+	void EmptyShaderPipelines(const FPointerTableBase* PointerTable);
 
 	using FMemoryImageHashTable = THashTable<FMemoryImageAllocator>;
 
@@ -1894,12 +1934,21 @@ protected:
 	LAYOUT_FIELD(TEnumAsByte<EShaderPlatform>, Platform);
 };
 
+namespace Freeze
+{
+	inline void CleanupObject(FShaderMapContent* Object, const FPointerTableBase* PtrTable)
+	{
+		Object->Empty(PtrTable);
+	}
+}
+
 class RENDERCORE_API FShaderMapBase
 {
 public:
 	virtual ~FShaderMapBase();
 
 	FShaderMapResourceCode* GetResourceCode();
+	void CopyResourceCode(const FShaderMapResourceCode& Source);
 
 	inline FShaderMapResource* GetResource() const { return Resource; }
 	inline FShaderMapResource* GetResourceChecked() const { check(Resource); return Resource; }
@@ -1915,7 +1964,7 @@ public:
 	inline uint32 GetFrozenContentSize() const { return FrozenContentSize; }
 
 	void AssignContent(FShaderMapContent* InContent);
-	void FinalizeContent();
+
 	void UnfreezeContent();
 	bool Serialize(FArchive& Ar, bool bInlineShaderResources, bool bLoadedByCookedMaterial, bool bInlineShaderCode=false);
 
@@ -1942,6 +1991,9 @@ public:
 
 protected:
 	explicit FShaderMapBase(const FTypeLayoutDesc& InContentTypeLayout);
+
+	void AssignAndFreezeContent(const FShaderMapContent* InContent);
+	void InitResource();
 	void DestroyContent();
 
 protected:
@@ -1974,7 +2026,9 @@ public:
 		ContentType* LocalContent = this->GetMutableContent();
 		check(LocalContent);
 		LocalContent->Finalize(this->GetResourceCode());
-		FShaderMapBase::FinalizeContent();
+		LocalContent->Validate(*this);
+		this->AssignAndFreezeContent(LocalContent);
+		this->InitResource();
 	}
 
 protected:

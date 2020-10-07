@@ -113,3 +113,4 @@ private:
 protected:
 	LAYOUT_FIELD(FShaderUniformBufferParameter, PassUniformBuffer);
 };
+

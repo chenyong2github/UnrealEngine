@@ -270,7 +270,7 @@ void FNiagaraRendererRibbons::GenerateIndexBuffer(
 
 	FMaterialRenderProxy* MaterialRenderProxy = DynamicData->Material;
 	check(MaterialRenderProxy);
-	const EBlendMode BlendMode = MaterialRenderProxy->GetMaterial(FeatureLevel)->GetBlendMode();
+	const EBlendMode BlendMode = MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel).GetBlendMode();
 
 	TValue* CurrentIndexBuffer = (TValue*)InOutIndexAllocation.Buffer;
 	if (IsTranslucentBlendMode(BlendMode) && DynamicData->MultiRibbonInfos.Num())

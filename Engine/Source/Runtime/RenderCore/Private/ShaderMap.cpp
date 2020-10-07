@@ -54,6 +54,11 @@ FShaderMapResourceCode* FShaderMapBase::GetResourceCode()
 	return Code;
 }
 
+void FShaderMapBase::CopyResourceCode(const FShaderMapResourceCode& Source)
+{
+	Code = new FShaderMapResourceCode(Source);
+}
+
 void FShaderMapBase::AssignContent(FShaderMapContent* InContent)
 {
 	check(!Content);
@@ -62,43 +67,55 @@ void FShaderMapBase::AssignContent(FShaderMapContent* InContent)
 	PointerTable = CreatePointerTable();
 }
 
-void FShaderMapBase::FinalizeContent()
+void FShaderMapBase::InitResource()
 {
-	if (Content && FrozenContentSize == 0u)
+	Resource.SafeRelease();
+	if (Code)
 	{
-		Content->Validate(*this);
+		Code->Finalize();
+		Resource = new FShaderMapResource_InlineCode(GetShaderPlatform(), Code);
+		BeginInitResource(Resource);
+	}
+}
+
+void FShaderMapBase::AssignAndFreezeContent(const FShaderMapContent* InContent)
+{
+	FShaderMapPointerTable* LocalPointerTable = nullptr;
+	void* LocalContentMemory = nullptr;
+	uint32 LocalContentSize = 0u;
+	if (InContent)
+	{
+		LocalPointerTable = CreatePointerTable();
 
 		FMemoryImage MemoryImage;
 		MemoryImage.TargetLayoutParameters.InitializeForCurrent();
-		MemoryImage.PointerTable = PointerTable;
+		MemoryImage.PointerTable = LocalPointerTable;
 		FMemoryImageWriter Writer(MemoryImage);
 
-		Writer.WriteObject(Content, ContentTypeLayout);
+		Writer.WriteObject(InContent, ContentTypeLayout);
 
 		FMemoryImageResult MemoryImageResult;
 		MemoryImage.Flatten(MemoryImageResult, true);
 
-		DestroyContent();
+		LocalContentSize = MemoryImageResult.Bytes.Num();
+		check(LocalContentSize > 0u);
+		LocalContentMemory = FMemory::Malloc(LocalContentSize);
+		FMemory::Memcpy(LocalContentMemory, MemoryImageResult.Bytes.GetData(), LocalContentSize);
+		MemoryImageResult.ApplyPatches(LocalContentMemory);
+	}
 
-		{
-			FrozenContentSize = MemoryImageResult.Bytes.Num();
-			check(FrozenContentSize > 0u);
-			void* ContentMemory = FMemory::Malloc(FrozenContentSize);
-			FMemory::Memcpy(ContentMemory, MemoryImageResult.Bytes.GetData(), FrozenContentSize);
-			Content = static_cast<FShaderMapContent*>(ContentMemory);
-			MemoryImageResult.ApplyPatches(Content);
-			NumFrozenShaders = Content->GetNumShaders();
-		}
+	DestroyContent();
+
+	if (LocalContentMemory)
+	{
+		PointerTable = LocalPointerTable;
+		Content = static_cast<FShaderMapContent*>(LocalContentMemory);
+		FrozenContentSize = LocalContentSize;
+		NumFrozenShaders = Content->GetNumShaders();
 
 		INC_DWORD_STAT_BY(STAT_Shaders_ShaderMemory, FrozenContentSize);
 		INC_DWORD_STAT_BY(STAT_Shaders_NumShadersLoaded, NumFrozenShaders);
 	}
-
-	Code->Finalize();
-	Resource = new FShaderMapResource_InlineCode(GetShaderPlatform(), Code);
-	BeginInitResource(Resource);
-
-	INC_DWORD_STAT_BY(STAT_Shaders_ShaderResourceMemory, Resource->GetSizeBytes());
 }
 
 void FShaderMapBase::UnfreezeContent()
@@ -320,7 +337,7 @@ void FShaderMapBase::DestroyContent()
 		DEC_DWORD_STAT_BY(STAT_Shaders_ShaderMemory, FrozenContentSize);
 		DEC_DWORD_STAT_BY(STAT_Shaders_NumShadersLoaded, NumFrozenShaders);
 
-		InternalDeleteObjectFromLayout(Content, ContentTypeLayout, FrozenContentSize > 0u);
+		InternalDeleteObjectFromLayout(Content, ContentTypeLayout, PointerTable, FrozenContentSize > 0u);
 		if (FrozenContentSize > 0u)
 		{
 			FMemory::Free(Content);
@@ -539,9 +556,9 @@ void FShaderMapContent::GetShaderPipelineList(const FShaderMapBase& InShaderMap,
 	}
 }
 
-void FShaderMapContent::Validate(const FShaderMapBase& InShaderMap)
+void FShaderMapContent::Validate(const FShaderMapBase& InShaderMap) const
 {
-	for (FShader* Shader : Shaders)
+	for (const FShader* Shader : Shaders)
 	{
 		checkf(Shader->GetResourceIndex() != INDEX_NONE, TEXT("Missing resource for %s"), Shader->GetType(InShaderMap.GetPointerTable())->GetName());
 	}
@@ -745,12 +762,12 @@ void FShaderMapContent::UpdateHash(FSHA1& Hasher) const
 	}
 }
 
-void FShaderMapContent::Empty()
+void FShaderMapContent::Empty(const FPointerTableBase* PointerTable)
 {
-	EmptyShaderPipelines();
+	EmptyShaderPipelines(PointerTable);
 	for (int32 i = 0; i < Shaders.Num(); ++i)
 	{
-		Shaders[i].SafeDelete();
+		Shaders[i].SafeDelete(PointerTable);
 	}
 	Shaders.Empty();
 	ShaderTypes.Empty();
@@ -758,11 +775,11 @@ void FShaderMapContent::Empty()
 	ShaderHash.Clear();
 }
 
-void FShaderMapContent::EmptyShaderPipelines()
+void FShaderMapContent::EmptyShaderPipelines(const FPointerTableBase* PointerTable)
 {
 	for (TMemoryImagePtr<FShaderPipeline>& Pipeline : ShaderPipelines)
 	{
-		Pipeline.SafeDelete();
+		Pipeline.SafeDelete(PointerTable);
 	}
 	ShaderPipelines.Empty();
 }

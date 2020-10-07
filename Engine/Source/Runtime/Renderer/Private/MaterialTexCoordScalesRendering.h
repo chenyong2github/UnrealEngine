@@ -72,9 +72,9 @@ public:
 		bool InNeedsInstructionCount		// Whether FDebugViewModePS::GetDebugViewModeShaderBindings() will use the num of instructions.
 	) : FDebugViewModeInterface(TEXT("MaterialTexCoordScale"), InNeedsOnlyLocalVertexFactor, InNeedsMaterialProperties, InNeedsInstructionCount) {}
 
-	virtual TShaderRef<FDebugViewModePS> GetPixelShader(const FMaterial* InMaterial, FVertexFactoryType* VertexFactoryType) const override
+	virtual void AddShaderTypes(ERHIFeatureLevel::Type InFeatureLevel, FMaterialShaderTypes& OutShaderTypes) const override
 	{
-		return InMaterial->GetShader<FMaterialTexCoordScalePS>(VertexFactoryType);
+		OutShaderTypes.AddShaderType<FMaterialTexCoordScalePS>();
 	}
 
 	virtual void GetDebugViewModeShaderBindings(

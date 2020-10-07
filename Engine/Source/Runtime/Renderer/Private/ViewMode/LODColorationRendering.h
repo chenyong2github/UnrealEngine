@@ -54,7 +54,7 @@ class FLODColorationInterface : public FDebugViewModeInterface
 public:
 
 	FLODColorationInterface() : FDebugViewModeInterface(TEXT("LODColoration"), false, true, false) {}
-	virtual TShaderRef<FDebugViewModePS> GetPixelShader(const FMaterial* InMaterial, FVertexFactoryType* VertexFactoryType) const override { return InMaterial->GetShader<FLODColorationPS>(VertexFactoryType); }
+	virtual void AddShaderTypes(ERHIFeatureLevel::Type InFeatureLevel, FMaterialShaderTypes& OutShaderTypes) const override { OutShaderTypes.AddShaderType<FLODColorationPS>(); }
 
 	virtual void GetDebugViewModeShaderBindings(
 		const FDebugViewModePS& ShaderBase,

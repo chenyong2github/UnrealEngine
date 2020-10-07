@@ -58,7 +58,7 @@ class FMeshTexCoordSizeAccuracyInterface : public FDebugViewModeInterface
 {
 public:
 	FMeshTexCoordSizeAccuracyInterface() : FDebugViewModeInterface(TEXT("MeshTexCoordSizeAccuracy"), false, false, false) {}
-	virtual TShaderRef<FDebugViewModePS> GetPixelShader(const FMaterial* InMaterial, FVertexFactoryType* VertexFactoryType) const override { return InMaterial->GetShader<FMeshTexCoordSizeAccuracyPS>(VertexFactoryType); }
+	virtual void AddShaderTypes(ERHIFeatureLevel::Type InFeatureLevel, FMaterialShaderTypes& OutShaderTypes) const override { OutShaderTypes.AddShaderType<FMeshTexCoordSizeAccuracyPS>(); }
 
 	virtual void GetDebugViewModeShaderBindings(
 		const FDebugViewModePS& BaseShader,

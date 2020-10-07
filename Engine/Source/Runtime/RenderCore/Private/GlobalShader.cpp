@@ -279,12 +279,14 @@ bool FGlobalShaderMapSection::Serialize(FArchive& Ar)
 
 TShaderRef<FShader> FGlobalShaderMapSection::GetShader(FShaderType* ShaderType, int32 PermutationId) const
 {
-	return TShaderRef<FShader>(GetContent()->GetShader(ShaderType, PermutationId), *this);
+	FShader* Shader = GetContent()->GetShader(ShaderType, PermutationId);
+	return Shader ? TShaderRef<FShader>(Shader, *this) : TShaderRef<FShader>();
 }
 
 FShaderPipelineRef FGlobalShaderMapSection::GetShaderPipeline(const FShaderPipelineType* PipelineType) const
 {
-	return FShaderPipelineRef(GetContent()->GetShaderPipeline(PipelineType), *this);
+	FShaderPipeline* Pipeline = GetContent()->GetShaderPipeline(PipelineType);
+	return Pipeline ? FShaderPipelineRef(Pipeline, *this) : FShaderPipelineRef();
 }
 
 FGlobalShaderMap::FGlobalShaderMap(EShaderPlatform InPlatform)
@@ -353,7 +355,7 @@ void FGlobalShaderMap::Empty()
 {
 	for (const auto& It : SectionMap)
 	{
-		It.Value->GetMutableContent()->Empty();
+		It.Value->GetMutableContent()->Empty(&It.Value->GetPointerTable());
 	}
 }
 
