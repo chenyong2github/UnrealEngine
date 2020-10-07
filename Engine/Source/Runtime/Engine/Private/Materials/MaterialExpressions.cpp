@@ -66,6 +66,7 @@
 #include "Materials/MaterialExpressionClamp.h"
 #include "Materials/MaterialExpressionCollectionParameter.h"
 #include "Materials/MaterialExpressionComment.h"
+#include "Materials/MaterialExpressionComposite.h"
 #include "Materials/MaterialExpressionComponentMask.h"
 #include "Materials/MaterialExpressionConstant.h"
 #include "Materials/MaterialExpressionConstant2Vector.h"
@@ -131,6 +132,7 @@
 #include "Materials/MaterialExpressionOneMinus.h"
 #include "Materials/MaterialExpressionPanner.h"
 #include "Materials/MaterialExpressionParameter.h"
+#include "Materials/MaterialExpressionPinBase.h"
 #include "Materials/MaterialExpressionPreSkinnedLocalBounds.h"
 #include "Materials/MaterialExpressionPreviousFrameSwitch.h"
 #include "Materials/MaterialExpressionReroute.h"
@@ -245,6 +247,7 @@
 #include "MaterialCompiler.h"
 #if WITH_EDITOR
 #include "MaterialGraph/MaterialGraphNode_Comment.h"
+#include "MaterialGraph/MaterialGraphNode_Composite.h"
 #include "MaterialGraph/MaterialGraphNode.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -277,6 +280,7 @@ bool IsAllowedExpressionType(const UClass* const Class, const bool bMaterialFunc
 
 	// Exclude comments from the expression list, as well as the base parameter expression, as it should not be used directly
 	const bool bSharedAllowed = Class != UMaterialExpressionComment::StaticClass() 
+		&& Class != UMaterialExpressionPinBase::StaticClass()
 		&& Class != UMaterialExpressionParameter::StaticClass()
 		&& (Class != UMaterialExpressionTextureSampleParameter2DArray::StaticClass() || AllowTextureArrayAssetCreationVar->GetValueOnGameThread() != 0);
 
@@ -593,6 +597,7 @@ UMaterialExpression::UMaterialExpression(const FObjectInitializer& ObjectInitial
 	: Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
 	, GraphNode(nullptr)
+	, SubgraphExpression(nullptr)
 #endif // WITH_EDITORONLY_DATA
 {
 #if WITH_EDITORONLY_DATA
@@ -941,29 +946,29 @@ FName UMaterialExpression::GetInputName(int32 InputIndex) const
 		{
 			for (int32 ArrayIndex = 0; ArrayIndex < StructProp->ArrayDim; ArrayIndex++)
 			{
-			if( Index == InputIndex )
-			{
+				if( Index == InputIndex )
+				{
 					FExpressionInput const* Input = StructProp->ContainerPtrToValuePtr<FExpressionInput>(this, ArrayIndex);
 
-						if (!Input->InputName.IsNone())
-						{
-							return Input->InputName;
-						}
-						else
-						{
-							FName StructName = StructProp->GetFName();
-
-					if (StructProp->ArrayDim > 1)
+					if (!Input->InputName.IsNone())
 					{
-								StructName = *FString::Printf(TEXT("%s_%d"), *StructName.ToString(), ArrayIndex);
+						return Input->InputName;
 					}
+					else
+					{
+						FName StructName = StructProp->GetFName();
 
-							return StructName;
+						if (StructProp->ArrayDim > 1)
+						{
+							StructName = *FString::Printf(TEXT("%s_%d"), *StructName.ToString(), ArrayIndex);
 						}
+
+						return StructName;
+					}
+				}
+				Index++;
 			}
-			Index++;
 		}
-	}
 	}
 	return NAME_None;
 }
@@ -1151,6 +1156,11 @@ bool UMaterialExpression::MatchesSearchQuery( const TCHAR* SearchQuery )
 		return (GetName().Contains(SearchString) );
 	}
 	return Desc.Contains(SearchQuery);
+}
+
+bool UMaterialExpression::IsExpressionConnected( FExpressionInput* Input, int32 OutputIndex )
+{
+	return Input->OutputIndex == OutputIndex && Input->Expression == this;
 }
 
 void UMaterialExpression::ConnectExpression( FExpressionInput* Input, int32 OutputIndex )
@@ -10227,6 +10237,425 @@ bool UMaterialExpressionComment::MatchesSearchQuery( const TCHAR* SearchQuery )
 
 	return Super::MatchesSearchQuery(SearchQuery);
 }
+#endif // WITH_EDITOR
+
+///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionComposite
+///////////////////////////////////////////////////////////////////////////////
+UMaterialExpressionComposite::UMaterialExpressionComposite(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Utility;
+		FConstructorStatics()
+			: NAME_Utility(LOCTEXT( "Utility", "Utility" ))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+	SubgraphName = "Collapsed Nodes";
+
+#if WITH_EDITORONLY_DATA
+	bShowOutputNameOnPin = true;
+
+	MenuCategories.Add(ConstructorStatics.NAME_Utility);
+	Outputs.Reset();
+#endif
+}
+
+#if WITH_EDITOR
+TArray<UMaterialExpressionReroute*> UMaterialExpressionComposite::GetCurrentReroutes() const
+{
+	TArray<UMaterialExpressionReroute*> RerouteExpressions;
+	for (const FCompositeReroute& InputReroute : InputExpressions->ReroutePins)
+	{
+		RerouteExpressions.Add(InputReroute.Expression);
+	}
+	for (const FCompositeReroute& OutputReroute : OutputExpressions->ReroutePins)
+	{
+		RerouteExpressions.Add(OutputReroute.Expression);
+	}
+	return RerouteExpressions;
+}
+
+void UMaterialExpressionComposite::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if (UMaterialGraphNode_Composite* CompositeNode = Cast<UMaterialGraphNode_Composite>(GraphNode))
+	{
+		if (CompositeNode->BoundGraph && CompositeNode->BoundGraph->GetName() != SubgraphName)
+		{
+			CompositeNode->BoundGraph->Rename(*SubgraphName);
+		}
+	}
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
+FString UMaterialExpressionComposite::GetEditableName() const
+{
+	return SubgraphName;
+}
+
+void UMaterialExpressionComposite::SetEditableName(const FString& NewName)
+{
+	SubgraphName = NewName;
+
+	if (UMaterialGraphNode_Composite* CompositeNode = Cast<UMaterialGraphNode_Composite>(GraphNode))
+	{
+		if (CompositeNode->BoundGraph && CompositeNode->BoundGraph->GetName() != SubgraphName)
+		{
+			CompositeNode->BoundGraph->Rename(*SubgraphName);
+		}
+	}
+}
+
+TArray<FExpressionOutput>& UMaterialExpressionComposite::GetOutputs()
+{	
+	Outputs.Reset();
+
+	// OutputExpressions may be null if we are using the default object
+	if (OutputExpressions)
+	{
+		for (const FCompositeReroute& ReroutePin : OutputExpressions->ReroutePins)
+		{
+			ReroutePin.Expression->GetOutputs()[0].OutputName = ReroutePin.Name;
+			Outputs.Add(ReroutePin.Expression->GetOutputs()[0]);
+		}
+	}
+	return Outputs;
+}
+
+const TArray<FExpressionInput*> UMaterialExpressionComposite::GetInputs()
+{
+	TArray<FExpressionInput*> ExpressionInputs;
+
+	// InputExpressions may be null if we are using the default object
+	if (InputExpressions)
+	{
+		for (const FCompositeReroute& ReroutePin : InputExpressions->ReroutePins)
+		{
+			ExpressionInputs.Add(ReroutePin.Expression->GetInput(0));
+		}
+	}
+	return ExpressionInputs;
+}
+
+FExpressionInput* UMaterialExpressionComposite::GetInput(int32 InputIndex)
+{
+	if (InputIndex >= 0 && InputIndex < InputExpressions->ReroutePins.Num())
+	{
+		return InputExpressions->ReroutePins[InputIndex].Expression->GetInput(0);
+	}
+
+	return nullptr;
+}
+
+FName UMaterialExpressionComposite::GetInputName(int32 InputIndex) const
+{
+	if (InputIndex >= 0 && InputIndex < InputExpressions->ReroutePins.Num())
+	{
+		return InputExpressions->ReroutePins[InputIndex].Name;
+	}
+
+	return FName();
+}
+
+uint32 UMaterialExpressionComposite::GetInputType(int32 InputIndex)
+{
+	if (InputIndex >= 0 && InputIndex < InputExpressions->ReroutePins.Num())
+	{
+		return InputExpressions->ReroutePins[InputIndex].Expression->GetInputType(0);
+	}
+
+	check(false);
+	return MCT_Float;
+}
+
+uint32 UMaterialExpressionComposite::GetOutputType(int32 OutputIndex)
+{
+	if (OutputIndex >= 0 && OutputIndex < OutputExpressions->ReroutePins.Num())
+	{
+		return OutputExpressions->ReroutePins[OutputIndex].Expression->GetOutputType(0);
+	}
+
+	check(false);
+	return MCT_Float;
+}
+
+bool UMaterialExpressionComposite::IsExpressionConnected(FExpressionInput* Input, int32 OutputIndex)
+{
+	if (Input && OutputIndex >= 0 && OutputIndex < OutputExpressions->ReroutePins.Num())
+	{
+		return OutputExpressions->ReroutePins[OutputIndex].Expression == Input->Expression;
+	}
+
+	return false;
+}
+
+void UMaterialExpressionComposite::ConnectExpression(FExpressionInput* Input, int32 OutputIndex)
+{
+	OutputExpressions->ReroutePins[OutputIndex].Expression->ConnectExpression(Input, 0);
+}
+
+void UMaterialExpressionComposite::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(SubgraphName);
+}
+
+bool UMaterialExpressionComposite::Modify(bool bAlwaysMarkDirty)
+{
+	// Modify pin bases so they can update the compilation graph
+	if (InputExpressions)
+	{
+		InputExpressions->Modify(bAlwaysMarkDirty);
+	}
+
+	if (OutputExpressions)
+	{
+		OutputExpressions->Modify(bAlwaysMarkDirty);
+	}
+
+	return Super::Modify(bAlwaysMarkDirty);
+}
+
+#endif // WITH_EDITOR
+
+///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionPinBase
+///////////////////////////////////////////////////////////////////////////////
+UMaterialExpressionPinBase::UMaterialExpressionPinBase(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Utility;
+		FConstructorStatics()
+			: NAME_Utility(LOCTEXT("Utility", "Utility"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	bShowOutputNameOnPin = true;
+
+	MenuCategories.Add(ConstructorStatics.NAME_Utility);
+	Outputs.Reset();
+#endif
+}
+
+#if WITH_EDITOR
+
+void UMaterialExpressionPinBase::DeleteReroutePins()
+{
+	Modify();
+	for (FCompositeReroute& Reroute : ReroutePins)
+	{
+		Reroute.Expression->Modify();
+		Material->Expressions.Remove(Reroute.Expression);
+		Reroute.Expression->MarkPendingKill();
+	}
+	ReroutePins.Empty();
+}
+
+void UMaterialExpressionPinBase::PreEditChange(FProperty* PropertyAboutToChange)
+{
+	Super::PreEditChange(PropertyAboutToChange);
+	
+	if (SubgraphExpression && SubgraphExpression->GraphNode)
+	{
+		SubgraphExpression->Modify();
+	}
+
+	PreEditRereouteExpresions.Empty();
+	for (const FCompositeReroute& Reroute : ReroutePins)
+	{
+		PreEditRereouteExpresions.Add(Reroute.Expression);
+	}
+}
+
+void UMaterialExpressionPinBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if (PropertyChangedEvent.MemberProperty && GraphNode && SubgraphExpression->GraphNode)
+	{
+		Modify();
+		Material->Modify();
+
+		if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayAdd || PropertyChangedEvent.ChangeType == EPropertyChangeType::Duplicate)
+		{
+			uint32 AddedRerouteIndex = PropertyChangedEvent.GetArrayIndex(PropertyChangedEvent.Property->GetFName().ToString());
+			FCompositeReroute& AddedReroute = ReroutePins[AddedRerouteIndex];
+
+			AddedReroute.Expression = NewObject<UMaterialExpressionReroute>(GetOuter(), UMaterialExpressionReroute::StaticClass(), NAME_None, RF_Transactional);
+			AddedReroute.Expression->SubgraphExpression = SubgraphExpression;
+			
+			if (Material)
+			{
+				Material->Expressions.Add(AddedReroute.Expression);
+				AddedReroute.Expression->Material = Material;
+			}
+			else if (Function)
+			{
+				Function->Modify();
+				Function->FunctionExpressions.Add(AddedReroute.Expression);
+			}
+
+			AddedReroute.Name = AddedReroute.Name.IsNone() ? FName(FString::Printf(TEXT("Pin %u"), AddedRerouteIndex + 1)) : AddedReroute.Name;
+		}
+		else if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayRemove)
+		{
+			uint32 RemovedRerouteIndex = PropertyChangedEvent.GetArrayIndex(PropertyChangedEvent.Property->GetFName().ToString());
+			UMaterialExpression* RemovedReroute = PreEditRereouteExpresions[RemovedRerouteIndex];
+
+			RemovedReroute->Modify();
+			Material->Expressions.Remove(RemovedReroute);
+			RemovedReroute->MarkPendingKill();
+		}
+		else if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayClear)
+		{
+			for (UMaterialExpressionReroute* RemovedReroute : PreEditRereouteExpresions)
+			{
+				RemovedReroute->Modify();
+				Material->Expressions.Remove(RemovedReroute);
+				RemovedReroute->MarkPendingKill();
+			}
+		}
+
+		GraphNode->Modify();
+		GraphNode->BreakAllNodeLinks();
+		GraphNode->ReconstructNode();
+
+		SubgraphExpression->GraphNode->Modify();
+		SubgraphExpression->GraphNode->BreakAllNodeLinks();
+		SubgraphExpression->GraphNode->ReconstructNode();
+
+		Material->MaterialGraph->Modify();
+		Material->MaterialGraph->LinkGraphNodesFromMaterial();
+		Material->MaterialGraph->LinkMaterialExpressionsFromGraph();
+	}
+
+	PreEditRereouteExpresions.Empty();
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
+TArray<FExpressionOutput>& UMaterialExpressionPinBase::GetOutputs()
+{
+	// Re-compute output expressions, since we can and do change via code.
+	if (PinDirection == EGPD_Output)
+	{
+		Outputs.Reset();
+		for (const FCompositeReroute& ReroutePin : ReroutePins)
+		{
+			ReroutePin.Expression->GetOutputs()[0].OutputName = ReroutePin.Name;
+			Outputs.Add(ReroutePin.Expression->GetOutputs()[0]);
+		}
+	}
+	return Outputs;
+}
+
+const TArray<FExpressionInput*> UMaterialExpressionPinBase::GetInputs()
+{
+	TArray<FExpressionInput*> ExpressionInputs;
+	if (PinDirection == EGPD_Input)
+	{
+		for (const FCompositeReroute& ReroutePin : ReroutePins)
+		{
+			ExpressionInputs.Add(ReroutePin.Expression->GetInput(0));
+		}
+	}
+	return ExpressionInputs;
+}
+
+FExpressionInput* UMaterialExpressionPinBase::GetInput(int32 InputIndex)
+{
+	if (PinDirection == EGPD_Input)
+	{
+		if (InputIndex >= 0 && InputIndex < ReroutePins.Num())
+		{
+			return ReroutePins[InputIndex].Expression->GetInput(0);
+		}
+	}
+
+	return nullptr;
+}
+
+FName UMaterialExpressionPinBase::GetInputName(int32 InputIndex) const
+{
+	if (PinDirection == EGPD_Input)
+	{
+		if (InputIndex >= 0 && InputIndex < ReroutePins.Num())
+		{
+			return ReroutePins[InputIndex].Name;
+		}
+	}
+
+	return FName();
+}
+
+uint32 UMaterialExpressionPinBase::GetInputType(int32 InputIndex)
+{
+	if (InputIndex >= 0 && InputIndex < ReroutePins.Num())
+	{
+		return PinDirection == EGPD_Input ? ReroutePins[InputIndex].Expression->GetInputType(0) : MCT_Float;
+	}
+
+	check(false);
+	return MCT_Float;
+}
+
+uint32 UMaterialExpressionPinBase::GetOutputType(int32 OutputIndex)
+{
+	if (OutputIndex >= 0 && OutputIndex < ReroutePins.Num())
+	{
+		return PinDirection == EGPD_Output ? ReroutePins[OutputIndex].Expression->GetOutputType(0) : MCT_Float;
+	}
+
+	check(false);
+	return MCT_Float;
+}
+
+bool UMaterialExpressionPinBase::IsExpressionConnected(FExpressionInput* Input, int32 OutputIndex)
+{
+	if (PinDirection == EGPD_Output && Input && OutputIndex >= 0 && OutputIndex < ReroutePins.Num())
+	{
+		return ReroutePins[OutputIndex].Expression == Input->Expression;
+	}
+
+	return false;
+}
+
+void UMaterialExpressionPinBase::ConnectExpression(FExpressionInput* Input, int32 OutputIndex)
+{
+	if (PinDirection == EGPD_Output)
+	{
+		ReroutePins[OutputIndex].Expression->ConnectExpression(Input, 0);
+	}
+}
+
+void UMaterialExpressionPinBase::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(PinDirection == EGPD_Output ? "Input" : "Output");
+}
+
+bool UMaterialExpressionPinBase::Modify(bool bAlwaysMarkDirty)
+{
+	// Modify reroute pins so they can update the compilation graph
+	for (const FCompositeReroute& ReroutePin : ReroutePins)
+	{
+		// Reroute pin can not have an expression if just adding new pin.
+		if (ReroutePin.Expression)
+		{
+			ReroutePin.Expression->Modify(bAlwaysMarkDirty);
+		}
+	}
+
+	return Super::Modify(bAlwaysMarkDirty);
+}
+
 #endif // WITH_EDITOR
 
 UMaterialExpressionFresnel::UMaterialExpressionFresnel(const FObjectInitializer& ObjectInitializer)

@@ -11,6 +11,7 @@
 class IMaterialEditor;
 class UMaterial;
 class UMaterialExpressionComment;
+class UMaterialExpressionComposite;
 class UMaterialExpressionFunctionInput;
 class UMaterialInstance;
 class UMaterialInterface;
@@ -52,6 +53,16 @@ public:
 	 * @param	bAutoAssignResource	If true, assign resources to new expression.
 	 */
 	static UMaterialExpression* CreateNewMaterialExpression(const class UEdGraph* Graph, UClass* NewExpressionClass, const FVector2D& NodePos, bool bAutoSelect, bool bAutoAssignResource);
+
+	/**
+	 * Creates a new material expression composite on the material represented by a graph.
+	 *
+	 * @param	Graph	Graph to add comment to
+	 * @param	NodePos	Position to place new comment at
+	 *
+	 * @return	UMaterialExpressionComment*	Newly created comment
+	 */
+	static UMaterialExpressionComposite* CreateNewMaterialExpressionComposite(const class UEdGraph* Graph, const FVector2D& NodePos);
 
 	/**
 	 * Creates a new material expression comment on the material represented by a graph.
@@ -193,6 +204,9 @@ public:
 
 	/** Get IMaterialEditor for given object, if it exists */
 	static TSharedPtr<class IMaterialEditor> GetIMaterialEditorForObject(const UObject* ObjectToFocusOn);
+
+	/** Get IMaterialEditor to focus on given object, if it exists */
+	static void BringFocusAttentionOnObject(const UObject* ObjectToFocusOn);
 
 
 	/** Commands for the Parents menu */

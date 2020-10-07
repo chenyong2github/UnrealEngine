@@ -21,12 +21,15 @@
 #include "MaterialGraph/MaterialGraph.h"
 #include "Engine/Texture.h"
 #include "MaterialGraph/MaterialGraphNode_Base.h"
+#include "MaterialGraph/MaterialGraphNode_Comment.h"
 #include "MaterialGraph/MaterialGraphNode.h"
 #include "MaterialGraph/MaterialGraphNode_Root.h"
 #include "Materials/MaterialParameterCollection.h"
 
 #include "Materials/MaterialExpressionCollectionParameter.h"
 #include "Materials/MaterialExpressionComment.h"
+#include "Materials/MaterialExpressionComposite.h"
+#include "Materials/MaterialExpressionPinBase.h"
 #include "Materials/MaterialExpressionFunctionInput.h"
 #include "Materials/MaterialExpressionTextureSample.h"
 #include "Materials/MaterialExpressionFunctionOutput.h"
@@ -144,6 +147,28 @@ UEdGraphNode* FMaterialGraphSchemaAction_NewFunctionCall::PerformAction(class UE
 	}
 
 	return NULL;
+}
+
+/////////////////////////////////////////////
+// FMaterialGraphSchemaAction_NewComposite //
+
+UEdGraphNode* FMaterialGraphSchemaAction_NewComposite::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode)
+{
+	return SpawnNode(ParentGraph, Location);
+}
+
+UEdGraphNode* FMaterialGraphSchemaAction_NewComposite::SpawnNode(UEdGraph* ParentGraph, const FVector2D Location)
+{
+	const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "MaterialEditorNewComposite", "Material Editor: New Composite"));
+
+	UMaterialExpressionComposite* NewComposite = FMaterialEditorUtilities::CreateNewMaterialExpressionComposite(ParentGraph, Location);
+
+	if (NewComposite)
+	{
+		return NewComposite->GraphNode;
+	}
+
+	return nullptr;
 }
 
 ///////////////////////////////////////////
@@ -640,6 +665,22 @@ void UMaterialGraphSchema::BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraphPi
 	}
 }
 
+bool UMaterialGraphSchema::CanEncapuslateNode(UEdGraphNode const& TestNode) const
+{
+	if (TestNode.IsA(UMaterialGraphNode_Comment::StaticClass()))
+	{
+		return true;
+	}
+
+	// Disallow output nodes from encapsulation, everything else (including parameters) is fair game for materials.
+	const UMaterialGraphNode* MaterialGraphNode = Cast<UMaterialGraphNode>(&TestNode);
+
+	return  MaterialGraphNode && MaterialGraphNode->MaterialExpression 
+		&& !MaterialGraphNode->MaterialExpression->IsA(UMaterialExpressionFunctionOutput::StaticClass())
+		&& !MaterialGraphNode->MaterialExpression->IsA(UMaterialExpressionPinBase::StaticClass())
+		&& !TestNode.IsA(UMaterialGraphNode_Root::StaticClass());
+}
+
 void UMaterialGraphSchema::DroppedAssetsOnGraph(const TArray<struct FAssetData>& Assets, const FVector2D& GraphPosition, UEdGraph* Graph) const
 {
 	UMaterialGraph* MaterialGraph = CastChecked<UMaterialGraph>(Graph);
@@ -822,6 +863,18 @@ void UMaterialGraphSchema::GetMaterialFunctionActions(FGraphActionMenuBuilder& A
 				}
 			}
 		}
+	}
+}
+
+void UMaterialGraphSchema::GetCompositeAction(FGraphActionMenuBuilder& ActionMenuBuilder, const UEdGraph* CurrentGraph) const
+{
+	if (!ActionMenuBuilder.FromPin)
+	{
+		const bool bIsManyNodesSelected = CurrentGraph ? (FMaterialEditorUtilities::GetNumberOfSelectedNodes(CurrentGraph) > 0) : false;
+		const FText CompositeDesc = LOCTEXT("CompositeDesc", "New Composite");
+		const FText CompositeToolTip = LOCTEXT("CompositeToolTip", "Create a composite node that holds a subgraph.");
+		TSharedPtr<FMaterialGraphSchemaAction_NewComposite> NewAction(new FMaterialGraphSchemaAction_NewComposite(FText::GetEmpty(), CompositeDesc, CompositeToolTip, 0));
+		ActionMenuBuilder.AddAction(NewAction);
 	}
 }
 

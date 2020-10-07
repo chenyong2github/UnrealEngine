@@ -459,6 +459,43 @@ UMaterialExpression* UMaterialEditingLibrary::CreateMaterialExpression(UMaterial
 	return CreateMaterialExpressionEx(Material, nullptr, ExpressionClass, nullptr, NodePosX, NodePosY);
 }
 
+UMaterialExpression* UMaterialEditingLibrary::DuplicateMaterialExpression(UMaterial* Material, UMaterialFunction* MaterialFunction, UMaterialExpression* Expression)
+{
+	UMaterialExpression* NewExpression = nullptr;
+	if (Material || MaterialFunction)
+	{
+		UObject* ExpressionOuter = Material;
+		if (MaterialFunction)
+		{
+			ExpressionOuter = MaterialFunction;
+		}
+
+		NewExpression = DuplicateObject(Expression, ExpressionOuter);
+
+		if (Material)
+		{
+			Material->Expressions.Add(NewExpression);
+			NewExpression->Material = Material;
+		}
+
+		if (MaterialFunction && !Material)
+		{
+			MaterialFunction->FunctionExpressions.Add(NewExpression);
+		}
+
+		// Create a GUID for the node
+		NewExpression->UpdateMaterialExpressionGuid(true, true);
+
+		if (Material)
+		{
+			Material->AddExpressionParameter(NewExpression, Material->EditorParameters);
+		}
+
+		NewExpression->MarkPackageDirty();
+	}
+	return NewExpression;
+}
+
 UMaterialExpression* UMaterialEditingLibrary::CreateMaterialExpressionInFunction(UMaterialFunction* MaterialFunction, TSubclassOf<UMaterialExpression> ExpressionClass, int32 NodePosX, int32 NodePosY)
 {
 	return CreateMaterialExpressionEx(nullptr, MaterialFunction, ExpressionClass, nullptr, NodePosX, NodePosY);

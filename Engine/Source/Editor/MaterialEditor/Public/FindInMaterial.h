@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphPin.h"
 #include "Input/Reply.h"
 #include "Widgets/SWidget.h"
@@ -109,6 +110,9 @@ protected:
 
 	/** Find any results that contain all of the tokens */
 	void MatchTokens(const TArray<FString>& Tokens);
+
+	/** Find any results that contain all of the tokens in provided graph and subgraphs */
+	void MatchTokensInGraph(const UEdGraph* Graph, const TArray<FString>& Tokens);
 
 	/** Determines if a string matches the search tokens */
 	static bool StringMatchesSearchTokens(const TArray<FString>& Tokens, const FString& ComparisonString);

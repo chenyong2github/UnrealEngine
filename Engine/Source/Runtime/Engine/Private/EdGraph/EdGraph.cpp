@@ -354,6 +354,26 @@ void UEdGraph::GetAllChildrenGraphs(TArray<UEdGraph*>& Graphs) const
 #endif // WITH_EDITORONLY_DATA
 }
 
+UEdGraph* UEdGraph::GetOuterGraph(UObject* Obj)
+{
+	if (Obj)
+	{
+		UObject* OuterObj = Obj->GetOuter();
+		if (OuterObj)
+		{
+			if (OuterObj->IsA(UEdGraph::StaticClass()))
+			{
+				return Cast<UEdGraph>(OuterObj);
+			}
+			else
+			{
+				return GetOuterGraph(OuterObj);
+			}
+		}
+	}
+	return nullptr;
+}
+
 FVector2D UEdGraph::GetGoodPlaceForNewNode()
 {
 	FVector2D BottomLeft(0,0);

@@ -126,7 +126,7 @@ protected:
 	/** Up when shown, down when hidden */
 	const FSlateBrush* GetExpressionPreviewArrow() const;
 
-private:
+protected:
 	/** Slate viewport for rendering preview via custom slate element */
 	TSharedPtr<FPreviewViewport> PreviewViewport;
 

@@ -261,7 +261,11 @@ void SFindInMaterial::MatchTokens(const TArray<FString> &Tokens)
 	RootSearchResult.Reset();
 
 	UEdGraph* Graph = MaterialEditorPtr.Pin()->Material->MaterialGraph;
+	MatchTokensInGraph(Graph, Tokens);
+}
 
+void SFindInMaterial::MatchTokensInGraph(const UEdGraph* Graph, const TArray<FString>& Tokens)
+{
 	if (Graph == NULL)
 	{
 		return;
@@ -338,6 +342,11 @@ void SFindInMaterial::MatchTokens(const TArray<FString> &Tokens)
 		{
 			ItemsFound.Add(NodeResult);
 		}
+	}
+
+	for (const UEdGraph* Subgraph : Graph->SubGraphs)
+	{
+		MatchTokensInGraph(Subgraph, Tokens);
 	}
 }
 

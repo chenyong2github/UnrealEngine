@@ -16,6 +16,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "EditorStyleSet.h"
 #include "EdGraph/EdGraph.h"
+#include "WorkflowOrientedApp/WorkflowUObjectDocuments.h"
 #include "MaterialGraph/MaterialGraph.h"
 #include "MaterialGraph/MaterialGraphNode_Comment.h"
 #include "Editor/UnrealEdEngine.h"
@@ -23,6 +24,8 @@
 #include "Preferences/MaterialEditorOptions.h"
 #include "MaterialGraph/MaterialGraphNode.h"
 #include "MaterialGraph/MaterialGraphNode_Root.h"
+#include "MaterialGraph/MaterialGraphNode_Composite.h"
+#include "MaterialGraph/MaterialGraphNode_PinBase.h"
 #include "MaterialGraph/MaterialGraphSchema.h"
 #include "MaterialEditor/PreviewMaterial.h"
 #include "ThumbnailRendering/SceneThumbnailInfoWithPrimitive.h"
@@ -45,6 +48,7 @@
 #include "Materials/MaterialExpressionBreakMaterialAttributes.h"
 #include "Materials/MaterialExpressionCollectionParameter.h"
 #include "Materials/MaterialExpressionComment.h"
+#include "Materials/MaterialExpressionComposite.h"
 #include "Materials/MaterialExpressionComponentMask.h"
 #include "Materials/MaterialExpressionConstant.h"
 #include "Materials/MaterialExpressionConstant2Vector.h"
@@ -56,9 +60,11 @@
 #include "Materials/MaterialExpressionFunctionOutput.h"
 #include "Materials/MaterialExpressionMaterialAttributeLayers.h"
 #include "Materials/MaterialExpressionParameter.h"
+#include "Materials/MaterialExpressionPinBase.h"
 #include "Materials/MaterialExpressionTextureBase.h"
 #include "Materials/MaterialExpressionTextureSample.h"
 #include "Materials/MaterialExpressionParticleSubUV.h"
+#include "Materials/MaterialExpressionReroute.h"
 #include "Materials/MaterialExpressionRuntimeVirtualTextureSample.h"
 #include "Materials/MaterialExpressionRuntimeVirtualTextureSampleParameter.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
@@ -83,6 +89,7 @@
 #include "MaterialCompiler.h"
 #include "EditorSupportDelegates.h"
 #include "AssetRegistryModule.h"
+#include "Tabs/MaterialEditorTabFactories.h"
 #include "IAssetTools.h"
 #include "IAssetTypeActions.h"
 #include "AssetToolsModule.h"
@@ -130,6 +137,8 @@
 #include "Materials/MaterialExpressionMaterialLayerOutput.h"
 
 #include "MaterialStats.h"
+#include "MaterialEditorTabs.h"
+#include "MaterialEditorModes.h"
 #include "Materials/MaterialExpression.h"
 
 #include "SMaterialParametersOverviewWidget.h"
@@ -153,15 +162,6 @@ static TAutoConsoleVariable<int32> CVarMaterialEdUseDevShaders(
 	TEXT("Toggles whether the material editor will use shaders that include extra overhead incurred by the editor. Material editor must be re-opened if changed at runtime."),
 	ECVF_RenderThreadSafe);
 
-const FName FMaterialEditor::PreviewTabId( TEXT( "MaterialEditor_Preview" ) );
-const FName FMaterialEditor::GraphCanvasTabId( TEXT( "MaterialEditor_GraphCanvas" ) );
-const FName FMaterialEditor::PropertiesTabId( TEXT( "MaterialEditor_MaterialProperties" ) );
-const FName FMaterialEditor::PaletteTabId( TEXT( "MaterialEditor_Palette" ) );
-const FName FMaterialEditor::FindTabId( TEXT( "MaterialEditor_Find" ) );
-const FName FMaterialEditor::PreviewSettingsTabId( TEXT ("MaterialEditor_PreviewSettings" ) );
-const FName FMaterialEditor::ParameterDefaultsTabId(TEXT("MaterialEditor_ParameterDefaults"));
-const FName FMaterialEditor::CustomPrimitiveTabId(TEXT("MaterialEditor_CustomPrimitiveData"));
-const FName FMaterialEditor::LayerPropertiesTabId(TEXT("MaterialInstanceEditor_MaterialLayerProperties"));
 ///////////////////////////
 // FMatExpressionPreview //
 ///////////////////////////
@@ -253,55 +253,49 @@ void FMatExpressionPreview::NotifyCompilationFinished()
 // FMaterialEditor //
 /////////////////////
 
-void FMaterialEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
+void FMaterialEditor::RegisterToolbarTab(const TSharedRef<class FTabManager>& InTabManager)
 {
+	FAssetEditorToolkit::RegisterTabSpawners(InTabManager);
+
 	WorkspaceMenuCategory = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("WorkspaceMenu_MaterialEditor", "Material Editor"));
 	auto WorkspaceMenuCategoryRef = WorkspaceMenuCategory.ToSharedRef();
 
-	FAssetEditorToolkit::RegisterTabSpawners(InTabManager);
-	
-	InTabManager->RegisterTabSpawner( PreviewTabId, FOnSpawnTab::CreateSP(this, &FMaterialEditor::SpawnTab_Preview) )
+	InTabManager->RegisterTabSpawner(FMaterialEditorTabs::PreviewTabId, FOnSpawnTab::CreateSP(this, &FMaterialEditor::SpawnTab_Preview) )
 		.SetDisplayName( LOCTEXT("ViewportTab", "Viewport") )
 		.SetGroup( WorkspaceMenuCategoryRef )
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Viewports"));
-	
-	InTabManager->RegisterTabSpawner( GraphCanvasTabId, FOnSpawnTab::CreateSP(this, &FMaterialEditor::SpawnTab_GraphCanvas) )
-		.SetDisplayName( LOCTEXT("GraphCanvasTab", "Graph") )
-		.SetGroup( WorkspaceMenuCategoryRef )
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "GraphEditor.EventGraph_16x"));
-	
-	InTabManager->RegisterTabSpawner( PropertiesTabId, FOnSpawnTab::CreateSP(this, &FMaterialEditor::SpawnTab_MaterialProperties) )
+
+	InTabManager->RegisterTabSpawner(FMaterialEditorTabs::PropertiesTabId, FOnSpawnTab::CreateSP(this, &FMaterialEditor::SpawnTab_MaterialProperties) )
 		.SetDisplayName( LOCTEXT("DetailsTab", "Details") )
 		.SetGroup( WorkspaceMenuCategoryRef )
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
 
-	InTabManager->RegisterTabSpawner( PaletteTabId, FOnSpawnTab::CreateSP(this, &FMaterialEditor::SpawnTab_Palette) )
+	InTabManager->RegisterTabSpawner(FMaterialEditorTabs::PaletteTabId, FOnSpawnTab::CreateSP(this, &FMaterialEditor::SpawnTab_Palette) )
 		.SetDisplayName( LOCTEXT("PaletteTab", "Palette") )
 		.SetGroup( WorkspaceMenuCategoryRef )
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "Kismet.Tabs.Palette"));
 
-	InTabManager->RegisterTabSpawner(FindTabId, FOnSpawnTab::CreateSP(this, &FMaterialEditor::SpawnTab_Find))
+	InTabManager->RegisterTabSpawner(FMaterialEditorTabs::FindTabId, FOnSpawnTab::CreateSP(this, &FMaterialEditor::SpawnTab_Find))
 		.SetDisplayName(LOCTEXT("FindTab", "Find Results"))
 		.SetGroup( WorkspaceMenuCategoryRef )
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "Kismet.Tabs.FindResults"));
 
-	InTabManager->RegisterTabSpawner(PreviewSettingsTabId, FOnSpawnTab::CreateSP(this, &FMaterialEditor::SpawnTab_PreviewSettings))
+	InTabManager->RegisterTabSpawner(FMaterialEditorTabs::PreviewSettingsTabId, FOnSpawnTab::CreateSP(this, &FMaterialEditor::SpawnTab_PreviewSettings))
 		.SetDisplayName( LOCTEXT("PreviewSceneSettingsTab", "Preview Scene Settings") )
 		.SetGroup( WorkspaceMenuCategoryRef )
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
 
-
-	InTabManager->RegisterTabSpawner(ParameterDefaultsTabId, FOnSpawnTab::CreateSP(this, &FMaterialEditor::SpawnTab_ParameterDefaults))
+	InTabManager->RegisterTabSpawner(FMaterialEditorTabs::ParameterDefaultsTabId, FOnSpawnTab::CreateSP(this, &FMaterialEditor::SpawnTab_ParameterDefaults))
 		.SetDisplayName(LOCTEXT("ParameterDefaultsTab", "Parameter Defaults"))
 		.SetGroup(WorkspaceMenuCategoryRef)
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
 
-	InTabManager->RegisterTabSpawner(CustomPrimitiveTabId, FOnSpawnTab::CreateSP(this, &FMaterialEditor::SpawnTab_CustomPrimitiveData))
+	InTabManager->RegisterTabSpawner(FMaterialEditorTabs::CustomPrimitiveTabId, FOnSpawnTab::CreateSP(this, &FMaterialEditor::SpawnTab_CustomPrimitiveData))
 		.SetDisplayName(LOCTEXT("CustomPrimitiveTab", "Custom Primitive Data"))
 		.SetGroup(WorkspaceMenuCategoryRef)
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
 
-	InTabManager->RegisterTabSpawner(LayerPropertiesTabId, FOnSpawnTab::CreateSP(this, &FMaterialEditor::SpawnTab_LayerProperties))
+	InTabManager->RegisterTabSpawner(FMaterialEditorTabs::LayerPropertiesTabId, FOnSpawnTab::CreateSP(this, &FMaterialEditor::SpawnTab_LayerProperties))
 		.SetDisplayName(LOCTEXT("LayerPropertiesTab", "Layer Parameters"))
 		.SetGroup(WorkspaceMenuCategoryRef)
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Layers"));
@@ -311,20 +305,24 @@ void FMaterialEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& I
 	OnRegisterTabSpawners().Broadcast(InTabManager);
 }
 
+void FMaterialEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
+{
+	DocumentManager->SetTabManager(InTabManager);
+	FWorkflowCentricApplication::RegisterTabSpawners(InTabManager);
+}
 
 void FMaterialEditor::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
 {
 	FAssetEditorToolkit::UnregisterTabSpawners(InTabManager);
 
-	InTabManager->UnregisterTabSpawner( PreviewTabId );
-	InTabManager->UnregisterTabSpawner( GraphCanvasTabId );
-	InTabManager->UnregisterTabSpawner( PropertiesTabId );
-	InTabManager->UnregisterTabSpawner( PaletteTabId );
-	InTabManager->UnregisterTabSpawner( FindTabId );
-	InTabManager->UnregisterTabSpawner( PreviewSettingsTabId );
-	InTabManager->UnregisterTabSpawner(ParameterDefaultsTabId);
-	InTabManager->UnregisterTabSpawner(CustomPrimitiveTabId);
-	InTabManager->UnregisterTabSpawner( LayerPropertiesTabId );
+	InTabManager->UnregisterTabSpawner(FMaterialEditorTabs::PreviewTabId);
+	InTabManager->UnregisterTabSpawner(FMaterialEditorTabs::PropertiesTabId);
+	InTabManager->UnregisterTabSpawner(FMaterialEditorTabs::PaletteTabId);
+	InTabManager->UnregisterTabSpawner(FMaterialEditorTabs::FindTabId);
+	InTabManager->UnregisterTabSpawner(FMaterialEditorTabs::PreviewSettingsTabId);
+	InTabManager->UnregisterTabSpawner(FMaterialEditorTabs::ParameterDefaultsTabId);
+	InTabManager->UnregisterTabSpawner(FMaterialEditorTabs::CustomPrimitiveTabId);
+	InTabManager->UnregisterTabSpawner(FMaterialEditorTabs::LayerPropertiesTabId);
 
 	MaterialStatsManager->UnregisterTabs();
 
@@ -463,82 +461,30 @@ void FMaterialEditor::InitMaterialEditor( const EToolkitMode::Type Mode, const T
 	BindCommands();
 	RegisterToolBar();
 
-	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_MaterialEditor_Layout_v10")
-	->AddArea
-	(
-		FTabManager::NewPrimaryArea() ->SetOrientation(Orient_Vertical)
-		->Split
-		(
-			FTabManager::NewStack()
-			->SetSizeCoefficient(0.1f)
-			->SetHideTabWell( true )
-			->AddTab(GetToolbarTabId(), ETabState::OpenedTab)
-		)
-		->Split
-		(
-			FTabManager::NewSplitter() ->SetOrientation(Orient_Horizontal) ->SetSizeCoefficient(0.9f)
-			->Split
-			(
-				FTabManager::NewSplitter() ->SetOrientation(Orient_Vertical) ->SetSizeCoefficient(0.2f)
-				->Split
-				(
-					FTabManager::NewStack()
-					->SetHideTabWell( true )
-					->AddTab( PreviewTabId, ETabState::OpenedTab )
-				)
-				->Split
-				(
-					FTabManager::NewStack()
-					->AddTab( PropertiesTabId, ETabState::OpenedTab )
-					->AddTab( PreviewSettingsTabId, ETabState::ClosedTab )
-					->AddTab(ParameterDefaultsTabId, ETabState::OpenedTab)
-					->AddTab(CustomPrimitiveTabId, ETabState::ClosedTab)
-					->AddTab( LayerPropertiesTabId, ETabState::ClosedTab )
-					->SetForegroundTab( PropertiesTabId )
-				)
-			)
-			->Split
-			(
-				FTabManager::NewSplitter() ->SetOrientation( Orient_Vertical )
-				->SetSizeCoefficient(0.80f)
-				->Split
-				(
-					FTabManager::NewStack() 
-					->SetSizeCoefficient(0.8f)
-					->SetHideTabWell( true )
-					->AddTab( GraphCanvasTabId, ETabState::OpenedTab )
-				)
-				->Split
-				(
-					FTabManager::NewStack()
-					->SetSizeCoefficient( 0.20f )
-						->AddTab(FMaterialStats::GetGridStatsTabName(), ETabState::ClosedTab)
-						->AddTab(FMaterialStats::GetGridOldStatsTabName(), ETabState::ClosedTab)
-					->AddTab( FindTabId, ETabState::ClosedTab )
-				)
-			)
-			->Split
-			(
-				FTabManager::NewSplitter() ->SetOrientation(Orient_Horizontal) ->SetSizeCoefficient(0.2f)
-				->Split
-				(
-					FTabManager::NewStack()
-					->AddTab( PaletteTabId, ETabState::OpenedTab )
-				)
-			)
-		)
-	);
+	TSharedPtr<FMaterialEditor> ThisPtr(SharedThis(this));
+	DocumentManager->Initialize(ThisPtr);
+
+	// Register the document factories
+	{
+		TSharedRef<FDocumentTabFactory> GraphEditorFactory = MakeShareable(new FMaterialGraphEditorSummoner(ThisPtr,
+			FMaterialGraphEditorSummoner::FOnCreateGraphEditorWidget::CreateSP(this, &FMaterialEditor::CreateGraphEditorWidget)
+		));
+
+		// Also store off a reference to the grapheditor factory so we can find all the tabs spawned by it later.
+		GraphEditorTabFactoryPtr = GraphEditorFactory;
+		DocumentManager->RegisterDocumentFactory(GraphEditorFactory);
+	}
 
 	const bool bCreateDefaultStandaloneMenu = true;
 	const bool bCreateDefaultToolbar = true;
 
 	// Add the preview material to the objects being edited, so that we can find this editor from the temporary material graph
+	const TSharedRef<FTabManager::FLayout> DummyLayout = FTabManager::NewLayout("NullLayout")->AddArea(FTabManager::NewPrimaryArea());
 	TArray< UObject* > ObjectsToEdit;
 	ObjectsToEdit.Add(ObjectToEdit);
 	ObjectsToEdit.Add(Material);
 	ObjectsToEdit.Add(MaterialEditorInstance);
-	FAssetEditorToolkit::InitAssetEditor( Mode, InitToolkitHost, MaterialEditorAppIdentifier, StandaloneDefaultLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, ObjectsToEdit, false );
-
+	InitAssetEditor( Mode, InitToolkitHost, MaterialEditorAppIdentifier, DummyLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, ObjectsToEdit, false );
 	AddMenuExtender(GetMenuExtensibilityManager()->GetAllExtenders(GetToolkitCommands(), GetEditingObjects()));
 
 	IMaterialEditorModule* MaterialEditorModule = &FModuleManager::LoadModuleChecked<IMaterialEditorModule>( "MaterialEditor" );
@@ -546,6 +492,13 @@ void FMaterialEditor::InitMaterialEditor( const EToolkitMode::Type Mode, const T
 
 	ExtendToolbar();
 	RegenerateMenusAndToolbars();
+
+	{
+		AddApplicationMode(
+			FMaterialEditorApplicationModes::StandardMaterialEditorMode,
+			MakeShareable(new FMaterialEditorApplicationMode(SharedThis(this))));
+		SetCurrentMode(FMaterialEditorApplicationModes::StandardMaterialEditorMode);
+	}
 
 	// @todo toolkit world centric editing
 	/*if( IsWorldCentricAssetEditor() )
@@ -589,7 +542,7 @@ void FMaterialEditor::InitMaterialEditor( const EToolkitMode::Type Mode, const T
 		if (Material->Expressions.Num() == 0)
 		{
 			// If this is an empty function, create an output by default and start previewing it
-			if (GraphEditor.IsValid())
+			if (FocusedGraphEdPtr.IsValid())
 			{
 				check(!bMaterialDirty);
 				FVector2D OutputPlacement = FVector2D(200, 300);
@@ -763,6 +716,11 @@ void FMaterialEditor::UpdateGenerator()
 	}
 }
 
+void FMaterialEditor::NavigateTab(FDocumentTracker::EOpenDocumentCause InCause)
+{
+	OpenDocument(nullptr, InCause);
+}
+
 FMaterialEditor::FMaterialEditor()
 	: bMaterialDirty(false)
 	, bStatsFromPreviewMaterial(false)
@@ -788,6 +746,7 @@ FMaterialEditor::FMaterialEditor()
 	, ToolBarExtensibilityManager(new FExtensibilityManager)
 	, MaterialEditorInstance(nullptr)
 {
+	DocumentManager = MakeShareable(new FDocumentTracker);
 }
 
 FMaterialEditor::~FMaterialEditor()
@@ -927,6 +886,449 @@ void FMaterialEditor::UpdatePreviewViewportsVisibility()
 	}
 }
 
+void FMaterialEditor::CollapseNodesIntoGraph(UEdGraphNode* InGatewayNode, UMaterialGraphNode* InEntryNode, UMaterialGraphNode* InResultNode, UEdGraph* InSourceGraph, UEdGraph* InDestinationGraph, TSet<UEdGraphNode*>& InCollapsableNodes)
+{
+	const UMaterialGraphSchema* MaterialSchema = GetDefault<UMaterialGraphSchema>(); // ?
+
+	// Keep track of the statistics of the node positions so the new nodes can be located reasonably well
+	float SumNodeX = 0.0f;
+	float SumNodeY = 0.0f;
+	float MinNodeX = 1e9f;
+	float MinNodeY = 1e9f;
+	float MaxNodeX = -1e9f;
+	float MaxNodeY = -1e9f;
+	
+	// Move the nodes over, which may create cross-graph references that we need fix up ASAP
+	for (TSet<UEdGraphNode*>::TConstIterator NodeIt(InCollapsableNodes); NodeIt; ++NodeIt)
+	{
+		UEdGraphNode* Node = *NodeIt;
+		Node->Modify();
+
+		// Update stats
+		SumNodeX += Node->NodePosX;
+		SumNodeY += Node->NodePosY;
+		MinNodeX = FMath::Min<float>(MinNodeX, Node->NodePosX);
+		MinNodeY = FMath::Min<float>(MinNodeY, Node->NodePosY);
+		MaxNodeX = FMath::Max<float>(MaxNodeX, Node->NodePosX);
+		MaxNodeY = FMath::Max<float>(MaxNodeY, Node->NodePosY);
+
+		// Move the node over
+		InSourceGraph->Nodes.Remove(Node);
+		InDestinationGraph->Nodes.Add(Node);
+		Node->Rename(/*NewName=*/ NULL, /*NewOuter=*/ InDestinationGraph);
+
+		// Move the sub-graph to the new graph
+		if(UMaterialGraphNode_Composite* Composite = Cast<UMaterialGraphNode_Composite>(Node))
+		{
+			InSourceGraph->SubGraphs.Remove(Composite->BoundGraph);
+			InDestinationGraph->SubGraphs.Add(Composite->BoundGraph);
+			Composite->BoundGraph->SubgraphExpression = CastChecked<UMaterialGraphNode_Composite>(InGatewayNode)->MaterialExpression;
+		}
+
+		// Mark the node's expression as owned by the gateway node's expression
+		UMaterialGraphNode* GatewayMaterialNode = CastChecked<UMaterialGraphNode>(InGatewayNode);
+		if (UMaterialGraphNode* MaterialNode = Cast<UMaterialGraphNode>(Node))
+		{
+			MaterialNode->MaterialExpression->SubgraphExpression = GatewayMaterialNode->MaterialExpression;
+		}
+		else if (UMaterialGraphNode_Comment* CommentNode = Cast<UMaterialGraphNode_Comment>(Node))
+		{
+			CommentNode->MaterialExpressionComment->SubgraphExpression = GatewayMaterialNode->MaterialExpression;
+		}
+
+		TArray<UEdGraphPin*> OutputGatewayExecPins;
+
+		// Find cross-graph links
+		for (int32 PinIndex = 0; PinIndex < Node->Pins.Num(); ++PinIndex)
+		{
+			UEdGraphPin* LocalPin = Node->Pins[PinIndex];
+
+			bool bIsGatewayPin = false;
+			if(LocalPin->LinkedTo.Num())
+			{
+				for (int32 LinkIndex = 0; LinkIndex < LocalPin->LinkedTo.Num(); ++LinkIndex)
+				{
+					UEdGraphPin* TrialPin = LocalPin->LinkedTo[LinkIndex];
+					if (!InCollapsableNodes.Contains(TrialPin->GetOwningNode()))
+					{
+						bIsGatewayPin = true;
+						break;
+					}
+				}
+			}
+
+			// Thunk cross-graph links thru the gateway
+			if (bIsGatewayPin)
+			{
+				// Local port is either the entry or the result node in the collapsed graph
+				// Remote port is the node placed in the source graph
+				UMaterialGraphNode* LocalPort = (LocalPin->Direction == EGPD_Input) ? InEntryNode : InResultNode;
+
+				// Add a new pin to the entry/exit node and to the composite node
+				UEdGraphPin* LocalPortPin = NULL;
+				UEdGraphPin* RemotePortPin = NULL;
+
+				if(LocalPin->LinkedTo[0]->GetOwningNode() != InEntryNode)
+				{
+					const FName UniquePortName = InGatewayNode->CreateUniquePinName(LocalPin->PinName);
+
+					if(!RemotePortPin && !LocalPortPin)
+					{
+						FEdGraphPinType PinType = LocalPin->PinType;
+						RemotePortPin = InGatewayNode->CreatePin(LocalPin->Direction, PinType, UniquePortName);
+						LocalPortPin = LocalPort->CreatePin((LocalPin->Direction == EGPD_Input) ? EGPD_Output : EGPD_Input, PinType, UniquePortName);
+
+						// Create reroute expressions / pins for the pinbase.
+						UMaterialGraphNode_Composite* CompositeNode = CastChecked<UMaterialGraphNode_Composite>(InGatewayNode);
+						UMaterialExpression* GatewayRerouteExpression = UMaterialEditingLibrary::CreateMaterialExpressionEx(Material, MaterialFunction, UMaterialExpressionReroute::StaticClass());
+						UMaterialExpressionReroute* GatewayReroutePin = CastChecked<UMaterialExpressionReroute>(GatewayRerouteExpression);
+						UMaterialExpressionPinBase* PinBase = CastChecked<UMaterialExpressionPinBase>(LocalPort->MaterialExpression);
+
+						GatewayRerouteExpression->SubgraphExpression = CompositeNode->MaterialExpression;
+						PinBase->ReroutePins.Add(FCompositeReroute{UniquePortName, GatewayReroutePin});
+						PinBase->Modify();
+					}
+				}
+
+				check(LocalPortPin);
+				check(RemotePortPin);
+
+				LocalPin->Modify();
+
+				// Route the links
+				for (int32 LinkIndex = 0; LinkIndex < LocalPin->LinkedTo.Num(); ++LinkIndex)
+				{
+					UEdGraphPin* RemotePin = LocalPin->LinkedTo[LinkIndex];
+					RemotePin->Modify();
+
+					if (!InCollapsableNodes.Contains(RemotePin->GetOwningNode()) && RemotePin->GetOwningNode() != InEntryNode && RemotePin->GetOwningNode() != InResultNode)
+					{
+						// Fix up the remote pin
+						RemotePin->LinkedTo.Remove(LocalPin);
+						RemotePin->MakeLinkTo(RemotePortPin);
+
+						// The Entry Node only supports a single link, so if we made links above
+						// we need to break them now, to make room for the new link.
+						if (LocalPort == InEntryNode)
+						{
+							LocalPortPin->BreakAllPinLinks();
+						}
+
+						// Fix up the local pin
+						LocalPin->LinkedTo.Remove(RemotePin);
+						--LinkIndex;
+						LocalPin->MakeLinkTo(LocalPortPin);
+					}
+				}
+			}
+		}
+	}
+
+	// Reposition the newly created nodes
+	const int32 NumNodes = InCollapsableNodes.Num();
+	const float CenterX = NumNodes == 0 ? SumNodeX : SumNodeX / NumNodes;
+	const float CenterY = NumNodes == 0 ? SumNodeY : SumNodeY / NumNodes;
+	const float MinusOffsetX = 160.0f; //@TODO: Random magic numbers
+	const float PlusOffsetX = 300.0f;
+
+	// Put the gateway node at the center of the empty space in the old graph
+	InGatewayNode->NodePosX = CenterX;
+	InGatewayNode->NodePosY = CenterY;
+	InGatewayNode->SnapToGrid(SNodePanel::GetSnapGridSize());
+
+	if (UMaterialGraphNode_Composite* CompositeNode = Cast<UMaterialGraphNode_Composite>(InGatewayNode))
+	{
+		CompositeNode->MaterialExpression->MaterialExpressionEditorX = InGatewayNode->NodePosX;
+		CompositeNode->MaterialExpression->MaterialExpressionEditorY = InGatewayNode->NodePosY;
+	}
+
+	// Put the entry and exit nodes on either side of the nodes in the new graph
+	if (NumNodes != 0)
+	{
+		InEntryNode->NodePosX = MinNodeX - MinusOffsetX;
+		InEntryNode->NodePosY = CenterY;
+		InEntryNode->SnapToGrid(SNodePanel::GetSnapGridSize());
+		InEntryNode->MaterialExpression->MaterialExpressionEditorX = InEntryNode->NodePosX;
+		InEntryNode->MaterialExpression->MaterialExpressionEditorY = InEntryNode->NodePosY;
+
+		InResultNode->NodePosX = MaxNodeX + PlusOffsetX;
+		InResultNode->NodePosY = CenterY;
+		InResultNode->SnapToGrid(SNodePanel::GetSnapGridSize());
+		InResultNode->MaterialExpression->MaterialExpressionEditorX = InResultNode->NodePosX;
+		InResultNode->MaterialExpression->MaterialExpressionEditorY = InResultNode->NodePosY;
+	}
+}
+
+void FMaterialEditor::CollapseNodes(TSet<UEdGraphNode*>& InCollapsableNodes)
+{
+	TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
+	if (!FocusedGraphEd.IsValid())
+	{
+		return;
+	}
+
+	UEdGraph* SourceGraph = FocusedGraphEd->GetCurrentGraph();
+	SourceGraph->Modify();
+
+	// Create the composite node that will serve as the gateway into the subgraph
+	UMaterialGraphNode_Composite* GatewayNode = NULL;
+	{
+		GatewayNode = Cast<UMaterialGraphNode_Composite>(FMaterialGraphSchemaAction_NewComposite::SpawnNode(SourceGraph, FVector2D(0, 0)));
+		GatewayNode->bCanRenameNode = true;
+		check(GatewayNode);
+	}
+
+	UEdGraph* DestinationGraph = GatewayNode->BoundGraph;
+	UMaterialExpressionComposite* CompositeExpression = CastChecked<UMaterialExpressionComposite>(GatewayNode->MaterialExpression);
+
+	CollapseNodesIntoGraph(GatewayNode, 
+		Cast<UMaterialGraphNode>(CompositeExpression->InputExpressions->GraphNode),
+		Cast<UMaterialGraphNode>(CompositeExpression->OutputExpressions->GraphNode),
+		SourceGraph, 
+		DestinationGraph, 
+		InCollapsableNodes);
+
+	UpdateMaterialAfterGraphChange();
+
+	// Now that the expressions are updated, reconstruct the nodes
+	// Need to do this to prevent user from copying a freshly collapsed node not built from its expression
+	GatewayNode->ReconstructNode();
+	Cast<UMaterialGraphNode>(CompositeExpression->InputExpressions->GraphNode)->ReconstructNode();
+	Cast<UMaterialGraphNode>(CompositeExpression->OutputExpressions->GraphNode)->ReconstructNode();
+}
+
+void FMaterialEditor::ExpandNode(UEdGraphNode* InNodeToExpand, UEdGraph* InSourceGraph, TSet<UEdGraphNode*>& OutExpandedNodes)
+{
+	UEdGraph* DestinationGraph = InNodeToExpand->GetGraph();
+	UEdGraph* SourceGraph = InSourceGraph;
+	check(SourceGraph);
+
+	// Mark all edited objects so they will appear in the transaction record if needed.
+	DestinationGraph->Modify();
+	SourceGraph->Modify();
+	InNodeToExpand->Modify();
+
+	UEdGraphNode* Entry = nullptr;
+	UEdGraphNode* Result = nullptr;
+
+	const bool bIsCollapsedGraph = InNodeToExpand->IsA<UMaterialGraphNode_Composite>();
+
+	MoveNodesToGraph(SourceGraph->Nodes, DestinationGraph, OutExpandedNodes, &Entry, &Result, bIsCollapsedGraph);
+	CollapseGatewayNode(InNodeToExpand, Entry, Result, &OutExpandedNodes);
+
+	bool bPreviewExpressionDeleted = false;
+
+	if (Entry)
+	{
+		UMaterialExpressionPinBase* PinBase = Cast<UMaterialExpressionPinBase>(Cast<UMaterialGraphNode>(Entry)->MaterialExpression);
+		PinBase->DeleteReroutePins();
+		Material->Expressions.Remove(PinBase);
+		PinBase->MarkPendingKill();
+		Entry->DestroyNode();
+		bPreviewExpressionDeleted |= PinBase == PreviewExpression;
+	}
+
+	if (Result)
+	{
+		UMaterialExpressionPinBase* PinBase = Cast<UMaterialExpressionPinBase>(Cast<UMaterialGraphNode>(Result)->MaterialExpression);
+		PinBase->DeleteReroutePins();
+		Material->Expressions.Remove(PinBase);
+		PinBase->MarkPendingKill();
+		Result->DestroyNode();
+		bPreviewExpressionDeleted |= PinBase == PreviewExpression;
+	}
+
+	// Make sure any subgraphs get propagated appropriately
+	if (SourceGraph->SubGraphs.Num() > 0)
+	{
+		DestinationGraph->SubGraphs.Append(SourceGraph->SubGraphs);
+		SourceGraph->SubGraphs.Empty();
+	}
+
+	// Remove the gateway node and source graph
+	UMaterialExpression* CompositeExpression = Cast<UMaterialGraphNode>(InNodeToExpand)->MaterialExpression;
+	CompositeExpression->Modify();
+	Material->Expressions.Remove(CompositeExpression);
+	CompositeExpression->MarkPendingKill();
+	InNodeToExpand->DestroyNode();
+	bPreviewExpressionDeleted |= CompositeExpression == PreviewExpression;
+
+	if (bPreviewExpressionDeleted)
+	{
+		// The preview expression was deleted.  Null out our reference to it and reset to the normal preview material
+		SetPreviewExpression(nullptr);
+		RegenerateCodeView();
+		UpdatePreviewMaterial();
+	}
+}
+
+void FMaterialEditor::MoveNodesToAveragePos(TSet<UEdGraphNode*>& AverageNodes, FVector2D SourcePos, bool bExpandedNodesNeedUniqueGuid) const
+{
+	if (AverageNodes.Num() > 0)
+	{
+		FVector2D AvgNodePosition(0.0f, 0.0f);
+
+		for (TSet<UEdGraphNode*>::TIterator It(AverageNodes); It; ++It)
+		{
+			UEdGraphNode* Node = *It;
+			AvgNodePosition.X += Node->NodePosX;
+			AvgNodePosition.Y += Node->NodePosY;
+		}
+
+		float InvNumNodes = 1.0f / float(AverageNodes.Num());
+		AvgNodePosition.X *= InvNumNodes;
+		AvgNodePosition.Y *= InvNumNodes;
+
+		TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
+
+		for (UEdGraphNode* ExpandedNode : AverageNodes)
+		{
+			ExpandedNode->NodePosX = (ExpandedNode->NodePosX - AvgNodePosition.X) + SourcePos.X;
+			ExpandedNode->NodePosY = (ExpandedNode->NodePosY - AvgNodePosition.Y) + SourcePos.Y;
+
+			ExpandedNode->SnapToGrid(SNodePanel::GetSnapGridSize());
+
+			if (bExpandedNodesNeedUniqueGuid)
+			{
+				ExpandedNode->CreateNewGuid();
+			}
+
+			//Add expanded node to selection
+			FocusedGraphEd->SetNodeSelection(ExpandedNode, true);
+		}
+	}
+}
+
+void FMaterialEditor::MoveNodesToGraph(TArray<UEdGraphNode*>& SourceNodes, UEdGraph* DestinationGraph, TSet<UEdGraphNode*>& OutExpandedNodes, UEdGraphNode** OutEntry, UEdGraphNode** OutResult, const bool bIsCollapsedGraph)
+{
+	// Move the nodes over, remembering any that are boundary nodes
+	while (SourceNodes.Num())
+	{
+		UEdGraphNode* Node = SourceNodes.Pop();
+		UEdGraph* OriginalGraph = Node->GetGraph();
+
+		Node->Modify();
+		OriginalGraph->Modify();
+		Node->Rename(/*NewName=*/ nullptr, /*NewOuter=*/ DestinationGraph, REN_DontCreateRedirectors);
+
+		// Remove the node from the original graph
+		OriginalGraph->RemoveNode(Node, false);
+
+		// We do not check CanPasteHere when determining CanCollapseNodes, unlike CanCollapseSelectionToFunction/Macro,
+		// so when expanding a collapsed graph we don't want to check the CanPasteHere function:
+		if (!bIsCollapsedGraph && !Node->CanPasteHere(DestinationGraph))
+		{
+			Node->BreakAllNodeLinks();
+			continue;
+		}
+
+		// Successfully added the node to the graph, we may need to remove flags
+		if (Node->HasAllFlags(RF_Transient) && !DestinationGraph->HasAllFlags(RF_Transient))
+		{
+			Node->SetFlags(RF_Transactional);
+			Node->ClearFlags(RF_Transient);
+			TArray<UObject*> Subobjects;
+			GetObjectsWithOuter(Node, Subobjects);
+			for (UObject* Subobject : Subobjects)
+			{
+				Subobject->ClearFlags(RF_Transient);
+				Subobject->SetFlags(RF_Transactional);
+			}
+		}
+
+		DestinationGraph->AddNode(Node, /* bFromUI */ false, /* bSelectNewNode */ false);
+
+		if (UMaterialGraphNode_Composite* Composite = Cast<UMaterialGraphNode_Composite>(Node))
+		{
+			OriginalGraph->SubGraphs.Remove(Composite->BoundGraph);
+			DestinationGraph->SubGraphs.Add(Composite->BoundGraph);
+		}
+
+		UMaterialGraphNode* MaterialNode = Cast<UMaterialGraphNode>(Node);
+		if (MaterialNode && MaterialNode->MaterialExpression->IsA(UMaterialExpressionPinBase::StaticClass()))
+		{
+			UMaterialExpressionPinBase* PinBase = Cast<UMaterialExpressionPinBase>(MaterialNode->MaterialExpression);
+
+			if (PinBase && PinBase->PinDirection == EGPD_Output)
+			{
+				*OutEntry = Node;
+			}
+			else if (PinBase && PinBase->PinDirection == EGPD_Input)
+			{
+				*OutResult = Node;
+			}
+		}
+		else
+		{
+			OutExpandedNodes.Add(Node);
+		}
+	}
+}
+
+bool FMaterialEditor::CollapseGatewayNode(UEdGraphNode* InNode, UEdGraphNode* InEntryNode, UEdGraphNode* InResultNode, TSet<UEdGraphNode*>* OutExpandedNodes)
+{
+	bool bSuccessful = true;
+
+	// We iterate the array in reverse so we can both remove the subpins safely after we've read them and
+	// so we have split nested structs we combine them back together in the right order
+	for (int32 BoundaryPinIndex = InNode->Pins.Num() - 1; BoundaryPinIndex >= 0; --BoundaryPinIndex)
+	{
+		UEdGraphPin* const BoundaryPin = InNode->Pins[BoundaryPinIndex];
+
+		// For each pin in the gateway node, find the associated pin in the entry or result node.
+		UEdGraphNode* const GatewayNode = (BoundaryPin->Direction == EGPD_Input) ? InEntryNode : InResultNode;
+		UEdGraphPin* GatewayPin = nullptr;
+		if (GatewayNode)
+		{
+			for (int32 PinIdx = GatewayNode->Pins.Num() - 1; PinIdx >= 0; --PinIdx)
+			{
+				UEdGraphPin* const Pin = GatewayNode->Pins[PinIdx];
+
+				// Function graphs have a single exec path through them, so only one exec pin for input and another for output. In this fashion, they must not be handled by name.
+				if ((Pin->PinName == BoundaryPin->PinName) && (Pin->Direction != BoundaryPin->Direction))
+				{
+					GatewayPin = Pin;
+					break;
+				}
+			}
+		}
+
+		if (GatewayPin)
+		{
+			//@TODO: This is same as UEdGraphSchema_K2::CombineTwoPinNetsAndRemoveOldPins, except we don't care about default values
+			// since material graphs pins can't do that. More consolidation
+			auto CombineTwoPinNetsAndRemoveOldPins = [](UEdGraphPin* InPinA, UEdGraphPin* InPinB)
+			{
+				// Make direct connections between the things that connect to A or B, removing A and B from the picture
+				for (int32 IndexA = 0; IndexA < InPinA->LinkedTo.Num(); ++IndexA)
+				{
+					UEdGraphPin* FarA = InPinA->LinkedTo[IndexA];
+					// TODO: Michael N. says this if check should be unnecessary once the underlying issue is fixed.
+					// (Probably should use a check() instead once it's removed though.  See additional cases above.
+					if (FarA != nullptr)
+					{
+						for (int32 IndexB = 0; IndexB < InPinB->LinkedTo.Num(); ++IndexB)
+						{
+							UEdGraphPin* FarB = InPinB->LinkedTo[IndexB];
+
+							if (FarB != nullptr)
+							{
+								FarA->Modify();
+								FarB->Modify();
+								FarA->MakeLinkTo(FarB);
+							}
+
+						}
+					}
+				}
+			};
+			CombineTwoPinNetsAndRemoveOldPins(BoundaryPin, GatewayPin);
+		}
+	}
+
+	return bSuccessful;
+}
+
 void FMaterialEditor::SetQualityPreview(EMaterialQualityLevel::Type NewQuality)
 {
 	NodeQualityLevel = NewQuality;
@@ -958,10 +1360,6 @@ void FMaterialEditor::CreateInternalWidgets()
 	PreviewUIViewport = SNew(SMaterialEditorUIPreviewViewport, Material);
 
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>( "PropertyEditor" );
-
-	GraphEditor = CreateGraphEditorWidget();
-	// Manually set zoom level to avoid deferred zooming
-	GraphEditor->SetViewLocation(FVector2D::ZeroVector, 1);
 
 	const FDetailsViewArgs DetailsViewArgs( false, false, true, FDetailsViewArgs::HideNameArea, true, this );
 	MaterialDetailsView = PropertyEditorModule.CreateDetailView( DetailsViewArgs );
@@ -1002,6 +1400,13 @@ void FMaterialEditor::CreateInternalWidgets()
 	MaterialDetailsView->RegisterInstancedCustomPropertyLayout( 
 		UMaterialExpressionCollectionParameter::StaticClass(), 
 		LayoutCollectionParameterDetails
+		);
+
+	FOnGetDetailCustomizationInstance LayoutCompositeDetails = FOnGetDetailCustomizationInstance::CreateStatic(&FMaterialExpressionCompositeDetails::MakeInstance);
+
+	MaterialDetailsView->RegisterInstancedCustomPropertyLayout( 
+		UMaterialExpressionComposite::StaticClass(), 
+		LayoutCompositeDetails
 		);
 
 	MaterialDetailsView->OnFinishedChangingProperties().AddSP(this, &FMaterialEditor::OnFinishedChangingProperties);
@@ -1124,6 +1529,14 @@ void FMaterialEditor::OnFinishedChangingParametersFromOverview(const FPropertyCh
 	}
 }
 
+void FMaterialEditor::OnChangeBreadCrumbGraph(UEdGraph* InGraph)
+{
+	if (InGraph && FocusedGraphEdPtr.IsValid())
+	{
+		OpenDocument(InGraph, FDocumentTracker::NavigatingCurrentDocument);
+	}
+}
+
 void FMaterialEditor::GeneratorRowsRefreshed()
 {
 	MaterialParametersOverviewWidget->Refresh();
@@ -1218,7 +1631,7 @@ void FMaterialEditor::InitToolMenuContext(FToolMenuContext& MenuContext)
 
 void FMaterialEditor::RegisterToolBar()
 {
-	const FName MenuName = GetToolMenuToolbarName();
+	const FName MenuName = FAssetEditorToolkit::GetToolMenuToolbarName();
 	if (!UToolMenus::Get()->IsMenuRegistered(MenuName))
 	{
 		UToolMenu* ToolBar = UToolMenus::Get()->RegisterMenu(MenuName, "AssetEditor.DefaultToolBar", EMultiBoxType::ToolBar);
@@ -1750,6 +2163,12 @@ void FMaterialEditor::DrawMessages( FViewport* InViewport, FCanvas* Canvas )
 
 void FMaterialEditor::RecenterEditor()
 {
+	TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
+	if (!FocusedGraphEd)
+	{
+		return;
+	}
+
 	UEdGraphNode* FocusNode = NULL;
 
 	if (MaterialFunction)
@@ -1791,8 +2210,8 @@ void FMaterialEditor::RecenterEditor()
 		// Get current view location so that we don't change the zoom amount
 		FVector2D CurrLocation;
 		float CurrZoomLevel;
-		GraphEditor->GetViewLocation(CurrLocation, CurrZoomLevel);
-		GraphEditor->SetViewLocation(FVector2D::ZeroVector, CurrZoomLevel);
+		FocusedGraphEd->GetViewLocation(CurrLocation, CurrZoomLevel);
+		FocusedGraphEd->SetViewLocation(FVector2D::ZeroVector, CurrZoomLevel);
 	}
 }
 
@@ -2482,34 +2901,38 @@ void FMaterialEditor::UpdateMaterialInfoList()
 		NewErrorHash += FMD5::HashAnsiString(*CompileErrors[ErrorIndex]);
 	}
 
-	TSharedPtr<SWidget> TitleBar = GraphEditor->GetTitleBar();
-	if (NewErrorHash != MaterialErrorHash)
+	if (TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin())
 	{
-		MaterialErrorHash = NewErrorHash;
-		MaterialInfoList.Reset();
-
-		TArray< TSharedRef<class FTokenizedMessage> > Messages;
-		FString FeatureLevelName;
-		GetFeatureLevelName(GMaxRHIFeatureLevel, FeatureLevelName);
-		for (int32 ErrorIndex = 0; ErrorIndex < CompileErrors.Num(); ErrorIndex++)
+		TSharedPtr<SWidget> TitleBar = FocusedGraphEd->GetTitleBar();
+		TSharedPtr<SMaterialEditorTitleBar> MaterialTitleBar = StaticCastSharedPtr<SMaterialEditorTitleBar>(TitleBar);
+		if (NewErrorHash != MaterialErrorHash)
 		{
-			FString ErrorString = FString::Printf(TEXT("[%s] %s"), *FeatureLevelName, *CompileErrors[ErrorIndex]);
-			TSharedRef<FTokenizedMessage> Line = FTokenizedMessage::Create(EMessageSeverity::Error);
-			Line->AddToken(FTextToken::Create(FText::FromString(ErrorString)));
-			Messages.Add(Line);
+			MaterialErrorHash = NewErrorHash;
+			MaterialInfoList.Reset();
 
-			MaterialInfoList.Add(MakeShareable(new FMaterialInfo(ErrorString, FLinearColor::Red)));
+			TArray< TSharedRef<class FTokenizedMessage> > Messages;
+			FString FeatureLevelName;
+			GetFeatureLevelName(GMaxRHIFeatureLevel, FeatureLevelName);
+			for (int32 ErrorIndex = 0; ErrorIndex < CompileErrors.Num(); ErrorIndex++)
+			{
+				FString ErrorString = FString::Printf(TEXT("[%s] %s"), *FeatureLevelName, *CompileErrors[ErrorIndex]);
+				TSharedRef<FTokenizedMessage> Line = FTokenizedMessage::Create(EMessageSeverity::Error);
+				Line->AddToken(FTextToken::Create(FText::FromString(ErrorString)));
+				Messages.Add(Line);
+
+				MaterialInfoList.Add(MakeShareable(new FMaterialInfo(ErrorString, FLinearColor::Red)));
+			}
+
+			StatsListing->ClearMessages();
+			StatsListing->AddMessages(Messages);
+
+			MaterialTitleBar->RequestRefresh();
 		}
 
-		StatsListing->ClearMessages();
-		StatsListing->AddMessages(Messages);
-
-		StaticCastSharedPtr<SMaterialEditorTitleBar>(TitleBar)->RequestRefresh();
-		TitleBar->SetVisibility(EVisibility::Visible);
-	}
-	else if (!CompileErrors.Num())
+		if (MaterialTitleBar->MaterialInfoList)
 		{
-		TitleBar->SetVisibility(EVisibility::Collapsed);
+			MaterialTitleBar->MaterialInfoList->SetVisibility(CompileErrors.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible);
+		}
 	}
 
 	// extract material stats
@@ -2551,10 +2974,31 @@ void FMaterialEditor::UpdateGraphNodeStates()
 		}
 	}
 	
-	// Have to loop through everything here as there's no way to be notified when the material resource updates
-	for (int32 Index = 0; Index < Material->MaterialGraph->Nodes.Num(); ++Index)
+	// Update main material graph and all subgraphs
+	bUpdatedErrorState |= UpdateGraphNodeState(Material->MaterialGraph, ErrorMaterialResource, VisibleExpressions, bShowAllNodes);
+
+	bPreviewFeaturesChanged = false;
+
+	if (bUpdatedErrorState || bToggledVisibleState)
 	{
-		UMaterialGraphNode* MaterialNode = Cast<UMaterialGraphNode>(Material->MaterialGraph->Nodes[Index]);
+		// Rebuild the SGraphNodes to display/hide error block
+		if (TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin())
+		{
+			FocusedGraphEd->NotifyGraphChanged();
+		}
+	}
+}
+
+bool FMaterialEditor::UpdateGraphNodeState(UEdGraph* Graph, const FMaterialResource* ErrorMaterialResource, TArray<UMaterialExpression*>& VisibleExpressions, bool bShowAllNodes)
+{
+	bool bUpdatedErrorState = false;
+
+	UMaterialGraph* MaterialGraph = CastChecked<UMaterialGraph>(Graph);
+
+	// Have to loop through everything here as there's no way to be notified when the material resource updates
+	for (int32 Index = 0; Index < MaterialGraph->Nodes.Num(); ++Index)
+	{
+		UMaterialGraphNode* MaterialNode = Cast<UMaterialGraphNode>(MaterialGraph->Nodes[Index]);
 		if (MaterialNode)
 		{
 			MaterialNode->bIsPreviewExpression = (PreviewExpression == MaterialNode->MaterialExpression);
@@ -2588,13 +3032,12 @@ void FMaterialEditor::UpdateGraphNodeStates()
 		}
 	}
 
-	bPreviewFeaturesChanged = false;
-
-	if (bUpdatedErrorState || bToggledVisibleState)
+	for (UEdGraph* SubGraph : Graph->SubGraphs)
 	{
-		// Rebuild the SGraphNodes to display/hide error block
-		GraphEditor->NotifyGraphChanged();
+		bUpdatedErrorState |= UpdateGraphNodeState(SubGraph, ErrorMaterialResource, VisibleExpressions, bShowAllNodes);
 	}
+
+	return bUpdatedErrorState;
 }
 
 void FMaterialEditor::AddReferencedObjects( FReferenceCollector& Collector )
@@ -2801,7 +3244,11 @@ void FMaterialEditor::OnCameraHome()
 void FMaterialEditor::OnShowConnectors()
 {
 	bHideUnusedConnectors = !bHideUnusedConnectors;
-	GraphEditor->SetPinVisibility(bHideUnusedConnectors ? SGraphEditor::Pin_HideNoConnection : SGraphEditor::Pin_Show);
+
+	if (TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin())
+	{
+		FocusedGraphEd->SetPinVisibility(bHideUnusedConnectors ? SGraphEditor::Pin_HideNoConnection : SGraphEditor::Pin_Show);
+	}
 }
 
 bool FMaterialEditor::IsOnShowConnectorsChecked() const
@@ -2850,9 +3297,15 @@ bool FMaterialEditor::IsOnAlwaysRefreshAllPreviews() const
 
 void FMaterialEditor::ToggleHideUnrelatedNodes()
 {
+	TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
+	if (!FocusedGraphEd)
+	{
+		return;
+	}
+
 	bHideUnrelatedNodes = !bHideUnrelatedNodes;
 
-	GraphEditor->ResetAllNodesUnrelatedStates();
+	FocusedGraphEd->ResetAllNodesUnrelatedStates();
 
 	if (bHideUnrelatedNodes && bSelectRegularNode)
 	{
@@ -2915,6 +3368,12 @@ void FMaterialEditor::CollectUpstreamNodes(UMaterialGraphNode* CurrentNode, TArr
 
 void FMaterialEditor::HideUnrelatedNodes()
 {
+	TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
+	if (!FocusedGraphEd)
+	{
+		return;
+	}
+
 	TArray<UMaterialGraphNode*> NodesToShow;
 
 	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
@@ -2931,7 +3390,7 @@ void FMaterialEditor::HideUnrelatedNodes()
 		}
 	}
 
-	TArray<class UEdGraphNode*> AllNodes = GraphEditor->GetCurrentGraph()->Nodes;
+	TArray<class UEdGraphNode*> AllNodes = FocusedGraphEd->GetCurrentGraph()->Nodes;
 
 	TArray<UEdGraphNode*> CommentNodes;
 	TArray<UEdGraphNode*> RelatedNodes;
@@ -2957,7 +3416,7 @@ void FMaterialEditor::HideUnrelatedNodes()
 		}
 	}
 
-	GraphEditor->FocusCommentNodes(CommentNodes, RelatedNodes);
+	FocusedGraphEd->FocusCommentNodes(CommentNodes, RelatedNodes);
 }
 
 void FMaterialEditor::MakeHideUnrelatedNodesOptionsMenu(UToolMenu* Menu)
@@ -3016,11 +3475,17 @@ void FMaterialEditor::OnLockNodeStateCheckStateChanged(ECheckBoxState NewChecked
 
 void FMaterialEditor::OnFocusWholeChainCheckStateChanged(ECheckBoxState NewCheckedState)
 {
+	TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
+	if (!FocusedGraphEd)
+	{
+		return;
+	}
+
 	bFocusWholeChain = (NewCheckedState == ECheckBoxState::Checked) ? true : false;
 
 	if (bHideUnrelatedNodes && !bLockNodeFadeState && bSelectRegularNode)
 	{
-		GraphEditor->ResetAllNodesUnrelatedStates();
+		FocusedGraphEd->ResetAllNodesUnrelatedStates();
 
 		HideUnrelatedNodes();
 	}
@@ -3251,9 +3716,12 @@ void FMaterialEditor::OnConvertObjects()
 		DeleteNodes(NodesToDelete);
 
 		// Select each of the newly converted expressions
-		for ( TArray<UEdGraphNode*>::TConstIterator NodeIter(NodesToSelect); NodeIter; ++NodeIter )
+		if (TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin())
 		{
-			GraphEditor->SetNodeSelection(*NodeIter, true);
+			for (TArray<UEdGraphNode*>::TConstIterator NodeIter(NodesToSelect); NodeIter; ++NodeIter)
+			{
+				FocusedGraphEd->SetNodeSelection(*NodeIter, true);
+			}
 		}
 	}
 }
@@ -3336,9 +3804,12 @@ void FMaterialEditor::OnConvertTextures()
 		DeleteNodes(NodesToDelete);
 
 		// Select each of the newly converted expressions
-		for ( TArray<UEdGraphNode*>::TConstIterator NodeIter(NodesToSelect); NodeIter; ++NodeIter )
+		if (TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin())
 		{
-			GraphEditor->SetNodeSelection(*NodeIter, true);
+			for ( TArray<UEdGraphNode*>::TConstIterator NodeIter(NodesToSelect); NodeIter; ++NodeIter )
+			{
+				FocusedGraphEd->SetNodeSelection(*NodeIter, true);
+			}
 		}
 	}
 }
@@ -3353,7 +3824,11 @@ void FMaterialEditor::OnPreviewNode()
 			UMaterialGraphNode* GraphNode = Cast<UMaterialGraphNode>(*NodeIt);
 			if (GraphNode)
 			{
-				GraphEditor->NotifyGraphChanged();
+				if (TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin())
+				{
+					FocusedGraphEd->NotifyGraphChanged();
+				}
+				
 				SetPreviewExpression(GraphNode->MaterialExpression);
 			}
 		}
@@ -3432,9 +3907,12 @@ void FMaterialEditor::OnSelectDownstreamNodes()
 		NodesToCheck.Remove(CurrentNode);
 	}
 
-	for (int32 Index = 0; Index < NodesToSelect.Num(); ++Index)
+	if (TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin())
 	{
-		GraphEditor->SetNodeSelection(NodesToSelect[Index], true);
+		for (int32 Index = 0; Index < NodesToSelect.Num(); ++Index)
+		{
+			FocusedGraphEd->SetNodeSelection(NodesToSelect[Index], true);
+		}
 	}
 }
 
@@ -3485,9 +3963,12 @@ void FMaterialEditor::OnSelectUpstreamNodes()
 		NodesToCheck.Remove(CurrentNode);
 	}
 
-	for (int32 Index = 0; Index < NodesToSelect.Num(); ++Index)
+	if (TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin())
 	{
-		GraphEditor->SetNodeSelection(NodesToSelect[Index], true);
+		for (int32 Index = 0; Index < NodesToSelect.Num(); ++Index)
+		{
+			FocusedGraphEd->SetNodeSelection(NodesToSelect[Index], true);
+		}
 	}
 }
 
@@ -3499,18 +3980,52 @@ void FMaterialEditor::OnForceRefreshPreviews()
 
 void FMaterialEditor::OnCreateComment()
 {
-	CreateNewMaterialExpressionComment(GraphEditor->GetPasteLocation());
+	if (TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin())
+	{
+		CreateNewMaterialExpressionComment(FocusedGraphEd->GetPasteLocation());
+	}
 }
 
 void FMaterialEditor::OnCreateComponentMaskNode()
 {
-	CreateNewMaterialExpression(UMaterialExpressionComponentMask::StaticClass(), GraphEditor->GetPasteLocation(), true, false);
+	if (TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin())
+	{
+		CreateNewMaterialExpression(UMaterialExpressionComponentMask::StaticClass(), FocusedGraphEd->GetPasteLocation(), true, false);
+	}
 }
 
 void FMaterialEditor::OnFindInMaterial()
 {
-	TabManager->TryInvokeTab(FindTabId);
+	TabManager->TryInvokeTab(FMaterialEditorTabs::FindTabId);
 	FindResults->FocusForUse();
+}
+
+void FMaterialEditor::OnGraphEditorFocused(const TSharedRef<class SGraphEditor>& InGraphEditor)
+{
+	if (FocusedGraphEdPtr == InGraphEditor)
+	{
+		return;
+	}
+
+	// Update the graph editor that is currently focused
+	FocusedGraphEdPtr = InGraphEditor;
+
+	// Refresh navigation history
+	TSharedPtr<SWidget> TitleBar = FocusedGraphEdPtr.Pin()->GetTitleBar();
+	StaticCastSharedPtr<SMaterialEditorTitleBar>(TitleBar)->RequestRefresh();
+
+	// Update the inspector as well, to show selection from the focused graph editor
+	FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+
+	if (bHideUnrelatedNodes && SelectedNodes.Num() <= 0)
+	{
+		FocusedGraphEdPtr.Pin()->ResetAllNodesUnrelatedStates();
+	}
+}
+
+void FMaterialEditor::OnGraphEditorBackgrounded(const TSharedRef<SGraphEditor>& InGraphEditor)
+{
+	FocusedGraphEdPtr = nullptr;
 }
 
 UClass* FMaterialEditor::GetOnPromoteToParameterClass(const UEdGraphPin* TargetPin) const
@@ -3889,19 +4404,6 @@ TSharedRef<SDockTab> FMaterialEditor::SpawnTab_Preview(const FSpawnTabArgs& Args
 	return SpawnedTab;
 }
 
-TSharedRef<SDockTab> FMaterialEditor::SpawnTab_GraphCanvas(const FSpawnTabArgs& Args)
-{
-	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
-		.Label(LOCTEXT("GraphCanvasTitle", "Graph"));
-
-	if (GraphEditor.IsValid())
-	{
-		SpawnedTab->SetContent(GraphEditor.ToSharedRef());
-	}
-
-	return SpawnedTab;
-}
-
 TSharedRef<SDockTab> FMaterialEditor::SpawnTab_MaterialProperties(const FSpawnTabArgs& Args)
 {
 	TSharedPtr<SDockTab> DetailsTab = SNew(SDockTab)
@@ -3911,10 +4413,10 @@ TSharedRef<SDockTab> FMaterialEditor::SpawnTab_MaterialProperties(const FSpawnTa
 			MaterialDetailsView.ToSharedRef()
 		];
 
-	if (GraphEditor.IsValid())
+	if (FocusedGraphEdPtr.IsValid())
 	{
 		// Since we're initialising, make sure nothing is selected
-		GraphEditor->ClearSelectionSet();
+		FocusedGraphEdPtr.Pin()->ClearSelectionSet();
 	}
 	SpawnedDetailsTab = DetailsTab;
 	return DetailsTab.ToSharedRef();
@@ -3922,7 +4424,7 @@ TSharedRef<SDockTab> FMaterialEditor::SpawnTab_MaterialProperties(const FSpawnTa
 
 TSharedRef<SDockTab> FMaterialEditor::SpawnTab_Palette(const FSpawnTabArgs& Args)
 {
-	check( Args.GetTabId() == PaletteTabId );
+	check( Args.GetTabId() == FMaterialEditorTabs::PaletteTabId );
 
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
 		.Icon(FEditorStyle::GetBrush("Kismet.Tabs.Palette"))
@@ -3940,7 +4442,7 @@ TSharedRef<SDockTab> FMaterialEditor::SpawnTab_Palette(const FSpawnTabArgs& Args
 
 TSharedRef<SDockTab> FMaterialEditor::SpawnTab_Find(const FSpawnTabArgs& Args)
 {
-	check(Args.GetTabId() == FindTabId);
+	check(Args.GetTabId() == FMaterialEditorTabs::FindTabId);
 
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
 		.Icon(FEditorStyle::GetBrush("Kismet.Tabs.FindResults"))
@@ -3958,7 +4460,7 @@ TSharedRef<SDockTab> FMaterialEditor::SpawnTab_Find(const FSpawnTabArgs& Args)
 
 TSharedRef<SDockTab> FMaterialEditor::SpawnTab_PreviewSettings(const FSpawnTabArgs& Args)
 {
-	check(Args.GetTabId() == PreviewSettingsTabId);
+	check(Args.GetTabId() == FMaterialEditorTabs::PreviewSettingsTabId);
 
 	TSharedRef<SWidget> InWidget = SNullWidget::NullWidget;
 	if (PreviewViewport.IsValid())
@@ -4091,12 +4593,54 @@ void FMaterialEditor::SetPreviewExpression(UMaterialExpression* NewPreviewExpres
 
 void FMaterialEditor::JumpToNode(const UEdGraphNode* Node)
 {
-	GraphEditor->JumpToNode(Node, false);
+	if (TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin())
+	{
+		if (Node->GetGraph() != FocusedGraphEd->GetCurrentGraph())
+		{
+			JumpToHyperlink(Node->GetGraph());
+
+			// Graph changed so editor changed, use new one to jump
+			FocusedGraphEdPtr.Pin()->JumpToNode(Node, false);
+		}
+		else
+		{
+			FocusedGraphEd->JumpToNode(Node, false);
+		}
+	}
 }
 
-UMaterialExpression* FMaterialEditor::CreateNewMaterialExpression(UClass* NewExpressionClass, const FVector2D& NodePos, bool bAutoSelect, bool bAutoAssignResource)
+bool FMaterialEditor::FindOpenTabsContainingDocument(const UObject* DocumentID, TArray<TSharedPtr<SDockTab>>& Results)
+{
+	int32 StartingCount = Results.Num();
+
+	TSharedRef<FTabPayload_UObject> Payload = FTabPayload_UObject::Make(DocumentID);
+
+	DocumentManager->FindMatchingTabs(Payload, /*inout*/ Results);
+
+	// Did we add anything new?
+	return (StartingCount != Results.Num());
+}
+
+TSharedPtr<SDockTab> FMaterialEditor::OpenDocument(const UObject* DocumentID, FDocumentTracker::EOpenDocumentCause Cause)
+{
+	TSharedRef<FTabPayload_UObject> Payload = FTabPayload_UObject::Make(DocumentID);
+	TSharedPtr<SDockTab> DocumentTab = DocumentManager->OpenDocument(Payload, Cause);
+
+	return DocumentTab;
+}
+
+void FMaterialEditor::CloseDocumentTab(const UObject* DocumentID)
+{
+	TSharedRef<FTabPayload_UObject> Payload = FTabPayload_UObject::Make(DocumentID);
+	DocumentManager->CloseTab(Payload);
+}
+
+UMaterialExpression* FMaterialEditor::CreateNewMaterialExpression(UClass* NewExpressionClass, const FVector2D& NodePos, bool bAutoSelect, bool bAutoAssignResource, const UEdGraph* Graph)
 {
 	check( NewExpressionClass->IsChildOf(UMaterialExpression::StaticClass()) );
+	TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
+	UMaterialGraph* ExpressionGraph = Graph ? CastChecked<UMaterialGraph>(const_cast<UEdGraph*>(Graph)) : Material->MaterialGraph; 
+	ExpressionGraph->Modify();
 
 	if (!IsAllowedExpressionType(NewExpressionClass, MaterialFunction != NULL))
 	{
@@ -4105,9 +4649,9 @@ UMaterialExpression* FMaterialEditor::CreateNewMaterialExpression(UClass* NewExp
 	}
 
 	// Clear the selection
-	if ( bAutoSelect )
+	if ( bAutoSelect && FocusedGraphEd )
 	{
-		GraphEditor->ClearSelectionSet();
+		FocusedGraphEd->ClearSelectionSet();
 	}
 
 	// Create the new expression.
@@ -4128,12 +4672,12 @@ UMaterialExpression* FMaterialEditor::CreateNewMaterialExpression(UClass* NewExp
 
 		if (NewExpression)
 		{
-			Material->MaterialGraph->AddExpression(NewExpression, bAutoSelect);
+			ExpressionGraph->AddExpression(NewExpression, bAutoSelect);
 
 			// Select the new node.
-			if ( bAutoSelect )
+			if ( bAutoSelect && FocusedGraphEd )
 			{
-				GraphEditor->SetNodeSelection(NewExpression->GraphNode, true);
+				FocusedGraphEd->SetNodeSelection(NewExpression->GraphNode, true);
 			}
 		}
 	}
@@ -4145,13 +4689,81 @@ UMaterialExpression* FMaterialEditor::CreateNewMaterialExpression(UClass* NewExp
 	Material->MarkPackageDirty();
 
 	RefreshExpressionPreviews();
-	GraphEditor->NotifyGraphChanged();
+	if (FocusedGraphEd)
+	{
+		FocusedGraphEd->NotifyGraphChanged();
+	}
 	SetMaterialDirty();
 	return NewExpression;
 }
 
-UMaterialExpressionComment* FMaterialEditor::CreateNewMaterialExpressionComment(const FVector2D& NodePos)
+UMaterialExpressionComposite* FMaterialEditor::CreateNewMaterialExpressionComposite(const FVector2D& NodePos, const UEdGraph* Graph)
 {
+	TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
+	UMaterialGraph* ExpressionGraph = Graph ? CastChecked<UMaterialGraph>(const_cast<UEdGraph*>(Graph)) : Material->MaterialGraph;
+	ExpressionGraph->Modify();
+
+	UMaterialExpressionComposite* NewComposite = nullptr;
+	{
+		const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "MaterialEditorNewComposite", "Material Editor: New Composite"));
+		Material->Modify();
+
+		UObject* ExpressionOuter = Material;
+		if (MaterialFunction)
+		{
+			ExpressionOuter = MaterialFunction;
+		}
+
+		UMaterialExpression* NewExpression = UMaterialEditingLibrary::CreateMaterialExpressionEx(Material, MaterialFunction, UMaterialExpressionComposite::StaticClass(), nullptr, NodePos.X, NodePos.Y);
+		NewComposite = Cast<UMaterialExpressionComposite>(NewExpression);
+
+		if (NewComposite)
+		{
+			UMaterialExpression* InputPinBase = UMaterialEditingLibrary::CreateMaterialExpressionEx(Material, MaterialFunction, UMaterialExpressionPinBase::StaticClass());
+			NewComposite->InputExpressions = Cast<UMaterialExpressionPinBase>(InputPinBase);
+			NewComposite->InputExpressions->PinDirection = EGPD_Output;
+			NewComposite->InputExpressions->SubgraphExpression = NewComposite;
+
+			UMaterialExpression* OutputPinBase = UMaterialEditingLibrary::CreateMaterialExpressionEx(Material, MaterialFunction, UMaterialExpressionPinBase::StaticClass());
+			NewComposite->OutputExpressions = Cast<UMaterialExpressionPinBase>(OutputPinBase);
+			NewComposite->OutputExpressions->PinDirection = EGPD_Input;
+			NewComposite->OutputExpressions->SubgraphExpression = NewComposite;
+
+			// Create graph node, subgraph, and pinbase graph nodes
+			{
+				ExpressionGraph->AddExpression(NewComposite, true);
+
+				UMaterialGraphNode_Composite* CompositeNode = CastChecked<UMaterialGraphNode_Composite>(NewComposite->GraphNode);
+				CompositeNode->BoundGraph = ExpressionGraph->AddSubGraph(NewComposite);
+				CompositeNode->BoundGraph->Rename(*CastChecked<UMaterialExpressionComposite>(CompositeNode->MaterialExpression)->SubgraphName);
+
+				CompositeNode->BoundGraph->AddExpression(InputPinBase, false);
+				CompositeNode->BoundGraph->AddExpression(OutputPinBase, false);
+			}
+
+			if (FocusedGraphEd)
+			{
+				FocusedGraphEd->ClearSelectionSet();
+				FocusedGraphEd->SetNodeSelection(NewComposite->GraphNode, true);
+			}
+		}
+	}
+
+	RefreshExpressionPreviews();
+	if (FocusedGraphEd)
+	{
+		FocusedGraphEd->NotifyGraphChanged();
+	}
+	SetMaterialDirty();
+	return NewComposite;
+}
+
+UMaterialExpressionComment* FMaterialEditor::CreateNewMaterialExpressionComment(const FVector2D& NodePos, const UEdGraph* Graph)
+{
+	TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
+	UMaterialGraph* ExpressionGraph = Graph ? CastChecked<UMaterialGraph>(const_cast<UEdGraph*>(Graph)) : Material->MaterialGraph;
+	ExpressionGraph->Modify();
+
 	UMaterialExpressionComment* NewComment = NULL;
 	{
 		const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "MaterialEditorCreateComment", "Material Editor: Create comment"));
@@ -4169,7 +4781,7 @@ UMaterialExpressionComment* FMaterialEditor::CreateNewMaterialExpressionComment(
 		Material->EditorComments.Add( NewComment );
 
 		FSlateRect Bounds;
-		if (GraphEditor->GetBoundsForSelectedNodes(Bounds, 50.0f))
+		if (FocusedGraphEd && FocusedGraphEd->GetBoundsForSelectedNodes(Bounds, 50.0f))
 		{
 			NewComment->MaterialExpressionEditorX = Bounds.Left;
 			NewComment->MaterialExpressionEditorY = Bounds.Top;
@@ -4189,15 +4801,21 @@ UMaterialExpressionComment* FMaterialEditor::CreateNewMaterialExpressionComment(
 
 		NewComment->Text = NSLOCTEXT("K2Node", "CommentBlock_NewEmptyComment", "Comment").ToString();
 
-		Material->MaterialGraph->AddComment(NewComment, true);
+		ExpressionGraph->AddComment(NewComment, true);
 
 		// Select the new comment.
-		GraphEditor->ClearSelectionSet();
-		GraphEditor->SetNodeSelection(NewComment->GraphNode, true);
+		if (FocusedGraphEd)
+		{
+			FocusedGraphEd->ClearSelectionSet();
+			FocusedGraphEd->SetNodeSelection(NewComment->GraphNode, true);
+		}
 	}
 
 	Material->MarkPackageDirty();
-	GraphEditor->NotifyGraphChanged();
+	if (FocusedGraphEd)
+	{
+		FocusedGraphEd->NotifyGraphChanged();
+	}
 	SetMaterialDirty();
 	return NewComment;
 }
@@ -4213,7 +4831,10 @@ void FMaterialEditor::ForceRefreshExpressionPreviews()
 
 void FMaterialEditor::AddToSelection(UMaterialExpression* Expression)
 {
-	GraphEditor->SetNodeSelection(Expression->GraphNode, true);
+	if (TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin())
+	{
+		FocusedGraphEd->SetNodeSelection(Expression->GraphNode, true);
+	}
 }
 
 void FMaterialEditor::JumpToExpression(UMaterialExpression* Expression)
@@ -4256,12 +4877,15 @@ void FMaterialEditor::JumpToExpression(UMaterialExpression* Expression)
 
 void FMaterialEditor::SelectAllNodes()
 {
-	GraphEditor->SelectAllNodes();
+	if (TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin())
+	{
+		FocusedGraphEd->SelectAllNodes();
+	}
 }
 
 bool FMaterialEditor::CanSelectAllNodes() const
 {
-	return GraphEditor.IsValid();
+	return FocusedGraphEdPtr.IsValid();
 }
 
 void FMaterialEditor::DeleteSelectedNodes()
@@ -4292,51 +4916,16 @@ void FMaterialEditor::DeleteNodes(const TArray<UEdGraphNode*>& NodesToDelete)
 
 		{
 			const FScopedTransaction Transaction( NSLOCTEXT("UnrealEd", "MaterialEditorDelete", "Material Editor: Delete") );
-			Material->Modify();
-
-			for (int32 Index = 0; Index < NodesToDelete.Num(); ++Index)
-			{
-				if (NodesToDelete[Index]->CanUserDeleteNode())
-				{
-					// Break all node links first so that we don't update the material before deleting
-					NodesToDelete[Index]->BreakAllNodeLinks();
-
-					FBlueprintEditorUtils::RemoveNode(NULL, NodesToDelete[Index], true);
-
-					if (UMaterialGraphNode* GraphNode = Cast<UMaterialGraphNode>(NodesToDelete[Index]))
-					{
-						UMaterialExpression* MaterialExpression = GraphNode->MaterialExpression;
-
-						bHaveExpressionsToDelete = true;
-
-						DestroyColorPicker();
-
-						if( PreviewExpression == MaterialExpression )
-						{
-							// The expression being previewed is also being deleted
-							bPreviewExpressionDeleted = true;
-						}
-
-						MaterialExpression->Modify();
-						Material->Expressions.Remove( MaterialExpression );
-						Material->RemoveExpressionParameter(MaterialExpression);
-						// Make sure the deleted expression is caught by gc
-						MaterialExpression->MarkPendingKill();
-					}
-					else if (UMaterialGraphNode_Comment* CommentNode = Cast<UMaterialGraphNode_Comment>(NodesToDelete[Index]))
-					{
-						CommentNode->MaterialExpressionComment->Modify();
-						Material->EditorComments.Remove( CommentNode->MaterialExpressionComment );
-					}
-				}
-			}
-
+			DeleteNodesInternal(NodesToDelete, bHaveExpressionsToDelete, bPreviewExpressionDeleted);
 			Material->MaterialGraph->LinkMaterialExpressionsFromGraph();
 		} // ScopedTransaction
 
 		// Deselect all expressions and comments.
-		GraphEditor->ClearSelectionSet();
-		GraphEditor->NotifyGraphChanged();
+		if (TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin())
+		{
+			FocusedGraphEd->ClearSelectionSet();
+			FocusedGraphEd->NotifyGraphChanged();
+		}
 
 		if ( bHaveExpressionsToDelete )
 		{
@@ -4377,19 +4966,25 @@ bool FMaterialEditor::CanDeleteNodes() const
 
 void FMaterialEditor::DeleteSelectedDuplicatableNodes()
 {
+	TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
+	if (!FocusedGraphEd)
+	{
+		return;
+	}
+
 	// Cache off the old selection
 	const FGraphPanelSelectionSet OldSelectedNodes = GetSelectedNodes();
 
 	// Clear the selection and only select the nodes that can be duplicated
 	FGraphPanelSelectionSet RemainingNodes;
-	GraphEditor->ClearSelectionSet();
+	FocusedGraphEd->ClearSelectionSet();
 
 	for (FGraphPanelSelectionSet::TConstIterator SelectedIter(OldSelectedNodes); SelectedIter; ++SelectedIter)
 	{
 		UEdGraphNode* Node = Cast<UEdGraphNode>(*SelectedIter);
 		if ((Node != NULL) && Node->CanDuplicateNode())
 		{
-			GraphEditor->SetNodeSelection(Node, true);
+			FocusedGraphEd->SetNodeSelection(Node, true);
 		}
 		else
 		{
@@ -4401,13 +4996,83 @@ void FMaterialEditor::DeleteSelectedDuplicatableNodes()
 	DeleteSelectedNodes();
 
 	// Reselect whatever's left from the original selection after the deletion
-	GraphEditor->ClearSelectionSet();
+	FocusedGraphEd->ClearSelectionSet();
 
 	for (FGraphPanelSelectionSet::TConstIterator SelectedIter(RemainingNodes); SelectedIter; ++SelectedIter)
 	{
 		if (UEdGraphNode* Node = Cast<UEdGraphNode>(*SelectedIter))
 		{
-			GraphEditor->SetNodeSelection(Node, true);
+			FocusedGraphEd->SetNodeSelection(Node, true);
+		}
+	}
+}
+
+void FMaterialEditor::DeleteNodesInternal(const TArray<class UEdGraphNode*>& NodesToDelete, bool& bHaveExpressionsToDelete, bool& bPreviewExpressionDeleted)
+{
+	Material->Modify();
+
+	for (int32 Index = 0; Index < NodesToDelete.Num(); ++Index)
+	{
+		if (NodesToDelete[Index]->CanUserDeleteNode())
+		{
+			// If this is a user-selected pinbase, don't allow the delete to pass
+			if (Cast<UMaterialGraphNode_PinBase>(NodesToDelete[Index]) && GetSelectedNodes().Contains(NodesToDelete[Index]))
+			{
+				continue;
+			}
+
+			if (UMaterialGraphNode* GraphNode = Cast<UMaterialGraphNode>(NodesToDelete[Index]))
+			{
+				// Break all node links first so that we don't update the material before deleting
+				GraphNode->Modify();
+				GraphNode->BreakAllNodeLinks();
+
+				UMaterialExpression* MaterialExpression = GraphNode->MaterialExpression;
+
+				bHaveExpressionsToDelete = true;
+
+				DestroyColorPicker();
+
+				if( PreviewExpression == MaterialExpression )
+				{
+					// The expression being previewed is also being deleted
+					bPreviewExpressionDeleted = true;
+				}
+
+				if (UMaterialGraphNode_PinBase* PinBaseNode = Cast<UMaterialGraphNode_PinBase>(GraphNode))
+				{
+					UMaterialExpressionPinBase* PinBase = CastChecked<UMaterialExpressionPinBase>(MaterialExpression);
+					PinBase->DeleteReroutePins();
+				}
+						
+				if (UMaterialGraphNode_Composite* CompositeNode = Cast<UMaterialGraphNode_Composite>(GraphNode))
+				{
+					CloseDocumentTab(CompositeNode->BoundGraph);
+
+					UMaterialExpressionComposite* SubgraphComposite = CastChecked<UMaterialExpressionComposite>(MaterialExpression);
+					SubgraphComposite->Modify();
+
+					// Remove all subgraph nodes, note that composites remove their subgraph in DestroyNode
+					const TArray<UEdGraphNode*> SubgraphNodesToDelete = CompositeNode->BoundGraph->Nodes;
+					DeleteNodesInternal(SubgraphNodesToDelete, bHaveExpressionsToDelete, bPreviewExpressionDeleted);
+				}
+
+				MaterialExpression->Modify();
+				Material->Expressions.Remove( MaterialExpression );
+				Material->RemoveExpressionParameter(MaterialExpression);
+				// Make sure the deleted expression is caught by gc
+				MaterialExpression->MarkPendingKill();
+			}
+			else if (UMaterialGraphNode_Comment* CommentNode = Cast<UMaterialGraphNode_Comment>(NodesToDelete[Index]))
+			{
+				CommentNode->Modify();
+				CommentNode->BreakAllNodeLinks();
+				CommentNode->MaterialExpressionComment->Modify();
+				Material->EditorComments.Remove( CommentNode->MaterialExpressionComment );
+			}
+
+			// Now that we are done with the node, remove it
+			FBlueprintEditorUtils::RemoveNode(NULL, NodesToDelete[Index], true);
 		}
 	}
 }
@@ -4461,18 +5126,83 @@ bool FMaterialEditor::CanCopyNodes() const
 
 void FMaterialEditor::PasteNodes()
 {
-	PasteNodesHere(GraphEditor->GetPasteLocation());
+	if (TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin())
+	{
+		PasteNodesHere(FocusedGraphEd->GetPasteLocation(), FocusedGraphEd->GetCurrentGraph());
+	}
 }
 
-void FMaterialEditor::PasteNodesHere(const FVector2D& Location)
+void FMaterialEditor::PostPasteMaterialExpression(UMaterialExpression* NewExpression)
+{
+	// Deep copy subgraph expressions
+	if (UMaterialExpressionComposite* Composite = Cast<UMaterialExpressionComposite>(NewExpression))
+	{
+		UMaterialGraphNode_Composite* CompositeNode = Cast<UMaterialGraphNode_Composite>(Composite->GraphNode);
+		DeepCopyExpressions(CompositeNode->BoundGraph, Composite);
+
+		// We just updated all our child expressions, reconstruct node.
+		Composite->GraphNode->ReconstructNode();
+	}
+
+	// There can be only one default mesh paint texture.
+	UMaterialExpressionTextureBase* TextureSample = Cast<UMaterialExpressionTextureBase>(NewExpression);
+	if (TextureSample)
+	{
+		TextureSample->IsDefaultMeshpaintTexture = false;
+	}
+
+	NewExpression->UpdateParameterGuid(true, true);
+	Material->AddExpressionParameter(NewExpression, Material->EditorParameters);
+
+	UMaterialExpressionFunctionInput* FunctionInput = Cast<UMaterialExpressionFunctionInput>(NewExpression);
+	if (FunctionInput)
+	{
+		FunctionInput->ConditionallyGenerateId(true);
+		FunctionInput->ValidateName();
+	}
+
+	UMaterialExpressionFunctionOutput* FunctionOutput = Cast<UMaterialExpressionFunctionOutput>(NewExpression);
+	if (FunctionOutput)
+	{
+		FunctionOutput->ConditionallyGenerateId(true);
+		FunctionOutput->ValidateName();
+	}
+
+	UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(NewExpression);
+	if (FunctionCall)
+	{
+		// When pasting new nodes, we don't want to break all node links as this information is used by UpdateMaterialAfterGraphChange() below,
+		// to recreate all the connections in the pasted group.
+		// Just update the function input/outputs here.
+		const bool bRecreateAndLinkNode = false;
+		FunctionCall->UpdateFromFunctionResource(bRecreateAndLinkNode);
+
+		// If an unknown material function has been pasted, remove the graph node pins (as the expression will also have had its inputs/outputs removed).
+		// This will be displayed as an orphaned "Unspecified Function" node.
+		if (FunctionCall->MaterialFunction == nullptr &&
+			FunctionCall->FunctionInputs.Num() == 0 &&
+			FunctionCall->FunctionOutputs.Num() == 0)
+		{
+			NewExpression->GraphNode->Pins.Empty();
+		}
+	}
+}
+
+void FMaterialEditor::PasteNodesHere(const FVector2D& Location, const class UEdGraph* Graph)
 {
 	// Undo/Redo support
 	const FScopedTransaction Transaction( NSLOCTEXT("UnrealEd", "MaterialEditorPaste", "Material Editor: Paste") );
 	Material->MaterialGraph->Modify();
 	Material->Modify();
 
+	UMaterialGraph* ExpressionGraph = Graph ? CastChecked<UMaterialGraph>(const_cast<UEdGraph*>(Graph)) : Material->MaterialGraph;
+	ExpressionGraph->Modify();
+
 	// Clear the selection set (newly pasted stuff will be selected)
-	GraphEditor->ClearSelectionSet();
+	if (TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin())
+	{
+		FocusedGraphEd->ClearSelectionSet();
+	}
 
 	// Grab the text to paste from the clipboard.
 	FString TextToImport;
@@ -4480,7 +5210,7 @@ void FMaterialEditor::PasteNodesHere(const FVector2D& Location)
 
 	// Import the nodes
 	TSet<UEdGraphNode*> PastedNodes;
-	FEdGraphUtilities::ImportNodesFromText(Material->MaterialGraph, TextToImport, /*out*/ PastedNodes);
+	FEdGraphUtilities::ImportNodesFromText(ExpressionGraph, TextToImport, /*out*/ PastedNodes);
 
 	//Average position of nodes so we can move them while still maintaining relative distances to each other
 	FVector2D AvgNodePosition(0.0f,0.0f);
@@ -4512,6 +5242,7 @@ void FMaterialEditor::PasteNodesHere(const FVector2D& Location)
 			UMaterialExpression* NewExpression = GraphNode->MaterialExpression;
 			NewExpression->Material = Material;
 			NewExpression->Function = MaterialFunction;
+			NewExpression->SubgraphExpression = ExpressionGraph->SubgraphExpression;
 
 			// Make sure the param name is valid after the paste
 			if (NewExpression->HasAParameterName())
@@ -4521,48 +5252,8 @@ void FMaterialEditor::PasteNodesHere(const FVector2D& Location)
 
 			Material->Expressions.Add(NewExpression);
 
-			// There can be only one default mesh paint texture.
-			UMaterialExpressionTextureBase* TextureSample = Cast<UMaterialExpressionTextureBase>( NewExpression );
-			if( TextureSample )
-			{
-				TextureSample->IsDefaultMeshpaintTexture = false;
-			}
-
-			NewExpression->UpdateParameterGuid(true, true);
-			Material->AddExpressionParameter(NewExpression, Material->EditorParameters);
-
-			UMaterialExpressionFunctionInput* FunctionInput = Cast<UMaterialExpressionFunctionInput>( NewExpression );
-			if( FunctionInput )
-			{
-				FunctionInput->ConditionallyGenerateId(true);
-				FunctionInput->ValidateName();
-			}
-
-			UMaterialExpressionFunctionOutput* FunctionOutput = Cast<UMaterialExpressionFunctionOutput>( NewExpression );
-			if( FunctionOutput )
-			{
-				FunctionOutput->ConditionallyGenerateId(true);
-				FunctionOutput->ValidateName();
-			}
-
-			UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>( NewExpression );
-			if( FunctionCall )
-			{
-				// When pasting new nodes, we don't want to break all node links as this information is used by UpdateMaterialAfterGraphChange() below,
-				// to recreate all the connections in the pasted group.
-				// Just update the function input/outputs here.
-				const bool bRecreateAndLinkNode = false;
-				FunctionCall->UpdateFromFunctionResource(bRecreateAndLinkNode);
-
-				// If an unknown material function has been pasted, remove the graph node pins (as the expression will also have had its inputs/outputs removed).
-				// This will be displayed as an orphaned "Unspecified Function" node.
-				if (FunctionCall->MaterialFunction == nullptr &&
-					FunctionCall->FunctionInputs.Num() == 0 &&
-					FunctionCall->FunctionOutputs.Num() == 0)
-				{
-					GraphNode->Pins.Empty();
-				}
-			}
+			ensure(NewExpression->GraphNode == GraphNode);
+			PostPasteMaterialExpression(NewExpression);
 		}
 		else if (UMaterialGraphNode_Comment* CommentNode = Cast<UMaterialGraphNode_Comment>(Node))
 		{
@@ -4571,12 +5262,16 @@ void FMaterialEditor::PasteNodesHere(const FVector2D& Location)
 				CommentNode->MaterialDirtyDelegate = Material->MaterialGraph->MaterialDirtyDelegate;
 				CommentNode->MaterialExpressionComment->Material = Material;
 				CommentNode->MaterialExpressionComment->Function = MaterialFunction;
+				CommentNode->MaterialExpressionComment->SubgraphExpression = ExpressionGraph->SubgraphExpression;
 				Material->EditorComments.Add(CommentNode->MaterialExpressionComment);
 			}
 		}
 
 		// Select the newly pasted stuff
-		GraphEditor->SetNodeSelection(Node, true);
+		if (TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin())
+		{
+			FocusedGraphEd->SetNodeSelection(Node, true);
+		}
 
 		Node->NodePosX = (Node->NodePosX - AvgNodePosition.X) + Location.X ;
 		Node->NodePosY = (Node->NodePosY - AvgNodePosition.Y) + Location.Y ;
@@ -4590,7 +5285,10 @@ void FMaterialEditor::PasteNodesHere(const FVector2D& Location)
 	UpdateMaterialAfterGraphChange();
 
 	// Update UI
-	GraphEditor->NotifyGraphChanged();
+	if (TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin())
+	{
+		FocusedGraphEd->NotifyGraphChanged();
+	}
 }
 
 bool FMaterialEditor::CanPasteNodes() const
@@ -4633,7 +5331,6 @@ FText FMaterialEditor::GetOriginalObjectName() const
 void FMaterialEditor::UpdateMaterialAfterGraphChange()
 {
 	FlushRenderingCommands();
-	
 	Material->MaterialGraph->LinkMaterialExpressionsFromGraph();
 
 	// Update the current preview material.
@@ -4652,32 +5349,95 @@ void FMaterialEditor::UpdateMaterialAfterGraphChange()
 
 	if (bHideUnrelatedNodes && !bLockNodeFadeState && bSelectRegularNode)
 	{
-		GraphEditor->ResetAllNodesUnrelatedStates();
+		if (TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin())
+		{
+			FocusedGraphEd->ResetAllNodesUnrelatedStates();
+		}
 
 		HideUnrelatedNodes();
 	}
 }
 
+void FMaterialEditor::JumpToHyperlink(const UObject* ObjectReference)
+{
+	if (const UEdGraphNode* Node = Cast<const UEdGraphNode>(ObjectReference))
+	{
+		JumpToNode(Node);
+	}
+	else if (const UEdGraph* Graph = Cast<const UEdGraph>(ObjectReference))
+	{
+		// Navigating into things should re-use the current tab when it makes sense
+		FDocumentTracker::EOpenDocumentCause OpenMode = FDocumentTracker::OpenNewDocument;
+		if ((Graph == Material->MaterialGraph) || Cast<UMaterialGraphNode_Composite>(Graph->GetOuter()))
+		{
+			OpenMode = FDocumentTracker::NavigatingCurrentDocument;
+		}
+		else
+		{
+			// Walk up the outer chain to see if any tabs have a parent of this document open for edit, and if so
+			// we should reuse that one and drill in deeper instead
+			for (UObject* WalkPtr = const_cast<UEdGraph*>(Graph); WalkPtr != nullptr; WalkPtr = WalkPtr->GetOuter())
+			{
+				TArray< TSharedPtr<SDockTab> > TabResults;
+				if (FindOpenTabsContainingDocument(WalkPtr, /*out*/ TabResults))
+				{
+					// See if the parent was active
+					bool bIsActive = false;
+					for (TSharedPtr<SDockTab> Tab : TabResults)
+					{
+						if (Tab->IsActive())
+						{
+							bIsActive = true;
+							break;
+						}
+					}
+
+					if (bIsActive)
+					{
+						OpenMode = FDocumentTracker::NavigatingCurrentDocument;
+						break;
+					}
+				}
+			}
+		}
+
+		// Force it to open in a new document if shift is pressed
+		const bool bIsShiftPressed = FSlateApplication::Get().GetModifierKeys().IsShiftDown();
+		if (bIsShiftPressed)
+		{
+			OpenMode = FDocumentTracker::ForceOpenNewDocument;
+		}
+
+		// Open the document
+		OpenDocument(Graph, OpenMode);
+	}
+}
+
 int32 FMaterialEditor::GetNumberOfSelectedNodes() const
 {
-	return GraphEditor->GetSelectedNodes().Num();
+	if (TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin())
+	{
+		return FocusedGraphEd->GetSelectedNodes().Num();
+	}
+
+	return 0;
 }
 
 FGraphPanelSelectionSet FMaterialEditor::GetSelectedNodes() const
 {
 	FGraphPanelSelectionSet CurrentSelection;
-	if (GraphEditor.IsValid())
+	if (FocusedGraphEdPtr.IsValid())
 	{
-		CurrentSelection = GraphEditor->GetSelectedNodes();
+		CurrentSelection = FocusedGraphEdPtr.Pin()->GetSelectedNodes();
 	}
 	return CurrentSelection;
 }
 
 void FMaterialEditor::GetBoundsForNode(const UEdGraphNode* InNode, class FSlateRect& OutRect, float InPadding) const
 {
-	if (GraphEditor.IsValid())
+	if (FocusedGraphEdPtr.IsValid())
 	{
-		GraphEditor->GetBoundsForNode(InNode, OutRect, InPadding);
+		FocusedGraphEdPtr.Pin()->GetBoundsForNode(InNode, OutRect, InPadding);
 	}
 }
 
@@ -4708,6 +5468,22 @@ void FMaterialEditor::RedoGraphAction()
 	int32 NumExpressions = Material->Expressions.Num();
 	GEditor->RedoTransaction();
 
+	if (TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin())
+	{
+		// @TODO Find a more coherent check for this, rather than rely on sage knowledge that the schema won't exist.
+		// If our previous transaction created the current graph, it won't have a schema after undo.
+		if (FocusedGraphEd->GetCurrentGraph()->IsPendingKill())
+		{
+			CloseDocumentTab(FocusedGraphEd->GetCurrentGraph());
+			DocumentManager->CleanInvalidTabs();
+			DocumentManager->RefreshAllTabs();
+			GetTabManager()->TryInvokeTab(FMaterialEditorTabs::GraphEditor);
+		}
+
+		// Active graph can change above, re-acquire ptr
+		FocusedGraphEdPtr.Pin()->NotifyGraphChanged();
+	}
+
 	if(NumExpressions != Material->Expressions.Num())
 	{
 		Material->BuildEditorParameterList();
@@ -4716,75 +5492,209 @@ void FMaterialEditor::RedoGraphAction()
 	UpdateGenerator();
 }
 
+void FMaterialEditor::OnCollapseNodes()
+{
+	const UMaterialGraphSchema* Schema = GetDefault<UMaterialGraphSchema>();
+
+	// Does the selection set contain anything that is legal to collapse?
+	TSet<UEdGraphNode*> CollapsableNodes;
+	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+	for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
+	{
+		if (UEdGraphNode* SelectedNode = Cast<UEdGraphNode>(*NodeIt))
+		{
+			if (Schema->CanEncapuslateNode(*SelectedNode))
+			{
+				CollapsableNodes.Add(SelectedNode);
+			}
+		}
+	}
+	
+	// Sort for deterministic pin ordering, unaffected by selection order.
+	CollapsableNodes.StableSort([](const UEdGraphNode& A, const UEdGraphNode& B)
+	{
+		if (A.NodePosY == B.NodePosY)
+		{
+			return A.NodePosX > B.NodePosX;
+		}
+		return A.NodePosY < B.NodePosY;
+	});
+
+	// Collapse them
+	if (CollapsableNodes.Num())
+	{
+		const FScopedTransaction Transaction(FGraphEditorCommands::Get().CollapseNodes->GetDescription());
+		Material->Modify();
+		Material->MaterialGraph->Modify();
+
+		CollapseNodes(CollapsableNodes);
+	}
+}
+
+bool FMaterialEditor::CanCollapseNodes() const
+{
+	// Does the selection set contain anything that is legal to collapse?
+	const UMaterialGraphSchema* Schema = GetDefault<UMaterialGraphSchema>();
+	FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+	for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
+	{
+		if (UEdGraphNode* Node = Cast<UEdGraphNode>(*NodeIt))
+		{
+			if (Schema->CanEncapuslateNode(*Node))
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+void FMaterialEditor::OnExpandNodes()
+{
+	const FScopedTransaction Transaction(FGraphEditorCommands::Get().ExpandNodes->GetLabel());
+	Material->Modify();
+	Material->MaterialGraph->Modify();
+
+	TSet<UEdGraphNode*> ExpandedNodes;
+	TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
+
+	// Expand selected nodes into the focused graph context.
+	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+
+	if (FocusedGraphEd)
+	{
+		FocusedGraphEd->ClearSelectionSet();
+	}
+
+	for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
+	{
+		ExpandedNodes.Empty();
+		bool bExpandedNodesNeedUniqueGuid = true;
+
+		DocumentManager->CleanInvalidTabs();
+
+		if (UMaterialGraphNode_Composite* SelectedCompositeNode = Cast<UMaterialGraphNode_Composite>(*NodeIt))
+		{
+			// No need to assign unique GUIDs since the source graph will be removed.
+			bExpandedNodesNeedUniqueGuid = false;
+
+			// Expand the composite node back into the world
+			UEdGraph* SourceGraph = SelectedCompositeNode->BoundGraph;
+			ExpandNode(SelectedCompositeNode, SourceGraph, /*inout*/ ExpandedNodes);
+
+			FBlueprintEditorUtils::RemoveGraph(nullptr, SourceGraph, EGraphRemoveFlags::None);
+			SourceGraph->MarkPendingKill();
+		}
+
+		UEdGraphNode* SourceNode = CastChecked<UEdGraphNode>(*NodeIt);
+		check(SourceNode);
+		MoveNodesToAveragePos(ExpandedNodes, FVector2D(SourceNode->NodePosX, SourceNode->NodePosY), bExpandedNodesNeedUniqueGuid);
+	}
+
+	UMaterialExpression* SubgraphExpression = FocusedGraphEd ? Cast<UMaterialGraph>(FocusedGraphEd->GetCurrentGraph())->SubgraphExpression : Material->MaterialGraph->SubgraphExpression;
+
+	for (UEdGraphNode* ExpandedNode : ExpandedNodes)
+	{
+		if (UMaterialGraphNode* MaterialNode = Cast<UMaterialGraphNode>(ExpandedNode))
+		{
+			MaterialNode->MaterialExpression->Modify();
+			MaterialNode->MaterialExpression->SubgraphExpression = SubgraphExpression;
+		}
+		else if (UMaterialGraphNode_Comment* CommentNode = Cast<UMaterialGraphNode_Comment>(ExpandedNode))
+		{
+			CommentNode->MaterialExpressionComment->Modify();
+			CommentNode->MaterialExpressionComment->SubgraphExpression = SubgraphExpression;
+		}
+	}
+
+	UpdateMaterialAfterGraphChange();
+}
+
+bool FMaterialEditor::CanExpandNodes() const
+{
+	// Does the selection set contain any composite nodes that are legal to expand?
+	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+	for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
+	{
+		if (Cast<UMaterialGraphNode_Composite>(*NodeIt))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void FMaterialEditor::OnAlignTop()
 {
-	if (GraphEditor.IsValid())
+	if (FocusedGraphEdPtr.IsValid())
 	{
-		GraphEditor->OnAlignTop();
+		FocusedGraphEdPtr.Pin()->OnAlignTop();
 	}
 }
 
 void FMaterialEditor::OnAlignMiddle()
 {
-	if (GraphEditor.IsValid())
+	if (FocusedGraphEdPtr.IsValid())
 	{
-		GraphEditor->OnAlignMiddle();
+		FocusedGraphEdPtr.Pin()->OnAlignMiddle();
 	}
 }
 
 void FMaterialEditor::OnAlignBottom()
 {
-	if (GraphEditor.IsValid())
+	if (FocusedGraphEdPtr.IsValid())
 	{
-		GraphEditor->OnAlignBottom();
+		FocusedGraphEdPtr.Pin()->OnAlignBottom();
 	}
 }
 
 void FMaterialEditor::OnAlignLeft()
 {
-	if (GraphEditor.IsValid())
+	if (FocusedGraphEdPtr.IsValid())
 	{
-		GraphEditor->OnAlignLeft();
+		FocusedGraphEdPtr.Pin()->OnAlignLeft();
 	}
 }
 
 void FMaterialEditor::OnAlignCenter()
 {
-	if (GraphEditor.IsValid())
+	if (FocusedGraphEdPtr.IsValid())
 	{
-		GraphEditor->OnAlignCenter();
+		FocusedGraphEdPtr.Pin()->OnAlignCenter();
 	}
 }
 
 void FMaterialEditor::OnAlignRight()
 {
-	if (GraphEditor.IsValid())
+	if (FocusedGraphEdPtr.IsValid())
 	{
-		GraphEditor->OnAlignRight();
+		FocusedGraphEdPtr.Pin()->OnAlignRight();
 	}
 }
 
 void FMaterialEditor::OnStraightenConnections()
 {
-	if (GraphEditor.IsValid())
+	if (FocusedGraphEdPtr.IsValid())
 	{
-		GraphEditor->OnStraightenConnections();
+		FocusedGraphEdPtr.Pin()->OnStraightenConnections();
 	}
 }
 
 void FMaterialEditor::OnDistributeNodesH()
 {
-	if (GraphEditor.IsValid())
+	if (FocusedGraphEdPtr.IsValid())
 	{
-		GraphEditor->OnDistributeNodesH();
+		FocusedGraphEdPtr.Pin()->OnDistributeNodesH();
 	}
 }
 
 void FMaterialEditor::OnDistributeNodesV()
 {
-	if (GraphEditor.IsValid())
+	if (FocusedGraphEdPtr.IsValid())
 	{
-		GraphEditor->OnDistributeNodesV();
+		FocusedGraphEdPtr.Pin()->OnDistributeNodesV();
 	}
 }
 
@@ -4793,7 +5703,10 @@ void FMaterialEditor::PostUndo(bool bSuccess)
 {
 	if (bSuccess)
 	{	
-		GraphEditor->ClearSelectionSet();
+		if (TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin())
+		{
+			FocusedGraphEd->ClearSelectionSet();
+		}
 		
 		Material->BuildEditorParameterList();
 
@@ -4803,7 +5716,26 @@ void FMaterialEditor::PostUndo(bool bSuccess)
 		UpdatePreviewViewportsVisibility();
 
 		RefreshExpressionPreviews();
-		GraphEditor->NotifyGraphChanged();
+
+		// Remove any tabs are that are pending kill or otherwise invalid UObject pointers.
+		bool bNeedOpenGraphEditor = false;
+
+		if (TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin())
+		{
+			// @TODO Find a more coherent check for this, rather than rely on sage knowledge that the schema won't exist.
+			// If our previous transaction created the current graph, it won't have a schema after undo.
+			if (!FocusedGraphEd->GetCurrentGraph()->GetSchema())
+			{
+				CloseDocumentTab(FocusedGraphEd->GetCurrentGraph());
+				DocumentManager->CleanInvalidTabs();
+				DocumentManager->RefreshAllTabs();
+				GetTabManager()->TryInvokeTab(FMaterialEditorTabs::GraphEditor);
+			}
+
+			// Active graph can change above, re-acquire ptr
+			FocusedGraphEdPtr.Pin()->NotifyGraphChanged();
+		}
+
 		SetMaterialDirty();
 
 		UpdateGenerator();
@@ -5097,10 +6029,15 @@ void FMaterialEditor::OnColorPickerCommitted(FLinearColor LinearColor)
 	MaterialCustomPrimitiveDataWidget->UpdateEditorInstance(MaterialEditorInstance);
 }
 
-TSharedRef<SGraphEditor> FMaterialEditor::CreateGraphEditorWidget()
+/** Create new tab for the supplied graph - don't call this directly, instead call OpenDocument to track history.*/
+TSharedRef<SGraphEditor> FMaterialEditor::CreateGraphEditorWidget(TSharedRef<class FTabInfo> InTabInfo, class UEdGraph* InGraph)
 {
-	GraphEditorCommands = MakeShareable( new FUICommandList );
+	check((InGraph != nullptr) && Cast<UMaterialGraph>(InGraph));
+
+	if (!GraphEditorCommands)
 	{
+		GraphEditorCommands = MakeShareable(new FUICommandList);
+
 		// Editing commands
 		GraphEditorCommands->MapAction( FGenericCommands::Get().SelectAll,
 			FExecuteAction::CreateSP( this, &FMaterialEditor::SelectAllNodes ),
@@ -5207,6 +6144,19 @@ TSharedRef<SGraphEditor> FMaterialEditor::CreateGraphEditorWidget()
 			FCanExecuteAction::CreateSP(this, &FMaterialEditor::CanGoToDocumentation)
 		);
 
+		// Collapse Node Commands
+		GraphEditorCommands->MapAction( FGraphEditorCommands::Get().CollapseNodes,
+			FExecuteAction::CreateSP( this, &FMaterialEditor::OnCollapseNodes ),
+			FCanExecuteAction::CreateSP( this, &FMaterialEditor::CanCollapseNodes )
+		);
+
+		GraphEditorCommands->MapAction( FGraphEditorCommands::Get().ExpandNodes,
+			FExecuteAction::CreateSP( this, &FMaterialEditor::OnExpandNodes ),
+			FCanExecuteAction::CreateSP( this, &FMaterialEditor::CanExpandNodes ),
+			FIsActionChecked(),
+			FIsActionButtonVisible::CreateSP( this, &FMaterialEditor::CanExpandNodes )
+		);
+
 		// Alignment Commands
 		GraphEditorCommands->MapAction(FGraphEditorCommands::Get().AlignNodesTop,
 			FExecuteAction::CreateSP(this, &FMaterialEditor::OnAlignTop)
@@ -5252,11 +6202,14 @@ TSharedRef<SGraphEditor> FMaterialEditor::CreateGraphEditorWidget()
 	InEvents.OnNodeDoubleClicked = FSingleNodeEvent::CreateSP(this, &FMaterialEditor::OnNodeDoubleClicked);
 	InEvents.OnTextCommitted = FOnNodeTextCommitted::CreateSP(this, &FMaterialEditor::OnNodeTitleCommitted);
 	InEvents.OnVerifyTextCommit = FOnNodeVerifyTextCommit::CreateSP(this, &FMaterialEditor::OnVerifyNodeTextCommit);
-	InEvents.OnSpawnNodeByShortcut = SGraphEditor::FOnSpawnNodeByShortcut::CreateSP(this, &FMaterialEditor::OnSpawnGraphNodeByShortcut, static_cast<UEdGraph*>(Material->MaterialGraph));
+	InEvents.OnSpawnNodeByShortcut = SGraphEditor::FOnSpawnNodeByShortcut::CreateSP(this, &FMaterialEditor::OnSpawnGraphNodeByShortcut, static_cast<UEdGraph*>(InGraph));
 
 	// Create the title bar widget
 	TSharedPtr<SWidget> TitleBarWidget = SNew(SMaterialEditorTitleBar)
+		.EdGraphObj(InGraph)
 		.TitleText(this, &FMaterialEditor::GetOriginalObjectName)
+		.OnDifferentGraphCrumbClicked(this, &FMaterialEditor::OnChangeBreadCrumbGraph)
+		.HistoryNavigationWidget(InTabInfo->CreateHistoryNavigationWidget())
 		.MaterialInfoList(&MaterialInfoList);
 
 	return SNew(SGraphEditor)
@@ -5264,9 +6217,11 @@ TSharedRef<SGraphEditor> FMaterialEditor::CreateGraphEditorWidget()
 		.IsEditable(true)
 		.TitleBar(TitleBarWidget)
 		.Appearance(this, &FMaterialEditor::GetGraphAppearance)
-		.GraphToEdit(Material->MaterialGraph)
+		.GraphToEdit(InGraph)
 		.GraphEvents(InEvents)
 		.ShowGraphStateOverlay(false)
+		.OnNavigateHistoryBack(FSimpleDelegate::CreateSP(this, &FMaterialEditor::NavigateTab, FDocumentTracker::NavigateBackwards))
+		.OnNavigateHistoryForward(FSimpleDelegate::CreateSP(this, &FMaterialEditor::NavigateTab, FDocumentTracker::NavigateForwards))
 		.AssetEditorToolkit(this->AsShared());
 }
 
@@ -5294,6 +6249,78 @@ FGraphAppearanceInfo FMaterialEditor::GetGraphAppearance() const
 	}
 
 	return AppearanceInfo;
+}
+
+void FMaterialEditor::DeepCopyExpressions(UMaterialGraph* CopyGraph, UMaterialExpression* NewSubgraphExpression)
+{
+	if (!CopyGraph || !NewSubgraphExpression)
+	{
+		return;
+	}
+	
+	CopyGraph->Modify();
+	CopyGraph->SubgraphExpression = NewSubgraphExpression;
+
+	// Duplicate subnodes
+	auto DuplicateExpression = [&](auto* Expression)
+	{
+		using ExpressionType = std::remove_pointer<decltype(Expression)>::type;
+		return Cast<ExpressionType>(UMaterialEditingLibrary::DuplicateMaterialExpression(Material, MaterialFunction, Expression));
+	};
+
+	for (UEdGraphNode* Node : CopyGraph->Nodes)
+	{
+		if (UMaterialGraphNode* MaterialNode = Cast<UMaterialGraphNode>(Node))
+		{
+			MaterialNode->Modify();
+			MaterialNode->Rename(/*NewName=*/ NULL, /*NewOuter=*/ CopyGraph);
+			if (UMaterialExpressionPinBase* PinBase = Cast<UMaterialExpressionPinBase>(MaterialNode->MaterialExpression))
+			{
+				UMaterialExpressionPinBase* OldPinBase = PinBase;
+				UMaterialExpressionPinBase* NewPinBase = DuplicateExpression(OldPinBase);
+				MaterialNode->MaterialExpression = NewPinBase;
+
+				NewPinBase->SubgraphExpression = NewSubgraphExpression;
+				NewPinBase->ReroutePins.Empty();
+				for (FCompositeReroute& Reroute : OldPinBase->ReroutePins)
+				{
+					UMaterialExpressionReroute* DupReroute = DuplicateExpression(Reroute.Expression);
+					DupReroute->SubgraphExpression = NewSubgraphExpression;
+					NewPinBase->ReroutePins.Add({ Reroute.Name, DupReroute });
+				}
+
+				UMaterialExpressionComposite* SubGraphComposite = CastChecked<UMaterialExpressionComposite>(NewSubgraphExpression);
+				if (NewPinBase->PinDirection == EGPD_Output)
+				{
+					SubGraphComposite->InputExpressions = NewPinBase;
+				}
+				else
+				{
+					SubGraphComposite->OutputExpressions = NewPinBase;
+				}
+			}
+			else
+			{
+				MaterialNode->MaterialExpression = DuplicateExpression(MaterialNode->MaterialExpression);
+				MaterialNode->MaterialExpression->SubgraphExpression = NewSubgraphExpression;
+			}
+			
+			// GraphNode is transient so it won't be duplicated. 
+			MaterialNode->MaterialExpression->GraphNode = MaterialNode;
+			PostPasteMaterialExpression(MaterialNode->MaterialExpression);
+
+		}
+		else if (UMaterialGraphNode_Comment* Comment = Cast<UMaterialGraphNode_Comment>(MaterialNode))
+		{
+			Comment->Modify();
+			Comment->Rename(/*NewName=*/ NULL, /*NewOuter=*/ CopyGraph);
+			Comment->MaterialExpressionComment = DuplicateExpression(Comment->MaterialExpressionComment);
+			Comment->MaterialExpressionComment->SubgraphExpression = NewSubgraphExpression;
+
+			// GraphNode is transient so it won't be duplicated. 
+			Comment->MaterialExpressionComment->GraphNode = Comment;
+		}
+	}
 }
 
 void FMaterialEditor::CleanUnusedExpressions()
@@ -5333,8 +6360,11 @@ void FMaterialEditor::CleanUnusedExpressions()
 			Material->MaterialGraph->LinkMaterialExpressionsFromGraph();
 		} // ScopedTransaction
 
-		GraphEditor->ClearSelectionSet();
-		GraphEditor->NotifyGraphChanged();
+		if (TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin())
+		{
+			FocusedGraphEd->ClearSelectionSet();
+			FocusedGraphEd->NotifyGraphChanged();
+		}
 
 		SetMaterialDirty();
 	}
@@ -5464,7 +6494,10 @@ void FMaterialEditor::OnSelectedNodesChanged(const TSet<class UObject*>& NewSele
 	
 	if (bHideUnrelatedNodes && !bLockNodeFadeState)
 	{
-		GraphEditor->ResetAllNodesUnrelatedStates();
+		if (TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin())
+		{
+			FocusedGraphEd->ResetAllNodesUnrelatedStates();
+		}
 
 		if (bSelectRegularNode)
 		{
@@ -5477,7 +6510,11 @@ void FMaterialEditor::OnNodeDoubleClicked(class UEdGraphNode* Node)
 {
 	UMaterialGraphNode* GraphNode = Cast<UMaterialGraphNode>(Node);
 
-	if (GraphNode)
+	if (Node && Node->CanJumpToDefinition())
+	{
+		Node->JumpToDefinition();
+	}
+	else if (GraphNode)
 	{
 		UMaterialExpressionConstant3Vector* Constant3Expression = Cast<UMaterialExpressionConstant3Vector>(GraphNode->MaterialExpression);
 		UMaterialExpressionConstant4Vector* Constant4Expression = Cast<UMaterialExpressionConstant4Vector>(GraphNode->MaterialExpression);
@@ -5529,7 +6566,7 @@ void FMaterialEditor::OnNodeDoubleClicked(class UEdGraphNode* Node)
 
 			// Open a color picker 
 			FColorPickerArgs PickerArgs;
-			PickerArgs.ParentWidget = GraphEditor;//AsShared();
+			PickerArgs.ParentWidget = FocusedGraphEdPtr.Pin();
 			PickerArgs.bUseAlpha = ChannelEditStruct.Alpha != nullptr;
 			PickerArgs.bOnlyRefreshOnOk = false;
 			PickerArgs.bOnlyRefreshOnMouseUp = true;
@@ -5580,6 +6617,12 @@ void FMaterialEditor::OnNodeDoubleClicked(class UEdGraphNode* Node)
 
 void FMaterialEditor::OnRenameNode()
 {
+	TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
+	if (!FocusedGraphEd)
+	{
+		return;
+	}
+
 	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
 	for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
 	{
@@ -5587,7 +6630,7 @@ void FMaterialEditor::OnRenameNode()
 		if (SelectedNode != nullptr && SelectedNode->GetCanRenameNode())
 		{
 			bool ToRename = true;
-			GraphEditor->IsNodeTitleVisible(SelectedNode, ToRename);
+			FocusedGraphEd->IsNodeTitleVisible(SelectedNode, ToRename);
 			break;
 		}
 	}

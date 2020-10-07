@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Toolkits/AssetEditorToolkit.h"
+#include "WorkflowOrientedApp/WorkflowCentricApplication.h"
 
 class FCanvas;
 class FMaterialRenderProxy;
@@ -11,12 +12,13 @@ class FViewport;
 class IMaterialEditorModule;
 class UMaterialExpression;
 class UMaterialExpressionComment;
+class UMaterialExpressionComposite;
 class UMaterialInterface;
 
 /**
  * Public interface to Material Editor
  */
-class IMaterialEditor : public FAssetEditorToolkit, public IHasMenuExtensibility, public IHasToolBarExtensibility
+class IMaterialEditor : public FWorkflowCentricApplication, public IHasMenuExtensibility, public IHasToolBarExtensibility
 {
 public:
 	/**
@@ -26,10 +28,21 @@ public:
 	 * @param	NodePos					Position of the new node.
 	 * @param	bAutoSelect				If true, deselect all expressions and select the newly created one.
 	 * @param	bAutoAssignResource		If true, assign resources to new expression.
+	 * @param	Graph            		Graph to create new expression within. 
 	 *
 	 * @return	UMaterialExpression*	Newly created material expression
 	 */
-	virtual UMaterialExpression* CreateNewMaterialExpression(UClass* NewExpressionClass, const FVector2D& NodePos, bool bAutoSelect, bool bAutoAssignResource) {return NULL;}
+	virtual UMaterialExpression* CreateNewMaterialExpression(UClass* NewExpressionClass, const FVector2D& NodePos, bool bAutoSelect, bool bAutoAssignResource, const class UEdGraph* Graph = nullptr) {return nullptr;}
+
+	/**
+	 * Creates a new material expression composite, along with related child pinbase expressions
+	 *
+	 * @param	NodePos							Position of the new composite
+	 * @param	Graph							Graph to create new expression within.
+	 *
+	 * @return	UMaterialExpressionComposite*	Newly created material expression composite
+	 */
+	virtual UMaterialExpressionComposite* CreateNewMaterialExpressionComposite(const FVector2D& NodePos, const class UEdGraph* Graph = nullptr) { return nullptr; }
 
 	/**
 	 * Creates a new material expression comment
@@ -37,8 +50,9 @@ public:
 	 * @param	NodePos						Position of the new comment
 	 *
 	 * @return	UMaterialExpressionComment*	Newly created material expression comment
+	 * @param	Graph            			Graph to create new expression within.
 	 */
-	virtual UMaterialExpressionComment* CreateNewMaterialExpressionComment(const FVector2D& NodePos) {return NULL;}
+	virtual UMaterialExpressionComment* CreateNewMaterialExpressionComment(const FVector2D& NodePos, const class UEdGraph* Graph = nullptr) {return nullptr;}
 
 	/**
 	 * Refreshes all material expression previews, regardless of whether or not realtime previews are enabled.
@@ -76,11 +90,18 @@ public:
 	 */
 	virtual void UpdateMaterialAfterGraphChange() {};
 
+	/**
+	 * Jumps to a specific node or graph
+	 *
+	 * @param	ObjectReference			Object to jump to
+	 */
+	virtual void JumpToHyperlink(const UObject* ObjectReference) {};
+
 	/** Checks whether nodes can currently be pasted */
 	virtual bool CanPasteNodes() const {return false;}
 
 	/** Paste nodes at a specific location */
-	virtual void PasteNodesHere(const FVector2D& Location) {};
+	virtual void PasteNodesHere(const FVector2D& Location, const class UEdGraph* Graph = nullptr) {};
 
 	/** Gets the number of selected nodes */
 	virtual int32 GetNumberOfSelectedNodes() const {return 0;}

@@ -255,17 +255,7 @@ int32 FExpressionInput::Compile(class FMaterialCompiler* Compiler)
 
 void FExpressionInput::Connect( int32 InOutputIndex, class UMaterialExpression* InExpression )
 {
-	OutputIndex = InOutputIndex;
-	Expression = InExpression;
-
-	TArray<FExpressionOutput> Outputs;
-	Outputs = Expression->GetOutputs();
-	FExpressionOutput* Output = &Outputs[ OutputIndex ];
-	Mask = Output->Mask;
-	MaskR = Output->MaskR;
-	MaskG = Output->MaskG;
-	MaskB = Output->MaskB;
-	MaskA = Output->MaskA;
+	InExpression->ConnectExpression(this, InOutputIndex);
 }
 #endif // WITH_EDITOR
 

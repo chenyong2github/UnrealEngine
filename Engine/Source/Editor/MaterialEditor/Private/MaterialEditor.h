@@ -14,6 +14,8 @@
 #include "EditorUndoClient.h"
 #include "MaterialShared.h"
 #include "Toolkits/IToolkitHost.h"
+#include "WorkflowOrientedApp/WorkflowTabFactory.h"
+#include "WorkflowOrientedApp/WorkflowTabManager.h"
 #include "IMaterialEditor.h"
 #include "Editor/PropertyEditor/Public/IDetailsView.h"
 #include "SMaterialEditorViewport.h"
@@ -34,6 +36,7 @@ class UEdGraph;
 class UFactory;
 class UMaterialEditorOptions;
 class UMaterialExpressionComment;
+class UMaterialExpressionComposite;
 class UMaterialInstance;
 class UMaterialGraphNode;
 struct FGraphAppearanceInfo;
@@ -242,6 +245,8 @@ struct FMaterialInfo
 class FMaterialEditor : public IMaterialEditor, public FGCObject, public FTickableGameObject, public FEditorUndoClient, public FNotifyHook
 {
 public:
+	// @todo This is a hack for now until we reconcile the default toolbar with application modes
+	void RegisterToolbarTab(const TSharedRef<class FTabManager>& TabManager);
 	virtual void RegisterTabSpawners(const TSharedRef<class FTabManager>& TabManager) override;
 	virtual void UnregisterTabSpawners(const TSharedRef<class FTabManager>& TabManager) override;
 
@@ -346,6 +351,17 @@ public:
 	 * Updates flags on the Material Nodes to avoid expensive look up calls when rendering
 	 */
 	void UpdateGraphNodeStates();
+
+	/**
+	 * Updates flags on the Material Nodes for a single graph and it's subgraphs.
+	 * 
+	 * @param	Graph					Material graph to update
+	 * @param	ErrorMaterialResource	Material Resource containing known errors to draw for graph
+	 * @param	VisibleExpressions		List of expressions that should be visible (As in not grayed out / disabled).
+	 * @param	bShowAllNodes           True implies all nodes should be visible.
+	 * @return	True if we updated the error state of this material during graph update.
+	 */
+	bool UpdateGraphNodeState(UEdGraph* Graph, const FMaterialResource* ErrorMaterialResource, TArray<UMaterialExpression*>& VisibleExpressions, bool bShowAllNodes);
 	
 	// Widget Accessors
 	TSharedRef<class IDetailsView> GetDetailView() const {return MaterialDetailsView.ToSharedRef();}
@@ -379,17 +395,34 @@ public:
 	/** Pan the view to center on a particular node */
 	void JumpToNode(const UEdGraphNode* Node);
 
+	/** Called when graph editor focus is changed */
+	virtual void OnGraphEditorFocused(const TSharedRef<class SGraphEditor>& InGraphEditor);
+
+	/** Called when the graph editor tab is backgrounded */
+	virtual void OnGraphEditorBackgrounded(const TSharedRef<SGraphEditor>& InGraphEditor);
+
+	// Finds any open tabs containing the specified document and adds them to the specified array; returns true if at least one is found
+	bool FindOpenTabsContainingDocument(const UObject* DocumentID, /*inout*/ TArray< TSharedPtr<SDockTab> >& Results);
+
+	/** Open workflow document tab */
+	TSharedPtr<SDockTab> OpenDocument(const UObject* DocumentID, FDocumentTracker::EOpenDocumentCause Cause);
+
+	/** Close workflow document tab */
+	void CloseDocumentTab(const UObject* DocumentID);
+
 	// IMaterial Editor Interface
-	virtual UMaterialExpression* CreateNewMaterialExpression(UClass* NewExpressionClass, const FVector2D& NodePos, bool bAutoSelect, bool bAutoAssignResource) override;
-	virtual UMaterialExpressionComment* CreateNewMaterialExpressionComment(const FVector2D& NodePos) override;
+	virtual UMaterialExpression* CreateNewMaterialExpression(UClass* NewExpressionClass, const FVector2D& NodePos, bool bAutoSelect, bool bAutoAssignResource, const class UEdGraph* Graph = nullptr) override;
+	virtual UMaterialExpressionComposite* CreateNewMaterialExpressionComposite(const FVector2D& NodePos, const class UEdGraph* Graph = nullptr) override;
+	virtual UMaterialExpressionComment* CreateNewMaterialExpressionComment(const FVector2D& NodePos, const class UEdGraph* Graph = nullptr) override;
 	virtual void ForceRefreshExpressionPreviews() override;
 	virtual void AddToSelection(UMaterialExpression* Expression) override;
 	virtual void JumpToExpression(UMaterialExpression* Expression) override;
 	virtual void DeleteSelectedNodes() override;
 	virtual FText GetOriginalObjectName() const override;
 	virtual void UpdateMaterialAfterGraphChange() override;
+	virtual void JumpToHyperlink(const UObject* ObjectReference) override; 
 	virtual bool CanPasteNodes() const override;
-	virtual void PasteNodesHere(const FVector2D& Location) override;
+	virtual void PasteNodesHere(const FVector2D& Location, const class UEdGraph* Graph = nullptr) override;
 	virtual int32 GetNumberOfSelectedNodes() const override;
 	virtual TSet<UObject*> GetSelectedNodes() const override;
 	virtual void GetBoundsForNode(const UEdGraphNode* InNode, class FSlateRect& OutRect, float InPadding) const override;
@@ -456,6 +489,12 @@ public:
 	/** Configuration class used to store editor settings across sessions. */
 	UMaterialEditorOptions* EditorOptions;
 	
+	/** Document manager for workflow tabs */
+	TSharedPtr<FDocumentTracker> DocumentManager;
+
+	/** Factory that spawns graph editors; used to look up all tabs spawned by it. */
+	TWeakPtr<FDocumentTabFactory> GraphEditorTabFactoryPtr;
+
 protected:
 	//~ FAssetEditorToolkit interface
 	virtual void GetSaveableObjects(TArray<UObject*>& OutObjects) const override;
@@ -513,6 +552,8 @@ protected:
 	bool CanDeleteNodes() const;
 	/** Delete only the currently selected nodes that can be duplicated */
 	void DeleteSelectedDuplicatableNodes();
+	/** Recursively deletes nodes if needed */
+	void DeleteNodesInternal(const TArray<class UEdGraphNode*>& NodesToDelete, bool& bHaveExpressionsToDelete, bool& bPreviewExpressionDeleted);
 
 	/** Copy the currently selected nodes */
 	void CopySelectedNodes();
@@ -521,6 +562,9 @@ protected:
 
 	/** Paste the contents of the clipboard */
 	void PasteNodes();
+
+	/** Handle transient properties, and other things that can't be done in PostPasteNode */
+	void PostPasteMaterialExpression(UMaterialExpression* NewExpression);
 
 	/** Cut the currently selected nodes */
 	void CutSelectedNodes();
@@ -543,6 +587,16 @@ protected:
 
 	/** Check if node can be renamed */
 	bool CanRenameNodes() const;
+
+	/** Collapse node group */
+	void OnCollapseNodes();
+	/** Check if nodes can be collapsed */
+	bool CanCollapseNodes() const;
+
+	/** Expand node group */
+	void OnExpandNodes();
+	/** Check if node can be expanded */
+	bool CanExpandNodes() const;
 
 	void OnAlignTop();
 	void OnAlignMiddle();
@@ -577,6 +631,73 @@ private:
 
 	/** Updates the 3D and UI preview viewport visibility based on material domain */
 	void UpdatePreviewViewportsVisibility();
+
+	//@TODO: these methods are mostly C&P from BlueprintEditor, consider consolidating logic to graph editor. Note: We don't support macros / functions / tunnels / split pins, and also have material expression specific considerations. */
+	// void CollapseNodesIntoGraph(UEdGraphNode* InGatewayNode, UMaterialGraphNode* InEntryNode, UMaterialGraphNode* InResultNode, UEdGraph* InSourceGraph, UEdGraph* InDestinationGraph, TSet<UEdGraphNode*>& InCollapsableNodes);
+	// void CollapseNodes(TSet<class UEdGraphNode*>& InCollapsableNodes);
+	// static void ExpandNode(UEdGraphNode* InNodeToExpand, UEdGraph* InSourceGraph, TSet<UEdGraphNode*>& OutExpandedNodes);
+	// void MoveNodesToAveragePos(TSet<UEdGraphNode*>& AverageNodes, FVector2D SourcePos, bool bExpandedNodesNeedUniqueGuid = false) const;
+	// static void MoveNodesToGraph(TArray<UEdGraphNode*>& SourceNodes, UEdGraph* DestinationGraph, TSet<UEdGraphNode*>& OutExpandedNodes, UEdGraphNode** OutEntry, UEdGraphNode** OutResult, const bool bIsCollapsedGraph = false);
+	// bool CollapseGatewayNode(UK2Node* InNode, UEdGraphNode* InEntryNode, UEdGraphNode* InResultNode, TSet<UEdGraphNode*>* OutExpandedNodes = nullptr) const;
+
+	/**
+	 * Collapses a selection of nodes into a graph for composite.
+	 *
+	 * @param InGatewayNode				The node replacing the selection of nodes
+	 * @param InEntryNode				The entry node in the graph
+	 * @param InResultNode				The result node in the graph
+	 * @param InSourceGraph				The graph the selection is from
+	 * @param InDestinationGraph		The destination graph to move the selected nodes to
+	 * @param InCollapsableNodes		The selection of nodes being collapsed
+	 */
+	void CollapseNodesIntoGraph(UEdGraphNode* InGatewayNode, UMaterialGraphNode* InEntryNode, UMaterialGraphNode* InResultNode, UEdGraph* InSourceGraph, UEdGraph* InDestinationGraph, TSet<UEdGraphNode*>& InCollapsableNodes);
+
+	/** Called when a selection of nodes are being collapsed into a sub-graph */
+	void CollapseNodes(TSet<class UEdGraphNode*>& InCollapsableNodes);
+
+	/**
+	 * Expands passed in node 
+	 * 
+	 * @param InNodeToExpand			The node containing the selection of nodes that ill be removed
+	 * @param InSourceGraph				The graph containing the original node, 
+	 * @param OutExpandedNodes			The nodes expanded into the source graph
+	 */
+	void ExpandNode(UEdGraphNode* InNodeToExpand, UEdGraph* InSourceGraph, TSet<UEdGraphNode*>& OutExpandedNodes);
+
+	/**
+	* Move the given set of nodes to an average spot near the Source position
+	*
+	* @param AverageNodes					The nodes to move
+	* @param SourcePos						The source position used to average the nodes around
+	* @param bExpandedNodesNeedUniqueGuid	If true then a new Guid will be generated for each node in the set
+	*/
+	void MoveNodesToAveragePos(TSet<UEdGraphNode*>& AverageNodes, FVector2D SourcePos, bool bExpandedNodesNeedUniqueGuid = false) const;
+
+	/**
+	* Move every node from the source graph to the destination graph. Add Each node that is moved to the OutExpandedNodes set.
+	* If the source graph is a function graph, keep track of the entry and result nodes in the given Out Parameters.
+	*
+	* @param SourceNodes		Nodes to move
+	* @param DestinationGraph	Graph to move nodes to
+	* @param OutExpandedNodes	Set of each node that was moved from the source to destination graph
+	* @param OutEntry			Pointer to the function entry node
+	* @param OutResult			Pointer to the function result node
+	* @param bIsCollapsedGraph	Whether or not the source graph is collapsed
+	**/
+	static void MoveNodesToGraph(TArray<UEdGraphNode*>& SourceNodes, UEdGraph* DestinationGraph, TSet<UEdGraphNode*>& OutExpandedNodes, UEdGraphNode** OutEntry, UEdGraphNode** OutResult, const bool bIsCollapsedGraph = false);
+
+	/**
+	 * Makes connections into/or out of the gateway node, connect directly to the associated networks on the opposite side of the tunnel
+	 * When done, none of the pins on the gateway node will be connected to anything.
+	 * Requires both this gateway node and it's associated node to be in the same graph already (post-merging)
+	 *
+	 * @param InGatewayNode			The function or tunnel node
+	 * @param InEntryNode			The entry node in the inner graph
+	 * @param InResultNode			The result node in the inner graph
+	 *
+	 * @return						Returns TRUE if successful
+	 */
+	static bool CollapseGatewayNode(UEdGraphNode* InNode, UEdGraphNode* InEntryNode, UEdGraphNode* InResultNode, TSet<UEdGraphNode*>* OutExpandedNodes = nullptr);
 
 	/** Helper functions for the quality level node display toggling */
 	void SetQualityPreview(EMaterialQualityLevel::Type NewQuality);
@@ -749,7 +870,7 @@ private:
 	void OnColorPickerCommitted(FLinearColor LinearColor);
 
 	/** Create new graph editor widget */
-	TSharedRef<class SGraphEditor> CreateGraphEditorWidget();
+	TSharedRef<class SGraphEditor> CreateGraphEditorWidget(TSharedRef<class FTabInfo> InTabInfo, class UEdGraph* InGraph);
 
 	/** Gets the current Material Graph's appearance */
 	FGraphAppearanceInfo GetGraphAppearance() const;
@@ -758,6 +879,16 @@ private:
 	 * Deletes any disconnected material expressions.
 	 */
 	void CleanUnusedExpressions();
+
+	/**
+	 * Perform a deep copy of all expressions within the given graph.
+	 *
+	 * @param	CopyGraph, graph whose expression's need a deep copy
+	 * @param	NewSubgraphExpression, material expression that will be used as the subgraph expression for all
+	 *			deep copied expressions, and will become the graph's new subgraph expression
+	 *
+	 */
+	void DeepCopyExpressions(UMaterialGraph* CopyGraph, UMaterialExpression* NewSubgraphExpression);
 
 	/**
 	 * Displays a warning message to the user if the expressions to remove would cause any issues
@@ -775,7 +906,6 @@ private:
 
 private:
 	TSharedRef<SDockTab> SpawnTab_Preview(const FSpawnTabArgs& Args);
-	TSharedRef<SDockTab> SpawnTab_GraphCanvas(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_MaterialProperties(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_Palette(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_Find(const FSpawnTabArgs& Args);
@@ -786,14 +916,16 @@ private:
 
 	void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent);
 	void OnFinishedChangingParametersFromOverview(const FPropertyChangedEvent& PropertyChangedEvent);
+	void OnChangeBreadCrumbGraph(class UEdGraph* InGraph);
 	void GeneratorRowsRefreshed();
 	void UpdateGenerator();
+	void NavigateTab(FDocumentTracker::EOpenDocumentCause InCause);
 private:
 	/** Property View */
 	TSharedPtr<class IDetailsView> MaterialDetailsView;
 
-	/** New Graph Editor */
-	TSharedPtr<class SGraphEditor> GraphEditor;
+	/** Currently focused graph editor */
+	TWeakPtr<class SGraphEditor> FocusedGraphEdPtr;
 
 	/** Preview Viewport widget */
 	TSharedPtr<class SMaterialEditor3DPreviewViewport> PreviewViewport;
@@ -866,17 +998,6 @@ private:
 
 	TSharedPtr<FExtensibilityManager> MenuExtensibilityManager;
 	TSharedPtr<FExtensibilityManager> ToolBarExtensibilityManager;
-
-	/**	The tab ids for the material editor */
-	static const FName PreviewTabId;
-	static const FName GraphCanvasTabId;
-	static const FName PropertiesTabId;
-	static const FName PaletteTabId;
-	static const FName FindTabId;
-	static const FName PreviewSettingsTabId;
-	static const FName ParameterDefaultsTabId;
-	static const FName CustomPrimitiveTabId;
-	static const FName LayerPropertiesTabId;
 
 	/** Object that stores all of the possible parameters we can edit. */
 	class UMaterialEditorPreviewParameters* MaterialEditorInstance;

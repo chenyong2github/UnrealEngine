@@ -79,6 +79,7 @@
 #include "K2Node_TemporaryVariable.h"
 #include "K2Node_Timeline.h"
 #include "K2Node_Knot.h"
+#include "MaterialGraph/MaterialGraphNode_Composite.h"
 #include "AnimGraphNode_StateMachineBase.h"
 #include "AnimStateNodeBase.h"
 #include "AnimStateNode.h"
@@ -2581,6 +2582,7 @@ void FBlueprintEditorUtils::RemoveGraph(UBlueprint* Blueprint, class UEdGraph* G
 			OuterGraph->SubGraphs.Remove(GraphToRemove);
 		}
 		else if (! (Cast<UK2Node_Composite>(TestOuter)	|| 
+					Cast<UMaterialGraphNode_Composite>(TestOuter)	||
 					Cast<UAnimStateNodeBase>(TestOuter)	||
 					Cast<UAnimStateTransitionNode>(TestOuter)	||
 					Cast<UAnimGraphNode_StateMachineBase>(TestOuter)) )
@@ -2605,6 +2607,19 @@ void FBlueprintEditorUtils::RemoveGraph(UBlueprint* Blueprint, class UEdGraph* G
 	for (UK2Node_Composite* CompNode : AllCompositeNodes)
 	{
 		if (CompNode->BoundGraph && Local::IsASubGraph(CompNode->BoundGraph))
+		{
+			FBlueprintEditorUtils::RemoveGraph(Blueprint, CompNode->BoundGraph, EGraphRemoveFlags::None);
+		}
+	}
+
+	// Materials have their own form of composite, and we haven't made a generalized composite EdGraphNode yet.
+	TArray<UMaterialGraphNode_Composite*> AllMaterialCompositeNodes;
+	GraphToRemove->GetNodesOfClass<UMaterialGraphNode_Composite>(AllMaterialCompositeNodes);
+
+	for (UMaterialGraphNode_Composite* CompNode : AllMaterialCompositeNodes)
+	{
+		UEdGraph* BoundGraph = CompNode->BoundGraph;
+		if (BoundGraph && BoundGraph->GetOuter()->IsA(UMaterialGraphNode_Composite::StaticClass()))
 		{
 			FBlueprintEditorUtils::RemoveGraph(Blueprint, CompNode->BoundGraph, EGraphRemoveFlags::None);
 		}
@@ -2640,7 +2655,7 @@ void FBlueprintEditorUtils::RemoveGraph(UBlueprint* Blueprint, class UEdGraph* G
 
 	GraphToRemove->GetSchema()->HandleGraphBeingDeleted(*GraphToRemove);
 
-	GraphToRemove->Rename(nullptr, Blueprint->GetOuter(), REN_DoNotDirty | REN_DontCreateRedirectors);
+	GraphToRemove->Rename(nullptr, Blueprint ? Blueprint->GetOuter() : nullptr, REN_DoNotDirty | REN_DontCreateRedirectors);
 	GraphToRemove->ClearFlags(RF_Standalone | RF_Public);
 	GraphToRemove->RemoveFromRoot();
 

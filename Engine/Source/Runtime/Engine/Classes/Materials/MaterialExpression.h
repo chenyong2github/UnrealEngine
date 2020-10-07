@@ -113,6 +113,10 @@ class ENGINE_API UMaterialExpression : public UObject
 	UPROPERTY(transient)
 	UEdGraphNode*	GraphNode;
 
+	/** If exists, expresssion containing this expression within its subgraph. */
+	UPROPERTY()
+	UMaterialExpression* SubgraphExpression;
+
 	/** Text of last error for this expression */
 	FString LastErrorText;
 
@@ -335,9 +339,14 @@ class ENGINE_API UMaterialExpression : public UObject
 
 #if WITH_EDITOR
 	/**
+	 * Check if input exppresion is directly connected to the material.
+	 */
+	virtual bool IsExpressionConnected(FExpressionInput* Input, int32 OutputIndex);
+
+	/**
 	 * Connects the specified input expression to the specified output of this expression.
 	 */
-	void ConnectExpression(FExpressionInput* Input, int32 OutputIndex);
+	virtual void ConnectExpression(FExpressionInput* Input, int32 OutputIndex);
 #endif // WITH_EDITOR
 
 	/** 

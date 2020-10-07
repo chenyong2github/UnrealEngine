@@ -470,6 +470,32 @@ public:
 
 	UNREALED_API void FocusCommentNodes(TArray<UEdGraphNode*> &CommentNodes, TArray<UEdGraphNode*> &RelatedNodes);
 
+	virtual void OnCollapseNodes()
+	{
+		if (Implementation.IsValid())
+		{
+			Implementation->OnCollapseNodes();
+		}
+	}
+
+	virtual bool CanCollapseNodes() const
+	{
+		return Implementation.IsValid() ? Implementation->CanCollapseNodes() : false;
+	}
+
+	virtual void OnExpandNodes()
+	{
+		if (Implementation.IsValid())
+		{
+			Implementation->OnExpandNodes();
+		}
+	}
+
+	virtual bool CanExpandNodes() const
+	{
+		return Implementation.IsValid() ? Implementation->CanExpandNodes() : false;
+	}
+
 	virtual void OnAlignTop()
 	{
 		if (Implementation.IsValid())

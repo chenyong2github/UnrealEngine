@@ -5,6 +5,7 @@
 #include "EdGraph/EdGraph.h"
 #include "Materials/Material.h"
 #include "MaterialGraph/MaterialGraphSchema.h"
+#include "MaterialGraph/MaterialGraphNode_Composite.h"
 #include "IMaterialEditor.h"
 
 #include "Materials/MaterialExpressionFunctionInput.h"
@@ -14,6 +15,7 @@
 #include "Materials/MaterialExpressionStaticBool.h"
 #include "Materials/MaterialExpressionStaticSwitch.h"
 #include "Materials/MaterialExpressionComment.h"
+#include "Materials/MaterialExpressionComposite.h"
 #include "Materials/MaterialExpressionTextureSample.h"
 #include "Materials/MaterialExpressionTextureSampleParameter.h"
 #include "Materials/MaterialExpressionRuntimeVirtualTextureSampleParameter.h"
@@ -45,9 +47,19 @@ UMaterialExpression* FMaterialEditorUtilities::CreateNewMaterialExpression(const
 	TSharedPtr<class IMaterialEditor> MaterialEditor = GetIMaterialEditorForObject(Graph);
 	if (MaterialEditor.IsValid())
 	{
-		return MaterialEditor->CreateNewMaterialExpression(NewExpressionClass, NodePos, bAutoSelect, bAutoAssignResource);
+		return MaterialEditor->CreateNewMaterialExpression(NewExpressionClass, NodePos, bAutoSelect, bAutoAssignResource, Graph);
 	}
-	return NULL;
+	return nullptr;
+}
+
+UMaterialExpressionComposite* FMaterialEditorUtilities::CreateNewMaterialExpressionComposite(const class UEdGraph* Graph, const FVector2D& NodePos)
+{
+	TSharedPtr<class IMaterialEditor> MaterialEditor = GetIMaterialEditorForObject(Graph);
+	if (MaterialEditor.IsValid())
+	{
+		return MaterialEditor->CreateNewMaterialExpressionComposite(NodePos, Graph);
+	}
+	return nullptr;
 }
 
 UMaterialExpressionComment* FMaterialEditorUtilities::CreateNewMaterialExpressionComment(const class UEdGraph* Graph, const FVector2D& NodePos)
@@ -55,9 +67,9 @@ UMaterialExpressionComment* FMaterialEditorUtilities::CreateNewMaterialExpressio
 	TSharedPtr<class IMaterialEditor> MaterialEditor = GetIMaterialEditorForObject(Graph);
 	if (MaterialEditor.IsValid())
 	{
-		return MaterialEditor->CreateNewMaterialExpressionComment(NodePos);
+		return MaterialEditor->CreateNewMaterialExpressionComment(NodePos, Graph);
 	}
-	return NULL;
+	return nullptr;
 }
 
 void FMaterialEditorUtilities::ForceRefreshExpressionPreviews(const class UEdGraph* Graph)
@@ -579,6 +591,15 @@ TSharedPtr<class IMaterialEditor> FMaterialEditorUtilities::GetIMaterialEditorFo
 	// Find the associated Material
 	UMaterial* Material = Cast<UMaterial>(ObjectToFocusOn->GetOuter());
 
+	// May be inspecting a subgraph, in which case, get the material from the composite node 
+	if (!Material)
+	{
+		if (UMaterialGraphNode_Composite* Composite = Cast<UMaterialGraphNode_Composite>(ObjectToFocusOn->GetOuter()))
+		{
+			Material = Composite->MaterialExpression->Material;
+		}
+	}
+
 	TSharedPtr<IMaterialEditor> MaterialEditor;
 	if (Material != NULL)
 	{
@@ -589,6 +610,16 @@ TSharedPtr<class IMaterialEditor> FMaterialEditorUtilities::GetIMaterialEditorFo
 		}
 	}
 	return MaterialEditor;
+}
+
+void FMaterialEditorUtilities::BringFocusAttentionOnObject(const UObject* ObjectToFocusOn)
+{
+	TSharedPtr<IMaterialEditor> MaterialEditor = GetIMaterialEditorForObject(ObjectToFocusOn);
+	if (MaterialEditor.IsValid())
+	{
+		MaterialEditor->FocusWindow();
+		MaterialEditor->JumpToHyperlink(ObjectToFocusOn);
+	}
 }
 
 void FMaterialEditorUtilities::AddMaterialExpressionCategory(FGraphActionMenuBuilder& ActionMenuBuilder, FText CategoryName, TArray<struct FMaterialExpression>* MaterialExpressions, bool bMaterialFunction)
@@ -603,7 +634,7 @@ void FMaterialEditorUtilities::AddMaterialExpressionCategory(FGraphActionMenuBui
 	for (int32 Index = 0; Index < MaterialExpressions->Num(); ++Index)
 	{
 		const FMaterialExpression& MaterialExpression = (*MaterialExpressions)[Index];
-		if (IsAllowedExpressionType(MaterialExpression.MaterialClass, bMaterialFunction))
+		if (IsAllowedExpressionType(MaterialExpression.MaterialClass, bMaterialFunction) && MaterialExpression.MaterialClass != UMaterialExpressionComposite::StaticClass())
 		{
 			if (!ActionMenuBuilder.FromPin || HasCompatibleConnection(MaterialExpression.MaterialClass, FromPinType, ActionMenuBuilder.FromPin->Direction, bMaterialFunction))
 			{

@@ -6,6 +6,7 @@
 #include "InputCoreTypes.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "MaterialGraph/MaterialGraphNode_Comment.h"
+#include "MaterialGraph/MaterialGraphNode_Composite.h"
 #include "MaterialGraph/MaterialGraphNode_Base.h"
 #include "MaterialGraph/MaterialGraphNode.h"
 #include "MaterialGraph/MaterialGraphNode_Root.h"
@@ -75,6 +76,7 @@
 
 #include "MaterialNodes/SGraphNodeMaterialBase.h"
 #include "MaterialNodes/SGraphNodeMaterialComment.h"
+#include "MaterialNodes/SGraphNodeMaterialComposite.h"
 #include "MaterialNodes/SGraphNodeMaterialResult.h"
 #include "MaterialGraphNode_Knot.h"
 
@@ -124,7 +126,14 @@ TSharedPtr<SGraphNode> FNodeFactory::CreateNodeWidget(UEdGraphNode* InNode)
 		}
 		else if (UMaterialGraphNode* MaterialNode = Cast<UMaterialGraphNode>(InNode))
 		{
-			return SNew(SGraphNodeMaterialBase, MaterialNode);
+			if (UMaterialGraphNode_Composite* MaterialComposite = Cast<UMaterialGraphNode_Composite>(InNode))
+			{
+				return SNew(SGraphNodeMaterialComposite, MaterialComposite);
+			}
+			else
+			{
+				return SNew(SGraphNodeMaterialBase, MaterialNode);
+			}
 		}
 	}
 

@@ -9,6 +9,9 @@
 #include "ToolMenus.h"
 #include "MaterialGraph/MaterialGraphSchema.h"
 
+#include "Materials/MaterialExpressionComposite.h"
+#include "Materials/MaterialExpressionPinBase.h"
+
 #include "Materials/MaterialExpressionComponentMask.h"
 #include "Materials/MaterialExpressionConstant.h"
 #include "Materials/MaterialExpressionConstant2Vector.h"
@@ -443,7 +446,10 @@ void UMaterialGraphNode::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeCo
 		}
 			
 		{
-			FToolMenuSection& Section = Menu->AddSection("Alignment");
+			FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaOrganization", LOCTEXT("OrganizationHeader", "Organization"));
+			Section.AddMenuEntry(FGraphEditorCommands::Get().CollapseNodes);
+			Section.AddMenuEntry(FGraphEditorCommands::Get().ExpandNodes);
+
 			Section.AddSubMenu(
 				"Alignment",
 				LOCTEXT("AlignmentHeader", "Alignment"),

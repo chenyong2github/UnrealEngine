@@ -211,6 +211,9 @@ public:
 	/** Get all children graphs in the specified graph */
 	void GetAllChildrenGraphs(TArray<UEdGraph*>& Graphs) const;
 
+	/** Get parent outer graph, if it exists */
+	static UEdGraph* GetOuterGraph(UObject* Obj);
+
 	/** Util to find a good place for a new node */
 	FVector2D GetGoodPlaceForNewNode();
 

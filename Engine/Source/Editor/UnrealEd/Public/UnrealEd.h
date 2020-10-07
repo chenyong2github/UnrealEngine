@@ -216,6 +216,7 @@ MONOLITHIC_HEADER_BOILERPLATE()
 #include "MaterialGraph/MaterialGraphNode_Base.h"
 #include "MaterialGraph/MaterialGraphNode.h"
 #include "MaterialGraph/MaterialGraphNode_Root.h"
+#include "MaterialGraph/MaterialGraphNode_Composite.h"
 #include "MaterialGraph/MaterialGraphSchema.h"
 #include "Exporters/ModelExporterT3D.h"
 #include "Exporters/ObjectExporterT3D.h"

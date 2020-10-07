@@ -39,7 +39,7 @@ class UMaterialGraphNode : public UMaterialGraphNode_Base
 
 public:
 	/** Fix up the node's owner after being copied */
-	UNREALED_API void PostCopyNode();
+	UNREALED_API virtual void PostCopyNode();
 
 	/** Get the expression preview for this node */
 	UNREALED_API FMaterialRenderProxy* GetExpressionPreview();

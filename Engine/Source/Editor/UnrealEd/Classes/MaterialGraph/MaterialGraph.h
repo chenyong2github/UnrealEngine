@@ -9,6 +9,7 @@
 #include "MaterialGraph.generated.h"
 
 class UMaterialExpressionComment;
+class UMaterialExpressionComposite;
 
 DECLARE_DELEGATE_RetVal( bool, FRealtimeStateGetter );
 DECLARE_DELEGATE( FSetMaterialDirty );
@@ -114,6 +115,10 @@ class UNREALED_API UMaterialGraph : public UEdGraph
 	UPROPERTY()
 	class UMaterialGraphNode_Root*	RootNode;
 
+	/** Expression this subgraph represents (NULL if not subgraph, Material [Function] still populated) */
+	UPROPERTY()
+	UMaterialExpression*			SubgraphExpression;
+
 	/** List of Material Inputs (not set up for Material Functions) */
 	TArray<FMaterialInputInfo> MaterialInputs;
 
@@ -155,6 +160,15 @@ public:
 	 */
 	class UMaterialGraphNode_Comment*	AddComment(UMaterialExpressionComment* Comment, bool bIsUserInvoked = false);
 
+	/**
+	 * Add a Subgraph to the Graph
+	 *
+	 * @param	InSubgraphExpression, expression that will represent the new subgraph in this graph.
+	 *
+	 * @return	UMaterialGraph* Newly created subgraph
+	 */
+	UMaterialGraph* AddSubGraph(UMaterialExpression* InSubgraphExpression);
+
 	/** Link all of the Graph nodes using the Material's connections */
 	void LinkGraphNodesFromMaterial();
 
@@ -180,6 +194,8 @@ private:
 	 * Remove all Nodes from the graph
 	 */
 	void RemoveAllNodes();
+
+	void RebuildGraphInternal(const TMap<UMaterialExpression*, TArray<UMaterialExpression*>>& SubgraphExpressionMap, const TMap<UMaterialExpression*, TArray<UMaterialExpressionComment*>>& SubgraphCommentMap);
 
 	/**
 	 * Gets a valid output index, matching mask values if necessary

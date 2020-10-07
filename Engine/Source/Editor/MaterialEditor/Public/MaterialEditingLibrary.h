@@ -70,6 +70,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
 	static UMaterialExpression* CreateMaterialExpression(UMaterial* Material, TSubclassOf<UMaterialExpression> ExpressionClass, int32 NodePosX=0, int32 NodePosY=0);
 
+	/** 
+	 *	Duplicates the provided material expression adding it to the same material / material function, and copying parameters.
+	 *  Note: Does not duplicate transient properties (Ex: GraphNode).
+	 *
+	 *	@param	Material			Material asset to add an expression to
+	 *	@param	MaterialFunction	Specified if adding an expression to a MaterialFunction, used as Outer for new expression object
+	 *	@param	SourceExpression	Expression to be duplicated
+	 */
+	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
+	static UMaterialExpression* DuplicateMaterialExpression(UMaterial* Material, UMaterialFunction* MaterialFunction, UMaterialExpression* Expression);
 
 	/** 
 	 *	Enable a particular usage for the supplied material (e.g. SkeletalMesh, ParticleSprite etc)
