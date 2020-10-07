@@ -3956,14 +3956,16 @@ public:
 		return RHICreateIndexBuffer(Stride, Size, InUsage, CreateInfo);
 	}
 	
+	UE_DEPRECATED(4.27, "Buffer locks have been unified. Use LockBuffer() instead.")
 	FORCEINLINE void* LockIndexBuffer(FRHIIndexBuffer* IndexBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
 	{
-		return GDynamicRHI->RHILockIndexBuffer(*this, IndexBuffer, Offset, SizeRHI, LockMode);
+		return GDynamicRHI->RHILockBuffer(*this, IndexBuffer, Offset, SizeRHI, LockMode);
 	}
-	
+
+	UE_DEPRECATED(4.27, "Buffer locks have been unified. Use UnlockBuffer() instead.")
 	FORCEINLINE void UnlockIndexBuffer(FRHIIndexBuffer* IndexBuffer)
 	{
-		GDynamicRHI->RHIUnlockIndexBuffer(*this, IndexBuffer);
+		GDynamicRHI->RHIUnlockBuffer(*this, IndexBuffer);
 	}
 	
 	FORCEINLINE void* LockStagingBuffer(FRHIStagingBuffer* StagingBuffer, FRHIGPUFence* Fence, uint32 Offset, uint32 SizeRHI)
@@ -3992,15 +3994,17 @@ public:
 	{
 		return RHICreateVertexBuffer(Size, InUsage, CreateInfo);
 	}
-	
+
+	UE_DEPRECATED(4.27, "Buffer locks have been unified. Use LockBuffer() instead.")
 	FORCEINLINE void* LockVertexBuffer(FRHIVertexBuffer* VertexBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
 	{
-		return GDynamicRHI->RHILockVertexBuffer(*this, VertexBuffer, Offset, SizeRHI, LockMode);
+		return GDynamicRHI->RHILockBuffer(*this, VertexBuffer, Offset, SizeRHI, LockMode);
 	}
-	
+
+	UE_DEPRECATED(4.27, "Buffer locks have been unified. Use UnlockBuffer() instead.")
 	FORCEINLINE void UnlockVertexBuffer(FRHIVertexBuffer* VertexBuffer)
 	{
-		GDynamicRHI->RHIUnlockVertexBuffer(*this, VertexBuffer);
+		GDynamicRHI->RHIUnlockBuffer(*this, VertexBuffer);
 	}
 	
 	FORCEINLINE void CopyVertexBuffer(FRHIVertexBuffer* SourceBuffer, FRHIVertexBuffer* DestBuffer)
@@ -4016,14 +4020,26 @@ public:
 		return RHICreateStructuredBuffer(Stride, Size, InUsage, CreateInfo);
 	}
 	
+	UE_DEPRECATED(4.27, "Buffer locks have been unified. Use LockBuffer() instead.")
 	FORCEINLINE void* LockStructuredBuffer(FRHIStructuredBuffer* StructuredBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
 	{
-		return GDynamicRHI->RHILockStructuredBuffer(*this, StructuredBuffer, Offset, SizeRHI, LockMode);
+		return GDynamicRHI->RHILockBuffer(*this, StructuredBuffer, Offset, SizeRHI, LockMode);
 	}
-	
+
+	UE_DEPRECATED(4.27, "Buffer locks have been unified. Use UnlockBuffer() instead.")
 	FORCEINLINE void UnlockStructuredBuffer(FRHIStructuredBuffer* StructuredBuffer)
 	{
-		GDynamicRHI->RHIUnlockStructuredBuffer(*this, StructuredBuffer);
+		GDynamicRHI->RHIUnlockBuffer(*this, StructuredBuffer);
+	}
+
+	FORCEINLINE void* LockBuffer(FRHIBuffer* Buffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
+	{
+		return GDynamicRHI->RHILockBuffer(*this, Buffer, Offset, SizeRHI, LockMode);
+	}
+	
+	FORCEINLINE void UnlockBuffer(FRHIBuffer* Buffer)
+	{
+		GDynamicRHI->RHIUnlockBuffer(*this, Buffer);
 	}
 	
 	FORCEINLINE FUnorderedAccessViewRHIRef CreateUnorderedAccessView(FRHIBuffer* Buffer, bool bUseUAVCounter, bool bAppendBuffer)
@@ -5020,14 +5036,16 @@ FORCEINLINE FIndexBufferRHIRef RHIAsyncCreateIndexBuffer(uint32 Stride, uint32 S
 	return RHIAsyncCreateIndexBuffer(Stride, Size, InUsage, ResourceState, CreateInfo);
 }
 
+UE_DEPRECATED(4.27, "Buffer locks have been unified. Use RHILockBuffer() instead.")
 FORCEINLINE void* RHILockIndexBuffer(FRHIIndexBuffer* IndexBuffer, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
 {
-	return FRHICommandListExecutor::GetImmediateCommandList().LockIndexBuffer(IndexBuffer, Offset, Size, LockMode);
+	return FRHICommandListExecutor::GetImmediateCommandList().LockBuffer(IndexBuffer, Offset, Size, LockMode);
 }
 
+UE_DEPRECATED(4.27, "Buffer locks have been unified. Use RHIUnlockBuffer() instead.")
 FORCEINLINE void RHIUnlockIndexBuffer(FRHIIndexBuffer* IndexBuffer)
 {
-	 FRHICommandListExecutor::GetImmediateCommandList().UnlockIndexBuffer(IndexBuffer);
+	 FRHICommandListExecutor::GetImmediateCommandList().UnlockBuffer(IndexBuffer);
 }
 
 FORCEINLINE FVertexBufferRHIRef RHICreateAndLockVertexBuffer(uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer)
@@ -5059,14 +5077,16 @@ FORCEINLINE FVertexBufferRHIRef RHIAsyncCreateVertexBuffer(uint32 Size, uint32 I
 	return RHIAsyncCreateVertexBuffer(Size, InUsage, ResourceState, CreateInfo);
 }
 
+UE_DEPRECATED(4.27, "Buffer locks have been unified. Use RHILockBuffer() instead.")
 FORCEINLINE void* RHILockVertexBuffer(FRHIVertexBuffer* VertexBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
 {
-	return FRHICommandListExecutor::GetImmediateCommandList().LockVertexBuffer(VertexBuffer, Offset, SizeRHI, LockMode);
+	return FRHICommandListExecutor::GetImmediateCommandList().LockBuffer(VertexBuffer, Offset, SizeRHI, LockMode);
 }
 
+UE_DEPRECATED(4.27, "Buffer locks have been unified. Use RHIUnlockBuffer() instead.")
 FORCEINLINE void RHIUnlockVertexBuffer(FRHIVertexBuffer* VertexBuffer)
 {
-	 FRHICommandListExecutor::GetImmediateCommandList().UnlockVertexBuffer(VertexBuffer);
+	 FRHICommandListExecutor::GetImmediateCommandList().UnlockBuffer(VertexBuffer);
 }
 
 FORCEINLINE FStructuredBufferRHIRef RHICreateStructuredBuffer(uint32 Stride, uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
@@ -5081,14 +5101,26 @@ FORCEINLINE FStructuredBufferRHIRef RHICreateStructuredBuffer(uint32 Stride, uin
 	return RHICreateStructuredBuffer(Stride, Size, InUsage, ResourceState, CreateInfo);
 }
 
+UE_DEPRECATED(4.27, "Buffer locks have been unified. Use RHILockBuffer() instead.")
 FORCEINLINE void* RHILockStructuredBuffer(FRHIStructuredBuffer* StructuredBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
 {
-	return FRHICommandListExecutor::GetImmediateCommandList().LockStructuredBuffer(StructuredBuffer, Offset, SizeRHI, LockMode);
+	return FRHICommandListExecutor::GetImmediateCommandList().LockBuffer(StructuredBuffer, Offset, SizeRHI, LockMode);
 }
 
+UE_DEPRECATED(4.27, "Buffer locks have been unified. Use RHIUnlockBuffer() instead.")
 FORCEINLINE void RHIUnlockStructuredBuffer(FRHIStructuredBuffer* StructuredBuffer)
 {
-	 FRHICommandListExecutor::GetImmediateCommandList().UnlockStructuredBuffer(StructuredBuffer);
+	 FRHICommandListExecutor::GetImmediateCommandList().UnlockBuffer(StructuredBuffer);
+}
+
+FORCEINLINE void* RHILockBuffer(FRHIBuffer* Buffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
+{
+	return FRHICommandListExecutor::GetImmediateCommandList().LockBuffer(Buffer, Offset, SizeRHI, LockMode);
+}
+
+FORCEINLINE void RHIUnlockBuffer(FRHIBuffer* Buffer)
+{
+	FRHICommandListExecutor::GetImmediateCommandList().UnlockBuffer(Buffer);
 }
 
 FORCEINLINE FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHIBuffer* Buffer, bool bUseUAVCounter, bool bAppendBuffer)

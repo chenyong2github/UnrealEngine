@@ -68,15 +68,3 @@ FStructuredBufferRHIRef FD3D12DynamicRHI::RHICreateStructuredBuffer(uint32 Strid
 
 	return NewBuffer;
 }
-
-void* FD3D12DynamicRHI::RHILockStructuredBuffer(FRHICommandListImmediate& RHICmdList, FRHIStructuredBuffer* StructuredBufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
-{
-	FD3D12Buffer* Buffer = FD3D12DynamicRHI::ResourceCast(StructuredBufferRHI);
-	return LockBuffer(&RHICmdList, Buffer, Buffer->GetSize(), Buffer->GetUsage(), Offset, Size, LockMode);
-}
-
-void FD3D12DynamicRHI::RHIUnlockStructuredBuffer(FRHICommandListImmediate& RHICmdList, FRHIStructuredBuffer* StructuredBufferRHI)
-{
-	FD3D12Buffer* Buffer = FD3D12DynamicRHI::ResourceCast(StructuredBufferRHI);
-	UnlockBuffer(&RHICmdList, Buffer, Buffer->GetUsage());
-}
