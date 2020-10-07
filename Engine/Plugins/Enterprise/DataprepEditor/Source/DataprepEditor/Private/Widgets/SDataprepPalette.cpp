@@ -24,6 +24,7 @@
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Input/STextComboBox.h"
+#include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
@@ -45,6 +46,9 @@ void SDataprepPalette::Construct(const FArguments& InArgs)
 	SelectorsCategory = FDataprepFilterMenuActionCollector::FilterCategory;
 	OperationsCategory = FDataprepOperationMenuActionCollector::OperationCategory;
 
+	SAssignNew(FilterBox, SSearchBox)
+		.OnTextChanged(this, &SDataprepPalette::OnFilterTextChanged);
+
 	this->ChildSlot
 	[
 		SNew(SVerticalBox)
@@ -65,7 +69,7 @@ void SDataprepPalette::Construct(const FArguments& InArgs)
 				SNew( SHorizontalBox )
 
 				+ SHorizontalBox::Slot()
-				.FillWidth(1.0f)
+				.AutoWidth()
 				[
 					SNew( SBorder )
 					.Padding( FMargin( 3 ) )
@@ -97,7 +101,7 @@ void SDataprepPalette::Construct(const FArguments& InArgs)
 								[
 									SNew(STextBlock)
 									.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-									.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+									.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
 									.Text(FEditorFontGlyphs::File)
 								]
 
@@ -126,6 +130,14 @@ void SDataprepPalette::Construct(const FArguments& InArgs)
 							]
 						]
 					]
+				]
+
+				+ SHorizontalBox::Slot()
+				.FillWidth(1.0f)
+				.VAlign(VAlign_Center)
+				.Padding(2, 0, 2, 0)
+				[
+					FilterBox.ToSharedRef()
 				]
 			]
 		]
@@ -160,6 +172,7 @@ void SDataprepPalette::Construct(const FArguments& InArgs)
 					.VAlign(VAlign_Fill)
 					[
 						SAssignNew(GraphActionMenu, SGraphActionMenu)
+						.OnGetFilterText(this, &SDataprepPalette::GetFilterText)
 						.OnActionDragged( this, &SDataprepPalette::OnActionDragged )
 						.OnCreateCustomRowExpander( this, &SDataprepPalette::OnCreateCustomRowExpander )
 						.OnCreateWidgetForAction( this, &SDataprepPalette::OnCreateWidgetForAction )
@@ -167,7 +180,7 @@ void SDataprepPalette::Construct(const FArguments& InArgs)
 						.OnContextMenuOpening(this, &SDataprepPalette::OnContextMenuOpening)
 						.AutoExpandActionMenu( true )
 					]
-					
+			
 					+ SOverlay::Slot()
 					.HAlign( HAlign_Fill )
 					.VAlign( VAlign_Bottom )
@@ -179,6 +192,7 @@ void SDataprepPalette::Construct(const FArguments& InArgs)
 				]
 			]
 		]
+
 	];
 
 	// Register with the Asset Registry to be informed when it is done loading up files and when a file changed (Added/Removed/Renamed).
@@ -187,6 +201,16 @@ void SDataprepPalette::Construct(const FArguments& InArgs)
 	AssetRegistryModule.Get().OnAssetAdded().AddSP( this, &SDataprepPalette::AddAssetFromAssetRegistry );
 	AssetRegistryModule.Get().OnAssetRemoved().AddSP( this, &SDataprepPalette::RemoveAssetFromRegistry );
 	AssetRegistryModule.Get().OnAssetRenamed().AddSP( this, &SDataprepPalette::RenameAssetFromRegistry );
+}
+
+FText SDataprepPalette::GetFilterText() const
+{
+	return FilterBox->GetText();
+}
+
+void SDataprepPalette::OnFilterTextChanged(const FText& InFilterText)
+{
+	GraphActionMenu->GenerateFilteredItems(false);
 }
 
 TSharedRef<SWidget> SDataprepPalette::ConstructAddActionMenu()
