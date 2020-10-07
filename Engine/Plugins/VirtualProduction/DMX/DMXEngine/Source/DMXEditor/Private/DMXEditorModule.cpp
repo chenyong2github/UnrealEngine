@@ -395,11 +395,11 @@ FText FDMXEditorModule::GetToggleSendDMXText() const
 {
 	if (UDMXProtocolBlueprintLibrary::IsSendDMXEnabled())
 	{
-		return LOCTEXT("SendDMXEnabledDMXMenuButtonText", "Pause Send DMX");
+		return LOCTEXT("MenuButtonText_PauseSendDMX", "Pause Send DMX");
 	}
 	else
 	{
-		return LOCTEXT("SendDMXDisabledDMXMenuButtonText", "Resume Send DMX");
+		return LOCTEXT("MenuButtonText_ResumeSendDMX", "Resume Send DMX");
 	}
 }
 
@@ -407,11 +407,11 @@ FText FDMXEditorModule::GetToggleSendDMXTooltip() const
 {
 	if (UDMXProtocolBlueprintLibrary::IsReceiveDMXEnabled())
 	{
-		return LOCTEXT("SendDMXEnabledDMXMenuButtonText", "Disables outbound DMX packets in editor.");
+		return LOCTEXT("MenuButtonText_DisableOutboundDMXPackets", "Disables outbound DMX packets in editor.");
 	}
 	else
 	{
-		return LOCTEXT("SendDMXDisabledDMXMenuButtonText", "Enables outbound DMX packets in editor.");
+		return LOCTEXT("MenuButtonText_EnableOutboundDMXPackets", "Enables outbound DMX packets in editor.");
 	}
 }
 
@@ -433,11 +433,11 @@ FText FDMXEditorModule::GetToggleReceiveDMXText() const
 {
 	if (UDMXProtocolBlueprintLibrary::IsReceiveDMXEnabled())
 	{
-		return LOCTEXT("ReceiveDMXEnabledDMXMenuButtonText", "Pause Receive DMX");
+		return LOCTEXT("MenuButtonText_PauseReceiveDMX", "Pause Receive DMX");
 	}
 	else
 	{
-		return LOCTEXT("ReceiveDMXDisabledDMXMenuButtonText", "Resume Receive DMX");
+		return LOCTEXT("MenuButtonText_ResumeReceiveDMX", "Resume Receive DMX");
 	}
 }
 
@@ -445,11 +445,11 @@ FText FDMXEditorModule::GetToggleReceiveDMXTooltip() const
 {
 	if (UDMXProtocolBlueprintLibrary::IsReceiveDMXEnabled())
 	{
-		return LOCTEXT("ReceiveDMXEnabledDMXMenuButtonText", "Disables inbound DMX packets in editor.");
+		return LOCTEXT("MenuButtonText_DisableInboundDMXPackets", "Disables inbound DMX packets in editor.");
 	}
 	else
 	{
-		return LOCTEXT("ReceiveDMXDisabledDMXMenuButtonText", "Enables inbound DMX packets editor.");
+		return LOCTEXT("MenuButtonText_EnableInboundDMXPackets", "Enables inbound DMX packets editor.");
 	}
 }
 

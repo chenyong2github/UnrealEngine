@@ -1214,13 +1214,13 @@ void FChunkDownloader::TryDownloadBuildManifest(int TryNumber)
 			else
 			{
 				UE_LOG(LogChunkDownloader, Error, TEXT("HTTP %d while downloading manifest from '%s'"), HttpStatus, *HttpRequest->GetURL());
-				LastError = FText::Format(LOCTEXT("ManifestHttpError", "[Try {0}] Manifest download failed (HTTP {1})"), FText::AsNumber(TryNumber), FText::AsNumber(HttpStatus));
+				LastError = FText::Format(LOCTEXT("ManifestHttpError_FailureCode", "[Try {0}] Manifest download failed (HTTP {1})"), FText::AsNumber(TryNumber), FText::AsNumber(HttpStatus));
 			}
 		}
 		else
 		{
 			UE_LOG(LogChunkDownloader, Error, TEXT("HTTP connection issue while downloading manifest '%s'"), *HttpRequest->GetURL());
-			LastError = FText::Format(LOCTEXT("ManifestHttpError", "[Try {0}] Connection issues downloading manifest. Check your network connection..."), FText::AsNumber(TryNumber));
+			LastError = FText::Format(LOCTEXT("ManifestHttpError_Generic", "[Try {0}] Connection issues downloading manifest. Check your network connection..."), FText::AsNumber(TryNumber));
 		}
 
 		// try to load it
@@ -1863,3 +1863,5 @@ void FChunkDownloader::MountChunks(const TArray<int32>& ChunkIds, const FCallbac
 	SaveLocalManifest(false);
 	ComputeLoadingStats();
 }
+
+#undef LOCTEXT_NAMESPACE

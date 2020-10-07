@@ -63,7 +63,7 @@ bool FDMXPixelMappingEditorUtils::VerifyComponentRename(TSharedRef<FDMXPixelMapp
 		// check for redirectors too
 		if (FindObject<UObject>(ComponentToRename->GetOuter(), *NewNameSlug.ToString()))
 		{
-			OutErrorMessage = LOCTEXT("ExistingComponentName", "Existing Old Component Name");
+			OutErrorMessage = LOCTEXT("ExistingOldComponentName", "Existing Old Component Name");
 			return false;
 		}
 	}

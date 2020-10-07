@@ -1781,12 +1781,12 @@ FText SDMXEntityList::CheckForPatchError(UDMXEntityFixturePatch* FixturePatch) c
 	}();
 	if (!bHasAnyFunctions)
 	{
-		return LOCTEXT("DMXEntityList.FixtureTypeHasNoModes", "This patch's fixture type has no functions.");
+		return LOCTEXT("DMXEntityList.FixtureTypeHasNoFunctions", "This patch's fixture type has no functions.");
 	}
 	
 	if (FixturePatch->GetChannelSpan() == 0)
 	{
-		return LOCTEXT("DMXEntityList.FixtureTypeHasNoModes", "This patch has a channel span of 0.");
+		return LOCTEXT("DMXEntityList.FixtureTypeHasNoChannelSpan", "This patch has a channel span of 0.");
 	}
 
 	
