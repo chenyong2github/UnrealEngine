@@ -56,9 +56,9 @@ class FRequiredTextureResolutionInterface: public FDebugViewModeInterface
 public:
 
 	FRequiredTextureResolutionInterface() : FDebugViewModeInterface(TEXT("RequiredTextureResolution"), false, true, false) {}
-	virtual TShaderRef<FDebugViewModePS> GetPixelShader(const FMaterial* InMaterial, FVertexFactoryType* VertexFactoryType) const override
+	virtual void AddShaderTypes(ERHIFeatureLevel::Type InFeatureLevel, FMaterialShaderTypes& OutShaderTypes) const override
 	{
-		return InMaterial->GetShader<FRequiredTextureResolutionPS>(VertexFactoryType);
+		OutShaderTypes.AddShaderType<FRequiredTextureResolutionPS>();
 	}
 
 	virtual void GetDebugViewModeShaderBindings(

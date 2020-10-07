@@ -532,8 +532,8 @@ bool FStaticMeshSceneProxy::GetMeshElement(
 	const FLODInfo& ProxyLODInfo = LODs[LODIndex];
 
 	UMaterialInterface* MaterialInterface = ProxyLODInfo.Sections[SectionIndex].Material;
-	FMaterialRenderProxy* MaterialRenderProxy = MaterialInterface->GetRenderProxy();
-	const FMaterial* Material = MaterialRenderProxy->GetMaterial(FeatureLevel);
+	const FMaterialRenderProxy* MaterialRenderProxy = MaterialInterface->GetRenderProxy();
+	const FMaterial& Material = MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel);
 
 	const FVertexFactory* VertexFactory = nullptr;
 
@@ -580,10 +580,10 @@ bool FStaticMeshSceneProxy::GetMeshElement(
 	const bool bRequiresAdjacencyInformation = !bUseSelectionOutline && RequiresAdjacencyInformation(MaterialInterface, VertexFactory->GetType(), FeatureLevel);
 
 	// Two sided material use bIsFrontFace which is wrong with Reversed Indices. AdjacencyInformation use another index buffer.
-	const bool bUseReversedIndices = GUseReversedIndexBuffer && IsLocalToWorldDeterminantNegative() && (LOD.bHasReversedIndices != 0) && !bRequiresAdjacencyInformation && !Material->IsTwoSided();
+	const bool bUseReversedIndices = GUseReversedIndexBuffer && IsLocalToWorldDeterminantNegative() && (LOD.bHasReversedIndices != 0) && !bRequiresAdjacencyInformation && !Material.IsTwoSided();
 
 	// No support for stateless dithered LOD transitions for movable meshes
-	const bool bDitheredLODTransition = !IsMovable() && Material->IsDitheredLODTransition();
+	const bool bDitheredLODTransition = !IsMovable() && Material.IsDitheredLODTransition();
 
 	const uint32 NumPrimitives = SetMeshElementGeometrySource(LODIndex, SectionIndex, bWireframe, bRequiresAdjacencyInformation, bUseReversedIndices, bAllowPreCulledIndices, VertexFactory, OutMeshBatch);
 
@@ -1150,21 +1150,21 @@ void FStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PD
 
 					for (int32 SectionIndex = 0; bSafeToUseUnifiedMesh && SectionIndex < LODModel.Sections.Num(); SectionIndex++)
 					{
-						const FMaterial* Material = ProxyLODInfo.Sections[SectionIndex].Material->GetRenderProxy()->GetMaterial(FeatureLevel);
+						const FMaterial& Material = ProxyLODInfo.Sections[SectionIndex].Material->GetRenderProxy()->GetIncompleteMaterialWithFallback(FeatureLevel);
 						// no support for stateless dithered LOD transitions for movable meshes
-						bAnySectionUsesDitheredLODTransition = bAnySectionUsesDitheredLODTransition || (!bIsMovable && Material->IsDitheredLODTransition());
-						bAllSectionsUseDitheredLODTransition = bAllSectionsUseDitheredLODTransition && (!bIsMovable && Material->IsDitheredLODTransition());
+						bAnySectionUsesDitheredLODTransition = bAnySectionUsesDitheredLODTransition || (!bIsMovable && Material.IsDitheredLODTransition());
+						bAllSectionsUseDitheredLODTransition = bAllSectionsUseDitheredLODTransition && (!bIsMovable && Material.IsDitheredLODTransition());
 						const FStaticMeshSection& Section = LODModel.Sections[SectionIndex];
 
 						bSafeToUseUnifiedMesh =
 							!(bAnySectionUsesDitheredLODTransition && !bAllSectionsUseDitheredLODTransition) // can't use a single section if they are not homogeneous
-							&& Material->WritesEveryPixel()
-							&& !Material->IsTwoSided()
-							&& !IsTranslucentBlendMode(Material->GetBlendMode())
-							&& !Material->MaterialModifiesMeshPosition_RenderThread()
-							&& Material->GetMaterialDomain() == MD_Surface
-							&& !Material->IsSky()
-							&& !Material->GetShadingModels().HasShadingModel(MSM_SingleLayerWater);
+							&& Material.WritesEveryPixel()
+							&& !Material.IsTwoSided()
+							&& !IsTranslucentBlendMode(Material.GetBlendMode())
+							&& !Material.MaterialModifiesMeshPosition_RenderThread()
+							&& Material.GetMaterialDomain() == MD_Surface
+							&& !Material.IsSky()
+							&& !Material.GetShadingModels().HasShadingModel(MSM_SingleLayerWater);
 
 						bAllSectionsCastShadow &= Section.bCastShadow;
 					}
@@ -2254,8 +2254,8 @@ FLODMask FStaticMeshSceneProxy::GetLODMask(const FSceneView* View) const
 				// Draw the static mesh elements.
 				for(int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
 				{
-					const FMaterial* Material = ProxyLODInfo.Sections[SectionIndex].Material->GetRenderProxy()->GetMaterial(FeatureLevel);
-					if (Material->IsDitheredLODTransition())
+					const FMaterial& Material = ProxyLODInfo.Sections[SectionIndex].Material->GetRenderProxy()->GetIncompleteMaterialWithFallback(FeatureLevel);
+					if (Material.IsDitheredLODTransition())
 					{
 						bUseDithered = true;
 						break;

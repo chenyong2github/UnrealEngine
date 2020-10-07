@@ -55,8 +55,8 @@ bool SupportsCachingMeshDrawCommands(const FMeshBatch& MeshBatch, ERHIFeatureLev
 	{
 		// External textures get mapped to immutable samplers (which are part of the PSO); the mesh must go through the dynamic path, as the media player might not have
 		// valid textures/samplers the first few calls; once they're available the PSO needs to get invalidated and recreated with the immutable samplers.
-		const FMaterial* Material = MeshBatch.MaterialRenderProxy->GetMaterial(FeatureLevel);
-		const FMaterialShaderMap* ShaderMap = Material->GetRenderingThreadShaderMap();
+		const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel);
+		const FMaterialShaderMap* ShaderMap = Material.GetRenderingThreadShaderMap();
 		if (ShaderMap)
 		{
 			const FUniformExpressionSet& ExpressionSet = ShaderMap->GetUniformExpressionSet();

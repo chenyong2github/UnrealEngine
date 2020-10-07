@@ -10,14 +10,12 @@ struct FNiagaraShaderMapCompileResults
 {
 	FNiagaraShaderMapCompileResults() :
 		NumJobsQueued(0),
-		bAllJobsSucceeded(true),
-		bRecreateComponentRenderStateOnCompletion(false)
+		bAllJobsSucceeded(true)
 	{}
 
 	int32 NumJobsQueued;
 	bool bAllJobsSucceeded;
-	bool bRecreateComponentRenderStateOnCompletion;
-	TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>> FinishedJobs;
+	TArray<FShaderCommonCompileJobPtr> FinishedJobs;
 };
 
 
@@ -41,14 +39,14 @@ class FNiagaraShaderCompilationManager
 public:
 	FNiagaraShaderCompilationManager() = default;
 
-	NIAGARASHADER_API void AddJobs(TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>> InNewJobs);
+	NIAGARASHADER_API void AddJobs(TArray<FShaderCommonCompileJobPtr> InNewJobs);
 	NIAGARASHADER_API void ProcessAsyncResults();
 
 	void FinishCompilation(const TCHAR* ScriptName, const TArray<int32>& ShaderMapIdsToFinishCompiling);
 private:
 	void ProcessCompiledNiagaraShaderMaps(TMap<int32, FNiagaraShaderMapFinalizeResults>& CompiledShaderMaps, float TimeBudget);
 
-	TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>> JobQueue;
+	TArray<FShaderCommonCompileJobPtr> JobQueue;
 
 	/** Map from shader map Id to the compile results for that map, used to gather compiled results. */
 	TMap<int32, FNiagaraShaderMapCompileResults> NiagaraShaderMapJobs;

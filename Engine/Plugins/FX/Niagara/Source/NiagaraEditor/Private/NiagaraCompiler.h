@@ -19,7 +19,7 @@ struct FNiagaraTranslatorOutput;
 
 struct FNiagaraCompilerJob
 {
-	TSharedPtr<FShaderCompileJob, ESPMode::ThreadSafe> ShaderCompileJob;
+	TRefCountPtr<FShaderCompileJob> ShaderCompileJob;
 	FNiagaraCompileResults CompileResults;
 	double StartTime;
 	FNiagaraTranslatorOutput TranslatorOutput;

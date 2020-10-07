@@ -256,7 +256,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 	for (FMaterialRenderProxy* MaterialProxy : DynamicDataMesh->Materials)
 	{
 		check(MaterialProxy);
-		EBlendMode BlendMode = MaterialProxy->GetMaterial(FeatureLevel)->GetBlendMode();
+		EBlendMode BlendMode = MaterialProxy->GetIncompleteMaterialWithFallback(FeatureLevel).GetBlendMode();
 		bHasTranslucentMaterials |= IsTranslucentBlendMode(BlendMode);
 	}
 

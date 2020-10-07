@@ -57,7 +57,7 @@ class FPrimitiveDistanceAccuracyInterface : public FDebugViewModeInterface
 public:
 
 	FPrimitiveDistanceAccuracyInterface() : FDebugViewModeInterface(TEXT("PrimitiveDistanceAccuracy"), false, false, false) {}
-	virtual TShaderRef<FDebugViewModePS> GetPixelShader(const FMaterial* InMaterial, FVertexFactoryType* VertexFactoryType) const override { return InMaterial->GetShader<FPrimitiveDistanceAccuracyPS>(VertexFactoryType); }
+	virtual void AddShaderTypes(ERHIFeatureLevel::Type InFeatureLevel, FMaterialShaderTypes& OutShaderTypes) const override { OutShaderTypes.AddShaderType<FPrimitiveDistanceAccuracyPS>(); }
 
 	virtual void GetDebugViewModeShaderBindings(
 		const FDebugViewModePS& ShaderBase,

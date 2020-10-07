@@ -86,7 +86,7 @@ FDebugViewModeMaterialProxy::FDebugViewModeMaterialProxy(
 
 		ResourceId.Usage = Usage;
 
-		CacheShaders(ResourceId, ShaderPlatform);
+		CacheShaders(ResourceId, ShaderPlatform, EMaterialShaderPrecompileMode::Background);
 	}
 	else
 	{
@@ -99,17 +99,18 @@ bool FDebugViewModeMaterialProxy::RequiresSynchronousCompilation() const
 	return bSynchronousCompilation;
 }
 
-const FMaterial& FDebugViewModeMaterialProxy::GetMaterialWithFallback(ERHIFeatureLevel::Type InFeatureLevel, const FMaterialRenderProxy*& OutFallbackMaterialRenderProxy) const
+const FMaterial* FDebugViewModeMaterialProxy::GetMaterialNoFallback(ERHIFeatureLevel::Type InFeatureLevel) const
 {
 	if (GetRenderingThreadShaderMap())
 	{
-		return *this;
+		return this;
 	}
-	else
-	{
-		OutFallbackMaterialRenderProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
-		return OutFallbackMaterialRenderProxy->GetMaterialWithFallback(InFeatureLevel, OutFallbackMaterialRenderProxy);
-	}
+	return nullptr;
+}
+
+const FMaterialRenderProxy* FDebugViewModeMaterialProxy::GetFallback(ERHIFeatureLevel::Type InFeatureLevel) const
+{
+	return UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
 }
 
 bool FDebugViewModeMaterialProxy::GetVectorValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const

@@ -113,9 +113,15 @@ public:
 	FMeshPassProcessorRenderState PassDrawRenderState;
 
 private:
+	bool TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatch,
+		uint64 BatchElementMask,
+		const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
+		int32 StaticMeshId,
+		const FMaterialRenderProxy& MaterialRenderProxy,
+		const FMaterial& Material);
 
 	template<bool bRenderReflectiveShadowMap>
-	void Process(
+	bool Process(
 		const FMeshBatch& RESTRICT MeshBatch,
 		uint64 BatchElementMask,
 		int32 StaticMeshId,
