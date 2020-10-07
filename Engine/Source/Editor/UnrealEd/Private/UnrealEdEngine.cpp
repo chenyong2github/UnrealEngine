@@ -69,6 +69,7 @@
 #include "Logging/MessageLog.h"
 #include "Misc/MessageDialog.h"
 #include "Logging/MessageLog.h"
+#include "Subsystems/EditorActorSubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogUnrealEdEngine, Log, All);
 
@@ -990,6 +991,27 @@ void UUnrealEdEngine::Serialize(FArchive& Ar)
 	Ar << MatineeCopyPasteBuffer;
 }
 
+void UUnrealEdEngine::DuplicateSelectedActors(UWorld* InWorld)
+{
+	bool bHandled = false;
+	bHandled |= GLevelEditorModeTools().ProcessEditDuplicate();
+
+	// if not specially handled by the current editing mode,
+	if (!bHandled)
+	{
+		UEditorActorSubsystem* EditorActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
+
+		if (EditorActorSubsystem)
+		{
+			EditorActorSubsystem->DuplicateSelectedActors(InWorld);
+		}
+	}
+	// DuplicateSelectedActors also calls RedrawLevelEditingViewports
+	else
+	{
+		RedrawLevelEditingViewports();
+	}
+}
 
 void UUnrealEdEngine::MakeSelectedActorsLevelCurrent()
 {

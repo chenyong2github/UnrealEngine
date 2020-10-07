@@ -479,7 +479,7 @@ UPackage* UUnrealEdEngine::GeneratePackageThumbnailsIfRequired( const TCHAR* Str
 				if( !bSilent )
 				{
 					GWarn->UpdateProgress( 1, 1 );
-					GWarn->EndSlowTask();
+					GWarn->EndSlowTask();
 				}
 			}
 		}
@@ -2692,24 +2692,7 @@ bool UUnrealEdEngine::Exec_Actor( UWorld* InWorld, const TCHAR* Str, FOutputDevi
 	}
 	else if( FParse::Command(&Str,TEXT("DUPLICATE")) )
 	{
-		bool bHandled = false;
-		bHandled |= GLevelEditorModeTools().ProcessEditDuplicate();
-
-		// if not specially handled by the current editing mode,
-		if (!bHandled)
-		{
-			UEditorActorSubsystem* EditorActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
-
-			if (EditorActorSubsystem)
-			{
-				EditorActorSubsystem->DuplicateSelectedActors(InWorld);
-			}
-		}
-		// DuplicateSelectedActors also calls RedrawLevelEditingViewports
-		else
-		{
-			RedrawLevelEditingViewports(); 
-		}
+		DuplicateSelectedActors(InWorld);
 		return true;
 	}
 	else if( FParse::Command(&Str, TEXT("ALIGN")) )

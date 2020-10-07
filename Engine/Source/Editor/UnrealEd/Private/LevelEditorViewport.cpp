@@ -2563,9 +2563,11 @@ bool FLevelEditorViewportClient::InputWidgetDelta(FViewport* InViewport, EAxisLi
 						{
 							// Widget hasn't been dragged since ALT+LMB went down.
 							bDuplicateOnNextDrag = false;
-							ABrush::SetSuppressBSPRegeneration(true);
-							GEditor->edactDuplicateSelected(GetWorld()->GetCurrentLevel(), false);
-							ABrush::SetSuppressBSPRegeneration(false);
+							UUnrealEdEngine* UnrealEdEngine = Cast<UUnrealEdEngine>(GEditor);
+							if (UnrealEdEngine)
+							{
+								UnrealEdEngine->DuplicateSelectedActors(GetWorld());
+							}
 						}
 					}
 				}

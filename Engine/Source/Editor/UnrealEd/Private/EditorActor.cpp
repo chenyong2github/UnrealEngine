@@ -364,7 +364,7 @@ void UUnrealEdEngine::edactPasteSelected(UWorld* InWorld, bool bDuplicate, bool 
 	}
 }
 
-namespace DuplicateSelectedActors {
+namespace  {
 /**
  * A collection of actors to duplicate and prefabs to instance that all belong to the same level.
  */
@@ -488,8 +488,6 @@ void UUnrealEdEngine::edactDuplicateSelected( ULevel* InLevel, bool bOffsetLocat
 	}
 	else
 	{
-		using namespace DuplicateSelectedActors;
-
 		const FScopedBusyCursor BusyCursor;
 		GetSelectedActors()->Modify();
 
