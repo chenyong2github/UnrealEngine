@@ -295,9 +295,8 @@ FSceneRenderTargets::FSceneRenderTargets(const FViewInfo& View, const FSceneRend
 	, bAllocatedFoveationTexture(SnapshotSource.bAllocatedFoveationTexture)
 {
 	FMemory::Memcpy(LargestDesiredSizes, SnapshotSource.LargestDesiredSizes);
-#if PREVENT_RENDERTARGET_SIZE_THRASHING
 	FMemory::Memcpy(HistoryFlags, SnapshotSource.HistoryFlags, sizeof(SnapshotSource.HistoryFlags));
-#endif
+
 	SnapshotArray(SceneColor, SnapshotSource.SceneColor);
 	SnapshotArray(ReflectionColorScratchCubemap, SnapshotSource.ReflectionColorScratchCubemap);
 	SnapshotArray(DiffuseIrradianceScratchCubemap, SnapshotSource.DiffuseIrradianceScratchCubemap);
@@ -316,8 +315,6 @@ inline const TCHAR* GetSceneColorTargetName(EShadingPath ShadingPath)
 	check((uint32)ShadingPath < UE_ARRAY_COUNT(SceneColorNames));
 	return SceneColorNames[(uint32)ShadingPath];
 }
-
-#if PREVENT_RENDERTARGET_SIZE_THRASHING
 
 namespace ERenderTargetHistory
 {
@@ -347,17 +344,6 @@ static bool AnyCaptureRenderedRecently(const uint8* HistoryFlags, uint8 Mask)
 	}
 	return Result != 0;
 }
-
-#define UPDATE_HISTORY_FLAGS(Flags, bIsSceneCapture, bIsReflectionCapture, bIsHighResScreenShot) UpdateHistoryFlags(Flags, bIsSceneCapture, bIsReflectionCapture, bIsHighResScreenShot)
-#define ANY_CAPTURE_RENDERED_RECENTLY(HistoryFlags, NumEntries) AnyCaptureRenderedRecently<NumEntries>(HistoryFlags, ERenderTargetHistory::RTH_MaskAll)
-#define ANY_HIGHRES_CAPTURE_RENDERED_RECENTLY(HistoryFlags, NumEntries) AnyCaptureRenderedRecently<NumEntries>(HistoryFlags, ERenderTargetHistory::RTH_HighresScreenshot)
-
-#else
-
-#define UPDATE_HISTORY_FLAGS(Flags, bIsSceneCapture, bIsReflectionCapture, bIsHighResScreenShot)
-#define ANY_CAPTURE_RENDERED_RECENTLY(HistoryFlags, NumEntries) (false)
-#define ANY_HIGHRES_CAPTURE_RENDERED_RECENTLY(HistoryFlags, NumEntries) (false)
-#endif
 
 FIntPoint FSceneRenderTargets::ComputeDesiredSize(const FSceneViewFamily& ViewFamily)
 {
@@ -480,18 +466,16 @@ FIntPoint FSceneRenderTargets::ComputeDesiredSize(const FSceneViewFamily& ViewFa
 		}
 		// this allows the BufferSize to shrink each frame (in game)
 		LargestDesiredSizes[CurrentDesiredSizeIndex] = FIntPoint::ZeroValue;
-#if PREVENT_RENDERTARGET_SIZE_THRASHING
 		HistoryFlags[CurrentDesiredSizeIndex] = 0;
-#endif
 	}
 
 	// this allows The BufferSize to not grow below the SceneCapture requests (happen before scene rendering, in the same frame with a Grow request)
 	FIntPoint& LargestDesiredSizeThisFrame = LargestDesiredSizes[CurrentDesiredSizeIndex];
 	LargestDesiredSizeThisFrame = LargestDesiredSizeThisFrame.ComponentMax(DesiredBufferSize);
 	bool bIsHighResScreenshot = GIsHighResScreenshot;
-	UPDATE_HISTORY_FLAGS(HistoryFlags[CurrentDesiredSizeIndex], bIsSceneCapture, bIsReflectionCapture, bIsHighResScreenshot);
+	UpdateHistoryFlags(HistoryFlags[CurrentDesiredSizeIndex], bIsSceneCapture, bIsReflectionCapture, bIsHighResScreenshot);
 
-	// we want to shrink the buffer but as we can have multiple scenecaptures per frame we have to delay that a frame to get all size requests
+	// we want to shrink the buffer but as we can have multiple scene captures per frame we have to delay that a frame to get all size requests
 	// Don't save buffer size in history while making high-res screenshot.
 	// We have to use the requested size when allocating an hmd depth target to ensure it matches the hmd allocated render target size.
 	bool bAllowDelayResize = !GIsHighResScreenshot && !bIsVRScene;
@@ -500,7 +484,7 @@ FIntPoint FSceneRenderTargets::ComputeDesiredSize(const FSceneViewFamily& ViewFa
 	// This prevents problems when orientation changes on mobile in particular.
 	// bIsReflectionCapture is explicitly checked on all platforms to prevent aspect ratio change detection from forcing the immediate buffer resize.
 	// This ensures that 1) buffers are not resized spuriously during reflection rendering 2) all cubemap faces use the same render target size.
-	if (bAllowDelayResize && !bIsReflectionCapture && !ANY_CAPTURE_RENDERED_RECENTLY(HistoryFlags, FrameSizeHistoryCount))
+	if (bAllowDelayResize && !bIsReflectionCapture && !AnyCaptureRenderedRecently<FrameSizeHistoryCount>(HistoryFlags, ERenderTargetHistory::RTH_MaskAll))
 	{
 		const bool bAspectRatioChanged =
 			!BufferSize.Y ||
@@ -519,19 +503,17 @@ FIntPoint FSceneRenderTargets::ComputeDesiredSize(const FSceneViewFamily& ViewFa
 			for (int32 i = 0; i < FrameSizeHistoryCount; ++i)
 			{
 				LargestDesiredSizes[i] = FIntPoint::ZeroValue;
-#if PREVENT_RENDERTARGET_SIZE_THRASHING
 				HistoryFlags[i] = 0;
-#endif
 			}
 		}
 	}
-	const bool bAnyHighresScreenshotRecently = ANY_HIGHRES_CAPTURE_RENDERED_RECENTLY(HistoryFlags, FrameSizeHistoryCount);
-	if(bAnyHighresScreenshotRecently != GIsHighResScreenshot)
+	const bool bAnyHighresScreenshotRecently = AnyCaptureRenderedRecently<FrameSizeHistoryCount>(HistoryFlags, ERenderTargetHistory::RTH_HighresScreenshot);
+	if (bAnyHighresScreenshotRecently != GIsHighResScreenshot)
 	{
 		bAllowDelayResize = false;
 	}
 
-	if(bAllowDelayResize)
+	if (bAllowDelayResize)
 	{
 		for (int32 i = 0; i < FrameSizeHistoryCount; ++i)
 		{

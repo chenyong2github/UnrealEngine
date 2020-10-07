@@ -125,10 +125,6 @@ static const int32 NumTranslucencyShadowSurfaces = 2;
 // Store shading model into stencil [1-3] bits
 #define GET_STENCIL_MOBILE_SM_MASK(Value) uint8((Value & 0x7) << 1)
 
-#if !defined(PREVENT_RENDERTARGET_SIZE_THRASHING)
-	#define PREVENT_RENDERTARGET_SIZE_THRASHING (PLATFORM_DESKTOP || PLATFORM_PS4 || PLATFORM_ANDROID || PLATFORM_IOS || PLATFORM_SWITCH || PLATFORM_UNIX)
-#endif
-
 enum class ESceneColorFormatType
 {
 	Mobile,
@@ -198,14 +194,14 @@ protected:
 		bHMDAllocatedDepthTarget(false),
 		bKeepDepthContent(true),
 		bAllocatedFoveationTexture(false)
-		{
-			FMemory::Memset(LargestDesiredSizes, 0);
-#if PREVENT_RENDERTARGET_SIZE_THRASHING
-			FMemory::Memset(HistoryFlags, 0, sizeof(HistoryFlags));
-#endif
-		}
+	{
+		FMemory::Memset(LargestDesiredSizes, 0);
+		FMemory::Memset(HistoryFlags, 0, sizeof(HistoryFlags));
+	}
+	
 	/** Constructor that creates snapshot */
 	FSceneRenderTargets(const FViewInfo& InView, const FSceneRenderTargets& SnapshotSource);
+
 public:
 
 	bool IsShadingPathValid() const
@@ -546,11 +542,10 @@ private:
 	/** as we might get multiple BufferSize requests each frame for SceneCaptures and we want to avoid reallocations we can only go as low as the largest request */
 	static const uint32 FrameSizeHistoryCount = 3;
 	FIntPoint LargestDesiredSizes[FrameSizeHistoryCount];
-#if PREVENT_RENDERTARGET_SIZE_THRASHING
+
 	// bit 0 - whether any scene capture rendered
 	// bit 1 - whether any reflection capture rendered
 	uint8 HistoryFlags[FrameSizeHistoryCount];
-#endif
 
 	/** to detect when LargestDesiredSizeThisFrame is outdated */
 	uint32 ThisFrameNumber;
