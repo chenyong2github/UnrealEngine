@@ -33,6 +33,9 @@ DECLARE_CYCLE_STAT(TEXT("RS.ImageCompressTime"), STAT_RSCompressTime, STATGROUP_
 // Receiving counters and stats
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("RS.WaitingFrames/s"), STAT_RSWaitingFrames, STATGROUP_RemoteSession);
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("RS.DiscardedFrames/s"), STAT_RSDiscardedFrames, STATGROUP_RemoteSession);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("RS.MaxImageProcessTime"), STAT_RSMaxImageProcessTime, STATGROUP_RemoteSession);
+DECLARE_CYCLE_STAT(TEXT("RS.ReceiveTime"), STAT_RSReceiveTime, STATGROUP_RemoteSession);
+DECLARE_CYCLE_STAT(TEXT("RS.WakeupWait"), STAT_RSWakeupWait, STATGROUP_RemoteSession);
 DECLARE_CYCLE_STAT(TEXT("RS.ImageDecompressTime"), STAT_RSDecompressTime, STATGROUP_RemoteSession);
 DECLARE_CYCLE_STAT(TEXT("RS.TextureUpdate"), STAT_RSTextureUpdate, STATGROUP_RemoteSession);
 DECLARE_CYCLE_STAT(TEXT("RS.TickRate"), STAT_RSTickRate, STATGROUP_RemoteSession);
@@ -51,6 +54,7 @@ struct FRemoteSessionImageReceiveStats
 {
 	int32	FramesWaiting = 0;
 	int32	FramesSkipped = 0;
+    double  MaxImageProcessTime = 0;
 	double	LastUpdateTime = 0;
 };
 
@@ -140,16 +144,11 @@ protected:
 	
 	struct FImageData
 	{
-		FImageData() :
-			Width(0)
-			, Height(0)
-			, ImageIndex(0)
-		{
-		}
-		int32				Width;
-		int32				Height;
-		TArray<uint8>		ImageData;
-		int32				ImageIndex;
+        int32				Width = 0;
+        int32				Height = 0;
+        int32				ImageIndex = 0;
+        double              TimeCreated = 0;
+        TArray<uint8>       ImageData;
 	};
 
 	FCriticalSection										IncomingImageMutex;
