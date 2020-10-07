@@ -6902,11 +6902,11 @@ int32 FHLSLMaterialTranslator::SamplePhysicsField(int32 PositionArg, const int32
 		}
 		else if (OutputType == EFieldOutputType::Field_Output_Scalar)
 		{
-			return AddCodeChunk(MCT_Float3, TEXT("MatPhysicsField_SamplePhysicsScalarField(%s,%d)"), *GetParameterCode(PositionArg), static_cast<uint8>(TargetIndex));
+			return AddCodeChunk(MCT_Float, TEXT("MatPhysicsField_SamplePhysicsScalarField(%s,%d)"), *GetParameterCode(PositionArg), static_cast<uint8>(TargetIndex));
 		}
 		else if (OutputType == EFieldOutputType::Field_Output_Integer)
 		{
-			return AddCodeChunk(MCT_Float3, TEXT("MatPhysicsField_SamplePhysicsIntegerField(%s,%d)"), *GetParameterCode(PositionArg), static_cast<uint8>(TargetIndex));
+			return AddCodeChunk(MCT_Float, TEXT("MatPhysicsField_SamplePhysicsIntegerField(%s,%d)"), *GetParameterCode(PositionArg), static_cast<uint8>(TargetIndex));
 		}
 		else
 		{
