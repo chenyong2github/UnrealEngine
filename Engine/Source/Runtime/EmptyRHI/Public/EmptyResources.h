@@ -179,13 +179,13 @@ public:
 };
 
 /** Index buffer resource class that stores stride information. */
-class FEmptyBuffer : public FRHIBuffer
+class FEmptyIndexBuffer : public FRHIIndexBuffer
 {
 public:
-	FEmptyBuffer() = default;
+	FEmptyIndexBuffer() = default;
 
 	/** Constructor */
-	FEmptyBuffer(uint32 InStride, uint32 InSize, uint32 InUsage);
+	FEmptyIndexBuffer(uint32 InStride, uint32 InSize, uint32 InUsage);
 
 	/**
 	 * Prepare a CPU accessible buffer for uploading to GPU memory
@@ -199,6 +199,26 @@ public:
 };
 
 
+/** Vertex buffer resource class that stores usage type. */
+class FEmptyVertexBuffer : public FRHIVertexBuffer
+{
+public:
+	FEmptyVertexBuffer() = default;
+
+	/** Constructor */
+	FEmptyVertexBuffer(uint32 InSize, uint32 InUsage);
+
+	/**
+	 * Prepare a CPU accessible buffer for uploading to GPU memory
+	 */
+	void* Lock(EResourceLockMode LockMode, uint32 Size=0);
+
+	/**
+	 * Prepare a CPU accessible buffer for uploading to GPU memory
+	 */
+	void Unlock();
+};
+
 class FEmptyUniformBuffer : public FRHIUniformBuffer
 {
 public:
@@ -211,13 +231,27 @@ public:
 };
 
 
+class FEmptyStructuredBuffer : public FRHIStructuredBuffer
+{
+public:
+	// Constructor
+	FEmptyStructuredBuffer(uint32 Stride, uint32 Size, FResourceArrayInterface* ResourceArray, uint32 InUsage);
+
+	// Destructor
+	~FEmptyStructuredBuffer();
+
+};
+
+
 
 class FEmptyUnorderedAccessView : public FRHIUnorderedAccessView
 {
 public:
 
 	// the potential resources to refer to with the UAV object
-	TRefCountPtr<FEmptyBuffer> SourceBuffer;
+	TRefCountPtr<FEmptyStructuredBuffer> SourceStructuredBuffer;
+	TRefCountPtr<FEmptyVertexBuffer> SourceVertexBuffer;
+	TRefCountPtr<FEmptyIndexBuffer> SourceIndexBuffer;
 	TRefCountPtr<FRHITexture> SourceTexture;
 };
 
@@ -226,8 +260,8 @@ class FEmptyShaderResourceView : public FRHIShaderResourceView
 {
 public:
 
-	// The buffer this SRV comes from (can be null)
-	TRefCountPtr<FEmptyBuffer> SourceBuffer;
+	// The vertex buffer this SRV comes from (can be null)
+	TRefCountPtr<FEmptyVertexBuffer> SourceVertexBuffer;
 
 	// The texture that this SRV come from
 	TRefCountPtr<FRHITexture> SourceTexture;
@@ -315,9 +349,19 @@ struct TEmptyResourceTraits<FRHIUniformBuffer>
 	typedef FEmptyUniformBuffer TConcreteType;
 };
 template<>
-struct TEmptyResourceTraits<FRHIBuffer>
+struct TEmptyResourceTraits<FRHIIndexBuffer>
 {
-	typedef FEmptyBuffer TConcreteType;
+	typedef FEmptyIndexBuffer TConcreteType;
+};
+template<>
+struct TEmptyResourceTraits<FRHIStructuredBuffer>
+{
+	typedef FEmptyStructuredBuffer TConcreteType;
+};
+template<>
+struct TEmptyResourceTraits<FRHIVertexBuffer>
+{
+	typedef FEmptyVertexBuffer TConcreteType;
 };
 template<>
 struct TEmptyResourceTraits<FRHIShaderResourceView>

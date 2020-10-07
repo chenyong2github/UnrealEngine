@@ -136,13 +136,13 @@ struct FPendingSamplerDataValue
 
 struct FVertexBufferPair
 {
-	FOpenGLBuffer*				Source;
-	TRefCountPtr<FOpenGLBuffer>	Dest;
+	FOpenGLVertexBuffer*				Source;
+	TRefCountPtr<FOpenGLVertexBuffer>	Dest;
 };
 static TArray<FVertexBufferPair> ZeroStrideExpandedBuffersList;
 
 
-static int FindVertexBuffer(FOpenGLBuffer* Source)
+static int FindVertexBuffer(FOpenGLVertexBuffer* Source)
 {
 	for (int32 Index = 0; Index < ZeroStrideExpandedBuffersList.Num(); ++Index)
 	{
@@ -154,14 +154,14 @@ static int FindVertexBuffer(FOpenGLBuffer* Source)
 	return -1;
 }
 
-static FOpenGLBuffer* FindExpandedZeroStrideBuffer(FOpenGLBuffer* ZeroStrideVertexBuffer, uint32 Stride, uint32 NumVertices, const FOpenGLVertexElement& VertexElement)
+static FOpenGLVertexBuffer* FindExpandedZeroStrideBuffer(FOpenGLVertexBuffer* ZeroStrideVertexBuffer, uint32 Stride, uint32 NumVertices, const FOpenGLVertexElement& VertexElement)
 {
 	uint32 Size = NumVertices * Stride;
 	int32 FoundExpandedVBIndex = FindVertexBuffer(ZeroStrideVertexBuffer);
 	if (FoundExpandedVBIndex != -1)
 	{
 		// Check if the current size is big enough
-		FOpenGLBuffer* ExpandedVB = ZeroStrideExpandedBuffersList[FoundExpandedVBIndex].Dest;
+		FOpenGLVertexBuffer* ExpandedVB = ZeroStrideExpandedBuffersList[FoundExpandedVBIndex].Dest;
 		if (Size <= ExpandedVB->GetSize())
 		{
 			return ExpandedVB;
@@ -205,7 +205,7 @@ static FOpenGLBuffer* FindExpandedZeroStrideBuffer(FOpenGLBuffer* ZeroStrideVert
 	const int32 SizeToFill = VertexElementSize * VertexTypeSize;
 	void* RESTRICT SourceData = ZeroStrideVertexBuffer->GetZeroStrideBuffer();
 	check(SourceData);
-	TRefCountPtr<FOpenGLBuffer> ExpandedVB = new FOpenGLBuffer(GL_ARRAY_BUFFER, 0, Size, BUF_Static, nullptr);
+	TRefCountPtr<FOpenGLVertexBuffer> ExpandedVB = new FOpenGLVertexBuffer(0, Size, BUF_Static, NULL);
 	uint8* RESTRICT Data = ExpandedVB->Lock(0, Size, false, true);
 
 	switch (SizeToFill)
@@ -390,7 +390,7 @@ static FORCEINLINE void GetShaderStageIndexAndMaxUnits(FRHIGraphicsShader* Shade
 void FOpenGLDynamicRHI::RHISetStreamSource(uint32 StreamIndex, FRHIVertexBuffer* VertexBufferRHI, uint32 Offset)
 {
 	VERIFY_GL_SCOPE();
-	FOpenGLBuffer* VertexBuffer = ResourceCast(VertexBufferRHI);
+	FOpenGLVertexBuffer* VertexBuffer = ResourceCast(VertexBufferRHI);
 	PendingState.Streams[StreamIndex].VertexBuffer = VertexBuffer;
 	PendingState.Streams[StreamIndex].Stride = PendingState.BoundShaderState ? PendingState.BoundShaderState->StreamStrides[StreamIndex] : 0;
 	PendingState.Streams[StreamIndex].Offset = Offset;
@@ -969,7 +969,7 @@ void FOpenGLDynamicRHI::UpdateSRV(FOpenGLShaderResourceView* SRV)
 		uint32 SizeY = Texture2D->GetSizeY();
 		
 		uint32 MipBytes = SizeX * SizeY;
-		TRefCountPtr<FOpenGLPixelBuffer> PixelBuffer = new FOpenGLPixelBuffer(GL_PIXEL_UNPACK_BUFFER, 0, MipBytes, BUF_Dynamic, nullptr);
+		TRefCountPtr<FOpenGLPixelBuffer> PixelBuffer = new FOpenGLPixelBuffer(0, MipBytes, BUF_Dynamic);
 		
 		glBindBuffer( GL_PIXEL_PACK_BUFFER, 0 );
 		glBindBuffer( GL_PIXEL_PACK_BUFFER, PixelBuffer->Resource );
@@ -1845,10 +1845,10 @@ void FOpenGLDynamicRHI::EnableVertexElementCached(
 	}
 }
 
-FORCEINLINE void FOpenGLDynamicRHI::EnableVertexElementCachedZeroStride(FOpenGLContextState& ContextState, GLuint AttributeIndex, const FOpenGLVertexElement& VertexElement, uint32 NumVertices, FOpenGLBuffer* ZeroStrideVertexBuffer)
+FORCEINLINE void FOpenGLDynamicRHI::EnableVertexElementCachedZeroStride(FOpenGLContextState& ContextState, GLuint AttributeIndex, const FOpenGLVertexElement& VertexElement, uint32 NumVertices, FOpenGLVertexBuffer* ZeroStrideVertexBuffer)
 {
 	uint32 Stride = ZeroStrideVertexBuffer->GetSize();
-	FOpenGLBuffer* ExpandedVertexBuffer = FindExpandedZeroStrideBuffer(ZeroStrideVertexBuffer, Stride, NumVertices, VertexElement);
+	FOpenGLVertexBuffer* ExpandedVertexBuffer = FindExpandedZeroStrideBuffer(ZeroStrideVertexBuffer, Stride, NumVertices, VertexElement);
 	EnableVertexElementCached(ContextState, AttributeIndex, VertexElement, Stride, 0, ExpandedVertexBuffer->Resource);
 }
 
@@ -2189,16 +2189,15 @@ void FOpenGLDynamicRHI::OnProgramDeletion( GLint ProgramResource )
 	}
 }
 
-void FOpenGLDynamicRHI::OnBufferDeletion( GLuint BufferResource )
+void FOpenGLDynamicRHI::OnVertexBufferDeletion( GLuint VertexBufferResource )
 {
 	VERIFY_GL_SCOPE();
-
-	if (SharedContextState.ArrayBufferBound == BufferResource)
+	if (SharedContextState.ArrayBufferBound == VertexBufferResource)
 	{
 		SharedContextState.ArrayBufferBound = -1;	// will force refresh
 	}
 
-	if (RenderingContextState.ArrayBufferBound == BufferResource)
+	if (RenderingContextState.ArrayBufferBound == VertexBufferResource)
 	{
 		RenderingContextState.ArrayBufferBound = -1;	// will force refresh
 	}
@@ -2212,7 +2211,7 @@ void FOpenGLDynamicRHI::OnBufferDeletion( GLuint BufferResource )
 			FOpenGLStream& CachedStream = SharedContextState.VertexStreams[StreamIndex];
 			if ((ActiveStreamMask & 0x1) && 
 				CachedStream.VertexBuffer && 
-				CachedStream.VertexBuffer->Resource == BufferResource)
+				CachedStream.VertexBuffer->Resource == VertexBufferResource)
 			{
 				FOpenGL::BindVertexBuffer(StreamIndex, 0, 0, 0); // brianh@nvidia: work around driver bug 1809000
 				CachedStream.VertexBuffer = nullptr;
@@ -2229,7 +2228,7 @@ void FOpenGLDynamicRHI::OnBufferDeletion( GLuint BufferResource )
 			FOpenGLStream& CachedStream = RenderingContextState.VertexStreams[StreamIndex];
 			if ((ActiveStreamMask & 0x1) && 
 				CachedStream.VertexBuffer && 
-				CachedStream.VertexBuffer->Resource == BufferResource)
+				CachedStream.VertexBuffer->Resource == VertexBufferResource)
 			{
 				FOpenGL::BindVertexBuffer(StreamIndex, 0, 0, 0); // brianh@nvidia: work around driver bug 1809000
 				CachedStream.VertexBuffer = nullptr;
@@ -2243,7 +2242,7 @@ void FOpenGLDynamicRHI::OnBufferDeletion( GLuint BufferResource )
 	{
 		for (GLuint AttribIndex = 0; AttribIndex < NUM_OPENGL_VERTEX_STREAMS; AttribIndex++)
 		{
-			if (SharedContextState.VertexAttrs[AttribIndex].Buffer == BufferResource)
+			if (SharedContextState.VertexAttrs[AttribIndex].Buffer == VertexBufferResource)
 			{
 				SharedContextState.VertexAttrs[AttribIndex].Pointer = FOpenGLCachedAttr_Invalid;	// that'll enforce state update on next cache test		}
 			}
@@ -2251,19 +2250,23 @@ void FOpenGLDynamicRHI::OnBufferDeletion( GLuint BufferResource )
 	
 		for (GLuint AttribIndex = 0; AttribIndex < NUM_OPENGL_VERTEX_STREAMS; AttribIndex++)
 		{
-			if (RenderingContextState.VertexAttrs[AttribIndex].Buffer == BufferResource)
+			if (RenderingContextState.VertexAttrs[AttribIndex].Buffer == VertexBufferResource)
 			{
 				RenderingContextState.VertexAttrs[AttribIndex].Pointer = FOpenGLCachedAttr_Invalid;	// that'll enforce state update on next cache test		}
 			}
 		}
 	}
+}
 
-	if (SharedContextState.ElementArrayBufferBound == BufferResource)
+void FOpenGLDynamicRHI::OnIndexBufferDeletion( GLuint IndexBufferResource )
+{
+	VERIFY_GL_SCOPE();
+	if (SharedContextState.ElementArrayBufferBound == IndexBufferResource)
 	{
 		SharedContextState.ElementArrayBufferBound = -1;	// will force refresh
 	}
 
-	if (RenderingContextState.ElementArrayBufferBound == BufferResource)
+	if (RenderingContextState.ElementArrayBufferBound == IndexBufferResource)
 	{
 		RenderingContextState.ElementArrayBufferBound = -1;	// will force refresh
 	}
@@ -2672,7 +2675,7 @@ void FOpenGLDynamicRHI::RHIDrawPrimitive(uint32 BaseVertexIndex,uint32 NumPrimit
 	}
 }
 
-void FOpenGLDynamicRHI::RHIDrawPrimitiveIndirect(FRHIBuffer* ArgumentBufferRHI, uint32 ArgumentOffset)
+void FOpenGLDynamicRHI::RHIDrawPrimitiveIndirect(FRHIVertexBuffer* ArgumentBufferRHI,uint32 ArgumentOffset)
 {
 	if (FOpenGL::SupportsDrawIndirect())
 	{
@@ -2708,7 +2711,7 @@ void FOpenGLDynamicRHI::RHIDrawPrimitiveIndirect(FRHIBuffer* ArgumentBufferRHI, 
 			FOpenGL::PatchParameteri(GL_PATCH_VERTICES, PatchSize);
 		} 
 
-		FOpenGLBuffer* ArgumentBuffer = ResourceCast(ArgumentBufferRHI);
+		FOpenGLVertexBuffer* ArgumentBuffer = ResourceCast(ArgumentBufferRHI);
 
 
 		glBindBuffer( GL_DRAW_INDIRECT_BUFFER, ArgumentBuffer->Resource);
@@ -2725,14 +2728,14 @@ void FOpenGLDynamicRHI::RHIDrawPrimitiveIndirect(FRHIBuffer* ArgumentBufferRHI, 
 
 }
 
-void FOpenGLDynamicRHI::RHIDrawIndexedIndirect(FRHIBuffer* IndexBufferRHI, FRHIBuffer* ArgumentsBufferRHI, int32 DrawArgumentsIndex, uint32 NumInstances)
+void FOpenGLDynamicRHI::RHIDrawIndexedIndirect(FRHIIndexBuffer* IndexBufferRHI, FRHIStructuredBuffer* ArgumentsBufferRHI, int32 DrawArgumentsIndex, uint32 NumInstances)
 {
 	if (FOpenGL::SupportsDrawIndirect())
 	{
 		VERIFY_GL_SCOPE();
 
-		FOpenGLBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
-		GPUProfilingData.RegisterGPUWork(1);
+		FOpenGLIndexBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
+	GPUProfilingData.RegisterGPUWork(1);
 
 		check(ArgumentsBufferRHI);
 
@@ -2768,7 +2771,7 @@ void FOpenGLDynamicRHI::RHIDrawIndexedIndirect(FRHIBuffer* IndexBufferRHI, FRHIB
 
 		GLenum IndexType = IndexBuffer->GetStride() == sizeof(uint32) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT;
 
-		FOpenGLBuffer* ArgumentsBuffer = ResourceCast(ArgumentsBufferRHI);
+		FOpenGLStructuredBuffer* ArgumentsBuffer = ResourceCast(ArgumentsBufferRHI);
 
 
 		glBindBuffer( GL_DRAW_INDIRECT_BUFFER, ArgumentsBuffer->Resource);
@@ -2786,12 +2789,12 @@ void FOpenGLDynamicRHI::RHIDrawIndexedIndirect(FRHIBuffer* IndexBufferRHI, FRHIB
 	}
 }
 
-void FOpenGLDynamicRHI::RHIDrawIndexedPrimitive(FRHIBuffer* IndexBufferRHI, int32 BaseVertexIndex, uint32 FirstInstance, uint32 NumVertices, uint32 StartIndex, uint32 NumPrimitives, uint32 NumInstances)
+void FOpenGLDynamicRHI::RHIDrawIndexedPrimitive(FRHIIndexBuffer* IndexBufferRHI,int32 BaseVertexIndex,uint32 FirstInstance,uint32 NumVertices,uint32 StartIndex,uint32 NumPrimitives,uint32 NumInstances)
 {
 	SCOPE_CYCLE_COUNTER_DETAILED(STAT_OpenGLDrawPrimitiveTime);
 	VERIFY_GL_SCOPE();
 
-	FOpenGLBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
+	FOpenGLIndexBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
 
 	RHI_DRAW_CALL_STATS(PrimitiveType,NumPrimitives*NumInstances);
 
@@ -2891,13 +2894,13 @@ void FOpenGLDynamicRHI::RHIDrawIndexedPrimitive(FRHIBuffer* IndexBufferRHI, int3
 	}
 }
 
-void FOpenGLDynamicRHI::RHIDrawIndexedPrimitiveIndirect(FRHIBuffer* IndexBufferRHI, FRHIBuffer* ArgumentBufferRHI, uint32 ArgumentOffset)
+void FOpenGLDynamicRHI::RHIDrawIndexedPrimitiveIndirect(FRHIIndexBuffer* IndexBufferRHI, FRHIVertexBuffer* ArgumentBufferRHI,uint32 ArgumentOffset)
 {
 	if (FOpenGL::SupportsDrawIndirect())
 	{
 		VERIFY_GL_SCOPE();
 
-		FOpenGLBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
+		FOpenGLIndexBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
 		GPUProfilingData.RegisterGPUWork(1);
 
 		check(ArgumentBufferRHI);
@@ -2931,7 +2934,7 @@ void FOpenGLDynamicRHI::RHIDrawIndexedPrimitiveIndirect(FRHIBuffer* IndexBufferR
 
 		GLenum IndexType = IndexBuffer->GetStride() == sizeof(uint32) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT;
 
-		FOpenGLBuffer* ArgumentBuffer = ResourceCast(ArgumentBufferRHI);
+		FOpenGLVertexBuffer* ArgumentBuffer = ResourceCast(ArgumentBufferRHI);
 
 
 		glBindBuffer( GL_DRAW_INDIRECT_BUFFER, ArgumentBuffer->Resource);
@@ -3237,7 +3240,7 @@ void FOpenGLDynamicRHI::RHIDispatchComputeShader(uint32 ThreadGroupCountX, uint3
 	}
 }
 
-void FOpenGLDynamicRHI::RHIDispatchIndirectComputeShader(FRHIBuffer* ArgumentBufferRHI, uint32 ArgumentOffset)
+void FOpenGLDynamicRHI::RHIDispatchIndirectComputeShader(FRHIVertexBuffer* ArgumentBufferRHI,uint32 ArgumentOffset)
 {
 	if (FOpenGL::SupportsComputeShaders())
 	{
@@ -3252,7 +3255,7 @@ void FOpenGLDynamicRHI::RHIDispatchIndirectComputeShader(FRHIBuffer* ArgumentBuf
 			ComputeShader->LinkedProgram = GetLinkedComputeProgram(ComputeShaderRHI);
 		}
 
-		FOpenGLBuffer* ArgumentBuffer = ResourceCast(ArgumentBufferRHI);
+		FOpenGLVertexBuffer* ArgumentBuffer = ResourceCast(ArgumentBufferRHI);
 
 		FOpenGLContextState& ContextState = GetContextStateForCurrentContext();
 
@@ -3343,7 +3346,7 @@ void FOpenGLDynamicRHI::RHIInvalidateCachedState()
 void FOpenGLDynamicRHI::RHICopyToStagingBuffer(FRHIVertexBuffer* SourceBufferRHI, FRHIStagingBuffer* DestinationStagingBufferRHI, uint32 InOffset, uint32 InNumBytes)
 {
 	VERIFY_GL_SCOPE();
-	FOpenGLBuffer* SourceBuffer = ResourceCast(SourceBufferRHI);
+	FOpenGLVertexBuffer* SourceBuffer = ResourceCast(SourceBufferRHI);
 	FOpenGLStagingBuffer* DestinationBuffer = ResourceCast(DestinationStagingBufferRHI);
 
 	check(DestinationBuffer->ShadowBuffer != 0);

@@ -585,18 +585,32 @@ void FRHIResourceUpdateInfo::ReleaseRefs()
 {
 	switch (Type)
 	{
-	case UT_Buffer:
-		Buffer.DestBuffer->Release();
-		if (Buffer.SrcBuffer)
+	case UT_VertexBuffer:
+		VertexBuffer.DestBuffer->Release();
+		if (VertexBuffer.SrcBuffer)
 		{
-			Buffer.SrcBuffer->Release();
+			VertexBuffer.SrcBuffer->Release();
 		}
 		break;
-	case UT_BufferSRV:
-		BufferSRV.SRV->Release();
-		if (BufferSRV.Buffer)
+	case UT_IndexBuffer:
+		IndexBuffer.DestBuffer->Release();
+		if (IndexBuffer.SrcBuffer)
 		{
-			BufferSRV.Buffer->Release();
+			IndexBuffer.SrcBuffer->Release();
+		}
+		break;
+	case UT_VertexBufferSRV:
+		VertexBufferSRV.SRV->Release();
+		if (VertexBufferSRV.VertexBuffer)
+		{
+			VertexBufferSRV.VertexBuffer->Release();
+		}
+		break;
+	case UT_IndexBufferSRV:
+		IndexBufferSRV.SRV->Release();
+		if (IndexBufferSRV.IndexBuffer)
+		{
+			IndexBufferSRV.IndexBuffer->Release();
 		}
 		break;
 	default:
@@ -624,22 +638,27 @@ void FRHICommandUpdateRHIResources::Execute(FRHICommandListBase& CmdList)
 		FRHIResourceUpdateInfo& Info = UpdateInfos[Idx];
 		switch (Info.Type)
 		{
-		case FRHIResourceUpdateInfo::UT_Buffer:
-			GDynamicRHI->RHITransferBufferUnderlyingResource(
-				Info.Buffer.DestBuffer,
-				Info.Buffer.SrcBuffer);
+		case FRHIResourceUpdateInfo::UT_VertexBuffer:
+			GDynamicRHI->RHITransferVertexBufferUnderlyingResource(
+				Info.VertexBuffer.DestBuffer,
+				Info.VertexBuffer.SrcBuffer);
 			break;
-		case FRHIResourceUpdateInfo::UT_BufferFormatSRV:
-			GDynamicRHI->RHIUpdateShaderResourceView(
-				Info.BufferSRV.SRV,
-				Info.BufferSRV.Buffer,
-				Info.BufferSRV.Stride,
-				Info.BufferSRV.Format);
+		case FRHIResourceUpdateInfo::UT_IndexBuffer:
+			GDynamicRHI->RHITransferIndexBufferUnderlyingResource(
+				Info.IndexBuffer.DestBuffer,
+				Info.IndexBuffer.SrcBuffer);
 			break;
-		case FRHIResourceUpdateInfo::UT_BufferSRV:
+		case FRHIResourceUpdateInfo::UT_VertexBufferSRV:
 			GDynamicRHI->RHIUpdateShaderResourceView(
-				Info.BufferSRV.SRV,
-				Info.BufferSRV.Buffer);
+				Info.VertexBufferSRV.SRV,
+				Info.VertexBufferSRV.VertexBuffer,
+				Info.VertexBufferSRV.Stride,
+				Info.VertexBufferSRV.Format);
+			break;
+		case FRHIResourceUpdateInfo::UT_IndexBufferSRV:
+			GDynamicRHI->RHIUpdateShaderResourceView(
+				Info.IndexBufferSRV.SRV,
+				Info.IndexBufferSRV.IndexBuffer);
 			break;
 		default:
 			// Unrecognized type, do nothing

@@ -82,10 +82,16 @@ void OnProgramDeletion( GLint ProgramResource )
 	PrivateOpenGLDevicePtr->OnProgramDeletion( ProgramResource );
 }
 
-void OnBufferDeletion( GLuint BufferResource )
+void OnVertexBufferDeletion( GLuint VertexBufferResource )
 {
 	check(PrivateOpenGLDevicePtr);
-	PrivateOpenGLDevicePtr->OnBufferDeletion( BufferResource );
+	PrivateOpenGLDevicePtr->OnVertexBufferDeletion( VertexBufferResource );
+}
+
+void OnIndexBufferDeletion( GLuint IndexBufferResource )
+{
+	check(PrivateOpenGLDevicePtr);
+	PrivateOpenGLDevicePtr->OnIndexBufferDeletion( IndexBufferResource );
 }
 
 void OnPixelBufferDeletion( GLuint PixelBufferResource )
@@ -100,24 +106,19 @@ void OnUniformBufferDeletion( GLuint UniformBufferResource, uint32 AllocatedSize
 	PrivateOpenGLDevicePtr->OnUniformBufferDeletion( UniformBufferResource, AllocatedSize, bStreamDraw );
 }
 
-void CachedBindBuffer( GLenum Type, GLuint Buffer )
+void CachedBindArrayBuffer( GLuint Buffer )
 {
 	check(PrivateOpenGLDevicePtr);
-	if (Type == GL_ARRAY_BUFFER)
-	{
-		PrivateOpenGLDevicePtr->CachedBindArrayBuffer(PrivateOpenGLDevicePtr->GetContextStateForCurrentContext(), Buffer);
-	}
-	else if (Type == GL_ELEMENT_ARRAY_BUFFER)
-	{
-		PrivateOpenGLDevicePtr->CachedBindElementArrayBuffer(PrivateOpenGLDevicePtr->GetContextStateForCurrentContext(), Buffer);
-	}
-	else
-	{
-		checkNoEntry();
-	}
+	PrivateOpenGLDevicePtr->CachedBindArrayBuffer(PrivateOpenGLDevicePtr->GetContextStateForCurrentContext(),Buffer);
 }
 
-void CachedBindPixelUnpackBuffer( GLenum Type, GLuint Buffer )
+void CachedBindElementArrayBuffer( GLuint Buffer )
+{
+	check(PrivateOpenGLDevicePtr);
+	PrivateOpenGLDevicePtr->CachedBindElementArrayBuffer(PrivateOpenGLDevicePtr->GetContextStateForCurrentContext(),Buffer);
+}
+
+void CachedBindPixelUnpackBuffer( GLuint Buffer )
 {
 	check(PrivateOpenGLDevicePtr);
 	PrivateOpenGLDevicePtr->CachedBindPixelUnpackBuffer(PrivateOpenGLDevicePtr->GetContextStateForCurrentContext(),Buffer);
@@ -1116,6 +1117,13 @@ void FOpenGLDynamicRHI::Init()
 	FSamplerStateInitializerRHI PointSamplerStateParams(SF_Point,AM_Clamp,AM_Clamp,AM_Clamp);
 	PointSamplerState = this->RHICreateSamplerState(PointSamplerStateParams);
 
+	if (FOpenGL::SupportsFastBufferData())
+	{
+		// Allocate vertex and index buffers for DrawPrimitiveUP calls.
+		DynamicVertexBuffers.Init(CalcDynamicBufferSize(1));
+		DynamicIndexBuffers.Init(CalcDynamicBufferSize(1));
+	}
+
 #if PLATFORM_WINDOWS || PLATFORM_LINUX
 
 	extern int64 GOpenGLDedicatedVideoMemory;
@@ -1201,6 +1209,10 @@ void FOpenGLDynamicRHI::Cleanup()
 		// Ask all initialized FRenderResources to release their RHI resources.
 		FRenderResource::ReleaseRHIForAllResources();
 	}
+
+	// Release dynamic vertex and index buffers.
+	DynamicVertexBuffers.Cleanup();
+	DynamicIndexBuffers.Cleanup();
 
 	FreeZeroStrideBuffers();
 

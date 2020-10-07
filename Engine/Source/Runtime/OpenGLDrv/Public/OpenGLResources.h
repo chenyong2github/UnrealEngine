@@ -29,13 +29,15 @@ class FOpenGLLinkedProgram;
 typedef TArray<ANSICHAR> FAnsiCharArray;
 
 
-extern void OnBufferDeletion( GLuint BufferResource );
+extern void OnVertexBufferDeletion( GLuint VertexBufferResource );
+extern void OnIndexBufferDeletion( GLuint IndexBufferResource );
 extern void OnPixelBufferDeletion( GLuint PixelBufferResource );
 extern void OnUniformBufferDeletion( GLuint UniformBufferResource, uint32 AllocatedSize, bool bStreamDraw, uint32 Offset, uint8* Pointer );
 extern void OnProgramDeletion( GLint ProgramResource );
 
-extern void CachedBindBuffer( GLenum Type, GLuint Buffer );
-extern void CachedBindPixelUnpackBuffer( GLenum Type, GLuint Buffer );
+extern void CachedBindArrayBuffer( GLuint Buffer );
+extern void CachedBindElementArrayBuffer( GLuint Buffer );
+extern void CachedBindPixelUnpackBuffer( GLuint Buffer );
 extern void CachedBindUniformBuffer( GLuint Buffer );
 extern bool IsUniformBufferBound( GLuint Buffer );
 
@@ -372,12 +374,12 @@ struct TIsGLProxyObject<TOpenGLResourceProxy<TRHIType, TOGLResourceType>>
 	enum { Value = true };
 };
 
-typedef void (*BufferBindFunction)( GLenum Type, GLuint Buffer );
+typedef void (*BufferBindFunction)( GLuint Buffer );
 
 template<typename BaseType>
 class TOpenGLTexture;
 
-template <typename BaseType, BufferBindFunction BufBind>
+template <typename BaseType, GLenum Type, BufferBindFunction BufBind>
 class TOpenGLBuffer : public BaseType
 {
 	void LoadData( uint32 InOffset, uint32 InSize, const void* InData)
@@ -414,14 +416,12 @@ class TOpenGLBuffer : public BaseType
 public:
 
 	GLuint Resource;
-	GLenum Type;
 
 	/** Needed on OS X to force a rebind of the texture buffer to the texture name to workaround radr://18379338 */
 	uint64 ModificationCount;
 
 	TOpenGLBuffer()
 		: Resource(0)
-		, Type(0)
 		, ModificationCount(0)
 		, bIsLocked(false)
 		, bIsLockReadOnly(false)
@@ -433,11 +433,10 @@ public:
 		, RealSize(0)
 	{ }
 
-	TOpenGLBuffer(GLenum InType, uint32 InStride, uint32 InSize, uint32 InUsage,
-		const void *InData, bool bStreamedDraw = false, GLuint ResourceToUse = 0, uint32 ResourceSize = 0)
+	TOpenGLBuffer(uint32 InStride,uint32 InSize,uint32 InUsage,
+		const void *InData = NULL, bool bStreamedDraw = false, GLuint ResourceToUse = 0, uint32 ResourceSize = 0)
 	: BaseType(InStride,InSize,InUsage)
 	, Resource(0)
-	, Type(InType)
 	, ModificationCount(0)
 	, bIsLocked(false)
 	, bIsLockReadOnly(false)
@@ -564,7 +563,7 @@ public:
 	{
 		VERIFY_GL_SCOPE();
 		check( (FOpenGL::SupportsVertexAttribBinding() && OpenGLConsoleVariables::bUseVAB) || ( this->GetUsage() & BUF_ZeroStride ) == 0 );
-		BufBind(Type, Resource);
+		BufBind(Resource);
 	}
 
 	uint8 *Lock(uint32 InOffset, uint32 InSize, bool bReadOnly, bool bDiscard)
@@ -892,17 +891,17 @@ private:
 	uint32 Usage;
 };
 
-class FOpenGLBaseBuffer : public FRHIBuffer
+class FOpenGLBaseVertexBuffer : public FRHIVertexBuffer
 {
 public:
-	FOpenGLBaseBuffer() : ZeroStrideBuffer(0)
+	FOpenGLBaseVertexBuffer() : ZeroStrideVertexBuffer(0)
 	{}
 
-	FOpenGLBaseBuffer(uint32 InStride, uint32 InSize, uint32 InUsage): FRHIBuffer(InSize, InUsage, InStride), ZeroStrideBuffer(0)
+	FOpenGLBaseVertexBuffer(uint32 InStride,uint32 InSize,uint32 InUsage): FRHIVertexBuffer(InSize,InUsage), ZeroStrideVertexBuffer(0)
 	{
 		if(!(FOpenGL::SupportsVertexAttribBinding() && OpenGLConsoleVariables::bUseVAB) && (InUsage & BUF_ZeroStride))
 		{
-			ZeroStrideBuffer = FMemory::Malloc( InSize );
+			ZeroStrideVertexBuffer = FMemory::Malloc( InSize );
 		}
 
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
@@ -911,11 +910,11 @@ public:
 #endif
 	}
 
-	~FOpenGLBaseBuffer( void )
+	~FOpenGLBaseVertexBuffer( void )
 	{
-		if( ZeroStrideBuffer )
+		if( ZeroStrideVertexBuffer )
 		{
-			FMemory::Free( ZeroStrideBuffer );
+			FMemory::Free( ZeroStrideVertexBuffer );
 		}
 
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
@@ -926,19 +925,19 @@ public:
 
 	void* GetZeroStrideBuffer( void )
 	{
-		check( ZeroStrideBuffer );
-		return ZeroStrideBuffer;
+		check( ZeroStrideVertexBuffer );
+		return ZeroStrideVertexBuffer;
 	}
 
-	void Swap(FOpenGLBaseBuffer& Other)
+	void Swap(FOpenGLBaseVertexBuffer& Other)
 	{
-		FRHIBuffer::Swap(Other);
-		::Swap(ZeroStrideBuffer, Other.ZeroStrideBuffer);
+		FRHIVertexBuffer::Swap(Other);
+		::Swap(ZeroStrideVertexBuffer, Other.ZeroStrideVertexBuffer);
 	}
 
 	static bool OnDelete(GLuint Resource,uint32 Size,bool bStreamDraw,uint32 Offset)
 	{
-		OnBufferDeletion(Resource);
+		OnVertexBufferDeletion(Resource);
 		return true;
 	}
 
@@ -955,7 +954,7 @@ public:
 	static bool IsStructuredBuffer() { return false; }
 
 private:
-	void*	ZeroStrideBuffer;
+	void*	ZeroStrideVertexBuffer;
 };
 
 struct FOpenGLEUniformBufferData : public FRefCountedObject
@@ -1016,8 +1015,73 @@ public:
 	FOpenGLAssertRHIThreadFence CopyFence;
 };
 
-typedef TOpenGLBuffer<FOpenGLBasePixelBuffer, CachedBindPixelUnpackBuffer> FOpenGLPixelBuffer;
-typedef TOpenGLBuffer<FOpenGLBaseBuffer, CachedBindBuffer> FOpenGLBuffer;
+
+class FOpenGLBaseIndexBuffer : public FRHIIndexBuffer
+{
+public:
+	FOpenGLBaseIndexBuffer()
+	{}
+
+	FOpenGLBaseIndexBuffer(uint32 InStride,uint32 InSize,uint32 InUsage): FRHIIndexBuffer(InStride,InSize,InUsage)
+	{
+#if ENABLE_LOW_LEVEL_MEM_TRACKER
+		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::Meshes, InSize, ELLMTracker::Default, ELLMAllocType::None);
+#endif
+	}
+
+	~FOpenGLBaseIndexBuffer(void)
+	{
+#if ENABLE_LOW_LEVEL_MEM_TRACKER
+		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::Meshes, -(int64)GetSize(), ELLMTracker::Default, ELLMAllocType::None);
+#endif
+	}
+
+	static bool OnDelete(GLuint Resource,uint32 Size,bool bStreamDraw,uint32 Offset)
+	{
+		OnIndexBufferDeletion(Resource);
+		return true;
+	}
+
+	static FORCEINLINE bool GLSupportsType()
+	{
+		return true;
+	}
+
+	static void CreateType(GLuint& Resource, const void* InData, uint32 InSize)
+	{
+		// @todo-mobile
+	}
+
+	static bool IsStructuredBuffer() { return false; }
+};
+
+class FOpenGLBaseStructuredBuffer : public FRHIStructuredBuffer
+{
+public:
+	FOpenGLBaseStructuredBuffer(uint32 InStride,uint32 InSize,uint32 InUsage): FRHIStructuredBuffer(InStride,InSize,InUsage) {}
+	static bool OnDelete(GLuint Resource,uint32 Size,bool bStreamDraw,uint32 Offset)
+	{
+		OnVertexBufferDeletion(Resource);
+		return true;
+	}
+
+	static FORCEINLINE bool GLSupportsType()
+	{
+		return FOpenGL::SupportsStructuredBuffers();
+	}
+
+	static void CreateType(GLuint& Resource, const void* InData, uint32 InSize)
+	{
+		// @todo-mobile
+	}
+
+	static bool IsStructuredBuffer() { return true; }
+};
+
+typedef TOpenGLBuffer<FOpenGLBasePixelBuffer, GL_PIXEL_UNPACK_BUFFER, CachedBindPixelUnpackBuffer> FOpenGLPixelBuffer;
+typedef TOpenGLBuffer<FOpenGLBaseVertexBuffer, GL_ARRAY_BUFFER, CachedBindArrayBuffer> FOpenGLVertexBuffer;
+typedef TOpenGLBuffer<FOpenGLBaseIndexBuffer,GL_ELEMENT_ARRAY_BUFFER,CachedBindElementArrayBuffer> FOpenGLIndexBuffer;
+typedef TOpenGLBuffer<FOpenGLBaseStructuredBuffer,GL_ARRAY_BUFFER,CachedBindArrayBuffer> FOpenGLStructuredBuffer;
 
 #define MAX_STREAMED_BUFFERS_IN_ARRAY 2	// must be > 1!
 #define MIN_DRAWS_IN_SINGLE_BUFFER 16
@@ -1106,6 +1170,9 @@ private:
 	uint32 LastOffset;
 	uint32 MinNeededBufferSize;
 };
+
+typedef TOpenGLStreamedBufferArray<FOpenGLVertexBuffer,0> FOpenGLStreamedVertexBufferArray;
+typedef TOpenGLStreamedBufferArray<FOpenGLIndexBuffer,sizeof(uint16)> FOpenGLStreamedIndexBufferArray;
 
 struct FOpenGLVertexElement
 {
@@ -1900,7 +1967,7 @@ public:
 	{
 		if (IndexBuffer)
 		{
-			FOpenGLBuffer* IB = (FOpenGLBuffer*)IndexBuffer.GetReference();
+			FOpenGLIndexBuffer* IB = (FOpenGLIndexBuffer*)IndexBuffer.GetReference();
 			ModificationVersion = IB->ModificationCount;
 		}
 	}
@@ -1917,7 +1984,7 @@ public:
 	{
 		if (VertexBuffer)
 		{
-			FOpenGLBuffer* VB = (FOpenGLBuffer*)VertexBuffer.GetReference();
+			FOpenGLVertexBuffer* VB = (FOpenGLVertexBuffer*)VertexBuffer.GetReference();
 			ModificationVersion = VB->ModificationCount;
 		}
 	}
@@ -2199,9 +2266,19 @@ struct TOpenGLResourceTraits<FRHIUniformBuffer>
 	typedef FOpenGLUniformBuffer TConcreteType;
 };
 template<>
-struct TOpenGLResourceTraits<FRHIBuffer>
+struct TOpenGLResourceTraits<FRHIIndexBuffer>
 {
-	typedef FOpenGLBuffer TConcreteType;
+	typedef FOpenGLIndexBuffer TConcreteType;
+};
+template<>
+struct TOpenGLResourceTraits<FRHIStructuredBuffer>
+{
+	typedef FOpenGLStructuredBuffer TConcreteType;
+};
+template<>
+struct TOpenGLResourceTraits<FRHIVertexBuffer>
+{
+	typedef FOpenGLVertexBuffer TConcreteType;
 };
 template<>
 struct TOpenGLResourceTraits<FRHIShaderResourceView>

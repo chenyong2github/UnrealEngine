@@ -28,13 +28,13 @@ inline FD3D12UnorderedAccessView* CreateUAV(D3D12_UNORDERED_ACCESS_VIEW_DESC& De
 	});
 }
 
-FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView(FRHIBuffer* BufferRHI, bool bUseUAVCounter, bool bAppendBuffer)
+FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView(FRHIStructuredBuffer* StructuredBufferRHI, bool bUseUAVCounter, bool bAppendBuffer)
 {
-	FD3D12Buffer* Buffer = FD3D12DynamicRHI::ResourceCast(BufferRHI);
+	FD3D12StructuredBuffer*  StructuredBuffer = FD3D12DynamicRHI::ResourceCast(StructuredBufferRHI);
 
-	FD3D12ResourceLocation& Location = Buffer->ResourceLocation;
+	FD3D12ResourceLocation& Location = StructuredBuffer->ResourceLocation;
 
-	const uint32 BufferUsage = Buffer->GetUsage();
+	const uint32 BufferUsage = StructuredBuffer->GetUsage();
 	const bool bByteAccessBuffer = (BufferUsage & BUF_ByteAddressBuffer) != 0;
 	const bool bStructuredBuffer = !bByteAccessBuffer;
 	check(bByteAccessBuffer != bStructuredBuffer); // You can't have a structured buffer that allows raw views
@@ -43,7 +43,7 @@ FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView(FRHIBu
 	UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
 	UAVDesc.Format = DXGI_FORMAT_UNKNOWN;
 
-	uint32 EffectiveStride = Buffer->GetStride();
+	uint32 EffectiveStride = StructuredBuffer->GetStride();
 
 	if (bByteAccessBuffer)
 	{
@@ -62,7 +62,7 @@ FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView(FRHIBu
 	UAVDesc.Buffer.StructureByteStride = bStructuredBuffer ? EffectiveStride : 0;
 
 	const bool bNeedsCounterResource = bAppendBuffer | bUseUAVCounter;
-	return CreateUAV(UAVDesc, Buffer, bNeedsCounterResource);
+	return CreateUAV(UAVDesc, StructuredBuffer, bNeedsCounterResource);
 }
 
 FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView(FRHITexture* TextureRHI, uint32 MipLevel)
@@ -117,16 +117,16 @@ FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView(FRHITe
 	}
 }
 
-FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView(FRHIBuffer* BufferRHI, uint8 Format)
+FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView(FRHIVertexBuffer* VertexBufferRHI, uint8 Format)
 {
-	FD3D12Buffer* Buffer = FD3D12DynamicRHI::ResourceCast(BufferRHI);
-	FD3D12ResourceLocation& Location = Buffer->ResourceLocation;
+	FD3D12VertexBuffer*  VertexBuffer = FD3D12DynamicRHI::ResourceCast(VertexBufferRHI);
+	FD3D12ResourceLocation& Location = VertexBuffer->ResourceLocation;
 
 	D3D12_UNORDERED_ACCESS_VIEW_DESC UAVDesc{};
 	UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
 
 	uint32 EffectiveStride;
-	if (Buffer->GetUsage() & BUF_ByteAddressBuffer)
+	if (VertexBuffer->GetUsage() & BUF_ByteAddressBuffer)
 	{
 		UAVDesc.Format = DXGI_FORMAT_R32_TYPELESS;
 		UAVDesc.Buffer.Flags |= D3D12_BUFFER_UAV_FLAG_RAW;
@@ -141,7 +141,34 @@ FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView(FRHIBu
 	UAVDesc.Buffer.FirstElement = Location.GetOffsetFromBaseOfResource() / EffectiveStride;
 	UAVDesc.Buffer.NumElements = Location.GetSize() / EffectiveStride;
 
-	return CreateUAV(UAVDesc, Buffer, false);
+	return CreateUAV(UAVDesc, VertexBuffer, false);
+}
+
+FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView(FRHIIndexBuffer* IndexBufferRHI, uint8 Format)
+{
+	FD3D12IndexBuffer* IndexBuffer = FD3D12DynamicRHI::ResourceCast(IndexBufferRHI);
+	FD3D12ResourceLocation& Location = IndexBuffer->ResourceLocation;
+
+	D3D12_UNORDERED_ACCESS_VIEW_DESC UAVDesc{};
+	UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+
+	uint32 EffectiveStride;
+	if ((IndexBuffer->GetUsage() & BUF_ByteAddressBuffer) != 0)
+	{
+		UAVDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+		UAVDesc.Buffer.Flags |= D3D12_BUFFER_UAV_FLAG_RAW;
+		EffectiveStride = 4;
+	}
+	else
+	{
+		UAVDesc.Format = FindUnorderedAccessDXGIFormat((DXGI_FORMAT)GPixelFormats[Format].PlatformFormat);
+		EffectiveStride = GPixelFormats[Format].BlockBytes;
+	}
+
+	UAVDesc.Buffer.FirstElement = Location.GetOffsetFromBaseOfResource() / EffectiveStride;
+	UAVDesc.Buffer.NumElements = Location.GetSize() / EffectiveStride;
+
+	return CreateUAV(UAVDesc, IndexBuffer, false);
 }
 
 void FD3D12CommandContext::ClearUAV(TRHICommandList_RecursiveHazardous<FD3D12CommandContext>& RHICmdList, FD3D12UnorderedAccessView* UnorderedAccessView, const void* ClearValues, bool bFloat)
@@ -296,17 +323,17 @@ void FD3D12CommandContext::RHIClearUAVUint(FRHIUnorderedAccessView* UnorderedAcc
 	ClearUAV(RHICmdList, ResourceCast(UnorderedAccessViewRHI), &Values, false);
 }
 
-FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView_RenderThread(FRHICommandListImmediate& RHICmdList, FRHIBuffer* BufferRHI, bool bUseUAVCounter, bool bAppendBuffer)
+FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView_RenderThread(FRHICommandListImmediate& RHICmdList, FRHIStructuredBuffer* StructuredBufferRHI, bool bUseUAVCounter, bool bAppendBuffer)
 {
-	FD3D12Buffer* Buffer = FD3D12DynamicRHI::ResourceCast(BufferRHI);
+	FD3D12StructuredBuffer* StructuredBuffer = FD3D12DynamicRHI::ResourceCast(StructuredBufferRHI);
 	// TODO: we have to stall the RHI thread when creating SRVs of dynamic buffers because they get renamed.
 	// perhaps we could do a deferred operation?
-	if (Buffer->GetUsage() & BUF_AnyDynamic)
+	if (StructuredBuffer->GetUsage() & BUF_AnyDynamic)
 	{
 		FScopedRHIThreadStaller StallRHIThread(RHICmdList);
-		return RHICreateUnorderedAccessView(BufferRHI, bUseUAVCounter, bAppendBuffer);
+		return RHICreateUnorderedAccessView(StructuredBufferRHI, bUseUAVCounter, bAppendBuffer);
 	}
-	return RHICreateUnorderedAccessView(BufferRHI, bUseUAVCounter, bAppendBuffer);
+	return RHICreateUnorderedAccessView(StructuredBufferRHI, bUseUAVCounter, bAppendBuffer);
 }
 
 FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, uint32 MipLevel)
@@ -314,18 +341,18 @@ FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView_Render
 	return FD3D12DynamicRHI::RHICreateUnorderedAccessView(Texture, MipLevel);
 }
 
-FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView_RenderThread(FRHICommandListImmediate& RHICmdList, FRHIBuffer* BufferRHI, uint8 Format)
+FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView_RenderThread(FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBufferRHI, uint8 Format)
 {
-	FD3D12Buffer* Buffer = FD3D12DynamicRHI::ResourceCast(BufferRHI);
+	FD3D12VertexBuffer* VertexBuffer = FD3D12DynamicRHI::ResourceCast(VertexBufferRHI);
 
 	// TODO: we have to stall the RHI thread when creating SRVs of dynamic buffers because they get renamed.
 	// perhaps we could do a deferred operation?
-	if (Buffer->GetUsage() & BUF_AnyDynamic)
+	if (VertexBuffer->GetUsage() & BUF_AnyDynamic)
 	{
 		FScopedRHIThreadStaller StallRHIThread(RHICmdList);
-		return RHICreateUnorderedAccessView(BufferRHI, Format);
+		return RHICreateUnorderedAccessView(VertexBufferRHI, Format);
 	}
-	return RHICreateUnorderedAccessView(BufferRHI, Format);
+	return RHICreateUnorderedAccessView(VertexBufferRHI, Format);
 }
 
 FD3D12StagingBuffer::~FD3D12StagingBuffer()

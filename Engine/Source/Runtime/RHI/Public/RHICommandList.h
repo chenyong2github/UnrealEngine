@@ -1011,14 +1011,14 @@ FRHICOMMAND_MACRO(FRHICommandDrawPrimitive)
 
 FRHICOMMAND_MACRO(FRHICommandDrawIndexedPrimitive)
 {
-	FRHIBuffer* IndexBuffer;
+	FRHIIndexBuffer* IndexBuffer;
 	int32 BaseVertexIndex;
 	uint32 FirstInstance;
 	uint32 NumVertices;
 	uint32 StartIndex;
 	uint32 NumPrimitives;
 	uint32 NumInstances;
-	FORCEINLINE_DEBUGGABLE FRHICommandDrawIndexedPrimitive(FRHIBuffer* InIndexBuffer, int32 InBaseVertexIndex, uint32 InFirstInstance, uint32 InNumVertices, uint32 InStartIndex, uint32 InNumPrimitives, uint32 InNumInstances)
+	FORCEINLINE_DEBUGGABLE FRHICommandDrawIndexedPrimitive(FRHIIndexBuffer* InIndexBuffer, int32 InBaseVertexIndex, uint32 InFirstInstance, uint32 InNumVertices, uint32 InStartIndex, uint32 InNumPrimitives, uint32 InNumInstances)
 		: IndexBuffer(InIndexBuffer)
 		, BaseVertexIndex(InBaseVertexIndex)
 		, FirstInstance(InFirstInstance)
@@ -1287,9 +1287,9 @@ struct FRHICommandDispatchIndirectComputeShaderString
 
 struct FRHICommandDispatchIndirectComputeShader final : public FRHICommand<FRHICommandDispatchIndirectComputeShader, FRHICommandDispatchIndirectComputeShaderString>
 {
-	FRHIBuffer* ArgumentBuffer;
+	FRHIVertexBuffer* ArgumentBuffer;
 	uint32 ArgumentOffset;
-	FORCEINLINE_DEBUGGABLE FRHICommandDispatchIndirectComputeShader(FRHIBuffer* InArgumentBuffer, uint32 InArgumentOffset)
+	FORCEINLINE_DEBUGGABLE FRHICommandDispatchIndirectComputeShader(FRHIVertexBuffer* InArgumentBuffer, uint32 InArgumentOffset)
 		: ArgumentBuffer(InArgumentBuffer)
 		, ArgumentOffset(InArgumentOffset)
 	{
@@ -1323,9 +1323,9 @@ FRHICOMMAND_MACRO(FRHICommandEndSpecificUAVOverlap)
 
 FRHICOMMAND_MACRO(FRHICommandDrawPrimitiveIndirect)
 {
-	FRHIBuffer* ArgumentBuffer;
+	FRHIVertexBuffer* ArgumentBuffer;
 	uint32 ArgumentOffset;
-	FORCEINLINE_DEBUGGABLE FRHICommandDrawPrimitiveIndirect(FRHIBuffer* InArgumentBuffer, uint32 InArgumentOffset)
+	FORCEINLINE_DEBUGGABLE FRHICommandDrawPrimitiveIndirect(FRHIVertexBuffer* InArgumentBuffer, uint32 InArgumentOffset)
 		: ArgumentBuffer(InArgumentBuffer)
 		, ArgumentOffset(InArgumentOffset)
 	{
@@ -1335,12 +1335,12 @@ FRHICOMMAND_MACRO(FRHICommandDrawPrimitiveIndirect)
 
 FRHICOMMAND_MACRO(FRHICommandDrawIndexedIndirect)
 {
-	FRHIBuffer* IndexBufferRHI;
-	FRHIBuffer* ArgumentsBufferRHI;
+	FRHIIndexBuffer* IndexBufferRHI;
+	FRHIStructuredBuffer* ArgumentsBufferRHI;
 	uint32 DrawArgumentsIndex;
 	uint32 NumInstances;
 
-	FORCEINLINE_DEBUGGABLE FRHICommandDrawIndexedIndirect(FRHIBuffer* InIndexBufferRHI, FRHIBuffer* InArgumentsBufferRHI, uint32 InDrawArgumentsIndex, uint32 InNumInstances)
+	FORCEINLINE_DEBUGGABLE FRHICommandDrawIndexedIndirect(FRHIIndexBuffer* InIndexBufferRHI, FRHIStructuredBuffer* InArgumentsBufferRHI, uint32 InDrawArgumentsIndex, uint32 InNumInstances)
 		: IndexBufferRHI(InIndexBufferRHI)
 		, ArgumentsBufferRHI(InArgumentsBufferRHI)
 		, DrawArgumentsIndex(InDrawArgumentsIndex)
@@ -1352,11 +1352,11 @@ FRHICOMMAND_MACRO(FRHICommandDrawIndexedIndirect)
 
 FRHICOMMAND_MACRO(FRHICommandDrawIndexedPrimitiveIndirect)
 {
-	FRHIBuffer* IndexBuffer;
-	FRHIBuffer* ArgumentsBuffer;
+	FRHIIndexBuffer* IndexBuffer;
+	FRHIVertexBuffer* ArgumentsBuffer;
 	uint32 ArgumentOffset;
 
-	FORCEINLINE_DEBUGGABLE FRHICommandDrawIndexedPrimitiveIndirect(FRHIBuffer* InIndexBuffer, FRHIBuffer* InArgumentsBuffer, uint32 InArgumentOffset)
+	FORCEINLINE_DEBUGGABLE FRHICommandDrawIndexedPrimitiveIndirect(FRHIIndexBuffer* InIndexBuffer, FRHIVertexBuffer* InArgumentsBuffer, uint32 InArgumentOffset)
 		: IndexBuffer(InIndexBuffer)
 		, ArgumentsBuffer(InArgumentsBuffer)
 		, ArgumentOffset(InArgumentOffset)
@@ -1938,30 +1938,44 @@ FRHICOMMAND_MACRO(FRHICommandUpdateTextureReference)
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHIShaderResourceViewUpdateInfo
+struct FRHIShaderResourceViewUpdateInfo_VB
 {
 	FRHIShaderResourceView* SRV;
-	FRHIBuffer* Buffer;
+	FRHIVertexBuffer* VertexBuffer;
 	uint32 Stride;
 	uint8 Format;
 };
 
-struct FRHIBufferUpdateInfo
+struct FRHIShaderResourceViewUpdateInfo_IB
 {
-	FRHIBuffer* DestBuffer;
-	FRHIBuffer* SrcBuffer;
+	FRHIShaderResourceView* SRV;
+	FRHIIndexBuffer* IndexBuffer;
+};
+
+struct FRHIVertexBufferUpdateInfo
+{
+	FRHIVertexBuffer* DestBuffer;
+	FRHIVertexBuffer* SrcBuffer;
+};
+
+struct FRHIIndexBufferUpdateInfo
+{
+	FRHIIndexBuffer* DestBuffer;
+	FRHIIndexBuffer* SrcBuffer;
 };
 
 struct FRHIResourceUpdateInfo
 {
 	enum EUpdateType
 	{
-		/** Take over underlying resource from an intermediate buffer */
-		UT_Buffer,
-		/** Update an SRV to view on a different buffer */
-		UT_BufferSRV,
-		/** Update an SRV to view on a different buffer with a given format */
-		UT_BufferFormatSRV,
+		/** Take over underlying resource from an intermediate vertex buffer */
+		UT_VertexBuffer,
+		/** Take over underlying resource from an intermediate index buffer */
+		UT_IndexBuffer,
+		/** Update an SRV to view on a different vertex buffer */
+		UT_VertexBufferSRV,
+		/** Update an SRV to view on a different index buffer */
+		UT_IndexBufferSRV,
 		/** Number of update types */
 		UT_Num
 	};
@@ -1969,8 +1983,10 @@ struct FRHIResourceUpdateInfo
 	EUpdateType Type;
 	union
 	{
-		FRHIBufferUpdateInfo Buffer;
-		FRHIShaderResourceViewUpdateInfo BufferSRV;
+		FRHIVertexBufferUpdateInfo VertexBuffer;
+		FRHIIndexBufferUpdateInfo IndexBuffer;
+		FRHIShaderResourceViewUpdateInfo_VB VertexBufferSRV;
+		FRHIShaderResourceViewUpdateInfo_IB IndexBufferSRV;
 	};
 
 	void ReleaseRefs();
@@ -2385,7 +2401,7 @@ public:
 		ALLOC_COMMAND(FRHICommandDispatchComputeShader)(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
 	}
 
-	FORCEINLINE_DEBUGGABLE void DispatchIndirectComputeShader(FRHIBuffer* ArgumentBuffer, uint32 ArgumentOffset)
+	FORCEINLINE_DEBUGGABLE void DispatchIndirectComputeShader(FRHIVertexBuffer* ArgumentBuffer, uint32 ArgumentOffset)
 	{
 		if (Bypass())
 		{
@@ -3055,7 +3071,7 @@ public:
 		ALLOC_COMMAND(FRHICommandDrawPrimitive)(BaseVertexIndex, NumPrimitives, NumInstances);
 	}
 
-	FORCEINLINE_DEBUGGABLE void DrawIndexedPrimitive(FRHIBuffer* IndexBuffer, int32 BaseVertexIndex, uint32 FirstInstance, uint32 NumVertices, uint32 StartIndex, uint32 NumPrimitives, uint32 NumInstances)
+	FORCEINLINE_DEBUGGABLE void DrawIndexedPrimitive(FRHIIndexBuffer* IndexBuffer, int32 BaseVertexIndex, uint32 FirstInstance, uint32 NumVertices, uint32 StartIndex, uint32 NumPrimitives, uint32 NumInstances)
 	{
 		if (!IndexBuffer)
 		{
@@ -3194,7 +3210,7 @@ public:
 		ALLOC_COMMAND(FRHICommandSetGraphicsPipelineState)(GraphicsPipelineState, bApplyAdditionalState);
 	}
 
-	FORCEINLINE_DEBUGGABLE void DrawPrimitiveIndirect(FRHIBuffer* ArgumentBuffer, uint32 ArgumentOffset)
+	FORCEINLINE_DEBUGGABLE void DrawPrimitiveIndirect(FRHIVertexBuffer* ArgumentBuffer, uint32 ArgumentOffset)
 	{
 		//check(IsOutsideRenderPass());
 		if (Bypass())
@@ -3205,7 +3221,7 @@ public:
 		ALLOC_COMMAND(FRHICommandDrawPrimitiveIndirect)(ArgumentBuffer, ArgumentOffset);
 	}
 
-	FORCEINLINE_DEBUGGABLE void DrawIndexedIndirect(FRHIBuffer* IndexBufferRHI, FRHIBuffer* ArgumentsBufferRHI, uint32 DrawArgumentsIndex, uint32 NumInstances)
+	FORCEINLINE_DEBUGGABLE void DrawIndexedIndirect(FRHIIndexBuffer* IndexBufferRHI, FRHIStructuredBuffer* ArgumentsBufferRHI, uint32 DrawArgumentsIndex, uint32 NumInstances)
 	{
 		//check(IsOutsideRenderPass());
 		if (Bypass())
@@ -3216,7 +3232,7 @@ public:
 		ALLOC_COMMAND(FRHICommandDrawIndexedIndirect)(IndexBufferRHI, ArgumentsBufferRHI, DrawArgumentsIndex, NumInstances);
 	}
 
-	FORCEINLINE_DEBUGGABLE void DrawIndexedPrimitiveIndirect(FRHIBuffer* IndexBuffer, FRHIBuffer* ArgumentsBuffer, uint32 ArgumentOffset)
+	FORCEINLINE_DEBUGGABLE void DrawIndexedPrimitiveIndirect(FRHIIndexBuffer* IndexBuffer, FRHIVertexBuffer* ArgumentsBuffer, uint32 ArgumentOffset)
 	{
 		//check(IsOutsideRenderPass());
 		if (Bypass())
@@ -4026,11 +4042,11 @@ public:
 		GDynamicRHI->RHIUnlockStructuredBuffer(*this, StructuredBuffer);
 	}
 	
-	FORCEINLINE FUnorderedAccessViewRHIRef CreateUnorderedAccessView(FRHIBuffer* Buffer, bool bUseUAVCounter, bool bAppendBuffer)
+	FORCEINLINE FUnorderedAccessViewRHIRef CreateUnorderedAccessView(FRHIStructuredBuffer* StructuredBuffer, bool bUseUAVCounter, bool bAppendBuffer)
 	{
 		LLM_SCOPE(ELLMTag::RHIMisc);
-		checkf(Buffer, TEXT("Can't create a view off a null resource!"));
-		return GDynamicRHI->RHICreateUnorderedAccessView_RenderThread(*this, Buffer, bUseUAVCounter, bAppendBuffer);
+		checkf(StructuredBuffer, TEXT("Can't create a view off a null resource!"));
+		return GDynamicRHI->RHICreateUnorderedAccessView_RenderThread(*this, StructuredBuffer, bUseUAVCounter, bAppendBuffer);
 	}
 	
 	FORCEINLINE FUnorderedAccessViewRHIRef CreateUnorderedAccessView(FRHITexture* Texture, uint32 MipLevel)
@@ -4047,31 +4063,45 @@ public:
 		return GDynamicRHI->RHICreateUnorderedAccessView_RenderThread(*this, Texture, MipLevel, Format);
 	}
 
-	FORCEINLINE FUnorderedAccessViewRHIRef CreateUnorderedAccessView(FRHIBuffer* Buffer, uint8 Format)
+	FORCEINLINE FUnorderedAccessViewRHIRef CreateUnorderedAccessView(FRHIVertexBuffer* VertexBuffer, uint8 Format)
 	{
 		LLM_SCOPE(ELLMTag::RHIMisc);
-		checkf(Buffer, TEXT("Can't create a view off a null resource!"));
-		return GDynamicRHI->RHICreateUnorderedAccessView_RenderThread(*this, Buffer, Format);
+		checkf(VertexBuffer, TEXT("Can't create a view off a null resource!"));
+		return GDynamicRHI->RHICreateUnorderedAccessView_RenderThread(*this, VertexBuffer, Format);
 	}
 
-	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceView(FRHIBuffer* Buffer)
+	FORCEINLINE FUnorderedAccessViewRHIRef CreateUnorderedAccessView(FRHIIndexBuffer* IndexBuffer, uint8 Format)
 	{
 		LLM_SCOPE(ELLMTag::RHIMisc);
-		checkf(Buffer, TEXT("Can't create a view off a null resource!"));
-		return GDynamicRHI->RHICreateShaderResourceView_RenderThread(*this, Buffer);
+		checkf(IndexBuffer, TEXT("Can't create a view off a null resource!"));
+		return GDynamicRHI->RHICreateUnorderedAccessView_RenderThread(*this, IndexBuffer, Format);
+	}
+
+	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceView(FRHIStructuredBuffer* StructuredBuffer)
+	{
+		LLM_SCOPE(ELLMTag::RHIMisc);
+		checkf(StructuredBuffer, TEXT("Can't create a view off a null resource!"));
+		return GDynamicRHI->RHICreateShaderResourceView_RenderThread(*this, StructuredBuffer);
 	}
 	
-	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceView(FRHIBuffer* Buffer, uint32 Stride, uint8 Format)
+	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceView(FRHIVertexBuffer* VertexBuffer, uint32 Stride, uint8 Format)
 	{
 		LLM_SCOPE(ELLMTag::RHIMisc);
-		checkf(Buffer, TEXT("Can't create a view off a null resource!"));
-		return GDynamicRHI->CreateShaderResourceView_RenderThread(*this, Buffer, Stride, Format);
+		checkf(VertexBuffer, TEXT("Can't create a view off a null resource!"));
+		return GDynamicRHI->CreateShaderResourceView_RenderThread(*this, VertexBuffer, Stride, Format);
 	}
 	
 	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceView(const FShaderResourceViewInitializer& Initializer)
 	{
 		LLM_SCOPE(ELLMTag::RHIMisc);
 		return GDynamicRHI->CreateShaderResourceView_RenderThread(*this, Initializer);
+	}
+
+	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceView(FRHIIndexBuffer* Buffer)
+	{
+		LLM_SCOPE(ELLMTag::RHIMisc);
+		checkf(Buffer, TEXT("Can't create a view off a null resource!"));
+		return GDynamicRHI->CreateShaderResourceView_RenderThread(*this, Buffer);
 	}
 	
 	FORCEINLINE uint64 CalcTexture2DPlatformSize(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
@@ -4433,7 +4463,7 @@ public:
 		}
 	}
 
-	FORCEINLINE void AcquireTransientResource_RenderThread(FRHIBuffer* Buffer)
+	FORCEINLINE void AcquireTransientResource_RenderThread(FRHIVertexBuffer* Buffer)
 	{
 		if (!Buffer->IsCommitted())
 		{
@@ -4445,7 +4475,31 @@ public:
 		}
 	}
 
-	FORCEINLINE void DiscardTransientResource_RenderThread(FRHIBuffer* Buffer)
+	FORCEINLINE void DiscardTransientResource_RenderThread(FRHIVertexBuffer* Buffer)
+	{
+		if (Buffer->IsCommitted())
+		{
+			if (GSupportsTransientResourceAliasing)
+			{
+				GDynamicRHI->RHIDiscardTransientResource_RenderThread(Buffer);
+			}
+			Buffer->SetCommitted(false);
+		}
+	}
+
+	FORCEINLINE void AcquireTransientResource_RenderThread(FRHIStructuredBuffer* Buffer)
+	{
+		if (!Buffer->IsCommitted())
+		{
+			if (GSupportsTransientResourceAliasing)
+			{
+				GDynamicRHI->RHIAcquireTransientResource_RenderThread(Buffer);
+			}
+			Buffer->SetCommitted(true);
+		}
+	}
+
+	FORCEINLINE void DiscardTransientResource_RenderThread(FRHIStructuredBuffer* Buffer)
 	{
 		if (Buffer->IsCommitted())
 		{
@@ -5091,9 +5145,9 @@ FORCEINLINE void RHIUnlockStructuredBuffer(FRHIStructuredBuffer* StructuredBuffe
 	 FRHICommandListExecutor::GetImmediateCommandList().UnlockStructuredBuffer(StructuredBuffer);
 }
 
-FORCEINLINE FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHIBuffer* Buffer, bool bUseUAVCounter, bool bAppendBuffer)
+FORCEINLINE FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHIStructuredBuffer* StructuredBuffer, bool bUseUAVCounter, bool bAppendBuffer)
 {
-	return FRHICommandListExecutor::GetImmediateCommandList().CreateUnorderedAccessView(Buffer, bUseUAVCounter, bAppendBuffer);
+	return FRHICommandListExecutor::GetImmediateCommandList().CreateUnorderedAccessView(StructuredBuffer, bUseUAVCounter, bAppendBuffer);
 }
 
 FORCEINLINE FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHITexture* Texture, uint32 MipLevel = 0)
@@ -5106,24 +5160,34 @@ FORCEINLINE FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHITexture*
 	return FRHICommandListExecutor::GetImmediateCommandList().CreateUnorderedAccessView(Texture, MipLevel, Format);
 }
 
-FORCEINLINE FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHIBuffer* Buffer, uint8 Format)
+FORCEINLINE FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHIVertexBuffer* VertexBuffer, uint8 Format)
 {
-	return FRHICommandListExecutor::GetImmediateCommandList().CreateUnorderedAccessView(Buffer, Format);
+	return FRHICommandListExecutor::GetImmediateCommandList().CreateUnorderedAccessView(VertexBuffer, Format);
 }
 
-FORCEINLINE FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHIBuffer* Buffer)
+FORCEINLINE FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHIIndexBuffer* IndexBuffer, uint8 Format)
 {
-	return FRHICommandListExecutor::GetImmediateCommandList().CreateShaderResourceView(Buffer);
+	return FRHICommandListExecutor::GetImmediateCommandList().CreateUnorderedAccessView(IndexBuffer, Format);
 }
 
-FORCEINLINE FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHIBuffer* Buffer, uint32 Stride, uint8 Format)
+FORCEINLINE FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHIStructuredBuffer* StructuredBuffer)
 {
-	return FRHICommandListExecutor::GetImmediateCommandList().CreateShaderResourceView(Buffer, Stride, Format);
+	return FRHICommandListExecutor::GetImmediateCommandList().CreateShaderResourceView(StructuredBuffer);
+}
+
+FORCEINLINE FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHIVertexBuffer* VertexBuffer, uint32 Stride, uint8 Format)
+{
+	return FRHICommandListExecutor::GetImmediateCommandList().CreateShaderResourceView(VertexBuffer, Stride, Format);
 }
 
 FORCEINLINE FShaderResourceViewRHIRef RHICreateShaderResourceView(const FShaderResourceViewInitializer& Initializer)
 {
 	return FRHICommandListExecutor::GetImmediateCommandList().CreateShaderResourceView(Initializer);
+}
+
+FORCEINLINE FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHIIndexBuffer* Buffer)
+{
+	return FRHICommandListExecutor::GetImmediateCommandList().CreateShaderResourceView(Buffer);
 }
 
 FORCEINLINE void RHIUpdateRHIResources(FRHIResourceUpdateInfo* UpdateInfos, int32 Num, bool bNeedReleaseRefs)
@@ -5360,12 +5424,22 @@ FORCEINLINE void RHIDiscardTransientResource(FRHITexture* Resource)
 	FRHICommandListExecutor::GetImmediateCommandList().DiscardTransientResource_RenderThread(Resource);
 }
 
-FORCEINLINE void RHIAcquireTransientResource(FRHIBuffer* Resource)
+FORCEINLINE void RHIAcquireTransientResource(FRHIVertexBuffer* Resource)
 {
 	FRHICommandListExecutor::GetImmediateCommandList().AcquireTransientResource_RenderThread(Resource);
 }
 
-FORCEINLINE void RHIDiscardTransientResource(FRHIBuffer* Resource)
+FORCEINLINE void RHIDiscardTransientResource(FRHIVertexBuffer* Resource)
+{
+	FRHICommandListExecutor::GetImmediateCommandList().DiscardTransientResource_RenderThread(Resource);
+}
+
+FORCEINLINE void RHIAcquireTransientResource(FRHIStructuredBuffer* Resource)
+{
+	FRHICommandListExecutor::GetImmediateCommandList().AcquireTransientResource_RenderThread(Resource);
+}
+
+FORCEINLINE void RHIDiscardTransientResource(FRHIStructuredBuffer* Resource)
 {
 	FRHICommandListExecutor::GetImmediateCommandList().DiscardTransientResource_RenderThread(Resource);
 }
@@ -5455,39 +5529,51 @@ struct TRHIResourceUpdateBatcher
 		}
 	}
 
-	void QueueUpdateRequest(FRHIBuffer* DestBuffer, FRHIBuffer* SrcBuffer)
+	void QueueUpdateRequest(FRHIVertexBuffer* DestVertexBuffer, FRHIVertexBuffer* SrcVertexBuffer)
 	{
 		FRHIResourceUpdateInfo& UpdateInfo = GetNextUpdateInfo();
-		UpdateInfo.Type = FRHIResourceUpdateInfo::UT_Buffer;
-		UpdateInfo.Buffer = { DestBuffer, SrcBuffer };
-		DestBuffer->AddRef();
-		if (SrcBuffer)
+		UpdateInfo.Type = FRHIResourceUpdateInfo::UT_VertexBuffer;
+		UpdateInfo.VertexBuffer = { DestVertexBuffer, SrcVertexBuffer };
+		DestVertexBuffer->AddRef();
+		if (SrcVertexBuffer)
 		{
-			SrcBuffer->AddRef();
+			SrcVertexBuffer->AddRef();
 		}
 	}
 
-	void QueueUpdateRequest(FRHIShaderResourceView* SRV, FRHIBuffer* Buffer, uint32 Stride, uint8 Format)
+	void QueueUpdateRequest(FRHIIndexBuffer* DestIndexBuffer, FRHIIndexBuffer* SrcIndexBuffer)
 	{
 		FRHIResourceUpdateInfo& UpdateInfo = GetNextUpdateInfo();
-		UpdateInfo.Type = FRHIResourceUpdateInfo::UT_BufferFormatSRV;
-		UpdateInfo.BufferSRV = { SRV, Buffer, Stride, Format };
-		SRV->AddRef();
-		if (Buffer)
+		UpdateInfo.Type = FRHIResourceUpdateInfo::UT_IndexBuffer;
+		UpdateInfo.IndexBuffer = { DestIndexBuffer, SrcIndexBuffer };
+		DestIndexBuffer->AddRef();
+		if (SrcIndexBuffer)
 		{
-			Buffer->AddRef();
+			SrcIndexBuffer->AddRef();
 		}
 	}
 
-	void QueueUpdateRequest(FRHIShaderResourceView* SRV, FRHIBuffer* Buffer)
+	void QueueUpdateRequest(FRHIShaderResourceView* SRV, FRHIVertexBuffer* VertexBuffer, uint32 Stride, uint8 Format)
 	{
 		FRHIResourceUpdateInfo& UpdateInfo = GetNextUpdateInfo();
-		UpdateInfo.Type = FRHIResourceUpdateInfo::UT_BufferSRV;
-		UpdateInfo.BufferSRV = { SRV, Buffer };
+		UpdateInfo.Type = FRHIResourceUpdateInfo::UT_VertexBufferSRV;
+		UpdateInfo.VertexBufferSRV = { SRV, VertexBuffer, Stride, Format };
 		SRV->AddRef();
-		if (Buffer)
+		if (VertexBuffer)
 		{
-			Buffer->AddRef();
+			VertexBuffer->AddRef();
+		}
+	}
+
+	void QueueUpdateRequest(FRHIShaderResourceView* SRV, FRHIIndexBuffer* IndexBuffer)
+	{
+		FRHIResourceUpdateInfo& UpdateInfo = GetNextUpdateInfo();
+		UpdateInfo.Type = FRHIResourceUpdateInfo::UT_IndexBufferSRV;
+		UpdateInfo.IndexBufferSRV = { SRV, IndexBuffer };
+		SRV->AddRef();
+		if (IndexBuffer)
+		{
+			IndexBuffer->AddRef();
 		}
 	}
 

@@ -60,28 +60,14 @@ static FORCEINLINE void UpdateVulkanBufferStats(uint64_t Size, VkBufferUsageFlag
 	}
 }
 
-FVulkanResourceMultiBuffer::FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, uint32 InSize, uint32 InUEUsage, uint32 InStride, FRHIResourceCreateInfo& CreateInfo, class FRHICommandListImmediate* InRHICmdList)
-	: FRHIBuffer(InSize, InUEUsage, InStride)
-	, VulkanRHI::FDeviceChild(InDevice)
+FVulkanResourceMultiBuffer::FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, VkBufferUsageFlags InBufferUsageFlags, uint32 InSize, uint32 InUEUsage, FRHIResourceCreateInfo& CreateInfo, class FRHICommandListImmediate* InRHICmdList)
+	: VulkanRHI::FDeviceChild(InDevice)
 	, UEUsage(InUEUsage)
-	, BufferUsageFlags(0)
+	, BufferUsageFlags(InBufferUsageFlags)
 	, NumBuffers(0)
 	, DynamicBufferIndex(0)
 {
 	VULKAN_TRACK_OBJECT_CREATE(FVulkanResourceMultiBuffer, this);
-
-	if ((InUEUsage & BUF_VertexBuffer) != 0)
-	{
-		BufferUsageFlags |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-	}
-	if ((InUEUsage & BUF_IndexBuffer) != 0)
-	{
-		BufferUsageFlags |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-	}
-	if ((InUEUsage & BUF_StructuredBuffer) != 0)
-	{
-		BufferUsageFlags |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-	}
 
 	if (InSize > 0)
 	{
@@ -89,7 +75,7 @@ FVulkanResourceMultiBuffer::FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, 
 		const bool bDynamic = (InUEUsage & BUF_Dynamic) != 0;
 		const bool bVolatile = (InUEUsage & BUF_Volatile) != 0;
 		const bool bShaderResource = (InUEUsage & BUF_ShaderResource) != 0;
-		const bool bIsUniformBuffer = (BufferUsageFlags & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT) != 0;
+		const bool bIsUniformBuffer = (InBufferUsageFlags & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT) != 0;
 		const bool bUAV = (InUEUsage & BUF_UnorderedAccess) != 0;
 		const bool bIndirect = (InUEUsage & BUF_DrawIndirect) == BUF_DrawIndirect;
 		const bool bCPUReadable = (UEUsage & BUF_KeepCPUAccessible) != 0;
@@ -153,7 +139,7 @@ FVulkanResourceMultiBuffer::FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, 
 				CreateInfo.ResourceArray->Discard();
 			}
 
-			UpdateVulkanBufferStats(InSize * NumBuffers, BufferUsageFlags, true);
+			UpdateVulkanBufferStats(InSize * NumBuffers, InBufferUsageFlags, true);
 		}
 	}
 }
@@ -161,16 +147,16 @@ FVulkanResourceMultiBuffer::FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, 
 FVulkanResourceMultiBuffer::~FVulkanResourceMultiBuffer()
 {
 	VULKAN_TRACK_OBJECT_DELETE(FVulkanResourceMultiBuffer, this);
-	uint64_t TotalSize = 0;
+	uint64_t Size = 0;
 	for (uint32 Index = 0; Index < NumBuffers; ++Index)
 	{
-		TotalSize += Buffers[Index].Size;
+		Size += Buffers[Index].Size;
 		Device->GetMemoryManager().FreeVulkanAllocation(Buffers[Index]);
 	}
-	UpdateVulkanBufferStats(TotalSize, BufferUsageFlags, false);
+	UpdateVulkanBufferStats(Size, BufferUsageFlags, false);
 }
 
-void* FVulkanResourceMultiBuffer::Lock(bool bFromRenderingThread, EResourceLockMode LockMode, uint32 LockSize, uint32 Offset)
+void* FVulkanResourceMultiBuffer::Lock(bool bFromRenderingThread, EResourceLockMode LockMode, uint32 Size, uint32 Offset)
 {
 	void* Data = nullptr;
 
@@ -190,14 +176,14 @@ void* FVulkanResourceMultiBuffer::Lock(bool bFromRenderingThread, EResourceLockM
 		}
 		else
 		{
-			Device->GetImmediateContext().GetTempFrameAllocationBuffer().Alloc(LockSize + Offset, 256, VolatileLockInfo);
+			Device->GetImmediateContext().GetTempFrameAllocationBuffer().Alloc(Size + Offset, 256, VolatileLockInfo);
 			Data = VolatileLockInfo.Data;
 			++VolatileLockInfo.LockCounter;
 			check(!VolatileLockInfo.Allocation.HasAllocation());
 			Current.Alloc = VolatileLockInfo.Allocation;
 			Current.Handle = Current.Alloc.GetBufferHandle();
 			Current.Offset = VolatileLockInfo.CurrentOffset + Current.Alloc.Offset;
-			Current.Size = LockSize;
+			Current.Size = Size;
 		}
 	}
 	else
@@ -222,11 +208,11 @@ void* FVulkanResourceMultiBuffer::Lock(bool bFromRenderingThread, EResourceLockM
 				VulkanRHI::vkCmdPipelineBarrier(CmdBuffer->GetHandle(), VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 1, &BarrierBefore, 0, nullptr, 0, nullptr);
 
 				// Create a staging buffer we can use to copy data from device to cpu.
-				VulkanRHI::FStagingBuffer* StagingBuffer = Device->GetStagingManager().AcquireBuffer(LockSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+				VulkanRHI::FStagingBuffer* StagingBuffer = Device->GetStagingManager().AcquireBuffer(Size, VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 
 				// Fill the staging buffer with the data on the device.
 				VkBufferCopy Regions;
-				Regions.size = LockSize;
+				Regions.size = Size;
 				Regions.srcOffset = Offset;
 				Regions.dstOffset = 0;
 
@@ -249,7 +235,7 @@ void* FVulkanResourceMultiBuffer::Lock(bool bFromRenderingThread, EResourceLockM
 				// Release temp staging buffer during unlock.
 				VulkanRHI::FPendingBufferLock PendingLock;
 				PendingLock.Offset = 0;
-				PendingLock.Size = LockSize;
+				PendingLock.Size = Size;
 				PendingLock.LockMode = LockMode;
 				PendingLock.StagingBuffer = StagingBuffer;
 
@@ -269,7 +255,7 @@ void* FVulkanResourceMultiBuffer::Lock(bool bFromRenderingThread, EResourceLockM
 			Current.Alloc.Reference(Buffers[DynamicBufferIndex]);		
 			Current.Handle = (VkBuffer)Current.Alloc.VulkanHandle;
 			Current.Offset = Current.Alloc.Offset;
-			Current.Size = LockSize;
+			Current.Size = Size;
 
 			const bool bUnifiedMem = Device->HasUnifiedMemory();
 			if (bUnifiedMem)
@@ -280,10 +266,10 @@ void* FVulkanResourceMultiBuffer::Lock(bool bFromRenderingThread, EResourceLockM
 			{
 				VulkanRHI::FPendingBufferLock PendingLock;
 				PendingLock.Offset = Offset;
-				PendingLock.Size = LockSize;
+				PendingLock.Size = Size;
 				PendingLock.LockMode = LockMode;
 
-				VulkanRHI::FStagingBuffer* StagingBuffer = Device->GetStagingManager().AcquireBuffer(LockSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+				VulkanRHI::FStagingBuffer* StagingBuffer = Device->GetStagingManager().AcquireBuffer(Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 				PendingLock.StagingBuffer = StagingBuffer;
 				Data = StagingBuffer->GetMappedPointer();
 
@@ -409,23 +395,38 @@ void FVulkanResourceMultiBuffer::Unlock(bool bFromRenderingThread)
 
 void FVulkanResourceMultiBuffer::Swap(FVulkanResourceMultiBuffer& Other)
 {
-	FRHIBuffer::Swap(Other);
 	::Swap(*this, Other);
 }
+
+
+FVulkanIndexBuffer::FVulkanIndexBuffer(FVulkanDevice* InDevice, uint32 InStride, uint32 InSize, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo, class FRHICommandListImmediate* InRHICmdList)
+	: FRHIIndexBuffer(InStride, InSize, InUsage)
+	, FVulkanResourceMultiBuffer(InDevice, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, InSize, InUsage, CreateInfo, InRHICmdList)
+	, IndexType(InStride == 4 ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16)
+{
+}
+
+void FVulkanIndexBuffer::Swap(FVulkanIndexBuffer& Other)
+{
+	FRHIIndexBuffer::Swap(Other);
+	FVulkanResourceMultiBuffer::Swap(Other);
+	::Swap(IndexType, Other.IndexType);
+}
+
 
 FIndexBufferRHIRef FVulkanDynamicRHI::RHICreateIndexBuffer(uint32 Stride, uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
 	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanIndexBuffers);
 	if (CreateInfo.bWithoutNativeResource)
 	{
-		return new FVulkanResourceMultiBuffer(nullptr, 0, 0, 0, CreateInfo, nullptr);
+		return new FVulkanIndexBuffer(nullptr, 0, 0, 0, CreateInfo, nullptr);
 	}
-	return new FVulkanResourceMultiBuffer(Device, Size, InUsage | BUF_IndexBuffer, Stride, CreateInfo, nullptr);
+	return new FVulkanIndexBuffer(Device, Stride, Size, InUsage, CreateInfo, nullptr);
 }
 
 void* FVulkanDynamicRHI::LockIndexBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* IndexBufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
 {
-	FVulkanResourceMultiBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
+	FVulkanIndexBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
 	return IndexBuffer->Lock(false, LockMode, Size, Offset);
 }
 
@@ -438,7 +439,7 @@ void* FVulkanDynamicRHI::LockIndexBuffer_RenderThread(class FRHICommandListImmed
 
 void FVulkanDynamicRHI::UnlockIndexBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* IndexBufferRHI)
 {
-	FVulkanResourceMultiBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
+	FVulkanIndexBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
 	IndexBuffer->Unlock(false);
 }
 
@@ -449,19 +450,19 @@ void FVulkanDynamicRHI::UnlockIndexBuffer_RenderThread(FRHICommandListImmediate&
 }
 #endif
 
-void FVulkanDynamicRHI::RHITransferBufferUnderlyingResource(FRHIBuffer* DestBuffer, FRHIBuffer* SrcBuffer)
+void FVulkanDynamicRHI::RHITransferIndexBufferUnderlyingResource(FRHIIndexBuffer* DestIndexBuffer, FRHIIndexBuffer* SrcIndexBuffer)
 {
-	check(DestBuffer);
-	FVulkanResourceMultiBuffer* Dest = ResourceCast(DestBuffer);
-	if (!SrcBuffer)
+	check(DestIndexBuffer);
+	FVulkanIndexBuffer* Dest = ResourceCast(DestIndexBuffer);
+	if (!SrcIndexBuffer)
 	{
 		FRHIResourceCreateInfo CreateInfo;
-		TRefCountPtr<FVulkanResourceMultiBuffer> DeletionProxy = new FVulkanResourceMultiBuffer(Dest->GetParent(), 0, 0, 0, CreateInfo, nullptr);
+		TRefCountPtr<FVulkanIndexBuffer> DeletionProxy = new FVulkanIndexBuffer(Dest->GetParent(), 0, 0, 0, CreateInfo, nullptr);
 		Dest->Swap(*DeletionProxy);
 	}
 	else
 	{
-		FVulkanResourceMultiBuffer* Src = ResourceCast(SrcBuffer);
+		FVulkanIndexBuffer* Src = ResourceCast(SrcIndexBuffer);
 		Dest->Swap(*Src);
 	}
 }

@@ -6,7 +6,7 @@
 
 #include "D3D12RHIPrivate.h"
 
-static FORCEINLINE D3D12_SHADER_RESOURCE_VIEW_DESC GetVertexBufferSRVDesc(FD3D12Buffer* VertexBuffer, uint32& CreationStride, uint8 Format, uint32 StartOffsetBytes, uint32 NumElements)
+static FORCEINLINE D3D12_SHADER_RESOURCE_VIEW_DESC GetVertexBufferSRVDesc(FD3D12VertexBuffer* VertexBuffer, uint32& CreationStride, uint8 Format, uint32 StartOffsetBytes, uint32 NumElements)
 {
 	const uint32 BufferSize = VertexBuffer->GetSize();
 	const uint64 BufferOffset = VertexBuffer->ResourceLocation.GetOffsetFromBaseOfResource();
@@ -40,7 +40,7 @@ static FORCEINLINE D3D12_SHADER_RESOURCE_VIEW_DESC GetVertexBufferSRVDesc(FD3D12
 	return SRVDesc;
 }
 
-static FORCEINLINE D3D12_SHADER_RESOURCE_VIEW_DESC GetIndexBufferSRVDesc(FD3D12Buffer* IndexBuffer, uint32 StartOffsetBytes, uint32 NumElements)
+static FORCEINLINE D3D12_SHADER_RESOURCE_VIEW_DESC GetIndexBufferSRVDesc(FD3D12IndexBuffer* IndexBuffer, uint32 StartOffsetBytes, uint32 NumElements)
 {
 	const uint32 Usage = IndexBuffer->GetUsage();
 	const uint32 Width = IndexBuffer->GetSize();
@@ -186,32 +186,22 @@ uint64 FD3D12DynamicRHI::RHIGetMinimumAlignmentForBufferBackedSRV(EPixelFormat F
 
 FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(const FShaderResourceViewInitializer& Initializer)
 {
-	FShaderResourceViewInitializer::FBufferShaderResourceViewInitializer Desc = Initializer.AsBufferSRV();
-
-	if (!Desc.Buffer)
-	{
-		return GetAdapter().CreateLinkedObject<FD3D12ShaderResourceView>(FRHIGPUMask::All(), [](FD3D12Device* Device)
-			{
-				return new FD3D12ShaderResourceView(nullptr);
-			});
-	}
-
-	FD3D12Buffer* Buffer = FD3D12DynamicRHI::ResourceCast(Desc.Buffer);
-
 	switch (Initializer.GetType())
 	{
 		case FShaderResourceViewInitializer::EType::VertexBufferSRV:
 		{
+			FShaderResourceViewInitializer::FVertexBufferShaderResourceViewInitializer Desc = Initializer.AsVertexBufferSRV();
+
 			struct FD3D12InitializeVertexBufferSRVRHICommand final : public FRHICommand<FD3D12InitializeVertexBufferSRVRHICommand>
 			{
-				FD3D12Buffer* VertexBuffer;
+				FD3D12VertexBuffer* VertexBuffer;
 				FD3D12ShaderResourceView* SRV;
 
 				uint32 StartOffsetBytes;
 				uint32 NumElements;
 				uint8 Format;
 
-				FD3D12InitializeVertexBufferSRVRHICommand(FD3D12Buffer* InVertexBuffer, FD3D12ShaderResourceView* InSRV, uint32 InStartOffsetBytes, uint32 InNumElements, uint8 InFormat)
+				FD3D12InitializeVertexBufferSRVRHICommand(FD3D12VertexBuffer* InVertexBuffer, FD3D12ShaderResourceView* InSRV, uint32 InStartOffsetBytes, uint32 InNumElements, uint8 InFormat)
 					: VertexBuffer(InVertexBuffer)
 					, SRV(InSRV)
 					, StartOffsetBytes(InStartOffsetBytes)
@@ -230,26 +220,35 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(const FS
 				}
 			};
 
-			return GetAdapter().CreateLinkedViews<FD3D12Buffer, FD3D12ShaderResourceView>(Buffer,
-				[Desc](FD3D12Buffer* Buffer)
-				{
-					check(Buffer);
+			if (!Desc.VertexBuffer)
+			{
+				return GetAdapter().CreateLinkedObject<FD3D12ShaderResourceView>(FRHIGPUMask::All(), [](FD3D12Device* Device)
+					{
+						return new FD3D12ShaderResourceView(nullptr);
+					});
+			}
 
-					FD3D12ShaderResourceView* ShaderResourceView = new FD3D12ShaderResourceView(Buffer->GetParentDevice());
+			FD3D12VertexBuffer* VertexBuffer = FD3D12DynamicRHI::ResourceCast(Desc.VertexBuffer);
+			return GetAdapter().CreateLinkedViews<FD3D12VertexBuffer, FD3D12ShaderResourceView>(VertexBuffer,
+				[Desc](FD3D12VertexBuffer* VertexBuffer)
+				{
+					check(VertexBuffer);
+
+					FD3D12ShaderResourceView* ShaderResourceView = new FD3D12ShaderResourceView(VertexBuffer->GetParentDevice());
 					
 					uint32 Stride = GPixelFormats[Desc.Format].BlockBytes;
 					FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-					if (ShouldDeferBufferLockOperation(&RHICmdList) && (Buffer->GetUsage() & BUF_AnyDynamic))
+					if (ShouldDeferBufferLockOperation(&RHICmdList) && (VertexBuffer->GetUsage() & BUF_AnyDynamic))
 					{
 						// We have to defer the SRV initialization to the RHI thread if the buffer is dynamic (and RHI threading is enabled), as dynamic buffers can be renamed.
 						// Also insert an RHI thread fence to prevent parallel translate tasks running until this command has completed.
-						ALLOC_COMMAND_CL(RHICmdList, FD3D12InitializeVertexBufferSRVRHICommand)(Buffer, ShaderResourceView, Desc.StartOffsetBytes, Desc.NumElements, Desc.Format);
+						ALLOC_COMMAND_CL(RHICmdList, FD3D12InitializeVertexBufferSRVRHICommand)(VertexBuffer, ShaderResourceView, Desc.StartOffsetBytes, Desc.NumElements, Desc.Format);
 						RHICmdList.RHIThreadFence(true);
 					}
 					else
 					{
 						// Run the command directly if we're bypassing RHI command list recording, or the buffer is not dynamic.
-						FD3D12InitializeVertexBufferSRVRHICommand Command(Buffer, ShaderResourceView, Desc.StartOffsetBytes, Desc.NumElements, Desc.Format);
+						FD3D12InitializeVertexBufferSRVRHICommand Command(VertexBuffer, ShaderResourceView, Desc.StartOffsetBytes, Desc.NumElements, Desc.Format);
 						Command.Execute(RHICmdList);
 					}
 
@@ -259,14 +258,16 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(const FS
 
 		case FShaderResourceViewInitializer::EType::StructuredBufferSRV:
 		{
+			FShaderResourceViewInitializer::FStructuredBufferShaderResourceViewInitializer Desc = Initializer.AsStructuredBufferSRV();
+
 			struct FD3D12InitializeStructuredBufferSRVRHICommand final : public FRHICommand<FD3D12InitializeStructuredBufferSRVRHICommand>
 			{
-				FD3D12Buffer* StructuredBuffer;
+				FD3D12StructuredBuffer* StructuredBuffer;
 				FD3D12ShaderResourceView* SRV;
 				uint32 StartOffsetBytes;
 				uint32 NumElements;
 
-				FD3D12InitializeStructuredBufferSRVRHICommand(FD3D12Buffer* InStructuredBuffer, FD3D12ShaderResourceView* InSRV, uint32 InStartOffsetBytes, uint32 InNumElements)
+				FD3D12InitializeStructuredBufferSRVRHICommand(FD3D12StructuredBuffer* InStructuredBuffer, FD3D12ShaderResourceView* InSRV, uint32 InStartOffsetBytes, uint32 InNumElements)
 					: StructuredBuffer(InStructuredBuffer)
 					, SRV(InSRV)
 					, StartOffsetBytes(InStartOffsetBytes)
@@ -314,25 +315,27 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(const FS
 				}
 			};
 
-			return GetAdapter().CreateLinkedViews<FD3D12Buffer,
-				FD3D12ShaderResourceView>(Buffer, [Desc](FD3D12Buffer* Buffer)
-					{
-						check(Buffer);
+			FD3D12StructuredBuffer*  StructuredBuffer = FD3D12DynamicRHI::ResourceCast(Desc.StructuredBuffer);
 
-						FD3D12ShaderResourceView* ShaderResourceView = new FD3D12ShaderResourceView(Buffer->GetParentDevice());
+			return GetAdapter().CreateLinkedViews<FD3D12StructuredBuffer,
+				FD3D12ShaderResourceView>(StructuredBuffer, [Desc](FD3D12StructuredBuffer* StructuredBuffer)
+					{
+						check(StructuredBuffer);
+
+						FD3D12ShaderResourceView* ShaderResourceView = new FD3D12ShaderResourceView(StructuredBuffer->GetParentDevice());
 
 						FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-						if (ShouldDeferBufferLockOperation(&RHICmdList) && (Buffer->GetUsage() & BUF_AnyDynamic))
+						if (ShouldDeferBufferLockOperation(&RHICmdList) && (StructuredBuffer->GetUsage() & BUF_AnyDynamic))
 						{
 							// We have to defer the SRV initialization to the RHI thread if the buffer is dynamic (and RHI threading is enabled), as dynamic buffers can be renamed.
 							// Also insert an RHI thread fence to prevent parallel translate tasks running until this command has completed.
-							ALLOC_COMMAND_CL(RHICmdList, FD3D12InitializeStructuredBufferSRVRHICommand)(Buffer, ShaderResourceView, Desc.StartOffsetBytes, Desc.NumElements);
+							ALLOC_COMMAND_CL(RHICmdList, FD3D12InitializeStructuredBufferSRVRHICommand)(StructuredBuffer, ShaderResourceView, Desc.StartOffsetBytes, Desc.NumElements);
 							RHICmdList.RHIThreadFence(true);
 						}
 						else
 						{
 							// Run the command directly if we're bypassing RHI command list recording, or the buffer is not dynamic.
-							FD3D12InitializeStructuredBufferSRVRHICommand Command(Buffer, ShaderResourceView, Desc.StartOffsetBytes, Desc.NumElements);
+							FD3D12InitializeStructuredBufferSRVRHICommand Command(StructuredBuffer, ShaderResourceView, Desc.StartOffsetBytes, Desc.NumElements);
 							Command.Execute(RHICmdList);
 						}
 
@@ -342,16 +345,27 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(const FS
 
 		case FShaderResourceViewInitializer::EType::IndexBufferSRV:
 		{
-			return GetAdapter().CreateLinkedViews<FD3D12Buffer, FD3D12ShaderResourceView>(Buffer,
-			[Desc](FD3D12Buffer* Buffer)
+			FShaderResourceViewInitializer::FIndexBufferShaderResourceViewInitializer Desc = Initializer.AsIndexBufferSRV();
+
+			if (!Desc.IndexBuffer)
 			{
-				check(Buffer);
+				return GetAdapter().CreateLinkedObject<FD3D12ShaderResourceView>(FRHIGPUMask::All(), [](FD3D12Device* Device)
+					{
+						return new FD3D12ShaderResourceView(nullptr);
+					});
+			}
 
-				FD3D12ResourceLocation& Location = Buffer->ResourceLocation;
-				const uint32 CreationStride = Buffer->GetStride();
-				D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = GetIndexBufferSRVDesc(Buffer, Desc.StartOffsetBytes, Desc.NumElements);
+			FD3D12IndexBuffer* IndexBuffer = FD3D12DynamicRHI::ResourceCast(Desc.IndexBuffer);
+			return GetAdapter().CreateLinkedViews<FD3D12IndexBuffer, FD3D12ShaderResourceView>(IndexBuffer,
+			[Desc](FD3D12IndexBuffer* IndexBuffer)
+			{
+				check(IndexBuffer);
 
-				FD3D12ShaderResourceView* ShaderResourceView = new FD3D12ShaderResourceView(Buffer->GetParentDevice(), SRVDesc, Location, CreationStride);
+				FD3D12ResourceLocation& Location = IndexBuffer->ResourceLocation;
+				const uint32 CreationStride = IndexBuffer->GetStride();
+				D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = GetIndexBufferSRVDesc(IndexBuffer, Desc.StartOffsetBytes, Desc.NumElements);
+
+				FD3D12ShaderResourceView* ShaderResourceView = new FD3D12ShaderResourceView(IndexBuffer->GetParentDevice(), SRVDesc, Location, CreationStride);
 				return ShaderResourceView;
 			});
 		}
@@ -361,17 +375,23 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(const FS
 	return nullptr;
 }
 
-void FD3D12DynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FRHIBuffer* BufferRHI, uint32 Stride, uint8 Format)
+FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(FRHIIndexBuffer* BufferRHI)
+{
+	return FD3D12DynamicRHI::RHICreateShaderResourceView(FShaderResourceViewInitializer(BufferRHI));
+}
+
+void FD3D12DynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FRHIVertexBuffer* VertexBuffer, uint32 Stride, uint8 Format)
 {
 	check(SRV);
-	if (BufferRHI)
+	if (VertexBuffer)
 	{
-		FD3D12Buffer* Buffer = ResourceCast(BufferRHI);
+		FD3D12VertexBuffer* VBD3D12 = ResourceCast(VertexBuffer);
 		FD3D12ShaderResourceView* SRVD3D12 = ResourceCast(SRV);
-		D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = GetVertexBufferSRVDesc(Buffer, Stride, Format, 0, UINT32_MAX);
+		D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = GetVertexBufferSRVDesc(VBD3D12, Stride, Format, 0, UINT32_MAX);
 
 		// Rename the SRV to view on the new vertex buffer
-		for (auto It = MakeDualLinkedObjectIterator(Buffer, SRVD3D12); It; ++It)
+		FD3D12Buffer* Buffer = VBD3D12;
+		for (auto It = MakeDualLinkedObjectIterator(VBD3D12, SRVD3D12); It; ++It)
 		{
 			Buffer = It.GetFirst();
 			SRVD3D12 = It.GetSecond();
@@ -383,18 +403,19 @@ void FD3D12DynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, 
 	}
 }
 
-void FD3D12DynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FRHIBuffer* BufferRHI)
+void FD3D12DynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FRHIIndexBuffer* IndexBuffer)
 {
 	check(SRV);
-	if (BufferRHI)
+	if (IndexBuffer)
 	{
-		FD3D12Buffer* Buffer = ResourceCast(BufferRHI);
+		FD3D12IndexBuffer* IBD3D12 = ResourceCast(IndexBuffer);
 		FD3D12ShaderResourceView* SRVD3D12 = ResourceCast(SRV);
-		D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = GetIndexBufferSRVDesc(Buffer, 0, UINT32_MAX);
-		const uint32 Stride = Buffer->GetStride();
+		D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = GetIndexBufferSRVDesc(IBD3D12, 0, UINT32_MAX);
+		const uint32 Stride = IBD3D12->GetStride();
 
 		// Rename the SRV to view on the new index buffer
-		for (auto It = MakeDualLinkedObjectIterator(Buffer, SRVD3D12); It; ++It)
+		FD3D12Buffer* Buffer = IBD3D12;
+		for (auto It = MakeDualLinkedObjectIterator(IBD3D12, SRVD3D12); It; ++It)
 		{
 			Buffer = It.GetFirst();
 			SRVD3D12 = It.GetSecond();
@@ -410,9 +431,9 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView_RenderTh
 	return RHICreateShaderResourceView(Texture, CreateInfo);
 }
 
-FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView_RenderThread(FRHICommandListImmediate& RHICmdList, FRHIBuffer* BufferRHI, uint32 Stride, uint8 Format)
+FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView_RenderThread(FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBufferRHI, uint32 Stride, uint8 Format)
 {
-	return RHICreateShaderResourceView(BufferRHI, Stride, Format);
+	return RHICreateShaderResourceView(VertexBufferRHI, Stride, Format);
 }
 
 FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView_RenderThread(FRHICommandListImmediate& RHICmdList, const FShaderResourceViewInitializer& Initializer)
@@ -420,9 +441,9 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView_RenderTh
 	return RHICreateShaderResourceView(Initializer);
 }
 
-FShaderResourceViewRHIRef FD3D12DynamicRHI::CreateShaderResourceView_RenderThread(FRHICommandListImmediate& RHICmdList, FRHIBuffer* BufferRHI, uint32 Stride, uint8 Format)
+FShaderResourceViewRHIRef FD3D12DynamicRHI::CreateShaderResourceView_RenderThread(FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBufferRHI, uint32 Stride, uint8 Format)
 {
-	return RHICreateShaderResourceView_RenderThread(RHICmdList, BufferRHI, Stride, Format);
+	return RHICreateShaderResourceView_RenderThread(RHICmdList, VertexBufferRHI, Stride, Format);
 }
 
 FShaderResourceViewRHIRef FD3D12DynamicRHI::CreateShaderResourceView_RenderThread(FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* Buffer)
@@ -435,9 +456,9 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::CreateShaderResourceView_RenderThrea
 	return RHICreateShaderResourceView_RenderThread(RHICmdList, Initializer);
 }
 
-FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView_RenderThread(FRHICommandListImmediate& RHICmdList, FRHIBuffer* BufferRHI)
+FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView_RenderThread(FRHICommandListImmediate& RHICmdList, FRHIStructuredBuffer* StructuredBufferRHI)
 {
-	return RHICreateShaderResourceView(BufferRHI);
+	return RHICreateShaderResourceView(StructuredBufferRHI);
 }
 
 FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceViewWriteMask_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture2D)
