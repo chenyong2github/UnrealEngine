@@ -38,7 +38,7 @@ public:
 		FFractureEditorModeToolkit* Toolkit;
 };
 
-class FFractureEditorModeToolkit : public FModeToolkit, public FGCObject
+class FRACTUREEDITOR_API FFractureEditorModeToolkit : public FModeToolkit, public FGCObject
 {
 public:
 
