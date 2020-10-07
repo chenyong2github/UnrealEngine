@@ -35,6 +35,7 @@ class nDisplayMonitor(QAbstractTableModel):
             'HouseSync',
             'SyncSource',
             'Mosaics',
+            'ExeFlags'
         ]
 
     def reset_device_data(self, device, data):
@@ -258,6 +259,8 @@ class nDisplayMonitor(QAbstractTableModel):
             if time_since_flip_glitch < 1*60:
                 data['FlipMode'] = data['FlipMode'].split('\n')[0] + '\n' + str(int(time_since_flip_glitch))
 
+        # Show Exe flags (like Disable Fullscreen Optimization)
+        data['ExeFlags'] = '\n'.join([layer for layer in message['syncStatus']['programLayers'][1:]])
 
     def on_get_sync_status(self, device, message):
         ''' Called when the listener has sent a message with the sync status

@@ -13,6 +13,7 @@
 #include "Common/TcpListener.h"
 #include "GenericPlatform/GenericPlatformMisc.h"
 #include "GenericPlatform/GenericPlatformProcess.h"
+#include "HAL/FileManager.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "IPAddress.h"
 #include "Misc/Base64.h"
@@ -20,7 +21,17 @@
 #include "Misc/Paths.h"
 
 #if PLATFORM_WINDOWS
+
+#pragma warning(push)
+#pragma warning(disable : 4005)	// Disable macro redefinition warning for compatibility with Windows SDK 8+
+
+#include "Windows/AllowWindowsPlatformTypes.h"
+#include <winreg.h>
 #include "nvapi.h"
+#include "Windows/HideWindowsPlatformTypes.h"
+
+#pragma warning(pop)
+
 #endif // PLATFORM_WINDOWS
 
 
@@ -74,6 +85,7 @@ struct FRunningProcess
 	TArray<uint8> Output;
 
 	FIPv4Endpoint Recipient;
+	FString Path;
 };
 
 FSwitchboardListener::FSwitchboardListener(const FIPv4Endpoint& InEndpoint)
@@ -280,6 +292,7 @@ bool FSwitchboardListener::StartProcess(const FSwitchboardStartTask& InRunTask)
 {
 	FRunningProcess NewProcess = {};
 	NewProcess.Recipient = InRunTask.Recipient;
+	NewProcess.Path = InRunTask.Command;
 
 	if (!FPlatformProcess::CreatePipe(NewProcess.ReadPipe, NewProcess.WritePipe))
 	{
@@ -654,7 +667,6 @@ static void FillOutMosaicTopologies(FSyncStatus& SyncStatus)
 }
 #endif // PLATFORM_WINDOWS
 
-#if PLATFORM_WINDOWS
 FRunningProcess* FSwitchboardListener::FindOrStartFlipModeMonitorForUUID(const FGuid& UUID)
 {
 	// See if the associated FlipModeMonitor is running
@@ -699,14 +711,14 @@ FRunningProcess* FSwitchboardListener::FindOrStartFlipModeMonitorForUUID(const F
 	const int32 PriorityModifier = 0;
 	const TCHAR* WorkingDirectory = nullptr;
 
-	FString Command = FPaths::EngineSourceDir() / TEXT("Programs") / TEXT("SwitchboardListener") / TEXT("ThirdParty") / TEXT("PresentMon") / TEXT("PresentMon64-1.5.2.exe");
+	MonitorProcess.Path = FPaths::EngineSourceDir() / TEXT("Programs") / TEXT("SwitchboardListener") / TEXT("ThirdParty") / TEXT("PresentMon") / TEXT("PresentMon64-1.5.2.exe");
 
 	FString Arguments = 
 		FString::Printf(TEXT("-session_name session_%d -output_stdout -dont_restart_as_admin -terminate_on_proc_exit -stop_existing_session -process_id %d"), 
 		Process->PID, Process->PID);
 
 	MonitorProcess.Handle = FPlatformProcess::CreateProc(
-		*Command,
+		*MonitorProcess.Path,
 		*Arguments,
 		bLaunchDetached,
 		bLaunchHidden,
@@ -724,24 +736,23 @@ FRunningProcess* FSwitchboardListener::FindOrStartFlipModeMonitorForUUID(const F
 		FPlatformProcess::ClosePipe(MonitorProcess.ReadPipe, MonitorProcess.WritePipe);
 
 		// Log error
-		const FString ErrorMsg = FString::Printf(TEXT("Could not start FlipMode monitor  %s"), *Command);
+		const FString ErrorMsg = FString::Printf(TEXT("Could not start FlipMode monitor  %s"), *MonitorProcess.Path);
 		UE_LOG(LogSwitchboard, Error, TEXT("%s"), *ErrorMsg);
 
 		return nullptr;
 	}
 
 	// Log success
-	UE_LOG(LogSwitchboard, Display, TEXT("Started FlipMode monitor %d: %s %s"), MonitorProcess.PID, *Command, *Arguments);
+	UE_LOG(LogSwitchboard, Display, TEXT("Started FlipMode monitor %d: %s %s"), MonitorProcess.PID, *MonitorProcess.Path, *Arguments);
 
 	// The UUID corresponds to the program being monitored. This will be used when looking for the Monitor of a given process.
 	// The monitor auto-closes when monitored program closes.
 	MonitorProcess.UUID = Process->UUID;
 
-	FlipModeMonitors.Add(MonitorProcess);
+	FlipModeMonitors.Add(MoveTemp(MonitorProcess));
 
 	return &FlipModeMonitors.Last();
 }
-#endif // PLATFORM_WINDOWS
 
 #if PLATFORM_WINDOWS
 static void FillOutFlipMode(FSyncStatus& SyncStatus, FRunningProcess* FlipModeMonitor)
@@ -790,6 +801,128 @@ static void FillOutFlipMode(FSyncStatus& SyncStatus, FRunningProcess* FlipModeMo
 }
 #endif // PLATFORM_WINDOWS
 
+#if PLATFORM_WINDOWS
+static TArray<FString> RegistryGetSubkeys(const HKEY Key)
+{
+	TArray<FString> Subkeys;
+	const uint32 MaxKeyLength = 1024;
+	TCHAR SubkeyName[MaxKeyLength];
+	DWORD KeyLength = MaxKeyLength;
+
+	while (!RegEnumKeyEx(Key, Subkeys.Num(), SubkeyName, &KeyLength, nullptr, nullptr, nullptr, nullptr))
+	{
+		Subkeys.Add(SubkeyName);
+		KeyLength = MaxKeyLength;
+	}
+
+	return Subkeys;
+}
+#endif // PLATFORM_WINDOWS
+
+#if PLATFORM_WINDOWS
+static TArray<FString> RegistryGetValueNames(const HKEY Key)
+{
+	TArray<FString> Names;
+	const uint32 MaxLength = 1024;
+	TCHAR ValueName[MaxLength];
+	DWORD ValueLength = MaxLength;
+
+	while (!RegEnumValue(Key, Names.Num(), ValueName, &ValueLength, nullptr, nullptr, nullptr, nullptr))
+	{
+		Names.Add(ValueName);
+		ValueLength = MaxLength;
+	}
+
+	return Names;
+}
+#endif // PLATFORM_WINDOWS
+
+#if PLATFORM_WINDOWS
+static FString RegistryGetStringValueData(const HKEY Key, const FString& ValueName)
+{
+	const uint32 MaxLength = 4096;
+	TCHAR ValueData[MaxLength];
+	DWORD ValueLength = MaxLength;
+
+	if (RegQueryValueEx(Key, *ValueName, 0, 0, LPBYTE(ValueData), &ValueLength))
+	{
+		return TEXT("");
+	}
+
+	ValueData[MaxLength - 1] = '\0';
+
+	return FString(ValueData);
+}
+#endif // PLATFORM_WINDOWS
+
+#if PLATFORM_WINDOWS
+static void FillOutDisableFullscreenOptimizationForProcess(FSyncStatus& SyncStatus, const FRunningProcess* Process)
+{
+	// Reset output array just in case
+	SyncStatus.ProgramLayers.Reset();
+
+	// No point in continuing if there is no process to get the flags for.
+	if (!Process)
+	{
+		return;
+	}
+
+	// This is the absolute path of the program we'll be looking for in the registry
+	const FString ProcessAbsolutePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*Process->Path);
+
+	// We expect program layers to be in a location like the following:
+	//   Computer\HKEY_USERS\S-1-5-21-4092791292-903758629-2457117007-1001\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers
+	// But the guid looking number above may vary.
+
+	// So we try all the keys immediately under HKEY_USERS
+	TArray<FString> KeyPaths = RegistryGetSubkeys(HKEY_USERS);
+
+	for (const FString& KeyPath : KeyPaths)
+	{
+		const FString LayersKeyPath = KeyPath + TEXT("\\Software\\Microsoft\\Windows NT\\CurrentVersion\\AppCompatFlags\\Layers");
+
+		HKEY LayersKey;
+		
+		// Check if the key exists
+		if (RegOpenKeyExW(HKEY_USERS, *LayersKeyPath, 0, KEY_READ, &LayersKey))
+		{
+			continue;
+		}
+
+		// If the key exists, the Value Names are the paths to the programs
+
+		const TArray<FString> ProgramPaths = RegistryGetValueNames(LayersKey);
+
+		for (const FString& ProgramPath : ProgramPaths)
+		{
+			const FString ProgramAbsPath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*ProgramPath);
+		
+			// Check if this is the program we're looking for
+			if (ProcessAbsolutePath != ProgramAbsPath)
+			{
+				continue;
+			}
+
+			// If so, get the layers from the Value Data.
+
+			const FString ProgramLayers = RegistryGetStringValueData(LayersKey, ProgramPath);
+			ProgramLayers.ParseIntoArray(SyncStatus.ProgramLayers, TEXT(" "));
+
+			// No need to look further.
+			break;
+		}
+
+		RegCloseKey(LayersKey);
+
+		// If the already have the data we need, we can break.
+		if (SyncStatus.ProgramLayers.Num())
+		{
+			break;
+		}
+	}
+}
+#endif // PLATFORM_WINDOWS
+
 bool FSwitchboardListener::EquivalentTaskFutureExists(uint32 TaskEquivalenceHash) const
 {
 	return !!MessagesFutures.FindByPredicate([=](const FSwitchboardMessageFuture& MessageFuture)
@@ -810,8 +943,18 @@ bool FSwitchboardListener::GetSyncStatus(const FSwitchboardGetSyncStatusTask& In
 
 	TSharedRef<FSyncStatus, ESPMode::ThreadSafe> SyncStatus = MakeShared<FSyncStatus, ESPMode::ThreadSafe>(); // Smart pointer to avoid potentially bigger copy to lambda below.
 
-	// we need to run FillOutFlipMode on this thread.
+	// We need to run these on this thread to avoid threading issues.
 	FillOutFlipMode(SyncStatus.Get(), FindOrStartFlipModeMonitorForUUID(InGetSyncStatusTask.ProgramID));
+
+	// Fill out fullscreen optimization setting
+	{
+		FRunningProcess* Process = RunningProcesses.FindByPredicate([&](const FRunningProcess& Process)
+		{
+			return Process.UUID == InGetSyncStatusTask.ProgramID;
+		});
+
+		FillOutDisableFullscreenOptimizationForProcess(SyncStatus.Get(), Process);
+	}
 
 	// Create our future message
 
