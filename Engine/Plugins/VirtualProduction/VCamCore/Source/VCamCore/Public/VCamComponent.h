@@ -24,6 +24,8 @@ class FSceneViewport;
 class FLevelEditorViewportClient;
 #endif
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnComponentReplaced, UVCamComponent*, NewComponent);
+
 UENUM(BlueprintType, meta=(DisplayName = "VCam Target Viewport ID"))
 enum class EVCamTargetViewportID : uint8
 {
@@ -59,6 +61,17 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
+
+	// There are situations in the editor where the component may be replaced by another component as part of the actor being reconstructed
+	// This event will notify you of that change and give you a reference to the new component. 
+	// Bindings will be copied to the new component so you do not need to rebind this event
+	// 
+	// Note: When the component is replaced you will need to get all properties on the component again such as Modifiers and Output Providers
+	UPROPERTY(BlueprintAssignable, Category = "VirtualCamera")
+	FOnComponentReplaced OnComponentReplaced;
+
+	UFUNCTION()
+	void HandleObjectReplaced(const TMap<UObject*, UObject*>& ReplacementMap);
 
 	bool CanUpdate() const;
 
@@ -237,6 +250,9 @@ private:
 	void OnBeginPIE(const bool bInIsSimulating);
 	void OnEndPIE(const bool bInIsSimulating);
 #endif
+
+	// When another component replaces us, get a notification so we can clean up
+	void NotifyComponentWasReplaced(UVCamComponent* ReplacementComponent);
 
 	double LastEvaluationTime;
 
