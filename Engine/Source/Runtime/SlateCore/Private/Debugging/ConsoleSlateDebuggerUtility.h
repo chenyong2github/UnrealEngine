@@ -4,6 +4,7 @@
 
 
 #include "Debugging/SlateDebugging.h"
+#include "SlateGlobals.h"
 
 #if WITH_SLATE_DEBUGGING
 
