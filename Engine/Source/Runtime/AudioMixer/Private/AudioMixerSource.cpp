@@ -124,17 +124,11 @@ namespace Audio
 
 			if (USoundBase* Sound = WaveInstance->ActiveSound->GetSound())
 			{
-				InitParams.VolumeModulationSettings		= Sound->VolumeModulationDestination;
-				InitParams.PitchModulationSettings		= Sound->PitchModulationDestination;
-				InitParams.HighpassModulationSettings	= Sound->HighpassModulationDestination;
-				InitParams.LowpassModulationSettings	= Sound->LowpassModulationDestination;
+				InitParams.ModulationSettings = Sound->ModulationSettings;
 			}
 			else
 			{
-				InitParams.VolumeModulationSettings		= WaveInstance->WaveData->VolumeModulationDestination;
-				InitParams.PitchModulationSettings		= WaveInstance->WaveData->PitchModulationDestination;
-				InitParams.HighpassModulationSettings	= WaveInstance->WaveData->HighpassModulationDestination;
-				InitParams.LowpassModulationSettings	= WaveInstance->WaveData->LowpassModulationDestination;
+				InitParams.ModulationSettings = WaveInstance->WaveData->ModulationSettings;
 			}
 
 			if (WaveInstance->bIsAmbisonics && (WaveInstance->WaveData->NumChannels != 4))
@@ -879,6 +873,9 @@ namespace Audio
 
 		check(WaveInstance);
 
+		FActiveSound* ActiveSound = WaveInstance->ActiveSound;
+		check(ActiveSound);
+
 		Pitch = WaveInstance->GetPitch();
 
 		// Don't apply global pitch scale to UI sounds
@@ -899,10 +896,19 @@ namespace Audio
 			MixerSourceVoice->SetPitch(Pitch);
 		}
 
-		const float ModPitch = WaveInstance->ActiveSound->GetSound()
-			? WaveInstance->ActiveSound->GetSound()->PitchModulationDestination.Value
-			: WaveInstance->WaveData->PitchModulationDestination.Value;
-		MixerSourceVoice->SetModPitch(ModPitch);
+		const FSoundModulationDestinationSettings* PitchSettings = nullptr;
+		if (USoundBase* Sound = ActiveSound->GetSound())
+		{
+			PitchSettings = &Sound->ModulationSettings.PitchModulationDestination;
+		}
+		else
+		{
+			USoundWave* WaveData = WaveInstance->WaveData;
+			check(WaveData);
+			PitchSettings = &WaveData->ModulationSettings.PitchModulationDestination;
+		}
+
+		MixerSourceVoice->SetModPitch(PitchSettings->Value);
 	}
 
 	void FMixerSource::UpdateVolume()
@@ -923,10 +929,22 @@ namespace Audio
 			// 3. Apply editor gain stage(s)
 			CurrentVolume = FMath::Clamp<float>(GetDebugVolume(CurrentVolume), 0.0f, MAX_VOLUME);
 
-			const float ModVolume = WaveInstance->ActiveSound->GetSound()
-				? WaveInstance->ActiveSound->GetSound()->VolumeModulationDestination.Value
-				: WaveInstance->WaveData->VolumeModulationDestination.Value;
-			MixerSourceVoice->SetModVolume(ModVolume);
+			FActiveSound* ActiveSound = WaveInstance->ActiveSound;
+			check(ActiveSound);
+
+			const FSoundModulationDestinationSettings* VolumeSettings = nullptr;
+			if (USoundBase* Sound = ActiveSound->GetSound())
+			{
+				VolumeSettings = &Sound->ModulationSettings.VolumeModulationDestination;
+			}
+			else
+			{
+				USoundWave* WaveData = WaveInstance->WaveData;
+				check(WaveData);
+				VolumeSettings = &WaveData->ModulationSettings.VolumeModulationDestination;
+			}
+
+			MixerSourceVoice->SetModVolume(VolumeSettings->Value);
 		}
 		MixerSourceVoice->SetVolume(CurrentVolume);
 	}
@@ -959,15 +977,20 @@ namespace Audio
 			LastHPFFrequency = HPFFrequency;
 		}
 
-		USoundBase* Sound = WaveInstance->ActiveSound->GetSound();
+		check(WaveInstance);
+		FActiveSound* ActiveSound = WaveInstance->ActiveSound;
+		check(ActiveSound);
+
+		USoundBase* Sound = ActiveSound->GetSound();
 		if (!Sound)
 		{
 			Sound = WaveInstance->WaveData;
 		}
 		if (Sound)
 		{
-			MixerSourceVoice->SetModHPFFrequency(Sound->HighpassModulationDestination.Value);
-			MixerSourceVoice->SetModLPFFrequency(Sound->LowpassModulationDestination.Value);
+			const FSoundModulationDefaultSettings& Settings = Sound->ModulationSettings;
+			MixerSourceVoice->SetModHPFFrequency(Settings.HighpassModulationDestination.Value);
+			MixerSourceVoice->SetModLPFFrequency(Settings.LowpassModulationDestination.Value);
 		}
 
 		// If reverb is applied, figure out how of the source to "send" to the reverb.

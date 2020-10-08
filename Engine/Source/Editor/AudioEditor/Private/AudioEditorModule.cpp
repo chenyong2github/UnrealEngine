@@ -113,6 +113,8 @@ public:
 		};
 		AddCustomProperty("SoundModulationDestinationSettings", 
 			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FSoundModulationDestinationLayoutCustomization::MakeInstance));
+		AddCustomProperty("SoundModulationDefaultSettings",
+			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FSoundModulationDefaultSettingsLayoutCustomization::MakeInstance));
 
 		// Custom Class Layouts
 		auto AddCustomClass = [this, InPropertyModule = &PropertyModule](FName Name, FOnGetDetailCustomizationInstance InstanceGetter)
@@ -383,6 +385,10 @@ private:
 		SET_AUDIO_ICON_SIMPLE(SoundSourceBus);
 		SET_AUDIO_ICON_SIMPLE(SoundSubmix);
 		SET_AUDIO_ICON_SIMPLE(ReverbEffect);
+
+		SET_AUDIO_ICON(EndpointSubmix, SoundSubmix);
+		SET_AUDIO_ICON(SoundfieldEndpointSubmix, SoundSubmix);
+		SET_AUDIO_ICON(SoundfieldSubmix, SoundSubmix);
 
 		SET_AUDIO_ICON(SoundEffectSubmixPreset, SubmixEffectPreset);
 		SET_AUDIO_ICON(SoundEffectSourcePreset, SourceEffectPreset);

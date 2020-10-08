@@ -46,6 +46,8 @@ namespace AudioModulation
 
 	void FAudioModulationSystem::Initialize(const FAudioPluginInitializationParams& InitializationParams)
 	{
+		AudioDeviceId = InitializationParams.AudioDevicePtr->DeviceID;
+
 		// Load all parameters listed in settings and keep loaded.  Must be done on initialization as
 		// soft object paths cannot be loaded on non-game threads (data from parameters is copied to a proxy
 		// in 'GetParameter' via the audio thread)
@@ -192,6 +194,38 @@ namespace AudioModulation
 			}
 		});
 	}
+
+#if !UE_BUILD_SHIPPING
+	void FAudioModulationSystem::SetDebugBusFilter(const FString* InFilter)
+	{
+		Debugger.SetDebugBusFilter(InFilter);
+	}
+
+	void FAudioModulationSystem::SetDebugGeneratorsEnabled(bool bInIsEnabled)
+	{
+		Debugger.SetDebugGeneratorsEnabled(bInIsEnabled);
+	}
+
+	void FAudioModulationSystem::SetDebugGeneratorFilter(const FString* InFilter)
+	{
+		Debugger.SetDebugGeneratorFilter(InFilter);
+	}
+
+	void FAudioModulationSystem::SetDebugGeneratorTypeFilter(const FString* InFilter, bool bInEnabled)
+	{
+		Debugger.SetDebugGeneratorTypeFilter(InFilter, bInEnabled);
+	}
+
+	void FAudioModulationSystem::SetDebugMatrixEnabled(bool bInIsEnabled)
+	{
+		Debugger.SetDebugMatrixEnabled(bInIsEnabled);
+	}
+
+	void FAudioModulationSystem::SetDebugMixFilter(const FString* InNameFilter)
+	{
+		Debugger.SetDebugMixFilter(InNameFilter);
+	}
+#endif // !UE_BUILD_SHIPPING
 
 	bool FAudioModulationSystem::GetModulatorValue(const Audio::FModulatorHandle& InModulatorHandle, float& OutValue) const
 	{
@@ -635,7 +669,10 @@ namespace AudioModulation
 		TArray<FModulatorBusMixStageSettings> StageSettings;
 		for (const FSoundControlBusMixStage& Stage : InStages)
 		{
-			StageSettings.Emplace(Stage, AudioDeviceId);
+			if (Stage.Bus)
+			{
+				StageSettings.Emplace(Stage, AudioDeviceId);
+			}
 		}
 	
 		RunCommandOnProcessingThread([this, MixId, StageSettings, InFadeTime]()

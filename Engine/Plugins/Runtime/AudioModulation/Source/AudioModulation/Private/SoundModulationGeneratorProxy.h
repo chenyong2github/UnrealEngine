@@ -63,6 +63,19 @@ namespace AudioModulation
 		}
 
 #if !UE_BUILD_SHIPPING
+		TArray<FString> GetDebugCategories() const
+		{
+			TArray<FString> DebugCategories;
+			DebugCategories.Add(TEXT("Name"));
+			DebugCategories.Add(TEXT("Ref Count"));
+
+			TArray<FString> GeneratorCategories;
+			Generator->GetDebugCategories(GeneratorCategories);
+			DebugCategories.Append(GeneratorCategories);
+
+			return DebugCategories;
+		}
+
 		TArray<FString> GetDebugValues() const
 		{
 			TArray<FString> DebugValues;
