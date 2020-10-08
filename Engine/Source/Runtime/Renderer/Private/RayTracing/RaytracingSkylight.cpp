@@ -95,7 +95,7 @@ static TAutoConsoleVariable<int32> CVarRayTracingSkyLightDecoupleSampleGeneratio
 
 static TAutoConsoleVariable<int32> CVarRayTracingSkyLightEnableHairVoxel(
 	TEXT("r.RayTracing.SkyLight.HairVoxel"),
-	0,
+	1,
 	TEXT("Include hair voxel representation to estimate sky occlusion"),
 	ECVF_RenderThreadSafe
 );
