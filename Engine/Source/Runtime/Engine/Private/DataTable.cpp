@@ -431,8 +431,8 @@ FProperty* UDataTable::FindTableProperty(const FName& PropertyName) const
 			{
 				if (PropertyNameStr == RowStruct->GetAuthoredNameForField(*It))
 				{
-				Property = *It;
-				break;
+					Property = *It;
+					break;
 				}
 			}
 		}
@@ -645,6 +645,7 @@ TArray<FProperty*> UDataTable::GetTablePropertyArray(const TArray<const TCHAR*>&
 		ColumnProps.AddZeroed( Cells.Num() );
 
 		// Skip first column depending on option
+		TArray<FString> TempPropertyImportNames;
 		for (int32 ColIdx = 0; ColIdx < Cells.Num(); ++ColIdx)
 		{
 			if (ColIdx == KeyColumn)
@@ -665,16 +666,17 @@ TArray<FProperty*> UDataTable::GetTablePropertyArray(const TArray<const TCHAR*>&
 
 				for (TFieldIterator<FProperty> It(InRowStruct); It && !ColumnProp; ++It)
 				{
-					ColumnProp = DataTableUtils::GetPropertyImportNames(*It).Contains(ColumnValue) ? *It : nullptr;
+					DataTableUtils::GetPropertyImportNames(*It, TempPropertyImportNames);
+					ColumnProp = TempPropertyImportNames.Contains(ColumnValue) ? *It : nullptr;
 				}
 
 				// Didn't find a property with this name, problem..
 				if(ColumnProp == nullptr)
 				{
 					if (!bIgnoreExtraFields)
-				{
-					OutProblems.Add(FString::Printf(TEXT("Cannot find Property for column '%s' in struct '%s'."), *PropName.ToString(), *InRowStruct->GetName()));
-				}
+					{
+						OutProblems.Add(FString::Printf(TEXT("Cannot find Property for column '%s' in struct '%s'."), *PropName.ToString(), *InRowStruct->GetName()));
+					}
 				}
 				// Found one!
 				else
@@ -704,24 +706,24 @@ TArray<FProperty*> UDataTable::GetTablePropertyArray(const TArray<const TCHAR*>&
 
 	if (!bIgnoreMissingFields)
 	{
-	// Generate warning for any properties in struct we are not filling in
+		// Generate warning for any properties in struct we are not filling in
 		for (int32 PropIdx = 0; PropIdx < ExpectedPropNames.Num(); PropIdx++)
-	{
-		const FProperty* const ColumnProp = FindFProperty<FProperty>(InRowStruct, ExpectedPropNames[PropIdx]);
+		{
+			const FProperty* const ColumnProp = FindFProperty<FProperty>(InRowStruct, ExpectedPropNames[PropIdx]);
 
 #if WITH_EDITOR
-		// If the structure has specified the property as optional for import (gameplay code likely doing a custom fix-up or parse of that property),
-		// then avoid warning about it
-		static const FName DataTableImportOptionalMetadataKey(TEXT("DataTableImportOptional"));
-		if (ColumnProp->HasMetaData(DataTableImportOptionalMetadataKey))
-		{
-			continue;
-		}
+			// If the structure has specified the property as optional for import (gameplay code likely doing a custom fix-up or parse of that property),
+			// then avoid warning about it
+			static const FName DataTableImportOptionalMetadataKey(TEXT("DataTableImportOptional"));
+			if (ColumnProp->HasMetaData(DataTableImportOptionalMetadataKey))
+			{
+				continue;
+			}
 #endif // WITH_EDITOR
 
 			const FString DisplayName = DataTableUtils::GetPropertyExportName(ColumnProp);
-		OutProblems.Add(FString::Printf(TEXT("Expected column '%s' not found in input."), *DisplayName));
-	}
+			OutProblems.Add(FString::Printf(TEXT("Expected column '%s' not found in input."), *DisplayName));
+		}
 	}
 
 	return ColumnProps;
