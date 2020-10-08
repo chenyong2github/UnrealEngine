@@ -29,6 +29,12 @@ public:
 	/** Height at last hit point */
 	float CurrentHeight = 0.0f;
 
+	/** true if the current hit/height was determined via WorldHitQueryFunc result */
+	bool bCurrentHitIsWorldHit = false;
+
+	/** last active hit point */
+	FHitResult LastActiveWorldHit;
+
 	/** World frame at last hit point */
 	FFrame3d CurrentHitPosFrameWorld;
 
