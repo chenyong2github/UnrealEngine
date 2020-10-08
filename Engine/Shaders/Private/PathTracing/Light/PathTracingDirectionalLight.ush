@@ -95,13 +95,11 @@ void DirectionalLight_SampleLight(
 	else
 	{
 		// soft case - build a frame, and sample the distant cone
-		const float3x3 ToWorld = GetTangentBasis(N);
-
 		float SinThetaMax = Radius; // currently sin(Angle / 2)
 		float CosThetaMax = sqrt(1.0 - SinThetaMax * SinThetaMax);
 
 		float4 DirAndPdf = UniformSampleCone(RandSample.yz, CosThetaMax);
-		OutLightUV = mul(DirAndPdf.xyz, ToWorld);
+		OutLightUV = TangentToWorld(DirAndPdf.xyz, N);
 		OutPdf = DirAndPdf.w;
 	}
 }

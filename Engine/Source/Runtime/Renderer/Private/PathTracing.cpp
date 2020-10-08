@@ -247,7 +247,7 @@ public:
 						LightData.Position[LightData.Count] = LightParameters.Position;
 						LightData.Normal[LightData.Count] = -LightParameters.Direction;
 						// #dxr_todo: UE-72556  define these differences from Lit..
-						LightData.Color[LightData.Count] = 4.0 * PI * LightParameters.Color;
+						LightData.Color[LightData.Count] = LightParameters.Color;
 						LightData.Dimensions[LightData.Count] = FVector(LightParameters.SpotAngles, LightParameters.SourceRadius);
 						LightData.Attenuation[LightData.Count] = 1.0 / LightParameters.InvRadius;
 						break;
@@ -258,7 +258,7 @@ public:
 						LightData.Type[LightData.Count] = 1;
 						LightData.Position[LightData.Count] = LightParameters.Position;
 						// #dxr_todo: UE-72556  define these differences from Lit..
-						LightData.Color[LightData.Count] = LightParameters.Color / (4.0 * PI);
+						LightData.Color[LightData.Count] = LightParameters.Color;
 						LightData.Dimensions[LightData.Count] = FVector(0.0, 0.0, LightParameters.SourceRadius);
 						LightData.Attenuation[LightData.Count] = 1.0 / LightParameters.InvRadius;
 						break;
