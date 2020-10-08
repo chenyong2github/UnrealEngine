@@ -539,7 +539,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category=Water)
 	void OnWaterBodyChanged(bool bShapeOrPositionChanged, bool bWeightmapSettingsChanged = false);
 
-	/** Fills wave-related information at the given world position and for this water depth. 
+	/** Fills wave-related information at the given world position and for this water depth.
 	 - InPosition : water surface position at which to query the wave information
 	 - InWaterDepth : water depth at this location
 	 - bSimpleWaves : true for the simple version (faster computation, lesser accuracy, doesn't perturb the normal)
@@ -653,6 +653,7 @@ protected:
 	void ApplyNavigationSettings() const;
 	void RequestGPUWaveDataUpdate();
 
+	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
 	virtual void PostRegisterAllComponents() override;
 	virtual void PostUnregisterAllComponents() override;
