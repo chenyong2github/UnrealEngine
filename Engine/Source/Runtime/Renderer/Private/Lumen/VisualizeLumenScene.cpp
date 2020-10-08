@@ -296,12 +296,13 @@ IMPLEMENT_GLOBAL_SHADER(FVisualizeLumenVoxelsCS, "/Engine/Private/Lumen/Visualiz
 void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& GraphBuilder)
 {
 	const FViewInfo& View = Views[0];
-	const bool bVisualizeScene = ViewFamily.EngineShowFlags.VisualizeLumenScene;
-	const bool bVisualizeVoxels = GLumenVisualizeVoxels != 0;
 
-	if (Lumen::ShouldRenderLumenCardsForView(Scene, View) && (bVisualizeScene || bVisualizeVoxels))
+	if (Lumen::ShouldRenderLumenCardsForView(Scene, View))
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "VisualizeLumenScene");
+
+		const bool bVisualizeScene = ViewFamily.EngineShowFlags.VisualizeLumenScene;
+		const bool bVisualizeVoxels = GLumenVisualizeVoxels != 0;
 
 		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
