@@ -5,6 +5,7 @@
 #include "DMXAttribute.h"
 #include "DMXEditor.h"
 #include "DMXEditorStyle.h"
+#include "DMXPIEManager.h"
 #include "DMXProtocolTypes.h"
 #include "DMXProtocolBlueprintLibrary.h"
 #include "Library/DMXLibrary.h"
@@ -131,6 +132,8 @@ void FDMXEditorModule::StartupModule()
 		FOnSpawnTab::CreateRaw(this, &FDMXEditorModule::OnSpawnOutputConsoleTab))
 		.SetDisplayName(LOCTEXT("OutputConsoleTabTitle", "DMX Output Console"))
 		.SetMenuType(ETabSpawnerMenuType::Hidden);
+
+	PIEManager = MakeShared<FDMXPIEManager>();
 }
 
 void FDMXEditorModule::ShutdownModule()

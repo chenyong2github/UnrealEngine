@@ -218,6 +218,21 @@ void FDMXProtocolSACN::GetDefaultUniverseSettings(uint16 InUniverseID, FJsonObje
 	OutSettings.SetArrayField(DMXJsonFieldNames::DMXIpAddresses, IpAddresses); // Broadcast IP address
 }
 
+void FDMXProtocolSACN::ZeroInputBuffers()
+{
+	for (const TPair<uint32, TSharedPtr<FDMXProtocolUniverseSACN, ESPMode::ThreadSafe>>& UniverseIDUniverseKvP : UniverseManager->GetAllUniverses())
+	{
+		UniverseIDUniverseKvP.Value->ZeroInputDMXBuffer();
+	}
+}
+
+void FDMXProtocolSACN::ZeroOutputBuffers()
+{
+	for (const TPair<uint32, TSharedPtr<FDMXProtocolUniverseSACN, ESPMode::ThreadSafe>>& UniverseIDUniverseKvP : UniverseManager->GetAllUniverses())
+	{
+		UniverseIDUniverseKvP.Value->ZeroOutputDMXBuffer();
+	}
+}
 
 const FName& FDMXProtocolSACN::GetProtocolName() const
 {
