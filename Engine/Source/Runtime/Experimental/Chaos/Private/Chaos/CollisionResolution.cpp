@@ -91,7 +91,9 @@ FAutoConsoleVariableRef CVarGJKContactPointSweptPhiCapEpsilon(TEXT("p.Chaos.Cons
 
 // If GJKPenetration returns a phi of abs value < this number, we use PhiWithNormal to resample phi and normal.
 // We have observed bad normals coming from GJKPenetration when barely in contact.
-#define PHI_RESAMPLE_THRESHOLD 0.001
+float Chaos_Collision_PhiResampleThreshold = 0.001f;
+FAutoConsoleVariableRef CVarChaosCollisionPhiResampleThreshold(TEXT("p.Chaos.Collision.PhiResampleThreshold"), Chaos_Collision_PhiResampleThreshold, TEXT(""));
+
 
 bool bChaos_Collision_ManifoldTest = false;
 FAutoConsoleVariableRef CVarChaosCollisionUseManifoldsTest(TEXT("p.Chaos.Collision.UseManifoldsTest"), bChaos_Collision_ManifoldTest, TEXT("Enable/Disable use of manifoldes in collision."));
@@ -143,6 +145,19 @@ namespace Chaos
 		FORCEINLINE FReal CalculateMinShapePadding(const FReal InMinPadding, const T_SHAPE0& Shape0, const T_SHAPE1& Shape1)
 		{
 			return FMath::Max(0.0f, InMinPadding - Shape0.GetMargin() - Shape1.GetMargin());
+		}
+
+		// GJKPenetration (EPA) can return arbitrarily wrong normals when Phi approaches zero (it ends up renormalizing
+		// a very small vector) so attempt to fix the normal by calling PhiWithNormal.
+		template<typename T_SHAPE>
+		FORCEINLINE void FixGJKPenetrationNormal(FContactPoint& ContactPoint, const T_SHAPE& Shape1, const FTransform& WorldTransform1)
+		{
+			FVec3 NormalLocal1;
+			const FReal Phi = Shape1.PhiWithNormal(ContactPoint.ShapeContactPoints[1], NormalLocal1);
+
+			ContactPoint.ShapeContactNormal = NormalLocal1;
+			ContactPoint.Normal = WorldTransform1.TransformVectorNoScale(NormalLocal1);
+			ContactPoint.Phi = Phi;
 		}
 
 		// Determines if body should use CCD. If using CCD, computes Dir and Length of sweep.
@@ -294,7 +309,16 @@ namespace Chaos
 		FContactPoint GJKContactPoint(const GeometryA& A, const FRigidTransform3& ATM, const GeometryB& B, const FRigidTransform3& BTM, const FVec3& InitialDir, const FReal ShapePadding)
 		{
 			const FRigidTransform3 BToATM = BTM.GetRelativeTransform(ATM);
-			return GJKContactPoint2(A, B, ATM, BToATM, InitialDir, ShapePadding);
+			FContactPoint ContactPoint = GJKContactPoint2(A, B, ATM, BToATM, InitialDir, ShapePadding);
+			
+			// If GJKPenetration returns a phi of abs value < this number, we use PhiWithNormal to recalculate phi and normal.
+			// We have observed bad normals coming from GJKPenetration when barely in contact. This is caused by the renormalization of small vectors.
+			if (FMath::Abs(ContactPoint.Phi) < Chaos_Collision_PhiResampleThreshold)
+			{
+				FixGJKPenetrationNormal(ContactPoint, B, BTM);
+			}
+
+			return ContactPoint;
 		}
 
 		template <typename GeometryA, typename GeometryB>
@@ -344,7 +368,7 @@ namespace Chaos
 				if (B.GJKContactPoint(*ScaledConvexImplicit, AToBTM, CullDistance, Location, Normal, ContactPhi))
 				{
 					Contact.ShapeContactPoints[0] = AToBTM.InverseTransformPosition(Location);
-					Contact.ShapeContactPoints[1] = Location;
+					Contact.ShapeContactPoints[1] = Location - ContactPhi * Normal;
 					Contact.ShapeContactNormal = Normal;
 					Contact.Phi = ContactPhi;
 					Contact.Location = BTransform.TransformPosition(Location);
@@ -358,7 +382,7 @@ namespace Chaos
 					if (B.GJKContactPoint(*InstancedInnerObject, AToBTM, CullDistance, Location, Normal, ContactPhi))
 					{
 						Contact.ShapeContactPoints[0] = AToBTM.InverseTransformPosition(Location);
-						Contact.ShapeContactPoints[1] = Location;
+						Contact.ShapeContactPoints[1] = Location - ContactPhi * Normal;
 						Contact.ShapeContactNormal = Normal;
 						Contact.Phi = ContactPhi;
 						Contact.Location = BTransform.TransformPosition(Location);
@@ -371,7 +395,7 @@ namespace Chaos
 				if (B.GJKContactPoint(*ConvexImplicit, AToBTM, CullDistance, Location, Normal, ContactPhi))
 				{
 					Contact.ShapeContactPoints[0] = AToBTM.InverseTransformPosition(Location);
-					Contact.ShapeContactPoints[1] = Location;
+					Contact.ShapeContactPoints[1] = Location - ContactPhi * Normal;
 					Contact.ShapeContactNormal = Normal;
 					Contact.Phi = ContactPhi;
 					Contact.Location = BTransform.TransformPosition(Location);
@@ -485,16 +509,6 @@ namespace Chaos
 					return GJKContactPoint(ADowncast, AFullTM, BDowncast, BFullTM, FVec3(1, 0, 0), ShapePadding);
 				});
 			});
-
-			if (FMath::Abs(ContactPoint.Phi) < (FReal)(PHI_RESAMPLE_THRESHOLD))
-			{
-				// If GJKPenetration returns a phi of abs value < this number, we use PhiWithNormal to resample phi and normal.
-				// We have observed bad normals coming from GJKPenetration when barely in contact.
-
-				FVec3 ContactLocalB = BTM.InverseTransformPosition(ContactPoint.Location);
-				ContactPoint.Phi = B.PhiWithNormal(ContactLocalB, ContactPoint.Normal);
-				ContactPoint.Normal = BTM.TransformVectorNoScale(ContactPoint.Normal);
-			}
 
 			return ContactPoint;
 		}
