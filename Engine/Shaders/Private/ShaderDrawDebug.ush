@@ -6,7 +6,7 @@
 #define SHADER_DRAW_DEBUG 1
 #endif
 
-struct ShaderDrawElement 
+struct FShaderDrawElement 
 {
 	float3 Pos0;
 	float3 Pos1;
@@ -14,16 +14,16 @@ struct ShaderDrawElement
 	float4 Color1;
 };
 
-struct PackedShaderDrawElement 
+struct FPackedShaderDrawElement 
 {
 	float3 Pos0;
 	float3 Pos1;
 	uint2 Color01;
 };
 
-PackedShaderDrawElement PackShaderElement(ShaderDrawElement E)
+FPackedShaderDrawElement PackShaderElement(FShaderDrawElement E)
 {
-	PackedShaderDrawElement PackedE;
+	FPackedShaderDrawElement PackedE;
 	PackedE.Pos0 = E.Pos0;
 	PackedE.Pos1 = E.Pos1;
 	uint4 PackedC0 = 255.0f * saturate(E.Color0);
@@ -33,9 +33,9 @@ PackedShaderDrawElement PackShaderElement(ShaderDrawElement E)
 	return PackedE;
 }
 
-ShaderDrawElement UnpackShaderElement(PackedShaderDrawElement PackedE)
+FShaderDrawElement UnpackShaderElement(FPackedShaderDrawElement PackedE)
 {
-	ShaderDrawElement E;
+	FShaderDrawElement E;
 	E.Pos0 = PackedE.Pos0;
 	E.Pos1 = PackedE.Pos1;
 	E.Color0 = float4((PackedE.Color01.x >> 24) & 0xFF, (PackedE.Color01.x >> 16) & 0xFF, (PackedE.Color01.x >> 8) & 0xFF, (PackedE.Color01.x) & 0xFF) / 255.0f;
@@ -45,7 +45,7 @@ ShaderDrawElement UnpackShaderElement(PackedShaderDrawElement PackedE)
 
 #if SHADER_DRAW_DEBUG == 1
 
-RWStructuredBuffer<PackedShaderDrawElement>	OutShaderDrawPrimitive;
+RWStructuredBuffer<FPackedShaderDrawElement>	OutShaderDrawPrimitive;
 RWBuffer<uint>								OutputShaderDrawIndirect;
 
 int2 ShaderDrawCursorPos;
@@ -62,7 +62,7 @@ void AddLine(float3 Pos0, float3 Pos1, float4 Color0, float4 Color1)
 	InterlockedAdd(OutputShaderDrawIndirect[1], 1, PreviousPrimitiveCount);
 	if ((PreviousPrimitiveCount+1) <= ShaderDrawMaxElementCount)
     {
-		ShaderDrawElement Element;
+		FShaderDrawElement Element;
 		Element.Pos0 = Pos0;
 		Element.Pos1 = Pos1;
 		Element.Color0 = Color0;
@@ -82,7 +82,7 @@ void AddQuad(float3 Pos0, float3 Pos1, float3 Pos2, float3 Pos3, float4 Color)
 	InterlockedAdd(OutputShaderDrawIndirect[1], 4, PreviousPrimitiveCount);
 	if ((PreviousPrimitiveCount+4) <= ShaderDrawMaxElementCount)
 	{
-		ShaderDrawElement Element;
+		FShaderDrawElement Element;
 		Element.Color0 = Element.Color1 = Color;
 
 		Element.Pos0 = Pos0; Element.Pos1 = Pos1;
@@ -118,7 +118,7 @@ void AddAABB(float3 Min, float3 Max, float4 Color)
 		float3 P6 = float3(Max.x, Max.y, Max.z);
 		float3 P7 = float3(Min.x, Max.y, Max.z);
 
-		ShaderDrawElement Element;
+		FShaderDrawElement Element;
 		Element.Color0 = Element.Color1 = Color;
 
 		Element.Pos0 = P0; Element.Pos1 = P1; OutShaderDrawPrimitive[PreviousPrimitiveCount + 0] = PackShaderElement(Element);
