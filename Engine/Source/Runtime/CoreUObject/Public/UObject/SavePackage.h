@@ -6,6 +6,7 @@
 #include "Containers/Set.h"
 #include "Containers/Map.h"
 #include "UObject/NameTypes.h"
+#include "Serialization/FileRegions.h"
 #include "Misc/DateTime.h"
 #include "ObjectMacros.h"
 

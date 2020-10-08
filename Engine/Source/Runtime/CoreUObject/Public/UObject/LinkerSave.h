@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Serialization/ArchiveUObject.h"
+#include "Serialization/FileRegions.h"
 #include "UObject/ObjectResource.h"
 #include "UObject/Linker.h"
 #include "UObject/UObjectThreadContext.h"

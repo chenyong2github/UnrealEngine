@@ -16,7 +16,6 @@
 #include "Templates/AndOrNot.h"
 #include "Templates/IsArrayOrRefOfType.h"
 #include "Templates/IsSigned.h"
-#include "Serialization/FileRegions.h"
 
 class FArchive;
 class FCustomVersionContainer;
@@ -33,6 +32,7 @@ template<class TEnum> class TEnumAsByte;
 typedef TFunction<bool (double RemainingTime)> FExternalReadCallback;
 struct FUObjectSerializeContext;
 class FField;
+enum class EDataShufflePattern : uint8;
 
 // Temporary while we shake out the EDL at boot
 #define USE_EVENT_DRIVEN_ASYNC_LOAD_AT_BOOT_TIME (1)
