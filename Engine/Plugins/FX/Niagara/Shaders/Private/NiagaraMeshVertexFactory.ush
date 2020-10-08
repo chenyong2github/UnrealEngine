@@ -678,10 +678,14 @@ void CalculateTransforms(in FVertexFactoryIntermediates Intermediates, out float
 	}
 	
 	////////////////////////////////////////////////////////////////////////////////
+	// Translation
+	float3 Translation = WorldParticlePosition + mul(NiagaraMeshVF.PivotOffset, RotationMat);
+	
+	////////////////////////////////////////////////////////////////////////////////
 	// Compose Transforms
-	LocalToWorld = ComposeTransformMatrix(Scale, RotationMat, WorldParticlePosition);
-	LocalToWorldNoScale = ComposeTransformMatrix((float3)1.0f, RotationMat, WorldParticlePosition);
-	WorldToLocal = ComposeInvTransformMatrix(Scale, RotationMat, WorldParticlePosition);
+	LocalToWorld = ComposeTransformMatrix(Scale, RotationMat, Translation);
+	LocalToWorldNoScale = ComposeTransformMatrix((float3)1.0f, RotationMat, Translation);
+	WorldToLocal = ComposeInvTransformMatrix(Scale, RotationMat, Translation);
 }
 
 FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
