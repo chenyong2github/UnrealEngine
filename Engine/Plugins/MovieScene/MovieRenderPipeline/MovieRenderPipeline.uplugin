@@ -28,6 +28,11 @@
 			"Name": "OpenColorIO",
 			"Enabled": true,
 			"Optional": false
+		},
+		{
+			"Name": "ActorLayerUtilities",
+			"Enabled": true,
+			"Optional": false
 		}
 	],
 	"Modules": [

@@ -4,12 +4,10 @@
 #include "MoviePipelineOutputBase.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "SceneView.h"
-#include "LegacyScreenPercentageDriver.h"
 #include "MovieRenderPipelineDataTypes.h"
 #include "GameFramework/PlayerController.h"
 #include "MoviePipelineRenderPass.h"
 #include "EngineModule.h"
-#include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "Engine/TextureRenderTarget.h"
 #include "MoviePipeline.h"
@@ -28,12 +26,10 @@
 #include "MoviePipelineAntiAliasingSetting.h"
 #include "MoviePipelineOutputSetting.h"
 #include "MovieRenderPipelineCoreModule.h"
-#include "SceneViewExtension.h"
-#include "OpenColorIODisplayExtension.h"
+#include "Components/PrimitiveComponent.h"
+#include "EngineUtils.h"
+#include "Engine/RendererSettings.h"
 
-// For Cine Camera Variables in Metadata
-#include "CineCameraActor.h"
-#include "CineCameraComponent.h"
 
 DECLARE_CYCLE_STAT(TEXT("STAT_MoviePipeline_AccumulateSample_TT"), STAT_AccumulateSample_TaskThread, STATGROUP_MoviePipeline);
 
@@ -43,41 +39,184 @@ namespace MoviePipeline
 	static void AccumulateSample_TaskThread(TUniquePtr<FImagePixelData>&& InPixelData, const MoviePipeline::FImageSampleAccumulationArgs& InParams);
 }
 
-void UMoviePipelineDeferredPassBase::RendererSubmission_GameThread(const FMoviePipelineRenderPassMetrics& InSampleState, FCanvas& InCanvas, FSceneViewFamilyContext& InViewFamily)
+UMoviePipelineDeferredPassBase::UMoviePipelineDeferredPassBase() 
+	: UMoviePipelineImagePassBase()
 {
-	FSceneView* View = const_cast<FSceneView*>(InViewFamily.Views[0]);
-	View->FinalPostProcessSettings.BufferVisualizationOverviewMaterials.Empty();
-	View->FinalPostProcessSettings.BufferVisualizationPipes.Empty();
+	PassIdentifier = FMoviePipelinePassIdentifier("FinalImage");
 
-	for (UMaterialInterface* Material : ActivePostProcessMaterials)
+	// To help user knowledge we pre-seed the additional post processing materials with an array of potentially common passes.
+	TArray<FString> DefaultPostProcessMaterials;
+	DefaultPostProcessMaterials.Add(TEXT("/MovieRenderPipeline/Materials/MovieRenderQueue_WorldDepth.MovieRenderQueue_WorldDepth"));
+	DefaultPostProcessMaterials.Add(TEXT("/MovieRenderPipeline/Materials/MovieRenderQueue_MotionVectors.MovieRenderQueue_MotionVectors"));
+
+	for (FString& MaterialPath : DefaultPostProcessMaterials)
 	{
-		if (Material)
-		{
-			View->FinalPostProcessSettings.BufferVisualizationOverviewMaterials.Add(Material);
-		}
+		FMoviePipelinePostProcessPass& NewPass = AdditionalPostProcessMaterials.AddDefaulted_GetRef();
+		NewPass.Material = TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(MaterialPath));
+		NewPass.bEnabled = false;
 	}
 
-	for (UMaterialInterface* VisMaterial : View->FinalPostProcessSettings.BufferVisualizationOverviewMaterials)
-	{
-		// If this was just to contribute to the history buffer, no need to go any further.
-		if (InSampleState.bDiscardResult)
-		{
-			continue;
-		}
-		FMoviePipelinePassIdentifier LayerPassIdentifier = FMoviePipelinePassIdentifier(PassIdentifier.Name + VisMaterial->GetName());
-
-		auto BufferPipe = MakeShared<FImagePixelPipe, ESPMode::ThreadSafe>();
-		BufferPipe->AddEndpoint(MakeForwardingEndpoint(LayerPassIdentifier, InSampleState));
-		
-		View->FinalPostProcessSettings.BufferVisualizationPipes.Add(VisMaterial->GetFName(), BufferPipe);
-	}
-
-
-	int32 NumValidMaterials = View->FinalPostProcessSettings.BufferVisualizationPipes.Num();
-	View->FinalPostProcessSettings.bBufferVisualizationDumpRequired = NumValidMaterials > 0;
-
-	Super::RendererSubmission_GameThread(InSampleState, InCanvas, InViewFamily);
+	CurrentLayerIndex = INDEX_NONE;
 }
+
+void UMoviePipelineDeferredPassBase::MoviePipelineRenderShowFlagOverride(FEngineShowFlags& OutShowFlag)
+{
+	if (bDisableMultisampleEffects)
+	{
+		OutShowFlag.SetAntiAliasing(false);
+		OutShowFlag.SetDepthOfField(false);
+		OutShowFlag.SetMotionBlur(false);
+		OutShowFlag.SetBloom(false);
+		OutShowFlag.SetSceneColorFringe(false);
+	}
+}
+
+void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings)
+{
+	Super::SetupImpl(InPassInitSettings);
+
+	// [0] is FinalImage, [1] is Default Layer, [1+] is Stencil Layers. Not used by post processing materials
+	// Render Target that the GBuffer is copied to
+	int32 NumRenderTargets = (bAddDefaultLayer ? 1 : 0) + StencilLayers.Num() + 1;
+	for (int32 Index = 0; Index < NumRenderTargets; Index++)
+	{
+		UTextureRenderTarget2D* NewTarget = NewObject<UTextureRenderTarget2D>(GetTransientPackage());
+		NewTarget->ClearColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.0f);
+
+		// Initialize to the tile size (not final size) and use a 16 bit back buffer to avoid precision issues when accumulating later
+		NewTarget->InitCustomFormat(InPassInitSettings.BackbufferResolution.X, InPassInitSettings.BackbufferResolution.Y, EPixelFormat::PF_FloatRGBA, false);
+
+		TileRenderTargets.Add(NewTarget);
+	}
+
+
+	if (GetPipeline()->GetPreviewTexture() == nullptr)
+	{
+		GetPipeline()->SetPreviewTexture(TileRenderTargets[0]);
+	}
+
+	{
+		TSoftObjectPtr<UMaterialInterface> StencilMatRef = TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(TEXT("/MovieRenderPipeline/Materials/MoviePipeline_StencilCutout.MoviePipeline_StencilCutout")));
+		StencilLayerMaterial = StencilMatRef.LoadSynchronous();
+		if (!StencilLayerMaterial)
+		{
+			UE_LOG(LogMovieRenderPipeline, Error, TEXT("Failed to load Stencil Mask material, stencil layers will be incorrect. Path: %s"), *StencilMatRef.ToString());
+		}
+	}
+
+	for (FMoviePipelinePostProcessPass& AdditionalPass : AdditionalPostProcessMaterials)
+	{
+		if (AdditionalPass.bEnabled)
+		{
+			UMaterialInterface* Material = AdditionalPass.Material.LoadSynchronous();
+			if (Material)
+			{
+				ActivePostProcessMaterials.Add(Material);
+			}
+		}
+	}
+
+	SurfaceQueue = MakeShared<FMoviePipelineSurfaceQueue>(InPassInitSettings.BackbufferResolution, EPixelFormat::PF_FloatRGBA, 3, true);
+
+	// We must have at least enough accumulators to render all of the requested post process materials, because work doesn't begin
+	// until they're actually submitted to the render thread (which happens all at once) but we tie up an accumulator as we get ready to submit.
+	// If there aren't enough accumulators then we block until one is free but since submission hasn't gone through they'll never be free.
+	int32 PoolSize = (ActivePostProcessMaterials.Num() + 1) * 3;
+	AccumulatorPool = MakeShared<TAccumulatorPool<FImageOverlappedAccumulator>, ESPMode::ThreadSafe>(PoolSize);
+
+	// Each stencil layer uses its own view state to keep TAA history etc separate
+	if (bAddDefaultLayer)
+	{
+		StencilLayerViewStates.AddDefaulted();
+	}
+
+	for (int32 Index = 0; Index < StencilLayers.Num(); Index++)
+	{
+		StencilLayerViewStates.AddDefaulted();
+	}
+
+	for (int32 Index = 0; Index < StencilLayerViewStates.Num(); Index++)
+	{
+		StencilLayerViewStates[Index].Allocate();
+	}
+	
+	// This scene view extension will be released automatically as soon as Render Sequence is torn down.
+	// One Extension per sequence, since each sequence has its own OCIO settings.
+	OCIOSceneViewExtension = FSceneViewExtensions::NewExtension<FOpenColorIODisplayExtension>();
+}
+
+void UMoviePipelineDeferredPassBase::TeardownImpl()
+{
+	GetPipeline()->SetPreviewTexture(nullptr);
+
+	// This may call FlushRenderingCommands if there are outstanding readbacks that need to happen.
+	SurfaceQueue->Shutdown();
+
+	// Stall until the task graph has completed any pending accumulations.
+	FTaskGraphInterface::Get().WaitUntilTasksComplete(OutstandingTasks, ENamedThreads::GameThread);
+	OutstandingTasks.Reset();
+
+	ActivePostProcessMaterials.Reset();
+
+	for (int32 Index = 0; Index < StencilLayerViewStates.Num(); Index++)
+	{
+		FSceneViewStateInterface* Ref = StencilLayerViewStates[Index].GetReference();
+		if (Ref)
+		{
+			Ref->ClearMIDPool();
+		}
+		StencilLayerViewStates[Index].Destroy();
+	}
+	StencilLayerViewStates.Reset();
+	CurrentLayerIndex = INDEX_NONE;
+	TileRenderTargets.Reset();
+	
+	OCIOSceneViewExtension.Reset();
+	OCIOSceneViewExtension = nullptr;
+
+	// Preserve our view state until the rendering thread has been flushed.
+	Super::TeardownImpl();
+}
+
+void UMoviePipelineDeferredPassBase::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+{
+	Super::AddReferencedObjects(InThis, Collector);
+
+	UMoviePipelineDeferredPassBase& This = *CastChecked<UMoviePipelineDeferredPassBase>(InThis);
+	for (int32 Index = 0; Index < This.StencilLayerViewStates.Num(); Index++)
+	{
+		FSceneViewStateInterface* Ref = This.StencilLayerViewStates[Index].GetReference();
+		if (Ref)
+		{
+			Ref->AddReferencedObjects(Collector);
+		}
+	}
+}
+
+FSceneViewStateInterface* UMoviePipelineDeferredPassBase::GetSceneViewStateInterface()
+{
+	if (CurrentLayerIndex == INDEX_NONE)
+	{
+		return Super::GetSceneViewStateInterface();
+	}
+	else
+	{
+		return StencilLayerViewStates[CurrentLayerIndex].GetReference();
+	}
+}
+
+UTextureRenderTarget2D* UMoviePipelineDeferredPassBase::GetViewRenderTarget() const
+{
+	if (CurrentLayerIndex == INDEX_NONE)
+	{
+		return TileRenderTargets[0];
+	}
+	else
+	{
+		return TileRenderTargets[CurrentLayerIndex + 1];
+	}
+}
+
 
 void UMoviePipelineDeferredPassBase::GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses)
 {
@@ -85,7 +224,6 @@ void UMoviePipelineDeferredPassBase::GatherOutputPassesImpl(TArray<FMoviePipelin
 	Super::GatherOutputPassesImpl(ExpectedRenderPasses);
 
 	TArray<FString> RenderPasses;
-
 	for (UMaterialInterface* Material : ActivePostProcessMaterials)
 	{
 		if (Material)
@@ -94,10 +232,229 @@ void UMoviePipelineDeferredPassBase::GatherOutputPassesImpl(TArray<FMoviePipelin
 		}
 	}
 
-
 	for (const FString& Pass : RenderPasses)
 	{
 		ExpectedRenderPasses.Add(FMoviePipelinePassIdentifier(PassIdentifier.Name + Pass));
+	}
+
+	if (bAddDefaultLayer)
+	{
+		ExpectedRenderPasses.Add(FMoviePipelinePassIdentifier(PassIdentifier.Name + TEXT("DefaultLayer")));
+	}
+
+	for (const FActorLayer& Layer : StencilLayers)
+	{
+		ExpectedRenderPasses.Add(FMoviePipelinePassIdentifier(PassIdentifier.Name + Layer.Name.ToString()));
+	}
+}
+
+void UMoviePipelineDeferredPassBase::AddViewExtensions(FSceneViewFamilyContext& InContext, FMoviePipelineRenderPassMetrics& InOutSampleState)
+{
+	// OCIO Scene View Extension is a special case and won't be registered like other view extensions.
+	if (InOutSampleState.OCIOConfiguration && InOutSampleState.OCIOConfiguration->bIsEnabled)
+	{
+		FOpenColorIODisplayConfiguration* OCIOConfigNew = const_cast<FMoviePipelineRenderPassMetrics&>(InOutSampleState).OCIOConfiguration;
+		FOpenColorIODisplayConfiguration& OCIOConfigCurrent = OCIOSceneViewExtension->GetDisplayConfiguration();
+
+		// We only need to set this once per render sequence.
+		if (OCIOConfigNew->ColorConfiguration.ConfigurationSource && OCIOConfigNew->ColorConfiguration.ConfigurationSource != OCIOConfigCurrent.ColorConfiguration.ConfigurationSource)
+		{
+			OCIOSceneViewExtension->SetDisplayConfiguration(*OCIOConfigNew);
+		}
+
+		InContext.ViewExtensions.Add(OCIOSceneViewExtension.ToSharedRef());
+	}
+}
+
+void UMoviePipelineDeferredPassBase::RenderSample_GameThreadImpl(const FMoviePipelineRenderPassMetrics& InSampleState)
+{
+	Super::RenderSample_GameThreadImpl(InSampleState);
+
+	// Wait for a surface to be available to write to. This will stall the game thread while the RHI/Render Thread catch up.
+	{
+		SCOPE_CYCLE_COUNTER(STAT_MoviePipeline_WaitForAvailableSurface);
+		SurfaceQueue->BlockUntilAnyAvailable();
+	}
+
+
+	// Main Render Pass
+	{
+		FMoviePipelineRenderPassMetrics InOutSampleState = InSampleState;
+
+		CurrentLayerIndex = INDEX_NONE;
+		TSharedPtr<FSceneViewFamilyContext> ViewFamily = CalculateViewFamily(InOutSampleState);
+
+		// Add post-processing materials if needed
+		FSceneView* View = const_cast<FSceneView*>(ViewFamily->Views[0]);
+		View->FinalPostProcessSettings.BufferVisualizationOverviewMaterials.Empty();
+		View->FinalPostProcessSettings.BufferVisualizationPipes.Empty();
+
+		for (UMaterialInterface* Material : ActivePostProcessMaterials)
+		{
+			if (Material)
+			{
+				View->FinalPostProcessSettings.BufferVisualizationOverviewMaterials.Add(Material);
+			}
+		}
+
+		for (UMaterialInterface* VisMaterial : View->FinalPostProcessSettings.BufferVisualizationOverviewMaterials)
+		{
+			// If this was just to contribute to the history buffer, no need to go any further.
+			if (InSampleState.bDiscardResult)
+			{
+				continue;
+			}
+			FMoviePipelinePassIdentifier LayerPassIdentifier = FMoviePipelinePassIdentifier(PassIdentifier.Name + VisMaterial->GetName());
+
+			auto BufferPipe = MakeShared<FImagePixelPipe, ESPMode::ThreadSafe>();
+			BufferPipe->AddEndpoint(MakeForwardingEndpoint(LayerPassIdentifier, InSampleState));
+
+			View->FinalPostProcessSettings.BufferVisualizationPipes.Add(VisMaterial->GetFName(), BufferPipe);
+		}
+
+
+		int32 NumValidMaterials = View->FinalPostProcessSettings.BufferVisualizationPipes.Num();
+		View->FinalPostProcessSettings.bBufferVisualizationDumpRequired = NumValidMaterials > 0;
+
+		// Submit to be rendered. Main render pass always uses target 0.
+		FRenderTarget* RenderTarget = GetViewRenderTarget()->GameThread_GetRenderTargetResource();
+		FCanvas Canvas = FCanvas(RenderTarget, nullptr, GetPipeline()->GetWorld(), ERHIFeatureLevel::SM5, FCanvas::CDM_DeferDrawing, 1.0f);
+		GetRendererModule().BeginRenderingViewFamily(&Canvas, ViewFamily.Get());
+
+		// Readback + Accumulate.
+		PostRendererSubmission(InOutSampleState, PassIdentifier, Canvas);
+	}
+
+	// Now submit stencil layers if needed
+	{
+		FMoviePipelineRenderPassMetrics InOutSampleState = InSampleState;
+
+		struct FStencilValues
+		{
+			FStencilValues()
+				: bRenderCustomDepth(false)
+				, StencilMask(ERendererStencilMask::ERSM_Default)
+				, CustomStencil(0)
+			{
+			}
+
+			bool bRenderCustomDepth;
+			ERendererStencilMask StencilMask;
+			int32 CustomStencil;
+		};
+
+		// If we're going to be using stencil layers, we need to cache all of the users
+		// custom stencil/depth settings since we're changing them to do the mask.
+		TMap<UPrimitiveComponent*, FStencilValues> PreviousValues;
+		if (StencilLayers.Num() > 0)
+		{
+			for (TActorIterator<AActor> ActorItr(GetWorld()); ActorItr; ++ActorItr)
+			{
+				AActor* Actor = *ActorItr;
+				if (Actor)
+				{
+					for (UActorComponent* Component : Actor->GetComponents())
+					{
+						if (Component && Component->IsA<UPrimitiveComponent>())
+						{
+							UPrimitiveComponent* PrimitiveComponent = CastChecked<UPrimitiveComponent>(Component);
+							FStencilValues& Values = PreviousValues.Add(PrimitiveComponent);
+							Values.StencilMask = PrimitiveComponent->CustomDepthStencilWriteMask;
+							Values.CustomStencil = PrimitiveComponent->CustomDepthStencilValue;
+							Values.bRenderCustomDepth = PrimitiveComponent->bRenderCustomDepth;
+						}
+					}
+				}
+			}
+		}
+
+		// Now for each stencil layer we reconfigure all the actors custom depth/stencil 
+		TArray<FActorLayer> AllStencilLayers = StencilLayers;
+		if (bAddDefaultLayer)
+		{
+			FActorLayer& DefaultLayer = AllStencilLayers.AddDefaulted_GetRef();
+			DefaultLayer.Name = FName("DefaultLayer");
+		}
+
+		CurrentLayerIndex = 0;
+		for (const FActorLayer& Layer : AllStencilLayers)
+		{
+			FMoviePipelinePassIdentifier LayerPassIdentifier = FMoviePipelinePassIdentifier(PassIdentifier.Name + Layer.Name.ToString());
+
+			for (TActorIterator<AActor> ActorItr(GetWorld()); ActorItr; ++ActorItr)
+			{
+				AActor* Actor = *ActorItr;
+				if (Actor)
+				{
+					// The way stencil masking works is that we draw the actors on the given layer to the stencil buffer.
+					// Then we apply a post-processing material which colors pixels outside those actors black, before
+					// post processing. Then, TAA, Motion Blur, etc. is applied to all pixels. An alpha channel can preserve
+					// which pixels were the geometry and which are dead space which lets you apply that as a mask later.
+					bool bInLayer = true;
+					if (bAddDefaultLayer && Layer.Name == FName("DefaultLayer"))
+					{
+						// If we're trying to render the default layer, the logic is different - we only add objects who
+						// aren't in any of the stencil layers.
+						for (const FActorLayer& AllLayer : StencilLayers)
+						{
+							bInLayer = !Actor->Layers.Contains(AllLayer.Name);
+							if (!bInLayer)
+							{
+								break;
+							}
+						}
+					}
+					else
+					{
+						// If this a normal layer, we only add the actor if it exists on this layer.
+						bInLayer = Actor->Layers.Contains(Layer.Name);
+					}
+
+					for (UActorComponent* Component : Actor->GetComponents())
+					{
+						if (Component && Component->IsA<UPrimitiveComponent>())
+						{
+							UPrimitiveComponent* PrimitiveComponent = CastChecked<UPrimitiveComponent>(Component);
+							PrimitiveComponent->bRenderCustomDepth = true;
+							PrimitiveComponent->CustomDepthStencilWriteMask = ERendererStencilMask::ERSM_Default;
+							// We want to render all objects not on the layer to stencil too so that foreground objects mask.
+							PrimitiveComponent->CustomDepthStencilValue = bInLayer ? 1 : 0;
+							PrimitiveComponent->MarkRenderStateDirty();
+						}
+					}
+				}
+			}
+
+			if (StencilLayerMaterial)
+			{
+				TSharedPtr<FSceneViewFamilyContext> ViewFamily = CalculateViewFamily(InOutSampleState);
+				FSceneView* View = const_cast<FSceneView*>(ViewFamily->Views[0]);
+
+				// Now that we've modified all of the stencil values, we can submit them to be rendered.
+				View->FinalPostProcessSettings.AddBlendable(StencilLayerMaterial, 1.0f);
+				IBlendableInterface* BlendableInterface = Cast<IBlendableInterface>(StencilLayerMaterial);
+				BlendableInterface->OverrideBlendableSettings(*View, 1.f);
+
+				{
+					FRenderTarget* RenderTarget = GetViewRenderTarget()->GameThread_GetRenderTargetResource();
+					FCanvas Canvas = FCanvas(RenderTarget, nullptr, GetPipeline()->GetWorld(), ERHIFeatureLevel::SM5, FCanvas::CDM_DeferDrawing, 1.0f);
+					GetRendererModule().BeginRenderingViewFamily(&Canvas, ViewFamily.Get());
+
+					// Readback + Accumulate.
+					PostRendererSubmission(InSampleState, LayerPassIdentifier, Canvas);
+				}
+			}
+
+			CurrentLayerIndex++;
+		}
+
+		// Now we can restore the custom depth/stencil/etc. values so that the main render pass acts as the user expects next time.
+		for (TPair<UPrimitiveComponent*, FStencilValues>& KVP : PreviousValues)
+		{
+			KVP.Key->CustomDepthStencilWriteMask = KVP.Value.StencilMask;
+			KVP.Key->CustomDepthStencilValue = KVP.Value.CustomStencil;
+			KVP.Key->bRenderCustomDepth = KVP.Value.bRenderCustomDepth;
+		}
 	}
 }
 
@@ -123,15 +480,11 @@ TFunction<void(TUniquePtr<FImagePixelData>&&)> UMoviePipelineDeferredPassBase::M
 	{
 		AccumulationArgs.OutputMerger = GetPipeline()->OutputBuilder;
 		AccumulationArgs.ImageAccumulator = StaticCastSharedPtr<FImageOverlappedAccumulator>(SampleAccumulator->Accumulator);
-		AccumulationArgs.bAccumulateAlpha = bAccumulateMultisampleAlpha;
+		AccumulationArgs.bAccumulateAlpha = bAccumulatorIncludesAlpha;
 	}
 
 	auto Callback = [this, FramePayload, AccumulationArgs, SampleAccumulator](TUniquePtr<FImagePixelData>&& InPixelData)
 	{
-			// Each frame can be processed independently, so we can start processing the second frame's tasks
-			// even if the accumulation for the first frame is still happening.
-
-
 		// Transfer the framePayload to the returned data
 		TUniquePtr<FImagePixelData> PixelDataWithPayload = nullptr;
 		switch (InPixelData->GetType())
@@ -160,8 +513,11 @@ TFunction<void(TUniquePtr<FImagePixelData>&&)> UMoviePipelineDeferredPassBase::M
 
 		bool bFinalSample = FramePayload->IsLastTile() && FramePayload->IsLastTemporalSample();
 		bool bFirstSample = FramePayload->IsFirstTile() && FramePayload->IsFirstTemporalSample();
+
 		FMoviePipelineBackgroundAccumulateTask Task;
+		// There may be other accumulations for this accumulator which need to be processed first
 		Task.LastCompletionEvent = SampleAccumulator->TaskPrereq;
+
 		FGraphEventRef Event = Task.Execute([PixelData = MoveTemp(PixelDataWithPayload), AccumulationArgs, bFinalSample, SampleAccumulator]() mutable
 		{
 			// Enqueue a encode for this frame onto our worker thread.
@@ -174,13 +530,12 @@ TFunction<void(TUniquePtr<FImagePixelData>&&)> UMoviePipelineDeferredPassBase::M
 		});
 
 		this->OutstandingTasks.Add(Event);
-
 	};
 
 	return Callback;
 }
 
-void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipelineRenderPassMetrics& InSampleState, FCanvas& InCanvas)
+void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipelineRenderPassMetrics& InSampleState, const FMoviePipelinePassIdentifier InPassIdentifier, FCanvas& InCanvas)
 {
 	// If this was just to contribute to the history buffer, no need to go any further.
 	if (InSampleState.bDiscardResult)
@@ -251,12 +606,12 @@ void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipeline
 	TSharedPtr<FAccumulatorPool::FAccumulatorInstance, ESPMode::ThreadSafe> SampleAccumulator = nullptr;
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MoviePipeline_WaitForAvailableAccumulator);
-		SampleAccumulator = AccumulatorPool->BlockAndGetAccumulator_GameThread(InSampleState.OutputState.OutputFrameNumber, PassIdentifier);
+		SampleAccumulator = AccumulatorPool->BlockAndGetAccumulator_GameThread(InSampleState.OutputState.OutputFrameNumber, InPassIdentifier);
 	}
 	TSharedPtr<FMoviePipelineSurfaceQueue> LocalSurfaceQueue = SurfaceQueue;
 
 	TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> FramePayload = MakeShared<FImagePixelDataPayload, ESPMode::ThreadSafe>();
-	FramePayload->PassIdentifier = PassIdentifier;
+	FramePayload->PassIdentifier = InPassIdentifier;
 	FramePayload->SampleState = InSampleState;
 	FramePayload->SortingOrder = GetOutputFileSortingOrder();
 
@@ -264,15 +619,13 @@ void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipeline
 	{
 		AccumulationArgs.OutputMerger = GetPipeline()->OutputBuilder;
 		AccumulationArgs.ImageAccumulator = StaticCastSharedPtr<FImageOverlappedAccumulator>(SampleAccumulator->Accumulator);
-		AccumulationArgs.bAccumulateAlpha = bAccumulateMultisampleAlpha;
+		AccumulationArgs.bAccumulateAlpha = bAccumulatorIncludesAlpha;
 	}
 
 	auto Callback = [this, FramePayload, AccumulationArgs, SampleAccumulator](TUniquePtr<FImagePixelData>&& InPixelData)
 	{
 		bool bFinalSample = FramePayload->IsLastTile() && FramePayload->IsLastTemporalSample();
 		bool bFirstSample = FramePayload->IsFirstTile() && FramePayload->IsFirstTemporalSample();
-			// Each frame can be processed independently, so we can start processing the second frame's tasks
-			// even if the accumulation for the first frame is still happening.
 
 		FMoviePipelineBackgroundAccumulateTask Task;
 		// There may be other accumulations for this accumulator which need to be processed first
@@ -290,10 +643,9 @@ void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipeline
 		});
 
 		this->OutstandingTasks.Add(Event);
-
 	};
 
-	FRenderTarget* RenderTarget = TileRenderTarget->GameThread_GetRenderTargetResource();
+	FRenderTarget* RenderTarget = InCanvas.GetRenderTarget();
 
 	ENQUEUE_RENDER_COMMAND(CanvasRenderTargetResolveCommand)(
 		[LocalSurfaceQueue, FramePayload, Callback, RenderTarget](FRHICommandListImmediate& RHICmdList) mutable
@@ -301,92 +653,7 @@ void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipeline
 			// Enqueue a encode for this frame onto our worker thread.
 			LocalSurfaceQueue->OnRenderTargetReady_RenderThread(RenderTarget->GetRenderTargetTexture(), FramePayload, MoveTemp(Callback));
 		});
-}
 
-void UMoviePipelineDeferredPassBase::MoviePipelineRenderShowFlagOverride(FEngineShowFlags& OutShowFlag)
-{
-	if (bDisableMultisampleEffects)
-	{
-		OutShowFlag.SetAntiAliasing(false);
-		OutShowFlag.SetDepthOfField(false);
-		OutShowFlag.SetMotionBlur(false);
-		OutShowFlag.SetBloom(false);
-		OutShowFlag.SetSceneColorFringe(false);
-	}
-}
-
-UMoviePipelineDeferredPassBase::UMoviePipelineDeferredPassBase() 
-	: UMoviePipelineImagePassBase()
-{
-	PassIdentifier = FMoviePipelinePassIdentifier("FinalImage");
-	TArray<FString> DefaultPostProcessMaterials;
-	DefaultPostProcessMaterials.Add(TEXT("/MovieRenderPipeline/Materials/MovieRenderQueue_WorldDepth.MovieRenderQueue_WorldDepth"));
-	DefaultPostProcessMaterials.Add(TEXT("/MovieRenderPipeline/Materials/MovieRenderQueue_MotionVectors.MovieRenderQueue_MotionVectors"));
-	for (FString& MaterialPath : DefaultPostProcessMaterials)
-	{
-		FMoviePipelinePostProcessPass& NewPass = AdditionalPostProcessMaterials.AddDefaulted_GetRef();
-		NewPass.Material = TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(MaterialPath));
-		NewPass.bEnabled = false;
-	}
-}
-void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings)
-{
-	Super::SetupImpl(InPassInitSettings);
-
-	// Render Target that the GBuffer is copied to
-	TileRenderTarget = NewObject<UTextureRenderTarget2D>(GetTransientPackage());
-	TileRenderTarget->ClearColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.0f);
-
-	// OCIO: Since this is a manually created Render target we don't need Gamma to be applied.
-	// We use this render target to render to via a display extension that utilizes Display Gamma
-	// which has a default value of 2.2 (DefaultDisplayGamma), therefore we need to set Gamma on this render target to 2.2 to cancel out any unwanted effects.
-	TileRenderTarget->TargetGamma = FOpenColorIODisplayExtension::DefaultDisplayGamma;
-
-	// Initialize to the tile size (not final size) and use a 16 bit back buffer to avoid precision issues when accumulating later
-	TileRenderTarget->InitCustomFormat(InPassInitSettings.BackbufferResolution.X, InPassInitSettings.BackbufferResolution.Y, EPixelFormat::PF_FloatRGBA, false);
-
-	if (GetPipeline()->GetPreviewTexture() == nullptr)
-	{
-		GetPipeline()->SetPreviewTexture(TileRenderTarget.Get());
-	}
-
-	for (FMoviePipelinePostProcessPass& AdditionalPass : AdditionalPostProcessMaterials)
-	{
-		if (AdditionalPass.bEnabled)
-		{
-			UMaterialInterface* Material = AdditionalPass.Material.LoadSynchronous();
-			if (Material)
-			{
-				ActivePostProcessMaterials.Add(Material);
-			}
-		}
-	}
-	SurfaceQueue = MakeShared<FMoviePipelineSurfaceQueue>(InPassInitSettings.BackbufferResolution, EPixelFormat::PF_FloatRGBA, 3, true);
-	int32 PoolSize = (ActivePostProcessMaterials.Num() + 1) * 3;
-	AccumulatorPool = MakeShared<TAccumulatorPool<FImageOverlappedAccumulator>, ESPMode::ThreadSafe>(PoolSize);
-
-	// This scene view extension will be released automatically as soon as Render Sequence is torn down.
-	// One Extension per sequence, since each sequence has its own OCIO settings.
-	OCIOSceneViewExtension = FSceneViewExtensions::NewExtension<FOpenColorIODisplayExtension>();
-}
-
-void UMoviePipelineDeferredPassBase::TeardownImpl()
-{
-	GetPipeline()->SetPreviewTexture(nullptr);
-
-	// This may call FlushRenderingCommands if there are outstanding readbacks that need to happen.
-	SurfaceQueue->Shutdown();
-
-	// Stall until the task graph has completed any pending accumulations.
-	FTaskGraphInterface::Get().WaitUntilTasksComplete(OutstandingTasks, ENamedThreads::GameThread);
-	OutstandingTasks.Reset();
-	ActivePostProcessMaterials.Reset();
-	
-	OCIOSceneViewExtension.Reset();
-	OCIOSceneViewExtension = nullptr;
-
-	// Preserve our view state until the rendering thread has been flushed.
-	Super::TeardownImpl();
 }
 
 namespace MoviePipeline
