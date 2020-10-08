@@ -47,6 +47,23 @@ ENUM_CLASS_FLAGS(EStructSerializerBackendFlags);
 
 
 /**
+ * Flags related to the current state being serialized.
+ */
+enum class EStructSerializerStateFlags
+{
+	/**
+	 * Nothing special.
+	 */
+	None = 0,
+
+	/**
+	 * Whether its serializing a single element from a container (array, set, map)
+	 */
+	 WritingContainerElement = 1 << 0,
+};
+ENUM_CLASS_FLAGS(EStructSerializerStateFlags);
+
+/**
  * Structure for the write state stack.
  */
 struct FStructSerializerState
@@ -71,6 +88,12 @@ struct FStructSerializerState
 
 	/** Holds a pointer to the field type describing the data. */
 	FFieldClass* FieldType = nullptr;
+
+	/** Holds the element index that is targeted if an array/set/map */
+	int32 ElementIndex = INDEX_NONE;
+
+	/** Flags related for the current state */
+	EStructSerializerStateFlags StateFlags = EStructSerializerStateFlags::None;
 };
 
 
