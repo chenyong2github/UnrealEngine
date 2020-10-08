@@ -24,6 +24,7 @@
 #include "DerivedDataCacheInterface.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
+#include "Serialization/FileRegions.h"
 #include "Misc/ICompressionFormat.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, PakFileUtilities);
