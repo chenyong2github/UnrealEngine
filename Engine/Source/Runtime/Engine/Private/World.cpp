@@ -1982,8 +1982,8 @@ void UWorld::UpdateWorldComponents(bool bRerunConstructionScripts, bool bCurrent
 			ForegroundLineBatcher->RegisterComponentWithWorld(this, Context);
 		}
 
-		static IConsoleVariable* CVarPhysicsFieldEnableClipmap = IConsoleManager::Get().FindConsoleVariable(TEXT("r.PhysicsField.EnableField"));
-		if (CVarPhysicsFieldEnableClipmap && CVarPhysicsFieldEnableClipmap->GetInt() == 1)
+		static IConsoleVariable* PhysicsFieldEnableClipmapCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.PhysicsField.EnableField"));
+		if (PhysicsFieldEnableClipmapCVar && PhysicsFieldEnableClipmapCVar->GetInt() == 1)
 		{
 			if (!PhysicsField)
 			{
