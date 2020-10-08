@@ -47,12 +47,13 @@ void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& 
 		ResolutionY = BufferSizeXY.Y;
 
 		// Previous GBuffer when complete was 28bytes
-		StrataData.MaxBytesPerPixel = 256;
-
+		// check out Strata.ush to see how this is computed
+		const uint32 MaterialConservativeByteCountPerPixel = 129u;
+		StrataData.MaxBytesPerPixel = FMath::DivideAndRoundUp(MaterialConservativeByteCountPerPixel, 4u) * 4u;
 	}
 	else
 	{
-		StrataData.MaxBytesPerPixel = 1;
+		StrataData.MaxBytesPerPixel = 4u;
 	}
 
 	FRDGTextureRef MaterialLobesTexture = GraphBuilder.CreateTexture(
