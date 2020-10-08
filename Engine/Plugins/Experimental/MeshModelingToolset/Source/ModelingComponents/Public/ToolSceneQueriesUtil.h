@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/EngineTypes.h"
 #include "InteractiveTool.h"
 #include "InteractiveToolManager.h"
 #include "VectorTypes.h"
@@ -108,5 +109,35 @@ namespace ToolSceneQueriesUtil
 	 * Run a query against the scene to find the nearest WorldGrid snap point
 	 */
 	MODELINGCOMPONENTS_API bool FindWorldGridSnapPoint(const UInteractiveTool* Tool, const FVector3d& QueryPoint, FVector3d& GridSnapPointOut);
+
+
+	/**
+	 * @return true if HitResult is a hit on a visible Component of a visible Actor (provides correct result in Editor)
+	 */
+	MODELINGCOMPONENTS_API bool IsVisibleObjectHit(const FHitResult& HitResult);
+
+	/**
+	 * Find the nearest object hit by the LineTrace from Start to End that is currently visible (provides correct result in Editor)
+	 * @param World the world to trace into
+	 * @param HitResultOut the resulting hit, if true is returned
+	 * @param Start start point of line
+	 * @param End end point of line
+	 * @param IgnoreComponents optional list of Components to ignore
+	 * @return true if a visible hit was found
+	 */
+	MODELINGCOMPONENTS_API bool FindNearestVisibleObjectHit(UWorld* World, FHitResult& HitResultOut, const FVector& Start, const FVector& End,
+		const TArray<UPrimitiveComponent*>* IgnoreComponents = nullptr );
+
+
+	/**
+	 * Find the nearest object hit by the LineTrace from Start to End that is currently visible (provides correct result in Editor)
+	 * @param World the world to trace into
+	 * @param HitResultOut the resulting hit, if true is returned
+	 * @param Ray hit ray
+	 * @param IgnoreComponents optional list of Components to ignore
+	 * @return true if a visible hit was found
+	 */
+	MODELINGCOMPONENTS_API bool FindNearestVisibleObjectHit(UWorld* World, FHitResult& HitResultOut, const FRay& Ray,
+		const TArray<UPrimitiveComponent*>* IgnoreComponents = nullptr);
 
 }
