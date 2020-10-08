@@ -20,7 +20,7 @@ namespace UnrealBuildTool.Rules
 					"Analytics",
 					"AssetRegistry",
 					"Projects",
-					"Python",
+					"Python3",
 					"Slate",
 					"SlateCore",
 					"InputCore",
