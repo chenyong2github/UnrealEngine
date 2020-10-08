@@ -225,7 +225,7 @@ void URevolveBoundaryTool::StartPreview()
 	Preview->Setup(TargetWorld, RevolveBoundaryOpCreator);
 	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
 
-	Preview->ConfigureMaterials(MaterialProperties->Material,
+	Preview->ConfigureMaterials(MaterialProperties->Material.Get(),
 		ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
 	Preview->PreviewMesh->EnableWireframe(MaterialProperties->bWireframe);
 
@@ -262,7 +262,7 @@ void URevolveBoundaryTool::GenerateAsset(const FDynamicMeshOpResult& Result)
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("RevolveBoundaryToolTransactionName", "Revolve Boundary Tool"));
 
 	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
-		AssetAPI, TargetWorld, Result.Mesh.Get(), Result.Transform, TEXT("RevolveBoundaryResult"), MaterialProperties->Material);
+		AssetAPI, TargetWorld, Result.Mesh.Get(), Result.Transform, TEXT("RevolveBoundaryResult"), MaterialProperties->Material.Get());
 
 	if (NewActor != nullptr)
 	{
@@ -325,7 +325,7 @@ void URevolveBoundaryTool::OnPropertyModified(UObject* PropertySet, FProperty* P
 	{
 		if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UNewMeshMaterialProperties, Material)))
 		{
-			Preview->ConfigureMaterials(MaterialProperties->Material,
+			Preview->ConfigureMaterials(MaterialProperties->Material.Get(),
 				ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
 		}
 
