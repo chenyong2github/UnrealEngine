@@ -2449,7 +2449,11 @@ FMaterialShaderMap* FMaterialShaderMap::AcquireFinalizedClone()
 
 	const FMaterialShaderMapContent* LocalContent = GetContent();
 	const FShaderMapResourceCode* LocalCode = GetResourceCode();
-	if (LocalContent && GetFrozenContentSize() == 0u)
+
+	checkf(LocalContent, TEXT("Can't clone shader map %s"), GetFriendlyName());
+	checkf(LocalCode, TEXT("Can't clone shader map %s"), GetFriendlyName());
+
+	if (GetFrozenContentSize() == 0u)
 	{
 		// If content isn't frozen yet, make sure to finalize it before making clone
 		const_cast<FMaterialShaderMapContent*>(LocalContent)->Finalize(LocalCode);
