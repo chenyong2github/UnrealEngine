@@ -2494,24 +2494,22 @@ void SRigHierarchy::HandleUnparent()
 		{
 			case ERigElementType::Bone:
 			{
-				if (BoneHierarchy[SelectedItem->Key.Name].Type == ERigBoneType::Imported)
+				bool bIsImportedBone = BoneHierarchy[SelectedItem->Key.Name].Type == ERigBoneType::Imported;
+				if (bIsImportedBone && !bConfirmedByUser)
 				{
-					if (!bConfirmedByUser)
-					{
-						FText ConfirmUnparent = LOCTEXT("ConfirmUnparentBoneHierarchy",
-							"Unparenting imported(white) bones can cause issues with animation - are you sure ?");
+					FText ConfirmUnparent = LOCTEXT("ConfirmUnparentBoneHierarchy",
+						"Unparenting imported(white) bones can cause issues with animation - are you sure ?");
 
-						FSuppressableWarningDialog::FSetupInfo Info(ConfirmUnparent, LOCTEXT("UnparentImportedBone", "Unparent Imported Bone"), "UnparentImportedBoneHierarchy_Warning");
-						Info.ConfirmText = LOCTEXT("UnparentImportedBoneHierarchy_Yes", "Yes");
-						Info.CancelText = LOCTEXT("UnparentImportedBoneHierarchy_No", "No");
+					FSuppressableWarningDialog::FSetupInfo Info(ConfirmUnparent, LOCTEXT("UnparentImportedBone", "Unparent Imported Bone"), "UnparentImportedBoneHierarchy_Warning");
+					Info.ConfirmText = LOCTEXT("UnparentImportedBoneHierarchy_Yes", "Yes");
+					Info.CancelText = LOCTEXT("UnparentImportedBoneHierarchy_No", "No");
 
-						FSuppressableWarningDialog UnparentImportedBonesInHierarchy(Info);
-						bUnparentImportedBones = UnparentImportedBonesInHierarchy.ShowModal() != FSuppressableWarningDialog::Cancel;
-						bConfirmedByUser = true;
-					}
+					FSuppressableWarningDialog UnparentImportedBonesInHierarchy(Info);
+					bUnparentImportedBones = UnparentImportedBonesInHierarchy.ShowModal() != FSuppressableWarningDialog::Cancel;
+					bConfirmedByUser = true;
 				}
 
-				if (bUnparentImportedBones)
+				if (bUnparentImportedBones || !bIsImportedBone)
 				{
 					BoneHierarchy.Reparent(SelectedItem->Key.Name, NAME_None);
 				}
