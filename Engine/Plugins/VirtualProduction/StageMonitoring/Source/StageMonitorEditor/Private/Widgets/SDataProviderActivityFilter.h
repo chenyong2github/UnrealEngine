@@ -72,9 +72,6 @@ private:
 	/** Returns true if data type is currently filtered out */
 	bool IsDataTypeFiltered(UScriptStruct* Type) const;
 
-	/** Used to update list of all data providers for filter menu creation */
-	void OnDataProviderListChanged();
-
 	/** Toggles state of critical state source filter */
 	void ToggleCriticalStateSourceFilter(FName Source);
 
@@ -109,12 +106,6 @@ private:
 
 	/** Delegate fired when filter changed */
 	FSimpleDelegate OnActivityFilterChanged;
-
-	/** 
-	 * All provider identifiers to have existed. 
-	 * Activities could have events from disconnected providers, need to be able to filter them 
-	 */
-	TArray<FStageSessionProviderEntry> AllStageIdentifier;
 
 	/** Weakptr to the current session we're sourcing info from */
 	TWeakPtr<IStageMonitorSession> Session;

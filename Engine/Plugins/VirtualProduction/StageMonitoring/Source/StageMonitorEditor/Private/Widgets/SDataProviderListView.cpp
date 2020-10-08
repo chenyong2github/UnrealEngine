@@ -377,8 +377,7 @@ void SDataProviderListView::RebuildDataProviderList()
 
 	if (TSharedPtr<IStageMonitorSession> SessionPtr = Session.Pin())
 	{
-		const TArray<FStageSessionProviderEntry> Providers = SessionPtr->GetProviders();
-
+		const TConstArrayView<FStageSessionProviderEntry> Providers = SessionPtr->GetProviders();
 		for (const FStageSessionProviderEntry& Provider : Providers)
 		{
 			TSharedRef<FDataProviderTableRowData> RowData = MakeShared<FDataProviderTableRowData>(Provider.Identifier, Provider.Descriptor, Session);
