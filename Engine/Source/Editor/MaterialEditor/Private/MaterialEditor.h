@@ -70,6 +70,17 @@ public:
 
 	virtual ~FMatExpressionPreview()
 	{
+	}
+
+	virtual bool PrepareDestroy_GameThread() override
+	{
+		FMaterial::PrepareDestroy_GameThread();
+		return true; // always need render thread callback
+	}
+
+	virtual void PrepareDestroy_RenderThread() override
+	{
+		FMaterial::PrepareDestroy_RenderThread();
 		ReleaseResource();
 	}
 
