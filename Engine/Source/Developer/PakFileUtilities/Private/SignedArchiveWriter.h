@@ -28,8 +28,6 @@ class FSignedArchiveWriter : public FArchive
 	const FRSAKeyHandle SigningKey;
 	/** Hashes */
 	TArray<TPakChunkHash> ChunkHashes;
-	/** Signature data */
-	TArray<uint8> SignatureData;
 
 	/** 
 	 * Serializes and signs a buffer
@@ -47,9 +45,4 @@ public:
 	virtual int64 Tell() override;
 	virtual int64 TotalSize() override;
 	virtual void Seek(int64 InPos) override;
-
-	void SetSignatureData(TArray<uint8>& InSignatureData)
-	{
-		SignatureData = MoveTemp(InSignatureData);
-	}
 };

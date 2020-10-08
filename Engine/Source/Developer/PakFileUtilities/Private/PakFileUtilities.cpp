@@ -2717,13 +2717,6 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 		UE_LOG(LogPakFile, Display, TEXT("%d files requested encryption, but no AES key was supplied! Encryption was skipped for these files"), TotalRequestedEncryptedFiles);
 	}
 
-	if (CmdLineParameters.bSign)
-	{
-		TArray<uint8> SignatureData;
-		SignatureData.Append(Info.IndexHash.Hash, UE_ARRAY_COUNT(FSHAHash::Hash));
-		((FSignedArchiveWriter*)PakFileHandle.Get())->SetSignatureData(SignatureData);
-	}
-
 	PakFileHandle->Close();
 	PakFileHandle.Reset();
 
