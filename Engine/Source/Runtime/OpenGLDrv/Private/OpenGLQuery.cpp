@@ -1151,70 +1151,53 @@ FGPUFenceRHIRef FOpenGLDynamicRHI::RHICreateGPUFence(const FName &Name)
 
 FOpenGLGPUFence::~FOpenGLGPUFence()
 {
-	RunOnGLRenderContextThread([&]()
+	RunOnGLRenderContextThread([Proxy = Proxy]()
 		{
 			VERIFY_GL_SCOPE();
-			if (bValidSync)
-			{
-				FOpenGL::DeleteSync(Fence);
-				bValidSync = false;
-				bIsSignaled = false;
-			}
+			delete Proxy;
 		});
 }
 
 void FOpenGLGPUFence::Clear()
 {
-	int ValueClearIssued = ++ClearIssued;
-	RunOnGLRenderContextThread([&, ValueClearIssued]()
-		{
-			VERIFY_GL_SCOPE();
-			if (bValidSync)
+	RunOnGLRenderContextThread([Proxy = Proxy]()
 			{
-				FOpenGL::DeleteSync(Fence);
-				bValidSync = false;
-				bIsSignaled = false;
-			}
-			ClearProcessed = ValueClearIssued;
-		});
+				VERIFY_GL_SCOPE();
+				delete Proxy;
+			});
+	Proxy = new FOpenGLGPUFenceProxy();
 }
 bool FOpenGLGPUFence::Poll() const
 {
-	if (!bIsSignaled || (ClearProcessed != ClearIssued))
-	{
-		RunOnGLRenderContextThread([&]() 
+	RunOnGLRenderContextThread([Proxy = Proxy]()
+		{
+			VERIFY_GL_SCOPE();
+			check(Proxy != nullptr);
+			if (Proxy->bValidSync)
 			{
-				VERIFY_GL_SCOPE();
-				if (!bValidSync)
-				{
-					bIsSignaled = false;
-				}
-				else
-				{
-					FOpenGLBase::EFenceResult Result = (FOpenGL::ClientWaitSync(Fence, 0, 0));
-					bIsSignaled = (Result == FOpenGLBase::FR_AlreadySignaled || Result == FOpenGLBase::FR_ConditionSatisfied);
-				}
-			});
-	}
-
-	return bIsSignaled && (ClearProcessed == ClearIssued);
+				FOpenGLBase::EFenceResult Result = (FOpenGL::ClientWaitSync(Proxy->Fence, 0, 0));
+				Proxy->bIsSignaled = (Result == FOpenGLBase::FR_AlreadySignaled || Result == FOpenGLBase::FR_ConditionSatisfied);
+			}
+		});
+	return Proxy->bIsSignaled;
 
 
 }
 
 void FOpenGLGPUFence::WriteInternal()
 {
-	RunOnGLRenderContextThread([&]()
+	RunOnGLRenderContextThread([Proxy = Proxy]()
 		{
+			check(Proxy != nullptr);
 			VERIFY_GL_SCOPE();
-
-			if (bValidSync)
+			if (Proxy->bValidSync)
 			{
-				FOpenGL::DeleteSync(Fence);
-				bValidSync = false;
+				FOpenGL::DeleteSync(Proxy->Fence);
+				Proxy->bValidSync = false;
+				Proxy->bIsSignaled = false;
 			}
 
-			Fence = FOpenGL::FenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
-			bValidSync = true;
+			Proxy->Fence = FOpenGL::FenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+			Proxy->bValidSync = true;
 		});
 }
