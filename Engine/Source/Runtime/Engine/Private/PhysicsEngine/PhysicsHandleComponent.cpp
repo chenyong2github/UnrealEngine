@@ -26,6 +26,8 @@ UPhysicsHandleComponent::UPhysicsHandleComponent(const FObjectInitializer& Objec
 	, PhysicsUserData(&ConstraintInstance)
 	, GrabbedHandle(nullptr)
 	, KinematicHandle(nullptr)
+	, ConstraintLocalPosition(FVector::ZeroVector)
+	, ConstraintLocalRotation(FRotator::ZeroRotator)
 #endif
 {
 	bAutoActivate = true;
@@ -221,7 +223,7 @@ void UPhysicsHandleComponent::GrabComponentImp(UPrimitiveComponent* InComponent,
 		using namespace Chaos;
 
 		FActorCreationParams Params;
-		Params.InitialTM = FTransform(InHandle->R(), InHandle->X());
+		Params.InitialTM = FTransform(Rotation, Location);
 		FPhysicsInterface::CreateActor(Params, KinematicHandle);
 
 		KinematicHandle->SetGeometry(TUniquePtr<FImplicitObject>(new TSphere<FReal, 3>(TVector<FReal, 3>(0.f), 1000.f)));
@@ -233,6 +235,18 @@ void UPhysicsHandleComponent::GrabComponentImp(UPrimitiveComponent* InComponent,
 			ConstraintInstance.PhysScene = Scene;
 		}
 	}
+
+	FTransform KinematicTransform(Rotation, Location);
+
+	// set target and current, so we don't need another "Tick" call to have it right
+	TargetTransform = CurrentTransform = KinematicTransform;
+
+	KinematicHandle->SetX(KinematicTransform.GetLocation());
+	KinematicHandle->SetR(KinematicTransform.GetRotation());	
+	
+	FTransform GrabbedTransform(InHandle->R(), InHandle->X());
+	ConstraintLocalPosition = GrabbedTransform.InverseTransformPosition(Location);
+	ConstraintLocalRotation = FRotator(GrabbedTransform.InverseTransformRotation(FQuat(Rotation)));
 
 	bRotationConstrained = bInConstrainRotation;
 	GrabbedHandle = InHandle; 
@@ -270,13 +284,31 @@ void UPhysicsHandleComponent::UpdateDriveSettings()
 			{
 				if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(ConstraintHandle.Constraint))
 				{
-					if (bSoftLinearConstraint)
+					Chaos::EJointMotionType LocationMotionType = bSoftLinearConstraint ? Chaos::EJointMotionType::Free : Chaos::EJointMotionType::Locked;
+					Chaos::EJointMotionType RotationMotionType = (bSoftAngularConstraint || !bRotationConstrained) ? Chaos::EJointMotionType::Free : Chaos::EJointMotionType::Locked;
+
+					Constraint->SetCollisionEnabled(false);
+					Constraint->SetLinearVelocityDriveEnabled(Chaos::TVector<bool, 3>(LocationMotionType != Chaos::EJointMotionType::Locked));
+					Constraint->SetLinearPositionDriveEnabled(Chaos::TVector<bool, 3>(LocationMotionType != Chaos::EJointMotionType::Locked));
+					Constraint->SetLinearMotionTypesX(LocationMotionType);
+					Constraint->SetLinearMotionTypesY(LocationMotionType);
+					Constraint->SetLinearMotionTypesZ(LocationMotionType);
+
+					Constraint->SetAngularSLerpPositionDriveEnabled(bRotationConstrained && RotationMotionType != Chaos::EJointMotionType::Locked);
+					Constraint->SetAngularSLerpVelocityDriveEnabled(bRotationConstrained && RotationMotionType != Chaos::EJointMotionType::Locked);
+					Constraint->SetAngularMotionTypesX(RotationMotionType);
+					Constraint->SetAngularMotionTypesY(RotationMotionType);
+					Constraint->SetAngularMotionTypesZ(RotationMotionType);
+					FTransform GrabConstraintLocalTransform(ConstraintLocalRotation, ConstraintLocalPosition);
+					Constraint->SetJointTransforms({ FTransform::Identity , GrabConstraintLocalTransform });
+
+					if (LocationMotionType != Chaos::EJointMotionType::Locked)
 					{
 						Constraint->SetLinearDriveStiffness(LinearStiffness);
 						Constraint->SetLinearDriveDamping(LinearDamping);
 					}
 
-					if (bSoftAngularConstraint && bRotationConstrained)
+					if (bRotationConstrained && RotationMotionType != Chaos::EJointMotionType::Locked)
 					{
 						Constraint->SetAngularDriveStiffness(AngularStiffness);
 						Constraint->SetAngularDriveDamping(AngularDamping);
@@ -466,10 +498,7 @@ void UPhysicsHandleComponent::TickComponent(float DeltaTime, enum ELevelTick Tic
 		{
 			using namespace Chaos;
 
-			FTransform KinematicTransform = FTransform::Identity;// The Kinematic should just be at the origin.
-			FTransform GrabbedTransform = FTransform::Identity; // @todo : this should be offset from where the user grabbed the asset
-			
-			ConstraintHandle = FChaosEngineInterface::CreateConstraint(KinematicHandle, GrabbedHandle, KinematicTransform, GrabbedTransform);
+			ConstraintHandle = FChaosEngineInterface::CreateConstraint(KinematicHandle, GrabbedHandle, FTransform::Identity, FTransform::Identity); // Correct transforms will be set in the update
 			if (ConstraintHandle.IsValid() && ConstraintHandle.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 			{
 				if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(ConstraintHandle.Constraint))
@@ -478,18 +507,7 @@ void UPhysicsHandleComponent::TickComponent(float DeltaTime, enum ELevelTick Tic
 					Constraint->SetUserData(&PhysicsUserData/*has a (void*)FConstraintInstanceBase*/);
 					ConstraintInstance.ConstraintHandle = ConstraintHandle;
 
-					FPhysicsCommand::ExecuteWrite(ConstraintHandle, [&](const FPhysicsConstraintHandle& InConstraintHandle)
-					{
-						EJointMotionType LocationMotionType = bSoftLinearConstraint ? EJointMotionType::Free : EJointMotionType::Locked;
-						EJointMotionType RotationMotionType = (bSoftAngularConstraint || !bRotationConstrained) ? EJointMotionType::Free : EJointMotionType::Locked;
-
-						Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintHandle.Constraint);
-
-						Constraint->SetCollisionEnabled(false);
-						Constraint->SetLinearVelocityDriveEnabled(TVector<bool, 3>(LocationMotionType == EJointMotionType::Locked));
-						Constraint->SetAngularSLerpPositionDriveEnabled(RotationMotionType == EJointMotionType::Locked);
-						UpdateDriveSettings();
-					});
+					UpdateDriveSettings();
 				}
 			}
 			bPendingConstraint = true;

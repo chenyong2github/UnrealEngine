@@ -86,6 +86,8 @@ protected:
 	FPhysicsActorHandle GrabbedHandle;
 	FPhysicsActorHandle KinematicHandle;
 	FPhysicsConstraintHandle ConstraintHandle;
+	FVector ConstraintLocalPosition; // Position of constraint in the grabbed body local space (updated when grabbing)
+	FRotator ConstraintLocalRotation;
 #endif
 
 	//~ Begin UActorComponent Interface.
