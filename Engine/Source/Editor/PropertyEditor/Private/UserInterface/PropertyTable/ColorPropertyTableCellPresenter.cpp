@@ -10,7 +10,7 @@
 #include "IPropertyTableUtilities.h"
 
 #include "UserInterface/PropertyEditor/SPropertyEditorColor.h"
-#include "UserInterface/PropertyEditor/SResetToDefaultPropertyEditor.h"
+#include "SResetToDefaultPropertyEditor.h"
 
 FColorPropertyTableCellPresenter::FColorPropertyTableCellPresenter( const TSharedRef< class FPropertyEditor >& InPropertyEditor, const TSharedRef< class IPropertyTableUtilities >& InPropertyUtilities )
 	: PropertyEditor( InPropertyEditor )

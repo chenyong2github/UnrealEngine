@@ -8,7 +8,7 @@
 #include "EditorStyleSet.h"
 
 #include "UserInterface/PropertyEditor/SPropertyEditorBool.h"
-#include "UserInterface/PropertyEditor/SResetToDefaultPropertyEditor.h"
+#include "SResetToDefaultPropertyEditor.h"
 
 FBooleanPropertyTableCellPresenter::FBooleanPropertyTableCellPresenter( const TSharedRef< class FPropertyEditor >& InPropertyEditor )
 	: PropertyEditor( InPropertyEditor )

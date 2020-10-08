@@ -3,7 +3,7 @@
 #include "DetailPropertyRow.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyCustomizationHelpers.h"
-#include "UserInterface/PropertyEditor/SResetToDefaultPropertyEditor.h"
+#include "SResetToDefaultPropertyEditor.h"
 #include "DetailItemNode.h"
 #include "DetailCategoryGroupNode.h"
 #include "ObjectPropertyNode.h"

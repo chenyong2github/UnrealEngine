@@ -7,6 +7,7 @@
 #include "IDocumentation.h"
 
 #include "PropertyHandleImpl.h"
+#include "SResetToDefaultPropertyEditor.h"
 
 #include "UserInterface/PropertyEditor/SPropertyEditor.h"
 #include "UserInterface/PropertyEditor/SPropertyEditorNumeric.h"
@@ -18,7 +19,6 @@
 #include "UserInterface/PropertyEditor/SPropertyEditorArrayItem.h"
 #include "UserInterface/PropertyEditor/SPropertyEditorTitle.h"
 #include "UserInterface/PropertyEditor/SPropertyEditorDateTime.h"
-#include "UserInterface/PropertyEditor/SResetToDefaultPropertyEditor.h"
 #include "UserInterface/PropertyEditor/SPropertyEditorAsset.h"
 #include "UserInterface/PropertyEditor/SPropertyEditorClass.h"
 #include "UserInterface/PropertyEditor/SPropertyEditorStruct.h"

@@ -8,9 +8,9 @@
 #include "Widgets/Layout/SBorder.h"
 #include "IPropertyTableUtilities.h"
 #include "PropertyEditorHelpers.h"
+#include "SResetToDefaultPropertyEditor.h"
 
 #include "UserInterface/PropertyEditor/SPropertyEditor.h"
-#include "UserInterface/PropertyEditor/SResetToDefaultPropertyEditor.h"
 #include "UserInterface/PropertyEditor/SPropertyEditorNumeric.h"
 #include "UserInterface/PropertyEditor/SPropertyEditorCombo.h"
 #include "UserInterface/PropertyEditor/SPropertyEditorEditInline.h"

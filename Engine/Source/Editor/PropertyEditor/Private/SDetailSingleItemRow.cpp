@@ -529,41 +529,32 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 				.Clipping(EWidgetClipping::OnDemand);
 
 			// reset to default widget
+			TSharedPtr<SWidget> ResetWidget; 
+
+			bool bCreateResetToDefault = Row.CustomResetToDefault.IsSet();
+
 			TSharedPtr<IPropertyHandle> PropertyHandle = GetPropertyHandle();
-			if (PropertyHandle.IsValid() && !PropertyHandle->HasMetaData("NoResetToDefault") && !PropertyHandle->GetInstanceMetaData("NoResetToDefault"))
+			if (PropertyHandle.IsValid() )
 			{
-				TSharedPtr<SWidget> ResetWidget = nullptr;
-
-				if (PropertyHandle->IsResetToDefaultCustomized())
+				if (PropertyHandle->HasMetaData("NoResetToDefault") || PropertyHandle->GetInstanceMetaData("NoResetToDefault"))
 				{
-					// FIXME: Workaround for JIRA UE-73210.
-					// We had an oscillating SPropertyValueWidget width while dragging a UMG widget in the designer.
-					// The way drag&drop is implemented (SDesignerView::ProcessDropAndAddWidget), a new UCanvasPanelSlot gets 
-					// recreated every frame, so the details panel gets refreshed every frame. Since new property rows are created 
-					// before old ones are destroyed in the details panel, the HasCustomResetToDefault flag on the property node 
-					// toggles from frame to frame, so we alternate between having a ResetToDefaultPropertyEditor and not having one.
-					// By having a spacer fill the blank, the property row layout doesn't change while dragging, but we still see 
-					// a flashing yellow reset arrow (when visible).
-					const FSlateBrush* DiffersFromDefaultBrush = FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault");
-					ResetWidget = SNew(SSpacer)
-						.Size(DiffersFromDefaultBrush != nullptr ? DiffersFromDefaultBrush->ImageSize : FVector2D(8.0f, 8.0f));
+					bCreateResetToDefault = false;
 				}
-				else
-				{
-					SAssignNew(ResetWidget, SResetToDefaultPropertyEditor, PropertyHandle)
-						.IsEnabled(IsPropertyEditingEnabled)
-						.CustomResetToDefault(Row.CustomResetToDefault);
-				}
-
-				RightColumnBox->AddSlot()
-					.HAlign(HAlign_Left)
-					.VAlign(VAlign_Center)
-					.Padding(10,0,0,0)
-					.AutoWidth()
-					[
-						ResetWidget.ToSharedRef()
-					];
 			} 
+
+			if (bCreateResetToDefault)
+			{
+				RightColumnBox->AddSlot()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.Padding(5,0,0,0)
+				.AutoWidth()
+				[
+					SNew(SResetToDefaultPropertyEditor, PropertyHandle)
+					.IsEnabled(IsPropertyEditingEnabled)
+					.CustomResetToDefault(Row.CustomResetToDefault)
+				];
+			}
 
 			// keyframe button
 			RightColumnBox->AddSlot()

@@ -11,7 +11,7 @@
 #include "Presentation/PropertyEditor/PropertyEditor.h"
 #include "ObjectPropertyNode.h"
 #include "PropertyEditorHelpers.h"
-#include "UserInterface/PropertyEditor/SResetToDefaultPropertyEditor.h"
+#include "SResetToDefaultPropertyEditor.h"
 #include "Widgets/Colors/SColorPicker.h"
 
 
