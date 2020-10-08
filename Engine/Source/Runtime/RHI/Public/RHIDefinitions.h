@@ -337,6 +337,7 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bSupportsUInt64ImageAtomics : 1;
 	uint32 bSupportsNanite : 1;
 	uint32 bSupportsLumenGI : 1;
+	uint32 bSupportsSSDIndirect : 1;
 	uint32 bSupportsTemporalHistoryUpscale : 1;
 	uint32 bSupportsRTIndexFromVS : 1;
 	uint32 bSupportsWaveOperations : 1; // Whether HLSL SM6 shader wave intrinsics are supported
@@ -570,6 +571,11 @@ public:
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsLumenGI(const FStaticShaderPlatform Platform)
 	{
 		return Infos[Platform].bSupportsLumenGI;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportsSSDIndirect(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsSSDIndirect;
 	}
 
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsRTIndexFromVS(const FStaticShaderPlatform Platform)

@@ -830,7 +830,7 @@ bool ShouldCompileSignalPipeline(ESignalProcessing SignalProcessing, EShaderPlat
 		SignalProcessing == ESignalProcessing::VirtualShadowMapMask
 		)
 	{
-		return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5);
+		return Platform == SP_PCD3D_SM5 || FDataDrivenShaderPlatformInfo::GetSupportsSSDIndirect(Platform);
 	}
 	else if (SignalProcessing == ESignalProcessing::Reflections)
 	{
@@ -1086,6 +1086,7 @@ class FSSDSpatialAccumulationCS : public FGlobalShader
 	
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
+
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 		ESignalProcessing SignalProcessing = PermutationVector.Get<FSignalProcessingDim>();
 

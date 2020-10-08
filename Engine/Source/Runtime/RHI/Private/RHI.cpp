@@ -1592,6 +1592,7 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	Info.bSupportsUInt64ImageAtomics = GetSectionBool(Section, "bSupportsUInt64ImageAtomics");
 	Info.bSupportsNanite = GetSectionBool(Section, "bSupportsNanite");
 	Info.bSupportsLumenGI = GetSectionBool(Section, "bSupportsLumenGI");
+	Info.bSupportsSSDIndirect = GetSectionBool(Section, "bSupportsSSDIndirect");
 	Info.bSupportsTemporalHistoryUpscale = GetSectionBool(Section, "bSupportsTemporalHistoryUpscale");
 	Info.bSupportsRTIndexFromVS = GetSectionBool(Section, "bSupportsRTIndexFromVS");
 	Info.bSupportsIntrinsicWaveOnce = GetSectionBool(Section, "bSupportsIntrinsicWaveOnce");
