@@ -8,11 +8,10 @@
 #if WITH_SLATE_DEBUGGING
 
 #include "CoreMinimal.h"
+#include "Debugging/ConsoleSlateDebuggerUtility.h"
 #include "Delegates/Delegate.h"
 #include "Input/Reply.h"
 #include "HAL/IConsoleManager.h"
-
-DECLARE_LOG_CATEGORY_EXTERN(LogSlateDebugger, Log, All);
 
 /**
  * Allows debugging the behavior of Slate from the console.
