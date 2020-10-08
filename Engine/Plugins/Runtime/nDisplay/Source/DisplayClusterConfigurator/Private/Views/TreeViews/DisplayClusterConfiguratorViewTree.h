@@ -22,6 +22,9 @@ public:
 	//~ Begin IDisplayClusterConfiguratorView Interface
 	virtual TSharedRef<SWidget> CreateWidget() override;
 	virtual EDisplayClusterConfiguratorTreeFilterResult HandleFilterConfiguratorTreeItem(const FDisplayClusterConfiguratorTreeFilterArgs& InArgs, const TSharedPtr<IDisplayClusterConfiguratorTreeItem>& InItem) override;
+	virtual void SetEnabled(bool bInEnabled) override;
+
+	virtual bool GetIsEnabled() const override { return bEnabled; }
 	//~ End IDisplayClusterConfiguratorView Interface
 
 	//~ IDisplayClusterConfiguratorViewTree
@@ -67,4 +70,6 @@ protected:
 	FOnSelectedItemCleared OnSelectedItemCleared;
 
 	TSharedPtr<SDisplayClusterConfiguratorViewTree> ViewTree;
+
+	bool bEnabled;
 };

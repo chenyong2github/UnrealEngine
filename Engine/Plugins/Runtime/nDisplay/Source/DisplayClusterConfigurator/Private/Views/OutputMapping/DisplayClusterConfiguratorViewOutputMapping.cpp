@@ -37,6 +37,14 @@ TSharedRef<SWidget> FDisplayClusterConfiguratorViewOutputMapping::CreateWidget()
 	return ViewOutputMapping.ToSharedRef();
 }
 
+void FDisplayClusterConfiguratorViewOutputMapping::SetEnabled(bool bInEnabled)
+{
+	if (GraphEditor.IsValid())
+	{
+		GraphEditor->SetEnabled(bInEnabled);
+	}
+}
+
 bool FDisplayClusterConfiguratorViewOutputMapping::IsRulerVisible() const
 {
 	return true;

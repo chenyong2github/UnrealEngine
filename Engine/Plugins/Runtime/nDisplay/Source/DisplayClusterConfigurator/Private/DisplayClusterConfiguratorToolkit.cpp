@@ -10,6 +10,7 @@
 #include "DisplayClusterConfiguratorEditor.h"
 #include "DisplayClusterConfiguratorEditorData.h"
 #include "DisplayClusterConfiguratorEditorSubsystem.h"
+#include "DisplayClusterConfiguratorModule.h"
 #include "DisplayClusterConfiguratorStyle.h"
 
 #include "Views/General/DisplayClusterConfiguratorViewGeneral.h"
@@ -24,6 +25,7 @@
 #include "ToolMenu.h"
 #include "ToolMenus.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "HAL/ConsoleManager.h"
 #include "HAL/PlatformApplicationMisc.h"
 
 #define LOCTEXT_NAMESPACE "DisplayClusterConfiguratorToolkit"
@@ -273,6 +275,17 @@ TSharedRef<IDisplayClusterConfiguratorView> FDisplayClusterConfiguratorToolkit::
 	return ViewGeneral.ToSharedRef();
 }
 
+void FDisplayClusterConfiguratorToolkit::OnReadOnlyChanged(bool bReadOnly)
+{
+	ViewGeneral->SetEnabled(!bReadOnly);
+	ViewDetails->SetEnabled(!bReadOnly);
+	ViewOutputMapping->SetEnabled(!bReadOnly);
+	ViewCluster->SetEnabled(!bReadOnly);
+	ViewScene->SetEnabled(!bReadOnly);
+	ViewInput->SetEnabled(!bReadOnly);
+	ViewViewport->SetEnabled(!bReadOnly);
+}
+
 void FDisplayClusterConfiguratorToolkit::BindCommands()
 {
 	const FDisplayClusterConfiguratorCommands& Commands = IDisplayClusterConfigurator::Get().GetCommands();
@@ -347,6 +360,22 @@ void FDisplayClusterConfiguratorToolkit::CreateWidgets()
 
 	BindCommands();
 	RegisterToolbar();
+
+	// Register delegates
+	FDisplayClusterConfiguratorModule::RegisterOnReadOnly(FOnDisplayClusterConfiguratorReadOnlyChangedDelegate::CreateSP(this, &FDisplayClusterConfiguratorToolkit::OnReadOnlyChanged));
+
+	// Set the visibility
+	{
+		bool bReadOnly = FConsoleManager::Get().FindConsoleVariable(TEXT("nDisplay.configurator.ReadOnly"))->GetBool();
+
+		ViewGeneral->SetEnabled(!bReadOnly);
+		ViewDetails->SetEnabled(!bReadOnly);
+		ViewOutputMapping->SetEnabled(!bReadOnly);
+		ViewCluster->SetEnabled(!bReadOnly);
+		ViewScene->SetEnabled(!bReadOnly);
+		ViewInput->SetEnabled(!bReadOnly);
+		ViewViewport->SetEnabled(!bReadOnly);
+	}
 
 	// Refresh widgets of menus and toolbars being displayed right now
 	UToolMenus::Get()->RefreshAllWidgets();

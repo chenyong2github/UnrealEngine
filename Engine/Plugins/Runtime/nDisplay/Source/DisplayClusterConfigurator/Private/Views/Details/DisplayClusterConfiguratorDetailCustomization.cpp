@@ -5,6 +5,7 @@
 #include "DisplayClusterConfiguratorToolkit.h"
 #include "DisplayClusterConfigurationTypes.h"
 #include "Views/Details/Widgets/SDisplayClusterConfigurationSearchableComboBox.h"
+#include "Views/Log/DisplayClusterConfiguratorViewLog.h"
 
 #include "DisplayClusterConfiguratorEditorData.h"
 #include "DetailCategoryBuilder.h"
@@ -116,6 +117,138 @@ void FDisplayClusterConfiguratorClusterDetailCustomization::CustomizeDetails(IDe
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
+// Viewport Detail Customization
+//////////////////////////////////////////////////////////////////////////////////////////////
+void FDisplayClusterConfiguratorViewportDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& InLayoutBuilder)
+{
+	Super::CustomizeDetails(InLayoutBuilder);
+
+	ConfigurationViewportPtr = nullptr;
+	NoneOption = MakeShared<FString>("None");
+
+	// Set config data pointer
+	TSharedPtr<FDisplayClusterConfiguratorToolkit> Toolkit = ToolkitPtr.Pin();
+	check(Toolkit.IsValid());
+
+	UDisplayClusterConfigurationData* ConfigurationData = Toolkit->GetConfig();
+	check(ConfigurationData != nullptr);
+	ConfigurationDataPtr = ConfigurationData;
+
+	// Get the Editing object
+	const TArray<TWeakObjectPtr<UObject>>& SelectedObjects = InLayoutBuilder.GetSelectedObjects();
+	if (SelectedObjects.Num())
+	{
+		ConfigurationViewportPtr = Cast<UDisplayClusterConfigurationViewport>(SelectedObjects[0]);
+	}
+	check(ConfigurationViewportPtr != nullptr);
+
+	// Hide properties
+	CameraHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationViewport, Camera), UDisplayClusterConfigurationViewport::StaticClass());
+	check(CameraHandle->IsValidHandle());
+	InLayoutBuilder.HideProperty(CameraHandle);
+
+	ResetCameraOptions();
+	AddCameraRow();
+}
+
+void FDisplayClusterConfiguratorViewportDetailCustomization::ResetCameraOptions()
+{
+	CameraOptions.Reset();
+
+	UDisplayClusterConfigurationViewport* ConfigurationViewport = ConfigurationViewportPtr.Get();
+	check(ConfigurationViewport != nullptr);
+
+	UDisplayClusterConfigurationData* ConfigurationData = ConfigurationDataPtr.Get();
+	check(ConfigurationData != nullptr);
+
+	TMap<FString, UDisplayClusterConfigurationSceneComponentCamera*>& Cameras = ConfigurationData->Scene->Cameras;
+
+	for (const TPair<FString, UDisplayClusterConfigurationSceneComponentCamera*>& CameraPair : Cameras)
+	{
+		if (!CameraPair.Key.Equals(ConfigurationViewport->Camera))
+		{
+			CameraOptions.Add(MakeShared<FString>(CameraPair.Key));
+		}
+	}
+
+	// Add None option
+	if (!ConfigurationViewport->Camera.IsEmpty())
+	{
+		CameraOptions.Add(NoneOption);
+	}
+}
+
+void FDisplayClusterConfiguratorViewportDetailCustomization::AddCameraRow()
+{
+	if (CameraComboBox.IsValid())
+	{
+		return;
+	}
+	
+	NDisplayCategory->AddCustomRow(CameraHandle->GetPropertyDisplayName())
+	.NameContent()
+	[
+		CameraHandle->CreatePropertyNameWidget()
+	]
+	.ValueContent()
+	[
+		SAssignNew(CameraComboBox, SDisplayClusterConfigurationSearchableComboBox)
+		.OptionsSource(&CameraOptions)
+		.OnGenerateWidget(this, &FDisplayClusterConfiguratorViewportDetailCustomization::MakeCameraOptionComboWidget)
+		.OnSelectionChanged(this, &FDisplayClusterConfiguratorViewportDetailCustomization::OnCameraSelected)
+		.ContentPadding(2)
+		.MaxListHeight(200.0f)
+		.Content()
+		[
+			SNew(STextBlock)
+			.Text(this, &FDisplayClusterConfiguratorViewportDetailCustomization::GetSelectedCameraText)
+		]
+	];
+}
+
+TSharedRef<SWidget> FDisplayClusterConfiguratorViewportDetailCustomization::MakeCameraOptionComboWidget(TSharedPtr<FString> InItem)
+{
+	return SNew(STextBlock).Text(FText::FromString(*InItem));
+}
+
+void FDisplayClusterConfiguratorViewportDetailCustomization::OnCameraSelected(TSharedPtr<FString> InCamera, ESelectInfo::Type SelectInfo)
+{
+	if (InCamera.IsValid())
+	{
+		UDisplayClusterConfigurationViewport* ConfigurationViewport = ConfigurationViewportPtr.Get();
+		check(ConfigurationViewport != nullptr);
+
+		// Handle empty case
+		if (InCamera->Equals(*NoneOption.Get()))
+		{
+			ConfigurationViewport->Camera = "";
+
+		}
+		else
+		{
+			ConfigurationViewport->Camera = *InCamera.Get();
+		}
+
+		// Reset available options
+		ResetCameraOptions();
+		CameraComboBox->ResetOptionsSource(&CameraOptions);
+
+		CameraComboBox->SetIsOpen(false);
+	}
+}
+
+FText FDisplayClusterConfiguratorViewportDetailCustomization::GetSelectedCameraText() const
+{
+	FString SelectedOption = ConfigurationViewportPtr.Get()->Camera;
+	if (SelectedOption.IsEmpty())
+	{
+		SelectedOption = *NoneOption.Get();
+	}
+
+	return FText::FromString(SelectedOption);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////
 // Input Detail Customization
 //////////////////////////////////////////////////////////////////////////////////////////////
 void FDisplayClusterConfiguratorInputDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& InLayoutBuilder)
@@ -170,6 +303,15 @@ void FDisplayClusterConfiguratorSceneComponentDetailCustomization::CustomizeDeta
 
 	ResetTrackerIdOptions();
 	AddTrackerIdRow();
+
+	// Hide Location and Rotation if the tracker has been selected
+	TSharedRef<IPropertyHandle> LocationHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationSceneComponent, Location), UDisplayClusterConfigurationSceneComponent::StaticClass());
+	NDisplayCategory->AddProperty(LocationHandle)
+		.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FDisplayClusterConfiguratorSceneComponentDetailCustomization::GetLocationAndRotationVisibility)));
+
+	TSharedRef<IPropertyHandle> RotationHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationSceneComponent, Rotation), UDisplayClusterConfigurationSceneComponent::StaticClass());
+	NDisplayCategory->AddProperty(RotationHandle)
+		.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FDisplayClusterConfiguratorSceneComponentDetailCustomization::GetLocationAndRotationVisibility)));
 }
 
 void FDisplayClusterConfiguratorSceneComponentDetailCustomization::ResetTrackerIdOptions()
@@ -272,6 +414,62 @@ FText FDisplayClusterConfiguratorSceneComponentDetailCustomization::GetSelectedT
 	}
 	
 	return FText::FromString(SelectedOption);
+}
+
+EVisibility FDisplayClusterConfiguratorSceneComponentDetailCustomization::GetLocationAndRotationVisibility() const
+{
+	FString SelectedOption = SceneComponenPtr.Get()->TrackerId;
+	if (SelectedOption.IsEmpty())
+	{
+		return EVisibility::Visible;
+	}
+
+	return EVisibility::Collapsed;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+// Scene Component Mesh Detail Customization
+//////////////////////////////////////////////////////////////////////////////////////////////
+void FDisplayClusterConfiguratorSceneComponentMeshDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& InLayoutBuilder)
+{
+	Super::CustomizeDetails(InLayoutBuilder);
+
+	SceneComponentMeshPtr = nullptr;
+
+	// Get the Editing object
+	const TArray<TWeakObjectPtr<UObject>>& SelectedObjects = InLayoutBuilder.GetSelectedObjects();
+	if (SelectedObjects.Num())
+	{
+		SceneComponentMeshPtr = Cast<UDisplayClusterConfigurationSceneComponentMesh>(SelectedObjects[0]);
+	}
+	check(SceneComponentMeshPtr != nullptr);
+
+	// Load static mesh assets
+	SceneComponentMeshPtr.Get()->LoadAssets();
+
+	AssetHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationSceneComponentMesh, Asset));
+	AssetHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDisplayClusterConfiguratorSceneComponentMeshDetailCustomization::OnAssetValueChanged));
+}
+
+void FDisplayClusterConfiguratorSceneComponentMeshDetailCustomization::OnAssetValueChanged()
+{
+	FString AssetObjectPath;
+	AssetHandle->GetValueAsFormattedString(AssetObjectPath);
+
+	if (AssetObjectPath.Len() > 0 && AssetObjectPath != TEXT("None"))
+	{
+		UDisplayClusterConfigurationSceneComponentMesh* SceneComponentMesh = SceneComponentMeshPtr.Get();
+		check(SceneComponentMesh != nullptr);
+		SceneComponentMesh->AssetPath = AssetObjectPath;
+
+		TSharedRef<IDisplayClusterConfiguratorViewLog> ViewLog = ToolkitPtr.Pin()->GetViewLog();
+		ViewLog->Log(FText::Format(NSLOCTEXT("FDisplayClusterConfiguratorViewLog", "SuccessUpdateStaticMesh", "Successfully updated a static mesh. PackageName: {0}"), FText::FromString(AssetObjectPath)));
+	}
+	else
+	{
+		TSharedRef<IDisplayClusterConfiguratorViewLog> ViewLog = ToolkitPtr.Pin()->GetViewLog();
+		ViewLog->Log(NSLOCTEXT("FDisplayClusterConfiguratorViewLog", "ErrorUpdateStaticMesh", "Attempted to update a package with empty package name. PackageName"));
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////

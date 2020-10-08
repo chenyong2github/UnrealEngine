@@ -6,12 +6,20 @@
 #include "DisplayClusterConfiguratorAssetTypeActions.h"
 
 #include "AssetToolsModule.h"
+#include "HAL/IConsoleManager.h"
 #include "Modules/ModuleManager.h"
-
-#include "ISettingsModule.h"
 
 #define LOCTEXT_NAMESPACE "DisplayClusterConfigurator"
 
+FOnDisplayClusterConfiguratorReadOnlyChanged FDisplayClusterConfiguratorModule::OnDisplayClusterConfiguratorReadOnlyChanged;
+
+static TAutoConsoleVariable<bool> CVarDisplayClusterConfiguratorReadOnly(
+	TEXT("nDisplay.configurator.ReadOnly"),
+	true,
+	TEXT("Enable or disable editing functionality")
+	);
+
+static FAutoConsoleVariableSink CVarDisplayClusterConfiguratorReadOnlySink(FConsoleCommandDelegate::CreateStatic(&FDisplayClusterConfiguratorModule::ReadOnlySink));
 
 void FDisplayClusterConfiguratorModule::StartupModule()
 {
@@ -36,6 +44,32 @@ void FDisplayClusterConfiguratorModule::ShutdownModule()
 const FDisplayClusterConfiguratorCommands& FDisplayClusterConfiguratorModule::GetCommands() const
 {
 	return FDisplayClusterConfiguratorCommands::Get();
+}
+
+void FDisplayClusterConfiguratorModule::ReadOnlySink()
+{
+	bool bNewDisplayClusterConfiguratorReadOnly = CVarDisplayClusterConfiguratorReadOnly.GetValueOnGameThread();
+
+	// By default we assume the ReadOnly is true
+	static bool GReadOnly = true;
+
+	if (GReadOnly != bNewDisplayClusterConfiguratorReadOnly)
+	{
+		GReadOnly = bNewDisplayClusterConfiguratorReadOnly;
+
+		// Broadcast the changes
+		OnDisplayClusterConfiguratorReadOnlyChanged.Broadcast(GReadOnly);
+	}
+}
+
+FDelegateHandle FDisplayClusterConfiguratorModule::RegisterOnReadOnly(const FOnDisplayClusterConfiguratorReadOnlyChangedDelegate& Delegate)
+{
+	return OnDisplayClusterConfiguratorReadOnlyChanged.Add(Delegate);
+}
+
+void FDisplayClusterConfiguratorModule::UnregisterOnReadOnly(FDelegateHandle DelegateHandle)
+{
+	OnDisplayClusterConfiguratorReadOnlyChanged.Remove(DelegateHandle);
 }
 
 IMPLEMENT_MODULE(FDisplayClusterConfiguratorModule, DisplayClusterConfigurator);
