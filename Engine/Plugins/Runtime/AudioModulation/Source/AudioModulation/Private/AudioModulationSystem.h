@@ -186,6 +186,12 @@ namespace AudioModulation
 
 #if !UE_BUILD_SHIPPING
 	public:
+		void SetDebugBusFilter(const FString* InFilter);
+		void SetDebugMixFilter(const FString* InFilter);
+		void SetDebugMatrixEnabled(bool bInIsEnabled);
+		void SetDebugGeneratorsEnabled(bool bInIsEnabled);
+		void SetDebugGeneratorFilter(const FString* InFilter);
+		void SetDebugGeneratorTypeFilter(const FString* InFilter, bool bInIsEnabled);
 		bool OnPostHelp(FCommonViewportClient* ViewportClient, const TCHAR* Stream);
 		int OnRenderStat(FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const UFont& Font, const FVector* ViewLocation, const FRotator* ViewRotation);
 		bool OnToggleStat(FCommonViewportClient* ViewportClient, const TCHAR* Stream);
@@ -220,6 +226,12 @@ namespace AudioModulation
 		void OnAuditionEnd() { }
 
 #if !UE_BUILD_SHIPPING
+		void SetDebugBusFilter(const FString* InFilter) { }
+		void SetDebugMixFilter(const FString* InFilter) { }
+		void SetDebugMatrixEnabled(bool bInIsEnabled) { }
+		void SetDebugGeneratorsEnabled(bool bInIsEnabled) { }
+		void SetDebugGeneratorFilter(const FString* InFilter) { }
+		void SetDebugGeneratorTypeFilter(const FString* InFilter, bool bInIsEnabled) { }
 		bool OnPostHelp(FCommonViewportClient* ViewportClient, const TCHAR* Stream) { return false; }
 		int OnRenderStat(FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const UFont& Font, const FVector* ViewLocation, const FRotator* ViewRotation) { return Y; }
 		bool OnToggleStat(FCommonViewportClient* ViewportClient, const TCHAR* Stream) { return false; }

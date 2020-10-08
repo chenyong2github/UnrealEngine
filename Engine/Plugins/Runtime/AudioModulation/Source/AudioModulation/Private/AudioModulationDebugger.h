@@ -64,6 +64,8 @@ namespace AudioModulation
 		bool bEnabled = false;
 		TArray<FString> Categories;
 
+		FString NameFilter;
+
 		using FInstanceValues = TArray<FString>;
 		TArray<FInstanceValues> FilteredInstances;
 	};
@@ -74,6 +76,12 @@ namespace AudioModulation
 		FAudioModulationDebugger();
 
 		void UpdateDebugData(double InElapsed, const FReferencedProxies& InRefProxies);
+		void SetDebugBusFilter(const FString* InNameFilter);
+		void SetDebugMatrixEnabled(bool bInIsEnabled);
+		void SetDebugMixFilter(const FString* InNameFilter);
+		void SetDebugGeneratorsEnabled(bool bInIsEnabled);
+		void SetDebugGeneratorFilter(const FString* InFilter);
+		void SetDebugGeneratorTypeFilter(const FString* InFilter, bool bInIsEnabled);
 		bool OnPostHelp(FCommonViewportClient& ViewportClient, const TCHAR* Stream);
 		int32 OnRenderStat(FCanvas& Canvas, int32 X, int32 Y, const UFont& Font);
 		bool OnToggleStat(FCommonViewportClient& ViewportClient, const TCHAR* Stream);
@@ -83,12 +91,16 @@ namespace AudioModulation
 	private:
 		uint8 bActive : 1;
 		uint8 bShowRenderStatMix : 1;
+		uint8 bShowGenerators : 1;
+		uint8 bEnableAllGenerators : 1;
 
 		TArray<FControlBusDebugInfo> FilteredBuses;
 		TArray<FControlBusMixDebugInfo> FilteredMixes;
 
 		using FGeneratorSortMap = TSortedMap<FString, FGeneratorDebugInfo, FDefaultAllocator, FGeneratorSort>;
 		FGeneratorSortMap FilteredGeneratorsMap;
+
+		TMap<FString, bool> RequestedGeneratorUpdate;
 
 		FString BusStringFilter;
 		FString GeneratorStringFilter;

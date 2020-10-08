@@ -13,6 +13,11 @@ namespace AudioModulation
 #if !UE_BUILD_SHIPPING
 	const FString FLFOGenerator::DebugName = TEXT("LFO");
 
+	void FLFOGenerator::GetDebugCategories(TArray<FString>& OutDebugCategories) const
+	{
+		OutDebugCategories = USoundModulationGeneratorLFO::GetDebugCategories();
+	}
+
 	void FLFOGenerator::GetDebugValues(TArray<FString>& OutDebugValues) const
 	{
 		OutDebugValues.Add(FString::Printf(TEXT("%.4f"), GetValue()));
