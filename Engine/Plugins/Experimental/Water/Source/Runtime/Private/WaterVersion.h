@@ -13,9 +13,9 @@ struct FWaterCustomVersion
 		// Before any version changes were made in the plugin
 		BeforeCustomVersionWasAdded = 0,
 		// Refactor of AWaterBody into sub-classes, waves refactor, etc.
-		WaterBodyRefactor = 1,
+		WaterBodyRefactor,
 		// Transfer of TerrainCarvingSettings from landmass to water
-		MoveTerrainCarvingSettingsToWater = 1,
+		MoveTerrainCarvingSettingsToWater,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
