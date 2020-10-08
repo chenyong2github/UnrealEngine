@@ -2,6 +2,8 @@
 #pragma once
 
 #include "MoviePipelineImagePassBase.h"
+#include "ActorLayerUtilities.h"
+#include "OpenColorIODisplayExtension.h"
 #include "MoviePipelineDeferredPasses.generated.h"
 
 class UTextureRenderTarget2D;
@@ -39,30 +41,35 @@ public:
 protected:
 	// UMoviePipelineRenderPass API
 	virtual void SetupImpl(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings) override;
+	virtual void RenderSample_GameThreadImpl(const FMoviePipelineRenderPassMetrics& InSampleState) override;
 	virtual void TeardownImpl() override;
-#if WITH_EDITOR
 	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "DeferredBasePassSetting_DisplayName_Lit", "Deferred Rendering"); }
-#endif
-	virtual void PostRendererSubmission(const FMoviePipelineRenderPassMetrics& InSampleState, FCanvas& InCanvas) override;
 	virtual void MoviePipelineRenderShowFlagOverride(FEngineShowFlags& OutShowFlag) override;
-	virtual void RendererSubmission_GameThread(const FMoviePipelineRenderPassMetrics& InSampleState, FCanvas& InCanvas, FSceneViewFamilyContext& InViewFamily) override;
 	virtual void GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses) override;
 	virtual bool IsAntiAliasingSupported() const { return !bDisableMultisampleEffects; }
 	virtual int32 GetOutputFileSortingOrder() const override { return 0; }
-	virtual bool IsAlphaInTonemapperRequiredImpl() const override { return bAccumulateMultisampleAlpha; }
+	virtual bool IsAlphaInTonemapperRequiredImpl() const override { return bAccumulatorIncludesAlpha; }
+	virtual FSceneViewStateInterface* GetSceneViewStateInterface() override;
+	virtual UTextureRenderTarget2D* GetViewRenderTarget() const override;
+	virtual void AddViewExtensions(FSceneViewFamilyContext& InContext, FMoviePipelineRenderPassMetrics& InOutSampleState) override;
 	// ~UMoviePipelineRenderPass
 
+	// FGCObject Interface
+	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	// ~FGCObject Interface
+
 	TFunction<void(TUniquePtr<FImagePixelData>&&)> MakeForwardingEndpoint(const FMoviePipelinePassIdentifier InPassIdentifier, const FMoviePipelineRenderPassMetrics& InSampleState);
+	void PostRendererSubmission(const FMoviePipelineRenderPassMetrics& InSampleState, const FMoviePipelinePassIdentifier InPassIdentifier, FCanvas& InCanvas);
 
 public:
 	/**
-	* Should we accumulate the alpha channel when using temporal/spatial sampling? This requires r.PostProcessing.PropagateAlpha
+	* Should multiple temporal/spatial samples accumulate the alpha channel? This requires r.PostProcessing.PropagateAlpha
 	* to be set to 1 or 2 (see "Enable Alpha Channel Support in Post Processing" under Project Settings > Rendering). This adds
 	* ~30% cost to the accumulation so you should not enable it unless necessary. You must delete both the sky and fog to ensure
 	* that they do not make all pixels opaque.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
-	bool bAccumulateMultisampleAlpha;
+	bool bAccumulatorIncludesAlpha;
 
 	/**
 	* Certain passes don't support post-processing effects that blend pixels together. These include effects like
@@ -80,13 +87,44 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Deferred Renderer Data")
 	TArray<FMoviePipelinePostProcessPass> AdditionalPostProcessMaterials;
 
+	/**
+	* If true, an additional stencil layer will be rendered which contains all objects which do not belong to layers
+	* specified in the Stencil Layers. This is useful for wanting to isolate one or two layers but still have everything
+	* else to composite them over without having to remember to add all objects to a default layer.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stencil Clip Layers")
+	bool bAddDefaultLayer;
+
+	/** 
+	* For each layer in the array, the world will be rendered and then a stencil mask will clip all pixels not affected
+	* by the objects on that layer. This is NOT a true layer system, as translucent objects will show opaque objects from
+	* another layer behind them. Does not write out additional post-process materials per-layer as they will match the
+	* base layer. Only works with materials that can write to custom depth.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stencil Clip Layers")
+	TArray<FActorLayer> StencilLayers;
+
 protected:
 	/** While rendering, store an array of the non-null valid materials loaded from AdditionalPostProcessMaterials. Cleared on teardown. */
 	UPROPERTY(Transient, DuplicateTransient)
 	TArray<UMaterialInterface*> ActivePostProcessMaterials;
 
+	UPROPERTY(Transient, DuplicateTransient)
+	UMaterialInterface* StencilLayerMaterial;
+
+	UPROPERTY(Transient, DuplicateTransient)
+	TArray<UTextureRenderTarget2D*> TileRenderTargets;
+
+
 	TSharedPtr<FAccumulatorPool, ESPMode::ThreadSafe> AccumulatorPool;
+
+	int32 CurrentLayerIndex;
+	TArray<FSceneViewStateReference> StencilLayerViewStates;
+
+	/** The lifetime of this SceneViewExtension is only during the rendering process. It is destroyed as part of TearDown. */
+	TSharedPtr<FOpenColorIODisplayExtension, ESPMode::ThreadSafe> OCIOSceneViewExtension;
 };
+
 
 
 UCLASS(BlueprintType)
