@@ -119,15 +119,6 @@ bool NiagaraAny(bool4 b) { return b.x || b.y || b.z || b.w; }
 	static int Engine_ExecutionCount;
 	static int GGPUExecIndex;
 
-	int3 SimulationStageIterationInfo;							// Packed data where X = Instance Count, Y = Iteration Index, Z = Num Iterations
-	float SimulationStageNormalizedIterationIndex;
-
-	// Note: These are referenced from an asset that passes back the data to the user (see SimulationStageIterationInfo)
-	int SimulationStage_GetInstanceCount() { return SimulationStageIterationInfo.x; }
-	int SimulationStage_GetIterationIndex() { return SimulationStageIterationInfo.y; }
-	int SimulationStage_GetNumIterations() { return SimulationStageIterationInfo.z; }
-	float SimulationStage_GetNormalizedIterationIndex() { return SimulationStageNormalizedIterationIndex; }
-
 	static uint GSpawnStartInstance;
 	uint SpawnedInstances;
 	uint UpdateStartInstance;
@@ -497,6 +488,19 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 
 	Buffer<int> FreeIDList;
 	RWBuffer<int> RWIDToIndexTable;
+	
+	// X = Count Buffer Instance Count Offset (INDEX_NONE == Use Instance Count)
+	// Y = Instance Count
+	// Z = Iteration Index
+	// W = Num Iterations
+	int4 SimulationStageIterationInfo;
+	float SimulationStageNormalizedIterationIndex;
+
+	// Note: These are referenced from an asset that passes back the data to the user (see SimulationStageIterationInfo)
+	int SimulationStage_GetInstanceCount() { return SimulationStageIterationInfo.x == -1 ? SimulationStageIterationInfo.y : RWInstanceCounts[SimulationStageIterationInfo.x]; }
+	int SimulationStage_GetIterationIndex() { return SimulationStageIterationInfo.z; }
+	int SimulationStage_GetNumIterations() { return SimulationStageIterationInfo.w; }
+	float SimulationStage_GetNormalizedIterationIndex() { return SimulationStageNormalizedIterationIndex; }
 
 	void AcquireID(int DataSetID, out int IDIndex, out int IDAcquireTag)
 	{
