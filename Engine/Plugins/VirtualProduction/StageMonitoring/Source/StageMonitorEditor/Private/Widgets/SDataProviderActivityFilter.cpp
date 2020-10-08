@@ -82,9 +82,6 @@ void SDataProviderActivityFilter::Construct(const FArguments& InArgs, const TWea
 
 	OnActivityFilterChanged = InArgs._OnActivityFilterChanged;
 	
-	//Fill provider list on construction
-	OnDataProviderListChanged();
-
 	ChildSlot
 	[
 		SNew(SHorizontalBox)
@@ -173,18 +170,6 @@ bool SDataProviderActivityFilter::IsDataTypeFiltered(UScriptStruct* Type) const
 {
 	// The list contains types to filter. Inverse return value to display a more natural way of looking at filter choices
 	return !CurrentFilter->RestrictedTypes.Contains(Type);
-}
-
-void SDataProviderActivityFilter::OnDataProviderListChanged()
-{
-	if (TSharedPtr<IStageMonitorSession> SessionPtr = Session.Pin())
-	{
-		const TArray<FStageSessionProviderEntry> Providers = SessionPtr->GetProviders();
-		for (const FStageSessionProviderEntry& Provider : Providers)
-		{
-			AllStageIdentifier.AddUnique(Provider);
-		}
-	}
 }
 
 void SDataProviderActivityFilter::ToggleCriticalStateSourceFilter(FName Source)
@@ -302,23 +287,38 @@ void SDataProviderActivityFilter::CreateProviderFilterMenu(FMenuBuilder& MenuBui
 {
 	MenuBuilder.BeginSection("AvailableProviders", LOCTEXT("AvailableProviders", "Providers"));
 	{
-		for (const FStageSessionProviderEntry& Provider : AllStageIdentifier)
+		if (TSharedPtr<IStageMonitorSession> SessionPtr = Session.Pin())
 		{
-			const FString ProviderName = FString::Printf(TEXT("%s"), *Provider.Descriptor.FriendlyName.ToString());
-			MenuBuilder.AddMenuEntry
-			(
-				FText::FromString(ProviderName), //Label
-				FText::GetEmpty(), //Tooltip
-				FSlateIcon(),
-				FUIAction
+			const auto CreateMenuEntry = [&MenuBuilder, this](const FStageSessionProviderEntry& Provider)
+			{
+				const FString ProviderName = FString::Printf(TEXT("%s"), *Provider.Descriptor.FriendlyName.ToString());
+				MenuBuilder.AddMenuEntry
 				(
-					FExecuteAction::CreateSP(this, &SDataProviderActivityFilter::ToggleProviderFilter, Provider)
-					, FCanExecuteAction()
-					, FIsActionChecked::CreateSP(this, &SDataProviderActivityFilter::IsProviderFiltered, Provider)
-				),
-				NAME_None,
-				EUserInterfaceActionType::ToggleButton
-			);
+					FText::FromString(ProviderName), //Label
+					FText::GetEmpty(), //Tooltip
+					FSlateIcon(),
+					FUIAction
+					(
+						FExecuteAction::CreateSP(this, &SDataProviderActivityFilter::ToggleProviderFilter, Provider)
+						, FCanExecuteAction()
+						, FIsActionChecked::CreateSP(this, &SDataProviderActivityFilter::IsProviderFiltered, Provider)
+					),
+					NAME_None,
+					EUserInterfaceActionType::ToggleButton
+				);
+			};
+
+			const TConstArrayView<FStageSessionProviderEntry> Providers = SessionPtr->GetProviders();
+			for (const FStageSessionProviderEntry& Provider : Providers)
+			{
+				CreateMenuEntry(Provider);
+			}
+			
+			const TConstArrayView<FStageSessionProviderEntry> ClearedProviders = SessionPtr->GetClearedProviders();
+			for (const FStageSessionProviderEntry& Provider : ClearedProviders)
+			{
+				CreateMenuEntry(Provider);
+			}
 		}
 	}
 	MenuBuilder.EndSection();
@@ -360,20 +360,8 @@ void SDataProviderActivityFilter::AttachToMonitorSession(const TWeakPtr<IStageMo
 {
 	if (NewSession != Session)
 	{
-		if (TSharedPtr<IStageMonitorSession> SessionPtr = Session.Pin())
-		{
-			SessionPtr->OnStageDataProviderListChanged().RemoveAll(this);
-		}
-
 		Session = NewSession;
 		CurrentFilter->Session = Session;
-		AllStageIdentifier.Empty();
-
-		if (TSharedPtr<IStageMonitorSession> SessionPtr = Session.Pin())
-		{
-			SessionPtr->OnStageDataProviderListChanged().AddSP(this, &SDataProviderActivityFilter::OnDataProviderListChanged);
-			OnDataProviderListChanged();
-		}
 	}
 }
 

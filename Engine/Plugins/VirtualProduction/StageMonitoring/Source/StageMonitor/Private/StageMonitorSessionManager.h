@@ -46,6 +46,7 @@ private:
 	{
 		FStageDataExportSettings Settings;
 		TArray<FStageSessionProviderEntry> Providers;
+		TMap<FGuid, FGuid> IdentifierMapping;
 		TArray<TSharedPtr<FStageDataEntry>> Entries;
 	};
 
@@ -80,12 +81,6 @@ private:
 
 	/** Whether we are loading. Flagged before launching the async task and cleared on completion. Always on gamethread */
 	bool bIsLoading = false;
-
-	/**
-	 * Map of loaded sessions to recover if loaded multiple times
-	 * Note: Used only in the loading thread
-	 */
-	TMap<FString, TSharedPtr<FStageMonitorSession>> ImportedSessionCache;
 
 	/** Delegate triggered when the requested session was loaded */
 	FOnStageMonitorSessionLoaded OnStageMonitorSessionLoadedDelegate;
