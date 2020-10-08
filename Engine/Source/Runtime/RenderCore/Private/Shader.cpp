@@ -727,6 +727,7 @@ const FSHAHash& FShader::GetVertexFactoryHash() const
 const FTypeLayoutDesc& GetTypeLayoutDesc(const FPointerTableBase* PtrTable, const FShader& Shader)
 {
 	const FShaderType* Type = Shader.GetType(PtrTable);
+	checkf(Type, TEXT("FShaderType is missing"));
 	return Type->GetLayout();
 }
 
