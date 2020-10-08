@@ -1477,9 +1477,6 @@ void SLevelEditor::ToggleEditorMode( FEditorModeID ModeID )
 	// *Important* - activate the mode first since FEditorModeTools::DeactivateMode will
 	// activate the default mode when the stack becomes empty, resulting in multiple active visible modes.
 	GLevelEditorModeTools().ActivateMode( ModeID );
-
-	// Find and disable any other 'visible' modes since we only ever allow one of those active at a time.
-	GLevelEditorModeTools().DeactivateOtherVisibleModes(ModeID);
 }
 
 bool SLevelEditor::IsModeActive( FEditorModeID ModeID )

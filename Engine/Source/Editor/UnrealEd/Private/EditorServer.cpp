@@ -2525,12 +2525,6 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 					FStatsViewerModule& StatsViewerModule = FModuleManager::Get().LoadModuleChecked<FStatsViewerModule>(TEXT("StatsViewer"));
 					StatsViewerModule.GetPage(EStatsPage::LightingBuildInfo)->Clear();
 
-					if (GUnrealEd)
-					{
-						// The default mode is only available when the full editor has been initialized
-						GLevelEditorModeTools().ActivateDefaultMode();
-					}
-
 					OldOuter = Context.World()->GetOuter();
 
 					ResetTransaction( LocalizedLoadingMap );

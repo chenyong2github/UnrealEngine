@@ -208,7 +208,6 @@ TSharedRef<SDockTab> FLevelEditorModule::SpawnLevelEditor( const FSpawnTabArgs& 
 		LevelEditorTmp->Initialize(LevelEditorTab, OwnerWindow.ToSharedRef());
 
 		GLevelEditorModeTools().DeactivateAllModes();
-		GLevelEditorModeTools().ActivateDefaultMode();
 
 		LevelEditorCreatedEvent.Broadcast(LevelEditorTmp);
 

@@ -479,6 +479,7 @@ public:
 	EEditAction::Type  GetActionEditCopy();
 	EEditAction::Type GetActionEditPaste();
 
+	UE_DEPRECATED(5.0, "This function is redundant, and is handled as part of a call to ActivateMode.")
 	void DeactivateOtherVisibleModes(FEditorModeID InMode);
 	bool IsSnapRotationEnabled() const;
 	bool SnapRotatorToGridOverride(FRotator& InRotation) const;

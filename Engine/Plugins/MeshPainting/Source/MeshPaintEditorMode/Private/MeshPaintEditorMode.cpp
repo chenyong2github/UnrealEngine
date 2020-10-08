@@ -93,9 +93,6 @@ void FMeshPaintEditorModeModule::OnMeshPaintModeButtonClicked()
 	// activate the default mode when the stack becomes empty, resulting in multiple active visible modes.
 	GLevelEditorModeTools().ActivateMode(GetDefault<UMeshPaintMode>()->GetID());
 
-	// Find and disable any other 'visible' modes since we only ever allow one of those active at a time.
-	GLevelEditorModeTools().DeactivateOtherVisibleModes(GetDefault<UMeshPaintMode>()->GetID());
-
 }
 
 
