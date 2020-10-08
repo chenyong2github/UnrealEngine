@@ -5005,8 +5005,23 @@ void FPakFile::Initialize(FArchive* Reader, bool bLoadIndex)
 			}
 		}
 
-		// LoadIndex should crash in case of an error, so just assume everything is ok if we got here.
-		bIsValid = true;
+		if (Decryptor.IsValid())
+		{
+			TSharedPtr<const FPakSignatureFile, ESPMode::ThreadSafe> SignatureFile = Decryptor->GetSignatures();
+			if (SignatureFile->SignatureData.Num() == UE_ARRAY_COUNT(FSHAHash::Hash))
+			{
+				bIsValid = (FMemory::Memcmp(SignatureFile->SignatureData.GetData(), Info.IndexHash.Hash, SignatureFile->SignatureData.Num()) == 0);
+			}
+			else
+			{
+				bIsValid = false;
+			}
+		}
+		else
+		{
+			// LoadIndex should crash in case of an error, so just assume everything is ok if we got here.
+			bIsValid = true;
+		}
 	}
 }
 
