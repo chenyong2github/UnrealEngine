@@ -29,12 +29,6 @@ void UEnvQueryGenerator_Cone::BindDataToDataProviders(FEnvQueryInstance& QueryIn
 
 void UEnvQueryGenerator_Cone::GenerateItems(FEnvQueryInstance& QueryInstance) const
 {
-	const float ConeDegreesValue = FMath::Clamp(FMath::Abs(ConeDegrees.GetValue()), 0.f, 359.f);
-	if (ConeDegreesValue == 0)
-	{
-		return;
-	}
-
 	TArray<AActor*> CenterActors;
 	QueryInstance.PrepareContext(CenterActor, CenterActors);
 
@@ -44,7 +38,13 @@ void UEnvQueryGenerator_Cone::GenerateItems(FEnvQueryInstance& QueryInstance) co
 	}
 
 	BindDataToDataProviders(QueryInstance);
-	
+
+	const float ConeDegreesValue = FMath::Clamp(FMath::Abs(ConeDegrees.GetValue()), 0.f, 359.f);
+	if (ConeDegreesValue == 0)
+	{
+		return;
+	}
+
 	//Get the values from each data provider
 	const float AlignedPointDistanceValue = AlignedPointsDistance.GetValue();
 	const float AngleStepValue = FMath::Clamp(AngleStep.GetValue(), 1.f, 359.f);
