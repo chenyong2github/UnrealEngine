@@ -4,6 +4,7 @@
 
 #include "Serialization/StructuredArchive.h"
 #include "Serialization/ArchiveUObject.h"
+#include "Serialization/FileRegions.h"
 #include "UObject/ObjectResource.h"
 
 #include "UObject/SoftObjectPath.h"

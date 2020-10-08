@@ -14,6 +14,7 @@
 #include "Misc/SecureHash.h"
 #include "Misc/AES.h"
 #include "Misc/IEngineCrypto.h"
+#include "Serialization/FileRegions.h"
 
 class FIoRequest;
 class FIoDispatcher;
