@@ -70,9 +70,6 @@ private:
 
 private:
 	
-	/** Keeps track if a genlock customtimestep was valid last frame */
-	bool bIsGenlockCustomTimestepValid = false;
-
 	/** Previous value of the genlock state. */
 	ECustomTimeStepSynchronizationState LastState = ECustomTimeStepSynchronizationState::Closed; 
 };

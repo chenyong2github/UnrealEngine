@@ -24,11 +24,6 @@ void FStageMonitorEditorModule::StartupModule()
 
 	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
 
-	SettingsModule->RegisterSettings("Project", "Plugins", "Stage Monitor",
-		LOCTEXT("StageMonitoringName", "Stage Monitoring"),
-		LOCTEXT("StageMonitoringDescription", "Configure the different parts of stage monitoring plugin."),
-		GetMutableDefault<UStageMonitoringSettings>());
-
 	SettingsModule->RegisterSettings("Project", "Plugins", "Stage Monitor Editor",
 		LOCTEXT("StageMonitorEditorName", "Stage Monitor Editor"),
 		LOCTEXT("StageMonitorEditorDescription", "Configure the editor aspects of StageMonitor plugin."),
@@ -46,7 +41,6 @@ void FStageMonitorEditorModule::ShutdownModule()
 		ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
 		if (SettingsModule != nullptr)
 		{
-			SettingsModule->UnregisterSettings("Project", "Plugins", "Stage Monitor");
 			SettingsModule->UnregisterSettings("Project", "Plugins", "Stage Monitor Editor");
 		}
 

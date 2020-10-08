@@ -10,6 +10,7 @@
 #include "StageDataProvider.h"
 #include "StageMonitoringSettings.h"
 #include "TakeRecorderStateProvider.h"
+#include "TimecodeProviderWatchdog.h"
 #include "VPSettings.h"
 
 
@@ -22,6 +23,7 @@ FStageDataProviderModule::FStageDataProviderModule()
 	: DataProvider(MakeUnique<FStageDataProvider>())
 	, FramePerformanceProvider(MakeUnique<FFramePerformanceProvider>())
 	, GenlockWatchdog(MakeUnique<FGenlockWatchdog>())
+	, TimecodeWatchdog(MakeUnique<FTimecodeProviderWatchdog>())
 #if WITH_EDITOR
 	, TakeRecorderStateProvider(MakeUnique<FTakeRecorderStateProvider>())
 #endif //WITH_EDITOR
