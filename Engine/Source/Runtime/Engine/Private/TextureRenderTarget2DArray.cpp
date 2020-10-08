@@ -146,7 +146,6 @@ UTexture2DArray* UTextureRenderTarget2DArray::ConstructTexture2DArray(UObject* O
 	switch (PixelFormat)
 	{
 		case PF_FloatRGBA:
-		case PF_R32_FLOAT:
 			TextureFormat = TSF_RGBA16F;
 			break;
 	}
