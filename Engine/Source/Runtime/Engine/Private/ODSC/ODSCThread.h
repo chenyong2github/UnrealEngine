@@ -3,12 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/Runnable.h"
 #include "Misc/SingleThreadRunnable.h"
 #include "GenericPlatform/GenericPlatformFile.h"
+#include "Containers/Queue.h"
+#include "ShaderCompiler.h"
 #include "RHIDefinitions.h"
 
 class FEvent;
-struct FODSCRequestPayload;
+class FRunnableThread;
 
 class FODSCMessageHandler : public IPlatformFile::IFileServerMessageHandler
 {
