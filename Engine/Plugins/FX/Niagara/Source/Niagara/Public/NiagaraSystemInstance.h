@@ -24,7 +24,7 @@ class NIAGARA_API FNiagaraSystemInstance
 
 public:
 	DECLARE_DELEGATE(FOnPostTick);
-	DECLARE_DELEGATE(FOnComplete);
+	DECLARE_DELEGATE_OneParam(FOnComplete, bool /*bExternalCompletion*/);
 
 #if WITH_EDITOR
 	DECLARE_MULTICAST_DELEGATE(FOnInitialized);
@@ -64,7 +64,7 @@ public:
 
 	void Activate(EResetMode InResetMode = EResetMode::ResetAll);
 	void Deactivate(bool bImmediate = false);
-	void Complete();
+	void Complete(bool bExternalCompletion);
 
 	void OnPooledReuse(UWorld& NewWorld);
 

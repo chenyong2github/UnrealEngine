@@ -889,7 +889,7 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 	if (GbSuppressNiagaraSystems != 0)
 	{
 		UnregisterWithScalabilityManager();
-		OnSystemComplete();
+		OnSystemComplete(true);
 		return;
 	}
 
@@ -928,7 +928,7 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 	if (SystemInstance.IsValid() && SystemInstance->GetSystem() != Asset)
 	{
 		UnregisterWithScalabilityManager();
-		OnSystemComplete();
+		OnSystemComplete(true);
 	}
 
 #if WITH_EDITOR
@@ -967,7 +967,7 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 	if (ShouldPreCull())
 	{
 		//We have decided to pre cull the system.
-		OnSystemComplete();
+		OnSystemComplete(true);
 		return;
 	}
 
@@ -1032,7 +1032,7 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 
 	if (!SystemInstance)
 	{
-		OnSystemComplete();
+		OnSystemComplete(true);
 		return;
 	}
 
@@ -1102,7 +1102,7 @@ void UNiagaraComponent::DeactivateInternal(bool bIsScalabilityCull /* = false */
 
 		if(bWasCulledByScalabiltiy && !bIsCulledByScalability)//We were culled by scalability but no longer, ensure we've handled completion correctly. E.g. returned to the pool etc.
 		{
-			OnSystemComplete();
+			OnSystemComplete(true);
 		}
 		SetActiveFlag(false);
 	}
@@ -1143,7 +1143,7 @@ void UNiagaraComponent::DeactivateImmediateInternal(bool bIsScalabilityCull)
 	}
 	else if (bWasCulledByScalability && !bIsCulledByScalability)//We were culled by scalability but no longer, ensure we've handled completion correctly. E.g. returned to the pool etc.
 	{
-		OnSystemComplete();
+		OnSystemComplete(true);
 	}
 }
 
@@ -1230,7 +1230,7 @@ void UNiagaraComponent::PostSystemTick_GameThread()
 	}
 }
 
-void UNiagaraComponent::OnSystemComplete()
+void UNiagaraComponent::OnSystemComplete(bool bExternalCompletion)
 {
 	//UE_LOG(LogNiagara, Log, TEXT("OnSystemComplete: %p - %s"), SystemInstance.Get(), *Asset->GetName());
 	SetComponentTickEnabled(false);
@@ -1274,7 +1274,7 @@ void UNiagaraComponent::OnSystemComplete()
 			if (UNiagaraEffectType* EffectType = GetAsset()->GetEffectType())
 			{
 				//Only trigger warning if we're not being deactivated/completed from the outside and this is a natural completion by the system itself.
-				if (EffectType->CullReaction == ENiagaraCullReaction::DeactivateImmediateResume || EffectType->CullReaction == ENiagaraCullReaction::DeactivateResume)
+				if (bExternalCompletion == false && EffectType->CullReaction == ENiagaraCullReaction::DeactivateImmediateResume || EffectType->CullReaction == ENiagaraCullReaction::DeactivateResume)
 				{
 					if (GNiagaraComponentWarnAsleepCullReaction == 1)
 					{
