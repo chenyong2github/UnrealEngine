@@ -1934,11 +1934,6 @@ void UNiagaraEmitter::Reparent(UNiagaraEmitter& InParent)
 	ParentAtLastMerge = nullptr;
 	GraphSource->MarkNotSynchronized(TEXT("Emitter parent changed"));
 }
-
-void UNiagaraEmitter::NotifyScratchPadScriptsChanged()
-{
-	UpdateChangeId(TEXT("Scratch pad scripts changed."));
-}
 #endif
 
 void UNiagaraEmitter::ResolveScalabilitySettings()
