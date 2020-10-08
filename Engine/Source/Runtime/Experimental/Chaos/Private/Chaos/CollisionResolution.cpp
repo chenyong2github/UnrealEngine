@@ -108,6 +108,11 @@ FAutoConsoleVariableRef CVarChaosCollisionManifoldPositionTolerance(TEXT("p.Chao
 FAutoConsoleVariableRef CVarChaosCollisionManifoldRotationTolerance(TEXT("p.Chaos.Collision.ManifoldRotationTolerance"), Chaos_Collision_ManifoldRotationTolerance, TEXT(""));
 FAutoConsoleVariableRef CVarChaosCollisionManifoldToleranceExceededRebuild(TEXT("p.Chaos.Collision.ManifoldToleranceRebuild"), bChaos_Collision_ManifoldToleranceExceededRebuild, TEXT(""));
 
+bool Chaos_Collision_NarrowPhase_SphereBoundsCheck = true;
+bool Chaos_Collision_NarrowPhase_AABBBoundsCheck = true;
+FAutoConsoleVariableRef CVarChaosCollisionSphereBoundsCheck(TEXT("p.Chaos.Collision.SphereBoundsCheck"), Chaos_Collision_NarrowPhase_SphereBoundsCheck, TEXT(""));
+FAutoConsoleVariableRef CVarChaosCollisionAABBBoundsCheck(TEXT("p.Chaos.Collision.AABBBoundsCheck"), Chaos_Collision_NarrowPhase_AABBBoundsCheck, TEXT(""));
+
 namespace Chaos
 {
 	namespace Collisions
@@ -239,7 +244,7 @@ namespace Chaos
 			}
 		}
 
-		// @todo(chaos): remove this version (see UpdateConvexConvexConstraint)
+		// @todo(chaos): remove this version (see UpdateConvexConvexConstraint and Swept contacts)
 		void UpdateContactPoint(FCollisionContact& Manifold, const FContactPoint& ContactPoint)
 		{
 			if (ContactPoint.Phi < Manifold.Phi)
@@ -252,7 +257,12 @@ namespace Chaos
 
 		void UpdateContactPoint(FRigidBodyPointContactConstraint& Constraint, const FContactPoint& ContactPoint)
 		{
-			Constraint.UpdateManifold(ContactPoint);
+			// Ignore points that have not been initialized - if there is no detectable contact 
+			// point within reasonable range despite passing the AABB tests
+			if (ContactPoint.Phi != TNumericLimits<FReal>::Max())
+			{
+				Constraint.UpdateManifold(ContactPoint);
+			}
 		}
 
 		template <typename GeometryA, typename GeometryB>
@@ -276,10 +286,6 @@ namespace Chaos
 				Contact.Normal = -ATM.TransformVectorNoScale(Normal);
 				Contact.Phi = -Penetration;
 			}
-
-			//static float AverageIterations = 0;
-			//AverageIterations = AverageIterations + ((float)NumIterations - AverageIterations) / 1000.0f;
-			//UE_LOG(LogChaos, Warning, TEXT("GJK Its: %f"), AverageIterations);
 
 			return Contact;
 		}
@@ -632,21 +638,15 @@ namespace Chaos
 		// Box - Box
 		//
 
-		FContactPoint BoxBoxContactPoint(const FAABB3& Box1, const FAABB3& Box2, const FRigidTransform3& ATM, const FRigidTransform3& BToATM, const FReal CullDistance, const FReal ShapePadding)
+		FContactPoint BoxBoxContactPoint(const FAABB3& Box1, const FAABB3& Box2, const FRigidTransform3& Box1TM, const FRigidTransform3& Box2TM, const FReal CullDistance, const FReal ShapePadding)
 		{
-			return GJKContactPoint2(Box1, Box2, ATM, BToATM, FVec3(1, 0, 0), ShapePadding);
+			return GJKContactPoint(Box1, Box1TM, Box2, Box2TM, FVec3(1, 0, 0), ShapePadding);
 		}
 
 
 		void UpdateBoxBoxConstraint(const FAABB3& Box1, const FRigidTransform3& Box1Transform, const FAABB3& Box2, const FRigidTransform3& Box2Transform, const FReal CullDistance, const FReal ShapePadding, FRigidBodyPointContactConstraint& Constraint)
 		{
-			const FRigidTransform3 Box2ToBox1TM = Box2Transform.GetRelativeTransform(Box1Transform);
-			FAABB3 Box2In1 = Box2.TransformedAABB(Box2ToBox1TM);
-			Box2In1.Thicken(CullDistance);
-			if (Box1.Intersects(Box2In1))
-			{
-				UpdateContactPoint(Constraint, BoxBoxContactPoint(Box1, Box2, Box1Transform, Box2ToBox1TM, CullDistance, ShapePadding + Constraint.Manifold.RestitutionPadding));
-			}
+			UpdateContactPoint(Constraint, BoxBoxContactPoint(Box1, Box2, Box1Transform, Box2Transform, CullDistance, ShapePadding + Constraint.Manifold.RestitutionPadding));
 		}
 
 
@@ -669,12 +669,8 @@ namespace Chaos
 					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
 					FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 					UpdateBoxBoxConstraint(Object0->BoundingBox(), WorldTransform0, Object1->BoundingBox(), WorldTransform1, CullDistance, ShapePadding, Constraint);
-					NewConstraints.TryAdd(CullDistance, Constraint);
 				}
-				else
-				{
-					NewConstraints.Add(Constraint);
-				}
+				NewConstraints.Add(Constraint);
 			}
 		}
 
@@ -714,12 +710,8 @@ namespace Chaos
 					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
 					FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 					UpdateBoxHeightFieldConstraint(Object0->BoundingBox(), WorldTransform0, *Object1, WorldTransform1, CullDistance, ShapePadding, Constraint);
-					NewConstraints.TryAdd(CullDistance, Constraint);
 				}
-				else
-				{
-					NewConstraints.Add(Constraint);
-				}
+				NewConstraints.Add(Constraint);
 			}
 		}
 
@@ -809,12 +801,8 @@ namespace Chaos
 					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
 					FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 					UpdateBoxPlaneConstraint(Object0->BoundingBox(), WorldTransform0, *Object1, WorldTransform1, CullDistance, ShapePadding, Constraint);
-					NewConstraints.TryAdd(CullDistance, Constraint);
 				}
-				else
-				{
-					NewConstraints.Add(Constraint);
-				}
+				NewConstraints.Add(Constraint);
 			}
 		}
 
@@ -853,12 +841,8 @@ namespace Chaos
 						FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
 						FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 						UpdateBoxTriangleMeshConstraint(Object0->GetAABB(), WorldTransform0, *ScaledTriangleMesh, WorldTransform1, CullDistance, ShapePadding, Constraint);
-						NewConstraints.TryAdd(CullDistance, Constraint);
 					}
-					else
-					{
-						NewConstraints.Add(Constraint);
-					}
+					NewConstraints.Add(Constraint);
 				}
 				else if (const FTriangleMeshImplicitObject* TriangleMesh = Implicit1->template GetObject<const FTriangleMeshImplicitObject>())
 				{
@@ -868,12 +852,8 @@ namespace Chaos
 						FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
 						FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 						UpdateBoxTriangleMeshConstraint(Object0->GetAABB(), WorldTransform0, *TriangleMesh, WorldTransform1, CullDistance, ShapePadding, Constraint);
-						NewConstraints.TryAdd(CullDistance, Constraint);
 					}
-					else
-					{
-						NewConstraints.Add(Constraint);
-					}
+					NewConstraints.Add(Constraint);
 				}
 				else
 				{
@@ -937,12 +917,8 @@ namespace Chaos
 					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
 					FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 					UpdateSphereSphereConstraint(*Object0, WorldTransform0, *Object1, WorldTransform1, CullDistance, ShapePadding, Constraint);
-					NewConstraints.TryAdd(CullDistance, Constraint);
 				}
-				else
-				{
-					NewConstraints.Add(Constraint);
-				}
+				NewConstraints.Add(Constraint);
 			}
 		}
 
@@ -988,12 +964,8 @@ namespace Chaos
 					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
 					FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 					UpdateSphereHeightFieldConstraint(*Object0, WorldTransform0, *Object1, WorldTransform1, CullDistance, ShapePadding, Constraint);
-					NewConstraints.TryAdd(CullDistance, Constraint);
 				}
-				else
-				{
-					NewConstraints.Add(Constraint);
-				}
+				NewConstraints.Add(Constraint);
 			}
 		}
 
@@ -1007,7 +979,7 @@ namespace Chaos
 				FRigidTransform3 WorldTransformX0 = LocalTransform0 * FRigidTransform3(Particle0->X(), Particle0->R());
 				FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 				UpdateSphereHeightFieldConstraintSwept(Particle0, *Object0, WorldTransformX0, *Object1, WorldTransform1, Dir, Length, CullDistance, Constraint);
-				NewConstraints.TryAdd(CullDistance, Constraint);
+				NewConstraints.Add(Constraint);
 			}
 		}
 
@@ -1064,12 +1036,8 @@ namespace Chaos
 					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
 					FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 					UpdateSpherePlaneConstraint(*Object0, WorldTransform0, *Object1, WorldTransform1, CullDistance, ShapePadding, Constraint);
-					NewConstraints.TryAdd(CullDistance, Constraint);
 				}
-				else
-				{
-					NewConstraints.Add(Constraint);
-				}
+				NewConstraints.Add(Constraint);
 			}
 		}
 
@@ -1127,12 +1095,8 @@ namespace Chaos
 					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
 					FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 					UpdateSphereBoxConstraint(*Object0, WorldTransform0, Object1->BoundingBox(), WorldTransform1, CullDistance, ShapePadding, Constraint);
-					NewConstraints.TryAdd(CullDistance, Constraint);
 				}
-				else
-				{
-					NewConstraints.Add(Constraint);
-				}
+				NewConstraints.Add(Constraint);
 			}
 		}
 
@@ -1194,12 +1158,8 @@ namespace Chaos
 					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
 					FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 					UpdateSphereCapsuleConstraint(*Object0, WorldTransform0, *Object1, WorldTransform1, CullDistance, ShapePadding, Constraint);
-					NewConstraints.TryAdd(CullDistance, Constraint);
 				}
-				else
-				{
-					NewConstraints.Add(Constraint);
-				}
+				NewConstraints.Add(Constraint);
 			}
 		}
 
@@ -1262,12 +1222,8 @@ namespace Chaos
 						FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
 						FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 						UpdateSphereTriangleMeshConstraint(*Object0, WorldTransform0, *ScaledTriangleMesh, WorldTransform1, CullDistance, ShapePadding, Constraint);
-						NewConstraints.TryAdd(CullDistance, Constraint);
 					}
-					else
-					{
-						NewConstraints.Add(Constraint);
-					}
+					NewConstraints.Add(Constraint);
 				}
 				else if (const FTriangleMeshImplicitObject* TriangleMesh = Implicit1->template GetObject<const FTriangleMeshImplicitObject>())
 				{
@@ -1277,12 +1233,8 @@ namespace Chaos
 						FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
 						FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 						UpdateSphereTriangleMeshConstraint(*Object0, WorldTransform0, *TriangleMesh, WorldTransform1, CullDistance, ShapePadding, Constraint);
-						NewConstraints.TryAdd(CullDistance, Constraint);
 					}
-					else
-					{
-						NewConstraints.Add(Constraint);
-					}
+					NewConstraints.Add(Constraint);
 				}
 				else
 				{
@@ -1303,7 +1255,7 @@ namespace Chaos
 					FRigidTransform3 WorldTransformX0 = LocalTransform0 * FRigidTransform3(Particle0->X(), Particle0->R());
 					FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 					UpdateSphereTriangleMeshConstraintSwept(Particle0, *Object0, WorldTransformX0, *ScaledTriangleMesh, WorldTransform1, Dir, Length, CullDistance, Constraint);
-					NewConstraints.TryAdd(CullDistance, Constraint);
+					NewConstraints.Add(Constraint);
 				}
 				else if (const FTriangleMeshImplicitObject* TriangleMesh = Implicit1->template GetObject<const FTriangleMeshImplicitObject>())
 				{
@@ -1311,7 +1263,7 @@ namespace Chaos
 					FRigidTransform3 WorldTransformX0 = LocalTransform0 * FRigidTransform3(Particle0->X(), Particle0->R());
 					FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 					UpdateSphereTriangleMeshConstraintSwept(Particle0, *Object0, WorldTransformX0, *TriangleMesh, WorldTransform1, Dir, Length, CullDistance, Constraint);
-					NewConstraints.TryAdd(CullDistance, Constraint);
+					NewConstraints.Add(Constraint);
 				}
 				else
 				{
@@ -1382,12 +1334,8 @@ namespace Chaos
 					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
 					FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 					UpdateCapsuleCapsuleConstraint(*Object0, WorldTransform0, *Object1, WorldTransform1, CullDistance, ShapePadding, Constraint);
-					NewConstraints.TryAdd(CullDistance, Constraint);
 				}
-				else
-				{
-					NewConstraints.Add(Constraint);
-				}
+				NewConstraints.Add(Constraint);
 			}
 		}
 
@@ -1638,12 +1586,8 @@ namespace Chaos
 						FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
 						FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 						UpdateCapsuleBoxManifold(*Object0, WorldTransform0, Object1->BoundingBox(), WorldTransform1, CullDistance, ShapePadding, Constraint);
-						NewConstraints.TryAdd(CullDistance, Constraint);
 					}
-					else
-					{
-						NewConstraints.Add(Constraint);
-					}
+					NewConstraints.Add(Constraint);
 				}
 				else
 				{
@@ -1653,12 +1597,8 @@ namespace Chaos
 						FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
 						FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 						UpdateCapsuleBoxConstraint(*Object0, WorldTransform0, Object1->BoundingBox(), WorldTransform1, CullDistance, ShapePadding, Constraint);
-						NewConstraints.TryAdd(CullDistance, Constraint);
 					}
-					else
-					{
-						NewConstraints.Add(Constraint);
-					}
+					NewConstraints.Add(Constraint);
 				}
 			}
 		}
@@ -1711,12 +1651,8 @@ namespace Chaos
 					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
 					FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 					UpdateCapsuleHeightFieldConstraint(*Object0, WorldTransform0, *Object1, WorldTransform1, CullDistance, ShapePadding, Constraint);
-					NewConstraints.TryAdd(CullDistance, Constraint);
 				}
-				else
-				{
-					NewConstraints.Add(Constraint);
-				}
+				NewConstraints.Add(Constraint);
 			}
 		}
 
@@ -1731,7 +1667,7 @@ namespace Chaos
 				FRigidTransform3 WorldTransformX0 = LocalTransform0 * FRigidTransform3(Particle0->X(), Particle0->R());
 				FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 				UpdateCapsuleHeightFieldConstraintSwept(Particle0, *Object0, WorldTransformX0, *Object1, WorldTransform1, Dir, Length, CullDistance, Constraint);
-				NewConstraints.TryAdd(CullDistance, Constraint);
+				NewConstraints.Add(Constraint);
 			}
 		}
 
@@ -1803,12 +1739,8 @@ namespace Chaos
 						FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
 						FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 						UpdateCapsuleTriangleMeshConstraint(*Object0, WorldTransform0, *ScaledTriangleMesh, WorldTransform1, CullDistance, ShapePadding, Constraint);
-						NewConstraints.TryAdd(CullDistance, Constraint);
 					}
-					else
-					{
-						NewConstraints.Add(Constraint);
-					}
+					NewConstraints.Add(Constraint);
 				}
 				else if (const FTriangleMeshImplicitObject* TriangleMesh = Implicit1->template GetObject<const FTriangleMeshImplicitObject>())
 				{
@@ -1818,12 +1750,8 @@ namespace Chaos
 						FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
 						FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 						UpdateCapsuleTriangleMeshConstraint(*Object0, WorldTransform0, *TriangleMesh, WorldTransform1, CullDistance, ShapePadding, Constraint);
-						NewConstraints.TryAdd(CullDistance, Constraint);
 					}
-					else
-					{
-						NewConstraints.Add(Constraint);
-					}
+					NewConstraints.Add(Constraint);
 				}
 				else
 				{
@@ -1845,7 +1773,7 @@ namespace Chaos
 					FRigidTransform3 WorldTransformX0 = LocalTransform0 * FRigidTransform3(Particle0->X(), Particle0->R());
 					FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 					UpdateCapsuleTriangleMeshConstraintSwept(Particle0, *Object0, WorldTransformX0, *ScaledTriangleMesh, WorldTransform1, Dir, Length, CullDistance, Constraint);
-					NewConstraints.TryAdd(CullDistance, Constraint);
+					NewConstraints.Add(Constraint);
 				}
 				else if (const FTriangleMeshImplicitObject* TriangleMesh = Implicit1->template GetObject<const FTriangleMeshImplicitObject>())
 				{
@@ -1853,7 +1781,7 @@ namespace Chaos
 					FRigidTransform3 WorldTransformX0 = LocalTransform0 * FRigidTransform3(Particle0->X(), Particle0->R());
 					FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 					UpdateCapsuleTriangleMeshConstraintSwept(Particle0, *Object0, WorldTransformX0, *TriangleMesh, WorldTransform1, Dir, Length, CullDistance, Constraint);
-					NewConstraints.TryAdd(CullDistance, Constraint);
+					NewConstraints.Add(Constraint);
 				}
 				else
 				{
@@ -1956,12 +1884,8 @@ namespace Chaos
 					if (T_TRAITS::bImmediateUpdate)
 					{
 						UpdateConvexConvexConstraint(*Implicit0, WorldTransform0, *Implicit1, WorldTransform1, CullDistance, ShapePadding, Constraint);
-						NewConstraints.TryAdd(CullDistance, Constraint);
 					}
-					else
-					{
-						NewConstraints.Add(Constraint);
-					}
+					NewConstraints.Add(Constraint);
 					return;
 				}
 			}
@@ -1972,12 +1896,8 @@ namespace Chaos
 				FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
 				FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 				UpdateConvexConvexConstraint(*Implicit0, WorldTransform0, *Implicit1, WorldTransform1, CullDistance, ShapePadding, Constraint);
-				NewConstraints.TryAdd(CullDistance, Constraint);
 			}
-			else
-			{
-				NewConstraints.Add(Constraint);
-			}
+			NewConstraints.Add(Constraint);
 		}
 
 		void ConstructConvexConvexConstraintsSwept(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const FRigidTransform3& LocalTransform0, const FRigidTransform3& LocalTransform1, const FReal CullDistance, const FVec3& Dir, FReal Length, FCollisionConstraintsArray& NewConstraints)
@@ -1987,7 +1907,7 @@ namespace Chaos
 			FRigidTransform3 WorldTransformX0 = LocalTransform0 * FRigidTransform3(Particle0->X(), Particle0->R());
 			FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 			UpdateConvexConvexConstraintSwept(Particle0, *Implicit0, WorldTransformX0, *Implicit1, WorldTransform1, Dir, Length, CullDistance, Constraint);
-			NewConstraints.TryAdd(CullDistance, Constraint);
+			NewConstraints.Add(Constraint);
 		}
 
 		//
@@ -2036,12 +1956,8 @@ namespace Chaos
 					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
 					FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 					UpdateConvexHeightFieldConstraint(*Implicit0, WorldTransform0, *Object1, WorldTransform1, CullDistance, ShapePadding, Constraint);
-					NewConstraints.TryAdd(CullDistance, Constraint);
 				}
-				else
-				{
-					NewConstraints.Add(Constraint);
-				}
+				NewConstraints.Add(Constraint);
 			}
 		}
 
@@ -2055,7 +1971,7 @@ namespace Chaos
 				FRigidTransform3 WorldTransformX0 = LocalTransform0 * FRigidTransform3(Particle0->X(), Particle0->R());
 				FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 				UpdateConvexHeightFieldConstraintSwept(Particle0, *Implicit0, WorldTransformX0, *Object1, WorldTransform1, Dir, Length, CullDistance, Constraint);
-				NewConstraints.TryAdd(CullDistance, Constraint);
+				NewConstraints.Add(Constraint);
 			}
 		}
 
@@ -2124,12 +2040,8 @@ namespace Chaos
 						FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
 						FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 						UpdateConvexTriangleMeshConstraint(*Implicit0, WorldTransform0, *ScaledTriangleMesh, WorldTransform1, CullDistance, ShapePadding, Constraint);
-						NewConstraints.TryAdd(CullDistance, Constraint);
 					}
-					else
-					{
-						NewConstraints.Add(Constraint);
-					}
+					NewConstraints.Add(Constraint);
 				}
 				else if (const FTriangleMeshImplicitObject* TriangleMesh = Implicit1->template GetObject<const FTriangleMeshImplicitObject>())
 				{
@@ -2139,12 +2051,8 @@ namespace Chaos
 						FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
 						FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 						UpdateConvexTriangleMeshConstraint(*Implicit0, WorldTransform0, *TriangleMesh, WorldTransform1, CullDistance, ShapePadding, Constraint);
-						NewConstraints.TryAdd(CullDistance, Constraint);
 					}
-					else
-					{
-						NewConstraints.Add(Constraint);
-					}
+					NewConstraints.Add(Constraint);
 				}
 				else
 				{
@@ -2164,7 +2072,7 @@ namespace Chaos
 					FRigidTransform3 WorldTransformX0 = LocalTransform0 * FRigidTransform3(Particle0->X(), Particle0->R());
 					FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 					UpdateConvexTriangleMeshConstraintSwept(Particle0, *Implicit0, WorldTransformX0, *ScaledTriangleMesh, WorldTransform1, Dir, Length, CullDistance, Constraint);
-					NewConstraints.TryAdd(CullDistance, Constraint);
+					NewConstraints.Add(Constraint);
 				}
 				else if (const FTriangleMeshImplicitObject* TriangleMesh = Implicit1->template GetObject<const FTriangleMeshImplicitObject>())
 				{
@@ -2172,7 +2080,7 @@ namespace Chaos
 					FRigidTransform3 WorldTransformX0 = LocalTransform0 * FRigidTransform3(Particle0->X(), Particle0->R());
 					FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 					UpdateConvexTriangleMeshConstraintSwept(Particle0, *Implicit0, WorldTransformX0, *TriangleMesh, WorldTransform1, Dir, Length, CullDistance, Constraint);
-					NewConstraints.TryAdd(CullDistance, Constraint);
+					NewConstraints.Add(Constraint);
 				}
 				else
 				{
@@ -2267,12 +2175,8 @@ namespace Chaos
 				FRigidTransform3 WorldTransform0 = Constraint.ImplicitTransform[0] * Collisions::GetTransform(Constraint.Particle[0]);
 				FRigidTransform3 WorldTransform1 = Constraint.ImplicitTransform[1] * Collisions::GetTransform(Constraint.Particle[1]);
 				UpdateLevelsetLevelsetConstraint<ECollisionUpdateType::Deepest>(WorldTransform0, WorldTransform1, CullDistance, Constraint);
-				NewConstraints.TryAdd(CullDistance, Constraint);
 			}
-			else
-			{
-				NewConstraints.Add(Constraint);
-			}
+			NewConstraints.Add(Constraint);
 		}
 
 
@@ -2319,8 +2223,36 @@ namespace Chaos
 			const FImplicitObject& Implicit0 = *Constraint.Manifold.Implicit[0];
 			const FImplicitObject& Implicit1 = *Constraint.Manifold.Implicit[1];
 
-			const FVec3 OriginalContactPositionLocal0 = WorldTransform0.InverseTransformPosition(Constraint.Manifold.Location);
-			const FVec3 OriginalContactPositionLocal1 = WorldTransform1.InverseTransformPosition(Constraint.Manifold.Location);
+			// @todo(chaos): remove
+			//const FVec3 OriginalContactPositionLocal0 = WorldTransform0.InverseTransformPosition(Constraint.Manifold.Location);
+			//const FVec3 OriginalContactPositionLocal1 = WorldTransform1.InverseTransformPosition(Constraint.Manifold.Location);
+
+			if (Implicit0.HasBoundingBox() && Implicit1.HasBoundingBox())
+			{
+				if (Chaos_Collision_NarrowPhase_SphereBoundsCheck)
+				{
+					const FReal R1 = Implicit0.BoundingBox().OriginRadius();
+					const FReal R2 = Implicit1.BoundingBox().OriginRadius();
+					const FReal SeparationSq = (WorldTransform1.GetTranslation() - WorldTransform0.GetTranslation()).SizeSquared();
+					const FReal CullDistanceSq = CullDistance * CullDistance;
+					if ((SeparationSq - FMath::Square(R1 + R2)) > CullDistanceSq)
+					{
+						return;
+					}
+				}
+
+				if (Chaos_Collision_NarrowPhase_AABBBoundsCheck)
+				{
+					const FRigidTransform3 Box2ToBox1TM = WorldTransform1.GetRelativeTransform(WorldTransform0);
+					const FAABB3 Box1 = Implicit0.BoundingBox();
+					const FAABB3 Box2In1 = Implicit1.BoundingBox().TransformedAABB(Box2ToBox1TM).Thicken(CullDistance);
+					if (!Box1.Intersects(Box2In1))
+					{
+						return;
+					}
+				}
+			}
+
 
 			switch (Constraint.Manifold.ShapesType)
 			{
@@ -2436,9 +2368,9 @@ namespace Chaos
 				break;
 			}
 
-			const FVec3 NewContactPositionLocal0 = WorldTransform0.InverseTransformPosition(Constraint.Manifold.Location);
-			const FVec3 NewContactPositionLocal1 = WorldTransform1.InverseTransformPosition(Constraint.Manifold.Location);
-			Constraint.Manifold.ContactMoveSQRDistance = FMath::Max((NewContactPositionLocal0 - OriginalContactPositionLocal0).SizeSquared(), (NewContactPositionLocal1 - OriginalContactPositionLocal1).SizeSquared());
+			//const FVec3 NewContactPositionLocal0 = WorldTransform0.InverseTransformPosition(Constraint.Manifold.Location);
+			//const FVec3 NewContactPositionLocal1 = WorldTransform1.InverseTransformPosition(Constraint.Manifold.Location);
+			//Constraint.Manifold.ContactMoveSQRDistance = FMath::Max((NewContactPositionLocal0 - OriginalContactPositionLocal0).SizeSquared(), (NewContactPositionLocal1 - OriginalContactPositionLocal1).SizeSquared());
 		}
 
 		template<typename T_TRAITS>

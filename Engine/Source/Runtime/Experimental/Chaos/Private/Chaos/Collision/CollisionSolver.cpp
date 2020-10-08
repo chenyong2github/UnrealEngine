@@ -35,6 +35,13 @@ namespace Chaos
 		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_PositionCorrection(TEXT("p.Chaos.Collision.Manifold.PushOutPositionCorrection"), Chaos_Manifold_PushOut_PositionCorrection, TEXT(""));
 		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_VelocityCorrection(TEXT("p.Chaos.Collision.Manifold.PushOutVelocityCorrection"), Chaos_Manifold_PushOut_VelocityCorrection, TEXT(""));
 
+		float Chaos_Manifold_ImpulseTolerance = 1.e-4f;
+		FAutoConsoleVariableRef CVarChaos_Manifold_ImpulseTolerance(TEXT("p.Chaos.Collision.Manifold.ImpulseTolerance"), Chaos_Manifold_ImpulseTolerance, TEXT(""));
+
+		float Chaos_Manifold_PositionTolerance = 1.e-4f;
+		FAutoConsoleVariableRef CVarChaos_Manifold_PositionTolerance(TEXT("p.Chaos.Collision.Manifold.PositionTolerance"), Chaos_Manifold_PositionTolerance, TEXT(""));
+
+
 		void CalculateManifoldVelocityCorrection(
 			const FCollisionContact& Contact,
 			FManifoldPoint& ManifoldPoint,
@@ -62,19 +69,23 @@ namespace Chaos
 			const FVec3 ContactNormal = ManifoldPoint.ContactPoint.Normal;
 			const FReal ContactPhi = ManifoldPoint.ContactPoint.Phi;
 
-			bool bProcessContact = (ContactPhi < Chaos_Collision_CollisionClipTolerance) || !ManifoldPoint.NetImpulse.IsNearlyZero();
-			if (!bProcessContact)
+			// Reject non-contact points unless the point has previously been processed - we may want to undo some of the previous work
+			if ((ContactPhi > Chaos_Collision_CollisionClipTolerance) && !ManifoldPoint.bActive)
 			{
 				return;
 			}
 
-			// Do not early out on negative normal velocity since there can still be an accumulated impulse
-			*IterationParameters.NeedsAnotherIteration = true;
-
 			const FVec3 ContactVelocity0 = V0 + FVec3::CrossProduct(W0, RelativeContactPoint0);
 			const FVec3 ContactVelocity1 = V1 + FVec3::CrossProduct(W1, RelativeContactPoint1);
-			const FVec3 ContactVelocity = ContactVelocity0 - ContactVelocity1;  
-			
+			const FVec3 ContactVelocity = ContactVelocity0 - ContactVelocity1;
+			const FReal ContactVelocityNormalLen = FVec3::DotProduct(ContactVelocity, ContactNormal);
+
+			// Reject contacts moving apart unless the point has previously been processed - we may want to undo some of the previous work
+			if ((ContactVelocityNormalLen > 0.0f) && !ManifoldPoint.bActive)
+			{
+				return;
+			}
+
 			// Target normal velocity, including restitution
 			const bool bApplyRestitution = (Contact.Restitution > 0.0f) && (ManifoldPoint.InitialContactVelocity < -ParticleParameters.RestitutionVelocityThreshold);
 			FReal ContactVelocityTargetNormal = 0.0f;
@@ -86,11 +97,6 @@ namespace Chaos
 			// Friction settings
 			const FReal DynamicFriction = Contact.Friction;
 			const FReal StaticFriction = FMath::Max(DynamicFriction, Contact.AngularFriction);
-
-			// PushOut needs to know if we applied restitution and static friction
-			ManifoldPoint.bInsideStaticFrictionCone = true;													// Reset and updated below based on latest friction calculation
-			ManifoldPoint.bRestitutionEnabled = bApplyRestitution || ManifoldPoint.bRestitutionEnabled;		// Latches to on state
-			ManifoldPoint.bActive = true;																	// Reset and updated below based on net impulse
 
 			// Calculate constraint-space mass
 			const FMatrix33 ConstraintMassInv =
@@ -106,30 +112,31 @@ namespace Chaos
 
 			// Clip the impulse so that the accumulated impulse is not in the wrong direction and is in the friction cone
 			// Clipping the accumulated impulse instead of the incremental iteration impulse is very important for jitter
-			FVec3 AccumulatedImpulse = ManifoldPoint.NetImpulse + Impulse;
+			FVec3 NetImpulse = ManifoldPoint.NetImpulse + Impulse;
 
 			// Normal impulse
-			const FReal AccumulatedImpulseNormalLen = FVec3::DotProduct(AccumulatedImpulse, ContactNormal);
+			const FReal NetImpulseNormalLen = FVec3::DotProduct(NetImpulse, ContactNormal);
 
 			// Tangential impulse
-			const FVec3 AccumulatedImpulseTangential = AccumulatedImpulse - AccumulatedImpulseNormalLen * ContactNormal;
-			const FReal AccumulatedImpulseTangentialLen = AccumulatedImpulseTangential.Size();
+			const FVec3 NetImpulseTangential = NetImpulse - NetImpulseNormalLen * ContactNormal;
+			const FReal NetImpulseTangentialLen = NetImpulseTangential.Size();
 
 			// Check total accumulated impulse against static friction cone
 			// If within static friction cone use the already calculated impulse
-			const FReal MaximumAccumulatedImpulseTangential = StaticFriction * AccumulatedImpulseNormalLen;
-			if (AccumulatedImpulseTangentialLen > FMath::Max(MaximumAccumulatedImpulseTangential, KINDA_SMALL_NUMBER))
+			bool bInsideStaticFrictionCone = true;
+			const FReal MaximumNetImpulseTangential = StaticFriction * NetImpulseNormalLen;
+			if (NetImpulseTangentialLen > FMath::Max(MaximumNetImpulseTangential, KINDA_SMALL_NUMBER))
 			{
 				// Outside static friction cone, solve for normal relative velocity and keep tangent at cone edge
 				// Note: assuming the current accumulated impulse is within the cone, then adding any vector 
 				// also within the cone is guaranteed to still be in the cone. So we don't need to clip the 
 				// accumulated impulse here, only the incremental impulse.
-				ManifoldPoint.bInsideStaticFrictionCone = false;
+				bInsideStaticFrictionCone = false;
 
 				// Projecting the impulse, like in the following commented out line, is a simplification that fails with fast sliding contacts.
-				// ClippedAccumulatedImpulse = (MaximumImpulseTangential / ImpulseTangentialSize) * ImpulseTangential + NewAccImpNormalSize * ContactNormal;
+				// ClippedNetImpulse = (MaximumImpulseTangential / ImpulseTangentialSize) * ImpulseTangential + NewAccImpNormalSize * ContactNormal;
 				// I.e., reducing the tangential impulse will affect the post-impulse normal velocity, requiring a change in normal impulse, which changes the frcition cone, and so on
-				FVec3 Tangent = AccumulatedImpulseTangential / AccumulatedImpulseTangentialLen;
+				FVec3 Tangent = NetImpulseTangential / NetImpulseTangentialLen;
 				FReal DirectionalConstraintMassInv = FVec3::DotProduct(ContactNormal, ConstraintMassInv * (ContactNormal + DynamicFriction * Tangent));
 				if (FMath::Abs(DirectionalConstraintMassInv) > SMALL_NUMBER)
 				{
@@ -142,27 +149,33 @@ namespace Chaos
 					Impulse = FVec3(0);
 				}
 
-				AccumulatedImpulse = ManifoldPoint.NetImpulse + Impulse;
+				NetImpulse = ManifoldPoint.NetImpulse + Impulse;
 			}
-
-			// Clamp the total impulse to be positive along the normal
-			if (FVec3::DotProduct(AccumulatedImpulse, ContactNormal) <= (FReal)0)
-			{
-				Impulse = -ManifoldPoint.NetImpulse;
-				AccumulatedImpulse = FVec3(0);
-				ManifoldPoint.bActive = false;
-			}
-			ManifoldPoint.NetImpulse = AccumulatedImpulse;
-			ManifoldPoint.NetAngularImpulses[0] = FVec3::CrossProduct(RelativeContactPoint0, AccumulatedImpulse);
-			ManifoldPoint.NetAngularImpulses[1] = FVec3::CrossProduct(RelativeContactPoint1, AccumulatedImpulse);
 
 			// @todo(chaos): should this clamp the accumulated impulse?
 			if (Chaos_Collision_EnergyClampEnabled != 0)
 			{
 				// Clamp the delta impulse to make sure we don't gain kinetic energy (ignore potential energy)
 				// This should not modify the output impulses very often
-				// @todo(chaos): add a version that does not access the particle state directly
-				//Impulse = GetEnergyClampedImpulse(Particle0->CastToRigidParticle(), Particle1->CastToRigidParticle(), Impulse, RelativeContactPoint0, RelativeContactPoint1, ContactVelocity0, ContactVelocity1);
+				Impulse = GetEnergyClampedImpulse(
+					Impulse,
+					InvM0, InvI0,
+					InvM1, InvI1,
+					Q0, V0, W0,
+					Q1, V1, W1,
+					RelativeContactPoint0,
+					RelativeContactPoint1,
+					ContactVelocity0,
+					ContactVelocity1);
+			}
+
+
+			// Clamp the total impulse to be positive along the normal
+			const bool bActive = FVec3::DotProduct(NetImpulse, ContactNormal) > 0.0f;
+			if (!bActive)
+			{
+				Impulse = -ManifoldPoint.NetImpulse;
+				NetImpulse = FVec3(0);
 			}
 
 			// Calculate the velocity deltas from the impulse
@@ -178,6 +191,16 @@ namespace Chaos
 				V1 -= InvM1 * Impulse;
 				W1 -= InvI1 * AngularImpulse;
 			}
+
+			// PushOut needs to know if we applied restitution and static friction
+			ManifoldPoint.bActive = bActive;
+			ManifoldPoint.bInsideStaticFrictionCone = bInsideStaticFrictionCone;
+			ManifoldPoint.bRestitutionEnabled = bApplyRestitution || ManifoldPoint.bRestitutionEnabled;		// Latches to on state
+			ManifoldPoint.NetImpulse = NetImpulse;
+
+			// If we applied any additional impulse, we need to go again next iteration
+			const FReal ImpulseTolerance = Chaos_Manifold_ImpulseTolerance * Chaos_Manifold_ImpulseTolerance;
+			*IterationParameters.NeedsAnotherIteration = (Impulse.SizeSquared() > ImpulseTolerance);
 		}
 
 
@@ -244,17 +267,15 @@ namespace Chaos
 				ContactErrorNormal = 0.0f;
 			}
 
+			// See if we have any work to do. If we are ignoring friction, we can early-out if we have a positive separation
 			if (!bApplyStaticFriction && (ContactErrorNormal < KINDA_SMALL_NUMBER))
 			{
 				return;
 			}
-			else if (ContactError.Size() < KINDA_SMALL_NUMBER)
+			if (ContactError.SizeSquared() < Chaos_Manifold_PositionTolerance * Chaos_Manifold_PositionTolerance)
 			{
 				return;
 			}
-
-			// Do not early out on negative normal velocity since there can still be an accumulated impulse
-			*IterationParameters.NeedsAnotherIteration = true;
 
 			// Calculate joint-space mass matrix (J.M.Jt)
 			const FMatrix33 InvI0 = bIsRigidDynamic0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) * Contact.InvInertiaScale0 : FMatrix33(0);
@@ -283,9 +304,6 @@ namespace Chaos
 				}
 			}
 
-			FVec3 NetPushOut = ManifoldPoint.NetPushOut + PushOut;
-			ManifoldPoint.NetPushOut = NetPushOut;
-
 			if (bIsRigidDynamic0)
 			{
 				const FVec3 AngularPushOut = FVec3::CrossProduct(RelativeContactPoint0, PushOut);
@@ -308,6 +326,10 @@ namespace Chaos
 				Q1.Normalize();
 				FParticleUtilities::SetCoMWorldTransform(Particle1, P1, Q1);
 			}
+
+			FVec3 NetPushOut = ManifoldPoint.NetPushOut + PushOut;
+			ManifoldPoint.NetPushOut = NetPushOut;
+			*IterationParameters.NeedsAnotherIteration = true;
 		}
 
 

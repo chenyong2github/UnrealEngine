@@ -286,7 +286,7 @@ namespace Chaos
 		void SetCollisionPairIterations(const int32 InNumIterations) { GetEvolution()->GetCollisionConstraints().SetPairIterations(InNumIterations); }
 		void SetCollisionPushOutPairIterations(const int32 InNumIterations) { GetEvolution()->GetCollisionConstraints().SetPushOutPairIterations(InNumIterations); }
 		void SetCollisionShapePadding(const FReal InShapePadding) { GetEvolution()->GetCollisionConstraints().SetShapePadding(InShapePadding); GetEvolution()->GetBroadPhase().SetShapePadding(InShapePadding); }
-		void SetCollisionCullDistance(const FReal InCullDistance) { GetEvolution()->GetCollisionConstraints().SetCullDistance(InCullDistance); GetEvolution()->GetBroadPhase().SetBoundsThickness(InCullDistance); }
+		void SetCollisionCullDistance(const FReal InCullDistance) { GetEvolution()->GetCollisionConstraints().SetCullDistance(InCullDistance); GetEvolution()->GetBroadPhase().SetCullDistance(InCullDistance); }
 		void SetUseContactGraph(const bool bInUseContactGraph) { GetEvolution()->GetCollisionConstraintsRule().SetUseContactGraph(bInUseContactGraph); }
 
 		/**/

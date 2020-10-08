@@ -39,7 +39,6 @@ namespace Chaos
 			, CoMContactNormal(0)
 			, PrevCoMContactPoint1(0)
 			, NetImpulse(0)
-			, NetAngularImpulses{ FVec3(0), FVec3(0) }
 			, NetPushOut(0)
 			, InitialContactVelocity(0)
 			, InitialPhi(0)
@@ -55,7 +54,6 @@ namespace Chaos
 			, CoMContactNormal(0)
 			, PrevCoMContactPoint1(0)
 			, NetImpulse(0)
-			, NetAngularImpulses{ FVec3(0), FVec3(0) }
 			, NetPushOut(0)
 			, InitialContactVelocity(0)
 			, InitialPhi(0)
@@ -70,7 +68,6 @@ namespace Chaos
 		FVec3 CoMContactNormal;				// CoM-space contact normal relative to second body
 		FVec3 PrevCoMContactPoint1;			// CoM-space contact point on second body at previous transforms (used for static friction)
 		FVec3 NetImpulse;					// Total impulse applied by this contact point
-		FVec3 NetAngularImpulses[2];		// Total angular impulse applied by this contact point on each body
 		FVec3 NetPushOut;					// Total pushout applied at this contact point
 		FReal InitialContactVelocity;		// Contact velocity at start of frame (used for restitution)
 		FReal InitialPhi;					// Contact separation at first contact (used for pushout restitution)
