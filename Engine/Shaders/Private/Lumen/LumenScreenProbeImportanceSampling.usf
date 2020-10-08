@@ -317,11 +317,11 @@ void ScreenProbeComputeLightingProbabilityDensityFunctionCS(
 		&& SceneDepth < 1000000.0f)
 	{
 		float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
-		float3 Lighting = 0.0f;
-		float SolidAngle = 0.0f;
+		float PDF = 0.0f;
 
 		if (all(ProbeTexelCoord < ScreenProbeTracingOctahedronResolution))
 		{
+			float3 Lighting = 0;
 			float Transparency = 1;
 
 #if PROBE_RADIANCE_HISTORY
@@ -401,9 +401,9 @@ void ScreenProbeComputeLightingProbabilityDensityFunctionCS(
 
 
 			const float InvScreenProbeResolution = 1.0f / ScreenProbeTracingOctahedronResolution;
-			SolidAngle = OctahedralSolidAngleLUT(ProbeUV, ScreenProbeTracingOctahedronResolution);
+			float SolidAngle = OctahedralSolidAngleLUT(ProbeUV, ScreenProbeTracingOctahedronResolution);
 
-			float PDF = Luminance(Lighting) * SolidAngle;
+			PDF = Luminance(Lighting) * SolidAngle;
 			SharedPDF[GroupThreadId.y * ScreenProbeTracingOctahedronResolution + GroupThreadId.x] = PDF;
 		}
 
@@ -419,24 +419,24 @@ void ScreenProbeComputeLightingProbabilityDensityFunctionCS(
 
 			if (ThreadBaseIndex < NumValuesToAccumulate)
 			{
-				float PDF = SharedPDF[ThreadBaseIndex + Offset];
+				float LocalPDF = SharedPDF[ThreadBaseIndex + Offset];
 
 				if (ThreadBaseIndex + 1 < NumValuesToAccumulate)
 				{
-					PDF += SharedPDF[ThreadBaseIndex + 1 + Offset];
+					LocalPDF += SharedPDF[ThreadBaseIndex + 1 + Offset];
 				}
 
 				if (ThreadBaseIndex + 2 < NumValuesToAccumulate)
 				{
-					PDF += SharedPDF[ThreadBaseIndex + 2 + Offset];
+					LocalPDF += SharedPDF[ThreadBaseIndex + 2 + Offset];
 				}
 
 				if (ThreadBaseIndex + 3 < NumValuesToAccumulate)
 				{
-					PDF += SharedPDF[ThreadBaseIndex + 3 + Offset];
+					LocalPDF += SharedPDF[ThreadBaseIndex + 3 + Offset];
 				}
 
-				SharedPDF[ThreadIndex + Offset + NumValuesToAccumulate] = PDF;
+				SharedPDF[ThreadIndex + Offset + NumValuesToAccumulate] = LocalPDF;
 			}
 
 			Offset += NumValuesToAccumulate;
@@ -448,7 +448,7 @@ void ScreenProbeComputeLightingProbabilityDensityFunctionCS(
 		if (all(ProbeTexelCoord < ScreenProbeTracingOctahedronResolution))
 		{
 			float PDFSum = SharedPDF[Offset];
-			RWLightingProbabilityDensityFunction[ScreenProbeAtlasCoord * ScreenProbeTracingOctahedronResolution + ProbeTexelCoord] = Luminance(Lighting) * SolidAngle / max(PDFSum, 0.0001f);
+			RWLightingProbabilityDensityFunction[ScreenProbeAtlasCoord * ScreenProbeTracingOctahedronResolution + ProbeTexelCoord] = PDF / max(PDFSum, 0.0001f);
 		}
 	}
 }
@@ -625,10 +625,14 @@ void ScreenProbeGenerateRaysCS(
 #if IMPORTANCE_SAMPLE_LIGHTING
 				float LightingPDF = LightingProbabilityDensityFunction.Load(int3(ScreenProbeAtlasCoord * MipSize + TexelCoord, 0));
 
-				if (PDF > MinPDFToTrace)
+				bool bNotCulledByBRDF = PDF >= MinPDFToTrace;
+				float LightingPDFScale = LightingPDF * (MipSize * MipSize);
+				PDF *= LightingPDFScale;
+
+				// If this ray was not culled by the BRDF, make sure it doesn't get culled by the lack of incoming lighting
+				if (bNotCulledByBRDF)
 				{
-					float LightingPDFScale = LightingPDF * (MipSize * MipSize);
-					PDF = max(PDF * LightingPDFScale, MinPDFToTrace);
+					PDF = max(PDF, MinPDFToTrace);
 				}
 #endif
 				RaysToRefine[TexelCoord.y * MipSize + TexelCoord.x] = PackRaySortInfo(TexelCoord, UniformLevel, PDF);
