@@ -45,9 +45,10 @@ public:
 	ADMXFixtureActor();
 
 	bool HasBeenInitialized;
-	bool SetInitialFixtureState;
+	bool ForceInitialFixtureState;	//snap to target values when initializing
 	float LensRadius;
 	void FeedFixtureData();
+	void SetDefaultFixtureState();
 
 	// VISUAL QUALITY LEVEL----------------------
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX Light Fixture", meta = (DisplayPriority = 0))
@@ -64,7 +65,7 @@ public:
 
 	// FUNCTIONS---------------------------------
 	UFUNCTION(BlueprintCallable, Category = "DMX Fixture")
-	void InitializeFixture(TMap<FDMXAttributeName, int32> AttributesMap, UStaticMeshComponent* StaticMeshLens, UStaticMeshComponent* StaticMeshBeam);
+	void InitializeFixture(UStaticMeshComponent* StaticMeshLens, UStaticMeshComponent* StaticMeshBeam);
 
 	UFUNCTION(BlueprintCallable, Category = "DMX Fixture")
 	void PushDMXData(TMap<FDMXAttributeName, int32> AttributesMap);
