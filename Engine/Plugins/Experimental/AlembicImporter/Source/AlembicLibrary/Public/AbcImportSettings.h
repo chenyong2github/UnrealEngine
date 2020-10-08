@@ -130,6 +130,7 @@ struct FAbcNormalGenerationSettings
 		HardEdgeAngleThreshold = 0.9f;
 		bForceOneSmoothingGroupPerObject = false;
 		bIgnoreDegenerateTriangles = true;
+		bSkipComputingTangents = false;
 	}
 
 	/** Whether or not to force smooth normals for each individual object rather than calculating smoothing groups */
@@ -147,6 +148,10 @@ struct FAbcNormalGenerationSettings
 	/** Determines whether or not the degenerate triangles should be ignored when calculating tangents/normals */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NormalCalculation, meta = (EditCondition = "bRecomputeNormals"))
 	bool bIgnoreDegenerateTriangles;
+
+	/** Determines whether tangents are computed. Skipping them can improve streaming performance but may cause visual artifacts where they are required */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NormalCalculation, AdvancedDisplay)
+	bool bSkipComputingTangents;
 };
 
 USTRUCT(Blueprintable)
