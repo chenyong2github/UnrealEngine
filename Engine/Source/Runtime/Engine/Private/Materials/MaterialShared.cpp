@@ -2443,7 +2443,7 @@ bool FMaterial::TryGetShaders(const FMaterialShaderTypes& InTypes, const FVertex
 				if (FPlatformProperties::RequiresCookedData())
 				{
 					const FString MaterialName = GetFullPath();
-					const FString VFTypeName(InVertexFactoryType->GetName());
+					const FString VFTypeName(InVertexFactoryType ? InVertexFactoryType->GetName() : TEXT(""));
 					const FString PipelineName(InTypes.PipelineType->GetName());
 					TArray<FString> ShaderStageNamesToCompile;
 					for (auto* ShaderType : InTypes.PipelineType->GetStages())
