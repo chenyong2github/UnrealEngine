@@ -115,6 +115,10 @@ void FGroomComponentDetailsCustomization::SetOverride(int32 GroupIndex, TSharedP
 	{
 		GroomComponentPtr->GroomGroupsDesc[GroupIndex].HairRaytracingRadiusScale_Override = bValue;
 	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupDesc, bUseHairRaytracingGeometry))
+	{
+		GroomComponentPtr->GroomGroupsDesc[GroupIndex].bUseHairRaytracingGeometry_Override = bValue;
+	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupDesc, bUseStableRasterization))
 	{
 		GroomComponentPtr->GroomGroupsDesc[GroupIndex].bUseStableRasterization_Override = bValue;
@@ -133,7 +137,7 @@ void FGroomComponentDetailsCustomization::OnResetToDefault(int32 GroupIndex, TSh
 	}
 	
 	FScopedTransaction ScopedTransaction(NSLOCTEXT("UnrealEd", "PropertyWindowResetToDefault", "Reset to Default"));
-	GroomComponentPtr->Modify();
+	//GroomComponentPtr->Modify();
 	SetOverride(GroupIndex, ChildHandle, false);
 	GroomComponentPtr->UpdateHairGroupsDescAndInvalidateRenderState();
 }
@@ -146,7 +150,7 @@ void FGroomComponentDetailsCustomization::OnValueChanged(int32 GroupIndex, TShar
 	}
 
 	FScopedTransaction ScopedTransaction(NSLOCTEXT("UnrealEd", "PropertyWindowPreValueChanged", "PreValue Changed"));
-	GroomComponentPtr->Modify();
+	//GroomComponentPtr->Modify();
 	SetOverride(GroupIndex, ChildHandle, true);
 	GroomComponentPtr->UpdateHairGroupsDescAndInvalidateRenderState();
 }

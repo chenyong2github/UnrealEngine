@@ -15,6 +15,7 @@ FHairShadowSettings::FHairShadowSettings()
 	HairShadowDensity = 1;
 	HairRaytracingRadiusScale = 1;
 	bVoxelize = true;
+	bUseHairRaytracingGeometry = false;
 };
 
 FHairAdvancedRenderingSettings::FHairAdvancedRenderingSettings()
@@ -44,6 +45,7 @@ bool FHairShadowSettings::operator==(const FHairShadowSettings& A) const
 	return
 		HairShadowDensity == A.HairShadowDensity &&
 		HairRaytracingRadiusScale == A.HairRaytracingRadiusScale &&
+		bUseHairRaytracingGeometry == A.bUseHairRaytracingGeometry &&
 		bVoxelize == A.bVoxelize;
 }
 bool FHairAdvancedRenderingSettings::operator==(const FHairAdvancedRenderingSettings& A) const

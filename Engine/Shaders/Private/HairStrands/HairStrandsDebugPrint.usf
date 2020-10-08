@@ -515,6 +515,19 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 
 		Pos = ShaderPrintNewline(Pos);
 		Pos.x = OriginalPos.x;
+
+		// Depth
+		Pos = ShaderPrintSymbol(Pos, _DOT_);
+		Pos = ShaderPrintSymbol(Pos, _D_);
+		Pos = ShaderPrintSymbol(Pos, _E_);
+		Pos = ShaderPrintSymbol(Pos, _P_);
+		Pos = ShaderPrintSymbol(Pos, _T_);
+		Pos = ShaderPrintSymbol(Pos, _H_);
+		Pos = ShaderPrintSymbol(Pos, _SPC_);
+		Pos = ShaderPrint(Pos, Sample.Depth);
+
+		Pos = ShaderPrintNewline(Pos);
+		Pos.x = OriginalPos.x;
 #endif
 
 		// Coverage8bit

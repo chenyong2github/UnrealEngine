@@ -8,6 +8,7 @@
 //#define SceneTexturesStruct VoxelRasterPass.SceneTextures
 
 #include "../SceneTexturesCommon.ush"
+#include "HairStrandsDebugCommon.ush"
 #include "HairStrandsDeepShadowCommon.ush"
 #include "HairStrandsVisibilityCommon.ush"
 #include "HairStrandsVoxelPageCommon.ush"

@@ -53,16 +53,10 @@ void StandardShadingPerLight( Shared, float3 L, float3 V, half3 N )
 
 struct FHairTransmittanceData
 {
-	// Average front/back scattering for a given L, V, T (tangent)
-	float3 Transmittance;
-	float3 A_front;
-	float3 A_back;
-
-	float OpaqueVisibility;
-	float HairCount;
 	bool bUseLegacyAbsorption;
 	bool bUseSeparableR;
 
+	float  OpaqueVisibility;
 	float3 LocalScattering;
 	float3 GlobalScattering;
 
@@ -72,14 +66,10 @@ struct FHairTransmittanceData
 FHairTransmittanceData InitHairTransmittanceData(bool bMultipleScatterEnable=true)
 {
 	FHairTransmittanceData o;
-	o.Transmittance = 1;
-	o.A_front = 1;
-	o.A_back = 1;
-	o.OpaqueVisibility = 1;
-	o.HairCount = 0;
 	o.bUseLegacyAbsorption = true;
 	o.bUseSeparableR = true;
 
+	o.OpaqueVisibility = 1;
 	o.LocalScattering = 0;
 	o.GlobalScattering = 1;
 	o.ScatteringComponent = HAIR_COMPONENT_R | HAIR_COMPONENT_TT | HAIR_COMPONENT_TRT | (bMultipleScatterEnable ? HAIR_COMPONENT_MULTISCATTER : 0);
