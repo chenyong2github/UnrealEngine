@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Diagnostics;
@@ -146,7 +146,7 @@ namespace UnrealVS
 		private string GetBatchFileName()
 		{
 			// Check to see if we have UE4.sln loaded
-			if (UnrealVSPackage.Instance.IsUE4Loaded)
+			if (UnrealVSPackage.Instance.IsUESolutionLoaded)
 			{ 
 				// We expect "GenerateProjectFiles.bat" to live in the same directory as the solution
 				return Path.Combine(Path.GetDirectoryName(UnrealVSPackage.Instance.SolutionFilepath), "GenerateProjectFiles.bat");

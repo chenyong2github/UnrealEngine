@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.ComponentModel.Design;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
@@ -12,6 +13,7 @@ using Microsoft.VisualStudio.OLE.Interop;
 using EnvDTE;
 using System.Runtime.InteropServices;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 using EnvDTE80;
 using System.Timers;
 
@@ -19,6 +21,19 @@ namespace UnrealVS
 {
 	internal class CommandLineEditor
 	{
+		private class LaunchSettingsJson
+		{
+			[JsonPropertyName("profiles")]
+			public Dictionary<string, LaunchSettingsProfile> Profiles { get; set; }
+
+			public class LaunchSettingsProfile
+			{
+				[JsonPropertyName("commandName")]
+				public string CommandName { get; set; }
+				[JsonPropertyName("commandLineArgs")]
+				public string CommandLineArgs { get; set; }
+			}
+		}
 		/** constants */
 
 		private const int ComboID = 0x1030;
@@ -192,10 +207,38 @@ namespace UnrealVS
 									Text = "";
 								}
 							}
+							else
+							{
+								// net core projects move debugger arguments into a debug profile setup via launchSetings.json
+								string activeDebugProfile;
+								if (PropertyStorage.GetPropertyValue("ActiveDebugProfile", ConfigurationName, (uint) _PersistStorageType.PST_USER_FILE, out activeDebugProfile) != VSConstants.S_OK)
+								{
+									activeDebugProfile = null;
+								}
 
+								string launchSettingsPath = Path.Combine(Path.GetDirectoryName(SelectedStartupProject.FileName), "Properties", "launchSettings.json");
+								if (File.Exists(launchSettingsPath))
+								{
+									string jsonDoc = File.ReadAllText(launchSettingsPath);
+									LaunchSettingsJson settings = JsonSerializer.Deserialize<LaunchSettingsJson>(jsonDoc, new JsonSerializerOptions
+									{
+										PropertyNameCaseInsensitive = true
+									});
+
+									if (activeDebugProfile != null)
+									{
+										Text = settings.Profiles[activeDebugProfile].CommandLineArgs ?? "";
+									}
+									else
+									{
+										// if no active debug profile is set then VS uses the first one
+										Text = settings.Profiles.FirstOrDefault().Value?.CommandLineArgs ?? "";
+									}
+								}
+							}
 							// for "Game" projects automatically remove the game project filename from the start of the command line
 							var ActiveConfiguration = (SolutionConfiguration2)UnrealVSPackage.Instance.DTE.Solution.SolutionBuild.ActiveConfiguration;
-							if (UnrealVSPackage.Instance.IsUE4Loaded && Utils.IsGameProject(SelectedStartupProject) && Utils.HasUProjectCommandLineArg(ActiveConfiguration.Name))
+							if (UnrealVSPackage.Instance.IsUESolutionLoaded && Utils.IsGameProject(SelectedStartupProject) && Utils.HasUProjectCommandLineArg(ActiveConfiguration.Name))
 							{
 								string AutoPrefix = Utils.GetAutoUProjectCommandLinePrefix(SelectedStartupProject);
 								if (!string.IsNullOrEmpty(AutoPrefix))
@@ -291,7 +334,7 @@ namespace UnrealVS
 
 							// for "Game" projects automatically remove the game project filename from the start of the command line
 							var ActiveConfiguration = (SolutionConfiguration2)UnrealVSPackage.Instance.DTE.Solution.SolutionBuild.ActiveConfiguration;
-							if (UnrealVSPackage.Instance.IsUE4Loaded && Utils.IsGameProject(SelectedStartupProject) && Utils.HasUProjectCommandLineArg(ActiveConfiguration.Name))
+							if (UnrealVSPackage.Instance.IsUESolutionLoaded && Utils.IsGameProject(SelectedStartupProject) && Utils.HasUProjectCommandLineArg(ActiveConfiguration.Name))
 							{
 								string AutoPrefix = Utils.GetAutoUProjectCommandLinePrefix(SelectedStartupProject);
 								if (FullCommandLine.IndexOf(Utils.UProjectExtension, StringComparison.OrdinalIgnoreCase) < 0 &&
@@ -341,15 +384,61 @@ namespace UnrealVS
 							else
 							{
 								// For some reason, have to update C# projects this way, otherwise the properties page doesn't update. Conversely, SelectedConfiguration.Properties is always null for C++ projects in VS2017.
+								bool netCoreProject = false;
 								if (SelectedConfiguration.Properties != null)
 								{
 									foreach (Property Property in SelectedConfiguration.Properties)
 									{
 										if (Property.Name.Equals("StartArguments", StringComparison.InvariantCultureIgnoreCase))
 										{
-											Property.Value = FullCommandLine;
+											try
+											{
+												Property.Value = FullCommandLine;
+											}
+											catch (NotImplementedException)
+											{
+												// net core projects report containing start arguments command but does not support setting it
+												netCoreProject = true;
+											}
 											break;
 										}
+									}
+								}
+
+								if (netCoreProject)
+								{
+									// net core project use launchSettings.json to control debug arguments instead
+
+									string activeDebugProfile;
+									if (PropertyStorage.GetPropertyValue("ActiveDebugProfile", ProjectConfigurationName, (uint)_PersistStorageType.PST_USER_FILE, out activeDebugProfile) != VSConstants.S_OK)
+									{
+										activeDebugProfile = null;
+									}
+
+									string launchSettingsPath = Path.Combine(Path.GetDirectoryName(SelectedStartupProject.FileName), "Properties", "launchSettings.json");
+									if (File.Exists(launchSettingsPath))
+									{
+										string jsonDoc = File.ReadAllText(launchSettingsPath);
+										LaunchSettingsJson settings = JsonSerializer.Deserialize<LaunchSettingsJson>(jsonDoc, new JsonSerializerOptions
+										{
+											PropertyNameCaseInsensitive = true
+										});
+
+										if (activeDebugProfile != null)
+										{
+											settings.Profiles[activeDebugProfile].CommandLineArgs = FullCommandLine;
+										}
+										else
+										{
+											// if no active debug profile is set then VS uses the first one
+											settings.Profiles.First().Value.CommandLineArgs = FullCommandLine;
+										}
+
+										string json = JsonSerializer.Serialize(settings, new JsonSerializerOptions
+										{
+											WriteIndented = true,
+										});
+										File.WriteAllText(launchSettingsPath, json);
 									}
 								}
 							}

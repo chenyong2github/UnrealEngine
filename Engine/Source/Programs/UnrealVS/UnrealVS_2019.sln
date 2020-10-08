@@ -11,8 +11,8 @@ Global
 		VS16 Release|Any CPU = VS16 Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{C0EE3E24-0255-4D0E-9369-82247AD5E2DD}.VS16 Debug|Any CPU.ActiveCfg = VS16|Any CPU
-		{C0EE3E24-0255-4D0E-9369-82247AD5E2DD}.VS16 Debug|Any CPU.Build.0 = VS16|Any CPU
+		{C0EE3E24-0255-4D0E-9369-82247AD5E2DD}.VS16 Debug|Any CPU.ActiveCfg = VS16d|Any CPU
+		{C0EE3E24-0255-4D0E-9369-82247AD5E2DD}.VS16 Debug|Any CPU.Build.0 = VS16d|Any CPU
 		{C0EE3E24-0255-4D0E-9369-82247AD5E2DD}.VS16 Release|Any CPU.ActiveCfg = VS16|Any CPU
 		{C0EE3E24-0255-4D0E-9369-82247AD5E2DD}.VS16 Release|Any CPU.Build.0 = VS16|Any CPU
 	EndGlobalSection

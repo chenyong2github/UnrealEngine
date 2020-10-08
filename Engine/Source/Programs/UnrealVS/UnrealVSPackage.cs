@@ -8,16 +8,29 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.ComponentModel.Design;
 using System.Threading;
+using System.Windows;
+using System.Windows.Forms;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell.Interop;
 using Microsoft.VisualStudio.OLE.Interop;
 using Microsoft.VisualStudio.Shell;
 using EnvDTE;
 using EnvDTE80;
+using MessageBox = System.Windows.Forms.MessageBox;
 using Thread = System.Threading.Thread;
 
 namespace UnrealVS
 {
+	public class UnrealSolutionProperties
+	{
+		public UnrealSolutionProperties(string[] InAvailablePlatforms)
+		{
+			AvailablePlatforms = InAvailablePlatforms;
+		}
+
+		public string[] AvailablePlatforms { get; }
+	}
+
 	// This attribute tells the PkgDef creation utility (CreatePkgDef.exe) that this class is a VS package.
 	[PackageRegistration( UseManagedResourcesOnly = true, AllowsBackgroundLoading = true )]
 
@@ -43,7 +56,7 @@ namespace UnrealVS
 
 	// This attribute registers an options page for the package.
 	[ProvideOptionPage(typeof(UnrealVsOptions), ExtensionName, "General", 101, 102, true)]
-
+	[ProvideSolutionProperties(GuidList.UnrealVSPackageString)]
 	/// <summary>
 	/// UnrealVSPackage implements Package abstract class.  This is the main class that is registered
 	/// with Visual Studio shell and serves as the entry point into our extension
@@ -53,12 +66,13 @@ namespace UnrealVS
 		IVsSolutionEvents,		// This interface allows us to register to be notified of events such as opening a project
 		IVsUpdateSolutionEvents,// Allows us to register to be notified of events such as active config changes
 		IVsSelectionEvents,		// Allows us to be notified when the startup project has changed to a different project
-		IVsHierarchyEvents,		// Allows us to be notified when a hierarchy (the startup project) has had properties changed
+		IVsHierarchyEvents,     // Allows us to be notified when a hierarchy (the startup project) has had properties changed
+		IVsPersistSolutionProps, // Allows us to read props added to the solution to determine if the solution is a unreal solution
 		IDisposable
 	{
 		/** Constants */
 
-		private const string VersionString = "v1.56";
+		private const string VersionString = "v1.57";
 		private const string UnrealSolutionFileNamePrefix = "UE4";
 		private const string ExtensionName = "UnrealVS";
 		private const string CommandLineOptionKey = ExtensionName + "CommandLineMRU";
@@ -151,11 +165,17 @@ namespace UnrealVS
 		public IVsMonitorSelection SelectionManager { get; private set; }
 
 		/// Variable keeps track of whether a supported Unreal solution is loaded
-		public bool IsUE4Loaded { get; private set; }
+		public bool IsUESolutionLoaded
+		{
+			get { return _IsUESolutionLoaded.GetValueOrDefault(false); }
+			private set { _IsUESolutionLoaded = value; }
+		}
 
 		/// Variable keeps track of the loaded solution
 		private string _SolutionFilepath;
 		public string SolutionFilepath { get { return _SolutionFilepath; } }
+
+		public UnrealSolutionProperties UnrealSolutionProperties { get; private set; }
 
 		/** Methods */
 
@@ -745,6 +765,73 @@ namespace UnrealVS
 			return VSConstants.S_OK;
 		}
 
+
+#region IVsPersistSolutionProps
+		int IVsPersistSolutionProps.SaveUserOptions(IVsSolutionPersistence pPersistence)
+		{
+			return VSConstants.S_OK;
+		}
+
+		int IVsPersistSolutionProps.LoadUserOptions(IVsSolutionPersistence pPersistence, uint grfLoadOpts)
+		{
+			return VSConstants.S_OK;
+		}
+
+		int IVsPersistSolutionProps.WriteUserOptions(IStream pOptionsStream, string pszKey)
+		{
+			return VSConstants.S_OK;
+		}
+
+		int IVsPersistSolutionProps.ReadUserOptions(IStream pOptionsStream, string pszKey)
+		{
+			return VSConstants.S_OK;
+		}
+
+		int IVsPersistSolutionProps.QuerySaveSolutionProps(IVsHierarchy pHierarchy, VSQUERYSAVESLNPROPS[] pqsspSave)
+		{
+			return VSConstants.S_OK;
+		}
+
+		int IVsPersistSolutionProps.SaveSolutionProps(IVsHierarchy pHierarchy, IVsSolutionPersistence pPersistence)
+		{
+			return VSConstants.S_OK;
+		}
+
+		int IVsPersistSolutionProps.WriteSolutionProps(IVsHierarchy pHierarchy, string pszKey, IPropertyBag pPropBag)
+		{
+			return VSConstants.S_OK;
+		}
+
+		int IVsPersistSolutionProps.ReadSolutionProps(IVsHierarchy pHierarchy, string pszProjectName, string pszProjectMk, string pszKey, int fPreLoad, IPropertyBag pPropBag)
+		{
+			if (!string.Equals(pszKey, GuidList.UnrealVSPackageString, StringComparison.InvariantCultureIgnoreCase))
+				return VSConstants.S_OK;
+
+			object availablePlatformsObject;
+			pPropBag.Read("AvailablePlatforms", out availablePlatformsObject, null, (uint)VarEnum.VT_BSTR, pPropBag);
+
+			string[] availablePlatforms = null;
+			if (availablePlatformsObject != null)
+			{
+				string availablePlatformsString = availablePlatformsObject as string;
+				availablePlatforms = availablePlatformsString.Split(';');
+			}
+
+			UnrealSolutionProperties = new UnrealSolutionProperties(availablePlatforms);
+
+			// a UnrealVS section was found so we consider this solution a unreal solution
+			IsUESolutionLoaded = true;
+
+			return VSConstants.S_OK;
+		}
+
+		int IVsPersistSolutionProps.OnProjectLoadFailure(IVsHierarchy pStubHierarchy, string pszProjectName, string pszProjectMk, string pszKey)
+		{
+			return VSConstants.S_OK;
+		}
+
+#endregion
+
 		// IVsUpdateSolutionEvents Interface
 
 		public int UpdateSolution_Begin(ref int pfCancelUpdate)
@@ -798,13 +885,18 @@ namespace UnrealVS
 		{
 			if (!DTE.Solution.IsOpen)
 			{
-				IsUE4Loaded = false;
+				IsUESolutionLoaded = false;
 				return;
 			}
 
 			string SolutionDirectory, UserOptsFile;
 			SolutionManager.GetSolutionInfo(out SolutionDirectory, out _SolutionFilepath, out UserOptsFile);
 
+			// if ReadProps found a valud UE solution we do not need to check these legacy definitions of a solution
+			if (_IsUESolutionLoaded.HasValue)
+				return;
+
+			// Legacy paths for determing if a solution is a unreal solution by checking for tags & solution name.
 			var SolutionLines = new string[0];
 			try
 			{
@@ -819,12 +911,12 @@ namespace UnrealVS
 			if (UBTLine != null)
 			{
 				_UBTVersion = UBTLine.Trim().Substring(UBTTag.Length);
-				IsUE4Loaded = true;
+				IsUESolutionLoaded = true;
 			}
 			else
 			{
 				_UBTVersion = string.Empty;
-				IsUE4Loaded =
+				IsUESolutionLoaded =
 					(
 						_SolutionFilepath != null &&
 						Path.GetFileName(_SolutionFilepath).StartsWith(UnrealSolutionFileNamePrefix, StringComparison.OrdinalIgnoreCase)
@@ -871,7 +963,8 @@ namespace UnrealVS
 
 		private string _UBTVersion = string.Empty;
 
-		private readonly List<string> LoadedProjectPaths = new List<string>(); 
+		private readonly List<string> LoadedProjectPaths = new List<string>();
+		private bool? _IsUESolutionLoaded;
 
 		/// Obtains the DTE2 interface for this instance of VS from the RunningObjectTable
 		private static DTE2 GetDTE2ForCurrentInstance(DTE DTE)
@@ -900,6 +993,7 @@ namespace UnrealVS
 			}
 			return null;
 		}
+
 	}
 
 	internal static class NativeMethods

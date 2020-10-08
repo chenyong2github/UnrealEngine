@@ -532,9 +532,6 @@ namespace UnrealBuildTool
 				throw new BuildException("Unexpected ProjectFileFormat");
 			}
 
-			// Embed custom comment used by UnrealVS to determine that this is a Unreal solution
-			VCSolutionFileContent.AppendLine("# UnrealEngineGeneratedSolutionVersion=" + AssemblyUtils.ExecutableVersion.ProductVersion);
-
 			IDictionary<MasterProjectFolder, Guid> ProjectFolderGuids = GenerateProjectFolderGuids(RootFolder);
 
 			// Solution folders, files and project entries
@@ -633,11 +630,11 @@ namespace UnrealBuildTool
 			{
 				VCSolutionFileContent.AppendLine("Global");
 				{
+					HashSet<UnrealTargetPlatform> PlatformsValidForProjects = new HashSet<UnrealTargetPlatform>();
 					{
 						VCSolutionFileContent.AppendLine("	GlobalSection(SolutionConfigurationPlatforms) = preSolution");
 
 						Dictionary<string, Tuple<UnrealTargetConfiguration, TargetType>> SolutionConfigurationsValidForProjects = new Dictionary<string, Tuple<UnrealTargetConfiguration, TargetType>>();
-						HashSet<UnrealTargetPlatform> PlatformsValidForProjects = new HashSet<UnrealTargetPlatform>();
 
 						foreach (UnrealTargetConfiguration CurConfiguration in SupportedConfigurations)
 						{
@@ -726,6 +723,14 @@ namespace UnrealBuildTool
 						VCSolutionFileContent.AppendLine("	EndGlobalSection");
 					}
 
+					// Embed UnrealVS section, which is parsed by that VSPackage (Extension) to know how to handle this solution
+					{
+						string UnrealVSGuid = "ddbf523f-7eb6-4887-bd51-85a714ff87eb";
+						VCSolutionFileContent.AppendLine("\t# UnrealVS Section");
+						VCSolutionFileContent.AppendLine("\tGlobalSection({0}) = preSolution", UnrealVSGuid);
+						VCSolutionFileContent.AppendLine("\t\tAvailablePlatforms={0}", string.Join(";", PlatformsValidForProjects.Select(platform => platform.ToString())));
+						VCSolutionFileContent.AppendLine("\tEndGlobalSection");
+					}
 
 					// Assign each project's "project configuration" to our "solution platform + configuration" pairs.  This
 					// also sets up which projects are actually built when building the solution.
