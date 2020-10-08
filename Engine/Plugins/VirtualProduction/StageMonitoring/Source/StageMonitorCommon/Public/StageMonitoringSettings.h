@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Engine/DeveloperSettings.h"
 
 #include "GameplayTagContainer.h"
 #include "Misc/FrameRate.h"
+#include "StageMessages.h"
 #include "Templates/HasGetTypeHash.h"
 
 #include "StageMonitoringSettings.generated.h"
@@ -18,6 +19,15 @@ USTRUCT()
 struct STAGEMONITORCOMMON_API FStageMessageTypeWrapper
 {
 	GENERATED_BODY()
+
+public:
+	FStageMessageTypeWrapper() = default;
+	FStageMessageTypeWrapper(FName Type)
+		: MessageType(Type)
+	{}
+
+	bool operator==(const FStageMessageTypeWrapper& Other) const { return MessageType == Other.MessageType; }
+	bool operator==(const FName Other) const { return MessageType == Other; }
 
 public:
 	/** Name of StaticStruct message type */
@@ -62,14 +72,6 @@ struct STAGEMONITORCOMMON_API FStageFramePerformanceSettings
 
 public:
 
-	/** If true, Frame Performance messages will only be sent on machine with role contained in SupportedRoles */
-	UPROPERTY(config, EditAnywhere, Category = "Frame Performance", meta = (InlineEditConditionToggle))
-	bool bUseRoleFiltering = false;
-
-	/** Roles (at least one) required for Frame Performance messages to be sent if bUseRoleFiltering is true */
-	UPROPERTY(config, EditAnywhere, Category = "Frame Performance", meta = (EditCondition = "bUseRoleFiltering"))
-	FGameplayTagContainer SupportedRoles;
-
 	/** Target FPS we're aiming for. */
 	UPROPERTY(config, EditAnywhere, Category = "Frame Performance", meta = (Unit = "s"))
 	float UpdateInterval = 0.2f;
@@ -85,13 +87,16 @@ struct STAGEMONITORCOMMON_API FStageHitchDetectionSettings
 
 public:
 
-	/** If true, Hitch events will only be sent on machine with role contained in SupportedRoles */
-	UPROPERTY(config, EditAnywhere, Category = "Hitch Detection", meta = (InlineEditConditionToggle))
-	bool bUseRoleFiltering = false;
-
-	/** Roles (at least one) required for Hitch Events to be sent if bUseRoleFiltering is true */
-	UPROPERTY(config, EditAnywhere, Category = "Hitch Detection", meta = (EditCondition = "bUseRoleFiltering"))
-	FGameplayTagContainer SupportedRoles;
+	/** 
+	 * Whether or not hitch detection should be enabled
+	 * @note: This uses stat data. To avoid having on-screen message
+	 * GAreScreenMessagesEnabled = false or -ExecCmds="DISABLEALLSCREENMESSAGES" on command line
+	 * will turn them off.
+	 * For more accurate hitch detection, use genlock which
+	 * will have better missed frames information
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "Hitch Detection")
+	bool bEnableHitchDetection = false;
 
 	/** Target FPS we're aiming for.  */
 	UPROPERTY(config, EditAnywhere, Category = "Hitch Detection")
@@ -116,7 +121,9 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = "Settings", meta = (EditCondition = "bUseRoleFiltering"))
 	FGameplayTagContainer SupportedRoles;
 
-	
+	UPROPERTY(config, EditAnywhere, Category = "Settings")
+	TMap<FStageMessageTypeWrapper, FGameplayTagContainer> MessageTypeRoleExclusion;
+
 	/** Settings about Frame Performance messaging */
 	UPROPERTY(config, EditAnywhere, Category = "Settings")
 	FStageFramePerformanceSettings FramePerformanceSettings;
@@ -173,12 +180,20 @@ protected:
  * Data Provider, Monitor and shared settings are contained here to centralize access through project settings
  */
 UCLASS(config=Game)
-class STAGEMONITORCOMMON_API UStageMonitoringSettings : public UObject
+class STAGEMONITORCOMMON_API UStageMonitoringSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
 
 public:
 	UStageMonitoringSettings();
+
+	//~ Begin UDevelopperSettings interface
+	virtual FName GetCategoryName() const;
+#if WITH_EDITOR
+	virtual FText GetSectionText() const override;
+#endif
+	//~ End UDevelopperSettings interface
+
 
 	/** Returns current SessionId either based on settings or overriden by commandline */
 	int32 GetStageSessionId() const;

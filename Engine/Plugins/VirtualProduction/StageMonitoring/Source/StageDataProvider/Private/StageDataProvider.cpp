@@ -33,13 +33,18 @@ FStageDataProvider::~FStageDataProvider()
 
 bool FStageDataProvider::Tick(float DeltaTime)
 {
-	VerifyTimeoutedMonitors();
+	RemoveTimeoutedMonitors();
 
 	return true;
 }
 
 bool FStageDataProvider::SendMessageInternal(FStageDataBaseMessage* Payload, UScriptStruct* Type, EStageMessageFlags InFlags)
 {
+	if (IsMessageTypeExcluded(Type))
+	{
+		return false;
+	}
+
 	if(Monitors.Num() > 0)
 	{
 		check(Payload);
@@ -163,7 +168,7 @@ void FStageDataProvider::HandleMonitorCloseMessage(const FStageMonitorCloseMessa
 	}
 }
 
-void FStageDataProvider::VerifyTimeoutedMonitors()
+void FStageDataProvider::RemoveTimeoutedMonitors()
 {
 	for (auto It = Monitors.CreateIterator(); It; ++It)
 	{
@@ -176,4 +181,19 @@ void FStageDataProvider::VerifyTimeoutedMonitors()
 	}
 }
 
+bool FStageDataProvider::IsMessageTypeExcluded(UScriptStruct* MessageType) const
+{
+	check(MessageType);
+	const FStageDataProviderSettings& ProviderSettings = GetDefault<UStageMonitoringSettings>()->ProviderSettings;
+	if (const FGameplayTagContainer* SupportedRoles = ProviderSettings.MessageTypeRoleExclusion.Find(FStageMessageTypeWrapper(MessageType->GetFName())))
+	{
+		const FGameplayTagContainer& CurrentRoles = GetDefault<UVPSettings>()->GetRoles();
+		if (!SupportedRoles->HasAny(CurrentRoles))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
 
