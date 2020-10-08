@@ -2,6 +2,7 @@
 <!-- The 'toc' comment is required by the marked-toc plugin and for roboserver.ts to insert a table of contents. -->
 <!-- toc -->
 
+### Intro
 RoboMerge monitors commits to Perforce streams. It reads commit messages to find commands telling it to merge between branches, and some branches are set up to be automatically merged.
 
 ### Conflicts
