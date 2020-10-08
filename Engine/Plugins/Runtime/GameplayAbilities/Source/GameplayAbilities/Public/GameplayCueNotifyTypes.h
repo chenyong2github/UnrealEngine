@@ -10,8 +10,8 @@
 #include "GameplayCueNotifyTypes.generated.h"
 
 
-class UParticleSystem;
-class UParticleSystemComponent;
+class UNiagaraSystem;
+class UFXSystemComponent;
 class UAudioComponent;
 class USoundBase;
 class UCameraShakeBase;
@@ -260,7 +260,7 @@ public:
 
 	void Reset()
 	{
-		ParticleComponents.Reset();
+		FxSystemComponents.Reset();
 		AudioComponents.Reset();
 		CameraShakes.Reset();
 		CameraAnim = nullptr;
@@ -272,9 +272,9 @@ public:
 
 public:
 
-	// List of particle components spawned.  There may be null pointers here as it matches the defined order.
+	// List of FX components spawned.  There may be null pointers here as it matches the defined order.
 	UPROPERTY(BlueprintReadOnly, Transient, Category = GameplayCueNotify)
-	TArray<UParticleSystemComponent*> ParticleComponents;
+	TArray<UFXSystemComponent*> FxSystemComponents;
 
 	// List of audio components spawned.  There may be null pointers here as it matches the defined order.
 	UPROPERTY(BlueprintReadOnly, Transient, Category = GameplayCueNotify)
@@ -334,9 +334,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify, Meta = (EditCondition = "bOverridePlacementInfo"))
 	FGameplayCueNotify_PlacementInfo PlacementInfoOverride;
 
-	// Particle system to spawn.
+	// Niagara FX system to spawn.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify)
-	UParticleSystem* ParticleSystem;
+	UNiagaraSystem* NiagaraSystem;
 
 	// If enabled, use the spawn condition override and not the default one.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify, Meta = (InlineEditConditionToggle))
