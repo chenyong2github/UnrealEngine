@@ -56,6 +56,7 @@
 #include "Materials/MaterialParameterCollection.h"
 #include "ShaderPlatformQualitySettings.h"
 #include "MaterialShaderQualitySettings.h"
+#include "Engine/RendererSettings.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "MaterialCompiler.h"
 #include "MaterialShaderType.h"
@@ -3311,7 +3312,7 @@ void UMaterial::Serialize(FArchive& Ar)
 	}
 #endif // #if WITH_EDITOR
 
-	static_assert(MP_MAX == 32, "New material properties must have DoMaterialAttributeReorder called on them to ensure that any future reordering of property pins is correctly applied.");
+	static_assert(MP_MAX == 33, "New material properties must have DoMaterialAttributeReorder called on them to ensure that any future reordering of property pins is correctly applied.");
 
 	if (Ar.UE4Ver() < VER_UE4_MATERIAL_MASKED_BLENDMODE_TIDY)
 	{
@@ -3499,6 +3500,7 @@ void UMaterial::PostLoad()
 	DoMaterialAttributeReorder(&CustomizedUVs[7], UE4Ver, RenderObjVer);
 	DoMaterialAttributeReorder(&PixelDepthOffset, UE4Ver, RenderObjVer);
 	DoMaterialAttributeReorder(&ShadingModelFromMaterialExpression, UE4Ver, RenderObjVer);
+	DoMaterialAttributeReorder(&FrontMaterial, UE4Ver, RenderObjVer);
 #endif // WITH_EDITORONLY_DATA
 
 	if (!IsDefaultMaterial())
@@ -4922,6 +4924,7 @@ FExpressionInput* UMaterial::GetExpressionInputForProperty(EMaterialProperty InP
 		case MP_MaterialAttributes:		return &MaterialAttributes;
 		case MP_PixelDepthOffset:		return &PixelDepthOffset;
 		case MP_ShadingModel:			return &ShadingModelFromMaterialExpression;
+		case MP_FrontMaterial:			return &FrontMaterial;
 	}
 
 	if (InProperty >= MP_CustomizedUVs0 && InProperty <= MP_CustomizedUVs7)
@@ -5485,6 +5488,7 @@ int32 UMaterial::CompilePropertyEx( FMaterialCompiler* Compiler, const FGuid& At
 		case MP_WorldDisplacement:		return WorldDisplacement.CompileWithDefault(Compiler, Property);
 		case MP_PixelDepthOffset:		return PixelDepthOffset.CompileWithDefault(Compiler, Property);
 		case MP_ShadingModel:			return ShadingModelFromMaterialExpression.CompileWithDefault(Compiler, Property);
+		case MP_FrontMaterial:			return FrontMaterial.CompileWithDefault(Compiler, Property);
 
 		default:
 			if (Property >= MP_CustomizedUVs0 && Property <= MP_CustomizedUVs7)
@@ -5973,7 +5977,13 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 		break;
 	case MP_ShadingModel:
 		Active = bUsesShadingModelFromMaterialExpression;
-                break;
+		break;
+	case MP_FrontMaterial:
+		{
+			const URendererSettings* RendererSettings = GetDefault<URendererSettings>();
+			Active = RendererSettings && RendererSettings->bEnableStrata;
+			break;
+		}
 	case MP_MaterialAttributes:
 	default:
 		Active = true;

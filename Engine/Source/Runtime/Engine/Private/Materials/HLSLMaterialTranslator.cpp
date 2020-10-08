@@ -130,6 +130,7 @@ FHLSLMaterialTranslator::FHLSLMaterialTranslator(FMaterial* InMaterial,
 	SharedPixelProperties[MP_PixelDepthOffset] = true;
 	SharedPixelProperties[MP_SubsurfaceColor] = true;
 	SharedPixelProperties[MP_ShadingModel] = true;
+	SharedPixelProperties[MP_FrontMaterial] = true;
 
 	for (int32 Frequency = 0; Frequency < SF_NumFrequencies; ++Frequency)
 	{
@@ -653,7 +654,9 @@ bool FHLSLMaterialTranslator::Translate()
 
 		// Make sure to compile this property before using ShadingModelsFromCompilation
 		Chunk[MP_ShadingModel]					= Material->CompilePropertyAndSetMaterialProperty(MP_ShadingModel			,this);
-			
+		
+		Chunk[MP_FrontMaterial]					= Material->CompilePropertyAndSetMaterialProperty(MP_FrontMaterial			,this);
+
 		// Get shading models from material.
 		FMaterialShadingModelField MaterialShadingModels = Material->GetShadingModels(); 
 
@@ -1417,6 +1420,10 @@ void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform,
 				VolumetricAdvancedNode->bGroundContribution ? TEXT("1") : TEXT("0"));
 		}
 	}
+
+	OutEnvironment.SetDefine(TEXT("MATERIAL_IS_STRATA"),
+		Material->HasStrataFrontMaterialConnected() ? TEXT("1") : TEXT("0"));
+	 
 }
 
 // Assign custom interpolators to slots, packing them as much as possible in unused slots.
@@ -1579,6 +1586,7 @@ FString FHLSLMaterialTranslator::GetMaterialShaderCode()
 		case MCT_Float3: MaterialAttributesDeclaration += FString::Printf(TEXT("\tfloat3 %s;") LINE_TERMINATOR, *PropertyName); break;
 		case MCT_Float4: MaterialAttributesDeclaration += FString::Printf(TEXT("\tfloat4 %s;") LINE_TERMINATOR, *PropertyName); break;
 		case MCT_ShadingModel: MaterialAttributesDeclaration += FString::Printf(TEXT("\tuint %s;") LINE_TERMINATOR, *PropertyName); break;
+		case MCT_Strata: MaterialAttributesDeclaration += FString::Printf(TEXT("\tFStrataData %s;") LINE_TERMINATOR, *PropertyName); break;
 		}
 	}
 
@@ -1878,6 +1886,7 @@ const TCHAR* FHLSLMaterialTranslator::DescribeType(EMaterialValueType Type) cons
 	case MCT_TextureVirtual:		return TEXT("TextureVirtual");
 	case MCT_VTPageTableResult:		return TEXT("VTPageTableResult");
 	case MCT_ShadingModel:			return TEXT("ShadingModel");
+	case MCT_Strata:				return TEXT("Strata");
 	default:						return TEXT("unknown");
 	};
 }
@@ -1902,6 +1911,7 @@ const TCHAR* FHLSLMaterialTranslator::HLSLTypeString(EMaterialValueType Type) co
 	case MCT_TextureVirtual:		return TEXT("TextureVirtual");
 	case MCT_VTPageTableResult:		return TEXT("VTPageTableResult");
 	case MCT_ShadingModel:			return TEXT("uint");
+	case MCT_Strata:				return TEXT("FStrataData");
 	default:						return TEXT("unknown");
 	};
 }
@@ -2448,7 +2458,7 @@ bool FHLSLMaterialTranslator::GetTextureForExpression(int32 Index, int32& OutTex
 // GetArithmeticResultType
 EMaterialValueType FHLSLMaterialTranslator::GetArithmeticResultType(EMaterialValueType TypeA, EMaterialValueType TypeB)
 {
-	if (!((TypeA & MCT_Float) || TypeA == MCT_ShadingModel) || !((TypeB & MCT_Float) || TypeB == MCT_ShadingModel))
+	if (!((TypeA & MCT_Float) || TypeA == MCT_ShadingModel) || !((TypeB & MCT_Float) || TypeB == MCT_ShadingModel) || TypeB == MCT_Strata)
 	{
 		Errorf(TEXT("Attempting to perform arithmetic on non-numeric types: %s %s"),DescribeType(TypeA),DescribeType(TypeB));
 		return MCT_Unknown;
@@ -7030,6 +7040,110 @@ int32 FHLSLMaterialTranslator::ShadingModel(EMaterialShadingModel InSelectedShad
 {
 	ShadingModelsFromCompilation.AddShadingModel(InSelectedShadingModel);
 	return AddInlinedCodeChunk(MCT_ShadingModel, TEXT("%d"), InSelectedShadingModel);
+}
+
+int32 FHLSLMaterialTranslator::FrontMaterial()
+{
+	return AddInlinedCodeChunk(MCT_Strata, TEXT("GetInitialisedStrataData()"));
+}
+
+int32 FHLSLMaterialTranslator::StrataDiffuseOrenNayarBSDF(int32 Albedo, int32 Roughness, int32 Normal)
+{
+	return AddInlinedCodeChunk(
+		MCT_Strata, TEXT("GetStrataDiffuseOrenNayarBSDF(%s, %s, %s)"),
+		*GetParameterCode(Albedo),
+		*GetParameterCode(Roughness),
+		*GetParameterCode(Normal)
+	);
+}
+
+int32 FHLSLMaterialTranslator::StrataDiffuseChanBSDF(int32 Albedo, int32 Roughness, int32 Normal)
+{
+	return AddInlinedCodeChunk(
+		MCT_Strata, TEXT("GetStrataDiffuseChanBSDF(%s, %s, %s)"),
+		*GetParameterCode(Albedo),
+		*GetParameterCode(Roughness),
+		*GetParameterCode(Normal)
+	);
+}
+
+int32 FHLSLMaterialTranslator::StrataDielectricBSDF(int32 Roughness, int32 IOR, int32 Tint, int32 Normal)
+{
+	return AddInlinedCodeChunk(
+		MCT_Strata, TEXT("GetStrataDielectricBSDF(%s, %s, %s, %s)"),
+		*GetParameterCode(Roughness),
+		*GetParameterCode(IOR),
+		*GetParameterCode(Tint),
+		*GetParameterCode(Normal)
+	);
+}
+
+int32 FHLSLMaterialTranslator::StrataConductorBSDF(int32 IOR, int32 Extinction, int32 Roughness, int32 Normal)
+{
+	return AddInlinedCodeChunk(
+		MCT_Strata, TEXT("GetStrataConductorBSDF(%s, %s, %s, %s)"),
+		*GetParameterCode(IOR),
+		*GetParameterCode(Extinction),
+		*GetParameterCode(Roughness),
+		*GetParameterCode(Normal)
+	);
+}
+
+int32 FHLSLMaterialTranslator::StrataVolumeBSDF(int32 Absorption, int32 Scattering, int32 Anisotropy)
+{
+	return AddInlinedCodeChunk(
+		MCT_Strata, TEXT("GetStrataVolumeBSDF(%s, %s, %s)"),
+		*GetParameterCode(Absorption),
+		*GetParameterCode(Scattering),
+		*GetParameterCode(Anisotropy)
+	);
+}
+
+int32 FHLSLMaterialTranslator::StrataHorizontalMixing(int32 Foreground, int32 Background, int32 Mix)
+{
+	return AddInlinedCodeChunk(
+		MCT_Strata, TEXT("StrataHorizontalMixing(%s, %s, %s)"),
+		*GetParameterCode(Foreground),
+		*GetParameterCode(Background),
+		*GetParameterCode(Mix)
+	);
+}
+
+int32 FHLSLMaterialTranslator::StrataVerticalLayering(int32 Top, int32 Base)
+{
+	return AddInlinedCodeChunk(
+		MCT_Strata, TEXT("StrataVerticalLayering(%s, %s)"),
+		*GetParameterCode(Top),
+		*GetParameterCode(Base)
+	);
+}
+
+int32 FHLSLMaterialTranslator::StrataAdd(int32 A, int32 B)
+{
+	return AddInlinedCodeChunk(
+		MCT_Strata, TEXT("StrataAdd(%s, %s)"),
+		*GetParameterCode(A),
+		*GetParameterCode(B)
+	);
+}
+
+int32 FHLSLMaterialTranslator::StrataMultiply(int32 A, int32 Weight)
+{
+	return AddInlinedCodeChunk(
+		MCT_Strata, TEXT("StrataMultiply(%s, %s)"),
+		*GetParameterCode(A),
+		*GetParameterCode(Weight)
+	);
+}
+
+int32 FHLSLMaterialTranslator::StrataArtisticIOR(int32 Reflectivity, int32 EdgeColor, int32 OutputIndex)
+{
+	return AddInlinedCodeChunk(
+		MCT_Strata, 
+		OutputIndex == 0 ? TEXT("ComputeComplexIORFromF0AndEdgeTint_IOR(%s, %s)") : TEXT("ComputeComplexIORFromF0AndEdgeTint_Extinction(%s, %s)"),
+		*GetParameterCode(Reflectivity),
+		*GetParameterCode(EdgeColor)
+	);
 }
 
 int32 FHLSLMaterialTranslator::MapARPassthroughCameraUV(int32 UV)

@@ -1,0 +1,206 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+
+
+float3 StrataForwardLighting(
+	FGBufferData GBuffer,
+	float3 MaterialParametersWorldNormal,
+	float3 V,
+	float3 L,
+	float3 LColor,
+	float3 LShadow,
+	float3 IndirectOcclusion,
+	FStrataData Strata
+	)
+{
+	float3 Color = 0;
+	float3 TotalTransmittance = 1.0f;
+
+	for (int l = 0; l < Strata.LayerCount; ++l)
+	{
+		float3 LayerTransmittance = 0.0f;
+
+		for (int i = 0; i < Strata.Layers[l].BSDFCount; ++i)
+		{
+			FStrataBSDF BSDF = Strata.Layers[l].BSDFs[i];
+
+			float3 N = MaterialParametersWorldNormal;
+			switch (BSDF.BSDFType)		// TODO_STRATA: all have a normal, even subsurface?
+			{
+			case STRATA_BSDF_TYPE_DIFFUSE_ON:
+			case STRATA_BSDF_TYPE_DIFFUSE_CHAN:
+			{ N = BSDF.Diffuse.Normal; break; }
+			case STRATA_BSDF_TYPE_DIELECTRIC:
+			{ N = BSDF.Dielectric.Normal; break; }
+			case STRATA_BSDF_TYPE_CONDUCTOR:
+			{ N = BSDF.Conductor.Normal; break; }
+			}
+			N = normalize(N);
+			float3 R = 2 * dot(V, N) * N - V;
+
+			BxDFContext Context = (BxDFContext)0;
+			Init(Context, N, V, L);
+			float SatNoL = saturate(Context.NoL);
+
+			const float3 DirLightBaseFactor = TotalTransmittance * BSDF.Weight * LColor * LShadow;
+			const float3 DirLightGeometryFactor = DirLightBaseFactor * SatNoL;
+			const float3 SkyLightCommonFactor = TotalTransmittance * BSDF.Weight * ResolvedView.SkyLightColor.rgb * IndirectOcclusion;
+
+			switch (BSDF.BSDFType)
+			{
+			case STRATA_BSDF_TYPE_DIFFUSE_ON:
+			{
+				const float SafeRoughness = MakeRoughnessSafe(BSDF.Diffuse.Roughness);
+				Color += Diffuse_OrenNayar(BSDF.Diffuse.Albedo, SafeRoughness, Context.NoV, SatNoL, Context.VoH) * DirLightGeometryFactor;
+
+#if ENABLE_SKY_LIGHT
+				BRANCH
+					if (ReflectionStruct.SkyLightParameters.y > 0)
+					{
+						Color += GetEffectiveSkySHDiffuse(N) * SkyLightCommonFactor * Diffuse_Lambert(BSDF.Diffuse.Albedo); // STRATA_TODO should not be lambert
+					}
+#endif
+
+				//LayerTransmittance += 0.0f;
+				break;
+			}
+
+			case STRATA_BSDF_TYPE_DIFFUSE_CHAN:
+			{
+				const float SafeRoughness = MakeRoughnessSafe(BSDF.Diffuse.Roughness);
+				float a = SafeRoughness * SafeRoughness;
+				float a2 = a * a;
+				Color += Diffuse_Chan(BSDF.Diffuse.Albedo, a2, Context.NoV, SatNoL, Context.VoH, Context.NoH) * DirLightGeometryFactor;
+
+#if ENABLE_SKY_LIGHT
+				BRANCH
+					if (ReflectionStruct.SkyLightParameters.y > 0)
+					{
+						Color += GetEffectiveSkySHDiffuse(N) * SkyLightCommonFactor * Diffuse_Lambert(BSDF.Diffuse.Albedo); // STRATA_TODO should not be lambert
+					}
+#endif
+
+				//LayerTransmittance += 0.0f;
+				break;
+			}
+
+			case STRATA_BSDF_TYPE_DIELECTRIC:
+			{
+				float F0 = DielectricIorToF0(BSDF.Dielectric.IOR);
+
+				const float SafeRoughness = MakeRoughnessSafe(BSDF.Dielectric.Roughness.x);
+				float a2 = Pow4(SafeRoughness);
+				float Energy = 1.0f; // See EnergyNormalization
+
+				// Generalized microfacet specular
+				float D = D_GGX(a2, Context.NoH) * Energy;
+				float Vis = Vis_SmithJointApprox(a2, Context.NoV, SatNoL);
+				float3 F = F_Schlick(F0, Context.VoH);
+
+				Color += D * Vis * F * BSDF.Dielectric.Tint * DirLightGeometryFactor;
+
+#if ENABLE_SKY_LIGHT
+				BRANCH
+					if (ReflectionStruct.SkyLightParameters.y > 0)
+					{
+						float3 EvalEnvBRDF = EnvBRDFApprox(F0, SafeRoughness, Context.NoV);
+						float SkyAverageBrightness = 1.0f;
+						Color += GetSkyLightReflection(R, SafeRoughness, SkyAverageBrightness) * EvalEnvBRDF * BSDF.Dielectric.Tint * SkyLightCommonFactor;
+					}
+#endif
+
+				LayerTransmittance += BSDF.Weight * (1.0f - F); // STRATA_TODO transmittance should only come from coverage
+				break;
+			}
+
+			case STRATA_BSDF_TYPE_CONDUCTOR:
+			{
+				float3 ReflectivityF0 = float3(1.0, 0.1, 0.1);
+				float3 EdgeTint = float3(0.1, 1.0, 0.1);
+				ComputeF0AndEdgeTintFromIOR(BSDF.Conductor.IOR, BSDF.Conductor.Extinction, ReflectivityF0, EdgeTint);
+
+				// See SpecularGGX, isotropic verion
+
+				const float SafeRoughness = MakeRoughnessSafe(BSDF.Conductor.Roughness.x);
+				float a2 = Pow4(SafeRoughness);
+				float Energy = 1.0f; // See EnergyNormalization
+
+				// Generalized microfacet specular
+				float D = D_GGX(a2, Context.NoH) * Energy;
+				float Vis = Vis_SmithJointApprox(a2, Context.NoV, SatNoL);
+				float3 F = F_Schlick(ReflectivityF0, EdgeTint, Context.VoH);
+
+				Color += D * Vis * F * DirLightGeometryFactor;
+
+#if ENABLE_SKY_LIGHT
+				//BRANCH
+				if (ReflectionStruct.SkyLightParameters.y > 0)
+				{
+					float3 EvalEnvBRDF = EnvBRDFApprox(ReflectivityF0, EdgeTint, SafeRoughness, Context.NoV);
+					float SkyAverageBrightness = 1.0f;
+					Color += GetSkyLightReflection(R, SafeRoughness, SkyAverageBrightness) * EvalEnvBRDF * SkyLightCommonFactor;
+				}
+#endif
+
+				LayerTransmittance += BSDF.Weight * (1.0f - F); // STRATA_TODO use 1-FGD instead of simple 1-F, event if we ignore ray scattering/spreading
+				break;
+			}
+
+			case STRATA_BSDF_TYPE_VOLUME:
+			{
+				const float SafeRoughness = MakeRoughnessSafe(BSDF.Conductor.Roughness.x);
+
+				const float3 ScatteringCoefficients = BSDF.Volume.Scattering;
+				const float3 AbsorptionCoefficients = BSDF.Volume.Absorption;
+				const float3 ExtinctionCoefficients = ScatteringCoefficients + AbsorptionCoefficients;
+
+				const float3 SafeExtinctionThreshold = 0.000001f;
+				const float3 SafeExtinctionCoefficients = max(SafeExtinctionThreshold, ExtinctionCoefficients);
+				const float3 SafeAlbedo = ScatteringCoefficients / SafeExtinctionCoefficients;
+
+				const float Thickness = 0.01f;	// STRATA_TODO where does thickness come from? For now, 1cm
+				const float PathLength = Thickness / max(0.0001f, abs(Context.NoV));
+				const float3 SafePathSegmentTransmittance = exp(-SafeExtinctionCoefficients * PathLength);
+				const float3 NormLuminanceTransfert = 1.0f * ScatteringCoefficients;
+				float3 NormLuminanceSingleScattering = (NormLuminanceTransfert - NormLuminanceTransfert * SafePathSegmentTransmittance) / SafeExtinctionCoefficients;
+
+#if 1
+				const float3 SelfShadowTransmittance = SatNoL;
+#else
+				const float LightPathLength = 1.0f / max(0.0001f, SatNoL);
+				const float3 SelfShadowTransmittance = SatNoL <= 0.0 ? 0.0 : exp(-ExtinctionCoefficients * LightPathLength);
+#endif
+
+				const float Phase = HenyeyGreensteinPhase(BSDF.Volume.Anisotropy, Context.VoL);
+				Color += NormLuminanceSingleScattering * Phase * DirLightBaseFactor * SelfShadowTransmittance;
+
+#if ENABLE_SKY_LIGHT
+				//BRANCH
+				if (ReflectionStruct.SkyLightParameters.y > 0)
+				{
+					const float RescaleWithPhase = 2.0f * PI * IsotropicPhase(); // times 2PI to recover luminance, and then times the phase function for the scattering event
+					float3 EvalEnvBRDF = NormLuminanceSingleScattering * RescaleWithPhase;
+					float SafeRoughnessFromG = clamp(1.0 - abs(BSDF.Volume.Anisotropy), 0.001, 1.0f);
+					float SkyAverageBrightness = 1.0f;
+					// STRATA_TODO 
+					//	- Using R is weird. We should use V. But for rought material when light is incoming mainly from upper hemisphere, using N would make more send.
+					//	- Then what phase should be used? Phase(VoN)? We need to fund a good mapping on there. 
+					//	- We need to clarify what must be the weight there also (with env light in participating media coming from 2pi). See above attempt RescaleWithPhase.
+					Color += GetSkyLightReflection(R, SafeRoughnessFromG, SkyAverageBrightness) * EvalEnvBRDF * SkyLightCommonFactor;
+				}
+#endif
+
+				LayerTransmittance += BSDF.Weight * SafePathSegmentTransmittance;
+				break;
+			}
+			}
+		}
+
+		TotalTransmittance *= LayerTransmittance;	// STRATA_TODO we need to go over all weight and trnasmittance ot make sure everything would behave corretly. Especially with a Add node for instance. Add saturate where neded, etc.
+	}
+	return Color;
+}
+
+

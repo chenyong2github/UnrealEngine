@@ -583,6 +583,8 @@ public:
 				break;
 			case MP_ShadingModel:
 				return MaterialInterface->CompileProperty(&ProxyCompiler, MP_ShadingModel);
+			case MP_FrontMaterial:
+				return MaterialInterface->CompileProperty(&ProxyCompiler, MP_FrontMaterial);
 			default:
 				return Compiler->Constant(1.0f);
 			}
@@ -602,6 +604,10 @@ public:
 		else if (Property == MP_ShadingModel)
 		{
 			return MaterialInterface->CompileProperty(Compiler, MP_ShadingModel);
+		}
+		else if (Property == MP_FrontMaterial)
+		{
+			return MaterialInterface->CompileProperty(Compiler, MP_FrontMaterial);
 		}
 		else
 		{

@@ -15,6 +15,7 @@
 #include "/Engine/Private/GlobalDistanceFieldShared.ush"
 #include "/Engine/Private/SceneData.ush"
 #include "/Engine/Private/HairShadingCommon.ush"
+#include "/Engine/Private/Strata/Strata.ush"
 
 #if USES_SPEEDTREE
 	#include "/Engine/Private/SpeedTreeCommon.ush"

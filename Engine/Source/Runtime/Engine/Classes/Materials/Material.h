@@ -235,6 +235,14 @@ struct FShadingModelMaterialInput : public FMaterialInput
 
 #if !CPP      //noexport struct
 USTRUCT(noexport)
+struct FStrataMaterialInput : public FMaterialInput
+{
+	// No support for constant
+};
+#endif
+
+#if !CPP      //noexport struct
+USTRUCT(noexport)
 struct FVectorMaterialInput : public FMaterialInput
 {
 #if WITH_EDITORONLY_DATA
@@ -464,6 +472,9 @@ public:
 
 	UPROPERTY()
 	FShadingModelMaterialInput ShadingModelFromMaterialExpression;
+
+	UPROPERTY()
+	FStrataMaterialInput FrontMaterial;
 
 	/** Indicates that the material should be rendered in the SeparateTranslucency Pass (not affected by DOF, requires bAllowSeparateTranslucency to be set in .ini). */
 	UPROPERTY(EditAnywhere, Category=Translucency, meta=(DisplayName = "Render After DOF"), AdvancedDisplay)
@@ -1748,11 +1759,13 @@ public:
 	bool HasBaseColorConnected() const { return BaseColor.IsConnected(); }
 	bool HasRoughnessConnected() const { return Roughness.IsConnected(); }
 	bool HasAmbientOcclusionConnected() const { return AmbientOcclusion.IsConnected(); }
+	bool HasStrataFrontMaterialConnected() const { return FrontMaterial.IsConnected(); }
 #else	
 	// Add to runtime data only if we need to call these at runtime
 	bool HasBaseColorConnected() const { check(0); return false; }
 	bool HasRoughnessConnected() const { check(0); return false; }
 	bool HasAmbientOcclusionConnected() const { check(0); return false; }
+	bool HasStrataFrontMaterialConnected() const { check(0); return false; }
 #endif 	
 	bool HasNormalConnected() const { return Normal.IsConnected(); }
 	bool HasSpecularConnected() const { return Specular.IsConnected(); }

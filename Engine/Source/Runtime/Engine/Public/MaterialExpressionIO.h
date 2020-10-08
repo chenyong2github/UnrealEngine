@@ -229,6 +229,25 @@ struct TStructOpsTypeTraits<FShadingModelMaterialInput>
 	};
 };
 
+struct FStrataMaterialInput : FMaterialInput<uint32> // Still giving it a default type
+{
+#if WITH_EDITOR
+	ENGINE_API int32 CompileWithDefault(class FMaterialCompiler* Compiler, EMaterialProperty Property);
+#endif  // WITH_EDITOR
+	/** ICPPStructOps interface */
+	ENGINE_API bool Serialize(FArchive& Ar);
+};
+
+template<>
+struct TStructOpsTypeTraits<FStrataMaterialInput>
+	: public TStructOpsTypeTraitsBase2<FStrataMaterialInput>
+{
+	enum
+	{
+		WithSerializer = true,
+	};
+};
+
 struct FVectorMaterialInput : FMaterialInput<FVector>
 {
 #if WITH_EDITOR

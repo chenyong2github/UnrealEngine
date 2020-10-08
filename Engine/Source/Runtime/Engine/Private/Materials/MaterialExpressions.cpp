@@ -242,6 +242,7 @@
 #include "Materials/MaterialExpressionMapARPassthroughCameraUV.h"
 #include "Materials/MaterialExpressionShaderStageSwitch.h"
 #include "Materials/MaterialExpressionReflectionCapturePassSwitch.h"
+#include "Materials/MaterialExpressionStrata.h"
 #include "Materials/MaterialUniformExpressions.h"
 #include "EditorSupportDelegates.h"
 #include "MaterialCompiler.h"
@@ -5617,7 +5618,7 @@ int32 UMaterialExpressionMakeMaterialAttributes::Compile(class FMaterialCompiler
 	int32 Ret = INDEX_NONE;
 	UMaterialExpression* Expression = nullptr;
 
- 	static_assert(MP_MAX == 32, 
+ 	static_assert(MP_MAX == 33, 
 		"New material properties should be added to the end of the inputs for this expression. \
 		The order of properties here should match the material results pins, the make material attriubtes node inputs and the mapping of IO indices to properties in GetMaterialPropertyFromInputOutputIndex().\
 		Insertions into the middle of the properties or a change in the order of properties will also require that existing data is fixed up in DoMaterialAttributeReorder().\
@@ -5647,6 +5648,7 @@ int32 UMaterialExpressionMakeMaterialAttributes::Compile(class FMaterialCompiler
 	case MP_Refraction: Ret = Refraction.Compile(Compiler); Expression = Refraction.Expression; break;
 	case MP_PixelDepthOffset: Ret = PixelDepthOffset.Compile(Compiler); Expression = PixelDepthOffset.Expression; break;
 	case MP_ShadingModel: Ret = ShadingModel.Compile(Compiler); Expression = ShadingModel.Expression; break;
+	case MP_FrontMaterial: Ret = FrontMaterial.Compile(Compiler); Expression = FrontMaterial.Expression; break;
 	};
 
 	if (Property >= MP_CustomizedUVs0 && Property <= MP_CustomizedUVs7)
@@ -5704,7 +5706,7 @@ UMaterialExpressionBreakMaterialAttributes::UMaterialExpressionBreakMaterialAttr
 
 	MenuCategories.Add(ConstructorStatics.NAME_MaterialAttributes);
 	
- 	static_assert(MP_MAX == 32, 
+ 	static_assert(MP_MAX == 33, 
 		"New material properties should be added to the end of the outputs for this expression. \
 		The order of properties here should match the material results pins, the make material attriubtes node inputs and the mapping of IO indices to properties in GetMaterialPropertyFromInputOutputIndex().\
 		Insertions into the middle of the properties or a change in the order of properties will also require that existing data is fixed up in DoMaterialAttriubtesReorder().\
@@ -5737,6 +5739,7 @@ UMaterialExpressionBreakMaterialAttributes::UMaterialExpressionBreakMaterialAttr
 
 	Outputs.Add(FExpressionOutput(TEXT("PixelDepthOffset"), 1, 1, 0, 0, 0));
 	Outputs.Add(FExpressionOutput(TEXT("ShadingModel"), 0, 0, 0, 0, 0));
+	Outputs.Add(FExpressionOutput(TEXT("FrontMaterial"), 0, 0, 0, 0, 0));
 #endif
 }
 
@@ -5818,6 +5821,7 @@ static void BuildPropertyToIOIndexMap()
 		PropertyToIOIndexMap.Add(MP_CustomizedUVs7,			25);
 		PropertyToIOIndexMap.Add(MP_PixelDepthOffset,		26);
 		PropertyToIOIndexMap.Add(MP_ShadingModel,			27);
+		PropertyToIOIndexMap.Add(MP_FrontMaterial,			28);
 	}
 }
 
@@ -18714,6 +18718,598 @@ FString UMaterialExpressionThinTranslucentMaterialOutput::GetDisplayName() const
 {
 	return TEXT("Thin Translucent Material");
 }
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Strata
+
+
+
+UMaterialExpressionStrataDiffuseBSDF::UMaterialExpressionStrataDiffuseBSDF(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	struct FConstructorStatics
+	{
+		FText NAME_Strata;
+		FConstructorStatics() : NAME_Strata(LOCTEXT("Strata", "Strata")) { }
+	};
+	static FConstructorStatics ConstructorStatics;
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Strata);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionStrataDiffuseBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (!Albedo.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing Albedo input"));	// STRATA_TODO: defaults in the detail panel with auto read only if plug in
+	}
+	if (!Roughness.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing Roughness input"));	// STRATA_TODO: defaults in the detail panel with auto read only if plug in
+	}
+	if (!Normal.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing Normal input"));	// STRATA_TODO: defaults in the detail panel with auto read only if plug in
+	}
+	return Compiler->StrataDiffuseOrenNayarBSDF(Albedo.Compile(Compiler), Roughness.Compile(Compiler), Normal.Compile(Compiler));
+}
+
+void UMaterialExpressionStrataDiffuseBSDF::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Strata Diffuse Oren-Nayar BSDF"));
+}
+
+uint32 UMaterialExpressionStrataDiffuseBSDF::GetOutputType(int32 OutputIndex)
+{
+	return MCT_Strata;
+}
+
+uint32 UMaterialExpressionStrataDiffuseBSDF::GetInputType(int32 InputIndex)
+{
+	switch (InputIndex)
+	{
+	case 0:
+		return MCT_Float3;
+		break;
+	case 1:
+		return MCT_Float1;
+		break;
+	case 2:
+		return MCT_Float3;
+		break;
+	}
+
+	check(false);
+	return MCT_Float1;
+}
+#endif // WITH_EDITOR
+
+
+
+
+
+UMaterialExpressionStrataDiffuseChanBSDF::UMaterialExpressionStrataDiffuseChanBSDF(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	struct FConstructorStatics
+	{
+		FText NAME_Strata;
+		FConstructorStatics() : NAME_Strata(LOCTEXT("Strata", "Strata")) { }
+	};
+	static FConstructorStatics ConstructorStatics;
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Strata);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionStrataDiffuseChanBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (!Albedo.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing Albedo input"));	// STRATA_TODO: defaults in the detail panel with auto read only if plug in
+	}
+	if (!Roughness.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing Roughness input"));	// STRATA_TODO: defaults in the detail panel with auto read only if plug in
+	}
+	if (!Normal.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing Normal input"));	// STRATA_TODO: defaults in the detail panel with auto read only if plug in
+	}
+	return Compiler->StrataDiffuseChanBSDF(Albedo.Compile(Compiler), Roughness.Compile(Compiler), Normal.Compile(Compiler));
+}
+
+void UMaterialExpressionStrataDiffuseChanBSDF::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Strata Diffuse Chan BSDF"));
+}
+
+uint32 UMaterialExpressionStrataDiffuseChanBSDF::GetOutputType(int32 OutputIndex)
+{
+	return MCT_Strata;
+}
+
+uint32 UMaterialExpressionStrataDiffuseChanBSDF::GetInputType(int32 InputIndex)
+{
+	switch (InputIndex)
+	{
+	case 0:
+		return MCT_Float3;
+		break;
+	case 1:
+		return MCT_Float1;
+		break;
+	case 2:
+		return MCT_Float3;
+		break;
+	}
+
+	check(false);
+	return MCT_Float1;
+}
+#endif // WITH_EDITOR
+
+
+
+
+
+UMaterialExpressionStrataDielectricBSDF::UMaterialExpressionStrataDielectricBSDF(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	struct FConstructorStatics
+	{
+		FText NAME_Strata;
+		FConstructorStatics() : NAME_Strata(LOCTEXT("Strata", "Strata")) { }
+	};
+	static FConstructorStatics ConstructorStatics;
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Strata);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionStrataDielectricBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (!Tint.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing Tint input"));	// STRATA_TODO: defaults in the detail panel with auto read only if plug in
+	}
+	if (!IOR.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing IOR input"));	// STRATA_TODO: defaults in the detail panel with auto read only if plug in
+	}
+	if (!Roughness.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing Roughness input"));	// STRATA_TODO: defaults in the detail panel with auto read only if plug in
+	}
+	if (!Normal.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing Normal input"));	// STRATA_TODO: defaults in the detail panel with auto read only if plug in
+	}
+	return Compiler->StrataDielectricBSDF(Roughness.Compile(Compiler), IOR.Compile(Compiler), Tint.Compile(Compiler), Normal.Compile(Compiler));
+}
+
+void UMaterialExpressionStrataDielectricBSDF::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Strata Dielectric BSDF"));
+}
+
+uint32 UMaterialExpressionStrataDielectricBSDF::GetOutputType(int32 OutputIndex)
+{
+	return MCT_Strata;
+}
+
+uint32 UMaterialExpressionStrataDielectricBSDF::GetInputType(int32 InputIndex)
+{
+	switch (InputIndex)
+	{
+	case 0:
+		return MCT_Float1;
+		break;
+	case 1:
+		return MCT_Float3;
+		break;
+	case 2:
+		return MCT_Float2;
+		break;
+	case 3:
+		return MCT_Float3;
+		break;
+	}
+
+	check(false);
+	return MCT_Float1;
+}
+#endif // WITH_EDITOR
+
+
+
+
+
+UMaterialExpressionStrataConductorBSDF::UMaterialExpressionStrataConductorBSDF(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	struct FConstructorStatics
+	{
+		FText NAME_Strata;
+		FConstructorStatics() : NAME_Strata(LOCTEXT("Strata", "Strata")) { }
+	};
+	static FConstructorStatics ConstructorStatics;
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Strata);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionStrataConductorBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (!IOR.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing IOR input"));			// STRATA_TODO: defaults in the detail panel with auto read only if plug in
+	}
+	if (!Extinction.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing Extinction input"));	// STRATA_TODO: defaults in the detail panel with auto read only if plug in
+	}
+	if (!Roughness.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing Roughness input"));	// STRATA_TODO: defaults in the detail panel with auto read only if plug in
+	}
+	if (!Normal.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing Normal input"));		// STRATA_TODO: defaults in the detail panel with auto read only if plug in
+	}
+	return Compiler->StrataConductorBSDF(IOR.Compile(Compiler), Extinction.Compile(Compiler), Roughness.Compile(Compiler), Normal.Compile(Compiler));
+}
+
+void UMaterialExpressionStrataConductorBSDF::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Strata Conductor BSDF"));
+}
+
+uint32 UMaterialExpressionStrataConductorBSDF::GetOutputType(int32 OutputIndex)
+{
+	return MCT_Strata;
+}
+
+uint32 UMaterialExpressionStrataConductorBSDF::GetInputType(int32 InputIndex)
+{
+	switch (InputIndex)
+	{
+	case 0:
+		return MCT_Float3;
+		break;
+	case 1:
+		return MCT_Float3;
+		break;
+	case 2:
+		return MCT_Float2;
+		break;
+	case 3:
+		return MCT_Float3;
+		break;
+	}
+
+	check(false);
+	return MCT_Float1;
+}
+#endif // WITH_EDITOR
+
+
+
+
+
+UMaterialExpressionStrataVolumeBSDF::UMaterialExpressionStrataVolumeBSDF(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	struct FConstructorStatics
+	{
+		FText NAME_Strata;
+		FConstructorStatics() : NAME_Strata(LOCTEXT("Strata", "Strata")) { }
+	};
+	static FConstructorStatics ConstructorStatics;
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Strata);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionStrataVolumeBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (!Absorption.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing Absorption input"));	// STRATA_TODO: defaults in the detail panel with auto read only if plug in
+	}
+	if (!Scattering.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing Scattering input"));	// STRATA_TODO: defaults in the detail panel with auto read only if plug in
+	}
+	if (!Anisotropy.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing Anisotropy input"));	// STRATA_TODO: defaults in the detail panel with auto read only if plug in
+	}
+	return Compiler->StrataVolumeBSDF(Absorption.Compile(Compiler), Scattering.Compile(Compiler), Anisotropy.Compile(Compiler));
+}
+
+void UMaterialExpressionStrataVolumeBSDF::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Strata Volume BSDF"));
+}
+
+uint32 UMaterialExpressionStrataVolumeBSDF::GetOutputType(int32 OutputIndex)
+{
+	return MCT_Strata;
+}
+
+uint32 UMaterialExpressionStrataVolumeBSDF::GetInputType(int32 InputIndex)
+{
+	switch (InputIndex)
+	{
+	case 0:
+		return MCT_Float3;
+		break;
+	case 1:
+		return MCT_Float3;
+		break;
+	case 2:
+		return MCT_Float1;
+		break;
+	}
+
+	check(false);
+	return MCT_Float1;
+}
+#endif // WITH_EDITOR
+
+
+
+UMaterialExpressionStrataHorizontalMixing::UMaterialExpressionStrataHorizontalMixing(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	struct FConstructorStatics
+	{
+		FText NAME_Strata;
+		FConstructorStatics() : NAME_Strata(LOCTEXT("Strata", "Strata")) { }
+	};
+	static FConstructorStatics ConstructorStatics;
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Strata);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionStrataHorizontalMixing::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (!Foreground.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing Foreground input"));
+	}
+	if (!Background.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing Background input"));
+	}
+	if (!Mix.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing Mix input"));
+	}
+	return Compiler->StrataHorizontalMixing(Foreground.Compile(Compiler), Background.Compile(Compiler), Mix.GetTracedInput().Expression ? Mix.Compile(Compiler) : Compiler->Constant(0.0f));
+}
+
+void UMaterialExpressionStrataHorizontalMixing::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Strata Horizontal Mixing"));
+}
+
+uint32 UMaterialExpressionStrataHorizontalMixing::GetOutputType(int32 OutputIndex)
+{
+	return MCT_Strata;
+}
+
+uint32 UMaterialExpressionStrataHorizontalMixing::GetInputType(int32 InputIndex)
+{
+	return InputIndex == 2 ? MCT_Float1 : MCT_Strata;
+}
+#endif // WITH_EDITOR
+
+
+
+UMaterialExpressionStrataVerticalLayering::UMaterialExpressionStrataVerticalLayering(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	struct FConstructorStatics
+	{
+		FText NAME_Strata;
+		FConstructorStatics() : NAME_Strata(LOCTEXT("Strata", "Strata")) { }
+	};
+	static FConstructorStatics ConstructorStatics;
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Strata);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionStrataVerticalLayering::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (!Top.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing Top input"));
+	}
+	if (!Base.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing Base input"));
+	}
+	return Compiler->StrataVerticalLayering(Top.Compile(Compiler), Base.Compile(Compiler));
+}
+
+void UMaterialExpressionStrataVerticalLayering::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Strata Vertical Layering"));
+}
+
+uint32 UMaterialExpressionStrataVerticalLayering::GetOutputType(int32 OutputIndex)
+{
+	return MCT_Strata;
+}
+
+uint32 UMaterialExpressionStrataVerticalLayering::GetInputType(int32 InputIndex)
+{
+	return MCT_Strata;
+}
+#endif // WITH_EDITOR
+
+
+
+UMaterialExpressionStrataAdd::UMaterialExpressionStrataAdd(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	struct FConstructorStatics
+	{
+		FText NAME_Strata;
+		FConstructorStatics() : NAME_Strata(LOCTEXT("Strata", "Strata")) { }
+	};
+	static FConstructorStatics ConstructorStatics;
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Strata);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionStrataAdd::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (!A.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing A input"));
+	}
+	if (!B.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing B input"));
+	}
+	return Compiler->StrataAdd(A.Compile(Compiler), B.Compile(Compiler));
+}
+
+void UMaterialExpressionStrataAdd::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Strata Add"));
+}
+
+uint32 UMaterialExpressionStrataAdd::GetOutputType(int32 OutputIndex)
+{
+	return MCT_Strata;
+}
+
+uint32 UMaterialExpressionStrataAdd::GetInputType(int32 InputIndex)
+{
+	return MCT_Strata;
+}
+#endif // WITH_EDITOR
+
+
+
+UMaterialExpressionStrataMultiply::UMaterialExpressionStrataMultiply(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	struct FConstructorStatics
+	{
+		FText NAME_Strata;
+		FConstructorStatics() : NAME_Strata(LOCTEXT("Strata", "Strata")) { }
+	};
+	static FConstructorStatics ConstructorStatics;
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Strata);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionStrataMultiply::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (!A.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing Top input"));
+	}
+	if (!Weight.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing Base input"));
+	}
+	return Compiler->StrataMultiply(A.Compile(Compiler), Weight.Compile(Compiler));
+}
+
+void UMaterialExpressionStrataMultiply::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Strata Multiply"));
+}
+
+uint32 UMaterialExpressionStrataMultiply::GetOutputType(int32 OutputIndex)
+{
+	return MCT_Strata;
+}
+
+uint32 UMaterialExpressionStrataMultiply::GetInputType(int32 InputIndex)
+{
+	if (InputIndex == 0)
+	{
+		return MCT_Strata;
+	}
+	return MCT_Float3;
+}
+#endif // WITH_EDITOR
+
+
+
+UMaterialExpressionStrataArtisticIOR::UMaterialExpressionStrataArtisticIOR(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	struct FConstructorStatics
+	{
+		FText NAME_Strata;
+		FConstructorStatics() : NAME_Strata(LOCTEXT("Strata", "Strata")) { }
+	};
+	static FConstructorStatics ConstructorStatics;
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Strata);
+
+	bShowOutputNameOnPin = true;
+
+	Outputs.Reset();
+	Outputs.Add(FExpressionOutput(TEXT("IOR")));
+	Outputs.Add(FExpressionOutput(TEXT("Extinction")));
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionStrataArtisticIOR::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (!Reflectivity.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing Reflectivity input"));
+	}
+	if (!EdgeColor.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing EdgeColor input"));
+	}
+	return Compiler->StrataArtisticIOR(Reflectivity.Compile(Compiler), EdgeColor.Compile(Compiler), OutputIndex);
+}
+
+void UMaterialExpressionStrataArtisticIOR::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Strata Artistic IOR"));
+}
+
+uint32 UMaterialExpressionStrataArtisticIOR::GetOutputType(int32 OutputIndex)
+{
+	return MCT_Float3;
+}
+
+uint32 UMaterialExpressionStrataArtisticIOR::GetInputType(int32 InputIndex)
+{
+	return MCT_Float3;
+}
+#endif // WITH_EDITOR
+
 
 
 

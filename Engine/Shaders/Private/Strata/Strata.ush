@@ -1,0 +1,517 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "../Common.ush"
+#include "../BRDF.ush"
+#include "../ShadingCommon.ush"
+
+
+// STRATA_TODO
+//	- What model exactly
+//	- Fat dielectric model? Or make it adaptative (for instance Medium_ could be optional to store/load)
+//	- Have a Disney model that is convernient to be super packed and be able to represent current mateiral?
+//	- Shared normal? Up to N normals? On CPU, inputs have a hash that could be use to decuplicate normals
+//	- Transmittance lob modelisation (GGX statistics?) and blocking surface such as FStrataDiffuse?
+//  - 11-11-10 format
+//	- fp16 on gen5
+
+
+///////////////////////////////////////////////////////////////////////////////
+// BSDFs representation
+
+struct FStrataDiffuse
+{
+	float3	Albedo;
+	float   Roughness;
+
+	float3	Normal;
+};
+
+struct FStrataDielectric
+{
+	float	IOR;
+	float3	Tint;
+	float2	Roughness;
+
+	float3	Normal;
+};
+
+struct FStrataConductor
+{
+	float3	IOR;
+	float3	Extinction;
+	float2	Roughness;
+
+	float3	Normal;
+};
+
+struct FStrataVolume
+{
+	float3	Absorption;
+	float3	Scattering;
+	float	Anisotropy;
+};
+
+
+#define STRATA_BSDF_TYPE_DIFFUSE_ON			0
+#define STRATA_BSDF_TYPE_DIFFUSE_CHAN		1
+#define STRATA_BSDF_TYPE_DIELECTRIC			2
+#define STRATA_BSDF_TYPE_CONDUCTOR			3
+#define STRATA_BSDF_TYPE_VOLUME				4
+
+
+
+struct FStrataBSDF
+{
+	int					BSDFType;
+	float3				Weight;				// Setup by users and mixing operations
+
+	// Even thought the compiler should optimise, it would be nice to have a union with reinterpretation of the register memory.
+	FStrataDiffuse		Diffuse;
+	FStrataDielectric	Dielectric;
+	FStrataConductor	Conductor;
+	FStrataVolume		Volume;
+};
+
+
+#define STRATA_MAX_BSDF_COUNT_PER_LAYER	4
+#define STRATA_MAX_LAYER_COUNT			4
+#define STRATA_MAX_TOTAL_BSDF			4
+
+struct FStrataLayer
+{
+	int BSDFCount;
+
+	FStrataBSDF BSDFs[STRATA_MAX_BSDF_COUNT_PER_LAYER];
+};
+
+struct FStrataData
+{
+	int LayerCount;
+
+	FStrataLayer Layers[STRATA_MAX_LAYER_COUNT];	// Layer 0 is the top layer
+};
+
+
+FStrataData GetInitialisedStrataData()
+{
+	FStrataData StrataData = (FStrataData)0;
+	return StrataData;
+}
+
+FStrataData GetStrataDiffuseOrenNayarBSDF(float3 Albedo, float Roughness, float3 Normal)
+{
+	FStrataData StrataData = GetInitialisedStrataData();
+	StrataData.LayerCount++;
+
+	StrataData.Layers[0].BSDFCount++;
+	StrataData.Layers[0].BSDFs[0].BSDFType						= STRATA_BSDF_TYPE_DIFFUSE_ON;
+	StrataData.Layers[0].BSDFs[0].Diffuse.Albedo				= Albedo;
+	StrataData.Layers[0].BSDFs[0].Diffuse.Roughness				= Roughness;
+	StrataData.Layers[0].BSDFs[0].Diffuse.Normal				= Normal;
+
+	StrataData.Layers[0].BSDFs[0].Weight						= 1.0f;
+
+	return StrataData;
+}
+
+FStrataData GetStrataDiffuseChanBSDF(float3 Albedo, float Roughness, float3 Normal)
+{
+	FStrataData StrataData = GetInitialisedStrataData();
+	StrataData.LayerCount++;
+
+	StrataData.Layers[0].BSDFCount++;
+	StrataData.Layers[0].BSDFs[0].BSDFType						= STRATA_BSDF_TYPE_DIFFUSE_CHAN;
+	StrataData.Layers[0].BSDFs[0].Diffuse.Albedo				= Albedo;
+	StrataData.Layers[0].BSDFs[0].Diffuse.Roughness				= Roughness;
+	StrataData.Layers[0].BSDFs[0].Diffuse.Normal				= Normal;
+
+	StrataData.Layers[0].BSDFs[0].Weight						= 1.0f;
+
+	return StrataData;
+}
+
+FStrataData GetStrataDielectricBSDF(float2 Roughness, float IOR, float3 Tint, float3 Normal)
+{
+	FStrataData StrataData = GetInitialisedStrataData();
+	StrataData.LayerCount++;
+
+	StrataData.Layers[0].BSDFCount++;
+	StrataData.Layers[0].BSDFs[0].BSDFType						= STRATA_BSDF_TYPE_DIELECTRIC;
+	StrataData.Layers[0].BSDFs[0].Dielectric.IOR				= IOR;
+	StrataData.Layers[0].BSDFs[0].Dielectric.Tint				= Tint;
+	StrataData.Layers[0].BSDFs[0].Dielectric.Roughness			= Roughness;
+	StrataData.Layers[0].BSDFs[0].Dielectric.Normal				= Normal;
+
+	StrataData.Layers[0].BSDFs[0].Weight						= 1.0f;
+
+	return StrataData;
+}
+
+FStrataData GetStrataConductorBSDF(float3 IOR, float3 Extinction, float2 Roughness, float3 Normal)
+{
+	FStrataData StrataData = GetInitialisedStrataData();
+	StrataData.LayerCount++;
+
+	StrataData.Layers[0].BSDFCount++;
+	StrataData.Layers[0].BSDFs[0].BSDFType						= STRATA_BSDF_TYPE_CONDUCTOR;
+	StrataData.Layers[0].BSDFs[0].Conductor.IOR					= IOR;
+	StrataData.Layers[0].BSDFs[0].Conductor.Extinction			= Extinction;
+	StrataData.Layers[0].BSDFs[0].Conductor.Roughness			= Roughness;
+	StrataData.Layers[0].BSDFs[0].Conductor.Normal				= Normal;
+
+	StrataData.Layers[0].BSDFs[0].Weight						= 1.0f;
+
+	return StrataData;
+}
+
+FStrataData GetStrataVolumeBSDF(float3 Absorption, float3 Scattering, float Anisotropy)
+{
+	FStrataData StrataData = GetInitialisedStrataData();
+	StrataData.LayerCount++;
+
+	StrataData.Layers[0].BSDFCount++;
+	StrataData.Layers[0].BSDFs[0].BSDFType						= STRATA_BSDF_TYPE_VOLUME;
+	StrataData.Layers[0].BSDFs[0].Volume.Absorption				= Absorption;
+	StrataData.Layers[0].BSDFs[0].Volume.Scattering				= Scattering;
+	StrataData.Layers[0].BSDFs[0].Volume.Anisotropy				= Anisotropy;
+
+	StrataData.Layers[0].BSDFs[0].Weight						= 1.0f;
+
+	return StrataData;
+}
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Operators node
+
+
+FStrataData StrataAdd(FStrataData A, FStrataData B)
+{
+	FStrataData StrataData = A;
+
+	// Append each BSDF from B to A, with same layer position
+	for (int Layer = 0; Layer < B.LayerCount; ++Layer)
+	{
+		FStrataLayer ALayer = A.Layers[Layer];
+		FStrataLayer BLayer = B.Layers[Layer];
+		for (int BSDF = 0; BSDF < BLayer.BSDFCount; BSDF++)
+		{
+			StrataData.Layers[Layer].BSDFs[ALayer.BSDFCount + BSDF] = BLayer.BSDFs[BSDF];
+		}
+
+		StrataData.Layers[Layer].BSDFCount = ALayer.BSDFCount + BLayer.BSDFCount;
+	}
+
+	StrataData.LayerCount = max(A.LayerCount, B.LayerCount);
+
+	return StrataData;
+}
+
+FStrataData StrataMultiply(FStrataData A, float3 Weight)
+{
+	FStrataData StrataData = A;
+
+	// Apply the weight to each BSDF
+	for (int Layer = 0; Layer < StrataData.LayerCount; ++Layer)
+	{
+		for (int BSDF = 0; BSDF < StrataData.Layers[Layer].BSDFCount; ++BSDF)
+		{
+			StrataData.Layers[Layer].BSDFs[BSDF].Weight *= Weight;
+		}
+	}
+
+	return StrataData;
+}
+
+FStrataData StrataHorizontalMixing(FStrataData Foreground, FStrataData Background, float Mix)
+{
+	const float ForgroundMixFactor = Mix;
+	const float BackgroundMixFactor = 1.0 - Mix;
+
+	FStrataData A = StrataMultiply(Foreground, ForgroundMixFactor);
+	FStrataData B = StrataMultiply(Background, BackgroundMixFactor);
+	return StrataAdd(A, B);
+}
+
+FStrataData StrataVerticalLayering(FStrataData Top, FStrataData Base)
+{
+	FStrataData StrataData = Top;
+
+	// Add each layer from Base under Top
+	int TopLayerCount = Top.LayerCount;
+	for (int Layer = 0; Layer < Base.LayerCount; ++Layer)
+	{
+		StrataData.Layers[TopLayerCount + Layer] = Base.Layers[Layer];
+	}
+
+	StrataData.LayerCount += Base.LayerCount;
+
+	return StrataData;
+}
+
+
+
+
+
+
+
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+// BSDFs packing/unpacking
+
+
+
+#define STRATA_STORE_UINT1(x) StrataBuffer.Store (ByteOffset, asuint(x)); ByteOffset += 4;
+#define STRATA_STORE_UINT2(x) StrataBuffer.Store2(ByteOffset, asuint(x)); ByteOffset += 8;
+#define STRATA_STORE_UINT3(x) StrataBuffer.Store3(ByteOffset, asuint(x)); ByteOffset += 12;
+#define STRATA_STORE_UINT4(x) StrataBuffer.Store4(ByteOffset, asuint(x)); ByteOffset += 16;
+
+#define STRATA_LOAD_UINT1(x) x = StrataBuffer.Load (ByteOffset); ByteOffset += 4;
+#define STRATA_LOAD_UINT2(x) x = StrataBuffer.Load2(ByteOffset); ByteOffset += 8;
+#define STRATA_LOAD_UINT3(x) x = StrataBuffer.Load3(ByteOffset); ByteOffset += 12;
+#define STRATA_LOAD_UINT4(x) x = StrataBuffer.Load4(ByteOffset); ByteOffset += 16;
+
+#define STRATA_LOAD_FLOAT1(x) x = asfloat(StrataBuffer.Load (ByteOffset)); ByteOffset += 4;
+#define STRATA_LOAD_FLOAT2(x) x = asfloat(StrataBuffer.Load2(ByteOffset)); ByteOffset += 8;
+#define STRATA_LOAD_FLOAT3(x) x = asfloat(StrataBuffer.Load3(ByteOffset)); ByteOffset += 12;
+#define STRATA_LOAD_FLOAT4(x) x = asfloat(StrataBuffer.Load4(ByteOffset)); ByteOffset += 16;
+
+
+
+void PackStrataOut(
+	RWByteAddressBuffer StrataBuffer, 
+	uint ByteOffset, 
+	FStrataData Strata, 
+	float3 MeshWorldNormal, 
+	float3 V)
+{
+	// We cannot output (layers x bsdf) information because if we try to load them later, the reserved amount of VGPRS would be crazy high.
+	// So instead we simply store a list of BSDF and we allow only up to STRATA_MAX_TOTAL_BSDF of them.
+	// For each of the BSDF, we evaluated their final waight according to the material operation performed (layering, mixing, etc.).
+
+	// STRATA_TODO:
+	//	- We could clean up irrelevant BSDFs 
+	//	- We could generate transmittance BSDFs 
+
+
+	uint BSDFCount = 0;
+	float3 TotalTransmittance = 1.0f;
+
+	int l;
+	for (l = 0; l < Strata.LayerCount; ++l)
+	{
+		float3 LayerTransmittance = 0.0f;
+
+		for (int i = 0; i < Strata.Layers[l].BSDFCount; ++i)
+		{
+			FStrataBSDF BSDF = Strata.Layers[l].BSDFs[i];
+			BSDFCount++;
+
+			float3 N = MeshWorldNormal;
+			switch (BSDF.BSDFType)		// TODO_STRATA: all have a normal, even subsurface?
+			{
+			case STRATA_BSDF_TYPE_DIFFUSE_ON:
+			case STRATA_BSDF_TYPE_DIFFUSE_CHAN:
+			{ N = BSDF.Diffuse.Normal; break; }
+			case STRATA_BSDF_TYPE_DIELECTRIC:
+			{ N = BSDF.Dielectric.Normal; break; }
+			case STRATA_BSDF_TYPE_CONDUCTOR:
+			{ N = BSDF.Conductor.Normal; break; }
+			}
+			N = normalize(N);
+
+			// STRATA_TODO apply the same normal transform as for the material
+
+			BxDFContext ContextNoLight = (BxDFContext)0;
+			const float3 FakeL = float3(0, 0, 1);
+			Init(ContextNoLight, N, V, FakeL);
+
+			switch (BSDF.BSDFType)
+			{
+			case STRATA_BSDF_TYPE_DIFFUSE_ON:
+			{
+				//LayerTransmittance += 0.0f;
+				break;
+			}
+
+			case STRATA_BSDF_TYPE_DIFFUSE_CHAN:
+			{
+				//LayerTransmittance += 0.0f;
+				break;
+			}
+
+			case STRATA_BSDF_TYPE_DIELECTRIC:
+			{
+				float F0 = DielectricIorToF0(BSDF.Dielectric.IOR);
+				float3 F = F_Schlick(F0, ContextNoLight.VoH);
+
+				LayerTransmittance += BSDF.Weight * (1.0f - F); // STRATA_TODO use 1-FGD instead of simple 1-F, event if we ignore ray scattering/spreading
+				break;
+			}
+
+			case STRATA_BSDF_TYPE_CONDUCTOR:
+			{
+				float3 ReflectivityF0 = float3(1.0, 0.1, 0.1);
+				float3 EdgeTint = float3(0.1, 1.0, 0.1);
+				ComputeF0AndEdgeTintFromIOR(BSDF.Conductor.IOR, BSDF.Conductor.Extinction, ReflectivityF0, EdgeTint);
+				float3 F = F_Schlick(ReflectivityF0, EdgeTint, ContextNoLight.VoH);
+
+				LayerTransmittance += BSDF.Weight * (1.0f - F); // STRATA_TODO transmittance should only come from coverage
+				break;
+			}
+
+			case STRATA_BSDF_TYPE_VOLUME:
+			{
+				const float SafeRoughness = clamp(BSDF.Conductor.Roughness.x, 0.001, 1.0f);
+
+				const float3 ScatteringCoefficients = BSDF.Volume.Scattering;
+				const float3 AbsorptionCoefficients = BSDF.Volume.Absorption;
+				const float3 ExtinctionCoefficients = ScatteringCoefficients + AbsorptionCoefficients;
+
+				const float3 SafeExtinctionThreshold = 0.000001f;
+				const float3 SafeExtinctionCoefficients = max(SafeExtinctionThreshold, ExtinctionCoefficients);
+
+				const float Thickness = 0.01f;	// STRATA_TODO where does thickness come from? For now, 1cm
+				const float PathLength = Thickness / max(0.0001f, abs(ContextNoLight.NoV));
+				const float3 SafePathSegmentTransmittance = exp(-SafeExtinctionCoefficients * PathLength);
+
+				LayerTransmittance += BSDF.Weight * SafePathSegmentTransmittance;
+				break;
+			}
+			} // switch
+
+			// Update the weights to take into accounr transmittance towards the view
+			Strata.Layers[l].BSDFs[i].Weight *= TotalTransmittance;
+		}
+
+		TotalTransmittance *= LayerTransmittance;	// STRATA_TODO we need to go over all weight and trnasmittance ot make sure everything would behave corretly. Especially with a Add node for instance. Add saturate where neded, etc.
+	}
+
+
+	// Now write out the BSDFs
+
+	BSDFCount = min(BSDFCount, STRATA_MAX_TOTAL_BSDF);
+	STRATA_STORE_UINT1(BSDFCount);
+
+	BSDFCount = 0;
+	for (l = 0; l < Strata.LayerCount; ++l)
+	{
+		FStrataLayer Layer = Strata.Layers[l];
+
+		for (int i = 0; i < Layer.BSDFCount; ++i)
+		{
+			FStrataBSDF BSDF = Layer.BSDFs[i];
+
+			STRATA_STORE_UINT1(BSDF.BSDFType);
+			STRATA_STORE_UINT3(BSDF.Weight);
+
+			switch (BSDF.BSDFType)
+			{
+			case STRATA_BSDF_TYPE_DIFFUSE_ON:
+			case STRATA_BSDF_TYPE_DIFFUSE_CHAN:
+			{
+				STRATA_STORE_UINT3(BSDF.Diffuse.Albedo);
+				STRATA_STORE_UINT1(BSDF.Diffuse.Roughness);
+				STRATA_STORE_UINT3(BSDF.Diffuse.Normal);
+			}
+			break;
+			case STRATA_BSDF_TYPE_DIELECTRIC: //
+			{
+				STRATA_STORE_UINT1(BSDF.Dielectric.IOR);
+				STRATA_STORE_UINT3(BSDF.Dielectric.Tint);
+				STRATA_STORE_UINT2(BSDF.Dielectric.Roughness);
+				STRATA_STORE_UINT3(BSDF.Dielectric.Normal);
+			}
+			break;
+			case STRATA_BSDF_TYPE_CONDUCTOR:
+			{
+				STRATA_STORE_UINT3(BSDF.Conductor.IOR);
+				STRATA_STORE_UINT3(BSDF.Conductor.Extinction);
+				STRATA_STORE_UINT2(BSDF.Conductor.Roughness);
+				STRATA_STORE_UINT3(BSDF.Conductor.Normal);
+			}
+			break;
+			case STRATA_BSDF_TYPE_VOLUME:
+			{
+				STRATA_STORE_UINT3(BSDF.Volume.Absorption);
+				STRATA_STORE_UINT3(BSDF.Volume.Scattering);
+				STRATA_STORE_UINT1(BSDF.Volume.Anisotropy);
+			}
+			break;
+			}
+
+			// Stop writing if above budget.
+			BSDFCount++;
+			if (BSDFCount >= STRATA_MAX_TOTAL_BSDF)
+			{
+				return;
+			}
+		}
+	}
+}
+
+
+struct FStrataPixelBSDFs
+{
+	int BSDFCount;
+	FStrataBSDF BSDFs[STRATA_MAX_TOTAL_BSDF];
+};
+
+FStrataPixelBSDFs UnpackStrataIn(ByteAddressBuffer StrataBuffer, uint ByteOffset)
+{
+	FStrataPixelBSDFs PixelBSDFs = (FStrataPixelBSDFs)0;
+
+	STRATA_LOAD_UINT1(PixelBSDFs.BSDFCount);
+	PixelBSDFs.BSDFCount = min(PixelBSDFs.BSDFCount, STRATA_MAX_TOTAL_BSDF);	// To make the compiler happy with unrolling
+
+	UNROLL
+	for (int i = 0; i < PixelBSDFs.BSDFCount; ++i)
+	{
+		STRATA_LOAD_UINT1(PixelBSDFs.BSDFs[i].BSDFType);
+		STRATA_LOAD_FLOAT3(PixelBSDFs.BSDFs[i].Weight);
+
+		switch (PixelBSDFs.BSDFs[i].BSDFType)
+		{
+		case STRATA_BSDF_TYPE_DIFFUSE_ON:
+		case STRATA_BSDF_TYPE_DIFFUSE_CHAN:
+		{
+			STRATA_LOAD_FLOAT3(PixelBSDFs.BSDFs[i].Diffuse.Albedo);
+			STRATA_LOAD_FLOAT1(PixelBSDFs.BSDFs[i].Diffuse.Roughness);
+			STRATA_LOAD_FLOAT3(PixelBSDFs.BSDFs[i].Diffuse.Normal);
+		}
+		break;
+		case STRATA_BSDF_TYPE_DIELECTRIC:
+		{
+			STRATA_LOAD_FLOAT1(PixelBSDFs.BSDFs[i].Dielectric.IOR);
+			STRATA_LOAD_FLOAT3(PixelBSDFs.BSDFs[i].Dielectric.Tint);
+			STRATA_LOAD_FLOAT2(PixelBSDFs.BSDFs[i].Dielectric.Roughness);
+			STRATA_LOAD_FLOAT3(PixelBSDFs.BSDFs[i].Dielectric.Normal);
+		}
+		break;
+		case STRATA_BSDF_TYPE_CONDUCTOR:
+		{
+			STRATA_LOAD_FLOAT3(PixelBSDFs.BSDFs[i].Conductor.IOR);
+			STRATA_LOAD_FLOAT3(PixelBSDFs.BSDFs[i].Conductor.Extinction);
+			STRATA_LOAD_FLOAT2(PixelBSDFs.BSDFs[i].Conductor.Roughness);
+			STRATA_LOAD_FLOAT3(PixelBSDFs.BSDFs[i].Conductor.Normal);
+		}
+		break;
+		case STRATA_BSDF_TYPE_VOLUME:
+		{
+			STRATA_LOAD_FLOAT3(PixelBSDFs.BSDFs[i].Volume.Absorption);
+			STRATA_LOAD_FLOAT3(PixelBSDFs.BSDFs[i].Volume.Scattering);
+			STRATA_LOAD_FLOAT1(PixelBSDFs.BSDFs[i].Volume.Anisotropy);
+		}
+		break;
+		}
+	}
+
+	return PixelBSDFs;
+}
+
+

@@ -432,6 +432,11 @@ public:
 			return MaterialInterface->CompileProperty(Compiler, MP_ShadingModel);
 
 		}
+		else if (Property == MP_FrontMaterial)
+		{
+			return MaterialInterface->CompileProperty(Compiler, MP_FrontMaterial);
+
+		}
 		else
 		{
 			return Compiler->Constant(1.0f);

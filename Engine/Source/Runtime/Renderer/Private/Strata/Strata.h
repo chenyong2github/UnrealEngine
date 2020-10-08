@@ -21,6 +21,12 @@ BEGIN_SHADER_PARAMETER_STRUCT(FStrataOpaquePassUniformParameters, )
 	SHADER_PARAMETER_UAV(RWTexture2D<float>, MaterialLobesTextureUAV)
 END_SHADER_PARAMETER_STRUCT()
 
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FStrataGlobalUniformParameters, )
+	SHADER_PARAMETER(uint32, MaxBytesPerPixel)
+	SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialLobesBuffer)
+	SHADER_PARAMETER_TEXTURE(Texture2D<float>, MaterialLobesTexture)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
+
 
 
 struct FStrataData
@@ -45,6 +51,8 @@ bool IsStrataEnabled();
 void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& GraphBuilder);
 
 void BindStrataBasePassUniformParameters(const FViewInfo& View, FStrataOpaquePassUniformParameters& OutStrataUniformParameters);
+
+TUniformBufferRef<FStrataGlobalUniformParameters> BindStrataGlobalUniformParameters(const FViewInfo& View);
 
 };
 

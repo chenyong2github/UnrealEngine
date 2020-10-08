@@ -63,13 +63,25 @@
 #endif
 
 #include "ReflectionEnvironmentShared.ush"
+#if SIMPLE_FORWARD_SHADING || PLATFORM_FORCE_SIMPLE_SKY_DIFFUSE
+#define GetEffectiveSkySHDiffuse GetSkySHDiffuseSimple
+#else
+#define GetEffectiveSkySHDiffuse GetSkySHDiffuse
+#endif
 
 #if MATERIALBLENDING_TRANSLUCENT || MATERIALBLENDING_ADDITIVE || MATERIALBLENDING_MODULATE
 #define LumenGIVolumeStruct TranslucentBasePass
 #include "Lumen/LumenTranslucencyVolumeShared.ush"
 #endif
 
-#define STRATA_ENABLED (PROJECT_STRATA && MATERIALBLENDING_ANY_TRANSLUCENT<=0)
+#define STRATA_ENABLED					PROJECT_STRATA
+#define STRATA_OPAQUE_ENABLED			(STRATA_ENABLED && MATERIALBLENDING_ANY_TRANSLUCENT<=0)
+#define STRATA_TRANSLUCENT_ENABLED		(STRATA_ENABLED && MATERIALBLENDING_ANY_TRANSLUCENT>0)
+
+#if STRATA_TRANSLUCENT_ENABLED
+#include "ParticipatingMediaCommon.ush"
+#include "/Engine/Private/Strata/StrataForwardLighting.ush"
+#endif
 
 float NormalCurvatureToRoughness(float3 WorldNormal)
 {
@@ -268,12 +280,6 @@ float3 GetTranslucencyVolumeLighting(
 	return InterpolatedLighting;
 }
 
-#endif
-
-#if SIMPLE_FORWARD_SHADING || PLATFORM_FORCE_SIMPLE_SKY_DIFFUSE
-	#define GetEffectiveSkySHDiffuse GetSkySHDiffuseSimple
-#else
-	#define GetEffectiveSkySHDiffuse GetSkySHDiffuse
 #endif
 
 /** Computes sky diffuse lighting, including precomputed shadowing. */
@@ -1238,7 +1244,7 @@ void FPixelShaderInOut_MainPS(
 				{
 					int SingleCaptureIndex = GetPrimitiveData(MaterialParameters.PrimitiveId).SingleCaptureIndex;
 
-					half3 ReflectionColor = GetImageBasedReflectionLighting(MaterialParameters, GBuffer.Roughness, GBuffer.SpecularColor, IndirectIrradiance, GridIndex, SingleCaptureIndex, EyeIndex)
+					half3 ReflectionColor = GetImageBasedReflectionLighting(MaterialParameters, GBuffer.Roughness, GBuffer.SpecularColor, IndirectIrradiance, GridIndex, SingleCaptureIndex, EyeIndex) 
 						* IndirectOcclusion
 						* AOMultiBounce(GBuffer.SpecularColor, SpecOcclusion);
 
@@ -1435,6 +1441,68 @@ void FPixelShaderInOut_MainPS(
 #endif
 
 
+#if STRATA_ENABLED && !MATERIAL_SHADINGMODEL_UNLIT
+
+	FStrataData Strata = PixelMaterialInputs.FrontMaterial;
+
+#if STRATA_OPAQUE_ENABLED
+
+#if MATERIAL_IS_STRATA
+	// Need to cancel that to make sure strata material are only lit using Strata lighting passes
+	Color = 0;
+	// Clear only what should be and keep the rest
+	GBuffer.Roughness = 0;
+	GBuffer.DiffuseColor = 0;
+	GBuffer.SpecularColor = 0;
+	GBuffer.BaseColor = 0;
+	GBuffer.Specular = 0;
+	GBuffer.Metallic = 0;
+#endif
+
+	OpaqueBasePass.Strata.MaterialLobesTextureUAV[uint2(In.SvPosition.xy)] = Strata.LayerCount; // Could store a bit pack of layer count, BSDF type masks for tiling, etc.
+
+	uint2 PixelPos = In.SvPosition.xy;
+	uint PixelStrataDataByteOffset = (PixelPos.y * ResolvedView.BufferSizeAndInvSize.x + PixelPos.x) * OpaqueBasePass.Strata.MaxBytesPerPixel;
+
+	PackStrataOut(OpaqueBasePass.Strata.MaterialLobesBufferUAV, PixelStrataDataByteOffset, Strata, MaterialParameters.WorldNormal, MaterialParameters.CameraVector);
+
+	//switch (uint(Strata.LayerCount))
+	//{
+	//case 1:
+	//	Color = float3(0, 0, 1);	break;
+	//case 2:
+	//	Color = float3(0, 1, 0);	break;
+	//case 3:
+	//	Color = float3(1, 1, 0);	break;
+	//case 4:
+	//	Color = float3(1, 0, 0);	break;
+	//}
+
+#endif
+
+#if STRATA_TRANSLUCENT_ENABLED
+	//FORWARD_SHADING
+	if (Strata.LayerCount > 0)
+	{
+		float3 L = ResolvedView.DirectionalLightDirection;
+		float3 V = MaterialParameters.CameraVector;
+		float3 LightColor = ResolvedView.DirectionalLightColor.rgb * PI;
+
+		Color = StrataForwardLighting(
+			GBuffer,
+			MaterialParameters.WorldNormal,
+			V,
+			L,
+			LightColor,
+			DirectionalLightShadow,
+			IndirectOcclusion,
+			Strata);
+	}
+#endif
+
+#endif
+
+
 	#if MATERIAL_DOMAIN_POSTPROCESS
 		#if MATERIAL_OUTPUT_OPACITY_AS_ALPHA
 			Out.MRT[0] = half4(Color, Opacity);
@@ -1600,18 +1668,10 @@ void FPixelShaderInOut_MainPS(
 		View.VTFeedbackBuffer
 	);
 #endif
-
-#if STRATA_ENABLED
-	OpaqueBasePass.Strata.MaterialLobesTextureUAV[uint2(In.SvPosition.xy)] = 1.0f; // 
-	//OpaqueBasePass.Strata.MaterialLobesBufferUAV.Store(0*4, 0);
-	//OpaqueBasePass.Strata.MaterialLobesBufferUAV.Store(1*4, 1);
-	//OpaqueBasePass.Strata.MaterialLobesBufferUAV.Store(2*4, 2);
-	//OpaqueBasePass.Strata.MaterialLobesBufferUAV.Store(3*4, 3);
-#endif
 }
 
 // If virtual texture is enabled then use early depth test so that UAV feedback buffer writes respect the depth test
-#if NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED || STRATA_ENABLED
+#if NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED || STRATA_OPAQUE_ENABLED
 	#if COMPILER_SUPPORTS_DEPTHSTENCIL_EARLYTEST_LATEWRITE
 		// If we support early depth test with late write behaviour then use it since we may be using discard, or modifying depth
 		#define PIXELSHADER_EARLYDEPTHSTENCIL DEPTHSTENCIL_EARLYTEST_LATEWRITE

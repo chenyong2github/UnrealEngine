@@ -35,6 +35,7 @@
 #include "SceneView.h"
 #include "ShaderPlatformQualitySettings.h"
 #include "MaterialShaderQualitySettings.h"
+#include "Engine/RendererSettings.h"
 #include "DecalRenderingCommon.h"
 #include "ExternalTexture.h"
 #include "ShaderCodeLibrary.h"
@@ -371,6 +372,11 @@ bool FShadingModelMaterialInput::Serialize(FArchive& Ar)
 	return SerializeMaterialInput<uint32>(Ar, *this);
 }
 
+bool FStrataMaterialInput::Serialize(FArchive& Ar)
+{
+	return SerializeMaterialInput<uint32>(Ar, *this);
+}
+
 bool FVectorMaterialInput::Serialize(FArchive& Ar)
 {
 	return SerializeMaterialInput<FVector>(Ar, *this);
@@ -436,6 +442,20 @@ int32 FShadingModelMaterialInput::CompileWithDefault(class FMaterialCompiler* Co
 	}
 
 	return Compiler->ForceCast(FMaterialAttributeDefinitionMap::CompileDefaultExpression(Compiler, Property), MCT_ShadingModel, MFCF_ExactMatch);
+}
+
+int32 FStrataMaterialInput::CompileWithDefault(class FMaterialCompiler* Compiler, EMaterialProperty Property)
+{
+	if (Expression)
+	{
+		int32 ResultIndex = FExpressionInput::Compile(Compiler);
+		if (ResultIndex != INDEX_NONE)
+		{
+			return ResultIndex;
+		}
+	}
+
+	return Compiler->ForceCast(FMaterialAttributeDefinitionMap::CompileDefaultExpression(Compiler, Property), MCT_Strata);
 }
 
 int32 FVectorMaterialInput::CompileWithDefault(class FMaterialCompiler* Compiler, EMaterialProperty Property)
@@ -1401,6 +1421,12 @@ bool FMaterialResource::HasAnisotropyConnected() const
 bool FMaterialResource::HasAmbientOcclusionConnected() const
 {
 	return HasMaterialAttributesConnected() || Material->HasAmbientOcclusionConnected();
+}
+
+bool FMaterialResource::HasStrataFrontMaterialConnected() const
+{
+	const URendererSettings* RendererSettings = GetDefault<URendererSettings>();
+	return RendererSettings && RendererSettings->bEnableStrata ? Material->HasStrataFrontMaterialConnected() : false;
 }
 
 bool FMaterialResource::RequiresSynchronousCompilation() const
@@ -3635,7 +3661,7 @@ FMaterialAttributeDefintion::FMaterialAttributeDefintion(
 	, BlendFunction(InBlendFunction)
 	, bIsHidden(bInIsHidden)
 {
-	checkf(ValueType & MCT_Float || ValueType == MCT_ShadingModel , TEXT("Unsupported type, only Float1 through Float4 or MCT_ShadingModel are allowed."));
+	checkf(ValueType & MCT_Float || ValueType == MCT_ShadingModel || ValueType == MCT_Strata, TEXT("Unsupported type, only Float1 through Float4 or MCT_ShadingModel are allowed."));
 }
 
 int32 FMaterialAttributeDefintion::CompileDefaultValue(FMaterialCompiler* Compiler)
@@ -3654,6 +3680,13 @@ int32 FMaterialAttributeDefintion::CompileDefaultValue(FMaterialCompiler* Compil
 		check(ValueType == MCT_ShadingModel);
 		// Default to the first shading model of the material. If the material is using a single shading model selected through the dropdown, this is how it gets written to the shader as a constant (optimizing out all the dynamic branches)
 		return Compiler->ShadingModel(Compiler->GetMaterialShadingModels().GetFirstShadingModel());
+	}
+
+	if (Property == MP_FrontMaterial)
+	{
+		check(ValueType == MCT_Strata);
+		// Default to the first shading model of the material. If the material is using a single shading model selected through the dropdown, this is how it gets written to the shader as a constant (optimizing out all the dynamic branches)
+		return Compiler->FrontMaterial();
 	}
 
 	if (TexCoordIndex == INDEX_NONE)
@@ -3721,8 +3754,9 @@ void FMaterialAttributeDefinitionMap::InitializeAttributeMap()
 	Add(FGuid(0xE8EBD0AD, 0xB1654CBE, 0xB079C3A8, 0xB39B9F15), TEXT("AmbientOcclusion"),		MP_AmbientOcclusion,		MCT_Float,	FVector4(1,0,0,0),	SF_Pixel);
 	Add(FGuid(0xD0B0FA03, 0x14D74455, 0xA851BAC5, 0x81A0788B), TEXT("Refraction"),				MP_Refraction,				MCT_Float2,	FVector4(1,0,0,0),	SF_Pixel);
 	Add(FGuid(0x0AC97EC3, 0xE3D047BA, 0xB610167D, 0xC4D919FF), TEXT("PixelDepthOffset"),		MP_PixelDepthOffset,		MCT_Float,	FVector4(0,0,0,0),	SF_Pixel);
-	Add(FGuid(0xD9423FFF, 0xD77E4D82, 0x8FF9CF5E, 0x055D1255), TEXT("ShadingModel"),			MP_ShadingModel,			MCT_ShadingModel,	FVector4(0,0,0,0),	SF_Pixel, INDEX_NONE, false, &CompileShadingModelBlendFunction);
-
+	Add(FGuid(0xD9423FFF, 0xD77E4D82, 0x8FF9CF5E, 0x055D1255), TEXT("ShadingModel"),			MP_ShadingModel,			MCT_ShadingModel, FVector4(0, 0, 0, 0), SF_Pixel, INDEX_NONE, false, &CompileShadingModelBlendFunction);
+	Add(FGuid(0x5973A03E, 0x13A74E08, 0x92D0CEDD, 0xF2936CF8), TEXT("FrontMaterial"),			MP_FrontMaterial,			MCT_Strata, FVector4(0,0,0,0),	SF_Pixel);
+	   
 	// Texture coordinates
 	Add(FGuid(0xD30EC284, 0xE13A4160, 0x87BB5230, 0x2ED115DC), TEXT("CustomizedUV0"), MP_CustomizedUVs0, MCT_Float2, FVector4(0,0,0,0), SF_Vertex, 0);
 	Add(FGuid(0xC67B093C, 0x2A5249AA, 0xABC97ADE, 0x4A1F49C5), TEXT("CustomizedUV1"), MP_CustomizedUVs1, MCT_Float2, FVector4(0,0,0,0), SF_Vertex, 1);
@@ -3872,6 +3906,8 @@ FText FMaterialAttributeDefinitionMap::GetAttributeOverrideForMaterial(const FGu
 		return LOCTEXT("PixelDepthOffset", "Pixel Depth Offset");
 	case MP_ShadingModel:
 		return LOCTEXT("ShadingModel", "Shading Model");
+	case MP_FrontMaterial:
+		return LOCTEXT("FrontMaterial", "Front Material");
 	case MP_CustomOutput:
 		return FText::FromString(GetAttributeName(AttributeID));
 		

@@ -758,6 +758,19 @@ protected:
 
 	virtual int32 VirtualTextureOutput(uint8 MaterialAttributeMask) override;
 
+	// Strata
+	virtual int32 FrontMaterial() override;
+	virtual int32 StrataDiffuseOrenNayarBSDF(int32 Albedo, int32 Roughness, int32 Normal) override;
+	virtual int32 StrataDiffuseChanBSDF(int32 Albedo, int32 Roughness, int32 Normal) override;
+	virtual int32 StrataDielectricBSDF(int32 Roughness, int32 IOR, int32 Tint, int32 Normal) override;
+	virtual int32 StrataConductorBSDF(int32 IOR, int32 Extinction, int32 Roughness, int32 Normal) override;
+	virtual int32 StrataVolumeBSDF(int32 Absorption, int32 Scattering, int32 Anisotropy) override;
+	virtual int32 StrataHorizontalMixing(int32 Foreground, int32 Background, int32 Mix) override;
+	virtual int32 StrataVerticalLayering(int32 Top, int32 Base) override;
+	virtual int32 StrataAdd(int32 A, int32 B) override;
+	virtual int32 StrataMultiply(int32 A, int32 Weight) override;
+	virtual int32 StrataArtisticIOR(int32 Reflectivity, int32 EdgeColor, int32 OutputIndex) override;
+
 #if HANDLE_CUSTOM_OUTPUTS_AS_MATERIAL_ATTRIBUTES
 	/** Used to translate code for custom output attributes such as ClearCoatBottomNormal */
 	void GenerateCustomAttributeCode(int32 OutputIndex, int32 OutputCode, EMaterialValueType OutputType, FString& DisplayName);

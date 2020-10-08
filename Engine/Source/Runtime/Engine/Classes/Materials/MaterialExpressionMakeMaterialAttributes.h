@@ -77,6 +77,9 @@ class UMaterialExpressionMakeMaterialAttributes : public UMaterialExpression
 	UPROPERTY()
 	FExpressionInput ShadingModel;
 
+	UPROPERTY()
+	FExpressionInput FrontMaterial;
+
 	//~ Begin UObject Interface
 	virtual void Serialize(FStructuredArchive::FRecord Record) override;
 	//~ End UObject Interface

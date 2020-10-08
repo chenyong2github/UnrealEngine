@@ -386,6 +386,19 @@ public:
 	virtual int32 CustomPrimitiveData(int32 OutputIndex, EMaterialValueType Type) = 0;
 	virtual int32 ShadingModel(EMaterialShadingModel InSelectedShadingModel) = 0;
 
+	// Strata
+	virtual int32 FrontMaterial() = 0;
+	virtual int32 StrataDiffuseOrenNayarBSDF(int32 Albedo, int32 Roughness, int32 Normal) = 0;
+	virtual int32 StrataDiffuseChanBSDF(int32 Albedo, int32 Roughness, int32 Normal) = 0;
+	virtual int32 StrataDielectricBSDF(int32 Roughness, int32 IOR, int32 Tint, int32 Normal) = 0;
+	virtual int32 StrataConductorBSDF(int32 IOR, int32 Extinction, int32 Roughness, int32 Normal) = 0;
+	virtual int32 StrataVolumeBSDF(int32 Absorption, int32 Scattering, int32 Anisotropy) = 0;
+	virtual int32 StrataHorizontalMixing(int32 Foreground, int32 Background, int32 Mix) = 0;
+	virtual int32 StrataVerticalLayering(int32 Top, int32 Base) = 0;
+	virtual int32 StrataAdd(int32 A, int32 B) = 0;
+	virtual int32 StrataMultiply(int32 A, int32 Weight) = 0;
+	virtual int32 StrataArtisticIOR(int32 Reflectivity, int32 EdgeColor, int32 OutputIndex) = 0;
+
 
 	virtual int32 MapARPassthroughCameraUV(int32 UV) = 0;
 	// The compiler can run in a different state and this affects caching of sub expression, Expressions are different (e.g. View.PrevWorldViewOrigin) when using previous frame's values
@@ -764,6 +777,61 @@ public:
 	virtual bool IsDevelopmentFeatureEnabled(const FName& FeatureName) const override
 	{
 		return Compiler->IsDevelopmentFeatureEnabled(FeatureName);
+	}
+
+	virtual int32 FrontMaterial() override
+	{
+		return Compiler->FrontMaterial();
+	}
+
+	virtual int32 StrataDiffuseOrenNayarBSDF(int32 Albedo, int32 Roughness, int32 Normal) override
+	{
+		return Compiler->StrataDiffuseOrenNayarBSDF(Albedo, Roughness, Normal);
+	}
+
+	virtual int32 StrataDiffuseChanBSDF(int32 Albedo, int32 Roughness, int32 Normal) override
+	{
+		return Compiler->StrataDiffuseChanBSDF(Albedo, Roughness, Normal);
+	}
+
+	virtual int32 StrataDielectricBSDF(int32 Roughness, int32 IOR, int32 Tint, int32 Normal) override
+	{
+		return Compiler->StrataDielectricBSDF(Roughness, IOR, Tint, Normal);
+	}
+
+	virtual int32 StrataConductorBSDF(int32 IOR, int32 Extinction, int32 Roughness, int32 Normal) override
+	{
+		return Compiler->StrataConductorBSDF(IOR, Extinction, Roughness, Normal);
+	}
+
+	virtual int32 StrataVolumeBSDF(int32 Absorption, int32 Scattering, int32 Anisotropy) override
+	{
+		return Compiler->StrataVolumeBSDF(Absorption, Scattering, Anisotropy);
+	}
+
+	virtual int32 StrataHorizontalMixing(int32 Foreground, int32 Background, int32 Mix) override
+	{
+		return Compiler->StrataHorizontalMixing(Foreground, Background, Mix);
+	}
+
+	virtual int32 StrataVerticalLayering(int32 Top, int32 Base) override
+	{
+		return Compiler->StrataVerticalLayering(Top, Base);
+	}
+
+	virtual int32 StrataAdd(int32 A, int32 B) override
+	{
+		return Compiler->StrataAdd(A, B);
+	}
+
+	virtual int32 StrataMultiply(int32 A, int32 Weight) override
+	{
+		return Compiler->StrataMultiply(A, Weight);
+	}
+
+	virtual int32 StrataArtisticIOR(int32 Reflectivity, int32 EdgeColor, int32 OutputIndex) override
+	{
+		return Compiler->StrataArtisticIOR(Reflectivity, EdgeColor, OutputIndex);
 	}
 
 protected:

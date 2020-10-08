@@ -6,6 +6,7 @@
 #include "ScenePrivate.h"
 #include "SceneRendering.h"
 #include "RendererInterface.h"
+#include "UniformBuffer.h"
 
 
 
@@ -15,6 +16,10 @@ static TAutoConsoleVariable<int32> CVarStrata(
 	0,
 	TEXT("Enables Strata."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
+
+
+IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FStrataGlobalUniformParameters, "Strata");
 
 
 
@@ -41,7 +46,8 @@ void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& 
 		ResolutionX = BufferSizeXY.X;
 		ResolutionY = BufferSizeXY.Y;
 
-		StrataData.MaxBytesPerPixel = 16;
+		// Previous GBuffer when complete was 28bytes
+		StrataData.MaxBytesPerPixel = 256;
 
 	}
 	else
@@ -87,6 +93,26 @@ void BindStrataBasePassUniformParameters(const FViewInfo& View, FStrataOpaquePas
 		OutStrataUniformParameters.MaterialLobesTextureUAV = GEmptyVertexBufferWithUAV->UnorderedAccessViewRHI;
 		OutStrataUniformParameters.MaterialLobesBufferUAV = GEmptyVertexBufferWithUAV->UnorderedAccessViewRHI;
 	}
+}
+
+TUniformBufferRef<FStrataGlobalUniformParameters> BindStrataGlobalUniformParameters(const FViewInfo& View)
+{
+	FStrataGlobalUniformParameters StrataUniformParameters;
+	if (View.StrataData)
+	{
+		StrataUniformParameters.MaxBytesPerPixel = View.StrataData->MaxBytesPerPixel;
+		StrataUniformParameters.MaterialLobesTexture = View.StrataData->MaterialLobesTexture->GetRenderTargetItem().ShaderResourceTexture;
+		StrataUniformParameters.MaterialLobesBuffer = View.StrataData->MaterialLobesBuffer.SRV;
+	}
+	else
+	{
+		StrataUniformParameters.MaxBytesPerPixel = 0;
+		StrataUniformParameters.MaterialLobesTexture = GSystemTextures.BlackDummy->GetRenderTargetItem().ShaderResourceTexture;
+		StrataUniformParameters.MaterialLobesBuffer = GEmptyVertexBufferWithUAV->ShaderResourceViewRHI;
+	}
+
+	// STRATA_TODO cache this on the view and use UniformBuffer_SingleFrame
+	return CreateUniformBufferImmediate(StrataUniformParameters, UniformBuffer_SingleDraw);
 }
 
 } // namespace Strata

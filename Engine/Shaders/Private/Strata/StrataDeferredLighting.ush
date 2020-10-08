@@ -1,0 +1,143 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+
+
+float4 StrataDeferredLighting(
+	FDeferredLightData LightData,
+	FGBufferData GBuffer,
+	float3 V,
+	float3 L,
+	float3 ToLight,
+	float LightMask,
+	float SurfaceShadow,
+	FRectTexture RectTexture,
+	FStrataPixelBSDFs PixelBSDFs
+	)
+{
+	float4 Radiance = 0;
+
+	for (int i = 0; i < PixelBSDFs.BSDFCount; ++i)
+	{
+		FStrataBSDF BSDF = PixelBSDFs.BSDFs[i];
+
+		float3 N = GBuffer.WorldNormal;
+		switch (BSDF.BSDFType)		// TODO_STRATA: all have a normal, even subsurface?
+		{
+		case STRATA_BSDF_TYPE_DIFFUSE_ON:
+		case STRATA_BSDF_TYPE_DIFFUSE_CHAN:
+		{ N = BSDF.Diffuse.Normal; break; }
+		case STRATA_BSDF_TYPE_DIELECTRIC:
+		{ N = BSDF.Dielectric.Normal; break; }
+		case STRATA_BSDF_TYPE_CONDUCTOR:
+		{ N = BSDF.Conductor.Normal; break; }
+		}
+		N = normalize(N);
+
+		BxDFContext Context = (BxDFContext)0;
+		Init(Context, N, V, L);
+		float SatNoL = saturate(Context.NoL);
+
+		float3 UglyIntegrationFactor = 0; // This is bad we need to make sure it is done the right way
+		if (LightData.bRectLight)
+		{
+			FRect Rect = GetRect(ToLight, LightData);
+			UglyIntegrationFactor = IntegrateLight(Rect, RectTexture);
+		}
+		else
+		{
+			FCapsuleLight Capsule = GetCapsule(ToLight, LightData);
+			UglyIntegrationFactor = IntegrateLight(Capsule, LightData.bInverseSquared);
+		}
+
+		const float3 DirLightBaseFactor = BSDF.Weight * LightData.Color * LightMask * SurfaceShadow * UglyIntegrationFactor;
+		const float3 DirLightGeometryFactor = DirLightBaseFactor * SatNoL;
+
+		switch (BSDF.BSDFType)
+		{
+		case STRATA_BSDF_TYPE_DIFFUSE_ON:
+		{
+			const float SafeRoughness = MakeRoughnessSafe(BSDF.Diffuse.Roughness);
+			Radiance.rgb += Diffuse_OrenNayar(BSDF.Diffuse.Albedo, SafeRoughness, Context.NoV, SatNoL, Context.VoH) * DirLightGeometryFactor;
+		}
+		break;
+		case STRATA_BSDF_TYPE_DIFFUSE_CHAN:
+		{
+			const float SafeRoughness = MakeRoughnessSafe(BSDF.Diffuse.Roughness);
+			float a = SafeRoughness * SafeRoughness;
+			float a2 = a * a;
+			Radiance.rgb += Diffuse_Chan(BSDF.Diffuse.Albedo, a2, Context.NoV, SatNoL, Context.VoH, Context.NoH) * DirLightGeometryFactor;
+		}
+		break;
+		case STRATA_BSDF_TYPE_DIELECTRIC:
+		{
+			float F0 = DielectricIorToF0(BSDF.Dielectric.IOR);
+
+			const float SafeRoughness = MakeRoughnessSafe(BSDF.Dielectric.Roughness.x);
+			float a2 = Pow4(SafeRoughness);
+			float Energy = 1.0f; // See EnergyNormalization
+
+			// Generalized microfacet specular
+			float D = D_GGX(a2, Context.NoH) * Energy;
+			float Vis = Vis_SmithJointApprox(a2, Context.NoV, SatNoL);
+			float3 F = F_Schlick(F0, Context.VoH);
+
+			Radiance.rgb += D * Vis * F * BSDF.Dielectric.Tint * DirLightGeometryFactor;
+		}
+		break;
+		case STRATA_BSDF_TYPE_CONDUCTOR:
+		{
+			float3 ReflectivityF0 = float3(1.0, 0.1, 0.1);
+			float3 EdgeTint = float3(0.1, 1.0, 0.1);
+			ComputeF0AndEdgeTintFromIOR(BSDF.Conductor.IOR, BSDF.Conductor.Extinction, ReflectivityF0, EdgeTint);
+
+			// See SpecularGGX, isotropic verion
+
+			const float SafeRoughness = MakeRoughnessSafe(BSDF.Conductor.Roughness.x);
+			float a2 = Pow4(SafeRoughness);
+			float Energy = 1.0f; // See EnergyNormalization
+
+			// Generalized microfacet specular
+			float D = D_GGX(a2, Context.NoH) * Energy;
+			float Vis = Vis_SmithJointApprox(a2, Context.NoV, SatNoL);
+			float3 F = F_Schlick(ReflectivityF0, EdgeTint, Context.VoH);
+
+			Radiance.rgb += D * Vis * F * DirLightGeometryFactor;
+		}
+		break;
+		case STRATA_BSDF_TYPE_VOLUME:
+		{
+			// Strata TODO expose albedo + extinction instead?
+			const float3 ScatteringCoefficients = BSDF.Volume.Scattering;
+			const float3 AbsorptionCoefficients = BSDF.Volume.Absorption;
+			const float3 ExtinctionCoefficients = ScatteringCoefficients + AbsorptionCoefficients;
+
+			const float3 SafeExtinctionThreshold = 0.000001f;
+			const float3 SafeExtinctionCoefficients = max(SafeExtinctionThreshold, ExtinctionCoefficients);
+			const float3 SafeAlbedo = ScatteringCoefficients / SafeExtinctionCoefficients;
+
+			const float Thickness = 0.01f;	// STRATA_TODO where does thickness come from? For now, 1cm
+			const float PathLength = Thickness / max(0.0001f, abs(Context.NoV));
+			const float3 SafePathSegmentTransmittance = exp(-SafeExtinctionCoefficients * PathLength);
+			const float3 NormLuminanceTransfert = 1.0f * ScatteringCoefficients;
+			float3 NormLuminanceSingleScattering = (NormLuminanceTransfert - NormLuminanceTransfert * SafePathSegmentTransmittance) / SafeExtinctionCoefficients;
+
+#if 1
+			const float3 SelfShadowTransmittance = SatNoL;
+#else
+			const float LightPathLength = 1.0f / max(0.0001f, SatNoL);
+			const float3 SelfShadowTransmittance = SatNoL <= 0.0 ? 0.0 : exp(-ExtinctionCoefficients * LightPathLength);
+#endif
+
+			const float Phase = HenyeyGreensteinPhase(BSDF.Volume.Anisotropy, Context.VoL);
+			Radiance.rgb += NormLuminanceSingleScattering * Phase * DirLightBaseFactor * SelfShadowTransmittance;
+		}
+		break;
+		}
+	}
+
+	return Radiance;
+}
+
+

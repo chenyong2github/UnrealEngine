@@ -1,0 +1,127 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+
+
+float3 StrataEnvironmentLighting(
+	FGBufferData GBuffer,
+	float3 WorldPosition,
+	float3 CameraToPixel,
+	float3 V,
+	float3 N,
+	float3 R,
+	float3 AmbientOcclusion,
+	FStrataPixelBSDFs PixelBSDFs
+	)
+{
+	float3 SkyLighting = 0;
+	for (int i = 0; i < PixelBSDFs.BSDFCount; ++i)
+	{
+		FStrataBSDF BSDF = PixelBSDFs.BSDFs[i];
+
+		BxDFContext Context = (BxDFContext)0;
+		float3 L = N;
+		Init(Context, N, V, L);
+		float SatNoL = saturate(Context.NoL);
+
+		float3 Albedo = 0.0f;
+		float3 Normal = 0.0f;
+		float3 SpecularLuminance = 0.0f;
+		switch (BSDF.BSDFType)
+		{
+		case STRATA_BSDF_TYPE_DIFFUSE_ON:
+		case STRATA_BSDF_TYPE_DIFFUSE_CHAN:
+		{
+			Albedo = BSDF.Diffuse.Albedo;
+			Normal = BSDF.Diffuse.Normal;
+		}
+		break;
+		case STRATA_BSDF_TYPE_DIELECTRIC:
+		{
+			BRANCH
+				if (ReflectionStruct.SkyLightParameters.y > 0)
+				{
+					float F0 = DielectricIorToF0(BSDF.Dielectric.IOR);
+
+					const float SafeRoughness = MakeRoughnessSafe(BSDF.Dielectric.Roughness.x);
+					float a2 = Pow4(SafeRoughness);
+					float Energy = 1.0f; // See EnergyNormalization
+
+					// Generalized microfacet specular
+					//float D = D_GGX(a2, Context.NoH) * Energy;
+					//float Vis = Vis_SmithJointApprox(a2, Context.NoV, SatNoL);
+					//float3 F = F_Schlick(F0, Context.VoH);
+
+					float3 EvalEnvBRDF = EnvBRDFApprox(F0, SafeRoughness, Context.NoV);
+					float SkyAverageBrightness = 1.0f;
+					SpecularLuminance += GetSkyLightReflection(R, SafeRoughness, SkyAverageBrightness) * EvalEnvBRDF * BSDF.Dielectric.Tint;
+				}
+		}
+		break;
+		case STRATA_BSDF_TYPE_CONDUCTOR:
+		{
+			BRANCH
+				if (ReflectionStruct.SkyLightParameters.y > 0)
+				{
+					float3 ReflectivityF0 = float3(1.0, 0.1, 0.1);
+					float3 EdgeTint = float3(0.1, 1.0, 0.1);
+					ComputeF0AndEdgeTintFromIOR(BSDF.Conductor.IOR, BSDF.Conductor.Extinction, ReflectivityF0, EdgeTint);
+
+					// See SpecularGGX, isotropic verion
+
+					const float SafeRoughness = MakeRoughnessSafe(BSDF.Conductor.Roughness.x);
+					float a2 = Pow4(SafeRoughness);
+					float Energy = 1.0f; // See EnergyNormalization
+
+					// Generalized microfacet specular
+					//float D = D_GGX(a2, Context.NoH) * Energy;
+					//float Vis = Vis_SmithJointApprox(a2, Context.NoV, SatNoL);
+					//float3 F = F_Schlick(ReflectivityF0, EdgeTint, Context.VoH); // STRATA_TODO check that this is correct 
+
+					float3 EvalEnvBRDF = EnvBRDFApprox(ReflectivityF0, EdgeTint, SafeRoughness, Context.NoV);
+					float SkyAverageBrightness = 1.0f;
+					SpecularLuminance += GetSkyLightReflection(R, SafeRoughness, SkyAverageBrightness) * EvalEnvBRDF;
+				}
+		}
+		break;
+		case STRATA_BSDF_TYPE_VOLUME:
+		{
+			const float3 ScatteringCoefficients = BSDF.Volume.Scattering;
+			const float3 AbsorptionCoefficients = BSDF.Volume.Absorption;
+			const float3 ExtinctionCoefficients = ScatteringCoefficients + AbsorptionCoefficients;
+
+			const float3 SafeExtinctionThreshold = 0.000001f;
+			const float3 SafeExtinctionCoefficients = max(SafeExtinctionThreshold, ExtinctionCoefficients);
+			const float3 SafeAlbedo = ScatteringCoefficients / SafeExtinctionCoefficients;
+
+			const float Thickness = 0.01f;	// STRATA_TODO where does thickness come from? For now, 1cm
+			const float PathLength = Thickness / max(0.0001f, saturate(Context.NoV));
+			const float3 SafePathSegmentTransmittance = exp(-SafeExtinctionCoefficients * PathLength);
+			const float3 NormLuminanceTransfert = 1.0f * ScatteringCoefficients;
+			float3 NormLuminanceSingleScattering = (NormLuminanceTransfert - NormLuminanceTransfert * SafePathSegmentTransmittance) / SafeExtinctionCoefficients;
+
+			// No phase function because the SH already contains integration of BSDF with respect to hemisphere. Incorrect but needed.
+			Albedo = NormLuminanceSingleScattering;
+
+			// STRATA_TODO: This is to fake some directionality. Have normal specified on the material as for MaterialX?
+			Normal = GBuffer.WorldNormal;
+		}
+		break;
+		}
+
+		if (any(Albedo > 0.0f))
+		{
+			// BentNormal?
+			SkyLighting += BSDF.Weight * Diffuse_Lambert(Albedo) * GetSkySHDiffuse(Normal) * View.SkyLightColor.rgb * AmbientOcclusion;
+		}
+
+		SkyLighting += BSDF.Weight * SpecularLuminance * View.SkyLightColor.rgb * AmbientOcclusion;
+	}
+#if USE_PREEXPOSURE
+	SkyLighting *= View.PreExposure;
+#endif
+	return SkyLighting;
+}
+
+

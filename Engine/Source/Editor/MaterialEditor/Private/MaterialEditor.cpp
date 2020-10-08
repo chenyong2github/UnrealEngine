@@ -232,6 +232,10 @@ int32 FMatExpressionPreview::CompilePropertyAndSetMaterialProperty(EMaterialProp
 		FMaterialShadingModelField ShadingModels = Compiler->GetMaterialShadingModels();
 		Ret = Compiler->ShadingModel(ShadingModels.GetFirstShadingModel());
 	}
+	else if (Property == MP_FrontMaterial)
+	{
+		Ret = Compiler->FrontMaterial();
+	}
 	else
 	{
 		Ret = Compiler->Constant(1.0f);
@@ -4052,6 +4056,7 @@ UClass* FMaterialEditor::GetOnPromoteToParameterClass(const UEdGraphPin* TargetP
 			case MP_PixelDepthOffset:
 			case MP_ShadingModel:
 			case MP_OpacityMask:
+			case MP_FrontMaterial:
 				return UMaterialExpressionScalarParameter::StaticClass();
 
 			case MP_WorldPositionOffset:

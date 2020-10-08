@@ -40,6 +40,12 @@ float4x4 CloudShadowmapWorldToLightClipMatrix;
 float CloudShadowmapStrength;
 #endif
 
+#if STRATA_ENABLED
+#include "/Engine/Private/Strata/Strata.ush"
+#include "/Engine/Private/ParticipatingMediaCommon.ush"
+#include "/Engine/Private/Strata/StrataDeferredLighting.ush"
+#endif
+
 struct FInputParams
 {
 	float2 PixelPos;
@@ -203,7 +209,55 @@ void DeferredLightPixelMain(
 
 		FRectTexture RectTexture = InitRectTexture(DeferredLightUniforms.SourceTexture);
 		float SurfaceShadow = 1.0f;
-		const float4 Radiance = GetDynamicLighting(DerivedParams.WorldPosition, DerivedParams.CameraVector, ScreenSpaceData.GBuffer, ScreenSpaceData.AmbientOcclusion, ScreenSpaceData.GBuffer.ShadingModelID, LightData, GetPerPixelLightAttenuation(InputParams.ScreenUV), Dither, uint2(InputParams.PixelPos), RectTexture, SurfaceShadow);
+
+		float4 Radiance = 0;
+
+#if STRATA_ENABLED
+		uint2 PixelPos = InputParams.PixelPos;
+		if (Strata.MaterialLobesTexture[PixelPos].x > 0.0f)
+		{
+			float3 V =-DerivedParams.CameraVector;
+			float3 L = LightData.Direction;	// Already normalized
+			float3 ToLight = L;
+			float LightMask = 1;
+			if (LightData.bRadialLight)
+			{
+				LightMask = GetLocalLightAttenuation(DerivedParams.WorldPosition, LightData, ToLight, L);
+			}
+
+			if (LightMask > 0)
+			{
+				uint PixelStrataDataByteOffset = (PixelPos.y * View.BufferSizeAndInvSize.x + PixelPos.x) * Strata.MaxBytesPerPixel;
+				FStrataPixelBSDFs PixelBSDFs = UnpackStrataIn(Strata.MaterialLobesBuffer, PixelStrataDataByteOffset);
+
+				FShadowTerms Shadow;
+				Shadow.SurfaceShadow = ScreenSpaceData.AmbientOcclusion;
+				Shadow.TransmissionShadow = 1;
+				Shadow.TransmissionThickness = 1;
+				Shadow.HairTransmittance.Transmittance = 1;
+				Shadow.HairTransmittance.OpaqueVisibility = 1;
+				float4 LightAttenuation = GetPerPixelLightAttenuation(InputParams.ScreenUV);
+				GetShadowTerms(ScreenSpaceData.GBuffer, LightData, DerivedParams.WorldPosition, L, LightAttenuation, Dither, Shadow);
+				SurfaceShadow = Shadow.SurfaceShadow;
+
+				Radiance = StrataDeferredLighting(
+					LightData,
+					ScreenSpaceData.GBuffer,
+					V,
+					L,
+					ToLight,
+					LightMask,
+					SurfaceShadow,
+					RectTexture,
+					PixelBSDFs);
+			}
+		}
+		else
+#endif
+		{
+		Radiance = GetDynamicLighting(DerivedParams.WorldPosition, DerivedParams.CameraVector, ScreenSpaceData.GBuffer, ScreenSpaceData.AmbientOcclusion, ScreenSpaceData.GBuffer.ShadingModelID, LightData, GetPerPixelLightAttenuation(InputParams.ScreenUV), Dither, uint2(InputParams.PixelPos), RectTexture, SurfaceShadow);
+		}
+
 		const float  Attenuation = ComputeLightProfileMultiplier(DerivedParams.WorldPosition, DeferredLightUniforms.Position, -DeferredLightUniforms.Direction, DeferredLightUniforms.Tangent);
 
 		OutColor += (Radiance * Attenuation) * OpaqueVisibility;

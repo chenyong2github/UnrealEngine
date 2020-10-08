@@ -21,6 +21,7 @@
 #include "ScreenPass.h"
 #include "SkyAtmosphereRendering.h"
 #include "VolumetricCloudRendering.h"
+#include "Strata/Strata.h"
 
 // ENABLE_DEBUG_DISCARD_PROP is used to test the lighting code by allowing to discard lights to see how performance scales
 // It ought never to be enabled in a shipping build, and is probably only really useful when woring on the shading code.
@@ -416,6 +417,7 @@ class FDeferredLightPS : public FGlobalShader
 	class FAtmosphereTransmittance : SHADER_PERMUTATION_BOOL("USE_ATMOSPHERE_TRANSMITTANCE");
 	class FCloudTransmittance 	: SHADER_PERMUTATION_BOOL("USE_CLOUD_TRANSMITTANCE");
 	class FAnistropicMaterials 	: SHADER_PERMUTATION_BOOL("SUPPORTS_ANISOTROPIC_MATERIALS");
+	class FStrata				: SHADER_PERMUTATION_BOOL("STRATA_ENABLED");
 
 	using FPermutationDomain = TShaderPermutationDomain<
 		FSourceShapeDim,
@@ -428,7 +430,8 @@ class FDeferredLightPS : public FGlobalShader
 		FHairLighting,
 		FAtmosphereTransmittance,
 		FCloudTransmittance,
-		FAnistropicMaterials>;
+		FAnistropicMaterials,
+		FStrata>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -542,7 +545,7 @@ class FDeferredLightPS : public FGlobalShader
 public:
 	void SetParameters(
 		FRHICommandList& RHICmdList, 
-		const FSceneView& View, 
+		const FViewInfo& View,
 		const FLightSceneInfo* LightSceneInfo,
 		FRHITexture* ScreenShadowMaskTexture,
 		FRHITexture* LightingChannelsTextureRHI,
@@ -553,7 +556,7 @@ public:
 		SetDeferredLightParameters(RHICmdList, ShaderRHI, GetUniformBufferParameter<FDeferredLightUniformStruct>(), LightSceneInfo, View);
 	}
 
-	void SetParametersSimpleLight(FRHICommandList& RHICmdList, const FSceneView& View, const FSimpleLightEntry& SimpleLight, const FSimpleLightPerViewEntry& SimpleLightPerViewData)
+	void SetParametersSimpleLight(FRHICommandList& RHICmdList, const FViewInfo& View, const FSimpleLightEntry& SimpleLight, const FSimpleLightPerViewEntry& SimpleLightPerViewData)
 	{
 		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 		SetParametersBase(RHICmdList, ShaderRHI, View, nullptr, nullptr, nullptr, nullptr);
@@ -565,13 +568,14 @@ private:
 	void SetParametersBase(
 		FRHICommandList& RHICmdList, 
 		FRHIPixelShader* ShaderRHI, 
-		const FSceneView& View, 
+		const FViewInfo& View,
 		FRHITexture* ScreenShadowMaskTexture,
 		FRHITexture* LightingChannelsTextureRHI,
 		FTexture* IESTextureResource,
 		FRenderLightParams* RenderLightParams)
 	{
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI,View.ViewUniformBuffer);
+		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
+		FGlobalShader::SetParameters<FStrataGlobalUniformParameters>(RHICmdList, ShaderRHI, Strata::BindStrataGlobalUniformParameters(View));
 
 		FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get(RHICmdList);
 
@@ -2173,7 +2177,8 @@ static void SetShaderTemplLightingSimple(
 	PermutationVector.Set< FDeferredLightPS::FTransmissionDim >( false );
 	PermutationVector.Set< FDeferredLightPS::FHairLighting>( 0 );
 	PermutationVector.Set< FDeferredLightPS::FAtmosphereTransmittance >( false );
-	PermutationVector.Set< FDeferredLightPS::FCloudTransmittance >( false );
+	PermutationVector.Set< FDeferredLightPS::FCloudTransmittance >(false);
+	PermutationVector.Set< FDeferredLightPS::FStrata >(Strata::IsStrataEnabled());
 
 	TShaderMapRef< FDeferredLightPS > PixelShader( View.ShaderMap, PermutationVector );
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
@@ -2331,6 +2336,7 @@ void FDeferredShadingSceneRenderer::RenderLight(
 				// Only directional lights are rendered in this path, so we only need to check if it is use to light the atmosphere
 				PermutationVector.Set< FDeferredLightPS::FAtmosphereTransmittance >(bAtmospherePerPixelTransmittance);
 				PermutationVector.Set< FDeferredLightPS::FCloudTransmittance >(bLight0CloudPerPixelTransmittance || bLight1CloudPerPixelTransmittance);
+				PermutationVector.Set< FDeferredLightPS::FStrata >(Strata::IsStrataEnabled());
 
 				TShaderMapRef< FDeferredLightPS > PixelShader( View.ShaderMap, PermutationVector );
 				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
@@ -2395,6 +2401,7 @@ void FDeferredShadingSceneRenderer::RenderLight(
 				PermutationVector.Set< FDeferredLightPS::FHairLighting>(bHairLighting ? 1 : 0);
 				PermutationVector.Set < FDeferredLightPS::FAtmosphereTransmittance >(false);
 				PermutationVector.Set< FDeferredLightPS::FCloudTransmittance >(false);
+				PermutationVector.Set< FDeferredLightPS::FStrata >(Strata::IsStrataEnabled());
 
 				TShaderMapRef< FDeferredLightPS > PixelShader( View.ShaderMap, PermutationVector );
 				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
@@ -2584,6 +2591,7 @@ void FDeferredShadingSceneRenderer::RenderLightForHair(
 			PermutationVector.Set< FDeferredLightPS::FVisualizeCullingDim >(false);
 			PermutationVector.Set< FDeferredLightPS::FTransmissionDim >(false);
 			PermutationVector.Set< FDeferredLightPS::FHairLighting>(2);
+			PermutationVector.Set< FDeferredLightPS::FStrata >(Strata::IsStrataEnabled());
 
 			TShaderMapRef<TDeferredLightHairVS> VertexShader(View.ShaderMap);
 			TShaderMapRef<FDeferredLightPS> PixelShader(View.ShaderMap, PermutationVector);

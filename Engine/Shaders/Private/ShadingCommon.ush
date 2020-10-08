@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Common.ush"
+
 // SHADINGMODELID_* occupy the 4 low bits of an 8bit channel and SKIP_* occupy the 4 high bits
 #define SHADINGMODELID_UNLIT				0
 #define SHADINGMODELID_DEFAULT_LIT			1
@@ -97,3 +99,55 @@ float3 ComputeF0(float Specular, float3 BaseColor, float Metallic)
 }
 
 
+
+float MakeRoughnessSafe(float Roughness)
+{
+	return clamp(Roughness, 0.001f, 1.0f);
+}
+
+
+
+// [Gulbrandsen, "Artist Friendly Metallic Fresnel"]
+
+// Compute F0 and edge tint from complex index of refraction N = n + ik. (absolute refractive index + extinction coefficients)
+void ComputeF0AndEdgeTintFromIOR(in float3 n, in float3 k, inout float3 Reflectivity, inout float3 EdgeTint)
+{
+	const float3 k2 = Square(k);
+
+	Reflectivity =
+		(Square(n - 1) + k2) /
+		(Square(n + 1) + k2);
+
+	const float3 SqrtR = sqrt(Reflectivity);
+	const float3 Common0 = (1 + SqrtR) / (1 - SqrtR);
+	EdgeTint = (Common0 - n) / (Common0 + (1 - SqrtR) / (1 + SqrtR));
+}
+
+// Compute complex index of refraction N = n + ik from F0 and edge tint.
+void ComputeComplexIORFromF0AndEdgeTint(in float3 Reflectivity, in float3 EdgeTint, inout float3 n, inout float3 k)
+{
+	const float3 g = EdgeTint;
+	const float3 r = clamp(Reflectivity, 0.0, 0.999);
+	const float3 SqrtR = sqrt(r);
+
+	n = g * (1 - r) / (1 + r) + (1 - g) * (1 + SqrtR) / (1 - SqrtR);
+
+	const float3 k2 = ((n + 1) * (n + 1) * r - (n - 1) * (n - 1)) / (1 - r);
+	k = sqrt(k2);
+}
+
+float3 ComputeComplexIORFromF0AndEdgeTint_IOR(in float3 Reflectivity, in float3 EdgeTint)
+{
+	float3 n = 0;
+	float3 k = 0;
+	ComputeComplexIORFromF0AndEdgeTint(Reflectivity, EdgeTint, n, k);
+	return n;
+}
+
+float3 ComputeComplexIORFromF0AndEdgeTint_Extinction(in float3 Reflectivity, in float3 EdgeTint)
+{
+	float3 n = 0;
+	float3 k = 0;
+	ComputeComplexIORFromF0AndEdgeTint(Reflectivity, EdgeTint, n, k);
+	return k;
+}
