@@ -684,13 +684,15 @@ void FArchiveStackTrace::CompareWithInternal(const FPackageData& SourcePackage, 
 				UE_LOG(
 					LogArchiveDiff,
 					Display,
-					TEXT("%s: Logging %d bytes around absolute offset: %lld (%016X) in the on disk (existing) package"),
+					TEXT("%s: Logging %d bytes around absolute offset: %lld (%016X) in the on disk (existing) package, (which corresponds to offset %lld (%016X) in the in-memory package)"),
 					AssetFilename,
 					BytesToLog,
+					SourceAbsoluteOffset,
+					SourceAbsoluteOffset,
 					DestAbsoluteOffset,
 					DestAbsoluteOffset
 				);
-				ArchiveStackTraceUtils::LogHexDump(SourcePackage.Data, SourcePackage.Size, DestAbsoluteOffset - BytesToLog / 2, DestAbsoluteOffset + BytesToLog / 2);
+				ArchiveStackTraceUtils::LogHexDump(SourcePackage.Data, SourcePackage.Size, SourceAbsoluteOffset - BytesToLog / 2, SourceAbsoluteOffset + BytesToLog / 2);
 
 				UE_LOG(
 					LogArchiveDiff,
