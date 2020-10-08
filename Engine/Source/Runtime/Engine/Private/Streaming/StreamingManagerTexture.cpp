@@ -1907,7 +1907,7 @@ void FRenderAssetStreamingManager::GetRenderedTextureAssets(TMap<FString, FRende
 		const int32 CurrentMipIndex = FMath::Max(StreamableRenderAsset->GetNumMipsForStreaming() - StreamingRenderAsset.ResidentMips, 0);
 		const int32 MaxAllowedMipIndex = FMath::Max(StreamableRenderAsset->GetNumMipsForStreaming() - StreamingRenderAsset.MaxAllowedMips, 0);
 		const int32 MipIndexDifference = FMath::Max(MaxAllowedMipIndex - CurrentMipIndex, 0);
-		const int32 MipArrayIndex = FMath::Clamp(-MipIndexDifference, 0, MipLevelMaxToCheck);
+		const int32 MipArrayIndex = FMath::Clamp(-MipIndexDifference, 0, MipLevelMaxToCheck-1);
 
 		FRenderedTextureGroupMipStats& Group = OutRenderedTextureAssets.FindOrAdd(TextureGroupName, FRenderedTextureGroupMipStats(MipLevelMaxToCheck));
 		Group.MipDifferenceByAmount[MipArrayIndex]++;
