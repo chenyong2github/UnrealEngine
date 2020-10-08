@@ -1188,7 +1188,7 @@ public:
 	uint32 AcquireCompilingId(const TRefCountPtr<FSharedShaderCompilerEnvironment>& InMaterialEnvironment);
 	void ReleaseCompilingId();
 	uint32 GetCompilingId() const { return CompilingId; }
-	FSharedShaderCompilerEnvironment* GetPendingCompilerEnvironment() const { return PendingCompilerEnvironment; }
+	const TRefCountPtr<FSharedShaderCompilerEnvironment>& GetPendingCompilerEnvironment() const { return PendingCompilerEnvironment; }
 
 	bool IsCompilationFinalized() const { return bCompilationFinalized; }
 	bool CompiledSuccessfully() const { return bCompiledSuccessfully; }

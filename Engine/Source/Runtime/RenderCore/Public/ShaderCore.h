@@ -428,6 +428,10 @@ struct FShaderCompilerEnvironment
 	{
 	}
 
+	// Used as a baseclasss, make sure we're not incorrectly destroyed through a baseclass pointer
+	// This will be expensive to destroy anyway, additional vcall overhead should be small
+	virtual ~FShaderCompilerEnvironment() = default;
+
 	/**
 	 * Works for TCHAR
 	 * e.g. SetDefine(TEXT("NAME"), TEXT("Test"));
@@ -505,8 +509,9 @@ private:
 	FShaderCompilerDefinitions Definitions;
 };
 
-struct FSharedShaderCompilerEnvironment : public FShaderCompilerEnvironment, public FRefCountBase
+struct FSharedShaderCompilerEnvironment final : public FShaderCompilerEnvironment, public FRefCountBase
 {
+	virtual ~FSharedShaderCompilerEnvironment() = default;
 };
 
 // if this changes you need to make sure all shaders get invalidated
