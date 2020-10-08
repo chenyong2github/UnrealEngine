@@ -38,11 +38,10 @@ BEGIN_SHADER_PARAMETER_STRUCT(FScreenProbeImportanceSamplingParameters, )
 	SHADER_PARAMETER(uint32, MaxImportanceSamplingOctahedronResolution)
 	SHADER_PARAMETER(uint32, ScreenProbeBRDFOctahedronResolution)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, StructuredImportanceSampledRayInfosForTracing)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint2>, StructuredImportanceSampledRayCoordForComposite)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FOctahedralSolidAngleParameters, )
-	SHADER_PARAMETER(float, InvOctahedralSolidAngleTextureResolutionSq)
+	SHADER_PARAMETER(float, OctahedralSolidAngleTextureResolutionSq)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, OctahedralSolidAngleTexture)
 END_SHADER_PARAMETER_STRUCT()
 

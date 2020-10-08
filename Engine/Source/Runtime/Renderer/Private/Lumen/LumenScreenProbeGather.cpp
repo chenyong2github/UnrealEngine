@@ -742,6 +742,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 
 	FScreenProbeParameters ScreenProbeParameters;
 	ScreenProbeParameters.ScreenProbeTracingOctahedronResolution = LumenScreenProbeGather::GetTracingOctahedronResolution();
+	ensureMsgf(ScreenProbeParameters.ScreenProbeTracingOctahedronResolution < (1 << 6) - 1, TEXT("Tracing resolution %u was larger than supported by PackRayInfo()"), ScreenProbeParameters.ScreenProbeTracingOctahedronResolution);
 	ScreenProbeParameters.ScreenProbeGatherOctahedronResolution = LumenScreenProbeGather::GetGatherOctahedronResolution();
 	ScreenProbeParameters.ScreenProbeGatherOctahedronResolutionWithBorder = LumenScreenProbeGather::GetGatherOctahedronResolution() + 2 * (1 << (GLumenScreenProbeGatherNumMips - 1));
 	ScreenProbeParameters.ScreenProbeDownsampleFactor = LumenScreenProbeGather::GetScreenDownsampleFactor();
@@ -771,7 +772,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	InitializeBlueNoise(BlueNoise);
 	ScreenProbeParameters.BlueNoise = CreateUniformBufferImmediate(BlueNoise, EUniformBufferUsage::UniformBuffer_SingleDraw);
 
-	ScreenProbeParameters.OctahedralSolidAngleParameters.InvOctahedralSolidAngleTextureResolutionSq = 1.0f / (GLumenOctahedralSolidAngleTextureSize * GLumenOctahedralSolidAngleTextureSize);
+	ScreenProbeParameters.OctahedralSolidAngleParameters.OctahedralSolidAngleTextureResolutionSq = GLumenOctahedralSolidAngleTextureSize * GLumenOctahedralSolidAngleTextureSize;
 	ScreenProbeParameters.OctahedralSolidAngleParameters.OctahedralSolidAngleTexture = InitializeOctahedralSolidAngleTexture(GraphBuilder, View.ShaderMap, View.ViewState->Lumen.ScreenProbeGatherState);
 
 	{

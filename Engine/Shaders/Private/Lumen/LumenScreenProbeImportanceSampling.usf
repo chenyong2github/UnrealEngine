@@ -309,105 +309,108 @@ void ScreenProbeComputeLightingProbabilityDensityFunctionCS(
 	uint ScreenProbeSubsampleIndex;
 	GetScreenProbeScreenCoord(ScreenProbeIndex, ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
 
-	float PDF = 0.0f;
-
 	float2 ScreenUV = GetScreenUVFromScreenProbeCoord(ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
 	float SceneDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
 
-	if (ScreenProbeIndex < GetNumScreenProbes() && SceneDepth > 0 && SceneDepth < 1000000.0f)
+	if (ScreenProbeIndex < GetNumScreenProbes() 
+		&& SceneDepth > 0 
+		&& SceneDepth < 1000000.0f)
 	{
 		float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
-		
-		float3 Lighting = 0;
-		float Transparency = 1;
+		float3 Lighting = 0.0f;
+		float SolidAngle = 0.0f;
+
+		if (all(ProbeTexelCoord < ScreenProbeTracingOctahedronResolution))
+		{
+			float Transparency = 1;
 
 #if PROBE_RADIANCE_HISTORY
-		// Reproject into last frame's probe depth buffer
-		// Interpolate from neighboring probes last frame lighting, with position error weight
+			// Reproject into last frame's probe depth buffer
+			// Interpolate from neighboring probes last frame lighting, with position error weight
 
-		float2 ScreenPosition = (ScreenUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
-		float3 HistoryScreenPosition = float3(ScreenPosition, ConvertToDeviceZ(SceneDepth));
-		bool bIsDynamicPixel = false;
+			float2 ScreenPosition = (ScreenUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+			float3 HistoryScreenPosition = float3(ScreenPosition, ConvertToDeviceZ(SceneDepth));
+			bool bIsDynamicPixel = false;
 
-		{
-			float4 ThisClip = float4(HistoryScreenPosition, 1);
-			float4 PrevClip = mul(ThisClip, View.ClipToPrevClip);
-			float3 PrevScreen = PrevClip.xyz / PrevClip.w;
-			float3 Velocity = HistoryScreenPosition - PrevScreen;
-			float4 EncodedVelocity = VelocityTexture.SampleLevel(GlobalPointClampedSampler, ScreenUV, 0);
-			bIsDynamicPixel = EncodedVelocity.x > 0.0;
-
-			if (bIsDynamicPixel)
 			{
-				Velocity = DecodeVelocityFromTexture(EncodedVelocity);
+				float4 ThisClip = float4(HistoryScreenPosition, 1);
+				float4 PrevClip = mul(ThisClip, View.ClipToPrevClip);
+				float3 PrevScreen = PrevClip.xyz / PrevClip.w;
+				float3 Velocity = HistoryScreenPosition - PrevScreen;
+				float4 EncodedVelocity = VelocityTexture.SampleLevel(GlobalPointClampedSampler, ScreenUV, 0);
+				bIsDynamicPixel = EncodedVelocity.x > 0.0;
+
+				if (bIsDynamicPixel)
+				{
+					Velocity = DecodeVelocityFromTexture(EncodedVelocity);
+				}
+
+				HistoryScreenPosition -= Velocity;
 			}
 
-			HistoryScreenPosition -= Velocity;
-		}
+			float2 HistoryScreenUV = HistoryScreenPosition.xy * ImportanceSamplingHistoryScreenPositionScaleBias.xy + ImportanceSamplingHistoryScreenPositionScaleBias.wz;
 
-		float2 HistoryScreenUV = HistoryScreenPosition.xy * ImportanceSamplingHistoryScreenPositionScaleBias.xy + ImportanceSamplingHistoryScreenPositionScaleBias.wz;
+			float EffectiveHistoryWeight = 1.0f;
 
-		float EffectiveHistoryWeight = 1.0f;
+			FLATTEN
+			if (any(HistoryScreenUV > ImportanceSamplingHistoryUVMinMax.zw + .5f * View.BufferSizeAndInvSize.zw) || any(HistoryScreenUV < ImportanceSamplingHistoryUVMinMax.xy - .5f * View.BufferSizeAndInvSize.zw))
+			{
+				EffectiveHistoryWeight = 0.0f;
+			}
 
-		FLATTEN
-		if (any(HistoryScreenUV > ImportanceSamplingHistoryUVMinMax.zw + .5f * View.BufferSizeAndInvSize.zw) || any(HistoryScreenUV < ImportanceSamplingHistoryUVMinMax.xy - .5f * View.BufferSizeAndInvSize.zw))
-		{ 
-			EffectiveHistoryWeight = 0.0f;
-		}
+			if (EffectiveHistoryWeight > 0.0f)
+			{
+				float2 HistoryScreenProbeCoord = GetScreenProbeCoordFromScreenUV(HistoryScreenUV, SCREEN_HISTORY_TEMPORAL_INDEX, 0);
 
-		if (EffectiveHistoryWeight > 0.0f)
-		{
-			float2 HistoryScreenProbeCoord = GetScreenProbeCoordFromScreenUV(HistoryScreenUV, SCREEN_HISTORY_TEMPORAL_INDEX, 0);
+				//@todo - interpolate from 4 neighbors
+				float HistoryDepth = HistoryDownsampledDepth.Load(int3(HistoryScreenProbeCoord, 0)).x;
+				float PositionWeight = ComputeHistoryWeightBasedOnPosition(ScreenPosition, SceneDepth, HistoryScreenPosition.xy, HistoryDepth, 1.0f);
 
-			//@todo - interpolate from 4 neighbors
-			float HistoryDepth = HistoryDownsampledDepth.Load(int3(HistoryScreenProbeCoord, 0)).x;
-			float PositionWeight = ComputeHistoryWeightBasedOnPosition(ScreenPosition, SceneDepth, HistoryScreenPosition.xy, HistoryDepth, 1.0f);
+				EffectiveHistoryWeight *= PositionWeight;
 
-			EffectiveHistoryWeight *= PositionWeight;
+				uint2 HistoryRadianceCoord = ((uint2)HistoryScreenProbeCoord) * ScreenProbeGatherOctahedronResolution + ProbeTexelCoord;
+				float3 HistoryRadiance = HistoryScreenProbeRadiance.Load(int3(HistoryRadianceCoord, 0)).xyz * PrevInvPreExposure * View.PreExposure;
 
-			uint2 HistoryRadianceCoord = ((uint2)HistoryScreenProbeCoord) * ScreenProbeGatherOctahedronResolution + ProbeTexelCoord;
-			float3 HistoryRadiance = HistoryScreenProbeRadiance.Load(int3(HistoryRadianceCoord, 0)).xyz * PrevInvPreExposure * View.PreExposure;
-
-			Lighting = HistoryRadiance * EffectiveHistoryWeight;
-			Transparency = 1.0f - EffectiveHistoryWeight;
-		}
+				Lighting = HistoryRadiance * EffectiveHistoryWeight;
+				Transparency = 1.0f - EffectiveHistoryWeight;
+			}
 #endif
-		float2 ProbeTexelCenter = GetProbeTexelCenter(ScreenProbeAtlasCoord);
-		float2 ProbeUV = (ProbeTexelCoord + ProbeTexelCenter) / float(ScreenProbeTracingOctahedronResolution);
+			float2 ProbeTexelCenter = GetProbeTexelCenter(ScreenProbeAtlasCoord);
+			float2 ProbeUV = (ProbeTexelCoord + ProbeTexelCenter) / float(ScreenProbeTracingOctahedronResolution);
 
-		if (Transparency > 0.0f)
-		{
+			if (Transparency > 0.0f)
+			{
 #if RADIANCE_CACHE
-			float3 WorldConeDirection = OctahedralMapToDirection(ProbeUV);
-			float ConeHalfAngle = acosFast(1.0f - 1.0f / (float)(ScreenProbeTracingOctahedronResolution * ScreenProbeTracingOctahedronResolution));
+				float3 WorldConeDirection = OctahedralMapToDirection(ProbeUV);
+				float ConeHalfAngle = acosFast(1.0f - 1.0f / (float)(ScreenProbeTracingOctahedronResolution * ScreenProbeTracingOctahedronResolution));
 
-			bool bCoveredByRadianceCache = false;
-			float ProbeOcclusionDistance = GetRadianceProbeOcclusionDistanceWithInterpolation(WorldPosition, WorldConeDirection, bCoveredByRadianceCache);
+				bool bCoveredByRadianceCache = false;
+				float ProbeOcclusionDistance = GetRadianceProbeOcclusionDistanceWithInterpolation(WorldPosition, WorldConeDirection, bCoveredByRadianceCache);
 
-			if (bCoveredByRadianceCache)
-			{
-				Lighting += SampleRadianceCacheInterpolated(WorldPosition, WorldConeDirection, ConeHalfAngle, float3(0, 0, 0)) * Transparency;
-			}
-			else
+				if (bCoveredByRadianceCache)
+				{
+					Lighting += SampleRadianceCacheInterpolated(WorldPosition, WorldConeDirection, ConeHalfAngle, float3(0, 0, 0)) * Transparency;
+				}
+				else
 #endif
-			{
-				//@todo - skylight
-				Lighting = 1;
+				{
+					//@todo - skylight
+					Lighting = 1;
+				}
 			}
+
+
+			const float InvScreenProbeResolution = 1.0f / ScreenProbeTracingOctahedronResolution;
+			SolidAngle = OctahedralSolidAngleLUT(ProbeUV, ScreenProbeTracingOctahedronResolution);
+
+			float PDF = Luminance(Lighting) * SolidAngle;
+			SharedPDF[GroupThreadId.y * ScreenProbeTracingOctahedronResolution + GroupThreadId.x] = PDF;
 		}
-
-
-		const float InvScreenProbeResolution = 1.0f / ScreenProbeTracingOctahedronResolution;
-		float SolidAngle = OctahedralSolidAngleLUT(ProbeUV, ScreenProbeTracingOctahedronResolution);
-
-		PDF = Luminance(Lighting) * SolidAngle;
-
-		SharedPDF[GroupThreadId.y * LIGHTING_PDF_THREADGROUP_SIZE + GroupThreadId.x] = PDF;
 
 		GroupMemoryBarrierWithGroupSync();
 
-		uint ThreadIndex = GroupThreadId.y * LIGHTING_PDF_THREADGROUP_SIZE + GroupThreadId.x;
-		uint NumValuesToAccumulate = LIGHTING_PDF_THREADGROUP_SIZE * LIGHTING_PDF_THREADGROUP_SIZE;
+		uint ThreadIndex = GroupThreadId.y * ScreenProbeTracingOctahedronResolution + GroupThreadId.x;
+		uint NumValuesToAccumulate = ScreenProbeTracingOctahedronResolution * ScreenProbeTracingOctahedronResolution;
 		uint Offset = 0;
 
 		while (NumValuesToAccumulate > 1)
@@ -442,15 +445,16 @@ void ScreenProbeComputeLightingProbabilityDensityFunctionCS(
 			GroupMemoryBarrierWithGroupSync();
 		}
 
-		float PDFSum = SharedPDF[Offset];
-		RWLightingProbabilityDensityFunction[DispatchThreadId.xy] = Luminance(Lighting) * SolidAngle / max(PDFSum, 0.0001f);
+		if (all(ProbeTexelCoord < ScreenProbeTracingOctahedronResolution))
+		{
+			float PDFSum = SharedPDF[Offset];
+			RWLightingProbabilityDensityFunction[ScreenProbeAtlasCoord * ScreenProbeTracingOctahedronResolution + ProbeTexelCoord] = Luminance(Lighting) * SolidAngle / max(PDFSum, 0.0001f);
+		}
 	}
 }
 
 // Stores a RayInfo indirection entry for each ray to trace of a Screen Probe, used by tracing passes 
 RWTexture2D<uint> RWStructuredImportanceSampledRayInfosForTracing;
-// Stores a RayCoord (relative offset into RWStructuredImportanceSampledRayInfosForTracing) for each texel so that the composite can gather the lighting of the rays that were traced
-RWTexture2D<UNORM float2> RWStructuredImportanceSampledRayCoordForComposite;
 
 Texture2D<float> BRDFProbabilityDensityFunction;
 Buffer<float> BRDFProbabilityDensityFunctionSH;
@@ -458,8 +462,7 @@ Texture2D<float> LightingProbabilityDensityFunction;
 float MinPDFToTrace;
 
 #define GENERATE_RAYS_NUM_TOTAL_THREADS (GENERATE_RAYS_THREADGROUP_SIZE * GENERATE_RAYS_THREADGROUP_SIZE)
-groupshared uint2 RaysToRefine[GENERATE_RAYS_NUM_TOTAL_THREADS];
-groupshared uint2 RaysToRefineSorted[GENERATE_RAYS_NUM_TOTAL_THREADS];
+groupshared uint2 RaysToRefine[GENERATE_RAYS_NUM_TOTAL_THREADS * 2];
 groupshared uint NumRaysToSubdivide;
 
 uint2 PackRaySortInfo(uint2 TexelCoord, uint Level, float PDF)
@@ -487,20 +490,81 @@ void WriteRay(uint2 ScreenProbeCoord, uint2 TracingRayCoord, uint2 SourceTexelCo
 		uint2 TraceCoord = GetTraceBufferCoord(ScreenProbeCoord, TracingRayCoord);
 		RWStructuredImportanceSampledRayInfosForTracing[TraceCoord] = PackRayInfo(SourceTexelCoord, SourceLevel);
 	}
+}
 
+uint SubdivideRaysSerialReference(uint2 GroupThreadId)
+{
+	// Note: Set r.Lumen.ScreenProbeGather.ImportanceSample.NumLevels=3 when using reference to allow multi-level subdivision
+
+	uint NumRaysToTrace = ScreenProbeTracingOctahedronResolution * ScreenProbeTracingOctahedronResolution;
+	uint ThreadIndex = GroupThreadId.y * ScreenProbeTracingOctahedronResolution + GroupThreadId.x;
+	uint MaxPasses = NumRaysToTrace;
+
+	if (ThreadIndex == 0)
 	{
-		uint MipSize = MaxImportanceSamplingOctahedronResolution >> SourceLevel;
-		uint UpsampleKernelSize = MaxImportanceSamplingOctahedronResolution / MipSize;
-		uint2 BaseCoord = ScreenProbeCoord * MaxImportanceSamplingOctahedronResolution + SourceTexelCoord * UpsampleKernelSize;
+		uint PassIndex = 0;
 
-		for (uint Y = 0; Y < UpsampleKernelSize; Y++)
+		for (uint PassIndex = 0; PassIndex < MaxPasses; PassIndex++)
 		{
-			for (uint X = 0; X < UpsampleKernelSize; X++)
+			float HighestPDF = 0.0f;
+			uint RayIndexToRefine = NumRaysToTrace;
+			uint LowPDFRayIndex0 = NumRaysToTrace;
+			uint LowPDFRayIndex1 = NumRaysToTrace;
+			uint LowPDFRayIndex2 = NumRaysToTrace;
+
+			// Find the ray with the highest PDF, and 3 rays that can be culled
+			for (uint RayIndex = 0; RayIndex < NumRaysToTrace; RayIndex++)
 			{
-				RWStructuredImportanceSampledRayCoordForComposite[BaseCoord + uint2(X, Y)] = TracingRayCoord / 255.0f;
+				uint2 RayTexelCoord;
+				uint RayLevel;
+				float PDF;
+				UnpackRaySortInfo(RaysToRefine[RayIndex], RayTexelCoord, RayLevel, PDF);
+
+				if (PDF > HighestPDF && PDF >= MinPDFToTrace && RayLevel > 0)
+				{
+					HighestPDF = PDF;
+					RayIndexToRefine = RayIndex;
+				}
+
+				if (PDF < MinPDFToTrace)
+				{
+					if (LowPDFRayIndex0 == NumRaysToTrace)
+					{
+						LowPDFRayIndex0 = RayIndex;
+					}
+					else if (LowPDFRayIndex1 == NumRaysToTrace)
+					{
+						LowPDFRayIndex1 = RayIndex;
+					}
+					else if (LowPDFRayIndex2 == NumRaysToTrace)
+					{
+						LowPDFRayIndex2 = RayIndex;
+					}
+				}
 			}
-		}
+
+			// Subdivide the highest PDF ray
+			if (LowPDFRayIndex2 < NumRaysToTrace && HighestPDF >= MinPDFToTrace)
+			{
+				uint2 OriginalRayTexelCoord;
+				uint OriginalRayLevel;
+				float OriginalPDF;
+				UnpackRaySortInfo(RaysToRefine[RayIndexToRefine], OriginalRayTexelCoord, OriginalRayLevel, OriginalPDF);
+
+				float NewPDF = max(OriginalPDF / 4.0f, MinPDFToTrace);
+				RaysToRefine[RayIndexToRefine] = PackRaySortInfo(OriginalRayTexelCoord * 2 + uint2(0, 0), OriginalRayLevel - 1, NewPDF);
+				RaysToRefine[LowPDFRayIndex0] = PackRaySortInfo(OriginalRayTexelCoord * 2 + uint2(1, 0), OriginalRayLevel - 1, NewPDF);
+				RaysToRefine[LowPDFRayIndex1] = PackRaySortInfo(OriginalRayTexelCoord * 2 + uint2(0, 1), OriginalRayLevel - 1, NewPDF);
+				RaysToRefine[LowPDFRayIndex2] = PackRaySortInfo(OriginalRayTexelCoord * 2 + uint2(1, 1), OriginalRayLevel - 1, NewPDF);
+			}
+			else
+			{
+				break;
+			}
+		} 
 	}
+
+	return 0;
 }
 
 [numthreads(GENERATE_RAYS_THREADGROUP_SIZE, GENERATE_RAYS_THREADGROUP_SIZE, 1)]
@@ -529,9 +593,10 @@ void ScreenProbeGenerateRaysCS(
 		}
 
 #else
+
 		{
 			uint2 TexelCoord = GroupThreadId.xy;
-			uint MipSize = MaxImportanceSamplingOctahedronResolution >> UniformLevel;
+			uint MipSize = ScreenProbeTracingOctahedronResolution;
 
 			if (all(TexelCoord < MipSize))
 			{
@@ -572,12 +637,21 @@ void ScreenProbeGenerateRaysCS(
 
 		GroupMemoryBarrierWithGroupSync();
 
+		uint ThreadIndex = GroupThreadId.y * ScreenProbeTracingOctahedronResolution + GroupThreadId.x;
 		uint NumRaysToTrace = ScreenProbeTracingOctahedronResolution * ScreenProbeTracingOctahedronResolution;
-		uint ThreadIndex = GroupThreadId.y * GENERATE_RAYS_THREADGROUP_SIZE + GroupThreadId.x;
+
+#define SERIAL_REFERENCE_DEBUG 0
+#if SERIAL_REFERENCE_DEBUG
+
+		uint SortedOffset = SubdivideRaysSerialReference(GroupThreadId.xy);
+#else
+		
+		uint SortedOffset = ScreenProbeTracingOctahedronResolution * ScreenProbeTracingOctahedronResolution;
+		uint RayIndex = ThreadIndex;
 
 		// Sort the rays by ascending PDF
 		// O(N^2) simple parallel sort
-		for (uint RayIndex = ThreadIndex; RayIndex < NumRaysToTrace; RayIndex += GENERATE_RAYS_NUM_TOTAL_THREADS)
+		if (RayIndex < NumRaysToTrace)
 		{
 			uint2 RayTexelCoord;
 			uint RayLevel;
@@ -602,8 +676,8 @@ void ScreenProbeGenerateRaysCS(
 				}
 			}
 
-			// Move this entry into it's sorted position
-			RaysToRefineSorted[NumSmaller] = RaysToRefine[RayIndex];
+			// Move this entry into its sorted position
+			RaysToRefine[NumSmaller + SortedOffset] = RaysToRefine[RayIndex];
 		}
 
 		NumRaysToSubdivide = 0;
@@ -613,9 +687,6 @@ void ScreenProbeGenerateRaysCS(
 		if (UniformLevel > 0)
 		{
 			// For each 3 rays with PDF < threshold, refine matching high PDF ray
-
-#define SUBDIVIDE_WITH_THREE_THREADS 1
-#if SUBDIVIDE_WITH_THREE_THREADS
 			uint MergeThreadIndex = ThreadIndex % 3;
 			uint MergeIndex = ThreadIndex / 3;
 			uint RayIndexToRefine = max((int)NumRaysToTrace - (int)MergeIndex - 1, 0);
@@ -627,7 +698,7 @@ void ScreenProbeGenerateRaysCS(
 				uint2 RayTexelCoord2;
 				uint RayLevel2;
 				float PDF2;
-				UnpackRaySortInfo(RaysToRefineSorted[RayIndexToMerge2], RayTexelCoord2, RayLevel2, PDF2);
+				UnpackRaySortInfo(RaysToRefine[SortedOffset + RayIndexToMerge2], RayTexelCoord2, RayLevel2, PDF2);
 
 				// Only continue if our thread is part of a packet of 3 which are all below the threshold to be traced
 				if (PDF2 < MinPDFToTrace)
@@ -636,20 +707,10 @@ void ScreenProbeGenerateRaysCS(
 					uint2 OriginalRayTexelCoord;
 					uint OriginalRayLevel;
 					float OriginalPDF;
-					UnpackRaySortInfo(RaysToRefineSorted[RayIndexToRefine], OriginalRayTexelCoord, OriginalRayLevel, OriginalPDF);
-
-					// Write INVALID_TRACING_COORD for this ray into RWStructuredImportanceSampledRayCoordForComposite so the composite knows not to lookup its trace lighting
-					{
-						uint2 RayTexelCoord;
-						uint RayLevel;
-						float PDF;
-						UnpackRaySortInfo(RaysToRefineSorted[ThreadIndex], RayTexelCoord, RayLevel, PDF);
-
-						WriteRay(ScreenProbeAtlasCoord, uint2(INVALID_TRACING_COORD, INVALID_TRACING_COORD), RayTexelCoord, RayLevel);
-					}
+					UnpackRaySortInfo(RaysToRefine[SortedOffset + RayIndexToRefine], OriginalRayTexelCoord, OriginalRayLevel, OriginalPDF);
 
 					// Reassign this ray to the new subdivided texel
-					RaysToRefineSorted[ThreadIndex] = PackRaySortInfo(OriginalRayTexelCoord * 2 + uint2((MergeThreadIndex + 1) % 2, (MergeThreadIndex + 1) / 2), OriginalRayLevel - 1, 0.0f);
+					RaysToRefine[SortedOffset + ThreadIndex] = PackRaySortInfo(OriginalRayTexelCoord * 2 + uint2((MergeThreadIndex + 1) % 2, (MergeThreadIndex + 1) / 2), OriginalRayLevel - 1, 0.0f);
 
 					if (MergeThreadIndex == 0)
 					{
@@ -668,57 +729,13 @@ void ScreenProbeGenerateRaysCS(
 				uint2 OriginalRayTexelCoord;
 				uint OriginalRayLevel;
 				float OriginalPDF;
-				UnpackRaySortInfo(RaysToRefineSorted[RayIndexToSubdivide], OriginalRayTexelCoord, OriginalRayLevel, OriginalPDF);
+				UnpackRaySortInfo(RaysToRefine[SortedOffset + RayIndexToSubdivide], OriginalRayTexelCoord, OriginalRayLevel, OriginalPDF);
 
-				RaysToRefineSorted[RayIndexToSubdivide] = PackRaySortInfo(OriginalRayTexelCoord * 2, OriginalRayLevel - 1, 0.0f);
+				RaysToRefine[SortedOffset + RayIndexToSubdivide] = PackRaySortInfo(OriginalRayTexelCoord * 2, OriginalRayLevel - 1, 0.0f);
 			}
-
-#else
-			// Subdivide with one thread 
-			uint RayIndexToRefine = max((int)NumRaysToTrace - (int)ThreadIndex - 1, 0);
-			uint RayIndexToMerge2 = ThreadIndex * 3 + 2;
-
-			if (RayIndexToMerge2 < RayIndexToRefine)
-			{
-				uint2 RayTexelCoord2;
-				uint RayLevel2;
-				float PDF2;
-				UnpackRaySortInfo(RaysToRefineSorted[RayIndexToMerge2], RayTexelCoord2, RayLevel2, PDF2);
-
-				if (PDF2 < MinPDFToTrace)
-				{
-					uint RayIndexToMerge0 = ThreadIndex * 3 + 0;
-					uint RayIndexToMerge1 = ThreadIndex * 3 + 1;
-
-					uint2 RayTexelCoord0;
-					uint RayLevel0;
-					float PDF0;
-					UnpackRaySortInfo(RaysToRefineSorted[RayIndexToMerge0], RayTexelCoord0, RayLevel0, PDF0);
-
-					uint2 RayTexelCoord1;
-					uint RayLevel1;
-					float PDF1;
-					UnpackRaySortInfo(RaysToRefineSorted[RayIndexToMerge1], RayTexelCoord1, RayLevel1, PDF1);
-
-
-					WriteRay(ScreenProbeAtlasCoord, uint2(INVALID_TRACING_COORD, INVALID_TRACING_COORD), RayTexelCoord0, RayLevel0);
-					WriteRay(ScreenProbeAtlasCoord, uint2(INVALID_TRACING_COORD, INVALID_TRACING_COORD), RayTexelCoord1, RayLevel1);
-					WriteRay(ScreenProbeAtlasCoord, uint2(INVALID_TRACING_COORD, INVALID_TRACING_COORD), RayTexelCoord2, RayLevel2);
-
-					uint2 OriginalRayTexelCoord;
-					uint OriginalRayLevel;
-					float OriginalPDF;
-					UnpackRaySortInfo(RaysToRefineSorted[RayIndexToRefine], OriginalRayTexelCoord, OriginalRayLevel, OriginalPDF);
-					RaysToRefineSorted[RayIndexToRefine] = PackRaySortInfo(OriginalRayTexelCoord * 2, OriginalRayLevel - 1, 0.0f);
-
-					RaysToRefineSorted[RayIndexToMerge0] = PackRaySortInfo(OriginalRayTexelCoord * 2 + uint2(1, 0), OriginalRayLevel - 1, 0.0f);
-					RaysToRefineSorted[RayIndexToMerge1] = PackRaySortInfo(OriginalRayTexelCoord * 2 + uint2(0, 1), OriginalRayLevel - 1, 0.0f);
-					RaysToRefineSorted[RayIndexToMerge2] = PackRaySortInfo(OriginalRayTexelCoord * 2 + uint2(1, 1), OriginalRayLevel - 1, 0.0f);
-				}
-			}
-#endif
 		}
 
+#endif
 		GroupMemoryBarrierWithGroupSync();
 
 		if (ThreadIndex < NumRaysToTrace)
@@ -726,7 +743,7 @@ void ScreenProbeGenerateRaysCS(
 			uint2 RayTexelCoord;
 			uint RayLevel;
 			float RayPDF;
-			UnpackRaySortInfo(RaysToRefineSorted[ThreadIndex], RayTexelCoord, RayLevel, RayPDF);
+			UnpackRaySortInfo(RaysToRefine[SortedOffset + ThreadIndex], RayTexelCoord, RayLevel, RayPDF);
 
 			uint2 RayCoord = uint2(ThreadIndex % ScreenProbeTracingOctahedronResolution, ThreadIndex / ScreenProbeTracingOctahedronResolution);
 			WriteRay(ScreenProbeAtlasCoord, RayCoord, RayTexelCoord, RayLevel);

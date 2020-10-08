@@ -234,14 +234,14 @@ uint ScreenProbeBRDFOctahedronResolution;
 uint PackRayInfo(uint2 TexelCoord, uint Level)
 {
 	// Pack in 16 bits
-	return (TexelCoord.x & 0x7F) | ((TexelCoord.y & 0x7F) << 7) | ((Level & 0x3) << 14);
+	return (TexelCoord.x & 0x3F) | ((TexelCoord.y & 0x3F) << 6) | ((Level & 0xF) << 12);
 }
 
 void UnpackRayInfo(uint RayInfo, out uint2 TexelCoord, out uint Level)
 {
-	TexelCoord.x = RayInfo & 0x7F;
-	TexelCoord.y = (RayInfo >> 7) & 0x7F;
-	Level = (RayInfo >> 14) & 0x3;
+	TexelCoord.x = RayInfo & 0x3F;
+	TexelCoord.y = (RayInfo >> 6) & 0x3F;
+	Level = (RayInfo >> 12) & 0xF;
 }
 
 void GetProbeTracingUV(
@@ -272,9 +272,9 @@ void GetProbeTracingUV(
 }
 
 Texture2D OctahedralSolidAngleTexture;
-float InvOctahedralSolidAngleTextureResolutionSq;
+float OctahedralSolidAngleTextureResolutionSq;
 
 float OctahedralSolidAngleLUT(float2 UV, float Resolution)
 {
-	return OctahedralSolidAngleTexture.SampleLevel(GlobalBilinearClampedSampler, UV, 0).x * Resolution * Resolution * InvOctahedralSolidAngleTextureResolutionSq;
+	return OctahedralSolidAngleTexture.SampleLevel(GlobalBilinearClampedSampler, UV, 0).x * OctahedralSolidAngleTextureResolutionSq / (Resolution * Resolution);
 }

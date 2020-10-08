@@ -22,6 +22,14 @@ FAutoConsoleVariableRef GVarLumenScreenProbeGatherImportanceSampling(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+int32 GLumenScreenProbeImportanceSamplingNumLevels = 1;
+FAutoConsoleVariableRef GVarLumenScreenProbeImportanceSamplingNumLevels(
+	TEXT("r.Lumen.ScreenProbeGather.ImportanceSample.NumLevels"),
+	GLumenScreenProbeImportanceSamplingNumLevels,
+	TEXT("Number of refinement levels to use for screen probe importance sampling.  Currently only supported by the serial reference path in ScreenProbeGenerateRaysCS."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 int32 GLumenScreenProbeImportanceSampleIncomingLighting = 1;
 FAutoConsoleVariableRef GVarLumenScreenProbeImportanceSampleIncomingLighting(
 	TEXT("r.Lumen.ScreenProbeGather.ImportanceSample.IncomingLighting"),
@@ -63,21 +71,6 @@ FAutoConsoleVariableRef CVarLumenScreenProbeImportanceSamplingHistoryDistanceThr
 	);
 
 extern int32 GLumenScreenProbeGatherReferenceMode;
-
-namespace LumenScreenProbeGather
-{
-	bool UseImportanceSampling()
-	{
-		if (GLumenScreenProbeGatherReferenceMode)
-		{
-			return false;
-		}
-
-		// Shader permutations only created for these resolutions
-		const int32 TracingResolution = GetTracingOctahedronResolution();
-		return GLumenScreenProbeImportanceSampling != 0 && (TracingResolution == 4 || TracingResolution == 8 || TracingResolution == 16);
-	}
-}
 
 class FScreenProbeComputeBRDFProbabilityDensityFunctionCS : public FGlobalShader
 {
@@ -126,6 +119,26 @@ class FScreenProbeComputeLightingProbabilityDensityFunctionCS : public FGlobalSh
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VelocityTexture)
 	END_SHADER_PARAMETER_STRUCT()
 
+	static uint32 GetThreadGroupSize(uint32 TracingResolution)
+	{
+		if (TracingResolution <= 4)
+		{
+			return 4;
+		}
+		else if (TracingResolution <= 8)
+		{
+			return 8;
+		}
+		else if (TracingResolution <= 16)
+		{
+			return 16;
+		}
+		else
+		{
+			return MAX_uint32;
+		}
+	}
+
 	class FThreadGroupSize : SHADER_PERMUTATION_SPARSE_INT("LIGHTING_PDF_THREADGROUP_SIZE", 4, 8, 16);
 	class FProbeRadianceHistory : SHADER_PERMUTATION_BOOL("PROBE_RADIANCE_HISTORY");
 	class FRadianceCache : SHADER_PERMUTATION_BOOL("RADIANCE_CACHE");
@@ -155,6 +168,7 @@ class FScreenProbeGenerateRaysCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, RWStructuredImportanceSampledRayInfosForTracing)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint2>, RWStructuredImportanceSampledRayCoordForComposite)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, BRDFProbabilityDensityFunction)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>, BRDFProbabilityDensityFunctionSH)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, LightingProbabilityDensityFunction)
@@ -165,6 +179,26 @@ class FScreenProbeGenerateRaysCS : public FGlobalShader
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+
+	static uint32 GetThreadGroupSize(uint32 TracingResolution)
+	{
+		if (TracingResolution <= 4)
+		{
+			return 4;
+		}
+		else if (TracingResolution <= 8)
+		{
+			return 8;
+		}
+		else if (TracingResolution <= 16)
+		{
+			return 16;
+		}
+		else
+		{
+			return MAX_uint32;
+		}
 	}
 
 	class FThreadGroupSize : SHADER_PERMUTATION_SPARSE_INT("GENERATE_RAYS_THREADGROUP_SIZE", 4, 8, 16);
@@ -180,13 +214,28 @@ class FScreenProbeGenerateRaysCS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FScreenProbeGenerateRaysCS, "/Engine/Private/Lumen/LumenScreenProbeImportanceSampling.usf", "ScreenProbeGenerateRaysCS", SF_Compute);
 
+namespace LumenScreenProbeGather
+{
+	bool UseImportanceSampling()
+	{
+		if (GLumenScreenProbeGatherReferenceMode)
+		{
+			return false;
+		}
+
+		// Shader permutations only created for these resolutions
+		const int32 TracingResolution = GetTracingOctahedronResolution();
+		return GLumenScreenProbeImportanceSampling != 0 && FScreenProbeGenerateRaysCS::GetThreadGroupSize(TracingResolution) != MAX_uint32;
+	}
+}
+
 void GenerateImportanceSamplingRays(
 	FRDGBuilder& GraphBuilder, 
 	const FViewInfo& View, 
 	const LumenRadianceCache::FRadianceCacheParameters& RadianceCacheParameters,
 	FScreenProbeParameters& ScreenProbeParameters)
 {
-	const uint32 MaxImportanceSamplingOctahedronResolution = ScreenProbeParameters.ScreenProbeTracingOctahedronResolution * 2;
+	const uint32 MaxImportanceSamplingOctahedronResolution = ScreenProbeParameters.ScreenProbeTracingOctahedronResolution * (1 << GLumenScreenProbeImportanceSamplingNumLevels);
 	ScreenProbeParameters.ImportanceSampling.MaxImportanceSamplingOctahedronResolution = MaxImportanceSamplingOctahedronResolution;
 
 	const uint32 BRDFOctahedronResolution = GLumenScreenProbeBRDFOctahedronResolution;
@@ -275,8 +324,11 @@ void GenerateImportanceSamplingRays(
 				PassParameters->HistoryDownsampledDepth = GraphBuilder.RegisterExternalTexture(ScreenProbeGatherState.ImportanceSamplingHistoryDownsampledDepth);
 			}
 
+			const uint32 ComputeLightingPDFGroupSize = FScreenProbeComputeLightingProbabilityDensityFunctionCS::GetThreadGroupSize(ScreenProbeParameters.ScreenProbeTracingOctahedronResolution);
+			check(ComputeLightingPDFGroupSize != MAX_uint32);
+
 			FScreenProbeComputeLightingProbabilityDensityFunctionCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FScreenProbeComputeLightingProbabilityDensityFunctionCS::FThreadGroupSize>(ScreenProbeParameters.ScreenProbeTracingOctahedronResolution);
+			PermutationVector.Set<FScreenProbeComputeLightingProbabilityDensityFunctionCS::FThreadGroupSize>(ComputeLightingPDFGroupSize);
 			PermutationVector.Set<FScreenProbeComputeLightingProbabilityDensityFunctionCS::FProbeRadianceHistory>(bUseProbeRadianceHistory);
 			PermutationVector.Set<FScreenProbeComputeLightingProbabilityDensityFunctionCS::FRadianceCache>(LumenScreenProbeGather::UseRadianceCache(View));
 			auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeComputeLightingProbabilityDensityFunctionCS>(PermutationVector);
@@ -299,22 +351,21 @@ void GenerateImportanceSamplingRays(
 	FRDGTextureDesc StructuredImportanceSampledRayInfosForTracingDesc(FRDGTextureDesc::Create2D(RayInfosForTracingBufferSize, PF_R16_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
 	ScreenProbeParameters.ImportanceSampling.StructuredImportanceSampledRayInfosForTracing = GraphBuilder.CreateTexture(StructuredImportanceSampledRayInfosForTracingDesc, TEXT("RayInfosForTracing"));
 
-	FIntPoint RayCoordForCompositeBufferSize = ScreenProbeParameters.ScreenProbeAtlasBufferSize * MaxImportanceSamplingOctahedronResolution;
-	FRDGTextureDesc StructuredImportanceSampledRayCoordForCompositeDesc(FRDGTextureDesc::Create2D(RayCoordForCompositeBufferSize, PF_R8G8, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
-	ScreenProbeParameters.ImportanceSampling.StructuredImportanceSampledRayCoordForComposite = GraphBuilder.CreateTexture(StructuredImportanceSampledRayCoordForCompositeDesc, TEXT("RayCoordForComposite"));
-
 	{
 		FScreenProbeGenerateRaysCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeGenerateRaysCS::FParameters>();
 		PassParameters->RWStructuredImportanceSampledRayInfosForTracing = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeParameters.ImportanceSampling.StructuredImportanceSampledRayInfosForTracing));
-		PassParameters->RWStructuredImportanceSampledRayCoordForComposite = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeParameters.ImportanceSampling.StructuredImportanceSampledRayCoordForComposite));
+		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->BRDFProbabilityDensityFunction = BRDFProbabilityDensityFunction;
 		PassParameters->LightingProbabilityDensityFunction = LightingProbabilityDensityFunction;
 		PassParameters->BRDFProbabilityDensityFunctionSH = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(BRDFProbabilityDensityFunctionSH, PF_R16F));
 		PassParameters->MinPDFToTrace = GLumenScreenProbeImportanceSamplingMinPDFToTrace;
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 
+		const uint32 GenerateRaysGroupSize = FScreenProbeGenerateRaysCS::GetThreadGroupSize(ScreenProbeParameters.ScreenProbeTracingOctahedronResolution);
+		check(GenerateRaysGroupSize != MAX_uint32);
+
 		FScreenProbeGenerateRaysCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set< FScreenProbeGenerateRaysCS::FThreadGroupSize >(ScreenProbeParameters.ScreenProbeTracingOctahedronResolution);
+		PermutationVector.Set< FScreenProbeGenerateRaysCS::FThreadGroupSize >(GenerateRaysGroupSize);
 		PermutationVector.Set< FScreenProbeGenerateRaysCS::FImportanceSampleLighting >(bImportanceSampleLighting);
 		auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeGenerateRaysCS>(PermutationVector);
 

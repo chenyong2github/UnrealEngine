@@ -16,149 +16,62 @@ RWTexture2D<float> RWScreenProbeHitDistance;
 RWTexture2D<UNORM float> RWScreenProbeTraceMoving;
 
 Texture2D TraceRadiance;
-// Stores the index into TraceRadiance and TraceHit for each direction at MaxImportanceSamplingOctahedronResolution resolution
-Texture2D<float2> StructuredImportanceSampledRayCoordForComposite;
-
-float SpatialFilterMaxRadianceHitAngle;
-float SpatialFilterPositionWeightScale;
-int SpatialFilterHalfKernelSize;
 float MaxRayIntensity;
 
-[numthreads(PROBE_THREADGROUP_SIZE_2D, PROBE_THREADGROUP_SIZE_2D, 1)]
-void ScreenProbeCompositeTracesCS(
+groupshared uint SharedAccumulators[THREADGROUP_SIZE * THREADGROUP_SIZE][6];
+
+[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
+void ScreenProbeCompositeTracesWithScatterCS(
 	uint3 GroupId : SV_GroupID,
-	uint3 DispatchThreadId : SV_DispatchThreadID,
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
-	uint2 ScreenProbeAtlasCoord = DispatchThreadId.xy / ScreenProbeGatherOctahedronResolution;
-	uint2 ProbeTexelCoord = DispatchThreadId.xy - ScreenProbeAtlasCoord * ScreenProbeGatherOctahedronResolution;
+	uint2 ScreenProbeAtlasCoord = GroupId.xy;
 	uint ScreenProbeIndex = ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x;
-
-	uint2 ScreenProbeScreenCoord;
-	uint ScreenProbeSubsampleIndex;
-	GetScreenProbeScreenCoord(ScreenProbeIndex, ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
 
 	if (ScreenProbeIndex < GetNumScreenProbes())
 	{
 		float SceneDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
 
-		if (SceneDepth > 0.0f)
+		if (SceneDepth > 0 && SceneDepth < 1000000.0f)
 		{
-			float3 TexelLighting = 0.0f;
-			float TexelMoving = 0.0f;
-			float MinHitDistance = GetProbeMaxHitDistance();
+			uint2 ProbeTexelCoord = GroupThreadId.xy;
 
-#if STRUCTURED_IMPORTANCE_SAMPLING
-
-			uint DownsampleKernelSize = MaxImportanceSamplingOctahedronResolution / ScreenProbeGatherOctahedronResolution;
-
-			if (MaxImportanceSamplingOctahedronResolution == ScreenProbeGatherOctahedronResolution * DownsampleKernelSize)
+			if (all(ProbeTexelCoord < ScreenProbeGatherOctahedronResolution))
 			{
-				float TotalWeight = 0.0f;
-
-				for (uint Y = 0; Y < DownsampleKernelSize; Y++)
-				{
-					for (uint X = 0; X < DownsampleKernelSize; X++)
-					{
-						uint2 SourceProbeTexelCoord = ProbeTexelCoord * DownsampleKernelSize + uint2(X, Y);
-						const float InvProbeTracingResolution = 1.0f / MaxImportanceSamplingOctahedronResolution;
-
-						float2 ProbeTexelCenter = float2(0.5, 0.5);
-						float2 ProbeUV = (SourceProbeTexelCoord + ProbeTexelCenter) * InvProbeTracingResolution;
-						float SolidAngle = OctahedralSolidAngleLUT(ProbeUV, MaxImportanceSamplingOctahedronResolution);
-						float Weight = SolidAngle;
-
-						uint2 SourceCoord = ScreenProbeAtlasCoord * MaxImportanceSamplingOctahedronResolution + SourceProbeTexelCoord;
-						uint2 RayCoord = StructuredImportanceSampledRayCoordForComposite[SourceCoord] * 255.0f + .5f;
-
-						if (RayCoord.x == INVALID_TRACING_COORD)
-						{
-							MinHitDistance = -1;
-						}
-						else
-						{
-							uint2 TraceCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, RayCoord);
-							float3 Lighting = TraceRadiance.Load(int3(TraceCoord, 0)).xyz;
-							float MaxLighting = max3(Lighting.x, Lighting.y, Lighting.z);
-
-							if (MaxLighting > MaxRayIntensity)
-							{
-								Lighting *= MaxRayIntensity / MaxLighting;
-							}
-
-							TexelLighting += Lighting * Weight;
-							TotalWeight += Weight;
-
-							bool bHit;
-							bool bMoving;
-							float HitDistance = DecodeProbeRayDistance(TraceHit.Load(int3(TraceCoord, 0)).x, bHit, bMoving);
-
-							TexelMoving += (bMoving ? 1 : 0) * Weight;
-							MinHitDistance = min(MinHitDistance, HitDistance);
-						}
-					}
-				}
-
-				if (TotalWeight > 0.0f)
-				{
-					TexelLighting /= TotalWeight;
-					TexelMoving /= TotalWeight;
-				}
-			}
-			else
-			{
-				TexelLighting = float3(0.0f, 0.0f, 10.0f);
+				uint ThreadIndex = ProbeTexelCoord.y * ScreenProbeGatherOctahedronResolution + ProbeTexelCoord.x;
+				SharedAccumulators[ThreadIndex][0] = 0;
+				SharedAccumulators[ThreadIndex][1] = 0;
+				SharedAccumulators[ThreadIndex][2] = 0;
+				SharedAccumulators[ThreadIndex][3] = 0;
+				SharedAccumulators[ThreadIndex][4] = 0;
+				SharedAccumulators[ThreadIndex][5] = asuint(GetProbeMaxHitDistance());
 			}
 
-#else
-			uint DownsampleKernelSize = ScreenProbeTracingOctahedronResolution / ScreenProbeGatherOctahedronResolution;
-			uint UpsampleFactor = ScreenProbeGatherOctahedronResolution / ScreenProbeTracingOctahedronResolution;
+			GroupMemoryBarrierWithGroupSync();
 
-			if (ScreenProbeTracingOctahedronResolution == ScreenProbeGatherOctahedronResolution * DownsampleKernelSize)
+			uint2 TracingTexelCoord = GroupThreadId.xy;
+
+			if (all(TracingTexelCoord < ScreenProbeTracingOctahedronResolution))
 			{
-				float TotalWeight = 0.0f;
+				uint2 TraceCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, TracingTexelCoord);
 
-				for (uint Y = 0; Y < DownsampleKernelSize; Y++)
-				{
-					for (uint X = 0; X < DownsampleKernelSize; X++)
-					{
-						uint2 SourceProbeTexelCoord = ProbeTexelCoord * DownsampleKernelSize + uint2(X, Y);
-						const float InvProbeTracingResolution = 1.0f / ScreenProbeTracingOctahedronResolution;
+				#if STRUCTURED_IMPORTANCE_SAMPLING
+					uint RayInfo = StructuredImportanceSampledRayInfosForTracing[TraceCoord];
+					uint2 RayTexelCoord;
+					uint RayLevel;
+					UnpackRayInfo(RayInfo, RayTexelCoord, RayLevel);
 
-						float2 ProbeTexelCenter = float2(0.5, 0.5);
-						float2 ProbeUV = (SourceProbeTexelCoord + ProbeTexelCenter) * InvProbeTracingResolution;
-						float3 WorldConeDirection = OctahedralMapToDirection(ProbeUV);
+					uint MipSize = MaxImportanceSamplingOctahedronResolution >> RayLevel;
+				#else
+					uint2 RayTexelCoord = TracingTexelCoord;
+					uint MipSize = ScreenProbeTracingOctahedronResolution;
+				#endif
 
-						float SolidAngle = OctahedralSolidAngleLUT(ProbeUV, ScreenProbeTracingOctahedronResolution);
-						float Weight = SolidAngle;
+				float2 ProbeUV = (RayTexelCoord + float2(.5f, .5f)) / (float)MipSize;
 
-						uint2 TraceCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, SourceProbeTexelCoord);
-						float3 Lighting = TraceRadiance.Load(int3(TraceCoord, 0)).xyz;
-						float MaxLighting = max3(Lighting.x, Lighting.y, Lighting.z);
+				float SolidAngle = OctahedralSolidAngleLUT(ProbeUV, MipSize);
+				float Weight = SolidAngle;
 
-						if (MaxLighting > MaxRayIntensity)
-						{
-							Lighting *= MaxRayIntensity / MaxLighting;
-						}
-
-						TexelLighting += Lighting * Weight;
-						TotalWeight += Weight;
-						
-						bool bHit;
-						bool bMoving;
-						float HitDistance = DecodeProbeRayDistance(TraceHit.Load(int3(TraceCoord, 0)).x, bHit, bMoving);
-
-						TexelMoving += (bMoving ? 1 : 0) * Weight;
-						MinHitDistance = min(MinHitDistance, HitDistance);
-					}
-				}
-
-				TexelLighting /= TotalWeight;
-				TexelMoving /= TotalWeight;
-			}
-			else if (UpsampleFactor * ScreenProbeTracingOctahedronResolution == ScreenProbeGatherOctahedronResolution)
-			{
-				uint2 TraceCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, ProbeTexelCoord / UpsampleFactor);
 				float3 Lighting = TraceRadiance.Load(int3(TraceCoord, 0)).xyz;
 				float MaxLighting = max3(Lighting.x, Lighting.y, Lighting.z);
 
@@ -167,28 +80,71 @@ void ScreenProbeCompositeTracesCS(
 					Lighting *= MaxRayIntensity / MaxLighting;
 				}
 
-				TexelLighting = Lighting;
+				uint2 GatherTexelCoord = RayTexelCoord * ScreenProbeGatherOctahedronResolution / MipSize;
+				uint ThreadIndex = GatherTexelCoord.y * ScreenProbeGatherOctahedronResolution + GatherTexelCoord.x;
+
+				if (ScreenProbeGatherOctahedronResolution > ScreenProbeTracingOctahedronResolution)
+				{
+					// Visual Assert - upsampling not currently supported
+					Lighting = float3(0.0f, 0.0f, 10.0f);
+				}
+
+				float MaxValuePerThread = (float)0xFFFFFFFF / ((float)ScreenProbeTracingOctahedronResolution * ScreenProbeTracingOctahedronResolution);
+				float LightingQuantizeScale = MaxValuePerThread / MaxRayIntensity;
+				uint3 QuantizedLighting = Lighting * Weight * LightingQuantizeScale;
+
+				InterlockedAdd(SharedAccumulators[ThreadIndex][0], QuantizedLighting.x);
+				InterlockedAdd(SharedAccumulators[ThreadIndex][1], QuantizedLighting.y);
+				InterlockedAdd(SharedAccumulators[ThreadIndex][2], QuantizedLighting.z);
+				float WeightQuantizeScale = MaxValuePerThread;
+				InterlockedAdd(SharedAccumulators[ThreadIndex][3], (uint)(Weight * WeightQuantizeScale));
 
 				bool bHit;
 				bool bMoving;
 				float HitDistance = DecodeProbeRayDistance(TraceHit.Load(int3(TraceCoord, 0)).x, bHit, bMoving);
-				MinHitDistance = HitDistance;
-				TexelMoving = bMoving ? 1 : 0;
+
+				InterlockedAdd(SharedAccumulators[ThreadIndex][4], (uint)((bMoving ? 1 : 0) * Weight * WeightQuantizeScale));
+				InterlockedMin(SharedAccumulators[ThreadIndex][5], asuint(HitDistance));
 			}
-			else
+
+			GroupMemoryBarrierWithGroupSync();
+
+			if (all(ProbeTexelCoord < ScreenProbeGatherOctahedronResolution))
 			{
-				TexelLighting = float3(0.0f, 0.0f, 10.0f);
+				float InvMaxValuePerThread = ((float)ScreenProbeTracingOctahedronResolution * ScreenProbeTracingOctahedronResolution) / (float)0xFFFFFFFF;
+				float InvLightingQuantizeScale = MaxRayIntensity * InvMaxValuePerThread;
+				uint ThreadIndex = ProbeTexelCoord.y * ScreenProbeGatherOctahedronResolution + ProbeTexelCoord.x;
+				float3 Lighting = float3(SharedAccumulators[ThreadIndex][0], SharedAccumulators[ThreadIndex][1], SharedAccumulators[ThreadIndex][2]) * InvLightingQuantizeScale;
+				float InvWeightQuantizeScale = InvMaxValuePerThread;
+				float Weight = SharedAccumulators[ThreadIndex][3] * InvWeightQuantizeScale;
+				float TexelMoving = SharedAccumulators[ThreadIndex][4] * InvWeightQuantizeScale;
+				float MinHitDistance = asfloat(SharedAccumulators[ThreadIndex][5]);
+
+				if (Weight > 0.0f)
+				{
+					Lighting /= Weight;
+					TexelMoving /= Weight;
+				}
+				else
+				{
+					MinHitDistance = -1;
+				}
+
+				uint2 GatherTexelCoord = ScreenProbeAtlasCoord * ScreenProbeGatherOctahedronResolution + ProbeTexelCoord;
+				RWScreenProbeRadiance[GatherTexelCoord] = Lighting;
+				RWScreenProbeHitDistance[GatherTexelCoord] = EncodeProbeHitDistanceForFiltering(MinHitDistance);
+				RWScreenProbeTraceMoving[GatherTexelCoord] = TexelMoving;
 			}
-#endif
-			RWScreenProbeRadiance[DispatchThreadId.xy] = TexelLighting;
-			RWScreenProbeHitDistance[DispatchThreadId.xy] = EncodeProbeHitDistanceForFiltering(MinHitDistance);
-			RWScreenProbeTraceMoving[DispatchThreadId.xy] = TexelMoving;
 		}
 	}
 }
 
 Texture2D<float3> ScreenProbeRadiance;
 Texture2D<float> ScreenProbeHitDistance;
+
+float SpatialFilterMaxRadianceHitAngle;
+float SpatialFilterPositionWeightScale;
+int SpatialFilterHalfKernelSize;
 
 void GatherNeighborRadiance(
 	float2 ScreenUV,

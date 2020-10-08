@@ -595,7 +595,7 @@ void ScreenProbeSetupVisualizeTraces(
 			WorldConeDirection = OctahedralMapToDirection(ProbeUV);
 
 			float BaseAngle = acosFast(1.0f - 1.0f / (float)(ScreenProbeTracingOctahedronResolution * ScreenProbeTracingOctahedronResolution));
-			RefinementRay = ConeHalfAngle < BaseAngle ? 1 : 0;
+			RefinementRay = 1 - ConeHalfAngle / BaseAngle;
 
 		}
 
@@ -604,7 +604,7 @@ void ScreenProbeSetupVisualizeTraces(
 		RWVisualizeTracesData[TraceIndex * VISUALIZE_TRACE_DATA_STRIDE + 0] = float4(WorldPosition, 0);
 		RWVisualizeTracesData[TraceIndex * VISUALIZE_TRACE_DATA_STRIDE + 1] = float4(WorldConeDirection * TraceHitDistance, 0);
 
-		bool bVisualizeRefinementRays = false;
+		bool bVisualizeRefinementRays = true;
 		RWVisualizeTracesData[TraceIndex * VISUALIZE_TRACE_DATA_STRIDE + 2] = bVisualizeRefinementRays ? RefinementRay : TraceRadiance[TraceCoord];
 	}
 }

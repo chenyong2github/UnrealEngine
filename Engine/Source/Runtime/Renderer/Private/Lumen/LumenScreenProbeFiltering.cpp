@@ -62,10 +62,10 @@ FAutoConsoleVariableRef GVarLumenScreenProbeGatherMaxRayIntensity(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-class FScreenProbeCompositeTracesCS : public FGlobalShader
+class FScreenProbeCompositeTracesWithScatterCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FScreenProbeCompositeTracesCS)
-	SHADER_USE_PARAMETER_STRUCT(FScreenProbeCompositeTracesCS, FGlobalShader)
+	DECLARE_GLOBAL_SHADER(FScreenProbeCompositeTracesWithScatterCS)
+	SHADER_USE_PARAMETER_STRUCT(FScreenProbeCompositeTracesWithScatterCS, FGlobalShader)
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWScreenProbeRadiance)
@@ -76,8 +76,29 @@ class FScreenProbeCompositeTracesCS : public FGlobalShader
 		SHADER_PARAMETER(float, MaxRayIntensity)
 	END_SHADER_PARAMETER_STRUCT()
 
+	static uint32 GetThreadGroupSize(uint32 GatherResolution)
+	{
+		if (GatherResolution <= 8)
+		{
+			return 8;
+		}
+		else if (GatherResolution <= 16)
+		{
+			return 16;
+		}
+		else if (GatherResolution <= 32)
+		{
+			return 32;
+		}
+		else
+		{
+			return MAX_uint32;
+		}
+	}
+
+	class FThreadGroupSize : SHADER_PERMUTATION_SPARSE_INT("THREADGROUP_SIZE", 8, 16, 32);
 	class FStructuredImportanceSampling : SHADER_PERMUTATION_BOOL("STRUCTURED_IMPORTANCE_SAMPLING");
-	using FPermutationDomain = TShaderPermutationDomain<FStructuredImportanceSampling>;
+	using FPermutationDomain = TShaderPermutationDomain<FThreadGroupSize, FStructuredImportanceSampling>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -91,7 +112,7 @@ class FScreenProbeCompositeTracesCS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FScreenProbeCompositeTracesCS, "/Engine/Private/Lumen/LumenScreenProbeFiltering.usf", "ScreenProbeCompositeTracesCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FScreenProbeCompositeTracesWithScatterCS, "/Engine/Private/Lumen/LumenScreenProbeFiltering.usf", "ScreenProbeCompositeTracesWithScatterCS", SF_Compute);
 
 
 class FScreenProbeFilterGatherTracesCS : public FGlobalShader
@@ -313,7 +334,9 @@ void FilterScreenProbes(
 	FRDGTextureRef ScreenProbeTraceMoving = GraphBuilder.CreateTexture(ScreenProbeHitDistanceDesc, TEXT("ScreenProbeTraceMoving"));
 
 	{
-		FScreenProbeCompositeTracesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeCompositeTracesCS::FParameters>();
+		const uint32 CompositeScatterThreadGroupSize = FScreenProbeCompositeTracesWithScatterCS::GetThreadGroupSize(FMath::Max(ScreenProbeParameters.ScreenProbeGatherOctahedronResolution, ScreenProbeParameters.ScreenProbeTracingOctahedronResolution));
+		ensureMsgf(CompositeScatterThreadGroupSize != MAX_uint32, TEXT("Missing permutation for FScreenProbeCompositeTracesWithScatterCS"));
+		FScreenProbeCompositeTracesWithScatterCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeCompositeTracesWithScatterCS::FParameters>();
 		PassParameters->RWScreenProbeRadiance = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeRadiance));
 		PassParameters->RWScreenProbeHitDistance = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeHitDistance));
 		PassParameters->RWScreenProbeTraceMoving = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeTraceMoving));
@@ -321,9 +344,10 @@ void FilterScreenProbes(
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->MaxRayIntensity = GLumenScreenProbeGatherMaxRayIntensity;
 
-		FScreenProbeCompositeTracesCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set< FScreenProbeCompositeTracesCS::FStructuredImportanceSampling >(LumenScreenProbeGather::UseImportanceSampling());
-		auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeCompositeTracesCS>(PermutationVector);
+		FScreenProbeCompositeTracesWithScatterCS::FPermutationDomain PermutationVector;
+		PermutationVector.Set< FScreenProbeCompositeTracesWithScatterCS::FThreadGroupSize >(CompositeScatterThreadGroupSize);
+		PermutationVector.Set< FScreenProbeCompositeTracesWithScatterCS::FStructuredImportanceSampling >(LumenScreenProbeGather::UseImportanceSampling());
+		auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeCompositeTracesWithScatterCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
@@ -331,7 +355,7 @@ void FilterScreenProbes(
 			ComputeShader,
 			PassParameters,
 			ScreenProbeParameters.ProbeIndirectArgs,
-			(uint32)EScreenProbeIndirectArgs::ThreadPerGather * sizeof(FRHIDispatchIndirectParameters));
+			(uint32)EScreenProbeIndirectArgs::GroupPerProbe * sizeof(FRHIDispatchIndirectParameters));
 	}
 
 	if (LumenScreenProbeGather::UseProbeSpatialFilter() && GLumenScreenProbeSpatialFilterHalfKernelSize > 0)
