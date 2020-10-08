@@ -13,6 +13,8 @@ struct CORE_API FMediaFrameworkObjectVersion
 		BeforeCustomVersionWasAdded = 0,
 		// Serialize GUIDs instead of plain names for MediaSource platform/player map
 		SerializeGUIDsInMediaSourceInsteadOfPlainNames,
+		// Serialize GUIDs instead of plain names for PlatformMediaSource platform/mediasource map
+		SerializeGUIDsInPlatformMediaSourceInsteadOfPlainNames,
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
