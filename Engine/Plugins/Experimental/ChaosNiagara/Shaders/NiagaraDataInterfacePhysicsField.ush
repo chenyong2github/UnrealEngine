@@ -15,7 +15,7 @@ NiagaraDataInterfacePhysicsField.ush
 
 struct FDIPhysicsFieldContext
 {
-	Texture3D<float> ClipmapTexture;
+	Texture3D<float4> ClipmapTexture;
 	float3 ClipmapCenter;
 	float ClipmapDistance;
 	int ClipmapResolution;
@@ -28,7 +28,7 @@ struct FDIPhysicsFieldContext
 };
 
 #define DIPhysicsField_DECLARE_CONSTANTS(NAME)\
-Texture3D<float> ClipmapTexture_##NAME;\
+Texture3D<float4> ClipmapTexture_##NAME;\
 float3 ClipmapCenter_##NAME;\
 float ClipmapDistance_##NAME;\
 int ClipmapResolution_##NAME;\
