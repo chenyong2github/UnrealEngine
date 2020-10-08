@@ -832,10 +832,10 @@ void BuildMetalShaderOutput(
 	else
 	{
 		// TODO technically should probably check the version of the metal compiler to make sure it's recent enough to support -MO.
-        FString DebugInfo = ShaderInput.Environment.CompilerFlags.Contains(CFLAG_KeepDebugInfo) ? TEXT("-gline-tables-only") : TEXT("");
+        FString DebugInfo = TEXT("");
 		if (ShaderInput.Environment.CompilerFlags.Contains(CFLAG_KeepDebugInfo))
 		{
-			DebugInfo += TEXT(" -MO");
+			DebugInfo = TEXT("-gline-tables-only -MO");
 		}
 		
         FString MathMode = bNoFastMath ? TEXT("-fno-fast-math") : TEXT("-ffast-math");
