@@ -1112,7 +1112,7 @@ TSharedPtr<SWidget> SGraphPanel::SummonContextMenu(const FVector2D& WhereToSummo
 			FPopupTransitionEffect( FPopupTransitionEffect::ContextMenu )
 			);
 
-		if (Menu.IsValid() && Menu->GetOwnedWindow().IsValid())
+		if (Menu.IsValid() && Menu->GetOwnedWindow().IsValid() && FocusedContent.WidgetToFocus.IsValid())
 		{
 			Menu->GetOwnedWindow()->SetWidgetToFocusOnActivate(FocusedContent.WidgetToFocus);
 		}
