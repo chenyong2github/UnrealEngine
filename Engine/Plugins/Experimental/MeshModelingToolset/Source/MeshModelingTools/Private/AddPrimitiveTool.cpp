@@ -6,6 +6,7 @@
 #include "BaseBehaviors/MouseHoverBehavior.h"
 #include "Selection/ToolSelectionUtil.h"
 #include "AssetGenerationUtil.h"
+#include "ToolSceneQueriesUtil.h"
 
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -218,11 +219,8 @@ void UAddPrimitiveTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClick
 	else
 	{
 		// cast ray into scene
-		FVector RayStart = ClickPosWorldRay.Origin;
-		FVector RayEnd = ClickPosWorldRay.PointAt(999999);
-		FCollisionObjectQueryParams QueryParams(FCollisionObjectQueryParams::AllObjects);
 		FHitResult Result;
-		bHit = TargetWorld->LineTraceSingleByObjectType(Result, RayStart, RayEnd, QueryParams);
+		bHit = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(TargetWorld, Result, ClickPosWorldRay);
 		if (bHit)
 		{
 			FVector3f Normal = Result.ImpactNormal;

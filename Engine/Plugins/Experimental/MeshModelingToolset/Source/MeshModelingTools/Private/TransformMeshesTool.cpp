@@ -7,12 +7,12 @@
 #include "ToolSetupUtil.h"
 #include "DynamicMesh3.h"
 #include "BaseBehaviors/ClickDragBehavior.h"
+#include "ToolSceneQueriesUtil.h"
 
 #include "BaseGizmos/GizmoComponents.h"
 #include "BaseGizmos/TransformGizmo.h"
 
 #include "Components/PrimitiveComponent.h"
-#include "CollisionQueryParams.h"
 #include "Engine/World.h"
 
 #define LOCTEXT_NAMESPACE "UTransformMeshesTool"
@@ -312,11 +312,9 @@ void UTransformMeshesTool::OnClickPress(const FInputDeviceRay& PressPos)
 
 void UTransformMeshesTool::OnClickDrag(const FInputDeviceRay& DragPos)
 {
-	FCollisionObjectQueryParams ObjectQueryParams(FCollisionObjectQueryParams::AllObjects);
-	FCollisionQueryParams CollisionParams = FCollisionQueryParams::DefaultQueryParam;
-
 	bool bApplyToPivot = TransformProps->bSetPivot;
 
+	TArray<UPrimitiveComponent*> IgnoreComponents;
 	if (bApplyToPivot == false)
 	{
 		int IgnoreIndex = (TransformProps->TransformMode == ETransformMeshesTransformMode::PerObjectGizmo) ?
@@ -325,7 +323,7 @@ void UTransformMeshesTool::OnClickDrag(const FInputDeviceRay& DragPos)
 		{
 			if (IgnoreIndex == -1 || k == IgnoreIndex)
 			{
-				CollisionParams.AddIgnoredComponent(ComponentTargets[k]->GetOwnerComponent());
+				IgnoreComponents.Add(ComponentTargets[k]->GetOwnerComponent());
 			}
 		}
 	}
@@ -335,7 +333,7 @@ void UTransformMeshesTool::OnClickDrag(const FInputDeviceRay& DragPos)
 	float NormalSign = (TransformProps->RotationMode == ETransformMeshesSnapDragRotationMode::AlignFlipped) ? -1.0f : 1.0f;
 
 	FHitResult Result;
-	bool bWorldHit = TargetWorld->LineTraceSingleByObjectType(Result, DragPos.WorldRay.Origin, DragPos.WorldRay.PointAt(999999), ObjectQueryParams, CollisionParams);
+	bool bWorldHit = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(TargetWorld, Result, DragPos.WorldRay, &IgnoreComponents);
 	if (bWorldHit == false)
 	{
 		return;
