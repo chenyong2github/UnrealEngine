@@ -3279,6 +3279,14 @@ void ALandscapeProxy::CreateSplineComponent(const FVector& Scale3D)
 
 void FindStartingControlPoints(ULandscapeSplineControlPoint* ControlPoint, TSet<ULandscapeSplineControlPoint*>& StartingControlPoints)
 {
+	// Ensure we aren't already processing this point
+	bool bAlreadyInSet;
+	StartingControlPoints.Add(ControlPoint, &bAlreadyInSet);
+	if (bAlreadyInSet)
+	{
+		return;
+	}
+
 	bool bIsStartingControlPoint = true;
 	for (const FLandscapeSplineConnection& Connection : ControlPoint->ConnectedSegments)
 	{
@@ -3291,9 +3299,9 @@ void FindStartingControlPoints(ULandscapeSplineControlPoint* ControlPoint, TSet<
 		}
 	}
 
-	if (bIsStartingControlPoint)
+	if (!bIsStartingControlPoint)
 	{
-		StartingControlPoints.Add(ControlPoint);
+		StartingControlPoints.Remove(ControlPoint);
 	}
 }
 
