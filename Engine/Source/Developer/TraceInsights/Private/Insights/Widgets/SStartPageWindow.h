@@ -102,6 +102,14 @@ public:
 	void OpenSettings();
 	void CloseSettings();
 
+	void GetExtraCommandLineParams(FString& OutParams) const;
+
+	void SetEnableAutomaticTesting(bool InValue) { bEnableAutomaticTesting = InValue; };
+	bool GetEnableAutomaticTesting() const { return bEnableAutomaticTesting; };
+
+	void SetEnableDebugTools(bool InValue) { bEnableDebugTools = InValue; };
+	bool GetEnableDebugTools() const { return bEnableDebugTools; };
+
 private:
 	TSharedRef<SWidget> ConstructSessionsPanel();
 	TSharedRef<SWidget> ConstructLoadPanel();
@@ -278,4 +286,7 @@ private:
 
 	FString SplashScreenOverlayTraceFile;
 	float SplashScreenOverlayFadeTime;
+
+	bool bEnableAutomaticTesting = false;
+	bool bEnableDebugTools = false;
 };

@@ -1612,6 +1612,10 @@ void SStartPageWindow::LoadTraceFile(const FString& InTraceFile)
 
 		FString CmdLine = TEXT("-OpenTraceFile=\"") + InTraceFile + TEXT("\"");
 
+		FString ExtraCmdParams;
+		GetExtraCommandLineParams(ExtraCmdParams);
+		CmdLine += ExtraCmdParams;
+
 		constexpr bool bLaunchDetached = true;
 		constexpr bool bLaunchHidden = false;
 		constexpr bool bLaunchReallyHidden = false;
@@ -1651,6 +1655,10 @@ void SStartPageWindow::LoadTrace(uint32 InTraceId)
 
 		const uint32 StorePort = FInsightsManager::Get()->GetStoreClient()->GetStorePort();
 		FString CmdLine = FString::Printf(TEXT("-OpenTraceId=%d -StorePort=%d"), InTraceId, StorePort);
+		
+		FString ExtraCmdParams;
+		GetExtraCommandLineParams(ExtraCmdParams);
+		CmdLine += ExtraCmdParams;
 
 		constexpr bool bLaunchDetached = true;
 		constexpr bool bLaunchHidden = false;
@@ -1738,6 +1746,58 @@ TSharedRef<SWidget> SStartPageWindow::MakeTraceListMenu()
 			}
 		}
 	}
+	MenuBuilder.EndSection();
+
+	MenuBuilder.BeginSection("DebugOptions", LOCTEXT("OptionsHeading", "Debug Options"));
+
+	auto CanExecute = []() {return true; };
+
+	// Enable Automation Tests Option.
+	{
+		FUIAction ToogleAutomationTestsAction;
+		ToogleAutomationTestsAction.CanExecuteAction = FCanExecuteAction::CreateLambda(CanExecute);
+		ToogleAutomationTestsAction.ExecuteAction = FExecuteAction::CreateLambda([this]()
+			{
+				this->SetEnableAutomaticTesting(!this->GetEnableAutomaticTesting());
+			});
+		ToogleAutomationTestsAction.GetActionCheckState = FGetActionCheckState::CreateLambda([this]()
+			{
+				return this->GetEnableAutomaticTesting() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+			});
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("EnableAutomatedTesting", "Enable Automation Testing"),
+			LOCTEXT("EnableAutomatedTestingDesc", "Activates the automatic test system for sessions opened from this window."),
+			FSlateIcon(),
+			ToogleAutomationTestsAction,
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+	}
+
+	// Enable Debug Tools Option.
+	{
+		FUIAction ToogleDebugToolsAction;
+		ToogleDebugToolsAction.CanExecuteAction = FCanExecuteAction::CreateLambda(CanExecute);
+		ToogleDebugToolsAction.ExecuteAction = FExecuteAction::CreateLambda([this]()
+			{
+				this->SetEnableDebugTools(!this->GetEnableDebugTools());
+			});
+		ToogleDebugToolsAction.GetActionCheckState = FGetActionCheckState::CreateLambda([this]()
+			{
+				return this->GetEnableDebugTools() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+			});
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("EnableDebugTools", "Enable Debug Tools"),
+			LOCTEXT("EnableDebugToolsDesc", "Enables debug tools for sessions opened from this window."),
+			FSlateIcon(),
+			ToogleDebugToolsAction,
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+	}
+
 	MenuBuilder.EndSection();
 
 	return MenuBuilder.MakeWidget();
@@ -1842,6 +1902,20 @@ void SStartPageWindow::CloseSettings()
 		SNullWidget::NullWidget
 	];
 	MainContentPanel->SetEnabled(true);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SStartPageWindow::GetExtraCommandLineParams(FString& OutParams) const
+{
+	if (bEnableAutomaticTesting)
+	{
+		OutParams.Append(TEXT(" -InsightsTest"));
+	}
+	if (bEnableDebugTools)
+	{
+		OutParams.Append(TEXT(" -DebugTools"));
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

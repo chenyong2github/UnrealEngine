@@ -247,12 +247,12 @@ public:
 	/**
 	 * Called when the application starts in "Browser" mode.
 	 */
-	virtual void CreateSessionBrowser(bool bAllowDebugTools, bool bSingleProcess) = 0;
+	virtual void CreateSessionBrowser(bool bAllowDebugTools = false, bool bSingleProcess = false, bool bInitializeTesting = false) = 0;
 
 	/**
 	 * Called when the application starts in "Viewer" mode.
 	 */
-	virtual void CreateSessionViewer(bool bAllowDebugTools) = 0;
+	virtual void CreateSessionViewer(bool bAllowDebugTools = false) = 0;
 
 	/**
 	 * Called when the application shutsdown.

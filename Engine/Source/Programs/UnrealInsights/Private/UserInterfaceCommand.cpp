@@ -322,7 +322,7 @@ void FUserInterfaceCommand::InitializeSlateApplication(bool bOpenTraceFile, cons
 				TraceInsightsModule.ConnectToStore(StoreHost, StorePort);
 			}
 			const bool bSingleProcess = FParse::Param(FCommandLine::Get(), TEXT("SingleProcess"));
-			TraceInsightsModule.CreateSessionBrowser(bAllowDebugTools, bSingleProcess);
+			TraceInsightsModule.CreateSessionBrowser(bAllowDebugTools, bSingleProcess, bInitializeTesting);
 		}
 	}
 
