@@ -158,7 +158,7 @@ class FTextureFormatETC2 : public ITextureFormat
 			return PF_ETC2_RGBA;
 		}
 
-		UE_LOG(LogTextureFormatAndroid, Fatal, TEXT("Unhandled texture format '%s' given to FTextureFormatAndroid::GetPixelFormatForImage()"), *BuildSettings.TextureFormatName.ToString());
+		UE_LOG(LogTextureFormatETC2, Fatal, TEXT("Unhandled texture format '%s' given to FTextureFormatAndroid::GetPixelFormatForImage()"), *BuildSettings.TextureFormatName.ToString());
 		return PF_Unknown;
 	}
 
