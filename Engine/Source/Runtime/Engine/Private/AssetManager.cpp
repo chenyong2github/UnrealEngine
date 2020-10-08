@@ -718,11 +718,12 @@ void UAssetManager::UpdateCachedAssetData(const FPrimaryAssetId& PrimaryAssetId,
 		NameData.AssetPtr = FSoftObjectPtr(NewAssetPath); // This will have _C
 
 		// If the types don't match, update the registry
+		IAssetRegistry& LocalAssetRegistry = GetAssetRegistry();
 		FPrimaryAssetId SavedId = NewAssetData.GetPrimaryAssetId();
-
-		if (SavedId != PrimaryAssetId)
+		FPrimaryAssetId ObjectPathId = LocalAssetRegistry.GetAssetByObjectPath(NameData.AssetDataPath, true).GetPrimaryAssetId();
+		if (SavedId != PrimaryAssetId || (ObjectPathId.IsValid() && SavedId != ObjectPathId))
 		{
-			GetAssetRegistry().SetPrimaryAssetIdForObjectPath(NameData.AssetDataPath, PrimaryAssetId);
+			LocalAssetRegistry.SetPrimaryAssetIdForObjectPath(NameData.AssetDataPath, PrimaryAssetId);
 		}
 
 		if (bIsBulkScanning)
