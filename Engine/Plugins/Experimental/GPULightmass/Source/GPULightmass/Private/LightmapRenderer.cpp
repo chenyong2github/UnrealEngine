@@ -369,7 +369,6 @@ FLightmapRenderer::FLightmapRenderer(FSceneRenderState* InScene)
 				{ PF_A32B32G32R32F, FIntPoint(GPreviewLightmapPhysicalTileSize) }, // ShadowMaskSampleCount
 				{ PF_A32B32G32R32F, FIntPoint(GPreviewLightmapPhysicalTileSize) }, // SHCorrectionAndStationarySkyLightBentNormal
 				{ PF_R32_UINT, FIntPoint(128) }, // RayGuidingLuminance
-				{ PF_R32_UINT, FIntPoint(128) }, // RayGuidingSampleCount
 				{ PF_R32_FLOAT, FIntPoint(128) }, // RayGuidingCDFX
 				{ PF_R32_FLOAT, FIntPoint(32) }, // RayGuidingCDFY
 			});
@@ -1621,16 +1620,14 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 								FRDGTextureRef SHCorrectionAndStationarySkyLightBentNormal = GraphBuilder.RegisterExternalTexture(LightmapTilePoolGPU.PooledRenderTargets[4], TEXT("SHCorrectionAndStationarySkyLightBentNormal"));
 
 								FRDGTextureRef RayGuidingLuminance = nullptr;
-								FRDGTextureRef RayGuidingSampleCount = nullptr;
 								FRDGTextureRef RayGuidingCDFX = nullptr;
 								FRDGTextureRef RayGuidingCDFY = nullptr;
 
 								if (bUseFirstBounceRayGuiding)
 								{
 									RayGuidingLuminance = GraphBuilder.RegisterExternalTexture(LightmapTilePoolGPU.PooledRenderTargets[5], TEXT("RayGuidingLuminance"));
-									RayGuidingSampleCount = GraphBuilder.RegisterExternalTexture(LightmapTilePoolGPU.PooledRenderTargets[6], TEXT("RayGuidingSampleCount"));
-									RayGuidingCDFX = GraphBuilder.RegisterExternalTexture(LightmapTilePoolGPU.PooledRenderTargets[7], TEXT("RayGuidingCDFX"));
-									RayGuidingCDFY = GraphBuilder.RegisterExternalTexture(LightmapTilePoolGPU.PooledRenderTargets[8], TEXT("RayGuidingCDFY"));
+									RayGuidingCDFX = GraphBuilder.RegisterExternalTexture(LightmapTilePoolGPU.PooledRenderTargets[6], TEXT("RayGuidingCDFX"));
+									RayGuidingCDFY = GraphBuilder.RegisterExternalTexture(LightmapTilePoolGPU.PooledRenderTargets[7], TEXT("RayGuidingCDFY"));
 								}
 
 								// These two buffers must have lifetime extended beyond GraphBuilder.Execute()
@@ -1658,7 +1655,6 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 										if (bUseFirstBounceRayGuiding)
 										{
 											PassParameters->RayGuidingLuminance = GraphBuilder.CreateUAV(RayGuidingLuminance);
-											PassParameters->RayGuidingSampleCount = GraphBuilder.CreateUAV(RayGuidingSampleCount);
 											PassParameters->RayGuidingCDFX = RayGuidingCDFX;
 											PassParameters->RayGuidingCDFY = RayGuidingCDFY;
 											PassParameters->NumRayGuidingTrialSamples = NumFirstBounceRayGuidingTrialSamples;
@@ -1706,7 +1702,6 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 
 										PassParameters->BatchedTiles = GPUBatchedTileRequests.BatchedTilesSRV;
 										PassParameters->RayGuidingLuminance = GraphBuilder.CreateUAV(RayGuidingLuminance);
-										PassParameters->RayGuidingSampleCount = GraphBuilder.CreateUAV(RayGuidingSampleCount);
 										PassParameters->RayGuidingCDFX = GraphBuilder.CreateUAV(RayGuidingCDFX);
 										PassParameters->RayGuidingCDFY = GraphBuilder.CreateUAV(RayGuidingCDFY);
 										PassParameters->NumRayGuidingTrialSamples = NumFirstBounceRayGuidingTrialSamples;
