@@ -176,6 +176,23 @@ void FPreviewSceneDescriptionCustomization::CustomizeDetails(IDetailLayoutBuilde
 		DetailBuilder.EditCategory("Mesh")
 		.AddProperty(SkeletalMeshProperty)
 		.CustomWidget()
+		.OverrideResetToDefault(FResetToDefaultOverride::Create(
+			FIsResetToDefaultVisible::CreateLambda([this](TSharedPtr<IPropertyHandle> PropertyHandle) -> bool 
+			{
+				if (PreviewScene.IsValid())
+				{
+					return PreviewScene.Pin()->GetPreviewMesh() != nullptr;
+				}
+				return false;
+			}),
+			FResetToDefaultHandler::CreateLambda([this](TSharedPtr<IPropertyHandle> PropertyHandle) 
+			{
+				if (PreviewScene.IsValid())
+				{
+					PreviewScene.Pin()->SetPreviewMesh(nullptr, false);
+				}
+			}))
+		)
 		.NameContent()
 		[
 			SNew(SVerticalBox)
@@ -215,21 +232,6 @@ void FPreviewSceneDescriptionCustomization::CustomizeDetails(IDetailLayoutBuilde
 			.OnShouldFilterAsset(this, &FPreviewSceneDescriptionCustomization::HandleShouldFilterAsset, FName("Skeleton"), PersonaToolkit.Pin()->GetContext() == UPhysicsAsset::StaticClass()->GetFName())
 			.OnObjectChanged(this, &FPreviewSceneDescriptionCustomization::HandleMeshChanged)
 			.ThumbnailPool(DetailBuilder.GetThumbnailPool())
-			.CustomResetToDefault(FResetToDefaultOverride::Create(
-				FIsResetToDefaultVisible::CreateLambda([this](TSharedPtr<IPropertyHandle> PropertyHandle) -> bool {
-					if (PreviewScene.IsValid())
-					{
-						return PreviewScene.Pin()->GetPreviewMesh() != nullptr;
-					}
-					return false;
-				}),
-				FResetToDefaultHandler::CreateLambda([this](TSharedPtr<IPropertyHandle> PropertyHandle) {
-					if (PreviewScene.IsValid())
-					{
-						PreviewScene.Pin()->SetPreviewMesh(nullptr, false);
-					}
-				})
-			))
 		];
 
 		// Customize animation blueprint preview
@@ -395,6 +397,7 @@ void FPreviewSceneDescriptionCustomization::CustomizeDetails(IDetailLayoutBuilde
 		DetailBuilder.EditCategory("Additional Meshes")
 		.AddProperty(AdditionalMeshesProperty)
 		.CustomWidget()
+		.OverrideResetToDefault(ResetToDefaultOverride)
 		.NameContent()
 		[
 			AdditionalMeshesProperty->CreatePropertyNameWidget()
@@ -414,7 +417,6 @@ void FPreviewSceneDescriptionCustomization::CustomizeDetails(IDetailLayoutBuilde
 				.PropertyHandle(AdditionalMeshesProperty)
 				.OnShouldFilterAsset(this, &FPreviewSceneDescriptionCustomization::HandleShouldFilterAdditionalMesh, true)
 				.OnObjectChanged(this, &FPreviewSceneDescriptionCustomization::HandleAdditionalMeshesChanged, &DetailBuilder)
-				.CustomResetToDefault(ResetToDefaultOverride)
 				.ThumbnailPool(DetailBuilder.GetThumbnailPool())
 				.NewAssetFactories(FactoriesToUse)
 			]

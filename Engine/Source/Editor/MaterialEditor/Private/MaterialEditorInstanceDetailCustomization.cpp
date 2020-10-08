@@ -524,6 +524,8 @@ void FMaterialInstanceParameterDetails::CreateParameterValueWidget(UDEditorParam
 				{
 					TWeakObjectPtr<UMaterialExpressionTextureSampleParameter> SamplerExpression = Expression;
 
+					PropertyRow.OverrideResetToDefault(ResetOverride);
+
 					PropertyRow.CustomWidget()
 					.NameContent()
 					[
@@ -535,7 +537,6 @@ void FMaterialInstanceParameterDetails::CreateParameterValueWidget(UDEditorParam
 						SNew(SObjectPropertyEntryBox)
 						.PropertyHandle(ParameterValueProperty)
 						.AllowedClass(UTexture::StaticClass())
-						.CustomResetToDefault(ResetOverride)
 						.ThumbnailPool(PropertyUtilities.Pin()->GetThumbnailPool())
 						.OnShouldFilterAsset_Lambda([SamplerExpression](const FAssetData& AssetData)
 						{
@@ -813,7 +814,6 @@ void FMaterialInstanceParameterDetails::CreateLabeledTextureParameterValueWidget
 							SNew(SObjectPropertyEntryBox)
 							.PropertyHandle(ParameterValueProperty)
 							.AllowedClass(UTexture::StaticClass())
-							.CustomResetToDefault(ResetOverride)
 							.ThumbnailPool(PropertyUtilities.Pin()->GetThumbnailPool())
 							.OnShouldFilterAsset_Lambda([SamplerExpression](const FAssetData& AssetData)
 							{
@@ -832,6 +832,8 @@ void FMaterialInstanceParameterDetails::CreateLabeledTextureParameterValueWidget
 								}
 							})
 						];
+
+					DetailWidgetRow.OverrideResetToDefault(ResetOverride);
 
 					static const FName Red("R");
 					static const FName Green("G");

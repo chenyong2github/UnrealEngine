@@ -202,8 +202,6 @@ public:
 		SLATE_ARGUMENT(bool, DisplayBrowse)
 		/** Whether to enable the content Picker */
 		SLATE_ARGUMENT(bool, EnableContentPicker)
-		/** A custom reset to default override */
-		SLATE_ARGUMENT(TOptional<FResetToDefaultOverride>, CustomResetToDefault)
 		/** Whether or not to display a smaller, compact size for the asset thumbnail */ 
 		SLATE_ARGUMENT(bool, DisplayCompactSize)
 		/** Whether or not to display the asset thumbnail */ 

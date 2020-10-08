@@ -144,11 +144,6 @@ public:
 	{
 		FIntPoint ThumbnailSize(64, 64);
 
-		FResetToDefaultOverride ResetToDefaultOverride = FResetToDefaultOverride::Create(
-			FIsResetToDefaultVisible::CreateSP(this, &FMaterialItemView::GetReplaceVisibility),
-			FResetToDefaultHandler::CreateSP(this, &FMaterialItemView::OnResetToBaseClicked)
-		);
-
 		return
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
@@ -171,7 +166,6 @@ public:
 						.OnObjectChanged(this, &FMaterialItemView::OnSetObject)
 						.ThumbnailPool(ThumbnailPool)
 						.DisplayCompactSize(bDisplayCompactSize)
-						.CustomResetToDefault(ResetToDefaultOverride)
 						.OwnerAssetDataArray(OwnerAssetDataArray)
 						.CustomContentSlot()
 						[
@@ -218,6 +212,29 @@ public:
 					OnGenerateCustomMaterialWidgets.IsBound() && !bDisplayCompactSize ? OnGenerateCustomMaterialWidgets.Execute( MaterialItem.Material.Get(), MaterialItem.SlotIndex ) : StaticCastSharedRef<SWidget>( SNullWidget::NullWidget )
 				]
 			];
+	}
+
+	/**
+	 * Called to get the visibility of the reset to base button
+	 */
+	bool GetResetToBaseVisibility() const
+	{
+		// Only show the reset to base button if the current material can be replaced
+		return OnMaterialChanged.IsBound() && MaterialItem.bCanBeReplaced;
+	}
+
+	/**
+	 * Called when reset to base is clicked
+	 */
+	void OnResetToBaseClicked()
+	{
+		// Only allow reset to base if the current material can be replaced
+		if( MaterialItem.Material.IsValid() && MaterialItem.bCanBeReplaced )
+		{
+			bool bReplaceAll = false;
+			ReplaceMaterial( nullptr, bReplaceAll );
+			OnResetToDefaultClicked.ExecuteIfBound( MaterialItem.Material.Get(), MaterialItem.SlotIndex );
+		}
 	}
 
 private:
@@ -313,34 +330,6 @@ private:
 			TArray< UObject* > Objects;
 			Objects.Add( Object.Get() );
 			GEditor->SyncBrowserToObjects( Objects );
-		}
-	}
-
-	/**
-	 * Called to get the visibility of the replace button
-	 */
-	bool GetReplaceVisibility(TSharedPtr<IPropertyHandle> PropertyHandle) const
-	{
-		// Only show the replace button if the current material can be replaced
-		if (OnMaterialChanged.IsBound() && MaterialItem.bCanBeReplaced)
-		{
-			return true;
-		}
-
-		return false;
-	}
-
-	/**
-	 * Called when reset to base is clicked
-	 */
-	void OnResetToBaseClicked(TSharedPtr<IPropertyHandle> PropertyHandle)
-	{
-		// Only allow reset to base if the current material can be replaced
-		if( MaterialItem.Material.IsValid() && MaterialItem.bCanBeReplaced )
-		{
-			bool bReplaceAll = false;
-			ReplaceMaterial( NULL, bReplaceAll );
-			OnResetToDefaultClicked.ExecuteIfBound( MaterialItem.Material.Get(), MaterialItem.SlotIndex );
 		}
 	}
 
@@ -624,6 +613,13 @@ void FMaterialList::AddMaterialItem( FDetailWidgetRow& Row, int32 CurrentSlot, c
 		RightSideContent = NewView->CreateValueContent( DetailLayoutBuilder.GetThumbnailPool(), OwnerAssetDataArray );
 		ViewedMaterials.Add( NewView );
 	}
+
+	FResetToDefaultOverride ResetToDefaultOverride = FResetToDefaultOverride::Create(
+		TAttribute<bool>(NewView, &FMaterialItemView::GetResetToBaseVisibility),
+		FSimpleDelegate::CreateSP(NewView, &FMaterialItemView::OnResetToBaseClicked)
+	);
+
+	Row.OverrideResetToDefault(ResetToDefaultOverride);
 
 	Row.CopyAction(FUIAction(FExecuteAction::CreateSP(this, &FMaterialList::OnCopyMaterialItem, Item.SlotIndex), FCanExecuteAction::CreateSP(this, &FMaterialList::OnCanCopyMaterialItem, Item.SlotIndex)));
 	Row.PasteAction(FUIAction(FExecuteAction::CreateSP(this, &FMaterialList::OnPasteMaterialItem, Item.SlotIndex)));

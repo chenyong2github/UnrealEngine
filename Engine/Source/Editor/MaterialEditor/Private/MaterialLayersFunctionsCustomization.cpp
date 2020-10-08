@@ -423,6 +423,7 @@ void FMaterialLayerFunctionElement::GenerateHeaderRowContent(FDetailWidgetRow& N
 	FunctionInfo.Association = InAssociation;
 
 	NodeRow
+		.OverrideResetToDefault(ResetAssetOverride)
 		.NameContent()
 		[
 			SNew(SHorizontalBox)
@@ -445,7 +446,6 @@ void FMaterialLayerFunctionElement::GenerateHeaderRowContent(FDetailWidgetRow& N
 				.ObjectPath(ParentCustomization, &FMaterialLayersFunctionsCustomization::GetLayerAssetPath, FunctionInfo)
 				.OnObjectChanged(AssetChanged)
 				.OnShouldFilterAsset(AssetFilter)
-				.CustomResetToDefault(ResetAssetOverride)
 				.ThumbnailPool(ParentCustomization->GetPropertyUtilities()->GetThumbnailPool())
 				.DisplayCompactSize(true)
 				.ThumbnailSizeOverride(ThumbnailOverride)

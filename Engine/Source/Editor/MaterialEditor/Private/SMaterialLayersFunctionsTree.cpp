@@ -34,14 +34,13 @@
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Materials/MaterialFunctionInstance.h"
 #include "Framework/Application/SlateApplication.h"
-
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Curves/CurveLinearColor.h"
 #include "Curves/CurveLinearColorAtlas.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Editor.h"
 #include "EditorFontGlyphs.h"
-
+#include "SResetToDefaultPropertyEditor.h"
 
 #define LOCTEXT_NAMESPACE "MaterialLayerCustomization"
 
@@ -230,6 +229,7 @@ void SMaterialLayersFunctionsInstanceTreeItem::Construct(const FArguments& InArg
 
 	TSharedRef<SWidget> LeftSideWidget = SNullWidget::NullWidget;
 	TSharedRef<SWidget> RightSideWidget = SNullWidget::NullWidget;
+	TSharedRef<SWidget> ResetWidget = SNullWidget::NullWidget;
 	FText NameOverride;
 	TSharedRef<SVerticalBox> WrapperWidget = SNew(SVerticalBox);
 
@@ -427,6 +427,11 @@ void SMaterialLayersFunctionsInstanceTreeItem::Construct(const FArguments& InArg
 		FResetToDefaultOverride ResetAssetOverride = FResetToDefaultOverride::Create(IsAssetResetVisible, ResetAssetHandler);
 
 		IDetailTreeNode& Node = *StackParameterData->ParameterNode;
+
+		ResetWidget = SNew(SResetToDefaultPropertyEditor, Node.CreatePropertyHandle())
+			.IsEnabled(IsParamEnabled)
+			.CustomResetToDefault(ResetAssetOverride);
+
 		FNodeWidgets NodeWidgets = Node.CreateNodeWidgets();
 
 		LeftSideWidget = StackParameterData->ParameterHandle->CreatePropertyNameWidget(NameOverride);
@@ -482,7 +487,6 @@ void SMaterialLayersFunctionsInstanceTreeItem::Construct(const FArguments& InArg
 					.ObjectPath(this, &SMaterialLayersFunctionsInstanceTreeItem::GetInstancePath, Tree)
 					.OnShouldFilterAsset(AssetFilter)
 					.OnObjectChanged(AssetChanged)
-					.CustomResetToDefault(ResetAssetOverride)
 					.DisplayCompactSize(true)
 					.NewAssetFactories(FMaterialPropertyHelpers::GetAssetFactories(InAssociation))
 				]
@@ -669,6 +673,9 @@ void SMaterialLayersFunctionsInstanceTreeItem::Construct(const FArguments& InArg
 					TSharedPtr<SWidget> ValueWidget;
 					TSharedPtr<SVerticalBox> NameVerticalBox;
 					const FText ParameterName = FText::FromName(StackParameterData->Parameter->ParameterInfo.Name);
+
+					Row.OverrideResetToDefault(ResetOverride);
+
 					FDetailWidgetRow& CustomWidget = Row.CustomWidget();
 					CustomWidget
 						.FilterString(ParameterName)
@@ -689,7 +696,6 @@ void SMaterialLayersFunctionsInstanceTreeItem::Construct(const FArguments& InArg
 							SNew(SObjectPropertyEntryBox)
 							.PropertyHandle(StackParameterData->ParameterNode->CreatePropertyHandle())
 							.AllowedClass(UTexture::StaticClass())
-							.CustomResetToDefault(ResetOverride)
 							.ThumbnailPool(Tree->GetTreeThumbnailPool())
 							.OnShouldFilterAsset_Lambda([SamplerExpression](const FAssetData& AssetData)
 							{
@@ -998,6 +1004,13 @@ void SMaterialLayersFunctionsInstanceTreeItem::Construct(const FArguments& InArg
 			break;
 		}
 
+		if (ResetWidget == SNullWidget::NullWidget)
+		{
+			const FSlateBrush* DiffersFromDefaultBrush = FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault");
+			ResetWidget = SNew(SSpacer)
+				.Size(DiffersFromDefaultBrush != nullptr ? DiffersFromDefaultBrush->ImageSize : FVector2D(8.0f, 8.0f));
+		}
+
 		WrapperWidget->AddSlot()
 			.AutoHeight()
 			[
@@ -1009,6 +1022,7 @@ void SMaterialLayersFunctionsInstanceTreeItem::Construct(const FArguments& InArg
 					.Style(FEditorStyle::Get(), "DetailsView.Splitter")
 					.PhysicalSplitterHandleSize(1.0f)
 					.HitDetectionSplitterHandleSize(5.0f)
+					.HighlightedHandleIndex(Tree->ColumnSizeData.HoveredSplitterIndex)
 					+ SSplitter::Slot()
 					.Value(Tree->ColumnSizeData.NameColumnWidth)
 					.OnSlotResized(Tree->ColumnSizeData.OnNameColumnResized)
@@ -1039,6 +1053,18 @@ void SMaterialLayersFunctionsInstanceTreeItem::Construct(const FArguments& InArg
 						.Padding(FMargin(5.0f, 2.0f, ValuePadding, 2.0f))
 						[
 							RightSideWidget
+						]
+					]
+					+ SSplitter::Slot()
+					.SizeRule(SSplitter::ESizeRule::SizeToContent)
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.VAlign(VAlign_Center)
+						.HAlign(HAlign_Center)
+						.Padding(5.0f)
+						[
+							ResetWidget
 						]
 					]
 				]
