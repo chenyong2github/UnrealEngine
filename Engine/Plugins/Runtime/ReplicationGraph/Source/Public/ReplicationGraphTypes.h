@@ -345,11 +345,17 @@ struct REPLICATIONGRAPH_API FActorRepListRefView
 	{ 
 		return RepList.Num(); 
 	}
-	
+
 	/** Resets the container and returns the memory it held */
+	void TearDown()
+	{
+		RepList.Empty();
+	}
+	
+	UE_DEPRECATED(4.27, "ResetToNull was renamed to TearDown")
 	void ResetToNull()
 	{ 
-		RepList.Empty();
+		TearDown();
 	}
 
 	int32 IndexOf(const FActorRepListType& Value) const

@@ -156,11 +156,15 @@ struct FStreamingLevelActorListCollection
 	void GetAll_Debug(TArray<FActorRepListType>& OutArray) const;
 	void Log(FReplicationGraphDebugInfo& DebugInfo) const;
 	int32 NumLevels() const { return StreamingLevelLists.Num(); }
-	
+	void TearDown();
 
 	struct FStreamingLevelActors
 	{
-		FStreamingLevelActors(FName InName) : StreamingLevelName(InName) { repCheck(InName != NAME_None); ReplicationActorList.Reset(4); /** FIXME[19]: see above comment */ }
+		FStreamingLevelActors(FName InName) : StreamingLevelName(InName) 
+		{ 
+			repCheck(InName != NAME_None); 
+		}
+
 		FName StreamingLevelName;
 		FActorRepListRefView ReplicationActorList;
 		bool operator==(const FName& InName) const { return InName == StreamingLevelName; };
@@ -198,7 +202,9 @@ public:
 
 	virtual void LogNode(FReplicationGraphDebugInfo& DebugInfo, const FString& NodeName) const override;
 
-	virtual void GetAllActorsInNode_Debugging(TArray<FActorRepListType>& OutArray) const;
+	virtual void GetAllActorsInNode_Debugging(TArray<FActorRepListType>& OutArray) const override;
+
+	virtual void TearDown() override;
 
 	/** Removes the actor very quickly but breaks the list order */
 	bool RemoveNetworkActorFast(const FNewReplicatedActorInfo& ActorInfo);
@@ -268,7 +274,9 @@ public:
 
 	virtual void LogNode(FReplicationGraphDebugInfo& DebugInfo, const FString& NodeName) const override;
 
-	virtual void GetAllActorsInNode_Debugging(TArray<FActorRepListType>& OutArray) const;
+	virtual void TearDown() override;
+
+	virtual void GetAllActorsInNode_Debugging(TArray<FActorRepListType>& OutArray) const override;
 
 	void SetNonStreamingCollectionSize(const int32 NewSize);
 
@@ -735,6 +743,8 @@ class REPLICATIONGRAPH_API UReplicationGraphNode_AlwaysRelevant_ForConnection : 
 public:
 	
 	virtual void GatherActorListsForConnection(const FConnectionGatherActorListParameters& Params) override;
+
+	virtual void TearDown() override;
 
 	/** Rebuilt-every-frame list based on UNetConnection state */
 	FActorRepListRefView ReplicationActorList;
