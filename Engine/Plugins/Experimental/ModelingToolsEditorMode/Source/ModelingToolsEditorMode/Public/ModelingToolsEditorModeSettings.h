@@ -39,7 +39,7 @@ enum class EModelingModeAssetGenerationLocation
 /**
  * Settings for the Modeling Tools Editor Mode plug-in.
  */
-UCLASS(config = Editor)
+UCLASS(config=Editor)
 class MODELINGTOOLSEDITORMODE_API UModelingToolsEditorModeSettings
 	: public UObject
 {

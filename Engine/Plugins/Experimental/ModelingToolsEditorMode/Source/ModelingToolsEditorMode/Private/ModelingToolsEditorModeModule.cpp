@@ -23,6 +23,11 @@ void FModelingToolsEditorModeModule::ShutdownModule()
 {
 	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
 
+	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
+	{
+		SettingsModule->UnregisterSettings("Project", "Plugins", "ModelingMode");
+	}
+
 	FModelingToolActionCommands::UnregisterAllToolActions();
 	FModelingToolsManagerCommands::Unregister();
 	FModelingModeActionCommands::Unregister();
