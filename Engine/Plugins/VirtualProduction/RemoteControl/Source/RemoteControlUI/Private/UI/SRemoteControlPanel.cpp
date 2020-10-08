@@ -1262,7 +1262,7 @@ TSharedRef<ITableRow> SRemoteControlPanel::OnGenerateRow(TSharedPtr<FRCPanelTree
 		{
 			if (TSharedPtr<FExposedFieldDragDropOp> DragDropOp = Event.GetOperationAs<FExposedFieldDragDropOp>())
 			{
-				FGuid GroupId = GetGroupId(Field);;
+				FGuid GroupId = GetGroupId(Field);
 				if (TSharedPtr<FRCPanelGroup>* Group = FieldGroups.FindByPredicate([GroupId](const TSharedPtr<FRCPanelGroup>& TargetGroup) { return TargetGroup->Id == GroupId; }))
 				{
 					if (DragDropOp->IsOfType<FExposedFieldDragDropOp>())
@@ -1651,7 +1651,7 @@ void SRemoteControlPanel::OnFieldAdded(const FGuid& GroupId, const FGuid& FieldI
 		TSharedPtr<SRCPanelExposedField> FieldWidget;
 
 		// If target already exists in the panel.
-		if (TSharedRef<SRemoteControlTarget>* Target = RemoteControlTargets.FindByPredicate([TargetName](const TSharedRef<SRemoteControlTarget>& Target) { return Target->GetTargetAlias() == TargetName; }))
+		if (TSharedRef<SRemoteControlTarget>* Target = RemoteControlTargets.FindByPredicate([TargetName](const TSharedRef<SRemoteControlTarget>& InTarget) { return InTarget->GetTargetAlias() == TargetName; }))
 		{
 			FieldWidget = GetFieldWidget(*Target);
 		}
@@ -1686,9 +1686,9 @@ void SRemoteControlPanel::OnFieldDeleted(const FGuid& GroupId, const FGuid& Fiel
 		return;
 	}
 
-	if (TSharedRef<SRemoteControlTarget>* Target = RemoteControlTargets.FindByPredicate([TargetName](const TSharedRef<SRemoteControlTarget>& Target) { return Target->GetTargetAlias() == TargetName; }))
+	if (TSharedRef<SRemoteControlTarget>* Target = RemoteControlTargets.FindByPredicate([TargetName](const TSharedRef<SRemoteControlTarget>& InTarget) { return InTarget->GetTargetAlias() == TargetName; }))
 	{
-		if (TSharedPtr<FRCPanelGroup>* Group = FieldGroups.FindByPredicate([GroupId](const TSharedPtr<FRCPanelGroup>& Group) {return Group->Id == GroupId; }))
+		if (TSharedPtr<FRCPanelGroup>* Group = FieldGroups.FindByPredicate([GroupId](const TSharedPtr<FRCPanelGroup>& InGroup) {return InGroup->Id == GroupId; }))
 		{
 			if (*Group)
 			{
@@ -1710,7 +1710,7 @@ void SRemoteControlPanel::OnFieldDeleted(const FGuid& GroupId, const FGuid& Fiel
 
 void SRemoteControlPanel::OnFieldOrderChanged(const FGuid& GroupId, const TArray<FGuid>& Fields)
 {
-	if (TSharedPtr<FRCPanelGroup>* Group = FieldGroups.FindByPredicate([GroupId](const TSharedPtr<FRCPanelGroup>& Group) {return Group->Id == GroupId; }))
+	if (TSharedPtr<FRCPanelGroup>* Group = FieldGroups.FindByPredicate([GroupId](const TSharedPtr<FRCPanelGroup>& InGroup) {return InGroup->Id == GroupId; }))
 	{
 		// Sort the group's fields according to the fields array.
 		TMap<FGuid, int32> OrderMap;
