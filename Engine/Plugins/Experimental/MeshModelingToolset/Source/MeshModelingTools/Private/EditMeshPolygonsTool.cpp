@@ -966,8 +966,7 @@ void UEditMeshPolygonsTool::BeginExtrude(bool bIsNormalOffset)
 
 	ExtrudeHeightMechanic->WorldHitQueryFunc = [this](const FRay& WorldRay, FHitResult& HitResult)
 	{
-		FCollisionObjectQueryParams QueryParams(FCollisionObjectQueryParams::AllObjects);
-		return DynamicMeshComponent->GetWorld()->LineTraceSingleByObjectType(HitResult, WorldRay.Origin, WorldRay.PointAt(999999), QueryParams);
+		return ToolSceneQueriesUtil::FindNearestVisibleObjectHit(DynamicMeshComponent->GetWorld(), HitResult, WorldRay);
 	};
 	ExtrudeHeightMechanic->WorldPointSnapFunc = [this](const FVector3d& WorldPos, FVector3d& SnapPos)
 	{
