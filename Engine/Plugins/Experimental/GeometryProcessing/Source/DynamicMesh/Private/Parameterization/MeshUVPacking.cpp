@@ -563,10 +563,10 @@ bool FDynamicMeshStandardChartPacker::PackCharts(TArray<FUVIsland>& Charts, doub
 					}
 
 				
-					if (true)
-					{
-						UE_LOG(LogTemp, Log, TEXT("[LAYOUTUV_TRACE] Chart %d Orientation %d Found = %d Rect = %d,%d,%d,%d\n"), ChartIndex, Orientation, bFound ? 1 : 0, Rect.X, Rect.Y, Rect.W, Rect.H);
-					}
+					//if (true)
+					//{
+					//	UE_LOG(LogTemp, Log, TEXT("[LAYOUTUV_TRACE] Chart %d Orientation %d Found = %d Rect = %d,%d,%d,%d\n"), ChartIndex, Orientation, bFound ? 1 : 0, Rect.X, Rect.Y, Rect.W, Rect.H);
+					//}
 
 					if (bFound)
 					{
@@ -603,10 +603,10 @@ bool FDynamicMeshStandardChartPacker::PackCharts(TArray<FUVIsland>& Charts, doub
 			}
 			else
 			{
-				if (true)
-				{
-					UE_LOG(LogTemp, Log, TEXT("[LAYOUTUV_TRACE] Chart %d Found no orientation that fit\n"), ChartIndex);
-				}
+				//if (true)
+				//{
+				//	UE_LOG(LogTemp, Log, TEXT("[LAYOUTUV_TRACE] Chart %d Found no orientation that fit\n"), ChartIndex);
+				//}
 
 				// Found no orientation that fit
 				return false;
