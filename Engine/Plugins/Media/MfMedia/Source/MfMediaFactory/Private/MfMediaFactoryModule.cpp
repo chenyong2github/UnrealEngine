@@ -178,10 +178,12 @@ public:
 
 		// supported schemes
 		SupportedUriSchemes.Add(TEXT("file"));
+#if MFMEDIAFACTORY_ALLOW_HTTPS
+		SupportedUriSchemes.Add(TEXT("https"));
+#endif
 #if MFMEDIAFACTORY_WINDOWS && MFMEDIAFACTORY_USE_WINDOWS
 		SupportedUriSchemes.Add(TEXT("http"));
 		SupportedUriSchemes.Add(TEXT("httpd"));
-		SupportedUriSchemes.Add(TEXT("https"));
 		SupportedUriSchemes.Add(TEXT("mms"));
 		SupportedUriSchemes.Add(TEXT("rtsp"));
 		SupportedUriSchemes.Add(TEXT("rtspt"));
