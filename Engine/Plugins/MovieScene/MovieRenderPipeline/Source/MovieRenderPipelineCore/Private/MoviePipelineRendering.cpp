@@ -97,6 +97,11 @@ void UMoviePipeline::TeardownRenderingPipelineForShot(UMoviePipelineExecutorShot
 	{
 		RenderPass->Teardown();
 	}
+
+	if (OutputBuilder->IsWorkOutstanding())
+	{
+		UE_LOG(LogMovieRenderPipeline, Error, TEXT("Not all frames were fully submitted by the time rendering was torn down! Frames will be missing from output!"));
+	}
 }
 
 void UMoviePipeline::RenderFrame()
