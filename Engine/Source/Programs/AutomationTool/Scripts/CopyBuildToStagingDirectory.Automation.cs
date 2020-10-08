@@ -8,11 +8,13 @@ using System.Net.NetworkInformation;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Linq;
 using UnrealBuildTool;
 using System.Text;
 using Tools.DotNETCommon;
 using System.Diagnostics;
+using System.Collections.Concurrent;
 
 /// <summary>
 /// Helper command used for cooking.
@@ -1562,6 +1564,12 @@ public partial class Project : CommandUtils
 		// Combined filter from all +Files= entries
 		public FileFilter Filter;
 
+		// An alternative and efficient way to match files
+		public HashSet<string> ExactFileMatches;
+
+		// To use exact file match or file filter
+		public bool bUseExactFilePathMatch;
+
 		// Rather to exclude entirely from paks
 		public bool bExcludeFromPaks;
 
@@ -1701,6 +1709,7 @@ public partial class Project : CommandUtils
 
 			PakFileRules PakRules = new PakFileRules();
 			PakRules.Name = SectionName;
+			PakRulesConfig.TryGetValue(SectionName, "bUseExactFilePathMatch", out PakRules.bUseExactFilePathMatch);
 			PakRulesConfig.TryGetValue(SectionName, "bExcludeFromPaks", out PakRules.bExcludeFromPaks);
 			PakRulesConfig.TryGetValue(SectionName, "bOverrideChunkManifest", out PakRules.bOverrideChunkManifest);
 			PakRulesConfig.TryGetValue(SectionName, "bDisabled", out PakRules.bDisabled);
@@ -1732,10 +1741,15 @@ public partial class Project : CommandUtils
 			{
 				// Only add if we have actual files, we can end up with none due to config overriding
 				PakRules.Filter = new FileFilter();
-				foreach (string FileFilter in FilesEnumberable)
+				PakRules.ExactFileMatches = new HashSet<string>();
+
+				if (PakRules.bUseExactFilePathMatch)
 				{
-					//LogInformation("Adding to PakFileRules for Section {0} : {1}", SectionName, FileFilter);
-					PakRules.Filter.AddRule(FileFilter);
+					PakRules.ExactFileMatches.UnionWith(FilesEnumberable);
+				}
+				else
+				{
+					PakRules.Filter.AddRules(FilesEnumberable);
 				}
 
 				RulesList.Add(PakRules);
@@ -1753,7 +1767,7 @@ public partial class Project : CommandUtils
 	/// </summary>
 	/// <param name="Params"></param>
 	/// <param name="SC"></param>
-	private static void ApplyPakFileRules(List<PakFileRules> RulesList, KeyValuePair<string, string> StagingFile, HashSet<ChunkDefinition> ModifyPakList, Dictionary<string, ChunkDefinition> ChunkNameToDefinition, out bool bExcludeFromPaks)
+	private static void ApplyPakFileRules(List<PakFileRules> RulesList, KeyValuePair<string, string> StagingFile, HashSet<ChunkDefinition> ModifyPakList, ConcurrentDictionary<string, ChunkDefinition> ChunkNameToDefinition, out bool bExcludeFromPaks)
 	{
 		bExcludeFromPaks = false;
 
@@ -1765,7 +1779,11 @@ public partial class Project : CommandUtils
 		// Search in order, return on first match
 		foreach (var PakRules in RulesList)
 		{
-			if (!PakRules.bDisabled && PakRules.Filter.Matches(StagingFile.Key))
+			bool bMatched = !PakRules.bDisabled && 
+				((!PakRules.bUseExactFilePathMatch && PakRules.Filter != null && PakRules.Filter.Matches(StagingFile.Key)) ||
+				(PakRules.bUseExactFilePathMatch && PakRules.ExactFileMatches != null && PakRules.ExactFileMatches.Contains(StagingFile.Value)));
+
+			if (bMatched)
 			{
 				if (ModifyPakList != null && ModifyPakList.Count > 0)
 				{
@@ -1794,13 +1812,7 @@ public partial class Project : CommandUtils
 						if (!ChunkNameToDefinition.ContainsKey(x))
 						{
 							LogInformation("With pak rules, {0} is moved to {1}", StagingFile.Key, x);
-							ChunkDefinition TargetChunk = new ChunkDefinition(x);
-							// TODO: Need to set encryptionGuid?
-							//TargetChunk.RequestedEncryptionKeyGuid = Chunk.RequestedEncryptionKeyGuid;
-							//TargetChunk.EncryptionKeyGuid = Chunk.EncryptionKeyGuid;
-							ChunkNameToDefinition.Add(x, TargetChunk);
-
-							return TargetChunk;
+							ChunkNameToDefinition.TryAdd(x, new ChunkDefinition(x));
 						}
 
 						return ChunkNameToDefinition[x];
@@ -2898,7 +2910,7 @@ public partial class Project : CommandUtils
 		public ChunkDefinition(string InChunkName)
 		{
 			ChunkName = InChunkName;
-			ResponseFile = new Dictionary<string, string>();
+			ResponseFile = new ConcurrentDictionary<string, string>();
 			Manifest = null;
 			bCompressed = false;
 		}
@@ -2907,7 +2919,7 @@ public partial class Project : CommandUtils
 		public string ChunkName;
 
 		// List of files to include in this chunk
-		public Dictionary<string, string> ResponseFile;
+		public ConcurrentDictionary<string, string> ResponseFile;
 
 		// Parsed copy of pakchunk*.txt
 		public HashSet<string> Manifest;
@@ -2997,7 +3009,7 @@ public partial class Project : CommandUtils
 			}
 
 			const string OptionalBulkDataFileExtension = ".uptnl";
-			Dictionary<string, ChunkDefinition> OptionalChunks = new Dictionary<string, ChunkDefinition>(StringComparer.InvariantCultureIgnoreCase);
+			ConcurrentDictionary<string, ChunkDefinition> OptionalChunks = new ConcurrentDictionary<string, ChunkDefinition>(StringComparer.InvariantCultureIgnoreCase);
 			ChunkDefinition DefaultChunk = ChunkDefinitions[DefaultChunkIndex];
 
 			Dictionary<string, List<ChunkDefinition>> FileNameToChunks = new Dictionary<string, List<ChunkDefinition>>(StringComparer.InvariantCultureIgnoreCase);
@@ -3015,13 +3027,13 @@ public partial class Project : CommandUtils
 				}
 			}
 
-			Dictionary<string, ChunkDefinition> ChunkNameToDefinition = new Dictionary<string, ChunkDefinition>(StringComparer.InvariantCultureIgnoreCase);
+			ConcurrentDictionary<string, ChunkDefinition> ChunkNameToDefinition = new ConcurrentDictionary<string, ChunkDefinition>(StringComparer.InvariantCultureIgnoreCase);
 			foreach (ChunkDefinition Chunk in ChunkDefinitions)
 			{
-				ChunkNameToDefinition.Add(Chunk.ChunkName, Chunk);
+				ChunkNameToDefinition.TryAdd(Chunk.ChunkName, Chunk);
 			}
 
-			foreach (var StagingFile in StagingManifestResponseFile)
+			Parallel.ForEach(StagingManifestResponseFile, StagingFile =>
 			{
 				bool bAddedToChunk = false;
 				bool bExcludeFromPaks = false;
@@ -3061,7 +3073,7 @@ public partial class Project : CommandUtils
 
 				if (bExcludeFromPaks)
 				{
-					continue;
+					return;
 				}
 
 				// Actually add to chunk
@@ -3074,16 +3086,17 @@ public partial class Project : CommandUtils
 					{
 						// any optional files encountered we want to put in a separate pak file
 						string OptionalChunkName = Chunk.ChunkName + "optional";
-						if (!OptionalChunks.TryGetValue(OptionalChunkName, out TargetChunk))
+						if (!OptionalChunks.ContainsKey(OptionalChunkName))
 						{
-							TargetChunk = new ChunkDefinition(OptionalChunkName);
-							TargetChunk.RequestedEncryptionKeyGuid = Chunk.RequestedEncryptionKeyGuid;
-							TargetChunk.EncryptionKeyGuid = Chunk.EncryptionKeyGuid;
-							OptionalChunks.Add(OptionalChunkName, TargetChunk);
+							ChunkDefinition OptionalChunk = new ChunkDefinition(OptionalChunkName);
+							OptionalChunk.RequestedEncryptionKeyGuid = Chunk.RequestedEncryptionKeyGuid;
+							OptionalChunk.EncryptionKeyGuid = Chunk.EncryptionKeyGuid;
+							OptionalChunks.TryAdd(OptionalChunkName, OptionalChunk);
 						}
+						TargetChunk = OptionalChunks[OptionalChunkName];
 					}
 
-					TargetChunk.ResponseFile.Add(StagingFile.Key, StagingFile.Value);
+					TargetChunk.ResponseFile.TryAdd(StagingFile.Key, StagingFile.Value);
 					bAddedToChunk = true;
 
 					if (bForceOneChunkPerFile)
@@ -3092,12 +3105,13 @@ public partial class Project : CommandUtils
 						break;
 					}
 				}
+
 				if (!bAddedToChunk)
 				{
 					//LogInformation("No chunk assigned found for {0}. Using default chunk.", StagingFile.Key);
-					DefaultChunk.ResponseFile.Add(StagingFile.Key, StagingFile.Value);
+					DefaultChunk.ResponseFile.TryAdd(StagingFile.Key, StagingFile.Value);
 				}
-			}
+			});
 
 			foreach (var OptionalChunkIt in OptionalChunks)
 			{
@@ -3114,7 +3128,7 @@ public partial class Project : CommandUtils
 
 			EarlyChunk.bCompressed = true;
 
-			Dictionary<string,string> EarlyPakFile = EarlyChunk.ResponseFile;
+			ConcurrentDictionary<string,string> EarlyPakFile = EarlyChunk.ResponseFile;
 
 			// find the list of files to put in the early downloader pak file
 			List<string> FilesInEarlyPakFile = new List<string>();
@@ -3134,7 +3148,7 @@ public partial class Project : CommandUtils
 
 			foreach ( string FilteredFile in EarlyPakFileFilter.ApplyTo(FilesToFilter) )
 			{
-				EarlyPakFile.Add(FilteredFile, StagingManifestResponseFile[FilteredFile]);
+				EarlyPakFile.TryAdd(FilteredFile, StagingManifestResponseFile[FilteredFile]);
 			}
 
 			ChunkDefinitions.Add(EarlyChunk);
@@ -3177,7 +3191,9 @@ public partial class Project : CommandUtils
 		{
 			if (Chunk.ResponseFile.Count > 0)
 			{
-				PakInputs.Add(new CreatePakParams(Chunk.ChunkName, Chunk.ResponseFile, Params.Compressed || Chunk.bCompressed, Chunk.EncryptionKeyGuid));
+				PakInputs.Add(new CreatePakParams(Chunk.ChunkName, 
+					Chunk.ResponseFile.ToDictionary(entry => entry.Key, entry => entry.Value),
+					Params.Compressed || Chunk.bCompressed, Chunk.EncryptionKeyGuid));
 				//CreatePak(Params, SC, Chunk.ResponseFile, ChunkName, PakCryptoSettings, CryptoKeysCacheFilename, bCompression);
 			}
 		}
