@@ -63,17 +63,17 @@ static const int p[512] =
     138, 236, 205, 93, 222, 114, 67, 29, 24, 72, 243, 141, 128, 195, 78, 66, 215, 61, 156, 180
 };
  
-float fade(float t)
+float FadeValue(float t)
 {
 	return t * t * t * (t * (t * 6 - 15) + 10);
 }
  
-float lerp(float t, float a, float b)
+float LerpValue(float t, float a, float b)
 {
 	return a + t * (b - a);
 }
  
-float grad(int hash, float x, float y, float z)
+float GradientDirection(int hash, float x, float y, float z)
 {
     // CONVERT LO 4 BITS OF HASH CODE INTO 12 GRADIENT DIRECTIONS.
 	int h = hash & 15;
@@ -95,9 +95,9 @@ float PerlinNoise(float3 pos)
 	float z = pos.z - floor(pos.z);
    
     // COMPUTE FADE CURVES FOR EACH OF X,Y,Z.
-	float u = fade(x);
-	float v = fade(y);
-	float w = fade(z);
+	float u = FadeValue(x);
+	float v = FadeValue(y);
+	float w = FadeValue(z);
    
     // HASH COORDINATES OF THE 8 CUBE CORNERS
 	int A = p[X] + Y;
@@ -108,14 +108,14 @@ float PerlinNoise(float3 pos)
 	int BB = p[B + 1] + Z;
  
     // AND ADD BLENDED RESULTS FROM  8 CORNERS OF CUBE
-	return clamp(0.97 * lerp(w, lerp(v, lerp(u, grad(p[AA], x, y, z), // CORNER 0      
-           grad(p[BA], x - 1, y, z)), // CORNER 1                              
-           lerp(u, grad(p[AB], x, y - 1, z), // CORNER 2                        
-           grad(p[BB], x - 1, y - 1, z))), // CORNER 3                      
-           lerp(v, lerp(u, grad(p[AA + 1], x, y, z - 1), // CORNER 4            
-           grad(p[BA + 1], x - 1, y, z - 1)), // CORNER 5                  
-           lerp(u, grad(p[AB + 1], x, y - 1, z - 1), // CORNER 6  
-           grad(p[BB + 1], x - 1, y - 1, z - 1)))), -1.0, 1.0); // CORNER 7
+	return clamp(0.97 * LerpValue(w, LerpValue(v, LerpValue(u, GradientDirection(p[AA], x, y, z), // CORNER 0      
+           GradientDirection(p[BA], x - 1, y, z)), // CORNER 1                              
+           LerpValue(u, GradientDirection(p[AB], x, y - 1, z), // CORNER 2                        
+           GradientDirection(p[BB], x - 1, y - 1, z))), // CORNER 3                      
+           LerpValue(v, LerpValue(u, GradientDirection(p[AA + 1], x, y, z - 1), // CORNER 4            
+           GradientDirection(p[BA + 1], x - 1, y, z - 1)), // CORNER 5                  
+           LerpValue(u, GradientDirection(p[AB + 1], x, y - 1, z - 1), // CORNER 6  
+           GradientDirection(p[BB + 1], x - 1, y - 1, z - 1)))), -1.0, 1.0); // CORNER 7
 }
 
 uint3 RandomVector(int3 p)
@@ -158,6 +158,7 @@ uint3 RandomVector(int3 p)
  */
 
 #define MAX_DATAS 64
+#define MAX_COUNT 8
 
 #define NONE_TYPE 0
 #define RESULTS_TYPE 1
@@ -933,14 +934,96 @@ void SampleFieldDatas(in float3 SamplePosition, inout float ContextDatas[MAX_DAT
 	}
 }
 
+//[numthreads(BUILD_FIELD_THREADGROUP_SIZEX, BUILD_FIELD_THREADGROUP_SIZEY, BUILD_FIELD_THREADGROUP_SIZEZ)]
+//void BuildPhysicsFieldClipmapCS(
+//	uint3 GroupId : SV_GroupID,
+//	uint3 DispatchThreadId : SV_DispatchThreadID,
+//    uint3 GroupThreadId : SV_GroupThreadID)
+//{
+//	if (all(DispatchThreadId.xyz < int3(ClipmapResolution, ClipmapResolution, ClipmapResolution)))
+//	{
+		
+//		float4 ResultsDatas[MAX_COUNT];
+//		[unroll]
+//		for (int ResultsIndex = 0; ResultsIndex < MAX_COUNT; ++ResultsIndex)
+//		{
+//			ResultsDatas[ResultsIndex] = float4(0, 0, 0, 0);
+//		}
+//		for (int ClipmapIndex = 0; ClipmapIndex < ClipmapCount; ++ClipmapIndex)
+//		{
+//			const float ClipmapExtent = ClipmapDistance * pow(ClipmapExponent, ClipmapIndex + 1 - ClipmapCount);
+		
+//			const float3 SampleUV = (DispatchThreadId.xyz + 0.5) / ClipmapResolution;
+//			const float3 SamplePosition = ClipmapCenter + (SampleUV - 0.5) * 2.0 * ClipmapExtent;
+			
+//			//for (int TargetIndex = 0; TargetIndex < TargetCount; ++TargetIndex)
+//			//{
+//			//	const int DatasOffset = ClipmapIndex + TargetIndex * ClipmapCount;
+					
+//			//	uint3 TextureCoordinates = DispatchThreadId;
+//			//	TextureCoordinates.z += ClipmapResolution * DatasOffset + DatasOffset;
+				
+//			//	FieldClipmap[TextureCoordinates] = float4(0, 0, 0, 0);
+//			//}
+			
+//			for (int TargetType = 0; TargetType < MAX_TARGETS_ARRAY; ++TargetType)
+//			{
+//				const int TargetIndex = PhysicsTargets[TargetType];
+				
+//				[branch]
+//				if (TargetIndex != -1)
+//				{
+//					//const int DatasOffset = ClipmapIndex + TargetIndex * ClipmapCount;
+					
+//					//uint3 TextureCoordinates = DispatchThreadId;
+//					//TextureCoordinates.z += ClipmapResolution * DatasOffset + DatasOffset;
+					
+//					const int DatasOffset = ClipmapIndex + TargetIndex * ClipmapCount;
+//					const uint3 TextureCoordinates = (DispatchThreadId.x, DispatchThreadId.y, DispatchThreadId.z + ClipmapResolution * DatasOffset + DatasOffset);
+		
+//					float ContextDatas[MAX_DATAS];
+//					int LocalIndex = 0;
+
+//					SampleFieldDatas(SamplePosition, ContextDatas, LocalIndex, TargetType + 1);
+		
+//					if (LocalIndex == 3)
+//					{
+//						//FieldClipmap[TextureCoordinates] += float4(ContextDatas[0], ContextDatas[1], ContextDatas[2], 0);
+//						ResultsDatas[TargetIndex].xyz = float3(ContextDatas[0], ContextDatas[1], ContextDatas[2]);
+//					}
+//					else if (LocalIndex == 1)
+//					{
+//						//FieldClipmap[TextureCoordinates] += float4(0, 0, 0, ContextDatas[0]);
+//						ResultsDatas[TargetIndex].w = ContextDatas[0];
+//					}
+//					//FieldClipmap[TextureCoordinates] = ResultsDatas[TargetIndex];
+
+//				}
+//			}
+//			for (int TargetIndex = 0; TargetIndex < TargetCount; ++TargetIndex)
+//			{
+//				const int DatasOffset = ClipmapIndex + TargetIndex * ClipmapCount;
+//				const uint3 TextureCoordinates = uint3(DispatchThreadId.x, DispatchThreadId.y, DispatchThreadId.z + ClipmapResolution * DatasOffset + DatasOffset);
+//				FieldClipmap[TextureCoordinates] = ResultsDatas[TargetIndex];
+//			}
+//		}
+//	}
+//}
+
 [numthreads(BUILD_FIELD_THREADGROUP_SIZEX, BUILD_FIELD_THREADGROUP_SIZEY, BUILD_FIELD_THREADGROUP_SIZEZ)]
 void BuildPhysicsFieldClipmapCS(
 	uint3 GroupId : SV_GroupID,
 	uint3 DispatchThreadId : SV_DispatchThreadID,
     uint3 GroupThreadId : SV_GroupThreadID)
 {
-	if (all(DispatchThreadId.xyz < int3(ClipmapResolution, ClipmapResolution, ClipmapResolution)))
+	if (all(DispatchThreadId.xyz < int3(ClipmapResolution, ClipmapResolution, ClipmapResolution)) && (TargetCount < MAX_COUNT))
 	{
+		float4 ResultsDatas[MAX_COUNT];
+		[unroll]
+		for (int ResultsIndex = 0; ResultsIndex < MAX_COUNT; ++ResultsIndex)
+		{
+			ResultsDatas[ResultsIndex] = float4(0, 0, 0, 0);
+		}
 		for (int ClipmapIndex = 0; ClipmapIndex < ClipmapCount; ++ClipmapIndex)
 		{
 			const float ClipmapExtent = ClipmapDistance * pow(ClipmapExponent, ClipmapIndex + 1 - ClipmapCount);
@@ -948,28 +1031,13 @@ void BuildPhysicsFieldClipmapCS(
 			const float3 SampleUV = (DispatchThreadId.xyz + 0.5) / ClipmapResolution;
 			const float3 SamplePosition = ClipmapCenter + (SampleUV - 0.5) * 2.0 * ClipmapExtent;
 			
-			for (int TargetIndex = 0; TargetIndex < TargetCount; ++TargetIndex)
-			{
-				const int DatasOffset = ClipmapIndex + TargetIndex * ClipmapCount;
-					
-				uint3 TextureCoordinates = DispatchThreadId;
-				TextureCoordinates.z += ClipmapResolution * DatasOffset + DatasOffset;
-				
-				FieldClipmap[TextureCoordinates] = float4(0, 0, 0, 0);
-			}
-			
 			for (int TargetType = 0; TargetType < MAX_TARGETS_ARRAY; ++TargetType)
 			{
 				const int TargetIndex = PhysicsTargets[TargetType];
 				
 				[branch]
-				if (TargetIndex != -1)
+				if ((TargetIndex != -1) && (TargetIndex < TargetCount))
 				{
-					const int DatasOffset = ClipmapIndex + TargetIndex * ClipmapCount;
-					
-					uint3 TextureCoordinates = DispatchThreadId;
-					TextureCoordinates.z += ClipmapResolution * DatasOffset + DatasOffset;
-		
 					float ContextDatas[MAX_DATAS];
 					int LocalIndex = 0;
 
@@ -977,13 +1045,19 @@ void BuildPhysicsFieldClipmapCS(
 		
 					if (LocalIndex == 3)
 					{
-						FieldClipmap[TextureCoordinates] += float4(ContextDatas[0], ContextDatas[1], ContextDatas[2], 0);
+						ResultsDatas[TargetIndex].xyz = float3(ContextDatas[0], ContextDatas[1], ContextDatas[2]);
 					}
 					else if (LocalIndex == 1)
 					{
-						FieldClipmap[TextureCoordinates] += float4(0,0,0, ContextDatas[0]);
+						ResultsDatas[TargetIndex].w = ContextDatas[0];
 					}
 				}
+			}
+			for (int TargetIndex = 0; TargetIndex < TargetCount; ++TargetIndex)
+			{
+				const int DatasOffset = ClipmapIndex + TargetIndex * ClipmapCount;
+				const uint3 TextureCoordinates = uint3(DispatchThreadId.x, DispatchThreadId.y, DispatchThreadId.z + ClipmapResolution * DatasOffset + DatasOffset);
+				FieldClipmap[TextureCoordinates] = ResultsDatas[TargetIndex];
 			}
 		}
 	}
