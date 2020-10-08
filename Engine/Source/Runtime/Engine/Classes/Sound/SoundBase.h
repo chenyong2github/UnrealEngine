@@ -84,9 +84,6 @@ public:
 	uint8 bHasConcatenatorNode : 1;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(Transient)
-	uint8 bModulationEnabled : 1;
-
 	UPROPERTY()
 	uint8 bHasVirtualizeWhenSilent_DEPRECATED : 1;
 #endif // WITH_EDITORONLY_DATA
@@ -150,21 +147,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = Attenuation)
 	USoundAttenuation* AttenuationSettings;
 
-	/** Volume modulation */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modulation", meta = (DisplayName = "Volume", AudioParam = "Volume"))
-	FSoundModulationDestinationSettings VolumeModulationDestination;
-
-	/** Pitch modulation */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modulation", meta = (DisplayName = "Pitch", AudioParam = "Pitch"))
-	FSoundModulationDestinationSettings PitchModulationDestination;
-
-	/** Highpass modulation */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modulation", meta = (DisplayName = "Highpass", AudioParam = "HPFCutoffFrequency"))
-	FSoundModulationDestinationSettings HighpassModulationDestination;
-
-	/** Lowpass modulation */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modulation", meta = (DisplayName = "Lowpass", AudioParam = "LPFCutoffFrequency"))
-	FSoundModulationDestinationSettings LowpassModulationDestination;
+	/** Modulation Settings */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modulation")
+	FSoundModulationDefaultSettings ModulationSettings;
 
 	/** Submix to route sound output to. If unset, falls back to referenced SoundClass submix.
 	  * If SoundClass submix is unset, sends to the 'Master Submix' as set in the 'Audio' category of Project Settings'. */

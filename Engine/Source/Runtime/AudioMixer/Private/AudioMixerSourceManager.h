@@ -120,10 +120,7 @@ namespace Audio
 		UOcclusionPluginSourceSettingsBase* OcclusionPluginSettings = nullptr;
 		UReverbPluginSourceSettingsBase* ReverbPluginSettings = nullptr;
 
-		FSoundModulationDestinationSettings VolumeModulationSettings;
-		FSoundModulationDestinationSettings PitchModulationSettings;
-		FSoundModulationDestinationSettings LowpassModulationSettings;
-		FSoundModulationDestinationSettings HighpassModulationSettings;
+		FSoundModulationDefaultSettings ModulationSettings;
 
 		FName AudioComponentUserID;
 		uint64 AudioComponentID = 0;

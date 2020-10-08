@@ -8,6 +8,14 @@
 #include "UObject/Object.h"
 
 
+FSoundModulationDefaultSettings::FSoundModulationDefaultSettings()
+{
+	VolumeModulationDestination.Value = 0.0f;
+	PitchModulationDestination.Value = 0.0f;
+	HighpassModulationDestination.Value = MIN_FILTER_FREQUENCY;
+	LowpassModulationDestination.Value = MAX_FILTER_FREQUENCY;
+}
+
 namespace Audio
 {
 	FModulationDestination::FModulationDestination(const FModulationDestination& InModulationDestination)
