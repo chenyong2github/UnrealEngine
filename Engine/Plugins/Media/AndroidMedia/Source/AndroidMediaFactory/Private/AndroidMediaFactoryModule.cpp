@@ -7,6 +7,7 @@
 #include "Containers/UnrealString.h"
 #include "Internationalization/Internationalization.h"
 #include "Misc/Paths.h"
+#include "Misc/Guid.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "IMediaModule.h"
