@@ -113,7 +113,7 @@ public:
 	 * @param Identifier string name of the Tool type
 	 * @return true if the Tool type could be activated
 	 */
-	virtual bool CanActivateTool(EToolSide eSide, const FString& Identifier);
+	virtual bool CanActivateTool(EToolSide eSide, FString Identifier);
 
 	/**
 	 * Try to activate a new Tool instance on the given Side

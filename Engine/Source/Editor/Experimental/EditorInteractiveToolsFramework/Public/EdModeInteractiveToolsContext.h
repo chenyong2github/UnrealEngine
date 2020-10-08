@@ -55,8 +55,10 @@ public:
 
 	virtual void PostInvalidation();
 
+	// UObject Interface
+	virtual UWorld* GetWorld() const override;
 
-	// call these from your FEdMode functions of the same name
+	// call these from your UEdMode functions of the same name
 
 	virtual void Tick(FEditorViewportClient* ViewportClient, float DeltaTime);
 	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI);
@@ -79,12 +81,12 @@ public:
 	// Utility functions useful for hooking up to UICommand/etc
 	//
 
-	virtual bool CanStartTool(const FString& ToolTypeIdentifier) const;
+	virtual bool CanStartTool(const FString ToolTypeIdentifier) const;
 	virtual bool ActiveToolHasAccept() const;
 	virtual bool CanAcceptActiveTool() const;
 	virtual bool CanCancelActiveTool() const;
 	virtual bool CanCompleteActiveTool() const;
-	virtual void StartTool(const FString& ToolTypeIdentifier);
+	virtual void StartTool(const FString ToolTypeIdentifier);
 	virtual void EndTool(EToolShutdownType ShutdownType);
 
 	virtual bool ShouldIgnoreHotkeys() const { return bInFlyMode; }

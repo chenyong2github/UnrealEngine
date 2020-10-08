@@ -582,6 +582,16 @@ void UEdModeInteractiveToolsContext::PostInvalidation()
 	InvalidationTimestamp++;
 }
 
+UWorld* UEdModeInteractiveToolsContext::GetWorld() const
+{
+	if (EditorModeManager)
+	{
+		return EditorModeManager->GetWorld();
+	}
+
+	return nullptr;
+}
+
 void UEdModeInteractiveToolsContext::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
 {
 	// invalidate this viewport if it's timestamp is not current
@@ -1130,7 +1140,7 @@ FRay UEdModeInteractiveToolsContext::GetLastWorldRay() const
 	return CurrentMouseState.Mouse.WorldRay;
 }
 
-bool UEdModeInteractiveToolsContext::CanStartTool(const FString& ToolTypeIdentifier) const
+bool UEdModeInteractiveToolsContext::CanStartTool(const FString ToolTypeIdentifier) const
 {
 	return UInteractiveToolsContext::CanStartTool(EToolSide::Mouse, ToolTypeIdentifier);
 }
@@ -1155,7 +1165,7 @@ bool UEdModeInteractiveToolsContext::CanCompleteActiveTool() const
 	return UInteractiveToolsContext::CanCompleteActiveTool(EToolSide::Mouse);
 }
 
-void UEdModeInteractiveToolsContext::StartTool(const FString& ToolTypeIdentifier)
+void UEdModeInteractiveToolsContext::StartTool(const FString ToolTypeIdentifier)
 {
 	FString LocalIdentifier(ToolTypeIdentifier);
 	PendingToolToStart = LocalIdentifier;

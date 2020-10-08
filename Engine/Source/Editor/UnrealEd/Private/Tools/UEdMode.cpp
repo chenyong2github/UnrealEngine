@@ -237,6 +237,7 @@ void UEdMode::Enter()
 
 	if (SettingsObject)
 	{
+		SettingsObject->LoadConfig();
 		Toolkit->SetModeSettingsObject(SettingsObject);
 	}
 
@@ -249,9 +250,10 @@ void UEdMode::RegisterTool(TSharedPtr<FUICommandInfo> UICommand, FString ToolIde
 	const TSharedRef<FUICommandList>& CommandList = Toolkit->GetToolkitCommands();
 	ToolsContext->ToolManager->RegisterToolType(ToolIdentifier, Builder);
 	CommandList->MapAction(UICommand,
-		FExecuteAction::CreateLambda([this, ToolIdentifier]() { this->ToolsContext->StartTool(ToolIdentifier); }),
-		FCanExecuteAction::CreateLambda([this, ToolIdentifier]() { return this->ToolsContext->ToolManager->CanActivateTool(EToolSide::Mouse, ToolIdentifier); }),
-		FIsActionChecked::CreateLambda([this, Builder]() { return this->ToolsContext->IsToolBuilderActive(EToolSide::Mouse, Builder); }));
+		FExecuteAction::CreateUObject(ToolsContext.Get(), &UEdModeInteractiveToolsContext::StartTool, ToolIdentifier),
+		FCanExecuteAction::CreateUObject(ToolsContext->ToolManager, &UInteractiveToolManager::CanActivateTool, EToolSide::Mouse, ToolIdentifier),
+		FIsActionChecked::CreateUObject(ToolsContext.Get(), &UEdModeInteractiveToolsContext::IsToolBuilderActive, EToolSide::Mouse, Builder),
+		EUIActionRepeatMode::RepeatDisabled);
 
 	RegisteredTools.Emplace(UICommand, ToolIdentifier);
 }
@@ -260,6 +262,11 @@ void UEdMode::Exit()
 {
 	GetToolManager()->OnToolStarted.RemoveAll(this);
 	GetToolManager()->OnToolEnded.RemoveAll(this);
+
+	if (SettingsObject)
+	{
+		SettingsObject->SaveConfig();
+	}
 
 	const TSharedRef<FUICommandList>& CommandList = Toolkit->GetToolkitCommands();
 	for (auto& RegisteredTool : RegisteredTools)

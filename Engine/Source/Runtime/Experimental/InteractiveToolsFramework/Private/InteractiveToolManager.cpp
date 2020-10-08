@@ -97,7 +97,7 @@ bool UInteractiveToolManager::SelectActiveToolType(EToolSide Side, const FString
 
 
 
-bool UInteractiveToolManager::CanActivateTool(EToolSide Side, const FString& Identifier)
+bool UInteractiveToolManager::CanActivateTool(EToolSide Side, FString Identifier)
 {
 	check(Side == EToolSide::Left);   // TODO: support right-side tool
 

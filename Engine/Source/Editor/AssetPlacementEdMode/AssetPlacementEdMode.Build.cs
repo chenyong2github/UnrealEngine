@@ -17,6 +17,10 @@ public class AssetPlacementEdMode : ModuleRules
                 "EditorStyle",
 				"EditorFramework",
 				"UnrealEd",
+				"EditorInteractiveToolsFramework",
+				"InteractiveToolsFramework",
+				"Foliage",
+				"Landscape",
 			}
 		);
 	}

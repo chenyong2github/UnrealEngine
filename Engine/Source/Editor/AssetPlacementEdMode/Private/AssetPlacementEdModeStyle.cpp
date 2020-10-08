@@ -59,10 +59,10 @@ void FAssetPlacementEdModeStyle::SetupCustomStyle()
 	StyleSet->Set("AssetPlacementEdMode.LassoSelect.Small", MakeImageBrushFn("Icons/GeneralTools/Lasso_40x"));
 	StyleSet->Set("AssetPlacementEdMode.PlaceSingle", MakeImageBrushFn("Icons/GeneralTools/Foliage_40x"));
 	StyleSet->Set("AssetPlacementEdMode.PlaceSingle.Small", MakeImageBrushFn("Icons/GeneralTools/Foliage_40x"));
-	StyleSet->Set("AssetPlacementEdMode.Paint", MakeImageBrushFn("Icons/GeneralTools/Paint_40x"));
-	StyleSet->Set("AssetPlacementEdMode.Paint.Small", MakeImageBrushFn("Icons/GeneralTools/Paint_40x"));
-	StyleSet->Set("AssetPlacementEdMode.Reapply", MakeImageBrushFn("Icons/GeneralTools/Repaint_40x"));
-	StyleSet->Set("AssetPlacementEdMode.Reapply.Small", MakeImageBrushFn("Icons/GeneralTools/Repaint_40x"));
+	StyleSet->Set("AssetPlacementEdMode.Place", MakeImageBrushFn("Icons/GeneralTools/Paint_40x"));
+	StyleSet->Set("AssetPlacementEdMode.Place.Small", MakeImageBrushFn("Icons/GeneralTools/Paint_40x"));
+	StyleSet->Set("AssetPlacementEdMode.ReapplySettings", MakeImageBrushFn("Icons/GeneralTools/Repaint_40x"));
+	StyleSet->Set("AssetPlacementEdMode.ReapplySettings.Small", MakeImageBrushFn("Icons/GeneralTools/Repaint_40x"));
 	StyleSet->Set("AssetPlacementEdMode.Fill", MakeImageBrushFn("Icons/GeneralTools/PaintBucket_40x"));
 	StyleSet->Set("AssetPlacementEdMode.Fill.Small", MakeImageBrushFn("Icons/GeneralTools/PaintBucket_40x"));
 	StyleSet->Set("AssetPlacementEdMode.Delete", MakeImageBrushFn("Icons/GeneralTools/Delete_40x"));
@@ -73,8 +73,8 @@ void FAssetPlacementEdModeStyle::SetupCustomStyle()
 	StyleSet->Set("AssetPlacementEdMode.Filter.Small", MakeImageBrushFn("Icons/GeneralTools/Filter_40x"));
 	StyleSet->Set("AssetPlacementEdMode.Settings", MakeImageBrushFn("Icons/GeneralTools/Settings_40x"));
 	StyleSet->Set("AssetPlacementEdMode.Settings.Small", MakeImageBrushFn("Icons/GeneralTools/Settings_40x"));
-	StyleSet->Set("AssetPlacementEdMode.MoveToCurrentLevel", MakeImageBrushFn("Icons/GeneralTools/MoveToLevel_40x"));
-	StyleSet->Set("AssetPlacementEdMode.MoveToCurrentLevel.Small", MakeImageBrushFn("Icons/GeneralTools/MoveToLevel_40x"));
+	StyleSet->Set("AssetPlacementEdMode.MoveToActivePartition", MakeImageBrushFn("Icons/GeneralTools/MoveToLevel_40x"));
+	StyleSet->Set("AssetPlacementEdMode.MoveToActivePartition.Small", MakeImageBrushFn("Icons/GeneralTools/MoveToLevel_40x"));
 
 	FSlateStyleRegistry::RegisterSlateStyle(*StyleSet.Get());
 }
