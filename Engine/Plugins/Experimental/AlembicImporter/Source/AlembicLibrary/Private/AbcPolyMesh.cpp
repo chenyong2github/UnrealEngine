@@ -200,7 +200,10 @@ void FAbcPolyMesh::SetFrameAndTime(const float InTime, const int32 FrameIndex, c
 				}
 			}
 
-			AbcImporterUtilities::ComputeTangents(WriteSample, File->GetImportSettings()->NormalGenerationSettings.bIgnoreDegenerateTriangles, *File->GetMeshUtilities());
+			if (!File->GetImportSettings()->NormalGenerationSettings.bSkipComputingTangents)
+			{
+				AbcImporterUtilities::ComputeTangents(WriteSample, File->GetImportSettings()->NormalGenerationSettings.bIgnoreDegenerateTriangles, *File->GetMeshUtilities());
+			}
 		}
 		else if (bConstant && !bConstantTransformation)
 		{
