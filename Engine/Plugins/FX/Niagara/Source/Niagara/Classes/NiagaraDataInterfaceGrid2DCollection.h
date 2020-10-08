@@ -11,29 +11,37 @@
 
 class FNiagaraSystemInstance;
 class UTextureRenderTarget;
-class UTextureRenderTarget2D;
+class UTextureRenderTarget2DArray;
 
 class FGrid2DBuffer
 {
 public:
-	FGrid2DBuffer(int NumX, int NumY, EPixelFormat PixelFormat)
+	FGrid2DBuffer(int NumX, int NumY, int NumAttributes, EPixelFormat PixelFormat)
 	{
-		GridBuffer.Initialize(GPixelFormats[PixelFormat].BlockBytes, NumX, NumY, PixelFormat);
-		INC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, GridBuffer.NumBytes);
+		FRHIResourceCreateInfo CreateInfo;
+		GridTexture = RHICreateTexture2DArray(NumX, NumY, NumAttributes, PixelFormat, 1, 1, TexCreate_ShaderResource | TexCreate_UAV, CreateInfo);
+		FRHITextureSRVCreateInfo SRVCreateInfo;
+		GridSRV = RHICreateShaderResourceView(GridTexture, SRVCreateInfo);
+		GridUAV = RHICreateUnorderedAccessView(GridTexture);
+
+		INC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RHIComputeMemorySize(GridTexture));
 	}
 	~FGrid2DBuffer()
 	{
-		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, GridBuffer.NumBytes);
-		GridBuffer.Release();
+		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RHIComputeMemorySize(GridTexture));
+		GridTexture.SafeRelease();
+		GridSRV.SafeRelease();
+		GridUAV.SafeRelease();
 	}
 
-	FTextureRWBuffer2D GridBuffer;	
+	FTexture2DArrayRHIRef GridTexture;
+	FShaderResourceViewRHIRef GridSRV;
+	FUnorderedAccessViewRHIRef GridUAV;
 };
 
 struct FGrid2DCollectionRWInstanceData_GameThread
 {
 	FIntPoint NumCells = FIntPoint(EForceInit::ForceInitToZero);
-	FIntPoint NumTiles = FIntPoint(EForceInit::ForceInitToZero);
 	int32 NumAttributes = 0;
 	FVector2D CellSize = FVector2D::ZeroVector;
 	FVector2D WorldBBoxSize = FVector2D::ZeroVector;
@@ -46,19 +54,21 @@ struct FGrid2DCollectionRWInstanceData_GameThread
 	/** A binding to the user ptr we're reading the RT from (if we are). */
 	FNiagaraParameterDirectBinding<UObject*> RTUserParamBinding;
 
-	UTextureRenderTarget2D* TargetTexture = nullptr;	
+	UTextureRenderTarget* TargetTexture = nullptr;	
 	TArray<FNiagaraVariableBase> Vars;
 	TArray<uint32> Offsets;
 
 	bool NeedsRealloc = false;
 
 	int32 FindAttributeIndexByName(const FName& InName, int32 NumChannels);
+
+	bool UpdateTargetTexture(ENiagaraGpuBufferFormat BufferFormat);
 };
 
 struct FGrid2DCollectionRWInstanceData_RenderThread
 {
 	FIntPoint NumCells = FIntPoint(EForceInit::ForceInitToZero);
-	FIntPoint NumTiles = FIntPoint(EForceInit::ForceInitToZero);
+	int32 NumAttributes = 0;
 	FVector2D CellSize = FVector2D::ZeroVector;
 	FVector2D WorldBBoxSize = FVector2D::ZeroVector;
 	EPixelFormat PixelFormat = EPixelFormat::PF_R32_FLOAT;
@@ -80,7 +90,6 @@ struct FGrid2DCollectionRWInstanceData_RenderThread
 
 	void BeginSimulate(FRHICommandList& RHICmdList);
 	void EndSimulate(FRHICommandList& RHICmdList);
-	void* DebugTargetTexture = nullptr;
 };
 
 struct FNiagaraDataInterfaceProxyGrid2DCollectionProxy : public FNiagaraDataInterfaceProxyRW
@@ -110,9 +119,6 @@ public:
 	/** Reference to a user parameter if we're reading one. */
 	UPROPERTY(EditAnywhere, Category = "Grid2DCollection")
 	FNiagaraUserParameterBinding RenderTargetUserParameter;
-
-	UPROPERTY(EditAnywhere, Category = "Grid2DCollection")
-	uint8 bCreateRenderTarget : 1;
 
 	UPROPERTY(EditAnywhere, Category = "Grid2DCollection", meta = (ToolTip = "Changes the format used to store data inside the grid, low bit formats save memory and performance."))
 	ENiagaraGpuBufferFormat BufferFormat;
@@ -168,7 +174,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta=(DeprecatedFunction, DeprecationMessage = "This function has been replaced by object user variables on the emitter to specify render targets to fill with data."))
 	virtual bool FillRawTexture2D(const UNiagaraComponent *Component, UTextureRenderTarget2D *Dest, int &TilesX, int &TilesY);
 	
-	UFUNCTION(BlueprintCallable, Category = Niagara)
+	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by object user variables on the emitter to specify render targets to fill with data."))
 	virtual void GetRawTextureSize(const UNiagaraComponent *Component, int &SizeX, int &SizeY);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara)
@@ -179,8 +185,6 @@ public:
 	void GetNumCells(FVectorVMContext& Context);
 	void SetNumCells(FVectorVMContext& Context);
 	void GetAttributeIndex(FVectorVMContext& Context, const FName& InName, int32 NumChannels);
-
-	static const FString NumTilesName;
 
 	static const FString GridName;
 	static const FString OutputGridName;
@@ -253,6 +257,6 @@ protected:
 	TMap<FNiagaraSystemInstanceID, FGrid2DCollectionRWInstanceData_GameThread*> SystemInstancesToProxyData_GT;
 
 	UPROPERTY(Transient)
-	TMap< uint64, UTextureRenderTarget2D*> ManagedRenderTargets;
+	TMap< uint64, UTextureRenderTarget2DArray*> ManagedRenderTargets;
 	
 };

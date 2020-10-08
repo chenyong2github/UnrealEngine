@@ -4,15 +4,13 @@
 #include "ShaderParameterUtils.h"
 #include "ClearQuad.h"
 #include "TextureResource.h"
-#include "Engine/Texture2D.h"
+#include "Engine/Texture2DArray.h"
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraRenderer.h"
 #include "Engine/TextureRenderTarget2D.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceGrid2DCollectionReader"
-
-const FString UNiagaraDataInterfaceGrid2DCollectionReader::NumTilesName(TEXT("NumTiles_"));
 
 const FString UNiagaraDataInterfaceGrid2DCollectionReader::GridName(TEXT("Grid_"));
 const FString UNiagaraDataInterfaceGrid2DCollectionReader::SamplerName(TEXT("Sampler_"));
@@ -33,7 +31,6 @@ public:
 	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{			
 		NumCellsParam.Bind(ParameterMap, *(NumCellsName + ParameterInfo.DataInterfaceHLSLSymbol));
-		NumTilesParam.Bind(ParameterMap, *(UNiagaraDataInterfaceGrid2DCollectionReader::NumTilesName + ParameterInfo.DataInterfaceHLSLSymbol));
 
 		CellSizeParam.Bind(ParameterMap, *(CellSizeName + ParameterInfo.DataInterfaceHLSLSymbol));
 
@@ -67,7 +64,6 @@ public:
 		if (Grid2DProxyData == nullptr)
 		{			
 			SetShaderValue(RHICmdList, ComputeShaderRHI, NumCellsParam, FIntPoint(0, 0));			
-			SetShaderValue(RHICmdList, ComputeShaderRHI, NumTilesParam, FIntPoint(0, 0));
 			SetShaderValue(RHICmdList, ComputeShaderRHI, CellSizeParam, FVector2D(0.f, 0.f));
 			SetShaderValue(RHICmdList, ComputeShaderRHI, WorldBBoxSizeParam, FVector2D(0.f, 0.f));
 
@@ -82,18 +78,9 @@ public:
 
 		check(Grid2DProxyData);
 
-		int NumCellsTmp[2];
-		NumCellsTmp[0] = Grid2DProxyData->NumCells.X;
-		NumCellsTmp[1] = Grid2DProxyData->NumCells.Y;
-		SetShaderValue(RHICmdList, ComputeShaderRHI, NumCellsParam, NumCellsTmp);	
-
-		int NumTilesTmp[2];
-		NumTilesTmp[0] = Grid2DProxyData->NumTiles.X;
-		NumTilesTmp[1] = Grid2DProxyData->NumTiles.Y;
-		SetShaderValue(RHICmdList, ComputeShaderRHI, NumTilesParam, NumTilesTmp);		
-
+		SetShaderValue(RHICmdList, ComputeShaderRHI, NumCellsParam, Grid2DProxyData->NumCells);
 		SetShaderValue(RHICmdList, ComputeShaderRHI, CellSizeParam, Grid2DProxyData->CellSize);
-				
+			
 		SetShaderValue(RHICmdList, ComputeShaderRHI, WorldBBoxSizeParam, Grid2DProxyData->WorldBBoxSize);
 
 		FRHISamplerState *SamplerState = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
@@ -105,8 +92,8 @@ public:
 			if (Grid2DProxyData->CurrentData != nullptr)
 			{
 				// FIXME: this shouldn't be necessary, since the Grid2D DI leaves the buffer in the SRVMask state. Confirm and remove the commented out line.
-				//RHICmdList.Transition(FRHITransitionInfo(Grid2DProxyData->CurrentData->GridBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
-				InputGridBuffer = Grid2DProxyData->CurrentData->GridBuffer.SRV;
+				//RHICmdList.Transition(FRHITransitionInfo(Grid2DProxyData->CurrentData->GridUAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
+				InputGridBuffer = Grid2DProxyData->CurrentData->GridSRV;
 			}
 			else
 			{
@@ -122,14 +109,11 @@ public:
 	}
 
 private:
-
 	LAYOUT_FIELD(FShaderParameter, NumCellsParam);
-	LAYOUT_FIELD(FShaderParameter, NumTilesParam);
 	LAYOUT_FIELD(FShaderParameter, CellSizeParam);
 	LAYOUT_FIELD(FShaderParameter, WorldBBoxSizeParam);
 
 	LAYOUT_FIELD(FShaderResourceParameter, GridParam);
-	
 	
 	LAYOUT_FIELD(FShaderResourceParameter, SamplerParam);
 };
@@ -224,15 +208,13 @@ void UNiagaraDataInterfaceGrid2DCollectionReader::GetParameterDefinitionHLSL(con
 	Super::GetParameterDefinitionHLSL(ParamInfo, OutHLSL);
 
 	static const TCHAR *FormatDeclarations = TEXT(R"(				
-		Texture2D<float> {GridName};
-		int2 {NumTiles};
+		Texture2DArray<float> {GridName};
 		SamplerState {SamplerName};
 	
 	)");
 	TMap<FString, FStringFormatArg> ArgsDeclarations = {				
 		{ TEXT("GridName"),    GridName + ParamInfo.DataInterfaceHLSLSymbol },
 		{ TEXT("SamplerName"),    SamplerName + ParamInfo.DataInterfaceHLSLSymbol },		
-		{ TEXT("NumTiles"),    NumTilesName + ParamInfo.DataInterfaceHLSLSymbol },
 	};
 	OutHLSL += FString::Format(FormatDeclarations, ArgsDeclarations);
 }
@@ -249,17 +231,13 @@ bool UNiagaraDataInterfaceGrid2DCollectionReader::GetFunctionHLSL(const FNiagara
 		static const TCHAR *FormatBounds = TEXT(R"(
 			void {FunctionName}(int In_IndexX, int In_IndexY, int In_AttributeIndex, out float Out_Val)
 			{
-				int TileIndexX = In_AttributeIndex % {NumTiles}.x;
-				int TileIndexY = In_AttributeIndex / {NumTiles}.x;
-
-				Out_Val = {Grid}.Load(int3(In_IndexX + TileIndexX * {NumCellsName}.x, In_IndexY + TileIndexY * {NumCellsName}.y, 0));
+				Out_Val = {Grid}.Load(int3(In_IndexX, In_IndexY, In_AttributeIndex));
 			}
 		)");
 		TMap<FString, FStringFormatArg> ArgsBounds = {
 			{TEXT("FunctionName"), FunctionInfo.InstanceName},
 			{TEXT("Grid"), GridName + ParamInfo.DataInterfaceHLSLSymbol},
 			{TEXT("NumCellsName"), NumCellsName + ParamInfo.DataInterfaceHLSLSymbol},
-			{TEXT("NumTiles"),    NumTilesName + ParamInfo.DataInterfaceHLSLSymbol},
 		};
 		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
 		return true;
@@ -269,33 +247,13 @@ bool UNiagaraDataInterfaceGrid2DCollectionReader::GetFunctionHLSL(const FNiagara
 		static const TCHAR *FormatBounds = TEXT(R"(
 			void {FunctionName}(float In_UnitX, float In_UnitY, int In_AttributeIndex, out float Out_Val)
 			{
-				int TileIndexX = In_AttributeIndex % {NumTiles}.x;
-				int TileIndexY = In_AttributeIndex / {NumTiles}.x;
-				float2 UV =
-				{
-					In_UnitX / {NumTiles}.x + 1.0*TileIndexX/{NumTiles}.x,
-					In_UnitY / {NumTiles}.y + 1.0*TileIndexY/{NumTiles}.y
-				};
-				float2 TileMin =
-				{
-					(TileIndexX * {NumCellsName}.x + 0.5) / ({NumTiles}.x * {NumCellsName}.x),
-					(TileIndexY * {NumCellsName}.y + 0.5) / ({NumTiles}.y * {NumCellsName}.y),
-				};
-				float2 TileMax =
-				{
-					((TileIndexX + 1) * {NumCellsName}.x - 0.5) / ({NumTiles}.x * {NumCellsName}.x),
-					((TileIndexY + 1) * {NumCellsName}.y - 0.5) / ({NumTiles}.y * {NumCellsName}.y),
-				};
-				UV = clamp(UV, TileMin, TileMax);
-				
-				Out_Val = {Grid}.SampleLevel({SamplerName}, UV, 0);
+				Out_Val = {Grid}.SampleLevel({SamplerName}, float3(In_UnitX, In_UnitY, In_AttributeIndex), 0);
 			}
 		)");
 		TMap<FString, FStringFormatArg> ArgsBounds = {
 			{TEXT("FunctionName"), FunctionInfo.InstanceName},
 			{TEXT("Grid"), GridName + ParamInfo.DataInterfaceHLSLSymbol},
 			{TEXT("SamplerName"),    SamplerName + ParamInfo.DataInterfaceHLSLSymbol },
-			{TEXT("NumTiles"),    NumTilesName + ParamInfo.DataInterfaceHLSLSymbol},
 			{TEXT("NumCellsName"), NumCellsName + ParamInfo.DataInterfaceHLSLSymbol},
 		};
 		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
