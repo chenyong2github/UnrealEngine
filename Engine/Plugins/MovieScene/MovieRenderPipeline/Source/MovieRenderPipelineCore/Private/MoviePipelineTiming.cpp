@@ -40,7 +40,7 @@ void UMoviePipeline::TickProducingFrames()
 			if (!OutputFuture.Get())
 			{
 				UE_LOG(LogMovieRenderPipeline, Error, TEXT("Error exporting frame, canceling movie export."));
-				RequestShutdown();
+				RequestShutdown(true);
 				break;
 			}
 		}
