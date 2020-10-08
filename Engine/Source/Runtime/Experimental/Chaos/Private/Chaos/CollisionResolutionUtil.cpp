@@ -80,6 +80,55 @@ namespace Chaos
 			return Numerator < Denominator ? (Impulse * Numerator / Denominator) : Impulse;
 		}
 
+		FVec3 GetEnergyClampedImpulse(
+			const FVec3& Impulse, 
+			FReal InvM0, 
+			const FMatrix33& InvI0, 
+			FReal InvM1, 
+			const FMatrix33& InvI1,
+			const FRotation3& Q0,
+			const FVec3& V0,
+			const FVec3& W0,
+			const FRotation3& Q1,
+			const FVec3& V1,
+			const FVec3& W1,
+			const FVec3& ContactOffset0,
+			const FVec3& ContactOffset1, 
+			const FVec3& ContactVelocity0, 
+			const FVec3& ContactVelocity1)
+		{
+			FVec3 Jr0, Jr1, IInvJr0, IInvJr1;
+			FReal ImpulseRatioNumerator0 = 0, ImpulseRatioNumerator1 = 0, ImpulseRatioDenom0 = 0, ImpulseRatioDenom1 = 0;
+			FReal ImpulseSizeSQ = Impulse.SizeSquared();
+			if (ImpulseSizeSQ < SMALL_NUMBER)
+			{
+				return Impulse;
+			}
+			FVec3 KinematicVelocity = (InvM0 == 0.0f) ? ContactVelocity0 : (InvM1 == 0.0f) ? ContactVelocity1 : FVec3(0);
+			if (InvM0 > 0.0f)
+			{
+				Jr0 = FVec3::CrossProduct(ContactOffset0, Impulse);
+				IInvJr0 = Q0.RotateVector(InvI0 * Q0.UnrotateVector(Jr0));
+				ImpulseRatioNumerator0 = FVec3::DotProduct(Impulse, V0 - KinematicVelocity) + FVec3::DotProduct(Jr0, W0);
+				ImpulseRatioDenom0 = InvM0 * ImpulseSizeSQ + FVec3::DotProduct(Jr0, IInvJr0);
+			}
+			if (InvM1 > 0.0f)
+			{
+				Jr1 = FVec3::CrossProduct(ContactOffset1, Impulse);
+				IInvJr1 = Q1.RotateVector(InvI1 * Q1.UnrotateVector(Jr1));
+				ImpulseRatioNumerator1 = FVec3::DotProduct(Impulse, V1 - KinematicVelocity) + FVec3::DotProduct(Jr1, W1);
+				ImpulseRatioDenom1 = InvM1 * ImpulseSizeSQ + FVec3::DotProduct(Jr1, IInvJr1);
+			}
+			FReal Numerator = -2.0f * (ImpulseRatioNumerator0 - ImpulseRatioNumerator1);
+			if (Numerator <= 0)
+			{
+				return FVec3(0);
+			}
+			ensure(Numerator > 0);
+			FReal Denominator = ImpulseRatioDenom0 + ImpulseRatioDenom1;
+			return Numerator < Denominator ? (Impulse * Numerator / Denominator) : Impulse;
+		}
+
 		bool SampleObjectHelper(const FImplicitObject& Object, const FRigidTransform3& ObjectTransform, const FRigidTransform3& SampleToObjectTransform, const FVec3& SampleParticle, FReal Thickness, FRigidBodyPointContactConstraint& Constraint)
 		{
 			FVec3 LocalPoint = SampleToObjectTransform.TransformPositionNoScale(SampleParticle);
