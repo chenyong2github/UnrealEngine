@@ -128,12 +128,21 @@ bool FInsetMeshRegion::ApplyInset(FInsetInfo& Region, FMeshNormals* UseNormals)
 			const FLine3d& PrevLine = InsetLines[(vi == 0) ? (NumEdges-1) : (vi-1)];
 			const FLine3d& NextLine = InsetLines[vi];
 
-			FDistLine3Line3d Distance(PrevLine, NextLine);
-			double DistSqr = Distance.GetSquared();
+			if (FMathd::Abs(PrevLine.Direction.Dot(NextLine.Direction)) > 0.999)
+			{
+				FVector3d CurPos = Mesh->GetVertex(LoopPair.InnerVertices[vi]);
+				FVector3d NewPos = NextLine.NearestPoint(CurPos);
+				Mesh->SetVertex(LoopPair.InnerVertices[vi], NewPos);
+			}
+			else
+			{
+				FDistLine3Line3d Distance(PrevLine, NextLine);
+				double DistSqr = Distance.GetSquared();
 
-			FVector3d CurPos = Mesh->GetVertex(LoopPair.InnerVertices[vi]);
-			FVector3d NewPos = 0.5 * (Distance.Line1ClosestPoint + Distance.Line2ClosestPoint);
-			Mesh->SetVertex(LoopPair.InnerVertices[vi], NewPos);
+				FVector3d CurPos = Mesh->GetVertex(LoopPair.InnerVertices[vi]);
+				FVector3d NewPos = 0.5 * (Distance.Line1ClosestPoint + Distance.Line2ClosestPoint);
+				Mesh->SetVertex(LoopPair.InnerVertices[vi], NewPos);
+			}
 		}
 
 
