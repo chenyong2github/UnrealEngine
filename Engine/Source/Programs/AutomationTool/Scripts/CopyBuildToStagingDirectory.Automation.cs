@@ -744,6 +744,19 @@ public partial class Project : CommandUtils
 				// Initialize cultures to stage.
 				List<string> CulturesToStage = GetCulturesToStage(Params, PlatformGameConfig);
 
+				// Initialize platform extensions to stage.
+				var PlatformExtensionsToStage = new List<string>();
+				{
+					string PlatformExtensionName = SC.StageTargetPlatform.PlatformType.ToString();
+					PlatformExtensionsToStage.Add(PlatformExtensionName);
+
+					DataDrivenPlatformInfo.ConfigDataDrivenPlatformInfo Info = DataDrivenPlatformInfo.GetDataDrivenInfoForPlatform(PlatformExtensionName);
+					if (Info != null && Info.IniParentChain != null)
+					{
+						PlatformExtensionsToStage.AddRange(Info.IniParentChain);
+					}
+				}
+
 				// Stage ICU internationalization data from Engine.
 				SC.StageFiles(StagedFileType.UFS, DirectoryReference.Combine(SC.LocalRoot, "Engine", "Content", "Internationalization", InternationalizationPreset, ICUDataVersion), StageFilesSearch.AllDirectories, new StagedDirectoryReference(String.Format("Engine/Content/Internationalization/{0}", ICUDataVersion)));
 
@@ -762,20 +775,9 @@ public partial class Project : CommandUtils
 				StageConfigFiles(SC, DirectoryReference.Combine(SC.ProjectRoot, "Config"), null);
 				
 				// Stage platform extension config files
+				foreach (string PlatformExtensionToStage in PlatformExtensionsToStage)
 				{
-					string PlatformExtensionName = SC.StageTargetPlatform.PlatformType.ToString();
-					StagePlatformExtensionConfigFiles(SC, PlatformExtensionName);
-
-					// and any ini parents it has
-					DataDrivenPlatformInfo.ConfigDataDrivenPlatformInfo Info = DataDrivenPlatformInfo.GetDataDrivenInfoForPlatform(PlatformExtensionName);
-					if (Info != null && Info.IniParentChain != null)
-					{
-						// the IniParentChain
-						foreach (string ParentPlatform in Info.IniParentChain)
-						{
-							StagePlatformExtensionConfigFiles(SC, ParentPlatform);
-						}
-					}
+					StagePlatformExtensionConfigFiles(SC, PlatformExtensionToStage);
 				}
 
 				// Stage plugin config files
@@ -800,10 +802,10 @@ public partial class Project : CommandUtils
 				}
 
 				// Stage any platform extension localization targets
+				foreach (string PlatformExtensionToStage in PlatformExtensionsToStage)
 				{
-					string PlatformExtensionName = SC.StageTargetPlatform.PlatformType.ToString();
-					StageLocalizationDataForTargetsInDirectory(SC, null, CulturesToStage, DirectoryReference.Combine(SC.LocalRoot, "Engine", "Platforms", PlatformExtensionName, "Content", "Localization"));
-					StageLocalizationDataForTargetsInDirectory(SC, PlatformGameConfig, CulturesToStage, DirectoryReference.Combine(SC.ProjectRoot, "Platforms", PlatformExtensionName, "Content", "Localization"));
+					StageLocalizationDataForTargetsInDirectory(SC, null, CulturesToStage, DirectoryReference.Combine(SC.LocalRoot, "Engine", "Platforms", PlatformExtensionToStage, "Content", "Localization"));
+					StageLocalizationDataForTargetsInDirectory(SC, PlatformGameConfig, CulturesToStage, DirectoryReference.Combine(SC.ProjectRoot, "Platforms", PlatformExtensionToStage, "Content", "Localization"));
 				}
 
 				// Stage any additional UFS and NonUFS paths specified in the project ini files; these dirs are relative to the game content directory
