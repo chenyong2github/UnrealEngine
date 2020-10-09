@@ -172,4 +172,7 @@ struct FSyncStatus
 
 	UPROPERTY()
 	TArray<FString> FlipModeHistory;
+
+	UPROPERTY()
+	TArray<FString> ProgramLayers;
 };
