@@ -3625,9 +3625,9 @@ void UMaterialInstance::BeginDestroy()
 				LocalResource->ReleaseResource();
 			}
 
-			for (FMaterialResource* Resource : ResourcesToDestroy)
+			for (FMaterialResource* CurrentResource : ResourcesToDestroy)
 			{
-				Resource->PrepareDestroy_RenderThread();
+				CurrentResource->PrepareDestroy_RenderThread();
 			}
 
 			*Released = true;

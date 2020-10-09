@@ -16,6 +16,7 @@ class FShaderCompileJob;
 class FUniformExpressionSet;
 class FVertexFactoryType;
 class FMeshMaterialShader;
+enum class EShaderCompileJobPriority : uint8;
 
 /**
  * A shader meta type for material-linked shaders which use a vertex factory.
