@@ -176,8 +176,8 @@ public:
 	UMaterialInterface* GetDefaultCacheDistanceFieldCacheMaterial() const;
 	FSoftObjectPath GetDefaultCacheDistanceFieldCacheMaterialPath() const { return DefaultCacheDistanceFieldCacheMaterial.ToSoftObjectPath(); }
 
-	UMaterialInterface* GetDefaultCompositeAlphasMaterial() const;
-	FSoftObjectPath GetDefaultCompositeAlphasMaterialPath() const { return DefaultCompositeAlphasMaterial.ToSoftObjectPath(); }
+	UMaterialInterface* GetDefaultCompositeWaterBodyTextureMaterial() const;
+	FSoftObjectPath GetDefaultCompositeWaterBodyTextureMaterialPath() const { return DefaultCompositeWaterBodyTextureMaterial.ToSoftObjectPath(); }
 
 	UMaterialInterface* GetDefaultFinalizeVelocityHeightMaterial() const;
 	FSoftObjectPath GetDefaultFinalizeVelocityHeightMaterialPath() const { return DefaultFinalizeVelocityHeightMaterial.ToSoftObjectPath(); }
@@ -255,7 +255,7 @@ private:
 	TSoftObjectPtr<UMaterialInterface> DefaultCacheDistanceFieldCacheMaterial;
 
 	UPROPERTY(EditAnywhere, config, Category = Brush)
-	TSoftObjectPtr<UMaterialInterface> DefaultCompositeAlphasMaterial;
+	TSoftObjectPtr<UMaterialInterface> DefaultCompositeWaterBodyTextureMaterial;
 
 	UPROPERTY(EditAnywhere, config, Category = Brush)
 	TSoftObjectPtr<UMaterialInterface> DefaultFinalizeVelocityHeightMaterial;

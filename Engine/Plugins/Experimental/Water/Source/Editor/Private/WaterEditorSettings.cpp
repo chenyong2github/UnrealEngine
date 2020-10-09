@@ -117,17 +117,17 @@ UWaterEditorSettings::UWaterEditorSettings()
 	, MaxWaterVelocityAndHeightTextureSize(2048)
 	, LandscapeMaterialParameterCollection(FSoftObjectPath(TEXT("/Landmass/Landscape/BlueprintBrushes/MPC/MPC_Landscape.MPC_Landscape")))
 	, WaterManagerClassPath(TEXT("/Script/WaterEditor.WaterBrushManager"))
-	, DefaultBrushAngleFalloffMaterial(FSoftObjectPath(TEXT("/Landmass/Landscape/BlueprintBrushes/Materials/WaterPlugin/MeshBrush_Angle.MeshBrush_Angle")))
-	, DefaultBrushIslandFalloffMaterial(FSoftObjectPath(TEXT("/Landmass/Landscape/BlueprintBrushes/Materials/WaterPlugin/MeshBrush_Island.MeshBrush_Island")))
-	, DefaultBrushWidthFalloffMaterial(FSoftObjectPath(TEXT("/Landmass/Landscape/BlueprintBrushes/Materials/WaterPlugin/MeshBrush_Width.MeshBrush_Width")))
-	, DefaultBrushWeightmapMaterial(FSoftObjectPath(TEXT("/Landmass/Landscape/BlueprintBrushes/Materials/WaterPlugin/MeshBrush_Weightmap.MeshBrush_Weightmap")))
+	, DefaultBrushAngleFalloffMaterial(FSoftObjectPath(TEXT("/Water/Materials/Brushes/MeshBrush_Angle.MeshBrush_Angle")))
+	, DefaultBrushIslandFalloffMaterial(FSoftObjectPath(TEXT("/Water/Materials/Brushes/MeshBrush_Island.MeshBrush_Island")))
+	, DefaultBrushWidthFalloffMaterial(FSoftObjectPath(TEXT("/Water/Materials/Brushes/MeshBrush_Width.MeshBrush_Width")))
+	, DefaultBrushWeightmapMaterial(FSoftObjectPath(TEXT("/Water/Materials/Brushes/MeshBrush_Weightmap.MeshBrush_Weightmap")))
 	, DefaultCacheDistanceFieldCacheMaterial(FSoftObjectPath(TEXT("/Landmass/Landscape/BlueprintBrushes/Materials/CacheDistanceField.CacheDistanceField")))
-	, DefaultCompositeAlphasMaterial(FSoftObjectPath(TEXT("/Landmass/Landscape/BlueprintBrushes/Materials/CompositeAlphas.CompositeAlphas")))
-	, DefaultFinalizeVelocityHeightMaterial(FSoftObjectPath(TEXT("/Landmass/Landscape/BlueprintBrushes/Materials/FinalizeCombinedTexture.FinalizeCombinedTexture")))
+	, DefaultCompositeWaterBodyTextureMaterial(FSoftObjectPath(TEXT("/Water/Materials/Brushes/CompositeWaterBodyTexture.CompositeWaterBodyTexture")))
+	, DefaultFinalizeVelocityHeightMaterial(FSoftObjectPath(TEXT("/Water/Materials/Brushes/FinalizeWaterTexture.FinalizeWaterTexture")))
 	, DefaultJumpFloodStepMaterial(FSoftObjectPath(TEXT("/Landmass/DistanceFields/Materials/JumpFloodStep.JumpFloodStep")))
 	, DefaultBlurEdgesMaterial(FSoftObjectPath(TEXT("/Landmass/DistanceFields/Materials/BlurEdges.BlurEdges")))
 	, DefaultFindEdgesMaterial(FSoftObjectPath(TEXT("/Landmass/DistanceFields/Materials/DetectEdges.DetectEdges")))
-	, DefaultDrawCanvasMaterial(FSoftObjectPath(TEXT("/Landmass/Landscape/BlueprintBrushes/Materials/WaterPlugin/CanvasDrawing.CanvasDrawing")))
+	, DefaultDrawCanvasMaterial(FSoftObjectPath(TEXT("/Water/Materials/Brushes/CanvasDrawing.CanvasDrawing")))
 	, DefaultRenderRiverSplineDepthsMaterial(FSoftObjectPath(TEXT("/Landmass/Landscape/BlueprintBrushes/Materials/RenderSplineDepths.RenderSplineDepths"))) 
 {
 
@@ -178,9 +178,9 @@ UMaterialInterface* UWaterEditorSettings::GetDefaultCacheDistanceFieldCacheMater
 	return DefaultCacheDistanceFieldCacheMaterial.LoadSynchronous();
 }
 
-UMaterialInterface* UWaterEditorSettings::GetDefaultCompositeAlphasMaterial() const
+UMaterialInterface* UWaterEditorSettings::GetDefaultCompositeWaterBodyTextureMaterial() const
 {
-	return DefaultCompositeAlphasMaterial.LoadSynchronous();
+	return DefaultCompositeWaterBodyTextureMaterial.LoadSynchronous();
 }
 
 UMaterialInterface* UWaterEditorSettings::GetDefaultFinalizeVelocityHeightMaterial() const
