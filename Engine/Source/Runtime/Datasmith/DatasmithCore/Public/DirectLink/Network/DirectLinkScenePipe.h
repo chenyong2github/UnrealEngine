@@ -101,7 +101,7 @@ public:
 		Consumer->SetDeltaProducer(this);
 	}
 
-	void HandleDeltaMessage(const FDirectLinkMsg_DeltaMessage& Message);
+	void HandleDeltaMessage(FDirectLinkMsg_DeltaMessage& Message);
 
 	// delta producer
 	virtual void OnOpenHaveList(const FSceneIdentifier& HaveSceneId, bool bKeepPreviousContent, int32 SyncCycle) override;
@@ -114,7 +114,7 @@ public: // IStreamCommunicationInterface API
 
 private:
 	// transmits messages to the actual delta consumer, reordered
-	void DelegateDeltaMessage(const FDirectLinkMsg_DeltaMessage& Message);
+	void DelegateDeltaMessage(FDirectLinkMsg_DeltaMessage& Message);
 	void Send(FDirectLinkMsg_HaveListMessage* Message);
 
 private:

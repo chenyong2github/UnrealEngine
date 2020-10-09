@@ -459,7 +459,8 @@ void FEndpoint::FInternalThreadState::Handle_DeltaMessage(const FDirectLinkMsg_D
 			return;
 		}
 
-		Stream.Receiver->HandleDeltaMessage(Message);
+		FDirectLinkMsg_DeltaMessage StolenMessage = MoveTemp(const_cast<FDirectLinkMsg_DeltaMessage&>(Message));
+		Stream.Receiver->HandleDeltaMessage(StolenMessage);
 		Stream.LastRemoteLifeSign = Now_s;
 	}
 }
