@@ -90,7 +90,7 @@ public:
 	{
 		if (MeshTimestamp == Mesh->GetShapeTimestamp())
 		{
-			check(RootIndex >= 0);
+			checkSlow(RootIndex >= 0);
 		}
 		return MeshTimestamp == Mesh->GetShapeTimestamp();
 	}
@@ -126,9 +126,8 @@ public:
 		const FQueryOptions& Options = FQueryOptions()
 	) const override
 	{
-		check(MeshTimestamp == Mesh->GetShapeTimestamp());
-		check(RootIndex >= 0);
-		if (RootIndex < 0)
+		checkSlow(RootIndex >= 0);
+		if (RootIndex < 0 || !ensure(MeshTimestamp == Mesh->GetShapeTimestamp()))
 		{
 			return IndexConstants::InvalidID;
 		}
@@ -249,9 +248,8 @@ public:
 	virtual int FindNearestVertex(const FVector3d& P, double& NearestDistSqr,
 		double MaxDist = TNumericLimits<double>::Max(), const FQueryOptions& Options = FQueryOptions())
 	{
-		check(MeshTimestamp == Mesh->GetShapeTimestamp());
-		check(RootIndex >= 0);
-		if (RootIndex < 0)
+		checkSlow(RootIndex >= 0);
+		if (RootIndex < 0 || !ensure(MeshTimestamp == Mesh->GetShapeTimestamp()))
 		{
 			return IndexConstants::InvalidID;
 		}
@@ -365,13 +363,11 @@ public:
 		//   nearestT to TNumericLimits<double>::Max(), then we will test all boxes (!)
 		NearestT = (Options.MaxDistance < TNumericLimits<float>::Max()) ? Options.MaxDistance : TNumericLimits<float>::Max();
 
-		check(MeshTimestamp == Mesh->GetShapeTimestamp());
-		check(RootIndex >= 0);
-		if (RootIndex < 0)
+		checkSlow(RootIndex >= 0);
+		if (RootIndex < 0 || !ensure(MeshTimestamp == Mesh->GetShapeTimestamp()))
 		{
 			return false;
 		}
-		// TODO: check( ray_is_normalized)
 
 
 		FindHitTriangle(RootIndex, Ray, NearestT, TID, Options);
@@ -462,9 +458,7 @@ public:
 	 */
 	virtual bool TestAnyHitTriangle(const FRay3d& Ray, const FQueryOptions& Options = FQueryOptions()) const
 	{
-		check(MeshTimestamp == Mesh->GetShapeTimestamp());
-		check(RootIndex >= 0);
-		if (RootIndex < 0)
+		if (RootIndex < 0 || !ensure(MeshTimestamp == Mesh->GetShapeTimestamp()))
 		{
 			return false;
 		}
@@ -580,9 +574,8 @@ public:
 		double& Distance, const FQueryOptions& Options = FQueryOptions(), const FQueryOptions& OtherTreeOptions = FQueryOptions()
 	)
 	{
-		check(MeshTimestamp == Mesh->GetShapeTimestamp());
-		check(RootIndex >= 0);
-		if (RootIndex < 0)
+		checkSlow(RootIndex >= 0);
+		if (RootIndex < 0 || !ensure(MeshTimestamp == Mesh->GetShapeTimestamp()))
 		{
 			return FIndex2i::Invalid();
 		}
@@ -630,9 +623,8 @@ public:
 	 */
 	virtual void DoTraversal(FTreeTraversal& Traversal, const FQueryOptions& Options = FQueryOptions()) const
 	{
-		check(MeshTimestamp == Mesh->GetShapeTimestamp());
-		check(RootIndex >= 0);
-		if (RootIndex < 0)
+		checkSlow(RootIndex >= 0);
+		if (RootIndex < 0 || !ensure(MeshTimestamp == Mesh->GetShapeTimestamp()))
 		{
 			return;
 		}
@@ -708,7 +700,10 @@ public:
 		const FQueryOptions& Options = FQueryOptions()
 	) const
 	{
-		check(MeshTimestamp == Mesh->GetShapeTimestamp());
+		if (!ensure(MeshTimestamp == Mesh->GetShapeTimestamp()))
+		{
+			return false;
+		}
 
 		if (!TestMeshBounds.IsEmpty())
 		{
@@ -755,7 +750,10 @@ public:
 		const FQueryOptions& Options = FQueryOptions(), const FQueryOptions& OtherTreeOptions = FQueryOptions()
 	) const
 	{
-		check(MeshTimestamp == Mesh->GetShapeTimestamp());
+		if (!ensure(MeshTimestamp == Mesh->GetShapeTimestamp()))
+		{
+			return false;
+		}
 
 		if (find_any_intersection(RootIndex, OtherTree, TransformF, OtherTree.RootIndex, 0,
 			[this](const FTriangle3d& A, const FTriangle3d& B)
@@ -777,7 +775,10 @@ public:
 		const FQueryOptions& Options = FQueryOptions()
 	) const
 	{
-		check(MeshTimestamp == Mesh->GetShapeTimestamp());
+		if (!ensure(MeshTimestamp == Mesh->GetShapeTimestamp()))
+		{
+			return false;
+		}
 
 		FAxisAlignedBox3d triBounds(Triangle.V[0], Triangle.V[1], Triangle.V[2]);
 		int interTri = find_any_intersection(RootIndex, Triangle, triBounds,
@@ -805,11 +806,13 @@ public:
 		}
 	) const
 	{
-		check(MeshTimestamp == Mesh->GetShapeTimestamp());
-
 		MeshIntersection::FIntersectionsQueryResult result;
 
-		
+		if (!ensure(MeshTimestamp == Mesh->GetShapeTimestamp()))
+		{
+			return result;
+		}
+
 		find_intersections(RootIndex, OtherTree, TransformF, OtherTree.RootIndex, 0, result, 
 						   IntersectionFn, Options, OtherTreeOptions);
 
@@ -832,9 +835,12 @@ public:
 		}
 	) const
 	{
-		check(MeshTimestamp == Mesh->GetShapeTimestamp());
-
 		MeshIntersection::FIntersectionsQueryResult Result;
+
+		if (!ensure(MeshTimestamp == Mesh->GetShapeTimestamp()))
+		{
+			return Result;
+		}
 
 		find_self_intersections(&Result, bIgnoreTopoConnected, IntersectionFn, Options);
 
@@ -843,7 +849,10 @@ public:
 
 	virtual bool TestSelfIntersection(bool bIgnoreTopoConnected = true, const FQueryOptions& Options = FQueryOptions()) const
 	{
-		check(MeshTimestamp == Mesh->GetShapeTimestamp());
+		if (!ensure(MeshTimestamp == Mesh->GetShapeTimestamp()))
+		{
+			return false;
+		}
 
 		return find_self_intersections(nullptr, bIgnoreTopoConnected, 
 			[](FIntrTriangle3Triangle3d& Intr)
@@ -1010,7 +1019,6 @@ public:
 			FVector3d centroid = TMeshQueries<TriangleMeshType>::GetTriCentroid(*Mesh, ti);
 			double d2 = centroid.SquaredLength();
 			bool bInvalid = FMathd::IsNaN(d2) || (FMathd::IsFinite(d2) == false);
-			check(bInvalid == false);
 			if (bInvalid == false)
 			{
 				Triangles[i] = ti;
@@ -1043,7 +1051,6 @@ public:
 			FVector3d centroid = TMeshQueries<TriangleMeshType>::GetTriCentroid(*Mesh, ti);
 			double d2 = centroid.SquaredLength();
 			bool bInvalid = FMathd::IsNaN(d2) || (FMathd::IsFinite(d2) == false);
-			check(bInvalid == false);
 			if (bInvalid == false)
 			{
 				Triangles[i] = ti;
@@ -1179,7 +1186,7 @@ public:
 
 			n0 = l;
 			n1 = ICount - n0;
-			check(n0 >= 1 && n1 >= 1);
+			checkSlow(n0 >= 1 && n1 >= 1);
 		}
 		else
 		{
@@ -2035,7 +2042,7 @@ public:
 			{
 				continue;
 			}
-			check(tri_counts[ti] == 1);
+			checkSlow(tri_counts[ti] == 1);
 		}
 	}
 
@@ -2078,7 +2085,7 @@ private:
 				for (int j = 0; j < 3; ++j)
 				{
 					FVector3d V = Mesh->GetVertex(tv[j]);
-					check(Box.Contains(V));
+					checkSlow(Box.Contains(V));
 				}
 			}
 		}
@@ -2118,7 +2125,7 @@ private:
 			double fTriDistSqr = TMeshQueries<TriangleMeshType>::TriDistanceSqr(*Mesh, TID, P);
 			if (fTriDistSqr < fBoxDistSqr)
 			{
-				check(fabs(fTriDistSqr - fBoxDistSqr) <= FMathd::ZeroTolerance * 100);
+				checkSlow(fabs(fTriDistSqr - fBoxDistSqr) <= FMathd::ZeroTolerance * 100);
 			}
 		};
 		TreeTraversalImpl(IBox, 0, t, FQueryOptions());
@@ -2135,7 +2142,7 @@ private:
 			for (int j = 0; j < 3; ++j)
 			{
 				FVector3d V = Mesh->GetVertex(tv[j]);
-				check(Box.Contains(V));
+				checkSlow(Box.Contains(V));
 			}
 		};
 		TreeTraversalImpl(IBox, 0, t, FQueryOptions());
