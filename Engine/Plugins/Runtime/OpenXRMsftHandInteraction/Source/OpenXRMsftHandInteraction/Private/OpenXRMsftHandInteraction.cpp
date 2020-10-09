@@ -49,3 +49,5 @@ bool FOpenXRMsftHandInteraction::GetInteractionProfile(XrInstance InInstance, FS
 	OutHasHaptics = false;
 	return xrStringToPath(InInstance, "/interaction_profiles/microsoft/hand_interaction", &OutPath) == XR_SUCCESS;
 }
+
+#undef LOCTEXT_NAMESPACE
