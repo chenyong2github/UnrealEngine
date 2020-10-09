@@ -3,6 +3,8 @@
 #pragma once
 
 #include "PixelFormat.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
 
 //
 // Describes the way regions of cooked data should be rearranged to achieve higher compression ratios.
