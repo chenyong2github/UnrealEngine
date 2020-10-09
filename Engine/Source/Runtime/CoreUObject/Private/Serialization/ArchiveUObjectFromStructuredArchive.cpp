@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Serialization/ArchiveUObjectFromStructuredArchive.h"
+#include "UObject/LinkerSave.h"
+#include "Interfaces/ITargetPlatform.h"
 
 #if WITH_TEXT_ARCHIVE_SUPPORT
 
@@ -146,8 +148,38 @@ FArchive& FArchiveUObjectFromStructuredArchiveImpl::operator<<(FWeakObjectPtr& V
 	return *this;
 }
 
+void FArchiveUObjectFromStructuredArchiveImpl::PushShufflePattern(EDataShufflePattern Pattern)
+{
+	check(CurrentPattern == EDataShufflePattern::None);
+	check(Pattern != EDataShufflePattern::None);
+
+	CurrentPattern = Pattern;
+	ShuffleStart = Tell();
+}
+
+void FArchiveUObjectFromStructuredArchiveImpl::PopShufflePattern()
+{
+	check(CurrentPattern != EDataShufflePattern::None);
+
+	if (IsCooking() && CookingTarget()->SupportsFeature(ETargetPlatformFeatures::CookFileRegionMetadata))
+	{
+		FLinkerSave* LinkerSave = Cast<FLinkerSave>(GetLinker());
+		check(LinkerSave);
+
+		int64 Length = Tell() - ShuffleStart;
+		if (Length > 0)
+		{
+			LinkerSave->FileRegions.Add(FFileRegion(ShuffleStart, Length, CurrentPattern));
+		}
+	}
+
+	CurrentPattern = EDataShufflePattern::None;
+}
+
 bool FArchiveUObjectFromStructuredArchiveImpl::Finalize(FStructuredArchive::FRecord Record)
 {
+	check(CurrentPattern == EDataShufflePattern::None);
+
 	bool bShouldSerialize = Super::Finalize(Record);
 	if (bShouldSerialize)
 	{

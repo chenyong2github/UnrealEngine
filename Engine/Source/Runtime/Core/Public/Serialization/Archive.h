@@ -16,6 +16,7 @@
 #include "Templates/AndOrNot.h"
 #include "Templates/IsArrayOrRefOfType.h"
 #include "Templates/IsSigned.h"
+#include "Serialization/FileRegions.h"
 
 class FArchive;
 class FCustomVersionContainer;
@@ -2020,7 +2021,11 @@ public:
 			Ar.PopDebugDataString();
 		}
 	};
-#endif	
+#endif
+
+	/** Called whilst cooking to provide data shuffle hints to the cooker. */
+	virtual void PushShufflePattern(EDataShufflePattern Pattern) { }
+	virtual void PopShufflePattern() { }
 
 private:
 	/** Holds the cooking target platform. */

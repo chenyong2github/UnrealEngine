@@ -4290,7 +4290,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 							{
 								WriteOptions |= EAsyncWriteOptions::WriteFileToDisk;
 							}
-							SavePackageUtilities::AsyncWriteFile(AsyncWriteAndHashSequence, MoveTemp(DataPtr), Size, *Writer.GetArchiveName(), WriteOptions);
+							SavePackageUtilities::AsyncWriteFile(AsyncWriteAndHashSequence, MoveTemp(DataPtr), Size, *Writer.GetArchiveName(), WriteOptions, {});
 						}
 					}
 					AdditionalFilesFromExports.Empty();
@@ -4582,6 +4582,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 									FPackageStoreWriter::ExportsInfo ExportsInfo;
 									ExportsInfo.LooseFilePath	= Filename;
 									ExportsInfo.PackageName		= InOuter->GetFName();
+									ExportsInfo.RegionsOffset   = HeaderSize;
 
 									const uint8* ExportsData = IoBuffer.Data() + HeaderSize;
 									const int32 ExportCount = Linker->ExportMap.Num();
@@ -4593,7 +4594,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 										ExportsInfo.Exports.Add(FIoBuffer(IoBuffer.Data() + Export.SerialOffset, Export.SerialSize, IoBuffer));
 									}
 
-									SavePackageContext->PackageStoreWriter->WriteExports(ExportsInfo, FIoBuffer(ExportsData, DataSize - HeaderSize, IoBuffer));
+									SavePackageContext->PackageStoreWriter->WriteExports(ExportsInfo, FIoBuffer(ExportsData, DataSize - HeaderSize, IoBuffer), Linker->FileRegions);
 								}
 								else
 								{
@@ -4602,7 +4603,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 									{
 										WriteOptions |= EAsyncWriteOptions::ComputeHash;
 									}
-									SavePackageUtilities::AsyncWriteFileWithSplitExports(AsyncWriteAndHashSequence, FLargeMemoryPtr(Writer->ReleaseOwnership()), DataSize, Linker->Summary.TotalHeaderSize, *NewPathToSave, WriteOptions);
+									SavePackageUtilities::AsyncWriteFileWithSplitExports(AsyncWriteAndHashSequence, FLargeMemoryPtr(Writer->ReleaseOwnership()), DataSize, Linker->Summary.TotalHeaderSize, *NewPathToSave, WriteOptions, Linker->FileRegions);
 								}
 							}
 							else
@@ -4612,7 +4613,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 								{
 									WriteOptions |= EAsyncWriteOptions::ComputeHash;
 								}
-								SavePackageUtilities::AsyncWriteFile(AsyncWriteAndHashSequence, FLargeMemoryPtr(Writer->ReleaseOwnership()), DataSize, *NewPathToSave, WriteOptions);
+								SavePackageUtilities::AsyncWriteFile(AsyncWriteAndHashSequence, FLargeMemoryPtr(Writer->ReleaseOwnership()), DataSize, *NewPathToSave, WriteOptions, Linker->FileRegions);
 							}
 						}
 						Linker->CloseAndDestroySaver();
@@ -4830,14 +4831,30 @@ void FLooseFileWriter::WriteHeader(const FLooseFileWriter::HeaderInfo& Info, con
 	SavePackageUtilities::WriteToFile(Info.LooseFilePath, HeaderData.Data(), HeaderData.DataSize());
 }
 
-void FLooseFileWriter::WriteExports(const FLooseFileWriter::ExportsInfo& Info, const FIoBuffer& ExportsData)
+void FLooseFileWriter::WriteExports(const FLooseFileWriter::ExportsInfo& Info, const FIoBuffer& ExportsData, const TArray<FFileRegion>& FileRegions)
 {
 	const FString ArchiveFilename = FPaths::ChangeExtension(Info.LooseFilePath, TEXT(".uexp"));
 
 	SavePackageUtilities::WriteToFile(ArchiveFilename, ExportsData.Data(), ExportsData.DataSize());
+
+	if (FileRegions.Num() > 0)
+	{
+		// Adjust regions so they are relative to the start of the uexp file
+		TArray<FFileRegion> FileRegionsCopy = FileRegions;
+		for (FFileRegion& Region : FileRegionsCopy)
+		{
+			Region.Offset -= Info.RegionsOffset;
+		}
+
+		TArray<uint8> Memory;
+		FMemoryWriter Ar(Memory);
+		FFileRegion::SerializeFileRegions(Ar, FileRegionsCopy);
+
+		SavePackageUtilities::WriteToFile(ArchiveFilename + FFileRegion::RegionsFileExtension, Memory.GetData(), Memory.Num());
+	}
 }
 
-void FLooseFileWriter::WriteBulkdata(const FLooseFileWriter::FBulkDataInfo& Info, const FIoBuffer& BulkData)
+void FLooseFileWriter::WriteBulkdata(const FLooseFileWriter::FBulkDataInfo& Info, const FIoBuffer& BulkData, const TArray<FFileRegion>& FileRegions)
 {
 	if (BulkData.DataSize() == 0)
 		return;
@@ -4865,6 +4882,15 @@ void FLooseFileWriter::WriteBulkdata(const FLooseFileWriter::FBulkDataInfo& Info
 	const FString ArchiveFilename = FPaths::ChangeExtension(Info.LooseFilePath, BulkFileExtension);
 
 	SavePackageUtilities::WriteToFile(ArchiveFilename, BulkData.Data(), BulkData.DataSize());
+
+	if (FileRegions.Num() > 0)
+	{
+		TArray<uint8> Memory;
+		FMemoryWriter Ar(Memory);
+		FFileRegion::SerializeFileRegions(Ar, const_cast<TArray<FFileRegion>&>(FileRegions));
+
+		SavePackageUtilities::WriteToFile(ArchiveFilename + FFileRegion::RegionsFileExtension, Memory.GetData(), Memory.Num());
+	}
 }
 
 FSavePackageContext::~FSavePackageContext()
