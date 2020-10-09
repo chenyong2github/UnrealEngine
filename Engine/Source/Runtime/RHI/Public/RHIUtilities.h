@@ -510,7 +510,7 @@ struct FDynamicReadBuffer : public FReadBuffer
 	{
 		check(MappedBuffer == nullptr);
 		check(IsValidRef(Buffer));
-		MappedBuffer = (uint8*)RHILockVertexBuffer(Buffer, 0, NumBytes, RLM_WriteOnly);
+		MappedBuffer = (uint8*)RHILockBuffer(Buffer, 0, NumBytes, RLM_WriteOnly);
 	}
 
 	/**
@@ -520,7 +520,7 @@ struct FDynamicReadBuffer : public FReadBuffer
 	{
 		check(MappedBuffer);
 		check(IsValidRef(Buffer));
-		RHIUnlockVertexBuffer(Buffer);
+		RHIUnlockBuffer(Buffer);
 		MappedBuffer = nullptr;
 	}
 };
