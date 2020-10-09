@@ -91,30 +91,27 @@ FIndexBufferRHIRef FD3D11DynamicRHI::CreateIndexBuffer_RenderThread(
 	return RHICreateIndexBuffer(Stride, Size, InUsage, InResourceState, CreateInfo);
 }
 
-void* FD3D11DynamicRHI::LockBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIBuffer* BufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
+void* FD3D11DynamicRHI::LockIndexBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* IndexBufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
 {
-	FD3D11Buffer* Buffer = ResourceCast(BufferRHI);
+	FD3D11Buffer* IndexBuffer = ResourceCast(IndexBufferRHI);
 	// If this resource is bound to the device, unbind it
-	ConditionalClearShaderResource(Buffer, true);
+	ConditionalClearShaderResource(IndexBuffer, true);
 
-	// Determine whether the buffer is dynamic or not.
+	// Determine whether the index buffer is dynamic or not.
 	D3D11_BUFFER_DESC Desc;
-	Buffer->Resource->GetDesc(&Desc);
+	IndexBuffer->Resource->GetDesc(&Desc);
 	const bool bIsDynamic = (Desc.Usage == D3D11_USAGE_DYNAMIC);
 
-	FD3D11LockedKey LockedKey(Buffer->Resource);
+	FD3D11LockedKey LockedKey(IndexBuffer->Resource);
 	FD3D11LockedData LockedData;
 
 	if(bIsDynamic)
 	{
-		check(LockMode == RLM_WriteOnly || LockMode == RLM_WriteOnly_NoOverwrite);
+		check(LockMode == RLM_WriteOnly);
 
 		// If the buffer is dynamic, map its memory for writing.
 		D3D11_MAPPED_SUBRESOURCE MappedSubresource;
-
-		D3D11_MAP MapType = (LockMode == RLM_WriteOnly)? D3D11_MAP_WRITE_DISCARD : D3D11_MAP_WRITE_NO_OVERWRITE;
-		VERIFYD3D11RESULT_EX(Direct3DDeviceIMContext->Map(Buffer->Resource, 0, MapType, 0, &MappedSubresource), Direct3DDevice);
-
+		VERIFYD3D11RESULT_EX(Direct3DDeviceIMContext->Map(IndexBuffer->Resource,0,D3D11_MAP_WRITE_DISCARD,0,&MappedSubresource), Direct3DDevice);
 		LockedData.SetData(MappedSubresource.pData);
 		LockedData.Pitch = MappedSubresource.RowPitch;
 	}
@@ -125,29 +122,23 @@ void* FD3D11DynamicRHI::LockBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmd
 			// If the static buffer is being locked for reading, create a staging buffer.
 			D3D11_BUFFER_DESC StagingBufferDesc;
 			ZeroMemory( &StagingBufferDesc, sizeof( D3D11_BUFFER_DESC ) );
-			StagingBufferDesc.ByteWidth = Size;
+			StagingBufferDesc.ByteWidth = Desc.ByteWidth;
 			StagingBufferDesc.Usage = D3D11_USAGE_STAGING;
 			StagingBufferDesc.BindFlags = 0;
 			StagingBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
 			StagingBufferDesc.MiscFlags = 0;
-			TRefCountPtr<ID3D11Buffer> StagingBuffer;
-			VERIFYD3D11RESULT_EX(Direct3DDevice->CreateBuffer(&StagingBufferDesc, NULL, StagingBuffer.GetInitReference()), Direct3DDevice);
-			LockedData.StagingResource = StagingBuffer;
+			TRefCountPtr<ID3D11Buffer> StagingIndexBuffer;
+			VERIFYD3D11RESULT_EX(Direct3DDevice->CreateBuffer(&StagingBufferDesc,NULL,StagingIndexBuffer.GetInitReference()), Direct3DDevice);
+			LockedData.StagingResource = StagingIndexBuffer;
 
-			// Copy the contents of the buffer to the staging buffer.
-			D3D11_BOX SourceBox;
-			SourceBox.left = Offset;
-			SourceBox.right = Offset + Size;
-			SourceBox.top = SourceBox.front = 0;
-			SourceBox.bottom = SourceBox.back = 1;
-			Direct3DDeviceIMContext->CopySubresourceRegion(StagingBuffer, 0, 0, 0, 0, Buffer->Resource, 0, &SourceBox);
+			// Copy the contents of the index buffer to the staging buffer.
+			Direct3DDeviceIMContext->CopyResource(StagingIndexBuffer,IndexBuffer->Resource);
 
 			// Map the staging buffer's memory for reading.
 			D3D11_MAPPED_SUBRESOURCE MappedSubresource;
-			VERIFYD3D11RESULT_EX(Direct3DDeviceIMContext->Map(StagingBuffer, 0, D3D11_MAP_READ, 0, &MappedSubresource), Direct3DDevice);
+			VERIFYD3D11RESULT_EX(Direct3DDeviceIMContext->Map(StagingIndexBuffer,0,D3D11_MAP_READ,0,&MappedSubresource), Direct3DDevice);
 			LockedData.SetData(MappedSubresource.pData);
 			LockedData.Pitch = MappedSubresource.RowPitch;
-			Offset = 0;
 		}
 		else
 		{
@@ -164,27 +155,27 @@ void* FD3D11DynamicRHI::LockBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmd
 	return (void*)((uint8*)LockedData.GetData() + Offset);
 }
 
-void FD3D11DynamicRHI::UnlockBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIBuffer* BufferRHI)
+void FD3D11DynamicRHI::UnlockIndexBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* IndexBufferRHI)
 {
-	FD3D11Buffer* Buffer = ResourceCast(BufferRHI);
+	FD3D11Buffer* IndexBuffer = ResourceCast(IndexBufferRHI);
 
-	// Determine whether the buffer is dynamic or not.
+	// Determine whether the index buffer is dynamic or not.
 	D3D11_BUFFER_DESC Desc;
-	Buffer->Resource->GetDesc(&Desc);
+	IndexBuffer->Resource->GetDesc(&Desc);
 	const bool bIsDynamic = (Desc.Usage == D3D11_USAGE_DYNAMIC);
 
-	// Find the outstanding lock for this buffer and remove it from the tracker.
+	// Find the outstanding lock for this IB and remove it from the tracker.
 	FD3D11LockedData LockedData;
-	verifyf(RemoveLockedData(FD3D11LockedKey(Buffer->Resource), LockedData), TEXT("Buffer is not locked"));
+	verifyf(RemoveLockedData(FD3D11LockedKey(IndexBuffer->Resource), LockedData), TEXT("Index buffer is not locked"));
 
 	if(bIsDynamic)
 	{
-		// If the buffer is dynamic, its memory was mapped directly; unmap it.
-		Direct3DDeviceIMContext->Unmap(Buffer->Resource, 0);
+		// If the IB is dynamic, its memory was mapped directly; unmap it.
+		Direct3DDeviceIMContext->Unmap(IndexBuffer->Resource,0);
 	}
 	else
 	{
-		// If the static buffer lock involved a staging resource, it was locked for reading.
+		// If the static IB lock involved a staging resource, it was locked for reading.
 		if(LockedData.StagingResource)
 		{
 			// Unmap the staging buffer's memory.
@@ -193,8 +184,8 @@ void FD3D11DynamicRHI::UnlockBuffer_BottomOfPipe(FRHICommandListImmediate& RHICm
 		}
 		else 
 		{
-			// Copy the contents of the temporary memory buffer allocated for writing into the buffer.
-			Direct3DDeviceIMContext->UpdateSubresource(Buffer->Resource, 0, NULL, LockedData.GetData(), LockedData.Pitch, 0);
+			// Copy the contents of the temporary memory buffer allocated for writing into the IB.
+			Direct3DDeviceIMContext->UpdateSubresource(IndexBuffer->Resource,0,NULL,LockedData.GetData(),LockedData.Pitch,0);
 
 			// Free the temporary memory buffer.
 			LockedData.FreeData();
