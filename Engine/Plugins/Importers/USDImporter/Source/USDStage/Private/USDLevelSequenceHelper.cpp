@@ -849,7 +849,7 @@ void FUsdLevelSequenceHelperImpl::RemovePrim( const UUsdPrimTwin& PrimTwin )
 
 	for ( const FName& PrimSequenceName : PrimSequences )
 	{
-		for ( const TPair< FString, ULevelSequence* > IdentifierSequencePair : ValidStageActor->LevelSequencesByIdentifier )
+		for ( const TPair< FString, ULevelSequence* >& IdentifierSequencePair : ValidStageActor->LevelSequencesByIdentifier )
 		{
 			if ( IdentifierSequencePair.Value && IdentifierSequencePair.Value->GetFName() == PrimSequenceName )
 			{
