@@ -10,6 +10,7 @@ USTRUCT()
 struct CONTROLRIG_API FControlRigDrawContainer
 {
 	GENERATED_BODY()
+	virtual ~FControlRigDrawContainer() {}
 
 	FORCEINLINE int32 Num() const { return Instructions.Num(); }
 	int32 GetIndex(const FName& InName) const;
