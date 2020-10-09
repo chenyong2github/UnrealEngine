@@ -76,7 +76,6 @@ protected:
 
 	// UMoviePipelineRenderPass API
 	virtual void GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses) override;
-	virtual void RenderSample_GameThreadImpl(const FMoviePipelineRenderPassMetrics& InSampleState) override;
 	virtual void SetupImpl(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings) override;
 	virtual void TeardownImpl() override;
 	// ~UMovieRenderPassAPI
@@ -90,14 +89,18 @@ protected:
 
 protected:
 	virtual void GetViewShowFlags(FEngineShowFlags& OutShowFlag, EViewModeIndex& OutViewModeIndex) const;
+	virtual TSharedPtr<FSceneViewFamilyContext> CalculateViewFamily(FMoviePipelineRenderPassMetrics& InOutSampleState);
 	virtual void BlendPostProcessSettings(FSceneView* InView);
 	virtual void SetupViewForViewModeOverride(FSceneView* View);
 	virtual void MoviePipelineRenderShowFlagOverride(FEngineShowFlags& OutShowFlag) {}
-	virtual void RendererSubmission_GameThread(const FMoviePipelineRenderPassMetrics& InSampleState, FCanvas& InCanvas, FSceneViewFamilyContext& InViewFamily);
-	virtual void PostRendererSubmission(const FMoviePipelineRenderPassMetrics& InSampleState, FCanvas& InCanvas) {}
 	virtual bool IsScreenPercentageSupported() const { return true; }	
 	virtual bool IsAntiAliasingSupported() const { return true; }
 	virtual int32 GetOutputFileSortingOrder() const { return -1; }
+	virtual FSceneViewStateInterface* GetSceneViewStateInterface() { return ViewState.GetReference(); }
+	virtual UTextureRenderTarget2D* GetViewRenderTarget() const { return TileRenderTarget.Get(); }
+	virtual void AddViewExtensions(FSceneViewFamilyContext& InContext, FMoviePipelineRenderPassMetrics& InOutSampleState) { }
+public:
+	
 
 protected:
 	/** A temporary render target that we render the view to. */
@@ -113,9 +116,6 @@ protected:
 
 	/** Accessed by the Render Thread when starting up a new task. */
 	FGraphEventArray OutstandingTasks;
-
-	/** The lifetime of this SceneViewExtension is only during the rendering process. It is destroyed as part of TearDown. */
-	TSharedPtr<FOpenColorIODisplayExtension, ESPMode::ThreadSafe> OCIOSceneViewExtension;
 };
 
 DECLARE_CYCLE_STAT(TEXT("STAT_MoviePipeline_WaitForAvailableAccumulator"), STAT_MoviePipeline_WaitForAvailableAccumulator, STATGROUP_MoviePipeline);

@@ -1,6 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MoviePipelineImagePassBase.h"
+
+// For Cine Camera Variables in Metadata
+#include "CineCameraActor.h"
+#include "CineCameraComponent.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "MoviePipeline.h"
 #include "GameFramework/PlayerController.h"
@@ -20,34 +24,64 @@ void UMoviePipelineImagePassBase::GetViewShowFlags(FEngineShowFlags& OutShowFlag
 	OutViewModeIndex = EViewModeIndex::VMI_Lit;
 }
 
-void UMoviePipelineImagePassBase::RenderSample_GameThreadImpl(const FMoviePipelineRenderPassMetrics& InSampleState)
+void UMoviePipelineImagePassBase::SetupImpl(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings)
 {
-	Super::RenderSample_GameThreadImpl(InSampleState);
-	 
-	FMoviePipelineRenderPassMetrics InOutSampleState = InSampleState;
+	Super::SetupImpl(InPassInitSettings);
+
+	// Allocate 
+	ViewState.Allocate();
+}
+
+void UMoviePipelineImagePassBase::TeardownImpl()
+{
+	FSceneViewStateInterface* Ref = ViewState.GetReference();
+	if (Ref)
+	{
+		Ref->ClearMIDPool();
+	}
+	ViewState.Destroy();
+
+	Super::TeardownImpl();
+}
+
+void UMoviePipelineImagePassBase::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+{
+	Super::AddReferencedObjects(InThis, Collector);
+
+	UMoviePipelineImagePassBase& This = *CastChecked<UMoviePipelineImagePassBase>(InThis);
+	FSceneViewStateInterface* Ref = This.ViewState.GetReference();
+	if (Ref)
+	{
+		Ref->AddReferencedObjects(Collector);
+	}
+}
+
+TSharedPtr<FSceneViewFamilyContext> UMoviePipelineImagePassBase::CalculateViewFamily(FMoviePipelineRenderPassMetrics& InOutSampleState)
+{
 	const FMoviePipelineFrameOutputState::FTimeData& TimeData = InOutSampleState.OutputState.TimeData;
 
 	FEngineShowFlags ShowFlags = FEngineShowFlags(EShowFlagInitMode::ESFIM_Game);
 	EViewModeIndex  ViewModeIndex;
 	GetViewShowFlags(ShowFlags, ViewModeIndex);
 	MoviePipelineRenderShowFlagOverride(ShowFlags);
-	FRenderTarget* RenderTarget = TileRenderTarget->GameThread_GetRenderTargetResource();
+	FRenderTarget* RenderTarget = GetViewRenderTarget()->GameThread_GetRenderTargetResource();
 
-	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
+	TSharedPtr<FSceneViewFamilyContext> OutViewFamily = MakeShared<FSceneViewFamilyContext>(FSceneViewFamily::ConstructionValues(
 		RenderTarget,
 		GetPipeline()->GetWorld()->Scene,
 		ShowFlags)
 		.SetWorldTimes(TimeData.WorldSeconds, TimeData.FrameDeltaTime, TimeData.WorldSeconds)
 		.SetRealtimeUpdate(true));
 
-	ViewFamily.SceneCaptureSource = InOutSampleState.SceneCaptureSource;
-	ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, IsScreenPercentageSupported() ? InOutSampleState.GlobalScreenPercentageFraction : 1.f, IsScreenPercentageSupported()));
-	ViewFamily.bWorldIsPaused = InOutSampleState.bWorldIsPaused;
-	ViewFamily.ViewMode = ViewModeIndex;
-	EngineShowFlagOverride(ESFIM_Game, ViewFamily.ViewMode, ViewFamily.EngineShowFlags, false);
+	OutViewFamily->SceneCaptureSource = InOutSampleState.SceneCaptureSource;
+	OutViewFamily->SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(*OutViewFamily, IsScreenPercentageSupported() ? InOutSampleState.GlobalScreenPercentageFraction : 1.f, IsScreenPercentageSupported()));
+	OutViewFamily->bWorldIsPaused = InOutSampleState.bWorldIsPaused;
+	OutViewFamily->ViewMode = ViewModeIndex;
+	EngineShowFlagOverride(ESFIM_Game, OutViewFamily->ViewMode, OutViewFamily->EngineShowFlags, false);
 
-	// View is added as a child of the ViewFamily. 
-	FSceneView* View = GetSceneViewForSampleState(&ViewFamily, /*InOut*/ InOutSampleState);
+
+	// View is added as a child of the OutViewFamily-> 
+	FSceneView* View = GetSceneViewForSampleState(OutViewFamily.Get(), /*InOut*/ InOutSampleState);
 #if RHI_RAYTRACING
 	View->SetupRayTracedRendering();
 #endif
@@ -77,7 +111,7 @@ void UMoviePipelineImagePassBase::RenderSample_GameThreadImpl(const FMoviePipeli
 		// Skip the whole pass if they don't want motion blur.
 		if (FMath::IsNearlyZero(InOutSampleState.OutputState.TimeData.MotionBlurFraction))
 		{
-			ViewFamily.EngineShowFlags.SetMotionBlur(false);
+			OutViewFamily->EngineShowFlags.SetMotionBlur(false);
 		}
 	}
 
@@ -91,31 +125,18 @@ void UMoviePipelineImagePassBase::RenderSample_GameThreadImpl(const FMoviePipeli
 		}
 	}
 
-	ViewFamily.ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions();
+	OutViewFamily->ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions();
 
-	// OCIO Scene View Extension is a special case and won't be registered like other view extensions.
-	if (InSampleState.OCIOConfiguration && InSampleState.OCIOConfiguration->bIsEnabled)
+	AddViewExtensions(*OutViewFamily, InOutSampleState);
+
+	for (auto ViewExt : OutViewFamily->ViewExtensions)
 	{
-		FOpenColorIODisplayConfiguration* OCIOConfigNew = const_cast<FMoviePipelineRenderPassMetrics&>(InSampleState).OCIOConfiguration;
-		FOpenColorIODisplayConfiguration& OCIOConfigCurrent = OCIOSceneViewExtension->GetDisplayConfiguration();
-
-		// We only need to set this once per render sequence.
-		if (OCIOConfigNew->ColorConfiguration.ConfigurationSource && OCIOConfigNew->ColorConfiguration.ConfigurationSource != OCIOConfigCurrent.ColorConfiguration.ConfigurationSource)
-		{
-			OCIOSceneViewExtension->SetDisplayConfiguration(*OCIOConfigNew);
-		}
-
-		ViewFamily.ViewExtensions.Add(OCIOSceneViewExtension.ToSharedRef());
+		ViewExt->SetupViewFamily(*OutViewFamily.Get());
 	}
 
-	for (auto ViewExt : ViewFamily.ViewExtensions)
+	for (int ViewExt = 0; ViewExt < OutViewFamily->ViewExtensions.Num(); ViewExt++)
 	{
-		ViewExt->SetupViewFamily(ViewFamily);
-	}
-
-	for (int ViewExt = 0; ViewExt < ViewFamily.ViewExtensions.Num(); ViewExt++)
-	{
-		ViewFamily.ViewExtensions[ViewExt]->SetupView(ViewFamily, *View);
+		OutViewFamily->ViewExtensions[ViewExt]->SetupView(*OutViewFamily.Get(), *View);
 	}
 
 	// Anti Aliasing
@@ -149,23 +170,7 @@ void UMoviePipelineImagePassBase::RenderSample_GameThreadImpl(const FMoviePipeli
 		View->MaterialTextureMipBias += InOutSampleState.TextureSharpnessBias;
 	}
 
-	// Wait for a surface to be available to write to. This will stall the game thread while the RHI/Render Thread catch up.
-	{
-		SCOPE_CYCLE_COUNTER(STAT_MoviePipeline_WaitForAvailableSurface);
-		SurfaceQueue->BlockUntilAnyAvailable();
-	}
-
-	FCanvas Canvas = FCanvas(RenderTarget, nullptr, GetPipeline()->GetWorld(), ERHIFeatureLevel::SM5, FCanvas::CDM_DeferDrawing, 1.0f);
-
-	RendererSubmission_GameThread(InOutSampleState, Canvas, ViewFamily);
-}
-
-void UMoviePipelineImagePassBase::RendererSubmission_GameThread(const FMoviePipelineRenderPassMetrics& InSampleState, FCanvas& InCanvas, FSceneViewFamilyContext& InViewFamily)
-{
-	// Draw the world into this View Family
-	GetRendererModule().BeginRenderingViewFamily(&InCanvas, &InViewFamily);
-
-	PostRendererSubmission(InSampleState, InCanvas);
+	return OutViewFamily;
 }
 
 void UMoviePipelineImagePassBase::SetupViewForViewModeOverride(FSceneView* View)
@@ -205,38 +210,6 @@ void UMoviePipelineImagePassBase::SetupViewForViewModeOverride(FSceneView* View)
 	}
 	FName BufferVisualizationMode = "WorldNormal";
 	View->CurrentBufferVisualizationMode = BufferVisualizationMode;
-}
-
-void UMoviePipelineImagePassBase::SetupImpl(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings)
-{
-	Super::SetupImpl(InPassInitSettings);
-
-	// Allocate 
-	ViewState.Allocate();
-}
-
-void UMoviePipelineImagePassBase::TeardownImpl()
-{
-	FSceneViewStateInterface* Ref = ViewState.GetReference();
-	if (Ref)
-	{
-		Ref->ClearMIDPool();
-	}
-	ViewState.Destroy();
-
-	Super::TeardownImpl();
-}
-
-void UMoviePipelineImagePassBase::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
-{
-	Super::AddReferencedObjects(InThis, Collector);
-
-	UMoviePipelineImagePassBase& This = *CastChecked<UMoviePipelineImagePassBase>(InThis);
-	FSceneViewStateInterface* Ref = This.ViewState.GetReference();
-	if (Ref)
-	{
-		Ref->AddReferencedObjects(Collector);
-	}
 }
 
 void UMoviePipelineImagePassBase::GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses)
@@ -382,7 +355,7 @@ FSceneView* UMoviePipelineImagePassBase::GetSceneViewForSampleState(FSceneViewFa
 		ViewInitOptions.ProjectionMatrix = BaseProjMatrix;
 	}
 
-	ViewInitOptions.SceneViewStateInterface = ViewState.GetReference();
+	ViewInitOptions.SceneViewStateInterface = GetSceneViewStateInterface();
 	ViewInitOptions.FOV = ViewFOV;
 
 	FSceneView* View = new FSceneView(ViewInitOptions);

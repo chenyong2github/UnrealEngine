@@ -31,6 +31,7 @@ public class MovieRenderPipelineRenderPasses : ModuleRules
 				"RenderCore",
 				"RHI",
 				"OpenColorIO",
+				"ActorLayerUtilities", // For Layering
 			}
         );
 
