@@ -38,25 +38,38 @@ ByteAddressBuffer			MaterialHitProxyTable;
 
 RWStructuredBuffer<uint>	VisibleMaterials;
 
+uint EncodeTileMinMaxDepth(float MinDepth, float MaxDepth, uint PlatformConfig)
+{
+	BRANCH
+	if (IsHiStencilTileConfig(PlatformConfig))
+	{
+		return EncodeTileStencilZBaseDelta(
+			MinDepth,
+			MaxDepth,
+			HTILE_DEFAULT_XX,
+			HTILE_DEFAULT_SMEM,
+			HTILE_DEFAULT_SR0,
+			HTILE_DEFAULT_SR1
+		);
+	}
+	else
+	{
+		return EncodeTileMinMaxDepth(MinDepth, MaxDepth);
+	}
+}
+
 [numthreads(HTILE_PIXELS_PER_TILE_WIDE, HTILE_PIXELS_PER_TILE_TALL, 1)]
 void DepthExport(uint3 PixelPos : SV_DispatchThreadID)
 {
+	const uint PlatformConfig	= DepthExportConfig.x;
+	const uint PixelsWide		= DepthExportConfig.y;
+
 	const UlongType VisPixel = VisBuffer64[PixelPos.xy];
 
-	// Calculate the HTile tile index once per wave (scalar optimization)
-	uint TileIndex = 0;
-	if (WaveIsFirstLane())
-	{
-		const uint PlatformConfig	= DepthExportConfig.x;
-		const uint PixelsWide		= DepthExportConfig.y;
-
-		// With the same resolution between scene and material HTile, we can use the same tile index
-		// for both depth exports as an optimization.
-		TileIndex = ComputeTileOffset(PixelPos.xy, PixelsWide, PlatformConfig);
-	}
-
-	// Shift from VGPR to SGPR
-	TileIndex = ToScalarMemory(TileIndex);
+	// Calculate the HTile tile index and scalarize.
+	// With the same resolution between scene and material HTile, we can use the same tile index
+	// for both depth exports as an optimization.
+	const uint TileIndex = ToScalarMemory(ComputeTileOffset(PixelPos.xy, PixelsWide, PlatformConfig));
 
 	uint DepthInt = 0;
 	uint VisibleClusterIndex = 0;
@@ -95,7 +108,7 @@ void DepthExport(uint3 PixelPos : SV_DispatchThreadID)
 				}
 				else
 				{
-					SceneStencil[PixelPos.xy] = 0;	
+					SceneStencil[PixelPos.xy] = 0;
 				}
 			}
 		}
@@ -110,8 +123,8 @@ void DepthExport(uint3 PixelPos : SV_DispatchThreadID)
 
 		if (WaveIsFirstLane())
 		{
-			SceneHTile[TileIndex] = EncodeTileMinMaxDepth(TileMinSceneDepth, TileMaxSceneDepth);
-			MaterialHTile[TileIndex] = EncodeTileMinMaxDepth(TileMinMaterialDepth, TileMaxMaterialDepth);
+			SceneHTile[TileIndex] = EncodeTileMinMaxDepth(TileMinSceneDepth, TileMaxSceneDepth, PlatformConfig);
+			MaterialHTile[TileIndex] = EncodeTileMinMaxDepth(TileMinMaterialDepth, TileMaxMaterialDepth, PlatformConfig);
 		}
 
 		uint MaterialBucketId = GetMaterialBucketIdFromDepth(MaterialDepthValue);
@@ -139,7 +152,7 @@ void DepthExport(uint3 PixelPos : SV_DispatchThreadID)
 	}
 	else if (WaveIsFirstLane())
 	{
-		MaterialHTile[TileIndex] = EncodeTileMinMaxDepth(0.0f, 0.0f);
+		MaterialHTile[TileIndex] = EncodeTileMinMaxDepth(0.0f, 0.0f, PlatformConfig);
 	}
 
 	MaterialDepth[PixelPos.xy] = MaterialDepthValue;
