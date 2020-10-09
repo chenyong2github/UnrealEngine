@@ -289,6 +289,11 @@ void USoundCue::EvaluateNodes(bool bAddToRoot)
 
 	TFunction<void(USoundNode*)> EvaluateNodes_Internal = [&](USoundNode* SoundNode)
 	{
+		if (SoundNode == nullptr)
+		{
+			return;
+		}
+
 		if (USoundNodeAssetReferencer* AssetReferencerNode = Cast<USoundNodeAssetReferencer>(SoundNode))
 		{
 			AssetReferencerNode->ConditionalPostLoad();
@@ -296,19 +301,16 @@ void USoundCue::EvaluateNodes(bool bAddToRoot)
 		}
 		else if (USoundNodeQualityLevel* QualityLevelNode = Cast<USoundNodeQualityLevel>(SoundNode))
 		{
-			if (CachedQualityLevel < QualityLevelNode->ChildNodes.Num())
+			if (QualityLevelNode->ChildNodes.IsValidIndex(CachedQualityLevel))
 			{
 				EvaluateNodes_Internal(QualityLevelNode->ChildNodes[CachedQualityLevel]);
 			}
 		}
-		else if (SoundNode)
+		else
 		{
 			for (USoundNode* ChildNode : SoundNode->ChildNodes)
 			{
-				if (ChildNode)
-				{
-					EvaluateNodes_Internal(ChildNode);
-				}
+				EvaluateNodes_Internal(ChildNode);
 			}
 		}
 	};
