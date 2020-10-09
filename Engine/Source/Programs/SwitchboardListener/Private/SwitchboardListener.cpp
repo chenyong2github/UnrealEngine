@@ -4,6 +4,7 @@
 
 #include "SwitchboardListenerApp.h"
 #include "SwitchboardMessageFuture.h"
+#include "SwitchboardPacket.h"
 #include "SwitchboardProtocol.h"
 #include "SwitchboardTasks.h"
 #include "SyncStatus.h"
@@ -86,6 +87,7 @@ struct FRunningProcess
 
 	FIPv4Endpoint Recipient;
 	FString Path;
+	FString Name;
 };
 
 FSwitchboardListener::FSwitchboardListener(const FIPv4Endpoint& InEndpoint)
@@ -134,6 +136,24 @@ bool FSwitchboardListener::Tick()
 
 			FIPv4Endpoint ClientEndpoint = Connection.Key;
 			LastActivityTime.FindOrAdd(ClientEndpoint, FPlatformTime::Seconds());
+
+			// Send current state upon connection
+			{
+				FSwitchboardStatePacket StatePacket;
+
+				for (const FRunningProcess& RunningProcess : RunningProcesses)
+				{
+					FSwitchboardStateRunningProcess StateRunningProcess;
+
+					StateRunningProcess.Uuid = RunningProcess.UUID.ToString();
+					StateRunningProcess.Name = RunningProcess.Name;
+					StateRunningProcess.Path = RunningProcess.Path;
+
+					StatePacket.RunningProcesses.Add(MoveTemp(StateRunningProcess));
+				}
+
+				SendMessage(CreateMessage(StatePacket), ClientEndpoint);
+			}
 		}
 	}
 
@@ -293,6 +313,7 @@ bool FSwitchboardListener::StartProcess(const FSwitchboardStartTask& InRunTask)
 	FRunningProcess NewProcess = {};
 	NewProcess.Recipient = InRunTask.Recipient;
 	NewProcess.Path = InRunTask.Command;
+	NewProcess.Name = InRunTask.Name;
 
 	if (!FPlatformProcess::CreatePipe(NewProcess.ReadPipe, NewProcess.WritePipe))
 	{
