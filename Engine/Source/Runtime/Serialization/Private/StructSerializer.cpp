@@ -171,6 +171,9 @@ void FStructSerializer::Serialize(const void* Struct, UStruct& TypeInfo, IStruct
 					CurrentState.HasBeenProcessed = true;
 					StateStack.Push(CurrentState);
 
+					FArrayProperty* ArrayProperty = CastField<FArrayProperty>(CurrentState.ValueProperty);
+					FScriptArrayHelper ArrayHelper(ArrayProperty, ArrayProperty->ContainerPtrToValuePtr<void>(CurrentState.ValueData));
+					FProperty* ValueProperty = ArrayProperty->Inner;
 
 					// push elements on stack (in reverse order)
 					for (int32 Index = ArrayHelper.Num() - 1; Index >= 0; --Index)
