@@ -134,7 +134,7 @@ enum class EOculusDeviceType : uint8
 	//mobile HMDs 
 	OculusMobile_Deprecated0 = 0,
 	OculusQuest,
-	//OculusMobile_Placeholder9,
+	OculusQuest2,
 	//OculusMobile_Placeholder10,
 
 	//PC HMDs
