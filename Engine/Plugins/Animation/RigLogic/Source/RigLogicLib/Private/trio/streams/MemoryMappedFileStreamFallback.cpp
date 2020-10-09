@@ -30,9 +30,12 @@ static std::size_t getFileSizeFallback(const char* path) {
     #else
         stream = fopen(path, "rb");
     #endif
-    fseek(stream, 0, SEEK_END);
-    std::size_t fileSize = static_cast<std::size_t>(ftell(stream));
-    fclose(stream);
+    std::size_t fileSize{};
+    if (stream != nullptr) {
+        fseek(stream, 0, SEEK_END);
+        fileSize = static_cast<std::size_t>(ftell(stream));
+        fclose(stream);
+    }
     return fileSize;
 }
 
