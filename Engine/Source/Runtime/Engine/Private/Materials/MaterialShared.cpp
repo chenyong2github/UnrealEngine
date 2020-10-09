@@ -875,7 +875,8 @@ void FMaterial::SetCompilingShaderMap(FMaterialShaderMap* InMaterialShaderMap)
 		InMaterialShaderMap->AddCompilingDependency(this);
 
 		TRefCountPtr<FMaterial> Material = this;
-		ENQUEUE_RENDER_COMMAND(SetCompilingShaderMap)([Material = MoveTemp(Material), CompilingShaderMapId, PendingCompilerEnvironment = InMaterialShaderMap->GetPendingCompilerEnvironment()](FRHICommandListImmediate& RHICmdList) mutable
+		TRefCountPtr<FSharedShaderCompilerEnvironment> PendingCompilerEnvironment = InMaterialShaderMap->GetPendingCompilerEnvironment();
+		ENQUEUE_RENDER_COMMAND(SetCompilingShaderMap)([Material = MoveTemp(Material), CompilingShaderMapId, PendingCompilerEnvironment = MoveTemp(PendingCompilerEnvironment)](FRHICommandListImmediate& RHICmdList) mutable
 		{
 			Material->RenderingThreadCompilingShaderMapId = CompilingShaderMapId;
 			Material->RenderingThreadPendingCompilerEnvironment = MoveTemp(PendingCompilerEnvironment);
@@ -1719,16 +1720,21 @@ void FMaterial::DeferredDelete(FMaterial* InMaterial)
 {
 	if (InMaterial)
 	{
-		InMaterial->PrepareDestroy_GameThread();
-
-		TRefCountPtr<FMaterial> Material(InMaterial);
-		ENQUEUE_RENDER_COMMAND(DeferredDestroyMaterial)([Material = MoveTemp(Material)](FRHICommandListImmediate& RHICmdList) mutable
+		if (InMaterial->PrepareDestroy_GameThread())
 		{
-			FMaterial* MaterialToDelete = Material.GetReference();
-			MaterialToDelete->PrepareDestroy_RenderThread();
-			Material.SafeRelease();
-			delete MaterialToDelete;
-		});
+			TRefCountPtr<FMaterial> Material(InMaterial);
+			ENQUEUE_RENDER_COMMAND(DeferredDestroyMaterial)([Material = MoveTemp(Material)](FRHICommandListImmediate& RHICmdList) mutable
+			{
+				FMaterial* MaterialToDelete = Material.GetReference();
+				MaterialToDelete->PrepareDestroy_RenderThread();
+				Material.SafeRelease();
+				delete MaterialToDelete;
+			});
+		}
+		else
+		{
+			delete InMaterial;
+		}
 	}
 }
 
@@ -1739,6 +1745,7 @@ FMaterial::~FMaterial()
 {
 	check(GameThreadCompilingShaderMapId == 0u);
 	check(RenderingThreadCompilingShaderMapId == 0u);
+	check(!RenderingThreadPendingCompilerEnvironment.IsValid());
 
 #if UE_CHECK_FMATERIAL_LIFETIME
 	const uint32 NumRemainingRefs = GetRefCount();
