@@ -147,7 +147,12 @@ const FVector2D FDisplayClusterConfiguratorOutputMappingWindowSlot::GetConfigPos
 	return FVector2D(CfgClusterNode->WindowRect.X, CfgClusterNode->WindowRect.Y);
 }
 
-const FName& FDisplayClusterConfiguratorOutputMappingWindowSlot::GetName() const
+const FString& FDisplayClusterConfiguratorOutputMappingWindowSlot::GetName() const
+{
+	return NodeName;
+}
+
+const FName& FDisplayClusterConfiguratorOutputMappingWindowSlot::GetType() const
 {
 	return FDisplayClusterConfiguratorOutputMappingBuilder::FSlot::Window;
 }
