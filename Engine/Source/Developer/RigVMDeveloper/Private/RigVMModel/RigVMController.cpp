@@ -3477,6 +3477,7 @@ URigVMIfNode* URigVMController::AddIfNode(const FString& InCPPType, const FName&
 
 	ensure(!InCPPType.IsEmpty());
 
+	FString CPPType = InCPPType;
 	UObject* CPPTypeObject = nullptr;
 	if(!InCPPTypeObjectPath.IsNone())
 	{
@@ -3497,6 +3498,8 @@ URigVMIfNode* URigVMController::AddIfNode(const FString& InCPPType, const FName&
 			return nullptr;
 		}
 		CreateDefaultValueForStructIfRequired(ScriptStruct, DefaultValue);
+
+		CPPType = ScriptStruct->GetStructCPPName();
 	}
 	
 	FString Name = GetValidNodeName(InNodeName.IsEmpty() ? FString(TEXT("IfNode")) : InNodeName);
@@ -3509,7 +3512,7 @@ URigVMIfNode* URigVMController::AddIfNode(const FString& InCPPType, const FName&
 	Node->Pins.Add(ConditionPin);
 
 	URigVMPin* TruePin = NewObject<URigVMPin>(Node, *URigVMIfNode::TrueName);
-	TruePin->CPPType = InCPPType;
+	TruePin->CPPType = CPPType;
 	TruePin->CPPTypeObject = CPPTypeObject;
 	TruePin->CPPTypeObjectPath = InCPPTypeObjectPath;
 	TruePin->Direction = ERigVMPinDirection::Input;
@@ -3522,7 +3525,7 @@ URigVMIfNode* URigVMController::AddIfNode(const FString& InCPPType, const FName&
 	}
 
 	URigVMPin* FalsePin = NewObject<URigVMPin>(Node, *URigVMIfNode::FalseName);
-	FalsePin->CPPType = InCPPType;
+	FalsePin->CPPType = CPPType;
 	FalsePin->CPPTypeObject = CPPTypeObject;
 	FalsePin->CPPTypeObjectPath = InCPPTypeObjectPath;
 	FalsePin->Direction = ERigVMPinDirection::Input;
@@ -3535,7 +3538,7 @@ URigVMIfNode* URigVMController::AddIfNode(const FString& InCPPType, const FName&
 	}
 
 	URigVMPin* ResultPin = NewObject<URigVMPin>(Node, *URigVMIfNode::ResultName);
-	ResultPin->CPPType = InCPPType;
+	ResultPin->CPPType = CPPType;
 	ResultPin->CPPTypeObject = CPPTypeObject;
 	ResultPin->CPPTypeObjectPath = InCPPTypeObjectPath;
 	ResultPin->Direction = ERigVMPinDirection::Output;
@@ -3567,6 +3570,7 @@ URigVMSelectNode* URigVMController::AddSelectNode(const FString& InCPPType, cons
 
 	ensure(!InCPPType.IsEmpty());
 
+	FString CPPType = InCPPType;
 	UObject* CPPTypeObject = nullptr;
 	if (!InCPPTypeObjectPath.IsNone())
 	{
@@ -3587,6 +3591,8 @@ URigVMSelectNode* URigVMController::AddSelectNode(const FString& InCPPType, cons
 			return nullptr;
 		}
 		CreateDefaultValueForStructIfRequired(ScriptStruct, DefaultValue);
+
+		CPPType = ScriptStruct->GetStructCPPName();
 	}
 
 	FString Name = GetValidNodeName(InNodeName.IsEmpty() ? FString(TEXT("IfNode")) : InNodeName);
@@ -3599,7 +3605,7 @@ URigVMSelectNode* URigVMController::AddSelectNode(const FString& InCPPType, cons
 	Node->Pins.Add(IndexPin);
 
 	URigVMPin* ValuePin = NewObject<URigVMPin>(Node, *URigVMSelectNode::ValueName);
-	ValuePin->CPPType = FString::Printf(TEXT("TArray<%s>"), *InCPPType);
+	ValuePin->CPPType = FString::Printf(TEXT("TArray<%s>"), *CPPType);
 	ValuePin->CPPTypeObject = CPPTypeObject;
 	ValuePin->CPPTypeObjectPath = InCPPTypeObjectPath;
 	ValuePin->Direction = ERigVMPinDirection::Input;
@@ -3607,7 +3613,7 @@ URigVMSelectNode* URigVMController::AddSelectNode(const FString& InCPPType, cons
 	Node->Pins.Add(ValuePin);
 
 	URigVMPin* ResultPin = NewObject<URigVMPin>(Node, *URigVMSelectNode::ResultName);
-	ResultPin->CPPType = InCPPType;
+	ResultPin->CPPType = CPPType;
 	ResultPin->CPPTypeObject = CPPTypeObject;
 	ResultPin->CPPTypeObjectPath = InCPPTypeObjectPath;
 	ResultPin->Direction = ERigVMPinDirection::Output;
