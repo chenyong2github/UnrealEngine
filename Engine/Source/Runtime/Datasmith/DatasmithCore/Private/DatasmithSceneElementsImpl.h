@@ -5,7 +5,7 @@
 #include "DatasmithSceneFactory.h"
 #include "DatasmithSceneGraphSharedState.h"
 #include "DatasmithUtils.h"
-#include "DirectLink/ParameterStore.h"
+#include "DirectLinkParameterStore.h"
 #include "IDatasmithSceneElements.h"
 
 #include "Containers/Array.h"

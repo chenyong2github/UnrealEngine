@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-#include "DirectLink/DirectLinkCommon.h"
+#include "DirectLinkCommon.h"
 
 #include "Async/AsyncWork.h"
 #include "Async/Future.h"
@@ -381,7 +381,7 @@ namespace DatasmithRuntime
 		{
 			return AssetData.bCompleted ? ActionFunc(AssetData.GetObject<>(), Referencer) : EActionResult::Retry;
 		}
-	
+
 	private:
 		FSceneGraphId AssetId;
 		bool bIsTexture;

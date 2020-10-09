@@ -2,21 +2,18 @@
 
 namespace UnrealBuildTool.Rules
 {
-	public class DirectLinkTest : ModuleRules
+	public class DirectLink : ModuleRules
 	{
-		public DirectLinkTest(ReadOnlyTargetRules Target) : base(Target)
+		public DirectLink(ReadOnlyTargetRules Target) : base(Target)
 		{
-			// #ue_directlink_cleanup move to QAEnterprise
 			PublicDependencyModuleNames.AddRange(new string[]{
 				"Core",
-				"DatasmithCore",
-				"DatasmithTranslator",
-				"DirectLink",
+				"Messaging",
 			});
 
 			PrivateDependencyModuleNames.AddRange(new string[]{
 				"CoreUObject",
-				"Engine",
+				"MessagingCommon",
 			});
 		}
 	}

@@ -7,8 +7,8 @@
 #include "DatasmithSceneFactory.h"
 #include "DatasmithTranslatableSource.h"
 #include "DatasmithTranslator.h"
-#include "DirectLink/SceneSnapshot.h"
 #include "IDatasmithSceneElements.h"
+#include "DirectLinkSceneSnapshot.h"
 
 #if WITH_EDITOR
 #include "DesktopPlatformModule.h"

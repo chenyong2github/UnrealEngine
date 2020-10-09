@@ -21,6 +21,7 @@ namespace UnrealBuildTool.Rules
 				{
 					"ApplicationCore",
 					"CoreUObject",
+					"DirectLink",
 					"FreeImage",
 					"MeshDescription",
 					"MessagingCommon",
