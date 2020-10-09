@@ -3083,8 +3083,9 @@ public:
 	{
 		if (StereoPassType != eSSP_FULL)
 		{
-			float EyeOffset = 3.20000005f;
-			const float PassOffset = (StereoPassType == eSSP_LEFT_EYE) ? EyeOffset : -EyeOffset;
+			// 32mm, 1/2 average interpupillary distance
+			float EyeOffset = .0320000005f * WorldToMeters;
+			const float PassOffset = (StereoPassType == eSSP_LEFT_EYE) ? -EyeOffset : EyeOffset;
 			ViewLocation += ViewRotation.Quaternion().RotateVector(FVector(0,PassOffset,0));
 		}
 	}
