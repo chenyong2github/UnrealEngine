@@ -595,7 +595,7 @@ namespace Audio
 		GameThreadInfo.bNeedsSpeakerMap[SourceId] = false;
 	}
 
-	void FMixerSourceManager::BuildSourceEffectChain(const int32 SourceId, FSoundEffectSourceInitData& InitData, const TArray<FSourceEffectChainEntry>& InSourceEffectChain)
+	void FMixerSourceManager::BuildSourceEffectChain(const int32 SourceId, FSoundEffectSourceInitData& InitData, const TArray<FSourceEffectChainEntry>& InSourceEffectChain, TArray<TSoundEffectSourcePtr>& OutSourceEffects)
 	{
 		// Create new source effects. The memory will be owned by the source manager.
 		FScopeLock ScopeLock(&EffectChainMutationCriticalSection);
@@ -614,12 +614,7 @@ namespace Audio
 			TSoundEffectSourcePtr NewEffect = USoundEffectPreset::CreateInstance<FSoundEffectSourceInitData, FSoundEffectSource>(InitData, *ChainEntry.Preset);
 			NewEffect->SetEnabled(!ChainEntry.bBypass);
 
-			// Add the effect instance
-			FSourceInfo& SourceInfo = SourceInfos[SourceId];
-			SourceInfo.SourceEffects.Add(NewEffect);
-
-			// Add a slot entry for the preset so it can change while running. This will get sent to the running effect instance if the preset changes.
-			SourceInfo.SourceEffectPresets.Add(nullptr);
+			OutSourceEffects.Add(NewEffect);
 		}
 	}
 
@@ -697,13 +692,15 @@ namespace Audio
 
 		GameThreadInfo.bIsUsingHRTFSpatializer[SourceId] = InitParams.bUseHRTFSpatialization;
 
+		// Need to build source effect instances on the audio thread
 		FSoundEffectSourceInitData InitData;
 		InitData.SampleRate = MixerDevice->SampleRate;
 		InitData.NumSourceChannels = InitParams.NumInputChannels;
 		InitData.AudioClock = MixerDevice->GetAudioTime();
 		InitData.AudioDeviceId = MixerDevice->DeviceID;
 
-		BuildSourceEffectChain(SourceId, InitData, InitParams.SourceEffectChain);
+		TArray<TSoundEffectSourcePtr> SourceEffectChain;
+		BuildSourceEffectChain(SourceId, InitData, InitParams.SourceEffectChain, SourceEffectChain);
 
 		FModulationDestination VolumeModulation;
 		VolumeModulation.Init(MixerDevice->DeviceID, FName("Volume"), false /* bInIsBuffered */, true /* bInValueLinear */);
@@ -721,7 +718,7 @@ namespace Audio
 		LowpassModulation.Init(MixerDevice->DeviceID, FName("LPFCutoffFrequency"), false /* bInIsBuffered */);
 		LowpassModulation.UpdateModulator(InitParams.ModulationSettings.LowpassModulationDestination.Modulator);
 
-		AudioMixerThreadCommand([this, SourceId, InitParams, VolumeModulation, HighpassModulation, LowpassModulation, PitchModulation]()
+		AudioMixerThreadCommand([this, SourceId, InitParams, VolumeModulation, HighpassModulation, LowpassModulation, PitchModulation, SourceEffectChain]()
 		{
 			AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 			AUDIO_MIXER_CHECK(InitParams.SourceVoice != nullptr);
@@ -801,6 +798,12 @@ namespace Audio
 
 				// Whether or not to output to bus only
 				SourceInfo.bOutputToBusOnly = InitParams.bOutputToBusOnly;
+
+				// Add the effect chain instances 
+				SourceInfo.SourceEffects = SourceEffectChain;
+
+				// Add a slot entry for the preset so it can change while running. This will get sent to the running effect instance if the preset changes.
+				SourceInfo.SourceEffectPresets.Add(nullptr);
 
 				// If this is going to be a source bus, add this source id to the list of active bus ids
 				if (InitParams.AudioBusId != INDEX_NONE)
@@ -2501,7 +2504,11 @@ namespace Audio
 							ResetSourceEffectChain(SourceId);
 
 							// Rebuild it
-							BuildSourceEffectChain(SourceId, InitData, InSourceEffectChain);
+							TArray<TSoundEffectSourcePtr> SourceEffects;
+							BuildSourceEffectChain(SourceId, InitData, InSourceEffectChain, SourceEffects);
+
+							SourceInfo.SourceEffects = SourceEffects;						
+							SourceInfo.SourceEffectPresets.Add(nullptr);
 						}
 					}
 				}
