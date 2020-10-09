@@ -243,6 +243,8 @@ namespace DatasmithRuntime
 
 		MeshPreProcessing();
 
+		OnGoingTasks.Reserve(TextureElementSet.Num() + MeshElementSet.Num());
+
 		if (TextureElementSet.Num() > 0)
 		{
 			ImageReaderInitialize();
@@ -315,6 +317,14 @@ namespace DatasmithRuntime
 		// Full reset of the world. Resume tasks on next tick
 		if (TasksToComplete & EDatasmithRuntimeWorkerTask::ResetScene)
 		{
+			// Wait for ongoing tasks to be completed
+			for (TFuture<bool>& OnGoingTask : OnGoingTasks)
+			{
+				OnGoingTask.Wait();
+			}
+
+			OnGoingTasks.Empty();
+
 			DeleteData();
 
 			Elements.Empty();
@@ -475,6 +485,8 @@ namespace DatasmithRuntime
 		if (TasksToComplete == EDatasmithRuntimeWorkerTask::NoTask && SceneElement.IsValid())
 		{
 			TRACE_BOOKMARK(TEXT("Load complete - %s"), *SceneElement->GetName());
+
+			OnGoingTasks.Empty();
 
 			LastSceneId = SceneElement->GetNodeId();
 			LastSourceHandle = CurrentSourceHandle;
