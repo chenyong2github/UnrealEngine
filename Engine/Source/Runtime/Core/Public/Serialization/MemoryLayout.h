@@ -882,6 +882,10 @@ struct FPlatformTypeLayoutParameters
 
 	CORE_API bool IsCurrentPlatform() const;
 	CORE_API void InitializeForArchive(FArchive& Ar);
+
+	/** Initializes for the given platform, or for current platform if TargetPlatform is nullptr */
+	CORE_API void InitializeForPlatform(const ITargetPlatform* TargetPlatform);
+
 	CORE_API void InitializeForPlatform(const FString& PlatformName, bool bHasEditorOnlyData);
 	CORE_API void InitializeForCurrent();
 	CORE_API void InitializeForMSVC();

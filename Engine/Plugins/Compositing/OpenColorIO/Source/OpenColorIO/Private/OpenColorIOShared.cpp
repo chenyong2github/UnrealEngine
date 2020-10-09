@@ -109,14 +109,7 @@ OPENCOLORIO_API void FOpenColorIOTransformResource::GetShaderMapId(EShaderPlatfo
 		OutId.ShaderCodeHash = ShaderCodeHash;
 		OutId.SetShaderDependencies(ShaderTypes, InPlatform);
 #if WITH_EDITOR
-		if (TargetPlatform)
-		{
-			OutId.LayoutParams.InitializeForPlatform(TargetPlatform->IniPlatformName(), TargetPlatform->HasEditorOnlyData());
-		}
-		else
-		{
-			OutId.LayoutParams.InitializeForCurrent();
-		}
+		OutId.LayoutParams.InitializeForPlatform(TargetPlatform);
 #else
 		if (TargetPlatform != nullptr)
 		{

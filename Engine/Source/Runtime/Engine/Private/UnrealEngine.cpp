@@ -10177,16 +10177,6 @@ float DrawMapWarnings(UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanv
 
 	SmallTextItem.SetColor(FLinearColor::White);
 
-	extern double GViewModeShaderMissingTime;
-	extern int32 GNumViewModeShaderMissing;
-	if (FApp::GetCurrentTime() - GViewModeShaderMissingTime < 1 && GNumViewModeShaderMissing > 0)
-	{
-		SmallTextItem.SetColor(FLinearColor::Yellow);
-		SmallTextItem.Text = FText::Format(LOCTEXT("ViewModeShadersCompilingFmt", "View Mode Shaders Compiling ({0})"), GNumViewModeShaderMissing);
-		Canvas->DrawItem(SmallTextItem, FVector2D(MessageX, MessageY));
-		MessageY += FontSizeY;
-	}
-
 	if (GShaderCompilingManager && GShaderCompilingManager->IsCompiling())
 	{
 		SmallTextItem.SetColor(FLinearColor::White);
