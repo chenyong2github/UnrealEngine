@@ -9,12 +9,13 @@
 
 static FUObjectAnnotationSparse<FMovieSceneSpawnableAnnotation,true> SpawnedObjectAnnotation;
 
-void FMovieSceneSpawnableAnnotation::Add(UObject* SpawnedObject, const FGuid& ObjectBindingID, UMovieSceneSequence* InOriginatingSequence)
+void FMovieSceneSpawnableAnnotation::Add(UObject* SpawnedObject, const FGuid& ObjectBindingID, FMovieSceneSequenceID SequenceID, UMovieSceneSequence* InOriginatingSequence)
 {
 	if (SpawnedObject)
 	{
 		FMovieSceneSpawnableAnnotation Annotation;
 		Annotation.ObjectBindingID = ObjectBindingID;
+		Annotation.SequenceID = SequenceID;
 		Annotation.OriginatingSequence = InOriginatingSequence;
 
 		SpawnedObjectAnnotation.AddAnnotation(SpawnedObject, MoveTemp(Annotation));
