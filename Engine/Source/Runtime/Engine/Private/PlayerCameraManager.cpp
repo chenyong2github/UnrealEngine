@@ -1030,6 +1030,9 @@ void APlayerCameraManager::DoUpdateCamera(float DeltaTime)
 			case VTBlend_EaseInOut:
 				BlendPct = FMath::InterpEaseInOut(0.f, 1.f, DurationPct, BlendParams.BlendExp);
 				break;
+			case VTBlend_PreBlended:
+				BlendPct = 1.0f;
+				break;
 			default:
 				break;
 			}
