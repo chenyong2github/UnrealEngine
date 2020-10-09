@@ -127,6 +127,7 @@ void OpenGLTextureAllocated(FRHITexture* Texture, ETextureCreateFlags Flags)
 	{
 		GCurrentRendertargetMemorySize += Align(TextureSize, 1024) / 1024;
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
+		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::GraphicsPlatform, TextureSize, ELLMTracker::Platform, ELLMAllocType::None);
 		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::RenderTargets, TextureSize, ELLMTracker::Default, ELLMAllocType::None);
 #endif
 	}
@@ -134,6 +135,7 @@ void OpenGLTextureAllocated(FRHITexture* Texture, ETextureCreateFlags Flags)
 	{
 		GCurrentTextureMemorySize += Align(TextureSize, 1024) / 1024;
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
+		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::GraphicsPlatform, TextureSize, ELLMTracker::Platform, ELLMAllocType::None);
 		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::Textures, TextureSize, ELLMTracker::Default, ELLMAllocType::None);
 #endif
 	}
@@ -200,6 +202,7 @@ void OpenGLTextureDeleted( FRHITexture* Texture )
 	{
 		GCurrentRendertargetMemorySize -= Align(TextureSize, 1024) / 1024;
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
+		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::GraphicsPlatform, -TextureSize, ELLMTracker::Platform, ELLMAllocType::None);
 		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::RenderTargets, -TextureSize, ELLMTracker::Default, ELLMAllocType::None);
 #endif
 	}
@@ -207,6 +210,7 @@ void OpenGLTextureDeleted( FRHITexture* Texture )
 	{
 		GCurrentTextureMemorySize -= Align(TextureSize, 1024) / 1024;
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
+		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::GraphicsPlatform, -TextureSize, ELLMTracker::Platform, ELLMAllocType::None);
 		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::Textures, -TextureSize, ELLMTracker::Default, ELLMAllocType::None);
 #endif
 	}
