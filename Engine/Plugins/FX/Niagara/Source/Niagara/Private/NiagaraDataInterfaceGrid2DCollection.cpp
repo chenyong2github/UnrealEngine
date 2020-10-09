@@ -2234,8 +2234,6 @@ void FNiagaraDataInterfaceProxyGrid2DCollectionProxy::PostSimulate(FRHICommandLi
 	if (ProxyData->RenderTargetToCopyTo != nullptr && ProxyData->CurrentData != nullptr && ProxyData->CurrentData->GridTexture != nullptr)
 	{
 		SCOPED_DRAW_EVENT(RHICmdList, Grid2DCollection_PostSimulate);
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, ProxyData->CurrentData->GridTexture);
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, ProxyData->RenderTargetToCopyTo);
 		if (ProxyData->RenderTargetToCopyTo->GetTexture2DArray() != nullptr)
 		{
 			FRHICopyTextureInfo CopyInfo;
@@ -2246,7 +2244,6 @@ void FNiagaraDataInterfaceProxyGrid2DCollectionProxy::PostSimulate(FRHICommandLi
 			const FNiagaraGrid2DLegacyTiled2DInfo Tiled2DInfo(ProxyData->NumCells, ProxyData->NumAttributes);
 			Tiled2DInfo.CopyTo2D(RHICmdList, ProxyData->CurrentData->GridTexture, ProxyData->RenderTargetToCopyTo);
 		}
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, ProxyData->RenderTargetToCopyTo);
 	}
 
 #if WITH_EDITOR
