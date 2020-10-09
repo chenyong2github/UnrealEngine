@@ -2995,6 +2995,15 @@ void FControlRigEditor::OnHierarchyChanged()
 		}
 		GetControlRigBlueprint()->RecompileVM();
 
+		SynchronizeViewportBoneSelection();
+
+		UControlRigSkeletalMeshComponent* EditorSkelComp = Cast<UControlRigSkeletalMeshComponent>(GetPersonaToolkit()->GetPreviewScene()->GetPreviewMeshComponent());
+		// since rig has changed, rebuild draw skeleton
+		if (EditorSkelComp)
+		{ 
+			EditorSkelComp->RebuildDebugDrawSkeleton(); 
+		}
+
 		if (NodeDetailStruct != nullptr && NodeDetailBuffer.Num() > 0 && NodeDetailName != NAME_None)
 		{
 			if (URigVMNode* Node = ControlRigBP->Model->FindNode(NodeDetailName.ToString()))
@@ -3016,6 +3025,8 @@ void FControlRigEditor::OnHierarchyChanged()
 		ClearDetailObject();
 	}
 }
+
+
 
 void FControlRigEditor::OnRigElementAdded(FRigHierarchyContainer* Container, const FRigElementKey& InKey)
 {
@@ -3195,6 +3206,28 @@ void FControlRigEditor::OnRigElementReparented(FRigHierarchyContainer* Container
 	OnHierarchyChanged();
 }
 
+void FControlRigEditor::SynchronizeViewportBoneSelection()
+{
+	UControlRigBlueprint* RigBlueprint = GetControlRigBlueprint();
+	if (RigBlueprint == nullptr)
+	{
+		return;
+	}
+
+	UControlRigSkeletalMeshComponent* EditorSkelComp = Cast<UControlRigSkeletalMeshComponent>(GetPersonaToolkit()->GetPreviewScene()->GetPreviewMeshComponent());
+	if (EditorSkelComp)
+	{
+		EditorSkelComp->BonesOfInterest.Reset();
+
+		TArray<FName> SelectedBones = RigBlueprint->HierarchyContainer.BoneHierarchy.CurrentSelection();
+		for (const FName& Bone : SelectedBones)
+		{
+			int32 Index = ControlRig->Hierarchy.BoneHierarchy.GetIndex(Bone); 
+			EditorSkelComp->BonesOfInterest.AddUnique(Index);
+		}
+	}
+}
+
 void FControlRigEditor::OnRigElementSelected(FRigHierarchyContainer* Container, const FRigElementKey& InKey, bool bSelected)
 {
 	UControlRigBlueprint* RigBlueprint = GetControlRigBlueprint();
@@ -3215,22 +3248,7 @@ void FControlRigEditor::OnRigElementSelected(FRigHierarchyContainer* Container, 
 
 	if (InKey.Type == ERigElementType::Bone)
 	{
-		UControlRigSkeletalMeshComponent* EditorSkelComp = Cast<UControlRigSkeletalMeshComponent>(GetPersonaToolkit()->GetPreviewScene()->GetPreviewMeshComponent());
-		if (EditorSkelComp)
-		{
-			int32 Index = ControlRig->Hierarchy.BoneHierarchy.GetIndex(InKey.Name);
-			if (Index != INDEX_NONE)
-			{
-				if (bSelected)
-				{
-					EditorSkelComp->BonesOfInterest.AddUnique(Index);
-				}
-				else
-				{
-					EditorSkelComp->BonesOfInterest.Remove(Index);
-				}
-			}
-		}
+		SynchronizeViewportBoneSelection();
 	}
 
 	if (bSelected)
