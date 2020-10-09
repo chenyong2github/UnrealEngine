@@ -181,4 +181,6 @@ namespace LLMPrivate
 }
 }
 
+FName LLMGetTagUniqueName(ELLMTag Tag);
+
 #endif		// #if ENABLE_LOW_LEVEL_MEM_TRACKER
