@@ -139,15 +139,17 @@ bool FEditorPrimitivesBasePassMeshProcessor::ProcessMobileShadingPath(const FMes
 		FBaseHS,
 		FBaseDS,
 		TMobileBasePassPSPolicyParamType<FUniformLightMapPolicy>> BasePassShaders;
-
-	MobileBasePass::GetShaders(
-		NoLightmapPolicy.GetIndirectPolicy(), 
+	if (!MobileBasePass::GetShaders(
+		NoLightmapPolicy.GetIndirectPolicy(),
 		NumMovablePointLights,
-		Material, 
-		VertexFactory->GetType(), 
-		bEnableSkyLight, 
-		BasePassShaders.VertexShader, 
-		BasePassShaders.PixelShader);
+		Material,
+		VertexFactory->GetType(),
+		bEnableSkyLight,
+		BasePassShaders.VertexShader,
+		BasePassShaders.PixelShader))
+	{
+		return false;
+	}
 	
 	FMeshPassProcessorRenderState DrawRenderState(PassDrawRenderState);
 
