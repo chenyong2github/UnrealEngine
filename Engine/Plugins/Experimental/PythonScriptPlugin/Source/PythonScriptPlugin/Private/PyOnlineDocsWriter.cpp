@@ -315,34 +315,51 @@ void FPyOnlineDocsWriter::GenerateFiles(const FString& InPythonStubPath)
 
 	if (bUseSphinx)
 	{
+		// We only use Sphinx on the version embedded in UE rather than as an executed external 
+		// process since other installs, paths and environment variables may act in unexpected ways.
+		FString PythonPath = UTF8_TO_TCHAR(UE_PYTHON_DIR);
+		bUseSphinx = PythonPath.Contains(TEXT("{ENGINE_DIR}"), ESearchCase::CaseSensitive);
+	}
+
+	if (bUseSphinx)
+	{
 		// Call Sphinx to generate online Python API docs. (Default)
 
-		// Running as internal Python calls on the version embedded in UE4 rather than as an
-		// executed external process since other installs, paths and environment variables may act
-		// in unexpected ways. Could potentially use Python C++ API calls rather than Python scripts,
-		// though this keeps it clear and if the calls evolve over time the vast number of examples
-		// online are in Python rather than C++.
+		// Could potentially use Python C++ API calls rather than Python scripts, though this keeps it clear 
+		// and if the calls evolve over time the vast number of examples online are in Python rather than C++.
 
 		// Update pip and then install Sphinx if needed. If Sphinx and its dependencies are already
 		// installed then it will determine that quickly and move on to using it.
 		// More info on using pip within Python here:
 		//   https://pip.pypa.io/en/stable/user_guide/#using-pip-from-your-program
 
-		FString PyCommandStr;
-		FString PythonPath = FPaths::ConvertRelativePathToFull(FPaths::EngineDir()) / TEXT("Binaries/ThirdParty/Python/Win64/python.exe");
+		// Build the full Python directory (UE_PYTHON_DIR may be relative to UE engine directory for portability)
+		FString PythonRootPath = UTF8_TO_TCHAR(UE_PYTHON_DIR);
+		PythonRootPath.ReplaceInline(TEXT("{ENGINE_DIR}"), *FPaths::EngineDir(), ESearchCase::CaseSensitive);
+		FPaths::NormalizeDirectoryName(PythonRootPath);
+		FPaths::RemoveDuplicateSlashes(PythonRootPath);
 
-		PyCommandStr += TEXT(
-			"import sys\n"
-			"import subprocess\n"
-			"subprocess.check_call(['");
-		PyCommandStr += PythonPath;
-		PyCommandStr += TEXT(
-			"', '-m', 'pip', 'install', '-q', '-U', 'pip'])\n"
-			"subprocess.check_call(['");
-		PyCommandStr += PythonPath;
-		PyCommandStr +=	TEXT(
-			"', '-m', 'pip', 'install', '-q', '--no-warn-script-location', 'sphinx'])\n"
-			"import sphinx\n");
+		FString PythonPath = PythonRootPath;
+#if PLATFORM_WINDOWS
+		PythonPath /= TEXT("python.exe");
+#elif PLATFORM_MAC || PLATFORM_LINUX
+		PythonPath /= TEXT("bin/python");
+#else
+		static_assert(false, "Python not supported on this platform!");
+#endif
+		PythonPath = FPaths::ConvertRelativePathToFull(PythonPath);
+
+		FString PyCommandStr;
+
+		PyCommandStr.Append(TEXT("import sys\n"));
+		PyCommandStr.Append(TEXT("import subprocess\n"));
+
+		// Add on pip update and install commands for Sphinx
+		PyCommandStr.Appendf(TEXT("subprocess.call(['%s', '-m', 'pip', 'install', '-q', '-U', 'pip'])\n"), *PythonPath);	// This may fail if UE is read-only, and on failure somehow completely breaks pip...
+		PyCommandStr.Appendf(TEXT("subprocess.check_call(['%s', '-m', 'ensurepip'])\n"), *PythonPath);						// ... so this call ensures that pip is definitely available, even if the above call broke it
+		PyCommandStr.Appendf(TEXT("subprocess.check_call(['%s', '-m', 'pip', 'install', '-q', '--no-warn-script-location', 'sphinx'])\n"), *PythonPath);
+		
+		PyCommandStr.Append(TEXT("import sphinx.cmd.build\n"));
 
 		// Alternate technique calling pip as a Python command though above is recommended by pip.
 		//
@@ -352,16 +369,11 @@ void FPyOnlineDocsWriter::GenerateFiles(const FString& InPythonStubPath)
 		//	"import sphinx\n");
 
 		// Un-import full unreal module so Sphinx will use generated stub version of unreal module
-		PyCommandStr += TEXT(
-			"del unreal\n"
-			"del sys.modules['unreal']\n");
+		PyCommandStr.Append(TEXT("del unreal\n"));
+		PyCommandStr.Append(TEXT("del sys.modules['unreal']\n"));
 
 		// Add on Sphinx build command
-		PyCommandStr += TEXT("sphinx.build_main(['sphinx-build', '-b', 'html', '");
-		PyCommandStr += GetSourcePath();
-		PyCommandStr += TEXT("', '");
-		PyCommandStr += GetBuildPath();
-		PyCommandStr += TEXT("'])");
+		PyCommandStr.Appendf(TEXT("sphinx.cmd.build.build_main(['-b', 'html', '%s', '%s'])\n"), *GetSourcePath(), *GetBuildPath());
 
 		UE_LOG(LogPython, Display, TEXT(
 			"Calling Sphinx in PythonPlugin/SphinxDocs to generate the HTML...\n\n"
