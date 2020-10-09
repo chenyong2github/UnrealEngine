@@ -353,9 +353,9 @@ bool FOnlineSubsystemEOS::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice&
 	bool bWasHandled = false;
 	if (FParse::Command(&Cmd, TEXT("EOS")))
 	{
-		if (StoreInterfacePtr != nullptr && FParse::Command(&Cmd, TEXT("OFFERS")))
+		if (StoreInterfacePtr != nullptr && FParse::Command(&Cmd, TEXT("ECOM")))
 		{
-			bWasHandled = StoreInterfacePtr->HandleOffersExec(InWorld, Cmd, Ar);
+			bWasHandled = StoreInterfacePtr->HandleEcomExec(InWorld, Cmd, Ar);
 		}
 	}
 	return bWasHandled;
