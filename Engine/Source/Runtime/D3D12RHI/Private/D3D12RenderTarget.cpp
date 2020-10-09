@@ -1648,7 +1648,7 @@ void FD3D12DynamicRHI::RHIReadSurfaceFloatData(FRHITexture* TextureRHI, FIntRect
 	else
 	{
 		const bool bIsTextureArray = InTexture2DArray != nullptr;
-		Subresource = CalcSubresource(MipIndex, bIsTextureArray ? ArrayIndex : 0, TextureDesc.MipLevels);
+		Subresource = CalcSubresource(InFlags.GetMip(), bIsTextureArray ? InFlags.GetArrayIndex() : 0, TextureDesc.MipLevels);
 	}
 
 	uint32 BytesPerPixel = ComputeBytesPerPixel(TextureDesc.Format);
