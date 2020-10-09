@@ -94,12 +94,22 @@ int32 GEnableDeferredPhysicsCreation = 0;
 void FRegisterComponentContext::Process()
 {
 	FSceneInterface* Scene = World->Scene;
+	const bool bAppCanEverRender = FApp::CanEverRender();
+
 	ParallelFor(AddPrimitiveBatches.Num(),
 		[&](int32 Index)
 		{
-			if (!AddPrimitiveBatches[Index]->IsPendingKill())
+			UPrimitiveComponent* Component = AddPrimitiveBatches[Index];
+			if (!Component->IsPendingKill())
 			{
-				Scene->AddPrimitive(AddPrimitiveBatches[Index]);
+				if (Component->IsRenderStateCreated() || !bAppCanEverRender)
+				{
+					Scene->AddPrimitive(Component);
+				}
+				else // Fallback for some edge case where the component renderstate are missing
+				{
+					Component->CreateRenderState_Concurrent(nullptr);
+				}
 			}
 		},
 		!FApp::ShouldUseThreadingForPerformance()
