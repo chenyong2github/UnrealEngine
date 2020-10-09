@@ -57,6 +57,7 @@ bool FStageMonitorSessionManager::SaveSession(const FString& FileName)
 		//Setup task data 
 		FSavingTaskData TaskData;
 		TaskData.Providers = ActiveSession->GetProviders();
+		ActiveSession->GetIdentifierMapping(TaskData.IdentifierMapping);
 		ActiveSession->GetAllEntries(TaskData.Entries);
 		TaskData.Settings = GetDefault<UStageMonitoringSettings>()->ExportSettings;
 
@@ -150,90 +151,107 @@ void FStageMonitorSessionManager::LoadSessionTask_AnyThread(const FString& FileN
 {
 	TSharedPtr<FStageMonitorSession> ImportedSession;
 	FString Error;
-	if (ImportedSessionCache.Contains(FileName))
+	if (TUniquePtr<FArchive> FileReader = TUniquePtr<FArchive>(IFileManager::Get().CreateFileReader(*FileName)))
 	{
-		UE_LOG(LogStageMonitor, VeryVerbose, TEXT("Loaded file %s from cache"), *FileName);
-		ImportedSession = ImportedSessionCache[FileName];
-	}
-	else
-	{
-		if (TUniquePtr<FArchive> FileReader = TUniquePtr<FArchive>(IFileManager::Get().CreateFileReader(*FileName)))
+		TSharedRef< TJsonReader<> > JsonReader = TJsonReaderFactory<>::Create(FileReader.Get());
+		TSharedPtr<FJsonObject> RootData = MakeShared<FJsonObject>();
+		if (FJsonSerializer::Deserialize(JsonReader, RootData))
 		{
-			TSharedRef< TJsonReader<> > JsonReader = TJsonReaderFactory<>::Create(FileReader.Get());
-			TSharedPtr<FJsonObject> RootData = MakeShared<FJsonObject>();
-			if (FJsonSerializer::Deserialize(JsonReader, RootData))
+			FMonitorSessionInfo Info;
+			if (FJsonObjectConverter::JsonObjectToUStruct(RootData.ToSharedRef(), &Info))
 			{
-				FMonitorSessionInfo Info;
-				if (FJsonObjectConverter::JsonObjectToUStruct(RootData.ToSharedRef(), &Info))
+				if (Info.CurrentVersion == FMonitorSessionInfo::CurrentVersion)
 				{
-					if (Info.CurrentVersion == FMonitorSessionInfo::CurrentVersion)
-					{
-						ImportedSession = MakeShared<FStageMonitorSession>(FPaths::GetBaseFilename(FileName));
+					ImportedSession = MakeShared<FStageMonitorSession>(FPaths::GetBaseFilename(FileName));
 
-						const TArray<TSharedPtr<FJsonValue>>& Providers = RootData->GetArrayField("Providers");
-						for (const TSharedPtr<FJsonValue>& Provider : Providers)
+
+					//Identifier mapping load
+					const TSharedPtr<FJsonObject>& MappingObject = RootData->GetObjectField(TEXT("IdentifierMapping"));
+					if (MappingObject.IsValid())
+					{
+						const int32 MapSize = MappingObject->Values.Num();
+						TMap<FGuid, FGuid> Mapping;
+						Mapping.Reserve(MapSize);
+
+						for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : MappingObject->Values)
 						{
-							const TSharedPtr<FJsonObject>* ProviderObject = nullptr;
-							FStageSessionProviderEntry NewProvider;
-							if (FJsonObjectConverter::JsonObjectToUStruct<FStageSessionProviderEntry>(Provider->AsObject().ToSharedRef(), &NewProvider))
+							if (Entry.Value.IsValid() && !Entry.Value->IsNull())
 							{
-								ImportedSession->AddProvider(NewProvider.Identifier, NewProvider.Descriptor, FMessageAddress::NewAddress());
-							}
-							else
-							{
-								UE_LOG(LogStageMonitor, Warning, TEXT("Could not convert JsonObject to Stage Session Provider structure"));
+								const FGuid Key(Entry.Key);
+								FString IdentifierValue;
+								if (Entry.Value->TryGetString(IdentifierValue))
+								{
+									Mapping.FindOrAdd(Key) = FGuid(IdentifierValue);
+								}
 							}
 						}
+					
+						ImportedSession->SetIdentifierMapping(Mapping);
+					}
 
-						const TArray<TSharedPtr<FJsonValue>>& Entries = RootData->GetArrayField("Entries");
-						for (const TSharedPtr<FJsonValue>& Entry : Entries)
+
+					const TArray<TSharedPtr<FJsonValue>>& Providers = RootData->GetArrayField(TEXT("Providers"));
+					for (const TSharedPtr<FJsonValue>& Provider : Providers)
+					{
+						const TSharedPtr<FJsonObject>* ProviderObject = nullptr;
+						FStageSessionProviderEntry NewProvider;
+						if (FJsonObjectConverter::JsonObjectToUStruct<FStageSessionProviderEntry>(Provider->AsObject().ToSharedRef(), &NewProvider))
 						{
-							const TSharedPtr<FJsonObject> EntryObject = Entry->AsObject();
-							if (EntryObject)
+							ImportedSession->AddProvider(NewProvider.Identifier, NewProvider.Descriptor, FMessageAddress::NewAddress());
+						}
+						else
+						{
+							UE_LOG(LogStageMonitor, Warning, TEXT("Could not convert JsonObject to Stage Session Provider structure"));
+						}
+					}
+
+					const TArray<TSharedPtr<FJsonValue>>& Entries = RootData->GetArrayField(TEXT("Entries"));
+					for (const TSharedPtr<FJsonValue>& Entry : Entries)
+					{
+						const TSharedPtr<FJsonObject> EntryObject = Entry->AsObject();
+						if (EntryObject)
+						{
+							const FString EntryType = EntryObject->GetStringField(TEXT("EntryType"));
+							UScriptStruct* Struct = FindStructFromName_AnyThread(*EntryType);
+							if (Struct)
 							{
-								const FString EntryType = EntryObject->GetStringField("EntryType");
-								UScriptStruct* Struct = FindStructFromName_AnyThread(*EntryType);
-								if (Struct)
+								FStructOnScope NewData(Struct);
+								if (FJsonObjectConverter::JsonObjectToUStruct(EntryObject.ToSharedRef(), NewData.GetStruct(), NewData.GetStructMemory()))
 								{
-									FStructOnScope NewData(Struct);
-									if (FJsonObjectConverter::JsonObjectToUStruct(EntryObject.ToSharedRef(), NewData.GetStruct(), NewData.GetStructMemory()))
-									{
-										ImportedSession->AddProviderMessage(Struct, reinterpret_cast<FStageProviderMessage*>(NewData.GetStructMemory()));
-									}
-									else
-									{
-										UE_LOG(LogStageMonitor, Warning, TEXT("Could not convert JsonObject to StageSessionEntry of type '%s'"), *EntryType);
-									}
+									ImportedSession->AddProviderMessage(Struct, reinterpret_cast<FStageProviderMessage*>(NewData.GetStructMemory()));
 								}
 								else
 								{
-									UE_LOG(LogStageMonitor, Warning, TEXT("Could not find UStruct of type '%s'"), *EntryType);
+									UE_LOG(LogStageMonitor, Warning, TEXT("Could not convert JsonObject to StageSessionEntry of type '%s'"), *EntryType);
 								}
 							}
+							else
+							{
+								UE_LOG(LogStageMonitor, Warning, TEXT("Could not find UStruct of type '%s'"), *EntryType);
+							}
 						}
-					}
-					else
-					{
-						Error = FString::Printf(TEXT("Can't read stage session file with version %d."), Info.Version);
 					}
 				}
 				else
 				{
-					Error = TEXT("Could not read stage session header.");
+					Error = FString::Printf(TEXT("Can't read stage session file with version %d."), Info.Version);
 				}
 			}
 			else
 			{
-				Error = TEXT("Could not deserialize to json data.");
+				Error = TEXT("Could not read stage session header.");
 			}
-
-			ImportedSessionCache.Add(FileName, ImportedSession);
-			FileReader->Close();
 		}
 		else
 		{
-			Error = TEXT("Couldn't read file.");
+			Error = TEXT("Could not deserialize to json data.");
 		}
+
+		FileReader->Close();
+	}
+	else
+	{
+		Error = TEXT("Couldn't read file.");
 	}
 
 	//Loading done, schedule completion on gamethread to be able to trigger the completion delegate thread safely 
@@ -252,10 +270,20 @@ void FStageMonitorSessionManager::SaveSessionTask_AnyThread(const FString& FileN
 		TSharedPtr<FJsonObject> RootData = MakeShared<FJsonObject>();
 
 		//Start file with stage session info header
-		//Not much in it for now but provisions for later
 		FMonitorSessionInfo Info;
 		if (FJsonObjectConverter::UStructToJsonObject(FMonitorSessionInfo::StaticStruct(), &Info, RootData.ToSharedRef(), 0 /*Checkflags*/, 0/*Skipflags*/))
 		{
+			//Provider identifier mapping first
+			TSharedPtr<FJsonObject> MappingObject = MakeShared<FJsonObject>();
+			for (const TPair<FGuid, FGuid>& Mapping : TaskData.IdentifierMapping)
+			{
+				const FString Key = Mapping.Key.ToString();
+				TSharedPtr<FJsonValueString> JSonValue = MakeShared<FJsonValueString>(Mapping.Value.ToString());
+				MappingObject->SetField(Key, JSonValue);
+			}
+			RootData->SetObjectField(TEXT("IdentifierMapping"), MappingObject);
+
+			//Current Providers
 			TArray<TSharedPtr<FJsonValue>> ProvidersArray;
 			ProvidersArray.Reserve(TaskData.Providers.Num());
 
@@ -274,7 +302,7 @@ void FStageMonitorSessionManager::SaveSessionTask_AnyThread(const FString& FileN
 				}
 			}
 
-			RootData->SetArrayField("Providers", ProvidersArray);
+			RootData->SetArrayField(TEXT("Providers"), ProvidersArray);
 
 			TArray<TSharedPtr<FJsonValue>> EntriesArray;
 			EntriesArray.Reserve(TaskData.Entries.Num());
