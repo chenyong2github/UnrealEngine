@@ -4027,7 +4027,7 @@ void GlobalBeginCompileShader(
 			}
 			Input.Environment.SetDefine(TEXT("METAL_USE_FAST_INTRINSICS"), bAllowFastIntrinsics);
 			Input.Environment.SetDefine(TEXT("FORCE_FLOATS"), bForceFloats);
-			Input.Environment.SetDefine(TEXT("METAL_INDIRECT_ARGUMENT_BUFFERS"), *IndirectArgumentTier);
+			Input.Environment.SetDefine(TEXT("METAL_INDIRECT_ARGUMENT_BUFFERS"), IndirectArgumentTier);
 			
 			// Same as console-variable above, but that's global and this is per-platform, per-project
 			if (!bEnableMathOptimisations)
@@ -4062,7 +4062,7 @@ void GlobalBeginCompileShader(
 		GConfig->GetString(TEXT("DevOptions.Shaders"), TEXT("ShaderPDBRoot"), ShaderPDBRoot, GEngineIni);
 		if (!ShaderPDBRoot.IsEmpty())
 		{
-			Input.Environment.SetDefine(TEXT("SHADER_PDB_ROOT"), *ShaderPDBRoot);
+			Input.Environment.SetDefine(TEXT("SHADER_PDB_ROOT"), ShaderPDBRoot);
 		}
 	}
 

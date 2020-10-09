@@ -270,21 +270,37 @@ public:
 		Definitions.Add(Name, Value);
 	}
 
-	/**
-	 * Works for uint32 and bool
-	 * e.g. OutEnvironment.SetDefine(TEXT("REALLY"), bReally);
-	 * e.g. OutEnvironment.SetDefine(TEXT("NUM_SAMPLES"), NumSamples);
-	 */
+	void SetDefine(const TCHAR* Name, const FString& Value)
+	{
+		Definitions.Add(Name, Value);
+	}
+
+	void SetDefine(const TCHAR* Name, bool Value)
+	{
+		Definitions.Add(Name, Value ? TEXT("1") : TEXT("0"));
+	}
+
 	void SetDefine(const TCHAR* Name, uint32 Value)
 	{
 		// can be optimized
-		Definitions.Add(Name, *FString::Printf(TEXT("%u"), Value));
+		switch (Value)
+		{
+		// Avoid Printf for common cases
+		case 0u: Definitions.Add(Name, TEXT("0")); break;
+		case 1u: Definitions.Add(Name, TEXT("1")); break;
+		default: Definitions.Add(Name, FString::Printf(TEXT("%u"), Value)); break;
+		}
 	}
 
 	void SetDefine(const TCHAR* Name, int32 Value)
 	{
 		// can be optimized
-		Definitions.Add(Name, *FString::Printf(TEXT("%d"), Value));
+		switch (Value)
+		{
+		case 0: Definitions.Add(Name, TEXT("0")); break;
+		case 1: Definitions.Add(Name, TEXT("1")); break;
+		default: Definitions.Add(Name, FString::Printf(TEXT("%d"), Value));
+		}
 	}
 
 	/**
@@ -293,7 +309,7 @@ public:
 	void SetFloatDefine(const TCHAR* Name, float Value)
 	{
 		// can be optimized
-		Definitions.Add(Name, *FString::Printf(TEXT("%f"), Value));
+		Definitions.Add(Name, FString::Printf(TEXT("%f"), Value));
 	}
 
 	const TMap<FString,FString>& GetDefinitionMap() const
@@ -419,9 +435,10 @@ struct FShaderCompilerEnvironment
 	 * e.g. SetDefine(TEXT("DOIT"), true);
 	 */
 	void SetDefine(const TCHAR* Name, const TCHAR* Value)	{ Definitions.SetDefine(Name, Value); }
+	void SetDefine(const TCHAR* Name, const FString& Value) { Definitions.SetDefine(Name, Value); }
 	void SetDefine(const TCHAR* Name, uint32 Value)			{ Definitions.SetDefine(Name, Value); }
 	void SetDefine(const TCHAR* Name, int32 Value)			{ Definitions.SetDefine(Name, Value); }
-	void SetDefine(const TCHAR* Name, bool Value)			{ Definitions.SetDefine(Name, (uint32)Value); }
+	void SetDefine(const TCHAR* Name, bool Value)			{ Definitions.SetDefine(Name, Value); }
 	void SetDefine(const TCHAR* Name, float Value)			{ Definitions.SetFloatDefine(Name, Value); }
 
 	const TMap<FString,FString>& GetDefinitions() const
