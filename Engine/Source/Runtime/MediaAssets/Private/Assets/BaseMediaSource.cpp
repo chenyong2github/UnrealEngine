@@ -2,7 +2,7 @@
 
 #include "BaseMediaSource.h"
 #include "UObject/SequencerObjectVersion.h"
-#include "UObject/MediaFrameworkObjectVersion.h"
+#include "UObject/MediaFrameWorkObjectVersion.h"
 #include "IMediaModule.h"
 #include "IMediaPlayerFactory.h"
 
