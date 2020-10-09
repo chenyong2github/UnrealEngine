@@ -432,7 +432,7 @@ export function processOtherBotTargets(
 
 class RequestedIntegrations {
 
-	readonly flags = new Set<string>()
+	readonly flags = new Set<ChangeFlag>()
 	integrations: [string, MergeMode][] = []
 
 	parse(commandArguments: string[], cl: number, forceStomp: boolean, logger: ContextualLogger) {
@@ -491,7 +491,7 @@ class RequestedIntegrations {
 type ComputeTargetsResult =
 	{ computeResult:
 	  { merges: Map<Branch, Branch[]> | null
-	  , flags: Set<string>
+	  , flags: Set<ChangeFlag>
 	  , targets: Map<Branch, MergeMode>
 	  } | null
 	, errors: string[] 
@@ -503,6 +503,7 @@ export function computeTargetsImpl(
 	ubergraph: GraphAPI,
 	cl: number,
 	forceStomp: boolean,
+	allowIgnore: boolean,
 	commandArguments: string[],
 	defaultTargets: string[], 
 	logger: ContextualLogger
@@ -514,7 +515,7 @@ export function computeTargetsImpl(
 	ri.parse(commandArguments, cl, forceStomp, logger)
 
 	if (ri.flags.has('ignore')) {
-		return { computeResult: null, errors: [] }
+		return { computeResult: null, errors: allowIgnore ? [] : ['deadend (ignore) disabled for this stream'] }
 	}
 
 	if (ri.flags.has('null')) {
@@ -627,12 +628,13 @@ export function computeTargets(
 	commandArguments: string[],
 	defaultTargets: string[],
 	logger: ContextualLogger,
+	allowIgnore: boolean,
 
 	optTargetBranch?: Branch | null
 ) {
 
 
-	const { computeResult, errors } = computeTargetsImpl(sourceBranch, ubergraph, cl, info.forceStompChanges, commandArguments, defaultTargets, logger)
+	const { computeResult, errors } = computeTargetsImpl(sourceBranch, ubergraph, cl, info.forceStompChanges, allowIgnore, commandArguments, defaultTargets, logger)
 
 	if (errors.length > 0) {
 		info.errors = errors
