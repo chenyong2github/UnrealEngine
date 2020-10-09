@@ -23,6 +23,7 @@
 #include "Serialization/LargeMemoryReader.h"
 #include "Misc/ScopeExit.h"
 #include "HAL/ThreadHeartBeat.h"
+#include "HAL/PlatformMisc.h"
 #include "AssetRegistryConsoleCommands.h"
 
 #if WITH_EDITOR
@@ -898,6 +899,8 @@ bool UAssetRegistryImpl::EnumerateAssets(const FARCompiledFilter& InFilter, TFun
 				{
 					return true;
 				}
+
+				FPlatformMisc::PumpEssentialAppMessages();
 			}
 		}
 	}
