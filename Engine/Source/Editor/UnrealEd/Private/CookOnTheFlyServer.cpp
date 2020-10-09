@@ -5895,12 +5895,15 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 		{
 			// Save shader code map
 			FString LibraryName = !IsCookingDLC() ? FApp::GetProjectName() : CookByTheBookOptions->DlcName;
-			SaveShaderCodeLibrary(LibraryName);
-			
-			// Don't clean Saved/Shaders/<LibraryPlatform(s)>/ at the end as we might iterate next time - Next cook at startup will decide if clean on iterate flag
-            // /*CleanShaderCodeLibraries();*/
-			ProcessShaderCodeLibraries(LibraryName);
-            
+			if (LibraryName.Len() > 0)
+			{
+				SaveShaderCodeLibrary(LibraryName);
+
+				// Don't clean Saved/Shaders/<LibraryPlatform(s)>/ at the end as we might iterate next time - Next cook at startup will decide if clean on iterate flag
+				// /*CleanShaderCodeLibraries();*/
+				ProcessShaderCodeLibraries(LibraryName);
+			}
+
 			FShaderCodeLibrary::Shutdown();
 		}				
 		
@@ -6898,7 +6901,10 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	// Open the shader code library for the current project or the current DLC pack, depending on which we are cooking
     {
 		FString LibraryName = !IsCookingDLC() ? FApp::GetProjectName() : CookByTheBookOptions->DlcName;
-		OpenShaderCodeLibrary(LibraryName);
+		if (LibraryName.Len() > 0)
+		{
+			OpenShaderCodeLibrary(LibraryName);
+		}
 	}
 
 	TArray<FName> FilesInPath;
