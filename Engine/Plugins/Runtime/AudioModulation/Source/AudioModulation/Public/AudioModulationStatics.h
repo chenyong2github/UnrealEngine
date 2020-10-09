@@ -51,7 +51,7 @@ public:
 		WorldContext = "WorldContextObject", 
 		Keywords = "activate modulation modulator control bus mix")
 	)
-	static void ActivateBusMix(const UObject* WorldContextObject, USoundControlBusMix* BusMix);
+	static void ActivateBusMix(const UObject* WorldContextObject, USoundControlBusMix* Mix);
 
 	/** Activates a modulation generator. Does nothing if an instance of the provided generator is already active
 	 * @param Modulator - Modulator to activate
@@ -122,7 +122,7 @@ public:
 		WorldContext = "WorldContextObject",
 		Keywords = "deactivate modulation modulator")
 	)
-	static void DeactivateBusMix(const UObject* WorldContextObject, USoundControlBusMix* BusMix);
+	static void DeactivateBusMix(const UObject* WorldContextObject, USoundControlBusMix* Mix);
 
 	/** Deactivates a modulation generator. Does nothing if an instance of the provided generator is already inactive
 	 * @param Generator - Generator to activate
@@ -144,7 +144,7 @@ public:
 		AdvancedDisplay = "2",
 		Keywords = "save serialize bus control modulation mix modulator ini")
 	)
-	static void SaveMixToProfile(const UObject* WorldContextObject, USoundControlBusMix* BusMix, int32 ProfileIndex = 0);
+	static void SaveMixToProfile(const UObject* WorldContextObject, USoundControlBusMix* Mix, int32 ProfileIndex = 0);
 
 	/** Loads control bus mix from a profile into UObject mix definition, deserialized from an ini file.
 	 * @param BusMix - Mix object to deserialize profile .ini to.
@@ -157,7 +157,7 @@ public:
 		AdvancedDisplay = "2",
 		Keywords = "load deserialize control bus modulation mix modulator ini")
 	)
-	static UPARAM(DisplayName = "Stages") TArray<FSoundControlBusMixStage> LoadMixFromProfile(const UObject* WorldContextObject, USoundControlBusMix* BusMix, bool bActivate = true, int32 ProfileIndex = 0);
+	static UPARAM(DisplayName = "Stages") TArray<FSoundControlBusMixStage> LoadMixFromProfile(const UObject* WorldContextObject, USoundControlBusMix* Mix, bool bActivate = true, int32 ProfileIndex = 0);
 
 	/** Sets a mix with the provided stage data if stages provided in active instance proxy of mix. Does not update UObject definition of mix.
 	 * @param Mix - Mix to update
@@ -170,7 +170,7 @@ public:
 		WorldContext = "WorldContextObject",
 		Keywords = "set bus control modulation modulator mix stage")
 	)
-	static void UpdateMix(const UObject* WorldContextObject, USoundControlBusMix* Mix, TArray<FSoundControlBusMixStage> Stages, float InFadeTime = -1.0f);
+	static void UpdateMix(const UObject* WorldContextObject, USoundControlBusMix* Mix, TArray<FSoundControlBusMixStage> Stages, float FadeTime = -1.0f);
 
 	/** Sets filtered stages of a given class to a provided target value for active instance of mix. Does not update UObject definition of mix.
 	 * @param Mix - Mix to modify
