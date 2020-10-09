@@ -2248,6 +2248,8 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	@Override
 	public void onCreate(Bundle savedInstanceState)
 	{
+		Logger.RegisterCallback(this);
+
 		// Grab a reference to the asset manager
 		AssetManagerReference = this.getAssets();
 
@@ -2355,8 +2357,6 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 				}
 			}
 		}
-
-		Logger.RegisterCallback(this);
 		
 		// Suppress java logs in Shipping builds
 		if (bIsShipping)
