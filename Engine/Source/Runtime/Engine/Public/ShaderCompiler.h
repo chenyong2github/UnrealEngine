@@ -17,6 +17,7 @@
 #include "Templates/Atomic.h"
 #include "Templates/UniquePtr.h"
 #include "HAL/ThreadSafeCounter.h"
+#include "Misc/ScopeRWLock.h"
 #include "Containers/HashTable.h"
 #include "Containers/List.h"
 
