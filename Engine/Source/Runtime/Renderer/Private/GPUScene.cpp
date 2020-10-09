@@ -366,6 +366,8 @@ void UpdateGPUSceneInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 				}
 			};
 
+			ERHIAccess CurrentAccess = ERHIAccess::Unknown;
+
 			const int32 MaxPrimitivesUploads = GetMaxPrimitivesUpdate(NumPrimitiveDataUploads, FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s);
 			if (MaxPrimitivesUploads == NumPrimitiveDataUploads)
 			{
@@ -388,18 +390,10 @@ void UpdateGPUSceneInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 					RangeCount == 1
 				);
 
-				if (bResizedPrimitiveData)
-				{
-					RHICmdList.Transition(FRHITransitionInfo(MirrorResourceGPU->UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
-				}
-				else
-				{
-					RHICmdList.Transition(FRHITransitionInfo(MirrorResourceGPU->UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-				}
+				RHICmdList.Transition(FRHITransitionInfo(MirrorResourceGPU->UAV, CurrentAccess, ERHIAccess::UAVCompute));
+				CurrentAccess = ERHIAccess::UAVCompute;
 
-				{
-					Scene.GPUScene.PrimitiveUploadBuffer.ResourceUploadTo(RHICmdList, *MirrorResourceGPU, true);
-				}
+				Scene.GPUScene.PrimitiveUploadBuffer.ResourceUploadTo(RHICmdList, *MirrorResourceGPU, true);
 			}
 			else
 			{
@@ -416,14 +410,8 @@ void UpdateGPUSceneInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 						ProcessPrimitiveFn(Index, false /* threaded */);
 					}
 
-					if (bResizedPrimitiveData)
-					{
-						RHICmdList.Transition(FRHITransitionInfo(MirrorResourceGPU->UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
-					}
-					else
-					{
-						RHICmdList.Transition(FRHITransitionInfo(MirrorResourceGPU->UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-					}
+					RHICmdList.Transition(FRHITransitionInfo(MirrorResourceGPU->UAV, CurrentAccess, ERHIAccess::UAVCompute));
+					CurrentAccess = ERHIAccess::UAVCompute;
 
 					{
 						QUICK_SCOPE_CYCLE_COUNTER(UploadTo);
@@ -432,7 +420,7 @@ void UpdateGPUSceneInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 				}
 			}
 
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, MirrorResourceGPU->UAV);
+			RHICmdList.Transition(FRHITransitionInfo(MirrorResourceGPU->UAV, CurrentAccess, ERHIAccess::SRVMask));
 		}
 
 		Scene.GPUScene.PrimitivesMarkedToUpdate.Init(false, Scene.GPUScene.PrimitivesMarkedToUpdate.Num());
@@ -684,22 +672,15 @@ void UpdateGPUSceneInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 					RangeCount == 1
 				);
 
-				if (bResizedInstanceData)
-				{
-					RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, Scene.GPUScene.InstanceDataBuffer.UAV);
-				}
-				else
-				{
-					RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, Scene.GPUScene.InstanceDataBuffer.UAV);
-				}
-
+				RHICmdList.Transition(FRHITransitionInfo(Scene.GPUScene.InstanceDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 				Scene.GPUScene.InstanceUploadBuffer.ResourceUploadTo(RHICmdList, Scene.GPUScene.InstanceDataBuffer, false);
-
-				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, Scene.GPUScene.InstanceDataBuffer.UAV);
+				RHICmdList.Transition(FRHITransitionInfo(Scene.GPUScene.InstanceDataBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
 			}
 
 			if (NumLightmapDataUploads > 0)
 			{
+				ERHIAccess CurrentAccess = ERHIAccess::Unknown;
+
 				const int32 MaxLightmapsUploads = GetMaxPrimitivesUpdate(NumLightmapDataUploads, FLightmapSceneShaderData::LightmapDataStrideInFloat4s);
 				for (int32 PrimitiveOffset = 0; PrimitiveOffset < NumPrimitiveDataUploads; PrimitiveOffset += MaxLightmapsUploads)
 				{
@@ -727,19 +708,13 @@ void UpdateGPUSceneInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 						}
 					}
 
-					if (bResizedLightmapData)
-					{
-						RHICmdList.Transition(FRHITransitionInfo(Scene.GPUScene.LightmapDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
-					}
-					else
-					{
-						RHICmdList.Transition(FRHITransitionInfo(Scene.GPUScene.LightmapDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-					}
+					RHICmdList.Transition(FRHITransitionInfo(Scene.GPUScene.LightmapDataBuffer.UAV, CurrentAccess, ERHIAccess::UAVCompute));
+					CurrentAccess = ERHIAccess::UAVCompute;
 
 					Scene.GPUScene.LightmapUploadBuffer.ResourceUploadTo(RHICmdList, Scene.GPUScene.LightmapDataBuffer, false);
-	
 				}
-				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, Scene.GPUScene.LightmapDataBuffer.UAV);
+
+				RHICmdList.Transition(FRHITransitionInfo(Scene.GPUScene.LightmapDataBuffer.UAV, CurrentAccess, ERHIAccess::SRVMask));
 			}
 
 			Scene.GPUScene.PrimitivesToUpdate.Reset();
@@ -788,6 +763,8 @@ void UploadDynamicPrimitiveShaderDataForViewInternal(FRHICommandListImmediate& R
 			uint32 ViewPrimitiveSceneNumFloat4s = FMath::RoundUpToPowerOfTwo(PrimitiveSceneNumFloat4s);
 			uint32 BytesPerElement = GPixelFormats[PF_A32B32G32R32F].BlockBytes;
 
+			ERHIAccess CurrentAccess = ERHIAccess::Unknown;
+
 			// Reserve enough space
 			if (ViewPrimitiveSceneNumFloat4s * BytesPerElement != ViewPrimitiveShaderDataResource.NumBytes)
 			{
@@ -797,9 +774,10 @@ void UploadDynamicPrimitiveShaderDataForViewInternal(FRHICommandListImmediate& R
 
 			// Copy scene primitive data into view primitive data
 			{
-				RHICmdList.Transition(FRHITransitionInfo(ViewPrimitiveShaderDataResource.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+				RHICmdList.Transition(FRHITransitionInfo(ViewPrimitiveShaderDataResource.UAV, CurrentAccess, ERHIAccess::UAVCompute));
 				MemcpyResource(RHICmdList, ViewPrimitiveShaderDataResource, *GetMirrorGPU<ResourceType>(Scene), Scene.Primitives.Num() * sizeof(FPrimitiveSceneShaderData::Data), 0, 0);
-				RHICmdList.Transition(FRHITransitionInfo(ViewPrimitiveShaderDataResource.UAV, ERHIAccess::UAVCompute, ERHIAccess::ERWBarrier));
+				RHICmdList.Transition(FRHITransitionInfo(ViewPrimitiveShaderDataResource.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
+				CurrentAccess = ERHIAccess::UAVCompute;
 			}
 
 			// Append View.DynamicPrimitiveShaderData to the end of the view primitive data resource
@@ -819,7 +797,9 @@ void UploadDynamicPrimitiveShaderDataForViewInternal(FRHICommandListImmediate& R
 					}
 
 					{
-						RHICmdList.Transition(FRHITransitionInfo(ViewPrimitiveShaderDataResource.UAV, ERHIAccess::ERWBarrier, ERHIAccess::ERWBarrier));
+						RHICmdList.Transition(FRHITransitionInfo(ViewPrimitiveShaderDataResource.UAV, CurrentAccess, ERHIAccess::UAVCompute));
+						CurrentAccess = ERHIAccess::UAVCompute;
+
 						Scene.GPUScene.PrimitiveUploadViewBuffer.ResourceUploadTo(RHICmdList, ViewPrimitiveShaderDataResource, false);
 					}
 				}
@@ -830,9 +810,8 @@ void UploadDynamicPrimitiveShaderDataForViewInternal(FRHICommandListImmediate& R
 				Scene.GPUScene.PrimitiveUploadViewBuffer.Release();
 			}
 
-			RHICmdList.Transition(FRHITransitionInfo(ViewPrimitiveShaderDataResource.UAV, ERHIAccess::ERWBarrier, ERHIAccess::SRVMask));
+			RHICmdList.Transition(FRHITransitionInfo(ViewPrimitiveShaderDataResource.UAV, CurrentAccess, ERHIAccess::SRVMask));
 
-			
 			if (GGPUSceneValidatePrimitiveBuffer && (Scene.GPUScene.PrimitiveBuffer.NumBytes > 0 || Scene.GPUScene.PrimitiveTexture.NumBytes > 0))
 			{
 				uint32 Stride = 0;

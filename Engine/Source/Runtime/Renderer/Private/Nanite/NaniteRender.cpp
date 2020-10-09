@@ -1888,24 +1888,24 @@ bool FNaniteMaterialTables::Begin(FRHICommandListImmediate& RHICmdList, uint32 N
 #endif
 	NumPrimitiveUpdates = InNumPrimitiveUpdates;
 
-	TArray<FRHIUnorderedAccessView*, TInlineAllocator<2>> UAVs;
+	TArray<FRHITransitionInfo, TInlineAllocator<2>> UAVs;
 
 	const uint32 SizeReserve = FMath::RoundUpToPowerOfTwo(FMath::Max(NumPrimitives * MaxMaterials, 256u));
 	bool bResized = false;
 	bResized |= ResizeResourceIfNeeded(RHICmdList, DepthTableDataBuffer, SizeReserve * sizeof(uint32), TEXT("DepthTableDataBuffer"));
 	if (bResized)
 	{
-		UAVs.Add(DepthTableDataBuffer.UAV);
+		UAVs.Add(FRHITransitionInfo(DepthTableDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 	}
 #if WITH_EDITOR
 	bResized |= ResizeResourceIfNeeded(RHICmdList, HitProxyTableDataBuffer, SizeReserve * sizeof(uint32), TEXT("HitProxyTableDataBuffer"));
 	if (bResized)
 	{
-		UAVs.Add(HitProxyTableDataBuffer.UAV);
+		UAVs.Add(FRHITransitionInfo(HitProxyTableDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 	}
 #endif // WITH_EDITOR
 
-	RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, UAVs.GetData(), UAVs.Num());
+	RHICmdList.Transition(UAVs);
 
 	if (NumPrimitiveUpdates > 0)
 	{
@@ -1951,19 +1951,26 @@ void FNaniteMaterialTables::Finish(FRHICommandListImmediate& RHICmdList)
 
 	SCOPED_DRAW_EVENTF(RHICmdList, UpdateMaterialTables, TEXT("UpdateMaterialTables PrimitivesToUpdate = %u"), NumPrimitiveUpdates);
 
-	TArray<FRHIUnorderedAccessView*, TInlineAllocator<2>> UploadUAVs;
-	UploadUAVs.Add(DepthTableDataBuffer.UAV);
+	TArray<FRHITransitionInfo, TInlineAllocator<2>> UploadUAVs;
+	UploadUAVs.Add(FRHITransitionInfo(DepthTableDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 #if WITH_EDITOR
-	UploadUAVs.Add(HitProxyTableDataBuffer.UAV);
+	UploadUAVs.Add(FRHITransitionInfo(HitProxyTableDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 #endif
 
-	RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, UploadUAVs.GetData(), UploadUAVs.Num());
+	RHICmdList.Transition(UploadUAVs);
 
 	DepthTableUploadBuffer.ResourceUploadTo(RHICmdList, DepthTableDataBuffer, false);
 #if WITH_EDITOR
 	HitProxyTableUploadBuffer.ResourceUploadTo(RHICmdList, HitProxyTableDataBuffer, false);
 #endif
-	RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, UploadUAVs.GetData(), UploadUAVs.Num());
+
+	for (FRHITransitionInfo& Info : UploadUAVs)
+	{
+		Info.AccessBefore = Info.AccessAfter;
+		Info.AccessAfter = ERHIAccess::SRVMask;
+	}
+
+	RHICmdList.Transition(UploadUAVs);
 
 	NumDepthTableUpdates = 0;
 #if WITH_EDITOR
@@ -2740,8 +2747,8 @@ void AddPass_Rasterize(
 		ERDGPassFlags::Raster | ERDGPassFlags::Compute,
 		[ PassParameters, ShaderMap, ViewRect, bMultiView, bHavePrevDrawData, Technique, Scheduling, bNearClip, VirtualShadowMapArray, bMainPass ]( FRHICommandListImmediate& RHICmdList )
 		{
-			FComputeFenceRHIRef AsyncRasterStartFence;
-			FComputeFenceRHIRef AsyncRasterEndFence;
+			const FRHITransition* AsyncRasterStartFence = nullptr;
+			const FRHITransition* AsyncRasterEndFence = nullptr;
 			FRHIAsyncComputeCommandListImmediate& RHICmdListComputeImmediate = FRHICommandListExecutor::GetImmediateAsyncComputeCommandList();
 
 			// SW Rasterize
@@ -2760,20 +2767,18 @@ void AddPass_Rasterize(
 			// Overlap SW and HW rasterizers?
 			if (Scheduling == ERasterScheduling::HardwareAndSoftwareOverlap)
 			{
-				static FName AsyncRasterStartFenceName( TEXT("AsyncRasterStartFence") );
-				static FName AsyncRasterEndFenceName( TEXT("AsyncRasterEndFence") );
-				AsyncRasterStartFence = RHICmdList.CreateComputeFence( AsyncRasterStartFenceName );
-				AsyncRasterEndFence = RHICmdList.CreateComputeFence( AsyncRasterEndFenceName );
+				AsyncRasterStartFence = RHICreateTransition(ERHIPipeline::Graphics, ERHIPipeline::AsyncCompute, ERHICreateTransitionFlags::None, {});
+				AsyncRasterEndFence = RHICreateTransition(ERHIPipeline::AsyncCompute, ERHIPipeline::Graphics, ERHICreateTransitionFlags::None, {});
 
-				RHICmdList.TransitionResource( EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, nullptr, AsyncRasterStartFence );
+				RHICmdList.BeginTransition(AsyncRasterStartFence);
+				RHICmdListComputeImmediate.EndTransition(AsyncRasterStartFence);
 
-				RHICmdListComputeImmediate.WaitComputeFence( AsyncRasterStartFence );
 				RHICmdListComputeImmediate.SetComputeShader( ComputeShader.GetComputeShader() );
 				SetShaderParameters( RHICmdListComputeImmediate, ComputeShader, ComputeShader.GetComputeShader(), *PassParameters );
 				RHICmdListComputeImmediate.DispatchIndirectComputeShader( PassParameters->IndirectArgs->GetIndirectRHICallBuffer(), 0 );
 				UnsetShaderUAVs( RHICmdListComputeImmediate, ComputeShader, ComputeShader.GetComputeShader() );
-					
-				RHICmdListComputeImmediate.TransitionResources( EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, nullptr, 0, AsyncRasterEndFence );
+
+				RHICmdListComputeImmediate.BeginTransition(AsyncRasterEndFence);
 				FRHIAsyncComputeCommandListImmediate::ImmediateDispatch( RHICmdListComputeImmediate );
 			}
 
@@ -2854,7 +2859,7 @@ void AddPass_Rasterize(
 			if (Scheduling == ERasterScheduling::HardwareAndSoftwareOverlap)
 			{
 				// Wait for SW rasterizer to complete
-				RHICmdList.WaitComputeFence(AsyncRasterEndFence);
+				RHICmdList.EndTransition(AsyncRasterEndFence);
 			}
 			else if (Scheduling != ERasterScheduling::HardwareOnly)
 			{
@@ -2997,7 +3002,10 @@ void CullRasterizeInner(
 	LLM_SCOPE(ELLMTag::Nanite);
 	RDG_EVENT_SCOPE( GraphBuilder, "Nanite::CullRasterize" );
 
-	check(!Nanite::GStreamingManager.IsAsyncUpdateInProgress());
+	AddPassIfDebug(GraphBuilder, [](FRHICommandList&)
+	{
+		check(!Nanite::GStreamingManager.IsAsyncUpdateInProgress());
+	});
 
 	// TODO: if we need this emulation feature by going through the view we can probably pass in the shader map as part of the context and get it out of the view at context-creation time
 	auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
@@ -4173,8 +4181,6 @@ void DrawBasePass(
 		{
 			RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
 
-			RHICmdList.BeginUAVOverlap(); // Due to VTFeedbackBuffer
-
 			FNaniteUniformParameters UniformParams;
 			UniformParams.SOAStrides = PassParameters->SOAStrides;
 			UniformParams.MaxClusters = PassParameters->MaxClusters;
@@ -4228,8 +4234,6 @@ void DrawBasePass(
 				const FMeshDrawCommand& MeshDrawCommand = MaterialPassCommand.MeshDrawCommand;
 				FMeshDrawCommand::SubmitDraw(MeshDrawCommand, GraphicsMinimalPipelineStateSet, nullptr, 0, TileCount, RHICmdList, StateCache);
 			}
-
-			RHICmdList.EndUAVOverlap();
 		});
 	}
 

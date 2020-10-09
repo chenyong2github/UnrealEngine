@@ -213,7 +213,7 @@ void FVirtualTextureUploadCache::Finalize(FRHICommandListImmediate& RHICmdList)
 		PoolEntry.BatchCount = 0u;
 	}
 
-	RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, UpdatedTextures.GetData(), UpdatedTextures.Num());
+	RHICmdList.TransitionResources(ERHIAccess::SRVMask, UpdatedTextures.GetData(), UpdatedTextures.Num());
 	UpdatedTextures.Reset();
 }
 
@@ -319,7 +319,7 @@ void FVirtualTextureUploadCache::SubmitTile(FRHICommandListImmediate& RHICmdList
 	{
 		if (!UpdatedTextures.Contains(InDestTexture))
 		{
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, InDestTexture);
+			RHICmdList.Transition(FRHITransitionInfo(InDestTexture, ERHIAccess::Unknown, ERHIAccess::CopyDest));
 			UpdatedTextures.Add(InDestTexture);
 		}
 
@@ -335,7 +335,7 @@ void FVirtualTextureUploadCache::SubmitTile(FRHICommandListImmediate& RHICmdList
 	{
 		if (!UpdatedTextures.Contains(InDestTexture))
 		{
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, InDestTexture);
+			RHICmdList.Transition(FRHITransitionInfo(InDestTexture, ERHIAccess::Unknown, ERHIAccess::CopyDest));
 			UpdatedTextures.Add(InDestTexture);
 		}
 
