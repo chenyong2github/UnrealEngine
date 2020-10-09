@@ -33,11 +33,6 @@ ADatasmithRuntimeActor::ADatasmithRuntimeActor()
 	PrimaryActorTick.bStartWithTickEnabled = false;
 
 	PrimaryActorTick.TickInterval = 0.1f;
-
-	if (!HasAnyFlags(RF_ClassDefaultObject))
-	{
-		SceneImporter = MakeShared< DatasmithRuntime::FSceneImporter >( this );
-	}
 }
 
 void ADatasmithRuntimeActor::Tick(float DeltaTime)
@@ -70,6 +65,9 @@ void ADatasmithRuntimeActor::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// Create scene importer
+	SceneImporter = MakeShared< DatasmithRuntime::FSceneImporter >( this );
+
 	// Register to DirectLink
 	DirectLinkHelper = MakeShared< DatasmithRuntime::FDestinationProxy >( this );
 	DirectLinkHelper->RegisterDestination(*GetName());
@@ -80,6 +78,9 @@ void ADatasmithRuntimeActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	// Unregister to DirectLink
 	DirectLinkHelper->UnregisterDestination();
 	DirectLinkHelper.Reset();
+
+	// Delete scene importer
+	SceneImporter.Reset();
 
 	Super::EndPlay(EndPlayReason);
 }
