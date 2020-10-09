@@ -3822,6 +3822,15 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 		const FString Macroized = Macroize(*MacroName, MoveTemp(CombinedLine));
 		OutGeneratedHeaderText.Log(Macroized);
 
+		// Inject static assert to verify that we do not add vtable
+		if (BaseStruct)
+		{
+			FString BaseStructNameCPP = *FNameLookupCPP::GetNameCPP(BaseStruct);
+
+			FString VerifyPolymorphicStructString = FString::Printf(TEXT("\r\nstatic_assert(std::is_polymorphic<%s>() == std::is_polymorphic<%s>(), \"USTRUCT %s cannot be polymorphic unless super %s is polymorphic\");\r\n\r\n"), *StructNameCPP, *BaseStructNameCPP, *StructNameCPP, *BaseStructNameCPP);			
+			Out.Log(VerifyPolymorphicStructString);
+		}
+
 		FString GetHashName = FString::Printf(TEXT("Get_%s_Hash"), *ChoppedSingletonName);
 
 		Out.Logf(TEXT("class UScriptStruct* %s::StaticStruct()\r\n"), *StructNameCPP);
