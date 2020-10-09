@@ -18,6 +18,7 @@ namespace RemoteControlModels
 	static FName Name_ClampMin = TEXT("ClampMin");
 	static FName Name_ClampMax = TEXT("ClampMax");
 	static FName Name_ToolTip = TEXT("ToolTip");
+	static FName Name_EnumValues = TEXT("EnumValues");
 
 	static TMap<FName, FString> SanitizeMetadata(const TMap<FName, FString>& InMetadata)
 	{
@@ -44,26 +45,90 @@ struct FRCPropertyDescription
 	FRCPropertyDescription() = default;
 	
 	FRCPropertyDescription(const FProperty* Property)
-		: Name(Property->GetName())
-		, Type(Property->GetCPPType())
 	{
 		checkSlow(Property);
 
-		#if WITH_EDITOR
+		Name = Property->GetName();
+
+		const FProperty* ValueProperty = Property;
+		if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
+		{
+			ContainerType = Property->GetCPPType();
+			ValueProperty = ArrayProperty->Inner;
+		}
+		else if (const FSetProperty* SetProperty = CastField<FSetProperty>(Property))
+		{
+			ContainerType = Property->GetCPPType();
+			ValueProperty = SetProperty->ElementProp;
+		}
+		else if (const FMapProperty* MapProperty = CastField<FMapProperty>(Property))
+		{
+			ContainerType = Property->GetCPPType();
+			KeyType = MapProperty->KeyProp->GetCPPType();
+			ValueProperty = MapProperty->ValueProp;
+		}
+		else if (Property->ArrayDim > 1)
+		{
+			ContainerType = TEXT("CArray");
+		}
+
+		//Write the type name
+		Type = ValueProperty->GetCPPType();
+
+
+#if WITH_EDITOR
 		Metadata = Property->GetMetaDataMap() ? RemoteControlModels::SanitizeMetadata(*Property->GetMetaDataMap()) : TMap<FName, FString>();
 		Description = Property->GetMetaData("ToolTip");
-		#endif
+#endif
+
+		//Fill Enum choices metadata
+		if (const FEnumProperty* EnumProperty = CastField<FEnumProperty>(ValueProperty))
+		{
+			if (const UEnum* Enum = EnumProperty->GetEnum())
+			{
+				const int32 EnumCount = Enum->NumEnums() - 1; //Don't list the _MAX entry
+				FString EnumValues;
+				for (int32 Index = 0; Index < EnumCount; ++Index)
+				{
+					if (Index > 0)
+					{
+						EnumValues = FString::Printf(TEXT("%s,%s"), *EnumValues, *Enum->GetNameStringByIndex(Index));
+					}
+					else
+					{
+						EnumValues = FString::Printf(TEXT("%s"), *Enum->GetNameStringByIndex(Index));
+					}
+				}
+
+				if (EnumValues.Len() > 0)
+				{
+					Metadata.FindOrAdd(RemoteControlModels::Name_EnumValues) = MoveTemp(EnumValues);
+				}
+			}
+		}
 	}
 
+	/** Name of the exposed property */
 	UPROPERTY()
 	FString Name;
 	
+	/** Description of the exposed property */
 	UPROPERTY()
 	FString Description;
 	
+	/** Type of the property value (If an array, this will be the content of the array) */
 	UPROPERTY()
 	FString Type;
 
+	/** Type of the container (TMap, TArray, CArray, TSet) or empty if none */
+	UPROPERTY()
+	FString ContainerType;
+
+	/** Key type if container is a map */
+	UPROPERTY()
+	FString KeyType;
+
+	/** Metadata for this exposed property */
 	UPROPERTY()
 	TMap<FName, FString> Metadata;
 };
