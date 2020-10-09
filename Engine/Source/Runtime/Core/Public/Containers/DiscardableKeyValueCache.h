@@ -90,7 +90,7 @@ public:
 	bool Add(const KeyType& Key, const ValueType& Value)
 	{
 		uint32 LockFlags = ApplyLock(0, LockFlags::WriteLock);
-		bool Success = Add(Key, Value);
+		bool Success = Add(Key, Value, LockFlags);
 		Unlock(LockFlags);
 		return Success;
 	}
