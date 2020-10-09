@@ -40,6 +40,11 @@ void* EOS_CALL EOSRealloc(void* Ptr, size_t Size, size_t Alignment)
 
 void EOS_CALL EOSLog(const EOS_LogMessage* InMsg)
 {
+	if (GLog == nullptr)
+	{
+		return;
+	}
+
 	switch (InMsg->Level)
 	{
 		case EOS_ELogLevel::EOS_LOG_Fatal:
