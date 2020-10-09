@@ -615,6 +615,10 @@ uint32 FOnlineSessionEOS::CreateEOSSession(int32 HostingPlayerNum, FNamedOnlineS
 	FSessionCreateOptions Options(TCHAR_TO_UTF8(*Session->SessionName.ToString()));
 	Options.MaxPlayers = Session->SessionSettings.NumPrivateConnections + Session->SessionSettings.NumPublicConnections;
 	Options.LocalUserId = EOSSubsystem->UserManager->GetLocalProductUserId(HostingPlayerNum);
+	Options.bPresenceEnabled = (Session->SessionSettings.bUsesPresence ||
+		Session->SessionSettings.bAllowJoinViaPresence ||
+		Session->SessionSettings.bAllowJoinViaPresenceFriendsOnly ||
+		Session->SessionSettings.bAllowInvites) ? EOS_TRUE : EOS_FALSE;
 
 	EOS_EResult ResultCode = EOS_Sessions_CreateSessionModification(EOSSubsystem->SessionsHandle, &Options, &SessionModHandle);
 	if (ResultCode != EOS_EResult::EOS_Success)
