@@ -292,7 +292,7 @@ void FMetalComputeCommandEncoderDebugging::SetTexture( FMetalTexture const& text
 		case EMetalDebugLevelValidation:
 		{
 			((FMetalDebugComputeCommandEncoder*)m_ptr)->ShaderTextures.Textures[index] = texture;
-			((FMetalDebugComputeCommandEncoder*)m_ptr)->ResourceMask.TextureMask = texture ? (((FMetalDebugComputeCommandEncoder*)m_ptr)->ResourceMask.TextureMask | (1 << (index))) : (((FMetalDebugComputeCommandEncoder*)m_ptr)->ResourceMask.TextureMask & ~(1 << (index)));
+			((FMetalDebugComputeCommandEncoder*)m_ptr)->ResourceMask.TextureMask = texture ? (((FMetalDebugComputeCommandEncoder*)m_ptr)->ResourceMask.TextureMask | (FMetalTextureMask(1) << (index))) : (((FMetalDebugComputeCommandEncoder*)m_ptr)->ResourceMask.TextureMask & ~(FMetalTextureMask(1) << (index)));
 		}
 		default:
 		{
