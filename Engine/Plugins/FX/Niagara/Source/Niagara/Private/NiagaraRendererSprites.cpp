@@ -110,9 +110,13 @@ FNiagaraRendererSprites::FNiagaraRendererSprites(ERHIFeatureLevel::Type FeatureL
 	bGpuLowLatencyTranslucency = Properties->bGpuLowLatencyTranslucency && (SortMode == ENiagaraSortMode::None);
 	MinFacingCameraBlendDistance = Properties->MinFacingCameraBlendDistance;
 	MaxFacingCameraBlendDistance = Properties->MaxFacingCameraBlendDistance;
-	bEnableDistanceCulling = Properties->bEnableCameraDistanceCulling;
-	DistanceCullRange = FVector2D(Properties->MinCameraDistance, Properties->MaxCameraDistance);
 	RendererVisibility = Properties->RendererVisibility;
+
+	bEnableDistanceCulling = Properties->bEnableCameraDistanceCulling;
+	if (Properties->bEnableCameraDistanceCulling)
+	{
+		DistanceCullRange = FVector2D(Properties->MinCameraDistance, Properties->MaxCameraDistance);
+	}
 
 	const FNiagaraDataSet& Data = Emitter->GetData();
 
