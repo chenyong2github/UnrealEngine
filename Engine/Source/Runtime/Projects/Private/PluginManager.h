@@ -179,6 +179,9 @@ private:
 	/** Prompts the user to disable a plugin */
 	static bool PromptToLoadIncompatiblePlugin(const FPlugin& Plugin);
 
+	/** Attempt to load all the modules for the given plugin */
+	bool TryLoadModulesForPlugin(const FPlugin& Plugin, const ELoadingPhase::Type LoadingPhase) const;
+
 	/** Gets the instance of a given plugin */
 	TSharedPtr<FPlugin> FindPluginInstance(const FString& Name);
 
@@ -211,6 +214,9 @@ private:
 
 	/** Set if all the required plugins are available */
 	bool bHaveAllRequiredPlugins = false;
+
+	/** Set if we were asked to load all plugins via the command line */
+	bool bAllPluginsEnabledViaCommandLine = false;
 
 	/** List of additional directory paths to search for plugins within */
 	TSet<FString> PluginDiscoveryPaths;
