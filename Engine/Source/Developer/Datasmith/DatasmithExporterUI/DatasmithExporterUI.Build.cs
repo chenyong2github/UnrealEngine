@@ -18,6 +18,7 @@ namespace UnrealBuildTool.Rules
 					"DatasmithCore",
 					"DatasmithExporter",
 					"DesktopPlatform",
+					"DirectLink",
 					"InputCore",
 					"Slate",
 					"SlateCore",
