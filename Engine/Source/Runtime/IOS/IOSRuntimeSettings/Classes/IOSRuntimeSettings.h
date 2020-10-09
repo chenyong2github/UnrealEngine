@@ -247,7 +247,7 @@ public:
     UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (DisplayName = "Build project as a framework (Experimental)"))
     bool bBuildAsFramework;
 
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (EditCondition = "bUseLocalMetalToolchain", DisplayName = "Override location of Metal toolchain"))
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (DisplayName = "Override location of Metal toolchain"))
 	FIOSBuildResourceDirectory WindowsMetalToolchainOverride;
 
 	// Enable generation of dSYM file
