@@ -39,8 +39,6 @@ using namespace Chaos;
 	UENUM()
 	enum class ESweepType : uint8
 	{
-		/** Sweeps against both simple and complex geometry. */
-		SimpleAndComplexSweep	UMETA(DisplayName = "SimpleAndComplexSweep"),
 		/** Sweeps against simple geometry only */
 		SimpleSweep				UMETA(DisplayName = "SimpleSweep"),
 		/** Sweeps against complex geometry only */
