@@ -14,8 +14,8 @@
 #include "Editor.h"
 #include "EditorAssetLibrary.h"
 #include "EditorLevelLibrary.h"
+#include "LevelEditor\Public\LevelEditorSubsystem.h"
 #endif
-#include <Editor\LevelEditor\Public\LevelEditorSubsystem.h>
 
 bool UVCamBlueprintFunctionLibrary::IsGameRunning()
 {
