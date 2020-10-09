@@ -1897,15 +1897,15 @@ void FRenderAssetStreamingManager::GetRenderedTextureAssets(TMap<FString, FRende
 	for (const FStreamingRenderAsset& StreamingRenderAsset : StreamingRenderAssets)
 	{
 		if (!StreamingRenderAsset.RenderAsset || StreamingRenderAsset.bUseUnkownRefHeuristic
-			|| StreamingRenderAsset.RenderAssetType != FStreamingRenderAsset::AT_Texture || StreamingRenderAsset.LastRenderTime == MAX_FLT)
+			|| StreamingRenderAsset.RenderAssetType != EStreamableRenderAssetType::Texture || StreamingRenderAsset.LastRenderTime == MAX_FLT)
 		{
 			continue;
 		}
 
-		UStreamableRenderAsset* StreamableRenderAsset = StreamingRenderAsset.RenderAsset;
 		const FString TextureGroupName = UTexture::GetTextureGroupString(static_cast<TextureGroup>(StreamingRenderAsset.LODGroup));
-		const int32 CurrentMipIndex = FMath::Max(StreamableRenderAsset->GetNumMipsForStreaming() - StreamingRenderAsset.ResidentMips, 0);
-		const int32 MaxAllowedMipIndex = FMath::Max(StreamableRenderAsset->GetNumMipsForStreaming() - StreamingRenderAsset.MaxAllowedMips, 0);
+		const FStreamableRenderResourceState ResourceState = StreamingRenderAsset.RenderAsset->GetStreamableResourceState();
+		const int32 CurrentMipIndex = FMath::Max(ResourceState.MaxNumLODs - StreamingRenderAsset.ResidentMips, 0);
+		const int32 MaxAllowedMipIndex = FMath::Max(ResourceState.MaxNumLODs - StreamingRenderAsset.MaxAllowedMips, 0);
 		const int32 MipIndexDifference = FMath::Max(MaxAllowedMipIndex - CurrentMipIndex, 0);
 		const int32 MipArrayIndex = FMath::Clamp(-MipIndexDifference, 0, MipLevelMaxToCheck);
 
