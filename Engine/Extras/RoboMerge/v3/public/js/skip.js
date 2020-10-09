@@ -207,7 +207,7 @@ function skipFailure(message) {
 
 function skipSuccess(message) {
     removeOnBeforeUnload()
-    $(`<div class="alert alert-success show" role="alert">`).html(`<strong>SUCCESS!</strong> ${message}`).appendTo($('#result'))
+    $(`<div class="alert alert-success show" role="alert">`).html(message).appendTo($('#result'))
     $('#reasonSelectDiv').addClass('hidden')
     $('#returnbutton').removeClass("initiallyHidden")
 }
