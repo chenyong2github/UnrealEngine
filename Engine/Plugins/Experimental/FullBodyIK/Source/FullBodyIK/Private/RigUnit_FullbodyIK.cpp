@@ -97,7 +97,7 @@ static float EnsureToAddBoneToLinkData(FRigHierarchyContainer* Hierarchy, const 
 }
 
 static void AddToEffectorTarget(int32 EffectorIndex, const FRigElementKey& Effector, TMap<int32, FFBIKEffectorTarget>& EffectorTargets, const TMap<FRigElementKey, int32>& HierarchyToLinkDataMap,
-	TArray<int32>& EffectorLinkIndices,	float ChainLength, const TArray<FRigElementKey>& ChainIndices)
+	TArray<int32>& EffectorLinkIndices,	float ChainLength, const TArray<FRigElementKey>& ChainIndices, int32 PositionDepth, int32 RotationDepth)
 {
 	const int32* EffectorLinkIndexID = HierarchyToLinkDataMap.Find(Effector);
 	check(EffectorLinkIndexID);
@@ -105,12 +105,18 @@ static void AddToEffectorTarget(int32 EffectorIndex, const FRigElementKey& Effec
 	// add EffectorTarget for this link Index
 	FFBIKEffectorTarget& EffectorTarget = EffectorTargets.FindOrAdd(*EffectorLinkIndexID);
 	EffectorTarget.ChainLength = ChainLength;
+
 	// convert bone chain indices to link chain
-	EffectorTarget.LinkChain.Reset(ChainIndices.Num());
-	for (const FRigElementKey& Bone : ChainIndices)
+	const int32 MaxNum = FMath::Max(PositionDepth, RotationDepth);
+	if (ensure(MaxNum <= ChainIndices.Num()))
 	{
-		const int32* LinkIndexID = HierarchyToLinkDataMap.Find(Bone);
-		EffectorTarget.LinkChain.Add(*LinkIndexID);
+		EffectorTarget.LinkChain.Reset(MaxNum);
+		for (int32 Index = 0; Index< MaxNum; ++Index)
+		{
+			const FRigElementKey& Bone = ChainIndices[Index];
+			const int32* LinkIndexID = HierarchyToLinkDataMap.Find(Bone);
+			EffectorTarget.LinkChain.Add(*LinkIndexID);
+		}
 	}
 }
 
@@ -132,16 +138,10 @@ static void AddEffectors(FRigHierarchyContainer* Hierarchy, const FRigElementKey
 		}
 
 		const FFBIKEndEffector& CurrentEffector = Effectors[Index];
-		// we find chain until max depth
-		const int32 MaxDepth = FMath::Max(CurrentEffector.PositionDepth, CurrentEffector.RotationDepth);
-		if (MaxDepth == 0)
-		{
-			continue;
-		}
 
 		TArray<FRigElementKey> ChainIndices;
 		// if we haven't got to root, this is not valid chain
-		if (FBIKUtil::GetBoneChain(Hierarchy, Root, Item, MaxDepth, ChainIndices))
+		if (FBIKUtil::GetBoneChain(Hierarchy, Root, Item, ChainIndices))
 		{
 			auto CalculateStrength = [&](int32 InBoneChainDepth, const int32 MaxDepth, float CurrentStrength, float MinStrength) -> float
 			{
@@ -202,7 +202,7 @@ static void AddEffectors(FRigHierarchyContainer* Hierarchy, const FRigElementKey
 			}
 
 			// add to EffectorTargets
-			AddToEffectorTarget(Index, Item, EffectorTargets, HierarchyToLinkDataMap, EffectorLinkIndices, ChainLength, ChainIndices);
+			AddToEffectorTarget(Index, Item, EffectorTargets, HierarchyToLinkDataMap, EffectorLinkIndices, ChainLength, ChainIndices, PositionDepth, RotationDepth);
 		}
 	}
 }
@@ -227,13 +227,12 @@ FRigUnit_FullbodyIK_Execute()
 	TMap<FRigElementKey, int32>& HierarchyToLinkDataMap = WorkData.HierarchyToLinkDataMap;
 	TArray<ConstraintType>& InternalConstraints = WorkData.InternalConstraints;
 
-	// during iteration, doing this all the time is so easier
-	// @todo: remove Context.State == EControlRigState::Update for optimizaiton
-	if (Context.State == EControlRigState::Init 
-#if WITH_EDITOR || WITH_EDITORONLY_DATA
-		|| Context.State == EControlRigState::Update
+	// during iteration, (editortime), we allow them to modify effector count and chain joint length and so on
+	if (Root.IsValid() 
+#if !WITH_EDITOR
+		&& LinkDataToHierarchyIndices.Num() == 0
 #endif 
-		)
+	)
 	{
 		DECLARE_SCOPE_HIERARCHICAL_COUNTER(TEXT("Init"))
 
@@ -244,37 +243,34 @@ FRigUnit_FullbodyIK_Execute()
 		HierarchyToLinkDataMap.Reset();
 
 		// verify the chain
-		if (Root.IsValid())
-		{
-			AddEffectors(Hierarchy, Root, Effectors, LinkData, EffectorTargets, EffectorLinkIndices, LinkDataToHierarchyIndices, HierarchyToLinkDataMap, SolverProperty);
-		}
+		AddEffectors(Hierarchy, Root, Effectors, LinkData, EffectorTargets, EffectorLinkIndices, LinkDataToHierarchyIndices, HierarchyToLinkDataMap, SolverProperty);
 	}
 
 	if (Context.State == EControlRigState::Update)
 	{
 		DECLARE_SCOPE_HIERARCHICAL_COUNTER(TEXT("Update"))
-		// we do this every frame for now
-		if (Constraints.Num() > 0)
-		{
-			DECLARE_SCOPE_HIERARCHICAL_COUNTER(TEXT("Build Constraint"))
-			//Build constraints
-			FBIKConstraintLib::BuildConstraints(Constraints, InternalConstraints, Hierarchy, LinkData, LinkDataToHierarchyIndices, HierarchyToLinkDataMap);
-		}
-
-		// during only editor and update
-		// we expect solver type changes, it will reinit
-		// InternalConstraints can't be changed during runtime
-		if (InternalConstraints.Num() > 0)
-		{
-			WorkData.IKSolver.SetPostProcessDelegateForIteration(FPostProcessDelegateForIteration::CreateStatic(&FBIKConstraintLib::ApplyConstraint, &InternalConstraints));
-		}
-		else
-		{
-			WorkData.IKSolver.ClearPostProcessDelegateForIteration();
-		}
 
 		if (LinkDataToHierarchyIndices.Num() > 0)
 		{
+			// we do this every frame for now
+			if (Constraints.Num() > 0)
+			{
+				DECLARE_SCOPE_HIERARCHICAL_COUNTER(TEXT("Build Constraint"))
+				//Build constraints
+				FBIKConstraintLib::BuildConstraints(Constraints, InternalConstraints, Hierarchy, LinkData, LinkDataToHierarchyIndices, HierarchyToLinkDataMap);
+			}
+
+			// during only editor and update
+			// we expect solver type changes, it will reinit
+			// InternalConstraints can't be changed during runtime
+			if (InternalConstraints.Num() > 0)
+			{
+				WorkData.IKSolver.SetPostProcessDelegateForIteration(FPostProcessDelegateForIteration::CreateStatic(&FBIKConstraintLib::ApplyConstraint, &InternalConstraints));
+			}
+			else
+			{
+				WorkData.IKSolver.ClearPostProcessDelegateForIteration();
+			}
 			// first set mid effector's transform
 
 			// before update we finalize motion scale
