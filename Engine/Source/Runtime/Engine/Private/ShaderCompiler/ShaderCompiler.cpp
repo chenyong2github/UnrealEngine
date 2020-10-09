@@ -1387,16 +1387,6 @@ FShaderCompileThreadRunnable::FShaderCompileThreadRunnable(FShaderCompilingManag
 	: FShaderCompileThreadRunnableBase(InManager)
 	, LastCheckForWorkersTime(0)
 {
-	if (GIsBuildMachine)
-	{
-		int32 MinSCWsToSpawnBeforeWarning = 8; // optional, default to 8
-		GConfig->GetInt(TEXT("DevOptions.Shaders"), TEXT("MinSCWsToSpawnBeforeWarning"), MinSCWsToSpawnBeforeWarning, GEngineIni);
-		if (Manager->NumShaderCompilingThreads < static_cast<uint32>(MinSCWsToSpawnBeforeWarning))
-		{
-			UE_LOG(LogShaderCompilers, Warning, TEXT("Only %d SCWs will be spawned, which will result in longer shader compile times."), Manager->NumShaderCompilingThreads);
-		}
-	}
-
 	for (uint32 WorkerIndex = 0; WorkerIndex < Manager->NumShaderCompilingThreads; WorkerIndex++)
 	{
 		WorkerInfos.Add(new FShaderCompileWorkerInfo());
@@ -2383,6 +2373,16 @@ FShaderCompilingManager::FShaderCompilingManager() :
 	else
 	{
 		UE_LOG(LogShaderCompilers, Display, TEXT("Using Local Shader Compiler."));
+
+		if (GIsBuildMachine)
+		{
+			int32 MinSCWsToSpawnBeforeWarning = 8; // optional, default to 8
+			GConfig->GetInt(TEXT("DevOptions.Shaders"), TEXT("MinSCWsToSpawnBeforeWarning"), MinSCWsToSpawnBeforeWarning, GEngineIni);
+			if (NumShaderCompilingThreads < static_cast<uint32>(MinSCWsToSpawnBeforeWarning))
+			{
+				UE_LOG(LogShaderCompilers, Warning, TEXT("Only %d SCWs will be spawned, which will result in longer shader compile times."), NumShaderCompilingThreads);
+			}
+		}
 	}
 	Threads.Add(MoveTemp(LocalThread));
 
