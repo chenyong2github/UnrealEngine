@@ -2611,8 +2611,8 @@ void FVulkanCommandListContext::RHICopyBufferRegion(FRHIVertexBuffer* DstBuffer,
 		return;
 	}
 
-	FVulkanResourceMultiBuffer* DstBufferVk = ResourceCast(DstBuffer);
-	FVulkanResourceMultiBuffer* SrcBufferVk = ResourceCast(SrcBuffer);
+	FVulkanVertexBuffer* DstBufferVk = ResourceCast(DstBuffer);
+	FVulkanVertexBuffer* SrcBufferVk = ResourceCast(SrcBuffer);
 
 	check(DstBufferVk && SrcBufferVk);
 	check(DstOffset + NumBytes <= DstBuffer->GetSize() && SrcOffset + NumBytes <= SrcBuffer->GetSize());

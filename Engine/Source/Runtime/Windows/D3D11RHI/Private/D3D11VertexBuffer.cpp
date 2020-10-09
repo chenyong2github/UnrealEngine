@@ -13,13 +13,11 @@ TAutoConsoleVariable<int32> GCVarUseSharedKeyedMutex(
 	TEXT("with the D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX flag instead of D3D11_RESOURCE_MISC_SHARED (default).\n"),
 	ECVF_Default);
 
-FVertexBufferRHIRef FD3D11DynamicRHI::RHICreateVertexBuffer(uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
+FVertexBufferRHIRef FD3D11DynamicRHI::RHICreateVertexBuffer(uint32 Size,uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
-	InUsage |= BUF_VertexBuffer;
-
 	if (CreateInfo.bWithoutNativeResource)
 	{
-		return new FD3D11Buffer();
+		return new FD3D11VertexBuffer();
 	}
 
 	// Explicitly check that the size is nonzero before allowing CreateVertexBuffer to opaquely fail.
@@ -44,7 +42,12 @@ FVertexBufferRHIRef FD3D11DynamicRHI::RHICreateVertexBuffer(uint32 Size, uint32 
 		Desc.MiscFlags |= D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS;
 	}
 
-	if (InUsage & BUF_DrawIndirect)
+	if (InUsage & BUF_StreamOutput)
+	{
+		Desc.BindFlags |= D3D11_BIND_STREAM_OUTPUT;
+	}
+
+	if(InUsage & BUF_DrawIndirect)
 	{
 		Desc.MiscFlags |= D3D11_RESOURCE_MISC_DRAWINDIRECT_ARGS;
 	}
@@ -113,7 +116,7 @@ FVertexBufferRHIRef FD3D11DynamicRHI::RHICreateVertexBuffer(uint32 Size, uint32 
 		CreateInfo.ResourceArray->Discard();
 	}
 
-	return new FD3D11Buffer(VertexBufferResource, Size, InUsage, 0);
+	return new FD3D11VertexBuffer(VertexBufferResource,Size,InUsage);
 }
 
 FVertexBufferRHIRef FD3D11DynamicRHI::CreateVertexBuffer_RenderThread(
@@ -130,7 +133,7 @@ void* FD3D11DynamicRHI::LockVertexBuffer_BottomOfPipe(FRHICommandListImmediate& 
 {
 	check(Size > 0);
 
-	FD3D11Buffer* VertexBuffer = ResourceCast(VertexBufferRHI);
+	FD3D11VertexBuffer* VertexBuffer = ResourceCast(VertexBufferRHI);
 	
 	// If this resource is bound to the device, unbind it
 	ConditionalClearShaderResource(VertexBuffer, true);
@@ -210,7 +213,7 @@ void* FD3D11DynamicRHI::LockVertexBuffer_BottomOfPipe(FRHICommandListImmediate& 
 
 void FD3D11DynamicRHI::UnlockVertexBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBufferRHI)
 {
-	FD3D11Buffer* VertexBuffer = ResourceCast(VertexBufferRHI);
+	FD3D11VertexBuffer* VertexBuffer = ResourceCast(VertexBufferRHI);
 
 	// Determine whether the vertex buffer is dynamic or not.
 	D3D11_BUFFER_DESC Desc;
@@ -248,8 +251,8 @@ void FD3D11DynamicRHI::UnlockVertexBuffer_BottomOfPipe(FRHICommandListImmediate&
 
 void FD3D11DynamicRHI::RHICopyVertexBuffer(FRHIVertexBuffer* SourceBufferRHI, FRHIVertexBuffer* DestBufferRHI)
 {
-	FD3D11Buffer* SourceBuffer = ResourceCast(SourceBufferRHI);
-	FD3D11Buffer* DestBuffer = ResourceCast(DestBufferRHI);
+	FD3D11VertexBuffer* SourceBuffer = ResourceCast(SourceBufferRHI);
+	FD3D11VertexBuffer* DestBuffer = ResourceCast(DestBufferRHI);
 
 	D3D11_BUFFER_DESC SourceBufferDesc;
 	SourceBuffer->Resource->GetDesc(&SourceBufferDesc);
@@ -262,4 +265,19 @@ void FD3D11DynamicRHI::RHICopyVertexBuffer(FRHIVertexBuffer* SourceBufferRHI, FR
 	Direct3DDeviceIMContext->CopyResource(DestBuffer->Resource,SourceBuffer->Resource);
 
 	GPUProfilingData.RegisterGPUWork(1);
+}
+
+void FD3D11DynamicRHI::RHITransferVertexBufferUnderlyingResource(FRHIVertexBuffer* DestVertexBuffer, FRHIVertexBuffer* SrcVertexBuffer)
+{
+	check(DestVertexBuffer);
+	FD3D11VertexBuffer* Dest = ResourceCast(DestVertexBuffer);
+	if (!SrcVertexBuffer)
+	{
+		Dest->ReleaseUnderlyingResource();
+	}
+	else
+	{
+		FD3D11VertexBuffer* Src = ResourceCast(SrcVertexBuffer);
+		Dest->Swap(*Src);
+	}
 }

@@ -12,7 +12,7 @@ FIndexBufferRHIRef FOpenGLDynamicRHI::RHICreateIndexBuffer(uint32 Stride,uint32 
 {
 	if (CreateInfo.bWithoutNativeResource)
 	{
-		return new FOpenGLBuffer();
+		return new FOpenGLIndexBuffer();
 	}
 
 	const void *Data = NULL;
@@ -24,7 +24,7 @@ FIndexBufferRHIRef FOpenGLDynamicRHI::RHICreateIndexBuffer(uint32 Stride,uint32 
 		Data = CreateInfo.ResourceArray->GetResourceData();
 	}
 
-	TRefCountPtr<FOpenGLBuffer> IndexBuffer = new FOpenGLBuffer(GL_ELEMENT_ARRAY_BUFFER, Stride, Size, InUsage, Data);
+	TRefCountPtr<FOpenGLIndexBuffer> IndexBuffer = new FOpenGLIndexBuffer(Stride, Size, InUsage, Data);
 
 	if (CreateInfo.ResourceArray)
 	{
@@ -43,7 +43,7 @@ void* FOpenGLDynamicRHI::LockIndexBuffer_BottomOfPipe(FRHICommandListImmediate& 
 {
 	RHITHREAD_GLCOMMAND_PROLOGUE();
 	VERIFY_GL_SCOPE();
-	FOpenGLBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
+	FOpenGLIndexBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
 	return IndexBuffer->Lock(Offset, Size, LockMode == RLM_ReadOnly, IndexBuffer->IsDynamic());
 	RHITHREAD_GLCOMMAND_EPILOGUE_RETURN(void*);
 }
@@ -52,24 +52,24 @@ void FOpenGLDynamicRHI::UnlockIndexBuffer_BottomOfPipe(FRHICommandListImmediate&
 {
 	RHITHREAD_GLCOMMAND_PROLOGUE();
 	VERIFY_GL_SCOPE();
-	FOpenGLBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
+	FOpenGLIndexBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
 	IndexBuffer->Unlock();
 	RHITHREAD_GLCOMMAND_EPILOGUE();
 }
 
-void FOpenGLDynamicRHI::RHITransferBufferUnderlyingResource(FRHIBuffer* DestBuffer, FRHIBuffer* SrcBuffer)
+void FOpenGLDynamicRHI::RHITransferIndexBufferUnderlyingResource(FRHIIndexBuffer* DestIndexBuffer, FRHIIndexBuffer* SrcIndexBuffer)
 {
 	VERIFY_GL_SCOPE();
-	check(DestBuffer);
-	FOpenGLBuffer* Dest = ResourceCast(DestBuffer);
-	if (!SrcBuffer)
+	check(DestIndexBuffer);
+	FOpenGLIndexBuffer* Dest = ResourceCast(DestIndexBuffer);
+	if (!SrcIndexBuffer)
 	{
-		TRefCountPtr<FOpenGLBuffer> Src = new FOpenGLBuffer();
+		TRefCountPtr<FOpenGLIndexBuffer> Src = new FOpenGLIndexBuffer();
 		Dest->Swap(*Src);
 	}
 	else
 	{
-		FOpenGLBuffer* Src = ResourceCast(SrcBuffer);
+		FOpenGLIndexBuffer* Src = ResourceCast(SrcIndexBuffer);
 		Dest->Swap(*Src);
 	}
 }

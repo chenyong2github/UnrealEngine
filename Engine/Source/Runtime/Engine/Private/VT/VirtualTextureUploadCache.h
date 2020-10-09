@@ -9,7 +9,7 @@
 #include "PixelFormat.h"
 
 class FRHITexture2D;
-class FRHIBuffer;
+class FRHIStructuredBuffer;
 
 struct FVTUploadTileBuffer
 {
@@ -82,7 +82,7 @@ private:
 		FTileEntry();
 		~FTileEntry();
 
-		TRefCountPtr<FRHIBuffer> RHIStagingBuffer;
+		TRefCountPtr<FRHIStructuredBuffer> RHIStagingBuffer;
 		FRHITexture2D* RHISubmitTexture = nullptr;
 		void* Memory = nullptr;
 		uint32 MemorySize = 0u;

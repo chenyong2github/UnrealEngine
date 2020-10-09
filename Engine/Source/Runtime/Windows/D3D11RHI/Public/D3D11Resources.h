@@ -661,27 +661,22 @@ private:
 	class FD3D11DynamicRHI* D3D11RHI;
 };
 
-/** Buffer resource class. */
-class FD3D11Buffer : public FRHIBuffer, public FD3D11BaseShaderResource
+/** Index buffer resource class that stores stride information. */
+class FD3D11IndexBuffer : public FRHIIndexBuffer, public FD3D11BaseShaderResource
 {
 public:
 
+	/** The index buffer resource */
 	TRefCountPtr<ID3D11Buffer> Resource;
 
-	FD3D11Buffer() = default;
+	FD3D11IndexBuffer() = default;
 
-	FD3D11Buffer(ID3D11Buffer* InResource, uint32 InSize, uint32 InUsage, uint32 InStride)
-	: FRHIBuffer(InSize, InUsage, InStride)
+	FD3D11IndexBuffer(ID3D11Buffer* InResource, uint32 InStride, uint32 InSize, uint32 InUsage)
+	: FRHIIndexBuffer(InStride,InSize,InUsage)
 	, Resource(InResource)
-	{
-		if (InSize == 279564)
-		{
-			__nop();
-		}
+	{}
 
-	}
-
-	virtual ~FD3D11Buffer()
+	virtual ~FD3D11IndexBuffer()
 	{
 		if (Resource)
 		{
@@ -689,9 +684,93 @@ public:
 		}
 	}
 
-	void Swap(FD3D11Buffer& SrcBuffer)
+	void Swap(FD3D11IndexBuffer& Other)
 	{
-		FRHIBuffer::Swap(SrcBuffer);
+		FRHIIndexBuffer::Swap(Other);
+		Resource.Swap(Other.Resource);
+	}
+
+	void ReleaseUnderlyingResource()
+	{
+		check(Resource);
+		UpdateBufferStats(Resource, false);
+		Resource = nullptr;
+		FRHIIndexBuffer::ReleaseUnderlyingResource();
+	}
+
+	// IRefCountedObject interface.
+	virtual uint32 AddRef() const
+	{
+		return FRHIResource::AddRef();
+	}
+	virtual uint32 Release() const
+	{
+		return FRHIResource::Release();
+	}
+	virtual uint32 GetRefCount() const
+	{
+		return FRHIResource::GetRefCount();
+	}
+};
+
+/** Structured buffer resource class. */
+class FD3D11StructuredBuffer : public FRHIStructuredBuffer, public FD3D11BaseShaderResource
+{
+public:
+
+	TRefCountPtr<ID3D11Buffer> Resource;
+
+	FD3D11StructuredBuffer(ID3D11Buffer* InResource, uint32 InStride, uint32 InSize, uint32 InUsage)
+	: FRHIStructuredBuffer(InStride,InSize,InUsage)
+	, Resource(InResource)
+	{
+	}
+
+	virtual ~FD3D11StructuredBuffer()
+	{
+		UpdateBufferStats(Resource, false);
+	}
+	
+	// IRefCountedObject interface.
+	virtual uint32 AddRef() const
+	{
+		return FRHIResource::AddRef();
+	}
+	virtual uint32 Release() const
+	{
+		return FRHIResource::Release();
+	}
+	virtual uint32 GetRefCount() const
+	{
+		return FRHIResource::GetRefCount();
+	}
+};
+
+/** Vertex buffer resource class. */
+class FD3D11VertexBuffer : public FRHIVertexBuffer, public FD3D11BaseShaderResource
+{
+public:
+
+	TRefCountPtr<ID3D11Buffer> Resource;
+
+	FD3D11VertexBuffer() = default;
+
+	FD3D11VertexBuffer(ID3D11Buffer* InResource, uint32 InSize, uint32 InUsage)
+	: FRHIVertexBuffer(InSize,InUsage)
+	, Resource(InResource)
+	{}
+
+	virtual ~FD3D11VertexBuffer()
+	{
+		if (Resource)
+		{
+			UpdateBufferStats(Resource, false);
+		}
+	}
+
+	void Swap(FD3D11VertexBuffer& SrcBuffer)
+	{
+		FRHIVertexBuffer::Swap(SrcBuffer);
 		Resource.Swap(SrcBuffer.Resource);
 	}
 
@@ -700,7 +779,7 @@ public:
 		check(Resource);
 		UpdateBufferStats(Resource, false);
 		Resource = nullptr;
-		FRHIBuffer::ReleaseUnderlyingResource();
+		FRHIVertexBuffer::ReleaseUnderlyingResource();
 	}
 
 	// IRefCountedObject interface.
@@ -856,9 +935,19 @@ struct TD3D11ResourceTraits<FRHIUniformBuffer>
 	typedef FD3D11UniformBuffer TConcreteType;
 };
 template<>
-struct TD3D11ResourceTraits<FRHIBuffer>
+struct TD3D11ResourceTraits<FRHIIndexBuffer>
 {
-	typedef FD3D11Buffer TConcreteType;
+	typedef FD3D11IndexBuffer TConcreteType;
+};
+template<>
+struct TD3D11ResourceTraits<FRHIStructuredBuffer>
+{
+	typedef FD3D11StructuredBuffer TConcreteType;
+};
+template<>
+struct TD3D11ResourceTraits<FRHIVertexBuffer>
+{
+	typedef FD3D11VertexBuffer TConcreteType;
 };
 template<>
 struct TD3D11ResourceTraits<FRHIStagingBuffer>
