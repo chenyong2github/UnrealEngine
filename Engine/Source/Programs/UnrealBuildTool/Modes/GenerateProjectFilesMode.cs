@@ -125,6 +125,16 @@ namespace UnrealBuildTool
 				}
 			}
 
+			// print out any errors to the log
+			foreach (string PlatformName in UnrealTargetPlatform.GetValidPlatformNames())
+			{
+				UEBuildPlatformSDK SDK = UEBuildPlatformSDK.GetSDKForPlatform(PlatformName);
+				if (SDK != null && SDK.bIsSdkAllowedOnHost)
+				{
+					SDK.PrintSDKInfo(LogEventType.Verbose, LogFormatOptions.NoConsoleOutput, LogEventType.Error, LogFormatOptions.None);
+				}
+			}
+
 			// Create each project generator and run it
 			List<ProjectFileGenerator> Generators = new List<ProjectFileGenerator>();
 			foreach (ProjectFileFormat ProjectFileFormat in ProjectFileFormats.Distinct())

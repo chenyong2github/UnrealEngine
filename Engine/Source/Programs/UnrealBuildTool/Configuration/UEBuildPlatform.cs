@@ -46,9 +46,17 @@ namespace UnrealBuildTool
 		public UEBuildPlatform(UnrealTargetPlatform InPlatform, UEBuildPlatformSDK SDK)
 		{
 			Platform = InPlatform;
-			UEBuildPlatformSDK.RegisterSDKForPlatform(SDK, Platform.ToString());
 
-			SDK.ManageAndValidateSDK();
+			// check DDPI to see if the platform is enabled on this host platform
+			string IniPlatformName = ConfigHierarchy.GetIniPlatformName(Platform);
+			bool bIsEnabled = DataDrivenPlatformInfo.GetDataDrivenInfoForPlatform(IniPlatformName).bIsEnabled;
+
+			// set up the SDK if the platform is enabled
+			UEBuildPlatformSDK.RegisterSDKForPlatform(SDK, Platform.ToString(), bIsEnabled);
+			if (bIsEnabled)
+			{
+				SDK.ManageAndValidateSDK();
+			}
 		}
 
 		/// <summary>

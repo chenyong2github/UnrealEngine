@@ -111,9 +111,9 @@ namespace UnrealBuildTool
 		}
 
 
-		public override void PrintSDKInfo(LogEventType Verbosity, LogFormatOptions Options)
+		public override void PrintSDKInfo(LogEventType Verbosity, LogFormatOptions Options, LogEventType ErrorVerbosity, LogFormatOptions ErrorOptions)
 		{
-			base.PrintSDKInfo(Verbosity, Options);
+			base.PrintSDKInfo(Verbosity, Options, ErrorVerbosity, ErrorOptions);
 
 			if (GetInstalledVersion() != RecommendedVersion)
 			{

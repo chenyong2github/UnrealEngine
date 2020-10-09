@@ -43,7 +43,7 @@ namespace Tools.DotNETCommon
 		/// </summary>
 		/// <param name="SDK">SDK object</param>
 		/// <param name="PlatformName">Platform name for this SDK</param>
-		public static void RegisterSDKForPlatform(UEBuildPlatformSDK SDK, string PlatformName)
+		public static void RegisterSDKForPlatform(UEBuildPlatformSDK SDK, string PlatformName, bool bIsSdkAllowedOnHost)
 		{
 			// verify that neither platform or sdk were added before
 			if (SDKRegistry.Count(x => x.Key == PlatformName || x.Value == SDK) > 0)
@@ -53,12 +53,13 @@ namespace Tools.DotNETCommon
 
 			SDKRegistry.Add(PlatformName, SDK);
 
-			SDK.Init(PlatformName);
+			SDK.Init(PlatformName, bIsSdkAllowedOnHost);
 		}
 
-		private void Init(string InPlatformName)
+		private void Init(string InPlatformName, bool bInIsSdkAllowedOnHost)
 		{
 			PlatformName = InPlatformName;
+			bIsSdkAllowedOnHost = bInIsSdkAllowedOnHost;
 
 			// if the parent set up autosdk, the env vars will be wrong, but we can still get the manual SDK version from before it was setup
 			if (HasParentProcessSetupAutoSDK(out CachedManualSDKVersion))
@@ -103,6 +104,9 @@ namespace Tools.DotNETCommon
 
 		// String name of the platform (will match an UnrealTargetPlatform)
 		public string PlatformName;
+
+		// True if this Sdk is allowed to be used by this host - if not, we can skip a lot 
+		public bool bIsSdkAllowedOnHost;
 
 		public string GetInstalledVersion(out bool bIsAutoSDK)
 		{
@@ -1128,11 +1132,13 @@ namespace Tools.DotNETCommon
 				}
 			}
 
-			// print all SDKs to log file
-			PrintSDKInfo(LogEventType.Log, LogFormatOptions.NoConsoleOutput);
+			// print all SDKs to log file (errors will print out later for builds and generateprojectfiles)
+			PrintSDKInfo(LogEventType.Log, LogFormatOptions.NoConsoleOutput, LogEventType.Verbose, LogFormatOptions.NoConsoleOutput);
 		}
-		
-		public virtual void PrintSDKInfo(LogEventType Verbosity = LogEventType.Console, LogFormatOptions Options = LogFormatOptions.None)
+
+		private static bool bHasShownTurnkey = false;
+		public virtual void PrintSDKInfo(LogEventType Verbosity = LogEventType.Console, LogFormatOptions Options = LogFormatOptions.None,
+			LogEventType ErrorVerbosity = LogEventType.Error, LogFormatOptions ErrorOptions = LogFormatOptions.None)
 		{
 			string ManualSDKVersion, AutoSDKVersion;
 			GetInstalledVersions(out ManualSDKVersion, out AutoSDKVersion);
@@ -1156,31 +1162,34 @@ namespace Tools.DotNETCommon
 				GetValidVersionRange(out MinVersionString, out MaxVersionString);
 
 				StringBuilder Msg = new StringBuilder();
-				Msg.AppendLine("Unable to find a valid SDK for {0}", PlatformName);
+				Msg.AppendFormat("Unable to find a valid SDK for {0}.", PlatformName);
 				if (ManualSDKVersion != null)
 				{
-					Msg.AppendLine("  Found Version: {0}", ManualSDKVersion);
+					Msg.AppendFormat(" Found Version: {0}.", ManualSDKVersion);
 				}
 
 				if (MinVersionString != MaxVersionString)
 				{
-					Msg.AppendLine("  SDK version needs to be between {0} and {1}", MinVersionString, MaxVersionString);
+					Msg.AppendLine(" Must be between {0} and {1}", MinVersionString, MaxVersionString);
 				}
 				else
 				{
-					Msg.AppendLine("  SDK version needs to be {0}", MinVersionString);
+					Msg.AppendLine(" Must be {0}", MinVersionString);
 				}
 
-				Msg.AppendLine("  If your Studio has it set up, you can run this command to find the SDK to install:");
-				Msg.AppendLine("    RunUAT Turnkey -command=InstallSdk -platform={0}", PlatformName);
-
-				Log.WriteLine(LogEventType.Error, Options, Msg.ToString());
-
-				// If an SDK is installed but isn't at the right version, make sure the user knows.
-				if (!String.IsNullOrEmpty(ManualSDKVersion))
+				if (!bHasShownTurnkey)
 				{
-					Log.TraceInformationOnce(Msg.ToString());
+					Msg.AppendLine("  If your Studio has it set up, you can run this command to find the SDK to install:");
+					Msg.AppendLine("    RunUAT Turnkey -command=InstallSdk -platform={0} -BestAvailable", PlatformName);
+
+					if ((ErrorOptions & LogFormatOptions.NoConsoleOutput) == LogFormatOptions.None)
+					{
+						bHasShownTurnkey = true;
+					}
 				}
+
+				// always print errors to the screen
+				Log.WriteLine(ErrorVerbosity, ErrorOptions, Msg.ToString());
 			}
 		}
 

@@ -113,6 +113,10 @@ namespace Turnkey
 			}
 
 			// NotNeedsExpansion now contains the expanded sources, and the sources that didn't need to be expanded
+
+			// now filter out platforms that are disabled on this host
+			NotNeedsExpansion = NotNeedsExpansion.FindAll(x => x.GetPlatforms().Any(y => UEBuildPlatformSDK.GetSDKForPlatform(y.ToString()).bIsSdkAllowedOnHost));
+
 			return NotNeedsExpansion;
 		}
 

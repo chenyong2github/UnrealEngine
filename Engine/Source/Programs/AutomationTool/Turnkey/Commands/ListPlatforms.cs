@@ -31,6 +31,10 @@ namespace Turnkey.Commands
 
 				Platform Platform = Platform.Platforms[new TargetPlatformDescriptor(TargetPlatform)];
 				UEBuildPlatformSDK SDK = UEBuildPlatformSDK.GetSDKForPlatform(TargetPlatform.ToString());
+				if (SDK == null || !SDK.bIsSdkAllowedOnHost)
+				{
+					continue;
+				}
 
 				string ManualSDKVersion, AutoSDKVersion;
 				string MinAllowedVersion, MaxAllowedVersion;

@@ -22,7 +22,12 @@ namespace UnrealBuildTool
 			/// <summary>
 			/// Is the platform a confidential ("console-style") platform
 			/// </summary>
-			public bool bIsConfidential;
+			public bool bIsConfidential = false;
+
+			/// <summary>
+			/// Is the platform enabled on this host platform
+			/// </summary>
+			public bool bIsEnabled = false;
 
 			/// <summary>
 			/// Additional restricted folders for this platform.
@@ -90,9 +95,16 @@ namespace UnrealBuildTool
 
 							// slightly nasty bool parsing for bool values
 							string Temp;
-							if (ParsedSection.TryGetValue("bIsConfidential", out Temp) == false || ConfigHierarchy.TryParse(Temp, out NewInfo.bIsConfidential) == false)
+							if (ParsedSection.TryGetValue("bIsConfidential", out Temp))
 							{
-								NewInfo.bIsConfidential = false;
+								ConfigHierarchy.TryParse(Temp, out NewInfo.bIsConfidential);
+							}
+
+							string HostKey = ConfigHierarchy.GetIniPlatformName(BuildHostPlatform.Current.Platform) + ":bIsEnabled";
+							string NormalKey = "bIsEnabled";
+							if (ParsedSection.TryGetValue(HostKey, out Temp) == true || ParsedSection.TryGetValue(NormalKey, out Temp) == true)
+							{
+								ConfigHierarchy.TryParse(Temp, out NewInfo.bIsEnabled);
 							}
 
 							// get a list of additional restricted folders
