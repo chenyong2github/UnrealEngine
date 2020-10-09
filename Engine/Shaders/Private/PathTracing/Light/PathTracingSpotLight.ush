@@ -41,7 +41,7 @@ void SpotLight_GenerateLightRay(
 
 	// Compute distance to sphere edge
 	float Radius = GetRadius(LightId);
-	float Radius2 = Pow2(Radius2);
+	float Radius2 = Pow2(Radius);
 
 	float RayLength2 = dot(LightDirection, LightDirection);
 	float RayLength = sqrt(RayLength2);
