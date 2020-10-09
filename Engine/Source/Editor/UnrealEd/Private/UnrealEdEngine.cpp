@@ -1355,57 +1355,71 @@ void UUnrealEdEngine::DrawComponentVisualizersHUD(const FViewport* Viewport, con
 
 void UUnrealEdEngine::OnEditorSelectionChanged(UObject* SelectionThatChanged)
 {
-	if(SelectionThatChanged == GetSelectedActors())
+	auto GetVisualizersForSelection = [&](AActor* Actor)
+	{
+		// Iterate over components of that actor (and recurse through child components)
+		TInlineComponentArray<UActorComponent*> Components;
+		Actor->GetComponents(Components, true);
+
+		for (int32 CompIdx = 0; CompIdx < Components.Num(); CompIdx++)
+		{
+			UActorComponent* Comp = Components[CompIdx];
+			if (Comp->IsRegistered())
+			{
+				// Try and find a visualizer
+				TSharedPtr<FComponentVisualizer> Visualizer = FindComponentVisualizer(Comp->GetClass());
+				if (Visualizer.IsValid())
+				{
+					VisualizersForSelection.Add(FCachedComponentVisualizer(Comp, Visualizer));
+				}
+			}
+		}
+	};
+
+	if (SelectionThatChanged == GetSelectedActors())
 	{
 		// actor selection changed.  Update the list of component visualizers
 		// This is expensive so we do not search for visualizers each time they want to draw
 		VisualizersForSelection.Empty();
 
 		// Iterate over all selected actors
-		for(FSelectionIterator It(GetSelectedActorIterator()); It; ++It)
+		for (FSelectionIterator It(GetSelectedActorIterator()); It; ++It)
 		{
 			AActor* Actor = Cast<AActor>(*It);
-			if(Actor != nullptr)
+			if (Actor != nullptr)
 			{
-				// Then iterate over components of that actor (and recurse through child components)
-				TInlineComponentArray<UActorComponent*> Components;
-				Actor->GetComponents(Components, true);
-
-				for(int32 CompIdx = 0; CompIdx < Components.Num(); CompIdx++)
-				{
-					UActorComponent* Comp = Components[CompIdx];
-					if(Comp->IsRegistered())
-					{
-						// Try and find a visualizer
-						TSharedPtr<FComponentVisualizer> Visualizer = FindComponentVisualizer(Comp->GetClass());
-						if(Visualizer.IsValid())
-						{
-							VisualizersForSelection.Add(FCachedComponentVisualizer(Comp, Visualizer));
-						}
-					}
-				}
+				GetVisualizersForSelection(Actor);
 			}
 		}
 	}
 	else if (SelectionThatChanged == GetSelectedComponents())
 	{
-		VisualizersForSelection.Empty();
-
-		// Iterate over all selected components
-		for (FSelectionIterator It(GetSelectedComponentIterator()); It; ++It)
+		if (USelection* Selection = Cast<USelection>(SelectionThatChanged))
 		{
-			if (UActorComponent* Comp = Cast<UActorComponent>(*It))
+			// Do not proceed if the selection contains no components. This occurs when a component is
+			// deselected while selecting its owner actor. But a corresponding actor selection is not invoked
+			// so if the visualizers are cleared here, they will not be properly reset for the selected actor. 
+			if (Selection->Num() > 0)
 			{
-				if (Comp->IsRegistered())
+				VisualizersForSelection.Empty();
+
+				TArray<AActor*> ActorsProcessed;
+
+				// Iterate over all selected components
+				for (FSelectionIterator It(GetSelectedComponentIterator()); It; ++It)
 				{
-					// Try and find a visualizer
-					TSharedPtr<FComponentVisualizer> Visualizer = FindComponentVisualizer(Comp->GetClass());
-					if (Visualizer.IsValid())
+					if (UActorComponent* Comp = Cast<UActorComponent>(*It))
 					{
-						VisualizersForSelection.Add(FCachedComponentVisualizer(Comp, Visualizer));
+						if (AActor* Actor = Comp->GetOwner())
+						{
+							if (!ActorsProcessed.Contains(Actor))
+							{
+								GetVisualizersForSelection(Actor);
+								ActorsProcessed.Emplace(Actor);
+							}
+						}
 					}
 				}
-
 			}
 		}
 	}
