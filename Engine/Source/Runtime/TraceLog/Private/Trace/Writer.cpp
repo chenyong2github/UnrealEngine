@@ -582,6 +582,12 @@ bool Writer_WriteTo(const ANSICHAR* Path)
 	return true;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+bool Writer_IsTracing()
+{
+	return (GDataHandle != 0);
+}
+
 } // namespace Private
 } // namespace Trace
 
