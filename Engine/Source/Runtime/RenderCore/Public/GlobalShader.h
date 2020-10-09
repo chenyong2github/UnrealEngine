@@ -98,7 +98,7 @@ public:
 	 * @param Platform - Platform to compile for.
 	 * @param Environment - The shader compile environment that the function modifies.
 	 */
-	void SetupCompileEnvironment(EShaderPlatform Platform, int32 PermutationId, FShaderCompilerEnvironment& Environment)
+	void SetupCompileEnvironment(EShaderPlatform Platform, int32 PermutationId, FShaderCompilerEnvironment& Environment) const
 	{
 		// Allow the shader type to modify its compile environment.
 		ModifyCompilationEnvironment(FGlobalShaderPermutationParameters(Platform, PermutationId), Environment);

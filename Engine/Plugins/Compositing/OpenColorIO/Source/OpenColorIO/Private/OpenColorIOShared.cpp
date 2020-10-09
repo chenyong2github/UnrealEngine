@@ -390,7 +390,7 @@ bool FOpenColorIOTransformResource::BeginCompileShaderMap(const FOpenColorIOShad
 	TRefCountPtr<FOpenColorIOShaderMap> NewShaderMap = new FOpenColorIOShaderMap();
 
 	// Create a shader compiler environment for the material that will be shared by all jobs from this material
-	TRefCountPtr<FShaderCompilerEnvironment> MaterialEnvironment = new FShaderCompilerEnvironment();
+	TRefCountPtr<FSharedShaderCompilerEnvironment> MaterialEnvironment = new FSharedShaderCompilerEnvironment();
 
 	// Compile the shaders for the transform.
 	FOpenColorIOCompilationOutput CompilationOutput;

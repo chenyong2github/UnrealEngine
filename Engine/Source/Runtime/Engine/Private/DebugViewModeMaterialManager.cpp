@@ -159,7 +159,7 @@ void FDebugViewModeMaterialManager::ValidateShaders(bool bAllShadersReady)
 			// It doesn't look relevant anymore to ensure that the uniform expression set are compatible.
 			// const FMaterial* ReferenceMaterial = Key.MaterialInterface->GetMaterialResource((ERHIFeatureLevel::Type)Key.FeatureLevel);
 
-			if (Info.DebugProxy->IsValid() && Info.DebugProxy->GetGameThreadShaderMap())
+			if (Info.DebugProxy->IsValid() && Info.DebugProxy->IsGameThreadShaderMapComplete())
 				// && ReferenceMaterial
 				// && ReferenceMaterial->GetGameThreadShaderMap() 
 				// && ReferenceMaterial->GetGameThreadShaderMap()->GetUniformExpressionSet() == Info.DebugProxy->GetGameThreadShaderMap()->GetUniformExpressionSet()
@@ -309,7 +309,7 @@ bool FDebugViewModeMaterialManager::GetShader_RenderThread(
 		MissingShaderKeys.Add(Key);
 		Info.ShaderState = EShaderState::Missing;
 	}
-	else if (Info.ShaderState == EShaderState::Compiling && Info.DebugProxy->GetRenderingThreadShaderMap())
+	else if (Info.ShaderState == EShaderState::Compiling && Info.DebugProxy->IsRenderingThreadShaderMapComplete())
 	{
 		PendingValidationShaderKeys.Add(Key);
 		Info.ShaderState = EShaderState::PendingValidation;

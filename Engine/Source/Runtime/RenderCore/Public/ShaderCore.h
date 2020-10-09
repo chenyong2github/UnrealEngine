@@ -228,7 +228,7 @@ public:
 	/** Checks that all parameters are bound and asserts if any aren't in a debug build
 	* @param InVertexFactoryType can be 0
 	*/
-	RENDERCORE_API void VerifyBindingsAreComplete(const TCHAR* ShaderTypeName, FShaderTarget Target, class FVertexFactoryType* InVertexFactoryType) const;
+	RENDERCORE_API void VerifyBindingsAreComplete(const TCHAR* ShaderTypeName, FShaderTarget Target, const class FVertexFactoryType* InVertexFactoryType) const;
 
 	/** Updates the hash state with the contents of this parameter map. */
 	void UpdateHash(FSHA1& HashState) const;
@@ -378,14 +378,16 @@ inline FArchive& operator<<(FArchive& Ar, FResourceTableEntry& Entry)
 	return Ar;
 }
 
+using FThreadSafeSharedStringPtr = TSharedPtr<FString, ESPMode::ThreadSafe>;
+
 /** The environment used to compile a shader. */
-struct FShaderCompilerEnvironment : public FRefCountedObject
+struct FShaderCompilerEnvironment
 {
 	// Map of the virtual file path -> content.
 	// The virtual file paths are the ones that USF files query through the #include "<The Virtual Path of the file>"
 	TMap<FString,FString> IncludeVirtualPathToContentsMap;
 	
-	TMap<FString,TSharedPtr<FString>> IncludeVirtualPathToExternalContentsMap;
+	TMap<FString, FThreadSafeSharedStringPtr> IncludeVirtualPathToExternalContentsMap;
 
 	TArray<uint32> CompilerFlags;
 	TMap<uint32,uint8> RenderTargetOutputFormatsMap;
@@ -484,6 +486,10 @@ struct FShaderCompilerEnvironment : public FRefCountedObject
 private:
 
 	FShaderCompilerDefinitions Definitions;
+};
+
+struct FSharedShaderCompilerEnvironment : public FShaderCompilerEnvironment, public FRefCountBase
+{
 };
 
 // if this changes you need to make sure all shaders get invalidated
@@ -836,7 +842,7 @@ extern RENDERCORE_API void VerifyShaderSourceFiles(EShaderPlatform ShaderPlatfor
 struct FCachedUniformBufferDeclaration
 {
 	// Using SharedPtr so we can hand off lifetime ownership to FShaderCompilerEnvironment::IncludeVirtualPathToExternalContentsMap when invalidating this cache
-	TSharedPtr<FString> Declaration;
+	FThreadSafeSharedStringPtr Declaration;
 };
 
 /** Parses the given source file and its includes for references of uniform buffers, which are then stored in UniformBufferEntries. */
