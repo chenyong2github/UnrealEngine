@@ -87,9 +87,9 @@ float GetDepth(int LightId)
 	return SceneLightsData.Dimensions[LightId].z;
 }
 
-float GetCosConeAngle(int LightId)
+float2 GetCosConeAngles(int LightId)
 {
-	return SceneLightsData.Dimensions[LightId].x;
+	return SceneLightsData.Dimensions[LightId].xy;
 }
 
 float3 GetColor(int LightId)
