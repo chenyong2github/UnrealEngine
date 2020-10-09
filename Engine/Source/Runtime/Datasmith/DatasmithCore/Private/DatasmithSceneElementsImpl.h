@@ -1348,6 +1348,8 @@ public:
 	virtual const TSharedPtr< IDatasmithKeyValueProperty >& GetPropertyByName( const TCHAR* InName ) const override;
 	virtual void AddProperty( const TSharedPtr< IDatasmithKeyValueProperty >& InProperty ) override;
 
+	virtual FMD5Hash CalculateElementHash(bool bForce) override;
+
 private:
 	TDatasmithReferenceArrayProxy<IDatasmithKeyValueProperty> Properties;
 

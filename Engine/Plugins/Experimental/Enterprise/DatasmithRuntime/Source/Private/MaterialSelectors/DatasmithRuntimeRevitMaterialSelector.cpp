@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DatasmithRevitLiveMaterialSelector.h"
+#include "DatasmithRuntimeRevitMaterialSelector.h"
 
 #include "DatasmithSceneFactory.h"
 
@@ -9,20 +9,20 @@
 #include "UObject/SoftObjectPath.h"
 #include "Templates/Casts.h"
 
-FDatasmithRevitLiveMaterialSelector::FDatasmithRevitLiveMaterialSelector()
+FDatasmithRuntimeRevitMaterialSelector::FDatasmithRuntimeRevitMaterialSelector()
 {
-	// Master
+	// Master materials used by Revit based on material element's type
 	OpaqueMaterial.FromSoftObjectPath( FSoftObjectPath("/DatasmithRuntime/Materials/M_Opaque.M_Opaque") );
 	TransparentMaterial.FromSoftObjectPath( FSoftObjectPath("/DatasmithRuntime/Materials/M_Transparent.M_Transparent") );
 	CutoutMaterial.FromSoftObjectPath( FSoftObjectPath("/DatasmithRuntime/Materials/M_Cutout.M_Cutout") );
 }
 
-bool FDatasmithRevitLiveMaterialSelector::IsValid() const
+bool FDatasmithRuntimeRevitMaterialSelector::IsValid() const
 {
-	return OpaqueMaterial.IsValid();
+	return OpaqueMaterial.IsValid() && TransparentMaterial.IsValid() && CutoutMaterial.IsValid();
 }
 
-const FDatasmithMasterMaterial& FDatasmithRevitLiveMaterialSelector::GetMasterMaterial( const TSharedPtr< IDatasmithMasterMaterialElement >& InDatasmithMaterial ) const
+const FDatasmithMasterMaterial& FDatasmithRuntimeRevitMaterialSelector::GetMasterMaterial( const TSharedPtr< IDatasmithMasterMaterialElement >& InDatasmithMaterial ) const
 {
 	TSharedPtr< IDatasmithMasterMaterialElement > MaterialElement = ConstCastSharedPtr< IDatasmithMasterMaterialElement >(InDatasmithMaterial);
 
@@ -48,37 +48,36 @@ const FDatasmithMasterMaterial& FDatasmithRevitLiveMaterialSelector::GetMasterMa
 		}
 	};
 
+	// Convert glossiness into roughness' equivalent
+	TSharedPtr< IDatasmithKeyValueProperty > Property = MaterialElement->GetPropertyByName(TEXT("Glossiness"));
+	if (Property.IsValid())
 	{
-		TSharedPtr< IDatasmithKeyValueProperty > Property = MaterialElement->GetPropertyByName(TEXT("Glossiness"));
-		if (Property.IsValid())
+		TSharedPtr<IDatasmithKeyValueProperty> Roughness = MaterialElement->GetPropertyByName(TEXT("Roughness"));
+		if (!Roughness.IsValid())
 		{
-			TSharedPtr<IDatasmithKeyValueProperty> Roughness = MaterialElement->GetPropertyByName(TEXT("Roughness"));
-			if (!Roughness.IsValid())
-			{
-				Roughness = FDatasmithSceneFactory::CreateKeyValueProperty(TEXT("Roughness"));
+			Roughness = FDatasmithSceneFactory::CreateKeyValueProperty(TEXT("Roughness"));
 
-				float Value;
-				GetFloat(Property, Value);
-				FString NewValue = FString::Printf(TEXT("%f"), 1.f - Value);
-				Roughness->SetValue(*NewValue);
+			float Value;
+			GetFloat(Property, Value);
+			FString NewValue = FString::Printf(TEXT("%f"), 1.f - Value);
+			Roughness->SetValue(*NewValue);
 
-				MaterialElement->AddProperty(Roughness);
-			}
+			MaterialElement->AddProperty(Roughness);
 		}
 	}
 
+	// Convert static boolean parameters into float ones used in master material's graph
 	ConvertProperty(TEXT("RoughnessMapEnable"), TEXT("RoughnessMapFading"));
 	ConvertProperty(TEXT("IsMetal"), TEXT("Metallic"));
 	ConvertProperty(TEXT("TintEnabled"), TEXT("TintColorFading"));
 	ConvertProperty(TEXT("SelfIlluminationMapEnable"), TEXT("SelfIlluminationMapFading"));
 	ConvertProperty(TEXT("IsPbr"), TEXT("UseNormalMap"));
 
-	// Set blend mode to translucent if material requires transparency
+	// Return proper material based on material's type
 	if (InDatasmithMaterial->GetMaterialType() == EDatasmithMasterMaterialType::Transparent)
 	{
 		return TransparentMaterial;
 	}
-	// Set blend mode to masked if material has cutouts
 	else if (InDatasmithMaterial->GetMaterialType() == EDatasmithMasterMaterialType::CutOut)
 	{
 		return  CutoutMaterial;
@@ -87,6 +86,7 @@ const FDatasmithMasterMaterial& FDatasmithRevitLiveMaterialSelector::GetMasterMa
 	return OpaqueMaterial;
 }
 
-void FDatasmithRevitLiveMaterialSelector::FinalizeMaterialInstance(const TSharedPtr<IDatasmithMasterMaterialElement>& InDatasmithMaterial, UMaterialInstanceConstant * MaterialInstance) const
+void FDatasmithRuntimeRevitMaterialSelector::FinalizeMaterialInstance(const TSharedPtr<IDatasmithMasterMaterialElement>& InDatasmithMaterial, UMaterialInstanceConstant * MaterialInstance) const
 {
+	// Nothing to do there.
 }
