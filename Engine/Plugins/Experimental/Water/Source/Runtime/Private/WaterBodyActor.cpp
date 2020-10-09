@@ -1098,6 +1098,13 @@ void AWaterBody::OnWaterBodyChanged(bool bShapeOrPositionChanged, bool bWeightma
 #endif
 }
 
+void AWaterBody::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FWaterCustomVersion::GUID);
+}
+
 void AWaterBody::PostLoad()
 {
 	Super::PostLoad();
