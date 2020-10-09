@@ -395,10 +395,10 @@ void FLinuxApplication::ProcessDeferredMessage( SDL_Event Event )
 				else
 				{
 					// Check if we have to activate the window.
-					if (CurrentlyActiveWindow != CurrentEventWindow)
+					if (CurrentlyActiveWindow != CurrentEventWindow && CurrentEventWindow->GetActivationPolicy() != EWindowActivationPolicy::Never)
 					{
 						ActivateWindow(CurrentEventWindow);
-						
+
 						if(NotificationWindows.Num() > 0)
 						{
 							RaiseNotificationWindows(CurrentEventWindow);
@@ -816,7 +816,7 @@ void FLinuxApplication::ProcessDeferredMessage( SDL_Event Event )
 
 						// Check if this window is different then the currently active one. If it is another one activate this 
 						// window and deactivate the other one.
-						if (CurrentlyActiveWindow != CurrentEventWindow)
+						if (CurrentlyActiveWindow != CurrentEventWindow && CurrentEventWindow->GetActivationPolicy() != EWindowActivationPolicy::Never)
 						{
 							ActivateWindow(CurrentEventWindow);
 						}
