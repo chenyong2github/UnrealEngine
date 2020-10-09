@@ -187,30 +187,39 @@ void FOutputDeviceRedirector::InternalFlushThreadedLogs(bool bUseAllDevices)
 	TLocalOutputDevicesArray LocalUnbufferedDevices;
 	FOutputDevicesLock OutputDevicesLock(this, LocalBufferedDevices, LocalUnbufferedDevices);
 
-	InternalFlushThreadedLogs(LocalBufferedDevices, bUseAllDevices);
+	InternalFlushThreadedLogs(LocalBufferedDevices, LocalUnbufferedDevices, bUseAllDevices);
 }
 
 /**
  * The unsynchronized version of FlushThreadedLogs.
  */
-void FOutputDeviceRedirector::InternalFlushThreadedLogs(TLocalOutputDevicesArray& InBufferedDevices, bool bUseAllDevices)
+void FOutputDeviceRedirector::InternalFlushThreadedLogs(TLocalOutputDevicesArray& InBufferedDevices, TLocalOutputDevicesArray& InUnbufferedDevices, bool bUseAllDevices)
 {	
 	if (BufferedLines.Num())
 	{
 		TArray<FBufferedLine, TInlineAllocator<64>> LocalBufferedLines;
 		FLogAllocator::FBufferLock BufferLock;
 		{
-			FScopeLock ScopeLock(&BufferSynchronizationObject);
-			LocalBufferedLines.AddUninitialized(BufferedLines.Num());
-			for (int32 LineIndex = 0; LineIndex < BufferedLines.Num(); LineIndex++)
+			// Copy the buffered lines only if there's any buffered output devices
+			if (InBufferedDevices.Num())
 			{
-				new(&LocalBufferedLines[LineIndex]) FBufferedLine(BufferedLines[LineIndex], FBufferedLine::EMoveCtor);
+				FScopeLock ScopeLock(&BufferSynchronizationObject);
+				LocalBufferedLines.AddUninitialized(BufferedLines.Num());
+				for (int32 LineIndex = 0; LineIndex < BufferedLines.Num(); LineIndex++)
+				{
+					new(&LocalBufferedLines[LineIndex]) FBufferedLine(BufferedLines[LineIndex], FBufferedLine::EMoveCtor);
+				}
+				if (BufferedLinesAllocator)
+				{
+					BufferLock = BufferedLinesAllocator->LockBuffer();
+				}
 			}
-			if (BufferedLinesAllocator)
+			// If there's no output devices to redirect to (assumption is that we haven't added any yet)
+			// don't clear the buffer otherwise its content will be lost (for example when calling SetCurrentThreadAsMasterThread() on init)
+			if (InBufferedDevices.Num() || InUnbufferedDevices.Num())
 			{
-				BufferLock = BufferedLinesAllocator->LockBuffer();
+				EmptyBufferedLines();
 			}
-			EmptyBufferedLines();
 		}
 
 		for (FBufferedLine& Line : LocalBufferedLines)
@@ -229,7 +238,8 @@ void FOutputDeviceRedirector::InternalFlushThreadedLogs(TLocalOutputDevicesArray
 			}
 		}
 
-		if (BufferedLinesAllocator)
+		// InBufferedDevices condition is to match the same condition when locking the buffer
+		if (InBufferedDevices.Num() && BufferedLinesAllocator)
 		{
 			FScopeLock ScopeLock(&BufferSynchronizationObject);
 			BufferedLinesAllocator->UnlockBuffer(BufferLock);
@@ -266,7 +276,7 @@ void FOutputDeviceRedirector::PanicFlushThreadedLogs()
 	FOutputDevicesLock OutputDevicesLock(this, LocalBufferedDevices, LocalUnbufferedDevices);
 
 	// Flush threaded logs, but use the safe version.
-	InternalFlushThreadedLogs(LocalBufferedDevices, false);
+	InternalFlushThreadedLogs(LocalBufferedDevices, LocalUnbufferedDevices, false);
 
 	// Flush devices.
 	for (FOutputDevice* OutputDevice : LocalBufferedDevices)
@@ -388,7 +398,7 @@ void FOutputDeviceRedirector::SerializeImpl(const TCHAR* Data, ELogVerbosity::Ty
 	else
 	{
 		// Flush previously buffered lines from secondary threads.
-		InternalFlushThreadedLogs(LocalBufferedDevices, true);
+		InternalFlushThreadedLogs(LocalBufferedDevices, LocalUnbufferedDevices, true);
 
 		for (FOutputDevice* OutputDevice : LocalBufferedDevices)
 		{
@@ -465,7 +475,7 @@ void FOutputDeviceRedirector::TearDown()
 	}
 
 	// Flush previously buffered lines from secondary threads.
-	InternalFlushThreadedLogs(LocalBufferedDevices, false);
+	InternalFlushThreadedLogs(LocalBufferedDevices, LocalUnbufferedDevices, false);
 
 	for (FOutputDevice* OutputDevice : LocalBufferedDevices)
 	{
