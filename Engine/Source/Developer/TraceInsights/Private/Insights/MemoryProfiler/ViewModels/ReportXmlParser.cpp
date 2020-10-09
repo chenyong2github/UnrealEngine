@@ -1,14 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ReportXmlParser.h"
+
+#include "Logging/TokenizedMessage.h"
+#include "Misc/Paths.h"
 #include "XmlNode.h"
 #include "XmlFile.h"
-#include "Misc/Paths.h"
-#include "Logging/MessageLog.h"
 
 // Insights
-#include "Insights/MemoryProfiler/ViewModels/Report.h"
 #include "Insights/Log.h"
+#include "Insights/MemoryProfiler/ViewModels/Report.h"
 
 namespace Insights
 {

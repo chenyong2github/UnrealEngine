@@ -99,6 +99,8 @@ public:
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
+	const FName& GetLogListingName() const { return LogListingName; }
+
 	void OnSessionChanged();
 
 private:
@@ -141,6 +143,9 @@ private:
 
 	/** If the Categories tree view is visible or hidden. */
 	bool bIsMemTagTreeViewVisible;
+
+	/** The name of the Memory Insights log listing. */
+	FName LogListingName;
 
 	/** A shared pointer to the global instance of the Memory Profiler manager. */
 	static TSharedPtr<FMemoryProfilerManager> Instance;

@@ -25,7 +25,6 @@ namespace Trace
 
 class SStartPageWindow;
 class SSessionInfoWindow;
-class FInsightsMessageLogViewModel;
 class FInsightsTestRunner;
 class FInsightsMenuBuilder;
 
@@ -201,8 +200,6 @@ public:
 	double GetAnalysisDuration() const { return AnalysisDuration; }
 	double GetAnalysisSpeedFactor() const { return AnalysisSpeedFactor; }
 
-	TSharedPtr<FInsightsMessageLogViewModel> GetMessageLog() { return InsightsMessageLogViewModel; }
-
 	TSharedPtr<FInsightsMenuBuilder> GetInsightsMenuBuilder() { return InsightsMenuBuilder; }
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -244,9 +241,6 @@ private:
 
 	/** Callback called when the Session Info major tab is closed. */
 	void OnSessionInfoTabClosed(TSharedRef<SDockTab> TabBeingClosed);
-
-	/** Called to spawn the Message Log major tab. */
-	TSharedRef<SDockTab> SpawnMessageLogTab(const FSpawnTabArgs& Args);
 
 	/** Updates this manager, done through FCoreTicker. */
 	bool Tick(float DeltaTime);
@@ -301,9 +295,6 @@ private:
 
 	/** A weak pointer to the Session Info window. */
 	TWeakPtr<class SSessionInfoWindow> SessionInfoWindow;
-
-	TSharedPtr<class SWidget> InsightsMessageLog;
-	TSharedPtr<FInsightsMessageLogViewModel> InsightsMessageLogViewModel;
 
 	/** If enabled, UI can display additional info for debugging purposes. */
 	bool bIsDebugInfoEnabled;

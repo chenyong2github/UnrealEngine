@@ -3,6 +3,7 @@
 #include "MemoryProfilerManager.h"
 
 #include "Modules/ModuleManager.h"
+#include "MessageLog/Public/MessageLogModule.h"
 #include "TraceServices/AnalysisService.h"
 #include "TraceServices/Model/Memory.h"
 #include "WorkspaceMenuStructure.h"
@@ -57,6 +58,7 @@ FMemoryProfilerManager::FMemoryProfilerManager(TSharedRef<FUICommandList> InComm
 	, ProfilerWindow(nullptr)
 	, bIsTimingViewVisible(false)
 	, bIsMemTagTreeViewVisible(false)
+	, LogListingName(TEXT("MemoryInsights"))
 {
 }
 
@@ -93,6 +95,16 @@ void FMemoryProfilerManager::Shutdown()
 		return;
 	}
 	bIsInitialized = false;
+
+	// If the MessageLog module was already unloaded as part of the global Shutdown process, do not load it again.
+	if (FModuleManager::Get().IsModuleLoaded("MessageLog"))
+	{
+		FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
+		if (MessageLogModule.IsRegisteredLogListing(GetLogListingName()))
+		{
+			MessageLogModule.UnregisterLogListing(GetLogListingName());
+		}
+	}
 
 	FInsightsManager::Get()->GetSessionChangedEvent().RemoveAll(this);
 
@@ -245,6 +257,10 @@ bool FMemoryProfilerManager::Tick(float DeltaTime)
 		if (TagCount > 0)
 		{
 			bIsAvailable = true;
+
+			FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
+			MessageLogModule.RegisterLogListing(GetLogListingName(), LOCTEXT("MemoryInsights", "Memory Insights"));
+			MessageLogModule.EnableMessageLogDisplay(true);
 
 #if !WITH_EDITOR
 			const FName& TabId = FInsightsManagerTabs::MemoryProfilerTabId;

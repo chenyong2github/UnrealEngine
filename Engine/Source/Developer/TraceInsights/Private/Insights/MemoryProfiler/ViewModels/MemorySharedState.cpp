@@ -2,6 +2,7 @@
 
 #include "MemorySharedState.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Logging/MessageLog.h"
 #include "TraceServices/AnalysisService.h"
 #include "TraceServices/Model/Memory.h"
 
@@ -20,7 +21,6 @@
 #include "Insights/ViewModels/TimingGraphTrack.h"
 #include "Insights/ViewModels/TooltipDrawState.h"
 #include "Insights/ViewModels/TimingEventSearch.h"
-#include "Insights/ViewModels/InsightsMessageLogViewModel.h"
 #include "Insights/Widgets/STimingView.h"
 
 #include <limits>
@@ -719,13 +719,12 @@ void FMemorySharedState::CreateTracksFromReport(const FString& Filename)
 
 	Insights::FReportXmlParser ReportXmlParser;
 
-	auto MessageLog = FInsightsManager::Get()->GetMessageLog();
-	MessageLog->ClearMessageLog();
-
 	ReportXmlParser.LoadReportTypesXML(ReportConfig, Filename);
 	if (ReportXmlParser.GetStatus() != Insights::FReportXmlParser::EStatus::Completed)
 	{
-		MessageLog->UpdateMessageLog(ReportXmlParser.GetErrorMessages());
+		FMessageLog ReportMessageLog(FMemoryProfilerManager::Get()->GetLogListingName());
+		ReportMessageLog.AddMessages(ReportXmlParser.GetErrorMessages());
+		ReportMessageLog.Notify();
 	}
 
 	CreateTracksFromReport(ReportConfig);

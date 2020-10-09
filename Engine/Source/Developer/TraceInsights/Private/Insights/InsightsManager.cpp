@@ -3,6 +3,7 @@
 #include "InsightsManager.h"
 
 #include "Framework/Application/SlateApplication.h"
+#include "MessageLog/Public/MessageLogModule.h"
 #include "Misc/CString.h"
 #include "Modules/ModuleManager.h"
 #include "Templates/UniquePtr.h"
@@ -19,7 +20,6 @@
 #include "Insights/NetworkingProfiler/NetworkingProfilerManager.h"
 #include "Insights/Tests/InsightsTestRunner.h"
 #include "Insights/TimingProfilerManager.h"
-#include "Insights/ViewModels/InsightsMessageLogViewModel.h"
 #include "Insights/Widgets/SStartPageWindow.h"
 #include "Insights/Widgets/SSessionInfoWindow.h"
 #include "Insights/Widgets/STimingProfilerWindow.h"
@@ -34,7 +34,6 @@ const FName FInsightsManagerTabs::TimingProfilerTabId(TEXT("TimingProfiler"));
 const FName FInsightsManagerTabs::LoadingProfilerTabId(TEXT("LoadingProfiler"));
 const FName FInsightsManagerTabs::NetworkingProfilerTabId(TEXT("NetworkingProfiler"));
 const FName FInsightsManagerTabs::MemoryProfilerTabId(TEXT("MemoryProfiler"));
-const FName FInsightsManagerTabs::InsightsMessageLogTabId(TEXT("MessageLog"));
 const FName FInsightsManagerTabs::AutomationWindowTabId(TEXT("AutomationWindow"));
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -145,8 +144,6 @@ void FInsightsManager::Initialize(IUnrealInsightsModule& InsightsModule)
 	}
 	bIsInitialized = true;
 
-	InsightsMessageLogViewModel = MakeShared<FInsightsMessageLogViewModel>("InsightsLog", InsightsMessageLog);
-
 	InsightsMenuBuilder = MakeShared<FInsightsMenuBuilder>();
 
 	// Register tick functions.
@@ -226,18 +223,8 @@ void FInsightsManager::RegisterMajorTabs(IUnrealInsightsModule& InsightsModule)
 	}
 
 #if !WITH_EDITOR
-	const FInsightsMajorTabConfig& MessageLogConfig = InsightsModule.FindMajorTabConfig(FInsightsManagerTabs::InsightsMessageLogTabId);
-	if (MessageLogConfig.bIsAvailable)
-	{
-		FTabSpawnerEntry& TabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FInsightsManagerTabs::InsightsMessageLogTabId,
-			FOnSpawnTab::CreateRaw(this, &FInsightsManager::SpawnMessageLogTab))
-			.SetDisplayName(MessageLogConfig.TabLabel.IsSet() ? MessageLogConfig.TabLabel.GetValue() : LOCTEXT("InsightsMessageLogTabTitle", "Message Log"))
-			.SetTooltipText(MessageLogConfig.TabTooltip.IsSet() ? MessageLogConfig.TabTooltip.GetValue() : LOCTEXT("InsightsMessageLogTooltipText", "Open the Message Log tab."))
-			.SetIcon(MessageLogConfig.TabIcon.IsSet() ? MessageLogConfig.TabIcon.GetValue() : FSlateIcon(FInsightsStyle::GetStyleSetName(), "LogView.Icon.Small"));
-
-		TSharedRef<FWorkspaceItem> Group = MessageLogConfig.WorkspaceGroup.IsValid() ? MessageLogConfig.WorkspaceGroup.ToSharedRef() : GetInsightsMenuBuilder()->GetWindowsGroup();
-		TabSpawnerEntry.SetGroup(Group);
-	}
+	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
+	MessageLogModule.RegisterMessageLogSpawner(GetInsightsMenuBuilder()->GetWindowsGroup());
 #endif
 }
 
@@ -247,9 +234,6 @@ void FInsightsManager::UnregisterMajorTabs()
 {
 	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FInsightsManagerTabs::SessionInfoTabId);
 	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FInsightsManagerTabs::StartPageTabId);
-#if !WITH_EDITOR
-	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FInsightsManagerTabs::InsightsMessageLogTabId);
-#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -320,23 +304,6 @@ void FInsightsManager::OnSessionInfoTabClosed(TSharedRef<SDockTab> TabBeingClose
 
 	// Disable TabClosed delegate.
 	TabBeingClosed->SetOnTabClosed(SDockTab::FOnTabClosedCallback());
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-TSharedRef<SDockTab> FInsightsManager::SpawnMessageLogTab(const FSpawnTabArgs& Args)
-{
-	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
-		.Label(LOCTEXT("InsightsMessageLogTitle", "Message Log"))
-		[
-			SNew(SBox)
-			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("InsightsLog")))
-			[
-				InsightsMessageLog.ToSharedRef()
-			]
-		];
-
-	return SpawnedTab;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
