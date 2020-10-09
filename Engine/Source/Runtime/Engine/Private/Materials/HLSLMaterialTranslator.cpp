@@ -7078,29 +7078,34 @@ int32 FHLSLMaterialTranslator::StrataDielectricBSDF(int32 Roughness, int32 IOR, 
 	);
 }
 
-int32 FHLSLMaterialTranslator::StrataConductorBSDF(int32 IOR, int32 Extinction, int32 Roughness, int32 Normal)
+int32 FHLSLMaterialTranslator::StrataConductorBSDF(int32 Reflectivity, int32 EdgeColor, int32 Roughness, int32 Normal)
 {
 	return AddInlinedCodeChunk(
 		MCT_Strata, TEXT("GetStrataConductorBSDF(%s, %s, %s, %s)"),
-		*GetParameterCode(IOR),
-		*GetParameterCode(Extinction),
+		*GetParameterCode(Reflectivity),
+		*GetParameterCode(EdgeColor),
 		*GetParameterCode(Roughness),
 		*GetParameterCode(Normal)
 	);
 }
 
-int32 FHLSLMaterialTranslator::StrataVolumeBSDF(int32 Absorption, int32 Scattering, int32 Anisotropy)
+int32 FHLSLMaterialTranslator::StrataVolumeBSDF(int32 Albedo, int32 Extinction, int32 Anisotropy, int32 Thickness)
 {
 	return AddInlinedCodeChunk(
-		MCT_Strata, TEXT("GetStrataVolumeBSDF(%s, %s, %s)"),
-		*GetParameterCode(Absorption),
-		*GetParameterCode(Scattering),
-		*GetParameterCode(Anisotropy)
+		MCT_Strata, TEXT("GetStrataVolumeBSDF(%s, %s, %s, %s)"),
+		*GetParameterCode(Albedo),
+		*GetParameterCode(Extinction),
+		*GetParameterCode(Anisotropy),
+		*GetParameterCode(Thickness)
 	);
 }
 
 int32 FHLSLMaterialTranslator::StrataHorizontalMixing(int32 Foreground, int32 Background, int32 Mix)
 {
+	if (Foreground == INDEX_NONE || Background == INDEX_NONE || Mix == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
 	return AddInlinedCodeChunk(
 		MCT_Strata, TEXT("StrataHorizontalMixing(%s, %s, %s)"),
 		*GetParameterCode(Foreground),
@@ -7111,6 +7116,10 @@ int32 FHLSLMaterialTranslator::StrataHorizontalMixing(int32 Foreground, int32 Ba
 
 int32 FHLSLMaterialTranslator::StrataVerticalLayering(int32 Top, int32 Base)
 {
+	if (Top == INDEX_NONE || Base == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
 	return AddInlinedCodeChunk(
 		MCT_Strata, TEXT("StrataVerticalLayering(%s, %s)"),
 		*GetParameterCode(Top),
@@ -7120,6 +7129,10 @@ int32 FHLSLMaterialTranslator::StrataVerticalLayering(int32 Top, int32 Base)
 
 int32 FHLSLMaterialTranslator::StrataAdd(int32 A, int32 B)
 {
+	if (A == INDEX_NONE || B == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
 	return AddInlinedCodeChunk(
 		MCT_Strata, TEXT("StrataAdd(%s, %s)"),
 		*GetParameterCode(A),
@@ -7129,6 +7142,10 @@ int32 FHLSLMaterialTranslator::StrataAdd(int32 A, int32 B)
 
 int32 FHLSLMaterialTranslator::StrataMultiply(int32 A, int32 Weight)
 {
+	if (A == INDEX_NONE || Weight == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
 	return AddInlinedCodeChunk(
 		MCT_Strata, TEXT("StrataMultiply(%s, %s)"),
 		*GetParameterCode(A),
@@ -7138,11 +7155,29 @@ int32 FHLSLMaterialTranslator::StrataMultiply(int32 A, int32 Weight)
 
 int32 FHLSLMaterialTranslator::StrataArtisticIOR(int32 Reflectivity, int32 EdgeColor, int32 OutputIndex)
 {
+	if (Reflectivity == INDEX_NONE || EdgeColor == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
 	return AddInlinedCodeChunk(
 		MCT_Strata, 
 		OutputIndex == 0 ? TEXT("ComputeComplexIORFromF0AndEdgeTint_IOR(%s, %s)") : TEXT("ComputeComplexIORFromF0AndEdgeTint_Extinction(%s, %s)"),
 		*GetParameterCode(Reflectivity),
 		*GetParameterCode(EdgeColor)
+	);
+}
+
+int32 FHLSLMaterialTranslator::StrataPhysicalIOR(int32 IOR, int32 Extinction, int32 OutputIndex)
+{
+	if (IOR == INDEX_NONE || Extinction == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+	return AddInlinedCodeChunk(
+		MCT_Strata,
+		OutputIndex == 0 ? TEXT("ComputeF0AndEdgeTintFromComplexIOR_Reflectivity(%s, %s)") : TEXT("ComputeF0AndEdgeTintFromComplexIOR_EdgeTint(%s, %s)"),
+		*GetParameterCode(IOR),
+		*GetParameterCode(Extinction)
 	);
 }
 

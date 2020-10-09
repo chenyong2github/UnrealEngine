@@ -123,6 +123,22 @@ void ComputeF0AndEdgeTintFromIOR(in float3 n, in float3 k, inout float3 Reflecti
 	EdgeTint = (Common0 - n) / (Common0 + (1 - SqrtR) / (1 + SqrtR));
 }
 
+float3 ComputeF0AndEdgeTintFromComplexIOR_Reflectivity(in float3 n, in float3 k)
+{
+	float3 Reflectivity = 0;
+	float3 EdgeTint = 0;
+	ComputeF0AndEdgeTintFromIOR(n, k, Reflectivity, EdgeTint);
+	return Reflectivity;
+}
+
+float3 ComputeF0AndEdgeTintFromComplexIOR_EdgeTint(in float3 n, in float3 k)
+{
+	float3 Reflectivity = 0;
+	float3 EdgeTint = 0;
+	ComputeF0AndEdgeTintFromIOR(n, k, Reflectivity, EdgeTint);
+	return EdgeTint;
+}
+
 // Compute complex index of refraction N = n + ik from F0 and edge tint.
 void ComputeComplexIORFromF0AndEdgeTint(in float3 Reflectivity, in float3 EdgeTint, inout float3 n, inout float3 k)
 {

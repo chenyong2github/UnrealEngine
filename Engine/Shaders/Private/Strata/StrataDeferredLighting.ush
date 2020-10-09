@@ -88,10 +88,6 @@ float4 StrataDeferredLighting(
 		break;
 		case STRATA_BSDF_TYPE_CONDUCTOR:
 		{
-			float3 ReflectivityF0 = float3(1.0, 0.1, 0.1);
-			float3 EdgeTint = float3(0.1, 1.0, 0.1);
-			ComputeF0AndEdgeTintFromIOR(BSDF.Conductor.IOR, BSDF.Conductor.Extinction, ReflectivityF0, EdgeTint);
-
 			// See SpecularGGX, isotropic verion
 
 			const float SafeRoughness = MakeRoughnessSafe(BSDF.Conductor.Roughness.x);
@@ -101,23 +97,22 @@ float4 StrataDeferredLighting(
 			// Generalized microfacet specular
 			float D = D_GGX(a2, Context.NoH) * Energy;
 			float Vis = Vis_SmithJointApprox(a2, Context.NoV, SatNoL);
-			float3 F = F_Schlick(ReflectivityF0, EdgeTint, Context.VoH);
+			float3 F = F_Schlick(BSDF.Conductor.Reflectivity, BSDF.Conductor.EdgeColor, Context.VoH);
 
 			Radiance.rgb += D * Vis * F * DirLightGeometryFactor;
 		}
 		break;
 		case STRATA_BSDF_TYPE_VOLUME:
 		{
-			// Strata TODO expose albedo + extinction instead?
-			const float3 ScatteringCoefficients = BSDF.Volume.Scattering;
-			const float3 AbsorptionCoefficients = BSDF.Volume.Absorption;
-			const float3 ExtinctionCoefficients = ScatteringCoefficients + AbsorptionCoefficients;
+			const float3 Albedo = BSDF.Volume.Albedo;
+			const float3 ExtinctionCoefficients = BSDF.Volume.Extinction;
+			const float3 ScatteringCoefficients = Albedo * ExtinctionCoefficients;
+			const float3 AbsorptionCoefficients = ExtinctionCoefficients - ScatteringCoefficients;
+			const float  Thickness = BSDF.Volume.Thickness;
 
 			const float3 SafeExtinctionThreshold = 0.000001f;
 			const float3 SafeExtinctionCoefficients = max(SafeExtinctionThreshold, ExtinctionCoefficients);
-			const float3 SafeAlbedo = ScatteringCoefficients / SafeExtinctionCoefficients;
 
-			const float Thickness = 0.01f;	// STRATA_TODO where does thickness come from? For now, 1cm
 			const float PathLength = Thickness / max(0.0001f, abs(Context.NoV));
 			const float3 SafePathSegmentTransmittance = exp(-SafeExtinctionCoefficients * PathLength);
 			const float3 NormLuminanceTransfert = 1.0f * ScatteringCoefficients;

@@ -142,13 +142,13 @@ class UMaterialExpressionStrataConductorBSDF : public UMaterialExpression
 	 * float3
 	 */
 	UPROPERTY()
-	FExpressionInput IOR;
+	FExpressionInput Reflectivity;
 	
 	/**
 	 * float3
 	 */
 	UPROPERTY()
-	FExpressionInput Extinction;
+	FExpressionInput EdgeColor;
 
 	/**
 	 * float2
@@ -182,22 +182,28 @@ class UMaterialExpressionStrataVolumeBSDF : public UMaterialExpression
 	GENERATED_UCLASS_BODY()
 		
 	/**
-	 * float3
+	 * Albedo (type = float3, unit = 1/m)
 	 */
 	UPROPERTY()
-	FExpressionInput Absorption;
+	FExpressionInput Albedo;
 	
 	/**
-	 * float3
+	 * Extinction (type = float3, unit = 1/m)
 	 */
 	UPROPERTY()
-	FExpressionInput Scattering;
+	FExpressionInput Extinction;
 
 	/**
-	 * float
+	 * Anisotropy (type = float, unitless)
 	 */
 	UPROPERTY()
 	FExpressionInput Anisotropy;
+
+	/**
+	 * Thickness (type = float, unit = meters, default = 1mm)
+	 */
+	UPROPERTY()
+	FExpressionInput Thickness;
 
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
@@ -351,6 +357,33 @@ class UMaterialExpressionStrataArtisticIOR : public UMaterialExpression
 	 */
 	UPROPERTY()
 	FExpressionInput EdgeColor;
+
+	//~ Begin UMaterialExpression Interface
+#if WITH_EDITOR
+	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
+	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
+	virtual uint32 GetOutputType(int32 OutputIndex) override;
+	virtual uint32 GetInputType(int32 InputIndex) override;
+#endif
+	//~ End UMaterialExpression Interface
+};
+
+UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
+class UMaterialExpressionStrataPhysicalIOR : public UMaterialExpression
+{
+	GENERATED_UCLASS_BODY()
+
+	/**
+	* TODO 
+	*/
+	UPROPERTY()
+	FExpressionInput IOR;
+
+	/**
+	 * TODO 
+	 */
+	UPROPERTY()
+	FExpressionInput Extinction;
 
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR

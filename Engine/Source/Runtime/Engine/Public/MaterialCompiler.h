@@ -391,13 +391,14 @@ public:
 	virtual int32 StrataDiffuseOrenNayarBSDF(int32 Albedo, int32 Roughness, int32 Normal) = 0;
 	virtual int32 StrataDiffuseChanBSDF(int32 Albedo, int32 Roughness, int32 Normal) = 0;
 	virtual int32 StrataDielectricBSDF(int32 Roughness, int32 IOR, int32 Tint, int32 Normal) = 0;
-	virtual int32 StrataConductorBSDF(int32 IOR, int32 Extinction, int32 Roughness, int32 Normal) = 0;
-	virtual int32 StrataVolumeBSDF(int32 Absorption, int32 Scattering, int32 Anisotropy) = 0;
+	virtual int32 StrataConductorBSDF(int32 Reflectivity, int32 EdgeColor, int32 Roughness, int32 Normal) = 0;
+	virtual int32 StrataVolumeBSDF(int32 Albedo, int32 Extinction, int32 Anisotropy, int32 Thickness) = 0;
 	virtual int32 StrataHorizontalMixing(int32 Foreground, int32 Background, int32 Mix) = 0;
 	virtual int32 StrataVerticalLayering(int32 Top, int32 Base) = 0;
 	virtual int32 StrataAdd(int32 A, int32 B) = 0;
 	virtual int32 StrataMultiply(int32 A, int32 Weight) = 0;
 	virtual int32 StrataArtisticIOR(int32 Reflectivity, int32 EdgeColor, int32 OutputIndex) = 0;
+	virtual int32 StrataPhysicalIOR(int32 IOR, int32 Extinction, int32 OutputIndex) = 0;
 
 
 	virtual int32 MapARPassthroughCameraUV(int32 UV) = 0;
@@ -799,14 +800,14 @@ public:
 		return Compiler->StrataDielectricBSDF(Roughness, IOR, Tint, Normal);
 	}
 
-	virtual int32 StrataConductorBSDF(int32 IOR, int32 Extinction, int32 Roughness, int32 Normal) override
+	virtual int32 StrataConductorBSDF(int32 Reflectivity, int32 EdgeColor, int32 Roughness, int32 Normal) override
 	{
-		return Compiler->StrataConductorBSDF(IOR, Extinction, Roughness, Normal);
+		return Compiler->StrataConductorBSDF(Reflectivity, EdgeColor, Roughness, Normal);
 	}
 
-	virtual int32 StrataVolumeBSDF(int32 Absorption, int32 Scattering, int32 Anisotropy) override
+	virtual int32 StrataVolumeBSDF(int32 Albedo, int32 Extinction, int32 Anisotropy, int32 Thickness) override
 	{
-		return Compiler->StrataVolumeBSDF(Absorption, Scattering, Anisotropy);
+		return Compiler->StrataVolumeBSDF(Albedo, Extinction, Anisotropy, Thickness);
 	}
 
 	virtual int32 StrataHorizontalMixing(int32 Foreground, int32 Background, int32 Mix) override
@@ -832,6 +833,11 @@ public:
 	virtual int32 StrataArtisticIOR(int32 Reflectivity, int32 EdgeColor, int32 OutputIndex) override
 	{
 		return Compiler->StrataArtisticIOR(Reflectivity, EdgeColor, OutputIndex);
+	}
+
+	virtual int32 StrataPhysicalIOR(int32 IOR, int32 Extinction, int32 OutputIndex) override
+	{
+		return Compiler->StrataPhysicalIOR(IOR, Extinction, OutputIndex);
 	}
 
 protected:

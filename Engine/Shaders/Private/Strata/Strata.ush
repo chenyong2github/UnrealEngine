@@ -38,8 +38,8 @@ struct FStrataDielectric
 
 struct FStrataConductor
 {
-	float3	IOR;
-	float3	Extinction;
+	float3	Reflectivity;
+	float3	EdgeColor;
 	float2	Roughness;
 
 	float3	Normal;
@@ -47,9 +47,10 @@ struct FStrataConductor
 
 struct FStrataVolume
 {
-	float3	Absorption;
-	float3	Scattering;
+	float3	Albedo;
+	float3	Extinction;
 	float	Anisotropy;
+	float	Thickness;
 };
 
 
@@ -154,15 +155,15 @@ FStrataData GetStrataDielectricBSDF(float2 Roughness, float IOR, float3 Tint, fl
 	return StrataData;
 }
 
-FStrataData GetStrataConductorBSDF(float3 IOR, float3 Extinction, float2 Roughness, float3 Normal)
+FStrataData GetStrataConductorBSDF(float3 Reflectivity, float3 EdgeColor, float2 Roughness, float3 Normal)
 {
 	FStrataData StrataData = GetInitialisedStrataData();
 	StrataData.LayerCount++;
 
 	StrataData.Layers[0].BSDFCount++;
 	StrataData.Layers[0].BSDFs[0].BSDFType						= STRATA_BSDF_TYPE_CONDUCTOR;
-	StrataData.Layers[0].BSDFs[0].Conductor.IOR					= IOR;
-	StrataData.Layers[0].BSDFs[0].Conductor.Extinction			= Extinction;
+	StrataData.Layers[0].BSDFs[0].Conductor.Reflectivity		= Reflectivity;
+	StrataData.Layers[0].BSDFs[0].Conductor.EdgeColor			= EdgeColor;
 	StrataData.Layers[0].BSDFs[0].Conductor.Roughness			= Roughness;
 	StrataData.Layers[0].BSDFs[0].Conductor.Normal				= Normal;
 
@@ -171,16 +172,17 @@ FStrataData GetStrataConductorBSDF(float3 IOR, float3 Extinction, float2 Roughne
 	return StrataData;
 }
 
-FStrataData GetStrataVolumeBSDF(float3 Absorption, float3 Scattering, float Anisotropy)
+FStrataData GetStrataVolumeBSDF(float3 Albedo, float3 Extinction, float Anisotropy, float Thickness)
 {
 	FStrataData StrataData = GetInitialisedStrataData();
 	StrataData.LayerCount++;
 
 	StrataData.Layers[0].BSDFCount++;
 	StrataData.Layers[0].BSDFs[0].BSDFType						= STRATA_BSDF_TYPE_VOLUME;
-	StrataData.Layers[0].BSDFs[0].Volume.Absorption				= Absorption;
-	StrataData.Layers[0].BSDFs[0].Volume.Scattering				= Scattering;
+	StrataData.Layers[0].BSDFs[0].Volume.Albedo					= Albedo;
+	StrataData.Layers[0].BSDFs[0].Volume.Extinction				= Extinction;
 	StrataData.Layers[0].BSDFs[0].Volume.Anisotropy				= Anisotropy;
+	StrataData.Layers[0].BSDFs[0].Volume.Thickness				= Thickness;
 
 	StrataData.Layers[0].BSDFs[0].Weight						= 1.0f;
 
@@ -359,6 +361,14 @@ void StrataLoad_R11G11_B10F(ByteAddressBuffer StrataBuffer, inout uint ByteOffse
 	B = temp.z;
 }
 
+void StrataLoad_R11_G11_B10F(ByteAddressBuffer StrataBuffer, inout uint ByteOffset, inout float A, inout float B, inout float C)
+{
+	float3 temp = UnpackR11G11B10F(StrataLoadUint1(StrataBuffer, ByteOffset));
+	A = temp.x;
+	B = temp.y;
+	C = temp.z;
+}
+
 void StrataLoad_AlbedoGamma2ToLinear(ByteAddressBuffer StrataBuffer, inout uint ByteOffset, inout float3 A)
 {
 	A = UnpackAlbedoGamma2ToLinear(StrataLoadUint1(StrataBuffer, ByteOffset));
@@ -439,10 +449,7 @@ void PackStrataOut(
 
 			case STRATA_BSDF_TYPE_CONDUCTOR:
 			{
-				float3 ReflectivityF0 = float3(1.0, 0.1, 0.1);
-				float3 EdgeTint = float3(0.1, 1.0, 0.1);
-				ComputeF0AndEdgeTintFromIOR(BSDF.Conductor.IOR, BSDF.Conductor.Extinction, ReflectivityF0, EdgeTint);
-				float3 F = F_Schlick(ReflectivityF0, EdgeTint, ContextNoLight.VoH);
+				float3 F = F_Schlick(BSDF.Conductor.Reflectivity, BSDF.Conductor.EdgeColor, ContextNoLight.VoH);
 
 				LayerTransmittance += BSDF.Weight * (1.0f - F); // STRATA_TODO transmittance should only come from coverage
 				break;
@@ -450,16 +457,15 @@ void PackStrataOut(
 
 			case STRATA_BSDF_TYPE_VOLUME:
 			{
-				const float SafeRoughness = clamp(BSDF.Conductor.Roughness.x, 0.001, 1.0f);
-
-				const float3 ScatteringCoefficients = BSDF.Volume.Scattering;
-				const float3 AbsorptionCoefficients = BSDF.Volume.Absorption;
-				const float3 ExtinctionCoefficients = ScatteringCoefficients + AbsorptionCoefficients;
+				const float3 Albedo					= BSDF.Volume.Albedo;
+				const float3 ExtinctionCoefficients = BSDF.Volume.Extinction;
+				const float3 ScatteringCoefficients = Albedo * ExtinctionCoefficients;
+				const float3 AbsorptionCoefficients = ExtinctionCoefficients - ScatteringCoefficients;
+				const float  Thickness				= BSDF.Volume.Thickness;
 
 				const float3 SafeExtinctionThreshold = 0.000001f;
 				const float3 SafeExtinctionCoefficients = max(SafeExtinctionThreshold, ExtinctionCoefficients);
 
-				const float Thickness = 0.01f;	// STRATA_TODO where does thickness come from? For now, 1cm
 				const float PathLength = Thickness / max(0.0001f, abs(ContextNoLight.NoV));
 				const float3 SafePathSegmentTransmittance = exp(-SafeExtinctionCoefficients * PathLength);
 
@@ -512,16 +518,17 @@ void PackStrataOut(
 			break;
 			case STRATA_BSDF_TYPE_CONDUCTOR:
 			{
-				STRATA_STORE_UINT2(PackR16G16B16A16F(float4(BSDF.Conductor.IOR, BSDF.Conductor.Roughness.x)));
-				STRATA_STORE_UINT2(PackR16G16B16A16F(float4(BSDF.Conductor.Extinction, BSDF.Conductor.Roughness.y)));
+				STRATA_STORE_UINT2(PackR16G16B16A16F(float4(BSDF.Conductor.Reflectivity, BSDF.Conductor.Roughness.x)));
+				STRATA_STORE_UINT2(PackR16G16B16A16F(float4(BSDF.Conductor.EdgeColor, BSDF.Conductor.Roughness.y)));
 				STRATA_STORE_UINT2(PackR16G16B16A16F(float4(BSDF.Conductor.Normal, 0.0f)));
 				// 24 bytes
 			}
 			break;
 			case STRATA_BSDF_TYPE_VOLUME:
 			{
-				STRATA_STORE_UINT1(PackR11G11B10F(BSDF.Volume.Absorption));
-				STRATA_STORE_UINT2(PackR16G16B16A16F(float4(BSDF.Volume.Scattering, BSDF.Volume.Anisotropy)));
+				STRATA_STORE_UINT1(PackR11G11B10F(BSDF.Volume.Albedo));
+				STRATA_STORE_UINT1(PackR11G11B10F(BSDF.Volume.Extinction));
+				STRATA_STORE_UINT1(PackR11G11B10F(float3(BSDF.Volume.Anisotropy, BSDF.Volume.Thickness, 0.0f)));
 				// 12 bytes
 			}
 			break;
@@ -580,15 +587,16 @@ FStrataPixelBSDFs UnpackStrataIn(ByteAddressBuffer StrataBuffer, uint ByteOffset
 		break;
 		case STRATA_BSDF_TYPE_CONDUCTOR:
 		{
-			StrataLoad_R16G16B16F_A16F		(StrataBuffer, ByteOffset, PixelBSDFs.BSDFs[i].Conductor.IOR,			PixelBSDFs.BSDFs[i].Conductor.Roughness.x);
-			StrataLoad_R16G16B16F_A16F		(StrataBuffer, ByteOffset, PixelBSDFs.BSDFs[i].Conductor.Extinction,	PixelBSDFs.BSDFs[i].Conductor.Roughness.y);
+			StrataLoad_R16G16B16F_A16F		(StrataBuffer, ByteOffset, PixelBSDFs.BSDFs[i].Conductor.Reflectivity,	PixelBSDFs.BSDFs[i].Conductor.Roughness.x);
+			StrataLoad_R16G16B16F_A16F		(StrataBuffer, ByteOffset, PixelBSDFs.BSDFs[i].Conductor.EdgeColor,		PixelBSDFs.BSDFs[i].Conductor.Roughness.y);
 			StrataLoad_R16G16B16F_A16F		(StrataBuffer, ByteOffset, PixelBSDFs.BSDFs[i].Conductor.Normal,		DummyFloat);
 		}
 		break;
 		case STRATA_BSDF_TYPE_VOLUME:
 		{
-			StrataLoad_R11G11B10F			(StrataBuffer, ByteOffset, PixelBSDFs.BSDFs[i].Volume.Absorption);
-			StrataLoad_R16G16B16F_A16F		(StrataBuffer, ByteOffset, PixelBSDFs.BSDFs[i].Volume.Scattering,		PixelBSDFs.BSDFs[i].Volume.Anisotropy);
+			StrataLoad_R11G11B10F			(StrataBuffer, ByteOffset, PixelBSDFs.BSDFs[i].Volume.Albedo);
+			StrataLoad_R11G11B10F			(StrataBuffer, ByteOffset, PixelBSDFs.BSDFs[i].Volume.Extinction);
+			StrataLoad_R11_G11_B10F			(StrataBuffer, ByteOffset, PixelBSDFs.BSDFs[i].Volume.Anisotropy, PixelBSDFs.BSDFs[i].Volume.Thickness, DummyFloat);
 		}
 		break;
 		}
