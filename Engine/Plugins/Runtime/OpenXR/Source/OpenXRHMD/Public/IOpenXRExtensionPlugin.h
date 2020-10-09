@@ -128,6 +128,20 @@ public:
 	virtual IOpenXRCustomAnchorSupport* GetCustomAnchorSupport() { return nullptr; }
 
 	/**
+	* Callback to provide extra view configurations that should be rendered in the main render pass
+	*/
+	virtual void GetViewConfigurations(XrSystemId InSystem, TArray<XrViewConfigurationView>& OutViews)
+	{
+	}
+
+	/**
+	* Callback to provide the pose and fov of each view that was provided in GetViewConfigurations
+	*/
+	virtual void GetViewLocations(XrSession InSession, TArray<XrView>& OutViews)
+	{
+	}
+
+	/**
 	* Callbacks with returned pointer added to next chain, do *not* return pointers to structs on the stack.
 	* Remember to assign InNext to the next pointer of your struct or otherwise you may break the next chain.
 	*/
@@ -178,7 +192,7 @@ public:
 	}
 
 	// FOpenXRRenderBridge::Present, RHI thread
-	virtual const void* OnEndFrame(XrSession InSession, XrTime DisplayTime, const void* InNext)
+	virtual const void* OnEndFrame(XrSession InSession, XrTime DisplayTime, const TArray<XrSwapchainSubImage> InColorImages, const TArray<XrSwapchainSubImage> InDepthImages, const void* InNext)
 	{
 		return InNext;
 	}
