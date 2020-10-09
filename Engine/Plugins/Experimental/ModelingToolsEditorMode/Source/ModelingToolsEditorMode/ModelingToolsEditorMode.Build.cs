@@ -51,6 +51,7 @@ public class ModelingToolsEditorMode : ModuleRules
 				"StaticMeshDescription",
                 "InteractiveToolsFramework",
 				"EditorInteractiveToolsFramework",
+				"ModelingComponents",
 				"MeshModelingTools",
 				"MeshModelingToolsEditorOnly",
 
