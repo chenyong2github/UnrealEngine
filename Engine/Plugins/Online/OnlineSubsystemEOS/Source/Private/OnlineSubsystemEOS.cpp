@@ -432,8 +432,7 @@ IOnlineStoreV2Ptr FOnlineSubsystemEOS::GetStoreV2Interface() const
 
 IOnlinePurchasePtr FOnlineSubsystemEOS::GetPurchaseInterface() const
 {
-	UE_LOG_ONLINE(Error, TEXT("Purchase Interface Requested"));
-	return nullptr;
+	return StoreInterfacePtr;
 }
 
 IOnlineAchievementsPtr FOnlineSubsystemEOS::GetAchievementsInterface() const
