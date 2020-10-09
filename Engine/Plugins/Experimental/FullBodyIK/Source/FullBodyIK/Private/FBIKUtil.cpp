@@ -27,30 +27,29 @@ namespace FBIKUtil
 		return Axis * Radian;
 	}
 
-	// the output should be from current index -> to root parent or to max depth
-	bool GetBoneChain(FRigHierarchyContainer* Hierarchy, const FRigElementKey& Root, const FRigElementKey& Current, int32 MaxDepth, TArray<FRigElementKey>& ChainIndices)
+	// the output should be from current index -> to root parent 
+	bool GetBoneChain(FRigHierarchyContainer* Hierarchy, const FRigElementKey& Root, const FRigElementKey& Current, TArray<FRigElementKey>& ChainIndices)
 	{
 		ChainIndices.Reset();
 
 		FRigElementKey Iterator = Current;
 
-		while (Iterator.IsValid() && Iterator != Root && ChainIndices.Num() < MaxDepth)
+		// iterates until key is valid
+		while (Iterator.IsValid() && Iterator != Root)
 		{
 			ChainIndices.Insert(Iterator, 0);
 			Iterator = Hierarchy->GetParentKey(Iterator);
 		}
 
-		// add the last one if valid
-		if (Iterator.IsValid())
-		{
-			ChainIndices.Insert(Iterator, 0);
-
-			return true;
-		}
+ 		// add the last one if valid
+ 		if (Iterator.IsValid())
+ 		{
+ 			ChainIndices.Insert(Iterator, 0);
+ 		}
 
 		// when you reached to something invalid, that means, we did not hit the 
 		// expected root, we iterated to the root and above, and we exhausted our option
 		// so if you hit or valid target by the hitting max depth, we should 
-		return false;
+		return ChainIndices.Num() > 0;
 	}
 }
