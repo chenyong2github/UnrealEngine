@@ -5,6 +5,7 @@
 =============================================================================*/
 #include "DebugViewModeHelpers.h"
 #include "DebugViewModeInterface.h"
+#include "Materials/MaterialInterface.h"
 #include "MaterialShaderType.h"
 #include "MeshMaterialShader.h"
 #include "ShaderCompiler.h"
