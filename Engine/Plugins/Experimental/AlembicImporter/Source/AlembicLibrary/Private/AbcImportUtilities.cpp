@@ -426,8 +426,13 @@ bool AbcImporterUtilities::GenerateAbcMeshSampleDataForFrame(const Alembic::AbcG
 	
 	if (EnumHasAnyFlags(ReadFlags, ESampleReadFlags::Velocities))
 	{
-		Alembic::Abc::V3fArraySamplePtr VelocitiesSample = MeshSample.getVelocities();
-		bRetrievalResult &= RetrieveTypedAbcData<Alembic::Abc::V3fArraySamplePtr, FVector>(VelocitiesSample, Sample->Velocities);
+		const bool bVelocitiesAvailable = Schema.getVelocitiesProperty().valid();
+
+		if (bVelocitiesAvailable)
+		{
+			Alembic::Abc::V3fArraySamplePtr VelocitiesSample = MeshSample.getVelocities();
+			bRetrievalResult &= RetrieveTypedAbcData<Alembic::Abc::V3fArraySamplePtr, FVector>(VelocitiesSample, Sample->Velocities);
+		}
 	}
 
 	TArray<uint32> FaceCounts;	
