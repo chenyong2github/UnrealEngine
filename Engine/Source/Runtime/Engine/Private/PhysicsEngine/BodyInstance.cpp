@@ -1048,6 +1048,8 @@ void FBodyInstance::UpdatePhysicsFilterData()
 		{
 			PhysScene->UpdateActorInAccelerationStructure(Actor);
 		}
+		// Always wake actors up when collision filters change
+		FPhysicsInterface::WakeUp_AssumesLocked(Actor);
 #endif
 	});
 
