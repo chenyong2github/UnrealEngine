@@ -15,6 +15,7 @@ namespace UnrealBuildTool.Rules
 				new string[] {
 					"AvfMediaFactory",
 					"Core",
+					"Engine",
 					"ApplicationCore",
 					"MediaUtils",
 					"RenderCore",
