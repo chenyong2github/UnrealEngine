@@ -2159,7 +2159,7 @@ void FEditorViewportClient::HandleViewportStatDisableAll(const bool bInAnyViewpo
 	{
 		SetShowStats(false);
 		SetStatEnabled(NULL, false, true);
-		RemoveRealtimeOverride(LOCTEXT("RealtimeOverrideMessage_Stats", "Stats Display"));
+		RemoveRealtimeOverride(LOCTEXT("RealtimeOverrideMessage_Stats", "Stats Display"), /*bCheckMissingOverride*/false);
 	}
 }
 
