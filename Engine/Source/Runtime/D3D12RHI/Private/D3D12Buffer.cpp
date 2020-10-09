@@ -274,10 +274,7 @@ void FD3D12Buffer::Rename(FD3D12ResourceLocation& NewLocation)
 	for (FD3D12BaseShaderResourceView* DynamicSRVBase : DynamicSRVs)
 	{
 		FD3D12ShaderResourceView* DynamicSRV = static_cast<FD3D12ShaderResourceView*>(DynamicSRVBase);
-		if (DynamicSRV->IsValid())
-		{
-			DynamicSRV->Rename(ResourceLocation);
-		}
+		DynamicSRV->Rename(ResourceLocation);
 	}
 }
 
@@ -302,10 +299,7 @@ void FD3D12Buffer::RenameLDAChain(FD3D12ResourceLocation& NewLocation)
 			for (FD3D12BaseShaderResourceView* DynamicSRVBase : NextBuffer->DynamicSRVs)
 			{
 				FD3D12ShaderResourceView* DynamicSRV = static_cast<FD3D12ShaderResourceView*>(DynamicSRVBase);
-				if (DynamicSRV->IsValid())
-				{
-					DynamicSRV->Rename(NextBuffer->ResourceLocation);
-				}
+				DynamicSRV->Rename(NextBuffer->ResourceLocation);
 			}
 		}
 	}
