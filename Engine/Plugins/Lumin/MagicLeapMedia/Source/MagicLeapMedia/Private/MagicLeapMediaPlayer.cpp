@@ -237,7 +237,7 @@ FString FMagicLeapMediaPlayer::GetInfo() const
 
 FGuid FMagicLeapMediaPlayer::GetPlayerPluginGUID() const
 {
-	static PlayerPluginGUID(0x9af3a209, 0xed2641e8, 0x9bcee61b, 0x2d529a06);
+	static FGuid PlayerPluginGUID(0x9af3a209, 0xed2641e8, 0x9bcee61b, 0x2d529a06);
 	return PlayerPluginGUID;
 }
 
