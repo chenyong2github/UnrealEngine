@@ -242,6 +242,17 @@ struct FAbcConversionSettings
 	FVector Rotation;
 };
 
+UENUM(Blueprintable)
+enum class EAbcGeometryCacheMotionVectorsImport : uint8
+{
+	/** No motion vectors will be present in the geometry cache. */
+	NoMotionVectors,
+	/** Imports the Velocities from the Alembic file and converts them to motion vectors. This will increase file size as the motion vectors will be stored on disc. */
+	ImportAbcVelocitiesAsMotionVectors,
+	/** Force calculation of motion vectors during import. This will increase file size as the motion vectors will be stored on disc. */
+	CalculateMotionVectorsDuringImport
+};
+
 USTRUCT(Blueprintable)
 struct FAbcGeometryCacheSettings
 {
@@ -250,7 +261,8 @@ struct FAbcGeometryCacheSettings
 	FAbcGeometryCacheSettings()
 	:	bFlattenTracks(true),
 		bApplyConstantTopologyOptimizations(false),
-		bCalculateMotionVectorsDuringImport(false),
+		bCalculateMotionVectorsDuringImport_DEPRECATED(false),
+		MotionVectors(EAbcGeometryCacheMotionVectorsImport::NoMotionVectors),
 		bOptimizeIndexBuffers(false),
 		CompressedPositionPrecision(0.01f),
 		CompressedTextureCoordinatesNumberOfBits(10)
@@ -266,8 +278,11 @@ struct FAbcGeometryCacheSettings
 	bool bApplyConstantTopologyOptimizations;
 
 	/** Force calculation of motion vectors during import. This will increase file size as the motion vectors will be stored on disc. Recommended to OFF.*/
+	UPROPERTY()
+	bool bCalculateMotionVectorsDuringImport_DEPRECATED;
+
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = GeometryCache)
-	bool bCalculateMotionVectorsDuringImport;
+	EAbcGeometryCacheMotionVectorsImport MotionVectors;
 
 	/** Optimizes index buffers for each unique frame, to allow better cache coherency on the GPU. Very costly and time-consuming process, recommended to OFF.*/
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = GeometryCache)
@@ -318,4 +333,7 @@ class ALEMBICLIBRARY_API UAbcImportSettings : public UObject
 
 	bool bReimport;
 	int32 NumThreads;
+
+public:
+	virtual void Serialize(class FArchive& Archive) override;
 };

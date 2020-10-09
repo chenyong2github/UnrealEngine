@@ -527,6 +527,11 @@ const int32 FAbcFile::GetFramerate() const
 	return FramesPerSecond;
 }
 
+const float FAbcFile::GetSecondsPerFrame() const
+{
+	return SecondsPerFrame;
+}
+
 int32 FAbcFile::GetFrameIndex(float Time)
 {
 	if (SecondsPerFrame > 0.f)
