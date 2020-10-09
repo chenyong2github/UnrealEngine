@@ -7,12 +7,10 @@
 class FNiagaraSystemInstance;
 
 // Global HLSL variable base names, used by HLSL.
+extern NIAGARA_API const FString NumAttributesName;
 extern NIAGARA_API const FString NumCellsName;
 extern NIAGARA_API const FString CellSizeName;
 extern NIAGARA_API const FString WorldBBoxSizeName;
-
-extern NIAGARA_API const FString NumCellsName;
-extern NIAGARA_API const FString CellSizeName;
 
 // Global VM function names, also used by the shaders code generation methods.
 extern NIAGARA_API const FName NumCellsFunctionName;
