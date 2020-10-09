@@ -23,6 +23,8 @@
 #include "Engine/TextureLODSettings.h"
 #include "RenderUtils.h"
 #include "Rendering/StreamableTextureResource.h"
+#include "Interfaces/ITextureFormat.h"
+#include "Interfaces/ITextureFormatModule.h"
 
 #if WITH_EDITORONLY_DATA
 	#include "EditorFramework/AssetImportData.h"
@@ -1616,6 +1618,28 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 		else if (TextureFormatName == NameBC7)
 		{
 			TextureFormatName = NameBGRA8;
+		}
+	}
+
+	// Prepend a texture format to allow a module to override the compression (Ex: this allows you to replace TextureFormatDXT with a different compressor)
+	FString FormatPrefix;
+	bool bHasPrefix = EngineSettings.GetString(TEXT("AlternateTextureCompression"), TEXT("TextureFormatPrefix"), FormatPrefix);
+
+	FString TextureCompressionFormat;
+	bool bHasFormat = EngineSettings.GetString(TEXT("AlternateTextureCompression"), TEXT("TextureCompressionFormat"), TextureCompressionFormat);
+
+	if (bHasPrefix && bHasFormat)
+	{
+		ITextureFormat* TextureFormat = FModuleManager::LoadModuleChecked<ITextureFormatModule>(*TextureCompressionFormat).GetTextureFormat();
+
+		TArray<FName> SupportedFormats;
+		TextureFormat->GetSupportedFormats(SupportedFormats);
+
+		FName NewFormatName(FormatPrefix + TextureFormatName.ToString());
+
+		if (SupportedFormats.Contains(NewFormatName))
+		{
+			TextureFormatName = NewFormatName;
 		}
 	}
 
