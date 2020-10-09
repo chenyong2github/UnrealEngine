@@ -733,6 +733,17 @@ FString FHlslNiagaraTranslator::BuildParameterMapHlslDefinitions(TArray<FNiagara
 		UniqueVariables.AddUnique(Var);
 	}
 
+	// Add in any interpolated spawn variables
+	for (FNiagaraVariable& Var : InterpSpawnVariables)
+	{
+		if (Var.GetType().GetClass() != nullptr)
+		{
+			continue;
+		}
+
+		UniqueVariables.AddUnique(Var);
+	}
+
 	bool bIsSpawnScript = IsSpawnScript();
 
 	// For now we only care about attributes from the other output parameter map histories.
@@ -754,35 +765,6 @@ FString FHlslNiagaraTranslator::BuildParameterMapHlslDefinitions(TArray<FNiagara
 						}
 					}
 				}
-			}
-		}
-	}
-
-
-	// Define all the top-level structs and look for sub-structs as yet undefined..
-	for (int32 UniqueParamMapIdx = 0; UniqueParamMapIdx < UniqueParamMapStartingPins.Num(); UniqueParamMapIdx++)
-	{
-		for (int32 ParamMapIdx = 0; ParamMapIdx < ParamMapHistories.Num(); ParamMapIdx++)
-		{
-			// We need to unify the variables across all the parameter maps that we've found during compilation. We 
-			// define the parameter maps as the "same struct type" if they originate from the same input pin.
-			const UEdGraphPin* OriginalPin = ParamMapHistories[ParamMapIdx].GetOriginalPin();
-			if (OriginalPin != UniqueParamMapStartingPins[UniqueParamMapIdx])
-			{
-				continue;
-			}
-
-			for (int32 VarIdx = 0; VarIdx < ParamMapHistories[ParamMapIdx].Variables.Num(); VarIdx++)
-			{
-				const FNiagaraVariable& SrcVariable = ParamMapHistories[ParamMapIdx].Variables[VarIdx];
-
-				if (SrcVariable.GetType().GetClass() != nullptr)
-				{
-					continue;
-				}
-
-				FNiagaraVariable Variable = SrcVariable;
-				UniqueVariables.AddUnique(Variable);
 			}
 		}
 	}
@@ -1447,6 +1429,21 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 	}
 	else
 	{
+		const bool UsesInterpolation = RequiresInterpolation();
+
+		if (UsesInterpolation)
+		{
+			InterpSpawnVariables.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("Interpolation.InterpSpawn_Index"));
+			InterpSpawnVariables.Emplace(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Interpolation.InterpSpawn_SpawnTime"));
+			InterpSpawnVariables.Emplace(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Interpolation.InterpSpawn_UpdateTime"));
+			InterpSpawnVariables.Emplace(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Interpolation.InterpSpawn_InvSpawnTime"));
+			InterpSpawnVariables.Emplace(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Interpolation.InterpSpawn_InvUpdateTime"));
+			InterpSpawnVariables.Emplace(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Interpolation.SpawnInterp"));
+			InterpSpawnVariables.Emplace(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Interpolation.Emitter_SpawnInterval"));
+			InterpSpawnVariables.Emplace(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Interpolation.Emitter_InterpSpawnStartDt"));
+			InterpSpawnVariables.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("Interpolation.Emitter_SpawnGroup"));
+		}
+		
 		for (FNiagaraParameterMapHistory& FoundHistory : OtherOutputParamMapHistories)
 		{
 			const UNiagaraNodeOutput* HistoryOutputNode = FoundHistory.GetFinalOutputNode();
@@ -1474,34 +1471,12 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 						FoundHistory.AddVariable(Var, Var, nullptr);
 					}
 
-					if (RequiresInterpolation())
+					if (UsesInterpolation)
 					{
-						FNiagaraVariable Var = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Interpolation.InterpSpawn_Index"));
-						FoundHistory.AddVariable(Var, Var, nullptr);
-
-						Var = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Interpolation.InterpSpawn_SpawnTime"));
-						FoundHistory.AddVariable(Var, Var, nullptr);
-
-						Var = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Interpolation.InterpSpawn_UpdateTime"));
-						FoundHistory.AddVariable(Var, Var, nullptr);
-
-						Var = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Interpolation.InterpSpawn_InvSpawnTime"));
-						FoundHistory.AddVariable(Var, Var, nullptr);
-
-						Var = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Interpolation.InterpSpawn_InvUpdateTime"));
-						FoundHistory.AddVariable(Var, Var, nullptr);
-
-						Var = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Interpolation.SpawnInterp"));
-						FoundHistory.AddVariable(Var, Var, nullptr);
-
-						Var = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Interpolation.Emitter_SpawnInterval"));
-						FoundHistory.AddVariable(Var, Var, nullptr);
-
-						Var = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Interpolation.Emitter_InterpSpawnStartDt"));
-						FoundHistory.AddVariable(Var, Var, nullptr);
-
-						Var = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Interpolation.Emitter_SpawnGroup"));
-						FoundHistory.AddVariable(Var, Var, nullptr);
+						for (const FNiagaraVariable& Var : InterpSpawnVariables)
+						{
+							FoundHistory.AddVariable(Var, Var, nullptr);
+						}
 					}
 
 					ParamMapHistories[ParamMapIdx] = (FoundHistory);
