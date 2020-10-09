@@ -18037,6 +18037,10 @@ int32 UMaterialExpressionSingleLayerWaterMaterialOutput::Compile(class FMaterial
 	{
 		CodeInput = PhaseG.IsConnected() ? PhaseG.Compile(Compiler) : Compiler->Constant(0.f);
 	}
+	else if (OutputIndex == 3)
+	{
+		CodeInput = ColorScaleBehindWater.IsConnected() ? ColorScaleBehindWater.Compile(Compiler) : Compiler->Constant(1.f);
+	}
 
 	return Compiler->CustomOutput(this, OutputIndex, CodeInput);
 }
@@ -18050,7 +18054,7 @@ void UMaterialExpressionSingleLayerWaterMaterialOutput::GetCaption(TArray<FStrin
 
 int32 UMaterialExpressionSingleLayerWaterMaterialOutput::GetNumOutputs() const
 {
-	return 3;
+	return 4;
 }
 
 FString UMaterialExpressionSingleLayerWaterMaterialOutput::GetFunctionName() const

@@ -113,6 +113,9 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 		const float3 ScatteringCoeff = max(0.0f, GetSingleLayerWaterMaterialOutput0(MaterialParameters));
 		const float3 AbsorptionCoeff = max(0.0f, GetSingleLayerWaterMaterialOutput1(MaterialParameters));
 		const float PhaseG = clamp(GetSingleLayerWaterMaterialOutput2(MaterialParameters), -1.0f, 1.0f);
+		//Sample the optional Material Input ColorScaleBehindWater and fade it out at shorelines to avoid hard edge intersections
+		float3 ColorScaleBehindWater = lerp(1.0f, max(0.0f, GetSingleLayerWaterMaterialOutput3(MaterialParameters)), saturate(BehindWaterDeltaDepth * 0.02f));
+		
 		const float3 ExtinctionCoeff = ScatteringCoeff + AbsorptionCoeff; 
 		// Max to avoid division by 0 with the analytical integral below.
 		// 1e-5 is high enough to avoid denorms on mobile
@@ -199,7 +202,7 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 		Transmittance *= CameraIsUnderWater ? (1.0 - EnvBrdf) : 1.0;		// Above	"		"		"		"		"
 
 		// Add single in-scattering apply colored transmittance to scene color
-		Output.Luminance = WaterVisibility * (ScatteredLuminance + Transmittance * BehindWaterSceneLuminance);
+		Output.Luminance = WaterVisibility * (ScatteredLuminance + Transmittance * (BehindWaterSceneLuminance* ColorScaleBehindWater));
 		Output.WaterToSceneTransmittance = Transmittance;
 		Output.WaterToSceneToLightTransmittance = Transmittance * MeanTransmittanceToLightSources;
 	}
