@@ -40,7 +40,7 @@ bool UDatasmithRuntimeLibrary::LoadDatasmithScene(ADatasmithRuntimeActor* Datasm
 		return false;
 	}
 
-	DatasmithRuntimeActor->bReceiving = true;
+	DatasmithRuntimeActor->OnOpenDelta();
 
 
 	FDatasmithSceneSource Source;
@@ -88,7 +88,7 @@ bool UDatasmithRuntimeLibrary::LoadDatasmithScene(ADatasmithRuntimeActor* Datasm
 
 		DirectLink::BuildIndexForScene(&SceneElement.Get());
 
-		DatasmithRuntimeActor->bReceiving = false;
+		DatasmithRuntimeActor->OnCloseDelta();
 
 		DatasmithRuntimeActor->SetScene(SceneElement);
 
@@ -216,7 +216,7 @@ void UDatasmithRuntimeLibrary::ResetActor(ADatasmithRuntimeActor* DatasmithRunti
 	}
 }
 
-UDirectLinkProxy * UDatasmithRuntimeLibrary::GetDirectLinkProxy()
+UDirectLinkProxy* UDatasmithRuntimeLibrary::GetDirectLinkProxy()
 {
 	static TStrongObjectPtr<UDirectLinkProxy> DirectLinkProxy;
 

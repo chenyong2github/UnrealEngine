@@ -9,11 +9,11 @@
 
 class IDatasmithMasterMaterialElement;
 
-class FDatasmithRevitLiveMaterialSelector : public FDatasmithMasterMaterialSelector
+class FDatasmithRuntimeRevitMaterialSelector : public FDatasmithMasterMaterialSelector
 {
 public:
-	FDatasmithRevitLiveMaterialSelector();
-	virtual ~FDatasmithRevitLiveMaterialSelector() = default;
+	FDatasmithRuntimeRevitMaterialSelector();
+	virtual ~FDatasmithRuntimeRevitMaterialSelector() = default;
 
 	virtual bool IsValid() const override;
 	virtual const FDatasmithMasterMaterial& GetMasterMaterial( const TSharedPtr< IDatasmithMasterMaterialElement >& /*InDatasmithMaterial*/ ) const override;
