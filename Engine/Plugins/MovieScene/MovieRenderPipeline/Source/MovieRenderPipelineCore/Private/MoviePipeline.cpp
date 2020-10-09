@@ -1465,7 +1465,13 @@ void UMoviePipeline::ResolveFilenameFormatArguments(const FString& InFormatStrin
 	OutFinalFormatArgs = FMoviePipelineFormatArgs();
 	OutFinalFormatArgs.InJob = CurrentJob;
 
-	// From Settings
+	// Copy the file metadata from our InOutputState
+	if (InOutputState)
+	{
+		OutFinalFormatArgs.FileMetadata = InOutputState->FileMetadata;
+	}
+
+	// Now get the settings from our config. This will expand the FileMetadata and assign the default values used in the UI.
 	GetPipelineMasterConfig()->GetFormatArguments(OutFinalFormatArgs, true);
 
 	// Ensure they used relative frame numbers in the output so they get the right number of output frames.
@@ -1479,7 +1485,8 @@ void UMoviePipeline::ResolveFilenameFormatArguments(const FString& InFormatStrin
 	// From Output State
 	if (InOutputState)
 	{
-		OutFinalFormatArgs.FileMetadata = InOutputState->FileMetadata;
+		// Now that the settings have been added from the configuration, we overwrite them with the ones in the output state. This is required so that
+		// things like frame number resolve to the actual output state correctly.
 		InOutputState->GetFilenameFormatArguments(OutFinalFormatArgs, OutputSettings->ZeroPadFrameNumbers, OutputSettings->FrameNumberOffset + InFrameNumberOffset, bForceRelativeFrameNumbers);
 	}
 
@@ -1495,6 +1502,8 @@ void UMoviePipeline::ResolveFilenameFormatArguments(const FString& InFormatStrin
 		OutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/jobDate"), InitializationTime.ToString(TEXT("%Y.%m.%d")));
 		OutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/jobTime"), InitializationTime.ToString(TEXT("%H.%M.%S")));
 		OutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/jobVersion"), InitializationVersion);
+		OutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/jobName"), CurrentJob->JobName);
+		OutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/jobAuthor"), CurrentJob->Author);
 
 		// By default, we don't want to show frame duplication numbers. If we need to start writing them,
 		// they need to come before the frame number (so that tools recognize them as a sequence).
