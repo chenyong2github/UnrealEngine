@@ -673,14 +673,6 @@ bool FHitProxyMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatc
 			bAddTranslucentPrimitive = HitProxy->AlwaysAllowsTranslucentPrimitives();
 		}
 	}
-	else
-	{
-		// If the batch hit proxy is invalid, we won't try to add this if it is a translucent primitive (prefer to preserve the current hit proxy contents)
-		if (MeshBatch.BatchHitProxyId == FHitProxyId())
-		{
-			bAddTranslucentPrimitive = false;
-		}
-	}
 
 	bool bResult = true;
 	if (bAddTranslucentPrimitive || !IsTranslucentBlendMode(BlendMode))
@@ -692,6 +684,11 @@ bool FHitProxyMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatc
 
 void FHitProxyMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId)
 {
+	if (MeshBatch.BatchHitProxyId == FHitProxyId::InvisibleHitProxyId)
+	{
+		return;
+	}
+
 	if (MeshBatch.bUseForMaterial && MeshBatch.bSelectable && Scene->RequiresHitProxies() && (!PrimitiveSceneProxy || PrimitiveSceneProxy->IsSelectable()))
 	{
 		const FMaterialRenderProxy* MaterialRenderProxy = MeshBatch.MaterialRenderProxy;
