@@ -204,8 +204,16 @@ void FTimingGraphTrack::UpdateFrameSeries(FTimingGraphSeries& Series, const FTim
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 		const Trace::IFrameProvider& FramesProvider = ReadFrameProvider(*Session.Get());
-		uint64 FrameCount = FramesProvider.GetFrameCount(Series.FrameType);
-		FramesProvider.EnumerateFrames(Series.FrameType, 0, FrameCount - 1, [&Builder](const Trace::FFrame& Frame)
+
+		const TArray64<double>& FrameStartTimes = FramesProvider.GetFrameStartTimes(Series.FrameType);
+
+		const int64 StartLowerBound = Algo::LowerBound(FrameStartTimes, Viewport.GetStartTime());
+		const uint64 StartIndex = (StartLowerBound > 1) ? StartLowerBound - 2 : 0;
+
+		const int64 EndLowerBound = Algo::LowerBound(FrameStartTimes, Viewport.GetEndTime());
+		const uint64 EndIndex = EndLowerBound + 1;
+
+		FramesProvider.EnumerateFrames(Series.FrameType, StartIndex, EndIndex, [&Builder](const Trace::FFrame& Frame)
 		{
 			//TODO: add a "frame converter" (i.e. to fps, miliseconds or seconds)
 			const double Duration = Frame.EndTime - Frame.StartTime;
