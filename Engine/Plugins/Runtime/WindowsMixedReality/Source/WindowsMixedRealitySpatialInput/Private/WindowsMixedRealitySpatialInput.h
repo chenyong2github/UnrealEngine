@@ -56,7 +56,6 @@ namespace WindowsMixedReality
 		virtual ETrackingStatus GetControllerTrackingStatus(const int32 ControllerIndex, const EControllerHand DeviceHand) const override;
 		virtual bool GetHandJointPosition(const FName MotionSource, const int32 jointIndex, FVector& OutPosition) const override;
 
-		void OnConfigureGestures(const FXRGestureConfig& InGestureConfig, bool& bSuccess);
 		bool CaptureGestures(uint32 capturingSet);
 		static void RegisterKeys() noexcept;
 
