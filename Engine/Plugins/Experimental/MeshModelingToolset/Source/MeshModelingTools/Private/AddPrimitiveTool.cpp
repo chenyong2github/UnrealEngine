@@ -209,9 +209,9 @@ void UAddPrimitiveTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClick
 	// hit position (temp)
 	bool bHit = false;
 
+	FPlane DrawPlane(FVector::ZeroVector, FVector(0, 0, 1));
 	if (ShapeSettings->PlaceMode == EMakeMeshPlacementType::GroundPlane)
 	{
-		FPlane DrawPlane(FVector::ZeroVector, FVector(0, 0, 1));
 		FVector DrawPlanePos = FMath::RayPlaneIntersection(ClickPosWorldRay.Origin, ClickPosWorldRay.Direction, DrawPlane);
 		bHit = true;
 		ShapeFrame = FFrame3f(DrawPlanePos);
@@ -230,6 +230,13 @@ void UAddPrimitiveTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClick
 			}
 			ShapeFrame = FFrame3f(Result.ImpactPoint, Normal);
 			ShapeFrame.ConstrainedAlignPerpAxes();
+		}
+		else
+		{
+			// fall back to ground plane if we don't have a scene hit
+			FVector DrawPlanePos = FMath::RayPlaneIntersection(ClickPosWorldRay.Origin, ClickPosWorldRay.Direction, DrawPlane);
+			bHit = true;
+			ShapeFrame = FFrame3f(DrawPlanePos);
 		}
 	}
 
