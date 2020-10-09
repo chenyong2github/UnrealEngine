@@ -78,6 +78,25 @@ public:
 	/* Unparents the selected elements from the hierarchy */
 	TSharedPtr<FUICommandInfo> Unparent;
 
+	/* Flatten hierarchy on filter */
+	TSharedPtr< FUICommandInfo > FilteringFlattensHierarchy;
+
+	/* Hide parents on filter */
+	TSharedPtr< FUICommandInfo > HideParentsWhenFiltering;
+
+	/* Show imported bones */
+	TSharedPtr< FUICommandInfo > ShowImportedBones;
+
+	/* Show bones */
+	TSharedPtr< FUICommandInfo > ShowBones;
+
+	/* Show controls */
+	TSharedPtr< FUICommandInfo > ShowControls;
+
+	/* Show spaces */
+	TSharedPtr< FUICommandInfo > ShowSpaces;
+
+
 	/**
 	 * Initialize commands
 	 */

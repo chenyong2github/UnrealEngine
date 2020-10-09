@@ -211,6 +211,7 @@ private:
 	/** Set Selection Changed */
 	void OnSelectionChanged(TSharedPtr<FRigTreeElement> Selection, ESelectInfo::Type SelectInfo);
 
+	TSharedRef< SWidget > CreateFilterMenu();
 	TSharedPtr< SWidget > CreateContextMenu();
 	void OnItemClicked(TSharedPtr<FRigTreeElement> InItem);
 	void OnItemDoubleClicked(TSharedPtr<FRigTreeElement> InItem);
@@ -232,6 +233,24 @@ private:
 
 	/** Our owning control rig editor */
 	TWeakPtr<FControlRigEditor> ControlRigEditor;
+
+	/** Flatten when text filtering is active */
+	bool bFlattenHierarchyOnFilter;
+
+	/** Hide parents when text filtering is active */
+	bool bHideParentsOnFilter;
+
+	/** Whether or not to show imported bones in the hierarchy */
+	bool bShowImportedBones;
+
+	/** Whether or not to show bones in the hierarchy */
+	bool bShowBones;
+
+	/** Whether or not to show controls in the hierarchy */
+	bool bShowControls;
+
+	/** Whether or not to show spaces in the hierarchy */
+	bool bShowSpaces;
 
 	/** Search box widget */
 	TSharedPtr<SSearchBox> FilterBox;
@@ -300,11 +319,11 @@ private:
 	void HandleRefreshEditorFromBlueprint(UControlRigBlueprint* InBlueprint);
 
 	static TSharedPtr<FRigTreeElement> FindElement(const FRigElementKey& InElementKey, TSharedPtr<FRigTreeElement> CurrentItem);
-	void AddElement(FRigElementKey InKey, FRigElementKey InParentKey = FRigElementKey());
+	void AddElement(FRigElementKey InKey, FRigElementKey InParentKey = FRigElementKey(), const bool bIgnoreTextFilter = false);
 	void AddSpacerElement();
-	void AddBoneElement(FRigBone InBone);
-	void AddControlElement(FRigControl InControl);
-	void AddSpaceElement(FRigSpace InSpace);
+	void AddBoneElement(FRigBone InBone, const bool bIgnoreTextFilter = false);
+	void AddControlElement(FRigControl InControl, const bool bIgnoreTextFilter = false);
+	void AddSpaceElement(FRigSpace InSpace, const bool bIgnoreTextFilter = false);
 	void ReparentElement(FRigElementKey InKey, FRigElementKey InParentKey);
 
 public:
