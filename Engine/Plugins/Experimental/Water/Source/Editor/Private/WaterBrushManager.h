@@ -39,133 +39,126 @@ public:
 	UJumpFloodComponent2D* JumpFloodComponent2D = nullptr;
 
 	// RTs
-	UPROPERTY(VisibleAnywhere, Transient, meta = (DisplayName = "Heightmap RT A", Category = "Render Targets", OverrideNativeName = "Heightmap RT A"))
+	UPROPERTY(VisibleAnywhere, Transient, meta = (DisplayName = "Heightmap RT A", Category = "Render Targets"))
 	UTextureRenderTarget2D* HeightmapRTA = nullptr;
 
-	UPROPERTY(VisibleAnywhere, Transient, meta=(DisplayName="Heightmap RT B", Category="Render Targets", OverrideNativeName="Heightmap RT B"))
+	UPROPERTY(VisibleAnywhere, Transient, meta=(DisplayName="Heightmap RT B", Category="Render Targets"))
 	UTextureRenderTarget2D* HeightmapRTB = nullptr;
 
-	UPROPERTY(VisibleAnywhere, Transient, meta=(DisplayName="Jump Flood RT A", Category="Render Targets", OverrideNativeName="Jump Flood RT A"))
+	UPROPERTY(VisibleAnywhere, Transient, meta=(DisplayName="Jump Flood RT A", Category="Render Targets"))
 	UTextureRenderTarget2D* JumpFloodRTA;
 
-	UPROPERTY(VisibleAnywhere, Transient, meta=(DisplayName="Jump Flood RT B", Category="Render Targets", OverrideNativeName="Jump Flood RT B"))
+	UPROPERTY(VisibleAnywhere, Transient, meta=(DisplayName="Jump Flood RT B", Category="Render Targets"))
 	UTextureRenderTarget2D* JumpFloodRTB = nullptr;
 
-	UPROPERTY(VisibleAnywhere, Transient, meta=(DisplayName="Depth And Shape RT A", Category="Render Targets", OverrideNativeName="Depth and Shape RT A"))
+	UPROPERTY(VisibleAnywhere, Transient, meta=(DisplayName="Depth And Shape RT A", Category="Render Targets"))
 	UTextureRenderTarget2D* DepthAndShapeRT = nullptr;
 
-	UPROPERTY(VisibleAnywhere, Transient, meta=(DisplayName="Water Depth And Velocity RT", Category="Render Targets", OverrideNativeName="Water Depth and Velocity RT"))
+	UPROPERTY(VisibleAnywhere, Transient, meta=(DisplayName="Water Depth And Velocity RT", Category="Render Targets"))
 	UTextureRenderTarget2D* WaterDepthAndVelocityRT = nullptr;
 
-	UPROPERTY(VisibleAnywhere, Transient, meta=(DisplayName="Combined Velocity And Height RT A", Category="Render Targets", OverrideNativeName="Combined Velocity and Height RT A"))
+	UPROPERTY(VisibleAnywhere, Transient, meta=(DisplayName="Combined Velocity And Height RT A", Category="Render Targets"))
 	UTextureRenderTarget2D* CombinedVelocityAndHeightRTA = nullptr;
 
-	UPROPERTY(VisibleAnywhere, Transient, meta=(DisplayName="Combined Velocity And Height RT B", Category="Render Targets", OverrideNativeName="Combined Velocity and Height RT B"))
+	UPROPERTY(VisibleAnywhere, Transient, meta=(DisplayName="Combined Velocity And Height RT B", Category="Render Targets"))
 	UTextureRenderTarget2D* CombinedVelocityAndHeightRTB = nullptr;
 
-	UPROPERTY(VisibleAnywhere, Transient, meta=(DisplayName="LS RT Ref", Category="Render Targets", OverrideNativeName="LS RT Ref"))
+	UPROPERTY(VisibleAnywhere, Transient, meta=(DisplayName="LS RT Ref", Category="Render Targets"))
 	UTextureRenderTarget2D* LandscapeRTRef = nullptr;
 
-	UPROPERTY(VisibleAnywhere, Transient, meta=(DisplayName="Weightmap RT A", Category="Render Targets", OverrideNativeName="Weightmap RT A"))
+	UPROPERTY(VisibleAnywhere, Transient, meta=(DisplayName="Weightmap RT A", Category="Render Targets"))
 	UTextureRenderTarget2D* WeightmapRTA = nullptr;
 	
-	UPROPERTY(VisibleAnywhere, Transient, meta=(DisplayName="Weightmap RT B", Category="Render Targets", OverrideNativeName="Weightmap RT B"))
+	UPROPERTY(VisibleAnywhere, Transient, meta=(DisplayName="Weightmap RT B", Category="Render Targets"))
 	UTextureRenderTarget2D* WeightmapRTB = nullptr;
-
-	UPROPERTY(VisibleAnywhere, meta = (DisplayName = "Wave Params RT", Category = "Default", OverrideNativeName = "WaveParamsRT"))
-	UTextureRenderTarget2D* WaveParamsRT = nullptr;
 	// RTs End
 
 	// MIDs
-	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta=(Category="Debug MIDs", OverrideNativeName="Brush Angle Falloff MID"))
+	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta=(Category="Debug MIDs"))
 	UMaterialInstanceDynamic* BrushAngleFalloffMID = nullptr;
 
-	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta=(Category="Debug MIDs", OverrideNativeName="Brush Width Falloff MID"))
+	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta=(Category="Debug MIDs"))
 	UMaterialInstanceDynamic* BrushWidthFalloffMID = nullptr;
 
-	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta=(Category="Debug MIDs", OverrideNativeName="Distance Field Cache MID"))
+	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta=(Category="Debug MIDs"))
 	UMaterialInstanceDynamic* DistanceFieldCacheMID = nullptr;
 
-	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta = (Category = "Debug MIDs", OverrideNativeName = "SplineMIDs"))
+	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta = (Category = "Debug MIDs"))
 	TArray<UMaterialInstanceDynamic*> RiverSplineMIDs;
 
-	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta = (Category = "Debug MIDs", OverrideNativeName = "Debug Distance Field MID"))
+	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta = (Category = "Debug MIDs"))
 	UMaterialInstanceDynamic* DebugDistanceFieldMID = nullptr;
 
-	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta = (Category = "Debug MIDs", OverrideNativeName = "WeightmapMID"))
+	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta = (Category = "Debug MIDs"))
 	UMaterialInstanceDynamic* WeightmapMID = nullptr;
 
 	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta = (Category = "Debug MIDs"))
 	UMaterialInstanceDynamic* DrawCanvasMID = nullptr;
 
-	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta = (Category = "Debug MIDs", OverrideNativeName = "CombineAlphasMID"))
-	UMaterialInstanceDynamic* CombineAlphasMID = nullptr;
+	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta = (Category = "Debug MIDs"))
+	UMaterialInstanceDynamic* CompositeWaterBodyTextureMID = nullptr;
 
-	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta = (Category = "Debug MIDs", OverrideNativeName = "Island Falloff MID"))
+	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta = (Category = "Debug MIDs"))
 	UMaterialInstanceDynamic* IslandFalloffMID = nullptr;
 
-	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta = (Category = "Debug MIDs", OverrideNativeName = "FinalizeVelocityHeightMID"))
+	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta = (Category = "Debug MIDs"))
 	UMaterialInstanceDynamic* FinalizeVelocityHeightMID = nullptr;
 
 	// TODO [jonathan.bard] : remove unused
-	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta = (Category = "Debug MIDs", OverrideNativeName = "DownsampleMID"))
+	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta = (Category = "Debug MIDs"))
 	UMaterialInstanceDynamic* DownsampleMID = nullptr;
 	// MIDs End
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Transient, meta=(DisplayName="Brush Curve RTCache", Category="Debug", OverrideNativeName="BrushCurveRTCache"))
+	// TODO [jonathan.bard] : rename to DebugDistanceFieldMaterial : 
+	// TODO [jonathan.bard] : put in UWaterEditorSettings
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayName = "Debug DF Material", Category = "Default"))
+	UMaterialInstance* DebugDF = nullptr;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Transient, meta=(DisplayName="Brush Curve RTCache", Category="Debug"))
 	TMap<UCurveFloat*,FWaterBodyBrushCache> BrushCurveRTCache;
 	
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta=(DisplayName="World Size", Category="Debug", OverrideNativeName="World Size"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta=(DisplayName="World Size", Category="Debug"))
 	FVector WorldSize;
 	
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta=(DisplayName="Landscape RT Res", Category="Debug", ExposeOnSpawn="true", OverrideNativeName="Landscape RT Res"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta=(DisplayName="Landscape RT Res", Category="Debug"))
 	FIntPoint LandscapeRTRes;
 	
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta=(DisplayName="Landscape Quads", Category="Debug", ExposeOnSpawn="true", OverrideNativeName="Landscape Quads"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta=(DisplayName="Landscape Quads", Category="Debug"))
 	FIntPoint LandscapeQuads;
 	
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta=(DisplayName="LS Transform", Category="Debug", OverrideNativeName="LS Transform"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta=(DisplayName="LS Transform", Category="Debug"))
 	FTransform LandscapeTransform;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayName="Show Gradient", Category="Debug", OverrideNativeName="Show Gradient"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayName="Show Gradient", Category="Debug"))
 	bool ShowGradient = false;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayName="Distance Divisor", Category="Debug", OverrideNativeName="Distance Divisor"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayName="Distance Divisor", Category="Debug"))
 	float DistanceDivisor = 0.1f;
 			
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayName="Show Distance", Category="Debug", OverrideNativeName="Show Distance"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayName="Show Distance", Category="Debug"))
 	bool ShowDistance = false;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayName="Show Grid", Category="Debug", OverrideNativeName="Show Grid"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayName="Show Grid", Category="Debug"))
 	bool ShowGrid = false;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayName="Canvas Segment Size", Category="Default", OverrideNativeName="Canvas Segment Size"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayName="Canvas Segment Size", Category="Default"))
 	float CanvasSegmentSize = 1024.0f;	
 					
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayName="Water Clear Height", Category="Default", OverrideNativeName="Water Clear Height"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayName="Water Clear Height", Category="Default"))
 	float WaterClearHeight = -16384.0f;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayName="Spline Mesh Extension", Category="Default", OverrideNativeName="SplineMeshExtension"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayName="Spline Mesh Extension", Category="Default"))
 	float SplineMeshExtension = 0.0f;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayName="Use Dynamic Preview RT", Category="Texture Output", OverrideNativeName="Use Dynamic Preview RT"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayName="Use Dynamic Preview RT", Category="Texture Output"))
 	bool UseDynamicPreviewRT = false;
 		
-	// TODO [jonathan.bard] : remove duplicate from GerstnerWaveController? : 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayName="Max Waves Per Water Body", Category="Default", OverrideNativeName="Max Waves Per WaterBody"))
-	int32 MaxWavesPerWaterBody = 8;
-		
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayName="Disable Brush Texture Effects", Category="Debug", OverrideNativeName="Disable Brush Texture Effects"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayName="Disable Brush Texture Effects", Category="Debug"))
 	bool DisableBrushTextureEffects = false;
-			
+
 	// TODO [jonathan.bard] : Rename to RenderRiverSplineDepthMaterial : 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (Category = "Required"))
 	UMaterialInterface* RenderSplineDepthsMaterial = nullptr;
-
-	// TODO [jonathan.bard] : rename to DebugDistanceFieldMaterial : 
-	// TODO [jonathan.bard] : put in UWaterEditorSettings
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayName = "Debug DF Material", Category = "Default", OverrideNativeName = "Debug DF Material"))
-	UMaterialInstance* DebugDF = nullptr;
 
 	AWaterBrushManager(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
@@ -178,26 +171,22 @@ public:
 	virtual UTextureRenderTarget2D*  Render_Native(bool InIsHeightmap, UTextureRenderTarget2D* InCombinedResult, FName const& InWeightmapLayerName) override;
 		
 	virtual void BlueprintGetRenderTargets_Native(UTextureRenderTarget2D* InHeightRenderTarget, /*out*/ UTextureRenderTarget2D*& OutVelocityRenderTarget) override;
-		
+	
 	// Debug Buttons
-	UFUNCTION(BlueprintCallable, meta = (CallInEditor = "true", Category, OverrideNativeName = "Generate Wave Parameter Texture"))
-	virtual void GenerateWaveParameterTexture();
-
-	UFUNCTION(BlueprintCallable, meta = (CallInEditor = "true", Category, OverrideNativeName = "Force Update"))
+	UFUNCTION(BlueprintCallable, meta = (CallInEditor = "true", Category))
 	virtual void ForceUpdate();
 
-	UFUNCTION(BlueprintCallable, meta = (CallInEditor = "true", Category, OverrideNativeName = "Single Blur Step"))
+	UFUNCTION(BlueprintCallable, meta = (CallInEditor = "true", Category))
 	virtual void SingleBlurStep();
 
-	UFUNCTION(BlueprintCallable, meta = (CallInEditor = "true", Category, OverrideNativeName = "Find Edges"))
+	UFUNCTION(BlueprintCallable, meta = (CallInEditor = "true", Category))
 	virtual void FindEdges();
 
-	UFUNCTION(BlueprintCallable, meta = (CallInEditor = "true", Category, OverrideNativeName = "Single Jump Step"))
+	UFUNCTION(BlueprintCallable, meta = (CallInEditor = "true", Category))
 	virtual void SingleJumpStep();
-
 	// End Debug Buttons
 	
-	UFUNCTION(BlueprintCallable, BlueprintPure, meta = (Category, OverrideNativeName = "Get Water Cache Key"))
+	UFUNCTION(BlueprintCallable, BlueprintPure, meta = (Category))
 	virtual void GetWaterCacheKey(AActor* WaterBrush, /*out*/ UWaterBodyBrushCacheContainer*& ContainerObject, /*out*/ FWaterBodyBrushCache& Value);
 
 	/** 
@@ -260,7 +249,7 @@ private:
 	virtual void FalloffAndBlendMode(const FBrushActorRenderContext& BrushActorRenderContext);
 	virtual void DisplacementSettings(const FBrushActorRenderContext& BrushActorRenderContext);
 	virtual void ApplyWeightmapSettings(const FBrushRenderContext& BrushRenderContext, const FBrushActorRenderContext& BrushActorRenderContext, const FWaterBodyWeightmapSettings& WMSettings);
-	virtual void ApplyToCombinedAlphas(FBrushRenderContext& BrushRenderContext, const FBrushActorRenderContext& BrushActorRenderContext);
+	virtual void ApplyToCompositeWaterBodyTexture(FBrushRenderContext& BrushRenderContext, const FBrushActorRenderContext& BrushActorRenderContext);
 
 	UCurveFloat* GetElevationCurveAsset(const FWaterCurveSettings& CurveSettings);
 	void ClearCurveCache();
