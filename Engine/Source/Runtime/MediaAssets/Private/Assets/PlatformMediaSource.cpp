@@ -3,6 +3,7 @@
 #include "PlatformMediaSource.h"
 #include "UObject/SequencerObjectVersion.h"
 #include "UObject/MediaFrameWorkObjectVersion.h"
+#include "Modules/ModuleManager.h"
 #include "IMediaModule.h"
 #include "MediaAssetsPrivate.h"
 
