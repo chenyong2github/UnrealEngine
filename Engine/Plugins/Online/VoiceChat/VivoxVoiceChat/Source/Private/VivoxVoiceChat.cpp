@@ -531,10 +531,7 @@ void FVivoxVoiceChatUser::BlockPlayers(const TArray<FString>& PlayerNames)
 	}
 	else
 	{
-		for (const FString& PlayerName : PlayerNames)
-		{
-			VIVOXVOICECHATUSER_LOG(Verbose, TEXT("Player blocked: [%s]"), *PlayerName);
-		}
+		VIVOXVOICECHATUSER_LOG(Log, TEXT("Players blocked: [%s]"), *FString::Join(PlayerNames, TEXT(", ")));
 	}
 }
 
@@ -554,10 +551,7 @@ void FVivoxVoiceChatUser::UnblockPlayers(const TArray<FString>& PlayerNames)
 	}
 	else
 	{
-		for (const FString& PlayerName : PlayerNames)
-		{
-			VIVOXVOICECHATUSER_LOG(Verbose, TEXT("Player unblocked: [%s]"), *PlayerName);
-		}
+		VIVOXVOICECHATUSER_LOG(Log, TEXT("Players unblocked: [%s]"), *FString::Join(PlayerNames, TEXT(", ")));
 	}
 }
 
