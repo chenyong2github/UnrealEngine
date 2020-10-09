@@ -15,6 +15,7 @@ This plugin supports:
 	- EAS/EGS Auth
 	- EAS Presence
 	- EAS Friends
+	- EGS/EAS Ecom
 	- EOS Sessions
 	- EOS Stats
 	- EOS Leaderboards
