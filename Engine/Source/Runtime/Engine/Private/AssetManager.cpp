@@ -21,6 +21,7 @@
 #include "IPlatformFilePak.h"
 #include "Stats/StatsMisc.h"
 #include "Internationalization/PackageLocalizationManager.h"
+#include "HAL/PlatformMisc.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 
 #if WITH_EDITOR
@@ -1219,6 +1220,8 @@ TSharedPtr<FStreamableHandle> UAssetManager::ChangeBundleStateForPrimaryAssets(c
 
 		if (NameData)
 		{
+			FPlatformMisc::PumpEssentialAppMessages();
+
 			// Iterate list of changes, compute new bundle set
 			bool bLoadIfNeeded = false;
 			
