@@ -809,7 +809,7 @@ namespace GroomBinding_RootProjection
 			// 2.3. Compute the closest triangle for each root
 			//InMeshRenderData->LODRenderData[LODIt].GetNumVertices();
 			#if BINDING_PARALLEL_BUILDING
-			TAtomic<uint32> bIsValid = 1;
+			TAtomic<uint32> bIsValid(1);
 			ParallelFor(CurveCount,
 			[
 				LODIt,
