@@ -8,6 +8,8 @@
 #include "UserManagerEOS.h"
 #include "eos_ecom.h"
 
+#define ONLINE_ERROR_NAMESPACE "com.epicgames.oss.eos.error"
+
 
 FOnlineStoreEOS::FOnlineStoreEOS(FOnlineSubsystemEOS* InSubsystem)
 	: EOSSubsystem(InSubsystem)
@@ -131,23 +133,168 @@ TSharedPtr<FOnlineStoreOffer> FOnlineStoreEOS::GetOffer(const FUniqueOfferId& Of
 	return nullptr;
 }
 
+typedef TEOSCallback<EOS_Ecom_OnCheckoutCallback, EOS_Ecom_CheckoutCallbackInfo> FCheckoutCallback;
+
 void FOnlineStoreEOS::Checkout(const FUniqueNetId& UserId, const FPurchaseCheckoutRequest& CheckoutRequest, const FOnPurchaseCheckoutComplete& Delegate)
 {
+	EOS_EpicAccountId AccountId = EOSSubsystem->UserManager->GetEpicAccountId(UserId);
+	if (AccountId == nullptr)
+	{
+		UE_LOG_ONLINE(Error, TEXT("Checkout: failed due to invalid user"));
+		Delegate.ExecuteIfBound(ONLINE_ERROR(EOnlineErrorResult::InvalidUser), MakeShared<FPurchaseReceipt>());
+		return;
+	}
+	if (CheckoutRequest.PurchaseOffers.Num() == 0)
+	{
+		UE_LOG_ONLINE(Error, TEXT("Checkout: failed due to no items to buy"));
+		Delegate.ExecuteIfBound(ONLINE_ERROR(EOnlineErrorResult::InvalidParams), MakeShared<FPurchaseReceipt>());
+		return;
+	}
+	if (CheckoutRequest.PurchaseOffers.Num() > EOS_ECOM_CHECKOUT_MAX_ENTRIES)
+	{
+		UE_LOG_ONLINE(Error, TEXT("Checkout: can only buy %d items at a time"), EOS_ECOM_CHECKOUT_MAX_ENTRIES);
+		Delegate.ExecuteIfBound(ONLINE_ERROR(EOnlineErrorResult::InvalidParams), MakeShared<FPurchaseReceipt>());
+		return;
+	}
+
+	const int32 NumItems = CheckoutRequest.PurchaseOffers.Num();
+	char Items[EOS_ECOM_CHECKOUT_MAX_ENTRIES][EOS_ECOM_TRANSACTIONID_MAXIMUM_LENGTH];
+	TArray<EOS_Ecom_CheckoutEntry> Entries;
+	Entries.AddZeroed(NumItems);
+
+	// Convert the items
+	for (int32 Index = 0; Index < NumItems; Index++)
+	{
+		Entries[Index].ApiVersion = EOS_ECOM_CHECKOUTENTRY_API_LATEST;
+		Entries[Index].OfferId = Items[Index];
+		FCStringAnsi::Strncpy(Items[Index], TCHAR_TO_UTF8(*CheckoutRequest.PurchaseOffers[Index].OfferId), EOS_ECOM_TRANSACTIONID_MAXIMUM_LENGTH);
+	}
+
+	EOS_Ecom_CheckoutOptions Options = { };
+	Options.ApiVersion = EOS_ECOM_CHECKOUT_API_LATEST;
+	Options.LocalUserId = AccountId;
+	Options.EntryCount = NumItems;
+	Options.Entries = (const EOS_Ecom_CheckoutEntry*)Entries.GetData();
+
+	FCheckoutCallback* CallbackObj = new FCheckoutCallback();
+	CallbackObj->CallbackLambda = [this, OnComplete = FOnPurchaseCheckoutComplete(Delegate)](const EOS_Ecom_CheckoutCallbackInfo* Data)
+	{
+		EOS_EResult Result = Data->ResultCode;
+		if (Result != EOS_EResult::EOS_Success)
+		{
+			UE_LOG_ONLINE(Error, TEXT("EOS_Ecom_Checkout: failed with error (%s)"), ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
+			OnComplete.ExecuteIfBound(ONLINE_ERROR(EOnlineErrorResult::Unknown), MakeShared<FPurchaseReceipt>());
+			return;
+		}
+
+		// Update the cached receipts
+		QueryReceipts(*EOSSubsystem->UserManager->GetLocalUniqueNetIdEOS(Data->LocalUserId), true,
+			FOnQueryReceiptsComplete::CreateLambda([this, PurchaseComplete = FOnPurchaseCheckoutComplete(OnComplete), TransId = FString(Data->TransactionId)](const FOnlineError& Result)
+		{
+			if (!Result.WasSuccessful())
+			{
+				UE_LOG_ONLINE(Error, TEXT("EOS_Ecom_Checkout: failed to query receipts after purchase"));
+				PurchaseComplete.ExecuteIfBound(ONLINE_ERROR(EOnlineErrorResult::Unknown), MakeShared<FPurchaseReceipt>());
+				return;
+			}
+
+			TSharedRef<FPurchaseReceipt> Receipt = MakeShared<FPurchaseReceipt>();
+			// Find the transaction in our receipts
+			for (const FPurchaseReceipt& SearchReceipt : CachedReceipts)
+			{
+				if (SearchReceipt.TransactionId == TransId)
+				{
+					Receipt = MakeShared<FPurchaseReceipt>(SearchReceipt);
+					break;
+				}
+			}
+			PurchaseComplete.ExecuteIfBound(ONLINE_ERROR(EOnlineErrorResult::Success), Receipt);
+		}));
+
+	};
+	EOS_Ecom_Checkout(EOSSubsystem->EcomHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
 
 }
 
 void FOnlineStoreEOS::FinalizePurchase(const FUniqueNetId& UserId, const FString& ReceiptId)
 {
-
+	UE_LOG_ONLINE(Error, TEXT("FinalizePurchase: Not supported. Did you mean FinalizeReceiptValidationInfo?"));
 }
 
 void FOnlineStoreEOS::RedeemCode(const FUniqueNetId& UserId, const FRedeemCodeRequest& RedeemCodeRequest, const FOnPurchaseRedeemCodeComplete& Delegate)
 {
-
+	static const TSharedRef<FPurchaseReceipt> BlankReceipt(MakeShared<FPurchaseReceipt>());
+	Delegate.ExecuteIfBound(ONLINE_ERROR(EOnlineErrorResult::NotImplemented), BlankReceipt);
 }
+
+typedef TEOSCallback<EOS_Ecom_OnQueryEntitlementsCallback, EOS_Ecom_QueryEntitlementsCallbackInfo> FQueryReceiptsCallback;
 
 void FOnlineStoreEOS::QueryReceipts(const FUniqueNetId& UserId, bool bRestoreReceipts, const FOnQueryReceiptsComplete& Delegate)
 {
+	EOS_EpicAccountId AccountId = EOSSubsystem->UserManager->GetEpicAccountId(UserId);
+	if (AccountId == nullptr)
+	{
+		UE_LOG_ONLINE(Error, TEXT("QueryReceipts: failed due to invalid user"));
+		Delegate.ExecuteIfBound(ONLINE_ERROR(EOnlineErrorResult::InvalidUser));
+		return;
+	}
+
+	CachedReceipts.Reset();
+
+	EOS_Ecom_QueryEntitlementsOptions Options = { };
+	Options.ApiVersion = EOS_ECOM_QUERYENTITLEMENTS_API_LATEST;
+	Options.LocalUserId = AccountId;
+	Options.bIncludeRedeemed = bRestoreReceipts ? EOS_TRUE : EOS_FALSE;
+
+	FQueryReceiptsCallback* CallbackObj = new FQueryReceiptsCallback();
+	CallbackObj->CallbackLambda = [this, OnComplete = FOnQueryReceiptsComplete(Delegate)](const EOS_Ecom_QueryEntitlementsCallbackInfo* Data)
+	{
+		EOS_EResult Result = Data->ResultCode;
+		if (Result != EOS_EResult::EOS_Success)
+		{
+			UE_LOG_ONLINE(Error, TEXT("EOS_Ecom_QueryEntitlements: failed with error (%s)"), ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
+			OnComplete.ExecuteIfBound(ONLINE_ERROR(EOnlineErrorResult::Unknown));
+			return;
+		}
+
+		EOS_Ecom_GetEntitlementsCountOptions CountOptions = { };
+		CountOptions.ApiVersion = EOS_ECOM_GETENTITLEMENTSCOUNT_API_LATEST;
+		CountOptions.LocalUserId = Data->LocalUserId;
+		uint32 Count = EOS_Ecom_GetEntitlementsCount(EOSSubsystem->EcomHandle, &CountOptions);
+		CachedReceipts.AddZeroed(Count);
+
+		EOS_Ecom_CopyEntitlementByIndexOptions CopyOptions = { };
+		CopyOptions.ApiVersion = EOS_ECOM_COPYENTITLEMENTBYINDEX_API_LATEST;
+		CopyOptions.LocalUserId = Data->LocalUserId;
+
+		for (uint32 Index = 0; Index < Count; Index++)
+		{
+			CopyOptions.EntitlementIndex = Index;
+
+			EOS_Ecom_Entitlement* Receipt = nullptr;
+			EOS_EResult CopyResult = EOS_Ecom_CopyEntitlementByIndex(EOSSubsystem->EcomHandle, &CopyOptions, &Receipt);
+			if (CopyResult != EOS_EResult::EOS_Success && CopyResult != EOS_EResult::EOS_Ecom_EntitlementStale)
+			{
+				UE_LOG_ONLINE(Error, TEXT("EOS_Ecom_CopyEntitlementByIndex: failed with error (%s)"), ANSI_TO_TCHAR(EOS_EResult_ToString(CopyResult)));
+				continue;
+			}
+
+			// Parse the entitlement into the receipt format
+			FPurchaseReceipt& PurchaseReceipt = CachedReceipts[Index];
+			PurchaseReceipt.TransactionId = Receipt->EntitlementId;
+			PurchaseReceipt.TransactionState = EPurchaseTransactionState::Purchased;
+			PurchaseReceipt.AddReceiptOffer(FOfferNamespace(), Receipt->CatalogItemId, 1);
+			FPurchaseReceipt::FLineItemInfo& LineItem = PurchaseReceipt.ReceiptOffers[0].LineItems.Emplace_GetRef();
+			LineItem.ItemName = Receipt->EntitlementName;
+			LineItem.UniqueId = Receipt->EntitlementId;
+			LineItem.ValidationInfo = Receipt->bRedeemed == EOS_TRUE ? "" : Receipt->EntitlementId;
+
+			EOS_Ecom_Entitlement_Release(Receipt);
+		}
+
+		OnComplete.ExecuteIfBound(ONLINE_ERROR(EOnlineErrorResult::Success));
+	};
+	EOS_Ecom_QueryEntitlements(EOSSubsystem->EcomHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
 }
 
 void FOnlineStoreEOS::GetReceipts(const FUniqueNetId& UserId, TArray<FPurchaseReceipt>& OutReceipts) const
@@ -155,9 +302,57 @@ void FOnlineStoreEOS::GetReceipts(const FUniqueNetId& UserId, TArray<FPurchaseRe
 	OutReceipts = CachedReceipts;
 }
 
+typedef TEOSCallback<EOS_Ecom_OnRedeemEntitlementsCallback, EOS_Ecom_RedeemEntitlementsCallbackInfo> FRedeemReceiptCallback;
+
 void FOnlineStoreEOS::FinalizeReceiptValidationInfo(const FUniqueNetId& UserId, FString& InReceiptValidationInfo, const FOnFinalizeReceiptValidationInfoComplete& Delegate)
 {
+	EOS_EpicAccountId AccountId = EOSSubsystem->UserManager->GetEpicAccountId(UserId);
+	if (AccountId == nullptr)
+	{
+		Delegate.ExecuteIfBound(ONLINE_ERROR(EOnlineErrorResult::InvalidUser), InReceiptValidationInfo);
+		return;
+	}
+	if (InReceiptValidationInfo.IsEmpty())
+	{
+		Delegate.ExecuteIfBound(ONLINE_ERROR(EOnlineErrorResult::InvalidParams), InReceiptValidationInfo);
+		return;
+	}
 
+	char const* Ids[1];
+	FTCHARToUTF8 EntitlementId(*InReceiptValidationInfo);
+	Ids[0] = EntitlementId.Get();
+
+	EOS_Ecom_RedeemEntitlementsOptions Options = { };
+	Options.ApiVersion = EOS_ECOM_REDEEMENTITLEMENTS_API_LATEST;
+	Options.LocalUserId = AccountId;
+	Options.EntitlementIdCount = 1;
+	Options.EntitlementIds = Ids;
+
+	FRedeemReceiptCallback* CallbackObj = new FRedeemReceiptCallback();
+	CallbackObj->CallbackLambda = [this, Info = FString(InReceiptValidationInfo), OnComplete = FOnFinalizeReceiptValidationInfoComplete(Delegate)](const EOS_Ecom_RedeemEntitlementsCallbackInfo* Data)
+	{
+		EOS_EResult Result = Data->ResultCode;
+		if (Result != EOS_EResult::EOS_Success)
+		{
+			UE_LOG_ONLINE(Error, TEXT("EOS_Ecom_RedeemEntitlements: failed with error (%s)"), ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
+			OnComplete.ExecuteIfBound(ONLINE_ERROR(EOnlineErrorResult::Unknown), Info);
+			return;
+		}
+
+		// Find the receipt in our list and mark as redeemed (clear the validation info)
+		for (FPurchaseReceipt& SearchReceipt : CachedReceipts)
+		{
+			if (SearchReceipt.TransactionId == Info)
+			{
+				// Clearing this field tells the game it can't be redeemed
+				SearchReceipt.ReceiptOffers[0].LineItems[0].ValidationInfo.Empty();
+				break;
+			}
+		}
+
+		OnComplete.ExecuteIfBound(ONLINE_ERROR(EOnlineErrorResult::Success), Info);
+	};
+	EOS_Ecom_RedeemEntitlements(EOSSubsystem->EcomHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
 }
 
 bool FOnlineStoreEOS::HandleEcomExec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
@@ -171,8 +366,18 @@ bool FOnlineStoreEOS::HandleEcomExec(UWorld* InWorld, const TCHAR* Cmd, FOutputD
 
 			for (const FUniqueOfferId& OfferId : OfferIds)
 			{
-				UE_LOG_ONLINE(Error, TEXT("OfferId: %s"), *OfferId);
+				UE_LOG_ONLINE(Log, TEXT("OfferId: %s"), *OfferId);
 			}
+
+		}));
+		return true;
+	}
+	else if (FParse::Command(&Cmd, TEXT("RECEIPTS")))
+	{
+		QueryReceipts(*EOSSubsystem->UserManager->GetLocalUniqueNetIdEOS(), false,
+			FOnQueryReceiptsComplete::CreateLambda([this](const FOnlineError& Result)
+		{
+			UE_LOG_ONLINE(Log, TEXT("QueryReceipts: %s with error (%s)"), Result.WasSuccessful() ? TEXT("succeeded") : TEXT("failed"), *Result.GetErrorRaw());
 
 		}));
 		return true;
