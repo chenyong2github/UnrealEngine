@@ -10,6 +10,7 @@
 #include "ProfilingDebugging/CookStats.h"
 #include "Serialization/ArchiveObjectCrc32.h"
 #include "Serialization/ArchiveStackTrace.h"
+#include "Serialization/FileRegions.h"
 #include "UObject/NameTypes.h"
 #include "UObject/UObjectMarks.h"
 
