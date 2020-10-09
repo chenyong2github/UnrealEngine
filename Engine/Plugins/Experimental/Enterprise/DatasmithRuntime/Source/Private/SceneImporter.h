@@ -301,7 +301,7 @@ namespace DatasmithRuntime
 	 * Texture assets can only be created and built on the main thread
 	 * Consequently, their creation has been divided in two steps:
 	 *		- Asynchronously load the data of the texture
-	 /*		- At each tick create a texture from its data until all required textures are done
+	 *		- At each tick create a texture from its data until all required textures are done
 	 */ 
 	struct FTextureData : public FAssetData
 	{
