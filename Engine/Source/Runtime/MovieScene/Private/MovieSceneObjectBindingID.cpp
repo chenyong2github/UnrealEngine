@@ -64,7 +64,7 @@ void FMovieSceneObjectBindingID::TryAndMakeLocalTo(FMovieSceneSequenceID MakeRel
 		if (CurrentSequenceID == MakeRelativeTo)
 		{
 			Space = EMovieSceneObjectBindingSpace::Local;
-			SequenceID = SequenceID = int32(NewSequenceID.GetInternalValue());
+			SequenceID = int32(NewSequenceID.GetInternalValue());
 			return;
 		}
 	}
