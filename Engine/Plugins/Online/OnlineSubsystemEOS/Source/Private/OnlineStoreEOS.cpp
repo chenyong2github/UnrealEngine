@@ -368,7 +368,6 @@ bool FOnlineStoreEOS::HandleEcomExec(UWorld* InWorld, const TCHAR* Cmd, FOutputD
 			{
 				UE_LOG_ONLINE(Log, TEXT("OfferId: %s"), *OfferId);
 			}
-
 		}));
 		return true;
 	}
@@ -378,7 +377,12 @@ bool FOnlineStoreEOS::HandleEcomExec(UWorld* InWorld, const TCHAR* Cmd, FOutputD
 			FOnQueryReceiptsComplete::CreateLambda([this](const FOnlineError& Result)
 		{
 			UE_LOG_ONLINE(Log, TEXT("QueryReceipts: %s with error (%s)"), Result.WasSuccessful() ? TEXT("succeeded") : TEXT("failed"), *Result.GetErrorRaw());
-
+			for (const FPurchaseReceipt& Receipt : CachedReceipts)
+			{
+				UE_LOG_ONLINE(Log, TEXT("Receipt: %s"), *Receipt.TransactionId);
+				UE_LOG_ONLINE(Log, TEXT("\tOffer Id (%s), Quantity (%d)"), *Receipt.ReceiptOffers[0].OfferId, Receipt.ReceiptOffers[0].Quantity);
+				UE_LOG_ONLINE(Log, TEXT("\tLine item (%s) is %s"), *Receipt.ReceiptOffers[0].LineItems[0].ItemName, Receipt.ReceiptOffers[0].LineItems[0].IsRedeemable() ? TEXT("redeemable") : TEXT("not redeemable"));
+			}
 		}));
 		return true;
 	}
