@@ -7063,6 +7063,11 @@ void FSequencer::SelectByChannels(UMovieSceneSection* Section, const TArray<FNam
 		TrackNode->GetChildKeyAreaNodesRecursively(KeyAreaNodes);
 		for (TSharedRef<FSequencerSectionKeyAreaNode> KeyAreaNode : KeyAreaNodes)
 		{
+			if (KeyAreaNode->GetParent().IsValid() && InChannelNames.Contains(*KeyAreaNode->GetParent()->AsShared()->GetDisplayName().ToString()))
+			{
+				Nodes.Add(KeyAreaNode->GetParent()->AsShared());
+			}
+
 			for (TSharedPtr<IKeyArea> KeyArea : KeyAreaNode->GetAllKeyAreas())
 			{
 				FMovieSceneChannelHandle ThisChannel = KeyArea->GetChannel();
