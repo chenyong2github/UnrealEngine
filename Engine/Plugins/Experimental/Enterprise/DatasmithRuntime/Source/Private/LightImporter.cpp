@@ -45,7 +45,7 @@ namespace DatasmithRuntime
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::ProcessLightActorData);
 
-		if (ActorData.bProcessed)
+		if (ActorData.HasState(EDatasmithRuntimeAssetState::Processed))
 		{
 			return true;
 		}
@@ -73,8 +73,7 @@ namespace DatasmithRuntime
 		AddToQueue(NONASYNC_QUEUE, { CreateLightFunc, { EDataType::Actor, ActorData.ElementId, 0 } });
 		TasksToComplete |= EDatasmithRuntimeWorkerTask::LightComponentCreate;
 
-		ActorData.bProcessed = true;
-		ActorData.bCompleted = false;
+		ActorData.SetState(EDatasmithRuntimeAssetState::Processed);
 
 		return true;
 	}
@@ -85,7 +84,7 @@ namespace DatasmithRuntime
 
 		if (TextureProfile == nullptr)
 		{
-			ensure(Referencer.Type != EDataType::Actor);
+			ensure(Referencer.Type == EDataType::Actor);
 			return EActionResult::Failed;
 		}
 
@@ -94,7 +93,7 @@ namespace DatasmithRuntime
 
 		FActorData& ActorData = ActorDataList[ActorId];
 
-		if (!ActorData.bCompleted)
+		if (!ActorData.HasState(EDatasmithRuntimeAssetState::Completed))
 		{
 			return EActionResult::Retry;
 		}
@@ -136,7 +135,7 @@ namespace DatasmithRuntime
 		}
 		else if ( LightElement->IsA( EDatasmithElementType::LightmassPortal ) )
 		{
-			// #ue_liveupdate: What happens on update
+			// #ue_datasmithruntime: What happens on update?
 			LightComponent = CreateSceneComponent< ULightmassPortalComponent >(ActorData, RootComponent.Get());
 
 			LightComponent->SetRelativeTransform(ActorData.WorldTransform);
@@ -211,7 +210,7 @@ namespace DatasmithRuntime
 			}
 		}
 
-		ActorData.bCompleted = true;
+		ActorData.AddState(EDatasmithRuntimeAssetState::Completed);
 
 		return LightComponent ? EActionResult::Succeeded : EActionResult::Failed;
 	}

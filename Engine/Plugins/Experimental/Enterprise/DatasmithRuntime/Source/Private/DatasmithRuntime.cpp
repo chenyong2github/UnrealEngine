@@ -17,6 +17,9 @@
 const FBoxSphereBounds DefaultBounds(FVector::ZeroVector, FVector(2000), 1000);
 const TCHAR* EmptyScene = TEXT("Nothing Loaded");
 
+// Use to force sequential update of game content
+bool ADatasmithRuntimeActor::bImportingScene = false;
+
 ADatasmithRuntimeActor::ADatasmithRuntimeActor()
 	: LoadedScene(EmptyScene)
 	, bNewScene(false)
@@ -34,27 +37,26 @@ ADatasmithRuntimeActor::ADatasmithRuntimeActor()
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
 		SceneImporter = MakeShared< DatasmithRuntime::FSceneImporter >( this );
-		DirectLinkHelper = MakeShared< DatasmithRuntime::FDestinationProxy >( this );
 	}
 }
 
 void ADatasmithRuntimeActor::Tick(float DeltaTime)
 {
-	double CurrentTime = FPlatformTime::Seconds();
-
-	if (ClosedDeltaWaitTime > 0. && CurrentTime > ClosedDeltaWaitTime)
+	if (DirectLinkHelper.IsValid() && !bReceiving)
 	{
 		UE_LOG(LogDatasmithRuntime, Log, TEXT("ADatasmithRuntimeActor::Tick"));
-		SetActorTickEnabled(false);
-		if (DirectLinkHelper.IsValid())
+		if (!bImportingScene)
 		{
+			// Prevent any other DatasmithRuntime actors to import concurrently
+			bImportingScene = true;
+			SetActorTickEnabled(false);
+
 			if (bNewScene == true)
 			{
 				SetScene(DirectLinkHelper->GetScene());
 			}
 			else
 			{
-				FScopeLock Lock(&UpdateContextCriticalSection);
 				SceneImporter->IncrementalUpdate(UpdateContext);
 				UpdateContext.Additions.Empty();
 				UpdateContext.Deletions.Empty();
@@ -67,12 +69,18 @@ void ADatasmithRuntimeActor::Tick(float DeltaTime)
 void ADatasmithRuntimeActor::BeginPlay()
 {
 	Super::BeginPlay();
-	Register();
+
+	// Register to DirectLink
+	DirectLinkHelper = MakeShared< DatasmithRuntime::FDestinationProxy >( this );
+	DirectLinkHelper->RegisterDestination(*GetName());
 }
 
 void ADatasmithRuntimeActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	Unregister();
+	// Unregister to DirectLink
+	DirectLinkHelper->UnregisterDestination();
+	DirectLinkHelper.Reset();
+
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -81,7 +89,6 @@ void ADatasmithRuntimeActor::OnOpenDelta(/*int32 ElementsCount*/)
 	UE_LOG(LogDatasmithRuntime, Log, TEXT("ADatasmithRuntimeActor::OnOpenDelta"));
 	SetActorTickEnabled(true);
 	bNewScene = false;
-	ClosedDeltaWaitTime = -1.;
 	bReceiving = true;
 	ElementDeltaStep = /*ElementsCount > 0 ? 1.f / (float)ElementsCount : 0.f*/0.f;
 }
@@ -94,11 +101,10 @@ void ADatasmithRuntimeActor::OnNewScene(const DirectLink::FSceneIdentifier& Scen
 
 void ADatasmithRuntimeActor::OnAddElement(TSharedPtr<IDatasmithElement> Element)
 {
+	UE_LOG(LogDatasmithRuntime, Log, TEXT("ADatasmithRuntimeActor::OnAddElement"));
 	Progress += ElementDeltaStep;
 	if (bNewScene == false)
 	{
-		UE_LOG(LogDatasmithRuntime, Log, TEXT("ADatasmithRuntimeActor::OnAddElement"));
-		FScopeLock Lock(&UpdateContextCriticalSection);
 		UpdateContext.Additions.Add(Element);
 	}
 }
@@ -107,7 +113,6 @@ void ADatasmithRuntimeActor::OnRemovedElement(DirectLink::FSceneGraphId ElementI
 {
 	Progress += ElementDeltaStep;
 	UE_LOG(LogDatasmithRuntime, Log, TEXT("ADatasmithRuntimeActor::OnRemovedElement"));
-	FScopeLock Lock(&UpdateContextCriticalSection);
 	UpdateContext.Deletions.Add(ElementId);
 }
 
@@ -115,18 +120,7 @@ void ADatasmithRuntimeActor::OnChangedElement(TSharedPtr<IDatasmithElement> Elem
 {
 	Progress += ElementDeltaStep;
 	UE_LOG(LogDatasmithRuntime, Log, TEXT("ADatasmithRuntimeActor::OnUpdateElement"));
-	FScopeLock Lock(&UpdateContextCriticalSection);
 	UpdateContext.Updates.Add(Element);
-}
-
-void ADatasmithRuntimeActor::Register()
-{
-	DirectLinkHelper->RegisterDestination(*GetName());
-}
-
-void ADatasmithRuntimeActor::Unregister()
-{
-	DirectLinkHelper->UnregisterDestination();
 }
 
 bool ADatasmithRuntimeActor::IsConnected()
@@ -154,7 +148,6 @@ void ADatasmithRuntimeActor::CloseConnection()
 
 void ADatasmithRuntimeActor::OnCloseDelta()
 {
-	ClosedDeltaWaitTime = FPlatformTime::Seconds();
 	bReceiving = false;
 }
 
@@ -168,7 +161,7 @@ void ADatasmithRuntimeActor::SetScene(TSharedPtr<IDatasmithScene> SceneElement)
 
 		bBuilding = true;
 		LoadedScene = SceneElement->GetName();
-		SceneImporter->StartImport( SceneElement.ToSharedRef() );
+		SceneImporter->StartImport( SceneElement.ToSharedRef(), DirectLinkHelper->GetConnectedSourceHandle() );
 	}
 }
 
@@ -181,4 +174,12 @@ void ADatasmithRuntimeActor::Reset()
 	SceneImporter->Reset(true);
 
 	RootComponent->Bounds = DefaultBounds;
+}
+
+void ADatasmithRuntimeActor::OnImportEnd()
+{
+	bBuilding = false;
+
+	// Allow any other DatasmithRuntime actors to import concurrently
+	bImportingScene = false;
 }
