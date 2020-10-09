@@ -15,6 +15,18 @@ UStageMonitoringSettings::UStageMonitoringSettings()
 	FParse::Value(FCommandLine::Get(), TEXT("-StageFriendlyName="), CommandLineFriendlyName);
 }
 
+FName UStageMonitoringSettings::GetCategoryName() const
+{
+	return TEXT("Plugins");
+}
+
+#if WITH_EDITOR
+FText UStageMonitoringSettings::GetSectionText() const
+{
+	return NSLOCTEXT("StageMonitoringPlugin", "StageMonitorSettingsSection", "Stage Monitor");
+}
+#endif
+
 int32 UStageMonitoringSettings::GetStageSessionId() const
 {
 	if (CommandLineSessionId.IsSet())
