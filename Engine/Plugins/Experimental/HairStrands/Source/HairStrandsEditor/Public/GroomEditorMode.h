@@ -124,11 +124,6 @@ public:
 	//////////////////
 
 public:
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnModelingModeToolNotification, const FText&);
-	FOnModelingModeToolNotification OnToolNotificationMessage;
-	FOnModelingModeToolNotification OnToolWarningMessage;
-
-public:
 
 	virtual UEdModeInteractiveToolsContext* GetToolsContext() const
 	{
@@ -141,6 +136,7 @@ public:
 	}
 
 protected:
+	TArray<TPair<TSharedPtr<FUICommandInfo>, FString>> RegisteredTools;
 
 	UEdModeInteractiveToolsContext* ToolsContext;
 
