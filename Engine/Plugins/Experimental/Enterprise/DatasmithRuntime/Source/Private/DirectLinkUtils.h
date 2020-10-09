@@ -21,6 +21,8 @@ namespace DatasmithRuntime
 {
 	class FDirectLinkEndpointProxy;
 
+	class UDirectLinkProxy* GetDirectLinkProxy();
+
 	/**
 	 * Helper class to manage a DirectLink destination and its connection
 	 * Used by the ADatasmithRuntimeActor
