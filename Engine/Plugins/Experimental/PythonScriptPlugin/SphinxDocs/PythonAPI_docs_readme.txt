@@ -55,11 +55,11 @@ Run the PythonOnlineDocs commandlet
 
 The command-line arguments sent to the UE4 Editor to run the PythonOnlineDocs commandlet looks like this for the UE4 Editor with the standard Engine API documented:
 
--run=PythonOnlineDocs -NoShaderCompile -IncludeEngine -EnableAllPlugins -ExceptPlugins="MixedRealityCaptureFramework,Oodle,RenderDocPlugin,OculusAvatar"
+-run=PythonOnlineDocs -NoShaderCompile -IncludeEngine -EnableAllPlugins
 
 Enterprise version of command-line:
 
--run=PythonOnlineDocs -NoShaderCompile -IncludeEngine -IncludeEnterprise -EnableAllPlugins -ExceptPlugins="MixedRealityCaptureFramework,Oodle,RenderDocPlugin,OculusAvatar"
+-run=PythonOnlineDocs -NoShaderCompile -IncludeEngine -IncludeEnterprise -EnableAllPlugins
 
 
 The stubs for the Python API will be generated first and then all the files needed for Sphinx to generate HTML files. The HTML and associated files once generated will be about 200MB and will be placed in:
@@ -83,9 +83,9 @@ Filter options:
 -IncludeProject    : Include Python API from any loaded project
 
 Other useful options:
-- HTMLLog          : Output additional Python info, warnings and errors including feedback from running Sphinx (which has many warnings that can be safely ignored)
+-HTMLLog           : Output additional Python info, warnings and errors including feedback from running Sphinx (which has many warnings that can be safely ignored)
 -NoShaderCompile   : Don't compile shaders (shaders aren't needed by the PythonOnlineDocs commandlet)
-- EnableAllPlugins : Include all the plugins known to the UE4 editor
+-EnableAllPlugins  : Include all the plugins known to the UE4 editor
 -ExceptPlugins=""  : Don't include specified plugins. Some plugins cause issues or aren't needed in the Python API docs.
 -NoHTML            : Don't run Sphinx, potentially run Sphinx manually to build the HTML files see "Unreal Python API HTML generation manually using Sphinx"
 
@@ -95,7 +95,7 @@ Unreal Python API HTML generation manually using Sphinx
 
 Use the same command-line as above with -NoHTML added:
 
--run=PythonOnlineDocs -NoShaderCompile -IncludeEngine -NoHTML -EnableAllPlugins -ExceptPlugins="MixedRealityCaptureFramework,Oodle,RenderDocPlugin,OculusAvatar,VoiceChat"
+-run=PythonOnlineDocs -NoShaderCompile -IncludeEngine -NoHTML -EnableAllPlugins
 
 
 Ensure Python is installed
@@ -103,7 +103,7 @@ Ensure Python is installed
 
 Download from https://www.python.org/downloads/
 
-[Python 2.7.14 was used for testing and to make this guide since it matches the current needs of enterprise studios.]
+[Python 3.7.7 was used for testing and to make this guide since it matches the current needs of enterprise studios.]
 
 You *may* need to set Python to use UTF-8 (if you have a code page set with "chcp 65001" for example). You can set it interactively on the command line:
 set PYTHONIOENCODING=UTF-8
