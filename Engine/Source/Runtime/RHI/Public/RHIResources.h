@@ -1823,6 +1823,9 @@ public:
 	// match value subsequently returned by Present for this frame.
 	virtual bool NeedsNativePresent() = 0;
 
+	// Called from RHI thread when the engine begins drawing to the viewport.
+	virtual void BeginDrawing() {};
+
 	// Called from RHI thread to perform custom present.
 	// @param InOutSyncInterval - in out param, indicates if vsync is on (>0) or off (==0).
 	// @return	true if native Present should be also be performed; false otherwise. If it returns
