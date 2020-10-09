@@ -10,10 +10,10 @@
 // GTAO
 #if HORIZONSEARCH_INTEGRAL_SPATIALFILTER_COMPUTE_SHADER || HORIZONSEARCH_INTEGRAL_COMPUTE_SHADER || SPATIALFILTER_COMPUTE_SHADER || HORIZONSEARCH_INTEGRAL_PIXEL_SHADER || SPATIALFILTER_PIXEL_SHADER
 
-float4 FadeRadiusMulAdd_FadeDistance;
-float4 Power_Intensity_WorldRadiusAdj_AttenFactor;
-float4 NumAngles_SinDeltaAngle_CosDeltaAngle_Thickness;
+float4 FadeRadiusMulAdd_FadeDistance_AttenFactor;
+float4 WorldRadiusAdj_SinDeltaAngle_CosDeltaAngle_Thickness;
 
+half4 Power_Intensity_ScreenPixelsToSearch;
 half4 DepthBufferSizeAndInvSize;
 half4 BufferSizeAndInvSize;
 half4 ViewSizeAndInvSize;
@@ -102,12 +102,12 @@ RWTexture2D<half4> OutTexture;
 
 #if SHADER_QUALITY == 0
 	// very low
-	#define GTAO_NUMTAPS 3
+	#define GTAO_NUMTAPS 4
 	#define GTAO_BIASMIPLEVEL 2
 	#define GTAO_MAX_PIXEL_SCREEN_RADIUS 256.0f
 #elif SHADER_QUALITY == 1
 	// low
-	#define GTAO_NUMTAPS 5
+	#define GTAO_NUMTAPS 6
 	#define GTAO_BIASMIPLEVEL 1
 	#define GTAO_MAX_PIXEL_SCREEN_RADIUS 256.0f
 #elif SHADER_QUALITY == 2
@@ -284,7 +284,7 @@ half2 SearchForLargestAngleDual(half2 BaseUV, half2 ScreenDir, float SearchRadiu
 	float2 SceneDepths = 0;
 
 	half2 BestAng = half2(-1, -1);
-	half Thickness = NumAngles_SinDeltaAngle_CosDeltaAngle_Thickness.w;
+	half Thickness = WorldRadiusAdj_SinDeltaAngle_CosDeltaAngle_Thickness.w;
 
 	for (uint i = 0; i < GTAO_NUMTAPS; i++)
 	{
@@ -338,19 +338,15 @@ half ComputeInnerIntegral(half2 Angles, half3 ScreenDir, half3 ViewDir, half3 Vi
 
 	half CosAng = dot(ProjNormal, Perp) * RecipMag;
 
-	half ViewDirScreenSqLen = dot(ViewDir.xy, ViewDir.xy);
-	half ProjNormalCorrection = dot(ViewSpaceNormal, cross(ViewDir, ScreenDir)) * ViewDirScreenSqLen;
-	ProjNormalCorrection = ProjNormalCorrection * ProjNormalCorrection;
-
 #if PREINTEGRATED_LUT_TYPE == 2
 
 	half3 UVW = half3(Angles, CosAng)*0.5f + 0.5f;
-	half AO = (LenProjNormal + ProjNormalCorrection) * Texture3DSample(GTAOPreIntegrated3D, GTAOPreIntegratedSampler, UVW).r;
+	half AO = (LenProjNormal) * Texture3DSample(GTAOPreIntegrated3D, GTAOPreIntegratedSampler, UVW).r;
 
 #elif PREINTEGRATED_LUT_TYPE == 1
 
 	half3 UVW = half3(Angles, CosAng)*0.5f + 0.5f;
-	half AO = (LenProjNormal + ProjNormalCorrection) * UnwrappedTexture3DSamplePoint(GTAOPreIntegrated2D, GTAOPreIntegratedSampler, UVW, LUTSize).r;
+	half AO = (LenProjNormal) * UnwrappedTexture3DSamplePoint(GTAOPreIntegrated2D, GTAOPreIntegratedSampler, UVW, LUTSize).r;
 
 #else
 
@@ -362,19 +358,12 @@ half ComputeInnerIntegral(half2 Angles, half3 ScreenDir, half3 ViewDir, half3 Vi
 	Angles.x = Gamma + max(-Angles.x - Gamma, -(PI_HALF));
 	Angles.y = Gamma + min(Angles.y - Gamma, (PI_HALF));
 
-	half AO = ((LenProjNormal + ProjNormalCorrection) *  0.25f *
+	half AO = ((LenProjNormal) *  0.25f *
 		((Angles.x * SinGamma + CosGamma - cos((2.0 * Angles.x) - Gamma)) +
 		(Angles.y * SinGamma + CosGamma - cos((2.0 * Angles.y) - Gamma))));
 
 #endif
-	// Fade out based on user defined distance
-	AO = lerp(AO, 1, saturate(SceneDepth * FadeRadiusMulAdd_FadeDistance.x + FadeRadiusMulAdd_FadeDistance.y));
-
-	// user adjust AO
-	half AmbientOcclusionIntensity = Power_Intensity_WorldRadiusAdj_AttenFactor.y;
-	half AmbientOcclusionPower = Power_Intensity_WorldRadiusAdj_AttenFactor.x;
-	AO = 1 - (1 - pow(abs(AO), AmbientOcclusionPower)) * AmbientOcclusionIntensity;
-
+	
 	return AO;
 }
 
@@ -390,7 +379,7 @@ half CalculateGTAO(half2 TextureUV, int2 TexturePos, int2 ThreadPos)
 	float SceneDepth = GetSceneDepthFromSharedMemory(ThreadPos + DEPTH_GROUP_THREAD_OFFSET);
 #endif
 
-	if (SceneDepth > FadeRadiusMulAdd_FadeDistance.z)
+	if (SceneDepth > FadeRadiusMulAdd_FadeDistance_AttenFactor.z)
 	{
 		return 1.0f;
 	}
@@ -400,11 +389,11 @@ half CalculateGTAO(half2 TextureUV, int2 TexturePos, int2 ThreadPos)
 		half3 ViewSpaceNormal = GetNormal(TextureUV, ThreadPos, ViewSpacePos);
 		half3 ViewDir = -normalize(ViewSpacePos.xyz);
 
-		float WorldRadiusAdj = Power_Intensity_WorldRadiusAdj_AttenFactor.z;
+		float WorldRadiusAdj = WorldRadiusAdj_SinDeltaAngle_CosDeltaAngle_Thickness.x;
 
 		float PixelRadius = max(min(WorldRadiusAdj / ViewSpacePos.z, GTAO_MAX_PIXEL_SCREEN_RADIUS), (half)GTAO_NUMTAPS);
 		float StepRadius = PixelRadius / ((half)GTAO_NUMTAPS + 1);
-		float AttenFactor = Power_Intensity_WorldRadiusAdj_AttenFactor.w;
+		float AttenFactor = FadeRadiusMulAdd_FadeDistance_AttenFactor.w;
 
 		half3 RandomAndOffset = GetRandomVector(TexturePos);
 		half2 RandomVec = RandomAndOffset.xy;
@@ -412,10 +401,10 @@ half CalculateGTAO(half2 TextureUV, int2 TexturePos, int2 ThreadPos)
 
 		half Sum = 0.0;
 
-		const uint NumAngles = 2;// (uint)NumAngles_SinDeltaAngle_CosDeltaAngle_Thickness.x;
+		const uint NumAngles = 2;
 
-		half SinDeltaAngle = NumAngles_SinDeltaAngle_CosDeltaAngle_Thickness.y;
-		half CosDeltaAngle = NumAngles_SinDeltaAngle_CosDeltaAngle_Thickness.z;
+		half SinDeltaAngle = WorldRadiusAdj_SinDeltaAngle_CosDeltaAngle_Thickness.y;
+		half CosDeltaAngle = WorldRadiusAdj_SinDeltaAngle_CosDeltaAngle_Thickness.z;
 
 		half3 ScreenDir = half3(RandomVec.x, RandomVec.y, 0.0);
 
@@ -433,9 +422,15 @@ half CalculateGTAO(half2 TextureUV, int2 TexturePos, int2 ThreadPos)
 			Offset = frac(Offset + 0.617);
 		}
 
-		Sum = Sum * 0.5f;
+		half AO = Sum;
 
-		return Sum;
+		AO = AO * 0.5f;
+		AO *= 2.0 * 0.3183098861f;
+
+		// Fade out based on user defined distance
+		AO = lerp(AO, 1, saturate(SceneDepth * FadeRadiusMulAdd_FadeDistance_AttenFactor.x + FadeRadiusMulAdd_FadeDistance_AttenFactor.y));
+
+		return AO;
 	}
 }
 
@@ -654,6 +649,13 @@ void GTAOSpatialFilter(int2 ThreadPos, int2 PixelPos)
 		DepthBase += ZDiff.y;
 	}
 	SumAO /= SumWeight;
+
+	SumAO *= (PI * 0.5f);
+
+	// user adjust AO
+	half AmbientOcclusionIntensity = Power_Intensity_ScreenPixelsToSearch.y;
+	half AmbientOcclusionPower = Power_Intensity_ScreenPixelsToSearch.x;
+	SumAO = 1 - (1 - pow(abs(SumAO), AmbientOcclusionPower)) * AmbientOcclusionIntensity;
 
 #if SPATIALFILTER_PIXEL_SHADER || HORIZONSEARCH_INTEGRAL_PIXEL_SHADER
 	return SumAO;
