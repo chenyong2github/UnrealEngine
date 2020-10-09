@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OpenXRHPController.h"
 #include "InputCoreTypes.h"
