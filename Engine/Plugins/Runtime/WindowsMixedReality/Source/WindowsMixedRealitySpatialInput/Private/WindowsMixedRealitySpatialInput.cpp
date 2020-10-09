@@ -24,8 +24,6 @@ namespace WindowsMixedReality
 		: MessageHandler(InMessageHandler)
 	{
 		InitializeSpatialInput();
-
-		FWindowsMixedRealityStatics::ConfigureGesturesHandle = FWindowsMixedRealityStatics::OnConfigureGesturesDelegate.AddRaw(this, &FWindowsMixedRealitySpatialInput::OnConfigureGestures);
 	}
 
 	FWindowsMixedRealitySpatialInput::~FWindowsMixedRealitySpatialInput()
@@ -477,17 +475,6 @@ namespace WindowsMixedReality
 		}
 
 		return false;
-	}
-
-	void FWindowsMixedRealitySpatialInput::OnConfigureGestures(const FXRGestureConfig& InGestureConfig, bool& bSuccess)
-	{
-		bSuccess = UWindowsMixedRealitySpatialInputFunctionLibrary::CaptureGestures(
-			InGestureConfig.bTap,
-			InGestureConfig.bHold,
-			(ESpatialInputAxisGestureType)InGestureConfig.AxisGesture,
-			InGestureConfig.bNavigationAxisX,
-			InGestureConfig.bNavigationAxisY,
-			InGestureConfig.bNavigationAxisZ);
 	}
 
 	bool FWindowsMixedRealitySpatialInput::CaptureGestures(uint32 capturingSet)
