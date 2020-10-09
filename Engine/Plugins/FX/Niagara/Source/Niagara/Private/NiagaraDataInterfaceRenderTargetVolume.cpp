@@ -67,7 +67,7 @@ public:
 					}
 
 					OutputUAV = ProxyData->UAV;
-					RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, OutputUAV);
+					RHICmdList.Transition(FRHITransitionInfo(OutputUAV, InitialState, ERHIAccess::UAVCompute));
 				}
 			}
 
