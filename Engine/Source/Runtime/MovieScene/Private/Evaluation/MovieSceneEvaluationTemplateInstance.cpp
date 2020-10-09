@@ -23,6 +23,9 @@ FMovieSceneRootEvaluationTemplateInstance::FMovieSceneRootEvaluationTemplateInst
 	, EntitySystemLinker(nullptr)
 	, RootID(MovieSceneSequenceID::Root)
 {
+#if WITH_EDITOR
+	EmulatedNetworkMask = EMovieSceneServerClientMask::All;
+#endif
 }
 
 void FMovieSceneRootEvaluationTemplateInstance::BeginDestroy()
@@ -64,7 +67,30 @@ void FMovieSceneRootEvaluationTemplateInstance::Initialize(UMovieSceneSequence& 
 	}
 	else
 	{
+#if WITH_EDITOR
+		EMovieSceneServerClientMask Mask = EmulatedNetworkMask;
+		if (Mask == EMovieSceneServerClientMask::All)
+		{
+			UObject* PlaybackContext = Player.GetPlaybackContext();
+			UWorld* World = PlaybackContext ? PlaybackContext->GetWorld() : nullptr;
+
+			if (World)
+			{
+				ENetMode NetMode = World->GetNetMode();
+				if (NetMode == ENetMode::NM_DedicatedServer)
+				{
+					Mask = EMovieSceneServerClientMask::Server;
+				}
+				else if (NetMode == ENetMode::NM_Client)
+				{
+					Mask = EMovieSceneServerClientMask::Client;
+				}
+			}
+		}
+		CompiledDataManager = UMovieSceneCompiledDataManager::GetPrecompiledData(Mask);
+#else
 		CompiledDataManager = UMovieSceneCompiledDataManager::GetPrecompiledData();
+#endif
 	}
 	bReinitialize |= (PreviousCompiledDataManager != CompiledDataManager);
 
@@ -325,3 +351,15 @@ void FMovieSceneRootEvaluationTemplateInstance::CopyActuators(FMovieSceneBlendin
 		LegacyEvaluator->CopyActuators(Accumulator);
 	}
 }
+
+#if WITH_EDITOR
+void FMovieSceneRootEvaluationTemplateInstance::SetEmulatedNetworkMask(EMovieSceneServerClientMask InNewMask, IMovieScenePlayer& Player)
+{
+	check(InNewMask != EMovieSceneServerClientMask::None);
+	EmulatedNetworkMask = InNewMask;
+}
+EMovieSceneServerClientMask FMovieSceneRootEvaluationTemplateInstance::GetEmulatedNetworkMask() const
+{
+	return EmulatedNetworkMask;
+}
+#endif

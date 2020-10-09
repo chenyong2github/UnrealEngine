@@ -483,8 +483,7 @@ bool SSequencerEntityComponentSystemDebugVisualizer::DoRefresh()
 	TSet<TWeakObjectPtr<UMovieSceneSection>> SelectedSections = Sequencer->GetSelection().GetSelectedSections();
 	CachedSelection = SelectedSections;
 
-	FMovieSceneCompiledDataEntry CompiledEntry = CompiledDataManager->GetEntry(CompiledDataID);
-	CachedSignature = CompiledEntry.CompiledSignature;
+	CachedSignature = CompiledDataManager->GetEntryRef(CompiledDataID).CompiledSignature;
 
  	const FFrameRate SequenceResolution = ActiveMovieScene->GetTickResolution();
 
@@ -586,8 +585,7 @@ void SSequencerEntityComponentSystemDebugVisualizer::Tick( const FGeometry& Allo
 			if (CompiledDataManager != nullptr)
 			{
 				FMovieSceneCompiledDataID CompiledDataID = CompiledDataManager->GetDataID(ActiveSequence);
-				FMovieSceneCompiledDataEntry CompiledEntry = CompiledDataManager->GetEntry(CompiledDataID);
-				if (CompiledEntry.CompiledSignature != CachedSignature)
+				if (CompiledDataManager->GetEntryRef(CompiledDataID).CompiledSignature != CachedSignature)
 				{
 					bSignatureChanged = true;
 				}
