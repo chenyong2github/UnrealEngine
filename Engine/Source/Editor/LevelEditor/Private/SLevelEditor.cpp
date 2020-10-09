@@ -922,7 +922,19 @@ bool SLevelEditor::CanSpawnEditorModeToolbarTab(const FSpawnTabArgs& Args) const
 
 bool SLevelEditor::CanSpawnEditorModeToolboxTab(const FSpawnTabArgs& Args) const
 {
-	return GLevelEditorModeTools().ShouldShowModeToolbox();
+	return HasAnyHostedEditorModeToolkit();
+}
+
+bool SLevelEditor::HasAnyHostedEditorModeToolkit() const
+{
+	for (TSharedPtr<IToolkit> Toolkit : HostedToolkits)
+	{
+		if (Toolkit->GetScriptableEditorMode() || Toolkit->GetEditorMode())
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 TSharedPtr<SDockTab> SLevelEditor::TryInvokeTab( FName TabID )
@@ -1520,7 +1532,7 @@ void SLevelEditor::OnEditorModeIdChanged(const FEditorModeID& ModeChangedID, boo
 		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
 		TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
 
-		if (!GLevelEditorModeTools().ShouldShowModeToolbox())
+		if (!HasAnyHostedEditorModeToolkit())
 		{
 			TSharedPtr<SDockTab> ToolboxTab = LevelEditorTabManager->FindExistingLiveTab(LevelEditorTabIds::LevelEditorToolBox);
 			if (ToolboxTab.IsValid())
