@@ -22,6 +22,8 @@ class ListenerClient(object):
         self.socket = None
         self.handle_connection_thread = None
 
+        #TODO: Consider converting these delegates to Signals and sending dict.
+
         self.disconnect_delegate = None
 
         self.command_accepted_delegate = None
@@ -44,6 +46,7 @@ class ListenerClient(object):
         self.send_file_failed_delegate = None
         self.receive_file_completed_delegate = None
         self.receive_file_failed_delegate = None
+        self.get_sync_status_delegate = None
 
         self.last_activity = datetime.datetime.now()
 
@@ -153,11 +156,22 @@ class ListenerClient(object):
                 return
 
     def process_received_data(self, buffer, received_data):
+
         for symbol in received_data:
+
             buffer.append(symbol)
+
             if symbol == '\x00': # found message end
+
                 buffer.pop() # remove terminator
                 message = message_protocol.decode_message(buffer)
+
+                #TODO: Convert messages to have 'cmd' parameter intead of checking for a key with the command.
+                #      Something like delegates.get(message['cmd'], self.deadend)(message) could replace all if-else below.
+                #      And the client should be agnostic to the message contents and only pass them to the subscriber.
+
+                #TODO: Consider adding exception handling.
+
                 if "command accepted" in message:
                     message_id = uuid.UUID(message['id'])
                     if message['command accepted'] == True:
@@ -222,6 +236,9 @@ class ListenerClient(object):
                     else:
                         if self.receive_file_failed_delegate:
                             self.receive_file_failed_delegate(message['source'], message['error'])
+                elif "get sync status" in message:
+                    if self.get_sync_status_delegate:
+                        self.get_sync_status_delegate(message)
 
                 buffer.clear()
 
