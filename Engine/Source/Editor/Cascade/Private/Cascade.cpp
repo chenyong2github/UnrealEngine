@@ -3829,7 +3829,7 @@ void FCascade::OnRestartInLevel()
 			{
 				// Check for a valid template
 				check(PSysComp->Template);
-				PSysComp->ResetParticles();
+				PSysComp->ResetParticles(true);
 				PSysComp->bIsViewRelevanceDirty = true;
 				PSysComp->CachedViewRelevanceFlags.Empty();
 				PSysComp->Template->bShouldResetPeakCounts = true;
