@@ -30,7 +30,7 @@ struct FUpdateContext
 // UHT doesn't really like operator ::
 using FDatasmithSceneReceiver_ISceneChangeListener = FDatasmithSceneReceiver::ISceneChangeListener;
 
-UCLASS( MinimalAPI )
+UCLASS( MinimalAPI, meta=(DisplayName="Datasmith Destination"))
 class ADatasmithRuntimeActor
 	: public AActor
 	, public FDatasmithSceneReceiver_ISceneChangeListener
@@ -55,8 +55,6 @@ public:
 	virtual void OnCloseDelta() override;
 	// End ISceneChangeListener interface
 
-	void Register();
-	void Unregister();
 	bool IsConnected();
 	FString GetDestinationName() { return GetName(); }
 	FString GetSourceName();
@@ -65,19 +63,21 @@ public:
 
 	void SetScene(TSharedPtr<IDatasmithScene> SceneElement);
 
-	UPROPERTY(Category="DatasmithRuntime HUD", EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(Category="DatasmithRuntime", EditDefaultsOnly, BlueprintReadOnly)
 	float Progress;
 
-	UPROPERTY(Category="DatasmithRuntime HUD", EditDefaultsOnly, BlueprintReadOnly)
-	bool bReceiving;
-
-	UPROPERTY(Category="DatasmithRuntime HUD", EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(Category="DatasmithRuntime", EditDefaultsOnly, BlueprintReadOnly)
 	bool bBuilding;
 
-	UPROPERTY(Category="DatasmithRuntime HUD", EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(Category="DatasmithRuntime", EditDefaultsOnly, BlueprintReadOnly)
 	FString LoadedScene;
 
+	UFUNCTION(BlueprintCallable, Category = "DatasmithRuntime")
+	bool IsReceiving() { return bReceiving; }
+
 	void Reset();
+
+	void OnImportEnd();
 
 private:
 	TSharedPtr< DatasmithRuntime::FSceneImporter > SceneImporter;
@@ -85,10 +85,11 @@ private:
 	TSharedPtr<DatasmithRuntime::FDestinationProxy> DirectLinkHelper;
 
 	std::atomic_bool bNewScene;
-	std::atomic<double> ClosedDeltaWaitTime;
+	std::atomic_bool bReceiving;
+
 	float ElementDeltaStep;
 
-	FCriticalSection UpdateContextCriticalSection;
+	static bool bImportingScene;
 	FUpdateContext UpdateContext;
 };
 
