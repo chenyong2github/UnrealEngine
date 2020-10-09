@@ -99,7 +99,13 @@ public:
         return PlayerName;
     }
 
-    virtual const TArray<FString>& GetSupportedPlatforms() const override
+	virtual FGuid GetPlayerPluginGUID() const override
+	{
+		static FGuid PlayerPluginGUID(0x6505c26f, 0xec614c0e, 0xb5be5be1, 0x57fac58e);
+		return PlayerPluginGUID;
+	}
+
+	virtual const TArray<FString>& GetSupportedPlatforms() const override
     {
         return SupportedPlatforms;
     }
