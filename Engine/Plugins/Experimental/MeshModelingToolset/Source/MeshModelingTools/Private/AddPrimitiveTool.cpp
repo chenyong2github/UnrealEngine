@@ -361,9 +361,9 @@ void UAddBoxPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 {
 	FGridBoxMeshGenerator BoxGen;
 	auto* BoxSettings = Cast<UProceduralBoxToolProperties>(ShapeSettings);
-	BoxGen.Box = FOrientedBox3d(FVector3d::Zero(), 0.5*FVector3d(BoxSettings->Width, BoxSettings->Height, BoxSettings->Depth));
-	BoxGen.EdgeVertices = FIndex3i(BoxSettings->WidthSubdivisions + 1,
-								   BoxSettings->DepthSubdivisions + 1,
+	BoxGen.Box = FOrientedBox3d(FVector3d::Zero(), 0.5*FVector3d(BoxSettings->Depth, BoxSettings->Width, BoxSettings->Height));
+	BoxGen.EdgeVertices = FIndex3i(BoxSettings->DepthSubdivisions + 1,
+								   BoxSettings->WidthSubdivisions + 1,
 								   BoxSettings->HeightSubdivisions + 1);
 	if (ShapeSettings->PolygroupMode == EMakeMeshPolygroupMode::PerQuad)
 	{
@@ -377,10 +377,10 @@ void UAddRectanglePrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 {
 	FRectangleMeshGenerator RectGen;
 	auto* RectangleSettings = Cast<UProceduralRectangleToolProperties>(ShapeSettings);
-	RectGen.Width = RectangleSettings->Width;
-	RectGen.Height = RectangleSettings->Depth;
-	RectGen.WidthVertexCount = RectangleSettings->WidthSubdivisions + 1;
-	RectGen.HeightVertexCount = RectangleSettings->DepthSubdivisions + 1;
+	RectGen.Width = RectangleSettings->Depth;
+	RectGen.Height = RectangleSettings->Width;
+	RectGen.WidthVertexCount = RectangleSettings->DepthSubdivisions + 1;
+	RectGen.HeightVertexCount = RectangleSettings->WidthSubdivisions + 1;
 	if (ShapeSettings->PolygroupMode != EMakeMeshPolygroupMode::PerQuad)
 	{
 		RectGen.bSinglePolygroup = true;
@@ -393,10 +393,10 @@ void UAddRoundedRectanglePrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) con
 {
 	FRoundedRectangleMeshGenerator RectGen;
 	auto* RectangleSettings = Cast<UProceduralRoundedRectangleToolProperties>(ShapeSettings);
-	RectGen.Width = RectangleSettings->Width;
-	RectGen.Height = RectangleSettings->Depth;
-	RectGen.WidthVertexCount = RectangleSettings->WidthSubdivisions + 1;
-	RectGen.HeightVertexCount = RectangleSettings->DepthSubdivisions + 1;
+	RectGen.Width = RectangleSettings->Depth;
+	RectGen.Height = RectangleSettings->Width;
+	RectGen.WidthVertexCount = RectangleSettings->DepthSubdivisions + 1;
+	RectGen.HeightVertexCount = RectangleSettings->WidthSubdivisions + 1;
 	if (ShapeSettings->PolygroupMode != EMakeMeshPolygroupMode::PerQuad)
 	{
 		RectGen.bSinglePolygroup = true;
