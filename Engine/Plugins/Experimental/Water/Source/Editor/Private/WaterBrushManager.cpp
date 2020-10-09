@@ -199,46 +199,6 @@ void AWaterBrushManager::OnCurveUpdated(UCurveBase* Curve, EPropertyChangeType::
 	RequestLandscapeUpdate();
 }
 
-void AWaterBrushManager::GenerateWaveParameterTexture()
-{
-	if (!WaveParamsRT)
-	{
-		return;
-	}
-
-	UKismetRenderingLibrary::ClearRenderTarget2D(this, WaveParamsRT, FLinearColor::Black);
-
-	TArray<AWaterBody*> WaterBodies;
-	AWaterLandscapeBrush::GetWaterBodies(AWaterBody::StaticClass(), /*out*/ WaterBodies);
-
-	if (WaterBodies.Num() > 0)
-	{
-		UCanvas* Canvas;
-		FVector2D CanvasToRenderTargetSize;
-		FDrawToRenderTargetContext RenderTargetContext;
-		UKismetRenderingLibrary::BeginDrawCanvasToRenderTarget(this, WaveParamsRT, /*out*/ Canvas, /*out*/ CanvasToRenderTargetSize, /*out*/ RenderTargetContext);
-		check(Canvas);
-
-		for (int32 ii = 0, ni = WaterBodies.Num(); ii < ni; ++ii)
-		{
-			const AWaterBody* WaterBody = WaterBodies[ii];
-			check(WaterBody->WaveParams.Num() >= MaxWavesPerWaterBody);
-			for (int32 kk = 0; kk < MaxWavesPerWaterBody; ++kk)
-			{
-				const FWaterWaveParams& WaveParams = WaterBody->WaveParams[kk];
-				FVector2D Position((float)kk * 2.0f, (float)ii + 0.5f);
-				Canvas->K2_DrawBox(Position, FVector2D(0.500000, 0.500000), 1.000000, FLinearColor(WaveParams.Direction));
-
-				Position.X += 1.0f;
-				const FLinearColor Color(WaveParams.Wavelength, WaveParams.Amplitude, WaveParams.Steepness, 0.0f);
-				Canvas->K2_DrawBox(Position, FVector2D(0.500000, 0.500000), 1.000000, Color);
-			}
-		}
-
-		UKismetRenderingLibrary::EndDrawCanvasToRenderTarget(this, RenderTargetContext);
-	}
-}
-
 void AWaterBrushManager::BlueprintOnRenderTargetTexturesUpdated_Native(UTexture2D* VelocityTexture)
 {
 	VelocityTexture->LODBias = 0;
@@ -1039,22 +999,22 @@ void AWaterBrushManager::SetMPCParams()
 	}
 }
 
-void AWaterBrushManager::ApplyToCombinedAlphas(FBrushRenderContext& BrushRenderContext, const FBrushActorRenderContext& BrushActorRenderContext)
+void AWaterBrushManager::ApplyToCompositeWaterBodyTexture(FBrushRenderContext& BrushRenderContext, const FBrushActorRenderContext& BrushActorRenderContext)
 {
 	if (BrushRenderContext.bHeightmapRender && (BrushActorRenderContext.TryGetActorAs<AWaterBody>() != nullptr))
 	{
 		check(::IsValid(BrushActorRenderContext.CacheContainer));
 		const FWaterBodyHeightmapSettings& HeightmapSettings = BrushActorRenderContext.WaterBrushActor->GetWaterHeightmapSettings();
 
-		CombineAlphasMID->SetTextureParameterValue(FName(TEXT("CachedDistanceFieldHeight")), BrushActorRenderContext.CacheContainer->Cache.CacheRenderTarget);
-		CombineAlphasMID->SetTextureParameterValue(FName(TEXT("CombinedVelocityAndHeight")), VelocityPingPongRead(BrushRenderContext));
-		CombineAlphasMID->SetTextureParameterValue(FName(TEXT("LandscapeHeight")), HeightPingPongRead(BrushRenderContext));
-		CombineAlphasMID->SetScalarParameterValue(FName(TEXT("ZOffset")), HeightmapSettings.FalloffSettings.ZOffset);
+		CompositeWaterBodyTextureMID->SetTextureParameterValue(FName(TEXT("CachedDistanceFieldHeight")), BrushActorRenderContext.CacheContainer->Cache.CacheRenderTarget);
+		CompositeWaterBodyTextureMID->SetTextureParameterValue(FName(TEXT("CombinedVelocityAndHeight")), VelocityPingPongRead(BrushRenderContext));
+		CompositeWaterBodyTextureMID->SetTextureParameterValue(FName(TEXT("LandscapeHeight")), HeightPingPongRead(BrushRenderContext));
+		CompositeWaterBodyTextureMID->SetScalarParameterValue(FName(TEXT("ZOffset")), HeightmapSettings.FalloffSettings.ZOffset);
 
 		UE_LOG(LogWaterEditor, Verbose, TEXT("Rendering Water Body Velocity/Height to Combined Texture: %s"), *UKismetSystemLibrary::GetDisplayName(VelocityPingPongWrite(BrushRenderContext)));
 
 		UKismetRenderingLibrary::ClearRenderTarget2D(this, VelocityPingPongWrite(BrushRenderContext), FLinearColor::Black);
-		UKismetRenderingLibrary::DrawMaterialToRenderTarget(this, VelocityPingPongWrite(BrushRenderContext), CombineAlphasMID);
+		UKismetRenderingLibrary::DrawMaterialToRenderTarget(this, VelocityPingPongWrite(BrushRenderContext), CompositeWaterBodyTextureMID);
 
 		++BrushRenderContext.VelocityRTIndex;
 	}
@@ -1134,7 +1094,7 @@ void AWaterBrushManager::RenderBrushActorContext(FBrushRenderContext& BrushRende
 		WaterBody->UpdateWaterComponentVisibility();
 	}
 
-	ApplyToCombinedAlphas(BrushRenderContext, BrushActorRenderContext);
+	ApplyToCompositeWaterBodyTexture(BrushRenderContext, BrushActorRenderContext);
 }
 
 bool AWaterBrushManager::CreateMIDs()
@@ -1147,7 +1107,7 @@ bool AWaterBrushManager::CreateMIDs()
 	BrushWidthFalloffMID = FWaterUtils::GetOrCreateTransientMID(BrushWidthFalloffMID, TEXT("BrushWidthFalloffMID"), WaterEditorSettings->GetDefaultBrushWidthFalloffMaterial());
 	WeightmapMID = FWaterUtils::GetOrCreateTransientMID(WeightmapMID, TEXT("WeightmapMID"), WaterEditorSettings->GetDefaultBrushWeightmapMaterial());
 	DistanceFieldCacheMID = FWaterUtils::GetOrCreateTransientMID(DistanceFieldCacheMID, TEXT("DistanceFieldCacheMID"), WaterEditorSettings->GetDefaultCacheDistanceFieldCacheMaterial());
-	CombineAlphasMID = FWaterUtils::GetOrCreateTransientMID(CombineAlphasMID, TEXT("CombineAlphasMID"), WaterEditorSettings->GetDefaultCompositeAlphasMaterial());
+	CompositeWaterBodyTextureMID = FWaterUtils::GetOrCreateTransientMID(CompositeWaterBodyTextureMID, TEXT("CompositeWaterBodyTextureMID"), WaterEditorSettings->GetDefaultCompositeWaterBodyTextureMaterial());
 	FinalizeVelocityHeightMID = FWaterUtils::GetOrCreateTransientMID(FinalizeVelocityHeightMID, TEXT("FinalizeVelocityHeightMID"), WaterEditorSettings->GetDefaultFinalizeVelocityHeightMaterial());
 	DrawCanvasMID = FWaterUtils::GetOrCreateTransientMID(DrawCanvasMID, TEXT("DrawCanvasMID"), WaterEditorSettings->GetDefaultDrawCanvasMaterial());
 
@@ -1156,7 +1116,7 @@ bool AWaterBrushManager::CreateMIDs()
 		|| (BrushWidthFalloffMID == nullptr)
 		|| (WeightmapMID == nullptr)
 		|| (DistanceFieldCacheMID == nullptr)
-		|| (CombineAlphasMID == nullptr)
+		|| (CompositeWaterBodyTextureMID == nullptr)
 		|| (FinalizeVelocityHeightMID == nullptr)
 		|| (DrawCanvasMID == nullptr))
 	{
