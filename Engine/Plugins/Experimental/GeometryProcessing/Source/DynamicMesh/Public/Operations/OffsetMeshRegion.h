@@ -45,6 +45,12 @@ public:
 	/** quads on the stitch loop are planar-projected and scaled by this amount */
 	float UVScaleFactor = 1.0f;
 
+	/** If a sub-region of Triangles is a full connected component, offset into a solid instead of leaving a shell*/
+	bool bOffsetFullComponentsAsSolids = true;
+
+	/** if offset is "negative" (ie negative distance, inset, etc) and inset is an entire mesh region, needs to  */
+	bool bIsPositiveOffset = true;
+
 	/** If set, change tracker will be updated based on edit */
 	TUniquePtr<FDynamicMeshChangeTracker> ChangeTracker;
 
@@ -63,11 +69,16 @@ public:
 		TArray<FEdgeLoop> BaseLoops;
 		/** Offset loops on the mesh */
 		TArray<FEdgeLoop> OffsetLoops;
+		/** Groups on offset faces */
+		TArray<int32> OffsetGroups;
 
 		/** Lists of triangle-strip "tubes" that connect each loop-pair */
 		TArray<TArray<int>> StitchTriangles;
 		/** List of group ids / polygon ids on each triangle-strip "tube" */
 		TArray<TArray<int>> StitchPolygonIDs;
+
+		/** If true, full region was thickened into a solid */
+		bool bIsSolid = false;
 	};
 
 	/**
@@ -109,4 +120,6 @@ public:
 protected:
 
 	virtual bool ApplyOffset(FOffsetInfo& Region, FMeshNormals* UseNormals = nullptr);
+
+	virtual bool ApplySolidExtrude(FOffsetInfo& Region, FMeshNormals* UseNormals = nullptr);
 };
