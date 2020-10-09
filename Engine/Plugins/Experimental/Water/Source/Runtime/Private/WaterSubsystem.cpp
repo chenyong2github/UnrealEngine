@@ -282,11 +282,11 @@ void UWaterSubsystem::AddWaterCollisionProfile()
 		WaterBodyCollisionProfile.ResponseToChannels = FCollisionResponseContainer::GetDefaultResponseContainer();
 		WaterBodyCollisionProfile.ResponseToChannels.Camera = ECR_Ignore;
 		WaterBodyCollisionProfile.ResponseToChannels.Visibility = ECR_Ignore;
-		WaterBodyCollisionProfile.ResponseToChannels.WorldStatic = ECR_Ignore;
 		WaterBodyCollisionProfile.ResponseToChannels.WorldDynamic = ECR_Overlap;
 		WaterBodyCollisionProfile.ResponseToChannels.Pawn = ECR_Overlap;
 		WaterBodyCollisionProfile.ResponseToChannels.PhysicsBody = ECR_Overlap;
 		WaterBodyCollisionProfile.ResponseToChannels.Destructible = ECR_Overlap;
+		WaterBodyCollisionProfile.ResponseToChannels.Vehicle = ECR_Overlap;
 #if WITH_EDITORONLY_DATA
 		WaterBodyCollisionProfile.HelpMessage = TEXT("Default Water Collision Profile (Created by Water Plugin)");
 #endif
