@@ -1405,7 +1405,10 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateNavigationData()
 		return false;
 	}
 
-	GridHelper.ForEachCells([GridHelper, RuntimeGrid, WorldPartition, &ActorCount, World, NavSystem, this](const FIntVector& CellCoord)
+	// Keep track of all valid navigation data chunk actors
+	TSet<ANavigationDataChunkActor*> ValidNavigationDataChunkActors;
+
+	GridHelper.ForEachCells([GridHelper, RuntimeGrid, WorldPartition, &ActorCount, World, NavSystem, &ValidNavigationDataChunkActors, this](const FIntVector& CellCoord)
 	{
 		const int32 Level = CellCoord.Z;
 		if (Level != 3) //Todo AT, only generate for level 3 for now
@@ -1445,9 +1448,19 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateNavigationData()
 		DataChunkActor->RuntimeGrid = RuntimeGrid.GridName;
 
 		WorldPartition->UpdateActorDesc(DataChunkActor);
+		ValidNavigationDataChunkActors.Add(DataChunkActor);
 	});
 
 	UE_LOG(LogWorldPartitionRuntimeSpatialHash, Verbose, TEXT("   %i ANavigationDataChunkActor actors added."), ActorCount);
+
+	// Destroy all invalid navigation data chunk actors
+	for (TActorIterator<ANavigationDataChunkActor> It(GetWorld()); It; ++It)
+	{
+		if (!ValidNavigationDataChunkActors.Contains(*It))
+		{
+			GetWorld()->DestroyActor(*It);
+		}
+	}
 
 	return true;
 }

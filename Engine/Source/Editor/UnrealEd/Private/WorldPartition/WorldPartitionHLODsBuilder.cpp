@@ -18,7 +18,7 @@ UWorldPartitionHLODsBuilder::UWorldPartitionHLODsBuilder(const FObjectInitialize
 {
 }
 
-bool UWorldPartitionHLODsBuilder::RequiresCommandletRendering()
+bool UWorldPartitionHLODsBuilder::RequiresCommandletRendering() const 
 {
 	return true;
 }

@@ -37,7 +37,7 @@ int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 		LogWorldPartitionBuilderCommandlet.SetVerbosity(ELogVerbosity::Verbose);
 	}
 
-	// This will convert imcomplete package name to a fully qualifed path
+	// This will convert incomplete package name to a fully qualifed path
 	FString WorldFilename;
 	if (!FPackageName::SearchForPackageOnDisk(Tokens[0], &Tokens[0], &WorldFilename))
 	{
@@ -84,7 +84,7 @@ int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 
 		World->InitWorld(UWorld::InitializationValues(IVS));
 		World->PersistentLevel->UpdateModelComponents();
-		World->UpdateWorldComponents(true, false);
+		World->UpdateWorldComponents(true /*bRerunConstructionScripts*/, false /*bCurrentLevelOnly*/);
 	}
 
 	// Make sure the world is partitioned.
@@ -98,7 +98,7 @@ int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 	UWorldPartition* WorldPartition = World->GetWorldPartition();
 	check(WorldPartition);
 
-	FWorldContext& WorldContext = GEditor->GetEditorWorldContext(true);
+	FWorldContext& WorldContext = GEditor->GetEditorWorldContext(true /*bEnsureIsGWorld*/);
 	WorldContext.SetCurrentWorld(World);
 	GWorld = World;
 	
@@ -114,6 +114,8 @@ int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 
 	BuilderList.ReplaceInline(TEXT(","), TEXT(" "));
 	
+	bool bNeedToSave = false;	// Does any builder needs the map to be saved.
+	bool bAllowedToSave = true; // Does all builders are ok with the map being saved.
 	FString BuilderClassName;
 	const TCHAR* BuilderListPtr = *BuilderList;
 	while (FParse::Token(BuilderListPtr, BuilderClassName, false))
@@ -135,6 +137,9 @@ int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 			return 1;
 		}
 
+		bNeedToSave |= Builder->RequiresMapSaving();
+		bAllowedToSave &= Builder->AllowsMapSaving();
+
 		// Load builder configuration
 		if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*WorldConfigFilename))
 		{
@@ -144,12 +149,19 @@ int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 		Builders.Add(Builder);
 	}
 
+	if (bNeedToSave && !bAllowedToSave)
+	{
+		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Some builders are incompatible and must be run separately."));
+		return 1;
+	}
+
 	// For now, load all cells
 	// In the future, we'll want the commandlet to be able to perform partial updates of the map
 	// to allow builders to be distributed on multiple machines or run incremental builds.
 	const FBox LoadBox(FVector(-WORLD_MAX, -WORLD_MAX, -WORLD_MAX), FVector(WORLD_MAX, WORLD_MAX, WORLD_MAX));
 	WorldPartition->LoadEditorCells(LoadBox);
 
+	// Run builders
 	for (UWorldPartitionBuilder* Builder: Builders)
 	{
 		if (!Builder->Run(World, *this))
@@ -159,10 +171,13 @@ int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 	}
 
 	// Save the world
-	if (!UPackage::SavePackage(MapPackage, nullptr, RF_Standalone, *WorldFilename))
+	if (bNeedToSave && bAllowedToSave)
 	{
-		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Error saving map package %s."), *MapPackage->GetName());
-		return 1;
+		if (!UPackage::SavePackage(MapPackage, nullptr, RF_Standalone, *WorldFilename))
+		{
+			UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Error saving map package %s."), *MapPackage->GetName());
+			return 1;
+		}
 	}
 
 	// Save default configuration

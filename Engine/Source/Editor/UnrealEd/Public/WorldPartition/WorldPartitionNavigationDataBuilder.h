@@ -3,17 +3,17 @@
 #pragma once
 
 #include "WorldPartition/WorldPartitionBuilder.h"
-#include "WorldPartitionHLODsBuilder.generated.h"
+#include "WorldPartitionNavigationDataBuilder.generated.h"
 
 UCLASS()
-class UWorldPartitionHLODsBuilder : public UWorldPartitionBuilder
+class UWorldPartitionNavigationDataBuilder : public UWorldPartitionBuilder
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 	// UWorldPartitionBuilder interface begin
 	virtual bool RequiresCommandletRendering() const override;
-	virtual bool RequiresMapSaving() const override { return true; }
+	virtual bool AllowsMapSaving() const override { return false; }
 	virtual bool Run(UWorld* World, FPackageSourceControlHelper& PackageHelper) override;
 	// UWorldPartitionBuilder interface end
 };
