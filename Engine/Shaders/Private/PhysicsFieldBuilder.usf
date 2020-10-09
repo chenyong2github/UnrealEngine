@@ -270,9 +270,9 @@ void EvaluateRadialMaskInteger(in float3 SamplePosition, in int NodeOffset,
 	const float DistanceSquared = dot(DeltaPosition, DeltaPosition);
 	const int DeltaResult = (DistanceSquared < NodesParams[NodeOffset + RADIAL_MASK_INTEGER_RADIUS] *
 											 NodesParams[NodeOffset + RADIAL_MASK_INTEGER_RADIUS]) ?
-											 NodesParams[NodeOffset + RADIAL_MASK_INTEGER_INTERIOR_VALUE] :
-											 NodesParams[NodeOffset + RADIAL_MASK_INTEGER_EXTERIOR_VALUE];
-	const int MaskCondition = NodesParams[NodeOffset + RADIAL_MASK_INTEGER_SET_MASK_CONDITION];
+											 (int)NodesParams[NodeOffset + RADIAL_MASK_INTEGER_INTERIOR_VALUE]:
+											 (int)NodesParams[NodeOffset + RADIAL_MASK_INTEGER_EXTERIOR_VALUE];
+	const int MaskCondition = (int)NodesParams[NodeOffset + RADIAL_MASK_INTEGER_SET_MASK_CONDITION];
 	
 	ContextDatas[LocalIndex++] = (MaskCondition == SET_ALWAYS) ? DeltaResult :
 					 ((MaskCondition == SET_IFF_NOT_INTERIOR) && (ContextDatas[LocalIndex] != NodesParams[NodeOffset + RADIAL_MASK_INTEGER_INTERIOR_VALUE])) ? DeltaResult :
@@ -356,7 +356,7 @@ void EvaluateRadialFalloffScalar(in float3 SamplePosition, in int NodeOffset,
 	{
 		const float DeltaDistance = 1.0 - LocalDistance / FieldRadius;
 
-		SetFalloffValue(NodesParams[NodeOffset + RADIAL_FALLOFF_FALLOFF],
+		SetFalloffValue((int)NodesParams[NodeOffset + RADIAL_FALLOFF_FALLOFF],
 						1.0, DeltaDistance, ScalarDatas);
 		ScalarDatas = NodesParams[NodeOffset + RADIAL_FALLOFF_MAGNITUDE] * (NodesParams[NodeOffset + RADIAL_FALLOFF_MIN_RANGE] + ScalarDatas * DeltaRange);
 	}
@@ -404,7 +404,7 @@ void EvaluatePlaneFalloffScalar(in float3 SamplePosition, in int NodeOffset,
 	{
 		const float DeltaDistance = 1.0 + LocalDistance / PlaneDistance;
 		
-		SetFalloffValue(NodesParams[NodeOffset + PLANE_FALLOFF_FALLOFF],
+		SetFalloffValue((int)NodesParams[NodeOffset + PLANE_FALLOFF_FALLOFF],
 						1.0, DeltaDistance, ScalarDatas);
 		ScalarDatas = NodesParams[NodeOffset + PLANE_FALLOFF_MAGNITUDE] * (NodesParams[NodeOffset + PLANE_FALLOFF_MIN_RANGE] + ScalarDatas * DeltaRange);
 	}
@@ -468,7 +468,7 @@ void EvaluateBoxFalloffScalar(in float3 SamplePosition, in int NodeOffset,
 	{
 		const float DeltaDistance = -LocalDistance / 50.0;
 		
-		SetFalloffValue(NodesParams[NodeOffset + BOX_FALLOFF_FALLOFF],
+		SetFalloffValue((int)NodesParams[NodeOffset + BOX_FALLOFF_FALLOFF],
 						1.0,DeltaDistance, ScalarDatas);
 		ScalarDatas = NodesParams[NodeOffset + BOX_FALLOFF_MAGNITUDE] * (NodesParams[NodeOffset + BOX_FALLOFF_MIN_RANGE] + ScalarDatas * DeltaRange);
 	}
@@ -605,12 +605,12 @@ void EvaluateRandomVector(in float3 SamplePosition, in int NodeOffset,
 void EvaluateSumScalar(in float3 SamplePosition, in int NodeOffset,
 				inout float ContextDatas[MAX_DATAS], inout int LocalIndex)
 {
-	const int HasRight = NodesParams[NodeOffset + SUM_SCALAR_RIGHT];
-	const int HasLeft = NodesParams[NodeOffset + SUM_SCALAR_LEFT];
+	const int HasRight = (int)NodesParams[NodeOffset + SUM_SCALAR_RIGHT];
+	const int HasLeft = (int)NodesParams[NodeOffset + SUM_SCALAR_LEFT];
 
 	LocalIndex -= HasRight + HasLeft;
 
-	const int FieldOperation = NodesParams[NodeOffset + SUM_SCALAR_OPERATION];
+	const int FieldOperation = (int)NodesParams[NodeOffset + SUM_SCALAR_OPERATION];
 	const bool UnitOperation = (FieldOperation == MULTIPLY_OP) || (FieldOperation == DIVIDE_OP);
 
 	int OffsetIndex = LocalIndex;
@@ -652,13 +652,13 @@ void EvaluateSumScalar(in float3 SamplePosition, in int NodeOffset,
 void EvaluateSumVector(in float3 SamplePosition, in int NodeOffset,
 				inout float ContextDatas[MAX_DATAS], inout int LocalIndex)
 {
-	const int HasScalar = NodesParams[NodeOffset + SUM_VECTOR_SCALAR];
-	const int HasRight = NodesParams[NodeOffset + SUM_VECTOR_RIGHT];
-	const int HasLeft = NodesParams[NodeOffset + SUM_VECTOR_LEFT];
+	const int HasScalar = (int)NodesParams[NodeOffset + SUM_VECTOR_SCALAR];
+	const int HasRight = (int)NodesParams[NodeOffset + SUM_VECTOR_RIGHT];
+	const int HasLeft = (int)NodesParams[NodeOffset + SUM_VECTOR_LEFT];
 
 	LocalIndex -= HasScalar + HasRight * 3 + HasLeft * 3;
 
-	const int FieldOperation = NodesParams[NodeOffset + SUM_VECTOR_OPERATION];
+	const int FieldOperation = (int)NodesParams[NodeOffset + SUM_VECTOR_OPERATION];
 	const bool UnitOperation = (FieldOperation == MULTIPLY_OP) || (FieldOperation == DIVIDE_OP);
 
 	int OffsetIndex = LocalIndex;
@@ -728,21 +728,21 @@ void EvaluateConversionInteger(in float3 SamplePosition, in int NodeOffset,
 void EvaluateCullingInteger(in float3 SamplePosition, in int NodeOffset,
 				inout float ContextDatas[MAX_DATAS], inout int LocalIndex)
 {
-	const int HasScalar = NodesParams[NodeOffset + CULLING_SCALAR];
-	const int HasInput = NodesParams[NodeOffset + CULLING_INPUT];
+	const int HasScalar = (int)NodesParams[NodeOffset + CULLING_SCALAR];
+	const int HasInput = (int)NodesParams[NodeOffset + CULLING_INPUT];
 
 	LocalIndex -= HasScalar + HasInput;
 
 	int OffsetIndex = LocalIndex;
 	const float CullingScalar = HasScalar ? ContextDatas[OffsetIndex] : 0.0;
-	OffsetIndex += CullingScalar;
-	const int InputInteger = HasInput ? ContextDatas[OffsetIndex] : 0.0;
+	OffsetIndex += (int)CullingScalar;
+	const int InputInteger = HasInput ? (int)ContextDatas[OffsetIndex] : 0.0;
 
-	const int CullingOperation = NodesParams[NodeOffset + CULLING_OPERATION];
+	const int CullingOperation = (int)NodesParams[NodeOffset + CULLING_OPERATION];
 	const bool ValidSample = ((CullingOperation == CULLING_OUTSIDE) && (CullingScalar != 0.0)) ||
 							 ((CullingOperation == CULLING_INSIDE) && (CullingScalar == 0.0));
 
-	ContextDatas[LocalIndex++] = ValidSample ? InputInteger : 0;
+	ContextDatas[LocalIndex++] = (float) (ValidSample ? InputInteger : 0);
 }
 
 /* -----------------------------------------------------------------
@@ -753,17 +753,17 @@ void EvaluateCullingInteger(in float3 SamplePosition, in int NodeOffset,
 void EvaluateCullingScalar(in float3 SamplePosition, in int NodeOffset,
 				inout float ContextDatas[MAX_DATAS], inout int LocalIndex)
 {
-	const int HasScalar = NodesParams[NodeOffset + CULLING_SCALAR];
-	const int HasInput = NodesParams[NodeOffset + CULLING_INPUT];
+	const int HasScalar = (int)NodesParams[NodeOffset + CULLING_SCALAR];
+	const int HasInput = (int) NodesParams[NodeOffset + CULLING_INPUT];
 
 	LocalIndex -= HasScalar + HasInput;
 
 	int OffsetIndex = LocalIndex;
 	const float CullingScalar = HasScalar ? ContextDatas[OffsetIndex] : 0.0;
-	OffsetIndex += CullingScalar;
+	OffsetIndex += (int)CullingScalar;
 	const float InputScalar = HasInput ? ContextDatas[OffsetIndex] : 0.0;
 
-	const int CullingOperation = NodesParams[NodeOffset + CULLING_OPERATION];
+	const int CullingOperation = (int)NodesParams[NodeOffset + CULLING_OPERATION];
 	const bool ValidSample = ((CullingOperation == CULLING_OUTSIDE) && (CullingScalar != 0.0)) ||
 							 ((CullingOperation == CULLING_INSIDE) && (CullingScalar == 0.0));
 
@@ -778,17 +778,17 @@ void EvaluateCullingScalar(in float3 SamplePosition, in int NodeOffset,
 void EvaluateCullingVector(in float3 SamplePosition, in int NodeOffset,
 				inout float ContextDatas[MAX_DATAS], inout int LocalIndex)
 {
-	const int HasScalar = NodesParams[NodeOffset + CULLING_SCALAR];
-	const int HasInput = NodesParams[NodeOffset + CULLING_INPUT];
+	const int HasScalar = (int)NodesParams[NodeOffset + CULLING_SCALAR];
+	const int HasInput = (int)NodesParams[NodeOffset + CULLING_INPUT];
 
 	LocalIndex -= HasScalar + HasInput * 3;
 
 	int OffsetIndex = LocalIndex;
 	const float CullingScalar = HasScalar ? ContextDatas[OffsetIndex] : 0.0;
-	OffsetIndex += CullingScalar;
+	OffsetIndex += (int)CullingScalar;
 	const float3 InputVector = HasInput ? float3(ContextDatas[OffsetIndex], ContextDatas[OffsetIndex + 1], ContextDatas[OffsetIndex + 2]) : float3(0, 0, 0);
 
-	const int CullingOperation = NodesParams[NodeOffset + CULLING_OPERATION];
+	const int CullingOperation = (int)NodesParams[NodeOffset + CULLING_OPERATION];
 	const bool ValidSample = ((CullingOperation == CULLING_OUTSIDE) && (CullingScalar != 0.0)) ||
 							 ((CullingOperation == CULLING_INSIDE) && (CullingScalar == 0.0));
 
@@ -805,7 +805,7 @@ void EvaluateCullingVector(in float3 SamplePosition, in int NodeOffset,
 void EvaluateFieldNodeInteger(in float3 SamplePosition, in int NodeOffset,
 		inout float ContextDatas[MAX_DATAS], inout int LocalIndex)
 {
-	const int NodeType = NodesParams[NodeOffset];
+	const int NodeType = (int)NodesParams[NodeOffset];
 
 	[branch]
 	if (NodeType == UNIFORM_INTEGER)
@@ -828,7 +828,7 @@ void EvaluateFieldNodeInteger(in float3 SamplePosition, in int NodeOffset,
 
 void EvaluateFieldNodeScalar(in float3 SamplePosition, in int NodeOffset, inout float ContextDatas[MAX_DATAS], inout int LocalIndex)
 {
-	const int NodeType = NodesParams[NodeOffset];
+	const int NodeType = (int)NodesParams[NodeOffset];
 
 	[branch]
 	if (NodeType == UNIFORM_SCALAR)
@@ -868,7 +868,7 @@ void EvaluateFieldNodeScalar(in float3 SamplePosition, in int NodeOffset, inout 
 void EvaluateFieldNodeVector(in float3 SamplePosition, in int NodeOffset,
 				 inout float ContextDatas[MAX_DATAS], inout int LocalIndex)
 {
-	const int NodeType = NodesParams[NodeOffset];
+	const int NodeType = (int)NodesParams[NodeOffset];
 
 	[branch]
 	if (NodeType == UNIFORM_VECTOR)
@@ -895,7 +895,7 @@ void EvaluateFieldNodeVector(in float3 SamplePosition, in int NodeOffset,
 
 void EvaluateFieldNodeDatas(in float3 SamplePosition, in int NodeOffset, inout float ContextDatas[MAX_DATAS], inout int LocalIndex)
 {
-	const int DatasType = NodesParams[NodeOffset];
+	const int DatasType = (int)NodesParams[NodeOffset];
 
 	[branch]
 	if (DatasType == SCALAR_TYPE)
@@ -933,82 +933,6 @@ void SampleFieldDatas(in float3 SamplePosition, inout float ContextDatas[MAX_DAT
 		}
 	}
 }
-
-//[numthreads(BUILD_FIELD_THREADGROUP_SIZEX, BUILD_FIELD_THREADGROUP_SIZEY, BUILD_FIELD_THREADGROUP_SIZEZ)]
-//void BuildPhysicsFieldClipmapCS(
-//	uint3 GroupId : SV_GroupID,
-//	uint3 DispatchThreadId : SV_DispatchThreadID,
-//    uint3 GroupThreadId : SV_GroupThreadID)
-//{
-//	if (all(DispatchThreadId.xyz < int3(ClipmapResolution, ClipmapResolution, ClipmapResolution)))
-//	{
-		
-//		float4 ResultsDatas[MAX_COUNT];
-//		[unroll]
-//		for (int ResultsIndex = 0; ResultsIndex < MAX_COUNT; ++ResultsIndex)
-//		{
-//			ResultsDatas[ResultsIndex] = float4(0, 0, 0, 0);
-//		}
-//		for (int ClipmapIndex = 0; ClipmapIndex < ClipmapCount; ++ClipmapIndex)
-//		{
-//			const float ClipmapExtent = ClipmapDistance * pow(ClipmapExponent, ClipmapIndex + 1 - ClipmapCount);
-		
-//			const float3 SampleUV = (DispatchThreadId.xyz + 0.5) / ClipmapResolution;
-//			const float3 SamplePosition = ClipmapCenter + (SampleUV - 0.5) * 2.0 * ClipmapExtent;
-			
-//			//for (int TargetIndex = 0; TargetIndex < TargetCount; ++TargetIndex)
-//			//{
-//			//	const int DatasOffset = ClipmapIndex + TargetIndex * ClipmapCount;
-					
-//			//	uint3 TextureCoordinates = DispatchThreadId;
-//			//	TextureCoordinates.z += ClipmapResolution * DatasOffset + DatasOffset;
-				
-//			//	FieldClipmap[TextureCoordinates] = float4(0, 0, 0, 0);
-//			//}
-			
-//			for (int TargetType = 0; TargetType < MAX_TARGETS_ARRAY; ++TargetType)
-//			{
-//				const int TargetIndex = PhysicsTargets[TargetType];
-				
-//				[branch]
-//				if (TargetIndex != -1)
-//				{
-//					//const int DatasOffset = ClipmapIndex + TargetIndex * ClipmapCount;
-					
-//					//uint3 TextureCoordinates = DispatchThreadId;
-//					//TextureCoordinates.z += ClipmapResolution * DatasOffset + DatasOffset;
-					
-//					const int DatasOffset = ClipmapIndex + TargetIndex * ClipmapCount;
-//					const uint3 TextureCoordinates = (DispatchThreadId.x, DispatchThreadId.y, DispatchThreadId.z + ClipmapResolution * DatasOffset + DatasOffset);
-		
-//					float ContextDatas[MAX_DATAS];
-//					int LocalIndex = 0;
-
-//					SampleFieldDatas(SamplePosition, ContextDatas, LocalIndex, TargetType + 1);
-		
-//					if (LocalIndex == 3)
-//					{
-//						//FieldClipmap[TextureCoordinates] += float4(ContextDatas[0], ContextDatas[1], ContextDatas[2], 0);
-//						ResultsDatas[TargetIndex].xyz = float3(ContextDatas[0], ContextDatas[1], ContextDatas[2]);
-//					}
-//					else if (LocalIndex == 1)
-//					{
-//						//FieldClipmap[TextureCoordinates] += float4(0, 0, 0, ContextDatas[0]);
-//						ResultsDatas[TargetIndex].w = ContextDatas[0];
-//					}
-//					//FieldClipmap[TextureCoordinates] = ResultsDatas[TargetIndex];
-
-//				}
-//			}
-//			for (int TargetIndex = 0; TargetIndex < TargetCount; ++TargetIndex)
-//			{
-//				const int DatasOffset = ClipmapIndex + TargetIndex * ClipmapCount;
-//				const uint3 TextureCoordinates = uint3(DispatchThreadId.x, DispatchThreadId.y, DispatchThreadId.z + ClipmapResolution * DatasOffset + DatasOffset);
-//				FieldClipmap[TextureCoordinates] = ResultsDatas[TargetIndex];
-//			}
-//		}
-//	}
-//}
 
 [numthreads(BUILD_FIELD_THREADGROUP_SIZEX, BUILD_FIELD_THREADGROUP_SIZEY, BUILD_FIELD_THREADGROUP_SIZEZ)]
 void BuildPhysicsFieldClipmapCS(
