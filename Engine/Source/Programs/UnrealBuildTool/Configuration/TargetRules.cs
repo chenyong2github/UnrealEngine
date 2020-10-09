@@ -942,6 +942,13 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Whether to enable all warnings as errors. UE enables most warnings as errors already, but disables a few (such as deprecation warnings).
+		/// </summary>
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		[CommandLine("-WarningsAsErrors")]
+		public bool bWarningsAsErrors = false;
+
+		/// <summary>
 		/// Indicates what warning/error level to treat unsafe type casts as on platforms that support it (e.g., double->float or int64->int32)
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
@@ -2372,6 +2379,11 @@ namespace UnrealBuildTool
 		public bool bUndefinedIdentifierErrors
 		{
 			get { return Inner.bUndefinedIdentifierErrors; }
+		}
+
+		public bool bWarningsAsErrors
+		{
+			get { return Inner.bWarningsAsErrors; }
 		}
 
 		public bool bUseFastMonoCalls

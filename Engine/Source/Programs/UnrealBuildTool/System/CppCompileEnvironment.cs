@@ -208,6 +208,11 @@ namespace UnrealBuildTool
 		public bool bUndefinedIdentifierWarningsAsErrors = false;
 
 		/// <summary>
+		/// Whether to treat all warnings as errors
+		/// </summary>
+		public bool bWarningsAsErrors = false;
+
+		/// <summary>
 		/// True if compiler optimizations should be enabled. This setting is distinct from the configuration (see CPPTargetConfiguration).
 		/// </summary>
 		public bool bOptimizeCode = false;
@@ -421,6 +426,7 @@ namespace UnrealBuildTool
 			UnsafeTypeCastWarningLevel = Other.UnsafeTypeCastWarningLevel;
 			bUndefinedIdentifierWarningsAsErrors = Other.bUndefinedIdentifierWarningsAsErrors;
 			bEnableUndefinedIdentifierWarnings = Other.bEnableUndefinedIdentifierWarnings;
+			bWarningsAsErrors = Other.bWarningsAsErrors;
 			bOptimizeCode = Other.bOptimizeCode;
 			bOptimizeForSize = Other.bOptimizeForSize;
 			bCreateDebugInfo = Other.bCreateDebugInfo;

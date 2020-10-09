@@ -596,6 +596,12 @@ namespace UnrealBuildTool
 				Arguments.Add("/W0");
 			}
 
+			// Treat warnings as errors
+			if (CompileEnvironment.bWarningsAsErrors)
+			{
+				Arguments.Add("/WX");
+			}
+
 			// Intel compiler options.
 			if (Target.WindowsPlatform.Compiler == WindowsCompiler.Intel)
 			{
