@@ -609,7 +609,7 @@ class FLoadedPackageRef
 {
 	UPackage* Package = nullptr;
 	int32 RefCount = 0;
-	bool bIsLoaded = false;
+	bool bAreAllPublicExportsLoaded = false;
 	bool bIsMissing = false;
 
 public:
@@ -621,8 +621,8 @@ public:
 	inline bool AddRef()
 	{
 		++RefCount;
-		// is this the first reference to an already fully loaded package?
-		return RefCount == 1 && bIsLoaded;
+		// is this the first reference to a package that has been loaded earlier?
+		return RefCount == 1 && Package;
 	}
 
 	inline bool ReleaseRef()
@@ -630,18 +630,18 @@ public:
 		check(RefCount > 0);
 		--RefCount;
 #if DO_CHECK
-		check(bIsLoaded || bIsMissing);
-		if (bIsLoaded)
+		check(bAreAllPublicExportsLoaded || bIsMissing);
+		if (bAreAllPublicExportsLoaded)
 		{
 			check(!bIsMissing);
 		}
 		if (bIsMissing)
 		{
-			check(!bIsLoaded);
+			check(!bAreAllPublicExportsLoaded);
 		}
 #endif
-		// is this the last reference to a fully loaded package?
-		return RefCount == 0 && bIsLoaded;
+		// is this the last reference to a loaded package?
+		return RefCount == 0 && Package;
 	}
 
 	inline UPackage* GetPackage() const
@@ -654,7 +654,7 @@ public:
 		}
 		else
 		{
-			check(!bIsLoaded);
+			check(!bAreAllPublicExportsLoaded);
 		}
 #endif
 		return Package;
@@ -662,7 +662,7 @@ public:
 
 	inline void SetPackage(UPackage* InPackage)
 	{
-		check(!bIsLoaded);
+		check(!bAreAllPublicExportsLoaded);
 		check(!bIsMissing);
 		check(!Package);
 		Package = InPackage;
@@ -670,7 +670,7 @@ public:
 
 	inline bool AreAllPublicExportsLoaded() const
 	{
-		return bIsLoaded;
+		return bAreAllPublicExportsLoaded;
 	}
 
 	inline void SetAllPublicExportsLoaded()
@@ -678,7 +678,7 @@ public:
 		check(!bIsMissing);
 		check(Package);
 		bIsMissing = false;
-		bIsLoaded = true;
+		bAreAllPublicExportsLoaded = true;
 	}
 
 	inline void ClearAllPublicExportsLoaded()
@@ -686,7 +686,7 @@ public:
 		check(!bIsMissing);
 		check(Package);
 		bIsMissing = false;
-		bIsLoaded = false;
+		bAreAllPublicExportsLoaded = false;
 	}
 
 	inline bool IsMissingPackage() const
@@ -696,18 +696,18 @@ public:
 
 	inline void SetIsMissingPackage()
 	{
-		check(!bIsLoaded);
+		check(!bAreAllPublicExportsLoaded);
 		check(!Package);
 		bIsMissing = true;
-		bIsLoaded = false;
+		bAreAllPublicExportsLoaded = false;
 	}
 
 	inline void ClearIsMissingPackage()
 	{
-		check(!bIsLoaded);
+		check(!bAreAllPublicExportsLoaded);
 		check(!Package);
 		bIsMissing = false;
-		bIsLoaded = false;
+		bAreAllPublicExportsLoaded = false;
 	}
 };
 
@@ -739,13 +739,18 @@ public:
 		return Packages.FindOrAdd(PackageId);
 	}
 
-	inline bool Remove(FPackageId PackageId)
+	inline bool RemovePackage(FPackageId PackageId, UPackage* Package)
 	{
-#if DO_CHECK
-		FLoadedPackageRef* Ref = Packages.Find(PackageId);
-		check(!Ref || Ref->GetRefCount() == 0);
-#endif
-		return Packages.Remove(PackageId) > 0;
+		FLoadedPackageRef Ref;
+		bool bRemoved = Packages.RemoveAndCopyValue(PackageId, Ref);
+		if (bRemoved && Ref.GetRefCount() > 0)
+		{
+			UE_LOG(LogStreaming, Error,
+				TEXT("Package '%s' (flags=0x%x) with disk package id '0x%llX' is being destroyed while having RefCount %d > 0"),
+				*Package->GetName(), Package->GetInternalFlags(), PackageId.Value(), Ref.GetRefCount());
+			check(false);
+		}
+		return bRemoved;
 	}
 
 #if ALT2_VERIFY_ASYNC_FLAGS
@@ -1049,22 +1054,32 @@ public:
 		}
 
 		FPackageId PackageId = Package->GetPackageId();
-		bool bRemoved = LoadedPackageStore.Remove(PackageId);
+		bool bRemoved = LoadedPackageStore.RemovePackage(PackageId, Package);
 		if (!bRemoved)
 		{
 			FPackageId* RedirectedId = RedirectsPackageMap.Find(PackageId);
 			if (RedirectedId)
 			{
-				bRemoved = LoadedPackageStore.Remove(*RedirectedId);
-				checkf(bRemoved, TEXT("Redirected package '%s' with disk package id '0x%llX' and source package id '0x%llX') is being destroyed, ")
-					TEXT("and should have been known by LoadedPackageStore. Was it never added, or was it removed too early?"),
-					*Package->GetFullName(), PackageId.Value(), RedirectedId->Value());
+				bRemoved = LoadedPackageStore.RemovePackage(*RedirectedId, Package);
 			}
-			else
+
+			if (!bRemoved)
 			{
-				checkf(bRemoved, TEXT("Normal package '%s' with disk package id '0x%llX' is being destroyed, ")
-					TEXT("and should have been known by LoadedPackageStore. Was it never added, or was it removed too early?"),
-					*Package->GetFullName(), PackageId.Value());
+				if (RedirectedId)
+				{
+					UE_LOG(LogStreaming, Error,
+						TEXT("Redirected package '%s' (flags=0x%x) with disk package id '0x%llX' and source package id '0x%llX') is being destroyed, ")
+						TEXT("and should have been known by LoadedPackageStore. Was it never added, or was it removed too early?"),
+						*Package->GetName(), Package->GetInternalFlags(), PackageId.Value(), RedirectedId->Value());
+				}
+				else
+				{
+					UE_LOG(LogStreaming, Error,
+						TEXT("Normal package '%s' (flags=0x%x) with disk package id '0x%llX' is being destroyed, ")
+						TEXT("and should have been known by LoadedPackageStore. Was it never added, or was it removed too early?"),
+						*Package->GetName(), Package->GetInternalFlags(), PackageId.Value());
+				}
+				check(false);
 			}
 		}
 	}
@@ -3837,6 +3852,7 @@ bool FAsyncPackage2::EventDrivenSerializeExport(int32 LocalExportIndex, FExportA
 
 EAsyncPackageState::Type FAsyncPackage2::Event_ExportsDone(FAsyncPackage2* Package, int32)
 {
+	FGCScopeGuard GCGuard;
 	TRACE_CPUPROFILER_EVENT_SCOPE(Event_ExportsDone);
 	UE_ASYNC_PACKAGE_DEBUG(Package->Desc);
 	check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::ExportsDone);
@@ -4793,6 +4809,7 @@ uint32 FAsyncLoadingThread2::Run()
 
 				if (!DeferredDeletePackages.IsEmpty())
 				{
+					FGCScopeGuard GCGuard;
 					TRACE_CPUPROFILER_EVENT_SCOPE(AsyncLoadingTime);
 					FAsyncPackage2* Package = nullptr;
 					int32 Count = 0;
@@ -5273,9 +5290,9 @@ void FAsyncPackage2::CreateUPackage(const FPackageSummary* PackageSummary)
 		if (Desc.CanBeImported())
 		{
 			PackageRef = ImportStore.GlobalPackageStore.LoadedPackageStore.FindPackageRef(Desc.DiskPackageId);
-			check(PackageRef);
+			UE_ASYNC_PACKAGE_CLOG(!PackageRef, Fatal, Desc, TEXT("CreateUPackage"), TEXT("Package has been destroyed by GC."));
 			LinkerRoot = PackageRef->GetPackage();
-			check(LinkerRoot == FindObjectFast<UPackage>(nullptr, Desc.GetUPackageName()));
+			check(!LinkerRoot || LinkerRoot == FindObjectFast<UPackage>(nullptr, Desc.GetUPackageName()));
 		}
 		else
 		{
