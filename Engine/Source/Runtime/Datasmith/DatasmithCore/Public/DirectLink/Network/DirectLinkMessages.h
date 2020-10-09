@@ -81,13 +81,19 @@ USTRUCT(meta=(Experimental))
 struct FDirectLinkMsg_EndpointState
 {
 	GENERATED_BODY();
-	FDirectLinkMsg_EndpointState(uint32 StateRevision=0, uint32 ProtocolVersion=0)
-	: StateRevision(StateRevision)
-	, ProtocolVersion(ProtocolVersion)
+	FDirectLinkMsg_EndpointState() = default;
+
+	FDirectLinkMsg_EndpointState(uint32 StateRevision, uint32 MinProtocolVersion, uint32 MaxProtocolVersion)
+		: StateRevision(StateRevision)
+		, MinProtocolVersion(MinProtocolVersion)
+		, ProtocolVersion(MaxProtocolVersion)
 	{}
 
 	UPROPERTY()
 	uint32 StateRevision;
+
+	UPROPERTY()
+	uint32 MinProtocolVersion;
 
 	UPROPERTY()
 	uint32 ProtocolVersion;
