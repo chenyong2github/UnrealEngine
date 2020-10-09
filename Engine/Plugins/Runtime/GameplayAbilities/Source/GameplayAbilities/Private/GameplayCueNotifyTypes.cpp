@@ -12,7 +12,7 @@
 #include "Camera/CameraAnim.h"
 #include "Camera/CameraAnimInst.h"
 #include "Components/ForceFeedbackComponent.h"
-#include "Engine/DecalActor.h"
+#include "Materials/MaterialInterface.h"
 #include "Components/DecalComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerController.h"
@@ -862,10 +862,10 @@ bool FGameplayCueNotify_ForceFeedbackInfo::PlayForceFeedback(const FGameplayCueN
 		const bool bAutoDestroy = true;
 		const float StartTime = 0.0f;
 
-		const EAttachLocation::Type AttachLocationType = GetAttachLocationTypeFromRule(PlacementInfo.AttachmentRule);
-
 		if (SpawnContext.TargetComponent && (PlacementInfo.AttachPolicy == EGameplayCueNotify_AttachPolicy::AttachToTarget))
 		{
+			const EAttachLocation::Type AttachLocationType = GetAttachLocationTypeFromRule(PlacementInfo.AttachmentRule);
+
 			OutSpawnResult.ForceFeedbackComponent = UGameplayStatics::SpawnForceFeedbackAttached(ForceFeedbackEffect, SpawnContext.TargetComponent, PlacementInfo.SocketName,
 				SpawnLocation, SpawnRotation, AttachLocationType, bStopWhenAttachedToDestroyed,
 				bIsLooping, WorldIntensity, StartTime, WorldAttenuation, bAutoDestroy);
@@ -921,7 +921,8 @@ void FGameplayCueNotify_ForceFeedbackInfo::ValidateBurstAssets(UObject* Containi
 //////////////////////////////////////////////////////////////////////////
 FGameplayCueNotify_DecalInfo::FGameplayCueNotify_DecalInfo()
 {
-	Decal = nullptr;
+	DecalMaterial = nullptr;
+	DecalSize = FVector(128.0f, 256.0f, 256.0f);
 
 	bOverrideSpawnCondition = false;
 	bOverridePlacementInfo = false;
@@ -933,7 +934,7 @@ FGameplayCueNotify_DecalInfo::FGameplayCueNotify_DecalInfo()
 
 bool FGameplayCueNotify_DecalInfo::SpawnDecal(const FGameplayCueNotify_SpawnContext& SpawnContext, FGameplayCueNotify_SpawnResult& OutSpawnResult) const
 {
-	if (!Decal)
+	if (!DecalMaterial)
 	{
 		return false;
 	}
@@ -959,25 +960,35 @@ bool FGameplayCueNotify_DecalInfo::SpawnDecal(const FGameplayCueNotify_SpawnCont
 		SpawnTransform.SetRotation(InverseRotation);
 	}
 
-	ADecalActor* SpawnedDecal = SpawnContext.World->SpawnActor<ADecalActor>(Decal, SpawnTransform);
-	if (!SpawnedDecal)
+	UDecalComponent* SpawnedDecalComponent = nullptr;
+
+	const FVector SpawnLocation = SpawnTransform.GetLocation();
+	const FRotator SpawnRotation = SpawnTransform.Rotator();
+	const float LifeSpan = 0.0f;
+
+	if (SpawnContext.TargetComponent && (PlacementInfo.AttachPolicy == EGameplayCueNotify_AttachPolicy::AttachToTarget))
 	{
-		return false;
+		const EAttachLocation::Type AttachLocationType = GetAttachLocationTypeFromRule(PlacementInfo.AttachmentRule);
+
+		SpawnedDecalComponent = UGameplayStatics::SpawnDecalAttached(DecalMaterial, DecalSize, SpawnContext.TargetComponent, PlacementInfo.SocketName,
+			SpawnLocation, SpawnRotation, AttachLocationType, LifeSpan);
+	}
+	else
+	{
+		SpawnedDecalComponent = UGameplayStatics::SpawnDecalAtLocation(SpawnContext.World, DecalMaterial, DecalSize, SpawnLocation, SpawnRotation, LifeSpan);
 	}
 
-	UDecalComponent* DecalComponent = SpawnedDecal->GetDecal();
-	USceneComponent* DecalRootComponent = SpawnedDecal->GetRootComponent();
-
-	PlacementInfo.SetComponentTransform(DecalRootComponent, SpawnTransform);
-	PlacementInfo.TryComponentAttachment(DecalRootComponent, SpawnContext.TargetComponent);
-
-	if (DecalComponent && bOverrideFadeOut)
+	if (ensure(SpawnedDecalComponent))
 	{
-		DecalComponent->SetFadeOut(FadeOutStartDelay, FadeOutDuration);
+		if (bOverrideFadeOut)
+		{
+			SpawnedDecalComponent->SetFadeOut(FadeOutStartDelay, FadeOutDuration);
+		}
 	}
 
-	OutSpawnResult.DecalActor = SpawnedDecal;
-	return true;
+	OutSpawnResult.DecalComponent = SpawnedDecalComponent;
+
+	return (OutSpawnResult.DecalComponent != nullptr);
 }
 
 
@@ -1136,7 +1147,7 @@ void FGameplayCueNotify_LoopingEffects::StopEffects(FGameplayCueNotify_SpawnResu
 	}
 
 	// There should be no decal on looping gameplay cues.
-	ensure(SpawnResult.DecalActor == nullptr);
+	ensure(SpawnResult.DecalComponent == nullptr);
 
 	// Clear the spawn results.
 	SpawnResult.Reset();

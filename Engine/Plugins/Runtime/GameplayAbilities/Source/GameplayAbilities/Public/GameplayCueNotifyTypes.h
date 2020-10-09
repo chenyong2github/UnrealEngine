@@ -21,7 +21,8 @@ class AEmitterCameraLensEffectBase;
 class UForceFeedbackEffect;
 class UForceFeedbackAttenuation;
 class UForceFeedbackComponent;
-class ADecalActor;
+class UDecalComponent;
+class UMaterialInterface;
 class APlayerController;
 struct FGameplayCueParameters;
 struct FGameplayCueNotify_SpawnContext;
@@ -267,7 +268,7 @@ public:
 		CameraLensEffects.Reset();
 		ForceFeedbackComponent = nullptr;
 		ForceFeedbackTargetPC = nullptr;
-		DecalActor = nullptr;
+		DecalComponent = nullptr;
 	}
 
 public:
@@ -300,9 +301,9 @@ public:
 	UPROPERTY(Transient)
 	APlayerController* ForceFeedbackTargetPC;
 
-	// Spawned decal actor.  This may be null.
+	// Spawned decal component.  This may be null.
 	UPROPERTY(BlueprintReadOnly, Transient, Category = GameplayCueNotify)
-	ADecalActor* DecalActor;
+	UDecalComponent* DecalComponent;
 };
 
 
@@ -675,9 +676,13 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify, Meta = (EditCondition = "bOverridePlacementInfo"))
 	FGameplayCueNotify_PlacementInfo PlacementInfoOverride;
 
-	// Decal actor class to spawn.
+	// Decal material to spawn.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify)
-	TSubclassOf<ADecalActor> Decal;
+	UMaterialInterface* DecalMaterial;
+
+	// Decal size in local space (does not include the component scale).
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify, meta = (AllowPreserveRatio = "true"))
+	FVector DecalSize;
 
 	// If enabled, use the spawn condition override and not the default one.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify, Meta = (InlineEditConditionToggle))
