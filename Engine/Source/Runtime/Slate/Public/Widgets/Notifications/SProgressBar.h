@@ -44,7 +44,7 @@ class SLATE_API SProgressBar : public SLeafWidget
 
 public:
 	SLATE_BEGIN_ARGS(SProgressBar)
-		: _Style( &FCoreStyle::Get().GetWidgetStyle<FProgressBarStyle>("ProgressBar") )
+		: _Style( &FAppStyle::Get().GetWidgetStyle<FProgressBarStyle>("ProgressBar") )
 		, _BarFillType(EProgressBarFillType::LeftToRight)
 		, _Percent( TOptional<float>() )
 		, _FillColorAndOpacity( FLinearColor::White )

@@ -1027,6 +1027,12 @@ struct SLATECORE_API FProgressBarStyle : public FSlateWidgetStyle
 	FSlateBrush MarqueeImage;
 	FProgressBarStyle& SetMarqueeImage( const FSlateBrush& InMarqueeImage ){ MarqueeImage = InMarqueeImage; return *this; }
 
+	/** Enables a simple animation on the fill image to give the appearance that progress has not stalled. Disable this if you have a custom material which animates itself. 
+	 * This requires a pattern in your material or texture to give the appearance of movement.  A solid color will show no movement. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
+	bool EnableFillAnimation;
+	FProgressBarStyle& SetEnableFillAnimation(bool InEnableFillAnimation) { EnableFillAnimation = InEnableFillAnimation; return *this; }
+
 	/**
 	* Unlinks all colors in this style.
 	* @see FSlateColor::Unlink

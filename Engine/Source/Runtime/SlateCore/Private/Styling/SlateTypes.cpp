@@ -305,6 +305,7 @@ const FInlineEditableTextBlockStyle& FInlineEditableTextBlockStyle::GetDefault()
 
 
 FProgressBarStyle::FProgressBarStyle()
+	: EnableFillAnimation(false)
 {
 }
 

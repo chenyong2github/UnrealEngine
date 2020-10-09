@@ -20,6 +20,7 @@
 #include "Engine/Engine.h"
 #include "StudioAnalytics.h"
 #include "AnalyticsEventAttribute.h"
+#include "Styling/StarshipCoreStyle.h"
 
 /** Called to cancel the slow task activity */
 DECLARE_DELEGATE( FOnCancelClickedDelegate );
@@ -33,7 +34,7 @@ DECLARE_DELEGATE_RetVal(bool, FReceiveUserCancelDelegate);
 class SSlowTaskWidget : public SBorder
 {
 	/** The maximum number of secondary bars to show on the widget */
-	static const int32 MaxNumSecondaryBars = 3;
+	static const int32 MaxNumSecondaryBars = 1;
 
 	/** The width of the dialog, and horizontal padding */
 	static const int32 FixedWidth = 600, FixedPaddingH = 24;
@@ -84,21 +85,21 @@ public:
 
 						+ SHorizontalBox::Slot()
 						[
-							SNew( STextBlock )
+							SNew(STextBlock)
 							.AutoWrapText(true)
-							.Text( this, &SSlowTaskWidget::GetProgressText, 0 )
+							.Text(this, &SSlowTaskWidget::GetProgressText, 0)
 							// The main font size dynamically changes depending on the content
-							.Font( this, &SSlowTaskWidget::GetMainTextFont )
+							.Font(this, &SSlowTaskWidget::GetMainTextFont)
 						]
 
 						+ SHorizontalBox::Slot()
 						.Padding(FMargin(5.f, 0, 0, 0))
 						.AutoWidth()
 						[
-							SNew( STextBlock )
-							.Text( this, &SSlowTaskWidget::GetPercentageText )
+							SNew(STextBlock )
+							.Text(this, &SSlowTaskWidget::GetPercentageText)
 							// The main font size dynamically changes depending on the content
-							.Font( FCoreStyle::GetDefaultFontStyle("Light", 14) )
+							.Font(FStarshipCoreStyle::GetDefaultFontStyle("NormalFont", 14))
 						]
 					]
 				]
@@ -111,9 +112,7 @@ public:
 					[
 						SNew(SProgressBar)
 						.BorderPadding(FVector2D::ZeroVector)
-						.Percent( this, &SSlowTaskWidget::GetProgressFraction, 0 )
-						.BackgroundImage( FEditorStyle::GetBrush("ProgressBar.ThinBackground") )
-						.FillImage( FEditorStyle::GetBrush("ProgressBar.ThinFill") )
+						.Percent(this, &SSlowTaskWidget::GetProgressFraction, 0)
 					]
 				]
 			]
@@ -143,7 +142,7 @@ public:
 		}
 
 		SBorder::Construct( SBorder::FArguments()
-			.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+			.BorderImage(FEditorStyle::GetBrush("Brushes.Header"))
 			.VAlign(VAlign_Center)
 			.Padding(FMargin(FixedPaddingH))
 			[
@@ -154,6 +153,11 @@ public:
 				]
 			]
 		);
+
+		for (int SecondaryBarIndex = 0; SecondaryBarIndex < MaxNumSecondaryBars; ++SecondaryBarIndex)
+		{
+			CreateSecondaryBar(SecondaryBarIndex);
+		}
 
 		// Make sure all our bars are set up
 		UpdateDynamicProgressBars();
@@ -205,12 +209,6 @@ private:
 			}
 		}
 
-		// Create progress bars for anything that we haven't cached yet
-		// We don't destroy old widgets, they just remain ghosted until shown again
-		for (int32 Index = SecondaryBars->GetChildren()->Num() + 1; Index < DynamicProgressIndices.Num(); ++Index)
-		{
-			CreateSecondaryBar(Index);
-		}
 	}
 
 	/** Create a progress bar for the specified index */
@@ -227,7 +225,6 @@ private:
 			[
 				SNew( STextBlock )
 				.Text( this, &SSlowTaskWidget::GetProgressText, Index )
-				.Font( FCoreStyle::GetDefaultFontStyle("Regular", 9) )
 				.ColorAndOpacity( FSlateColor::UseSubduedForeground() )
 			]
 
@@ -237,17 +234,9 @@ private:
 				SNew(SBox)
 				.HeightOverride(SecondaryBarHeight)
 				[
-					SNew(SBorder)
-					.Padding(0)
-					.BorderImage(FEditorStyle::GetBrush("NoBorder"))
-					.ColorAndOpacity( this, &SSlowTaskWidget::GetSecondaryProgressBarTint, Index )
-					[
-						SNew(SProgressBar)
-						.BorderPadding(FVector2D::ZeroVector)
-						.Percent( this, &SSlowTaskWidget::GetProgressFraction, Index )
-						.BackgroundImage( FEditorStyle::GetBrush("ProgressBar.ThinBackground") )
-						.FillImage( FEditorStyle::GetBrush("ProgressBar.ThinFill") )
-					]
+					SNew(SProgressBar)
+					.BorderPadding(FVector2D::ZeroVector)
+					.Percent( this, &SSlowTaskWidget::GetProgressFraction, Index )
 				]
 			]
 		];
@@ -273,7 +262,7 @@ private:
 		TSharedRef<FSlateFontMeasure> MeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 
 		const int32 MaxFontSize = 14;
-		FSlateFontInfo FontInfo = FCoreStyle::GetDefaultFontStyle("Light", MaxFontSize);
+		FSlateFontInfo FontInfo = FStarshipCoreStyle::GetDefaultFontStyle("NormalFont", MaxFontSize);
 
 		const FText MainText = GetProgressText(0);
 		const int32 MaxTextWidth = FixedWidth - FixedPaddingH*2;
@@ -330,7 +319,7 @@ private:
 
 	EVisibility GetSecondaryBarVisibility(int32 Index) const
 	{
-		return DynamicProgressIndices.IsValidIndex(Index) ? EVisibility::HitTestInvisible : EVisibility::Collapsed;
+		return DynamicProgressIndices.IsValidIndex(Index) ? EVisibility::HitTestInvisible : EVisibility::Hidden;
 	}
 
 	/** Called when the cancel button is clicked */
