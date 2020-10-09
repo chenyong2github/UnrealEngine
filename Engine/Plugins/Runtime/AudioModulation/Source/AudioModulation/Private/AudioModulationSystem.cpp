@@ -67,12 +67,12 @@ namespace AudioModulation
 		}
 	}
 
-#if !UE_BUILD_SHIPPING
 	void FAudioModulationSystem::OnAuditionEnd()
 	{
 		DeactivateAllBusMixes();
 	}
 
+#if !UE_BUILD_SHIPPING
 	bool FAudioModulationSystem::OnPostHelp(FCommonViewportClient* ViewportClient, const TCHAR* Stream)
 	{
 		check(IsInGameThread());
