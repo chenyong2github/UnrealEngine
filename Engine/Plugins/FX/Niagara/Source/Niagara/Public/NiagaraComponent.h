@@ -688,12 +688,13 @@ private:
 
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
 
-	/*
+	
 	virtual bool CanBeOccluded() const override
 	{
-	return !MaterialRelevance.bDisableDepthTest;
+		// TODO account for MaterialRelevance.bDisableDepthTest as well
+		return !ShouldRenderCustomDepth();
 	}
-	*/
+	
 
 	/** Callback from the renderer to gather simple lights that this proxy wants renderered. */
 	virtual void GatherSimpleLights(const FSceneViewFamily& ViewFamily, FSimpleLightArray& OutParticleLights) const override;
