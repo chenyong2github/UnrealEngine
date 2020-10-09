@@ -318,6 +318,7 @@ bool FOnlineSubsystemEOS::Shutdown()
 	DESTRUCT_INTERFACE(StatsInterfacePtr);
 	DESTRUCT_INTERFACE(LeaderboardsInterfacePtr);
 	DESTRUCT_INTERFACE(AchievementsInterfacePtr);
+	DESTRUCT_INTERFACE(StoreInterfacePtr);
 
 #undef DESTRUCT_INTERFACE
 
