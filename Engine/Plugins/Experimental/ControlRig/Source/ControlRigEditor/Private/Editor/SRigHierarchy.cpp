@@ -1129,7 +1129,6 @@ void SRigHierarchy::FillContextMenu(class FMenuBuilder& MenuBuilder)
 		MenuBuilder.AddMenuEntry(Actions.MirrorItem);
 		MenuBuilder.EndSection();
 
-		/*
 		if (IsSingleBoneSelected())
 		{
 			MenuBuilder.BeginSection("Interaction", LOCTEXT("InteractionHeader", "Interaction"));
@@ -1137,6 +1136,7 @@ void SRigHierarchy::FillContextMenu(class FMenuBuilder& MenuBuilder)
 			MenuBuilder.EndSection();
 		}
 
+		/*
 		if (IsSingleSpaceSelected())
 		{
 			MenuBuilder.BeginSection("Interaction", LOCTEXT("InteractionHeader", "Interaction"));
