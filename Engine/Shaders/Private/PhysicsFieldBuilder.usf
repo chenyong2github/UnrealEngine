@@ -31,98 +31,91 @@ int PhysicsTargets[MAX_TARGETS_ARRAY];
  * Reandom Vector + Perlin Noise
  * -----------------------------------------------------------------
  */
-
-static int P[512] =
+ 
+static const int p[512] =
 {
 	151, 160, 137, 91, 90, 15,
-			131, 13, 201, 95, 96, 53, 194, 233, 7, 225, 140, 36, 103, 30, 69, 142, 8, 99, 37, 240, 21, 10, 23,
-			190, 6, 148, 247, 120, 234, 75, 0, 26, 197, 62, 94, 252, 219, 203, 117, 35, 11, 32, 57, 177, 33,
-			88, 237, 149, 56, 87, 174, 20, 125, 136, 171, 168, 68, 175, 74, 165, 71, 134, 139, 48, 27, 166,
-			77, 146, 158, 231, 83, 111, 229, 122, 60, 211, 133, 230, 220, 105, 92, 41, 55, 46, 245, 40, 244,
-			102, 143, 54, 65, 25, 63, 161, 1, 216, 80, 73, 209, 76, 132, 187, 208, 89, 18, 169, 200, 196,
-			135, 130, 116, 188, 159, 86, 164, 100, 109, 198, 173, 186, 3, 64, 52, 217, 226, 250, 124, 123,
-			5, 202, 38, 147, 118, 126, 255, 82, 85, 212, 207, 206, 59, 227, 47, 16, 58, 17, 182, 189, 28, 42,
-			223, 183, 170, 213, 119, 248, 152, 2, 44, 154, 163, 70, 221, 153, 101, 155, 167, 43, 172, 9,
-			129, 22, 39, 253, 19, 98, 108, 110, 79, 113, 224, 232, 178, 185, 112, 104, 218, 246, 97, 228,
-			251, 34, 242, 193, 238, 210, 144, 12, 191, 179, 162, 241, 81, 51, 145, 235, 249, 14, 239, 107,
-			49, 192, 214, 31, 181, 199, 106, 157, 184, 84, 204, 176, 115, 121, 50, 45, 127, 4, 150, 254,
-			138, 236, 205, 93, 222, 114, 67, 29, 24, 72, 243, 141, 128, 195, 78, 66, 215, 61, 156, 180,
-			151, 160, 137, 91, 90, 15,
-			131, 13, 201, 95, 96, 53, 194, 233, 7, 225, 140, 36, 103, 30, 69, 142, 8, 99, 37, 240, 21, 10, 23,
-			190, 6, 148, 247, 120, 234, 75, 0, 26, 197, 62, 94, 252, 219, 203, 117, 35, 11, 32, 57, 177, 33,
-			88, 237, 149, 56, 87, 174, 20, 125, 136, 171, 168, 68, 175, 74, 165, 71, 134, 139, 48, 27, 166,
-			77, 146, 158, 231, 83, 111, 229, 122, 60, 211, 133, 230, 220, 105, 92, 41, 55, 46, 245, 40, 244,
-			102, 143, 54, 65, 25, 63, 161, 1, 216, 80, 73, 209, 76, 132, 187, 208, 89, 18, 169, 200, 196,
-			135, 130, 116, 188, 159, 86, 164, 100, 109, 198, 173, 186, 3, 64, 52, 217, 226, 250, 124, 123,
-			5, 202, 38, 147, 118, 126, 255, 82, 85, 212, 207, 206, 59, 227, 47, 16, 58, 17, 182, 189, 28, 42,
-			223, 183, 170, 213, 119, 248, 152, 2, 44, 154, 163, 70, 221, 153, 101, 155, 167, 43, 172, 9,
-			129, 22, 39, 253, 19, 98, 108, 110, 79, 113, 224, 232, 178, 185, 112, 104, 218, 246, 97, 228,
-			251, 34, 242, 193, 238, 210, 144, 12, 191, 179, 162, 241, 81, 51, 145, 235, 249, 14, 239, 107,
-			49, 192, 214, 31, 181, 199, 106, 157, 184, 84, 204, 176, 115, 121, 50, 45, 127, 4, 150, 254,
-			138, 236, 205, 93, 222, 114, 67, 29, 24, 72, 243, 141, 128, 195, 78, 66, 215, 61, 156, 180
+    131, 13, 201, 95, 96, 53, 194, 233, 7, 225, 140, 36, 103, 30, 69, 142, 8, 99, 37, 240, 21, 10, 23,
+    190, 6, 148, 247, 120, 234, 75, 0, 26, 197, 62, 94, 252, 219, 203, 117, 35, 11, 32, 57, 177, 33,
+    88, 237, 149, 56, 87, 174, 20, 125, 136, 171, 168, 68, 175, 74, 165, 71, 134, 139, 48, 27, 166,
+    77, 146, 158, 231, 83, 111, 229, 122, 60, 211, 133, 230, 220, 105, 92, 41, 55, 46, 245, 40, 244,
+    102, 143, 54, 65, 25, 63, 161, 1, 216, 80, 73, 209, 76, 132, 187, 208, 89, 18, 169, 200, 196,
+    135, 130, 116, 188, 159, 86, 164, 100, 109, 198, 173, 186, 3, 64, 52, 217, 226, 250, 124, 123,
+    5, 202, 38, 147, 118, 126, 255, 82, 85, 212, 207, 206, 59, 227, 47, 16, 58, 17, 182, 189, 28, 42,
+    223, 183, 170, 213, 119, 248, 152, 2, 44, 154, 163, 70, 221, 153, 101, 155, 167, 43, 172, 9,
+    129, 22, 39, 253, 19, 98, 108, 110, 79, 113, 224, 232, 178, 185, 112, 104, 218, 246, 97, 228,
+    251, 34, 242, 193, 238, 210, 144, 12, 191, 179, 162, 241, 81, 51, 145, 235, 249, 14, 239, 107,
+    49, 192, 214, 31, 181, 199, 106, 157, 184, 84, 204, 176, 115, 121, 50, 45, 127, 4, 150, 254,
+    138, 236, 205, 93, 222, 114, 67, 29, 24, 72, 243, 141, 128, 195, 78, 66, 215, 61, 156, 180,
+ 
+    151, 160, 137, 91, 90, 15,
+    131, 13, 201, 95, 96, 53, 194, 233, 7, 225, 140, 36, 103, 30, 69, 142, 8, 99, 37, 240, 21, 10, 23,
+    190, 6, 148, 247, 120, 234, 75, 0, 26, 197, 62, 94, 252, 219, 203, 117, 35, 11, 32, 57, 177, 33,
+    88, 237, 149, 56, 87, 174, 20, 125, 136, 171, 168, 68, 175, 74, 165, 71, 134, 139, 48, 27, 166,
+    77, 146, 158, 231, 83, 111, 229, 122, 60, 211, 133, 230, 220, 105, 92, 41, 55, 46, 245, 40, 244,
+    102, 143, 54, 65, 25, 63, 161, 1, 216, 80, 73, 209, 76, 132, 187, 208, 89, 18, 169, 200, 196,
+    135, 130, 116, 188, 159, 86, 164, 100, 109, 198, 173, 186, 3, 64, 52, 217, 226, 250, 124, 123,
+    5, 202, 38, 147, 118, 126, 255, 82, 85, 212, 207, 206, 59, 227, 47, 16, 58, 17, 182, 189, 28, 42,
+    223, 183, 170, 213, 119, 248, 152, 2, 44, 154, 163, 70, 221, 153, 101, 155, 167, 43, 172, 9,
+    129, 22, 39, 253, 19, 98, 108, 110, 79, 113, 224, 232, 178, 185, 112, 104, 218, 246, 97, 228,
+    251, 34, 242, 193, 238, 210, 144, 12, 191, 179, 162, 241, 81, 51, 145, 235, 249, 14, 239, 107,
+    49, 192, 214, 31, 181, 199, 106, 157, 184, 84, 204, 176, 115, 121, 50, 45, 127, 4, 150, 254,
+    138, 236, 205, 93, 222, 114, 67, 29, 24, 72, 243, 141, 128, 195, 78, 66, 215, 61, 156, 180
 };
-
-float Fade(float X)
+ 
+float fade(float t)
 {
-	return X * X * X * (X * (X * 6 - 15) + 10);
+	return t * t * t * (t * (t * 6 - 15) + 10);
 }
-
-float Grad(int hash, float x, float y, float z)
+ 
+float lerp(float t, float a, float b)
 {
-	hash &= 15;
-	float u = (hash < 8) ? x : y;
-	float v = (hash < 4) ? y : ((hash == 12 || hash == 14) ? x : z);
-	return ((hash & 1) == 0 ? u : -u) + ((hash & 2) == 0 ? v : -v);
+	return a + t * (b - a);
 }
-
-float Lerp(float X, float A, float B)
+ 
+float grad(int hash, float x, float y, float z)
 {
-	return A + X * (B - A);
+    // CONVERT LO 4 BITS OF HASH CODE INTO 12 GRADIENT DIRECTIONS.
+	int h = hash & 15;
+	float u = h < 8 ? x : y;
+	float v = h < 4 ? y : h == 12 || h == 14 ? x : z;
+	return ((h & 1) == 0 ? u : -u) + ((h & 2) == 0 ? v : -v);
 }
-
-float PerlinNoise(inout  float X, inout float Y, inout float Z)
+ 
+float PerlinNoise(float3 pos)
 {
-	float Xfl = floor(X);
-	float Yfl = floor(Y);
-	float Zfl = floor(Z);
-	int Xi = (int) (Xfl) & 255;
-	int Yi = (int) (Yfl) & 255;
-	int Zi = (int) (Zfl) & 255;
-	X -= Xfl;
-	Y -= Yfl;
-	Z -= Zfl;
-	float Xm1 = X - 1.0f;
-	float Ym1 = Y - 1.0f;
-	float Zm1 = Z - 1.0f;
-
-	int A = P[Xi] + Yi;
-	int AA = P[A] + Zi;
-	int AB = P[A + 1] + Zi;
-
-	int B = P[Xi + 1] + Yi;
-	int BA = P[B] + Zi;
-	int BB = P[B + 1] + Zi;
-	
-	
-	float U = Fade(X);
-	float V = Fade(Y);
-	float W = Fade(Z);
-	
-	return Lerp(W,
-					Lerp(V,
-						Lerp(U,
-							Grad(P[AA], X, Y, Z),
-							Grad(P[BA], Xm1, Y, Z)),
-						Lerp(U,
-							Grad(P[AB], X, Ym1, Z),
-							Grad(P[BB], Xm1, Ym1, Z))),
-					Lerp(V,
-						Lerp(U,
-							Grad(P[AA + 1], X, Y, Zm1),
-							Grad(P[BA + 1], Xm1, Y, Zm1)),
-						Lerp(U,
-							Grad(P[AB + 1], X, Ym1, Zm1),
-							Grad(P[BB + 1], Xm1, Ym1, Zm1))));
+    // FIND UNIT CUBE THAT CONTAINS POINT.
+	int X = (int) floor(pos.x) & 255;
+	int Y = (int) floor(pos.y) & 255;
+	int Z = (int) floor(pos.z) & 255;
+   
+    // FIND RELATIVE X,Y,Z OF POINT IN CUBE.
+	float x = pos.x - floor(pos.x);
+	float y = pos.y - floor(pos.y);
+	float z = pos.z - floor(pos.z);
+   
+    // COMPUTE FADE CURVES FOR EACH OF X,Y,Z.
+	float u = fade(x);
+	float v = fade(y);
+	float w = fade(z);
+   
+    // HASH COORDINATES OF THE 8 CUBE CORNERS
+	int A = p[X] + Y;
+	int AA = p[A] + Z;
+	int AB = p[A + 1] + Z;
+	int B = p[X + 1] + Y;
+	int BA = p[B] + Z;
+	int BB = p[B + 1] + Z;
+ 
+    // AND ADD BLENDED RESULTS FROM  8 CORNERS OF CUBE
+	return clamp(0.97 * lerp(w, lerp(v, lerp(u, grad(p[AA], x, y, z), // CORNER 0      
+           grad(p[BA], x - 1, y, z)), // CORNER 1                              
+           lerp(u, grad(p[AB], x, y - 1, z), // CORNER 2                        
+           grad(p[BB], x - 1, y - 1, z))), // CORNER 3                      
+           lerp(v, lerp(u, grad(p[AA + 1], x, y, z - 1), // CORNER 4            
+           grad(p[BA + 1], x - 1, y, z - 1)), // CORNER 5                  
+           lerp(u, grad(p[AB + 1], x, y - 1, z - 1), // CORNER 6  
+           grad(p[BB + 1], x - 1, y - 1, z - 1)))), -1.0, 1.0); // CORNER 7
 }
 
 uint3 RandomVector(int3 p)
@@ -513,18 +506,15 @@ void EvaluateNoiseScalar(in float3 SamplePosition, in int NodeOffset, inout floa
 	const float3 NoiseScale = float3(NodesParams[NodeOffset + NOISE_SCALEX],
 							         NodesParams[NodeOffset + NOISE_SCALEY],
 								     NodesParams[NodeOffset + NOISE_SCALEZ]);
+	
+	const float3 InverseScale = float3(NoiseScale.x != 0.0 ? 1.0 / NoiseScale.x : 0.0,
+										NoiseScale.y != 0.0 ? 1.0 / NoiseScale.y : 0.0,
+										NoiseScale.z != 0.0 ? 1.0 / NoiseScale.z : 0.0);
 
-	const float3 DeltaBound = ClipmapDistance * 2;
-	const float3 MinBounds = NoiseTranslation - ClipmapDistance;
-	const float3 LocalVector = FieldRotateVectorByQuat((SamplePosition - MinBounds) * NoiseScale, NoiseRotation);
+	float3 LocalPosition = fmod(FieldUnRotateVectorByQuat(SamplePosition - NoiseTranslation, NoiseRotation), NoiseScale) * InverseScale;
+	LocalPosition = (clamp(LocalPosition, float3(-1.0,-1.0,-1.0), float3(1.0,1.0,1.0)) * 0.5 + float3(0.5,0.5,0.5)) * 256;
 
-	const float3 LocalCoord = float3((DeltaBound.x != 0.0) ? LocalVector.x / DeltaBound.x : 0.0,
-									  (DeltaBound.y != 0.0) ? LocalVector.y / DeltaBound.y : 0.0,
-									  (DeltaBound.z != 0.0) ? LocalVector.z / DeltaBound.z : 0.0);
-
-	float3 ReducedCoord = saturate(LocalCoord);
-
-	const float NoiseValue = PerlinNoise(ReducedCoord.x, ReducedCoord.y, ReducedCoord.z); //FastGradientPerlinNoise3D_TEX(ReducedCoord);
+	const float NoiseValue = PerlinNoise(LocalPosition) * 0.5 + 0.5; 
 	ContextDatas[LocalIndex++] = NoiseValue * (NodesParams[NodeOffset + NOISE_MAX_RANGE] -
 								  NodesParams[NodeOffset + NOISE_MIN_RANGE]) 
 				+ NodesParams[NodeOffset + NOISE_MIN_RANGE];
