@@ -7,6 +7,7 @@
 #include "MessageLogInitializationOptions.h"
 
 class FMessageLogViewModel;
+class FWorkspaceItem;
 
 DECLARE_DELEGATE_RetVal(bool, FCanShowMessageLog);
 
@@ -83,6 +84,12 @@ public:
 	 * Setting this to true will allow the message log to be displayed when OpenMessageLog is called.
 	 */
 	virtual void EnableMessageLogDisplay(bool bInCanDisplayMessageLog);
+
+	/**
+	* Registers the Message Log spawner.
+	* @param InGroup The Workspace group used to register the MessageLogSpawner.
+	 */
+	virtual void RegisterMessageLogSpawner(const TSharedRef<FWorkspaceItem>& InGroup);
 
 private:
 
