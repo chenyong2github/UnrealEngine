@@ -495,11 +495,18 @@ protected:
 			TListTypeTraits<ItemType>::ResetPtr(this->ItemToScrollIntoView);
 		}
 
-		if (this->bEnableAnimatedScrolling && TListTypeTraits<ItemType>::IsPtrValid(this->ItemToNotifyWhenInView))
+		if (TListTypeTraits<ItemType>::IsPtrValid(this->ItemToNotifyWhenInView))
 		{
-			// When we have a target item we're shooting for, we haven't succeeded with the scroll until a widget for it exists
-			const bool bHasWidgetForItem = this->WidgetFromItem(TListTypeTraits<ItemType>::NullableItemTypeConvertToItemType(this->ItemToNotifyWhenInView)).IsValid();
-			return bHasWidgetForItem ? SListView<ItemType>::EScrollIntoViewResult::Success : SListView<ItemType>::EScrollIntoViewResult::Deferred;
+			if (this->bEnableAnimatedScrolling)
+			{
+				// When we have a target item we're shooting for, we haven't succeeded with the scroll until a widget for it exists
+				const bool bHasWidgetForItem = this->WidgetFromItem(TListTypeTraits<ItemType>::NullableItemTypeConvertToItemType(this->ItemToNotifyWhenInView)).IsValid();
+				return bHasWidgetForItem ? SListView<ItemType>::EScrollIntoViewResult::Success : SListView<ItemType>::EScrollIntoViewResult::Deferred;
+			}
+		}
+		else
+		{
+			return SListView<ItemType>::EScrollIntoViewResult::Deferred;
 		}
 		return SListView<ItemType>::EScrollIntoViewResult::Success;
 	}
