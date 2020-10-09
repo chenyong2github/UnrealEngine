@@ -41,14 +41,14 @@ class SOURCEFILTERINGCORE_API IDataSourceFilterInterface
 public:
 	UFUNCTION(BlueprintNativeEvent, Category = TraceSourceFiltering)
 	void GetDisplayText(FText& OutDisplayText) const;
-	void GetDisplayText_Implementation(FText& OutDisplayText) const
+	virtual void GetDisplayText_Implementation(FText& OutDisplayText) const
 	{
 		return GetDisplayText_Internal(OutDisplayText);
 	}
 
 	UFUNCTION(BlueprintNativeEvent, Category = TraceSourceFiltering)
 	void GetToolTipText(FText& OutDisplayText) const;
-	void GetToolTipText_Implementation(FText& OutDisplayText) const
+	virtual void GetToolTipText_Implementation(FText& OutDisplayText) const
 	{
 		return GetToolTipText_Internal(OutDisplayText);
 	}
