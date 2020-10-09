@@ -5281,10 +5281,11 @@ void FAsyncPackage2::CreateUPackage(const FPackageSummary* PackageSummary)
 {
 	check(!LinkerRoot);
 
-	// temp packages are never stored and never found
+	// temp packages are never stored or found in loaded package store
 	FLoadedPackageRef* PackageRef = nullptr;
 
 	// Try to find existing package or create it if not already present.
+	UPackage* ExistingPackage = nullptr;
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UPackageFind);
 		if (Desc.CanBeImported())
@@ -5292,17 +5293,35 @@ void FAsyncPackage2::CreateUPackage(const FPackageSummary* PackageSummary)
 			PackageRef = ImportStore.GlobalPackageStore.LoadedPackageStore.FindPackageRef(Desc.DiskPackageId);
 			UE_ASYNC_PACKAGE_CLOG(!PackageRef, Fatal, Desc, TEXT("CreateUPackage"), TEXT("Package has been destroyed by GC."));
 			LinkerRoot = PackageRef->GetPackage();
-			check(!LinkerRoot || LinkerRoot == FindObjectFast<UPackage>(nullptr, Desc.GetUPackageName()));
+#if DO_CHECK
+			if (LinkerRoot)
+			{
+				UPackage* FoundPackage = FindObjectFast<UPackage>(nullptr, Desc.GetUPackageName());
+				checkf(LinkerRoot == FoundPackage,
+					TEXT("LinkerRoot '%s' (%p) is different from FoundPackage '%s' (%p)"),
+					*LinkerRoot->GetName(), LinkerRoot, *FoundPackage->GetName(), FoundPackage);
+			}
+#endif
 		}
-		else
+		if (!LinkerRoot)
 		{
-			LinkerRoot = FindObjectFast<UPackage>(nullptr, Desc.GetUPackageName());
+			// Packages can be created outside the loader, i.e from ResolveName via StaticLoadObject
+			ExistingPackage = FindObjectFast<UPackage>(nullptr, Desc.GetUPackageName());
 		}
 	}
 	if (!LinkerRoot)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UPackageCreate);
-		LinkerRoot = NewObject<UPackage>(/*Outer*/nullptr, Desc.GetUPackageName(), RF_Public | RF_WasLoaded);
+		if (ExistingPackage)
+		{
+			LinkerRoot = ExistingPackage;
+		}
+		else 
+		{
+			LinkerRoot = NewObject<UPackage>(/*Outer*/nullptr, Desc.GetUPackageName());
+			bCreatedLinkerRoot = true;
+		}
+		LinkerRoot->SetFlags(RF_Public | RF_WasLoaded);
 		LinkerRoot->FileName = Desc.DiskPackageName;
 		LinkerRoot->SetCanBeImportedFlag(Desc.CanBeImported());
 		LinkerRoot->SetPackageId(Desc.DiskPackageId);
@@ -5314,7 +5333,6 @@ void FAsyncPackage2::CreateUPackage(const FPackageSummary* PackageSummary)
 		{
 			PackageRef->SetPackage(LinkerRoot);
 		}
-		bCreatedLinkerRoot = true;
 	}
 	else
 	{
