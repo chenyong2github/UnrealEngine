@@ -2077,17 +2077,13 @@ bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAni
 	FFrameNumber EndFrame = TickResolution.AsFrameNumber(Length);
 	FFrameNumber StartFrame(0);
 
-	if (HasStartFrame())
+	if (HasStartFrame() && HasEndFrame())
 	{
 		StartFrame = GetInclusiveStartFrame();
 		EndFrame = StartFrame + EndFrame;
 		SetEndFrame(EndFrame);
 	}
-	else
-	{
-		SetStartFrame(StartFrame);
-		SetEndFrame(EndFrame);
-	}
+
 
 	int32 NumFrames = Length * FrameRate;
 	NumFrames = AnimSequence->GetNumberOfFrames();
