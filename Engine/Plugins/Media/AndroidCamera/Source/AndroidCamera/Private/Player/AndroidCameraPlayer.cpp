@@ -170,10 +170,10 @@ FString FAndroidCameraPlayer::GetInfo() const
 }
 
 
-FName FAndroidCameraPlayer::GetPlayerName() const
+FGuid FAndroidCameraPlayer::GetPlayerPluginGUID() const
 {
-	static FName PlayerName(TEXT("AndroidCamera"));
-	return PlayerName;
+	static FGuid PlayerPluginGUID(0x94f59418, 0xb93d4f40, 0xa441b4fd, 0x2ac7c313);
+	return PlayerPluginGUID;
 }
 
 
