@@ -658,6 +658,8 @@ namespace DatasmithRuntime
 		/** Array of queues dequeued during the import process */
 		TQueue< FActionTask, EQueueMode::Mpsc > ActionQueues[MAX_QUEUES];
 
+		TArray<TFuture<bool>> OnGoingTasks;
+
 		/** Flag used to properly sequence the import process */
 		EDatasmithRuntimeWorkerTask::Type TasksToComplete;
 

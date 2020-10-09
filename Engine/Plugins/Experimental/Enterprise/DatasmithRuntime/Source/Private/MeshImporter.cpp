@@ -328,7 +328,7 @@ namespace DatasmithRuntime
 
 			FActionTaskFunction TaskFunc = [this, LightmapWeight](UObject* Object, const FReferencer& Referencer) -> EActionResult::Type
 			{
-				Async(
+				OnGoingTasks.Emplace( Async(
 #if WITH_EDITOR
 					EAsyncExecution::LargeThreadPool,
 #else
@@ -343,7 +343,7 @@ namespace DatasmithRuntime
 					{
 						this->ActionCounter.Increment();
 					}
-				);
+				));
 
 				return EActionResult::Succeeded;
 			};

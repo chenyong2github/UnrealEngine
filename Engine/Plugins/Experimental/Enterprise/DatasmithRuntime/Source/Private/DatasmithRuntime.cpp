@@ -167,11 +167,17 @@ void ADatasmithRuntimeActor::SetScene(TSharedPtr<IDatasmithScene> SceneElement)
 
 void ADatasmithRuntimeActor::Reset()
 {
+	SceneImporter->Reset(true);
+
+	// Reset called while importing a scene, update flag accordingly
+	if (bBuilding)
+	{
+		bImportingScene = false;
+	}
+
 	bBuilding = false;
 	Progress = 0.f;
 	LoadedScene = EmptyScene;
-
-	SceneImporter->Reset(true);
 
 	RootComponent->Bounds = DefaultBounds;
 }
