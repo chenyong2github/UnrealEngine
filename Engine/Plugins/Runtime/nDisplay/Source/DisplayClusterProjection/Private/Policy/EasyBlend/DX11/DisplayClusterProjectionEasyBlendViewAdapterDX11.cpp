@@ -10,7 +10,9 @@
 #include "RHIResources.h"
 #include "RHIUtilities.h"
 
+#if PLATFORM_WINDOWS
 #include "Windows/D3D11RHI/Private/D3D11RHIPrivate.h"
+#endif
 
 #include "Engine/GameViewportClient.h"
 #include "Engine/Engine.h"
