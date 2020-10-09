@@ -1665,7 +1665,7 @@ void SRemoteControlPanel::OnFieldAdded(const FGuid& GroupId, const FGuid& FieldI
 		}
  
 		FieldWidgetMap.Add(FieldId, FieldWidget);
-		if (TSharedPtr<FRCPanelGroup>* Group = FieldGroups.FindByPredicate([GroupId](const TSharedPtr<FRCPanelGroup>& Group) {return Group->Id == GroupId; }))
+		if (TSharedPtr<FRCPanelGroup>* Group = FieldGroups.FindByPredicate([GroupId](const TSharedPtr<FRCPanelGroup>& InGroup) {return InGroup->Id == GroupId; }))
 		{
 			if (*Group)
 			{
