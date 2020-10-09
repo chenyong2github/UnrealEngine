@@ -474,12 +474,16 @@ public:
 #endif
 
 	NIAGARA_API void ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) const;
+	NIAGARA_API const FNiagaraVMExecutableDataId& GetComputedVMCompilationId() const
+	{
 #if WITH_EDITORONLY_DATA
-	NIAGARA_API const FNiagaraVMExecutableDataId& GetComputedVMCompilationId() const { return LastGeneratedVMId; }
-#else
-	NIAGARA_API const FNiagaraVMExecutableDataId& GetComputedVMCompilationId() const { return CachedScriptVMId; }
+		if (!IsCooked)
+		{
+			return LastGeneratedVMId;
+		}
 #endif
-
+		return CachedScriptVMId;
+	}
 
 	void SetUsage(ENiagaraScriptUsage InUsage) { Usage = InUsage; }
 	ENiagaraScriptUsage GetUsage() const { return Usage; }
@@ -687,6 +691,15 @@ public:
 	const FNiagaraScriptExecutionParameterStore* GetExecutionReadyParameterStore(ENiagaraSimTarget SimTarget);
 	void InvalidateExecutionReadyParameterStores();
 
+	bool IsScriptCooked() const
+	{
+#if WITH_EDITORONLY_DATA
+		return IsCooked;
+#else
+		return true;
+#endif
+	}
+
 private:
 	bool OwnerCanBeRunOnGpu() const;
 	bool LegacyCanBeRunOnGpu()const;
@@ -773,6 +786,9 @@ private:
 
 	UPROPERTY(Transient)
 	TArray<UObject*> ActiveCompileRoots;
+
+	/* Flag set on load based on whether the serialized data includes editor only data */
+	bool IsCooked;
 #endif
 
 	/** Compiled VM bytecode and data necessary to run this script.*/
