@@ -480,7 +480,6 @@ namespace
 			{
 				FPlatformProcess::TerminateProc(CommandletProcessHandle, true);
 			}
-			CommandletProcess.Reset();
 		}
 
 		if (RunnableThread)
@@ -496,6 +495,8 @@ namespace
 			Runnable = nullptr;
 		}
 
+		// Reset now to close the read and write pipes which were used by the FCommandletLogPump thread
+		CommandletProcess.Reset();
 	}
 
 	bool SLocalizationCommandletExecutor::HasCompleted() const
