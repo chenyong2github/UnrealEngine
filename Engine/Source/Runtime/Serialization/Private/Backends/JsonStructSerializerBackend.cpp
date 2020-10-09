@@ -18,10 +18,10 @@ namespace JsonStructSerializerBackend
 	{
 		//Write only value in case of no property or container elements
 		if ((State.ValueProperty == nullptr) ||
-			(State.ValueProperty->ArrayDim > 1 
+			((State.ValueProperty->ArrayDim > 1 
 				|| State.ValueProperty->GetOwner<FArrayProperty>() 
 				|| State.ValueProperty->GetOwner<FSetProperty>()
-				|| State.ValueProperty->GetOwner<FMapProperty>() && State.KeyProperty == nullptr) && !EnumHasAnyFlags(State.StateFlags, EStructSerializerStateFlags::WritingContainerElement))
+				|| (State.ValueProperty->GetOwner<FMapProperty>() && State.KeyProperty == nullptr)) && !EnumHasAnyFlags(State.StateFlags, EStructSerializerStateFlags::WritingContainerElement)))
 		{
 			JsonWriter->WriteValue(Value);
 		}
@@ -43,10 +43,10 @@ namespace JsonStructSerializerBackend
 	void WriteNull(const TSharedRef<TJsonWriter<UCS2CHAR>> JsonWriter, const FStructSerializerState& State)
 	{
 		if ((State.ValueProperty == nullptr) ||
-			(State.ValueProperty->ArrayDim > 1 
+			((State.ValueProperty->ArrayDim > 1 
 				|| State.ValueProperty->GetOwner<FArrayProperty>() 
 				|| State.ValueProperty->GetOwner<FSetProperty>()
-				|| State.ValueProperty->GetOwner<FMapProperty>() && State.KeyProperty == nullptr) && !EnumHasAnyFlags(State.StateFlags, EStructSerializerStateFlags::WritingContainerElement))
+				|| (State.ValueProperty->GetOwner<FMapProperty>() && State.KeyProperty == nullptr)) && !EnumHasAnyFlags(State.StateFlags, EStructSerializerStateFlags::WritingContainerElement)))
 		{
 			JsonWriter->WriteNull();
 		}
@@ -94,7 +94,7 @@ void FJsonStructSerializerBackend::BeginStructure(const FStructSerializerState& 
 		if ((State.ValueProperty->ArrayDim > 1
 			|| State.ValueProperty->GetOwner<FArrayProperty>()
 			|| State.ValueProperty->GetOwner<FSetProperty>()
-			|| State.ValueProperty->GetOwner<FMapProperty>() && State.KeyProperty == nullptr) && !EnumHasAnyFlags(State.StateFlags, EStructSerializerStateFlags::WritingContainerElement))
+			|| (State.ValueProperty->GetOwner<FMapProperty>() && State.KeyProperty == nullptr)) && !EnumHasAnyFlags(State.StateFlags, EStructSerializerStateFlags::WritingContainerElement))
 		{
 			JsonWriter->WriteObjectStart();
 		}

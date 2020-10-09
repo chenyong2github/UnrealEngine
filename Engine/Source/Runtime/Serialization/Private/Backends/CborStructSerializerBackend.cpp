@@ -70,7 +70,7 @@ void FCborStructSerializerBackend::BeginStructure(const FStructSerializerState& 
 		if ((State.ValueProperty->ArrayDim > 1
 			|| State.ValueProperty->GetOwner<FArrayProperty>()
 			|| State.ValueProperty->GetOwner<FSetProperty>()
-			|| State.ValueProperty->GetOwner<FMapProperty>() && State.KeyProperty == nullptr) && !EnumHasAnyFlags(State.StateFlags, EStructSerializerStateFlags::WritingContainerElement))
+			|| (State.ValueProperty->GetOwner<FMapProperty>() && State.KeyProperty == nullptr)) && !EnumHasAnyFlags(State.StateFlags, EStructSerializerStateFlags::WritingContainerElement))
 		{
 			CborWriter.WriteContainerStart(ECborCode::Map, -1/*Indefinite*/);
 		}
@@ -128,10 +128,10 @@ namespace CborStructSerializerBackend
 	{
 		// Value nested in Array/Set (except single element) or map as array or as root 
 		if ((State.ValueProperty == nullptr) ||
-			(State.ValueProperty->ArrayDim > 1
+			((State.ValueProperty->ArrayDim > 1
 				|| State.ValueProperty->GetOwner<FArrayProperty>()
 				|| State.ValueProperty->GetOwner<FSetProperty>()
-				|| State.ValueProperty->GetOwner<FMapProperty>() && State.KeyProperty == nullptr) && !EnumHasAnyFlags(State.StateFlags, EStructSerializerStateFlags::WritingContainerElement))
+				|| (State.ValueProperty->GetOwner<FMapProperty>() && State.KeyProperty == nullptr)) && !EnumHasAnyFlags(State.StateFlags, EStructSerializerStateFlags::WritingContainerElement)))
 		{
 			CborWriter.WriteValue(Value);
 		}
@@ -155,10 +155,10 @@ namespace CborStructSerializerBackend
 	void WriteNull(FCborWriter& CborWriter, const FStructSerializerState& State)
 	{
 		if ((State.ValueProperty == nullptr) ||
-			(State.ValueProperty->ArrayDim > 1
+			((State.ValueProperty->ArrayDim > 1
 				|| State.ValueProperty->GetOwner<FArrayProperty>()
 				|| State.ValueProperty->GetOwner<FSetProperty>()
-				|| State.ValueProperty->GetOwner<FMapProperty>() && State.KeyProperty == nullptr) && !EnumHasAnyFlags(State.StateFlags, EStructSerializerStateFlags::WritingContainerElement))
+				|| (State.ValueProperty->GetOwner<FMapProperty>() && State.KeyProperty == nullptr)) && !EnumHasAnyFlags(State.StateFlags, EStructSerializerStateFlags::WritingContainerElement)))
 		{
 			CborWriter.WriteNull();
 		}
