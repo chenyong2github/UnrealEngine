@@ -377,6 +377,14 @@ class EdgeBotImpl extends PerforceStatefulBot {
 			description += `#ROBOMERGE-BOT: (v${VersionReader.getShortVersion()})\n`
 		}
 
+		if (info.forceStompChanges) {
+			description += `#ROBOMERGE-CONFLICT stomped\n`
+		}
+		else if (info.forceCreateAShelf) {
+			description += `#ROBOMERGE-CONFLICT from-shelf\n`
+		}
+
+
 		if (target.flags.has('disregardexcludedauthors')) {
 			description += '#ROBOMERGE[ALL]: #DISREGARDEXCLUDEDAUTHORS\n'
 		}

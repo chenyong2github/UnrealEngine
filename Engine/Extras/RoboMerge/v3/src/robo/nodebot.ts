@@ -453,8 +453,13 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 		if (targetBranchName) {
 			logMessage += ', target: ' + targetBranchName
 		}
-		if (additionalArgs && additionalArgs.commandOverride) {
-			logMessage += ', with command ' + additionalArgs.commandOverride
+		if (additionalArgs) {
+			if (additionalArgs.additionalFlags) {
+				logMessage += `, (${additionalArgs.additionalFlags.join(', ')})`
+			}
+			if (additionalArgs.commandOverride) {
+				logMessage += ', with command ' + additionalArgs.commandOverride
+			}
 		}
 		this.nodeBotLogger.info(logMessage);
 		this.queuedChanges.push({cl: changenum, who: instigator, ...(additionalArgs || {})});
