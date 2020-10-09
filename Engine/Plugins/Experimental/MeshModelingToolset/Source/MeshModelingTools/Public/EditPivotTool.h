@@ -111,6 +111,7 @@ public:
 	void Initialize(UEditPivotTool* ParentToolIn) { ParentTool = ParentToolIn; }
 	void PostAction(EEditPivotToolActions Action);
 
+	/** Use the World-Space Bounding Box of the target object, instead of the Object-space Bounding Box */
 	UPROPERTY(EditAnywhere, Category = BoxPositions)
 	bool bUseWorldBox = false;
 
