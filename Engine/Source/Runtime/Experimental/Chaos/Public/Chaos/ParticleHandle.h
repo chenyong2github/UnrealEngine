@@ -72,6 +72,8 @@ void PBDRigidParticleHandleImpDefaultConstruct(TPBDRigidParticleHandleImp<T, d, 
 	Concrete.SetPreW(Concrete.W());
 	Concrete.SetP(Concrete.X());
 	Concrete.SetQ(Concrete.R());
+	Concrete.SetVSmooth(Concrete.V());
+	Concrete.SetWSmooth(Concrete.W());
 	Concrete.SetF(TVector<T, d>(0));
 	Concrete.SetTorque(TVector<T, d>(0));
 	Concrete.SetLinearImpulse(TVector<T, d>(0));
@@ -659,6 +661,8 @@ class TPBDRigidParticleHandleImp : public TKinematicGeometryParticleHandleImp<T,
 public:
 	using TGeometryParticleHandleImp<T, d, bPersistent>::ParticleIdx;
 	using TGeometryParticleHandleImp<T, d, bPersistent>::PBDRigidParticles;
+	using TKinematicGeometryParticleHandleImp<T, d, bPersistent>::V;
+	using TKinematicGeometryParticleHandleImp<T, d, bPersistent>::W;
 	using TGeometryParticleHandleImp<T, d, bPersistent>::Type;
 	using TTransientHandle = TTransientPBDRigidParticleHandle<T, d>;
 	using TSOAType = TPBDRigidParticles<T, d>;
@@ -741,6 +745,14 @@ public:
 	TRotation<T, d>& Q() { return PBDRigidParticles->Q(ParticleIdx); }
 	void SetQ(const TRotation<T, d>& InQ) { PBDRigidParticles->Q(ParticleIdx) = InQ; }
 
+	const TVector<T, d>& VSmooth() const { return PBDRigidParticles->VSmooth(ParticleIdx); }
+	TVector<T, d>& VSmooth() { return PBDRigidParticles->VSmooth(ParticleIdx); }
+	void SetVSmooth(const TVector<T, d>& InVSmooth) { PBDRigidParticles->VSmooth(ParticleIdx) = InVSmooth; }
+
+	const TVector<T, d>& WSmooth() const { return PBDRigidParticles->WSmooth(ParticleIdx); }
+	TVector<T, d>& WSmooth() { return PBDRigidParticles->WSmooth(ParticleIdx); }
+	void SetWSmooth(const TVector<T, d>& InWSmooth) { PBDRigidParticles->WSmooth(ParticleIdx) = InWSmooth; }
+
 	const TVector<T, d>& F() const { return PBDRigidParticles->F(ParticleIdx); }
 	TVector<T, d>& F() { return PBDRigidParticles->F(ParticleIdx); }
 	void SetF(const TVector<T, d>& InF) { PBDRigidParticles->F(ParticleIdx) = InF; }
@@ -783,6 +795,12 @@ public:
 		SetGravityEnabled(DynamicMisc.GravityEnabled());
 		SetResimType(DynamicMisc.ResimType());
 		SetOneWayInteraction(DynamicMisc.OneWayInteraction());
+	}
+
+	void ResetSmoothedVelocities()
+	{
+		SetVSmooth(V());
+		SetWSmooth(W());
 	}
 
 	const PMatrix<T, d, d>& I() const { return PBDRigidParticles->I(ParticleIdx); }
@@ -1217,6 +1235,26 @@ public:
 		}
 
 		return R();
+	}
+
+	const TVector<T, d>& VSmooth() const
+	{
+		if (MHandle->CastToRigidParticle())
+		{
+			return MHandle->CastToRigidParticle()->VSmooth();
+		}
+
+		return V();
+	}
+
+	const TVector<T, d>& WSmooth() const
+	{
+		if (MHandle->CastToRigidParticle())
+		{
+			return MHandle->CastToRigidParticle()->WSmooth();
+		}
+
+		return W();
 	}
 
 	const TVector<T, d>& F() const 
@@ -2215,6 +2253,11 @@ public:
 	void SetDynamics(const FParticleDynamics& InDynamics,bool bInvalidate = true)
 	{
 		MDynamics.Write(InDynamics,bInvalidate,MDirtyFlags,Proxy);
+	}
+
+	void ResetSmoothedVelocities()
+	{
+		// Physics thread only. API required for FGeometryParticleStateBase::SyncToParticle
 	}
 
 	const PMatrix<T, d, d>& I() const { return MMassProps.Read().I(); }

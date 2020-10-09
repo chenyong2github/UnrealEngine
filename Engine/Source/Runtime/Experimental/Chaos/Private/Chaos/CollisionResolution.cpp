@@ -132,6 +132,14 @@ namespace Chaos
 			static const bool bAllowManifold = B_ALLOWMANIFOLD;
 		};
 
+		// GJK requires a minimum amount of padding to return good results. Some shapes are made of a core shape with a margin, like
+		// spheres are points with a margin equal to the radius, and therefore don't need padding unless the margin is very small.
+		template<typename T_SHAPE0, typename T_SHAPE1>
+		FORCEINLINE FReal CalculateMinShapePadding(const FReal InMinPadding, const T_SHAPE0& Shape0, const T_SHAPE1& Shape1)
+		{
+			return FMath::Max(0.0f, InMinPadding - Shape0.GetMargin() - Shape1.GetMargin());
+		}
+
 		// Determines if body should use CCD. If using CCD, computes Dir and Length of sweep.
 		bool UseCCD(const TGeometryParticleHandle<FReal, 3>* SweptParticle, const TGeometryParticleHandle<FReal, 3>* OtherParticle, const FImplicitObject* Implicit, FVec3& Dir, FReal& Length)
 		{
