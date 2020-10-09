@@ -155,7 +155,7 @@ public:
 	 * Allocates reflection captures in the scene's reflection cubemap array and updates them by recapturing the scene.
 	 * Existing captures will only be updated.  Must be called from the game thread.
 	 */
-	virtual void AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent*>& NewCaptures, const TCHAR* CaptureReason, bool bVerifyOnlyCapturing) {}
+	virtual void AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent*>& NewCaptures, const TCHAR* CaptureReason, bool bVerifyOnlyCapturing, bool bCapturingForMobile) {}
 	virtual void ReleaseReflectionCubemap(UReflectionCaptureComponent* CaptureComponent) {}
 
 	/** 

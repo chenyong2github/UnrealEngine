@@ -651,7 +651,7 @@ void GenerateEncodedHDRData(const TArray<uint8>& FullHDRData, int32 CubemapSize,
 }
 
 
-void GenerateEncodedHDRTextureCube(UMapBuildDataRegistry* Registry, FReflectionCaptureMapBuildData& CaptureBuildData, FString& TextureName, float MaxValueRGBM, UReflectionCaptureComponent* CaptureComponent, bool bIsReflectionCaptureCompressionProjectSetting)
+void GenerateEncodedHDRTextureCube(UMapBuildDataRegistry* Registry, FReflectionCaptureData& ReflectionCaptureData, FString& TextureName, float MaxValueRGBM, UReflectionCaptureComponent* CaptureComponent, bool bIsReflectionCaptureCompressionProjectSetting)
 {
 #if WITH_EDITOR
 	UTextureFactory* TextureFactory = NewObject<UTextureFactory>();
@@ -664,11 +664,11 @@ void GenerateEncodedHDRTextureCube(UMapBuildDataRegistry* Registry, FReflectionC
 	{
 		TArray<uint8> TemporaryEncodedHDRCapturedData;
 
-		GenerateEncodedHDRData(CaptureBuildData.FullHDRCapturedData, CaptureBuildData.CubemapSize, CaptureBuildData.Brightness, MaxValueRGBM, TemporaryEncodedHDRCapturedData);
-		const int32 NumMips = FMath::CeilLogTwo(CaptureBuildData.CubemapSize) + 1;
+		GenerateEncodedHDRData(ReflectionCaptureData.FullHDRCapturedData, ReflectionCaptureData.CubemapSize, ReflectionCaptureData.Brightness, MaxValueRGBM, TemporaryEncodedHDRCapturedData);
+		const int32 NumMips = FMath::CeilLogTwo(ReflectionCaptureData.CubemapSize) + 1;
 		TextureCube->Source.Init(
-			CaptureBuildData.CubemapSize,
-			CaptureBuildData.CubemapSize,
+			ReflectionCaptureData.CubemapSize,
+			ReflectionCaptureData.CubemapSize,
 			6,
 			NumMips,
 			TSF_BGRA8,
@@ -695,7 +695,7 @@ void GenerateEncodedHDRTextureCube(UMapBuildDataRegistry* Registry, FReflectionC
 		TextureCube->UpdateResource();
 		TextureCube->MarkPackageDirty();
 	}
-	CaptureBuildData.EncodedCaptureData = TextureCube;
+	ReflectionCaptureData.EncodedCaptureData = TextureCube;
 #endif
 }
 
@@ -1025,7 +1025,7 @@ void UReflectionCaptureComponent::MarkDirtyForRecapture()
 	}
 }
 
-void UReflectionCaptureComponent::UpdateReflectionCaptureContents(UWorld* WorldToUpdate, const TCHAR* CaptureReason, bool bVerifyOnlyCapturing)
+void UReflectionCaptureComponent::UpdateReflectionCaptureContents(UWorld* WorldToUpdate, const TCHAR* CaptureReason, bool bVerifyOnlyCapturing, bool bCapturingForMobile)
 {
 	if (WorldToUpdate->Scene 
 		// Don't capture and read back capture contents if we are currently doing async shader compiling
@@ -1077,7 +1077,7 @@ void UReflectionCaptureComponent::UpdateReflectionCaptureContents(UWorld* WorldT
 			}
 		}
 
-		WorldToUpdate->Scene->AllocateReflectionCaptures(WorldCombinedCaptures, CaptureReason, bVerifyOnlyCapturing);
+		WorldToUpdate->Scene->AllocateReflectionCaptures(WorldCombinedCaptures, CaptureReason, bVerifyOnlyCapturing, bCapturingForMobile);
 	}
 }
 
