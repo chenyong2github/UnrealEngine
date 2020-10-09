@@ -11,6 +11,8 @@
 #if WITH_EOS_SDK
 	#include "eos_ecom_types.h"
 
+class UWorld;
+
 /**
  * Implementation for online store via EGS
  */
@@ -33,15 +35,21 @@ public:
 PACKAGE_SCOPE:
 	FOnlineStoreEOS(FOnlineSubsystemEOS* InSubsystem);
 
+	bool HandleOffersExec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar);
+
 private:
 	/** Default constructor disabled */
 	FOnlineStoreEOS() = delete;
 
+	void QueryOffers(const FUniqueNetId& UserId, const FOnQueryOnlineStoreOffersComplete& Delegate);
+
 	/** Reference to the main EOS subsystem */
 	FOnlineSubsystemEOS* EOSSubsystem;
 
-	/** Map of offers queried via QueryOffersById */
-	TMap<FUniqueOfferId, FOnlineStoreOfferRef> CachedOffers;
+	/** The set of offers for this title */
+	TArray<FOnlineStoreOfferRef> CachedOffers;
+	/** List of offer ids for this title */
+	TArray<FUniqueOfferId> CachedOfferIds;
 };
 
 typedef TSharedPtr<FOnlineStoreEOS, ESPMode::ThreadSafe> FOnlineStoreEOSPtr;

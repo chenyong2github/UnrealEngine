@@ -344,7 +344,16 @@ bool FOnlineSubsystemEOS::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice&
 	{
 		return true;
 	}
-	return false;
+
+	bool bWasHandled = false;
+	if (FParse::Command(&Cmd, TEXT("EOS")))
+	{
+		if (StoreInterfacePtr != nullptr && FParse::Command(&Cmd, TEXT("OFFERS")))
+		{
+			bWasHandled = StoreInterfacePtr->HandleOffersExec(InWorld, Cmd, Ar);
+		}
+	}
+	return bWasHandled;
 }
 
 FString FOnlineSubsystemEOS::GetAppId() const
