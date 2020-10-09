@@ -5,7 +5,6 @@
 
 ADMXFixtureActor::ADMXFixtureActor()
 {
-	// tick
 	PrimaryActorTick.bCanEverTick = true;
 
 #if WITH_EDITORONLY_DATA
@@ -37,9 +36,7 @@ ADMXFixtureActor::ADMXFixtureActor()
 	DMX = CreateDefaultSubobject<UDMXComponent>(TEXT("DMX"));
 
 	// set default values
-	HasBeenInitialized = false;
-	SetInitialFixtureState = true;
-	LightIntensityMax = 50000;
+	LightIntensityMax = 2000;
 	LightDistanceMax = 1000;
 	LightColorTemp = 6500;
 	SpotlightIntensityScale = 1.0f;
@@ -48,10 +45,11 @@ ADMXFixtureActor::ADMXFixtureActor()
 	UseDynamicOcclusion = false;
 	LensRadius = 10.0f;
 	QualityLevel = EDMXFixtureQualityLevel::HighQuality;
+	HasBeenInitialized = false;
+	ForceInitialFixtureState = false;
 }
 
 #if WITH_EDITOR
-// Support in-editor and PIE
 void ADMXFixtureActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -59,7 +57,7 @@ void ADMXFixtureActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 }
 #endif
 
-void ADMXFixtureActor::InitializeFixture(TMap<FDMXAttributeName, int32> AttributesMap, UStaticMeshComponent* StaticMeshLens, UStaticMeshComponent* StaticMeshBeam)
+void ADMXFixtureActor::InitializeFixture(UStaticMeshComponent* StaticMeshLens, UStaticMeshComponent* StaticMeshBeam)
 {
 	GetComponents<UStaticMeshComponent>(StaticMeshComponents);
 
@@ -102,10 +100,49 @@ void ADMXFixtureActor::InitializeFixture(TMap<FDMXAttributeName, int32> Attribut
 		DMXComponent->Initialize();
 	}
 
-	// Set initial fixture state using current DMX data
+	// Start with default values for all DMX channels
+	SetDefaultFixtureState();
+}
+
+void ADMXFixtureActor::SetDefaultFixtureState()
+{
+	// Get current components (supports PIE)
+	TInlineComponentArray<UDMXFixtureComponent*> DMXComponents;
+	GetComponents<UDMXFixtureComponent>(DMXComponents);
+
+	for (auto& DMXComponent : DMXComponents)
+	{
+		// SingleChannel Component
+		UDMXFixtureComponentSingle* SingleComponent = Cast<UDMXFixtureComponentSingle>(DMXComponent);
+		if (SingleComponent)
+		{
+			float TargetValue = SingleComponent->DMXChannel.DefaultValue;
+			SingleComponent->SetTarget(TargetValue);
+			SingleComponent->SetComponent(TargetValue);
+		}
+
+		// DoubleChannel Component
+		UDMXFixtureComponentDouble* DoubleComponent = Cast<UDMXFixtureComponentDouble>(DMXComponent);
+		if (DoubleComponent)
+		{
+			float Channel1TargetValue = DoubleComponent->DMXChannel1.DefaultValue;
+			float Channel2TargetValue = DoubleComponent->DMXChannel2.DefaultValue;
+			DoubleComponent->SetTarget(0, Channel1TargetValue);
+			DoubleComponent->SetTarget(1, Channel2TargetValue);
+			DoubleComponent->SetComponent(Channel1TargetValue, Channel2TargetValue);
+		}
+
+		// Color Component 
+		UDMXFixtureComponentColor* ColorComponent = Cast<UDMXFixtureComponentColor>(DMXComponent);
+		if (ColorComponent)
+		{
+			ColorComponent->SetTargetColor(FLinearColor::White);
+			ColorComponent->SetComponent(FLinearColor::White);
+		}
+	}
+
 	HasBeenInitialized = true;
-	SetInitialFixtureState = true;
-	PushDMXData(AttributesMap);
+	ForceInitialFixtureState = true;
 }
 
 void ADMXFixtureActor::FeedFixtureData()
@@ -125,12 +162,12 @@ void ADMXFixtureActor::FeedFixtureData()
 	{
 		DynamicMaterialBeam->SetScalarParameterValue("DMX Quality Level", Quality);
 		DynamicMaterialBeam->SetScalarParameterValue("DMX Max Light Distance", LightDistanceMax);
-		DynamicMaterialBeam->SetScalarParameterValue("DMX Max Light Intensity", LightIntensityMax);
+		DynamicMaterialBeam->SetScalarParameterValue("DMX Max Light Intensity", LightIntensityMax * SpotlightIntensityScale);
 	}
 
 	if (DynamicMaterialLens)
 	{
-		DynamicMaterialLens->SetScalarParameterValue("DMX Max Light Intensity", LightIntensityMax);
+		DynamicMaterialLens->SetScalarParameterValue("DMX Max Light Intensity", LightIntensityMax * SpotlightIntensityScale);
 		DynamicMaterialBeam->SetScalarParameterValue("DMX Lens Radius", LensRadius);
 	}
 
@@ -181,9 +218,29 @@ void ADMXFixtureActor::InterpolateDMXComponents(float DeltaSeconds)
 	}
 }
 
+
+bool IsAttributesMapValid(TMap<FDMXAttributeName, int32> AttributesMap)
+{
+	for (const TPair<FDMXAttributeName, int32>& pair : AttributesMap)
+	{
+		if (pair.Value != 0)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 void ADMXFixtureActor::PushDMXData(TMap<FDMXAttributeName, int32> AttributesMap)
 {
-	if (HasBeenInitialized)
+	// Avoid attributes map containing all zeros at startup
+	bool IsWarmedUp = true;
+	if (ForceInitialFixtureState)
+	{
+		IsWarmedUp = IsAttributesMapValid(AttributesMap);
+	}
+
+	if (HasBeenInitialized && IsWarmedUp)
 	{
 		// Get current components (supports PIE)
 		TInlineComponentArray<UDMXFixtureComponent*> DMXComponents;
@@ -191,10 +248,10 @@ void ADMXFixtureActor::PushDMXData(TMap<FDMXAttributeName, int32> AttributesMap)
 
 		for (auto& DMXComponent : DMXComponents)
 		{
-			// Components uses 1 cell
+			// Components without matrix data
 			if (DMXComponent->IsEnabled && !DMXComponent->UsingMatrixData)
 			{
-				// Single Channel Component
+				// SingleChannel Component
 				UDMXFixtureComponentSingle* SingleComponent = Cast<UDMXFixtureComponentSingle>(DMXComponent);
 				if (SingleComponent)
 				{
@@ -202,9 +259,9 @@ void ADMXFixtureActor::PushDMXData(TMap<FDMXAttributeName, int32> AttributesMap)
 					if (d1)
 					{
 						float TargetValue = SingleComponent->RemapValue(*d1);
-						if (SingleComponent->IsTargetValid(TargetValue) || SetInitialFixtureState)
+						if (SingleComponent->IsTargetValid(TargetValue))
 						{
-							if (SingleComponent->UseInterpolation)
+							if (SingleComponent->UseInterpolation && !ForceInitialFixtureState)
 							{
 								SingleComponent->Push(TargetValue);
 							}
@@ -215,17 +272,9 @@ void ADMXFixtureActor::PushDMXData(TMap<FDMXAttributeName, int32> AttributesMap)
 							}
 						}
 					}
-					else
-					{
-						// Runs only once during init - fallback to default values when patch doesnt provide channel data
-						if (SetInitialFixtureState)
-						{
-							SingleComponent->SetComponent(SingleComponent->DMXChannel.DefaultValue);
-						}
-					}
 				}
 
-				// Double Channel Component
+				// DoubleChannel Component
 				UDMXFixtureComponentDouble* DoubleComponent = Cast<UDMXFixtureComponentDouble>(DMXComponent);
 				if (DoubleComponent)
 				{
@@ -235,9 +284,9 @@ void ADMXFixtureActor::PushDMXData(TMap<FDMXAttributeName, int32> AttributesMap)
 					{
 						float Channel1TargetValue = DoubleComponent->RemapValue(0, *d1);
 						float Channel2TargetValue = DoubleComponent->RemapValue(1, *d2);
-						if ((DoubleComponent->IsTargetValid(0, Channel1TargetValue) && DoubleComponent->IsTargetValid(1, Channel2TargetValue)) || SetInitialFixtureState)
+						if (DoubleComponent->IsTargetValid(0, Channel1TargetValue) && DoubleComponent->IsTargetValid(1, Channel2TargetValue))
 						{
-							if (DoubleComponent->UseInterpolation)
+							if (DoubleComponent->UseInterpolation && !ForceInitialFixtureState)
 							{
 								DoubleComponent->Push(0, Channel1TargetValue);
 								DoubleComponent->Push(1, Channel2TargetValue);
@@ -250,17 +299,9 @@ void ADMXFixtureActor::PushDMXData(TMap<FDMXAttributeName, int32> AttributesMap)
 							}
 						}
 					}
-					else
-					{
-						// Runs only once during init - fallback to default values when patch doesnt provide channel data
-						if (SetInitialFixtureState)
-						{
-							DoubleComponent->SetComponent(DoubleComponent->DMXChannel1.DefaultValue, DoubleComponent->DMXChannel2.DefaultValue);
-						}
-					}
 				}
 				
-				// Color Component (4 channels)
+				// Color Component
 				UDMXFixtureComponentColor* ColorComponent = Cast<UDMXFixtureComponentColor>(DMXComponent);
 				if(ColorComponent)
 				{
@@ -276,7 +317,7 @@ void ADMXFixtureActor::PushDMXData(TMap<FDMXAttributeName, int32> AttributesMap)
 					int a = (d4) ? *d4 : ColorComponent->BitResolution;
 
 					FLinearColor NewTargetColor = ColorComponent->RemapColor(r, g, b, a);
-					if (ColorComponent->IsColorValid(NewTargetColor) || SetInitialFixtureState)
+					if (ColorComponent->IsColorValid(NewTargetColor))
 					{
 						ColorComponent->SetTargetColor(NewTargetColor);
 						ColorComponent->SetComponent(NewTargetColor);
@@ -284,7 +325,8 @@ void ADMXFixtureActor::PushDMXData(TMap<FDMXAttributeName, int32> AttributesMap)
 				}
 			}
 		}
+
+		ForceInitialFixtureState = false;
 	}
-	SetInitialFixtureState = false;
 }
 
