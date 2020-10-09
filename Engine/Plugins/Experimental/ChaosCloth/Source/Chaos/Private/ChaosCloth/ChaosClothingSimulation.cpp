@@ -447,6 +447,7 @@ void FClothingSimulation::RefreshClothConfig(const IClothingSimulationContext* I
 		const uint32 GroupId = Cloth->GetGroupId();
 		const UChaosClothConfig* const ClothConfig = Mesh->GetAsset()->GetClothConfig<UChaosClothConfig>();
 
+		AnimDriveSpringStiffness = ClothConfig->AnimDriveSpringStiffness;
 		Cloth = MakeUnique<FClothingSimulationCloth>(
 			Mesh,
 			MoveTemp(ClothColliders),
