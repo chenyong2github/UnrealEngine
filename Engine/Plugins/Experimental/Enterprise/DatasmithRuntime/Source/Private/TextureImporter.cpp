@@ -60,7 +60,7 @@ namespace DatasmithRuntime
 		return false;
 	}
 
-	bool CreateImageTexture(FTextureData& TextureData, IDatasmithTextureElement* TextureElement, FDataCleanupFunc& DataCleanupFunc)
+	EActionResult::Type CreateImageTexture(FTextureData& TextureData, IDatasmithTextureElement* TextureElement, FDataCleanupFunc& DataCleanupFunc)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::CreateImageTexture);
 
@@ -70,7 +70,10 @@ namespace DatasmithRuntime
 		if (Texture2D == nullptr)
 		{
 			Texture2D = UTexture2D::CreateTransient(TextureData.Width, TextureData.Height, (EPixelFormat)TextureData.Requirements);
-			check(Texture2D);
+			if (!Texture2D)
+			{
+				return EActionResult::Failed;
+			}
 
 #ifdef ASSET_DEBUG
 			FString BaseName = FPaths::GetBaseFilename(TextureElement->GetFile());
@@ -114,10 +117,10 @@ namespace DatasmithRuntime
 
 		TextureData.AddState(EDatasmithRuntimeAssetState::Completed);
 
-		return true;
+		return EActionResult::Succeeded;
 	}
 
-	bool CreateIESTexture(FTextureData& TextureData, IDatasmithTextureElement* TextureElement, FDataCleanupFunc& DataCleanupFunc)
+	EActionResult::Type CreateIESTexture(FTextureData& TextureData, IDatasmithTextureElement* TextureElement, FDataCleanupFunc& DataCleanupFunc)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::CreateIESTexture);
 
@@ -126,7 +129,10 @@ namespace DatasmithRuntime
 		if (Texture == nullptr)
 		{
 			Texture = NewObject<UTextureLightProfile>();
-			check (Texture);
+			if (!Texture)
+			{
+				return EActionResult::Failed;
+			}
 
 #ifdef ASSET_DEBUG
 			FString BaseName = FPaths::GetBaseFilename(TextureElement->GetFile());
@@ -181,7 +187,7 @@ namespace DatasmithRuntime
 		Texture->UpdateTextureRegions(0, 1, &TextureData.Region, TextureData.Pitch, TextureData.BytesPerPixel, TextureData.ImageData, DataCleanupFunc );
 #endif
 
-		return true;
+		return EActionResult::Succeeded;
 	}
 
 	EActionResult::Type FSceneImporter::CreateTexture(FSceneGraphId ElementId)
@@ -232,11 +238,11 @@ namespace DatasmithRuntime
 
 		if (TextureElement->GetTextureMode() == EDatasmithTextureMode::Ies)
 		{
-			Result = CreateIESTexture(TextureData, TextureElement, DataCleanupFunc) ? EActionResult::Succeeded : EActionResult::Failed;
+			Result = CreateIESTexture(TextureData, TextureElement, DataCleanupFunc);
 		}
 		else
 		{
-			Result = CreateImageTexture(TextureData, TextureElement, DataCleanupFunc) ? EActionResult::Succeeded : EActionResult::Failed;
+			Result = CreateImageTexture(TextureData, TextureElement, DataCleanupFunc);
 		}
 
 		TSet<FAssetData*> RegisteredAssets = GetRegisteredAssetData(THelper);
