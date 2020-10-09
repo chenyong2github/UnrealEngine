@@ -3,31 +3,18 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/NoExportTypes.h"
+#include "Templates/PimplPtr.h"
 #include "BaseTools/MeshSurfacePointTool.h"
-#include "DynamicMeshAABBTree3.h"
 #include "ToolDataVisualizer.h"
-#include "Transforms/QuickAxisTranslater.h"
-#include "Transforms/QuickAxisRotator.h"
-#include "Changes/MeshVertexChange.h"
-#include "GroupTopology.h"
-#include "Spatial/GeometrySet3.h"
-#include "Selection/GroupTopologySelector.h"
-#include "Operations/GroupTopologyDeformer.h"
-#include "Curves/CurveFloat.h"
 #include "SpaceDeformerOps/MeshSpaceDeformerOp.h"
 #include "SpaceDeformerOps/BendMeshOp.h"
 #include "SpaceDeformerOps/TwistMeshOp.h"
 #include "SpaceDeformerOps/FlareMeshOp.h"
 #include "SimpleDynamicMeshComponent.h"
-
-#include "ModelingOperators/Public/ModelingTaskTypes.h"
 #include "BaseGizmos/GizmoInterfaces.h"
-
 
 #include "MeshSpaceDeformerTool.generated.h"
 
-class FMeshVertexChangeBuilder;
 class UPreviewMesh;
 class UTransformGizmo;
 class UTransformProxy;
@@ -35,7 +22,7 @@ class UIntervalGizmo;
 class UMeshOpPreviewWithBackgroundCompute;
 class UGizmoLocalFloatParameterSource;
 class UGizmoTransformChangeStateTarget;
-
+class FSelectClickedAction;
 
 /**
  * ToolBuilder
@@ -110,6 +97,10 @@ public:
 	virtual bool CanAccept() const override;
 
 
+	// disable UMeshSurfacePointTool hits as tool is not using that interaction (subclass should be changed)
+	virtual bool HitTest(const FRay& Ray, FHitResult& OutHit) override { return false; }
+
+
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
@@ -135,6 +126,11 @@ public:
 	/** As each operator has a range of values (i.e. curvature, angle of twist, scale), this represents the percentage passed to the operator as a parameter. In the future, for more control, this should be separated into individual settings for each operator for more precise control */
 	UPROPERTY(EditAnywhere, Category = Options, meta = (DisplayName = "Modifier Percent"))
 	float ModifierPercent = 20.0;
+
+	/** Snap the deformer gizmo to the world grid */
+	UPROPERTY(EditAnywhere, Category = Snapping)
+	bool bSnapToWorldGrid = false;
+
 
 	//UPROPERTY()
 	//UMeshSpaceDeformerToolStandardProperties* SpaceDeformerProperties;
@@ -194,12 +190,12 @@ protected:
 
 	FFrame3d GizmoFrame;
 
-
+	TPimplPtr<FSelectClickedAction> SetPointInWorldConnector;
 
 	FVector3d AABBHalfExtents; // 1/2 the extents of the bbox
 
 	void TransformProxyChanged(UTransformProxy* Proxy, FTransform Transform);
-
+	void SetGizmoPlaneFromWorldPos(const FVector& Position, const FVector& Normal, bool bIsInitializing);
 
 	/** Compute the axis aligned abounding box for the source mesh */
 	void ComputeAABB(const FDynamicMesh3& MeshIn, const FTransform& XFormIn, FVector& BBoxMin, FVector& BBoxMax) const;
