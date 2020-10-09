@@ -48,6 +48,9 @@ struct CORE_API FSequencerObjectVersion
 		// Full Manual serialization of float channel
 		SerializeFloatChannelCompletely,
 
+		// Set ContinuouslyRespawn to false by default, added FMovieSceneSpawnable::bNetAddressableName
+		SpawnableImprovements,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
