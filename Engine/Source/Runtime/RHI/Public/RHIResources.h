@@ -2184,7 +2184,6 @@ public:
 			ShadingRate != rhs.ShadingRate ||
 			bMultiView != rhs.bMultiView ||
 			bHasFragmentDensityAttachment != rhs.bHasFragmentDensityAttachment ||
-			ShadingRate != rhs.ShadingRate ||
 			RenderTargetsEnabled != rhs.RenderTargetsEnabled ||
 			RenderTargetFormats != rhs.RenderTargetFormats || 
 			RenderTargetFlags != rhs.RenderTargetFlags || 
