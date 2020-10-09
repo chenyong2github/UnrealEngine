@@ -784,8 +784,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
 	virtual UCameraShakeBase* StartCameraShake(TSubclassOf<UCameraShakeBase> ShakeClass, float Scale=1.f, ECameraShakePlaySpace PlaySpace = ECameraShakePlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
 
+	/**
+	 * Backwards compatible method used by core BP redirectors. This is needed because the return value is specifically a Matinee camera shake,
+	 * which some BP logic often uses directly to set oscillator/anim properties.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
 	UMatineeCameraShake* StartMatineeCameraShake(TSubclassOf<UMatineeCameraShake> ShakeClass, float Scale = 1.f, ECameraShakePlaySpace PlaySpace = ECameraShakePlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
+
+	/** Backwards compatible method for C++ code. */
+	UE_DEPRECATED(4.26, "PlayCameraShake is deprecated, please use StartCameraShake or StartMatineeCameraShake.")
+	UMatineeCameraShake* PlayCameraShake(TSubclassOf<UMatineeCameraShake> ShakeClass, float Scale=1.f, ECameraShakePlaySpace PlaySpace = ECameraShakePlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator)
+	{
+		return StartMatineeCameraShake(ShakeClass, Scale, PlaySpace, UserPlaySpaceRot);
+	}
 
 	/** 
 	 * Plays a camera shake on this camera.
@@ -798,8 +809,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
 	virtual UCameraShakeBase* StartCameraShakeFromSource(TSubclassOf<UCameraShakeBase> ShakeClass, UCameraShakeSourceComponent* SourceComponent, float Scale=1.f, ECameraShakePlaySpace PlaySpace = ECameraShakePlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
 
+	/**
+	 * Backwards compatible method used by core BP redirectors. This is needed because the return value is specifically a Matinee camera shake,
+	 * which some BP logic often uses directly to set oscillator/anim properties.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
 	UMatineeCameraShake* StartMatineeCameraShakeFromSource(TSubclassOf<UMatineeCameraShake> ShakeClass, UCameraShakeSourceComponent* SourceComponent, float Scale = 1.f, ECameraShakePlaySpace PlaySpace = ECameraShakePlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
+
+	/** Backwards compatible method for C++ code. */
+	UE_DEPRECATED(4.26, "PlayCameraShakeFromSource is deprecated, please use StartCameraShakeFromSource or StartMatineeCameraShakeFromSource.")
+	UMatineeCameraShake* PlayCameraShakeFromSource(TSubclassOf<UMatineeCameraShake> ShakeClass, UCameraShakeSourceComponent* SourceComponent, float Scale=1.f, ECameraShakePlaySpace PlaySpace = ECameraShakePlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator)
+	{
+		return StartMatineeCameraShakeFromSource(ShakeClass, SourceComponent, Scale, PlaySpace, UserPlaySpaceRot);
+	}
 	
 	/** Immediately stops the given shake instance and invalidates it. */
 	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
