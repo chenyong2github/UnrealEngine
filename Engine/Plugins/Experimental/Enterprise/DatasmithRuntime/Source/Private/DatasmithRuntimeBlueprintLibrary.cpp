@@ -3,6 +3,7 @@
 #include "DatasmithRuntimeBlueprintLibrary.h"
 
 #include "DatasmithRuntime.h"
+#include "DirectLinkUtils.h"
 
 #include "DatasmithSceneFactory.h"
 #include "DatasmithTranslatableSource.h"
@@ -218,12 +219,5 @@ void UDatasmithRuntimeLibrary::ResetActor(ADatasmithRuntimeActor* DatasmithRunti
 
 UDirectLinkProxy* UDatasmithRuntimeLibrary::GetDirectLinkProxy()
 {
-	static TStrongObjectPtr<UDirectLinkProxy> DirectLinkProxy;
-
-	if (!DirectLinkProxy.IsValid())
-	{
-		DirectLinkProxy = TStrongObjectPtr<UDirectLinkProxy>(NewObject<UDirectLinkProxy>());
-	}
-
-	return DirectLinkProxy.Get();
+	return DatasmithRuntime::GetDirectLinkProxy();
 }

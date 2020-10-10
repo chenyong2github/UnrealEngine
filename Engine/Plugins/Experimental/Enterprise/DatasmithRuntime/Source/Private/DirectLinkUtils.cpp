@@ -20,6 +20,14 @@ const TCHAR* EndPointName = TEXT("DatasmithRuntime");
 
 namespace DatasmithRuntime
 {
+	// UDirectLinkProxy object used by the game's UI
+	static TStrongObjectPtr<UDirectLinkProxy> DirectLinkProxy;
+
+	UDirectLinkProxy* GetDirectLinkProxy()
+	{
+		return DirectLinkProxy.Get();
+	}
+
 	// Helper class to expose some functionalities of the DirectLink end point
 	// This is a tickable object in order to update the Game on changes happening on the DirectLink network
 	class FDirectLinkEndpointProxy : public DirectLink::IEndpointObserver, public FTickableGameObject
@@ -184,8 +192,12 @@ namespace DatasmithRuntime
 	void FDestinationProxy::InitializeEndpointProxy()
 	{
 		ensure(!EndpointProxy.IsValid());
-		FDestinationProxy::EndpointProxy = TSharedPtr<FDirectLinkEndpointProxy>(new FDirectLinkEndpointProxy());
+		EndpointProxy = TSharedPtr<FDirectLinkEndpointProxy>(new FDirectLinkEndpointProxy());
 		ensure(EndpointProxy.IsValid());
+
+		// Create associated UObject to access DirectLink features from the BP UI
+		DirectLinkProxy = TStrongObjectPtr<UDirectLinkProxy>(NewObject<UDirectLinkProxy>());
+
 
 #if !NO_LOGGING
 		LogDatasmith.SetVerbosity( ELogVerbosity::Error );
@@ -198,6 +210,7 @@ namespace DatasmithRuntime
 
 	void FDestinationProxy::ShutdownEndpointProxy()
 	{
+		DirectLinkProxy.Reset();
 		FDestinationProxy::EndpointProxy.Reset();
 	}
 
