@@ -36,7 +36,8 @@ class nDisplayMonitor(QAbstractTableModel):
             'HouseSync',
             'SyncSource',
             'Mosaics',
-            'ExeFlags'
+            'Taskbar',
+            'ExeFlags',
         ]
 
     def reset_device_data(self, device, data):
@@ -267,6 +268,9 @@ class nDisplayMonitor(QAbstractTableModel):
         # Driver version
         driver = syncStatus['driverVersion']
         data['Driver'] = f'{int(driver/100)}.{driver % 100}'
+
+        # Taskbar visibility
+        data['Taskbar'] = syncStatus['taskbar']
 
     def on_get_sync_status(self, device, message):
         ''' Called when the listener has sent a message with the sync status

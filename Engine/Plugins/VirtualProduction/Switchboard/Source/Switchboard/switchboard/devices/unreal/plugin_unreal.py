@@ -177,7 +177,7 @@ class DeviceUnreal(Device):
             return
         engine_path = CONFIG.ENGINE_DIR.get_value(self.name)
         build_tool = os.path.join(engine_path, "Binaries", "DotNET", "UnrealBuildTool")
-        build_args = f'Win64 Development -project="{CONFIG.UPROJECT_PATH.get_value(self.name)}" -TargetType=Editor -Progress -NoEngineChanges -NoHotReloadFromIDE'
+        build_args = f'Win64 Development -project="{CONFIG.UPROJECT_PATH.get_value(self.name)}" -TargetType=Editor -Progress -NoHotReloadFromIDE' 
         program_name = "build"
         mid, msg = message_protocol.create_start_process_message(build_tool, build_args, program_name)
         self._remote_programs_start_queue[mid] = program_name
