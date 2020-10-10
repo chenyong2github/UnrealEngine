@@ -808,8 +808,7 @@ FPrimitiveViewRelevance FGeometryCollectionSceneProxy::GetViewRelevance(const FS
 	Result.bTranslucentSelfShadow = bCastVolumetricTranslucentShadow;
 	MaterialRelevance.SetPrimitiveViewRelevance(Result);
 
-	// #todo(dmp): why does this crash?
-	// Result.bVelocityRelevance = IsMovable() && Result.bOpaque && Result.bRenderInMainPass;
+	Result.bVelocityRelevance = IsMovable() && Result.bOpaque && Result.bRenderInMainPass;
 
 	return Result;
 
