@@ -88,7 +88,7 @@ EMovieSceneServerClientMask UMovieSceneSequence::OverrideNetworkMask(EMovieScene
 void UMovieSceneSequence::PreSave(const ITargetPlatform* TargetPlatform)
 {
 #if WITH_EDITOR
-	if (!HasAnyFlags(RF_ClassDefaultObject|RF_ArchetypeObject))
+	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
 		if (TargetPlatform && TargetPlatform->RequiresCookedData())
 		{
