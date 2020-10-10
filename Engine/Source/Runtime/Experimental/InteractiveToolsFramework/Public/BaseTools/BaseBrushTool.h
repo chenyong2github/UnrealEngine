@@ -117,6 +117,10 @@ public:
 	UPROPERTY()
 	bool bInBrushStroke = false;
 
+	/** Uniform scale factor that scales from world space (where brush usually exists) to local space */
+	UPROPERTY()
+	float WorldToLocalScale = 1.0f;
+
 	/** Position of brush at last update (both during stroke and during Hover) */
 	UPROPERTY()
 	FBrushStampData LastBrushStamp;
@@ -133,6 +137,7 @@ public:
 	virtual bool IsInBrushStroke() const { return bInBrushStroke; }
 
 	virtual double GetCurrentBrushRadius() const { return CurrentBrushRadius; }
+	virtual double GetCurrentBrushRadiusLocal() const { return CurrentBrushRadius * WorldToLocalScale; }
 
 protected:
 

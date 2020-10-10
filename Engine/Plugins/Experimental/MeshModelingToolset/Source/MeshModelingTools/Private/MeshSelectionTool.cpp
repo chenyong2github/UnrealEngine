@@ -351,8 +351,8 @@ void UMeshSelectionTool::CalculateVertexROI(const FBrushStampData& Stamp, TArray
 	FVector StampPosLocal = Transform.InverseTransformPosition(Stamp.WorldPosition);
 
 	// TODO: need dynamic vertex hash table!
-
-	float RadiusSqr = CurrentBrushRadius * CurrentBrushRadius;
+	float Radius = GetCurrentBrushRadiusLocal();
+	float RadiusSqr = Radius * Radius;
 	const FDynamicMesh3* Mesh = PreviewMesh->GetPreviewDynamicMesh();
 	for (int VertIdx : Mesh->VertexIndicesItr())
 	{
@@ -375,7 +375,8 @@ void UMeshSelectionTool::CalculateTriangleROI(const FBrushStampData& Stamp, TArr
 	// always select first triangle
 	const FDynamicMesh3* Mesh = PreviewMesh->GetPreviewDynamicMesh();
 
-	float RadiusSqr = CurrentBrushRadius * CurrentBrushRadius;
+	float Radius = GetCurrentBrushRadiusLocal();
+	float RadiusSqr = Radius * Radius;
 	if (SelectionProps->SelectionMode == EMeshSelectionToolPrimaryMode::VolumetricBrush)
 	{
 		if (Mesh->IsTriangle(Stamp.HitResult.FaceIndex))
@@ -383,7 +384,7 @@ void UMeshSelectionTool::CalculateTriangleROI(const FBrushStampData& Stamp, TArr
 			TriangleROI.Add(Stamp.HitResult.FaceIndex);
 		}
 
-		FAxisAlignedBox3d Bounds(StampPosLocal-CurrentBrushRadius*FVector3d::One(), StampPosLocal+CurrentBrushRadius*FVector3d::One());
+		FAxisAlignedBox3d Bounds(StampPosLocal- Radius*FVector3d::One(), StampPosLocal+ Radius*FVector3d::One());
 		TemporaryBuffer.Reset();
 		GetOctree()->RangeQuery(Bounds, TemporaryBuffer);
 
