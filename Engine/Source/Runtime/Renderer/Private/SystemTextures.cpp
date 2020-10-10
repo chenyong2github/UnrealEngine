@@ -752,6 +752,7 @@ void FSystemTextures::ReleaseDynamicRHI()
 	PreintegratedGF.SafeRelease();
 	HairLUT0.SafeRelease();
 	HairLUT1.SafeRelease();
+	HairLUT2.SafeRelease();
 	LTCMat.SafeRelease();
 	LTCAmp.SafeRelease();
 	MaxFP16Depth.SafeRelease();
