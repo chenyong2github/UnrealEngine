@@ -4910,8 +4910,7 @@ bool FBlueprintEditorUtils::VerifyUserWantsVariableTypeChanged(const FName& InVa
 	FFormatNamedArguments Args;
 	Args.Add(TEXT("VariableName"), FText::FromName(InVarName));
 
-	FText ConfirmDelete = FText::Format(LOCTEXT( "ConfirmChangeVarType",
-		"This could break connections, do you want to search all Variable '{VariableName}' instances, change its type, and recompile?"), Args );
+	FText ConfirmDelete = FText::Format(LOCTEXT( "ConfirmChangeVarType", "This could break connections, do you want to search all Variable '{VariableName}' instances, change its type, and recompile?"), Args );
 
 	// Warn the user that this may result in data loss
 	FSuppressableWarningDialog::FSetupInfo Info( ConfirmDelete, LOCTEXT("ChangeVariableType", "Change Variable Type"), "ChangeVariableType_Warning" );

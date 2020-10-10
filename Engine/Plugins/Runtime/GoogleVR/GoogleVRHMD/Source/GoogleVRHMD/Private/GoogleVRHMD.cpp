@@ -295,50 +295,32 @@ FGoogleVRHMD::FGoogleVRHMD(const FAutoRegister& AutoRegister)
 	, NumTris(0)
 	, NumIndices(0)
 	, DistortEnableCommand(TEXT("vr.googlevr.DistortionCorrection.bEnable"),
-		*NSLOCTEXT("GoogleVR", "CCommandText_DistortEnable",
-			"Gogle VR specific extension.\n"
-			"Enable or disable lens distortion correction.").ToString(),
+		*NSLOCTEXT("GoogleVR", "CCommandText_DistortEnable", "Google VR specific extension.\nEnable or disable lens distortion correction.").ToString(),
 		FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateRaw(this, &FGoogleVRHMD::DistortEnableCommandHandler))
 	, DistortMethodCommand(TEXT("vr.googlevr.DistortionCorrection.Method"),
-		*NSLOCTEXT("GoogleVR", "CCommandText_DistortMethod",
-			"Gogle VR specific extension.\n"
-			"Set the lens distortion method.").ToString(),
+		*NSLOCTEXT("GoogleVR", "CCommandText_DistortMethod", "Google VR specific extension.\nSet the lens distortion method.").ToString(),
 		FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateRaw(this, &FGoogleVRHMD::DistortMethodCommandHandler))
 	, RenderTargetSizeCommand(TEXT("vr.googlevr.RenderTargetSize"),
-		*NSLOCTEXT("GoogleVR", "CCommandText_RenderTargetSize",
-			"Gogle VR specific extension.\n"
-			"Set or reset render target size.").ToString(),
+		*NSLOCTEXT("GoogleVR", "CCommandText_RenderTargetSize", "Google VR specific extension.\nSet or reset render target size.").ToString(),
 		FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateRaw(this, &FGoogleVRHMD::RenderTargetSizeCommandHandler))
 	, NeckModelScaleCommand(TEXT("vr.googlevr.NeckModelScale"),
-		*NSLOCTEXT("GoogleVR", "CCommandText_NeckModelScale",
-			"Gogle VR specific extension.\n"
-			"Set the neck model scale.").ToString(),
+		*NSLOCTEXT("GoogleVR", "CCommandText_NeckModelScale", "Google VR specific extension.\nSet the neck model scale.").ToString(),
 		FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateRaw(this, &FGoogleVRHMD::NeckModelScaleCommandHandler))
 #if GOOGLEVRHMD_SUPPORTED_PLATFORMS
 	, DistortMeshSizeCommand(TEXT("vr.googlevr.DistortionMesh"),
-		*NSLOCTEXT("GoogleVR", "CCommandText_DistortMeshSizee",
-			"Gogle VR specific extension.\n"
-			"Set the size of the distortion mesh.").ToString(),
+		*NSLOCTEXT("GoogleVR", "CCommandText_DistortMeshSizee", "Google VR specific extension.\nSet the size of the distortion mesh.").ToString(),
 		FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateRaw(this, &FGoogleVRHMD::DistortMeshSizeCommandHandler))
 	, ShowSplashCommand(TEXT("vr.googlevr.bShowSplash"),
-		*NSLOCTEXT("GoogleVR", "CCommandText_ShowSplash",
-			"Gogle VR specific extension.\n"
-			"Show or hide the splash screen").ToString(),
+		*NSLOCTEXT("GoogleVR", "CCommandText_ShowSplash", "Google VR specific extension.\nShow or hide the splash screen").ToString(),
 		FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateRaw(this, &FGoogleVRHMD::ShowSplashCommandHandler))
 	, SplashScreenDistanceCommand(TEXT("vr.googlevr.SplashScreenDistance"),
-		*NSLOCTEXT("GoogleVR", "CCommandText_SplashScreenDistance",
-			"Gogle VR specific extension.\n"
-			"Set the distance to the splash screen").ToString(),
+		*NSLOCTEXT("GoogleVR", "CCommandText_SplashScreenDistance", "Google VR specific extension.\nSet the distance to the splash screen").ToString(),
 		FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateRaw(this, &FGoogleVRHMD::SplashScreenDistanceCommandHandler))
 	, SplashScreenRenderScaleCommand(TEXT("vr.googlevr.SplashScreenRenderScale"),
-		*NSLOCTEXT("GoogleVR", "CCommandText_SplashScreenRenderScale",
-			"Gogle VR specific extension.\n"
-			"Set the scale at which the splash screen is rendered").ToString(),
+		*NSLOCTEXT("GoogleVR", "CCommandText_SplashScreenRenderScale", "Google VR specific extension.\nSet the scale at which the splash screen is rendered").ToString(),
 		FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateRaw(this, &FGoogleVRHMD::SplashScreenRenderScaleCommandHandler))
 	, EnableSustainedPerformanceModeCommand(TEXT("vr.googlevr.bEnableSustainedPerformanceMode"),
-		*NSLOCTEXT("GoogleVR", "CCommandText_EnableSustainedPerformanceMode",
-			"Gogle VR specific extension.\n"
-			"Enable or Disable Sustained Performance Mode").ToString(),
+		*NSLOCTEXT("GoogleVR", "CCommandText_EnableSustainedPerformanceMode", "Google VR specific extension.\nEnable or Disable Sustained Performance Mode").ToString(),
 		FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateRaw(this, &FGoogleVRHMD::EnableSustainedPerformanceModeHandler))
 	, CVarSink(FConsoleCommandDelegate::CreateRaw(this, &FGoogleVRHMD::CVarSinkHandler))
 #endif

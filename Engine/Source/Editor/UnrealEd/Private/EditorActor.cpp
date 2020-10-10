@@ -838,8 +838,7 @@ bool UUnrealEdEngine::edactDeleteSelected( UWorld* InWorld, bool bVerifyDeletion
 					{
 						bReferencedByActor = true;
 
-						FText ActorReferencedMessage = FText::Format(LOCTEXT("ActorDeleteReferencedMessage",
-							"Actor {0} is referenced by {1}."),
+						FText ActorReferencedMessage = FText::Format(LOCTEXT("ActorDeleteReferencedMessage", "Actor {0} is referenced by {1}."),
 							FText::FromString(Actor->GetActorLabel()),
 							FText::FromString(ReferencingActor->GetActorLabel())
 						);
@@ -910,20 +909,17 @@ bool UUnrealEdEngine::edactDeleteSelected( UWorld* InWorld, bool bVerifyDeletion
 
 				if (bReferencedByLevelScript && (bReferencedByActor || bReferencedBySoftReference))
 				{
-					ConfirmDelete = FText::Format(LOCTEXT("ConfirmDeleteActorReferenceByScriptAndActor",
-						"Actor {0} is referenced by the level blueprint and other Actors/Objects.\nDo you really want to delete it? This will break references.\n\nReference List:\n\n{1}\n{2}"),
+					ConfirmDelete = FText::Format(LOCTEXT("ConfirmDeleteActorReferenceByScriptAndActor", "Actor {0} is referenced by the level blueprint and other Actors/Objects.\nDo you really want to delete it? This will break references.\n\nReference List:\n\n{1}\n{2}"),
 						FText::FromString(Actor->GetActorLabel()), FText::FromString(LevelScriptReferenceString), FText::FromString(ActorReferenceString));
 				}
 				else if (bReferencedByLevelScript)
 				{
-					ConfirmDelete = FText::Format(LOCTEXT("ConfirmDeleteActorReferencedByScript",
-						"Actor {0} is referenced by the level blueprint.\nDo you really want to delete it? This will break references.\n\nReference List:\n\n{1}"),
+					ConfirmDelete = FText::Format(LOCTEXT("ConfirmDeleteActorReferencedByScript", "Actor {0} is referenced by the level blueprint.\nDo you really want to delete it? This will break references.\n\nReference List:\n\n{1}"),
 						FText::FromString(Actor->GetActorLabel()), FText::FromString(LevelScriptReferenceString));
 				}
 				else
 				{
-					ConfirmDelete = FText::Format(LOCTEXT("ConfirmDeleteActorReferencedByActor",
-						"Actor {0} is referenced by other Actors/Objects.\nDo you really want to delete it? This will break references.\n\nReference List:\n\n{1}"),
+					ConfirmDelete = FText::Format(LOCTEXT("ConfirmDeleteActorReferencedByActor", "Actor {0} is referenced by other Actors/Objects.\nDo you really want to delete it? This will break references.\n\nReference List:\n\n{1}"),
 						FText::FromString(Actor->GetActorLabel()), FText::FromString(ActorReferenceString));
 				}
 
@@ -968,8 +964,7 @@ bool UUnrealEdEngine::edactDeleteSelected( UWorld* InWorld, bool bVerifyDeletion
 					{
 						LODActor->RemoveSubActor(Actor);
 
-						FText SubActorRemovedMessage = FText::Format(LOCTEXT("LODActorSubActorDeletedMessage",
-							"Sub Actor '{0}' was removed from LODActor '{1}'."),
+						FText SubActorRemovedMessage = FText::Format(LOCTEXT("LODActorSubActorDeletedMessage", "Sub Actor '{0}' was removed from LODActor '{1}'."),
 							FText::FromString(Actor->GetActorLabel()),
 							FText::FromString(ReferencingActor->GetActorLabel())
 						);

@@ -34,9 +34,8 @@ void FAssetTypeActions_GameplayAbilitiesBlueprint::OpenAssetEditor( const TArray
 			{
 				bLetOpen = EAppReturnType::Yes == FMessageDialog::Open(
 					EAppMsgType::YesNo, 
-					LOCTEXT("FailedToLoadAbilityBlueprintWithContinue", 
-						"Gameplay Ability Blueprint could not be loaded because it derives from an invalid class.  Check to make sure the parent class for this blueprint hasn't been removed! Do you want to continue (it can crash the editor)?"
-				));
+					LOCTEXT("FailedToLoadAbilityBlueprintWithContinue", "Gameplay Ability Blueprint could not be loaded because it derives from an invalid class.  Check to make sure the parent class for this blueprint hasn't been removed! Do you want to continue (it can crash the editor)?")
+				);
 			}
 		
 			if (bLetOpen)

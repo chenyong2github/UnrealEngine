@@ -129,8 +129,7 @@ void UUVProjectionTool::Setup()
 	UpdateVisualization();
 
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("UVProjectionToolDescription",
-			"Generate UVs for a Mesh by projecting onto simple geometric shapes."),
+		LOCTEXT("UVProjectionToolDescription", "Generate UVs for a Mesh by projecting onto simple geometric shapes."),
 		EToolMessageLevel::UserNotification);
 }
 

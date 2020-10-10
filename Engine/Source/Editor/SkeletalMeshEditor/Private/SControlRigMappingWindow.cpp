@@ -201,8 +201,7 @@ void SControlRigMappingWindow::AddNodeMapping(UBlueprint* NewSourceControlRig)
 		{
 			if (NewSourceControlRig == SkeletalMesh->NodeMappingData[Index]->GetSourceAsset())
 			{
-				FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ControlRigConfigAlreadyExists",
-					"The same Control Rig configuration already exists in this mesh. Edit current existing setting."));
+				FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ControlRigConfigAlreadyExists", "The same Control Rig configuration already exists in this mesh. Edit current existing setting."));
 				return;
 			}
 		}

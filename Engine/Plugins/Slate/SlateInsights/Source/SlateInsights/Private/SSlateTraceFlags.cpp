@@ -78,23 +78,13 @@ namespace Private
 void SSlateTraceWidgetUpdateFlags::Construct(const FArguments& InArgs)
 {
 	UpdateFlagsValue = InArgs._UpdateFlags;
-	SetToolTipText(LOCTEXT("UpdateFlagsTooltip",
-		"U : Tick : The widget was updated/ticked.\n"
-		"T : Active Timer Update : The widget had an active timer.\n"
-		"P : Repaint : The widget was dirty and was repainted.\n"
-		"V : Volatile Paint : The widget was volatile and was repainted."));
+	SetToolTipText(LOCTEXT("UpdateFlagsTooltip", "U : Tick : The widget was updated/ticked.\nT : Active Timer Update : The widget had an active timer.\nP : Repaint : The widget was dirty and was repainted.\nV : Volatile Paint : The widget was volatile and was repainted."));
 }
 
 void SSlateTraceInvalidateWidgetReasonFlags::Construct(const FArguments& InArgs)
 {
 	Reason = InArgs._Reason;
-	SetToolTipText(LOCTEXT("InvalidateWidgetReasonFlagsTooltip",
-		"L : Layout : The widget desired size changed.\n"
-		"P : Paint : The widget needs repainting but nothing affecting its size.\n"
-		"U : Volatile : The widget volatility changed.\n"
-		"C : Child Order : A child was added or removed (this implies layout).\n"
-		"R : Render Transform : The widget render transform changed.\n"
-		"V : Visibility : The widget visibility changed (this implies layout)."));
+	SetToolTipText(LOCTEXT("InvalidateWidgetReasonFlagsTooltip", "L : Layout : The widget desired size changed.\nP : Paint : The widget needs repainting but nothing affecting its size.\nU : Volatile : The widget volatility changed.\nC : Child Order : A child was added or removed (this implies layout).\nR : Render Transform : The widget render transform changed.\nV : Visibility : The widget visibility changed (this implies layout)."));
 }
 
 int32 SSlateTraceWidgetUpdateFlags::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect,
