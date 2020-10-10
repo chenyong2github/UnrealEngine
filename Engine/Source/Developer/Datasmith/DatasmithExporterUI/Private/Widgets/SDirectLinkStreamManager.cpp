@@ -227,10 +227,7 @@ void SDirectLinkStreamManager::Construct(const FArguments& InArgs, const TShared
 		[
 				SNew( STextBlock )
 				.Visibility( this, &SDirectLinkStreamManager::GetNoConnectionHintVisibility )
-				.Text( LOCTEXT("ConnectionHintText", "No connection found.\n\n\
-					Waiting for a Datasmith Direct Link connection to be established.\n\n\
-					Please start an application supporting Datasmith Direct Link such as Twinmotion or Unreal Engine."
-					) )
+				.Text( LOCTEXT("ConnectionHintText", "No connection found.\n\nWaiting for a Datasmith Direct Link connection to be established.\n\nPlease start an application supporting Datasmith Direct Link such as Twinmotion or Unreal Engine.") )
 				.AutoWrapText( true )
 				.Justification( ETextJustify::Center )
 				.Font( FCoreStyle::GetDefaultFontStyle( "Regular", 13 ) )

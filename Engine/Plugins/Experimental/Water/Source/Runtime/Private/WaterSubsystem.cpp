@@ -649,18 +649,14 @@ void UWaterSubsystem::ShowOnScreenDebugInfo(const FUnderwaterPostProcessDebugInf
 			FText WaveDetails(LOCTEXT("VisualizeActiveUnderwaterPostProcess_WavelessDetails", "No waves"));
 			if (InDebugInfo.ActiveWaterBody->HasWaves())
 			{
-				WaveDetails = FText::Format(LOCTEXT("VisualizeActiveUnderwaterPostProcess_WaveDetails",
-					"- Wave Height : {0} (Max : {1}, Max here: {2}, Attenuation Factor : {3})"),
+				WaveDetails = FText::Format(LOCTEXT("VisualizeActiveUnderwaterPostProcess_WaveDetails", "- Wave Height : {0} (Max : {1}, Max here: {2}, Attenuation Factor : {3})"),
 					InDebugInfo.ActiveWaterBodyQueryResult.GetWaveInfo().Height,
 					InDebugInfo.ActiveWaterBody->GetMaxWaveHeight(),
 					InDebugInfo.ActiveWaterBodyQueryResult.GetWaveInfo().MaxHeight,
 					InDebugInfo.ActiveWaterBodyQueryResult.GetWaveInfo().AttenuationFactor);
 			}
 
-			OutputStrings.Add(FText::Format(LOCTEXT("VisualizeActiveUnderwaterPostProcess_QueryDetails",
-				"- Water Surface Z : {0}\n"
-				"- Water Depth : {1}\n"
-				"{2}"),
+			OutputStrings.Add(FText::Format(LOCTEXT("VisualizeActiveUnderwaterPostProcess_QueryDetails", "- Water Surface Z : {0}\n- Water Depth : {1}\n{2}"),
 				InDebugInfo.ActiveWaterBodyQueryResult.GetWaterSurfaceLocation().Z,
 				InDebugInfo.ActiveWaterBodyQueryResult.GetWaterSurfaceDepth(),
 				WaveDetails));

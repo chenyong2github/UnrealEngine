@@ -956,8 +956,7 @@ void FAnalyzeForIdenticalPermutationsAsyncTask::GatherSuggestions()
 				AllNames.Add(PermutationString);
 			}
 
-			FPermutationSuggestionData NewData = FPermutationSuggestionData(FText::Format(LOCTEXT("IdenticalStaticPermutationSuggestions",
-				"The following {0} materials all have identical static parameter permutations."),
+			FPermutationSuggestionData NewData = FPermutationSuggestionData(FText::Format(LOCTEXT("IdenticalStaticPermutationSuggestions", "The following {0} materials all have identical static parameter permutations."),
 				FText::AsNumber(AssetCount)),
 				AllNames);
 

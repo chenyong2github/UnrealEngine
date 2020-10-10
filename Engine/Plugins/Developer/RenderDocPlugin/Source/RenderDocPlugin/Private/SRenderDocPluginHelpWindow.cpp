@@ -61,25 +61,7 @@ void SRenderDocPluginHelpWindow::Construct(const FArguments& InArgs)
 			.Padding(20)
 			[
 				SNew(SRichTextBlock)
-				.Text(LOCTEXT("HelpMessage", 
-					"<LargeText>Hello and thank you for trying out the UE4 RenderDoc plugin!</>\n\n" \
-					"This plugin will allow you to capture rendering operations in the engine, and inspect them using RenderDoc.\n" \
-					"There are three ways of capturing a frame:\n" \
-					"* You can press the <NormalText.Important>green capture button</> in the top right of any viewport.\n" \
-					"* You can run the <NormalText.Important>renderdoc.CaptureFrame</> console command. This will work anywhere and is very useful for capturing frames in packaged builds.\n" \
-					"* You can use the capture hotkey (<NormalText.Important>Alt+F12</>). Please note that the hotkey is only active in editor windows and Play-In-Editor sessions.\n\n" \
-					"If you are having trouble with not getting enough data in your captures, consider checking out the capture settings.\n" \
-					"They can be found under <NormalText.Important>[Edit]->[Project Settings...]->[Plugins/RenderDoc]</>. All settings have tooltips that detail what they do.\n\n" \
-					"A good place to start learning graphics debugging in UE4 is the " \
-					"<a id=\"browser\" href=\"https://docs.unrealengine.com/latest/INT/Programming/Rendering/ShaderDevelopment\" style=\"Hyperlink\">Epic Rendering FAQ</>\n" \
-					"It contains information on what CVar/project settings you should set when debugging shaders to get access to as much data as possible.\n\n" \
-					"If you have any questions or suggestions regarding the plugin, please contact me via email or my github page:\n" \
-					"<NormalText.Important>temaran (at) gmail (dot) com</>\n" \
-					"<a id=\"browser\" href=\"https://github.com/Temaran/UE4RenderDocPlugin\" style=\"Hyperlink\">https://github.com/Temaran/UE4RenderDocPlugin</>\n\n" \
-					"I would also like to give major shoutouts to BaldurK, the author of RenderDoc:\n" \
-					"<a id=\"browser\" href=\"https://github.com/baldurk\" style=\"Hyperlink\">https://github.com/baldurk</>\n" \
-					"And Slomp, who has made many great contributions to the project:\n" \
-					"<a id=\"browser\" href=\"https://github.com/slomp\" style=\"Hyperlink\">https://github.com/slomp</>"))
+				.Text(LOCTEXT("HelpMessage", "<LargeText>Hello and thank you for trying out the UE4 RenderDoc plugin!</>\n\nThis plugin will allow you to capture rendering operations in the engine, and inspect them using RenderDoc.\nThere are three ways of capturing a frame:\n* You can press the <NormalText.Important>green capture button</> in the top right of any viewport.\n* You can run the <NormalText.Important>renderdoc.CaptureFrame</> console command. This will work anywhere and is very useful for capturing frames in packaged builds.\n* You can use the capture hotkey (<NormalText.Important>Alt+F12</>). Please note that the hotkey is only active in editor windows and Play-In-Editor sessions.\n\nIf you are having trouble with not getting enough data in your captures, consider checking out the capture settings.\nThey can be found under <NormalText.Important>[Edit]->[Project Settings...]->[Plugins/RenderDoc]</>. All settings have tooltips that detail what they do.\n\nA good place to start learning graphics debugging in UE4 is the <a id=\"browser\" href=\"https://docs.unrealengine.com/latest/INT/Programming/Rendering/ShaderDevelopment\" style=\"Hyperlink\">Epic Rendering FAQ</>\nIt contains information on what CVar/project settings you should set when debugging shaders to get access to as much data as possible.\n\nIf you have any questions or suggestions regarding the plugin, please contact me via email or my github page:\n<NormalText.Important>temaran (at) gmail (dot) com</>\n<a id=\"browser\" href=\"https://github.com/Temaran/UE4RenderDocPlugin\" style=\"Hyperlink\">https://github.com/Temaran/UE4RenderDocPlugin</>\n\nI would also like to give major shoutouts to BaldurK, the author of RenderDoc:\n<a id=\"browser\" href=\"https://github.com/baldurk\" style=\"Hyperlink\">https://github.com/baldurk</>\nAnd Slomp, who has made many great contributions to the project:\n<a id=\"browser\" href=\"https://github.com/slomp\" style=\"Hyperlink\">https://github.com/slomp</>"))
 				.DecoratorStyleSet(&FEditorStyle::Get())
 				+SRichTextBlock::HyperlinkDecorator(TEXT("browser"), FSlateHyperlinkRun::FOnClick::CreateStatic(&OnBrowserLinkClicked, AsShared()))
 			]

@@ -105,9 +105,7 @@ void UBspConversionTool::Setup()
 
 	// Give a description to put in the side panel
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartTool", "Convert geometry brushes (also known as BSP brushes) into a single static mesh. \"Convert then Combine\" "
-			"first converts the individual brushes and performs boolean operations on the resulting meshes (this requires individual "
-			"brushes to have manifold geometry. \"Combine then Convert\" is the old functionality, combining brushes, then converting them."),
+		LOCTEXT("OnStartTool", "Convert geometry brushes (also known as BSP brushes) into a single static mesh. \"Convert then Combine\" first converts the individual brushes and performs boolean operations on the resulting meshes (this requires individual brushes to have manifold geometry. \"Combine then Convert\" is the old functionality, combining brushes, then converting them."),
 		EToolMessageLevel::UserNotification);
 
 	// We write out an empty warning message to make the sidebar look unchanged if we write out a warning message and then
@@ -543,9 +541,7 @@ bool UBspConversionTool::ConvertThenCombine(FText *ErrorMessage)
 
 FText GetBrushGeometryErrorMessage(ABrush* Brush)
 {
-	return FText::Format(LOCTEXT("ConvertThenCombineInvalidGeometryError", "The brush \"{0}\" has invalid geometry "
-		"to be used with mesh boolean operations, so the \"Convert, then Combine\" mode cannot be used. Try using \"Combine, then Convert\" "
-		"to convert, then use MeshInspector to see problematic areas."),
+	return FText::Format(LOCTEXT("ConvertThenCombineInvalidGeometryError", "The brush \"{0}\" has invalid geometry to be used with mesh boolean operations, so the \"Convert, then Combine\" mode cannot be used. Try using \"Combine, then Convert\" to convert, then use MeshInspector to see problematic areas."),
 		FText::FromString(Brush->GetName()));
 }
 

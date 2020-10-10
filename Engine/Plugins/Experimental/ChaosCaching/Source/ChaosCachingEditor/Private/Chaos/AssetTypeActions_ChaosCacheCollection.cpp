@@ -39,8 +39,7 @@ uint32 FAssetTypeActions_ChaosCacheCollection::GetCategories()
 
 FText FAssetTypeActions_ChaosCacheCollection::GetAssetDescription(const struct FAssetData& AssetData) const
 {
-	return LOCTEXT("Description", "A collection of physically active component caches that can be used to record and "
-								  "replay Chaos simulation recordings.");
+	return LOCTEXT("Description", "A collection of physically active component caches that can be used to record and replay Chaos simulation recordings.");
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -172,15 +172,7 @@ bool FPrivateLayoutsMenu::TrySaveLayoutOrWarnInternal(const FString& InSourceFil
 					// Open Dialog
 					const FText TextTitle = LOCTEXT("OverrideLayoutNameAndDescriptionFieldBodyTitle", "Preserve UI Layout Name and Description Fields?");
 					const FText TextBody = FText::Format(
-						LOCTEXT("OverrideLayoutNameAndDescriptionFieldBody",
-							"You are saving a layout that contains a custom layout name and/or description. Do you also want to copy these 2 properties?\n"
-							" - Current layout name: {0}\n"
-							" - Current layout description: {1}\n\n"
-							"If you select \"Preserve Values\", the displayed name and description of the original layout customization will also be copied into the new configuration file.\n\n"
-							"If you select \"Clear Values\", these fields will be emptied.\n\n"
-							"If you are not sure, select \"Preserve Values\" if you are exporting the layout configuration without making any changes, or \"Clear Values\" if you"" have made or"
-							" plan to make changes to the layout.\n\n"
-						),
+						LOCTEXT("OverrideLayoutNameAndDescriptionFieldBody", "You are saving a layout that contains a custom layout name and/or description. Do you also want to copy these 2 properties?\n - Current layout name: {0}\n - Current layout description: {1}\n\nIf you select \"Preserve Values\", the displayed name and description of the original layout customization will also be copied into the new configuration file.\n\nIf you select \"Clear Values\", these fields will be emptied.\n\nIf you are not sure, select \"Preserve Values\" if you are exporting the layout configuration without making any changes, or \"Clear Values\" if you"" have made or plan to make changes to the layout.\n\n"),
 						LayoutNameSource, LayoutDescriptionSource);
 					// Dialog SWidget
 					TSharedRef<SVerticalBox> DialogContents = SNew(SVerticalBox);
@@ -240,16 +232,14 @@ bool FPrivateLayoutsMenu::TrySaveLayoutOrWarnInternal(const FString& InSourceFil
 		if (!FPaths::FileExists(InSourceFilePath))
 		{
 			Arguments.Add(TEXT("FileName"), FText::FromString(FPaths::ConvertRelativePathToFull(InSourceFilePath)));
-			TextBody = FText::Format(LOCTEXT("UnsuccessfulSave_NoExist_Notification",
-				"The requested operation ({WhatIs}) was unsuccessful, the desired file does not exist. File path:\n{FileName}"), Arguments);
+			TextBody = FText::Format(LOCTEXT("UnsuccessfulSave_NoExist_Notification", "The requested operation ({WhatIs}) was unsuccessful, the desired file does not exist. File path:\n{FileName}"), Arguments);
 			EditorErrors.Warning(TextBody);
 		}
 		// Target is read-only
 		else if (IFileManager::Get().IsReadOnly(*InTargetFilePath))
 		{
 			Arguments.Add(TEXT("FileName"), FText::FromString(TargetAbsoluteFilePath));
-			TextBody = FText::Format(LOCTEXT("UnsuccessfulSave_ReadOnly_Notification",
-				"The requested operation ({WhatIs}) was unsuccessful, the target file path is read-only. File path:\n{FileName}"), Arguments);
+			TextBody = FText::Format(LOCTEXT("UnsuccessfulSave_ReadOnly_Notification", "The requested operation ({WhatIs}) was unsuccessful, the target file path is read-only. File path:\n{FileName}"), Arguments);
 			EditorErrors.Warning(TextBody);
 		}
 		// Target and source are the same
@@ -257,9 +247,7 @@ bool FPrivateLayoutsMenu::TrySaveLayoutOrWarnInternal(const FString& InSourceFil
 		{
 			Arguments.Add(TEXT("SourceFileName"), FText::FromString(FPaths::ConvertRelativePathToFull(InSourceFilePath)));
 			Arguments.Add(TEXT("FinalFileName"), FText::FromString(TargetAbsoluteFilePath));
-			TextBody = FText::Format(LOCTEXT("UnsuccessfulSave_Fallback_Notification",
-				"The requested operation ({WhatIs}) was unsuccessful, target and source layout file paths are the same ({SourceFileName})!\nAre you trying to import or replace a file"
-				" that is already in the layouts folder? If so, remove the current file first."), Arguments);
+			TextBody = FText::Format(LOCTEXT("UnsuccessfulSave_Identical_Notification", "The requested operation ({WhatIs}) was unsuccessful, target and source layout file paths are the same ({SourceFileName})!\nAre you trying to import or replace a file that is already in the layouts folder? If so, remove the current file first."), Arguments);
 			EditorErrors.Warning(TextBody);
 		}
 		// We don't specifically know why it failed, this is a fallback
@@ -267,9 +255,7 @@ bool FPrivateLayoutsMenu::TrySaveLayoutOrWarnInternal(const FString& InSourceFil
 		{
 			Arguments.Add(TEXT("SourceFileName"), FText::FromString(FPaths::ConvertRelativePathToFull(InSourceFilePath)));
 			Arguments.Add(TEXT("FinalFileName"), FText::FromString(TargetAbsoluteFilePath));
-			TextBody = FText::Format(LOCTEXT("UnsuccessfulSave_Fallback_Notification",
-				"The requested operation ({WhatIs}) was unsuccessful while copying the layout file from\n{SourceFileName}\ninto\n{FinalFileName}\n\nUsually, this occurs when the"
-				" introduced file name contains unsupported characters or the total path length exceeds the OS limit."), Arguments);
+			TextBody = FText::Format(LOCTEXT("UnsuccessfulSave_Fallback_Notification", "The requested operation ({WhatIs}) was unsuccessful while copying the layout file from\n{SourceFileName}\ninto\n{FinalFileName}\n\nUsually, this occurs when the introduced file name contains unsupported characters or the total path length exceeds the OS limit."), Arguments);
 			EditorErrors.Warning(TextBody);
 		}
 		EditorErrors.Notify(LOCTEXT("LoadUnsuccessful_Title", "Load Unsuccessful!"));
@@ -551,8 +537,7 @@ bool FPrivateLayoutsMenu::CheckAskUserToClosePIESIE(const FText& InitialMessage)
 	// If PIE/SIE are opened
 	// FMessageDialog - Ask the user whether he wants to automatically close them and continue loading the layout
 	const FText TextTitle = LOCTEXT("CheckAskUserToClosePIESIEIfYesHeaderPIE", "Close PIE/SIE?");
-	const FText IfYesText = LOCTEXT("CheckAskUserToClosePIESIEIfYesBodyPIE", "If \"Yes\", your current game instances (PIE or SIE) will be closed. Any unsaved changes"
-		" in those will also be lost.");
+	const FText IfYesText = LOCTEXT("CheckAskUserToClosePIESIEIfYesBodyPIE", "If \"Yes\", your current game instances (PIE or SIE) will be closed. Any unsaved changes in those will also be lost.");
 	const FText IfNoText = LOCTEXT("CheckAskUserToClosePIESIEIfNoBody", "If \"No\", you can manually reload the layout from the \"User Layouts\" section later.");
 	const FText TextBody = FText::Format(LOCTEXT("ClosePIESIEAssetEditorsBody", "{0}\n\n{1}\n\n{2}"), InitialMessage, IfYesText, IfNoText);
 	// Return if the user did not want to close them
@@ -694,10 +679,7 @@ void FPrivateLayoutsMenu::SaveExportLayoutCommon(const FString& InDefaultDirecto
 					FMessageDialog::Open(
 						EAppMsgType::Ok,
 						FText::Format(
-							LOCTEXT("SaveAsFailedMsg",
-								"In order to save the layout and allow Unreal to use it, you must save it in the predefined folder:\n{0}\n\nNevertheless, you tried to save it in:\n{1}\n\n"
-								"If you simply wish to export a copy of the current configuration in {1} (e.g., to later copy it into a different machine), you could use the \"Export Layout...\""
-								" functionality. However, Unreal would not be able to load it until you import it with \"Import Layout...\"."),
+							LOCTEXT("SaveAsFailedMsg", "In order to save the layout and allow Unreal to use it, you must save it in the predefined folder:\n{0}\n\nNevertheless, you tried to save it in:\n{1}\n\nIf you simply wish to export a copy of the current configuration in {1} (e.g., to later copy it into a different machine), you could use the \"Export Layout...\" functionality. However, Unreal would not be able to load it until you import it with \"Import Layout...\"."),
 							FText::FromString(DefaultDirectoryAbsolute), FText::FromString(LayoutFilePathAbsolute)),
 						&Title);
 				}
@@ -897,8 +879,7 @@ void FLayoutsMenuLoad::ImportLayout()
 				}
 			}
 			// If PIE, SIE, or any Asset Editors are opened, ask the user whether he wants to automatically close them and continue loading the layout
-			if (!FPrivateLayoutsMenu::CheckAskUserToClosePIESIE(LOCTEXT("LayoutImportClosePIEAndEditorAssetsHeader",
-				"The layout(s) were successfully imported into the \"User Layouts\" section. Do you want to continue loading the selected layout profile?")))
+			if (!FPrivateLayoutsMenu::CheckAskUserToClosePIESIE(LOCTEXT("LayoutImportClosePIEAndEditorAssetsHeader", "The layout(s) were successfully imported into the \"User Layouts\" section. Do you want to continue loading the selected layout profile?")))
 			{
 				return;
 			}
@@ -1071,8 +1052,7 @@ void FLayoutsMenuRemove::RemoveLayout(const int32 InLayoutIndex, const FLayoutsM
 	const FString DesiredLayoutFullPath = FPaths::Combine(FPaths::GetPath(LayoutsDirectory), LayoutIniFileNames[InLayoutIndex]);
 	// Are you sure you want to do this?
 	const FText TextFileNameToRemove = FText::FromString(FPaths::GetBaseFilename(LayoutIniFileNames[InLayoutIndex]));
-	const FText TextBody = FText::Format(LOCTEXT("ActionRemoveMsg",
-		"Are you sure you want to permanently delete the layout profile \"{0}\"? This action cannot be undone."), TextFileNameToRemove);
+	const FText TextBody = FText::Format(LOCTEXT("ActionRemoveMsg", "Are you sure you want to permanently delete the layout profile \"{0}\"? This action cannot be undone."), TextFileNameToRemove);
 	const FText TextTitle = FText::Format(LOCTEXT("RemoveUILayout_Title", "Remove UI Layout \"{0}\"?"), TextFileNameToRemove);
 	if (EAppReturnType::Ok != FMessageDialog::Open(EAppMsgType::OkCancel, TextBody, &TextTitle))
 	{
@@ -1092,8 +1072,7 @@ void FLayoutsMenuRemove::RemoveUserLayouts()
 	if (NumberUserLayoutFiles > 0)
 	{
 		// Are you sure you want to do this?
-		const FText TextBody = FText::Format(LOCTEXT("ActionRemoveAllUserLayoutMsg",
-			"Are you sure you want to permanently remove {0} layout {0}|plural(one=profile,other=profiles)? This action cannot be undone."), NumberUserLayoutFiles);
+		const FText TextBody = FText::Format(LOCTEXT("ActionRemoveAllUserLayoutMsg", "Are you sure you want to permanently remove {0} layout {0}|plural(one=profile,other=profiles)? This action cannot be undone."), NumberUserLayoutFiles);
 		const FText TextTitle = LOCTEXT("RemoveAllUserLayouts_Title", "Remove All User-Created Layouts?");
 		if (EAppReturnType::Ok != FMessageDialog::Open(EAppMsgType::OkCancel, TextBody, &TextTitle))
 		{

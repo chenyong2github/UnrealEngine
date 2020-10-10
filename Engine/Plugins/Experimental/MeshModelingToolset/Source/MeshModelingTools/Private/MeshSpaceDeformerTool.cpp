@@ -295,8 +295,7 @@ void UMeshSpaceDeformerTool::Setup()
 
 
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("MeshSpaceDeformerToolDescription",
-			"Deform the vertices of the selected Mesh using various spatial deformations. Use the in-viewport Gizmo to control the extents/strength of the deformation."),
+		LOCTEXT("MeshSpaceDeformerToolDescription", "Deform the vertices of the selected Mesh using various spatial deformations. Use the in-viewport Gizmo to control the extents/strength of the deformation."),
 		EToolMessageLevel::UserNotification);
 }
 

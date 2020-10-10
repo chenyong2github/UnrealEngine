@@ -3716,9 +3716,7 @@ void FBlueprintEditor::DeleteUnusedVariables_OnClicked()
 			.AutoHeight()
 			[
 				SNew(STextBlock)
-				.Text(LOCTEXT("VariableDialog_Message", "These variables are not used in the graph."
-					"\nThey may be used in other places."
-					"\nYou may use 'Find in Blueprint' or the 'Asset Search' to find out if they are referenced elsewhere."))
+				.Text(LOCTEXT("VariableDialog_Message", "These variables are not used in the graph.\nThey may be used in other places.\nYou may use 'Find in Blueprint' or the 'Asset Search' to find out if they are referenced elsewhere."))
 				.AutoWrapText(true)
 			]
 			+ SVerticalBox::Slot().FillHeight(0.8)

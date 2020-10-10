@@ -233,7 +233,6 @@ static void SetFocusPointForFrame(const TArray<FString>& Args, UWorld*, FOutputD
 #define LOCTEXT_NAMESPACE "WindowsMixedReality"
 static FAutoConsoleCommand CSetFocusPointForFrameCmd(
 	TEXT("vr.SetFocusPointForFrame"),
-	*LOCTEXT("CVarText_SetFocusPointForFrame",
-		"Set the reference point for the stabilization plane on hololens 2. You must set it each frame to activate the feature for that frame.  DEPRECATED: please switch to using the SetFocusPointForFrame blueprint function in this library instead.").ToString(),
+	*LOCTEXT("CVarText_SetFocusPointForFrame", "Set the reference point for the stabilization plane on hololens 2. You must set it each frame to activate the feature for that frame.  DEPRECATED: please switch to using the SetFocusPointForFrame blueprint function in this library instead.").ToString(),
 	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateStatic(SetFocusPointForFrame));
 #undef LOCTEXT_NAMESPACE

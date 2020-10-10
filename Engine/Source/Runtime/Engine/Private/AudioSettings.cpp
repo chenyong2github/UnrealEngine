@@ -67,8 +67,7 @@ void UAudioSettings::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 			{
 				if (NewSubmix->ParentSubmix)
 				{
-					FNotificationInfo Info(LOCTEXT("AudioSettings_InvalidMasterSubmix",
-						"'Master Submix' cannot be set to submix with parent."));
+					FNotificationInfo Info(LOCTEXT("AudioSettings_InvalidMasterSubmix", "'Master Submix' cannot be set to submix with parent."));
 					Info.bFireAndForget = true;
 					Info.ExpireDuration = 2.0f;
 					Info.bUseThrobber = true;
@@ -138,8 +137,7 @@ void UAudioSettings::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 
 		if (bPromptRestartRequired)
 		{
-			FNotificationInfo Info(LOCTEXT("AudioSettings_ChangeRequiresEditorRestart",
-				"Change to Audio Settings requires editor restart in order for changes to take effect."));
+			FNotificationInfo Info(LOCTEXT("AudioSettings_ChangeRequiresEditorRestart", "Change to Audio Settings requires editor restart in order for changes to take effect."));
 			Info.bFireAndForget = true;
 			Info.ExpireDuration = 2.0f;
 			Info.bUseThrobber = true;
