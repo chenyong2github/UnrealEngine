@@ -51,7 +51,12 @@ void USoundControlBus::PostEditChangeProperty(FPropertyChangedEvent& InPropertyC
 					{
 						if (Stage.Bus == this)
 						{
-							const float UnitValue = Parameter->ConvertNormalizedToUnit(Stage.Value.TargetValue);
+							float UnitValue = Stage.Value.TargetValue;
+							if (Parameter)
+							{
+								UnitValue = Parameter->ConvertNormalizedToUnit(Stage.Value.TargetValue);
+							}
+
 							if (!FMath::IsNearlyEqual(Stage.Value.TargetUnitValue, UnitValue, KINDA_SMALL_NUMBER))
 							{
 								Stage.Value.TargetUnitValue = UnitValue;
