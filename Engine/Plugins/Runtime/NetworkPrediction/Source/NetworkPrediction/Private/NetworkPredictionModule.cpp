@@ -53,13 +53,12 @@ void FNetworkPredictionModule::StartupModule()
 	
 	if (GIsRunning)
 	{
-		FGlobalCueTypeTable::Get().FinalizeTypes();
+		FinalizeNetworkPredictionTypes();
 	}
 	else
 	{
 		FCoreDelegates::OnPostEngineInit.AddLambda([this]()
 		{
-			FGlobalCueTypeTable::Get().FinalizeTypes();
 			this->FinalizeNetworkPredictionTypes();
 		});
 	}
@@ -123,6 +122,7 @@ void FNetworkPredictionModule::OnModulesChanged(FName ModuleThatChanged, EModule
 
 void FNetworkPredictionModule::FinalizeNetworkPredictionTypes()
 {
+	FGlobalCueTypeTable::Get().FinalizeCueTypes();
 	FNetworkPredictionModelDefRegistry::Get().FinalizeTypes();
 }
 
