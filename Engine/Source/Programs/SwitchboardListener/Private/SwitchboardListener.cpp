@@ -27,7 +27,8 @@
 #pragma warning(disable : 4005)	// Disable macro redefinition warning for compatibility with Windows SDK 8+
 
 #include "Windows/AllowWindowsPlatformTypes.h"
-#include <winreg.h>
+#include <Windows.h>
+#include <shellapi.h>
 #include "nvapi.h"
 #include "Windows/HideWindowsPlatformTypes.h"
 
@@ -655,6 +656,28 @@ static void FillOutDriverVersion(FSyncStatus& SyncStatus)
 #endif // PLATFORM_WINDOWS
 
 #if PLATFORM_WINDOWS
+static void FillOutTaskbarAutoHide(FSyncStatus& SyncStatus)
+{
+	APPBARDATA AppBarData;
+
+	AppBarData.cbSize = sizeof(APPBARDATA);
+	AppBarData.hWnd = nullptr;
+	
+	const UINT Result = UINT(SHAppBarMessage(ABM_GETSTATE, &AppBarData));
+	
+	if (Result == ABS_AUTOHIDE)
+	{
+		SyncStatus.Taskbar = TEXT("AutoHide");
+	}
+	else
+	{
+		SyncStatus.Taskbar = TEXT("OnTop");
+	}
+}
+#endif // PLATFORM_WINDOWS
+
+
+#if PLATFORM_WINDOWS
 static void FillOutMosaicTopologies(FSyncStatus& SyncStatus)
 {
 	FScopeLock LockNvapi(&SwitchboardListenerMutexNvapi);
@@ -1012,6 +1035,7 @@ bool FSwitchboardListener::GetSyncStatus(const FSwitchboardGetSyncStatusTask& In
 
 	MessageFuture.Future = Async(EAsyncExecution::Thread, [=]() {
 		FillOutDriverVersion(SyncStatus.Get());
+		FillOutTaskbarAutoHide(SyncStatus.Get());
 		FillOutSyncTopologies(SyncStatus.Get());
 		FillOutMosaicTopologies(SyncStatus.Get());
 		return CreateSyncStatusMessage(SyncStatus.Get());

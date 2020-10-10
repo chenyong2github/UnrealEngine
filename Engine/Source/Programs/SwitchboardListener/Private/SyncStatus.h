@@ -181,4 +181,7 @@ struct FSyncStatus
 
 	UPROPERTY()
 	FString DriverBranch;
+
+	UPROPERTY()
+	FString Taskbar;
 };
