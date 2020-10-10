@@ -382,6 +382,7 @@ void TranscodePageToGPU(uint2	GroupID	: SV_GroupID,
 				PutBits(DstPageBuffer, DstPageBaseOffset + Cluster.PositionOffset, VertexIndex* PositionBitsPerVertex, DstPositionBits, PositionBitsPerVertex);
 			}
 
+			// Specialize vertex transcoding codegen for each of the possible values for NumTexCoords
 			if (NumTexCoords == 0)
 			{
 				TranscodeVertexAttributes(PageDiskHeader, Cluster, DstPageBaseOffset, LocalClusterIndex, VertexIndex,
