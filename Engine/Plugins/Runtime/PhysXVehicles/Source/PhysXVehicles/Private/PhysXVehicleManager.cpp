@@ -11,6 +11,8 @@
 
 DEFINE_LOG_CATEGORY(LogVehicles);
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 #if WITH_PHYSX_VEHICLES
 
 DECLARE_STATS_GROUP(TEXT("PhysXVehicleManager"), STATGROUP_PhysXVehicleManager, STATGROUP_Advanced);
@@ -497,3 +499,5 @@ PxWheelQueryResult* FPhysXVehicleManager::GetWheelsStates_AssumesLocked(TWeakObj
 }
 
 #endif // WITH_PHYSX
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
