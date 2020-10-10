@@ -1536,11 +1536,6 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 
 	// Insure that the binding asset is compatible, otherwise no binding will be used
 	USkeletalMeshComponent* SkeletalMeshComponent = ValidateBindingAsset(GroomAsset, BindingAsset, GetAttachParent() ? Cast<USkeletalMeshComponent>(GetAttachParent()) : nullptr, bIsBindingReloading, bValidationEnable, this);
-	// This check is already done within ValidateBindingAsset however static analyser have issue with it
-	if (BindingAsset == nullptr)
-	{
-		SkeletalMeshComponent = nullptr;
-	}
 
 	// Insure the ticking of the Groom component always happens after the skeletalMeshComponent.
 	if (SkeletalMeshComponent)
@@ -1583,7 +1578,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		{
 			HairGroupInstance->Guides.Data = &GroupData.Guides.Data;
 
-			if (SkeletalMeshComponent)
+			if (SkeletalMeshComponent && BindingAsset)
 			{
 				check(GroupIt < BindingAsset->HairGroupResources.Num());
 				check(SkeletalMeshComponent->SkeletalMesh ? SkeletalMeshComponent->SkeletalMesh->GetLODInfoArray().Num() == BindingAsset->HairGroupResources[GroupIt].SimRootResources->RootData.MeshProjectionLODs.Num() : false);
@@ -1646,7 +1641,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			}
 			#endif
 
-			if (SkeletalMeshComponent)
+			if (SkeletalMeshComponent && BindingAsset)
 			{
 				check(GroupIt < BindingAsset->HairGroupResources.Num());
 				check(SkeletalMeshComponent->SkeletalMesh ? SkeletalMeshComponent->SkeletalMesh->GetLODInfoArray().Num() == BindingAsset->HairGroupResources[GroupIt].RenRootResources->RootData.MeshProjectionLODs.Num() : false);
@@ -1723,7 +1718,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 					InstanceLOD.Guides.InterpolationData = &LOD.Guides.InterpolationData;
 					InstanceLOD.Guides.InterpolationResource = LOD.Guides.InterpolationResource;
 
-					if (SkeletalMeshComponent)
+					if (SkeletalMeshComponent && BindingAsset)
 					{
 						check(SkeletalMeshComponent->GetNumLODs() == BindingAsset->HairGroupResources[GroupIt].RenRootResources->RootData.MeshProjectionLODs.Num());
 						
