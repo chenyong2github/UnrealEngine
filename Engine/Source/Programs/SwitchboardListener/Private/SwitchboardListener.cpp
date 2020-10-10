@@ -636,6 +636,25 @@ static void FillOutSyncTopologies(FSyncStatus& SyncStatus)
 #endif // PLATFORM_WINDOWS
 
 #if PLATFORM_WINDOWS
+static void FillOutDriverVersion(FSyncStatus& SyncStatus)
+{
+	NvU32 DriverVersion;
+	NvAPI_ShortString BuildBranchString;
+
+	const NvAPI_Status Result = NvAPI_SYS_GetDriverAndBranchVersion(&DriverVersion, BuildBranchString);
+
+	if (Result != NVAPI_OK)
+	{
+		UE_LOG(LogSwitchboard, Warning, TEXT("NvAPI_SYS_GetDriverAndBranchVersion failed. Error code: %d"), Result);
+		return;
+	}
+
+	SyncStatus.DriverVersion = DriverVersion;
+	SyncStatus.DriverBranch = UTF8_TO_TCHAR(BuildBranchString);
+}
+#endif // PLATFORM_WINDOWS
+
+#if PLATFORM_WINDOWS
 static void FillOutMosaicTopologies(FSyncStatus& SyncStatus)
 {
 	FScopeLock LockNvapi(&SwitchboardListenerMutexNvapi);
@@ -992,6 +1011,7 @@ bool FSwitchboardListener::GetSyncStatus(const FSwitchboardGetSyncStatusTask& In
 	MessageFuture.EquivalenceHash = InGetSyncStatusTask.GetEquivalenceHash();
 
 	MessageFuture.Future = Async(EAsyncExecution::Thread, [=]() {
+		FillOutDriverVersion(SyncStatus.Get());
 		FillOutSyncTopologies(SyncStatus.Get());
 		FillOutMosaicTopologies(SyncStatus.Get());
 		return CreateSyncStatusMessage(SyncStatus.Get());
