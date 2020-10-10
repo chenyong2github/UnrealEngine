@@ -776,6 +776,9 @@ void FMeshDrawCommand::SetShaders(FRHIVertexDeclaration* VertexDeclaration, cons
 {
 	PipelineState.BoundShaderState = FMinimalBoundShaderStateInput();
 	PipelineState.BoundShaderState.VertexDeclarationRHI = VertexDeclaration;
+
+	checkf(Shaders.VertexShader.IsValid(), TEXT("Can't render without a vertex shader"));
+
 	if(Shaders.VertexShader.IsValid())
 	{
 		checkSlow(Shaders.VertexShader->GetFrequency() == SF_Vertex);
