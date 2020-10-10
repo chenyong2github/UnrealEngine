@@ -284,10 +284,10 @@ void FPyOnlineDocsWriter::GenerateFiles(const FString& InPythonStubPath)
 {
 	UE_LOG(LogPython, Display, TEXT("Generating Python API online docs used by Sphinx to generate static HTML..."));
 
+	const FString PythonStubDestPath = GetSphinxDocsPath() / TEXT("modules") / FPaths::GetCleanFilename(InPythonStubPath);
+	
 	// Copy generated unreal module stub file to PythonScriptPlugin/SphinxDocs/modules
 	{
-		const FString PythonStubDestPath = GetSphinxDocsPath() / TEXT("modules") / FPaths::GetCleanFilename(InPythonStubPath);
-
 		FString SourceFileContents;
 		if (FFileHelper::LoadFileToString(SourceFileContents, *InPythonStubPath))
 		{
@@ -307,8 +307,7 @@ void FPyOnlineDocsWriter::GenerateFiles(const FString& InPythonStubPath)
 	GenerateModuleFiles();
 	GenerateClassFiles();
 
-	UE_LOG(LogPython, Display, TEXT(
-		"  ... finished generating Sphinx files."));
+	UE_LOG(LogPython, Display, TEXT("  ... finished generating Sphinx files."));
 
 	FString Commandline = FCommandLine::Get();
 	bool bUseSphinx = Commandline.Contains(TEXT("-NoHTML")) == false;
@@ -349,72 +348,93 @@ void FPyOnlineDocsWriter::GenerateFiles(const FString& InPythonStubPath)
 #endif
 		PythonPath = FPaths::ConvertRelativePathToFull(PythonPath);
 
-		FString PyCommandStr;
+		// Update pip and install Sphinx
+		{
+			FString PyCommandStr;
 
-		PyCommandStr.Append(TEXT("import sys\n"));
-		PyCommandStr.Append(TEXT("import subprocess\n"));
+			PyCommandStr.Append(TEXT("import subprocess\n"));
+			PyCommandStr.Appendf(TEXT("subprocess.call(['%s', '-m', 'pip', 'install', '-q', '-U', 'pip'])\n"), *PythonPath);	// This may fail if UE is read-only, and on failure somehow completely breaks pip...
+			PyCommandStr.Appendf(TEXT("subprocess.check_call(['%s', '-m', 'ensurepip'])\n"), *PythonPath);						// ... so this call ensures that pip is definitely available, even if the above call broke it
+			PyCommandStr.Appendf(TEXT("subprocess.check_call(['%s', '-m', 'pip', 'install', '-q', '--no-warn-script-location', 'sphinx'])\n"), *PythonPath);
 
-		// Add on pip update and install commands for Sphinx
-		PyCommandStr.Appendf(TEXT("subprocess.call(['%s', '-m', 'pip', 'install', '-q', '-U', 'pip'])\n"), *PythonPath);	// This may fail if UE is read-only, and on failure somehow completely breaks pip...
-		PyCommandStr.Appendf(TEXT("subprocess.check_call(['%s', '-m', 'ensurepip'])\n"), *PythonPath);						// ... so this call ensures that pip is definitely available, even if the above call broke it
-		PyCommandStr.Appendf(TEXT("subprocess.check_call(['%s', '-m', 'pip', 'install', '-q', '--no-warn-script-location', 'sphinx'])\n"), *PythonPath);
-		
-		// Alternate technique calling pip as a Python command though above is recommended by pip.
-		//PyCommandStr.Append(TEXT("import pip\n"));
-		//PyCommandStr.Append(TEXT("pip.main(['install', 'sphinx'])\n"));
+			// Alternate technique calling pip as a Python command though above is recommended by pip.
+			//PyCommandStr.Append(TEXT("import pip\n"));
+			//PyCommandStr.Append(TEXT("pip.main(['install', 'sphinx'])\n"));
 
-		// Un-import full unreal module so Sphinx will use generated stub version of unreal module
-		PyCommandStr.Append(TEXT("del unreal\n"));
-		PyCommandStr.Append(TEXT("del sys.modules['unreal']\n"));
+			UE_LOG(LogPython, Display, TEXT("Installing Sphinx..."));
+			IPythonScriptPlugin::Get()->ExecPythonCommand(*PyCommandStr);
+			UE_LOG(LogPython, Display, TEXT("  ... finished installing Sphinx."));
+		}
 
-		// Add on Sphinx build command
-		PyCommandStr.Append(TEXT("import sphinx.cmd.build\n"));
-		PyCommandStr.Appendf(TEXT("sphinx.cmd.build.build_main(['-b', 'html', '%s', '%s'])\n"), *GetSourcePath(), *GetBuildPath());
+		// Validate the unreal generated stub file before we let Sphinx try and process it
+		{
+			FString PyCommandStr;
 
-		UE_LOG(LogPython, Display, TEXT(
-			"Calling Sphinx in PythonPlugin/SphinxDocs to generate the HTML...\n\n"
-			"%s\n\n"
-			"This can take a long time - 25+ minutes for full build on test system...\n"),
-			*PyCommandStr);
+			// We do this as a subprocess call to the Python interpreter to avoid the generated stub file from breaking the log redirection that the non-stub unreal module configures
+			PyCommandStr.Append(TEXT("import subprocess\n"));
+			PyCommandStr.Appendf(TEXT("subprocess.check_call(['%s', '%s'])\n"), *PythonPath, *PythonStubDestPath);
+
+			UE_LOG(LogPython, Display, TEXT("Validating the unreal generated stub file..."));
+			if (!IPythonScriptPlugin::Get()->ExecPythonCommand(*PyCommandStr))
+			{
+				UE_LOG(LogPython, Error, TEXT("The unreal generated stub file failed to import. Aborting!"));
+				return;
+			}
+			UE_LOG(LogPython, Display, TEXT("  ... finished validating file."));
+		}
+
+		// Run Sphinx to build the docs
+		{
+			FString PyCommandStr;
+
+			// Need to remove the C++ generated module so that Sphinx can import the generated stub file instead
+			PyCommandStr.Append(TEXT("import sys\n"));
+			PyCommandStr.Append(TEXT("del unreal\n"));
+			PyCommandStr.Append(TEXT("del sys.modules['unreal']\n"));
+
+			PyCommandStr.Append(TEXT("import sphinx.cmd.build\n"));
+			PyCommandStr.Appendf(TEXT("sphinx.cmd.build.build_main(['-b', 'html', '%s', '%s'])\n"), *GetSourcePath(), *GetBuildPath());
 
 #if !NO_LOGGING
-		bool bLogSphinx = Commandline.Contains(TEXT("-HTMLLog"));
-		ELogVerbosity::Type OldVerbosity = LogPython.GetVerbosity();
+			bool bLogSphinx = Commandline.Contains(TEXT("-HTMLLog"));
+			ELogVerbosity::Type OldVerbosity = LogPython.GetVerbosity();
 
-		if (!bLogSphinx)
-		{
-			// Disable Python logging (default)
-			LogPython.SetVerbosity(ELogVerbosity::NoLogging);
-		}
+			if (!bLogSphinx)
+			{
+				// Disable Python logging (default)
+				LogPython.SetVerbosity(ELogVerbosity::NoLogging);
+			}
 #endif // !NO_LOGGING
 
-		// Run the Python commands
-		bool PyRunSuccess = IPythonScriptPlugin::Get()->ExecPythonCommand(*PyCommandStr);
+			// Run the Python commands
+			UE_LOG(LogPython, Display, TEXT("Calling Sphinx in PythonPlugin/SphinxDocs to generate the HTML. This can take a long time - 25+ minutes for full build on test system..."));
+			bool PyRunSuccess = IPythonScriptPlugin::Get()->ExecPythonCommand(*PyCommandStr);
 
 #if !NO_LOGGING
-		if (!bLogSphinx)
-		{
-			// Re-enable Python logging
-			LogPython.SetVerbosity(OldVerbosity);
-		}
+			if (!bLogSphinx)
+			{
+				// Re-enable Python logging
+				LogPython.SetVerbosity(OldVerbosity);
+			}
 #endif // !NO_LOGGING
 
-		// The running of the Python commands seem to think there are errors no matter what so not much use to make this notification.
-		//if (PyRunSuccess)
-		//{
-		//	UE_LOG(LogPython, Display, TEXT(
-		//		"\n"
-		//		"  There was an internal Python error while generating the docs, though it may not be an issue.\n\n"
-		//		"  You could call the commandlet again with the '-HTMLLog' option to see more information.\n"));
-		//}
+			// The running of the Python commands seem to think there are errors no matter what so not much use to make this notification.
+			//if (PyRunSuccess)
+			//{
+			//	UE_LOG(LogPython, Display, TEXT(
+			//		"\n"
+			//		"  There was an internal Python error while generating the docs, though it may not be an issue.\n\n"
+			//		"  You could call the commandlet again with the '-HTMLLog' option to see more information.\n"));
+			//}
 
-		UE_LOG(LogPython, Display, TEXT(
-			"  ... finished generating Python API online docs!\n\n"
-			"Find them in the following directory:\n"
-			"  %s\n\n"
-			"See additional instructions and information in:\n"
-			"  PythonScriptPlugin/SphinxDocs/PythonAPI_docs_readme.txt\n"),
-			*GetBuildPath());
+			UE_LOG(LogPython, Display, TEXT(
+				"  ... finished generating Python API online docs!\n\n"
+				"Find them in the following directory:\n"
+				"  %s\n\n"
+				"See additional instructions and information in:\n"
+				"  PythonScriptPlugin/SphinxDocs/PythonAPI_docs_readme.txt\n"),
+				*GetBuildPath());
+		}
 	}
 	else
 	{
