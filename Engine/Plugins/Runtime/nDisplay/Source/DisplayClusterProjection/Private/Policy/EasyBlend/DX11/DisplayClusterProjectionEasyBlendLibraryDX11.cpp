@@ -11,7 +11,9 @@
 #include "Misc/Paths.h"
 
 #if PLATFORM_WINDOWS
+THIRD_PARTY_INCLUDES_START
 #include "EasyBlendSDKDXApi.h"
+THIRD_PARTY_INCLUDES_END
 #endif
 
 
