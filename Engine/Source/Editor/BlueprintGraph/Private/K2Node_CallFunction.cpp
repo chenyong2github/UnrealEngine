@@ -3443,7 +3443,14 @@ bool UK2Node_CallFunction::IsConnectionDisallowed(const UEdGraphPin* MyPin, cons
 						continue;
 					}
 
-					const bool ConnectResponse = K2Schema->ArePinTypesCompatible(Pin->PinType, OtherPin->PinType, nullptr, /* bIgnoreArray = */ true);
+					UClass* Context = nullptr;
+					UBlueprint* Blueprint = GetBlueprint();
+					if (Blueprint)
+					{
+						Context = Blueprint->GeneratedClass;
+					}
+
+					const bool ConnectResponse = K2Schema->ArePinTypesCompatible(Pin->PinType, OtherPin->PinType, Context, /* bIgnoreArray = */ true);
 
 					if (!ConnectResponse)
 					{
