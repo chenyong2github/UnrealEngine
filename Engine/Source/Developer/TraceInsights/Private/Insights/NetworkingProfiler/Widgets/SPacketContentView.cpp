@@ -284,11 +284,7 @@ void SPacketContentView::Construct(const FArguments& InArgs, TSharedPtr<SNetwork
 			.Padding(12.0f, 0.0f, 0.0f, 0.0f)
 			[
 				SNew(SCheckBox)
-				.ToolTipText(LOCTEXT("FilterByEventType_Tooltip",
-					"Filter events that have the specified type.\n\n"
-					"To set the event type:\n"
-					"\tdouble click either an event in the Packet Content view\n"
-					"\tor an event type in the NetStats tree view."))
+				.ToolTipText(LOCTEXT("FilterByEventType_Tooltip", "Filter events that have the specified type.\n\nTo set the event type:\n\tdouble click either an event in the Packet Content view\n\tor an event type in the NetStats tree view."))
 				.IsChecked(this, &SPacketContentView::FilterByEventType_IsChecked)
 				.OnCheckStateChanged(this, &SPacketContentView::FilterByEventType_OnCheckStateChanged)
 				[

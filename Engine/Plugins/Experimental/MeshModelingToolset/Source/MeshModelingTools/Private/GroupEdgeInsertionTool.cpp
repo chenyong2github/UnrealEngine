@@ -85,8 +85,7 @@ void UGroupEdgeInsertionTool::Setup()
 	}
 
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("GroupEdgeInsertionToolDescription",
-			"Click two points on the boundary of a face to insert a new edge between the points and split the face."),
+		LOCTEXT("GroupEdgeInsertionToolDescription", "Click two points on the boundary of a face to insert a new edge between the points and split the face."),
 		EToolMessageLevel::UserNotification);
 
 	// Initialize the mesh that we'll be operating on

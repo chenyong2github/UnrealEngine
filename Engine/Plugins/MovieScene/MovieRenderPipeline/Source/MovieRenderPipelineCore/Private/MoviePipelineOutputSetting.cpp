@@ -44,8 +44,7 @@ void UMoviePipelineOutputSetting::PostLoad()
 FText UMoviePipelineOutputSetting::GetFooterText(UMoviePipelineExecutorJob* InJob) const 
 {
 	FTextBuilder TextBuilder;
-	TextBuilder.AppendLine(NSLOCTEXT("MovieRenderPipeline", "OutputSettingFooterText_Fmt",
-		"A list of {format_strings} and example values that are valid to use in the File Name Format:\n"));
+	TextBuilder.AppendLine(NSLOCTEXT("MovieRenderPipeline", "OutputSettingFooterText_Fmt", "A list of {format_strings} and example values that are valid to use in the File Name Format:\n"));
 
 	FMoviePipelineFormatArgs FormatArgs;
 	FormatArgs.InJob = InJob;

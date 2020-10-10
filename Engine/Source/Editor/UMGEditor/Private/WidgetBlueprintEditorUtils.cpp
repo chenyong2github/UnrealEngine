@@ -451,8 +451,7 @@ void FWidgetBlueprintEditorUtils::DeleteWidgets(UWidgetBlueprint* Blueprint, TSe
 
 			if (UsedVariables.Num())
 			{
-				FText ConfirmDelete = FText::Format(LOCTEXT("ConfirmDeleteVariableInUse",
-					"One or more widgets are in use in the graph! Do you really want to delete them? \n {0}"),
+				FText ConfirmDelete = FText::Format(LOCTEXT("ConfirmDeleteVariableInUse", "One or more widgets are in use in the graph! Do you really want to delete them? \n {0}"),
 					FText::Join(LOCTEXT("ConfirmDeleteVariableInUsedDelimiter", " \n"), WidgetNames));
 
 				// Warn the user that this may result in data loss

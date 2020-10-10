@@ -37,7 +37,7 @@ namespace EditorCommandLineUtilsImpl
 	static const TCHAR* LightmassStatsCommandSwitch = TEXT("LIGHTMASSSTATS");
 
 	static const TCHAR* DiffCommandSwitch  = TEXT("diff");
-	static const FText  DiffCommandHelpTxt = LOCTEXT("DiffCommandeHelpText", "\
+	static const FText  DiffCommandHelpTxt = INVTEXT("\
 Usage: \n\
     -diff [options] left right                                                 \n\
     -diff [options] remote local base result                                   \n\

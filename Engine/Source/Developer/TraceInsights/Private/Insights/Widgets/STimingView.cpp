@@ -3718,9 +3718,7 @@ TSharedRef<SWidget> STimingView::MakeAutoScrollOptionsMenu()
 
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("AutoScrollViewportOffset-10", "Viewport Offset: -10%"),
-			LOCTEXT("AutoScrollViewportOffset-10_Tooltip",
-				"Set the viewport offset to -10% (i.e. backward) of the viewport's width.\n"
-				"Avoids flickering as the end of session will be outside of the viewport."),
+			LOCTEXT("AutoScrollViewportOffset-10_Tooltip", "Set the viewport offset to -10% (i.e. backward) of the viewport's width.\nAvoids flickering as the end of session will be outside of the viewport."),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &STimingView::AutoScrollViewportOffset_Execute, -0.1),
 				FCanExecuteAction(),
@@ -3742,9 +3740,7 @@ TSharedRef<SWidget> STimingView::MakeAutoScrollOptionsMenu()
 
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("AutoScrollViewportOffset+10", "Viewport Offset: +10%"),
-			LOCTEXT("AutoScrollViewportOffset+10_Tooltip",
-				"Set the viewport offset to +10% (i.e. forward) of the viewport's width.\n"
-				"Allows 10% empty space on the right side of the viewport."),
+			LOCTEXT("AutoScrollViewportOffset+10_Tooltip", "Set the viewport offset to +10% (i.e. forward) of the viewport's width.\nAllows 10% empty space on the right side of the viewport."),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &STimingView::AutoScrollViewportOffset_Execute, +0.1),
 				FCanExecuteAction(),

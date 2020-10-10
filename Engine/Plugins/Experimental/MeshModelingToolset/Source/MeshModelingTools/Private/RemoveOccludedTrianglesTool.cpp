@@ -147,8 +147,7 @@ void URemoveOccludedTrianglesTool::Setup()
 	SetupPreviews();
 
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("RemoveOccludedTrianglesToolDescription",
-			"Remove triangles that are fully contained within the selected Meshes, and hence cannot be visible with opaque shading."),
+		LOCTEXT("RemoveOccludedTrianglesToolDescription", "Remove triangles that are fully contained within the selected Meshes, and hence cannot be visible with opaque shading."),
 		EToolMessageLevel::UserNotification);
 }
 

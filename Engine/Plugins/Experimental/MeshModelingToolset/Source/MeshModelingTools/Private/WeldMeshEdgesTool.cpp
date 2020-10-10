@@ -82,8 +82,7 @@ void UWeldMeshEdgesTool::Setup()
 	bResultValid = false;
 
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("WeldMeshEdgesToolDescription",
-			"Weld overlapping/identical border edges of the selected Mesh, by merging the vertices."),
+		LOCTEXT("WeldMeshEdgesToolDescription", "Weld overlapping/identical border edges of the selected Mesh, by merging the vertices."),
 		EToolMessageLevel::UserNotification);
 }
 

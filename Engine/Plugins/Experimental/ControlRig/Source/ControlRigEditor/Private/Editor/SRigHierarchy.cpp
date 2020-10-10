@@ -1163,8 +1163,7 @@ void SRigHierarchy::FillContextMenu(class FMenuBuilder& MenuBuilder)
 		MenuBuilder.BeginSection("Assets", LOCTEXT("AssetsHeader", "Assets"));
 		MenuBuilder.AddSubMenu(
 			LOCTEXT("ImportSubMenu", "Import"),
-			LOCTEXT("ImportSubMenu_ToolTip", "Import hierarchy to the current rig. This only imports non-existing node. For example, if there is hand_r, it won't import hand_r. \
-				If you want to reimport whole new hiearchy, delete all nodes, and use import hierarchy."),
+			LOCTEXT("ImportSubMenu_ToolTip", "Import hierarchy to the current rig. This only imports non-existing node. For example, if there is hand_r, it won't import hand_r. If you want to reimport whole new hiearchy, delete all nodes, and use import hierarchy."),
 			FNewMenuDelegate::CreateSP(this, &SRigHierarchy::CreateImportMenu)
 		);
 		MenuBuilder.AddSubMenu(
@@ -1193,8 +1192,7 @@ void SRigHierarchy::CreateRefreshMenu(FMenuBuilder& MenuBuilder)
 			SNew(STextBlock)
 			.Font(FEditorStyle::GetFontStyle("ControlRig.Hierarchy.Menu"))
 			.Text(LOCTEXT("RefreshMesh_Title", "Select Mesh"))
-			.ToolTipText(LOCTEXT("RefreshMesh_Tooltip", "Select Mesh to refresh transform from... It will refresh init transform from selected mesh. This doesn't change hierarchy. \
-				If you want to reimport hierarchy, please delete all nodes, and use import hierarchy."))
+			.ToolTipText(LOCTEXT("RefreshMesh_Tooltip", "Select Mesh to refresh transform from... It will refresh init transform from selected mesh. This doesn't change hierarchy. If you want to reimport hierarchy, please delete all nodes, and use import hierarchy."))
 		]
 		+ SVerticalBox::Slot()
 		.AutoHeight()
@@ -1380,8 +1378,7 @@ void SRigHierarchy::HandleDeleteItem()
 						{
 							if (!bConfirmedByUser)
 							{
-								FText ConfirmDelete = LOCTEXT("ConfirmDeleteBoneHierarchy",
-									"Deleting imported(white) bones can cause issues with animation - are you sure ?");
+								FText ConfirmDelete = LOCTEXT("ConfirmDeleteBoneHierarchy", "Deleting imported(white) bones can cause issues with animation - are you sure ?");
 
 								FSuppressableWarningDialog::FSetupInfo Info(ConfirmDelete, LOCTEXT("DeleteImportedBone", "Delete Imported Bone"), "DeleteImportedBoneHierarchy_Warning");
 								Info.ConfirmText = LOCTEXT("DeleteImportedBoneHierarchy_Yes", "Yes");
@@ -1657,8 +1654,7 @@ void SRigHierarchy::HandleRenameItem()
 					const FRigBone& Bone = Hierarchy->BoneHierarchy[BoneIndex];
 					if (Bone.Type == ERigBoneType::Imported)
 					{
-						FText ConfirmRename = LOCTEXT("RenameDeleteBoneHierarchy",
-							"Renaming imported(white) bones can cause issues with animation - are you sure ?");
+						FText ConfirmRename = LOCTEXT("RenameDeleteBoneHierarchy", "Renaming imported(white) bones can cause issues with animation - are you sure ?");
 
 						FSuppressableWarningDialog::FSetupInfo Info(ConfirmRename, LOCTEXT("RenameImportedBone", "Rename Imported Bone"), "RenameImportedBoneHierarchy_Warning");
 						Info.ConfirmText = LOCTEXT("RenameImportedBoneHierarchy_Yes", "Yes");
@@ -1947,8 +1943,7 @@ FReply SRigHierarchy::OnAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDro
 						const FRigBone& Bone = Container->BoneHierarchy[BoneIndex];
 						if (Bone.Type == ERigBoneType::Imported && Bone.ParentIndex != INDEX_NONE)
 						{
-							FText ConfirmReparent = LOCTEXT("ConfirmReparentBoneHierarchy",
-								"Reparenting imported(white) bones can cause issues with animation - are you sure ?");
+							FText ConfirmReparent = LOCTEXT("ConfirmReparentBoneHierarchy", "Reparenting imported(white) bones can cause issues with animation - are you sure ?");
 
 							FSuppressableWarningDialog::FSetupInfo Info(ConfirmReparent, LOCTEXT("ReparentImportedBone", "Reparent Imported Bone"), "ReparentImportedBoneHierarchy_Warning");
 							Info.ConfirmText = LOCTEXT("ReparentImportedBoneHierarchy_Yes", "Yes");
@@ -2497,8 +2492,7 @@ void SRigHierarchy::HandleUnparent()
 				bool bIsImportedBone = BoneHierarchy[SelectedItem->Key.Name].Type == ERigBoneType::Imported;
 				if (bIsImportedBone && !bConfirmedByUser)
 				{
-					FText ConfirmUnparent = LOCTEXT("ConfirmUnparentBoneHierarchy",
-						"Unparenting imported(white) bones can cause issues with animation - are you sure ?");
+					FText ConfirmUnparent = LOCTEXT("ConfirmUnparentBoneHierarchy", "Unparenting imported(white) bones can cause issues with animation - are you sure ?");
 
 					FSuppressableWarningDialog::FSetupInfo Info(ConfirmUnparent, LOCTEXT("UnparentImportedBone", "Unparent Imported Bone"), "UnparentImportedBoneHierarchy_Warning");
 					Info.ConfirmText = LOCTEXT("UnparentImportedBoneHierarchy_Yes", "Yes");

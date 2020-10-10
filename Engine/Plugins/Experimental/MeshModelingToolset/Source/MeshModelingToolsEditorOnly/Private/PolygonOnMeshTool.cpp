@@ -142,8 +142,7 @@ void UPolygonOnMeshTool::Setup()
 	UpdateDrawPlane();
 
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("PolygonOnMeshToolDescription",
-			"Cut the Mesh with a swept Polygon, creating a Hole or new Polygroup. Use the Draw Polygon button to draw a custom polygon on the work plane. Ctrl-click to reposition the work plane."),
+		LOCTEXT("PolygonOnMeshToolDescription", "Cut the Mesh with a swept Polygon, creating a Hole or new Polygroup. Use the Draw Polygon button to draw a custom polygon on the work plane. Ctrl-click to reposition the work plane."),
 		EToolMessageLevel::UserNotification);
 }
 
