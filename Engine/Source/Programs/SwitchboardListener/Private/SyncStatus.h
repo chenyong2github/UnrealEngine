@@ -175,4 +175,10 @@ struct FSyncStatus
 
 	UPROPERTY()
 	TArray<FString> ProgramLayers;
+
+	UPROPERTY()
+	uint32 DriverVersion;
+
+	UPROPERTY()
+	FString DriverBranch;
 };
