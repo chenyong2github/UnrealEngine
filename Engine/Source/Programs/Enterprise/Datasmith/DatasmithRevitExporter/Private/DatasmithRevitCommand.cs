@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
@@ -77,11 +78,13 @@ namespace DatasmithRevitExporter
 				return Result.Cancelled;
 			}
 
-			// Handle DirectLink initialization.
-			if (FDirectLink.Get() == null || !Doc.Equals(FDirectLink.Get().RootDocument) || (System.Windows.Forms.Control.ModifierKeys & Keys.Control) == Keys.Control)
+			Debug.Assert(FDirectLink.Get() != null);
+
+			// Holding ctrl will force full sync. 
+			if (FDirectLink.Get().SyncCount > 0 && (System.Windows.Forms.Control.ModifierKeys & Keys.Control) == Keys.Control)
 			{
-				FDirectLink.DestroyInstance(InCommandData.Application.Application);
-				FDirectLink.InitInstance();
+				FDirectLink.DestroyInstance(FDirectLink.Get(), InCommandData.Application.Application);
+				FDirectLink.ActivateInstance(Doc);
 			}
 
 			FDatasmithRevitExportContext ExportContext = new FDatasmithRevitExportContext(

@@ -80,12 +80,12 @@ struct TWeakInterfacePtr
 		return InterfaceInstance != Other.InterfaceInstance || ObjectInstance != Other.ObjectInstance;
 	}
 
-	FORCEINLINE bool operator==(const UObject* Other)
+	FORCEINLINE bool operator==(const UObject* Other) const
 	{
 		return Other == ObjectInstance.Get();
 	}
 
-	FORCEINLINE TScriptInterface<TInterface> ToScriptInterface()
+	FORCEINLINE TScriptInterface<TInterface> ToScriptInterface() const
 	{
 		UObject* Object = ObjectInstance.Get();
 		if (Object)

@@ -426,7 +426,7 @@ static bool LogDREDData(ID3D12Device* Device)
 
 			uint32 TracedCommandLists = 0;
 			auto Node = Dred.BreadcrumbHead;
-			while (Node)
+			while (Node && Node->pLastBreadcrumbValue)
 			{
 				int32 LastCompletedOp = *Node->pLastBreadcrumbValue;
 

@@ -93,6 +93,20 @@ TAutoConsoleVariable<int32> CVarPathTracingWiperMode(
 	ECVF_RenderThreadSafe 
 );
 
+TAutoConsoleVariable<int32> CVarPathTracingRussianRouletteStartingBounce(
+	TEXT("r.PathTracing.RussianRouletteStartingBounce"),
+	5,
+	TEXT("Determines the starting bounce condition for Russian Roulette"),
+	ECVF_RenderThreadSafe
+);
+
+TAutoConsoleVariable<float> CVarPathTracingFireFlyRejectionTreshold(
+	TEXT("r.PathTracing.FireFlyRejectionThreshold"),
+	1024.0,
+	TEXT("Defines the maximum energy off a sample, after which it is categorized as a firefly"),
+	ECVF_RenderThreadSafe
+);
+
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FPathTracingData, "PathTracingData");
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FPathTracingLightData, "SceneLightsData");
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FPathTracingAdaptiveSamplingData, "AdaptiveSamplingData");
@@ -170,7 +184,8 @@ public:
 				Scene->bPathTracingNeedsInvalidation = true;
 				PrevMaxBounces = PathTracingData.MaxBounces;
 			}
-
+			PathTracingData.RussianRouletteStartingBounce = CVarPathTracingRussianRouletteStartingBounce.GetValueOnRenderThread();
+			PathTracingData.FireFlyRejectionThreshold = CVarPathTracingFireFlyRejectionTreshold.GetValueOnRenderThread();
 			PathTracingData.TileOffset = TileOffset;
 
 			FUniformBufferRHIRef PathTracingDataUniformBuffer = RHICreateUniformBuffer(&PathTracingData, FPathTracingData::StaticStructMetadata.GetLayout(), EUniformBufferUsage::UniformBuffer_SingleDraw);

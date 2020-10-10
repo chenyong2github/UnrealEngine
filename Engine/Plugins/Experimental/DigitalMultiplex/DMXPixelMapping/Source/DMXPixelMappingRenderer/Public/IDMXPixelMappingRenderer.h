@@ -52,7 +52,7 @@ public:
 	 * @param TargetSize					Size in texels of the target texture
 	 * @param TextureSize					Size in texels of the source texture
 	 * @param ReadCallback					ReadSurfaceData from DstTextureTargetResource callback, it holds CPU FColor array and size of the read surface
-	 * @param PixelBlendingQuality			The quality of color samples in the pixel shader (number of samples)
+	 * @param CellBlendingQuality			The quality of color samples in the pixel shader (number of samples)
 	 * @param bStaticCalculateUV			Calculates the UV point to sample purely on the UV position/size. Works best for renderers which represent a single pixel
 	 */
 	virtual void DownsampleRender_GameThread(
@@ -68,7 +68,7 @@ public:
 		const FVector2D& UVCellSize,
 		const FIntPoint& TargetSize,
 		const FIntPoint& TextureSize,
-		EDMXPixelBlendingQuality PixelBlendingQuality,
+		EDMXPixelBlendingQuality CellBlendingQuality,
 		bool bStaticCalculateUV,
 		SurfaceReadCallback ReadCallback) = 0;
 

@@ -106,6 +106,7 @@ public:
 	virtual FLoadingModulesForPhaseEvent& OnLoadingPhaseComplete() override;
 	virtual void GetLocalizationPathsForEnabledPlugins( TArray<FString>& OutLocResPaths ) override;
 	virtual void SetRegisterMountPointDelegate( const FRegisterMountPointDelegate& Delegate ) override;
+	virtual void SetUnRegisterMountPointDelegate( const FRegisterMountPointDelegate& Delegate ) override;
 	virtual void SetUpdatePackageLocalizationCacheDelegate( const FUpdatePackageLocalizationCacheDelegate& Delegate ) override;
 	virtual bool AreRequiredPluginsAvailable() override;
 #if !IS_MONOLITHIC
@@ -123,6 +124,7 @@ public:
 	virtual FNewPluginMountedEvent& OnNewPluginMounted() override;
 	virtual void MountNewlyCreatedPlugin(const FString& PluginName) override;
 	virtual void MountExplicitlyLoadedPlugin(const FString& PluginName) override;
+	virtual bool UnmountExplicitlyLoadedPlugin(const FString& PluginName, FText* OutReason) override;
 	virtual FName PackageNameFromModuleName(FName ModuleName) override;
 	virtual bool RequiresTempTargetForCodePlugin(const FProjectDescriptor* ProjectDescriptor, const FString& Platform, EBuildConfiguration Configuration, EBuildTargetType TargetType, FText& OutReason) override;
 
@@ -183,6 +185,9 @@ private:
 	/** Mounts a plugin that was requested to be mounted from external code (either by MountNewlyCreatedPlugin or MountExplicitlyLoadedPlugin) */
 	void MountPluginFromExternalSource(const TSharedRef<FPlugin>& Plugin);
 
+	/** Unmounts a plugin that was requested to be unmounted from external code (by UnmountExplicitlyLoadedPlugin) */
+	bool UnmountPluginFromExternalSource(const TSharedPtr<FPlugin>& Plugin, FText* OutReason);
+
 private:
 	/** All of the plugins that we know about */
 	TMap< FString, TSharedRef< FPlugin > > AllPlugins;
@@ -195,6 +200,10 @@ private:
 	/** Delegate for mounting content paths.  Bound by FPackageName code in CoreUObject, so that we can access
 	    content path mounting functionality from Core. */
 	FRegisterMountPointDelegate RegisterMountPointDelegate;
+
+	/** Delegate for unmounting content paths.  Bound by FPackageName code in CoreUObject, so that we can access
+	    content path unmounting functionality from Core. */
+	FRegisterMountPointDelegate UnRegisterMountPointDelegate;
 
 	/** Delegate for updating the package localization cache.  Bound by FPackageLocalizationManager code in 
 		CoreUObject, so that we can access localization cache functionality from Core. */

@@ -100,13 +100,13 @@ void FDMXFixturePatchChannel::UpdateNumberOfChannels(bool bResetDefaultValues /*
 		}
 	}
 
-	if (UDMXEntityFixtureType::IsFixtureMatrixInModeRange(Mode.PixelMatrixConfig, Mode, PatchChannelOffset))
+	if (UDMXEntityFixtureType::IsFixtureMatrixInModeRange(Mode.FixtureMatrixConfig, Mode, PatchChannelOffset))
 	{
 		UDMXSubsystem* DMXSubsystem = UDMXSubsystem::GetDMXSubsystem_Pure();
 		check(DMXSubsystem);
 
-		int32 NumXCells = Mode.PixelMatrixConfig.XPixels;
-		int32 NumYCells = Mode.PixelMatrixConfig.YPixels;
+		int32 NumXCells = Mode.FixtureMatrixConfig.XCells;
+		int32 NumYCells = Mode.FixtureMatrixConfig.YCells;
 
 		for (int32 IdxCellX = 0; IdxCellX < NumXCells; IdxCellX++)
 		{
@@ -114,7 +114,7 @@ void FDMXFixturePatchChannel::UpdateNumberOfChannels(bool bResetDefaultValues /*
 			{
 				FIntPoint CellCoordinates = FIntPoint(IdxCellX, IdxCellY);
 
-				for (const FDMXFixturePixelFunction& CellAttribute : Mode.PixelMatrixConfig.PixelFunctions)
+				for (const FDMXFixtureCellAttribute& CellAttribute : Mode.FixtureMatrixConfig.CellAttributes)
 				{
 					bool bNewChannel = false;
 					if (!FunctionChannels.IsValidIndex(IdxFunctionChannel))
@@ -555,8 +555,8 @@ void UMovieSceneDMXLibrarySection::SendDefaultFunctionValueToDMX(const FDMXFixtu
 		});
 	check(FixtureFunctionPtr);
 
-	const FDMXPixelMatrix& MatrixConfig = Mode.PixelMatrixConfig;
-	const TArray<FDMXFixturePixelFunction>& PixelFunctions = MatrixConfig.PixelFunctions;
+	const FDMXFixtureMatrix& MatrixConfig = Mode.FixtureMatrixConfig;
+	const TArray<FDMXFixtureCellAttribute>& CellAttributes = MatrixConfig.CellAttributes;
 
 	if (FunctionChannel.IsCellFunction())
 	{
@@ -564,34 +564,34 @@ void UMovieSceneDMXLibrarySection::SendDefaultFunctionValueToDMX(const FDMXFixtu
 		check(DMXSubsystem);
 
 		TMap<FDMXAttributeName, int32> AttributeNameChannelMap;
-		DMXSubsystem->GetMatrixPixelChannelsAbsolute(FixturePatch, FunctionChannel.CellCoordinate, AttributeNameChannelMap);
+		DMXSubsystem->GetMatrixCellChannelsAbsolute(FixturePatch, FunctionChannel.CellCoordinate, AttributeNameChannelMap);
 
 		bool bLoggedMissingAttribute = false;
 		for (const TPair<FDMXAttributeName, int32>& AttributeNameChannelKvp : AttributeNameChannelMap)
 		{
-			const FDMXFixturePixelFunction* PixelFunctionPtr = PixelFunctions.FindByPredicate([&AttributeNameChannelKvp](const FDMXFixturePixelFunction& PixelFunction) {
-				return PixelFunction.Attribute == AttributeNameChannelKvp.Key;
+			const FDMXFixtureCellAttribute* CellAttributePtr = CellAttributes.FindByPredicate([&AttributeNameChannelKvp](const FDMXFixtureCellAttribute& CellAttribute) {
+				return CellAttribute.Attribute == AttributeNameChannelKvp.Key;
 				});
 
-			if (!PixelFunctionPtr)
+			if (!CellAttributePtr)
 			{
 				if (!bLoggedMissingAttribute)
 				{
-					UE_LOG(LogDMXRuntime, Warning, TEXT("%S: Function with attribute %s from %s doesn't have a counterpart Fixture Function."), __FUNCTION__, *FunctionChannel.AttributeName.ToString(), *FixturePatch->GetDisplayName());
+					UE_LOG(LogDMXRuntime, Warning, TEXT("%S: Attribure %s in %s doesn't have a counterpart Fixture Matrix Cell Attribute."), __FUNCTION__, *FunctionChannel.AttributeName.ToString(), *FixturePatch->GetDisplayName());
 					UE_LOG(LogDMXRuntime, Warning, TEXT("%S: Further attributes may be missing. Warnings ommited to avoid overflowing the log."), __FUNCTION__);
 					bLoggedMissingAttribute = true;
 				}
 				continue;
 			}
 
-			const FDMXFixturePixelFunction& PixelFunction = *PixelFunctionPtr;
+			const FDMXFixtureCellAttribute& CellAttribute = *CellAttributePtr;
 			int32 FirstRelativeChannelAddress = AttributeNameChannelKvp.Value;
-			int32 LastRelativeChannelAddress = AttributeNameChannelKvp.Value + UDMXEntityFixtureType::NumChannelsToOccupy(PixelFunction.DataType) - 1;
+			int32 LastRelativeChannelAddress = AttributeNameChannelKvp.Value + UDMXEntityFixtureType::NumChannelsToOccupy(CellAttribute.DataType) - 1;
 
-			int32 DefaultValue = PixelFunction.DefaultValue;
+			int32 DefaultValue = CellAttribute.DefaultValue;
 
 			TArray<uint8> Bytes;
-			DMXSubsystem->IntValueToBytes(DefaultValue, PixelFunction.DataType, Bytes, PixelFunction.bUseLSBMode);
+			DMXSubsystem->IntValueToBytes(DefaultValue, CellAttribute.DataType, Bytes, CellAttribute.bUseLSBMode);
 
 			IDMXFragmentMap FragmentMap;
 			int32 ByteIndex = 0;

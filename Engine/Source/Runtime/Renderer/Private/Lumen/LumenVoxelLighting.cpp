@@ -940,7 +940,7 @@ void InjectCardsWithRasterizerScatter(
 	const TArray<int32, SceneRenderingAllocator>& ClipmapsToUpdate,
 	FRDGBuilder& GraphBuilder)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 
 	const FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 	const FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
@@ -1559,7 +1559,7 @@ void FDeferredShadingSceneRenderer::ComputeLumenSceneVoxelLighting(
 	FLumenCardTracingInputs& TracingInputs,
 	FGlobalShaderMap* GlobalShaderMap)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 
 	const FViewInfo& View = Views[0];
 

@@ -1,18 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DisplayClusterCameraComponent.h"
-#include "Config/DisplayClusterConfigTypes.h"
-
+#include "Components/DisplayClusterCameraComponent.h"
 #include "Camera/CameraComponent.h"
 
-#include "CoreGlobals.h"
+#include "Config/IPDisplayClusterConfigManager.h"
+#include "DisplayClusterConfigurationTypes.h"
+
+#include "Misc/DisplayClusterGlobals.h"
+#include "Misc/DisplayClusterHelpers.h"
+#include "Misc/DisplayClusterStrings.h"
 
 
 UDisplayClusterCameraComponent::UDisplayClusterCameraComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, EyeDist(0.064f)
-	, bEyeSwap(false)
-	, ForceEyeOffset(0)
+	, InterpupillaryDistance(6.4f)
+	, bSwapEyes(false)
+	, StereoOffset(EDisplayClusterEyeStereoOffset::None)
 {
 	// Children of UDisplayClusterSceneComponent must always Tick to be able to process VRPN tracking
 	PrimaryComponentTick.bCanEverTick = true;
@@ -21,29 +24,30 @@ UDisplayClusterCameraComponent::UDisplayClusterCameraComponent(const FObjectInit
 void UDisplayClusterCameraComponent::BeginPlay()
 {
 	Super::BeginPlay();
-}
 
-void UDisplayClusterCameraComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
-{
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-}
-
-void UDisplayClusterCameraComponent::SetSettings(const FDisplayClusterConfigSceneNode* ConfigData)
-{
-	check(ConfigData);
-	if (ConfigData)
+	const UDisplayClusterConfigurationSceneComponentCamera* CfgCamera = Cast<UDisplayClusterConfigurationSceneComponentCamera>(GetConfigParameters());
+	if (CfgCamera)
 	{
-		const FDisplayClusterConfigCamera* const CameraCfg = static_cast<const FDisplayClusterConfigCamera*>(ConfigData);
+		InterpupillaryDistance = CfgCamera->InterpupillaryDistance;
+		bSwapEyes = CfgCamera->bSwapEyes;
 
-		EyeDist        = CameraCfg->EyeDist;
-		bEyeSwap       = CameraCfg->EyeSwap;
-		ForceEyeOffset = CameraCfg->ForceOffset;
+		switch (CfgCamera->StereoOffset)
+		{
+		case EDisplayClusterConfigurationEyeStereoOffset::Left:
+			StereoOffset = EDisplayClusterEyeStereoOffset::Left;
+			break;
+
+		case EDisplayClusterConfigurationEyeStereoOffset::None:
+			StereoOffset = EDisplayClusterEyeStereoOffset::None;
+			break;
+
+		case EDisplayClusterConfigurationEyeStereoOffset::Right:
+			StereoOffset = EDisplayClusterEyeStereoOffset::Right;
+			break;
+
+		default:
+			StereoOffset = EDisplayClusterEyeStereoOffset::None;
+			break;
+		}
 	}
-
-	Super::SetSettings(ConfigData);
-}
-
-bool UDisplayClusterCameraComponent::ApplySettings()
-{
-	return Super::ApplySettings();
 }

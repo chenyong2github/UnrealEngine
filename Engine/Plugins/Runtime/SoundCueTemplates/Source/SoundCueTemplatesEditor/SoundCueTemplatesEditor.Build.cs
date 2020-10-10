@@ -17,20 +17,19 @@ public class SoundCueTemplatesEditor : ModuleRules
 			}
 		);
 
-        PrivateDependencyModuleNames.AddRange(
-            new string[]
-            {
-                "CoreUObject",
-				"EditorFramework",
+		PrivateDependencyModuleNames.AddRange(
+			new string[]
+			{
+				"CoreUObject",
+				"EditorStyle",
+				"Engine",
 				"GameProjectGeneration",
-                "EditorStyle",
-                "Engine",
-                "UnrealEd",
-                "Slate",
-                "SlateCore",
-                "ContentBrowser"
-            }
-        );
+				"UnrealEd",
+				"Slate",
+				"SlateCore",
+				"ContentBrowser"
+			}
+		);
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {

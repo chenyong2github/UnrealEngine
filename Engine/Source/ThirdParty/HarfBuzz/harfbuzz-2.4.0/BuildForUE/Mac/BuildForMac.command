@@ -76,7 +76,7 @@ cp -v ../libharfbuzz.a "${LIB_ROOT_DIR}/${LIB_PATH}/libharfbuzz.a"
 rm ../libharfbuzz.a
 
 mkdir -p $TEMP_DIR_DEBUG && cd $TEMP_DIR_DEBUG
-cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_CXX_FLAGS="$CXXFLAGS" -DCMAKE_OSX_ARCHITECTURES="$ARCHFLAGS" "${LIB_ROOT_DIR}/BuildForUE"
+cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_CXX_FLAGS="$CXXFLAGS -gdwarf-2" -DCMAKE_OSX_ARCHITECTURES="$ARCHFLAGS" "${LIB_ROOT_DIR}/BuildForUE"
 make clean && make -j$(get_core_count)
 cp -v ../libharfbuzz.a "${LIB_ROOT_DIR}/${LIB_PATH}/libharfbuzzd.a"
 rm ../libharfbuzz.a

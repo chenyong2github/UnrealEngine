@@ -34,7 +34,7 @@ namespace Chaos
 	{
 	public:
 
-		FPhysicsSolverAdvanceTask(FPhysicsSolverBase& InSolver, TArray<TFunction<void()>>&& InQueue, TArray<FPushPhysicsData*>&& PushData, FReal InDt);
+		FPhysicsSolverAdvanceTask(FPhysicsSolverBase& InSolver, TArray<TFunction<void()>>&& InQueue, TArray<FPushPhysicsData*>&& PushData, FReal InDt, int32 InputDataExternalTimestamp);
 
 		TStatId GetStatId() const;
 		static ENamedThreads::Type GetDesiredThread();
@@ -48,6 +48,7 @@ namespace Chaos
 		TArray<TFunction<void()>> Queue;
 		TArray<FPushPhysicsData*> PushData;
 		FReal Dt;
+		int32 InputDataExternalTimestamp;
 	};
 
 
@@ -206,7 +207,6 @@ namespace Chaos
 			PushPhysicsState(DtWithPause);
 
 			TArray<FPushPhysicsData*> PushData = MarshallingManager.StepInternalTime_External(DtWithPause);
-			SetExternalTimestampConsumed_External(MarshallingManager.GetExternalTimestampConsumed_External());
 
 			FGraphEventRef BlockingTasks = PendingTasks;
 
@@ -216,8 +216,19 @@ namespace Chaos
 				if(ThreadingMode == EThreadingModeTemp::SingleThread)
 				{
 					ensure(!PendingTasks || PendingTasks->IsComplete());	//if mode changed we should have already blocked
-					FPhysicsSolverAdvanceTask ImmediateTask(*this,MoveTemp(CommandQueue),MoveTemp(PushData), DtWithPause);
+					FPhysicsSolverAdvanceTask ImmediateTask(*this,MoveTemp(CommandQueue),MoveTemp(PushData), DtWithPause, MarshallingManager.GetExternalTimestampConsumed_External());
+#if !UE_BUILD_SHIPPING
+					if (bStealAdvanceTasksForTesting)
+					{
+						StolenSolverAdvanceTasks.Emplace(MoveTemp(ImmediateTask));
+					}
+					else
+					{
+						ImmediateTask.AdvanceSolver();
+					}
+#else
 					ImmediateTask.AdvanceSolver();
+#endif
 				}
 				else
 				{
@@ -227,7 +238,7 @@ namespace Chaos
 						Prereqs.Add(PendingTasks);
 					}
 
-					PendingTasks = TGraphTask<FPhysicsSolverAdvanceTask>::CreateTask(&Prereqs).ConstructAndDispatchWhenReady(*this,MoveTemp(CommandQueue), MoveTemp(PushData), InDt);
+					PendingTasks = TGraphTask<FPhysicsSolverAdvanceTask>::CreateTask(&Prereqs).ConstructAndDispatchWhenReady(*this,MoveTemp(CommandQueue), MoveTemp(PushData), InDt, MarshallingManager.GetExternalTimestampConsumed_External());
 					const bool bAsyncResults = !!UseAsyncResults;
 					if(!bAsyncResults)
 					{
@@ -331,7 +342,7 @@ namespace Chaos
 		virtual void AdvanceSolverBy(const FReal Dt) = 0;
 		virtual void PushPhysicsState(const FReal Dt) = 0;
 		virtual void ProcessPushedData_Internal(const TArray<FPushPhysicsData*>& PushDataArray) = 0;
-		virtual void SetExternalTimestampConsumed_External(const int32 Timestamp) = 0;
+		virtual void SetExternalTimestampConsumed_Internal(const int32 Timestamp) = 0;
 
 #if CHAOS_CHECKED
 		FName DebugName;
@@ -404,5 +415,17 @@ namespace Chaos
 		FSolverPreAdvance EventPreSolve;
 		FSolverPreBuffer EventPreBuffer;
 		FSolverPostAdvance EventPostSolve;
+
+
+#if !UE_BUILD_SHIPPING
+	// Solver testing utility
+	private:
+		// instead of running advance task in single threaded, put in array for manual execution control for unit tests.
+		bool bStealAdvanceTasksForTesting;
+		TArray<FPhysicsSolverAdvanceTask> StolenSolverAdvanceTasks;
+	public:
+		void SetStealAdvanceTasks_ForTesting(bool bInStealAdvanceTasksForTesting);
+		void PopAndExecuteStolenAdvanceTask_ForTesting();
+#endif
 	};
 }

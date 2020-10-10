@@ -12,7 +12,7 @@ class FPicpProjectionMeshPolicy
 	: public FPicpProjectionMPCDIPolicy
 {
 public:
-	FPicpProjectionMeshPolicy(const FString& ViewportId);
+	FPicpProjectionMeshPolicy(const FString& ViewportId, const TMap<FString, FString>& Parameters);
 	virtual ~FPicpProjectionMeshPolicy();
 
 public:

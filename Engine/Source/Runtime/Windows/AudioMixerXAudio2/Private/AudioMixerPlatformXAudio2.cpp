@@ -188,6 +188,7 @@ namespace Audio
 		, TimeSinceNullDeviceWasLastChecked(0.0f)		
 		, bIsInitialized(false)
 		, bIsDeviceOpen(false)
+		, bIsSuspended(false)
 	{
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 		FPlatformMisc::CoInitialize();
@@ -243,6 +244,31 @@ namespace Audio
 		return true;
 	}
 
+	void FMixerPlatformXAudio2::Suspend()
+	{
+		if( !bIsSuspended )
+		{				
+			if( XAudio2System )
+			{
+				XAudio2System->StopEngine();
+				StartRunningNullDevice();
+				bIsSuspended = true;
+			}					
+		}
+	}
+	void FMixerPlatformXAudio2::Resume()
+	{
+		if( bIsSuspended )
+		{
+			if( XAudio2System )
+			{			
+				StopRunningNullDevice();
+				verify(SUCCEEDED(XAudio2System->StartEngine()));
+				bIsSuspended = false;			
+			}						
+		}		
+	}
+
 	bool FMixerPlatformXAudio2::InitializeHardware()
 	{
 		if (bIsInitialized)
@@ -252,6 +278,16 @@ namespace Audio
 
 		}
 
+#if PLATFORM_NEEDS_SUSPEND_ON_BACKGROUND
+
+		// Constrain/Suspend 
+		DeactiveHandle = FCoreDelegates::ApplicationWillDeactivateDelegate.AddRaw(this, &FMixerPlatformXAudio2::Suspend);
+		ReactivateHandle = FCoreDelegates::ApplicationHasReactivatedDelegate.AddRaw(this, &FMixerPlatformXAudio2::Resume);
+		EnteredBackgroundHandle = FCoreDelegates::ApplicationWillEnterBackgroundDelegate.AddRaw(this, &FMixerPlatformXAudio2::Suspend);
+		EnteredForegroundHandle = FCoreDelegates::ApplicationHasEnteredForegroundDelegate.AddRaw(this, &FMixerPlatformXAudio2::Resume);
+
+#endif //PLATFORM_NEEDS_SUSPEND_ON_BACKGROUND
+		
 #if PLATFORM_WINDOWS
 		// Work around the fact the x64 version of XAudio2_7.dll does not properly ref count
 		// by forcing it to be always loaded
@@ -325,6 +361,24 @@ namespace Audio
 			AUDIO_PLATFORM_ERROR(TEXT("XAudio2 was already tore down."));
 			return false;
 		}
+
+#if PLATFORM_NEEDS_SUSPEND_ON_BACKGROUND
+
+		auto UnregisterLambda = [](FDelegateHandle& InHandle, FCoreDelegates::FApplicationLifetimeDelegate& InDelegate) 
+		{
+			if (InHandle.IsValid())
+			{
+				InDelegate.Remove(InHandle);
+				InHandle.Reset();
+			}
+		};
+	 		
+		UnregisterLambda(DeactiveHandle,FCoreDelegates::ApplicationWillDeactivateDelegate);
+		UnregisterLambda(ReactivateHandle,FCoreDelegates::ApplicationHasReactivatedDelegate);
+		UnregisterLambda(EnteredBackgroundHandle,FCoreDelegates::ApplicationWillEnterBackgroundDelegate);
+		UnregisterLambda(EnteredForegroundHandle,FCoreDelegates::ApplicationHasEnteredForegroundDelegate);
+
+#endif //PLATFORM_NEEDS_SUSPEND_ON_BACKGROUND
 
 		SAFE_RELEASE(XAudio2System);
 

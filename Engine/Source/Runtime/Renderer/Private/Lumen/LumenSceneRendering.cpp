@@ -19,6 +19,7 @@
 #include "LumenCubeMapTree.h"
 #include "LumenSceneUtils.h"
 #include "DistanceFieldAmbientOcclusion.h"
+#include "HAL/LowLevelMemStats.h"
 
 int32 GAllowLumenScene = 0;
 FAutoConsoleVariableRef CVarLumenGILumenScene(
@@ -209,6 +210,12 @@ FAutoConsoleVariableRef CVarLumenSceneGlobalDFClipmapExtent(
 	ECVF_RenderThreadSafe
 );
 
+#if ENABLE_LOW_LEVEL_MEM_TRACKER
+DECLARE_LLM_MEMORY_STAT(TEXT("Lumen"), STAT_LumenLLM, STATGROUP_LLMFULL);
+DECLARE_LLM_MEMORY_STAT(TEXT("Lumen"), STAT_LumenSummaryLLM, STATGROUP_LLM);
+LLM_DEFINE_TAG(Lumen, NAME_None, NAME_None, GET_STATFNAME(STAT_LumenLLM), GET_STATFNAME(STAT_LumenSummaryLLM));
+#endif // ENABLE_LOW_LEVEL_MEM_TRACKER
+
 namespace Lumen
 {
 	bool AnyLumenHardwareRayTracingPassEnabled()
@@ -352,7 +359,7 @@ public:
 
 void FLumenCardMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 
 	if (MeshBatch.bUseForMaterial && DoesPlatformSupportLumenGI(GetFeatureLevelShaderPlatform(FeatureLevel)))
 	{
@@ -414,7 +421,7 @@ FLumenCardMeshProcessor::FLumenCardMeshProcessor(const FScene* Scene, const FSce
 
 FMeshPassProcessor* CreateLumenCardCapturePassProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 
 	FMeshPassProcessorRenderState PassState;
 	PassState.SetViewUniformBuffer(Scene->UniformBuffers.LumenCardCaptureViewUniformBuffer);
@@ -460,7 +467,7 @@ void FLumenCardNaniteMeshProcessor::AddMeshBatch(
 	int32 StaticMeshId /*= -1 */
 	)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 
 	if (PrimitiveSceneProxy && PrimitiveSceneProxy->ShouldRenderInMainPass() && PrimitiveSceneProxy->AffectsDynamicIndirectLighting() && DoesPlatformSupportLumenGI(GetFeatureLevelShaderPlatform(FeatureLevel)))
 	{
@@ -508,7 +515,7 @@ FMeshPassProcessor* CreateLumenCardNaniteMeshProcessor(
 	const FSceneView* InViewIfDynamicMeshCommand,
 	FMeshPassDrawListContext* InDrawListContext)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 
 	FMeshPassProcessorRenderState PassState;
 	PassState.SetViewUniformBuffer(Scene->UniformBuffers.LumenCardCaptureViewUniformBuffer);
@@ -645,7 +652,7 @@ void FCardSourceData::SetTransform(
 
 void FCardSourceData::RemoveFromAtlas(FLumenSceneData& LumenSceneData)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 
 	if (bAllocated)
 	{
@@ -668,7 +675,7 @@ FLumenSceneData::FLumenSceneData(EShaderPlatform ShaderPlatform, EWorldType::Typ
 	MaxAtlasSize(0, 0),
 	AtlasAllocator(FIntPoint(1, 1), 1)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MeshCardRepresentation"));
 
@@ -677,7 +684,7 @@ FLumenSceneData::FLumenSceneData(EShaderPlatform ShaderPlatform, EWorldType::Typ
 
 FLumenSceneData::~FLumenSceneData()
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 
 	for (FLumenCubeMapTree& CubeMapTree : CubeMapTrees)
 	{
@@ -706,7 +713,7 @@ bool TrackPrimitiveForLumenScene(const FPrimitiveSceneProxy* Proxy)
 
 void FLumenSceneData::AddPrimitive(FPrimitiveSceneInfo* InPrimitive)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 
 	const FPrimitiveSceneProxy* Proxy = InPrimitive->Proxy;
 
@@ -721,7 +728,7 @@ void FLumenSceneData::AddPrimitive(FPrimitiveSceneInfo* InPrimitive)
 
 void FLumenSceneData::UpdatePrimitive(FPrimitiveSceneInfo* InPrimitive)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 
 	const FPrimitiveSceneProxy* Proxy = InPrimitive->Proxy;
 
@@ -749,7 +756,7 @@ void FLumenSceneData::UpdatePrimitive(FPrimitiveSceneInfo* InPrimitive)
 
 void FLumenSceneData::RemovePrimitive(FPrimitiveSceneInfo* InPrimitive)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 
 	const FPrimitiveSceneProxy* Proxy = InPrimitive->Proxy;
 
@@ -866,7 +873,7 @@ void FCardRenderData::PatchView(FRHICommandList& RHICmdList, const FScene* Scene
 
 void UpdateDirtyCards(FScene* Scene, bool bReallocateAtlas, bool bLatchedRecaptureLumenSceneOnce)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 	TRACE_CPUPROFILER_EVENT_SCOPE(UpdateDirtyCards);
 	QUICK_SCOPE_CYCLE_COUNTER(UpdateDirtyCards);
 
@@ -887,7 +894,7 @@ void UpdateDirtyCards(FScene* Scene, bool bReallocateAtlas, bool bLatchedRecaptu
 
 void ClearAtlas(FRHICommandListImmediate& RHICmdList, const TRefCountPtr<IPooledRenderTarget>& Atlas)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 	FRHITexture* RenderTargetArray[1] =
 	{
 		Atlas->GetRenderTargetItem().TargetableTexture
@@ -903,7 +910,7 @@ void ClearAtlas(FRHICommandListImmediate& RHICmdList, const TRefCountPtr<IPooled
 
 void ClearAtlasesToDebugValues(FRHICommandListImmediate& RHICmdList, FLumenSceneData& LumenSceneData)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 
 	// Clear to debug values to make out of bounds reads obvious
 	ClearAtlas(RHICmdList, LumenSceneData.DepthAtlas);
@@ -920,7 +927,7 @@ FIntPoint GetDesiredAtlasSize()
 
 void AllocateCardAtlasses(FRHICommandListImmediate& RHICmdList, FLumenSceneData& LumenSceneData)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 
 	const int32 NumMips = FMath::CeilLogTwo(FMath::Max(LumenSceneData.MaxAtlasSize.X, LumenSceneData.MaxAtlasSize.Y)) + 1;
 
@@ -981,7 +988,7 @@ void AddCardCaptureDraws(const FScene* Scene,
 	TArray<int32, SceneRenderingAllocator>& PrimitiveIds,
 	TSet<FPrimitiveSceneInfo*>& PrimitivesToUpdateStaticMeshes)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 	const EMeshPass::Type MeshPass = EMeshPass::LumenCardCapture;
 
 	if (PrimitiveSceneInfo && PrimitiveSceneInfo->Proxy->AffectsDynamicIndirectLighting())
@@ -1078,7 +1085,7 @@ void AddCardCaptureDraws(const FScene* Scene,
 
 void FDeferredShadingSceneRenderer::UpdateLumenCardAtlasAllocation(FRHICommandListImmediate& RHICmdList, const FViewInfo& MainView, bool bReallocateAtlas, bool bRecaptureLumenSceneOnce)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 	TRACE_CPUPROFILER_EVENT_SCOPE(UpdateCardAtlasAllocation);
 	QUICK_SCOPE_CYCLE_COUNTER(UpdateCardAtlasAllocation);
 
@@ -1363,7 +1370,7 @@ float ComputeMaxCardUpdateDistanceFromCamera()
 
 void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRHICommandListImmediate& RHICmdList)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 
 	const FViewInfo& MainView = Views[0];
 
@@ -1772,7 +1779,7 @@ DECLARE_GPU_STAT(UpdateCardSceneBuffer);
 
 void UpdateCardSceneBuffer(FRHICommandListImmediate& RHICmdList, const FSceneViewFamily& ViewFamily, FScene* Scene)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(UpdateCardSceneBuffer);
 	QUICK_SCOPE_CYCLE_COUNTER(UpdateCardSceneBuffer);
@@ -1873,7 +1880,7 @@ void ClearLumenCards(FRDGBuilder& GraphBuilder,
 	FRDGBufferSRVRef RectMinMaxBufferSRV,
 	uint32 NumRects)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 
 	FClearLumenCardsParameters* PassParameters = GraphBuilder.AllocParameters<FClearLumenCardsParameters>();
 
@@ -1910,7 +1917,7 @@ END_SHADER_PARAMETER_STRUCT()
 
 void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 
 	if (GAllowLumenScene
 		&& ViewFamily.EngineShowFlags.Lighting

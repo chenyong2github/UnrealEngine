@@ -6,7 +6,12 @@ namespace UnrealBuildTool.Rules
 	{
 		public HairStrandsCore(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.Add(ModuleDirectory + "/Private");
+			// Include Renderer/Private to have access to default resources
+			PrivateIncludePaths.AddRange(
+				new string[] {
+					ModuleDirectory + "/Private",
+					EngineDirectory + "/Source/Runtime/Renderer/Private",
+				});
 			PublicIncludePaths.Add(ModuleDirectory + "/Public");
 
 			PrivateDependencyModuleNames.AddRange(
@@ -15,14 +20,16 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"Engine",
+					"Projects",
 					"MeshDescription",
+					"NiagaraCore",
 					"Niagara",
+					"NiagaraShader",
 					"RenderCore",
 					"Renderer",
+					"VectorVM",
 					"RHI",
-					"ChaosCore",
-					"Chaos",
-					"Eigen"
+					"StaticMeshDescription"
 				});
 
 			if (Target.bBuildEditor == true)
@@ -31,6 +38,7 @@ namespace UnrealBuildTool.Rules
 					new string[]
 					{
 					"DerivedDataCache",
+					"Eigen",
 					});
 			}
 		}

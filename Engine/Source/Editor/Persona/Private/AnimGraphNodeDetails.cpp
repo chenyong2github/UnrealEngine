@@ -1391,10 +1391,10 @@ TSharedRef<SWidget> FAnimGraphNodeBindingExtension::GenerateExtensionWidget(cons
 					AnimGraphNode->PropertyBindings.Add(InPropertyName, Binding);
 				}
 
-				FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
+				FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
 			}
 
-			ShowPinPropertyHandle->SetValue(false);
+			ShowPinPropertyHandle->SetValue(true);
 		});
 
 		Args.OnRemoveBinding = FOnRemoveBinding::CreateLambda([OuterObjects, Blueprint](FName InPropertyName)
@@ -1409,7 +1409,7 @@ TSharedRef<SWidget> FAnimGraphNodeBindingExtension::GenerateExtensionWidget(cons
 				}
 			}
 
-			FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
+			FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
 		});
 
 		Args.OnCanRemoveBinding = FOnCanRemoveBinding::CreateLambda([OuterObjects](FName InPropertyName)
@@ -1608,7 +1608,7 @@ TSharedRef<SWidget> FAnimGraphNodeBindingExtension::GenerateExtensionWidget(cons
 		});
 
 		Args.MenuExtender = MakeShared<FExtender>();
-		Args.MenuExtender->AddMenuExtension("BindingActions", EExtensionHook::Before, nullptr, FMenuExtensionDelegate::CreateLambda([ShowPinPropertyHandle, OuterObjects, PropertyName](FMenuBuilder& InMenuBuilder)
+		Args.MenuExtender->AddMenuExtension("BindingActions", EExtensionHook::Before, nullptr, FMenuExtensionDelegate::CreateLambda([ShowPinPropertyHandle, OuterObjects, PropertyName, Blueprint](FMenuBuilder& InMenuBuilder)
 		{
 			InMenuBuilder.BeginSection("Pins", LOCTEXT("Pin", "Pin"));
 			{
@@ -1617,15 +1617,27 @@ TSharedRef<SWidget> FAnimGraphNodeBindingExtension::GenerateExtensionWidget(cons
 					LOCTEXT("ExposeAsPinTooltip", "Show/hide this property as a pin on the node"),
 					FSlateIcon("EditorStyle", "GraphEditor.PinIcon"),
 					FUIAction(
-						FExecuteAction::CreateLambda([ShowPinPropertyHandle, OuterObjects, PropertyName]()
+						FExecuteAction::CreateLambda([ShowPinPropertyHandle, OuterObjects, PropertyName, Blueprint]()
 						{
 							bool bValue = false;
 							ShowPinPropertyHandle->GetValue(bValue);
 
-							{
-								FScopedTransaction Transaction(bValue ? LOCTEXT("RemoveExposeAsPin", "Remove Expose As Pin") : LOCTEXT("ExposeAsPin", "Expose As Pin"));
+							bool bHasBinding = false;
 
-								ShowPinPropertyHandle->SetValue(!bValue);
+							for(UObject* OuterObject : OuterObjects)
+							{
+								if(UAnimGraphNode_Base* AnimGraphNode = Cast<UAnimGraphNode_Base>(OuterObject))
+								{
+									bHasBinding |= AnimGraphNode->PropertyBindings.Find(PropertyName) != nullptr;
+								}
+							}
+
+							{
+								FScopedTransaction Transaction(LOCTEXT("PinExposure", "Pin Exposure"));
+
+								// Pins are exposed if we have a binding or not, so treat as unchecked only if we have
+								// no binding
+								ShowPinPropertyHandle->SetValue(!bValue || bHasBinding);
 
 								// Switching from non-pin to pin, remove any bindings
 								for(UObject* OuterObject : OuterObjects)
@@ -1637,10 +1649,12 @@ TSharedRef<SWidget> FAnimGraphNodeBindingExtension::GenerateExtensionWidget(cons
 										AnimGraphNode->PropertyBindings.Remove(PropertyName);
 									}
 								}
+
+								FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
 							}
 						}),
 						FCanExecuteAction(),
-						FGetActionCheckState::CreateLambda([ShowPinPropertyHandle]()
+						FGetActionCheckState::CreateLambda([ShowPinPropertyHandle, OuterObjects, PropertyName]()
 						{
 							bool bValue;
 							FPropertyAccess::Result Result = ShowPinPropertyHandle->GetValue(bValue);
@@ -1650,6 +1664,20 @@ TSharedRef<SWidget> FAnimGraphNodeBindingExtension::GenerateExtensionWidget(cons
 							}
 							else
 							{
+								bool bHasBinding = false;
+
+								for(UObject* OuterObject : OuterObjects)
+								{
+									if(UAnimGraphNode_Base* AnimGraphNode = Cast<UAnimGraphNode_Base>(OuterObject))
+									{
+										bHasBinding |= AnimGraphNode->PropertyBindings.Find(PropertyName) != nullptr;
+									}
+								}
+
+								// Pins are exposed if we have a binding or not, so treat as unchecked only if we have
+								// no binding
+								bValue = bValue && !bHasBinding;
+
 								return bValue ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 							}
 

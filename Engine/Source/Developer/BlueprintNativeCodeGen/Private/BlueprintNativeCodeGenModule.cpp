@@ -141,7 +141,16 @@ void FBlueprintNativeCodeGenModule::ReadConfig()
 			TSoftClassPtr<UBlueprint> ClassPtr;
 			ClassPtr = FSoftObjectPath(Path);
 			ClassPtr.LoadSynchronous();
-			ExcludedBlueprintTypes.Add(ClassPtr);
+			if (ClassPtr.IsValid())
+			{
+				ExcludedBlueprintTypes.Add(ClassPtr);
+
+				UE_LOG(LogBlueprintCodeGen, Log, TEXT("Excluding all Blueprint assets of type \'%s\'"), *Path);
+			}
+			else
+			{
+				UE_LOG(LogBlueprintCodeGen, Warning, TEXT("Unable to exclude Blueprints of type \'%s\' - perhaps the class path is incorrect, or it does not represent a UBlueprint subtype?"), *Path);
+			}
 		}
 	}
 
@@ -975,11 +984,7 @@ EReplacementResult FBlueprintNativeCodeGenModule::IsTargetedForReplacement(const
 			for (TSoftClassPtr<UBlueprint> ExcludedBlueprintTypeAsset : ExcludedBlueprintTypes)
 			{
 				UClass* ExcludedBPClass = ExcludedBlueprintTypeAsset.Get();
-				if (!ExcludedBPClass)
-				{
-					ExcludedBPClass = ExcludedBlueprintTypeAsset.LoadSynchronous();
-				}
-				if (ExcludedBPClass && Blueprint->IsA(ExcludedBPClass))
+				if (ensure(ExcludedBPClass) && Blueprint->IsA(ExcludedBPClass))
 				{
 					return true;
 				}

@@ -177,6 +177,7 @@
 #include "Materials/MaterialExpressionSaturate.h"
 #include "Materials/MaterialExpressionSceneColor.h"
 #include "Materials/MaterialExpressionSceneDepth.h"
+#include "Materials/MaterialExpressionSceneDepthWithoutWater.h"
 #include "Materials/MaterialExpressionSceneTexelSize.h"
 #include "Materials/MaterialExpressionSceneTexture.h"
 #include "Materials/MaterialExpressionScreenPosition.h"
@@ -241,9 +242,11 @@
 #include "Materials/MaterialExpressionCurveAtlasRowParameter.h"
 #include "Materials/MaterialExpressionMapARPassthroughCameraUV.h"
 #include "Materials/MaterialExpressionShaderStageSwitch.h"
+#include "Materials/MaterialUniformExpressions.h"
 #include "Materials/MaterialExpressionReflectionCapturePassSwitch.h"
 #include "Materials/MaterialExpressionStrata.h"
 #include "Materials/MaterialUniformExpressions.h"
+#include "Materials/MaterialExpressionSamplePhysicsField.h"
 #include "EditorSupportDelegates.h"
 #include "MaterialCompiler.h"
 #if WITH_EDITOR
@@ -11342,7 +11345,7 @@ UMaterialExpressionActorPositionWS::UMaterialExpressionActorPositionWS(const FOb
 #if WITH_EDITOR
 int32 UMaterialExpressionActorPositionWS::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	if (Material != nullptr && (Material->MaterialDomain != MD_Surface) && (Material->MaterialDomain != MD_DeferredDecal) && (Material->MaterialDomain != MD_RuntimeVirtualTexture) && (Material->MaterialDomain != MD_Volume))
+	if (Material != nullptr && (Material->MaterialDomain != MD_Surface) && (Material->MaterialDomain != MD_DeferredDecal) && (Material->MaterialDomain != MD_Volume))
 	{
 		return CompilerError(Compiler, TEXT("Expression only available in the Surface and Deferred Decal material domains."));
 	}
@@ -16006,6 +16009,153 @@ void UMaterialExpressionDistanceFieldGradient::GetCaption(TArray<FString>& OutCa
 #endif // WITH_EDITOR
 
 ///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionSamplePhysicsVectorField
+///////////////////////////////////////////////////////////////////////////////
+
+UMaterialExpressionSamplePhysicsVectorField::UMaterialExpressionSamplePhysicsVectorField(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Utility;
+		FConstructorStatics()
+			: NAME_Utility(LOCTEXT("Utility", "Utility"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+	FieldTarget = EFieldVectorType::Vector_LinearForce;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Utility);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionSamplePhysicsVectorField::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	int32 PositionArg = INDEX_NONE;
+
+	if (WorldPosition.GetTracedInput().Expression)
+	{
+		PositionArg = WorldPosition.Compile(Compiler);
+	}
+	else
+	{
+		PositionArg = Compiler->WorldPosition(WPT_Default);
+	}
+
+	return Compiler->SamplePhysicsField(PositionArg, EFieldOutputType::Field_Output_Vector, static_cast<uint8>(FieldTarget));
+}
+
+void UMaterialExpressionSamplePhysicsVectorField::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("SamplePhysicsVectorField"));
+}
+#endif // WITH_EDITOR
+
+///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionSamplePhysicsScalarField
+///////////////////////////////////////////////////////////////////////////////
+
+UMaterialExpressionSamplePhysicsScalarField::UMaterialExpressionSamplePhysicsScalarField(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Utility;
+		FConstructorStatics()
+			: NAME_Utility(LOCTEXT("Utility", "Utility"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+	FieldTarget = EFieldScalarType::Scalar_DynamicConstraint;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Utility);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionSamplePhysicsScalarField::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	int32 PositionArg = INDEX_NONE;
+
+	if (WorldPosition.GetTracedInput().Expression)
+	{
+		PositionArg = WorldPosition.Compile(Compiler);
+	}
+	else
+	{
+		PositionArg = Compiler->WorldPosition(WPT_Default);
+	}
+
+	return Compiler->SamplePhysicsField(PositionArg, EFieldOutputType::Field_Output_Scalar, static_cast<uint8>(FieldTarget));
+}
+
+void UMaterialExpressionSamplePhysicsScalarField::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("SamplePhysicsScalarField"));
+}
+#endif // WITH_EDITOR
+
+
+///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionSamplePhysicsIntegerField
+///////////////////////////////////////////////////////////////////////////////
+
+UMaterialExpressionSamplePhysicsIntegerField::UMaterialExpressionSamplePhysicsIntegerField(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Utility;
+		FConstructorStatics()
+			: NAME_Utility(LOCTEXT("Utility", "Utility"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+	FieldTarget = EFieldIntegerType::Integer_DynamicState;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Utility);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionSamplePhysicsIntegerField::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	int32 PositionArg = INDEX_NONE;
+
+	if (WorldPosition.GetTracedInput().Expression)
+	{
+		PositionArg = WorldPosition.Compile(Compiler);
+	}
+	else
+	{
+		PositionArg = Compiler->WorldPosition(WPT_Default);
+	}
+
+	return Compiler->SamplePhysicsField(PositionArg, EFieldOutputType::Field_Output_Integer, static_cast<uint8>(FieldTarget));
+}
+
+void UMaterialExpressionSamplePhysicsIntegerField::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("SamplePhysicsScalarField"));
+}
+#endif // WITH_EDITOR
+
+
+
+///////////////////////////////////////////////////////////////////////////////
 // UMaterialExpressionDistance
 ///////////////////////////////////////////////////////////////////////////////
 UMaterialExpressionDistance::UMaterialExpressionDistance(const FObjectInitializer& ObjectInitializer)
@@ -18109,6 +18259,8 @@ UMaterialExpressionHairAttributes::UMaterialExpressionHairAttributes(const FObje
 
 #endif
 
+	bUseTangentSpace = true;
+
 #if WITH_EDITORONLY_DATA
 	bShowOutputNameOnPin = true;
 
@@ -18118,7 +18270,7 @@ UMaterialExpressionHairAttributes::UMaterialExpressionHairAttributes(const FObje
 	Outputs.Add(FExpressionOutput(TEXT("Length"), 1, 1, 0, 0, 0));
 	Outputs.Add(FExpressionOutput(TEXT("Radius"), 1, 0, 1, 0, 0));
 	Outputs.Add(FExpressionOutput(TEXT("Seed"), 1, 1, 0, 0, 0));
-	Outputs.Add(FExpressionOutput(TEXT("World Tangent"), 1, 1, 1, 1, 0));
+	Outputs.Add(FExpressionOutput(TEXT("Tangent"), 1, 1, 1, 1, 0));
 	Outputs.Add(FExpressionOutput(TEXT("Root UV"), 1, 1, 1, 0, 0));
 	Outputs.Add(FExpressionOutput(TEXT("BaseColor"), 1, 1, 1, 1, 0));
 	Outputs.Add(FExpressionOutput(TEXT("Roughness"), 1, 1, 0, 0, 0));
@@ -18145,7 +18297,7 @@ int32 UMaterialExpressionHairAttributes::Compile(class FMaterialCompiler* Compil
 	}
 	else if (OutputIndex == 5)
 	{
-		return Compiler->GetHairTangent();
+		return Compiler->GetHairTangent(bUseTangentSpace);
 	}
 	else if (OutputIndex == 6)
 	{
@@ -18545,7 +18697,6 @@ void UMaterialExpressionVolumetricAdvancedMaterialInput::GetCaption(TArray<FStri
 }
 #endif // WITH_EDITOR
 
-
 ///////////////////////////////////////////////////////////////////////////////
 // UMaterialExpressionReflectionCapturePassSwitch
 ///////////////////////////////////////////////////////////////////////////////
@@ -18599,7 +18750,6 @@ void UMaterialExpressionReflectionCapturePassSwitch::GetExpressionToolTip(TArray
 	ConvertToMultilineToolTip(TEXT("Allows material to define specialized behavior when being rendered into reflection capture views."), 40, OutToolTip);
 }
 #endif // WITH_EDITOR
-
 
 ///////////////////////////////////////////////////////////////////////////////
 // UMaterialExpressionCloudSampleAttribute
@@ -18720,6 +18870,71 @@ FString UMaterialExpressionThinTranslucentMaterialOutput::GetDisplayName() const
 }
 
 
+///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionSceneDepthWithoutWater
+///////////////////////////////////////////////////////////////////////////////
+UMaterialExpressionSceneDepthWithoutWater::UMaterialExpressionSceneDepthWithoutWater()
+{
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(LOCTEXT("Water", "Water"));
+
+	Outputs.Reset();
+	Outputs.Add(FExpressionOutput(TEXT(""), 1, 1, 0, 0, 0));
+	bShaderInputData = true;
+#endif // WITH_EDITORONLY_DATA
+
+	ConstInput = FVector2D(0.f, 0.f);
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionSceneDepthWithoutWater::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	int32 OffsetIndex = INDEX_NONE;
+	int32 CoordinateIndex = INDEX_NONE;
+	bool bUseOffset = false;
+
+	if (InputMode == EMaterialSceneAttributeInputMode::OffsetFraction)
+	{
+		if (Input.GetTracedInput().Expression)
+		{
+			OffsetIndex = Input.Compile(Compiler);
+		}
+		else
+		{
+			OffsetIndex = Compiler->Constant2(ConstInput.X, ConstInput.Y);
+		}
+		bUseOffset = true;
+	}
+	else if (InputMode == EMaterialSceneAttributeInputMode::Coordinates)
+	{
+		if (Input.GetTracedInput().Expression)
+		{
+			CoordinateIndex = Input.Compile(Compiler);
+		}
+	}
+
+	int32 Result = Compiler->SceneDepthWithoutWater(OffsetIndex, CoordinateIndex, bUseOffset, FallbackDepth);
+	return Result;
+}
+
+void UMaterialExpressionSceneDepthWithoutWater::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Scene Depth Without Water"));
+}
+
+FName UMaterialExpressionSceneDepthWithoutWater::GetInputName(int32 InputIndex) const
+{
+	if (InputIndex == 0)
+	{
+		// Display the current InputMode enum's display name.
+		FByteProperty* InputModeProperty = FindFProperty<FByteProperty>(UMaterialExpressionSceneDepthWithoutWater::StaticClass(), "InputMode");
+		// Can't use GetNameByValue as GetNameStringByValue does name mangling that GetNameByValue does not
+		return *InputModeProperty->Enum->GetNameStringByValue((int64)InputMode.GetValue());
+	}
+	return NAME_None;
+}
+
+#endif // WITH_EDITOR
 
 ///////////////////////////////////////////////////////////////////////////////
 // Strata

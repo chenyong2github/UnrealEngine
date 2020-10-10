@@ -19,6 +19,8 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "Kismet/BlueprintSetLibrary.h"
+#include "Kismet/BlueprintMapLibrary.h"
 
 // Special libraries
 #include "Kismet/DataTableFunctionLibrary.h"
@@ -474,6 +476,12 @@ public:
 		Result = A.Difference(B);
 	}
 
+	template<typename T>
+	static void SetSetPropertyByName(UObject* Object, FName PropertyName, const TSet<T>& Value)
+	{
+		UBlueprintSetLibrary::GenericSet_SetSetPropertyByName(Object, PropertyName, &Value);
+	}
+
 	//Replacements for CustomThunk functions from UBlueprintMapLibrary
 	template<typename T, typename U, typename V, typename W>
 	static void Map_Add(TMap<T, U>& TargetMap, const V& Key, const W& Value)
@@ -541,6 +549,12 @@ public:
 	static void Map_Clear(TMap<T, U>& TargetMap)
 	{
 		TargetMap.Empty();
+	}
+
+	template<typename T, typename U>
+	static void SetMapPropertyByName(UObject* Object, FName PropertyName, const TMap<T, U>& Value)
+	{
+		UBlueprintMapLibrary::GenericMap_SetMapPropertyByName(Object, PropertyName, &Value);
 	}
 
 	//Replacements for CustomThunk functions from UDataTableFunctionLibrary

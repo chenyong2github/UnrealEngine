@@ -6,11 +6,13 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Misc/FrameRate.h"
 #include "Misc/Timecode.h"
+#include "MovieSceneObjectBindingID.h"
 #include "VCamBlueprintFunctionLibrary.generated.h"
 
+class UCineCameraComponent;
 class ULevelSequence;
-class UVirtualCameraClipsMetaData;
 class USceneCaptureComponent2D;
+class UVirtualCameraClipsMetaData;
 class UVirtualCameraUserSettings; 
 
 UCLASS(config=VirtualCamera, BlueprintType)
@@ -119,6 +121,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "VirtualCamera")
 	static void EditorSetGameView(bool bIsToggled);
 
+	/** Calculates auto focus */
+	UFUNCTION(BlueprintCallable, Category = "VirtualCamera")
+	static float CalculateAutoFocusDistance(FVector2D ReticlePosition, UCineCameraComponent* CineCamera);
+
+	/** Get UObject from Camera Object Bindings*/
+	UFUNCTION(BlueprintCallable, Category = "VirtualCamera")
+	static TArray<UObject*> GetBoundObjects(FMovieSceneObjectBindingID CameraBindingID);
+
+	/** Enable/Disable debug focus plane*/
+	UFUNCTION(BlueprintCallable, Category = "VirtualCamera")
+	static void EnableDebugFocusPlane(UCineCameraComponent* CineCamera, bool bEnabled);
+
+private:
+
+	static bool DeprojectScreenToWorld(const FVector2D& InScreenPosition, FVector& OutWorldPosition, FVector& OutWorldDirection);
 };
-
-

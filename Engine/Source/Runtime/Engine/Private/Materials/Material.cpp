@@ -30,6 +30,7 @@
 #include "Materials/MaterialExpressionMakeMaterialAttributes.h"
 #include "Materials/MaterialExpressionSetMaterialAttributes.h"
 #include "Materials/MaterialExpressionParameter.h"
+#include "Materials/MaterialExpressionRuntimeVirtualTextureOutput.h"
 #include "Materials/MaterialExpressionRuntimeVirtualTextureSampleParameter.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
 #include "Materials/MaterialExpressionStaticBoolParameter.h"
@@ -42,6 +43,7 @@
 #include "Materials/MaterialExpressionVertexInterpolator.h"
 #include "Materials/MaterialExpressionSceneColor.h"
 #include "Materials/MaterialExpressionShadingModel.h"
+#include "Materials/MaterialExpressionTransform.h"
 #include "Materials/MaterialFunction.h"
 #include "Materials/MaterialFunctionInstance.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
@@ -1610,7 +1612,7 @@ bool UMaterial::NeedsSetMaterialUsage_Concurrent(bool &bOutHasUsage, EMaterialUs
 {
 	bOutHasUsage = true;
 	// Material usage is only relevant for materials that can be applied onto a mesh / use with different vertex factories.
-	if (MaterialDomain != MD_Surface && MaterialDomain != MD_DeferredDecal && MaterialDomain != MD_Volume && MaterialDomain != MD_RuntimeVirtualTexture)
+	if (MaterialDomain != MD_Surface && MaterialDomain != MD_DeferredDecal && MaterialDomain != MD_Volume)
 	{
 		bOutHasUsage = false;
 		return false;
@@ -1640,7 +1642,7 @@ bool UMaterial::SetMaterialUsage(bool &bNeedsRecompile, EMaterialUsage Usage)
 	bNeedsRecompile = false;
 
 	// Material usage is only relevant for materials that can be applied onto a mesh / use with different vertex factories.
-	if (MaterialDomain != MD_Surface && MaterialDomain != MD_DeferredDecal && MaterialDomain != MD_Volume && MaterialDomain != MD_RuntimeVirtualTexture)
+	if (MaterialDomain != MD_Surface && MaterialDomain != MD_DeferredDecal && MaterialDomain != MD_Volume)
 	{
 		return false;
 	}
@@ -3413,6 +3415,91 @@ void UMaterial::BackwardsCompatibilityInputConversion()
 #endif // WITH_EDITOR
 }
 
+void UMaterial::BackwardsCompatibilityVirtualTextureOutputConversion()
+{
+#if WITH_EDITOR
+	// Remove MD_RuntimeVirtualTexture support and replace with an explicit UMaterialExpressionRuntimeVirtualTextureOutput.
+	if (MaterialDomain == MD_RuntimeVirtualTexture)
+	{
+		MaterialDomain = MD_Surface;
+
+		if (!bUseMaterialAttributes)
+		{
+			// Create a new UMaterialExpressionRuntimeVirtualTextureOutput node and route the old material attribute output to it.
+			UMaterialExpressionRuntimeVirtualTextureOutput* OutputExpression = NewObject<UMaterialExpressionRuntimeVirtualTextureOutput>(this);
+			Expressions.Add(OutputExpression);
+
+			OutputExpression->MaterialExpressionEditorX = EditorX;
+			OutputExpression->MaterialExpressionEditorY = EditorY - 300;
+
+			if (BaseColor.IsConnected())
+			{
+				OutputExpression->GetInput(0)->Connect(BaseColor.OutputIndex, BaseColor.Expression);
+			}
+			if (Specular.IsConnected())
+			{
+				OutputExpression->GetInput(1)->Connect(Specular.OutputIndex, Specular.Expression);
+			}
+			if (Roughness.IsConnected())
+			{
+				OutputExpression->GetInput(2)->Connect(Roughness.OutputIndex, Roughness.Expression);
+			}
+			if (Normal.IsConnected())
+			{
+				if (bTangentSpaceNormal)
+				{
+					OutputExpression->GetInput(3)->Connect(Normal.OutputIndex, Normal.Expression);
+				}
+				else
+				{
+					// Apply the tangent space to world transform that would be applied in the material output.
+					UMaterialExpressionTransform* TransformExpression = NewObject<UMaterialExpressionTransform>(this);
+					Expressions.Add(TransformExpression);
+
+					TransformExpression->MaterialExpressionEditorX = EditorX - 300;
+					TransformExpression->MaterialExpressionEditorY = EditorY - 300;
+					TransformExpression->TransformSourceType = TRANSFORMSOURCE_Tangent;
+					TransformExpression->TransformType = TRANSFORM_World;
+					TransformExpression->Input.Connect(Normal.OutputIndex, Normal.Expression);
+
+					OutputExpression->GetInput(3)->Connect(0, TransformExpression);
+				}
+			}
+			if (Opacity.IsConnected())
+			{
+				OutputExpression->GetInput(5)->Connect(Opacity.OutputIndex, Opacity.Expression);
+			}
+			if (BlendMode != BLEND_Opaque)
+			{
+				// Full alpha blend modes were mostly/always used with MD_RuntimeVirtualTexture to allow pin connections.
+				// But we will assume the intention for any associated MD_Surface output is opaque or alpha mask and force convert here.
+				if (Opacity.IsConnected())
+				{
+					OpacityMask.Connect(Opacity.OutputIndex, Opacity.Expression);
+					Opacity.Expression = nullptr;
+				}
+				BlendMode = OpacityMask.IsConnected() ? BLEND_Masked : BLEND_Opaque;
+				bCanMaskedBeAssumedOpaque = !OpacityMask.Expression && !(OpacityMask.UseConstant && OpacityMask.Constant < 0.999f);
+			}
+		}
+
+		// Recompile after changes.
+		FlushResourceShaderMaps();
+
+		// Note we can't mark the package dirty during post load so we will recompile on load until this material is manually resaved. 
+		// Also we can't fully deprecate until all the relevant materials are resaved. 
+		// So add a map load error here to encourage a save.
+		FFormatNamedArguments Arguments;
+		Arguments.Add(TEXT("Material"), FText::FromString(*GetPathName()));
+		FMessageLog("MapCheck").Warning()
+			->AddToken(FUObjectToken::Create(this))
+			->AddToken(FTextToken::Create(FText::Format(LOCTEXT("MapCheck_RuntimeVirtualTextureMaterialDomain", "Material {Material} has been updated to use a RuntimeVirtualTextureOutput node instead of a RuntimeVirtualTexture Domain. If the material asset is not re-saved it may not render correctly when run outside of the editor."), Arguments)))
+			->AddToken(FActionToken::Create(LOCTEXT("MapCheck_RuntimeVirtualTextureMaterialDomain_Fix", "Fix"), LOCTEXT("MapCheck_RuntimeVirtualTextureMaterialDomain_Action", "Click to mark the material as needing to be saved."), FOnActionTokenExecuted::CreateUObject(this, &UMaterial::FixupMaterialUsageAfterLoad), true));
+		FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
+	}
+#endif // WITH_EDITOR
+}
+
 void UMaterial::GetQualityLevelUsage(TArray<bool, TInlineAllocator<EMaterialQualityLevel::Num> >& OutQualityLevelsUsed, EShaderPlatform ShaderPlatform, bool bCooking)
 {
 	OutQualityLevelsUsed = CachedExpressionData.QualityLevelsUsed;
@@ -3591,6 +3678,7 @@ void UMaterial::PostLoad()
 	}
 
 	BackwardsCompatibilityInputConversion();
+	BackwardsCompatibilityVirtualTextureOutputConversion();
 
 #if WITH_EDITOR
 	if ( GMaterialsThatNeedSamplerFixup.Get( this ) )
@@ -3929,7 +4017,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, BlendMode))
 		{
-			return MaterialDomain == MD_DeferredDecal || MaterialDomain == MD_Surface || MaterialDomain == MD_Volume || MaterialDomain == MD_UI || MaterialDomain == MD_RuntimeVirtualTexture || (MaterialDomain == MD_PostProcess && BlendableOutputAlpha);
+			return MaterialDomain == MD_DeferredDecal || MaterialDomain == MD_Surface || MaterialDomain == MD_Volume || MaterialDomain == MD_UI || (MaterialDomain == MD_PostProcess && BlendableOutputAlpha);
 		}
 	
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, ShadingModel))
@@ -3943,7 +4031,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 		else if (FCString::Strncmp(*PropertyName, TEXT("bUsedWith"), 9) == 0)
 		{
-			return MaterialDomain == MD_DeferredDecal || MaterialDomain == MD_Surface || MaterialDomain == MD_RuntimeVirtualTexture;
+			return MaterialDomain == MD_DeferredDecal || MaterialDomain == MD_Surface;
 		}
 		else if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bUsesDistortion))
 		{
@@ -3963,18 +4051,18 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bComputeFogPerPixel)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bOutputTranslucentVelocity))
 		{
-			return MaterialDomain != MD_DeferredDecal && MaterialDomain != MD_RuntimeVirtualTexture && IsTranslucentBlendMode(BlendMode);
+			return MaterialDomain != MD_DeferredDecal && IsTranslucentBlendMode(BlendMode);
 		}
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bApplyCloudFogging))
 		{
 			const bool bApplyFogging = bUseTranslucencyVertexFog;
-			return bApplyFogging && MaterialDomain != MD_DeferredDecal && MaterialDomain != MD_RuntimeVirtualTexture && IsTranslucentBlendMode(BlendMode);
+			return bApplyFogging && MaterialDomain != MD_DeferredDecal && IsTranslucentBlendMode(BlendMode);
 		}
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bIsSky))
 		{
-			return MaterialDomain != MD_DeferredDecal && MaterialDomain != MD_RuntimeVirtualTexture && GetShadingModels().IsUnlit() && (BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked);
+			return MaterialDomain != MD_DeferredDecal && GetShadingModels().IsUnlit() && (BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked);
 		}
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, TranslucencyLightingMode)
@@ -3987,7 +4075,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, TranslucentMultipleScatteringExtinction)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, TranslucentShadowStartOffset))
 		{
-			return MaterialDomain != MD_DeferredDecal && MaterialDomain != MD_RuntimeVirtualTexture && IsTranslucentBlendMode(BlendMode) && GetShadingModels().IsLit();
+			return MaterialDomain != MD_DeferredDecal && IsTranslucentBlendMode(BlendMode) && GetShadingModels().IsLit();
 		}
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, SubsurfaceProfile))
@@ -5740,16 +5828,6 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 	{
 		// light functions should already use MSM_Unlit but we also we don't want WorldPosOffset
 		return InProperty == MP_EmissiveColor;
-	}
-	else if (Domain == MD_RuntimeVirtualTexture)
-	{
-		return InProperty == MP_BaseColor 
-			|| InProperty == MP_Roughness
-			|| InProperty == MP_Anisotropy
-			|| InProperty == MP_Specular 
-			|| InProperty == MP_Normal
-			|| InProperty == MP_Tangent
-			|| (InProperty == MP_Opacity && IsTranslucentBlendMode(BlendMode) && BlendMode != BLEND_Modulate);
 	}
 	else if (Domain == MD_DeferredDecal)
 	{

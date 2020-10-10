@@ -36,7 +36,7 @@ public:
 
 	FPBDCollisionConstraintAccessor()
 		: SpatialAcceleration(EmptyParticles.GetNonDisabledView())
-		, BroadPhase(EmptyParticles, (FReal)1, (FReal)0)
+		, BroadPhase(EmptyParticles, (FReal)1, (FReal)0, (FReal)0)
 		, CollisionConstraints(EmptyParticles, EmptyCollided, EmptyPhysicsMaterials, EmptyUniquePhysicsMaterials, 1, 1)
 		, CollisionDetector(BroadPhase, NarrowPhase, CollisionConstraints)
 	{}
@@ -44,7 +44,7 @@ public:
 	FPBDCollisionConstraintAccessor(const TPBDRigidsSOAs<FReal, 3>& InParticles, TArrayCollectionArray<bool>& Collided, const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PerParticleMaterials, const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>& PerParticleUniqueMaterials,
 	const int32 PushOutIterations, const int32 PushOutPairIterations, const FReal Thickness) 
 		: SpatialAcceleration(InParticles.GetNonDisabledView())
-		, BroadPhase(InParticles, (FReal)1, (FReal)0)
+		, BroadPhase(InParticles, (FReal)1, (FReal)0, (FReal)0)
 		, CollisionConstraints(InParticles, Collided, PerParticleMaterials, PerParticleUniqueMaterials, 1, 1, Thickness)
 		, CollisionDetector(BroadPhase, NarrowPhase, CollisionConstraints)
 	{}
@@ -61,11 +61,11 @@ public:
 	{
 		if (Constraint.GetType() == FPointContactConstraint::StaticType())
 		{
-			Collisions::Update(*Constraint.As<FPointContactConstraint>(), CullDistance);
+			Collisions::Update(*Constraint.As<FPointContactConstraint>(), CullDistance, 0.0f);
 		}
 		else if(Constraint.GetType() == FMultiPointContactConstraint::StaticType())
 		{
-			Collisions::Update(*Constraint.As<FMultiPointContactConstraint>(), CullDistance);
+			Collisions::Update(*Constraint.As<FMultiPointContactConstraint>(), CullDistance, 0.0f);
 		}
 	}
 
@@ -73,14 +73,17 @@ public:
 	{
 		if (Constraint.GetType() == FCollisionConstraintBase::FType::MultiPoint)
 		{
-			Collisions::UpdateManifold(*Constraint.As<FRigidBodyMultiPointContactConstraint>(), CullDistance);
+			Collisions::UpdateManifold(*Constraint.As<FRigidBodyMultiPointContactConstraint>(), CullDistance, 0.0f);
 		}
 	}
 
 
 	void UpdateLevelsetConstraint(FPointContactConstraint& Constraint) 
 	{
-		Collisions::UpdateLevelsetLevelsetConstraint<ECollisionUpdateType::Deepest>(FReal(0), Constraint);
+		FRigidTransform3 WorldTransform0 = Constraint.ImplicitTransform[0] * Collisions::GetTransform(Constraint.Particle[0]);
+		FRigidTransform3 WorldTransform1 = Constraint.ImplicitTransform[1] * Collisions::GetTransform(Constraint.Particle[1]);
+
+		Collisions::UpdateLevelsetLevelsetConstraint<ECollisionUpdateType::Deepest>(WorldTransform0, WorldTransform1, FReal(0), Constraint);
 	}
 
 	int32 NumConstraints() const

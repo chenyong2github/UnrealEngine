@@ -45,8 +45,8 @@ public:
 
 
 	virtual const TSharedRef<FTabManager::FLayout> GetDefaultLayout() const;
-	void CreateWidgets();
-	void SetEditingObject(class UObject* InObject);
+	virtual void CreateWidgets();
+	virtual void SetEditingObject(class UObject* InObject);
 	virtual void CreateEditorModeManager() override;
 
 public:

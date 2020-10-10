@@ -358,7 +358,7 @@ void UpdateHistoryReflections(
 	FRDGTextureRef ResolvedReflections,
 	FRDGTextureRef FinalSpecularIndirect)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 	
 	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
 
@@ -465,7 +465,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 		return RoughSpecularIndirect;
 	}
 
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 	RDG_EVENT_SCOPE(GraphBuilder, "LumenReflections");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, LumenReflections);
 

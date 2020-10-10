@@ -36,6 +36,10 @@ public:
 	virtual void Render() override;
 	virtual void RenderAndSendDMX() override;
 	virtual void PostParentAssigned() override;
+
+#if WITH_EDITOR
+	virtual FString GetUserFriendlyName() const override;
+#endif
 	//~ End UDMXPixelMappingBaseComponent implementation
 
 	//~ Begin UDMXPixelMappingOutputComponent implementation
@@ -85,6 +89,8 @@ private:
 	TSharedPtr<SUniformGridPanel> GridPanel;
 
 	FSlateBrush Brush;
+
+	TSharedPtr<STextBlock> LibraryNameWidget;
 #endif
 
 	float PositionXCached;

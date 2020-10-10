@@ -9,6 +9,20 @@
 
 #define LOCTEXT_NAMESPACE "K2Node"
 
+// @TODO_BH: Remove the CVar for validity checking when we can get all the errors sorted out
+namespace PinValidityCheck
+{
+	/**
+	* CVar controls pin validity warning which will throw when a macro graph is silently failing
+	* @see UE-100024
+	*/
+	static bool bDisplayMissingBoundComponentWarning = true;
+	static FAutoConsoleVariableRef CVarDisplayMissingBoundComponentWarning(
+		TEXT("bp.PinValidityCheck.bDisplayMissingBoundComponentWarning"), bDisplayMissingBoundComponentWarning,
+		TEXT("CVar controls pin validity warning which will throw when a bound event has no matching component"),
+		ECVF_Default);
+}
+
 UK2Node_ComponentBoundEvent::UK2Node_ComponentBoundEvent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -113,7 +127,7 @@ void UK2Node_ComponentBoundEvent::HandleVariableRenamed(UBlueprint* InBlueprint,
 
 void UK2Node_ComponentBoundEvent::ValidateNodeDuringCompilation(FCompilerResultsLog& MessageLog) const
 {
-	if (!IsDelegateValid())
+	if (PinValidityCheck::bDisplayMissingBoundComponentWarning && !IsDelegateValid())
 	{
 		MessageLog.Warning(*LOCTEXT("ComponentBoundEvent_Error", "@@ does not have a valid matching component!").ToString(), this);
 	}

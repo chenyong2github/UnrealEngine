@@ -67,29 +67,6 @@ namespace FBIKConstraintLib
 							return (Type != EFBIKBoneLimitType::Free);
 						};
 
-						// add position limit
-	// 					if (Constraints[Index].IsLinearlyLimited())
-	// 					{
-	// 						// if you don't have a parent, then we don't have nothing to constrained to right now
-	// 						// this can be issue if you constraint root to something because the parent will be missing
-	// 						if (InOutLinkData[LinkIndex].ParentLinkIndex != INDEX_NONE)
-	// 						{
-	// 							FPositionLimitConstraint NewLimitConstraint;
-	// 							NewLimitConstraint.BaseIndex = InOutLinkData[LinkIndex].ParentLinkIndex;
-	// 							NewLimitConstraint.ConstrainedIndex = LinkIndex;
-	// 
-	// 							NewLimitConstraint.bXLimitSet = GetLimit(Constraints[Index].LinearLimit.LimitType_X, Constraints[Index].LinearLimit.Limit.X, NewLimitConstraint.Limit.X);
-	// 							NewLimitConstraint.bYLimitSet = GetLimit(Constraints[Index].LinearLimit.LimitType_Y, Constraints[Index].LinearLimit.Limit.Y, NewLimitConstraint.Limit.Y);
-	// 							NewLimitConstraint.bZLimitSet = GetLimit(Constraints[Index].LinearLimit.LimitType_Z, Constraints[Index].LinearLimit.Limit.Z, NewLimitConstraint.Limit.Z);
-	// 
-	// 							const int32* ParentBoneIndex = InOutLinkDataToHierarchyIndices.Find(InOutLinkData[LinkIndex].ParentLinkIndex);
-	// 							check(ParentBoneIndex);
-	// 							const FTransform LocalTransform = Hierarchy->GetInitialGlobalTransform(BoneIndex).GetRelativeTransform(Hierarchy->GetInitialGlobalTransform(*ParentBoneIndex));
-	// 							NewLimitConstraint.RelativelRefPose = LocalTransform;
-	// 							OutConstraints.Add(ConstraintType(TInPlaceType<FPositionLimitConstraint>(), NewLimitConstraint));
-	// 						}
-	// 					}
-
 						// for child index, we just find the first one
 						if (Constraints[Index].IsAngularlyLimited())
 						{
@@ -162,20 +139,23 @@ namespace FBIKConstraintLib
 						// add to motion bases for later
 						InOutLinkData[LinkIndex].ResetMotionBases();
 
-						FMotionBase NewBase(FVector::ForwardVector);
-						NewBase.SetAngularStiffness(Constraints[Index].AngularStiffness.X);
-						NewBase.SetLinearStiffness(Constraints[Index].LinearStiffness.X);
-						InOutLinkData[LinkIndex].AddMotionBase(NewBase);
+						if (Constraints[Index].bUseStiffness)
+						{
+							FMotionBase NewBase(FVector::ForwardVector);
+							NewBase.SetAngularStiffness(Constraints[Index].AngularStiffness.X);
+							NewBase.SetLinearStiffness(Constraints[Index].LinearStiffness.X);
+							InOutLinkData[LinkIndex].AddMotionBase(NewBase);
 
-						NewBase = FMotionBase(FVector::RightVector);
-						NewBase.SetAngularStiffness(Constraints[Index].AngularStiffness.Y);
-						NewBase.SetLinearStiffness(Constraints[Index].LinearStiffness.Y);
-						InOutLinkData[LinkIndex].AddMotionBase(NewBase);
+							NewBase = FMotionBase(FVector::RightVector);
+							NewBase.SetAngularStiffness(Constraints[Index].AngularStiffness.Y);
+							NewBase.SetLinearStiffness(Constraints[Index].LinearStiffness.Y);
+							InOutLinkData[LinkIndex].AddMotionBase(NewBase);
 
-						NewBase = FMotionBase(FVector::UpVector);
-						NewBase.SetAngularStiffness(Constraints[Index].AngularStiffness.Z);
-						NewBase.SetLinearStiffness(Constraints[Index].LinearStiffness.Z);
-						InOutLinkData[LinkIndex].AddMotionBase(NewBase);
+							NewBase = FMotionBase(FVector::UpVector);
+							NewBase.SetAngularStiffness(Constraints[Index].AngularStiffness.Z);
+							NewBase.SetLinearStiffness(Constraints[Index].LinearStiffness.Z);
+							InOutLinkData[LinkIndex].AddMotionBase(NewBase);
+						}
 					}
 				}
 			}

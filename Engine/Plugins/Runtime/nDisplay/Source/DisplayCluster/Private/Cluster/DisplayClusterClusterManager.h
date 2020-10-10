@@ -4,7 +4,6 @@
 
 #include "Cluster/IPDisplayClusterClusterManager.h"
 #include "Cluster/DisplayClusterClusterEvent.h"
-#include "Network/DisplayClusterMessage.h"
 #include "Misc/App.h"
 
 class ADisplayClusterGameMode;
@@ -17,7 +16,7 @@ class FEvent;
  * Cluster manager. Responsible for network communication and data replication.
  */
 class FDisplayClusterClusterManager
-	: public    IPDisplayClusterClusterManager
+	: public IPDisplayClusterClusterManager
 {
 public:
 	FDisplayClusterClusterManager();
@@ -44,14 +43,16 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual bool IsMaster()     const override;
 	virtual bool IsSlave()      const override;
-	virtual bool IsStandalone() const override;
-	virtual bool IsCluster()    const override;
 
 	virtual FString GetNodeId() const override
-	{ return ClusterNodeId; }
+	{
+		return ClusterNodeId;
+	}
 
 	virtual uint32 GetNodesAmount() const override
-	{ return NodesAmount; }
+	{
+		return NodesAmount;
+	}
 
 	virtual void RegisterSyncObject(IDisplayClusterClusterSyncObject* SyncObj, EDisplayClusterSyncGroup SyncGroup) override;
 	virtual void UnregisterSyncObject(IDisplayClusterClusterSyncObject* SyncObj) override;
@@ -59,22 +60,26 @@ public:
 	virtual void AddClusterEventListener(TScriptInterface<IDisplayClusterClusterEventListener>) override;
 	virtual void RemoveClusterEventListener(TScriptInterface<IDisplayClusterClusterEventListener>) override;
 
-	virtual void AddClusterEventListener(const FOnClusterEventListener& Listener) override;
-	virtual void RemoveClusterEventListener(const FOnClusterEventListener& Listener) override;
+	virtual void AddClusterEventJsonListener(const FOnClusterEventJsonListener& Listener) override;
+	virtual void RemoveClusterEventJsonListener(const FOnClusterEventJsonListener& Listener) override;
 
-	virtual void EmitClusterEvent(const FDisplayClusterClusterEvent& Event, bool MasterOnly) override;
+	virtual void AddClusterEventBinaryListener(const FOnClusterEventBinaryListener& Listener) override;
+	virtual void RemoveClusterEventBinaryListener(const FOnClusterEventBinaryListener& Listener) override;
+
+	virtual void EmitClusterEventJson(const FDisplayClusterClusterEventJson& Event, bool MasterOnly) override;
+	virtual void EmitClusterEventBinary(const FDisplayClusterClusterEventBinary& Event, bool bMasterOnly) override;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IPDisplayClusterClusterManager
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual IPDisplayClusterNodeController* GetController() const override;
+	virtual IDisplayClusterNodeController* GetController() const override;
 
-	virtual void ExportSyncData(FDisplayClusterMessage::DataType& SyncData, EDisplayClusterSyncGroup SyncGroup) const override;
-	virtual void ImportSyncData(const FDisplayClusterMessage::DataType& SyncData, EDisplayClusterSyncGroup SyncGroup) override;
+	virtual void ExportSyncData(TMap<FString, FString>& SyncData, EDisplayClusterSyncGroup SyncGroup) const override;
+	virtual void ImportSyncData(const TMap<FString, FString>& SyncData, EDisplayClusterSyncGroup SyncGroup) override;
 
-	virtual void ExportEventsData(FDisplayClusterMessage::DataType& EventsData) const override;
-	virtual void ImportEventsData(const FDisplayClusterMessage::DataType& EventsData) override;
+	virtual void ExportEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson>>& JsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary>>& BinaryEvents) override;
+	virtual void ImportEventsData(const TArray<TSharedPtr<FDisplayClusterClusterEventJson>>& JsonEvents, const TArray<TSharedPtr<FDisplayClusterClusterEventBinary>>& BinaryEvents) override;
 
 	virtual void SyncObjects(EDisplayClusterSyncGroup SyncGroup) override;
 	virtual void SyncInput()   override;
@@ -84,25 +89,20 @@ public:
 	virtual void SyncNativeInput(TMap<FString, FString>& NativeInputData) override;
 
 private:
-	bool GetResolvedNodeId(FString& NodeID) const;
-
-	typedef TUniquePtr<IPDisplayClusterNodeController> TController;
-
 	// Factory method
-	TController CreateController() const;
+	TUniquePtr<IDisplayClusterNodeController> CreateController() const;
 
-	void OnClusterEventHandler(const FDisplayClusterClusterEvent& Event);
+	void OnClusterEventJsonHandler(const FDisplayClusterClusterEventJson& Event);
+	void OnClusterEventBinaryHandler(const FDisplayClusterClusterEventBinary& Event);
 
 private:
 	// Controller implementation
-	TController Controller;
+	TUniquePtr<IDisplayClusterNodeController> Controller;
 	// Cluster/node props
 	uint32 NodesAmount = 0;
 
 	// Current operation mode
 	EDisplayClusterOperationMode CurrentOperationMode;
-	// Current config path
-	FString ConfigPath;
 	// Current node ID
 	FString ClusterNodeId;
 	// Current world
@@ -112,18 +112,26 @@ private:
 	TMap<EDisplayClusterSyncGroup, TSet<IDisplayClusterClusterSyncObject*>> ObjectsToSync;
 	mutable FCriticalSection ObjectsToSyncCritSec;
 
-	// Sync events - types
-	typedef TMap<FString, FDisplayClusterClusterEvent> FNamedEventMap;
-	typedef TMap<FString, FNamedEventMap>              FTypedEventMap;
-	typedef TMap<FString, FTypedEventMap>              FCategoricalMap;
-	typedef FCategoricalMap                            FClusterEventsContainer;
-	// Sync events - data
-	FClusterEventsContainer                      ClusterEventsPoolMain;
-	mutable FClusterEventsContainer              ClusterEventsPoolOut;
-	mutable FCriticalSection                     ClusterEventsCritSec;
-	FOnClusterEvent                              OnClusterEvent;
-	TArray<TScriptInterface<IDisplayClusterClusterEventListener>> ClusterEventListeners;
+	// Sync json events - data
+	TMap<bool, TMap<FString, TSharedPtr<FDisplayClusterClusterEventJson>>> ClusterEventsJsonPoolMain;
+	TMap<bool, TMap<FString, TSharedPtr<FDisplayClusterClusterEventJson>>> ClusterEventsJsonPoolOut;
+	TArray<TSharedPtr<FDisplayClusterClusterEventJson>> ClusterEventsJsonNonDiscardedPoolMain;
+	TArray<TSharedPtr<FDisplayClusterClusterEventJson>> ClusterEventsJsonNonDiscardedPoolOut;
+	mutable FCriticalSection     ClusterEventsJsonCritSec;
+	FOnClusterEventJson          OnClusterEventJson;
 	
+	// Sync binary events
+	TMap<bool, TMap<int32, TSharedPtr<FDisplayClusterClusterEventBinary>>> ClusterEventsBinaryPoolMain;
+	TMap<bool, TMap<int32, TSharedPtr<FDisplayClusterClusterEventBinary>>> ClusterEventsBinaryPoolOut;
+	TArray<TSharedPtr<FDisplayClusterClusterEventBinary>> ClusterEventsBinaryNonDiscardedPoolMain;
+	TArray<TSharedPtr<FDisplayClusterClusterEventBinary>> ClusterEventsBinaryNonDiscardedPoolOut;
+	mutable FCriticalSection   ClusterEventsBinaryCritSec;
+	FOnClusterEventBinary      OnClusterEventBinary;
+
+	// Cluster event listeners
+	mutable FCriticalSection ClusterEventListenersCritSec;
+	TArray<TScriptInterface<IDisplayClusterClusterEventListener>> ClusterEventListeners;
+
 	// Sync native input
 	FEvent* NativeInputDataAvailableEvent = nullptr;
 	TMap<FString, FString> NativeInputDataCache;

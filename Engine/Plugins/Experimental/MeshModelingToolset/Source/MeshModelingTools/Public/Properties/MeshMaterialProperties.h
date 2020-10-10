@@ -24,8 +24,8 @@ public:
 	UNewMeshMaterialProperties();
 
 	/** Material for new mesh*/
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Material, meta = (DisplayName = "Material", TransientToolProperty))
-	UMaterialInterface* Material;
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Material, meta = (DisplayName = "Material"))
+	TWeakObjectPtr<UMaterialInterface> Material;
 
 	/** Scale factor for generated UVs */
 	UPROPERTY(EditAnywhere, Category = Material, meta = (DisplayName = "UV Scale", HideEditConditionToggle, EditConditionHides, EditCondition = "bShowExtendedOptions"))

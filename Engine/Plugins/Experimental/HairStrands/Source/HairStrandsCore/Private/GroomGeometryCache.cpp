@@ -17,6 +17,7 @@ FHairStrandsProjectionMeshData::Section ConvertMeshSection(const FCachedGeometry
 {
 	FHairStrandsProjectionMeshData::Section Out;
 	Out.IndexBuffer = In.IndexBuffer;
+	Out.RDGPositionBuffer = In.RDGPositionBuffer;
 	Out.PositionBuffer = In.PositionBuffer;
 	Out.UVsBuffer = In.UVsBuffer;
 	Out.UVsChannelOffset = In.UVsChannelOffset;
@@ -79,28 +80,22 @@ static void BuildBoneMatrices(USkeletalMeshComponent* SkeletalMeshComponent, con
 		TArray<FVector4> BoneMatrices;
 		BuildBoneMatrices(SkeletalMeshComponent, LODData, LODIndex, MatrixOffsets, BoneMatrices);
 
-		FRDGBufferRef DeformedPositionsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(float),
-			LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices() * 3), TEXT("HairStrandsSkinnedDeformedPositions"));
+		FRDGBufferRef DeformedPositionsBuffer	= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(float), LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices() * 3), TEXT("HairStrandsSkinnedDeformedPositions"));
+		FRDGBufferRef BoneMatricesBuffer		= CreateStructuredBuffer(GraphBuilder, TEXT("HairStrandsSkinnedBoneMatrices"), sizeof(float) * 4, BoneMatrices.Num(), BoneMatrices.GetData(), sizeof(float) * 4 * BoneMatrices.Num());
+		FRDGBufferRef MatrixOffsetsBuffer		= CreateStructuredBuffer(GraphBuilder, TEXT("HairStrandsSkinnedMatrixOffsets"), sizeof(uint32), MatrixOffsets.Num(), MatrixOffsets.GetData(), sizeof(uint32) * MatrixOffsets.Num());
 
-		FRDGBufferRef BoneMatricesBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("HairStrandsSkinnedBoneMatrices"), sizeof(float) * 4, BoneMatrices.Num(),
-			BoneMatrices.GetData(), sizeof(float) * 4 * BoneMatrices.Num());
+		AddSkinUpdatePass(GraphBuilder, ShaderMap, SkeletalMeshComponent->GetSkinWeightBuffer(LODIndex), LODData, BoneMatricesBuffer, MatrixOffsetsBuffer, DeformedPositionsBuffer);
 
-		FRDGBufferRef MatrixOffsetsBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("HairStrandsSkinnedMatrixOffsets"), sizeof(uint32), MatrixOffsets.Num(),
-			MatrixOffsets.GetData(), sizeof(uint32) * MatrixOffsets.Num());
-
-		UpateSkin(GraphBuilder, ShaderMap, SkeletalMeshComponent->GetSkinWeightBuffer(LODIndex), LODData, BoneMatricesBuffer, MatrixOffsetsBuffer, DeformedPositionsBuffer);
-
-		ConvertToExternalBuffer(GraphBuilder, DeformedPositionsBuffer, CachedGeometry.DeformedPositionBuffer);
-
-		// TODO
-		CachedGeometry.DeformedPositionsSRV = RHICreateShaderResourceView(CachedGeometry.DeformedPositionBuffer->GetVertexBufferRHI(), sizeof(float), PF_R32_FLOAT);
+		CachedGeometry.DeformedPositionBuffer = DeformedPositionsBuffer;
+		FRDGBufferSRVRef DeformedPositionSRV = GraphBuilder.CreateSRV(DeformedPositionsBuffer, PF_R32_FLOAT);
 
 		for (int32 SectionIdx = 0; SectionIdx < LODData.RenderSections.Num(); ++SectionIdx)
 		{
 			FCachedGeometry::Section CachedSection;
 			FSkelMeshRenderSection& Section = LODData.RenderSections[SectionIdx];
 
-			CachedSection.PositionBuffer = CachedGeometry.DeformedPositionsSRV;
+			CachedSection.RDGPositionBuffer = DeformedPositionSRV;
+			CachedSection.PositionBuffer = nullptr; // Do not use the SRV slot, but instead use the RDG buffer created above (DeformedPositionSRV)
 			CachedSection.UVsBuffer = LODData.StaticVertexBuffers.StaticMeshVertexBuffer.GetTexCoordsSRV();
 			CachedSection.TotalVertexCount = LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices();
 			CachedSection.IndexBuffer = LODData.MultiSizeIndexContainer.GetIndexBuffer()->GetSRV();

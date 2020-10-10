@@ -102,6 +102,7 @@ TSharedRef<SDockTab> FGPULightmassEditorModule::SpawnSettingsTab(const FSpawnTab
 				SNew(SButton)
 				.HAlign(HAlign_Center)
 				.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+				.IsEnabled(IsRayTracingEnabled())
 				.OnClicked(FOnClicked::CreateRaw(this, &FGPULightmassEditorModule::OnStartStopClicked))
 				[
 					SNew(SHorizontalBox)

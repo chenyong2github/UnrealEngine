@@ -46,27 +46,28 @@ int32 FWidgetProxy::Update(const FPaintArgs& PaintArgs, int32 MyIndex, FSlateWin
 	else if(!bInvisibleDueToParentOrSelfVisibility)
 	{
 		EWidgetUpdateFlags PreviousUpdateFlag = UpdateFlags;
+		TSharedPtr<SWidget> CurrentWidget = Widget->AsShared();
 
 		if (EnumHasAnyFlags(UpdateFlags, EWidgetUpdateFlags::NeedsActiveTimerUpdate))
 		{
 			SCOPE_CYCLE_COUNTER(STAT_SlateExecuteActiveTimers);
-			Widget->ExecuteActiveTimers(PaintArgs.GetCurrentTime(), PaintArgs.GetDeltaTime());
+			CurrentWidget->ExecuteActiveTimers(PaintArgs.GetCurrentTime(), PaintArgs.GetDeltaTime());
 		}
 
 		if (EnumHasAnyFlags(UpdateFlags, EWidgetUpdateFlags::NeedsTick))
 		{
-			const FSlateWidgetPersistentState& MyState = Widget->GetPersistentState();
+			const FSlateWidgetPersistentState& MyState = CurrentWidget->GetPersistentState();
 
 			INC_DWORD_STAT(STAT_SlateNumTickedWidgets);
 			SCOPE_CYCLE_COUNTER(STAT_SlateTickWidgets);
 
-			Widget->Tick(MyState.DesktopGeometry, PaintArgs.GetCurrentTime(), PaintArgs.GetDeltaTime());
+			CurrentWidget->Tick(MyState.DesktopGeometry, PaintArgs.GetCurrentTime(), PaintArgs.GetDeltaTime());
 		}
 
 #if WITH_SLATE_DEBUGGING
-		FSlateDebugging::BroadcastWidgetUpdated(Widget, PreviousUpdateFlag);
+		FSlateDebugging::BroadcastWidgetUpdated(CurrentWidget.Get(), PreviousUpdateFlag);
 #endif
-		UE_TRACE_SLATE_WIDGET_UPDATED(Widget, PreviousUpdateFlag);
+		UE_TRACE_SLATE_WIDGET_UPDATED(CurrentWidget.Get(), PreviousUpdateFlag);
 	}
 
 	return OutgoingLayerId;

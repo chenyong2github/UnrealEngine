@@ -9,6 +9,7 @@
 #include "GPUSort.h"
 
 IMPLEMENT_UNIFORM_BUFFER_STRUCT(FIrradianceCachingParameters, "IrradianceCachingParameters");
+IMPLEMENT_GLOBAL_SHADER(FVisualizeIrradianceCachePS, "/Plugin/GPULightmass/Private/IrradianceCacheVisualization.usf", "VisualizeIrradianceCachePS", SF_Pixel);
 
 FIrradianceCache::FIrradianceCache(int32 Quality, float Spacing, float CornerRejection)
 {

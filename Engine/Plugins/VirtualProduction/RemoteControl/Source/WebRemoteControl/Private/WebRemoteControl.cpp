@@ -719,11 +719,6 @@ bool FWebRemoteControlModule::HandlePresetSetPropertyRoute(const FHttpServerRequ
 	}
 
 	FRCObjectReference ObjectRef;
-	FString FullPath = RemoteControlProperty->FieldName.ToString();
-	if (!RemoteControlProperty->PathRelativeToOwner.IsEmpty())
-	{
-		FullPath = FString::Printf(TEXT("%s.%s"), *RemoteControlProperty->PathRelativeToOwner, *FullPath);
-	}
 
 	// Replace PropertyValue with the underlying property name.
 	TArray<uint8> NewPayload;
@@ -740,7 +735,7 @@ bool FWebRemoteControlModule::HandlePresetSetPropertyRoute(const FHttpServerRequ
 
 	for (UObject* Object : ExposedProperty->OwnerObjects)
 	{
-		IRemoteControlModule::Get().ResolveObjectProperty(ObjectRef.Access, Object, FullPath, ObjectRef);
+		IRemoteControlModule::Get().ResolveObjectProperty(ObjectRef.Access, Object, RemoteControlProperty->FieldPathInfo.ToString(), ObjectRef);
 
 		NewPayloadReader.Seek(0);
 		bSuccess &= IRemoteControlModule::Get().SetObjectProperties(ObjectRef, Backend);
@@ -792,11 +787,6 @@ bool FWebRemoteControlModule::HandlePresetGetPropertyRoute(const FHttpServerRequ
 	TSharedPtr<TJsonWriter<UCS2CHAR>> JsonWriter = TJsonWriter<UCS2CHAR>::Create(&Writer);
 
 	FRCObjectReference ObjectRef;
-	FString FullPath = RemoteControlProperty->FieldName.ToString();
-	if (!RemoteControlProperty->PathRelativeToOwner.IsEmpty())
-	{
-		FullPath = FString::Printf(TEXT("%s.%s"), *RemoteControlProperty->PathRelativeToOwner, *FullPath);
-	}
 
 	bool bSuccess = true;
 
@@ -806,7 +796,7 @@ bool FWebRemoteControlModule::HandlePresetGetPropertyRoute(const FHttpServerRequ
 
 	for (UObject* Object : ExposedProperty->OwnerObjects)
 	{
-		IRemoteControlModule::Get().ResolveObjectProperty(ERCAccess::READ_ACCESS, Object, FullPath, ObjectRef);
+		IRemoteControlModule::Get().ResolveObjectProperty(ERCAccess::READ_ACCESS, Object, RemoteControlProperty->FieldPathInfo.ToString(), ObjectRef);
 
 		JsonWriter->WriteObjectStart();
 		JsonWriter->WriteValue(TEXT("ObjectPath"), Object->GetPathName());
@@ -848,7 +838,7 @@ bool FWebRemoteControlModule::HandleGetPresetRoute(const FHttpServerRequest& Req
 	if (URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(FName(*PresetName)))
 	{
 		WebRemoteControlUtils::SerializeResponse(FGetPresetResponse{ Preset }, Response->Body);
-		Response->Code = EHttpServerResponseCodes::Accepted;
+		Response->Code = EHttpServerResponseCodes::Ok;
 	}
 	else
 	{
@@ -869,7 +859,7 @@ bool FWebRemoteControlModule::HandleGetPresetLayoutRoute(const FHttpServerReques
 	if (URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(FName(*PresetName)))
 	{
 		WebRemoteControlUtils::SerializeResponse(FRCPresetLayoutDescription{ Preset, Preset->Layout }, Response->Body);
-		Response->Code = EHttpServerResponseCodes::Accepted;
+		Response->Code = EHttpServerResponseCodes::Ok;
 	}
 	else
 	{
@@ -883,7 +873,7 @@ bool FWebRemoteControlModule::HandleGetPresetLayoutRoute(const FHttpServerReques
 
 bool FWebRemoteControlModule::HandleGetPresetsRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 {
-	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse(EHttpServerResponseCodes::Accepted);
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse(EHttpServerResponseCodes::Ok);
 
 	TArray<URemoteControlPreset*> Presets = IRemoteControlModule::Get().GetPresets();
 
@@ -908,7 +898,7 @@ bool FWebRemoteControlModule::HandleDescribeObjectRoute(const FHttpServerRequest
 	if (IRemoteControlModule::Get().ResolveObject(ERCAccess::READ_ACCESS, DescribeRequest.ObjectPath, TEXT(""), Ref, &ErrorText) && Ref.Object.IsValid())
 	{
 		WebRemoteControlUtils::SerializeResponse(FDescribeObjectResponse{ Ref.Object.Get() }, Response->Body);
-		Response->Code = EHttpServerResponseCodes::Accepted;
+		Response->Code = EHttpServerResponseCodes::Ok;
 	}
 	else
 	{
@@ -970,7 +960,7 @@ bool FWebRemoteControlModule::HandleSearchAssetRoute(const FHttpServerRequest& R
 	}
 
 	WebRemoteControlUtils::SerializeResponse(FSearchAssetResponse{ MoveTemp(FilteredAssets) }, Response->Body);
-	Response->Code = EHttpServerResponseCodes::Accepted;
+	Response->Code = EHttpServerResponseCodes::Ok;
 
 	OnComplete(MoveTemp(Response));
 	return true;
@@ -985,7 +975,7 @@ bool FWebRemoteControlModule::HandleGetMetadataRoute(const FHttpServerRequest& R
 	if (URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(FName(*PresetName)))
 	{
 		WebRemoteControlUtils::SerializeResponse(FGetMetadataResponse{Preset->Metadata}, Response->Body);
-		Response->Code = EHttpServerResponseCodes::Accepted;
+		Response->Code = EHttpServerResponseCodes::Ok;
 	}
 	else
 	{
@@ -1034,7 +1024,7 @@ bool FWebRemoteControlModule::HandleMetadataFieldOperationsRoute(const FHttpServ
 			Preset->Metadata.Remove(MoveTemp(MetadataField));
 		}
 
-		Response->Code = EHttpServerResponseCodes::Accepted;
+		Response->Code = EHttpServerResponseCodes::Ok;
 	}
 	else
 	{

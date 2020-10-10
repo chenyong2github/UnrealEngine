@@ -37,6 +37,10 @@ public:
 	virtual void Render() override;
 	virtual void RenderAndSendDMX() override;
 	virtual void PostParentAssigned() override;
+
+#if WITH_EDITOR
+	virtual FString GetUserFriendlyName() const override;
+#endif
 	//~ End UDMXPixelMappingBaseComponent implementation
 
 	//~ Begin UDMXPixelMappingOutputComponent implementation
@@ -44,8 +48,10 @@ public:
 	virtual TSharedRef<SWidget> BuildSlot(TSharedRef<SConstraintCanvas> InCanvas) override;
 	virtual void ToggleHighlightSelection(bool bIsSelected) override;
 	virtual bool IsVisibleInDesigner() const override;
+
 	virtual void UpdateWidget() override;
 #endif // WITH_EDITOR	
+
 	virtual UTextureRenderTarget2D* GetOutputTexture() override;
 	virtual FVector2D GetSize() override;
 	virtual FVector2D GetPosition() override;
@@ -74,10 +80,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Selected Patch")
 	FDMXEntityFixturePatchRef FixturePatchRef;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Setting")
-	TArray<FDMXPixelMappingExtraAttribute> ExtraAttributes;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Setting")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings")
 	EDMXColorMode ColorMode;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings", meta = (DisplayName = "R"))
@@ -116,12 +119,18 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings", meta = (DisplayName = "Intensity Attribute"))
 	FDMXAttributeName MonochromeIntensity;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings", meta = (DisplayAfter = "MonochromeIntensity"))
+	TArray<FDMXPixelMappingExtraAttribute> ExtraAttributes;
+
+
 private:
 	UPROPERTY(Transient)
 	UTextureRenderTarget2D* OutputTarget;
 
 #if WITH_EDITORONLY_DATA
 	FSlateBrush Brush;
+
+	TSharedPtr<STextBlock> PatchNameWidget;
 #endif
 
 private:

@@ -48,12 +48,14 @@
 #include "GpuDebugRendering.h"
 #include "GPUSortManager.h"
 #include "HairStrands/HairStrandsRendering.h"
+#include "PhysicsField/PhysicsFieldComponent.h"
 #include "GPUSortManager.h"
 #include "Rendering/NaniteResources.h"
 #include "Rendering/NaniteStreamingManager.h"
 #include "SceneTextureReductions.h"
 #include "VirtualShadowMaps/VirtualShadowMapCacheManager.h"
 #include "Strata/Strata.h"
+#include "Lumen/Lumen.h"
 
 extern int32 GNaniteDebugFlags;
 extern int32 GNaniteShowStats;
@@ -1614,6 +1616,12 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			PrepareDistanceFieldScene(RHICmdList, bSplitDispatch);
 		}
 
+		if (Views.Num() > 0)
+		{
+			FViewInfo& View = Views[0];
+			Scene->UpdatePhysicsField(RHICmdList, View);
+		}
+
 		if (!GDoPrepareDistanceFieldSceneAfterRHIFlush && (GRHINeedsExtraDeletionLatency || !GRHICommandList.Bypass()))
 		{
 			// we will probably stall on occlusion queries, so might as well have the RHI thread and GPU work while we wait.
@@ -1795,7 +1803,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	FHairStrandsBookmarkParameters HairStrandsBookmarkParameters;
 	{
 		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("HairStrandsCullingAndInterpolation(ViewFamily=%s)", ViewFamily.bResolveScene ? TEXT("Primary") : TEXT("Auxiliary")));
-		if (IsHairStrandsEnable(Scene->GetShaderPlatform()))
+		if (IsHairStrandsEnabled(EHairStrandsShaderType::All, Scene->GetShaderPlatform()))
 		{
 			HairStrandsBookmarkParameters = CreateHairStrandsBookmarkParameters(Views[0]);
 			RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessTasks, HairStrandsBookmarkParameters);
@@ -1806,12 +1814,15 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		const bool bRunHairStrands = HairStrandsBookmarkParameters.bHasElements && (Views.Num() > 0) && !ViewFamily.bWorldIsPaused;
 		if (bRunHairStrands)
 		{
-			RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessGatherCluster, HairStrandsBookmarkParameters);
+			if (HairStrandsBookmarkParameters.bStrandsGeometryEnabled)
+			{
+				RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessGatherCluster, HairStrandsBookmarkParameters);
 
-			FHairCullingParams CullingParams;
-			CullingParams.bCullingProcessSkipped = false;
-			CullingParams.bShadowViewMode = false;
-			ComputeHairStrandsClustersCulling(GraphBuilder, *HairStrandsBookmarkParameters.ShaderMap, Views, CullingParams, HairStrandsBookmarkParameters.HairClusterData);
+				FHairCullingParams CullingParams;
+				CullingParams.bCullingProcessSkipped = false;
+				CullingParams.bShadowViewMode = false;
+				ComputeHairStrandsClustersCulling(GraphBuilder, *HairStrandsBookmarkParameters.ShaderMap, Views, CullingParams, HairStrandsBookmarkParameters.HairClusterData);
+			}
 
 			RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessStrandsInterpolation, HairStrandsBookmarkParameters);
 		}
@@ -1868,7 +1879,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	TArray<Nanite::FRasterResults, TInlineAllocator<2>> NaniteRasterResults;
 	if (bNaniteEnabled && Views.Num() > 0)
 	{
-		LLM_SCOPE(ELLMTag::Nanite);
+		LLM_SCOPE_BYTAG(Nanite);
 
 		NaniteRasterResults.AddDefaulted(Views.Num());
 
@@ -2083,7 +2094,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	if (bOcclusionBeforeBasePass)
 	{
 		{
-			LLM_SCOPE(ELLMTag::Lumen);
+			LLM_SCOPE_BYTAG(Lumen);
 			RenderLumenSceneLighting(GraphBuilder, Views[0]);
 		}
 
@@ -2092,8 +2103,8 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	FHairStrandsRenderingData* HairDatas = nullptr;
 	FHairStrandsRenderingData HairDatasStorage;
-	const bool bIsViewCompatible = Views.Num() > 0 && Views[0].Family->ViewMode == VMI_Lit;
-	const bool bHairEnable = HairStrandsBookmarkParameters.bHasElements && bIsViewCompatible;
+	const bool bIsViewCompatible = Views.Num() > 0;
+	const bool bHairEnable = HairStrandsBookmarkParameters.bHasElements && bIsViewCompatible && IsHairStrandsEnabled(EHairStrandsShaderType::Strands, Views[0].GetShaderPlatform());
 
 	FRDGTextureRef ForwardScreenSpaceShadowMaskTexture = nullptr;
 	FRDGTextureRef ForwardScreenSpaceShadowMaskHairTexture = nullptr;
@@ -2267,7 +2278,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		RenderShadowDepthMaps(GraphBuilder);
 		
 		{
-			LLM_SCOPE(ELLMTag::Lumen);
+			LLM_SCOPE_BYTAG(Lumen);
 			RenderLumenSceneLighting(GraphBuilder, Views[0]);
 		}
 
@@ -2322,7 +2333,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	{
 		// Render the velocities of movable objects
 		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_Velocity));
-		RenderVelocities(GraphBuilder, SceneDepthTexture.Resolve, VelocityTexture, nullptr, EVelocityPass::Opaque);
+		RenderVelocities(GraphBuilder, SceneDepthTexture.Resolve, VelocityTexture, nullptr, EVelocityPass::Opaque, bHairEnable);
 		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_AfterVelocity));
 		AddServiceLocalQueuePass(GraphBuilder);
 	}
@@ -2676,7 +2687,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			const bool bRecreateSceneTextures = !VelocityTexture;
 
 			AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_TranslucentVelocity));
-			RenderVelocities(GraphBuilder, SceneDepthTexture.Resolve, VelocityTexture, SceneTextures, EVelocityPass::Translucent);
+			RenderVelocities(GraphBuilder, SceneDepthTexture.Resolve, VelocityTexture, SceneTextures, EVelocityPass::Translucent, false);
 			AddServiceLocalQueuePass(GraphBuilder);
 
 			if (bRecreateSceneTextures)
@@ -2808,6 +2819,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		FPostProcessingInputs PostProcessingInputs;
 		PostProcessingInputs.ViewFamilyTexture = ViewFamilyTexture;
 		PostProcessingInputs.SeparateTranslucencyTextures = &SeparateTranslucencyTextures;
+		PostProcessingInputs.SceneTextures = SceneTextures;
 
 		if (ViewFamily.UseDebugViewPS())
 		{
@@ -2817,7 +2829,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
    				const Nanite::FRasterResults* NaniteResults = bNaniteEnabled ? &NaniteRasterResults[ViewIndex] : nullptr;
 				RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 				RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
-				PostProcessingInputs.SceneTextures = SceneTextures;
 				AddDebugViewPostProcessingPasses(GraphBuilder, View, PostProcessingInputs, NaniteResults);
 			}
 		}
@@ -2838,7 +2849,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 				const Nanite::FRasterResults* NaniteResults = bNaniteEnabled ? &NaniteRasterResults[ViewIndex] : nullptr;
 				RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 				RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
-				PostProcessingInputs.SceneTextures = SceneTextures;
 				AddPostProcessingPasses(GraphBuilder, View, PostProcessingInputs, NaniteResults);
 			}
 		}

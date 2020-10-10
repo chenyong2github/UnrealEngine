@@ -302,14 +302,15 @@ void ULandscapeComponent::CheckGenerateLandscapePlatformData(bool bIsCooking, co
 			// The DDC is only useful when cooking (see else).
 
 			COOK_STAT(auto Timer = LandscapeCookStats::UsageStats.TimeSyncWork());
-			if (PlatformData.LoadFromDDC(NewSourceHash, this))
-			{
-				COOK_STAT(Timer.AddHit(PlatformData.GetPlatformDataSize()));
-			}
-			else
+// Temporarily disabling DDC use. See FORT-317076.
+// 			if (PlatformData.LoadFromDDC(NewSourceHash, this))
+// 			{
+// 				COOK_STAT(Timer.AddHit(PlatformData.GetPlatformDataSize()));
+// 			}
+// 			else
 			{
 				GeneratePlatformVertexData(TargetPlatform);
-				PlatformData.SaveToDDC(NewSourceHash, this);
+// 				PlatformData.SaveToDDC(NewSourceHash, this);
 				COOK_STAT(Timer.AddMiss(PlatformData.GetPlatformDataSize()));
 			}
 		}
@@ -712,8 +713,9 @@ void ULandscapeComponent::UpdatedSharedPropertiesFromActor()
 	bCastShadowAsTwoSided = LandscapeProxy->bCastShadowAsTwoSided;
 	bAffectDistanceFieldLighting = LandscapeProxy->bAffectDistanceFieldLighting;
 	bRenderCustomDepth = LandscapeProxy->bRenderCustomDepth;
-	SetCullDistance(LandscapeProxy->LDMaxDrawDistance);
+	CustomDepthStencilWriteMask = LandscapeProxy->CustomDepthStencilWriteMask;
 	CustomDepthStencilValue = LandscapeProxy->CustomDepthStencilValue;
+	SetCullDistance(LandscapeProxy->LDMaxDrawDistance);
 	LightingChannels = LandscapeProxy->LightingChannels;
 }
 
@@ -2578,8 +2580,9 @@ void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape)
 		bAffectDistanceFieldLighting = Landscape->bAffectDistanceFieldLighting;
 		LightingChannels = Landscape->LightingChannels;
 		bRenderCustomDepth = Landscape->bRenderCustomDepth;
-		LDMaxDrawDistance = Landscape->LDMaxDrawDistance;		
+		CustomDepthStencilWriteMask = Landscape->CustomDepthStencilWriteMask;
 		CustomDepthStencilValue = Landscape->CustomDepthStencilValue;
+		LDMaxDrawDistance = Landscape->LDMaxDrawDistance;
 		ComponentSizeQuads = Landscape->ComponentSizeQuads;
 		NumSubsections = Landscape->NumSubsections;
 		SubsectionSizeQuads = Landscape->SubsectionSizeQuads;

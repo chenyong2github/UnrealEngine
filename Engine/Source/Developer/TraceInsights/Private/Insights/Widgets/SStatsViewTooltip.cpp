@@ -166,7 +166,7 @@ TSharedPtr<SToolTip> SStatsViewTooltip::GetRowTooltip(const TSharedPtr<FStatsNod
 					.Padding(2.0f)
 					[
 						SNew(STextBlock)
-						.Text(LOCTEXT("TT_Type", "Type:"))
+						.Text(LOCTEXT("TT_Type", "Node Type:"))
 						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
 					]
 					+ SGridPanel::Slot(1, 3)
@@ -174,6 +174,22 @@ TSharedPtr<SToolTip> SStatsViewTooltip::GetRowTooltip(const TSharedPtr<FStatsNod
 					[
 						SNew(STextBlock)
 						.Text(StatsNodeTypeHelper::ToText(StatsNodePtr->GetType()))
+						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+					]
+
+					// Data Type: [DataType]
+					+ SGridPanel::Slot(0, 4)
+					.Padding(2.0f)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("TT_DataType", "Data Type:"))
+						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
+					]
+					+ SGridPanel::Slot(1, 4)
+					.Padding(2.0f)
+					[
+						SNew(STextBlock)
+						.Text(StatsNodeDataTypeHelper::ToText(StatsNodePtr->GetDataType()))
 						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
 					]
 				]

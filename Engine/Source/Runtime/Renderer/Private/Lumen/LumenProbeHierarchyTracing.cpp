@@ -253,7 +253,7 @@ void FDeferredShadingSceneRenderer::RenderLumenProbe(
 	const LumenRadianceCache::FRadianceCacheParameters& RadianceCacheParameters,
 	bool bUseRadianceCache)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 
 	FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, View);
 

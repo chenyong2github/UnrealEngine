@@ -69,3 +69,4 @@ FAnimInstanceProxy* UControlRigAnimInstance::CreateAnimInstanceProxy()
 {
 	return new FControlRigAnimInstanceProxy(this);
 }
+

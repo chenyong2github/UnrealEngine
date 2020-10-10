@@ -20,6 +20,8 @@
 #include "Editor.h"
 #include "CanvasTypes.h"
 #include "LightmapDenoising.h"
+#include "EngineModule.h"
+#include "PostProcess/PostProcessing.h"
 
 class FCopyConvergedLightmapTilesCS : public FGlobalShader
 {
@@ -171,7 +173,7 @@ FPathTracingLightData SetupPathTracingLightParameters(const GPULightmass::FLight
 	// WARNING: Until ray payload encodes Light data buffer, the execution depends on this ordering!
 	uint32 SkyLightIndex = 0;
 	LightParameters.Type[SkyLightIndex] = 0;
-	LightParameters.Color[SkyLightIndex] = FVector(1.0);
+	LightParameters.Color[SkyLightIndex] = LightScene.SkyLight.IsSet() ? FVector(LightScene.SkyLight->Color) : FVector();
 	LightParameters.Mobility[SkyLightIndex] = (LightScene.SkyLight.IsSet() && LightScene.SkyLight->bStationary) ? 1 : 0;
 	uint32 Transmission = 1;
 	uint8 LightingChannelMask = 0b111;
@@ -369,7 +371,6 @@ FLightmapRenderer::FLightmapRenderer(FSceneRenderState* InScene)
 				{ PF_A32B32G32R32F, FIntPoint(GPreviewLightmapPhysicalTileSize) }, // ShadowMaskSampleCount
 				{ PF_A32B32G32R32F, FIntPoint(GPreviewLightmapPhysicalTileSize) }, // SHCorrectionAndStationarySkyLightBentNormal
 				{ PF_R32_UINT, FIntPoint(128) }, // RayGuidingLuminance
-				{ PF_R32_UINT, FIntPoint(128) }, // RayGuidingSampleCount
 				{ PF_R32_FLOAT, FIntPoint(128) }, // RayGuidingCDFX
 				{ PF_R32_FLOAT, FIntPoint(32) }, // RayGuidingCDFY
 			});
@@ -384,11 +385,18 @@ FLightmapRenderer::FLightmapRenderer(FSceneRenderState* InScene)
 	{
 		TilesVisibleLastFewFrames.AddDefaulted(60);
 	}
+
+	if (Scene->Settings->bVisualizeIrradianceCache)
+	{
+		IrradianceCacheVisualizationDelegateHandle = GetRendererModule().RegisterPostOpaqueRenderDelegate(FPostOpaqueRenderDelegate::CreateRaw(this, &FLightmapRenderer::RenderIrradianceCacheVisualization));
+	}
 }
 
 FLightmapRenderer::~FLightmapRenderer()
 {
 	delete DenoisingThreadPool;
+
+	GetRendererModule().RemovePostOpaqueRenderDelegate(IrradianceCacheVisualizationDelegateHandle);
 }
 
 void FLightmapRenderer::AddRequest(FLightmapTileRequest TileRequest)
@@ -806,16 +814,8 @@ void FSceneRenderState::SetupRayTracingScene()
 			FLightmapPathTracingRGS::FPermutationDomain PermutationVector;
 
 			PermutationVector.Set<FLightmapPathTracingRGS::FUseFirstBounceRayGuiding>(LightmapRenderer->bUseFirstBounceRayGuiding);
-
-			PermutationVector.Set<FLightmapPathTracingRGS::FUseIrradianceCaching>(false);
-			PermutationVector.Set<FLightmapPathTracingRGS::FVisualizeIrradianceCache>(false);
-			RayGenShaderTable.Add(GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FLightmapPathTracingRGS>(FLightmapPathTracingRGS::RemapPermutation(PermutationVector)).GetRayTracingShader());
-			PermutationVector.Set<FLightmapPathTracingRGS::FUseIrradianceCaching>(true);
-			PermutationVector.Set<FLightmapPathTracingRGS::FVisualizeIrradianceCache>(false);
-			RayGenShaderTable.Add(GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FLightmapPathTracingRGS>(FLightmapPathTracingRGS::RemapPermutation(PermutationVector)).GetRayTracingShader());
-			PermutationVector.Set<FLightmapPathTracingRGS::FUseIrradianceCaching>(true);
-			PermutationVector.Set<FLightmapPathTracingRGS::FVisualizeIrradianceCache>(true);
-			RayGenShaderTable.Add(GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FLightmapPathTracingRGS>(FLightmapPathTracingRGS::RemapPermutation(PermutationVector)).GetRayTracingShader());
+			PermutationVector.Set<FLightmapPathTracingRGS::FUseIrradianceCaching>(Settings->bUseIrradianceCaching);
+			RayGenShaderTable.Add(GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FLightmapPathTracingRGS>(PermutationVector).GetRayTracingShader());
 			RayGenShaderTable.Add(GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FStationaryLightShadowTracingRGS>().GetRayTracingShader());
 			RayGenShaderTable.Add(GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FVolumetricLightmapPathTracingRGS>().GetRayTracingShader());
 			PSOInitializer.SetRayGenShaderTable(RayGenShaderTable);
@@ -1621,16 +1621,14 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 								FRDGTextureRef SHCorrectionAndStationarySkyLightBentNormal = GraphBuilder.RegisterExternalTexture(LightmapTilePoolGPU.PooledRenderTargets[4], TEXT("SHCorrectionAndStationarySkyLightBentNormal"));
 
 								FRDGTextureRef RayGuidingLuminance = nullptr;
-								FRDGTextureRef RayGuidingSampleCount = nullptr;
 								FRDGTextureRef RayGuidingCDFX = nullptr;
 								FRDGTextureRef RayGuidingCDFY = nullptr;
 
 								if (bUseFirstBounceRayGuiding)
 								{
 									RayGuidingLuminance = GraphBuilder.RegisterExternalTexture(LightmapTilePoolGPU.PooledRenderTargets[5], TEXT("RayGuidingLuminance"));
-									RayGuidingSampleCount = GraphBuilder.RegisterExternalTexture(LightmapTilePoolGPU.PooledRenderTargets[6], TEXT("RayGuidingSampleCount"));
-									RayGuidingCDFX = GraphBuilder.RegisterExternalTexture(LightmapTilePoolGPU.PooledRenderTargets[7], TEXT("RayGuidingCDFX"));
-									RayGuidingCDFY = GraphBuilder.RegisterExternalTexture(LightmapTilePoolGPU.PooledRenderTargets[8], TEXT("RayGuidingCDFY"));
+									RayGuidingCDFX = GraphBuilder.RegisterExternalTexture(LightmapTilePoolGPU.PooledRenderTargets[6], TEXT("RayGuidingCDFX"));
+									RayGuidingCDFY = GraphBuilder.RegisterExternalTexture(LightmapTilePoolGPU.PooledRenderTargets[7], TEXT("RayGuidingCDFY"));
 								}
 
 								// These two buffers must have lifetime extended beyond GraphBuilder.Execute()
@@ -1648,9 +1646,9 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 										PassParameters->LastInvalidationFrame = LastInvalidationFrame;
 										PassParameters->NumTotalSamples = Scene->Settings->GISamples;
 										PassParameters->TLAS = Scene->RayTracingScene->GetShaderResourceView();
-										PassParameters->GBufferWorldPosition = GraphBuilder.CreateUAV(GBufferWorldPosition);
-										PassParameters->GBufferWorldNormal = GraphBuilder.CreateUAV(GBufferWorldNormal);
-										PassParameters->GBufferShadingNormal = GraphBuilder.CreateUAV(GBufferShadingNormal);
+										PassParameters->GBufferWorldPosition = GBufferWorldPosition;
+										PassParameters->GBufferWorldNormal = GBufferWorldNormal;
+										PassParameters->GBufferShadingNormal = GBufferShadingNormal;
 										PassParameters->IrradianceAndSampleCount = GraphBuilder.CreateUAV(IrradianceAndSampleCount);
 										PassParameters->SHCorrectionAndStationarySkyLightBentNormal = GraphBuilder.CreateUAV(SHCorrectionAndStationarySkyLightBentNormal);
 										PassParameters->SHDirectionality = GraphBuilder.CreateUAV(SHDirectionality);
@@ -1658,9 +1656,8 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 										if (bUseFirstBounceRayGuiding)
 										{
 											PassParameters->RayGuidingLuminance = GraphBuilder.CreateUAV(RayGuidingLuminance);
-											PassParameters->RayGuidingSampleCount = GraphBuilder.CreateUAV(RayGuidingSampleCount);
-											PassParameters->RayGuidingCDFX = GraphBuilder.CreateUAV(RayGuidingCDFX);
-											PassParameters->RayGuidingCDFY = GraphBuilder.CreateUAV(RayGuidingCDFY);
+											PassParameters->RayGuidingCDFX = RayGuidingCDFX;
+											PassParameters->RayGuidingCDFY = RayGuidingCDFY;
 											PassParameters->NumRayGuidingTrialSamples = NumFirstBounceRayGuidingTrialSamples;
 										}
 
@@ -1681,8 +1678,7 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 										FLightmapPathTracingRGS::FPermutationDomain PermutationVector;
 										PermutationVector.Set<FLightmapPathTracingRGS::FUseFirstBounceRayGuiding>(bUseFirstBounceRayGuiding);
 										PermutationVector.Set<FLightmapPathTracingRGS::FUseIrradianceCaching>(Scene->Settings->bUseIrradianceCaching);
-										PermutationVector.Set<FLightmapPathTracingRGS::FVisualizeIrradianceCache>(Scene->Settings->bVisualizeIrradianceCache);
-										auto RayGenerationShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FLightmapPathTracingRGS>(FLightmapPathTracingRGS::RemapPermutation(PermutationVector));
+										auto RayGenerationShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FLightmapPathTracingRGS>(PermutationVector);
 										ClearUnusedGraphResources(RayGenerationShader, PassParameters);
 
 										GraphBuilder.AddPass(
@@ -1706,7 +1702,6 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 
 										PassParameters->BatchedTiles = GPUBatchedTileRequests.BatchedTilesSRV;
 										PassParameters->RayGuidingLuminance = GraphBuilder.CreateUAV(RayGuidingLuminance);
-										PassParameters->RayGuidingSampleCount = GraphBuilder.CreateUAV(RayGuidingSampleCount);
 										PassParameters->RayGuidingCDFX = GraphBuilder.CreateUAV(RayGuidingCDFX);
 										PassParameters->RayGuidingCDFY = GraphBuilder.CreateUAV(RayGuidingCDFY);
 										PassParameters->NumRayGuidingTrialSamples = NumFirstBounceRayGuidingTrialSamples;
@@ -2059,9 +2054,9 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 						PassParameters->ChannelIndexArray = ChannelIndexSRV;
 						PassParameters->LightSampleIndexArray = LightSampleIndexSRV;
 						PassParameters->LightShaderParametersArray = LightShaderParameterSRV;
-						PassParameters->GBufferWorldPosition = GraphBuilder.CreateUAV(GBufferWorldPosition);
-						PassParameters->GBufferWorldNormal = GraphBuilder.CreateUAV(GBufferWorldNormal);
-						PassParameters->GBufferShadingNormal = GraphBuilder.CreateUAV(GBufferShadingNormal);
+						PassParameters->GBufferWorldPosition = GBufferWorldPosition;
+						PassParameters->GBufferWorldNormal = GBufferWorldNormal;
+						PassParameters->GBufferShadingNormal = GBufferShadingNormal;
 						PassParameters->ShadowMask = GraphBuilder.CreateUAV(ShadowMask);
 						PassParameters->ShadowMaskSampleCount = GraphBuilder.CreateUAV(ShadowMaskSampleCount);
 
@@ -2874,6 +2869,16 @@ void FLightmapRenderer::BackgroundTick()
 		// Purge resources when 'realtime' is not checked on editor viewport to avoid leak & slowing down
 		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
 	}
+
+	if (Scene->Settings->bVisualizeIrradianceCache && !IrradianceCacheVisualizationDelegateHandle.IsValid())
+	{
+		IrradianceCacheVisualizationDelegateHandle = GetRendererModule().RegisterPostOpaqueRenderDelegate(FPostOpaqueRenderDelegate::CreateRaw(this, &FLightmapRenderer::RenderIrradianceCacheVisualization));
+	}
+	else if (!Scene->Settings->bVisualizeIrradianceCache && IrradianceCacheVisualizationDelegateHandle.IsValid())
+	{
+		GetRendererModule().RemovePostOpaqueRenderDelegate(IrradianceCacheVisualizationDelegateHandle);
+		IrradianceCacheVisualizationDelegateHandle.Reset();
+	}
 }
 
 void FLightmapRenderer::BumpRevision()
@@ -2884,6 +2889,55 @@ void FLightmapRenderer::BumpRevision()
 	{
 		FrameRequests.Empty();
 	}	
+}
+
+void FLightmapRenderer::RenderIrradianceCacheVisualization(FPostOpaqueRenderParameters& Parameters)
+{
+	FRHICommandListImmediate& RHICmdList = *Parameters.RHICmdList;
+
+	FVisualizeIrradianceCachePS::FParameters PassParameters;
+	TUniformBufferRef<FViewUniformShaderParameters> Ref;
+	*Ref.GetInitReference() = Parameters.ViewUniformBuffer;
+	PassParameters.View = Ref;
+	PassParameters.SceneTextures = CreateSceneTextureUniformBuffer(RHICmdList, GMaxRHIFeatureLevel, ESceneTextureSetupMode::All);
+	PassParameters.IrradianceCachingParameters = Scene->IrradianceCache->IrradianceCachingParametersUniformBuffer;
+
+	FUniformBufferStaticBindings GlobalUniformBuffers(PassParameters.SceneTextures);
+	SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
+
+	FRHIRenderPassInfo RPInfo(FSceneRenderTargets::Get(RHICmdList).GetSceneColor()->GetTargetableRHI(), ERenderTargetActions::Load_Store);
+	RHICmdList.BeginRenderPass(RPInfo, TEXT("AP_ClearIrradiance"));
+
+	RHICmdList.SetViewport(0, 0, 0.0f, Parameters.ViewportRect.Width(), Parameters.ViewportRect.Height(), 1.0f);
+
+	TShaderMapRef<FPostProcessVS> VertexShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+	TShaderMapRef<FVisualizeIrradianceCachePS> PixelShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+
+	FGraphicsPipelineStateInitializer GraphicsPSOInit;
+	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
+	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+	GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
+	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+
+	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+
+	SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters);
+
+	DrawRectangle(
+		RHICmdList,
+		0, 0,
+		Parameters.ViewportRect.Width(), Parameters.ViewportRect.Height(),
+		0, 0,
+		Parameters.ViewportRect.Width(), Parameters.ViewportRect.Height(),
+		FIntPoint(Parameters.ViewportRect.Width(), Parameters.ViewportRect.Height()),
+		FSceneRenderTargets::Get(RHICmdList).GetBufferSizeXY(),
+		VertexShader);
+
+	RHICmdList.EndRenderPass();
 }
 
 }

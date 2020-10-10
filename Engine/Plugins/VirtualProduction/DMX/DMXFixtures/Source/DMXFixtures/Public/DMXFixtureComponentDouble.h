@@ -25,7 +25,7 @@ public:
 
 	// To iterate channels and avoid code duplication
 	int NumChannels;
-	TArray<FDMXChannelData> ChannelRefs;
+	TArray<FDMXChannelData*> ChannelRefs;
 
 	// Functions-----------------------------------------
 	UFUNCTION(BlueprintPure, Category = "DMX")

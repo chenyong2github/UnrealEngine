@@ -1571,9 +1571,11 @@ public partial class Project : CommandUtils
 	private static List<PakFileRules> GetPakFileRules(ProjectParams Params, DeploymentContext SC)
 	{
 		bool bWarnedAboutMultipleTargets = false;
-		bool bFoundConfig = false;
 
-		List<ConfigFile> ConfigFiles = new List<ConfigFile>();
+
+
+
+		/*List<ConfigFile> ConfigFiles = new List<ConfigFile>();
 		FileReference BaseConfigFileReference = FileReference.Combine(SC.EngineRoot, "Config", "BasePakFileRules.ini");
 		if (FileReference.Exists(BaseConfigFileReference))
 		{
@@ -1587,15 +1589,18 @@ public partial class Project : CommandUtils
 			ConfigFiles.Add(new ConfigFile(ProjectConfigFileReference));
 			bFoundConfig = true;
 		}
-
+	
 		if (!bFoundConfig)
 		{
 			return null;
 		}
+		ConfigHierarchy PakRulesConfig = new ConfigHierarchy(ConfigFiles);*/
+
+
+		
+		ConfigHierarchy PakRulesConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.PakFileRules, DirectoryReference.FromFile(Params.RawProjectPath), SC.StageTargetPlatform.IniPlatformType);
 
 		bool bChunkedBuild = SC.PlatformUsesChunkManifests && DoesChunkPakManifestExist(Params, SC);
-
-		ConfigHierarchy PakRulesConfig = new ConfigHierarchy(ConfigFiles);
 
 		List<PakFileRules> RulesList = new List<PakFileRules>();
 		foreach (string SectionName in PakRulesConfig.SectionNames)
@@ -1724,7 +1729,10 @@ public partial class Project : CommandUtils
 				RulesList.Add(PakRules);
 			}
 		}
-
+		if (RulesList.Count == 0)
+		{
+			return null;
+		}
 		return RulesList;
 	}
 

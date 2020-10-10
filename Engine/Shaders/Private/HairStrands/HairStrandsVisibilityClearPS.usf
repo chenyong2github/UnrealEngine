@@ -4,7 +4,18 @@
 
 
 uint ClearValue;
-void ClearPS(out uint4 OutColor : SV_Target0)
+
+void ClearPS(
+#if PERMUTATION_OUTPUT_FORMAT == 0
+	out uint OutColor : SV_Target0
+#elif PERMUTATION_OUTPUT_FORMAT == 1
+	out uint2 OutColor : SV_Target0
+#endif
+)
 {
-	OutColor = ClearValue.xxxx;
+#if PERMUTATION_OUTPUT_FORMAT == 0
+	OutColor = ClearValue;
+#elif PERMUTATION_OUTPUT_FORMAT == 1
+	OutColor = ClearValue.xx;
+#endif
 }

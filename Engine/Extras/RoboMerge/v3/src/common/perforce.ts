@@ -617,7 +617,7 @@ export class PerforceContext {
 
 	// Create a new workspace for Robomerge GraphBot
 	async newGraphBotWorkspace(name: string, extraParams: any) {
-		return this.newWorkspace(name, {'AltRoots': '/src/' + name, ...extraParams});
+		return this.newWorkspace(name, {Root: '/src/' + name, ...extraParams});
 	}
 
 	// Create a new workspace for Robomerge to read branchspecs from

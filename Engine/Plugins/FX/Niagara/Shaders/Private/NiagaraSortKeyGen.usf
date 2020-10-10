@@ -250,9 +250,10 @@ void GenerateParticleSortKeys(uint ParticleIndex : SV_DispatchThreadID, uint Gro
 
 			// Clamp to max-1 to make sure that out-of-bound indices are at the end.
 			SortKey = min(SortKey , SortKeyMask - 1);
+			
+			bCulled = CullParticle(ParticleIndex);
 		}
 
-		bCulled = CullParticle(ParticleIndex);
 		if (bCulled)
 		{
 			SortKey = SortKeyMask;

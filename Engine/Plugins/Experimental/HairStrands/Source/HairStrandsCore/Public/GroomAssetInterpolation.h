@@ -142,6 +142,8 @@ struct HAIRSTRANDSCORE_API FHairGroupsInterpolation
 	FHairInterpolationSettings InterpolationSettings;
 
 	bool operator==(const FHairGroupsInterpolation& A) const;
+
+	void BuildDDCKey(FArchive& Ar);
 };
 
 USTRUCT(BlueprintType)
@@ -164,4 +166,6 @@ struct HAIRSTRANDSCORE_API FHairGroupsLOD
 	float ClusterScreenSizeScale;
 
 	bool operator==(const FHairGroupsLOD& A) const;
+
+	void BuildDDCKey(FArchive& Ar);
 };

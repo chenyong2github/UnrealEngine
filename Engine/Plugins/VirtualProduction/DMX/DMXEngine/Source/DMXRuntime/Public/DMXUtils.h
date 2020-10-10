@@ -17,9 +17,9 @@ public:
 	 * OutSortedList			Templated unsorted array output
 	 */
 	template<typename T>
-	static void PixelsDistributionSort(EDMXPixelsDistribution InDistribution, int32 InNumXPanels, int32 InNumYPanels, const TArray<T>& InUnorderedList, TArray<T>& OutSortedList)
+	static void PixelMappingDistributionSort(EDMXPixelMappingDistribution InDistribution, int32 InNumXPanels, int32 InNumYPanels, const TArray<T>& InUnorderedList, TArray<T>& OutSortedList)
 	{
-		if (InDistribution == EDMXPixelsDistribution::TopLeftToRight)
+		if (InDistribution == EDMXPixelMappingDistribution::TopLeftToRight)
 		{
 			for (int32 XIndex = 0; XIndex < InNumXPanels; ++XIndex)
 			{
@@ -29,12 +29,12 @@ public:
 				}
 			}
 		}
-		else if (InDistribution == EDMXPixelsDistribution::TopLeftToBottom)
+		else if (InDistribution == EDMXPixelMappingDistribution::TopLeftToBottom)
 		{
 			// Do nothing it is default, just copy array
 			OutSortedList = InUnorderedList;
 		}
-		else if (InDistribution == EDMXPixelsDistribution::TopLeftToClockwise)
+		else if (InDistribution == EDMXPixelMappingDistribution::TopLeftToClockwise)
 		{
 			for (int32 XIndex = 0; XIndex < InNumXPanels; ++XIndex)
 			{
@@ -51,7 +51,7 @@ public:
 				}
 			}
 		}
-		else if (InDistribution == EDMXPixelsDistribution::TopLeftToAntiClockwise)
+		else if (InDistribution == EDMXPixelMappingDistribution::TopLeftToAntiClockwise)
 		{
 			for (int32 XIndex = 0; XIndex < InNumXPanels; ++XIndex)
 			{
@@ -68,7 +68,7 @@ public:
 				}
 			}
 		}
-		else if (InDistribution == EDMXPixelsDistribution::TopRightToLeft)
+		else if (InDistribution == EDMXPixelMappingDistribution::TopRightToLeft)
 		{
 			for (int32 XIndex = 0; XIndex < InNumXPanels; ++XIndex)
 			{
@@ -78,7 +78,7 @@ public:
 				}
 			}
 		}
-		else if (InDistribution == EDMXPixelsDistribution::BottomLeftToTop)
+		else if (InDistribution == EDMXPixelMappingDistribution::BottomLeftToTop)
 		{
 			for (int32 XIndex = 0; XIndex < InNumXPanels; ++XIndex)
 			{
@@ -88,7 +88,7 @@ public:
 				}
 			}
 		}
-		else if (InDistribution == EDMXPixelsDistribution::TopRightToAntiClockwise)
+		else if (InDistribution == EDMXPixelMappingDistribution::TopRightToAntiClockwise)
 		{
 			for (int32 XIndex = 0; XIndex < InNumXPanels; ++XIndex)
 			{
@@ -105,7 +105,7 @@ public:
 				}
 			}
 		}
-		else if (InDistribution == EDMXPixelsDistribution::BottomLeftToClockwise)
+		else if (InDistribution == EDMXPixelMappingDistribution::BottomLeftToClockwise)
 		{
 			for (int32 XIndex = 0; XIndex < InNumXPanels; ++XIndex)
 			{
@@ -122,7 +122,7 @@ public:
 				}
 			}
 		}
-		else if (InDistribution == EDMXPixelsDistribution::BottomLeftToRight)
+		else if (InDistribution == EDMXPixelMappingDistribution::BottomLeftToRight)
 		{
 			for (int32 XIndex = 0; XIndex < InNumXPanels; ++XIndex)
 			{
@@ -132,7 +132,7 @@ public:
 				}
 			}
 		}
-		else if (InDistribution == EDMXPixelsDistribution::TopRightToBottom)
+		else if (InDistribution == EDMXPixelMappingDistribution::TopRightToBottom)
 		{
 			for (int32 XIndex = 0; XIndex < InNumXPanels; ++XIndex)
 			{
@@ -142,7 +142,7 @@ public:
 				}
 			}
 		}
-		else if (InDistribution == EDMXPixelsDistribution::BottomLeftAntiClockwise)
+		else if (InDistribution == EDMXPixelMappingDistribution::BottomLeftAntiClockwise)
 		{
 			for (int32 XIndex = 0; XIndex < InNumXPanels; ++XIndex)
 			{
@@ -173,7 +173,7 @@ public:
 				}
 			}
 		}
-		else if (InDistribution == EDMXPixelsDistribution::TopRightToClockwise)
+		else if (InDistribution == EDMXPixelMappingDistribution::TopRightToClockwise)
 		{
 			for (int32 XIndex = 0; XIndex < InNumXPanels; ++XIndex)
 			{
@@ -205,7 +205,7 @@ public:
 				}
 			}
 		}
-		else if (InDistribution == EDMXPixelsDistribution::BottomRightToLeft)
+		else if (InDistribution == EDMXPixelMappingDistribution::BottomRightToLeft)
 		{
 			for (int32 XIndex = 0; XIndex < InNumXPanels; ++XIndex)
 			{
@@ -215,7 +215,7 @@ public:
 				}
 			}
 		}
-		else if (InDistribution == EDMXPixelsDistribution::BottomRightToTop)
+		else if (InDistribution == EDMXPixelMappingDistribution::BottomRightToTop)
 		{
 			for (int32 XIndex = 0; XIndex < InNumXPanels; ++XIndex)
 			{
@@ -225,7 +225,7 @@ public:
 				}
 			}
 		}
-		else if (InDistribution == EDMXPixelsDistribution::BottomRightToClockwise)
+		else if (InDistribution == EDMXPixelMappingDistribution::BottomRightToClockwise)
 		{
 			for (int32 XIndex = 0; XIndex < InNumXPanels; ++XIndex)
 			{
@@ -256,7 +256,7 @@ public:
 				}
 			}
 		}
-		else if (InDistribution == EDMXPixelsDistribution::BottomRightToAntiClockwise)
+		else if (InDistribution == EDMXPixelMappingDistribution::BottomRightToAntiClockwise)
 		{
 			for (int32 XIndex = 0; XIndex < InNumXPanels; ++XIndex)
 			{

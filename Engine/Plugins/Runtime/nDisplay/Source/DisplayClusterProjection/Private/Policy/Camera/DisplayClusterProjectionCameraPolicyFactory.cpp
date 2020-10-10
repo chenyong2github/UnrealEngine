@@ -6,14 +6,6 @@
 #include "DisplayClusterProjectionLog.h"
 
 
-FDisplayClusterProjectionCameraPolicyFactory::FDisplayClusterProjectionCameraPolicyFactory()
-{
-}
-
-FDisplayClusterProjectionCameraPolicyFactory ::~FDisplayClusterProjectionCameraPolicyFactory()
-{
-}
-
 TSharedPtr<IDisplayClusterProjectionPolicy> FDisplayClusterProjectionCameraPolicyFactory::GetPolicyInstance(const FString& ViewportId)
 {
 	if (PolicyInstances.Contains(ViewportId))
@@ -28,10 +20,10 @@ TSharedPtr<IDisplayClusterProjectionPolicy> FDisplayClusterProjectionCameraPolic
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterProjectionPolicyFactory
 //////////////////////////////////////////////////////////////////////////////////////////////
-TSharedPtr<IDisplayClusterProjectionPolicy> FDisplayClusterProjectionCameraPolicyFactory::Create(const FString& PolicyType, const FString& RHIName, const FString& ViewportId)
+TSharedPtr<IDisplayClusterProjectionPolicy> FDisplayClusterProjectionCameraPolicyFactory::Create(const FString& PolicyType, const FString& RHIName, const FString& ViewportId, const TMap<FString, FString>& Parameters)
 {
 	UE_LOG(LogDisplayClusterProjectionCamera, Log, TEXT("Instantiating projection policy <%s>..."), *PolicyType);
-	TSharedPtr<IDisplayClusterProjectionPolicy> NewPolicy = MakeShareable(new FDisplayClusterProjectionCameraPolicy(ViewportId));
+	TSharedPtr<IDisplayClusterProjectionPolicy> NewPolicy = MakeShared<FDisplayClusterProjectionCameraPolicy>(ViewportId, Parameters);
 	PolicyInstances.Emplace(ViewportId, NewPolicy);
 	return NewPolicy;
 }

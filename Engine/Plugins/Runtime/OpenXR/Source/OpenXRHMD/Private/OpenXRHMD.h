@@ -49,6 +49,14 @@ public:
 		TArray<XrSpaceLocation> DeviceLocations;
 		XrSpace TrackingSpace;
 		float WorldToMetersScale = 100.0f;
+
+		TArray<XrViewConfigurationView> ViewConfigs;
+		TArray<XrCompositionLayerProjectionView> ProjectionLayers;
+		TArray<XrCompositionLayerDepthInfoKHR> DepthLayers;
+		TArray<XrSwapchainSubImage> ColorImages;
+		TArray<XrSwapchainSubImage> DepthImages;
+
+		TArray<class IOpenXRExtensionPlugin*> PluginViews;
 	};
 
 	class FVulkanExtensions : public IHeadMountedDisplayVulkanExtensions
@@ -138,6 +146,7 @@ protected:
 	const FPipelinedFrameState& GetPipelinedFrameStateForThread() const;
 	FPipelinedFrameState& GetPipelinedFrameStateForThread();
 	void UpdateDeviceLocations();
+	void EnumerateViews(FPipelinedFrameState& PipelineState);
 
 public:
 	/** IHeadMountedDisplay interface */
@@ -203,11 +212,14 @@ public:
 	/** Destructor */
 	virtual ~FOpenXRHMD();
 
+
+	void OnBeginRendering_RHIThread();
+	void OnFinishRendering_RHIThread();
+
 	/** @return	True if the HMD was initialized OK */
 	OPENXRHMD_API bool IsInitialized() const;
 	OPENXRHMD_API bool IsRunning() const;
 	OPENXRHMD_API bool IsFocused() const;
-	void FinishRendering();
 
 	OPENXRHMD_API int32 AddActionDevice(XrAction Action);
 	OPENXRHMD_API void ResetActionDevices();
@@ -234,6 +246,7 @@ private:
 	bool					bRunRequested;
 	bool					bDepthExtensionSupported;
 	bool					bHiddenAreaMaskSupported;
+	bool					bViewConfigurationFovSupported;
 	bool					bNeedReAllocatedDepth;
 	bool					bNeedReBuildOcclusionMesh;
 	bool					bIsMobileMultiViewEnabled;
@@ -254,10 +267,6 @@ private:
 
 	FPipelinedFrameState	PipelinedFrameStateGame;
 	FPipelinedFrameState	PipelinedFrameStateRHI;
-
-	TArray<XrViewConfigurationView> Configs;
-	TArray<XrCompositionLayerProjectionView> ProjectionViewsRHI;
-	TArray<XrCompositionLayerDepthInfoKHR> DepthLayersRHI;
 
 	TArray<FDeviceSpace>	DeviceSpaces;
 

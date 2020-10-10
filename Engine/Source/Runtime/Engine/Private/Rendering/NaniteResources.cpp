@@ -20,8 +20,15 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "AI/Navigation/NavCollisionBase.h"
 #include "Misc/Compression.h"
+#include "HAL/LowLevelMemStats.h"
 
 DEFINE_GPU_STAT(NaniteStreaming);
+
+#if ENABLE_LOW_LEVEL_MEM_TRACKER
+DECLARE_LLM_MEMORY_STAT(TEXT("Nanite"), STAT_NaniteLLM, STATGROUP_LLMFULL);
+DECLARE_LLM_MEMORY_STAT(TEXT("Nanite"), STAT_NaniteSummaryLLM, STATGROUP_LLM);
+LLM_DEFINE_TAG(Nanite, NAME_None, NAME_None, GET_STATFNAME(STAT_NaniteLLM), GET_STATFNAME(STAT_NaniteSummaryLLM));
+#endif // ENABLE_LOW_LEVEL_MEM_TRACKER
 
 #define MAX_CLUSTERS	(16 * 1024 * 1024)
 #define MAX_NODES		 (2 * 1024 * 1024)
@@ -121,7 +128,7 @@ void FResources::ReleaseResources()
 
 void FResources::Serialize(FArchive& Ar, UObject* Owner)
 {
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 
 	// Note: this is all derived data, native versioning is not needed, but be sure to bump NANITE_DERIVEDDATA_VER when modifying!
 
@@ -207,7 +214,7 @@ public:
 
 	virtual void InitRHI() override final
 	{
-		LLM_SCOPE(ELLMTag::Nanite);
+		LLM_SCOPE_BYTAG(Nanite);
 
 		FVertexStream VertexStream;
 		VertexStream.VertexBuffer = &GScreenRectangleVertexBuffer;
@@ -264,7 +271,7 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 , bDrawMeshCollisionIfSimple(Component->bDrawMeshCollisionIfSimple)
 #endif
 {
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 
 	// Nanite requires GPUScene
 	checkSlow(UseGPUScene(GMaxRHIShaderPlatform, GetScene().GetFeatureLevel()));
@@ -363,7 +370,7 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 : FSceneProxy(static_cast<UStaticMeshComponent*>(Component))
 {
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 
 	Instances.SetNumZeroed(Component->GetInstanceCount());
 	for (int32 InstanceIndex = 0; InstanceIndex < Instances.Num(); ++InstanceIndex)
@@ -391,7 +398,7 @@ FSceneProxy::FSceneProxy(UHierarchicalInstancedStaticMeshComponent* Component)
 
 FPrimitiveViewRelevance FSceneProxy::GetViewRelevance( const FSceneView* View ) const
 {
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 
 #if WITH_EDITOR
 	const bool bOptimizedRelevance = false;
@@ -478,7 +485,7 @@ FPrimitiveViewRelevance FSceneProxy::GetViewRelevance( const FSceneView* View ) 
 
 HHitProxy* FSceneProxy::CreateHitProxies(UPrimitiveComponent* Component, TArray<TRefCountPtr<HHitProxy>>& OutHitProxies)
 {
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 
 	if (Component->GetOwner())
 	{
@@ -501,7 +508,7 @@ HHitProxy* FSceneProxy::CreateHitProxies(UPrimitiveComponent* Component, TArray<
 
 FSceneProxy::FMeshInfo::FMeshInfo(const UStaticMeshComponent* InComponent)
 {
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 
 	if (InComponent->LightmapType == ELightmapType::ForceVolumetric)
 	{
@@ -542,7 +549,7 @@ void FSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PDI)
 {
 	// TODO: Refactor into FSceneProxyBase
 
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 
 	for (int32 SectionIndex = 0; SectionIndex < MaterialSections.Num(); ++SectionIndex)
 	{
@@ -606,7 +613,7 @@ void FSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>& Views,
 	}
 #endif
 
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_NaniteSceneProxy_GetMeshElements);
 	checkSlow(IsInRenderingThread());
 
@@ -849,7 +856,7 @@ void FGlobalResources::InitRHI()
 {
 	if (DoesPlatformSupportNanite(GMaxRHIShaderPlatform))
 	{
-		LLM_SCOPE(ELLMTag::Nanite);
+		LLM_SCOPE_BYTAG(Nanite);
 		VertexFactory = new FVertexFactory(ERHIFeatureLevel::SM5);
 		VertexFactory->InitResource();
 	}
@@ -859,7 +866,7 @@ void FGlobalResources::ReleaseRHI()
 {
 	if (DoesPlatformSupportNanite(GMaxRHIShaderPlatform))
 	{
-		LLM_SCOPE(ELLMTag::Nanite);
+		LLM_SCOPE_BYTAG(Nanite);
 
 		MainPassBuffers.NodesBuffer.SafeRelease();
 		PostPassBuffers.NodesBuffer.SafeRelease();

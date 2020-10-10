@@ -1544,15 +1544,8 @@ static void DenoiseSignalAtConstantPixelDensity(
 		}
 		else if (Settings.SignalProcessing == ESignalProcessing::ScreenSpaceDiffuseIndirect)
 		{
-			// This is a workaround to fix UE-84870.
-			// In certain cases writes to R11G11B10 fail on AMD hw so we are falling back to 16F.
-#if PLATFORM_MAC
-			ReconstructionDescs[0].Format = PF_FloatRGBA;
-			HistoryDescs[0].Format = PF_FloatRGBA;
-#else
 			ReconstructionDescs[0].Format = PF_FloatR11G11B10;
 			HistoryDescs[0].Format = PF_FloatR11G11B10;
-#endif
 			ReconstructionDescs[1].Format = PF_R8G8;
 			ReconstructionTextureCount = 2;
 

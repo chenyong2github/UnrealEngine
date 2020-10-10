@@ -21,35 +21,69 @@ bool UAzureSpatialAnchorsLibrary::CreateSession()
 
 bool UAzureSpatialAnchorsLibrary::ConfigSession(const FString& AccountId, const FString& AccountKey, const FCoarseLocalizationSettings CoarseLocalizationSettings, EAzureSpatialAnchorsLogVerbosity LogVerbosity)
 {
+	if (AccountId.Len() == 0)
+	{
+		UE_LOG(LogAzureSpatialAnchors, Warning, TEXT("ConfigSession called, but AccountId is empty!  This session should not be useable."));
+	}
+
+	if (AccountKey.Len() == 0)
+	{
+		UE_LOG(LogAzureSpatialAnchors, Warning, TEXT("ConfigSession called, but AccountKey is empty!  This session should not be useable."));
+	}
+
+	FAzureSpatialAnchorsSessionConfiguration Config;
+	Config.AccountId = *AccountId;
+	Config.AccountKey = *AccountKey;
+
+	return ConfigSession2(Config, CoarseLocalizationSettings, LogVerbosity);
+}
+
+bool UAzureSpatialAnchorsLibrary::ConfigSession2(const FAzureSpatialAnchorsSessionConfiguration& SessionConfiguration, const FCoarseLocalizationSettings CoarseLocalizationSettings, EAzureSpatialAnchorsLogVerbosity LogVerbosity)
+{
 	IAzureSpatialAnchors* IASA = IAzureSpatialAnchors::Get();
 	if (IASA == nullptr)
 	{
 		return false;
 	}
 
-	if (AccountId.Len() == 0)
+	// Authentication can be by AccessToken, AccountId + AccountKey, or AuthenticationToken.
+	// So we ought to have one of those.  Probably wrong to have more than one.  Definately wrong to have none.
+	int AuthenticationMethodCount = 0;
+
+	if (SessionConfiguration.AccessToken.Len() != 0)
 	{
-		UE_LOG(LogAzureSpatialAnchors, Warning, TEXT("ConfigSession called, but accountId is empty!  This session should not be useable."));
+		AuthenticationMethodCount += 1;
 	}
 
-	if (AccountKey.Len() == 0)
+	if ((SessionConfiguration.AccountId.Len() != 0) || (SessionConfiguration.AccountKey.Len() != 0))
 	{
-		UE_LOG(LogAzureSpatialAnchors, Warning, TEXT("ConfigSession called, but accountId is empty!  This session should not be useable."));
+		if ((SessionConfiguration.AccountId.Len() != 0) && (SessionConfiguration.AccountKey.Len() != 0))
+		{
+			AuthenticationMethodCount += 1;
+		}
+		else
+		{
+			UE_LOG(LogAzureSpatialAnchors, Warning, TEXT("ConfigSession called, but we only have one of AccountID and AccountKey!  This session authentication method should not be useable."));
+		}
+	}
+
+	if (SessionConfiguration.AuthenticationToken.Len() != 0)
+	{
+		AuthenticationMethodCount += 1;
+	}
+
+	if (AuthenticationMethodCount == 0)
+	{
+		UE_LOG(LogAzureSpatialAnchors, Warning, TEXT("ConfigSession called, but we found no potentially valid authentication information!  This session should not be useable.  Check that you are supplying the authentication data."));
+	}
+	else if (AuthenticationMethodCount > 1)
+	{
+		UE_LOG(LogAzureSpatialAnchors, Warning, TEXT("ConfigSession called, but we found %i potentially valid authentication information sets!  This may work, but you should check that it is working as intended."), AuthenticationMethodCount);
 	}
 
 	// Session configuration takes effect on session Start() according to documentation.
-
-	// Coarse Localization
-
 	EAzureSpatialAnchorsResult LocResult = IASA->SetLocationProvider(CoarseLocalizationSettings);
-
-	//ConfigSession
-	FAzureSpatialAnchorsSessionConfiguration Config;
-	Config.AccountId = *AccountId;
-	Config.AccountKey = *AccountKey;
-	EAzureSpatialAnchorsResult ConfigResult = IASA->SetConfiguration(Config);
-
-	//Log
+	EAzureSpatialAnchorsResult ConfigResult = IASA->SetConfiguration(SessionConfiguration);
 	EAzureSpatialAnchorsResult LogResult = IASA->SetLogLevel(LogVerbosity);
 
 	return (ConfigResult == EAzureSpatialAnchorsResult::Success) && (LocResult == EAzureSpatialAnchorsResult::Success) && (LogResult == EAzureSpatialAnchorsResult::Success);

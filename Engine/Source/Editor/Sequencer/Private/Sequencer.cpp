@@ -516,7 +516,10 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 		UBlueprint* Blueprint = SequenceEditor->FindDirectorBlueprint(InitParams.RootSequence);
 		if (Blueprint)
 		{
-			FBlueprintActionDatabase::Get().RefreshAssetActions(Blueprint);
+			if (FBlueprintActionDatabase* Database = FBlueprintActionDatabase::TryGet())
+			{
+				Database->RefreshAssetActions(Blueprint);
+			}
 		}
 	}
 
@@ -887,7 +890,10 @@ void FSequencer::ResetToNewRootSequence(UMovieSceneSequence& NewSequence)
 		UBlueprint* Blueprint = SequenceEditor->FindDirectorBlueprint(&NewSequence);
 		if (Blueprint)
 		{
-			FBlueprintActionDatabase::Get().RefreshAssetActions(Blueprint);
+			if (FBlueprintActionDatabase* Database = FBlueprintActionDatabase::TryGet())
+			{
+				Database->RefreshAssetActions(Blueprint);
+			}
 		}
 	}
 
@@ -1029,7 +1035,10 @@ void FSequencer::FocusSequenceInstance(UMovieSceneSubSection& InSubSection)
 		UBlueprint* Blueprint = SequenceEditor->FindDirectorBlueprint(FocusedSequence);
 		if (Blueprint)
 		{
-			FBlueprintActionDatabase::Get().RefreshAssetActions(Blueprint);
+			if (FBlueprintActionDatabase* Database = FBlueprintActionDatabase::TryGet())
+			{
+				Database->RefreshAssetActions(Blueprint);
+			}
 		}
 	}
 
@@ -1186,18 +1195,6 @@ void FSequencer::PopToSequenceInstance(FMovieSceneSequenceIDRef SequenceID)
 
 		check( ActiveTemplateIDs.Num() > 0 );
 		UpdateSubSequenceData();
-
-		// Pop out of any potentially locked cameras from the shot and toggle on camera cuts
-		for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
-		{		
-			if (LevelVC && LevelVC->AllowsCinematicControl() && LevelVC->GetViewMode() != VMI_Unknown)
-			{
-				LevelVC->SetActorLock(nullptr);
-				LevelVC->bLockedCameraView = false;
-				LevelVC->UpdateViewForLockedActor();
-				LevelVC->Invalidate();
-			}
-		}
 
 		ResetPerMovieSceneData();
 

@@ -161,7 +161,7 @@ public:
 
 	void CustomizeChildren(TSharedRef<IPropertyHandle> InStructPropertyHandle, IDetailChildrenBuilder& InStructBuilder, IPropertyTypeCustomizationUtils& InStructCustomizationUtils) override;
 
-	EVisibility CheckPixelMatrix(TSharedRef<IPropertyHandle> PropertyHandle, TWeakObjectPtr<UDMXEntityFixtureType> FixtureType);
+	EVisibility CheckFixtureMatrix(TSharedRef<IPropertyHandle> PropertyHandle, TWeakObjectPtr<UDMXEntityFixtureType> FixtureType);
 protected:
 	//~ FDMXFixtureTypeFunctionsDetails interface
 	virtual void GetCustomNameFieldSettings(FText& OutNewPropertyLabel, FName& OutNamePropertyName, FText& OutToolTip, FText& OutExistingNameError) override;
@@ -407,7 +407,7 @@ private:
 	TSharedPtr<IPropertyHandle> StructHandle;
 };
 
-class FDMXPixelsDistributionCustomization
+class FDMXPixelMappingDistributionCustomization
 	: public IPropertyTypeCustomization
 {
 public:

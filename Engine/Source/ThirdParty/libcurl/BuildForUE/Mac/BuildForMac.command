@@ -273,12 +273,12 @@ build_libwebsockets()
 	cd libwebsockets-${LWS_VERSION}
 	mkdir build-debug
 	cd build-debug
-	cmake .. -DCMAKE_BUILD_TYPE=DEBUG -DCMAKE_INSTALL_PREFIX:PATH=${PREFIX_ROOT}/Debug -DOPENSSL_ROOT_DIR=/tmp/OpenSSL/Deploy/Universal -DCMAKE_INCLUDE_DIRECTORIES_PROJECT_BEFORE=/tmp/OpenSSL/Deploy/Universal -DZLIB_INCLUDE_DIR=/tmp/zlib/Deploy/include -DZLIB_LIBRARY_RELEASE=/tmp/zlib/Deploy/lib/libz.a -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
+	cmake .. -DCMAKE_BUILD_TYPE=DEBUG -DCMAKE_C_FLAGS_DEBUG="-gdwarf-2" -DCMAKE_CXX_FLAGS_DEBUG="-gdwarf-2" -DCMAKE_INSTALL_PREFIX:PATH=${PREFIX_ROOT}/Debug -DOPENSSL_ROOT_DIR=/tmp/OpenSSL/Deploy/Universal -DOPENSSL_INCLUDE_DIR=/tmp/OpenSSL/Deploy/x86_64/include -DCMAKE_INCLUDE_DIRECTORIES_PROJECT_BEFORE=/tmp/OpenSSL/Deploy/Universal -DZLIB_INCLUDE_DIR=/tmp/zlib/Deploy/include -DZLIB_LIBRARY_RELEASE=/tmp/zlib/Deploy/lib/libz.a -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
 	make -j$(get_core_count) && make install
 	cd ..
 	mkdir build-release
 	cd build-release
-	cmake .. -DCMAKE_INSTALL_PREFIX:PATH=${PREFIX_ROOT}/Release -DOPENSSL_ROOT_DIR=/tmp/OpenSSL/Deploy/Universal -DCMAKE_INCLUDE_DIRECTORIES_PROJECT_BEFORE=/tmp/OpenSSL/Deploy/Universal -DZLIB_INCLUDE_DIR=/tmp/zlib/Deploy/include -DZLIB_LIBRARY_RELEASE=/tmp/zlib/Deploy/lib/libz.a -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
+	cmake .. -DCMAKE_INSTALL_PREFIX:PATH=${PREFIX_ROOT}/Release -DOPENSSL_ROOT_DIR=/tmp/OpenSSL/Deploy/Universal -DOPENSSL_INCLUDE_DIR=/tmp/OpenSSL/Deploy/x86_64/include -DCMAKE_INCLUDE_DIRECTORIES_PROJECT_BEFORE=/tmp/OpenSSL/Deploy/Universal -DZLIB_INCLUDE_DIR=/tmp/zlib/Deploy/include -DZLIB_LIBRARY_RELEASE=/tmp/zlib/Deploy/lib/libz.a -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
 	make -j$(get_core_count) && make install
 
 	popd > /dev/null

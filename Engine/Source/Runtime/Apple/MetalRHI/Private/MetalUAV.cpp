@@ -483,42 +483,6 @@ void FMetalDynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRVRH
 }
 
 #if UE_METAL_RHI_SUPPORT_CLEAR_UAV_WITH_BLIT_ENCODER
-struct FMetalRHICommandClearUAVWithBlitEncoder : public FRHICommand<FMetalRHICommandClearUAVWithBlitEncoder>
-{
-	FMetalContext*	Context;
-	FMetalBuffer	Buffer;
-	uint32			Size;
-	uint32			Pattern;
-
-	FORCEINLINE_DEBUGGABLE FMetalRHICommandClearUAVWithBlitEncoder(FMetalContext* InContext, FMetalBuffer InBuffer, uint32 InSize, uint32 InPattern)
-		: Context(InContext)
-		, Buffer(InBuffer)
-		, Size(InSize)
-		, Pattern(InPattern)
-	{
-	}
-
-	virtual ~FMetalRHICommandClearUAVWithBlitEncoder()
-	{
-	}
-
-	void Execute(FRHICommandListBase& CmdList)
-	{
-		SCOPED_AUTORELEASE_POOL;
-
-		uint32 AlignedSize = Align(Size, BufferOffsetAlignment);
-		FMetalPooledBufferArgs Args(GetMetalDeviceContext().GetDevice(), AlignedSize, BUF_Dynamic, mtlpp::StorageMode::Shared);
-		FMetalBuffer Temp = GetMetalDeviceContext().CreatePooledBuffer(Args);
-		uint32* ContentBytes = (uint32*)Temp.GetContents();
-		for (uint32 Element = 0; Element < (AlignedSize >> 2); ++Element)
-		{
-			ContentBytes[Element] = Pattern;
-		}
-		Context->CopyFromBufferToBuffer(Temp, 0, Buffer, 0, Size);
-		GetMetalDeviceContext().ReleaseBuffer(Temp);
-	}
-};
-
 void FMetalRHICommandContext::ClearUAVWithBlitEncoder(FRHIUnorderedAccessView* UnorderedAccessViewRHI, EMetalRHIClearUAVType Type, uint32 Pattern)
 {
 	SCOPED_AUTORELEASE_POOL;
@@ -542,23 +506,16 @@ void FMetalRHICommandContext::ClearUAVWithBlitEncoder(FRHIUnorderedAccessView* U
 			break;
 	};
 
-	if (RHICmdList.Bypass() || !IsRunningRHIInSeparateThread())
+	uint32 AlignedSize = Align(Size, BufferOffsetAlignment);
+	FMetalPooledBufferArgs Args(GetMetalDeviceContext().GetDevice(), AlignedSize, BUF_Dynamic, mtlpp::StorageMode::Shared);
+	FMetalBuffer Temp = GetMetalDeviceContext().CreatePooledBuffer(Args);
+	uint32* ContentBytes = (uint32*)Temp.GetContents();
+	for (uint32 Element = 0; Element < (AlignedSize >> 2); ++Element)
 	{
-		uint32 AlignedSize = Align(Size, BufferOffsetAlignment);
-		FMetalPooledBufferArgs Args(GetMetalDeviceContext().GetDevice(), AlignedSize, BUF_Dynamic, mtlpp::StorageMode::Shared);
-		FMetalBuffer Temp = GetMetalDeviceContext().CreatePooledBuffer(Args);
-		uint32* ContentBytes = (uint32*)Temp.GetContents();
-		for (uint32 Element = 0; Element < (AlignedSize >> 2); ++Element)
-		{
-			ContentBytes[Element] = Pattern;
-		}
-		Context->CopyFromBufferToBuffer(Temp, 0, Buffer, 0, Size);
-		GetMetalDeviceContext().ReleaseBuffer(Temp);
+		ContentBytes[Element] = Pattern;
 	}
-	else
-	{
-		new (RHICmdList.AllocCommand<FMetalRHICommandClearUAVWithBlitEncoder>()) FMetalRHICommandClearUAVWithBlitEncoder(Context, Buffer, Size, Pattern);
-	}
+	Context->CopyFromBufferToBuffer(Temp, 0, Buffer, 0, Size);
+	GetMetalDeviceContext().ReleaseBuffer(Temp);
 }
 #endif // UE_METAL_RHI_SUPPORT_CLEAR_UAV_WITH_BLIT_ENCODER
 

@@ -16,14 +16,14 @@
 uint3 PositionToCoord(float3 P, float3 InMinAABB, float3 InMaxAABB, uint3 InResolution)
 {
 	return clamp(
-		saturate((P - InMinAABB) / (InMaxAABB - InMinAABB)) * InResolution,
+		uint3(saturate((P - InMinAABB) / (InMaxAABB - InMinAABB)) * InResolution),
 		uint3(0,0,0),
 		InResolution -1);
 }
 
 uint3 PositionToCoordUnclampled(float3 P, float3 InMinAABB, float3 InMaxAABB, uint3 InResolution)
 {
-	return saturate((P - InMinAABB) / (InMaxAABB - InMinAABB)) * InResolution;
+	return uint3(saturate((P - InMinAABB) / (InMaxAABB - InMinAABB)) * float3(InResolution));
 }
 
 uint CoordToIndex(uint3 InCoord, uint3 InResolution, uint LinearOffset)
@@ -162,7 +162,7 @@ float GetInternalVoxelHairCount(uint RawDensity)
 
 FHairTraversalResult GetHairVirtualVoxelDensity(uint3 InVoxelPageCoord, Texture3D<uint> InPageTexture, uint MipIndex, float DensityScale)
 {
-	FHairTraversalResult Out;
+	FHairTraversalResult Out = InitHairTraversalResult();
 	const uint RawDensity = InPageTexture.Load(uint4(InVoxelPageCoord >> MipIndex, MipIndex));
 	Out.HairCount  = GetInternalVoxelHairCount(RawDensity) * DensityScale;
 	Out.Visibility = GetInternalVoxelOpaqueVisibility(RawDensity);
@@ -171,7 +171,7 @@ FHairTraversalResult GetHairVirtualVoxelDensity(uint3 InVoxelPageCoord, Texture3
 
 FHairTraversalResult GetHairVoxelDensity(uint3 InVolumeCoord, Texture3D<uint> InDensityTexture, uint MipIndex, float DensityScale)
 {
-	FHairTraversalResult Out;
+	FHairTraversalResult Out = InitHairTraversalResult();
 	const uint RawDensity = InDensityTexture.Load(int4(InVolumeCoord, MipIndex));
 	Out.HairCount = GetInternalVoxelHairCount(RawDensity) * DensityScale;
 	Out.Visibility = GetInternalVoxelOpaqueVisibility(RawDensity);

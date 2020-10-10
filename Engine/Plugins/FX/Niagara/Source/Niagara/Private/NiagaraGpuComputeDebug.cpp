@@ -10,7 +10,7 @@
 #include "Engine/Font.h"
 #include "Modules/ModuleManager.h"
 
-float GNiagaraGpuComputeDebug_MaxTextureHeight = 128.0f;
+int32 GNiagaraGpuComputeDebug_MaxTextureHeight = 128;
 static FAutoConsoleVariableRef CVarNiagaraGpuComputeDebug_MaxTextureHeight(
 	TEXT("fx.Niagara.GpuComputeDebug.MaxTextureHeight"),
 	GNiagaraGpuComputeDebug_MaxTextureHeight,
@@ -36,27 +36,35 @@ void FNiagaraGpuComputeDebug::OnSystemDeallocated(FNiagaraSystemInstanceID Syste
 	VisualizeTextures.RemoveAll([&SystemInstanceID](const FNiagaraVisualizeTexture& Texture) -> bool { return Texture.SystemInstanceID == SystemInstanceID; });
 }
 
-void FNiagaraGpuComputeDebug::AddTexture(FRHICommandList& RHICmdList, FNiagaraSystemInstanceID SystemInstanceID, FName SourceName, FTexture2DRHIRef Texture2D)
+void FNiagaraGpuComputeDebug::AddTexture(FRHICommandList& RHICmdList, FNiagaraSystemInstanceID SystemInstanceID, FName SourceName, FRHITexture* Texture)
 {
-	AddAttributeTexture(RHICmdList, SystemInstanceID, SourceName, Texture2D, FIntPoint::ZeroValue, FIntVector4(INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE));
+	AddAttributeTexture(RHICmdList, SystemInstanceID, SourceName, Texture, FIntPoint::ZeroValue, FIntVector4(INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE));
 }
 
-void FNiagaraGpuComputeDebug::AddAttributeTexture(FRHICommandList& RHICmdList, FNiagaraSystemInstanceID SystemInstanceID, FName SourceName, FTexture2DRHIRef Texture2D, FIntPoint NumTextureAttributes, FIntVector4 AttributeIndices)
+void FNiagaraGpuComputeDebug::AddAttributeTexture(FRHICommandList& RHICmdList, FNiagaraSystemInstanceID SystemInstanceID, FName SourceName, FRHITexture* Texture, FIntPoint NumTextureAttributes, FIntVector4 AttributeIndices)
 {
 	if (!SystemInstancesToWatch.Contains(SystemInstanceID))
 	{
 		return;
 	}
 
-	if (SourceName.IsNone() || !Texture2D.IsValid())
+	if (SourceName.IsNone() || (Texture == nullptr))
+	{
+		return;
+	}
+
+	FRHITexture2D* SrcTexture2D = Texture->GetTexture2D();
+	FRHITexture2DArray* SrcTexture2DArray = Texture->GetTexture2DArray();
+	FRHITexture3D* SrcTexture3D = Texture->GetTexture3D();
+	if ( (SrcTexture2D == nullptr) && (SrcTexture2DArray == nullptr) && (SrcTexture3D == nullptr) )
 	{
 		return;
 	}
 
 	bool bCreateTexture = false;
 
-	const FIntVector SrcSize = Texture2D->GetSizeXYZ();
-	const EPixelFormat SrcFormat = Texture2D->GetFormat();
+	const FIntVector SrcSize = Texture->GetSizeXYZ();
+	const EPixelFormat SrcFormat = Texture->GetFormat();
 
 	FNiagaraVisualizeTexture* VisualizeEntry = VisualizeTextures.FindByPredicate([&SourceName, &SystemInstanceID](const FNiagaraVisualizeTexture& Texture) -> bool { return Texture.SystemInstanceID == SystemInstanceID && Texture.SourceName == SourceName; });
 	if (!VisualizeEntry)
@@ -74,16 +82,31 @@ void FNiagaraGpuComputeDebug::AddAttributeTexture(FRHICommandList& RHICmdList, F
 	VisualizeEntry->AttributesToVisualize = AttributeIndices;
 
 	// Do we need to create a texture to copy into?
-	FTexture2DRHIRef Destination;
+	FTextureRHIRef Destination;
 	if ( bCreateTexture )
 	{
-		FRHIResourceCreateInfo CreateInfo;
-		Destination = RHICreateTexture2D(SrcSize.X, SrcSize.Y, SrcFormat, 1, 1, TexCreate_ShaderResource, CreateInfo);
-		VisualizeEntry->Texture = Destination;
+		if (SrcTexture2D != nullptr)
+		{
+			FRHIResourceCreateInfo CreateInfo;
+			Destination = RHICreateTexture2D(SrcSize.X, SrcSize.Y, SrcFormat, 1, 1, TexCreate_ShaderResource, CreateInfo);
+			VisualizeEntry->Texture = Destination;
+		}
+		else if (SrcTexture2DArray != nullptr)
+		{
+			FRHIResourceCreateInfo CreateInfo;
+			Destination = RHICreateTexture2DArray(SrcSize.X, SrcSize.Y, SrcSize.Z, SrcFormat, 1, 1, TexCreate_ShaderResource, CreateInfo);
+			VisualizeEntry->Texture = Destination;
+		}
+		else if (SrcTexture3D != nullptr)
+		{
+			FRHIResourceCreateInfo CreateInfo;
+			Destination = RHICreateTexture3D(SrcSize.X, SrcSize.Y, SrcSize.Z, SrcFormat, 1, TexCreate_ShaderResource, CreateInfo);
+			VisualizeEntry->Texture = Destination;
+		}
 	}
 	else
 	{
-		Destination = VisualizeEntry->Texture->GetTexture2D();
+		Destination = VisualizeEntry->Texture;
 		check(Destination != nullptr);
 	}
 
@@ -91,18 +114,19 @@ void FNiagaraGpuComputeDebug::AddAttributeTexture(FRHICommandList& RHICmdList, F
 	{
 		FRHITransitionInfo TransitionsBefore[] =
 		{
-			FRHITransitionInfo(Texture2D, ERHIAccess::SRVMask, ERHIAccess::CopySrc),
+			FRHITransitionInfo(Texture, ERHIAccess::SRVMask, ERHIAccess::CopySrc),
 			FRHITransitionInfo(Destination, ERHIAccess::SRVMask, ERHIAccess::CopyDest)
 		};
 		RHICmdList.Transition(MakeArrayView(TransitionsBefore, UE_ARRAY_COUNT(TransitionsBefore)));
 	}
 
 	FRHICopyTextureInfo CopyInfo;
-	RHICmdList.CopyTexture(Texture2D, Destination, CopyInfo);
+	RHICmdList.CopyTexture(Texture, Destination, CopyInfo);
 
 	{
 		FRHITransitionInfo TransitionsAfter[] =
 		{
+			FRHITransitionInfo(Texture, ERHIAccess::CopySrc, ERHIAccess::SRVMask),
 			FRHITransitionInfo(Destination, ERHIAccess::CopyDest, ERHIAccess::SRVMask)
 		};
 		RHICmdList.Transition(MakeArrayView(TransitionsAfter, UE_ARRAY_COUNT(TransitionsAfter)));
@@ -129,18 +153,13 @@ void FNiagaraGpuComputeDebug::DrawDebug(FRHICommandListImmediate& RHICmdList, FC
 	const float FontHeight = Font->GetMaxCharHeight();
 
 	FRenderTarget* RenderTarget = Canvas->GetRenderTarget();
-	FVector2D RenderTargetSize(RenderTarget->GetSizeXY().X, RenderTarget->GetSizeXY().Y);
+	FIntPoint RenderTargetSize(RenderTarget->GetSizeXY().X, RenderTarget->GetSizeXY().Y);
 	FRHIRenderPassInfo RPInfo(RenderTarget->GetRenderTargetTexture(), ERenderTargetActions::Load_Store);
 	RHICmdList.BeginRenderPass(RPInfo, TEXT("NiagaraVisualizeTextures"));
 
 	RHICmdList.SetViewport(0, 0, 0.0f, RenderTargetSize.X, RenderTargetSize.Y, 1.0f);
 
-	float X = 10.0f;
-	float Y = RenderTargetSize.Y - 10.0f;
-
-	auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
-	TShaderMapRef<FScreenVS> VertexShader(ShaderMap);
-	TShaderMapRef<FNiagaraVisualizeTexture2DPS> PixelShader2D(ShaderMap);
+	FIntPoint Location(10.0f, RenderTargetSize.Y - 10.0f);
 
 	for (const FNiagaraVisualizeTexture& VisualizeEntry : VisualizeTextures)
 	{
@@ -155,51 +174,14 @@ void FNiagaraGpuComputeDebug::DrawDebug(FRHICommandListImmediate& RHICmdList, FC
 		// Get system name
 		const FString& SystemName = SystemInstancesToWatch.FindRef(VisualizeEntry.SystemInstanceID);
 
-		// 2D Visualizer
-		if (FRHITexture2D* Texture2D = VisualizeEntry.Texture->GetTexture2D())
-		{
-			FVector2D DisplaySize(TextureSize.X, TextureSize.Y);
-			if (GNiagaraGpuComputeDebug_MaxTextureHeight > 0.0f)
-			{
-				DisplaySize.Y = FMath::Min(TextureSize.Y, int32(GNiagaraGpuComputeDebug_MaxTextureHeight));
-				DisplaySize.X = TextureSize.X * (DisplaySize.Y / TextureSize.Y);
-			}
+		const int32 DisplayHeight = GNiagaraGpuComputeDebug_MaxTextureHeight > 0 ? GNiagaraGpuComputeDebug_MaxTextureHeight : TextureSize.Y;
+		Location.Y -= DisplayHeight;
+		NiagaraDebugShaders::VisualizeTexture(RHICmdList, Location, DisplayHeight, RenderTargetSize, VisualizeEntry.AttributesToVisualize, VisualizeEntry.Texture, VisualizeEntry.NumTextureAttributes, TickCounter);
 
-			FGraphicsPipelineStateInitializer GraphicsPSOInit;
-			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-			GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader2D.GetPixelShader();
-			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+		Location.Y -= FontHeight;
+		Canvas->DrawShadowedString(Location.X, Location.Y, *FString::Printf(TEXT("DataInterface: %s, System: %s"), *VisualizeEntry.SourceName.ToString(), *SystemName), Font, FLinearColor(1, 1, 1));
 
-			PixelShader2D->SetParameters(RHICmdList, VisualizeEntry.AttributesToVisualize, VisualizeEntry.Texture, VisualizeEntry.NumTextureAttributes, TickCounter);
-
-			Y -= DisplaySize.Y;
-
-			RendererModule->DrawRectangle(
-				RHICmdList,
-				X, Y,										// Dest X, Y
-				DisplaySize.X, DisplaySize.Y,				// Dest Width, Height
-				0.0f, 0.0f,									// Source U, V
-				TextureSize.X, TextureSize.Y,				// Source USize, VSize
-				FIntPoint(RenderTargetSize.X, RenderTargetSize.Y),	// TargetSize
-				FIntPoint(TextureSize.X, TextureSize.Y),	// Source texture size
-				VertexShader,
-				EDRF_Default);
-
-			Y -= FontHeight;
-			Canvas->DrawShadowedString(X, Y, *FString::Printf(TEXT("DataInterface: %s, System: %s"), *VisualizeEntry.SourceName.ToString(), *SystemName), Font, FLinearColor(1, 1, 1));
-		}
-		else
-		{
-			//-TODO: Add 3D Visualizer
-		}
-
-		Y -= 1.0f;
+		Location.Y -= 1.0f;
 	}
 
 	RHICmdList.EndRenderPass();

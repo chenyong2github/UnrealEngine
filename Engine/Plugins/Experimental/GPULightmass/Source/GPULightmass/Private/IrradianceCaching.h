@@ -45,3 +45,22 @@ struct FIrradianceCache
 
 	int32 CurrentRevision = 0;
 };
+
+class FVisualizeIrradianceCachePS : public FGlobalShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FVisualizeIrradianceCachePS);
+	SHADER_USE_PARAMETER_STRUCT(FVisualizeIrradianceCachePS, FGlobalShader)
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_STRUCT_REF(FSceneTextureUniformParameters, SceneTextures)
+		SHADER_PARAMETER_STRUCT_REF(FIrradianceCachingParameters, IrradianceCachingParameters)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+};

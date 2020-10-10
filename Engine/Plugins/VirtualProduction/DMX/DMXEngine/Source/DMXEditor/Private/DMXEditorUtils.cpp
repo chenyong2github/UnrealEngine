@@ -4,6 +4,7 @@
 
 #include "DMXEditorLog.h"
 #include "DMXRuntimeUtils.h"
+#include "Interfaces/IDMXProtocol.h"
 #include "Library/DMXLibrary.h"
 #include "Library/DMXEntityController.h"
 #include "Library/DMXEntityFixtureType.h"
@@ -914,6 +915,19 @@ bool FDMXEditorUtils::DoEntitiesHaveUniverseConflict(UDMXEntity* EntityA, UDMXEn
 	}
 
 	return false;
+}
+
+void FDMXEditorUtils::ZeroAllDMXBuffers()
+{
+	TArray<FName> ProtocolNames = IDMXProtocol::GetProtocolNames();
+	for (const FName& ProtocolName : ProtocolNames)
+	{
+		IDMXProtocolPtr Protocol = IDMXProtocol::Get(ProtocolName);
+		check(Protocol.IsValid());
+
+		Protocol->ZeroInputBuffers();
+		Protocol->ZeroOutputBuffers();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

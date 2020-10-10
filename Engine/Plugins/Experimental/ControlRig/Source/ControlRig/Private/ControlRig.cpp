@@ -461,7 +461,7 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 		Context.ToWorldSpaceTransform = OuterSceneComponent->GetComponentToWorld();
 		Context.OwningComponent = OuterSceneComponent.Get();
 		Context.OwningActor = Context.OwningComponent->GetOwner();
-		Context.World = Context.OwningActor->GetWorld();
+		Context.World = Context.OwningComponent->GetWorld();
 	}
 	else
 	{
@@ -626,7 +626,6 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 
 	if (Context.DrawInterface && Context.DrawContainer)
 	{
-		DrawInterface.Reset();
 		Context.DrawInterface->Instructions.Append(Context.DrawContainer->Instructions);
 
 		for (const FRigControl& Control : Hierarchy.ControlHierarchy)

@@ -287,27 +287,61 @@ void FTimingGraphTrack::UpdateTimerSeries(FTimingGraphSeries& Series, const FTim
 			TimingProfilerProvider.ReadTimers([&TimerReader](const Trace::ITimingProfilerTimerReader& Out) { TimerReader = &Out; });
 
 			const uint32 TimelineCount = TimingProfilerProvider.GetTimelineCount();
+			uint32 NumTimelinesContainingEvent = 0;
 			for (uint32 TimelineIndex = 0; TimelineIndex < TimelineCount; ++TimelineIndex)
 			{
 				TimingProfilerProvider.ReadTimeline(TimelineIndex,
-					[SessionDuration, &Series, TimerReader](const Trace::ITimingProfilerProvider::Timeline& Timeline)
+					[SessionDuration, &Series, TimerReader, &Viewport, &NumTimelinesContainingEvent](const Trace::ITimingProfilerProvider::Timeline& Timeline)
 					{
-						Timeline.EnumerateEvents(0.0, SessionDuration,
-							[&Series, TimerReader](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
+						TArray<TArray<FTimingGraphSeries::FSimpleTimingEvent>> Events;
+						Trace::ITimeline<Trace::FTimingProfilerEvent>::EnumerateAsyncParams Params;
+						Params.IntervalStart = 0;
+						Params.IntervalEnd = SessionDuration;
+						Params.Resolution = 0.0;
+						Params.SetupCallback = [&Events](uint32 NumTasks)
+						{
+							Events.AddDefaulted(NumTasks);
+						};
+						Params.Callback = [&Events, TimerReader, &Series](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event, uint32 TaskIndex)
+						{
+							const Trace::FTimingProfilerTimer* Timer = TimerReader->GetTimer(Event.TimerIndex);
+							if (ensure(Timer != nullptr))
 							{
-								const Trace::FTimingProfilerTimer* Timer = TimerReader->GetTimer(Event.TimerIndex);
-								if (ensure(Timer != nullptr) && Timer->Id == Series.TimerId)
+								if (Timer->Id == Series.TimerId)
 								{
-									//TODO: add a "frame converter" (i.e. to fps, miliseconds or seconds)
 									const double Duration = EndTime - StartTime;
-									Series.CachedEvents.Add({ StartTime, Duration });
+									Events[TaskIndex].Add({ StartTime, Duration });
 								}
-								return Trace::EEventEnumerate::Continue;
-							});
+							}
+							return Trace::EEventEnumerate::Continue;
+						};
+
+						Timeline.EnumerateEventsDownSampledAsync(Params);
+
+						int32 NumOfCachedEvents = Series.CachedEvents.Num();
+						for (auto& Array : Events)
+						{
+							for (auto& Event : Array)
+							{
+								Series.CachedEvents.Add(Event);
+							}
+
+							Array.Empty();
+						}
+
+						if (NumOfCachedEvents != Series.CachedEvents.Num())
+						{
+							++NumTimelinesContainingEvent;
+						}
 					});
 			}
 
-			Series.CachedEvents.Sort(&FTimingGraphSeries::CompareEventsByStartTime);
+			//If events come from multiple timelines, we have to sort the whole thing.
+			//If they come from a single timeline, they are already sorted.
+			if (NumTimelinesContainingEvent > 1)
+			{
+				Series.CachedEvents.Sort(&FTimingGraphSeries::CompareEventsByStartTime);
+			}
 		}
 
 		int32 StartIndex = Algo::UpperBoundBy(Series.CachedEvents, Viewport.GetStartTime(), &FTimingGraphSeries::FSimpleTimingEvent::StartTime);

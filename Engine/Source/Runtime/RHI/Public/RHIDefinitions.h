@@ -640,7 +640,7 @@ enum ERenderQueryType
 };
 
 /** Maximum number of miplevels in a texture. */
-enum { MAX_TEXTURE_MIP_COUNT = 14 };
+enum { MAX_TEXTURE_MIP_COUNT = 15 };
 
 /** Maximum number of static/skeletal mesh LODs */
 enum { MAX_MESH_LOD_COUNT = 8 };

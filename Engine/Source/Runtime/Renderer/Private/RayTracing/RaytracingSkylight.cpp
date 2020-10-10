@@ -95,7 +95,7 @@ static TAutoConsoleVariable<int32> CVarRayTracingSkyLightDecoupleSampleGeneratio
 
 static TAutoConsoleVariable<int32> CVarRayTracingSkyLightEnableHairVoxel(
 	TEXT("r.RayTracing.SkyLight.HairVoxel"),
-	0,
+	1,
 	TEXT("Include hair voxel representation to estimate sky occlusion"),
 	ECVF_RenderThreadSafe
 );
@@ -512,28 +512,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 	}
 
 	const FRDGTextureDesc& SceneColorDesc = SceneColorTexture->Desc;
-
-	// Define RDG targets
-	FRDGTextureRef SkyLightTexture;
-	{
-		FRDGTextureDesc Desc = SceneColorDesc;
-		Desc.Format = PF_FloatRGBA;
-		Desc.Flags &= ~(TexCreate_FastVRAM | TexCreate_Transient);
-		Desc.Extent /= UpscaleFactor;
-		SkyLightTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingSkylight"));
-	}
-
-	FRDGTextureRef RayDistanceTexture;
-	{
-		FRDGTextureDesc Desc = SceneColorDesc;
-		Desc.Format = PF_G16R16;
-		Desc.Flags &= ~(TexCreate_FastVRAM | TexCreate_Transient);
-		Desc.Extent /= UpscaleFactor;
-		RayDistanceTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingSkyLightHitDistance"));
-	}
-
-	FRDGTextureUAV* SkyLightkUAV = GraphBuilder.CreateUAV(SkyLightTexture);
-	FRDGTextureUAV* RayDistanceUAV = GraphBuilder.CreateUAV(RayDistanceTexture);
+	FRDGTextureUAV* SkyLightkUAV = GraphBuilder.CreateUAV(OutSkyLightTexture);
+	FRDGTextureUAV* RayDistanceUAV = GraphBuilder.CreateUAV(OutHitDistanceTexture);
 
 	// Fill Sky Light parameters
 	FSkyLightData SkyLightData;
@@ -632,8 +612,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 			const IScreenSpaceDenoiser* DenoiserToUse = DefaultDenoiser;// GRayTracingGlobalIlluminationDenoiser == 1 ? DefaultDenoiser : GScreenSpaceDenoiser;
 
 			IScreenSpaceDenoiser::FDiffuseIndirectInputs DenoiserInputs;
-			DenoiserInputs.Color = SkyLightTexture;
-			DenoiserInputs.RayHitDistance = RayDistanceTexture;
+			DenoiserInputs.Color = OutSkyLightTexture;
+			DenoiserInputs.RayHitDistance = OutHitDistanceTexture;
 
 			{
 				IScreenSpaceDenoiser::FAmbientOcclusionRayTracingConfig RayTracingConfig;
@@ -653,7 +633,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 					DenoiserInputs,
 					RayTracingConfig);
 
-				SkyLightTexture = DenoiserOutputs.Color;
+				OutSkyLightTexture = DenoiserOutputs.Color;
 			}
 		}
 

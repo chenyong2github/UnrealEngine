@@ -674,7 +674,7 @@ void UChaosWheeledVehicleMovementComponent::PerformSuspensionTraces(const TArray
 			{
 				const FVector& TraceStart = SuspensionTrace[WheelIdx].Start;
 				const FVector& TraceEnd = SuspensionTrace[WheelIdx].End;
-				TraceParams.bTraceComplex = (Wheels[WheelIdx]->SweepType == ESweepType::ComplexSweep || Wheels[WheelIdx]->SweepType == ESweepType::SimpleAndComplexSweep);
+				TraceParams.bTraceComplex = (Wheels[WheelIdx]->SweepType == ESweepType::ComplexSweep);
 
 				// Test each overlapped object for a hit result
 				for (FOverlapResult OverlapResult : OverlapResults)
@@ -728,7 +728,7 @@ void UChaosWheeledVehicleMovementComponent::PerformSuspensionTraces(const TArray
 
 			FVector TraceStart = SuspensionTrace[WheelIdx].Start;
 			FVector TraceEnd = SuspensionTrace[WheelIdx].End;
-			TraceParams.bTraceComplex = (Wheels[WheelIdx]->SweepType == ESweepType::ComplexSweep || Wheels[WheelIdx]->SweepType == ESweepType::SimpleAndComplexSweep);
+			TraceParams.bTraceComplex = (Wheels[WheelIdx]->SweepType == ESweepType::ComplexSweep);
 
 			switch (Wheels[WheelIdx]->SweepShape)
 			{

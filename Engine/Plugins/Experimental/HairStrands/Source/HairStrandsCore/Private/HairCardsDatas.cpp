@@ -29,6 +29,16 @@ FArchive& operator<<(FArchive& Ar, FHairCardsGeometry& CardGeometry)
 	Ar << CardGeometry.IndexOffsets;
 	Ar << CardGeometry.IndexCounts;
 
+	// Bounds should be serialized
+	if (Ar.IsLoading())
+	{
+		CardGeometry.BoundingBox.Init();
+		for (const FVector& P : CardGeometry.Positions)
+		{
+			CardGeometry.BoundingBox += P;
+		}
+	}
+
 	return Ar;
 }
 
@@ -68,106 +78,41 @@ FArchive& operator<<(FArchive& Ar, FHairCardsInterpolationVertex& CardInterpVert
 	return Ar;
 }
 
-FArchive& operator<<(FArchive& Ar, FHairCardsProceduralGeometry::Rect& Rect)
+FArchive& operator<<(FArchive& Ar, FHairMeshes& HairMesh)
 {
-	Ar << Rect.Offset;
-	Ar << Rect.Resolution;
+	Ar << HairMesh.UVs;
+	Ar << HairMesh.Normals;
+	Ar << HairMesh.Tangents;
+	Ar << HairMesh.Positions;
+	Ar << HairMesh.Indices;
+
+	// Bounds should be serialized
+	if (Ar.IsLoading())
+	{
+		HairMesh.BoundingBox.Init();
+		for (const FVector& P : HairMesh.Positions)
+		{
+			HairMesh.BoundingBox += P;
+		}
+	}
 
 	return Ar;
 }
 
-FArchive& operator<<(FArchive& Ar, FHairOrientedBound& Bound)
+FArchive& operator<<(FArchive& Ar, FHairMeshesDatas::FRenderData& MeshRenderData)
 {
-	Ar << Bound.Center;
-	Ar << Bound.ExtentX;
-	Ar << Bound.ExtentY;
-	Ar << Bound.ExtentZ;
+	Ar << MeshRenderData.Positions;
+	Ar << MeshRenderData.Normals;
+	Ar << MeshRenderData.UVs;
+	Ar << MeshRenderData.Indices;
 
 	return Ar;
 }
 
-FArchive& operator<<(FArchive& Ar, FHairCardsProceduralGeometry& ProceduralCardGeometry)
+FArchive& operator<<(FArchive& Ar, FHairMeshesDatas& MeshData)
 {
-	Ar << *static_cast<FHairCardsGeometry*>(&ProceduralCardGeometry);
-	Ar << ProceduralCardGeometry.CardIndices;
-	Ar << ProceduralCardGeometry.Rects;
-	Ar << ProceduralCardGeometry.Lengths;
-	Ar << ProceduralCardGeometry.Bounds;
-
-	// Does these need to be serialized since its editor only for texture generation?
-	//Ar << ProceduralCardGeometry.CardIndexToClusterOffsetAndCount;
-	//Ar << ProceduralCardGeometry.ClusterIndexToVertexOffsetAndCount;
-
-	return Ar;
-}
-
-FArchive& operator<<(FArchive& Ar, FHairCardsProceduralAtlas::Rect& Rect)
-{
-	Ar << Rect.Offset;
-	Ar << Rect.Resolution;
-	Ar << Rect.VertexOffset;
-	Ar << Rect.VertexCount;
-	Ar << Rect.MinBound;
-	Ar << Rect.MaxBound;
-	Ar << Rect.RasterAxisX;
-	Ar << Rect.RasterAxisY;
-	Ar << Rect.RasterAxisZ;
-	Ar << Rect.CardWidth;
-	Ar << Rect.CardLength;
-
-	return Ar;
-}
-
-FArchive& operator<<(FArchive& Ar, FHairCardsProceduralAtlas& Atlas)
-{
-	Ar << Atlas.Resolution;
-	Ar << Atlas.Rects;
-	Ar << Atlas.StrandsPositions;
-
-	return Ar;
-}
-
-//FArchive& operator<<(FArchive& Ar, FHairCardsVoxel& Voxel)
-//{
-//	return Ar;
-//}
-
-FArchive& operator<<(FArchive& Ar, FHairCardsAtlasRectFormat::Type& AtlasRect)
-{
-	Ar << AtlasRect.X;
-	Ar << AtlasRect.Y;
-	Ar << AtlasRect.Z;
-	Ar << AtlasRect.W;
-
-	return Ar;
-}
-
-FArchive& operator<<(FArchive& Ar, FHairCardsProceduralDatas::FRenderData& RenderData)
-{
-	Ar << RenderData.Positions;
-	Ar << RenderData.Normals;
-	Ar << RenderData.UVs;
-	Ar << RenderData.Indices;
-	Ar << RenderData.CardsRect;
-	Ar << RenderData.CardsLengths;
-	Ar << RenderData.CardsStrandsPositions;
-	Ar << RenderData.CardItToCluster;
-	Ar << RenderData.ClusterIdToVertices;
-	Ar << RenderData.ClusterBounds;
-	Ar << RenderData.VoxelDensity;
-	Ar << RenderData.VoxelTangent;
-	Ar << RenderData.VoxelNormal;
-
-	return Ar;
-}
-
-FArchive& operator<<(FArchive& Ar, FHairCardsProceduralDatas& ProceduralCardData)
-{
-	ProceduralCardData.Guides.Serialize(Ar);
-	Ar << ProceduralCardData.Cards;
-	Ar << ProceduralCardData.Atlas;
-	//Ar << ProceduralCardData.Voxels; // internal structure for debug purpose, don't need to be serialized?
-	Ar << ProceduralCardData.RenderData;
+	Ar << MeshData.Meshes;
+	Ar << MeshData.RenderData;
 
 	return Ar;
 }

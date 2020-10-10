@@ -1787,7 +1787,7 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 			RenderNormalShadows(ScreenShadowMaskTexture, FExclusiveDepthStencil::DepthRead_StencilWrite, false);
 		}
 
-		if (ScreenShadowMaskSubPixelTexture && HairVisibilityViews)
+		if (ScreenShadowMaskSubPixelTexture && HairVisibilityViews && HairVisibilityViews->HairDatas.Num() > 0 && HairVisibilityViews->HairDatas[0].CategorizationTexture)
 		{
 			RDG_EVENT_SCOPE(GraphBuilder, "SubPixelShadows");
 

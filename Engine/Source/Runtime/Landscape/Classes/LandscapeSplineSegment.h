@@ -229,6 +229,14 @@ class ULandscapeSplineSegment : public UObject
 	UPROPERTY(EditAnywhere, Category=LandscapeSplineMeshes)
 	uint32 bCastShadow:1;
 
+	/** Whether to hide the mesh in game */
+	UPROPERTY(EditAnywhere, Category = LandscapeSplineMeshes, AdvancedDisplay)
+	uint32 bHiddenInGame : 1;
+
+	/** Whether spline meshes should be placed in landscape proxy streaming levels (true) or the spline's level (false) */
+	UPROPERTY(EditAnywhere, Category = LandscapeSplineMeshes, AdvancedDisplay)
+	uint32 bPlaceSplineMeshesInStreamingLevels : 1;
+
 	/** Random seed used for choosing which order to use spline meshes. Ignored if only one mesh is set. */
 	UPROPERTY(EditAnywhere, Category=LandscapeSplineMeshes, AdvancedDisplay)
 	int32 RandomSeed;
@@ -248,13 +256,17 @@ class ULandscapeSplineSegment : public UObject
 	UPROPERTY(EditAnywhere, Category=LandscapeSplineMeshes, AdvancedDisplay)
 	int32 TranslucencySortPriority;
 
-	/** Whether to hide the mesh in game */
-	UPROPERTY(EditAnywhere, Category=LandscapeSplineMeshes, AdvancedDisplay)
-	uint32 bHiddenInGame:1;
+	/** If true, this component will be rendered in the CustomDepth pass (usually used for outlines) */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = LandscapeSplineMeshes, meta = (DisplayName = "Render CustomDepth Pass"))
+	uint8 bRenderCustomDepth : 1;
 
-	/** Whether spline meshes should be placed in landscape proxy streaming levels (true) or the spline's level (false) */
-	UPROPERTY(EditAnywhere, Category=LandscapeSplineMeshes, AdvancedDisplay)
-	uint32 bPlaceSplineMeshesInStreamingLevels : 1;
+	/** Mask used for stencil buffer writes. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = LandscapeSplineMeshes, meta = (editcondition = "bRenderCustomDepth"))
+	ERendererStencilMask CustomDepthStencilWriteMask;
+
+	/** Optionally write this 0-255 value to the stencil buffer in CustomDepth pass (Requires project setting or r.CustomDepth == 3) */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = LandscapeSplineMeshes, meta = (UIMin = "0", UIMax = "255", editcondition = "bRenderCustomDepth", DisplayName = "CustomDepth Stencil Value"))
+	int32 CustomDepthStencilValue;
 
 	/** 
 	 * Array of runtime virtual textures into which we draw the spline segment. 

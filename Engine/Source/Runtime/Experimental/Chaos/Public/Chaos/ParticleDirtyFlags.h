@@ -246,11 +246,19 @@ class FParticleDynamicMisc
 public:
 	void Serialize(FChaosArchive& Ar)
 	{
+		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
 		Ar << MLinearEtherDrag;
 		Ar << MAngularEtherDrag;
 		Ar << MObjectState;
 		Ar << MGravityEnabled;
-		Ar << MOneWayInteraction;
+		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddOneWayInteraction)
+		{
+			Ar << MOneWayInteraction;
+		}
+		else
+		{
+			MOneWayInteraction = false;
+		}
 	}
 
 	template <typename TOther>
@@ -312,7 +320,7 @@ private:
 	EResimType MResimType;
 
 	bool MGravityEnabled;
-	bool MOneWayInteraction;
+	bool MOneWayInteraction = false;
 };
 
 inline FChaosArchive& operator<<(FChaosArchive& Ar,FParticleDynamicMisc& Data)

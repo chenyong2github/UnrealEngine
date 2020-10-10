@@ -629,6 +629,7 @@ private:
 	FShaderResourceViewRHIRef  HTileSRV;
 	FUnorderedAccessViewRHIRef StencilUAV;
 	FShaderResourceViewRHIRef  FMaskSRV;
+	FShaderResourceViewRHIRef  CMaskSRV;
 
 	mutable uint32 RefCount = 0;
 

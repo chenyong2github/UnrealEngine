@@ -7,29 +7,23 @@ public class OutputRemap : ModuleRules
 {
 	public OutputRemap(ReadOnlyTargetRules ROTargetRules) : base(ROTargetRules)
 	{
-		PublicDefinitions.Add("OutputRemap_STATIC");
-
 		PublicDependencyModuleNames.AddRange(
-			new string[]
-			{
+			new string[] {
 				"Core",
 				"CoreUObject",
 				"Engine",
 				"Projects",
-            });
+			});
 
 		PrivateDependencyModuleNames.AddRange(
-			new string[]
-			{
-                "DisplayCluster",
+			new string[] {
+				"DisplayCluster",
 				"RenderCore",
 				"RHI"
-			}
-		);
+			});
 
 		if (Target.bBuildEditor == true)
 		{
-			PrivateDependencyModuleNames.Add("EditorFramework");
 			PrivateDependencyModuleNames.Add("UnrealEd");
 		}
 	}

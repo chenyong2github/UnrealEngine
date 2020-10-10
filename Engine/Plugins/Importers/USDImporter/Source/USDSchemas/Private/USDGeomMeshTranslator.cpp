@@ -818,15 +818,17 @@ void FBuildStaticMeshTaskChain::SetupTasks()
 				Context->PrimPathsToAssets.Add( PrimPathString, StaticMesh );
 			}
 
-			if ( bIsNew && StaticMesh )
-			{
-				UUsdAssetImportData* ImportData = NewObject<UUsdAssetImportData>( StaticMesh, TEXT( "UUSDAssetImportData" ) );
-				ImportData->PrimPath = PrimPathString;
-				StaticMesh->AssetImportData = ImportData;
-			}
-
 			if ( StaticMesh )
 			{
+				Context->CurrentlyUsedAssets.Add( StaticMesh );
+
+				if ( bIsNew )
+				{
+					UUsdAssetImportData* ImportData = NewObject<UUsdAssetImportData>( StaticMesh, TEXT( "UUSDAssetImportData" ) );
+					ImportData->PrimPath = PrimPathString;
+					StaticMesh->AssetImportData = ImportData;
+				}
+
 				UUsdAssetImportData* ImportData = Cast<UUsdAssetImportData>( StaticMesh->AssetImportData );
 
 				// Only process the materials if we own the mesh. If it's new we know we do
@@ -853,6 +855,11 @@ void FBuildStaticMeshTaskChain::SetupTasks()
 						const bool bRebuildAll = true;
 						StaticMesh->UpdateUVChannelData( bRebuildAll );
 					}
+				}
+
+				for ( FStaticMaterial& StaticMaterial : StaticMesh->StaticMaterials )
+				{
+					Context->CurrentlyUsedAssets.Add( StaticMaterial.MaterialInterface );
 				}
 			}
 
@@ -1037,12 +1044,19 @@ void FGeometryCacheCreateAssetsTaskChain::SetupTasks()
 			bool bMaterialsHaveChanged = false;
 			if ( GeometryCache )
 			{
+				Context->CurrentlyUsedAssets.Add( GeometryCache );
+
 				UUsdAssetImportData* ImportData = Cast< UUsdAssetImportData >( GeometryCache->AssetImportData );
 
 				// Only process the materials if we own the GeometryCache. If it's new we know we do
 				if ( ImportData && ImportData->PrimPath == PrimPathString )
 				{
 					bMaterialsHaveChanged = UsdGeomMeshTranslatorImpl::ProcessGeometryCacheMaterials( GetPrim(), LODIndexToMaterialInfo, *GeometryCache, Context->PrimPathsToAssets, Context->AssetsCache, Context->Time, Context->ObjectFlags );
+				}
+
+				for ( UMaterialInterface* Material : GeometryCache->Materials )
+				{
+					Context->CurrentlyUsedAssets.Add( Material );
 				}
 			}
 
@@ -1112,6 +1126,11 @@ USceneComponent* FUsdGeomMeshTranslator::CreateComponents()
 						Context->ObjectFlags,
 						Context->bAllowInterpretingLODs
 					);
+
+					for ( UMaterialInterface* OverrideMaterial : StaticMeshComponent->OverrideMaterials )
+					{
+						Context->CurrentlyUsedAssets.Add( OverrideMaterial );
+					}
 				}
 			}
 		}

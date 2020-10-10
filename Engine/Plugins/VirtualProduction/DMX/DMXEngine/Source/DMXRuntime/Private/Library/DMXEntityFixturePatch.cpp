@@ -378,7 +378,7 @@ bool UDMXEntityFixturePatch::IsValidEntity(FText& OutReason) const
 		int32 IdxExistingFunction = ParentFixtureTypeTemplate->Modes.IndexOfByPredicate([](const FDMXFixtureMode& Mode) {
 			return 
 				Mode.Functions.Num() > 0 ||
-				Mode.PixelMatrixConfig.PixelFunctions.Num() > 0;
+				Mode.FixtureMatrixConfig.CellAttributes.Num() > 0;
 			});
 
 		if (IdxExistingFunction == INDEX_NONE)

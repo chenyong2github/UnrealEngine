@@ -3,20 +3,20 @@
 #pragma once
 
 #include "Interfaces/IPv4/IPv4Endpoint.h"
+#include "Templates/TypeHash.h"
 
 enum class ESwitchboardTaskType : uint8
 {
 	Start,
 	Kill,
 	KillAll,
-	VcsInit,
-	VcsReportRevision,
-	VcsSync,
 	Restart,
 	ReceiveFileFromClient,
 	SendFileToClient,
 	Disconnect,
 	KeepAlive,
+	GetSyncStatus,
+	GetFlipMode,
 };
 
 struct FSwitchboardTask
@@ -25,6 +25,40 @@ struct FSwitchboardTask
 	FString Name;
 	FGuid TaskID;
 	FIPv4Endpoint Recipient;
+
+	FSwitchboardTask(ESwitchboardTaskType InType, FString InName, FGuid InTaskID, FIPv4Endpoint InRecipient)
+		: Type(InType)
+		, Name(InName)
+		, TaskID(InTaskID)
+		, Recipient(InRecipient)
+	{}
+
+	/** Calculates a hash that should be the same for equivalent Tasks, even if their TaskID is different */
+	virtual uint32 GetEquivalenceHash() const
+	{
+		return HashCombine(GetTypeHash(Type), GetTypeHash(Recipient));
+	}
+	
+	virtual ~FSwitchboardTask()
+	{}
+};
+
+struct FSwitchboardGetSyncStatusTask : public FSwitchboardTask
+{
+	FSwitchboardGetSyncStatusTask(const FGuid& InTaskId, const FIPv4Endpoint& InEndpoint, const FGuid& InProgramID)
+		: FSwitchboardTask{ ESwitchboardTaskType::GetSyncStatus, TEXT("get sync status"), InTaskId, InEndpoint }
+		, ProgramID(InProgramID)
+	{}
+
+	/** ID of the program that we wish to get the FlipMode of */
+	FGuid ProgramID;
+
+	//~ Begin FSwitchboardTask interface
+	virtual uint32 GetEquivalenceHash() const override
+	{
+		return HashCombine(FSwitchboardTask::GetEquivalenceHash(), GetTypeHash(ProgramID));
+	}
+	//~ End FSwitchboardTask interface
 };
 
 struct FSwitchboardStartTask : public FSwitchboardTask
@@ -38,6 +72,14 @@ struct FSwitchboardStartTask : public FSwitchboardTask
 
 	FString Command;
 	FString Arguments;
+
+	//~ Begin FSwitchboardTask interface
+	virtual uint32 GetEquivalenceHash() const override
+	{
+		uint32 Hash = HashCombine(FSwitchboardTask::GetEquivalenceHash(), GetTypeHash(Command));
+		return HashCombine(Hash, GetTypeHash(Arguments));
+	}
+	//~ End FSwitchboardTask interface
 };
 
 struct FSwitchboardKillTask : public FSwitchboardTask
@@ -48,6 +90,13 @@ struct FSwitchboardKillTask : public FSwitchboardTask
 	{}
 
 	FGuid ProgramID; // unique ID of process to kill
+
+	//~ Begin FSwitchboardTask interface
+	virtual uint32 GetEquivalenceHash() const override
+	{
+		return HashCombine(FSwitchboardTask::GetEquivalenceHash(), GetTypeHash(ProgramID));
+	}
+	//~ End FSwitchboardTask interface
 };
 
 struct FSwitchboardKillAllTask : public FSwitchboardTask
@@ -67,6 +116,14 @@ struct FSwitchboardReceiveFileFromClientTask : public FSwitchboardTask
 
 	FString Destination;
 	FString FileContent;
+
+	//~ Begin FSwitchboardTask interface
+	virtual uint32 GetEquivalenceHash() const override
+	{
+		uint32 Hash = HashCombine(FSwitchboardTask::GetEquivalenceHash(), GetTypeHash(Destination));
+		return HashCombine(Hash, GetTypeHash(FileContent));
+	}
+	//~ End FSwitchboardTask interface
 };
 
 struct FSwitchboardSendFileToClientTask : public FSwitchboardTask
@@ -77,40 +134,13 @@ struct FSwitchboardSendFileToClientTask : public FSwitchboardTask
 	{}
 
 	FString Source;
-};
 
-struct FSwitchboardVcsInitTask : public FSwitchboardTask
-{
-	FSwitchboardVcsInitTask(const FGuid& InTaskId, const FIPv4Endpoint& InEndpoint, const FString& InVcsProviderName, const TMap<FString, FString>& InVcsSettings)
-		: FSwitchboardTask{ ESwitchboardTaskType::VcsInit, TEXT("vcs init"), InTaskId, InEndpoint }
-		, ProviderName(InVcsProviderName)
-		, VcsSettings(InVcsSettings)
-	{}
-
-	FString ProviderName;
-	TMap<FString, FString> VcsSettings;
-};
-
-struct FSwitchboardVcsReportRevisionTask : public FSwitchboardTask
-{
-	FSwitchboardVcsReportRevisionTask(const FGuid& InTaskId, const FIPv4Endpoint& InEndpoint, const FString& InPath)
-		: FSwitchboardTask{ ESwitchboardTaskType::VcsReportRevision, TEXT("vcs report revision"), InTaskId, InEndpoint }
-		, Path(InPath)
-	{}
-
-	FString Path;
-};
-
-struct FSwitchboardVcsSyncTask : public FSwitchboardTask
-{
-	FSwitchboardVcsSyncTask(const FGuid& InTaskId, const FIPv4Endpoint& InEndpoint, const FString& InRevision, const FString& InPath)
-		: FSwitchboardTask{ ESwitchboardTaskType::VcsSync, TEXT("vcs sync"), InTaskId, InEndpoint }
-		, Revision(InRevision)
-		, Path(InPath)
-	{}
-
-	FString Revision;
-	FString Path;
+	//~ Begin FSwitchboardTask interface
+	virtual uint32 GetEquivalenceHash() const override
+	{
+		return HashCombine(FSwitchboardTask::GetEquivalenceHash(), GetTypeHash(Source));
+	}
+	//~ End FSwitchboardTask interface
 };
 
 struct FSwitchboardDisconnectTask : public FSwitchboardTask

@@ -61,48 +61,8 @@ namespace RemoteControlUtil
 		return Function;
 	}
 
-	FProperty* FindPropertyRecursive(void*& InOutContainerAddress, UStruct*& InOutContainer, const TConstArrayView<FString>& DesiredPropertyPath)
-	{
-		if (DesiredPropertyPath.Num() <= 0)
-		{
-			return nullptr;
-		}
-
-		const FString& DesiredPropertyName = DesiredPropertyPath[0];
-		for (TFieldIterator<FProperty> It(InOutContainer, EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::ExcludeDeprecated, EFieldIteratorFlags::ExcludeInterfaces); It; ++It)
-		{
-			if (It->GetName() == DesiredPropertyName)
-			{
-				if (DesiredPropertyPath.Num() == 1)
-				{
-					return *It;
-				}
-				else
-				{
-					//Dig deeper if a structure to find the property
-					//Supporting map, arrays, etc... could be useful as an improvement
-					if (FStructProperty* StructProp = CastField<FStructProperty>(*It))
-					{
-						//Offset the container to dig deeper and trim the property path 
-						void* NewContainerAddress = StructProp->ContainerPtrToValuePtr<void>(InOutContainerAddress);
-						UStruct* NewContainer = StructProp->Struct;
-						if (FProperty* FoundProperty = FindPropertyRecursive(NewContainerAddress, NewContainer, DesiredPropertyPath.Slice(1, DesiredPropertyPath.Num() - 1)))
-						{
-							InOutContainerAddress = NewContainerAddress;
-							InOutContainer = NewContainer;
-							return FoundProperty;
-						}
-					}
-				}
-			}
-		}
-
-		return nullptr;
-	}
-
 	bool IsPropertyAllowed(const FProperty* InProperty, ERCAccess InAccessType, bool bObjectInGamePackage)
 	{
-
 		// The property is allowed to be accessed if it exists...
 		return InProperty && 
 			// it doesn't have exposed getter/setter that should be used instead
@@ -279,30 +239,32 @@ public:
 		{
 			if (Object)
 			{
-				bool bObjectInGame = !GIsEditor || Object->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor);
+				const bool bObjectInGame = !GIsEditor || Object->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor);
 				if (!PropertyName.IsEmpty())
 				{
-					//To support nested properties, support PropertyName containing the path
-					TArray<FString> SplitPath;
-					PropertyName.ParseIntoArray(SplitPath, TEXT("."));
-					TConstArrayView<FString> FullPath(SplitPath);
-
-					//For nested properties, container won't be the uobject itself
-					void* ContainerAddress = static_cast<void*>(Object);
-					UStruct* ContainerType = Object->GetClass();
-					FProperty* Property = RemoteControlUtil::FindPropertyRecursive(ContainerAddress, ContainerType, FullPath);
-					if (Property && RemoteControlUtil::IsPropertyAllowed(Property, AccessType, bObjectInGame))
+					//Build a FieldPathInfo using property name to facilitate resolving
+					FRCFieldPathInfo PathInfo(PropertyName);
+					if (PathInfo.Resolve(Object))
 					{
-						OutObjectRef.Object = Object;
-						OutObjectRef.Property = Property;
-						OutObjectRef.Access = AccessType;
-						OutObjectRef.ContainerAdress = ContainerAddress;
-						OutObjectRef.ContainerType = ContainerType;
-						OutObjectRef.NestedPath = MoveTemp(SplitPath);
+						FProperty* ResolvedProperty = PathInfo.GetResolvedData().Field;
+						if (RemoteControlUtil::IsPropertyAllowed(ResolvedProperty, AccessType, bObjectInGame))
+						{
+							OutObjectRef.Object = Object;
+							OutObjectRef.Property = ResolvedProperty;
+							OutObjectRef.Access = AccessType;
+							OutObjectRef.ContainerAdress = PathInfo.GetResolvedData().ContainerAddress;
+							OutObjectRef.ContainerType = PathInfo.GetResolvedData().Struct;
+							OutObjectRef.PropertyPathInfo = MoveTemp(PathInfo);
+						}
+						else
+						{
+							ErrorText = FString::Printf(TEXT("Object property: %s is unavailable remotely on object: %s"), *PropertyName, *Object->GetPathName());
+							bSuccess = false;
+						}
 					}
 					else
 					{
-						ErrorText = FString::Printf(TEXT("Object property: %s is unavailable remotely on object: %s"), *PropertyName, *Object->GetPathName());
+						ErrorText = FString::Printf(TEXT("Object property: %s could not be resolved on object: %s"), *PropertyName, *Object->GetPathName());
 						bSuccess = false;
 					}
 				}
@@ -338,16 +300,25 @@ public:
 	{
 		if (ObjectAccess.IsValid() && ObjectAccess.Access == ERCAccess::READ_ACCESS)
 		{
+			bool bCanSerialize = true;
 			UObject* Object = ObjectAccess.Object.Get();
 			UStruct* ContainerType = ObjectAccess.ContainerType.Get();
 
 			FStructSerializerPolicies Policies;
+			Policies.MapSerialization = EStructSerializerMapPolicies::Array;
 			if (ObjectAccess.Property.IsValid())
 			{
-				Policies.PropertyFilter = [&ObjectAccess](const FProperty* CurrentProp, const FProperty* ParentProp)
+				if (ObjectAccess.PropertyPathInfo.IsResolved())
 				{
-					return CurrentProp == ObjectAccess.Property || ParentProp != nullptr;
-				};
+					Policies.PropertyFilter = [&ObjectAccess](const FProperty* CurrentProp, const FProperty* ParentProp)
+					{
+						return CurrentProp == ObjectAccess.Property || ParentProp != nullptr;
+					};
+				}
+				else
+				{
+					bCanSerialize = false;
+				}
 			}
 			else
 			{
@@ -358,15 +329,30 @@ public:
 				};
 			}
 
-			FStructSerializer::Serialize(ObjectAccess.ContainerAdress, *ContainerType, Backend, Policies);
-			return true;
+			if (bCanSerialize)
+			{
+				//Serialize the element if we're looking for a member or serialize the full object if not
+				if (ObjectAccess.PropertyPathInfo.IsResolved())
+				{
+					FStructSerializer::SerializeElement(ObjectAccess.ContainerAdress, ObjectAccess.PropertyPathInfo.GetResolvedData().Field, ObjectAccess.PropertyPathInfo.GetFieldSegment(ObjectAccess.PropertyPathInfo.GetSegmentCount()-1).ArrayIndex, Backend, Policies);
+				}
+				else
+				{
+					FStructSerializer::Serialize(ObjectAccess.ContainerAdress, *ObjectAccess.ContainerType, Backend, Policies);
+				}
+				return true;
+			}
 		}
 		return false;
 	}
 
 	virtual bool SetObjectProperties(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend) override
 	{
-		if (ObjectAccess.IsValid() && (ObjectAccess.Access == ERCAccess::WRITE_ACCESS || ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS))
+		//Setting object properties require a property and can't be done at the object level. Property must be valid to move forward
+		if (ObjectAccess.IsValid() 
+			&& (ObjectAccess.Access == ERCAccess::WRITE_ACCESS || ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS)
+			&& ObjectAccess.Property.IsValid()
+			&& ObjectAccess.PropertyPathInfo.IsResolved())
 		{
 			UObject* Object = ObjectAccess.Object.Get();
 			UStruct* ContainerType = ObjectAccess.ContainerType.Get();
@@ -378,7 +364,10 @@ public:
 			if (bGenerateTransaction)
 			{
 				Object->Modify();
-				Object->PreEditChange(ObjectAccess.Property.Get());
+
+				FEditPropertyChain PreEditChain;
+				ObjectAccess.PropertyPathInfo.ToEditPropertyChain(PreEditChain);
+				Object->PreEditChange(PreEditChain);
 			}
 #endif
 
@@ -399,14 +388,23 @@ public:
 				};
 			}
 
-			bool bSuccess = FStructDeserializer::Deserialize(ObjectAccess.ContainerAdress, *ContainerType, Backend, Policies);
+			//Serialize the element if we're looking for a member or serialize the full object if not
+			bool bSuccess = false;
+			if (ObjectAccess.PropertyPathInfo.IsResolved())
+			{
+				bSuccess = FStructDeserializer::DeserializeElement(ObjectAccess.ContainerAdress, *ObjectAccess.PropertyPathInfo.GetResolvedData().Struct, ObjectAccess.PropertyPathInfo.GetFieldSegment(ObjectAccess.PropertyPathInfo.GetSegmentCount() - 1).ArrayIndex, Backend, Policies);
+			}
+			else
+			{
+				bSuccess = FStructDeserializer::Deserialize(ObjectAccess.ContainerAdress, *ContainerType, Backend, Policies);
+			}
 
 			// if we are generating a transaction, also generate post edit property event, event if the change ended up unsuccessful
 			// this is to match the pre edit change call that can unregister components for example
 #if WITH_EDITOR
 			if (bGenerateTransaction)
 			{
-				FPropertyChangedEvent PropertyEvent(ObjectAccess.Property.Get());
+				FPropertyChangedEvent PropertyEvent = ObjectAccess.PropertyPathInfo.ToPropertyChangedEvent();
 				Object->PostEditChangeProperty(PropertyEvent);
 			}
 #endif

@@ -3912,6 +3912,7 @@ ALandscape* FEdModeLandscape::ChangeComponentSetting(int32 NumComponentsX, int32
 			NewLandscape->bCastShadowAsTwoSided = OldLandscape->bCastShadowAsTwoSided;
 			NewLandscape->LightingChannels = OldLandscape->LightingChannels;
 			NewLandscape->bRenderCustomDepth = OldLandscape->bRenderCustomDepth;
+			NewLandscape->CustomDepthStencilWriteMask = OldLandscape->CustomDepthStencilWriteMask;
 			NewLandscape->CustomDepthStencilValue = OldLandscape->CustomDepthStencilValue;
 			NewLandscape->LightmassSettings = OldLandscape->LightmassSettings;
 			NewLandscape->CollisionThickness = OldLandscape->CollisionThickness;

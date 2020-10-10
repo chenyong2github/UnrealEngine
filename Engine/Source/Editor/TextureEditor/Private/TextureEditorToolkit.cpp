@@ -24,6 +24,7 @@
 #include "Engine/VolumeTexture.h"
 #include "Engine/TextureRenderTarget.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "Engine/TextureRenderTarget2DArray.h"
 #include "Engine/TextureRenderTargetCube.h"
 #include "Engine/TextureRenderTargetVolume.h"
 #include "Interfaces/ITextureEditorModule.h"
@@ -442,6 +443,7 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 	UTextureRenderTarget2D* Texture2DRT = Cast<UTextureRenderTarget2D>(Texture);
 	UTextureCube* TextureCube = Cast<UTextureCube>(Texture);
 	UTexture2DArray* Texture2DArray = Cast<UTexture2DArray>(Texture);
+	UTextureRenderTarget2DArray* Texture2DArrayRT = Cast<UTextureRenderTarget2DArray>(Texture);
 	UTexture2DDynamic* Texture2DDynamic = Cast<UTexture2DDynamic>(Texture);
 	UVolumeTexture* VolumeTexture = Cast<UVolumeTexture>(Texture);
 	UTextureRenderTargetVolume* VolumeTextureRT = Cast<UTextureRenderTargetVolume>(Texture);
@@ -555,6 +557,10 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 	{
 		TextureFormatIndex = Texture2DArray->GetPixelFormat();
 	}
+	else if (Texture2DArrayRT)
+	{
+		TextureFormatIndex = Texture2DArrayRT->GetFormat();
+	}
 	else if (Texture2DRT)
 	{
 		TextureFormatIndex = Texture2DRT->GetFormat();
@@ -589,6 +595,10 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 	else if (Texture2DArray) 
 	{
 		NumMips = Texture2DArray->GetNumMips();
+	}
+	else if (Texture2DArrayRT)
+	{
+		NumMips = Texture2DArrayRT->GetNumMips();
 	}
 	else if (Texture2DRT)
 	{
@@ -1199,6 +1209,7 @@ TOptional<int32> FTextureEditorToolkit::GetMaxMipLevel( ) const
 	const UTextureRenderTargetCube* RTTextureCube = Cast<UTextureRenderTargetCube>(Texture);
 	const UTextureRenderTargetVolume* RTTextureVolume = Cast<UTextureRenderTargetVolume>(Texture);
 	const UTextureRenderTarget2D* RTTexture2D = Cast<UTextureRenderTarget2D>(Texture);
+	const UTextureRenderTarget2DArray* RTTexture2DArray = Cast<UTextureRenderTarget2DArray>(Texture);
 	const UVolumeTexture* VolumeTexture = Cast<UVolumeTexture>(Texture);
 
 	if (Texture2D)
@@ -1229,6 +1240,11 @@ TOptional<int32> FTextureEditorToolkit::GetMaxMipLevel( ) const
 	if (RTTexture2D)
 	{
 		return RTTexture2D->GetNumMips() - 1;
+	}
+
+	if (RTTexture2DArray)
+	{
+		return RTTexture2DArray->GetNumMips() - 1;
 	}
 
 	if (VolumeTexture)

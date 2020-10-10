@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Toolkits/DMXPixelMappingToolkit.h"
+
 #include "DMXPixelMappingEditorModule.h"
 #include "DMXPixelMapping.h"
 #include "DMXPixelMappingEditorUtils.h"
@@ -16,7 +17,7 @@
 #include "Components/DMXPixelMappingOutputComponent.h"
 #include "Components/DMXPixelMappingRootComponent.h"
 #include "Components/DMXPixelMappingMatrixComponent.h"
-#include "Components/DMXPixelMappingMatrixPixelComponent.h"
+#include "Components/DMXPixelMappingMatrixCellComponent.h"
 #include "DMXPixelMappingToolbar.h"
 #include "DMXPixelMappingEditorCommands.h"
 #include "Library/DMXEntityFixtureType.h"
@@ -383,7 +384,7 @@ void FDMXPixelMappingToolkit::DeleteMatrixPixels(UDMXPixelMappingMatrixComponent
 	if (InMatrixComponent != nullptr && InMatrixComponent->GetChildrenCount())
 	{
 		TSet<FDMXPixelMappingComponentReference> ComponentReference;
-		InMatrixComponent->ForEachComponentOfClass<UDMXPixelMappingMatrixPixelComponent>([this, &ComponentReference](UDMXPixelMappingMatrixPixelComponent* InComponent)
+		InMatrixComponent->ForEachComponentOfClass<UDMXPixelMappingMatrixCellComponent>([this, &ComponentReference](UDMXPixelMappingMatrixCellComponent* InComponent)
 		{
 			ComponentReference.Add(GetReferenceFromComponent(InComponent));
 		}, false);
@@ -416,38 +417,38 @@ void FDMXPixelMappingToolkit::CreateMatrixPixels(UDMXPixelMappingMatrixComponent
 					check(ParentFixtureType->Modes.IsValidIndex(ActiveMode));
 
 					const FDMXFixtureMode& FixtureMode = ParentFixtureType->Modes[ActiveMode];
-					const FDMXPixelMatrix& PixelMatrixConfig = FixtureMode.PixelMatrixConfig;
+					const FDMXFixtureMatrix& FixtureMatrixConfig = FixtureMode.FixtureMatrixConfig;
 
 					// If there are any pixel functions
-					int32 NumChannels = PixelMatrixConfig.XPixels * PixelMatrixConfig.YPixels;
-					if (NumChannels > 0 && ParentFixtureType->bPixelFunctionsEnabled)
+					int32 NumChannels = FixtureMatrixConfig.XCells * FixtureMatrixConfig.YCells;
+					if (NumChannels > 0 && ParentFixtureType->bFixtureMatrixEnabled)
 					{
-						InMatrixComponent->SetNumPixels(FIntPoint(PixelMatrixConfig.XPixels, PixelMatrixConfig.YPixels));
+						InMatrixComponent->SetNumPixels(FIntPoint(FixtureMatrixConfig.XCells, FixtureMatrixConfig.YCells));
 
 						TArray<int32> AllChannels;
 						int32 MaxChannels = NumChannels + 1;
-						for (int32 PixelIndex = 1; PixelIndex < MaxChannels; PixelIndex++)
+						for (int32 CellID = 1; CellID < MaxChannels; CellID++)
 						{
-							AllChannels.Add(PixelIndex);
+							AllChannels.Add(CellID);
 						}
 
 						TArray<int32> OrderedChannels;
-						FDMXUtils::PixelsDistributionSort(FixtureMode.PixelMatrixConfig.PixelsDistribution, PixelMatrixConfig.XPixels, PixelMatrixConfig.YPixels, AllChannels, OrderedChannels);
-						TArray<UDMXPixelMappingMatrixPixelComponent*> Components;
+						FDMXUtils::PixelMappingDistributionSort(FixtureMode.FixtureMatrixConfig.PixelMappingDistribution, FixtureMatrixConfig.XCells, FixtureMatrixConfig.YCells, AllChannels, OrderedChannels);
+						TArray<UDMXPixelMappingMatrixCellComponent*> Components;
 						check(AllChannels.Num() == OrderedChannels.Num());
 						int32 XYIndex = 0;
-						for (int32 IndexX = 0; IndexX < PixelMatrixConfig.XPixels; IndexX++)
+						for (int32 IndexX = 0; IndexX < FixtureMatrixConfig.XCells; IndexX++)
 						{
-							for (int32 IndexY = 0; IndexY < PixelMatrixConfig.YPixels; IndexY++)
+							for (int32 IndexY = 0; IndexY < FixtureMatrixConfig.YCells; IndexY++)
 							{
 								// Create or delete all matrix pixels
-								TSharedPtr<FDMXPixelMappingComponentTemplate> ComponentTemplate = MakeShared<FDMXPixelMappingComponentTemplate>(UDMXPixelMappingMatrixPixelComponent::StaticClass());
-								UDMXPixelMappingMatrixPixelComponent* Component = Cast<UDMXPixelMappingMatrixPixelComponent>(ComponentTemplate->Create(DMXPixelMapping->GetRootComponent()));
+								TSharedPtr<FDMXPixelMappingComponentTemplate> ComponentTemplate = MakeShared<FDMXPixelMappingComponentTemplate>(UDMXPixelMappingMatrixCellComponent::StaticClass());
+								UDMXPixelMappingMatrixCellComponent* Component = Cast<UDMXPixelMappingMatrixCellComponent>(ComponentTemplate->Create(DMXPixelMapping->GetRootComponent()));
 								const FName UniqueName = MakeUniqueObjectName(Component->GetOuter(), Component->GetClass(), FName(FixturePatch->GetDisplayName()));
 								const FString NewNameStr = UniqueName.ToString();
 								Component->Rename(*NewNameStr);
 								Components.Add(Component);
-								Component->PixelIndex = OrderedChannels[XYIndex];
+								Component->CellID = OrderedChannels[XYIndex];
 								InMatrixComponent->SetChildSizeAndPosition(Component, FIntPoint(IndexX, IndexY));
 								XYIndex++;
 								bAtLeastOnePixelAdded = true;
@@ -455,16 +456,16 @@ void FDMXPixelMappingToolkit::CreateMatrixPixels(UDMXPixelMappingMatrixComponent
 						}
 
 						// Adds matrix child in right order
-						for (int32 PixelIndex = 0; PixelIndex < OrderedChannels.Num(); PixelIndex++)
+						for (int32 CellID = 0; CellID < OrderedChannels.Num(); CellID++)
 						{
-							int32 ComponentIndex = OrderedChannels.IndexOfByKey<int32>(PixelIndex + 1);
+							int32 ComponentIndex = OrderedChannels.IndexOfByKey<int32>(CellID + 1);
 							InMatrixComponent->AddChild(Components[ComponentIndex]);
 							Components[ComponentIndex]->PostParentAssigned();
 						}
 						DesignerView->UpdateOutput(true);
 
 						// Set distribution
-						InMatrixComponent->Distribution = FixtureMode.PixelMatrixConfig.PixelsDistribution;
+						InMatrixComponent->Distribution = FixtureMode.FixtureMatrixConfig.PixelMappingDistribution;
 					}
 				}
 			}

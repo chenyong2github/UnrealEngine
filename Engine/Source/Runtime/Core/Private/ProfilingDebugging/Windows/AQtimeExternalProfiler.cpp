@@ -4,7 +4,7 @@
 #include "Misc/AssertionMacros.h"
 #include "ProfilingDebugging/ExternalProfiler.h"
 #include "Features/IModularFeatures.h"
-#include "Windows/WindowsPlatformProcess.h"
+#include "HAL/PlatformProcess.h"
 #include "Templates/UniquePtr.h"
 
 #if UE_EXTERNAL_PROFILING_ENABLED

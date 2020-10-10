@@ -8,6 +8,7 @@
 #include "AssetTypeCategories.h"
 
 class FDMXEditor;
+class FDMXPIEManager;
 class UDMXLibrary;
 class IAssetTools;
 class IAssetTypeActions;
@@ -74,6 +75,8 @@ public:
 	static const FName DMXEditorAppIdentifier;
 
 	static const FName ModuleName;
+
+	TSharedPtr<FDMXPIEManager> PIEManager;
 
 private:
 	void RegisterAssetTypeAction(IAssetTools& InOutAssetTools, TSharedRef<IAssetTypeActions> Action);

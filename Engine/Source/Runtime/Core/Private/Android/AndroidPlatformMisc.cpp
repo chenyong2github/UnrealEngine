@@ -203,6 +203,16 @@ static void InitCpuThermalSensor()
 
 void FAndroidMisc::RequestExit( bool Force )
 {
+
+#if PLATFORM_COMPILER_OPTIMIZATION_PG_PROFILING
+	// Write the PGO profiling file on a clean shutdown.
+	extern void PGO_WriteFile();
+	if (!GIsCriticalError)
+	{
+		PGO_WriteFile();
+	}
+#endif
+
 	UE_LOG(LogAndroid, Log, TEXT("FAndroidMisc::RequestExit(%i)"), Force);
 	if (Force)
 	{
@@ -531,6 +541,11 @@ void FAndroidMisc::PlatformInit()
 #endif
 
 	InitCpuThermalSensor();
+
+	UE_LOG(LogInit, Log, TEXT(" - This binary is optimized with LTO: %s, PGO: %s, instrumented for PGO data collection: %s"),
+		PLATFORM_COMPILER_OPTIMIZATION_LTCG ? TEXT("yes") : TEXT("no"),
+		FPlatformMisc::IsPGOEnabled() ? TEXT("yes") : TEXT("no"),
+		PLATFORM_COMPILER_OPTIMIZATION_PG_PROFILING ? TEXT("yes") : TEXT("no"));
 }
 
 extern void AndroidThunkCpp_DismissSplashScreen();

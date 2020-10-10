@@ -143,6 +143,7 @@ void UGPULightmassSettings::ApplyImmediateSettingsToRunningInstances()
 			GPULightmass->Settings->bShowProgressBars = bShowProgressBars;
 			GPULightmass->Settings->TilePassesInSlowMode = TilePassesInSlowMode;
 			GPULightmass->Settings->TilePassesInFullSpeedMode = TilePassesInFullSpeedMode;
+			GPULightmass->Settings->bVisualizeIrradianceCache = bVisualizeIrradianceCache;
 		}
 	}
 }
@@ -173,6 +174,10 @@ void UGPULightmassSettings::PostEditChangeProperty(FPropertyChangedEvent& Proper
 		{
 			ApplyImmediateSettingsToRunningInstances();
 		}
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(UGPULightmassSettings, bVisualizeIrradianceCache))
+		{
+			ApplyImmediateSettingsToRunningInstances();
+		}
 	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -192,6 +197,11 @@ bool UGPULightmassSettings::CanEditChange(const FProperty* InProperty) const
 	}
 
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UGPULightmassSettings, TilePassesInFullSpeedMode))
+	{
+		return true;
+	}
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UGPULightmassSettings, bVisualizeIrradianceCache))
 	{
 		return true;
 	}
@@ -292,6 +302,17 @@ void UGPULightmassSubsystem::Launch()
 			if (StaticLightingSystem)
 			{
 				UE_LOG(LogTemp, Log, TEXT("Static lighting system is created for world %s."), *World->GetPathName(World->GetOuter()));
+
+				ULightComponent::ReassignStationaryLightChannels(World, false, NULL);
+#if WITH_EDITOR
+				if (!GIsEditor)
+				{
+					if (GEngine)
+					{
+						GEngine->OnPostEditorTick().AddStatic(&FStaticLightingSystemInterface::GameTick);
+					}
+				}
+#endif // WITH_EDITOR
 
 				int32 NumPrimitiveComponents = 0;
 				int32 NumLightComponents = 0;

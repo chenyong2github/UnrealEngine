@@ -6,8 +6,6 @@
 
 #include "Common/TcpSocketBuilder.h"
 
-#include "Misc/DisplayClusterAppExit.h"
-
 #include "Misc/DisplayClusterHelpers.h"
 #include "Misc/DisplayClusterLog.h"
 
@@ -27,15 +25,13 @@ FDisplayClusterTcpListener::~FDisplayClusterTcpListener()
 
 bool FDisplayClusterTcpListener::StartListening(const FString& InAddr, const int32 InPort)
 {
-	FScopeLock lock(&InternalsCritSec);
-
 	if (bIsListening == true)
 	{
 		return true;
 	}
 
 	FIPv4Endpoint EP;
-	if (!DisplayClusterHelpers::net::GenIPv4Endpoint(InAddr, InPort, EP))
+	if (!GenIPv4Endpoint(InAddr, InPort, EP))
 	{
 		return false;
 	}
@@ -43,17 +39,17 @@ bool FDisplayClusterTcpListener::StartListening(const FString& InAddr, const int
 	return StartListening(EP);
 }
 
-bool FDisplayClusterTcpListener::StartListening(const FIPv4Endpoint& InEP)
+bool FDisplayClusterTcpListener::StartListening(const FIPv4Endpoint& InEndpoint)
 {
-	FScopeLock lock(&InternalsCritSec);
-
 	if (bIsListening == true)
 	{
 		return true;
 	}
 
 	// Save new endpoint
-	Endpoint = InEP;
+	Endpoint = InEndpoint;
+
+	UE_LOG(LogDisplayClusterNetwork, Log, TEXT("TCP listener %s: started listening to %s:%d..."), *Name, *InEndpoint.Address.ToString(), Endpoint.Port);
 
 	// Create listening thread
 	ThreadObj.Reset(FRunnableThread::Create(this, *(Name + FString("_thread")), 128 * 1024, TPri_Normal));
@@ -68,12 +64,12 @@ bool FDisplayClusterTcpListener::StartListening(const FIPv4Endpoint& InEP)
 
 void FDisplayClusterTcpListener::StopListening()
 {
-	FScopeLock lock(&InternalsCritSec);
-
 	if (bIsListening == false)
 	{
 		return;
 	}
+
+	UE_LOG(LogDisplayClusterNetwork, Log, TEXT("TCP listener %s: stopped listening to %s:%d..."), *Name, *Endpoint.Address.ToString(), Endpoint.Port);
 
 	// Ask runnable to stop
 	Stop();
@@ -86,15 +82,16 @@ void FDisplayClusterTcpListener::StopListening()
 	}
 }
 
-bool FDisplayClusterTcpListener::IsActive() const
-{
-	return bIsListening;
-}
-
 bool FDisplayClusterTcpListener::Init()
 {
 	// Create socket
 	SocketObj = FTcpSocketBuilder(*Name).AsBlocking().BoundToEndpoint(Endpoint).Listening(128);
+
+	if (SocketObj)
+	{
+		// Set TCP_NODELAY=1
+		SocketObj->SetNoDelay(true);
+	}
 
 	return SocketObj != nullptr;
 }
@@ -105,9 +102,9 @@ uint32 FDisplayClusterTcpListener::Run()
 
 	if (SocketObj)
 	{
-		while (FSocket* NewSock = SocketObj->Accept(*RemoteAddress, TEXT("FDisplayClusterTcpListener client")))
+		while (FSocket* NewSock = SocketObj->Accept(*RemoteAddress, TEXT("DisplayCluster session")))
 		{
-			UE_LOG(LogDisplayClusterNetwork, Log, TEXT("New incoming connection: %s"), *RemoteAddress->ToString(true));
+			UE_LOG(LogDisplayClusterNetwork, Verbose, TEXT("TCP listener %s: New incoming connection: %s"), *Name, *RemoteAddress->ToString(true));
 
 			if (NewSock)
 			{
@@ -115,8 +112,13 @@ uint32 FDisplayClusterTcpListener::Run()
 				if (OnConnectionAcceptedDelegate.IsBound())
 				{
 					// If no, close the socket
-					if (!OnConnectionAcceptedDelegate.Execute(NewSock, FIPv4Endpoint(RemoteAddress)))
+					if (OnConnectionAcceptedDelegate.Execute(NewSock, FIPv4Endpoint(RemoteAddress)))
 					{
+						UE_LOG(LogDisplayClusterNetwork, Verbose, TEXT("TCP listener %s: New incoming connection accepted: %s"), *Name, *RemoteAddress->ToString(true));
+					}
+					else
+					{
+						UE_LOG(LogDisplayClusterNetwork, Verbose, TEXT("TCP listener %s: New incoming connection declined: %s"), *Name, *RemoteAddress->ToString(true));
 						NewSock->Close();
 						ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->DestroySocket(NewSock);
 					}
@@ -150,4 +152,16 @@ void FDisplayClusterTcpListener::Exit()
 		ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->DestroySocket(SocketObj);
 		SocketObj = nullptr;
 	}
+}
+
+bool FDisplayClusterTcpListener::GenIPv4Endpoint(const FString& Addr, const int32 Port, FIPv4Endpoint& EP) const
+{
+	FIPv4Address ipAddr;
+	if (!FIPv4Address::Parse(Addr, ipAddr))
+	{
+		return false;
+	}
+
+	EP = FIPv4Endpoint(ipAddr, Port);
+	return true;
 }

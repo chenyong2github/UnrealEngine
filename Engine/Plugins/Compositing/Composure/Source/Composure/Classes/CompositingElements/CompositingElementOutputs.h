@@ -68,7 +68,7 @@ class UMediaCapture;
 class UCompositingElementTransform;
 class UTextureRenderTarget2D;
 
-UCLASS(meta = (DisplayName = "Media Capture"))
+UCLASS()
 class COMPOSURE_API UCompositingMediaCaptureOutput : public UColorConverterOutputPass
 {
 	GENERATED_BODY()
@@ -76,7 +76,7 @@ class COMPOSURE_API UCompositingMediaCaptureOutput : public UColorConverterOutpu
 public:
 	UCompositingMediaCaptureOutput();
 
-	UPROPERTY(EditAnywhere, Category="Compositing Pass", meta = (DisplayAfter = "PassName", EditCondition = "bEnabled"))
+	UPROPERTY(EditAnywhere, Category="Compositing Pass", BlueprintReadWrite, meta = (DisplayAfter = "PassName", EditCondition = "bEnabled"))
 	UMediaOutput* CaptureOutput;
 
 	/** */
@@ -110,13 +110,13 @@ private:
 
 class UTextureRenderTarget2D;
 
-UCLASS(meta=(DisplayName="Render Target Asset"))
+UCLASS()
 class COMPOSURE_API URenderTargetCompositingOutput : public UCompositingElementOutput
 {
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category="Compositing Pass", meta = (DisplayAfter = "PassName", EditCondition = "bEnabled"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Compositing Pass", meta = (DisplayAfter = "PassName", EditCondition = "bEnabled"))
 	UTextureRenderTarget2D* RenderTarget;
 
 public:
@@ -134,7 +134,7 @@ enum class EExrCompressionOptions : uint8
 	Uncompressed = 1,
 };
 
-UCLASS(meta=(DisplayName="Image Sequence (exr)"))
+UCLASS()
 class COMPOSURE_API UEXRFileCompositingOutput : public UCompositingElementOutput
 {
 	GENERATED_BODY()
@@ -142,7 +142,7 @@ class COMPOSURE_API UEXRFileCompositingOutput : public UCompositingElementOutput
 public:
 	UEXRFileCompositingOutput();
 
-	UPROPERTY(EditAnywhere, Category="Compositing Pass", meta = (DisplayAfter = "PassName", EditCondition = "bEnabled"))
+	UPROPERTY(EditAnywhere, Category="Compositing Pass", BlueprintReadWrite ,meta = (DisplayAfter = "PassName", EditCondition = "bEnabled"))
 	FDirectoryPath OutputDirectiory;
 
 	/**

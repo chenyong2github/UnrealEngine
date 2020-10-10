@@ -198,7 +198,7 @@ TSharedPtr<SToolTip> STableTreeViewTooltip::GetRowTooltip(const TSharedPtr<FTabl
 	if (Table.IsValid())
 	{
 		int32 Row = 0;
-		for (const TSharedPtr<FTableColumn> Column : Table->GetColumns())
+		for (const TSharedRef<FTableColumn>& Column : Table->GetColumns())
 		{
 			if (!Column->IsHierarchy())
 			{

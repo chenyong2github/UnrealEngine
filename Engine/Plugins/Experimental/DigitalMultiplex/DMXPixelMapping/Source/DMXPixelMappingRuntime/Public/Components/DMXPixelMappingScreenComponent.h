@@ -9,7 +9,7 @@
 
 class UTextureRenderTarget2D;
 class SDMXPixelMappingScreenLayout;
-enum class EDMXPixelFormat : uint8;
+enum class EDMXCellFormat : uint8;
 
 /**
  * DMX Screen(Grid) rendering component
@@ -87,11 +87,11 @@ private:
 	void AddColorToSendBuffer(const FColor& Color, TArray<uint8>& OutDMXSendBuffer);
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mapping Settings", meta = (DisplayName = "X Pixels", ClampMin = "1", ClampMax = "1000", UIMin = "1", UIMax = "1000", DisplayPriority = "1"))
-	int32 NumXPanels;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mapping Settings", meta = (DisplayName = "X Cells", ClampMin = "1", ClampMax = "1000", UIMin = "1", UIMax = "1000", DisplayPriority = "1"))
+	int32 NumXCells;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mapping Settings", meta = (DisplayName = "Y Pixels", ClampMin = "1", ClampMax = "1000", UIMin = "1", UIMax = "1000", DisplayPriority = "1"))
-	int32 NumYPanels;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mapping Settings", meta = (DisplayName = "Y Cells", ClampMin = "1", ClampMax = "1000", UIMin = "1", UIMax = "1000", DisplayPriority = "1"))
+	int32 NumYCells;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mapping Settings")
 	FDMXProtocolName ProtocolName;
@@ -103,10 +103,10 @@ public:
 	int32 StartAddress;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Patch Settings", meta = (DisplayName = "Color Space", DisplayPriority = "1"))
-	EDMXPixelFormat PixelFormat;
+	EDMXCellFormat PixelFormat;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Patch Settings", meta = (DisplayPriority = "1"))
-	EDMXPixelsDistribution Distribution;
+	EDMXPixelMappingDistribution Distribution;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Patch Settings", meta = (DisplayPriority = "1"))
 	bool bIgnoreAlphaChannel;

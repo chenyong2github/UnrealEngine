@@ -168,42 +168,45 @@ FIOSInputInterface::FIOSInputInterface( const TSharedRef< FGenericApplicationMes
     }];
 
 #if (UE4_HAS_IOS14 || UE4_HAS_TVOS14)
-    [notificationCenter addObserverForName:GCMouseDidConnectNotification object:nil queue:currentQueue usingBlock:^(NSNotification* Notification)
+    if (@available(iOS 14, *))
     {
-        HandleMouseConnection(Notification.object);
-    }];
-    
-    [notificationCenter addObserverForName:GCMouseDidDisconnectNotification object:nil queue:currentQueue usingBlock:^(NSNotification* Notification)
-    {
-        HandleMouseDisconnect(Notification.object);
-    }];
-    
-    [notificationCenter addObserverForName:GCKeyboardDidConnectNotification object:nil queue:currentQueue usingBlock:^(NSNotification* Notification)
-    {
-        HandleKeyboardConnection(Notification.object);
-    }];
-    
-    [notificationCenter addObserverForName:GCKeyboardDidDisconnectNotification object:nil queue:currentQueue usingBlock:^(NSNotification* Notification)
-    {
-        HandleKeyboardDisconnect(Notification.object);
-    }];
-    
-    if ( GCMouse.current )
-    {
-        HandleMouseConnection( GCMouse.current );
-    }
-    
-    if ( GCKeyboard.coalescedKeyboard )
-    {
-        HandleKeyboardConnection( GCKeyboard.coalescedKeyboard );
-    }
-    
-    if (!bGameSupportsMultipleActiveControllers)
-    {
-        [notificationCenter addObserverForName:GCControllerDidBecomeCurrentNotification object:nil queue:currentQueue usingBlock:^(NSNotification* Notification)
+        [notificationCenter addObserverForName:GCMouseDidConnectNotification object:nil queue:currentQueue usingBlock:^(NSNotification* Notification)
         {
-            SetCurrentController(Notification.object);
+            HandleMouseConnection(Notification.object);
         }];
+    
+        [notificationCenter addObserverForName:GCMouseDidDisconnectNotification object:nil queue:currentQueue usingBlock:^(NSNotification* Notification)
+        {
+            HandleMouseDisconnect(Notification.object);
+        }];
+    
+        [notificationCenter addObserverForName:GCKeyboardDidConnectNotification object:nil queue:currentQueue usingBlock:^(NSNotification* Notification)
+        {
+            HandleKeyboardConnection(Notification.object);
+            
+        }];
+    
+        [notificationCenter addObserverForName:GCKeyboardDidDisconnectNotification object:nil queue:currentQueue usingBlock:^(NSNotification* Notification)
+        {
+            HandleKeyboardDisconnect(Notification.object);
+        }];
+    
+        if ( GCMouse.current )
+        {
+            HandleMouseConnection( GCMouse.current );
+        }
+    
+        if ( GCKeyboard.coalescedKeyboard )
+        {
+            HandleKeyboardConnection( GCKeyboard.coalescedKeyboard );
+        }
+        if (!bGameSupportsMultipleActiveControllers)
+        {
+            [notificationCenter addObserverForName:GCControllerDidBecomeCurrentNotification object:nil queue:currentQueue usingBlock:^(NSNotification* Notification)
+            {
+                SetCurrentController(Notification.object);
+            }];
+        }
     }
 #endif
     

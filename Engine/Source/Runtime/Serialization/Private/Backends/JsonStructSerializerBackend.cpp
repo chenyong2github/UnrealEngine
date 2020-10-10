@@ -16,19 +16,23 @@ namespace JsonStructSerializerBackend
 	template<typename ValueType>
 	void WritePropertyValue(const TSharedRef<TJsonWriter<UCS2CHAR>> JsonWriter, const FStructSerializerState& State, const ValueType& Value)
 	{
+		//Write only value in case of no property or container elements
 		if ((State.ValueProperty == nullptr) ||
-			(State.ValueProperty->ArrayDim > 1) ||
-			State.ValueProperty->GetOwner<FArrayProperty>() ||
-			State.ValueProperty->GetOwner<FSetProperty>())
+			((State.ValueProperty->ArrayDim > 1 
+				|| State.ValueProperty->GetOwner<FArrayProperty>() 
+				|| State.ValueProperty->GetOwner<FSetProperty>()
+				|| (State.ValueProperty->GetOwner<FMapProperty>() && State.KeyProperty == nullptr)) && !EnumHasAnyFlags(State.StateFlags, EStructSerializerStateFlags::WritingContainerElement)))
 		{
 			JsonWriter->WriteValue(Value);
 		}
+		//Write Key:Value in case of a map entry
 		else if (State.KeyProperty != nullptr)
 		{
 			FString KeyString;
 			State.KeyProperty->ExportTextItem(KeyString, State.KeyData, nullptr, nullptr, PPF_None);
 			JsonWriter->WriteValue(KeyString, Value);
 		}
+		//Write PropertyName:Value for any other cases (single array element, single property, etc...)
 		else
 		{
 			JsonWriter->WriteValue(State.ValueProperty->GetName(), Value);
@@ -39,9 +43,10 @@ namespace JsonStructSerializerBackend
 	void WriteNull(const TSharedRef<TJsonWriter<UCS2CHAR>> JsonWriter, const FStructSerializerState& State)
 	{
 		if ((State.ValueProperty == nullptr) ||
-			(State.ValueProperty->ArrayDim > 1) ||
-			State.ValueProperty->GetOwner<FArrayProperty>() ||
-			State.ValueProperty->GetOwner<FSetProperty>())
+			((State.ValueProperty->ArrayDim > 1 
+				|| State.ValueProperty->GetOwner<FArrayProperty>() 
+				|| State.ValueProperty->GetOwner<FSetProperty>()
+				|| (State.ValueProperty->GetOwner<FMapProperty>() && State.KeyProperty == nullptr)) && !EnumHasAnyFlags(State.StateFlags, EStructSerializerStateFlags::WritingContainerElement)))
 		{
 			JsonWriter->WriteNull();
 		}
@@ -85,7 +90,11 @@ void FJsonStructSerializerBackend::BeginStructure(const FStructSerializerState& 
 {
 	if (State.ValueProperty != nullptr)
 	{
-		if (State.ValueProperty->GetOwner<FArrayProperty>() || State.ValueProperty->GetOwner<FSetProperty>())
+		//Write only object start in case of struct contained in arrays and not a single element is targeted
+		if ((State.ValueProperty->ArrayDim > 1
+			|| State.ValueProperty->GetOwner<FArrayProperty>()
+			|| State.ValueProperty->GetOwner<FSetProperty>()
+			|| (State.ValueProperty->GetOwner<FMapProperty>() && State.KeyProperty == nullptr)) && !EnumHasAnyFlags(State.StateFlags, EStructSerializerStateFlags::WritingContainerElement))
 		{
 			JsonWriter->WriteObjectStart();
 		}

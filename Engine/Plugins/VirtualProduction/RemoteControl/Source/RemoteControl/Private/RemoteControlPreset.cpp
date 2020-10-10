@@ -55,120 +55,20 @@ namespace
 	}
 }
 
-void FRemoteControlPresetGroup::AddField(FGuid FieldId)
-{
-	Fields.Add(FieldId);
-	if (RemoteControlPreset::FRemoteControlCache* Cache = GetPresetCache())
-	{
-		Cache->FindOrAdd(FieldId).LayoutGroupId = Id;
-	}
-}
-
-void FRemoteControlPresetGroup::InsertFieldAt(FGuid FieldId, int32 Index)
-{
-	if (URemoteControlPreset* Preset = GetOwnerPreset())
-	{
-		Preset->Modify();
-	}
-
-	Fields.Insert(FieldId, Index);
-	if (RemoteControlPreset::FRemoteControlCache* Cache = GetPresetCache())
-	{
-		Cache->FindOrAdd(FieldId).LayoutGroupId = Id;
-	}
-}
-
-void FRemoteControlPresetGroup::RemoveField(FGuid FieldId)
-{
-	int32 Index = Fields.IndexOfByKey(FieldId);
-	RemoveFieldAt(Index);
-}
-
-void FRemoteControlPresetGroup::RemoveFieldAt(int32 Index)
-{
-	if (Fields.IsValidIndex(Index))
-	{
-		if (URemoteControlPreset* Preset = GetOwnerPreset())
-		{
-			Preset->Modify();
-		}
-
-		FGuid FieldId = Fields[Index];
-
-		bool bLastFieldOccurence = true;
-		for (auto It = Fields.CreateIterator(); It; ++It)
-		{
-			if (*It == FieldId)
-			{
-				if (It.GetIndex() != Index)
-				{
-					bLastFieldOccurence = false;
-				}
-				else
-				{
-					It.RemoveCurrent();
-				}
-			}
-		}
-
-		if (!bLastFieldOccurence)
-		{
-			// If the item was removed but is not the last occurrence, this means the field should still appear in the group.
-			return;
-		}
-
-		if (RemoteControlPreset::FRemoteControlCache* Cache = GetPresetCache())
-		{
-			if (RemoteControlPreset::FCachedFieldData* CachedData = Cache->Find(FieldId))
-			{
-				// Make sure we don't clear the layout group of a field that's been moved to another group.
-				if (CachedData->LayoutGroupId == Id)
-				{
-					CachedData->LayoutGroupId.Invalidate();
-				}
-			}
-		}
-	}
-}
-
-void FRemoteControlPresetGroup::SwapFields(int32 FirstIndex, int32 SecondIndex)
-{
-	Fields.Swap(FirstIndex, SecondIndex);
-}
-
 const TArray<FGuid>& FRemoteControlPresetGroup::GetFields() const
 {
 	return Fields;
 }
 
-RemoteControlPreset::FRemoteControlCache* FRemoteControlPresetGroup::GetPresetCache() const
+TArray<FGuid>& FRemoteControlPresetGroup::AccessFields()
 {
-	if (OwnerLayout)
-	{
-		if (URemoteControlPreset* OwnerPreset = OwnerLayout->GetOwner())
-		{
-			return &OwnerPreset->FieldCache;
-		}
-	}
-	return nullptr;
-}
-
-URemoteControlPreset* FRemoteControlPresetGroup::GetOwnerPreset() const
-{
-	if (OwnerLayout)
-	{
-		return OwnerLayout->GetOwner();
-	}
-
-	return nullptr;
+	return Fields;
 }
 
 FRemoteControlPresetLayout::FRemoteControlPresetLayout(URemoteControlPreset* OwnerPreset)
 	: Owner(OwnerPreset)
 {
-	FRemoteControlPresetGroup Group(NAME_DefaultLayoutGroup, this);
-	Group.Id = DefaultGroupId;
-	Groups.Add(MoveTemp(Group));
+	Groups.Emplace(NAME_DefaultLayoutGroup, DefaultGroupId);
 }
 
 FRemoteControlPresetGroup& FRemoteControlPresetLayout::GetDefaultGroup()
@@ -179,9 +79,7 @@ FRemoteControlPresetGroup& FRemoteControlPresetLayout::GetDefaultGroup()
 	}
 	else
 	{
-		FRemoteControlPresetGroup* NewGroup = CreateGroup(NAME_DefaultLayoutGroup);
-		NewGroup->Id = DefaultGroupId;
-		return *NewGroup;
+		return CreateGroup(NAME_DefaultLayoutGroup, DefaultGroupId);
 	}
 }
 
@@ -195,19 +93,20 @@ FRemoteControlPresetGroup* FRemoteControlPresetLayout::GetGroupByName(FName Grou
 	return Groups.FindByPredicate([GroupName](const FRemoteControlPresetGroup& Group) { return Group.Name == GroupName; });
 }
 
-FRemoteControlPresetGroup* FRemoteControlPresetLayout::CreateGroup(FName GroupName)
+FRemoteControlPresetGroup& FRemoteControlPresetLayout::CreateGroup(FName GroupName, FGuid GroupId)
 {
-	checkSlow(Owner.IsValid());
 	Owner->Modify();
 
-	if (GroupName == NAME_None)
-	{
-		GroupName = MakeUniqueName(NAME_DefaultNewGroup, [this](FName Candidate) { return !!GetGroupByName(Candidate); });
-	}
-
-	FRemoteControlPresetGroup& Group = Groups.Emplace_GetRef(GroupName, this);
+	FRemoteControlPresetGroup& Group = Groups.Emplace_GetRef(GroupName, GroupId);
 	Owner->CacheLayoutData();
-	return &Group;
+	OnGroupAddedDelegate.Broadcast(Group);
+
+	return Group;
+}
+
+FRemoteControlPresetGroup& FRemoteControlPresetLayout::CreateGroup()
+{
+	return CreateGroup(MakeUniqueName(NAME_DefaultNewGroup, [this](FName Candidate) { return !!GetGroupByName(Candidate); }), FGuid::NewGuid());
 }
 
 FRemoteControlPresetGroup* FRemoteControlPresetLayout::FindGroupFromField(FGuid FieldId)
@@ -239,9 +138,16 @@ void FRemoteControlPresetLayout::SwapGroups(FGuid OriginGroupId, FGuid TargetGro
 			OriginGroupIndex += 1;
 		}
 
+		Owner->Modify();
+
 		Groups.Insert(FRemoteControlPresetGroup{ *OriginGroup }, TargetGroupIndex);
 		Groups.Swap(TargetGroupIndex, OriginGroupIndex);
 		Groups.RemoveAt(OriginGroupIndex);
+
+		TArray<FGuid> GroupIds;
+		GroupIds.Reserve(Groups.Num());
+		Algo::Transform(Groups, GroupIds, &FRemoteControlPresetGroup::Id);
+		OnGroupOrderChangedDelegate.Broadcast(GroupIds);
 	}
 }
 
@@ -255,8 +161,8 @@ void FRemoteControlPresetLayout::SwapFields(const FFieldSwapArgs& FieldSwapArgs)
 		return;
 	}
 
-	int32 DragOriginFieldIndex = DragOriginGroup->Fields.IndexOfByKey(FieldSwapArgs.DraggedFieldId);
-	int32 DragTargetFieldIndex = DragTargetGroup->Fields.IndexOfByKey(FieldSwapArgs.TargetFieldId);
+	int32 DragOriginFieldIndex = DragOriginGroup->AccessFields().IndexOfByKey(FieldSwapArgs.DraggedFieldId);
+	int32 DragTargetFieldIndex = DragTargetGroup->AccessFields().IndexOfByKey(FieldSwapArgs.TargetFieldId);
 
 	if (DragOriginFieldIndex == INDEX_NONE)
 	{
@@ -274,55 +180,60 @@ void FRemoteControlPresetLayout::SwapFields(const FFieldSwapArgs& FieldSwapArgs)
 			DragOriginFieldIndex += 1;
 		}
 
-		DragTargetGroup->InsertFieldAt(FieldSwapArgs.DraggedFieldId, DragTargetFieldIndex);
-		DragTargetGroup->SwapFields(DragTargetFieldIndex, DragOriginFieldIndex);
-		DragTargetGroup->RemoveFieldAt(DragOriginFieldIndex);
+		Owner->Modify();
+	
+		// Here we don't want to trigger add/delete delegates since the fields just get moved around.
+		TArray<FGuid>& Fields = DragTargetGroup->AccessFields();
+		Fields.Insert(FieldSwapArgs.DraggedFieldId, DragTargetFieldIndex);
+		Fields.Swap(DragTargetFieldIndex, DragOriginFieldIndex);
+		Fields.RemoveAt(DragOriginFieldIndex);
+	
+		Owner->CacheLayoutData();
+		OnFieldOrderChangedDelegate.Broadcast(FieldSwapArgs.TargetGroupId, Fields);
 	}
 	else
 	{
-		if (DragTargetFieldIndex == INDEX_NONE)
-		{
-			DragTargetGroup->AddField(FieldSwapArgs.DraggedFieldId);
-		}
-		else
-		{
-			DragTargetGroup->InsertFieldAt(FieldSwapArgs.DraggedFieldId, DragTargetFieldIndex);
-		}
-		DragOriginGroup->RemoveFieldAt(DragOriginFieldIndex);
+		Owner->Modify();
+
+		DragOriginGroup->AccessFields().RemoveAt(DragOriginFieldIndex);
+
+		DragTargetFieldIndex = DragTargetFieldIndex == INDEX_NONE ? 0 : DragTargetFieldIndex;
+		DragTargetGroup->AccessFields().Insert(FieldSwapArgs.DraggedFieldId, DragTargetFieldIndex);
+
+		Owner->CacheLayoutData();
+		OnFieldDeletedDelegate.Broadcast(FieldSwapArgs.OriginGroupId, FieldSwapArgs.DraggedFieldId, DragOriginFieldIndex);
+		OnFieldAddedDelegate.Broadcast(FieldSwapArgs.TargetGroupId, FieldSwapArgs.DraggedFieldId, DragTargetFieldIndex);
 	}
 }
 
 void FRemoteControlPresetLayout::DeleteGroup(FGuid GroupId)
 {
-	checkSlow(Owner.IsValid());
-	Owner->Modify();
 
 	int32 Index = Groups.IndexOfByPredicate([GroupId](const FRemoteControlPresetGroup& Group) { return Group.Id == GroupId; });
 	if (Index != INDEX_NONE)
 	{
+		Owner->Modify();
+		FRemoteControlPresetGroup DeletedGroup = MoveTemp(Groups[Index]);
 		Groups.RemoveAt(Index);
-	}
 
-	Owner->CacheLayoutData();
+		for (const FGuid& FieldId : DeletedGroup.GetFields())
+		{
+			Owner->Unexpose(FieldId);
+		}
+		
+		Owner->CacheLayoutData();
+
+		OnGroupDeletedDelegate.Broadcast(MoveTemp(DeletedGroup));
+	}
 }
 
 void FRemoteControlPresetLayout::RenameGroup(FGuid GroupId, FName NewGroupName)
 {
-	checkSlow(Owner.IsValid());
-	Owner->Modify();
-
 	if (FRemoteControlPresetGroup* Group = GetGroup(GroupId))
 	{
+		Owner->Modify();
 		Group->Name = NewGroupName;
-	}
-	Owner->CacheLayoutData();
-}
-
-void FRemoteControlPresetLayout::PostSerialize(const FArchive& Ar)
-{
-	for (FRemoteControlPresetGroup& Group : Groups)
-	{
-		Group.OwnerLayout = this;
+		OnGroupRenamedDelegate.Broadcast(GroupId, NewGroupName);
 	}
 }
 
@@ -331,17 +242,66 @@ const TArray<FRemoteControlPresetGroup>& FRemoteControlPresetLayout::GetGroups()
 	return Groups;
 }
 
+void FRemoteControlPresetLayout::AddField(FGuid GroupId, FGuid FieldId)
+{
+	if (FRemoteControlPresetGroup* Group = GetGroup(GroupId))
+	{
+		Owner->Modify();
+		Group->AccessFields().Add(FieldId);
+		OnFieldAddedDelegate.Broadcast(GroupId, FieldId, Group->AccessFields().Num() - 1);
+	}
+}
+
+void FRemoteControlPresetLayout::InsertFieldAt(FGuid GroupId, FGuid FieldId, int32 Index)
+{
+	if (FRemoteControlPresetGroup* Group = GetGroup(GroupId))
+	{
+		Owner->Modify();
+
+		Group->AccessFields().Insert(FieldId, Index);
+		OnFieldAddedDelegate.Broadcast(GroupId, FieldId, Index);
+	}
+}
+
+void FRemoteControlPresetLayout::RemoveField(FGuid GroupId, FGuid FieldId)
+{
+	if (FRemoteControlPresetGroup* Group = GetGroup(GroupId))
+	{
+		int32 Index = Group->AccessFields().IndexOfByKey(FieldId);
+		RemoveFieldAt(GroupId, Index);
+	}
+}
+
+void FRemoteControlPresetLayout::RemoveFieldAt(FGuid GroupId, int32 Index)
+{
+	if (FRemoteControlPresetGroup* Group = GetGroup(GroupId))
+	{
+		Owner->Modify();
+
+		TArray<FGuid>& Fields = Group->AccessFields();
+		if(!Fields.IsValidIndex(Index))
+		{
+			return;
+		}
+
+		FGuid FieldId = Fields[Index];
+		Fields.RemoveAt(Index);
+
+		OnFieldDeletedDelegate.Broadcast(GroupId, FieldId, Index);
+	}
+}
+
 URemoteControlPreset* FRemoteControlPresetLayout::GetOwner()
 {
 	return Owner.Get();
 }
 
-TOptional<FRemoteControlProperty> FRemoteControlTarget::ExposeProperty(FFieldPathInfo FieldPathInfo, const FString& DesiredDisplayName, FGuid GroupId)
+TOptional<FRemoteControlProperty> FRemoteControlTarget::ExposeProperty(FRCFieldPathInfo FieldPathInfo, TArray<FString> ComponentHierarchy, const FString& DesiredDisplayName, FGuid GroupId)
 {
 	Owner->Modify();
 
 	FName FieldLabel = Owner->GenerateUniqueFieldLabel(Alias, DesiredDisplayName);
-	FRemoteControlProperty RCField(FieldLabel, MoveTemp(FieldPathInfo));
+	FRemoteControlProperty RCField(FieldLabel, MoveTemp(FieldPathInfo), MoveTemp(ComponentHierarchy));
 	ExposedProperties.Add(MoveTemp(RCField));
 
 	URemoteControlPreset::FExposeInfo ExposeInfo;
@@ -366,8 +326,8 @@ TOptional<FRemoteControlFunction> FRemoteControlTarget::ExposeFunction(FString R
 
 	Owner->Modify();
 
-	FFieldPathInfo Path{ MoveTemp(RelativeFieldPath) };
-	if (UFunction* Function = Class->FindFunctionByName(FName(Path.GetFieldName())))
+	FRCFieldPathInfo Path{ MoveTemp(RelativeFieldPath) };
+	if (UFunction* Function = Class->FindFunctionByName(Path.GetFieldName()))
 	{
 		FName FieldLabel = Owner->GenerateUniqueFieldLabel(Alias, DesiredDisplayName);
 		RCFunction = FRemoteControlFunction{ FieldLabel, MoveTemp(Path), Function };
@@ -419,6 +379,32 @@ FName FRemoteControlTarget::FindFieldLabel(FName FieldName) const
 	return Label;
 }
 
+FName FRemoteControlTarget::FindFieldLabel(const FRCFieldPathInfo& Path) const
+{
+	FName Label = NAME_None;
+
+	for (const FRemoteControlProperty& RCProperty : ExposedProperties)
+	{
+		if (RCProperty.FieldPathInfo.IsEqual(Path))
+		{
+			Label = RCProperty.Label;
+		}
+	}
+
+	if (Label == NAME_None)
+	{
+		for (const FRemoteControlFunction& RCFunction : ExposedFunctions)
+		{
+			if (RCFunction.FieldPathInfo.IsEqual(Path))
+			{
+				Label = RCFunction.Label;
+			}
+		}
+	}
+
+	return Label;
+}
+
 TOptional<FRemoteControlProperty> FRemoteControlTarget::GetProperty(FGuid PropertyId) const
 {
 	TOptional<FRemoteControlProperty> Field;
@@ -449,13 +435,10 @@ TOptional<FExposedProperty> FRemoteControlTarget::ResolveExposedProperty(FGuid P
 		TArray<UObject*> FieldOwners = RCProperty->ResolveFieldOwners(ResolveBoundObjects());
 		if (FieldOwners.Num() && FieldOwners[0])
 		{
-			TArray<FString> Path;
-			RCProperty->PathRelativeToOwner.ParseIntoArray(Path, TEXT("."));
-			Path.Add(RCProperty->FieldName.ToString());
-			FProperty* Property = FindPropertyRecursive(Cast<UStruct>(FieldOwners[0]->GetClass()), Path);
-			if (Property)
+			//Always resolve exposed property. We might have been pointing to an array element that has been deleted
+			if (RCProperty->FieldPathInfo.Resolve(FieldOwners[0]))
 			{
-				OptionalExposedProperty = FExposedProperty{ Property, FieldOwners };
+				OptionalExposedProperty = FExposedProperty{ RCProperty->FieldPathInfo.GetResolvedData().Field, FieldOwners };
 			}
 		}
 	}
@@ -569,7 +552,6 @@ FProperty* FRemoteControlTarget::FindPropertyRecursive(UStruct* Container, TArra
 URemoteControlPreset::URemoteControlPreset()
 	: Layout(FRemoteControlPresetLayout{ this })
 {
-
 }
 
 void URemoteControlPreset::PostInitProperties()
@@ -683,7 +665,7 @@ void URemoteControlPreset::RenameField(FName OldFieldLabel, FName NewFieldLabel)
 
 	Modify();
 
-	if (FRemoteControlField* Field = GetField(GetFieldId(OldFieldLabel)))
+	if (FRemoteControlField* Field = GetFieldPtr(GetFieldId(OldFieldLabel)))
 	{
 		Field->Label = NewFieldLabel;
 	}
@@ -720,13 +702,14 @@ TOptional<FExposedFunction> URemoteControlPreset::ResolveExposedFunction(FName F
 void URemoteControlPreset::Unexpose(FName FieldLabel)
 {
 	FGuid FieldId = GetFieldId(FieldLabel);
+	Unexpose(FieldId);
+}
+
+void URemoteControlPreset::Unexpose(const FGuid& FieldId)
+{
 	if (RemoteControlPreset::FCachedFieldData* Data = FieldCache.Find(FieldId))
 	{
 		RemoteControlTargets.FindChecked(Data->OwnerObjectAlias).Unexpose(FieldId);
-		FieldCache.Remove(FieldId);
-		NameToGuidMap.Remove(FieldLabel);
-
-		OnPropertyUnexposed().Broadcast(this, FieldLabel);
 	}
 }
 
@@ -791,7 +774,7 @@ void URemoteControlPreset::NotifyExposedPropertyChanged(FName PropertyLabel)
 	}
 }
 
-FRemoteControlField* URemoteControlPreset::GetField(FGuid FieldId)
+FRemoteControlField* URemoteControlPreset::GetFieldPtr(FGuid FieldId)
 {
 	if (const RemoteControlPreset::FCachedFieldData* CachedData = FieldCache.Find(FieldId))
 	{
@@ -865,33 +848,39 @@ void URemoteControlPreset::OnExpose(const FExposeInfo& Info)
 		Group = &Layout.GetDefaultGroup();
 	}
 
-	Group->InsertFieldAt(Info.FieldId, Group->GetFields().Num());
-
-	CachedData.LayoutGroupId = Group->Id;
+	CachedData.LayoutGroupId = FieldGroupId;
 	CachedData.OwnerObjectAlias = Info.Alias;
 	FieldCache.FindOrAdd(Info.FieldId) = CachedData;
 
-	if (FRemoteControlField* Field = GetField(Info.FieldId))
+	if (FRemoteControlField* Field = GetFieldPtr(Info.FieldId))
 	{
 		NameToGuidMap.Add(Field->Label, Info.FieldId);
+		Layout.AddField(FieldGroupId, Info.FieldId);
 		OnPropertyExposed().Broadcast(this, Field->Label);
 	}
 }
 
 void URemoteControlPreset::OnUnexpose(FGuid UnexposedFieldId)
-{
-	RemoteControlPreset::FCachedFieldData CachedData = FieldCache.FindAndRemoveChecked(UnexposedFieldId);
-	if (FRemoteControlPresetGroup* FieldGroup = Layout.GetGroup(CachedData.LayoutGroupId))
-	{
-		FieldGroup->RemoveField(UnexposedFieldId);
-	}
+ {
+	RemoteControlPreset::FCachedFieldData CachedData = FieldCache.FindChecked(UnexposedFieldId);
 
+	Layout.RemoveField(CachedData.LayoutGroupId, UnexposedFieldId);
+
+	FieldCache.Remove(UnexposedFieldId);
+
+	FName FieldLabel;
 	for (auto It = NameToGuidMap.CreateIterator(); It; ++It)
 	{
 		if (It.Value() == UnexposedFieldId)
 		{
+			FieldLabel = It.Key();
 			It.RemoveCurrent();
 		}
+	}
+
+	if (FieldLabel != NAME_None)
+	{
+		OnPropertyUnexposed().Broadcast(this, FieldLabel);
 	}
 }
 
@@ -916,7 +905,7 @@ void URemoteControlPreset::CacheFieldLayoutData()
 {
 	for (const FRemoteControlPresetGroup& Group : Layout.GetGroups())
 	{
-		for (FGuid FieldId : Group.GetFields())
+		for (const FGuid& FieldId : Group.GetFields())
 		{
 			RemoteControlPreset::FCachedFieldData& CachedData = FieldCache.FindOrAdd(FieldId);
 			CachedData.LayoutGroupId = Group.Id;
@@ -933,8 +922,7 @@ void URemoteControlPreset::OnObjectPropertyChanged(UObject* Object, struct FProp
 		FPreObjectModifiedCache& CacheEntry = Iter.Value();
 
 		if (CacheEntry.Object == Object
-			&& CacheEntry.Property == Event.Property
-			&& CacheEntry.MemberProperty == Event.MemberProperty)
+			&& CacheEntry.Property == Event.Property)
 		{
 			if (TOptional<FRemoteControlProperty> Property = GetProperty(PropertyId))
 			{
@@ -980,6 +968,7 @@ void URemoteControlPreset::OnPreObjectPropertyChanged(UObject* Object, const cla
 				//If this property is already cached, skip it
 				if (PreObjectModifiedCache.Contains(Property.Id))
 				{
+
 					continue;
 				}
 

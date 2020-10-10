@@ -34,6 +34,8 @@ namespace AudioModulation
 			UClass* Class = Parameter->GetClass();
 			check(Class);
 			ParamClassId = Class->GetUniqueID();
+
+			Value.SetCurrentValue(Parameter->Settings.ValueNormalized);
 		}
 	}
 

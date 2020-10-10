@@ -562,7 +562,7 @@ void UpdateHistoryScreenProbeGather(
 	FRDGTextureRef& DiffuseIndirect,
 	FRDGTextureRef& RoughSpecularIndirect)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 	
 	if (View.ViewState)
 	{
@@ -714,7 +714,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	bool& bLumenUseDenoiserComposite,
 	FLumenMeshSDFGridParameters& MeshSDFGridParameters)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 	RDG_EVENT_SCOPE(GraphBuilder, "LumenScreenProbeGather");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, LumenScreenProbeGather);
 

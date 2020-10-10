@@ -18,30 +18,13 @@
 		{
 			"Name": "HairStrandsCore",
 			"Type": "Runtime",
-			"LoadingPhase": "EarliestPossible",
-			"WhitelistPlatforms": [
-				"Win64",
-				"Win32"
-			]
+			"LoadingPhase": "PostConfigInit"
 		},
 		{
 			"Name": "HairStrandsEditor",
 			"Type": "Editor",
-			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
-				"Win64",
-				"Win32"
-			]
+			"LoadingPhase": "Default"
 		},
-		{
-			"Name": "HairStrandsNiagara",
-			"Type": "RunTime",
-			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms": [
-				"Win64",
-				"Win32"
-			]
-		}
 	],
 	"Plugins": [
 		{

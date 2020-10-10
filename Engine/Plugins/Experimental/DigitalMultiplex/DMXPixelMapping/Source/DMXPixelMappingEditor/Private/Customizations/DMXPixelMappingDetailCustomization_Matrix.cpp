@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Customizations/DMXPixelMappingDetailCustomization_Matrix.h"
+
 #include "Components/DMXPixelMappingMatrixComponent.h"
-#include "Components/DMXPixelMappingMatrixPixelComponent.h"
+#include "Components/DMXPixelMappingMatrixCellComponent.h"
 #include "DMXEditorStyle.h"
 #include "Toolkits/DMXPixelMappingToolkit.h"
 #include "DMXPixelMapping.h"
@@ -48,17 +49,17 @@ void FDMXPixelMappingDetailCustomization_Matrix::CustomizeDetails(IDetailLayoutB
 	OutputSettingsCategory.AddProperty(ColorModePropertyHandle);
 
 	// Register attributes
-	TSharedPtr<FDMXPixelGroupAttribute> AttributeR = MakeShared<FDMXPixelGroupAttribute>();
+	TSharedPtr<FDMXCellAttributeGroup> AttributeR = MakeShared<FDMXCellAttributeGroup>();
 	AttributeR->Handle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, AttributeR));
 	AttributeR->ExposeHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, AttributeRExpose));
 	AttributeR->InvertHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, AttributeRInvert));
 
-	TSharedPtr<FDMXPixelGroupAttribute> AttributeG = MakeShared<FDMXPixelGroupAttribute>();
+	TSharedPtr<FDMXCellAttributeGroup> AttributeG = MakeShared<FDMXCellAttributeGroup>();
 	AttributeG->Handle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, AttributeG));
 	AttributeG->ExposeHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, AttributeGExpose));
 	AttributeG->InvertHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, AttributeGInvert));
 
-	TSharedPtr<FDMXPixelGroupAttribute> AttributeB = MakeShared<FDMXPixelGroupAttribute>();
+	TSharedPtr<FDMXCellAttributeGroup> AttributeB = MakeShared<FDMXCellAttributeGroup>();
 	AttributeB->Handle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, AttributeB));
 	AttributeB->ExposeHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, AttributeBExpose));
 	AttributeB->InvertHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, AttributeBInvert));
@@ -68,7 +69,7 @@ void FDMXPixelMappingDetailCustomization_Matrix::CustomizeDetails(IDetailLayoutB
 	RGBAttributes.Add(AttributeB);
 
 	// Register Monochrome attribute
-	TSharedPtr<FDMXPixelGroupAttribute> MonochromeAttribute = MakeShared<FDMXPixelGroupAttribute>();
+	TSharedPtr<FDMXCellAttributeGroup> MonochromeAttribute = MakeShared<FDMXCellAttributeGroup>();
 	MonochromeAttribute->Handle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, MonochromeIntensity));
 	MonochromeAttribute->ExposeHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, MonochromeExpose));
 	MonochromeAttribute->InvertHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, MonochromeInvert));
@@ -83,13 +84,13 @@ void FDMXPixelMappingDetailCustomization_Matrix::CustomizeDetails(IDetailLayoutB
 		]
 		.ValueContent()
 		[
-			SAssignNew(ExposeAndInvertListView, SListView<TSharedPtr<FDMXPixelGroupAttribute>>)
+			SAssignNew(ExposeAndInvertListView, SListView<TSharedPtr<FDMXCellAttributeGroup>>)
 			.ListItemsSource(&RGBAttributes)
 			.OnGenerateRow(this, &FDMXPixelMappingDetailCustomization_Matrix::GenerateExposeAndInvertRow)
 		];
 
 	// Update RGB attributes
-	for (TSharedPtr<FDMXPixelGroupAttribute>& Attribute : RGBAttributes)
+	for (TSharedPtr<FDMXCellAttributeGroup>& Attribute : RGBAttributes)
 	{
 		DetailLayout->HideProperty(Attribute->ExposeHandle);
 		DetailLayout->HideProperty(Attribute->InvertHandle);
@@ -109,13 +110,13 @@ void FDMXPixelMappingDetailCustomization_Matrix::CustomizeDetails(IDetailLayoutB
 		]
 		.ValueContent()
 		[
-			SAssignNew(ExposeAndInvertListView, SListView<TSharedPtr<FDMXPixelGroupAttribute>>)
+			SAssignNew(ExposeAndInvertListView, SListView<TSharedPtr<FDMXCellAttributeGroup>>)
 			.ListItemsSource(&MonochromeAttributes)
 			.OnGenerateRow(this, &FDMXPixelMappingDetailCustomization_Matrix::GenerateExposeAndInvertRow)
 		];
 
 	// Update Monochrome attributes
-	for (TSharedPtr<FDMXPixelGroupAttribute>& Attribute : MonochromeAttributes)
+	for (TSharedPtr<FDMXCellAttributeGroup>& Attribute : MonochromeAttributes)
 	{
 		DetailLayout->HideProperty(Attribute->ExposeHandle);
 		DetailLayout->HideProperty(Attribute->InvertHandle);
@@ -159,7 +160,7 @@ void FDMXPixelMappingDetailCustomization_Matrix::OnFixturePatchMatrixChanged()
 	}
 }
 
-EVisibility FDMXPixelMappingDetailCustomization_Matrix::GetRGBAttributeRowVisibilty(FDMXPixelGroupAttribute* Attribute) const
+EVisibility FDMXPixelMappingDetailCustomization_Matrix::GetRGBAttributeRowVisibilty(FDMXCellAttributeGroup* Attribute) const
 {
 	bool bIsVisible = false;
 
@@ -184,7 +185,7 @@ EVisibility FDMXPixelMappingDetailCustomization_Matrix::GetRGBAttributesVisibili
 	return CheckComponentsDMXColorMode(EDMXColorMode::CM_RGB) ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
-EVisibility FDMXPixelMappingDetailCustomization_Matrix::GetMonochromeRowVisibilty(FDMXPixelGroupAttribute* Attribute) const
+EVisibility FDMXPixelMappingDetailCustomization_Matrix::GetMonochromeRowVisibilty(FDMXCellAttributeGroup* Attribute) const
 {
 	bool bIsVisible = false;
 
@@ -209,7 +210,7 @@ EVisibility FDMXPixelMappingDetailCustomization_Matrix::GetMonochromeAttributesV
 	return (GetRGBAttributesVisibility() == EVisibility::Visible) ? EVisibility::Collapsed : EVisibility::Visible;
 }
 
-TSharedRef<ITableRow> FDMXPixelMappingDetailCustomization_Matrix::GenerateExposeAndInvertRow(TSharedPtr<FDMXPixelGroupAttribute> InAtribute, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> FDMXPixelMappingDetailCustomization_Matrix::GenerateExposeAndInvertRow(TSharedPtr<FDMXCellAttributeGroup> InAtribute, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	if (!InAtribute.IsValid())
 	{

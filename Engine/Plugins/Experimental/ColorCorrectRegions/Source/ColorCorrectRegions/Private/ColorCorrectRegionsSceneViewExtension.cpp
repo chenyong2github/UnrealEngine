@@ -281,6 +281,8 @@ void FColorCorrectRegionsSceneViewExtension::PrePostProcessPass_RenderThread(FRD
 		return;
 	}
 
+	Inputs.Validate();
+
 	const FSceneViewFamily& ViewFamily = *View.Family;
 
 	const auto FeatureLevel = View.GetFeatureLevel();
@@ -291,9 +293,7 @@ void FColorCorrectRegionsSceneViewExtension::PrePostProcessPass_RenderThread(FRD
 	checkSlow(View.bIsViewInfo); // can't do dynamic_cast because FViewInfo doesn't have any virtual functions.
 	const FIntRect PrimaryViewRect = static_cast<const FViewInfo&>(View).ViewRect;
 
-	//MERGE Luke Thatcher / Zach to resolve
-	//FScreenPassTexture SceneColor(Inputs.SceneColor, PrimaryViewRect);
-	FScreenPassTexture SceneColor;
+	FScreenPassTexture SceneColor((*Inputs.SceneTextures)->SceneColorTexture, PrimaryViewRect);
 
 
 	if (!SceneColor.IsValid())

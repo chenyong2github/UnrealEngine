@@ -61,7 +61,7 @@ public:
 	/**
 	 *	Destructor
 	 */
-	virtual ~ULayersSubsystem() final;
+	virtual ~ULayersSubsystem();
 
 	/** Broadcasts whenever one or more Layers are modified*/
 	DECLARE_EVENT_ThreeParams(ULayersSubsystem, FOnLayersChanged, const ELayersAction::Type /*Action*/, const TWeakObjectPtr< ULayer >& /*ChangedLayer*/, const FName& /*ChangedProperty*/);

@@ -359,7 +359,7 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 	FGlobalShaderMap* GlobalShaderMap,
 	const FLumenCardScatterContext& VisibleCardScatterContext)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 
 	if (GLumenDirectLighting)
 	{

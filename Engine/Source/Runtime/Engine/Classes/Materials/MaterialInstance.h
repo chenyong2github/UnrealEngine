@@ -592,7 +592,7 @@ public:
 	*/
 	ENGINE_API void UpdateStaticPermutation(const FStaticParameterSet& NewParameters, FMaterialUpdateContext* MaterialUpdateContext = nullptr);
 	/** Ensure's static permutations for current parameters and overrides are upto date. */
-	ENGINE_API void UpdateStaticPermutation();
+	ENGINE_API void UpdateStaticPermutation(FMaterialUpdateContext* MaterialUpdateContext = nullptr);
 
 	ENGINE_API void SwapLayerParameterIndices(int32 OriginalIndex, int32 NewIndex);
 

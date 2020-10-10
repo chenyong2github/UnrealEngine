@@ -8,14 +8,14 @@
 #include "DisplayClusterInputTypes.generated.h"
 
 
-// Keyboard reflection modes
+// VRPN Keyboard reflection modes
 UENUM(Blueprintable)
-enum class EDisplayClusterInputKeyboardReflectMode : uint8
+enum class EDisplayClusterInputKeyboardReflectionMode : uint8
 {
-	Refl_nDisplay UMETA(DisplayName = "nDisplay buttons only"),
-	Refl_UECore   UMETA(DisplayName = "Native UE4 keyboard events"),
-	Refl_Both     UMETA(DisplayName = "Both nDisplay and UE4 native"),
-	Refl_None     UMETA(DisplayName = "No reflection")
+	None     UMETA(DisplayName = "No reflection"),
+	nDisplay UMETA(DisplayName = "nDisplay buttons only"),
+	Core     UMETA(DisplayName = "UE core keyboard events"),
+	All      UMETA(DisplayName = "Both nDisplay and UE4 core")
 };
 
 

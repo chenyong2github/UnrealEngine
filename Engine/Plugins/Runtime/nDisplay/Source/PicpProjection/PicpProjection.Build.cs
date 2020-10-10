@@ -8,38 +8,38 @@ public class PicpProjection : ModuleRules
 	public PicpProjection(ReadOnlyTargetRules ROTargetRules) : base(ROTargetRules)
 	{
 		PrivateIncludePaths.AddRange(
-			new string[]
-			{
-				"PicpProjection/Private",
-				"DisplayClusterProjection/Private",
-			}
-		);
+			new string[] {
+				"DisplayClusterProjection/Private"
+			});
 
 		PublicDependencyModuleNames.AddRange(
-			new string[]
-			{
+			new string[] {
 				"Core",
 				"CoreUObject",
-				"Engine",
-            });
+				"Engine"
+			});
 
 		PrivateDependencyModuleNames.AddRange(
+			new string[] {
+				"ApplicationCore",
+				"Composure",
+				"CinematicCamera",
+				"DisplayCluster",
+				"DisplayClusterProjection",
+				"MPCDI",
+				"PicpMPCDI",
+				"RenderCore",
+				"RHI"
+			});
+
+		PrivateIncludePathModuleNames.AddRange(
 			new string[]
 			{
-				"ApplicationCore",
-                "Composure",
-				"CinematicCamera",
-                "DisplayCluster",
-                "MPCDI",
-                "PicpMPCDI",
-                "RenderCore",
-				"RHI",				
-            }
-        );
+				"DisplayClusterProjection"
+			});
 
 		if (Target.bBuildEditor == true)
 		{
-			PrivateDependencyModuleNames.Add("EditorFramework");
 			PrivateDependencyModuleNames.Add("UnrealEd");
 		}
 	}

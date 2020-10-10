@@ -717,7 +717,7 @@ struct op_hook : public op_base
 
 		static const TCHAR* FormatStrs[4] =
 		{
-			TEXT("{0};\n"),
+			TEXT("{0}();\n"),
 			TEXT("{0}({1}[{2}]);\n"),
 		};
 

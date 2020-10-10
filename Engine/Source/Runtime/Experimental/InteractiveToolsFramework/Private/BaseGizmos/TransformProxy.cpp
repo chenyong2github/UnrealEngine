@@ -64,7 +64,7 @@ void UTransformProxy::UpdateObjects()
 	for (FRelativeObject& Obj : Objects)
 	{
 		FTransform CombinedTransform;
-		if (bRotatePerObject)
+		if (bRotatePerObject && Objects.Num() > 1)
 		{
 			FTransform Temp = SharedTransform.GetRelativeTransform(InitialSharedTransform);
 

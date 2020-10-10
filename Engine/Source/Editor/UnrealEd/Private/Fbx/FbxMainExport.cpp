@@ -1422,7 +1422,6 @@ FbxSurfaceMaterial* FFbxExporter::ExportMaterial(UMaterialInterface* MaterialInt
 
 	TArray<FMaterialParameterInfo> ParameterInfos;
 	TArray<FGuid> Guids;
-	const bool bOveriddenOnly = true;
 	//Query all base material texture parameters.
 	Material->GetAllTextureParameterInfo(ParameterInfos, Guids);
 	for (int32 ParameterIdx = 0; ParameterIdx < ParameterInfos.Num(); ParameterIdx++)
@@ -1431,7 +1430,7 @@ FbxSurfaceMaterial* FFbxExporter::ExportMaterial(UMaterialInterface* MaterialInt
 		FName ParameterName = ParameterInfo.Name;
 		UTexture* Value;
 		//Query the material instance parameter overridden value
-		if (MaterialInterface->GetTextureParameterValue(ParameterInfo, Value, bOveriddenOnly) && Value && Value->AssetImportData)
+		if (MaterialInterface->GetTextureParameterValue(ParameterInfo, Value) && Value && Value->AssetImportData)
 		{
 			//This lambda extract the source file path and create the fbx file texture node and connect it to the fbx material
 			auto SetTextureProperty = [&FbxMaterial, &Value](const char* FbxPropertyName, FbxScene* InScene)->bool
@@ -1494,7 +1493,7 @@ FbxSurfaceMaterial* FFbxExporter::ExportMaterial(UMaterialInterface* MaterialInt
 		FName ParameterName = ParameterInfo.Name;
 		FLinearColor LinearColor;
 		//Query the material instance parameter overridden value
-		if (MaterialInterface->GetVectorParameterValue(ParameterInfo, LinearColor, bOveriddenOnly))
+		if (MaterialInterface->GetVectorParameterValue(ParameterInfo, LinearColor))
 		{
 			FbxDouble3 LinearFbxValue(LinearColor.R, LinearColor.G, LinearColor.B);
 			if (!BaseColorParamSet && BaseColorParamName != NAME_None && ParameterName == BaseColorParamName)
@@ -1518,7 +1517,7 @@ FbxSurfaceMaterial* FFbxExporter::ExportMaterial(UMaterialInterface* MaterialInt
 		FName ParameterName = ParameterInfo.Name;
 		float Value;
 		//Query the material instance parameter overridden value
-		if (MaterialInterface->GetScalarParameterValue(ParameterInfo, Value, bOveriddenOnly))
+		if (MaterialInterface->GetScalarParameterValue(ParameterInfo, Value))
 		{
 			FbxDouble FbxValue = (FbxDouble)Value;
 			FbxDouble3 FbxVector(FbxValue, FbxValue, FbxValue);

@@ -2,6 +2,7 @@
 
 #include "CompositingElements/CompositingElementTransforms.h"
 #include "CompositingElements/CompElementRenderTargetPool.h"
+#include "Materials/MaterialInterface.h"
 
 /* TCompositingTargetSwapChain
  *****************************************************************************/
@@ -171,6 +172,30 @@ UTexture* UCompositingElementMaterialPass::ApplyTransform_Implementation(UTextur
 	}
 	return Result;
 }
+
+void UCompositingElementMaterialPass::SetMaterialInterface(UMaterialInterface* NewMaterial)
+{
+	if (NewMaterial)
+	{
+		Material.Material = Cast<UMaterialInterface>(NewMaterial->GetMaterial());
+#if WITH_EDITORONLY_DATA
+		Material.UpdateProxyMap();
+#endif
+	}
+}
+
+bool UCompositingElementMaterialPass::SetParameterMapping(FName TextureParamName, FName ComposureLayerName)
+{
+	bool bIsSetSuccess = false;
+	if (Material.ParamPassMappings.Num() > 0 && Material.ParamPassMappings.Contains(TextureParamName))
+	{
+		Material.ParamPassMappings[TextureParamName] = ComposureLayerName;
+		bIsSetSuccess = true;
+	}
+	return bIsSetSuccess;
+}
+
+
 
 /* UCompositingTonemapPass
  *****************************************************************************/

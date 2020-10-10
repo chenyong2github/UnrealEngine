@@ -52,11 +52,12 @@ namespace Chaos
 		ENamedThreads::HighTaskPriority // if we don't have hi pri threads, then use normal priority threads at high task priority instead
 	);
 
-	FPhysicsSolverAdvanceTask::FPhysicsSolverAdvanceTask(FPhysicsSolverBase& InSolver, TArray<TFunction<void()>>&& InQueue, TArray<FPushPhysicsData*>&& InPushData, FReal InDt)
+	FPhysicsSolverAdvanceTask::FPhysicsSolverAdvanceTask(FPhysicsSolverBase& InSolver, TArray<TFunction<void()>>&& InQueue, TArray<FPushPhysicsData*>&& InPushData, FReal InDt, int32 InInputDataExternalTimestamp)
 		: Solver(InSolver)
 		, Queue(MoveTemp(InQueue))
 		, PushData(MoveTemp(InPushData))
 		, Dt(InDt)
+		, InputDataExternalTimestamp(InInputDataExternalTimestamp)
 	{
 	}
 
@@ -89,6 +90,7 @@ namespace Chaos
 		SCOPE_CYCLE_COUNTER(STAT_ChaosTick);
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Physics);
 
+		Solver.SetExternalTimestampConsumed_Internal(InputDataExternalTimestamp);
 		Solver.ProcessPushedData_Internal(PushData);
 
 		// Handle our solver commands
@@ -113,6 +115,9 @@ namespace Chaos
 		, bPaused_External(false)
 		, Owner(InOwner)
 		, TraitIdx(InTraitIdx)
+#if !UE_BUILD_SHIPPING
+		, bStealAdvanceTasksForTesting(false)
+#endif
 	{
 	}
 
@@ -193,6 +198,25 @@ namespace Chaos
 			Proxy->SetSyncTimestamp(SpatialData.SyncTimestamp);
 		}
 	}
+
+#if !UE_BUILD_SHIPPING
+	void FPhysicsSolverBase::SetStealAdvanceTasks_ForTesting(bool bInStealAdvanceTasksForTesting)
+	{
+		bStealAdvanceTasksForTesting = bInStealAdvanceTasksForTesting;
+	}
+
+	void FPhysicsSolverBase::PopAndExecuteStolenAdvanceTask_ForTesting()
+	{
+		ensure(ThreadingMode == EThreadingModeTemp::SingleThread);
+		if (ensure(StolenSolverAdvanceTasks.Num() > 0))
+		{
+			StolenSolverAdvanceTasks[0].AdvanceSolver();
+			StolenSolverAdvanceTasks.RemoveAt(0);
+		}
+	}
+#endif
+
+
 
 	//////////////////////////////////////////////////////////////////////////
 }

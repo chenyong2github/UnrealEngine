@@ -3238,7 +3238,7 @@ TUniquePtr<FIoStoreReader> CreateIoStoreReader(const TCHAR* Path, const FKeyChai
 	}
 	else
 	{
-		UE_LOG(LogIoStore, Warning, TEXT("Failed creating IoStore reader '%s' [%s]"), *Path, *Status.ToString())
+		UE_LOG(LogIoStore, Warning, TEXT("Failed creating IoStore reader '%s' [%s]"), Path, *Status.ToString())
 		return nullptr;
 	}
 }

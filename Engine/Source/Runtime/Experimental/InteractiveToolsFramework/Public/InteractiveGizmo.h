@@ -8,8 +8,7 @@
 #include "InteractiveGizmo.generated.h"
 
 class UInteractiveGizmoManager;
-
-
+class FCanvas;
 
 /**
  * UInteractiveGizmo is the base class for all Gizmos in the InteractiveToolsFramework.
@@ -42,7 +41,14 @@ public:
 	virtual void Render(IToolsContextRenderAPI* RenderAPI);
 
 	/**
-	 * Allow the Gizmo to do any necessary processing on Tick 
+	 * Allow the Gizmo to do any custom screen space drawing
+	 * @param Canvas the FCanvas to use to do the drawing
+	 * @param RenderAPI Abstraction that provides access to Rendering in the current ToolsContext
+	 */
+	virtual void DrawHUD( FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI );
+
+	/**
+	 * Allow the Gizmo to do any necessary processing on Tick
 	 * @param DeltaTime the time delta since last tick
 	 */
 	virtual void Tick(float DeltaTime);

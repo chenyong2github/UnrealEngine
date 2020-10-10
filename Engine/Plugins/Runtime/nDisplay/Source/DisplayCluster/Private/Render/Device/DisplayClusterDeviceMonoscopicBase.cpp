@@ -24,11 +24,11 @@ void FDisplayClusterDeviceMonoscopicBase::AdjustViewRect(enum EStereoscopicPass 
 	FDisplayClusterRenderViewport& RenderViewport = RenderViewports[ViewportIndex];
 	
 	// Provide the Engine with a viewport rectangle
-	const FIntRect& ViewportArea = RenderViewport.GetArea();
-	X = ViewportArea.Min.X;
-	Y = ViewportArea.Min.Y;
-	SizeX = ViewportArea.Width();
-	SizeY = ViewportArea.Height();
+	const FIntRect& ViewportRect = RenderViewport.GetRect();
+	X = ViewportRect.Min.X;
+	Y = ViewportRect.Min.Y;
+	SizeX = ViewportRect.Width();
+	SizeY = ViewportRect.Height();
 
 	// Update view context
 	FDisplayClusterRenderViewContext& ViewContext = RenderViewport.GetContext(ViewIndex);

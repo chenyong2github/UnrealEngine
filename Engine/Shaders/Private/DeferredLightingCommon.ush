@@ -350,7 +350,6 @@ FDeferredLightingSplit GetDynamicLightingSplit(
 		Shadow.SurfaceShadow = AmbientOcclusion;
 		Shadow.TransmissionShadow = 1;
 		Shadow.TransmissionThickness = 1;
-		Shadow.HairTransmittance.Transmittance = 1;
 		Shadow.HairTransmittance.OpaqueVisibility = 1;
 		GetShadowTerms(GBuffer, LightData, WorldPosition, L, LightAttenuation, Dither, Shadow);
 		SurfaceShadow = Shadow.SurfaceShadow;

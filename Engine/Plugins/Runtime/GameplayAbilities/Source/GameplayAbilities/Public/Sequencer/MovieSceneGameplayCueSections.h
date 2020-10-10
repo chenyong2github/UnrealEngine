@@ -20,9 +20,9 @@ struct FMovieSceneGameplayCueKey
 	GENERATED_BODY()
 
 	FMovieSceneGameplayCueKey()
-		: NormalizedMagnitude(0.0f)
-		, Location(ForceInitToZero)
+		: Location(ForceInitToZero)
 		, Normal(ForceInitToZero)
+		, NormalizedMagnitude(0.0f)
 		, PhysicalMaterial(nullptr)
 		, GameplayEffectLevel(1)
 		, AbilityLevel(1)
@@ -32,19 +32,23 @@ struct FMovieSceneGameplayCueKey
 	UPROPERTY(EditAnywhere, Category="Gameplay Cue")
 	FGameplayCueTag Cue;
 
+	/** Location cue took place at - relative to the attached component if applicable */
+	UPROPERTY(EditAnywhere, Category="Position")
+	FVector Location;
+
+	/** Normal of impact that caused cue */
+	UPROPERTY(EditAnywhere, Category="Position")
+	FVector Normal;
+
+	/** When attached to a skeletal mesh component, specifies a socket to trigger the cue at */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category="Position")
+	FName AttachSocketName;
+
 	/** Magnitude of source gameplay effect, normalzed from 0-1. Use this for "how strong is the gameplay effect" (0=min, 1=,max) */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category="Gameplay Cue", meta=(ClampMin=0.0, ClampMax=1.0))
 	float NormalizedMagnitude;
 
-	/** Location cue took place at */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category="Gameplay Cue")
-	FVector Location;
-
-	/** Normal of impact that caused cue */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category="Gameplay Cue")
-	FVector Normal;
-
-	/** Instigator actor, the actor that owns the ability system component */
+	/** Instigator actor, the actor that owns the ability system component. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category="Gameplay Cue")
 	FMovieSceneObjectBindingID Instigator;
 
@@ -64,8 +68,8 @@ struct FMovieSceneGameplayCueKey
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category="Gameplay Cue")
 	int32 AbilityLevel;
 
-	/** Could be used to say "attach FX to this component always" */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category="Gameplay Cue")
+	/** Attach the gameplay cue to the track's bound object in sequencer */
+	UPROPERTY(EditAnywhere, Category="Position")
 	bool bAttachToBinding;
 };
 

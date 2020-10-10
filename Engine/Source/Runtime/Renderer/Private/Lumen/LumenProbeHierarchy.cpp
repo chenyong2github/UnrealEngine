@@ -756,7 +756,7 @@ FRDGTextureUAVRef CreateProbeHierarchyDebugOutputUAV(
 	const FIntPoint& Extent,
 	const TCHAR* DebugName)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 #if 1
 	FRDGTextureDesc DebugOutputDesc = FRDGTextureDesc::Create2D(
 		Extent,
@@ -787,7 +787,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 {
 	using namespace LumenProbeHierarchy;
 
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 	RDG_GPU_STAT_SCOPE(GraphBuilder, LumenProbeDenoiser);
 
 	const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);

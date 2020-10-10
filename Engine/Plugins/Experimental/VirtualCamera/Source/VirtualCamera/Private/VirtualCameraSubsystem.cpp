@@ -2,12 +2,14 @@
 
 #include "VirtualCameraSubsystem.h"
 #include "LevelSequencePlaybackController.h"
-
+#include "Engine/Selection.h"
 
 UVirtualCameraSubsystem::UVirtualCameraSubsystem()
 	: bIsStreaming(false)
 {
 	SequencePlaybackController = CreateDefaultSubobject<ULevelSequencePlaybackController>("SequencePlaybackController");
+	USelection::SelectionChangedEvent.AddUObject(this, &UVirtualCameraSubsystem::HandleSelectionChangedEvent);
+	USelection::SelectObjectEvent.AddUObject(this, &UVirtualCameraSubsystem::HandleSelectObjectEvent);
 }
 
 bool UVirtualCameraSubsystem::StartStreaming()
@@ -56,6 +58,32 @@ bool UVirtualCameraSubsystem::IsStreaming() const
 {
 	return bIsStreaming;
 }
+
+
+void UVirtualCameraSubsystem::HandleSelectionChangedEvent(UObject* ChangedObject)
+{
+	USelection* Selection = Cast<USelection>(ChangedObject);
+	if (Selection)
+	{
+		if (AActor* SelectedActor = Selection->GetBottom<AActor>()) 
+		{
+			OnSelectedAnyActorDelegate.Broadcast(SelectedActor); 
+		}
+	}
+}
+
+void UVirtualCameraSubsystem::HandleSelectObjectEvent(UObject* ChangedObject)
+{
+	if (AActor* SelectedActorCheck1 = Cast<AActor>(ChangedObject))
+	{
+		OnSelectedActorInViewportDelegate.Broadcast(SelectedActorCheck1);
+	}
+	else if (AActor* SelectedActorCheck2 = ChangedObject->GetTypedOuter<AActor>())
+	{
+		OnSelectedActorInViewportDelegate.Broadcast(SelectedActorCheck2);
+	}
+}
+
 
 TScriptInterface<IVirtualCameraController> UVirtualCameraSubsystem::GetVirtualCameraController() const
 {

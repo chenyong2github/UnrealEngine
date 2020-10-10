@@ -23,6 +23,33 @@ protected:
 	FNDIStaticMesh_InstanceData* Owner;
 };
 
+UENUM()
+enum class ENDIStaticMesh_SourceMode : uint8
+{
+	/**
+	Default behavior.
+	- Use "Source" when specified (either set explicitly or via blueprint with Set Niagara Static Mesh Component).
+	- When no source is specified, attempt to find a Static Mesh Component on an attached actor or component.
+	- If no source actor/component specified and no attached component found, fall back to the "Default Mesh" specified.
+	*/
+	Default,
+
+	/**
+	Only use "Source" (either set explicitly or via blueprint with Set Niagara Static Mesh Component).
+	*/
+	Source,
+
+	/**
+	Only use the parent actor or component the system is attached to.
+	*/
+	AttachParent,
+
+	/**
+	Only use the "Default Mesh" specified.
+	*/
+	DefaultMeshOnly,
+};
+
 USTRUCT()
 struct FNDIStaticMeshSectionFilter
 {
@@ -217,6 +244,10 @@ public:
 	};
 
 	DECLARE_NIAGARA_DI_PARAMETER();
+
+	/** Controls how to retrieve the Static Mesh Component to attach to. */
+	UPROPERTY(EditAnywhere, Category = "Mesh")
+	ENDIStaticMesh_SourceMode SourceMode;
 	
 #if WITH_EDITORONLY_DATA
 	/** Mesh used to sample from when not overridden by a source actor from the scene. Only available in editor for previewing. This is removed in cooked builds. */
@@ -258,6 +289,7 @@ public:
 	virtual void PostInitProperties()override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif
 
 public:

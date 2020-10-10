@@ -3,20 +3,19 @@
 #include "MPCDIModule.h"
 
 #include "MPCDIData.h"
+#include "MPCDILog.h"
 #include "MPCDIRegion.h"
 #include "MPCDIShader.h"
+#include "MPCDIStrings.h"
 
 #include "Interfaces/IPluginManager.h"
 #include "Misc/Paths.h"
 #include "ShaderCore.h"
 
+#include "Misc/DisplayClusterHelpers.h"
 #include "Misc/FileHelper.h"
 
 #include "RHICommandList.h"
-
-#include "MPCDIHelpers.h"
-#include "MPCDILog.h"
-#include "MPCDIStrings.h"
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -45,7 +44,7 @@ bool FMPCDIModule::Load(const FString& LocalMPCDIFile)
 		return true;
 	}
 
-	TSharedPtr<FMPCDIData> DataItem = MakeShareable(new FMPCDIData);
+	TSharedPtr<FMPCDIData> DataItem = MakeShared<FMPCDIData>();
 	if (!DataItem->LoadFromFile(LocalMPCDIFile))
 	{
 		//! Handle error
@@ -197,7 +196,7 @@ bool FMPCDIModule::CreateCustomRegion(const FString& LocalMPCDIFile, const FStri
 	if (OutRegionLocator.FileIndex < 0)
 	{
 		//Create new file:
-		TSharedPtr<FMPCDIData> DataItem = MakeShareable(new FMPCDIData);
+		TSharedPtr<FMPCDIData> DataItem = MakeShared<FMPCDIData>();
 		DataItem->Initialize(LocalMPCDIFile, EMPCDIProfileType::mpcdi_A3D); // Use a3d as default profile
 		// Load and cache the file
 		MPCDIData.Add(DataItem);
@@ -390,41 +389,41 @@ void FMPCDIModule::ReloadAll_RenderThread()
 	}
 }
 
-bool FMPCDIModule::LoadConfig(const FString& ConfigLineStr, ConfigParser& OutConfig)
+bool FMPCDIModule::LoadConfig(const TMap<FString, FString>& InConfigParameters, ConfigParser& OutConfig)
 {
-	OutConfig.ConfigLineStr = ConfigLineStr;
+	OutConfig.ConfigParameters = InConfigParameters;
 
 	// PFM file (optional)
 	FString LocalPFMFile;
-	if (DisplayClusterHelpers::str::ExtractValue(ConfigLineStr, DisplayClusterStrings::cfg::data::mpcdi::FilePFM, LocalPFMFile))
+	if (DisplayClusterHelpers::map::template ExtractValue(InConfigParameters, DisplayClusterMPCDIStrings::cfg::FilePFM, LocalPFMFile))
 	{
-		UE_LOG(LogMPCDI, Log, TEXT("Found Argument '%s'='%s'"), DisplayClusterStrings::cfg::data::mpcdi::FilePFM,*LocalPFMFile);
+		UE_LOG(LogMPCDI, Log, TEXT("Found Argument '%s'='%s'"), DisplayClusterMPCDIStrings::cfg::FilePFM, *LocalPFMFile);
 		OutConfig.PFMFile = LocalPFMFile;
 	}
 
 	// Buffer
-	if (!DisplayClusterHelpers::str::ExtractValue(ConfigLineStr, DisplayClusterStrings::cfg::data::mpcdi::Buffer, OutConfig.BufferId))
+	if (!DisplayClusterHelpers::map::template ExtractValue(InConfigParameters, DisplayClusterMPCDIStrings::cfg::Buffer, OutConfig.BufferId))
 	{
 		if (OutConfig.PFMFile.IsEmpty())
 		{
-			UE_LOG(LogMPCDI, Error, TEXT("Argument '%s' not found in the config file"), DisplayClusterStrings::cfg::data::mpcdi::Buffer);
+			UE_LOG(LogMPCDI, Error, TEXT("Argument '%s' not found in the config file"), DisplayClusterMPCDIStrings::cfg::Buffer);
 			return false;
 		}
 	}
 
 	// Region
-	if (!DisplayClusterHelpers::str::ExtractValue(ConfigLineStr, DisplayClusterStrings::cfg::data::mpcdi::Region, OutConfig.RegionId))
+	if (!DisplayClusterHelpers::map::template ExtractValue(InConfigParameters, DisplayClusterMPCDIStrings::cfg::Region, OutConfig.RegionId))
 	{
 		if (OutConfig.PFMFile.IsEmpty())
 		{
-			UE_LOG(LogMPCDI, Error, TEXT("Argument '%s' not found in the config file"), DisplayClusterStrings::cfg::data::mpcdi::Region);
+			UE_LOG(LogMPCDI, Error, TEXT("Argument '%s' not found in the config file"), DisplayClusterMPCDIStrings::cfg::Region);
 			return false;
 		}
 	}
 
 	// Filename
 	FString LocalMPCDIFileName;
-	if (DisplayClusterHelpers::str::ExtractValue(ConfigLineStr, DisplayClusterStrings::cfg::data::mpcdi::File, LocalMPCDIFileName))
+	if (DisplayClusterHelpers::map::template ExtractValue(InConfigParameters, DisplayClusterMPCDIStrings::cfg::File, LocalMPCDIFileName))
 	{
 		UE_LOG(LogMPCDI, Log, TEXT("Found mpcdi file name for %s:%s - %s"), *OutConfig.BufferId, *OutConfig.RegionId, *LocalMPCDIFileName);
 		OutConfig.MPCDIFileName = LocalMPCDIFileName;
@@ -440,17 +439,17 @@ bool FMPCDIModule::LoadConfig(const FString& ConfigLineStr, ConfigParser& OutCon
 
 		if (OutConfig.BufferId.IsEmpty())
 		{
-			OutConfig.BufferId = DisplayClusterStrings::cfg::data::mpcdi::PFMFileDefaultID;
+			OutConfig.BufferId = DisplayClusterMPCDIStrings::cfg::PFMFileDefaultID;
 		}
 
 		if (OutConfig.MPCDIFileName.IsEmpty())
 		{
-			OutConfig.MPCDIFileName = DisplayClusterStrings::cfg::data::mpcdi::PFMFileDefaultID;
+			OutConfig.MPCDIFileName = DisplayClusterMPCDIStrings::cfg::PFMFileDefaultID;
 		}
 	}
 
 	// Origin node (optional)
-	if (DisplayClusterHelpers::str::ExtractValue(ConfigLineStr, DisplayClusterStrings::cfg::data::mpcdi::Origin, OutConfig.OriginType))
+	if (DisplayClusterHelpers::map::template ExtractValue(InConfigParameters, DisplayClusterMPCDIStrings::cfg::Origin, OutConfig.OriginType))
 	{
 		UE_LOG(LogMPCDI, Log, TEXT("Found origin node for %s:%s - %s"), *OutConfig.BufferId, *OutConfig.RegionId, *OutConfig.OriginType);
 	}
@@ -462,7 +461,7 @@ bool FMPCDIModule::LoadConfig(const FString& ConfigLineStr, ConfigParser& OutCon
 	{
 		// MPCDIType (optional)
 		FString MPCDITypeStr;
-		if (!DisplayClusterHelpers::str::ExtractValue(ConfigLineStr, DisplayClusterStrings::cfg::data::mpcdi::MPCDIType, MPCDITypeStr))
+		if (!DisplayClusterHelpers::map::template ExtractValue(InConfigParameters, DisplayClusterMPCDIStrings::cfg::MPCDIType, MPCDITypeStr))
 		{
 			OutConfig.MPCDIType = IMPCDI::EMPCDIProfileType::mpcdi_A3D;
 		}
@@ -482,41 +481,41 @@ bool FMPCDIModule::LoadConfig(const FString& ConfigLineStr, ConfigParser& OutCon
 
 			if (OutConfig.MPCDIType == IMPCDI::EMPCDIProfileType::Invalid)
 			{
-				UE_LOG(LogMPCDI, Error, TEXT("Argument '%s' has unknown value '%s'"), DisplayClusterStrings::cfg::data::mpcdi::MPCDIType, *MPCDITypeStr);
+				UE_LOG(LogMPCDI, Error, TEXT("Argument '%s' has unknown value '%s'"), DisplayClusterMPCDIStrings::cfg::MPCDIType, *MPCDITypeStr);
 				return false;
 			}
 		}
 		
 		// Default is UE scale, cm
 		OutConfig.PFMFileScale = 1;
-		if (DisplayClusterHelpers::str::ExtractValue(ConfigLineStr, DisplayClusterStrings::cfg::data::mpcdi::WorldScale, OutConfig.PFMFileScale))
+		if (DisplayClusterHelpers::map::template ExtractValueFromString(InConfigParameters, DisplayClusterMPCDIStrings::cfg::WorldScale, OutConfig.PFMFileScale))
 		{
 			UE_LOG(LogMPCDI, Log, TEXT("Found WorldScale value for %s:%s - %.f"), *OutConfig.BufferId, *OutConfig.RegionId, OutConfig.PFMFileScale);
 		}
 
 		OutConfig.bIsUnrealGameSpace = false;
-		if (DisplayClusterHelpers::str::ExtractValue(ConfigLineStr, DisplayClusterStrings::cfg::data::mpcdi::UseUnrealAxis, OutConfig.bIsUnrealGameSpace))
+		if (DisplayClusterHelpers::map::template ExtractValueFromString(InConfigParameters, DisplayClusterMPCDIStrings::cfg::UseUnrealAxis, OutConfig.bIsUnrealGameSpace))
 		{
 			UE_LOG(LogMPCDI, Log, TEXT("Found bIsUnrealGameSpace value for %s:%s - %s"), *OutConfig.BufferId, *OutConfig.RegionId, OutConfig.bIsUnrealGameSpace?"true":"false");
 		}
 
 		// AlphaFile file (optional)
 		FString LocalAlphaFile;
-		if (DisplayClusterHelpers::str::ExtractValue(ConfigLineStr, DisplayClusterStrings::cfg::data::mpcdi::FileAlpha, LocalAlphaFile))
+		if (DisplayClusterHelpers::map::template ExtractValueFromString(InConfigParameters, DisplayClusterMPCDIStrings::cfg::FileAlpha, LocalAlphaFile))
 		{
 			UE_LOG(LogMPCDI, Log, TEXT("Found external AlphaMap file for %s:%s - %s"), *OutConfig.BufferId, *OutConfig.RegionId, *LocalAlphaFile);
 			OutConfig.AlphaFile = LocalAlphaFile;
 		}
 
 		OutConfig.AlphaGamma = 1;
-		if (DisplayClusterHelpers::str::ExtractValue(ConfigLineStr, DisplayClusterStrings::cfg::data::mpcdi::AlphaGamma, OutConfig.AlphaGamma))
+		if (DisplayClusterHelpers::map::template ExtractValueFromString(InConfigParameters, DisplayClusterMPCDIStrings::cfg::AlphaGamma, OutConfig.AlphaGamma))
 		{
 			UE_LOG(LogMPCDI, Log, TEXT("Found AlphaGamma value for %s:%s - %.f"), *OutConfig.BufferId, *OutConfig.RegionId, OutConfig.AlphaGamma);
 		}
 
 		// BetaFile file (optional)
 		FString LocalBetaFile;
-		if (DisplayClusterHelpers::str::ExtractValue(ConfigLineStr, DisplayClusterStrings::cfg::data::mpcdi::FileBeta, LocalBetaFile))
+		if (DisplayClusterHelpers::map::template ExtractValueFromString(InConfigParameters, DisplayClusterMPCDIStrings::cfg::FileBeta, LocalBetaFile))
 		{
 			UE_LOG(LogMPCDI, Log, TEXT("Found external BetaMap file for %s:%s - %s"), *OutConfig.BufferId, *OutConfig.RegionId, *LocalBetaFile);
 			OutConfig.BetaFile = LocalBetaFile;

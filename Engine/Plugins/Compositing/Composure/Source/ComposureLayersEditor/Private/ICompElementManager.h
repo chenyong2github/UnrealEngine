@@ -62,18 +62,20 @@ public:
 	virtual void AddAllCompElementsTo(TArray< TWeakObjectPtr<ACompositingElement> >& OutElements) const = 0;
 
 	/**
-	 * Deletes the specified element (and all of its children).
+	 * Deletes the specified element and all of its children.
 	 *
-	 * @param ElementToDelete	A valid element name
+	 * @param ElementToDelete	    A valid element name
+	 * @param bIsCalledFromEditor   True if this function is called from editor. False if it is called from BP/C++. Its default value is true.
 	 */
-	virtual void DeleteElement(const FName& ElementToDelete) = 0;
+	virtual void DeleteElementAndChildren(const FName& ElementToDelete, bool bIsCalledFromEditor = true) = 0;
 
 	/**
-	 * Deletes all of the provided elements (and all of their children).
+	 * Deletes all of the provided elements and all of their children if the function is called from editor. Use DeleteElementAndChildren instead.
 	 *
-	 * @param ElementsToDelete	A list of valid element names
+	 * @param ElementsToDelete	   A list of valid element names
+	 * @param bIsCalledFromEditor  True if this function is called from editor. False if it is called from BP/C++. Its default value is true.
 	 */
-	virtual void DeleteElements(const TArray<FName>& ElementsToDelete) = 0;
+	virtual void DeleteElements(const TArray<FName>& ElementsToDelete, bool bIsCalledFromEditor = true) = 0;
 
 	/**
 	 * Renames the element with the specified original named to the provided new name.
@@ -161,6 +163,21 @@ public:
 	 */
 	virtual bool IsDrawing(ACompositingElement* CompElement) const = 0;
 
+	/**
+	 * Function used to expose the editor call back function after a new composure element is created via Blueprint and C++.
+	 * 
+	 * @param  NewElement	                             The new element that got created via Blueprint/C++
+	 */
+	virtual void OnCreateNewElement(AActor* NewElement) = 0;
+
+	/**
+	 * Function used to expose the editor call back function after an existing composure element 
+	 *
+	 * @param  ElementToDelete	                         The composure element that is going to be deleted.
+	 */
+	virtual void OnDeleteElement(AActor* ElementToDelete) = 0;
+
+	
 	/** Broadcasts whenever one or more elements are modified */
 	DECLARE_EVENT_ThreeParams(ICompElementManager, FOnElementsChanged, const ECompElementEdActions /*Action*/, const TWeakObjectPtr<ACompositingElement>& /*ElementObj*/, const FName& /*ChangedProperty*/);
 	virtual FOnElementsChanged& OnElementsChanged() = 0;

@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 // Reference: A Practical and Controllable Hair and Fur Model for Production Path Tracing.
 float3 HairAbsorptionToColor(float3 A, float B=0.3f)
 {

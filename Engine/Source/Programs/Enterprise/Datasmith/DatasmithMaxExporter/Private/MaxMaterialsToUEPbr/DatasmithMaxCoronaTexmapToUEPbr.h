@@ -21,9 +21,12 @@ public:
 
 class FDatasmithMaxCoronalNormalToUEPbr : public FDatasmithMaxNormalToUEPbr
 {
+	using Super = FDatasmithMaxNormalToUEPbr;
+
 public:
 	virtual bool IsSupported( const FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) const override;
 	DatasmithMaxTexmapParser::FNormalMapParameters ParseMap( Texmap* InTexmap ) override;
+	virtual IDatasmithMaterialExpression* Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) override;
 };
 
 class FDatasmithMaxCoronalBitmapToUEPbr : public IDatasmithMaxTexmapToUEPbr

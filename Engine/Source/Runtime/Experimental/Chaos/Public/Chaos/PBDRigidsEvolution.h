@@ -389,6 +389,7 @@ public:
 	CHAOS_API void DestroyParticle(TGeometryParticleHandle<FReal, 3>* Particle)
 	{
 		RemoveParticleFromAccelerationStructure(*Particle);
+		UniqueIndicesPendingRelease.Add(Particle->UniqueIdx());
 		ConstraintGraph.RemoveParticle(Particle);
 		RemoveConstraints(TSet<TGeometryParticleHandle<FReal, 3>*>({ Particle }));
 		Particles.DestroyParticle(Particle);
@@ -775,6 +776,7 @@ protected:
 	FAccelerationStructure* InternalAcceleration;
 	FAccelerationStructure* AsyncInternalAcceleration;
 	FAccelerationStructure* AsyncExternalAcceleration;
+	TArray<FUniqueIdx> UniqueIndicesPendingRelease;
 
 	//internal thread will push into this and external thread will consume
 	TQueue<FAccelerationStructure*,EQueueMode::Spsc> ExternalStructuresQueue;
@@ -791,7 +793,8 @@ protected:
 	bool bCanStartAsyncTasks;
 
 public:
-	int32 LatestExternalTimestampConsumed;	//The latest external timestamp we consumed inputs from. Needed for synchronizing different DTs
+	//The latest external timestamp we consumed inputs from, assigned to evolution when solver task executes, is used to stamp output data.
+	int32 LatestExternalTimestampConsumed_Internal;	
 
 protected:
 

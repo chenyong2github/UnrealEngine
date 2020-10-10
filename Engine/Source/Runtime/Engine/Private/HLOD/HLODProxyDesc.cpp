@@ -89,13 +89,13 @@ bool UHLODProxyDesc::UpdateFromLODActor(const ALODActor* InLODActor)
 			check(SubLODActor->ProxyDesc);
 			SubHLODDescs.Emplace(SubLODActor->ProxyDesc);
 		}
-		else
+		else if (SubActor)
 		{
 			SubActors.Emplace(SubActor->GetFName());
 		}
 	}
 
-	StaticMesh = InLODActor->StaticMeshComponent->GetStaticMesh();
+	StaticMesh = InLODActor->StaticMeshComponent ? InLODActor->StaticMeshComponent->GetStaticMesh() : nullptr;
 
 	const TMap<const UMaterialInterface*, UInstancedStaticMeshComponent*>& ISMComponents = InLODActor->ImpostersStaticMeshComponents;
 	ISMComponentsDesc.Reset(ISMComponents.Num());
@@ -133,7 +133,7 @@ bool UHLODProxyDesc::ShouldUpdateDesc(const ALODActor* InLODActor) const
 			check(SubLODActor->ProxyDesc);
 			LocalSubHLODDescs.Emplace(SubLODActor->ProxyDesc);
 		}
-		else
+		else if (SubActor)
 		{
 			LocalSubActors.Emplace(SubActor->GetFName());
 		}
@@ -149,7 +149,8 @@ bool UHLODProxyDesc::ShouldUpdateDesc(const ALODActor* InLODActor) const
 		return true;
 	}
 
-	if (StaticMesh != InLODActor->StaticMeshComponent->GetStaticMesh())
+	UStaticMesh* LocalStaticMesh = InLODActor->StaticMeshComponent ? InLODActor->StaticMeshComponent->GetStaticMesh() : nullptr;
+	if (StaticMesh != LocalStaticMesh)
 	{
 		return true;
 	}

@@ -308,7 +308,7 @@ void FStreamingManager::InitRHI()
 		return;
 	}
 
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 
 	check( MaxStreamingPages <= MAX_GPU_PAGES );
 	StreamingRequestReadbackBuffers.AddZeroed( MaxStreamingReadbackBuffers );
@@ -372,7 +372,7 @@ void FStreamingManager::ReleaseRHI()
 		return;
 	}
 
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 	for (uint32 BufferIndex = 0; BufferIndex < MaxStreamingReadbackBuffers; ++BufferIndex)
 	{
 		if (StreamingRequestReadbackBuffers[BufferIndex])
@@ -399,7 +399,7 @@ void FStreamingManager::Add( FResources* Resources )
 		return;
 	}
 
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 	if (Resources->RuntimeResourceID == INVALID_RUNTIME_RESOURCE_ID)
 	{
 		check(Resources->RootClusterPage.Num() > 0);
@@ -424,7 +424,7 @@ void FStreamingManager::Remove( FResources* Resources )
 		return;
 	}
 
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 	if (Resources->RuntimeResourceID != INVALID_RUNTIME_RESOURCE_ID)
 	{
 		Hierarchy.Allocator.Free( Resources->HierarchyOffset, Resources->HierarchyNodes.Num() );
@@ -457,7 +457,7 @@ void FStreamingManager::Remove( FResources* Resources )
 
 void FStreamingManager::CollectDependencyPages( FResources* Resources, TSet< FPageKey >& DependencyPages, const FPageKey& Key )
 {
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 	if( DependencyPages.Find( Key ) )
 		return;
 
@@ -481,7 +481,7 @@ void FStreamingManager::CollectDependencyPages( FResources* Resources, TSet< FPa
 
 void FStreamingManager::SelectStreamingPages( FResources* Resources, TArray< FPageKey >& SelectedPages, TSet<FPageKey>& SelectedPagesSet, uint32 RuntimeResourceID, uint32 PageIndex, uint32 MaxSelectedPages )
 {
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 	FPageKey Key = { RuntimeResourceID, PageIndex };
 	if( SelectedPagesSet.Find( Key ) || (uint32)SelectedPages.Num() >= MaxSelectedPages )
 		return;
@@ -511,7 +511,7 @@ void FStreamingManager::SelectStreamingPages( FResources* Resources, TArray< FPa
 
 void FStreamingManager::RegisterStreamingPage( FStreamingPageInfo* Page, const FPageKey& Key )
 {
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 	check( !IsRootPage( Key.PageIndex ) );
 
 	FResources** Resources = RuntimeResourceMap.Find( Key.RuntimeResourceID );
@@ -553,7 +553,7 @@ void FStreamingManager::RegisterStreamingPage( FStreamingPageInfo* Page, const F
 
 void FStreamingManager::UnregisterPage( const FPageKey& Key )
 {
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 	check( !IsRootPage( Key.PageIndex ) );
 
 	FResources** Resources = RuntimeResourceMap.Find( Key.RuntimeResourceID );
@@ -630,7 +630,7 @@ bool FStreamingManager::ArePageDependenciesCommitted(uint32 RuntimeResourceID, u
 // GPUPageIndex == INVALID_PAGE_INDEX signals that the page should be uninstalled.
 void FStreamingManager::ApplyFixups( const FFixupChunk& FixupChunk, const FResources& Resources, uint32 PageIndex, uint32 GPUPageIndex )
 {
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 
 	const uint32 RuntimeResourceID = Resources.RuntimeResourceID;
 	const uint32 HierarchyOffset = Resources.HierarchyOffset;
@@ -737,7 +737,7 @@ static void DecompressPage(uint8* Dst, uint8* Tmp, uint32 DstSize, const uint8* 
 
 void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 {
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 	TRACE_CPUPROFILER_EVENT_SCOPE(FStreamingManager::CopyReadyPages);
 
 	if (NumReadyPages == 0)
@@ -1016,7 +1016,7 @@ void FStreamingManager::VerifyPageLRU( FStreamingPageInfo& List, uint32 TargetLi
 
 bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 {
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 
 	if( PendingAdds.Num() == 0 )
 		return false;
@@ -1150,7 +1150,7 @@ public:
 
 uint32 FStreamingManager::DetermineReadyPages()
 {
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 	TRACE_CPUPROFILER_EVENT_SCOPE(FStreamingManager::DetermineReadyPages);
 
 	const uint32 StartPendingPageIndex = (NextPendingPageIndex + MaxPendingPages - NumPendingPages) % MaxPendingPages;
@@ -1210,7 +1210,7 @@ void FStreamingManager::BeginAsyncUpdate(FRDGBuilder& GraphBuilder)
 		return;
 	}
 
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 	TRACE_CPUPROFILER_EVENT_SCOPE(FStreamingManager::BeginAsyncUpdate);
 	RDG_EVENT_SCOPE(GraphBuilder, "NaniteStreaming");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteStreaming);
@@ -1286,7 +1286,7 @@ void FStreamingManager::BeginAsyncUpdate(FRDGBuilder& GraphBuilder)
 
 void FStreamingManager::AsyncUpdate()
 {
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 	SCOPED_NAMED_EVENT(FStreamingManager_AsyncUpdate, FColor::Cyan);
 	TRACE_CPUPROFILER_EVENT_SCOPE(FStreamingManager::AsyncUpdate);
 
@@ -1618,7 +1618,7 @@ void FStreamingManager::EndAsyncUpdate(FRHICommandListImmediate& RHICmdList)
 		return;
 	}
 
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 	TRACE_CPUPROFILER_EVENT_SCOPE(FStreamingManager::EndAsyncUpdate);
 	SCOPED_DRAW_EVENT(RHICmdList, NaniteStreaming);
 	SCOPED_GPU_STAT(RHICmdList, NaniteStreaming);
@@ -1698,7 +1698,7 @@ void FStreamingManager::SubmitFrameStreamingRequests(FRDGBuilder& GraphBuilder)
 		return;
 	}
 
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 	RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteStreaming);
 	RDG_EVENT_SCOPE(GraphBuilder, "NaniteStreaming");
 

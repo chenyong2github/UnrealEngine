@@ -13,20 +13,37 @@ class UTextureRenderTarget2D;
 
 struct FRenderTarget2DRWInstanceData_GameThread
 {
+	FRenderTarget2DRWInstanceData_GameThread()
+	{
+#if WITH_EDITORONLY_DATA
+		bPreviewTexture = false;
+#endif
+	}
+
 	FIntPoint Size = FIntPoint(EForceInit::ForceInitToZero);
 	
 	UTextureRenderTarget2D* TargetTexture = nullptr;
-
+#if WITH_EDITORONLY_DATA
+	uint32 bPreviewTexture : 1;
+#endif
 };
 
 struct FRenderTarget2DRWInstanceData_RenderThread
 {
+	FRenderTarget2DRWInstanceData_RenderThread()
+	{
+#if WITH_EDITORONLY_DATA
+		bPreviewTexture = false;
+#endif
+	}
+
 	FIntPoint Size = FIntPoint(EForceInit::ForceInitToZero);
 	
-	FTextureRHIRef RenderTargetToCopyTo;
+	FTextureRHIRef TextureRHI;
 	FUnorderedAccessViewRHIRef UAV;
-
-	void* DebugTargetTexture = nullptr;
+#if WITH_EDITORONLY_DATA
+	uint32 bPreviewTexture : 1;
+#endif
 };
 
 struct FNiagaraDataInterfaceProxyRenderTarget2DProxy : public FNiagaraDataInterfaceProxy
@@ -102,11 +119,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Render Target")
 	FIntPoint Size;
 
-protected:
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(Transient, EditAnywhere, Category = "Render Target")
+	uint8 bPreviewRenderTarget : 1;
+#endif
 
+protected:
 	static FNiagaraVariableBase ExposedRTVar;
 	
 	UPROPERTY(Transient)
 	TMap< uint64, UTextureRenderTarget2D*> ManagedRenderTargets;
-	
 };

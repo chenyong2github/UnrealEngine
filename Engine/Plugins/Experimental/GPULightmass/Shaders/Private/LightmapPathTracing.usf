@@ -32,9 +32,8 @@ struct FIrradianceCacheRecord
 
 int NumRayGuidingTrialSamples;
 RWTexture2D<uint> RayGuidingLuminance;
-RWTexture2D<uint> RayGuidingSampleCount;
-RWTexture2D<float> RayGuidingCDFX;
-RWTexture2D<float> RayGuidingCDFY;
+Texture2D<float> RayGuidingCDFX;
+Texture2D<float> RayGuidingCDFY;
 
 #include "/Engine/Private/PathTracing/Utilities/PathTracingRandomSequence.ush"
 #include "/Engine/Private/PathTracing/Light/PathTracingLightSampling.ush"
@@ -49,9 +48,9 @@ int NumTotalSamples;
 
 RaytracingAccelerationStructure TLAS;
 
-RWTexture2D<float4> GBufferWorldPosition;
-RWTexture2D<float4> GBufferWorldNormal;
-RWTexture2D<float4> GBufferShadingNormal;
+Texture2D<float4> GBufferWorldPosition;
+Texture2D<float4> GBufferWorldNormal;
+Texture2D<float4> GBufferShadingNormal;
 RWTexture2D<float4> IrradianceAndSampleCount;
 RWTexture2D<float4> SHDirectionality;
 RWTexture2D<float4> SHCorrectionAndStationarySkyLightBentNormal;
@@ -611,8 +610,8 @@ void LightmapPathTracingMainRG()
 							int2 PositionInBin = clamp(JitteredBin, float2(0, 0), float2(DIRECTIONAL_BINS_ONE_DIM - 1, DIRECTIONAL_BINS_ONE_DIM - 1));
 							int2 FinalPosition = ClusterPosition * DIRECTIONAL_BINS_ONE_DIM + PositionInBin;
 							float Illuminance = Luminance(RadianceValue) * saturate(dot(RadianceDirection, ShadingNormal));
-							ATOMIC_ADD_FLOAT(RayGuidingLuminance[BatchedTiles[TileIndex].WorkingSetPosition / GPreviewLightmapPhysicalTileSize * CDF_TILE_SIZE + FinalPosition], Illuminance);
-							InterlockedAdd(RayGuidingSampleCount[BatchedTiles[TileIndex].WorkingSetPosition / GPreviewLightmapPhysicalTileSize * CDF_TILE_SIZE + FinalPosition], 1);
+							// For positive floats we can cast them to uint and use atomic max directly
+							InterlockedMax(RayGuidingLuminance[BatchedTiles[TileIndex].WorkingSetPosition / GPreviewLightmapPhysicalTileSize * CDF_TILE_SIZE + FinalPosition], asuint(max(Illuminance, 0)));
 						}
 					
 						if (BatchedTiles[TileIndex].RenderPassIndex == NumRayGuidingTrialSamples) 
@@ -668,78 +667,6 @@ void LightmapPathTracingMainRG()
 			SampleCount++;
 		
 		IrradianceAndSampleCount[TexelIndexInPool].a = asfloat(SampleCount);
-		
-		#if VISUALIZE_IRRADIANCE_CACHE
-		{
-			bool bIrradianceQuerySuccessful = false;
-			bool bGeometryQuerySuccessful = false;
-			
-			uint NearestRecordIndex = 0;
-			float3 RecordIrradiance;
-			float3 RecordWorldNormal;
-			
-			uint CoarseLevelSpacing = IrradianceCachingParameters.Spacing;
-			uint DetailLevelSpacing = IrradianceCachingParameters.Spacing;
-		
-			uint3 Key = EncodeVoxelKey(floor(WorldPosition / DetailLevelSpacing));		
-			uint NormalDirectionBits = EncodeNormalBits(ShadingNormal);				
-			uint HashKey = 0;
-			HashKey = MurmurAdd( HashKey, Key.x );
-			HashKey = MurmurAdd( HashKey, Key.y );
-			HashKey = MurmurAdd( HashKey, Key.z );
-			HashKey = MurmurAdd( HashKey, NormalDirectionBits );
-			HashKey = MurmurAdd( HashKey, DetailLevelSpacing);
-			uint Index;
-			if (ICHashTableFind(HashKey, Index))
-			{
-				uint RecordIndex = IrradianceCachingParameters.RWHashToIndex[Index];
-				FIrradianceCacheRecord Record = IrradianceCachingParameters.IrradianceCacheRecords[RecordIndex];
-				if (Record.Irradiance.w > IrradianceCachingParameters.Quality)
-				{
-					bIrradianceQuerySuccessful = true;
-					
-					RecordIrradiance = asfloat(Record.Irradiance.xyz) / Record.Irradiance.w;
-				}
-				
-				bGeometryQuerySuccessful = true;
-				RecordWorldNormal = Record.WorldNormal.xyz;
-				NearestRecordIndex = RecordIndex;
-			}
-			else
-			{
-				Key = EncodeVoxelKey(floor(WorldPosition / CoarseLevelSpacing));	
-				HashKey = 0;
-				HashKey = MurmurAdd( HashKey, Key.x );
-				HashKey = MurmurAdd( HashKey, Key.y );
-				HashKey = MurmurAdd( HashKey, Key.z );
-				HashKey = MurmurAdd( HashKey, NormalDirectionBits );
-				HashKey = MurmurAdd( HashKey, CoarseLevelSpacing);
-				
-				if (ICHashTableFind(HashKey, Index))
-				{
-					uint RecordIndex = IrradianceCachingParameters.RWHashToIndex[Index];
-					FIrradianceCacheRecord Record = IrradianceCachingParameters.IrradianceCacheRecords[RecordIndex];
-					if (Record.Irradiance.w > IrradianceCachingParameters.Quality)
-					{
-						bIrradianceQuerySuccessful = true;
-						
-						RecordIrradiance = asfloat(Record.Irradiance.xyz) / Record.Irradiance.w;
-					}
-					
-					bGeometryQuerySuccessful = true;
-					RecordWorldNormal = Record.WorldNormal.xyz;
-					NearestRecordIndex = RecordIndex;
-				}
-			}
-			
-			if (bIrradianceQuerySuccessful)
-			{
-				IrradianceAndSampleCount[TexelIndexInPool] = 2.0f * float4(RecordIrradiance, asfloat(1));
-				SHDirectionality[TexelIndexInPool] = float4(1, 0, 0, 0) / SHBasisFunctionFloat(float3(2.0f / 3, 2.0f / 3, 2.0f / 3));			
-				SHCorrectionAndStationarySkyLightBentNormal[TexelIndexInPool].x = 1;
-			}
-		}
-		#endif
 	}
 			
 	#if 0 // Debug: Ray guiding PDF visualization
@@ -748,10 +675,8 @@ void LightmapPathTracingMainRG()
 			int2 PositionInBin = clamp((int2)LaunchIndex - int2(2, 2), int2(0, 0), int2(63, 63)) % DIRECTIONAL_BINS_ONE_DIM;
 			int2 FinalPosition = ClusterPosition * DIRECTIONAL_BINS_ONE_DIM + PositionInBin;
 
-			int SampleCount = RayGuidingSampleCount[BatchedTiles[TileIndex].WorkingSetPosition / GPreviewLightmapPhysicalTileSize * CDF_TILE_SIZE + LaunchIndex];
-			if (BatchedTiles[TileIndex].RenderPassIndex >= NumRayGuidingTrialSamples) SampleCount = 1;
 			IrradianceAndSampleCount[TexelIndexInPool].rgb = (
-				asfloat(RayGuidingCDF[BatchedTiles[TileIndex].WorkingSetPosition / GPreviewLightmapPhysicalTileSize * CDF_TILE_SIZE + LaunchIndex]).xxx / SampleCount * (1 + asuint(IrradianceAndSampleCount[TexelIndexInPool].a))
+				asfloat(RayGuidingCDF[BatchedTiles[TileIndex].WorkingSetPosition / GPreviewLightmapPhysicalTileSize * CDF_TILE_SIZE + LaunchIndex]).xxx / (1 + asuint(IrradianceAndSampleCount[TexelIndexInPool].a))
 			);
 			
 			SHDirectionality[TexelIndexInPool] = float4(1, 0, 0, 0);					

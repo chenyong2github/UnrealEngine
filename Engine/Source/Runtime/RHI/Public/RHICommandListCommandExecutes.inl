@@ -743,6 +743,6 @@ void FRHICommandDiscardRenderTargets::Execute(FRHICommandListBase& CmdList)
 void FRHICommandBackBufferWaitTrackingBeginFrame::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(FRHICommandBackBufferWaitTrackingBeginFrame);
-	INTERNAL_DECORATOR(RHIBackBufferWaitTrackingBeginFrame)(FrameToken);
+	INTERNAL_DECORATOR(RHIBackBufferWaitTrackingBeginFrame)(FrameToken, bDeferred);
 }
 #endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING

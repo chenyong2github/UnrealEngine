@@ -161,7 +161,7 @@ static USkeleton* AcquireSkeletonFromObjectGuid(const FGuid& Guid, UObject** Obj
 }
 
 FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISequencer> InSequencer)
-	: FKeyframeTrackEditor<UMovieSceneControlRigParameterTrack>(InSequencer), bIsDoingSelection(false), bWeSetSequencerSelection(false), bFilterAssetBySkeleton(true)
+	: FKeyframeTrackEditor<UMovieSceneControlRigParameterTrack>(InSequencer), bIsDoingSelection(false),  bFilterAssetBySkeleton(true)
 {
 	SelectionChangedHandle = InSequencer->GetSelectionChangedTracks().AddRaw(this, &FControlRigParameterTrackEditor::OnSelectionChanged);
 	SequencerChangedHandle = InSequencer->OnMovieSceneDataChanged().AddRaw(this, &FControlRigParameterTrackEditor::OnSequencerDataChanged);
@@ -1218,11 +1218,7 @@ void FControlRigParameterTrackEditor::OnSelectionChanged(TArray<UMovieSceneTrack
 	{
 		return;
 	}
-	if (bWeSetSequencerSelection)
-	{
-		bWeSetSequencerSelection = false;
-		return;
-	}
+	
 	TGuardValue<bool> Guard(bIsDoingSelection, true);
 
 	TArray<FString> StringArray;
@@ -1465,7 +1461,6 @@ void FControlRigParameterTrackEditor::HandleControlSelected(UControlRig* Subject
 			//Force refresh now, not later
 			GetSequencer()->RefreshTree();
 
-			bWeSetSequencerSelection = true;
 		}
 	}
 }

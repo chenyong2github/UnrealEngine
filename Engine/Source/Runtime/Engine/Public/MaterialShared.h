@@ -182,8 +182,8 @@ enum EMaterialDomain
 	MD_PostProcess UMETA(DisplayName = "Post Process"),
 	/** The material will be used for UMG or Slate UI */
 	MD_UI UMETA(DisplayName = "User Interface"),
-	/** The material will be used for runtime virtual texture */
-	MD_RuntimeVirtualTexture UMETA(DisplayName = "Virtual Texture"),
+	/** The material will be used for runtime virtual texture (Deprecated). */
+	MD_RuntimeVirtualTexture UMETA(Hidden),
 
 	MD_MAX
 };

@@ -55,14 +55,18 @@ bool FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 	}
 	case RouteId_EndThread:
 	{
-		uint32 ThreadId = EventData.GetValue<uint32>("ThreadId");
+		uint32 ThreadId = FTraceAnalyzerUtils::GetThreadIdField(Context);
 		FThreadState& ThreadState = GetThreadState(ThreadId);
-		const double Timestamp = Context.EventTime.AsSeconds(ThreadState.LastCycle);
-		Session.UpdateDurationSeconds(Timestamp);
-		while (ThreadState.ScopeStack.Num())
+		ensure(ThreadState.LastCycle != 0 || ThreadState.ScopeStack.Num() == 0);
+		if (ThreadState.LastCycle != 0)
 		{
-			ThreadState.ScopeStack.Pop();
-			ThreadState.Timeline->AppendEndEvent(Timestamp);
+			double Timestamp = Context.EventTime.AsSeconds(ThreadState.LastCycle);
+			Session.UpdateDurationSeconds(Timestamp);
+			while (ThreadState.ScopeStack.Num())
+			{
+				ThreadState.ScopeStack.Pop();
+				ThreadState.Timeline->AppendEndEvent(Timestamp);
+			}
 		}
 		ThreadStatesMap.Remove(ThreadId);
 	}
@@ -112,7 +116,7 @@ uint64 FCpuProfilerAnalyzer::ProcessBuffer(const FEventTime& EventTime, uint32 T
 		uint64 DecodedCycle = FTraceAnalyzerUtils::Decode7bit(BufferPtr);
 		uint64 ActualCycle = (DecodedCycle >> 1);
 
-		// ActualCycle larger or equeal to LastCycle means we have a new
+		// ActualCycle larger or equal to LastCycle means we have a new
 		// base value.
 		if (ActualCycle < LastCycle)
 		{
@@ -144,7 +148,11 @@ uint64 FCpuProfilerAnalyzer::ProcessBuffer(const FEventTime& EventTime, uint32 T
 				break;
 			}
 
-			PendingCycle = (LastCycle > PendingCycle) ? LastCycle : PendingCycle;
+			if (PendingCycle < LastCycle)
+			{
+				PendingCycle = LastCycle;
+			}
+
 			double Time = EventTime.AsSeconds(PendingCycle);
 			if (bEnter)
 			{
@@ -178,7 +186,8 @@ uint64 FCpuProfilerAnalyzer::ProcessBuffer(const FEventTime& EventTime, uint32 T
 
 			Trace::FTimingProfilerEvent Event;
 			Event.TimerIndex = TimerId;
-			ThreadState.Timeline->AppendBeginEvent(EventTime.AsSeconds(ActualCycle), Event);
+			double ActualTime = EventTime.AsSeconds(ActualCycle);
+			ThreadState.Timeline->AppendBeginEvent(ActualTime, Event);
 			++TotalScopeCount;
 		}
 		else
@@ -188,7 +197,8 @@ uint64 FCpuProfilerAnalyzer::ProcessBuffer(const FEventTime& EventTime, uint32 T
 			if (ThreadState.ScopeStack.Num() > 0)
 			{
 				ThreadState.ScopeStack.Pop();
-				ThreadState.Timeline->AppendEndEvent(EventTime.AsSeconds(ActualCycle));
+				double ActualTime = EventTime.AsSeconds(ActualCycle);
+				ThreadState.Timeline->AppendEndEvent(ActualTime);
 			}
 		}
 
@@ -302,4 +312,3 @@ FCpuProfilerAnalyzer::FThreadState& FCpuProfilerAnalyzer::GetThreadState(uint32 
 	}
 	return *ThreadState;
 }
-

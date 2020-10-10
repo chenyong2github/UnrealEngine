@@ -8,13 +8,13 @@
 
 #define MAX_DEPTH 10000
 
-void FJacobianSolver_FullbodyIK::InitializeSolver(TArray<FFBIKLinkData>& InOutLinkData, TMap<int32, FFBIKEffectorTarget>& InOutEndEffectors) const
+void FJacobianSolver_FullbodyIK::InitializeSolver(TArray<FFBIKLinkData>& InOutLinkData, TMap<int32, FFBIKEffectorTarget>& InOutEffectors) const
 {
 // since we're using constraints, we don't want to create new motion base all the time
 // constraints will add that info and we'll utilize it
 }
 
-void FJacobianSolver_FullbodyIK::PreSolve(TArray<FFBIKLinkData>& InOutLinkData, const TMap<int32, FFBIKEffectorTarget>& InEndEffectors) const
+void FJacobianSolver_FullbodyIK::PreSolve(TArray<FFBIKLinkData>& InOutLinkData, const TMap<int32, FFBIKEffectorTarget>& InEffectors) const
 {
 	// for final one, we'll have to add those in the beginning, and then just update the frame for every iteration
 	for (int32 Index = 0; Index < InOutLinkData.Num(); ++Index)
@@ -114,7 +114,7 @@ static void AddToEffectorTarget(int32 EffectorIndex, const FRigElementKey& Effec
 	}
 }
 
-static void AddEndEffectors(FRigHierarchyContainer* Hierarchy, const FRigElementKey& Root, const TArray<FFBIKEndEffector>& Effectors,
+static void AddEffectors(FRigHierarchyContainer* Hierarchy, const FRigElementKey& Root, const TArray<FFBIKEndEffector>& Effectors,
 	TArray<FFBIKLinkData>& LinkData, TMap<int32, FFBIKEffectorTarget>& EffectorTargets, TArray<int32>& EffectorLinkIndices, 
 	TMap<int32, FRigElementKey>& LinkDataToHierarchyIndices, TMap<FRigElementKey, int32>& HierarchyToLinkDataMap, const FSolverInput& SolverProperty)
 {
@@ -207,42 +207,6 @@ static void AddEndEffectors(FRigHierarchyContainer* Hierarchy, const FRigElement
 	}
 }
 
-static void AddMidEffectors(FRigHierarchyContainer* Hierarchy, const FRigElementKey& Root, const TArray<FFBIKMidEffector>& Effectors,
-	TArray<FFBIKLinkData>& LinkData, TMap<int32, FFBIKEffectorTarget>& EffectorTargets, TArray<int32>& EffectorLinkIndices,
-	TMap<int32, FRigElementKey>& LinkDataToHierarchyIndices, TMap<FRigElementKey, int32>& HierarchyToLinkDataMap)
-{
-	EffectorLinkIndices.SetNum(Effectors.Num());
-	// fill up all effector indices
-	for (int32 Index = 0; Index < Effectors.Num(); ++Index)
-	{
-		// clear link indices, so that we don't search
-		EffectorLinkIndices[Index] = INDEX_NONE;
-		// create LinkeData from root bone to all effectors 
-		const FRigElementKey& Item = Effectors[Index].Item;
-		if (!Item.IsValid())
-		{
-			continue;
-		}
-
-		const FFBIKMidEffector& CurrentEffector = Effectors[Index];
-		TArray<FRigElementKey> ChainIndices;
-		// if we haven't got to root, this is not valid chain
-		if (FBIKUtil::GetBoneChain(Hierarchy, Root, Item, MAX_DEPTH, ChainIndices))
-		{
-			float ChainLength = 0.f;
-
-			// add to link data
-			for (int32 BoneChainIndex = 0; BoneChainIndex < ChainIndices.Num(); ++BoneChainIndex)
-			{
-				ChainLength += EnsureToAddBoneToLinkData(Hierarchy, ChainIndices[BoneChainIndex], LinkData,
-					HierarchyToLinkDataMap, LinkDataToHierarchyIndices);
-			}
-
-			// add to EffectorTargets
-			AddToEffectorTarget(Index, Item, EffectorTargets, HierarchyToLinkDataMap, EffectorLinkIndices, ChainLength, ChainIndices);
-		}
-	}
-}
 /////////////////////////////////////////////////////
 
 FRigUnit_FullbodyIK_Execute()
@@ -258,8 +222,7 @@ FRigUnit_FullbodyIK_Execute()
 	// workdata reference
 	TArray<FFBIKLinkData>& LinkData = WorkData.LinkData;
 	TMap<int32, FFBIKEffectorTarget>& EffectorTargets = WorkData.EffectorTargets;
-	TArray<int32>& MidEffectorLinkIndices = WorkData.MidEffectorLinkIndices;
-	TArray<int32>& EndEffectorLinkIndices = WorkData.EndEffectorLinkIndices;
+	TArray<int32>& EffectorLinkIndices = WorkData.EffectorLinkIndices;
 	TMap<int32, FRigElementKey>& LinkDataToHierarchyIndices = WorkData.LinkDataToHierarchyIndices;
 	TMap<FRigElementKey, int32>& HierarchyToLinkDataMap = WorkData.HierarchyToLinkDataMap;
 	TArray<ConstraintType>& InternalConstraints = WorkData.InternalConstraints;
@@ -272,26 +235,28 @@ FRigUnit_FullbodyIK_Execute()
 #endif 
 		)
 	{
+		DECLARE_SCOPE_HIERARCHICAL_COUNTER(TEXT("Init"))
+
 		LinkData.Reset();
 		EffectorTargets.Reset();
-		MidEffectorLinkIndices.Reset();
-		EndEffectorLinkIndices.Reset();
+		EffectorLinkIndices.Reset();
 		LinkDataToHierarchyIndices.Reset();
 		HierarchyToLinkDataMap.Reset();
 
 		// verify the chain
 		if (Root.IsValid())
 		{
-			AddMidEffectors(Hierarchy, Root, MidEffectors, LinkData, EffectorTargets, MidEffectorLinkIndices, LinkDataToHierarchyIndices, HierarchyToLinkDataMap);
-			AddEndEffectors(Hierarchy, Root, EndEffectors, LinkData, EffectorTargets, EndEffectorLinkIndices, LinkDataToHierarchyIndices, HierarchyToLinkDataMap, SolverProperty);
+			AddEffectors(Hierarchy, Root, Effectors, LinkData, EffectorTargets, EffectorLinkIndices, LinkDataToHierarchyIndices, HierarchyToLinkDataMap, SolverProperty);
 		}
 	}
 
 	if (Context.State == EControlRigState::Update)
 	{
+		DECLARE_SCOPE_HIERARCHICAL_COUNTER(TEXT("Update"))
 		// we do this every frame for now
 		if (Constraints.Num() > 0)
 		{
+			DECLARE_SCOPE_HIERARCHICAL_COUNTER(TEXT("Build Constraint"))
 			//Build constraints
 			FBIKConstraintLib::BuildConstraints(Constraints, InternalConstraints, Hierarchy, LinkData, LinkDataToHierarchyIndices, HierarchyToLinkDataMap);
 		}
@@ -311,24 +276,6 @@ FRigUnit_FullbodyIK_Execute()
 		if (LinkDataToHierarchyIndices.Num() > 0)
 		{
 			// first set mid effector's transform
-			for (const FFBIKMidEffector& Effector : MidEffectors)
-			{
-				// update hierarchy transform if valid
-				if (Effector.Item.IsValid())
-				{
-					FTransform GlobalTransform = Hierarchy->GetGlobalTransform(Effector.Item);
-					if (Effector.PositionAlpha > 0.f)
-					{
-						GlobalTransform.SetLocation(FMath::Lerp(GlobalTransform.GetLocation(), Effector.Position, Effector.PositionAlpha));
-					}
-					if (Effector.RotationAlpha > 0.f)
-					{
-						GlobalTransform.SetRotation(FQuat::FastLerp(GlobalTransform.GetRotation(), Effector.Rotation, Effector.RotationAlpha));
-					}
-
-					Hierarchy->SetGlobalTransform(Effector.Item, GlobalTransform);
-				}
-			}
 
 			// before update we finalize motion scale
 			// this code may go away once we have constraint
@@ -343,38 +290,6 @@ FRigUnit_FullbodyIK_Execute()
 			}
 
 			// update mid effector info
-			for (int32 EffectorIndex = 0; EffectorIndex < MidEffectors.Num(); ++EffectorIndex)
-			{
-				int32 EffectorLinkIndex = MidEffectorLinkIndices[EffectorIndex];
-				if (MidEffectorLinkIndices[EffectorIndex] != INDEX_NONE)
-				{
-					FFBIKEffectorTarget* EffectorTarget = EffectorTargets.Find(EffectorLinkIndex);
-					if (EffectorTarget)
-					{
-						const FFBIKMidEffector& CurEffector = MidEffectors[EffectorIndex];
-						const FVector CurrentLinkLocation = LinkData[EffectorLinkIndex].GetTransform().GetLocation();
-						const FQuat CurrentLinkRotation = LinkData[EffectorLinkIndex].GetTransform().GetRotation();
-						const FVector& EffectorLocation = CurEffector.Position;
-						const FQuat& EffectorRotation = CurEffector.Rotation;
-						EffectorTarget->Position = FMath::Lerp(CurrentLinkLocation, EffectorLocation, CurEffector.PositionAlpha);
-						EffectorTarget->Rotation = FMath::Lerp(CurrentLinkRotation, EffectorRotation, CurEffector.RotationAlpha);
-						EffectorTarget->InitialPositionDistance = (EffectorLocation - CurrentLinkLocation).Size();
-						EffectorTarget->InitialRotationDistance = (FBIKUtil::GetScaledRotationAxis(EffectorRotation) - FBIKUtil::GetScaledRotationAxis(CurrentLinkRotation)).Size();
-
-						// mid effectors don't want to impact for the target
-						// and give heavy scale for wanting to move
-						EffectorTarget->bPositionEnabled = CurEffector.PositionAlpha > 0.f;
-						EffectorTarget->bRotationEnabled = CurEffector.RotationAlpha > 0.f;
-						// increase chain length, so it doesn't clamp
-						//EffectorTarget->ChainLength *= 100;
-						// if enabled, make them strong
-						// this does not translate to joint right now. It applies to the speed of the motion of target
-						// but the joint set up is done in init @todo: something to rethink
-						EffectorTarget->LinearMotionStrength = (EffectorTarget->bPositionEnabled)? SolverProperty.LinearMotionStrength* (1.f-FMath::Clamp(CurEffector.Stiffness, 0.f, 1.f)): 0.f;
-						EffectorTarget->AngularMotionStrength = (EffectorTarget->bRotationEnabled) ? SolverProperty.AngularMotionStrength* (1.f-FMath::Clamp(CurEffector.Stiffness, 0.f, 1.f)) : 0.f;
-					}
-				}
-			}
 
 			const float LinearMotionStrength = FMath::Max(SolverProperty.LinearMotionStrength, SolverProperty.MinLinearMotionStrength);
 			const float AngularMotionStrength = FMath::Max(SolverProperty.AngularMotionStrength, SolverProperty.MinAngularMotionStrength);
@@ -382,15 +297,15 @@ FRigUnit_FullbodyIK_Execute()
 			const float AngularRange = AngularMotionStrength - SolverProperty.MinAngularMotionStrength;
 
 			// update end effector info
-			for (int32 EffectorIndex = 0; EffectorIndex < EndEffectors.Num(); ++EffectorIndex)
+			for (int32 EffectorIndex = 0; EffectorIndex < Effectors.Num(); ++EffectorIndex)
 			{
-				int32 EffectorLinkIndex = EndEffectorLinkIndices[EffectorIndex];
+				int32 EffectorLinkIndex = EffectorLinkIndices[EffectorIndex];
 				if (EffectorLinkIndex != INDEX_NONE)
 				{
 					FFBIKEffectorTarget* EffectorTarget = EffectorTargets.Find(EffectorLinkIndex);
 					if (EffectorTarget)
 					{
-						const FFBIKEndEffector& CurEffector = EndEffectors[EffectorIndex];
+						const FFBIKEndEffector& CurEffector = Effectors[EffectorIndex];
 						const FVector CurrentLinkLocation = LinkData[EffectorLinkIndex].GetTransform().GetLocation();
 						const FQuat CurrentLinkRotation = LinkData[EffectorLinkIndex].GetTransform().GetRotation();
 						const FVector& EffectorLocation = CurEffector.Position;
@@ -422,39 +337,42 @@ FRigUnit_FullbodyIK_Execute()
 			const bool bDebugEnabled = DebugOption.bDrawDebugHierarchy || DebugOption.bDrawDebugEffector || DebugOption.bDrawDebugConstraints;
 
 			// we can't reuse memory until we fix the memory issue on RigVM
-			FJacobianSolver_FullbodyIK& IKSolver = WorkData.IKSolver;
-			IKSolver.SolveJacobianIK(LinkData, EffectorTargets,
-				JacobianIK::FSolverParameter(SolverProperty.Damping, true, false, (SolverProperty.bUseJacobianTranspose)? EJacobianSolver::JacobianTranspose : EJacobianSolver::JacobianPIDLS),
-				SolverProperty.MaxIterations, SolverProperty.Precision, (bDebugEnabled)? &DebugData : nullptr);
-
-			if (MotionProperty.bForceEffectorRotationTarget)
 			{
-				// if position is reached, we force rotation target
-				for (int32 EffectorIndex = 0; EffectorIndex < EndEffectors.Num(); ++EffectorIndex)
+				DECLARE_SCOPE_HIERARCHICAL_COUNTER(TEXT("Solver"))
+				FJacobianSolver_FullbodyIK& IKSolver = WorkData.IKSolver;
+				IKSolver.SolveJacobianIK(LinkData, EffectorTargets,
+					JacobianIK::FSolverParameter(SolverProperty.Damping, true, false, (SolverProperty.bUseJacobianTranspose) ? EJacobianSolver::JacobianTranspose : EJacobianSolver::JacobianPIDLS),
+					SolverProperty.MaxIterations, SolverProperty.Precision, (bDebugEnabled) ? &DebugData : nullptr);
+
+				if (MotionProperty.bForceEffectorRotationTarget)
 				{
-					int32 EffectorLinkIndex = EndEffectorLinkIndices[EffectorIndex];
-					if (EffectorLinkIndex != INDEX_NONE)
+					// if position is reached, we force rotation target
+					for (int32 EffectorIndex = 0; EffectorIndex < Effectors.Num(); ++EffectorIndex)
 					{
-						FFBIKEffectorTarget* EffectorTarget = EffectorTargets.Find(EffectorLinkIndex);
-						if (EffectorTarget && EffectorTarget->bRotationEnabled)
+						int32 EffectorLinkIndex = EffectorLinkIndices[EffectorIndex];
+						if (EffectorLinkIndex != INDEX_NONE)
 						{
-							bool bApplyRotation = true;
-
-							if (MotionProperty.bOnlyApplyWhenReachedToTarget)
+							FFBIKEffectorTarget* EffectorTarget = EffectorTargets.Find(EffectorLinkIndex);
+							if (EffectorTarget && EffectorTarget->bRotationEnabled)
 							{
-								// only do this when position is reached? This will conflict with converge scale
-								const FVector& BonePosition = LinkData[EffectorLinkIndex].GetTransform().GetLocation();
-								const FVector& TargetPosition = EffectorTarget->Position;
+								bool bApplyRotation = true;
 
-								bApplyRotation = (FVector(BonePosition-TargetPosition).SizeSquared() <= SolverProperty.Precision * SolverProperty.Precision);
-							}
+								if (MotionProperty.bOnlyApplyWhenReachedToTarget)
+								{
+									// only do this when position is reached? This will conflict with converge scale
+									const FVector& BonePosition = LinkData[EffectorLinkIndex].GetTransform().GetLocation();
+									const FVector& TargetPosition = EffectorTarget->Position;
 
-							if (bApplyRotation)
-							{
-								FQuat NewRotation = EffectorTarget->Rotation;
-								FTransform NewTransform = LinkData[EffectorLinkIndex].GetTransform();
-								NewTransform.SetRotation(NewRotation);
-								LinkData[EffectorLinkIndex].SetTransform(NewTransform);
+									bApplyRotation = (FVector(BonePosition-TargetPosition).SizeSquared() <= SolverProperty.Precision * SolverProperty.Precision);
+								}
+
+								if (bApplyRotation)
+								{
+									FQuat NewRotation = EffectorTarget->Rotation;
+									FTransform NewTransform = LinkData[EffectorLinkIndex].GetTransform();
+									NewTransform.SetRotation(NewRotation);
+									LinkData[EffectorLinkIndex].SetTransform(NewTransform);
+								}
 							}
 						}
 					}
@@ -686,16 +604,16 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_FullbodyIK)
 	InitAndExecute();
 
 	Unit.RootBone = TEXT("Root");
-	Unit.EndEffectors.AddDefaulted(2);
+	Unit.Effectors.AddDefaulted(2);
 
 	// second make sure this doesn't crash
 	InitAndExecute();
 
 	// now add the data
-	Unit.EndEffectors[0].Bone = TEXT("Chain1_1");
-	Unit.EndEffectors[0].Position = FVector(3.f, 2.f, 0.f);
-	Unit.EndEffectors[1].Bone = TEXT("Chain2_1");
-	Unit.EndEffectors[1].Position = FVector(-2.f, 3.f, 0.f);
+	Unit.Effectors[0].Bone = TEXT("Chain1_1");
+	Unit.Effectors[0].Position = FVector(3.f, 2.f, 0.f);
+	Unit.Effectors[1].Bone = TEXT("Chain2_1");
+	Unit.Effectors[1].Position = FVector(-2.f, 3.f, 0.f);
 	Unit.bPropagateToChildren = true;
 
 	InitAndExecute();
@@ -703,10 +621,10 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_FullbodyIK)
 	AddErrorIfFalse(BoneHierarchy.GetGlobalTransform(TEXT("Chain2_1")).GetTranslation().Equals(FVector(-2.f, 3.f, 0.f)), TEXT("unexpected transform"));
 
 	// root is (1, 0, 0)
-	Unit.EndEffectors[0].Bone = TEXT("Chain1_1");
-	Unit.EndEffectors[0].Position = FVector(4.f, 0.f, 0.f);
-	Unit.EndEffectors[1].Bone = TEXT("Chain2_1");
-	Unit.EndEffectors[1].Position = FVector(0.f, -5.f, 0.f);
+	Unit.Effectors[0].Bone = TEXT("Chain1_1");
+	Unit.Effectors[0].Position = FVector(4.f, 0.f, 0.f);
+	Unit.Effectors[1].Bone = TEXT("Chain2_1");
+	Unit.Effectors[1].Position = FVector(0.f, -5.f, 0.f);
 	Unit.bPropagateToChildren = true;
 
 	InitAndExecute();

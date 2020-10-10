@@ -151,6 +151,7 @@ namespace RHIValidation
 		
 		// True if the calling code explicitly enabled overlapping on this UAV.
 		bool bExplicitAllowUAVOverlap = false;
+		bool bUsedWithExplicitUAVsOverlap = false;
 
 		// Pointer to the previous create/begin transition backtraces if logging is enabled for this resource.
 		void* CreateTransitionBacktrace = nullptr;
@@ -166,10 +167,11 @@ namespace RHIValidation
 			PreviousState = CurrentState;
 		}
 
-		void BeginTransition(FResource* Resource, FSubresourceIndex const& SubresourceIndex, const FState& CurrentStateFromRHI, const FState& TargetState, EResourceTransitionFlags NewFlags, void* CreateTrace);
-		void EndTransition  (FResource* Resource, FSubresourceIndex const& SubresourceIndex, void* CreateTrace);
-		void Assert         (FResource* Resource, FSubresourceIndex const& SubresourceIndex, const FState& RequiredState, bool bAllowAllUAVsOverlap);
-		void* Log           (FResource* Resource, FSubresourceIndex const& SubresourceIndex, void* CreateTrace, const TCHAR* Type, const TCHAR* LogStr);
+		void BeginTransition   (FResource* Resource, FSubresourceIndex const& SubresourceIndex, const FState& CurrentStateFromRHI, const FState& TargetState, EResourceTransitionFlags NewFlags, void* CreateTrace);
+		void EndTransition     (FResource* Resource, FSubresourceIndex const& SubresourceIndex, void* CreateTrace);
+		void Assert            (FResource* Resource, FSubresourceIndex const& SubresourceIndex, const FState& RequiredState, bool bAllowAllUAVsOverlap);
+		void SpecificUAVOverlap(FResource* Resource, FSubresourceIndex const& SubresourceIndex, bool bAllow);
+		void* Log              (FResource* Resource, FSubresourceIndex const& SubresourceIndex, void* CreateTrace, const TCHAR* Type, const TCHAR* LogStr);
 	};
 
 	struct FSubresourceRange

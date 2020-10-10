@@ -19,7 +19,7 @@ FPicpProjectionModule::FPicpProjectionModule()
 	TSharedPtr<IDisplayClusterProjectionPolicyFactory> Factory;
 
 	// Picp_MPCDI + Picp_MESH projections:
-	Factory = MakeShareable(new FPicpProjectionMPCDIPolicyFactory);
+	Factory = MakeShared<FPicpProjectionMPCDIPolicyFactory>();
 	ProjectionPolicyFactories.Emplace(PicpProjectionStrings::projection::PicpMPCDI, Factory);
 	ProjectionPolicyFactories.Emplace(PicpProjectionStrings::projection::PicpMesh,  Factory); // Add overried projection for mesh
 
@@ -141,7 +141,6 @@ bool FPicpProjectionModule::AssignWarpMeshToViewport(const FString& ViewportId, 
 		}
 	}
 
-	UE_LOG(LogPicpProjection, Error, TEXT("Viewport '%s' with 'picp_mesh' projection not found"), *ViewportId);
 	return false;
 }
 

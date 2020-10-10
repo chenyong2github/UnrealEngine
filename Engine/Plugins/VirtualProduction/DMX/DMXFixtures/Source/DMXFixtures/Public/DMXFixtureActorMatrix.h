@@ -56,7 +56,7 @@ public:
 	void UpdateMatrixData(int RowIndex, int CellIndex, int ChannelIndex, uint8 Value);
 
 	UFUNCTION(BlueprintCallable, Category = "DMX Matrix Fixture")
-	void PushDMXMatrixPixelData(TArray<FDMXPixel> MatrixPixelData);
+	void PushFixtureMatrixCellData(TArray<FDMXCell> MatrixPixelData);
 
 	UFUNCTION(BlueprintCallable, Category = "DMX Matrix Fixture")
 	void InitializeMatrixFixture();

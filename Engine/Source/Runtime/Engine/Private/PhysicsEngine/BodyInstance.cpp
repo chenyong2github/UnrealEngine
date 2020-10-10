@@ -3357,6 +3357,7 @@ void FBodyInstance::ClearForces(bool bAllowSubstepping)
 
 void FBodyInstance::SetOneWayInteraction(bool InOneWayInteraction /*= true*/)
 {
+#if WITH_CHAOS
 	FPhysicsCommand::ExecuteWrite(ActorHandle, [&](const FPhysicsActorHandle& Actor)
 		{
 			if (FPhysicsInterface::IsRigidBody(Actor) && !IsRigidBodyKinematic_AssumesLocked(Actor))
@@ -3364,6 +3365,7 @@ void FBodyInstance::SetOneWayInteraction(bool InOneWayInteraction /*= true*/)
 				FPhysicsInterface::SetOneWayInteraction_AssumesLocked(Actor, InOneWayInteraction);
 			}
 		});
+#endif
 }
 
 void FBodyInstance::AddTorqueInRadians(const FVector& Torque, bool bAllowSubstepping, bool bAccelChange)

@@ -5,6 +5,7 @@
 #include "VirtualShadowMapArray.h"
 #include "../BasePassRendering.h"
 #include "RendererModule.h"
+#include "Rendering/NaniteResources.h"
 #include "ShaderPrint.h"
 #include "ShaderPrintParameters.h"
 #include "VirtualShadowMapCacheManager.h"
@@ -996,7 +997,7 @@ IMPLEMENT_GLOBAL_SHADER(FVirtualSmPrintStatsCS, "/Engine/Private/VirtualShadowMa
 
 void FVirtualShadowMapArray::PrintStats(FRDGBuilder& GraphBuilder, const FViewInfo& View)
 {
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 
 	// Print stats
 	if (CVarShowStats.GetValueOnRenderThread() != 0 && StatsBufferRef)

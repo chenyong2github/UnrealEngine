@@ -11,12 +11,11 @@ struct FSwitchboardDisconnectTask;
 struct FSwitchboardSendFileToClientTask;
 struct FSwitchboardStartTask;
 struct FSwitchboardReceiveFileFromClientTask;
-struct FSwitchboardVcsInitTask;
-struct FSwitchboardVcsReportRevisionTask;
-struct FSwitchboardVcsSyncTask;
+struct FSwitchboardGetSyncStatusTask;
+struct FSwitchboardMessageFuture;
+
 class FInternetAddr;
 class FSocket;
-class FSwitchboardSourceControl;
 class FTcpListener;
 
 
@@ -39,19 +38,17 @@ private:
 	bool KillAllProcesses();
 	bool ReceiveFileFromClient(const FSwitchboardReceiveFileFromClientTask& InReceiveFileFromClientTask);
 	bool SendFileToClient(const FSwitchboardSendFileToClientTask& InSendFileToClientTask);
-	bool InitVersionControlSystem(const FSwitchboardVcsInitTask& InVcsInitTask);
-	bool ReportVersionControlRevision(const FSwitchboardVcsReportRevisionTask& InVcsRevisionTask);
-	bool SyncVersionControl(const FSwitchboardVcsSyncTask& InSyncTask);
+	bool GetSyncStatus(const FSwitchboardGetSyncStatusTask& InGetSyncStatusTask);
+	FRunningProcess* FindOrStartFlipModeMonitorForUUID(const FGuid& UUID);
 
 	void CleanUpDisconnectedSockets();
 	void DisconnectClient(const FIPv4Endpoint& InClientEndpoint);
-	bool HandleRunningProcesses();
+	void HandleRunningProcesses(TArray<FRunningProcess>& Processes, bool bNotifyThatProgramEnded);
 
 	bool SendMessage(const FString& InMessage, const FIPv4Endpoint& InEndpoint);
+	void SendMessageFutures();
 
-	void OnSourceControlConnectFinished(bool bInSuccess, FString InErrorMessage, const FIPv4Endpoint& InEndpoint);
-	void OnSourceControlReportRevisionFinished(bool bInSuccess, FString InRevision, FString InErrorMessage, const FIPv4Endpoint& InEndpoint);
-	void OnSourceControlSyncFinished(bool bInSuccess, FString InRevision, FString InErrorMessage, const FIPv4Endpoint& InEndpoint);
+	bool EquivalentTaskFutureExists(uint32 TaskEquivalenceHash) const;
 
 private:
 	TUniquePtr<FIPv4Endpoint> Endpoint;
@@ -64,6 +61,6 @@ private:
 	TQueue<TUniquePtr<FSwitchboardTask>, EQueueMode::Spsc> ScheduledTasks;
 	TQueue<TUniquePtr<FSwitchboardTask>, EQueueMode::Spsc> DisconnectTasks;
 	TArray<FRunningProcess> RunningProcesses;
-
-	TUniquePtr<FSwitchboardSourceControl> SourceControl;
+	TArray<FRunningProcess> FlipModeMonitors;
+	TArray<FSwitchboardMessageFuture> MessagesFutures;
 };

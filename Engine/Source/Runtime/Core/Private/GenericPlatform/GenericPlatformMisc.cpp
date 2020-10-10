@@ -1082,6 +1082,12 @@ const TCHAR* FGenericPlatformMisc::GamePersistentDownloadDir()
 	return *GamePersistentDownloadDir;
 }
 
+const TCHAR* FGenericPlatformMisc::GeneratedConfigDir()
+{
+	static FString Dir = FPaths::ProjectSavedDir() / TEXT("Config/");
+	return *Dir;
+}
+
 const TCHAR* FGenericPlatformMisc::GetUBTPlatform()
 {
 	return TEXT(PREPROCESSOR_TO_STRING(UBT_COMPILED_PLATFORM));

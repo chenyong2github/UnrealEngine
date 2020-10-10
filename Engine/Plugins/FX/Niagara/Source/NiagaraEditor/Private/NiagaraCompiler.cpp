@@ -478,54 +478,73 @@ void FNiagaraCompileRequestData::FinishPrecompile(UNiagaraScriptSource* ScriptSo
 		int32 NumSimStageNodes = 0;
 		for (UNiagaraNodeOutput* FoundOutputNode : OutputNodes)
 		{
-			// Map all for this output node
-			FNiagaraParameterMapHistoryWithMetaDataBuilder Builder;
-			Builder.ConstantResolver = ConstantResolver;
-			Builder.AddGraphToCallingGraphContextStack(NodeGraphDeepCopy);
-			Builder.RegisterEncounterableVariables(EncounterableVariables);
-
-			FString TranslationName = TEXT("Emitter");
-			Builder.BeginTranslation(TranslationName);
 			FName SimStageName;
-			if (FoundOutputNode->GetUsage() == ENiagaraScriptUsage::ParticleSimulationStageScript && SimStages && SimStages->IsValidIndex(NumSimStageNodes))
+			bool bStageEnabled = true;
+			if (FoundOutputNode->GetUsage() == ENiagaraScriptUsage::ParticleSimulationStageScript && SimStages)
 			{
-				UNiagaraSimulationStageBase* SimStage = (*SimStages)[NumSimStageNodes];
-				if (SimStage == nullptr || !SimStage->bEnabled)
-				{
-					// Do nothing
-				}
-				else if (UNiagaraSimulationStageGeneric* GenericStage = Cast<UNiagaraSimulationStageGeneric>(SimStage))
-				{
-					SimStageName = GenericStage->IterationSource == ENiagaraIterationSource::DataInterface ? GenericStage->DataInterface.BoundVariable.GetName() : FName();
-				}
-			}
+				const FGuid& UsageId = FoundOutputNode->GetUsageId();
 
-			Builder.BeginUsage(FoundOutputNode->GetUsage(), SimStageName);
-			Builder.EnableScriptWhitelist(true, FoundOutputNode->GetUsage());
-			Builder.BuildParameterMaps(FoundOutputNode, true);
-			Builder.EndUsage();
-			
-			ensure(Builder.Histories.Num() <= 1);
-
-			for (FNiagaraParameterMapHistory& History : Builder.Histories)
-			{
-				History.OriginatingScriptUsage = FoundOutputNode->GetUsage();
-				for (FNiagaraVariable& Var : History.Variables)
+				// Find the matching simstage to the output node
+				for (UNiagaraSimulationStageBase* SimStage : *SimStages)
 				{
-					if (Var.GetType() == FNiagaraTypeDefinition::GetGenericNumericDef())
+					if (SimStage && SimStage->Script)
 					{
-						UE_LOG(LogNiagaraEditor, Log, TEXT("Invalid numeric parameter found! %s"), *Var.GetName().ToString())
+						if (SimStage->Script->GetUsageId() == UsageId)
+						{
+							bStageEnabled = SimStage->bEnabled;
+							UNiagaraSimulationStageGeneric* GenericStage = Cast<UNiagaraSimulationStageGeneric>(SimStage);
+							if (GenericStage && SimStage->bEnabled)
+							{
+								SimStageName = (GenericStage->IterationSource == ENiagaraIterationSource::DataInterface) ? GenericStage->DataInterface.BoundVariable.GetName() : FName();
+								break;
+							}
+						}
 					}
 				}
 			}
 
-			if (FoundOutputNode->GetUsage() == ENiagaraScriptUsage::ParticleSimulationStageScript)
+			if (bStageEnabled)
 			{
-				NumSimStageNodes++;
-			}
+				// Map all for this output node
+				FNiagaraParameterMapHistoryWithMetaDataBuilder Builder;
+				Builder.ConstantResolver = ConstantResolver;
+				Builder.AddGraphToCallingGraphContextStack(NodeGraphDeepCopy);
+				Builder.RegisterEncounterableVariables(EncounterableVariables);
 
-			PrecompiledHistories.Append(Builder.Histories);
-			Builder.EndTranslation(TranslationName);
+				FString TranslationName = TEXT("Emitter");
+				Builder.BeginTranslation(TranslationName);
+				Builder.BeginUsage(FoundOutputNode->GetUsage(), SimStageName);
+				Builder.EnableScriptWhitelist(true, FoundOutputNode->GetUsage());
+				Builder.BuildParameterMaps(FoundOutputNode, true);
+				Builder.EndUsage();
+
+				ensure(Builder.Histories.Num() <= 1);
+
+				for (FNiagaraParameterMapHistory& History : Builder.Histories)
+				{
+					History.OriginatingScriptUsage = FoundOutputNode->GetUsage();
+					for (FNiagaraVariable& Var : History.Variables)
+					{
+						if (Var.GetType() == FNiagaraTypeDefinition::GetGenericNumericDef())
+						{
+							UE_LOG(LogNiagaraEditor, Log, TEXT("Invalid numeric parameter found! %s"), *Var.GetName().ToString())
+						}
+					}
+				}
+
+				if (FoundOutputNode->GetUsage() == ENiagaraScriptUsage::ParticleSimulationStageScript)
+				{
+					NumSimStageNodes++;
+				}
+
+				PrecompiledHistories.Append(Builder.Histories);
+				Builder.EndTranslation(TranslationName);
+			}
+			else
+			{
+				// Add in a blank spot
+				PrecompiledHistories.Emplace();
+			}
 		}
 
 		if (SimStages && NumSimStageNodes)

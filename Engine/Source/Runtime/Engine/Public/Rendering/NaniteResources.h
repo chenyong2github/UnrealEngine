@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "LocalVertexFactory.h"
 #include "GrowOnlySpanAllocator.h"
 #include "UnifiedBuffer.h"
@@ -80,6 +81,7 @@ DECLARE_STATS_GROUP( TEXT("Nanite"), STATGROUP_Nanite, STATCAT_Advanced );
 
 DECLARE_GPU_STAT_NAMED_EXTERN(NaniteStreaming, TEXT("Nanite Streaming"));
 
+LLM_DECLARE_TAG_API(Nanite, ENGINE_API);
 
 class UStaticMesh;
 class UBodySetup;

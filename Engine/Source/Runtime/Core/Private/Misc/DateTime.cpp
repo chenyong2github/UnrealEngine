@@ -742,18 +742,39 @@ bool FDateTime::ParseIso8601(const TCHAR* DateTimeString, FDateTime& OutDateTime
 		if (*Next == TCHAR('.'))
 		{
 			Ptr = Next + 1;
-			Millisecond = FCString::Strtoi(Ptr, &Next, 10);
 
-			// should be no more than 3 digits
-			if ((Next <= Ptr) || (Next > Ptr + 3))
+			int64 MillisecondTemp = FCString::Strtoi64(Ptr, &Next, 10);
+			
+
+			//We support up to 18 digits to avoid rounding issue with 19 digits
+			if ((Next <= Ptr) || (Next > Ptr + 18))
 			{
 				return false;
 			}
 
-			for (int32 Digits = UE_PTRDIFF_TO_INT32(Next - Ptr); Digits < 3; ++Digits)
+			int32 Digits = UE_PTRDIFF_TO_INT32(Next - Ptr);
+
+			if(Digits < 3)
 			{
-				Millisecond *= 10;
+				//multiplying to account for the missing digits (would be zeros), ie 2020-08-24T05:56:14.4 should result in 400ms
+				for (; Digits < 3; ++Digits)
+				{
+					MillisecondTemp *= 10;
+				}
 			}
+			else if (Digits > 3)
+			{
+				//converting to milliseconds with rounding up -> 2020-08-24T05:56:14.459826919 will result in 460ms.
+				int64 Divisor = 1;
+				for (; Digits > 3; --Digits)
+				{
+					Divisor *= 10;
+				}
+				
+				MillisecondTemp = (MillisecondTemp + (Divisor >> 1 )) / Divisor;
+			}
+			
+			Millisecond = static_cast<int32>(MillisecondTemp);
 		}
 
 		// see if the timezone offset is included

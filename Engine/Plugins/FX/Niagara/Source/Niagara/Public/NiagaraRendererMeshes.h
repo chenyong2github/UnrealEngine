@@ -52,8 +52,11 @@ private:
 	uint32 bEnableCulling : 1;
 	uint32 bEnableFrustumCulling : 1;
 
+
 	uint32 bSubImageBlend : 1;
 	FVector2D SubImageSize;
+
+	FVector PivotOffset;
 
 	FVector LockedAxis;
 	ENiagaraMeshLockedAxisSpace LockedAxisSpace;

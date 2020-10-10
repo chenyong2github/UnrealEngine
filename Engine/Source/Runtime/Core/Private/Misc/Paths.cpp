@@ -284,22 +284,11 @@ static void GetExtensionDirsInternal(TArray<FString>& ExtensionDirs, const FStri
 	});
 }
 
-const TArray<FString>& FPaths::GetExtensionDirs(const FString& BaseDir, const FString& SubDir)
+TArray<FString> FPaths::GetExtensionDirs(const FString& BaseDir, const FString& SubDir)
 {
-	static TMap<TTuple<FString, FString>, TArray<FString>> CachedExtensionDirs;
-
-	// look up a cached set of this BaseDir/SubDir combo
-	TTuple<FString, FString> DirKey(BaseDir, SubDir);
-	TArray<FString>* CachedDirs = CachedExtensionDirs.Find(DirKey);
-	if (CachedDirs == nullptr)
-	{
-		CachedDirs = &CachedExtensionDirs.Emplace(DirKey);
-
-		// get the directories
-		GetExtensionDirsInternal(*CachedDirs, BaseDir, SubDir);
-	}
-
-	return *CachedDirs;
+	TArray<FString> ExtensionDirs;
+	GetExtensionDirsInternal(ExtensionDirs, BaseDir, SubDir);
+	return ExtensionDirs;
 }
 
 FString FPaths::RootDir()
@@ -396,10 +385,10 @@ FString FPaths::SourceConfigDir()
 
 FString FPaths::GeneratedConfigDir()
 {
-#if PLATFORM_MAC
+#if PLATFORM_MAC // @todo, move this to Mac FPlatformMisc.
 	return FPlatformProcess::UserPreferencesDir();
 #else
-	return FPaths::ProjectSavedDir() + TEXT("Config/");
+	return FPlatformMisc::GeneratedConfigDir();
 #endif
 }
 

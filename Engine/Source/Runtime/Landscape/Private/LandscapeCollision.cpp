@@ -457,8 +457,8 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 				if(bCreateSimpleCollision)
 				{
 					TUniquePtr<Chaos::FPerShapeData> NewSimpleShape = Chaos::FPerShapeData::CreatePerShapeData(ShapeArray.Num());
+					
 					FVector FinalSimpleCollisionScale(LandscapeScale.X* SimpleCollisionScale, LandscapeScale.Y* SimpleCollisionScale, LandscapeScale.Z* LANDSCAPE_ZSCALE);
-
 					HeightfieldRef->HeightfieldSimple->SetScale(FinalSimpleCollisionScale);
 					TUniquePtr<Chaos::TImplicitObjectTransformed<float, 3>> ChaosSimpleHeightFieldFromCooked = MakeUnique<Chaos::TImplicitObjectTransformed<float, 3>>(MakeSerializable(HeightfieldRef->HeightfieldSimple), Chaos::TRigidTransform<float, 3>(FTransform::Identity));
 
@@ -2121,6 +2121,8 @@ bool ULandscapeMeshCollisionComponent::RecreateCollision()
 	{
 		MeshRef = NULL;
 		MeshGuid = FGuid();
+		CachedHeightFieldSamples.Heights.Empty();
+		CachedHeightFieldSamples.Holes.Empty();
 	}
 
 	return Super::RecreateCollision();

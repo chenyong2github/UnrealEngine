@@ -22,6 +22,7 @@
 #include "IAnimBlueprintCompilationContext.h"
 #include "AnimBlueprintCompilationContext.h"
 #include "FindInBlueprintManager.h"
+#include "UObject/ReleaseObjectVersion.h"
 
 #define LOCTEXT_NAMESPACE "UAnimGraphNode_Base"
 
@@ -63,6 +64,38 @@ void UAnimGraphNode_Base::PostEditChangeProperty(FPropertyChangedEvent& Property
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	PropertyChangeEvent.Broadcast(PropertyChangedEvent);
+}
+
+void UAnimGraphNode_Base::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
+
+	if (Ar.IsLoading())
+	{
+		if (Ar.CustomVer(FReleaseObjectVersion::GUID) < FReleaseObjectVersion::AnimationGraphNodeBindingsDisplayedAsPins)
+		{
+			// Push any bindings to optional pins
+			bool bPushedBinding = false;
+			for(const TPair<FName, FAnimGraphNodePropertyBinding>& BindingPair : PropertyBindings)
+			{
+				for(FOptionalPinFromProperty& OptionalPin : ShowPinForProperties)
+				{
+					if(OptionalPin.bCanToggleVisibility && !OptionalPin.bShowPin && OptionalPin.PropertyName == BindingPair.Key)
+					{
+						OptionalPin.bShowPin = true;
+						bPushedBinding = true;
+					}
+				}
+			}
+
+			if(bPushedBinding)
+			{
+				FOptionalPinManager::EvaluateOldShownPins(ShowPinForProperties, OldShownPins, this);
+			}
+		}
+	}
 }
 
 void UAnimGraphNode_Base::CreateOutputPins()
@@ -470,6 +503,19 @@ bool UAnimGraphNode_Base::IsPinExposedAndLinked(const FString& InPinName, const 
 {
 	UEdGraphPin* Pin = FindPin(InPinName, InDirection);
 	return Pin != nullptr && Pin->LinkedTo.Num() > 0 && Pin->LinkedTo[0] != nullptr;
+}
+
+void UAnimGraphNode_Base::PinConnectionListChanged(UEdGraphPin* Pin)
+{
+	if(Pin->LinkedTo.Num() > 0)
+	{
+		// If we have links, clear any bindings
+		// Compare FName without number to make sure we catch array properties that are split into multiple pins
+		FName ComparisonName = Pin->GetFName();
+		ComparisonName.SetNumber(0);
+
+		PropertyBindings.Remove(ComparisonName);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

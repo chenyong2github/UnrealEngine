@@ -195,6 +195,9 @@ namespace UnrealBuildTool
 				{
 					Arguments.Add("--target=i686-pc-windows-msvc");
 				}
+
+				// This matches Microsoft's default support floor for SSE.
+				Arguments.Add("-mssse3");
 			}
 
 			// Compile into an .obj file, and skip linking.

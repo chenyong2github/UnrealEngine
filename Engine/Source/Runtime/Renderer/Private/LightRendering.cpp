@@ -413,7 +413,7 @@ class FDeferredLightPS : public FGlobalShader
 	class FVisualizeCullingDim	: SHADER_PERMUTATION_BOOL("VISUALIZE_LIGHT_CULLING");
 	class FLightingChannelsDim	: SHADER_PERMUTATION_BOOL("USE_LIGHTING_CHANNELS");
 	class FTransmissionDim		: SHADER_PERMUTATION_BOOL("USE_TRANSMISSION");
-	class FHairLighting			: SHADER_PERMUTATION_INT("USE_HAIR_LIGHTING", 3);
+	class FHairLighting			: SHADER_PERMUTATION_INT("USE_HAIR_LIGHTING", 2);
 	class FAtmosphereTransmittance : SHADER_PERMUTATION_BOOL("USE_ATMOSPHERE_TRANSMITTANCE");
 	class FCloudTransmittance 	: SHADER_PERMUTATION_BOOL("USE_CLOUD_TRANSMITTANCE");
 	class FAnistropicMaterials 	: SHADER_PERMUTATION_BOOL("SUPPORTS_ANISOTROPIC_MATERIALS");
@@ -464,12 +464,7 @@ class FDeferredLightPS : public FGlobalShader
 			}
 		}
 
-		if (PermutationVector.Get<FHairLighting>() && !IsHairStrandsSupported(Parameters.Platform))
-		{
-			return false;
-		}
-
-		if (PermutationVector.Get< FHairLighting >() == 2 && (
+		if (PermutationVector.Get< FHairLighting >() && (
 			PermutationVector.Get< FVisualizeCullingDim >() ||
 			PermutationVector.Get< FTransmissionDim >()))
 		{
@@ -519,9 +514,6 @@ class FDeferredLightPS : public FGlobalShader
 		HairTransmittanceBufferMaxCount.Bind(Initializer.ParameterMap, TEXT("HairTransmittanceBufferMaxCount"));
 		ScreenShadowMaskSubPixelTexture.Bind(Initializer.ParameterMap, TEXT("ScreenShadowMaskSubPixelTexture")); // TODO hook the shader itself
 
-		HairLUTTexture.Bind(Initializer.ParameterMap, TEXT("HairLUTTexture"));
-		HairLUTSampler.Bind(Initializer.ParameterMap, TEXT("HairLUTSampler"));
-		HairComponents.Bind(Initializer.ParameterMap, TEXT("HairComponents"));
 		HairShadowMaskValid.Bind(Initializer.ParameterMap, TEXT("HairShadowMaskValid"));
 		HairDualScatteringRoughnessOverride.Bind(Initializer.ParameterMap, TEXT("HairDualScatteringRoughnessOverride"));
 
@@ -745,28 +737,6 @@ private:
 			}
 		}
 
-		if (HairLUTTexture.IsBound())
-		{
-			IPooledRenderTarget* HairLUTTextureResource = GSystemTextures.HairLUT0;
-			SetTextureParameter(
-				RHICmdList,
-				ShaderRHI,
-				HairLUTTexture,
-				HairLUTSampler,
-				TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(),
-				HairLUTTextureResource ? HairLUTTextureResource->GetRenderTargetItem().ShaderResourceTexture : GBlackVolumeTexture->TextureRHI);
-		}
-
-		if (HairComponents.IsBound())
-		{
-			uint32 InHairComponents = ToBitfield(GetHairComponents());
-			SetShaderValue(
-				RHICmdList,
-				ShaderRHI,
-				HairComponents,
-				InHairComponents);
-		}
-
 		if (HairDualScatteringRoughnessOverride.IsBound())
 		{
 			const float DualScatteringRoughness = GetHairDualScatteringRoughnessOverride();
@@ -843,9 +813,6 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter, HairVisibilityNodeData);
 	LAYOUT_FIELD(FShaderResourceParameter, ScreenShadowMaskSubPixelTexture);
 
-	LAYOUT_FIELD(FShaderResourceParameter, HairLUTTexture);
-	LAYOUT_FIELD(FShaderResourceParameter, HairLUTSampler);
-	LAYOUT_FIELD(FShaderParameter, HairComponents);
 	LAYOUT_FIELD(FShaderParameter, HairShadowMaskValid);
 	LAYOUT_FIELD(FShaderParameter, HairDualScatteringRoughnessOverride);
 
@@ -1227,8 +1194,8 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLights(
 {
 	const EShaderPlatform ShaderPlatformForFeatureLevel = GShaderPlatformForFeatureLevel[FeatureLevel];
 
-	const bool bUseHairLighting = HairDatas != nullptr;
-	const FHairStrandsVisibilityViews* InHairVisibilityViews = HairDatas ? &HairDatas->HairVisibilityViews : nullptr;
+	const bool bUseHairLighting = HairDatas != nullptr && HairDatas->HairVisibilityViews.HairDatas.Num() > 0 && HairDatas->HairVisibilityViews.HairDatas[0].CategorizationTexture;
+	const FHairStrandsVisibilityViews* InHairVisibilityViews = bUseHairLighting ? &HairDatas->HairVisibilityViews : nullptr;
 
 	RDG_EVENT_SCOPE(GraphBuilder, "Lights");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, Lights);
@@ -2332,7 +2299,7 @@ void FDeferredShadingSceneRenderer::RenderLight(
 				PermutationVector.Set< FDeferredLightPS::FLightingChannelsDim >( View.bUsesLightingChannels );
 				PermutationVector.Set< FDeferredLightPS::FAnistropicMaterials >(ShouldRenderAnisotropyPass());
 				PermutationVector.Set< FDeferredLightPS::FTransmissionDim >( bTransmission );
-				PermutationVector.Set< FDeferredLightPS::FHairLighting>(bHairLighting ? 1 : 0);
+				PermutationVector.Set< FDeferredLightPS::FHairLighting>(0);
 				// Only directional lights are rendered in this path, so we only need to check if it is use to light the atmosphere
 				PermutationVector.Set< FDeferredLightPS::FAtmosphereTransmittance >(bAtmospherePerPixelTransmittance);
 				PermutationVector.Set< FDeferredLightPS::FCloudTransmittance >(bLight0CloudPerPixelTransmittance || bLight1CloudPerPixelTransmittance);
@@ -2398,7 +2365,7 @@ void FDeferredShadingSceneRenderer::RenderLight(
 				PermutationVector.Set< FDeferredLightPS::FLightingChannelsDim >( View.bUsesLightingChannels );
 				PermutationVector.Set< FDeferredLightPS::FAnistropicMaterials >(ShouldRenderAnisotropyPass() && !LightSceneInfo->Proxy->IsRectLight());
 				PermutationVector.Set< FDeferredLightPS::FTransmissionDim >( bTransmission );
-				PermutationVector.Set< FDeferredLightPS::FHairLighting>(bHairLighting ? 1 : 0);
+				PermutationVector.Set< FDeferredLightPS::FHairLighting>(0);
 				PermutationVector.Set < FDeferredLightPS::FAtmosphereTransmittance >(false);
 				PermutationVector.Set< FDeferredLightPS::FCloudTransmittance >(false);
 				PermutationVector.Set< FDeferredLightPS::FStrata >(Strata::IsStrataEnabled());
@@ -2590,8 +2557,8 @@ void FDeferredShadingSceneRenderer::RenderLightForHair(
 			PermutationVector.Set< FDeferredLightPS::FLightingChannelsDim >(View.bUsesLightingChannels);
 			PermutationVector.Set< FDeferredLightPS::FVisualizeCullingDim >(false);
 			PermutationVector.Set< FDeferredLightPS::FTransmissionDim >(false);
-			PermutationVector.Set< FDeferredLightPS::FHairLighting>(2);
 			PermutationVector.Set< FDeferredLightPS::FStrata >(Strata::IsStrataEnabled());
+			PermutationVector.Set< FDeferredLightPS::FHairLighting>(1);
 
 			TShaderMapRef<TDeferredLightHairVS> VertexShader(View.ShaderMap);
 			TShaderMapRef<FDeferredLightPS> PixelShader(View.ShaderMap, PermutationVector);

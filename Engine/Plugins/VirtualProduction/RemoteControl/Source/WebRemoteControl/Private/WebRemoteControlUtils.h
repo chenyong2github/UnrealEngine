@@ -194,4 +194,26 @@ namespace WebRemoteControlUtils
 	 * @note InCompleteCallback will be called with an appropriate http response if the content type is not valid.
 	 */
 	UE_NODISCARD bool ValidateContentType(const FHttpServerRequest& InRequest, FString InContentType, const FHttpResultCallback& InCompleteCallback);
+
+	/**
+	 * Add the desired content type to the http response headers.
+	 * @param InResponse The response to add the content type to.
+	 * @param InContentType The content type header to add.
+	 */
+	void AddContentTypeHeaders(FHttpServerResponse* InOutResponse, FString InContentType);
+
+	/**
+	* Add CORS headers to a http response.
+	* @param InOutResponse The http response to add the CORS headers to.
+	*/
+	void AddCORSHeaders(FHttpServerResponse* InOutResponse);
+
+	/**
+	 * Validate a request's content type.
+	 * @param InRequest The request to validate the content type on.
+	 * @param InContentType The target content type.
+	 * @param OutErrorText If set, the string pointer will be populated with an error message on error.
+	 * @return Whether or not the content type matches the target content type.
+	 */
+	bool IsRequestContentType(const FHttpServerRequest& InRequest, const FString& InContentType, FString* OutErrorText);
 }

@@ -90,7 +90,7 @@ public:
 	FORCEINLINE int32 Num() const { return Container.Num() / Extent; }
 
 	/** Return base of data */
-	UE_DEPRECATED(4.25, "This method will be removed.")
+	UE_DEPRECATED(5.0, "This method will be removed.")
 	FORCEINLINE const AttributeType* GetData() const { return Container.GetData(); }
 
 	/** Initializes the array to the given size with the default value */
@@ -136,10 +136,10 @@ public:
 	void Remap(const TSparseArray<int32>& IndexRemap, const AttributeType& Default);
 
 	/** Element accessors */
-	UE_DEPRECATED(4.25, "Please use GetElementBase() instead.")
+	UE_DEPRECATED(5.0, "Please use GetElementBase() instead.")
 	FORCEINLINE const AttributeType& operator[](const int32 Index) const { return Container[Index]; }
 
-	UE_DEPRECATED(4.25, "Please use GetElementBase() instead.")
+	UE_DEPRECATED(5.0, "Please use GetElementBase() instead.")
 	FORCEINLINE AttributeType& operator[](const int32 Index) { return Container[Index]; }
 
 	FORCEINLINE const AttributeType* GetElementBase(const int32 Index) const { return &Container[Index * Extent]; }
@@ -298,13 +298,13 @@ public:
 	virtual void Serialize(FArchive& Ar) = 0;
 	virtual void Remap(const TSparseArray<int32>& IndexRemap) = 0;
 
-//	UE_DEPRECATED(4.26, "Please use GetNumChannels().")
+//	UE_DEPRECATED(5.0, "Please use GetNumChannels().")
 	virtual int32 GetNumIndices() const = 0;
-//	UE_DEPRECATED(4.26, "Please use SetNumChannels().")
+//	UE_DEPRECATED(5.0, "Please use SetNumChannels().")
 	virtual void SetNumIndices(const int32 NumIndices) = 0;
-//	UE_DEPRECATED(4.26, "Please use InsertChannel().")
+//	UE_DEPRECATED(5.0, "Please use InsertChannel().")
 	virtual void InsertIndex(const int32 Index) = 0;
-//	UE_DEPRECATED(4.26, "Please use RemoveChannel().")
+//	UE_DEPRECATED(5.0, "Please use RemoveChannel().")
 	virtual void RemoveIndex(const int32 Index) = 0;
 
 	virtual int32 GetNumChannels() const = 0;
@@ -442,13 +442,13 @@ public:
 		}
 	}
 
-	UE_DEPRECATED(4.26, "Please use GetNumChannels().")
+	UE_DEPRECATED(5.0, "Please use GetNumChannels().")
 	virtual inline int32 GetNumIndices() const override { return GetNumChannels(); }
 
 	/** Return number of channels this attribute has */
 	virtual inline int32 GetNumChannels() const override { return ArrayForChannels.Num(); }
 
-	UE_DEPRECATED(4.26, "Please use SetNumChannels().")
+	UE_DEPRECATED(5.0, "Please use SetNumChannels().")
 	virtual void SetNumIndices(const int32 NumIndices) override { SetNumChannels(NumIndices); }
 
 	/** Sets number of channels this attribute has */
@@ -467,7 +467,7 @@ public:
 		}
 	}
 
-	UE_DEPRECATED(4.26, "Please use InsertChannel().")
+	UE_DEPRECATED(5.0, "Please use InsertChannel().")
 	virtual void InsertIndex(const int32 Index) override
 	{
 		InsertChannel(Index);
@@ -480,7 +480,7 @@ public:
 		Array.Initialize(NumElements, DefaultValue);
 	}
 
-	UE_DEPRECATED(4.26, "Please use RemoveChannel().")
+	UE_DEPRECATED(5.0, "Please use RemoveChannel().")
 	virtual void RemoveIndex(const int32 Index) override
 	{
 		RemoveChannel(Index);
@@ -493,9 +493,9 @@ public:
 	}
 
 
-	UE_DEPRECATED(4.26, "Please use GetArrayForChannel().")
+	UE_DEPRECATED(5.0, "Please use GetArrayForChannel().")
 	FORCEINLINE const TMeshAttributeArrayBase<AttributeType>& GetArrayForIndex( const int32 Index ) const { return ArrayForChannels[ Index ]; }
-	UE_DEPRECATED(4.26, "Please use GetArrayForChannel().")
+	UE_DEPRECATED(5.0, "Please use GetArrayForChannel().")
 	FORCEINLINE TMeshAttributeArrayBase<AttributeType>& GetArrayForIndex( const int32 Index ) { return ArrayForChannels[ Index ]; }
 
 	/** Return the TMeshAttributeArrayBase corresponding to the given attribute channel */
@@ -640,7 +640,7 @@ public:
 	/** Return default value for this attribute type */
 	FORCEINLINE Type GetDefaultValue() const { return ArrayPtr->GetDefaultValue(); }
 
-	UE_DEPRECATED(4.26, "Please use GetNumChannels().")
+	UE_DEPRECATED(5.0, "Please use GetNumChannels().")
 	FORCEINLINE int32 GetNumIndices() const
 	{
 		return ArrayPtr->ArrayType::GetNumChannels();	// note: override virtual dispatch
@@ -690,7 +690,7 @@ public:
 	/** Copies the given attribute array and index to this index */
 	void Copy(TMeshAttributesRef<ElementIDType, const AttributeType, false> Src, const int32 DestIndex = 0, const int32 SrcIndex = 0);
 
-	UE_DEPRECATED(4.26, "Please use SetNumChannels().")
+	UE_DEPRECATED(5.0, "Please use SetNumChannels().")
 	FORCEINLINE void SetNumIndices(const int32 NumChannels) const
 	{
 		ArrayPtr->ArrayType::SetNumChannels(NumChannels);	// note: override virtual dispatch
@@ -702,7 +702,7 @@ public:
 		ArrayPtr->ArrayType::SetNumChannels(NumChannels);	// note: override virtual dispatch
 	}
 
-	UE_DEPRECATED(4.26, "Please use InsertChannel().")
+	UE_DEPRECATED(5.0, "Please use InsertChannel().")
 	FORCEINLINE void InsertIndex(const int32 Index) const
 	{
 		ArrayPtr->ArrayType::InsertChannel(Index);		// note: override virtual dispatch
@@ -714,7 +714,7 @@ public:
 		ArrayPtr->ArrayType::InsertChannel(Index);		// note: override virtual dispatch
 	}
 
-	UE_DEPRECATED(4.26, "Please use RemoveChannel().")
+	UE_DEPRECATED(5.0, "Please use RemoveChannel().")
 	FORCEINLINE void RemoveIndex(const int32 Index) const
 	{
 		ArrayPtr->ArrayType::RemoveChannel(Index);		// note: override virtual dispatch
@@ -840,7 +840,7 @@ public:
 	/** Return default value for this attribute type */
 	FORCEINLINE Type GetDefaultValue() const { return ArrayPtr->GetDefaultValue(); }
 
-	UE_DEPRECATED(4.26, "Please use GetNumChannels().")
+	UE_DEPRECATED(5.0, "Please use GetNumChannels().")
 	FORCEINLINE int32 GetNumIndices() const
 	{
 		return ArrayPtr->ArrayType::GetNumChannels();	// note: override virtual dispatch
@@ -866,7 +866,7 @@ public:
 	/** Copies the given attribute array and index to this index */
 	void Copy(TMeshAttributesConstRef<ElementIDType, AttributeType, true> Src, const int32 DestIndex = 0, const int32 SrcIndex = 0);
 
-	UE_DEPRECATED(4.26, "Please use SetNumChannels().")
+	UE_DEPRECATED(5.0, "Please use SetNumChannels().")
 	FORCEINLINE void SetNumIndices(const int32 NumChannels) const
 	{
 		ArrayPtr->ArrayType::SetNumChannels(NumChannels);	// note: override virtual dispatch
@@ -878,7 +878,7 @@ public:
 		ArrayPtr->ArrayType::SetNumChannels(NumChannels);	// note: override virtual dispatch
 	}
 
-	UE_DEPRECATED(4.26, "Please use InsertChannel().")
+	UE_DEPRECATED(5.0, "Please use InsertChannel().")
 	FORCEINLINE void InsertIndex(const int32 Index) const
 	{
 		ArrayPtr->ArrayType::InsertChannel(Index);		// note: override virtual dispatch
@@ -890,7 +890,7 @@ public:
 		ArrayPtr->ArrayType::InsertChannel(Index);		// note: override virtual dispatch
 	}
 
-	UE_DEPRECATED(4.26, "Please use RemoveChannel().")
+	UE_DEPRECATED(5.0, "Please use RemoveChannel().")
 	FORCEINLINE void RemoveIndex(const int32 Index) const
 	{
 		ArrayPtr->ArrayType::RemoveChannel(Index);		// note: override virtual dispatch
@@ -1595,7 +1595,7 @@ public:
 	 * It is valid for as long as this TAttributesSet object exists.
 	 */
 	template <typename ViewType>
-	UE_DEPRECATED(4.25, "Views are due to be deprecated. Please use MeshAttributeRefs instead.")
+	UE_DEPRECATED(4.26, "GetAttributesView() will no longer be supported; please use GetAttributesRef() instead.")
 	TMeshAttributesConstView<ElementIDType, ViewType> GetAttributesView(const FName AttributeName) const
 	{
 		if (const FAttributesSetEntry* ArraySetPtr = this->Map.Find(AttributeName))
@@ -1607,7 +1607,7 @@ public:
 	}
 
 	template <typename ViewType>
-	UE_DEPRECATED(4.25, "Views are due to be deprecated. Please use MeshAttributeRefs instead.")
+	UE_DEPRECATED(4.26, "GetAttributesView() will no longer be supported; please use GetAttributesRef() instead.")
 	TMeshAttributesView<ElementIDType, ViewType> GetAttributesView(const FName AttributeName)
 	{
 		if (FAttributesSetEntry* ArraySetPtr = this->Map.Find(AttributeName))
@@ -1618,7 +1618,7 @@ public:
 		return TMeshAttributesView<ElementIDType, ViewType>();
 	}
 
-	UE_DEPRECATED(4.26, "Please use GetAttributeChannelCount() instead.")
+	UE_DEPRECATED(5.0, "Please use GetAttributeChannelCount() instead.")
 	int32 GetAttributeIndexCount(const FName AttributeName) const
 	{
 		return GetAttributeChannelCount(AttributeName);
@@ -1636,7 +1636,7 @@ public:
 	}
 
 	template <typename AttributeType>
-	UE_DEPRECATED(4.25, "Please use GetAttributeChannelCount() instead.")
+	UE_DEPRECATED(5.0, "Please use GetAttributeChannelCount() instead.")
 	int32 GetAttributeIndexCount(const FName AttributeName) const
 	{
 		if (const FAttributesSetEntry* ArraySetPtr = this->Map.Find(AttributeName))
@@ -1651,7 +1651,7 @@ public:
 		return 0;
 	}
 
-	UE_DEPRECATED(4.26, "Please use SetAttributeChannelCount() instead.")
+	UE_DEPRECATED(5.0, "Please use SetAttributeChannelCount() instead.")
 	void SetAttributeIndexCount(const FName AttributeName, const int32 NumChannels)
 	{
 		SetAttributeChannelCount(AttributeName, NumChannels);
@@ -1667,7 +1667,7 @@ public:
 	}
 
 	template <typename AttributeType>
-	UE_DEPRECATED(4.25, "Please use untemplated SetAttributeChannelCount() instead.")
+	UE_DEPRECATED(5.0, "Please use untemplated SetAttributeChannelCount() instead.")
 	void SetAttributeIndexCount(const FName AttributeName, const int32 NumIndices)
 	{
 		if (FAttributesSetEntry* ArraySetPtr = this->Map.Find(AttributeName))
@@ -1680,7 +1680,7 @@ public:
 		}
 	}
 
-	UE_DEPRECATED(4.26, "Please use InsertAttributeChannel() instead.")
+	UE_DEPRECATED(5.0, "Please use InsertAttributeChannel() instead.")
 	void InsertAttributeIndex_Old(const FName AttributeName, const int32 Index)
 	{
 		InsertAttributeChannel(AttributeName, Index);
@@ -1696,7 +1696,7 @@ public:
 	}
 
 	template <typename AttributeType>
-	UE_DEPRECATED(4.25, "Please use untemplated InsertAttributeIndexCount() instead.")
+	UE_DEPRECATED(5.0, "Please use untemplated InsertAttributeIndexCount() instead.")
 	void InsertAttributeIndex(const FName AttributeName, const int32 Index)
 	{
 		if (FAttributesSetEntry* ArraySetPtr = this->Map.Find(AttributeName))
@@ -1709,7 +1709,7 @@ public:
 		}
 	}
 
-	UE_DEPRECATED(4.26, "Please use RemoveAttributeChannel() instead.")
+	UE_DEPRECATED(5.0, "Please use RemoveAttributeChannel() instead.")
 	void RemoveAttributeIndex_Old(const FName AttributeName, const int32 Index)
 	{
 		RemoveAttributeChannel(AttributeName, Index);
@@ -1725,7 +1725,7 @@ public:
 	}
 
 	template <typename AttributeType>
-	UE_DEPRECATED(4.25, "Please use untemplated RemoveAttributeIndexCount() instead.")
+	UE_DEPRECATED(5.0, "Please use untemplated RemoveAttributeIndexCount() instead.")
 	void RemoveAttributeIndex(const FName AttributeName, const int32 Index)
 	{
 		if (FAttributesSetEntry* ArraySetPtr = this->Map.Find(AttributeName))

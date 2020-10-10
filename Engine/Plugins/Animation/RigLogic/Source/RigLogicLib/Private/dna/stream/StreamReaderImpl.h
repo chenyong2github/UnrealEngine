@@ -22,12 +22,14 @@ class StreamReaderImpl : public ReaderImpl<StreamReader> {
         StreamReaderImpl(BoundedIOStream* stream_, DataLayer layer_, ConstArrayView<std::uint16_t> lods, MemoryResource* memRes_);
 
         void read() override;
+        bool isLODConstrained() const;
 
     private:
         static sc::StatusProvider status;
 
         BoundedIOStream* stream;
         FilteredInputArchive dnaInputArchive;
+        bool lodConstrained;
 };
 
 }  // namespace dna

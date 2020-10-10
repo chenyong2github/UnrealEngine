@@ -194,5 +194,17 @@ namespace ChaosTest {
 	void SetParticleSimDataToCollide(TArray< Chaos::TGeometryParticle<float, 3>* > ParticleArray);
 	void SetParticleSimDataToCollide(TArray< Chaos::TGeometryParticleHandle<float, 3>* > ParticleArray);
 
-	
+
+	/**
+	 * Set settings on Evolution to those used by the tests
+	 */
+	template<typename T_Evolution>
+	void InitEvolutionSettings(T_Evolution& Evolution)
+	{
+		// Settings used for unit tests
+		float ShapePadding = 0.0f;
+		Evolution.GetCollisionConstraints().SetShapePadding(ShapePadding);
+		Evolution.GetBroadPhase().SetShapePadding(ShapePadding);
+	}
+
 }

@@ -8,6 +8,7 @@
 #if WITH_SLATE_DEBUGGING
 
 #include "CoreMinimal.h"
+#include "Debugging/ConsoleSlateDebuggerUtility.h"
 #include "Delegates/Delegate.h"
 #include "FastUpdate/SlateInvalidationRoot.h"
 #include "HAL/IConsoleManager.h"
@@ -38,17 +39,11 @@ public:
 	void SaveConfig();
 
 private:
-	using TSWidgetId = UPTRINT;
-	using TSWindowId = UPTRINT;
-	static const TSWidgetId InvalidWidgetId = 0;
-	static const TSWindowId InvalidWindowId = 0;
-
 	void ToggleLegend();
 	void ToggleWidgetNameList();
 	void HandleEnabled(IConsoleVariable* Variable);
 	void HandlePaintDebugInfo(const FPaintArgs& InArgs, const FGeometry& InAllottedGeometry, FSlateWindowElementList& InOutDrawElements, int32& InOutLayerId);
-	
-	TSWindowId GetWidgetWindowId(const SWidget* Widget) const;
+
 	const FLinearColor& GetColor(ESlateInvalidationPaintType PaintType) const;
 
 private:
@@ -75,7 +70,7 @@ private:
 
 	struct FInvalidatedInfo
 	{
-		TSWindowId WindowId;
+		FConsoleSlateDebuggerUtility::TSWindowId WindowId;
 		ESlateInvalidationPaintType PaintType;
 		FLinearColor FlashingColor;
 		double FlashingSeconds;

@@ -5,6 +5,7 @@
 #include "UObject/Interface.h"
 #include "MovieSceneSequenceID.h"
 #include "Misc/Guid.h"
+#include "Evaluation/MovieScenePlayback.h"
 #include "IMovieSceneEvaluationHook.generated.h"
 
 class IMovieScenePlayer;
@@ -29,6 +30,9 @@ struct FEvaluationHookParams
 {
 	/** The object binding ID for the hook */
 	FGuid ObjectBindingID;
+
+	/** Evaluation context */
+	FMovieSceneContext Context;
 
 	/** The sequence ID for the hook */
 	FMovieSceneSequenceID SequenceID = MovieSceneSequenceID::Root;

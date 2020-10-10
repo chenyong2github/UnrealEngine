@@ -64,7 +64,7 @@ void UCurveLinearColorAtlas::PostEditChangeProperty(struct FPropertyChangedEvent
 				{
 					if (GradientCurves[i] != nullptr)
 					{
-						GradientCurves[i]->OnUpdateGradient.AddUObject(this, &UCurveLinearColorAtlas::UpdateGradientSlot);
+						GradientCurves[i]->OnUpdateCurve.AddUObject(this, &UCurveLinearColorAtlas::OnCurveUpdated);
 					}
 				}
 				UpdateTextures();
@@ -93,7 +93,7 @@ void UCurveLinearColorAtlas::PostLoad()
 	{
 		if (GradientCurves[i] != nullptr)
 		{
-			GradientCurves[i]->OnUpdateGradient.AddUObject(this, &UCurveLinearColorAtlas::UpdateGradientSlot);
+			GradientCurves[i]->OnUpdateCurve.AddUObject(this, &UCurveLinearColorAtlas::OnCurveUpdated);
 		}
 	}
 	Source.Init(TextureSize, TextureSize, 1, 1, TSF_RGBA16F);
@@ -145,23 +145,25 @@ static void UpdateTexture(UCurveLinearColorAtlas& Atlas)
 }
 
 // Immediately render a new material to the specified slot index (SlotIndex must be within this section's range)
-void UCurveLinearColorAtlas::UpdateGradientSlot(UCurveLinearColor* Gradient)
+void UCurveLinearColorAtlas::OnCurveUpdated(UCurveBase* Curve, EPropertyChangeType::Type ChangeType)
 {
-	check(Gradient);
-
-	int32 SlotIndex = GradientCurves.Find(Gradient);
-
-	if (SlotIndex != INDEX_NONE && (uint32)SlotIndex < MaxSlotsPerTexture())
+	if (ChangeType != EPropertyChangeType::Interactive)
 	{
-		// Determine the position of the gradient
-		int32 StartXY = SlotIndex * TextureSize;
+		UCurveLinearColor* Gradient = CastChecked<UCurveLinearColor>(Curve);
 
-		// Render the single gradient to the render target
-		RenderGradient(SrcData, Gradient, StartXY, SizeXY);
+		int32 SlotIndex = GradientCurves.Find(Gradient);
 
-		UpdateTexture(*this);
-	}
-	
+		if (SlotIndex != INDEX_NONE && (uint32)SlotIndex < MaxSlotsPerTexture())
+		{
+			// Determine the position of the gradient
+			int32 StartXY = SlotIndex * TextureSize;
+
+			// Render the single gradient to the render target
+			RenderGradient(SrcData, Gradient, StartXY, SizeXY);
+
+			UpdateTexture(*this);
+		}
+	}	
 }
 
 // Render any textures

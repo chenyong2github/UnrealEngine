@@ -4,58 +4,147 @@
 #include "CoreMinimal.h"
 #include "RemoteControlField.generated.h"
 
-/**
- * Holds a path to a field
- * The full path up to the owning object is described.
- * The object (component) hierarchy is also available to build the full path
- */
-struct FFieldPathInfo
+
+/** Small container for the resolved data of a remote control field segment */
+struct REMOTECONTROL_API FRCFieldResolvedData
 {
-	FFieldPathInfo() = default;
+	/** Type of that segment owner */
+	UStruct* Struct = nullptr;
 
-	FFieldPathInfo(FString&& RelativePath)
-		: FullRelativePath(MoveTemp(RelativePath))
-		, LastDotIndex(INDEX_NONE)
-	{
-		FullRelativePath.FindLastChar(TEXT('.'), LastDotIndex);
-	}
+	/** Container address of this segment */
+	void* ContainerAddress = nullptr;
 	
-	FString GetFieldName() const
-	{
-		return FullRelativePath.RightChop(LastDotIndex + 1);
-	}
+	/** Resolved field for this segment */
+	FProperty* Field = nullptr;
+};
 
-	FString GetPathRelativeToOwner() const
-	{
-		return FullRelativePath.Left(LastDotIndex);
-	}
+/** RemoteControl Path segment holding a property layer */
+USTRUCT()
+struct REMOTECONTROL_API FRCFieldPathSegment
+{
+	GENERATED_BODY()
 
-	FString GetComponentHierarchy() const
-	{
-		//Convert array representation to dotted string
-		FString ComponentHierarchy;
-		if (ComponentChain.Num() > 0)
-		{
-			ComponentHierarchy += ComponentChain[0];
-		}
+public:
+	FRCFieldPathSegment() = default;
 
-		for (int32 Index = 1; Index < ComponentChain.Num(); ++Index)
-		{
-			ComponentHierarchy += TEXT(".");
-			ComponentHierarchy += ComponentChain[Index];
-		}
+	/** Builds a segment from a name. */
+	FRCFieldPathSegment(FStringView SegmentName);
 
-		return ComponentHierarchy;
-	}
+	/** Returns true if a Field was found for a given owner */
+	bool IsResolved() const;
 
-	//Property path up to UObject owner (component, actor, etc...) Struct1.Struct2.Var
-	FString FullRelativePath;
+	/** 
+	 * Converts this segment to a string 
+	 * FieldName, FieldName[Index]
+	 * If bDuplicateContainer is asked, format will be different if its indexed
+	 * FieldName.FieldName[Index]  -> This is to bridge for PathToProperty 
+	 */
+	FString ToString(bool bDuplicateContainer = false) const;
 
-	/** Component hierarchy above the property (SceneComponent, NestedComponent1, NestedComponent2*/
-	TArray<FString> ComponentChain;
 
 private:
-	int32 LastDotIndex = INDEX_NONE;
+	
+	/** Reset resolved pointers */
+	void ClearResolvedData();
+
+public:
+
+	/** Name of the segment */
+	UPROPERTY()
+	FName Name;
+
+	/** Container index if any. */
+	UPROPERTY()
+	int32 ArrayIndex = INDEX_NONE;
+	
+	/** Resolved Data of the segment */
+	FRCFieldResolvedData ResolvedData;
+};
+
+
+/**
+ * Holds a path information to a field
+ * Have facilities to resolve for a given owner
+ */
+ USTRUCT()
+struct REMOTECONTROL_API FRCFieldPathInfo
+{
+	GENERATED_BODY()
+
+public:
+	FRCFieldPathInfo() = default;
+
+	/** 
+	 * Builds a path info from a string of format with '.' delimiters
+	 * Optionally can reduce duplicates when dealing with containers
+	 * If true -> Struct.ArrayName.ArrayName[2].Member will collapse to Struct.ArrayName[2].Member
+	 * This is when being used with PathToProperty
+	 */
+	FRCFieldPathInfo(const FString& PathInfo, bool bSkipDuplicates = false);
+
+public:
+
+	/** Go through each segment and finds the property associated + container address for a given UObject owner */
+	bool Resolve(UObject* Owner);
+
+	/** Returns true if last segment was resolved */
+	bool IsResolved() const;
+
+	/** Returns true if the hash of the string corresponds to the string we were built with */
+	bool IsEqual(FStringView OtherPath) const;
+
+	/** Returns true if hash of both PathInfo matches */
+	bool IsEqual(const FRCFieldPathInfo& OtherPath) const;
+
+	/** 
+	 * Converts this PathInfo to a string
+	 * Walks the full path by default
+	 * If EndSegment is not none, will stop at the desired segment 
+	 */
+	FString ToString(int32 EndSegment = INDEX_NONE) const;
+
+	/**
+	 * Converts this PathInfo to a string of PathToProperty format
+	 * Struct.ArrayName.ArrayName[Index]
+	 * If EndSegment is not none, will stop at the desired segment
+	 */
+	FString ToPathPropertyString(int32 EndSegment = INDEX_NONE) const;
+
+	/** Returns the number of segment in this path */
+	int32 GetSegmentCount() const { return Segments.Num(); }
+
+	/** Gets a segment from this path */
+	const FRCFieldPathSegment& GetFieldSegment(int32 Index) const;
+
+	/** 
+	 * Returns the resolved data of the last segment
+	 * If last segment is not resolved, data won't be valid
+	 */
+	FRCFieldResolvedData GetResolvedData() const;
+
+	/** Returns last segment's name */
+	FName GetFieldName() const;
+
+	/** Builds a property change event from all the segments */
+	FPropertyChangedEvent ToPropertyChangedEvent(EPropertyChangeType::Type InChangeType = EPropertyChangeType::Unspecified) const;
+
+	/** Builds an EditPropertyChain from the segments */
+	void ToEditPropertyChain(FEditPropertyChain& OutPropertyChain) const;
+
+private:
+
+	/** Recursively resolves all segment until the final one */
+	bool ResolveInternalRecursive(UStruct* OwnerType, void* ContainerAddress, int32 SegmentIndex);
+
+public:
+
+	/** List of segments to point to a given field */
+	UPROPERTY()
+	TArray<FRCFieldPathSegment> Segments;
+
+	/** Hash created from the string we were built from to quickly compare to paths */
+	UPROPERTY()
+	uint32 PathHash = 0;
 };
 
 /**
@@ -90,9 +179,6 @@ struct REMOTECONTROL_API FRemoteControlField
 	bool operator==(FGuid InFieldId) const;
 	friend uint32 GetTypeHash(const FRemoteControlField& InField);
 
-	/** Returns the field name including its relative path to owner [path.fieldname] */
-	FString GetQualifiedFieldName() const;
-
 public:
 	/**
 	 * The field's type.
@@ -119,22 +205,25 @@ public:
 	FGuid Id;
 
 	/**
-	 * If not empty, holds the field's path relative to its owner.
+	 * Path information pointing to this field
 	 */
 	UPROPERTY()
-	FString PathRelativeToOwner;
+	FRCFieldPathInfo FieldPathInfo;
 
+	/**
+	 * Component hierarchy of this field starting after the actor owner
+	 */
 	UPROPERTY()
-	FString ComponentHierarchy;
+	TArray<FString> ComponentHierarchy;
 
 	/**
 	 * Metadata for this field.
 	 */
 	UPROPERTY()
 	TMap<FString, FString> Metadata;
-	
+
 protected:
-	FRemoteControlField(EExposedFieldType InType, FName InLabel, FFieldPathInfo&& FieldPathInfo);
+	FRemoteControlField(EExposedFieldType InType, FName InLabel, FRCFieldPathInfo FieldPathInfo, TArray<FString> InComponentHierarchy);
 };
 
 /**
@@ -146,7 +235,7 @@ struct REMOTECONTROL_API FRemoteControlProperty : public FRemoteControlField
 	GENERATED_BODY()
 
 	FRemoteControlProperty() = default;
-	FRemoteControlProperty(FName InLabel, FFieldPathInfo FieldPathInfo);
+	FRemoteControlProperty(FName InLabel, FRCFieldPathInfo FieldPathInfo, TArray<FString> InComponentHierarchy);
 };
 
 /**
@@ -159,7 +248,7 @@ struct REMOTECONTROL_API FRemoteControlFunction : public FRemoteControlField
 
 	FRemoteControlFunction() = default;
 
-	FRemoteControlFunction(FName InLabel, FFieldPathInfo FieldPathInfo, UFunction* InFunction);
+	FRemoteControlFunction(FName InLabel, FRCFieldPathInfo FieldPathInfo, UFunction* InFunction);
 	 
 	/**
 	 * The exposed function.

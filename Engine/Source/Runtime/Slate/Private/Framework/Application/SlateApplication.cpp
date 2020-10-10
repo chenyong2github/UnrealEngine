@@ -3833,13 +3833,13 @@ bool FSlateApplication::TakeScreenshot(const TSharedRef<SWidget>& Widget, const 
 	ScreenshotRect.Max.X += ( Position.X - WindowPosition.X );
 	ScreenshotRect.Max.Y += ( Position.Y - WindowPosition.Y );
 
-	Renderer->PrepareToTakeScreenshot(ScreenshotRect, &OutColorData);
+	Renderer->PrepareToTakeScreenshot(ScreenshotRect, &OutColorData, WidgetWindow.Get());
 	PrivateDrawWindows(WidgetWindow);
 
 	OutSize.X = ScreenshotRect.Size().X;
 	OutSize.Y = ScreenshotRect.Size().Y;
 
-	return (OutSize.X != 0 && OutSize.Y != 0);
+	return (OutSize.X != 0 && OutSize.Y != 0 && OutColorData.Num() >= OutSize.X * OutSize.Y);
 }
 
 TSharedRef<FSlateVirtualUserHandle> FSlateApplication::FindOrCreateVirtualUser(int32 VirtualUserIndex)

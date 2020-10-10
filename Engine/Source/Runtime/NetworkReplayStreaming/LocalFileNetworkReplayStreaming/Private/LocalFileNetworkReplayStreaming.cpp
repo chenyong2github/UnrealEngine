@@ -671,22 +671,12 @@ void FLocalFileNetworkReplayStreamer::StartStreaming(const FStartStreamingParame
 		return;
 	}
 
-	FString FinalDemoName = Params.CustomName;
-
-	if (Params.CustomName.IsEmpty())
+	if (Params.CustomName.IsEmpty() && !Params.bRecord)
 	{
-		if (Params.bRecord)
-		{
-			// If we're recording and the caller didn't provide a name, generate one automatically
-			FinalDemoName = GetAutomaticDemoName();
-		}
-		else
-		{
-			// Can't play a replay if the user didn't provide a name!
-			Result.Result = EStreamingOperationResult::ReplayNotFound;
-			Delegate.ExecuteIfBound(Result);
-			return;
-		}
+		// Can't play a replay if the user didn't provide a name!
+		Result.Result = EStreamingOperationResult::ReplayNotFound;
+		Delegate.ExecuteIfBound(Result);
+		return;
 	}
 
 	// Setup the archives
@@ -709,18 +699,6 @@ void FLocalFileNetworkReplayStreamer::StartStreaming(const FStartStreamingParame
 
 	LastChunkTime = FPlatformTime::Seconds();
 
-	const FString FullDemoFilename = GetDemoFullFilename(FinalDemoName);
-
-	// only record to valid replay file names
-	if (Params.bRecord && (FinalDemoName.IsEmpty() || !FullDemoFilename.EndsWith(FNetworkReplayStreaming::GetReplayFileExtension())))
-	{
-		UE_LOG(LogLocalFileReplay, Warning, TEXT("FLocalFileNetworkReplayStreamer::StartStreaming. Invalid replay file name for recording: %s"), *FullDemoFilename);
-		Delegate.ExecuteIfBound(Result);
-		return;
-	}
-
-	CurrentStreamName = FinalDemoName;
-
 	if (!Params.bRecord)
 	{
 		// We are playing
@@ -728,8 +706,12 @@ void FLocalFileNetworkReplayStreamer::StartStreaming(const FStartStreamingParame
 
 		// Add the request to start loading
 		AddDelegateFileRequestToQueue<FStartStreamingResult>(EQueuedLocalFileRequestType::StartPlayback, 
-			[this, FullDemoFilename](TLocalFileRequestCommonData<FStartStreamingResult>& RequestData)
+			[this, Params](TLocalFileRequestCommonData<FStartStreamingResult>& RequestData)
 			{
+				CurrentStreamName = Params.CustomName;
+
+				const FString FullDemoFilename = GetDemoFullFilename(Params.CustomName);
+
 				RequestData.DelegateResult.bRecording = false;
 				
 				if (!FPaths::FileExists(FullDemoFilename))
@@ -797,9 +779,28 @@ void FLocalFileNetworkReplayStreamer::StartStreaming(const FStartStreamingParame
 		}
 
 		AddDelegateFileRequestToQueue<FStartStreamingResult>(EQueuedLocalFileRequestType::StartRecording,
-			[this, FullDemoFilename, Params, FinalDemoName, EncryptionKey=CurrentReplayInfo.EncryptionKey](TLocalFileRequestCommonData<FStartStreamingResult>& RequestData)
+			[this, Params, EncryptionKey=CurrentReplayInfo.EncryptionKey](TLocalFileRequestCommonData<FStartStreamingResult>& RequestData)
 			{
 				SCOPE_CYCLE_COUNTER(STAT_LocalReplay_StartRecording);
+
+				FString FinalDemoName = Params.CustomName;
+
+				if (Params.CustomName.IsEmpty())
+				{
+					// If we're recording and the caller didn't provide a name, generate one automatically
+					FinalDemoName = GetAutomaticDemoName();
+				}
+
+				CurrentStreamName = FinalDemoName;
+
+				const FString FullDemoFilename = GetDemoFullFilename(FinalDemoName);
+
+				// only record to valid replay file names
+				if ((FinalDemoName.IsEmpty() || !FullDemoFilename.EndsWith(FNetworkReplayStreaming::GetReplayFileExtension())))
+				{
+					UE_LOG(LogLocalFileReplay, Warning, TEXT("FLocalFileNetworkReplayStreamer::StartStreaming. Invalid replay file name for recording: %s"), *FullDemoFilename);
+					return;
+				}
 
 				RequestData.DelegateResult.bRecording = true;
 
@@ -1123,22 +1124,21 @@ void FLocalFileNetworkReplayStreamer::AddOrUpdateEvent(const FString& Name, cons
 
 	UE_LOG(LogLocalFileReplay, Verbose, TEXT("FLocalFileNetworkReplayStreamer::AddOrUpdateEvent. Size: %i"), Data.Num());
 
-
-	FString EventName = Name;
-
-	// if name is empty, assign one
-	if (EventName.IsEmpty())
-	{
-		EventName = FGuid::NewGuid().ToString(EGuidFormats::Digits);
-	}
-
-	// prefix with stream name to be consistent with http streamer
-	EventName = CurrentStreamName + TEXT("_") + EventName;
-
 	AddGenericRequestToQueue<FLocalFileReplayInfo>(EQueuedLocalFileRequestType::UpdatingEvent,
-		[this, EventName, Group, TimeInMS, Meta, Data, EncryptionKey=CurrentReplayInfo.EncryptionKey](FLocalFileReplayInfo& ReplayInfo)
+		[this, Name, Group, TimeInMS, Meta, Data, EncryptionKey=CurrentReplayInfo.EncryptionKey](FLocalFileReplayInfo& ReplayInfo)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_LocalReplay_FlushEvent);
+
+			FString EventName = Name;
+
+			// if name is empty, assign one
+			if (EventName.IsEmpty())
+			{
+				EventName = FGuid::NewGuid().ToString(EGuidFormats::Digits);
+			}
+
+			// prefix with stream name to be consistent with http streamer
+			EventName = CurrentStreamName + TEXT("_") + EventName;
 
 			if (ReadReplayInfo(CurrentStreamName, ReplayInfo, EReadReplayInfoFlags::SkipHeaderChunkTest))
 			{
@@ -1265,7 +1265,7 @@ void FLocalFileNetworkReplayStreamer::EnumerateEvents(const FString& ReplayName,
 
 void FLocalFileNetworkReplayStreamer::EnumerateEvents(const FString& Group, const FEnumerateEventsCallback& Delegate)
 {
-	EnumerateEvents_Internal(CurrentStreamName, Group, INDEX_NONE, Delegate);
+	EnumerateEvents_Internal(FString(), Group, INDEX_NONE, Delegate);
 }
 
 void FLocalFileNetworkReplayStreamer::EnumerateEvents_Internal(const FString& ReplayName, const FString& Group, const int32 UserIndex, const FEnumerateEventsCallback& Delegate)
@@ -1273,7 +1273,13 @@ void FLocalFileNetworkReplayStreamer::EnumerateEvents_Internal(const FString& Re
 	AddDelegateFileRequestToQueue<FEnumerateEventsCallback, FEnumerateEventsResult>(EQueuedLocalFileRequestType::EnumeratingEvents, Delegate,
 		[this, ReplayName, Group](TLocalFileRequestCommonData<FEnumerateEventsResult>& RequestData)
 		{
-			if (!FPaths::FileExists(GetDemoFullFilename(ReplayName)))
+			FString FileName = ReplayName;
+			if (FileName.IsEmpty())
+			{
+				FileName = CurrentStreamName;
+			}
+
+			if (!FPaths::FileExists(GetDemoFullFilename(FileName)))
 			{
 				RequestData.DelegateResult.Result = EStreamingOperationResult::ReplayNotFound;
 			}
@@ -1281,7 +1287,7 @@ void FLocalFileNetworkReplayStreamer::EnumerateEvents_Internal(const FString& Re
 			{
 				// Read stored info for this replay
 				FLocalFileReplayInfo StoredReplayInfo;
-				if (ReadReplayInfo(ReplayName, StoredReplayInfo))
+				if (ReadReplayInfo(FileName, StoredReplayInfo))
 				{
 					for (const FLocalFileEventInfo& EventInfo : StoredReplayInfo.Events)
 					{
@@ -1316,17 +1322,7 @@ void FLocalFileNetworkReplayStreamer::RequestEventData(const FString& ReplayName
 
 void FLocalFileNetworkReplayStreamer::RequestEventData(const FString& EventID, const FRequestEventDataCallback& Delegate)
 {
-	// Assume current stream
-	FString StreamName = CurrentStreamName;
-
-	// But look for name prefix, http streamer expects to pull details from arbitrary streams
-	int32 Idx = INDEX_NONE;
-	if (EventID.FindChar(TEXT('_'), Idx))
-	{
-		StreamName = EventID.Left(Idx);
-	}
-
-	RequestEventData_Internal(StreamName, EventID, INDEX_NONE, Delegate);
+	RequestEventData_Internal(FString(), EventID, INDEX_NONE, Delegate);
 }
 
 void FLocalFileNetworkReplayStreamer::RequestEventData_Internal(const FString& ReplayName, const FString& EventID, const int32 UserIndex, const FRequestEventDataCallback& RequestEventDataComplete)
@@ -1336,7 +1332,20 @@ void FLocalFileNetworkReplayStreamer::RequestEventData_Internal(const FString& R
 		{
 			SCOPE_CYCLE_COUNTER(STAT_LocalReplay_ReadEvent);
 
-			const FString FullDemoFilename = GetDemoFullFilename(ReplayName);
+			FString FileName = ReplayName;
+			if (FileName.IsEmpty())
+			{
+				// Assume current stream
+				FileName = CurrentStreamName;
+
+				// But look for name prefix, http streamer expects to pull details from arbitrary streams
+				int32 Idx = INDEX_NONE;
+				if (EventID.FindChar(TEXT('_'), Idx))
+				{
+					FileName = EventID.Left(Idx);
+				}
+			}
+			const FString FullDemoFilename = GetDemoFullFilename(FileName);
 			if (!FPaths::FileExists(FullDemoFilename))
 			{
 				RequestData.DelegateResult.Result = EStreamingOperationResult::ReplayNotFound;
@@ -1345,7 +1354,7 @@ void FLocalFileNetworkReplayStreamer::RequestEventData_Internal(const FString& R
 			{
 				// Read stored info for this replay
 				FLocalFileReplayInfo StoredReplayInfo;
-				if (ReadReplayInfo(ReplayName, StoredReplayInfo))
+				if (ReadReplayInfo(FileName, StoredReplayInfo))
 				{
 					TSharedPtr<FArchive> LocalFileAr = CreateLocalFileReader(FullDemoFilename);
 					if (LocalFileAr.IsValid())
@@ -1402,7 +1411,7 @@ void FLocalFileNetworkReplayStreamer::RequestEventData_Internal(const FString& R
 
 void FLocalFileNetworkReplayStreamer::RequestEventGroupData(const FString& Group, const FRequestEventGroupDataCallback& Delegate)
 {
-	RequestEventGroupData(CurrentStreamName, Group, Delegate);
+	RequestEventGroupData(FString(), Group, Delegate);
 }
 
 void FLocalFileNetworkReplayStreamer::RequestEventGroupData(const FString& ReplayName, const FString& Group, const FRequestEventGroupDataCallback& Delegate)
@@ -1417,7 +1426,13 @@ void FLocalFileNetworkReplayStreamer::RequestEventGroupData(const FString& Repla
 		{
 			SCOPE_CYCLE_COUNTER(STAT_LocalReplay_ReadEvent);
 
-			const FString FullDemoFilename = GetDemoFullFilename(ReplayName);
+			FString FileName = ReplayName;
+			if (FileName.IsEmpty())
+			{
+				FileName = CurrentStreamName;
+			}
+
+			const FString FullDemoFilename = GetDemoFullFilename(FileName);
 			if (!FPaths::FileExists(FullDemoFilename))
 			{
 				RequestData.DelegateResult.Result = EStreamingOperationResult::ReplayNotFound;
@@ -1426,7 +1441,7 @@ void FLocalFileNetworkReplayStreamer::RequestEventGroupData(const FString& Repla
 			{
 				// Read stored info for this replay
 				FLocalFileReplayInfo StoredReplayInfo;
-				if (ReadReplayInfo(ReplayName, StoredReplayInfo))
+				if (ReadReplayInfo(FileName, StoredReplayInfo))
 				{
 					TSharedPtr<FArchive> LocalFileAr = CreateLocalFileReader(FullDemoFilename);
 					if (LocalFileAr.IsValid())
@@ -1642,7 +1657,7 @@ void FLocalFileNetworkReplayStreamer::FlushStream(const uint32 TimeInMS)
 {
 	check( StreamAr.IsSaving() );
 
-	if (CurrentStreamName.IsEmpty() || IsFileRequestPendingOrInProgress(EQueuedLocalFileRequestType::WriteHeader))
+	if (IsFileRequestPendingOrInProgress(EQueuedLocalFileRequestType::WriteHeader))
 	{
 		// If we haven't uploaded the header, or we are not recording, we don't need to flush
 		UE_LOG( LogLocalFileReplay, Warning, TEXT( "FLocalFileNetworkReplayStreamer::FlushStream. Waiting on header upload." ) );
@@ -1790,7 +1805,7 @@ void FLocalFileNetworkReplayStreamer::FlushCheckpoint(const uint32 TimeInMS)
 
 void FLocalFileNetworkReplayStreamer::FlushCheckpointInternal(const uint32 TimeInMS)
 {
-	if (CurrentStreamName.IsEmpty() || StreamerState != EStreamerState::Recording || CheckpointAr.Buffer.Num() == 0)
+	if (StreamerState != EStreamerState::Recording || CheckpointAr.Buffer.Num() == 0)
 	{
 		// If there is no active session, or we are not recording, we don't need to flush
 		CheckpointAr.Buffer.Empty();
@@ -2598,7 +2613,7 @@ FString FLocalFileNetworkReplayStreamer::GetAutomaticDemoName() const
 				UE_LOG(LogLocalFileReplay, Log, TEXT("FLocalFileNetworkReplayStreamer::GetAutomaticDemoName. Unable to determine free space in %s."), *GetDemoPath());
 				return AutoPrefix + FDateTime::Now().ToString();
 			}
-			uint64 MinFreeSpace = LocalFileReplay::CVarReplayRecordingMinSpace.GetValueOnGameThread();
+			uint64 MinFreeSpace = LocalFileReplay::CVarReplayRecordingMinSpace.GetValueOnAnyThread();
 
 			const FString WildCardPath = GetDemoFullFilename(AutoPrefix + FString(TEXT("*")));
 

@@ -1373,39 +1373,39 @@ void UUnrealEdEngine::DrawComponentVisualizersHUD(const FViewport* Viewport, con
 }
 
 void UUnrealEdEngine::AddVisualizers(AActor* Actor, TArray<FCachedComponentVisualizer>& Visualizers, TFunctionRef<bool(const TSharedPtr<FComponentVisualizer>&)> Condition)
-{
-	TInlineComponentArray<UActorComponent*> Components;
-	Actor->GetComponents(Components, true);
-
-	for(int32 CompIdx = 0; CompIdx < Components.Num(); CompIdx++)
-	{
-		UActorComponent* Comp = Components[CompIdx];
-		if(Comp->IsRegistered())
 		{
-			// Try and find a visualizer
-			TSharedPtr<FComponentVisualizer> Visualizer = FindComponentVisualizer(Comp->GetClass());
+				TInlineComponentArray<UActorComponent*> Components;
+				Actor->GetComponents(Components, true);
+
+				for(int32 CompIdx = 0; CompIdx < Components.Num(); CompIdx++)
+				{
+					UActorComponent* Comp = Components[CompIdx];
+					if(Comp->IsRegistered())
+					{
+						// Try and find a visualizer
+						TSharedPtr<FComponentVisualizer> Visualizer = FindComponentVisualizer(Comp->GetClass());
 			if(Visualizer.IsValid() && Condition(Visualizer))
-			{
+						{
 				Visualizers.Add(FCachedComponentVisualizer(Comp, Visualizer));
+					}
+				}
 			}
 		}
-	}
-}
 
 void UUnrealEdEngine::OnEditorSelectionChanged(UObject* SelectionThatChanged)
-{
+		{
 	if(SelectionThatChanged == GetSelectedActors())
-	{
+			{
 		// actor selection changed.  Update the list of component visualizers
 		// This is expensive so we do not search for visualizers each time they want to draw
 		VisualizersForSelection.Empty();
-
+				
 		// Iterate over all selected actors
 		for(FSelectionIterator It(GetSelectedActorIterator()); It; ++It)
-		{
+	{
 			AActor* Actor = Cast<AActor>(*It);
 			if(Actor != nullptr)
-			{
+		{
 				AddVisualizers(Actor, VisualizersForSelection, [](const TSharedPtr<FComponentVisualizer>& Visualizer) { return Visualizer->ShowWhenSelected(); });
 			}
 		}

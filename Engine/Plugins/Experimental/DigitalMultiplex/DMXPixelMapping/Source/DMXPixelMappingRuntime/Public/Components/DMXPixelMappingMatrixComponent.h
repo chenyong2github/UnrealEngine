@@ -39,6 +39,10 @@ public:
 	virtual void Render() override;
 	virtual void RenderAndSendDMX() override;
 	virtual void PostParentAssigned() override;
+
+#if WITH_EDITOR
+	virtual FString GetUserFriendlyName() const override;
+#endif
 	//~ End UDMXPixelMappingBaseComponent implementation
 
 	//~ Begin FTickableGameObject begin
@@ -72,11 +76,11 @@ public:
 	/** Resize the target to max available size, it is driven by children components */
 	void SetSizeWithinMaxBoundaryBox();
 
-	void SetPositionBasedOnRelativePixel(UDMXPixelMappingMatrixPixelComponent* InMatrixPixelComponent, FVector2D InDelta);
+	void SetPositionBasedOnRelativePixel(UDMXPixelMappingMatrixCellComponent* InMatrixPixelComponent, FVector2D InDelta);
 
 	void SetNumPixels(const FIntPoint& InNumPixels);
 
-	void SetChildSizeAndPosition(UDMXPixelMappingMatrixPixelComponent* InMatrixPixelComponent, const FIntPoint& InPixelCoordinate);
+	void SetChildSizeAndPosition(UDMXPixelMappingMatrixCellComponent* InMatrixPixelComponent, const FIntPoint& InPixelCoordinate);
 
 	/** Check if a Component can be moved under another one (used for copy/move/duplicate) */
 	virtual bool CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const override;
@@ -95,14 +99,14 @@ public:
 	FDMXEntityFixturePatchRef FixturePatchMatrixRef;
 
 	/** Extra attributes for the whole Matrix Fixture */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Setting")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings")
 	TArray<FDMXPixelMappingExtraAttribute> ExtraAttributes;
 
 	/** Extra attributes for each Matrix Fixture Cell */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Setting")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings")
 	TArray<FDMXPixelMappingExtraAttribute> ExtraCellAttributes;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Setting")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings")
 	EDMXColorMode ColorMode;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings", meta = (DisplayName = "R"))
@@ -148,7 +152,7 @@ public:
 	FVector2D PixelSize;
 
 	UPROPERTY()
-	EDMXPixelsDistribution Distribution;
+	EDMXPixelMappingDistribution Distribution;
 
 private:
 	UPROPERTY(Transient)
@@ -158,6 +162,8 @@ private:
 	FSlateBrush Brush;
 
 	bool bIsUpdateWidgetRequested;
+
+	TSharedPtr<STextBlock> PatchNameWidget;
 #endif
 
 	float PositionXCached;

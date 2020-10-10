@@ -48,6 +48,11 @@ UVCamComponent::UVCamComponent()
 
 		FEditorDelegates::BeginPIE.AddUObject(this, &UVCamComponent::OnBeginPIE);
 		FEditorDelegates::EndPIE.AddUObject(this, &UVCamComponent::OnEndPIE);
+
+		if (GEditor)
+		{
+			GEditor->OnObjectsReplaced().AddUObject(this, &UVCamComponent::HandleObjectReplaced);
+		}
 #endif
 	}
 }
@@ -74,7 +79,45 @@ void UVCamComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 
 	FEditorDelegates::BeginPIE.RemoveAll(this);
 	FEditorDelegates::EndPIE.RemoveAll(this);
+
+	if (GEditor)
+	{
+		GEditor->OnObjectsReplaced().RemoveAll(this);
+	}
 #endif
+}
+
+void UVCamComponent::HandleObjectReplaced(const TMap<UObject*, UObject*>& ReplacementMap)
+{
+	for (const TPair<UObject*, UObject*> ReplacementPair : ReplacementMap)
+	{
+		UObject* FromObject = ReplacementPair.Key;
+		UObject* ToObject = ReplacementPair.Value;
+
+		if (ToObject == this)
+		{
+			if (UVCamComponent* OldComponent = Cast<UVCamComponent>(FromObject))
+			{
+				OldComponent->NotifyComponentWasReplaced(this);
+			}
+
+			OnComponentReplaced.Broadcast(this);
+		}
+	}
+}
+
+
+void UVCamComponent::NotifyComponentWasReplaced(UVCamComponent* ReplacementComponent)
+{
+	// This function should only ever be called when we have a valid component replacing us
+	check(ReplacementComponent);
+
+	// Make sure to copy over our delegate bindings to the component replacing us
+	ReplacementComponent->OnComponentReplaced = OnComponentReplaced;
+
+	OnComponentReplaced.Clear();
+
+	DestroyComponent();
 }
 
 bool UVCamComponent::CanUpdate() const
@@ -222,22 +265,28 @@ void UVCamComponent::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 				const int32 ChangedIndex = PropertyChangedEvent.GetArrayIndex(PropertyChangedEvent.GetPropertyName().ToString());
 				if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet)
 				{
-					UVCamOutputProviderBase* ChangedProvider = OutputProviders[ChangedIndex];
-
-					// If we changed the output type, be sure to delete the old one before setting up the new one
-					if (SavedOutputProviders[ChangedIndex] != ChangedProvider)
+					if (OutputProviders.IsValidIndex(ChangedIndex))
 					{
-						DestroyOutputProvider(SavedOutputProviders[ChangedIndex]);
-					}
+						UVCamOutputProviderBase* ChangedProvider = OutputProviders[ChangedIndex];
 
-					if (ChangedProvider)
-					{
-						ChangedProvider->Initialize();
+						// If we changed the output type, be sure to delete the old one before setting up the new one
+						if (SavedOutputProviders.IsValidIndex(ChangedIndex) && (SavedOutputProviders[ChangedIndex] != ChangedProvider))
+						{
+							DestroyOutputProvider(SavedOutputProviders[ChangedIndex]);
+						}
+
+						if (ChangedProvider)
+						{
+							ChangedProvider->Initialize();
+						}
 					}
 				}
 				else if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayRemove)
 				{
-					DestroyOutputProvider(SavedOutputProviders[ChangedIndex]);
+					if (SavedOutputProviders.IsValidIndex(ChangedIndex))
+					{
+						DestroyOutputProvider(SavedOutputProviders[ChangedIndex]);
+					}
 				}
 				else if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayClear)
 				{

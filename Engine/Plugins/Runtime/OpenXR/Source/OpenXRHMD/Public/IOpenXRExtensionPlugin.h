@@ -128,6 +128,20 @@ public:
 	virtual IOpenXRCustomAnchorSupport* GetCustomAnchorSupport() { return nullptr; }
 
 	/**
+	* Callback to provide extra view configurations that should be rendered in the main render pass
+	*/
+	virtual void GetViewConfigurations(XrSystemId InSystem, TArray<XrViewConfigurationView>& OutViews)
+	{
+	}
+
+	/**
+	* Callback to provide the pose and fov of each view that was provided in GetViewConfigurations
+	*/
+	virtual void GetViewLocations(XrSession InSession, XrTime InDisplayTime, XrSpace InViewSpace, TArray<XrView>& OutViews)
+	{
+	}
+
+	/**
 	* Callbacks with returned pointer added to next chain, do *not* return pointers to structs on the stack.
 	* Remember to assign InNext to the next pointer of your struct or otherwise you may break the next chain.
 	*/
@@ -156,6 +170,11 @@ public:
 		return InNext;
 	}
 
+	virtual const void* OnWaitFrame(XrSession InSession, const void* InNext)
+	{
+		return InNext;
+	}
+
 	// OpenXRHMD::OnBeginRendering_RenderThread
 	virtual const void* OnBeginFrame(XrSession InSession, XrTime DisplayTime, const void* InNext)
 	{
@@ -178,7 +197,7 @@ public:
 	}
 
 	// FOpenXRRenderBridge::Present, RHI thread
-	virtual const void* OnEndFrame(XrSession InSession, XrTime DisplayTime, const void* InNext)
+	virtual const void* OnEndFrame(XrSession InSession, XrTime DisplayTime, const TArray<XrSwapchainSubImage> InColorImages, const TArray<XrSwapchainSubImage> InDepthImages, const void* InNext)
 	{
 		return InNext;
 	}
@@ -193,4 +212,21 @@ public:
 	virtual void PostSyncActions(XrSession InSession, XrTime DisplayTime, XrSpace TrackingSpace)
 	{
 	}
+
+
+	/**
+	 * Start the AR system.
+	 *
+	 * @param SessionType The type of AR session to create
+	 *
+	 * @return true if the system was successfully started
+	 */
+	virtual void OnStartARSession(class UARSessionConfig* SessionConfig) {}
+
+	/** Stop the AR system but leave its internal state intact. */
+	virtual void OnPauseARSession() {}
+
+	/** Stop the AR system and reset its internal state; this task must succeed. */
+	virtual void OnStopARSession() {}
+
 };

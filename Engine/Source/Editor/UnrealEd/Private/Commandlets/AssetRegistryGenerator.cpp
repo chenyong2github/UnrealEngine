@@ -1399,7 +1399,44 @@ bool FAssetRegistryGenerator::SaveAssetRegistry(const FString& SandboxPath, bool
 	return true;
 }
 
-bool FAssetRegistryGenerator::WriteCookerOpenOrder()
+class FPackageCookerOpenOrderVisitor : public IPlatformFile::FDirectoryVisitor
+{
+	const FString& SandboxRootPath;
+	const FString& RelativePathToRoot;
+	const TSet<FString>& ValidExtensions;
+	TMultiMap<FString, FString>& PackageExtensions;
+public:
+	FPackageCookerOpenOrderVisitor(const FString& InSandboxRootPath,
+		const FString& InRelativePathToRoot,
+		const TSet<FString>& InValidExtensions,
+		TMultiMap<FString, FString>& OutPackageExtensions) :
+		SandboxRootPath(InSandboxRootPath),
+		RelativePathToRoot(InRelativePathToRoot),
+		ValidExtensions(InValidExtensions),
+		PackageExtensions(OutPackageExtensions)
+	{}
+
+	virtual bool Visit(const TCHAR* FilenameOrDirectory, bool bIsDirectory)
+	{
+		if (bIsDirectory)
+			return true;
+
+		FString Filename = FilenameOrDirectory;
+		FString FileExtension = FPaths::GetExtension(Filename, true);
+
+		if (ValidExtensions.Contains(FileExtension))
+		{
+			Filename.ReplaceInline(*SandboxRootPath, *RelativePathToRoot);
+			FString PackageName = FPackageName::FilenameToLongPackageName(Filename);
+
+			PackageExtensions.AddUnique(PackageName, Filename);
+		}
+
+		return true;
+	}
+};
+
+bool FAssetRegistryGenerator::WriteCookerOpenOrder(FSandboxPlatformFile* InSandboxFile)
 {
 	TSet<FName> PackageNameSet;
 	TSet<FName> MapList;
@@ -1466,14 +1503,43 @@ bool FAssetRegistryGenerator::WriteCookerOpenOrder()
 		{
 			AddAssetToFileOrderRecursive(PackageName, FileOrder, EncounteredNames, PackageNameSet, MapList);
 		}
+		
+		// Iterate sandbox folder and generate a map from package name to cooked files
+		const TArray<FString> ValidExtensions =
+		{
+			TEXT(".uasset"),
+			TEXT(".uexp"),
+			TEXT(".ubulk"),
+			TEXT(".uptnl"),
+			TEXT(".umap"),
+			TEXT(".ufont")
+		};
+		const TSet<FString> ValidExtensionSet(ValidExtensions);
+
+		FString SandboxPath = InSandboxFile->GetSandboxDirectory();
+		const FString Platform = TargetPlatform->PlatformName();
+		SandboxPath.ReplaceInline(TEXT("[Platform]"), *Platform);
+
+		const FString RelativePathToRoot = FPaths::GetRelativePathToRoot();
+		TMultiMap<FString, FString> CookedPackageFilesMap;
+		FPackageCookerOpenOrderVisitor PackageSearch(SandboxPath, RelativePathToRoot, ValidExtensionSet, CookedPackageFilesMap);
+		IFileManager::Get().IterateDirectoryRecursively(*SandboxPath, PackageSearch);
 
 		int32 CurrentIndex = 0;
 		for (FName PackageName : FileOrder)
 		{
-			bool bIsMap = MapList.Contains(PackageName);
-			FString Filename = FPackageName::LongPackageNameToFilename(PackageName.ToString(), bIsMap ? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension());
-			FString Line = FString::Printf(TEXT("\"%s\" %i\n"), *Filename, CurrentIndex++);
-			CookerFileOrderString.Append(Line);
+			TArray<FString> CookedFiles;
+			CookedPackageFilesMap.MultiFind(PackageName.ToString(), CookedFiles);
+			CookedFiles.Sort([&ValidExtensions](const FString& A, const FString& B)
+			{
+				return ValidExtensions.IndexOfByKey(FPaths::GetExtension(A, true)) < ValidExtensions.IndexOfByKey(FPaths::GetExtension(B, true));
+			});
+
+			for (const FString& CookedFile : CookedFiles)
+			{
+				FString Line = FString::Printf(TEXT("\"%s\" %i\n"), *CookedFile, CurrentIndex++);
+				CookerFileOrderString.Append(Line);
+			}
 		}
 	}
 

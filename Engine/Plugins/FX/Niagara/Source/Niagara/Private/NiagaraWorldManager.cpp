@@ -1068,7 +1068,8 @@ void FNiagaraWorldManager::DistanceCull(UNiagaraEffectType* EffectType, const FN
 
 		if (GEnableNiagaraDistanceCulling && ScalabilitySettings.bCullByDistance)
 		{
-			bool bCull = ClosestDistSq > ScalabilitySettings.MaxDistance;
+			float ClosestDist = FMath::Sqrt(ClosestDistSq);
+			bool bCull = ClosestDist > ScalabilitySettings.MaxDistance;
 			OutState.bCulled |= bCull;
 #if DEBUG_SCALABILITY_STATE
 			OutState.bCulledByDistance = bCull;

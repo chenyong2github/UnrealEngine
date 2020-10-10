@@ -156,7 +156,7 @@ public:
 	 * Allocates reflection captures in the scene's reflection cubemap array and updates them by recapturing the scene.
 	 * Existing captures will only be updated.  Must be called from the game thread.
 	 */
-	virtual void AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent*>& NewCaptures, const TCHAR* CaptureReason, bool bVerifyOnlyCapturing) {}
+	virtual void AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent*>& NewCaptures, const TCHAR* CaptureReason, bool bVerifyOnlyCapturing, bool bCapturingForMobile) {}
 	virtual void ReleaseReflectionCubemap(UReflectionCaptureComponent* CaptureComponent) {}
 
 	/** 
@@ -306,6 +306,24 @@ public:
 	 * @param VolumetricCloudSceneProxy - the sky atmosphere proxy
 	 */
 	virtual void RemoveVolumetricCloud(FVolumetricCloudSceneProxy* VolumetricCloudSceneProxy) = 0;
+
+	/**
+	 * Set the physics field scene proxy to the scene
+	 *
+	 * @param PhysicsFieldSceneProxy - the physics field scene proxy
+	 */
+	virtual void SetPhysicsField(class FPhysicsFieldSceneProxy* PhysicsFieldSceneProxy) = 0;
+
+	/**
+	 * Reset the physics field scene proxy
+	 */
+	virtual void ResetPhysicsField() = 0;
+
+	/**
+	 * Reset the physics field scene proxy
+	 */
+	virtual void UpdatePhysicsField(FRHICommandListImmediate& RHICmdList, FViewInfo& View) = 0;
+
 	/**
 	 * Returns the scene's unique info if it exists
 	 */

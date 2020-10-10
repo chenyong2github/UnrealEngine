@@ -258,13 +258,13 @@ void MarkValid_PrepareCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	const uint BaseClusterIndex = 6 * ClusterIndex;
 
 	FHairAABB ClusterBound;
-	ClusterBound.Min.x = ClusterAABBsBuffer[BaseClusterIndex + 0];
-	ClusterBound.Min.y = ClusterAABBsBuffer[BaseClusterIndex + 1];
-	ClusterBound.Min.z = ClusterAABBsBuffer[BaseClusterIndex + 2];
+	ClusterBound.Min.x = float(ClusterAABBsBuffer[BaseClusterIndex + 0]);
+	ClusterBound.Min.y = float(ClusterAABBsBuffer[BaseClusterIndex + 1]);
+	ClusterBound.Min.z = float(ClusterAABBsBuffer[BaseClusterIndex + 2]);
 
-	ClusterBound.Max.x = ClusterAABBsBuffer[BaseClusterIndex + 3];
-	ClusterBound.Max.y = ClusterAABBsBuffer[BaseClusterIndex + 4];
-	ClusterBound.Max.z = ClusterAABBsBuffer[BaseClusterIndex + 5];
+	ClusterBound.Max.x = float(ClusterAABBsBuffer[BaseClusterIndex + 3]);
+	ClusterBound.Max.y = float(ClusterAABBsBuffer[BaseClusterIndex + 4]);
+	ClusterBound.Max.z = float(ClusterAABBsBuffer[BaseClusterIndex + 5]);
 
 	if (any(ClusterBound.Min >= ClusterBound.Max))
 		return;
@@ -287,8 +287,9 @@ void MarkValid_PrepareCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	uint3 MinCoord = PositionToCoord(ClusterBound.Min, MacroGroupBound.Min, MacroGroupBound.Max, PageIndexResolution);
 	uint3 MaxCoord = PositionToCoord(ClusterBound.Max, MacroGroupBound.Min, MacroGroupBound.Max, PageIndexResolution);
 
-	MinCoord = clamp(MinCoord, 0, PageIndexResolution - 1);
-	MaxCoord = clamp(MaxCoord, 0, PageIndexResolution - 1);
+	uint3 PageIndexResolutionMinusOne = uint3(PageIndexResolution - 1);
+	MinCoord = clamp(MinCoord, uint3(0,0,0), PageIndexResolutionMinusOne);
+	MaxCoord = clamp(MaxCoord, uint3(0,0,0), PageIndexResolutionMinusOne);
 
 	FScatterCoord Coord;
 	Coord.MacroGroupId = MacroGroupId;
@@ -303,10 +304,10 @@ void MarkValid_PrepareCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	if (ScatterCount > 10000)
 		return;
 
-	if (any(!IsFinite(MinCoord)))
+	if (any(!IsFinite(float3(MinCoord))))
 		return;
 
-	if (any(!IsFinite(MaxCoord.x)))
+	if (any(!IsFinite(float3(MaxCoord))))
 		return;
 
 	// Find a good sweet spot
@@ -349,7 +350,7 @@ void MarkValid_BuildIndirectArgCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
 	const uint ScatterItemCount = DeferredScatterCounter[0] * SCATTER_WORK_ITEM_COUNT;
 	const uint DispatchCount = (ScatterItemCount + SCATTER_GROUP_SIZE - 1) / SCATTER_GROUP_SIZE;
-	const uint DispatchX = min(DispatchCount, SCATTER_GROUP_LINE);
+	const uint DispatchX = min(DispatchCount, uint(SCATTER_GROUP_LINE));
 	const uint DispatchY = (DispatchCount + SCATTER_GROUP_LINE - 1) / SCATTER_GROUP_LINE;
 
 	OutIndirectArgsBuffer[0] = DispatchX;
@@ -421,13 +422,13 @@ void MarkValidCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	const uint BaseClusterIndex = 6 * ClusterIndex;
 
 	FHairAABB ClusterBound;
-	ClusterBound.Min.x = ClusterAABBsBuffer[BaseClusterIndex + 0];
-	ClusterBound.Min.y = ClusterAABBsBuffer[BaseClusterIndex + 1];
-	ClusterBound.Min.z = ClusterAABBsBuffer[BaseClusterIndex + 2];
+	ClusterBound.Min.x = float(ClusterAABBsBuffer[BaseClusterIndex + 0]);
+	ClusterBound.Min.y = float(ClusterAABBsBuffer[BaseClusterIndex + 1]);
+	ClusterBound.Min.z = float(ClusterAABBsBuffer[BaseClusterIndex + 2]);
 
-	ClusterBound.Max.x = ClusterAABBsBuffer[BaseClusterIndex + 3];
-	ClusterBound.Max.y = ClusterAABBsBuffer[BaseClusterIndex + 4];
-	ClusterBound.Max.z = ClusterAABBsBuffer[BaseClusterIndex + 5];
+	ClusterBound.Max.x = float(ClusterAABBsBuffer[BaseClusterIndex + 3]);
+	ClusterBound.Max.y = float(ClusterAABBsBuffer[BaseClusterIndex + 4]);
+	ClusterBound.Max.z = float(ClusterAABBsBuffer[BaseClusterIndex + 5]);
 
 	FHairAABB MacroGroupBound;
 	int3 PageIndexResolution;
@@ -449,8 +450,9 @@ void MarkValidCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	uint3 MinCoord = PositionToCoord(ClusterBound.Min, MacroGroupBound.Min, MacroGroupBound.Max, PageIndexResolution);
 	uint3 MaxCoord = PositionToCoord(ClusterBound.Max, MacroGroupBound.Min, MacroGroupBound.Max, PageIndexResolution);
 
-	MinCoord = clamp(MinCoord, 0, PageIndexResolution - 1);
-	MaxCoord = clamp(MaxCoord, 0, PageIndexResolution - 1);	
+	uint3 PageIndexResolutionMinusOne = PageIndexResolution - 1;
+	MinCoord = clamp(MinCoord, uint3(0,0,0), PageIndexResolutionMinusOne);
+	MaxCoord = clamp(MaxCoord, uint3(0,0,0), PageIndexResolutionMinusOne);	
 
 	// Splat cluster contribution
 	// Change this to be a bit smarter (use graphics pipe?)

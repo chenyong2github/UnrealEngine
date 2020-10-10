@@ -4,10 +4,31 @@
 
 #include "IMPCDI.h"
 #include "MPCDIWarp.h"
+#include "Misc/DisplayClusterObjectRef.h"
 
-class USceneComponent;
-class UStaticMeshComponent;
+class FDisplayClusterWarpMeshComponentRef
+	: public FDisplayClusterSceneComponentRef
+{
+public:
+	// Get or find the scene warp mesh component
+	// Raise the flag [mutable bIsStaticMeshChanged] for the changed mesh geometry and store the new mesh name in [mutable StaticMeshName]
+	UStaticMeshComponent* GetOrFindWarpMeshComponent() const;
 
+	// Clear flags [bIsStaticMeshChanged]
+	void ResetWarpMeshComponent();
+
+	// Save ComponentPtr, clear flags [bIsStaticMeshChanged] and save StaticMeshName
+	bool SetWarpMeshComponent(UStaticMeshComponent* ComponentPtr);
+
+	// Detect mesh object changes for warp logic
+	bool IsWarpMeshChanged() const
+		{ return bIsStaticMeshChanged; }
+
+private:
+	// Compares the assigned static mesh object by name, and raise for changed [mutable] bIsStaticMeshChanged
+	FName StaticMeshName;
+	mutable bool  bIsStaticMeshChanged = false;
+};
 
 class FMPCDIWarpMesh
 	: public FMPCDIWarp
@@ -15,8 +36,6 @@ class FMPCDIWarpMesh
 public:
 	FMPCDIWarpMesh()
 		: FMPCDIWarp()
-		, MeshComponent(nullptr)
-		, OriginComponent(nullptr)
 	{ }
 
 	virtual ~FMPCDIWarpMesh()
@@ -59,8 +78,8 @@ private:
 private:
 	mutable FCriticalSection MeshDataGuard;
 
-	UStaticMeshComponent* MeshComponent;
-	USceneComponent*      OriginComponent;
+	FDisplayClusterWarpMeshComponentRef MeshComponentRef;
+	FDisplayClusterSceneComponentRef    OriginComponentRef;
 
 	bool bIsDirtyFrustumData = false;
 	bool bIsValidFrustumData = false;

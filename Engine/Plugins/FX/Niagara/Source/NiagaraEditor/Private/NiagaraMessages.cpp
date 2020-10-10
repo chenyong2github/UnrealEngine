@@ -377,7 +377,7 @@ TSharedRef<const INiagaraMessage> UNiagaraMessageDataText::GenerateNiagaraMessag
 TSharedRef<FTokenizedMessage> FNiagaraMessageTextWithLinks::GenerateTokenizedMessage() const
 {
 	TSharedRef<FTokenizedMessage> TokenizedMessage = FNiagaraMessageText::GenerateTokenizedMessage();
-	for (const FLinkNameAndDelegate LinkNameAndDelegate : Links)
+	for (const FLinkNameAndDelegate& LinkNameAndDelegate : Links)
 	{
 		TSharedRef<FActionToken> LinkActionToken = FActionToken::Create(LinkNameAndDelegate.LinkNameText, FText(), FOnActionTokenExecuted(LinkNameAndDelegate.LinkDelegate));
 		TokenizedMessage->AddToken(LinkActionToken);

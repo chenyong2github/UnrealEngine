@@ -369,7 +369,7 @@ void FMeshCreator::TriangulateAndConvert(const TSharedContourNode& Node, int32& 
 			FContour& Contour = ContoursLocal->Add();
 			const FPolygon2f& Polygon = *NodeIn->Contour;
 
-			for (const FVector2f Vertex : Polygon.GetVertices())
+			for (const FVector2f& Vertex : Polygon.GetVertices())
 			{
 				// Add point to contour in old format
 				const FPartPtr Point = MakeShared<FPart>();
@@ -397,7 +397,7 @@ void FMeshCreator::TriangulateAndConvert(const TSharedContourNode& Node, int32& 
 		ProcessContour(Node);
 
 		// Holes
-		for (const TSharedContourNode Child : Node->Children)
+		for (const TSharedContourNode& Child : Node->Children)
 		{
 			ProcessContour(Child);
 		}
@@ -419,7 +419,7 @@ void FMeshCreator::TriangulateAndConvert(const TSharedContourNode& Node, int32& 
 	}
 
 	// Continue with children
-	for (const TSharedContourNode Child : Node->Children)
+	for (const TSharedContourNode& Child : Node->Children)
 	{
 		TriangulateAndConvert(Child, OutVertexIndex, bOutline);
 	}

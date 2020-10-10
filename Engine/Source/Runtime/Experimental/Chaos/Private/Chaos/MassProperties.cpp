@@ -52,15 +52,18 @@ namespace Chaos
 		T SqrtIM1Scale0 = FMath::Sqrt(IM1Scale0);
 		T SqrtIM1Scale1 = FMath::Sqrt(IM1Scale1);
 
-		if (!CHAOS_ENSURE((SqrtIM1Scale0 > KINDA_SMALL_NUMBER) || (SqrtIM1Scale1 > KINDA_SMALL_NUMBER)))
+		TVector<T, d> Eigenvector2, Eigenvector1;
+		if ((SqrtIM1Scale0 < KINDA_SMALL_NUMBER) && (SqrtIM1Scale1 < KINDA_SMALL_NUMBER))
 		{
-			// We hit numerical accuracy, despite the early off-diagonal check. We should not see this any more.
-			return TRotation<T, d>::FromElements(TVector<T, d>(0), 1);
+			Eigenvector1 = Orthogonal;
+			Eigenvector2 = TVector<T, d>::CrossProduct(Eigenvector0, Orthogonal).GetSafeNormal();
 		}
-
-		TVector<T, d - 1> SmallEigenvector2 = IM1Scale0 > IM1Scale1 ? (TVector<T, d - 1>(IM1.M[3], -IM1.M[1]) / SqrtIM1Scale0) : (IM1Scale1 > 0 ? (TVector<T, d - 1>(-IM1.M[1], IM1.M[0]) / SqrtIM1Scale1) : TVector<T, d - 1>(1, 0));
-		TVector<T, d> Eigenvector2 = (Cofactors * SmallEigenvector2).GetSafeNormal();
-		TVector<T, d> Eigenvector1 = TVector<T, d>::CrossProduct(Eigenvector2, Eigenvector0).GetSafeNormal();
+		else
+		{
+			TVector<T, d - 1> SmallEigenvector2 = IM1Scale0 > IM1Scale1 ? (TVector<T, d - 1>(IM1.M[3], -IM1.M[1]) / SqrtIM1Scale0) : (IM1Scale1 > 0 ? (TVector<T, d - 1>(-IM1.M[1], IM1.M[0]) / SqrtIM1Scale1) : TVector<T, d - 1>(1, 0));
+			Eigenvector2 = (Cofactors * SmallEigenvector2).GetSafeNormal();
+			Eigenvector1 = TVector<T, d>::CrossProduct(Eigenvector2, Eigenvector0).GetSafeNormal();
+		}
 
 		// Return results
 		Inertia = PMatrix<T, d, d>(m00, 0, 0, m11, 0, m22);

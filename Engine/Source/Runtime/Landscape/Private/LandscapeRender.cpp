@@ -1128,8 +1128,8 @@ FLandscapeRenderSystem::FComputeSectionPerViewParametersTask::FComputeSectionPer
 	, ViewLODDistanceFactor(InView->LODDistanceFactor)
 	, ViewEngineShowFlagCollisionPawn(InView->Family->EngineShowFlags.CollisionPawn)
 	, ViewEngineShowFlagCollisionVisibility(InView->Family->EngineShowFlags.CollisionVisibility)
-	, ViewOrigin(InView->ViewMatrices.GetViewOrigin())
-	, ViewProjectionMatrix(InView->ViewMatrices.GetProjectionMatrix())
+	, ViewOrigin(GetLODView(*InView).ViewMatrices.GetViewOrigin())
+	, ViewProjectionMatrix(GetLODView(*InView).ViewMatrices.GetProjectionMatrix())
 {
 }
 

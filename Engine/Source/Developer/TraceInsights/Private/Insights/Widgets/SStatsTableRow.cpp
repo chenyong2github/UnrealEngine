@@ -107,7 +107,19 @@ void SStatsTableRow::InvalidateContent()
 
 FSlateColor SStatsTableRow::GetBackgroundColorAndOpacity() const
 {
-	return FLinearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	if (StatsNodePtr->GetType() == EStatsNodeType::Group)
+	{
+		return FLinearColor(0.0f, 0.0f, 0.5f, 1.0f);
+	}
+	else
+	{
+		switch (StatsNodePtr->GetDataType())
+		{
+		case EStatsNodeDataType::Double:	return FLinearColor(0.05f, 0.05f, 0.0f, 1.0f);
+		case EStatsNodeDataType::Int64:		return FLinearColor(0.01f, 0.01f, 0.0f, 1.0f);
+		default:							return FLinearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

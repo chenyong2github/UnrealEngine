@@ -4,6 +4,10 @@
 
 #include <cstdint>
 
+#if defined(ENABLE_SSE_BSWAP)
+    #include <immintrin.h>
+#endif
+
 #if !defined(NO_ENDIAN_H)
     #if defined(USE_ENDIAN_H) || defined(USE_MACHINE_ENDIAN_H) || defined(USE_SYS_ENDIAN_H)
         #define OVERRIDDEN_ENDIAN_H
@@ -120,28 +124,113 @@
 
 #endif
 
+#if defined(ENABLE_SSE_BSWAP)
+
+    static inline void bswap16x8(std::uint16_t* source) {
+        const __m128i v = _mm_load_si128(reinterpret_cast<__m128i*>(source));
+        const __m128i swapped = _mm_or_si128(_mm_slli_epi16(v, 8), _mm_srli_epi16(v, 8));
+        _mm_store_si128(reinterpret_cast<__m128i*>(source), swapped);
+    }
+
+    static inline void bswap32x4(std::uint32_t* source) {
+        const __m128i v = _mm_load_si128(reinterpret_cast<__m128i*>(source));
+        const __m128i swapped = _mm_shuffle_epi8(v,
+                                                 _mm_set_epi8(
+                                                     12, 13, 14, 15,
+                                                     8, 9, 10, 11,
+                                                     4, 5, 6, 7,
+                                                     0, 1, 2, 3
+                                                     )
+                                                 );
+        _mm_store_si128(reinterpret_cast<__m128i*>(source), swapped);
+    }
+
+    static inline void bswap64x2(std::uint64_t* source) {
+        const __m128i v = _mm_load_si128(reinterpret_cast<__m128i*>(source));
+        const __m128i swapped = _mm_shuffle_epi8(v,
+                                                 _mm_set_epi8(
+                                                     8, 9, 10, 11,
+                                                     12, 13, 14, 15,
+                                                     0, 1, 2, 3,
+                                                     4, 5, 6, 7
+                                                     )
+                                                 );
+        _mm_store_si128(reinterpret_cast<__m128i*>(source), swapped);
+    }
+
+#else
+
+    static inline void bswap16x8(std::uint16_t* source) {
+        source[0] = bswap16(source[0]);
+        source[1] = bswap16(source[1]);
+        source[2] = bswap16(source[2]);
+        source[3] = bswap16(source[3]);
+        source[4] = bswap16(source[4]);
+        source[5] = bswap16(source[5]);
+        source[6] = bswap16(source[6]);
+        source[7] = bswap16(source[7]);
+    }
+
+    static inline void bswap32x4(std::uint32_t* source) {
+        source[0] = bswap32(source[0]);
+        source[1] = bswap32(source[1]);
+        source[2] = bswap32(source[2]);
+        source[3] = bswap32(source[3]);
+    }
+
+    static inline void bswap64x2(std::uint64_t* source) {
+        source[0] = bswap64(source[0]);
+        source[1] = bswap64(source[1]);
+    }
+
+#endif  // ENABLE_SSE_BSWAP
+
 // Target architecture specific ntoh and hton for all relevant sizes
 // In case of big endian architectures this is a noop
 #if defined(TARGET_LITTLE_ENDIAN)
+    #define ntoh8(x) (x)
+    #define hton8(x) (x)
     #define ntoh16(x) bswap16((x))
     #define hton16(x) bswap16((x))
     #define ntoh32(x) bswap32((x))
     #define hton32(x) bswap32((x))
     #define ntoh64(x) bswap64((x))
     #define hton64(x) bswap64((x))
+    // Vectorized swap
+    #define ntoh8x16(x) (x)
+    #define hton8x16(x) (x)
+    #define ntoh16x8(x) bswap16x8((x))
+    #define hton16x8(x) bswap16x8((x))
+    #define ntoh32x4(x) bswap32x4((x))
+    #define hton32x4(x) bswap32x4((x))
+    #define ntoh64x2(x) bswap64x2((x))
+    #define hton64x2(x) bswap64x2((x))
 #elif defined(TARGET_BIG_ENDIAN)
+    #define ntoh8(x) (x)
+    #define hton8(x) (x)
     #define ntoh16(x) (x)
     #define hton16(x) (x)
     #define ntoh32(x) (x)
     #define hton32(x) (x)
     #define ntoh64(x) (x)
     #define hton64(x) (x)
+    // Vectorized swap
+    #define ntoh8x16(x) (x)
+    #define hton8x16(x) (x)
+    #define ntoh16x8(x) (x)
+    #define hton16x8(x) (x)
+    #define ntoh32x4(x) (x)
+    #define hton32x4(x) (x)
+    #define ntoh64x2(x) (x)
+    #define hton64x2(x) (x)
 #else
     #error "Platform not supported, no byte swap functions defined."
 #endif
 
+// Process single values
+
 inline std::uint8_t ntoh(std::uint8_t x) {
-    return x;
+    return ntoh8(x);
 }
 
 inline std::uint16_t ntoh(std::uint16_t x) {
@@ -157,7 +246,7 @@ inline std::uint64_t ntoh(std::uint64_t x) {
 }
 
 inline std::uint8_t hton(std::uint8_t x) {
-    return x;
+    return hton8(x);
 }
 
 inline std::uint16_t hton(std::uint16_t x) {
@@ -170,4 +259,52 @@ inline std::uint32_t hton(std::uint32_t x) {
 
 inline std::uint64_t hton(std::uint64_t x) {
     return hton64(x);
+}
+
+// Process multiple blocks simultaneously
+
+inline void ntoh(std::uint8_t* x) {
+    #if defined(__clang__) || defined(__GNUC__)
+        #pragma GCC diagnostic push
+        #pragma GCC diagnostic ignored "-Wunused-value"
+    #endif
+    ntoh8x16(x);
+    #if defined(__clang__) || defined(__GNUC__)
+        #pragma GCC diagnostic pop
+    #endif
+}
+
+inline void ntoh(std::uint16_t* x) {
+    ntoh16x8(x);
+}
+
+inline void ntoh(std::uint32_t* x) {
+    ntoh32x4(x);
+}
+
+inline void ntoh(std::uint64_t* x) {
+    ntoh64x2(x);
+}
+
+inline void hton(std::uint8_t* x) {
+    #if defined(__clang__) || defined(__GNUC__)
+        #pragma GCC diagnostic push
+        #pragma GCC diagnostic ignored "-Wunused-value"
+    #endif
+    hton8x16(x);
+    #if defined(__clang__) || defined(__GNUC__)
+        #pragma GCC diagnostic pop
+    #endif
+}
+
+inline void hton(std::uint16_t* x) {
+    hton16x8(x);
+}
+
+inline void hton(std::uint32_t* x) {
+    hton32x4(x);
+}
+
+inline void hton(std::uint64_t* x) {
+    hton64x2(x);
 }

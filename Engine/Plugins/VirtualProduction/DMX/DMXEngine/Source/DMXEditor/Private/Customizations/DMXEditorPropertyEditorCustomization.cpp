@@ -526,7 +526,7 @@ void FDMXFixtureModeDetails::CustomizeChildren(TSharedRef<IPropertyHandle> InStr
 			continue;
 		}
 		
-		if (ChildHandle->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, PixelMatrixConfig))
+		if (ChildHandle->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, FixtureMatrixConfig))
 		{
 			continue;
 		}
@@ -548,15 +548,15 @@ void FDMXFixtureModeDetails::CustomizeChildren(TSharedRef<IPropertyHandle> InStr
 	{
 		UDMXEntityFixtureType* FixtureType = Cast<UDMXEntityFixtureType>(Outers[0]);
 
-		TSharedPtr<IPropertyHandle> PixelMatrixConfigProperty = InStructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, PixelMatrixConfig));
+		TSharedPtr<IPropertyHandle> CellMatrixConfigProperty = InStructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, FixtureMatrixConfig));
 		// Retrieve structure's child properties
-		PixelMatrixConfigProperty->GetNumChildren(NumChildren);
+		CellMatrixConfigProperty->GetNumChildren(NumChildren);
 
 		for (uint32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
 		{
-			TSharedRef<IPropertyHandle> ChildHandle = PixelMatrixConfigProperty->GetChildHandle(ChildIndex).ToSharedRef();
+			TSharedRef<IPropertyHandle> ChildHandle = CellMatrixConfigProperty->GetChildHandle(ChildIndex).ToSharedRef();
 			IDetailPropertyRow& Row = InStructBuilder.AddProperty(ChildHandle);
-			Row.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FDMXFixtureModeDetails::CheckPixelMatrix, ChildHandle, TWeakObjectPtr<UDMXEntityFixtureType>(FixtureType))));
+			Row.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FDMXFixtureModeDetails::CheckFixtureMatrix, ChildHandle, TWeakObjectPtr<UDMXEntityFixtureType>(FixtureType))));
 		}
 
 		TSharedPtr<IPropertyHandle> FunctionsHandle = InStructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, Functions));
@@ -565,11 +565,11 @@ void FDMXFixtureModeDetails::CustomizeChildren(TSharedRef<IPropertyHandle> InStr
 	}
 }
 
-EVisibility FDMXFixtureModeDetails::CheckPixelMatrix(TSharedRef<IPropertyHandle> PropertyHandle, TWeakObjectPtr<UDMXEntityFixtureType> FixtureType)
+EVisibility FDMXFixtureModeDetails::CheckFixtureMatrix(TSharedRef<IPropertyHandle> PropertyHandle, TWeakObjectPtr<UDMXEntityFixtureType> FixtureType)
 {
 	if (FixtureType.IsValid())
 	{
-		if (FixtureType->bPixelFunctionsEnabled)
+		if (FixtureType->bFixtureMatrixEnabled)
 		{
 			return EVisibility::Visible;
 		}
@@ -1242,7 +1242,7 @@ TWeakObjectPtr<UDMXLibrary> FDMXEntityReferenceCustomization::GetDMXLibrary() co
 	return nullptr;
 }
 
-void FDMXPixelsDistributionCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& InHeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
+void FDMXPixelMappingDistributionCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& InHeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
 	PropertyHandle = InPropertyHandle;
 
@@ -1255,8 +1255,8 @@ void FDMXPixelsDistributionCustomization::CustomizeHeader(TSharedRef<IPropertyHa
 			FString BrushPath = FString::Printf(TEXT("DMXEditor.PixelMapping.DistributionGrid.%d.%d"), XIndex, YIndex);
 
 			TSharedPtr<SButton> Button = SNew(SButton)
-				.ButtonColorAndOpacity(TAttribute<FSlateColor>::Create(TAttribute<FSlateColor>::FGetter::CreateSP(this, &FDMXPixelsDistributionCustomization::GetButtonColorAndOpacity, XIndex, YIndex)))
-				.OnClicked(FOnClicked::CreateSP(this, &FDMXPixelsDistributionCustomization::OnGridButtonClicked, XIndex, YIndex))
+				.ButtonColorAndOpacity(TAttribute<FSlateColor>::Create(TAttribute<FSlateColor>::FGetter::CreateSP(this, &FDMXPixelMappingDistributionCustomization::GetButtonColorAndOpacity, XIndex, YIndex)))
+				.OnClicked(FOnClicked::CreateSP(this, &FDMXPixelMappingDistributionCustomization::OnGridButtonClicked, XIndex, YIndex))
 				[
 					SNew(SImage)
 					.Image(FDMXEditorStyle::Get().GetBrush(*BrushPath))
@@ -1283,7 +1283,7 @@ void FDMXPixelsDistributionCustomization::CustomizeHeader(TSharedRef<IPropertyHa
 		];
 }
 
-FReply FDMXPixelsDistributionCustomization::OnGridButtonClicked(int32 GridIndexX, int32 GridIndexY)
+FReply FDMXPixelMappingDistributionCustomization::OnGridButtonClicked(int32 GridIndexX, int32 GridIndexY)
 {
 	if (PropertyHandle.IsValid())
 	{
@@ -1295,7 +1295,7 @@ FReply FDMXPixelsDistributionCustomization::OnGridButtonClicked(int32 GridIndexX
 }
 
 
-FSlateColor FDMXPixelsDistributionCustomization::GetButtonColorAndOpacity(int32 GridIndexX, int32 GridIndexY)
+FSlateColor FDMXPixelMappingDistributionCustomization::GetButtonColorAndOpacity(int32 GridIndexX, int32 GridIndexY)
 {
 	if (PropertyHandle.IsValid())
 	{
@@ -1313,7 +1313,7 @@ FSlateColor FDMXPixelsDistributionCustomization::GetButtonColorAndOpacity(int32 
 }
 
 
-void FDMXPixelsDistributionCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> InPropertyHandle, IDetailChildrenBuilder& InChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
+void FDMXPixelMappingDistributionCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> InPropertyHandle, IDetailChildrenBuilder& InChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
 }
 

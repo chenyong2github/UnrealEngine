@@ -1,4 +1,8 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #pragma once
+
+#include "HAL/LowLevelMemTracker.h"
 
 namespace Lumen
 {
@@ -27,3 +31,5 @@ namespace Lumen
 
 extern int32 GLumenFastCameraMode;
 extern int32 GLumenDistantScene;
+
+LLM_DECLARE_TAG(Lumen);

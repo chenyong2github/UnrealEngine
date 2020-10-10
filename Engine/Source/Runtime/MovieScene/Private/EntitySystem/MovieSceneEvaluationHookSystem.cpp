@@ -229,12 +229,25 @@ void UMovieSceneEvaluationHookSystem::TriggerAllEvents()
 
 	for (TPair<FMovieSceneEvaluationInstanceKey, FMovieSceneEvaluationHookEventContainer>& Pair : LocalEvents)
 	{
-		IMovieScenePlayer* Player = InstanceRegistry->GetInstance(Pair.Key.InstanceHandle).GetPlayer();
+		const FSequenceInstance& SequenceInstance = InstanceRegistry->GetInstance(Pair.Key.InstanceHandle);
+
+		IMovieScenePlayer* Player      = SequenceInstance.GetPlayer();
+		FMovieSceneContext RootContext = SequenceInstance.GetContext();
+
 		for (const FMovieSceneEvaluationHookEvent& Event : Pair.Value.Events)
 		{
 			FEvaluationHookParams Params = {
-				Event.Hook.ObjectBindingID, Event.SequenceID, Event.TriggerIndex
+				Event.Hook.ObjectBindingID, RootContext, Event.SequenceID, Event.TriggerIndex
 			};
+
+			if (Event.SequenceID != MovieSceneSequenceID::Root)
+			{
+				FInstanceHandle SubInstance = SequenceInstance.FindSubInstance(Event.SequenceID);
+				if (SubInstance.IsValid())
+				{
+					Params.Context = InstanceRegistry->GetInstance(SubInstance).GetContext();
+				}
+			}
 
 			switch (Event.Type)
 			{

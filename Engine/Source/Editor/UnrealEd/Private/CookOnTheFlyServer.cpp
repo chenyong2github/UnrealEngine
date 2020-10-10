@@ -3932,7 +3932,7 @@ void GetVersionFormatNumbersForIniVersionStrings(TMap<FString, FString>& IniVers
 void GetAdditionalCurrentIniVersionStrings( const ITargetPlatform* TargetPlatform, TMap<FString, FString>& IniVersionMap )
 {
 	FConfigFile EngineSettings;
-	FConfigCacheIni::LoadLocalIniFile(EngineSettings, TEXT("Engine"), true, *TargetPlatform->PlatformName());
+	FConfigCacheIni::LoadLocalIniFile(EngineSettings, TEXT("Engine"), true, *TargetPlatform->IniPlatformName());
 
 	TArray<FString> VersionedRValues;
 	EngineSettings.GetArray(TEXT("/Script/UnrealEd.CookerSettings"), TEXT("VersionedIntRValues"), VersionedRValues);
@@ -6011,7 +6011,7 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 					UE_SCOPED_HIERARCHICAL_COOKTIMER(WriteCookerOpenOrder);
 					if (!IsCookFlagSet(ECookInitializationFlags::Iterative))
 					{
-						Generator.WriteCookerOpenOrder();
+						Generator.WriteCookerOpenOrder(SandboxFile.Get());
 					}
 				}
 				{

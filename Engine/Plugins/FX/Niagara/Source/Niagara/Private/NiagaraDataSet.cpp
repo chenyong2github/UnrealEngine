@@ -735,9 +735,9 @@ void FNiagaraDataBuffer::AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceC
 	// scratch instance in the buffer. Our allocation maximum is therefore one more than what this function returns.
 	const uint32 MaxAllocatedInstances = Owner->GetMaxInstanceCount() + 1;
 
-	// Round the count up to the nearest threadgroup size. GetMaxNumInstances() ensures that the returned value is aligned to NIAGARA_COMPUTE_THREADGROUP_SIZE, so if the calling
+	// Round the count up to the nearest threadgroup size. GetMaxNumInstances() ensures that the returned value is aligned to NiagaraComputeMaxThreadGroupSize, so if the calling
 	// code clamps the instance count correctly, this operation should never exceed the max instance count.
-	const uint32 PaddedNumInstances = FMath::DivideAndRoundUp(NumInstancesAllocated, NIAGARA_COMPUTE_THREADGROUP_SIZE) * NIAGARA_COMPUTE_THREADGROUP_SIZE;
+	const uint32 PaddedNumInstances = FMath::DivideAndRoundUp(NumInstancesAllocated, NiagaraComputeMaxThreadGroupSize) * NiagaraComputeMaxThreadGroupSize;
 	check(PaddedNumInstances <= MaxAllocatedInstances);
 
 	// Pack the data so that the space between elements is the padded thread group size

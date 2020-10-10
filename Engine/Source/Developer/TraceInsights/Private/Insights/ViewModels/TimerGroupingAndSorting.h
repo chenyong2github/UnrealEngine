@@ -5,10 +5,10 @@
 #include "CoreMinimal.h"
 
 // Insights
-#include "Insights/ViewModels/TimerNode.h"
-#include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/Table/ViewModels/TableCellValueSorter.h"
+#include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/Table/ViewModels/TreeNodeGrouping.h"
+#include "Insights/ViewModels/TimerNode.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Sorters
@@ -71,12 +71,12 @@ enum class ETimerGroupingMode
 	/** Creates one group for each timer type. */
 	ByType,
 
+	/** Creates one group for each logarithmic range ie. 0, [1 .. 10), [10 .. 100), [100 .. 1K), etc. */
+	ByInstanceCount,
+
 	ByTotalInclusiveTime,
 
 	ByTotalExclusiveTime,
-
-	/** Creates one group for each logarithmic range ie. 0, [1 .. 10), [10 .. 100), [100 .. 1K), etc. */
-	ByInstanceCount,
 
 	/** Invalid enum type, may be used as a number of enumerations. */
 	InvalidOrMax,

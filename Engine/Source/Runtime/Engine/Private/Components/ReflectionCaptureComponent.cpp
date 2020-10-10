@@ -504,36 +504,30 @@ static void EdgeWalkSetup( bool ReverseDirection, int32 Edge, int32 MipSize, int
 	}
 }
 
-float GetMaxValueRGBM(const TArray<uint8>& FullHDRData, int32 CubemapSize, float Brightness, float MaxValueRGBM)
+float GetMaxValueRGBM(const TArray<uint8>& FullHDRData, int32 CubemapSize, float Brightness)
 {
 	const int32 NumMips = FMath::CeilLogTwo(CubemapSize) + 1;
 	// get MaxValue from Mip0
 	float MaxValue = 0;
-	if (MaxValueRGBM > 0.0f)
-	{
-		MaxValue = MaxValueRGBM;
-	}
-	else
-	{
-		const int32 MipSize = 1 << (NumMips - 1);
-		const int32 SourceCubeFaceBytes = MipSize * MipSize * sizeof(FFloat16Color);
+	
+	const int32 MipSize = 1 << (NumMips - 1);
+	const int32 SourceCubeFaceBytes = MipSize * MipSize * sizeof(FFloat16Color);
 
-		for (int32 CubeFace = 0; CubeFace < CubeFace_MAX; CubeFace++)
+	for (int32 CubeFace = 0; CubeFace < CubeFace_MAX; CubeFace++)
+	{
+		const int32 FaceSourceIndex = CubeFace * SourceCubeFaceBytes;
+		const FFloat16Color* FaceSourceData = (const FFloat16Color*)&FullHDRData[FaceSourceIndex];
+
+		for (int32 y = 0; y < MipSize; y++)
 		{
-			const int32 FaceSourceIndex = CubeFace * SourceCubeFaceBytes;
-			const FFloat16Color* FaceSourceData = (const FFloat16Color*)&FullHDRData[FaceSourceIndex];
-
-			for (int32 y = 0; y < MipSize; y++)
+			for (int32 x = 0; x < MipSize; x++)
 			{
-				for (int32 x = 0; x < MipSize; x++)
+				int32 TexelIndex = x + y * MipSize;
+				const FLinearColor LinearColor = FLinearColor(FaceSourceData[TexelIndex]) * Brightness;
+				float MaxValueTexel = FMath::Max(FMath::Max(LinearColor.R, LinearColor.G), FMath::Max(LinearColor.B, DELTA));
+				if (MaxValue < MaxValueTexel)
 				{
-					int32 TexelIndex = x + y * MipSize;
-					const FLinearColor LinearColor = FLinearColor(FaceSourceData[TexelIndex]) * Brightness;
-					float MaxValueTexel = FMath::Max(FMath::Max(LinearColor.R, LinearColor.G), FMath::Max(LinearColor.B, DELTA));
-					if (MaxValue < MaxValueTexel)
-					{
-						MaxValue = MaxValueTexel;
-					}
+					MaxValue = MaxValueTexel;
 				}
 			}
 		}
@@ -556,8 +550,7 @@ void GenerateEncodedHDRData(const TArray<uint8>& FullHDRData, int32 CubemapSize,
 	OutEncodedHDRData.Empty(EncodedDataSize);
 	OutEncodedHDRData.AddZeroed(EncodedDataSize);
 	
-	// get MaxValue from Mip0
-	float MaxValue = GetMaxValueRGBM(FullHDRData, CubemapSize, Brightness, MaxValueRGBM);
+	MaxValueRGBM = FMath::Max(MaxValueRGBM, 1.0f);
 
 	for (int32 MipIndex = 0; MipIndex < NumMips; MipIndex++)
 	{
@@ -665,7 +658,7 @@ void GenerateEncodedHDRData(const TArray<uint8>& FullHDRData, int32 CubemapSize,
 				{
 					int32 TexelIndex = x + y * MipSize;
 					const FLinearColor LinearColor = FLinearColor(FaceSourceData[TexelIndex]) * Brightness;
-					FaceDestData[ TexelIndex ] = RGBMEncode( LinearColor, MaxValue);
+					FaceDestData[ TexelIndex ] = RGBMEncode( LinearColor, MaxValueRGBM);
 				}
 			}
 		}
@@ -676,7 +669,7 @@ void GenerateEncodedHDRData(const TArray<uint8>& FullHDRData, int32 CubemapSize,
 }
 
 
-void GenerateEncodedHDRTextureCube(UMapBuildDataRegistry* Registry, FReflectionCaptureMapBuildData& CaptureBuildData, FString& TextureName, float MaxValueRGBM, UReflectionCaptureComponent* CaptureComponent, bool bIsReflectionCaptureCompressionProjectSetting)
+void GenerateEncodedHDRTextureCube(UMapBuildDataRegistry* Registry, FReflectionCaptureData& ReflectionCaptureData, FString& TextureName, float MaxValueRGBM, UReflectionCaptureComponent* CaptureComponent, bool bIsReflectionCaptureCompressionProjectSetting)
 {
 #if WITH_EDITOR
 	UTextureFactory* TextureFactory = NewObject<UTextureFactory>();
@@ -689,11 +682,11 @@ void GenerateEncodedHDRTextureCube(UMapBuildDataRegistry* Registry, FReflectionC
 	{
 		TArray<uint8> TemporaryEncodedHDRCapturedData;
 
-		GenerateEncodedHDRData(CaptureBuildData.FullHDRCapturedData, CaptureBuildData.CubemapSize, CaptureBuildData.Brightness, MaxValueRGBM, TemporaryEncodedHDRCapturedData);
-		const int32 NumMips = FMath::CeilLogTwo(CaptureBuildData.CubemapSize) + 1;
+		GenerateEncodedHDRData(ReflectionCaptureData.FullHDRCapturedData, ReflectionCaptureData.CubemapSize, ReflectionCaptureData.Brightness, MaxValueRGBM, TemporaryEncodedHDRCapturedData);
+		const int32 NumMips = FMath::CeilLogTwo(ReflectionCaptureData.CubemapSize) + 1;
 		TextureCube->Source.Init(
-			CaptureBuildData.CubemapSize,
-			CaptureBuildData.CubemapSize,
+			ReflectionCaptureData.CubemapSize,
+			ReflectionCaptureData.CubemapSize,
 			6,
 			NumMips,
 			TSF_BGRA8,
@@ -720,7 +713,7 @@ void GenerateEncodedHDRTextureCube(UMapBuildDataRegistry* Registry, FReflectionC
 		TextureCube->UpdateResource();
 		TextureCube->MarkPackageDirty();
 	}
-	CaptureBuildData.EncodedCaptureData = TextureCube;
+	ReflectionCaptureData.EncodedCaptureData = TextureCube;
 #endif
 }
 
@@ -732,6 +725,7 @@ UReflectionCaptureComponent::UReflectionCaptureComponent(const FObjectInitialize
 	: Super(ObjectInitializer)
 {
 	Brightness = 1;
+	bModifyMaxValueRGBM = false;
 	MaxValueRGBM = 0.0f;
 	// Shouldn't be able to change reflection captures at runtime
 	Mobility = EComponentMobility::Static;
@@ -980,6 +974,7 @@ void UReflectionCaptureComponent::PostEditChangeProperty(FPropertyChangedEvent& 
 	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UReflectionCaptureComponent, Cubemap) ||
 		PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UReflectionCaptureComponent, SourceCubemapAngle) ||
 		PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UReflectionCaptureComponent, MobileReflectionCompression) ||
+		PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UReflectionCaptureComponent, bModifyMaxValueRGBM) ||
 		PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UReflectionCaptureComponent, MaxValueRGBM) ||
 		PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UReflectionCaptureComponent, ReflectionSourceType))
 	{
@@ -1056,7 +1051,7 @@ void UReflectionCaptureComponent::MarkDirtyForRecapture()
 	}
 }
 
-void UReflectionCaptureComponent::UpdateReflectionCaptureContents(UWorld* WorldToUpdate, const TCHAR* CaptureReason, bool bVerifyOnlyCapturing)
+void UReflectionCaptureComponent::UpdateReflectionCaptureContents(UWorld* WorldToUpdate, const TCHAR* CaptureReason, bool bVerifyOnlyCapturing, bool bCapturingForMobile)
 {
 	if (WorldToUpdate->Scene 
 		// Don't capture and read back capture contents if we are currently doing async shader compiling
@@ -1108,7 +1103,7 @@ void UReflectionCaptureComponent::UpdateReflectionCaptureContents(UWorld* WorldT
 			}
 		}
 
-		WorldToUpdate->Scene->AllocateReflectionCaptures(WorldCombinedCaptures, CaptureReason, bVerifyOnlyCapturing);
+		WorldToUpdate->Scene->AllocateReflectionCaptures(WorldCombinedCaptures, CaptureReason, bVerifyOnlyCapturing, bCapturingForMobile);
 	}
 }
 

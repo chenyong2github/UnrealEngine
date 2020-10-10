@@ -19,6 +19,7 @@
 
 #include "Animation/AnimSequence.h"
 #include "Animation/Skeleton.h"
+#include "AnimationUtils.h"
 #include "Components/PoseableMeshComponent.h"
 #include "Components/SkinnedMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
@@ -298,32 +299,6 @@ namespace UsdSkelRootTranslatorImpl
 		PoseableMeshComponent.MorphTargetWeights[ WeightIndex ] = Weight;
 	}
 
-	// Adapted from UsdSkel_CacheImpl::ReadScope::_FindOrCreateSkinningQuery because we need to manually create these on UsdGeomMeshes we already have
-	pxr::UsdSkelSkinningQuery CreateSkinningQuery( const pxr::UsdGeomMesh& SkinnedMesh, const pxr::UsdSkelSkeletonQuery& SkeletonQuery )
-	{
-		pxr::UsdPrim SkinnedPrim = SkinnedMesh.GetPrim();
-		if ( !SkinnedPrim )
-		{
-			return {};
-		}
-
-		const pxr::UsdSkelAnimQuery& AnimQuery = SkeletonQuery.GetAnimQuery();
-
-		pxr::UsdSkelBindingAPI SkelBindingAPI{ SkinnedPrim };
-
-		return pxr::UsdSkelSkinningQuery(
-			SkinnedPrim,
-			SkeletonQuery ? SkeletonQuery.GetJointOrder() : pxr::VtTokenArray(),
-			AnimQuery ? AnimQuery.GetBlendShapeOrder() : pxr::VtTokenArray(),
-			SkelBindingAPI.GetJointIndicesAttr(),
-			SkelBindingAPI.GetJointWeightsAttr(),
-			SkelBindingAPI.GetGeomBindTransformAttr(),
-			SkelBindingAPI.GetJointsAttr(),
-			SkelBindingAPI.GetBlendShapesAttr(),
-			SkelBindingAPI.GetBlendShapeTargetsRel()
-		);
-	}
-
 	bool LoadAllSkeletalData(
 		pxr::UsdSkelCache& InSkeletonCache,
 		const pxr::UsdSkelRoot& InSkeletonRoot,
@@ -353,7 +328,7 @@ namespace UsdSkelRootTranslatorImpl
 		InSkeletonCache.ComputeSkelBindings( InSkeletonRoot, &SkeletonBindings );
 		if ( SkeletonBindings.size() < 1 )
 		{
-			FUsdLogManager::LogMessage( EMessageSeverity::Error,
+			FUsdLogManager::LogMessage( EMessageSeverity::Warning,
 										FText::Format( LOCTEXT("InvalidBinding", "SkelRoot {0} doesn't have any binding. No skinned mesh will be generated."),
 										FText::FromString( UsdToUnreal::ConvertPath( InSkeletonRoot.GetPath() ) ) ) );
 			return false;
@@ -403,10 +378,15 @@ namespace UsdSkelRootTranslatorImpl
 		[ &LODIndexToSkeletalMeshImportDataMap, &LODIndexToMaterialInfoMap, &SkelQuery, InTime, &InMaterialToPrimvarsUVSetNames, &InOutUsedMorphTargetNames, OutBlendShapes, &StageInfo ]
 		( const pxr::UsdGeomMesh& LODMesh, int32 LODIndex )
 		{
-			pxr::UsdSkelSkinningQuery SkinningQuery = CreateSkinningQuery( LODMesh, SkelQuery );
+			pxr::UsdSkelSkinningQuery SkinningQuery = UsdUtils::CreateSkinningQuery( LODMesh, SkelQuery );
 			if ( !SkinningQuery )
 			{
 				return true; // Continue trying other LODs
+			}
+
+			if ( LODMesh && LODMesh.ComputeVisibility() == pxr::UsdGeomTokens->invisible )
+			{
+				return true;
 			}
 
 			pxr::GfMatrix4d GeomBindTransformUSD = SkinningQuery.GetGeomBindTransform( pxr::UsdTimeCode( InTime ) );
@@ -544,6 +524,11 @@ namespace UsdSkelRootTranslatorImpl
 		TMap<int32, TSet<UsdUtils::FUsdPrimMaterialSlot>> CombinedSlotsForLODIndex;
 		TFunction<bool( const pxr::UsdGeomMesh&, int32 )> IterateLODsLambda = [ &LODIndexToMaterialInfoMap, &CombinedSlotsForLODIndex, Time ]( const pxr::UsdGeomMesh& LODMesh, int32 LODIndex )
 		{
+			if ( LODMesh && LODMesh.ComputeVisibility() == pxr::UsdGeomTokens->invisible )
+			{
+				return true;
+			}
+
 			TArray<UsdUtils::FUsdPrimMaterialSlot>& CombinedLODSlots = LODIndexToMaterialInfoMap.FindOrAdd( LODIndex ).Slots;
 			TSet<UsdUtils::FUsdPrimMaterialSlot>& CombinedLODSlotsSet = CombinedSlotsForLODIndex.FindOrAdd( LODIndex );
 
@@ -770,6 +755,9 @@ namespace UsdSkelRootTranslatorImpl
 
 				if ( SkeletalMesh )
 				{
+					Context->CurrentlyUsedAssets.Add( SkeletalMesh );
+					Context->CurrentlyUsedAssets.Add( SkeletalMesh->Skeleton );
+
 					FScopeLock Lock( &Context->CriticalSection );
 					{
 						Context->PrimPathsToAssets.Add( SkelRootPath, SkeletalMesh );
@@ -800,11 +788,18 @@ namespace UsdSkelRootTranslatorImpl
 
 						Context->AssetsCache.Add( SkeletalMeshHash.ToString(), SkeletalMesh );
 						Context->AssetsCache.Add( SkeletalMeshHash.ToString() + TEXT( "_Skeleton" ), SkeletalMesh->Skeleton );
+					}
 
-						if ( Context->BlendShapesByPath )
-						{
-							Context->BlendShapesByPath->Append( NewBlendShapes );
-						}
+					// We may be reusing a skeletal mesh we got in the cache, but we always need the BlendShapesByPath stored on the
+					// actor to be up-to-date with the Skeletal Mesh that is actually being displayed
+					if ( Context->BlendShapesByPath )
+					{
+						Context->BlendShapesByPath->Append( NewBlendShapes );
+					}
+
+					for ( const FSkeletalMaterial& SkeletalMaterial : SkeletalMesh->Materials )
+					{
+						Context->CurrentlyUsedAssets.Add( SkeletalMaterial.MaterialInterface );
 					}
 				}
 
@@ -870,7 +865,7 @@ namespace UsdSkelRootTranslatorImpl
 							AnimSequence->SetSkeleton(SkeletalMesh->Skeleton);
 
 							TUsdStore<pxr::VtArray<pxr::UsdSkelSkinningQuery>> SkinningTargets = Binding.GetSkinningTargets();
-							UsdToUnreal::ConvertSkelAnim( SkelQuery, &SkinningTargets.Get(), &NewBlendShapes, AnimSequence );
+							UsdToUnreal::ConvertSkelAnim( SkelQuery, &SkinningTargets.Get(), &NewBlendShapes, Context->bAllowInterpretingLODs, AnimSequence );
 
 							if ( AnimSequence->GetRawAnimationData().Num() != 0 || AnimSequence->RawCurveData.FloatCurves.Num() != 0 )
 							{
@@ -879,6 +874,7 @@ namespace UsdSkelRootTranslatorImpl
 								AnimSequence->AssetImportData = ImportData;
 
 								Context->AssetsCache.Add( HashString, AnimSequence );
+								Context->CurrentlyUsedAssets.Add( AnimSequence );
 							}
 							else
 							{
@@ -905,43 +901,7 @@ USceneComponent* FUsdSkelRootTranslator::CreateComponents()
 {
 	USceneComponent* RootComponent = FUsdGeomXformableTranslator::CreateComponents();
 
-	if ( USkinnedMeshComponent* SkinnedMeshComponent = Cast< USkinnedMeshComponent >( RootComponent ) )
-	{
-		USkeletalMesh* SkeletalMesh = Cast< USkeletalMesh >( Context->PrimPathsToAssets.FindRef( PrimPath.GetString() ) );
-		SkinnedMeshComponent->SetSkeletalMesh( SkeletalMesh );
-
-		UpdateComponents( SkinnedMeshComponent );
-
-		// Handle material overrides
-		if ( SkeletalMesh )
-		{
-			if ( UUsdAssetImportData* UsdImportData = Cast<UUsdAssetImportData>( SkeletalMesh->AssetImportData ) )
-			{
-				// If the prim paths match, it means that it was this prim that created (and so "owns") the mesh,
-				// so its material assignments will already be directly on the mesh. If they differ, we're using some other prim's mesh,
-				// so we may need material overrides on our component
-				if ( UsdImportData->PrimPath != PrimPath.GetString() )
-				{
-					TArray<UMaterialInterface*> ExistingAssignments;
-					for ( FSkeletalMaterial& SkeletalMaterial : SkeletalMesh->Materials )
-					{
-						ExistingAssignments.Add( SkeletalMaterial.MaterialInterface );
-					}
-
-					UsdSkelRootTranslatorImpl::SetMaterialOverrides(
-						GetPrim(),
-						ExistingAssignments,
-						*SkinnedMeshComponent,
-						Context->PrimPathsToAssets,
-						Context->AssetsCache,
-						Context->Time,
-						Context->ObjectFlags,
-						Context->bAllowInterpretingLODs
-					);
-				}
-			}
-		}
-	}
+	UpdateComponents( RootComponent );
 
 	return RootComponent;
 }
@@ -949,13 +909,56 @@ USceneComponent* FUsdSkelRootTranslator::CreateComponents()
 void FUsdSkelRootTranslator::UpdateComponents( USceneComponent* SceneComponent )
 {
 	UPoseableMeshComponent* PoseableMeshComponent = Cast< UPoseableMeshComponent >( SceneComponent );
-	if ( !PoseableMeshComponent || !PoseableMeshComponent->SkeletalMesh )
+	if ( !PoseableMeshComponent )
 	{
 		return;
 	}
 
 	Super::UpdateComponents( SceneComponent );
 
+	// Re-set the skeletal mesh if we created a new one (maybe the hash changed, a skinned UsdGeomMesh was hidden, etc.)
+	USkeletalMesh* TargetSkeletalMesh = Cast< USkeletalMesh >( Context->PrimPathsToAssets.FindRef( PrimPath.GetString() ) );
+	if ( PoseableMeshComponent->SkeletalMesh != TargetSkeletalMesh )
+	{
+		PoseableMeshComponent->SetSkeletalMesh(TargetSkeletalMesh);
+
+		// Handle material overrides
+		if ( TargetSkeletalMesh )
+		{
+			if ( UUsdAssetImportData* UsdImportData = Cast<UUsdAssetImportData>( TargetSkeletalMesh->AssetImportData ) )
+			{
+				// If the prim paths match, it means that it was this prim that created (and so "owns") the mesh,
+				// so its material assignments will already be directly on the mesh. If they differ, we're using some other prim's mesh,
+				// so we may need material overrides on our component
+				if ( UsdImportData->PrimPath != PrimPath.GetString() )
+				{
+					TArray<UMaterialInterface*> ExistingAssignments;
+					for ( FSkeletalMaterial& SkeletalMaterial : TargetSkeletalMesh->Materials )
+					{
+						ExistingAssignments.Add( SkeletalMaterial.MaterialInterface );
+					}
+
+					UsdSkelRootTranslatorImpl::SetMaterialOverrides(
+						GetPrim(),
+						ExistingAssignments,
+						*PoseableMeshComponent,
+						Context->PrimPathsToAssets,
+						Context->AssetsCache,
+						Context->Time,
+						Context->ObjectFlags,
+						Context->bAllowInterpretingLODs
+					);
+
+					for ( UMaterialInterface* OverrideMaterial : PoseableMeshComponent->OverrideMaterials )
+					{
+						Context->CurrentlyUsedAssets.Add( OverrideMaterial );
+					}
+				}
+			}
+		}
+	}
+
+	if( PoseableMeshComponent->SkeletalMesh )
 	{
 		FScopedUsdAllocs UsdAllocs;
 

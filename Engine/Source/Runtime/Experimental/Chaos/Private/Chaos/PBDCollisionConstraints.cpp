@@ -37,6 +37,11 @@ namespace Chaos
 {
 	extern int32 UseLevelsetCollision;
 
+	namespace Collisions
+	{
+		extern int32 Chaos_Collision_UseAccumulatedImpulseClipSolve;
+	}
+
 	int32 CollisionParticlesBVHDepth = 4;
 	FAutoConsoleVariableRef CVarCollisionParticlesBVHDepth(TEXT("p.CollisionParticlesBVHDepth"), CollisionParticlesBVHDepth, TEXT("The maximum depth for collision particles bvh"));
 
@@ -72,9 +77,6 @@ namespace Chaos
 
 	float CollisionCullDistanceOverride = -1.0f;
 	FAutoConsoleVariableRef CVarDefaultCollisionCullDistance(TEXT("p.CollisionCullDistance"), CollisionCullDistanceOverride, TEXT("Collision culling distance override if >= 0"));
-
-	int32 Chaos_Collision_UseAccumulatedImpulseClipSolve = 1; // This requires multiple contact points per iteration per pair and contact points that don't move too much (in body space) to have an effect
-	FAutoConsoleVariableRef CVarChaosCollisionOriginalSolve(TEXT("p.Chaos.Collision.UseAccumulatedImpulseClipSolve"), Chaos_Collision_UseAccumulatedImpulseClipSolve, TEXT("Use experimental Accumulated impulse clipped contact solve"));
 
 	int32 CollisionCanAlwaysDisableContacts = 0;
 	FAutoConsoleVariableRef CVarCollisionCanAlwaysDisableContacts(TEXT("p.CollisionCanAlwaysDisableContacts"), CollisionCanAlwaysDisableContacts, TEXT("Collision culling will always be able to permanently disable contacts"));
@@ -502,8 +504,9 @@ namespace Chaos
 		SCOPE_CYCLE_COUNTER(STAT_Collisions_UpdatePointConstraints);
 
 		// Make sure the cull distance is enough if we switched to Accumulated Impulse clipping		
+		// @todo(chaos): remove this - it should be handled in physics settings
 		const int MinCullDistanceForImpulseClipping = 5;
-		if (Chaos_Collision_UseAccumulatedImpulseClipSolve && MCullDistance < MinCullDistanceForImpulseClipping)
+		if (Collisions::Chaos_Collision_UseAccumulatedImpulseClipSolve && MCullDistance < MinCullDistanceForImpulseClipping)
 		{
 			MCullDistance = MinCullDistanceForImpulseClipping;
 		}
@@ -524,7 +527,7 @@ namespace Chaos
 
 		for (FRigidBodyPointContactConstraint& Contact : Constraints.SinglePointConstraints)
 		{
-			Collisions::Update(Contact, MCullDistance);
+			Collisions::Update(Contact, MCullDistance, MShapePadding);
 			if (Contact.GetPhi() < MCullDistance)
 			{
 				Contact.Timestamp = LifespanCounter;
@@ -548,7 +551,7 @@ namespace Chaos
 
 		for (FRigidBodyMultiPointContactConstraint& Contact : Constraints.MultiPointConstraints)
 		{
-			Collisions::UpdateManifold(Contact, MCullDistance);
+			Collisions::UpdateManifold(Contact, MCullDistance, MShapePadding);
 			if (Contact.GetPhi() < MCullDistance)
 			{
 				Contact.Timestamp = LifespanCounter;

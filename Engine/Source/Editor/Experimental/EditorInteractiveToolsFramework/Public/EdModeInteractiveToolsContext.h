@@ -33,7 +33,7 @@ class EDITORINTERACTIVETOOLSFRAMEWORK_API UEdModeInteractiveToolsContext final :
 public:
 	UEdModeInteractiveToolsContext();
 
-	UE_DEPRECATED(5.0, "You should no longer create your own EdModeInteractiveToolsContext; use the one in the FEditorModeTools::GetInteractiveToolsContext insetead.")
+	UE_DEPRECATED(5.0, "You should no longer create your own EdModeInteractiveToolsContext; use the one in the FEditorModeTools::GetInteractiveToolsContext instead.")
 	virtual void InitializeContextFromEdMode(FEdMode* EditorModeIn,
 		IToolsContextAssetAPI* UseAssetAPI = nullptr);
 	virtual void InitializeContextWithEditorModeManager(FEditorModeTools* InEditorModeManager,

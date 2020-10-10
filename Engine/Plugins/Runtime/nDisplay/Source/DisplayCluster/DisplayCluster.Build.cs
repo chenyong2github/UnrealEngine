@@ -7,48 +7,35 @@ public class DisplayCluster : ModuleRules
 {
 	public DisplayCluster(ReadOnlyTargetRules ROTargetRules) : base(ROTargetRules)
 	{
-		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
-
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"DisplayCluster/Private",
-			});
-
 		PublicDependencyModuleNames.AddRange(
-			new string[]
-			{
+			new string[] {
+				"CinematicCamera",
 				"Core",
 				"CoreUObject",
-				"Engine",
-				"InputCore"
+				"DisplayClusterConfiguration",
+				"Engine"
 			});
 
 		PrivateDependencyModuleNames.AddRange(
-			new string[]
-			{
-				"Core",
-				"CoreUObject",
+			new string[] {
 				"D3D11RHI",
 				"D3D12RHI",
-				"Engine",
 				"HeadMountedDisplay",
 				"InputCore",
 				"Json",
 				"JsonUtilities",
 				"Networking",
-				"RHI",
 				"RenderCore",
+				"RHI",
 				"Slate",
 				"SlateCore",
 				"Sockets",
-				"CinematicCamera",
 				"TextureShare",
 				"TextureShareCore",
 			});
 
 		if (Target.bBuildEditor == true)
 		{
-			PrivateDependencyModuleNames.Add("EditorFramework");
 			PrivateDependencyModuleNames.Add("UnrealEd");
 		}
 
@@ -62,7 +49,6 @@ public class DisplayCluster : ModuleRules
 		// 3rd party dependencies
 		AddThirdPartyDependencies(ROTargetRules);
 	}
-
 
 	public void AddThirdPartyDependencies(ReadOnlyTargetRules ROTargetRules)
 	{

@@ -85,7 +85,7 @@ class FHairEnvironmentAO : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsHairStrandsSupported(Parameters.Platform);
+		return IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform);
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -181,7 +181,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		if (!IsHairStrandsSupported(Parameters.Platform))
+		if (!IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform))
 		{
 			return false;
 		}
@@ -253,7 +253,7 @@ class FHairEnvironmentLightingVS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsHairStrandsSupported(Parameters.Platform);
+		return IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform);
 	}
 };
 
@@ -278,7 +278,7 @@ class FHairEnvironmentLightingPS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsHairStrandsSupported(Parameters.Platform);
+		return IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform);
 	}
 };
 
@@ -340,7 +340,7 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 	PassParameters->TransmissionDensityScaleFactor = FMath::Max(0.f, GHairStrandsTransmissionDensityScaleFactor);
 	PassParameters->PreIntegratedGF = GSystemTextures.PreintegratedGF->GetRenderTargetItem().ShaderResourceTexture;
 	PassParameters->PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	PassParameters->HairCountTexture = VisibilityData.ViewHairCountTexture;
+	PassParameters->HairCountTexture = VisibilityData.ViewHairCountTexture ? VisibilityData.ViewHairCountTexture : GSystemTextures.GetBlackDummy(GraphBuilder);
 	PassParameters->SceneTextures = SceneTextures;
 	PassParameters->VirtualVoxel = MacroGroupDatas.VirtualVoxelResources.UniformBuffer;
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
@@ -483,7 +483,7 @@ void RenderHairStrandsEnvironmentLighting(
 	check(ViewIndex < uint32(Views.Num()));
 	check(ViewIndex < uint32(HairDatas->HairVisibilityViews.HairDatas.Num()));	
 	const FHairStrandsVisibilityData& VisibilityData = HairDatas->HairVisibilityViews.HairDatas[ViewIndex];
-	const bool bRenderHairLighting = VisibilityData.NodeIndex && VisibilityData.NodeData && HairDatas->MacroGroupsPerViews.Views[ViewIndex].VirtualVoxelResources.IsValid();
+	const bool bRenderHairLighting = VisibilityData.NodeIndex && VisibilityData.NodeData && HairDatas->MacroGroupsPerViews.Views[ViewIndex].VirtualVoxelResources.IsValid() && VisibilityData.CategorizationTexture;
 	if (!bRenderHairLighting)
 	{
 		return;
@@ -493,19 +493,14 @@ void RenderHairStrandsEnvironmentLighting(
 	FHairStrandsDebugData::Data DebugData;
 	if (bDebugSamplingEnable)
 	{
-		DebugData = FHairStrandsDebugData::CreateData(GraphBuilder);
+		HairDatas->DebugData.Resources = FHairStrandsDebugData::CreateData(GraphBuilder);
 	}
 
 	const FViewInfo& View = Views[ViewIndex];
 	const FHairStrandsMacroGroupDatas& MacroGroupDatas = HairDatas->MacroGroupsPerViews.Views[ViewIndex];
 	for (const FHairStrandsMacroGroupData& MacroGroupData : HairDatas->MacroGroupsPerViews.Views[ViewIndex].Datas)
 	{
-		AddHairStrandsEnvironmentLightingPassPS(GraphBuilder, View, VisibilityData, MacroGroupDatas, MacroGroupData, nullptr, bDebugSamplingEnable ? &DebugData : nullptr);
-	}
-
-	if (bDebugSamplingEnable)
-	{
-		FHairStrandsDebugData::ExtractData(GraphBuilder, DebugData, HairDatas->DebugData);
+		AddHairStrandsEnvironmentLightingPassPS(GraphBuilder, View, VisibilityData, MacroGroupDatas, MacroGroupData, nullptr, bDebugSamplingEnable ? &HairDatas->DebugData.Resources : nullptr);
 	}
 }
 
@@ -524,7 +519,7 @@ void RenderHairStrandsAmbientOcclusion(
 	{
 		check(ViewIndex < uint32(HairDatas->HairVisibilityViews.HairDatas.Num()));
 		const FHairStrandsVisibilityData& VisibilityData = HairDatas->HairVisibilityViews.HairDatas[ViewIndex];
-		const bool bRenderHairLighting = VisibilityData.NodeIndex && VisibilityData.NodeData && HairDatas->MacroGroupsPerViews.Views[ViewIndex].VirtualVoxelResources.IsValid();
+		const bool bRenderHairLighting = VisibilityData.NodeIndex && VisibilityData.NodeData && HairDatas->MacroGroupsPerViews.Views[ViewIndex].VirtualVoxelResources.IsValid() && VisibilityData.CategorizationTexture;
 		if (!bRenderHairLighting)
 		{
 			continue;

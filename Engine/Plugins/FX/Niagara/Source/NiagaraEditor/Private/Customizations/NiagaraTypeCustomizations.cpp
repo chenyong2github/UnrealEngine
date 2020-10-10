@@ -162,6 +162,10 @@ TArray<FNiagaraVariableBase> FNiagaraStackAssetAction_VarBind::FindVariables(UNi
 				Aliases.Add(InEmitter->GetUniqueEmitterName(), FNiagaraConstants::EmitterNamespace.ToString());
 				Bindings.AddUnique(Var.ResolveAliases(Var, Aliases));
 			}
+			else if (FNiagaraParameterMapHistory::IsAliasedEmitterParameter(Var) && bEmitter)
+			{
+				Bindings.AddUnique(Var);
+			}
 			else if (Var.IsInNameSpace(FNiagaraConstants::EmitterNamespace) && bEmitter)
 			{
 				Bindings.AddUnique(Var);
@@ -801,7 +805,7 @@ TArray<TPair<FNiagaraVariableBase, FNiagaraVariableBase> > FNiagaraMaterialAttri
 					TArray<FNiagaraScriptDataInterfaceInfo>& CachedDIs = Script->GetCachedDefaultDataInterfaces();
 					for (const FNiagaraScriptDataInterfaceInfo& Info : CachedDIs)
 					{
-						if (Info.Name == VariableName)
+						if (Info.RegisteredParameterMapWrite == VariableName)
 						{
 							return Info.DataInterface;
 						}

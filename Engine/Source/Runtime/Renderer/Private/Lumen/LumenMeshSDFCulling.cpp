@@ -581,7 +581,7 @@ void CullMeshSDFObjectsToViewGrid(
 	FRDGBuilder& GraphBuilder,
 	FLumenMeshSDFGridParameters& OutGridParameters)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 
 	const FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
 

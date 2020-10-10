@@ -1771,7 +1771,8 @@ FText SDMXEntityList::CheckForPatchError(UDMXEntityFixturePatch* FixturePatch) c
 	{
 		for(const FDMXFixtureMode& Mode : FixturePatch->ParentFixtureTypeTemplate->Modes)
 		{
-			if(Mode.Functions.Num() > 0)
+			if (Mode.Functions.Num() > 0 || 
+				Mode.FixtureMatrixConfig.CellAttributes.Num() > 0)
 			{
 				return true;
 			}
@@ -1788,19 +1789,18 @@ FText SDMXEntityList::CheckForPatchError(UDMXEntityFixturePatch* FixturePatch) c
 		return LOCTEXT("DMXEntityList.FixtureTypeHasNoModes", "This patch has a channel span of 0.");
 	}
 
-
 	
 	if (FixturePatch->GetChannelSpan() > DMX_UNIVERSE_SIZE)
 	{
 		return LOCTEXT("DMXEntityList.ChannelSpanExceedsUniverseSize", "Patch uses more than 512 channels.");
 	}
 
-
 	
 	if (Controllers.Num() == 0)
 	{
 		return LOCTEXT("DMXEntityList.PatchMissingController", "No controller available. See 'Controllers' tab to create one.");
 	}
+
 	
 	if (!FixturePatch->IsInControllersRange(Controllers))
 	{

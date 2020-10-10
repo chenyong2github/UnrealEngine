@@ -5,6 +5,7 @@
 #include "DMXAttribute.h"
 #include "DMXEditor.h"
 #include "DMXEditorStyle.h"
+#include "DMXPIEManager.h"
 #include "DMXProtocolTypes.h"
 #include "DMXProtocolBlueprintLibrary.h"
 #include "Library/DMXLibrary.h"
@@ -131,6 +132,8 @@ void FDMXEditorModule::StartupModule()
 		FOnSpawnTab::CreateRaw(this, &FDMXEditorModule::OnSpawnOutputConsoleTab))
 		.SetDisplayName(LOCTEXT("OutputConsoleTabTitle", "DMX Output Console"))
 		.SetMenuType(ETabSpawnerMenuType::Hidden);
+
+	PIEManager = MakeShared<FDMXPIEManager>();
 }
 
 void FDMXEditorModule::ShutdownModule()
@@ -213,7 +216,7 @@ void FDMXEditorModule::RegisterPropertyTypeCustomizations()
 	RegisterCustomPropertyTypeLayout(FDMXProtocolName::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FNameListCustomization<FDMXProtocolName>>));
 	RegisterCustomPropertyTypeLayout(FDMXFixtureCategory::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FNameListCustomization<FDMXFixtureCategory>>));
 	RegisterCustomPropertyTypeLayout(FDMXAttributeName::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FNameListCustomization<FDMXAttributeName>>));
-	RegisterCustomPropertyTypeLayout("EDMXPixelsDistribution", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXPixelsDistributionCustomization>));
+	RegisterCustomPropertyTypeLayout("EDMXPixelMappingDistribution", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXPixelMappingDistributionCustomization>));
 
 	// Customizations for the Entity Reference types
 	RegisterCustomPropertyTypeLayout(FDMXEntityControllerRef::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXEntityReferenceCustomization>));

@@ -12,18 +12,37 @@ class UTextureRenderTargetVolume;
 
 struct FRenderTargetVolumeRWInstanceData_GameThread
 {
+	FRenderTargetVolumeRWInstanceData_GameThread()
+	{
+#if WITH_EDITORONLY_DATA
+		bPreviewTexture = false;
+#endif
+	}
+
 	FIntVector Size = FIntVector(EForceInit::ForceInitToZero);
 	
 	UTextureRenderTargetVolume* TargetTexture = nullptr;
-
+#if WITH_EDITORONLY_DATA
+	uint32 bPreviewTexture : 1;
+#endif
 };
 
 struct FRenderTargetVolumeRWInstanceData_RenderThread
 {
+	FRenderTargetVolumeRWInstanceData_RenderThread()
+	{
+#if WITH_EDITORONLY_DATA
+		bPreviewTexture = false;
+#endif
+	}
+
 	FIntVector Size = FIntVector(EForceInit::ForceInitToZero);
 	
 	FTextureReferenceRHIRef TextureReferenceRHI;
 	FUnorderedAccessViewRHIRef UAV;
+#if WITH_EDITORONLY_DATA
+	uint32 bPreviewTexture : 1;
+#endif
 };
 
 struct FNiagaraDataInterfaceProxyRenderTargetVolumeProxy : public FNiagaraDataInterfaceProxy
@@ -88,8 +107,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Render Target")
 	FIntVector Size;
 
-protected:
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(Transient, EditAnywhere, Category = "Render Target")
+	uint8 bPreviewRenderTarget : 1;
+#endif
 
+protected:
 	//~ UNiagaraDataInterface interface END
 
 	static FNiagaraVariableBase ExposedRTVar;

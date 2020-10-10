@@ -1309,15 +1309,15 @@ FRHICOMMAND_MACRO(FRHICommandEndUAVOverlap)
 
 FRHICOMMAND_MACRO(FRHICommandBeginSpecificUAVOverlap)
 {
-	TArrayView<FRHIUnorderedAccessView*> UAVs;
-	FORCEINLINE_DEBUGGABLE FRHICommandBeginSpecificUAVOverlap(TArrayView<FRHIUnorderedAccessView*> InUAVs) : UAVs(InUAVs) {}
+	TArrayView<FRHIUnorderedAccessView* const> UAVs;
+	FORCEINLINE_DEBUGGABLE FRHICommandBeginSpecificUAVOverlap(TArrayView<FRHIUnorderedAccessView* const> InUAVs) : UAVs(InUAVs) {}
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
 FRHICOMMAND_MACRO(FRHICommandEndSpecificUAVOverlap)
 {
-	TArrayView<FRHIUnorderedAccessView*> UAVs;
-	FORCEINLINE_DEBUGGABLE FRHICommandEndSpecificUAVOverlap(TArrayView<FRHIUnorderedAccessView*> InUAVs) : UAVs(InUAVs) {}
+	TArrayView<FRHIUnorderedAccessView* const> UAVs;
+	FORCEINLINE_DEBUGGABLE FRHICommandEndSpecificUAVOverlap(TArrayView<FRHIUnorderedAccessView* const> InUAVs) : UAVs(InUAVs) {}
 	RHI_API void Execute(FRHICommandListBase & CmdList);
 };
 
@@ -2012,12 +2012,13 @@ FRHICOMMAND_MACRO(FRHICommandUpdateRHIResources)
 #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 FRHICOMMAND_MACRO(FRHICommandBackBufferWaitTrackingBeginFrame)
 {
-	uint64 FrameToken;
+	uint64	FrameToken;
+	bool	bDeferred;
 
-	FORCEINLINE_DEBUGGABLE FRHICommandBackBufferWaitTrackingBeginFrame(uint64 FrameTokenIn)
-		: FrameToken(FrameTokenIn)
-	{
-	}
+	FORCEINLINE_DEBUGGABLE FRHICommandBackBufferWaitTrackingBeginFrame(uint64 FrameTokenIn, bool bDeferredIn)
+		:	FrameToken(FrameTokenIn),
+			bDeferred(bDeferredIn)
+	{}
 	
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
@@ -2633,7 +2634,7 @@ public:
 		EndUAVOverlap(MakeArrayView(UAVs, 1));
 	}
 
-	FORCEINLINE_DEBUGGABLE void BeginUAVOverlap(TArrayView<FRHIUnorderedAccessView*> UAVs)
+	FORCEINLINE_DEBUGGABLE void BeginUAVOverlap(TArrayView<FRHIUnorderedAccessView* const> UAVs)
 	{
 		if (Bypass())
 		{
@@ -2647,7 +2648,7 @@ public:
 		ALLOC_COMMAND(FRHICommandBeginSpecificUAVOverlap)(MakeArrayView(InlineUAVs, UAVs.Num()));
 	}
 
-	FORCEINLINE_DEBUGGABLE void EndUAVOverlap(TArrayView<FRHIUnorderedAccessView*> UAVs)
+	FORCEINLINE_DEBUGGABLE void EndUAVOverlap(TArrayView<FRHIUnorderedAccessView* const> UAVs)
 	{
 		if (Bypass())
 		{
@@ -3488,14 +3489,14 @@ public:
 	}
 
 #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
-	FORCEINLINE_DEBUGGABLE void RHIBackBufferWaitTrackingBeginFrame(uint64 FrameToken)
+	FORCEINLINE_DEBUGGABLE void RHIBackBufferWaitTrackingBeginFrame(uint64 FrameToken, bool bDeferred)
 	{
 		if (Bypass())
 		{
-			GetContext().RHIBackBufferWaitTrackingBeginFrame(FrameToken);
+			GetContext().RHIBackBufferWaitTrackingBeginFrame(FrameToken, bDeferred);
 			return;
 		}
-		ALLOC_COMMAND(FRHICommandBackBufferWaitTrackingBeginFrame)(FrameToken);
+		ALLOC_COMMAND(FRHICommandBackBufferWaitTrackingBeginFrame)(FrameToken, bDeferred);
 	}
 #endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 	

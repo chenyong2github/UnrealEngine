@@ -90,7 +90,12 @@ void USoundControlBus::BeginDestroy()
 	}
 }
 
-const Audio::FModulationMixFunction& USoundControlBus::GetMixFunction() const
+const Audio::FModulationMixFunction USoundControlBus::GetMixFunction() const
 {
+	if (Parameter)
+	{
+		return Parameter->GetMixFunction();
+	}
+
 	return Audio::FModulationParameter::GetDefaultMixFunction();
 }

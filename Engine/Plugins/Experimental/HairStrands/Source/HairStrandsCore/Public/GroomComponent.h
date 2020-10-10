@@ -30,15 +30,6 @@ public:
 	UPROPERTY(Transient)
 	TArray<class UNiagaraComponent*> NiagaraComponents;
 
-	/** 
-	 * When activated, the groom will be attached and skinned onto the skeletal mesh, if the groom component is a child of a skeletal/skinned component.
-	 * This requires the following projection settings: 
-	 * - Rendering settings: 'Skin cache' enabled
-	 * - Animation settings: 'Tick Animation On Skeletal Mesh Init' disabled
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Groom")
-	bool bBindGroomToSkeletalMesh;
-
 	// Kept for debugging mesh transfer
 	UPROPERTY()
 	class USkeletalMesh* SourceSkeletalMesh;
@@ -83,7 +74,8 @@ public:
 	void ReleaseHairSimulation();
 
 	/** Update Group Description */
-	void UpdateHairGroupsDesc(bool bForceInit);
+	void UpdateHairGroupsDesc();
+	void UpdateHairGroupsDescAndInvalidateRenderState();
 
 	/** Update simulated groups */
 	void UpdateSimulatedGroups();
@@ -107,8 +99,6 @@ public:
 
 	//~ Begin UMeshComponent Interface.
 	virtual void PostLoad() override;
-	virtual int32 GetNumMaterials() const override;
-	virtual UMaterialInterface* GetMaterial(int32 ElementIndex) const override;
 	//~ End UMeshComponent Interface.
 
 	/** Return the guide hairs datas */
@@ -141,8 +131,8 @@ public:
 	void SetHairRootScale(float Scale);
 	void SetHairWidth(float HairWidth);
 	void SetScatterSceneLighting(bool Enable);
-	void SetBinding(bool bBind);
 	void SetBinding(UGroomBindingAsset* InBinding);
+	void SetUseCards(bool InbUseCards);
 	void SetValidation(bool bEnable) { bValidationEnable = bEnable; }
 
 	///~ Begin ILODSyncInterface Interface.
@@ -159,6 +149,21 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Groom")
 	TArray<FHairGroupDesc> GroomGroupsDesc;
 
+	/** Hair group instance access */
+	uint32 GetGroupCount() const { return HairGroupInstances.Num();  }
+	FHairGroupInstance* GetGroupInstance(uint32 Index) { return Index < uint32(HairGroupInstances.Num()) ? HairGroupInstances[Index] : nullptr; }
+	const FHairGroupInstance* GetGroupInstance(uint32 Index) const { return Index < uint32(HairGroupInstances.Num()) ? HairGroupInstances[Index] : nullptr; } 
+
+	//~ Begin UPrimitiveComponent Interface
+	UMaterialInterface* GetMaterial(int32 ElementIndex, EHairGeometryType GeometryType) const;
+	virtual UMaterialInterface* GetMaterial(int32 ElementIndex) const override;
+	virtual int32 GetMaterialIndex(FName MaterialSlotName) const override;
+	virtual TArray<FName> GetMaterialSlotNames() const override;
+	virtual bool IsMaterialSlotNameValid(FName MaterialSlotName) const override;
+	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
+	virtual int32 GetNumMaterials() const override;
+	//~ End UPrimitiveComponent Interface
+
 private:
 	TArray<FHairGroupInstance*> HairGroupInstances;
 protected:
@@ -174,13 +179,11 @@ private:
 	bool bIsGroomBindingAssetCallbackRegistered;
 	int32 PredictedLODIndex = -1;
 	bool bValidationEnable = true;
+	bool bUseCards = false;
 
 	EWorldType::Type GetWorldType() const; 
 	void InitResources(bool bIsBindingReloading=false);
 	void ReleaseResources();
-	void UpdateHairGroupsDescAndInvalidateRenderState();
-
-	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials) const override;
 
 	friend class FGroomComponentRecreateRenderStateContext;
 	friend class FHairStrandsSceneProxy;

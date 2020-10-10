@@ -1,20 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VCamBlueprintFunctionLibrary.h"
+#include "CineCameraComponent.h"
 #include "LevelSequence.h"
-#include "LevelSequenceEditor/Private/LevelSequenceEditorBlueprintLibrary.h"
 #include "VirtualCameraClipsMetaData.h"
-#include "VPUtilitiesEditor/Public/VPUtilitiesEditorBlueprintLibrary.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "AssetData.h"
 #include "VirtualCameraUserSettings.h"
-
+#include "GameFramework/PlayerController.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
 #include "EditorAssetLibrary.h"
-#include "EditorLevelLibrary.h"
-#include "LevelEditor\Public\LevelEditorSubsystem.h"
+#include "LevelEditor.h"
+#include "LevelEditorViewport.h"
+#include "SceneView.h"
+#include "SLevelViewport.h"
+#include "LevelSequenceEditor/Private/LevelSequenceEditorBlueprintLibrary.h"
+#include "VPUtilitiesEditor/Public/VPUtilitiesEditorBlueprintLibrary.h"
+#include "Subsystems/UnrealEditorSubsystem.h"
+#include "LevelEditor/Public/LevelEditorSubsystem.h"
+#include "Modules/ModuleManager.h"
 #endif
 
 bool UVCamBlueprintFunctionLibrary::IsGameRunning()
@@ -248,6 +254,7 @@ void UVCamBlueprintFunctionLibrary::PilotActor(AActor* SelectedActor)
 	if (SelectedActor)
 	{
 		ULevelEditorSubsystem* LevelEditorSubsystem = GEditor->GetEditorSubsystem<ULevelEditorSubsystem>();
+
 		if (LevelEditorSubsystem)
 		{
 			return LevelEditorSubsystem->PilotLevelActor(SelectedActor);
@@ -308,6 +315,31 @@ bool UVCamBlueprintFunctionLibrary::CallFunctionByName(UObject* ObjPtr, FName Fu
 	return false;
 }
 
+float UVCamBlueprintFunctionLibrary::CalculateAutoFocusDistance(FVector2D ReticlePosition, UCineCameraComponent* CineCamera)
+{
+	if (!CineCamera)
+	{
+		return 0.0f;
+	}
+
+	float MaxFocusTraceDistance = 1000000.0f;
+	FVector TraceDirection;
+	FVector CameraWorldLocation;
+	if (!DeprojectScreenToWorld(ReticlePosition, CameraWorldLocation, TraceDirection))
+	{
+		return 0.0f;
+	}
+
+	FCollisionQueryParams TraceParams(SCENE_QUERY_STAT(UpdateAutoFocus), true);
+
+	const FVector TraceEnd = CameraWorldLocation + TraceDirection * MaxFocusTraceDistance;
+	FHitResult Hit;
+	const bool bHit = CineCamera->GetWorld()->LineTraceSingleByChannel(Hit, CameraWorldLocation, TraceEnd, ECC_Visibility, TraceParams);
+
+	return (bHit) ? Hit.Distance : MaxFocusTraceDistance;
+}
+
+
 void UVCamBlueprintFunctionLibrary::EditorSetGameView(bool bIsToggled)
 {
 #if WITH_EDITOR
@@ -316,11 +348,79 @@ void UVCamBlueprintFunctionLibrary::EditorSetGameView(bool bIsToggled)
 	{
 		return;
 	}
-
 	ULevelEditorSubsystem* LevelEditorSubsystem = GEditor->GetEditorSubsystem<ULevelEditorSubsystem>();
+
 	if (LevelEditorSubsystem)
 	{
 		return LevelEditorSubsystem->EditorSetGameView(bIsToggled);
 	}
 #endif
+}
+
+void UVCamBlueprintFunctionLibrary::EnableDebugFocusPlane(UCineCameraComponent* CineCamera, bool bEnabled)
+{
+	if (!CineCamera)
+	{
+		return;
+	}
+	CineCamera->FocusSettings.bDrawDebugFocusPlane = bEnabled;
+}
+
+bool UVCamBlueprintFunctionLibrary::DeprojectScreenToWorld(const FVector2D& InScreenPosition, FVector& OutWorldPosition, FVector& OutWorldDirection)
+{
+	FName LevelEditorName(TEXT("LevelEditor"));
+	bool bSuccess = false;
+
+	for (const FWorldContext& Context : GEngine->GetWorldContexts())
+	{
+		if (Context.WorldType == EWorldType::PIE || Context.WorldType == EWorldType::Game)
+		{
+			APlayerController* PC = Context.OwningGameInstance->GetFirstLocalPlayerController(Context.World());
+			if (PC)
+			{
+				bSuccess |= PC->DeprojectScreenPositionToWorld(InScreenPosition.X, InScreenPosition.Y, OutWorldPosition, OutWorldDirection);
+				break;
+			}
+		}
+#if WITH_EDITOR
+		else if (Context.WorldType == EWorldType::Editor)
+		{
+			FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(LevelEditorName);
+			TSharedPtr<SLevelViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveLevelViewport();
+			if (ActiveLevelViewport.IsValid() && ActiveLevelViewport->GetActiveViewport())
+			{
+				FViewport* ActiveViewport = ActiveLevelViewport->GetActiveViewport();
+				FLevelEditorViewportClient& LevelViewportClient = ActiveLevelViewport->GetLevelViewportClient();
+				FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
+					ActiveViewport,
+					LevelViewportClient.GetScene(),
+					LevelViewportClient.EngineShowFlags)
+					.SetRealtimeUpdate(true));
+				FSceneView* View = LevelViewportClient.CalcSceneView(&ViewFamily);
+
+				const FIntPoint ViewportSize = ActiveViewport->GetSizeXY();
+				const FIntRect ViewRect = FIntRect(0, 0, ViewportSize.X, ViewportSize.Y);
+				const FMatrix InvViewProjectionMatrix = View->ViewMatrices.GetInvViewProjectionMatrix();
+				FSceneView::DeprojectScreenToWorld(InScreenPosition, ViewRect, InvViewProjectionMatrix, OutWorldPosition, OutWorldDirection);
+				bSuccess = true;
+			}
+		}
+#endif
+	}
+
+	if (!bSuccess)
+	{
+		OutWorldPosition = FVector::ZeroVector;
+		OutWorldDirection = FVector::ZeroVector;
+	}
+	return bSuccess;
+}
+
+TArray<UObject*> UVCamBlueprintFunctionLibrary::GetBoundObjects(FMovieSceneObjectBindingID CameraBindingID)
+{
+	TArray<UObject*> BoundObjectsArray;
+#if WITH_EDITOR
+	BoundObjectsArray = ULevelSequenceEditorBlueprintLibrary::GetBoundObjects(CameraBindingID);
+#endif
+	return BoundObjectsArray;
 }

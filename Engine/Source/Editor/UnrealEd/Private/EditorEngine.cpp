@@ -1302,6 +1302,12 @@ void UEditorEngine::AddReferencedObjects(UObject* InThis, FReferenceCollector& C
 		Collector.AddReferencedObject( This->ActorFactories[ Index ], This );
 	}
 
+	// If a PIE session is about to start, keep the settings object alive.
+	if (This->PlaySessionRequest.IsSet() && This->PlaySessionRequest->EditorPlaySettings)
+	{
+		Collector.AddReferencedObject(This->PlaySessionRequest->EditorPlaySettings, This);
+	}
+
 	// If we're in a PIE session, ensure we keep the current settings object alive.
 	if (This->PlayInEditorSessionInfo.IsSet() && This->PlayInEditorSessionInfo->OriginalRequestParams.EditorPlaySettings)
 	{
@@ -4049,12 +4055,47 @@ void UEditorEngine::BuildReflectionCaptures(UWorld* World)
 		FString UpdateReason = LightingScenario ? LightingScenario->GetOuter()->GetName() : TEXT("all levels");
 
 		// Passing in flag to verify all recaptures, no uploads
-		UReflectionCaptureComponent::UpdateReflectionCaptureContents(World, *UpdateReason, true);
-		bool bIsReflectionCaptureCompressionProjectSetting = (bool)IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.ReflectionCaptureCompression"))->GetValueOnAnyThread();
+		const bool bVerifyOnlyCapturing = true;
+		
+		// First capture data we will use to generate endcoded data for a mobile renderer
+		bool bCapturingForMobile = true;
+		TArray<UTextureCube*> EncodedCaptures;
+		EncodedCaptures.AddDefaulted(ReflectionCapturesToBuild.Num());
+		{
+			UReflectionCaptureComponent::UpdateReflectionCaptureContents(World, *UpdateReason, bVerifyOnlyCapturing, bCapturingForMobile);
+			bool bIsReflectionCaptureCompressionProjectSetting = (bool)IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.ReflectionCaptureCompression"))->GetValueOnAnyThread();
+			for (int32 CaptureIndex = 0; CaptureIndex < ReflectionCapturesToBuild.Num(); CaptureIndex++)
+			{ 
+				UReflectionCaptureComponent* CaptureComponent = ReflectionCapturesToBuild[CaptureIndex];
+				FReflectionCaptureData ReadbackCaptureData;
+				World->Scene->GetReflectionCaptureData(CaptureComponent, ReadbackCaptureData);
+				// Capture can fail if there are more than GMaxNumReflectionCaptures captures
+				if (ReadbackCaptureData.CubemapSize > 0)
+				{
+					ULevel* StorageLevel = LightingScenarios[LevelIndex] ? LightingScenarios[LevelIndex] : CaptureComponent->GetOwner()->GetLevel();
+					UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
+					if (!CaptureComponent->bModifyMaxValueRGBM)
+					{
+						CaptureComponent->MaxValueRGBM = GetMaxValueRGBM(ReadbackCaptureData.FullHDRCapturedData, ReadbackCaptureData.CubemapSize, ReadbackCaptureData.Brightness);
+					}
+					FString TextureName = CaptureComponent->GetName() + TEXT("Texture");
+					TextureName += LexToString(CaptureComponent->MapBuildDataId);
+					GenerateEncodedHDRTextureCube(Registry, ReadbackCaptureData, TextureName, CaptureComponent->MaxValueRGBM, CaptureComponent, bIsReflectionCaptureCompressionProjectSetting);
+					EncodedCaptures[CaptureIndex] = ReadbackCaptureData.EncodedCaptureData;
+				}
+			}
+		}
+
+		// Capture reflection data for a general use
+		bCapturingForMobile = false;
+		for (UReflectionCaptureComponent* CaptureComponent : ReflectionCapturesToBuild)
+		{
+			CaptureComponent->MarkDirtyForRecaptureOrUpload();	
+		}
+		UReflectionCaptureComponent::UpdateReflectionCaptureContents(World, *UpdateReason, bVerifyOnlyCapturing, bCapturingForMobile);
 		for (int32 CaptureIndex = 0; CaptureIndex < ReflectionCapturesToBuild.Num(); CaptureIndex++)
 		{ 
 			UReflectionCaptureComponent* CaptureComponent = ReflectionCapturesToBuild[CaptureIndex];
-
 			FReflectionCaptureData ReadbackCaptureData;
 			World->Scene->GetReflectionCaptureData(CaptureComponent, ReadbackCaptureData);
 
@@ -4065,16 +4106,8 @@ void UEditorEngine::BuildReflectionCaptures(UWorld* World)
 				UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
 				FReflectionCaptureMapBuildData& CaptureBuildData = Registry->AllocateReflectionCaptureBuildData(CaptureComponent->MapBuildDataId, true);
 				(FReflectionCaptureData&)CaptureBuildData = ReadbackCaptureData;
-
-				CaptureComponent->MaxValueRGBM = GetMaxValueRGBM(CaptureBuildData.FullHDRCapturedData, CaptureBuildData.CubemapSize, CaptureBuildData.Brightness, CaptureComponent->MaxValueRGBM);
-
-				FString TextureName = CaptureComponent->GetName() + TEXT("Texture");
-				TextureName += LexToString(CaptureComponent->MapBuildDataId);
-
-				GenerateEncodedHDRTextureCube(Registry, CaptureBuildData, TextureName, CaptureComponent->MaxValueRGBM, CaptureComponent, bIsReflectionCaptureCompressionProjectSetting);
-
+				CaptureBuildData.EncodedCaptureData = EncodedCaptures[CaptureIndex];
 				CaptureBuildData.FinalizeLoad();
-
 				// Recreate capture render state now that we have valid BuildData
 				CaptureComponent->MarkRenderStateDirty();
 			}
@@ -4083,7 +4116,7 @@ void UEditorEngine::BuildReflectionCaptures(UWorld* World)
 				UE_LOG(LogEditor, Warning, TEXT("Unable to build Reflection Capture %s, max number of reflection captures exceeded"), *CaptureComponent->GetPathName());
 			}
 		}
-				// Queue an update
+		// Queue an update
 		// Update sky light first because it's considered direct lighting, sky diffuse will be visible in reflection capture indirect specular
 		if (LightingScenario)
 		{

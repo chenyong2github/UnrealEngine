@@ -80,7 +80,7 @@ cp -v ${TMPDIR}/libicu.a ${LIB_ROOT_DIR}/lib/Mac/libicu.a
 
 # Make debug
 mkdir -p ${TEMP_DIR_DEBUG} && cd ${TEMP_DIR_DEBUG}
-cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_OSX_ARCHITECTURES="$ARCHFLAGS" "$CMAKE_BASE_DIR"
+cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_CXX_FLAGS_DEBUG="-gdwarf-2" -DCMAKE_OSX_ARCHITECTURES="$ARCHFLAGS" "$CMAKE_BASE_DIR"
 make clean && make -j$(get_core_count)
 cp -v ${TMPDIR}/libicu.a ${LIB_ROOT_DIR}/lib/Mac/libicud.a
 

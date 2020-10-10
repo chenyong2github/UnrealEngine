@@ -166,9 +166,9 @@ void SDMXFunctionTableRow::Construct(const FArguments& InArgs, const TSharedRef<
 						+ SHorizontalBox::Slot()
 						[
 							SNew(STextBlock)
-							.Text(LOCTEXT("FunctionChannel.OverlapsWithPixelFunction", "Overlaps with Pixel Function!"))
+							.Text(LOCTEXT("FunctionChannel.OverlapsWithMatrixCellChannels", "Overlaps with Matrix Cell Channels"))
 							.ColorAndOpacity(FSlateColor(FLinearColor::Red))
-							.Visibility(this, &SDMXFunctionTableRow::CheckPixelFunctionsOverlap)
+							.Visibility(this, &SDMXFunctionTableRow::CheckCellChannelsOverlap)
 						]
 					]
 				]
@@ -189,32 +189,32 @@ FText SDMXFunctionTableRow::GetFunctionChannelText() const
 	return FText::FromString(FString::FromInt(GetItem()->GetFunctionChannel()));
 }
 
-EVisibility SDMXFunctionTableRow::CheckPixelFunctionsOverlap() const
+EVisibility SDMXFunctionTableRow::CheckCellChannelsOverlap() const
 {
 	if (CurrentModeHandle.IsValid())
 	{
-		TSharedPtr<IPropertyHandle> PixelMatrixConfigHandle = CurrentModeHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, PixelMatrixConfig));
-		check(PixelMatrixConfigHandle.IsValid());
+		TSharedPtr<IPropertyHandle> FixtureMatrixConfigHandle = CurrentModeHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, FixtureMatrixConfig));
+		check(FixtureMatrixConfigHandle.IsValid());
 
 		TArray<void*> RawData;
-		PixelMatrixConfigHandle->AccessRawData(RawData);
+		FixtureMatrixConfigHandle->AccessRawData(RawData);
 		// reinterpret_cast here as AccessRawData fills an array a void*
-		FDMXPixelMatrix* PixelMatrixConfig = reinterpret_cast<FDMXPixelMatrix*>(RawData[0]);
+		FDMXFixtureMatrix* FixtureMatrixConfig = reinterpret_cast<FDMXFixtureMatrix*>(RawData[0]);
 
-		if (!PixelMatrixConfig || PixelMatrixConfig->PixelFunctions.Num() == 0)
+		if (!FixtureMatrixConfig || FixtureMatrixConfig->CellAttributes.Num() == 0)
 		{
 			return EVisibility::Collapsed;
 		}
 				
-		int32 FirstPixelChannel = PixelMatrixConfig->FirstPixelChannel;
-		int32 LastPixelChannel = PixelMatrixConfig->GetPixelFunctionsLastChannel();
-		int32 NumPixels = PixelMatrixConfig->XPixels * PixelMatrixConfig->YPixels;
+		int32 FirstCellChannel = FixtureMatrixConfig->FirstCellChannel;
+		int32 LastCellChannel = FixtureMatrixConfig->GetFixtureMatrixLastChannel();
+		int32 NumCells = FixtureMatrixConfig->XCells * FixtureMatrixConfig->YCells;
 
 		int32 FunctionChannel = GetItem()->GetFunctionChannel();
 
-		if (FunctionChannel >= FirstPixelChannel && 
-			FunctionChannel <= LastPixelChannel &&
-			NumPixels > 0)
+		if (FunctionChannel >= FirstCellChannel && 
+			FunctionChannel <= LastCellChannel &&
+			NumCells > 0)
 		{
 			return EVisibility::Visible;
 		}
@@ -442,9 +442,9 @@ void SDMXFunctionItemListViewBox::Construct(const FArguments& InArgs, const TSha
 			.Padding(0.f, 0.f, 3.f, 0.f)
 			[
 				SNew(STextBlock)
-				.Text(this, &SDMXFunctionItemListViewBox::GetPixelFunctionsStartChannel)
+				.Text(this, &SDMXFunctionItemListViewBox::GetCellChannelsStartChannel)
 				.Font(FCoreStyle::GetDefaultFontStyle("Regular", 10))
-				.Visibility(this, &SDMXFunctionItemListViewBox::GetPixelFunctionsVisibility)
+				.Visibility(this, &SDMXFunctionItemListViewBox::GetFixtureMatrixVisibility)
 				.Margin(FMargin(2.f, 15.f, 2.f, 5.f))
 			]				
 			+ SHorizontalBox::Slot()
@@ -457,9 +457,9 @@ void SDMXFunctionItemListViewBox::Construct(const FArguments& InArgs, const TSha
 				.VAlign(VAlign_Top)
 				[
 					SNew(STextBlock)
-					.Text(this, &SDMXFunctionItemListViewBox::GetPixelFunctionsHeader)
+					.Text(this, &SDMXFunctionItemListViewBox::GetCellAttributesHeader)
 					.Font(FCoreStyle::GetDefaultFontStyle("Regular", 10))
-					.Visibility(this, &SDMXFunctionItemListViewBox::GetPixelFunctionsVisibility)
+					.Visibility(this, &SDMXFunctionItemListViewBox::GetFixtureMatrixVisibility)
 					.Margin(FMargin(2.f, 15.f, 2.f, 5.f))
 				]
 				+ SVerticalBox::Slot()
@@ -467,13 +467,13 @@ void SDMXFunctionItemListViewBox::Construct(const FArguments& InArgs, const TSha
 				.AutoHeight()
 				[
 					SNew(SBox)
-					.Visibility(this, &SDMXFunctionItemListViewBox::GetPixelFunctionsVisibility)
+					.Visibility(this, &SDMXFunctionItemListViewBox::GetFixtureMatrixVisibility)
 					.HAlign(HAlign_Fill)					
 					[
-						SAssignNew(PixelListView, SDMXPixelFunctionItemListView)
+						SAssignNew(CellAttributeListView, SDMXCellAttributeItemListView)
 						.ItemHeight(40.0f)
-						.ListItemsSource(&PixelListSource)
-						.OnGenerateRow(this, &SDMXFunctionItemListViewBox::GeneratePixelFunctionNameRow)
+						.ListItemsSource(&CellAttributeListSource)
+						.OnGenerateRow(this, &SDMXFunctionItemListViewBox::GenerateCellAttributeNameRow)
 						.SelectionMode(ESelectionMode::None)
 					]
 				]
@@ -485,7 +485,7 @@ void SDMXFunctionItemListViewBox::Construct(const FArguments& InArgs, const TSha
 	RebuildList();
 }
 
-EVisibility SDMXFunctionItemListViewBox::GetPixelFunctionsVisibility() const
+EVisibility SDMXFunctionItemListViewBox::GetFixtureMatrixVisibility() const
 {
 	if (CurrentModeHandle.IsValid())
 	{
@@ -496,23 +496,23 @@ EVisibility SDMXFunctionItemListViewBox::GetPixelFunctionsVisibility() const
 		check(OuterObjects.Num() == 1);
 
 		UDMXEntityFixtureType* FixtureType = CastChecked<UDMXEntityFixtureType>(OuterObjects[0]);
-		if (!FixtureType->bPixelFunctionsEnabled)
+		if (!FixtureType->bFixtureMatrixEnabled)
 		{
 			return EVisibility::Collapsed;
 		}
 
-		TSharedPtr<IPropertyHandle> PixelMatrixConfigHandle = CurrentModeHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, PixelMatrixConfig));
-		check(PixelMatrixConfigHandle.IsValid());
+		TSharedPtr<IPropertyHandle> FixtureMatrixConfigHandle = CurrentModeHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, FixtureMatrixConfig));
+		check(FixtureMatrixConfigHandle.IsValid());
 
-		TSharedPtr<IPropertyHandle> PixelFunctionsHandle = PixelMatrixConfigHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXPixelMatrix, PixelFunctions));
-		check(PixelFunctionsHandle.IsValid());
-		TSharedPtr<IPropertyHandleArray> PixelFunctionsHandleArray = PixelFunctionsHandle->AsArray();
-		check(PixelFunctionsHandleArray.IsValid());
+		TSharedPtr<IPropertyHandle> CellAttributesHandle = FixtureMatrixConfigHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMatrix, CellAttributes));
+		check(CellAttributesHandle.IsValid());
+		TSharedPtr<IPropertyHandleArray> CellAttributesHandleArray = CellAttributesHandle->AsArray();
+		check(CellAttributesHandleArray.IsValid());
 
-		uint32 NumPixelFunctions = 0;
-		if (PixelFunctionsHandleArray->GetNumElements(NumPixelFunctions) == FPropertyAccess::Success)
+		uint32 NumCellFunctions = 0;
+		if (CellAttributesHandleArray->GetNumElements(NumCellFunctions) == FPropertyAccess::Success)
 		{
-			if (NumPixelFunctions > 0)
+			if (NumCellFunctions > 0)
 			{
 				return EVisibility::Visible;
 			}
@@ -522,72 +522,72 @@ EVisibility SDMXFunctionItemListViewBox::GetPixelFunctionsVisibility() const
 	return EVisibility::Collapsed;
 }
 
-FText SDMXFunctionItemListViewBox::GetPixelFunctionsHeader() const
+FText SDMXFunctionItemListViewBox::GetCellAttributesHeader() const
 {
 	
 	if (CurrentModeHandle.IsValid())
 	{
-		TSharedPtr<IPropertyHandle> PixelMatrixConfigHandle = CurrentModeHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, PixelMatrixConfig));
-		check(PixelMatrixConfigHandle.IsValid());
+		TSharedPtr<IPropertyHandle> FixtureMatrixConfigHandle = CurrentModeHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, FixtureMatrixConfig));
+		check(FixtureMatrixConfigHandle.IsValid());
 
-		TSharedPtr<IPropertyHandle> XPixelsHandle = PixelMatrixConfigHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXPixelMatrix, XPixels));
-		check(XPixelsHandle.IsValid());
+		TSharedPtr<IPropertyHandle> XCellsHandle = FixtureMatrixConfigHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMatrix, XCells));
+		check(XCellsHandle.IsValid());
 
-		TSharedPtr<IPropertyHandle> YPixelsHandle = PixelMatrixConfigHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXPixelMatrix, YPixels));
-		check(YPixelsHandle.IsValid());
+		TSharedPtr<IPropertyHandle> YCellsHandle = FixtureMatrixConfigHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMatrix, YCells));
+		check(YCellsHandle.IsValid());
 
-		int32 XPixels = 0;
-		if (XPixelsHandle->GetValue(XPixels) != FPropertyAccess::Success)
+		int32 XCells = 0;
+		if (XCellsHandle->GetValue(XCells) != FPropertyAccess::Success)
 		{
-			return LOCTEXT("DMXPixelMatrix.ErrorAccessXPixels", "Unable to retrieve PixelMatrix XPixels value.");
+			return LOCTEXT("DMXFixtureMatrix.ErrorAccessXCells", "Unable to retrieve FixtureMatrix XCells value.");
 		}
-		int32 YPixels = 0;
-		if (YPixelsHandle->GetValue(YPixels) != FPropertyAccess::Success)
+		int32 YCells = 0;
+		if (YCellsHandle->GetValue(YCells) != FPropertyAccess::Success)
 		{
-			return LOCTEXT("DMXPixelMatrix.ErrorAccessYPixels", "Unable to retrieve PixelMatrix YPixels value.");
-		}
-
-		TSharedPtr<IPropertyHandle> PixelFunctionsHandle = PixelMatrixConfigHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXPixelMatrix, PixelFunctions));
-		check(PixelFunctionsHandle.IsValid());
-
-		TSharedPtr<IPropertyHandleArray> PixelFunctionsHandleArray = PixelFunctionsHandle->AsArray();
-		check(PixelFunctionsHandleArray.IsValid());
-
-		uint32 NumPixelFunctions = 0;
-		if (PixelFunctionsHandleArray->GetNumElements(NumPixelFunctions) != FPropertyAccess::Success)
-		{
-			return LOCTEXT("DMXPixelMatrix.ErrorAccessFunctions", "Unable to retrieve FixtureMode Functions value.");
+			return LOCTEXT("DMXFixtureMatrix.ErrorAccessYCellss", "Unable to retrieve FixtureMatrix YCells value.");
 		}
 
-		int32 NumElements = XPixels * YPixels * NumPixelFunctions;
+		TSharedPtr<IPropertyHandle> CellAttributesHandle = FixtureMatrixConfigHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMatrix, CellAttributes));
+		check(CellAttributesHandle.IsValid());
+
+		TSharedPtr<IPropertyHandleArray> CellAttributesHandleArray = CellAttributesHandle->AsArray();
+		check(CellAttributesHandleArray.IsValid());
+
+		uint32 NumCellFunctions = 0;
+		if (CellAttributesHandleArray->GetNumElements(NumCellFunctions) != FPropertyAccess::Success)
+		{
+			return LOCTEXT("DMXFixtureMatrix.ErrorAccessFunctions", "Unable to retrieve FixtureMode Functions value.");
+		}
+
+		int32 NumElements = XCells * YCells * NumCellFunctions;
 		if (NumElements < 0)
 		{
-			return LOCTEXT("DMXPixelMatrix.InvalidPixelMatrixValues", "Invalid PixelMatrix values.");
+			return LOCTEXT("DMXFixtureMatrix.InvalidCellMatrixValues", "Invalid Cell Matrix values.");
 		}
 
-		return FText::FromString(FString::Printf(TEXT("Pixel Functions %d elements"), NumElements));
+		return FText::FromString(FString::Printf(TEXT("Cell Functions %d elements"), NumElements));
 	}
 	
 	return FText();
 }
 
-FText SDMXFunctionItemListViewBox::GetPixelFunctionsStartChannel() const
+FText SDMXFunctionItemListViewBox::GetCellChannelsStartChannel() const
 {
 
 	if (CurrentModeHandle.IsValid())
 	{
-		TSharedPtr<IPropertyHandle> PixelMatrixConfigHandle = CurrentModeHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, PixelMatrixConfig));
-		check(PixelMatrixConfigHandle.IsValid());
-		TSharedPtr<IPropertyHandle> FirstPixelChannelHandle = PixelMatrixConfigHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXPixelMatrix, FirstPixelChannel));
-		check(FirstPixelChannelHandle.IsValid());
+		TSharedPtr<IPropertyHandle> CellMatrixConfigHandle = CurrentModeHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, FixtureMatrixConfig));
+		check(CellMatrixConfigHandle.IsValid());
+		TSharedPtr<IPropertyHandle> FirstCellChannelHandle = CellMatrixConfigHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMatrix, FirstCellChannel));
+		check(FirstCellChannelHandle.IsValid());
 		
 		int32 StartChannel = 0;
-		if (FirstPixelChannelHandle->GetValue(StartChannel) != FPropertyAccess::Success)
+		if (FirstCellChannelHandle->GetValue(StartChannel) != FPropertyAccess::Success)
 		{
-			return LOCTEXT("DMXPixelMatrix.ErrorAccessFirstChannel", "Unable to retrieve PixelMatrix Pixel First Channel value.");
+			return LOCTEXT("DMXFixtureMatrix.ErrorAccessFirstChannel", "Unable to retrieve FixtureMatrix first Cell Channel Value.");
 		}
 		
-		return FText::FromString(FString::Printf(TEXT("Pixel Function Starting Channel: %d"), StartChannel));
+		return FText::FromString(FString::Printf(TEXT("Cell Function Starting Channel: %d"), StartChannel));
 	}
 
 	return FText();
@@ -619,7 +619,7 @@ void SDMXFunctionItemListViewBox::RebuildList(bool bUpdateSelection)
 	check(ModesHandleArray.IsValid());
 
 	TArray<TSharedPtr<FDMXFixtureFunctionItem>> FunctionsBeingEdited;
-	TArray<TSharedPtr<FDMXPixelFunctionItem>> PixelFunctionsBeingEdited;
+	TArray<TSharedPtr<FDMXCellAttributeItem>> CellAttributesBeingEdited;
 	uint32 NumModes = 0;
 	if (ModesHandleArray->GetNumElements(NumModes) == FPropertyAccess::Success)
 	{
@@ -656,22 +656,22 @@ void SDMXFunctionItemListViewBox::RebuildList(bool bUpdateSelection)
 				}
 			}
 
-			TSharedPtr<IPropertyHandle> PixelMatrixConfigHandle = ModeHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, PixelMatrixConfig));
-			check(PixelMatrixConfigHandle.IsValid() && PixelMatrixConfigHandle->IsValidHandle());
+			TSharedPtr<IPropertyHandle> FixtureMatrixConfigHandle = ModeHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, FixtureMatrixConfig));
+			check(FixtureMatrixConfigHandle.IsValid() && FixtureMatrixConfigHandle->IsValidHandle());
 
-			TSharedPtr<IPropertyHandle> PixelFunctionsHandle = PixelMatrixConfigHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXPixelMatrix, PixelFunctions));
-			check(PixelFunctionsHandle.IsValid() && PixelFunctionsHandle->IsValidHandle());
-			TSharedPtr<IPropertyHandleArray> PixelFunctionsHandleArray = PixelFunctionsHandle->AsArray();
-			check(PixelFunctionsHandleArray.IsValid());
+			TSharedPtr<IPropertyHandle> CellAttributesHandle = FixtureMatrixConfigHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMatrix, CellAttributes));
+			check(CellAttributesHandle.IsValid() && CellAttributesHandle->IsValidHandle());
+			TSharedPtr<IPropertyHandleArray> CellAttributesHandleArray = CellAttributesHandle->AsArray();
+			check(CellAttributesHandleArray.IsValid());
 
-			PixelFunctionsHandleArray->SetOnNumElementsChanged(OnNumFunctionsChangedDelegate);
+			CellAttributesHandleArray->SetOnNumElementsChanged(OnNumFunctionsChangedDelegate);
 
-			uint32 NumPixelFunctions = 0;
-			if (PixelFunctionsHandleArray->GetNumElements(NumPixelFunctions) == FPropertyAccess::Success)
+			uint32 NumCellFunctions = 0;
+			if (CellAttributesHandleArray->GetNumElements(NumCellFunctions) == FPropertyAccess::Success)
 			{
-				for (uint32 IndexOfFunction = 0; IndexOfFunction < NumPixelFunctions; IndexOfFunction++)
+				for (uint32 IndexOfFunction = 0; IndexOfFunction < NumCellFunctions; IndexOfFunction++)
 				{
-					PixelFunctionsBeingEdited.Add(MakeShared<FDMXPixelFunctionItem>(PixelFunctionsHandleArray->GetElement(IndexOfFunction)));
+					CellAttributesBeingEdited.Add(MakeShared<FDMXCellAttributeItem>(CellAttributesHandleArray->GetElement(IndexOfFunction)));
 				}
 			}
 		}
@@ -680,12 +680,12 @@ void SDMXFunctionItemListViewBox::RebuildList(bool bUpdateSelection)
 	SharedData->SetFunctionsBeingEdited(FunctionsBeingEdited);
 
 	ListSource = FunctionsBeingEdited;
-	PixelListSource = PixelFunctionsBeingEdited;
+	CellAttributeListSource = CellAttributesBeingEdited;
 
 	TableRows.Reset();
 	ListView->RebuildList();
 
-	PixelListView->RebuildList();
+	CellAttributeListView->RebuildList();
 
 	if (bUpdateSelection)
 	{
@@ -711,18 +711,18 @@ void SDMXFunctionItemListViewBox::RebuildList(bool bUpdateSelection)
 	}
 }
 
-FDMXPixelFunctionItem::FDMXPixelFunctionItem(const TSharedPtr<IPropertyHandle> InPixelFunctionHandle)
+FDMXCellAttributeItem::FDMXCellAttributeItem(const TSharedPtr<IPropertyHandle> InCellAttributeHandle)
 {
-	PixelFunctionHandle = InPixelFunctionHandle;
+	CellFunctionHandle = InCellAttributeHandle;
 }
 
-FText FDMXPixelFunctionItem::GetAttributeName() const
+FText FDMXCellAttributeItem::GetAttributeName() const
 {
-	TSharedPtr<IPropertyHandle> PixelFunctionAttributeHandle = PixelFunctionHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixturePixelFunction, Attribute));
-	check(PixelFunctionAttributeHandle.IsValid() && PixelFunctionAttributeHandle->IsValidHandle());
+	TSharedPtr<IPropertyHandle> CellAttributeHandle = CellFunctionHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureCellAttribute, Attribute));
+	check(CellAttributeHandle.IsValid() && CellAttributeHandle->IsValidHandle());
 
 	TArray<const void*> RawData;
-	PixelFunctionAttributeHandle->AccessRawData(RawData);
+	CellAttributeHandle->AccessRawData(RawData);
 
 	for (const void* RawPtr : RawData)
 	{
@@ -772,13 +772,13 @@ TSharedRef<ITableRow> SDMXFunctionItemListViewBox::GenerateFunctionNameRow(TShar
 	return Row;
 }
 
-TSharedRef<ITableRow> SDMXFunctionItemListViewBox::GeneratePixelFunctionNameRow(TSharedPtr<FDMXPixelFunctionItem> InItem, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> SDMXFunctionItemListViewBox::GenerateCellAttributeNameRow(TSharedPtr<FDMXCellAttributeItem> InItem, const TSharedRef<STableViewBase>& OwnerTable)
 {
-	TSharedRef<STableRow<TSharedPtr<FDMXPixelFunctionItem>>> Row = SNew(STableRow<TSharedPtr<FDMXPixelFunctionItem>>, OwnerTable)
+	TSharedRef<STableRow<TSharedPtr<FDMXCellAttributeItem>>> Row = SNew(STableRow<TSharedPtr<FDMXCellAttributeItem>>, OwnerTable)
 		.Content()
 		[
 			SNew(STextBlock)
-			.Text(TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(InItem.ToSharedRef(), &FDMXPixelFunctionItem::GetAttributeName)))
+			.Text(TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(InItem.ToSharedRef(), &FDMXCellAttributeItem::GetAttributeName)))
 		];
 
 	return Row;

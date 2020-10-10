@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+
 #include "CoreMinimal.h"
 #include "Layout/Visibility.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
@@ -19,7 +20,12 @@ struct FFixupSelfContextItem
 {
 public:
 	/** Enum to describe how the node will be fixed up (or not) */
-	enum class EFixupStrategy { DoNothing, CreateNewFunction, RemoveNode };
+	enum class EFixupStrategy 
+	{ 
+		DoNothing, 
+		CreateNewFunction, 
+		RemoveNode
+	};
 	
 	/** Constructs a FixupSelfContextItem for a given function name */
 	FFixupSelfContextItem(FName Function) : FuncName(Function) {}
@@ -47,17 +53,18 @@ public:
 	{}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const TArray< UK2Node_CallFunction* >& InNodesToFixup, const FBlueprintEditor* InBlueprintEditorPtr, bool bInOtherPastedNodes);
+	void Construct(const FArguments& InArgs, const TArray<UK2Node_CallFunction*>& InNodesToFixup, UBlueprint* InFromBP, const FBlueprintEditor* InBlueprintEditorPtr, bool bInOtherPastedNodes);
 
 	/**
 	 * Creates a Confirmation Modal, this function will not return until the Dialog is closed
 	 *
 	 * @param NodesToFixup Array of unresolved function nodes
+	 * @param InFromBP	The blueprint that the function was copied from
 	 * @param BlueprintEditorPtr the BlueprintEditor this modal was created by
 	 * @param bOtherPastedNodes Whether other nodes were involved in this paste operation
-	 * @returns True if the user confirmed the operation, False if it was cancelled
+	 * @returns True if the user confirmed the operation, False if it was canceled
 	 */
-	static bool CreateModal(const TArray< UK2Node_CallFunction* >& NodesToFixup, const FBlueprintEditor* BlueprintEditorPtr, bool bOtherPastedNodes);
+	static bool CreateModal(const TArray<UK2Node_CallFunction*>& NodesToFixup, UBlueprint* InFromBP, const FBlueprintEditor* BlueprintEditorPtr, bool bOtherPastedNodes);
 
 private:
 	/** Generates a row for a List Item */
@@ -68,18 +75,29 @@ private:
 
 	/** Closes the window */
 	FReply CloseWindow(bool bConfirmed);
-private:
+
+	/** 
+	* Creates the missing function or event in the blueprint we are copying to. If the FuncToFix came from
+	* a custom event, then create a matching one here. 
+	* 
+	* @param FuncToFix		The function that needs to be created that was on the old BP, but not this one
+	*/
+	void CreateMissingFunctions(FListViewItem FuncToFix);
+
 	/** The list of unique functions that need to be fixed */
-	TArray< FListViewItem > FunctionsToFixup;
+	TArray<FListViewItem> FunctionsToFixup;
 
 	/** The find results to modify */
-	TArray< UK2Node_CallFunction* > NodesToFixup;
+	TArray<UK2Node_CallFunction*> NodesToFixup;
 
 	/** The blueprint for the new context */
 	UBlueprint* Blueprint;
 
 	/** The blueprint editor this modal was created by */
 	const FBlueprintEditor* BlueprintEditor;
+
+	/** The blueprint that the incoming function is coming from */
+	UBlueprint* FromBP;
 
 	/** Window to close when dialog completed */
 	TSharedPtr<SWindow> MyWindow;
@@ -90,6 +108,6 @@ private:
 	/** Whether other nodes were involved in this paste operation */
 	bool bOtherNodes;
 
-	/** Whether the user confirmed or cancelled the action */
+	/** Whether the user confirmed or canceled the action */
 	bool bOutConfirmed;
 };

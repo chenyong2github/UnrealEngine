@@ -141,6 +141,9 @@
 #include "Containers/Ticker.h"
 #include "NiagaraConstants.h"
 
+#include "ViewModels/Stack/NiagaraStackObjectIssueGenerator.h"
+#include "NiagaraPlatformSet.h"
+
 
 IMPLEMENT_MODULE( FNiagaraEditorModule, NiagaraEditor );
 
@@ -848,6 +851,10 @@ void FNiagaraEditorModule::StartupModule()
 	PropertyModule.RegisterCustomPropertyTypeLayout(
 		FNiagaraPlatformSet::StaticStruct()->GetFName(),
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraPlatformSetCustomization::MakeInstance));
+
+	PropertyModule.RegisterCustomPropertyTypeLayout(
+		FNiagaraPlatformSetCVarCondition::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraPlatformSetCVarConditionCustomization::MakeInstance));
 	
 	PropertyModule.RegisterCustomPropertyTypeLayout(
 		FNiagaraUserParameterBinding::StaticStruct()->GetFName(),
@@ -865,6 +872,10 @@ void FNiagaraEditorModule::StartupModule()
 	PropertyModule.RegisterCustomPropertyTypeLayout(
 	    FNiagaraVariableDataInterfaceBinding::StaticStruct()->GetFName(),
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraDataInterfaceBindingCustomization::MakeInstance));
+
+	//Register Stack Object Issue Generators.
+	RegisterStackIssueGenerator(FNiagaraPlatformSet::StaticStruct()->GetFName(), new FNiagaraPlatformSetIssueGenerator());
+
 
 	FNiagaraEditorStyle::Initialize();
 	ReinitializeStyleCommand = IConsoleManager::Get().RegisterConsoleCommand(
@@ -1167,6 +1178,15 @@ void FNiagaraEditorModule::ShutdownModule()
 		UThumbnailManager::Get().UnregisterCustomRenderer(UNiagaraEmitter::StaticClass());
 		UThumbnailManager::Get().UnregisterCustomRenderer(UNiagaraSystem::StaticClass());
 	}
+
+	for (auto& Pair : StackIssueGenerators)
+	{
+		if (Pair.Value)
+		{
+			delete Pair.Value;
+		}
+	}
+	StackIssueGenerators.Empty();
 }
 
 void FNiagaraEditorModule::OnPostEngineInit()
@@ -1204,7 +1224,7 @@ void FNiagaraEditorModule::OnPreviewPlatformChanged()
 	{
 		UNiagaraSystem* System = *It;
 		check(System);
-		System->OnQualityLevelChanged();
+		System->OnScalabilityCVarChanged();
 	}
 }
 

@@ -905,6 +905,7 @@ public:
 		}
 
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
+		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::GraphicsPlatform, InSize, ELLMTracker::Platform, ELLMAllocType::None);
 		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::Meshes, InSize, ELLMTracker::Default, ELLMAllocType::None);
 #endif
 	}
@@ -917,6 +918,7 @@ public:
 		}
 
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
+		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::GraphicsPlatform, -(int64)GetSize(), ELLMTracker::Platform, ELLMAllocType::None);
 		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::Meshes, -(int64)GetSize(), ELLMTracker::Default, ELLMAllocType::None);
 #endif
 	}
@@ -2107,6 +2109,28 @@ private:
 };
 
 // Fences
+struct FOpenGLGPUFenceProxy
+{
+	FOpenGLGPUFenceProxy()
+		: bValidSync(false)
+		, bIsSignaled(false)
+	{}
+
+
+	~FOpenGLGPUFenceProxy()
+	{
+		if (bValidSync)
+		{
+			FOpenGL::DeleteSync(Fence);
+		}
+	}
+
+	UGLsync Fence;
+	// We shadow the sync state to know if/when we need to destroy it.
+	bool bValidSync;
+	bool bIsSignaled;
+};
+
 
 // Note that Poll() and WriteInternal() will stall the RHI thread if one is present.
 class FOpenGLGPUFence final : public FRHIGPUFence
@@ -2114,11 +2138,9 @@ class FOpenGLGPUFence final : public FRHIGPUFence
 public:
 	FOpenGLGPUFence(FName InName)
 		: FRHIGPUFence(InName)
-		, bValidSync(false)
-		, bIsSignaled(false)
-		, ClearIssued(0)
-		, ClearProcessed(0)
-	{}
+	{
+		Proxy = new FOpenGLGPUFenceProxy();
+	}
 
 	~FOpenGLGPUFence() override;
 
@@ -2127,12 +2149,7 @@ public:
 	
 	void WriteInternal();
 private:
-	UGLsync Fence;
-	// We shadow the sync state to know if/when we need to destroy it.
-	bool bValidSync;
-	mutable bool bIsSignaled;
-	uint32 ClearIssued;
-	uint32 ClearProcessed;
+	FOpenGLGPUFenceProxy* Proxy;
 };
 
 class FOpenGLStagingBuffer final : public FRHIStagingBuffer

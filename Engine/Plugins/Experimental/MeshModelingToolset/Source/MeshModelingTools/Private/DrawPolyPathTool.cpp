@@ -693,7 +693,7 @@ void UDrawPolyPathTool::InitializePreviewMesh()
 		}
 		else
 		{
-			EditPreview->SetMaterial(MaterialProperties->Material);
+			EditPreview->SetMaterial(MaterialProperties->Material.Get());
 		}
 	}
 }
@@ -775,7 +775,7 @@ void UDrawPolyPathTool::EmitNewObject(EDrawPolyPathOutputMode OutputMode)
 
 	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
 		AssetAPI, TargetWorld,
-		&PathMesh, MeshTransform.ToTransform(), TEXT("Path"), MaterialProperties->Material);
+		&PathMesh, MeshTransform.ToTransform(), TEXT("Path"), MaterialProperties->Material.Get());
 	if (NewActor != nullptr)
 	{
 		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), NewActor);

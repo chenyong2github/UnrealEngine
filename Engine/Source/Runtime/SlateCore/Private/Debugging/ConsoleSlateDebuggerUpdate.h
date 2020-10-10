@@ -8,6 +8,7 @@
 #if WITH_SLATE_DEBUGGING
 
 #include "CoreMinimal.h"
+#include "Debugging/ConsoleSlateDebuggerUtility.h"
 #include "Delegates/Delegate.h"
 #include "Input/Reply.h"
 #include "HAL/IConsoleManager.h"
@@ -79,17 +80,12 @@ private:
 	FAutoConsoleCommand SetWidgetUpdateFlagsFilterCommand;
 	FAutoConsoleVariableRef InvalidationRootFilterRefCVar;
 
-	using TSWidgetId = UPTRINT;
-	using TSWindowId = UPTRINT;
-	static const TSWidgetId InvalidWidgetId = 0;
-	static const TSWindowId InvalidWindowId = 0;
-
 	struct FWidgetInfo
 	{
 		FWidgetInfo(const SWidget* Widget, EWidgetUpdateFlags InUpdateFlags);
 		void Update(const SWidget* Widget, EWidgetUpdateFlags InUpdateFlags);
 
-		TSWindowId WindowId;
+		FConsoleSlateDebuggerUtility::TSWindowId WindowId;
 		FVector2D PaintLocation;
 		FVector2D PaintSize;
 		FString WidgetName;
@@ -97,7 +93,7 @@ private:
 		double LastInvalidationTime;
 	};
 
-	using TWidgetMap = TMap<TSWidgetId, FWidgetInfo>;
+	using TWidgetMap = TMap<FConsoleSlateDebuggerUtility::TSWidgetId, FWidgetInfo>;
 	TWidgetMap UpdatedWidgets;
 };
 

@@ -127,6 +127,20 @@ struct FUsdStageActorImpl
 
 		GEditor->NoteSelectionChange();
 	}
+
+	static void CloseEditorsForAssets( const TMap< FString, UObject* >& AssetsCache )
+	{
+		if ( UAssetEditorSubsystem* AssetEditorSubsysttem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>() )
+		{
+			for ( const TPair<FString, UObject*>& Pair : AssetsCache )
+			{
+				if ( UObject* Asset = Pair.Value )
+				{
+					AssetEditorSubsysttem->CloseAllEditorsForAsset( Asset );
+				}
+			}
+		}
+	}
 };
 
 AUsdStageActor::AUsdStageActor()
@@ -438,6 +452,7 @@ USDSTAGE_API void AUsdStageActor::Reset()
 	Modify();
 
 	FUsdStageActorImpl::DeselectActorsAndComponents( this );
+	FUsdStageActorImpl::CloseEditorsForAssets( AssetsCache );
 
 	Clear();
 	AssetsCache.Reset();
@@ -1129,6 +1144,7 @@ void AUsdStageActor::HandlePropertyChangedEvent( FPropertyChangedEvent& Property
 		UnrealUSDWrapper::EraseStageFromCache( UsdStage );
 		UsdStage = UE::FUsdStage();
 
+		FUsdStageActorImpl::CloseEditorsForAssets( AssetsCache );
 		AssetsCache.Reset(); // We've changed USD file, clear the cache
 		BlendShapesByPath.Reset();
 		MaterialToPrimvarToUVIndex.Reset();

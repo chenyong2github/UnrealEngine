@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DataprepCorePrivateUtils.h"
+#include "Shared/DataprepCorePrivateUtils.h"
 
 #include "DataprepAsset.h"
 #include "DataprepCoreUtils.h"
@@ -178,6 +178,45 @@ void DataprepCorePrivateUtils::ClearAssets(const TArray<TWeakObjectPtr<UObject>>
 			StaticMesh->RenderData.Reset(nullptr);
 		}
 	}
+}
+
+void DataprepCorePrivateUtils::CompileMaterial(UMaterialInterface* MaterialInterface)
+{
+	if (MaterialInterface == nullptr)
+	{
+		return;
+	}
+
+	FMaterialUpdateContext MaterialUpdateContext;
+
+	MaterialUpdateContext.AddMaterialInterface( MaterialInterface );
+
+	if ( UMaterialInstanceConstant* ConstantMaterialInstance = Cast< UMaterialInstanceConstant >( MaterialInterface ) )
+	{
+		// If BlendMode override property has been changed, make sure this combination of the parent material is compiled
+		if ( ConstantMaterialInstance->BasePropertyOverrides.bOverride_BlendMode == true )
+		{
+			ConstantMaterialInstance->ForceRecompileForRendering();
+		}
+		else
+		{
+			// If a switch is overridden, we need to recompile
+			FStaticParameterSet StaticParameters;
+			ConstantMaterialInstance->GetStaticParameterValues( StaticParameters );
+
+			for ( FStaticSwitchParameter& Switch : StaticParameters.StaticSwitchParameters )
+			{
+				if ( Switch.bOverride )
+				{
+					ConstantMaterialInstance->ForceRecompileForRendering();
+					break;
+				}
+			}
+		}
+	}
+
+	MaterialInterface->PreEditChange( nullptr );
+	MaterialInterface->PostEditChange();
 }
 
 #undef LOCTEXT_NAMESPACE

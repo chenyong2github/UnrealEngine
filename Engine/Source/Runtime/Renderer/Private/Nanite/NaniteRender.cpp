@@ -1680,7 +1680,7 @@ void FNaniteMeshProcessor::AddMeshBatch(
 	int32 StaticMeshId /*= -1 */
 	)
 {
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 
 	const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
 	const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, FallbackMaterialRenderProxyPtr);
@@ -1879,7 +1879,7 @@ bool FNaniteMaterialTables::Begin(FRHICommandListImmediate& RHICmdList, uint32 N
 {
 	checkSlow(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
 
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 
 	check(NumPrimitiveUpdates == 0);
 	check(NumDepthTableUpdates == 0);
@@ -1938,7 +1938,7 @@ void FNaniteMaterialTables::Finish(FRHICommandListImmediate& RHICmdList)
 {
 	checkSlow(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
 
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 
 #if WITH_EDITOR
 	check(NumHitProxyTableUpdates <= NumPrimitiveUpdates);
@@ -2126,7 +2126,7 @@ void ListStatFilters(FSceneRenderer* SceneRenderer)
 
 static void AddPassInitNodesUAV( FRDGBuilder& GraphBuilder, FRDGBufferUAVRef UAVRef, bool bIsPostPass )
 {
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 
 	const uint32 ThreadsPerGroup = 64;
 	checkf(Nanite::FGlobalResources::GetMaxNodes() % ThreadsPerGroup == 0, TEXT("Max nodes must be divisible by ThreadsPerGroup"));
@@ -2159,7 +2159,7 @@ FCullingContext InitCullingContext(
 {
 	checkSlow(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
 
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 
 	RDG_EVENT_SCOPE(GraphBuilder, "Nanite::InitCullingContext");
 
@@ -2336,7 +2336,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 	FVirtualTargetParameters &VirtualTargetParameters
 	)
 {
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 
 	// Currently only occlusion free multi-view routing.
 	ensure(!VirtualShadowMapArray || CullingPass == CULLING_PASS_NO_OCCLUSION);
@@ -2655,7 +2655,7 @@ void AddPass_Rasterize(
 {
 	checkSlow(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
 
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 
 	check(RasterState.CullMode == CM_CW || RasterState.CullMode == CM_CCW);		// CM_None not implemented
 
@@ -2880,7 +2880,7 @@ FRasterContext InitRasterContext(
 {
 	checkSlow(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
 
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 
 	FRasterContext RasterContext;
 
@@ -2999,7 +2999,7 @@ void CullRasterizeInner(
 	bool bExtractStats
 )
 {
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 	RDG_EVENT_SCOPE( GraphBuilder, "Nanite::CullRasterize" );
 
 	AddPassIfDebug(GraphBuilder, [](FRHICommandList&)
@@ -3283,7 +3283,7 @@ void CullRasterize(
 	bool bExtractStats
 	)
 {
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 
 	// strategy: 
 	// 1. Use the cull pass to generate copies of every node for every view needed.
@@ -3356,7 +3356,7 @@ void ExtractStats(
 	bool bVirtualTextureTarget
 )
 {
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 
 	if (GNaniteDebugFlags != 0 && GNaniteShowStats != 0 && CullingContext.StatsBuffer != nullptr)
 	{
@@ -3462,7 +3462,7 @@ void PrintStats(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View)
 {
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 
 	// Print stats
 	if (GNaniteDebugFlags != 0 && GNaniteShowStats != 0 && Nanite::GGlobalResources.GetStatsBufferRef())
@@ -3512,7 +3512,7 @@ void ExtractResults(
 	const FRasterContext& RasterContext,
 	FRasterResults& RasterResults )
 {
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 
 	RasterResults.SOAStrides 	= CullingContext.SOAStrides;
 	RasterResults.MaxClusters	= Nanite::FGlobalResources::GetMaxClusters();
@@ -3546,7 +3546,7 @@ void DrawHitProxies(
 	)
 {
 #if WITH_EDITOR
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 
 	SCOPED_DRAW_EVENT(RHICmdList, NaniteHitProxyPass);
 	SCOPED_GPU_STAT(RHICmdList, NaniteEditor);
@@ -3603,7 +3603,7 @@ void EmitShadowMap(
 	bool bOrtho
 	)
 {
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 
 	auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 
@@ -3650,7 +3650,7 @@ void EmitFallbackShadowMapFromVSM(
 	bool bOrtho
 )
 {
-	LLM_SCOPE( ELLMTag::Nanite );
+	LLM_SCOPE_BYTAG(Nanite);
 
 	check( DestRect.Width() == FVirtualShadowMap::PageSize );
 	check( DestRect.Height() == FVirtualShadowMap::PageSize );
@@ -3699,7 +3699,7 @@ void EmitCubemapShadow(
 	bool bUseGeometryShader
 	)
 {
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 
 	auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 
@@ -3766,7 +3766,7 @@ void DrawPrePass(
 	FRasterResults& RasterResults
 	)
 {
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 
 	if (UseComputeDepthExport())
 	{
@@ -3880,7 +3880,7 @@ void DrawBasePass(
 {
 	checkSlow(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
 
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 	RDG_EVENT_SCOPE(GraphBuilder, "NaniteBasePass");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteMaterials);
 
@@ -4473,7 +4473,7 @@ void DrawLumenMeshCapturePass(
 	checkSlow(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
 	checkSlow(DoesPlatformSupportLumenGI(GMaxRHIShaderPlatform));
 
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 	RDG_EVENT_SCOPE( GraphBuilder, "Nanite::DrawLumenMeshCapturePass" );
 
 	FRDGTextureRef BlackTexture = GraphBuilder.RegisterExternalTexture( GSystemTextures.BlackDummy, TEXT("Black") );
@@ -4788,7 +4788,7 @@ void GetEditorSelectionPassParameters(
 		return;
 	}
 
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 
 	FRDGTextureRef VisBuffer64 = RegisterExternalTextureWithFallback(GraphBuilder, NaniteRasterResults->VisBuffer64, GSystemTextures.BlackDummy);
 	FRDGBufferRef VisibleClustersSWHW = GraphBuilder.RegisterExternalBuffer(NaniteRasterResults->VisibleClustersSWHW);
@@ -4811,7 +4811,7 @@ void DrawEditorSelection(
 	const FNaniteSelectionOutlineParameters& PassParameters
 	)
 {
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 
 	if (View.EditorSelectedHitProxyIds.Num() == 0)
 	{
@@ -4856,7 +4856,7 @@ void GetEditorVisualizeLevelInstancePassParameters(
 		return;
 	}
 
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 
 	FRDGTextureRef VisBuffer64 = RegisterExternalTextureWithFallback(GraphBuilder, NaniteRasterResults->VisBuffer64, GSystemTextures.BlackDummy);
 	FRDGBufferRef VisibleClustersSWHW = GraphBuilder.RegisterExternalBuffer(NaniteRasterResults->VisibleClustersSWHW);
@@ -4879,7 +4879,7 @@ void DrawEditorVisualizeLevelInstance(
 	const FNaniteVisualizeLevelInstanceParameters& PassParameters
 )
 {
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 
 	if (View.EditorVisualizeLevelInstanceIds.Num() == 0)
 	{

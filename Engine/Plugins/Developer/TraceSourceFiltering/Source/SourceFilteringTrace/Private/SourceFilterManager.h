@@ -98,8 +98,9 @@ protected:
 	void UnregisterTickFunctions();	
 
 protected:
-	/** Registered delegate for whenever an AActor is spawned within World */
+	/** Registered delegate for whenever an AActor is spawned, and before, within World */
 	FDelegateHandle ActorSpawningDelegateHandle;
+	FDelegateHandle PreActorSpawningDelegateHandle;
 
 	/** Filtering settings for the running instance */
 	UTraceSourceFilteringSettings* Settings;	

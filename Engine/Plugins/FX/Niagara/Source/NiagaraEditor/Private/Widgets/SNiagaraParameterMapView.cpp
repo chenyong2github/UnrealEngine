@@ -2254,6 +2254,12 @@ void SNiagaraAddParameterMenu::CollectAllActions(FGraphActionListBuilderBase& Ou
 		CollectParameterCollectionsActions(OutAllActions);
 	}
 
+	// Stack Context
+	if (CanCollectSection(NiagaraParameterMapSectionID::STACK_CONTEXT) && !IDsExcluded.Contains(NiagaraParameterMapSectionID::STACK_CONTEXT))
+	{
+		CollectMakeNew(OutAllActions, NiagaraParameterMapSectionID::STACK_CONTEXT);
+	}
+
 	// Engine
 	if (CanCollectSection(NiagaraParameterMapSectionID::ENGINE) && !IDsExcluded.Contains(NiagaraParameterMapSectionID::ENGINE))
 	{

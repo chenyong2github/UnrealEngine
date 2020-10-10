@@ -255,9 +255,9 @@ const UEdGraphPin* FNiagaraParameterMapHistory::GetOriginalPin() const
 	return nullptr;
 }
 
-FNiagaraVariable FNiagaraParameterMapHistory::ResolveAliases(const FNiagaraVariable& InVar, const TMap<FString, FString>& InAliases, const TCHAR* InJoinSeparator)
+FNiagaraVariable FNiagaraParameterMapHistory::ResolveAliases(const FNiagaraVariable& InVar, const TMap<FString, FString>& InAliases, const TMap<FString, FString>& InStartAliases, const TCHAR* InJoinSeparator)
 {
-	return FNiagaraVariable::ResolveAliases(InVar, InAliases, InJoinSeparator);
+	return FNiagaraVariable::ResolveAliases(InVar, InAliases, InStartAliases, InJoinSeparator);
 }
 
 
@@ -272,7 +272,7 @@ FName FNiagaraParameterMapHistory::ResolveEmitterAlias(const FName& InName, cons
 	FNiagaraVariable Var(FNiagaraTypeDefinition::GetFloatDef(), InName);
 	TMap<FString, FString> ResolveMap;
 	ResolveMap.Add(TEXT("Emitter"), InAlias);
-	Var = FNiagaraParameterMapHistory::ResolveAliases(Var, ResolveMap, TEXT("."));
+	Var = FNiagaraParameterMapHistory::ResolveAliases(Var, ResolveMap, TMap<FString, FString>(), TEXT("."));
 	return Var.GetName();
 }
 
@@ -1127,7 +1127,7 @@ bool FNiagaraParameterMapHistoryBuilder::IsInEncounteredEmitterNamespace(FNiagar
 */
 FNiagaraVariable FNiagaraParameterMapHistoryBuilder::ResolveAliases(const FNiagaraVariable& InVar) const
 {
-	FNiagaraVariable Var = FNiagaraParameterMapHistory::ResolveAliases(InVar, AliasMap, TEXT("."));
+	FNiagaraVariable Var = FNiagaraParameterMapHistory::ResolveAliases(InVar, AliasMap, StartOnlyAliasMap, TEXT("."));
 	//ensure(!Var.IsInNameSpace(FNiagaraConstants::StackContextNamespace));
 	return Var;
 }
@@ -1448,7 +1448,7 @@ int32 FNiagaraParameterMapHistoryBuilder::AddVariableToHistory(FNiagaraParameter
 void FNiagaraParameterMapHistoryBuilder::BuildCurrentAliases()
 {
 	AliasMap.Reset();
-
+    StartOnlyAliasMap.Reset();
 	{
 		TStringBuilder<1024> Callstack;
 		for (int32 i = 0; i < FunctionNameContextStack.Num(); i++)
@@ -1527,7 +1527,7 @@ void FNiagaraParameterMapHistoryBuilder::BuildCurrentAliases()
 
 		if (!Callstack.IsEmpty())
 		{
-			AliasMap.Add(TEXT("StackContext"), Callstack);
+			StartOnlyAliasMap.Add(TEXT("StackContext"), Callstack);
 		}
 	}
 }

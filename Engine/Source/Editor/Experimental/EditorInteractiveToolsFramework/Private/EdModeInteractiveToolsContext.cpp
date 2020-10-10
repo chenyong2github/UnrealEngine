@@ -787,6 +787,7 @@ void UEdModeInteractiveToolsContext::DrawHUD(FViewportClient* ViewportClient,FVi
 	}
 	FEdModeTempRenderContext RenderContext(View, Viewport, EditorViewportClient, nullptr /*PDI*/, InteractionState);
 	ToolManager->DrawHUD(Canvas, &RenderContext);
+	GizmoManager->DrawHUD(Canvas, &RenderContext);
 }
 
 

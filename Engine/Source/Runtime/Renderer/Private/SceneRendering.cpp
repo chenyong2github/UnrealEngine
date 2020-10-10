@@ -31,6 +31,7 @@
 #include "Matinee/MatineeActor.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "PostProcess/PostProcessSubsurface.h"
+#include "PhysicsField/PhysicsFieldComponent.h"
 #include "HdrCustomResolveShaders.h"
 #include "WideCustomResolveShaders.h"
 #include "PipelineStateCache.h"
@@ -58,6 +59,7 @@
 #include "DiaphragmDOF.h" 
 #include "SingleLayerWaterRendering.h"
 #include "HairStrands/HairStrandsVisibility.h"
+#include "SystemTextures.h"
 #if WITH_EDITOR
 #include "Rendering/StaticLightingSystemInterface.h"
 #endif
@@ -1096,6 +1098,42 @@ void SetupPrecomputedVolumetricLightmapUniformBufferParameters(const FScene* Sce
 	}
 }
 
+void SetupPhysicsFieldUniformBufferParameters(const FScene* Scene, FEngineShowFlags EngineShowFlags, FViewUniformShaderParameters& ViewUniformShaderParameters)
+{
+	if (Scene && Scene->PhysicsField && Scene->PhysicsField->FieldResource)
+	{
+		ViewUniformShaderParameters.PhysicsFieldClipmapTexture = OrBlack3DIfNull(Scene->PhysicsField->FieldResource->FieldClipmap.Buffer);
+		ViewUniformShaderParameters.PhysicsFieldClipmapSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		ViewUniformShaderParameters.PhysicsFieldClipmapCenter = Scene->PhysicsField->FieldResource->FieldInfos.ClipmapCenter;
+		ViewUniformShaderParameters.PhysicsFieldClipmapDistance = Scene->PhysicsField->FieldResource->FieldInfos.ClipmapDistance;
+		ViewUniformShaderParameters.PhysicsFieldClipmapResolution = Scene->PhysicsField->FieldResource->FieldInfos.ClipmapResolution;
+		ViewUniformShaderParameters.PhysicsFieldClipmapExponent = Scene->PhysicsField->FieldResource->FieldInfos.ClipmapExponent;
+		ViewUniformShaderParameters.PhysicsFieldClipmapCount = Scene->PhysicsField->FieldResource->FieldInfos.ClipmapCount;
+		ViewUniformShaderParameters.PhysicsFieldTargetCount = Scene->PhysicsField->FieldResource->FieldInfos.TargetCount;
+		ViewUniformShaderParameters.PhysicsFieldVectorTargets = Scene->PhysicsField->FieldResource->FieldInfos.VectorTargets;
+		ViewUniformShaderParameters.PhysicsFieldScalarTargets = Scene->PhysicsField->FieldResource->FieldInfos.ScalarTargets;
+		ViewUniformShaderParameters.PhysicsFieldIntegerTargets = Scene->PhysicsField->FieldResource->FieldInfos.IntegerTargets;
+	}
+	else
+	{
+		FRHITexture* BlackVolume = (GBlackVolumeTexture && GBlackVolumeTexture->TextureRHI) ? GBlackVolumeTexture->TextureRHI : GBlackTexture->TextureRHI;
+		TStaticArray<int32, MAX_TARGETS_ARRAY, MAX_TARGETS_ARRAY> EmptyTargets;
+
+		ViewUniformShaderParameters.PhysicsFieldClipmapTexture = BlackVolume;
+		ViewUniformShaderParameters.PhysicsFieldClipmapSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		ViewUniformShaderParameters.PhysicsFieldClipmapCenter = FVector::ZeroVector;
+		ViewUniformShaderParameters.PhysicsFieldClipmapDistance = 1.0;
+		ViewUniformShaderParameters.PhysicsFieldClipmapResolution = 2;
+		ViewUniformShaderParameters.PhysicsFieldClipmapExponent = 1;
+		ViewUniformShaderParameters.PhysicsFieldClipmapCount = 1;
+		ViewUniformShaderParameters.PhysicsFieldTargetCount = 0;
+		ViewUniformShaderParameters.PhysicsFieldVectorTargets = EmptyTargets;
+		ViewUniformShaderParameters.PhysicsFieldScalarTargets = EmptyTargets;
+		ViewUniformShaderParameters.PhysicsFieldIntegerTargets = EmptyTargets;
+	}
+}
+
+
 FIntPoint FViewInfo::GetSecondaryViewRectSize() const
 {
 	return FIntPoint(
@@ -1407,6 +1445,8 @@ void FViewInfo::SetupUniformBufferParameters(
 	SetupVolumetricFogUniformBufferParameters(ViewUniformShaderParameters);
 
 	SetupPrecomputedVolumetricLightmapUniformBufferParameters(Scene, Family->EngineShowFlags, ViewUniformShaderParameters);
+
+	SetupPhysicsFieldUniformBufferParameters(Scene, Family->EngineShowFlags, ViewUniformShaderParameters);
 
 	// Setup view's shared sampler for material texture sampling.
 	{
@@ -1757,8 +1797,24 @@ void FViewInfo::SetupUniformBufferParameters(
 		}
 	}
 
-	// Default values
-	SetUpViewHairRenderInfo(*this, ViewUniformShaderParameters.HairRenderInfo, ViewUniformShaderParameters.HairRenderInfoBits);
+	// Hair global resources 
+	SetUpViewHairRenderInfo(*this, ViewUniformShaderParameters.HairRenderInfo, ViewUniformShaderParameters.HairRenderInfoBits, ViewUniformShaderParameters.HairComponents);
+	ViewUniformShaderParameters.HairScatteringLUTTexture = nullptr;
+	if (GSystemTextures.HairLUT0.IsValid() && GSystemTextures.HairLUT0->GetRenderTargetItem().ShaderResourceTexture)
+	{
+		ViewUniformShaderParameters.HairScatteringLUTTexture = GSystemTextures.HairLUT0->GetRenderTargetItem().ShaderResourceTexture;
+	}
+	ViewUniformShaderParameters.HairScatteringLUTTexture = OrBlack3DIfNull(ViewUniformShaderParameters.HairScatteringLUTTexture);
+	ViewUniformShaderParameters.HairScatteringLUTSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+	if (WaterDataBuffer.IsValid())
+	{
+		ViewUniformShaderParameters.WaterData = WaterDataBuffer.GetReference();
+	}
+	else
+	{
+		ViewUniformShaderParameters.WaterData = GIdentityPrimitiveBuffer.PrimitiveSceneDataBufferSRV;
+	}
 
 	ViewUniformShaderParameters.VTFeedbackBuffer = SceneContext.GetVirtualTextureFeedbackUAV();
 	ViewUniformShaderParameters.QuadOverdraw = SceneContext.GetQuadOverdrawBufferUAV();
@@ -3956,6 +4012,7 @@ void FRendererModule::RenderPostOpaqueExtensions(FRDGBuilder& GraphBuilder, TArr
 				RenderParameters.ProjMatrix = View.ViewMatrices.GetProjectionMatrix();
 				RenderParameters.DepthTexture = SceneContext.GetSceneDepthSurface()->GetTexture2D();
 				RenderParameters.NormalTexture = SceneContext.GBufferA.IsValid() ? SceneContext.GetGBufferATexture() : nullptr;
+				RenderParameters.VelocityTexture = SceneContext.SceneVelocity.IsValid() ? SceneContext.SceneVelocity->GetRenderTargetItem().ShaderResourceTexture->GetTexture2D() : nullptr;
 				RenderParameters.SmallDepthTexture = SceneContext.GetSmallDepthSurface()->GetTexture2D();
 				RenderParameters.ViewUniformBuffer = View.ViewUniformBuffer;
 				RenderParameters.SceneTexturesUniformParams = CreateSceneTextureUniformBuffer(RHICmdList, View.FeatureLevel, ESceneTextureSetupMode::SceneColor | ESceneTextureSetupMode::SceneDepth | ESceneTextureSetupMode::SceneVelocity | ESceneTextureSetupMode::GBuffers);
@@ -4637,7 +4694,7 @@ void RunGPUSkinCacheTransition(FRHICommandList& RHICmdList, FScene* Scene, EGPUS
 	//   during the deferred render pass
 	// * When hair strands is enabled, the skin cache sync point is run earlier, during 
 	//   the init views pass, as the output of the skin cached is used by Niagara
-	const bool bHairStrandsEnabled = IsHairStrandsEnable(Scene->GetShaderPlatform());
+	const bool bHairStrandsEnabled = IsHairStrandsEnabled(EHairStrandsShaderType::All, Scene->GetShaderPlatform());
 	const bool bRun = 
 		(bHairStrandsEnabled && EGPUSkinCacheTransition::FrameSetup == Type) || 
 		(!bHairStrandsEnabled && EGPUSkinCacheTransition::FrameSetup != Type);

@@ -1128,6 +1128,11 @@ void SScrollBox::SetWheelScrollMultiplier(float NewWheelScrollMultiplier)
 	WheelScrollMultiplier = NewWheelScrollMultiplier;
 }
 
+void SScrollBox::SetScrollWhenFocusChanges(EScrollWhenFocusChanges NewScrollWhenFocusChanges)
+{
+	ScrollWhenFocusChanges = NewScrollWhenFocusChanges;
+}
+
 void SScrollBox::BeginInertialScrolling()
 {
 	if ( !UpdateInertialScrollHandle.IsValid() )

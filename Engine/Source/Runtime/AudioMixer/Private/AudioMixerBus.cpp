@@ -156,7 +156,7 @@ namespace Audio
 						Audio::AlignedFloatBuffer DownmixedBuffer;
 						DownmixedBuffer.AddUninitialized(NumOutputFrames * NumChannels);
 						Audio::DownmixBuffer(NumSourceChannels, NumChannels, SourceBufferPtr, DownmixedBuffer.GetData(), NumOutputFrames, ChannelMap.GetData());
-						Audio::MixInBufferFast(DownmixedBuffer.GetData(), BusDataBufferPtr, NumOutputFrames, AudioBusSend.SendLevel);
+						Audio::MixInBufferFast(DownmixedBuffer.GetData(), BusDataBufferPtr, DownmixedBuffer.Num(), AudioBusSend.SendLevel);
 					}
 					// If they're the same channels, just mix it in
 					else if (ensureMsgf(NumSourceChannels == NumChannels, TEXT("NumSourceChannels=%d, NumChannels=%d"), NumSourceChannels, NumChannels))

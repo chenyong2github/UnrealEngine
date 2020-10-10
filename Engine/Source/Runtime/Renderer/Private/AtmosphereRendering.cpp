@@ -1649,63 +1649,60 @@ void FAtmosphericFogSceneInfo::PrecomputeTextures(FRDGBuilder& GraphBuilder, con
 	// Atmosphere 
 	if (bPrecomputationStarted && !bPrecomputationFinished)
 	{
-		AddUntrackedAccessPass(GraphBuilder, [this, &View, ViewFamily](FRHICommandListImmediate& RHICmdList)
+		AddUntrackedAccessPass(GraphBuilder, [this, View, ViewFamily](FRHICommandListImmediate& RHICmdList)
 		{
 			PrecomputeAtmosphereData(RHICmdList, View, *ViewFamily);
-		});
 
-		switch(AtmospherePhase)
-		{
-		case AP_Inscatter1:
-		case AP_CopyInscatter1:
-		case AP_CopyInscatterF:
-		case AP_CopyInscatterFBack:
-		case AP_InscatterN:
-		case AP_CopyInscatterN:
-		case AP_InscatterS:
-			Atmosphere3DTextureIndex++;
-			if (Atmosphere3DTextureIndex >= Component->PrecomputeParams.InscatterAltitudeSampleNum)
+			switch (AtmospherePhase)
 			{
+			case AP_Inscatter1:
+			case AP_CopyInscatter1:
+			case AP_CopyInscatterF:
+			case AP_CopyInscatterFBack:
+			case AP_InscatterN:
+			case AP_CopyInscatterN:
+			case AP_InscatterS:
+				Atmosphere3DTextureIndex++;
+				if (Atmosphere3DTextureIndex >= Component->PrecomputeParams.InscatterAltitudeSampleNum)
+				{
+					AtmospherePhase++;
+					Atmosphere3DTextureIndex = 0;
+				}
+				break;
+			default:
 				AtmospherePhase++;
+				break;
+			}
+
+			if (AtmospherePhase == AP_EndOrder)
+			{
+				AtmospherePhase = AP_StartOrder;
+				AtmoshpereOrder++;
+			}
+
+			if (AtmospherePhase == AP_StartOrder)
+			{
+				if (AtmoshpereOrder > MaxScatteringOrder)
+				{
+					if (Component->PrecomputeParams.DensityHeight > 0.678f) // Fixed artifacts only for some value
+					{
+						AtmospherePhase = AP_CopyInscatterF;
+					}
+					else
+					{
+						AtmospherePhase = AP_MAX;
+					}
+					AtmoshpereOrder = 2;
+				}
+			}
+
+			if (AtmospherePhase >= AP_MAX)
+			{
+				AtmospherePhase = 0;
 				Atmosphere3DTextureIndex = 0;
-			}
-			break;
-		default:
-			AtmospherePhase++;
-			break;
-		}
-
-		if (AtmospherePhase == AP_EndOrder)
-		{
-			AtmospherePhase = AP_StartOrder;
-			AtmoshpereOrder++;
-		}
-
-		if (AtmospherePhase == AP_StartOrder)
-		{
-			if (AtmoshpereOrder > MaxScatteringOrder)
-			{
-				if (Component->PrecomputeParams.DensityHeight > 0.678f) // Fixed artifacts only for some value
-				{
-					AtmospherePhase = AP_CopyInscatterF;
-				}
-				else
-				{
-					AtmospherePhase = AP_MAX;
-				}
 				AtmoshpereOrder = 2;
-			}
-		}
 
-		if (AtmospherePhase >= AP_MAX)
-		{
-			AtmospherePhase = 0;
-			Atmosphere3DTextureIndex = 0;
-			AtmoshpereOrder = 2;
-
-			// Save precomputed data to bulk data
-			AddUntrackedAccessPass(GraphBuilder, [this](FRHICommandListImmediate& RHICmdList)
-			{
+				// Save precomputed data to bulk data
 				{
 					FIntPoint Extent = AtmosphereTextures->AtmosphereTransmittance->GetDesc().Extent;
 					int32 TotalByte = sizeof(FColor) * Extent.X * Extent.Y;
@@ -1738,12 +1735,12 @@ void FAtmosphericFogSceneInfo::PrecomputeTextures(FRDGBuilder& GraphBuilder, con
 				// Delete render targets
 				delete AtmosphereTextures;
 				AtmosphereTextures = NULL;
-			});
 
-			// Save to bulk data is done
-			bPrecomputationFinished = true;
-			Component->GameThreadServiceRequest.Increment();
-		}
+				// Save to bulk data is done
+				bPrecomputationFinished = true;
+				Component->GameThreadServiceRequest.Increment();
+			}
+		});
 	}
 }
 #endif

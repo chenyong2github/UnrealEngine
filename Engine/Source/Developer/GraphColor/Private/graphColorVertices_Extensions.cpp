@@ -242,7 +242,9 @@ int  _ColorVertices_CreateStructures(ColorVerticesContext *context)
 	 graphP theGraph = context->theGraph;
 
      if (theGraph->N <= 0 || theGraph->N == INT_MAX)
+	 {
          return NOTOK;
+	 }
 
 	 int VIsize = gp_PrimaryVertexIndexBound(theGraph);
      int v;
@@ -349,7 +351,9 @@ int  _ColorVertices_InitGraph(graphP theGraph, int N)
     gp_FindExtension(theGraph, COLORVERTICES_ID, (void **)&context);
 
     if (context == NULL)
+	{
         return NOTOK;
+	}
 
 	theGraph->N = N;
 	if (theGraph->arcCapacity == 0)

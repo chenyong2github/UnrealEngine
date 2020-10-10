@@ -1402,6 +1402,11 @@ void FPluginManager::SetRegisterMountPointDelegate( const FRegisterMountPointDel
 	RegisterMountPointDelegate = Delegate;
 }
 
+void FPluginManager::SetUnRegisterMountPointDelegate( const FRegisterMountPointDelegate& Delegate )
+{
+	UnRegisterMountPointDelegate = Delegate;
+}
+
 void FPluginManager::SetUpdatePackageLocalizationCacheDelegate( const FUpdatePackageLocalizationCacheDelegate& Delegate )
 {
 	UpdatePackageLocalizationCacheDelegate = Delegate;
@@ -1631,6 +1636,48 @@ void FPluginManager::MountPluginFromExternalSource(const TSharedRef<FPlugin>& Pl
 	{
 		GWarn->EndSlowTask();
 	}
+}
+
+bool FPluginManager::UnmountExplicitlyLoadedPlugin(const FString& PluginName, FText* OutReason)
+{
+	TSharedPtr<FPlugin> Plugin = FindPluginInstance(PluginName);
+	return UnmountPluginFromExternalSource(Plugin, OutReason);
+}
+
+bool FPluginManager::UnmountPluginFromExternalSource(const TSharedPtr<FPlugin>& Plugin, FText* OutReason)
+{
+	if (!Plugin.IsValid() || Plugin->bEnabled == false)
+	{
+		// Does not exist or is not loaded
+		return true;
+	}
+
+	if (!Plugin->Descriptor.bExplicitlyLoaded)
+	{
+		if (OutReason)
+		{
+			*OutReason = LOCTEXT("UnloadPluginNotExplicitlyLoaded", "Plugin was not explicitly loaded");
+		}
+		return false;
+	}
+
+	if (Plugin->Descriptor.Modules.Num() > 0)
+	{
+		if (OutReason)
+		{
+			*OutReason = LOCTEXT("UnloadPluginContainedModules", "Plugin contains modules and may be unsafe to unload");
+		}
+		return false;
+	}
+
+	if (Plugin->CanContainContent() && ensure(UnRegisterMountPointDelegate.IsBound()))
+	{
+		UnRegisterMountPointDelegate.Execute(Plugin->GetMountedAssetPath(), Plugin->GetContentDir());
+	}
+
+	Plugin->bEnabled = false;
+
+	return true;
 }
 
 FName FPluginManager::PackageNameFromModuleName(FName ModuleName)

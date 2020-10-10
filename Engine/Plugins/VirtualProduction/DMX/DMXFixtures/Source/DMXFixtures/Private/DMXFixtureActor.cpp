@@ -22,13 +22,11 @@ ADMXFixtureActor::ADMXFixtureActor()
 	Head->SetupAttachment(Yoke);
 
 	PointLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("Fixture PointLight"));
-	//PointLight->CreationMethod = EComponentCreationMethod::Instance;
 	PointLight->SetupAttachment(Head);
 	PointLight->SetCastShadows(false);
 	PointLight->bAffectsWorld = false;
 
 	SpotLight = CreateDefaultSubobject<USpotLightComponent>(TEXT("Fixture SpotLight"));
-	//SpotLight->CreationMethod = EComponentCreationMethod::Instance;
 	SpotLight->SetupAttachment(Head);
 	SpotLight->SetCastShadows(false);
 	SpotLight->bAffectsWorld = true;
@@ -44,6 +42,8 @@ ADMXFixtureActor::ADMXFixtureActor()
 	LightIntensityMax = 50000;
 	LightDistanceMax = 1000;
 	LightColorTemp = 6500;
+	SpotlightIntensityScale = 1.0f;
+	PointlightIntensityScale = 1.0f;
 	LightCastShadow = false;
 	UseDynamicOcclusion = false;
 	LensRadius = 10.0f;
@@ -135,12 +135,12 @@ void ADMXFixtureActor::FeedFixtureData()
 	}
 
 	// Set lights
-	SpotLight->SetIntensity(LightIntensityMax);
+	SpotLight->SetIntensity(LightIntensityMax * SpotlightIntensityScale);
 	SpotLight->SetTemperature(LightColorTemp);
 	SpotLight->SetCastShadows(LightCastShadow);
 	SpotLight->SetAttenuationRadius(LightDistanceMax);
 
-	PointLight->SetIntensity(LightIntensityMax);
+	PointLight->SetIntensity(LightIntensityMax * PointlightIntensityScale);
 	PointLight->SetTemperature(LightColorTemp);
 	PointLight->SetCastShadows(LightCastShadow);
 	PointLight->SetAttenuationRadius(LightDistanceMax);
@@ -202,7 +202,7 @@ void ADMXFixtureActor::PushDMXData(TMap<FDMXAttributeName, int32> AttributesMap)
 					if (d1)
 					{
 						float TargetValue = SingleComponent->RemapValue(*d1);
-						if (SingleComponent->IsTargetValid(TargetValue))
+						if (SingleComponent->IsTargetValid(TargetValue) || SetInitialFixtureState)
 						{
 							if (SingleComponent->UseInterpolation)
 							{
@@ -235,7 +235,7 @@ void ADMXFixtureActor::PushDMXData(TMap<FDMXAttributeName, int32> AttributesMap)
 					{
 						float Channel1TargetValue = DoubleComponent->RemapValue(0, *d1);
 						float Channel2TargetValue = DoubleComponent->RemapValue(1, *d2);
-						if (DoubleComponent->IsTargetValid(0, Channel1TargetValue) && DoubleComponent->IsTargetValid(1, Channel2TargetValue))
+						if ((DoubleComponent->IsTargetValid(0, Channel1TargetValue) && DoubleComponent->IsTargetValid(1, Channel2TargetValue)) || SetInitialFixtureState)
 						{
 							if (DoubleComponent->UseInterpolation)
 							{
@@ -276,7 +276,7 @@ void ADMXFixtureActor::PushDMXData(TMap<FDMXAttributeName, int32> AttributesMap)
 					int a = (d4) ? *d4 : ColorComponent->BitResolution;
 
 					FLinearColor NewTargetColor = ColorComponent->RemapColor(r, g, b, a);
-					if (ColorComponent->IsColorValid(NewTargetColor))
+					if (ColorComponent->IsColorValid(NewTargetColor) || SetInitialFixtureState)
 					{
 						ColorComponent->SetTargetColor(NewTargetColor);
 						ColorComponent->SetComponent(NewTargetColor);

@@ -64,6 +64,11 @@ if [ "$BUILD_UNIVERSAL" = true ] ; then
     BUILD_FLAGS="${BUILD_FLAGS}  -arch arm64"
 fi
 
+# Unreal uses the dwarf-2 format.  Updating it will require removing '-gdwarf-2' from:
+#   Engine/Source/Programs/UnrealBuildTool/Platform/Mac/MacToolChain.cs
+export CFLAGS="-gdwarf-2"
+export CXXFLAGS="-gdwarf-2"
+
 # make ilmbase and install it to tmp
 cd ${LIB_ROOT_DIR}/IlmBase
 sh ./bootstrap

@@ -13,6 +13,7 @@
 #include "/Engine/Private/DepthOfFieldCommon.ush"
 #include "/Engine/Private/CircleDOFCommon.ush"
 #include "/Engine/Private/GlobalDistanceFieldShared.ush"
+#include "/Engine/Private/PhysicsFieldSampler.ush"
 #include "/Engine/Private/SceneData.ush"
 #include "/Engine/Private/HairShadingCommon.ush"
 #include "/Engine/Private/Strata/Strata.ush"
@@ -1062,7 +1063,7 @@ float2 GetHairStrandsDimensions(uint HairPrimitiveId, float2 VertexUV);
 float  GetHairStrandsSeed(uint HairPrimitiveId, float2 VertexUV);
 float  GetHairStrandsRoughness(uint HairPrimitiveId, float2 HairPrimitiveUV);
 float3 GetHairStrandsBaseColor(uint HairPrimitiveId, float2 HairPrimitiveUV);
-float3 GetHairStrandsTangent(uint HairPrimitiveId, float2 HairPrimitiveUV, half3x3 TangentToWorld);
+float3 GetHairStrandsTangent(uint HairPrimitiveId, float2 HairPrimitiveUV, half3x3 TangentToWorld, bool bUseTangentSpace);
 #endif
 
 float2 MaterialExpressionGetHairRootUV(FMaterialPixelParameters Parameters)
@@ -1136,19 +1137,19 @@ float MaterialExpressionGetHairDepth(FMaterialPixelParameters Parameters)
 
 float MaterialExpressionGetHairCoverage(FMaterialPixelParameters Parameters)
 {
-#if VF_CARDS_HAIR
+#if VF_CARDS_HAIR || VF_STRAND_HAIR
 	return GetHairStrandsCoverage(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
 #else
-	return 0; // TODO for VF_STRAND_HAIR?
+	return 0;
 #endif
 }
 
-float3 MaterialExpressionGetHairTangent(FMaterialPixelParameters Parameters)
+float3 MaterialExpressionGetHairTangent(FMaterialPixelParameters Parameters, bool bUseTangentSpace)
 {
 #if VF_STRAND_HAIR
-	return Parameters.TangentToWorld[2];
+	return bUseTangentSpace ? float3(0,1,0) : Parameters.TangentToWorld[2];
 #elif VF_CARDS_HAIR
-	return GetHairStrandsTangent(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV, Parameters.TangentToWorld);
+	return GetHairStrandsTangent(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV, Parameters.TangentToWorld, bUseTangentSpace);
 #else
 	return 0;
 #endif
@@ -1311,6 +1312,22 @@ float3 MaterialExpressionSkyAtmosphereDistantLightScatteredLuminance(FMaterialPi
 	return Texture2DSampleLevel(View.DistantSkyLightLutTexture, View.DistantSkyLightLutTextureSampler, float2(0.5f, 0.5f), 0.0f).rgb;
 #else
 	return float3(0.0f, 0.0f, 0.0f);
+#endif
+}
+
+/** 
+	Get the scene depth from the scene below the single layer water surface. This is only valid in the single layer water rendering pass.
+	Returns the chosen fallback depth if the material doesn't support reading back the correct depth.
+*/
+float MaterialExpressionSceneDepthWithoutWater(float2 ViewportUV, float FallbackDepth)
+{
+#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER && !SCENE_TEXTURES_DISABLED && (!SIMPLE_SINGLE_LAYER_WATER || SINGLE_LAYER_WATER_SIMPLE_FORWARD)
+
+	const float2 ClampedViewportUV = clamp(ViewportUV, OpaqueBasePass.SceneWithoutSingleLayerWaterMinMaxUV.xy, OpaqueBasePass.SceneWithoutSingleLayerWaterMinMaxUV.zw);
+
+	return OpaqueBasePass.SceneDepthWithoutSingleLayerWaterTexture.SampleLevel(SingleLayerWaterSceneDepthSampler, ClampedViewportUV, 0).x * SINGLE_LAYER_WATER_DEPTH_SCALE;
+#else
+	return FallbackDepth;
 #endif
 }
 

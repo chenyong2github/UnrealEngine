@@ -6,6 +6,7 @@
 #include "RemoteControlModels.h"
 #include "RemoteControlPreset.h"
 #include "RemoteControlRequest.h"
+#include "RemoteControlResponse.h"
 #include "RemoteControlRoute.h"
 #include "WebRemoteControl.h"
 #include "WebRemoteControlUtils.h"
@@ -196,13 +197,14 @@ void FWebSocketMessageHandler::ProcessChangedProperties()
 
 		//Might be a better idea to have defined structures for our web socket notification messages
 
+
 		//Response object
 		JsonWriter->WriteObjectStart();
 		{
-			JsonWriter->WriteValue(TEXT("ResponseType"), TEXT("PropertiesChanged"));
+			JsonWriter->WriteValue(TEXT("Type"), TEXT("PresetFieldsChanged"));
 			JsonWriter->WriteValue("PresetName", *Preset->GetFName().ToString());
 
-			JsonWriter->WriteIdentifierPrefix("Properties");
+			JsonWriter->WriteIdentifierPrefix("ChangedFields");
 
 			//All exposed properties of this preset that changed
 			JsonWriter->WriteArrayStart();
@@ -225,12 +227,7 @@ void FWebSocketMessageHandler::ProcessChangedProperties()
 							{
 								bHasProperty = true;
 
-								FString FullPath = Property.FieldName.ToString();
-								if (!Property.PathRelativeToOwner.IsEmpty())
-								{
-									FullPath = FString::Printf(TEXT("%s.%s"), *Property.PathRelativeToOwner, *FullPath);
-								}
-								IRemoteControlModule::Get().ResolveObjectProperty(ERCAccess::READ_ACCESS, Object, FullPath, ObjectRef);
+								IRemoteControlModule::Get().ResolveObjectProperty(ERCAccess::READ_ACCESS, Object, Property.FieldPathInfo.ToString(), ObjectRef);
 
 								JsonWriter->WriteValue(TEXT("ObjectPath"), Object->GetPathName());
 								JsonWriter->WriteIdentifierPrefix(TEXT("PropertyValue"));
@@ -267,7 +264,7 @@ void FWebSocketMessageHandler::ProcessAddedProperties()
 {
 	for (const TPair<FName, TArray<FName>>& Entry : PerFrameAddedProperties)
 	{
-		if (!ShouldProcessEventForPreset(Entry.Key))
+		if (Entry.Value.Num() <= 0 || !ShouldProcessEventForPreset(Entry.Key))
 		{
 			continue;
 		}
@@ -304,23 +301,8 @@ void FWebSocketMessageHandler::ProcessAddedProperties()
 			}
 		}
 
-		TArray<uint8> WorkingBuffer;
-		FMemoryWriter Writer(WorkingBuffer);
-		TSharedPtr<TJsonWriter<UCS2CHAR>> JsonWriter = TJsonWriter<UCS2CHAR>::Create(&Writer);
-
-		//Response object
-		JsonWriter->WriteObjectStart();
-		{
-			JsonWriter->WriteValue(TEXT("ResponseType"), TEXT("PropertiesExposed"));
-			JsonWriter->WriteIdentifierPrefix("Preset");
-			
-			FJsonStructSerializerBackend SerializeBackend{ Writer, EStructSerializerBackendFlags::Default };
-			FStructSerializer::Serialize(AddedPropertiesDescription, SerializeBackend, FStructSerializerPolicies());
-		}
-		JsonWriter->WriteObjectEnd();
-
 		TArray<uint8> Payload;
-		WebRemoteControlUtils::ConvertToUTF8(WorkingBuffer, Payload);
+		WebRemoteControlUtils::SerializeResponse(FRCPresetFieldsAddedEvent{ Entry.Key, AddedPropertiesDescription }, Payload);
 		BroadcastToListeners(Entry.Key, Payload);
 	}
 
@@ -336,32 +318,8 @@ void FWebSocketMessageHandler::ProcessRemovedProperties()
 			continue;
 		}
 
-		TArray<uint8> WorkingBuffer;
-		FMemoryWriter Writer(WorkingBuffer);
-		TSharedPtr<TJsonWriter<UCS2CHAR>> JsonWriter = TJsonWriter<UCS2CHAR>::Create(&Writer);
-
-		//Response object
-		JsonWriter->WriteObjectStart();
-		{
-			JsonWriter->WriteValue(TEXT("ResponseType"), TEXT("PropertiesRemoved"));
-			JsonWriter->WriteValue("PresetName", *Entry.Key.ToString());
-
-			JsonWriter->WriteIdentifierPrefix("Properties");
-
-			//All exposed properties of this preset that changed
-			JsonWriter->WriteArrayStart();
-			{
-				for (FName Property : Entry.Value)
-				{
-					JsonWriter->WriteValue(Property.ToString());
-				}
-			}
-			JsonWriter->WriteArrayEnd();
-		}
-		JsonWriter->WriteObjectEnd();
-
 		TArray<uint8> Payload;
-		WebRemoteControlUtils::ConvertToUTF8(WorkingBuffer, Payload);
+		WebRemoteControlUtils::SerializeResponse(FRCPresetFieldsRemovedEvent{ Entry.Key, Entry.Value }, Payload);
 		BroadcastToListeners(Entry.Key, Payload);
 	}
 

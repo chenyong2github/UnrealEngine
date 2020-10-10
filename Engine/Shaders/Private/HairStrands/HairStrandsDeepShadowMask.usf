@@ -6,12 +6,13 @@
 #include "../Common.ush"
 #include "../CommonViewUniformBuffer.ush"
 #include "../DeferredShadingCommon.ush"
+#include "../MonteCarlo.ush"
 #include "HairStrandsVisibilityCommon.ush"
 #include "HairStrandsVoxelPageCommon.ush"
 
 #include "HairStrandsCommon.ush"
-#include "HairStrandsDeepShadowCommon.ush"
 #include "HairStrandsDebugCommon.ush"
+#include "HairStrandsDeepShadowCommon.ush"
 #include "HairStrandsDeepTransmittanceCommon.ush"
 
 #define OPAQUE_MASK_TYPE_DEEP_SHADOW 0
@@ -39,6 +40,7 @@ float4				DeepShadow_LayerDepths;
 float4				Voxel_LightPosition;
 float3				Voxel_LightDirection;
 uint				Voxel_MacroGroupId;
+uint				Voxel_RandomType;
 
 Texture2D<float4>	RayMarchMaskTexture;
 
@@ -51,6 +53,52 @@ RWTexture2D<float4>	OutputColor;
 
 SamplerState		LinearSampler;	
 SamplerState 		ShadowSampler;
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Random functions
+
+#if PERMUTATION_OPAQUEMASK_TYPE == OPAQUE_MASK_TYPE_VIRTUAL_VOXEL
+// The hair shadow mask is rendered by tracing ray/cone through the voxel structure. The traversing is done with 
+// point sampling and jittering to get the smooth aspect, and avoid expensive trilinear sampling in a sparse 
+// structure. These random functions make various tradeoff between randomness and correlation, so that the output 
+// can coverge with TAA without any denoiser. They result from experimentation, and don't have a good grounding
+float4 ComputeRandom4_0(uint2 PixelPosition, uint InSeed)
+{
+	const float2 U0 = InterleavedGradientNoise(PixelPosition, InSeed);
+	const float2 U1 = InterleavedGradientNoise(PixelPosition + 17, InSeed);
+	return float4(U0.x, U0.y, U1.x, U1.y);
+}
+
+float4 ComputeRandom4_1(uint2 PixelPosition, uint InSeed)
+{
+	const uint2 Seed0 = Rand3DPCG16(int3(PixelPosition, InSeed)).xy;
+	const uint2 Seed1 = Rand3DPCG16(int3(PixelPosition + 17, InSeed)).xy;
+	return float4(
+		Hammersley16(InSeed, 8, Seed0),
+		Hammersley16(InSeed, 8, Seed1));
+}
+
+float3 GetShadowMaskRandom(uint2 PixelPosition)
+{
+	float3 Random = 0.5f;
+	if (Voxel_RandomType == 0)
+	{
+		Random = GetHairVoxelJitter(PixelPosition.xy, View.StateFrameIndexMod8);
+	}
+	else if (Voxel_RandomType == 1)
+	{
+		Random = ComputeRandom4_0(PixelPosition, View.StateFrameIndexMod8).xyz;
+	}
+	else if (Voxel_RandomType == 2)
+	{
+		Random = ComputeRandom4_1(PixelPosition, View.StateFrameIndexMod8).xyz;
+	}
+	return Random;
+}
+#endif
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
 
 #define KERNEL_TYPE_2x2 0 
 #define KERNEL_TYPE_4x4 1
@@ -425,7 +473,7 @@ void MainPS(
 
 		// Depth bias
 		// Origin is shifted 2 voxels away towards the light + a constant bias of the size of the voxel
-		const float3 Random = GetHairVoxelJitter(PixelCoord.xy, View.StateFrameIndexMod8);
+		const float3 Random = GetShadowMaskRandom(PixelCoord.xy);
 		{
 			const float PositionBiasScale = 0.5f;
 			const float3 DepthBias = VirtualVoxel.VoxelWorldSize * (2 * LightDirection + PositionBiasScale * (Random * 2 - 1));
@@ -469,6 +517,7 @@ void MainPS(
 				CommonDesc,
 				NodeDesc,
 				VirtualVoxel.PageIndexBuffer,
+				VirtualVoxel.PageIndexOccupancyBuffer,
 				VirtualVoxel.PageTexture,
 				TraversalSettings);
 
@@ -483,7 +532,7 @@ void MainPS(
 
 	// Depending of if the light is direction (i.e., WholeSceneLight) or a local light (Point/Spot/Rect), 
 	// we change the output layout
-	OutColor = bIsWholeSceneLight ? float4(Visibility, 1, 1, 1) : float4(1, 1, Visibility, 1);
+	OutColor = bIsWholeSceneLight ? float4(Visibility, Visibility, 1, 1) : float4(1, 1, Visibility, Visibility);
 }
 
 #endif

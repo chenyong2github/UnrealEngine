@@ -9,6 +9,7 @@
 
 #include "DetailLayoutBuilder.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Images/SImage.h"
 #include "DetailCategoryBuilder.h"
@@ -22,7 +23,7 @@ void FDMXEntityFixtureTypeFunctionsDetails::CustomizeDetails(IDetailLayoutBuilde
 	DetailBuilder.HideCategory("Entity Properties");
 	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, DMXImport));
 	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, DMXCategory));
-	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, bPixelFunctionsEnabled));
+	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, bFixtureMatrixEnabled));
 	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, Modes));
 
 	if (TSharedPtr<FDMXEditor> DMXEditor = DMXEditorPtr.Pin())
@@ -55,7 +56,10 @@ void FDMXEntityFixtureTypeFunctionsDetails::CustomizeDetails(IDetailLayoutBuilde
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Fill)
 			[
-				SNew(SDMXFunctionItemListViewBox, DMXEditorPtr.Pin(), ModesHandleArray)
+				SNew(SBox)
+				[
+					SNew(SDMXFunctionItemListViewBox, DMXEditorPtr.Pin(), ModesHandleArray)
+				]
 			];
 	}
 }

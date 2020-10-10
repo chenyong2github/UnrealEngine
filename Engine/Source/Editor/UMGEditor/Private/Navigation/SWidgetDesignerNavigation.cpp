@@ -429,7 +429,7 @@ void SWidgetDesignerNavigation::HandleEditorSelectionChanged()
 		const TSet<FWidgetReference>& SelectedWidgetReferences = BlueprintEditorPinned->GetSelectedWidgets();
 		if (SelectedWidgetReferences.Num() > 0)
 		{
-			for (const FWidgetReference WidgetReference : SelectedWidgetReferences)
+			for (const FWidgetReference& WidgetReference : SelectedWidgetReferences)
 			{
 				NavigationEventSimulationView->SelectWidget(WidgetReference.GetPreviewSlate());
 				break;

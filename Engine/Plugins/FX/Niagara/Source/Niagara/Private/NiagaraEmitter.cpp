@@ -1048,8 +1048,8 @@ void UNiagaraEmitter::CacheFromCompiledData(const FNiagaraDataSetCompiledData* C
 
 		if (SimTarget == ENiagaraSimTarget::GPUComputeSim)
 		{
-			// On GPU, the size of the allocated buffers must be a multiple of NIAGARA_COMPUTE_THREADGROUP_SIZE, so round down.
-			MaxInstanceCount = (MaxInstanceCount / NIAGARA_COMPUTE_THREADGROUP_SIZE) * NIAGARA_COMPUTE_THREADGROUP_SIZE;
+			// On GPU, the size of the allocated buffers must be a multiple of NiagaraComputeMaxThreadGroupSize, so round down.
+			MaxInstanceCount = FMath::DivideAndRoundDown(MaxInstanceCount, NiagaraComputeMaxThreadGroupSize) * NiagaraComputeMaxThreadGroupSize;
 			// We will need an extra scratch instance, so the maximum number of usable instances is one less than the value we computed.
 			MaxInstanceCount -= 1;
 		}
@@ -1961,7 +1961,7 @@ void UNiagaraEmitter::ResolveScalabilitySettings()
 	}
 }
 
-void UNiagaraEmitter::OnQualityLevelChanged()
+void UNiagaraEmitter::OnScalabilityCVarChanged()
 {
 	ResolveScalabilitySettings();
 }

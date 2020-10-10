@@ -280,7 +280,7 @@ void CullForCardTracing(
 	const FLumenIndirectTracingParameters& IndirectTracingParameters,
 	FLumenMeshSDFGridParameters& MeshSDFGridParameters)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 
 	FVector ZParams;
 	int32 CardGridSizeZ;

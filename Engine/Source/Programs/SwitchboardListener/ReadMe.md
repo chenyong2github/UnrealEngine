@@ -29,36 +29,6 @@ List of commands sent from Switchboard to the Listener:
 	'command' : 'killall',
 	'id': '16fd2706-8baf-433b-82eb-8c7fada847da'
 }
-- Init vcs system (p4)
-{
-	'command': 'vcs init',
-	'id': '16fd2706-8baf-433b-82eb-8c7fada847da',
-	'provider': 'Perforce',
-	'vcs settings':
-	{
-		'Port': 'perforce-proxy-sk2.epicgames.net:1666',
-		'UserName': 'daniel.rahier',
-		'Workspace': 'daniel.rahier_ARN-dev-vproduction'
-	}
-}
-- Report revision/changelist
-{
-	'command': 'vcs report revision',
-	'path': '//UE4/Dev-VirtualProduction/Collaboration/VirtualProdTest/VirtualProdTest.uproject',
-	'id': '16fd2706-8baf-433b-82eb-8c7fada847da'
-}
-- Sync to specified change(list)
-{
-	'command': 'vcs sync',
-	'id': '16fd2706-8baf-433b-82eb-8c7fada847da',
-	'revision': '1234578',
-	'path': '//UE4/Dev-VirtualProduction/Collaboration/VirtualProdTest/VirtualProdTest/...'
-}
-- Cause the listener to restart itself
-{
-	'command': 'restart',
-	'id': '16fd2706-8baf-433b-82eb-8c7fada847da'
-}
 - Send file
 {
 	'command': 'send file',
@@ -129,35 +99,6 @@ Responses sent by the listener to Switchboard:
 {
 	'program killed': False,
 	'program id': '6fa459ea-ee8a-3ca4-894e-db77e160355e',
-	'error': string
-}
-- VCS init completed
-{
-	'vcs init complete': True
-}
-- VCS init failed
-{
-	'vcs init complete': False,
-	'error': string
-}
-- VCS report revision completed
-{
-	'vcs report revision complete': True,
-	'revision': string (Changelist/revno/etc)
-}
-- VCS report revision failed
-{
-	'vcs report revision complete': False,
-	'error': string
-}
-- VCS sync completed
-{
-	'vcs sync complete': True,
-	'revision': 12341243
-}
-- VCS sync failed
-{
-	'vcs sync complete': False,
 	'error': string
 }
 - Send file completed

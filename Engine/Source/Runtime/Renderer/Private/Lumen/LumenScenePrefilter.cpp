@@ -215,7 +215,7 @@ void FDeferredShadingSceneRenderer::PrefilterLumenSceneDepth(
 	const TArray<uint32, SceneRenderingAllocator>& CardIdsToRender,
 	const FViewInfo& View)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 	RDG_EVENT_SCOPE(GraphBuilder, "Prefilter");
 
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
@@ -500,7 +500,7 @@ void FDeferredShadingSceneRenderer::PrefilterLumenSceneLighting(
 	FGlobalShaderMap* GlobalShaderMap,
 	const FLumenCardScatterContext& VisibleCardScatterContext)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 	RDG_EVENT_SCOPE(GraphBuilder, "Prefilter");
 
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;

@@ -227,7 +227,7 @@ int32 GetValidPatchMode(UDMXEntityFixturePatch* InPatch)
 	{
 		const FDMXFixtureMode& Mode = FixtureType->Modes[ModeIndex];
 		if (Mode.Functions.Num() > 0 ||
-			Mode.PixelMatrixConfig.PixelFunctions.Num() > 0)
+			Mode.FixtureMatrixConfig.CellAttributes.Num() > 0)
 		{
 			if (ModeIndex == InPatch->ActiveMode)
 			{

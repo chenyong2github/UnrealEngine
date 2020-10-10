@@ -49,11 +49,11 @@ static const bool bForceThreadSafe = true;
 
 FSourceFilterManager::FSourceFilterManager(UWorld* InWorld) : World(InWorld), bAreTickFunctionsRegistered(false), ActorCollector(World, {}), FilterSetup(FSourceFilterSetup::GetFilterSetup())
 {
-	ActorSpawningDelegateHandle = World->AddOnActorSpawnedHandler(FOnActorSpawned::FDelegate::CreateLambda([this](AActor* InActor) 
-	{
+	auto ActorSpawnLambda = FOnActorSpawned::FDelegate::CreateLambda([this](AActor* InActor)
+	{ 
 		// Apply filters if the world is marked as trace-able itself
 		if (CAN_TRACE_OBJECT(World))
-		{
+		{	
 			// Apply high level class filters
 			bool bClassFilterResult = true;
 			if (FilterSetup.HasAnyClassFilters())
@@ -74,13 +74,16 @@ FSourceFilterManager::FSourceFilterManager(UWorld* InWorld) : World(InWorld), bA
 			// Otherwise if no other filters are setup either, mark the actor as traceable
 			else
 			{
-				if (!FilterSetup.HasAnyFilters() || !bClassFilterResult)
+				if (!FilterSetup.HasAnyFilters())
 				{
 					SET_OBJECT_TRACEABLE(InActor, bClassFilterResult);
 				}
 			}
 		}
-	}));
+	});
+
+	ActorSpawningDelegateHandle = World->AddOnActorSpawnedHandler(ActorSpawnLambda);
+	PreActorSpawningDelegateHandle = World->AddOnActorPreSpawnInitialization(ActorSpawnLambda);
 
 	// Ensure that we process all actors whenever the world finishes initialization
 	World->OnActorsInitialized.AddLambda([this](const UWorld::FActorsInitializedParams& Params)
@@ -103,10 +106,11 @@ FSourceFilterManager::~FSourceFilterManager()
 	if (World)
 	{
 		World->RemoveOnActorSpawnedHandler(ActorSpawningDelegateHandle);
+		World->RemoveOnActorPreSpawnInitialization(PreActorSpawningDelegateHandle);
 	}
 
 	FilterSetup.GetFilterSetupUpdated().RemoveAll(this);
-	
+
 	WaitForAsyncTasks();
 
 	if (IsValidRef(DrawTask) && !DrawTask->IsComplete())
@@ -748,7 +752,7 @@ void FSourceFilterManager::WaitForAsyncTasks()
 {
 	check(IsInGameThread());
 	if (IsValidRef(FinishTask))
-	{	
+	{
 		// Run GT filtering task (in case the GT got pre-empted before executing it, which otherwise causes a deadlock)
 		if (IsValidRef(AsyncTasks[0]) && !AsyncTasks[0]->IsComplete())
 		{			

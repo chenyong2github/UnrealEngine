@@ -220,7 +220,8 @@ void FDeferredShadingSceneRenderer::RenderVelocities(
 	FRDGTextureRef DepthTexture,
 	FRDGTextureRef& InOutVelocityTexture,
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
-	EVelocityPass VelocityPass)
+	EVelocityPass VelocityPass,
+	bool bForceVelocity)
 {
 	check(FeatureLevel >= ERHIFeatureLevel::SM5);
 
@@ -271,7 +272,8 @@ void FDeferredShadingSceneRenderer::RenderVelocities(
 		{
 			const FParallelMeshDrawCommandPass& ParallelMeshPass = View.ParallelMeshDrawCommandPasses[MeshPass];
 
-			if (!ParallelMeshPass.HasAnyDraw())
+			const bool bHasAnyDraw = ParallelMeshPass.HasAnyDraw();
+			if (!bHasAnyDraw && !bForceVelocity)
 			{
 				continue;
 			}
@@ -286,6 +288,12 @@ void FDeferredShadingSceneRenderer::RenderVelocities(
 				{
 					VelocityLoadAction = ERenderTargetLoadAction::ELoad;
 				}
+			}
+			bVelocityRendered = true;
+
+			if (!bHasAnyDraw)
+			{
+				continue;
 			}
 
 			FVelocityPassParameters* PassParameters = GraphBuilder.AllocParameters<FVelocityPassParameters>();
@@ -330,7 +338,6 @@ void FDeferredShadingSceneRenderer::RenderVelocities(
 				});
 			}
 
-			bVelocityRendered = true;
 		}
 	}
 

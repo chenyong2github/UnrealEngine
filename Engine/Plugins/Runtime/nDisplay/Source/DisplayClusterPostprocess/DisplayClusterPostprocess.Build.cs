@@ -7,36 +7,24 @@ public class DisplayClusterPostprocess : ModuleRules
 {
 	public DisplayClusterPostprocess(ReadOnlyTargetRules ROTargetRules) : base(ROTargetRules)
 	{
-		PrivateIncludePaths.AddRange(
-			new string[]
-			{
-				"DisplayClusterPostprocess/Private",
-				"DisplayCluster/Private",
-			}
-		);
-
 		PublicDependencyModuleNames.AddRange(
-			new string[]
-			{
+			new string[] {
 				"Core",
-				"Engine",
+				"Engine"
 			});
 
 		PrivateDependencyModuleNames.AddRange(
-			new string[]
-			{
+			new string[] {
 				"DisplayCluster",
 				"OutputRemap",
 				"RHI",
 				"TextureShare",
 				"TextureShareCore",
-				"TextureShareD3D12",
-			}
-		);
+				"TextureShareD3D12"
+			});
 
 		if (Target.bBuildEditor == true)
 		{
-			PrivateDependencyModuleNames.Add("EditorFramework");
 			PrivateDependencyModuleNames.Add("UnrealEd");
 		}
 	}

@@ -1263,6 +1263,7 @@ private:
 	/** Creates the dynamic source and static level collections if they don't already exist. */
 	void ConditionallyCreateDefaultLevelCollections();
 
+
 public:
 
 	/** Handle to the active audio device for this world. */
@@ -1397,6 +1398,11 @@ public:
 	/** Default global physics scene. */
 	TSharedPtr<FPhysScene_Chaos> DefaultPhysicsScene_Chaos;
 #endif
+
+	/** Physics Field component. */
+	UPROPERTY(Transient)
+	class UPhysicsFieldComponent* PhysicsField;
+
 private:
 
 	/** Array of components that need to wait on tasks before end of frame updates */
@@ -1421,6 +1427,9 @@ private:
 
 	/** a delegate that broadcasts a notification whenever an actor is spawned */
 	FOnActorSpawned OnActorSpawned;
+
+	/** a delegate that broadcasts a notification before a newly spawned actor is initialized */
+	FOnActorSpawned OnActorPreSpawnInitialization;
 
 	/** Reset Async Trace Buffer **/
 	void ResetAsyncTrace();
@@ -2546,6 +2555,12 @@ public:
 
 	/** Remove a listener for OnActorSpawned events */
 	void RemoveOnActorSpawnedHandler( FDelegateHandle InHandle );
+
+	/** Add a listener for OnActorPreSpawnInitialization events */
+	FDelegateHandle AddOnActorPreSpawnInitialization(const FOnActorSpawned::FDelegate& InHandler);
+
+	/** Remove a listener for OnActorPreSpawnInitialization events */
+	void RemoveOnActorPreSpawnInitialization(FDelegateHandle InHandle);	
 
 	/**
 	 * Returns whether the passed in actor is part of any of the loaded levels actors array.

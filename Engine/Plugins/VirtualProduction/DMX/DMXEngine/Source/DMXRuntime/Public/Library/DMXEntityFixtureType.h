@@ -11,7 +11,7 @@
 class UDMXImport;
 
 UENUM(BlueprintType)
-enum class EDMXPixelsDistribution : uint8
+enum class EDMXPixelMappingDistribution : uint8
 {
 	TopLeftToRight,
 	TopLeftToBottom,
@@ -32,13 +32,6 @@ enum class EDMXPixelsDistribution : uint8
 	BottomRightToTop,
 	BottomRightToClockwise,
 	BottomRightToAntiClockwise
-};
-
-UENUM(BlueprintType)
-enum class EDMXFixtureTypeCategory : uint8
-{
-	Default,
-	PixelMatrix
 };
 
 USTRUCT(BlueprintType)
@@ -111,17 +104,17 @@ struct DMXRUNTIME_API FDMXFixtureFunction
 };
 
 USTRUCT(BlueprintType)
-struct DMXRUNTIME_API FDMXFixturePixelFunction
+struct DMXRUNTIME_API FDMXFixtureCellAttribute
 {
 	GENERATED_BODY()
 
 	/**
-		* The Attribute name to map this Function to.
-		* This is used to easily find the Function in Blueprints, using an Attribute
-		* list instead of typing the Function name directly.
-		* The list of Attributes can be edited on
-		* Project Settings->Plugins->DMX Protocol->Fixture Settings->Fixture Function Attributes
-		*/
+	 * The Attribute name to map this Function to.
+	 * This is used to easily find the Function in Blueprints, using an Attribute
+	 * list instead of typing the Function name directly.
+	 * The list of Attributes can be edited on
+	 * Project Settings->Plugins->DMX Protocol->Fixture Settings->Fixture Function Attributes
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayName = "Attribute Mapping", DisplayPriority = "11"), Category = "DMX")
 	FDMXAttributeName Attribute;
 
@@ -151,7 +144,7 @@ struct DMXRUNTIME_API FDMXFixturePixelFunction
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayName = "Use LSB Mode", DisplayPriority = "29"), Category = "DMX")
 	bool bUseLSBMode;
 
-	FDMXFixturePixelFunction()
+	FDMXFixtureCellAttribute()
 		: Attribute(FDMXNameListItem::None)
 		, Description()
 		, DefaultValue(0)
@@ -161,52 +154,49 @@ struct DMXRUNTIME_API FDMXFixturePixelFunction
 };
 
 USTRUCT(BlueprintType)
-struct DMXRUNTIME_API FDMXPixelMatrix
+struct DMXRUNTIME_API FDMXFixtureMatrix
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "60", DisplayName = "Pixel Attributes"), Category = "DMX")
-	TArray<FDMXFixturePixelFunction> PixelFunctions;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "60", DisplayName = "Cell Attributes"), Category = "DMX")
+	TArray<FDMXFixtureCellAttribute> CellAttributes;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "20", DisplayName = "First Pixel Channel", ClampMin = "1"), Category = "DMX")
-	int32 FirstPixelChannel;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "20", DisplayName = "First Cell Channel", ClampMin = "1"), Category = "DMX")
+	int32 FirstCellChannel;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "30", DisplayName = "X Pixels", ClampMin = "0"), Category = "DMX")
-	int32 XPixels;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "30", DisplayName = "X Cells", ClampMin = "0"), Category = "DMX")
+	int32 XCells;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "40", DisplayName = "Y Pixels", ClampMin = "0"), Category = "DMX")
-	int32 YPixels;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "40", DisplayName = "Y Cells", ClampMin = "0"), Category = "DMX")
+	int32 YCells;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "50", DisplayName = "PixelMapping Distribution"), Category = "DMX")
-	EDMXPixelsDistribution PixelsDistribution;
+	EDMXPixelMappingDistribution PixelMappingDistribution;
 
-	FDMXPixelMatrix()
-		: FirstPixelChannel(1)
-		, XPixels(0)
-		, YPixels(0)
-		, PixelsDistribution(EDMXPixelsDistribution::TopLeftToRight)
+	FDMXFixtureMatrix()
+		: FirstCellChannel(1)
+		, XCells(1)
+		, YCells(1)
+		, PixelMappingDistribution(EDMXPixelMappingDistribution::TopLeftToRight)
 	{}
 
-	bool GetChannelsFromPixel(FIntPoint Pixel, FDMXAttributeName Attribute, TArray<int32>& Channels) const;
-	int32 GetPixelFunctionsLastChannel() const;
+	bool GetChannelsFromCell(FIntPoint CellCoordinate, FDMXAttributeName Attribute, TArray<int32>& Channels) const;
+	int32 GetFixtureMatrixLastChannel() const;
 };
 
 USTRUCT(BlueprintType)
-struct DMXRUNTIME_API FDMXPixel
+struct DMXRUNTIME_API FDMXCell
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "10", DisplayName = "Pixel Attributes"), Category = "DMX")
-	TArray<FDMXFixturePixelFunction> PixelAttributes;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "20", DisplayName = "PixelID", ClampMin = "0"), Category = "DMX")
-	int32 PixelID;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "20", DisplayName = "Cell ID", ClampMin = "0"), Category = "DMX")
+	int32 CellID;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "30", DisplayName = "Coordinate"), Category = "DMX")
 	FIntPoint Coordinate;
 
-	FDMXPixel()
-		: PixelID(0)
+	FDMXCell()
+		: CellID(0)
 		, Coordinate(FIntPoint (-1,-1))
 	{}
 };
@@ -235,7 +225,7 @@ struct DMXRUNTIME_API FDMXFixtureMode
 	bool bAutoChannelSpan;
 
 	UPROPERTY(EditAnywhere, Category = "DMX")
-	FDMXPixelMatrix PixelMatrixConfig;
+	FDMXFixtureMatrix FixtureMatrixConfig;
 
 	FDMXFixtureMode()
 		: ChannelSpan(0)
@@ -256,8 +246,11 @@ class DMXRUNTIME_API UDMXEntityFixtureType
 {
 	GENERATED_BODY()
 
-
 public:
+	UDMXEntityFixtureType()
+		: bFixtureMatrixEnabled(false)
+	{}
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Settings")
 	UDMXImport* DMXImport;
 
@@ -265,7 +258,7 @@ public:
 	FDMXFixtureCategory DMXCategory;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Settings", meta = (DisplayName = "Matrix Fixture"))
-	bool bPixelFunctionsEnabled = false;
+	bool bFixtureMatrixEnabled;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Settings")
 	TArray<FDMXFixtureMode> Modes;
@@ -289,7 +282,7 @@ public:
 	 */
 	static bool IsFunctionInModeRange(const FDMXFixtureFunction& InFunction, const FDMXFixtureMode& InMode, int32 ChannelOffset = 0);
 
-	static bool IsFixtureMatrixInModeRange(const FDMXPixelMatrix& InFixtureMatrix, const FDMXFixtureMode& InMode, int32 ChannelOffset = 0);
+	static bool IsFixtureMatrixInModeRange(const FDMXFixtureMatrix& InFixtureMatrix, const FDMXFixtureMode& InMode, int32 ChannelOffset = 0);
 
 	static void ClampDefaultValue(FDMXFixtureFunction& InFunction);
 

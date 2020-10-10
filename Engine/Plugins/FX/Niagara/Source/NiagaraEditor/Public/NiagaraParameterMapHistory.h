@@ -119,7 +119,7 @@ public:
 	/**
 	* Use the input alias map to resolve any aliases in this input variable name.
 	*/
-	static FNiagaraVariable ResolveAliases(const FNiagaraVariable& InVar, const TMap<FString, FString>& InAliases, const TCHAR* InJoinSeparator);
+	static FNiagaraVariable ResolveAliases(const FNiagaraVariable& InVar, const TMap<FString, FString>& InAliases, const TMap<FString, FString>& InStartAliases = TMap<FString, FString>(), const TCHAR* InJoinSeparator = TEXT("."));
 
 	static FName ResolveEmitterAlias(const FName& InName, const FString& InAlias);
 
@@ -494,6 +494,7 @@ protected:
 	TArray<ENiagaraScriptUsage> RelevantScriptUsageContext;
 	/** Resolved alias map for the current context level. Rebuilt by BuildCurrentAliases.*/
 	TMap<FString, FString> AliasMap;
+	TMap<FString, FString> StartOnlyAliasMap;
 	TArray<FName> ScriptUsageContextNameStack;
 
 	TArray<TArray<FString> > EncounteredFunctionNames;

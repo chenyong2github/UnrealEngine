@@ -1032,7 +1032,7 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 	//, RenderData(Component->GetStaticMesh()->RenderData.Get())
 	, GeometryCollection(Component->GetRestCollection())
 {
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 
 	// Nanite requires GPUScene
 	check(UseGPUScene(GMaxRHIShaderPlatform, GetScene().GetFeatureLevel()));
@@ -1126,7 +1126,7 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 
 FPrimitiveViewRelevance FNaniteGeometryCollectionSceneProxy::GetViewRelevance(const FSceneView* View) const
 {
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 
 #if WITH_EDITOR
 	const bool bOptimizedRelevance = false;
@@ -1172,7 +1172,7 @@ FPrimitiveViewRelevance FNaniteGeometryCollectionSceneProxy::GetViewRelevance(co
 #if WITH_EDITOR
 HHitProxy* FNaniteGeometryCollectionSceneProxy::CreateHitProxies(UPrimitiveComponent* Component, TArray<TRefCountPtr<HHitProxy>>& OutHitProxies)
 {
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 
 	if (Component->GetOwner())
 	{
@@ -1194,7 +1194,7 @@ HHitProxy* FNaniteGeometryCollectionSceneProxy::CreateHitProxies(UPrimitiveCompo
 
 void FNaniteGeometryCollectionSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PDI)
 {
-	LLM_SCOPE(ELLMTag::Nanite);
+	LLM_SCOPE_BYTAG(Nanite);
 
 	for (int32 SectionIndex = 0; SectionIndex < MaterialSections.Num(); ++SectionIndex)
 	{

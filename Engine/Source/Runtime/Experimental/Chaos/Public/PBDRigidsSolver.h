@@ -41,8 +41,6 @@ class FPerSolverFieldSystem;
 #define GEOMETRY_PREALLOC_COUNT 100
 
 extern int32 ChaosSolverParticlePoolNumFrameUntilShrink;
-extern CHAOS_API int32 ChaosSolverCollisionDefaultIterationsCVar;
-extern CHAOS_API int32 ChaosSolverCollisionDefaultPushoutIterationsCVar;
 
 namespace ChaosTest
 {
@@ -285,7 +283,10 @@ namespace Chaos
 		/**/
 		void SetIterations(const int32 InNumIterations) { GetEvolution()->SetNumIterations(InNumIterations); }
 		void SetPushOutIterations(const int32 InNumIterations) {  GetEvolution()->SetNumPushOutIterations(InNumIterations); }
-		void SetPushOutPairIterations(const int32 InNumIterations) {  GetEvolution()->GetCollisionConstraints().SetPushOutPairIterations(InNumIterations); }
+		void SetCollisionPairIterations(const int32 InNumIterations) { GetEvolution()->GetCollisionConstraints().SetPairIterations(InNumIterations); }
+		void SetCollisionPushOutPairIterations(const int32 InNumIterations) { GetEvolution()->GetCollisionConstraints().SetPushOutPairIterations(InNumIterations); }
+		void SetCollisionShapePadding(const FReal InShapePadding) { GetEvolution()->GetCollisionConstraints().SetShapePadding(InShapePadding); GetEvolution()->GetBroadPhase().SetShapePadding(InShapePadding); }
+		void SetCollisionCullDistance(const FReal InCullDistance) { GetEvolution()->GetCollisionConstraints().SetCullDistance(InCullDistance); GetEvolution()->GetBroadPhase().SetCullDistance(InCullDistance); }
 		void SetUseContactGraph(const bool bInUseContactGraph) { GetEvolution()->GetCollisionConstraintsRule().SetUseContactGraph(bInUseContactGraph); }
 
 		/**/
@@ -403,7 +404,7 @@ namespace Chaos
 		/**/
 		virtual void AdvanceSolverBy(const FReal DeltaTime) override;
 		virtual void PushPhysicsState(const FReal DeltaTime) override;
-		virtual void SetExternalTimestampConsumed_External(const int32 Timestamp) override;
+		virtual void SetExternalTimestampConsumed_Internal(const int32 Timestamp) override;
 
 		//
 		// Solver Data

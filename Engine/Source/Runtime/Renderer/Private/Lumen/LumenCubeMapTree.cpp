@@ -179,7 +179,7 @@ void LumenUpdateDFObjectIndex(FScene* Scene, int32 DFObjectIndex)
 
 void UpdateLumenCubeMapTrees(const FDistanceFieldSceneData& DistanceFieldSceneData, FLumenSceneData& LumenSceneData, FRHICommandListImmediate& RHICmdList, int32 NumScenePrimitives)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 	QUICK_SCOPE_CYCLE_COUNTER(UpdateLumenCubeMapTrees);
 
 	checkf(LumenSceneData.CubeMapTreeBounds.Num() == LumenSceneData.CubeMapTrees.Num(),
@@ -450,7 +450,7 @@ FLumenCubeMapTreeLUTAtlas::FLumenCubeMapTreeLUTAtlas()
 
 void FLumenCubeMapTreeLUTAtlas::Allocate(TSparseSpanArray<FLumenCubeMapTree>& CubeMapTrees, const TArray<int32>& CubeMapTreeIndicesToAllocate)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(CubeMapTreeLUTAtlasAllocate);
 
@@ -607,7 +607,7 @@ void FLumenCubeMapTreeLUTAtlas::Allocate(TSparseSpanArray<FLumenCubeMapTree>& Cu
 
 void FLumenCubeMapTreeLUTAtlas::RemoveAllocation(FLumenCubeMapTree& CubeMapTree)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 
 	if (CubeMapTree.LUTAtlasAllocationId.IsValid() && !CubeMapTree.SizeInLUTAtlas.IsZero())
 	{
@@ -1038,7 +1038,7 @@ void RemoveCubeMapTreeForPrimitive(
 
 void UpdateMeshCardRepresentations(FScene* Scene)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 	TRACE_CPUPROFILER_EVENT_SCOPE(UpdateMeshCardRepresentations);
 	QUICK_SCOPE_CYCLE_COUNTER(UpdateMeshCardRepresentations);
 	const double StartTime = FPlatformTime::Seconds();

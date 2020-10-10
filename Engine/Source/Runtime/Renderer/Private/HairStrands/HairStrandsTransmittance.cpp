@@ -45,6 +45,9 @@ static FAutoConsoleVariableRef CVarHairStrandsTransmittanceSuperSampling(TEXT("r
 static int32 GHairStrandsTransmittanceMaskUseMipTraversal = 1;
 static FAutoConsoleVariableRef CVarHairStrandsTransmittanceMaskUseMipTraversal(TEXT("r.HairStrands.DeepShadow.MipTraversal"), GHairStrandsTransmittanceMaskUseMipTraversal, TEXT("Evaluate transmittance using mip-map traversal (faster)."), ECVF_Scalability | ECVF_RenderThreadSafe);
 
+static int32 GHairStrandsShadowRandomTraversalType = 0;
+static FAutoConsoleVariableRef CVarHairStrandsShadowRandomTraversalType(TEXT("r.HairStrands.DeepShadow.RandomType"), GHairStrandsShadowRandomTraversalType, TEXT("Change how traversal jittering is initialized. Valid value are 0, 1, and 2. Each type makes different type of tradeoff."), ECVF_Scalability | ECVF_RenderThreadSafe);
+
 static float GetDeepShadowDensityScale() { return FMath::Max(0.0f, GDeepShadowDensityScale); }
 static float GetDeepShadowDepthBiasScale() { return FMath::Max(0.0f, GDeepShadowDepthBiasScale); }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -150,7 +153,7 @@ public:
 			return false;
 		}
 
-		return IsHairStrandsSupported(Parameters.Platform);
+		return IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform);
 	}
 
 	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
@@ -312,7 +315,7 @@ class FDeepShadowMaskPS : public FGlobalShader
 		SHADER_PARAMETER(FVector4, Voxel_LightPosition)
 		SHADER_PARAMETER(FVector, Voxel_LightDirection)
 		SHADER_PARAMETER(uint32, Voxel_MacroGroupId)
-
+		SHADER_PARAMETER(uint32, Voxel_RandomType)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RayMarchMaskTexture)
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, DeepShadow_WorldToLightTransformBuffer)
@@ -329,7 +332,12 @@ class FDeepShadowMaskPS : public FGlobalShader
 		END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform); }
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetRenderTargetOutputFormat(0, PF_B8G8R8A8);
+	}
 };
 
 IMPLEMENT_GLOBAL_SHADER(FDeepShadowMaskPS, "/Engine/Private/HairStrands/HairStrandsDeepShadowMask.usf", "MainPS", SF_Pixel);
@@ -414,6 +422,7 @@ static void AddDeepShadowOpaqueMaskPass(
 		Parameters->Voxel_LightDirection = Params.Voxel_LightDirection;
 		Parameters->Voxel_MacroGroupId = Params.Voxel_MacroGroupId;
 		Parameters->VirtualVoxel = Params.Voxel_VirtualVoxel->UniformBuffer;
+		Parameters->Voxel_RandomType = FMath::Clamp(GHairStrandsShadowRandomTraversalType, 0, 2);
 	}
 
 	FDeepShadowMaskPS::FPermutationDomain PermutationVector;
@@ -725,27 +734,10 @@ void RenderHairStrandsShadowMask(
 		{
 			const FHairStrandsVisibilityData& HairVisibilityData = HairVisibilityViews.HairDatas[ViewIndex];
 			const FHairStrandsMacroGroupDatas& MacroGroupDatas = MacroGroupViews.Views[ViewIndex];
-			RenderHairStrandsShadowMask(GraphBuilder, Views[ViewIndex], LightSceneInfo, HairVisibilityData, MacroGroupDatas, OutShadowMask);
+			if (HairVisibilityData.CategorizationTexture)
+			{
+				RenderHairStrandsShadowMask(GraphBuilder, Views[ViewIndex], LightSceneInfo, HairVisibilityData, MacroGroupDatas, OutShadowMask);
+			}
 		}
 	}
-}
-
-void RenderHairStrandsShadowMask(
-	FRHICommandListImmediate& RHICmdList,
-	const TArray<FViewInfo>& Views,
-	const FLightSceneInfo* LightSceneInfo,
-	const FHairStrandsRenderingData* HairDatas,
-	IPooledRenderTarget* ScreenShadowMaskTexture)
-{
-	if (Views.Num() == 0 || HairDatas == nullptr || ScreenShadowMaskTexture == nullptr)
-	{
-		return;
-	}
-
-	FRDGBuilder GraphBuilder(RHICmdList);
-
-	FRDGTextureRef OutShadowMask = GraphBuilder.RegisterExternalTexture(ScreenShadowMaskTexture, TEXT("ScreenShadowMaskTexture"));
-	RenderHairStrandsShadowMask(GraphBuilder, Views, LightSceneInfo, HairDatas, OutShadowMask);
-
-	GraphBuilder.Execute();
 }

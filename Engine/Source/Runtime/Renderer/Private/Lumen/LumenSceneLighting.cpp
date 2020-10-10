@@ -32,7 +32,7 @@ FAutoConsoleVariableRef CVarLumenSceneCardLightingUpdateMinFrequency(
 
 FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, const FScene* Scene, const FViewInfo& View)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 
@@ -71,7 +71,7 @@ FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, cons
 
 void FLumenCardTracingInputs::ExtractToScene(FRDGBuilder& GraphBuilder, FScene* Scene, FViewInfo& View)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 
@@ -132,7 +132,7 @@ void GetLumenVoxelTracingParameters(const FLumenCardTracingInputs& TracingInputs
 
 void GetLumenCardTracingParameters(const FViewInfo& View, const FLumenCardTracingInputs& TracingInputs, FLumenCardTracingParameters& TracingParameters, bool bShaderWillTraceCardsOnly)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 
 	TracingParameters.View = View.ViewUniformBuffer;
 	TracingParameters.LumenCardScene = TracingInputs.LumenCardScene;
@@ -217,7 +217,7 @@ void FLumenCardScatterContext::CullCardsToShape(
 	float UpdateFrequencyScale,
 	int32 ScatterInstanceIndex)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 
 	FRDGBufferRef VisibleCardsIndexBuffer = GraphBuilder.RegisterExternalBuffer(LumenSceneData.VisibleCardsIndexBuffer);
 	FRDGBufferRef CardsToRenderIndexBuffer = GraphBuilder.RegisterExternalBuffer(LumenCardRenderer.CardsToRenderIndexBuffer);
@@ -329,7 +329,7 @@ void CombineLumenSceneLighting(
 	FGlobalShaderMap* GlobalShaderMap,
 	const FLumenCardScatterContext& VisibleCardScatterContext)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 
@@ -374,7 +374,7 @@ TGlobalResource<FTileIndexBuffer> GLumenTileIndexBuffer(NumLumenQuadsInBuffer);
 
 void ClearAtlasRDG(FRDGBuilder& GraphBuilder, FRDGTextureRef AtlasTexture)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 
 	{
 		FRenderTargetParameters* PassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
@@ -396,7 +396,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 	FRDGBuilder& GraphBuilder,
 	FViewInfo& View)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 

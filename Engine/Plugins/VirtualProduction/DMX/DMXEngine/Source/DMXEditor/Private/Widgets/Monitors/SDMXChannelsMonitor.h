@@ -33,9 +33,6 @@ public:
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	//~End of SWidget interface
 
-	/** Clear the individula channel values in the UI (doesn't clear Protocol channels) */
-	void Clear();
-
 private:
 	/** Creates the channel value widgets */
 	void CreateChannelValueWidgets();

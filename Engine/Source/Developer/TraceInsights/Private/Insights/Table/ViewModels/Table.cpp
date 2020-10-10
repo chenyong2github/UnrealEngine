@@ -107,6 +107,19 @@ void FTable::AddHierarchyColumn(int32 ColumnIndex, const TCHAR* ColumnName)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void FTable::GetVisibleColumns(TArray<TSharedRef<FTableColumn>>& InArray) const
+{
+	for (const TSharedRef<FTableColumn>& Column : Columns)
+	{
+		if (Column->IsVisible())
+		{
+			InArray.Add(Column);
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 } // namespace Insights
 
 #undef LOCTEXT_NAMESPACE

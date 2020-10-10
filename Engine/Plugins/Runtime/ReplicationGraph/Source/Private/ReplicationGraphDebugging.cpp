@@ -664,6 +664,33 @@ FAutoConsoleCommandWithWorldAndArgs NetRepGraphSetDebugActorConnectionCmd(TEXT("
 // --------------------------------------------------------------------------------------------------------------------------------------------
 // --------------------------------------------------------------------------------------------------------------------------------------------
 
+#if !(UE_BUILD_SHIPPING)
+FAutoConsoleCommandWithWorldAndArgs NetRepGraphSetCellSize(TEXT("Net.RepGraph.Spatial.SetCellSize"), TEXT(""),
+FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+{
+	float NewGridSize = 0.f;
+	if (Args.Num() > 0)
+	{
+		LexFromString(NewGridSize, *Args[0]);
+	}
+
+	if (NewGridSize <= 0.f)
+	{
+		return;
+	}
+
+	for (TObjectIterator<UReplicationGraphNode_GridSpatialization2D> It; It; ++It)
+	{
+		UReplicationGraphNode_GridSpatialization2D* Node = *It;
+		if (Node && Node->HasAnyFlags(RF_ClassDefaultObject) == false)
+		{
+			Node->CellSize = NewGridSize;
+			Node->ForceRebuild();
+		}
+	}
+}));
+#endif
+
 #if !(UE_BUILD_SHIPPING | UE_BUILD_TEST)
 FAutoConsoleCommandWithWorldAndArgs NetRepGraphForceRebuild(TEXT("Net.RepGraph.Spatial.ForceRebuild"),TEXT(""),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
@@ -679,35 +706,6 @@ FAutoConsoleCommandWithWorldAndArgs NetRepGraphForceRebuild(TEXT("Net.RepGraph.S
 		}
 	})
 );
-
-FAutoConsoleCommandWithWorldAndArgs NetRepGraphSetCellSize(TEXT("Net.RepGraph.Spatial.SetCellSize"),TEXT(""),
-	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
-	{
-		float NewGridSize = 0.f;
-		if (Args.Num() > 0 )
-		{
-			LexFromString(NewGridSize, *Args[0]);
-		}
-
-		if (NewGridSize <= 0.f)
-		{
-			return;
-		}
-
-		for (TObjectIterator<UReplicationGraphNode_GridSpatialization2D> It; It; ++It)
-		{
-			UReplicationGraphNode_GridSpatialization2D* Node = *It;
-			if (Node && Node->HasAnyFlags(RF_ClassDefaultObject) == false)
-			{
-				Node->CellSize = NewGridSize;
-				Node->ForceRebuild();
-			}
-		}
-	})
-);
-
-
-
 
 // --------------------------------------------------------------------------------------------------------------------------------------------
 // --------------------------------------------------------------------------------------------------------------------------------------------

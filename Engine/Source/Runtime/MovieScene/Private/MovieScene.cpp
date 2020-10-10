@@ -97,6 +97,8 @@ void UMovieScene::Serialize( FArchive& Ar )
 		UpgradeTimeRanges();
 		RemoveNullTracks();
 
+		const bool bUpgradeSpawnables = Ar.CustomVer(FSequencerObjectVersion::GUID) < FSequencerObjectVersion::SpawnableImprovements;
+
 		for (FMovieSceneSpawnable& Spawnable : Spawnables)
 		{
 			if (UObject* Template = Spawnable.GetObjectTemplate())
@@ -105,6 +107,11 @@ void UMovieScene::Serialize( FArchive& Ar )
 				Template->ClearFlags(RF_ArchetypeObject);
 				
 				FMovieSceneSpawnable::MarkSpawnableTemplate(*Template);
+			}
+
+			if (bUpgradeSpawnables)
+			{
+				Spawnable.AutoSetNetAddressableName();
 			}
 		}
 	}
@@ -167,6 +174,7 @@ FGuid UMovieScene::AddSpawnable( const FString& Name, UObject& ObjectTemplate )
 	Modify();
 
 	FMovieSceneSpawnable NewSpawnable( Name, ObjectTemplate );
+	NewSpawnable.AutoSetNetAddressableName();
 	Spawnables.Add( NewSpawnable );
 
 	// Add a new binding so that tracks can be added to it
@@ -181,6 +189,7 @@ void UMovieScene::AddSpawnable(const FMovieSceneSpawnable& InNewSpawnable, const
 
 	FMovieSceneSpawnable NewSpawnable;
 	NewSpawnable = InNewSpawnable;
+	NewSpawnable.AutoSetNetAddressableName();
 	Spawnables.Add(NewSpawnable);
 
 	FMovieSceneBinding NewBinding = InNewBinding;

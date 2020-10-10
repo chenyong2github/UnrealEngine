@@ -767,6 +767,15 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 
 	SkyIrradianceEnvironmentMap = GIdentityPrimitiveBuffer.SkyIrradianceEnvironmentMapSRV;
 
+	PhysicsFieldClipmapTexture = BlackVolume;
+	PhysicsFieldClipmapSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+	// [todo] Default to some other buffer
+	WaterData = GIdentityPrimitiveBuffer.PrimitiveSceneDataBufferSRV;
+
+	HairScatteringLUTTexture = BlackVolume;
+	HairScatteringLUTSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
+
 	//this can be deleted once sm4 support is removed.
 	if (!PrimitiveSceneData)
 	{

@@ -1456,6 +1456,12 @@ void FFoliageStaticMesh::UpdateComponentSettings(const UFoliageType_InstancedSta
 			bNeedsMarkRenderStateDirty = true;
 		}
 
+		if (Component->CustomDepthStencilWriteMask != FoliageType->CustomDepthStencilWriteMask)
+		{
+			Component->CustomDepthStencilWriteMask = FoliageType->CustomDepthStencilWriteMask;
+			bNeedsMarkRenderStateDirty = true;
+		}
+
 		if (Component->CustomDepthStencilValue != FoliageType->CustomDepthStencilValue)
 		{
 			Component->CustomDepthStencilValue = FoliageType->CustomDepthStencilValue;

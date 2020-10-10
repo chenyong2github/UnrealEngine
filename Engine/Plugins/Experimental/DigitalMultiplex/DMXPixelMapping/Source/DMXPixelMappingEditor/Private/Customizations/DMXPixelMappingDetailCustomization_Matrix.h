@@ -14,7 +14,7 @@ class UDMXPixelMappingMatrixComponent;
 class UDMXEntityFixturePatch;
 class ITableRow;
 class STableViewBase;
-struct FDMXPixelGroupAttribute;
+struct FDMXCellAttributeGroup;
 enum class EDMXColorMode : uint8;
 
 template <typename ItemType>
@@ -24,7 +24,7 @@ class FDMXPixelMappingDetailCustomization_Matrix
 	: public IDetailCustomization
 {
 private:
-	struct FDMXPixelGroupAttribute
+	struct FDMXCellAttributeGroup
 	{
 		TSharedPtr<IPropertyHandle> Handle;
 		TSharedPtr<IPropertyHandle> ExposeHandle;
@@ -49,15 +49,15 @@ public:
 private:
 	void OnFixturePatchMatrixChanged();
 
-	EVisibility GetRGBAttributeRowVisibilty(FDMXPixelGroupAttribute* Attribute) const;
+	EVisibility GetRGBAttributeRowVisibilty(FDMXCellAttributeGroup* Attribute) const;
 
 	EVisibility GetRGBAttributesVisibility() const;
 
-	EVisibility GetMonochromeRowVisibilty(FDMXPixelGroupAttribute* Attribute) const;
+	EVisibility GetMonochromeRowVisibilty(FDMXCellAttributeGroup* Attribute) const;
 
 	EVisibility GetMonochromeAttributesVisibility() const;
 
-	TSharedRef<ITableRow> GenerateExposeAndInvertRow(TSharedPtr<FDMXPixelGroupAttribute> InAtribute, const TSharedRef<STableViewBase>& OwnerTable);
+	TSharedRef<ITableRow> GenerateExposeAndInvertRow(TSharedPtr<FDMXCellAttributeGroup> InAtribute, const TSharedRef<STableViewBase>& OwnerTable);
 
 public:
 	static void PopulateActiveModeFunctions(TArray<TSharedPtr<FName>>& OutActiveModeFunctions, const UDMXEntityFixturePatch* InFixturePatch);
@@ -77,11 +77,11 @@ private:
 
 	TArray<TSharedPtr<FName>> ActiveModeFunctions;
 
-	TArray<TSharedPtr<FDMXPixelGroupAttribute>> RGBAttributes;
+	TArray<TSharedPtr<FDMXCellAttributeGroup>> RGBAttributes;
 
-	TArray<TSharedPtr<FDMXPixelGroupAttribute>> MonochromeAttributes;
+	TArray<TSharedPtr<FDMXCellAttributeGroup>> MonochromeAttributes;
 
 	TSharedPtr<IPropertyHandle> ColorModePropertyHandle;
 
-	TSharedPtr<SListView<TSharedPtr<FDMXPixelGroupAttribute>>> ExposeAndInvertListView;
+	TSharedPtr<SListView<TSharedPtr<FDMXCellAttributeGroup>>> ExposeAndInvertListView;
 };

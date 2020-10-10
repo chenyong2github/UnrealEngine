@@ -86,6 +86,7 @@ public:
 
 	void GetWorldBBoxSize(FVectorVMContext& Context);
 	void GetNumCells(FVectorVMContext& Context);
+	void GetMaxNeighborsPerCell(FVectorVMContext& Context);
 
 protected:
 	//~ UNiagaraDataInterface interface

@@ -164,7 +164,7 @@ public:
 
     /** The quality level to use when averaging colors during downsampling. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Pixel Settings")
-	EDMXPixelBlendingQuality PixelBlendingQuality;
+	EDMXPixelBlendingQuality CellBlendingQuality;
 
 public:
 #if WITH_EDITORONLY_DATA
@@ -184,6 +184,9 @@ protected:
 
 	/** Cached designer widget */
 	TSharedPtr<SBox> CachedWidget;
+
+	/** Cached label box */
+	TSharedPtr<SBox> CachedLabelBox;
 #endif
 
 private:
@@ -203,7 +206,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	/** The color displayed in editor */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Editor Settings", Meta = (EditCondition = "bEditableEditorColor"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Editor Settings")
 	FLinearColor EditorColor = FLinearColor::Blue;
 
 	/** If true, the editor color is editable */

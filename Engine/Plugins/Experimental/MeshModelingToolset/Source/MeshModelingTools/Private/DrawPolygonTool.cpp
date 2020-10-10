@@ -139,7 +139,14 @@ void UDrawPolygonTool::Setup()
 	PreviewMesh = NewObject<UPreviewMesh>(this, TEXT("DrawPolygonPreviewMesh"));
 	PreviewMesh->CreateInWorld(this->TargetWorld, FTransform::Identity);
 	PreviewMesh->SetVisible(false);
-	PreviewMesh->SetMaterial(MaterialProperties->Material);
+	{
+		UMaterialInterface* Material = nullptr;
+		if ( MaterialProperties->Material.IsValid() )
+		{
+			Material = MaterialProperties->Material.Get();
+		}
+		PreviewMesh->SetMaterial(Material);
+	}
 	bPreviewUpdatePending = false;
 
 	// initialize snapping engine and properties
@@ -190,7 +197,7 @@ void UDrawPolygonTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 
 
 
-void UDrawPolygonTool::PopLastVertexAction()
+void UDrawPolygonTool::ApplyUndoPoints(const TArray<FVector3d>& ClickPointsIn, const TArray<FVector3d>& PolygonVerticesIn)
 {
 	if (bInInteractiveExtrude || PolygonVertices.Num() == 0)
 	{
@@ -201,28 +208,18 @@ void UDrawPolygonTool::PopLastVertexAction()
 
 	if (bInFixedPolygonMode == false)
 	{
-		int NumVertices = PolygonVertices.Num();
-		if (NumVertices > 1)
+		PolygonVertices = PolygonVerticesIn;
+		if ( PolygonVertices.Num() == 0 )
 		{
-			PolygonVertices.RemoveAt(NumVertices-1);
-		}
-		else
-		{
-			PolygonVertices.RemoveAt(0);
 			bAbortActivePolygonDraw = true;
 			CurrentCurveTimestamp++;
 		}
 	}
 	else
 	{
-		int NumVertices = FixedPolygonClickPoints.Num();
-		if (NumVertices > 1)
+		FixedPolygonClickPoints = ClickPointsIn;
+		if ( FixedPolygonClickPoints.Num() == 0 )
 		{
-			FixedPolygonClickPoints.RemoveAt(NumVertices - 1);
-		}
-		else
-		{
-			FixedPolygonClickPoints.RemoveAt(0);
 			bAbortActivePolygonDraw = true;
 			CurrentCurveTimestamp++;
 		}
@@ -663,6 +660,11 @@ bool UDrawPolygonTool::OnNextSequenceClick(const FInputDeviceRay& ClickPos)
 		return true;  // ignore click but continue accepting clicks
 	}
 
+	// Construct the change now for the undo queue so it reflects the current state.  We might not do anything, in which
+	// case we will not emit the change
+	TUniquePtr<FDrawPolygonStateChange> Change =
+		MakeUnique<FDrawPolygonStateChange>(CurrentCurveTimestamp, FixedPolygonClickPoints, PolygonVertices);
+
 	bool bDonePolygon = false;
 	if (bInFixedPolygonMode)
 	{
@@ -679,7 +681,7 @@ bool UDrawPolygonTool::OnNextSequenceClick(const FInputDeviceRay& ClickPos)
 		{
 			GenerateFixedPolygon(FixedPolygonClickPoints, PolygonVertices, PolygonHolesVertices);
 		}
-	} 
+	}
 	else
 	{
 		// ignore very close click points
@@ -704,7 +706,9 @@ bool UDrawPolygonTool::OnNextSequenceClick(const FInputDeviceRay& ClickPos)
 		}
 	}
 
-	
+	// emit change event
+	GetToolManager()->EmitObjectChange(this, MoveTemp(Change), LOCTEXT("DrawPolyAddPoint", "Add Point"));
+
 	if (bDonePolygon)
 	{
 		//SnapEngine.Reset();
@@ -730,9 +734,6 @@ bool UDrawPolygonTool::OnNextSequenceClick(const FInputDeviceRay& ClickPos)
 	}
 
 	AppendVertex(HitPos);
-
-	// emit change event
-	GetToolManager()->EmitObjectChange(this, MakeUnique<FDrawPolygonStateChange>(CurrentCurveTimestamp), LOCTEXT("DrawPolyAddPoint", "Add Point"));
 
 	// if we are starting a freehand poly, add start point as snap target, but then ignore it until we get 3 verts
 	if (bInFixedPolygonMode == false && PolygonVertices.Num() == 1)
@@ -1013,7 +1014,7 @@ void UDrawPolygonTool::EmitCurrentPolygon()
 
 	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
 		AssetAPI, TargetWorld,
-		&Mesh, PlaneFrameOut.ToTransform(), BaseName, MaterialProperties->Material);
+		&Mesh, PlaneFrameOut.ToTransform(), BaseName, MaterialProperties->Material.Get());
 	if (NewActor != nullptr)
 	{
 		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), NewActor);
@@ -1041,7 +1042,7 @@ void UDrawPolygonTool::UpdateLivePreview()
 	if (GeneratePolygonMesh(PolygonVertices, PolygonHolesVertices, &Mesh, PlaneFrame, false, ExtrudeDist, false))
 	{
 		PreviewMesh->SetTransform(PlaneFrame.ToFTransform());
-		PreviewMesh->SetMaterial(MaterialProperties->Material);
+		PreviewMesh->SetMaterial(MaterialProperties->Material.Get());
 		PreviewMesh->EnableWireframe(MaterialProperties->bWireframe);
 		PreviewMesh->UpdatePreview(&Mesh);
 	}
@@ -1259,25 +1260,21 @@ void UDrawPolygonTool::ShowExtrudeMessage()
 
 
 
-void UDrawPolygonTool::UndoCurrentOperation()
+void UDrawPolygonTool::UndoCurrentOperation(const TArray<FVector3d>& ClickPointsIn, const TArray<FVector3d>& PolygonVerticesIn)
 {
 	if (bInInteractiveExtrude)
 	{
 		PreviewMesh->ClearPreview();
 		PreviewMesh->SetVisible(false);
 		bInInteractiveExtrude = false;
-		PopLastVertexAction();
 	}
-	else
-	{
-		PopLastVertexAction();
-	}
+	ApplyUndoPoints(ClickPointsIn, PolygonVerticesIn);
 }
 
 
 void FDrawPolygonStateChange::Revert(UObject* Object)
 {
-	Cast<UDrawPolygonTool>(Object)->UndoCurrentOperation();
+	Cast<UDrawPolygonTool>(Object)->UndoCurrentOperation( FixedVertexPoints, PolyPoints );
 	bHaveDoneUndo = true;
 }
 bool FDrawPolygonStateChange::HasExpired(UObject* Object) const

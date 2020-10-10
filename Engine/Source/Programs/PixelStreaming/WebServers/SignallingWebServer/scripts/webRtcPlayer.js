@@ -116,6 +116,7 @@
 
         handleCreateOffer = function (pc) {
             pc.createOffer(self.sdpConstraints).then(function (offer) {
+                offer.sdp = offer.sdp.replace("useinbandfec=1", "useinbandfec=1;stereo=1;maxaveragebitrate=128000");
             	pc.setLocalDescription(offer);
             	if (self.onWebRtcOffer) {
             		// (andriy): increase start bitrate from 300 kbps to 20 mbps and max bitrate from 2.5 mbps to 100 mbps

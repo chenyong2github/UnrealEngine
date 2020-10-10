@@ -506,7 +506,7 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(FGPUSkinCache* GPUSki
 	if (LOD.MorphVertexBuffer.bNeedsInitialClear && !(bMorph && bMorphNeedsUpdate))
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FSkeletalMeshObjectGPUSkin_ProcessUpdatedDynamicData_ClearMorphBuffer);
-		if (IsValidRef(LOD.MorphVertexBuffer.GetUAV()))
+		if (LOD.MorphVertexBuffer.GetUAV())
 		{
 			RHICmdList.ClearUAVUint(LOD.MorphVertexBuffer.GetUAV(), FUintVector4(0, 0, 0, 0));
 			RHICmdList.Transition(FRHITransitionInfo(LOD.MorphVertexBuffer.GetUAV(), ERHIAccess::Unknown, ERHIAccess::SRVMask));
@@ -823,8 +823,11 @@ void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::UpdateMorphVertexBuffer
 			LodData.GetNumVertices(),
 			MorphTargetVertexInfoBuffers.GetNumWorkItems());
 
-		RHICmdList.Transition(FRHITransitionInfo(MorphVertexBuffer.GetUAV(), ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-		RHICmdList.Transition(FRHITransitionInfo(MorphVertexBuffer.GetNormalizationUAV(), ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+		RHICmdList.Transition(
+		{
+			FRHITransitionInfo(MorphVertexBuffer.GetUAV(), ERHIAccess::Unknown, ERHIAccess::UAVCompute),
+			FRHITransitionInfo(MorphVertexBuffer.GetNormalizationUAV(), ERHIAccess::Unknown, ERHIAccess::UAVCompute)
+		});
 		RHICmdList.ClearUAVUint(MorphVertexBuffer.GetUAV(), FUintVector4(0, 0, 0, 0));
 		RHICmdList.ClearUAVUint(MorphVertexBuffer.GetNormalizationUAV(), FUintVector4(0, 0, 0, 0));
 
@@ -841,10 +844,12 @@ void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::UpdateMorphVertexBuffer
 			{
 				SCOPED_DRAW_EVENTF(RHICmdList, MorphUpdateScatter, TEXT("Scatter"));
 
-				RHICmdList.Transition(FRHITransitionInfo(MorphVertexBuffer.GetUAV(), ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
-				RHICmdList.Transition(FRHITransitionInfo(MorphVertexBuffer.GetNormalizationUAV(), ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
-				RHICmdList.BeginUAVOverlap(MorphVertexBuffer.GetUAV());
-				RHICmdList.BeginUAVOverlap(MorphVertexBuffer.GetNormalizationUAV());
+				RHICmdList.Transition(
+				{
+					FRHITransitionInfo(MorphVertexBuffer.GetUAV(), ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
+					FRHITransitionInfo(MorphVertexBuffer.GetNormalizationUAV(), ERHIAccess::UAVCompute, ERHIAccess::UAVCompute)
+				});
+				RHICmdList.BeginUAVOverlap({ MorphVertexBuffer.GetUAV(), MorphVertexBuffer.GetNormalizationUAV() });
 
 				//the first pass scatters all morph targets into the vertexbuffer using atomics
 				//multiple morph targets can be batched by a single shader where the shader will rely on
@@ -880,15 +885,17 @@ void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::UpdateMorphVertexBuffer
 				}
 
 				GPUMorphUpdateCS->EndAllDispatches(RHICmdList);
-				RHICmdList.EndUAVOverlap(MorphVertexBuffer.GetUAV());
-				RHICmdList.EndUAVOverlap(MorphVertexBuffer.GetNormalizationUAV());
+				RHICmdList.EndUAVOverlap({ MorphVertexBuffer.GetUAV(), MorphVertexBuffer.GetNormalizationUAV() });
 			}
 
 			{
 				SCOPED_DRAW_EVENTF(RHICmdList, MorphUpdateNormalize, TEXT("Normalize"));
 
-				RHICmdList.Transition(FRHITransitionInfo(MorphVertexBuffer.GetUAV(), ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
-				RHICmdList.BeginUAVOverlap(MorphVertexBuffer.GetUAV());
+				RHICmdList.Transition(
+				{
+					FRHITransitionInfo(MorphVertexBuffer.GetUAV(), ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
+					FRHITransitionInfo(MorphVertexBuffer.GetNormalizationUAV(), ERHIAccess::UAVCompute, ERHIAccess::UAVCompute)
+				});
 
 				//The second pass normalizes the scattered result and converts it back into floats.
 				//The dispatches are split by morph permutation (and their accumulated weight) .
@@ -900,7 +907,6 @@ void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::UpdateMorphVertexBuffer
 				GPUMorphNormalizeCS->SetParameters(RHICmdList, InvMorphScale, InvWeightScale, MorphTargetVertexInfoBuffers, MorphVertexBuffer);
 				GPUMorphNormalizeCS->Dispatch(RHICmdList, MorphVertexBuffer.GetNumVerticies());
 				GPUMorphNormalizeCS->EndAllDispatches(RHICmdList);
-				RHICmdList.EndUAVOverlap(MorphVertexBuffer.GetUAV());
 				RHICmdList.Transition(FRHITransitionInfo(MorphVertexBuffer.GetUAV(), ERHIAccess::UAVCompute, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask));
 			}
 		}

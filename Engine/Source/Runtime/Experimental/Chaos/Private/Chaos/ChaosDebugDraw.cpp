@@ -17,58 +17,60 @@
 #include "Chaos/Sphere.h"
 #include "Chaos/Utilities.h"
 
-//#pragma optimize ("", off)
+//PRAGMA_DISABLE_OPTIMIZATION
 
 namespace Chaos
 {
 	namespace DebugDraw
 	{
-		float ArrowSize = 1.5f;
-		float BodyAxisLen = 4.0f;
-		float ContactLen = 4.0f;
-		float ContactWidth = 2.0f;
-		float ContactPhiWidth = 0.3f;
-		float ContactOwnerWidth = 0.0f;
-		float ConstraintAxisLen = 5.0f;
-		float JointComSize = 2.0f;
-		float LineThickness = 0.15f;
-		float DrawScale = 1.0f;
-		float FontHeight = 10.0f;
-		float FontScale = 1.5f;
-		float ShapeThicknesScale = 1.0f;
-		float PointSize = 2.0f;
-		float VelScale = 0.0f;
-		float AngVelScale = 0.0f;
-		int DrawPriority = 10.0f;
-
-		FAutoConsoleVariableRef CVarArrowSize(TEXT("p.Chaos.DebugDrawArrowSize"), ArrowSize, TEXT("ArrowSize."));
-		FAutoConsoleVariableRef CVarBodyAxisLen(TEXT("p.Chaos.DebugDrawBodyAxisLen"), BodyAxisLen, TEXT("BodyAxisLen."));
-		FAutoConsoleVariableRef CVarContactLen(TEXT("p.Chaos.DebugDrawContactLen"), ContactLen, TEXT("ContactLen."));
-		FAutoConsoleVariableRef CVarContactWidth(TEXT("p.Chaos.DebugDrawContactWidth"), ContactWidth, TEXT("ContactWidth."));
-		FAutoConsoleVariableRef CVarContactPhiWidth(TEXT("p.Chaos.DebugDrawContactPhiWidth"), ContactPhiWidth, TEXT("ContactPhiWidth."));
-		FAutoConsoleVariableRef CVarContactOwnerWidth(TEXT("p.Chaos.DebugDrawContactOwnerWidth"), ContactOwnerWidth, TEXT("ContactOwnerWidth."));
-		FAutoConsoleVariableRef CVarConstraintAxisLen(TEXT("p.Chaos.DebugDrawConstraintAxisLen"), ConstraintAxisLen, TEXT("ConstraintAxisLen."));
-		FAutoConsoleVariableRef CVarLineThickness(TEXT("p.Chaos.DebugDrawLineThickness"), LineThickness, TEXT("LineThickness."));
-		FAutoConsoleVariableRef CVarLineShapeThickness(TEXT("p.Chaos.DebugDrawShapeLineThicknessScale"), ShapeThicknesScale, TEXT("Shape lineThickness multiplier."));
-		FAutoConsoleVariableRef CVarVelScale(TEXT("p.Chaos.DebugDrawVelScale"), VelScale, TEXT("If >0 show velocity when drawing particle transforms."));
-		FAutoConsoleVariableRef CVarAngVelScale(TEXT("p.Chaos.DebugDrawAngVelScale"), AngVelScale, TEXT("If >0 show angular velocity when drawing particle transforms."));
-		FAutoConsoleVariableRef CVarScale(TEXT("p.Chaos.DebugDrawScale"), DrawScale, TEXT("Scale applied to all Chaos Debug Draw line lengths etc."));
-
-		//
-		//
-		//
-
 #if CHAOS_DEBUG_DRAW
 
-		void DrawShapesImpl(const FRigidTransform3& ShapeTransform, const FImplicitObject* Shape, const FColor& Color);
+		// NOTE: These settings should never really be used - they are the fallback defaults
+		// if the user does not specify settings in the debug draw call.
+		// See PBDRigidsColver.cpp and ImmediatePhysicsSimulation_Chaos.cpp for example.
+		FChaosDebugDrawSettings ChaosDefaultDebugDebugDrawSettings(
+			/* ArrowSize =			*/ 1.5f,
+			/* BodyAxisLen =		*/ 4.0f,
+			/* ContactLen =			*/ 4.0f,
+			/* ContactWidth =		*/ 2.0f,
+			/* ContactPhiWidth =	*/ 0.0f,
+			/* ContactOwnerWidth =	*/ 0.0f,
+			/* ConstraintAxisLen =	*/ 5.0f,
+			/* JointComSize =		*/ 2.0f,
+			/* LineThickness =		*/ 0.15f,
+			/* DrawScale =			*/ 1.0f,
+			/* FontHeight =			*/ 10.0f,
+			/* FontScale =			*/ 1.5f,
+			/* ShapeThicknesScale = */ 1.0f,
+			/* PointSize =			*/ 2.0f,
+			/* VelScale =			*/ 0.0f,
+			/* AngVelScale =		*/ 0.0f,
+			/* ImpulseScale =		*/ 0.0f,
+			/* DrawPriority =		*/ 10.0f
+		);
 
-		void DrawShape(const FRigidTransform3& ShapeTransform, const FImplicitObject* Shape, const FColor& Color)
+		const FChaosDebugDrawSettings& GetChaosDebugDrawSettings(const FChaosDebugDrawSettings* InSettings)
 		{
-			DrawShapesImpl(ShapeTransform, Shape, Color);
+			if (InSettings != nullptr)
+			{
+				return *InSettings;
+			}
+			return ChaosDefaultDebugDebugDrawSettings;
+		}
+
+		//
+		//
+		//
+
+		void DrawShapesImpl(const FRigidTransform3& ShapeTransform, const FImplicitObject* Shape, const FColor& Color, const FChaosDebugDrawSettings& Settings);
+
+		void DrawShape(const FRigidTransform3& ShapeTransform, const FImplicitObject* Shape, const FColor& Color, const FChaosDebugDrawSettings* Settings)
+		{
+			DrawShapesImpl(ShapeTransform, Shape, Color, GetChaosDebugDrawSettings(Settings));
 		}
 
 		template <bool bInstanced>
-		void DrawShapesScaledImpl(const FRigidTransform3& ShapeTransform, const FImplicitObject* Shape, const FColor& Color)
+		void DrawShapesScaledImpl(const FRigidTransform3& ShapeTransform, const FImplicitObject* Shape, const FColor& Color, const FChaosDebugDrawSettings& Settings)
 		{
 			const EImplicitObjectType PackedType = Shape->GetType();
 			const EImplicitObjectType InnerType = GetInnerType(PackedType);
@@ -98,7 +100,7 @@ namespace Chaos
 			{
 				const TImplicitObjectScaled<FConvex, bInstanced>* Scaled = Shape->template GetObject<TImplicitObjectScaled<FConvex, bInstanced>>();
 				ScaleTM.SetScale3D(Scaled->GetScale());
-				DrawShapesImpl(ShapeTransform * ScaleTM, Scaled->GetUnscaledObject(), Color);
+				DrawShapesImpl(ShapeTransform * ScaleTM, Scaled->GetUnscaledObject(), Color, Settings);
 				break;
 			}
 			case ImplicitObjectType::TaperedCylinder:
@@ -114,7 +116,7 @@ namespace Chaos
 			}
 		}
 
-		void DrawShapesInstancedImpl(const FRigidTransform3& ShapeTransform, const FImplicitObject* Shape, const FColor& Color)
+		void DrawShapesInstancedImpl(const FRigidTransform3& ShapeTransform, const FImplicitObject* Shape, const FColor& Color, const FChaosDebugDrawSettings& Settings)
 		{
 			const EImplicitObjectType PackedType = Shape->GetType();
 			const EImplicitObjectType InnerType = GetInnerType(PackedType);
@@ -142,7 +144,7 @@ namespace Chaos
 			case ImplicitObjectType::Convex:
 			{
 				const TImplicitObjectInstanced<FConvex>* Instanced = Shape->template GetObject<TImplicitObjectInstanced<FConvex>>();
-				DrawShapesImpl(ShapeTransform, Instanced->GetInstancedObject(), Color);
+				DrawShapesImpl(ShapeTransform, Instanced->GetInstancedObject(), Color, Settings);
 				break;
 			}
 			case ImplicitObjectType::TaperedCylinder:
@@ -158,7 +160,7 @@ namespace Chaos
 			}
 		}
 
-		void DrawShapesImpl(const FRigidTransform3& ShapeTransform, const FImplicitObject* Shape, const FColor& Color)
+		void DrawShapesImpl(const FRigidTransform3& ShapeTransform, const FImplicitObject* Shape, const FColor& Color, const FChaosDebugDrawSettings& Settings)
 		{
 			const EImplicitObjectType PackedType = Shape->GetType(); // Type includes scaling and instancing data
 			const EImplicitObjectType InnerType = GetInnerType(Shape->GetType());
@@ -168,17 +170,17 @@ namespace Chaos
 			{
 				if (IsInstanced(PackedType))
 				{
-					DrawShapesScaledImpl<true>(ShapeTransform, Shape, Color);
+					DrawShapesScaledImpl<true>(ShapeTransform, Shape, Color, Settings);
 				}
 				else
 				{
-					DrawShapesScaledImpl<false>(ShapeTransform, Shape, Color);
+					DrawShapesScaledImpl<false>(ShapeTransform, Shape, Color, Settings);
 				}
 				return;
 			}
 			else if (IsInstanced(PackedType))
 			{
-				DrawShapesInstancedImpl(ShapeTransform, Shape, Color);
+				DrawShapesInstancedImpl(ShapeTransform, Shape, Color, Settings);
 			}
 
 			// @todo(ccaulfield): handle scale throughout
@@ -188,14 +190,14 @@ namespace Chaos
 			{
 				const TSphere<FReal, 3>* Sphere = Shape->template GetObject<TSphere<FReal, 3>>();
 				const FVec3 P = ShapeTransform.TransformPosition(Sphere->GetCenter());
-				FDebugDrawQueue::GetInstance().DrawDebugSphere(P, Sphere->GetRadius(), 20, Color, false, KINDA_SMALL_NUMBER, DrawPriority, ShapeThicknesScale * LineThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugSphere(P, Sphere->GetRadius(), 20, Color, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.ShapeThicknesScale * Settings.LineThickness);
 				break;
 			}
 			case ImplicitObjectType::Box:
 			{
 				const TBox<FReal, 3>* Box = Shape->template GetObject<TBox<FReal, 3>>();
 				const FVec3 P = ShapeTransform.TransformPosition(Box->GetCenter());
-				FDebugDrawQueue::GetInstance().DrawDebugBox(P, (FReal)0.5 * Box->Extents(), ShapeTransform.GetRotation(), Color, false, KINDA_SMALL_NUMBER, DrawPriority, ShapeThicknesScale * LineThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugBox(P, (FReal)0.5 * Box->Extents(), ShapeTransform.GetRotation(), Color, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.ShapeThicknesScale * Settings.LineThickness);
 				break;
 			}
 			case ImplicitObjectType::Plane:
@@ -205,14 +207,14 @@ namespace Chaos
 				const TCapsule<FReal>* Capsule = Shape->template GetObject<TCapsule<FReal>>();
 				const FVec3 P = ShapeTransform.TransformPosition(Capsule->GetCenter());
 				const FRotation3 Q = ShapeTransform.GetRotation() * FRotationMatrix::MakeFromZ(Capsule->GetAxis());
-				FDebugDrawQueue::GetInstance().DrawDebugCapsule(P, (FReal)0.5 * Capsule->GetHeight() + Capsule->GetRadius(), Capsule->GetRadius(), Q, Color, false, KINDA_SMALL_NUMBER, DrawPriority, ShapeThicknesScale * LineThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugCapsule(P, (FReal)0.5 * Capsule->GetHeight() + Capsule->GetRadius(), Capsule->GetRadius(), Q, Color, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.ShapeThicknesScale * Settings.LineThickness);
 				break;
 			}
 			case ImplicitObjectType::Transformed:
 			{
 				const TImplicitObjectTransformed<FReal, 3>* Transformed = Shape->template GetObject<TImplicitObjectTransformed<FReal, 3>>();
 				FRigidTransform3 TransformedTransform = FRigidTransform3(ShapeTransform.TransformPosition(Transformed->GetTransform().GetLocation()), ShapeTransform.GetRotation() * Transformed->GetTransform().GetRotation());
-				DrawShapesImpl(TransformedTransform, Transformed->GetTransformedObject(), Color);
+				DrawShapesImpl(TransformedTransform, Transformed->GetTransformedObject(), Color, Settings);
 				break;
 			}
 			case ImplicitObjectType::Union:
@@ -220,7 +222,7 @@ namespace Chaos
 				const FImplicitObjectUnion* Union = Shape->template GetObject<FImplicitObjectUnion>();
 				for (auto& UnionShape : Union->GetObjects())
 				{
-					DrawShapesImpl(ShapeTransform, UnionShape.Get(), Color);
+					DrawShapesImpl(ShapeTransform, UnionShape.Get(), Color, Settings);
 				}
 				break;
 			}
@@ -241,9 +243,9 @@ namespace Chaos
 						const FVec3 P0 = ShapeTransform.TransformPosition(Particles.X(Elem[0]));
 						const FVec3 P1 = ShapeTransform.TransformPosition(Particles.X(Elem[1]));
 						const FVec3 P2 = ShapeTransform.TransformPosition(Particles.X(Elem[2]));
-						FDebugDrawQueue::GetInstance().DrawDebugLine(P0, P1, Color, false, -1.f, 0, ShapeThicknesScale * LineThickness);
-						FDebugDrawQueue::GetInstance().DrawDebugLine(P1, P2, Color, false, -1.f, 0, ShapeThicknesScale * LineThickness);
-						FDebugDrawQueue::GetInstance().DrawDebugLine(P2, P0, Color, false, -1.f, 0, ShapeThicknesScale * LineThickness);
+						FDebugDrawQueue::GetInstance().DrawDebugLine(P0, P1, Color, false, -1.f, 0, Settings.ShapeThicknesScale * Settings.LineThickness);
+						FDebugDrawQueue::GetInstance().DrawDebugLine(P1, P2, Color, false, -1.f, 0, Settings.ShapeThicknesScale * Settings.LineThickness);
+						FDebugDrawQueue::GetInstance().DrawDebugLine(P2, P0, Color, false, -1.f, 0, Settings.ShapeThicknesScale * Settings.LineThickness);
 					}
 				}
 				break;
@@ -261,32 +263,60 @@ namespace Chaos
 			}
 		}
 
-		void DrawParticleShapesImpl(const FRigidTransform3& SpaceTransform, const TGeometryParticleHandle<FReal, 3>* Particle, const FColor& Color)
+		void DrawParticleShapesImpl(const FRigidTransform3& SpaceTransform, const TGeometryParticleHandle<FReal, 3>* Particle, const FColor& InColor, const FChaosDebugDrawSettings& Settings)
 		{
 			FVec3 P = SpaceTransform.TransformPosition(Particle->ObjectState() == EObjectStateType::Dynamic ? Particle->CastToRigidParticle()->P() : Particle->X());
 			FRotation3 Q = SpaceTransform.GetRotation() * (Particle->ObjectState() == EObjectStateType::Dynamic ? Particle->CastToRigidParticle()->Q() : Particle->R());
 
-			DrawShapesImpl(FRigidTransform3(P, Q), Particle->Geometry().Get(), Color);
+			// @todo(choas): move debug draw colors into debug draw settings
+			FColor Color = InColor;
+			if (Particle->ObjectState() == EObjectStateType::Sleeping)
+			{
+				Color = FColor(InColor.R / 2, InColor.G / 2, InColor.B / 2, InColor.A);
+			}
+
+			DrawShapesImpl(FRigidTransform3(P, Q), Particle->Geometry().Get(), Color, Settings);
 		}
 
-		void DrawParticleShapesImpl(const FRigidTransform3& SpaceTransform, const TGeometryParticle<FReal, 3>* Particle, const FColor& Color)
+		void DrawParticleShapesImpl(const FRigidTransform3& SpaceTransform, const TGeometryParticle<FReal, 3>* Particle, const FColor& InColor, const FChaosDebugDrawSettings& Settings)
 		{
 			FVec3 P = SpaceTransform.TransformPosition(Particle->X());
 			FRotation3 Q = SpaceTransform.GetRotation() * (Particle->R());
 
-			DrawShapesImpl(FRigidTransform3(P, Q), Particle->Geometry().Get(), Color);
+			// @todo(choas): move debug draw colors into debug draw settings
+			FColor Color = InColor;
+			if (Particle->ObjectState() == EObjectStateType::Sleeping)
+			{
+				Color = FColor(InColor.R / 2, InColor.G / 2, InColor.B / 2, InColor.A);
+			}
+
+			DrawShapesImpl(FRigidTransform3(P, Q), Particle->Geometry().Get(), Color, Settings);
 		}
 
-		void DrawParticleBoundsImpl(const FRigidTransform3& SpaceTransform, const TGeometryParticleHandle<FReal, 3>* InParticle, const FColor& Color)
+		void DrawParticleBoundsImpl(const FRigidTransform3& SpaceTransform, const TGeometryParticleHandle<FReal, 3>* InParticle, const FChaosDebugDrawSettings& Settings)
 		{
 			TAABB<FReal, 3> Box = InParticle->WorldSpaceInflatedBounds();
 			FVec3 P = SpaceTransform.TransformPosition(Box.GetCenter());
 			FRotation3 Q = SpaceTransform.GetRotation();
 			FMatrix33 Qm = Q.ToMatrix();
-			FDebugDrawQueue::GetInstance().DrawDebugBox(P, 0.5f * Box.Extents(), Q, Color, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
+			FColor Color = FColor::Black;
+			if (InParticle->ObjectState() == EObjectStateType::Dynamic)
+			{
+				Color = FColor::White;
+			}
+			else if (InParticle->ObjectState() == EObjectStateType::Sleeping)
+			{
+				Color = FColor(128, 128, 128);
+			}
+			else if (InParticle->ObjectState() == EObjectStateType::Kinematic)
+			{
+				Color = FColor(64, 64, 64);
+			}
+
+			FDebugDrawQueue::GetInstance().DrawDebugBox(P, 0.5f * Box.Extents(), Q, Color, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
 		}
 
-		void DrawParticleTransformImpl(const FRigidTransform3& SpaceTransform, const TGeometryParticleHandle<FReal, 3>* InParticle, int32 Index, FReal ColorScale)
+		void DrawParticleTransformImpl(const FRigidTransform3& SpaceTransform, const TGeometryParticleHandle<FReal, 3>* InParticle, int32 Index, FReal ColorScale, const FChaosDebugDrawSettings& Settings)
 		{
 			FColor Red = (ColorScale * FColor::Red).ToFColor(false);
 			FColor Green = (ColorScale * FColor::Green).ToFColor(false);
@@ -296,102 +326,150 @@ namespace Chaos
 			FVec3 PCOM = SpaceTransform.TransformPosition(FParticleUtilities::GetCoMWorldPosition(Particle));
 			FRotation3 QCOM = SpaceTransform.GetRotation() * FParticleUtilities::GetCoMWorldRotation(Particle);
 			FMatrix33 QCOMm = QCOM.ToMatrix();
-			FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(PCOM, PCOM + DrawScale * BodyAxisLen * QCOMm.GetAxis(0), DrawScale * ArrowSize, Red, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
-			FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(PCOM, PCOM + DrawScale * BodyAxisLen * QCOMm.GetAxis(1), DrawScale * ArrowSize, Green, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
-			FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(PCOM, PCOM + DrawScale * BodyAxisLen * QCOMm.GetAxis(2), DrawScale * ArrowSize, Blue, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
+			FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(PCOM, PCOM + Settings.DrawScale * Settings.BodyAxisLen * QCOMm.GetAxis(0), Settings.DrawScale * Settings.ArrowSize, Red, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+			FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(PCOM, PCOM + Settings.DrawScale * Settings.BodyAxisLen * QCOMm.GetAxis(1), Settings.DrawScale * Settings.ArrowSize, Green, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+			FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(PCOM, PCOM + Settings.DrawScale * Settings.BodyAxisLen * QCOMm.GetAxis(2), Settings.DrawScale * Settings.ArrowSize, Blue, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
 
 			FColor Black = FColor::Black;
 			FColor Grey = (ColorScale * FColor(64, 64, 64)).ToFColor(false);
 			FVec3 PActor = SpaceTransform.TransformPosition(FParticleUtilities::GetActorWorldTransform(Particle).GetTranslation());
-			FDebugDrawQueue::GetInstance().DrawDebugPoint(PActor, Black, false, KINDA_SMALL_NUMBER, DrawPriority, DrawScale * PointSize);
-			FDebugDrawQueue::GetInstance().DrawDebugLine(PCOM, PActor, Grey, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
+			FDebugDrawQueue::GetInstance().DrawDebugPoint(PActor, Black, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.DrawScale * Settings.PointSize);
+			FDebugDrawQueue::GetInstance().DrawDebugLine(PCOM, PActor, Grey, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
 		
 			if (Index >= 0)
 			{
 				//FDebugDrawQueue::GetInstance().DrawDebugString(PCOM + FontHeight * FVec3(0, 0, 1), FString::Format(TEXT("{0}{1}"), { Particle->IsKinematic()? TEXT("K"): TEXT("D"), Index }), nullptr, FColor::White, KINDA_SMALL_NUMBER, false, FontScale);
 			}
 
-			if ((VelScale > 0.0f) && (Particle->V().Size() > KINDA_SMALL_NUMBER))
+			if ((Settings.VelScale > 0.0f) && (Particle->V().Size() > KINDA_SMALL_NUMBER))
 			{
-				FDebugDrawQueue::GetInstance().DrawDebugLine(PCOM, PCOM + SpaceTransform.TransformVector(Particle->V()) * VelScale, Red, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugLine(PCOM, PCOM + SpaceTransform.TransformVector(Particle->V()) * Settings.VelScale, Red, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+				//FDebugDrawQueue::GetInstance().DrawDebugLine(PCOM, PCOM + SpaceTransform.TransformVector(Particle->VSmooth()) * Settings.VelScale, Blue, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
 			}
-			if ((AngVelScale > 0.0f) && (Particle->W().Size() > KINDA_SMALL_NUMBER))
+			if ((Settings.AngVelScale > 0.0f) && (Particle->W().Size() > KINDA_SMALL_NUMBER))
 			{
-				FDebugDrawQueue::GetInstance().DrawDebugLine(PCOM, PCOM + SpaceTransform.TransformVector(Particle->W()) * AngVelScale, Green, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugLine(PCOM, PCOM + SpaceTransform.TransformVector(Particle->W()) * Settings.AngVelScale, Green, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
 			}
 		}
 
-		void DrawCollisionImpl(const FRigidTransform3& SpaceTransform, const FCollisionConstraintBase& Contact, float ColorScale)
+		void DrawCollisionImpl(const FVec3& Location, const FVec3& Normal, float Phi, const FVec3& Impulse, const FColor& DiscColor, const FColor& NormalColor, const FColor& ImpulseColor, float ColorScale, const FChaosDebugDrawSettings& Settings)
 		{
-			FVec3 Location = SpaceTransform.TransformPosition(Contact.GetLocation());
-			FVec3 Normal = SpaceTransform.TransformVector(Contact.GetNormal());
-
-			if (ContactWidth > 0)
+			FMatrix Axes = FRotationMatrix::MakeFromX(Normal);
+			if (Settings.ContactWidth > 0)
 			{
-				bool bIsManifold = (Contact.GetType() == FCollisionConstraintBase::FType::MultiPoint) && Contact.As<FRigidBodyMultiPointContactConstraint>()->IsManifoldValid();
-				if (!bIsManifold)
+				FColor C0 = (ColorScale * DiscColor).ToFColor(false);
+				FDebugDrawQueue::GetInstance().DrawDebugCircle(Location, Settings.DrawScale * Settings.ContactWidth, 12, C0, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness, Axes.GetUnitAxis(EAxis::Y), Axes.GetUnitAxis(EAxis::Z), false);
+			}
+			if (Settings.ContactLen > 0)
+			{
+				FColor C1 = (ColorScale * NormalColor).ToFColor(false);
+				FDebugDrawQueue::GetInstance().DrawDebugLine(Location, Location + Settings.DrawScale * Settings.ContactLen * Normal, C1, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+			}
+			if (Settings.ContactPhiWidth > 0 && (Phi < FLT_MAX))
+			{
+				FColor C2 = (ColorScale * FColor(128, 128, 0)).ToFColor(false);
+				FDebugDrawQueue::GetInstance().DrawDebugCircle(Location - Phi * Normal, Settings.DrawScale * Settings.ContactPhiWidth, 12, C2, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness, Axes.GetUnitAxis(EAxis::Y), Axes.GetUnitAxis(EAxis::Z), false);
+			}
+			if ((Settings.ImpulseScale > 0) && !Impulse.IsNearlyZero())
+			{
+				FColor C3 = (ColorScale * ImpulseColor).ToFColor(false);
+				FDebugDrawQueue::GetInstance().DrawDebugLine(Location, Location + Settings.DrawScale * Settings.ImpulseScale * Impulse, C3, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+			}
+		}
+
+		void DrawCollisionImpl(const FRigidTransform3& SpaceTransform, const FCollisionConstraintBase& Contact, float ColorScale, const FChaosDebugDrawSettings& Settings)
+		{
+			if ((Settings.ContactWidth > 0) || (Settings.ContactLen > 0) || (Settings.ImpulseScale > 0.0f))
+			{
+				if (Contact.GetType() == FRigidBodyMultiPointContactConstraint::StaticType())
 				{
-					FColor C0 = (ColorScale * FColor(200, 0, 0)).ToFColor(false);
-					FMatrix Axes = FRotationMatrix::MakeFromX(Normal);
-					FDebugDrawQueue::GetInstance().DrawDebugCircle(Location, DrawScale * ContactWidth, 12, C0, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness, Axes.GetUnitAxis(EAxis::Y), Axes.GetUnitAxis(EAxis::Z), false);
+					const FVec3 Location = SpaceTransform.TransformPosition(Contact.GetLocation());
+					const FVec3 Normal = SpaceTransform.TransformVector(Contact.GetNormal());
+
+					const FRigidBodyMultiPointContactConstraint* MultiPointConstraint = Contact.template As<FRigidBodyMultiPointContactConstraint>();
+					const int32 PlaneOwnerIndex = MultiPointConstraint->GetManifoldPlaneOwnerIndex();
+					const int32 PointsOwnerIndex = 1 - PlaneOwnerIndex;
+					const FColor Color = (PlaneOwnerIndex == 0) ? FColor(0, 200, 0) : FColor(0, 0, 200);
+
+					DrawCollisionImpl(Location, Normal, Contact.GetPhi(), FVec3(0), Color, Color, Color, ColorScale, Settings);
+
+					TConstGenericParticleHandle<FReal, 3> PointsParticle = MultiPointConstraint->Particle[PointsOwnerIndex];
+					const FRigidTransform3 PointsImplicitTransform = MultiPointConstraint->ImplicitTransform[PointsOwnerIndex];
+					const FRigidTransform3 PointsTransform = PointsImplicitTransform * FParticleUtilities::GetActorWorldTransform(PointsParticle) * SpaceTransform;
+					for (int32 SampleIndex = 1; SampleIndex < MultiPointConstraint->NumManifoldPoints(); ++SampleIndex)
+					{
+						const FVec3 S0 = PointsTransform.TransformPosition(MultiPointConstraint->GetManifoldPoint(SampleIndex - 1));
+						const FVec3 S1 = PointsTransform.TransformPosition(MultiPointConstraint->GetManifoldPoint(SampleIndex));
+						FDebugDrawQueue::GetInstance().DrawDebugLine(S0, S1, FColor::Orange, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+					}
 				}
 				else
 				{
-					const FRigidBodyMultiPointContactConstraint& MultiPointConstraint = *Contact.As<FRigidBodyMultiPointContactConstraint>();
-					int32 PlaneOwnerIndex = MultiPointConstraint.GetManifoldPlaneOwnerIndex();
-					int32 PointsOwnerIndex = 1 - PlaneOwnerIndex;
-					FColor C0 = (PlaneOwnerIndex == 0) ? (ColorScale * FColor(0, 200, 0)).ToFColor(false) : (ColorScale * FColor(0, 0, 200)).ToFColor(false);
-					
-					FMatrix Axes = FRotationMatrix::MakeFromX(Normal);
-					FDebugDrawQueue::GetInstance().DrawDebugCircle(Location, DrawScale * ContactWidth, 12, C0, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness, Axes.GetUnitAxis(EAxis::Y), Axes.GetUnitAxis(EAxis::Z), false);
-					
-					TConstGenericParticleHandle<FReal, 3> PointsParticle = MultiPointConstraint.Particle[PointsOwnerIndex];
-					FRigidTransform3 PointsImplicitTransform = MultiPointConstraint.ImplicitTransform[PointsOwnerIndex];
-					FRigidTransform3 PointsTransform = PointsImplicitTransform * FParticleUtilities::GetActorWorldTransform(PointsParticle) * SpaceTransform;
-					for (int32 SampleIndex = 1; SampleIndex < MultiPointConstraint.NumManifoldPoints(); ++SampleIndex)
+					const FRigidBodyPointContactConstraint* PointConstraint = Contact.template As<FRigidBodyPointContactConstraint>();
+					if (PointConstraint->GetManifoldPoints().Num() > 0)
 					{
-						FVec3 S0 = PointsTransform.TransformPosition(MultiPointConstraint.GetManifoldPoint(SampleIndex - 1));
-						FVec3 S1 = PointsTransform.TransformPosition(MultiPointConstraint.GetManifoldPoint(SampleIndex));
-						FDebugDrawQueue::GetInstance().DrawDebugLine(S0, S1, FColor::Orange, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
+						TConstGenericParticleHandle<FReal, 3> Particle0 = Contact.Particle[0];
+						TConstGenericParticleHandle<FReal, 3> Particle1 = Contact.Particle[1];
+						const FRigidTransform3 WorldCoMTransform0 = FParticleUtilities::GetCoMWorldTransform(Particle0);
+						const FRigidTransform3 WorldCoMTransform1 = FParticleUtilities::GetCoMWorldTransform(Particle1);
+
+						for (const FManifoldPoint& ManifoldPoint : PointConstraint->GetManifoldPoints())
+						{
+							const FVec3 Location = SpaceTransform.TransformPosition(WorldCoMTransform0.TransformPosition(ManifoldPoint.CoMContactPoints[0]));
+							const FVec3 OldLocation = SpaceTransform.TransformPosition(WorldCoMTransform1.TransformPosition(Particle1->CenterOfMass() + Particle1->RotationOfMass() * ManifoldPoint.PrevCoMContactPoint1));
+							const FVec3 Normal = SpaceTransform.TransformVector(WorldCoMTransform1.TransformVector(ManifoldPoint.CoMContactNormal));
+
+							// Dynamic friction, restitution = red
+							// Static friction, no restitution = green
+							// Inactive = gray
+							FColor DiscColor = FColor(200, 0, 0);
+							FColor NormalColor = FColor(200, 0, 0);
+							FColor ImpulseColor = FColor(0, 0, 200);
+							if (ManifoldPoint.bInsideStaticFrictionCone)
+							{
+								DiscColor = FColor(150, 200, 0);
+							}
+							if (!ManifoldPoint.bActive)
+							{
+								DiscColor = FColor(100, 100, 100);
+							}
+							if (!ManifoldPoint.bRestitutionEnabled)
+							{
+								NormalColor = FColor(150, 200, 0);
+							}
+							DrawCollisionImpl(Location, Normal, ManifoldPoint.ContactPoint.Phi, ManifoldPoint.NetImpulse, DiscColor, NormalColor, ImpulseColor, ColorScale, Settings);
+							FDebugDrawQueue::GetInstance().DrawDebugLine(Location, OldLocation, FColor::White, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+						}
+					}
+					else
+					{
+						const FVec3 Location = SpaceTransform.TransformPosition(Contact.GetLocation());
+						const FVec3 Normal = SpaceTransform.TransformVector(Contact.GetNormal());
+						DrawCollisionImpl(Location, Normal, Contact.GetPhi(), FVec3(0), FColor(200, 0, 0), FColor(200, 0, 0), FColor(200, 0, 0), ColorScale, Settings);
 					}
 				}
+				
 			}
-			if (ContactLen > 0)
+			if (Settings.ContactOwnerWidth > 0)
 			{
-				FColor C1 = (ColorScale * FColor(255, 0, 0)).ToFColor(false);
-				FDebugDrawQueue::GetInstance().DrawDebugLine(Location, Location + DrawScale * ContactLen * Normal, C1, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
-			}
-			if (ContactPhiWidth > 0 && Contact.GetPhi() < FLT_MAX)
-			{
-				FColor C2 = (ColorScale * FColor(128, 128, 0)).ToFColor(false);
-				FMatrix Axes = FRotationMatrix::MakeFromX(Normal);
-				FDebugDrawQueue::GetInstance().DrawDebugCircle(Location - Contact.GetPhi() * Normal, DrawScale * ContactPhiWidth, 12, C2, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness, Axes.GetUnitAxis(EAxis::Y), Axes.GetUnitAxis(EAxis::Z), false);
-			}
-			if (ContactOwnerWidth > 0)
-			{
-				FColor C3 = (ColorScale * FColor(128, 128, 128)).ToFColor(false);
-				FMatrix Axes = FRotationMatrix::MakeFromX(Normal);
-				FVec3 P0 = SpaceTransform.TransformPosition(Contact.Particle[0]->X());
-				FVec3 P1 = SpaceTransform.TransformPosition(Contact.Particle[1]->X());
-				FDebugDrawQueue::GetInstance().DrawDebugLine(Location, P0, C3, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness * 0.5f);
-				FDebugDrawQueue::GetInstance().DrawDebugLine(Location, P1, C3, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness * 0.5f);
-			}
+				const FVec3 Location = SpaceTransform.TransformPosition(Contact.GetLocation());
+				const FVec3 Normal = SpaceTransform.TransformVector(Contact.GetNormal());
 
-			// Draw the particle (mass frame) coordinates
-			{
-				//DrawParticleTransformImpl(FRigidTransform3::Identity, Contact.Particle[0], INDEX_NONE, 1.0f);
-				//DrawParticleTransformImpl(FRigidTransform3::Identity, Contact.Particle[1], INDEX_NONE, 1.0f);
-				//DebugDraw::DrawParticleShapes(FRigidTransform3(), Contact.Particle[0], FColor::Green);
-				//DebugDraw::DrawParticleShapes(FRigidTransform3(), Contact.Particle[1], FColor::Green);
+				const FColor C3 = (ColorScale * FColor(128, 128, 128)).ToFColor(false);
+				const FMatrix Axes = FRotationMatrix::MakeFromX(Normal);
+				const FVec3 P0 = SpaceTransform.TransformPosition(Contact.Particle[0]->X());
+				const FVec3 P1 = SpaceTransform.TransformPosition(Contact.Particle[1]->X());
+				FDebugDrawQueue::GetInstance().DrawDebugLine(Location, P0, C3, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness * 0.5f);
+				FDebugDrawQueue::GetInstance().DrawDebugLine(Location, P1, C3, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness * 0.5f);
 			}
 		}
 		
-		void DrawCollisionImpl(const FRigidTransform3& SpaceTransform, const FPBDCollisionConstraintHandle* ConstraintHandle, float ColorScale)
+		void DrawCollisionImpl(const FRigidTransform3& SpaceTransform, const FPBDCollisionConstraintHandle* ConstraintHandle, float ColorScale, const FChaosDebugDrawSettings& Settings)
 		{
-			DrawCollisionImpl(SpaceTransform, ConstraintHandle->GetContact(), ColorScale);
+			DrawCollisionImpl(SpaceTransform, ConstraintHandle->GetContact(), ColorScale, Settings);
 		}
 
-		void DrawJointConstraintImpl(const FRigidTransform3& SpaceTransform, const FVec3& InPa, const FVec3& InCa, const FVec3& InXa, const FMatrix33& Ra, const FVec3& InPb, const FVec3& InCb, const FVec3& InXb, const FMatrix33& Rb, int32 IslandIndex, int32 LevelIndex, int32 ColorIndex, int32 BatchIndex, int32 Index, FReal ColorScale, uint32 FeatureMask)
+		void DrawJointConstraintImpl(const FRigidTransform3& SpaceTransform, const FVec3& InPa, const FVec3& InCa, const FVec3& InXa, const FMatrix33& Ra, const FVec3& InPb, const FVec3& InCb, const FVec3& InXb, const FMatrix33& Rb, int32 IslandIndex, int32 LevelIndex, int32 ColorIndex, int32 BatchIndex, int32 Index, FReal ColorScale, uint32 FeatureMask, const FChaosDebugDrawSettings& Settings)
 		{
 			using namespace Chaos::DebugDraw;
 			FColor R = (ColorScale * FColor::Red).ToFColor(false);
@@ -409,8 +487,8 @@ namespace Chaos
 
 			if (FeatureMask & (uint32)EDebugDrawJointFeature::ActorConnector)
 			{
-				const FReal ConnectorThickness = 1.5f * LineThickness;
-				const FReal CoMSize = DrawScale * JointComSize;
+				const FReal ConnectorThickness = 1.5f * Settings.LineThickness;
+				const FReal CoMSize = Settings.DrawScale * Settings.JointComSize;
 				// Leave a gap around the actor position so we can see where the center is
 				FVec3 Sa = Pa;
 				const FReal Lena = (Xa - Pa).Size();
@@ -424,15 +502,15 @@ namespace Chaos
 				{
 					Sb = FMath::Lerp(Pb, Xb, FMath::Clamp(CoMSize / Lena, 0.0f, 1.0f));
 				}
-				FDebugDrawQueue::GetInstance().DrawDebugLine(Pa, Sa, FColor::White, false, KINDA_SMALL_NUMBER, DrawPriority, ConnectorThickness);
-				FDebugDrawQueue::GetInstance().DrawDebugLine(Pb, Sb, FColor::White, false, KINDA_SMALL_NUMBER, DrawPriority, ConnectorThickness);
-				FDebugDrawQueue::GetInstance().DrawDebugLine(Sa, Xa, R, false, KINDA_SMALL_NUMBER, DrawPriority, ConnectorThickness);
-				FDebugDrawQueue::GetInstance().DrawDebugLine(Sb, Xb, C, false, KINDA_SMALL_NUMBER, DrawPriority, ConnectorThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugLine(Pa, Sa, FColor::White, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, ConnectorThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugLine(Pb, Sb, FColor::White, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, ConnectorThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugLine(Sa, Xa, R, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, ConnectorThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugLine(Sb, Xb, C, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, ConnectorThickness);
 			}
 			if (FeatureMask & (uint32)EDebugDrawJointFeature::CoMConnector)
 			{
-				const FReal ConnectorThickness = 1.5f * LineThickness;
-				const FReal CoMSize = DrawScale * JointComSize;
+				const FReal ConnectorThickness = 1.5f * Settings.LineThickness;
+				const FReal CoMSize = Settings.DrawScale * Settings.JointComSize;
 				// Leave a gap around the body position so we can see where the center is
 				FVec3 Sa = Ca;
 				const FReal Lena = (Xa - Ca).Size();
@@ -446,54 +524,54 @@ namespace Chaos
 				{
 					Sb = FMath::Lerp(Cb, Xb, FMath::Clamp(CoMSize / Lena, 0.0f, 1.0f));
 				}
-				FDebugDrawQueue::GetInstance().DrawDebugLine(Ca, Sa, FColor::Black, false, KINDA_SMALL_NUMBER, DrawPriority, ConnectorThickness);
-				FDebugDrawQueue::GetInstance().DrawDebugLine(Cb, Sb, FColor::Black, false, KINDA_SMALL_NUMBER, DrawPriority, ConnectorThickness);
-				FDebugDrawQueue::GetInstance().DrawDebugLine(Sa, Xa, R, false, KINDA_SMALL_NUMBER, DrawPriority, ConnectorThickness);
-				FDebugDrawQueue::GetInstance().DrawDebugLine(Sb, Xb, C, false, KINDA_SMALL_NUMBER, DrawPriority, ConnectorThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugLine(Ca, Sa, FColor::Black, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, ConnectorThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugLine(Cb, Sb, FColor::Black, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, ConnectorThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugLine(Sa, Xa, R, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, ConnectorThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugLine(Sb, Xb, C, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, ConnectorThickness);
 			}
 			if (FeatureMask & (uint32)EDebugDrawJointFeature::Stretch)
 			{
-				const FReal StretchThickness = 3.0f * LineThickness;
-				FDebugDrawQueue::GetInstance().DrawDebugLine(Xa, Xb, M, false, KINDA_SMALL_NUMBER, DrawPriority, StretchThickness);
+				const FReal StretchThickness = 3.0f * Settings.LineThickness;
+				FDebugDrawQueue::GetInstance().DrawDebugLine(Xa, Xb, M, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, StretchThickness);
 			}
 			if (FeatureMask & (uint32)EDebugDrawJointFeature::Axes)
 			{
-				FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Xa, Xa + DrawScale * ConstraintAxisLen * SpaceTransform.TransformVector(Ra.GetAxis(0)), DrawScale * ArrowSize, R, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
-				FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Xa, Xa + DrawScale * ConstraintAxisLen * SpaceTransform.TransformVector(Ra.GetAxis(1)), DrawScale * ArrowSize, G, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
-				FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Xa, Xa + DrawScale * ConstraintAxisLen * SpaceTransform.TransformVector(Ra.GetAxis(2)), DrawScale * ArrowSize, B, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
-				FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Xb, Xb + DrawScale * ConstraintAxisLen * SpaceTransform.TransformVector(Rb.GetAxis(0)), DrawScale * ArrowSize, C, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
-				FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Xb, Xb + DrawScale * ConstraintAxisLen * SpaceTransform.TransformVector(Rb.GetAxis(1)), DrawScale * ArrowSize, M, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
-				FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Xb, Xb + DrawScale * ConstraintAxisLen * SpaceTransform.TransformVector(Rb.GetAxis(2)), DrawScale * ArrowSize, Y, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Xa, Xa + Settings.DrawScale * Settings.ConstraintAxisLen * SpaceTransform.TransformVector(Ra.GetAxis(0)), Settings.DrawScale * Settings.ArrowSize, R, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Xa, Xa + Settings.DrawScale * Settings.ConstraintAxisLen * SpaceTransform.TransformVector(Ra.GetAxis(1)), Settings.DrawScale * Settings.ArrowSize, G, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Xa, Xa + Settings.DrawScale * Settings.ConstraintAxisLen * SpaceTransform.TransformVector(Ra.GetAxis(2)), Settings.DrawScale * Settings.ArrowSize, B, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Xb, Xb + Settings.DrawScale * Settings.ConstraintAxisLen * SpaceTransform.TransformVector(Rb.GetAxis(0)), Settings.DrawScale * Settings.ArrowSize, C, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Xb, Xb + Settings.DrawScale * Settings.ConstraintAxisLen * SpaceTransform.TransformVector(Rb.GetAxis(1)), Settings.DrawScale * Settings.ArrowSize, M, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Xb, Xb + Settings.DrawScale * Settings.ConstraintAxisLen * SpaceTransform.TransformVector(Rb.GetAxis(2)), Settings.DrawScale * Settings.ArrowSize, Y, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
 			}
 			FVec3 TextPos = Xb;
 			if ((FeatureMask & (uint32)EDebugDrawJointFeature::Level) && (LevelIndex >= 0))
 			{
-				FDebugDrawQueue::GetInstance().DrawDebugString(TextPos, FString::Format(TEXT("{0}"), { LevelIndex }), nullptr, FColor::Red, KINDA_SMALL_NUMBER, false, FontScale);
-				TextPos += FontHeight * FVec3(0, 0, 1);
+				FDebugDrawQueue::GetInstance().DrawDebugString(TextPos, FString::Format(TEXT("{0}"), { LevelIndex }), nullptr, FColor::Red, KINDA_SMALL_NUMBER, false, Settings.FontScale);
+				TextPos += Settings.FontHeight * FVec3(0, 0, 1);
 			}
 			if ((FeatureMask & (uint32)EDebugDrawJointFeature::Index) && (Index >= 0))
 			{
-				FDebugDrawQueue::GetInstance().DrawDebugString(TextPos, FString::Format(TEXT("{0}"), { Index }), nullptr, FColor::Red, KINDA_SMALL_NUMBER, false, FontScale);
-				TextPos += FontHeight * FVec3(0, 0, 1);
+				FDebugDrawQueue::GetInstance().DrawDebugString(TextPos, FString::Format(TEXT("{0}"), { Index }), nullptr, FColor::Red, KINDA_SMALL_NUMBER, false, Settings.FontScale);
+				TextPos += Settings.FontHeight * FVec3(0, 0, 1);
 			}
 			if ((FeatureMask & (uint32)EDebugDrawJointFeature::Color) && (ColorIndex >= 0))
 			{
-				FDebugDrawQueue::GetInstance().DrawDebugString(TextPos, FString::Format(TEXT("{0}"), { ColorIndex }), nullptr, FColor::Red, KINDA_SMALL_NUMBER, false, FontScale);
-				TextPos += FontHeight * FVec3(0, 0, 1);
+				FDebugDrawQueue::GetInstance().DrawDebugString(TextPos, FString::Format(TEXT("{0}"), { ColorIndex }), nullptr, FColor::Red, KINDA_SMALL_NUMBER, false, Settings.FontScale);
+				TextPos += Settings.FontHeight * FVec3(0, 0, 1);
 			}
 			if ((FeatureMask & (uint32)EDebugDrawJointFeature::Batch) && (BatchIndex >= 0))
 			{
-				FDebugDrawQueue::GetInstance().DrawDebugString(TextPos, FString::Format(TEXT("{0}"), { BatchIndex }), nullptr, FColor::Red, KINDA_SMALL_NUMBER, false, FontScale);
-				TextPos += FontHeight * FVec3(0, 0, 1);
+				FDebugDrawQueue::GetInstance().DrawDebugString(TextPos, FString::Format(TEXT("{0}"), { BatchIndex }), nullptr, FColor::Red, KINDA_SMALL_NUMBER, false, Settings.FontScale);
+				TextPos += Settings.FontHeight * FVec3(0, 0, 1);
 			}
 			if ((FeatureMask & (uint32)EDebugDrawJointFeature::Island) && (IslandIndex >= 0))
 			{
-				FDebugDrawQueue::GetInstance().DrawDebugString(TextPos, FString::Format(TEXT("{0}"), { IslandIndex }), nullptr, FColor::Red, KINDA_SMALL_NUMBER, false, FontScale);
-				TextPos += FontHeight * FVec3(0, 0, 1);
+				FDebugDrawQueue::GetInstance().DrawDebugString(TextPos, FString::Format(TEXT("{0}"), { IslandIndex }), nullptr, FColor::Red, KINDA_SMALL_NUMBER, false, Settings.FontScale);
+				TextPos += Settings.FontHeight * FVec3(0, 0, 1);
 			}
 		}
 
-		void DrawJointConstraintImpl(const FRigidTransform3& SpaceTransform, const FPBDJointConstraintHandle* ConstraintHandle, FReal ColorScale, uint32 FeatureMask)
+		void DrawJointConstraintImpl(const FRigidTransform3& SpaceTransform, const FPBDJointConstraintHandle* ConstraintHandle, FReal ColorScale, uint32 FeatureMask, const FChaosDebugDrawSettings& Settings)
 		{
 			TVector<TGeometryParticleHandle<FReal, 3>*, 2> ConstrainedParticles = ConstraintHandle->GetConstrainedParticles();
 			auto RigidParticle0 = ConstrainedParticles[0]->CastToRigidParticle();
@@ -507,170 +585,145 @@ namespace Chaos
 				FVec3 Xa, Xb;
 				FMatrix33 Ra, Rb;
 				ConstraintHandle->CalculateConstraintSpace(Xa, Ra, Xb, Rb);
-				DrawJointConstraintImpl(SpaceTransform, Pa, Ca, Xa, Ra, Pb, Cb, Xb, Rb, ConstraintHandle->GetConstraintIsland(), ConstraintHandle->GetConstraintLevel(), ConstraintHandle->GetConstraintColor(), ConstraintHandle->GetConstraintBatch(), ConstraintHandle->GetConstraintIndex(), ColorScale, FeatureMask);
+				DrawJointConstraintImpl(SpaceTransform, Pa, Ca, Xa, Ra, Pb, Cb, Xb, Rb, ConstraintHandle->GetConstraintIsland(), ConstraintHandle->GetConstraintLevel(), ConstraintHandle->GetConstraintColor(), ConstraintHandle->GetConstraintBatch(), ConstraintHandle->GetConstraintIndex(), ColorScale, FeatureMask, Settings);
 			}
 		}
 
-		void DrawSimulationSpaceImpl(const FSimulationSpace& SimSpace)
+		void DrawSimulationSpaceImpl(const FSimulationSpace& SimSpace, const FChaosDebugDrawSettings& Settings)
 		{
 			const FVec3 Pos = SimSpace.Transform.GetLocation();
 			const FRotation3& Rot = SimSpace.Transform.GetRotation();
 			const FMatrix33 Rotm = Rot.ToMatrix();
-			FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Pos, Pos + DrawScale * BodyAxisLen * Rotm.GetAxis(0), DrawScale * ArrowSize, FColor::Red, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
-			FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Pos, Pos + DrawScale * BodyAxisLen * Rotm.GetAxis(1), DrawScale * ArrowSize, FColor::Green, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
-			FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Pos, Pos + DrawScale * BodyAxisLen * Rotm.GetAxis(2), DrawScale * ArrowSize, FColor::Blue, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
+			FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Pos, Pos + Settings.DrawScale * Settings.BodyAxisLen * Rotm.GetAxis(0), Settings.DrawScale * Settings.ArrowSize, FColor::Red, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+			FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Pos, Pos + Settings.DrawScale * Settings.BodyAxisLen * Rotm.GetAxis(1), Settings.DrawScale * Settings.ArrowSize, FColor::Green, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+			FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Pos, Pos + Settings.DrawScale * Settings.BodyAxisLen * Rotm.GetAxis(2), Settings.DrawScale * Settings.ArrowSize, FColor::Blue, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
 
-			FDebugDrawQueue::GetInstance().DrawDebugLine(Pos, Pos + VelScale * SimSpace.LinearVelocity, FColor::Cyan, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
-			FDebugDrawQueue::GetInstance().DrawDebugLine(Pos, Pos + AngVelScale * SimSpace.AngularVelocity, FColor::Cyan, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
-			FDebugDrawQueue::GetInstance().DrawDebugLine(Pos, Pos + 0.01f * VelScale * SimSpace.LinearAcceleration, FColor::Yellow, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
-			FDebugDrawQueue::GetInstance().DrawDebugLine(Pos, Pos + 0.01f * AngVelScale * SimSpace.AngularAcceleration, FColor::Orange, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
+			FDebugDrawQueue::GetInstance().DrawDebugLine(Pos, Pos + Settings.VelScale * SimSpace.LinearVelocity, FColor::Cyan, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+			FDebugDrawQueue::GetInstance().DrawDebugLine(Pos, Pos + Settings.AngVelScale * SimSpace.AngularVelocity, FColor::Cyan, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+			FDebugDrawQueue::GetInstance().DrawDebugLine(Pos, Pos + 0.01f * Settings.VelScale * SimSpace.LinearAcceleration, FColor::Yellow, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+			FDebugDrawQueue::GetInstance().DrawDebugLine(Pos, Pos + 0.01f * Settings.AngVelScale * SimSpace.AngularAcceleration, FColor::Orange, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
 		}
 
-#endif
-
-		void DrawParticleShapes(const FRigidTransform3& SpaceTransform, const TParticleView<TGeometryParticles<float, 3>>& ParticlesView, const FColor& Color)
+		void DrawParticleShapes(const FRigidTransform3& SpaceTransform, const TParticleView<TGeometryParticles<float, 3>>& ParticlesView, const FColor& Color, const FChaosDebugDrawSettings* Settings)
 		{
-#if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				for (auto& Particle : ParticlesView)
 				{
-					DrawParticleShapesImpl(SpaceTransform, GetHandleHelper(&Particle), Color);
+					DrawParticleShapesImpl(SpaceTransform, GetHandleHelper(&Particle), Color, GetChaosDebugDrawSettings(Settings));
 				}
 			}
-#endif
 		}
 
-		void DrawParticleShapes(const FRigidTransform3& SpaceTransform, const TParticleView<TKinematicGeometryParticles<float, 3>>& ParticlesView, const FColor& Color)
+		void DrawParticleShapes(const FRigidTransform3& SpaceTransform, const TParticleView<TKinematicGeometryParticles<float, 3>>& ParticlesView, const FColor& Color, const FChaosDebugDrawSettings* Settings)
 		{
-#if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				for (auto& Particle : ParticlesView)
 				{
-					DrawParticleShapesImpl(SpaceTransform, GetHandleHelper(&Particle), Color);
+					DrawParticleShapesImpl(SpaceTransform, GetHandleHelper(&Particle), Color, GetChaosDebugDrawSettings(Settings));
 				}
 			}
-#endif
 		}
 
-		void DrawParticleShapes(const FRigidTransform3& SpaceTransform, const TParticleView<TPBDRigidParticles<float, 3>>& ParticlesView, const FColor& Color)
+		void DrawParticleShapes(const FRigidTransform3& SpaceTransform, const TParticleView<TPBDRigidParticles<float, 3>>& ParticlesView, const FColor& Color, const FChaosDebugDrawSettings* Settings)
 		{
-#if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				for (auto& Particle : ParticlesView)
 				{
-					DrawParticleShapesImpl(SpaceTransform, GetHandleHelper(&Particle), Color);
+					DrawParticleShapesImpl(SpaceTransform, GetHandleHelper(&Particle), Color, GetChaosDebugDrawSettings(Settings));
 				}
 			}
-#endif
 		}
 
-		void DrawParticleShapes(const FRigidTransform3& SpaceTransform, const TGeometryParticleHandle<float, 3>* Particle, const FColor& Color)
+		void DrawParticleShapes(const FRigidTransform3& SpaceTransform, const TGeometryParticleHandle<float, 3>* Particle, const FColor& Color, const FChaosDebugDrawSettings* Settings)
 		{
-#if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
-				DrawParticleShapesImpl(SpaceTransform, Particle, Color);
+				DrawParticleShapesImpl(SpaceTransform, Particle, Color, GetChaosDebugDrawSettings(Settings));
 			}
-#endif
 		}
 
-		void DrawParticleShapes(const FRigidTransform3& SpaceTransform, const TGeometryParticle<float, 3>* Particle, const FColor& Color)
+		void DrawParticleShapes(const FRigidTransform3& SpaceTransform, const TGeometryParticle<float, 3>* Particle, const FColor& Color, const FChaosDebugDrawSettings* Settings)
 		{
-#if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
-				DrawParticleShapesImpl(SpaceTransform, Particle, Color);
+				DrawParticleShapesImpl(SpaceTransform, Particle, Color, GetChaosDebugDrawSettings(Settings));
 			}
-#endif
 		}
 
-		void DrawParticleBounds(const FRigidTransform3& SpaceTransform, const TParticleView<TGeometryParticles<float, 3>>& ParticlesView, const FColor& Color)
+		void DrawParticleBounds(const FRigidTransform3& SpaceTransform, const TParticleView<TGeometryParticles<float, 3>>& ParticlesView, const FChaosDebugDrawSettings* Settings)
 		{
-#if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				for (auto& Particle : ParticlesView)
 				{
-					DrawParticleBoundsImpl(SpaceTransform, GetHandleHelper(&Particle), Color);
+					DrawParticleBoundsImpl(SpaceTransform, GetHandleHelper(&Particle), GetChaosDebugDrawSettings(Settings));
 				}
 			}
-#endif
 		}
 
-		void DrawParticleBounds(const FRigidTransform3& SpaceTransform, const TParticleView<TKinematicGeometryParticles<float, 3>>& ParticlesView, const FColor& Color)
+		void DrawParticleBounds(const FRigidTransform3& SpaceTransform, const TParticleView<TKinematicGeometryParticles<float, 3>>& ParticlesView, const FChaosDebugDrawSettings* Settings)
 		{
-#if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				for (auto& Particle : ParticlesView)
 				{
-					DrawParticleBoundsImpl(SpaceTransform, GetHandleHelper(&Particle), Color);
+					DrawParticleBoundsImpl(SpaceTransform, GetHandleHelper(&Particle), GetChaosDebugDrawSettings(Settings));
 				}
 			}
-#endif
 		}
 
-		void DrawParticleBounds(const FRigidTransform3& SpaceTransform, const TParticleView<TPBDRigidParticles<float, 3>>& ParticlesView, const FColor& Color)
+		void DrawParticleBounds(const FRigidTransform3& SpaceTransform, const TParticleView<TPBDRigidParticles<float, 3>>& ParticlesView, const FChaosDebugDrawSettings* Settings)
 		{
-#if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				for (auto& Particle : ParticlesView)
 				{
-					DrawParticleBoundsImpl(SpaceTransform, GetHandleHelper(&Particle), Color);
+					DrawParticleBoundsImpl(SpaceTransform, GetHandleHelper(&Particle), GetChaosDebugDrawSettings(Settings));
 				}
 			}
-#endif
 		}
 
-		void DrawParticleTransforms(const FRigidTransform3& SpaceTransform, const TParticleView<TGeometryParticles<float, 3>>& ParticlesView)
+		void DrawParticleTransforms(const FRigidTransform3& SpaceTransform, const TParticleView<TGeometryParticles<float, 3>>& ParticlesView, const FChaosDebugDrawSettings* Settings)
 		{
-#if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				int32 Index = 0;
 				for (auto& Particle : ParticlesView)
 				{
-					DrawParticleTransformImpl(SpaceTransform, GetHandleHelper(&Particle), Index++, 1.0f);
+					DrawParticleTransformImpl(SpaceTransform, GetHandleHelper(&Particle), Index++, 1.0f, GetChaosDebugDrawSettings(Settings));
 				}
 			}
-#endif
 		}
 
-		void DrawParticleTransforms(const FRigidTransform3& SpaceTransform, const TParticleView<TKinematicGeometryParticles<float, 3>>& ParticlesView)
+		void DrawParticleTransforms(const FRigidTransform3& SpaceTransform, const TParticleView<TKinematicGeometryParticles<float, 3>>& ParticlesView, const FChaosDebugDrawSettings* Settings)
 		{
-#if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				int32 Index = 0;
 				for (auto& Particle : ParticlesView)
 				{
-					DrawParticleTransformImpl(SpaceTransform, GetHandleHelper(&Particle), Index++, 1.0f);
+					DrawParticleTransformImpl(SpaceTransform, GetHandleHelper(&Particle), Index++, 1.0f, GetChaosDebugDrawSettings(Settings));
 				}
 			}
-#endif
 		}
 
-		void DrawParticleTransforms(const FRigidTransform3& SpaceTransform, const TParticleView<TPBDRigidParticles<float, 3>>& ParticlesView)
+		void DrawParticleTransforms(const FRigidTransform3& SpaceTransform, const TParticleView<TPBDRigidParticles<float, 3>>& ParticlesView, const FChaosDebugDrawSettings* Settings)
 		{
-#if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				int32 Index = 0;
 				for (auto& Particle : ParticlesView)
 				{
-					DrawParticleTransformImpl(SpaceTransform, GetHandleHelper(&Particle), Index++, 1.0f);
+					DrawParticleTransformImpl(SpaceTransform, GetHandleHelper(&Particle), Index++, 1.0f, GetChaosDebugDrawSettings(Settings));
 				}
 			}
-#endif
 		}
 
-		void DrawParticleCollisions(const FRigidTransform3& SpaceTransform, const TGeometryParticleHandle<float, 3>* Particle, const FPBDCollisionConstraints& Collisions)
+		void DrawParticleCollisions(const FRigidTransform3& SpaceTransform, const TGeometryParticleHandle<float, 3>* Particle, const FPBDCollisionConstraints& Collisions, const FChaosDebugDrawSettings* Settings)
 		{
-#if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				for (const Chaos::FPBDCollisionConstraintHandle * ConstraintHandle : Collisions.GetConstConstraintHandles())
@@ -678,74 +731,64 @@ namespace Chaos
 					TVector<const TGeometryParticleHandle<float, 3>*, 2> ConstrainedParticles = ConstraintHandle->GetConstrainedParticles();
 					if ((ConstrainedParticles[0] == Particle) || (ConstrainedParticles[1] == Particle))
 					{
-						DrawCollisionImpl(SpaceTransform, ConstraintHandle, 1.0f);
+						DrawCollisionImpl(SpaceTransform, ConstraintHandle, 1.0f, GetChaosDebugDrawSettings(Settings));
 					}
 				}
 			}
-#endif
 		}
 
-		void DrawCollisions(const FRigidTransform3& SpaceTransform, const FPBDCollisionConstraints& Collisions, float ColorScale)
+		void DrawCollisions(const FRigidTransform3& SpaceTransform, const FPBDCollisionConstraints& Collisions, float ColorScale, const FChaosDebugDrawSettings* Settings)
 		{
-#if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				for (int32 ConstraintIndex = 0; ConstraintIndex < Collisions.NumConstraints(); ++ConstraintIndex)
 				{
-					DrawCollisionImpl(SpaceTransform, Collisions.GetConstraint(ConstraintIndex), ColorScale);
+					DrawCollisionImpl(SpaceTransform, Collisions.GetConstraint(ConstraintIndex), ColorScale, GetChaosDebugDrawSettings(Settings));
 				}
 			}
-#endif
 		}
 
-		void DrawCollisions(const FRigidTransform3& SpaceTransform, const TArray<FPBDCollisionConstraintHandle*>& ConstraintHandles, float ColorScale)
+		void DrawCollisions(const FRigidTransform3& SpaceTransform, const TArray<FPBDCollisionConstraintHandle*>& ConstraintHandles, float ColorScale, const FChaosDebugDrawSettings* Settings)
 		{
-#if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				for (const FPBDCollisionConstraintHandle* ConstraintHandle : ConstraintHandles)
 				{
-					DrawCollisionImpl(SpaceTransform, ConstraintHandle, ColorScale);
+					DrawCollisionImpl(SpaceTransform, ConstraintHandle, ColorScale, GetChaosDebugDrawSettings(Settings));
 				}
 			}
-#endif
 		}
 
 
-		void DrawJointConstraints(const FRigidTransform3& SpaceTransform, const TArray<FPBDJointConstraintHandle*>& ConstraintHandles, float ColorScale, uint32 FeatureMask)
+		void DrawJointConstraints(const FRigidTransform3& SpaceTransform, const TArray<FPBDJointConstraintHandle*>& ConstraintHandles, float ColorScale, uint32 FeatureMask, const FChaosDebugDrawSettings* Settings)
 		{
-#if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				for (const FPBDJointConstraintHandle* ConstraintHandle : ConstraintHandles)
 				{
-					DrawJointConstraintImpl(SpaceTransform, ConstraintHandle, ColorScale, FeatureMask);
+					DrawJointConstraintImpl(SpaceTransform, ConstraintHandle, ColorScale, FeatureMask, GetChaosDebugDrawSettings(Settings));
 				}
 			}
-#endif
 		}
 
-		void DrawJointConstraints(const FRigidTransform3& SpaceTransform, const FPBDJointConstraints& Constraints, float ColorScale, uint32 FeatureMask)
+		void DrawJointConstraints(const FRigidTransform3& SpaceTransform, const FPBDJointConstraints& Constraints, float ColorScale, uint32 FeatureMask, const FChaosDebugDrawSettings* Settings)
 		{
-#if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.NumConstraints(); ++ConstraintIndex)
 				{
-					DrawJointConstraintImpl(SpaceTransform, Constraints.GetConstraintHandle(ConstraintIndex), ColorScale, FeatureMask);
+					DrawJointConstraintImpl(SpaceTransform, Constraints.GetConstraintHandle(ConstraintIndex), ColorScale, FeatureMask, GetChaosDebugDrawSettings(Settings));
 				}
 			}
-#endif
 		}
 
-		void DrawSimulationSpace(const FSimulationSpace& SimSpace)
+		void DrawSimulationSpace(const FSimulationSpace& SimSpace, const FChaosDebugDrawSettings* Settings)
 		{
-#if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
-				DrawSimulationSpaceImpl(SimSpace);
+				DrawSimulationSpaceImpl(SimSpace, GetChaosDebugDrawSettings(Settings));
 			}
-#endif
 		}
+#endif
 	}
 }

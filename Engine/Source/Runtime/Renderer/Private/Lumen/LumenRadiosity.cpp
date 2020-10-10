@@ -747,7 +747,7 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 	FGlobalShaderMap* GlobalShaderMap, 
 	FRDGTextureRef RadiosityAtlas)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 
 	const FViewInfo& MainView = Views[0];
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;

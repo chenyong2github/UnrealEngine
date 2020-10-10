@@ -95,7 +95,7 @@ void FNiagaraVariableMetaData::SetCachedNamespacelessVariableName(const FName& I
 };
 
 
-FNiagaraVariable FNiagaraVariable::ResolveAliases(const FNiagaraVariable& InVar, const TMap<FString, FString>& InAliases, const TCHAR* InJoinSeparator)
+FNiagaraVariable FNiagaraVariable::ResolveAliases(const FNiagaraVariable& InVar, const TMap<FString, FString>& InAliases, const TMap<FString, FString>& InStartOnlyAliases, const TCHAR* InJoinSeparator)
 {
 	FNiagaraVariable OutVar = InVar;
 
@@ -112,6 +112,19 @@ FNiagaraVariable FNiagaraVariable::ResolveAliases(const FNiagaraVariable& InVar,
 			if (SplitName[i].Equals(It.Key()))
 			{
 				SplitName[i] = It.Value();
+			}
+			++It;
+		}
+	}
+
+	if (SplitName.Num() > 0)
+	{
+		TMap<FString, FString>::TConstIterator It = InStartOnlyAliases.CreateConstIterator();
+		while (It)
+		{
+			if (SplitName[0].Equals(It.Key()))
+			{
+				SplitName[0] = It.Value();
 			}
 			++It;
 		}

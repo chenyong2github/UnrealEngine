@@ -217,7 +217,7 @@ struct FStructSerializerBuiltinTestStruct
 	/** Default constructor. */
 	FStructSerializerBuiltinTestStruct()
 		: Guid(FGuid::NewGuid())
-		, Name()
+		, Name(TEXT("Test FName"))
 		, String("Test String")
 		, Text(FText::FromString("Test Text"))
 		, Vector(1.0f, 2.0f, 3.0f)

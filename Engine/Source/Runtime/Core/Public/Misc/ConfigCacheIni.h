@@ -920,11 +920,6 @@ public:
 	 * Works even if the variable is registered after the ini file was loaded.
 	 */
 	static void LoadConsoleVariablesFromINI();
-	
-	/**
-	 * Less than ideal solution for allowing user settings to be saved on all platforms
-	 */
-	static FString GetGameUserSettingsDir();
 
 	/**
 	 * Save the current config cache state into a file for bootstrapping other processes.

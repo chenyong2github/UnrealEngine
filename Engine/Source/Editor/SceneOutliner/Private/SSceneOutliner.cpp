@@ -405,7 +405,10 @@ void SSceneOutliner::Populate()
  	TGuardValue<bool> ReentrantGuard(bIsReentrant, true);
 
 	// Get a collection of items and folders which were formerly collapsed
-	const FParentsExpansionState ExpansionStateInfo = GetParentsExpansionState();
+	if (CachedExpansionStateInfo.Num() == 0)
+	{
+		CachedExpansionStateInfo.Append(GetParentsExpansionState());
+	}
 
 	bool bMadeAnySignificantChanges = false;
 	if (bFullRefresh)
@@ -447,7 +450,6 @@ void SSceneOutliner::Populate()
 	}
 
 	PendingOperations.RemoveAt(0, End);
-	SetParentsExpansionState(ExpansionStateInfo);
 
 
 	for (FName Folder : PendingFoldersSelect)
@@ -463,6 +465,9 @@ void SSceneOutliner::Populate()
 	bool bFinalSort = false;
 	if (PendingOperations.Num() == 0)
 	{
+		SetParentsExpansionState(CachedExpansionStateInfo);
+		CachedExpansionStateInfo.Empty();
+		
 		// When done processing a FullRefresh Scroll to First item in selection as it may have been
 		// scrolled out of view by the Refresh
 		if (bProcessingFullRefresh)

@@ -174,6 +174,22 @@ void FDMXProtocolArtNet::GetDefaultUniverseSettings(uint16 InUniverseID, FJsonOb
 	OutSettings.SetArrayField(DMXJsonFieldNames::DMXIpAddresses, IpAddresses); // Broadcast IP address
 }
 
+void FDMXProtocolArtNet::ZeroInputBuffers()
+{
+	for (const TPair<uint32, TSharedPtr<FDMXProtocolUniverseArtNet, ESPMode::ThreadSafe>>& UniverseIDUniverseKvP : UniverseManager->GetAllUniverses())
+	{
+		UniverseIDUniverseKvP.Value->ZeroInputDMXBuffer();
+	}
+}
+
+void FDMXProtocolArtNet::ZeroOutputBuffers()
+{
+	for (const TPair<uint32, TSharedPtr<FDMXProtocolUniverseArtNet, ESPMode::ThreadSafe>>& UniverseIDUniverseKvP : UniverseManager->GetAllUniverses())
+	{
+		UniverseIDUniverseKvP.Value->ZeroOutputDMXBuffer();
+	}
+}
+
 void FDMXProtocolArtNet::UpdateUniverse(uint32 InUniverseId, const FJsonObject& InSettings)
 {
 	TSharedPtr<FDMXProtocolUniverseArtNet, ESPMode::ThreadSafe> Universe = UniverseManager->GetUniverseById(InUniverseId);

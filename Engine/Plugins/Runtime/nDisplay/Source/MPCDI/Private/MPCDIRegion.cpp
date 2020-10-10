@@ -2,10 +2,11 @@
 
 #include "MPCDIRegion.h"
 #include "MPCDIBlendTexture.h"
-#include "MPCDIHelpers.h"
 #include "MPCDIWarpTexture.h"
 #include "MPCDIWarp.h"
 #include "MPCDIWarpMesh.h"
+
+#include "Misc/DisplayClusterHelpers.h"
 
 THIRD_PARTY_INCLUDES_START
 #include "mpcdiProfile.h"
@@ -187,7 +188,7 @@ bool FMPCDIRegion::LoadExtGeometry(const TArray<FVector>& PFMPoints, int DimW, i
 
 bool FMPCDIRegion::LoadExtPFMFile(const FString& LocalPFMFileName, const IMPCDI::EMPCDIProfileType ProfileType, const float PFMScale, bool bIsUnrealGameSpace)
 {
-	FString PFMFileName = DisplayClusterHelpers::config::GetFullPath(LocalPFMFileName);
+	FString PFMFileName = DisplayClusterHelpers::filesystem::GetFullPathForConfigResource(LocalPFMFileName);
 	if (!FPaths::FileExists(PFMFileName))
 	{
 		//! Handle error: pfm not found
@@ -238,7 +239,7 @@ bool FMPCDIRegion::LoadExtPFMFile(FExtPFMFile& PFMFile)
 
 bool FMPCDIRegion::LoadDataMap(const FString& LocalPNGFileName, float GammaValue, EDataMapType DataType)
 {
-	FString PNGFileName = DisplayClusterHelpers::config::GetFullPath(LocalPNGFileName);
+	FString PNGFileName = DisplayClusterHelpers::filesystem::GetFullPathForConfigResource(LocalPNGFileName);
 	if (!FPaths::FileExists(PNGFileName))
 	{
 		//! Handle error: blend map file not found

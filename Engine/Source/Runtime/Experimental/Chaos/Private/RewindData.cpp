@@ -146,6 +146,14 @@ void FGeometryParticleStateBase::SyncToParticle(TParticle& Particle) const
 		Velocities.SyncToParticle([Kinematic](const auto& Data)
 		{
 			Kinematic->SetVelocities(Data);
+
+			// If we changed the velocity, reset the smoothed velocity.
+			// This is not strictly correct but should be close. Worst case would 
+			// be a delay in sleeping after a rewind.
+			if (auto Rigid = Kinematic->CastToRigidParticle())
+			{
+				Rigid->ResetSmoothedVelocities();
+			}
 		});
 	}
 

@@ -253,7 +253,7 @@ void GenerateCoordinateSystem(const FVector& ZAxis, FVector& XAxis, FVector& YAx
 
 void UpdateDistantScene(FScene* Scene, FViewInfo& View)
 {
-	LLM_SCOPE(ELLMTag::Lumen);
+	LLM_SCOPE_BYTAG(Lumen);
 	TRACE_CPUPROFILER_EVENT_SCOPE(UpdateDistantScene);
 	QUICK_SCOPE_CYCLE_COUNTER(UpdateDistantScene);
 

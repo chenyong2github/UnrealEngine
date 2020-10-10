@@ -814,18 +814,6 @@ void FDataprepEditor::RestoreFromSnapshot(bool bUpdateViewport)
 				}
 			}
 
-			if(UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(Asset))
-			{
-				{
-					FMaterialUpdateContext MaterialUpdateContext;
-
-					MaterialUpdateContext.AddMaterialInterface( MaterialInterface );
-
-					MaterialInterface->PreEditChange(nullptr);
-					MaterialInterface->PostEditChange();
-				}
-			}
-
 			Assets.Add( Asset );
 
 			UE_LOG( LogDataprepEditor, Verbose, TEXT("Asset %s loaded"), *ObjectPath.GetAssetPathString() );

@@ -244,6 +244,7 @@ struct FLidarPointCloudFileIO_LAS_PointDataRecordFormat0
 struct FLidarPointCloudFileIO_LAS_PointDataRecordFormat2 : FLidarPointCloudFileIO_LAS_PointDataRecordFormat0, FLidarPointCloudFileIO_LAS_PointDataRecordFormatCommonRGB { };
 #pragma pack(pop)
 
+#if LASZIPSUPPORTED
 struct FLASZipPoint
 {
 	FIntVector Location;
@@ -470,6 +471,7 @@ private:
 		return v_dllHandle;
 	}
 };
+#endif
 
 bool ULidarPointCloudFileIO_LAS::HandleImport(const FString& Filename, TSharedPtr<FLidarPointCloudImportSettings> ImportSettings, FLidarPointCloudImportResults& OutImportResults)
 {
@@ -479,10 +481,12 @@ bool ULidarPointCloudFileIO_LAS::HandleImport(const FString& Filename, TSharedPt
 	{
 		return HandleImportLAS(Filename, OutImportResults);
 	}
+#if LASZIPSUPPORTED
 	else if (Extension.Equals("laz"))
 	{
 		return HandleImportLAZ(Filename, OutImportResults);
 	}
+#endif
 	else
 	{
 		return false;
@@ -709,7 +713,8 @@ bool ULidarPointCloudFileIO_LAS::HandleImportLAS(const FString& Filename, FLidar
 	return !OutImportResults.IsCancelled();
 }
 
-bool ULidarPointCloudFileIO_LAS::HandleImportLAZ(const FString& Filename, FLidarPointCloudImportResults &OutImportResults)
+#if LASZIPSUPPORTED
+bool ULidarPointCloudFileIO_LAS::HandleImportLAZ(const FString& Filename, FLidarPointCloudImportResults& OutImportResults)
 {
 	TArray<FLASZipWrapper> LASZipWrappers;
 	LASZipWrappers.AddDefaulted(1);
@@ -905,6 +910,7 @@ bool ULidarPointCloudFileIO_LAS::HandleImportLAZ(const FString& Filename, FLidar
 
 	return !OutImportResults.IsCancelled();
 }
+#endif
 
 bool ULidarPointCloudFileIO_LAS::HandleExport(const FString& Filename, ULidarPointCloud* PointCloud)
 {
@@ -914,10 +920,12 @@ bool ULidarPointCloudFileIO_LAS::HandleExport(const FString& Filename, ULidarPoi
 	{
 		return HandleExportLAS(Filename, PointCloud);
 	}
+#if LASZIPSUPPORTED
 	else if (Extension.Equals("laz"))
 	{
 		return HandleExportLAZ(Filename, PointCloud);
 	}
+#endif
 	else
 	{
 		return false;
@@ -986,6 +994,7 @@ bool ULidarPointCloudFileIO_LAS::HandleExportLAS(const FString& Filename, ULidar
 	return false;
 }
 
+#if LASZIPSUPPORTED
 bool ULidarPointCloudFileIO_LAS::HandleExportLAZ(const FString& Filename, ULidarPointCloud* PointCloud)
 {
 	FLASZipWrapper LASZipWrapper;
@@ -1035,6 +1044,37 @@ bool ULidarPointCloudFileIO_LAS::HandleExportLAZ(const FString& Filename, ULidar
 
 	return true;
 }
+#endif
+
+bool ULidarPointCloudFileIO_LAS::SupportsConcurrentInsertion(const FString& Filename) const
+{
+	const FString Extension = FPaths::GetExtension(Filename).ToLower();
+
+	if (Extension.Equals("las"))
+	{
+		TUniquePtr<FArchive> Reader(IFileManager::Get().CreateFileReader(*Filename));
+		if (Reader)
+		{
+			FLidarPointCloudFileIO_LAS_PublicHeaderBlock Header;
+			(*Reader) << Header;
+			return Header.HasValidBounds();
+		}
+	}
+#if LASZIPSUPPORTED
+	else if (Extension.Equals("laz"))
+	{
+		FLASZipWrapper LASZipWrapper;
+		if (LASZipWrapper.OpenFile(Filename, FLASZipWrapper::Reader))
+		{
+			FLidarPointCloudFileIO_LAS_PublicHeaderBlock Header;
+			LASZipWrapper.ReadHeader(Header);
+			return Header.HasValidBounds();
+		}
+	}
+#endif
+
+	return false;
+}
 
 //----------------------------------------------------------------
 
@@ -1056,32 +1096,4 @@ void FLidarPointCloudImportSettings_LAS::Serialize(FArchive& Ar)
 	{
 		Ar << Dummy32 << Dummy32 << Dummy;
 	}
-}
-
-bool ULidarPointCloudFileIO_LAS::SupportsConcurrentInsertion(const FString& Filename) const
-{
-	const FString Extension = FPaths::GetExtension(Filename).ToLower();
-
-	if (Extension.Equals("las"))
-	{
-		TUniquePtr<FArchive> Reader(IFileManager::Get().CreateFileReader(*Filename));
-		if (Reader)
-		{
-			FLidarPointCloudFileIO_LAS_PublicHeaderBlock Header;
-			(*Reader) << Header;
-			return Header.HasValidBounds();
-		}
-	}
-	else if (Extension.Equals("laz"))
-	{
-		FLASZipWrapper LASZipWrapper;
-		if (LASZipWrapper.OpenFile(Filename, FLASZipWrapper::Reader))
-		{
-			FLidarPointCloudFileIO_LAS_PublicHeaderBlock Header;
-			LASZipWrapper.ReadHeader(Header);
-			return Header.HasValidBounds();
-		}
-	}
-
-	return false;
 }

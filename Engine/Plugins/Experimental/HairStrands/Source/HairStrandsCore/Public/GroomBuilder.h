@@ -8,6 +8,8 @@
 #include "GroomSettings.h"
 
 struct FHairStrandsDatas;
+struct FHairStrandsClusterCullingData;
+struct FHairGroupsLOD;
 struct FHairGroupData;
 struct FProcessedHairDescription;
 struct FHairGroupsInterpolation;
@@ -18,6 +20,8 @@ class UGroomAsset;
 
 struct HAIRSTRANDSCORE_API FGroomBuilder
 {
+	static FString GetVersion();
+
 	static bool ProcessHairDescription(const FHairDescription& HairDescription, FProcessedHairDescription& Out);
 	static void Decimate(const FHairStrandsDatas& InData, float CurveDecimationPercentage, float VertexDecimationPercentage, FHairStrandsDatas& OutData);
 
@@ -28,4 +32,5 @@ struct HAIRSTRANDSCORE_API FGroomBuilder
 	static bool BuildGroom(FProcessedHairDescription& ProcessedHairDescription, UGroomAsset* GroomAsset, uint32 GroupIndex);
 	static bool BuildGroom(const FHairDescription& HairDescription, UGroomAsset* GroomAsset);
 
+	static void BuildClusterData(const FHairStrandsDatas& RenStrandsData, const float InGroomAssetRadius, const FHairGroupsLOD& InSettings, FHairStrandsClusterCullingData& Out);
 };

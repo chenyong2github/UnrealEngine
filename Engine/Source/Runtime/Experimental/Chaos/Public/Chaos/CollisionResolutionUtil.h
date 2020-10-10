@@ -28,6 +28,23 @@ namespace Chaos
 		FVec3
 		GetEnergyClampedImpulse(const TPBDRigidParticleHandle<FReal, 3>* PBDRigid0, const TPBDRigidParticleHandle<FReal, 3>* PBDRigid1, const FVec3& Impulse, const FVec3& VectorToPoint1, const FVec3& VectorToPoint2, const FVec3& Velocity1, const FVec3& Velocity2);
 
+		FVec3 GetEnergyClampedImpulse(
+			const FVec3& Impulse,
+			FReal InvM0,
+			const FMatrix33& InvI0,
+			FReal InvM1,
+			const FMatrix33& InvI1,
+			const FRotation3& Q0,
+			const FVec3& V0,
+			const FVec3& W0,
+			const FRotation3& Q1,
+			const FVec3& V1,
+			const FVec3& W1,
+			const FVec3& ContactOffset0,
+			const FVec3& ContactOffset1,
+			const FVec3& ContactVelocity0,
+			const FVec3& ContactVelocity1);
+
 		bool 
 		SampleObjectHelper(const FImplicitObject& Object, const FRigidTransform3& ObjectTransform, const FRigidTransform3& SampleToObjectTransform, const FVec3& SampleParticle, FReal Thickness, FRigidBodyPointContactConstraint& Constraint);
 

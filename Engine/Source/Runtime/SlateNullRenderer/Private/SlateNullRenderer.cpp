@@ -60,7 +60,7 @@ bool FSlateNullRenderer::GenerateDynamicImageResource( FName ResourceName, uint3
 	return false;
 }
 
-FSlateResourceHandle FSlateNullRenderer::GetResourceHandle( const FSlateBrush& Brush )
+FSlateResourceHandle FSlateNullRenderer::GetResourceHandle(const FSlateBrush& Brush, FVector2D LocalSize, float DrawScale)
 {
 	return ResourceManager.IsValid() ? ResourceManager->GetResourceHandle(Brush) : FSlateResourceHandle();
 }
@@ -73,7 +73,7 @@ void FSlateNullRenderer::ReleaseDynamicResource( const FSlateBrush& InBrush )
 {
 }
 
-void FSlateNullRenderer::PrepareToTakeScreenshot(const FIntRect& Rect, TArray<FColor>* OutColorData)
+void FSlateNullRenderer::PrepareToTakeScreenshot(const FIntRect& Rect, TArray<FColor>* OutColorData, SWindow* InScreenshotWindow)
 {
 	if (OutColorData)
 	{

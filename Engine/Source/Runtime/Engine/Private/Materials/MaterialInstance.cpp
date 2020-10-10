@@ -4041,9 +4041,9 @@ void UMaterialInstance::UpdateStaticPermutation(const FStaticParameterSet& NewPa
 	UpdateStaticPermutation(NewParameters, BasePropertyOverrides, false, MaterialUpdateContext);
 }
 
-void UMaterialInstance::UpdateStaticPermutation()
+void UMaterialInstance::UpdateStaticPermutation(FMaterialUpdateContext* MaterialUpdateContext)
 {
-	UpdateStaticPermutation(StaticParameters, BasePropertyOverrides);
+	UpdateStaticPermutation(StaticParameters, MaterialUpdateContext);
 }
 
 void UMaterialInstance::UpdateParameterNames()
@@ -4093,7 +4093,7 @@ void UMaterialInstance::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 	{
 		// Brute force all flush virtual textures if this material writes to any runtime virtual texture.
 		const UMaterial* BaseMaterial = GetMaterial();
-		if (BaseMaterial != nullptr && (BaseMaterial->MaterialDomain == EMaterialDomain::MD_RuntimeVirtualTexture || BaseMaterial->GetCachedExpressionData().bHasRuntimeVirtualTextureOutput))
+		if (BaseMaterial != nullptr && BaseMaterial->GetCachedExpressionData().bHasRuntimeVirtualTextureOutput)
 		{
 			ENQUEUE_RENDER_COMMAND(FlushVTCommand)([ResourcePtr = Resource](FRHICommandListImmediate& RHICmdList) 
 			{

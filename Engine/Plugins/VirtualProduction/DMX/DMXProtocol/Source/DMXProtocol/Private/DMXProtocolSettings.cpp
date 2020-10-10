@@ -30,6 +30,8 @@ UDMXProtocolSettings::UDMXProtocolSettings()
 	// Default Attributes
 	Attributes =
 	{
+		/* Fixture related */
+
 		// Label					Keywords
 		{ TEXT("Color"),			TEXT("ColorWheel, Color1") },
 		{ TEXT("Red"),				TEXT("ColorAdd_R") },
@@ -54,7 +56,18 @@ UDMXProtocolSettings::UDMXProtocolSettings()
 		{ TEXT("Shaper Rotation"),	TEXT("ShaperRot") },
 		{ TEXT("Effects"),			TEXT("Effect, Macro, Effects") },
 		{ TEXT("Frost"),			TEXT("") },
-		{ TEXT("Reset"),			TEXT("FixtureReset, FixtureGlobalReset, GlobalReset") }
+		{ TEXT("Reset"),			TEXT("FixtureReset, FixtureGlobalReset, GlobalReset") },
+
+
+		/* Firework, Fountain related */
+
+		// Label					Keywords
+		{ TEXT("ModeStartStop"),	TEXT("") },
+		{ TEXT("Burst"),			TEXT("") },
+		{ TEXT("Launch"),			TEXT("") },
+		{ TEXT("Velocity"),			TEXT("") },
+		{ TEXT("Angle"),			TEXT("") },
+		{ TEXT("NumBeams"),			TEXT("") }
 	};
 }
 

@@ -17,6 +17,7 @@ struct TAggregatedStatsEx
 {
 	static constexpr int32 HistogramLen = 100; // number of buckets per histogram
 
+	uint64 Count;
 	TAggregatedStats<Type> BaseStats;
 
 	// Histogram for computing median and lower/upper quartiles.
@@ -98,6 +99,7 @@ void TCounterAggregationHelper<double>::EnumerateValues(uint32 CounterId, const 
 	if (!StatsExPtr)
 	{
 		StatsExPtr = &StatsMap.Add(CounterId);
+		StatsExPtr->Count = 0;
 		StatsExPtr->BaseStats.Min = +MAX_dbl;
 		StatsExPtr->BaseStats.Max = -MAX_dbl;
 	}
@@ -120,6 +122,7 @@ void TCounterAggregationHelper<int64>::EnumerateValues(uint32 CounterId, const T
 	if (!StatsExPtr)
 	{
 		StatsExPtr = &StatsMap.Add(CounterId);
+		StatsExPtr->Count = 0;
 		StatsExPtr->BaseStats.Min = MAX_int64;
 		StatsExPtr->BaseStats.Max = MIN_int64;
 	}
@@ -150,7 +153,7 @@ void TCounterAggregationHelper<Type>::UpdateMinMax(TAggregatedStatsEx<Type>& Sta
 		Stats.Max = Value;
 	}
 
-	Stats.Count++;
+	StatsEx.Count++;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -244,13 +247,13 @@ void TCounterAggregationHelper<Type>::PostProcess(TAggregatedStatsEx<Type>& Stat
 	TAggregatedStats<Type>& Stats = StatsEx.BaseStats;
 
 	// Compute average value.
-	if (Stats.Count > 0)
+	if (StatsEx.Count > 0)
 	{
-		Stats.Average = Stats.Sum / static_cast<Type>(Stats.Count);
+		Stats.Average = Stats.Sum / static_cast<Type>(StatsEx.Count);
 
 		if (bComputeMedian)
 		{
-			const int32 HalfCount = Stats.Count / 2;
+			const int32 HalfCount = StatsEx.Count / 2;
 
 			// Compute median value.
 			int32 Count = 0;
@@ -262,7 +265,7 @@ void TCounterAggregationHelper<Type>::PostProcess(TAggregatedStatsEx<Type>& Stat
 					Stats.Median = Stats.Min + HistogramIndex * StatsEx.DT;
 
 					if (HistogramIndex > 0 &&
-						Stats.Count % 2 == 0 &&
+						StatsEx.Count % 2 == 0 &&
 						Count - StatsEx.Histogram[HistogramIndex] == HalfCount)
 					{
 						const Type PrevMedian = Stats.Min + (HistogramIndex - 1) * StatsEx.DT;
@@ -312,7 +315,7 @@ void TCounterAggregationHelper<double>::ApplyResultsTo(const TMap<uint32, FStats
 		FStatsNodePtr NodePtr = StatsNodesIdMap.FindRef(KV.Key);
 		if (NodePtr != nullptr)
 		{
-			NodePtr->SetAggregatedStats(KV.Value.BaseStats);
+			NodePtr->SetAggregatedStatsDouble(KV.Value.Count, KV.Value.BaseStats);
 		}
 	}
 }
@@ -329,7 +332,7 @@ void TCounterAggregationHelper<int64>::ApplyResultsTo(const TMap<uint32, FStatsN
 		FStatsNodePtr NodePtr = StatsNodesIdMap.FindRef(KV.Key);
 		if (NodePtr != nullptr)
 		{
-			NodePtr->SetAggregatedIntegerStats(KV.Value.BaseStats);
+			NodePtr->SetAggregatedStatsInt64(KV.Value.Count, KV.Value.BaseStats);
 		}
 	}
 }

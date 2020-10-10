@@ -38,6 +38,9 @@ ifeq ($(cfg), release)
     CPLUS_FLAGS = -O2
 else
     CPLUS_FLAGS = -g -O0 -DTBB_USE_DEBUG
+    # Unreal Engine: Begin specify DWARF version
+    CPLUS_FLAGS += -gdwarf-2
+    # Unreal Engine: End specify DWARF version
 endif
 
 CPLUS_FLAGS += -DUSE_PTHREAD $(ITT_NOTIFY)

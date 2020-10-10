@@ -4,6 +4,8 @@
 #include "Widgets/Input/SButton.h"
 #include "BlueprintEditor.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "K2Node_CustomEvent.h"
+#include "K2Node_CallFunction.h"
 
 #define LOCTEXT_NAMESPACE "FixupContextDialog"
 
@@ -23,11 +25,12 @@ TSharedRef<SWidget> FFixupSelfContextItem::CreateWidget(TArray<TSharedPtr<FStrin
 		];
 }
 
-void SFixupSelfContextDialog::Construct(const FArguments& InArgs, const TArray< UK2Node_CallFunction* >& InNodesToFixup, const FBlueprintEditor* InBlueprintEditorPtr, bool bInOtherPastedNodes)
+void SFixupSelfContextDialog::Construct(const FArguments& InArgs, const TArray< UK2Node_CallFunction* >& InNodesToFixup, UBlueprint* InFromBP, const FBlueprintEditor* InBlueprintEditorPtr, bool bInOtherPastedNodes)
 {
 	NodesToFixup = InNodesToFixup;
 	BlueprintEditor = InBlueprintEditorPtr;
 	bOtherNodes = bInOtherPastedNodes;
+	FromBP = InFromBP;
 
 	Options.Add(MakeShared<FString>(LOCTEXT("DoNothing", "Do Nothing").ToString()));
 	Options.Add(MakeShared<FString>(LOCTEXT("CreateMatchingFunction", "Create Matching Function in Blueprint").ToString()));
@@ -125,7 +128,7 @@ void SFixupSelfContextDialog::Construct(const FArguments& InArgs, const TArray< 
 		];
 }
 
-bool SFixupSelfContextDialog::CreateModal(const TArray<UK2Node_CallFunction*>& NodesToFixup, const FBlueprintEditor* BlueprintEditor, bool bOtherPastedNodes)
+bool SFixupSelfContextDialog::CreateModal(const TArray<UK2Node_CallFunction*>& NodesToFixup, UBlueprint* InFromBP, const FBlueprintEditor* BlueprintEditor, bool bOtherPastedNodes)
 {
 	TSharedPtr<SWindow> Window;
 	TSharedPtr<SFixupSelfContextDialog> Widget;
@@ -143,7 +146,7 @@ bool SFixupSelfContextDialog::CreateModal(const TArray<UK2Node_CallFunction*>& N
 			.Padding(4.f)
 			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
-				SAssignNew(Widget, SFixupSelfContextDialog, NodesToFixup, BlueprintEditor, bOtherPastedNodes)
+				SAssignNew(Widget, SFixupSelfContextDialog, NodesToFixup, InFromBP, BlueprintEditor, bOtherPastedNodes)
 			]
 		];
 
@@ -197,23 +200,17 @@ FReply SFixupSelfContextDialog::CloseWindow(bool bConfirmed)
 
 			switch (FFixupSelfContextItem::EFixupStrategy(Strategy))
 			{
-			case FFixupSelfContextItem::EFixupStrategy::DoNothing:
-				break;
 			case FFixupSelfContextItem::EFixupStrategy::CreateNewFunction:
-				if (BlueprintEditor)
-				{
-					FBlueprintEditorUtils::CreateMatchingFunction(Item->Nodes[0], BlueprintEditor->GetDefaultSchema());
-					for (UK2Node_CallFunction* Node : Item->Nodes)
-					{
-						Node->ReconstructNode();
-					}
-				}
+				CreateMissingFunctions(Item);
 				break;
 			case FFixupSelfContextItem::EFixupStrategy::RemoveNode:
 				for (UK2Node_CallFunction* Node : Item->Nodes)
 				{
 					Node->GetGraph()->RemoveNode(Node);
 				}
+				break;
+			case FFixupSelfContextItem::EFixupStrategy::DoNothing:
+			default:
 				break;
 			}
 		}
@@ -222,6 +219,61 @@ FReply SFixupSelfContextDialog::CloseWindow(bool bConfirmed)
 	bOutConfirmed = bConfirmed;
 	MyWindow->RequestDestroyWindow();
 	return FReply::Handled();
+}
+
+void SFixupSelfContextDialog::CreateMissingFunctions(FListViewItem FuncToFix)
+{
+	if (!BlueprintEditor || !FuncToFix.IsValid())
+	{
+		return;
+	}
+
+	// Search the FromBP for an Event with the name we are interested in
+	UFunction* OriginalEventFunc = nullptr;
+	if(FromBP && FromBP->SkeletonGeneratedClass)
+	{
+		TArray<UK2Node_Event*> AllEvents;
+		FBlueprintEditorUtils::GetAllNodesOfClass(FromBP, AllEvents);
+	
+		for (UK2Node_Event* EventNode : AllEvents)
+		{
+			if (EventNode->GetFunctionName() == FuncToFix->FuncName)
+			{
+				// Attempt to find the UFunction by name on the given blueprint instead of the EventReference because
+				// the EventReference will always be empty, giving a nullptr every time.				
+				OriginalEventFunc = FromBP->SkeletonGeneratedClass->FindFunctionByName(FuncToFix->FuncName);				
+				break;
+			}
+		}
+	}
+
+	if(OriginalEventFunc)
+	{
+		// Spawn a new event node in the BP we are copying to
+		UBlueprint* BP = BlueprintEditor->GetBlueprintObj();
+		UEdGraph* EventGraph = FBlueprintEditorUtils::FindEventGraph(BP);
+
+		UK2Node_CustomEvent* NewNode = UK2Node_CustomEvent::CreateFromFunction(
+			EventGraph->GetGoodPlaceForNewNode(),
+			EventGraph,
+			FuncToFix->FuncName.ToString(),
+			OriginalEventFunc
+		);
+
+		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(BP);
+	}
+	else
+	{
+		// Otherwise just spawn a regular function graph
+		check(FuncToFix->Nodes.Num() > 0);
+		FBlueprintEditorUtils::CreateMatchingFunction(FuncToFix->Nodes[0], BlueprintEditor->GetDefaultSchema());
+	}
+
+	// Reconstruct all the nodes so that they get the newly created function reference
+	for (UK2Node_CallFunction* Node : FuncToFix->Nodes)
+	{
+		Node->ReconstructNode();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

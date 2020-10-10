@@ -137,7 +137,8 @@ FBxDFSample SampleHairBxDF(uint TermMask, FGBufferData GBuffer, float3 V, float4
 	bool bEvalMultiScatter = true;
 
 	FDirectLighting Lighting;
-	Lighting.Diffuse = HairShading(GBuffer, L.xyz, V, N, 1, TransmittanceData, 0, 0.2, uint2(0, 0), bEvalMultiScatter);
+	//TODO Lumen Team
+	Lighting.Diffuse = float3(1.0f, 0.0f, 0.0f); //HairShading(GBuffer, L.xyz, V, N, 1, TransmittanceData, 0, 0.2, uint2(0, 0), bEvalMultiScatter);
 	Lighting.Transmission = 0;
 	Lighting.Specular = 0;
 #else
@@ -149,7 +150,8 @@ FBxDFSample SampleHairBxDF(uint TermMask, FGBufferData GBuffer, float3 V, float4
 	FHairTransmittanceData HairTransmittance = InitHairTransmittanceData();
 
 	FDirectLighting Lighting;
-	Lighting.Diffuse = HairShading(GBuffer, L.xyz, V, N, Shadow, HairTransmittance, Backlit, Area, Random, bEvalMultiScatter);
+	//TODO Lumen Team
+	Lighting.Diffuse = float3(1.0f, 0.0f, 0.0f); //HairShading(GBuffer, L.xyz, V, N, Shadow, HairTransmittance, Backlit, Area, Random, bEvalMultiScatter);
 	Lighting.Transmission = 0;
 	Lighting.Specular = 0;
 #endif

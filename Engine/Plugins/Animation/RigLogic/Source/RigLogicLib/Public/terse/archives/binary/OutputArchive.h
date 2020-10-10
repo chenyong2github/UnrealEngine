@@ -4,8 +4,9 @@
 
 #include "terse/Archive.h"
 #include "terse/archives/binary/Traits.h"
+#include "terse/types/DynArray.h"
 #include "terse/utils/ArchiveOffset.h"
-#include "terse/utils/Endianness.h"
+#include "terse/utils/ByteSwap.h"
 
 #ifdef _MSC_VER
     #pragma warning(push)
@@ -87,14 +88,9 @@ class ExtendableBinaryOutputArchive : public Archive<TExtender> {
         template<typename T>
         typename std::enable_if<!traits::has_save<T>::value && !traits::has_serialize<T>::value,
                                 void>::type process(const T& source) {
-            // Using memcpy is the only well-defined way of reconstructing arbitrary types from raw bytes.
-            // The seemingly unnecessary copies and memcpy calls are all optimized away,
-            // compiler knows what's up.
-            using UIntType = typename traits::uint_of_size<sizeof(T)>::type;
-            static_assert(sizeof(T) == sizeof(UIntType), "No matching unsigned integral type found for the given type.");
-            UIntType networkOrder;
-            std::memcpy(std::addressof(networkOrder), std::addressof(source), sizeof(T));
-            networkOrder = hton(networkOrder);
+            T networkOrder;
+            std::memcpy(&networkOrder, &source, sizeof(T));
+            hostToNetwork(networkOrder);
             // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
             stream->write(reinterpret_cast<char*>(&networkOrder), sizeof(T));
         }
@@ -106,6 +102,12 @@ class ExtendableBinaryOutputArchive : public Archive<TExtender> {
 
         template<typename T, typename ... Args>
         void process(const std::vector<T, Args...>& source) {
+            processSize(source.size());
+            processElements(source);
+        }
+
+        template<typename T, typename ... Args>
+        void process(const DynArray<T, Args...>& source) {
             processSize(source.size());
             processElements(source);
         }

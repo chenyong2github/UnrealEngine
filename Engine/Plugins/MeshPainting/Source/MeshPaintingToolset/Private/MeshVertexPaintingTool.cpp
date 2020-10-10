@@ -81,6 +81,13 @@ void UMeshVertexPaintingTool::Setup()
 	bResultValid = false;
 	bStampPending = false;
 	BrushProperties->RestoreProperties(this);
+
+	// Needed after restoring properties because the brush radius may be an output
+	// property based on selection, so we shouldn't use the last stored value there.
+	// We wouldn't have this problem if we restore properties before getting
+	// BrushRelativeSizeRange, but that happens in the Super::Setup() call earlier.
+	RecalculateBrushRadius(); 
+
 	BrushStampIndicator->LineColor = FLinearColor::Green;
 	// Set up selection mechanic to find and select edges
 	SelectionMechanic = NewObject<UMeshPaintSelectionMechanic>(this);

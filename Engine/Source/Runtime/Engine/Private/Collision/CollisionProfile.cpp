@@ -273,6 +273,8 @@ void UCollisionProfile::LoadProfileConfig(bool bForceInit)
 	// read "EngineTraceChanne" and "GameTraceChanne" and set meta data
 	FConfigSection* Configs = GConfig->GetSectionPrivate( TEXT("/Script/Engine.CollisionProfile"), false, true, GEngineIni );
 
+	OnLoadProfileConfig.Broadcast(this);
+
 	// before any op, verify if profiles contains invalid name - such as Custom profile name - remove all of them
 	for (auto Iter=Profiles.CreateConstIterator(); Iter; ++Iter)
 	{
@@ -826,3 +828,21 @@ void UCollisionProfile::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 #endif
+
+bool FCollisionProfilePrivateAccessor::AddProfileTemplate(FCollisionResponseTemplate& NewProfileData)
+{
+	UCollisionProfile* CollisionProfile = UCollisionProfile::Get();
+	FCollisionResponseTemplate ProfileData;
+	if (!CollisionProfile->GetProfileTemplate(NewProfileData.Name, ProfileData))
+	{
+		CollisionProfile->SaveCustomResponses(NewProfileData);
+		CollisionProfile->Profiles.Add(NewProfileData);
+		if (CollisionProfile->GetProfileTemplate(NewProfileData.Name, ProfileData))
+		{
+			CollisionProfile->LoadProfileConfig(true);
+			CollisionProfile->UpdateDefaultConfigFile();
+			return true;
+		}
+	}
+	return false;
+}

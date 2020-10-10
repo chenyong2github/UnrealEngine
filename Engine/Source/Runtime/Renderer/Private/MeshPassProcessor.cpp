@@ -404,8 +404,6 @@ FGraphicsMinimalPipelineStateId FGraphicsMinimalPipelineStateId::GetPipelineStat
 {
 	FGraphicsMinimalPipelineStateId Ret;
 	Ret.bValid = 1;
-	Ret.bComesFromLocalPipelineStateSet = 0;
-
 	Ret.bComesFromLocalPipelineStateSet = 1;
 #if UE_BUILD_DEBUG
 	FGraphicsMinimalPipelineStateInitializer PipelineStateDebug = FGraphicsMinimalPipelineStateInitializer(InPipelineState);

@@ -151,6 +151,9 @@ private:
 	TUniquePtr<FLightmapTilePoolGPU> UploadTilePoolGPU;
 
 	FQueuedThreadPool* DenoisingThreadPool;
+
+	void RenderIrradianceCacheVisualization(FPostOpaqueRenderParameters& Parameters);
+	FDelegateHandle IrradianceCacheVisualizationDelegateHandle;
 };
 
 }

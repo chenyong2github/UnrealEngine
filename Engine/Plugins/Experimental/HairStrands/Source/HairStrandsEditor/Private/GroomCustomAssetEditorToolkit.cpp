@@ -13,13 +13,12 @@
 #include "GroomAsset.h"
 #include "GroomComponent.h"
 #include "Toolkits/AssetEditorToolkit.h"
-
-//#include "GroomEditorModule.h"
 #include "HairStrandsEditor.h"
 #include "GroomEditorCommands.h"
 #include "GroomEditorMode.h"
 #include "GroomEditorStyle.h"
-//#include "GroomDataIO.h"
+#include "GroomAssetDetails.h"
+#include "GroomMaterialDetails.h"
 
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
@@ -34,6 +33,7 @@ const FName FGroomCustomAssetEditorToolkit::TabId_InterpolationProperties(TEXT("
 const FName FGroomCustomAssetEditorToolkit::TabId_RenderingProperties(TEXT("GroomCustomAssetEditor_RenderProperties"));
 const FName FGroomCustomAssetEditorToolkit::TabId_CardsProperties(TEXT("GroomCustomAssetEditor_CardsProperties"));
 const FName FGroomCustomAssetEditorToolkit::TabId_MeshesProperties(TEXT("GroomCustomAssetEditor_MeshesProperties"));
+const FName FGroomCustomAssetEditorToolkit::TabId_MaterialProperties(TEXT("GroomCustomAssetEditor_MaterialProperties"));
 const FName FGroomCustomAssetEditorToolkit::TabId_PhysicsProperties(TEXT("GroomCustomAssetEditor_PhysicsProperties"));
 const FName FGroomCustomAssetEditorToolkit::TabId_PreviewGroomComponent(TEXT("GroomCustomAssetEditor_PreviewGroomComponent"));
 
@@ -78,6 +78,11 @@ void FGroomCustomAssetEditorToolkit::RegisterTabSpawners(const TSharedRef<class 
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
 
+	InTabManager->RegisterTabSpawner(TabId_MaterialProperties, FOnSpawnTab::CreateSP(this, &FGroomCustomAssetEditorToolkit::SpawnTab_MaterialProperties))
+		.SetDisplayName(LOCTEXT("MaterialPropertiesTab", "Material"))
+		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
+		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
+
 	InTabManager->RegisterTabSpawner(TabId_PreviewGroomComponent, FOnSpawnTab::CreateSP(this, &FGroomCustomAssetEditorToolkit::SpawnTab_PreviewGroomComponent))
 		.SetDisplayName(LOCTEXT("PreviewGroomComponentTab", "Preview Component"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
@@ -94,6 +99,7 @@ void FGroomCustomAssetEditorToolkit::UnregisterTabSpawners(const TSharedRef<clas
 	InTabManager->UnregisterTabSpawner(TabId_RenderingProperties);
 	InTabManager->UnregisterTabSpawner(TabId_CardsProperties);
 	InTabManager->UnregisterTabSpawner(TabId_MeshesProperties);
+	InTabManager->UnregisterTabSpawner(TabId_MaterialProperties);
 	InTabManager->UnregisterTabSpawner(TabId_PhysicsProperties);
 	InTabManager->UnregisterTabSpawner(TabId_PreviewGroomComponent);
 }
@@ -162,6 +168,8 @@ void FGroomCustomAssetEditorToolkit::OnSkeletalGroomTargetChanged(USkeletalMesh 
 
 void FGroomCustomAssetEditorToolkit::ExtendToolbar()
 {
+	// Disable simulation toolbar as it is currently not hooked
+#if 0 
 	struct Local
 	{
 		static TSharedRef<SWidget> FillSimulationOptionsMenu(FGroomCustomAssetEditorToolkit* Toolkit)
@@ -205,6 +213,7 @@ void FGroomCustomAssetEditorToolkit::ExtendToolbar()
 	AddToolbarExtender(ToolbarExtender);
 
 	FGroomEditor& GroomEditorModule = FModuleManager::LoadModuleChecked<FGroomEditor>("HairStrandsEditor"); // GroomEditor
+#endif
 }
 
 void FGroomCustomAssetEditorToolkit::InitPreviewComponents()
@@ -270,6 +279,7 @@ bool FGroomCustomAssetEditorToolkit::OnRequestClose()
 	DetailView_PhysicsProperties.Reset();
 	DetailView_CardsProperties.Reset();
 	DetailView_MeshesProperties.Reset();
+	DetailView_MaterialProperties.Reset();
 	DetailView_PreviewGroomComponent.Reset();
 
 	return FAssetEditorToolkit::OnRequestClose();
@@ -296,13 +306,23 @@ void FGroomCustomAssetEditorToolkit::InitCustomAssetEditor(const EToolkitMode::T
 	DetailView_PhysicsProperties		= PropertyEditorModule.CreateDetailView(FDetailsViewArgs(bIsUpdatable, bIsLockable, true, FDetailsViewArgs::ObjectsUseNameArea, false));
 	DetailView_CardsProperties			= PropertyEditorModule.CreateDetailView(FDetailsViewArgs(bIsUpdatable, bIsLockable, true, FDetailsViewArgs::ObjectsUseNameArea, false));
 	DetailView_MeshesProperties			= PropertyEditorModule.CreateDetailView(FDetailsViewArgs(bIsUpdatable, bIsLockable, true, FDetailsViewArgs::ObjectsUseNameArea, false));
+	DetailView_MaterialProperties		= PropertyEditorModule.CreateDetailView(FDetailsViewArgs(bIsUpdatable, bIsLockable, true, FDetailsViewArgs::ObjectsUseNameArea, false));
 	DetailView_PreviewGroomComponent	= PropertyEditorModule.CreateDetailView(FDetailsViewArgs(bIsUpdatable, bIsLockable, true, FDetailsViewArgs::ObjectsUseNameArea, false));
 	
+	// Customization
+	DetailView_CardsProperties->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FGroomRenderingDetails::MakeInstance, (IGroomCustomAssetEditorToolkit*)this, EMaterialPanelType::Cards));
+	DetailView_MeshesProperties->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FGroomRenderingDetails::MakeInstance, (IGroomCustomAssetEditorToolkit*)this, EMaterialPanelType::Meshes));
+	DetailView_RenderingProperties->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FGroomRenderingDetails::MakeInstance, (IGroomCustomAssetEditorToolkit*)this, EMaterialPanelType::Strands));
+	DetailView_InterpolationProperties->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FGroomRenderingDetails::MakeInstance, (IGroomCustomAssetEditorToolkit*)this, EMaterialPanelType::Interpolation));
+	DetailView_PhysicsProperties->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FGroomRenderingDetails::MakeInstance, (IGroomCustomAssetEditorToolkit*)this, EMaterialPanelType::Physics));
+	DetailView_LODProperties->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FGroomRenderingDetails::MakeInstance, (IGroomCustomAssetEditorToolkit*)this, EMaterialPanelType::LODs));
+	DetailView_MaterialProperties->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FGroomMaterialDetails::MakeInstance, (IGroomCustomAssetEditorToolkit*)this));
+
 	SEditorViewport::FArguments args;
 	ViewportTab = SNew(SGroomEditorViewport);
 	
 	// Default layout
-	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_GroomAssetEditor_Layout_v12a")
+	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_GroomAssetEditor_Layout_v12c")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
@@ -335,6 +355,7 @@ void FGroomCustomAssetEditorToolkit::InitCustomAssetEditor(const EToolkitMode::T
 					->AddTab(TabId_RenderingProperties,		ETabState::OpenedTab)
 					->AddTab(TabId_CardsProperties,			ETabState::OpenedTab)
 					->AddTab(TabId_MeshesProperties,		ETabState::OpenedTab)
+					->AddTab(TabId_MaterialProperties,		ETabState::OpenedTab)
 					->AddTab(TabId_PhysicsProperties,		ETabState::OpenedTab)
 					->AddTab(TabId_PreviewGroomComponent,	ETabState::OpenedTab)
 				)
@@ -358,10 +379,20 @@ void FGroomCustomAssetEditorToolkit::InitCustomAssetEditor(const EToolkitMode::T
 	FProperty* P2 = FindFProperty<FProperty>(GroomAsset->GetClass(), GET_MEMBER_NAME_CHECKED(UGroomAsset, HairGroupsPhysics));
 	FProperty* P3 = FindFProperty<FProperty>(GroomAsset->GetClass(), GET_MEMBER_NAME_CHECKED(UGroomAsset, HairGroupsCards));
 	FProperty* P5 = FindFProperty<FProperty>(GroomAsset->GetClass(), GET_MEMBER_NAME_CHECKED(UGroomAsset, HairGroupsMeshes));
+	FProperty* P6 = FindFProperty<FProperty>(GroomAsset->GetClass(), GET_MEMBER_NAME_CHECKED(UGroomAsset, HairGroupsMaterials));
 	FProperty* P4 = FindFProperty<FProperty>(GroomAsset->GetClass(), GET_MEMBER_NAME_CHECKED(UGroomAsset, HairGroupsLOD));
+
+	FProperty* P7 = FindFProperty<FProperty>(GroomAsset->GetClass(), GET_MEMBER_NAME_CHECKED(UGroomAsset, HairGroupsInfo));
+	FProperty* P8 = FindFProperty<FProperty>(GroomAsset->GetClass(), GET_MEMBER_NAME_CHECKED(UGroomAsset, LODSelectionType));
 
 	FProperty* P0_0 = FindFProperty<FProperty>(GroomAsset->GetClass(), GET_MEMBER_NAME_CHECKED(UGroomAsset, EnableGlobalInterpolation));
 	FProperty* P0_1 = FindFProperty<FProperty>(GroomAsset->GetClass(), GET_MEMBER_NAME_CHECKED(UGroomAsset, HairInterpolationType));
+
+	P7->SetMetaData(TEXT("Category"), TEXT("Hidden"));
+
+	// Make the source file property hidden
+	FProperty* SourceFileProperty = FindFProperty<FProperty>(GroomAsset->GetClass(), GET_MEMBER_NAME_CHECKED(UGroomAsset, AssetUserData));
+	SourceFileProperty->RemoveMetaData(TEXT("ShowOnlyInnerProperties"));
 
 	P0->RemoveMetaData(TEXT("ShowOnlyInnerProperties"));
 	P1->RemoveMetaData(TEXT("ShowOnlyInnerProperties"));
@@ -369,6 +400,9 @@ void FGroomCustomAssetEditorToolkit::InitCustomAssetEditor(const EToolkitMode::T
 	P3->RemoveMetaData(TEXT("ShowOnlyInnerProperties"));
 	P4->RemoveMetaData(TEXT("ShowOnlyInnerProperties"));
 	P5->RemoveMetaData(TEXT("ShowOnlyInnerProperties"));
+	P6->RemoveMetaData(TEXT("ShowOnlyInnerProperties"));
+	P7->RemoveMetaData(TEXT("ShowOnlyInnerProperties"));
+	P8->RemoveMetaData(TEXT("ShowOnlyInnerProperties"));
 
 	// Set the asset we are editing in the details view
 	if (DetailView_InterpolationProperties.IsValid())
@@ -381,7 +415,10 @@ void FGroomCustomAssetEditorToolkit::InitCustomAssetEditor(const EToolkitMode::T
 		P3->SetMetaData(TEXT("Category"), TEXT("Hidden"));
 		P4->SetMetaData(TEXT("Category"), TEXT("Hidden"));
 		P5->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-
+		P6->SetMetaData(TEXT("Category"), TEXT("Hidden"));
+		P7->SetMetaData(TEXT("Category"), TEXT("Hidden"));
+		P8->SetMetaData(TEXT("Category"), TEXT("Hidden"));
+		
 		DetailView_InterpolationProperties->SetObject(Cast<UObject>(GroomAsset));
 	}
 
@@ -395,6 +432,9 @@ void FGroomCustomAssetEditorToolkit::InitCustomAssetEditor(const EToolkitMode::T
 		P3->SetMetaData(TEXT("Category"), TEXT("Hidden"));
 		P4->SetMetaData(TEXT("Category"), TEXT("Hidden"));
 		P5->SetMetaData(TEXT("Category"), TEXT("Hidden"));
+		P6->SetMetaData(TEXT("Category"), TEXT("Hidden"));
+		P7->SetMetaData(TEXT("Category"), TEXT("Hidden"));
+		P8->SetMetaData(TEXT("Category"), TEXT("Hidden"));
 
 		DetailView_RenderingProperties->SetObject(Cast<UObject>(GroomAsset));
 	}
@@ -409,6 +449,9 @@ void FGroomCustomAssetEditorToolkit::InitCustomAssetEditor(const EToolkitMode::T
 		P3->SetMetaData(TEXT("Category"), TEXT("Hidden"));
 		P4->SetMetaData(TEXT("Category"), TEXT("Hidden"));
 		P5->SetMetaData(TEXT("Category"), TEXT("Hidden"));
+		P6->SetMetaData(TEXT("Category"), TEXT("Hidden"));
+		P7->SetMetaData(TEXT("Category"), TEXT("Hidden"));
+		P8->SetMetaData(TEXT("Category"), TEXT("Hidden"));
 
 		DetailView_PhysicsProperties->SetObject(Cast<UObject>(GroomAsset));
 	}
@@ -423,6 +466,9 @@ void FGroomCustomAssetEditorToolkit::InitCustomAssetEditor(const EToolkitMode::T
 		P3->SetMetaData(TEXT("Category"), TEXT("Cards"));
 		P4->SetMetaData(TEXT("Category"), TEXT("Hidden"));
 		P5->SetMetaData(TEXT("Category"), TEXT("Hidden"));
+		P6->SetMetaData(TEXT("Category"), TEXT("Hidden"));
+		P7->SetMetaData(TEXT("Category"), TEXT("Hidden"));
+		P8->SetMetaData(TEXT("Category"), TEXT("Hidden"));
 
 		DetailView_CardsProperties->SetObject(Cast<UObject>(GroomAsset));
 	}
@@ -437,6 +483,9 @@ void FGroomCustomAssetEditorToolkit::InitCustomAssetEditor(const EToolkitMode::T
 		P3->SetMetaData(TEXT("Category"), TEXT("Hidden"));
 		P4->SetMetaData(TEXT("Category"), TEXT("Hidden"));
 		P5->SetMetaData(TEXT("Category"), TEXT("Meshes"));
+		P6->SetMetaData(TEXT("Category"), TEXT("Hidden"));
+		P7->SetMetaData(TEXT("Category"), TEXT("Hidden"));
+		P8->SetMetaData(TEXT("Category"), TEXT("Hidden"));
 
 		DetailView_MeshesProperties->SetObject(Cast<UObject>(GroomAsset));
 	}
@@ -451,8 +500,28 @@ void FGroomCustomAssetEditorToolkit::InitCustomAssetEditor(const EToolkitMode::T
 		P3->SetMetaData(TEXT("Category"), TEXT("Hidden"));
 		P4->SetMetaData(TEXT("Category"), TEXT("LOD"));
 		P5->SetMetaData(TEXT("Category"), TEXT("Hidden"));
+		P6->SetMetaData(TEXT("Category"), TEXT("Hidden"));
+		P7->SetMetaData(TEXT("Category"), TEXT("Hidden"));
+		P8->SetMetaData(TEXT("Category"), TEXT("LOD"));
 
 		DetailView_LODProperties->SetObject(Cast<UObject>(GroomAsset));
+	}
+
+	if (DetailView_MaterialProperties.IsValid())
+	{
+		P0->SetMetaData(TEXT("Category"), TEXT("Hidden"));
+		P0_0->SetMetaData(TEXT("Category"), TEXT("Hidden"));
+		P0_1->SetMetaData(TEXT("Category"), TEXT("Hidden"));
+		P1->SetMetaData(TEXT("Category"), TEXT("Hidden"));
+		P2->SetMetaData(TEXT("Category"), TEXT("Hidden"));
+		P3->SetMetaData(TEXT("Category"), TEXT("Hidden"));
+		P4->SetMetaData(TEXT("Category"), TEXT("Hidden"));
+		P5->SetMetaData(TEXT("Category"), TEXT("Hidden"));
+		P6->SetMetaData(TEXT("Category"), TEXT("Hidden")); // Disabled as we have a custom widget displaying the properties
+		P7->SetMetaData(TEXT("Category"), TEXT("Hidden"));
+		P8->SetMetaData(TEXT("Category"), TEXT("Hidden"));
+
+		DetailView_MaterialProperties->SetObject(Cast<UObject>(GroomAsset));
 	}
 
 	if (DetailView_PreviewGroomComponent.IsValid())
@@ -605,6 +674,19 @@ TSharedRef<SDockTab> FGroomCustomAssetEditorToolkit::SpawnTab_MeshesProperties(c
 		.TabColorScale(GetTabColorScale())
 		[
 			DetailView_MeshesProperties.ToSharedRef()
+		];
+}
+
+TSharedRef<SDockTab> FGroomCustomAssetEditorToolkit::SpawnTab_MaterialProperties(const FSpawnTabArgs& Args)
+{
+	check(Args.GetTabId() == TabId_MaterialProperties);
+
+	return SNew(SDockTab)
+		.Icon(FEditorStyle::GetBrush("GenericEditor.Tabs.Properties"))
+		.Label(LOCTEXT("MaterialPropertiesTab", "Material"))
+		.TabColorScale(GetTabColorScale())
+		[
+			DetailView_MaterialProperties.ToSharedRef()
 		];
 }
 

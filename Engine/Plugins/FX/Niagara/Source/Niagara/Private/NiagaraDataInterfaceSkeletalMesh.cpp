@@ -525,14 +525,15 @@ void FSkeletalMeshGpuSpawnStaticBuffers::Initialise(FNDISkeletalMesh_InstanceDat
 		TriangleCount = SkeletalMeshLODRenderData.MultiSizeIndexContainer.GetIndexBuffer()->Num() / 3;
 		VertexCount = SkeletalMeshLODRenderData.GetNumVertices();
 		
-		if (TriangleCount == 0)
-		{
-			UE_LOG(LogNiagara, Warning, TEXT("FSkeletalMeshGpuSpawnStaticBuffers> TriangleCount(%d) is invalid for SkelMesh(%s) System(%s)"), TriangleCount, *GetFullNameSafe(InstData->SkeletalMesh.Get()), *GetFullNameSafe(SystemInstance->GetSystem()));
-		}
-		if (VertexCount == 0)
-		{
-			UE_LOG(LogNiagara, Warning, TEXT("FSkeletalMeshGpuSpawnStaticBuffers> VertexCount(%d) is invalid for SkelMesh(%s) System(%s)"), VertexCount, *GetFullNameSafe(InstData->SkeletalMesh.Get()), *GetFullNameSafe(SystemInstance->GetSystem()));
-		}
+		// TODO: Bring these back when we can know if they are for sure sampling from them. Disabled for now to suppress log spam		
+		//if (TriangleCount == 0)
+		//{
+		//	UE_LOG(LogNiagara, Warning, TEXT("FSkeletalMeshGpuSpawnStaticBuffers> TriangleCount(0) is invalid for SkelMesh(%s) System(%s)"), *GetFullNameSafe(InstData->SkeletalMesh.Get()), *GetFullNameSafe(SystemInstance->GetSystem()));
+		//}
+		//if (VertexCount == 0)
+		//{
+		//	UE_LOG(LogNiagara, Warning, TEXT("FSkeletalMeshGpuSpawnStaticBuffers> VertexCount(0) is invalid for SkelMesh(%s) System(%s)"), *GetFullNameSafe(InstData->SkeletalMesh.Get()), *GetFullNameSafe(SystemInstance->GetSystem()));
+		//}
 
 		if (bUseGpuUniformlyDistributedSampling)
 		{
@@ -620,10 +621,12 @@ void FSkeletalMeshGpuSpawnStaticBuffers::InitRHI()
 
 	const FMultiSizeIndexContainer& IndexBuffer = LODRenderData->MultiSizeIndexContainer;
 	MeshIndexBufferSrv = IndexBuffer.GetIndexBuffer()->GetSRV();
-	if (!MeshIndexBufferSrv)
-	{
-		UE_LOG(LogNiagara, Warning, TEXT("Skeletal Mesh does not have an SRV for the index buffer, if you are using triangle sampling it will not work."));
-	}
+
+	// TODO: Disable this for now to suppress log spam. Revive when we know for sure that the user is trying to sample from it
+	//if (!MeshIndexBufferSrv)
+	//{
+	//	UE_LOG(LogNiagara, Warning, TEXT("Skeletal Mesh does not have an SRV for the index buffer, if you are using triangle sampling it will not work."));
+	//}
 
 	MeshVertexBufferSrv = LODRenderData->StaticVertexBuffers.PositionVertexBuffer.GetSRV();
 
@@ -1428,7 +1431,8 @@ void UNiagaraDataInterfaceSkeletalMesh::ProvidePerInstanceDataForRenderThread(vo
 USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(FNiagaraSystemInstance* SystemInstance, TWeakObjectPtr<USceneComponent>& SceneComponent, USkeletalMeshComponent*& FoundSkelComp, FNDISkeletalMesh_InstanceData* InstData)
 {
 	// Helper to scour an actor (or its parents) for a valid skeletal mesh component
-	auto FindActorSkelMeshComponent = [](AActor* Actor, bool bRecurseParents = false) -> USkeletalMeshComponent* {
+	auto FindActorSkelMeshComponent = [](AActor* Actor, bool bRecurseParents = false) -> USkeletalMeshComponent*
+	{
 		if (ASkeletalMeshActor* SkelMeshActor = Cast<ASkeletalMeshActor>(Actor))
 		{
 			USkeletalMeshComponent* Comp = SkelMeshActor->GetSkeletalMeshComponent();
@@ -1463,6 +1467,9 @@ USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(FNiagaraSystem
 		return nullptr;
 	};
 
+	const bool bTrySource = SourceMode == ENDISkeletalMesh_SourceMode::Default || SourceMode == ENDISkeletalMesh_SourceMode::Source;
+	const bool bTryAttachParent = SourceMode == ENDISkeletalMesh_SourceMode::Default || SourceMode == ENDISkeletalMesh_SourceMode::AttachParent;
+
 	if (MeshUserParameter.Parameter.IsValid() && InstData && SystemInstance != nullptr)
 	{
 		// Initialize the binding and retrieve the object. If a valid object is bound, we'll try and retrieve the SkelMesh component from it.
@@ -1496,15 +1503,15 @@ USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(FNiagaraSystem
 			// The binding exists, but no object is bound. Not warning here in case the user knows what they're doing.
 		}
 	}
-	else if (SourceComponent && !SourceComponent->IsPendingKill())
+	else if (bTrySource && SourceComponent && !SourceComponent->IsPendingKill())
 	{
 		FoundSkelComp = SourceComponent;
 	}
-	else if (Source)
+	else if (bTrySource && Source)
 	{
 		FoundSkelComp = FindActorSkelMeshComponent(Source);
 	}
-	else if (SystemInstance != nullptr)
+	else if (bTryAttachParent && SystemInstance)
 	{
 		if (USceneComponent* AttachComponent = SystemInstance->GetAttachComponent())
 		{
@@ -1537,6 +1544,7 @@ USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(FNiagaraSystem
 	}
 
 	USkeletalMesh* Mesh = nullptr;
+	SceneComponent = nullptr;
 	if (FoundSkelComp)
 	{
 		Mesh = FoundSkelComp->SkeletalMesh;
@@ -2053,6 +2061,7 @@ void FNDISkeletalMesh_InstanceData::Release()
 
 UNiagaraDataInterfaceSkeletalMesh::UNiagaraDataInterfaceSkeletalMesh(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, SourceMode(ENDISkeletalMesh_SourceMode::Default)
 #if WITH_EDITORONLY_DATA
 	, PreviewMesh(nullptr)
 #endif
@@ -2104,6 +2113,34 @@ void UNiagaraDataInterfaceSkeletalMesh::PostEditChangeProperty(FPropertyChangedE
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 	ChangeId++;
+
+	if (PropertyChangedEvent.Property &&
+		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceSkeletalMesh, SourceMode) &&
+		SourceMode != ENDISkeletalMesh_SourceMode::Default &&
+		SourceMode != ENDISkeletalMesh_SourceMode::Source)
+	{
+		// Clear out any source that is set to prevent unnecessary references, since we won't even consider them
+		Source = nullptr;
+		SourceComponent = nullptr;
+	}
+}
+
+bool UNiagaraDataInterfaceSkeletalMesh::CanEditChange(const FProperty* InProperty) const
+{
+	if (!Super::CanEditChange(InProperty))
+	{
+		return false;
+	}
+
+	if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceSkeletalMesh, Source) &&
+		SourceMode != ENDISkeletalMesh_SourceMode::Default &&
+		SourceMode != ENDISkeletalMesh_SourceMode::Source)
+	{
+		// Disable "Source" if it won't be considered
+		return false;
+	}
+
+	return true;
 }
 
 #endif //WITH_EDITOR
@@ -2173,6 +2210,7 @@ bool UNiagaraDataInterfaceSkeletalMesh::CopyToInternal(UNiagaraDataInterface* De
 	}
 
 	UNiagaraDataInterfaceSkeletalMesh* OtherTyped = CastChecked<UNiagaraDataInterfaceSkeletalMesh>(Destination);
+	OtherTyped->SourceMode = SourceMode;
 	OtherTyped->Source = Source;
 	OtherTyped->MeshUserParameter = MeshUserParameter;
 	OtherTyped->SourceComponent = SourceComponent;
@@ -2197,10 +2235,11 @@ bool UNiagaraDataInterfaceSkeletalMesh::Equals(const UNiagaraDataInterface* Othe
 		return false;
 	}
 	const UNiagaraDataInterfaceSkeletalMesh* OtherTyped = CastChecked<const UNiagaraDataInterfaceSkeletalMesh>(Other);
-	return OtherTyped->Source == Source &&
+	return OtherTyped->SourceMode == SourceMode &&
 #if WITH_EDITORONLY_DATA
 		OtherTyped->PreviewMesh == PreviewMesh &&
 #endif
+		OtherTyped->Source == Source &&
 		OtherTyped->MeshUserParameter == MeshUserParameter &&
 		OtherTyped->SourceComponent == SourceComponent &&
 		OtherTyped->SkinningMode == SkinningMode &&

@@ -118,6 +118,7 @@ public:
 
 	LAYOUT_FIELD(FShaderParameter, SimulationStageIterationInfoParam);
 	LAYOUT_FIELD(FShaderParameter, SimulationStageNormalizedIterationIndexParam);
+	LAYOUT_FIELD(FShaderParameter, DispatchThreadIdToLinearParam);
 
 	LAYOUT_FIELD(FShaderParameter, ComponentBufferSizeReadParam);
 	LAYOUT_FIELD(FShaderParameter, ComponentBufferSizeWriteParam);

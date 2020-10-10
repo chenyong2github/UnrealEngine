@@ -348,18 +348,18 @@ void MainDrawDebugAABBCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 					TotalVisibleCluster++;
 				}
 			}		
-			AvgLOD /= max(1, TotalVisibleCluster);
+			AvgLOD /= max(1u, TotalVisibleCluster);
 
 			if (bShowLODHistogram)
 			{		
-				Pos = ShaderPrint(Pos, uint(LODHistogram[0] / float(max(1, TotalVisibleCluster)) * 100.f));
-				Pos = ShaderPrint(Pos, uint(LODHistogram[1] / float(max(1, TotalVisibleCluster)) * 100.f));
-				Pos = ShaderPrint(Pos, uint(LODHistogram[2] / float(max(1, TotalVisibleCluster)) * 100.f));
-				Pos = ShaderPrint(Pos, uint(LODHistogram[3] / float(max(1, TotalVisibleCluster)) * 100.f));
-				Pos = ShaderPrint(Pos, uint(LODHistogram[4] / float(max(1, TotalVisibleCluster)) * 100.f));
-				Pos = ShaderPrint(Pos, uint(LODHistogram[5] / float(max(1, TotalVisibleCluster)) * 100.f));
-				Pos = ShaderPrint(Pos, uint(LODHistogram[6] / float(max(1, TotalVisibleCluster)) * 100.f));
-				Pos = ShaderPrint(Pos, uint(LODHistogram[7] / float(max(1, TotalVisibleCluster)) * 100.f));
+				Pos = ShaderPrint(Pos, uint(LODHistogram[0] / float(max(1u, TotalVisibleCluster)) * 100.f));
+				Pos = ShaderPrint(Pos, uint(LODHistogram[1] / float(max(1u, TotalVisibleCluster)) * 100.f));
+				Pos = ShaderPrint(Pos, uint(LODHistogram[2] / float(max(1u, TotalVisibleCluster)) * 100.f));
+				Pos = ShaderPrint(Pos, uint(LODHistogram[3] / float(max(1u, TotalVisibleCluster)) * 100.f));
+				Pos = ShaderPrint(Pos, uint(LODHistogram[4] / float(max(1u, TotalVisibleCluster)) * 100.f));
+				Pos = ShaderPrint(Pos, uint(LODHistogram[5] / float(max(1u, TotalVisibleCluster)) * 100.f));
+				Pos = ShaderPrint(Pos, uint(LODHistogram[6] / float(max(1u, TotalVisibleCluster)) * 100.f));
+				Pos = ShaderPrint(Pos, uint(LODHistogram[7] / float(max(1u, TotalVisibleCluster)) * 100.f));
 			}
 			else
 			{
@@ -1013,9 +1013,7 @@ void MainClusterCullingCompactVertexIdsLocalBlockCS(uint3 DispatchThreadId : SV_
 		if (ThreadWriteOffset < ClusterSrcIndexCount)
 		{
 			CulledCompactedIndexBuffer[WriteToIndex + ThreadWriteOffset] = ClusterVertexIdBuffer[ClusterSrcStartIndex + ThreadWriteOffset];
-
-			const bool bInvalidVertex = ThreadWriteOffset >= (ClusterSrcIndexCount - 1);
-			CulledCompactedRadiusScaleBuffer[WriteToIndex + ThreadWriteOffset] = bInvalidVertex && D_USE_CONTINUOUSLOD ? 0.0f : ClusterRadiusScale;
+			CulledCompactedRadiusScaleBuffer[WriteToIndex + ThreadWriteOffset] = D_USE_CONTINUOUSLOD ? ClusterRadiusScale : 0;
 		}
 	}
 }

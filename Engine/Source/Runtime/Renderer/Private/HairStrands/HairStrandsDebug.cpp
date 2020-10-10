@@ -60,7 +60,9 @@ static FAutoConsoleVariableRef CVarHairStrandsDebugClusterAABB(TEXT("r.HairStran
 static int32 GHairStrandsDebugPPLL = 0;
 static FAutoConsoleVariableRef CVarHairStrandsDebugPPLL(									TEXT("r.HairStrands.DebugPPLL"),									GHairStrandsDebugPPLL, TEXT("Draw debug per pixel light list rendering."));
 static int32 GHairVirtualVoxel_DrawDebugPage = 0;
-static FAutoConsoleVariableRef CVarHairVirtualVoxel_DrawDebugPage(TEXT("r.HairStrands.Voxelization.Virtual.DrawDebugPage"), GHairVirtualVoxel_DrawDebugPage, TEXT("When voxel debug rendering is enable, render the page bounds, instead of the voxel"));
+static FAutoConsoleVariableRef CVarHairVirtualVoxel_DrawDebugPage(TEXT("r.HairStrands.Voxelization.Virtual.DrawDebugPage"), GHairVirtualVoxel_DrawDebugPage, TEXT("When voxel debug rendering is enable 1: render the page bounds, instead of the voxel 2: the occupancy within the page (i.e., 8x8x8 brick)"));
+static int32 GHairVirtualVoxel_ForceMipLevel = -1;
+static FAutoConsoleVariableRef CVarHairVirtualVoxel_ForceMipLevel(TEXT("r.HairStrands.Voxelization.Virtual.ForceMipLevel"), GHairVirtualVoxel_ForceMipLevel, TEXT("Force a particular mip-level"));
 static int32 GHairVirtualVoxel_DebugTraversalType = 0;
 static FAutoConsoleVariableRef CVarHairVirtualVoxel_DebugTraversalType(TEXT("r.HairStrands.Voxelization.Virtual.DebugTraversalType"), GHairVirtualVoxel_DebugTraversalType, TEXT("Traversal mode (0:linear, 1:mip) for debug voxel visualization."));
 
@@ -71,6 +73,21 @@ static float GHairStrandsCullNormalizedIndex = -1;
 static FAutoConsoleVariableRef CVarHairStrandsCull			(TEXT("r.HairStrands.Cull"), GHairStrandsCull, TEXT("Cull hair strands (0:disabled, 1: render cull, 2: sim cull)."));
 static FAutoConsoleVariableRef CVarHairStrandsCullIndex		(TEXT("r.HairStrands.Cull.Index"), GHairStrandsCullIndex, TEXT("Hair strands index to be kept. Other will be culled."));
 static FAutoConsoleVariableRef CVarHairStrandsUpdateCullIndex(TEXT("r.HairStrands.Cull.Update"), GHairStrandsUpdateCullIndex, TEXT("Update the guide index to be kept using mouse position for fast selection."));
+
+static bool IsDebugDrawAndDebugPrintEnabled(const FViewInfo& View)
+{
+	return ShaderDrawDebug::IsShaderDrawDebugEnabled() && ShaderPrint::IsEnabled() && ShaderPrint::IsSupported(View);
+}
+
+static bool IsDebugDrawAndDebugPrintEnabled(const TArray<FViewInfo>& Views)
+{
+	return Views.Num() > 0 && IsDebugDrawAndDebugPrintEnabled(Views[0]);
+}
+
+static bool IsDebugDrawAndDebugPrintEnabled(const TArrayView<FViewInfo>& Views)
+{
+	return Views.Num() > 0 && IsDebugDrawAndDebugPrintEnabled(Views[0]);
+}
 
 bool IsHairStrandsClusterDebugEnable()
 {
@@ -113,24 +130,6 @@ FHairStrandsDebugData::Data FHairStrandsDebugData::CreateData(FRDGBuilder& Graph
 	return Out;
 }
 
-FHairStrandsDebugData::Data FHairStrandsDebugData::ImportData(FRDGBuilder& GraphBuilder, const FHairStrandsDebugData& In)
-{
-	FHairStrandsDebugData::Data Out;
-	Out.ShadingPointBuffer = GraphBuilder.RegisterExternalBuffer(In.ShadingPointBuffer, TEXT("HairDebugShadingPoint"));
-	Out.ShadingPointCounter = GraphBuilder.RegisterExternalBuffer(In.ShadingPointCounter, TEXT("HairDebugShadingPointCounter"));
-	Out.SampleBuffer = GraphBuilder.RegisterExternalBuffer(In.SampleBuffer, TEXT("HairDebugSample"));
-	Out.SampleCounter = GraphBuilder.RegisterExternalBuffer(In.SampleCounter, TEXT("HairDebugSampleCounter"));
-	return Out;
-}
-
-void FHairStrandsDebugData::ExtractData(FRDGBuilder& GraphBuilder, FHairStrandsDebugData::Data& In, FHairStrandsDebugData& Out)
-{
-	GraphBuilder.QueueBufferExtraction(In.ShadingPointBuffer, &Out.ShadingPointBuffer);
-	GraphBuilder.QueueBufferExtraction(In.ShadingPointCounter, &Out.ShadingPointCounter);
-	GraphBuilder.QueueBufferExtraction(In.SampleBuffer, &Out.SampleBuffer);
-	GraphBuilder.QueueBufferExtraction(In.SampleCounter, &Out.SampleCounter);
-}
-
 void FHairStrandsDebugData::SetParameters(FRDGBuilder& GraphBuilder, FHairStrandsDebugData::Data& In, FHairStrandsDebugData::FWriteParameters& Out)
 {
 	Out.Debug_MaxSampleCount = FHairStrandsDebugData::MaxSampleCount;
@@ -141,7 +140,7 @@ void FHairStrandsDebugData::SetParameters(FRDGBuilder& GraphBuilder, FHairStrand
 	Out.Debug_SampleCounter = GraphBuilder.CreateUAV(In.SampleCounter, PF_R32_UINT);
 }
 
-void FHairStrandsDebugData::SetParameters(FRDGBuilder& GraphBuilder, FHairStrandsDebugData::Data& In, FHairStrandsDebugData::FReadParameters& Out)
+void FHairStrandsDebugData::SetParameters(FRDGBuilder& GraphBuilder, const FHairStrandsDebugData::Data& In, FHairStrandsDebugData::FReadParameters& Out)
 {
 	Out.Debug_MaxSampleCount = FHairStrandsDebugData::MaxSampleCount;
 	Out.Debug_MaxShadingPointCount = FHairStrandsDebugData::MaxShadingPointCount;
@@ -278,7 +277,7 @@ class FHairDebugPrintCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		// Skip optimization for avoiding long compilation time due to large UAV writes
@@ -362,7 +361,7 @@ class FHairDebugPS : public FGlobalShader
 		END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform); }
 };
 
 IMPLEMENT_GLOBAL_SHADER(FHairDebugPS, "/Engine/Private/HairStrands/HairStrandsDebug.usf", "MainPS", SF_Pixel);
@@ -495,7 +494,7 @@ class FDeepShadowVisualizePS : public FGlobalShader
 		END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -600,7 +599,7 @@ class FDeepShadowInfoCS : public FGlobalShader
 		END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -656,6 +655,7 @@ class FVoxelVirtualRaymarchingCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderDrawDebugParameters, ShaderDrawParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
 		SHADER_PARAMETER(FVector2D, OutputResolution)
+		SHADER_PARAMETER( int32, ForcedMipLevel)
 		SHADER_PARAMETER(uint32, bDrawPage)
 		SHADER_PARAMETER(uint32, MacroGroupId)
 		SHADER_PARAMETER(uint32, MacroGroupCount)
@@ -667,7 +667,7 @@ class FVoxelVirtualRaymarchingCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		// Skip optimization for avoiding long compilation time due to large UAV writes
@@ -684,6 +684,11 @@ static void AddVoxelPageRaymarchingPass(
 	const FHairStrandsMacroGroupDatas& MacroGroupDatas,
 	FRDGTextureRef& OutputTexture)
 {
+	if (!IsDebugDrawAndDebugPrintEnabled(View))
+	{
+		return;
+	}
+
 	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
 
 	const FVirtualVoxelResources& VoxelResources = MacroGroupDatas.VirtualVoxelResources;
@@ -694,7 +699,8 @@ static void AddVoxelPageRaymarchingPass(
 		Parameters->ViewUniformBuffer		= View.ViewUniformBuffer;
 		Parameters->OutputResolution		= Resolution;
 		Parameters->SceneTextures			= SceneTextures;
-		Parameters->bDrawPage				= GHairVirtualVoxel_DrawDebugPage ? 1 : 0;
+		Parameters->bDrawPage				= FMath::Clamp(GHairVirtualVoxel_DrawDebugPage, 0, 2);
+		Parameters->ForcedMipLevel			= FMath::Clamp(GHairVirtualVoxel_ForceMipLevel, -1, 5);
 		Parameters->MacroGroupId			= MacroGroupData.MacroGroupId;
 		Parameters->MacroGroupCount			= MacroGroupDatas.Datas.Num();
 		Parameters->MaxTotalPageIndexCount  = VoxelResources.Parameters.Common.PageIndexCount;
@@ -732,7 +738,7 @@ class FHairStrandsPlotBSDFPS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -819,6 +825,7 @@ class FHairStrandsPlotSamplePS : public FGlobalShader
 		SHADER_PARAMETER(FIntPoint, MaxResolution)
 		SHADER_PARAMETER(uint32, HairComponents)
 		SHADER_PARAMETER(float, Exposure)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, HairScatteringLUTTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, HairLUTSampler)
@@ -826,7 +833,7 @@ class FHairStrandsPlotSamplePS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -839,7 +846,7 @@ IMPLEMENT_GLOBAL_SHADER(FHairStrandsPlotSamplePS, "/Engine/Private/HairStrands/H
 static void AddPlotSamplePass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	FHairStrandsDebugData::Data& DebugData,
+	const FHairStrandsDebugData::Data& DebugData,
 	FRDGTextureRef& OutputTexture)
 {
 	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
@@ -850,6 +857,7 @@ static void AddPlotSamplePass(
 	const FHairLUT InHairLUT = GetHairLUT(GraphBuilder, View);
 
 	FHairStrandsDebugData::SetParameters(GraphBuilder, DebugData, Parameters->DebugData);
+	Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	Parameters->OutputOffset = FIntPoint(100, 100);
 	Parameters->OutputResolution = FIntPoint(256, 256);
 	Parameters->MaxResolution = OutputTexture->Desc.Extent;
@@ -930,7 +938,7 @@ class FHairVisibilityDebugPPLLCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsHairStrandsSupported(Parameters.Platform);
+		return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -969,7 +977,7 @@ class FDrawDebugClusterAABBCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -988,9 +996,12 @@ static void AddDrawDebugClusterPass(
 	FRDGBuilder& GraphBuilder,
 	const FHairStrandsMacroGroupViews& InMacroGroupViews,
 	const FHairStrandClusterData& HairClusterData,
-	TArrayView<FViewInfo> Views)
+	const TArrayView<FViewInfo>& Views)
 {
-	check(ShaderDrawDebug::IsShaderDrawDebugEnabled());
+	if (!IsDebugDrawAndDebugPrintEnabled(Views))
+	{
+		return;
+	}
 
 	const bool bDebugEnable = IsHairStrandsClusterDebugAABBEnable();
 	const bool bCullingEnable = IsHairStrandsClusterCullingEnable();
@@ -1115,8 +1126,7 @@ void RenderHairStrandsDebugInfo(
 		}
 		if (HairDatas->DebugData.IsValid())
 		{
-			FHairStrandsDebugData::Data DebugData = FHairStrandsDebugData::ImportData(GraphBuilder, HairDatas->DebugData);
-			AddPlotSamplePass(GraphBuilder, View, DebugData, SceneColorTexture);
+			AddPlotSamplePass(GraphBuilder, View, HairDatas->DebugData.Resources, SceneColorTexture);
 		}	
 	}
 
@@ -1336,7 +1346,7 @@ void RenderHairStrandsDebugInfo(
 		}
 	}
 
-	if (ShaderDrawDebug::IsShaderDrawDebugEnabled() && GHairStrandsClusterDebug > 0)
+	if (GHairStrandsClusterDebug > 0)
 	{
 		AddDrawDebugClusterPass(GraphBuilder, InMacroGroupViews, HairClusterData, Views);
 	}

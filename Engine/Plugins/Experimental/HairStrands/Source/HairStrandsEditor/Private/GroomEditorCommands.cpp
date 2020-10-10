@@ -38,6 +38,8 @@ void FGroomEditorCommands::RegisterCommands()
 	UI_COMMAND(ViewMode_BaseColor,		"BaseColor",		"View vertex base color",		EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(ViewMode_Roughness,		"Roughness",		"View vertex roughness",		EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(ViewMode_VisCluster,		"VisCluster",		"View clusters",				EUserInterfaceActionType::Button, FInputChord());
+
+	UI_COMMAND(ViewMode_CardsGuides,	"CardsGuide",		"Cards Guides",					EUserInterfaceActionType::Button, FInputChord());
 }
 
 #undef LOCTEXT_NAMESPACE

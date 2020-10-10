@@ -33,7 +33,10 @@ namespace AudioModulation
 		{
 			for (const USoundModulationGenerator* Generator : InBus.Generators)
 			{
-				GeneratorSettings.Emplace(FModulationGeneratorSettings(*Generator, InDeviceId));
+				if (Generator)
+				{
+					GeneratorSettings.Emplace(FModulationGeneratorSettings(*Generator, InDeviceId));
+				}
 			}
 		}
 	};

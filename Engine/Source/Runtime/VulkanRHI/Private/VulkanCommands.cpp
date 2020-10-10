@@ -437,6 +437,7 @@ inline void SetShaderUniformBufferResources(FVulkanCommandListContext* Context, 
 		}
 
 		case UBMT_SRV:
+		case UBMT_RDG_BUFFER_SRV:
 		{
 			const VkDescriptorType DescriptorType = DescriptorTypes[GlobalInfos[ResourceInfo.GlobalIndex].TypeIndex];
 			ensure(DescriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER 
@@ -463,6 +464,7 @@ inline void SetShaderUniformBufferResources(FVulkanCommandListContext* Context, 
 		}
 
 		case UBMT_UAV:
+		case UBMT_RDG_BUFFER_UAV:
 		{
 			const VkDescriptorType DescriptorType = DescriptorTypes[GlobalInfos[ResourceInfo.GlobalIndex].TypeIndex];
 			ensure(DescriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER

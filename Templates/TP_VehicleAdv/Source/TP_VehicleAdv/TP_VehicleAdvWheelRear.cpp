@@ -4,6 +4,8 @@
 #include "TireConfig.h"
 #include "UObject/ConstructorHelpers.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 UTP_VehicleAdvWheelRear::UTP_VehicleAdvWheelRear()
 {
 	ShapeRadius = 18.0f;
@@ -22,3 +24,5 @@ UTP_VehicleAdvWheelRear::UTP_VehicleAdvWheelRear()
 	static ConstructorHelpers::FObjectFinder<UTireConfig> TireData(TEXT("/Game/VehicleAdv/Vehicle/WheelData/Vehicle_BackTireConfig.Vehicle_BackTireConfig"));
 	TireConfig = TireData.Object;
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

@@ -4,13 +4,17 @@
 
 #include "/Engine/Private/DeferredShadingCommon.ush"
 
-#define DIGBUFFER_ENABLED		1
+#define NDIGBUFFER_ENABLED				1
+#define NDIGBUFFER_USE_GBUFFER_VELOCITY	0
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+Texture2D NDIGBuffer_VelocityTexture;
+SamplerState NDIGBuffer_VelocityTextureSampler;
+
 void DIGBuffer_DecodeDiffuseColor(in float2 ScreenUV, out bool IsValid, out float3 OutValue)
 {
-#if DIGBUFFER_ENABLED
+#if NDIGBUFFER_ENABLED
 	FGBufferData GBufferData = GetGBufferData(ScreenUV);
 	IsValid = true;
 	OutValue = GBufferData.DiffuseColor;
@@ -22,7 +26,7 @@ void DIGBuffer_DecodeDiffuseColor(in float2 ScreenUV, out bool IsValid, out floa
 
 void DIGBuffer_DecodeWorldNormal(in float2 ScreenUV, out bool IsValid, out float3 OutValue)
 {
-#if DIGBUFFER_ENABLED
+#if NDIGBUFFER_ENABLED
 	FGBufferData GBufferData = GetGBufferData(ScreenUV);
 	IsValid = true;
 	OutValue = GBufferData.WorldNormal;
@@ -32,21 +36,48 @@ void DIGBuffer_DecodeWorldNormal(in float2 ScreenUV, out bool IsValid, out float
 #endif
 }
 
-void DIGBuffer_DecodeVelocity(in float2 ScreenUV, out bool IsValid, out float4 OutValue)
+void DIGBuffer_DecodeScreenVelocity(in float2 ScreenUV, out bool IsValid, out float3 OutValue)
 {
-#if DIGBUFFER_ENABLED
-	FGBufferData GBufferData = GetGBufferData(ScreenUV);
-	IsValid = true;
-	OutValue = GBufferData.Velocity;
-#else
 	IsValid = false;
 	OutValue = 0;
+#if NDIGBUFFER_ENABLED
+	float4 EncodedVelocity = 0;
+	#if NDIGBUFFER_USE_GBUFFER_VELOCITY
+		EncodedVelocity = GetGBufferData(ScreenUV).Velocity;
+	#else
+		EncodedVelocity = NDIGBuffer_VelocityTexture.SampleLevel(NDIGBuffer_VelocityTextureSampler, ScreenUV, 0);
+	#endif
+	IsValid = true;
+	if ( EncodedVelocity.x > 0 )
+	{
+		OutValue = DecodeVelocityFromTexture(EncodedVelocity);
+	}
+#endif
+}
+
+void DIGBuffer_DecodeWorldVelocity(in float2 ScreenUV, out bool IsValid, out float3 OutValue)
+{
+	IsValid = false;
+	OutValue = 0;
+#if NDIGBUFFER_ENABLED
+	float4 EncodedVelocity = 0;
+	#if NDIGBUFFER_USE_GBUFFER_VELOCITY
+		EncodedVelocity = GetGBufferData(ScreenUV).Velocity;
+	#else
+		EncodedVelocity = NDIGBuffer_VelocityTexture.SampleLevel(NDIGBuffer_VelocityTextureSampler, ScreenUV, 0);
+	#endif
+	IsValid = true;
+	if ( EncodedVelocity.x > 0 )
+	{
+		OutValue = DecodeVelocityFromTexture(EncodedVelocity);
+		OutValue = mul(View.ClipToWorld, float4(OutValue, 0));
+	}
 #endif
 }
 
 void DIGBuffer_DecodeBaseColor(in float2 ScreenUV, out bool IsValid, out float3 OutValue)
 {
-#if DIGBUFFER_ENABLED
+#if NDIGBUFFER_ENABLED
 	FGBufferData GBufferData = GetGBufferData(ScreenUV);
 	IsValid = true;
 	OutValue = GBufferData.BaseColor;
@@ -58,7 +89,7 @@ void DIGBuffer_DecodeBaseColor(in float2 ScreenUV, out bool IsValid, out float3 
 
 void DIGBuffer_DecodeMetallic(in float2 ScreenUV, out bool IsValid, out float OutValue)
 {
-#if DIGBUFFER_ENABLED
+#if NDIGBUFFER_ENABLED
 	FGBufferData GBufferData = GetGBufferData(ScreenUV);
 	IsValid = true;
 	OutValue = GBufferData.Metallic;
@@ -70,7 +101,7 @@ void DIGBuffer_DecodeMetallic(in float2 ScreenUV, out bool IsValid, out float Ou
 
 void DIGBuffer_DecodeSpecular(in float2 ScreenUV, out bool IsValid, out float OutValue)
 {
-#if DIGBUFFER_ENABLED
+#if NDIGBUFFER_ENABLED
 	FGBufferData GBufferData = GetGBufferData(ScreenUV);
 	IsValid = true;
 	OutValue = GBufferData.Specular;
@@ -82,7 +113,7 @@ void DIGBuffer_DecodeSpecular(in float2 ScreenUV, out bool IsValid, out float Ou
 
 void DIGBuffer_DecodeRoughness(in float2 ScreenUV, out bool IsValid, out float OutValue)
 {
-#if DIGBUFFER_ENABLED
+#if NDIGBUFFER_ENABLED
 	FGBufferData GBufferData = GetGBufferData(ScreenUV);
 	IsValid = true;
 	OutValue = GBufferData.Roughness;
@@ -94,7 +125,7 @@ void DIGBuffer_DecodeRoughness(in float2 ScreenUV, out bool IsValid, out float O
 
 void DIGBuffer_DecodeDepth(in float2 ScreenUV, out bool IsValid, out float OutValue)
 {
-#if DIGBUFFER_ENABLED
+#if NDIGBUFFER_ENABLED
 	FGBufferData GBufferData = GetGBufferData(ScreenUV);
 	IsValid = true;
 	OutValue = GBufferData.Depth;

@@ -129,6 +129,31 @@ void ExecuteGameplayCueEvent(IMovieScenePlayer* Player, const UE::MovieScene::FE
 				continue;
 			}
 
+			if (GameplayCueKey.bAttachToBinding)
+			{
+				if (CueParameters.TargetAttachComponent != nullptr)
+				{
+					FTransform Transform = FTransform::Identity;
+
+					if (GameplayCueKey.AttachSocketName != NAME_None)
+					{
+						Transform = CueParameters.TargetAttachComponent->GetSocketTransform(GameplayCueKey.AttachSocketName, RTS_World);
+					}
+					else
+					{
+						Transform = CueParameters.TargetAttachComponent->GetComponentTransform();
+					}
+
+					CueParameters.Location = Transform.TransformPositionNoScale(GameplayCueKey.Location);
+					CueParameters.Normal   = Transform.TransformVectorNoScale(GameplayCueKey.Normal);
+				}
+				else
+				{
+					CueParameters.Location = GameplayCueKey.Location;
+					CueParameters.Normal   = GameplayCueKey.Normal;
+				}
+			}
+
 			Handler(Actor, GameplayCueKey.Cue.GameplayCueTag, CueParameters, Event);
 			if (Event == EGameplayCueEvent::OnActive)
 			{
@@ -238,7 +263,10 @@ void UMovieSceneGameplayCueTriggerSection::Trigger(IMovieScenePlayer* Player, co
 		return;
 	}
 
-	UE::MovieScene::ExecuteGameplayCueEvent(Player, Params, ChannelData.GetValues()[Params.TriggerIndex], EGameplayCueEvent::Executed);
+	if (Params.Context.GetStatus() == EMovieScenePlayerStatus::Playing && Params.Context.GetDirection() == EPlayDirection::Forwards && !Params.Context.IsSilent())
+	{
+		UE::MovieScene::ExecuteGameplayCueEvent(Player, Params, ChannelData.GetValues()[Params.TriggerIndex], EGameplayCueEvent::Executed);
+	}
 }
 
 
@@ -250,15 +278,24 @@ UMovieSceneGameplayCueSection::UMovieSceneGameplayCueSection(const FObjectInitia
 
 void UMovieSceneGameplayCueSection::Begin(IMovieScenePlayer* Player, const UE::MovieScene::FEvaluationHookParams& Params) const
 {
-	UE::MovieScene::ExecuteGameplayCueEvent(Player, Params, Cue, EGameplayCueEvent::OnActive);
+	if (Params.Context.GetStatus() == EMovieScenePlayerStatus::Playing && Params.Context.GetDirection() == EPlayDirection::Forwards && !Params.Context.IsSilent())
+	{
+		UE::MovieScene::ExecuteGameplayCueEvent(Player, Params, Cue, EGameplayCueEvent::OnActive);
+	}
 }
 
 void UMovieSceneGameplayCueSection::Update(IMovieScenePlayer* Player, const UE::MovieScene::FEvaluationHookParams& Params) const
 {
-	UE::MovieScene::ExecuteGameplayCueEvent(Player, Params, Cue, EGameplayCueEvent::WhileActive);
+	if (Params.Context.GetStatus() == EMovieScenePlayerStatus::Playing && Params.Context.GetDirection() == EPlayDirection::Forwards && !Params.Context.IsSilent())
+	{
+		UE::MovieScene::ExecuteGameplayCueEvent(Player, Params, Cue, EGameplayCueEvent::WhileActive);
+	}
 }
 
 void UMovieSceneGameplayCueSection::End(IMovieScenePlayer* Player, const UE::MovieScene::FEvaluationHookParams& Params) const
 {
-	UE::MovieScene::ExecuteGameplayCueEvent(Player, Params, Cue, EGameplayCueEvent::Removed);
+	if (Params.Context.GetStatus() == EMovieScenePlayerStatus::Playing && Params.Context.GetDirection() == EPlayDirection::Forwards && !Params.Context.IsSilent())
+	{
+		UE::MovieScene::ExecuteGameplayCueEvent(Player, Params, Cue, EGameplayCueEvent::Removed);
+	}
 }

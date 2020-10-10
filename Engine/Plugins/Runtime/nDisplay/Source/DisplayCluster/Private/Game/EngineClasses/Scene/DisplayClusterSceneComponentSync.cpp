@@ -1,15 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DisplayClusterSceneComponentSync.h"
+#include "Components/DisplayClusterSceneComponentSync.h"
 
 #include "GameFramework/Actor.h"
 
 #include "Cluster/IPDisplayClusterClusterManager.h"
 #include "Game/IPDisplayClusterGameManager.h"
 
-#include "Misc/DisplayClusterCommonTypesConverter.h"
 #include "Misc/DisplayClusterGlobals.h"
 #include "Misc/DisplayClusterLog.h"
+#include "Misc/DisplayClusterTypesConverter.h"
 
 
 UDisplayClusterSceneComponentSync::UDisplayClusterSceneComponentSync(const FObjectInitializer& ObjectInitializer)
@@ -90,12 +90,12 @@ FString UDisplayClusterSceneComponentSync::GenerateSyncId()
 
 FString UDisplayClusterSceneComponentSync::SerializeToString() const
 {
-	return FDisplayClusterTypesConverter::template ToHexString(GetSyncTransform());
+	return DisplayClusterTypesConverter::template ToHexString(GetSyncTransform());
 }
 
 bool UDisplayClusterSceneComponentSync::DeserializeFromString(const FString& data)
 {
-	FTransform NewTransform = FDisplayClusterTypesConverter::template FromHexString<FTransform>(data);
+	FTransform NewTransform = DisplayClusterTypesConverter::template FromHexString<FTransform>(data);
 	UE_LOG(LogDisplayClusterGame, Verbose, TEXT("%s: applying transform data <%s>"), *SyncId, *NewTransform.ToHumanReadableString());
 	SetSyncTransform(NewTransform);
 

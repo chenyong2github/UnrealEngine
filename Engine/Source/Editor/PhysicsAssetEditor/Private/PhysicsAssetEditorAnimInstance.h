@@ -20,6 +20,7 @@ class UPhysicsAssetEditorAnimInstance : public UAnimPreviewInstance
 	virtual void Ungrab();
 	virtual void UpdateHandleTransform(const FTransform& NewTransform);
 	virtual void UpdateDriveSettings(bool bLinearSoft, float LinearStiffness, float LinearDamping);
+	virtual void CreateSimulationFloor(FBodyInstance* FloorBodyInstance, const FTransform& Transform);
 
 protected:
 	virtual FAnimInstanceProxy* CreateAnimInstanceProxy() override;

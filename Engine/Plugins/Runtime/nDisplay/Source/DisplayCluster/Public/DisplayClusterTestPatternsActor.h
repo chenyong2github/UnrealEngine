@@ -20,7 +20,7 @@ class UPostProcessComponent;
 struct FDisplayClusterConfigViewport;
 struct FWeightedBlendable;
 
-struct FDisplayClusterClusterEvent;
+struct FDisplayClusterClusterEventJson;
 
 
 /**
@@ -84,7 +84,7 @@ private:
 	void SetupMaterialParameters(UMaterialInstanceDynamic* DynamicMaterialInstance, const TMap<FString, FMaterialParameter>& Params) const;
 
 	void OnConsoleVariableChangedPattern(IConsoleVariable* Var);
-	void OnClusterEventHandler(const FDisplayClusterClusterEvent& Event);
+	void OnClusterEventHandler(const FDisplayClusterClusterEventJson& Event);
 
 private:
 	UPROPERTY(transient)
@@ -93,7 +93,7 @@ private:
 	// Current nDisplay operation mode
 	EDisplayClusterOperationMode OperationMode = EDisplayClusterOperationMode::Disabled;
 	// Cluster event delegate
-	FOnClusterEventListener OnClusterEvent;
+	FOnClusterEventJsonListener OnClusterEvent;
 
 	FCriticalSection InternalsSyncScope;
 };

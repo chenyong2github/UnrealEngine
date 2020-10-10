@@ -14,12 +14,11 @@ public class PLCrashReporter : ModuleRules
 		string PLCrashReporterPath = Path.Combine(Target.UEThirdPartySourceDirectory,"PLCrashReporter",PLVersion);
 		string PLSourcePath = Path.Combine(PLCrashReporterPath, "Source");
 		string PLLibPath = Path.Combine(PLCrashReporterPath, "lib");
+		string LibConfig = "Release";
 
 		if (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.IOS)
 		{
 			PublicSystemIncludePaths.Add(PLSourcePath);
-
-			string LibConfig = "Release";
 
 			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
 			{
@@ -37,16 +36,8 @@ public class PLCrashReporter : ModuleRules
 		}
 		if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
-			string BinaryLibraryFolder = Path.Combine(Target.UEThirdPartyBinariesDirectory, "Protobuf-c", Target.Platform.ToString());
-
-			string ProtobufcDylibName = "libprotobuf-c.1.dylib";
-			string ProtobufcDylibPath = Path.Combine(BinaryLibraryFolder, ProtobufcDylibName);
-
-			//PublicRuntimeLibraryPaths.Add(BinaryLibraryFolder);
-			//PublicAdditionalLibraries.Add(ProtobufcDylibPath);
-
-			PublicDelayLoadDLLs.Add(ProtobufcDylibPath);
-			RuntimeDependencies.Add(ProtobufcDylibPath);
+			string Lib = Path.Combine(PLLibPath, Target.Platform.ToString(), LibConfig, "libprotobuf-c.a");
+			PublicAdditionalLibraries.Add(Lib);
 		}
     }
 }

@@ -2029,7 +2029,7 @@ struct FRelevancePacket
 			const bool bEditorSelectionRelevance = ViewRelevance.bEditorStaticSelectionRelevance;
 			const bool bTranslucentRelevance = ViewRelevance.HasTranslucency();
 
-			const bool bHairStrandsEnabled = ViewRelevance.bHairStrands && IsHairStrandsEnable(Scene->GetShaderPlatform());
+			const bool bHairStrandsEnabled = ViewRelevance.bHairStrands && IsHairStrandsEnabled(EHairStrandsShaderType::All, Scene->GetShaderPlatform());
 			if (!bEditorRelevance && bHairStrandsEnabled)
 			{
 				++NumVisibleDynamicPrimitives;
@@ -2881,10 +2881,11 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 
 	// Hair strands are not rendered into the base pass (bRenderInMainPass=0) and so this 
 	// adds a special pass for allowing hair strands to be selectable.
-	if (View.bAllowTranslucentPrimitivesInHitProxy && ViewRelevance.bHairStrands)
+	if (ViewRelevance.bHairStrands)
 	{
-		PassMask.Set(EMeshPass::HitProxy);
-		View.NumVisibleDynamicMeshElements[EMeshPass::HitProxy] += NumElements;
+		const EMeshPass::Type MeshPassType = View.bAllowTranslucentPrimitivesInHitProxy ? EMeshPass::HitProxy : EMeshPass::HitProxyOpaqueOnly;
+		PassMask.Set(MeshPassType);
+		View.NumVisibleDynamicMeshElements[MeshPassType] += NumElements;
 	}
 #endif
 
@@ -2915,7 +2916,7 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 		BatchAndProxy.SortKey = MeshBatch.PrimitiveSceneProxy->GetTranslucencySortPriority();
 	}
 	
-	const bool bIsHairStrandsCompatible = ViewRelevance.bHairStrands && IsHairStrandsEnable(View.GetShaderPlatform());
+	const bool bIsHairStrandsCompatible = ViewRelevance.bHairStrands && IsHairStrandsEnabled(EHairStrandsShaderType::All, View.GetShaderPlatform());
 	if (bIsHairStrandsCompatible)
 	{
 		View.HairStrandsMeshElements.AddUninitialized(1);
@@ -3103,7 +3104,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 
 	RunGPUSkinCacheTransition(RHICmdList, Scene, EGPUSkinCacheTransition::FrameSetup);
 
-	if (IsHairStrandsEnable(Scene->GetShaderPlatform()) && Views.Num() > 0)
+	if (IsHairStrandsEnabled(EHairStrandsShaderType::All, Scene->GetShaderPlatform()) && Views.Num() > 0)
 	{
 		FRDGBuilder GraphBuilder(RHICmdList);
 		FHairStrandsBookmarkParameters Parameters = CreateHairStrandsBookmarkParameters(Views[0]);

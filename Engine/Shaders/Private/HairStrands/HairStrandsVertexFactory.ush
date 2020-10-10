@@ -12,13 +12,18 @@
 
 #include "HairStrandsVisibilityCommon.ush"
 
+#define USE_HAIR_COMPLEX_TRANSMITTANCE 1
+
 #if MANUAL_VERTEX_FETCH
 	Buffer<float4> VertexFetch_InstanceOriginBuffer;
 	Buffer<float4> VertexFetch_InstanceTransformBuffer;
 #endif
 
+// Enable cluster culling by default as the output of the strands interpolation output culled data, 
+// and this allows to support other rendered (e.g., hit proxy, shadow rendering), for which it is not 
+// possible to provide custom defines
 #ifndef USE_CULLED_CLUSTER
-#define USE_CULLED_CLUSTER 0
+#define USE_CULLED_CLUSTER 1
 #endif
 
 #if USE_CULLED_CLUSTER == 1
@@ -136,9 +141,9 @@ float GetHairStrandsDepth(float2 InUV)
 	return 0; // TODO: what should we do for the strands cards as we don't want to override the depth output, but we still want to share the same shader than the non cards one
 }
 
-float GetHairStrandsCoverage(float2 InUV)
+float GetHairStrandsCoverage(uint HairPrimitiveId, float2 HairPrimitiveUV)
 {
-	return 0; // TODO: what should we do for the strands cards as we don't want to override the depth output, but we still want to share the same shader than the non cards one
+	return 1;
 }
 
 float2 GetHairStrandsUV(uint HairPrimitiveId, float2 HairPrimitiveUV)

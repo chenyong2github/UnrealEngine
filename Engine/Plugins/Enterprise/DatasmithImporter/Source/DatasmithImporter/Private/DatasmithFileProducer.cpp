@@ -1519,6 +1519,8 @@ private:
 	void OnExtensionStringChanged( const FText &NewExtensionString, ETextCommit::Type CommitType )
 	{
 		ProducerPtr->ExtensionString = NewExtensionString.ToString();
+		ProducerPtr->UpdateExtensions();
+
 	}
 
 private:
