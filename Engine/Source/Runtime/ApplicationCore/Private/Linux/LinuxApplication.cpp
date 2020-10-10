@@ -395,7 +395,7 @@ void FLinuxApplication::ProcessDeferredMessage( SDL_Event Event )
 				else
 				{
 					// Check if we have to activate the window.
-					if (CurrentlyActiveWindow != CurrentEventWindow && CurrentEventWindow->GetActivationPolicy() != EWindowActivationPolicy::Never)
+					if (CurrentlyActiveWindow != CurrentEventWindow)
 					{
 						ActivateWindow(CurrentEventWindow);
 
@@ -731,7 +731,7 @@ void FLinuxApplication::ProcessDeferredMessage( SDL_Event Event )
 
 						// Check if this window is different then the currently active one. If it is another one
 						// activate that window and if necessary deactivate the one which was active.
-						if (CurrentlyActiveWindow != CurrentEventWindow && CurrentEventWindow->GetActivationPolicy() != EWindowActivationPolicy::Never)
+						if (CurrentlyActiveWindow != CurrentEventWindow)
 						{
 							ActivateWindow(CurrentEventWindow);
 						}
@@ -816,7 +816,7 @@ void FLinuxApplication::ProcessDeferredMessage( SDL_Event Event )
 
 						// Check if this window is different then the currently active one. If it is another one activate this 
 						// window and deactivate the other one.
-						if (CurrentlyActiveWindow != CurrentEventWindow && CurrentEventWindow->GetActivationPolicy() != EWindowActivationPolicy::Never)
+						if (CurrentlyActiveWindow != CurrentEventWindow)
 						{
 							ActivateWindow(CurrentEventWindow);
 						}
@@ -1656,8 +1656,13 @@ void FLinuxApplication::DeactivateApplication()
 	UE_LOG(LogLinuxWindowEvent, Verbose, TEXT("WM_ACTIVATEAPP, wParam = 0"));
 }
 
-void FLinuxApplication::ActivateWindow(const TSharedPtr< FLinuxWindow >& Window) 
+void FLinuxApplication::ActivateWindow(const TSharedPtr< FLinuxWindow >& Window)
 {
+	if (Window->GetActivationPolicy() == EWindowActivationPolicy::Never)
+	{
+		return;
+	}
+
 	PreviousActiveWindow = CurrentlyActiveWindow;
 	CurrentlyActiveWindow = Window;
 	if(PreviousActiveWindow.IsValid())
