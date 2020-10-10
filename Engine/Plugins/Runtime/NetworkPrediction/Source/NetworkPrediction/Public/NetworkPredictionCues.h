@@ -116,58 +116,122 @@ struct FNetSimCueSystemParamemters
 };
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-// GlobalCueTypeTable: Cue types register with this to get a Type ID assigned. That ID is used in net serialization to talk about types.
+// GlobalCueTypeTable: Cue types register with this to get a Type ID assigned (TCue::ID). That ID is used in net serialization to talk about types.
+//	-Assigns deterministic ID to TCue::ID for all cue types
+//	-Provides allocation function to instantiate TCue from a NetSerialize ID
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-
 class FGlobalCueTypeTable
 {
 public:
 
-	NETWORKPREDICTION_API static FGlobalCueTypeTable& Get()
-	{
-		return Singleton;
-	}
+	// --------------------------------------------------------------------------------------
+	//	Type Registration functions: called at startup, module load/unload. Not during runtime.
+	// --------------------------------------------------------------------------------------
 
 	template<typename TCue>
-	void RegisterType(const FString& TypeName)
+	FORCENOINLINE static void RegisterCueType(const FString& TypeName)
 	{
-		ensure(!bFinalized);
+		FRegisteredCueTypeInfo& RegisteredTypes = GetRegistedTypeInfo();
+		UE_LOG(LogNetworkPredictionCues, Verbose, TEXT("RegisterCueType %s @ 0x%X. (NumPending: %d) "), *TypeName, &TCue::ID, RegisteredTypes.CueTypes.Num());
+		
+		RegisteredTypes.bDirty = true;
 
+		// Create a TypeInfo for this TCue and store it in the list
 		FTypeInfo TypeInfo = 
 		{
 			&TCue::ID, 
 			[](){ return new TNetSimCueWrapper<TCue>();},
 			TypeName
 		};
-		PendingCueTypes.Emplace(TypeInfo);
+		RegisteredTypes.CueTypes.Emplace(TypeInfo);
 		
 		static_assert(THasMemberFunction_NetSerialize<TCue>::Value || !TNetSimCueTypeRequirements<TCue>::RequiresNetSerialize, "TCue must implement void NetSerialize(FArchive&)");
 		static_assert(THasNetIdenticalHelper<TCue>::Value || !TNetSimCueTypeRequirements<TCue>::RequiresNetIdentical, "TCue must implement bool NetIdentical(const TCue&) const");
 	}
 
-	void FinalizeTypes()
+	template<typename TCue>
+	static void UnregisterCueType()
 	{
-		ensure(!bFinalized);
-		bFinalized = true;
-
-		PendingCueTypes.Sort([](const FTypeInfo& LHS, const FTypeInfo& RHS) { return LHS.TypeName < RHS.TypeName; });
-		int32 ID=0;
-		for (auto& TypeInfo: PendingCueTypes)
+		if (IsEngineExitRequested())
 		{
-			check(TypeInfo.IDPtr != nullptr);
-			*TypeInfo.IDPtr = ++ID;
-			TypeInfoMap.Add(*TypeInfo.IDPtr) = TypeInfo;
+			return;
 		}
-		for (auto& Func : PostFinalizeCallbacks)
+
+		UE_LOG(LogNetworkPredictionCues, Verbose, TEXT("UnregisterCueType 0x%X."), &TCue::ID);
+
+		FRegisteredCueTypeInfo& RegisteredTypes = GetRegistedTypeInfo();
+
+		for (int32 i=RegisteredTypes.CueTypes.Num()-1; i >= 0; --i)
 		{
-			Func();
+			FTypeInfo& TypeInfo = RegisteredTypes.CueTypes[i];
+			if (TypeInfo.IDPtr == &TCue::ID)
+			{
+				RegisteredTypes.CueTypes.RemoveAtSwap(i, 1, false);
+				RegisteredTypes.bDirty = true;
+				break;
+			}
+		}
+
+		// Thet TypeInfoMap has to be immediately invalidated, since it contains a TFunction that was allocated in memory that is (probably) about to go away
+		Singleton.TypeInfoMap.Reset();
+		npEnsureMsgf(RegisteredTypes.bDirty, TEXT("Unmatch TCue type"));
+	}
+
+	static bool IsRegisterationTypeInfoDirty() { return GetRegistedTypeInfo().bDirty; }
+
+	static FDelegateHandle RegisterDispatchTableCallback(const TFunction<void()>& RegisterFunc)
+	{
+		FRegisteredCueTypeInfo& RegisteredTypes = GetRegistedTypeInfo();
+		RegisteredTypes.bDirty = true;
+
+		return RegisteredTypes.InitDispatchTablesDelegate.AddLambda( RegisterFunc );
+	}
+
+	static void UnregisterDispatchTableCallback(FDelegateHandle Handle)
+	{
+		if (IsEngineExitRequested())
+		{
+			return;
+		}
+
+		FRegisteredCueTypeInfo& RegisteredTypes = GetRegistedTypeInfo();
+		RegisteredTypes.bDirty = true;
+
+		RegisteredTypes.InitDispatchTablesDelegate.Remove(Handle);
+	}
+
+	void FinalizeCueTypes()
+	{
+		FRegisteredCueTypeInfo& RegisteredTypes = GetRegistedTypeInfo();
+		if (RegisteredTypes.bDirty)
+		{
+			UE_LOG(LogNetworkPredictionCues, Verbose, TEXT("FinalizeTypes: 0x%X. %d Pending Types"), &RegisteredTypes, RegisteredTypes.CueTypes.Num());
+			RegisteredTypes.bDirty = false;
+
+			RegisteredTypes.CueTypes.Sort([](const FTypeInfo& LHS, const FTypeInfo& RHS) { return LHS.TypeName < RHS.TypeName; });
+			int32 ID=0;
+
+			for (FTypeInfo& TypeInfo: RegisteredTypes.CueTypes)
+			{
+				check(TypeInfo.IDPtr != nullptr);
+				*TypeInfo.IDPtr = ++ID;
+				TypeInfoMap.Add(*TypeInfo.IDPtr) = TypeInfo;
+
+				UE_LOG(LogNetworkPredictionCues, Warning, TEXT("    Cue %s assigned ID: %d (0x%X)"), *TypeInfo.TypeName, *TypeInfo.IDPtr, TypeInfo.IDPtr);
+			}
+
+			RegisteredTypes.InitDispatchTablesDelegate.Broadcast();
 		}
 	}
-	
-	bool HasBeenFinalized() const { return bFinalized; }
-	void AddPostFinalizedCallback(TFunction<void()> Callback) { PostFinalizeCallbacks.Emplace(Callback); }
 
-	// ---------------------------
+	// --------------------------------------------------------------------------------------
+	//	Runtime functions
+	// --------------------------------------------------------------------------------------
+
+	NETWORKPREDICTION_API static FGlobalCueTypeTable& Get()
+	{
+		return Singleton;
+	}
 
 	FNetSimCueWrapperBase* Allocate(FNetSimCueTypeId ID)
 	{
@@ -188,13 +252,19 @@ private:
 		FString TypeName;
 	};
 
-	NETWORKPREDICTION_API static FGlobalCueTypeTable Singleton;
+	struct FRegisteredCueTypeInfo
+	{
+		TArray<FTypeInfo> CueTypes;
+		FSimpleMulticastDelegate InitDispatchTablesDelegate;
+		bool bDirty = false;
+	};
 
-	TArray<TFunction<void()>> PostFinalizeCallbacks;
-	TArray<FTypeInfo> PendingCueTypes;
-	bool bFinalized = false;
-
+	// The registered type info lives in its own inlined static function to avoid static variable initialization order conflicts
+	NETWORKPREDICTION_API static FRegisteredCueTypeInfo& GetRegistedTypeInfo();
+	
 	TMap<FNetSimCueTypeId, FTypeInfo> TypeInfoMap;
+
+	NETWORKPREDICTION_API static FGlobalCueTypeTable Singleton;
 };
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -219,6 +289,8 @@ struct FSavedCue
 	
 	void NetSerialize(FArchive& Ar, const bool bSerializeFrameNumber)
 	{
+		npCheckSlow(FGlobalCueTypeTable::IsRegisterationTypeInfoDirty() == false);
+
 		if (Ar.IsSaving())
 		{
 			check(CueInstance.IsValid());
@@ -291,6 +363,7 @@ struct FSavedCue
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Per-Receiver dispatch table. This is how we go from a serialized ID to a function call
 // ----------------------------------------------------------------------------------------------------------------------------------------------
+
 template<typename TCueHandler>
 class TCueDispatchTable
 {
@@ -304,32 +377,27 @@ public:
 	template<typename TCue>
 	void RegisterType()
 	{
-		// Registeration has to be deferred until the FGlobalCueTypeTable is ready
-		auto Register = [this]() {
-			check(TCue::ID != 0);
+		check(TCue::ID != 0);	// FGlobalCueTypeTable should have assigned an ID to this cue by now
 
-			FCueTypeInfo& CueTypeInfo = CueTypeInfoMap.Add(TCue::ID);
+		FCueTypeInfo& CueTypeInfo = CueTypeInfoMap.Add(TCue::ID);
 
-			// The actual Dispatch func that gets invoked
-			CueTypeInfo.Dispatch = [](FNetSimCueWrapperBase* Cue, TCueHandler& Handler, const FNetSimCueSystemParamemters& SystemParameters)
-			{
-				// If you are finding compile errors here, you may be missing a ::HandleCue implementation for a specific cue type that your handler has registered with
-				Handler.HandleCue( *static_cast<const TCue*>(Cue->CueData()), SystemParameters );
-			};
+		// The actual Dispatch func that gets invoked
+		CueTypeInfo.Dispatch = [](FNetSimCueWrapperBase* Cue, TCueHandler& Handler, const FNetSimCueSystemParamemters& SystemParameters)
+		{
+			// If you are finding compile errors here, you may be missing a ::HandleCue implementation for a specific cue type that your handler has registered with
+			Handler.HandleCue( *static_cast<const TCue*>(Cue->CueData()), SystemParameters );
 		};
-		
-		if (!FGlobalCueTypeTable::Get().HasBeenFinalized())
-		{
-			FGlobalCueTypeTable::Get().AddPostFinalizedCallback(Register);
-		}
-		else
-		{
-			Register();
-		}
+	}
+
+	void Reset()
+	{
+		CueTypeInfoMap.Reset();
 	}
 
 	void Dispatch(FSavedCue& SavedCue, TCueHandler& Handler, const int32& TimeSinceInvocation)
 	{
+		npCheckSlow(FGlobalCueTypeTable::IsRegisterationTypeInfoDirty() == false);
+
 		if (FCueTypeInfo* TypeInfo = CueTypeInfoMap.Find(SavedCue.ID))
 		{
 			check(TypeInfo->Dispatch);
@@ -338,7 +406,11 @@ public:
 		else
 		{
 			// Trying to dispatch a Cue to a handler who doesn't have an implementation of HandleCue for this type (or forgot to register)
-			UE_LOG(LogNetworkPredictionCues, Warning, TEXT("Could not Find NetCue %s in dispatch table."), *FGlobalCueTypeTable::Get().GetTypeName(SavedCue.ID));
+			UE_LOG(LogNetworkPredictionCues, Warning, TEXT("Could not Find NetCue %s (ID: %d) in dispatch table (%d entries)."), *FGlobalCueTypeTable::Get().GetTypeName(SavedCue.ID), SavedCue.ID, CueTypeInfoMap.Num());
+			for (auto MapIt : CueTypeInfoMap)
+			{
+				UE_LOG(LogNetworkPredictionCues, Warning, TEXT("  Have: %d"), MapIt.Key);
+			}
 		}
 	}
 
@@ -390,6 +462,8 @@ struct FNetSimCueDispatcher
 	template<typename T, typename... ArgsType>
 	void Invoke(ArgsType&&... Args)
 	{
+		npCheckSlow(FGlobalCueTypeTable::IsRegisterationTypeInfoDirty() == false);
+
 		if (EnsureValidContext())
 		{
 			if (EnumHasAnyFlags(TNetSimCueTraits<T>::SimTickMask(), Context.TickContext))
@@ -420,7 +494,6 @@ struct FNetSimCueDispatcher
 
 				// In resimulate case, we have to see if we already predicted it
 				if (Context.TickContext == ESimulationTickContext::Resimulate)
-				
 				{
 					npEnsure(RollbackFrame >= 0 && RollbackFrame <= Context.Frame);
 					
@@ -794,7 +867,12 @@ struct TNetSimCueTypeAutoRegisterHelper
 {
 	TNetSimCueTypeAutoRegisterHelper(const FString& Name)
 	{
-		FGlobalCueTypeTable::Get().RegisterType<TCue>(Name);
+		FGlobalCueTypeTable::RegisterCueType<TCue>(Name);
+	}
+
+	~TNetSimCueTypeAutoRegisterHelper()
+	{
+		FGlobalCueTypeTable::UnregisterCueType<TCue>();
 	}
 };
 
@@ -804,13 +882,25 @@ struct TNetSimCueTypeAutoRegisterHelper
 // ------------------------------------------------------------------------------------------------
 // Register a handler's cue types via a static "RegisterNetSimCueTypes" on the handler itself
 // ------------------------------------------------------------------------------------------------
-template<typename TCue>
+template<typename THandler>
 struct TNetSimCueHandlerAutoRegisterHelper
 {
 	TNetSimCueHandlerAutoRegisterHelper()
 	{
-		TCue::RegisterNetSimCueTypes( TCueDispatchTable<TCue>::Get() );
+		Handle = FGlobalCueTypeTable::RegisterDispatchTableCallback([]()
+		{
+			TCueDispatchTable<THandler>::Get().Reset();
+			THandler::RegisterNetSimCueTypes( TCueDispatchTable<THandler>::Get() );
+		});
 	}
+
+	~TNetSimCueHandlerAutoRegisterHelper()
+	{
+		FGlobalCueTypeTable::UnregisterDispatchTableCallback(Handle);
+	}
+
+private:
+	FDelegateHandle Handle;
 };
 
 #define NETSIMCUEHANDLER_REGISTER(X) TNetSimCueHandlerAutoRegisterHelper<X> NetSimCueHandlerAr_##X;
@@ -823,8 +913,20 @@ struct TNetSimCueSetHandlerAutoRegisterHelper
 {
 	TNetSimCueSetHandlerAutoRegisterHelper()
 	{
-		TCueSet::RegisterNetSimCueTypes( TCueDispatchTable<THandler>::Get() );
+		Handle = FGlobalCueTypeTable::RegisterDispatchTableCallback([]()
+		{
+			TCueDispatchTable<THandler>::Get().Reset();
+			TCueSet::RegisterNetSimCueTypes( TCueDispatchTable<THandler>::Get() );
+		});
 	}
+
+	~TNetSimCueSetHandlerAutoRegisterHelper()
+	{
+		FGlobalCueTypeTable::UnregisterDispatchTableCallback(Handle);
+	}
+
+private:
+	FDelegateHandle Handle;
 };
 
 #define NETSIMCUESET_REGISTER(THandler, TCueSet) TNetSimCueSetHandlerAutoRegisterHelper<THandler,TCueSet> NetSimCueSetHandlerAr_##THandler_##TCueSet;
