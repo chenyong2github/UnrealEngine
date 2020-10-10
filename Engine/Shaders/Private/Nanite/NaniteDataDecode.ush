@@ -49,7 +49,7 @@
 #define CULLING_FLAG_USE_HW						0x2
 #define CULLING_FLAG_FROM_DISOCCLUDED_INSTANCE	0x4
 
-#define MAX_TRANSCODE_GROUPS_PER_PAGE			32														// must match define in NaniteResources.h
+#define MAX_TRANSCODE_GROUPS_PER_PAGE			128														// must match define in NaniteResources.h
 
 #define NUM_PACKED_CLUSTER_FLOAT4S				8														// must match define in NaniteResources.h
 
@@ -524,58 +524,78 @@ uint4 BitStreamReader_Read4(inout FBitStreamReaderState State, int4 NumBits, int
 }
 #endif
 
+// Put bits to ByteAddressBuffer at bit offset. NumBits must be <= 31.
+void PutBits(RWByteAddressBuffer Output, uint AlignedBaseAddress, uint BitOffset, uint Value, uint NumBits)
+{
+    uint BitOffsetInDword = (BitOffset & 31u);  // &31 is implicit in shifts
+    
+    uint Bits = Value << BitOffsetInDword;
+    uint Address = AlignedBaseAddress + ((BitOffset >> 5) << 2);
+    uint EndBitPos = BitOffsetInDword + NumBits;
+
+    if(EndBitPos >= 32)
+    {
+        uint Mask = 0xFFFFFFFFu << (EndBitPos & 31u);
+        Output.InterlockedAnd(Address + 4, Mask);
+        Output.InterlockedOr(Address + 4, Value >> (32 - BitOffsetInDword));
+    }
+
+    {
+        uint Mask = ~BitFieldMaskU32(NumBits, BitOffset);
+        Output.InterlockedAnd(Address, Mask);
+        Output.InterlockedOr(Address, Value << BitOffsetInDword);
+    }
+}
 
 struct FBitStreamWriterState
 {
-	RWByteAddressBuffer Output;
-	uint				AlignedByteAddress;
-	uint				BitOffset;
+	RWByteAddressBuffer  Output;
+	uint AlignedByteAddress;
+   	uint BufferBits;
+    uint BufferOffset;
+    uint BufferMask;
 };
 
-FBitStreamWriterState BitStreamWriter_Create(RWByteAddressBuffer Output, uint BaseAddressInBytes, uint BitOffset)
+FBitStreamWriterState BitStreamWriter_Create_Aligned(RWByteAddressBuffer Output, uint AlignedBaseAddressInBytes, uint BitOffset)
 {
 	FBitStreamWriterState State;
-	
-	uint ByteAddress = BaseAddressInBytes + (BitOffset >> 3);
-	uint AlignedByteAddress = ByteAddress & ~3;
-	BitOffset = ((ByteAddress - AlignedByteAddress) << 3) | (BitOffset & 7);
 
 	State.Output = Output;
-	State.AlignedByteAddress = AlignedByteAddress;
-	State.BitOffset = BitOffset;
+	State.AlignedByteAddress = AlignedBaseAddressInBytes + ((BitOffset >> 5) << 2);
+	BitOffset &= 31u;
+
+	State.BufferBits = 0;
+	State.BufferOffset = BitOffset;
+	State.BufferMask = BitFieldMaskU32(BitOffset, 0);
 
 	return State;
 }
 
-// Very naive bit writer that flushes bits immediately.
+
 void BitStreamWriter_Writer(inout FBitStreamWriterState State, uint Value, int NumBits, int CompileTimeMaxBits)
 {
-	if (NumBits <= 0)
-		return;
+    State.BufferBits |= Value << State.BufferOffset;
 
-	int StartBit = State.BitOffset;
-	int EndBit = StartBit + NumBits;
-	uint Mask = BitFieldMaskU32(NumBits, StartBit);
-	State.Output.InterlockedAnd(State.AlignedByteAddress, ~Mask);				// Make sure bits are cleared
-	State.Output.InterlockedOr(State.AlignedByteAddress, Value << StartBit);	// Write them
-	State.BitOffset = EndBit & 31;
-	State.AlignedByteAddress += (EndBit >= 32) ? 4 : 0;
-
-	if (EndBit > 32)
-	{
-		int WrittenBits = NumBits - State.BitOffset;
-		Mask = BitFieldMaskU32(State.BitOffset, 0);
-		State.Output.InterlockedAnd(State.AlignedByteAddress, ~Mask);
-		State.Output.InterlockedOr(State.AlignedByteAddress, Value >> WrittenBits);
-	}
+    uint NextBufferOffset = State.BufferOffset + NumBits;
+    if(NextBufferOffset >= 32)
+    {
+        State.Output.InterlockedAnd(State.AlignedByteAddress, State.BufferMask);
+        State.Output.InterlockedOr(State.AlignedByteAddress, State.BufferBits);
+		State.BufferMask = 0;
+        State.BufferBits = Value >> (32 - State.BufferOffset);
+        State.AlignedByteAddress += 4;
+    }
+	State.BufferOffset = NextBufferOffset & 31;
 }
 
-void BitStreamWriter_Writer4(inout FBitStreamWriterState State, uint4 Value, int4 NumBits, int4 CompileTimeMaxBits)
+void BitStreamWriter_Flush(inout FBitStreamWriterState State)
 {
-	BitStreamWriter_Writer(State, Value.x, NumBits.x, CompileTimeMaxBits.x);
-	BitStreamWriter_Writer(State, Value.y, NumBits.y, CompileTimeMaxBits.y);
-	BitStreamWriter_Writer(State, Value.z, NumBits.z, CompileTimeMaxBits.z);
-	BitStreamWriter_Writer(State, Value.w, NumBits.w, CompileTimeMaxBits.w);
+    if(State.BufferOffset > 0)
+    {
+        uint Mask = State.BufferMask | ~BitFieldMaskU32(State.BufferOffset, 0);
+        State.Output.InterlockedAnd(State.AlignedByteAddress, Mask);
+        State.Output.InterlockedOr(State.AlignedByteAddress, State.BufferBits);
+    }
 }
 
 // Utility functions for packing bits into uints.
@@ -1019,7 +1039,7 @@ uint3 ReadTriangleIndices(FTriCluster Cluster, uint TriIndex)
 	return BaseIndex + uint3(0, Delta0, Delta1);
 }
 
-uint3 UnpackToUint3(uint Value, int4 NumComponentBits)
+uint3 UnpackToUint3(uint Value, int3 NumComponentBits)
 {
 	return uint3(	BitFieldExtractU32(Value, NumComponentBits.x, 0),
 					BitFieldExtractU32(Value, NumComponentBits.y, NumComponentBits.x),

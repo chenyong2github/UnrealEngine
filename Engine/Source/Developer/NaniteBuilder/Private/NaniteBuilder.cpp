@@ -19,7 +19,7 @@
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define NANITE_DERIVEDDATA_VER TEXT("F9D57879-6720-47A9-8983-B5B8C415CB58")
+#define NANITE_DERIVEDDATA_VER TEXT("F9D57879-6720-47A9-8983-C5B8C415CB69")
 
 #define USE_IMPLICIT_TANGENT_SPACE		1	// must match define in ExportGBuffer.usf
 #define CONSTRAINED_CLUSTER_CACHE_SIZE	32
@@ -1770,11 +1770,15 @@ static void WritePages(	FResources& Resources,
 		// Disk header
 		FPageDiskHeader* PageDiskHeader = PagePointer.Advance<FPageDiskHeader>(1);
 
+		MaterialRangeData.SetNum(Align(MaterialRangeData.Num(), 4));
+
+		static_assert(sizeof(FUVRange) % 16 == 0, "sizeof(FUVRange) must be a multiple of 16");
+		static_assert(sizeof(FPackedTriCluster) % 16 == 0, "sizeof(FPackedTriCluster) must be a multiple of 16");
 		PageDiskHeader->NumClusters = Page.NumClusters;
 		PageDiskHeader->GpuSize = Page.GpuSizes.GetTotal();
-		PageDiskHeader->NumMaterialDwords = MaterialRangeData.Num();
+		PageDiskHeader->NumRawFloat4s = Page.NumClusters * (sizeof(FPackedTriCluster) + NumTexCoords * sizeof(FUVRange)) / 16 +  MaterialRangeData.Num() / 4;
 		PageDiskHeader->NumTexCoords = NumTexCoords;
-		
+
 		// Cluster headers
 		FClusterDiskHeader* ClusterDiskHeaders = PagePointer.Advance<FClusterDiskHeader>(Page.NumClusters);
 

@@ -1699,8 +1699,8 @@ void FStreamingManager::SubmitFrameStreamingRequests(FRDGBuilder& GraphBuilder)
 	}
 
 	LLM_SCOPE_BYTAG(Nanite);
-	RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteStreaming);
-	RDG_EVENT_SCOPE(GraphBuilder, "NaniteStreaming");
+	RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteReadback);
+	RDG_EVENT_SCOPE(GraphBuilder, "NaniteReadback");
 
 	if( ReadbackBuffersNumPending == MaxStreamingReadbackBuffers )
 	{

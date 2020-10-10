@@ -23,6 +23,7 @@
 #include "HAL/LowLevelMemStats.h"
 
 DEFINE_GPU_STAT(NaniteStreaming);
+DEFINE_GPU_STAT(NaniteReadback);
 
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
 DECLARE_LLM_MEMORY_STAT(TEXT("Nanite"), STAT_NaniteLLM, STATGROUP_LLMFULL);

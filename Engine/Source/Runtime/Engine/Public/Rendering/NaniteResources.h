@@ -66,7 +66,7 @@
 #define MAX_TEXCOORD_QUANTIZATION_BITS			15														// must match define in NaniteDataDecode.ush
 #define MAX_COLOR_QUANTIZATION_BITS				 8														// must match define in NaniteDataDecode.ush
 
-#define MAX_TRANSCODE_GROUPS_PER_PAGE			32														// must match define in NaniteDataDecode.ush
+#define MAX_TRANSCODE_GROUPS_PER_PAGE			128														// must match define in NaniteDataDecode.ush
 
 #define VERTEX_COLOR_MODE_WHITE					0
 #define VERTEX_COLOR_MODE_CONSTANT				1
@@ -80,6 +80,7 @@
 DECLARE_STATS_GROUP( TEXT("Nanite"), STATGROUP_Nanite, STATCAT_Advanced );
 
 DECLARE_GPU_STAT_NAMED_EXTERN(NaniteStreaming, TEXT("Nanite Streaming"));
+DECLARE_GPU_STAT_NAMED_EXTERN(NaniteReadback, TEXT("Nanite Readback"));
 
 LLM_DECLARE_TAG_API(Nanite, ENGINE_API);
 
@@ -250,7 +251,7 @@ struct FPageDiskHeader
 {
 	uint32 GpuSize;
 	uint32 NumClusters;
-	uint32 NumMaterialDwords;
+	uint32 NumRawFloat4s;
 	uint32 NumTexCoords;
 	uint32 DecodeInfoOffset;
 	uint32 StripBitmaskOffset;
