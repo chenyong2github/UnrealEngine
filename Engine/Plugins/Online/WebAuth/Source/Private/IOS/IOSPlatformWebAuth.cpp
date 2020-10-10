@@ -7,7 +7,16 @@
 #ifdef WEBAUTH_PLATFORM_IOS_12
 #import <AuthenticationServices/AuthenticationServices.h>
 #endif
+
+#if (defined(__IPHONE_OS_VERSION_MIN_REQUIRED) && __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_12_0) || (defined(__TV_OS_VERSION_MIN_REQUIRED) && __TV_OS_VERSION_MIN_REQUIRED < __TVOS_12_0)
+#define USE_DEPRECATED_WEBAUTH_PLATFORM_IOS_11 1
+#else
+#define USE_DEPRECATED_WEBAUTH_PLATFORM_IOS_11 0
+#endif
+
+#if USE_DEPRECATED_WEBAUTH_PLATFORM_IOS_11
 #import <SafariServices/SafariServices.h>
+#endif
 #import <WebKit/WebKit.h>
 
 #ifdef WEBAUTH_PLATFORM_IOS_13
@@ -89,6 +98,7 @@ bool FIOSWebAuth::AuthSessionWithURL(const FString &UrlStr, const FString &Schem
 	}
 	else
 #endif
+#if USE_DEPRECATED_WEBAUTH_PLATFORM_IOS_11
 	if (@available(iOS 11.0, *))
 	{
 		bSessionInProgress = true;
@@ -113,6 +123,7 @@ bool FIOSWebAuth::AuthSessionWithURL(const FString &UrlStr, const FString &Schem
 		[(SFAuthenticationSession*)SavedAuthSession start];
 	}
 	else
+#endif
 	{
 		NSLog(@"No supported authentication services found");
 	}
@@ -158,7 +169,11 @@ bool FIOSWebAuth::SaveCredentials(const FString& IdStr, const FString& TokenStr,
 	}
 
 	// make a data blob of array of strings
+#if USE_DEPRECATED_WEBAUTH_PLATFORM_IOS_11
 	NSData* CredentialsData = [NSKeyedArchiver archivedDataWithRootObject:@[Id, Token]];
+#else
+	NSData* CredentialsData = [NSKeyedArchiver archivedDataWithRootObject:@[Id, Token] requiringSecureCoding:NO error:nil];
+#endif
 	[SearchDictionary setObject:CredentialsData forKey:(id)kSecValueData];
 
 	// add it
@@ -195,7 +210,11 @@ bool FIOSWebAuth::LoadCredentials(FString& OutIdStr, FString& OutTokenStr, const
 	if (Result)
 	{
 		// convert data blob back to an array
+#if USE_DEPRECATED_WEBAUTH_PLATFORM_IOS_11
 		NSArray* CredentialsArray = [NSKeyedUnarchiver unarchiveObjectWithData:Result];
+#else
+		NSArray* CredentialsArray = [NSKeyedUnarchiver unarchivedObjectOfClass:[NSArray class] fromData:Result error:nil];
+#endif
 		if ([CredentialsArray count] == 2 && [[CredentialsArray objectAtIndex:0] isKindOfClass:[NSString class]] && [[CredentialsArray objectAtIndex:1] isKindOfClass:[NSString class]])
 		{
 			Id = [CredentialsArray objectAtIndex:0];
