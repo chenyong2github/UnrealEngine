@@ -326,7 +326,7 @@ RENDERER_API void SetupLightParameters(
 			LightParameters->Type[LightParameters->Count] = 1;
 			LightParameters->Position[LightParameters->Count] = LightShaderParameters.Position;
 			// #dxr_todo: UE-72556 define these differences from Lit..
-			LightParameters->Color[LightParameters->Count] = LightShaderParameters.Color / (4.0 * PI);
+			LightParameters->Color[LightParameters->Count] = LightShaderParameters.Color;
 			float SourceRadius = 0.0; // LightShaderParameters.SourceRadius causes too much noise for little pay off at this time
 			LightParameters->Dimensions[LightParameters->Count] = FVector(0.0, 0.0, SourceRadius);
 			LightParameters->Attenuation[LightParameters->Count] = 1.0 / LightShaderParameters.InvRadius;
@@ -340,7 +340,7 @@ RENDERER_API void SetupLightParameters(
 			LightParameters->Position[LightParameters->Count] = LightShaderParameters.Position;
 			LightParameters->Normal[LightParameters->Count] = -LightShaderParameters.Direction;
 			// #dxr_todo: UE-72556 define these differences from Lit..
-			LightParameters->Color[LightParameters->Count] = 4.0 * PI * LightShaderParameters.Color;
+			LightParameters->Color[LightParameters->Count] = LightShaderParameters.Color;
 			float SourceRadius = 0.0; // LightShaderParameters.SourceRadius causes too much noise for little pay off at this time
 			LightParameters->Dimensions[LightParameters->Count] = FVector(LightShaderParameters.SpotAngles, SourceRadius);
 			LightParameters->Attenuation[LightParameters->Count] = 1.0 / LightShaderParameters.InvRadius;
