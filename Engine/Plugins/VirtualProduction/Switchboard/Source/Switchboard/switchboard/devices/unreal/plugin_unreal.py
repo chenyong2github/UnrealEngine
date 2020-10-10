@@ -150,8 +150,10 @@ class DeviceUnreal(Device):
 
         sync_tool = ""
         sync_args = ""
+
         # for installed/vanilla engine we directly call p4 to sync the project itself. RunUAT only works when the engine itself is in p4.
         engine_needs_building = CONFIG.BUILD_ENGINE.get_value(self.name)
+
         if engine_needs_building:
             sync_tool = f'{os.path.normpath(os.path.join(CONFIG.ENGINE_DIR.get_value(self.name), "Build", "BatchFiles", "RunUAT.bat"))}'
             sync_args = f'-P4 SyncProject -project="{CONFIG.UPROJECT_PATH.get_value(self.name)}" -cl={changelist} -threads=8 -generate'
@@ -175,7 +177,7 @@ class DeviceUnreal(Device):
             return
         engine_path = CONFIG.ENGINE_DIR.get_value(self.name)
         build_tool = os.path.join(engine_path, "Binaries", "DotNET", "UnrealBuildTool")
-        build_args = f"UE4Editor Win64 Development {CONFIG.UPROJECT_PATH.get_value(self.name)} -progress"
+        build_args = f'Win64 Development -project="{CONFIG.UPROJECT_PATH.get_value(self.name)}" -TargetType=Editor -Progress -NoEngineChanges -NoHotReloadFromIDE'
         program_name = "build"
         mid, msg = message_protocol.create_start_process_message(build_tool, build_args, program_name)
         self._remote_programs_start_queue[mid] = program_name
