@@ -113,9 +113,7 @@ void URevolveBoundaryTool::Setup()
 	ComponentTarget->SetOwnerVisibility(Settings->bDisplayOriginalMesh);
 
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartRevolveBoundaryTool", 
-			"This tool revolves the mesh boundary around the axis to create a new mesh. Ctrl+click will reposition "
-			"the revolution axis, potentially aligning it with an edge."),
+		LOCTEXT("OnStartRevolveBoundaryTool", "This tool revolves the mesh boundary around the axis to create a new mesh. Ctrl+click will reposition the revolution axis, potentially aligning it with an edge."),
 		EToolMessageLevel::UserNotification);
 	if (Topology->Edges.Num() == 1)
 	{
@@ -127,15 +125,13 @@ void URevolveBoundaryTool::Setup()
 	else if (Topology->Edges.Num() == 0)
 	{
 		GetToolManager()->DisplayMessage(
-			LOCTEXT("NoBoundaryLoops", "This mesh does not have any boundary loops to display "
-				"and revolve. Delete some faces or use a different mesh."),
+			LOCTEXT("NoBoundaryLoops", "This mesh does not have any boundary loops to display and revolve. Delete some faces or use a different mesh."),
 			EToolMessageLevel::UserWarning);
 	}
 	else
 	{
 		GetToolManager()->DisplayMessage(
-			LOCTEXT("OnStartRevolveBoundaryToolMultipleBoundaries", "Your mesh has multiple "
-				"boundaries- Click the one you wish to use"),
+			LOCTEXT("OnStartRevolveBoundaryToolMultipleBoundaries", "Your mesh has multiple boundaries- Click the one you wish to use"),
 			EToolMessageLevel::UserWarning);
 	}
 }

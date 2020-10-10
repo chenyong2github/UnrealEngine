@@ -2724,8 +2724,7 @@ void SMyBlueprint::OnDeleteEntry()
 	{
 		if(FBlueprintEditorUtils::IsVariableUsed(GetBlueprintObj(), VarAction->GetVariableName()))
 		{
-			FText ConfirmDelete = FText::Format(LOCTEXT( "ConfirmDeleteVariableInUse",
-				"Variable {0} is in use! Do you really want to delete it?"),
+			FText ConfirmDelete = FText::Format(LOCTEXT( "ConfirmDeleteVariableInUse", "Variable {0} is in use! Do you really want to delete it?"),
 				FText::FromName( VarAction->GetVariableName() ) );
 
 			// Warn the user that this may result in data loss
@@ -2749,8 +2748,7 @@ void SMyBlueprint::OnDeleteEntry()
 	{
 		if(FBlueprintEditorUtils::IsVariableUsed(GetBlueprintObj(), LocalVarAction->GetVariableName(), FBlueprintEditorUtils::FindScopeGraph(GetBlueprintObj(), LocalVarAction->GetVariableScope())))
 		{
-			FText ConfirmDelete = FText::Format(LOCTEXT( "ConfirmDeleteLocalVariableInUse",
-				"Local Variable {0} is in use! Do you really want to delete it?"),
+			FText ConfirmDelete = FText::Format(LOCTEXT( "ConfirmDeleteLocalVariableInUse", "Local Variable {0} is in use! Do you really want to delete it?"),
 				FText::FromName( LocalVarAction->GetVariableName() ) );
 
 			// Warn the user that this may result in data loss

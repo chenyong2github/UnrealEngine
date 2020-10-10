@@ -147,9 +147,7 @@ void FHoloLensTargetSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder
 
 	// Load the existing signing certificate (if any)
 	FText SigningCertificateCaption = LOCTEXT("SigningCertificate", "Signing Certificate");
-	FText SigningCertificateTooltip = LOCTEXT("SigningCertificateTooltip",
-		"Pfx file containing a private key used to sign the AppX file created during packaging.  The certificate subject" \
-		"name must exactly match the value of Package/Identity/Publisher.  Signing is required when sideloading packaged builds");
+	FText SigningCertificateTooltip = LOCTEXT("SigningCertificateTooltip", "Pfx file containing a private key used to sign the AppX file created during packaging.  The certificate subject name must exactly match the value of Package/Identity/Publisher.  Signing is required when sideloading packaged builds");
 
 	PackagingCategoryBuilder.AddCustomRow(SigningCertificateCaption)
 	.NameContent()
@@ -203,9 +201,7 @@ void FHoloLensTargetSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder
 	TSharedRef<IPropertyHandle> Win10SDKVersionPropertyHandle = DetailBuilder.GetProperty("Windows10SDKVersion");
 
 	FText AutoDetectSDKCaption = LOCTEXT("AutodetectWin10SDKCaption", "Auto-detect Windows 10 SDK");
-	FText AutoDetectSDKTooltip = LOCTEXT("AutodetectWin10SDKTooltip",
-		"When enabled the project will build against the most recent version of the Windows 10 SDK supported by your compiler." \
-		"This is typically the recommended behavior.  Uncheck in order to manually select a specific SDK version");
+	FText AutoDetectSDKTooltip = LOCTEXT("AutodetectWin10SDKTooltip", "When enabled the project will build against the most recent version of the Windows 10 SDK supported by your compiler. This is typically the recommended behavior.  Uncheck in order to manually select a specific SDK version");
 	TSharedPtr<SCheckBox> AutoDetectSDKCheckbox;
 	ToolchainCategoryBuilder.AddCustomRow(AutoDetectSDKCaption)
 	.NameContent()

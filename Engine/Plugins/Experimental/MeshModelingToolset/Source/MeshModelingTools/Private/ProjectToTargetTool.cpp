@@ -50,8 +50,7 @@ void UProjectToTargetTool::Setup()
 
 	SetToolDisplayName(LOCTEXT("ProjectToTargetToolName", "Remesh To Target Tool"));
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("ProjectToTargetToolDescription",
-			"Incrementally deform the first selected mesh towards the second, while applying Remeshing. This can be used to improve the accuracy of shrink-wrapping strategies."),
+		LOCTEXT("ProjectToTargetToolDescription", "Incrementally deform the first selected mesh towards the second, while applying Remeshing. This can be used to improve the accuracy of shrink-wrapping strategies."),
 		EToolMessageLevel::UserNotification);
 }
 

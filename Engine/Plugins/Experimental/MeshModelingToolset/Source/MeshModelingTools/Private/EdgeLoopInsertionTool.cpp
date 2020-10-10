@@ -104,9 +104,7 @@ void UEdgeLoopInsertionTool::Setup()
 	}
 
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("EdgeLoopInsertionToolDescription",
-			"Click an edge to insert an edge loop passing across that edge. "
-			"Edge loops follow a sequence of quad-like polygroups."),
+		LOCTEXT("EdgeLoopInsertionToolDescription", "Click an edge to insert an edge loop passing across that edge. Edge loops follow a sequence of quad-like polygroups."),
 		EToolMessageLevel::UserNotification);
 
 	// Initialize the mesh that we'll be operating on

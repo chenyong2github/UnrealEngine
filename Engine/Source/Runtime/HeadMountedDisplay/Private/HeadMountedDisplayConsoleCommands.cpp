@@ -280,8 +280,7 @@ static void SpectatorScreenMode(const TArray<FString>& Args, UWorld* , FOutputDe
 
 static FAutoConsoleCommand CSpectatorModeCmd(
 	TEXT("vr.SpectatorScreenMode"),
-	*LOCTEXT("CVarText_SpectatorScreenMode",
-		"Changes the look of the spectator if supported by the HMD plugin.\n 0: disable mirroring\n 1: single eye\n 2: stereo pair\nNumbers larger than 2 may be possible and specify HMD plugin-specific variations.\nNegative values are treated the same as 0.").ToString(),
+	*LOCTEXT("CVarText_SpectatorScreenMode", "Changes the look of the spectator if supported by the HMD plugin.\n 0: disable mirroring\n 1: single eye\n 2: stereo pair\nNumbers larger than 2 may be possible and specify HMD plugin-specific variations.\nNegative values are treated the same as 0.").ToString(),
 	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateStatic(SpectatorScreenMode));
 
 static void HMDResetPosition(const TArray<FString>& Args, UWorld*, FOutputDevice& Ar)
@@ -485,8 +484,7 @@ static void WorldToMeters(const TArray<FString>& Args, UWorld* World, FOutputDev
 
 static FAutoConsoleCommand CWorldToMetersCmd(
 	TEXT("vr.WorldToMetersScale"),
-	*LOCTEXT("CCommandText_WorldToMeters", 
-		"Get or set the current world to meters scale.").ToString(),
+	*LOCTEXT("CCommandText_WorldToMeters", "Get or set the current world to meters scale.").ToString(),
 	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateStatic(WorldToMeters));
 
 /**
