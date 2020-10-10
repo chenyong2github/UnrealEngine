@@ -114,6 +114,10 @@ void FOculusBuildAnalytics::OnLauncherWorkerStarted(ILauncherWorkerPtr LauncherW
 				{
 					Devices.Add("quest");
 				}
+				if (TargetOculusDevices.Contains(EOculusMobileDevice::Quest2))
+				{
+					Devices.Add("quest2");
+				}
 				OculusPlatform = FString::Join(Devices, TEXT("_"));
 			}
 			else if (CurrentBuildPlatform.Contains("Windows"))
