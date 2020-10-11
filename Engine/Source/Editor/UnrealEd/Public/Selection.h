@@ -10,6 +10,7 @@
 #include "Selection.generated.h"
 
 class UTypedElementList;
+class UTypedElementSelectionSet;
 
 namespace Selection_Private
 {
@@ -18,6 +19,11 @@ class ISelectionStoreSink
 {
 public:
 	virtual ~ISelectionStoreSink() = default;
+
+	/**
+	 * Called prior to potential changes being made within the underlying store.
+	 */
+	virtual void OnPreModify() = 0;
 
 	/**
 	 * Called when the given object is selected within the underlying store.
@@ -50,6 +56,11 @@ public:
 	 * @note Does nothing if element list stores aren't enabled. Asserts for non-element list stores if they are!
 	 */
 	virtual void SetElementList(UTypedElementList* InElementList) = 0;
+
+	/**
+	 * Get the element list instance for this selection set, if any.
+	 */
+	virtual UTypedElementList* GetElementList() const = 0;
 
 	/**
 	 * Get the number of objects within the underlying store.
@@ -164,12 +175,17 @@ public:
 	/** Params: UObject* NewSelection */
 	DECLARE_EVENT_OneParam(USelection, FOnSelectionChanged, UObject*);
 
+	/** Event fired when the element list for a selection is changed */
+	DECLARE_EVENT_ThreeParams(USelection, FOnSelectionElementListChanged, USelection* /*Selection*/, UTypedElementList* /*OldElementList*/, UTypedElementList* /*NewElementList*/);
+
 	/** Called when selection in editor has changed */
 	static FOnSelectionChanged SelectionChangedEvent;
 	/** Called when an object has been selected (generally an actor) */
 	static FOnSelectionChanged SelectObjectEvent;
 	/** Called to deselect everything */
 	static FSimpleMulticastDelegate SelectNoneEvent;
+	/** Called when the element list for a selection has changed */
+	static FOnSelectionElementListChanged SelectionElementListChanged;
 
 	typedef ClassArray::TIterator TClassIterator;
 	typedef ClassArray::TConstIterator TClassConstIterator;
@@ -183,7 +199,32 @@ public:
 	 */
 	void SetElementList(UTypedElementList* InElementList)
 	{
+		ElementSelectionSet.Reset();
+		UTypedElementList* OldElementList = SelectionStore->GetElementList();
 		SelectionStore->SetElementList(InElementList);
+		USelection::SelectionElementListChanged.Broadcast(this, OldElementList, SelectionStore->GetElementList());
+	}
+
+	/**
+	 * Get the element list instance for this selection set, if any.
+	 */
+	UTypedElementList* GetElementList() const
+	{
+		return SelectionStore->GetElementList();
+	}
+
+	/**
+	 * Set the element selection set instance for this selection set.
+	 * @note Also sets the element list instance.
+	 */
+	void SetElementSelectionSet(UTypedElementSelectionSet* InElementSelectionSet);
+
+	/**
+	 * Get the element selection set instance for this selection set, if any.
+	 */
+	UTypedElementSelectionSet* GetElementSelectionSet() const
+	{
+		return ElementSelectionSet.Get();
 	}
 
 	/**
@@ -482,6 +523,7 @@ protected:
 	void Initialize(FUObjectAnnotationSparseBool* InSelectionAnnotation, TSharedRef<Selection_Private::ISelectionStore>&& InSelectionStore);
 
 	//~ ISelectionStoreSink interface
+	virtual void OnPreModify() override;
 	virtual void OnObjectSelected(UObject* InObject, const bool bNotify) override;
 	virtual void OnObjectDeselected(UObject* InObject, const bool bNotify) override;
 	virtual void OnSelectedChanged(const bool bSyncState, const bool bNotify) override;
@@ -491,6 +533,9 @@ protected:
 
 	/** Store of selected objects. */
 	TSharedPtr<Selection_Private::ISelectionStore> SelectionStore = nullptr;
+
+	/** Underlying element selection set (if any). */
+	TWeakObjectPtr<UTypedElementSelectionSet> ElementSelectionSet;
 
 	/** Tracks the most recently selected actor classes.  Used for UnrealEd menus. */
 	ClassArray SelectedClasses;

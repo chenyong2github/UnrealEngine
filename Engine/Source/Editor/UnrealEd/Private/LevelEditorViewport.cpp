@@ -2129,6 +2129,8 @@ void FLevelEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* HitPr
 	}
 	if (!ModeTools->HandleClick(this, HitProxy,Click))
 	{
+		const FTypedElementHandle HitElement = HitProxy ? HitProxy->GetElementHandle() : FTypedElementHandle();
+
 		if (HitProxy == NULL)
 		{
 			LevelViewportClickHandlers::ClickBackdrop(this,Click);
@@ -2176,6 +2178,10 @@ void FLevelEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* HitPr
 		else if (GUnrealEd->ComponentVisManager.HandleClick(this, HitProxy, Click))
 		{
 			// Component vis manager handled the click
+		}
+		else if (HitElement && LevelViewportClickHandlers::ClickElement(this, HitElement, Click))
+		{
+			// Element handled the click
 		}
 		else if (HitProxy->IsA(HActor::StaticGetType()))
 		{

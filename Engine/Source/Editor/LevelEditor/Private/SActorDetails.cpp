@@ -293,7 +293,7 @@ void SActorDetails::PostUndo(bool bSuccess)
 	AActor* SelectedActor = GetSelectedActorInEditor();
 	if (SelectedActor)
 	{
-		GUnrealEd->SetActorSelectionFlags(SelectedActor);
+		SelectedActor->PushSelectionToProxies();
 
 		// Update the pivot (widget) as the current selection may be a component within the Actor instance
 		GUnrealEd->UpdatePivotLocationForSelection();
@@ -351,7 +351,7 @@ void SActorDetails::OnEditorSelectionChanged(UObject* Object)
 				for(FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
 				{
 					AActor* Actor = CastChecked<AActor>(*It);
-					GUnrealEd->SetActorSelectionFlags(Actor);
+					Actor->PushSelectionToProxies();
 				}
 			}
 		}
@@ -555,7 +555,7 @@ void SActorDetails::OnSCSEditorTreeViewSelectionChanged(const TArray<FSCSEditorT
 
 					DetailsView->SetObjects(DetailsObjects);
 
-					GUnrealEd->SetActorSelectionFlags(Actor);
+					Actor->PushSelectionToProxies();
 					GUnrealEd->UpdatePivotLocationForSelection(true);
 					GEditor->RedrawLevelEditingViewports();
 				}

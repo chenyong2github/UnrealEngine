@@ -42,7 +42,7 @@ template <typename BaseInterfaceType>
 struct TTypedElementListInterfaceIterator
 {
 public:
-	explicit TTypedElementListInterfaceIterator(const UTypedElementRegistry* InRegistry, const TArray<FTypedElementHandle>& InElementHandles, const int32 InIndex)
+	TTypedElementListInterfaceIterator(const UTypedElementRegistry* InRegistry, const TArray<FTypedElementHandle>& InElementHandles, const int32 InIndex)
 		: Registry(InRegistry)
 		, ElementHandles(InElementHandles)
 		, InitialNum(InElementHandles.Num())
@@ -105,7 +105,7 @@ template <typename BaseInterfaceType>
 struct TTypedElementListInterfaceIteratorProxy
 {
 public:
-	explicit TTypedElementListInterfaceIteratorProxy(const UTypedElementRegistry* InRegistry, const TArray<FTypedElementHandle>& InElementHandles)
+	TTypedElementListInterfaceIteratorProxy(const UTypedElementRegistry* InRegistry, const TArray<FTypedElementHandle>& InElementHandles)
 		: Registry(InRegistry)
 		, ElementHandles(InElementHandles)
 	{
@@ -194,6 +194,27 @@ private:
 
 	int32 NumOpenBatchOperations = 0;
 	bool bBatchOperationIsDirty = false;
+};
+
+/**
+ * Helper to batch immediate sync notifications for legacy code.
+ * Does nothing if no legacy sync has been created for the given instance.
+ */
+class TYPEDELEMENTFRAMEWORK_API FTypedElementListLegacySyncScopedBatch
+{
+public:
+	explicit FTypedElementListLegacySyncScopedBatch(UTypedElementList* InElementList, const bool InNotify = true);
+	~FTypedElementListLegacySyncScopedBatch();
+
+	FTypedElementListLegacySyncScopedBatch(const FTypedElementListLegacySyncScopedBatch&) = delete;
+	FTypedElementListLegacySyncScopedBatch& operator=(const FTypedElementListLegacySyncScopedBatch&) = delete;
+
+	FTypedElementListLegacySyncScopedBatch(FTypedElementListLegacySyncScopedBatch&&) = delete;
+	FTypedElementListLegacySyncScopedBatch& operator=(FTypedElementListLegacySyncScopedBatch&&) = delete;
+
+private:
+	FTypedElementListLegacySync* ElementListLegacySync = nullptr;
+	bool bNotify = true;
 };
 
 /**
@@ -337,6 +358,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|List")
 	FORCEINLINE void Empty(const int32 InSlack = 0)
 	{
+		NoteListMayChange();
 		ElementCombinedIds.Empty(InSlack);
 		ElementHandles.Empty(InSlack);
 		NoteListChanged(EChangeType::Cleared);
@@ -348,6 +370,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|List")
 	FORCEINLINE void Reset()
 	{
+		NoteListMayChange();
 		ElementCombinedIds.Reset();
 		ElementHandles.Reset();
 		NoteListChanged(EChangeType::Cleared);
@@ -422,20 +445,12 @@ public:
 	 */
 	void Append(TArrayView<const FTypedElementHandle> InElementHandles)
 	{
-		if (LegacySync)
-		{
-			LegacySync->BeginBatchOperation();
-		}
+		FTypedElementListLegacySyncScopedBatch LegacySyncBatch(this);
 
 		Reserve(Num() + InElementHandles.Num());
 		for (const FTypedElementHandle& ElementHandle : InElementHandles)
 		{
 			AddElementImpl(CopyTemp(ElementHandle));
-		}
-
-		if (LegacySync)
-		{
-			LegacySync->EndBatchOperation();
 		}
 	}
 
@@ -454,20 +469,12 @@ public:
 	template <typename ElementDataType>
 	void Append(TArrayView<const TTypedElementOwner<ElementDataType>> InElementOwners)
 	{
-		if (LegacySync)
-		{
-			LegacySync->BeginBatchOperation();
-		}
+		FTypedElementListLegacySyncScopedBatch LegacySyncBatch(this);
 
 		Reserve(Num() + InElementOwners.Num());
 		for (const TTypedElementOwner<ElementDataType>& ElementOwner : InElementOwners)
 		{
 			AddElementImpl(ElementOwner.AcquireHandle());
-		}
-
-		if (LegacySync)
-		{
-			LegacySync->EndBatchOperation();
 		}
 	}
 
@@ -525,6 +532,22 @@ public:
 	}
 
 	/**
+	 * Get the element type ID for the associated element type name, if any.
+	 * @return The element type ID, or 0 if the given name wasn't registered.
+	 */
+	FTypedHandleTypeId GetRegisteredElementTypeId(const FName InElementTypeName) const;
+
+	/**
+	 * Access the delegate that is invoked whenever this element list is potentially about to change.
+	 * @note This may be called even if no actual change happens, though once a change does happen it won't be called again until after the next call to NotifyPendingChanges.
+	 */
+	DECLARE_EVENT_OneParam(UTypedElementList, FOnPreChange, const UTypedElementList* /*InElementList*/);
+	FOnPreChange& OnPreChange()
+	{
+		return OnPreChangeDelegate;
+	}
+
+	/**
 	 * Access the delegate that is invoked whenever this element list has been changed.
 	 * @note This is called automatically at the end of each frame, but can also be manually invoked by NotifyPendingChanges.
 	 */
@@ -544,6 +567,12 @@ public:
 	 * This exists purely as a bridging mechanism and shouldn't be relied on for new code. It is lazily created as needed.
 	 */
 	FTypedElementListLegacySync& Legacy_GetSync();
+
+	/**
+	 * Access the interface to allow external systems (such as USelection) to receive immediate sync notifications as an element list is changed.
+	 * This exists purely as a bridging mechanism and shouldn't be relied on for new code. This will return null if no legacy sync has been created for this instance.
+	 */
+	FTypedElementListLegacySync* Legacy_GetSyncPtr();
 
 	/**
 	 * Get an iterator for elements that implement the given element interface.
@@ -590,6 +619,7 @@ private:
 	int32 RemoveAllElementsImpl(TFunctionRef<bool(const FTypedElementHandle&)> InPredicate);
 	bool ContainsElementImpl(const FTypedElementId& InElementId) const;
 
+	void NoteListMayChange();
 	void NoteListChanged(const EChangeType InChangeType, const FTypedElementHandle& InElementHandle = FTypedElementHandle());
 
 	/**
@@ -608,6 +638,11 @@ private:
 	 * These are stored in the same order that they are added, and the set above can be used to optimize certain queries.
 	 */
 	TArray<FTypedElementHandle> ElementHandles;
+
+	/**
+	 * Delegate that is invoked whenever this element list is potentially about to change.
+	 */
+	FOnPreChange OnPreChangeDelegate;
 
 	/**
 	 * Delegate that is invoked whenever this element list has been changed.

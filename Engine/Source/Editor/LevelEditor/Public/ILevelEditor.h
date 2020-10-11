@@ -17,6 +17,7 @@ class IDetailRootObjectCustomization;
 class ISceneOutliner;
 class IAssetViewport;
 class SLevelViewport;
+class UTypedElementSelectionSet;
 
 /**
  * Public interface to SLevelEditor
@@ -25,6 +26,10 @@ class ILevelEditor : public SCompoundWidget, public IToolkitHost
 {
 
 public:
+
+	/** Get the element selection set used by this level editor */
+	virtual const UTypedElementSelectionSet* GetElementSelectionSet() const = 0;
+	virtual UTypedElementSelectionSet* GetMutableElementSelectionSet() = 0;
 
 	/** Summons a context menu for this level editor at the mouse cursor's location */
 	virtual void SummonLevelViewportContextMenu(AActor* HitProxyActor = nullptr) = 0;

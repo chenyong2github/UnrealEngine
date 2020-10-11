@@ -123,6 +123,7 @@ void UUnrealEdEngine::Init(IEngineLoop* InEngineLoop)
 	FEditorSupportDelegates::PostWindowsMessage.AddUObject(this, &UUnrealEdEngine::OnPostWindowsMessage);
 
 	USelection::SelectionChangedEvent.AddUObject(this, &UUnrealEdEngine::OnEditorSelectionChanged);
+	USelection::SelectionElementListChanged.AddUObject(this, &UUnrealEdEngine::OnEditorSelectionElementListPtrChanged);
 
 	// Initialize the snap manager
 	FSnappingUtils::InitEditorSnappingTools();

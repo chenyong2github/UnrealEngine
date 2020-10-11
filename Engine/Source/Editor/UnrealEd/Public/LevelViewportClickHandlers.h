@@ -11,6 +11,7 @@ class ABrush;
 class FLevelEditorViewportClient;
 class UModel;
 class USceneComponent;
+struct FTypedElementHandle;
 struct FViewportClick;
 struct HActor;
 struct HGeomEdgeProxy;
@@ -44,6 +45,8 @@ struct HLevelSocketProxy : public HHitProxy
 namespace LevelViewportClickHandlers
 {
 	bool ClickViewport(FLevelEditorViewportClient* ViewportClient, const FViewportClick& Click);
+
+	bool ClickElement(FLevelEditorViewportClient* ViewportClient, const FTypedElementHandle& HitElement, const FViewportClick& Click);
 
 	bool UNREALED_API ClickActor(FLevelEditorViewportClient* ViewportClient,AActor* Actor,const FViewportClick& Click,bool bAllowSelectionChange);
 

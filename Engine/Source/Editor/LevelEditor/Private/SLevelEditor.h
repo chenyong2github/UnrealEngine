@@ -22,7 +22,7 @@ class SActorDetails;
 class SBorder;
 class SLevelEditorModeContent;
 class SLevelEditorToolBox;
-class UTypedElementList;
+class UTypedElementSelectionSet;
 
 /**
  * Unreal editor level editor Slate widget
@@ -65,6 +65,8 @@ public:
 	TSharedPtr<class SLevelViewport> GetActiveViewport();
 
 	/** ILevelEditor interface */
+	virtual const UTypedElementSelectionSet* GetElementSelectionSet() const override;
+	virtual UTypedElementSelectionSet* GetMutableElementSelectionSet() override;
 	virtual void SummonLevelViewportContextMenu(AActor* HitProxyActor = nullptr) override;
 	virtual void SummonLevelViewportViewOptionMenu(const ELevelViewportType ViewOption) override;
 	virtual const TArray< TSharedPtr< class IToolkit > >& GetHostedToolkits() const override;
@@ -262,7 +264,7 @@ private:
 	UWorld* World;
 
 	// The list of selected elements (also set on the global USelection for actors and components).
-	UTypedElementList* SelectedElements = nullptr;
+	UTypedElementSelectionSet* SelectedElements = nullptr;
 
 	// The box that holds the title bar messages.
 	TSharedPtr<SHorizontalBox> TtileBarMessageBox;

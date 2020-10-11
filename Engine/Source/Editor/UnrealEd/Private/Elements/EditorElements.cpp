@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "EditorElements.h"
+#include "Elements/EditorElements.h"
 #include "TypedElementRegistry.h"
 
 #include "Elements/Actor/ActorElementEditorSelectionInterface.h"
 
 #include "Elements/Component/ComponentElementEditorSelectionInterface.h"
+
+FSimpleMulticastDelegate OnRegisterEditorElementsDelegate;
 
 void RegisterEditorActorElements()
 {
@@ -25,4 +27,6 @@ void RegisterEditorElements()
 {
 	RegisterEditorActorElements();
 	RegisterEditorComponentElements();
+
+	OnRegisterEditorElementsDelegate.Broadcast();
 }

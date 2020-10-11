@@ -73,6 +73,24 @@ void FTypedElementListLegacySync::ForceBatchOperationDirty()
 }
 
 
+FTypedElementListLegacySyncScopedBatch::FTypedElementListLegacySyncScopedBatch(UTypedElementList* InElementList, const bool InNotify)
+	: ElementListLegacySync(InElementList->Legacy_GetSyncPtr())
+	, bNotify(InNotify)
+{
+	if (ElementListLegacySync)
+	{
+		ElementListLegacySync->BeginBatchOperation();
+	}
+}
+
+FTypedElementListLegacySyncScopedBatch::~FTypedElementListLegacySyncScopedBatch()
+{
+	if (ElementListLegacySync)
+	{
+		ElementListLegacySync->EndBatchOperation(bNotify);
+	}
+}
+
 UTypedElementList* UTypedElementList::Private_CreateElementList(UTypedElementRegistry* InRegistry)
 {
 	UTypedElementList* ElementList = NewObject<UTypedElementList>();
@@ -113,12 +131,19 @@ UTypedElementInterface* UTypedElementList::GetElementInterface(const FTypedEleme
 	return Registry->GetElementInterface(InElementHandle, InBaseInterfaceType);
 }
 
+FTypedHandleTypeId UTypedElementList::GetRegisteredElementTypeId(const FName InElementTypeName) const
+{
+	return Registry->GetRegisteredElementTypeId(InElementTypeName);
+}
+
 bool UTypedElementList::AddElementImpl(FTypedElementHandle&& InElementHandle)
 {
 	if (!InElementHandle)
 	{
 		return false;
 	}
+
+	NoteListMayChange();
 
 	bool bAlreadyAdded = false;
 	ElementCombinedIds.Add(InElementHandle.GetId().GetCombinedId(), &bAlreadyAdded);
@@ -138,6 +163,8 @@ bool UTypedElementList::RemoveElementImpl(const FTypedElementId& InElementId)
 	{
 		return false;
 	}
+
+	NoteListMayChange();
 
 	const bool bRemoved = ElementCombinedIds.Remove(InElementId.GetCombinedId()) > 0;
 
@@ -160,29 +187,27 @@ bool UTypedElementList::RemoveElementImpl(const FTypedElementId& InElementId)
 
 int32 UTypedElementList::RemoveAllElementsImpl(TFunctionRef<bool(const FTypedElementHandle&)> InPredicate)
 {
-	if (LegacySync)
-	{
-		LegacySync->BeginBatchOperation();
-	}
-
 	int32 RemovedCount = 0;
-	for (int32 Index = ElementHandles.Num() - 1; Index >= 0; --Index)
+
+	if (ElementHandles.Num() > 0)
 	{
-		if (InPredicate(ElementHandles[Index]))
+		FTypedElementListLegacySyncScopedBatch LegacySyncBatch(this);
+
+		NoteListMayChange();
+
+		for (int32 Index = ElementHandles.Num() - 1; Index >= 0; --Index)
 		{
-			FTypedElementHandle RemovedElementHandle = MoveTemp(ElementHandles[Index]);
-			ElementCombinedIds.Remove(RemovedElementHandle.GetId().GetCombinedId());
-			ElementHandles.RemoveAt(Index, 1, /*bAllowShrinking*/false);
+			if (InPredicate(ElementHandles[Index]))
+			{
+				FTypedElementHandle RemovedElementHandle = MoveTemp(ElementHandles[Index]);
+				ElementCombinedIds.Remove(RemovedElementHandle.GetId().GetCombinedId());
+				ElementHandles.RemoveAt(Index, 1, /*bAllowShrinking*/false);
 
-			NoteListChanged(EChangeType::Removed, RemovedElementHandle);
+				NoteListChanged(EChangeType::Removed, RemovedElementHandle);
 
-			++RemovedCount;
+				++RemovedCount;
+			}
 		}
-	}
-
-	if (LegacySync)
-	{
-		LegacySync->EndBatchOperation();
 	}
 
 	return RemovedCount;
@@ -203,6 +228,11 @@ FTypedElementListLegacySync& UTypedElementList::Legacy_GetSync()
 	return *LegacySync;
 }
 
+FTypedElementListLegacySync* UTypedElementList::Legacy_GetSyncPtr()
+{
+	return LegacySync.Get();
+}
+
 void UTypedElementList::NotifyPendingChanges()
 {
 	if (bHasPendingNotify)
@@ -210,6 +240,14 @@ void UTypedElementList::NotifyPendingChanges()
 		bHasPendingNotify = false;
 		OnChangedDelegate.Broadcast(this);
 		check(!bHasPendingNotify); // This should still be false after emitting the notification!
+	}
+}
+
+void UTypedElementList::NoteListMayChange()
+{
+	if (!bHasPendingNotify)
+	{
+		OnPreChangeDelegate.Broadcast(this);
 	}
 }
 

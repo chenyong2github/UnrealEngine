@@ -27,8 +27,11 @@ class ITargetPlatform;
 class UPrimitiveComponent;
 class UTexture2D;
 class UUnrealEdOptions;
+class USelection;
+class UTypedElementList;
 class FName;
 typedef FName FEditorModeID;
+struct FTypedElementSelectionOptions;
 
 UENUM()
 enum EPackageNotifyState
@@ -268,10 +271,9 @@ public:
 	virtual void UpdateFloatingPropertyWindowsFromActorList(const TArray< UObject *>& ActorList, bool bForceRefresh=false);
 
 	/**
-	 * Fast track function to set render thread flags marking selection rather than reconnecting all components
-	 * @param InActor - the actor to toggle view flags for
+	 * Called whenever the actor selection has changed to invalidate any cached state
 	 */
-	virtual void SetActorSelectionFlags (AActor* InActor);
+	void PostActorSelectionChanged();
 
 	/**
 	 * Set whether the pivot has been moved independently or not
@@ -800,6 +802,12 @@ protected:
 
 	/** Called when global editor selection changes */
 	void OnEditorSelectionChanged(UObject* SelectionThatChanged);
+
+	/** Called when the element list pointer set on the global editor selection changes */
+	void OnEditorSelectionElementListPtrChanged(USelection* Selection, UTypedElementList* OldElementList, UTypedElementList* NewElementList);
+
+	/** Called when the element list associated with the global editor selection changes */
+	void OnEditorSelectionElementListChanged(const UTypedElementList* ElementList);
 
 	/** The package auto-saver instance used by the editor */
 	TUniquePtr<IPackageAutoSaver> PackageAutoSaver;

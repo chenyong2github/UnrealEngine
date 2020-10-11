@@ -5,8 +5,6 @@
 #include "TypedElementSelectionInterface.h"
 #include "ComponentElementSelectionInterface.generated.h"
 
-class UTypedElementList;
-
 UCLASS()
 class ENGINE_API UComponentElementSelectionInterface : public UTypedElementSelectionInterface
 {

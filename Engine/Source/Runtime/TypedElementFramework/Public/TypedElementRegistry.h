@@ -42,6 +42,18 @@ public:
 	static UTypedElementRegistry* GetInstance();
 
 	/**
+	 * Get the element type ID for the associated element type name, if any.
+	 * @return The element type ID, or 0 if the given name wasn't registered.
+	 */
+	FORCEINLINE FTypedHandleTypeId GetRegisteredElementTypeId(const FName InElementTypeName) const
+	{
+		FReadScopeLock RegisteredElementTypesLock(RegisteredElementTypesRW);
+
+		const FTypedHandleTypeId* TypeId = RegisteredElementTypesNameToId.Find(InElementTypeName);
+		return TypeId ? *TypeId : 0;
+	}
+
+	/**
 	 * Register an element type that doesn't require any additional payload data.
 	 */
 	FORCEINLINE void RegisterElementType(const FName InElementTypeName)

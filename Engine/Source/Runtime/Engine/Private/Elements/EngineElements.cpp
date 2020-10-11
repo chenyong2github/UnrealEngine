@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "EngineElements.h"
+#include "Elements/EngineElements.h"
 #include "Modules/ModuleManager.h"
 
 #include "TypedElementRegistry.h"
@@ -10,6 +10,8 @@
 
 #include "Elements/Component/ComponentElementData.h"
 #include "Elements/Component/ComponentElementSelectionInterface.h"
+
+FSimpleMulticastDelegate OnRegisterEngineElementsDelegate;
 
 void RegisterEngineActorElements()
 {
@@ -35,4 +37,6 @@ void RegisterEngineElements()
 
 	RegisterEngineActorElements();
 	RegisterEngineComponentElements();
+
+	OnRegisterEngineElementsDelegate.Broadcast();
 }

@@ -2,4 +2,48 @@
 
 #include "Elements/Component/ComponentElementEditorSelectionInterface.h"
 #include "Elements/Component/ComponentElementData.h"
-#include "Components/ActorComponent.h"
+#include "Components/SceneComponent.h"
+#include "GameFramework/Actor.h"
+#include "TypedElementList.h"
+
+bool UComponentElementEditorSelectionInterface::IsElementSelected(const FTypedElementHandle& InElementHandle, const UTypedElementList* InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions)
+{
+	const FComponentElementData* ComponentData = InElementHandle.GetData<FComponentElementData>();
+	return ComponentData && IsComponentSelected(ComponentData->Component, InSelectionSet, InSelectionOptions);
+}
+
+bool UComponentElementEditorSelectionInterface::IsComponentSelected(const UActorComponent* InComponent, const UTypedElementList* InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions)
+{
+	if (InSelectionSet->Num() == 0)
+	{
+		return false;
+	}
+
+	if (InSelectionSet->Contains(InComponent->AcquireEditorElementHandle()))
+	{
+		return true;
+	}
+
+	if (InSelectionOptions.AllowIndirect())
+	{
+		const AActor* ConsideredActor = InComponent->GetOwner();
+		const USceneComponent* ConsideredComponent = Cast<USceneComponent>(InComponent);
+		if (ConsideredActor && ConsideredComponent)
+		{
+			while (ConsideredActor->IsChildActor())
+			{
+				ConsideredActor = ConsideredActor->GetParentActor();
+				ConsideredComponent = ConsideredActor->GetParentComponent();
+			}
+
+			while (ConsideredComponent->IsVisualizationComponent())
+			{
+				ConsideredComponent = ConsideredComponent->GetAttachParent();
+			}
+		}
+
+		return InSelectionSet->Contains(ConsideredComponent->AcquireEditorElementHandle());
+	}
+
+	return false;
+}

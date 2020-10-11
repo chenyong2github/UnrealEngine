@@ -56,9 +56,11 @@
 #include "StatusBarSubsystem.h"
 #include "Widgets/Colors/SColorPicker.h"
 #include "SourceCodeNavigation.h"
-#include "TypedElementRegistry.h"
 #include "Editor/EnvironmentLightingViewer/Public/EnvironmentLightingModule.h"
 #include "Misc/MessageDialog.h"
+#include "Elements/TypedElementSelectionSet.h"
+#include "Elements/Actor/ActorElementLevelEditorSelectionProxy.h"
+#include "Elements/Component/ComponentElementLevelEditorSelectionProxy.h"
 
 #define LOCTEXT_NAMESPACE "SLevelEditor"
 
@@ -215,12 +217,16 @@ void SLevelEditor::Construct( const SLevelEditor::FArguments& InArgs)
 
 void SLevelEditor::Initialize( const TSharedRef<SDockTab>& OwnerTab, const TSharedRef<SWindow>& OwnerWindow )
 {
-	SelectedElements = UTypedElementRegistry::GetInstance()->CreateElementList();
+	SelectedElements = NewObject<UTypedElementSelectionSet>();
 	SelectedElements->AddToRoot();
 
+	// Register the level editor specific selection behavior
+	SelectedElements->RegisterAssetEditorSelectionProxy(NAME_Actor, NewObject<UActorElementLevelEditorSelectionProxy>());
+	SelectedElements->RegisterAssetEditorSelectionProxy(NAME_Components, NewObject<UComponentElementLevelEditorSelectionProxy>());
+
 	// Allow USelection to bridge to our selected element list
-	GUnrealEd->GetSelectedActors()->SetElementList(SelectedElements);
-	GUnrealEd->GetSelectedComponents()->SetElementList(SelectedElements);
+	GUnrealEd->GetSelectedActors()->SetElementSelectionSet(SelectedElements);
+	GUnrealEd->GetSelectedComponents()->SetElementSelectionSet(SelectedElements);
 
 	// Bind the level editor tab's label to the currently loaded level name string in the main frame
 	OwnerTab->SetLabel( TAttribute<FText>( this, &SLevelEditor::GetTabTitle) );
@@ -329,12 +335,12 @@ SLevelEditor::~SLevelEditor()
 	// Clear USelection from using our selected element list
 	if (GUnrealEd)
 	{
-		GUnrealEd->GetSelectedActors()->SetElementList(nullptr);
-		GUnrealEd->GetSelectedComponents()->SetElementList(nullptr);
+		GUnrealEd->GetSelectedActors()->SetElementSelectionSet(nullptr);
+		GUnrealEd->GetSelectedComponents()->SetElementSelectionSet(nullptr);
 	}
 	if (UObjectInitialized())
 	{
-		SelectedElements->Empty();
+		SelectedElements->ClearSelection(FTypedElementSelectionOptions());
 		SelectedElements->RemoveFromRoot();
 		SelectedElements = nullptr;
 	}
@@ -1610,6 +1616,16 @@ FReply SLevelEditor::OnKeyDownInViewport( const FGeometry& MyGeometry, const FKe
 void SLevelEditor::OnLayoutHasChanged()
 {
 	// ...
+}
+
+const UTypedElementSelectionSet* SLevelEditor::GetElementSelectionSet() const
+{
+	return SelectedElements;
+}
+
+UTypedElementSelectionSet* SLevelEditor::GetMutableElementSelectionSet()
+{
+	return SelectedElements;
 }
 
 void SLevelEditor::SummonLevelViewportContextMenu(AActor* HitProxyActor)

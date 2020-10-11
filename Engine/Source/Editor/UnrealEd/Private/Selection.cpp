@@ -4,13 +4,9 @@
 #include "UObject/Package.h"
 #include "UObject/UObjectAnnotation.h"
 #include "GameFramework/Actor.h"
-
-#define UE_USE_ELEMENT_LIST_SELECTION (1)
-
-#if UE_USE_ELEMENT_LIST_SELECTION
 #include "TypedElementList.h"
 #include "TypedElementSelectionInterface.h"
-#endif	// UE_USE_ELEMENT_LIST_SELECTION
+#include "Elements/TypedElementSelectionSet.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSelection, Log, All);
 
@@ -57,6 +53,7 @@ public:
 
 	//~ ISelectionStore interface
 	virtual void SetElementList(UTypedElementList* InElementList) override;
+	virtual UTypedElementList* GetElementList() const override;
 	virtual int32 GetNumObjects() const override;
 	virtual UObject* GetObjectAtIndex(const int32 InIndex) const override;
 	virtual bool IsObjectSelected(const UObject* InObject) const override;
@@ -86,7 +83,12 @@ FObjectSelectionStore::FObjectSelectionStore(const UClass* InObjectBaseClass)
 
 void FObjectSelectionStore::SetElementList(UTypedElementList* InElementList)
 {
-	checkf(!UE_USE_ELEMENT_LIST_SELECTION, TEXT("This selection store does not support element lists! Only actor and component selections may currently use element lists!"));
+	checkf(false, TEXT("This selection store does not support element lists! Only actor and component selections may currently use element lists!"));
+}
+
+UTypedElementList* FObjectSelectionStore::GetElementList() const
+{
+	return nullptr;
 }
 
 int32 FObjectSelectionStore::GetNumObjects() const
@@ -108,8 +110,14 @@ bool FObjectSelectionStore::IsObjectSelected(const UObject* InObject) const
 
 void FObjectSelectionStore::SelectObject(UObject* InObject)
 {
+	if (Sink && !bIsBatchDirty)
+	{
+		Sink->OnPreModify();
+	}
+
 	bIsBatchDirty = true;
 	SelectedObjects.Add(InObject);
+	
 	if (Sink)
 	{
 		Sink->OnObjectSelected(InObject, !IsBatchSelecting());
@@ -118,8 +126,14 @@ void FObjectSelectionStore::SelectObject(UObject* InObject)
 
 void FObjectSelectionStore::DeselectObject(UObject* InObject)
 {
+	if (Sink && !bIsBatchDirty)
+	{
+		Sink->OnPreModify();
+	}
+
 	bIsBatchDirty = true;
 	SelectedObjects.RemoveSingle(InObject);
+	
 	if (Sink)
 	{
 		Sink->OnObjectDeselected(InObject, !IsBatchSelecting());
@@ -130,29 +144,37 @@ int32 FObjectSelectionStore::DeselectObjects(TFunctionRef<bool(UObject*)> InPred
 {
 	int32 RemovedCount = 0;
 	
-	for (int32 Index = SelectedObjects.Num() - 1; Index >= 0; --Index)
+	if (SelectedObjects.Num() > 0)
 	{
-		UObject* SelectedObject = SelectedObjects[Index].Get();
-		if (!SelectedObject || InPredicate(SelectedObject))
+		if (Sink && !bIsBatchDirty)
 		{
-			SelectedObjects.RemoveAt(Index);
-			if (SelectedObject)
+			Sink->OnPreModify();
+		}
+
+		for (int32 Index = SelectedObjects.Num() - 1; Index >= 0; --Index)
+		{
+			UObject* SelectedObject = SelectedObjects[Index].Get();
+			if (!SelectedObject || InPredicate(SelectedObject))
 			{
-				if (Sink)
+				SelectedObjects.RemoveAt(Index);
+				if (SelectedObject)
 				{
-					Sink->OnObjectDeselected(SelectedObject, /*bNotify*/false);
+					if (Sink)
+					{
+						Sink->OnObjectDeselected(SelectedObject, /*bNotify*/false);
+					}
+					++RemovedCount;
 				}
-				++RemovedCount;
 			}
 		}
-	}
 
-	if (RemovedCount > 0)
-	{
-		bIsBatchDirty = true;
-		if (Sink)
+		if (RemovedCount > 0)
 		{
-			Sink->OnSelectedChanged(/*bSyncState*/false, !IsBatchSelecting());
+			bIsBatchDirty = true;
+			if (Sink)
+			{
+				Sink->OnSelectedChanged(/*bSyncState*/false, !IsBatchSelecting());
+			}
 		}
 	}
 
@@ -192,8 +214,6 @@ void FObjectSelectionStore::ForceBatchDirty()
 }
 
 
-#if UE_USE_ELEMENT_LIST_SELECTION
-
 class FElementSelectionStore : public FSelectionStoreBase
 {
 public:
@@ -202,6 +222,7 @@ public:
 
 	//~ ISelectionStore interface
 	virtual void SetElementList(UTypedElementList* InElementList) override;
+	virtual UTypedElementList* GetElementList() const override;
 	virtual int32 GetNumObjects() const override;
 	virtual UObject* GetObjectAtIndex(const int32 InIndex) const override;
 	virtual bool IsValidObjectToSelect(const UObject* InObject) const override;
@@ -217,6 +238,7 @@ public:
 	virtual FTypedElementHandle GetElementHandleForObject(const UObject* InObject, const bool bAllowCreate = true) const = 0;
 
 private:
+	void OnElementListPreChangeEvent(const UTypedElementList* InElementList);
 	void OnElementListSyncEvent(const UTypedElementList* InElementList, FTypedElementListLegacySync::ESyncType InSyncType, const FTypedElementHandle& InElementHandle, bool bIsWithinBatchOperation);
 	UObject* GetObjectForElementHandle(const FTypedElementHandle& InElementHandle) const;
 
@@ -233,6 +255,7 @@ FElementSelectionStore::~FElementSelectionStore()
 {
 	if (ElementList)
 	{
+		ElementList->OnPreChange().RemoveAll(this);
 		ElementList->Legacy_GetSync().OnSyncEvent().RemoveAll(this);
 	}
 }
@@ -241,6 +264,7 @@ void FElementSelectionStore::SetElementList(UTypedElementList* InElementList)
 {
 	if (ElementList)
 	{
+		ElementList->OnPreChange().RemoveAll(this);
 		ElementList->Legacy_GetSync().OnSyncEvent().RemoveAll(this);
 	}
 
@@ -248,8 +272,14 @@ void FElementSelectionStore::SetElementList(UTypedElementList* InElementList)
 
 	if (ElementList)
 	{
+		ElementList->OnPreChange().AddRaw(this, &FElementSelectionStore::OnElementListPreChangeEvent);
 		ElementList->Legacy_GetSync().OnSyncEvent().AddRaw(this, &FElementSelectionStore::OnElementListSyncEvent);
 	}
+}
+
+UTypedElementList* FElementSelectionStore::GetElementList() const
+{
+	return ElementList;
 }
 
 int32 FElementSelectionStore::GetNumObjects() const
@@ -279,7 +309,7 @@ bool FElementSelectionStore::IsValidObjectToSelect(const UObject* InObject) cons
 		TTypedElement<UTypedElementSelectionInterface> SelectionElement = ElementList->GetElement<UTypedElementSelectionInterface>(GetElementHandleForObject(InObject));
 		if (SelectionElement)
 		{
-			bIsValid &= SelectionElement.IsValidSelection() && SelectionElement.Legacy_GetSelectionObject() == InObject;
+			bIsValid &= SelectionElement.Legacy_GetSelectionObject() == InObject;
 		}
 		else
 		{
@@ -365,6 +395,14 @@ void FElementSelectionStore::ForceBatchDirty()
 	if (ElementList)
 	{
 		ElementList->Legacy_GetSync().ForceBatchOperationDirty();
+	}
+}
+
+void FElementSelectionStore::OnElementListPreChangeEvent(const UTypedElementList* InElementList)
+{
+	if (Sink)
+	{
+		Sink->OnPreModify();
 	}
 }
 
@@ -461,13 +499,12 @@ FTypedElementHandle FComponentElementSelectionStore::GetElementHandleForObject(c
 	return Component->AcquireEditorElementHandle(bAllowCreate);
 }
 
-#endif	// UE_USE_ELEMENT_LIST_SELECTION
-
 } // namespace Selection_Private
 
-USelection::FOnSelectionChanged	USelection::SelectionChangedEvent;
-USelection::FOnSelectionChanged	USelection::SelectObjectEvent;
-FSimpleMulticastDelegate		USelection::SelectNoneEvent;
+USelection::FOnSelectionChanged				USelection::SelectionChangedEvent;
+USelection::FOnSelectionChanged				USelection::SelectObjectEvent;
+FSimpleMulticastDelegate					USelection::SelectNoneEvent;
+USelection::FOnSelectionElementListChanged	USelection::SelectionElementListChanged;
 
 USelection* USelection::CreateObjectSelection(FUObjectAnnotationSparseBool* InSelectionAnnotation, UObject* InOuter, FName InName, EObjectFlags InFlags)
 {
@@ -479,22 +516,14 @@ USelection* USelection::CreateObjectSelection(FUObjectAnnotationSparseBool* InSe
 USelection* USelection::CreateActorSelection(FUObjectAnnotationSparseBool* InSelectionAnnotation, UObject* InOuter, FName InName, EObjectFlags InFlags)
 {
 	USelection* Selection = NewObject<USelection>(InOuter, InName, InFlags);
-#if UE_USE_ELEMENT_LIST_SELECTION
 	Selection->Initialize(InSelectionAnnotation, MakeShared<Selection_Private::FActorElementSelectionStore>());
-#else	// UE_USE_ELEMENT_LIST_SELECTION
-	Selection->Initialize(InSelectionAnnotation, MakeShared<Selection_Private::FObjectSelectionStore>(AActor::StaticClass()));
-#endif	// UE_USE_ELEMENT_LIST_SELECTION
 	return Selection;
 }
 
 USelection* USelection::CreateComponentSelection(FUObjectAnnotationSparseBool* InSelectionAnnotation, UObject* InOuter, FName InName, EObjectFlags InFlags)
 {
 	USelection* Selection = NewObject<USelection>(InOuter, InName, InFlags);
-#if UE_USE_ELEMENT_LIST_SELECTION
 	Selection->Initialize(InSelectionAnnotation, MakeShared<Selection_Private::FComponentElementSelectionStore>());
-#else	// UE_USE_ELEMENT_LIST_SELECTION
-	Selection->Initialize(InSelectionAnnotation, MakeShared<Selection_Private::FObjectSelectionStore>(UActorComponent::StaticClass()));
-#endif	// UE_USE_ELEMENT_LIST_SELECTION
 	return Selection;
 }
 
@@ -515,6 +544,19 @@ void USelection::Initialize(FUObjectAnnotationSparseBool* InSelectionAnnotation,
 	}
 
 	SyncSelectedState();
+}
+
+void USelection::SetElementSelectionSet(UTypedElementSelectionSet* InElementSelectionSet)
+{
+	ElementSelectionSet = InElementSelectionSet;
+	UTypedElementList* OldElementList = SelectionStore->GetElementList();
+	SelectionStore->SetElementList(InElementSelectionSet ? InElementSelectionSet->GetMutableElementList() : nullptr);
+	USelection::SelectionElementListChanged.Broadcast(this, OldElementList, SelectionStore->GetElementList());
+}
+
+void USelection::OnPreModify()
+{
+	Modify();
 }
 
 void USelection::OnObjectSelected(UObject* InObject, const bool bNotify)
@@ -736,5 +778,3 @@ void USelection::BeginDestroy()
 		SelectionAnnotation = nullptr;
 	}
 }
-
-#undef UE_USE_ELEMENT_LIST_SELECTION

@@ -30,11 +30,30 @@
 #include "StaticLightingSystem/StaticLightingPrivate.h"
 #include "LightMap.h"
 #include "Subsystems/BrushEditingSubsystem.h"
+#include "Elements/TypedElementSelectionSet.h"
 
 #define LOCTEXT_NAMESPACE "ClickHandlers"
 
 namespace LevelViewportClickHandlers
 {
+	static const UTypedElementSelectionSet* PrivateGetElementSelectionSet(FLevelEditorViewportClient* ViewportClient)
+	{
+		if (TSharedPtr<ILevelEditor> LevelEditor = ViewportClient->ParentLevelEditor.Pin())
+		{
+			return LevelEditor->GetElementSelectionSet();
+		}
+		return nullptr;
+	}
+
+	static UTypedElementSelectionSet* PrivateGetMutableElementSelectionSet(FLevelEditorViewportClient* ViewportClient)
+	{
+		if (TSharedPtr<ILevelEditor> LevelEditor = ViewportClient->ParentLevelEditor.Pin())
+		{
+			return LevelEditor->GetMutableElementSelectionSet();
+		}
+		return nullptr;
+	}
+
 	static void PrivateSummonContextMenu( FLevelEditorViewportClient* ViewportClient, AActor* HitProxyActor = nullptr)
 	{
 		if( ViewportClient->ParentLevelEditor.IsValid() )
@@ -117,6 +136,90 @@ namespace LevelViewportClickHandlers
 			return true;
 		}
 		return false;
+	}
+
+	bool ClickElement(FLevelEditorViewportClient* ViewportClient, const FTypedElementHandle& HitElement, const FViewportClick& Click)
+	{
+		// Pivot snapping
+		if (Click.GetKey() == EKeys::MiddleMouseButton && Click.IsAltDown())
+		{
+			//GEditor->SetPivot(GEditor->ClickLocation, true, false, true); // TODO: This last param is only for actor pivots
+			//return true;
+			return false; // Let actor and component clicks handle pivots for now
+		}
+
+		UTypedElementSelectionSet* LevelEditorElementSelectionSet = PrivateGetMutableElementSelectionSet(ViewportClient);
+		if (!LevelEditorElementSelectionSet)
+		{
+			return false;
+		}
+
+		bool bHandledClick = false;
+
+		const bool bIsLeftClickSelection = Click.GetKey() == EKeys::LeftMouseButton && !(ViewportClient->Viewport->KeyState(EKeys::T) || ViewportClient->Viewport->KeyState(EKeys::L) || ViewportClient->Viewport->KeyState(EKeys::S) || ViewportClient->Viewport->KeyState(EKeys::A));
+		const bool bIsRightClickSelection = Click.GetKey() == EKeys::RightMouseButton && !Click.IsControlDown() && !ViewportClient->Viewport->KeyState(EKeys::LeftMouseButton);
+
+		if (bIsLeftClickSelection || bIsRightClickSelection)
+		{
+			const ETypedElementSelectionMethod SelectionMethod = Click.GetEvent() == IE_DoubleClick ? ETypedElementSelectionMethod::Secondary : ETypedElementSelectionMethod::Primary;
+			if (const FTypedElementHandle ResolvedElement = LevelEditorElementSelectionSet->GetSelectionElement(HitElement, SelectionMethod))
+			{
+				bHandledClick = true;
+
+				const FTypedElementSelectionOptions SelectionOptions = FTypedElementSelectionOptions()
+					.SetAllowHidden(true)
+					.SetWarnIfLocked(true);
+
+				bool bNeedViewportRefresh = false;
+
+				if (LevelEditorElementSelectionSet->CanSelectElement(ResolvedElement, SelectionOptions))
+				{
+					const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "ClickingOnElements", "Clicking on Elements"));
+
+					const bool bAllowSelectionModifiers = bIsLeftClickSelection && LevelEditorElementSelectionSet->AllowSelectionModifiers(ResolvedElement);
+					if (Click.IsControlDown() && bAllowSelectionModifiers)
+					{
+						if (LevelEditorElementSelectionSet->IsElementSelected(ResolvedElement, FTypedElementIsSelectedOptions()))
+						{
+							LevelEditorElementSelectionSet->DeselectElement(ResolvedElement, SelectionOptions);
+						}
+						else
+						{
+							LevelEditorElementSelectionSet->SelectElement(ResolvedElement, SelectionOptions);
+						}
+					}
+					else if (Click.IsShiftDown() && bAllowSelectionModifiers)
+					{
+						LevelEditorElementSelectionSet->SelectElement(ResolvedElement, SelectionOptions);
+					}
+					else
+					{
+						// Skip the clear if we're doing a RMB select and this actor is already selected, as we want to summon the menu for the current selection
+						if (bIsLeftClickSelection || !LevelEditorElementSelectionSet->IsElementSelected(ResolvedElement, FTypedElementIsSelectedOptions().SetAllowIndirect(true)))
+						{
+							bNeedViewportRefresh = bIsRightClickSelection; // Refresh the viewport so the user will see what they just clicked while the menu is open
+							GEditor->DeselectAllSurfaces();
+							LevelEditorElementSelectionSet->ClearSelection(SelectionOptions);
+						}
+						LevelEditorElementSelectionSet->SelectElement(ResolvedElement, SelectionOptions);
+					}
+				}
+
+				if (bNeedViewportRefresh)
+				{
+					// Redraw the viewport so the user can see which object was clicked on
+					ViewportClient->Viewport->Draw();
+					FlushRenderingCommands();
+				}
+
+				if (bIsRightClickSelection)
+				{
+					PrivateSummonContextMenu(ViewportClient);
+				}
+			}
+		}
+
+		return bHandledClick;
 	}
 
 	bool ClickActor(FLevelEditorViewportClient* ViewportClient,AActor* Actor,const FViewportClick& Click,bool bAllowSelectionChange)

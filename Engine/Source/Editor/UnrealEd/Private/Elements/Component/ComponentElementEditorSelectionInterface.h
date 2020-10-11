@@ -5,10 +5,15 @@
 #include "Elements/Component/ComponentElementSelectionInterface.h"
 #include "ComponentElementEditorSelectionInterface.generated.h"
 
+class UActorComponent;
+
 UCLASS()
 class UComponentElementEditorSelectionInterface : public UComponentElementSelectionInterface
 {
 	GENERATED_BODY()
 
 public:
+	virtual bool IsElementSelected(const FTypedElementHandle& InElementHandle, const UTypedElementList* InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions) override;
+
+	static bool IsComponentSelected(const UActorComponent* InComponent, const UTypedElementList* InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions);
 };
