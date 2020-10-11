@@ -419,13 +419,15 @@ private:
 	FCSPose<FCompactHeapPose> CapturedFrozenPose;
 	FBlendedHeapCurve CapturedFrozenCurves;
 
-	// Used by the world-space to simulation-space motion transfer system in Component- or Bone-Space sims
-	FTransform PreviousComponentToWorld;
-	FTransform PreviousBoneToComponent;
 	FVector PreviousComponentLinearVelocity;
-	FVector PreviousComponentAngularVelocity;
-	FVector PreviousBoneLinearVelocity;
-	FVector PreviousBoneAngularVelocity;
+
+	// Used by the world-space to simulation-space motion transfer system in Component- or Bone-Space sims
+	FTransform SimSpacePreviousComponentToWorld;
+	FTransform SimSpacePreviousBoneToComponent;
+	FVector SimSpacePreviousComponentLinearVelocity;
+	FVector SimSpacePreviousComponentAngularVelocity;
+	FVector SimSpacePreviousBoneLinearVelocity;
+	FVector SimSpacePreviousBoneAngularVelocity;
 };
 
 #if WITH_EDITORONLY_DATA
