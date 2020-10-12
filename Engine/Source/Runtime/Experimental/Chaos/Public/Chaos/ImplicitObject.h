@@ -4,6 +4,7 @@
 #include "Chaos/Pair.h"
 #include "Chaos/Serializable.h"
 #include "Chaos/Core.h"
+#include "Chaos/ImplicitFwd.h"
 
 #include <functional>
 
@@ -114,6 +115,19 @@ struct TImplicitObjectPtrStorage<T, d, true>
 	}
 };
 
+/*
+ * Base class for implicit collision geometry such as spheres, capsules, boxes, etc.
+ * 
+ * Some shapes are represented by a core shape with a margin. E.g. Spheres are
+ * a point with a margin equal to the radius; boxes are a core AABB with a margin.
+ * The margin is considered to be physically part of the shape for the pupose
+ * of collision detection, separating distance, etc.
+ * 
+ * The margin exists to make GJK and EPA collision more robust, and is not required
+ * by all derived types. E.g., We never use GJK to perform triangle-triangle collision
+ * so we do not need a margin on triangles. We would need a margin on every type
+ * that can be tested against a triangle though.
+ */
 class CHAOS_API FImplicitObject
 {
 public:
@@ -163,6 +177,8 @@ public:
 	EImplicitObjectType GetType() const;
 	EImplicitObjectType GetCollisionType() const;
 	void SetCollsionType(EImplicitObjectType InCollsiionType) { CollisionType = InCollsiionType; }
+
+	FReal GetMargin() const { return Margin; }
 
 	virtual bool IsValidGeometry() const;
 
@@ -304,8 +320,15 @@ public:
 	virtual uint16 GetMaterialIndex(uint32 HintIndex) const { return 0; }
 
 protected:
+
+	// Not all derived types support a margin, and for some it represents some other
+	// property (the radius of a sphere for example), so the setter should only be exposed 
+	// in a derived class if at all (and it may want to change the size of the core shape as well)
+	void SetMargin(FReal InMargin) { Margin = InMargin; }
+
 	EImplicitObjectType Type;
 	EImplicitObjectType CollisionType;
+	FReal Margin;
 	bool bIsConvex;
 	bool bDoCollide;
 	bool bHasBoundingBox;

@@ -228,12 +228,12 @@ namespace ChaosInterface
 				TUniquePtr<Chaos::FImplicitObject> Implicit;
 				if (!BoxTransform.GetRotation().IsIdentity())
 				{
-					auto ImplicitBox = MakeUnique<Chaos::TBox<float, 3>>(-HalfExtents, HalfExtents);
+					auto ImplicitBox = MakeUnique<Chaos::TBox<float, 3>>(-HalfExtents, HalfExtents, InParams.CollisionMargin);
 					Implicit = TUniquePtr<Chaos::FImplicitObject>(new Chaos::TImplicitObjectTransformed<float, 3>(MoveTemp(ImplicitBox), BoxTransform));
 				}
 				else
 				{
-					Implicit = MakeUnique<Chaos::TBox<float, 3>>(BoxTransform.GetTranslation() - HalfExtents, BoxTransform.GetTranslation() + HalfExtents);
+					Implicit = MakeUnique<Chaos::TBox<float, 3>>(BoxTransform.GetTranslation() - HalfExtents, BoxTransform.GetTranslation() + HalfExtents, InParams.CollisionMargin);
 				}
 
 				TUniquePtr<Chaos::FPerShapeData> NewShape = NewShapeHelper(MakeSerializable(Implicit),Shapes.Num(), (void*)BoxElem.GetUserData(), BoxElem.GetCollisionEnabled());
@@ -311,6 +311,7 @@ namespace ChaosInterface
 					//}
 					//else
 					{
+						// @todo(chaos): handle InParams.CollisionMargin for convex
 						TUniquePtr<Chaos::FImplicitObject> Implicit;
 						if (Scale == FVector(1))
 						{
