@@ -77,6 +77,7 @@
 #include "AnimSequenceLevelSequenceLink.h"
 
 
+int32 FSkeletalAnimationTrackEditor::NumberActive = 0;
 
 namespace SkeletalAnimationEditorConstants
 {
@@ -973,6 +974,7 @@ FSkeletalAnimationTrackEditor::FSkeletalAnimationTrackEditor( TSharedRef<ISequen
 	: FMovieSceneTrackEditor( InSequencer ) 
 { 
 	//We use the FGCObject pattern to keep the anim export option alive during the editor session
+
 	AnimSeqExportOption = NewObject<UAnimSeqExportOption>();
 
 	SequencerSavedHandle = InSequencer->OnPostSave().AddRaw(this, &FSkeletalAnimationTrackEditor::OnSequencerSaved);
@@ -981,6 +983,8 @@ FSkeletalAnimationTrackEditor::FSkeletalAnimationTrackEditor( TSharedRef<ISequen
 
 void FSkeletalAnimationTrackEditor::OnInitialize()
 {
+	++FSkeletalAnimationTrackEditor::NumberActive;
+
 	GLevelEditorModeTools().ActivateMode(FSkeletalAnimationTrackEditMode::ModeName);
 	FSkeletalAnimationTrackEditMode* EditMode = static_cast<FSkeletalAnimationTrackEditMode*>(GLevelEditorModeTools().GetActiveMode(FSkeletalAnimationTrackEditMode::ModeName));
 	if (EditMode)
@@ -991,11 +995,17 @@ void FSkeletalAnimationTrackEditor::OnInitialize()
 }
 void FSkeletalAnimationTrackEditor::OnRelease()
 {
-	GLevelEditorModeTools().DeactivateMode(FSkeletalAnimationTrackEditMode::ModeName);
+	--FSkeletalAnimationTrackEditor::NumberActive;
+
 	if (GetSequencer().IsValid() && SequencerSavedHandle.IsValid())
 	{
 		GetSequencer()->OnPostSave().Remove(SequencerSavedHandle);
 	}
+	if (FSkeletalAnimationTrackEditor::NumberActive == 0)
+	{
+		GLevelEditorModeTools().DeactivateMode(FSkeletalAnimationTrackEditMode::ModeName);
+	}
+
 }
 
 void FSkeletalAnimationTrackEditor::AddReferencedObjects(FReferenceCollector& Collector)
