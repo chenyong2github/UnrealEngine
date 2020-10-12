@@ -333,6 +333,8 @@ void UCombineMeshesTool::UpdateExistingAsset()
 	// note there is a MergeMeshUtilities.h w/ a very feature-filled mesh merging class, but for simplicity (and to fit modeling tool needs)
 	// this tool currently converts things through dynamic mesh instead
 
+	AActor* SkipActor = nullptr;
+
 #if WITH_EDITOR
 
 	bool bMergeSameMaterials = true;
@@ -370,7 +372,7 @@ void UCombineMeshesTool::UpdateExistingAsset()
 
 	int32 SkipIndex = (BasicProperties->CombineTo == ECombineTargetType::FirstInputAsset) ? 0 : (ComponentTargets.Num() - 1);
 	TUniquePtr<FPrimitiveComponentTarget>& UpdateTarget = ComponentTargets[SkipIndex];
-	AActor* SkipActor = UpdateTarget->GetOwnerActor();
+	SkipActor = UpdateTarget->GetOwnerActor();
 
 	FTransform3d TargetToWorld = (FTransform3d)UpdateTarget->GetWorldTransform();
 	FTransform3d WorldToTarget = TargetToWorld.Inverse();
