@@ -630,9 +630,9 @@ FBox FChaosEngineInterface::GetBounds_AssumesLocked(const FPhysicsActorHandle& I
 	{
 		if(Geometry->HasBoundingBox())
 		{
-			const TBox<FReal,3> LocalBounds = Geometry->BoundingBox();
+			const FAABB3 LocalBounds = Geometry->BoundingBox();
 			const FRigidTransform3 WorldTM(InActorReference->X(),InActorReference->R());
-			const TBox<FReal,3> WorldBounds = LocalBounds.TransformedBox(WorldTM);
+			const FAABB3 WorldBounds = LocalBounds.TransformedAABB(WorldTM);
 			return FBox(WorldBounds.Min(),WorldBounds.Max());
 		}
 	}

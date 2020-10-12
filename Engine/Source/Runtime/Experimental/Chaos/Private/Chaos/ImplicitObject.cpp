@@ -23,6 +23,7 @@ using namespace Chaos;
 FImplicitObject::FImplicitObject(int32 Flags, EImplicitObjectType InType)
     : Type(InType)
 	, CollisionType(InType)
+	, Margin(0.0f)
     , bIsConvex(!!(Flags & EImplicitObject::IsConvex))
     , bDoCollide(!(Flags & EImplicitObject::DisableCollisions))
     , bHasBoundingBox(!!(Flags & EImplicitObject::HasBoundingBox))
@@ -338,6 +339,8 @@ void FImplicitObject::SerializeImp(FArchive& Ar)
 	{
 		CollisionType = Type;
 	}
+
+	// NOTE: Do not serialize Margin in FImplicitObject base class - this is handled by derived types that use it
 }
 
 void FImplicitObject::Serialize(FChaosArchive& Ar)

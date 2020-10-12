@@ -863,6 +863,7 @@ void UBodySetup::AddShapesToRigidActor_AssumesLocked(
 
 #if WITH_CHAOS
 	AddParams.ChaosTriMeshes = MakeArrayView(ChaosTriMeshes);
+	AddParams.CollisionMargin = UPhysicsSettingsCore::Get()->SolverOptions.CollisionMargin;
 #endif
 	{
 		SCOPE_CYCLE_COUNTER(STAT_AddGeomToSolver);

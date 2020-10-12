@@ -18,9 +18,15 @@ namespace ChaosTest {
 
 	using namespace Chaos;
 
-	// Two boxes that are just touching. Run collision detection with ShapePadding and verify
-	// that the collision detection returns a depth equal to the shape padding.
-	void TestBoxBoxShapePadding()
+	// Two boxes that use a margin around a core AABB.
+	// Test that collision detection treats the margin as part of the shape.
+	void TestBoxMargin(
+		const FReal Margin0,
+		const FReal Margin1,
+		const FVec3& Size,
+		const FVec3& Delta,
+		const FReal ExpectedPhi,
+		const FVec3& ExpectedNormal)
 	{
 		TArrayCollectionArray<bool> Collided;
 		TUniquePtr<FChaosPhysicsMaterial> PhysicsMaterial = MakeUnique<FChaosPhysicsMaterial>();
@@ -34,7 +40,7 @@ namespace ChaosTest {
 		Particles.GetParticleHandles().AddArray(&PhysicsMaterials);
 		Particles.GetParticleHandles().AddArray(&PerParticlePhysicsMaterials);
 
-		auto Box0 = AppendDynamicParticleBox<FReal>(Particles, FVec3(100));
+		auto Box0 = AppendDynamicParticleBoxMargin<FReal>(Particles, Size, Margin0);
 		Box0->X() = FVec3(0, 0, 0);
 		Box0->R() = FRotation3(FQuat::Identity);
 		Box0->V() = FVec3(0);
@@ -43,8 +49,8 @@ namespace ChaosTest {
 		Box0->Q() = Box0->R();
 		Box0->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
 
-		auto Box1 = AppendDynamicParticleBox<FReal>(Particles, FVec3(100));
-		Box1->X() = FVec3(0, 100, 0);
+		auto Box1 = AppendDynamicParticleBoxMargin<FReal>(Particles, Size, Margin1);
+		Box1->X() = Delta;
 		Box1->R() = FRotation3(FQuat::Identity);
 		Box1->V() = FVec3(0);
 		Box1->PreV() = Box1->V();
@@ -52,6 +58,35 @@ namespace ChaosTest {
 		Box1->Q() = Box1->R();
 		Box1->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
 
+		const FImplicitBox3* BoxImplicit0 = Box0->Geometry()->template GetObject<FImplicitBox3>();
+		const FImplicitBox3* BoxImplicit1 = Box1->Geometry()->template GetObject<FImplicitBox3>();
+
+		const FReal Tolerance = 2.0f * KINDA_SMALL_NUMBER;
+
+		// Boxes should have a margin
+		EXPECT_NEAR(BoxImplicit0->GetMargin(), Margin0, Tolerance);
+		EXPECT_NEAR(BoxImplicit1->GetMargin(), Margin1, Tolerance);
+
+		// Core shape should not include margin unless margin is larger than the size
+		EXPECT_NEAR(BoxImplicit0->GetCore().Extents().X, FMath::Max(Size.X - 2.0f * Margin0, 0.0f), Tolerance);
+		EXPECT_NEAR(BoxImplicit0->GetCore().Extents().Y, FMath::Max(Size.Y - 2.0f * Margin0, 0.0f), Tolerance);
+		EXPECT_NEAR(BoxImplicit0->GetCore().Extents().Z, FMath::Max(Size.Z - 2.0f * Margin0, 0.0f), Tolerance);
+		EXPECT_NEAR(BoxImplicit1->GetCore().Extents().X, FMath::Max(Size.X - 2.0f * Margin1, 0.0f), Tolerance);
+		EXPECT_NEAR(BoxImplicit1->GetCore().Extents().Y, FMath::Max(Size.Y - 2.0f * Margin1, 0.0f), Tolerance);
+		EXPECT_NEAR(BoxImplicit1->GetCore().Extents().Z, FMath::Max(Size.Z - 2.0f * Margin1, 0.0f), Tolerance);
+
+		// Box Bounds should include margin, but may be expanded if margin was larger than size
+		const FAABB3 BoxBounds0 = BoxImplicit0->BoundingBox();
+		const FAABB3 BoxBounds1 = BoxImplicit1->BoundingBox();
+		EXPECT_NEAR(BoxBounds0.Extents().X, FMath::Max(2.0f * Margin0, Size.X), Tolerance);
+		EXPECT_NEAR(BoxBounds0.Extents().Y, FMath::Max(2.0f * Margin0, Size.Y), Tolerance);
+		EXPECT_NEAR(BoxBounds0.Extents().Z, FMath::Max(2.0f * Margin0, Size.Z), Tolerance);
+		EXPECT_NEAR(BoxBounds1.Extents().X, FMath::Max(2.0f * Margin1, Size.X), Tolerance);
+		EXPECT_NEAR(BoxBounds1.Extents().Y, FMath::Max(2.0f * Margin1, Size.Y), Tolerance);
+		EXPECT_NEAR(BoxBounds1.Extents().Z, FMath::Max(2.0f * Margin1, Size.Z), Tolerance);
+
+		// Detect collisions. We should not rerquire a large culling distance (anythign above zero should do)
+		// and we are not adding additional shape padding
 		FRigidBodyPointContactConstraint Constraint(
 			Box0,
 			Box0->Geometry().Get(),
@@ -63,27 +98,82 @@ namespace ChaosTest {
 			FRigidTransform3(),
 			EContactShapesType::BoxBox, false);
 
-		{
-			FReal Padding = 0.0f;
-			Collisions::Update(Constraint, 1.0f + 10.0f * Padding, Padding);
-			EXPECT_NEAR(Constraint.Manifold.Phi, -Padding, KINDA_SMALL_NUMBER);
-		}
+		Collisions::Update(Constraint, Delta.Size());
 
-		{
-			FReal Padding = 0.1f;
-			Collisions::Update(Constraint, 10.0f * Padding, Padding);
-			EXPECT_NEAR(Constraint.Manifold.Phi, -Padding, KINDA_SMALL_NUMBER);
-		}
-
-		{
-			FReal Padding = 2.0f;
-			Collisions::Update(Constraint, 10.0f * Padding, Padding);
-			EXPECT_NEAR(Constraint.Manifold.Phi, -Padding, KINDA_SMALL_NUMBER);
-		}
+		EXPECT_NEAR(Constraint.Manifold.Phi, ExpectedPhi, Tolerance);
+		EXPECT_NEAR(Constraint.Manifold.Normal.X, ExpectedNormal.X, Tolerance);
+		EXPECT_NEAR(Constraint.Manifold.Normal.Y, ExpectedNormal.Y, Tolerance);
+		EXPECT_NEAR(Constraint.Manifold.Normal.Z, ExpectedNormal.Z, Tolerance);
 	}
 
-	TEST(CollisionTests, TestBoxBoxShapePadding) {
-		TestBoxBoxShapePadding();
+	// Zero-phi test2
+	TEST(CollisionTests, TestBoxMarginZeroPhi1) 
+	{
+		TestBoxMargin(0, 0, FVec3(20, 100, 50), FVec3(0, -100, 0), 0.0f, FVec3(0, 1, 0));
+	}
+	TEST(CollisionTests, TestBoxMarginZeroPhi2) 
+	{
+		TestBoxMargin(1, 1, FVec3(20, 100, 50), FVec3(0, -100, 0), 0.0f, FVec3(0, 1, 0));
+	}
+	TEST(CollisionTests, TestBoxMarginZeroPhi3)
+	{
+		TestBoxMargin(5, 10, FVec3(20, 100, 50), FVec3(0, -100, 0), 0.0f, FVec3(0, 1, 0));
+	}
+	TEST(CollisionTests, TestBoxMarginZeroPhi4)
+	{
+		TestBoxMargin(10, 5, FVec3(20, 100, 50), FVec3(0, -100, 0), 0.0f, FVec3(0, 1, 0));
+	}
+
+	// Positive-phi test
+	TEST(CollisionTests, TestBoxMarginPositivePhi1)
+	{
+		TestBoxMargin(0, 0, FVec3(20, 100, 50), FVec3(0, -110, 0), 10.0f, FVec3(0, 1, 0));
+	}
+	TEST(CollisionTests, TestBoxMarginPositivePhi2)
+	{
+		TestBoxMargin(1, 1, FVec3(20, 100, 50), FVec3(0, -110, 0), 10.0f, FVec3(0, 1, 0));
+	}
+	TEST(CollisionTests, TestBoxMarginPositivePhi3)
+	{
+		TestBoxMargin(5, 10, FVec3(20, 100, 50), FVec3(0, -110, 0), 10.0f, FVec3(0, 1, 0));
+	}
+	TEST(CollisionTests, TestBoxMarginPositivePhi4)
+	{
+		TestBoxMargin(10, 5, FVec3(20, 100, 50), FVec3(0, -110, 0), 10.0f, FVec3(0, 1, 0));
+	}
+
+	// Negative-phi test
+	TEST(CollisionTests, TestBoxMarginNegativePhi1)
+	{
+		TestBoxMargin(0, 0, FVec3(20, 100, 50), FVec3(0, -90, 0), -10.0f, FVec3(0, 1, 0));
+	}
+	TEST(CollisionTests, TestBoxMarginNegativePhi2)
+	{
+		TestBoxMargin(1, 1, FVec3(20, 100, 50), FVec3(0, -90, 0), -10.0f, FVec3(0, 1, 0));
+	}
+	TEST(CollisionTests, TestBoxMarginNegativePhi3)
+	{
+		TestBoxMargin(5, 10, FVec3(20, 100, 50), FVec3(0, -90, 0), -10.0f, FVec3(0, 1, 0));
+	}
+	TEST(CollisionTests, TestBoxMarginNegativePhi4)
+	{
+		TestBoxMargin(10, 5, FVec3(20, 100, 50), FVec3(0, -90, 0), -10.0f, FVec3(0, 1, 0));
+	}
+
+	// Rounded Corner test
+	TEST(CollisionTests, TestBoxMarginRoundedCorner)
+	{
+		TestBoxMargin(5, 5, FVec3(100, 100, 100), FVec3(-110, -110, -110), FVec3(10).Size() + 2.0f * (FVec3(5).Size() - 5), FVec3(1).GetSafeNormal());
+	}
+
+	// If the margin is too large, the box will effectively be larger than specified in some directions
+	TEST(CollisionTests, TestBoxMarginLargeMargin1)
+	{
+		TestBoxMargin(15, 15, FVec3(20, 100, 100), FVec3(0, -100, 0), 0.0f, FVec3(0, 1, 0));	// OK - Y Size is larger than margin
+	}
+	TEST(CollisionTests, TestBoxMarginLargeMargin2)
+	{
+		TestBoxMargin(15, 15, FVec3(20, 100, 100), FVec3(20, 0, 0), -10.0f, FVec3(-1, 0, 0));	// Body X size was expanded to account for margin - they overlap on X
 	}
 
 }
