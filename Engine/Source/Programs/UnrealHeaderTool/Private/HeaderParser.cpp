@@ -6804,6 +6804,15 @@ void FHeaderParser::ParseRigVMMethodParameters(UStruct* Struct)
 		Parameter.bEditorOnly = Prop->IsEditorOnlyProperty();
 		Parameter.bSingleton = Prop->HasMetaData(NAME_SingletonText);
 
+		if (const FEnumProperty* EnumProperty = CastField<FEnumProperty>(Prop))
+		{
+			Parameter.bIsEnum = true;
+		}
+		else if (const FByteProperty* ByteProperty = CastField<FByteProperty>(Prop))
+		{
+			Parameter.bIsEnum = ByteProperty->Enum != nullptr;
+		}
+
 		if (Prop->HasMetaData(NAME_VisibleText))
 		{
 			Parameter.bConstant = true;

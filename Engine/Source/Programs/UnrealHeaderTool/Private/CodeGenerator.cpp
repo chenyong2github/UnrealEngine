@@ -3724,8 +3724,15 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 			{
 				FString VariableType = Parameter.TypeVariableRef(true);
 				FString ExtractedType = Parameter.TypeOriginal();
-				
 				FString ParameterCast = FString::Printf(TEXT("*(%s*)"), *ExtractedType);
+
+				// if the parameter is a const enum we need to cast it slightly differently,
+				// we'll get the reference of the stored uint8 and cast it by value.
+				if (Parameter.bIsEnum && !Parameter.bOutput)
+				{
+					VariableType = Parameter.TypeOriginal();
+					ParameterCast = FString::Printf(TEXT("(%s)*(uint8*)"), *ExtractedType);
+				}
 
 				RigVMStubProlog.Add(FString::Printf(TEXT("%s %s = %sRigVMMemoryHandles[%d].GetData();"),
 				*VariableType,
