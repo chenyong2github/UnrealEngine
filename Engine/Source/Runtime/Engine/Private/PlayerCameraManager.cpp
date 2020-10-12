@@ -1163,7 +1163,10 @@ void APlayerCameraManager::ProcessViewRotation(float DeltaTime, FRotator& OutVie
 	OutViewRotation += OutDeltaRot;
 	OutDeltaRot = FRotator::ZeroRotator;
 
-	if(GEngine->XRSystem.IsValid() && GEngine->XRSystem->IsHeadTrackingAllowed())
+	const bool bIsHeadTrackingAllowed =
+		GEngine->XRSystem.IsValid() &&
+		(GetWorld() != nullptr ? GEngine->XRSystem->IsHeadTrackingAllowedForWorld(*GetWorld()) : GEngine->XRSystem->IsHeadTrackingAllowed());
+	if(bIsHeadTrackingAllowed)
 	{
 		// With the HMD devices, we can't limit the view pitch, because it's bound to the player's head.  A simple normalization will suffice
 		OutViewRotation.Normalize();
