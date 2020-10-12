@@ -95,8 +95,8 @@ elif [ $ACTION == "clean" ]; then
 	AdditionalFlags="-clean"
 fi
 
-echo Running Engine/Binaries/DotNET/UnrealBuildTool.exe $TARGET $PLATFORM $CONFIGURATION $TRAILINGARGS $AdditionalFlags
-mono Engine/Binaries/DotNET/UnrealBuildTool.exe $TARGET $PLATFORM $CONFIGURATION $TRAILINGARGS $AdditionalFlags
+echo Running Engine/Binaries/DotNET/UnrealBuildTool.exe $TARGET $PLATFORM $CONFIGURATION "$TRAILINGARGS" $AdditionalFlags
+mono Engine/Binaries/DotNET/UnrealBuildTool.exe $TARGET $PLATFORM $CONFIGURATION "$TRAILINGARGS" $AdditionalFlags
 
 ExitCode=$?
 if [ $ExitCode -eq 254 ] || [ $ExitCode -eq 255 ] || [ $ExitCode -eq 2 ]; then
