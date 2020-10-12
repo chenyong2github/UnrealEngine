@@ -72,6 +72,8 @@ void UMovieSceneDeferredComponentMovementSystem::BeginDestroy()
 
 		ScopedUpdates.Empty();
 	}
+
+	Super::BeginDestroy();
 }
 
 void UMovieSceneDeferredComponentMovementSystem::DeferMovementUpdates(USceneComponent* InComponent)
