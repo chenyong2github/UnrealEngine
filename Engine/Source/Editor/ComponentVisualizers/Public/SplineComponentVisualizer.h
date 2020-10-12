@@ -226,22 +226,19 @@ public:
 	/** Add menu sections to the context menu */
 	virtual void GenerateContextMenuSections(FMenuBuilder& InMenuBuilder) const;
 
-	/** Set the spline component we are currently editing */
-	void SetEditedSplineComponent(const USplineComponent* InSplineComponent);
-		
 	/** Get the spline component we are currently editing */
 	USplineComponent* GetEditedSplineComponent() const;
 
 	const TSet<int32>& GetSelectedKeys() const { check(SelectionState); return SelectionState->GetSelectedKeys(); }
 
-	/** Select first or last spline point */
-	void OnSelectFirstLastSplinePoint(bool bFirstPoint);
+	/** Select first or last spline point, returns true if the spline component being edited has changed */
+	bool HandleSelectFirstLastSplinePoint(USplineComponent* InSplineComponent, bool bFirstPoint);
+
+	/** Select all spline points, , returns true if the spline component being edited has changed */
+	bool HandleSelectAllSplinePoints(USplineComponent* InSplineComponent);
 
 	/** Select next or prev spline point, loops when last point is currently selected */
 	void OnSelectPrevNextSplinePoint(bool bNextPoint, bool bAddToSelection);
-
-	/** Select all spline points, if no spline points selected yet the currently edited spline component will be set as well */
-	void OnSelectAllSplinePoints();
 
 protected:
 
@@ -356,6 +353,12 @@ protected:
 	void OnResetToDefault();
 	bool CanResetToDefault() const;
 
+	/** Select first or last spline point */
+	void OnSelectFirstLastSplinePoint(bool bFirstPoint);
+
+	/** Select all spline points, if no spline points selected yet the currently edited spline component will be set as well */
+	void OnSelectAllSplinePoints();
+
 	bool CanSelectSplinePoints() const;
 
 	/** Generate the submenu containing available selection actions */
@@ -372,6 +375,9 @@ protected:
 	
 	/** Generate the submenu containing the lock axis types */
 	void GenerateLockAxisSubMenu(FMenuBuilder& MenuBuilder) const;
+
+	/** Helper function to set edited component we are currently editing */
+	void SetEditedSplineComponent(const USplineComponent* InSplineComponent);
 
 	void CreateSplineGeneratorPanel();
 
