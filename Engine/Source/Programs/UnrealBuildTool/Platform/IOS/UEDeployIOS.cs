@@ -322,6 +322,10 @@ namespace UnrealBuildTool
 				case "IOS_14":
 					MinVersion = "14.0";
 					break;
+				default:
+					Log.TraceWarning("MinimumiOSVersion {0} specified in ini file is no longer supported, defaulting to 12.0", MinVersion);
+					MinVersion = "12.0";
+					break;
 				}
 			}
 			else
