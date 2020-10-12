@@ -133,7 +133,7 @@ class IConsoleVariable;
 #if !NO_CVARS
 
 /** Console variable delegate type  This is a void callback function. */
-DECLARE_DELEGATE_OneParam(FConsoleVariableDelegate, IConsoleVariable*);
+DECLARE_DELEGATE_OneParam( FConsoleVariableDelegate, IConsoleVariable* );
 
 /** Console variable multicast delegate type. */
 DECLARE_MULTICAST_DELEGATE_OneParam(FConsoleVariableMulticastDelegate, IConsoleVariable*);
@@ -431,6 +431,16 @@ public:
 
 	virtual FConsoleVariableMulticastDelegate& OnChangedDelegate() = 0;
 
+#if WITH_UNREAL_DEVELOPER_TOOLS
+	/**
+	 * Get the saved off default value, in a cvar variable
+	 */
+	virtual IConsoleVariable* GetDefaultValueVariable()
+	{
+		return nullptr;
+	}
+#endif
+
 	// convenience methods
 
 	/** Set the internal value from the specified bool. */
@@ -475,6 +485,8 @@ public:
 		EConsoleVariableFlags CurFlags = (EConsoleVariableFlags)(GetFlags() & ECVF_SetByMask);
 		Set(InValue, CurFlags);
 	}
+
+
 };
 
 /**

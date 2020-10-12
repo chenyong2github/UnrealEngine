@@ -30,7 +30,7 @@ public:
 	 * Startup and select the active device profile
 	 * Then Init the CVars from this profile and it's Device profile parent tree.
 	 */
-	static void InitializeCVarsForActiveDeviceProfile(bool bPushSettings=false, bool bIsDeviceProfilePreview = false);
+	static void InitializeCVarsForActiveDeviceProfile(bool bPushSettings=false);
 
 	/**
 	 * Reapplies the device profile. Useful when configs have changed (i.e. hotfix)
@@ -142,6 +142,11 @@ public:
 	static bool GetScalabilityCVar(const FString& CvarName, int32& OutValue);
 	static bool GetScalabilityCVar(const FString& CvarName, float& OutValue);
 
+#if WITH_UNREAL_DEVELOPER_TOOLS
+	/** Retrieve another platform's DeviceProfile, and make sure it's CVars are expanded, including scalability */
+	static void ExpandDeviceProfileCVars(UDeviceProfile* DeviceProfile);
+#endif
+
 private:
 	/**
 	 * Set the active device profile - set via the device profile blueprint.
@@ -157,6 +162,20 @@ private:
 
 	/** Handle restoing CVars set in HandleDeviceProfileOverrideChange */
 	void HandleDeviceProfileOverridePop();
+
+
+	enum class EDeviceProfileMode : uint8
+	{
+		DPM_SetCVars,
+		DPM_PushCVars,
+		DPM_CacheValues,
+	};
+
+	/**
+	 * Perform the processing of ini sections, going up to parents, etc. Depending on runtime vs editor processing of another platform,
+	 * the Mode will control how the settings are handled
+	 */
+	static void ProcessDeviceProfileIniSettings(const FString& DeviceProfileName, EDeviceProfileMode Mode);
 
 public:
 

@@ -9,6 +9,7 @@
 #include "HAL/IConsoleManager.h"
 
 #include "DeviceProfiles/DeviceProfileFragment.h"
+#include "DeviceProfiles/DeviceProfileManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogDeviceProfile, Log, All);
 
@@ -362,5 +363,30 @@ const TMap<FString, FString>& UDeviceProfile::GetConsolidatedCVars() const
 
 	return ConsolidatedCVars;
 }
+
+#endif
+
+
+#if WITH_UNREAL_DEVELOPER_TOOLS
+const TMap<FString, FString>& UDeviceProfile::GetAllExpandedCVars()
+{
+	// expand on first use
+	if (AllExpandedCVars.Num() == 0)
+	{
+		UDeviceProfileManager::Get().ExpandDeviceProfileCVars(this);
+	}
+
+	return AllExpandedCVars;
+}
+
+void UDeviceProfile::AddExpandedCVars(const TMap<FString, FString>& CVarsToMerge)
+{
+	// merge the cvars, overwriting any existing ones
+	for (const auto& Pair : CVarsToMerge)
+	{
+		AllExpandedCVars.Add(Pair.Key, Pair.Value);
+	}
+}
+
 
 #endif
