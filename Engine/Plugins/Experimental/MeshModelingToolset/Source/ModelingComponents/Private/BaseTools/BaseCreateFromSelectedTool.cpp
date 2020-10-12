@@ -205,7 +205,8 @@ FString UBaseCreateFromSelectedTool::PrefixWithSourceNameIfSingleSelection(const
 {
 	if (ComponentTargets.Num() == 1)
 	{
-		return FString::Printf(TEXT("%s_%s"), *ComponentTargets[0]->GetOwnerActor()->GetName(), *AssetName);
+		FString CurName = AssetGenerationUtil::GetComponentAssetBaseName(ComponentTargets[0]->GetOwnerComponent());
+		return FString::Printf(TEXT("%s_%s"), *CurName, *AssetName);
 	}
 	else
 	{
