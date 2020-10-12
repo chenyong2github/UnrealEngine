@@ -33,17 +33,7 @@ public:
 	* Called when a frame is ready for output. This will contain all passes the user has requested for the given output frame. 
 	* It also contains metrics about the output frame (such as frame number).
 	*/
-	void OnRecieveImageData(FMoviePipelineMergerOutputFrame* InMergedOutputFrame)
-	{
-		// If we were transiently added or the user has disabled us, don't try to produce any output
-		// because if the user hasn't specified an output we don't want to make it by default.
-		if (!GetIsUserCustomized() || !IsEnabled())
-		{
-			return;
-		}
-
-		OnRecieveImageDataImpl(InMergedOutputFrame);
-	}
+	void OnRecieveImageData(FMoviePipelineMergerOutputFrame* InMergedOutputFrame) { OnRecieveImageDataImpl(InMergedOutputFrame); }
 
 	/** 
 	* Called once when all frames have been produced for the pipeline. Use this as an indicator to start flushing to disk. 
