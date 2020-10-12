@@ -20,7 +20,7 @@ namespace ChaosTest {
 
 	// Two boxes that use a margin around a core AABB.
 	// Test that collision detection treats the margin as part of the shape.
-	void TestBoxMargin(
+	void TestBoxBoxCollisionMargin(
 		const FReal Margin0,
 		const FReal Margin1,
 		const FVec3& Size,
@@ -109,71 +109,160 @@ namespace ChaosTest {
 	// Zero-phi test2
 	TEST(CollisionTests, TestBoxMarginZeroPhi1) 
 	{
-		TestBoxMargin(0, 0, FVec3(20, 100, 50), FVec3(0, -100, 0), 0.0f, FVec3(0, 1, 0));
+		TestBoxBoxCollisionMargin(0, 0, FVec3(20, 100, 50), FVec3(0, -100, 0), 0.0f, FVec3(0, 1, 0));
 	}
 	TEST(CollisionTests, TestBoxMarginZeroPhi2) 
 	{
-		TestBoxMargin(1, 1, FVec3(20, 100, 50), FVec3(0, -100, 0), 0.0f, FVec3(0, 1, 0));
+		TestBoxBoxCollisionMargin(1, 1, FVec3(20, 100, 50), FVec3(0, -100, 0), 0.0f, FVec3(0, 1, 0));
 	}
 	TEST(CollisionTests, TestBoxMarginZeroPhi3)
 	{
-		TestBoxMargin(5, 10, FVec3(20, 100, 50), FVec3(0, -100, 0), 0.0f, FVec3(0, 1, 0));
+		TestBoxBoxCollisionMargin(5, 10, FVec3(20, 100, 50), FVec3(0, -100, 0), 0.0f, FVec3(0, 1, 0));
 	}
 	TEST(CollisionTests, TestBoxMarginZeroPhi4)
 	{
-		TestBoxMargin(10, 5, FVec3(20, 100, 50), FVec3(0, -100, 0), 0.0f, FVec3(0, 1, 0));
+		TestBoxBoxCollisionMargin(10, 5, FVec3(20, 100, 50), FVec3(0, -100, 0), 0.0f, FVec3(0, 1, 0));
 	}
 
 	// Positive-phi test
 	TEST(CollisionTests, TestBoxMarginPositivePhi1)
 	{
-		TestBoxMargin(0, 0, FVec3(20, 100, 50), FVec3(0, -110, 0), 10.0f, FVec3(0, 1, 0));
+		TestBoxBoxCollisionMargin(0, 0, FVec3(20, 100, 50), FVec3(0, -110, 0), 10.0f, FVec3(0, 1, 0));
 	}
 	TEST(CollisionTests, TestBoxMarginPositivePhi2)
 	{
-		TestBoxMargin(1, 1, FVec3(20, 100, 50), FVec3(0, -110, 0), 10.0f, FVec3(0, 1, 0));
+		TestBoxBoxCollisionMargin(1, 1, FVec3(20, 100, 50), FVec3(0, -110, 0), 10.0f, FVec3(0, 1, 0));
 	}
 	TEST(CollisionTests, TestBoxMarginPositivePhi3)
 	{
-		TestBoxMargin(5, 10, FVec3(20, 100, 50), FVec3(0, -110, 0), 10.0f, FVec3(0, 1, 0));
+		TestBoxBoxCollisionMargin(5, 10, FVec3(20, 100, 50), FVec3(0, -110, 0), 10.0f, FVec3(0, 1, 0));
 	}
 	TEST(CollisionTests, TestBoxMarginPositivePhi4)
 	{
-		TestBoxMargin(10, 5, FVec3(20, 100, 50), FVec3(0, -110, 0), 10.0f, FVec3(0, 1, 0));
+		TestBoxBoxCollisionMargin(10, 5, FVec3(20, 100, 50), FVec3(0, -110, 0), 10.0f, FVec3(0, 1, 0));
 	}
 
 	// Negative-phi test
 	TEST(CollisionTests, TestBoxMarginNegativePhi1)
 	{
-		TestBoxMargin(0, 0, FVec3(20, 100, 50), FVec3(0, -90, 0), -10.0f, FVec3(0, 1, 0));
+		TestBoxBoxCollisionMargin(0, 0, FVec3(20, 100, 50), FVec3(0, -90, 0), -10.0f, FVec3(0, 1, 0));
 	}
 	TEST(CollisionTests, TestBoxMarginNegativePhi2)
 	{
-		TestBoxMargin(1, 1, FVec3(20, 100, 50), FVec3(0, -90, 0), -10.0f, FVec3(0, 1, 0));
+		TestBoxBoxCollisionMargin(1, 1, FVec3(20, 100, 50), FVec3(0, -90, 0), -10.0f, FVec3(0, 1, 0));
 	}
 	TEST(CollisionTests, TestBoxMarginNegativePhi3)
 	{
-		TestBoxMargin(5, 10, FVec3(20, 100, 50), FVec3(0, -90, 0), -10.0f, FVec3(0, 1, 0));
+		TestBoxBoxCollisionMargin(5, 10, FVec3(20, 100, 50), FVec3(0, -90, 0), -10.0f, FVec3(0, 1, 0));
 	}
 	TEST(CollisionTests, TestBoxMarginNegativePhi4)
 	{
-		TestBoxMargin(10, 5, FVec3(20, 100, 50), FVec3(0, -90, 0), -10.0f, FVec3(0, 1, 0));
+		TestBoxBoxCollisionMargin(10, 5, FVec3(20, 100, 50), FVec3(0, -90, 0), -10.0f, FVec3(0, 1, 0));
 	}
 
 	// Rounded Corner test
 	TEST(CollisionTests, TestBoxMarginRoundedCorner)
 	{
-		TestBoxMargin(5, 5, FVec3(100, 100, 100), FVec3(-110, -110, -110), FVec3(10).Size() + 2.0f * (FVec3(5).Size() - 5), FVec3(1).GetSafeNormal());
+		TestBoxBoxCollisionMargin(5, 5, FVec3(100, 100, 100), FVec3(-110, -110, -110), FVec3(10).Size() + 2.0f * (FVec3(5).Size() - 5), FVec3(1).GetSafeNormal());
 	}
 
 	// If the margin is too large, the box will effectively be larger than specified in some directions
 	TEST(CollisionTests, TestBoxMarginLargeMargin1)
 	{
-		TestBoxMargin(15, 15, FVec3(20, 100, 100), FVec3(0, -100, 0), 0.0f, FVec3(0, 1, 0));	// OK - Y Size is larger than margin
+		TestBoxBoxCollisionMargin(15, 15, FVec3(20, 100, 100), FVec3(0, -100, 0), 0.0f, FVec3(0, 1, 0));	// OK - Y Size is larger than margin
 	}
 	TEST(CollisionTests, TestBoxMarginLargeMargin2)
 	{
-		TestBoxMargin(15, 15, FVec3(20, 100, 100), FVec3(20, 0, 0), -10.0f, FVec3(-1, 0, 0));	// Body X size was expanded to account for margin - they overlap on X
+		TestBoxBoxCollisionMargin(15, 15, FVec3(20, 100, 100), FVec3(20, 0, 0), -10.0f, FVec3(-1, 0, 0));	// Body X size was expanded to account for margin - they overlap on X
+	}
+
+	// Check that the margin does not impact the box raycast functions
+	void TestBoxRayCastsMargin(
+		const FReal Margin0,
+		const FVec3& Size,
+		const FVec3& StartPos,
+		const FVec3& Dir,
+		const FReal Length,
+		const bool bExpectedHit,
+		const FReal ExpectedTime,
+		const FVec3& ExpectedPosition,
+		const FVec3& ExpectedNormal)
+	{
+		TArrayCollectionArray<bool> Collided;
+		TUniquePtr<FChaosPhysicsMaterial> PhysicsMaterial = MakeUnique<FChaosPhysicsMaterial>();
+		PhysicsMaterial->Friction = 0;
+		PhysicsMaterial->Restitution = 0;
+		TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>> PhysicsMaterials;
+		TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>> PerParticlePhysicsMaterials;
+
+		TPBDRigidsSOAs<FReal, 3> Particles;
+		Particles.GetParticleHandles().AddArray(&Collided);
+		Particles.GetParticleHandles().AddArray(&PhysicsMaterials);
+		Particles.GetParticleHandles().AddArray(&PerParticlePhysicsMaterials);
+
+		auto Box0 = AppendDynamicParticleBoxMargin<FReal>(Particles, Size, Margin0);
+		Box0->X() = FVec3(0, 0, 0);
+		Box0->R() = FRotation3(FQuat::Identity);
+		Box0->V() = FVec3(0);
+		Box0->PreV() = Box0->V();
+		Box0->P() = Box0->X();
+		Box0->Q() = Box0->R();
+		Box0->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
+
+		const FImplicitBox3* BoxImplicit0 = Box0->Geometry()->template GetObject<FImplicitBox3>();
+
+		const FReal Tolerance = KINDA_SMALL_NUMBER;
+
+		{
+			FReal Time;
+			FVec3 Position, Normal;
+			int32 FaceIndex;
+			bool bHit = BoxImplicit0->Raycast(StartPos, Dir, Length, 0.0f, Time, Position, Normal, FaceIndex);
+
+			EXPECT_EQ(bHit, bExpectedHit);
+			if (bHit)
+			{
+				EXPECT_NEAR(Time, ExpectedTime, Tolerance);
+				EXPECT_NEAR(Position.X, ExpectedPosition.X, Tolerance);
+				EXPECT_NEAR(Position.Y, ExpectedPosition.Y, Tolerance);
+				EXPECT_NEAR(Position.Z, ExpectedPosition.Z, Tolerance);
+				EXPECT_NEAR(Normal.X, ExpectedNormal.X, Tolerance);
+				EXPECT_NEAR(Normal.Y, ExpectedNormal.Y, Tolerance);
+				EXPECT_NEAR(Normal.Z, ExpectedNormal.Z, Tolerance);
+			}
+		}
+
+		{
+			FReal Time;
+			FVec3 Position;
+
+			bool bParallel[3];
+			FVec3 InvDir;
+			for (int Axis = 0; Axis < 3; ++Axis)
+			{
+				bParallel[Axis] = FMath::IsNearlyZero(Dir[Axis], 1.e-8f);
+				InvDir[Axis] = bParallel[Axis] ? 0 : 1 / Dir[Axis];
+			}
+
+			bool bHit = BoxImplicit0->RaycastFast(BoxImplicit0->Min(), BoxImplicit0->Max(), StartPos, Dir, InvDir, bParallel, Length, 1.0f / Length, Time, Position);
+
+			EXPECT_EQ(bHit, bExpectedHit);
+			if (bHit)
+			{
+				EXPECT_NEAR(Time, ExpectedTime, Tolerance);
+				EXPECT_NEAR(Position.X, ExpectedPosition.X, Tolerance);
+				EXPECT_NEAR(Position.Y, ExpectedPosition.Y, Tolerance);
+				EXPECT_NEAR(Position.Z, ExpectedPosition.Z, Tolerance);
+			}
+		}
+	}
+
+	TEST(CollisionTests, TestBoxRayCastsMargin1)
+	{
+		TestBoxRayCastsMargin(0, FVec3(100, 100, 100), FVec3(-200, 0, 0), FVec3(1, 0, 0), 500.0f, true, 150.0f, FVec3(-50, 0, 0), FVec3(-1, 0, 0));		// No Margin
+		TestBoxRayCastsMargin(1, FVec3(100, 100, 100), FVec3(-200, 0, 0), FVec3(1, 0, 0), 500.0f, true, 150.0f, FVec3(-50, 0, 0), FVec3(-1, 0, 0));		// No Margin
+		TestBoxRayCastsMargin(50, FVec3(100, 100, 100), FVec3(-200, 0, 0), FVec3(1, 0, 0), 500.0f, true, 150.0f, FVec3(-50, 0, 0), FVec3(-1, 0, 0));	// All margin (a sphere!)
+		TestBoxRayCastsMargin(70, FVec3(100, 100, 100), FVec3(-200, 0, 0), FVec3(1, 0, 0), 500.0f, true, 130.0f, FVec3(-70, 0, 0), FVec3(-1, 0, 0));	// Too much margin (expanded sphere!)
 	}
 
 }
