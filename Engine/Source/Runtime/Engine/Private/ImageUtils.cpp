@@ -23,6 +23,12 @@ DEFINE_LOG_CATEGORY_STATIC(LogImageUtils, Log, All);
 
 #define LOCTEXT_NAMESPACE "ImageUtils"
 
+/**
+ * Returns data containing the pixmap of the passed in rendertarget.
+ * @param TexRT - The 2D rendertarget from which to read pixmap data.
+ * @param RawData - an array to be filled with pixel data.
+ * @return true if RawData has been successfully filled.
+ */
 static bool GetRawData(UTextureRenderTarget2D* TexRT, TArray64<uint8>& RawData)
 {
 	FRenderTarget* RenderTarget = TexRT->GameThread_GetRenderTargetResource();
@@ -686,13 +692,9 @@ private:
 	}
 
 	/**
-	* Returns data containing the pixmap of the passed in rendertarget.
-	* @param TexRT - The 2D rendertarget from which to read pixmap data.
-	* @param RawData - an array to be filled with pixel data.
-	* @return true if RawData has been successfully filled.
-	*/
-	
-
+	 * Converts from a linear float color to RGBE as outlined in Gregory Ward's Real Pixels article, Graphics Gems II, page 80.
+	 * Implementation details in https://cbloomrants.blogspot.com/2020/06/widespread-error-in-radiance-hdr-rgbe.html
+	 */ 
 	static FColor ToRGBEDithered(const FLinearColor& ColorIN, const FRandomStream& Rand)
 	{
 		const float R = ColorIN.R;
@@ -708,11 +710,12 @@ private:
 		else
 		{
 			int32 Exponent;
-			const float Scale = frexp(Primary, &Exponent) / Primary * 255.f;
+			frexpf(Primary, &Exponent);
+			const float Scale = ldexpf(1.f, -Exponent + 8);
 
-			ReturnColor.R = FMath::Clamp(FMath::TruncToInt((R* Scale) + Rand.GetFraction()), 0, 255);
-			ReturnColor.G = FMath::Clamp(FMath::TruncToInt((G* Scale) + Rand.GetFraction()), 0, 255);
-			ReturnColor.B = FMath::Clamp(FMath::TruncToInt((B* Scale) + Rand.GetFraction()), 0, 255);
+			ReturnColor.R = FMath::Clamp(FMath::TruncToInt((R * Scale) + Rand.GetFraction()), 0, 255);
+			ReturnColor.G = FMath::Clamp(FMath::TruncToInt((G * Scale) + Rand.GetFraction()), 0, 255);
+			ReturnColor.B = FMath::Clamp(FMath::TruncToInt((B * Scale) + Rand.GetFraction()), 0, 255);
 			ReturnColor.A = FMath::Clamp(FMath::TruncToInt(Exponent), -128, 127) + 128;
 		}
 
