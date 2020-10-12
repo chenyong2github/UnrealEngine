@@ -89,6 +89,14 @@ public:
 
 	void HideAllDefaultTracks();
 
+	/** Gets the time ruler track. It includes the custom time markers (ones user can drag with mouse). */
+	TSharedRef<FTimeRulerTrack> GetTimeRulerTrack() { return TimeRulerTrack; }
+	const TSharedRef<const FTimeRulerTrack> GetTimeRulerTrack() const { return TimeRulerTrack; }
+
+	/** Gets the default (custom) time marker (for backward compatibility). */
+	TSharedRef<Insights::FTimeMarker> GetDefaultTimeMarker() { return DefaultTimeMarker; }
+	const TSharedRef<const Insights::FTimeMarker> GetDefaultTimeMarker() const { return DefaultTimeMarker; }
+
 	/** Resets internal widget's data to the default one. */
 	void Reset(bool bIsFirstReset = false);
 

@@ -30,10 +30,12 @@
 #include "Insights/ITimingViewExtender.h"
 #include "Insights/MemoryProfiler/MemoryProfilerManager.h"
 #include "Insights/MemoryProfiler/ViewModels/MemorySharedState.h"
+#include "Insights/MemoryProfiler/Widgets/SMemAllocTableTreeView.h"
 #include "Insights/MemoryProfiler/Widgets/SMemoryProfilerToolbar.h"
 #include "Insights/MemoryProfiler/Widgets/SMemTagTreeView.h"
 #include "Insights/TraceInsightsModule.h"
 #include "Insights/Version.h"
+#include "Insights/ViewModels/TimeRulerTrack.h"
 #include "Insights/Widgets/SInsightsSettings.h"
 #include "Insights/Widgets/STimingView.h"
 
@@ -46,6 +48,7 @@
 const FName FMemoryProfilerTabs::ToolbarID(TEXT("Toolbar"));
 const FName FMemoryProfilerTabs::TimingViewID(TEXT("TimingView"));
 const FName FMemoryProfilerTabs::MemTagTreeViewID(TEXT("LowLevelMemTags"));
+const FName FMemoryProfilerTabs::MemAllocTableTreeViewID(TEXT("MemAllocTableTreeView"));
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -92,6 +95,7 @@ void SMemoryProfilerWindow::Reset()
 	if (TimingView)
 	{
 		TimingView->Reset();
+		ResetTimingViewMarkers();
 	}
 
 	if (MemTagTreeView)
@@ -104,9 +108,76 @@ void SMemoryProfilerWindow::Reset()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void SMemoryProfilerWindow::ResetTimingViewMarkers()
+{
+	TSharedRef<FTimeRulerTrack> TimeRulerTrack = TimingView->GetTimeRulerTrack();
+
+	TimeRulerTrack->RemoveAllTimeMarkers();
+	CustomTimeMarkers.Reset();
+
+	constexpr uint32 MaxNumTimeMarkers = 5;
+
+	TCHAR TimeMarkerName[2];
+	TimeMarkerName[1] = 0;
+
+	for (uint32 Index = 0; Index < MaxNumTimeMarkers; ++Index)
+	{
+		// Keep (re-add) the "Default Time Marker" as the first time marker and create new ones for the rest.
+		TSharedRef<Insights::FTimeMarker> TimeMarker = (Index == 0) ? TimingView->GetDefaultTimeMarker() : MakeShared<Insights::FTimeMarker>();
+
+		TimeMarkerName[0] = TEXT('A') + Index; // "A", "B", "C", etc.
+		TimeMarker->SetName(TimeMarkerName);
+
+		const uint32 HueStep = 256 / MaxNumTimeMarkers;
+		const uint8 H = uint8(HueStep * Index);
+		const uint8 S = 192;
+		const uint8 V = 255;
+		const FLinearColor Color = FLinearColor::MakeFromHSV8(H, S, V);
+		TimeMarker->SetColor(Color);
+
+		TimeMarker->SetTime(static_cast<float>(Index)); // 0.0f, 1.0f, 2.0f, etc.
+
+		TimeRulerTrack->AddTimeMarker(TimeMarker);
+		CustomTimeMarkers.Add(TimeMarker);
+	}
+
+	UpdateTimingViewMarkers();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SMemoryProfilerWindow::UpdateTimingViewMarkers()
+{
+	TSharedPtr<Insights::FMemoryRuleSpec> Rule = SharedState->GetCurrentMemoryRule();
+	const uint32 NumVisibleTimeMarkers = Rule ? Rule->GetNumTimeMarkers() : 0;
+
+	const uint32 NumTimeMarkers = CustomTimeMarkers.Num();
+	ensure(NumVisibleTimeMarkers <= NumTimeMarkers);
+
+	for (uint32 Index = 0; Index < NumTimeMarkers; ++Index)
+	{
+		TSharedRef<Insights::FTimeMarker>& TimeMarker = CustomTimeMarkers[Index];
+		if (Index < NumVisibleTimeMarkers)
+		{
+			TimeMarker->SetVisibility(true);
+		}
+		else
+		{
+			TimeMarker->SetVisibility(false);
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void SMemoryProfilerWindow::UpdateTableTreeViews()
 {
 	UpdateMemTagTreeView();
+
+	for (TSharedPtr<Insights::SMemAllocTableTreeView>& MemAllocTableTreeView : MemAllocTableTreeViews)
+	{
+		UpdateMemAllocTableTreeView(MemAllocTableTreeView);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -133,6 +204,16 @@ void SMemoryProfilerWindow::UpdateMemTagTreeView()
 			MemTagTreeView->UpdateSourceTable(nullptr);
 		}
 		*/
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SMemoryProfilerWindow::UpdateMemAllocTableTreeView(TSharedPtr<Insights::SMemAllocTableTreeView> MemAllocTableTreeView)
+{
+	if (MemAllocTableTreeView)
+	{
+		//TODO
 	}
 }
 
@@ -177,6 +258,7 @@ TSharedRef<SDockTab> SMemoryProfilerWindow::SpawnTab_TimingView(const FSpawnTabA
 	IModularFeatures::Get().RegisterModularFeature(Insights::TimingViewExtenderFeatureName, SharedState.Get());
 
 	TimingView->Reset(true);
+	ResetTimingViewMarkers();
 	TimingView->HideAllDefaultTracks();
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SMemoryProfilerWindow::OnTimingViewTabClosed));
@@ -226,6 +308,66 @@ void SMemoryProfilerWindow::OnMemTagTreeViewTabClosed(TSharedRef<SDockTab> TabBe
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+TSharedRef<SDockTab> SMemoryProfilerWindow::SpawnTab_MemAllocTableTreeView(const FSpawnTabArgs& Args, int32 TabIndex)
+{
+	//FMemoryProfilerManager::Get()->SetMemAllocTableTreeViewVisible(TabIndex, true);
+
+	TSharedRef<Insights::FMemAllocTable> MemAllocTable = MakeShared<Insights::FMemAllocTable>();
+	MemAllocTable->Reset();
+
+	TSharedPtr<Insights::SMemAllocTableTreeView> MemAllocTableTreeView;
+
+	const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
+		.ShouldAutosize(false)
+		.TabRole(ETabRole::PanelTab)
+		[
+			SAssignNew(MemAllocTableTreeView, Insights::SMemAllocTableTreeView, MemAllocTable)
+		];
+
+	MemAllocTableTreeView->SetTabIndex(TabIndex);
+	MemAllocTableTreeViews.Add(MemAllocTableTreeView);
+	UpdateMemAllocTableTreeView(MemAllocTableTreeView);
+
+	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SMemoryProfilerWindow::OnMemAllocTableTreeViewTabClosed));
+
+	return DockTab;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SMemoryProfilerWindow::OnMemAllocTableTreeViewTabClosed(TSharedRef<SDockTab> TabBeingClosed)
+{
+	TSharedRef<Insights::SMemAllocTableTreeView> MemAllocTableTreeView = StaticCastSharedRef<Insights::SMemAllocTableTreeView>(TabBeingClosed->GetContent());
+
+	//FMemoryProfilerManager::Get()->SetMemAllocTableTreeViewVisible(MemAllocTableTreeView->GetTabIndex(), false);
+
+	MemAllocTableTreeViews.Remove(MemAllocTableTreeView);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedPtr<Insights::SMemAllocTableTreeView> SMemoryProfilerWindow::ShowMemAllocTableTreeViewTab()
+{
+	LastMemAllocTableTreeViewIndex = (LastMemAllocTableTreeViewIndex + 1) % MaxMemAllocTableTreeViews;
+	FName TabId = FMemoryProfilerTabs::MemAllocTableTreeViewID;
+	TabId.SetNumber(LastMemAllocTableTreeViewIndex);
+
+	if (TabManager->HasTabSpawner(TabId))
+	{
+		TSharedPtr<SDockTab> Tab = TabManager->TryInvokeTab(TabId);
+		if (Tab)
+		{
+			TSharedRef<Insights::SMemAllocTableTreeView> MemAllocTableTreeView = StaticCastSharedRef<Insights::SMemAllocTableTreeView>(Tab->GetContent());
+			ensure(MemAllocTableTreeView->GetTabIndex() == LastMemAllocTableTreeViewIndex);
+			return MemAllocTableTreeView;
+		}
+	}
+
+	return nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void SMemoryProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef<SDockTab>& ConstructUnderMajorTab, const TSharedPtr<SWindow>& ConstructUnderWindow)
 {
 	// Create & initialize tab manager.
@@ -252,6 +394,17 @@ void SMemoryProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 		.SetDisplayName(LOCTEXT("MemoryProfiler.MemTagTreeViewTabTitle", "LLM Tags"))
 		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "MemTagTreeView.Icon.Small"))
 		.SetGroup(AppMenuGroup);
+
+	FName MemAllocTableTreeViewTabId = FMemoryProfilerTabs::MemAllocTableTreeViewID;
+	for (int32 TabIndex = 0; TabIndex < MaxMemAllocTableTreeViews; ++TabIndex)
+	{
+		MemAllocTableTreeViewTabId.SetNumber(TabIndex);
+		FText MemAllocTableTreeViewTabDisplayName = FText::Format(LOCTEXT("MemoryProfiler.MemAllocTableTreeViewTabTitle", "Allocs Table {0}"), FText::AsNumber(TabIndex));
+		TabManager->RegisterTabSpawner(MemAllocTableTreeViewTabId, FOnSpawnTab::CreateRaw(this, &SMemoryProfilerWindow::SpawnTab_MemAllocTableTreeView, TabIndex))
+			.SetDisplayName(MemAllocTableTreeViewTabDisplayName)
+			.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "MemTagTreeView.Icon.Small")) // TODO
+			.SetGroup(AppMenuGroup);
+	}
 
 	TSharedPtr<FMemoryProfilerManager> MemoryProfilerManager = FMemoryProfilerManager::Get();
 	ensure(MemoryProfilerManager.IsValid());
@@ -302,7 +455,7 @@ void SMemoryProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 		FName(TEXT("Menu"))
 	);
 
-	TSharedRef<SWidget> MultiboxWidget = MenuBarBuilder.MakeWidget();
+	TSharedRef<SWidget> MenuWidget = MenuBarBuilder.MakeWidget();
 
 	ChildSlot
 		[
@@ -330,7 +483,7 @@ void SMemoryProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 					+ SVerticalBox::Slot()
 						.AutoHeight()
 						[
-							MultiboxWidget
+							MenuWidget
 						]
 
 					+ SVerticalBox::Slot()
@@ -357,7 +510,7 @@ void SMemoryProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 		];
 
 	// Tell tab-manager about the global menu bar.
-	TabManager->SetMenuMultiBox(MenuBarBuilder.GetMultiBox(), MultiboxWidget);
+	TabManager->SetMenuMultiBox(MenuBarBuilder.GetMultiBox(), MenuWidget);
 }
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION

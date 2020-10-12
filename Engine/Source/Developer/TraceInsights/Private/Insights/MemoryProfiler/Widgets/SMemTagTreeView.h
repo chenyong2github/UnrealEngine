@@ -32,6 +32,7 @@ namespace Trace
 
 namespace Insights
 {
+	class FMemoryRuleSpec;
 	class FTable;
 	class FTableColumn;
 	class ITableCellValueSorter;
@@ -84,6 +85,12 @@ public:
 	void SelectMemTagNode(Insights::FMemoryTagId MemTagId);
 
 private:
+	TSharedRef<SWidget> ConstructInvestigationWidgetArea();
+	TSharedRef<SWidget> ConstructTimeMarkerWidget(uint32 TimeMarkerIndex);
+	TSharedRef<SWidget> ConstructTagsFilteringWidgetArea();
+	TSharedRef<SWidget> ConstructTagsGroupingWidgetArea();
+	TSharedRef<SWidget> ConstructTracksMiniToolbar();
+
 	void UpdateTree();
 
 	void UpdateStatsInternal();
@@ -243,6 +250,15 @@ private:
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
+	const TArray<TSharedPtr<Insights::FMemoryRuleSpec>>* GetAvailableQueryRules();
+	void QueryRule_OnSelectionChanged(TSharedPtr<Insights::FMemoryRuleSpec> InRule, ESelectInfo::Type SelectInfo);
+	TSharedRef<SWidget> QueryRule_OnGenerateWidget(TSharedPtr<Insights::FMemoryRuleSpec> InRule);
+	FText QueryRule_GetSelectedText() const;
+	FText QueryRule_GetTooltipText() const;
+	FReply RunQuery();
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+
 	const TArray<TSharedPtr<Insights::FMemoryTracker>>* GetAvailableTrackers();
 	void Tracker_OnSelectionChanged(TSharedPtr<Insights::FMemoryTracker> InTracker, ESelectInfo::Type SelectInfo);
 	TSharedRef<SWidget> Tracker_OnGenerateWidget(TSharedPtr<Insights::FMemoryTracker> InTracker);
@@ -365,6 +381,11 @@ private:
 
 	/** If true, the expanded nodes have been saved before applying a text filter. */
 	bool bExpansionSaved;
+
+	//////////////////////////////////////////////////
+	// Queries
+
+	TSharedPtr<SComboBox<TSharedPtr<Insights::FMemoryRuleSpec>>> QueryRuleComboBox;
 
 	//////////////////////////////////////////////////
 	// Search box and filters

@@ -82,6 +82,13 @@ void FTimeRulerTrack::RemoveTimeMarker(TSharedRef<Insights::FTimeMarker> InTimeM
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void FTimeRulerTrack::RemoveAllTimeMarkers()
+{
+	TimeMarkers.Reset();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 TSharedPtr<Insights::FTimeMarker> FTimeRulerTrack::GetTimeMarkerByName(const FString& InTimeMarkerName)
 {
 	for (TSharedRef<Insights::FTimeMarker>& TimeMarker : TimeMarkers)
@@ -341,30 +348,51 @@ void FTimeRulerTrack::DrawTimeMarker(const ITimingTrackDrawContext& Context, con
 	DrawContext.LayerId++;
 
 	const FVector2D& MousePosition = Context.GetMousePosition();
-	constexpr float FixedHalfWidth = 42.0f;
-	const bool bIsMouseOver = !MousePosition.IsZero() &&
-							  MousePosition.Y >= GetPosY() + TimeMarkerY &&
-							  MousePosition.Y < GetPosY() + TimeMarkerY + BoxHeight &&
-							  MousePosition.X >= TimeMarkerX - FixedHalfWidth &&
-							  MousePosition.X < TimeMarkerX + FixedHalfWidth;
 
-	// Time at current marker
+	const bool bIsMouseOverTrack =  !MousePosition.IsZero() &&
+									MousePosition.Y >= GetPosY() &&
+									MousePosition.Y < GetPosY() + GetHeight();
+
+	constexpr float FixedHalfWidth = 42.0f;
+	const bool bIsMouseOverMarker = bIsMouseOverTrack &&
+									MousePosition.Y >= GetPosY() + TimeMarkerY &&
+									MousePosition.Y < GetPosY() + TimeMarkerY + BoxHeight &&
+									MousePosition.X >= TimeMarkerX - FixedHalfWidth &&
+									MousePosition.X < TimeMarkerX + FixedHalfWidth;
+
+	// Decide what text to display.
 	FString TimeMarkerText;
-	if (TimeMarker.GetName().Len() > 0)
+	if (bIsMouseOverTrack)
 	{
-		TimeMarkerText = TimeMarker.GetName() + TEXT(": ");
-	}
-	const double DT = 100.0 / Viewport.GetScaleX();
-	const double Precision = FMath::Max(DT / 100.0, TimeUtils::Nanosecond);
-	if (bIsMouseOver)
-	{
-		// If mouse is hovering the time ruler, format time with a better precision (split seconds in ms, us, ns and ps).
-		TimeMarkerText += TimeUtils::FormatTimeSplit(TimeMarker.GetTime(), Precision);
+		if (TimeMarker.GetName().Len() > 0)
+		{
+			TimeMarkerText = TimeMarker.GetName() + TEXT(": ");
+		}
+
+		// Format time value with one more digit than the time at major tick marks.
+		const double DT = 100.0 / Viewport.GetScaleX();
+		const double Precision = FMath::Max(DT / 100.0, TimeUtils::Nanosecond);
+
+		if (bIsMouseOverMarker)
+		{
+			// If mouse is hovering the time marker, format time with a better precision (split seconds in ms, us, ns and ps).
+			TimeMarkerText += TimeUtils::FormatTimeSplit(TimeMarker.GetTime(), Precision);
+		}
+		else
+		{
+			TimeMarkerText += TimeUtils::FormatTime(TimeMarker.GetTime(), Precision);
+		}
 	}
 	else
 	{
-		// Format current time with one more digit than the time at major tick marks.
-		TimeMarkerText += TimeUtils::FormatTime(TimeMarker.GetTime(), Precision);
+		if (TimeMarker.GetName().Len() > 0)
+		{
+			TimeMarkerText = TimeMarker.GetName();
+		}
+		else
+		{
+			TimeMarkerText = TEXT("T");
+		}
 	}
 
 	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
@@ -378,7 +406,7 @@ void FTimeRulerTrack::DrawTimeMarker(const ITimingTrackDrawContext& Context, con
 	}
 
 	const FLinearColor TextBackgroundColor(TimeMarker.GetColor().CopyWithNewOpacity(1.0f));
-	const FLinearColor TextForegroundColor(0.1f, 0.1f, 0.1f, 1.0f);
+	const FLinearColor TextForegroundColor(0.07f, 0.07f, 0.07f, 1.0f);
 
 	// Fill the time marker box.
 	const float BoxWidth = TimeMarker.GetCrtTextWidth() + 4.0f;

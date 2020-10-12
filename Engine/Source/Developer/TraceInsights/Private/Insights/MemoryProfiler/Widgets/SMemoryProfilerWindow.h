@@ -26,7 +26,9 @@ class SMemTagTreeView;
 
 namespace Insights
 {
+	class FTimeMarker;
 	class STableTreeView;
+	class SMemAllocTableTreeView;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -37,6 +39,7 @@ struct FMemoryProfilerTabs
 	static const FName ToolbarID;
 	static const FName TimingViewID;
 	static const FName MemTagTreeViewID;
+	static const FName MemAllocTableTreeViewID; // base id
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -55,8 +58,11 @@ public:
 	SLATE_END_ARGS()
 
 	void Reset();
+	void ResetTimingViewMarkers();
+	void UpdateTimingViewMarkers();
 	void UpdateTableTreeViews();
 	void UpdateMemTagTreeView();
+	void UpdateMemAllocTableTreeView(TSharedPtr<Insights::SMemAllocTableTreeView> MemAllocTableTreeView);
 
 	/** Constructs this widget. */
 	void Construct(const FArguments& InArgs, const TSharedRef<SDockTab>& ConstructUnderMajorTab, const TSharedPtr<SWindow>& ConstructUnderWindow);
@@ -65,12 +71,19 @@ public:
 	void HideTab(const FName& TabID);
 	void ShowHideTab(const FName& TabID, bool bShow) { bShow ? ShowTab(TabID) : HideTab(TabID); }
 
+	TSharedPtr<Insights::SMemAllocTableTreeView> ShowMemAllocTableTreeViewTab();
+
 	TSharedPtr<FTabManager> GetTabManager() const { return TabManager; }
 
 	TSharedPtr<STimingView> GetTimingView() const { return TimingView; }
 	TSharedPtr<SMemTagTreeView> GetMemTagTreeView() const { return MemTagTreeView; }
 
-	FMemorySharedState& GetSharedState() const { return *SharedState; }
+	uint32 GetNumCustomTimeMarkers() const { return (uint32)CustomTimeMarkers.Num(); }
+	const TSharedRef<Insights::FTimeMarker>& GetCustomTimeMarker(uint32 Index) const { return CustomTimeMarkers[Index]; }
+	const TArray<TSharedRef<Insights::FTimeMarker>>& GetCustomTimeMarkers() const { return CustomTimeMarkers; }
+
+	FMemorySharedState& GetSharedState() { return *SharedState; }
+	const FMemorySharedState& GetSharedState() const { return *SharedState; }
 
 private:
 	TSharedRef<SDockTab> SpawnTab_Toolbar(const FSpawnTabArgs& Args);
@@ -81,6 +94,9 @@ private:
 
 	TSharedRef<SDockTab> SpawnTab_MemTagTreeView(const FSpawnTabArgs& Args);
 	void OnMemTagTreeViewTabClosed(TSharedRef<SDockTab> TabBeingClosed);
+
+	TSharedRef<SDockTab> SpawnTab_MemAllocTableTreeView(const FSpawnTabArgs& Args, int32 TabIndex);
+	void OnMemAllocTableTreeViewTabClosed(TSharedRef<SDockTab> TabBeingClosed);
 
 	/**
 	 * Fill the main menu with menu items.
@@ -156,10 +172,17 @@ private:
 private:
 	/** The Timing view (multi-track) widget */
 	TSharedPtr<STimingView> TimingView;
+	TArray<TSharedRef<Insights::FTimeMarker>> CustomTimeMarkers;
 	TSharedPtr<FMemorySharedState> SharedState;
 
 	/** The "LLM Tags" tree view widget */
 	TSharedPtr<SMemTagTreeView> MemTagTreeView;
+
+	/** The list of Allocations table tree view widgets */
+	TArray<TSharedPtr<Insights::SMemAllocTableTreeView>> MemAllocTableTreeViews;
+
+	const int32 MaxMemAllocTableTreeViews = 4;
+	int32 LastMemAllocTableTreeViewIndex = -1;
 
 	/** Holds the tab manager that manages the front-end's tabs. */
 	TSharedPtr<FTabManager> TabManager;

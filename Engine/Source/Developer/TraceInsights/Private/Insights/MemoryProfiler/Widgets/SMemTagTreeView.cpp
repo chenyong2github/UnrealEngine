@@ -11,25 +11,30 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/SToolTip.h"
 #include "Widgets/Views/STableViewBase.h"
 
 // Insights
+#include "Insights/Common/TimeUtils.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/MemoryProfiler/MemoryProfilerManager.h"
 #include "Insights/MemoryProfiler/ViewModels/MemoryTag.h"
 #include "Insights/MemoryProfiler/ViewModels/MemoryTracker.h"
 #include "Insights/MemoryProfiler/ViewModels/MemorySharedState.h"
 #include "Insights/MemoryProfiler/ViewModels/MemTagTreeViewColumnFactory.h"
+#include "Insights/MemoryProfiler/Widgets/SMemAllocTableTreeView.h"
 #include "Insights/MemoryProfiler/Widgets/SMemTagTreeViewTooltip.h"
 #include "Insights/MemoryProfiler/Widgets/SMemTagTreeViewTableRow.h"
 #include "Insights/MemoryProfiler/Widgets/SMemoryProfilerWindow.h"
 #include "Insights/Table/ViewModels/Table.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
+#include "Insights/ViewModels/TimeRulerTrack.h"
 #include "Insights/ViewModels/TimingGraphTrack.h"
 #include "Insights/Widgets/STimingView.h"
 
@@ -89,124 +94,31 @@ void SMemTagTreeView::Construct(const FArguments& InArgs, TSharedPtr<SMemoryProf
 			[
 				SNew(SVerticalBox)
 
+				// Investigation
 				+ SVerticalBox::Slot()
 				.VAlign(VAlign_Center)
 				.Padding(2.0f)
 				.AutoHeight()
 				[
-					SNew(SHorizontalBox)
-
-					// Search box
-					+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					.Padding(2.0f)
-					.FillWidth(1.0f)
-					[
-						SAssignNew(SearchBox, SSearchBox)
-						.HintText(LOCTEXT("SearchBoxHint", "Search LLM tags or groups"))
-						.OnTextChanged(this, &SMemTagTreeView::SearchBox_OnTextChanged)
-						.IsEnabled(this, &SMemTagTreeView::SearchBox_IsEnabled)
-						.ToolTipText(LOCTEXT("FilterSearchHint", "Type here to search LLM tags or groups"))
-					]
-
-					// Filter out LLM tags with zero instance count.
-					//+ SHorizontalBox::Slot()
-					//.VAlign(VAlign_Center)
-					//.Padding(2.0f)
-					//.AutoWidth()
-					//[
-					//	SNew(SCheckBox)
-					//	.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
-					//	.HAlign(HAlign_Center)
-					//	.Padding(2.0f)
-					//	.OnCheckStateChanged(this, &SMemTagTreeView::FilterOutZeroCountMemTags_OnCheckStateChanged)
-					//	.IsChecked(this, &SMemTagTreeView::FilterOutZeroCountMemTags_IsChecked)
-					//	.ToolTipText(LOCTEXT("FilterOutZeroCountMemTags_Tooltip", "Filter out the LLM tags having zero total instance count (aggregated stats)."))
-					//	[
-					//		SNew(STextBlock)
-					//		.Text(LOCTEXT("FilterOutZeroCountMemTags_Button", " !0 "))
-					//		.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Caption"))
-					//	]
-					//]
-
-					// Filter out LLM tags by current tracker.
-					+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					.Padding(2.0f)
-					.AutoWidth()
-					[
-						SNew(SCheckBox)
-						.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
-						.HAlign(HAlign_Center)
-						.Padding(2.0f)
-						.OnCheckStateChanged(this, &SMemTagTreeView::FilterByTracker_OnCheckStateChanged)
-						.IsChecked(this, &SMemTagTreeView::FilterByTracker_IsChecked)
-						.ToolTipText(LOCTEXT("FilterByTracker_Tooltip", "Filter the LLM tags to show only the ones used by the current tracker."))
-						[
-							SNew(STextBlock)
-							.Text(LOCTEXT("FilterByTracker_Button", " T "))
-							.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Caption"))
-						]
-					]
+					ConstructInvestigationWidgetArea()
 				]
 
-				// Group by
+				// Search / Filtering
 				+ SVerticalBox::Slot()
 				.VAlign(VAlign_Center)
 				.Padding(2.0f)
 				.AutoHeight()
 				[
-					SNew(SHorizontalBox)
+					ConstructTagsFilteringWidgetArea()
+				]
 
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					.Padding(0.0f, 0.0f, 4.0f, 0.0f)
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("TrackerText", "Tracker:"))
-					]
-
-					+ SHorizontalBox::Slot()
-					.FillWidth(1.0f)
-					.VAlign(VAlign_Center)
-					[
-						SAssignNew(TrackerComboBox, SComboBox<TSharedPtr<Insights::FMemoryTracker>>)
-						.ToolTipText(this, &SMemTagTreeView::Tracker_GetTooltipText)
-						.OptionsSource(GetAvailableTrackers())
-						.OnSelectionChanged(this, &SMemTagTreeView::Tracker_OnSelectionChanged)
-						.OnGenerateWidget(this, &SMemTagTreeView::Tracker_OnGenerateWidget)
-						[
-							SNew(STextBlock)
-							.Text(this, &SMemTagTreeView::Tracker_GetSelectedText)
-						]
-					]
-
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					.Padding(0.0f, 0.0f, 4.0f, 0.0f)
-					[
-						SNew(STextBlock)
-						.MinDesiredWidth(60.0f)
-						.Justification(ETextJustify::Right)
-						.Text(LOCTEXT("GroupByText", "Group by:"))
-					]
-
-					+ SHorizontalBox::Slot()
-					.FillWidth(1.0f)
-					.VAlign(VAlign_Center)
-					[
-						SAssignNew(GroupByComboBox, SComboBox<TSharedPtr<EMemTagNodeGroupingMode>>)
-						.ToolTipText(this, &SMemTagTreeView::GroupBy_GetSelectedTooltipText)
-						.OptionsSource(&GroupByOptionsSource)
-						.OnSelectionChanged(this, &SMemTagTreeView::GroupBy_OnSelectionChanged)
-						.OnGenerateWidget(this, &SMemTagTreeView::GroupBy_OnGenerateWidget)
-						[
-							SNew(STextBlock)
-							.Text(this, &SMemTagTreeView::GroupBy_GetSelectedText)
-						]
-					]
+				// Grouping
+				+ SVerticalBox::Slot()
+				.VAlign(VAlign_Center)
+				.Padding(2.0f)
+				.AutoHeight()
+				[
+					ConstructTagsGroupingWidgetArea()
 				]
 
 				// Tracks
@@ -215,102 +127,7 @@ void SMemTagTreeView::Construct(const FArguments& InArgs, TSharedPtr<SMemoryProf
 				.Padding(2.0f)
 				.AutoHeight()
 				[
-					SNew(SHorizontalBox)
-
-					+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					.Padding(FMargin(2.0f, 0.0f, 2.0f, 0.0f))
-					.AutoWidth()
-					[
-						SNew(SButton)
-						.ToolTipText(LOCTEXT("HideAll_ToolTip", "Remove all memory graph tracks."))
-						.ContentPadding(FMargin(2.0f, 0.0f, 2.0f, 0.0f))
-						.OnClicked(this, &SMemTagTreeView::HideAllTracks_OnClicked)
-						.Content()
-						[
-							SNew(SImage)
-							.ColorAndOpacity(FSlateColor(FLinearColor(0.5f, 0.0f, 0.0f, 1.0f)))
-							.Image(FInsightsStyle::Get().GetBrush("Mem.Remove.Small"))
-						]
-					]
-
-					+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					.Padding(FMargin(2.0f, 0.0f, 2.0f, 0.0f))
-					.AutoWidth()
-					[
-						SNew(SButton)
-						.ToolTipText(LOCTEXT("ShowAll_ToolTip", "Create memory graph tracks for all visible (filtered) LLM tags."))
-						.ContentPadding(FMargin(2.0f, 0.0f, 2.0f, 0.0f))
-						.OnClicked(this, &SMemTagTreeView::ShowAllTracks_OnClicked)
-						.Content()
-						[
-							SNew(SImage)
-							.ColorAndOpacity(FSlateColor(FLinearColor(0.0f, 0.5f, 0.0f, 1.0f)))
-							.Image(FInsightsStyle::Get().GetBrush("Mem.Add.Small"))
-						]
-					]
-
-					+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					.Padding(2.0f)
-					.AutoWidth()
-					[
-						SNew(SButton)
-						.ToolTipText(LOCTEXT("LoadReportXML_ToolTip", "Load LLMReportTypes.xml"))
-						.ContentPadding(FMargin(2.0f, 2.0f, 2.0f, 2.0f))
-						.OnClicked(this, &SMemTagTreeView::LoadReportXML_OnClicked)
-						.Content()
-						[
-							SNew(STextBlock)
-							.Text(LOCTEXT("LoadReportXML_Text", "Load XML..."))
-						]
-					]
-
-					+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					.Padding(2.0f)
-					[
-						SNew(SButton)
-						.ToolTipText(LOCTEXT("SmallHeight_ToolTip", "Change height of LLM Tag Graph tracks to Small."))
-						.ContentPadding(FMargin(2.0f, 2.0f, 2.0f, 2.0f))
-						.OnClicked(this, &SMemTagTreeView::AllTracksSmallHeight_OnClicked)
-						.Content()
-						[
-							SNew(STextBlock)
-							.Text(LOCTEXT("SmallHeight_Text", "\u2195S"))
-						]
-					]
-
-					+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					.Padding(2.0f)
-					[
-						SNew(SButton)
-						.ToolTipText(LOCTEXT("MediumHeight_ToolTip", "Change height of LLM Tag Graph tracks to Medium."))
-						.ContentPadding(FMargin(2.0f, 2.0f, 2.0f, 2.0f))
-						.OnClicked(this, &SMemTagTreeView::AllTracksMediumHeight_OnClicked)
-						.Content()
-						[
-							SNew(STextBlock)
-							.Text(LOCTEXT("MediumHeight_Text", "\u2195M"))
-						]
-					]
-
-					+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					.Padding(2.0f)
-					[
-						SNew(SButton)
-						.ToolTipText(LOCTEXT("LargeHeight_ToolTip", "Change height of LLM Tag Graph tracks to Large."))
-						.ContentPadding(FMargin(2.0f, 2.0f, 2.0f, 2.0f))
-						.OnClicked(this, &SMemTagTreeView::AllTracksLargeHeight_OnClicked)
-						.Content()
-						[
-							SNew(STextBlock)
-							.Text(LOCTEXT("LargeHeight_Text", "\u2195L"))
-						]
-					]
+					ConstructTracksMiniToolbar()
 				]
 			]
 		]
@@ -384,8 +201,446 @@ void SMemTagTreeView::Construct(const FArguments& InArgs, TSharedPtr<SMemoryProf
 	// Update the Session (i.e. when analysis session was already started).
 	InsightsManager_OnSessionChanged();
 }
-END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SWidget> SMemTagTreeView::ConstructInvestigationWidgetArea()
+{
+	TSharedRef<SWidget> Widget = SNew(SExpandableArea)
+
+	.InitiallyCollapsed(false)
+	.BodyBorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+	.BodyBorderBackgroundColor(FLinearColor::White)
+	.Padding(0.0f)
+	.HeaderContent()
+	[
+		SNew(STextBlock)
+		.Text(LOCTEXT("InvestigationTitle", "Investigation"))
+		.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+		.ShadowOffset(FVector2D(1.0f, 1.0f))
+	]
+	.BodyContent()
+	[
+		SNew(SVerticalBox)
+
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("QueryRuleText", "Rule:"))
+			]
+
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			.VAlign(VAlign_Center)
+			[
+				SAssignNew(QueryRuleComboBox, SComboBox<TSharedPtr<Insights::FMemoryRuleSpec>>)
+				.ToolTipText(this, &SMemTagTreeView::QueryRule_GetTooltipText)
+				.OptionsSource(GetAvailableQueryRules())
+				.OnSelectionChanged(this, &SMemTagTreeView::QueryRule_OnSelectionChanged)
+				.OnGenerateWidget(this, &SMemTagTreeView::QueryRule_OnGenerateWidget)
+				[
+					SNew(STextBlock)
+					.Text(this, &SMemTagTreeView::QueryRule_GetSelectedText)
+				]
+			]
+		]
+
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			ConstructTimeMarkerWidget(0)
+		]
+
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			ConstructTimeMarkerWidget(1)
+		]
+
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			ConstructTimeMarkerWidget(2)
+		]
+
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			ConstructTimeMarkerWidget(3)
+		]
+
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(0.0f, 4.0f, 0.0f, 2.0f)
+		[
+			SNew(STextBlock)
+			.Text(this, &SMemTagTreeView::QueryRule_GetTooltipText)
+			.ColorAndOpacity(FLinearColor(0.3f, 0.3f, 0.3f, 1.0f))
+			.AutoWrapText(true)
+		]
+
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.HAlign(HAlign_Right)
+		[
+			SNew(SButton)
+			.Text(LOCTEXT("RunQueryBtnText", "Run Query"))
+			.ToolTipText(LOCTEXT("RunQueryBtnToolTipText", "Run Memory Query.\nThe resulting list of allocations will be available in a tree view."))
+			.OnClicked(this, &SMemTagTreeView::RunQuery)
+		]
+
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(0.0f, 6.0f, 0.0f, 0.0f)
+		[
+			SNew(SSeparator)
+		]
+	];
+
+	if (ProfilerWindow.IsValid())
+	{
+		FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
+		QueryRuleComboBox->SetSelectedItem(SharedState.GetCurrentMemoryRule());
+	}
+
+	return Widget;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SWidget> SMemTagTreeView::QueryRule_OnGenerateWidget(TSharedPtr<Insights::FMemoryRuleSpec> InRule)
+{
+	const FText QueryRuleText = FText::Format(LOCTEXT("QueryRuleComboBox_TextFmt", "{0} ({1})"), InRule->GetVerboseName(), InRule->GetShortName());
+
+	TSharedRef<SHorizontalBox> Widget = SNew(SHorizontalBox);
+
+	Widget->AddSlot()
+		.AutoWidth()
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		.Padding(2.0f, 2.0f, 0.0f, 2.0f)
+		[
+			SNew(SImage)
+			.Visibility_Lambda([Widget]() { return Widget->GetParentWidget()->IsHovered() ? EVisibility::Visible : EVisibility::Hidden; })
+			.Image(FEditorStyle::GetBrush("Profiler.Tooltip.HintIcon10"))
+			.ToolTipText(InRule->GetDescription())
+		];
+
+	Widget->AddSlot()
+		.AutoWidth()
+		[
+			SNew(STextBlock)
+			.Text(QueryRuleText)
+			.Margin(2.0f)
+		];
+
+	return Widget;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SWidget> SMemTagTreeView::ConstructTimeMarkerWidget(uint32 TimeMarkerIndex)
+{
+	if (!ProfilerWindow.IsValid())
+	{
+		return SNew(SBox);
+	}
+
+	FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
+	const uint32 NumTimeMarkers = ProfilerWindow->GetNumCustomTimeMarkers();
+	if (TimeMarkerIndex >= NumTimeMarkers)
+	{
+		return SNew(SBox);
+	}
+
+	const TSharedRef<Insights::FTimeMarker>& TimeMarker = ProfilerWindow->GetCustomTimeMarker(TimeMarkerIndex);
+
+	TSharedRef<SWidget> Widget = SNew(SHorizontalBox)
+		.Visibility_Lambda([TimeMarker]()
+			{
+				return TimeMarker->IsVisible() ? EVisibility::Visible : EVisibility::Collapsed;
+			})
+
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.Padding(20.0f, 1.0f, 4.0f, 1.0f)
+		[
+			SNew(STextBlock)
+			.Text(FText::FromString(TimeMarker->GetName()))
+			.ColorAndOpacity(FSlateColor(TimeMarker->GetColor()))
+		]
+
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.Padding(0.0f, 1.0f, 0.0f, 1.0f)
+		[
+			SNew(SEditableTextBox)
+			.MinDesiredWidth(110.0f)
+			.Text_Lambda([TimeMarker]()
+				{
+					return FText::FromString(FString::Printf(TEXT("%.9f"), TimeMarker->GetTime()));
+				})
+			.OnTextCommitted_Lambda([TimeMarker](const FText& InText, ETextCommit::Type InCommitType)
+				{
+					if (InCommitType == ETextCommit::OnEnter)
+					{
+						const double Time = FCString::Atod(*InText.ToString());
+						TimeMarker->SetTime(Time);
+					}
+				})
+		]
+
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.Padding(4.0f, 1.0f, 0.0f, 1.0f)
+		[
+			SNew(STextBlock)
+			.Text_Lambda([TimeMarker]()
+				{
+					return FText::FromString(TimeUtils::FormatTime(TimeMarker->GetTime(), 0.1));
+				})
+		];
+
+	return Widget;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SWidget> SMemTagTreeView::ConstructTagsFilteringWidgetArea()
+{
+	TSharedRef<SWidget> Widget = SNew(SHorizontalBox)
+
+	// Search box
+	+ SHorizontalBox::Slot()
+	.VAlign(VAlign_Center)
+	.Padding(2.0f)
+	.FillWidth(1.0f)
+	[
+		SAssignNew(SearchBox, SSearchBox)
+		.HintText(LOCTEXT("SearchBoxHint", "Search LLM tags or groups"))
+		.OnTextChanged(this, &SMemTagTreeView::SearchBox_OnTextChanged)
+		.IsEnabled(this, &SMemTagTreeView::SearchBox_IsEnabled)
+		.ToolTipText(LOCTEXT("FilterSearchHint", "Type here to search LLM tags or groups"))
+	]
+
+	// Filter out LLM tags with zero instance count.
+	//+ SHorizontalBox::Slot()
+	//.VAlign(VAlign_Center)
+	//.Padding(2.0f)
+	//.AutoWidth()
+	//[
+	//	SNew(SCheckBox)
+	//	.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
+	//	.HAlign(HAlign_Center)
+	//	.Padding(2.0f)
+	//	.OnCheckStateChanged(this, &SMemTagTreeView::FilterOutZeroCountMemTags_OnCheckStateChanged)
+	//	.IsChecked(this, &SMemTagTreeView::FilterOutZeroCountMemTags_IsChecked)
+	//	.ToolTipText(LOCTEXT("FilterOutZeroCountMemTags_Tooltip", "Filter out the LLM tags having zero total instance count (aggregated stats)."))
+	//	[
+	//		SNew(STextBlock)
+	//		.Text(LOCTEXT("FilterOutZeroCountMemTags_Button", " !0 "))
+	//		.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Caption"))
+	//	]
+	//]
+
+	// Filter out LLM tags by current tracker.
+	+ SHorizontalBox::Slot()
+	.VAlign(VAlign_Center)
+	.Padding(2.0f)
+	.AutoWidth()
+	[
+		SNew(SCheckBox)
+		.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
+		.HAlign(HAlign_Center)
+		.Padding(2.0f)
+		.OnCheckStateChanged(this, &SMemTagTreeView::FilterByTracker_OnCheckStateChanged)
+		.IsChecked(this, &SMemTagTreeView::FilterByTracker_IsChecked)
+		.ToolTipText(LOCTEXT("FilterByTracker_Tooltip", "Filter the LLM tags to show only the ones used by the current tracker."))
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("FilterByTracker_Button", " T "))
+			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Caption"))
+		]
+	];
+
+	return Widget;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SWidget> SMemTagTreeView::ConstructTagsGroupingWidgetArea()
+{
+	TSharedRef<SWidget> Widget = SNew(SHorizontalBox)
+
+	+ SHorizontalBox::Slot()
+	.AutoWidth()
+	.VAlign(VAlign_Center)
+	.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+	[
+		SNew(STextBlock)
+		.Text(LOCTEXT("TrackerText", "Tracker:"))
+	]
+
+	+ SHorizontalBox::Slot()
+	.FillWidth(1.0f)
+	.VAlign(VAlign_Center)
+	[
+		SAssignNew(TrackerComboBox, SComboBox<TSharedPtr<Insights::FMemoryTracker>>)
+		.ToolTipText(this, &SMemTagTreeView::Tracker_GetTooltipText)
+		.OptionsSource(GetAvailableTrackers())
+		.OnSelectionChanged(this, &SMemTagTreeView::Tracker_OnSelectionChanged)
+		.OnGenerateWidget(this, &SMemTagTreeView::Tracker_OnGenerateWidget)
+		[
+			SNew(STextBlock)
+			.Text(this, &SMemTagTreeView::Tracker_GetSelectedText)
+		]
+	]
+
+	+ SHorizontalBox::Slot()
+	.AutoWidth()
+	.VAlign(VAlign_Center)
+	.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+	[
+		SNew(STextBlock)
+		.MinDesiredWidth(60.0f)
+		.Justification(ETextJustify::Right)
+		.Text(LOCTEXT("GroupByText", "Group by:"))
+	]
+
+	+ SHorizontalBox::Slot()
+	.FillWidth(1.0f)
+	.VAlign(VAlign_Center)
+	[
+		SAssignNew(GroupByComboBox, SComboBox<TSharedPtr<EMemTagNodeGroupingMode>>)
+		.ToolTipText(this, &SMemTagTreeView::GroupBy_GetSelectedTooltipText)
+		.OptionsSource(&GroupByOptionsSource)
+		.OnSelectionChanged(this, &SMemTagTreeView::GroupBy_OnSelectionChanged)
+		.OnGenerateWidget(this, &SMemTagTreeView::GroupBy_OnGenerateWidget)
+		[
+			SNew(STextBlock)
+			.Text(this, &SMemTagTreeView::GroupBy_GetSelectedText)
+		]
+	];
+
+	return Widget;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SWidget> SMemTagTreeView::ConstructTracksMiniToolbar()
+{
+	TSharedRef<SWidget> Widget = SNew(SHorizontalBox)
+
+	+ SHorizontalBox::Slot()
+	.VAlign(VAlign_Center)
+	.Padding(FMargin(2.0f, 0.0f, 2.0f, 0.0f))
+	.AutoWidth()
+	[
+		SNew(SButton)
+		.ToolTipText(LOCTEXT("HideAll_ToolTip", "Remove all memory graph tracks."))
+		.ContentPadding(FMargin(2.0f, 0.0f, 2.0f, 0.0f))
+		.OnClicked(this, &SMemTagTreeView::HideAllTracks_OnClicked)
+		.Content()
+		[
+			SNew(SImage)
+			.ColorAndOpacity(FSlateColor(FLinearColor(0.5f, 0.0f, 0.0f, 1.0f)))
+			.Image(FInsightsStyle::Get().GetBrush("Mem.Remove.Small"))
+		]
+	]
+
+	+ SHorizontalBox::Slot()
+	.VAlign(VAlign_Center)
+	.Padding(FMargin(2.0f, 0.0f, 2.0f, 0.0f))
+	.AutoWidth()
+	[
+		SNew(SButton)
+		.ToolTipText(LOCTEXT("ShowAll_ToolTip", "Create memory graph tracks for all visible (filtered) LLM tags."))
+		.ContentPadding(FMargin(2.0f, 0.0f, 2.0f, 0.0f))
+		.OnClicked(this, &SMemTagTreeView::ShowAllTracks_OnClicked)
+		.Content()
+		[
+			SNew(SImage)
+			.ColorAndOpacity(FSlateColor(FLinearColor(0.0f, 0.5f, 0.0f, 1.0f)))
+			.Image(FInsightsStyle::Get().GetBrush("Mem.Add.Small"))
+		]
+	]
+
+	+ SHorizontalBox::Slot()
+	.VAlign(VAlign_Center)
+	.Padding(2.0f)
+	.AutoWidth()
+	[
+		SNew(SButton)
+		.ToolTipText(LOCTEXT("LoadReportXML_ToolTip", "Load LLMReportTypes.xml"))
+		.ContentPadding(FMargin(2.0f, 2.0f, 2.0f, 2.0f))
+		.OnClicked(this, &SMemTagTreeView::LoadReportXML_OnClicked)
+		.Content()
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("LoadReportXML_Text", "Load XML..."))
+		]
+	]
+
+	+ SHorizontalBox::Slot()
+	.VAlign(VAlign_Center)
+	.Padding(2.0f)
+	[
+		SNew(SButton)
+		.ToolTipText(LOCTEXT("SmallHeight_ToolTip", "Change height of LLM Tag Graph tracks to Small."))
+		.ContentPadding(FMargin(2.0f, 2.0f, 2.0f, 2.0f))
+		.OnClicked(this, &SMemTagTreeView::AllTracksSmallHeight_OnClicked)
+		.Content()
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("SmallHeight_Text", "\u2195S"))
+		]
+	]
+
+	+ SHorizontalBox::Slot()
+	.VAlign(VAlign_Center)
+	.Padding(2.0f)
+	[
+		SNew(SButton)
+		.ToolTipText(LOCTEXT("MediumHeight_ToolTip", "Change height of LLM Tag Graph tracks to Medium."))
+		.ContentPadding(FMargin(2.0f, 2.0f, 2.0f, 2.0f))
+		.OnClicked(this, &SMemTagTreeView::AllTracksMediumHeight_OnClicked)
+		.Content()
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("MediumHeight_Text", "\u2195M"))
+		]
+	]
+
+	+ SHorizontalBox::Slot()
+	.VAlign(VAlign_Center)
+	.Padding(2.0f)
+	[
+		SNew(SButton)
+		.ToolTipText(LOCTEXT("LargeHeight_ToolTip", "Change height of LLM Tag Graph tracks to Large."))
+		.ContentPadding(FMargin(2.0f, 2.0f, 2.0f, 2.0f))
+		.OnClicked(this, &SMemTagTreeView::AllTracksLargeHeight_OnClicked)
+		.Content()
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("LargeHeight_Text", "\u2195L"))
+		]
+	];
+
+	return Widget;
+}
+
+END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TSharedPtr<SWidget> SMemTagTreeView::TreeView_GetMenuContent()
@@ -2017,6 +2272,129 @@ void SMemTagTreeView::SelectMemTagNode(Insights::FMemoryTagId MemTagId)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+// Query Rules
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const TArray<TSharedPtr<Insights::FMemoryRuleSpec>>* SMemTagTreeView::GetAvailableQueryRules()
+{
+	if (ProfilerWindow.IsValid())
+	{
+		FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
+		return &SharedState.GetMemoryRules();
+	}
+	return nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SMemTagTreeView::QueryRule_OnSelectionChanged(TSharedPtr<Insights::FMemoryRuleSpec> InRule, ESelectInfo::Type SelectInfo)
+{
+	if (SelectInfo != ESelectInfo::Direct)
+	{
+		if (ProfilerWindow.IsValid() && InRule)
+		{
+			FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
+			SharedState.SetCurrentMemoryRule(InRule);
+			ProfilerWindow->UpdateTimingViewMarkers();
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText SMemTagTreeView::QueryRule_GetSelectedText() const
+{
+	if (ProfilerWindow.IsValid())
+	{
+		FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
+		TSharedPtr<Insights::FMemoryRuleSpec> Rule = SharedState.GetCurrentMemoryRule();
+		if (Rule)
+		{
+			return FText::Format(LOCTEXT("QueryRuleComboBox_TextFmt", "{0} ({1})"), Rule->GetVerboseName(), Rule->GetShortName());
+		}
+	}
+	return FText::GetEmpty();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText SMemTagTreeView::QueryRule_GetTooltipText() const
+{
+	if (ProfilerWindow.IsValid())
+	{
+		FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
+		if (SharedState.GetCurrentMemoryRule())
+		{
+			return SharedState.GetCurrentMemoryRule()->GetDescription();
+		}
+	}
+	return FText::GetEmpty();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply SMemTagTreeView::RunQuery()
+{
+	if (!ProfilerWindow.IsValid())
+	{
+		UE_LOG(MemoryProfiler, Error, TEXT("[MemQuery] Invalid Profiler Window!"));
+		return FReply::Handled();
+	}
+
+	FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
+	TSharedPtr<Insights::FMemoryRuleSpec> Rule = SharedState.GetCurrentMemoryRule();
+	if (!Rule)
+	{
+		UE_LOG(MemoryProfiler, Error, TEXT("[MemQuery] Invalid Rule!"));
+		return FReply::Handled();
+	}
+
+	const uint32 NumTimeMarkers = ProfilerWindow->GetNumCustomTimeMarkers();
+	const uint32 RuleNumTimeMarkers = Rule->GetNumTimeMarkers();
+	if (RuleNumTimeMarkers > NumTimeMarkers)
+	{
+		UE_LOG(MemoryProfiler, Error, TEXT("[MemQuery] Only %d time markers available. Current rule (%s) requires %u time markers!"),
+			NumTimeMarkers, *Rule->GetShortName().ToString(), RuleNumTimeMarkers);
+		return FReply::Handled();
+	}
+
+#if !NO_LOGGING
+	TStringBuilder<1024> Builder;
+	if (RuleNumTimeMarkers > 0)
+	{
+		Builder.Append(TEXT(" ("));
+		for (uint32 TimeMarkerIndex = 0; TimeMarkerIndex < RuleNumTimeMarkers; ++TimeMarkerIndex)
+		{
+			if (TimeMarkerIndex != 0)
+			{
+				Builder.Append(TEXT(", "));
+			}
+			Builder.Append(TEXT('A') + TimeMarkerIndex);
+			const TSharedRef<Insights::FTimeMarker>& TimeMarker = ProfilerWindow->GetCustomTimeMarker(TimeMarkerIndex);
+			Builder.Appendf(TEXT("=%.9f"), TimeMarker->GetTime());
+		}
+		Builder.Append(TEXT(")"));
+	}
+	UE_LOG(MemoryProfiler, Log, TEXT("[MemQuery] Run Query %s%s..."), *Rule->GetShortName().ToString(), Builder.ToString());
+#endif
+
+	TSharedPtr<Insights::SMemAllocTableTreeView> MemAllocTableTreeView = ProfilerWindow->ShowMemAllocTableTreeViewTab();
+	if (MemAllocTableTreeView)
+	{
+		double TimeMarkers[4];
+		TimeMarkers[0] = (RuleNumTimeMarkers > 0) ? ProfilerWindow->GetCustomTimeMarker(0)->GetTime() : 0.0;
+		TimeMarkers[1] = (RuleNumTimeMarkers > 1) ? ProfilerWindow->GetCustomTimeMarker(1)->GetTime() : 0.0;
+		TimeMarkers[2] = (RuleNumTimeMarkers > 2) ? ProfilerWindow->GetCustomTimeMarker(2)->GetTime() : 0.0;
+		TimeMarkers[3] = (RuleNumTimeMarkers > 3) ? ProfilerWindow->GetCustomTimeMarker(3)->GetTime() : 0.0;
+		MemAllocTableTreeView->SetQueryParams(Rule, TimeMarkers[0], TimeMarkers[1], TimeMarkers[2], TimeMarkers[3]);
+	}
+
+	return FReply::Handled();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Trackers
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 const TArray<TSharedPtr<Insights::FMemoryTracker>>* SMemTagTreeView::GetAvailableTrackers()
 {
@@ -2118,6 +2496,8 @@ FText SMemTagTreeView::Tracker_GetTooltipText() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+// Load Report XML button action
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FReply SMemTagTreeView::LoadReportXML_OnClicked()
 {
@@ -2157,6 +2537,8 @@ FReply SMemTagTreeView::LoadReportXML_OnClicked()
 	return FReply::Handled();
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Button actions re graph tracks
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FReply SMemTagTreeView::ShowAllTracks_OnClicked()

@@ -74,8 +74,11 @@ public:
 
 	void SetSelection(const bool bInIsSelecting, const double InSelectionStartTime, const double InSelectionEndTime);
 
+	TArray<TSharedRef<Insights::FTimeMarker>>& GetTimeMarkers() { return TimeMarkers; }
+	const TArray<TSharedRef<Insights::FTimeMarker>>& GetTimeMarkers() const { return TimeMarkers; }
 	void AddTimeMarker(TSharedRef<Insights::FTimeMarker> InTimeMarker);
 	void RemoveTimeMarker(TSharedRef<Insights::FTimeMarker> InTimeMarker);
+	void RemoveAllTimeMarkers();
 
 	TSharedPtr<Insights::FTimeMarker> GetTimeMarkerByName(const FString& InTimeMarkerName);
 	TSharedPtr<Insights::FTimeMarker> GetTimeMarkerAtPos(const FVector2D& InPosition, const FTimingTrackViewport& InViewport);
@@ -107,7 +110,7 @@ private:
 
 	/**
 	 * The sorted list of all registered time markers. It defines the draw order of time markers.
-	 * The time marker currenly scrubbing will be moved at the end of the list in order to be displayed on top of other markers.
+	 * The time marker currently scrubbing will be moved at the end of the list in order to be displayed on top of other markers.
 	 */
 	TArray<TSharedRef<Insights::FTimeMarker>> TimeMarkers;
 

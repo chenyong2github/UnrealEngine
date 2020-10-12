@@ -108,10 +108,7 @@ public:
 	const Trace::FMemoryProfilerAggregatedStats& GetAggregatedStats() const { return AggregatedStats; }
 
 	void ResetAggregatedStats();
-	void SetAggregatedStats(const Trace::FMemoryProfilerAggregatedStats& AggregatedStats);
-
-private:
-	void UpdateFullStatName();
+	//TODO: void SetAggregatedStats(const Trace::FMemoryProfilerAggregatedStats& AggregatedStats);
 
 private:
 	const EMemTagNodeType Type;
