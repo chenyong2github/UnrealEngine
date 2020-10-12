@@ -40,29 +40,80 @@ public:
 	virtual TArray<UMoviePipelineSetting*> GetUserSettings() const { return Settings; }
 
 public:
+	template<typename SettingType>
+	TArray<SettingType*> FindSettings(const bool bIncludeDisabledSettings = false) const
+	{
+		TArray<UMoviePipelineSetting*> AllSettings = GetUserSettings();
+		TArray<SettingType*> FoundSettings;
+
+		for (UMoviePipelineSetting* Setting : AllSettings)
+		{
+			if (Setting->IsA<SettingType>() && (Setting->IsEnabled() || bIncludeDisabledSettings))
+			{
+				FoundSettings.Add(Cast<SettingType>(Setting));
+			}
+		}
+
+		return FoundSettings;
+	}
+
+	template<typename SettingType>
+	SettingType* FindSetting(const bool bIncludeDisabledSettings = false) const
+	{
+		return Cast<SettingType>(FindSettingByClass(SettingType::StaticClass(), bIncludeDisabledSettings));
+	}
+
+	/**
+	* Find all settings of a particular type for this config.
+	* @param InClass - Class that you wish to find the setting object for.
+	* @param bIncludeDisabledSettings - if true, disabled settings will be included in the search
+	* @return An array of instances of this class if it already exists as a setting on this config
+	*/
+	UFUNCTION(BlueprintPure, meta = (DeterminesOutputType = "InClass"), Category = "Movie Render Pipeline")
+	TArray<UMoviePipelineSetting*> FindSettingsByClass(TSubclassOf<UMoviePipelineSetting> InClass, const bool bIncludeDisabledSettings = false) const
+	{
+		TArray<UMoviePipelineSetting*> AllSettings = GetUserSettings();
+		TArray<UMoviePipelineSetting*> MatchingSettings;
+		for (UMoviePipelineSetting* Setting : AllSettings)
+		{
+			if ((Setting && Setting->IsA(InClass.Get())) && (Setting->IsEnabled() || bIncludeDisabledSettings))
+			{
+				MatchingSettings.Add(Setting);
+			}
+		}
+
+		return MatchingSettings;
+	}
 
 	/**
 	* Find a setting of a particular type for this config.
 	* @param InClass - Class that you wish to find the setting object for.
+	* @param bIncludeDisabledSettings - if true, disabled settings will be included in the search
 	* @return An instance of this class if it already exists as a setting on this config, otherwise null.
 	*/
 	UFUNCTION(BlueprintPure, meta = (DeterminesOutputType = "InClass"), Category = "Movie Render Pipeline")
-	UMoviePipelineSetting* FindSettingByClass(TSubclassOf<UMoviePipelineSetting> InClass) const
+	UMoviePipelineSetting* FindSettingByClass(TSubclassOf<UMoviePipelineSetting> InClass, const bool bIncludeDisabledSettings = false) const
 	{
-		TArray<UMoviePipelineSetting*> AllSettings = GetUserSettings();
-		UMoviePipelineSetting* const* Found = AllSettings.FindByPredicate([InClass](UMoviePipelineSetting* In) { return In && In->GetClass() == InClass; });
-		return Found ? CastChecked<UMoviePipelineSetting>(*Found) : nullptr;
+		TArray<UMoviePipelineSetting*> AllInstances = FindSettingsByClass(InClass, bIncludeDisabledSettings);
+		if (AllInstances.Num() > 0)
+		{
+			return AllInstances[0];
+		}
+
+		return nullptr;
 	}
+
 
 	/**
 	* Finds a setting of a particular type for this pipeline config, adding it if it doesn't already exist.
 	* @param InClass - Class you wish to find or create the setting object for.
+	* @param bIncludeDisabledSettings - if true, disabled settings will be included in the search
 	* @return An instance of this class as a setting on this config.
 	*/
 	UFUNCTION(BlueprintCallable, meta = (DeterminesOutputType = "InClass"), Category = "Movie Render Pipeline")
-	UMoviePipelineSetting* FindOrAddSettingByClass(TSubclassOf<UMoviePipelineSetting> InClass)
+	UMoviePipelineSetting* FindOrAddSettingByClass(TSubclassOf<UMoviePipelineSetting> InClass, const bool bIncludeDisabledSettings = false)
 	{
-		UMoviePipelineSetting* Found = FindSettingByClass(InClass);
+		UMoviePipelineSetting* Found = FindSettingByClass(InClass, bIncludeDisabledSettings);
 		if (!Found)
 		{
 			Modify();
@@ -85,88 +136,8 @@ public:
 		return Found;
 	}
 
-	/**
-	* Finds an array of all settings matching the specific type, including inherited classes.
-	*/
-	template<typename SettingType>
-	TArray<SettingType*> FindSettings(bool bEnabledOnly = false) const
-	{
-		TArray<SettingType*> FoundSettings;
 
-		TArray<UMoviePipelineSetting*> AllSettings = GetUserSettings();
-		for (UMoviePipelineSetting* Setting : AllSettings)
-		{
-			if (Setting->GetClass()->IsChildOf<SettingType>())
-			{
-				if (!bEnabledOnly || (Setting->IsEnabled() && Setting->GetIsUserCustomized()))
-				{
-					FoundSettings.Add(Cast<SettingType>(Setting));
-				}
-			}
-		}
-
-		return FoundSettings;
-	}
-
-	/**
-	* Finds an array of all settings matching the specific type, including inherited classes.
-	*/
-	TArray<UMoviePipelineSetting*> FindSettings(TSubclassOf<UMoviePipelineSetting> InClass) const
-	{
-		TArray<UMoviePipelineSetting*> FoundSettings;
-
-		TArray<UMoviePipelineSetting*> AllSettings = GetUserSettings();
-		for (UMoviePipelineSetting* Setting : AllSettings)
-		{
-			if (Setting->GetClass()->IsChildOf(InClass))
-			{
-				FoundSettings.Add(Setting);
-			}
-		}
-
-		return FoundSettings;
-	}
-
-	/**
-	* Find a setting of a particular type for this config
-	*/
-	template<typename SettingType>
-	SettingType* FindSetting() const
-	{
-		UClass* PredicateClass = SettingType::StaticClass();
-
-		TArray<UMoviePipelineSetting*> AllSettings = GetUserSettings();
-		UMoviePipelineSetting* const* Found = AllSettings.FindByPredicate([PredicateClass](UMoviePipelineSetting* In) { return In && In->GetClass() == PredicateClass; });
-		return Found ? CastChecked<SettingType>(*Found) : nullptr;
-	}
-
-	/**
-	 * Find a setting of a particular type for this config instance, adding one if it was not found.
-	 */
-	template<typename SettingType>
-	SettingType* FindOrAddSetting()
-	{
-		SettingType* Found = FindSetting<SettingType>();
-		if (!Found)
-		{
-			Modify();
-
-			Found = NewObject<SettingType>(this);
-			if (CanSettingBeAdded(Found))
-			{
-				Settings.Add(Found);
-				OnSettingAdded(Found);
-				++SettingsSerialNumber;
-			}
-			else
-			{
-				FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Setting %d is not compatible with this Config Type and was not added."), *Found->GetName()), ELogVerbosity::Error);
-				return nullptr;
-			}
-		}
-		return Found;
-	}
-
+	
 public:
 	virtual bool CanSettingBeAdded(const UMoviePipelineSetting* InSetting) const PURE_VIRTUAL( UMoviePipelineConfigBase::CanSettingBeAdded, return false; );
 
