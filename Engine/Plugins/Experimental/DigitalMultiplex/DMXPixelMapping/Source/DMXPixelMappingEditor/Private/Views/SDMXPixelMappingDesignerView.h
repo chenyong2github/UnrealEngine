@@ -6,6 +6,7 @@
 
 class FDMXPixelMappingToolkit;
 class FDMXPixelMappingComponentReference;
+class FDMXPixelMappingDragDropOp;
 class SDMXPixelMappingRuler;
 class SDMXPixelMappingTransformHandle;
 class SDMXPixelMappingSourceTextureViewport;
@@ -92,15 +93,11 @@ public:
 private:
 	bool FindComponentUnderCursor(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, TSubclassOf<UDMXPixelMappingOutputComponent> FindType, FComponentHitResult& HitResult);
 
-	FArrangedWidget GetArrangedWidgetFromComponent(UDMXPixelMappingOutputComponent* OutputComponent) const;
-
 	void PopulateWidgetGeometryCache(FArrangedWidget& Root);
 
 	void PopulateWidgetGeometryCache_Loop(FArrangedWidget& Parent);
 
 	FGeometry GetDesignerGeometry() const;
-
-	bool GetArrangedWidget(TSharedRef<SWidget> Widget, FArrangedWidget& ArrangedWidget) const;
 
 	void HandleChangeComponents(bool bIsSuccess);
 
@@ -124,8 +121,11 @@ private:
 
 	/** Adds any pending selected Components to the selection set */
 	void ResolvePendingSelectedComponents(const FPointerEvent& MouseEvent);
+	
+	/** Adds a new component from a drag drop op from the palette */
+	void AddComponentFromPalette(const FGeometry& MyGeometry, const TSharedPtr<FDMXPixelMappingDragDropOp>& TemplateDragDropOp);
 
-	void ProcessDropAndAddWidget(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent, const bool bIsPreview);
+	void DropComponent(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent);
 
 	void ClearExtensionWidgets();
 
@@ -181,12 +181,15 @@ private:
 	FVector2D CachedMousePosition;
 
 	/** The location in selected widget local space where the context menu was summoned. */
-	FVector2D SelectedWidgetContextMenuLocation;
+	FVector2D DragOffset;
 
 	TWeakObjectPtr<UDMXPixelMappingBaseComponent> PendingSelectedComponent;
 
-	/** An existing widget is being moved in its current container, or in to a new container. */
+	/** True if an existing widget is being moved in its current container, or into a new container. */
 	bool bMovingExistingWidget;
+
+	/** If true, terminates any existing drag drop op without handling it */
+	bool bRequestTerminateDragDrop;
 
 	/** The position in screen space where the user began dragging a widget */
 	FVector2D DraggingStartPositionScreenSpace;

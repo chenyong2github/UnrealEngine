@@ -48,7 +48,7 @@ public:
 #if WITH_EDITOR
 	//~ Output Texutre is only for preivew and should be controlled in editor only
 	virtual UTextureRenderTarget2D* GetOutputTexture() override;
-	virtual FVector2D GetSize() override;
+	virtual FVector2D GetSize() const override;
 
 	virtual void RenderEditorPreviewTexture() override;
 #endif

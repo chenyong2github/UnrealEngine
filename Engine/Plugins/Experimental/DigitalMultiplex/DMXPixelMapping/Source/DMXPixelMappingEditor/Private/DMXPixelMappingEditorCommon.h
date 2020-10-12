@@ -10,7 +10,7 @@ class UDMXPixelMappingBaseComponent;
 
 class FDMXPixelMappingToolkit;
 class FDMXPixelMappingHierarchyItemWidgetModel;
-class FDMXPixelMappingPalatteWidgetViewModel;
+class FDMXPixelMappingPaletteWidgetViewModel;
 class FDMXPixelMappingComponentTemplate;
 
 using FDMXPixelMappingToolkitPtr = TSharedPtr<FDMXPixelMappingToolkit>;
@@ -18,7 +18,7 @@ using FDMXPixelMappingToolkitWeakPtr = TWeakPtr<FDMXPixelMappingToolkit>;
 using FDMXPixelMappingHierarchyItemWidgetModelPtr = TSharedPtr<FDMXPixelMappingHierarchyItemWidgetModel>;
 using FDMXPixelMappingHierarchyWidgetModelWeakPtr = TWeakPtr<FDMXPixelMappingHierarchyItemWidgetModel>;
 using FDMXPixelMappingHierarchyItemWidgetModelArr = TArray<FDMXPixelMappingHierarchyItemWidgetModelPtr>;
-using FDMXPixelMappingPreviewWidgetViewModelPtr = TSharedPtr<FDMXPixelMappingPalatteWidgetViewModel>;
+using FDMXPixelMappingPreviewWidgetViewModelPtr = TSharedPtr<FDMXPixelMappingPaletteWidgetViewModel>;
 using FDMXPixelMappingPreviewWidgetViewModelArray = TArray<FDMXPixelMappingPreviewWidgetViewModelPtr>;
 using FDMXPixelMappingComponentTemplatePtr = TSharedPtr<FDMXPixelMappingComponentTemplate>;
 using FDMXPixelMappingComponentTemplateArray = TArray<FDMXPixelMappingComponentTemplatePtr>;

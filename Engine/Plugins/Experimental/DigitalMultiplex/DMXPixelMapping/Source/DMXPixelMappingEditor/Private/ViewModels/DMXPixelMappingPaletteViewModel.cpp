@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ViewModels/DMXPixelMappingPalatteViewModel.h"
+#include "ViewModels/DMXPixelMappingPaletteViewModel.h"
+
 #include "Components/DMXPixelMappingOutputComponent.h"
 #include "Templates/DMXPixelMappingComponentTemplate.h"
 #include "Widgets/SDMXPixelMappingPaletteItem.h"
@@ -8,7 +9,7 @@
 
 #include "UObject/UObjectIterator.h"
 
-void FDMXPixelMappingPalatteViewModel::Update()
+void FDMXPixelMappingPaletteViewModel::Update()
 {
 	if (bRebuildRequested)
 	{
@@ -18,7 +19,7 @@ void FDMXPixelMappingPalatteViewModel::Update()
 	}
 }
 
-void FDMXPixelMappingPalatteViewModel::BuildWidgetList()
+void FDMXPixelMappingPaletteViewModel::BuildWidgetList()
 {
 	WidgetViewModels.Reset();
 	WidgetTemplateCategories.Reset();
@@ -27,12 +28,12 @@ void FDMXPixelMappingPalatteViewModel::BuildWidgetList()
 
 	for (TPair<FString, FDMXPixelMappingComponentTemplateArray>& Category : WidgetTemplateCategories)
 	{
-		TSharedPtr<FDMXPixelMappingPalatteWidgetViewModelHeader> Header = MakeShared<FDMXPixelMappingPalatteWidgetViewModelHeader>();
+		TSharedPtr<FDMXPixelMappingPaletteWidgetViewModelHeader> Header = MakeShared<FDMXPixelMappingPaletteWidgetViewModelHeader>();
 		Header->GroupName = FText::FromString(Category.Key);
 
 		for (FDMXPixelMappingComponentTemplatePtr& ComponentTemplate : Category.Value)
 		{
-			TSharedPtr<FDMXPixelMappingPalatteWidgetViewModelTemplate> WidgetViewModelTemplate = MakeShared<FDMXPixelMappingPalatteWidgetViewModelTemplate>();
+			TSharedPtr<FDMXPixelMappingPaletteWidgetViewModelTemplate> WidgetViewModelTemplate = MakeShared<FDMXPixelMappingPaletteWidgetViewModelTemplate>();
 			WidgetViewModelTemplate->Template = ComponentTemplate;
 			Header->Children.Add(WidgetViewModelTemplate);
 		}
@@ -41,7 +42,7 @@ void FDMXPixelMappingPalatteViewModel::BuildWidgetList()
 	}
 }
 
-void FDMXPixelMappingPalatteViewModel::BuildClassWidgetList()
+void FDMXPixelMappingPaletteViewModel::BuildClassWidgetList()
 {
 	for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
 	{
@@ -60,7 +61,7 @@ void FDMXPixelMappingPalatteViewModel::BuildClassWidgetList()
 	}
 }
 
-void FDMXPixelMappingPalatteViewModel::AddWidgetTemplate(FDMXPixelMappingComponentTemplatePtr Template)
+void FDMXPixelMappingPaletteViewModel::AddWidgetTemplate(FDMXPixelMappingComponentTemplatePtr Template)
 {
 	FString Category = Template->GetCategory().ToString();
 
@@ -68,12 +69,12 @@ void FDMXPixelMappingPalatteViewModel::AddWidgetTemplate(FDMXPixelMappingCompone
 	Group.Add(Template);
 }
 
-TSharedRef<ITableRow> FDMXPixelMappingPalatteWidgetViewModelHeader::BuildRow(const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> FDMXPixelMappingPaletteWidgetViewModelHeader::BuildRow(const TSharedRef<STableViewBase>& OwnerTable)
 {
 	return SNew(SDMXPixelMappingHierarchyItemHeader, OwnerTable, SharedThis(this));
 }
 
-void FDMXPixelMappingPalatteWidgetViewModelHeader::GetChildren(FDMXPixelMappingPreviewWidgetViewModelArray& OutChildren)
+void FDMXPixelMappingPaletteWidgetViewModelHeader::GetChildren(FDMXPixelMappingPreviewWidgetViewModelArray& OutChildren)
 {
 	for (FDMXPixelMappingPreviewWidgetViewModelPtr& Child : Children)
 	{
@@ -81,12 +82,12 @@ void FDMXPixelMappingPalatteWidgetViewModelHeader::GetChildren(FDMXPixelMappingP
 	}
 }
 
-FText FDMXPixelMappingPalatteWidgetViewModelTemplate::GetName() const
+FText FDMXPixelMappingPaletteWidgetViewModelTemplate::GetName() const
 { 
 	return Template.Pin()->Name; 
 }
 
-TSharedRef<ITableRow> FDMXPixelMappingPalatteWidgetViewModelTemplate::BuildRow(const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> FDMXPixelMappingPaletteWidgetViewModelTemplate::BuildRow(const TSharedRef<STableViewBase>& OwnerTable)
 {
 	return SNew(SDMXPixelMappingHierarchyItemTemplate, OwnerTable, SharedThis(this));
 }

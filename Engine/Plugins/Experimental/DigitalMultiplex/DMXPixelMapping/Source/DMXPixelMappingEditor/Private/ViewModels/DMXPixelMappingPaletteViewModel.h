@@ -7,11 +7,11 @@
 class ITableRow;
 class STableViewBase;
 
-class FDMXPixelMappingPalatteViewModel
-	: public TSharedFromThis<FDMXPixelMappingPalatteViewModel>
+class FDMXPixelMappingPaletteViewModel
+	: public TSharedFromThis<FDMXPixelMappingPaletteViewModel>
 {
 public:
-	FDMXPixelMappingPalatteViewModel(TSharedPtr<FDMXPixelMappingToolkit> InToolkit)
+	FDMXPixelMappingPaletteViewModel(TSharedPtr<FDMXPixelMappingToolkit> InToolkit)
 		: ToolkitWeakPtr(InToolkit)
 		, bRebuildRequested(true)
 	{}
@@ -36,11 +36,11 @@ private:
 	bool bRebuildRequested;
 };
 
-class FDMXPixelMappingPalatteWidgetViewModel
-	: public TSharedFromThis<FDMXPixelMappingPalatteWidgetViewModel>
+class FDMXPixelMappingPaletteWidgetViewModel
+	: public TSharedFromThis<FDMXPixelMappingPaletteWidgetViewModel>
 {
 public:
-	virtual ~FDMXPixelMappingPalatteWidgetViewModel() { }
+	virtual ~FDMXPixelMappingPaletteWidgetViewModel() { }
 
 	virtual FText GetName() const = 0;
 
@@ -51,8 +51,8 @@ public:
 	virtual void GetChildren(FDMXPixelMappingPreviewWidgetViewModelArray& OutChildren) {}
 };
 
-class FDMXPixelMappingPalatteWidgetViewModelHeader
-	: public FDMXPixelMappingPalatteWidgetViewModel
+class FDMXPixelMappingPaletteWidgetViewModelHeader
+	: public FDMXPixelMappingPaletteWidgetViewModel
 {
 public:
 	virtual FText GetName() const override { return GroupName; }
@@ -67,8 +67,8 @@ public:
 	FText GroupName;
 };
 
-class FDMXPixelMappingPalatteWidgetViewModelTemplate
-	: public FDMXPixelMappingPalatteWidgetViewModel
+class FDMXPixelMappingPaletteWidgetViewModelTemplate
+	: public FDMXPixelMappingPaletteWidgetViewModel
 {
 public:
 	virtual FText GetName() const override;
