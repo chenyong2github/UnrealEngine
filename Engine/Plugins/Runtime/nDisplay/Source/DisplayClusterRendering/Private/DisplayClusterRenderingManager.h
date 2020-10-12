@@ -4,10 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "IDisplayClusterRendering.h"
+#include "StereoRendering.h"
 
 class IDisplayClusterProjectionPolicy;
 class FDisplayClusterRenderingViewExtension;
-
+class FSceneViewFamily;
+struct FSceneViewInitOptions;
 
 /** View parameters */
 struct FDisplayClusterRenderingViewParameters
