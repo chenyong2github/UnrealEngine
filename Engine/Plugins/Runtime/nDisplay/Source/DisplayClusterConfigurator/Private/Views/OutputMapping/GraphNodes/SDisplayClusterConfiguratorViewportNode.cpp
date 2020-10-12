@@ -16,6 +16,7 @@
 #include "Widgets/Layout/SScaleBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
+#include "Widgets/Images/SImage.h"
 #include "SGraphPanel.h"
 
 #define LOCTEXT_NAMESPACE "SDisplayClusterConfiguratorViewportNode"

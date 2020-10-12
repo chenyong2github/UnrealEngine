@@ -8,6 +8,7 @@
 #include "DSP/BufferVectorOperations.h"
 #include "DSP/ReverbFast.h"
 #include "DSP/Amp.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
 // Link to "Audio" profiling category
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXERCORE_API, Audio);

@@ -10,7 +10,7 @@ class FDisplayClusterConfiguratorToolkit;
 class IDisplayClusterConfiguratorTreeItem;
 class SBox;
 class UDisplayClusterConfiguratorBaseNode;
-
+class UTexture;
 struct FSlateColor;
 
 class SDisplayClusterConfiguratorBaseNode
