@@ -39,11 +39,11 @@ private:
 public:
 	//~ UObject interface
 	virtual void PreSave(const class ITargetPlatform* TargetPlatform);
+	virtual void Serialize(FArchive& Ar) override;
 
 	//~ UMediaSource interface
 
 	virtual FString GetUrl() const override;
-	virtual void Serialize(FArchive& Ar) override;
 	virtual bool Validate() const override;
 
 public:
