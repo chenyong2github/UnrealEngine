@@ -936,7 +936,7 @@ void APlayerController::UpdateRotation( float DeltaTime )
 	AActor* ViewTarget = GetViewTarget();
 	if (!PlayerCameraManager || !ViewTarget || !ViewTarget->HasActiveCameraComponent() || ViewTarget->HasActivePawnControlCameraComponent())
 	{
-		if (IsLocalPlayerController() && GEngine->XRSystem.IsValid() && GEngine->XRSystem->IsHeadTrackingAllowed())
+		if (IsLocalPlayerController() && GEngine->XRSystem.IsValid() && GetWorld() != nullptr && GEngine->XRSystem->IsHeadTrackingAllowedForWorld(*GetWorld()))
 		{
 			auto XRCamera = GEngine->XRSystem->GetXRCamera();
 			if (XRCamera.IsValid())
