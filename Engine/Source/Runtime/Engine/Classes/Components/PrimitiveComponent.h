@@ -1484,6 +1484,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Rendering")
 	void SetCastShadow(bool NewCastShadow);
 
+	/** Changes the value of CastHiddenShadow. */
+	UFUNCTION(BlueprintCallable, Category = "Rendering")
+	void SetCastHiddenShadow(bool NewCastHiddenShadow);
+
 	/** Changes the value of CastInsetShadow. */
 	UFUNCTION(BlueprintCallable, Category="Rendering")
 	void SetCastInsetShadow(UPARAM(DisplayName="CastInsetShadow") bool bInCastInsetShadow);
