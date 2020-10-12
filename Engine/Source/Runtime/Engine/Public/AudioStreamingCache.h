@@ -23,6 +23,8 @@ AudioStreaming.h: Definitions of classes used for audio streaming.
 
 #define DEBUG_STREAM_CACHE !UE_BUILD_SHIPPING
 
+ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogAudioStreamCaching, Display, All);
+
 // Basic fixed-size LRU cache for retaining chunks of compressed audio data.
 class FAudioChunkCache
 {
