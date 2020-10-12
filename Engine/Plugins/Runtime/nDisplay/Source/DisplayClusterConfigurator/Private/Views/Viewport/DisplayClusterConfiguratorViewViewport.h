@@ -10,13 +10,14 @@ class FDisplayClusterConfiguratorViewportBuilder;
 class FDisplayClusterConfiguratorPreviewScene;
 class SDisplayClusterConfiguratorViewViewport;
 
+
 class FDisplayClusterConfiguratorViewViewport
 	: public IDisplayClusterConfiguratorViewViewport
 {
 public:
-
 	FDisplayClusterConfiguratorViewViewport(const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit);
 
+public:
 	//~ Begin IDisplayClusterConfiguratorView Interface
 	virtual TSharedRef<SWidget> CreateWidget() override;
 	virtual void SetEnabled(bool bInEnabled) override;
@@ -28,6 +29,7 @@ public:
 
 private:
 	void OnConfigReloaded();
+	void OnOutputMappingBuilt();
 
 private:
 	TSharedPtr<SDisplayClusterConfiguratorViewViewport> ViewViewport;

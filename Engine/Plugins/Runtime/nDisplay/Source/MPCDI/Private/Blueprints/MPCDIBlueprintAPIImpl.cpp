@@ -6,6 +6,7 @@
 #include "UObject/Package.h"
 
 #include "IMPCDI.h"
+#include "MPCDICommon.h"
 #include "MPCDIData.h"
 #include "MPCDILog.h"
 #include "MPCDIRegion.h"
@@ -13,77 +14,10 @@
 #include "MPCDIWarpTexture.h"
 
 
-static bool ExportMeshData(FMPCDIRegion* Region, struct FMPCDIGeometryExportData& MeshData)
-{
-	if (Region->WarpData)
-	{
-		switch (Region->WarpData->GetWarpGeometryType())
-		{
-			case EWarpGeometryType::PFM_Texture:
-			{
-				FMPCDIWarpTexture* WarpMap = static_cast<FMPCDIWarpTexture*>(Region->WarpData);
-				WarpMap->ExportMeshData(MeshData);
-				break;
-			}
-			case EWarpGeometryType::UE_StaticMesh:
-			{
-				//! Not Implemented
-				return false;
-				break;
-			}
-		}
-	}
-
-	return true;
-}
-
-static bool ImportMeshData(FMPCDIRegion* Region, const struct FMPCDIGeometryImportData& MeshData)
-{
-	if (Region->WarpData)
-	{
-		switch (Region->WarpData->GetWarpGeometryType())
-		{
-			case EWarpGeometryType::PFM_Texture:
-			{
-				FMPCDIWarpTexture* WarpMap = static_cast<FMPCDIWarpTexture*>(Region->WarpData);
-				WarpMap->ImportMeshData(MeshData);
-				break;
-			}
-
-			case EWarpGeometryType::UE_StaticMesh:
-			{
-				//! Not Implemented
-				return false;
-			}
-		}
-	}
-
-	return true;
-}
-
 bool UMPCDIAPIImpl::GetMPCDIMeshData(const FString& MPCDIFile, const FString& BufferName, const FString& RegionName, struct FMPCDIGeometryExportData& MeshData)
-{	
+{
 	IMPCDI& MpcdiModule = IMPCDI::Get();
-
-	if (!MpcdiModule.Load(MPCDIFile))
-	{
-		//! err
-		return false;
-	}
-
-	IMPCDI::FRegionLocator RegionLocator;
-	bool bResult = MpcdiModule.GetRegionLocator(MPCDIFile, BufferName, RegionName, RegionLocator);
-	if (bResult)
-	{
-		IMPCDI::FShaderInputData ShaderInputData;
-		ShaderInputData.RegionLocator = RegionLocator;
-		TSharedPtr<FMPCDIData> MpcdiData = MpcdiModule.GetMPCDIData(ShaderInputData);
-
-		FMPCDIRegion* Region = MpcdiData.Get()->GetRegion(RegionLocator);
-		return ExportMeshData(Region, MeshData);
-	}
-
-	return false;
+	return MpcdiModule.GetMPCDIMeshData(MPCDIFile, BufferName, RegionName, MeshData);
 }
 
 bool UMPCDIAPIImpl::GetPFMMeshData(const FString& LocalPFMFile, FMPCDIGeometryExportData& MeshData, float PFMScale, bool bIsMPCDIAxis)

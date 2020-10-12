@@ -23,7 +23,7 @@ public:
 
 public:
 	// Load data from a specified file
-	virtual UDisplayClusterConfigurationData* LoadData(const FString& FilePath) override;
+	virtual UDisplayClusterConfigurationData* LoadData(const FString& FilePath, UObject* Owner = nullptr) override;
 	// Save data to a specified file
 	virtual bool SaveData(const UDisplayClusterConfigurationData* ConfigData, const FString& FilePath) override;
 
@@ -85,4 +85,6 @@ protected:
 		UE_LOG(LogDisplayClusterConfiguration, Log, TEXT("Deserialization: %s"), bResult ? TEXT("ok") : TEXT("failed"));
 		return Temp;
 	}
+
+	UObject* ConfigDataOwner = nullptr;
 };

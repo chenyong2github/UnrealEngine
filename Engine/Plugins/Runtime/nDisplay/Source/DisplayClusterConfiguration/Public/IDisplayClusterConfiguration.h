@@ -49,7 +49,7 @@ public:
 	* 
 	* @return Configuration data if succeeded, otherwise nulltpr
 	*/
-	virtual UDisplayClusterConfigurationData* LoadConfig(const FString& FilePath) = 0;
+	virtual UDisplayClusterConfigurationData* LoadConfig(const FString& FilePath, UObject* Owner = nullptr) = 0;
 
 	/**
 	* Save configuration data to a specified file

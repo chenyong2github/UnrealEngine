@@ -1,15 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Views/Viewport/SDisplayClusterConfiguratorViewViewport.h"
+#include "Views/Viewport/SDisplayClusterConfiguratorViewport.h"
 
 #include "DisplayClusterConfiguratorToolkit.h"
-#include "Views/Viewport/SDisplayClusterConfiguratorViewport.h"
 
 #define LOCTEXT_NAMESPACE "SDisplayClusterConfiguratorViewViewport"
 
-SDisplayClusterConfiguratorViewViewport::~SDisplayClusterConfiguratorViewViewport()
-{
-}
 
 void SDisplayClusterConfiguratorViewViewport::Construct(const FArguments& InArgs, const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit, const TSharedRef<FDisplayClusterConfiguratorPreviewScene>& InPreviewScene)
 {
@@ -57,6 +54,5 @@ void SDisplayClusterConfiguratorViewViewport::PostUndo(bool bSuccess)
 void SDisplayClusterConfiguratorViewViewport::PostRedo(bool bSuccess)
 {
 }
-
 
 #undef LOCTEXT_NAMESPACE

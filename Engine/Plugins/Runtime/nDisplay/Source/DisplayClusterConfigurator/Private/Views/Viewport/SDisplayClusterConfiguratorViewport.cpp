@@ -7,9 +7,6 @@
 
 #define LOCTEXT_NAMESPACE "SDisplayClusterConfiguratorViewport"
 
-SDisplayClusterConfiguratorViewport::~SDisplayClusterConfiguratorViewport()
-{
-}
 
 void SDisplayClusterConfiguratorViewport::Construct(const FArguments& InArgs, const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit, const TSharedRef<FDisplayClusterConfiguratorPreviewScene>& InPreviewScene)
 {

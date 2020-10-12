@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Policy/DisplayClusterProjectionPolicyBase.h"
 #include "Policy/PicpProjectionPolicyBase.h"
 
 #include "IMPCDI.h"

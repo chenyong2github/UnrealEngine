@@ -24,6 +24,7 @@ class UDisplayClusterConfigurationScene;
 class UDisplayClusterConfigurationSceneComponent;
 class UDisplayClusterConfigurationSceneComponentMesh;
 class UDisplayClusterConfigurationViewport;
+class UDisplayClusterConfigurationSceneComponentMesh;
 
 template<typename NumericType>
 class SSpinBox;

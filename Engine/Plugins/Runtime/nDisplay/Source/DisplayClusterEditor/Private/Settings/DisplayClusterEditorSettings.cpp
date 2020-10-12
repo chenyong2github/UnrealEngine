@@ -5,21 +5,25 @@
 #include "Misc/ConfigCacheIni.h"
 
 
-UDisplayClusterEditorSettings::UDisplayClusterEditorSettings(class FObjectInitializer const & ObjectInitializer)
+const FName UDisplayClusterEditorSettings::Container = TEXT("Project");
+const FName UDisplayClusterEditorSettings::Category  = TEXT("Plugins");
+const FName UDisplayClusterEditorSettings::Section   = TEXT("nDisplay");
+
+
+UDisplayClusterEditorSettings::UDisplayClusterEditorSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer) 
 {
 	GET_MEMBER_NAME_CHECKED(UDisplayClusterEditorSettings, bEnabled);
 }
 
-#if WITH_EDITOR
 void UDisplayClusterEditorSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	if (PropertyChangedEvent.Property != nullptr)
 	{
-		//Since nDisplay is Windows only, save configs that depends on nDisplay plugin assets in Windows specific config file
+		// Since nDisplay is Windows only, save configs that depends on nDisplay plugin assets in Windows specific config file
 		static const FString PlatformName = FPlatformProperties::PlatformName();
 		static const FString DefaultEnginePath = FString::Printf(TEXT("%s%s/%sEngine.ini"), *FPaths::SourceConfigDir(), *PlatformName, *PlatformName);
-		static const FString DefaultGamePath   = FString::Printf(TEXT("%sDefaultGame.ini"),   *FPaths::SourceConfigDir());
+		static const FString DefaultGamePath   = FString::Printf(TEXT("%sDefaultGame.ini"), *FPaths::SourceConfigDir());
 
 		FName PropertyName(PropertyChangedEvent.Property->GetFName());
 
@@ -52,4 +56,3 @@ void UDisplayClusterEditorSettings::PostEditChangeProperty(FPropertyChangedEvent
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
-#endif
