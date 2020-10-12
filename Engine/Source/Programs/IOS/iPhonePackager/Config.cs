@@ -533,7 +533,7 @@ namespace iPhonePackager
 			}
 
 			// Remember to also change the default min version in UBT (iPhoneToolChain.cs)
-			Config.MinOSVersion = Utilities.GetEnvironmentVariable("ue3.iPhone_MinOSVersion", "6.0");
+			Config.MinOSVersion = Utilities.GetEnvironmentVariable("ue3.iPhone_MinOSVersion", "12.0");
 
 			// look for the signing prefix environment variable
 			string DefaultPrefix = "";
