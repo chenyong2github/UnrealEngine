@@ -10,6 +10,8 @@
 class UTextureRenderTarget2D;
 enum class EDMXColorMode : uint8;
 
+class STextBlock;
+
 /**
  * Fixture Item pixel component
  */
