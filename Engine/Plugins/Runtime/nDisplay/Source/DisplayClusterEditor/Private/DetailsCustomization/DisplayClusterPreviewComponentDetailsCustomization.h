@@ -5,6 +5,7 @@
 #include "IDetailCustomization.h"
 
 #include "CoreMinimal.h"
+#include "Types/SlateEnums.h"
 
 class UDisplayClusterPreviewComponent;
 class IDetailCategoryBuilder;
