@@ -493,7 +493,7 @@ void EvaluateBoxFalloffScalar(in float3 SamplePosition, in int NodeOffset,
 #define NOISE_SCALEY 10
 #define NOISE_SCALEZ 11
  
-void EvaluateNoiseScalar(in float3 SamplePosition, in int NodeOffset, inout float ContextDatas[MAX_DATAS], inout int LocalIndex)
+void EvaluateNoiseScalar(in float3 SamplePosition, in int NodeOffset, inout float ContextDatas[MAX_DATAS], inout int LocalIndex, in float ClipmapExtent)
 {
 	const float4 NoiseRotation = float4(NodesParams[NodeOffset + NOISE_ROTATIONX],
 								        NodesParams[NodeOffset + NOISE_ROTATIONY],
@@ -504,16 +504,18 @@ void EvaluateNoiseScalar(in float3 SamplePosition, in int NodeOffset, inout floa
 								           NodesParams[NodeOffset + NOISE_TRANSLATIONY],
 								           NodesParams[NodeOffset + NOISE_TRANSLATIONZ]);
 
-	const float3 NoiseScale = float3(NodesParams[NodeOffset + NOISE_SCALEX],
+	float3 NoiseScale = float3(NodesParams[NodeOffset + NOISE_SCALEX],
 							         NodesParams[NodeOffset + NOISE_SCALEY],
 								     NodesParams[NodeOffset + NOISE_SCALEZ]);
+	
+	NoiseScale = 0.5 * max(NoiseScale, float3(ClipmapExtent, ClipmapExtent, ClipmapExtent) * 2 * 256 * 4 / ClipmapResolution );
 	
 	const float3 InverseScale = float3(NoiseScale.x != 0.0 ? 1.0 / NoiseScale.x : 0.0,
 										NoiseScale.y != 0.0 ? 1.0 / NoiseScale.y : 0.0,
 										NoiseScale.z != 0.0 ? 1.0 / NoiseScale.z : 0.0);
 
 	float3 LocalPosition = fmod(FieldUnRotateVectorByQuat(SamplePosition - NoiseTranslation, NoiseRotation), NoiseScale) * InverseScale;
-	LocalPosition = (clamp(LocalPosition, float3(-1.0,-1.0,-1.0), float3(1.0,1.0,1.0)) * 0.5 + float3(0.5,0.5,0.5)) * 256;
+	LocalPosition = (clamp(LocalPosition, float3(-1.0,-1.0,-1.0), float3(1.0,1.0,1.0)) * 0.5 + float3(0.5,0.5,0.5)) * 255;
 
 	const float NoiseValue = PerlinNoise(LocalPosition) * 0.5 + 0.5; 
 	ContextDatas[LocalIndex++] = NoiseValue * (NodesParams[NodeOffset + NOISE_MAX_RANGE] -
@@ -803,7 +805,7 @@ void EvaluateCullingVector(in float3 SamplePosition, in int NodeOffset,
  */
 
 void EvaluateFieldNodeInteger(in float3 SamplePosition, in int NodeOffset,
-		inout float ContextDatas[MAX_DATAS], inout int LocalIndex)
+		inout float ContextDatas[MAX_DATAS], inout int LocalIndex, in float ClipmapExtent)
 {
 	const int NodeType = (int)NodesParams[NodeOffset];
 
@@ -826,7 +828,8 @@ void EvaluateFieldNodeInteger(in float3 SamplePosition, in int NodeOffset,
 	}
 }
 
-void EvaluateFieldNodeScalar(in float3 SamplePosition, in int NodeOffset, inout float ContextDatas[MAX_DATAS], inout int LocalIndex)
+void EvaluateFieldNodeScalar(in float3 SamplePosition, in int NodeOffset,
+		inout float ContextDatas[MAX_DATAS], inout int LocalIndex, in float ClipmapExtent)
 {
 	const int NodeType = (int)NodesParams[NodeOffset];
 
@@ -849,7 +852,7 @@ void EvaluateFieldNodeScalar(in float3 SamplePosition, in int NodeOffset, inout 
 	}
 	else if (NodeType == NOISE_SCALAR)
 	{
-		EvaluateNoiseScalar(SamplePosition, NodeOffset + 1, ContextDatas, LocalIndex);
+		EvaluateNoiseScalar(SamplePosition, NodeOffset + 1, ContextDatas, LocalIndex, ClipmapExtent);
 	}
 	else if (NodeType == SUM_SCALAR)
 	{
@@ -866,7 +869,7 @@ void EvaluateFieldNodeScalar(in float3 SamplePosition, in int NodeOffset, inout 
 }
 
 void EvaluateFieldNodeVector(in float3 SamplePosition, in int NodeOffset,
-				 inout float ContextDatas[MAX_DATAS], inout int LocalIndex)
+		inout float ContextDatas[MAX_DATAS], inout int LocalIndex, in float ClipmapExtent)
 {
 	const int NodeType = (int)NodesParams[NodeOffset];
 
@@ -893,26 +896,26 @@ void EvaluateFieldNodeVector(in float3 SamplePosition, in int NodeOffset,
 	}
 }
 
-void EvaluateFieldNodeDatas(in float3 SamplePosition, in int NodeOffset, inout float ContextDatas[MAX_DATAS], inout int LocalIndex)
+void EvaluateFieldNodeDatas(in float3 SamplePosition, in int NodeOffset, inout float ContextDatas[MAX_DATAS], inout int LocalIndex, in float ClipmapExtent)
 {
 	const int DatasType = (int)NodesParams[NodeOffset];
 
 	[branch]
 	if (DatasType == SCALAR_TYPE)
 	{
-		EvaluateFieldNodeScalar(SamplePosition, NodeOffset + 1, ContextDatas, LocalIndex);
+		EvaluateFieldNodeScalar(SamplePosition, NodeOffset + 1, ContextDatas, LocalIndex, ClipmapExtent);
 	}
 	else if (DatasType == INTEGER_TYPE)
 	{
-		EvaluateFieldNodeInteger(SamplePosition, NodeOffset + 1, ContextDatas, LocalIndex);
+		EvaluateFieldNodeInteger(SamplePosition, NodeOffset + 1, ContextDatas, LocalIndex, ClipmapExtent);
 	}
 	else if (DatasType == VECTOR_TYPE)
 	{
-		EvaluateFieldNodeVector(SamplePosition, NodeOffset + 1, ContextDatas, LocalIndex);
+		EvaluateFieldNodeVector(SamplePosition, NodeOffset + 1, ContextDatas, LocalIndex, ClipmapExtent);
 	}
 }
 
-void SampleFieldDatas(in float3 SamplePosition, inout float ContextDatas[MAX_DATAS], inout int LocalIndex, in int LocalTargetType)
+void SampleFieldDatas(in float3 SamplePosition, inout float ContextDatas[MAX_DATAS], inout int LocalIndex, in int LocalTargetType, in float ClipmapExtent)
 {
 	const int NodesBegin = TargetsOffsets[LocalTargetType];
 	const int NodesEnd = TargetsOffsets[LocalTargetType + 1];
@@ -929,7 +932,7 @@ void SampleFieldDatas(in float3 SamplePosition, inout float ContextDatas[MAX_DAT
 		for (int NodeIndex = NodesBegin; NodeIndex < NodesEnd; ++NodeIndex)
 		{
 			const int NodeOffset = NodesOffsets[NodeIndex];
-			EvaluateFieldNodeDatas(SamplePosition, NodeOffset, ContextDatas, LocalIndex);
+			EvaluateFieldNodeDatas(SamplePosition, NodeOffset, ContextDatas, LocalIndex, ClipmapExtent);
 		}
 	}
 }
@@ -965,7 +968,7 @@ void BuildPhysicsFieldClipmapCS(
 					float ContextDatas[MAX_DATAS];
 					int LocalIndex = 0;
 
-					SampleFieldDatas(SamplePosition, ContextDatas, LocalIndex, TargetType + 1);
+					SampleFieldDatas(SamplePosition, ContextDatas, LocalIndex, TargetType + 1, ClipmapExtent);
 		
 					if (LocalIndex == 3)
 					{

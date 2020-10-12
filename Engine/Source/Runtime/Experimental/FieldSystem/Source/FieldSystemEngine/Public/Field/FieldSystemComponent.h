@@ -44,6 +44,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Field")
 	bool IsGlobalField;
 
+	UPROPERTY(EditAnywhere, Category = "Field")
+	bool IsChaosField;
+
 	//
 	// Blueprint based field interface
 	//
