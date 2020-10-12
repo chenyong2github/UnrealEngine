@@ -11,8 +11,10 @@
 #include "NiagaraMessageManager.h"
 
 IMPLEMENT_MODULE(ICascadeToNiagaraConverterModule, CascadeToNiagaraConverter);
+DEFINE_LOG_CATEGORY(LogFXConverter);
 
 #define LOCTEXT_NAMESPACE "CascadeToNiagaraConverterModule"
+
 
 const FName FNiagaraConverterMessageTopics::VerboseConversionEventTopicName = "VerboseConversionEvent";
 const FName FNiagaraConverterMessageTopics::ConversionEventTopicName = "ConversionEvent";
