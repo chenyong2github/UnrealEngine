@@ -12,9 +12,11 @@
 #include "Views/OutputMapping/Slots/DisplayClusterConfiguratorOutputMappingWindowSlot.h"
 #include "Views/OutputMapping/Slots/DisplayClusterConfiguratorOutputMappingViewportSlot.h"
 
+
 const FName FDisplayClusterConfiguratorOutputMappingBuilder::FSlot::Canvas		= TEXT("Canvas");
 const FName FDisplayClusterConfiguratorOutputMappingBuilder::FSlot::Window		= TEXT("Window");
 const FName FDisplayClusterConfiguratorOutputMappingBuilder::FSlot::Viewport	= TEXT("Viewport");
+
 
 FDisplayClusterConfiguratorOutputMappingBuilder::FDisplayClusterConfiguratorOutputMappingBuilder(const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit,
 	UDisplayClusterConfigurationCluster* InConfigurationCluster,

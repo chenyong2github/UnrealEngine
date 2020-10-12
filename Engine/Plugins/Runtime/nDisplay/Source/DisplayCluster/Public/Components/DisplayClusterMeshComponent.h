@@ -12,7 +12,7 @@ class UStaticMeshComponent;
 /**
  * Mesh component
  */
-UCLASS( ClassGroup=(Custom), Blueprintable, meta = (BlueprintSpawnableComponent) )
+UCLASS(ClassGroup = (DisplayCluster))
 class DISPLAYCLUSTER_API UDisplayClusterMeshComponent
 	: public UDisplayClusterSceneComponent
 {
@@ -22,25 +22,25 @@ public:
 	UDisplayClusterMeshComponent(const FObjectInitializer& ObjectInitializer);
 
 public:
-	virtual void BeginPlay() override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-
-public:
-	UStaticMeshComponent* GetMesh() const
+	UStaticMeshComponent* GetWarpMesh() const
 	{
-		return Mesh;
+		return WarpMeshComponent;
 	}
 
-	void SetMesh(UStaticMeshComponent* InMesh)
+	void SetWarpMesh(UStaticMeshComponent* InMeshComponent)
 	{
-		Mesh = InMesh;
+		WarpMeshComponent = InMeshComponent;
 	}
 
 protected:
-	UPROPERTY(BlueprintReadOnly, Category = "DisplayCluster")
-	FString AssetPath;
+	virtual void ApplyConfigurationData();
 
-	UPROPERTY(EditAnywhere, Category = "DisplayCluster")
-	UStaticMeshComponent* Mesh;
+protected:
+	UPROPERTY(VisibleAnywhere, Category = "DisplayCluster")
+	UStaticMeshComponent* WarpMeshComponent = nullptr;
+
+#if WITH_EDITOR 
+public:
+	virtual void SetNodeSelection(bool bSelect) override;
+#endif
 };

@@ -95,7 +95,7 @@ private:
 		{
 			UWorld* CurrentWorld = nullptr;
 
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 			if (GIsEditor)
 			{
 				CurrentWorld = GEditor->GetEditorWorldContext().World();

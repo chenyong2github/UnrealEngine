@@ -65,11 +65,6 @@ void UDisplayClusterSceneComponentSync::EndPlay(const EEndPlayReason::Type EndPl
 	Super::EndPlay(EndPlayReason);
 }
 
-void UDisplayClusterSceneComponentSync::TickComponent( float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction )
-{
-	Super::TickComponent( DeltaTime, TickType, ThisTickFunction );
-}
-
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterClusterSyncObject

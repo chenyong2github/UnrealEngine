@@ -7,11 +7,6 @@ public class PicpProjection : ModuleRules
 {
 	public PicpProjection(ReadOnlyTargetRules ROTargetRules) : base(ROTargetRules)
 	{
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"DisplayClusterProjection/Private"
-			});
-
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
@@ -21,7 +16,6 @@ public class PicpProjection : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
-				"ApplicationCore",
 				"Composure",
 				"CinematicCamera",
 				"DisplayCluster",
