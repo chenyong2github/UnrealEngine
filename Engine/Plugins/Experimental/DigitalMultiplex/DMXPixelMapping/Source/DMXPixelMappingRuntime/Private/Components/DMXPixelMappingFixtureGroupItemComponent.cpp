@@ -16,6 +16,7 @@
 #include "Misc/ITransaction.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SScaleBox.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "DMXPixelMappingFixtureGroupItemComponent"
 
