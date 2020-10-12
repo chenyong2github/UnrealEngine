@@ -65,8 +65,8 @@ class ArenaMemoryResource : public MemoryResource {
 
         PMAAPI ~ArenaMemoryResource();
 
-        PMAAPI ArenaMemoryResource(const ArenaMemoryResource&) = delete;
-        PMAAPI ArenaMemoryResource& operator=(const ArenaMemoryResource&) = delete;
+        ArenaMemoryResource(const ArenaMemoryResource&) = delete;
+        ArenaMemoryResource& operator=(const ArenaMemoryResource&) = delete;
 
         PMAAPI ArenaMemoryResource(ArenaMemoryResource&&);
         PMAAPI ArenaMemoryResource& operator=(ArenaMemoryResource&&);
