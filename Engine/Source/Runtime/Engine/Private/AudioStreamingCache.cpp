@@ -20,6 +20,9 @@ AudioStreaming.cpp: Implementation of audio streaming classes.
 #include "AudioDevice.h"
 #include "AudioCompressionSettingsUtils.h"
 
+
+DEFINE_LOG_CATEGORY(LogAudioStreamCaching);
+
 static int32 DebugMaxElementsDisplayCVar = 128;
 FAutoConsoleVariableRef CVarDebugDisplayCaches(
 	TEXT("au.streamcaching.MaxCachesToDisplay"),
@@ -125,7 +128,7 @@ static FAutoConsoleCommand GFlushAudioCacheCommand(
 		static constexpr uint64 NumBytesToFree = TNumericLimits<uint64>::Max() / 2;
 		uint64 NumBytesFreed = IStreamingManager::Get().GetAudioStreamingManager().TrimMemory(NumBytesToFree);
 
-		UE_LOG(LogAudio, Display, TEXT("Audio Cache Flushed! %d megabytes free."), NumBytesFreed / (1024.0 * 1024.0));
+		UE_LOG(LogAudioStreamCaching, Display, TEXT("Audio Cache Flushed! %d megabytes free."), NumBytesFreed / (1024.0 * 1024.0));
 	})
 );
 
@@ -164,7 +167,7 @@ static FAutoConsoleCommand GResizeAudioCacheCommand(
 
 	StreamCacheSizeCVar->Set(InMB);
 
-	UE_LOG(LogAudio, Display, TEXT("Audio Cache Shrunk! Now set to be %f MB."), InMB);
+	UE_LOG(LogAudioStreamCaching, Display, TEXT("Audio Cache Shrunk! Now set to be %f MB."), InMB);
 })
 );
 
@@ -176,7 +179,7 @@ static FAutoConsoleCommand GEnableProfilingAudioCacheCommand(
 {
 	IStreamingManager::Get().GetAudioStreamingManager().SetProfilingMode(true);
 
-	UE_LOG(LogAudio, Display, TEXT("Enabled profiling mode on the audio stream cache."));
+	UE_LOG(LogAudioStreamCaching, Display, TEXT("Enabled profiling mode on the audio stream cache."));
 })
 );
 
@@ -188,7 +191,7 @@ static FAutoConsoleCommand GDisableProfilingAudioCacheCommand(
 {
 	IStreamingManager::Get().GetAudioStreamingManager().SetProfilingMode(false);
 
-	UE_LOG(LogAudio, Display, TEXT("Disabled profiling mode on the audio stream cache."));
+	UE_LOG(LogAudioStreamCaching, Display, TEXT("Disabled profiling mode on the audio stream cache."));
 })
 );
 
@@ -373,7 +376,7 @@ FAudioChunkHandle FCachedAudioStreamingManager::GetLoadedChunk(const USoundWave*
 
 		if (!FAudioChunkCache::IsKeyValid(ChunkKey))
 		{
-			UE_LOG(LogAudio, Warning, TEXT("Invalid Chunk Index %d Requested for Wave %s!"), ChunkIndex, *SoundWave->GetName());
+			UE_LOG(LogAudioStreamCaching, Warning, TEXT("Invalid Chunk Index %d Requested for Wave %s!"), ChunkIndex, *SoundWave->GetName());
 			return FAudioChunkHandle();
 		}
 
@@ -382,12 +385,12 @@ FAudioChunkHandle FCachedAudioStreamingManager::GetLoadedChunk(const USoundWave*
 		TArrayView<uint8> LoadedChunk = Cache->GetChunk(ChunkKey, bBlockForLoad, (bForImmediatePlayback || bBlockForLoad), LookupIDForChunk);
 		
 		// Ensure that, if we requested a synchronous load of this chunk, we didn't fail to load said chunk.
-		UE_CLOG(bBlockForLoad && !LoadedChunk.GetData(), LogAudio, Display, TEXT("Synchronous load of chunk index %d for SoundWave %s failed to return any data. Likely because the cache was blown."), ChunkIndex, *SoundWave->GetName());
+		UE_CLOG(bBlockForLoad && !LoadedChunk.GetData(), LogAudioStreamCaching, Display, TEXT("Synchronous load of chunk index %d for SoundWave %s failed to return any data. Likely because the cache was blown."), ChunkIndex, *SoundWave->GetName());
 
 		// Set the updated cache offset for this chunk index.
 		ChunkKey.SoundWave->SetCacheLookupIDForChunk(ChunkIndex, LookupIDForChunk);
 
-		UE_CLOG(!bBlockForLoad && !LoadedChunk.GetData(), LogAudio, Display, TEXT("GetLoadedChunk called for chunk index %d of SoundWave %s when audio was not loaded yet. This will result in latency."), ChunkIndex, *SoundWave->GetName());
+		UE_CLOG(!bBlockForLoad && !LoadedChunk.GetData(), LogAudioStreamCaching, Display, TEXT("GetLoadedChunk called for chunk index %d of SoundWave %s when audio was not loaded yet. This will result in latency."), ChunkIndex, *SoundWave->GetName());
 
 		// Finally, if there's a chunk after this in the sound, request that it is in the cache.
 		const int32 NextChunk = GetNextChunkIndex(SoundWave, ChunkIndex);
@@ -416,7 +419,7 @@ FAudioChunkHandle FCachedAudioStreamingManager::GetLoadedChunk(const USoundWave*
 					bCacheCurrentlyBlown = true;
 					Cache->IncrementCacheOverflowCounter();
 
-					UE_LOG(LogAudio, Warning, TEXT("Cache overflow!!! couldn't load chunk %d for sound %s!"), ChunkIndex, *SoundWave->GetName());
+					UE_LOG(LogAudioStreamCaching, Warning, TEXT("Cache overflow!!! couldn't load chunk %d for sound %s!"), ChunkIndex, *SoundWave->GetName());
 
 					// gather SoundWaves to release compressed data on:
 					TArray<FObjectKey> SoundWavesToRelease;
@@ -473,7 +476,7 @@ FAudioChunkHandle FCachedAudioStreamingManager::GetLoadedChunk(const USoundWave*
 							}
 						}
 
-						UE_LOG(LogAudio, Warning, TEXT("Removed %d retained sounds from the stream cache."), NumChunksReleased);
+						UE_LOG(LogAudioStreamCaching, Warning, TEXT("Removed %d retained sounds from the stream cache."), NumChunksReleased);
 
 						bCacheCurrentlyBlown = false;
 					});
@@ -770,7 +773,7 @@ TArrayView<uint8> FAudioChunkCache::GetChunk(const FChunkKey& InKey, bool bBlock
 		if (!FoundElement)
 		{
 			OutCacheOffset = InvalidAudioStreamCacheLookupID;
-			UE_LOG(LogAudio, Display, TEXT("GetChunk failed to find an available chunk slot in the cache, likely because the cache is blown."));
+			UE_LOG(LogAudioStreamCaching, Display, TEXT("GetChunk failed to find an available chunk slot in the cache, likely because the cache is blown."));
 			return TArrayView<uint8>();
 		}
 		
@@ -945,7 +948,7 @@ void FAudioChunkCache::BlockForAllPendingLoads() const
 		if (bLoadInProgress)
 		{
 			float TimeSinceStarted = FPlatformTime::Seconds() - TimeStarted;
-			UE_LOG(LogAudio, Log, TEXT("Waited %f seconds for async audio chunk loads."), TimeSinceStarted);
+			UE_LOG(LogAudioStreamCaching, Log, TEXT("Waited %f seconds for async audio chunk loads."), TimeSinceStarted);
 			FPlatformProcess::Sleep(0.0f);
 		}
 
@@ -1128,7 +1131,7 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::FindElementForKey(const FChun
 
 			if (CurrentElement && ElementPosition >= ChunksInUse)
 			{
-				UE_LOG(LogAudio, Warning, TEXT("Possible cycle in our LRU cache list. Please check to ensure any place FCacheElement::MoreRecentElement or FCacheElement::LessRecentElement is changed is locked by CacheMutationCriticalSection."));
+				UE_LOG(LogAudioStreamCaching, Warning, TEXT("Possible cycle in our LRU cache list. Please check to ensure any place FCacheElement::MoreRecentElement or FCacheElement::LessRecentElement is changed is locked by CacheMutationCriticalSection."));
 				return nullptr;
 			}
 		}
@@ -1219,7 +1222,7 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::InsertChunk(const FChunkKey& 
 			static bool bLoggedCacheSaturated = false;
 			if (!bLoggedCacheSaturated)
 			{
-				UE_LOG(LogAudio, Display, TEXT("Audio Stream Cache: Using %d of %d chunks.."), ChunksInUse, CachePool.Num());
+				UE_LOG(LogAudioStreamCaching, Display, TEXT("Audio Stream Cache: Using %d of %d chunks.."), ChunksInUse, CachePool.Num());
 				bLoggedCacheSaturated = true;
 			}
 
@@ -1229,13 +1232,13 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::InsertChunk(const FChunkKey& 
 			// If we blew the cache, it might be because we have too many loads in flight. Here we attempt to find a load in flight for an unreferenced chunk:
 			if (BlockForPendingLoadOnCacheOverflowCVar && !CacheElement)
 			{
-				UE_LOG(LogAudio, Warning, TEXT("Failed to find an available chunk slot in the audio streaming manager. Finding a load in flight for an unreferenced chunk and cancelling it."));
+				UE_LOG(LogAudioStreamCaching, Warning, TEXT("Failed to find an available chunk slot in the audio streaming manager. Finding a load in flight for an unreferenced chunk and cancelling it."));
 				CacheElement = EvictLeastRecentChunk(true);
 			}
 
 			if (!CacheElement)
 			{
-				UE_LOG(LogAudio, Display, TEXT("Failed to find an available chunk slot in the audio streaming manager, likely because the cache was blown."));
+				UE_LOG(LogAudioStreamCaching, Display, TEXT("Failed to find an available chunk slot in the audio streaming manager, likely because the cache was blown."));
 				return nullptr;
 			}
 		}
@@ -1346,7 +1349,7 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::EvictLeastRecentChunk(bool bB
 		// If we ever hit this, it means that we couldn't find any cache elements that aren't in use.
 		if (!CacheElement || CacheElement == ElementToStopAt)
 		{
-			UE_LOG(LogAudio, Warning, TEXT("Cache blown! Please increase the cache size (currently %lu bytes) or load less audio."), ReportCacheSize());
+			UE_LOG(LogAudioStreamCaching, Warning, TEXT("Cache blown! Please increase the cache size (currently %lu bytes) or load less audio."), ReportCacheSize());
 			return nullptr;
 		}
 	}
@@ -1462,7 +1465,7 @@ void FAudioChunkCache::KickOffAsyncLoad(FCacheElement* CacheElement, const FChun
 
 		if (CacheElement->DDCTask.IsValid())
 		{
-			UE_CLOG(!CacheElement->DDCTask->IsDone(), LogAudio, Display, TEXT("DDC work was not finished for a requested audio streaming chunk slot berfore reuse; This may cause a hitch."));
+			UE_CLOG(!CacheElement->DDCTask->IsDone(), LogAudioStreamCaching, Display, TEXT("DDC work was not finished for a requested audio streaming chunk slot berfore reuse; This may cause a hitch."));
 			CacheElement->DDCTask->EnsureCompletion();
 		}
 
@@ -1548,7 +1551,7 @@ void FAudioChunkCache::KickOffAsyncLoad(FCacheElement* CacheElement, const FChun
 		IBulkDataIORequest* LocalReadRequest = Chunk.BulkData.CreateStreamingRequest(0, ChunkDataSize, AsyncIOPriority | AIOP_FLAG_DONTCACHE, &AsyncFileCallBack, CacheElement->ChunkData);
 		if (!LocalReadRequest)
 		{
-			UE_LOG(LogAudio, Error, TEXT("Chunk load in audio LRU cache failed."));
+			UE_LOG(LogAudioStreamCaching, Error, TEXT("Chunk load in audio LRU cache failed."));
 			OnLoadCompleted(EAudioChunkLoadResult::ChunkOutOfBounds);
 			NumberOfLoadsInFlight.Decrement();
 		}
@@ -1721,7 +1724,7 @@ uint64 FCachedAudioStreamingManager::TrimMemory(uint64 NumBytesToFree)
 	check(NumBytesLeftToFree <= NumBytesToFree);
 	uint64 TotalBytesFreed = NumBytesToFree - NumBytesLeftToFree;
 
-	UE_LOG(LogAudio, Display, TEXT("Call to IAudioStreamingManager::TrimMemory successfully freed %lu of the requested %lu bytes."), TotalBytesFreed, NumBytesToFree);
+	UE_LOG(LogAudioStreamCaching, Display, TEXT("Call to IAudioStreamingManager::TrimMemory successfully freed %lu of the requested %lu bytes."), TotalBytesFreed, NumBytesToFree);
 	return TotalBytesFreed;
 }
 
