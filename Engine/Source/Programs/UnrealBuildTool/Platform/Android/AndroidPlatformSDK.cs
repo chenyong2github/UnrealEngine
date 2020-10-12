@@ -111,14 +111,16 @@ namespace UnrealBuildTool
 		}
 
 
-		public override void PrintSDKInfo(LogEventType Verbosity, LogFormatOptions Options, LogEventType ErrorVerbosity, LogFormatOptions ErrorOptions)
+		public override SDKStatus PrintSDKInfoAndReturnValidity(LogEventType Verbosity, LogFormatOptions Options, LogEventType ErrorVerbosity, LogFormatOptions ErrorOptions)
 		{
-			base.PrintSDKInfo(Verbosity, Options, ErrorVerbosity, ErrorOptions);
+			SDKStatus Validity = base.PrintSDKInfoAndReturnValidity(Verbosity, Options, ErrorVerbosity, ErrorOptions);
 
 			if (GetInstalledVersion() != RecommendedVersion)
 			{
 				Log.WriteLine(Verbosity, Options, "Note: Android toolchain NDK {0} recommended", RecommendedVersion);
 			}
+
+			return Validity;
 		}
 
 

@@ -204,7 +204,7 @@ namespace UnrealBuildTool
 						}
 
 						// print out SDK info for only the platforms that are being compiled
-						UEBuildPlatformSDK.GetSDKForPlatform(TargetDesc.Platform.ToString()).PrintSDKInfo();
+						UEBuildPlatformSDK.GetSDKForPlatform(TargetDesc.Platform.ToString()).PrintSDKInfoAndReturnValidity();
 					}
 
 					// Get all the build options

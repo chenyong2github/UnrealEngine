@@ -8,13 +8,14 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using Tools.DotNETCommon;
+using System.Diagnostics;
 
 namespace UnrealBuildTool
 {
 	/// <summary>
 	/// Generates project files for one or more projects
 	/// </summary>
-	[ToolMode("GenerateProjectFiles", ToolModeOptions.XmlConfig | ToolModeOptions.BuildPlatforms | ToolModeOptions.SingleInstance)]
+	[ToolMode("GenerateProjectFiles", ToolModeOptions.XmlConfig | ToolModeOptions.BuildPlatforms | ToolModeOptions.SingleInstance | ToolModeOptions.UseStartupTraceListener)]
 	class GenerateProjectFilesMode : ToolMode
 	{
 		/// <summary>
@@ -57,6 +58,14 @@ namespace UnrealBuildTool
 
 			// Apply the XML config to this class
 			XmlConfig.ApplyTo(this);
+
+			// set up logging (taken from BuildMode)
+			FileReference LogFile = FileReference.Combine(UnrealBuildTool.EngineProgramSavedDirectory, "UnrealBuildTool", "Log_GPF.txt");
+			// find the StartupTraceListener in the listeners that was added super early on
+			StartupTraceListener StartupListener = Trace.Listeners.OfType<StartupTraceListener>().First();
+			TextWriterTraceListener LogTraceListener = Log.AddFileWriter("DefaultLogTraceListener", LogFile);
+			StartupListener.CopyTo(LogTraceListener);
+			Trace.Listeners.Remove(StartupListener);
 
 			// Parse rocket-specific arguments.
 			FileReference ProjectFile;
@@ -126,14 +135,28 @@ namespace UnrealBuildTool
 			}
 
 			// print out any errors to the log
+			List<string> BadPlatformNames = new List<string>();
+			Log.TraceLog("\n---   SDK INFO START   ---");
 			foreach (string PlatformName in UnrealTargetPlatform.GetValidPlatformNames())
 			{
 				UEBuildPlatformSDK SDK = UEBuildPlatformSDK.GetSDKForPlatform(PlatformName);
 				if (SDK != null && SDK.bIsSdkAllowedOnHost)
 				{
-					SDK.PrintSDKInfo(LogEventType.Verbose, LogFormatOptions.NoConsoleOutput, LogEventType.Error, LogFormatOptions.None);
+					// print out the info to the log, and if it's invalid, remember it
+					SDKStatus Validity = SDK.PrintSDKInfoAndReturnValidity(LogEventType.Verbose, LogFormatOptions.NoConsoleOutput, LogEventType.Warning, LogFormatOptions.NoConsoleOutput);
+					if (Validity == SDKStatus.Invalid)
+					{
+						BadPlatformNames.Add(PlatformName);
+					}
 				}
 			}
+			if (BadPlatformNames.Count > 0)
+			{
+				Log.TraceInformationOnce("\nSome Platforms were skipped due to invalid SDK setup: {0}.\nSee the log file for detailed information ({1})\n\n", string.Join(", ", BadPlatformNames), Log.OutputFile);
+				Log.TraceInformation("");
+			}
+			Log.TraceLog("---   SDK INFO END   ---");
+			Log.TraceLog("");
 
 			// Create each project generator and run it
 			List<ProjectFileGenerator> Generators = new List<ProjectFileGenerator>();
