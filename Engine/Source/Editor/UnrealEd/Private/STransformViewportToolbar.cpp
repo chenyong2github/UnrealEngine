@@ -46,6 +46,8 @@ void STransformViewportToolBar::Construct( const FArguments& InArgs )
 {
 	Viewport = InArgs._Viewport;
 	CommandList = InArgs._CommandList;
+	OnCamSpeedChanged = InArgs._OnCamSpeedChanged;
+	OnCamSpeedScalarChanged = InArgs._OnCamSpeedScalarChanged;
 
 	ChildSlot
 	[
@@ -518,8 +520,14 @@ void STransformViewportToolBar::OnSetCamSpeed(float NewValue)
 	auto ViewportPin = Viewport.Pin();
 	if (ViewportPin.IsValid() && ViewportPin->GetViewportClient().IsValid())
 	{
-		const int32 SpeedSetting = NewValue * ((float)FEditorViewportClient::MaxCameraSpeeds - 1) + 1;
-		ViewportPin->GetViewportClient()->SetCameraSpeedSetting(SpeedSetting);
+		const int32 OldSpeedSetting = ViewportPin->GetViewportClient()->GetCameraSpeedSetting();
+		const int32 NewSpeedSetting = NewValue * ((float)FEditorViewportClient::MaxCameraSpeeds - 1) + 1;
+
+		if (OldSpeedSetting != NewSpeedSetting)
+		{
+			ViewportPin->GetViewportClient()->SetCameraSpeedSetting(NewSpeedSetting);
+			OnCamSpeedChanged.ExecuteIfBound(NewSpeedSetting);
+		}
 	}
 }
 
@@ -553,6 +561,7 @@ void STransformViewportToolBar::OnSetCamSpeedScalarBoxValue(float NewValue)
 	if (ViewportPin.IsValid() && ViewportPin->GetViewportClient().IsValid())
 	{		
 		ViewportPin->GetViewportClient()->SetCameraSpeedScalar(NewValue);
+		OnCamSpeedScalarChanged.ExecuteIfBound(NewValue);
 	}
 }
 
