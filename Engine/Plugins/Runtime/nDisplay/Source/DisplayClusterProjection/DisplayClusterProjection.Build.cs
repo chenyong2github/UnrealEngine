@@ -45,7 +45,9 @@ public class DisplayClusterProjection : ModuleRules
 		}
 
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
-
+		AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
+		AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
+		AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
 		AddThirdPartyDependencies(ROTargetRules);
 	}
 
