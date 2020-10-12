@@ -152,7 +152,7 @@ namespace DatasmithRevitExporter
 			// Create an empty Datasmith scene.
 			if (DirectLink != null)
 			{
-				DirectLink.OnBeginExport(RevitDocument);
+				DirectLink.OnBeginExport();
 				DatasmithScene = DirectLink.DatasmithScene;
 			}
 			else
@@ -585,6 +585,11 @@ namespace DatasmithRevitExporter
 
 			DocumentDataStack.Push(DocumentData);
 
+			if (DocumentDataStack.Count > 1 && DirectLink != null)
+			{
+				DirectLink.OnBeginLinkedDocument(InDocument);
+			}
+
 			if (bInAddLocationActors)
 			{
 				DocumentDataStack.Peek().AddLocationActors(WorldTransformStack.Peek());
@@ -599,11 +604,12 @@ namespace DatasmithRevitExporter
 
 			if (DocumentDataStack.Count == 0)
 			{
-				DocumentData.WrapupScene(DatasmithScene, DirectLink == null, UniqueTextureNameSet);
+				DocumentData.WrapupScene(DatasmithScene, UniqueTextureNameSet);
 			}
 			else
 			{
 				DocumentData.WrapupLink(DatasmithScene, DocumentDataStack.Peek().GetCurrentActor(), UniqueTextureNameSet);
+				DirectLink?.OnEndLinkedDocument();
 			}
 		}
 
