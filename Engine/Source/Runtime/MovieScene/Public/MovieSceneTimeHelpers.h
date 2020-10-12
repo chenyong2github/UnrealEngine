@@ -8,10 +8,25 @@
 #include "Math/Range.h"
 #include "Math/RangeBound.h"
 
+struct FFrameRate;
+class UMovieScene;
+
 namespace UE
 {
 namespace MovieScene
 {
+
+class MOVIESCENE_API TimeHelpers
+{
+public:
+
+/**
+ * Migrate the frame times of the movie scene from the source frame rate to the destination frame rate
+ */
+
+static void MigrateFrameTimes(FFrameRate SourceRate, FFrameRate DestinationRate, UMovieScene* MovieScene);
+
+};
 
 /**
  * Return the first frame number included by the specified closed lower bound. For example, a bound of (0 would return 1, and [0 would return 0
