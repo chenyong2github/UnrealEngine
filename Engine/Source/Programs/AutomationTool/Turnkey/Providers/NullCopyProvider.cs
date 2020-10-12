@@ -146,7 +146,7 @@ namespace Turnkey
 				string Wildcard = (NextSlash == -1) ? PathString.Substring(PrevSlash + 1) : PathString.Substring(PrevSlash + 1, (NextSlash - PrevSlash) - 1);
 
 				// replace * with a non-greedy capture so *-foo-*.zip can get the best values for the *'s
-				Regex Regex = new Regex(string.Format("^{0}$", Wildcard.Replace("*", "(.+?)")), RegexOptions.IgnoreCase);
+				Regex Regex = new Regex(string.Format("^{0}$", Wildcard.Replace("+", "\\+").Replace(".", "\\.").Replace("*", "(.+?)")), RegexOptions.IgnoreCase);
 
 				// track what's before and after the * to return what it expanded to
 				int StarLoc = Wildcard.IndexOf('*');

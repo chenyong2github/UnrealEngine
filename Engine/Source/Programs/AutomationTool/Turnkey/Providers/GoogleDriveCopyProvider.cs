@@ -224,20 +224,24 @@ namespace Turnkey
 		{
 			if (ServiceHelper == null)
 			{
-				if (!TurnkeyUtils.HasVariable("Studio_GoogleDriveCredentials"))
+				string GoogleDriveCredentials = TurnkeyUtils.GetVariableValue("Studio_GoogleDriveCredentials");
+				string GoogleDriveAppName = TurnkeyUtils.GetVariableValue("Studio_GoogleDriveAppName");
+
+				if (string.IsNullOrEmpty(GoogleDriveCredentials) || string.IsNullOrEmpty(GoogleDriveAppName))
 				{
-					TurnkeyUtils.Log("ERROR: Unable to use GoogleDrive without Studio_GoogleDriveCredentials being set first!");
+					TurnkeyUtils.Log("ERROR: Unable to use GoogleDrive without 'Studio_GoogleDriveCredentials' and 'Studio_GoogleDriveAppName' being set first!");
 					return false;
 				}
 
-				string SecretsFile = CopyProvider.ExecuteCopy("$(Studio_GoogleDriveCredentials)");
+				string SecretsFile = CopyProvider.ExecuteCopy(GoogleDriveCredentials);
 				if (SecretsFile == null)
 				{
-					TurnkeyUtils.Log("ERROR: Unable to get GoogleDrive secrets file from {0}", TurnkeyUtils.GetVariableValue("Studio_GoogleDriveCredentials"));
+					TurnkeyUtils.Log("ERROR: Unable to get GoogleDrive secrets/credentials file from {0}", GoogleDriveCredentials);
 					return false;
 				}
 
-				ServiceHelper = new DriveServiceHelper("Quickstart", SecretsFile, Path.GetDirectoryName(SecretsFile));
+				TurnkeyUtils.Log("Connecting to GoogleDrive app '{0}'. If this pauses here, check your web browser for an authentication tab. This is required to be able to connect to Google Drive", GoogleDriveAppName);
+				ServiceHelper = new DriveServiceHelper(GoogleDriveAppName, SecretsFile, Path.GetDirectoryName(SecretsFile));
 
 				PathToFileCache = new Dictionary<string, Google.Apis.Drive.v3.Data.File>();
 			}
