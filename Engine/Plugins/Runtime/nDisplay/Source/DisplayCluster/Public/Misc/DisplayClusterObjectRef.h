@@ -8,6 +8,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/GameEngine.h"
 #include "EngineUtils.h"
+#include "Editor.h"
 
 class FDisplayClusterActorRef
 {

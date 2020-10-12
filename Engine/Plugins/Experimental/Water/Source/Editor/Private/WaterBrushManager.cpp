@@ -22,6 +22,7 @@
 #include "WaterSubsystem.h"
 #include "WaterUtils.h"
 #include "Algo/Transform.h"
+#include "Curves/CurveFloat.h"
 
 AWaterBrushManager::AWaterBrushManager(const FObjectInitializer& ObjectInitializer)
 	: Super()
