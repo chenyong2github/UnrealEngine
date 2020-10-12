@@ -2343,6 +2343,9 @@ void FVolumetricLightmapSceneData::AddLevelVolume(const FPrecomputedVolumetricLi
 	}
 
 	InVolume->Data->AddToSceneData(&GlobalVolumetricLightmapData);
+	
+	// Invalidate CPU lightmap lookup cache
+	CPUInterpolationCache.Empty();
 }
 
 void FVolumetricLightmapSceneData::RemoveLevelVolume(const FPrecomputedVolumetricLightmap* InVolume)
@@ -2355,6 +2358,9 @@ void FVolumetricLightmapSceneData::RemoveLevelVolume(const FPrecomputedVolumetri
 	{
 		PersistentLevelVolumetricLightmap = nullptr;
 	}
+
+	// Invalidate CPU lightmap lookup cache
+	CPUInterpolationCache.Empty();
 }
 
 const FPrecomputedVolumetricLightmap* FVolumetricLightmapSceneData::GetLevelVolumetricLightmap() const
