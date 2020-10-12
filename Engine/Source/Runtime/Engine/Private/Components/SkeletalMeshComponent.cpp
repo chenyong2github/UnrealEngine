@@ -633,7 +633,7 @@ void USkeletalMeshComponent::OnRegister()
 	// TODO: Add missing Chaos Cloth collision with environment
 	if (bCollideWithEnvironment && ClothingSimulationFactory && ClothingSimulationFactory->GetName() == TEXT("ChaosClothingSimulationFactory"))
 	{
-		UE_LOG(LogSkeletalMesh, Warning, TEXT("OnRegister[%s]: "
+		UE_LOG(LogSkeletalMesh, Display, TEXT("OnRegister[%s]: "
 			"Chaos Cloth does not currently support bCollideWithEnvironment."),
 			*GetNameSafe(SkeletalMesh));
 	}
