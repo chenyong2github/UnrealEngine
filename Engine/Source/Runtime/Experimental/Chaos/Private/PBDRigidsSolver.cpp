@@ -97,9 +97,7 @@ FAutoConsoleVariableRef CVarChaosSolverCollisionPushOutIterations(TEXT("p.Chaos.
 // Collision detection cvars
 // These override the engine config if >= 0
 float ChaosSolverCullDistance = -1.0f;
-float ChaosSolverShapePadding = -1.0f;
 FAutoConsoleVariableRef CVarChaosSolverCullDistance(TEXT("p.Chaos.Solver.Collision.CullDistance"), ChaosSolverCullDistance, TEXT("Override cull distance (if >= 0)"));
-FAutoConsoleVariableRef CVarChaosSolverShapePadding(TEXT("p.Chaos.Solver.Collision.ShapePadding"), ChaosSolverShapePadding, TEXT("Override shape padding (if >= 0)"));
 
 int32 ChaosSolverCleanupCommandsOnDestruction = 1;
 FAutoConsoleVariableRef CVarChaosSolverCleanupCommandsOnDestruction(TEXT("p.Chaos.Solver.CleanupCommandsOnDestruction"), ChaosSolverCleanupCommandsOnDestruction, TEXT("Whether or not to run internal command queue cleanup on solver destruction (0 = no cleanup, >0 = cleanup all commands)"));
@@ -733,10 +731,6 @@ namespace Chaos
 			{
 				SetCollisionPushOutPairIterations(ChaosSolverCollisionPushOutIterations);
 			}
-			if (ChaosSolverShapePadding >= 0.0f)
-			{
-				SetCollisionShapePadding(ChaosSolverShapePadding);
-			}
 			if (ChaosSolverCullDistance >= 0.0f)
 			{
 				SetCollisionCullDistance(ChaosSolverCullDistance);
@@ -1351,7 +1345,6 @@ namespace Chaos
 		SetCollisionPairIterations(InConfig.CollisionPairIterations);
 		SetPushOutIterations(InConfig.PushOutIterations);
 		SetCollisionPushOutPairIterations(InConfig.CollisionPushOutPairIterations);
-		SetCollisionShapePadding(InConfig.CollisionShapePadding);
 		SetCollisionCullDistance(InConfig.CollisionCullDistance);
 		SetGenerateCollisionData(InConfig.bGenerateCollisionData);
 		SetGenerateBreakingData(InConfig.bGenerateBreakData);

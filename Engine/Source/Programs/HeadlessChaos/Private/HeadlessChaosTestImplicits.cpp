@@ -272,8 +272,8 @@ namespace ChaosTest {
 		}
 
 		// intersection
-		EXPECT_TRUE(Subject.Intersects(TAABB<T, 3>(TVector3(0.5), TVector3(1.5))));
-		EXPECT_FALSE(Subject.Intersects(TAABB<T, 3>(TVector3(2), TVector3(3))));
+		EXPECT_TRUE(Subject.BoundingBox().Intersects(TAABB<T, 3>(TVector3(0.5), TVector3(1.5))));
+		EXPECT_FALSE(Subject.BoundingBox().Intersects(TAABB<T, 3>(TVector3(2), TVector3(3))));
 
 		{// closest point near origin (+)
 			TVector<T, 3> InputPoint(0, 0, 2);
@@ -1451,7 +1451,7 @@ namespace ChaosTest {
 		// capture original details
 		uint32 OriginalNumberParticles = Convex.GetSurfaceParticles().Size();
 		int32 OriginalNumberFaces = Convex.GetFaces().Num();
-		TBox<T, 3> OriginalBoundingBox = Convex.BoundingBox();
+		TAABB<T, 3> OriginalBoundingBox = Convex.BoundingBox();
 
 		const TParticles<T, 3>& CulledParticles = Convex.GetSurfaceParticles();
 		const TArray<TPlaneConcrete<T, 3>> Planes = Convex.GetFaces();
@@ -1466,7 +1466,7 @@ namespace ChaosTest {
 		// capture new details
 		uint32 NewNumberParticles = Convex.GetSurfaceParticles().Size();
 		int32 NewNumberFaces = Convex.GetFaces().Num();
-		TBox<T, 3> NewBoundingBox = Convex.BoundingBox();
+		TAABB<T, 3> NewBoundingBox = Convex.BoundingBox();
 
 		EXPECT_EQ(OriginalNumberParticles, 18);
 		EXPECT_EQ(NewNumberParticles, 10);

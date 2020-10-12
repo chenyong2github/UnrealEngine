@@ -726,7 +726,7 @@ static void DrawSphere(FPrimitiveDrawInterface* PDI, const TSphere<float, 3>& Sp
 #endif
 }
 
-static void DrawBox(FPrimitiveDrawInterface* PDI, const TBox<float, 3>& Box, const FQuat& Rotation, const FVector& Position, const FLinearColor& Color)
+static void DrawBox(FPrimitiveDrawInterface* PDI, const FAABB3& Box, const FQuat& Rotation, const FVector& Position, const FLinearColor& Color)
 {
 #if CHAOS_DEBUG_DRAW
 	if (!PDI)
@@ -855,7 +855,7 @@ void FClothingSimulation::DebugDrawBounds() const
 	const FBoxSphereBounds Bounds = Solver->CalculateBounds();
 
 	// Draw bounds
-	DrawBox(nullptr, TBox<float, 3>(-Bounds.BoxExtent, Bounds.BoxExtent), FQuat::Identity, Bounds.Origin, FLinearColor(FColor::Purple));
+	DrawBox(nullptr, FAABB3(-Bounds.BoxExtent, Bounds.BoxExtent), FQuat::Identity, Bounds.Origin, FLinearColor(FColor::Purple));
 	DrawSphere(nullptr, TSphere<float, 3>(FVector::ZeroVector, Bounds.SphereRadius), FQuat::Identity, Bounds.Origin, FLinearColor(FColor::Orange));
 
 	// Draw individual cloth bounds
@@ -867,8 +867,8 @@ void FClothingSimulation::DebugDrawBounds() const
 			continue;
 		}
 
-		const TAABB<float, 3> BoundingBox = Cloth->CalculateBoundingBox(Solver.Get());
-		DrawBox(nullptr, TBox<float, 3>(BoundingBox), FQuat::Identity, Bounds.Origin, Color);
+		const FAABB3 BoundingBox = Cloth->CalculateBoundingBox(Solver.Get());
+		DrawBox(nullptr, BoundingBox, FQuat::Identity, Bounds.Origin, Color);
 	}
 }
 
@@ -1060,7 +1060,7 @@ void FClothingSimulation::DebugDrawCollision(FPrimitiveDrawInterface* PDI) const
 						break;
 
 					case ImplicitObjectType::Box:
-						DrawBox(PDI, Object->GetObjectChecked<TBox<float, 3>>(), Rotation, Position, Color);
+						DrawBox(PDI, Object->GetObjectChecked<TBox<float, 3>>().BoundingBox(), Rotation, Position, Color);
 						break;
 
 					case ImplicitObjectType::Capsule:

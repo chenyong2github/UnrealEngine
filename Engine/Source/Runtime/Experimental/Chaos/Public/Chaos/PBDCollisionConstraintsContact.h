@@ -14,7 +14,6 @@ namespace Chaos
 	{
 		struct FContactParticleParameters {
 			FReal CullDistance;
-			FReal ShapePadding;
 			FReal RestitutionVelocityThreshold;
 			bool bCanDisableContacts;
 			TArrayCollectionArray<bool>* Collided;
@@ -30,13 +29,13 @@ namespace Chaos
 		};
 
 		// Regenerate (one-shot or incremental) the manifold plane and points
-		extern void UpdateManifold(FRigidBodyMultiPointContactConstraint& Constraint, const FReal CullDistance, const FReal ShapePadding);
+		extern void UpdateManifold(FRigidBodyMultiPointContactConstraint& Constraint, const FReal CullDistance);
 
 		// Update the constraint (re-runs collision detection for this contact)
-		extern void Update(FRigidBodyPointContactConstraint& Constraint, const FReal CullDistance, const FReal ShapePadding);
+		extern void Update(FRigidBodyPointContactConstraint& Constraint, const FReal CullDistance);
 
 		// Update the constraint (select best point from the manifold)
-		extern void Update(FRigidBodyMultiPointContactConstraint& Constraint, const FReal CullDistance, const FReal ShapePadding);
+		extern void Update(FRigidBodyMultiPointContactConstraint& Constraint, const FReal CullDistance);
 
 		extern void Apply(FCollisionConstraintBase& Constraint, const FContactIterationParameters& IterationParameters, const FContactParticleParameters& ParticleParameters);
 		extern void ApplySinglePoint(FRigidBodyPointContactConstraint& Constraint, const FContactIterationParameters& IterationParameters, const FContactParticleParameters& ParticleParameters);

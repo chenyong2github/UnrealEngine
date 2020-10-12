@@ -70,5 +70,6 @@ struct FGeometryAddParams
 #endif
 #if WITH_CHAOS
 	TArrayView<TSharedPtr<Chaos::FTriangleMeshImplicitObject, ESPMode::ThreadSafe>> ChaosTriMeshes;
+	float CollisionMargin;
 #endif
 };
