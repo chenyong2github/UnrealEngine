@@ -61,7 +61,7 @@ void UMovieSceneSequence::PostLoad()
 	}
 
 #if DO_CHECK
-	if (FPlatformProperties::RequiresCookedData() && !EnumHasAnyFlags(SequenceFlags, EMovieSceneSequenceFlags::Volatile))
+	if (FPlatformProperties::RequiresCookedData() && !EnumHasAnyFlags(SequenceFlags, EMovieSceneSequenceFlags::Volatile) && !HasAnyFlags(RF_ClassDefaultObject|RF_ArchetypeObject))
 	{
 		ensureAlwaysMsgf(PrecompiledData->FindDataID(this).IsValid(), TEXT("No precompiled movie scene data is present for sequence '%s'. This should have been generated and saved during cook."), *GetName());
 	}
@@ -80,6 +80,16 @@ void UMovieSceneSequence::BeginDestroy()
 	}
 }
 
+void UMovieSceneSequence::PostDuplicate(bool bDuplicateForPIE)
+{
+	if (bDuplicateForPIE)
+	{
+		UMovieSceneCompiledDataManager::GetPrecompiledData()->Compile(this);
+	}
+
+	Super::PostDuplicate(bDuplicateForPIE);
+}
+
 EMovieSceneServerClientMask UMovieSceneSequence::OverrideNetworkMask(EMovieSceneServerClientMask InDefaultMask) const
 {
 	return InDefaultMask;
@@ -88,7 +98,7 @@ EMovieSceneServerClientMask UMovieSceneSequence::OverrideNetworkMask(EMovieScene
 void UMovieSceneSequence::PreSave(const ITargetPlatform* TargetPlatform)
 {
 #if WITH_EDITOR
-	if (!HasAnyFlags(RF_ClassDefaultObject))
+	if (!HasAnyFlags(RF_ClassDefaultObject|RF_ArchetypeObject))
 	{
 		if (TargetPlatform && TargetPlatform->RequiresCookedData())
 		{

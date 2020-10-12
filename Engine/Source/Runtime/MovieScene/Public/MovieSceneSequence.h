@@ -211,6 +211,7 @@ public:
 	MOVIESCENE_API virtual void PostLoad() override;
 	MOVIESCENE_API virtual void PreSave(const ITargetPlatform* TargetPlatform) override;
 	MOVIESCENE_API virtual void BeginDestroy() override;
+	MOVIESCENE_API virtual void PostDuplicate(bool bDuplicateForPIE) override;
 
 	MOVIESCENE_API virtual void Serialize(FArchive& Ar) override;
 
