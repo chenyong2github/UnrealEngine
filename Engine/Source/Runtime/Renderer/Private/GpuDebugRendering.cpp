@@ -82,11 +82,14 @@ namespace ShaderDrawDebug
 		return IsShaderDrawDebugEnabled() && IsShaderDrawDebugEnabled(View.GetShaderPlatform());
 	}
 
+	// Note: Unaligned structures used for structured buffers is an unsupported and/or sparsely
+	//         supported feature in VK (VK_EXT_scalar_block_layout) and Metal. Consequently, we
+	//         do manual packing in order to accommodate.
 	struct FPackedShaderDrawElement
 	{
-		float Pos0[3]; // This is not packed as fp16 to be able to debug large scale data while preserving accuracy at short range.
-		float Pos1[3];
-		uint32 Color[2];
+		// This is not packed as fp16 to be able to debug large scale data while preserving accuracy at short range.
+		float Pos0_ColorX[4];		// float3 pos0 + packed color0
+		float Pos1_ColorY[4];		// float3 pos1 + packed color1
 	};
 
 	// This needs to be allocated per view, or move into a more persistent place
