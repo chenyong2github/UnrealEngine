@@ -14,17 +14,6 @@ UDisplayClusterSceneComponentSyncParent::UDisplayClusterSceneComponentSyncParent
 	PrimaryComponentTick.bCanEverTick = true;
 }
 
-void UDisplayClusterSceneComponentSyncParent::BeginPlay()
-{
-	Super::BeginPlay();
-}
-
-
-void UDisplayClusterSceneComponentSyncParent::TickComponent( float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction )
-{
-	Super::TickComponent( DeltaTime, TickType, ThisTickFunction );
-}
-
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterClusterSyncObject

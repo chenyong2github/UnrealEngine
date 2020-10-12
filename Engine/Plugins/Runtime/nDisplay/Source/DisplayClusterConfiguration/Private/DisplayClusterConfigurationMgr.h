@@ -21,7 +21,7 @@ public:
 	static FDisplayClusterConfigurationMgr& Get();
 
 public:
-	UDisplayClusterConfigurationData* LoadConfig(const FString& FilePath);
+	UDisplayClusterConfigurationData* LoadConfig(const FString& FilePath, UObject* Owner = nullptr);
 	bool SaveConfig(const UDisplayClusterConfigurationData* Config, const FString& FilePath);
 	UDisplayClusterConfigurationData* CreateDefaultStandaloneConfigData();
 

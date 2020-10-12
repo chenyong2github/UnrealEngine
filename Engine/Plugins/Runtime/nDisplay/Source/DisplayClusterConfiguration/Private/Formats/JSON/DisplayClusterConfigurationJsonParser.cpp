@@ -15,8 +15,10 @@
 #include "Misc/Paths.h"
 
 
-UDisplayClusterConfigurationData* FDisplayClusterConfigurationJsonParser::LoadData(const FString& FilePath)
+UDisplayClusterConfigurationData* FDisplayClusterConfigurationJsonParser::LoadData(const FString& FilePath, UObject* Owner)
 {
+	ConfigDataOwner = Owner;
+
 	FString JsonText;
 
 	// Load json text to the string object
@@ -70,7 +72,7 @@ bool FDisplayClusterConfigurationJsonParser::SaveData(const UDisplayClusterConfi
 
 UDisplayClusterConfigurationData* FDisplayClusterConfigurationJsonParser::ConvertDataToInternalTypes()
 {
-	UDisplayClusterConfigurationData* Config = NewObject<UDisplayClusterConfigurationData>(GetTransientPackage(), NAME_None, RF_MarkAsRootSet);
+	UDisplayClusterConfigurationData* Config = NewObject<UDisplayClusterConfigurationData>(ConfigDataOwner ? ConfigDataOwner : GetTransientPackage(), NAME_None, RF_MarkAsRootSet);
 	check(Config && Config->Scene && Config->Input && Config->Cluster);
 
 	const FDisplayClusterConfigurationJsonNdisplay& CfgJson = JsonData.nDisplay;

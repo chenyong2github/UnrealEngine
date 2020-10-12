@@ -13,35 +13,38 @@ public class DisplayClusterProjection : ModuleRules
 				"../../../../../Engine/Source/Runtime/Windows/D3D11RHI/Private/Windows",
 			});
 
+		PublicIncludePathModuleNames.AddRange(
+			new string[] {
+				"DisplayClusterConfiguration"
+			});
+
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
 				"CoreUObject",
-				"Engine",
+				"DisplayCluster",
+				"Engine"
 			});
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
-				"ApplicationCore",
 				"D3D11RHI",
-				"DisplayCluster",
 				"Composure",
-				"HeadMountedDisplay",
+				"DisplayCluster",
 				"MPCDI",
 				"Projects",
 				"RenderCore",
-				"RHI",
+				"RHI"
 			});
 
 		if (Target.bBuildEditor == true)
 		{
+			PrivateDependencyModuleNames.Add("DisplayClusterRendering");
+			PrivateDependencyModuleNames.Add("ProceduralMeshComponent");
 			PrivateDependencyModuleNames.Add("UnrealEd");
 		}
 
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
 
 		AddThirdPartyDependencies(ROTargetRules);
 	}

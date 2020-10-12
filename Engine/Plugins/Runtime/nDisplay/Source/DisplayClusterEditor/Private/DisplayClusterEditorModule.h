@@ -2,21 +2,24 @@
 
 #pragma once
 
-#include "Modules/ModuleInterface.h"
-#include "Modules/ModuleManager.h"
+#include "IDisplayClusterEditor.h"
 
 
 /**
  * Display Cluster editor module
  */
 class FDisplayClusterEditorModule :
-	public IModuleInterface
+	public IDisplayClusterEditor
 {
 public:
 	//~ IModuleInterface interface
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
+protected:
 	void RegisterSettings();
 	void UnregisterSettings();
+
+	void RegisterCustomizations();
+	void UnregisterCustomizations();
 };

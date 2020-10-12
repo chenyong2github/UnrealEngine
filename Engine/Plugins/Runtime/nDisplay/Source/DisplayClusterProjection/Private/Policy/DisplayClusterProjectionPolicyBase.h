@@ -27,6 +27,11 @@ public:
 		return PolicyOriginComp;
 	}
 
+	void SetOriginComp(USceneComponent* OriginComp)
+	{
+		PolicyOriginComp = OriginComp;
+	}
+
 	TMap<FString, FString>& GetParameters()
 	{
 		return Parameters;

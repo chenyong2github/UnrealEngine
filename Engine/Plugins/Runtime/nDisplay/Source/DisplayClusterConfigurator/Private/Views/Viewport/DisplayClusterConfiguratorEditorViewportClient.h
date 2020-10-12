@@ -10,6 +10,7 @@ class FDisplayClusterConfiguratorPreviewScene;
 class SDisplayClusterConfiguratorViewport;
 class FDisplayClusterConfiguratorToolkit;
 
+
 class FDisplayClusterConfiguratorEditorViewportClient
 	: public FEditorViewportClient
 	, public TSharedFromThis<FDisplayClusterConfiguratorEditorViewportClient>
@@ -19,6 +20,7 @@ public:
 
 	void Build();
 
+public:
 	//~ Begin FEditorViewportClient interface
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void Draw(const FSceneView* View, FPrimitiveDrawInterface* PDI) override;

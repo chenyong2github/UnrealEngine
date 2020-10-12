@@ -13,7 +13,6 @@
 
 #include "DisplayClusterConfigurationStrings.h"
 
-#include "Components/DisplayClusterRootComponent.h"
 #include "Components/DisplayClusterCameraComponent.h"
 #include "DisplayClusterViewportClient.h"
 
@@ -125,11 +124,7 @@ void FDisplayClusterRenderManager::EndSession()
 
 	bWindowAdjusted = false;
 
-	RenderDeviceFactories.Reset();
-	SyncPolicyFactories.Reset();
 	SyncPolicy.Reset();
-	ProjectionPolicyFactories.Reset();
-	PostProcessOperations.Reset();
 }
 
 bool FDisplayClusterRenderManager::StartScene(UWorld* InWorld)
@@ -355,6 +350,13 @@ TSharedPtr<IDisplayClusterProjectionPolicyFactory> FDisplayClusterRenderManager:
 
 	return Factory;
 }
+
+void FDisplayClusterRenderManager::GetRegisteredProjectionPolicies(TArray<FString>& OutPolicyIDs) const
+{
+	FScopeLock Lock(&CritSecInternals);
+	ProjectionPolicyFactories.GetKeys(OutPolicyIDs);
+}
+
 
 bool FDisplayClusterRenderManager::RegisterPostprocessOperation(const FString& InName, TSharedPtr<IDisplayClusterPostProcess>& InOperation, int InPriority /* = 0 */)
 {

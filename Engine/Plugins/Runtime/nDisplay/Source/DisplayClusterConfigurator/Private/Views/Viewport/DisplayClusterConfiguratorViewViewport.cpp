@@ -7,6 +7,9 @@
 #include "Views/Viewport/SDisplayClusterConfiguratorViewViewport.h"
 #include "Views/Viewport/DisplayClusterConfiguratorViewportBuilder.h"
 
+#include "Interfaces/Views/OutputMapping/IDisplayClusterConfiguratorViewOutputMapping.h"
+
+
 FDisplayClusterConfiguratorViewViewport::FDisplayClusterConfiguratorViewViewport(const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit)
 	: ToolkitPtr(InToolkit)
 {
@@ -16,16 +19,16 @@ FDisplayClusterConfiguratorViewViewport::FDisplayClusterConfiguratorViewViewport
 	PreviewBuilder = MakeShared<FDisplayClusterConfiguratorViewportBuilder>(InToolkit, PreviewScene.ToSharedRef());
 }
 
+
 TSharedRef<SWidget> FDisplayClusterConfiguratorViewViewport::CreateWidget()
 {
 	// Register delegates
 	ToolkitPtr.Pin()->RegisterOnConfigReloaded(IDisplayClusterConfiguratorToolkit::FOnConfigReloadedDelegate::CreateSP(this, &FDisplayClusterConfiguratorViewViewport::OnConfigReloaded));
+	ToolkitPtr.Pin()->GetViewOutputMapping()->RegisterOnOutputMappingBuilt(IDisplayClusterConfiguratorViewOutputMapping::FOnOutputMappingBuiltDelegate::CreateSP(this, &FDisplayClusterConfiguratorViewViewport::OnOutputMappingBuilt));
 
 	if (!ViewViewport.IsValid())
 	{
 		SAssignNew(ViewViewport, SDisplayClusterConfiguratorViewViewport, ToolkitPtr.Pin().ToSharedRef(), PreviewScene.ToSharedRef());
-
-		PreviewBuilder->BuildViewport();
 	}
 
 	return ViewViewport.ToSharedRef();
@@ -47,4 +50,9 @@ TSharedRef<IDisplayClusterConfiguratorPreviewScene> FDisplayClusterConfiguratorV
 void FDisplayClusterConfiguratorViewViewport::OnConfigReloaded()
 {
 	PreviewBuilder->BuildViewport();
+}
+
+void FDisplayClusterConfiguratorViewViewport::OnOutputMappingBuilt()
+{
+	PreviewBuilder->UpdateOutputMappingPreview();
 }

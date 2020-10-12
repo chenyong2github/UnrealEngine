@@ -21,15 +21,26 @@ public:
 	{ }
 
 public:
-	virtual ADisplayClusterRootActor*     GetRootActor() const = 0;
-	virtual UDisplayClusterRootComponent* GetRootComponent() const = 0;
+	/**
+	* @return - Current root actor
+	*/
+	virtual ADisplayClusterRootActor* GetRootActor() const = 0;
 
+	/**
+	* @return - Current world
+	*/
 	virtual UWorld* GetWorld() const = 0;
 
 public:
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// DEPRECATED
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	UE_DEPRECATED(4.26, "UDisplayClusterRootComponent is deprecated. Please use UDisplayClusterRootActor.")
+	virtual UDisplayClusterRootComponent* GetRootComponent() const
+	{
+		return nullptr;
+	}
 
 	UE_DEPRECATED(4.26, "This feature has been moved to UDisplayClusterRootActor.")
 	virtual TArray<UDisplayClusterScreenComponent*> GetAllScreens() const

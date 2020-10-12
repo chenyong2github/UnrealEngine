@@ -10,7 +10,6 @@ class AActor;
 class ADisplayClusterRootActor;
 class USceneComponent;
 class UDisplayClusterCameraComponent;
-class UDisplayClusterRootComponent;
 class UDisplayClusterSceneComponent;
 class UDisplayClusterScreenComponent;
 
@@ -41,7 +40,6 @@ public:
 	// IDisplayClusterGameManager
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual ADisplayClusterRootActor*     GetRootActor() const override;
-	virtual UDisplayClusterRootComponent* GetRootComponent() const override;
 
 	virtual UWorld* GetWorld() const override
 	{ return CurrentWorld; }

@@ -62,9 +62,7 @@ void UDisplayClusterConfigurationViewport::PostEditChangeChainProperty(FProperty
 
 	OnPostEditChangeChainProperty.Broadcast(PropertyChangedEvent);
 }
-#endif
 
-#if WITH_EDITOR
 void UDisplayClusterConfigurationClusterNode::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeChainProperty(PropertyChangedEvent);
@@ -72,9 +70,6 @@ void UDisplayClusterConfigurationClusterNode::PostEditChangeChainProperty(FPrope
 	OnPostEditChangeChainProperty.Broadcast(PropertyChangedEvent);
 }
 
-#endif
-
-#if WITH_EDITOR
 void UDisplayClusterConfigurationSceneComponentMesh::LoadAssets()
 {
 	Asset = nullptr;
