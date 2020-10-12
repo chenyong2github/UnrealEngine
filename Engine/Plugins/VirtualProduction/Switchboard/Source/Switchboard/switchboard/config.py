@@ -82,7 +82,7 @@ class Config(object):
         self.BUILD_ENGINE = Setting("build_engine", "Build Engine", False, tool_tip="Is Engine built from source?")
         self.MAPS_PATH = Setting("maps_path", "Map Path", "Game/maps/", tool_tip="Relative path from Content folder that contains maps to launch into.")
         self.MAPS_FILTER = Setting("maps_filter", "Map Filter", "*.umap", tool_tip="Walk every file in the Map Path and run a fnmatch to filter the file names")
-        self.SOURCE_CONTROL_WORKSPACE = Setting("source_control_workspace", "Source Control Workspace", "", tool_tip="SourceControl Workspace/Branch")
+        self.SOURCE_CONTROL_WORKSPACE = Setting("source_control_workspace", "Workspace Name", "", tool_tip="SourceControl Workspace/Branch")
         self.P4_PATH = Setting("p4_sync_path", "Perforce Project Path", "//UE4/Project")
 
         self.OSC_SERVER_PORT = 6000
@@ -143,7 +143,7 @@ class Config(object):
         project_settings.append(self.MAPS_FILTER)
 
         # Perforce settings
-        self.SOURCE_CONTROL_WORKSPACE = Setting("source_control_workspace", "Source Control Workspace", data.get("source_control_workspace"), tool_tip="SourceControl Workspace/Branch")
+        self.SOURCE_CONTROL_WORKSPACE = Setting("source_control_workspace", "Workspace Name", data.get("source_control_workspace"), tool_tip="SourceControl Workspace/Branch")
         self.P4_PATH = Setting("p4_sync_path", "Perforce Project Path", data.get("p4_sync_path", ''), placholder_text="//UE4/Project")
         project_settings.extend([self.SOURCE_CONTROL_WORKSPACE, self.P4_PATH])
 
@@ -293,7 +293,11 @@ class Config(object):
 
         self.save()
 
-    def on_device_removed(self, _, device_type, device_name):
+    def on_device_removed(self, _, device_type, device_name, update_config):
+
+        if not update_config:
+            return
+
         del self._device_settings[(device_type, device_name)]
         self.save()
 

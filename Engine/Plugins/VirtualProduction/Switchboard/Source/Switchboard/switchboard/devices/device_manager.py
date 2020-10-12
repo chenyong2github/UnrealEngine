@@ -20,7 +20,7 @@ DEVICE_PLUGIN_PATH = os.path.join(os.path.dirname(__file__))
 
 class DeviceManager(QtCore.QObject):
     signal_device_added = QtCore.Signal(object)
-    signal_device_removed = QtCore.Signal(object, str, str)
+    signal_device_removed = QtCore.Signal(object, str, str, bool)
 
     def __init__(self):
         super().__init__()
@@ -102,7 +102,7 @@ class DeviceManager(QtCore.QObject):
         dialog.add_name_validator(self._device_name_validator)
         return dialog
 
-    def remove_device(self, device):
+    def remove_device(self, device, update_config=True):
         # Remove the device from the dict
         self._devices.pop(device.device_hash)
 
@@ -115,17 +115,22 @@ class DeviceManager(QtCore.QObject):
         # Notify the plugin
         device.__class__.removed_device(device)
 
-        self.signal_device_removed.emit(device.device_hash, device.device_type, device.name)
+        self.signal_device_removed.emit(device.device_hash, device.device_type, device.name, update_config)
 
     def remove_device_by_hash(self, device_hash):
         device = self.device_with_hash(device_hash)
         self.remove_device(device)
 
     def clear_device_list(self):
-        for device in self._devices.values():
-            # todo-dara: let the device know it is about to get deleted instead, so it can then do clean-up itself, such as the listener disconnection
-            device.disconnect_listener()
-        self._devices.clear()
+
+        devices_being_removed = list(self._devices.values())
+
+        for device in devices_being_removed:
+            self.remove_device(device, update_config=False)
+
+        if len(self._devices):
+            LOGGER.error(f"{inspect.currentframe().f_code.co_name} failed to remove all devices one by one")
+            self._devices.clear()
 
     def available_device_plugins(self):
         return self._plugins.keys()
