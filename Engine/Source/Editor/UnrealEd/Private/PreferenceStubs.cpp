@@ -89,6 +89,8 @@ void FViewportConfigOptions::SetToDefault()
 {
 	ViewModeIndex = VMI_Lit;
 	ViewFOV = 53.43f;
+	CameraSpeedSetting = 4;
+	CameraSpeedScalar = 1.0f;
 	CameraFollowMode = EAnimationViewportCameraFollowMode::None;
 	CameraFollowBoneName = NAME_None;
 }
@@ -188,6 +190,24 @@ void UPersonaOptions::SetViewFOV( FName InContext, float InViewFOV, int32 InView
 
 	FAssetEditorOptions& Options = GetAssetEditorOptions(InContext);
 	Options.ViewportConfigs[InViewportIndex].ViewFOV = InViewFOV;
+	SaveConfig();
+}
+
+void UPersonaOptions::SetCameraSpeed(FName InContext, int32 InCameraSpeed, int32 InViewportIndex)
+{
+	check(InViewportIndex >= 0 && InViewportIndex < 4);
+
+	FAssetEditorOptions& Options = GetAssetEditorOptions(InContext);
+	Options.ViewportConfigs[InViewportIndex].CameraSpeedSetting = InCameraSpeed;
+	SaveConfig();
+}
+
+void UPersonaOptions::SetCameraSpeedScalar(FName InContext, float InCameraSpeedScalar, int32 InViewportIndex)
+{
+	check(InViewportIndex >= 0 && InViewportIndex < 4);
+
+	FAssetEditorOptions& Options = GetAssetEditorOptions(InContext);
+	Options.ViewportConfigs[InViewportIndex].CameraSpeedScalar = InCameraSpeedScalar;
 	SaveConfig();
 }
 
