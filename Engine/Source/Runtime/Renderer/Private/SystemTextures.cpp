@@ -387,8 +387,8 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 					check(Desc.Format == PF_R8G8);
 
 					uint8* Dest = (uint8*)(DestBuffer + x * 2 + y * DestStride);
-					Dest[0] = (int32)(FMath::Clamp(A, 0.0f, 1.0f) * 255.9999f);
-					Dest[1] = (int32)(FMath::Clamp(B, 0.0f, 1.0f) * 255.9999f);
+					Dest[0] = (int32)(FMath::Clamp(A, 0.0f, 1.0f) * 255.f + 0.5f);
+					Dest[1] = (int32)(FMath::Clamp(B, 0.0f, 1.0f) * 255.f + 0.5f);
 				}
 			}
 		}

@@ -378,7 +378,7 @@ public:
 	FLidarPointCloudPoint(const float& X, const float& Y, const float& Z, const float& I)
 		: FLidarPointCloudPoint(X, Y, Z)
 	{
-		Color.A = FMath::FloorToInt(FMath::Clamp(I, 0.0f, 1.0f) * 255.999f);
+		Color.A = FMath::RoundToInt(FMath::Clamp(I, 0.0f, 1.0f) * 255.f);
 	}
 	FLidarPointCloudPoint(const float& X, const float& Y, const float& Z, const float& R, const float& G, const float& B, const float& A = 1.0f)
 		: FLidarPointCloudPoint(X, Y, Z)

@@ -608,18 +608,18 @@ void SDistributionCurveEditor::OnSetColor()
 	{
 		float Value;
 
-		Value	= EdInterface->GetKeyOut(0, SelKey.KeyIndex) * 255.9f;
-		InputColor.R = FMath::TruncToInt(Value);
-		Value	= EdInterface->GetKeyOut(1, SelKey.KeyIndex) * 255.9f;
-		InputColor.G = FMath::TruncToInt(Value);
-		Value	= EdInterface->GetKeyOut(2, SelKey.KeyIndex) * 255.9f;
-		InputColor.B = FMath::TruncToInt(Value);
+		Value	= EdInterface->GetKeyOut(0, SelKey.KeyIndex) * 255.f;
+		InputColor.R = FMath::RoundToInt(Value);
+		Value	= EdInterface->GetKeyOut(1, SelKey.KeyIndex) * 255.f;
+		InputColor.G = FMath::RoundToInt(Value);
+		Value	= EdInterface->GetKeyOut(2, SelKey.KeyIndex) * 255.f;
+		InputColor.B = FMath::RoundToInt(Value);
 	}
 	else
 	{
-		InputColor.R = FMath::TruncToInt(FMath::Clamp<float>(EdInterface->GetKeyOut(0, SelKey.KeyIndex), 0.f, 255.9f));
-		InputColor.G = FMath::TruncToInt(FMath::Clamp<float>(EdInterface->GetKeyOut(1, SelKey.KeyIndex), 0.f, 255.9f));
-		InputColor.B = FMath::TruncToInt(FMath::Clamp<float>(EdInterface->GetKeyOut(2, SelKey.KeyIndex), 0.f, 255.9f));
+		InputColor.R = FMath::RoundToInt(FMath::Clamp<float>(EdInterface->GetKeyOut(0, SelKey.KeyIndex), 0.f, 255.f));
+		InputColor.G = FMath::RoundToInt(FMath::Clamp<float>(EdInterface->GetKeyOut(1, SelKey.KeyIndex), 0.f, 255.f));
+		InputColor.B = FMath::RoundToInt(FMath::Clamp<float>(EdInterface->GetKeyOut(2, SelKey.KeyIndex), 0.f, 255.f));
 	}
 
 	//since the data isn't stored in standard colors, a temp color is used
@@ -638,19 +638,19 @@ void SDistributionCurveEditor::OnSetColor()
 		float Value;
 		if (Entry.bFloatingPointColorCurve)
 		{
-			Value	= (float)TempColor.R / 255.9f;
+			Value	= (float)TempColor.R / 255.f;
 			if (Entry.bClamp)
 			{
 				Value = FMath::Clamp<float>(Value, Entry.ClampLow, Entry.ClampHigh);
 			}
 			EdInterface->SetKeyOut(0, SelKey.KeyIndex, Value);
-			Value	= (float)TempColor.G / 255.9f;
+			Value	= (float)TempColor.G / 255.f;
 			if (Entry.bClamp)
 			{
 				Value = FMath::Clamp<float>(Value, Entry.ClampLow, Entry.ClampHigh);
 			}
 			EdInterface->SetKeyOut(1, SelKey.KeyIndex, Value);
-			Value	= (float)TempColor.B / 255.9f;
+			Value	= (float)TempColor.B / 255.f;
 			if (Entry.bClamp)
 			{
 				Value = FMath::Clamp<float>(Value, Entry.ClampLow, Entry.ClampHigh);

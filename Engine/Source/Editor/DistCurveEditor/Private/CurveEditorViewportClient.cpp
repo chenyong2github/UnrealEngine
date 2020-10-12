@@ -1409,20 +1409,20 @@ FColor FCurveEditorViewportClient::GetLineColor(FCurveEdInterface* EdInterface, 
 			float Value;
 
 			Value = EdInterface->EvalSub(0, InVal);
-			Value *= 255.9f;
-			StepColor.R = FMath::TruncToInt(FMath::Clamp<float>(Value, 0.f, 255.9f));
+			Value *= 255.f;
+			StepColor.R = FMath::RoundToInt(FMath::Clamp<float>(Value, 0.f, 255.f));
 			Value = EdInterface->EvalSub(1, InVal);
-			Value *= 255.9f;
-			StepColor.G = FMath::TruncToInt(FMath::Clamp<float>(Value, 0.f, 255.9f));
+			Value *= 255.f;
+			StepColor.G = FMath::RoundToInt(FMath::Clamp<float>(Value, 0.f, 255.f));
 			Value = EdInterface->EvalSub(2, InVal);
-			Value *= 255.9f;
-			StepColor.B = FMath::TruncToInt(FMath::Clamp<float>(Value, 0.f, 255.9f));
+			Value *= 255.f;
+			StepColor.B = FMath::RoundToInt(FMath::Clamp<float>(Value, 0.f, 255.f));
 		}
 		else
 		{
-			StepColor.R = FMath::TruncToInt(FMath::Clamp<float>(EdInterface->EvalSub(0, InVal), 0.f, 255.9f));
-			StepColor.G = FMath::TruncToInt(FMath::Clamp<float>(EdInterface->EvalSub(1, InVal), 0.f, 255.9f));
-			StepColor.B = FMath::TruncToInt(FMath::Clamp<float>(EdInterface->EvalSub(2, InVal), 0.f, 255.9f));
+			StepColor.R = FMath::RoundToInt(FMath::Clamp<float>(EdInterface->EvalSub(0, InVal), 0.f, 255.f));
+			StepColor.G = FMath::RoundToInt(FMath::Clamp<float>(EdInterface->EvalSub(1, InVal), 0.f, 255.f));
+			StepColor.B = FMath::RoundToInt(FMath::Clamp<float>(EdInterface->EvalSub(2, InVal), 0.f, 255.f));
 		}
 		StepColor.A = 255;
 	}
@@ -1433,12 +1433,12 @@ FColor FCurveEditorViewportClient::GetLineColor(FCurveEdInterface* EdInterface, 
 			float Value;
 
 			Value = EdInterface->EvalSub(0, InVal);
-			Value *= 255.9f;
-			StepColor.R = FMath::TruncToInt(FMath::Clamp<float>(Value, 0.f, 255.9f));
+			Value *= 255.f;
+			StepColor.R = FMath::RoundToInt(FMath::Clamp<float>(Value, 0.f, 255.f));
 		}
 		else
 		{
-			StepColor.R = FMath::TruncToInt(FMath::Clamp<float>(EdInterface->EvalSub(0, InVal), 0.f, 255.9f));
+			StepColor.R = FMath::RoundToInt(FMath::Clamp<float>(EdInterface->EvalSub(0, InVal), 0.f, 255.f));
 		}
 		StepColor.G = StepColor.R;
 		StepColor.B = StepColor.R;

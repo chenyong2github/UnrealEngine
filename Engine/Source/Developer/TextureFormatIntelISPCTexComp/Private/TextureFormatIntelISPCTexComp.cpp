@@ -483,9 +483,9 @@ static void IntelASTCCompressScans(FASTCEncoderSettings* pEncSettings, FImage* p
 				FVector Normal = FVector(pInTexelsSwap[2] / 255.0f * 2.0f - 1.0f, pInTexelsSwap[1] / 255.0f * 2.0f - 1.0f, pInTexelsSwap[0] / 255.0f * 2.0f - 1.0f);
 				Normal = Normal.GetSafeNormal();
 				pInTexelsSwap[0] = 0;
-				pInTexelsSwap[1] = FMath::FloorToInt((Normal.Y * 0.5f + 0.5f) * 255.999f);
+				pInTexelsSwap[1] = FMath::RoundToInt((Normal.Y * 0.5f + 0.5f) * 255.f);
 				pInTexelsSwap[2] = 0;
-				pInTexelsSwap[3] = FMath::FloorToInt((Normal.X * 0.5f + 0.5f) * 255.999f);
+				pInTexelsSwap[3] = FMath::RoundToInt((Normal.X * 0.5f + 0.5f) * 255.f);
 
 				pInTexelsSwap += 4;
 			}
@@ -503,8 +503,8 @@ static void IntelASTCCompressScans(FASTCEncoderSettings* pEncSettings, FImage* p
 			{
 				FVector Normal = FVector(pInTexelsSwap[2] / 255.0f * 2.0f - 1.0f, pInTexelsSwap[1] / 255.0f * 2.0f - 1.0f, pInTexelsSwap[0] / 255.0f * 2.0f - 1.0f);
 				Normal = Normal.GetSafeNormal();
-				pInTexelsSwap[0] = FMath::FloorToInt((Normal.X * 0.5f + 0.5f) * 255.999f);
-				pInTexelsSwap[1] = FMath::FloorToInt((Normal.Y * 0.5f + 0.5f) * 255.999f);
+				pInTexelsSwap[0] = FMath::RoundToInt((Normal.X * 0.5f + 0.5f) * 255.f);
+				pInTexelsSwap[1] = FMath::RoundToInt((Normal.Y * 0.5f + 0.5f) * 255.f);
 				pInTexelsSwap[2] = 0;
 				pInTexelsSwap[3] = 255;
 

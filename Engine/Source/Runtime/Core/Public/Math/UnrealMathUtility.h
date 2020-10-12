@@ -1691,7 +1691,7 @@ public:
 	static uint8 Quantize8UnsignedByte(float x)
 	{
 		// 0..1 -> 0..255
-		int32 Ret = (int32)(x * 255.999f);
+		int32 Ret = (int32)(x * 255.f + 0.5f);
 
 		check(Ret >= 0);
 		check(Ret <= 255);

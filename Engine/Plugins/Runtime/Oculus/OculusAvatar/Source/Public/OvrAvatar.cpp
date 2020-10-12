@@ -1557,7 +1557,7 @@ void UOvrAvatar::LoadMesh(USkeletalMesh* SkeletalMesh, const ovrAvatarMeshAssetD
 
 			for (uint32_t BlendIndex = 0; BlendIndex < MAX_TOTAL_INFLUENCES; BlendIndex++)
 			{
-				ModelVertex.InfluenceWeights[BlendIndex] = BlendIndex < NumBlendWeights ? (uint8_t)(255.9999f*SourceVertex->blendWeights[BlendIndex]) : 0;
+				ModelVertex.InfluenceWeights[BlendIndex] = BlendIndex < NumBlendWeights ? (uint8_t)(255.f*SourceVertex->blendWeights[BlendIndex]+0.5f) : 0;
 				ModelVertex.InfluenceBones[BlendIndex] = BlendIndex < NumBlendWeights ? SourceVertex->blendIndices[BlendIndex] : 0;
 
 				uint32 Weight = ModelVertex.InfluenceWeights[BlendIndex];
@@ -1603,7 +1603,7 @@ void UOvrAvatar::LoadMesh(USkeletalMesh* SkeletalMesh, const ovrAvatarMeshAssetD
 
 			for (uint32_t BlendIndex = 0; BlendIndex < MAX_TOTAL_INFLUENCES; BlendIndex++)
 			{
-				InWeights[VertIndex].InfluenceWeights[BlendIndex] = BlendIndex < NumBlendWeights ? (uint8_t)(255.9999f*SourceVertex->blendWeights[BlendIndex]) : 0;
+				InWeights[VertIndex].InfluenceWeights[BlendIndex] = BlendIndex < NumBlendWeights ? (uint8_t)(255.f*SourceVertex->blendWeights[BlendIndex]+0.5f) : 0;
 				InWeights[VertIndex].InfluenceBones[BlendIndex] = BlendIndex < NumBlendWeights ? SourceVertex->blendIndices[BlendIndex] : 0;
 
 				uint32 Weight = InWeights[VertIndex].InfluenceWeights[BlendIndex];
@@ -2323,7 +2323,7 @@ void UOvrAvatar::LoadCombinedMesh(USkeletalMesh* SkeletalMesh, const ovrAvatarMe
 
 			for (uint32_t BlendIndex = 0; BlendIndex < MAX_TOTAL_INFLUENCES; BlendIndex++)
 			{
-				DestVertex.InfluenceWeights[BlendIndex] = BlendIndex < NumBlendWeights ? (uint8_t)(255.9999f*SourceVertex->blendWeights[BlendIndex]) : 0;
+				DestVertex.InfluenceWeights[BlendIndex] = BlendIndex < NumBlendWeights ? (uint8_t)(255.f*SourceVertex->blendWeights[BlendIndex]+0.5f) : 0;
 				DestVertex.InfluenceBones[BlendIndex] = BlendIndex < NumBlendWeights ? SourceVertex->blendIndices[BlendIndex] : 0;
 
 				uint32 Weight = DestVertex.InfluenceWeights[BlendIndex];
@@ -2596,7 +2596,7 @@ void UOvrAvatar::LoadCombinedMesh(USkeletalMesh* SkeletalMesh, const ovrAvatarMe
 
 			for (uint32_t BlendIndex = 0; BlendIndex < MAX_TOTAL_INFLUENCES; BlendIndex++)
 			{
-				InWeights[CurrentVertexBufferCount].InfluenceWeights[BlendIndex] = BlendIndex < NumBlendWeights ? (uint8_t)(255.9999f*SourceVertex->blendWeights[BlendIndex]) : 0;
+				InWeights[CurrentVertexBufferCount].InfluenceWeights[BlendIndex] = BlendIndex < NumBlendWeights ? (uint8_t)(255.f*SourceVertex->blendWeights[BlendIndex]+0.5f) : 0;
 				InWeights[CurrentVertexBufferCount].InfluenceBones[BlendIndex] = BlendIndex < NumBlendWeights ? SourceVertex->blendIndices[BlendIndex] : 0;
 
 				uint32 Weight = InWeights[CurrentVertexBufferCount].InfluenceWeights[BlendIndex];

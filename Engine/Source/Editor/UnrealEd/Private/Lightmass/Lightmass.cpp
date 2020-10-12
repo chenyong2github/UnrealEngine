@@ -260,7 +260,7 @@ void CopyLightProfile( const ULightComponent* In, Lightmass::FLightData& Out, TA
 
 					FFloat16 HalfValue = *(FFloat16*)&MipData[ (SourceY * (uint32)Source.GetSizeX() * 8) + (SourceX * 8) ];
 					float Value = HalfValue;
-					OutLightProfileTextureData[y * Width + x] = (uint8)(Value * 255.9999f);
+					OutLightProfileTextureData[y * Width + x] = (uint8)(Value * 255.f + 0.5f);
 				}
 			}
 		}
