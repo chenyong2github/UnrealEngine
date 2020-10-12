@@ -203,6 +203,9 @@ private:
 	EVisibility GetFixtureMatrixVisibility() const;
 	FText GetCellAttributesHeader() const;
 
+	/** Returns warning text if properties will not produce meaningful results for fixture matrices */
+	FText GetFixtureMatrixWarning() const;
+
 	FText GetCellChannelsStartChannel() const;
 
 private:

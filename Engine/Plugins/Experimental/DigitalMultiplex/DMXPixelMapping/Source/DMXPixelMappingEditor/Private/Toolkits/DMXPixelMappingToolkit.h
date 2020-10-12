@@ -12,13 +12,13 @@ class SDockableTab;
 class FTabManager;
 class SWidget;
 
-class SDMXPixelMappingPalatteView;
+class SDMXPixelMappingPaletteView;
 class SDMXPixelMappingHierarchyView;
 class SDMXPixelMappingDesignerView;
 class SDMXPixelMappingPreviewView;
 class SDMXPixelMappingDetailsView;
 
-class FDMXPixelMappingPalatteViewModel;
+class FDMXPixelMappingPaletteViewModel;
 
 class UDMXPixelMappingBaseComponent;
 class FDMXPixelMappingToolbar;
@@ -103,11 +103,11 @@ public:
 
 	const TSharedPtr<FUICommandList>& GetDesignerCommandList() const { return DesignerCommandList; }
 
-	const TSharedPtr<FDMXPixelMappingPalatteViewModel>& GetPalatteViewModel() const { return PalatteViewModel; }
+	const TSharedPtr<FDMXPixelMappingPaletteViewModel>& GetPaletteViewModel() const { return PaletteViewModel; }
 
 	const TSet<FDMXPixelMappingComponentReference>& GetSelectedComponents() const { return SelectedComponents; }
 
-	TSharedRef<SWidget> CreateOrGetView_PalatteView();
+	TSharedRef<SWidget> CreateOrGetView_PaletteView();
 
 	TSharedRef<SWidget> CreateOrGetView_HierarchyView();
 
@@ -156,7 +156,7 @@ private:
 
 	void InitializeInternal(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& InitToolkitHost, const FGuid& MessageLogGuid);
 
-	TSharedRef<SDockTab> SpawnTab_PalatteView(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_PaletteView(const FSpawnTabArgs& Args);
 
 	TSharedRef<SDockTab> SpawnTab_HierarchyView(const FSpawnTabArgs& Args);
 
@@ -182,7 +182,7 @@ private:
 	/** List of open tool panels; used to ensure only one exists at any one time */
 	TMap<FName, TWeakPtr<SDockableTab>> SpawnedToolPanels;
 
-	TSharedPtr<SDMXPixelMappingPalatteView> PalatteView;
+	TSharedPtr<SDMXPixelMappingPaletteView> PaletteView;
 
 	TSharedPtr<SDMXPixelMappingHierarchyView> HierarchyView;
 
@@ -192,7 +192,7 @@ private:
 
 	TSharedPtr<SDMXPixelMappingDetailsView> DetailsView;
 
-	TSharedPtr<FDMXPixelMappingPalatteViewModel> PalatteViewModel;
+	TSharedPtr<FDMXPixelMappingPaletteViewModel> PaletteViewModel;
 
 	FOnComponenetAddedOrDeletedDelegate OnComponenetAddedOrDeletedDelegate;
 
@@ -220,7 +220,7 @@ private:
 	static const uint8 RequestStopSendingMaxTicks;
 
 public:
-	static const FName PalatteViewTabID;
+	static const FName PaletteViewTabID;
 
 	static const FName HierarchyViewTabID;
 

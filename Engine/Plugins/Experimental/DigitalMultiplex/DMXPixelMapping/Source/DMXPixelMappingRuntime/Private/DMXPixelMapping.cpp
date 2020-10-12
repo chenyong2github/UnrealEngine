@@ -1,8 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DMXPixelMapping.h"
+
 #include "Components/DMXPixelMappingRootComponent.h"
 #include "Components/DMXPixelMappingOutputComponent.h"
+#include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
+#include "Components/DMXPixelMappingMatrixCellComponent.h"
+#include "Library/DMXEntityFixturePatch.h"
+
 #include "UObject/LinkerLoad.h"
 
 UDMXPixelMapping::~UDMXPixelMapping()
@@ -35,6 +40,32 @@ void UDMXPixelMapping::PreloadWithChildren()
 	});
 }
 
+void UDMXPixelMapping::DestroyInvalidComponents()
+{
+	TArray<UDMXPixelMappingBaseComponent*> CachedComponents;
+	ForEachComponent([&CachedComponents](UDMXPixelMappingBaseComponent* InComponent)
+		{
+			CachedComponents.Add(InComponent);
+		});
+
+	for (UDMXPixelMappingBaseComponent* Component : CachedComponents)
+	{
+		if (!Component->ValidateProperties())
+		{
+			TArray<UDMXPixelMappingBaseComponent*> CachedChildren = Component->Children;
+			for (UDMXPixelMappingBaseComponent* Child : CachedChildren)
+			{
+				Component->RemoveChild(Child);
+			}
+
+			if (Component->Parent)
+			{
+				Component->Parent->RemoveChild(Component);
+			}
+		}
+	}
+}
+
 void UDMXPixelMapping::CreateOrLoadObjects()
 {
 	// Create RootComponent if it doesn't exist.
@@ -45,6 +76,37 @@ void UDMXPixelMapping::CreateOrLoadObjects()
 
 		RootComponent = NewObject<UDMXPixelMappingRootComponent>(this, UDMXPixelMappingRootComponent::StaticClass(), UniqueName, RF_Transactional);
 	}
+}
+
+UDMXPixelMappingBaseComponent* UDMXPixelMapping::FindComponent(UDMXEntityFixturePatch* FixturePatch) const
+{
+	if (!FixturePatch || !FixturePatch->IsValidLowLevel())
+	{
+		return nullptr;
+	}
+
+	UDMXPixelMappingBaseComponent* Component = nullptr;
+
+	ForEachComponent([&Component, FixturePatch](UDMXPixelMappingBaseComponent* InComponent) {
+		if (UDMXPixelMappingFixtureGroupItemComponent* GroupItemComponent = Cast<UDMXPixelMappingFixtureGroupItemComponent>(InComponent))
+		{
+			if (GroupItemComponent->IsValidLowLevel() && GroupItemComponent->FixturePatchRef.GetFixturePatch() == FixturePatch)
+			{
+				Component = GroupItemComponent;
+				return;
+			}
+		}
+		else if (UDMXPixelMappingMatrixCellComponent* MatrixCellComponent = Cast<UDMXPixelMappingMatrixCellComponent>(InComponent))
+		{
+			if (MatrixCellComponent->IsValidLowLevel() && MatrixCellComponent->FixturePatchMatrixRef == FixturePatch)
+			{
+				Component = MatrixCellComponent;
+				return;
+			}
+		}
+	});
+
+	return Component;
 }
 
 UDMXPixelMappingBaseComponent* UDMXPixelMapping::FindComponent(const FName& InName) const
