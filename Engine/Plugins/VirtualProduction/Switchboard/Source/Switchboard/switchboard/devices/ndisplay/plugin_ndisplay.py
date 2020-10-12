@@ -208,20 +208,38 @@ class DevicenDisplay(DeviceUnreal):
         return "nDisplay"
 
     def generate_unreal_command_line(self, map_name=""):
+
         uproject = os.path.normpath(CONFIG.UPROJECT_PATH.get_value(self.name))
         additional_args = self.setting_command_line_arguments.get_value(self.name)
+
         cfg_file = self.path_to_config_on_host
+
         win_pos = self.setting_window_position.get_value()
         win_res = self.setting_window_resolution.get_value()
+
         render_mode = self.render_mode_cmdline_opts[self.setting_render_mode.get_value()]
         render_api = f"-{self.setting_render_api.get_value()}"
         use_all_cores = " -useallavailablecores" if self.setting_use_all_available_cores.get_value() else ""
         no_texture_streaming = " -notexturestreaming" if not self.setting_texture_streaming.get_value() else ""
 
-        args = f'"{uproject}" {additional_args} -game -messaging -dc_cluster -nosplash -fixedseed dc_cfg="{cfg_file}" {render_api} {render_mode}{use_all_cores}{no_texture_streaming} '
+        fixed_args = [
+            "-game",
+            "-messaging",
+            "-dc_cluster",
+            "-nosplash",
+            "-fixedseed",
+            "-NoVerifyGC",
+            #'ExecCmds="DisableAllScreenMessages"',
+        ]
+
+        args = f'"{uproject}" {additional_args} {" ".join(fixed_args)} dc_cfg="{cfg_file}" {render_api} {render_mode} {use_all_cores} {no_texture_streaming} '
+
+        # TODO: Properly handle fullscreen
         args += f'-windowed WinX={win_pos[0]} WinY={win_pos[1]} ResX={win_res[0]} ResY={win_res[1]} dc_node={self.name} Log={self.name}.log '
+
         if CONFIG.MUSERVER_AUTO_JOIN:
             args += f'-CONCERTAUTOCONNECT -CONCERTSERVER={CONFIG.MUSERVER_SERVER_NAME} -CONCERTSESSION={SETTINGS.MUSERVER_SESSION_NAME} -CONCERTDISPLAYNAME={self.name}'
+
         args += f'-LogCmds="LogDisplayClusterPlugin Log, LogDisplayClusterEngine Log, LogDisplayClusterConfig Log, LogDisplayClusterCluster Log, LogDisplayClusterGame Log, LogDisplayClusterGameMode Log, LogDisplayClusterInput Log, LogDisplayClusterInputVRPN Log, LogDisplayClusterNetwork Log, LogDisplayClusterNetworkMsg Log, LogDisplayClusterRender Log, LogDisplayClusterRenderSync Log, LogDisplayClusterBlueprint Log"'
 
         path_to_exe = self.generate_unreal_exe_path()
