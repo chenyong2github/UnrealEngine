@@ -127,8 +127,10 @@ namespace NetworkProfiler
 				FrameCounter++;
 			}
 
-			//NetworkChart.DataManipulator.FinancialFormula( FinancialFormula.MovingAverage, "30", SeriesType.GameSocketSendSizeSec, SeriesType.GameSocketSendSizeAvgSec );
-			NetworkChart.DataManipulator.FinancialFormula( FinancialFormula.MovingAverage, "30", SeriesType.OutgoingBandwidthSizeSec.ToString(), SeriesType.OutgoingBandwidthSizeAvgSec.ToString() );
+			string OutgoingBandwidthSizeSecAsString = SeriesType.OutgoingBandwidthSizeSec.ToString();
+
+			NetworkChart.DataManipulator.IsStartFromFirst = true;
+			NetworkChart.DataManipulator.FinancialFormula( FinancialFormula.MovingAverage, Math.Min(30, NetworkChart.Series[OutgoingBandwidthSizeSecAsString].Points.Count).ToString(), OutgoingBandwidthSizeSecAsString, SeriesType.OutgoingBandwidthSizeAvgSec.ToString() );
 
 			NetworkChart.ChartAreas["DefaultChartArea"].RecalculateAxesScale();
 
