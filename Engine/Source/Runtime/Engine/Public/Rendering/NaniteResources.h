@@ -116,6 +116,15 @@ struct FPackedHierarchyNode
 	} Misc[64];
 };
 
+struct FMaterialTriangle
+{
+	uint32 Index0;
+	uint32 Index1;
+	uint32 Index2;
+	uint32 MaterialIndex;
+	uint32 RangeCount;
+};
+
 FORCEINLINE uint32 GetBits(uint32 Value, uint32 NumBits, uint32 Offset)
 {
 	uint32 Mask = (1u << NumBits) - 1u;
