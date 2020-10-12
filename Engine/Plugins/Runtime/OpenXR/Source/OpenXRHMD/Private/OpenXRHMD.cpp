@@ -2030,7 +2030,7 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 				break;
 			}
 
-			if (SessionState.state != XR_SESSION_STATE_STOPPING && SessionState.state != XR_SESSION_STATE_EXITING)
+			if (SessionState.state != XR_SESSION_STATE_STOPPING && SessionState.state != XR_SESSION_STATE_EXITING && SessionState.state != XR_SESSION_STATE_LOSS_PENDING)
 			{
 				break;
 			}
