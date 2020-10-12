@@ -27,6 +27,8 @@ public:
 	virtual bool TestCanResetToBaseWithMessage(FText& OutCanResetToBaseMessage) const override;
 	virtual void ResetToBase() override;
 
+	FGuid GetEventScriptUsageId() const { return EventScriptUsageId; };
+
 protected:
 	virtual void FinalizeInternal() override;
 
@@ -48,8 +50,6 @@ private:
 
 	TWeakObjectPtr<UNiagaraEmitter> Emitter;
 
-	FNiagaraEventScriptProperties* LastUsedEventScriptProperties;
-
 	UPROPERTY()
 	UNiagaraStackObject* EmitterObject;
 };
@@ -68,13 +68,16 @@ public:
 		FRequiredEntryData InRequiredEntryData,
 		TSharedRef<FNiagaraScriptViewModel> InScriptViewModel,
 		ENiagaraScriptUsage InScriptUsage,
-		FGuid InScriptUsageId);
+		FGuid InScriptUsageId,
+		FGuid InEventSourceEmitterId);
 
 	void SetOnModifiedEventHandlers(FOnModifiedEventHandlers OnModifiedEventHandlers);
 
 	virtual bool SupportsDelete() const override { return true; }
 	virtual bool TestCanDeleteWithMessage(FText& OutCanDeleteMessage) const override;
 	virtual void Delete() override;
+
+	FGuid GetEventSourceEmitterId() const {return EventSourceEmitterId; };
 
 protected:
 	FOnModifiedEventHandlers OnModifiedEventHandlersDelegate;
@@ -86,6 +89,8 @@ private:
 	
 private:
 	mutable TOptional<bool> bHasBaseEventHandlerCache;
+
+	FGuid EventSourceEmitterId;
 
 	UPROPERTY()
 	UNiagaraStackEventHandlerPropertiesItem* EventHandlerProperties;
