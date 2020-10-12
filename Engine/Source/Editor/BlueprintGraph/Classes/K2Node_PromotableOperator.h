@@ -3,14 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "EdGraph/EdGraphPin.h"
+#include "K2Node_AddPinInterface.h"
 #include "K2Node_CallFunction.h"
 #include "K2Node_PromotableOperator.generated.h"
 
+class UEdGraphPin;
+
 /** The promotable operator node allows for pin types to be promoted to others, i.e. float to double */
 UCLASS(MinimalAPI)
-class UK2Node_PromotableOperator : public UK2Node_CallFunction
+class UK2Node_PromotableOperator : public UK2Node_CallFunction, public IK2Node_AddPinInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -29,11 +30,29 @@ public:
 	virtual bool IsConnectionDisallowed(const UEdGraphPin* MyPin, const UEdGraphPin* OtherPin, FString& OutReason) const override;
 	virtual void ReallocatePinsDuringReconstruction(TArray<UEdGraphPin*>& OldPins) override;
 	virtual void AutowireNewNode(UEdGraphPin* FromPin) override;
-	virtual bool IsActionFilteredOut(class FBlueprintActionFilter const& Filter) override;
 	// End of UK2Node interface
+
+	// IK2Node_AddPinInterface interface
+	virtual void AddInputPin() override;
+	virtual bool CanAddPin() const override;
+	virtual bool CanRemovePin(const UEdGraphPin* Pin) const override;
+	virtual void RemoveInputPin(UEdGraphPin* Pin) override;
+	// end IK2Node_AddPinInterface interface
 
 private:
 
+	/**
+	 * Add an additional pin to this node based on it's index. Will create a new wildcard pin
+	 * with the appropriate name and notify that this pin has changed
+	 */
+	UEdGraphPin* AddInputPinImpl(int32 PinIndex);
+
+	/** Returns true if this pin was added via the IK2Node_AddPinInterface interface */
+	bool IsAdditionalPin(const UEdGraphPin* Pin) const;
+		
+	/** Gets the additional pin that was created at this index */
+	UEdGraphPin* GetAdditionalPin(int32 PinIndex) const;
+		
 	/** Helper function to recombine all split pins that this node may have */
 	void RecombineAllSplitPins();
 
@@ -51,7 +70,9 @@ private:
 	* 
 	* @return	True if the intermediate connection was made successfully	
 	*/
-	bool CreateIntermediateCast(FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph, UEdGraphPin* InputPin, UEdGraphPin* OutputPin);
+	bool CreateIntermediateCast(UK2Node_CallFunction* SourceNode, FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph, UEdGraphPin* InputPin, UEdGraphPin* OutputPin);
+
+	UK2Node_CallFunction* CreateIntermediateNode(UK2Node_CallFunction* PreviousNode, const UFunction* const OpFunction, FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph);
 
 	/** Helper to make sure we have the most up to date operation name. Returns true upon success */
 	bool UpdateOpName();
@@ -81,6 +102,10 @@ private:
 	/** Array of functions that we could possibly convert this node to via the right-click context menu */
 	UPROPERTY(Transient)
 	TArray<UFunction*> PossibleConversions;
+
+	/** The current number of additional pins on this node */
+	UPROPERTY()
+	int32 NumAdditionalInputs;
 
 public:
 
