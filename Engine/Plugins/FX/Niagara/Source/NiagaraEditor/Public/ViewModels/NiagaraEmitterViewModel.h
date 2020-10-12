@@ -19,6 +19,7 @@ struct FNiagaraParameterStore;
 struct FEdGraphEditAction;
 class SWindow;
 class FNiagaraEmitterHandleViewModel;
+struct FNiagaraEventScriptProperties;
 
 /** The view model for the UNiagaraEmitter objects */
 class FNiagaraEmitterViewModel : public TSharedFromThis<FNiagaraEmitterViewModel>,  public TNiagaraViewModelManager<UNiagaraEmitter, FNiagaraEmitterViewModel>
@@ -102,6 +103,9 @@ public:
 
 	/** Gets editor specific data which is stored per emitter.  If this data hasn't been created then it will be created. */
 	UNiagaraEmitterEditorData& GetOrCreateEditorData();
+
+	/** Add an event script to the owned emitter. Sets the Usage, UsageID and Source of the EventScriptProperties. */
+	NIAGARAEDITOR_API void AddEventHandler(FNiagaraEventScriptProperties& EventScriptProperties, bool bResetGraphForOutput = false);
 
 	void Cleanup();
 
