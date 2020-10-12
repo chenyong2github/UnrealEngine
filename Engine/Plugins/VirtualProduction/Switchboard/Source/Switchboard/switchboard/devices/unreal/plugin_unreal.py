@@ -131,7 +131,9 @@ class DeviceUnreal(Device):
     def _request_project_changelist_number(self):
         client_name = CONFIG.SOURCE_CONTROL_WORKSPACE.get_value(self.name)
         p4_path = CONFIG.P4_PATH.get_value()
-        args = f'-F "%change%" -c {client_name} cstat {p4_path}/...#have'
+
+        formatstring = "%change%"
+        args = f'-F "{formatstring}" -c {client_name} cstat {p4_path}/...#have'
 
         program_name = "cstat"
         mid, msg = message_protocol.create_start_process_message("p4", args, program_name)
@@ -199,7 +201,7 @@ class DeviceUnreal(Device):
     def generate_unreal_command_line_args(self, map_name):
         command_line_args = f'{self.setting_command_line_arguments.get_value(self.name)}'
         if CONFIG.MUSERVER_AUTO_JOIN:
-            command_line_args += f' -CONCERTAUTOCONNECT -CONCERTSERVER={CONFIG.MUSERVER_SERVER_NAME} -CONCERTSESSION={SETTINGS.MUSERVER_SESSION_NAME} -CONCERTDISPLAYNAME={self.name}'
+            command_line_args += f' -CONCERTRETRYAUTOCONNECTONERROR -CONCERTAUTOCONNECT -CONCERTSERVER={CONFIG.MUSERVER_SERVER_NAME} -CONCERTSESSION={SETTINGS.MUSERVER_SESSION_NAME} -CONCERTDISPLAYNAME={self.name}'
         
         selected_roles = self.setting_roles.get_value()
         unsupported_roles = [role for role in selected_roles if role not in self.setting_roles.possible_values]
@@ -294,16 +296,20 @@ class DeviceUnreal(Device):
 
         elif program_name == "cstat":
 
-            # when not connected to p4, you get this message:
-            #  "Perforce client error: Connect to server failed; check $P4PORT. TCP connect to perforce:1666 failed. No such host is known."
-
             changelists = [line.strip() for line in output.split()]
 
-            if not changelists or ('Perforce client error:' in output):
+            try:
+                current_changelist = str(int(changelists[-1]))
+
+                # when not connected to p4, you get a message similar to:
+                #  "Perforce client error: Connect to server failed; check $P4PORT. TCP connect to perforce:1666 failed. No such host is known."
+                if 'Perforce client error:' in output:
+                    raise ValueError
+
+            except (ValueError,IndexError):
                 LOGGER.error(f"{self.name}: Could not retrieve changelists for project. Are the Source Control Settings correctly configured?")
                 return
 
-            current_changelist = changelists[-1]
             project_name = os.path.basename(os.path.dirname(CONFIG.UPROJECT_PATH.get_value(self.name)))
             LOGGER.info(f"{self.name}: Project {project_name} is on revision {current_changelist}")
             self.changelist = current_changelist
