@@ -20,6 +20,13 @@ FText FTableCellValueFormatter::FormatValue(const FTableColumn& Column, const FB
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+FText FTableCellValueFormatter::FormatValueForTooltip(const FTableColumn& Column, const FBaseTreeNode& Node) const
+{
+	return FormatValueForTooltip(Column.GetValue(Node));
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 FText FBoolValueFormatterAsTrueFalse::FormatValue(const TOptional<FTableCellValue>& InValue) const
 {
 	if (InValue.IsSet())
@@ -101,6 +108,8 @@ FText FFloatValueFormatterAsTimeAuto::FormatValue(const TOptional<FTableCellValu
 	}
 	return FText::GetEmpty();
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FText FFloatValueFormatterAsTimeAuto::FormatValueForTooltip(const TOptional<FTableCellValue>& InValue) const
 {

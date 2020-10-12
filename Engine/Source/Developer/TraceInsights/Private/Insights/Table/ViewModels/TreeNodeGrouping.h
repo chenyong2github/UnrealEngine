@@ -9,9 +9,12 @@
 // Insights
 #include "Insights/Table/ViewModels/BaseTreeNode.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
+#include "Insights/Table/ViewModels/TableTreeNode.h"
 
 namespace Insights
 {
+
+class FTable;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -26,8 +29,6 @@ public:
 	virtual const FSlateBrush* GetIcon() const = 0;
 
 	virtual FName GetColumnId() const = 0;
-
-	//virtual void CreateGrouping() = 0;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -56,6 +57,7 @@ public:
 	virtual FName GetColumnId() const override { return NAME_None; }
 
 	virtual FTreeNodeGroupInfo GetGroupForNode(const FBaseTreeNodePtr InNode) const { return { FName(), false }; }
+	virtual void GroupNodes(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, TWeakPtr<FTable> InParentTable) const;
 
 protected:
 	FText ShortName;
@@ -75,6 +77,7 @@ public:
 	virtual ~FTreeNodeGroupingFlat() {}
 
 	virtual FTreeNodeGroupInfo GetGroupForNode(const FBaseTreeNodePtr InNode) const override;
+	virtual void GroupNodes(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, TWeakPtr<FTable> InParentTable) const override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -18,12 +18,11 @@ struct FTableRowId
 {
 	static constexpr int32 InvalidRowIndex = -1;
 
-	FTableRowId(int32 InRowIndex) : RowIndex(InRowIndex), Flags(0) {}
+	FTableRowId(int32 InRowIndex) : RowIndex(InRowIndex) {}
 
 	bool HasValidIndex() const { return RowIndex >= 0; }
 
 	int32 RowIndex;
-	uint32 Flags;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -71,7 +70,7 @@ public:
 
 	virtual const FName& GetTypeName() const override { return TypeName; }
 
-	TWeakPtr<FTable> GetParentTable() { return ParentTable; }
+	const TWeakPtr<FTable>& GetParentTable() const { return ParentTable; }
 	FTableRowId GetRowId() const { return RowId; }
 	int32 GetRowIndex() const { return RowId.RowIndex; }
 

@@ -117,13 +117,13 @@ public:
 	}
 
 	/** Clears children. */
-	void ClearChildren()
+	void ClearChildren(int32 NewSize = 0)
 	{
 		for (FBaseTreeNodePtr& NodePtr : Children)
 		{
 			NodePtr->GroupPtr = nullptr;
 		}
-		Children.Reset();
+		Children.Reset(NewSize);
 	}
 
 	/** Adds specified child to the filtered children. */

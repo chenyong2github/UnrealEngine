@@ -63,7 +63,8 @@ public:
 	 */
 	void Construct(const FArguments& InArgs, TSharedPtr<Insights::FTable> InTablePtr);
 
-	TSharedPtr<Insights::FTable> GetTable() const { return Table; }
+	TSharedPtr<Insights::FTable>& GetTable() { return Table; }
+	const TSharedPtr<Insights::FTable>& GetTable() const { return Table; }
 
 	virtual void Reset();
 

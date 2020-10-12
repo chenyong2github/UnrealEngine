@@ -22,6 +22,42 @@ FTreeNodeGrouping::FTreeNodeGrouping(const FText& InShortName, const FText& InTi
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void FTreeNodeGrouping::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, TWeakPtr<FTable> InParentTable) const
+{
+	TMap<FName, FTableTreeNodePtr> GroupMap;
+
+	ParentGroup.ClearChildren();
+
+	for (FTableTreeNodePtr NodePtr : Nodes)
+	{
+		ensure(!NodePtr->IsGroup());
+
+		FTableTreeNodePtr GroupPtr = nullptr;
+
+		FTreeNodeGroupInfo GroupInfo = GetGroupForNode(NodePtr);
+		FTableTreeNodePtr* GroupPtrPtr = GroupMap.Find(GroupInfo.Name);
+		if (!GroupPtrPtr)
+		{
+			GroupPtr = MakeShared<FTableTreeNode>(GroupInfo.Name, InParentTable);
+
+			GroupMap.Add(GroupInfo.Name, GroupPtr);
+			ParentGroup.AddChildAndSetGroupPtr(GroupPtr);
+
+			GroupPtr->SetExpansion(GroupInfo.IsExpanded);
+		}
+		else
+		{
+			GroupPtr = *GroupPtrPtr;
+		}
+
+		GroupPtr->AddChildAndSetGroupPtr(NodePtr);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// FTreeNodeGroupingFlat
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 FTreeNodeGroupingFlat::FTreeNodeGroupingFlat()
 	: FTreeNodeGrouping(
 		LOCTEXT("Grouping_Flat_ShortName", "All"),
@@ -39,6 +75,25 @@ FTreeNodeGroupInfo FTreeNodeGroupingFlat::GetGroupForNode(const FBaseTreeNodePtr
 	return { FName(TEXT("All")), true };
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTreeNodeGroupingFlat::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, TWeakPtr<FTable> InParentTable) const
+{
+	ParentGroup.ClearChildren(1);
+
+	FTableTreeNodePtr GroupPtr = MakeShared<FTableTreeNode>(FName(TEXT("All")), InParentTable);
+	GroupPtr->SetExpansion(true);
+	ParentGroup.AddChildAndSetGroupPtr(GroupPtr);
+
+	GroupPtr->ClearChildren(Nodes.Num());
+	for (FTableTreeNodePtr NodePtr : Nodes)
+	{
+		GroupPtr->AddChildAndSetGroupPtr(NodePtr);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// FTreeNodeGroupingByUniqueValue
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FTreeNodeGroupingByUniqueValue::FTreeNodeGroupingByUniqueValue(TSharedRef<FTableColumn> InColumnRef)

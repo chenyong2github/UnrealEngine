@@ -20,6 +20,7 @@
 // Insights
 #include "Insights/Common/Stopwatch.h"
 #include "Insights/InsightsManager.h"
+#include "Insights/Log.h"
 #include "Insights/Table/ViewModels/Table.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/Table/ViewModels/TableTreeNode.h"
@@ -580,15 +581,28 @@ void STableTreeView::InsightsManager_OnSessionChanged()
 
 void STableTreeView::UpdateTree()
 {
+	FStopwatch Stopwatch;
+	Stopwatch.Start();
+
 	CreateGroups();
 	SortTreeNodes();
 	ApplyFiltering();
+
+	Stopwatch.Stop();
+	const double TotalTime = Stopwatch.GetAccumulatedTime();
+	if (TotalTime > 0.1)
+	{
+		UE_LOG(TraceInsights, Log, TEXT("[Tree - %s] Tree updated (grouping + sorting + filtering) in %.3fs."), *Table->GetDisplayName().ToString(), TotalTime);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STableTreeView::ApplyFiltering()
 {
+	FStopwatch Stopwatch;
+	Stopwatch.Start();
+
 	// Apply filter to all groups and its children.
 	ApplyFilteringForNode(Root);
 
@@ -638,6 +652,13 @@ void STableTreeView::ApplyFiltering()
 
 	// Request tree refresh
 	TreeView->RequestTreeRefresh();
+
+	Stopwatch.Stop();
+	const double TotalTime = Stopwatch.GetAccumulatedTime();
+	if (TotalTime > 0.1)
+	{
+		UE_LOG(TraceInsights, Log, TEXT("[Tree - %s] Filtering completed in %.3fs."), *Table->GetDisplayName().ToString(), TotalTime);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -832,7 +853,13 @@ bool STableTreeView::SearchBox_IsEnabled() const
 
 void STableTreeView::CreateGroups()
 {
+	FStopwatch Stopwatch;
+	Stopwatch.Start();
+
 	GroupNodesRec(TableTreeNodes, *Root, 0);
+
+	Stopwatch.Update();
+	const double Time1 = Stopwatch.GetAccumulatedTime();
 
 	ResetAggregatedValuesRec(*Root);
 	for (const TSharedRef<FTableColumn>& ColumnRef : Table->GetColumns())
@@ -856,6 +883,13 @@ void STableTreeView::CreateGroups()
 			}
 		}
 	}
+
+	Stopwatch.Stop();
+	const double TotalTime = Stopwatch.GetAccumulatedTime();
+	if (TotalTime > 0.1)
+	{
+		UE_LOG(TraceInsights, Log, TEXT("[Tree - %s] Grouping completed in %.3fs (%.3fs + %.3fs)."), *Table->GetDisplayName().ToString(), TotalTime, Time1, TotalTime - Time1);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -866,34 +900,13 @@ void STableTreeView::GroupNodesRec(const TArray<FTableTreeNodePtr>& Nodes, FTabl
 
 	FTreeNodeGrouping& Grouping = *CurrentGroupings[GroupingDepth];
 
-	TMap<FName, FTableTreeNodePtr> GroupMap;
+	Grouping.GroupNodes(Nodes, ParentGroup, Table);
 
-	ParentGroup.ClearChildren();
-
-	for (FTableTreeNodePtr NodePtr : Nodes)
+	for (FBaseTreeNodePtr GroupPtr : ParentGroup.GetChildren())
 	{
-		ensure(!NodePtr->IsGroup());
-
-		FTableTreeNodePtr GroupPtr = nullptr;
-
-		FTreeNodeGroupInfo GroupInfo = Grouping.GetGroupForNode(NodePtr);
-		FTableTreeNodePtr* GroupPtrPtr = GroupMap.Find(GroupInfo.Name);
-		if (!GroupPtrPtr)
-		{
-			GroupPtr = MakeShared<FTableTreeNode>(GroupInfo.Name, Table);
-
-			GroupMap.Add(GroupInfo.Name, GroupPtr);
-			ParentGroup.AddChildAndSetGroupPtr(GroupPtr);
-
-			GroupPtr->SetExpansion(GroupInfo.IsExpanded);
-			TreeView->SetItemExpansion(GroupPtr, GroupInfo.IsExpanded);
-		}
-		else
-		{
-			GroupPtr = *GroupPtrPtr;
-		}
-
-		GroupPtr->AddChildAndSetGroupPtr(NodePtr);
+		ensure(GroupPtr->IsGroup());
+		FTableTreeNodePtr TableTreeGroupPtr = StaticCastSharedPtr<FTableTreeNode>(GroupPtr);
+		TreeView->SetItemExpansion(TableTreeGroupPtr, TableTreeGroupPtr->IsExpanded());
 	}
 
 	if (GroupingDepth < CurrentGroupings.Num() - 1)
@@ -1538,7 +1551,17 @@ void STableTreeView::SortTreeNodes()
 {
 	if (CurrentSorter.IsValid())
 	{
+		FStopwatch Stopwatch;
+		Stopwatch.Start();
+
 		SortTreeNodesRec(*Root, *CurrentSorter);
+
+		Stopwatch.Stop();
+		const double TotalTime = Stopwatch.GetAccumulatedTime();
+		if (TotalTime > 0.1)
+		{
+			UE_LOG(TraceInsights, Log, TEXT("[Tree - %s] Sorting completed in %.3fs."), *Table->GetDisplayName().ToString(), TotalTime);
+		}
 	}
 }
 
