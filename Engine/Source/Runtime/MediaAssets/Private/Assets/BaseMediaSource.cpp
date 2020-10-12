@@ -31,6 +31,17 @@ void UBaseMediaSource::GetAssetRegistryTagMetadata(TMap<FName, FAssetRegistryTag
 }
 #endif
 
+void UBaseMediaSource::PreSave(const class ITargetPlatform* TargetPlatform)
+{
+#if WITH_EDITORONLY_DATA
+	if (TargetPlatform)
+	{
+		// Make sure we setup the player name according to the currently selected platform on saves
+		const FName* PlatformPlayerName = PlatformPlayerNames.Find(TargetPlatform->IniPlatformName());
+		PlayerName = (PlatformPlayerName != nullptr) ? *PlatformPlayerName : NAME_None;
+	}
+#endif
+}
 
 void UBaseMediaSource::Serialize(FArchive& Ar)
 {
@@ -61,14 +72,6 @@ void UBaseMediaSource::Serialize(FArchive& Ar)
 		if (Ar.IsFilterEditorOnly())
 		{
 			// No editor data is around
-
-			// Make sure we setup the player name according to the currently selected platform on saves
-			if (Ar.IsSaving() && (Ar.CookingTarget() != nullptr))
-			{
-				const FName* PlatformPlayerName = PlatformPlayerNames.Find(Ar.CookingTarget()->IniPlatformName());
-				PlayerName = (PlatformPlayerName != nullptr) ? *PlatformPlayerName : NAME_None;
-			}
-
 			Ar << PlayerName;
 		}
 		else
