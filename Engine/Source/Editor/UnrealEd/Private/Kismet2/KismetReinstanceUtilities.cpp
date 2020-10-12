@@ -2399,15 +2399,8 @@ void FBlueprintCompileReinstancer::CopyPropertiesForUnrelatedObjects(UObject* Ol
 	InstancedPropertyUtils::FArchiveInstancedSubObjCollector  InstancedSubObjCollector(OldObject, InstancedPropertyMap);
 
 	UEngine::FCopyPropertiesForUnrelatedObjectsParams Params;
-	Params.bAggressiveDefaultSubobjectReplacement = false;
-	
-	const bool bIsCopyFromCDO = OldObject->HasAnyFlags(RF_ClassDefaultObject);
-	const bool bIsReparentingCDO = bIsCopyFromCDO && (OldObject->GetClass()->GetSuperStruct() != NewObject->GetClass()->GetSuperStruct());
-
-	// Enable delta serialization if we are reparenting an object to enable transient properties to be 
-	// copied across to the new CDO. Only do enable this for reparenting because enabling during a normal 
-	// BP compile could cause instability
-	Params.bDoDelta = !bIsCopyFromCDO || bIsReparentingCDO;
+	Params.bAggressiveDefaultSubobjectReplacement = false;//true;
+	Params.bDoDelta = !OldObject->HasAnyFlags(RF_ClassDefaultObject);
 	Params.bCopyDeprecatedProperties = true;
 	Params.bSkipCompilerGeneratedDefaults = true;
 	Params.bClearReferences = bClearExternalReferences;
