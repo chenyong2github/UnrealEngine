@@ -254,9 +254,6 @@ public:
 		}
 	}
 
-	void BeginRenderingPrePass(FRHICommandList& RHICmdList, bool bPerformClear, bool bStencilClear = true);
-	void FinishRenderingPrePass(FRHICommandListImmediate& RHICmdList);
-
 	void SetDefaultColorClear(const FClearValueBinding ColorClear)
 	{
 		DefaultColorClear = ColorClear;

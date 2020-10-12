@@ -532,15 +532,21 @@ public:
 
 	~FRDGParallelCommandListSet() override
 	{
-		Dispatch();
+		Dispatch(bHighPriority);
 	}
 
 	void SetStateOnCommandList(FRHICommandList& RHICmdList) override;
+
+	void SetHighPriority()
+	{
+		bHighPriority = true;
+	}
 
 private:
 	const FSceneRenderer& SceneRenderer;
 	FParallelCommandListBindings Bindings;
 	float ViewportScale;
+	bool bHighPriority = false;
 };
 
 enum EVolumeUpdateType

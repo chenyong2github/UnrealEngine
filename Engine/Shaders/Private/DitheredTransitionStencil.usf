@@ -25,10 +25,8 @@ half GetDitherValue(float2 InPosition)
 	return (RetVal - 0.001f);
 }
 
-void Main(
-	FScreenVertexOutput Interpolators)
+void Main(float4 SvPosition : SV_POSITION)
 {
-	float4 SvPosition = Interpolators.Position;
 	if (abs(DitheredTransitionFactor) > 0.001f)
 	{
 		clip(GetDitherValue(SvPosition.xy));

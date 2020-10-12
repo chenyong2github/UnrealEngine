@@ -162,10 +162,7 @@ class FDeferredShadingSceneRenderer : public FSceneRenderer
 {
 public:
 	/** Defines which objects we want to render in the EarlyZPass. */
-	EDepthDrawingMode EarlyZPassMode;
-	bool bEarlyZPassMovable;
-	bool bDitheredLODTransitionsUseStencil;
-	int32 StencilLODMode = 0;
+	FDepthPassInfo DepthPass;
 	
 	const FRHITransition* TranslucencyLightingVolumeClearEndTransition = nullptr;
 
@@ -403,31 +400,10 @@ private:
 
 	void ComputeLumenTranslucencyGIVolume(FRDGBuilder& GraphBuilder, FLumenCardTracingInputs& TracingInputs, FGlobalShaderMap* GlobalShaderMap);
 
-		
 	void CreateIndirectCapsuleShadows();
 
-	/**
-	* Setup the prepass. This is split out so that in parallel we can do the fx prerender after we start the parallel tasks
-	* @return true if the depth was cleared
-	*/
-	bool PreRenderPrePass(FRHICommandListImmediate& RHICmdList);
-
-	void PreRenderDitherFill(FRHIAsyncComputeCommandListImmediate& RHICmdList, FSceneRenderTargets& SceneContext, FRHIUnorderedAccessView* StencilTextureUAV);
-	void PreRenderDitherFill(FRHICommandListImmediate& RHICmdList, FSceneRenderTargets& SceneContext, FRHIUnorderedAccessView* StencilTextureUAV);
-
-	void RenderPrePassEditorPrimitives(FRHICommandList& RHICmdList, const FViewInfo& View, const FMeshPassProcessorRenderState& DrawRenderState, EDepthDrawingMode DepthDrawingMode, bool bRespectUseAsOccluderFlag);
-
-	/**
-	 * Renders the scene's prepass and occlusion queries.
-	 * @return true if the depth was cleared
-	 */
-	bool RenderPrePass(FRHICommandListImmediate& RHICmdList, TFunctionRef<void()> AfterTasksAreStarted);
-
-	/**
-	 * Renders the active HMD's hidden area mask as a depth prepass, if available.
-	 * @return true if depth is cleared
-	 */
-	bool RenderPrePassHMD(FRHICommandListImmediate& RHICmdList);
+	void RenderPrePass(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture);
+	void RenderPrePassHMD(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture);
 
 	void RenderFog(
 		FRDGBuilder& GraphBuilder,

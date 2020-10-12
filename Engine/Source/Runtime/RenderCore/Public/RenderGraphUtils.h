@@ -478,6 +478,13 @@ RENDERCORE_API void AddClearDepthStencilPass(
 	bool bClearStencil,
 	uint8 Stencil);
 
+/** Adds a render graph pass to clear a depth stencil target to its optimized clear value using a raster pass. */
+RENDERCORE_API void AddClearDepthStencilPass(
+	FRDGBuilder& GraphBuilder,
+	FRDGTextureRef Texture,
+	ERenderTargetLoadAction DepthLoadAction = ERenderTargetLoadAction::EClear,
+	ERenderTargetLoadAction StencilLoadAction = ERenderTargetLoadAction::EClear);
+
 /** Adds a render graph pass to clear the stencil portion of a depth / stencil target to its fast clear value. */
 RENDERCORE_API void AddClearStencilPass(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture);
 

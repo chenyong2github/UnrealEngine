@@ -1220,48 +1220,6 @@ void FSceneRenderTargets::AdjustGBufferRefCount(FRHICommandList& RHICmdList, int
 	}	
 }
 
-void FSceneRenderTargets::BeginRenderingPrePass(FRHICommandList& RHICmdList, bool bPerformClear, bool bStencilClear)
-{
-	check(RHICmdList.IsOutsideRenderPass());
-
-	SCOPED_DRAW_EVENT(RHICmdList, BeginRenderingPrePass);
-
-	FTexture2DRHIRef DepthTarget = GetSceneDepthSurface();
-
-	RHICmdList.Transition(FRHITransitionInfo(DepthTarget, ERHIAccess::Unknown, ERHIAccess::DSVWrite | ERHIAccess::DSVRead));
-	
-	// No color target bound for the prepass.
-	FRHIRenderPassInfo RPInfo;
-	RPInfo.DepthStencilRenderTarget.DepthStencilTarget = DepthTarget;
-	RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthWrite_StencilWrite;
-	
-	if (bPerformClear)
-	{				
-		// Clear the depth buffer.
-		// Note, this is a reversed Z depth surface, so 0.0f is the far plane.
-		ERenderTargetActions StencilAction = bStencilClear ? ERenderTargetActions::Clear_Store : ERenderTargetActions::Load_Store;
-		RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::Clear_Store, StencilAction);
-	}
-	else
-	{
-		// Set the scene depth surface and a DUMMY buffer as color buffer
-		// (as long as it's the same dimension as the depth buffer),	
-		RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::Load_Store, ERenderTargetActions::Load_Store);
-	}
-		
-	RHICmdList.BeginRenderPass(RPInfo, TEXT("BeginRenderingPrePass"));
-}
-
-void FSceneRenderTargets::FinishRenderingPrePass(FRHICommandListImmediate& RHICmdList)
-{
-	check(RHICmdList.IsInsideRenderPass());
-
-	SCOPED_DRAW_EVENT(RHICmdList, FinishRenderingPrePass);
-	RHICmdList.EndRenderPass();
-
-	GVisualizeTexture.SetCheckPoint(RHICmdList, SceneDepthZ);
-}
-
 void FSceneRenderTargets::CleanUpEditorPrimitiveTargets()
 {
 	EditorPrimitivesDepth.SafeRelease();

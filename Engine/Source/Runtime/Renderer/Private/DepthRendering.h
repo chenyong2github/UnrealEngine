@@ -33,6 +33,28 @@ enum EDepthDrawingMode
 
 extern const TCHAR* GetDepthDrawingModeString(EDepthDrawingMode Mode);
 
+struct FDepthPassInfo
+{
+	bool IsComputeStencilDitherEnabled() const
+	{
+		return StencilDitherPassFlags != ERDGPassFlags::Raster && bDitheredLODTransitionsUseStencil;
+	}
+
+	bool IsRasterStencilDitherEnabled() const
+	{
+		return StencilDitherPassFlags == ERDGPassFlags::Raster && bDitheredLODTransitionsUseStencil;
+	}
+
+	EDepthDrawingMode EarlyZPassMode = DDM_None;
+	bool bEarlyZPassMovable = false;
+	bool bDitheredLODTransitionsUseStencil = false;
+	ERDGPassFlags StencilDitherPassFlags = ERDGPassFlags::Raster;
+};
+
+extern FDepthPassInfo GetDepthPassInfo(const FScene* Scene);
+
+void AddDitheredStencilFillPass(FRDGBuilder& GraphBuilder, TConstArrayView<FViewInfo> Views, FRDGTextureRef DepthTexture, const FDepthPassInfo& DepthPass);
+
 class FDepthOnlyShaderElementData : public FMeshMaterialShaderElementData
 {
 public:

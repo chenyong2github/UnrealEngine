@@ -4410,7 +4410,7 @@ void FDeferredShadingSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmed
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		FViewInfo& View = Views[ViewIndex];
-		View.bAllowStencilDither = bDitheredLODTransitionsUseStencil;
+		View.bAllowStencilDither = DepthPass.bDitheredLODTransitionsUseStencil;
 	}
 
 	FSceneRenderer::PreVisibilityFrameSetup(RHICmdList);

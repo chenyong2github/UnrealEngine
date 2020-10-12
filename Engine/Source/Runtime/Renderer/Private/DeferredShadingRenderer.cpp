@@ -60,23 +60,6 @@
 extern int32 GNaniteDebugFlags;
 extern int32 GNaniteShowStats;
 
-static TAutoConsoleVariable<int32> CVarStencilForLODDither(
-	TEXT("r.StencilForLODDither"),
-	0,
-	TEXT("Whether to use stencil tests in the prepass, and depth-equal tests in the base pass to implement LOD dithering.\n")
-	TEXT("If disabled, LOD dithering will be done through clip() instructions in the prepass and base pass, which disables EarlyZ.\n")
-	TEXT("Forces a full prepass when enabled."),
-	ECVF_RenderThreadSafe | ECVF_ReadOnly);
-
-static TAutoConsoleVariable<int32> CVarStencilLODDitherMode(
-	TEXT("r.StencilLODMode"),
-	2,
-	TEXT("Specifies the dither LOD stencil mode.\n")
-	TEXT(" 0: Graphics pass.\n")
-	TEXT(" 1: Compute pass (on supported platforms).\n")
-	TEXT(" 2: Compute async pass (on supported platforms)."),
-	ECVF_RenderThreadSafe);
-
 TAutoConsoleVariable<int32> CVarCustomDepthOrder(
 	TEXT("r.CustomDepth.Order"),
 	1,	
@@ -299,13 +282,9 @@ const TCHAR* GetDepthPassReason(bool bDitheredLODTransitionsUseStencil, EShaderP
 
 FDeferredShadingSceneRenderer::FDeferredShadingSceneRenderer(const FSceneViewFamily* InViewFamily,FHitProxyConsumer* HitProxyConsumer)
 	: FSceneRenderer(InViewFamily, HitProxyConsumer)
-	, EarlyZPassMode(Scene ? Scene->EarlyZPassMode : DDM_None)
-	, bEarlyZPassMovable(Scene ? Scene->bEarlyZPassMovable : false)
+	, DepthPass(GetDepthPassInfo(Scene))
 	, bAreLightsInLightGrid(false)
-{
-	static const auto StencilLODDitherCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.StencilForLODDither"));
-	bDitheredLODTransitionsUseStencil = StencilLODDitherCVar->GetValueOnAnyThread() != 0;
-}
+{}
 
 /** 
 * Renders the view family. 
@@ -344,7 +323,7 @@ TGlobalResource<FGlobalDynamicReadBuffer> FDeferredShadingSceneRenderer::Dynamic
 static FORCEINLINE bool NeedsPrePass(const FDeferredShadingSceneRenderer* Renderer)
 {
 	return (RHIHasTiledGPU(Renderer->ViewFamily.GetShaderPlatform()) == false) && 
-		(Renderer->EarlyZPassMode != DDM_None || Renderer->bEarlyZPassMovable != 0);
+		(Renderer->DepthPass.EarlyZPassMode != DDM_None || Renderer->DepthPass.bEarlyZPassMovable != 0);
 }
 
 bool FDeferredShadingSceneRenderer::RenderHzb(
@@ -1512,7 +1491,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		&& !ViewFamily.EngineShowFlags.LightMapDensity;
 
 	// Use read-only depth in the base pass if we have a full depth prepass.
-	const bool bAllowReadOnlyDepthBasePass = EarlyZPassMode == DDM_AllOpaque
+	const bool bAllowReadOnlyDepthBasePass = DepthPass.EarlyZPassMode == DDM_AllOpaque
 		&& !ViewFamily.EngineShowFlags.ShaderComplexity
 		&& !ViewFamily.UseDebugViewPS()
 		&& !ViewFamily.EngineShowFlags.Wireframe
@@ -1631,6 +1610,14 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		}
 	}
 
+	FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("DeferredShadingRenderer_Render(ViewFamily=%s)", ViewFamily.bResolveScene ? TEXT("Primary") : TEXT("Auxiliary")));
+
+	const FIntPoint SceneTextureExtent = SceneContext.GetBufferSizeXY();
+
+	FRDGTextureMSAA SceneDepthTexture = RegisterExternalTextureMSAA(GraphBuilder, SceneContext.SceneDepthZ);
+	FRDGTextureRef SmallDepthTexture = GraphBuilder.RegisterExternalTexture(SceneContext.SmallDepthZ, ERenderTargetTexture::Targetable);
+	FRDGTextureSRVRef SceneStencilTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateWithPixelFormat(SceneDepthTexture.Target, PF_X24_G8));
+
 	const bool bUseGBuffer = IsUsingGBuffers(ShaderPlatform);
 	bool bCanOverlayRayTracingOutput = CanOverlayRayTracingOutput(Views[0]);// #dxr_todo: UE-72557 multi-view case
 	
@@ -1681,6 +1668,8 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	// Dynamic vertex and index buffers need to be committed before rendering.
 	GEngine->GetPreRenderDelegate().Broadcast();
+
+	AddPass(GraphBuilder, [this, bDoInitViewAftersPrepass](FRHICommandList&)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FGlobalDynamicVertexBuffer_Commit);
 		DynamicIndexBufferForInitViews.Commit();
@@ -1693,116 +1682,36 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			DynamicIndexBufferForInitShadows.Commit();
 			DynamicReadBufferForInitShadows.Commit();
 		}
-	}
+	});
 
-	StencilLODMode = CVarStencilLODDitherMode.GetValueOnRenderThread();
-	if (!GRHISupportsDepthUAV)
+	if (DepthPass.IsComputeStencilDitherEnabled())
 	{
-		// RHI doesn't support depth/stencil UAVs - enforce graphics path
-		StencilLODMode = 0;
-	}
-	else if (StencilLODMode == 2 && !GSupportsEfficientAsyncCompute)
-	{
-		// Async compute is not supported, fall back to compute path (on graphics queue)
-		StencilLODMode = 1;
-	}
-	else if (IsHMDHiddenAreaMaskActive())
-	{
-		// Unsupported mode for compute path - enforce graphics path on VR
-		StencilLODMode = 0;
-	}
-
-	const bool bStencilLODCompute = (StencilLODMode == 1 || StencilLODMode == 2);
-	const bool bStencilLODComputeAsync = StencilLODMode == 2;
-
-	const FRHITransition* AsyncDitherLODEndTransition = nullptr;
-	if (bStencilLODCompute && bDitheredLODTransitionsUseStencil)
-	{
-		// Either compute pass will happen prior to the prepass, and the
-		// stencil clear will be skipped there.
-		FUnorderedAccessViewRHIRef StencilTextureUAV = RHICreateUnorderedAccessViewStencil(SceneContext.GetSceneDepthSurface(), 0 /* Mip Level */);
-
-		FRHITransitionInfo StencilUAVTransition(StencilTextureUAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier);
-
-		if (bStencilLODComputeAsync)
-		{
-			const FRHITransition* GFxToAsyncTransition = RHICreateTransition(ERHIPipeline::Graphics, ERHIPipeline::AsyncCompute, ERHICreateTransitionFlags::None, MakeArrayView(&StencilUAVTransition, 1));
-			AsyncDitherLODEndTransition = RHICreateTransition(ERHIPipeline::AsyncCompute, ERHIPipeline::Graphics, ERHICreateTransitionFlags::None, MakeArrayView(&StencilUAVTransition, 1));
-
-			RHICmdList.BeginTransition(GFxToAsyncTransition);
-
-			// Wait for the gfx transition to finish
-			FRHIAsyncComputeCommandListImmediate& RHICmdListComputeImmediate = FRHICommandListExecutor::GetImmediateAsyncComputeCommandList();
-			SCOPED_COMPUTE_EVENT(RHICmdListComputeImmediate, AsyncSSAO);
-			RHICmdListComputeImmediate.EndTransition(GFxToAsyncTransition);
-			
-			PreRenderDitherFill(RHICmdListComputeImmediate, SceneContext, StencilTextureUAV);
-
-			RHICmdListComputeImmediate.BeginTransition(AsyncDitherLODEndTransition);
-			FRHIAsyncComputeCommandListImmediate::ImmediateDispatch(RHICmdListComputeImmediate);
-		}
-		else
-		{
-			// Transition without pipeline crossing
-			RHICmdList.Transition(StencilUAVTransition);
-			PreRenderDitherFill(RHICmdList, SceneContext, StencilTextureUAV);
-		}
+		AddDitheredStencilFillPass(GraphBuilder, Views, SceneDepthTexture.Target, DepthPass);
 	}
 
 	// Notify the FX system that the scene is about to be rendered.
 	if (FXSystem && Views.IsValidIndex(0))
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FXSystem_PreRender);
-		RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_FXPreRender));
-		FXSystem->PreRender(RHICmdList, Views[0].ViewUniformBuffer, &Views[0].GlobalDistanceFieldInfo.ParameterData, Views[0].AllowGPUParticleUpdate());
-		if (FGPUSortManager* GPUSortManager = FXSystem->GetGPUSortManager())
+		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_FXPreRender));
+		AddPass(GraphBuilder, [this](FRHICommandListImmediate& RHICmdList)
 		{
-			GPUSortManager->OnPreRender(RHICmdList);
-		}
-	}
-
-	if (AsyncDitherLODEndTransition)
-	{
-		RHICmdList.EndTransition(AsyncDitherLODEndTransition);
-	}
-
-	bool bDidAfterTaskWork = false;
-	auto AfterTasksAreStarted = [&bDidAfterTaskWork, bDoInitViewAftersPrepass, this, &RHICmdList, &ILCTaskData]()
-	{
-		if (!bDidAfterTaskWork)
-		{
-			QUICK_SCOPE_CYCLE_COUNTER(STAT_AfterPrepassTasksWork);
-			bDidAfterTaskWork = true; // only do this once
-			if (bDoInitViewAftersPrepass)
+			FXSystem->PreRender(RHICmdList, Views[0].ViewUniformBuffer, &Views[0].GlobalDistanceFieldInfo.ParameterData, Views[0].AllowGPUParticleUpdate());
+			if (FGPUSortManager* GPUSortManager = FXSystem->GetGPUSortManager())
 			{
-				{
-					SCOPED_GPU_STAT(RHICmdList, VisibilityCommands);
-					InitViewsPossiblyAfterPrepass(RHICmdList, ILCTaskData);
-				}
-				
-				{
-					SCOPED_GPU_STAT(RHICmdList, GPUSceneUpdate);
-					PrepareDistanceFieldScene(RHICmdList, false);
-				}
-
-				{
-					SCOPED_GPU_STAT(RHICmdList, UploadDynamicBuffers);
-					SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FGlobalDynamicVertexBuffer_Commit);
-					DynamicVertexBufferForInitShadows.Commit();
-					DynamicIndexBufferForInitShadows.Commit();
-					DynamicReadBufferForInitShadows.Commit();
-				}
-
-				ServiceLocalQueue();
+				GPUSortManager->OnPreRender(RHICmdList);
 			}
-		}
-	};
+		});
+	}
 
-	RunGPUSkinCacheTransition(RHICmdList, Scene, EGPUSkinCacheTransition::Renderer);
+	AddPass(GraphBuilder, [this](FRHICommandList& RHICmdList)
+	{
+		RunGPUSkinCacheTransition(RHICmdList, Scene, EGPUSkinCacheTransition::Renderer);
+	});
 
 	FHairStrandsBookmarkParameters HairStrandsBookmarkParameters;
+
 	{
-		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("HairStrandsCullingAndInterpolation(ViewFamily=%s)", ViewFamily.bResolveScene ? TEXT("Primary") : TEXT("Auxiliary")));
 		if (IsHairStrandsEnabled(EHairStrandsShaderType::All, Scene->GetShaderPlatform()))
 		{
 			HairStrandsBookmarkParameters = CreateHairStrandsBookmarkParameters(Views[0]);
@@ -1826,55 +1735,83 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 			RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessStrandsInterpolation, HairStrandsBookmarkParameters);
 		}
-		GraphBuilder.Execute();
 	}
-
-	checkSlow(RHICmdList.IsOutsideRenderPass());
 
 	if (bNaniteEnabled)
 	{
 		Nanite::ListStatFilters(this);
-		Nanite::GStreamingManager.EndAsyncUpdate(RHICmdList);	// Must happen before any Nanite rendering in the frame
+
+		AddPass(GraphBuilder, [](FRHICommandListImmediate& RHICmdList)
+		{
+			// Must happen before any Nanite rendering in the frame
+			Nanite::GStreamingManager.EndAsyncUpdate(RHICmdList); 
+		});
 	}
 
-	// The Z-prepass
+	{
+		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_PrePass));
 
-	// Draw the scene pre-pass / early z pass, populating the scene depth buffer and HiZ
-	GRenderTargetPool.AddPhaseEvent(TEXT("EarlyZPass"));
-	bool bDepthWasCleared = false;
-	if (bNeedsPrePass)
-	{
-		bDepthWasCleared = RenderPrePass(RHICmdList, AfterTasksAreStarted);
+		// Both compute approaches run earlier, so skip clearing stencil here, just load existing.
+		const ERenderTargetLoadAction StencilLoadAction = DepthPass.IsComputeStencilDitherEnabled()
+			? ERenderTargetLoadAction::ELoad
+			: ERenderTargetLoadAction::EClear;
+
+		const ERenderTargetLoadAction DepthLoadAction = ERenderTargetLoadAction::EClear;
+		AddClearDepthStencilPass(GraphBuilder, SceneDepthTexture.Target, DepthLoadAction, StencilLoadAction);
+
+		// Draw the scene pre-pass / early z pass, populating the scene depth buffer and HiZ
+		if (bNeedsPrePass)
+		{
+			RenderPrePass(GraphBuilder, SceneDepthTexture.Target);
+		}
+		else
+		{
+			// We didn't do the prepass, but we still want the HMD mask if there is one
+			RenderPrePassHMD(GraphBuilder, SceneDepthTexture.Target);
+		}
+		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_AfterPrePass));
+		AddServiceLocalQueuePass(GraphBuilder);
+
+		if (bDoInitViewAftersPrepass)
+		{
+			{
+				RDG_GPU_STAT_SCOPE(GraphBuilder, VisibilityCommands);
+				AddPass(GraphBuilder, [this, &ILCTaskData](FRHICommandListImmediate& RHICmdList)
+				{
+					InitViewsPossiblyAfterPrepass(RHICmdList, ILCTaskData);
+				});
+			}
+
+			{
+				RDG_GPU_STAT_SCOPE(GraphBuilder, GPUSceneUpdate);
+				AddPass(GraphBuilder, [this](FRHICommandListImmediate& RHICmdList)
+				{
+					PrepareDistanceFieldScene(RHICmdList, false);
+				});
+			}
+
+			{
+				RDG_GPU_STAT_SCOPE(GraphBuilder, UploadDynamicBuffers);
+				AddPass(GraphBuilder, [this](FRHICommandList&)
+				{
+					SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FGlobalDynamicVertexBuffer_Commit);
+					DynamicVertexBufferForInitShadows.Commit();
+					DynamicIndexBufferForInitShadows.Commit();
+					DynamicReadBufferForInitShadows.Commit();
+				});
+			}
+
+			AddServiceLocalQueuePass(GraphBuilder);
+		}
 	}
-	else
-	{
-		// we didn't do the prepass, but we still want the HMD mask if there is one
-		AfterTasksAreStarted();
-		RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_PrePass));
-		bDepthWasCleared = RenderPrePassHMD(RHICmdList);
-	}
-	check(bDidAfterTaskWork);
-	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_AfterPrePass));
-	ServiceLocalQueue();
 
 #if RHI_RAYTRACING
-	// Must be done after FGlobalDynamicVertexBuffer::Get().Commit() for dynamic geometries to be updated
-	DispatchRayTracingWorldUpdates(RHICmdList);
+	AddPass(GraphBuilder, [this](FRHICommandListImmediate& RHICmdList)
+	{
+		// Must be done after FGlobalDynamicVertexBuffer::Get().Commit() for dynamic geometries to be updated
+		DispatchRayTracingWorldUpdates(RHICmdList);
+	});
 #endif
-
-	// Z-Prepass End
-
-
-	FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("DeferredShadingRenderer_Render(ViewFamily=%s)", ViewFamily.bResolveScene ? TEXT("Primary") : TEXT("Auxiliary")));
-
-	const FIntPoint SceneTextureExtent = SceneContext.GetBufferSizeXY();
-
-	FRDGTextureMSAA SceneDepthTexture = RegisterExternalTextureMSAA(GraphBuilder, SceneContext.SceneDepthZ);
-	FRDGTextureRef SmallDepthTexture = GraphBuilder.RegisterExternalTexture(SceneContext.SmallDepthZ, ERenderTargetTexture::Targetable);
-	FRDGTextureSRVRef SceneStencilTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateWithPixelFormat(SceneDepthTexture.Target, PF_X24_G8));
-
-	ESceneTextureSetupMode SceneTexturesSetupMode = ESceneTextureSetupMode::SceneDepth;
-	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, FeatureLevel, SceneTexturesSetupMode);
 
 	TArray<Nanite::FRasterResults, TInlineAllocator<2>> NaniteRasterResults;
 	if (bNaniteEnabled && Views.Num() > 0)
@@ -1908,7 +1845,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 				Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(
 					GraphBuilder,
 					*Scene,
-					EarlyZPassMode != DDM_AllOpaque ? View.PrevViewInfo.NaniteHZB : View.PrevViewInfo.HZB,
+					DepthPass.EarlyZPassMode != DDM_AllOpaque ? View.PrevViewInfo.NaniteHZB : View.PrevViewInfo.HZB,
 					View.PrevViewInfo.ViewRect,
 					bTwoPassOcclusion,
 					bUpdateStreaming,
@@ -1932,7 +1869,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 					bExtractStats
 				);
 
-				if( EarlyZPassMode != DDM_AllOpaque && bTwoPassOcclusion && View.ViewState )
+				if (DepthPass.EarlyZPassMode != DDM_AllOpaque && bTwoPassOcclusion && View.ViewState)
 				{
 					// Won't have a complete SceneDepth for post pass so can't use complete HZB for main pass or it will poke holes in the post pass HZB killing occlusion culling.
 					RDG_EVENT_SCOPE(GraphBuilder, "BuildNaniteHZB");
@@ -1960,6 +1897,9 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			Nanite::PrintStats(GraphBuilder, PrimaryViewRef);
 		}
 	}
+
+	ESceneTextureSetupMode SceneTexturesSetupMode = ESceneTextureSetupMode::SceneDepth;
+	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, FeatureLevel, SceneTexturesSetupMode);
 
 	const bool bShouldRenderVelocities = ShouldRenderVelocities();
 	const bool bBasePassCanOutputVelocity = FVelocityRendering::BasePassCanOutputVelocity(FeatureLevel);
@@ -2013,8 +1953,9 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			}
 		}
 	};
+
 	// Early occlusion queries
-	const bool bOcclusionBeforeBasePass = !bNaniteEnabled && ((EarlyZPassMode == EDepthDrawingMode::DDM_AllOccluders) || (EarlyZPassMode == EDepthDrawingMode::DDM_AllOpaque));
+	const bool bOcclusionBeforeBasePass = !bNaniteEnabled && ((DepthPass.EarlyZPassMode == EDepthDrawingMode::DDM_AllOccluders) || (DepthPass.EarlyZPassMode == EDepthDrawingMode::DDM_AllOpaque));
 
 	if (bOcclusionBeforeBasePass)
 	{
@@ -2146,20 +2087,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 				SSAOLevels = 0;
 			}
 
-#if 0
-			// Disable Nanite Pre Pass to prevent DBuffer decal rendering on Nanite meshes.
-			// Enable once all platforms support pre pass depth output.
-			if (bNaniteEnabled && 0) // TODO: Nanite dbuffer decal support
-			{
-				Nanite::DrawPrePass(
-					RHICmdList,
-					*Scene,
-					Views[ViewIndex],
-					NaniteRasterResults[ViewIndex]
-					);
-			}
-#endif
-
 			GCompositionLighting.ProcessBeforeBasePass(GraphBuilder, Scene->UniformBuffers, View, SceneTextures, bDBuffer, SSAOLevels);
 		}
 		AddServiceLocalQueuePass(GraphBuilder);
@@ -2208,8 +2135,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	FRDGTextureMSAA SceneColorTexture = RegisterExternalTextureMSAA(GraphBuilder, SceneContext.GetSceneColor());
 
 	{
-		const ERenderTargetLoadAction DepthLoadAction = bDepthWasCleared ? ERenderTargetLoadAction::ELoad : ERenderTargetLoadAction::EClear;
-		RenderBasePass(GraphBuilder, BasePassDepthStencilAccess, SceneColorTexture.Target, SceneDepthTexture.Target, DepthLoadAction, ForwardScreenSpaceShadowMaskTexture);
+		RenderBasePass(GraphBuilder, BasePassDepthStencilAccess, SceneColorTexture.Target, SceneDepthTexture.Target, ERenderTargetLoadAction::ELoad, ForwardScreenSpaceShadowMaskTexture);
 		AddServiceLocalQueuePass(GraphBuilder);
 		
 		if (bNaniteEnabled && bShouldApplyNaniteMaterials)
