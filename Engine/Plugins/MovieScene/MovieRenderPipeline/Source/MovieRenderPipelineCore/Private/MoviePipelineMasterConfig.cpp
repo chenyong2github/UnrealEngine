@@ -17,7 +17,6 @@ void UMoviePipelineMasterConfig::AddTransientSettingByClass(const UClass* InSett
 {
 	// We do this directly because the FindOrAddSetting API adds them to the user-defined settings array.
 	UMoviePipelineSetting* NewSetting = NewObject<UMoviePipelineSetting>(this, InSettingClass);
-	NewSetting->SetIsUserCustomized(false);
 
 	// Don't add settings that don't belong on this type of config
 	if (CanSettingBeAdded(NewSetting))
@@ -136,7 +135,10 @@ void UMoviePipelineMasterConfig::GetFormatArguments(FMoviePipelineFormatArgs& In
 	// Let each setting provide its own set of key/value pairs.
 	{
 		// The UI will only show user customized settings but actually writing to disk should use all.
-		TArray<UMoviePipelineSetting*> TargetSettings = bIncludeAllSettings ? GetAllSettings() : GetUserSettings();
+		const bool bIncludeDisabledSettings = false;
+		const bool bIncludeTransientSettings = bIncludeAllSettings;
+		TArray<UMoviePipelineSetting*> TargetSettings = GetAllSettings( bIncludeDisabledSettings, bIncludeTransientSettings);
+
 		for (UMoviePipelineSetting* Setting : TargetSettings)
 		{
 			Setting->GetFormatArguments(InOutFormatArgs);
@@ -266,6 +268,35 @@ TArray<UMoviePipelineSetting*> UMoviePipelineMasterConfig::GetUserSettings() con
 	BaseSettings.Add(OutputSetting);
 
 	return BaseSettings;
+}
+
+TArray<UMoviePipelineSetting*> UMoviePipelineMasterConfig::GetAllSettings(const bool bIncludeDisabledSettings, const bool bIncludeTransientSettings) const
+{
+	TArray<UMoviePipelineSetting*> OutSettings;
+
+	// User settings were explicitly added by the user via the UI or scripting.
+	for (UMoviePipelineSetting* Setting : GetUserSettings())
+	{
+		if (bIncludeDisabledSettings || Setting->IsEnabled())
+		{
+			OutSettings.Add(Setting);
+		}
+	}
+
+	// Transient settings are initialized when we're about to render so that classes
+	// that the user didn't add to the UI still have a chance to apply sane default settings
+	for (UMoviePipelineSetting* Setting : GetTransientSettings())
+	{
+		if (bIncludeTransientSettings || Setting->IgnoreTransientFilters())
+		{
+			if (bIncludeDisabledSettings || Setting->IsEnabled())
+			{
+				OutSettings.Add(Setting);
+			}
+		}
+	}
+
+	return OutSettings;
 }
 
 void UMoviePipelineMasterConfig::CopyFrom(UMoviePipelineConfigBase* InConfig)

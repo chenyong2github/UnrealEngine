@@ -196,10 +196,6 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 		Setting->OnMoviePipelineInitialized(this);
 	}
 
-	// Allow master settings to modify the sequence. This can be useful when working with dynamic content, you might
-	// want to modify things in the sequence, or modify things in the world before rendering.
-	// @ToDo: ModifySequenceViaExtensions(TargetSequence);
-
 	// Now that we've fixed up the sequence, we're going to build a list of shots that we need
 	// to produce in a simplified data structure. The simplified structure makes the flow/debugging easier.
 	BuildShotListFromSequence();
@@ -214,7 +210,7 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 	OutputMetadata.Shots.Empty(ActiveShotList.Num());
 	for (UMoviePipelineExecutorShot* Shot : ActiveShotList)
 	{
-		UMoviePipelineOutputSetting* OutputSettings = FindOrAddSetting<UMoviePipelineOutputSetting>(Shot);
+		UMoviePipelineOutputSetting* OutputSettings = FindOrAddSettingForShot<UMoviePipelineOutputSetting>(Shot);
 
 		FMovieSceneExportMetadataShot& ShotMetadata = OutputMetadata.Shots.AddDefaulted_GetRef();
 		ShotMetadata.MovieSceneShotSection = Cast<UMovieSceneCinematicShotSection>(Shot->OuterPathKey.TryLoad());
@@ -909,9 +905,9 @@ void UMoviePipeline::BuildShotListFromSequence()
 		UE_LOG(LogMovieRenderPipeline, Log, TEXT("Expanding Shot %d/%d (Shot: %s Camera: %s)"), ShotIndex  + 1, ActiveShotList.Num(), *Shot->OuterName, *Shot->InnerName);
 		ShotIndex++;
 
-		UMoviePipelineOutputSetting* OutputSettings = FindOrAddSetting<UMoviePipelineOutputSetting>(Shot);
-		UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSetting<UMoviePipelineAntiAliasingSetting>(Shot);
-		UMoviePipelineHighResSetting* HighResSettings = FindOrAddSetting<UMoviePipelineHighResSetting>(Shot);
+		UMoviePipelineOutputSetting* OutputSettings = FindOrAddSettingForShot<UMoviePipelineOutputSetting>(Shot);
+		UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSettingForShot<UMoviePipelineAntiAliasingSetting>(Shot);
+		UMoviePipelineHighResSetting* HighResSettings = FindOrAddSettingForShot<UMoviePipelineHighResSetting>(Shot);
 
 		// Expand the shot to encompass handle frames. This will modify our Camera Cuts bounds.
 		ExpandShot(Shot, ModifiedSegment, OutputSettings->HandleFrameCount);
@@ -1070,7 +1066,7 @@ void UMoviePipeline::ExpandShot(UMoviePipelineExecutorShot* InShot, const FMovie
 	FFrameNumber LeftDeltaTicks = 0;
 	FFrameNumber RightDeltaTicks = 0;
 
-	UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSetting<UMoviePipelineAntiAliasingSetting>(InShot);
+	UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSettingForShot<UMoviePipelineAntiAliasingSetting>(InShot);
 	const bool bHasMultipleTemporalSamples = AntiAliasingSettings->TemporalSampleCount > 1;
 	if (bHasMultipleTemporalSamples)
 	{
@@ -1252,8 +1248,8 @@ MoviePipeline::FFrameConstantMetrics UMoviePipeline::CalculateShotFrameMetrics(c
 	Output.FrameRate = GetPipelineMasterConfig()->GetEffectiveFrameRate(TargetSequence);
 	Output.TicksPerOutputFrame = FFrameRate::TransformTime(FFrameTime(FFrameNumber(1)), Output.FrameRate, Output.TickResolution);
 
-	UMoviePipelineCameraSetting* CameraSettings = FindOrAddSetting<UMoviePipelineCameraSetting>(InShot);
-	UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSetting<UMoviePipelineAntiAliasingSetting>(InShot);
+	UMoviePipelineCameraSetting* CameraSettings = FindOrAddSettingForShot<UMoviePipelineCameraSetting>(InShot);
+	UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSettingForShot<UMoviePipelineAntiAliasingSetting>(InShot);
 
 	// We are overriding blur settings to account for how we sample multiple frames, so
 	// we need to process any camera and post process volume settings for motion blur manually
@@ -1385,7 +1381,7 @@ UMoviePipelineMasterConfig* UMoviePipeline::GetPipelineMasterConfig() const
 	return CurrentJob->GetConfiguration(); 
 }
 
-UMoviePipelineSetting* UMoviePipeline::FindOrAddSetting(TSubclassOf<UMoviePipelineSetting> InSetting, const UMoviePipelineExecutorShot* InShot) const
+UMoviePipelineSetting* UMoviePipeline::FindOrAddSettingForShot(TSubclassOf<UMoviePipelineSetting> InSetting, const UMoviePipelineExecutorShot* InShot) const
 {
 	// Check to see if this setting is in the shot override, if it is we'll use the shot version of that.
 	if (InShot->GetShotOverrideConfiguration())
@@ -1410,14 +1406,14 @@ UMoviePipelineSetting* UMoviePipeline::FindOrAddSetting(TSubclassOf<UMoviePipeli
 	return InSetting->GetDefaultObject<UMoviePipelineSetting>();
 }
 
-TArray<UMoviePipelineSetting*> UMoviePipeline::FindSettings(TSubclassOf<UMoviePipelineSetting> InSetting, const UMoviePipelineExecutorShot* InShot) const
+TArray<UMoviePipelineSetting*> UMoviePipeline::FindSettingsForShot(TSubclassOf<UMoviePipelineSetting> InSetting, const UMoviePipelineExecutorShot* InShot) const
 {
 	TArray<UMoviePipelineSetting*> FoundSettings;
 
 	// Find all enabled settings of given subclass in the shot override first
 	if (UMoviePipelineShotConfig* ShotOverride = InShot->GetShotOverrideConfiguration())
 	{
-		for (UMoviePipelineSetting* Setting : ShotOverride->FindSettings(InSetting))
+		for (UMoviePipelineSetting* Setting : ShotOverride->FindSettingsByClass(InSetting))
 		{
 			if (Setting && Setting->IsEnabled())
 			{
@@ -1427,7 +1423,7 @@ TArray<UMoviePipelineSetting*> UMoviePipeline::FindSettings(TSubclassOf<UMoviePi
 	}
 
 	// Add all enabled settings of given subclass not overridden by shot override
-	for (UMoviePipelineSetting* Setting : GetPipelineMasterConfig()->FindSettings(InSetting))
+	for (UMoviePipelineSetting* Setting : GetPipelineMasterConfig()->FindSettingsByClass(InSetting))
 	{
 		if (Setting && Setting->IsEnabled())
 		{
