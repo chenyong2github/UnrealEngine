@@ -29,6 +29,7 @@
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "ScopedTransaction.h"
 #include "Editor.h"
+#include "LevelEditorViewport.h"
 
 #define LOCTEXT_NAMESPACE "SplineComponentDetails"
 
@@ -199,7 +200,7 @@ private:
 	FSharedRotatorValue Rotation;
 	TSharedValue<ESplinePointType::Type> PointType;
 
-	FSplineComponentVisualizer* SplineVisualizer;
+	TSharedPtr<FSplineComponentVisualizer> SplineVisualizer;
 	FProperty* SplineCurvesProperty;
 	TArray<TSharedPtr<FString>> SplinePointTypes;
 	TSharedPtr<ISplineMetadataDetails> SplineMetaDataDetails;
@@ -210,8 +211,8 @@ FSplinePointDetails::FSplinePointDetails(USplineComponent* InOwningSplineCompone
 	: SplineComp(nullptr)
 {
 	TSharedPtr<FComponentVisualizer> Visualizer = GUnrealEd->FindComponentVisualizer(InOwningSplineComponent->GetClass());
-	SplineVisualizer = (FSplineComponentVisualizer*)Visualizer.Get();
-	check(SplineVisualizer);
+	SplineVisualizer = StaticCastSharedPtr<FSplineComponentVisualizer>(Visualizer);
+	check(SplineVisualizer.IsValid());
 
 	SplineCurvesProperty = FindFProperty<FProperty>(USplineComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USplineComponent, SplineCurves));
 
@@ -541,7 +542,7 @@ void FSplinePointDetails::GenerateChildContent(IDetailChildrenBuilder& ChildrenB
 	];
 
 	check(SplineComp);
-	check(SplineVisualizer);
+	check(SplineVisualizer.IsValid());
 
 	if (SplineVisualizer->GetEditedSplineComponent() == SplineComp && SplineVisualizer->GetSelectedKeys().Num() > 0)
 	{
@@ -570,13 +571,7 @@ void FSplinePointDetails::Tick(float DeltaTime)
 
 void FSplinePointDetails::UpdateValues()
 {
-	check(SplineVisualizer);
-	check(SplineComp);
-
-	if (SplineVisualizer->GetEditedSplineComponent() != SplineComp)
-	{
-		SplineVisualizer->SetEditedSplineComponent(SplineComp);
-	}
+	check(SplineVisualizer.IsValid());
 
 	bool bNeedsRebuild = false;
 	const TSet<int32>& NewSelectedKeys = SplineVisualizer->GetSelectedKeys();
@@ -872,22 +867,32 @@ void FSplinePointDetails::OnSplinePointTypeChanged(TSharedPtr<FString> NewValue,
 
 FReply FSplinePointDetails::OnSelectFirstLastSplinePoint(bool bFirst)
 {
-	check(SplineVisualizer);
-	SplineVisualizer->OnSelectFirstLastSplinePoint(bFirst);
+	check(SplineVisualizer.IsValid());
+	check(SplineComp);
+	if (SplineVisualizer->HandleSelectFirstLastSplinePoint(SplineComp, bFirst))
+	{
+		TSharedPtr<FComponentVisualizer> Visualizer = StaticCastSharedPtr<FComponentVisualizer>(SplineVisualizer);
+		GUnrealEd->ComponentVisManager.SetActiveComponentVis(GCurrentLevelEditingViewportClient, Visualizer);
+	}
 	return FReply::Handled();
 }
 
 FReply FSplinePointDetails::OnSelectPrevNextSplinePoint(bool bNext, bool bAddToSelection)
 {
-	check(SplineVisualizer);
+	check(SplineVisualizer.IsValid());
 	SplineVisualizer->OnSelectPrevNextSplinePoint(bNext, bAddToSelection);
 	return FReply::Handled();
 }
 
 FReply FSplinePointDetails::OnSelectAllSplinePoints()
 {
-	check(SplineVisualizer);
-	SplineVisualizer->OnSelectAllSplinePoints();
+	check(SplineVisualizer.IsValid());
+	check(SplineComp);
+	if (SplineVisualizer->HandleSelectAllSplinePoints(SplineComp))
+	{
+		TSharedPtr<FComponentVisualizer> Visualizer = StaticCastSharedPtr<FComponentVisualizer>(SplineVisualizer);
+		GUnrealEd->ComponentVisManager.SetActiveComponentVis(GCurrentLevelEditingViewportClient, Visualizer);
+	}
 	return FReply::Handled();
 }
 
