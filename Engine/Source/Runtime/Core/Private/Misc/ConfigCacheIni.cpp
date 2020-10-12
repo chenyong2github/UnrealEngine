@@ -2650,11 +2650,7 @@ bool FConfigCacheIni::EmptySectionsMatchingString( const TCHAR* SectionString, c
  */
 void FConfigCacheIni::GetConfigFilenames(TArray<FString>& ConfigFilenames)
 {
-	// copy from our map to the array
-	for (FConfigCacheIni::TIterator It(*this); It; ++It)
-	{
-		ConfigFilenames.Add(*(It.Key()));
-	}
+	ConfigFilenames = GetFilenames();
 }
 
 /**

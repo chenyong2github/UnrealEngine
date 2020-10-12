@@ -826,13 +826,15 @@ FString UOnlineHotfixManager::GetConfigFileNamePath(const FString& IniName)
 FConfigFile* UOnlineHotfixManager::GetConfigFile(const FString& IniName)
 {
 	FString StrippedIniName(GetStrippedConfigFileName(IniName));
+	FString StrippedIniNameNoExtension = FPaths::GetBaseFilename(StrippedIniName);
+	
 	FConfigFile* ConfigFile = nullptr;
 	// Look for the first matching INI file entry
-	for (TMap<FString, FConfigFile>::TIterator It(*GConfig); It; ++It)
+	for (const FString& IniFilename : GConfig->GetFilenames())
 	{
-		if (It.Key().EndsWith(StrippedIniName))
+		if (IniFilename.EndsWith(StrippedIniName) || IniFilename == StrippedIniNameNoExtension)
 		{
-			ConfigFile = &It.Value();
+			ConfigFile = GConfig->FindConfigFile(IniFilename);
 			break;
 		}
 	}

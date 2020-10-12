@@ -107,7 +107,8 @@ namespace AudioModulation
 				return false;
 			}
 
-			FConfigFile& ConfigFile = GConfig->FindOrAdd(ConfigPath);
+			// this will create and try to read in if not already loaded
+			FConfigFile& ConfigFile = *GConfig->Find(ConfigPath);
 			ConfigFile.Reset();
 
 			for (const FSoundControlBusMixStage& Stage : InBusMix.MixStages)
