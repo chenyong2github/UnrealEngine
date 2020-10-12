@@ -15,7 +15,7 @@
  *	Since it is instanced, it can do latent things like time lines or delays.
  */
 UCLASS(Blueprintable, notplaceable, Category = "GameplayCueNotify", Meta = (ShowWorldContextPin, DisplayName = "GCN Burst Latent", ShortTooltip = "A one-off GameplayCueNotify that can use latent actions such as timelines."))
-class AGameplayCueNotify_BurstLatent : public AGameplayCueNotify_Actor
+class GAMEPLAYABILITIES_API AGameplayCueNotify_BurstLatent : public AGameplayCueNotify_Actor
 {
 	GENERATED_BODY()
 

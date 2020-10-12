@@ -15,7 +15,7 @@
  *	The game is responsible for defining the start/stop by adding/removing the gameplay cue.
  */
 UCLASS(Blueprintable, notplaceable, Category = "GameplayCueNotify", Meta = (ShowWorldContextPin, DisplayName = "GCN Looping", ShortTooltip = "A GameplayCueNotify that has a duration that is driven by the game."))
-class AGameplayCueNotify_Looping : public AGameplayCueNotify_Actor
+class GAMEPLAYABILITIES_API AGameplayCueNotify_Looping : public AGameplayCueNotify_Actor
 {
 	GENERATED_BODY()
 

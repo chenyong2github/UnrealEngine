@@ -15,7 +15,7 @@
  *	Since it is not instanced, it cannot do latent actions such as delays and time lines.
  */
 UCLASS(Blueprintable, notplaceable, Category = "GameplayCueNotify", Meta = (ShowWorldContextPin, DisplayName = "GCN Burst", ShortTooltip = "A one-off GameplayCueNotify that is never spawned into the world."))
-class UGameplayCueNotify_Burst : public UGameplayCueNotify_Static
+class GAMEPLAYABILITIES_API UGameplayCueNotify_Burst : public UGameplayCueNotify_Static
 {
 	GENERATED_BODY()
 
