@@ -256,6 +256,7 @@
             this.checkAllConnectionsCheckBox.Size = new System.Drawing.Size(22, 21);
             this.checkAllConnectionsCheckBox.TabIndex = 23;
             this.checkAllConnectionsCheckBox.UseVisualStyleBackColor = true;
+			this.checkAllConnectionsCheckBox.Click += CheckAllConnectionsCheckBox_Click;
             // 
             // Details
             // 
