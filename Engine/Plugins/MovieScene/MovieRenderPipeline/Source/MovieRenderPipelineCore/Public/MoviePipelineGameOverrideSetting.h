@@ -48,6 +48,9 @@ public:
 	virtual void BuildNewProcessCommandLineImpl(FString& InOutUnrealURLParams, FString& InOutCommandLineArgs) const override;
 	virtual void SetupForPipelineImpl(UMoviePipeline* InPipeline) override;
 	virtual void TeardownForPipelineImpl(UMoviePipeline* InPipeline) override;
+	// Used to ensure we set the default values even if the user forgets to add it.
+	virtual bool IgnoreTransientFilters() const override { return true; }
+
 protected:
 	void ApplyCVarSettings(const bool bOverrideValues);
 
