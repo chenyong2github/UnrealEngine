@@ -437,3 +437,8 @@
 #ifndef GET_DEVICE_ID_UNAVAILABLE
 	#define GET_DEVICE_ID_UNAVAILABLE 0
 #endif
+
+// CONtrols whether or not to make a global object to load COnfig.bin as soon as possible
+#ifndef PRELOAD_BINARY_CONFIG
+	#define PRELOAD_BINARY_CONFIG 1
+#endif

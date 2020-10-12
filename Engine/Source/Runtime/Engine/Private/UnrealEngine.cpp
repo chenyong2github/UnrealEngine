@@ -8262,10 +8262,10 @@ bool UEngine::HandleConfigHashCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 		if ( ConfigFilename == TEXT("NAMESONLY") )
 		{
 			Ar.Log( TEXT("Files map:") );
-			for ( FConfigCacheIni::TIterator It(*GConfig); It; ++It )
+			for ( const FString& Filename : GConfig->GetFilenames() )
 			{
 				// base filename is what Dump() compares against
-				Ar.Logf(TEXT("FileName: %s (%s)"), *FPaths::GetBaseFilename(It.Key()), *It.Key());
+				Ar.Logf(TEXT("FileName: %s (%s)"), *FPaths::GetBaseFilename(Filename), *Filename);
 			}
 		}
 		else
@@ -8289,13 +8289,30 @@ bool UEngine::HandleConfigMemCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 
 bool UEngine::HandleGetIniCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 {
-	// Format: GetIni IniFile:Section.SubSection Key
+	// Format: GetIni [Platform@]IniFile:Section.SubSection Key
 	TCHAR IniPlusSectionName[256];
 	TCHAR KeyName[256];
 
 	if (FParse::Token(Cmd, IniPlusSectionName, UE_ARRAY_COUNT(IniPlusSectionName), true))
 	{
 		FString IniPlusSection = IniPlusSectionName;
+
+		// look for the optional Platform prefix which means to look up another platform's version of this ini setting
+		int32 PlatformDelim = IniPlusSection.Find(TEXT("@"));
+		FConfigCacheIni* ConfigSystem = GConfig;
+		if (PlatformDelim > 0)
+		{
+			FString PlatformName = IniPlusSection.Mid(0, PlatformDelim);
+			IniPlusSection = IniPlusSection.Mid(PlatformDelim + 1);
+
+			ConfigSystem = FConfigCacheIni::ForPlatform(*PlatformName);
+			if (ConfigSystem == nullptr)
+			{
+				Ar.Logf(TEXT("Failed to find config system for platform %s"), *PlatformName);
+				return false;
+			}
+		}
+
 		int32 IniDelim = IniPlusSection.Find(TEXT(":"));
 		FString IniName;
 		FString SectionName = (IniDelim != INDEX_NONE ? IniPlusSection.Mid(IniDelim+1) : IniPlusSection);
@@ -8314,7 +8331,7 @@ bool UEngine::HandleGetIniCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 				TArray<FString> ConfigList;
 				FString SearchStr = IniPlusSection.Left(IniDelim) + TEXT(".ini");
 
-				GConfig->GetConfigFilenames(ConfigList);
+				ConfigSystem->GetConfigFilenames(ConfigList);
 
 				for (auto CurConfig : ConfigList)
 				{
@@ -8343,7 +8360,7 @@ bool UEngine::HandleGetIniCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 			{
 				TArray<FString> Values;
 
-				bool bSuccess = !!GConfig->GetArray(*SectionName, KeyName, Values, IniName);
+				bool bSuccess = !!ConfigSystem->GetArray(*SectionName, KeyName, Values, IniName);
 
 				if (bSuccess)
 				{

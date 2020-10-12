@@ -4408,11 +4408,12 @@ bool UCookOnTheFlyServer::IniSettingsOutOfDate(const ITargetPlatform* TargetPlat
 		FName FileFName = FName(*Filename);
 		if ( !ConfigFile )
 		{
-			for( const auto& File : *GConfig )
+			for( const FString& ConfigFilename : GConfig->GetFilenames() )
 			{
-				if (File.Value.Name == FileFName)
+				FConfigFile* File = GConfig->FindConfigFile(ConfigFilename);
+				if (File->Name == FileFName)
 				{
-					ConfigFile = &File.Value;
+					ConfigFile = File;
 					break;
 				}
 			}

@@ -2645,6 +2645,7 @@ FString UObject::GetProjectUserConfigFilename() const
 // @todo ini: Verify per object config objects
 void UObject::UpdateSingleSectionOfConfigFile(const FString& ConfigIniName)
 {
+#if WITH_UNREAL_DEVELOPER_TOOLS
 	// create a sandbox FConfigCache
 	FConfigCacheIni Config(EConfigCacheType::Temporary);
 
@@ -2653,8 +2654,6 @@ void UObject::UpdateSingleSectionOfConfigFile(const FString& ConfigIniName)
 
 	// save the object properties to this file
 	SaveConfig(CPF_Config, *ConfigIniName, &Config);
-
-	ensureMsgf(Config.Num() == 1, TEXT("UObject::UpdateDefaultConfig() caused more files than expected in the Sandbox config cache!"));
 
 	// do we need to use a special platform hierarchy?
 	FString OverridePlatform = GetFinalOverridePlatform(this);
@@ -2669,6 +2668,9 @@ void UObject::UpdateSingleSectionOfConfigFile(const FString& ConfigIniName)
 		FString FinalIniFileName;
 		GConfig->LoadGlobalIniFile(FinalIniFileName, *GetClass()->ClassConfigName.ToString(), NULL, true);
 	}
+#else
+	checkNoEntry();
+#endif
 }
 
 void UObject::UpdateDefaultConfigFile(const FString& SpecificFileLocation)
@@ -2701,8 +2703,6 @@ void UObject::UpdateSinglePropertyInConfigFile(const FProperty* InProperty, cons
 		SaveConfig(CPF_Config, *InConfigIniName, &Config);
 
 		// Take the saved section for this object and have the config system process and write out the one property we care about.
-		ensureMsgf(Config.Num() == 1, TEXT("UObject::UpdateDefaultConfig() caused more files than expected in the Sandbox config cache!"));
-
 		TArray<FString> Keys;
 		NewFile.GetKeys(Keys);
 
@@ -4383,10 +4383,10 @@ void InitUObject()
 
 	// Initialize redirects map
 	FCoreRedirects::Initialize();
-	for (const TPair<FString,FConfigFile>& It : *GConfig)
+	for (const FString& Filename : GConfig->GetFilenames())
 	{
-		FCoreRedirects::ReadRedirectsFromIni(It.Key);
-		FLinkerLoad::CreateActiveRedirectsMap(It.Key);
+		FCoreRedirects::ReadRedirectsFromIni(Filename);
+		FLinkerLoad::CreateActiveRedirectsMap(Filename);
 	}
 
 	FCoreDelegates::OnShutdownAfterError.AddStatic(StaticShutdownAfterError);

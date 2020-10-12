@@ -334,18 +334,7 @@ void FRenderDocPluginModule::ShowNotification(const FText& Message, bool bForceN
 void FRenderDocPluginModule::InjectDebugExecKeybind()
 {
 	// Inject our key bind into the debug execs
-	FConfigFile* ConfigFile = nullptr;
-	// Look for the first matching INI file entry
-	for (TMap<FString, FConfigFile>::TIterator It(*GConfig); It; ++It)
-	{
-		if (It.Key().EndsWith(TEXT("Input.ini")))
-		{
-			ConfigFile = &It.Value();
-			break;
-		}
-	}
-	check(ConfigFile != nullptr);
-	FConfigSection* Section = ConfigFile->Find(TEXT("/Script/Engine.PlayerInput"));
+	FConfigSection* Section = GConfig->GetSectionPrivate(TEXT("/Script/Engine.PlayerInput"), false, false, GInputIni);
 	if (Section != nullptr)
 	{
 		Section->HandleAddCommand(TEXT("DebugExecBindings"), TEXT("(Key=F12,Command=\"RenderDoc.CaptureFrame\", Alt=true)"), false);

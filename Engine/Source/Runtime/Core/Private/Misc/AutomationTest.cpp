@@ -449,9 +449,9 @@ void FAutomationTestFramework::BuildTestBlacklistFromConfig()
 
 		const FString CommandLine = FCommandLine::Get();
 
-		for (const TPair<FString, FConfigFile>& Config : *GConfig)
+		for (const FString& ConfigFilename : GConfig->GetFilenames())
 		{
-			FConfigSection* BlacklistSection = GConfig->GetSectionPrivate(TEXT("AutomationTestBlacklist"), false, true, Config.Key);
+			FConfigSection* BlacklistSection = GConfig->GetSectionPrivate(TEXT("AutomationTestBlacklist"), false, true, ConfigFilename);
 			if (BlacklistSection)
 			{
 				// Parse all blacklist definitions of the format "BlacklistTest=(Map=/Game/Tests/MapName, Test=TestName, Reason="Foo")"

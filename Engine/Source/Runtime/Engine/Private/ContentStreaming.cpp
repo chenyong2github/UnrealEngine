@@ -116,7 +116,7 @@ TArray<FTrackedRenderAssetEvent> GTrackedRenderAssets;
  */
 void TrackRenderAssetInit()
 {
-	if ( GConfig && GConfig->Num() > 0 )
+	if ( GConfig && GConfig->IsReadyForUse() )
 	{
 		GTrackedRenderAssetNames.Empty();
 		GTrackedRenderAssetsInitialized = true;

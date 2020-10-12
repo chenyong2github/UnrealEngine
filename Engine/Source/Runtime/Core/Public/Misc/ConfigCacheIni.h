@@ -26,6 +26,41 @@ CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogConfig, Log, All);
 // Server builds should be tweakable even in Shipping
 #define ALLOW_INI_OVERRIDE_FROM_COMMANDLINE			(UE_SERVER || !(UE_BUILD_SHIPPING))
 #define CONFIG_REMEMBER_ACCESS_PATTERN (WITH_EDITOR || 0)
+
+
+///////////////////////////////////////////////////////////////////////////////
+//
+// This is the master list of known ini files that are used and processed 
+// on all platforms (specifically for runtime/binary speedups. Other, editor-
+// specific inis, or non-hierarchical ini files will still work with the 
+// old system, but they won't have any optimizations applied
+//
+// These should be listed in the order of highest to lowest use, for optimization
+//
+///////////////////////////////////////////////////////////////////////////////
+
+#define ENUMERATE_KNOWN_INI_FILES(op) \
+	op(Engine) \
+	op(Game) \
+	op(Input) \
+	op(DeviceProfiles) \
+	op(GameUserSettings) \
+	op(Scalability) \
+	op(RuntimeOptions) \
+	op(InstallBundle) \
+	op(Hardware)
+
+#define KNOWN_INI_ENUM(IniName) IniName,
+enum class EKnownIniFile : uint8
+{
+	// make an enum entry for each known ini above
+	ENUMERATE_KNOWN_INI_FILES(KNOWN_INI_ENUM)
+	
+	// conventient counter for the above list
+	NumKnownFiles,
+};
+
+
 struct FConfigValue
 {
 public:
@@ -503,7 +538,7 @@ enum class EConfigCacheType : uint8
 };
 
 // Set of all cached config files.
-class CORE_API FConfigCacheIni : public TMap<FString,FConfigFile>
+class CORE_API FConfigCacheIni : private TMap<FString,FConfigFile>
 {
 public:
 	// Basic functions.
@@ -586,6 +621,18 @@ public:
 
 	/** Finds Config file that matches the base name such as "Engine" */
 	FConfigFile* FindConfigFileWithBaseName(FName BaseName);
+
+	using Super = TMap<FString, FConfigFile>;
+	FConfigFile& Add(const FString& Filename, const FConfigFile& File)
+	{
+		return Super::Add(Filename, File);
+	}
+	int32 Remove(const FString& Filename)
+	{
+		return Super::Remove(Filename);
+	}
+	TArray<FString> GetFilenames();
+
 
 	void Flush( bool Read, const FString& Filename=TEXT("") );
 
@@ -839,9 +886,6 @@ public:
 		const FString&	Filename
 	);
 
-	// Static allocator.
-	static FConfigCacheIni* Factory();
-
 	// Static helper functions
 
 	/**
@@ -879,7 +923,7 @@ public:
 	 * @param GeneratedConfigDir The location where generated config files are made.
 	 * @return true if the final ini was created successfully.
 	 */
-	static bool LoadGlobalIniFile(FString& FinalIniFilename, const TCHAR* BaseIniName, const TCHAR* Platform=NULL, bool bForceReload=false, bool bRequireDefaultIni=false, bool bAllowGeneratedIniWhenCooked=true, const TCHAR* GeneratedConfigDir = *FPaths::GeneratedConfigDir());
+	static bool LoadGlobalIniFile(FString& FinalIniFilename, const TCHAR* BaseIniName, const TCHAR* Platform = NULL, bool bForceReload = false, bool bRequireDefaultIni = false, bool bAllowGeneratedIniWhenCooked = true, bool bAllowRemoteConfig = true, const TCHAR* GeneratedConfigDir = *FPaths::GeneratedConfigDir(), FConfigCacheIni* ConfigSystem=GConfig);
 
 	/**
 	 * Load an ini file directly into an FConfigFile, and nothing is written to GConfig or disk. 
@@ -926,8 +970,74 @@ public:
 	 */
 	void SaveCurrentStateForBootstrap(const TCHAR* Filename);
 
-	friend FArchive& operator<<(FArchive& Ar, FConfigCacheIni& ConfigCacheIni);
+	void Serialize(FArchive& Ar);
+
+
+	struct FKnownConfigFiles
+	{
+		FKnownConfigFiles();
+
+		// Write out this for binary config serialization
+		friend FArchive& operator<<(FArchive& Ar, FKnownConfigFiles& Names);
+
+		// setup GEngineIni based on this structure's values
+		void SetGlobalIniStringsFromMembers();
+
+		// given an name ("Engine") return the FConfigFile for it
+		const FConfigFile* GetFile(FName Name);
+		// given an name ("Engine") return the modifiable FConfigFile for it
+		FConfigFile* GetMutableFile(FName Name);
+
+		// get the disk-based filename for the given known ini name
+		const FString& GetFilename(FName Name);
+
+
+		// create the list of members for the known inis (Engine, Game, etc) See the top of this file for the list
+		struct FKnownConfigFile
+		{
+			FName IniName;
+			FString IniPath;
+			FConfigFile IniFile;
+		};
+
+		// array of all known filesd
+		FKnownConfigFile Files[(uint8)EKnownIniFile::NumKnownFiles];
+	};
+
+	/**
+	 * Load the standard (used on all platforms) ini files, like Engine, Input, etc
+	 *
+	 * @param PlatformName Ini name of the platform this is loadenig for (or nullptr for current platform)
+	 * @param bDefaultEngineIniRequired True if the engine ini is required
+	 *
+	 * return True if the engine ini was loaded
+	 */
+	bool InitializeKnownConfigFiles(const TCHAR* PlatformName, bool bDefaultEngineIniRequired);
+
+	/**
+	 * Create GConfig from a saved file
+	 */
+	static bool CreateGConfigFromSaved(const TCHAR* Filename);
+
+#if WITH_UNREAL_DEVELOPER_TOOLS
+	/**
+	 * Retrieve the fully processed ini system for another platform. The editor will start loading these 
+	 * in the background on startup
+	 */
+	static FConfigCacheIni* ForPlatform(FName PlatformName);
+
+	/**
+	 * Wipe all cached platform configs. Next ForPlatform call will load on-demand the platform configs
+	 */
+	static void ClearOtherPlatformConfigs();
+#endif
+
 private:
+#if WITH_EDITOR
+	/** We only auto-initialize other platform configs in the editor to not slow down programs like ShaderCOmpileWorker */
+	static void AsyncInitializeConfigForPlatforms();
+#endif
+
 	/** Serialize a bootstrapping state into or from an archive */
 	void SerializeStateForBootstrap_Impl(FArchive& Ar);
 
@@ -939,9 +1049,10 @@ private:
 	
 	/** The type of the cache (basically, do we call Flush in the destructor) */
 	EConfigCacheType Type;
-};
 
-FArchive& operator<<(FArchive& Ar, FConfigCacheIni& ConfigCacheIni);
+	/** The filenames for the known files in this config */
+	FKnownConfigFiles KnownFiles;
+};
 
 UE_DEPRECATED(4.24, "This functionality to generate Scalability@Level section string has been moved to Scalability.cpp. Explictly construct section you need manually.")
 CORE_API void ApplyCVarSettingsGroupFromIni(const TCHAR* InSectionBaseName, int32 InGroupNumber, const TCHAR* InIniFilename, uint32 SetBy);

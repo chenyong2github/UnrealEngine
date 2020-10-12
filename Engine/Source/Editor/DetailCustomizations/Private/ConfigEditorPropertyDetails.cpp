@@ -89,8 +89,6 @@ void FConfigPropertyHelperDetails::OnPropertyValueChanged(UObject* Object, FProp
 			OriginalProperty->GetOwnerClass()->GetDefaultObject()->SaveConfig(CPF_Config, *ConfigIniName, &Config);
 
 			// Take the saved section for this object and have the config system process and write out the one property we care about.
-			ensureMsgf(Config.Num() == 1, TEXT("UObject::UpdateDefaultConfig() caused more files than expected in the Sandbox config cache!"));
-
 			TArray<FString> Keys;
 			NewFile.GetKeys(Keys);
 

@@ -21,6 +21,8 @@
 #include "Misc/StringBuilder.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
+#include "Serialization/LargeMemoryReader.h"
+#include "Async/Async.h"
 
 #if WITH_EDITOR
 	#define INI_CACHE 1
@@ -2075,9 +2077,17 @@ FConfigCacheIni::~FConfigCacheIni()
 	Flush( 1 );
 }
 
+
 FConfigFile* FConfigCacheIni::FindConfigFile( const FString& Filename )
 {
-	return TMap<FString,FConfigFile>::Find( Filename );
+	// look for a known file, if there's no ini extension
+	FConfigFile* Result = Filename.EndsWith(TEXT(".ini")) ? nullptr : KnownFiles.GetMutableFile(FName(*Filename));
+
+	if (Result == nullptr)
+	{
+		Result = Super::Find(Filename);
+	}
+	return Result;
 }
 
 FConfigFile* FConfigCacheIni::Find(const FString& Filename)
@@ -2088,8 +2098,9 @@ FConfigFile* FConfigCacheIni::Find(const FString& Filename)
 		return nullptr;
 	}
 
-	// Get file.
-	FConfigFile* Result = TMap<FString,FConfigFile>::Find(Filename);
+	// Get the file if it exists
+	FConfigFile* Result = FindConfigFile(Filename);
+
 	// this is || filesize so we load up .int files if file IO is allowed
 	if (!Result && !bAreFileOperationsDisabled)
 	{
@@ -2101,6 +2112,7 @@ FConfigFile* FConfigCacheIni::Find(const FString& Filename)
 			UE_LOG(LogConfig, Verbose, TEXT("GConfig::Find has loaded file:  %s"), *Filename);
 		}
 	}
+
 	return Result;
 }
 
@@ -2122,6 +2134,20 @@ FConfigFile* FConfigCacheIni::FindConfigFileWithBaseName(FName BaseName)
 	return nullptr;
 }
 
+TArray<FString> FConfigCacheIni::GetFilenames()
+{
+	TArray<FString> Result;
+	Super::GetKeys(Result);
+
+	for (const FConfigCacheIni::FKnownConfigFiles::FKnownConfigFile& File : KnownFiles.Files)
+	{
+		Result.Add(File.IniName.ToString());
+	}
+
+	return Result;
+}
+
+
 void FConfigCacheIni::Flush( bool Read, const FString& Filename )
 {
 	// never Flush temporary cache objects
@@ -2140,7 +2166,17 @@ void FConfigCacheIni::Flush( bool Read, const FString& Filename )
 				It.Value().Write(*It.Key());
 			}
 		}
+
+		// now flush the known files (all or a single file)
+		for (FConfigCacheIni::FKnownConfigFiles::FKnownConfigFile& File : KnownFiles.Files)
+		{
+			if (Filename.Len() == 0 || Filename == File.IniName.ToString())
+			{
+				File.IniFile.Write(*File.IniPath);
+			}
+		}
 	}
+
 	if( Read )
 	{
 		// we can't read it back in if file operations are disabled
@@ -2698,6 +2734,22 @@ void FConfigCacheIni::Exit()
 	Flush( 1 );
 }
 
+static void DumpFile(FOutputDevice& Ar, const FString& Filename, const FConfigFile& File)
+{
+	Ar.Logf(TEXT("FileName: %s"), *Filename);
+	for (FConfigFile::TConstIterator FileIt(File); FileIt; ++FileIt)
+	{
+		const FConfigSection& Sec = FileIt.Value();
+		Ar.Logf(TEXT("   [%s]"), *FileIt.Key());
+		for (FConfigSectionMap::TConstIterator SecIt(Sec); SecIt; ++SecIt)
+		{
+			Ar.Logf(TEXT("   %s=%s"), *SecIt.Key().ToString(), *SecIt.Value().GetValue());
+		}
+
+		Ar.Log(LINE_TERMINATOR);
+	}
+}
+
 void FConfigCacheIni::Dump(FOutputDevice& Ar, const TCHAR* BaseIniName)
 {
 	if (BaseIniName == nullptr)
@@ -2706,23 +2758,16 @@ void FConfigCacheIni::Dump(FOutputDevice& Ar, const TCHAR* BaseIniName)
 		TMap<FString,FConfigFile>::Dump( Ar );
 	}
 
+	for (const FConfigCacheIni::FKnownConfigFiles::FKnownConfigFile& File : KnownFiles.Files)
+	{
+		DumpFile(Ar, File.IniPath, File.IniFile);
+	}
+
 	for ( TIterator It(*this); It; ++It )
 	{
 		if (BaseIniName == nullptr || FPaths::GetBaseFilename(It.Key()) == BaseIniName)
 		{
-			Ar.Logf(TEXT("FileName: %s"), *It.Key());
-			FConfigFile& File = It.Value();
-			for ( FConfigFile::TIterator FileIt(File); FileIt; ++FileIt )
-			{
-				FConfigSection& Sec = FileIt.Value();
-				Ar.Logf(TEXT("   [%s]"), *FileIt.Key());
-				for (FConfigSectionMap::TConstIterator SecIt(Sec); SecIt; ++SecIt)
-				{
-					Ar.Logf(TEXT("   %s=%s"), *SecIt.Key().ToString(), *SecIt.Value().GetValue());
-				}
-
-				Ar.Log(LINE_TERMINATOR);
-			}
+			DumpFile(Ar, It.Key(), It.Value());
 		}
 	}
 }
@@ -3593,6 +3638,9 @@ static FString PerformFinalExpansions(const FString InString, const FString& Pla
 	static FString PlatformExtensionProjectDir;
 	static FString ProjectNotForLicenseesDir;
 	static FString ProjectNoRedistDir;
+	static FCriticalSection ExpansionSection;
+
+	FScopeLock Lock(&ExpansionSection);
 
 	if (LastPlatform != PlatformName)
 	{
@@ -3800,13 +3848,14 @@ void FConfigCacheIni::SaveCurrentStateForBootstrap(const TCHAR* Filename)
 	FFileHelper::SaveArrayToFile(FileContent, Filename);
 }
 
-FArchive& operator<<(FArchive& Ar, FConfigCacheIni& ConfigCacheIni)
+void FConfigCacheIni::Serialize(FArchive& Ar)
 {
-	Ar << static_cast<FConfigCacheIni::Super&>(ConfigCacheIni);
-	Ar << ConfigCacheIni.bAreFileOperationsDisabled;
-	Ar << ConfigCacheIni.bIsReadyForUse;
-	Ar << ConfigCacheIni.Type;
-	return Ar;
+	FConfigCacheIni::Super* Parent = static_cast<FConfigCacheIni::Super*>(this);
+	Ar << *Parent;
+	Ar << KnownFiles;
+	Ar << bAreFileOperationsDisabled;
+	Ar << bIsReadyForUse;
+	Ar << Type;
 }
 
 void FConfigCacheIni::SerializeStateForBootstrap_Impl(FArchive& Ar)
@@ -3817,7 +3866,7 @@ void FConfigCacheIni::SerializeStateForBootstrap_Impl(FArchive& Ar)
 	// the same binary executable for both the parent and 
 	// children processes. It also takes care of saving/restoring
 	// global ini variables.
-	Ar << *this;
+	Serialize(Ar);
 	Ar << GEditorIni;
 	Ar << GEditorKeyBindingsIni;
 	Ar << GEditorLayoutIni;
@@ -3834,8 +3883,157 @@ void FConfigCacheIni::SerializeStateForBootstrap_Impl(FArchive& Ar)
 	Ar << GEngineIni;
 }
 
+
+bool FConfigCacheIni::InitializeKnownConfigFiles(const TCHAR* PlatformName, bool bDefaultEngineIniRequired)
+{
+	// check for scalability platform override.
+	const TCHAR* ScalabilityPlatformOverride = nullptr;
+#if !UE_BUILD_SHIPPING && WITH_EDITOR
+	if (PlatformName == nullptr)
+	{
+		FString ScalabilityPlatformOverrideCommandLine;
+		FParse::Value(FCommandLine::Get(), TEXT("ScalabilityIniPlatformOverride="), ScalabilityPlatformOverrideCommandLine);
+		ScalabilityPlatformOverride = ScalabilityPlatformOverrideCommandLine.Len() ? *ScalabilityPlatformOverrideCommandLine : nullptr;
+	}
+#endif
+
+	// when initializing GConfig, allow standard behavior (PlatformName will be null in that case)
+	bool bAllowGeneratedIniWhenCooked = PlatformName == nullptr;
+	bool bAllowRemoteConfig = PlatformName == nullptr;
+
+	bool bEngineConfigCreated = false;
+	for (uint8 KnownIndex = 0; KnownIndex < (uint8)EKnownIniFile::NumKnownFiles; KnownIndex++)
+	{
+		// allo for scalability to come from another 
+		const TCHAR* PlatformNameForThisIni = KnownIndex == (uint8)EKnownIniFile::Scalability ? ScalabilityPlatformOverride : PlatformName;
+		// load the hierarchy!
+		bool bConfigCreated = FConfigCacheIni::LoadGlobalIniFile(KnownFiles.Files[KnownIndex].IniPath, *KnownFiles.Files[KnownIndex].IniName.ToString(), PlatformName, 
+			bDefaultEngineIniRequired, false, bAllowGeneratedIniWhenCooked, bAllowRemoteConfig, *FPaths::GeneratedConfigDir(), this);
+
+		// we want to return if the Engine config was successfully created (to not remove any functionality from old code)
+		if (KnownIndex == (uint8)EKnownIniFile::Engine)
+		{
+			bEngineConfigCreated = bConfigCreated;
+		}
+	}
+
+	bIsReadyForUse = true;
+
+	return bEngineConfigCreated;
+}
+
+
+const FConfigFile* FConfigCacheIni::FKnownConfigFiles::GetFile(FName Name)
+{
+	// sharing logic
+	return GetMutableFile(Name);
+}
+
+FConfigFile* FConfigCacheIni::FKnownConfigFiles::GetMutableFile(FName Name)
+{
+	// walk the list of files looking for matching FName (a TMap was a bit slower)
+	for (FKnownConfigFile& File : Files)
+	{
+		if (File.IniName == Name)
+		{
+			return &File.IniFile;
+		}
+	}
+
+	return nullptr;
+}
+const FString& FConfigCacheIni::FKnownConfigFiles::GetFilename(FName Name)
+{
+	for (FKnownConfigFile& File : Files)
+	{
+		if (File.IniName == Name)
+		{
+			return File.IniPath;
+		}
+	}
+
+	static FString Empty;
+	return Empty;
+}
+
+FConfigCacheIni::FKnownConfigFiles::FKnownConfigFiles()
+{
+	// set the FNames associated with each file
+
+	// 	Files[(uint8)EKnownIniFile::Engine].IniName = FName("Engine");
+	#define SET_KNOWN_NAME(Ini) Files[(uint8)EKnownIniFile::Ini].IniName = FName(#Ini);
+		ENUMERATE_KNOWN_INI_FILES(SET_KNOWN_NAME);
+	#undef SET_KNOWN_NAME
+}
+
+FArchive& operator<<(FArchive& Ar, FConfigCacheIni::FKnownConfigFiles& Names)
+{
+	for (FConfigCacheIni::FKnownConfigFiles::FKnownConfigFile& File : Names.Files)
+	{
+		Ar << File.IniPath << File.IniFile;
+	}
+
+	return Ar;
+}
+
+#if PRELOAD_BINARY_CONFIG
+
+#include "Misc/PreLoadFile.h"
+static FPreLoadFile GPreLoadConfigBin(TEXT("{PROJECT}Config/Config.bin"));
+
+bool FConfigCacheIni::CreateGConfigFromSaved(const TCHAR* Filename)
+{
+	SCOPED_BOOT_TIMING("FConfigCacheIni::CreateGConfigFromSaved");
+	// get the already loaded file
+	int64 Size;
+	void* PreloadedData = GPreLoadConfigBin.TakeOwnershipOfLoadedData(&Size);
+	if (PreloadedData == nullptr)
+	{
+		return false;
+	}
+
+	UE_LOG(LogInit, Display, TEXT("Loading binary GConfig..."));
+
+	// serialize right out of the preloaded data
+	FLargeMemoryReader MemoryReader((uint8*)PreloadedData, Size);
+	FKnownConfigFiles Names;
+	GConfig = new FConfigCacheIni(EConfigCacheType::Temporary);
+
+	// make an object that we can use to pass to delegates for any extra binary data they want to write
+//	FCoreDelegates::FExtraBinaryConfigData ExtraData(*GConfig, false);
+
+	GConfig->Serialize(MemoryReader);
+	MemoryReader << Names;// << ExtraData.Data;
+
+	// now let the delegates pull their data out, after GConfig is set up
+//	FCoreDelegates::AccessExtraBinaryConfigData.Broadcast(ExtraData);
+
+	FCoreDelegates::ConfigReadyForUse.Broadcast();
+
+	FMemory::Free(PreloadedData);
+	return true;
+}
+
+#endif
+
 void FConfigCacheIni::InitializeConfigSystem()
 {
+	// assign the G***Ini strings for the known ini's
+	#define ASSIGN_GLOBAL_INI_STRING(IniName) G##IniName##Ini = FString(#IniName);
+		// GEngineIni = FString("Engine")
+		ENUMERATE_KNOWN_INI_FILES(ASSIGN_GLOBAL_INI_STRING);
+	#undef ASSIGN_GLOBAL_INI_STRING
+
+#if PRELOAD_BINARY_CONFIG
+	// attempt to load from staged binary config data
+	FString BinaryConfigFile = FPaths::Combine(FPaths::SourceConfigDir(), TEXT("Config.bin"));
+	if (IFileManager::Get().FileExists(*BinaryConfigFile) &&
+		FConfigCacheIni::CreateGConfigFromSaved(*BinaryConfigFile))
+	{
+		return;
+	}
+#endif
+
 	// Bootstrap the Ini config cache
 	FString IniBootstrapFilename;
 	if (FParse::Value( FCommandLine::Get(), TEXT("IniBootstrap="), IniBootstrapFilename))
@@ -3856,6 +4054,8 @@ void FConfigCacheIni::InitializeConfigSystem()
 		}
 	}
 
+	UE_LOG(LogInit, Display, TEXT("Loading text-based GConfig..."));
+
 	// Perform any upgrade we need before we load any configuration files
 	FConfigManifest::UpgradeFromPreviousVersions();
 
@@ -3865,8 +4065,11 @@ void FConfigCacheIni::InitializeConfigSystem()
 	// load the main .ini files (unless we're running a program or a gameless UnrealEditor.exe, DefaultEngine.ini is required).
 	const bool bIsGamelessExe = !FApp::HasProjectName();
 	const bool bDefaultEngineIniRequired = !bIsGamelessExe && (GIsGameAgnosticExe || FApp::IsProjectNameEmpty());
-	bool bEngineConfigCreated = FConfigCacheIni::LoadGlobalIniFile(GEngineIni, TEXT("Engine"), nullptr, bDefaultEngineIniRequired);
 
+	// load in the default ini files
+	bool bEngineConfigCreated = GConfig->InitializeKnownConfigFiles(nullptr, bDefaultEngineIniRequired);
+
+	// verify if needed
 	if ( !bIsGamelessExe )
 	{
 		// Now check and see if our game is correct if this is a game agnostic binary
@@ -3888,8 +4091,6 @@ void FConfigCacheIni::InitializeConfigSystem()
 		}
 	}
 
-	FConfigCacheIni::LoadGlobalIniFile(GGameIni, TEXT("Game"));
-	FConfigCacheIni::LoadGlobalIniFile(GInputIni, TEXT("Input"));
 #if WITH_EDITOR
 	// load some editor specific .ini files
 
@@ -3901,9 +4102,9 @@ void FConfigCacheIni::InitializeConfigSystem()
 
 	// Project agnostic editor ini files
 	const FString EditorSettingsDir = FPaths::EngineEditorSettingsDir();
-	FConfigCacheIni::LoadGlobalIniFile(GEditorSettingsIni, TEXT("EditorSettings"), nullptr, false, false, true, *EditorSettingsDir);
-	FConfigCacheIni::LoadGlobalIniFile(GEditorKeyBindingsIni, TEXT("EditorKeyBindings"), nullptr, false, false, true, *EditorSettingsDir);
-	FConfigCacheIni::LoadGlobalIniFile(GEditorLayoutIni, TEXT("EditorLayout"), nullptr, false, false, true, *EditorSettingsDir);
+	FConfigCacheIni::LoadGlobalIniFile(GEditorSettingsIni, TEXT("EditorSettings"), nullptr, false, false, true, true, *EditorSettingsDir);
+	FConfigCacheIni::LoadGlobalIniFile(GEditorKeyBindingsIni, TEXT("EditorKeyBindings"), nullptr, false, false, true, true, *EditorSettingsDir);
+	FConfigCacheIni::LoadGlobalIniFile(GEditorLayoutIni, TEXT("EditorLayout"), nullptr, false, false, true, true, *EditorSettingsDir);
 
 #endif
 #if PLATFORM_DESKTOP
@@ -3912,56 +4113,53 @@ void FConfigCacheIni::InitializeConfigSystem()
 	FConfigCacheIni::LoadGlobalIniFile(GLightmassIni, TEXT("Lightmass"));
 #endif
 
-	// check for scalability platform override.
-	const TCHAR* ScalabilityPlatformOverride = nullptr;
-#if !UE_BUILD_SHIPPING && WITH_EDITOR
-	FString ScalabilityPlatformOverrideCommandLine;
-	FParse::Value(FCommandLine::Get(), TEXT("ScalabilityIniPlatformOverride="), ScalabilityPlatformOverrideCommandLine);
-	ScalabilityPlatformOverride = ScalabilityPlatformOverrideCommandLine.Len() ? *ScalabilityPlatformOverrideCommandLine : nullptr;
-#endif
-
-	// Load scalability settings.
-	FConfigCacheIni::LoadGlobalIniFile(GScalabilityIni, TEXT("Scalability"), ScalabilityPlatformOverride);
-	// Load driver blacklist
-	FConfigCacheIni::LoadGlobalIniFile(GHardwareIni, TEXT("Hardware"));	
-	// Load runtime options
-	FConfigCacheIni::LoadGlobalIniFile(GRuntimeOptionsIni, TEXT("RuntimeOptions"));
-	// Load install bundle config
-	FConfigCacheIni::LoadGlobalIniFile(GInstallBundleIni, TEXT("InstallBundle"));
-	// Load device profiles for current platform
-	FConfigCacheIni::LoadGlobalIniFile(GDeviceProfilesIni, TEXT("DeviceProfiles"));
-
-
-
-	// Load user game settings .ini, allowing merging. This also updates the user .ini if necessary.
-	FConfigCacheIni::LoadGlobalIniFile(GGameUserSettingsIni, TEXT("GameUserSettings"));
 
 	// now we can make use of GConfig
 	GConfig->bIsReadyForUse = true;
 	FCoreDelegates::ConfigReadyForUse.Broadcast();
+
+#if WITH_EDITOR
+	AsyncInitializeConfigForPlatforms();
+#endif
 }
 
-bool FConfigCacheIni::LoadGlobalIniFile(FString& FinalIniFilename, const TCHAR* BaseIniName, const TCHAR* Platform, bool bForceReload, bool bRequireDefaultIni, bool bAllowGeneratedIniWhenCooked, const TCHAR* GeneratedConfigDir)
+bool FConfigCacheIni::LoadGlobalIniFile(FString& OutFinalIniFilename, const TCHAR* BaseIniName, const TCHAR* Platform, bool bForceReload, bool bRequireDefaultIni, bool bAllowGeneratedIniWhenCooked, bool bAllowRemoteConfig, const TCHAR* GeneratedConfigDir, FConfigCacheIni* ConfigSystem)
 {
 	// figure out where the end ini file is
-	FinalIniFilename = GetDestIniFilename(BaseIniName, Platform, GeneratedConfigDir);
-	
-	// Start the loading process for the remote config file when appropriate
-	if (FRemoteConfig::Get()->ShouldReadRemoteFile(*FinalIniFilename))
+	FString FinalIniFilename = GetDestIniFilename(BaseIniName, Platform, GeneratedConfigDir);
+
+	// if we are reloading a known ini file (where OutFinalIniFilename already has a value), then we need to leave the OutFinalFilename alone until we can remove LoadGlobalIniFile completely
+	if (OutFinalIniFilename.Len() > 0 && OutFinalIniFilename == BaseIniName)
 	{
-		FRemoteConfig::Get()->Read(*FinalIniFilename, BaseIniName);
+		// don't do anything to the output string
+	}
+	else
+	{
+		OutFinalIniFilename = FinalIniFilename;
+	}
+	
+	if (bAllowRemoteConfig)
+	{
+		// Start the loading process for the remote config file when appropriate
+		if (FRemoteConfig::Get()->ShouldReadRemoteFile(*FinalIniFilename))
+		{
+			FRemoteConfig::Get()->Read(*FinalIniFilename, BaseIniName);
+		}
+
+		FRemoteConfigAsyncIOInfo* RemoteInfo = FRemoteConfig::Get()->FindConfig(*FinalIniFilename);
+		if (RemoteInfo && (!RemoteInfo->bWasProcessed || !FRemoteConfig::Get()->IsFinished(*FinalIniFilename)))
+		{
+			// Defer processing this remote config file to until it has finish its IO operation
+			return false;
+		}
 	}
 
-	FRemoteConfigAsyncIOInfo* RemoteInfo = FRemoteConfig::Get()->FindConfig(*FinalIniFilename);
-	if (RemoteInfo && (!RemoteInfo->bWasProcessed || !FRemoteConfig::Get()->IsFinished(*FinalIniFilename)))
-	{
-		// Defer processing this remote config file to until it has finish its IO operation
-		return false;
-	}
+	// look for a known file to see if it's been loaded yet
+	FConfigFile* KnownFile = ConfigSystem->KnownFiles.GetMutableFile(BaseIniName);
 
 	// need to check to see if the file already exists in the GConfigManager's cache
 	// if it does exist then we are done, nothing else to do
-	if (!bForceReload && GConfig->FindConfigFile(*FinalIniFilename) != nullptr)
+	if (!bForceReload && ((KnownFile != nullptr && KnownFile->Num() > 0) || (KnownFile == nullptr && ConfigSystem->FindConfigFile(*FinalIniFilename) != nullptr)))
 	{
 		//UE_LOG(LogConfig, Log,  TEXT( "Request to load a config file that was already loaded: %s" ), GeneratedIniFile );
 		return true;
@@ -3973,7 +4171,7 @@ bool FConfigCacheIni::LoadGlobalIniFile(FString& FinalIniFilename, const TCHAR* 
 	if (bForceReload) // If reloading we should preserve the existing config dirs
 	{
 		// If base ini, try to use an existing GConfig file to set the config directories instead of assuming defaults
-		FConfigFile* BaseConfig = GConfig->FindConfigFileWithBaseName(BaseIniName);
+		FConfigFile* BaseConfig = ConfigSystem->FindConfigFileWithBaseName(BaseIniName);
 		if (BaseConfig)
 		{
 			if (BaseConfig->SourceEngineConfigDir.Len())
@@ -3988,8 +4186,8 @@ bool FConfigCacheIni::LoadGlobalIniFile(FString& FinalIniFilename, const TCHAR* 
 		}
 	}
 
-	// make a new entry in GConfig (overwriting what's already there)
-	FConfigFile& NewConfigFile = GConfig->Add(FinalIniFilename, FConfigFile());
+	// if this was a known file, use it directly, otherwise, add one and use it
+	FConfigFile& NewConfigFile = KnownFile != nullptr ? *KnownFile : ConfigSystem->Add(FinalIniFilename, FConfigFile());
 
 	return LoadExternalIniFile(
 		NewConfigFile, 
@@ -3999,7 +4197,7 @@ bool FConfigCacheIni::LoadGlobalIniFile(FString& FinalIniFilename, const TCHAR* 
 		/*bIsBaseIniName*/ true,
 		Platform, 
 		bForceReload, 
-		/*bWriteDestIni*/ true,
+		/*bWriteDestIni*/ ConfigSystem->Type == EConfigCacheType::DiskBacked,
 		bAllowGeneratedIniWhenCooked, 
 		GeneratedConfigDir);
 }
@@ -4088,7 +4286,8 @@ bool FConfigCacheIni::LoadExternalIniFile(FConfigFile& ConfigFile, const TCHAR* 
 		// now generate and make sure it's up to date (using IniName as a Base for an ini filename)
 		// @todo This bNeedsWrite afaict is always true even if it loaded a completely valid generated/final .ini, and the write below will
 		// just write out the exact same thing it read in!
-		bool bNeedsWrite = GenerateDestIniFile(ConfigFile, DestIniFilename, ConfigFile.SourceIniHierarchy, bAllowGeneratedIniWhenCooked, true);
+		// don't use the ini cache (via bUseHierarchyCache param) if we are not writing to disk - the cache is shared resource, and shouldn't be used for temp FConfigCacheInis
+		bool bNeedsWrite = GenerateDestIniFile(ConfigFile, DestIniFilename, ConfigFile.SourceIniHierarchy, bAllowGeneratedIniWhenCooked, bWriteDestIni);
 
 		ConfigFile.Name = IniName;
 
@@ -4608,17 +4807,17 @@ void ForEachCVarInSectionFromIni(const TCHAR* InSectionName, const TCHAR* InIniF
 	if (FConfigSection* Section = GConfig->GetSectionPrivate(InSectionName, false, true, InIniFilename))
 	{
 		for (FConfigSectionMap::TConstIterator It(*Section); It; ++It)
-		{
-			const FString& KeyString = It.Key().GetPlainNameString();
-			const FString& ValueString = ConvertValueFromHumanFriendlyValue(*It.Value().GetValue());
+	{
+		const FString& KeyString = It.Key().GetPlainNameString();
+		const FString& ValueString = ConvertValueFromHumanFriendlyValue(*It.Value().GetValue());
 
-			IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*KeyString);
-			if (CVar)
-			{
-				InEvaluationFunction(CVar, KeyString, ValueString);
-			}
+		IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*KeyString);
+		if (CVar)
+		{
+			InEvaluationFunction(CVar, KeyString, ValueString);
 		}
 	}
+}
 }
 
 
@@ -4873,14 +5072,14 @@ void RecordApplyCVarSettingsFromIni()
 void ReapplyRecordedCVarSettingsFromIni()
 {
 	// first we need to reload the inis 
-	for (TPair<FString, FConfigFile>& IniPair : *GConfig)
+	for (const FString& Filename : GConfig->GetFilenames())
 	{
-		FConfigFile& ConfigFile = IniPair.Value;
-		if (ConfigFile.Num() > 0)
+		FConfigFile* ConfigFile = GConfig->FindConfigFile(Filename);
+		if (ConfigFile->Num() > 0)
 		{
-			FName BaseName = ConfigFile.Name;
+			FName BaseName = ConfigFile->Name;
 			// Must call LoadLocalIniFile (NOT LoadGlobalIniFile) to preserve original enginedir/sourcedir for plugins
-			verify(FConfigCacheIni::LoadLocalIniFile(ConfigFile, *BaseName.ToString(), true, nullptr, true));
+			verify(FConfigCacheIni::LoadLocalIniFile(*ConfigFile, *BaseName.ToString(), true, nullptr, true));
 		}
 	}
 
@@ -4917,3 +5116,80 @@ void DeleteRecordedConfigReadsFromIni()
 	ConfigHistoryHelper = nullptr;
 #endif
 }
+
+
+
+
+
+static TMap<FName, FConfigCacheIni> GConfigForPlatform;
+static TFuture<void> GConfigFuture;
+static FCriticalSection GConfigForPlatformLock;
+
+#if WITH_EDITOR
+void FConfigCacheIni::AsyncInitializeConfigForPlatforms()
+{
+	GConfigFuture = Async(EAsyncExecution::ThreadPool, []
+	{
+		double Start = FPlatformTime::Seconds();
+
+		for (auto Pair : FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())
+		{
+			FName PlatformName = Pair.Key;
+
+			FConfigCacheIni& NewConfig = GConfigForPlatform.Emplace(PlatformName, EConfigCacheType::Temporary);
+
+			NewConfig.InitializeKnownConfigFiles(*PlatformName.ToString(), false);
+		}
+
+		UE_LOG(LogConfig, Display, TEXT("Loading platform ini files took %.2f seconds"), FPlatformTime::Seconds() - Start);
+	});
+}
+
+#endif
+
+#if WITH_UNREAL_DEVELOPER_TOOLS
+
+FConfigCacheIni* FConfigCacheIni::ForPlatform(FName PlatformName)
+{
+	// use GConfig when no platform is specified
+	if (PlatformName == NAME_None)
+	{
+		return GConfig;
+	}
+
+	FScopeLock Lock(&GConfigForPlatformLock);
+
+	// they are likely already loaded, but just block to make sure
+	if (GConfigFuture.IsValid())
+	{
+		double Start = FPlatformTime::Seconds();
+
+		GConfigFuture.Get();
+		GConfigFuture = TFuture<void>();
+
+		UE_LOG(LogConfig, Display, TEXT("Blocking on platform ini files took %.2f seconds"), FPlatformTime::Seconds() - Start);
+	}
+
+	// look for existing config
+	FConfigCacheIni* PlatformConfig = GConfigForPlatform.Find(PlatformName);
+
+	// read any missing platform configs now, on demand
+	if (PlatformConfig == nullptr)
+	{
+		PlatformConfig = &GConfigForPlatform.Emplace(PlatformName, EConfigCacheType::Temporary);
+		PlatformConfig->InitializeKnownConfigFiles(*PlatformName.ToString(), false);
+	}
+
+	return GConfigForPlatform.Find(PlatformName);
+}
+
+void FConfigCacheIni::ClearOtherPlatformConfigs()
+{
+	FScopeLock Lock(&GConfigForPlatformLock);
+
+	checkf(!GConfigFuture.IsValid(), TEXT("Trying to clear platform configs while still reading them in is unexpected"));
+
+	GConfigForPlatform.Empty();
+}
+
+#endif

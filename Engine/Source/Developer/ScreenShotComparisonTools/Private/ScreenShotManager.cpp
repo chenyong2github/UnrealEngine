@@ -611,9 +611,9 @@ void FScreenShotManager::BuildFallbackPlatformsListFromConfig(const UScreenShotC
 	// legacy path
 	if (GConfig)
 	{
-		for (const TPair<FString,FConfigFile>& Config : *GConfig)
+		for (const FString& ConfigFilename : GConfig->GetFilenames())
 		{
-			FConfigSection* FallbackSection = GConfig->GetSectionPrivate(TEXT("AutomationTestFallbackHierarchy"), false, true, Config.Key);
+			FConfigSection* FallbackSection = GConfig->GetSectionPrivate(TEXT("AutomationTestFallbackHierarchy"), false, true, ConfigFilename);
 			if (FallbackSection)
 			{
 				UE_LOG(LogScreenShotManager, Warning, TEXT("Please move FallbackPlatform entries in [AutomationTestFallbackHierarchy] to +ScreenshotFallbackPlatforms= under[/Script/ScreenShotComparisonTools.ScreenShotComparisonSettings] in DefaultEngine.ini"));
