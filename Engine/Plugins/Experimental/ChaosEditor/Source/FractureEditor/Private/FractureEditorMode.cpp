@@ -51,6 +51,8 @@ void FFractureEditorMode::Enter()
 
 	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
 	LevelEditorModule.OnActorSelectionChanged().AddRaw(this, &FFractureEditorMode::OnActorSelectionChanged);
+
+	FCoreUObjectDelegates::OnPackageReloaded.AddSP(this, &FFractureEditorMode::HandlePackageReloaded);
 	
 	// Get initial geometry component selection from currently selected actors when we enter the mode
 	USelection* SelectedActors = GEditor->GetSelectedActors();
@@ -393,6 +395,35 @@ void FFractureEditorMode::GetActorGlobalBounds(TArrayView<UGeometryCollectionCom
 void FFractureEditorMode::SelectionStateChanged()
 {
 
+}
+
+void FFractureEditorMode::HandlePackageReloaded(const EPackageReloadPhase InPackageReloadPhase, FPackageReloadedEvent* InPackageReloadedEvent)
+{
+	if (InPackageReloadPhase == EPackageReloadPhase::PostPackageFixup)
+	{
+		// assemble referenced RestCollections
+		TSet<const UGeometryCollection*> ReferencedRestCollections;
+		for (UGeometryCollectionComponent* ExistingSelection : SelectedGeometryComponents)
+		{
+			ReferencedRestCollections.Add(ExistingSelection->GetRestCollection());
+		}
+		
+		// refresh outliner if reloaded package contains a referenced RestCollection
+		for (const auto& RepointedObjectPair : InPackageReloadedEvent->GetRepointedObjects())
+		{
+			if (UGeometryCollection* NewObject = Cast<UGeometryCollection>(RepointedObjectPair.Value))
+			{
+				if (ReferencedRestCollections.Contains(NewObject))
+				{
+					if (Toolkit.IsValid())
+					{
+						FFractureEditorModeToolkit* FractureToolkit = (FFractureEditorModeToolkit*)Toolkit.Get();
+						FractureToolkit->SetOutlinerComponents(SelectedGeometryComponents);
+					}
+				}
+			}
+		}
+	}
 }
 
 FConvexVolume FFractureEditorMode::TranformFrustum(const FConvexVolume& InFrustum, const FMatrix& InMatrix)
