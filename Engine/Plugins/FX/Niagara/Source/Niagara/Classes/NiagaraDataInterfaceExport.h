@@ -95,6 +95,7 @@ public:
 	virtual bool HasInternalAttributeReads(const UNiagaraEmitter* OwnerEmitter, const UNiagaraEmitter* Provider) const override { return OwnerEmitter == Provider; };
 
 	virtual void StoreData(FVectorVMContext& Context);
+	virtual void ExportData(FVectorVMContext& Context);
 
 protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
