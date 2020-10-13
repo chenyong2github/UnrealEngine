@@ -128,9 +128,12 @@ bool ADisplayClusterRootActor::BuildHierarchy(UDisplayClusterConfigurationData* 
 	}
 
 #if WITH_EDITOR
-	// Force SActorDetails redraw
-	FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
-	LevelEditor.BroadcastComponentsEdited();
+	if (GIsEditor)
+	{
+		// Force SActorDetails redraw
+		FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+		LevelEditor.BroadcastComponentsEdited();
+	}
 #endif
 
 	return true;
