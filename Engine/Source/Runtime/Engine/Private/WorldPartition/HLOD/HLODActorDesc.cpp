@@ -8,9 +8,9 @@
 #include "WorldPartition/HLOD/HLODActor.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
 
-void FHLODActorDesc::InitFrom(const AActor* InActor)
+void FHLODActorDesc::Init(const AActor* InActor)
 {
-	FWorldPartitionActorDesc::InitFrom(InActor);
+	FWorldPartitionActorDesc::Init(InActor);
 
 	const AWorldPartitionHLOD* HLODActor = CastChecked<AWorldPartitionHLOD>(InActor);
 	SubActors = HLODActor->GetSubActors();

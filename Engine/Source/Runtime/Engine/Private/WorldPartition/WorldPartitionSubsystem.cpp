@@ -207,14 +207,6 @@ void UWorldPartitionSubsystem::ForEachActorDesc(TSubclassOf<AActor> ActorClass, 
 	}
 }
 
-void UWorldPartitionSubsystem::UpdateActorDesc(AActor* Actor)
-{
-	if (UWorldPartition* MainPartition = GetMainWorldPartition())
-	{
-		MainPartition->UpdateActorDesc(Actor);
-	}
-}
-
 void UWorldPartitionSubsystem::RegisterActorDescFactory(TSubclassOf<AActor> Class, FWorldPartitionActorDescFactory* Factory)
 {
 	UWorldPartition::RegisterActorDescFactory(Class, Factory);

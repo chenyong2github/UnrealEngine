@@ -56,8 +56,6 @@ public:
 			HLODActor->SetChildrenPrimitives(InSubComponents);
 			HLODActor->SetActorLabel(HLODActorName);
 			HLODActor->RuntimeGrid = HLODLayer->GetRuntimeGrid();
-
-			WorldPartition->UpdateActorDesc(HLODActor);
 		}
 		else
 		{

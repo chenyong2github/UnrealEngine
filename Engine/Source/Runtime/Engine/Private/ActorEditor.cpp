@@ -591,14 +591,6 @@ bool AActor::InternalPostEditUndo()
 		FNavigationSystem::RemoveActorData(*this);
 	}
 
-	if (!IsTemplate())
-	{
-		if (UWorldPartitionSubsystem* WorldPartitionSubsystem = UWorld::GetSubsystem<UWorldPartitionSubsystem>(GetWorld()))
-		{
-			WorldPartitionSubsystem->UpdateActorDesc(this);
-		}
-	}
-
 	// This is a normal undo, so call super
 	return true;
 }

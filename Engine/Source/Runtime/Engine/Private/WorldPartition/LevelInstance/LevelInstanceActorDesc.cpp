@@ -6,9 +6,9 @@
 #include "Engine/Level.h"
 #include "LevelInstance/LevelInstanceActor.h"
 
-void FLevelInstanceActorDesc::InitFrom(const AActor* InActor)
+void FLevelInstanceActorDesc::Init(const AActor* InActor)
 {
-	FWorldPartitionActorDesc::InitFrom(InActor);
+	FWorldPartitionActorDesc::Init(InActor);
 
 	const ALevelInstance* LevelInstanceActor = CastChecked<ALevelInstance>(InActor);
 	LevelPackage = *LevelInstanceActor->GetWorldAssetPackage();

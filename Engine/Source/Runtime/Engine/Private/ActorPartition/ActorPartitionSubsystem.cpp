@@ -227,9 +227,6 @@ public:
 			FoundActor->bLockLocation = true;
 			
 			InActorCreated(FoundActor);
-
-			FoundActor->SetActorLabel(FoundActor->GetName());
-			WorldPartition->UpdateActorDesc(FoundActor);
 		}
 
 		check(FoundActor || !bInCreate);

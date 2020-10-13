@@ -5,9 +5,9 @@
 
 #if WITH_EDITOR
 
-void FLandscapeActorDesc::InitFrom(const AActor* InActor)
+void FLandscapeActorDesc::Init(const AActor* InActor)
 {
-	FPartitionActorDesc::InitFrom(InActor);
+	FPartitionActorDesc::Init(InActor);
 
 	const ALandscapeProxy* LandscapeProxy = CastChecked<ALandscapeProxy>(InActor);
 	check(LandscapeProxy);

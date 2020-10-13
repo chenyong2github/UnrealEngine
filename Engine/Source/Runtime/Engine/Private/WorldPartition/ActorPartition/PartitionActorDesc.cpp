@@ -7,9 +7,9 @@
 #include "Engine/Level.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 
-void FPartitionActorDesc::InitFrom(const AActor* InActor)
+void FPartitionActorDesc::Init(const AActor* InActor)
 {
-	FWorldPartitionActorDesc::InitFrom(InActor);
+	FWorldPartitionActorDesc::Init(InActor);
 
 	const APartitionActor* PartitionActor = CastChecked<APartitionActor>(InActor);
 

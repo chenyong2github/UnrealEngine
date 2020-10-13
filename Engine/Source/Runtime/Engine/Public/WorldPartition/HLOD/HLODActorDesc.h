@@ -22,7 +22,7 @@ public:
 	inline const FSoftObjectPath& GetHLODLayer() const { return HLODLayer; }
 
 protected:
-	virtual void InitFrom(const AActor* InActor) override;
+	virtual void Init(const AActor* InActor) override;
 	virtual void Serialize(FArchive& Ar) override;
 
 	TArray<FGuid> SubActors;

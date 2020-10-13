@@ -57,7 +57,7 @@ public:
 
 protected:
 	void UpdateTransform() const;
-	void UpdateSelection(bool bAppend = false);
+	void UpdateSelection();
 
 	const TSharedRef<FUICommandList> CommandList;
 
@@ -89,6 +89,6 @@ protected:
 	FVector2D MouseCursorPosWorld;
 	FVector2D SelectionStart;
 	FVector2D SelectionEnd;
-	TSet<UWorldPartitionEditorCell*> SelectedCells;
+	FBox SelectBox;
 	FSlateFontInfo SmallLayoutFont;
 };

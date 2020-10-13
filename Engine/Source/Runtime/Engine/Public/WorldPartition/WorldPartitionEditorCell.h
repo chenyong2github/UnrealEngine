@@ -16,7 +16,6 @@ class UWorldPartitionEditorCell: public UObject
 	GENERATED_UCLASS_BODY()
 
 public:
-
 	virtual void Serialize(FArchive& Ar) override;
 
 #if WITH_EDITOR

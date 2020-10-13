@@ -8,7 +8,6 @@
 #include "Misc/MessageDialog.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
-#include "WorldPartition/WorldPartitionSubsystem.h"
 
 bool UActorGroupingUtils::bGroupingActive = true;
 
@@ -107,11 +106,6 @@ void UActorGroupingUtils::GroupActors(const TArray<AActor*>& ActorsToGroup)
 					SpawnedGroupActor->SetFolderPath(FolderPath);
 					SpawnedGroupActor->CenterGroupLocation();
 					SpawnedGroupActor->Lock();
-
-					if (UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>())
-					{
-						WorldPartitionSubsystem->UpdateActorDesc(SpawnedGroupActor);
-					}
 				}
 			}
 		}
@@ -173,11 +167,6 @@ void UActorGroupingUtils::UngroupActors(const TArray<AActor*>& ActorsToUngroup)
 			{
 				AGroupActor* GroupActor = OutermostGroupActors[GroupIndex];
 				GroupActor->ClearAndRemove();
-
-				if (UWorldPartitionSubsystem* WorldPartitionSubsystem = GroupActor->GetWorld()->GetSubsystem<UWorldPartitionSubsystem>())
-				{
-					WorldPartitionSubsystem->UpdateActorDesc(GroupActor);
-				}
 			}
 		}
 	}

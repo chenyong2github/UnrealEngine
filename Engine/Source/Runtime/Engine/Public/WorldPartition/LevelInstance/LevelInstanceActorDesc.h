@@ -22,7 +22,7 @@ public:
 	inline FName GetLevelPackage() const { return LevelPackage; }
 
 protected:
-	virtual void InitFrom(const AActor* InActor) override;
+	virtual void Init(const AActor* InActor) override;
 	virtual void Serialize(FArchive& Ar) override;
 
 	FName LevelPackage;

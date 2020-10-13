@@ -20,18 +20,13 @@ void UWorldPartitionEditorCell::Serialize(FArchive& Ar)
 }
 
 #if WITH_EDITOR
-UWorldPartition* UWorldPartitionEditorCell::GetWorldPartition()
-{
-	return GetOuterUWorldPartitionEditorHash()->GetOuterUWorldPartition();
-}
-
 void UWorldPartitionEditorCell::AddActor(FWorldPartitionActorDesc* InActorDesc)
 {
 	check(InActorDesc);
 	bool bIsAlreadyInSet = false;
 	Actors.Add(InActorDesc, &bIsAlreadyInSet);
 
-	if (!bIsAlreadyInSet)
+	if (!bIsAlreadyInSet && bLoaded)
 	{
 		if (AActor* Actor = InActorDesc->GetActor())
 		{
@@ -54,6 +49,8 @@ void UWorldPartitionEditorCell::RemoveActor(FWorldPartitionActorDesc* InActorDes
 
 	if (LoadedActors.Remove(InActorDesc))
 	{
+		check(bLoaded);
+
 		const uint32 ActorRefCount = InActorDesc->RemoveLoadedRefCount();
 		UE_LOG(LogWorldPartition, Verbose, TEXT(" ==> Unreferenced loaded actor %s(%d) [UWorldPartitionEditorCell::RemoveActor]"), *InActorDesc->GetActor()->GetFullName(), ActorRefCount);
 	}

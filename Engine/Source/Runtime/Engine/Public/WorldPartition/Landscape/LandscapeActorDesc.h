@@ -16,6 +16,6 @@ class ENGINE_API FLandscapeActorDesc : public FPartitionActorDesc
 	friend class FLandscapeActorDescFactory;
 
 protected:
-	virtual void InitFrom(const AActor* InActor) override;
+	virtual void Init(const AActor* InActor) override;
 #endif
 };

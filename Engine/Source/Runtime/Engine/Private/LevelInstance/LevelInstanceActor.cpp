@@ -4,8 +4,6 @@
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "LevelInstance/LevelInstanceComponent.h"
 #include "LevelInstance/LevelInstanceEditorInstanceActor.h"
-#include "WorldPartition/WorldPartitionSubsystem.h"
-#include "WorldPartition/WorldPartition.h"
 #include "Engine/World.h"
 #include "Engine/Engine.h"
 #include "LevelInstancePrivate.h"
@@ -532,11 +530,6 @@ void ALevelInstance::OnLevelInstanceLoaded()
 		if (bHiddenInEditor)
 		{
 			SetIsTemporarilyHiddenInEditor(bHiddenInEditor);
-		}
-
-		if (UWorldPartitionSubsystem* WorldPartitionSubsystem = GetWorld()->GetSubsystem<UWorldPartitionSubsystem>())
-		{
-			WorldPartitionSubsystem->UpdateActorDesc(this);
 		}
 	}
 }

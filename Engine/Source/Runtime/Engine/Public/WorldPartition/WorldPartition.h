@@ -64,8 +64,6 @@ private:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FWorldPartitionChangedEvent, UWorld*);
 	static FWorldPartitionChangedEvent WorldPartitionChangedEvent;
 
-	void OnObjectPropertyChanged(UObject* Object, FPropertyChangedEvent& InPropertyChangedEvent);
-
 	static FWorldPartitionActorDescFactory* GetActorDescFactory(TSubclassOf<AActor> Class);
 	static FWorldPartitionActorDescFactory* GetActorDescFactory(const AActor* Actor);
 
@@ -75,12 +73,14 @@ private:
 	void OnPreBeginPIE(bool bStartSimulate);
 	void OnEndPIE(bool bStartSimulate);
 
-	void OnActorAdded(AActor* InActor);
-	void OnActorDeleted(AActor* InActor);
-	void OnActorOuterChanged(AActor* InActor, UObject* InOldOuter);
-	void OnActorMoving(AActor* InActor);
-		
-	FDelegateHandle OnInitialAssetRegistrySearchCompleteHandle;
+	// Asset registry events
+	void OnAssetAdded(const FAssetData& InAssetData);
+	void OnAssetRemoved(const FAssetData& InAssetData);
+	void OnAssetUpdated(const FAssetData& InAssetData);
+
+	TUniquePtr<FWorldPartitionActorDesc> GetActorDescriptor(const FAssetData& InAssetData);
+
+	void ApplyActorTransform(AActor* InActor, const FTransform& InTransform);
 #endif
 
 	virtual void Serialize(FArchive& Ar) override;
@@ -97,13 +97,10 @@ private:
 	void ForEachActorDesc(TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate) const;
 	// UActorPartitionSubsystem interface-
 
-	void ApplyActorTransform(AActor* InActor, const FTransform& InTransform);
-
 	static void RegisterActorDescFactory(TSubclassOf<AActor> Class, FWorldPartitionActorDescFactory* Factory);
 	// UWorldPartitionSubsystem interface-
 
 public:
-	// public interface+
 	FName GetWorldPartitionEditorName();
 	
 	// PIE Methods
@@ -119,10 +116,6 @@ public:
 	void LoadEditorCells(const FBox& Box);
 	void UnloadEditorCells(const FBox& Box);
 
-	void LoadEditorCells(const TArray<UWorldPartitionEditorCell*>& Cells);
-	void UnloadEditorCells(const TArray<UWorldPartitionEditorCell*>& Cells);
-
-	void UpdateActorDesc(AActor* InActor);
 	bool IsPreCooked() const { return bIsPreCooked; }
 	void SetIsPreCooked(bool bInIsPreCooked) { bIsPreCooked = bInIsPreCooked; }
 
@@ -131,24 +124,6 @@ public:
 
 	void GenerateHLOD();
 	void GenerateNavigationData();
-
-	// Clustering
-	struct FActorCluster
-	{
-		TSet<FGuid>			Actors;
-		EActorGridPlacement	GridPlacement;
-		FName				RuntimeGrid;
-		FBox				Bounds;
-		TArray<FName>		DataLayers;
-		uint32				DataLayersID;
-
-		FActorCluster(const FWorldPartitionActorDesc* ActorDesc);
-		void Add(const FActorCluster& ActorCluster);
-	};
-
-	const TSet<FActorCluster*>& GetActorClusters() const;
-	const FActorCluster* GetClusterForActor(const FGuid& InActorGuid) const;
-	// public interface-
 #endif
 
 public:
@@ -190,7 +165,7 @@ public:
 	DECLARE_EVENT_TwoParams(UWorldPartition, FWorldPartitionActorRegisteredEvent, AActor&, bool);
 	FWorldPartitionActorRegisteredEvent OnActorRegisteredEvent;
 
-	bool bDirty;
+	bool bIgnoreAssetRegistryEvents;
 	bool bForceGarbageCollection;
 	bool bForceGarbageCollectionPurge;
 #endif
@@ -220,7 +195,6 @@ private:
 	void UnregisterActor(AActor* Actor);
 
 	bool IsMainWorldPartition() const;
-	bool IsValidPartitionActor(AActor* Actor) const;
 
 	// Delegates registration
 	void RegisterDelegates();
@@ -234,15 +208,6 @@ private:
 
 	void HashActorDesc(FWorldPartitionActorDesc* ActorDesc);
 	void UnhashActorDesc(FWorldPartitionActorDesc* ActorDesc);
-
-	void AddToClusters(const FWorldPartitionActorDesc* ActorDesc);
-	void RemoveFromClusters(const FWorldPartitionActorDesc* ActorDesc);
-
-	void AddToPartition(FWorldPartitionActorDesc* ActorDesc);
-	void RemoveFromPartition(FWorldPartitionActorDesc* ActorDesc, bool bRemoveDescriptorFromArray = true, bool bUnloadRemovedDescriptor = true);
-
-	TMap<FGuid, UWorldPartition::FActorCluster*> ActorToActorCluster;
-	TSet<UWorldPartition::FActorCluster*> ActorClustersSet;
 #endif
 
 	UWorldPartitionStreamingPolicy* GetStreamingPolicy() const;

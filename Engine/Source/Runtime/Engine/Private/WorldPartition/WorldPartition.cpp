@@ -112,7 +112,7 @@ UWorldPartition::UWorldPartition(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITOR
 	, EditorHash(nullptr)
 	, WorldPartitionEditor(nullptr)
-	, bDirty(false)
+	, bIgnoreAssetRegistryEvents(false)
 	, bForceGarbageCollection(false)
 	, bForceGarbageCollectionPurge(false)
 #endif
@@ -147,17 +147,6 @@ void UWorldPartition::OnEndPIE(bool bStartSimulate)
 FName UWorldPartition::GetWorldPartitionEditorName()
 {
 	return EditorHash->GetWorldPartitionEditorName();
-}
-
-void UWorldPartition::OnObjectPropertyChanged(UObject* Object, FPropertyChangedEvent& PropertyChangedEvent)
-{
-	if (AActor* Actor = Cast<AActor>(Object))
-	{
-		if (FWorldPartitionActorDesc* ActorDesc = GetActorDesc(Actor->GetActorGuid()))
-		{
-			UpdateActorDesc(Actor);
-		}
-	}
 }
 #endif
 
@@ -211,29 +200,27 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 	{
 		TSet<FName> AllLayersNames;
 
-		auto GetLevelActors = [](const FName& LevelPath, TArray<FAssetData>& OutAssets)
-		{
-			if (!LevelPath.IsNone())
-			{
-				const FString LevelPathStr = LevelPath.ToString();
-				const FString LevelExternalActorsPath = ULevel::GetExternalActorsPath(LevelPathStr);
-
-				// Do a synchronous scan of the level external actors path.
-				IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
-				AssetRegistry.ScanPathsSynchronous({LevelExternalActorsPath}, /*bForceRescan*/true, /*bIgnoreBlackListScanFilters*/true);
-
-				FARFilter Filter;
-				Filter.bRecursivePaths = true;
-				Filter.bIncludeOnlyOnDiskAssets = true;
-				Filter.PackagePaths.Add(*LevelExternalActorsPath);
-
-				AssetRegistry.GetAssets(Filter, OutAssets);
-			}
-		};
-
 		TArray<FAssetData> Assets;
 		UPackage* LevelPackage = OuterWorld->PersistentLevel->GetOutermost();
-		GetLevelActors(LevelPackage->FileName, Assets);
+
+		if (!LevelPackage->FileName.IsNone())
+		{
+			TGuardValue<bool> IgnoreAssetRegistryEvents(bIgnoreAssetRegistryEvents, true);
+
+			const FString LevelPathStr = LevelPackage->FileName.ToString();
+			const FString LevelExternalActorsPath = ULevel::GetExternalActorsPath(LevelPathStr);
+
+			// Do a synchronous scan of the level external actors path.			
+			IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+			AssetRegistry.ScanPathsSynchronous({LevelExternalActorsPath}, /*bForceRescan*/true, /*bIgnoreBlackListScanFilters*/true);
+
+			FARFilter Filter;
+			Filter.bRecursivePaths = true;
+			Filter.bIncludeOnlyOnDiskAssets = true;
+			Filter.PackagePaths.Add(*LevelExternalActorsPath);
+
+			AssetRegistry.GetAssets(Filter, Assets);
+		}
 
 		bool bIsInstanced = (bEditorOnly && !IsRunningCommandlet()) ? OuterWorld->PersistentLevel->IsInstancedLevel() : false;
 
@@ -253,34 +240,18 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 		for (const FAssetData& Asset : Assets)
 		{
-			FString ActorClass;
-			static FName NAME_ActorMetaDataClass(TEXT("ActorMetaDataClass"));
-			Asset.GetTagValue(NAME_ActorMetaDataClass, ActorClass);
-
-			FString ActorMetaDataStr;
-			static FName NAME_ActorMetaData(TEXT("ActorMetaData"));
-			Asset.GetTagValue(NAME_ActorMetaData, ActorMetaDataStr);
-
-			FWorldPartitionActorDescInitData ActorDescInitData;
-			ActorDescInitData.NativeClass = FindObjectChecked<UClass>(ANY_PACKAGE, *ActorClass, true);
-			ActorDescInitData.PackageName = Asset.PackageName;
-			ActorDescInitData.ActorPath = Asset.ObjectPath;
-			ActorDescInitData.Transform = bIsInstanced ? InstanceTransform : FTransform::Identity;
-			FBase64::Decode(ActorMetaDataStr, ActorDescInitData.SerializedData);			
+			TUniquePtr<FWorldPartitionActorDesc> NewActorDesc = GetActorDescriptor(Asset);
 
 			if (bIsInstanced)
 			{
-				const FString LongActorPackageName = ActorDescInitData.PackageName.ToString();
+				const FString LongActorPackageName = Asset.PackageName.ToString();
 				const FString ActorPackageName = FPaths::GetBaseFilename(LongActorPackageName);
 				const FString InstancedName = FString::Printf(TEXT("%s_InstanceOf_%s"), *LevelPackage->GetName(), *ActorPackageName);
 
 				InstancingContext.AddMapping(*LongActorPackageName, *InstancedName);
 
-				ActorDescInitData.ActorPath = *ActorDescInitData.ActorPath.ToString().Replace(*ReplaceFrom, *ReplaceTo);
+				NewActorDesc->TransformInstance(ReplaceFrom, ReplaceTo, InstanceTransform);
 			}
-
-			TUniquePtr<FWorldPartitionActorDesc> NewActorDesc(GetActorDescFactory(ActorDescInitData.NativeClass)->Create());
-			NewActorDesc->Init(ActorDescInitData);
 
 			if (bEditorOnly)
 			{
@@ -294,7 +265,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		{
 			for (const auto& Pair : Actors)
 			{
-				AddToPartition(Pair.Value.Get());
+				HashActorDesc(Pair.Value.Get());
 			}
 
 			CreateLayers(AllLayersNames);
@@ -381,10 +352,6 @@ void UWorldPartition::Uninitialize()
 		}
 
 		EditorHash = nullptr;
-
-		for (FActorCluster* ActorCluster : ActorClustersSet) { delete ActorCluster; }
-		ActorClustersSet.Empty();
-		ActorToActorCluster.Empty();
 #endif		
 
 		UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
@@ -415,13 +382,10 @@ void UWorldPartition::RegisterDelegates()
 {
 	if (GEditor && !IsTemplate())
 	{
-		GEditor->OnActorMoving().AddUObject(this, &UWorldPartition::OnActorMoving);
-		GEditor->OnActorMoved().AddUObject(this, &UWorldPartition::OnActorMoving);
-		GEngine->OnLevelActorOuterChanged().AddUObject(this, &UWorldPartition::OnActorOuterChanged);
-		GEditor->OnLevelActorAdded().AddUObject(this, &UWorldPartition::OnActorAdded);
-		GEditor->OnLevelActorDeleted().AddUObject(this, &UWorldPartition::OnActorDeleted);
-
-		FCoreUObjectDelegates::OnObjectPropertyChanged.AddUObject(this, &UWorldPartition::OnObjectPropertyChanged);
+		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+		AssetRegistry.OnAssetAdded().AddUObject(this, &UWorldPartition::OnAssetAdded);
+		AssetRegistry.OnAssetRemoved().AddUObject(this, &UWorldPartition::OnAssetRemoved);
+		AssetRegistry.OnAssetUpdated().AddUObject(this, &UWorldPartition::OnAssetUpdated);
 
 		FEditorDelegates::PreBeginPIE.AddUObject(this, &UWorldPartition::OnPreBeginPIE);
 		FEditorDelegates::EndPIE.AddUObject(this, &UWorldPartition::OnEndPIE);
@@ -432,47 +396,16 @@ void UWorldPartition::UnregisterDelegates()
 {
 	if (GEditor && !IsTemplate())
 	{
+		if (FAssetRegistryModule* AssetRegistryModule = FModuleManager::GetModulePtr<FAssetRegistryModule>(TEXT("AssetRegistry")))
+		{
+			IAssetRegistry& AssetRegistry = AssetRegistryModule->Get();
+			AssetRegistry.OnAssetAdded().RemoveAll(this);
+			AssetRegistry.OnAssetRemoved().RemoveAll(this);
+			AssetRegistry.OnAssetUpdated().RemoveAll(this);
+		}
+
 		FEditorDelegates::PreBeginPIE.RemoveAll(this);
 		FEditorDelegates::EndPIE.RemoveAll(this);
-
-		GEditor->OnActorMoving().RemoveAll(this);
-		GEditor->OnActorMoved().RemoveAll(this);
-		GEngine->OnLevelActorOuterChanged().RemoveAll(this);
-		GEditor->OnLevelActorAdded().RemoveAll(this);
-		GEditor->OnLevelActorDeleted().RemoveAll(this);
-
-		FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
-	}
-}
-
-void UWorldPartition::UpdateActorDesc(AActor* InActor)
-{
-	check(InActor)
-
-	if (!InActor->IsChildActor())
-	{
-		TUniquePtr<FWorldPartitionActorDesc>* ActorDescPtr = Actors.Find(InActor->GetActorGuid());
-
-		if (GIsTransacting && InActor->IsPendingKill())
-		{
-			OnActorDeleted(InActor);
-		}
-		else if (GIsTransacting && !ActorDescPtr)
-		{
-			OnActorAdded(InActor);
-		}
-		else if (ActorDescPtr && InActor->GetLevel() == World->PersistentLevel)
-		{
-			TUniquePtr<FWorldPartitionActorDesc> NewDesc(GetActorDescFactory(InActor)->Create());
-			NewDesc->Init(InActor);
-			
-			if (NewDesc->GetHash() != ActorDescPtr->Get()->GetHash())
-			{
-				RemoveFromPartition(ActorDescPtr->Get(), false);
-				*ActorDescPtr = MoveTemp(NewDesc);
-				AddToPartition(ActorDescPtr->Get());
-			}
-		}
 	}
 }
 
@@ -565,142 +498,6 @@ FWorldPartitionActorDesc* UWorldPartition::GetActorDesc(const FGuid& Guid)
 	return ActorDescObj != nullptr ? ActorDescObj->Get() : nullptr;
 }
 
-void UWorldPartition::AddToClusters(const FWorldPartitionActorDesc* ActorDesc)
-{
-	FActorCluster* ActorCluster = ActorToActorCluster.FindRef(ActorDesc->GetGuid());
-	if (!ActorCluster)
-	{
-		ActorCluster = new FActorCluster(ActorDesc);
-		ActorClustersSet.Add(ActorCluster);
-		ActorToActorCluster.Add(ActorDesc->GetGuid(), ActorCluster);
-	}
-
-	// Don't include references from editor-only actors
-	if (!ActorDesc->GetActorIsEditorOnly())
-	{
-		for (const FGuid& ReferenceGuid : ActorDesc->GetReferences())
-		{
-			const FWorldPartitionActorDesc* ReferenceActorDesc = GetActorDesc(ReferenceGuid);
-
-			// Don't include references to editor-only actors
-			if (!ReferenceActorDesc->GetActorIsEditorOnly())
-			{
-				FActorCluster* ReferenceCluster = ActorToActorCluster.FindRef(ReferenceGuid);
-				if (ReferenceCluster)
-				{
-					if (ReferenceCluster != ActorCluster)
-					{
-						// Merge reference cluster in Actor's cluster
-						ActorCluster->Add(*ReferenceCluster);
-						for (const FGuid& ReferenceClusterActorGuid : ReferenceCluster->Actors)
-						{
-							ActorToActorCluster[ReferenceClusterActorGuid] = ActorCluster;
-						}
-						ActorClustersSet.Remove(ReferenceCluster);
-						delete ReferenceCluster;
-					}
-				}
-				else
-				{
-					// Put Reference in Actor's cluster
-					ActorCluster->Add(FActorCluster(ReferenceActorDesc));
-				}
-
-				// Map its cluster
-				ActorToActorCluster.Add(ReferenceGuid, ActorCluster);
-			}
-		}
-	}
-}
-
-void UWorldPartition::RemoveFromClusters(const FWorldPartitionActorDesc* ActorDesc)
-{
-	FActorCluster* ActorCluster = ActorToActorCluster.FindAndRemoveChecked(ActorDesc->GetGuid());
-	ActorCluster->Actors.Remove(ActorDesc->GetGuid());
-
-	// Break up this cluster and reinsert all actors
-	ActorClustersSet.Remove(ActorCluster);
-
-	for (const FGuid& Guid : ActorCluster->Actors)
-	{
-		ActorToActorCluster[Guid] = nullptr;
-	}
-
-	for (const FGuid& Guid : ActorCluster->Actors)
-	{
-		AddToClusters(GetActorDesc(Guid));
-	}
-
-	delete ActorCluster;
-}
-
-UWorldPartition::FActorCluster::FActorCluster(const FWorldPartitionActorDesc* ActorDesc)
-	: GridPlacement(ActorDesc->GetGridPlacement())
-	, RuntimeGrid(ActorDesc->GetRuntimeGrid())
-	, Bounds(ActorDesc->GetBounds())
-{
-	check(GridPlacement != EActorGridPlacement::None);
-	Actors.Add(ActorDesc->GetGuid());
-	DataLayersID = FDataLayersHelper::ComputeDataLayerID(DataLayers);
-}
-
-void UWorldPartition::FActorCluster::Add(const UWorldPartition::FActorCluster& ActorCluster)
-{
-	// Merge Actors
-	Actors.Append(ActorCluster.Actors);
-
-	// Merge RuntimeGrid
-	RuntimeGrid = RuntimeGrid == ActorCluster.RuntimeGrid ? RuntimeGrid : NAME_None;
-
-	// Merge Bounds
-	Bounds += ActorCluster.Bounds;
-
-	// Merge GridPlacement
-	// If currently None, will always stay None
-	if (GridPlacement != EActorGridPlacement::None)
-	{
-		// If grid placement differs between the two clusters
-		if (GridPlacement != ActorCluster.GridPlacement)
-		{
-			// If one of the two cluster was always loaded, set to None
-			if (ActorCluster.GridPlacement == EActorGridPlacement::AlwaysLoaded || GridPlacement == EActorGridPlacement::AlwaysLoaded)
-			{
-				GridPlacement = EActorGridPlacement::None;
-			}
-			else
-			{
-				GridPlacement = ActorCluster.GridPlacement;
-			}
-		}
-
-		// If current placement is set to Location, that won't make sense when merging two clusters. Set to Bounds
-		if (GridPlacement == EActorGridPlacement::Location)
-		{
-			GridPlacement = EActorGridPlacement::Bounds;
-		}
-	}
-
-	// Merge DataLayers
-	if (DataLayersID != ActorCluster.DataLayersID)
-	{
-		for (const FName& DataLayer : ActorCluster.DataLayers)
-		{
-			DataLayers.AddUnique(DataLayer);
-		}
-		DataLayersID = FDataLayersHelper::ComputeDataLayerID(DataLayers);
-	}
-}
-
-const TSet<UWorldPartition::FActorCluster*>& UWorldPartition::GetActorClusters() const
-{
-	return ActorClustersSet;
-}
-
-const UWorldPartition::FActorCluster* UWorldPartition::GetClusterForActor(const FGuid& InActorGuid) const
-{
-	return ActorToActorCluster.FindRef(InActorGuid);
-}
-
 void UWorldPartition::RefreshLoadedCells()
 {
 	FWorldPartionCellUpdateContext CellUpdateContext(this);
@@ -726,7 +523,18 @@ void UWorldPartition::LoadEditorCells(const FBox& Box)
 	TArray<UWorldPartitionEditorCell*> CellsToLoad;
 	if (EditorHash->GetIntersectingCells(Box, CellsToLoad))
 	{
-		LoadEditorCells(CellsToLoad);
+		FWorldPartionCellUpdateContext CellUpdateContext(this);
+
+		int32 NumActorsToLoad = Algo::TransformAccumulate(CellsToLoad, [](UWorldPartitionEditorCell* Cell) { return Cell->Actors.Num() - Cell->LoadedActors.Num();}, 0);
+
+		FScopedSlowTask SlowTask(NumActorsToLoad, LOCTEXT("LoadingCells", "Loading cells..."));
+		SlowTask.MakeDialog();
+
+		for (UWorldPartitionEditorCell* Cell : CellsToLoad)
+		{
+			SlowTask.EnterProgressFrame(Cell->Actors.Num() - Cell->LoadedActors.Num());
+			UpdateLoadingEditorCell(Cell, true);
+		}
 	}
 }
 
@@ -735,109 +543,73 @@ void UWorldPartition::UnloadEditorCells(const FBox& Box)
 	TArray<UWorldPartitionEditorCell*> CellsToUnload;
 	if (EditorHash->GetIntersectingCells(Box, CellsToUnload))
 	{
-		UnloadEditorCells(CellsToUnload);
-	}
-}
-
-void UWorldPartition::LoadEditorCells(const TArray<UWorldPartitionEditorCell*>& CellsToLoad)
-{
-	FWorldPartionCellUpdateContext CellUpdateContext(this);
-
-	int32 NumActorsToLoad = Algo::TransformAccumulate(CellsToLoad, [](UWorldPartitionEditorCell* Cell) { return Cell->Actors.Num() - Cell->LoadedActors.Num();}, 0);
-
-	FScopedSlowTask SlowTask(NumActorsToLoad, LOCTEXT("LoadingCells", "Loading cells..."));
-	SlowTask.MakeDialog();
-
-	for (UWorldPartitionEditorCell* Cell : CellsToLoad)
-	{
-		SlowTask.EnterProgressFrame(Cell->Actors.Num() - Cell->LoadedActors.Num());
-		UpdateLoadingEditorCell(Cell, true);
-	}
-}
-
-void UWorldPartition::UnloadEditorCells(const TArray<UWorldPartitionEditorCell*>& CellsToUnload)
-{
-	FWorldPartionCellUpdateContext CellUpdateContext(this);
+		FWorldPartionCellUpdateContext CellUpdateContext(this);
 		
-	TSet<UPackage*> ModifiedPackages;
-	TMap<FWorldPartitionActorDesc*, int32> UnloadCount;
+		TSet<UPackage*> ModifiedPackages;
+		TMap<FWorldPartitionActorDesc*, int32> UnloadCount;
 	
-	int32 NumActorsToUnload = Algo::TransformAccumulate(CellsToUnload, [&UnloadCount](UWorldPartitionEditorCell* Cell)
-	{ 
-		for (FWorldPartitionActorDesc* ActorDesc : Cell->LoadedActors)
-		{
-			UnloadCount.FindOrAdd(ActorDesc, 0)++;
-		}
-						
-		return Cell->LoadedActors.Num(); 
-	}, 0);
-		
-	for (const TPair<FWorldPartitionActorDesc*, int32> Pair : UnloadCount)
-	{
-		FWorldPartitionActorDesc* ActorDesc = Pair.Key;
-		// Only prompt if the actor will get unloaded by the unloading cells
-		if (ActorDesc->GetLoadedRefCount() == Pair.Value)
-		{
-			AActor* LoadedActor = ActorDesc->GetActor();
-			check(LoadedActor);
-			UPackage* ActorPackage = LoadedActor->GetExternalPackage();
-			if (ActorPackage && ActorPackage->IsDirty())
+		int32 NumActorsToUnload = Algo::TransformAccumulate(CellsToUnload, [&UnloadCount](UWorldPartitionEditorCell* Cell)
+		{ 
+			for (FWorldPartitionActorDesc* ActorDesc : Cell->LoadedActors)
 			{
-				ModifiedPackages.Add(ActorPackage);
+				UnloadCount.FindOrAdd(ActorDesc, 0)++;
 			}
-		}
-	}
+						
+			return Cell->LoadedActors.Num(); 
+		}, 0);
 		
-	// Make sure we save modified actor packages before unloading
-	FEditorFileUtils::EPromptReturnCode RetCode = FEditorFileUtils::PR_Success;
-	if (ModifiedPackages.Num())
-	{
-		const bool bCheckDirty = false;
-		const bool bAlreadyCheckedOut = false;
-		const bool bCanBeDeclined = true;
-		const bool bPromptToSave = true;
-		const FText Title = LOCTEXT("SaveActorsTitle", "Save Actor(s)");
-		const FText Message = LOCTEXT("SaveActorsMessage", "Save Actor(s) before unloading them.");
-
-		RetCode = FEditorFileUtils::PromptForCheckoutAndSave(ModifiedPackages.Array(), bCheckDirty, bPromptToSave, Title, Message, nullptr, bAlreadyCheckedOut, bCanBeDeclined);
-		if (RetCode == FEditorFileUtils::PR_Cancelled)
-		{
-			return;
-		}
-
-		check(RetCode != FEditorFileUtils::PR_Failure);
-	}
-
-	GEditor->SelectNone(true, true);
-	
-	FScopedSlowTask SlowTask(NumActorsToUnload, LOCTEXT("UnloadingCells", "Unloading cells..."));
-	SlowTask.MakeDialog();
-
-	for (UWorldPartitionEditorCell* Cell: CellsToUnload)
-	{
-		SlowTask.EnterProgressFrame(Cell->LoadedActors.Num());
-		UpdateLoadingEditorCell(Cell, false);
-	}
-		
-	GEditor->ResetTransaction(LOCTEXT("UnloadingEditorCellsResetTrans", "Unloading Cells"));
-	
-	// When save is declined make sure we don't keep unloaded/unsaved actor descs
-	// also make sure all modified packages are no longer dirty so they don't show up in save prompts anymore.
-	if (RetCode == FEditorFileUtils::PR_Declined)
-	{
-		for (UPackage* ModifiedPackage : ModifiedPackages)
-		{
-			ModifiedPackage->ClearDirtyFlag();
-		}
-
-		for (const TPair<FWorldPartitionActorDesc*, int32>& Pair : UnloadCount)
+		for (const TPair<FWorldPartitionActorDesc*, int32> Pair : UnloadCount)
 		{
 			FWorldPartitionActorDesc* ActorDesc = Pair.Key;
-			if (!ActorDesc->GetLoadedRefCount() && !FPackageName::DoesPackageExist(ActorDesc->GetActorPackage().ToString()))
+			// Only prompt if the actor will get unloaded by the unloading cells
+			if (ActorDesc->GetLoadedRefCount() == Pair.Value)
 			{
-				// Already unloaded just remove from descriptor array
-				RemoveFromPartition(ActorDesc, /*bRemoveDescriptorFromArray=*/true, /*bUnloadRemovedDescriptor=*/false);
+				AActor* LoadedActor = ActorDesc->GetActor();
+				check(LoadedActor);
+				UPackage* ActorPackage = LoadedActor->GetExternalPackage();
+				if (ActorPackage && ActorPackage->IsDirty())
+				{
+					ModifiedPackages.Add(ActorPackage);
+				}
 			}
+		}
+		
+		// Make sure we save modified actor packages before unloading
+		FEditorFileUtils::EPromptReturnCode RetCode = FEditorFileUtils::PR_Success;
+		if (ModifiedPackages.Num())
+		{
+			const bool bCheckDirty = false;
+			const bool bAlreadyCheckedOut = false;
+			const bool bCanBeDeclined = true;
+			const bool bPromptToSave = true;
+			const FText Title = LOCTEXT("SaveActorsTitle", "Save Actor(s)");
+			const FText Message = LOCTEXT("SaveActorsMessage", "Save Actor(s) before unloading them.");
+
+			RetCode = FEditorFileUtils::PromptForCheckoutAndSave(ModifiedPackages.Array(), bCheckDirty, bPromptToSave, Title, Message, nullptr, bAlreadyCheckedOut, bCanBeDeclined);
+			if (RetCode == FEditorFileUtils::PR_Cancelled)
+			{
+				return;
+			}
+
+			check(RetCode != FEditorFileUtils::PR_Failure);
+		}
+
+		GEditor->SelectNone(true, true);
+
+		// At this point, cells might have changed due to saving deleted actors
+		CellsToUnload.Empty(CellsToUnload.Num());
+		if (EditorHash->GetIntersectingCells(Box, CellsToUnload))
+		{	
+			FScopedSlowTask SlowTask(NumActorsToUnload, LOCTEXT("UnloadingCells", "Unloading cells..."));
+			SlowTask.MakeDialog();
+
+			for (UWorldPartitionEditorCell* Cell: CellsToUnload)
+			{
+				SlowTask.EnterProgressFrame(Cell->LoadedActors.Num());
+				UpdateLoadingEditorCell(Cell, false);
+			}
+		
+			GEditor->ResetTransaction(LOCTEXT("UnloadingEditorCellsResetTrans", "Unloading Cells"));
 		}
 	}
 }
@@ -950,20 +722,6 @@ void UWorldPartition::CreateLayers(const TSet<FName>& LayerNames)
 }
 #endif
 
-bool UWorldPartition::IsValidPartitionActor(AActor* Actor) const
-{
-#if WITH_EDITOR
-	if (Actor->IsPackageExternal() || Actor->GetPackage()->HasAnyPackageFlags(PKG_PlayInEditor))
-	{
-		return true;
-	}
-	const TUniquePtr<FWorldPartitionActorDesc>* ActorDesc = Actors.Find(Actor->GetActorGuid());
-	return ActorDesc->IsValid();
-#else
-	return Actor->IsPackageExternal();
-#endif
-}
-
 AActor* UWorldPartition::RegisterActor(FWorldPartitionActorDesc* ActorDesc)
 {
 #if WITH_EDITOR
@@ -977,7 +735,7 @@ AActor* UWorldPartition::RegisterActor(FWorldPartitionActorDesc* ActorDesc)
 	}
 
 	check(Actor);
-	check(IsValidPartitionActor(Actor));
+	check(Actor->IsPackageExternal());
 	check(ActorDesc->GetActor() == Actor);
 
 	ApplyActorTransform(Actor, InstanceTransform);
@@ -1008,18 +766,20 @@ AActor* UWorldPartition::RegisterActor(FWorldPartitionActorDesc* ActorDesc)
 void UWorldPartition::UnregisterActor(AActor* Actor)
 {
 #if WITH_EDITOR
-	check(IsValidPartitionActor(Actor));
 	FWorldPartitionActorDesc* ActorDesc = GetActorDesc(Actor->GetActorGuid());
 	check(ActorDesc);
 
-	if (LayerSubSystem)
+	if (!Actor->IsPendingKill())
 	{
-		LayerSubSystem->DisassociateActorFromLayers(Actor);
+		if (LayerSubSystem)
+		{
+			LayerSubSystem->DisassociateActorFromLayers(Actor);
+		}
+
+		OnActorRegisteredEvent.Broadcast(*Actor, false);
+
+		Actor->GetLevel()->RemoveLoadedActor(Actor);
 	}
-
-	OnActorRegisteredEvent.Broadcast(*Actor, false);
-
-	Actor->GetLevel()->RemoveLoadedActor(Actor);
 
 	ActorDesc->Unload();
 
@@ -1033,87 +793,76 @@ void UWorldPartition::UnregisterActor(AActor* Actor)
 }
 
 #if WITH_EDITOR
-void UWorldPartition::OnActorAdded(AActor* InActor)
+void UWorldPartition::OnAssetAdded(const FAssetData& InAssetData)
 {
-	check(!InActor->IsPendingKill());
-
-	if (InActor->GetLevel() == World->PersistentLevel && InActor->IsPackageExternal() && !InActor->IsChildActor())
+	if (!bIgnoreAssetRegistryEvents)
 	{
-		TUniquePtr<FWorldPartitionActorDesc>* ActorDescPtr = Actors.Find(InActor->GetActorGuid());
-
-		TUniquePtr<FWorldPartitionActorDesc> NewDesc(GetActorDescFactory(InActor)->Create());
-		NewDesc->Init(InActor);
-
-		if (ActorDescPtr)
+		TUniquePtr<FWorldPartitionActorDesc> NewActorDesc = GetActorDescriptor(InAssetData);
+		if (NewActorDesc.IsValid())
 		{
-			// The only case where this is valid is when reinstancing BP actors. In this case, we'll receive the call
-			// for the newly spawned actor, while the old one hasn't been removed from the world yet. So we remove the
-			// old one before adding the new one.
-			check(GIsReinstancing);
+			check(!Actors.Contains(NewActorDesc->GetGuid()));
 
-			RemoveFromPartition(ActorDescPtr->Get(), false);
-
-			*ActorDescPtr = MoveTemp(NewDesc);
-		}
-		else
-		{
-			checkSlow(InActor->GetLevel()->Actors.Find(InActor) != INDEX_NONE);
-
-			ActorDescPtr = &Actors.Add(InActor->GetActorGuid(), MoveTemp(NewDesc));
-		}
-
-		AddToPartition(ActorDescPtr->Get());
-	}
-}
-
-void UWorldPartition::OnActorDeleted(AActor* InActor)
-{
-	if (InActor->GetLevel() == World->PersistentLevel)
-	{
-		if (FWorldPartitionActorDesc* ActorDesc = GetActorDesc(InActor->GetActorGuid()))
-		{
-			if (InActor->GetClass()->HasAnyClassFlags(CLASS_NewerVersionExists))
-			{
-				// We are receiving this event when destroying the old actor after BP reinstantiation. In this case,
-				// the newly created actor was already added to the list, so we can safely ignore this case.
-				check(GIsReinstancing);
-			}
-			else
-			{
-				// During undo transactions, newly created objects will get removed with their package unset due to the
-				// order of SetPackage/Modify. Take this into account in the check below.
-				check(InActor->IsPackageExternal() || GIsTransacting);
-
-				// Validate that this actor is already removed from the level
-				verify(InActor->GetLevel()->Actors.Find(InActor) == INDEX_NONE);
-
-				RemoveFromPartition(ActorDesc);
-			}
+			HashActorDesc(NewActorDesc.Get());
+			Actors.Add(NewActorDesc->GetGuid(), MoveTemp(NewActorDesc));
 		}
 	}
 }
 
-void UWorldPartition::OnActorMoving(AActor* InActor)
+void UWorldPartition::OnAssetRemoved(const FAssetData& InAssetData)
 {
-	if (InActor->GetLevel() == World->PersistentLevel)
+	if (!bIgnoreAssetRegistryEvents)
 	{
-		UpdateActorDesc(InActor);
+		TUniquePtr<FWorldPartitionActorDesc> NewActorDesc = GetActorDescriptor(InAssetData);
+		if (NewActorDesc.IsValid())
+		{
+			TUniquePtr<FWorldPartitionActorDesc>& ExistingActorDesc = Actors.FindChecked(NewActorDesc->GetGuid());
+
+			UnhashActorDesc(ExistingActorDesc.Get());
+			Actors.Remove(ExistingActorDesc->GetGuid());
+		}
 	}
 }
 
-void UWorldPartition::OnActorOuterChanged(AActor* InActor, UObject* InOldOuter)
+void UWorldPartition::OnAssetUpdated(const FAssetData& InAssetData)
 {
-	ULevel* OldLevel = Cast<ULevel>(InOldOuter);
-
-	if (OldLevel == World->PersistentLevel)
+	if (!bIgnoreAssetRegistryEvents)
 	{
-		if (FWorldPartitionActorDesc* ActorDesc = GetActorDesc(InActor->GetActorGuid()))
+		TUniquePtr<FWorldPartitionActorDesc> NewActorDesc = GetActorDescriptor(InAssetData);
+		if (NewActorDesc.IsValid())
 		{
-			const bool bRemoveDescriptor = true;
-			const bool bUnloadDescriptor = false;
-			RemoveFromPartition(ActorDesc, bRemoveDescriptor, bUnloadDescriptor);
+			TUniquePtr<FWorldPartitionActorDesc>& ExistingActorDesc = Actors.FindChecked(NewActorDesc->GetGuid());
+
+			UnhashActorDesc(ExistingActorDesc.Get());
+			ExistingActorDesc = MoveTemp(NewActorDesc);
+			HashActorDesc(ExistingActorDesc.Get());
 		}
 	}
+}
+
+TUniquePtr<FWorldPartitionActorDesc> UWorldPartition::GetActorDescriptor(const FAssetData& InAssetData)
+{
+	FString ActorClass;
+	static FName NAME_ActorMetaDataClass(TEXT("ActorMetaDataClass"));
+	if (InAssetData.GetTagValue(NAME_ActorMetaDataClass, ActorClass))
+	{
+		FString ActorMetaDataStr;
+		static FName NAME_ActorMetaData(TEXT("ActorMetaData"));
+		if (InAssetData.GetTagValue(NAME_ActorMetaData, ActorMetaDataStr))
+		{
+			FWorldPartitionActorDescInitData ActorDescInitData;
+			ActorDescInitData.NativeClass = FindObjectChecked<UClass>(ANY_PACKAGE, *ActorClass, true);
+			ActorDescInitData.PackageName = InAssetData.PackageName;
+			ActorDescInitData.ActorPath = InAssetData.ObjectPath;
+			FBase64::Decode(ActorMetaDataStr, ActorDescInitData.SerializedData);
+
+			FWorldPartitionActorDesc* NewActorDesc(GetActorDescFactory(ActorDescInitData.NativeClass)->Create());
+			NewActorDesc->Init(ActorDescInitData);
+
+			return TUniquePtr<FWorldPartitionActorDesc>(NewActorDesc);
+		}
+	}
+
+	return nullptr;
 }
 
 void UWorldPartition::HashActorDesc(FWorldPartitionActorDesc* ActorDesc)
@@ -1129,36 +878,8 @@ void UWorldPartition::UnhashActorDesc(FWorldPartitionActorDesc* ActorDesc)
 	check(ActorDesc);
 	check(EditorHash);
 	EditorHash->UnhashActor(ActorDesc);
-
 	check(!ActorDesc->GetLoadedRefCount());
 }
-
-void UWorldPartition::AddToPartition(FWorldPartitionActorDesc* ActorDesc)
-{
-	AddToClusters(ActorDesc);
-
-	HashActorDesc(ActorDesc);	
-}
-
-void UWorldPartition::RemoveFromPartition(FWorldPartitionActorDesc* ActorDesc, bool bRemoveDescriptorFromArray, bool bUnloadRemovedDescriptor)
-{
-	// Unhash this actor from the editor hash
-	UnhashActorDesc(ActorDesc);
-
-	RemoveFromClusters(ActorDesc);
-
-	// Remove this actor descriptor
-	if (bRemoveDescriptorFromArray)
-	{
-		TUniquePtr<FWorldPartitionActorDesc> RemovedActorDesc = Actors.FindAndRemoveChecked(ActorDesc->GetGuid());
-		check(RemovedActorDesc->GetLoadedRefCount() == 0);
-		if (bUnloadRemovedDescriptor)
-		{
-			RemovedActorDesc->Unload();
-		}
-	}
-}
-
 #endif
 
 void UWorldPartition::Serialize(FArchive& Ar)

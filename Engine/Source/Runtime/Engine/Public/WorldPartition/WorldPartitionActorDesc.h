@@ -8,7 +8,6 @@
 #include "GameFramework/Actor.h"
 #include "Containers/Set.h"
 #include "Misc/Guid.h"
-#include "Misc/HashBuilder.h"
 #include "WorldPartition/WorldPartitionActorDescFactory.h"
 
 #if WITH_EDITOR
@@ -18,7 +17,6 @@ struct FWorldPartitionActorDescInitData
 	UClass* NativeClass;
 	FName PackageName;
 	FName ActorPath;
-	FTransform Transform;
 	TArray<uint8> SerializedData;
 };
 #endif
@@ -64,11 +62,6 @@ public:
 		return LoadedRefCount;
 	}
 
-	inline uint32 GetHash() const
-	{
-		return Hash;
-	}
-
 	const TArray<FGuid>& GetReferences() const
 	{
 		return References;
@@ -80,17 +73,16 @@ public:
 	AActor* Load(const FLinkerInstancingContext* InstancingContext = nullptr);
 	void Unload();
 
-	void Init(const AActor* InActor);
+	virtual void Init(const AActor* InActor);
 	void Init(const FWorldPartitionActorDescInitData& DescData);
 
 	void SerializeTo(TArray<uint8>& OutData);
 
+	void TransformInstance(const FString& From, const FString& To, const FTransform& Transform);
+
 protected:
 	FWorldPartitionActorDesc();
 	
-	void UpdateHash();
-
-	virtual void InitFrom(const AActor* Actor);
 	virtual void Serialize(FArchive& Ar);
 
 	FGuid						Guid;
@@ -107,7 +99,6 @@ protected:
 	TArray<FGuid>				References;
 	
 	mutable uint32				LoadedRefCount;
-	mutable uint32				Hash;
 
 	// Cached values
 	UClass*						ActorClass;
