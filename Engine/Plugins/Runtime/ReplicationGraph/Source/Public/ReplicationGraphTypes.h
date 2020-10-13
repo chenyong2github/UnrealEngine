@@ -22,7 +22,7 @@ class UReplicationGraph;
 
 struct FActorDestructionInfo;
 
-DECLARE_LOG_CATEGORY_EXTERN( LogReplicationGraph, Log, All );
+REPLICATIONGRAPH_API DECLARE_LOG_CATEGORY_EXTERN( LogReplicationGraph, Log, All );
 
 // Check aliases for within the system. The intention is that these can be flipped to checkSlow once the system is stable.
 

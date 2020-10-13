@@ -82,9 +82,11 @@ public:
 	virtual IOnlineTournamentPtr GetTournamentInterface() const override { return nullptr; }
 //~IOnlineSubsystem
 
-	virtual bool Init() override;
+	virtual bool Init() override { return true; }
 	virtual bool Shutdown() override;
 	virtual FString GetAppId() const override;
+
+	bool DeferredInit();
 
 // FTickerObjectBase
 	virtual bool Tick(float DeltaTime) override;

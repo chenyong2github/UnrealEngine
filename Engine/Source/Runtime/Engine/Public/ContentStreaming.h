@@ -405,18 +405,12 @@ protected:
 };
 
 /**
-* Lightweight struct used to list the MIP levels of rendered assets.
-*/
-struct FRenderedTextureGroupMipStats
+ * Lightweight struct used to list the MIP levels of rendered assets.
+ */
+struct FRenderedTextureStats
 {
-	FRenderedTextureGroupMipStats(int32 MipArrayLength)
-		: TotalAssetCount(0)
-	{
-		MipDifferenceByAmount.SetNumZeroed(MipArrayLength);
-	}
-
-	int32 TotalAssetCount;
-	TArray<int32> MipDifferenceByAmount;
+	int32 MaxMipLevelShown;
+	FString TextureGroup;
 };
 
 /**
@@ -487,7 +481,7 @@ struct IRenderAssetStreamingManager : public IStreamingManager
 	/** Notify the streamer that the mounted state of a file needs to be re-evaluated. */
 	virtual void MarkMountedStateDirty(FIoFilenameHash FilenameHash) = 0;
 
-	ENGINE_API virtual void GetRenderedTextureAssets(TMap<FString, FRenderedTextureGroupMipStats>& OutRenderedTextureAssets, const int32 MipLevelMaxToCheck) = 0;
+	ENGINE_API virtual void AddRenderedTextureStats(TMap<FString, FRenderedTextureStats>& InOutRenderedTextureAssets) = 0;
 };
 
 enum class EAudioChunkLoadResult : uint8
