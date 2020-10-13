@@ -24,6 +24,7 @@ DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("SACN Packages Recieved Total"), STAT_SACNPa
 FDMXProtocolUniverseSACN::FDMXProtocolUniverseSACN(IDMXProtocolPtr InDMXProtocol, const FJsonObject& InSettings)
 	: WeakDMXProtocol(InDMXProtocol)
 	, bShouldReceiveDMX(true)
+	, HighestReceivedPriority(0)
 	, ListeningSocket(nullptr)
 	, NetworkErrorMessagePrefix(TEXT("NETWORK ERROR SACN:"))
 {
@@ -257,6 +258,13 @@ void FDMXProtocolUniverseSACN::HandleReplyPacket(const FArrayReaderPtr& Buffer)
 
 	// Copy the data from incoming socket buffer to SACN universe
 	SetLayerPackets(Buffer);
+
+	// Ignore packets of lower priority than the highest one we received.
+	if (HighestReceivedPriority < IncomingDMXFramingLayer.Priority)
+	{
+		return;
+	}
+	HighestReceivedPriority = IncomingDMXFramingLayer.Priority;
 
 	// Access the buffer thread-safe
 	InputDMXBuffer->AccessDMXData([this, &bCopySuccessful](TArray<uint8>& InData)
