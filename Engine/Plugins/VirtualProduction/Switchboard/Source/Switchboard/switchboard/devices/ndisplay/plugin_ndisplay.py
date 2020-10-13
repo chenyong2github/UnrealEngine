@@ -87,6 +87,8 @@ class DevicenDisplay(DeviceUnreal):
     setting_texture_streaming = Setting("texture_streaming", "Texture Streaming", True)
     setting_render_api = Setting("render_api", "Render API", "dx12", possible_values=["dx11", "dx12"])
     setting_render_mode = Setting("render_mode", "Render Mode", "Mono", possible_values=["Mono", "Frame sequential", "Side-by-Side", "Top-bottom"])
+    setting_ndisplay_cmd_args = Setting(attr_name="ndisplay_cmd_args", nice_name="Extra Cmd Line Args", value="")
+    setting_ndisplay_exec_cmds = Setting("ndisplay_exec_cmds", 'ExecCmds', "", tool_tip=f'ExecCmds to be passed. No need for outer double quotes.')
 
     ndisplay_monitor_ui = None
     ndisplay_monitor = None
@@ -106,9 +108,6 @@ class DevicenDisplay(DeviceUnreal):
         if len(self.setting_ue_command_line.get_value()) == 0:
             self.generate_unreal_command_line()
 
-        super().setting_command_line_arguments.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
-        super().setting_exec_cmds.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
-
         CONFIG.ENGINE_DIR.signal_setting_overriden.connect(self.on_cmdline_affecting_override)
         CONFIG.ENGINE_DIR.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
         CONFIG.UPROJECT_PATH.signal_setting_overriden.connect(self.on_cmdline_affecting_override)
@@ -119,6 +118,9 @@ class DevicenDisplay(DeviceUnreal):
         self.setting_texture_streaming.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
         self.setting_render_api.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
         self.setting_render_mode.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
+
+        self.setting_ndisplay_cmd_args.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
+        self.setting_ndisplay_exec_cmds.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
 
         self.unreal_client.send_file_completed_delegate = self.on_ndisplay_config_transfer_complete
         self.unreal_client.delegates['get sync status'] = self.on_get_sync_status
@@ -131,8 +133,8 @@ class DevicenDisplay(DeviceUnreal):
     def plugin_settings():
         return [
             DeviceUnreal.setting_port,
-            DeviceUnreal.setting_command_line_arguments,
-            DeviceUnreal.setting_exec_cmds,
+            DevicenDisplay.setting_ndisplay_cmd_args,
+            DevicenDisplay.setting_ndisplay_exec_cmds,
             DevicenDisplay.setting_ndisplay_config_file,
             DevicenDisplay.setting_use_all_available_cores,
             DevicenDisplay.setting_texture_streaming,
@@ -152,7 +154,14 @@ class DevicenDisplay(DeviceUnreal):
         ]
 
     def setting_overrides(self):
-        return [CONFIG.ENGINE_DIR, CONFIG.BUILD_ENGINE, CONFIG.SOURCE_CONTROL_WORKSPACE, CONFIG.UPROJECT_PATH]
+        return [
+            DevicenDisplay.setting_ndisplay_cmd_args,
+            DevicenDisplay.setting_ndisplay_exec_cmds,
+            CONFIG.ENGINE_DIR, 
+            CONFIG.BUILD_ENGINE, 
+            CONFIG.SOURCE_CONTROL_WORKSPACE, 
+            CONFIG.UPROJECT_PATH,
+        ]
 
     def on_cmdline_affecting_override(self, device_name):
         if self.name == device_name:
@@ -165,7 +174,7 @@ class DevicenDisplay(DeviceUnreal):
     def generate_unreal_command_line(self, map_name=""):
 
         uproject = os.path.normpath(CONFIG.UPROJECT_PATH.get_value(self.name))
-        additional_args = self.setting_command_line_arguments.get_value(self.name)
+        additional_args = self.setting_ndisplay_cmd_args.get_value(self.name)
 
         cfg_file = self.path_to_config_on_host
 
@@ -194,7 +203,7 @@ class DevicenDisplay(DeviceUnreal):
 
         # fill in ExecCmds
 
-        exec_cmds = f'{self.setting_exec_cmds.get_value(self.name)}'.strip().split(';')
+        exec_cmds = f'{self.setting_ndisplay_exec_cmds.get_value(self.name)}'.strip().split(';')
         exec_cmds.append('DisableAllScreenMessages')
         exec_cmds = [cmd for cmd in exec_cmds if len(cmd.strip())]
 
