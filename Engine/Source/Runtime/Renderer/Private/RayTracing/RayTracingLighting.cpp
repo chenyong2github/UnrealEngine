@@ -287,7 +287,8 @@ static void SetupRaytracingLightDataPacked(
 			LightDataElement.Tangent[Element] = LightParameters.Tangent[Element];
 		}
 
-		const FVector2D FadeParams = Light.LightSceneInfo->Proxy->GetDirectionalLightDistanceFadeParameters(View.GetFeatureLevel(), Light.LightSceneInfo->IsPrecomputedLightingValid(), View.MaxShadowCascades);
+		// Ray tracing should compute fade parameters ignoring lightmaps
+		const FVector2D FadeParams = Light.LightSceneInfo->Proxy->GetDirectionalLightDistanceFadeParameters(View.GetFeatureLevel(), false, View.MaxShadowCascades);
 		const FVector2D DistanceFadeMAD = { FadeParams.Y, -FadeParams.X * FadeParams.Y };
 
 		for (int32 Element = 0; Element < 2; Element++)

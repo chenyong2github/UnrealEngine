@@ -174,11 +174,13 @@ FDeferredLightUniformStruct GetDeferredLightParameters(const FSceneView& View, c
 	FDeferredLightUniformStruct Parameters;
 	LightSceneInfo.Proxy->GetLightShaderParameters(Parameters.LightParameters);
 
-	const FVector2D FadeParams = LightSceneInfo.Proxy->GetDirectionalLightDistanceFadeParameters(View.GetFeatureLevel(), LightSceneInfo.IsPrecomputedLightingValid(), View.MaxShadowCascades);
+	const bool bIsRayTracedLight = ShouldRenderRayTracingShadows(*LightSceneInfo.Proxy);
 
+	const FVector2D FadeParams = LightSceneInfo.Proxy->GetDirectionalLightDistanceFadeParameters(View.GetFeatureLevel(), !bIsRayTracedLight && LightSceneInfo.IsPrecomputedLightingValid(), View.MaxShadowCascades);
+	
 	// use MAD for efficiency in the shader
 	Parameters.DistanceFadeMAD = FVector2D(FadeParams.Y, -FadeParams.X * FadeParams.Y);
-
+	
 	int32 ShadowMapChannel = LightSceneInfo.Proxy->GetShadowMapChannel();
 
 	static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
