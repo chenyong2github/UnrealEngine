@@ -28,7 +28,7 @@ bool UComponentElementEditorSelectionInterface::IsComponentSelected(const UActor
 	{
 		const AActor* ConsideredActor = InComponent->GetOwner();
 		const USceneComponent* ConsideredComponent = Cast<USceneComponent>(InComponent);
-		if (ConsideredActor && ConsideredComponent)
+		if (ConsideredActor)
 		{
 			while (ConsideredActor->IsChildActor())
 			{
@@ -36,13 +36,16 @@ bool UComponentElementEditorSelectionInterface::IsComponentSelected(const UActor
 				ConsideredComponent = ConsideredActor->GetParentComponent();
 			}
 
-			while (ConsideredComponent->IsVisualizationComponent())
+			while (ConsideredComponent && ConsideredComponent->IsVisualizationComponent())
 			{
 				ConsideredComponent = ConsideredComponent->GetAttachParent();
 			}
 		}
 
-		return InSelectionSet->Contains(ConsideredComponent->AcquireEditorElementHandle());
+		if (ConsideredComponent)
+		{
+			return InSelectionSet->Contains(ConsideredComponent->AcquireEditorElementHandle());
+		}
 	}
 
 	return false;

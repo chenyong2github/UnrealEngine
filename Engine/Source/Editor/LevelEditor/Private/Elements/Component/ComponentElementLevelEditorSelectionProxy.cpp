@@ -41,7 +41,7 @@ FTypedElementHandle UComponentElementLevelEditorSelectionProxy::GetSelectionElem
 	{
 		const AActor* ConsideredActor = ComponentData->Component->GetOwner();
 		const USceneComponent* ConsideredComponent = Cast<USceneComponent>(ComponentData->Component);
-		if (ConsideredActor && ConsideredComponent)
+		if (ConsideredActor)
 		{
 			while (ConsideredActor->IsChildActor())
 			{
@@ -50,7 +50,7 @@ FTypedElementHandle UComponentElementLevelEditorSelectionProxy::GetSelectionElem
 			}
 
 			// If the component selected is a visualization component, we want to select the non-visualization component it's attached to
-			while (ConsideredComponent->IsVisualizationComponent())
+			while (ConsideredComponent && ConsideredComponent->IsVisualizationComponent())
 			{
 				ConsideredComponent = ConsideredComponent->GetAttachParent();
 			}
@@ -69,7 +69,7 @@ FTypedElementHandle UComponentElementLevelEditorSelectionProxy::GetSelectionElem
 
 			const bool bSelectComponent = bActorAlreadySelectedExclusively && bActorIsBlueprintable && (bComponentAlreadySelected != bWasDoubleClick);
 
-			if (bSelectComponent)
+			if (bSelectComponent && ConsideredComponent)
 			{
 				return ConsideredComponent->AcquireEditorElementHandle();
 			}
