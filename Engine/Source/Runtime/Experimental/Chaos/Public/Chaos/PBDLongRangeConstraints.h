@@ -15,7 +15,7 @@ class CHAOS_API TPBDLongRangeConstraints : public TPBDLongRangeConstraintsBase<T
 {
 public:
 	typedef TPBDLongRangeConstraintsBase<T, d> Base;
-	typedef Base::EMode EMode;
+	typedef typename Base::EMode EMode;
 
 	using Base::GetMode;
 
