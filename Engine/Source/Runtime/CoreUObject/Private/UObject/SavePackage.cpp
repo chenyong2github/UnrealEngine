@@ -3082,6 +3082,10 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 							CulpritString = FString::Printf(TEXT("%s (Unknown property)"), *MostLikelyCulprit->GetFullName());
 						}
 					}
+					else if (!ObjectNames.IsEmpty())
+					{
+							CulpritString = ObjectNames;
+					}
 
 					FString ErrorMessage = FString::Printf(TEXT("Can't save %s: Graph is linked to object %s in external map"), Filename, *CulpritString);
 					if (!(SaveFlags & SAVE_NoError))
