@@ -252,6 +252,9 @@ protected:
 			return false; // failed to lock buffer
 		}
 
+		// Recompute the output buffer vertical dimension - we may get a SMALLER buffer (no padding) here than what we expected before!
+		Dim.Y = BufferSize / Stride;
+
 		// copy pixels
 		if ((Bytes != NULL) && (BufferSize > 0))
 		{
