@@ -10,8 +10,7 @@ class FMenuBuilder;
 struct FAssetData;
 class UParticleSystem;
 
-//@todo(ng) figure out why this won't link
-// CASCADETONIAGARACONVERTER_API DECLARE_LOG_CATEGORY_EXTERN(LogFXConverter, Log, Verbose);
+DECLARE_LOG_CATEGORY_EXTERN(LogFXConverter, Log, Verbose);
 
 struct FNiagaraConverterMessageTopics
 {
