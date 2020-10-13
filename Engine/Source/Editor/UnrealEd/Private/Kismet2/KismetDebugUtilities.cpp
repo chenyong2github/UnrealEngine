@@ -250,6 +250,7 @@ void FKismetDebugUtilities::OnScriptException(const UObject* ActiveObject, const
 
 		bool bShouldBreakExecution = false;
 		bool bForceToCurrentObject = false;
+		bool bIsStepping = Data.bIsSingleStepping || Data.TargetGraphStackDepth != INDEX_NONE;
 
 		switch (Info.GetType())
 		{
@@ -257,7 +258,7 @@ void FKismetDebugUtilities::OnScriptException(const UObject* ActiveObject, const
 			bShouldBreakExecution = true;
 			break;
 		case EBlueprintExceptionType::Tracepoint:
-			bShouldBreakExecution = Data.bIsSingleStepping || Data.TargetGraphStackDepth != INDEX_NONE;
+			bShouldBreakExecution = bIsStepping;
 			break;
 		case EBlueprintExceptionType::WireTracepoint:
 			break;
@@ -313,6 +314,12 @@ void FKismetDebugUtilities::OnScriptException(const UObject* ActiveObject, const
 			bForceToCurrentObject = true;
 			bShouldBreakExecution = GetDefault<UEditorExperimentalSettings>()->bBreakOnExceptions;
 			break;
+		}
+
+		if (!bForceToCurrentObject && bIsStepping)
+		{
+			// If we're stepping, temporarily override the selected debug object so step into always works)
+			bForceToCurrentObject = true;
 		}
 
 		// If we are debugging a specific world, the object needs to be in it
