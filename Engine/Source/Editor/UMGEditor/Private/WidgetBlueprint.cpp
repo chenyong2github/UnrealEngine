@@ -1051,6 +1051,11 @@ UPackage* UWidgetBlueprint::GetWidgetTemplatePackage() const
 
 static bool HasLatentActions(UEdGraph* Graph)
 {
+	if (!Graph)
+	{
+		return false;
+	}
+
 	for (const UEdGraphNode* Node : Graph->Nodes)
 	{
 		if (const UK2Node_CallFunction* CallFunctionNode = Cast<UK2Node_CallFunction>(Node))
