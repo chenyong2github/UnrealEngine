@@ -4557,7 +4557,7 @@ void AddResolveSceneDepthPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, 
 				break;
 			}
 
-			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GScreenVertexDeclaration.VertexDeclarationRHI;
+			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GEmptyVertexDeclaration.VertexDeclarationRHI;
 			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = ResolveVertexShader.GetVertexShader();
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ResolvePixelShader;
 			GraphicsPSOInit.PrimitiveType = PT_TriangleStrip;
@@ -4568,6 +4568,7 @@ void AddResolveSceneDepthPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, 
 
 			ResolveVertexShader->SetParameters(RHICmdList, ResolveRect, ResolveRect, DepthExtent.X, DepthExtent.Y);
 
+			RHICmdList.SetStreamSource(0, nullptr, 0);
 			RHICmdList.DrawPrimitive(0, 2, 1);
 		});
 	}
