@@ -103,7 +103,8 @@ protected:
 		NotPainted,
 		Painted,
 		Queued,
-		InvalidSize,
+		TextureSizeTooBig,
+		TextureSizeZero,
 	};
 	EPaintRetainedContentResult PaintRetainedContentImpl(const FSlateInvalidationContext& Context, const FGeometry& AllottedGeometry);
 
