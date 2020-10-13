@@ -54,11 +54,24 @@ FAutoConsoleVariableRef CVarLandscapeMeshLODBias(
 	ECVF_Scalability
 );
 
+#if !UE_BUILD_SHIPPING
+static void OnLODDistributionScaleChanged(IConsoleVariable* CVar)
+{
+	for (auto* LandscapeComponent : TObjectRange<ULandscapeComponent>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::PendingKill))
+	{
+		LandscapeComponent->MarkRenderStateDirty();
+	}
+}
+#endif
+
 float GLandscapeLOD0DistributionScale = 1.f;
 FAutoConsoleVariableRef CVarLandscapeLOD0DistributionScale(
 	TEXT("r.LandscapeLOD0DistributionScale"),
 	GLandscapeLOD0DistributionScale,
 	TEXT("Multiplier for the landscape LOD0DistributionSetting property"),
+#if !UE_BUILD_SHIPPING
+	FConsoleVariableDelegate::CreateStatic(&OnLODDistributionScaleChanged),
+#endif
 	ECVF_Scalability
 );
 
@@ -67,6 +80,9 @@ FAutoConsoleVariableRef CVarLandscapeLODDistributionScale(
 	TEXT("r.LandscapeLODDistributionScale"),
 	GLandscapeLODDistributionScale,
 	TEXT("Multiplier for the landscape LODDistributionSetting property"),
+#if !UE_BUILD_SHIPPING
+	FConsoleVariableDelegate::CreateStatic(&OnLODDistributionScaleChanged),
+#endif
 	ECVF_Scalability
 );
 
@@ -89,14 +105,6 @@ extern TAutoConsoleVariable<int32> CVarLandscapeShowDirty;
 #endif
 
 #if !UE_BUILD_SHIPPING
-static void OnLODDistributionScaleChanged(IConsoleVariable* CVar)
-{
-	for (auto* LandscapeComponent : TObjectRange<ULandscapeComponent>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::PendingKill))
-	{
-		LandscapeComponent->MarkRenderStateDirty();
-	}
-}
-
 int32 GVarDumpLandscapeLODsCurrentFrame = 0;
 bool GVarDumpLandscapeLODs = false;
 
@@ -1231,18 +1239,6 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	, LightMapResolution(InComponent->GetStaticLightMapResolution())
 #endif
 {
-#if !UE_BUILD_SHIPPING
-	{
-		static bool bStaticInit = false;
-		if (!bStaticInit)
-		{
-			bStaticInit = true;
-			CVarLandscapeLODDistributionScale->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnLODDistributionScaleChanged));
-			CVarLandscapeLOD0DistributionScale->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnLODDistributionScaleChanged));
-		}
-	}
-#endif
-
 	const auto FeatureLevel = GetScene().GetFeatureLevel();
 
 	if (FeatureLevel >= ERHIFeatureLevel::SM5)
