@@ -4,13 +4,23 @@
 #include "Chaos/PerParticleRule.h"
 #include "Chaos/Transform.h"
 #include "Chaos/PBDActiveView.h"
+#include "Chaos/GeometryParticlesfwd.h"
 
 #include "HAL/PlatformMath.h"
+
+// Support ISPC enable/disable in non-shipping builds
+#if !INTEL_ISPC
+const bool bChaos_PerParticleCollision_ISPC_Enabled = false;
+#elif UE_BUILD_SHIPPING
+const bool bChaos_PerParticleCollision_ISPC_Enabled = false;  // TODO: Enable once ISPC collision works
+#else
+extern CHAOS_API bool bChaos_PerParticleCollision_ISPC_Enabled;
+#endif
 
 namespace Chaos
 {
 template<class T, int d, EGeometryParticlesSimType SimType>
-class TPerParticlePBDCollisionConstraint : public TPerParticleRule<T, d>
+class CHAOS_API TPerParticlePBDCollisionConstraint : public TPerParticleRule<T, d>
 {
 	struct FVelocityConstraint
 	{
@@ -18,7 +28,7 @@ class TPerParticlePBDCollisionConstraint : public TPerParticleRule<T, d>
 		TVector<T, d> Normal;
 	};
 
-  public:
+public:
 	typedef TKinematicGeometryParticlesImp<T, d, SimType> FCollisionParticles;
 
 	TPerParticlePBDCollisionConstraint(const TPBDActiveView<FCollisionParticles>& InParticlesActiveView, TArray<bool>& Collided, TArray<uint32>& DynamicGroupIds, TArray<uint32>& KinematicGroupIds, const TArray<T>& PerGroupThickness, const TArray<T>& PerGroupFriction)
@@ -26,16 +36,59 @@ class TPerParticlePBDCollisionConstraint : public TPerParticleRule<T, d>
 
 	virtual ~TPerParticlePBDCollisionConstraint() {}
 
-	inline void Apply(TPBDParticles<T, d>& InParticles, const T Dt, const int32 Index) const override //-V762
+	inline virtual void Apply(TPBDParticles<T, d>& Particles, const T Dt, const int32 Index) const override //-V762
 	{
-		if (InParticles.InvM(Index) == 0)
+		ApplyHelper(Particles, Dt, Index);
+	}
+
+	inline void ApplyRange(TPBDParticles<T, d>& Particles, const T Dt, int32 Offset, int32 Range) const
+	{
+		if (bChaos_PerParticleCollision_ISPC_Enabled && bFastPositionBasedFriction)
+		{
+			ApplyHelperISPC(Particles, Dt, Offset, Range);
+		}
+		else
+		{
+			PhysicsParallelFor(Range - Offset, [&](int32 Index)
+			{
+				ApplyHelper(Particles, Dt, Index + Offset);
+			});
+		}
+	}
+
+	void ApplyFriction(TPBDParticles<T, d>& Particles, const T Dt, const int32 Index) const
+	{
+		if (!bFastPositionBasedFriction)
+		{
+			if (!MVelocityConstraints.Contains(Index))
+			{
+				return;
+			}
+			const T VN = TVector<T, d>::DotProduct(Particles.V(Index), MVelocityConstraints[Index].Normal);
+			const T VNBody = TVector<T, d>::DotProduct(MVelocityConstraints[Index].Velocity, MVelocityConstraints[Index].Normal);
+			const TVector<T, d> VTBody = MVelocityConstraints[Index].Velocity - VNBody * MVelocityConstraints[Index].Normal;
+			const TVector<T, d> VTRelative = Particles.V(Index) - VN * MVelocityConstraints[Index].Normal - VTBody;
+			const T VTRelativeSize = VTRelative.Size();
+			const T VNMax = FMath::Max(VN, VNBody);
+			const T VNDelta = VNMax - VN;
+			const T CoefficientOfFriction = MPerGroupFriction[MDynamicGroupIds[Index]];
+			check(CoefficientOfFriction > 0);
+			const T Friction = CoefficientOfFriction * VNDelta < VTRelativeSize ? CoefficientOfFriction * VNDelta / VTRelativeSize : 1;
+			Particles.V(Index) = VNMax * MVelocityConstraints[Index].Normal + VTBody + VTRelative * (1 - Friction);
+		}
+	}
+
+private:
+	inline void ApplyHelper(TPBDParticles<T, d>& Particles, const T Dt, const int32 Index) const
+	{
+		if (Particles.InvM(Index) == 0)
 		{
 			return;
 		}
 
 		const uint32 DynamicGroupId = MDynamicGroupIds[Index];  // Particle group Id
 
-		MCollisionParticlesActiveView.SequentialFor([this, &InParticles, &Dt, &Index, &DynamicGroupId](FCollisionParticles& CollisionParticles, int32 i)
+		MCollisionParticlesActiveView.SequentialFor([this, &Particles, &Dt, &Index, &DynamicGroupId](FCollisionParticles& CollisionParticles, int32 i)
 		{
 			const uint32 KinematicGroupId = MKinematicGroupIds[i];  // Collision group Id
 
@@ -45,12 +98,12 @@ class TPerParticlePBDCollisionConstraint : public TPerParticleRule<T, d>
 			}
 			TVector<T, d> Normal;
 			TRigidTransform<T, d> Frame(CollisionParticles.X(i), CollisionParticles.R(i));
-			const T Phi = CollisionParticles.Geometry(i)->PhiWithNormal(Frame.InverseTransformPosition(InParticles.P(Index)), Normal);
+			const T Phi = CollisionParticles.Geometry(i)->PhiWithNormal(Frame.InverseTransformPosition(Particles.P(Index)), Normal);
 			const T Thickness = MPerGroupThickness[DynamicGroupId];
 			if (Phi < Thickness)
 			{
 				const TVector<T, d> NormalWorld = Frame.TransformVector(Normal);
-				InParticles.P(Index) += (-Phi + Thickness) * NormalWorld;
+				Particles.P(Index) += (-Phi + Thickness) * NormalWorld;
 				const T CoefficientOfFriction = MPerGroupFriction[DynamicGroupId];
 				if (CoefficientOfFriction > 0)
 				{
@@ -58,8 +111,8 @@ class TPerParticlePBDCollisionConstraint : public TPerParticleRule<T, d>
 					if (bFastPositionBasedFriction)
 					{
 						const T Penetration = (-Phi + Thickness); // This is related to the Normal impulse
-						TVector<T, d> VectorToPoint = InParticles.P(Index) - CollisionParticles.X(i);
-						const TVector<T, d> RelativeDisplacement = (InParticles.P(Index) - InParticles.X(Index)) - (CollisionParticles.V(i) + TVector<T, d>::CrossProduct(CollisionParticles.W(i), VectorToPoint)) * Dt; // This corresponds to the tangential velocity multiplied by dt (friction will drive this to zero if it is high enough)
+						TVector<T, d> VectorToPoint = Particles.P(Index) - CollisionParticles.X(i);
+						const TVector<T, d> RelativeDisplacement = (Particles.P(Index) - Particles.X(Index)) - (CollisionParticles.V(i) + TVector<T, d>::CrossProduct(CollisionParticles.W(i), VectorToPoint)) * Dt; // This corresponds to the tangential velocity multiplied by dt (friction will drive this to zero if it is high enough)
 						const TVector<T, d> RelativeDisplacementTangent = RelativeDisplacement - TVector<T, d>::DotProduct(RelativeDisplacement, NormalWorld) * NormalWorld; // Project displacement into the tangential plane
 						const T RelativeDisplacementTangentLength = RelativeDisplacementTangent.Size();
 						T PositionCorrection = FMath::Clamp<T>(Penetration * CoefficientOfFriction, 0, RelativeDisplacementTangentLength);
@@ -69,14 +122,14 @@ class TPerParticlePBDCollisionConstraint : public TPerParticleRule<T, d>
 						}
 						if (PositionCorrection > 0)
 						{
-							InParticles.P(Index) -= (PositionCorrection / RelativeDisplacementTangentLength) * RelativeDisplacementTangent;
+							Particles.P(Index) -= (PositionCorrection / RelativeDisplacementTangentLength) * RelativeDisplacementTangent;
 						}
 					}
 					else
 					{
 						// Note, to fix: Only use fast position based friction for now, since adding to TMaps here is not thread safe when calling Apply on multiple threads (will cause crash)
 						FVelocityConstraint Constraint;
-						TVector<T, d> VectorToPoint = InParticles.P(Index) - CollisionParticles.X(i);
+						TVector<T, d> VectorToPoint = Particles.P(Index) - CollisionParticles.X(i);
 						Constraint.Velocity = CollisionParticles.V(i) + TVector<T, d>::CrossProduct(CollisionParticles.W(i), VectorToPoint);
 						Constraint.Normal = Frame.TransformVector(Normal);
 						
@@ -87,29 +140,9 @@ class TPerParticlePBDCollisionConstraint : public TPerParticleRule<T, d>
 		});
 	}
 
-	void ApplyFriction(TPBDParticles<T, d>& InParticles, const T Dt, const int32 Index) const
-	{
-		if (!bFastPositionBasedFriction)
-		{
-			if (!MVelocityConstraints.Contains(Index))
-			{
-				return;
-			}
-			const T VN = TVector<T, d>::DotProduct(InParticles.V(Index), MVelocityConstraints[Index].Normal);
-			const T VNBody = TVector<T, d>::DotProduct(MVelocityConstraints[Index].Velocity, MVelocityConstraints[Index].Normal);
-			const TVector<T, d> VTBody = MVelocityConstraints[Index].Velocity - VNBody * MVelocityConstraints[Index].Normal;
-			const TVector<T, d> VTRelative = InParticles.V(Index) - VN * MVelocityConstraints[Index].Normal - VTBody;
-			const T VTRelativeSize = VTRelative.Size();
-			const T VNMax = FMath::Max(VN, VNBody);
-			const T VNDelta = VNMax - VN;
-			const T CoefficientOfFriction = MPerGroupFriction[MDynamicGroupIds[Index]];
-			check(CoefficientOfFriction > 0);
-			const T Friction = CoefficientOfFriction * VNDelta < VTRelativeSize ? CoefficientOfFriction * VNDelta / VTRelativeSize : 1;
-			InParticles.V(Index) = VNMax * MVelocityConstraints[Index].Normal + VTBody + VTRelative * (1 - Friction);
-		}
-	}
+	void ApplyHelperISPC(TPBDParticles<T, d>& Particles, const T Dt, int32 Offset, int32 Range) const;
 
-  private:
+private:
 	bool bFastPositionBasedFriction;
 	// TODO(mlentine): Need a bb hierarchy
 	const TPBDActiveView<FCollisionParticles>& MCollisionParticlesActiveView;
