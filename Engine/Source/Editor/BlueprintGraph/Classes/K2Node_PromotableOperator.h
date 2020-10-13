@@ -72,7 +72,21 @@ private:
 	*/
 	bool CreateIntermediateCast(UK2Node_CallFunction* SourceNode, FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph, UEdGraphPin* InputPin, UEdGraphPin* OutputPin);
 
+	/**
+	* Spawn a new intermediate call function node with the given operator function 
+	* and allocate its default pins. Place it next to the given Previous node 
+	* 
+	* @return	An intermediate call function node placed next to the "PreviousNode"
+	*/
 	UK2Node_CallFunction* CreateIntermediateNode(UK2Node_CallFunction* PreviousNode, const UFunction* const OpFunction, FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph);
+
+	/** 
+	* Re-evaluates the in types on this node based on all the current connections
+	* and the given pin that has changed. 
+	* 
+	* @param ChangedPin		The pin that has been change
+	*/
+	void EvaluatePinsFromChange(UEdGraphPin* ChangedPin);
 
 	/** Helper to make sure we have the most up to date operation name. Returns true upon success */
 	bool UpdateOpName();
