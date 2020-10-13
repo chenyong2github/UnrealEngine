@@ -1259,6 +1259,7 @@ public:
 		{
 			FWindowsPlatformCrashContext CrashContext(ECrashContextType::Ensure, ErrorMessage);
 			CrashContext.SetCrashedProcess(FProcHandle(::GetCurrentProcess()));
+			CrashContext.SetCrashedThreadId(GetCurrentThreadId());
 			void* ContextWrapper = FWindowsPlatformStackWalk::MakeThreadContextWrapper(InExceptionInfo->ContextRecord, GetCurrentThread());
 			CrashContext.CapturePortableCallStack(NumStackFramesToIgnore, ContextWrapper);
 
