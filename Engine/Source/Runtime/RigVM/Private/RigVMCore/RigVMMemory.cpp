@@ -595,8 +595,8 @@ bool FRigVMMemoryContainer::Serialize(FArchive& Ar)
 						Ar << View;
 						if (!bEncounteredErrorDuringLoad)
 						{
-							ensure(View.Num() == Register.GetAllocatedBytes());
-							FMemory::Memcpy(&Data[Register.GetFirstAllocatedByte()], View.GetData(), View.Num());
+							ensure(View.Num() <= Register.GetAllocatedBytes());
+							FMemory::Memcpy(&Data[Register.GetWorkByteIndex()], View.GetData(), View.Num());
 						}
 						break;
 					}
@@ -607,10 +607,7 @@ bool FRigVMMemoryContainer::Serialize(FArchive& Ar)
 						if (!bEncounteredErrorDuringLoad)
 						{
 							ensure(View.Num() == Register.GetTotalElementCount());
-							for (uint16 ElementIndex = 0; ElementIndex < Register.GetTotalElementCount(); ElementIndex++)
-							{
-								*((FName*)&Data[Register.GetWorkByteIndex() + Register.ElementSize * ElementIndex]) = View[ElementIndex];
-							}
+							RigVMCopy<FName>(&Data[Register.GetWorkByteIndex()], View.GetData(), View.Num());
 						}
 						break;
 					}
@@ -621,10 +618,7 @@ bool FRigVMMemoryContainer::Serialize(FArchive& Ar)
 						if (!bEncounteredErrorDuringLoad)
 						{
 							ensure(View.Num() == Register.GetTotalElementCount());
-							for (uint16 ElementIndex = 0; ElementIndex < Register.GetTotalElementCount(); ElementIndex++)
-							{
-								*((FString*)&Data[Register.GetWorkByteIndex() + Register.ElementSize * ElementIndex]) = View[ElementIndex];
-							}
+							RigVMCopy<FString>(&Data[Register.GetWorkByteIndex()], View.GetData(), View.Num());
 						}
 						break;
 					}
@@ -861,7 +855,7 @@ bool FRigVMMemoryContainer::Serialize(FArchive& Ar)
 					case ERigVMRegisterType::Plain:
 					{
 						FRigVMByteArray View;
-						View.Append(&Data[Register.GetFirstAllocatedByte()], Register.GetAllocatedBytes());
+						View.Append(&Data[Register.GetWorkByteIndex()], Register.GetAllocatedBytes() - Register.GetAlignmentBytes());
 						Ar << View;
 						break;
 					}
@@ -1066,24 +1060,14 @@ bool FRigVMMemoryContainer::Copy(
 		{
 			int32 NumNames = InNumBytes / sizeof(FName);
 			ensure(NumNames * sizeof(FName) == InNumBytes);
-			FRigVMFixedArray<FName> TargetNames((FName*)InTargetPtr, NumNames);
-			FRigVMFixedArray<FName> SourceNames((FName*)InSourcePtr, NumNames);
-			for (int32 Index = 0; Index < NumNames; Index++)
-			{
-				TargetNames[Index] = SourceNames[Index];
-			}
+			RigVMCopy<FName>(InTargetPtr, InSourcePtr, NumNames);
 			break;
 		}
 		case ERigVMRegisterType::String:
 		{
 			int32 NumStrings = InNumBytes / sizeof(FString);
 			ensure(NumStrings * sizeof(FString) == InNumBytes);
-			FRigVMFixedArray<FString> TargetStrings((FString*)InTargetPtr, NumStrings);
-			FRigVMFixedArray<FString> SourceStrings((FString*)InSourcePtr, NumStrings);
-			for (int32 Index = 0; Index < NumStrings; Index++)
-			{
-				TargetStrings[Index] = SourceStrings[Index];
-			}
+			RigVMCopy<FString>(InTargetPtr, InSourcePtr, NumStrings);
 			break;
 		}
 		case ERigVMRegisterType::Invalid:
@@ -1788,37 +1772,45 @@ void FRigVMMemoryContainer::UpdateRegisters()
 		FRigVMRegister& Register = Registers[RegisterIndex];
 		Register.ByteIndex += AlignmentShift;
 
-		UScriptStruct* ScriptStruct = GetScriptStruct(RegisterIndex);
-		if (ScriptStruct != nullptr && !Register.IsDynamic())
+		int32 Alignment = 4;
+
+		if (Register.IsDynamic() ||
+			Register.Type == ERigVMRegisterType::Name ||
+			Register.Type == ERigVMRegisterType::String)
 		{
-			UScriptStruct::ICppStructOps* TheCppStructOps = ScriptStruct->GetCppStructOps();
-			if (TheCppStructOps != NULL)
+			Alignment = 8;
+		}
+		else if (UScriptStruct* ScriptStruct = GetScriptStruct(RegisterIndex))
+		{
+			if (UScriptStruct::ICppStructOps* TheCppStructOps = ScriptStruct->GetCppStructOps())
 			{
-				if (!TheCppStructOps->HasZeroConstructor())
+				Alignment = TheCppStructOps->GetAlignment();
+			}
+		}
+
+		if (Alignment != 0)
+		{
+			uint8* Pointer = GetData(RegisterIndex);
+
+			if (Register.AlignmentBytes > 0)
+			{
+				if (!IsAligned(Pointer, Alignment))
 				{
-					uint8* Pointer = GetData(RegisterIndex);
-
-					if (Register.AlignmentBytes > 0)
-					{
-						if (!IsAligned(Pointer, TheCppStructOps->GetAlignment()))
-						{
-							Data.RemoveAt(Register.GetFirstAllocatedByte(), Register.AlignmentBytes);
-							AlignmentShift -= Register.AlignmentBytes;
-							Register.ByteIndex -= Register.AlignmentBytes;
-							Register.AlignmentBytes = 0;
-							Pointer = GetData(RegisterIndex);
-						}
-					}
-
-					while (!IsAligned(Pointer, TheCppStructOps->GetAlignment()))
-					{
-						Data.InsertZeroed(Register.GetFirstAllocatedByte(), 1);
-						Register.AlignmentBytes++;
-						Register.ByteIndex++;
-						AlignmentShift++;
-						Pointer = GetData(RegisterIndex);
-					}
+					Data.RemoveAt(Register.GetFirstAllocatedByte(), Register.AlignmentBytes);
+					AlignmentShift -= Register.AlignmentBytes;
+					Register.ByteIndex -= Register.AlignmentBytes;
+					Register.AlignmentBytes = 0;
+					Pointer = GetData(RegisterIndex);
 				}
+			}
+
+			while (!IsAligned(Pointer, Alignment))
+			{
+				Data.InsertZeroed(Register.GetFirstAllocatedByte(), 1);
+				Register.AlignmentBytes++;
+				Register.ByteIndex++;
+				AlignmentShift++;
+				Pointer = GetData(RegisterIndex);
 			}
 		}
 	}
