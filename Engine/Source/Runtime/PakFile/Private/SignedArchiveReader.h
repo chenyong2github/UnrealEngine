@@ -183,6 +183,11 @@ public:
 	virtual void Stop();
 	//~ End FRunnable Interface
 
+	TSharedPtr<const FPakSignatureFile, ESPMode::ThreadSafe> GetSignatures() const
+	{
+		return Signatures;
+	}
+
 	/** 
 	 * Requests a chunk to be loaded and verified
 	 * 
