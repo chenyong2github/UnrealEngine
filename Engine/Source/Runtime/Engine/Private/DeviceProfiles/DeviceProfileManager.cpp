@@ -137,11 +137,15 @@ void UDeviceProfileManager::ProcessDeviceProfileIniSettings(const FString& Devic
 	FConfigCacheIni* ConfigSystem = GConfig;
 	if (Mode == EDeviceProfileMode::DPM_CacheValues)
 	{
+#if WITH_UNREAL_DEVELOPER_TOOLS
 		// caching is not done super early, so we can assume DPs have been found now
 		UDeviceProfile* Profile = UDeviceProfileManager::Get().FindProfile(DeviceProfileName, false);
 		check(Profile);
 		// use the DP's platform's configs, NOT the running platform
 		ConfigSystem = FConfigCacheIni::ForPlatform(*Profile->DeviceType);
+#else
+		UE_LOG(LogDeviceProfileManager, Fatal, TEXT("ProcessDeviceProfileIniSettings called with Mode == DPM_CacheValues in non-tools build!"));
+#endif
 	}
 
 	check(ConfigSystem != nullptr);
@@ -385,12 +389,14 @@ void UDeviceProfileManager::ProcessDeviceProfileIniSettings(const FString& Devic
 		bReachedEndOfTree = !bProfileExists || BaseDeviceProfileName.IsEmpty();
 	}
 
+#if WITH_UNREAL_DEVELOPER_TOOLS
 	// copy the running cache into the DP
 	if (Mode == EDeviceProfileMode::DPM_CacheValues)
 	{
 		UDeviceProfile* Profile = UDeviceProfileManager::Get().FindProfile(DeviceProfileName, false);
 		Profile->AddExpandedCVars(CVarsAlreadySetList);
 	}
+#endif
 }
 
 

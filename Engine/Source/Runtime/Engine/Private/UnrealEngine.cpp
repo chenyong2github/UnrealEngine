@@ -8303,10 +8303,12 @@ bool UEngine::HandleGetIniCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 		if (PlatformDelim > 0)
 		{
 			FString PlatformName = IniPlusSection.Mid(0, PlatformDelim);
+#if WITH_UNREAL_DEVELOPER_TOOLS
 			IniPlusSection = IniPlusSection.Mid(PlatformDelim + 1);
 
 			ConfigSystem = FConfigCacheIni::ForPlatform(*PlatformName);
 			if (ConfigSystem == nullptr)
+#endif
 			{
 				Ar.Logf(TEXT("Failed to find config system for platform %s"), *PlatformName);
 				return false;
