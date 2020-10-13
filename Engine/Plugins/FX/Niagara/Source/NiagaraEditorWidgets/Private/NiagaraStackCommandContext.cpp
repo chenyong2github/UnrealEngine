@@ -209,7 +209,7 @@ FText FNiagaraStackCommandContext::GetCanRenameSelectedEntriesToolTip() const
 		LOCTEXT("CantRenameMultipleToolTip", "Can't rename multiple items.");
 	}
 
-	if (SelectedEntries[0]->SupportsRename())
+	if (!SelectedEntries[0]->SupportsRename())
 	{
 		return LOCTEXT("CantRenameToolTip", "The selected item cannot be renamed.");
 	}
