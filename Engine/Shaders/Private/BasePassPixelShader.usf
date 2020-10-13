@@ -74,7 +74,7 @@
 #include "Lumen/LumenTranslucencyVolumeShared.ush"
 #endif
 
-#define STRATA_ENABLED					PROJECT_STRATA
+#define STRATA_ENABLED					PROJECT_STRATA && MATERIAL_IS_STRATA
 #define STRATA_OPAQUE_ENABLED			(STRATA_ENABLED && MATERIALBLENDING_ANY_TRANSLUCENT<=0)
 #define STRATA_TRANSLUCENT_ENABLED		(STRATA_ENABLED && MATERIALBLENDING_ANY_TRANSLUCENT>0)
 
@@ -115,6 +115,7 @@ float NormalCurvatureToRoughness(float3 WorldNormal)
 #define FORCE_FULLY_ROUGH (SIMPLE_FORWARD_SHADING || MATERIAL_FULLY_ROUGH)
 #define EDITOR_ALPHA2COVERAGE (USE_EDITOR_COMPOSITING && SUPPORTS_PIXEL_COVERAGE)
 #define POST_PROCESS_SUBSURFACE ((MATERIAL_SHADINGMODEL_SUBSURFACE_PROFILE || MATERIAL_SHADINGMODEL_EYE) && USES_GBUFFER)
+#define MATERIAL_WORKS_WITH_DUAL_SOURCE_COLOR_BLENDING (MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT || STRATA_TRANSLUCENT_ENABLED)
 
 #if  MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 
@@ -1427,11 +1428,12 @@ void FPixelShaderInOut_MainPS(
 	}
 #endif // MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 
-#if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
-
+#if MATERIAL_WORKS_WITH_DUAL_SOURCE_COLOR_BLENDING
 	float3 DualBlendColorAdd = 0.0f;
 	float3 DualBlendColorMul = 1.0f;
+#endif
 
+#if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
 	{
 		AccumulateThinTranslucentModel(
 								DualBlendColorAdd,
@@ -1446,8 +1448,7 @@ void FPixelShaderInOut_MainPS(
 		Color = 0;
 		Opacity = 1.0f;
 	}
-
-#endif
+#endif // MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
 
 
 #if STRATA_ENABLED && !MATERIAL_SHADINGMODEL_UNLIT
@@ -1456,7 +1457,6 @@ void FPixelShaderInOut_MainPS(
 
 #if STRATA_OPAQUE_ENABLED
 
-#if MATERIAL_IS_STRATA
 	// Need to cancel that to make sure strata material are only lit using Strata lighting passes
 	Color = 0;
 	// Clear only what should be and keep the rest
@@ -1466,7 +1466,6 @@ void FPixelShaderInOut_MainPS(
 	GBuffer.BaseColor = 0;
 	GBuffer.Specular = 0;
 	GBuffer.Metallic = 0;
-#endif
 
 	OpaqueBasePass.Strata.MaterialLobesTextureUAV[uint2(In.SvPosition.xy)] = Strata.LayerCount; // Could store a bit pack of layer count, BSDF type masks for tiling, etc.
 
@@ -1474,20 +1473,7 @@ void FPixelShaderInOut_MainPS(
 	uint PixelStrataDataByteOffset = (PixelPos.y * ResolvedView.BufferSizeAndInvSize.x + PixelPos.x) * OpaqueBasePass.Strata.MaxBytesPerPixel;
 
 	PackStrataOut(OpaqueBasePass.Strata.MaterialLobesBufferUAV, PixelStrataDataByteOffset, Strata, MaterialParameters.WorldNormal, MaterialParameters.CameraVector);
-
-	//switch (uint(Strata.LayerCount))
-	//{
-	//case 1:
-	//	Color = float3(0, 0, 1);	break;
-	//case 2:
-	//	Color = float3(0, 1, 0);	break;
-	//case 3:
-	//	Color = float3(1, 1, 0);	break;
-	//case 4:
-	//	Color = float3(1, 0, 0);	break;
-	//}
-
-#endif
+#endif // STRATA_OPAQUE_ENABLED
 
 #if STRATA_TRANSLUCENT_ENABLED
 	//FORWARD_SHADING
@@ -1497,6 +1483,7 @@ void FPixelShaderInOut_MainPS(
 		float3 V = MaterialParameters.CameraVector;
 		float3 LightColor = ResolvedView.DirectionalLightColor.rgb * PI;
 
+		float3 Throughput = 1.0f;
 		Color = StrataForwardLighting(
 			GBuffer,
 			MaterialParameters.WorldNormal,
@@ -1505,11 +1492,17 @@ void FPixelShaderInOut_MainPS(
 			LightColor,
 			DirectionalLightShadow,
 			IndirectOcclusion,
-			Strata);
-	}
-#endif
+			Strata,
+			Throughput);
 
-#endif
+		DualBlendColorAdd = Color;
+		DualBlendColorMul = Throughput;	// TODO transmittance
+		Color = 0.0f;
+		Opacity = 1.0f;
+	}
+#endif // STRATA_TRANSLUCENT_ENABLED
+
+#endif // STRATA_ENABLED
 
 
 	#if MATERIAL_DOMAIN_POSTPROCESS
@@ -1520,7 +1513,7 @@ void FPixelShaderInOut_MainPS(
 		#endif
 		Out.MRT[0] = RETURN_COLOR(Out.MRT[0]);
 	// MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT must come first because it also has MATERIALBLENDING_TRANSLUCENT defined
-	#elif MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
+	#elif MATERIAL_WORKS_WITH_DUAL_SOURCE_COLOR_BLENDING
 		// After thin translucency, the final color is going to be:
 		//    FinalColor = DualBlendColorAdd + DualBlendColorMul * BackgroundColor;
 	    // To apply fogging, we want the final equation to be:
@@ -1534,7 +1527,7 @@ void FPixelShaderInOut_MainPS(
 		float3 AdjustedDualBlendAdd = Fogging.rgb + Fogging.a * DualBlendColorAdd;
 		float3 AdjustedDualBlendMul =               Fogging.a * DualBlendColorMul;
 
-		#if THIN_TRANSLUCENT_USE_DUAL_BLEND
+		#if DUAL_SOURCE_COLOR_BLENDING_ENABLED
 			// no RETURN_COLOR because these values are explicit multiplies and adds
 			Out.MRT[0] = half4(AdjustedDualBlendAdd,0.0);
 			Out.MRT[1] = half4(AdjustedDualBlendMul,1.0);
@@ -1710,7 +1703,7 @@ void FPixelShaderInOut_MainPS(
 #else //USES_GBUFFER
 	#define PIXELSHADEROUTPUT_MRT0 1
 	// we also need MRT for thin translucency due to dual blending if we are not on the fallback path
-	#define PIXELSHADEROUTPUT_MRT1 (WRITES_VELOCITY_TO_GBUFFER || (MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT && THIN_TRANSLUCENT_USE_DUAL_BLEND))
+	#define PIXELSHADEROUTPUT_MRT1 (WRITES_VELOCITY_TO_GBUFFER || (DUAL_SOURCE_COLOR_BLENDING_ENABLED && MATERIAL_WORKS_WITH_DUAL_SOURCE_COLOR_BLENDING))
 #endif //USES_GBUFFER
 #define PIXELSHADEROUTPUT_A2C ((EDITOR_ALPHA2COVERAGE) != 0)
 #define PIXELSHADEROUTPUT_COVERAGE (MATERIALBLENDING_MASKED_USING_COVERAGE && !EARLY_Z_PASS_ONLY_MATERIAL_MASKING)

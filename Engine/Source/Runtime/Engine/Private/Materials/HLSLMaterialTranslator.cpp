@@ -938,6 +938,14 @@ bool FHLSLMaterialTranslator::Translate()
 			}
 		}
 
+		if (Material->IsStrataMaterial())
+		{
+			if (!(BlendMode == BLEND_Translucent || BlendMode == BLEND_Opaque))
+			{
+				Errorf(TEXT("Strata materials must be opaque or translucent."));
+			}
+		}
+
 		bool bDBufferAllowed = IsUsingDBuffers(Platform);
 		bool bDBufferBlendMode = IsDBufferDecalBlendMode((EDecalBlendMode)Material->GetDecalBlendMode());
 
@@ -1130,6 +1138,8 @@ bool FHLSLMaterialTranslator::Translate()
 
 void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform, FShaderCompilerEnvironment& OutEnvironment)
 {
+	bool bMaterialRequestsDualSourceBlending = false;
+
 	if (bNeedsParticlePosition || Material->ShouldGenerateSphericalParticleNormals() || bUsesSphericalParticleOpacity)
 	{
 		OutEnvironment.SetDefine(TEXT("NEEDS_PARTICLE_POSITION"), 1);
@@ -1333,11 +1343,7 @@ void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform,
 			OutEnvironment.SetDefine(TEXT("MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT"), TEXT("1"));
 			NumSetMaterials++;
 
-			// if it is not enabled, it will fall back to standard alpha blending
-			if (Material->IsDualBlendingEnabled(Platform))
-			{
-				OutEnvironment.SetDefine(TEXT("THIN_TRANSLUCENT_USE_DUAL_BLEND"), TEXT("1"));
-			}
+			bMaterialRequestsDualSourceBlending = true;
 		}
 
 		if(ShadingModels.HasShadingModel(MSM_SingleLayerWater) && 
@@ -1412,9 +1418,12 @@ void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform,
 		}
 	}
 
-	OutEnvironment.SetDefine(TEXT("MATERIAL_IS_STRATA"),
-		Material->HasStrataFrontMaterialConnected() ? TEXT("1") : TEXT("0"));
-	 
+	const bool bStrataMaterial = Material->IsStrataMaterial();
+	OutEnvironment.SetDefine(TEXT("MATERIAL_IS_STRATA"), bStrataMaterial ? TEXT("1") : TEXT("0"));
+	bMaterialRequestsDualSourceBlending |= bStrataMaterial;
+
+	// if duals source blending (colored transmittance) is not supported on a platform, it will fall back to standard alpha blending (grey scale transmittance)
+	OutEnvironment.SetDefine(TEXT("DUAL_SOURCE_COLOR_BLENDING_ENABLED"), bMaterialRequestsDualSourceBlending && Material->IsDualBlendingEnabled(Platform) ? TEXT("1") : TEXT("0"));
 }
 
 // Assign custom interpolators to slots, packing them as much as possible in unused slots.

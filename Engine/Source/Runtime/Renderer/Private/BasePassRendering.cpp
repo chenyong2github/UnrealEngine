@@ -148,7 +148,8 @@ static bool IsBasePassWaitForTasksEnabled()
 
 void SetTranslucentRenderState(FMeshPassProcessorRenderState& DrawRenderState, const FMaterial& Material, const EShaderPlatform Platform, ETranslucencyPass::Type InTranslucencyPassType)
 {
-	if (Material.GetShadingModels().HasShadingModel(MSM_ThinTranslucent))
+	// STRATA_TODO IsStrataMaterial will be removed when all materials are unified to use premultipled alpha
+	if (Material.GetShadingModels().HasShadingModel(MSM_ThinTranslucent) || Material.IsStrataMaterial())
 	{
 		// Special case for dual blending, which is not exposed as a parameter in the material editor
 		if (Material.IsDualBlendingEnabled(Platform))

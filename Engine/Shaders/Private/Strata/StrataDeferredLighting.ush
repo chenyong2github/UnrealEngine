@@ -21,6 +21,7 @@ float4 StrataDeferredLighting(
 	for (int i = 0; i < PixelBSDFs.BSDFCount; ++i)
 	{
 		FStrataBSDF BSDF = PixelBSDFs.BSDFs[i];
+		const float3 BSDFThroughput = BSDF.Weight;
 
 		float3 N = GBuffer.WorldNormal;
 		switch (BSDF.BSDFType)		// TODO_STRATA: all have a normal, even subsurface?
@@ -51,7 +52,7 @@ float4 StrataDeferredLighting(
 			UglyIntegrationFactor = IntegrateLight(Capsule, LightData.bInverseSquared);
 		}
 
-		const float3 DirLightBaseFactor = BSDF.Weight * LightData.Color * LightMask * SurfaceShadow * UglyIntegrationFactor;
+		const float3 DirLightBaseFactor = BSDFThroughput * LightData.Color * LightMask * SurfaceShadow * UglyIntegrationFactor;
 		const float3 DirLightGeometryFactor = DirLightBaseFactor * SatNoL;
 
 		switch (BSDF.BSDFType)

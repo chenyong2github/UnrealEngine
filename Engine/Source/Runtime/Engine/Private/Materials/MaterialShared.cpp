@@ -1209,9 +1209,9 @@ bool FMaterialResource::IsTranslucencyAfterDOFEnabled() const
 
 bool FMaterialResource::IsDualBlendingEnabled(EShaderPlatform Platform) const
 {
-	const bool bIsMaterialEnabled = (Material->ShadingModel == MSM_ThinTranslucent);
+	const bool bMaterialRequestsDualSourceBlending = Material->ShadingModel == MSM_ThinTranslucent || IsStrataMaterial();
 	const bool bIsPlatformSupported = RHISupportsDualSourceBlending(Platform);
-	return bIsMaterialEnabled && bIsPlatformSupported;
+	return bMaterialRequestsDualSourceBlending && bIsPlatformSupported;
 }
 
 bool FMaterialResource::IsMobileSeparateTranslucencyEnabled() const
@@ -1423,8 +1423,9 @@ bool FMaterialResource::HasAmbientOcclusionConnected() const
 	return HasMaterialAttributesConnected() || Material->HasAmbientOcclusionConnected();
 }
 
-bool FMaterialResource::HasStrataFrontMaterialConnected() const
+bool FMaterialResource::IsStrataMaterial() const
 {
+	// STRATA_TODO IsStrataMaterial should go away once Strata implementation is finished
 	const URendererSettings* RendererSettings = GetDefault<URendererSettings>();
 	return RendererSettings && RendererSettings->bEnableStrata ? Material->HasStrataFrontMaterialConnected() : false;
 }

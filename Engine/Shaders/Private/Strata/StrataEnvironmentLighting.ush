@@ -19,6 +19,7 @@ float3 StrataEnvironmentLighting(
 	for (int i = 0; i < PixelBSDFs.BSDFCount; ++i)
 	{
 		FStrataBSDF BSDF = PixelBSDFs.BSDFs[i];
+		const float3 BSDFThroughput = BSDF.Weight;
 
 		BxDFContext Context = (BxDFContext)0;
 		float3 L = N;
@@ -109,10 +110,10 @@ float3 StrataEnvironmentLighting(
 		if (any(Albedo > 0.0f))
 		{
 			// BentNormal?
-			SkyLighting += BSDF.Weight * Diffuse_Lambert(Albedo) * GetSkySHDiffuse(Normal) * View.SkyLightColor.rgb * AmbientOcclusion;
+			SkyLighting += BSDFThroughput * Diffuse_Lambert(Albedo) * GetSkySHDiffuse(Normal) * View.SkyLightColor.rgb * AmbientOcclusion;
 		}
 
-		SkyLighting += BSDF.Weight * SpecularLuminance * View.SkyLightColor.rgb * AmbientOcclusion;
+		SkyLighting += BSDFThroughput * SpecularLuminance * View.SkyLightColor.rgb * AmbientOcclusion;
 	}
 #if USE_PREEXPOSURE
 	SkyLighting *= View.PreExposure;

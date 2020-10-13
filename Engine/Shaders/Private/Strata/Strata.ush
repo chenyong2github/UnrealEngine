@@ -71,7 +71,7 @@ struct FStrataVolume
 struct FStrataBSDF
 {
 	int					BSDFType;
-	float3				Weight;
+	float3				Weight;		// Weight is a float3 because, when loaded from the material buffer, it contains the BSDF throughput (coverage and transmittance combined)
 
 	// Even thought the compiler should optimise, it would be nice to have a union with reinterpretation of the register memory.
 	FStrataDiffuse		Diffuse;
@@ -391,18 +391,22 @@ void PackStrataOut(
 	//	- We could clean up irrelevant BSDFs 
 	//	- We could generate transmittance BSDFs 
 
+	const float OpaqueBSDFThroughput = 0.0f;
+	const float FullThroughput = 1.0f;
 
 	uint BSDFCount = 0;
-	float3 TotalTransmittance = 1.0f;
+	float3 Throughput = 1.0f;
 
 	int l;
 	for (l = 0; l < Strata.LayerCount; ++l)
 	{
-		float3 LayerTransmittance = 0.0f;
+		float3 LayerThroughput = 0.0f;
+		float3 LayerCoverage = 0.0f;
 
 		for (int i = 0; i < Strata.Layers[l].BSDFCount; ++i)
 		{
 			FStrataBSDF BSDF = Strata.Layers[l].BSDFs[i];
+			const float3 BSDFCoverage = BSDF.Weight;
 			BSDFCount++;
 
 			float3 N = MeshWorldNormal;
@@ -428,13 +432,15 @@ void PackStrataOut(
 			{
 			case STRATA_BSDF_TYPE_DIFFUSE_ON:
 			{
-				//LayerTransmittance += 0.0f;
+				LayerCoverage	+= BSDFCoverage;
+				LayerThroughput += BSDFCoverage * OpaqueBSDFThroughput;
 				break;
 			}
 
 			case STRATA_BSDF_TYPE_DIFFUSE_CHAN:
 			{
-				//LayerTransmittance += 0.0f;
+				LayerCoverage	+= BSDFCoverage;
+				LayerThroughput += BSDFCoverage * OpaqueBSDFThroughput;
 				break;
 			}
 
@@ -443,7 +449,8 @@ void PackStrataOut(
 				float F0 = DielectricIorToF0(BSDF.Dielectric.IOR);
 				float3 F = F_Schlick(F0, ContextNoLight.VoH);
 
-				LayerTransmittance += BSDF.Weight * (1.0f - F); // STRATA_TODO use 1-FGD instead of simple 1-F, event if we ignore ray scattering/spreading
+				LayerCoverage	+= BSDFCoverage;
+				LayerThroughput += BSDFCoverage * (1.0f - F); // STRATA_TODO use 1-FGD instead of simple 1-F, event if we ignore ray scattering/spreading
 				break;
 			}
 
@@ -451,7 +458,8 @@ void PackStrataOut(
 			{
 				float3 F = F_Schlick(BSDF.Conductor.Reflectivity, BSDF.Conductor.EdgeColor, ContextNoLight.VoH);
 
-				LayerTransmittance += BSDF.Weight * (1.0f - F); // STRATA_TODO transmittance should only come from coverage
+				LayerCoverage	+= BSDFCoverage;
+				LayerThroughput += BSDFCoverage * OpaqueBSDFThroughput;
 				break;
 			}
 
@@ -469,16 +477,21 @@ void PackStrataOut(
 				const float PathLength = Thickness / max(0.0001f, abs(ContextNoLight.NoV));
 				const float3 SafePathSegmentTransmittance = exp(-SafeExtinctionCoefficients * PathLength);
 
-				LayerTransmittance += BSDF.Weight * SafePathSegmentTransmittance;
+				LayerCoverage	+= BSDFCoverage;
+				LayerThroughput += BSDFCoverage * SafePathSegmentTransmittance;
 				break;
 			}
 			} // switch
 
-			// Update the weights to take into accounr transmittance towards the view
-			Strata.Layers[l].BSDFs[i].Weight *= TotalTransmittance;
+			// Update the weights to take into account throughput towards the view from layers above
+			Strata.Layers[l].BSDFs[i].Weight *= Throughput;
 		}
 
-		TotalTransmittance *= LayerTransmittance;	// STRATA_TODO we need to go over all weight and trnasmittance ot make sure everything would behave corretly. Especially with a Add node for instance. Add saturate where neded, etc.
+		// Take into account the non covered part for this layer and update throughput accordingly
+		LayerThroughput += (1.0 - saturate(LayerCoverage)) * FullThroughput;
+
+		// And combine this layer throughtput with he material throughput
+		Throughput *= LayerThroughput;
 	}
 
 
