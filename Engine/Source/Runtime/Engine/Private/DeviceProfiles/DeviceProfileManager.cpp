@@ -137,18 +137,18 @@ void UDeviceProfileManager::ProcessDeviceProfileIniSettings(const FString& Devic
 	FConfigCacheIni* ConfigSystem = GConfig;
 	if (Mode == EDeviceProfileMode::DPM_CacheValues)
 	{
-#if WITH_UNREAL_DEVELOPER_TOOLS
+#if ALLOW_OTHER_PLATFORM_CONFIG
 		// caching is not done super early, so we can assume DPs have been found now
 		UDeviceProfile* Profile = UDeviceProfileManager::Get().FindProfile(DeviceProfileName, false);
 		check(Profile);
 		// use the DP's platform's configs, NOT the running platform
 		ConfigSystem = FConfigCacheIni::ForPlatform(*Profile->DeviceType);
 #else
-		UE_LOG(LogDeviceProfileManager, Fatal, TEXT("ProcessDeviceProfileIniSettings called with Mode == DPM_CacheValues in non-tools build!"));
+		checkNoEntry();
 #endif
 	}
 
-	check(ConfigSystem != nullptr);
+	check(ConfigSystem);
 
 	TArray< FString > AvailableProfiles;
 	GConfig->GetSectionNames( GDeviceProfilesIni, AvailableProfiles );
@@ -389,7 +389,7 @@ void UDeviceProfileManager::ProcessDeviceProfileIniSettings(const FString& Devic
 		bReachedEndOfTree = !bProfileExists || BaseDeviceProfileName.IsEmpty();
 	}
 
-#if WITH_UNREAL_DEVELOPER_TOOLS
+#if ALLOW_OTHER_PLATFORM_CONFIG
 	// copy the running cache into the DP
 	if (Mode == EDeviceProfileMode::DPM_CacheValues)
 	{
@@ -417,7 +417,7 @@ void UDeviceProfileManager::InitializeCVarsForActiveDeviceProfile(bool bPushSett
 	ProcessDeviceProfileIniSettings(ActiveProfileName, bPushSettings ? EDeviceProfileMode::DPM_PushCVars : EDeviceProfileMode::DPM_SetCVars);
 }
 
-#if WITH_UNREAL_DEVELOPER_TOOLS
+#if ALLOW_OTHER_PLATFORM_CONFIG
 void UDeviceProfileManager::ExpandDeviceProfileCVars(UDeviceProfile* DeviceProfile)
 {
 	// get the config system for the platform the DP uses
@@ -815,7 +815,7 @@ void UDeviceProfileManager::SetOverrideDeviceProfile(UDeviceProfile* DeviceProfi
 	// for preview, we assume this will be another platform's DP, so use the resolved cvars directly, bypassing the activate and set stuff
 	if (bIsDeviceProfilePreview)
 	{
-#if WITH_UNREAL_DEVELOPER_TOOLS
+#if ALLOW_OTHER_PLATFORM_CONFIG
 		for (const auto& Pair : DeviceProfile->GetAllExpandedCVars())
 		{
 			IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*Pair.Key);
@@ -831,7 +831,7 @@ void UDeviceProfileManager::SetOverrideDeviceProfile(UDeviceProfile* DeviceProfi
 			}
 		}
 #else
-		UE_LOG(LogDeviceProfileManager, Error, TEXT("SetOverrideDeviceProfile can only be used in a developer tool"));
+		UE_LOG(LogDeviceProfileManager, Error, TEXT("SetOverrideDeviceProfile with bIsDeviceProfilePreview=true can only be used in a developer tool"));
 #endif
 		return;
 	}
@@ -1046,7 +1046,7 @@ void UDeviceProfileManager::GetAllPossibleParentProfiles(const UDeviceProfile* C
 
 
 
-#if WITH_UNREAL_DEVELOPER_TOOLS
+#if ALLOW_OTHER_PLATFORM_CONFIG
 static bool GetCVarForPlatform( FOutputDevice& Ar, FString DPName, FString CVarName)
 {
 	UDeviceProfile* DeviceProfile = UDeviceProfileManager::Get().FindProfile(DPName, false);

@@ -367,7 +367,7 @@ const TMap<FString, FString>& UDeviceProfile::GetConsolidatedCVars() const
 #endif
 
 
-#if WITH_UNREAL_DEVELOPER_TOOLS
+#if ALLOW_OTHER_PLATFORM_CONFIG
 const TMap<FString, FString>& UDeviceProfile::GetAllExpandedCVars()
 {
 	// expand on first use

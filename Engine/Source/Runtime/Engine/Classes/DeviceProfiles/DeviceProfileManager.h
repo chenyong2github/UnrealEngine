@@ -142,7 +142,7 @@ public:
 	static bool GetScalabilityCVar(const FString& CvarName, int32& OutValue);
 	static bool GetScalabilityCVar(const FString& CvarName, float& OutValue);
 
-#if WITH_UNREAL_DEVELOPER_TOOLS
+#if ALLOW_OTHER_PLATFORM_CONFIG
 	/** Retrieve another platform's DeviceProfile, and make sure it's CVars are expanded, including scalability */
 	static void ExpandDeviceProfileCVars(UDeviceProfile* DeviceProfile);
 #endif

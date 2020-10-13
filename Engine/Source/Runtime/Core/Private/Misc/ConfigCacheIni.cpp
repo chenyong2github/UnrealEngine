@@ -5116,10 +5116,11 @@ void DeleteRecordedConfigReadsFromIni()
 
 
 
-
+#if ALLOW_OTHER_PLATFORM_CONFIG
 static TMap<FName, FConfigCacheIni> GConfigForPlatform;
 static TFuture<void> GConfigFuture;
 static FCriticalSection GConfigForPlatformLock;
+#endif
 
 #if WITH_EDITOR
 void FConfigCacheIni::AsyncInitializeConfigForPlatforms()
@@ -5143,10 +5144,10 @@ void FConfigCacheIni::AsyncInitializeConfigForPlatforms()
 
 #endif
 
-#if WITH_UNREAL_DEVELOPER_TOOLS
 
 FConfigCacheIni* FConfigCacheIni::ForPlatform(FName PlatformName)
 {
+#if ALLOW_OTHER_PLATFORM_CONFIG
 	// use GConfig when no platform is specified
 	if (PlatformName == NAME_None)
 	{
@@ -5177,15 +5178,20 @@ FConfigCacheIni* FConfigCacheIni::ForPlatform(FName PlatformName)
 	}
 
 	return GConfigForPlatform.Find(PlatformName);
+#else
+	UE_LOG(LogConfig, Error, TEXT("FConfigCacheIni::ForPlatform cannot be called when not in a developer tool"));
+	return nullptr;
+#endif
 }
 
 void FConfigCacheIni::ClearOtherPlatformConfigs()
 {
+#if ALLOW_OTHER_PLATFORM_CONFIG
+
 	FScopeLock Lock(&GConfigForPlatformLock);
 
 	checkf(!GConfigFuture.IsValid(), TEXT("Trying to clear platform configs while still reading them in is unexpected"));
 
 	GConfigForPlatform.Empty();
-}
-
 #endif
+}

@@ -1019,7 +1019,6 @@ public:
 	 */
 	static bool CreateGConfigFromSaved(const TCHAR* Filename);
 
-#if WITH_UNREAL_DEVELOPER_TOOLS
 	/**
 	 * Retrieve the fully processed ini system for another platform. The editor will start loading these 
 	 * in the background on startup
@@ -1030,7 +1029,6 @@ public:
 	 * Wipe all cached platform configs. Next ForPlatform call will load on-demand the platform configs
 	 */
 	static void ClearOtherPlatformConfigs();
-#endif
 
 private:
 #if WITH_EDITOR

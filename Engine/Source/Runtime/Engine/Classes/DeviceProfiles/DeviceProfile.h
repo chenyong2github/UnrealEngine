@@ -148,7 +148,7 @@ private:
 
 #endif
 
-#if WITH_UNREAL_DEVELOPER_TOOLS
+#if ALLOW_OTHER_PLATFORM_CONFIG
 public:
 	const TMap<FString, FString>& GetAllExpandedCVars();
 	void AddExpandedCVars(const TMap<FString, FString>& CVarsToMerge);

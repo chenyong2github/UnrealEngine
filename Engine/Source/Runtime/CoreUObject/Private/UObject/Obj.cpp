@@ -2645,7 +2645,6 @@ FString UObject::GetProjectUserConfigFilename() const
 // @todo ini: Verify per object config objects
 void UObject::UpdateSingleSectionOfConfigFile(const FString& ConfigIniName)
 {
-#if WITH_UNREAL_DEVELOPER_TOOLS
 	// create a sandbox FConfigCache
 	FConfigCacheIni Config(EConfigCacheType::Temporary);
 
@@ -2668,9 +2667,6 @@ void UObject::UpdateSingleSectionOfConfigFile(const FString& ConfigIniName)
 		FString FinalIniFileName;
 		GConfig->LoadGlobalIniFile(FinalIniFileName, *GetClass()->ClassConfigName.ToString(), NULL, true);
 	}
-#else
-	checkNoEntry();
-#endif
 }
 
 void UObject::UpdateDefaultConfigFile(const FString& SpecificFileLocation)

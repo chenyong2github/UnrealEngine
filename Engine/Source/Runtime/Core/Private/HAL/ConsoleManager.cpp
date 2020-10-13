@@ -314,29 +314,13 @@ public:
 	FConsoleVariable(T DefaultValue, const TCHAR* Help, EConsoleVariableFlags Flags, bool bSaveDefault=true) 
 		: FConsoleVariableBase(Help, Flags), Data(DefaultValue)
 	{
-#if WITH_UNREAL_DEVELOPER_TOOLS
-		PlatformIndependentDefault = nullptr;
+#if ALLOW_OTHER_PLATFORM_CONFIG
 		if (bSaveDefault)
 		{
-			CreatePlatformIndependentDefault(DefaultValue);
+			PlatformIndependentDefault = TSharedPtr<IConsoleVariable>(new FConsoleVariable<T>(DefaultValue, TEXT(""), Flags, false));
 		}
 #endif
 	}
-
-	virtual ~FConsoleVariable()
-	{
-#if WITH_UNREAL_DEVELOPER_TOOLS
-		delete PlatformIndependentDefault;
-#endif
-	}
-
-#if WITH_UNREAL_DEVELOPER_TOOLS
-
-	void CreatePlatformIndependentDefault(T DefaultValue)
-	{
-		PlatformIndependentDefault = new FConsoleVariable<T>(DefaultValue, TEXT(""), Flags, false);
-	}
-#endif
 
 	// interface IConsoleVariable ----------------------------------- 
 
@@ -387,13 +371,13 @@ private: // ----------------------------------------------------
 		FConsoleVariableBase::OnChanged(SetBy);
 	}
 
-#if WITH_UNREAL_DEVELOPER_TOOLS
+#if ALLOW_OTHER_PLATFORM_CONFIG
 	// remember the dfefault value of this cvar, before anything else can assign to it - this way we can know in the editor what the value
 	// would be for a cvar on another platform, if no .ini file on that platform sets it
-	IConsoleVariable* PlatformIndependentDefault;
+	TSharedPtr<IConsoleVariable> PlatformIndependentDefault;
 	virtual IConsoleVariable* GetDefaultValueVariable() override
 	{
-		return PlatformIndependentDefault;
+		return PlatformIndependentDefault.Get();
 	}
 #endif
 

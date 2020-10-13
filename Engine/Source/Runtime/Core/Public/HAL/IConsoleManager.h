@@ -431,15 +431,13 @@ public:
 
 	virtual FConsoleVariableMulticastDelegate& OnChangedDelegate() = 0;
 
-#if WITH_UNREAL_DEVELOPER_TOOLS
 	/**
-	 * Get the saved off default value, in a cvar variable
+	 * Get the saved off default value, in a cvar variable, if one was created
 	 */
 	virtual IConsoleVariable* GetDefaultValueVariable()
 	{
 		return nullptr;
 	}
-#endif
 
 	// convenience methods
 
