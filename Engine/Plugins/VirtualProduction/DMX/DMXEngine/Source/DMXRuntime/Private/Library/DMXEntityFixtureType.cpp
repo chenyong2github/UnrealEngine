@@ -511,8 +511,11 @@ void UDMXEntityFixtureType::PostEditChangeChainProperty(FPropertyChangedChainEve
 		}
 	}
 		
-	// Keep Attributes unique across a Mode
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(FDMXFixtureFunction, Attribute))
+	// Keep Attributes unique across either Functions or Matrix Attributes
+	// Note: The Attribute property exists in FDMXFixtureFunction and FDMXFixtureCellAttribute, the conditions cannot be separated.
+	// In other words, the if statement here will be entered in both cases, even if either OR statement would be removed.
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FDMXFixtureFunction, Attribute) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXFixtureCellAttribute, Attribute))
 	{
 		// Find duplicates
 		const int32 ModeIndex = PropertyChangedEvent.GetArrayIndex(GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, Modes).ToString());
@@ -526,41 +529,43 @@ void UDMXEntityFixtureType::PostEditChangeChainProperty(FPropertyChangedChainEve
 		FDMXAttributeName ChangedAttribute;
 		if (ChangedFunctionIndex != INDEX_NONE)
 		{
+			// Unique across functions
 			check(Mode.Functions.IsValidIndex(ChangedFunctionIndex));
 			ChangedAttribute = Mode.Functions[ChangedFunctionIndex].Attribute;
+
+			for (int32 IdxOtherFunction = 0; IdxOtherFunction < Mode.Functions.Num(); IdxOtherFunction++)
+			{
+				if (ChangedFunctionIndex == IdxOtherFunction)
+				{
+					continue;
+				}
+
+				FDMXAttributeName& Attribute = Mode.Functions[IdxOtherFunction].Attribute;
+				if (ChangedAttribute == Attribute)
+				{
+					Attribute = FDMXAttributeName::None;
+				}
+			}
 		}
 		else
 		{
+			// Unique across fixture matrix attributes
 			check(Mode.FixtureMatrixConfig.CellAttributes.IsValidIndex(ChangedCellAttributeIndex));
 			ChangedAttribute = Mode.FixtureMatrixConfig.CellAttributes[ChangedCellAttributeIndex].Attribute;
-		}
 
-		for (int32 IdxOtherFunction = 0; IdxOtherFunction < Mode.Functions.Num(); IdxOtherFunction++)
-		{
-			if (ChangedFunctionIndex == IdxOtherFunction)
+			int32 NumCellAttributes = Mode.FixtureMatrixConfig.CellAttributes.Num();
+			for (int32 IdxOtherCellAttribute = 0; IdxOtherCellAttribute < NumCellAttributes; IdxOtherCellAttribute++)
 			{
-				continue;
-			}
+				if (ChangedCellAttributeIndex == IdxOtherCellAttribute)
+				{
+					continue;
+				}
 
-			FDMXAttributeName& Attribute = Mode.Functions[IdxOtherFunction].Attribute;
-			if (ChangedAttribute == Attribute)
-			{
-				Attribute = FDMXAttributeName::None;
-			}
-		}
-
-		int32 NumCellAttributes = Mode.FixtureMatrixConfig.CellAttributes.Num();
-		for (int32 IdxOtherCellAttribute = 0; IdxOtherCellAttribute < NumCellAttributes; IdxOtherCellAttribute++)
-		{
-			if (ChangedCellAttributeIndex == IdxOtherCellAttribute)
-			{
-				continue;
-			}
-
-			FDMXAttributeName& Attribute = Mode.FixtureMatrixConfig.CellAttributes[IdxOtherCellAttribute].Attribute;
-			if (ChangedAttribute == Attribute)
-			{
-				Attribute = FDMXAttributeName::None;
+				FDMXAttributeName& Attribute = Mode.FixtureMatrixConfig.CellAttributes[IdxOtherCellAttribute].Attribute;
+				if (ChangedAttribute == Attribute)
+				{
+					Attribute = FDMXAttributeName::None;
+				}
 			}
 		}
 	}
