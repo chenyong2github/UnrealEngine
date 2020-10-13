@@ -68,6 +68,7 @@ TSharedRef< FSlateStyleSet > FWidgetReflectorStyle::Create()
 		);
 	}
 	
+#if WITH_EDITOR
 	{
 		StyleSet->Set("Icon.FocusPicking", new FSlateImageBrush(StyleSet->RootToContentDir("Icons/SlateReflector/FocusPicking_24x.png"), Icon24x24));
 		StyleSet->Set("Icon.HitTestPicking", new FSlateImageBrush(StyleSet->RootToContentDir("Icons/SlateReflector/HitTestPicking_24x.png"), Icon24x24));
@@ -78,6 +79,7 @@ TSharedRef< FSlateStyleSet > FWidgetReflectorStyle::Create()
 		StyleSet->Set("Symbols.UpArrow", new FSlateImageBrush(StyleSet->RootToContentDir("Common/UpArrow.png"), Icon24x24));
 		StyleSet->Set("Symbols.DownArrow", new FSlateImageBrush(StyleSet->RootToContentDir("Common/DownArrow.png"), Icon24x24));
 	}
+#endif
 	return StyleSet;
 }
 
