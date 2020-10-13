@@ -246,7 +246,7 @@ public:
 	FNiagaraVariableAttributeBinding MaterialRandomBinding;
 
 	/** Which attribute should we use for custom sorting? Defaults to Particles.NormalizedAge. */
-	UPROPERTY(EditAnywhere, Category = "Bindings")
+	UPROPERTY(EditAnywhere, Category = "Bindings", meta = (EditCondition = "SourceMode != ENiagaraRendererSourceDataMode::Emitter"))
 	FNiagaraVariableAttributeBinding CustomSortingBinding;
 
 	/** Which attribute should we use for Normalized Age? */
