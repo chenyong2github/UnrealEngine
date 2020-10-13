@@ -1535,8 +1535,8 @@ void UNiagaraEmitterConversionContext::InternalFinalizeStackEntryAddActions()
 		}
 		else if (ExecutionCategory == EScriptExecutionCategory::ParticleEvent)
 		{
-			auto GetEventSourceEmitterId = [](const FName EventName, UNiagaraEmitter* Emitter)->const FGuid {
-				const FNiagaraEventScriptProperties* FoundEventProps = Emitter->GetEventHandlers().FindByPredicate(
+			auto GetEventSourceEmitterId = [](const FName EventName, UNiagaraEmitter* InEmitter)->const FGuid {
+				const FNiagaraEventScriptProperties* FoundEventProps = InEmitter->GetEventHandlers().FindByPredicate(
 					[EventName](const FNiagaraEventScriptProperties& EventProps) {return EventProps.SourceEventName == EventName; }
 				);
 				if (FoundEventProps != nullptr)
@@ -1546,8 +1546,8 @@ void UNiagaraEmitterConversionContext::InternalFinalizeStackEntryAddActions()
 				return FGuid();
 			};
 
-			UNiagaraEmitter* Emitter = EmitterHandleViewModel->GetEmitterHandle()->GetInstance();
-			const FGuid EventSourceEmitterId = GetEventSourceEmitterId(StackEntryID.EventName, Emitter);
+			UNiagaraEmitter* EmitterInstance = EmitterHandleViewModel->GetEmitterHandle()->GetInstance();
+			const FGuid EventSourceEmitterId = GetEventSourceEmitterId(StackEntryID.EventName, EmitterInstance);
 
 			auto FilterStackEntryForEventSourceEmitterId = [EventSourceEmitterId](UNiagaraStackItemGroup* ItemGroup)->bool {
 				const UNiagaraStackEventScriptItemGroup* EventItemGroup = Cast<const UNiagaraStackEventScriptItemGroup>(ItemGroup);
