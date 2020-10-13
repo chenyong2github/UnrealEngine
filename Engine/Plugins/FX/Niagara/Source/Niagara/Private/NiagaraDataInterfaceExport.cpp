@@ -29,6 +29,7 @@ namespace NDIExportLocal
 	);
 }
 
+
 /**
 Async task to call the blueprint callback on the game thread and isolate the Niagara tick from the blueprint
 */
@@ -144,7 +145,7 @@ struct FNDIExportProxy : public FNiagaraDataInterfaceProxy
 		//-OPT: We only need to reset the first 4 bytes for the count
 		RHICmdList.ClearUAVUint(InstanceData->WriteBuffer.UAV, FUintVector4(0, 0, 0, 0));
 
-		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, InstanceData->WriteBuffer.UAV);
+		RHICmdList.Transition(FRHITransitionInfo(InstanceData->WriteBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 	}
 
 	virtual void PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override
@@ -152,8 +153,8 @@ struct FNDIExportProxy : public FNiagaraDataInterfaceProxy
 		FNDIExportInstanceData_RenderThread* InstanceData = SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
 		check(InstanceData);
 
-		// Transition and enqueue a readback
-		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, InstanceData->WriteBuffer.UAV);
+		// Transition so we are ready for the readback
+		RHICmdList.Transition(FRHITransitionInfo(InstanceData->WriteBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
 	}
 
 	virtual void PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context) override
