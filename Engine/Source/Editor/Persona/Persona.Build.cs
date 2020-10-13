@@ -73,6 +73,7 @@ public class Persona : ModuleRules
 				"SequencerWidgets",
 				"TimeManagement",
                 "Sequencer",
+				"StatusBar",
 			}
         );
 

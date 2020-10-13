@@ -18,6 +18,7 @@
 #define LOCTEXT_NAMESPACE "FAnimTimelineTrack_NotifiesPanel"
 
 const float FAnimTimelineTrack_NotifiesPanel::NotificationTrackHeight = 24.0f;
+const FName FAnimTimelineTrack_NotifiesPanel::AnimationEditorStatusBarName = FName(TEXT("AssetEditor.AnimationEditor.MainMenu"));
 
 ANIMTIMELINE_IMPLEMENT_TRACK(FAnimTimelineTrack_NotifiesPanel);
 
@@ -295,7 +296,50 @@ TSharedRef<SAnimNotifyPanel> FAnimTimelineTrack_NotifiesPanel::GetAnimNotifyPane
 			.OnNotifiesChanged_Lambda([this]()
 			{ 
 				Update();
-				GetModel()->OnTracksChanged().Broadcast(); 
+				GetModel()->OnTracksChanged().Broadcast();
+				 
+				if (StatusBarMessageHandle.IsValid())
+				{
+					if(UStatusBarSubsystem* StatusBarSubsystem = GEditor->GetEditorSubsystem<UStatusBarSubsystem>())
+					{
+						StatusBarSubsystem->PopStatusBarMessage(AnimationEditorStatusBarName, StatusBarMessageHandle);
+						StatusBarMessageHandle.Reset();
+					}
+				}
+			})
+			.OnNotifyStateHandleBeingDragged_Lambda([this](TSharedPtr<SAnimNotifyNode> NotifyNode, const FPointerEvent& Event, ENotifyStateHandleHit::Type Handle, float Time)
+			{
+				if (Event.IsShiftDown())
+				{
+					const FFrameTime FrameTime = FFrameTime::FromDecimal(Time * (double)GetModel()->GetTickResolution());
+					GetModel()->SetScrubPosition(FrameTime);
+				}
+
+				if (!StatusBarMessageHandle.IsValid())
+				{
+					if (UStatusBarSubsystem* StatusBarSubsystem = GEditor->GetEditorSubsystem<UStatusBarSubsystem>())
+					{
+						StatusBarMessageHandle = StatusBarSubsystem->PushStatusBarMessage(AnimationEditorStatusBarName,
+							LOCTEXT("AutoscrubNotifyStateHandle", "Hold SHIFT while dragging a notify state Begin or End handle to auto scrub the timeline."));
+					}
+				}
+			})
+			.OnNotifyNodesBeingDragged_Lambda([this](const TArray<TSharedPtr<SAnimNotifyNode>>& NotifyNodes, const class FDragDropEvent& Event, float DragXPosition, float DragTime)
+			{
+				if (Event.IsShiftDown())
+				{
+					const FFrameTime FrameTime = FFrameTime::FromDecimal(DragTime * (double)GetModel()->GetTickResolution());
+					GetModel()->SetScrubPosition(FrameTime);
+				}
+
+				if (!StatusBarMessageHandle.IsValid())
+				{
+					if (UStatusBarSubsystem* StatusBarSubsystem = GEditor->GetEditorSubsystem<UStatusBarSubsystem>())
+					{
+						StatusBarMessageHandle = StatusBarSubsystem->PushStatusBarMessage(AnimationEditorStatusBarName,
+							LOCTEXT("AutoscrubNotify", "Hold SHIFT while dragging a notify to auto scrub the timeline."));
+					}
+				}
 			});
 
 		GetModel()->GetAnimSequenceBase()->RegisterOnNotifyChanged(UAnimSequenceBase::FOnNotifyChanged::CreateSP(this, &FAnimTimelineTrack_NotifiesPanel::HandleNotifyChanged));

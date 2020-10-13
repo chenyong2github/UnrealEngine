@@ -110,6 +110,11 @@ void FAnimModel::SetScrubPosition(FFrameTime NewScrubPostion) const
 		UDebugSkelMeshComponent* PreviewMeshComponent = WeakPreviewScene.Pin()->GetPreviewMeshComponent();
 		if(PreviewMeshComponent && PreviewMeshComponent->IsPreviewOn())
 		{
+			if(PreviewMeshComponent->PreviewInstance->IsPlaying())
+			{
+				PreviewMeshComponent->PreviewInstance->SetPlaying(false);
+			}
+			
 			PreviewMeshComponent->PreviewInstance->SetPosition(NewScrubPostion.AsDecimal() / (double)GetTickResolution());
 		}
 	}

@@ -4,6 +4,7 @@
 
 #include "AnimTimelineTrack.h"
 #include "SAnimTimingPanel.h"
+#include "StatusBarSubsystem.h"
 
 class SAnimNotifyPanel;
 class SVerticalBox;
@@ -16,6 +17,7 @@ class FAnimTimelineTrack_NotifiesPanel : public FAnimTimelineTrack
 
 public:
 	static const float NotificationTrackHeight;
+	static const FName AnimationEditorStatusBarName;
 
 	FAnimTimelineTrack_NotifiesPanel(const TSharedRef<FAnimModel>& InModel);
 
@@ -49,4 +51,7 @@ private:
 
 	/** Track index we want to trigger a rename for */
 	int32 PendingRenameTrackIndex;
+
+	/** Handle to status bar message */
+	FStatusBarMessageHandle StatusBarMessageHandle;
 };
