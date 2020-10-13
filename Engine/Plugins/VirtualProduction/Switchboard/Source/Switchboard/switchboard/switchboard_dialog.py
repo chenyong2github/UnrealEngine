@@ -254,6 +254,7 @@ class SwitchboardDialog(QtCore.QObject):
         # Remove all devices
         self.device_manager.clear_device_list()
         self.device_list_widget.clear_widgets()
+
         # Update to the new config
         config_name = CONFIG.config_file_name_to_name(SETTINGS.CONFIG)
         CONFIG.init_with_file_name(CONFIG.name_to_config_file_name(config_name))
@@ -266,11 +267,15 @@ class SwitchboardDialog(QtCore.QObject):
         self.update_configs_menu()
 
     def menu_new_config(self):
+
         uproject_search_path = os.path.dirname(CONFIG.UPROJECT_PATH.get_value())
+
         if not os.path.exists(uproject_search_path):
             uproject_search_path = SETTINGS.LAST_BROWSED_PATH
+            
         dialog = AddConfigDialog(self.stylesheet, uproject_search_path=uproject_search_path, previous_engine_dir=CONFIG.ENGINE_DIR.get_value(), parent=self.window)
         dialog.exec()
+
         if dialog.result() == QtWidgets.QDialog.Accepted:
             # Remove all devices
             self.device_manager.clear_device_list()
