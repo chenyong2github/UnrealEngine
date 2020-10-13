@@ -6,6 +6,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Engine/GameEngine.h"
 #include "Widgets/SVirtualWindow.h"
+#include "UObject/SoftObjectPath.h"
 
 #if WITH_EDITOR
 #include "IAssetViewport.h"
@@ -16,6 +17,7 @@
 namespace VCamOutputRemoteSession
 {
 	static const FName LevelEditorName(TEXT("LevelEditor"));
+	static const FSoftClassPath EmptyUMGSoftClassPath(TEXT("/VCamCore/Assets/VCam_EmptyVisibleUMG.VCam_EmptyVisibleUMG_C"));
 }
 
 void UVCamOutputRemoteSession::Initialize()
@@ -37,6 +39,13 @@ void UVCamOutputRemoteSession::Deinitialize()
 
 void UVCamOutputRemoteSession::Activate()
 {
+	// If we don't have a UMG assigned, we still need to create an empty 'dummy' UMG in order to properly route the input back from the RemoteSession device
+	if (UMGClass == nullptr)
+	{
+		bUsingDummyUMG = true;
+		UMGClass = VCamOutputRemoteSession::EmptyUMGSoftClassPath.TryLoadClass<UUserWidget>();
+	}
+
 	CreateRemoteSession();
 	
 	Super::Activate();
@@ -47,6 +56,12 @@ void UVCamOutputRemoteSession::Deactivate()
 	DestroyRemoteSession();
 
 	Super::Deactivate();
+
+	if (bUsingDummyUMG)
+	{
+		UMGClass = nullptr;
+		bUsingDummyUMG = false;
+	}
 }
 
 void UVCamOutputRemoteSession::Tick(const float DeltaTime)
