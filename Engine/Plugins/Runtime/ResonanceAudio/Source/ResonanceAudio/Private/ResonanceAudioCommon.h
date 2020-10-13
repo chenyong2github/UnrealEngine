@@ -24,6 +24,9 @@ namespace ResonanceAudio
 	typedef vraudio::ReflectionProperties RaReflectionProperties;
 	typedef vraudio::ReverbProperties RaReverbProperties;
 
+	// Lifecycle of a ResonanceAudioApi is managed by a threadsafe TSharedPtr
+	typedef TSharedPtr<vraudio::ResonanceAudioApi, ESPMode::ThreadSafe> FResonanceAudioApiSharedPtr;
+
 	// Attempts to load the dynamic library pertaining to the given platform, performing some basic error checking.
 	// Returns handle to dynamic library or nullptr on error.
 	void* LoadResonanceAudioDynamicLibrary();
