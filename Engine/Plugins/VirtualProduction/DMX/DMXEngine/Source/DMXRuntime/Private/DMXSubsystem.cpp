@@ -978,7 +978,7 @@ TArray<UDMXEntityFixturePatch*> UDMXSubsystem::GetAllFixturesWithTag(const UDMXL
 TArray<UDMXEntityFixturePatch*> UDMXSubsystem::GetAllFixturesInLibrary(const UDMXLibrary* DMXLibrary)
 {
 	TArray<UDMXEntityFixturePatch*> FoundPatches;
-
+	
 	if (DMXLibrary != nullptr)
 	{
 		DMXLibrary->ForEachEntityOfType<UDMXEntityFixturePatch>([&](UDMXEntityFixturePatch* Patch)
@@ -986,6 +986,23 @@ TArray<UDMXEntityFixturePatch*> UDMXSubsystem::GetAllFixturesInLibrary(const UDM
 			FoundPatches.Add(Patch);
 		});
 	}
+
+	// Sort patches by universes and channels
+	FoundPatches.Sort([](const UDMXEntityFixturePatch& FixturePatchA, const UDMXEntityFixturePatch& FixturePatchB) {
+
+		if (FixturePatchA.UniverseID < FixturePatchB.UniverseID)
+		{
+			return true;
+		}
+
+		bool bSameUniverse = FixturePatchA.UniverseID == FixturePatchB.UniverseID;
+		if (bSameUniverse)
+		{
+			return FixturePatchA.GetStartingChannel() <= FixturePatchB.GetStartingChannel();
+		}
+	
+		return false;
+	});
 
 	return FoundPatches;
 }
