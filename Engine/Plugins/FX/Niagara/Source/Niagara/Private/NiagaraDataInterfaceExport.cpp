@@ -328,6 +328,7 @@ int32 UNiagaraDataInterfaceExport::PerInstanceDataSize() const
 
 bool UNiagaraDataInterfaceExport::PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds)
 {
+	check(SystemInstance);
 	FNDIExportInstanceData_GameThread* PIData = (FNDIExportInstanceData_GameThread*)PerInstanceData;
 	if (!PIData)
 	{
