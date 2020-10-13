@@ -533,13 +533,14 @@ void FHierarchicalLODBuilder::InitializeClusters(ULevel* InLevel, const int32 LO
 				const bool bShouldGenerate = ShouldGenerateCluster(Actor, LODIdx);
 				if (bShouldGenerate)
 				{
-					if (bVolumesOnly)
+					if (!ProcessVolumeClusters(Actor))
 					{
-						ProcessVolumeClusters(Actor);
-					}
-					else
-					{
-						if (!ProcessVolumeClusters(Actor))
+						if (bVolumesOnly)
+						{
+							// Add them to the RejectedActorsInLevel to be re-considered at the next LOD in case that one isn't using bVolumesOnly
+							RejectedActorsInLevel.Add(Actor);
+						}
+						else
 						{
 							ValidStaticMeshActorsInLevel.Add(Actor);
 						}
