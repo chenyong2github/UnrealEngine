@@ -268,6 +268,7 @@ void UAnimGraphNode_CustomProperty::OnPropertyExposeCheckboxChanged(ECheckBoxSta
 		ExposedPropertyNames.Remove(PropertyName);
 	}
 
+	FGuardValue_Bitfield(bDisableOrphanPinSaving, true);
 	ReconstructNode();
 }
 
