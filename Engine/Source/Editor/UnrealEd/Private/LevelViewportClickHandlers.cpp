@@ -317,8 +317,10 @@ namespace LevelViewportClickHandlers
 			Component = Component->GetAttachParent();
 		}
 		
-		if (!ensure(Component != nullptr))
+		if (Component == nullptr)
 		{
+			// It's possible to have a null component here if the primitive component contained in the hit proxy is not part of the actor contained in the hit proxy. In that case, component click is not possible
+			//  (but actor click can still be used as a fallback) : 
 			return false;
 		}
 
