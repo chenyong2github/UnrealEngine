@@ -93,18 +93,18 @@ FString FDMXEditorUtils::GenerateUniqueNameFromExisting(const TSet<FString>& InE
 	FString FinalName;
 	FString BaseName;
 
+	int32 Index = 0;
 	if (InBaseName.IsEmpty())
 	{
 		BaseName = TEXT("Default name");
 	}
 	else
 	{
-		// If there's an index at the end of the name, erase it
-		int32 Index = 0;
+		// If there's an index at the end of the name, start from there
 		FDMXRuntimeUtils::GetNameAndIndexFromString(InBaseName, BaseName, Index);
 	}
 
-	int32 Count = 1;
+	int32 Count = (Index == 0) ? 1 : Index;
 	FinalName = BaseName;
 	// Add Count to the BaseName, increasing Count, until it's a non-existent name
 	do
