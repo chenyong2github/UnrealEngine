@@ -17,6 +17,7 @@ from pathlib import Path
 class DeviceUnreal(Device):
     setting_buffer_size = Setting("buffer_size", "Buffer Size", 1024, tool_tip="Buffer size used for communication with SwitchboardListener")
     setting_command_line_arguments = Setting("command_line_arguments", 'Command Line Arguments', "", tool_tip=f'Additional command line arguments for the engine')
+    setting_exec_cmds = Setting("setting_exec_cmds", 'ExecCmds', "", tool_tip=f'ExecCmds to be passed. No need for outer double quotes.')
     setting_is_recording_device = Setting("is_recording_device", 'Is Recording Device', True, tool_tip=f'Is this device used to record')
     setting_port = Setting("port", "Listener Port", 2980, tool_tip="Port of SwitchboardListener")
     setting_roles_filename = Setting("roles_filename", "Roles Filename", "VPRoles.ini", tool_tip="File that stores VirtualProduction roles. Default: Config/Tags/VPRoles.ini")
@@ -57,6 +58,7 @@ class DeviceUnreal(Device):
         settings = Device.plugin_settings()
         settings.append(DeviceUnreal.setting_buffer_size)
         settings.append(DeviceUnreal.setting_command_line_arguments)
+        settings.append(DeviceUnreal.setting_exec_cmds)
         settings.append(DeviceUnreal.setting_port)
         settings.append(DeviceUnreal.setting_roles_filename)
         settings.append(DeviceUnreal.setting_stage_session_id)
@@ -67,6 +69,7 @@ class DeviceUnreal(Device):
         overrides = super().setting_overrides()
         overrides.append(Device.setting_is_recording_device)
         overrides.append(DeviceUnreal.setting_command_line_arguments)
+        overrides.append(DeviceUnreal.setting_exec_cmds)
         overrides.append(CONFIG.ENGINE_DIR)
         overrides.append(CONFIG.BUILD_ENGINE)
         overrides.append(CONFIG.SOURCE_CONTROL_WORKSPACE)
@@ -136,7 +139,7 @@ class DeviceUnreal(Device):
         args = f'-F "{formatstring}" -c {client_name} cstat {p4_path}/...#have'
 
         program_name = "cstat"
-        mid, msg = message_protocol.create_start_process_message("p4", args, program_name)
+        mid, msg = message_protocol.create_start_process_message(prog_path="p4", prog_args=args, prog_name=program_name, caller=self.name)
         self._remote_programs_start_queue[mid] = program_name
 
         self.unreal_client.send_message(msg)
@@ -167,7 +170,7 @@ class DeviceUnreal(Device):
 
         LOGGER.info(f"{self.name}: Sending sync command: {sync_tool} {sync_args}")
         program_name = "sync"
-        mid, msg = message_protocol.create_start_process_message(sync_tool, sync_args, program_name)
+        mid, msg = message_protocol.create_start_process_message(prog_path=sync_tool, prog_args=sync_args, prog_name=program_name, caller=self.name)
         self._remote_programs_start_queue[mid] = program_name
         self.unreal_client.send_message(msg)
         self.status = DeviceStatus.SYNCING
@@ -181,7 +184,7 @@ class DeviceUnreal(Device):
         build_tool = os.path.join(engine_path, "Binaries", "DotNET", "UnrealBuildTool")
         build_args = f'Win64 Development -project="{CONFIG.UPROJECT_PATH.get_value(self.name)}" -TargetType=Editor -Progress -NoHotReloadFromIDE' 
         program_name = "build"
-        mid, msg = message_protocol.create_start_process_message(build_tool, build_args, program_name)
+        mid, msg = message_protocol.create_start_process_message(prog_path=build_tool, prog_args=build_args, prog_name=program_name, caller=self.name)
         self._remote_programs_start_queue[mid] = program_name
         LOGGER.info(f"{self.name}: Sending build command: {build_tool} {build_args}")
         self.unreal_client.send_message(msg)
@@ -199,10 +202,14 @@ class DeviceUnreal(Device):
         return CONFIG.engine_path(CONFIG.ENGINE_DIR.get_value(self.name), self.setting_ue4_exe.get_value())
 
     def generate_unreal_command_line_args(self, map_name):
+
         command_line_args = f'{self.setting_command_line_arguments.get_value(self.name)}'
         if CONFIG.MUSERVER_AUTO_JOIN:
             command_line_args += f' -CONCERTRETRYAUTOCONNECTONERROR -CONCERTAUTOCONNECT -CONCERTSERVER={CONFIG.MUSERVER_SERVER_NAME} -CONCERTSESSION={SETTINGS.MUSERVER_SESSION_NAME} -CONCERTDISPLAYNAME={self.name}'
         
+        exec_cmds = f'{self.setting_exec_cmds.get_value(self.name)}'.strip()
+        command_line_args += f' ExecCmds={exec_cmds} '
+
         selected_roles = self.setting_roles.get_value()
         unsupported_roles = [role for role in selected_roles if role not in self.setting_roles.possible_values]
         supported_roles = [role for role in selected_roles if role not in unsupported_roles]
@@ -223,13 +230,11 @@ class DeviceUnreal(Device):
     def generate_unreal_command_line(self, map_name):
         return self.generate_unreal_exe_path(), self.generate_unreal_command_line_args(map_name)
 
-    def launch(self, map_name):
+    def launch(self, map_name, program_name="unreal"):
+
         engine_path, args = self.generate_unreal_command_line(map_name)
         LOGGER.info(f"Launching UE4: {engine_path} {args}")
-
-        program_name = "unreal"
-
-        mid, msg = message_protocol.create_start_process_message(engine_path, args, program_name)
+        mid, msg = message_protocol.create_start_process_message(prog_path=engine_path, prog_args=args, prog_name=program_name, caller=self.name)
         self._remote_programs_start_queue[mid] = program_name
 
         self.unreal_client.send_message(msg)
@@ -248,6 +253,7 @@ class DeviceUnreal(Device):
         self._running_remote_program_ids[program_name] = program_id
 
     def on_program_started(self, program_id, message_id):
+
         program_name = self._remote_programs_start_queue.pop(message_id)
         LOGGER.info(f"{self.name}: {program_name} with id {program_id} was successfully started")
         self.do_program_running_update(program_name=program_name, program_id=program_id)
@@ -339,15 +345,16 @@ class DeviceUnreal(Device):
 
     def on_listener_state(self, message):
         ''' Message expected to be received upon connection with the listener.
-        It contains the state of the listener. Particularly useful when Switchboard
-        reconnects.
+        It contains the state of the listener. Particularly useful when Switchboard reconnects.
         '''
         
         for process in message['runningProcesses']:
             program_name = process['name']
             program_id = process['uuid']
-            self.do_program_running_update(program_name=program_name, program_id=program_id)
-        
+            program_caller = process['caller']
+
+            if program_caller == self.name:
+                self.do_program_running_update(program_name=program_name, program_id=program_id)        
 
     def transport_paths(self, device_recording):
         """
