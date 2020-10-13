@@ -33,10 +33,14 @@ public:
 	virtual bool IsActive() const override;
 	
 	virtual FString GetSyncId() const override
-	{ return SyncId; }
+	{
+		return SyncId;
+	}
 	
 	virtual bool IsDirty() const override
-	{ return true; }
+	{
+		return true;
+	}
 
 	virtual void ClearDirty() override
 	{ }
@@ -51,7 +55,6 @@ public:
 public:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 protected:
 	virtual FString GenerateSyncId();

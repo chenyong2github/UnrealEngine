@@ -7,6 +7,7 @@
 
 class FDisplayClusterConfiguratorToolkit;
 
+
 class FDisplayClusterConfiguratorPreviewScene
 	: public IDisplayClusterConfiguratorPreviewScene
 	, public FEditorUndoClient
@@ -14,8 +15,7 @@ class FDisplayClusterConfiguratorPreviewScene
 public:
 	FDisplayClusterConfiguratorPreviewScene(const ConstructionValues& CVS, const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit);
 
-	~FDisplayClusterConfiguratorPreviewScene();
-
+public:
 	//~ Begin FPreviewScene interface 
 	virtual void Tick(float InDeltaTime) override;
 	//~ End FPreviewScene interface

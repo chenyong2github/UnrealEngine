@@ -14,7 +14,7 @@
 
 #include "DisplayClusterConfigurationTypes.h"
 
-#include "Components/DisplayClusterRootComponent.h"
+#include "DisplayClusterRootActor.h"
 #include "Components/DisplayClusterCameraComponent.h"
 #include "Components/DisplayClusterScreenComponent.h"
 
@@ -347,9 +347,9 @@ bool FDisplayClusterDeviceBase::GetViewportProjectionPolicy(const FString& InVie
 {
 	// Ok, we have a request for a particular viewport. Let's find it.
 	FDisplayClusterRenderViewport* const DesiredViewport = RenderViewports.FindByPredicate([InViewportID](const FDisplayClusterRenderViewport& ItemViewport)
-		{
-			return InViewportID.Compare(ItemViewport.GetId(), ESearchCase::IgnoreCase) == 0;
-		});
+	{
+		return InViewportID.Compare(ItemViewport.GetId(), ESearchCase::IgnoreCase) == 0;
+	});
 
 	// Request data if found
 	if (DesiredViewport)
@@ -365,9 +365,9 @@ bool FDisplayClusterDeviceBase::GetViewportContext(const FString& InViewportID, 
 {
 	// Ok, we have a request for a particular viewport context. Let's find it.
 	FDisplayClusterRenderViewport* const DesiredViewport = RenderViewports.FindByPredicate([InViewportID](const FDisplayClusterRenderViewport& ItemViewport)
-		{
-			return InViewportID.Compare(ItemViewport.GetId(), ESearchCase::IgnoreCase) == 0;
-		});
+	{
+		return InViewportID.Compare(ItemViewport.GetId(), ESearchCase::IgnoreCase) == 0;
+	});
 
 	// Request data if found
 	if (DesiredViewport)
@@ -452,11 +452,11 @@ void FDisplayClusterDeviceBase::CalculateStereoViewOffset(const enum EStereoscop
 	const int ViewIndex = DecodeViewIndex(StereoPassType);
 	FDisplayClusterRenderViewContext& ViewContext = Viewport.GetContext(ViewIndex);
 
-	// Get root component
-	UDisplayClusterRootComponent* const RootComp = GDisplayCluster->GetGameMgr()->GetRootComponent();
-	if (!RootComp)
+	// Get root actor
+	ADisplayClusterRootActor* const RootActor = GDisplayCluster->GetGameMgr()->GetRootActor();
+	if (!RootActor)
 	{
-		UE_LOG(LogDisplayClusterRender, Warning, TEXT("No root component found for viewport '%s'"), *Viewport.GetId());
+		UE_LOG(LogDisplayClusterRender, Warning, TEXT("No root actor found for viewport '%s'"), *Viewport.GetId());
 		return;
 	}
 
@@ -464,7 +464,7 @@ void FDisplayClusterDeviceBase::CalculateStereoViewOffset(const enum EStereoscop
 	const FString& CameraId = Viewport.GetCameraId();
 
 	// Get camera component assigned to the viewport (or default camera if nothing assigned)
-	UDisplayClusterCameraComponent* const ViewCamera = (CameraId.IsEmpty() ? RootComp->GetDefaultCamera() : RootComp->GetCameraById(CameraId));
+	UDisplayClusterCameraComponent* const ViewCamera = (CameraId.IsEmpty() ? RootActor->GetDefaultCamera() : RootActor->GetCameraById(CameraId));
 	if (!ViewCamera)
 	{
 		UE_LOG(LogDisplayClusterRender, Warning, TEXT("No camera found for viewport '%s'"), *Viewport.GetId());

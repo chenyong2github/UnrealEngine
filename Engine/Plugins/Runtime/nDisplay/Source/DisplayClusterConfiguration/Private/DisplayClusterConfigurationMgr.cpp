@@ -29,7 +29,7 @@ FDisplayClusterConfigurationMgr& FDisplayClusterConfigurationMgr::Get()
 }
 
 
-UDisplayClusterConfigurationData* FDisplayClusterConfigurationMgr::LoadConfig(const FString& FilePath)
+UDisplayClusterConfigurationData* FDisplayClusterConfigurationMgr::LoadConfig(const FString& FilePath, UObject* Owner)
 {
 	FString ConfigFile = FilePath.TrimStartAndEnd();
 

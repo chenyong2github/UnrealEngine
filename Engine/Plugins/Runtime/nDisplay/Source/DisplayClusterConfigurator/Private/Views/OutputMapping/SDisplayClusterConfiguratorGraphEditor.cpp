@@ -20,6 +20,9 @@
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
+#include "Interfaces/Views/OutputMapping/IDisplayClusterConfiguratorViewOutputMapping.h"
+
+
 #define LOCTEXT_NAMESPACE "FDisplayClusterConfiguratorOutputMappingWindowSlot"
 FDisplayClusterConfiguratorWindowNodeFactory::FDisplayClusterConfiguratorWindowNodeFactory(const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit, const TSharedRef<SDisplayClusterConfiguratorGraphEditor>& InGraphEditor)
 	: ToolkitPtr(InToolkit)
@@ -33,6 +36,12 @@ TSharedPtr<SGraphNode> FDisplayClusterConfiguratorWindowNodeFactory::CreateNodeW
 	{
 		TSharedPtr<SDisplayClusterConfiguratorCanvasNode> GraphCanvasNode = SNew(SDisplayClusterConfiguratorCanvasNode, CanvasNode, ToolkitPtr.Pin().ToSharedRef());
 		GraphEditorPtr.Pin()->SetRootNode(GraphCanvasNode.ToSharedRef());
+
+		TSharedPtr<IDisplayClusterConfiguratorViewOutputMapping> OutputMappingView = ToolkitPtr.Pin()->GetViewOutputMapping();
+		if (OutputMappingView)
+		{
+			OutputMappingView->GetOnOutputMappingBuiltDelegate().Broadcast();
+		}
 
 		return GraphCanvasNode;
 	}

@@ -5,8 +5,7 @@
 #include "PicpProjectionLog.h"
 #include "PicpProjectionStrings.h"
 
-#include "DisplayClusterProjectionLog.h"
-#include "DisplayClusterProjectionStrings.h"
+#include "PicpProjectionLog.h"
 #include "PicpProjectionStrings.h"
 
 #include "Game/IDisplayClusterGameManager.h"

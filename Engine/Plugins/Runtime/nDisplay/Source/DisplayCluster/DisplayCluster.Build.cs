@@ -36,7 +36,10 @@ public class DisplayCluster : ModuleRules
 
 		if (Target.bBuildEditor == true)
 		{
+			PublicIncludePathModuleNames.Add("DisplayClusterConfigurator");
+
 			PrivateDependencyModuleNames.Add("UnrealEd");
+			PrivateDependencyModuleNames.Add("LevelEditor");
 		}
 
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");

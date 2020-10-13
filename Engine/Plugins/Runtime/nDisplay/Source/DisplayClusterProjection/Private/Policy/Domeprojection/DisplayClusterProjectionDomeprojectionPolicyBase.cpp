@@ -49,7 +49,7 @@ bool FDisplayClusterProjectionDomeprojectionPolicyBase::HandleAddViewport(const 
 		return false;
 	}
 
-	FString FullFilePath = DisplayClusterHelpers::filesystem::GetFullPathForConfigResource(File);
+	const FString FullFilePath = DisplayClusterHelpers::filesystem::GetFullPathForConfigResource(File);
 	if (!FPaths::FileExists(FullFilePath))
 	{
 		UE_LOG(LogDisplayClusterProjectionDomeprojection, Error, TEXT("Couldn't read Domeprojection configuration file: %s"), *FullFilePath);

@@ -9,7 +9,7 @@
 /**
  * Synchronization component. Synchronizes parent scene component.
  */
-UCLASS(ClassGroup = (Custom), Blueprintable, meta = (BlueprintSpawnableComponent))
+UCLASS(ClassGroup = (DisplayCluster), Blueprintable, meta = (BlueprintSpawnableComponent))
 class DISPLAYCLUSTER_API UDisplayClusterSceneComponentSyncParent
 	: public UDisplayClusterSceneComponentSync
 {
@@ -17,10 +17,6 @@ class DISPLAYCLUSTER_API UDisplayClusterSceneComponentSyncParent
 
 public:
 	UDisplayClusterSceneComponentSyncParent(const FObjectInitializer& ObjectInitializer);
-
-public:
-	virtual void BeginPlay() override;
-	virtual void TickComponent( float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction ) override;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////

@@ -10,7 +10,6 @@
 #include "IDisplayCluster.h"
 #include "Game/IDisplayClusterGameManager.h"
 
-#include "Components/DisplayClusterRootComponent.h"
 #include "Components/DisplayClusterScreenComponent.h"
 
 

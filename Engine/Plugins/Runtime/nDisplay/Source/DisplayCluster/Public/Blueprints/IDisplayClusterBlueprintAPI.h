@@ -127,26 +127,29 @@ public:
 	virtual ADisplayClusterRootActor* GetRootActor() const = 0;
 
 	/** Returns DisplayCluster root component. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get root component"), Category = "DisplayCluster|Game")
-	virtual UDisplayClusterRootComponent* GetRootComponent() const = 0;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get root component", DeprecatedFunction, DeprecationMessage = "UDisplayClusterRootComponent has been deprecated. Please use ADisplayClusterRootActor."), Category = "DisplayCluster|Game")
+	virtual UDisplayClusterRootComponent* GetRootComponent() const
+	{
+		return nullptr;
+	}
 
-		// Screens
+	// Screens
 	/** Returns screen component by ID. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get screen by ID", DeprecatedFunction, DeprecationMessage = "This function has been moved to UDisplayClusterRootComponent."), Category = "DisplayCluster|Game")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get screen by ID", DeprecatedFunction, DeprecationMessage = "This function has been moved to ADisplayClusterRootActor."), Category = "DisplayCluster|Game")
 	virtual UDisplayClusterScreenComponent* GetScreenById(const FString& ScreenID)
 	{
 		return nullptr;
 	}
 
 	/** Returns array of all screen components. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get all screens", DeprecatedFunction, DeprecationMessage = "This function has been moved to UDisplayClusterRootComponent."), Category = "DisplayCluster|Game")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get all screens", DeprecatedFunction, DeprecationMessage = "This function has been moved to ADisplayClusterRootActor."), Category = "DisplayCluster|Game")
 	virtual TArray<UDisplayClusterScreenComponent*> GetAllScreens()
 	{
 		return TArray<UDisplayClusterScreenComponent*>();
 	}
 
 	/** Returns amount of screens defined in current configuration file. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get amount of screens", DeprecatedFunction, DeprecationMessage = "This function has been moved to UDisplayClusterRootComponent."), Category = "DisplayCluster|Game")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get amount of screens", DeprecatedFunction, DeprecationMessage = "This function has been moved to ADisplayClusterRootActor."), Category = "DisplayCluster|Game")
 	virtual int32 GetScreensAmount()
 	{
 		return 0;
@@ -154,48 +157,48 @@ public:
 
 	// Cameras
 	/** Returns array of all available camera components. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get all cameras", DeprecatedFunction, DeprecationMessage = "This function has been moved to UDisplayClusterRootComponent."), Category = "DisplayCluster|Game")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get all cameras", DeprecatedFunction, DeprecationMessage = "This function has been moved to ADisplayClusterRootActor."), Category = "DisplayCluster|Game")
 	virtual TArray<UDisplayClusterCameraComponent*> GetAllCameras()
 	{
 		return TArray<UDisplayClusterCameraComponent*>();
 	}
 
 	/** Returns camera component with specified ID. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get camera by ID", DeprecatedFunction, DeprecationMessage = "This function has been moved to UDisplayClusterRootComponent."), Category = "DisplayCluster|Game")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get camera by ID", DeprecatedFunction, DeprecationMessage = "This function has been moved to ADisplayClusterRootActor."), Category = "DisplayCluster|Game")
 	virtual UDisplayClusterCameraComponent* GetCameraById(const FString& CameraID)
 	{
 		return nullptr;
 	}
 
 	/** Returns amount of cameras. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get cameras amount", DeprecatedFunction, DeprecationMessage = "This function has been moved to UDisplayClusterRootComponent."), Category = "DisplayCluster|Game")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get cameras amount", DeprecatedFunction, DeprecationMessage = "This function has been moved to ADisplayClusterRootActor."), Category = "DisplayCluster|Game")
 	virtual int32 GetCamerasAmount()
 	{
 		return 0;
 	}
 
 	/** Returns default camera component. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get default camera", DeprecatedFunction, DeprecationMessage = "This function has been moved to UDisplayClusterRootComponent."), Category = "DisplayCluster|Game")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get default camera", DeprecatedFunction, DeprecationMessage = "This function has been moved to ADisplayClusterRootActor."), Category = "DisplayCluster|Game")
 	virtual UDisplayClusterCameraComponent* GetDefaultCamera()
 	{
 		return nullptr;
 	}
 
 	/** Sets default camera component specified by ID. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set default camera by ID", DeprecatedFunction, DeprecationMessage = "This function has been moved to UDisplayClusterRootComponent."), Category = "DisplayCluster|Game")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set default camera by ID", DeprecatedFunction, DeprecationMessage = "This function has been moved to ADisplayClusterRootActor."), Category = "DisplayCluster|Game")
 	virtual void SetDefaultCameraById(const FString& CameraID)
 	{ }
 
 	// Scene components
 	/** Returns scene component by its ID. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get node by ID", DeprecatedFunction, DeprecationMessage = "This function has been moved to UDisplayClusterRootComponent."), Category = "DisplayCluster|Game")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get node by ID", DeprecatedFunction, DeprecationMessage = "This function has been moved to ADisplayClusterRootActor."), Category = "DisplayCluster|Game")
 	virtual UDisplayClusterSceneComponent* GetNodeById(const FString& SceneNodeID)
 	{
 		return nullptr;
 	}
 
 	/** Returns array of all scene components (nodes). */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get all nodes", DeprecatedFunction, DeprecationMessage = "This function has been moved to UDisplayClusterRootComponent."), Category = "DisplayCluster|Game")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get all nodes", DeprecatedFunction, DeprecationMessage = "This function has been moved to ADisplayClusterRootActor."), Category = "DisplayCluster|Game")
 	virtual TArray<UDisplayClusterSceneComponent*> GetAllNodes()
 	{
 		return TArray<UDisplayClusterSceneComponent*>();

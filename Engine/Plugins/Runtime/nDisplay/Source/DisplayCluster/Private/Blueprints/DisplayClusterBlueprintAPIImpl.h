@@ -71,9 +71,6 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get root actor"), Category = "DisplayCluster|Game")
 	virtual ADisplayClusterRootActor* GetRootActor() const override;
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get root component"), Category = "DisplayCluster|Game")
-	virtual UDisplayClusterRootComponent* GetRootComponent() const override;
-
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// Input API
