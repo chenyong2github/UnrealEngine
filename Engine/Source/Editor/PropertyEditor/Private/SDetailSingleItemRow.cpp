@@ -17,7 +17,7 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "SResetToDefaultPropertyEditor.h"
-
+#include "PropertyEditorConstants.h"
 
 namespace DetailWidgetConstants
 {
@@ -44,13 +44,6 @@ namespace SDetailSingleItemRow_Helper
 				RecursivelyGetItemShow(ItemChild, ItemShowNum);
 			}
 		}
-	}
-
-	FSlateColor GetBackgroundColor(int32 IndentLevel)
-	{
-		FLinearColor BackgroundColor = FAppStyle::Get().GetSlateColor("Colors.Background").GetSpecifiedColor();
-
-		return FSlateColor(BackgroundColor + FLinearColor(2.0f/255, 2.0f/255, 2.0f/255) * (IndentLevel % 4));
 	}
 }
 
@@ -139,7 +132,7 @@ public:
 					[
 						SNew(SBorder)
 						.BorderImage(FAppStyle::Get().GetBrush("DetailsView.CategoryMiddle"))
-						.BorderBackgroundColor_Static(&SDetailSingleItemRow_Helper::GetBackgroundColor, i)
+						.BorderBackgroundColor_Static(&PropertyEditorConstants::GetRowBackgroundColor, i)
 						.Padding(0)
 						[
 							SNew(SImage)
@@ -206,27 +199,6 @@ public:
 
 		return FReply::Handled();
 	}
-
-	/*int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override
-	{
-		int32 IndentLevel = Row->GetIndentLevel();
-		for (int32 i = 0; i < IndentLevel; ++i)
-		{
-			FVector2D Offset(i * 16, 0);
-
-			FSlateDrawElement::MakeBox( 
-				OutDrawElements,
-				LayerId,
-				AllottedGeometry.ToPaintGeometry(FSlateLayoutTransform(Offset)),
-				GetIndentBrush(i),
-				ESlateDrawEffect::None,
-				FLinearColor(1,1,1,0.5f)
-			);
-		}
-
-		return LayerId;
-	}
-	*/
 };
 
 void SConstrainedBox::Construct(const FArguments& InArgs)
@@ -721,11 +693,16 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 			bool bCreateResetToDefault = Row.CustomResetToDefault.IsSet();
 
 			TSharedPtr<IPropertyHandle> PropertyHandle = GetPropertyHandle();
-			if (PropertyHandle.IsValid() )
+
+			if (PropertyHandle.IsValid())
 			{
 				if (PropertyHandle->HasMetaData("NoResetToDefault") || PropertyHandle->GetInstanceMetaData("NoResetToDefault"))
 				{
 					bCreateResetToDefault = false;
+				}
+				else
+				{
+					bCreateResetToDefault = true;
 				}
 			} 
 
@@ -865,7 +842,7 @@ FSlateColor SDetailSingleItemRow::GetInnerBackgroundColor() const
 	}
 	IndentLevel = FMath::Max(0, IndentLevel - 1);
 
-	return SDetailSingleItemRow_Helper::GetBackgroundColor(IndentLevel);
+	return PropertyEditorConstants::GetRowBackgroundColor(IndentLevel);
 }
 
 bool SDetailSingleItemRow::OnContextMenuOpening(FMenuBuilder& MenuBuilder)

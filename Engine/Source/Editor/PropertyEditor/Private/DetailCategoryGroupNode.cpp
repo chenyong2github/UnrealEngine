@@ -57,6 +57,7 @@ void SDetailCategoryTableRow::Construct( const FArguments& InArgs, TSharedRef<FD
 	[	
 		SNew( SBorder )
 		.BorderImage( this, &SDetailCategoryTableRow::GetBackgroundImage )
+		.BorderBackgroundColor( this, &SDetailCategoryTableRow::GetBackgroundColor )
 		.Padding( FMargin( 0.0f, BorderVerticalPadding, SDetailTableRowBase::ScrollbarPaddingSize, BorderVerticalPadding ) )
 		[
 			Widget.ToSharedRef()
@@ -80,27 +81,40 @@ const FSlateBrush* SDetailCategoryTableRow::GetBackgroundImage() const
 {
 	if (bShowBorder)
 	{
+		if (bIsInnerCategory)
+		{
+			return FEditorStyle::GetBrush("DetailsView.CategoryMiddle");
+		}
+
 		if (IsHovered())
 		{
-			if (bIsInnerCategory)
-			{
-				return FEditorStyle::GetBrush("DetailsView.CategoryMiddle_Hovered");
-			}
-
 			return IsItemExpanded() ? FEditorStyle::GetBrush("DetailsView.CategoryTop_Hovered") : FEditorStyle::GetBrush("DetailsView.CollapsedCategory_Hovered");
 		}
 		else
 		{
-			if (bIsInnerCategory)
-			{
-				return FEditorStyle::GetBrush("DetailsView.CategoryMiddle");
-			}
-			
 			return IsItemExpanded() ? FEditorStyle::GetBrush("DetailsView.CategoryTop") : FEditorStyle::GetBrush("DetailsView.CollapsedCategory");
 		}
 	}
 
 	return nullptr;
+}
+
+FSlateColor SDetailCategoryTableRow::GetBackgroundColor() const
+{
+	if (bShowBorder && bIsInnerCategory)
+	{
+		int32 IndentLevel = -1;
+		if (OwnerTablePtr.IsValid())
+		{
+			IndentLevel = GetIndentLevel();
+		}
+
+		IndentLevel = FMath::Max(IndentLevel - 1, 0);
+
+		return PropertyEditorConstants::GetRowBackgroundColor(IndentLevel);
+	}
+
+	return FSlateColor(FLinearColor::White);
 }
 
 FReply SDetailCategoryTableRow::OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )

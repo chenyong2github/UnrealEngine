@@ -14,3 +14,9 @@ const FSlateBrush* PropertyEditorConstants::GetOverlayBrush( const TSharedRef< c
 {
 	return FEditorStyle::GetBrush( TEXT("PropertyWindow.NoOverlayColor") );
 }
+
+FSlateColor PropertyEditorConstants::GetRowBackgroundColor(int32 IndentLevel) 
+{
+	FLinearColor BackgroundColor = FAppStyle::Get().GetSlateColor("Colors.Background").GetSpecifiedColor();
+	return FSlateColor(BackgroundColor + FLinearColor(2.0f/255, 2.0f/255, 2.0f/255) * (IndentLevel % 4));
+}

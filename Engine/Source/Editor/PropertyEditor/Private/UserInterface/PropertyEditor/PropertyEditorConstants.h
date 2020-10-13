@@ -17,4 +17,6 @@ public:
 	static const FName MD_UseEnumValuesAsMaskValuesInEditor;
 
 	static const FSlateBrush* GetOverlayBrush( const TSharedRef< class FPropertyEditor > PropertyEditor );
+
+	static FSlateColor GetRowBackgroundColor(int32 IndentLevel);
 };
