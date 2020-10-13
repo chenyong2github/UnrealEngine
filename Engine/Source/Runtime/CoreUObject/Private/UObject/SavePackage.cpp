@@ -2615,6 +2615,11 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					Linker->Summary.PackageFlags |= PKG_UnversionedProperties;
 					Linker->LinkerRoot->SetPackageFlags(PKG_UnversionedProperties);
 				}
+				else
+				{
+					Linker->Summary.PackageFlags &= ~PKG_UnversionedProperties;
+					Linker->LinkerRoot->ClearPackageFlags(PKG_UnversionedProperties);
+				}
 
 				// Make sure the package has the same version as the linker
 				InOuter->LinkerPackageVersion = Linker->UE4Ver();
