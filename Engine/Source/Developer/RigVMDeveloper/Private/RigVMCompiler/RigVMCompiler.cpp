@@ -215,6 +215,8 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 		WorkData.VM->GetByteCode().AddExitOp();
 	}
 
+	WorkData.VM->GetByteCode().AlignByteCode();
+
 	// loop over all nodes once more and setup the instruction index for reroute nodes
 	if (Settings.SetupNodeInstructionIndex)
 	{

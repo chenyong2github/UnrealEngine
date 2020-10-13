@@ -181,12 +181,6 @@ FORCEINLINE_DEBUGGABLE void RigVMInitialize(void* InPtr, int32 InCount)
 {
 	ensure(InCount >= 0);
 	FMemory::Memzero(InPtr, InCount * sizeof(FName));
-
-	FName* Values = (FName*)InPtr;
-	for(int32 Index=0;Index<InCount;Index++)
-	{
-		Values[Index] = FName();
-	}
 }
 
 template<
@@ -196,11 +190,7 @@ template<
 FORCEINLINE_DEBUGGABLE void RigVMDestroy(void* InPtr, int32 InCount)
 {
 	ensure(InCount >= 0);
-	FName* Values = (FName*)InPtr;
-	for(int32 Index=0;Index<InCount;Index++)
-	{
-		Values[Index] = FName();
-	}
+	FMemory::Memzero(InPtr, InCount * sizeof(FName));
 }
 
 template<
@@ -210,13 +200,7 @@ template<
 FORCEINLINE_DEBUGGABLE void RigVMCopy(void* InTargetPtr, const void* InSourcePtr, int32 InCount = 1)
 {
 	ensure(InCount >= 0);
-
-	FName* Target = (FName*)InTargetPtr;
-	const FName* Source = (const FName*)InSourcePtr;
-	for(int32 Index=0;Index<InCount;Index++)
-	{
-		Target[Index] = Source[Index];
-	}
+	FMemory::Memcpy(InTargetPtr, InSourcePtr, InCount * sizeof(FName));
 }
 
 template <
