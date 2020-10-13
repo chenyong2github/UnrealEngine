@@ -11,35 +11,53 @@ namespace Chaos
 template<class T, int d>
 class CHAOS_API TPBDLongRangeConstraintsBase
 {
-  public:
+public:
+	enum class EMode : uint8
+	{
+		FastTetherFastLength,
+		AccurateTetherFastLength,
+		AccurateTetherAccurateLength,
+	};
+
 	TPBDLongRangeConstraintsBase(
 		const TDynamicParticles<T, d>& InParticles,
 		const TMap<int32, TSet<uint32>>& PointToNeighbors,
 		const int32 NumberOfAttachments = 1,
 		const T Stiffness = (T)1,
 		const T LimitScale = (T)1,
-		const bool bUseGeodesicDistance = false);
+		const EMode Mode = EMode::AccurateTetherFastLength);
 
 	virtual ~TPBDLongRangeConstraintsBase() {}
 
-	inline TVector<T, d> GetDelta(const TPBDParticles<T, d>& InParticles, const int32 i) const
+	EMode GetMode() const { return MMode; }
+
+	const TArray<TVector<uint32, 2>>& GetEuclideanConstraints() const { return MEuclideanConstraints; }
+	const TArray<TArray<uint32>>& GetGeodesicConstraints() const { return MGeodesicConstraints; }
+
+	const TArray<T>& GetDists() const { return MDists; }
+
+	static TArray<TArray<uint32>> ComputeIslands(const TMap<int32, TSet<uint32>>& PointToNeighbors, const TArray<uint32>& KinematicParticles);
+
+protected:
+	template<class TConstraintType>
+	inline TVector<T, d> GetDelta(const TConstraintType& Constraint, const TPBDParticles<T, d>& InParticles, const T RefDist) const
 	{
-		const TArray<uint32>& Constraint = MConstraints[i];
-		check(Constraint.Num() > 1);
-		const uint32 i1 = Constraint[0];
+		checkSlow(Constraint.Num() > 1);
 		const uint32 i2 = Constraint[Constraint.Num() - 1];
 		const uint32 i2m1 = Constraint[Constraint.Num() - 2];
-		check(InParticles.InvM(i1) == 0);
-		check(InParticles.InvM(i2) > 0);
-		const T Distance = ComputeGeodesicDistance(InParticles, Constraint); // This function is used for either Euclidian or Geodisic distances
-		if (Distance < MDists[i])
-			return TVector<T, d>(0);
+		checkSlow(InParticles.InvM(Constraint[0]) == (T)0.);
+		checkSlow(InParticles.InvM(i2) > (T)0.);
+		const T Distance = ComputeGeodesicDistance(InParticles, Constraint); // This function is used for either Euclidean or Geodesic distances
+		if (Distance < RefDist)
+		{
+			return TVector<T, d>((T)0.);
+		}
 
 		//const TVector<T, d> Direction = (InParticles.P(i2m1) - InParticles.P(i2)).GetSafeNormal();
 		TVector<T, d> Direction = InParticles.P(i2m1) - InParticles.P(i2);
 		const T DirLen = Direction.SafeNormalize();
 
-		const T Offset = Distance - MDists[i];
+		const T Offset = Distance - RefDist;
 		const TVector<T, d> Delta = MStiffness * Offset * Direction;
 
 	/*  // ryan - this currently fails:
@@ -51,18 +69,15 @@ class CHAOS_API TPBDLongRangeConstraintsBase
 
 		//T NewDist = (Distance - (InParticles.P(i2) - InParticles.P(i2m1)).Size() + (InParticles.P(i2) + Delta - InParticles.P(i2m1)).Size());
 		const T NewDist = Distance - DirLen + NewDirLen;
-		check(FGenericPlatformMath::Abs(NewDist - MDists[i]) < 1e-4);
+		check(FGenericPlatformMath::Abs(NewDist - RefDist) < 1e-4);
 	*/
 		return Delta;
 	};
 
-	const TArray<TArray<uint32>>& GetConstraints() const { return MConstraints; }
-	const TArray<T>& GetDists() const { return MDists; }
-
 	static T ComputeGeodesicDistance(const TParticles<T, d>& InParticles, const TArray<uint32>& Path)
 	{
 		T distance = 0;
-		for (int i = 0; i < Path.Num() - 1; ++i)
+		for (int32 i = 0; i < Path.Num() - 1; ++i)
 		{
 			distance += (InParticles.X(Path[i]) - InParticles.X(Path[i + 1])).Size();
 		}
@@ -71,25 +86,33 @@ class CHAOS_API TPBDLongRangeConstraintsBase
 	static T ComputeGeodesicDistance(const TPBDParticles<T, d>& InParticles, const TArray<uint32>& Path)
 	{
 		T distance = 0;
-		for (int i = 0; i < Path.Num() - 1; ++i)
+		for (int32 i = 0; i < Path.Num() - 1; ++i)
 		{
 			distance += (InParticles.P(Path[i]) - InParticles.P(Path[i + 1])).Size();
 		}
 		return distance;
 	}
 
-	static TArray<TArray<uint32>> ComputeIslands(const TMap<int32, TSet<uint32>>& PointToNeighbors, const TArray<uint32>& KinematicParticles);
-
-  protected:
-	void ComputeEuclidianConstraints(const TDynamicParticles<T, d>& InParticles, const TMap<int32, TSet<uint32>>& PointToNeighbors,/*const TTriangleMesh<T>& Mesh,*/ const int32 NumberOfAttachments);
-	void ComputeGeodesicConstraints(const TDynamicParticles<T, d>& InParticles, const TMap<int32, TSet<uint32>>& PointToNeighbors,/*const TTriangleMesh<T>& Mesh,*/ const int32 NumberOfAttachments);
+	void ComputeEuclideanConstraints(const TDynamicParticles<T, d>& InParticles, const TMap<int32, TSet<uint32>>& PointToNeighbors, const int32 NumberOfAttachments);
+	void ComputeGeodesicConstraints(const TDynamicParticles<T, d>& InParticles, const TMap<int32, TSet<uint32>>& PointToNeighbors, const int32 NumberOfAttachments);
 
 	static T ComputeDistance(const TParticles<T, d>& InParticles, const uint32 i, const uint32 j) { return (InParticles.X(i) - InParticles.X(j)).Size(); }
 	static T ComputeDistance(const TPBDParticles<T, d>& InParticles, const uint32 i, const uint32 j) { return (InParticles.P(i) - InParticles.P(j)).Size(); }
 
-  protected:
-	TArray<TArray<uint32>> MConstraints;
+	static T ComputeGeodesicDistance(const TParticles<T, d>& InParticles, const TVector<uint32, 2>& Path)
+	{
+		return (InParticles.X(Path[0]) - InParticles.X(Path[1])).Size();
+	}
+	static T ComputeGeodesicDistance(const TPBDParticles<T, d>& InParticles, const TVector<uint32, 2>& Path)
+	{
+		return (InParticles.P(Path[0]) - InParticles.P(Path[1])).Size();
+	}
+
+protected:
+	TArray<TVector<uint32, 2>> MEuclideanConstraints;
+	TArray<TArray<uint32>> MGeodesicConstraints;
 	TArray<T> MDists;
 	T MStiffness;
+	EMode MMode;
 };
 }

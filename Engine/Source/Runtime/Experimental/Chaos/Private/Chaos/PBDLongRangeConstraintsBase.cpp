@@ -17,17 +17,24 @@ TPBDLongRangeConstraintsBase<T, d>::TPBDLongRangeConstraintsBase(
 	const int32 NumberOfAttachments,
 	const T Stiffness,
 	const T LimitScale,
-	const bool bUseGeodesicDistance)
-    : MStiffness(Stiffness)
+	const EMode Mode)
+	: MStiffness(Stiffness)
+	, MMode(Mode)
 {
-	if (bUseGeodesicDistance)
+	switch (MMode)
 	{
+	case EMode::FastTetherFastLength:
+		ComputeEuclideanConstraints(InParticles, PointToNeighbors, NumberOfAttachments);
+		break;
+	case EMode::AccurateTetherFastLength:
+	case EMode::AccurateTetherAccurateLength:
 		ComputeGeodesicConstraints(InParticles, PointToNeighbors, NumberOfAttachments);
+		break;
+	default:
+		unimplemented();
+		break;
 	}
-	else
-	{
-		ComputeEuclidianConstraints(InParticles, PointToNeighbors, NumberOfAttachments);
-	}
+
 	// Scale distance limits
 	for (float& Dist : MDists)
 	{
@@ -111,7 +118,7 @@ TArray<TArray<uint32>> TPBDLongRangeConstraintsBase<T, d>::ComputeIslands(
 }
 
 template<class T, int d>
-void TPBDLongRangeConstraintsBase<T, d>::ComputeEuclidianConstraints(
+void TPBDLongRangeConstraintsBase<T, d>::ComputeEuclideanConstraints(
     const TDynamicParticles<T, d>& InParticles,
     const TMap<int32, TSet<uint32>>& PointToNeighbors,
     const int32 NumberOfAttachments)
@@ -179,7 +186,7 @@ void TPBDLongRangeConstraintsBase<T, d>::ComputeEuclidianConstraints(
 		for (auto Element : ClosestElements)
 		{
 			//CriticalSection.Lock();
-			MConstraints.Add({Element.Second, i});
+			MEuclideanConstraints.Add({Element.Second, i});
 			MDists.Add(Element.First);
 			//CriticalSection.Unlock();
 		}
@@ -264,6 +271,7 @@ void TPBDLongRangeConstraintsBase<T, d>::ComputeGeodesicConstraints(
 			}
 		}
 	});
+	TArray<TArray<uint32>> NewConstraints;
 	FCriticalSection CriticalSection;
 	PhysicsParallelFor(UsedIndices.Num(), [&](uint32 UsedIndex) {
 		const uint32 i = UsedIndices[UsedIndex];
@@ -305,46 +313,53 @@ void TPBDLongRangeConstraintsBase<T, d>::ComputeGeodesicConstraints(
 			check(GeodesicPaths[Index].First == Element.First);
 			check(FGenericPlatformMath::Abs(Element.First - ComputeGeodesicDistance(InParticles, GeodesicPaths[Index].Second)) < 1e-4);
 			CriticalSection.Lock();
-			MConstraints.Add(GeodesicPaths[Index].Second);
+			NewConstraints.Add(GeodesicPaths[Index].Second);
 			MDists.Add(Element.First);
 			CriticalSection.Unlock();
 		}
 	});
 	// TODO(mlentine): This should work by just reverse sorting and not needing the filtering but it may not be guaranteed. Work out if this is actually guaranteed or not.
-	MConstraints.Sort([](const TArray<uint32>& Elem1, const TArray<uint32>& Elem2) { return Elem1.Num() > Elem2.Num(); });
-	TArray<TArray<uint32>> NewConstraints;
+	NewConstraints.Sort([](const TArray<uint32>& Elem1, const TArray<uint32>& Elem2) { return Elem1.Num() > Elem2.Num(); });
 	TArray<T> NewDists;
 	TMap<TVector<uint32, 2>, TArray<uint32>> ProcessedPairs;
-	for (uint32 i = 0; i < static_cast<uint32>(MConstraints.Num()); ++i)
+	for (uint32 i = 0; i < static_cast<uint32>(NewConstraints.Num()); ++i)
 	{
-		const TVector<uint32, 2> Traverse(MConstraints[i][0], MConstraints[i].Last());
+		const TVector<uint32, 2> Traverse(NewConstraints[i][0], NewConstraints[i].Last());
 		if (const TArray<uint32>* TraversePath = ProcessedPairs.Find(Traverse))
 		{
-			check(MConstraints[i].Num() == TraversePath->Num());
+			check(NewConstraints[i].Num() == TraversePath->Num());
 			for (uint32 j = 0; j < static_cast<uint32>(TraversePath->Num()); ++j)
 			{
-				check((*TraversePath)[j] == MConstraints[i][j]);
+				check((*TraversePath)[j] == NewConstraints[i][j]);
 			}
 			continue;
 		}
 		TArray<uint32> Path;
 		T Dist = 0;
-		Path.Add(MConstraints[i][0]);
-		for (uint32 j = 1; j < static_cast<uint32>(MConstraints[i].Num() - 1); ++j)
+		Path.Add(NewConstraints[i][0]);
+		for (uint32 j = 1; j < static_cast<uint32>(NewConstraints[i].Num() - 1); ++j)
 		{
-			Dist += (InParticles.X(MConstraints[i][j]) - InParticles.X(MConstraints[i][j - 1])).Size();
-			Path.Add(MConstraints[i][j]);
-			// TODO(Kriss.Gossart): We might want to add a new mode for differentiating between these two cases
-			//NewConstraints.Add(Path);  // This would save the whole geodesic path, which is too expensive
-			//NewDists.Add(Dist);
-			NewConstraints.Add({Path[0], Path[Path.Num() - 1]});  // Use shortest distance instead 
-			NewDists.Add(ComputeDistance(InParticles, Path[0], Path[Path.Num() - 1]));
-			const TVector<uint32, 2> SubTraverse(MConstraints[i][0], MConstraints[i][j]);
+			Dist += (InParticles.X(NewConstraints[i][j]) - InParticles.X(NewConstraints[i][j - 1])).Size();
+			Path.Add(NewConstraints[i][j]);
+			switch (MMode)
+			{
+			case EMode::AccurateTetherFastLength:
+				MEuclideanConstraints.Add({Path[0], Path[Path.Num() - 1]}) ;                // Use euclidean (beeline) distance
+				NewDists.Add(ComputeDistance(InParticles, Path[0], Path[Path.Num() - 1]));  // Fastest method in ISPC
+				break;
+			case EMode::AccurateTetherAccurateLength:
+				MGeodesicConstraints.Add(Path);
+				NewDists.Add(Dist);
+				break;
+			default:
+				unimplemented();
+				break;
+			}
+			const TVector<uint32, 2> SubTraverse(NewConstraints[i][0], NewConstraints[i][j]);
 			ProcessedPairs.Add(SubTraverse, Path);
 		}
 	}
 	MDists = NewDists;
-	MConstraints = NewConstraints;
 }
 
 template class Chaos::TPBDLongRangeConstraintsBase<float, 3>;

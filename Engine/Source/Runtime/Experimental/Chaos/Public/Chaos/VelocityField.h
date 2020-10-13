@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Chaos/DynamicParticles.h"
+#include "Chaos/PBDParticles.h"
 #include "Chaos/TriangleMesh.h"
 
 namespace Chaos
@@ -9,7 +9,7 @@ namespace Chaos
 	// Velocity field basic implementation
 	// TODO: Add lift
 	template<class T, int d>
-	class TVelocityField
+	class CHAOS_API TVelocityField
 	{
 	public:
 		// Construct an uninitialized field. Mesh, properties, and velocity will have to be set for this field to be valid.
@@ -54,31 +54,7 @@ namespace Chaos
 
 		virtual ~TVelocityField() {}
 
-		inline void UpdateForces(const TPBDParticles<T, d>& InParticles, const T /*Dt*/) const
-		{
-			if (!GetVelocity)
-			{
-				for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ++ElementIndex)
-				{
-					UpdateField(InParticles, ElementIndex, Velocity);
-				}
-			}
-			else
-			{
-				for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ++ElementIndex)
-				{
-					const TVector<int32, 3>& Element = Elements[ElementIndex];
-
-					// Get the triangle's position
-					const TVector<T, d>& SurfacePosition = (T)(1. / 3.) * (
-						InParticles.X(Element[0]) +
-						InParticles.X(Element[1]) +
-						InParticles.X(Element[2]));
-
-					UpdateField(InParticles, ElementIndex, GetVelocity(SurfacePosition));
-				}
-			}
-		}
+		void UpdateForces(const TPBDParticles<T, d>& InParticles, const T /*Dt*/) const;
 
 		inline void Apply(TPBDParticles<T, d>& InParticles, const T Dt, const int32 Index) const
 		{
@@ -173,3 +149,12 @@ namespace Chaos
 		TVector<int32, 2> Range;  // TODO: Remove? It is used by the check only
 	};
 }
+
+// Support ISPC enable/disable in non-shipping builds
+#if !INTEL_ISPC
+const bool bChaos_VelocityField_ISPC_Enabled = false;
+#elif UE_BUILD_SHIPPING
+const bool bChaos_VelocityField_ISPC_Enabled = true;
+#else
+extern CHAOS_API bool bChaos_VelocityField_ISPC_Enabled;
+#endif

@@ -30,12 +30,14 @@ class TDynamicParticles : public TParticles<T, d>
 
 	const TVector<T, d>& V(const int32 Index) const { return MV[Index]; }
 	TVector<T, d>& V(const int32 Index) { return MV[Index]; }
+	const TArrayCollectionArray<TVector<T, d>>& GetV() const { return MV; }
 
 	const TVector<T, d>& F(const int32 Index) const { return MF[Index]; }
 	TVector<T, d>& F(const int32 Index) { return MF[Index]; }
 
 	const T M(const int32 Index) const { return MM[Index]; }
 	T& M(const int32 Index) { return MM[Index]; }
+	const TArrayCollectionArray<T>& GetM() const { return MM; }
 
 	const T InvM(const int32 Index) const { return MInvM[Index]; }
 	T& InvM(const int32 Index) { return MInvM[Index]; }

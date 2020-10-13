@@ -124,7 +124,7 @@ inline uniform FVector4 QuatInverse(const uniform FVector4 &Quat)
 inline FVector4 QuatFastLerp(const FVector4& A, const FVector4& B, const float Alpha)
 {
 	// To ensure the 'shortest route', we make sure the dot product between the both rotations is positive.
-	const float DotResult = A.V[0] * B.V[0] + A.V[1] * B.V[1] + A.V[2] * B.V[2] + A.V[3] * B.V[3];
+	const float DotResult = VectorDot(A, B);
 	const float Bias = select(DotResult >= 0.f, 1.0f, -1.0f);
 	return (B * Alpha) + (A * (Bias * (1.f - Alpha)));
 }
@@ -132,7 +132,7 @@ inline FVector4 QuatFastLerp(const FVector4& A, const FVector4& B, const float A
 inline uniform FVector4 QuatFastLerp(const uniform FVector4& A, const uniform FVector4& B, const uniform float Alpha)
 {
 	// To ensure the 'shortest route', we make sure the dot product between the both rotations is positive.
-	const uniform float DotResult = A.V[0] * B.V[0] + A.V[1] * B.V[1] + A.V[2] * B.V[2] + A.V[3] * B.V[3];
+	const uniform float DotResult = VectorDot(A, B);
 	const uniform float Bias = select(DotResult >= 0.f, 1.0f, -1.0f);
 	return (B * Alpha) + (A * (Bias * (1.f - Alpha)));
 }
@@ -158,6 +158,30 @@ inline uniform FVector4 VectorAccumulateQuaternionShortestPath(const uniform FVe
  * @param VectorW0 Vector to rotate. W component must be zero.
  * @return Vector after rotation by Quat.
  */
+inline FVector4 VectorQuaternionRotateVector(const FVector4& Quat, const FVector4& VectorW0)
+{
+	// Q * V * Q.Inverse
+	//const VectorRegister InverseRotation = VectorQuaternionInverse(Quat);
+	//const VectorRegister Temp = VectorQuaternionMultiply2(Quat, VectorW0);
+	//const VectorRegister Rotated = VectorQuaternionMultiply2(Temp, InverseRotation);
+
+	// Equivalence of above can be shown to be:
+	// http://people.csail.mit.edu/bkph/articles/Quaternions.pdf
+	// V' = V + 2w(Q x V) + (2Q x (Q x V))
+	// refactor:
+	// V' = V + w(2(Q x V)) + (Q x (2(Q x V)))
+	// T = 2(Q x V);
+	// V' = V + w*(T) + (Q x T)
+
+	const FVector4 QW = VectorReplicate(Quat, 3);
+	FVector4 T = VectorCross(Quat, VectorW0);
+	T = VectorAdd(T, T);
+	const FVector4 VTemp0 = VectorMultiplyAdd(QW, T, VectorW0);
+	const FVector4 VTemp1 = VectorCross(Quat, T);
+	const FVector4 Rotated = VectorAdd(VTemp0, VTemp1);
+	return Rotated;
+}
+
 inline uniform FVector4 VectorQuaternionRotateVector(const uniform FVector4& Quat, const uniform FVector4& VectorW0)
 {
 	// Q * V * Q.Inverse
@@ -183,7 +207,7 @@ inline uniform FVector4 VectorQuaternionRotateVector(const uniform FVector4& Qua
 }
 
 inline uniform FVector VectorQuaternionRotateVector(const uniform FVector4& Quat, const uniform FVector& V)
-{	
+{
 	// http://people.csail.mit.edu/bkph/articles/Quaternions.pdf
 	// V' = V + 2w(Q x V) + (2Q x (Q x V))
 	// refactor:
@@ -195,6 +219,32 @@ inline uniform FVector VectorQuaternionRotateVector(const uniform FVector4& Quat
 	const uniform FVector T = VectorCross(Q, V) * 2.f;
 	const uniform FVector Result = V + (T * Quat.V[3]) + VectorCross(Q, T);
 	return Result;
+}
+
+inline FVector VectorQuaternionRotateVector(const uniform FVector4& Quat, const FVector& V)
+{
+	// http://people.csail.mit.edu/bkph/articles/Quaternions.pdf
+	// V' = V + 2w(Q x V) + (2Q x (Q x V))
+	// refactor:
+	// V' = V + w(2(Q x V)) + (Q x (2(Q x V)))
+	// T = 2(Q x V);
+	// V' = V + w*(T) + (Q x T)
+
+	const uniform FVector Q = SetVector(Quat.V[0], Quat.V[1], Quat.V[2]);
+	const FVector T = VectorCross(Q, V) * 2.f;
+	const FVector Result = V + (T * Quat.V[3]) + VectorCross(Q, T);
+	return Result;
+}
+
+inline uniform FVector8 VectorQuaternionRotateVector(const uniform FVector8& Quat, const uniform FVector8& VectorW0)
+{
+	const uniform FVector8 QW = VectorReplicate(Quat, 3);
+	uniform FVector8 T = VectorCross(Quat, VectorW0);
+	T = VectorAdd(T, T);
+	const uniform FVector8 VTemp0 = VectorMultiplyAdd(QW, T, VectorW0);
+	const uniform FVector8 VTemp1 = VectorCross(Quat, T);
+	const uniform FVector8 Rotated = VectorAdd(VTemp0, VTemp1);
+	return Rotated;
 }
 
 inline uniform FVector4 VectorLerpQuat(const uniform FVector4& A, const uniform FVector4& B, const uniform float Alpha)
