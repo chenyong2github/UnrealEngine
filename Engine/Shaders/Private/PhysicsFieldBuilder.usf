@@ -27,6 +27,8 @@ int ClipmapExponent;
 int TargetCount;
 int PhysicsTargets[MAX_TARGETS_ARRAY];
 
+float TimeSeconds;
+
 /* -----------------------------------------------------------------
  * Reandom Vector + Perlin Noise
  * -----------------------------------------------------------------
@@ -199,6 +201,7 @@ uint3 RandomVector(int3 p)
 #define SUM_VECTOR 12
 #define CONVERSION_FIELD 13
 #define CULLING_FIELD 14
+#define WAVE_SCALAR 15
 
 #define SET_ALWAYS 0
 #define SET_IFF_NOT_INTERIOR 1
@@ -217,6 +220,11 @@ uint3 RandomVector(int3 p)
 
 #define CULLING_INSIDE 0
 #define CULLING_OUTSIDE 1
+
+#define WAVE_COSINE 0
+#define WAVE_GAUSSIAN 1
+#define WAVE_FALLOFF 2
+#define WAVE_DECAY 3
 
 /* -----------------------------------------------------------------
  * Quat utils
@@ -323,6 +331,70 @@ void SetFalloffValue(in int FieldFalloff, in float FieldMagnitude, in float Delt
 	{
 		OutNodeResult = 0.0;
 	}
+}
+
+/* -----------------------------------------------------------------
+ * Wave Scalar Field
+ * -----------------------------------------------------------------
+ */
+
+#define WAVE_SCALAR_MAGNITUDE 0
+#define WAVE_SCALAR_POSITIONX 1
+#define WAVE_SCALAR_POSITIONY 2
+#define WAVE_SCALAR_POSITIONZ 3
+#define WAVE_SCALAR_WAVELENGTH 4
+#define WAVE_SCALAR_PERIOD 5
+#define WAVE_SCALAR_TIME 6
+#define WAVE_SCALAR_FUNCTION 7
+#define WAVE_SCALAR_FALLOFF 8
+
+static const float WAVE_PI = 3.14159265f;
+
+void EvaluateWaveScalar(in float3 SamplePosition, in int NodeOffset,
+					inout float ContextDatas[MAX_DATAS], inout int LocalIndex, in float ClipmapExtent)
+{
+	const float Distance = length(float3(NodesParams[NodeOffset + WAVE_SCALAR_POSITIONX],
+										 NodesParams[NodeOffset + WAVE_SCALAR_POSITIONY],
+										 NodesParams[NodeOffset + WAVE_SCALAR_POSITIONZ]) - SamplePosition);
+	
+	const float Wavelength = NodesParams[NodeOffset + WAVE_SCALAR_WAVELENGTH];
+	const float Velocity = Wavelength / NodesParams[NodeOffset + WAVE_SCALAR_PERIOD];
+	
+	const float Wavenumber = 2.0 * WAVE_PI / max(Wavelength, ClipmapDistance * 8 / ClipmapResolution);
+	const float DeltaTime = max(TimeSeconds - NodesParams[NodeOffset + WAVE_SCALAR_TIME], 0.0);
+	const float Radius = Velocity * DeltaTime;
+	const float Phase = Wavenumber * (Distance - Radius);
+	
+	float Result = 0.0;
+	
+	const int Function = (int) NodesParams[NodeOffset + WAVE_SCALAR_FUNCTION];
+	const float Magnitude = NodesParams[NodeOffset + WAVE_SCALAR_MAGNITUDE];
+	
+	if (Function == WAVE_GAUSSIAN)
+	{
+		Result = Magnitude * exp(-Phase * Phase);
+	}
+	else if (Function == WAVE_COSINE)
+	{
+		Result = Magnitude * cos(Phase);
+	}
+	else if (Function == WAVE_FALLOFF)
+	{
+		const int Falloff = (int) NodesParams[NodeOffset + WAVE_SCALAR_FALLOFF];
+		
+		if ((Distance < Radius) && (Radius > 0.0))
+		{
+			const float Fraction = (1.0 - Distance / Radius);
+			SetFalloffValue(Falloff, Magnitude, Fraction, Result);
+		}
+	}
+	else if (Function == WAVE_DECAY)
+	{
+		const float Decay = DeltaTime / NodesParams[NodeOffset + WAVE_SCALAR_PERIOD];
+		Result = Magnitude * exp(-Decay * Decay);
+
+	}
+	ContextDatas[LocalIndex++] = Result;
 }
 
 /* -----------------------------------------------------------------
@@ -837,6 +909,10 @@ void EvaluateFieldNodeScalar(in float3 SamplePosition, in int NodeOffset,
 	if (NodeType == UNIFORM_SCALAR)
 	{
 		EvaluateUniformScalar(SamplePosition, NodeOffset + 1, ContextDatas, LocalIndex);
+	}
+	else if (NodeType == WAVE_SCALAR)
+	{
+		EvaluateWaveScalar(SamplePosition, NodeOffset + 1, ContextDatas, LocalIndex, ClipmapExtent);
 	}
 	else if (NodeType == RADIAL_FALLOFF_SCALAR)
 	{
