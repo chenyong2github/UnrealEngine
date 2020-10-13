@@ -18,6 +18,7 @@
 #include "SLevelViewport.h"
 #include "LevelSequenceEditor/Private/LevelSequenceEditorBlueprintLibrary.h"
 #include "VPUtilitiesEditor/Public/VPUtilitiesEditorBlueprintLibrary.h"
+#include "Modules/ModuleManager.h"
 #endif
 
 bool UVCamBlueprintFunctionLibrary::IsGameRunning()

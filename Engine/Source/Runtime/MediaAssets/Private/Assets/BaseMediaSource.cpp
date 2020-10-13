@@ -5,6 +5,7 @@
 #include "UObject/MediaFrameWorkObjectVersion.h"
 #include "IMediaModule.h"
 #include "IMediaPlayerFactory.h"
+#include "Modules/ModuleManager.h"
 
 #if WITH_EDITOR
 	#include "Interfaces/ITargetPlatform.h"

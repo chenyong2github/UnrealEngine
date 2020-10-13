@@ -9,9 +9,12 @@
 #include "Features/IModularFeature.h"
 #include "IXRInput.h"
 #include "XRGestureConfig.h"
+#include "StereoRendering.h"
 
 class IXRCamera;
 class UARPin;
+class FSceneViewFamily;
+struct FWorldContext;
 
 /**
  * Struct representing the properties of an external tracking sensor.

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "IOpenXRExtensionPlugin.h"
+#include "Modules/ModuleManager.h"
 
 class FOpenXRHPControllerModule :
 	public IModuleInterface,
