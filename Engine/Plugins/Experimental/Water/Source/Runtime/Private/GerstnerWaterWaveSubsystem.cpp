@@ -3,6 +3,7 @@
 #include "GerstnerWaterWaveSubsystem.h"
 #include "GerstnerWaterWaveViewExtension.h"
 #include "Engine/Engine.h"
+#include "Misc/CoreDelegates.h"
 
 UGerstnerWaterWaveSubsystem::UGerstnerWaterWaveSubsystem()
 {
