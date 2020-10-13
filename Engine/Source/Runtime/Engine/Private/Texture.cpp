@@ -1628,7 +1628,13 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 	FString TextureCompressionFormat;
 	bool bHasFormat = EngineSettings.GetString(TEXT("AlternateTextureCompression"), TEXT("TextureCompressionFormat"), TextureCompressionFormat);
 
-	if (bHasPrefix && bHasFormat)
+	bool bEnableInEditor = false;
+	EngineSettings.GetBool(TEXT("AlternateTextureCompression"), TEXT("bEnableInEditor"), bEnableInEditor);
+
+	// Disable in the Editor by default but never in cooked builds
+	bEnableInEditor = !TargetPlatform->HasEditorOnlyData() || bEnableInEditor;
+
+	if (bHasPrefix && bHasFormat && bEnableInEditor)
 	{
 		ITextureFormat* TextureFormat = FModuleManager::LoadModuleChecked<ITextureFormatModule>(*TextureCompressionFormat).GetTextureFormat();
 
