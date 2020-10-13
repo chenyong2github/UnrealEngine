@@ -43,6 +43,12 @@ class Setting(QtCore.QObject):
         except KeyError:
             return False
 
+    def remove_override(self, device_name):
+        try:
+            del self._overrides[device_name]
+        except KeyError:
+            pass
+
     def update_value(self, new_value):
         if self._value == new_value:
             return
