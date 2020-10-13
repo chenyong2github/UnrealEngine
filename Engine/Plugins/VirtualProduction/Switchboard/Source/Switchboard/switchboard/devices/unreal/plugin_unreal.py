@@ -119,7 +119,7 @@ class DeviceUnreal(Device):
         super().connect_listener()
 
         self._request_roles_file()
-        self._request_current_changelist_number()
+        self._request_project_changelist_number()
 
     def _request_roles_file(self):
         uproject_path = CONFIG.UPROJECT_PATH.get_value(self.name)
@@ -128,7 +128,7 @@ class DeviceUnreal(Device):
         _, msg = message_protocol.create_copy_file_from_listener_message(roles_file_path)
         self.unreal_client.send_message(msg)
 
-    def _request_current_changelist_number(self):
+    def _request_project_changelist_number(self):
         client_name = CONFIG.SOURCE_CONTROL_WORKSPACE.get_value(self.name)
         p4_path = CONFIG.P4_PATH.get_value()
         args = f'-F "%change%" -c {client_name} cstat {p4_path}/...#have'
@@ -258,11 +258,15 @@ class DeviceUnreal(Device):
             self.changelist = self.changelist # force to show existing changelist to hide building/syncing
 
     def on_program_ended(self, program_id, returncode, output):
+
         LOGGER.info(f"{self.name}: Program with id {program_id} exited with returncode {returncode}")
+
         program_name = self._running_remote_program_names.pop(program_id)
         self._running_remote_program_ids.pop(program_name)
+
         if program_name == "unreal":
             self.status = DeviceStatus.CLOSED
+
         elif program_name == "sync":
             self.status = DeviceStatus.CLOSED
             if returncode != 0:
@@ -277,6 +281,7 @@ class DeviceUnreal(Device):
                     self.start_build_after_sync = False
                     self.build()
             self.inflight_changelist = 0
+
         elif program_name == "build":
             if returncode == 0:
                 LOGGER.info(f"{self.name}: Project was built successfully!")
@@ -286,15 +291,22 @@ class DeviceUnreal(Device):
                     LOGGER.error(f"{self.name}: {line}")
             self.status = DeviceStatus.CLOSED
             self.changelist = self.changelist # forces an update to the changelist field (to hide the Building state)
+
         elif program_name == "cstat":
+
+            # when not connected to p4, you get this message:
+            #  "Perforce client error: Connect to server failed; check $P4PORT. TCP connect to perforce:1666 failed. No such host is known."
+
             changelists = [line.strip() for line in output.split()]
-            if changelists:
-                current_changelist = changelists[-1]
-                project_name = os.path.basename(os.path.dirname(CONFIG.UPROJECT_PATH.get_value(self.name)))
-                LOGGER.info(f"{self.name}: Project {project_name} is on revision {current_changelist}")
-                self.changelist = current_changelist
-            else:
+
+            if not changelists or ('Perforce client error:' in output):
                 LOGGER.error(f"{self.name}: Could not retrieve changelists for project. Are the Source Control Settings correctly configured?")
+                return
+
+            current_changelist = changelists[-1]
+            project_name = os.path.basename(os.path.dirname(CONFIG.UPROJECT_PATH.get_value(self.name)))
+            LOGGER.info(f"{self.name}: Project {project_name} is on revision {current_changelist}")
+            self.changelist = current_changelist
 
     def on_program_kill_failed(self, program_id, error):
         self._running_remote_program_ids["unreal"].pop(program_id)
@@ -367,11 +379,13 @@ class DeviceWidgetUnreal(DeviceWidget):
                                                     icon_disabled=':/icons/images/icon_sync_disabled.png',
                                                     icon_hover=':/icons/images/icon_sync_hover.png',
                                                     checkable=False, tool_tip='Sync Changelist')
+
         self.build_button = self.add_control_button(':/icons/images/icon_build.png',
                                                     icon_disabled=':/icons/images/icon_build_disabled.png',
                                                     icon_hover=':/icons/images/icon_build_hover.png',
                                                     icon_size=QtCore.QSize(21, 21),
                                                     checkable=False, tool_tip='Build Changelist')
+
         self.layout.addItem(spacer)
 
         self.open_button = self.add_control_button(':/icons/images/icon_open.png',
@@ -402,7 +416,6 @@ class DeviceWidgetUnreal(DeviceWidget):
 
         self.changelist_label.hide()
         self.sync_button.hide()
-        self.build_button.hide()
 
     def can_sync(self):
         return self.sync_button.isEnabled()
@@ -442,7 +455,6 @@ class DeviceWidgetUnreal(DeviceWidget):
         # Don't show the changelist
         self.changelist_label.hide()
         self.sync_button.hide()
-        self.build_button.hide()
 
         # Disable the buttons
         self.open_button.setDisabled(True)
