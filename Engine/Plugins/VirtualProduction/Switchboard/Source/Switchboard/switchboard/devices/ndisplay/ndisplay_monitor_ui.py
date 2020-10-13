@@ -20,7 +20,7 @@ class nDisplayMonitorUI(QtWidgets.QWidget):
 
         # configure resize modes on headers
         self.tableview.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
-        self.tableview.horizontalHeader().setStretchLastSection(True)
+        self.tableview.horizontalHeader().setStretchLastSection(False)
         self.tableview.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.tableview.verticalHeader().setVisible(False)
 

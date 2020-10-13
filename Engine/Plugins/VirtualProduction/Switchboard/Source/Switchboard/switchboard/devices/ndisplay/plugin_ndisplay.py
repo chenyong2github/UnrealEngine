@@ -12,7 +12,7 @@ from .ndisplay_monitor    import nDisplayMonitor
 
 from PySide2 import QtWidgets
 
-import os
+import os, traceback
 from pathlib import Path
 
 
@@ -63,7 +63,7 @@ class AddnDisplayDialog(AddDeviceDialog):
     def devices_to_add(self):
         cfg_file = self.config_file_field.text()
         try:
-            devices = self._parse_config(cfg_file)
+            devices = DevicenDisplay.parse_config(cfg_file)
             if len(devices) == 0:
                 LOGGER.error(f"Could not read any devices from nDisplay config file {cfg_file}")
             return devices
@@ -71,7 +71,170 @@ class AddnDisplayDialog(AddDeviceDialog):
             LOGGER.error(f"Error parsing nDisplay config file {cfg_file}")
             return []
 
-    def _parse_config(self, cfg_file):
+    def devices_to_remove(self):
+        return self.existing_ndisplay_devices
+
+class DeviceWidgetnDisplay(DeviceWidgetUnreal):
+    pass
+
+class DevicenDisplay(DeviceUnreal):
+
+    add_device_dialog = AddnDisplayDialog
+    
+    # TODO: These Settings should be in a collection.
+    setting_ndisplay_config_file = Setting("ndisplay_cfg_file", "nDisplay Config File", "", tool_tip="Path to nDisplay config file")
+    setting_use_all_available_cores = Setting("use_all_available_cores", "Use All Available Cores", False)
+    setting_texture_streaming = Setting("texture_streaming", "Texture Streaming", True)
+    setting_render_api = Setting("render_api", "Render API", "dx12", possible_values=["dx11", "dx12"])
+    setting_render_mode = Setting("render_mode", "Render Mode", "Mono", possible_values=["Mono", "Frame sequential", "Side-by-Side", "Top-bottom"])
+
+    ndisplay_monitor_ui = None
+    ndisplay_monitor = None
+
+    def __init__(self, name, ip_address, **kwargs):
+        super().__init__(name, ip_address, **kwargs)
+
+        # TODO: These Settings should be in a collection.
+        self.setting_ue_command_line = Setting(attr_name="ue_command_line", nice_name="UE Command Line", value=kwargs.get("ue_command_line", ''), show_ui=True)
+        self.setting_window_position = Setting(attr_name="window_position", nice_name="Window Position", value=tuple(kwargs.get("window_position", (0,0))), show_ui=False)
+        self.setting_window_resolution = Setting(attr_name="window_resolution", nice_name="Window Resolution", value=tuple(kwargs.get("window_resolution", (100,100))), show_ui=False)
+        self.setting_fullscreen = Setting(attr_name="fullscreen", nice_name="fullscreen", value=kwargs.get("fullscreen", False), show_ui=False)
+
+        self.render_mode_cmdline_opts = {"Mono": "-dc_dev_mono", "Frame sequential": "-quad_buffer_stereo", "Side-by-Side": "-dc_dev_side_by_side", "Top-bottom": "-dc_dev_top_bottom"}
+        self.path_to_config_on_host = DevicenDisplay.setting_ndisplay_config_file.get_value()
+
+        if len(self.setting_ue_command_line.get_value()) == 0:
+            self.generate_unreal_command_line()
+
+        super().setting_command_line_arguments.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
+        super().setting_exec_cmds.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
+
+        CONFIG.ENGINE_DIR.signal_setting_overriden.connect(self.on_cmdline_affecting_override)
+        CONFIG.ENGINE_DIR.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
+        CONFIG.UPROJECT_PATH.signal_setting_overriden.connect(self.on_cmdline_affecting_override)
+        CONFIG.UPROJECT_PATH.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
+
+        self.setting_ndisplay_config_file.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
+        self.setting_use_all_available_cores.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
+        self.setting_texture_streaming.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
+        self.setting_render_api.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
+        self.setting_render_mode.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
+
+        self.unreal_client.send_file_completed_delegate = self.on_ndisplay_config_transfer_complete
+        self.unreal_client.delegates['get sync status'] = self.on_get_sync_status
+
+        # create monitor if it doesn't exist
+        if not self.__class__.ndisplay_monitor:
+            self.__class__.ndisplay_monitor = nDisplayMonitor(None)
+
+    @staticmethod
+    def plugin_settings():
+        return [
+            DeviceUnreal.setting_port,
+            DeviceUnreal.setting_command_line_arguments,
+            DeviceUnreal.setting_exec_cmds,
+            DevicenDisplay.setting_ndisplay_config_file,
+            DevicenDisplay.setting_use_all_available_cores,
+            DevicenDisplay.setting_texture_streaming,
+            DevicenDisplay.setting_render_api,
+            DevicenDisplay.setting_render_mode,
+        ]
+
+    def device_settings(self):
+        ''' This is given to the config, so that it knows to save them when they change.
+        settings_dialog.py will try to create a UI for each setting if setting.show_ui is True.
+        '''
+        return super().device_settings() + [
+            self.setting_ue_command_line, 
+            self.setting_window_resolution, 
+            self.setting_window_position,
+            self.setting_fullscreen,
+        ]
+
+    def setting_overrides(self):
+        return [CONFIG.ENGINE_DIR, CONFIG.BUILD_ENGINE, CONFIG.SOURCE_CONTROL_WORKSPACE, CONFIG.UPROJECT_PATH]
+
+    def on_cmdline_affecting_override(self, device_name):
+        if self.name == device_name:
+            self.generate_unreal_command_line()
+
+    @property
+    def category_name(self):
+        return "nDisplay"
+
+    def generate_unreal_command_line(self, map_name=""):
+
+        uproject = os.path.normpath(CONFIG.UPROJECT_PATH.get_value(self.name))
+        additional_args = self.setting_command_line_arguments.get_value(self.name)
+
+        cfg_file = self.path_to_config_on_host
+
+        win_pos = self.setting_window_position.get_value()
+        win_res = self.setting_window_resolution.get_value()
+        fullscreen = self.setting_fullscreen.get_value()
+
+        render_mode = self.render_mode_cmdline_opts[self.setting_render_mode.get_value()]
+        render_api = f"-{self.setting_render_api.get_value()}"
+        use_all_cores = "-useallavailablecores" if self.setting_use_all_available_cores.get_value() else ""
+        no_texture_streaming = "-notexturestreaming" if not self.setting_texture_streaming.get_value() else ""
+
+        # fill in fixed arguments
+
+        fixed_args = [
+            "-game",       # render nodes run in -game
+            "-messaging",  # enables messaging, needed for MultiUser
+            "-dc_cluster", # this is a cluster node
+            "-nosplash",   # avoids splash screen
+            "-fixedseed",  # for determinism
+            "-NoVerifyGC", # improves performance
+            "-noxrstereo", # avoids conflicting with steam/oculus
+        ]
+
+        args = f'"{uproject}" {additional_args} {" ".join(fixed_args)} dc_cfg="{cfg_file}" {render_api} {render_mode} {use_all_cores} {no_texture_streaming} '
+
+        # fill in ExecCmds
+
+        exec_cmds = f'{self.setting_exec_cmds.get_value(self.name)}'.strip().split(';')
+        exec_cmds.append('DisableAllScreenMessages')
+        exec_cmds = [cmd for cmd in exec_cmds if len(cmd.strip())]
+
+        if len(exec_cmds):
+            exec_cmds_expanded = ';'.join(exec_cmds)
+            args += f' ExecCmds="{exec_cmds_expanded}" '
+
+        # when in fullscreen, the window parameters should not be passed
+        if fullscreen:
+            args += f' fullscreen=true '
+        else:
+            args += f' -windowed WinX={win_pos[0]} WinY={win_pos[1]} ResX={win_res[0]} ResY={win_res[1]} '
+
+        args += f" dc_node={self.name} Log={self.name}.log "
+
+        # MultiUser parameters
+
+        if CONFIG.MUSERVER_AUTO_JOIN:
+            args += f' -CONCERTRETRYAUTOCONNECTONERROR -CONCERTAUTOCONNECT -CONCERTSERVER={CONFIG.MUSERVER_SERVER_NAME} -CONCERTSESSION={SETTINGS.MUSERVER_SESSION_NAME} -CONCERTDISPLAYNAME={self.name} '
+
+        args += f' -LogCmds="LogDisplayClusterPlugin Log, LogDisplayClusterEngine Log, LogDisplayClusterConfig Log, LogDisplayClusterCluster Log, LogDisplayClusterGame Log, LogDisplayClusterGameMode Log, LogDisplayClusterInput Log, LogDisplayClusterInputVRPN Log, LogDisplayClusterNetwork Log, LogDisplayClusterNetworkMsg Log, LogDisplayClusterRender Log, LogDisplayClusterRenderSync Log, LogDisplayClusterBlueprint Log" '
+
+        path_to_exe = self.generate_unreal_exe_path()
+        self.setting_ue_command_line.update_value(f"{path_to_exe} {args}")
+
+        return path_to_exe, args
+
+    def on_ndisplay_config_transfer_complete(self, destination):
+        LOGGER.info(f"{self.name}: nDisplay config file was successfully transferred to {destination} on host")
+        self.path_to_config_on_host = destination
+        super().launch(map_name="")
+
+    def on_get_sync_status(self, message):
+        ''' Called when 'get sync status' is received.
+        '''
+        self.__class__.ndisplay_monitor.on_get_sync_status(device=self, message=message)
+
+    @classmethod
+    def parse_config(cls, cfg_file):
+
         nodes = []
 
         cluster_node_lines = []
@@ -95,6 +258,7 @@ class AddnDisplayDialog(AddDeviceDialog):
             node_window = node_window.replace('"', '')
 
             kwargs = {"ue_command_line": ""}
+
             for window_line in window_lines:
                 if node_window in window_line:
                     try:
@@ -125,141 +289,60 @@ class AddnDisplayDialog(AddDeviceDialog):
                     except IndexError:
                         resy = 0
 
+                    try:
+                        fullscreen = window_line.split("fullscreen=")[1]
+                        fullscreen = fullscreen.split(' ', 1)[0]
+                        fullscreen = True if (('true' in fullscreen) or (fullscreen == "1")) else False
+                    except IndexError:
+                        fullscreen = False
+
                     kwargs["window_position"] = (int(winx), int(winy))
                     kwargs["window_resolution"] = (int(resx), int(resy))
+                    kwargs["fullscreen"] = fullscreen
+
                     break
 
             addr = line.split("addr=")[1]
             addr = addr.split(' ', 1)[0]
             addr = addr.replace('"', '')
+
             nodes.append({"name": name, "ip_address": addr, "kwargs": kwargs})
+
         return nodes
 
-    def devices_to_remove(self):
-        return self.existing_ndisplay_devices
-
-class DeviceWidgetnDisplay(DeviceWidgetUnreal):
-    pass
-
-class DevicenDisplay(DeviceUnreal):
-
-    add_device_dialog = AddnDisplayDialog
-    setting_ndisplay_config_file = Setting("ndisplay_cfg_file", "nDisplay Config File", "", tool_tip="Path to nDisplay config file")
-    setting_use_all_available_cores = Setting("use_all_available_cores", "Use All Available Cores", False)
-    setting_texture_streaming = Setting("texture_streaming", "Texture Streaming", True)
-    setting_render_api = Setting("render_api", "Render API", "dx12", possible_values=["dx11", "dx12"])
-    setting_render_mode = Setting("render_mode", "Render Mode", "Mono", possible_values=["Mono", "Frame sequential", "Side-by-Side", "Top-bottom"])
-
-    ndisplay_monitor_ui = None
-    ndisplay_monitor = None
-
-    def __init__(self, name, ip_address, **kwargs):
-        super().__init__(name, ip_address, **kwargs)
-
-        self.setting_ue_command_line = Setting("ue_command_line", "UE Command Line", kwargs["ue_command_line"])
-        self.setting_window_position = Setting("window_position", "Window Position", tuple(kwargs["window_position"]))
-        self.setting_window_resolution = Setting("window_resolution", "Window Resolution", tuple(kwargs["window_resolution"]))
-
-        self.render_mode_cmdline_opts = {"Mono": "-dc_dev_mono", "Frame sequential": "-quad_buffer_stereo", "Side-by-Side": "-dc_dev_side_by_side", "Top-bottom": "-dc_dev_top_bottom"}
-        self.path_to_config_on_host = DevicenDisplay.setting_ndisplay_config_file.get_value()
-        if len(self.setting_ue_command_line.get_value()) == 0:
-            self.generate_unreal_command_line()
-
-        super().setting_command_line_arguments.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
-        CONFIG.ENGINE_DIR.signal_setting_overriden.connect(self.on_cmdline_affecting_override)
-        CONFIG.ENGINE_DIR.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
-        CONFIG.UPROJECT_PATH.signal_setting_overriden.connect(self.on_cmdline_affecting_override)
-        CONFIG.UPROJECT_PATH.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
-        self.setting_ndisplay_config_file.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
-        self.setting_use_all_available_cores.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
-        self.setting_texture_streaming.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
-        self.setting_render_api.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
-        self.setting_render_mode.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
-
-        self.unreal_client.send_file_completed_delegate = self.on_ndisplay_config_transfer_complete
-        self.unreal_client.delegates['get sync status'] = self.on_get_sync_status
-
-        # create monitor if it doesn't exist
-        if not self.__class__.ndisplay_monitor:
-            self.__class__.ndisplay_monitor = nDisplayMonitor(None)
-
-    @staticmethod
-    def plugin_settings():
-        return [DeviceUnreal.setting_port,
-            DeviceUnreal.setting_command_line_arguments,
-            DevicenDisplay.setting_ndisplay_config_file,
-            DevicenDisplay.setting_use_all_available_cores,
-            DevicenDisplay.setting_texture_streaming,
-            DevicenDisplay.setting_render_api,
-            DevicenDisplay.setting_render_mode]
-
-    def device_settings(self):
-        return super().device_settings() + [self.setting_ue_command_line, self.setting_window_resolution, self.setting_window_position]
-
-    def setting_overrides(self):
-        return [CONFIG.ENGINE_DIR, CONFIG.BUILD_ENGINE, CONFIG.SOURCE_CONTROL_WORKSPACE, CONFIG.UPROJECT_PATH]
-
-    def on_cmdline_affecting_override(self, device_name):
-        if self.name == device_name:
-            self.generate_unreal_command_line()
-
-    @property
-    def category_name(self):
-        return "nDisplay"
-
-    def generate_unreal_command_line(self, map_name=""):
-
-        uproject = os.path.normpath(CONFIG.UPROJECT_PATH.get_value(self.name))
-        additional_args = self.setting_command_line_arguments.get_value(self.name)
-
-        cfg_file = self.path_to_config_on_host
-
-        win_pos = self.setting_window_position.get_value()
-        win_res = self.setting_window_resolution.get_value()
-
-        render_mode = self.render_mode_cmdline_opts[self.setting_render_mode.get_value()]
-        render_api = f"-{self.setting_render_api.get_value()}"
-        use_all_cores = " -useallavailablecores" if self.setting_use_all_available_cores.get_value() else ""
-        no_texture_streaming = " -notexturestreaming" if not self.setting_texture_streaming.get_value() else ""
-
-        fixed_args = [
-            "-game",
-            "-messaging",
-            "-dc_cluster",
-            "-nosplash",
-            "-fixedseed",
-            "-NoVerifyGC",
-            #'ExecCmds="DisableAllScreenMessages"',
-        ]
-
-        args = f'"{uproject}" {additional_args} {" ".join(fixed_args)} dc_cfg="{cfg_file}" {render_api} {render_mode} {use_all_cores} {no_texture_streaming} '
-
-        # TODO: Properly handle fullscreen
-        args += f'-windowed WinX={win_pos[0]} WinY={win_pos[1]} ResX={win_res[0]} ResY={win_res[1]} dc_node={self.name} Log={self.name}.log '
-
-        if CONFIG.MUSERVER_AUTO_JOIN:
-            args += f'-CONCERTAUTOCONNECT -CONCERTSERVER={CONFIG.MUSERVER_SERVER_NAME} -CONCERTSESSION={SETTINGS.MUSERVER_SESSION_NAME} -CONCERTDISPLAYNAME={self.name}'
-
-        args += f'-LogCmds="LogDisplayClusterPlugin Log, LogDisplayClusterEngine Log, LogDisplayClusterConfig Log, LogDisplayClusterCluster Log, LogDisplayClusterGame Log, LogDisplayClusterGameMode Log, LogDisplayClusterInput Log, LogDisplayClusterInputVRPN Log, LogDisplayClusterNetwork Log, LogDisplayClusterNetworkMsg Log, LogDisplayClusterRender Log, LogDisplayClusterRenderSync Log, LogDisplayClusterBlueprint Log"'
-
-        path_to_exe = self.generate_unreal_exe_path()
-        self.setting_ue_command_line.update_value(f"{path_to_exe} {args}")
-        return path_to_exe, args
-
-    def on_ndisplay_config_transfer_complete(self, destination):
-        LOGGER.info(f"{self.name}: nDisplay config file was successfully transferred to {destination} on host")
-        self.path_to_config_on_host = destination
-        map_name = ""
-        super().launch(map_name)
-
-    def on_get_sync_status(self, message):
-        ''' Called when 'get sync status' is received.
+    def update_settings_controlled_by_config(self, cfg_file):
+        ''' Updates settings that are exclusively controlled by the config file
         '''
-        self.__class__.ndisplay_monitor.on_get_sync_status(device=self, message=message)
+
+        nodes = self.parse_config(cfg_file)
+
+        # find which node is self:
+        menode = next(node for node in nodes if node['name'] == self.name)
+
+        if not menode:
+            LOGGER.error(f"{self.name} not found in config file {cfg_file}")
+            return
+
+        self.setting_window_position.update_value(menode['kwargs'].get("window_position", (0.0)))
+        self.setting_window_resolution.update_value(menode['kwargs'].get("window_resolution", (100,100)))
+        self.setting_fullscreen.update_value(menode['kwargs'].get("fullscreen", False))
 
     def launch(self, map_name):
+
+        # Update settings controlled exclusively by the nDisplay config file.
+        try:
+            cfg_file = self.setting_ndisplay_config_file.get_value()
+            self.update_settings_controlled_by_config(cfg_file)
+        except:
+            LOGGER.error(f"{self.name}: Could not update from '{cfg_file}' before launch. \n\n=== Traceback BEGIN ===\n{traceback.format_exc()}=== Traceback END ===\n")
+            self.widget._close()
+            return
+
+        # Transfer config file
+
+        source = cfg_file
         destination = "%TEMP%/ndisplay/%RANDOM%.cfg"
-        source = self.setting_ndisplay_config_file.get_value()
+
         if os.path.exists(source):
             self._last_issued_command_id, msg = message_protocol.create_send_file_message(source, destination)
             self.unreal_client.send_message(msg)

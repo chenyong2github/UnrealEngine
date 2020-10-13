@@ -89,6 +89,7 @@ struct FRunningProcess
 	FIPv4Endpoint Recipient;
 	FString Path;
 	FString Name;
+	FString Caller;
 };
 
 FSwitchboardListener::FSwitchboardListener(const FIPv4Endpoint& InEndpoint)
@@ -149,6 +150,7 @@ bool FSwitchboardListener::Tick()
 					StateRunningProcess.Uuid = RunningProcess.UUID.ToString();
 					StateRunningProcess.Name = RunningProcess.Name;
 					StateRunningProcess.Path = RunningProcess.Path;
+					StateRunningProcess.Caller = RunningProcess.Caller;
 
 					StatePacket.RunningProcesses.Add(MoveTemp(StateRunningProcess));
 				}
@@ -315,6 +317,7 @@ bool FSwitchboardListener::StartProcess(const FSwitchboardStartTask& InRunTask)
 	NewProcess.Recipient = InRunTask.Recipient;
 	NewProcess.Path = InRunTask.Command;
 	NewProcess.Name = InRunTask.Name;
+	NewProcess.Caller = InRunTask.Caller;
 
 	if (!FPlatformProcess::CreatePipe(NewProcess.ReadPipe, NewProcess.WritePipe))
 	{
