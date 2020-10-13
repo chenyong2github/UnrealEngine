@@ -478,6 +478,12 @@ TSharedRef<SWidget> SDMXFixturePatcher::CreateDragDropDecorator(TWeakObjectPtr<U
 
 void SDMXFixturePatcher::PostUndo(bool bSuccess)
 {
+	UDMXLibrary* DMXLibrary = GetDMXLibrary();
+	if(DMXLibrary)
+	{
+		DMXLibrary->Modify();
+	}
+
 	RefreshFromProperties();
 }
 
