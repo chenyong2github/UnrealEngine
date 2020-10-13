@@ -173,11 +173,7 @@ FSlatePasswordRun::FSlatePasswordRun(const FSlatePasswordRun& Run)
 
 TCHAR FSlatePasswordRun::GetPasswordChar()
 {
-#if PLATFORM_TCHAR_IS_1_BYTE
-	return TEXT('*');
-#else
 	return TEXT('\u2022');
-#endif
 }
 
 FString FSlatePasswordRun::BuildPasswordString(const int32 InLength)
