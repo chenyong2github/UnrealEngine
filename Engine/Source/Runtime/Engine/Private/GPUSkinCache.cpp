@@ -1495,7 +1495,7 @@ void FGPUSkinCache::ProcessRayTracingGeometryToUpdate(
 				if (RayTracingGeometryMemoryPendingRelease >= GMemoryLimitForBatchedRayTracingGeometryUpdates * 1024ull * 1024ull)
 				{
 					RayTracingGeometryMemoryPendingRelease = 0;
-					FRHIResource::FlushPendingDeletes();
+					RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
 					UE_LOG(LogSkinCache, Display, TEXT("Flushing RHI resource pending deletes due to %d MB limit"), GMemoryLimitForBatchedRayTracingGeometryUpdates);
 				}
 			}
