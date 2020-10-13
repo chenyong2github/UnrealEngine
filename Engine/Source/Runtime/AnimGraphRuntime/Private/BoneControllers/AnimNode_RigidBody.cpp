@@ -309,12 +309,12 @@ void FAnimNode_RigidBody::InitSimulationSpace(
 	const FTransform& ComponentToWorld,
 	const FTransform& BoneToComponent)
 {
-	PreviousComponentToWorld = ComponentToWorld;
-	PreviousBoneToComponent = BoneToComponent;
-	PreviousComponentLinearVelocity = FVector::ZeroVector;
-	PreviousComponentAngularVelocity = FVector::ZeroVector;
-	PreviousBoneLinearVelocity = FVector::ZeroVector;
-	PreviousBoneAngularVelocity = FVector::ZeroVector;
+	SimSpacePreviousComponentToWorld = ComponentToWorld;
+	SimSpacePreviousBoneToComponent = BoneToComponent;
+	SimSpacePreviousComponentLinearVelocity = FVector::ZeroVector;
+	SimSpacePreviousComponentAngularVelocity = FVector::ZeroVector;
+	SimSpacePreviousBoneLinearVelocity = FVector::ZeroVector;
+	SimSpacePreviousBoneAngularVelocity = FVector::ZeroVector;
 }
 
 void FAnimNode_RigidBody::CalculateSimulationSpace(
@@ -350,13 +350,13 @@ void FAnimNode_RigidBody::CalculateSimulationSpace(
 	}
 
 	// World-space component velocity and acceleration
-	FVector CompLinVel = Chaos::FVec3::CalculateVelocity(PreviousComponentToWorld.GetTranslation(), ComponentToWorld.GetTranslation(), Dt);
-	FVector CompAngVel = Chaos::FRotation3::CalculateAngularVelocity(PreviousComponentToWorld.GetRotation(), ComponentToWorld.GetRotation(), Dt);
-	FVector CompLinAcc = (CompLinVel - PreviousComponentLinearVelocity) / Dt;
-	FVector CompAngAcc = (CompAngVel - PreviousComponentAngularVelocity) / Dt;
-	PreviousComponentToWorld = ComponentToWorld;
-	PreviousComponentLinearVelocity = CompLinVel;
-	PreviousComponentAngularVelocity = CompAngVel;
+	FVector CompLinVel = Chaos::FVec3::CalculateVelocity(SimSpacePreviousComponentToWorld.GetTranslation(), ComponentToWorld.GetTranslation(), Dt);
+	FVector CompAngVel = Chaos::FRotation3::CalculateAngularVelocity(SimSpacePreviousComponentToWorld.GetRotation(), ComponentToWorld.GetRotation(), Dt);
+	FVector CompLinAcc = (CompLinVel - SimSpacePreviousComponentLinearVelocity) / Dt;
+	FVector CompAngAcc = (CompAngVel - SimSpacePreviousComponentAngularVelocity) / Dt;
+	SimSpacePreviousComponentToWorld = ComponentToWorld;
+	SimSpacePreviousComponentLinearVelocity = CompLinVel;
+	SimSpacePreviousComponentAngularVelocity = CompAngVel;
 
 	if (Space == ESimulationSpace::ComponentSpace)
 	{
@@ -373,15 +373,15 @@ void FAnimNode_RigidBody::CalculateSimulationSpace(
 	if (Space == ESimulationSpace::BaseBoneSpace)
 	{
 		// World-space component-relative bone velocity and acceleration
-		FVector BoneLinVel = Chaos::FVec3::CalculateVelocity(PreviousBoneToComponent.GetTranslation(), BoneToComponent.GetTranslation(), Dt);
-		FVector BoneAngVel = Chaos::FRotation3::CalculateAngularVelocity(PreviousBoneToComponent.GetRotation(), BoneToComponent.GetRotation(), Dt);
+		FVector BoneLinVel = Chaos::FVec3::CalculateVelocity(SimSpacePreviousBoneToComponent.GetTranslation(), BoneToComponent.GetTranslation(), Dt);
+		FVector BoneAngVel = Chaos::FRotation3::CalculateAngularVelocity(SimSpacePreviousBoneToComponent.GetRotation(), BoneToComponent.GetRotation(), Dt);
 		BoneLinVel = ComponentToWorld.TransformVector(BoneLinVel);
 		BoneAngVel = ComponentToWorld.TransformVector(BoneAngVel);
-		FVector BoneLinAcc = (BoneLinVel - PreviousBoneLinearVelocity) / Dt;
-		FVector BoneAngAcc = (BoneAngVel - PreviousBoneAngularVelocity) / Dt;
-		PreviousBoneToComponent = BoneToComponent;
-		PreviousBoneLinearVelocity = BoneLinVel;
-		PreviousBoneAngularVelocity = BoneAngVel;
+		FVector BoneLinAcc = (BoneLinVel - SimSpacePreviousBoneLinearVelocity) / Dt;
+		FVector BoneAngAcc = (BoneAngVel - SimSpacePreviousBoneAngularVelocity) / Dt;
+		SimSpacePreviousBoneToComponent = BoneToComponent;
+		SimSpacePreviousBoneLinearVelocity = BoneLinVel;
+		SimSpacePreviousBoneAngularVelocity = BoneAngVel;
 
 		// World-space bone velocity and acceleration
 		FVector NetAngVel = CompAngVel + BoneAngVel;
@@ -622,43 +622,46 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 			}
 			else if ((SimulationSpace != ESimulationSpace::WorldSpace) && bRBAN_EnableComponentAcceleration)
 			{
-				// Calc linear velocity
-				const FVector ComponentDeltaLocation = CurrentTransform.GetTranslation() - PreviousTransform.GetTranslation();
-				const FVector ComponentLinearVelocity = ComponentDeltaLocation / DeltaSeconds;
-				// Apply acceleration that opposed velocity (basically 'drag')
-				FVector ApplyLinearAcc = WorldVectorToSpaceNoScale(SimulationSpace, -ComponentLinearVelocity, CompWorldSpaceTM, BaseBoneTM) * ComponentLinearVelScale;
-
-				// Calc linear acceleration
-				const FVector ComponentLinearAcceleration = (ComponentLinearVelocity - PreviousComponentLinearVelocity) / DeltaSeconds;
-				PreviousComponentLinearVelocity = ComponentLinearVelocity;
-				// Apply opposite acceleration to bodies
-				ApplyLinearAcc += WorldVectorToSpaceNoScale(SimulationSpace, -ComponentLinearAcceleration, CompWorldSpaceTM, BaseBoneTM) * ComponentLinearAccScale;
-
-				// Iterate over bodies
-				for (const FOutputBoneData& OutputData : OutputBoneData)
+				if (!ComponentLinearVelScale.IsNearlyZero() || !ComponentLinearAccScale.IsNearlyZero())
 				{
-					const int32 BodyIndex = OutputData.BodyIndex;
-					const FBodyAnimData& BodyData = BodyAnimData[BodyIndex];
+					// Calc linear velocity
+					const FVector ComponentDeltaLocation = CurrentTransform.GetTranslation() - PreviousTransform.GetTranslation();
+					const FVector ComponentLinearVelocity = ComponentDeltaLocation / DeltaSeconds;
+					// Apply acceleration that opposed velocity (basically 'drag')
+					FVector ApplyLinearAcc = WorldVectorToSpaceNoScale(SimulationSpace, -ComponentLinearVelocity, CompWorldSpaceTM, BaseBoneTM) * ComponentLinearVelScale;
 
-					if (BodyData.bIsSimulated)
+					// Calc linear acceleration
+					const FVector ComponentLinearAcceleration = (ComponentLinearVelocity - PreviousComponentLinearVelocity) / DeltaSeconds;
+					PreviousComponentLinearVelocity = ComponentLinearVelocity;
+					// Apply opposite acceleration to bodies
+					ApplyLinearAcc += WorldVectorToSpaceNoScale(SimulationSpace, -ComponentLinearAcceleration, CompWorldSpaceTM, BaseBoneTM) * ComponentLinearAccScale;
+
+					// Iterate over bodies
+					for (const FOutputBoneData& OutputData : OutputBoneData)
 					{
-						ImmediatePhysics::FActorHandle* Body = Bodies[BodyIndex];
+						const int32 BodyIndex = OutputData.BodyIndex;
+						const FBodyAnimData& BodyData = BodyAnimData[BodyIndex];
 
-						// Apply 
-						const float BodyInvMass = Body->GetInverseMass();
-						if (BodyInvMass > 0.f)
+						if (BodyData.bIsSimulated)
 						{
-							// Final desired acceleration to apply to body
-							FVector FinalBodyLinearAcc = ApplyLinearAcc;
+							ImmediatePhysics::FActorHandle* Body = Bodies[BodyIndex];
 
-							// Clamp if desired
-							if (!ComponentAppliedLinearAccClamp.IsNearlyZero())
+							// Apply 
+							const float BodyInvMass = Body->GetInverseMass();
+							if (BodyInvMass > 0.f)
 							{
-								FinalBodyLinearAcc = FinalBodyLinearAcc.BoundToBox(-ComponentAppliedLinearAccClamp, ComponentAppliedLinearAccClamp);
-							}
+								// Final desired acceleration to apply to body
+								FVector FinalBodyLinearAcc = ApplyLinearAcc;
 
-							// Apply to body
-							Body->AddForce(FinalBodyLinearAcc / BodyInvMass);
+								// Clamp if desired
+								if (!ComponentAppliedLinearAccClamp.IsNearlyZero())
+								{
+									FinalBodyLinearAcc = FinalBodyLinearAcc.BoundToBox(-ComponentAppliedLinearAccClamp, ComponentAppliedLinearAccClamp);
+								}
+
+								// Apply to body
+								Body->AddForce(FinalBodyLinearAcc / BodyInvMass);
+							}
 						}
 					}
 				}
