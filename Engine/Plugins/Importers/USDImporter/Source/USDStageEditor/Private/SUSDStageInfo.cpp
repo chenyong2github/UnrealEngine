@@ -70,6 +70,14 @@ void SUsdStageInfo::Construct( const FArguments& InArgs, AUsdStageActor* InUsdSt
 				SNew( SEditableTextBox )
 				.HintText( LOCTEXT( "Unset", "Unset" ) )
 				.Text( this, &SUsdStageInfo::GetMetersPerUnit )
+				.IsReadOnly_Lambda([this]()
+				{
+					if ( AUsdStageActor* StageActor = UsdStageActor.Get() )
+					{
+						return !( bool ) UsdStageActor->GetUsdStage();
+					}
+					return true;
+				})
 				.OnTextCommitted( this, &SUsdStageInfo::OnMetersPerUnitCommitted )
 			]
 		]
@@ -79,18 +87,19 @@ void SUsdStageInfo::Construct( const FArguments& InArgs, AUsdStageActor* InUsdSt
 void SUsdStageInfo::RefreshStageInfos( AUsdStageActor* InUsdStageActor )
 {
 	UsdStageActor = InUsdStageActor;
+
+	if ( InUsdStageActor )
+	{
+		if ( const UE::FUsdStage& UsdStage = UsdStageActor->GetUsdStage() )
+		{
+			StageInfos.RootLayerDisplayName = FText::FromString( UsdStage.GetRootLayer().GetDisplayName() );
+			StageInfos.MetersPerUnit = UsdUtils::GetUsdStageMetersPerUnit( UsdStage );
+			return;
+		}
+	}
+
 	StageInfos.RootLayerDisplayName = LOCTEXT( "NoUsdStage", "No Stage Available" );
-
-	if ( !InUsdStageActor )
-	{
-		return;
-	}
-
-	if ( const UE::FUsdStage& UsdStage = UsdStageActor->GetUsdStage() )
-	{
-		StageInfos.RootLayerDisplayName = FText::FromString( UsdStage.GetRootLayer().GetDisplayName() );
-		StageInfos.MetersPerUnit = UsdUtils::GetUsdStageMetersPerUnit( UsdStage );
-	}
+	StageInfos.MetersPerUnit.Reset();
 }
 
 SUsdStageInfo::~SUsdStageInfo()
