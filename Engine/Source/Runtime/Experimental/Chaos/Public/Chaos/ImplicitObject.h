@@ -175,8 +175,9 @@ public:
 	}
 
 	EImplicitObjectType GetType() const;
+	int32 GetOffsetOfType() const { return offsetof(FImplicitObject, Type); }
 	EImplicitObjectType GetCollisionType() const;
-	void SetCollsionType(EImplicitObjectType InCollsiionType) { CollisionType = InCollsiionType; }
+	void SetCollisionType(EImplicitObjectType InCollisionType) { CollisionType = InCollisionType; }
 
 	FReal GetMargin() const { return Margin; }
 
